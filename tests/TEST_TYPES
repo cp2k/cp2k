@@ -1,4 +1,4 @@
-126
+125
 Total energy:!3
 MD| Potential energy!5
 Total energy \[eV\]:!4
@@ -121,10 +121,10 @@ DEBUG:: Total Force !6
 SMEAGOL| Number of electrons: !5
 BSE|             3     -TDA-                2 !5
 BSE|             3    -ABBA-                2 !5
-BSE|DEBUG| Exciton descriptor d_exc with TDA for n=1 is !10
-BSE|DEBUG| Exciton descriptor d_exc without TDA for n=1 is !10
+Checksum exciton descriptors !4
 BSE|DEBUG| Averaged dynamical dipole polarizability at 8.2 eV: !9
 BSE|DEBUG| Averaged photoabsorption cross section at 8.2 eV: !9
+
 #
 # these are the tests the can be selected for regtesting.
 # do regtest will grep for test_grep (first column) and look if the numeric value

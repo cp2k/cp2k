@@ -553,6 +553,9 @@ MODULE cp_control_types
       LOGICAL                              :: admm_symm = .FALSE.
       !> Use/Ignore possible ADMM Kernel XC correction
       LOGICAL                              :: admm_xc_correction = .FALSE.
+      ! Compute exciton descriptors
+      LOGICAL                              :: do_exciton_descriptors = .FALSE.
+      LOGICAL                              :: do_directional_exciton_descriptors = .FALSE.
       !
       ! DIPOLE_MOMENTS subsection
       !

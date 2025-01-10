@@ -41,13 +41,10 @@ MODULE bse_properties
    USE mathconstants,                   ONLY: pi
    USE mp2_types,                       ONLY: mp2_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
-   USE particle_methods,                ONLY: write_qs_particle_coordinates
-   USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: c_light_au,&
                                               evolt
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
-   USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_mo_types,                     ONLY: allocate_mo_set,&
                                               deallocate_mo_set,&
                                               init_mo_set,&
@@ -739,43 +736,35 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param exc_descr ...
-!> \param fm_eigvec_X ...
-!> \param fm_dipole_ij_trunc ...
-!> \param fm_dipole_ab_trunc ...
-!> \param fm_dipole_ai_trunc ...
-!> \param fm_quadpole_ij_trunc ...
-!> \param fm_quadpole_ab_trunc ...
+!> \param exc_descr Allocated and initialized on exit
+!> \param fm_X_ia ...
+!> \param fm_multipole_ij_trunc ...
+!> \param fm_multipole_ab_trunc ...
+!> \param fm_multipole_ai_trunc ...
+!> \param i_exc ...
 !> \param homo ...
 !> \param virtual ...
-!> \param unit_nr ...
-!> \param mp2_env ...
-!> \param qs_env ...
-!> \param fm_eigvec_Y ...
+!> \param fm_Y_ia ...
 ! **************************************************************************************************
-   SUBROUTINE get_exciton_descriptors(exc_descr, fm_eigvec_X, &
-                                      fm_dipole_ij_trunc, fm_dipole_ab_trunc, fm_dipole_ai_trunc, &
-                                      fm_quadpole_ij_trunc, fm_quadpole_ab_trunc, &
-                                      homo, virtual, unit_nr, &
-                                      mp2_env, qs_env, &
-                                      fm_eigvec_Y)
+   SUBROUTINE get_exciton_descriptors(exc_descr, fm_X_ia, &
+                                      fm_multipole_ij_trunc, fm_multipole_ab_trunc, &
+                                      fm_multipole_ai_trunc, &
+                                      i_exc, homo, virtual, &
+                                      fm_Y_ia)
 
       TYPE(exciton_descr_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: exc_descr
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_eigvec_X
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_X_ia
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:), &
-         INTENT(IN)                                      :: fm_dipole_ij_trunc, fm_dipole_ab_trunc, &
-                                                            fm_dipole_ai_trunc, &
-                                                            fm_quadpole_ij_trunc, &
-                                                            fm_quadpole_ab_trunc
-      INTEGER, INTENT(IN)                                :: homo, virtual, unit_nr
-      TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: fm_eigvec_Y
+         INTENT(IN)                                      :: fm_multipole_ij_trunc, &
+                                                            fm_multipole_ab_trunc, &
+                                                            fm_multipole_ai_trunc
+      INTEGER, INTENT(IN)                                :: i_exc, homo, virtual
+      TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: fm_Y_ia
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_exciton_descriptors'
 
-      INTEGER                                            :: handle, i_dir, i_exc, n_exc
+      INTEGER                                            :: handle, i_dir
       INTEGER, DIMENSION(3)                              :: mask_quadrupole
       LOGICAL                                            :: flag_TDA
       REAL(KIND=dp)                                      :: norm_X, norm_XpY, norm_Y
@@ -783,15 +772,10 @@ CONTAINS
                                                             r_e_sq_X, r_e_sq_Y, r_e_X, r_e_Y, &
                                                             r_h_sq_X, r_h_sq_Y, r_h_X, r_h_Y
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_ab, fm_struct_ia
-      TYPE(cp_fm_type)                                   :: fm_work_ba, fm_work_ia, fm_work_ia_2, &
-                                                            fm_X_ia, fm_Y_ia
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(section_vals_type), POINTER                   :: input, subsys_section
+      TYPE(cp_fm_type)                                   :: fm_work_ba, fm_work_ia, fm_work_ia_2
 
       CALL timeset(routineN, handle)
-      n_exc = homo*virtual
-      IF (PRESENT(fm_eigvec_Y)) THEN
+      IF (PRESENT(fm_Y_ia)) THEN
          flag_TDA = .FALSE.
       ELSE
          flag_TDA = .TRUE.
@@ -801,246 +785,218 @@ CONTAINS
       ! Ordering in quadrupole moments is x, y, z, xx, xy, xz, yy, yz, zz
       mask_quadrupole = (/4, 7, 9/)
 
-      ALLOCATE (exc_descr(mp2_env%bse%num_print_exc_descr))
-
       CALL cp_fm_struct_create(fm_struct_ia, &
-                               fm_eigvec_X%matrix_struct%para_env, fm_eigvec_X%matrix_struct%context, &
-                               homo, virtual)
+                               context=fm_X_ia%matrix_struct%context, nrow_global=homo, ncol_global=virtual)
       CALL cp_fm_struct_create(fm_struct_ab, &
-                               fm_eigvec_X%matrix_struct%para_env, fm_eigvec_X%matrix_struct%context, &
-                               virtual, virtual)
+                               context=fm_X_ia%matrix_struct%context, nrow_global=virtual, ncol_global=virtual)
 
-      ! print actual coords (might be centered and differing from input xyz) for debug runs
-      IF (mp2_env%bse%bse_debug_print) THEN
-         CALL get_qs_env(qs_env, particle_set=particle_set, &
-                         qs_kind_set=qs_kind_set, input=input)
-         subsys_section => section_vals_get_subs_vals(input, "SUBSYS")
-         IF (unit_nr > 0) THEN
-            WRITE (unit_nr, '(T2,A10,T13,A)') 'BSE|DEBUG|', &
-               'Printing internal geometry for debug purposes'
-         END IF
-         CALL write_qs_particle_coordinates(particle_set, qs_kind_set, subsys_section, label="BSE")
+      r_e_X(:) = 0.0_dp
+      r_e_Y(:) = 0.0_dp
+      r_h_X(:) = 0.0_dp
+      r_h_Y(:) = 0.0_dp
+      r_e_sq_X(:) = 0.0_dp
+      r_h_sq_X(:) = 0.0_dp
+      r_e_sq_Y(:) = 0.0_dp
+      r_h_sq_Y(:) = 0.0_dp
+      r_e_h_XX(:) = 0.0_dp
+      r_e_h_XY(:) = 0.0_dp
+      r_e_h_YX(:) = 0.0_dp
+      r_e_h_YY(:) = 0.0_dp
+
+      norm_X = 0.0_dp
+      norm_Y = 0.0_dp
+      norm_XpY = 0.0_dp
+
+      ! Initialize values of exciton descriptors
+      exc_descr(i_exc)%r_e(:) = 0.0_dp
+      exc_descr(i_exc)%r_h(:) = 0.0_dp
+      exc_descr(i_exc)%r_e_sq(:) = 0.0_dp
+      exc_descr(i_exc)%r_h_sq(:) = 0.0_dp
+      exc_descr(i_exc)%r_e_h(:) = 0.0_dp
+
+      exc_descr(i_exc)%flag_TDA = flag_TDA
+      exc_descr(i_exc)%norm_XpY = 0.0_dp
+
+      ! Norm of X
+      CALL cp_fm_trace(fm_X_ia, fm_X_ia, norm_X)
+      norm_XpY = norm_X
+      ! Norm of Y
+      IF (.NOT. flag_TDA) THEN
+         CALL cp_fm_trace(fm_Y_ia, fm_Y_ia, norm_Y)
+         norm_XpY = norm_XpY + norm_Y
       END IF
 
-      DO i_exc = 1, mp2_env%bse%num_print_exc_descr
-         r_e_X(:) = 0.0_dp
-         r_e_Y(:) = 0.0_dp
-         r_h_X(:) = 0.0_dp
-         r_h_Y(:) = 0.0_dp
-         r_e_sq_X(:) = 0.0_dp
-         r_h_sq_X(:) = 0.0_dp
-         r_e_sq_Y(:) = 0.0_dp
-         r_h_sq_Y(:) = 0.0_dp
-         r_e_h_XX(:) = 0.0_dp
-         r_e_h_XY(:) = 0.0_dp
-         r_e_h_YX(:) = 0.0_dp
-         r_e_h_YY(:) = 0.0_dp
+      exc_descr(i_exc)%norm_XpY = norm_XpY
 
-         norm_X = 0.0_dp
-         norm_Y = 0.0_dp
-         norm_XpY = 0.0_dp
-
-         ! Initialize values of exciton descriptors
-         exc_descr(i_exc)%r_e(:) = 0.0_dp
-         exc_descr(i_exc)%r_h(:) = 0.0_dp
-         exc_descr(i_exc)%r_e_sq(:) = 0.0_dp
-         exc_descr(i_exc)%r_h_sq(:) = 0.0_dp
-         exc_descr(i_exc)%r_e_h(:) = 0.0_dp
-
-         exc_descr(i_exc)%flag_TDA = flag_TDA
-         exc_descr(i_exc)%norm_XpY = 0.0_dp
-
-         CALL reshuffle_eigvec(fm_eigvec_X, fm_X_ia, homo, virtual, i_exc, &
-                               .FALSE., unit_nr, mp2_env)
-
-         ! Norm of X
-         CALL cp_fm_trace(fm_X_ia, fm_X_ia, norm_X)
-         norm_XpY = norm_X
-
+      ! <r_h>_X = Tr[ X^T µ_ij X + Y µ_ab Y^T ] = X_ai µ_ij X_ja + Y_ia  µ_ab Y_bi
+      DO i_dir = 1, 3
+         ! <r_h>_X = X_ai µ_ij X_ja + ...
+         CALL trace_exciton_descr(fm_X_ia, fm_multipole_ij_trunc(i_dir), fm_X_ia, r_h_X(i_dir))
+         r_h_X(i_dir) = r_h_X(i_dir)/norm_XpY
          IF (.NOT. flag_TDA) THEN
-            CALL reshuffle_eigvec(fm_eigvec_Y, fm_Y_ia, homo, virtual, i_exc, &
-                                  .FALSE., unit_nr, mp2_env)
-            ! Norm of Y
-            CALL cp_fm_trace(fm_Y_ia, fm_Y_ia, norm_Y)
-            norm_XpY = norm_XpY + norm_Y
-         END IF
-
-         exc_descr(i_exc)%norm_XpY = norm_XpY
-
-         ! <r_h>_X = Tr[ X^T µ_ij X + Y µ_ab Y^T ] = X_ai µ_ij X_ja + Y_ia  µ_ab Y_bi
-         DO i_dir = 1, 3
-            ! <r_h>_X = X_ai µ_ij X_ja + ...
-            CALL trace_exciton_descr(fm_X_ia, fm_dipole_ij_trunc(i_dir), fm_X_ia, r_h_X(i_dir))
-            r_h_X(i_dir) = r_h_X(i_dir)/norm_XpY
-            IF (.NOT. flag_TDA) THEN
-               ! <r_h>_X = ... + Y_ia  µ_ab Y_bi
-               CALL trace_exciton_descr(fm_Y_ia, fm_Y_ia, fm_dipole_ab_trunc(i_dir), r_h_Y(i_dir))
-               r_h_Y(i_dir) = r_h_Y(i_dir)/norm_XpY
-            END IF
-         END DO
-         exc_descr(i_exc)%r_h(:) = r_h_X(:) + r_h_Y(:)
-
-         ! <r_e>_X = Tr[ X µ_ab X^T + Y^T µ_ij Y ] = X_ia µ_ab X_bi + Y_ai µ_ij Y_ja
-         DO i_dir = 1, 3
-            ! <r_e>_X = work_ib X_bi + ... = X_ib^T work_ib + ...
-            CALL trace_exciton_descr(fm_X_ia, fm_X_ia, fm_dipole_ab_trunc(i_dir), r_e_X(i_dir))
-            r_e_X(i_dir) = r_e_X(i_dir)/norm_XpY
-            IF (.NOT. flag_TDA) THEN
-               ! <r_e>_X = ... + Y_ai µ_ij Y_ja
-               CALL trace_exciton_descr(fm_Y_ia, fm_dipole_ij_trunc(i_dir), fm_Y_ia, r_e_Y(i_dir))
-               r_e_Y(i_dir) = r_e_Y(i_dir)/norm_XpY
-            END IF
-         END DO
-         exc_descr(i_exc)%r_e(:) = r_e_X(:) + r_e_Y(:)
-
-         ! <r_h^2>_X = Tr[ X^T M_ij X + Y M_ab Y^T ] = X_ai M_ij X_ja + Y_ia  M_ab Y_bi
-         DO i_dir = 1, 3
-            ! <r_h^2>_X = X_ai M_ij X_ja + ...
-            CALL trace_exciton_descr(fm_X_ia, fm_quadpole_ij_trunc(mask_quadrupole(i_dir)), &
-                                     fm_X_ia, r_h_sq_X(i_dir))
-            r_h_sq_X(i_dir) = r_h_sq_X(i_dir)/norm_XpY
-            IF (.NOT. flag_TDA) THEN
-               ! <r_h^2>_X = ... + Y_ia  M_ab Y_bi
-               CALL trace_exciton_descr(fm_Y_ia, fm_Y_ia, &
-                                        fm_quadpole_ab_trunc(mask_quadrupole(i_dir)), r_h_sq_Y(i_dir))
-               r_h_sq_Y(i_dir) = r_h_sq_Y(i_dir)/norm_XpY
-            END IF
-         END DO
-         exc_descr(i_exc)%r_h_sq(:) = r_h_sq_X(:) + r_h_sq_Y(:)
-
-         ! <r_e^2>_X = Tr[ X M_ab X^T + Y^T M_ij Y ] = X_ia M_ab X_bi + Y_ai M_ij Y_ja
-         DO i_dir = 1, 3
-            ! <r_e^2>_X = work_ib X_bi + ... = X_ib^T work_ib + ...
-            CALL trace_exciton_descr(fm_X_ia, fm_X_ia, &
-                                     fm_quadpole_ab_trunc(mask_quadrupole(i_dir)), r_e_sq_X(i_dir))
-            r_e_sq_X(i_dir) = r_e_sq_X(i_dir)/norm_XpY
-            IF (.NOT. flag_TDA) THEN
-               ! <r_e^2>_X = ... + Y_ai M_ij Y_ja
-               CALL trace_exciton_descr(fm_Y_ia, fm_quadpole_ij_trunc(mask_quadrupole(i_dir)), &
-                                        fm_Y_ia, r_e_sq_Y(i_dir))
-               r_e_sq_Y(i_dir) = r_e_sq_Y(i_dir)/norm_XpY
-            END IF
-         END DO
-         exc_descr(i_exc)%r_e_sq(:) = r_e_sq_X(:) + r_e_sq_Y(:)
-
-         ! <r_h r_e>_X
-         !   = Tr[ X^T µ_ij X µ_ab  +  Y^T µ_ij Y µ_ab + X µ_ai Y µ_ai + Y µ_ai X µ_ai]
-         !   = X_bj µ_ji X_ia µ_ab + Y_bj µ_ji Y_ia µ_ab + X_ia µ_aj Y_jb µ_bi + Y_ia µ_aj X_jb µ_bi
-         CALL cp_fm_create(fm_work_ia, fm_struct_ia)
-         CALL cp_fm_create(fm_work_ia_2, fm_struct_ia)
-         CALL cp_fm_create(fm_work_ba, fm_struct_ab)
-         DO i_dir = 1, 3
-            ! First term - X^T µ_ij X µ_ab
-            CALL cp_fm_set_all(fm_work_ia, 0.0_dp)
-            CALL cp_fm_set_all(fm_work_ia_2, 0.0_dp)
-            ! work_ib = X_ia µ_ab
-            CALL parallel_gemm("N", "N", homo, virtual, virtual, 1.0_dp, &
-                               fm_X_ia, fm_dipole_ab_trunc(i_dir), 0.0_dp, fm_work_ia)
-            ! work_ja_2 = µ_ji work_ia
-            CALL parallel_gemm("N", "N", homo, virtual, homo, 1.0_dp, &
-                               fm_dipole_ij_trunc(i_dir), fm_work_ia, 0.0_dp, fm_work_ia_2)
-            ! <r_h r_e>_X = work_ia_2 X_bj + ... = X^T work_ia_2 + ...
-            CALL cp_fm_trace(fm_X_ia, fm_work_ia_2, r_e_h_XX(i_dir))
-            r_e_h_XX(i_dir) = r_e_h_XX(i_dir)/norm_XpY
-            IF (.NOT. flag_TDA) THEN
-               ! Second term -  Y^T µ_ij Y µ_ab
-               CALL cp_fm_set_all(fm_work_ia, 0.0_dp)
-               CALL cp_fm_set_all(fm_work_ia_2, 0.0_dp)
-               ! work_ib = Y_ia µ_ab
-               CALL parallel_gemm("N", "N", homo, virtual, virtual, 1.0_dp, &
-                                  fm_Y_ia, fm_dipole_ab_trunc(i_dir), 0.0_dp, fm_work_ia)
-               ! work_ja_2 = µ_ji work_ia
-               CALL parallel_gemm("N", "N", homo, virtual, homo, 1.0_dp, &
-                                  fm_dipole_ij_trunc(i_dir), fm_work_ia, 0.0_dp, fm_work_ia_2)
-               ! <r_h r_e>_X = work_ia_2 Y_bj + ... = Y^T work_ia_2 + ...
-               CALL cp_fm_trace(fm_Y_ia, fm_work_ia_2, r_e_h_YY(i_dir))
-               r_e_h_YY(i_dir) = r_e_h_YY(i_dir)/norm_XpY
-
-               ! Third term - X µ_ai Y µ_ai = X_ia µ_aj Y_jb µ_bi
-               !     Reshuffle for usage of trace (where first argument is transposed)
-               !     = µ_aj Y_jb µ_bi X_ia =
-               !        \__________/
-               !         fm_work_ai
-               !     fm_work_ai = µ_aj Y_jb µ_bi
-               !     fm_work_ia = µ_ib Y_bj µ_ja
-               !                        \_____/
-               !                       fm_work_ba
-               CALL cp_fm_set_all(fm_work_ba, 0.0_dp)
-               CALL cp_fm_set_all(fm_work_ia, 0.0_dp)
-               ! fm_work_ba = Y_bj µ_ja
-               CALL parallel_gemm("T", "T", virtual, virtual, homo, 1.0_dp, &
-                                  fm_Y_ia, fm_dipole_ai_trunc(i_dir), 0.0_dp, fm_work_ba)
-               ! fm_work_ia = µ_ib fm_work_ba
-               CALL parallel_gemm("T", "N", homo, virtual, virtual, 1.0_dp, &
-                                  fm_dipole_ai_trunc(i_dir), fm_work_ba, 0.0_dp, fm_work_ia)
-               ! <r_h r_e>_X = ... + X_ia µ_aj Y_jb µ_bi
-               CALL cp_fm_trace(fm_work_ia, fm_X_ia, r_e_h_XY(i_dir))
-               r_e_h_XY(i_dir) = r_e_h_XY(i_dir)/norm_XpY
-
-               ! Fourth term - Y µ_ai X µ_ai = Y_ia µ_aj X_jb µ_bi
-               !     Reshuffle for usage of trace (where first argument is transposed)
-               !     = µ_aj X_jb µ_bi Y_ia =
-               !        \__________/
-               !         fm_work_ai
-               !     fm_work_ai = µ_aj X_jb µ_bi
-               !     fm_work_ia = µ_ib X_bj µ_ja
-               !                        \_____/
-               !                       fm_work_ba
-               CALL cp_fm_set_all(fm_work_ba, 0.0_dp)
-               CALL cp_fm_set_all(fm_work_ia, 0.0_dp)
-               ! fm_work_ba = Y_bj µ_ja
-               CALL parallel_gemm("T", "T", virtual, virtual, homo, 1.0_dp, &
-                                  fm_X_ia, fm_dipole_ai_trunc(i_dir), 0.0_dp, fm_work_ba)
-               ! fm_work_ia = µ_ib fm_work_ba
-               CALL parallel_gemm("T", "N", homo, virtual, virtual, 1.0_dp, &
-                                  fm_dipole_ai_trunc(i_dir), fm_work_ba, 0.0_dp, fm_work_ia)
-               ! <r_h r_e>_X = ... + X_ia µ_aj Y_jb µ_bi
-               CALL cp_fm_trace(fm_work_ia, fm_Y_ia, r_e_h_YX(i_dir))
-               r_e_h_YX(i_dir) = r_e_h_YX(i_dir)/norm_XpY
-            END IF
-         END DO
-         exc_descr(i_exc)%r_e_h(:) = r_e_h_XX(:) + r_e_h_XY(:) + r_e_h_YX(:) + r_e_h_YY(:)
-
-         CALL cp_fm_release(fm_work_ia)
-         CALL cp_fm_release(fm_work_ia_2)
-         CALL cp_fm_release(fm_work_ba)
-
-         ! diff_r_abs = |<r_h>_X - <r_e>_X|
-         exc_descr(i_exc)%diff_r_abs = SQRT(SUM((exc_descr(i_exc)%r_h(:) - exc_descr(i_exc)%r_e(:))**2))
-
-         ! σ_e = sqrt( <r_e^2>_X - <r_e>_X^2 )
-         exc_descr(i_exc)%sigma_e = SQRT(SUM(exc_descr(i_exc)%r_e_sq(:)) - SUM(exc_descr(i_exc)%r_e(:)**2))
-
-         ! σ_h = sqrt( <r_h^2>_X - <r_h>_X^2 )
-         exc_descr(i_exc)%sigma_h = SQRT(SUM(exc_descr(i_exc)%r_h_sq(:)) - SUM(exc_descr(i_exc)%r_h(:)**2))
-
-         ! COV(r_e, r_h) = < r_e r_h >_X - < r_e >_X < r_h >_X
-         exc_descr(i_exc)%cov_e_h_sum = 0.0_dp
-         exc_descr(i_exc)%cov_e_h(:) = 0.0_dp
-         DO i_dir = 1, 3
-            exc_descr(i_exc)%cov_e_h(i_dir) = exc_descr(i_exc)%r_e_h(i_dir) &
-                                              - exc_descr(i_exc)%r_e(i_dir)*exc_descr(i_exc)%r_h(i_dir)
-            exc_descr(i_exc)%cov_e_h_sum = exc_descr(i_exc)%cov_e_h_sum + &
-                                           exc_descr(i_exc)%r_e_h(i_dir) - exc_descr(i_exc)%r_e(i_dir)*exc_descr(i_exc)%r_h(i_dir)
-         END DO
-
-         ! root-mean-square e-h separation
-         exc_descr(i_exc)%diff_r_sqr = SQRT(exc_descr(i_exc)%diff_r_abs**2 + &
-                                            exc_descr(i_exc)%sigma_e**2 + exc_descr(i_exc)%sigma_h**2 &
-                                            - 2*exc_descr(i_exc)%cov_e_h_sum)
-
-         ! e-h-correlation coefficient R_eh = COV(r_e, r_h) / ( σ_e σ_h )
-         exc_descr(i_exc)%corr_e_h = exc_descr(i_exc)%cov_e_h_sum/(exc_descr(i_exc)%sigma_e*exc_descr(i_exc)%sigma_h)
-
-         ! Expectation values of r_e and r_h
-         exc_descr(i_exc)%r_e_shift(:) = exc_descr(i_exc)%r_e(:)
-         exc_descr(i_exc)%r_h_shift(:) = exc_descr(i_exc)%r_h(:)
-
-         CALL cp_fm_release(fm_X_ia)
-         IF (.NOT. flag_TDA) THEN
-            CALL cp_fm_release(fm_Y_ia)
+            ! <r_h>_X = ... + Y_ia  µ_ab Y_bi
+            CALL trace_exciton_descr(fm_Y_ia, fm_Y_ia, fm_multipole_ab_trunc(i_dir), r_h_Y(i_dir))
+            r_h_Y(i_dir) = r_h_Y(i_dir)/norm_XpY
          END IF
       END DO
+      exc_descr(i_exc)%r_h(:) = r_h_X(:) + r_h_Y(:)
+
+      ! <r_e>_X = Tr[ X µ_ab X^T + Y^T µ_ij Y ] = X_ia µ_ab X_bi + Y_ai µ_ij Y_ja
+      DO i_dir = 1, 3
+         ! <r_e>_X = work_ib X_bi + ... = X_ib^T work_ib + ...
+         CALL trace_exciton_descr(fm_X_ia, fm_X_ia, fm_multipole_ab_trunc(i_dir), r_e_X(i_dir))
+         r_e_X(i_dir) = r_e_X(i_dir)/norm_XpY
+         IF (.NOT. flag_TDA) THEN
+            ! <r_e>_X = ... + Y_ai µ_ij Y_ja
+            CALL trace_exciton_descr(fm_Y_ia, fm_multipole_ij_trunc(i_dir), fm_Y_ia, r_e_Y(i_dir))
+            r_e_Y(i_dir) = r_e_Y(i_dir)/norm_XpY
+         END IF
+      END DO
+      exc_descr(i_exc)%r_e(:) = r_e_X(:) + r_e_Y(:)
+
+      ! <r_h^2>_X = Tr[ X^T M_ij X + Y M_ab Y^T ] = X_ai M_ij X_ja + Y_ia  M_ab Y_bi
+      DO i_dir = 1, 3
+         ! <r_h^2>_X = X_ai M_ij X_ja + ...
+         CALL trace_exciton_descr(fm_X_ia, fm_multipole_ij_trunc(mask_quadrupole(i_dir)), &
+                                  fm_X_ia, r_h_sq_X(i_dir))
+         r_h_sq_X(i_dir) = r_h_sq_X(i_dir)/norm_XpY
+         IF (.NOT. flag_TDA) THEN
+            ! <r_h^2>_X = ... + Y_ia  M_ab Y_bi
+            CALL trace_exciton_descr(fm_Y_ia, fm_Y_ia, &
+                                     fm_multipole_ab_trunc(mask_quadrupole(i_dir)), r_h_sq_Y(i_dir))
+            r_h_sq_Y(i_dir) = r_h_sq_Y(i_dir)/norm_XpY
+         END IF
+      END DO
+      exc_descr(i_exc)%r_h_sq(:) = r_h_sq_X(:) + r_h_sq_Y(:)
+
+      ! <r_e^2>_X = Tr[ X M_ab X^T + Y^T M_ij Y ] = X_ia M_ab X_bi + Y_ai M_ij Y_ja
+      DO i_dir = 1, 3
+         ! <r_e^2>_X = work_ib X_bi + ... = X_ib^T work_ib + ...
+         CALL trace_exciton_descr(fm_X_ia, fm_X_ia, &
+                                  fm_multipole_ab_trunc(mask_quadrupole(i_dir)), r_e_sq_X(i_dir))
+         r_e_sq_X(i_dir) = r_e_sq_X(i_dir)/norm_XpY
+         IF (.NOT. flag_TDA) THEN
+            ! <r_e^2>_X = ... + Y_ai M_ij Y_ja
+            CALL trace_exciton_descr(fm_Y_ia, fm_multipole_ij_trunc(mask_quadrupole(i_dir)), &
+                                     fm_Y_ia, r_e_sq_Y(i_dir))
+            r_e_sq_Y(i_dir) = r_e_sq_Y(i_dir)/norm_XpY
+         END IF
+      END DO
+      exc_descr(i_exc)%r_e_sq(:) = r_e_sq_X(:) + r_e_sq_Y(:)
+
+      ! <r_h r_e>_X
+      !   = Tr[ X^T µ_ij X µ_ab  +  Y^T µ_ij Y µ_ab + X µ_ai Y µ_ai + Y µ_ai X µ_ai]
+      !   = X_bj µ_ji X_ia µ_ab + Y_bj µ_ji Y_ia µ_ab + X_ia µ_aj Y_jb µ_bi + Y_ia µ_aj X_jb µ_bi
+      CALL cp_fm_create(fm_work_ia, fm_struct_ia)
+      CALL cp_fm_create(fm_work_ia_2, fm_struct_ia)
+      CALL cp_fm_create(fm_work_ba, fm_struct_ab)
+      DO i_dir = 1, 3
+         ! First term - X^T µ_ij X µ_ab
+         CALL cp_fm_set_all(fm_work_ia, 0.0_dp)
+         CALL cp_fm_set_all(fm_work_ia_2, 0.0_dp)
+         ! work_ib = X_ia µ_ab
+         CALL parallel_gemm("N", "N", homo, virtual, virtual, 1.0_dp, &
+                            fm_X_ia, fm_multipole_ab_trunc(i_dir), 0.0_dp, fm_work_ia)
+         ! work_ja_2 = µ_ji work_ia
+         CALL parallel_gemm("N", "N", homo, virtual, homo, 1.0_dp, &
+                            fm_multipole_ij_trunc(i_dir), fm_work_ia, 0.0_dp, fm_work_ia_2)
+         ! <r_h r_e>_X = work_ia_2 X_bj + ... = X^T work_ia_2 + ...
+         CALL cp_fm_trace(fm_X_ia, fm_work_ia_2, r_e_h_XX(i_dir))
+         r_e_h_XX(i_dir) = r_e_h_XX(i_dir)/norm_XpY
+         IF (.NOT. flag_TDA) THEN
+            ! Second term -  Y^T µ_ij Y µ_ab
+            CALL cp_fm_set_all(fm_work_ia, 0.0_dp)
+            CALL cp_fm_set_all(fm_work_ia_2, 0.0_dp)
+            ! work_ib = Y_ia µ_ab
+            CALL parallel_gemm("N", "N", homo, virtual, virtual, 1.0_dp, &
+                               fm_Y_ia, fm_multipole_ab_trunc(i_dir), 0.0_dp, fm_work_ia)
+            ! work_ja_2 = µ_ji work_ia
+            CALL parallel_gemm("N", "N", homo, virtual, homo, 1.0_dp, &
+                               fm_multipole_ij_trunc(i_dir), fm_work_ia, 0.0_dp, fm_work_ia_2)
+            ! <r_h r_e>_X = work_ia_2 Y_bj + ... = Y^T work_ia_2 + ...
+            CALL cp_fm_trace(fm_Y_ia, fm_work_ia_2, r_e_h_YY(i_dir))
+            r_e_h_YY(i_dir) = r_e_h_YY(i_dir)/norm_XpY
+
+            ! Third term - X µ_ai Y µ_ai = X_ia µ_aj Y_jb µ_bi
+            !     Reshuffle for usage of trace (where first argument is transposed)
+            !     = µ_aj Y_jb µ_bi X_ia =
+            !        \__________/
+            !         fm_work_ai
+            !     fm_work_ai = µ_aj Y_jb µ_bi
+            !     fm_work_ia = µ_ib Y_bj µ_ja
+            !                        \_____/
+            !                       fm_work_ba
+            CALL cp_fm_set_all(fm_work_ba, 0.0_dp)
+            CALL cp_fm_set_all(fm_work_ia, 0.0_dp)
+            ! fm_work_ba = Y_bj µ_ja
+            CALL parallel_gemm("T", "T", virtual, virtual, homo, 1.0_dp, &
+                               fm_Y_ia, fm_multipole_ai_trunc(i_dir), 0.0_dp, fm_work_ba)
+            ! fm_work_ia = µ_ib fm_work_ba
+            CALL parallel_gemm("T", "N", homo, virtual, virtual, 1.0_dp, &
+                               fm_multipole_ai_trunc(i_dir), fm_work_ba, 0.0_dp, fm_work_ia)
+            ! <r_h r_e>_X = ... + X_ia µ_aj Y_jb µ_bi
+            CALL cp_fm_trace(fm_work_ia, fm_X_ia, r_e_h_XY(i_dir))
+            r_e_h_XY(i_dir) = r_e_h_XY(i_dir)/norm_XpY
+
+            ! Fourth term - Y µ_ai X µ_ai = Y_ia µ_aj X_jb µ_bi
+            !     Reshuffle for usage of trace (where first argument is transposed)
+            !     = µ_aj X_jb µ_bi Y_ia =
+            !        \__________/
+            !         fm_work_ai
+            !     fm_work_ai = µ_aj X_jb µ_bi
+            !     fm_work_ia = µ_ib X_bj µ_ja
+            !                        \_____/
+            !                       fm_work_ba
+            CALL cp_fm_set_all(fm_work_ba, 0.0_dp)
+            CALL cp_fm_set_all(fm_work_ia, 0.0_dp)
+            ! fm_work_ba = Y_bj µ_ja
+            CALL parallel_gemm("T", "T", virtual, virtual, homo, 1.0_dp, &
+                               fm_X_ia, fm_multipole_ai_trunc(i_dir), 0.0_dp, fm_work_ba)
+            ! fm_work_ia = µ_ib fm_work_ba
+            CALL parallel_gemm("T", "N", homo, virtual, virtual, 1.0_dp, &
+                               fm_multipole_ai_trunc(i_dir), fm_work_ba, 0.0_dp, fm_work_ia)
+            ! <r_h r_e>_X = ... + X_ia µ_aj Y_jb µ_bi
+            CALL cp_fm_trace(fm_work_ia, fm_Y_ia, r_e_h_YX(i_dir))
+            r_e_h_YX(i_dir) = r_e_h_YX(i_dir)/norm_XpY
+         END IF
+      END DO
+      exc_descr(i_exc)%r_e_h(:) = r_e_h_XX(:) + r_e_h_XY(:) + r_e_h_YX(:) + r_e_h_YY(:)
+
+      CALL cp_fm_release(fm_work_ia)
+      CALL cp_fm_release(fm_work_ia_2)
+      CALL cp_fm_release(fm_work_ba)
+
+      ! diff_r_abs = |<r_h>_X - <r_e>_X|
+      exc_descr(i_exc)%diff_r_abs = SQRT(SUM((exc_descr(i_exc)%r_h(:) - exc_descr(i_exc)%r_e(:))**2))
+
+      ! σ_e = sqrt( <r_e^2>_X - <r_e>_X^2 )
+      exc_descr(i_exc)%sigma_e = SQRT(SUM(exc_descr(i_exc)%r_e_sq(:)) - SUM(exc_descr(i_exc)%r_e(:)**2))
+
+      ! σ_h = sqrt( <r_h^2>_X - <r_h>_X^2 )
+      exc_descr(i_exc)%sigma_h = SQRT(SUM(exc_descr(i_exc)%r_h_sq(:)) - SUM(exc_descr(i_exc)%r_h(:)**2))
+
+      ! COV(r_e, r_h) = < r_e r_h >_X - < r_e >_X < r_h >_X
+      exc_descr(i_exc)%cov_e_h_sum = 0.0_dp
+      exc_descr(i_exc)%cov_e_h(:) = 0.0_dp
+      DO i_dir = 1, 3
+         exc_descr(i_exc)%cov_e_h(i_dir) = exc_descr(i_exc)%r_e_h(i_dir) &
+                                           - exc_descr(i_exc)%r_e(i_dir)*exc_descr(i_exc)%r_h(i_dir)
+         exc_descr(i_exc)%cov_e_h_sum = exc_descr(i_exc)%cov_e_h_sum + &
+                                        exc_descr(i_exc)%r_e_h(i_dir) - exc_descr(i_exc)%r_e(i_dir)*exc_descr(i_exc)%r_h(i_dir)
+      END DO
+
+      ! root-mean-square e-h separation
+      exc_descr(i_exc)%diff_r_sqr = SQRT(exc_descr(i_exc)%diff_r_abs**2 + &
+                                         exc_descr(i_exc)%sigma_e**2 + exc_descr(i_exc)%sigma_h**2 &
+                                         - 2*exc_descr(i_exc)%cov_e_h_sum)
+
+      ! e-h-correlation coefficient R_eh = COV(r_e, r_h) / ( σ_e σ_h )
+      exc_descr(i_exc)%corr_e_h = exc_descr(i_exc)%cov_e_h_sum/(exc_descr(i_exc)%sigma_e*exc_descr(i_exc)%sigma_h)
+
+      ! Expectation values of r_e and r_h
+      exc_descr(i_exc)%r_e_shift(:) = exc_descr(i_exc)%r_e(:)
+      exc_descr(i_exc)%r_h_shift(:) = exc_descr(i_exc)%r_h(:)
+
       CALL cp_fm_struct_release(fm_struct_ia)
       CALL cp_fm_struct_release(fm_struct_ab)
 
