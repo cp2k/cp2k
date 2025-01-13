@@ -1509,10 +1509,15 @@ endif()
 
 if(CP2K_USE_HIP)
   add_library(cp2k_hip_libs INTERFACE)
-  target_link_libraries(cp2k_hip_libs INTERFACE hip::hipfft roc::hipblas
-                                                hip::host)
+  target_link_libraries(
+    cp2k_hip_libs
+    INTERFACE hip::hipfft roc::hipblas hip::host
+              $<$<STREQUAL:"${CMAKE_HIP_PLATFORM}","nvidia">:CUDA::toolkit
+              CUDA::cudart CUDA::cuda_driver>)
+  # if (CMAKE_HIP_PLATFORM MATCHES "nvidia") include_directories("
+  # -I$ENV{ROCM_PATH}/include") include_directories("
+  # -I${CUDAToolkit_INCLUDE_DIRS}") endif()
 endif()
-
 add_library(cp2k_linalg_libs INTERFACE)
 target_link_libraries(
   cp2k_linalg_libs
@@ -1529,13 +1534,21 @@ target_link_libraries(
             OpenMP::OpenMP_C
             OpenMP::OpenMP_CXX)
 
+if(CMAKE_HIP_PLATFORM MATCHES "amd")
+  set(CP2K_GPU_PLATFORM_DFLAGS "__HIP_PLATFORM_AMD__")
+else()
+  set(CP2K_HIP_INCLUDES "${CP2K_HIP_PATH}/include")
+  message("Info: ${CP2K_HIP_INCLUDES}")
+  set(CP2K_GPU_PLATFORM_DFLAGS "__HIP_PLATFORM_NVIDIA__")
+endif()
 set(CP2K_GPU_DFLAGS
-    $<$<BOOL:${CP2K_USE_HIP}>:__HIP_PLATFORM_AMD__
-    __OFFLOAD_HIP>
-    $<$<COMPILE_LANGUAGE:HIP>:__HIP_PLATFORM_AMD__
-    __OFFLOAD_HIP>
+    $<$<BOOL:${CP2K_USE_UNIFIED_MEMORY}>:__OFFLOAD_UNIFIED_MEMORY>
     $<$<BOOL:${CP2K_USE_CUDA}>:__OFFLOAD_CUDA>
-    $<$<COMPILE_LANGUAGE:CUDA>:__OFFLOAD_CUDA>)
+    $<$<COMPILE_LANGUAGE:CUDA>:__OFFLOAD_CUDA>
+    $<$<BOOL:${CP2K_USE_HIP}>:__OFFLOAD_HIP
+    ${CP2K_GPU_PLATFORM_DFLAGS}>
+    $<$<COMPILE_LANGUAGE:HIP>:__OFFLOAD_HIP
+    ${CP2K_GPU_PLATFORM_DFLAGS}>)
 
 # ##############################################################################
 # set properties for the cp2k target.
@@ -1583,6 +1596,8 @@ endif()
 
 include_directories(
   ${CMAKE_MPI_INCLUDE_DIRECTORIES}
+  $<$<BOOL:${CUDAToolkit_FOUND}>:${CUDAToolkit_INCLUDE_DIRS}>
+  $<$<BOOL:${CP2K_USE_HIP}>:${CMAKE_HIP_INCLUDE_DIRECTORIES}>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/base>
@@ -1665,16 +1680,10 @@ target_compile_definitions(
     $<$<BOOL:${CP2K_USE_LIBTORCH}>:__LIBTORCH>
     $<$<BOOL:${CP2K_USE_COSMA}>:__COSMA>
     $<$<BOOL:${CP2K_USE_LIBXSMM}>:__LIBXSMM>
-    $<$<STREQUAL:${CP2K_BLAS_VENDOR},MKL>:__MKL>
-    $<$<STREQUAL:${CP2K_BLAS_VENDOR},Apple>:__ACCELERATE>
+    $<$<STREQUAL:"${CP2K_BLAS_VENDOR}","MKL">:__MKL>
+    $<$<STREQUAL:"${CP2K_BLAS_VENDOR}","Apple">:__ACCELERATE>
     $<$<BOOL:${CP2K_USE_CUSOLVER_MP}>:__CUSOLVERMP>
-    $<$<BOOL:${CP2K_USE_CUDA}>:__OFFLOAD_CUDA>
-    $<$<COMPILE_LANGUAGE:CUDA>:__OFFLOAD_CUDA>
-    $<$<BOOL:${CP2K_USE_HIP}>:__HIP_PLATFORM_AMD__
-    __OFFLOAD_HIP>
-    $<$<BOOL:${CP2K_USE_UNIFIED_MEMORY}>:__OFFLOAD_UNIFIED_MEMORY>
-    $<$<COMPILE_LANGUAGE:HIP>:__HIP_PLATFORM_AMD__
-    __OFFLOAD_HIP>)
+    ${CP2K_GPU_DFLAGS})
 
 if(CP2K_USE_CUDA OR CP2K_USE_HIP)
   # these checks are only relevant when the debug mode is on
@@ -1755,7 +1764,7 @@ add_executable(dbm_miniapp dbm/dbm_miniapp.c ${CP2K_DBM_SRCS_C}
                            ${CP2K_DBM_SRCS_GPU} ${CP2K_OFFLOAD_SRCS_C})
 target_compile_definitions(
   dbm_miniapp PRIVATE $<$<BOOL:${CP2K_USE_LIBXSMM}>:__LIBXSMM>
-                      $<$<STREQUAL:${CP2K_BLAS_VENDOR},"MKL">:__MKL>)
+                      $<$<STREQUAL:"${CP2K_BLAS_VENDOR}","MKL">:__MKL>)
 
 if(CP2K_DISABLE_DBM_GPU)
   target_compile_definitions(dbm_miniapp PRIVATE __NO_OFFLOAD_DBM)
@@ -1773,7 +1782,7 @@ foreach(__app grid_miniapp grid_unittest)
     ${CP2K_OFFLOAD_SRCS_C})
   target_compile_definitions(
     ${__app} PRIVATE $<$<BOOL:${CP2K_USE_LIBXSMM}>:__LIBXSMM>
-                     $<$<STREQUAL:${CP2K_BLAS_VENDOR},"MKL">:__MKL>)
+                     $<$<STREQUAL:"${CP2K_BLAS_VENDOR}","MKL">:__MKL>)
 
   if(CP2K_DISABLE_GRID_GPU)
     target_compile_definitions(${__app} PUBLIC __NO_OFFLOAD_GRID)

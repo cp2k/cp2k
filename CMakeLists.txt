@@ -541,10 +541,13 @@ if(CP2K_USE_ACCEL MATCHES "CUDA")
 elseif(CP2K_USE_ACCEL MATCHES "HIP")
   enable_language(HIP)
   # Find hip
+
   find_package(hipfft REQUIRED IMPORTED CONFIG)
   find_package(hipblas REQUIRED IMPORTED CONFIG)
 
-  set(CMAKE_HIP_ARCHITECTURES gfx801 gfx900 gfx90a)
+  if(CMAKE_HIP_PLATFORM MATCHES "nvidia")
+    find_package(CUDAToolkit)
+  endif()
   if(NOT CMAKE_BUILD_TYPE)
     set(HIP_RELEASE_OPTIONS "-O3 --std=c++11")
   elseif(${CMAKE_BUILD_TYPE} STREQUAL "RelWithDebInfo")
