@@ -364,10 +364,10 @@ CONTAINS
 
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T7,A50,A)') &
-            'BSE|', "Printed optical absorption spectrum to local file ", file_name_spectrum
-         WRITE (unit_nr, '(T2,A4,T7,A44,A)') &
-            'BSE|', "as well as photoabsorption cross section to ", file_name_crosssection
+         WRITE (unit_nr, '(T2,A4,T7,A,A)') &
+            'BSE|', "Printed optical absorption spectrum to local files, e.g. ", file_name_spectrum
+         WRITE (unit_nr, '(T2,A4,T7,A,A)') &
+            'BSE|', "as well as photoabsorption cross section to, e.g. ", file_name_crosssection
          WRITE (unit_nr, '(T2,A4,T7,A52)') &
             'BSE|', "using the Eq. (7.51) from C. Ullrichs Book on TDDFT:"
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
