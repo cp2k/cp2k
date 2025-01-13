@@ -55,11 +55,11 @@ __device__ __inline__ void block_to_cab(const kernel_params &params,
 
       // fast path for common case
       // const int jco_start = task.first_cosetb;
-      for (int jco = task.first_cosetb + tid / 8; jco < task.ncosetb;
-           jco += 8) {
+      for (int jco = task.first_cosetb + tid / 16; jco < task.ncosetb;
+           jco += 4) {
         const T sphib = task.sphib[i * task.maxcob + jco];
-        for (int ico = task.first_coseta + (tid % 8); ico < task.ncoseta;
-             ico += 8) {
+        for (int ico = task.first_coseta + (tid % 16); ico < task.ncoseta;
+             ico += 16) {
           const T sphia = task.sphia[j * task.maxcoa + ico];
           const T pab_val = block_val * sphia * sphib;
           if (IS_FUNC_AB) {
@@ -94,14 +94,12 @@ __global__ void calculate_coefficients(const kernel_params dev_) {
       &dev_.ptr_dev[2][dev_.tasks[dev_.first_task + blockIdx.x].coef_offset];
   T *smem_cab =
       &dev_.ptr_dev[6][dev_.tasks[dev_.first_task + blockIdx.x].cab_offset];
+  compute_alpha(task, smem_alpha);
   for (int z = tid; z < task.n1 * task.n2;
        z += blockDim.x * blockDim.y * blockDim.z)
     smem_cab[z] = 0.0;
-
   __syncthreads();
   block_to_cab<T, IS_FUNC_AB>(dev_, task, smem_cab);
-  __syncthreads();
-  compute_alpha(task, smem_alpha);
   __syncthreads();
   cab_to_cxyz(task, smem_alpha, smem_cab, coef_);
 }
@@ -155,19 +153,15 @@ __launch_bounds__(64) void collocate_kernel(const kernel_params dev_) {
       &dev_.ptr_dev[2][dev_.tasks[dev_.first_task + blockIdx.x].coef_offset];
   __shared__ T dh_[9], dh_inv_[9];
 
-  // matrix from lattice coordinates to cartesian coordinates
-  for (int i = tid; i < 9; i += blockDim.x * blockDim.y * blockDim.z) {
-    dh_[i] = dev_.dh_[i];
+  if (tid < 9) {
+    // matrix from lattice coordinates to cartesian coordinates
+    dh_[tid] = dev_.dh_[tid];
+    // matrix from  cartesian coordinates to lattice coordinates.
+    dh_inv_[tid] = dev_.dh_inv_[tid];
   }
 
-  // matrix from  cartesian coordinates to lattice coordinates.
-  for (int i = tid; i < 9; i += blockDim.x * blockDim.y * blockDim.z) {
-    dh_inv_[i] = dev_.dh_inv_[i];
-  }
-
-  __syncthreads();
-  if (tid < ncoset(4))
-    coefs_[tid] = coef_[tid];
+  for (int i = tid; i < ncoset(6); i += blockDim.x * blockDim.y * blockDim.z)
+    coefs_[i] = coef_[i];
 
   if (tid == 0) {
     // the cube center is initialy expressed in lattice coordinates but we
@@ -277,29 +271,27 @@ __launch_bounds__(64) void collocate_kernel(const kernel_params dev_) {
                                    (z + task.lb_cube.z + task.roffset.z));
         }
 
+        const T r3x2 = r3.x * r3.x;
+        const T r3y2 = r3.y * r3.y;
+        const T r3z2 = r3.z * r3.z;
+
         if (distributed__) {
           // check if the point is inside the sphere or not. Note that it does
           // not apply for the orthorhombic case when the full sphere is inside
           // the region of interest.
 
-          if (((task.radius * task.radius) <=
-               (r3.x * r3.x + r3.y * r3.y + r3.z * r3.z)) &&
+          if (((task.radius * task.radius) <= (r3x2 + r3y2 + r3z2)) &&
               (!orthorhombic_ || task.apply_border_mask))
             continue;
         } else {
           // we do not need to do this test for the orthorhombic case
-          if ((!orthorhombic_) && ((task.radius * task.radius) <=
-                                   (r3.x * r3.x + r3.y * r3.y + r3.z * r3.z)))
+          if ((!orthorhombic_) &&
+              ((task.radius * task.radius) <= (r3x2 + r3y2 + r3z2)))
             continue;
         }
 
         // allow computation of the address in parallel to starting the
         // computations
-        // T *grid_elem =
-        //     dev_.ptr_dev[1] +
-        //     (z2 * dev_.grid_local_size_[1] + y2) * dev_.grid_local_size_[2] +
-        //     x2;
-
         T res = coefs_[0];
 
         if (task.lp >= 1) {
@@ -310,9 +302,6 @@ __launch_bounds__(64) void collocate_kernel(const kernel_params dev_) {
         const T r3xy = r3.x * r3.y;
         const T r3xz = r3.x * r3.z;
         const T r3yz = r3.y * r3.z;
-        const T r3x2 = r3.x * r3.x;
-        const T r3y2 = r3.y * r3.y;
-        const T r3z2 = r3.z * r3.z;
 
         if (task.lp >= 2) {
           res += coefs_[4] * r3x2;
@@ -324,61 +313,116 @@ __launch_bounds__(64) void collocate_kernel(const kernel_params dev_) {
         }
 
         if (task.lp >= 3) {
-          res += coefs_[10] * r3x2 * r3.x;
-          res += coefs_[11] * r3x2 * r3.y;
-          res += coefs_[12] * r3x2 * r3.z;
-          res += coefs_[13] * r3.x * r3y2;
+          res += r3x2 *
+                 (coefs_[10] * r3.x + coefs_[11] * r3.y + coefs_[12] * r3.z);
+          res += r3.x * (coefs_[13] * r3y2 + coefs_[15] * r3z2);
           res += coefs_[14] * r3xy * r3.z;
-          res += coefs_[15] * r3.x * r3z2;
-          res += coefs_[16] * r3y2 * r3.y;
-          res += coefs_[17] * r3y2 * r3.z;
-          res += coefs_[18] * r3.y * r3z2;
-          res += coefs_[19] * r3z2 * r3.z;
+          res += r3y2 * (coefs_[16] * r3.y + coefs_[17] * r3.z);
+          res += r3z2 * (coefs_[18] * r3.y + coefs_[19] * r3.z);
         }
 
         if (task.lp >= 4) {
-          res += coefs_[20] * r3x2 * r3x2;
-          res += coefs_[21] * r3x2 * r3xy;
-          res += coefs_[22] * r3x2 * r3xz;
-          res += coefs_[23] * r3x2 * r3y2;
-          res += coefs_[24] * r3x2 * r3yz;
-          res += coefs_[25] * r3x2 * r3z2;
-          res += coefs_[26] * r3xy * r3y2;
-          res += coefs_[27] * r3xz * r3y2;
-          res += coefs_[28] * r3xy * r3z2;
-          res += coefs_[29] * r3xz * r3z2;
-          res += coefs_[30] * r3y2 * r3y2;
-          res += coefs_[31] * r3y2 * r3yz;
-          res += coefs_[32] * r3y2 * r3z2;
-          res += coefs_[33] * r3yz * r3z2;
-          res += coefs_[34] * r3z2 * r3z2;
+          res += r3x2 *
+                 (coefs_[20] * r3x2 + coefs_[21] * r3xy + coefs_[22] * r3xz +
+                  coefs_[23] * r3y2 + coefs_[24] * r3yz + coefs_[25] * r3z2);
+          res += r3y2 *
+                 (coefs_[26] * r3xy + coefs_[27] * r3xz + coefs_[30] * r3y2 +
+                  coefs_[31] * r3yz + coefs_[32] * r3z2);
+          res += r3z2 * (coefs_[28] * r3xy + coefs_[29] * r3xz +
+                         coefs_[33] * r3yz + coefs_[34] * r3z2);
         }
 
-        // beware it is coef_ (global memory) here not coefs_ (shared memory)
-        if (task.lp > 4) {
-          for (int ic = 35; ic < ncoset(task.lp); ic++) {
-            auto &co = coset_inv[ic];
-            T tmp = coef_[ic];
-            for (int po = 0; po < co.l[2]; po++)
-              tmp *= r3.z;
-            for (int po = 0; po < co.l[1]; po++)
-              tmp *= r3.y;
-            for (int po = 0; po < co.l[0]; po++)
-              tmp *= r3.x;
-            res += tmp;
+        if (task.lp >= 5) {
+          const T r3x4 = r3x2 * r3x2;
+          const T r3y4 = r3y2 * r3y2;
+          const T r3z4 = r3z2 * r3z2;
+
+          res += r3x4 * (coefs_[35] * r3.x +          // x^5
+                         coefs_[36] * r3.y +          // x^4 y
+                         coefs_[37] * r3.z);          // x^4 z
+          res += r3x2 * (r3.x * (coefs_[38] * r3y2 +  // x^3 y^2
+                                 coefs_[39] * r3yz +  // x^3 y z
+                                 coefs_[40] * r3z2) + // x^3 z^2
+                         r3y2 * (coefs_[41] * r3.y +  // x^2 y^3
+                                 coefs_[42] * r3.z) + // x^2 y^2 z
+                         r3z2 * (coefs_[43] * r3.y +  // x^2 y z^2
+                                 coefs_[44] * r3.z)); // x^2 z^2 z
+          res += r3.x * (coefs_[45] * r3y4 +          // x y^4
+                         r3y2 * (coefs_[46] * r3yz +  // x y^3 z
+                                 coefs_[47] * r3z2) + // x y^2 z^2
+                         r3z2 * (coefs_[48] * r3yz +  // x y z^3
+                                 coefs_[49] * r3z2)); // x z^4
+          res += r3y2 * (r3y2 * (coefs_[50] * r3.y +  // y^5
+                                 coefs_[51] * r3.z) + // y^4 z
+                         r3z2 * (coefs_[52] * r3.y +  // y^3 z^2
+                                 coefs_[53] * r3.z)); // y^2 z^3
+          res += r3z4 * (coefs_[54] * r3.y +          // y z^4
+                         coefs_[55] * r3.z);          // z^5
+
+          if (task.lp >= 6) {
+            res += r3x4 * (coefs_[56] * r3x2 + // x^6
+                           coefs_[57] * r3xy + // x^ 5 y
+                           coefs_[58] * r3xz + // x^ 5 z
+                           coefs_[59] * r3y2 + // x^4 y^2
+                           coefs_[60] * r3yz + // x^4 yz
+                           coefs_[61] * r3z2); // x^4 z^2
+
+            res += r3x2 * (coefs_[62] * r3y2 * r3xy + // x^3 y^3
+                           coefs_[63] * r3y2 * r3xz + // x^3 y^2 z
+                           coefs_[64] * r3xy * r3z2 + // x^3 y z^2
+                           coefs_[65] * r3z2 * r3xz + // x^3 z^3
+                           coefs_[66] * r3y4 +        // x^2 y^4
+                           coefs_[67] * r3y2 * r3yz + // x^2 y^3 z
+                           coefs_[68] * r3y2 * r3z2 + // x^2 y^2 z^2
+                           coefs_[69] * r3yz * r3z2 + // x^2 y z^3
+                           coefs_[70] * r3z4);        // x^2 z^4
+            res += r3y2 * r3z2 *
+                   (coefs_[73] * r3xy +        // x y^3 z^2
+                    coefs_[74] * r3xz +        // x y^2 z^3
+                    coefs_[80] * r3yz +        // y^3 z^3
+                    coefs_[81] * r3z2);        // y^2 z^4
+            res += r3y4 * (coefs_[71] * r3xy + // x y^5
+                           coefs_[72] * r3xz + // x y^4 z
+                           coefs_[77] * r3y2 + // y^6
+                           coefs_[78] * r3yz + // y^5 z
+                           coefs_[79] * r3z2); // y^4 z^2
+            res += r3z4 * (coefs_[75] * r3xy + // x y z^4
+                           coefs_[76] * r3xz + // x z^5
+                           coefs_[82] * r3yz + // y z^5
+                           coefs_[83] * r3z2); // z^6
+          }
+
+          if (task.lp >= 7) {
+            for (int ic = ncoset(6); ic < ncoset(task.lp); ic++) {
+              T tmp1 = coef_[ic];
+              auto &co = coset_inv[ic];
+              T tmp = 1.0;
+              for (int po = 0; po < (co.l[2] >> 1); po++)
+                tmp *= r3z2;
+              if (co.l[2] & 0x1)
+                tmp *= r3.z;
+              for (int po = 0; po < (co.l[1] >> 1); po++)
+                tmp *= r3y2;
+              if (co.l[1] & 0x1)
+                tmp *= r3.y;
+              for (int po = 0; po < (co.l[0] >> 1); po++)
+                tmp *= r3x2;
+              if (co.l[0] & 0x1)
+                tmp *= r3.x;
+              res += tmp * tmp1;
+            }
           }
         }
 
-        atomicAdd(
-            dev_.ptr_dev[1] +
-                (z2 * dev_.grid_local_size_[1] + y2) *
-                    dev_.grid_local_size_[2] +
-                x2,
-            res * exp(-(r3.x * r3.x + r3.y * r3.y + r3.z * r3.z) * task.zetp));
+        res *= exp(-(r3x2 + r3y2 + r3z2) * task.zetp);
+        atomicAdd(dev_.ptr_dev[1] +
+                      (z2 * dev_.grid_local_size_[1] + y2) *
+                          dev_.grid_local_size_[2] +
+                      x2,
+                  res);
       }
     }
   }
-  __syncthreads();
 }
 /*******************************************************************************
  * \brief Launches the Cuda kernel that collocates all tasks of one grid level.
@@ -418,20 +462,20 @@ void context_info::collocate_one_grid_level(const int level,
     if (grid_[level].is_orthorhombic())
       collocate_kernel<double, double3, true, true>
           <<<number_of_tasks_per_level_[level], threads_per_block,
-             ncoset(4) * sizeof(double), level_streams[level]>>>(params);
+             ncoset(6) * sizeof(double), level_streams[level]>>>(params);
     else
       collocate_kernel<double, double3, true, false>
           <<<number_of_tasks_per_level_[level], threads_per_block,
-             ncoset(4) * sizeof(double), level_streams[level]>>>(params);
+             ncoset(6) * sizeof(double), level_streams[level]>>>(params);
   } else {
     if (grid_[level].is_orthorhombic())
       collocate_kernel<double, double3, false, true>
           <<<number_of_tasks_per_level_[level], threads_per_block,
-             ncoset(4) * sizeof(double), level_streams[level]>>>(params);
+             ncoset(6) * sizeof(double), level_streams[level]>>>(params);
     else
       collocate_kernel<double, double3, false, false>
           <<<number_of_tasks_per_level_[level], threads_per_block,
-             ncoset(4) * sizeof(double), level_streams[level]>>>(params);
+             ncoset(6) * sizeof(double), level_streams[level]>>>(params);
   }
 }
 } // namespace rocm_backend
