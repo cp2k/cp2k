@@ -12,30 +12,56 @@ find_package(PkgConfig)
 cp2k_set_default_paths(DFTD4 "dftd4")
 
 if(PKG_CONFIG_FOUND)
-  pkg_search_module(CP2K_DFTD4 IMPORTED_TARGET GLOBAL dftd4)
+  pkg_search_module(PKGC_DFTD4 IMPORTED_TARGET GLOBAL dftd4)
+  pkg_search_module(PKGC_MCTC mctc-lib)
+  pkg_search_module(PKGC_MULTICHARGE multicharge)
 endif()
 
-if(NOT ${CP2K_DFTD4_FOUND})
-  cp2k_find_libraries(DFTD4 "dftd4")
-  cp2k_include_dirs(DFTD4 "dftd4.h")
+if(dftd4_FIND_REQUIRED AND NOT PKGC_DFTD4_FOUND)
+  message(FATAL_ERROR "Unable to find DFTD4 and/or its dependencies.")
 endif()
 
-if(CP2K_DFTD4_INCLUDE_DIRS)
-  find_package_handle_standard_args(dftd4 DEFAULT_MSG CP2K_DFTD4_INCLUDE_DIRS
-                                    CP2K_DFTD4_LINK_LIBRARIES)
-else()
-  find_package_handle_standard_args(dftd4 DEFAULT_MSG CP2K_DFTD4_LINK_LIBRARIES)
-endif()
+set(CP2K_DFTD4_FOUND TRUE)
+
+find_path(
+  CP2K_DFTD4_INCLUDE_DIR
+  NAMES dftd4.h
+  PATHS ${PKGC_DFTD4_INCLUDE_DIRS})
+
+find_path(
+  CP2K_DFTD4_MOD_DIR
+  NAMES dftd4.mod
+  PATHS ${PKGC_DFTD4_INCLUDE_DIRS})
+message(STATUS "DFTD4 mod dir: ${CP2K_DFTD4_MOD_DIR}")
+
+find_library(
+  CP2K_DFTD4_LINK_LIBRARIES
+  NAMES ${PKGC_DFTD4_LIBRARIES}
+  PATHS ${PKGC_DFTD4_LIBRARY_DIRS}
+  DOC "dftd4 libraries")
+find_library(
+  CP2K_MCTC_LINK_LIBRARIES
+  NAMES ${PKGC_MCTC_LIBRARIES}
+  PATHS ${PKGC_MCTC_LIBRARY_DIRS}
+  DOC "mctc libraries")
+find_library(
+  CP2K_MULTICHARGE_LINK_LIBRARIES
+  NAMES ${PKGC_MULTICHARGE_LIBRARIES}
+  PATHS ${PKGC_MULTICHARGE_LIBRARY_DIRS}
+  DOC "multicharge libraries")
+
+include(FindPackageHandleStandardArgs)
+find_package_handle_standard_args(dftd4 DEFAULT_MSG CP2K_DFTD4_INCLUDE_DIR
+                                  CP2K_DFTD4_LINK_LIBRARIES)
 
 if(CP2K_DFTD4_FOUND)
-  if(NOT TARGET cp2k::dftd4)
-    add_library(cp2k::dftd4 INTERFACE IMPORTED)
-  endif()
+  add_library(cp2k::dftd4 INTERFACE IMPORTED)
   set_target_properties(
     cp2k::dftd4
-    PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${CP2K_DFTD4_INCLUDE_DIRS}"
-               INTERFACE_LINK_LIBRARIES "${CP2K_DFTD4_LINK_LIBRARIES}")
+    PROPERTIES
+      INTERFACE_INCLUDE_DIRECTORIES
+      "${CP2K_DFTD4_INCLUDE_DIR};${CP2K_DFTD4_MOD_DIR}"
+      INTERFACE_LINK_LIBRARIES
+      "${CP2K_DFTD4_LINK_LIBRARIES};${CP2K_MCTC_LINK_LIBRARIES};${CP2K_MULTICHARGE_LINK_LIBRARIES}"
+  )
 endif()
-
-mark_as_advanced(CP2K_DFTD4_LINK_LIBRARIES CP2K_DFTD4_INCLUDE_DIRS
-                 CP2K_DFTD4_FOUND)
