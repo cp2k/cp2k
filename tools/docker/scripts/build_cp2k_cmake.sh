@@ -191,7 +191,7 @@ elif [[ "${PROFILE}" == "minimal" ]] && [[ "${VERSION}" == "ssmp" ]]; then
     -DCP2K_USE_VORI=OFF \
     -DCP2K_USE_COSMA=OFF \
     -DCP2K_USE_DLAF=OFF \
-    -DCP2K_USE_SPGLIB=OFF \
+    -DCP2K_USE_SPGLIB=ON \
     -DCP2K_USE_LIBTORCH=OFF \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
