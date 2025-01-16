@@ -5,10 +5,8 @@
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
 MODULE openPMD_api
-   USE ISO_C_BINDING,                   ONLY: C_ASSOCIATED,&
-                                              C_CHAR,&
+   USE ISO_C_BINDING,                   ONLY: C_CHAR,&
                                               C_INT,&
-                                              C_NULL_CHAR,&
                                               C_NULL_PTR,&
                                               C_PTR
    USE message_passing,                 ONLY: mp_comm_type
@@ -57,7 +55,8 @@ CONTAINS
    FUNCTION openpmd_series_create(path, access, mpi_comm) RESULT(series)
       CHARACTER(len=*), INTENT(IN)                       :: path
       INTEGER(kind=C_INT), INTENT(IN)                    :: access
-      TYPE(mp_comm_type), INTENT(in), OPTIONAL           :: mpi_comm
+
+      CLASS(mp_comm_type), INTENT(in), OPTIONAL          :: mpi_comm
       TYPE(openpmd_series_type)                          :: series
 
       TYPE(c_ptr)                                        :: comm_c = C_NULL_PTR

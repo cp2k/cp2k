@@ -50,8 +50,7 @@ MODULE cp_output_handling
                                               default_string_length
    USE machine,                         ONLY: m_mov
    USE memory_utilities,                ONLY: reallocate
-   USE message_passing,                 ONLY: mp_comm_type,&
-                                              mp_file_delete,&
+   USE message_passing,                 ONLY: mp_file_delete,&
                                               mp_file_get_amode,&
                                               mp_file_type
    USE openpmd_api,                     ONLY: openpmd_access_create,&
@@ -955,13 +954,12 @@ CONTAINS
 !> \param fout   Name of the actual file where the output will be written. Needed mainly for MPI IO
 !>               because inquiring the filename from the MPI filehandle does not work across
 !>               all MPI libraries.
-!> \param mpi_comm ...
 !> \return ...
 ! **************************************************************************************************
    FUNCTION cp_print_key_unit_nr(logger, basis_section, print_key_path, extension, &
                                  middle_name, local, log_filename, ignore_should_output, file_form, file_position, &
                                  file_action, file_status, do_backup, on_file, is_new_file, mpi_io, &
-                                 fout, mpi_comm) RESULT(res)
+                                 fout) RESULT(res)
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), INTENT(IN)                :: basis_section
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: print_key_path
@@ -975,7 +973,6 @@ CONTAINS
       LOGICAL, INTENT(INOUT), OPTIONAL                   :: mpi_io
       CHARACTER(len=default_path_length), INTENT(OUT), &
          OPTIONAL                                        :: fout
-      TYPE(mp_comm_type), INTENT(IN), OPTIONAL           :: mpi_comm
       INTEGER                                            :: res
 
       CHARACTER(len=default_path_length)                 :: filename, filename_bak, filename_bak_1, &
@@ -1130,8 +1127,7 @@ CONTAINS
                OPEN (newunit=res, status='scratch', action='write')
 
                IF (my_mpi_io) THEN
-                  CPASSERT(PRESENT(mpi_comm))
-                  series = openpmd_series_create("rabimmel.json", openpmd_access_create, mpi_comm)
+                  series = openpmd_series_create("rabimmel.json", openpmd_access_create, logger%para_env)
                ELSE
                   series = openpmd_series_create("rabimmel.json", openpmd_access_create)
                END IF
