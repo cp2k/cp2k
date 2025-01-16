@@ -40,6 +40,7 @@ if [[ "${PROFILE}" == "spack" ]] && [[ "${VERSION}" == "psmp" ]]; then
     -DCP2K_USE_SPGLIB=ON \
     -DCP2K_USE_LIBINT2=ON \
     -DCP2K_USE_LIBXC=ON \
+    -DCP2K_USE_LIBXSMM=ON \
     -DCP2K_USE_LIBTORCH=OFF \
     -DCP2K_USE_MPI=ON \
     -DCP2K_USE_MPI_F08=ON \
@@ -56,6 +57,7 @@ elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "ssmp" ]]; then
     -DCP2K_USE_LIBXC=ON \
     -DCP2K_USE_FFTW3=ON \
     -DCP2K_USE_SPGLIB=ON \
+    -DCP2K_USE_LIBXSMM=ON \
     -DCP2K_USE_VORI=ON \
     -DCP2K_USE_MPI=OFF \
     -DCP2K_USE_MPI_F08=OFF \
@@ -188,6 +190,7 @@ elif [[ "${PROFILE}" == "minimal" ]] && [[ "${VERSION}" == "ssmp" ]]; then
     -DCP2K_USE_FFTW3=OFF \
     -DCP2K_USE_MPI=OFF \
     -DCP2K_USE_MPI_F08=OFF \
+    -DCP2K_USE_LIBXSMM=OFF \
     -DCP2K_USE_VORI=OFF \
     -DCP2K_USE_COSMA=OFF \
     -DCP2K_USE_DLAF=OFF \
