@@ -55,6 +55,7 @@ MODULE cp_output_handling
                                               mp_file_get_amode,&
                                               mp_file_type
    USE openpmd_api,                     ONLY: openpmd_access_create,&
+                                              openpmd_series_close,&
                                               openpmd_series_create,&
                                               openpmd_series_type
    USE string_utilities,                ONLY: compress,&
@@ -70,6 +71,7 @@ MODULE cp_output_handling
    PUBLIC :: cp_iter_string, cp_print_key_section_create
    PUBLIC :: cp_print_key_unit_nr, cp_print_key_finished_output
    PUBLIC :: cp_print_key_generate_filename, cp_printkey_is_on
+   PUBLIC :: cp_get_openpmd_entry
 
    INTEGER, PARAMETER, PUBLIC               :: add_last_no = 0, &
                                                add_last_numeric = 1, &
@@ -79,6 +81,7 @@ MODULE cp_output_handling
                                                medium_print_level = 2, &
                                                high_print_level = 3, &
                                                debug_print_level = 4
+   LOGICAL, PUBLIC :: cp_use_openpmd = .TRUE.
 
 !! flags controlling the printing and storing of a property.
 !!
@@ -151,7 +154,111 @@ MODULE cp_output_handling
       INTEGER :: default_val = 0
    END TYPE cp_out_flags_type
 
+   TYPE :: cp_unit_nr_for_openpmd
+      INTEGER :: unit_nr ! key
+      TYPE(openpmd_series_type) :: value
+   END TYPE cp_unit_nr_for_openpmd
+
+   TYPE(cp_unit_nr_for_openpmd), ALLOCATABLE :: cp_openpmd_files(:)
+   INTEGER :: cp_num_openpmd_files = 0
+
 CONTAINS
+
+! **************************************************************************************************
+!> \brief ...
+!> \param unit_nr ...
+!> \param value ...
+! **************************************************************************************************
+   SUBROUTINE cp_add_openpmd_entry(unit_nr, value)
+      INTEGER, INTENT(in)                                :: unit_nr
+      TYPE(openpmd_series_type), INTENT(in)              :: value
+
+      INTEGER                                            :: i
+
+      ! Check if the key already exists
+      DO i = 1, cp_num_openpmd_files
+         IF (cp_openpmd_files(i)%unit_nr == unit_nr) THEN
+            cp_openpmd_files(i)%value = value
+            RETURN
+         END IF
+      END DO
+
+      ! If the key does not exist, add a new entry
+      cp_num_openpmd_files = cp_num_openpmd_files + 1
+      ALLOCATE (cp_openpmd_files(cp_num_openpmd_files))
+      cp_openpmd_files(cp_num_openpmd_files)%unit_nr = unit_nr
+      cp_openpmd_files(cp_num_openpmd_files)%value = value
+   END SUBROUTINE cp_add_openpmd_entry
+
+! **************************************************************************************************
+!> \brief ...
+!> \param unit_nr ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION cp_get_openpmd_entry(unit_nr) RESULT(value)
+      INTEGER, INTENT(in)                                :: unit_nr
+      TYPE(openpmd_series_type)                          :: value
+
+      INTEGER                                            :: i
+
+      DO i = 1, cp_num_openpmd_files
+         IF (cp_openpmd_files(i)%unit_nr == unit_nr) THEN
+            value = cp_openpmd_files(i)%value
+            RETURN
+         END IF
+      END DO
+   END FUNCTION cp_get_openpmd_entry
+
+! **************************************************************************************************
+!> \brief ...
+!> \param unit_nr ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION cp_has_openpmd_entry(unit_nr) RESULT(res)
+      INTEGER, INTENT(in)                                :: unit_nr
+      LOGICAL                                            :: res
+
+      INTEGER                                            :: i
+
+      DO i = 1, cp_num_openpmd_files
+         IF (cp_openpmd_files(i)%unit_nr == unit_nr) THEN
+            res = .TRUE.
+            RETURN
+         END IF
+      END DO
+      res = .FALSE.
+   END FUNCTION cp_has_openpmd_entry
+
+! **************************************************************************************************
+!> \brief ...
+!> \param unit_nr ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION cp_remove_openpmd_entry(unit_nr) RESULT(value)
+      INTEGER, INTENT(in)                                :: unit_nr
+      TYPE(openpmd_series_type)                          :: value
+
+      INTEGER                                            :: i
+
+      ! Search for the key and remove the entry if found
+      DO i = 1, cp_num_openpmd_files
+         IF (cp_openpmd_files(i)%unit_nr == unit_nr) THEN
+            value = cp_openpmd_files(i)%value
+            IF (i /= cp_num_openpmd_files) THEN
+               ! Swap last element to now freed place
+               cp_openpmd_files(i) = cp_openpmd_files(cp_num_openpmd_files)
+            END IF
+            cp_num_openpmd_files = cp_num_openpmd_files - 1
+            ! Optionally, you can deallocate the last element
+            IF (cp_num_openpmd_files > 0) THEN
+               ALLOCATE (cp_openpmd_files(cp_num_openpmd_files))
+            ELSE
+               DEALLOCATE (cp_openpmd_files)
+            END IF
+            RETURN
+         END IF
+      END DO
+   END FUNCTION cp_remove_openpmd_entry
 
 ! **************************************************************************************************
 !> \brief creates a print_key section
@@ -848,14 +955,13 @@ CONTAINS
 !> \param fout   Name of the actual file where the output will be written. Needed mainly for MPI IO
 !>               because inquiring the filename from the MPI filehandle does not work across
 !>               all MPI libraries.
-!> \param series ...
 !> \param mpi_comm ...
 !> \return ...
 ! **************************************************************************************************
    FUNCTION cp_print_key_unit_nr(logger, basis_section, print_key_path, extension, &
                                  middle_name, local, log_filename, ignore_should_output, file_form, file_position, &
                                  file_action, file_status, do_backup, on_file, is_new_file, mpi_io, &
-                                 fout, series, mpi_comm) RESULT(res)
+                                 fout, mpi_comm) RESULT(res)
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), INTENT(IN)                :: basis_section
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: print_key_path
@@ -869,7 +975,6 @@ CONTAINS
       LOGICAL, INTENT(INOUT), OPTIONAL                   :: mpi_io
       CHARACTER(len=default_path_length), INTENT(OUT), &
          OPTIONAL                                        :: fout
-      TYPE(openpmd_series_type), INTENT(INOUT), OPTIONAL :: series
       TYPE(mp_comm_type), INTENT(IN), OPTIONAL           :: mpi_comm
       INTEGER                                            :: res
 
@@ -886,6 +991,7 @@ CONTAINS
                                                             my_should_output, replace
       TYPE(cp_iteration_info_type), POINTER              :: iteration_info
       TYPE(mp_file_type)                                 :: mp_unit
+      TYPE(openpmd_series_type)                          :: series
       TYPE(section_vals_type), POINTER                   :: print_key
 
       my_local = .FALSE.
@@ -1019,14 +1125,19 @@ CONTAINS
                END IF
             END IF
 
-            IF (PRESENT(series)) THEN
+            IF (cp_use_openpmd .AND. extension == ".cube") THEN
+
+               OPEN (newunit=res, status='scratch', action='write')
+
                IF (my_mpi_io) THEN
                   CPASSERT(PRESENT(mpi_comm))
                   series = openpmd_series_create("rabimmel.json", openpmd_access_create, mpi_comm)
                ELSE
                   series = openpmd_series_create("rabimmel.json", openpmd_access_create)
                END IF
-               res = -1
+
+               CALL cp_add_openpmd_entry(res, series)
+
                RETURN
             END IF
             IF (.NOT. my_mpi_io) THEN
@@ -1089,6 +1200,7 @@ CONTAINS
       LOGICAL                                            :: my_local, my_mpi_io, my_on_file, &
                                                             my_should_output
       TYPE(mp_file_type)                                 :: mp_unit
+      TYPE(openpmd_series_type)                          :: series
       TYPE(section_vals_type), POINTER                   :: print_key
 
       my_local = .FALSE.
@@ -1108,7 +1220,12 @@ CONTAINS
                                   logger%para_env%is_source() .OR. &
                                   my_mpi_io)) THEN
          CALL section_vals_val_get(print_key, "FILENAME", c_val=outPath)
-         IF (my_on_file .OR. outPath .NE. '__STD_OUT__') THEN
+         IF (cp_use_openpmd .AND. cp_has_openpmd_entry(unit_nr)) THEN
+            series = cp_remove_openpmd_entry(unit_nr)
+            CLOSE (unit_nr)
+            CALL openpmd_series_close(series)
+            unit_nr = -1
+         ELSE IF (my_on_file .OR. outPath .NE. '__STD_OUT__') THEN
             CPASSERT(unit_nr > 0)
             IF (.NOT. my_mpi_io) THEN
                CALL close_file(unit_nr, "KEEP")

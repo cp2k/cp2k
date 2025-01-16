@@ -12,15 +12,14 @@ MODULE realspace_grid_cube
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
+   USE cp_output_handling,              ONLY: cp_get_openpmd_entry,&
+                                              cp_use_openpmd
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: &
         file_amode_rdonly, file_offset, mp_comm_type, mp_file_descriptor_type, mp_file_type, &
         mp_file_type_free, mp_file_type_hindexed_make_chv, mp_file_type_set_view_chv, &
         mpi_character_size
-   USE openPMD_api,                     ONLY: openpmd_access_create,&
-                                              openpmd_series_close,&
-                                              openpmd_series_create,&
-                                              openpmd_series_type
+   USE openPMD_api,                     ONLY: openpmd_series_type
    USE pw_grid_types,                   ONLY: PW_MODE_LOCAL
    USE pw_types,                        ONLY: pw_r3d_rs_type
 #include "../base/base_uses.f90"
@@ -97,6 +96,12 @@ CONTAINS
          CPASSERT(my_stride(3) > 0)
       END IF
 
+      IF (cp_use_openpmd) THEN
+         series = cp_get_openpmd_entry(unit_nr)
+         CALL timestop(handle)
+         RETURN
+      END IF
+
       IF (.NOT. parallel_write) THEN
          IF (unit_nr > 0) THEN
             ! this format seems to work for e.g. molekel and gOpenmol
@@ -150,9 +155,6 @@ CONTAINS
          gid = pw%pw_grid%para%group
          num_pe = pw%pw_grid%para%group%num_pe
          tag = 1
-
-         series = openpmd_series_create("test.json", openpmd_access_create, gid)
-         CALL openpmd_series_close(series)
 
          rank (1) = unit_nr
          rank (2) = my_rank
