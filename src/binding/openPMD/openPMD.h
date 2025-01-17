@@ -27,6 +27,8 @@ int openPMD_Series_close(
     // in
     openPMD_Series series);
 
+char const *openPMD_get_default_extension();
+
 #ifdef __cplusplus
 } // extern "C"
 #endif // defined(__cplusplus)

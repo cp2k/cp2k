@@ -54,6 +54,7 @@ MODULE cp_output_handling
                                               mp_file_get_amode,&
                                               mp_file_type
    USE openpmd_api,                     ONLY: openpmd_access_create,&
+                                              openpmd_get_default_extension,&
                                               openpmd_series_close,&
                                               openpmd_series_create,&
                                               openpmd_series_type
@@ -963,7 +964,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), INTENT(IN)                :: basis_section
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: print_key_path
-      CHARACTER(len=*), INTENT(IN)                       :: extension
+      CHARACTER(len=*)                                   :: extension
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: middle_name
       LOGICAL, INTENT(IN), OPTIONAL                      :: local, log_filename, ignore_should_output
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: file_form, file_position, file_action, &
@@ -977,15 +978,16 @@ CONTAINS
 
       CHARACTER(len=default_path_length)                 :: filename, filename_bak, filename_bak_1, &
                                                             filename_bak_2
-      CHARACTER(len=default_string_length)               :: my_file_action, my_file_form, &
-                                                            my_file_position, my_file_status, &
-                                                            outPath
+      CHARACTER(len=default_string_length)               :: my_extension, my_file_action, &
+                                                            my_file_form, my_file_position, &
+                                                            my_file_status, outPath
       INTEGER                                            :: c_i_level, f_backup_level, i, mpi_amode, &
                                                             my_backup_level, my_nbak, nbak, &
                                                             s_backup_level, unit_nr
       LOGICAL                                            :: do_log, found, my_do_backup, my_local, &
                                                             my_mpi_io, my_on_file, &
-                                                            my_should_output, replace
+                                                            my_should_output, my_use_openpmd, &
+                                                            replace
       TYPE(cp_iteration_info_type), POINTER              :: iteration_info
       TYPE(mp_file_type)                                 :: mp_unit
       TYPE(openpmd_series_type)                          :: series
@@ -1045,13 +1047,20 @@ CONTAINS
          IF (outPath == '__STD_OUT__' .AND. .NOT. my_on_file) THEN
             res = cp_logger_get_default_unit_nr(logger, local=my_local)
          ELSE
+            IF (cp_use_openpmd .AND. extension == ".cube") THEN
+               my_use_openpmd = .TRUE.
+               my_extension = "."//openpmd_get_default_extension()
+            ELSE
+               my_use_openpmd = .FALSE.
+               my_extension = extension
+            END IF
             !
             ! complex logic to build filename:
             !   1)  Try to avoid '--' and '-.'
             !   2)  If outPath contains '/' (as in ./filename) do not prepend the project_name
             !
             ! if it is actually a full path, use it as the root
-            filename = cp_print_key_generate_filename(logger, print_key, middle_name, extension, &
+            filename = cp_print_key_generate_filename(logger, print_key, middle_name, my_extension, &
                                                       my_local)
             ! Give back info about a possible existence of the file if required
             IF (PRESENT(is_new_file)) THEN
@@ -1122,21 +1131,20 @@ CONTAINS
                END IF
             END IF
 
-            IF (cp_use_openpmd .AND. extension == ".cube") THEN
+            IF (my_use_openpmd) THEN
 
                OPEN (newunit=res, status='scratch', action='write')
 
                IF (my_mpi_io) THEN
-                  series = openpmd_series_create("rabimmel.json", openpmd_access_create, logger%para_env)
+                  series = openpmd_series_create(filename, openpmd_access_create, logger%para_env)
                ELSE
-                  series = openpmd_series_create("rabimmel.json", openpmd_access_create)
+                  series = openpmd_series_create(filename, openpmd_access_create)
                END IF
 
                CALL cp_add_openpmd_entry(res, series)
 
                RETURN
-            END IF
-            IF (.NOT. my_mpi_io) THEN
+            ELSE IF (.NOT. my_mpi_io) THEN
                CALL open_file(file_name=filename, file_status=my_file_status, &
                               file_form=my_file_form, file_action=my_file_action, &
                               file_position=my_file_position, unit_number=res)
