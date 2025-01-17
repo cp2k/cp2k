@@ -726,11 +726,6 @@ endif()
 # SIRIUS
 if(CP2K_USE_SIRIUS)
   find_package(sirius REQUIRED)
-
-  get_target_property(CP2K_SIRIUS_INCLUDE_DIRS sirius::sirius
-                      INTERFACE_INCLUDE_DIRECTORIES)
-  get_target_property(CP2K_SIRIUS_LINK_LIBRARIES sirius::sirius_cxx
-                      INTERFACE_LINK_LIBRARIES)
 endif()
 
 if(CP2K_USE_SUPERLU)
@@ -906,22 +901,7 @@ if(CP2K_USE_DFTD4)
 endif()
 
 if(CP2K_USE_SIRIUS)
-  message(
-    " - SIRIUS :\n"
-    "   - include directories :  ${CP2K_SIRIUS_INCLUDE_DIRS}\n"
-    "   - link libraries           :  ${CP2K_SIRIUS_LINK_LIBRARIES}\n"
-    "   - dependencies :\n"
-    "       - spla\n"
-    "       - SpFFT\n"
-    "       - SPGLIB\n"
-    "       - LibXC\n"
-    "       - fftw3\n"
-    "       - hdf5\n"
-    "       - GSL\n\n")
-
-  if(CP2K_USE_VDWXC)
-    message("     - VDWXC\n")
-  endif()
+  message(" - SIRIUS")
 endif()
 
 if(CP2K_USE_COSMA)

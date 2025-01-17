@@ -17,6 +17,7 @@ spack:
     - "elpa@2024.03.001 +openmp"
     - "sirius @7.6.1 +fortran +pugixml ~apps"
     - "libvori@220621"
+    - "spla@1.6.1 +fortran"
    # Unfortunately, ScaLAPACK 2.2.1 has not yet been packaged by Spack.
    # https://github.com/Reference-ScaLAPACK/scalapack/tree/v2.2.1
    # which contains https://github.com/Reference-ScaLAPACK/scalapack/pull/26
