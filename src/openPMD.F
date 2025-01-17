@@ -8,6 +8,8 @@ MODULE openPMD_api
    USE ISO_C_BINDING,                   ONLY: C_CHAR,&
                                               C_INT,&
                                               C_NULL_PTR,&
+                                              C_NULL_CHAR,&
+                                              C_ASSOCIATED,&
                                               C_PTR
    USE message_passing,                 ONLY: mp_comm_type
 #include "./base/base_uses.f90"
