@@ -34,13 +34,14 @@ if [[ "${PROFILE}" == "spack" ]] && [[ "${VERSION}" == "psmp" ]]; then
     -DCMAKE_INSTALL_PREFIX=/opt/cp2k \
     -Werror=dev \
     -DCP2K_USE_VORI=OFF \
-    -DCP2K_USE_COSMA=OFF \
+    -DCP2K_USE_COSMA=ON \
     -DCP2K_USE_DLAF=ON \
     -DCP2K_BLAS_VENDOR=OpenBLAS \
     -DCP2K_USE_SPGLIB=ON \
     -DCP2K_USE_LIBINT2=ON \
     -DCP2K_USE_LIBXC=ON \
     -DCP2K_USE_LIBXSMM=ON \
+    -DCP2K_USE_PLUMED=ON \
     -DCP2K_USE_LIBTORCH=OFF \
     -DCP2K_USE_MPI=ON \
     -DCP2K_USE_MPI_F08=ON \

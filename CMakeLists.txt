@@ -638,6 +638,12 @@ endif()
 
 if(CP2K_USE_DLAF)
   find_package(DLAFFortran REQUIRED)
+
+  get_target_property(CP2K_DLAF_INCLUDE_DIRS DLAF::DLAF
+                      INTERFACE_INCLUDE_DIRECTORIES)
+  get_target_property(CP2K_DLAF_LINK_LIBRARIES DLAF::dlaf.prop
+                      INTERFACE_LINK_LIBRARIES)
+  message("${CP2K_DLAF_INCLUDE_DIRS} ${CP2K_DLAF_LINK_LIBRARIES}")
 endif()
 
 # FFTW3
@@ -940,6 +946,12 @@ if(CP2K_USE_ELPA)
           "   - libraries           :  ${CP2K_ELPA_LINK_LIBRARIES}\n\n")
 endif()
 
+if(CP2K_USE_DLAF)
+  message(" - DLA-Future\n"
+          "   - include directories : ${CP2K_DLAF_INCLUDE_DIRS}\n"
+          "   - libraries           :  ${CP2K_DLAF_LINK_LIBRARIES}\n\n")
+endif()
+
 if(CP2K_USE_SUPERLU)
   message(" - superlu\n"
           "   - include directories : ${CP2K_SUPERLU_INCLUDE_DIRS}\n"
@@ -986,7 +998,7 @@ if(NOT CP2K_USE_ELPA)
 endif()
 
 if(NOT CP2K_USE_DLAF)
-  message("   - DLAF")
+  message("   - DLA-Future")
 endif()
 
 if(NOT CP2K_USE_PLUMED)

@@ -1,16 +1,19 @@
 # This is a Spack Environment file for developing CP2K.
 spack:
   specs:
-    - mpich@4.1.2 device=ch3 netmod=tcp
-    - "openblas @0.3.24 +fortran threads=openmp"
+    - "mpich@4.1.2 device=ch3 netmod=tcp"
+    - "openblas@0.3.24 +fortran threads=openmp"
     - "dbcsr@2.8.0 +openmp +mpi"
-    - "netlib-scalapack @2.2.0"
-    - "libxsmm @1.17"
-    - "fftw @3.3.10 +openmp"
-    - "libxc @6.2.2"
-    - "spglib @2.3.0"
+    - "netlib-scalapack@2.2.0"
+    - "libxsmm@1.17"
+    - "fftw@3.3.10 +openmp"
+    - "libxc@6.2.2"
+    - "spglib@2.3.0"
+    - "dla-future@0.7.3 +scalapack"
     - "dla-future-fortran@0.2.0"
     - "libint@2.9.0 +fortran tune=cp2k-lmax-5"
+    - "cosma@2.6.6 +scalapack"
+    - "plumed@2.9.2"
    # Unfortunately, ScaLAPACK 2.2.1 has not yet been packaged by Spack.
    # https://github.com/Reference-ScaLAPACK/scalapack/tree/v2.2.1
    # which contains https://github.com/Reference-ScaLAPACK/scalapack/pull/26
@@ -19,7 +22,6 @@ spack:
    # - "sirius @7.4.3 +fortran +shared +openmp" # build fails
    # - "plumed @2.9.0 +shared +mpi optional_modules=all" # requires cython
    # - "libvori @220621" # is not recompile with -fPIC
-   # - "cosma @2.6.6"
    # - "elpa @2023.05.001 +openmp"
    #
    # scotch_6.0.0.tar.gz
