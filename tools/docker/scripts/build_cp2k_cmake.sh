@@ -72,7 +72,7 @@ elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "ssmp" ]]; then
     -DCP2K_USE_MPI_F08=OFF \
     -DCP2K_USE_COSMA=OFF \
     -DCP2K_USE_DLAF=OFF \
-    -DCP2K_USE_LIBTORCH=OFF \
+    -DCP2K_USE_LIBTORCH=ON \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
 
