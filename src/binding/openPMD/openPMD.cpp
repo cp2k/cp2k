@@ -29,8 +29,15 @@ namespace
             *series =
                 new openPMD::Series(std::forward<Args>(constructor_args)...);
         }
+        catch (std::exception const & e)
+        {
+            std::cout << "[Series_create] Caught error: '" << e.what() << "'\n";
+            delete *series;
+            return 1;
+        }
         catch (...)
         {
+            std::cout << "[Series_create] Caught unknown error.\n";
             delete *series;
             return 1;
         }
@@ -69,5 +76,23 @@ extern "C"
         series->close();
         delete series;
         return 0;
+    }
+
+    char const *openPMD_get_default_extension()
+    {
+        constexpr static char const *preferred_order[] = {
+            "bp5", "bp4", "bp", "h5", "json"};
+        auto const &available_extensions = openPMD::getFileExtensions();
+        for (auto const &ext : preferred_order)
+        {
+            if (std::find(
+                    available_extensions.begin(),
+                    available_extensions.end(),
+                    ext) != available_extensions.end())
+            {
+                return ext;
+            }
+        }
+        return nullptr;
     }
 }
