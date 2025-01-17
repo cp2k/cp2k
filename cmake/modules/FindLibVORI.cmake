@@ -14,7 +14,6 @@ include(cp2k_utils)
 
 cp2k_set_default_paths(LIBVORI "LibVORI")
 cp2k_find_libraries(LIBVORI vori)
-# cp2k_include_dirs(LIBVORI )
 
 if(CP2K_LIBVORI_INCLUDE_DIRS)
   find_package_handle_standard_args(

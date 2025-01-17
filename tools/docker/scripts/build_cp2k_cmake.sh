@@ -33,7 +33,7 @@ if [[ "${PROFILE}" == "spack" ]] && [[ "${VERSION}" == "psmp" ]]; then
     -DCMAKE_Fortran_FLAGS="-fno-lto" \
     -DCMAKE_INSTALL_PREFIX=/opt/cp2k \
     -Werror=dev \
-    -DCP2K_USE_VORI=OFF \
+    -DCP2K_USE_VORI=ON \
     -DCP2K_USE_COSMA=ON \
     -DCP2K_USE_DLAF=ON \
     -DCP2K_BLAS_VENDOR=OpenBLAS \
@@ -42,6 +42,8 @@ if [[ "${PROFILE}" == "spack" ]] && [[ "${VERSION}" == "psmp" ]]; then
     -DCP2K_USE_LIBXC=ON \
     -DCP2K_USE_LIBXSMM=ON \
     -DCP2K_USE_PLUMED=ON \
+    -DCP2K_USE_ELPA=ON \
+    -DCP2K_USE_SIRIUS=ON \
     -DCP2K_USE_LIBTORCH=OFF \
     -DCP2K_USE_MPI=ON \
     -DCP2K_USE_MPI_F08=ON \

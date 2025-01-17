@@ -623,6 +623,11 @@ endif()
 if(CP2K_USE_COSMA)
   find_package(cosma REQUIRED)
 
+  get_target_property(CP2K_COSMA_INCLUDE_DIRS cosma::cosma
+                      INTERFACE_INCLUDE_DIRECTORIES)
+  get_target_property(CP2K_COSMA_LINK_LIBRARIES cosma::cosma
+                      INTERFACE_LINK_LIBRARIES)
+
   # check that cosma::cosma_pxgemm and cosma::cosma_prefixed_pxgemm exist
   if(NOT TARGET cosma::cosma_pxgemm OR NOT TARGET cosma::cosma_prefixed_pxgemm)
     message(
@@ -721,6 +726,11 @@ endif()
 # SIRIUS
 if(CP2K_USE_SIRIUS)
   find_package(sirius REQUIRED)
+
+  get_target_property(CP2K_SIRIUS_INCLUDE_DIRS sirius::sirius
+                      INTERFACE_INCLUDE_DIRECTORIES)
+  get_target_property(CP2K_SIRIUS_LINK_LIBRARIES sirius::sirius_cxx
+                      INTERFACE_LINK_LIBRARIES)
 endif()
 
 if(CP2K_USE_SUPERLU)
@@ -898,8 +908,8 @@ endif()
 if(CP2K_USE_SIRIUS)
   message(
     " - SIRIUS :\n"
-    "   - include directories :  ${SIRIUS_INCLUDE_DIRS}\n"
-    "   - libraries           :  ${SIRIUS_LIBRARIES}\n"
+    "   - include directories :  ${CP2K_SIRIUS_INCLUDE_DIRS}\n"
+    "   - link libraries           :  ${CP2K_SIRIUS_LINK_LIBRARIES}\n"
     "   - dependencies :\n"
     "       - spla\n"
     "       - SpFFT\n"
@@ -915,8 +925,9 @@ if(CP2K_USE_SIRIUS)
 endif()
 
 if(CP2K_USE_COSMA)
-  message(" - COSMA\n" "   - include directories : ${COSMA_INCLUDE_DIRS}\n"
-          "   - libraries           : ${COSMA_LIBRARIES}\n\n")
+  message(" - COSMA\n"
+          "   - include directories : ${CP2K_COSMA_INCLUDE_DIRS}\n"
+          "   - libraries           : ${CP2K_COSMA_LINK_LIBRARIES}\n\n")
 endif()
 
 if(CP2K_USE_QUIP)
