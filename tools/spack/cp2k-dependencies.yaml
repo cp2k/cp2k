@@ -1,35 +1,33 @@
 # This is a Spack Environment file for developing CP2K.
 spack:
   specs:
-    - mpich@4.1.2 device=ch3 netmod=tcp
-    - "openblas @0.3.24 +fortran threads=openmp"
+    - "mpich@4.1.2 device=ch3 netmod=tcp"
+    - "openblas@0.3.24 +fortran threads=openmp"
     - "dbcsr@2.8.0 +openmp +mpi"
-    - "netlib-scalapack @2.2.0"
-    - "libxsmm @1.17"
-    - "fftw @3.3.10 +openmp"
-    - "libxc @6.2.2"
-    - "spglib @2.3.0"
+    - "netlib-scalapack@2.2.0"
+    - "libxsmm@1.17"
+    - "fftw@3.3.10 +openmp"
+    - "libxc@6.2.2"
+    - "spglib@2.3.0"
+    - "dla-future@0.7.3 +scalapack"
     - "dla-future-fortran@0.2.0"
     - "libint@2.9.0 +fortran tune=cp2k-lmax-5"
+    - "cosma@2.6.6 +scalapack"
+    - "plumed@2.9.2"
+    - "elpa@2024.03.001 +openmp"
+    - "sirius @7.6.1 +fortran +pugixml ~apps"
+    - "libvori@220621"
+    - "spla@1.6.1 +fortran"
    # Unfortunately, ScaLAPACK 2.2.1 has not yet been packaged by Spack.
    # https://github.com/Reference-ScaLAPACK/scalapack/tree/v2.2.1
    # which contains https://github.com/Reference-ScaLAPACK/scalapack/pull/26
 
    # TODO:
-   # - "sirius @7.4.3 +fortran +shared +openmp" # build fails
-   # - "plumed @2.9.0 +shared +mpi optional_modules=all" # requires cython
-   # - "libvori @220621" # is not recompile with -fPIC
-   # - "cosma @2.6.6"
-   # - "elpa @2023.05.001 +openmp"
-   #
    # scotch_6.0.0.tar.gz
    # superlu_dist_6.1.0.tar.gz: OK
-   # pexsi_v1.2.0.tar.gz: OK
-   # QUIP-0.9.10.tar.gz
    # hdf5-1.14.2.tar.bz2: OK
    # libvdwxc-0.4.0.tar.gz: OK
    # libtorch-cxx11-abi-shared-with-deps-1.12.1+cpu.zip: OK
-   # SpLA-1.5.5.tar.gz: OK
   view:
     default:
       root: ./spack-env/view

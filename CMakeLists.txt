@@ -623,6 +623,11 @@ endif()
 if(CP2K_USE_COSMA)
   find_package(cosma REQUIRED)
 
+  get_target_property(CP2K_COSMA_INCLUDE_DIRS cosma::cosma
+                      INTERFACE_INCLUDE_DIRECTORIES)
+  get_target_property(CP2K_COSMA_LINK_LIBRARIES cosma::cosma
+                      INTERFACE_LINK_LIBRARIES)
+
   # check that cosma::cosma_pxgemm and cosma::cosma_prefixed_pxgemm exist
   if(NOT TARGET cosma::cosma_pxgemm OR NOT TARGET cosma::cosma_prefixed_pxgemm)
     message(
@@ -638,6 +643,12 @@ endif()
 
 if(CP2K_USE_DLAF)
   find_package(DLAFFortran REQUIRED)
+
+  get_target_property(CP2K_DLAF_INCLUDE_DIRS DLAF::DLAF
+                      INTERFACE_INCLUDE_DIRECTORIES)
+  get_target_property(CP2K_DLAF_LINK_LIBRARIES DLAF::dlaf.prop
+                      INTERFACE_LINK_LIBRARIES)
+  message("${CP2K_DLAF_INCLUDE_DIRS} ${CP2K_DLAF_LINK_LIBRARIES}")
 endif()
 
 # FFTW3
@@ -890,27 +901,13 @@ if(CP2K_USE_DFTD4)
 endif()
 
 if(CP2K_USE_SIRIUS)
-  message(
-    " - SIRIUS :\n"
-    "   - include directories :  ${SIRIUS_INCLUDE_DIRS}\n"
-    "   - libraries           :  ${SIRIUS_LIBRARIES}\n"
-    "   - dependencies :\n"
-    "       - spla\n"
-    "       - SpFFT\n"
-    "       - SPGLIB\n"
-    "       - LibXC\n"
-    "       - fftw3\n"
-    "       - hdf5\n"
-    "       - GSL\n\n")
-
-  if(CP2K_USE_VDWXC)
-    message("     - VDWXC\n")
-  endif()
+  message(" - SIRIUS")
 endif()
 
 if(CP2K_USE_COSMA)
-  message(" - COSMA\n" "   - include directories : ${COSMA_INCLUDE_DIRS}\n"
-          "   - libraries           : ${COSMA_LIBRARIES}\n\n")
+  message(" - COSMA\n"
+          "   - include directories : ${CP2K_COSMA_INCLUDE_DIRS}\n"
+          "   - libraries           : ${CP2K_COSMA_LINK_LIBRARIES}\n\n")
 endif()
 
 if(CP2K_USE_QUIP)
@@ -938,6 +935,12 @@ endif()
 if(CP2K_USE_ELPA)
   message(" - ELPA\n" "   - include directories : ${CP2K_ELPA_INCLUDE_DIRS}\n"
           "   - libraries           :  ${CP2K_ELPA_LINK_LIBRARIES}\n\n")
+endif()
+
+if(CP2K_USE_DLAF)
+  message(" - DLA-Future\n"
+          "   - include directories : ${CP2K_DLAF_INCLUDE_DIRS}\n"
+          "   - libraries           :  ${CP2K_DLAF_LINK_LIBRARIES}\n\n")
 endif()
 
 if(CP2K_USE_SUPERLU)
@@ -986,7 +989,7 @@ if(NOT CP2K_USE_ELPA)
 endif()
 
 if(NOT CP2K_USE_DLAF)
-  message("   - DLAF")
+  message("   - DLA-Future")
 endif()
 
 if(NOT CP2K_USE_PLUMED)

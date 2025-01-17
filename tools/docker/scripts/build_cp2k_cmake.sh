@@ -27,23 +27,32 @@ fi
 
 # TODO: Reconcile PROFILE/VERSION with CP2K_BUILD_OPTIONS in CMakeLists.txt.
 if [[ "${PROFILE}" == "spack" ]] && [[ "${VERSION}" == "psmp" ]]; then
+  # NOTE: pexsi and quip are deprecated in #3600
   cmake \
     -GNinja \
     -DCMAKE_C_FLAGS="-fno-lto" \
     -DCMAKE_Fortran_FLAGS="-fno-lto" \
     -DCMAKE_INSTALL_PREFIX=/opt/cp2k \
     -Werror=dev \
-    -DCP2K_USE_VORI=OFF \
-    -DCP2K_USE_COSMA=OFF \
-    -DCP2K_USE_DLAF=ON \
-    -DCP2K_BLAS_VENDOR=OpenBLAS \
-    -DCP2K_USE_SPGLIB=ON \
     -DCP2K_USE_LIBINT2=ON \
     -DCP2K_USE_LIBXC=ON \
-    -DCP2K_USE_LIBXSMM=ON \
-    -DCP2K_USE_LIBTORCH=OFF \
+    -DCP2K_USE_FFTW3=ON \
+    -DCP2K_USE_SPGLIB=ON \
+    -DCP2K_USE_VORI=ON \
     -DCP2K_USE_MPI=ON \
     -DCP2K_USE_MPI_F08=ON \
+    -DCP2K_USE_LIBXSMM=ON \
+    -DCP2K_USE_SUPERLU=OFF \
+    -DCP2K_USE_PLUMED=ON \
+    -DCP2K_USE_SPLA=ON \
+    -DCP2K_USE_METIS=OFF \
+    -DCP2K_USE_ELPA=ON \
+    -DCP2K_USE_COSMA=ON \
+    -DCP2K_USE_SIRIUS=ON \
+    -DCP2K_USE_QUIP=OFF \
+    -DCP2K_USE_PEXSI=OFF \
+    -DCP2K_USE_LIBTORCH=OFF \
+    -DCP2K_USE_DLAF=ON \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
 
@@ -88,8 +97,9 @@ elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "sdbg" ]]; then
   CMAKE_EXIT_CODE=$?
 
 elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "psmp" ]]; then
-  # TODO Fix ELPA, COSMA, SIRIUS, QUIP, PEXSI, and Torch.
+  # TODO Fix ELPA, COSMA, SIRIUS, and Torch.
   # https://github.com/cp2k/cp2k/issues/3416
+  # NOTE: pexsi and quip are deprecated in #3600
   cmake \
     -GNinja \
     -DCMAKE_INSTALL_PREFIX=/opt/cp2k \
