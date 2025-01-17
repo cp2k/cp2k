@@ -48,8 +48,8 @@ if [[ "${PROFILE}" == "spack" ]] && [[ "${VERSION}" == "psmp" ]]; then
     -DCP2K_USE_ELPA=ON \
     -DCP2K_USE_COSMA=ON \
     -DCP2K_USE_SIRIUS=ON \
-    -DCP2K_USE_QUIP=OFF \
-    -DCP2K_USE_PEXSI=OFF \
+    -DCP2K_USE_QUIP=OFF \ # Deprecated in #3600
+    -DCP2K_USE_PEXSI=OFF \ # Deprecated in #3600
     -DCP2K_USE_LIBTORCH=OFF \
     -DCP2K_USE_DLAF=ON \
     .. |& tee ./cmake.log
@@ -96,7 +96,7 @@ elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "sdbg" ]]; then
   CMAKE_EXIT_CODE=$?
 
 elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "psmp" ]]; then
-  # TODO Fix ELPA, COSMA, SIRIUS, QUIP, PEXSI, and Torch.
+  # TODO Fix ELPA, COSMA, SIRIUS, and Torch.
   # https://github.com/cp2k/cp2k/issues/3416
   cmake \
     -GNinja \
@@ -118,8 +118,8 @@ elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "psmp" ]]; then
     -DCP2K_USE_ELPA=OFF \
     -DCP2K_USE_COSMA=OFF \
     -DCP2K_USE_SIRIUS=OFF \
-    -DCP2K_USE_QUIP=OFF \
-    -DCP2K_USE_PEXSI=OFF \
+    -DCP2K_USE_QUIP=OFF \ # Deprecated in #3600
+    -DCP2K_USE_PEXSI=OFF \ # Deprecated in #3600
     -DCP2K_USE_LIBTORCH=OFF \
     -DCP2K_USE_DLAF=OFF \
     .. |& tee ./cmake.log

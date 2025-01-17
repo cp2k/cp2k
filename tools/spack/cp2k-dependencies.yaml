@@ -23,16 +23,11 @@ spack:
    # which contains https://github.com/Reference-ScaLAPACK/scalapack/pull/26
 
    # TODO:
-   # - "libvori @220621" # is not recompile with -fPIC
-   #
    # scotch_6.0.0.tar.gz
    # superlu_dist_6.1.0.tar.gz: OK
-   # pexsi_v1.2.0.tar.gz: OK
-   # QUIP-0.9.10.tar.gz
    # hdf5-1.14.2.tar.bz2: OK
    # libvdwxc-0.4.0.tar.gz: OK
    # libtorch-cxx11-abi-shared-with-deps-1.12.1+cpu.zip: OK
-   # SpLA-1.5.5.tar.gz: OK
   view:
     default:
       root: ./spack-env/view
