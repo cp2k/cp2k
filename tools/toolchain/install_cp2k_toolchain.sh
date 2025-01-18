@@ -199,12 +199,6 @@ The --with-PKG options follow the rules:
                           Default = install
   --with-cusolvermp       NVIDIA cusolverMp: CUDA library for distributed dense linear algebra.
                           Default = no
-  --with-ptscotch         PT-SCOTCH, only used if PEXSI is used
-                          Default = no
-  --with-superlu          SuperLU DIST, used only if PEXSI is used
-                          Default = no
-  --with-pexsi            Enable interface to PEXSI library
-                          Default = no
   --with-deepmd           Enable interface to DeePMD-kit library.
                           Default = no
   --with-plumed           Enable interface to the PLUMED library.
@@ -277,7 +271,7 @@ tool_list="gcc intel amd cmake ninja"
 mpi_list="mpich openmpi intelmpi"
 math_list="mkl acml openblas"
 lib_list="fftw libint libxc libgrpp libxsmm cosma scalapack elpa cusolvermp plumed \
-          spfft spla ptscotch superlu pexsi gsl spglib hdf5 libvdwxc sirius
+          spfft spla gsl spglib hdf5 libvdwxc sirius
           libvori libtorch deepmd dftd4 pugixml libsmeagol trexio"
 package_list="${tool_list} ${mpi_list} ${math_list} ${lib_list}"
 # ------------------------------------------------------------------------
@@ -634,15 +628,6 @@ while [ $# -ge 1 ]; do
     --with-cusolvermp*)
       with_cusolvermp=$(read_with "${1}")
       ;;
-    --with-ptscotch*)
-      with_ptscotch=$(read_with "${1}")
-      ;;
-    --with-superlu*)
-      with_superlu=$(read_with "${1}")
-      ;;
-    --with-pexsi*)
-      with_pexsi=$(read_with "${1}")
-      ;;
     --with-deepmd*)
       with_deepmd=$(read_with $1)
       ;;
@@ -740,10 +725,6 @@ if [ "${MPI_MODE}" = "no" ]; then
     echo "Not using MPI, so ELPA is disabled."
     with_elpa="__DONTUSE__"
   fi
-  if [ "${with_pexsi}" != "__DONTUSE__" ]; then
-    echo "Not using MPI, so PEXSI is disabled."
-    with_pexsi="__DONTUSE__"
-  fi
   if [ "${with_sirius}" != "__DONTUSE__" ]; then
     echo "Not using MPI, so SIRIUS is disabled"
     with_sirius="__DONTUSE__"
@@ -811,30 +792,6 @@ if [ "${ENABLE_OPENCL}" = "__TRUE__" ]; then
   fi
 fi
 
-# PEXSI and its dependencies
-if [ "${with_pexsi}" = "__DONTUSE__" ]; then
-  if [ "${with_ptscotch}" != "__DONTUSE__" ]; then
-    echo "Not using PEXSI, so PT-Scotch is disabled."
-    with_ptscotch="__DONTUSE__"
-  fi
-  if [ "${with_superlu}" != "__DONTUSE__" ]; then
-    echo "Not using PEXSI, so SuperLU-DIST is disabled."
-    with_superlu="__DONTUSE__"
-  fi
-elif [ "${with_pexsi}" = "__INSTALL__" ]; then
-  [ "${with_ptscotch}" = "__DONTUSE__" ] && with_ptscotch="__INSTALL__"
-  [ "${with_superlu}" = "__DONTUSE__" ] && with_superlu="__INSTALL__"
-else
-  if [ "${with_ptscotch}" = "__DONTUSE__" ]; then
-    report_error "For PEXSI to work you need a working PT-Scotch library use --with-ptscotch option to specify if you wish to install the library or specify its location."
-    exit 1
-  fi
-  if [ "${with_superlu}" = "__DONTUSE__" ]; then
-    report_error "For PEXSI to work you need a working SuperLU-DIST library use --with-superlu option to specify if you wish to install the library or specify its location."
-    exit 1
-  fi
-fi
-
 #dftd4 installation requires ninja
 if [ "${with_dftd4}" = "__INSTALL__" ]; then
   [ "${with_ninja}" = "__DONTUSE__" ] && with_ninja="__INSTALL__"
@@ -844,7 +801,6 @@ fi
 if [ "${with_spglib}" = "__INSTALL__" ] ||
   [ "${with_libvori}" = "__INSTALL__" ] ||
   [ "${with_scalapack}" = "__INSTALL__" ] ||
-  [ "${with_superlu}" = "__INSTALL__" ] ||
   [ "${with_sirius}" = "__INSTALL__" ] ||
   [ "${with_pugixml}" = "__INSTALL__" ] ||
   [ "${with_cosma}" = "__INSTALL__" ] ||
