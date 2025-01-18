@@ -74,18 +74,10 @@ if(NOT TARGET cp2k::cp2k)
   if(@CP2K_USE_FFTW3_@)
     find_dependency(Fftw REQUIRED)
   endif()
-  # QUIP
-  if(@CP2K_USE_QUIP@)
-    find_dependency(Quip REQUIRED)
-  endif()
-
-  # libint
 
   if(@CP2K_USE_LIBINT2@)
     find_dependency(Libint2 REQUIRED)
   endif()
-
-  # spglib
 
   if(@CP2K_USE_SPGLIB@)
     find_dependency(LibSPG REQUIRED)
@@ -97,19 +89,6 @@ if(NOT TARGET cp2k::cp2k)
 
   if(@CP2K_USE_SIRIUS@)
     find_dependency(sirius REQUIRED)
-  endif()
-
-  if(@CP2K_USE_SUPERLU@)
-    find_dependency(SuperLU REQUIRED)
-  endif()
-
-  if(@CP2K_USE_METIS@)
-    find_dependency(Metis)
-  endif()
-
-  if(@CP2K_USE_PEXSI@)
-    # PEXSI 1.2 uses cmake as build system
-    find_dependency(PEXSI REQUIRED)
   endif()
 
   if(@CP2K_USE_PLUMED@)
