@@ -34,7 +34,7 @@ RUN ln -sf /usr/bin/gcc-10      /usr/local/bin/gcc  && \
 
 # Install DBCSR
 COPY ./tools/docker/scripts/install_dbcsr.sh ./
-RUN  ./install_dbcsr.sh
+RUN ./install_dbcsr.sh ubuntu ssmp
 
 # Install CP2K sources.
 WORKDIR /opt/cp2k

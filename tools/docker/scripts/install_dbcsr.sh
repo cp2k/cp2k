@@ -1,5 +1,13 @@
 #!/bin/bash -e
 
+if (($# != 2)); then
+  echo "Usage: install_dbcsr.sh <PROFILE> <VERSION>"
+  exit 1
+fi
+
+PROFILE=$1
+VERSION=$2
+
 DBCSR_ver="2.8.0"
 DBCSR_sha256="d55e4f052f28d1ed0faeaa07557241439243287a184d1fd27f875c8b9ca6bd96"
 
@@ -14,7 +22,21 @@ cd dbcsr-${DBCSR_ver}
 mkdir build
 cd build
 
-if ! cmake -DCMAKE_INSTALL_PREFIX=/opt/dbcsr -DUSE_MPI=OFF -DUSE_OPENMP=ON -DUSE_SMM=blas .. &> cmake.log; then
+if [[ "${PROFILE}" == "toolchain" ]]; then
+  # shellcheck disable=SC1091
+  source /opt/cp2k-toolchain/install/setup
+fi
+
+if [[ "${VERSION}" == "ssmp" ]]; then
+  USE_MPI="OFF"
+elif [[ "${VERSION}" == "psmp" ]]; then
+  USE_MPI="ON"
+else
+  echo "Unknown version: ${VERSION}."
+  exit 1
+fi
+
+if ! cmake -DCMAKE_INSTALL_PREFIX=/opt/dbcsr -DUSE_MPI=${USE_MPI} -DUSE_OPENMP=ON -DUSE_SMM=blas .. &> cmake.log; then
   cat cmake.log
   exit 1
 fi
