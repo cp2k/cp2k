@@ -27,7 +27,7 @@ MODULE qs_scf_methods
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                               cp_fm_symm,&
                                               cp_fm_triangular_multiply,&
-                                              cp_fm_upper_to_full
+                                              cp_fm_uplo_to_full
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_reduce,&
                                               cp_fm_cholesky_restore
    USE cp_fm_diag,                      ONLY: choose_eigv_solver,&
@@ -208,7 +208,7 @@ CONTAINS
             CALL correct_mo_eigenvalues(mo_eigenvalues, homo, nmo, level_shift)
 
       CASE (cholesky_restore)
-         CALL cp_fm_upper_to_full(matrix_ks_fm, work)
+         CALL cp_fm_uplo_to_full(matrix_ks_fm, work)
          CALL cp_fm_cholesky_restore(matrix_ks_fm, nao, ortho, work, &
                                      "SOLVE", pos="RIGHT")
          CALL cp_fm_cholesky_restore(work, nao, ortho, matrix_ks_fm, &
@@ -225,7 +225,7 @@ CONTAINS
             CALL correct_mo_eigenvalues(mo_eigenvalues, homo, nmo, level_shift)
 
       CASE (cholesky_inverse)
-         CALL cp_fm_upper_to_full(matrix_ks_fm, work)
+         CALL cp_fm_uplo_to_full(matrix_ks_fm, work)
 
          CALL cp_fm_triangular_multiply(ortho, matrix_ks_fm, side="R", transpose_tr=.FALSE., &
                                         invert_tr=.FALSE., uplo_tr="U", n_rows=nao, n_cols=nao, alpha=1.0_dp)

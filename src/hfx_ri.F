@@ -234,7 +234,7 @@ CONTAINS
          CASE (hfx_ri_do_2c_cholesky)
             CALL dbcsr_copy(t_2c_op_RI_inv(1), t_2c_op_RI(1))
             CALL cp_dbcsr_cholesky_decompose(t_2c_op_RI_inv(1), para_env=para_env, blacs_env=blacs_env)
-            CALL cp_dbcsr_cholesky_invert(t_2c_op_RI_inv(1), para_env=para_env, blacs_env=blacs_env, upper_to_full=.TRUE.)
+            CALL cp_dbcsr_cholesky_invert(t_2c_op_RI_inv(1), para_env=para_env, blacs_env=blacs_env, uplo_to_full=.TRUE.)
          CASE (hfx_ri_do_2c_diag)
             CALL dbcsr_copy(t_2c_op_RI_inv(1), t_2c_op_RI(1))
             CALL cp_dbcsr_power(t_2c_op_RI_inv(1), -1.0_dp, ri_data%eps_eigval, n_dependent, &
@@ -818,7 +818,7 @@ CONTAINS
       CASE (hfx_ri_do_2c_cholesky)
          CALL dbcsr_copy(t_2c_int_mat(1), t_2c_op_RI(1))
          CALL cp_dbcsr_cholesky_decompose(t_2c_int_mat(1), para_env=para_env, blacs_env=blacs_env)
-         CALL cp_dbcsr_cholesky_invert(t_2c_int_mat(1), para_env=para_env, blacs_env=blacs_env, upper_to_full=.TRUE.)
+         CALL cp_dbcsr_cholesky_invert(t_2c_int_mat(1), para_env=para_env, blacs_env=blacs_env, uplo_to_full=.TRUE.)
       CASE (hfx_ri_do_2c_diag)
          CALL dbcsr_copy(t_2c_int_mat(1), t_2c_op_RI(1))
          CALL cp_dbcsr_power(t_2c_int_mat(1), -1.0_dp, ri_data%eps_eigval, n_dependent, &
@@ -3853,7 +3853,7 @@ CONTAINS
       CASE (hfx_ri_do_2c_cholesky)
          CALL dbcsr_copy(ri_2c_inv, ri_2c_ints)
          CALL cp_dbcsr_cholesky_decompose(ri_2c_inv, para_env=para_env, blacs_env=blacs_env)
-         CALL cp_dbcsr_cholesky_invert(ri_2c_inv, para_env=para_env, blacs_env=blacs_env, upper_to_full=.TRUE.)
+         CALL cp_dbcsr_cholesky_invert(ri_2c_inv, para_env=para_env, blacs_env=blacs_env, uplo_to_full=.TRUE.)
       CASE (hfx_ri_do_2c_diag)
          CALL dbcsr_copy(ri_2c_inv, ri_2c_ints)
          CALL cp_dbcsr_power(ri_2c_inv, -1.0_dp, ri_data%eps_eigval, n_dependent, &

@@ -168,7 +168,7 @@ CONTAINS
          END IF
       CASE DEFAULT
          ! We should never get here
-         CPABORT("Alpha, beta, what else ?")
+         CPABORT("Alpha, beta, what else?")
       END SELECT
 
       CALL timestop(handle)

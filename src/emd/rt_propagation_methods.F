@@ -510,7 +510,7 @@ CONTAINS
          CALL cp_dbcsr_cholesky_decompose(S_inv, para_env=rtp%ao_ao_fmstruct%para_env, &
                                           blacs_env=rtp%ao_ao_fmstruct%context)
          CALL cp_dbcsr_cholesky_invert(S_inv, para_env=rtp%ao_ao_fmstruct%para_env, &
-                                       blacs_env=rtp%ao_ao_fmstruct%context, upper_to_full=.TRUE.)
+                                       blacs_env=rtp%ao_ao_fmstruct%context, uplo_to_full=.TRUE.)
       END IF
 
       CALL timestop(handle)

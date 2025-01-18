@@ -22,7 +22,7 @@ MODULE rt_propagator_init
                                               cp_dbcsr_plus_fm_fm_t
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                               cp_fm_scale,&
-                                              cp_fm_upper_to_full
+                                              cp_fm_uplo_to_full
    USE cp_fm_diag,                      ONLY: cp_fm_syevd
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
@@ -252,7 +252,7 @@ CONTAINS
 
       ALLOCATE (eigval_H(ndim))
       CALL copy_dbcsr_to_fm(s_mat(1)%matrix, tmp)
-      CALL cp_fm_upper_to_full(tmp, eigvec_H)
+      CALL cp_fm_uplo_to_full(tmp, eigvec_H)
 
       CALL cp_fm_syevd(tmp, eigvec_H, eigval_H)
 
@@ -272,7 +272,7 @@ CONTAINS
       DO ispin = 1, SIZE(matrix_ks)
 
          CALL copy_dbcsr_to_fm(matrix_ks(ispin)%matrix, H_fm)
-         CALL cp_fm_upper_to_full(H_fm, tmp_mat_H)
+         CALL cp_fm_uplo_to_full(H_fm, tmp_mat_H)
          CALL cp_fm_scale(t, H_fm)
 
          CALL parallel_gemm("N", "N", ndim, ndim, ndim, one, H_fm, S_minus_half, zero, &

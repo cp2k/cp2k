@@ -7131,7 +7131,7 @@ CONTAINS
             CALL cp_dbcsr_cholesky_invert(m_prec_out, &
                                           para_env=para_env, &
                                           blacs_env=blacs_env, &
-                                          upper_to_full=.TRUE.)
+                                          uplo_to_full=.TRUE.)
          END IF !skip_inversion
 
          CALL dbcsr_filter(m_prec_out, eps_filter)
@@ -7191,7 +7191,7 @@ CONTAINS
       !!!CALL cp_dbcsr_cholesky_invert(prec_vv,&
       !!!        para_env=almo_scf_env%para_env,&
       !!!        blacs_env=almo_scf_env%blacs_env,&
-      !!!        upper_to_full=.TRUE.)
+      !!!        uplo_to_full=.TRUE.)
       !!!CALL dbcsr_filter(prec_vv,&
       !!!        almo_scf_env%eps_filter)
       !!!
@@ -7243,7 +7243,7 @@ CONTAINS
       !CALL cp_dbcsr_cholesky_invert(prec_oo_inv,&
       !        para_env=almo_scf_env%para_env,&
       !        blacs_env=almo_scf_env%blacs_env,&
-      !        upper_to_full=.TRUE.)
+      !        uplo_to_full=.TRUE.)
 
       CALL dbcsr_release(m_tmp_nn_1)
       CALL dbcsr_release(m_tmp_no_3)
@@ -8755,7 +8755,7 @@ CONTAINS
 !S-1.G CALL dbcsr_cholesky_invert(m_prec_out,&
 !S-1.G         para_env=para_env,&
 !S-1.G         blacs_env=blacs_env,&
-!S-1.G         upper_to_full=.TRUE.)
+!S-1.G         uplo_to_full=.TRUE.)
 !S-1.G CALL dbcsr_multiply("N","N",1.0_dp,&
 !S-1.G         m_prec_out,&
 !S-1.G         matrix_grad,&
@@ -8829,12 +8829,12 @@ CONTAINS
       ! Query the optimal workspace for dsyev
       LWORK = -1
       ALLOCATE (WORK(MAX(1, LWORK)))
-      CALL DSYEV('V', 'L', H_size, Hinv, H_size, eigenvalues, WORK, LWORK, INFO)
+      CALL dsyev('V', 'L', H_size, Hinv, H_size, eigenvalues, WORK, LWORK, INFO)
       LWORK = INT(WORK(1))
       DEALLOCATE (WORK)
       ! Allocate the workspace and solve the eigenproblem
       ALLOCATE (WORK(MAX(1, LWORK)))
-      CALL DSYEV('V', 'L', H_size, Hinv, H_size, eigenvalues, WORK, LWORK, INFO)
+      CALL dsyev('V', 'L', H_size, Hinv, H_size, eigenvalues, WORK, LWORK, INFO)
       IF (INFO .NE. 0) THEN
          WRITE (unit_nr, *) 'DSYEV ERROR MESSAGE: ', INFO
          CPABORT("DSYEV failed")
@@ -8905,12 +8905,12 @@ CONTAINS
 
 !!!!    Hinv=H
 !!!!    INFO=0
-!!!!    CALL DPOTRF('L', H_size, Hinv, H_size, INFO )
+!!!!    CALL dpotrf('L', H_size, Hinv, H_size, INFO )
 !!!!    IF( INFO.NE.0 ) THEN
 !!!!       WRITE(*,*) 'DPOTRF ERROR MESSAGE: ', INFO
 !!!!       CPABORT("DPOTRF failed")
 !!!!    END IF
-!!!!    CALL DPOTRI('L', H_size, Hinv, H_size, INFO )
+!!!!    CALL dpotri('L', H_size, Hinv, H_size, INFO )
 !!!!    IF( INFO.NE.0 ) THEN
 !!!!       WRITE(*,*) 'DPOTRI ERROR MESSAGE: ', INFO
 !!!!       CPABORT("DPOTRI failed")
@@ -9328,7 +9328,7 @@ CONTAINS
          CALL cp_dbcsr_cholesky_invert(m_s_inv, &
                                        para_env=almo_scf_env%para_env, &
                                        blacs_env=almo_scf_env%blacs_env, &
-                                       upper_to_full=.TRUE.)
+                                       uplo_to_full=.TRUE.)
          CALL dbcsr_filter(m_s_inv, almo_scf_env%eps_filter)
 
       END IF ! s_inv
@@ -9789,7 +9789,7 @@ CONTAINS
                         CALL cp_dbcsr_cholesky_invert(m_model_hessian_inv(ispin), &
                                                       para_env=almo_scf_env%para_env, &
                                                       blacs_env=almo_scf_env%blacs_env, &
-                                                      upper_to_full=.TRUE.)
+                                                      uplo_to_full=.TRUE.)
                         CALL dbcsr_filter(m_model_hessian_inv(ispin), &
                                           almo_scf_env%eps_filter)
                      END DO

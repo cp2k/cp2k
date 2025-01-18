@@ -27,7 +27,7 @@ MODULE qs_density_matrices
                                               cp_fm_scale_and_add,&
                                               cp_fm_symm,&
                                               cp_fm_transpose,&
-                                              cp_fm_upper_to_full
+                                              cp_fm_uplo_to_full
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
@@ -332,7 +332,7 @@ CONTAINS
       CALL cp_fm_struct_release(fm_struct)
       CALL copy_dbcsr_to_fm(matrix_ks, ks)
       CALL copy_dbcsr_to_fm(matrix_p, p)
-      CALL cp_fm_upper_to_full(p, work)
+      CALL cp_fm_uplo_to_full(p, work)
       CALL cp_fm_symm("L", "U", nao, nao, 1.0_dp, ks, p, 0.0_dp, work)
       CALL parallel_gemm("T", "N", nao, nao, nao, 1.0_dp, p, work, 0.0_dp, ks)
       CALL dbcsr_set(matrix_w, 0.0_dp)

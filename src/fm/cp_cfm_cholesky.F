@@ -48,7 +48,7 @@ CONTAINS
 !> \author Joost
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_cholesky_decompose(matrix, n, info_out)
-      TYPE(cp_cfm_type), INTENT(IN)                   :: matrix
+      TYPE(cp_cfm_type), INTENT(IN)                      :: matrix
       INTEGER, INTENT(in), OPTIONAL                      :: n
       INTEGER, INTENT(out), OPTIONAL                     :: info_out
 
@@ -91,7 +91,7 @@ CONTAINS
       ELSE
          IF (info /= 0) &
             CALL cp_abort(__LOCATION__, &
-                          "Cholesky decompose failed: matrix is not positive definite  or ill-conditioned")
+                          "Cholesky decompose failed: matrix is not positive definite or ill-conditioned")
       END IF
 
       CALL timestop(handle)
@@ -109,12 +109,12 @@ CONTAINS
 !> \author Lianheng Tong
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_cholesky_invert(matrix, n, info_out)
-      TYPE(cp_cfm_type), INTENT(IN)           :: matrix
+      TYPE(cp_cfm_type), INTENT(IN)              :: matrix
       INTEGER, INTENT(in), OPTIONAL              :: n
       INTEGER, INTENT(out), OPTIONAL             :: info_out
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_cholesky_invert'
-      COMPLEX(kind=dp), DIMENSION(:, :), POINTER  :: aa
+      COMPLEX(kind=dp), DIMENSION(:, :), POINTER :: aa
       INTEGER                                    :: info, handle
       INTEGER                                    :: my_n
 #if defined(__parallel)

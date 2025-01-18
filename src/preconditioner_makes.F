@@ -30,7 +30,7 @@ MODULE preconditioner_makes
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                               cp_fm_triangular_invert,&
                                               cp_fm_triangular_multiply,&
-                                              cp_fm_upper_to_full
+                                              cp_fm_uplo_to_full
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                               cp_fm_cholesky_reduce,&
                                               cp_fm_cholesky_restore
@@ -251,7 +251,7 @@ CONTAINS
       CASE (cholesky_inverse)
 ! if cho inverse
          CALL cp_fm_triangular_invert(fm_s)
-         CALL cp_fm_upper_to_full(fm_h, fm)
+         CALL cp_fm_uplo_to_full(fm_h, fm)
 
          CALL cp_fm_triangular_multiply(fm_s, fm_h, side="R", transpose_tr=.FALSE., &
                                         invert_tr=.FALSE., uplo_tr="U", n_rows=n, n_cols=n, alpha=1.0_dp)
@@ -465,7 +465,7 @@ CONTAINS
       preconditioner_env%energy_gap = MAX(energy_gap, error_estimate*fudge_factor)
       CALL copy_dbcsr_to_fm(matrix_h, matrix_tmp)
       matrix_pre => preconditioner_env%fm
-      CALL cp_fm_upper_to_full(matrix_tmp, matrix_pre)
+      CALL cp_fm_uplo_to_full(matrix_tmp, matrix_pre)
       ! tmp = H ( 1 - PS )
       CALL parallel_gemm('N', 'T', n, n, k, -1.0_dp, matrix_hc0, matrix_sc0, 1.0_dp, matrix_tmp)
 
@@ -617,7 +617,7 @@ CONTAINS
 
       matrix_pre => preconditioner_env%fm
       CALL copy_dbcsr_to_fm(matrix_h, matrix_tmp)
-      CALL cp_fm_upper_to_full(matrix_tmp, matrix_pre)
+      CALL cp_fm_uplo_to_full(matrix_tmp, matrix_pre)
       ! tmp = H ( 1 - PS )
       CALL parallel_gemm('N', 'T', n, n, k, -1.0_dp, matrix_hc0, matrix_sc0, 1.0_dp, matrix_tmp)
 

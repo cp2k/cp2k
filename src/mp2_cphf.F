@@ -32,7 +32,7 @@ MODULE mp2_cphf
                                               cp_dbcsr_plus_fm_fm_t,&
                                               dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_upper_to_full
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_uplo_to_full
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_p_type,&
                                               cp_fm_struct_release,&
@@ -418,7 +418,7 @@ CONTAINS
          ! transpose P_MO matrix (easy way to symmetrize)
          CALL cp_fm_set_all(fm_back, 0.0_dp)
          ! P_mo now is ready
-         CALL cp_fm_upper_to_full(matrix=P_mo(ispin), work=fm_back)
+         CALL cp_fm_uplo_to_full(matrix=P_mo(ispin), work=fm_back)
       END DO
       CALL cp_fm_release(P_ia)
 
@@ -640,7 +640,7 @@ CONTAINS
          CALL cp_fm_set_all(fm_ao, 0.0_dp)
          CALL copy_dbcsr_to_fm(matrix=p_env%kpp1(ispin)%matrix, fm=fm_ao)
          CALL cp_fm_set_all(fm_back, 0.0_dp)
-         CALL cp_fm_upper_to_full(fm_ao, fm_back)
+         CALL cp_fm_uplo_to_full(fm_ao, fm_back)
 
          ASSOCIATE (mat_out => fm_mo_out(ispin))
 

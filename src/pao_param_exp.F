@@ -406,7 +406,7 @@ CONTAINS
       lrwork = -1
       liwork = -1
 
-      CALL ZHEEVD('V', 'U', n, A(1, 1), n, eigenvalues(1), &
+      CALL zheevd('V', 'U', n, A(1, 1), n, eigenvalues(1), &
                   work(1), lwork, rwork(1), lrwork, iwork(1), liwork, info)
       lwork = INT(REAL(work(1), dp))
       lrwork = INT(REAL(rwork(1), dp))
@@ -420,7 +420,7 @@ CONTAINS
       ALLOCATE (work(lwork))
       work(:) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
 
-      CALL ZHEEVD('V', 'U', n, A(1, 1), n, eigenvalues(1), &
+      CALL zheevd('V', 'U', n, A(1, 1), n, eigenvalues(1), &
                   work(1), lwork, rwork(1), lrwork, iwork(1), liwork, info)
 
       eigenvectors = A

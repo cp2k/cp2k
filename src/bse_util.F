@@ -25,7 +25,7 @@ MODULE bse_util
                                               dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
    USE cp_fm_basic_linalg,              ONLY: cp_fm_trace,&
-                                              cp_fm_upper_to_full
+                                              cp_fm_uplo_to_full
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                               cp_fm_cholesky_invert
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -160,7 +160,7 @@ CONTAINS
       CALL cp_fm_cholesky_invert(fm_mat_Q_static_bse_gemm)
 
       ! symmetrize the result
-      CALL cp_fm_upper_to_full(fm_mat_Q_static_bse_gemm, fm_work)
+      CALL cp_fm_uplo_to_full(fm_mat_Q_static_bse_gemm, fm_work)
 
       CALL parallel_gemm(transa="N", transb="N", m=dimen_RI, n=homo**2, k=dimen_RI, alpha=1.0_dp, &
                          matrix_a=fm_mat_Q_static_bse_gemm, matrix_b=fm_mat_S_ij_bse, beta=0.0_dp, &

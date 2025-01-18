@@ -46,7 +46,7 @@ MODULE rpa_gw
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
-                                              cp_fm_upper_to_full
+                                              cp_fm_uplo_to_full
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                               cp_fm_cholesky_invert
    USE cp_fm_diag,                      ONLY: cp_fm_syevd
@@ -853,7 +853,7 @@ CONTAINS
          ! calculate [1+Q(iw')]^-1
          CALL cp_fm_cholesky_invert(fm_mat_Q)
          ! symmetrize the result, fm_mat_R_gw is only temporary work matrix
-         CALL cp_fm_upper_to_full(fm_mat_Q, fm_mat_R_gw)
+         CALL cp_fm_uplo_to_full(fm_mat_Q, fm_mat_R_gw)
 
          ! periodic correction for GW (paper Phys. Rev. B 95, 235123 (2017))
          IF (do_periodic) THEN
@@ -981,7 +981,7 @@ CONTAINS
       CALL cp_fm_cholesky_invert(fm_mat_Q)
 
       ! symmetrize the result
-      CALL cp_fm_upper_to_full(fm_mat_Q, fm_mat_work)
+      CALL cp_fm_uplo_to_full(fm_mat_Q, fm_mat_work)
 
       ! subtract 1 from the diagonal to get rid of exchange self-energy
 !$OMP           PARALLEL DO DEFAULT(NONE) PRIVATE(jjB,iiB,i_global,j_global) &
@@ -3035,7 +3035,7 @@ CONTAINS
          CALL cp_fm_cholesky_decompose(fm_mat_s_aux_aux_inv)
          CALL cp_fm_cholesky_invert(fm_mat_s_aux_aux_inv)
          ! Symmetrize the guy
-         CALL cp_fm_upper_to_full(fm_mat_s_aux_aux_inv, fm_mat_work_aux_aux)
+         CALL cp_fm_uplo_to_full(fm_mat_s_aux_aux_inv, fm_mat_work_aux_aux)
 
          CALL copy_fm_to_dbcsr(fm_mat_s_aux_aux_inv, matrix_s_inv_aux_aux, keep_sparsity=.FALSE.)
 

@@ -35,7 +35,7 @@ MODULE qs_scf_diagonalization
                                               cp_dbcsr_sm_fm_multiply,&
                                               dbcsr_allocate_matrix_set
    USE cp_fm_basic_linalg,              ONLY: cp_fm_symm,&
-                                              cp_fm_upper_to_full
+                                              cp_fm_uplo_to_full
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_reduce,&
                                               cp_fm_cholesky_restore
    USE cp_fm_diag,                      ONLY: choose_eigv_solver,&
@@ -1307,7 +1307,7 @@ CONTAINS
             ! Q = S*C
             mo2ao => mob
 !MK     CALL copy_sm_to_fm(matrix_s(1)%matrix,work)
-!MK     CALL cp_fm_symm("L","U",nao,nao,1.0_dp,work,moa,0.0_dp,mo2ao)
+!MK     CALL cp_fm_symm("L", "U",nao, nao, 1.0_dp, work, moa, 0.0_dp, mo2ao)
             CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, moa, mo2ao, nao)
          END IF
 
@@ -1394,13 +1394,13 @@ CONTAINS
          CASE (cholesky_reduce)
             CALL cp_fm_cholesky_reduce(ksa, ortho)
          CASE (cholesky_restore)
-            CALL cp_fm_upper_to_full(ksa, work)
+            CALL cp_fm_uplo_to_full(ksa, work)
             CALL cp_fm_cholesky_restore(ksa, nao, ortho, work, &
                                         "SOLVE", pos="RIGHT")
             CALL cp_fm_cholesky_restore(work, nao, ortho, ksa, &
                                         "SOLVE", pos="LEFT", transa="T")
          CASE (cholesky_inverse)
-            CALL cp_fm_upper_to_full(ksa, work)
+            CALL cp_fm_uplo_to_full(ksa, work)
             CALL cp_fm_cholesky_restore(ksa, nao, ortho, work, &
                                         "MULTIPLY", pos="RIGHT")
             CALL cp_fm_cholesky_restore(work, nao, ortho, ksa, &
@@ -1534,7 +1534,7 @@ CONTAINS
       DO ispin = 1, SIZE(matrix_ks)
 
          ks => scf_env%scf_work1(ispin)
-         CALL cp_fm_upper_to_full(ks, work)
+         CALL cp_fm_uplo_to_full(ks, work)
 
          CALL get_mo_set(mo_set=mos(ispin), &
                          nao=nao, &
@@ -1549,7 +1549,7 @@ CONTAINS
          SELECT CASE (scf_env%cholesky_method)
          CASE (cholesky_reduce)
             CALL cp_fm_cholesky_reduce(ks, ortho)
-            CALL cp_fm_upper_to_full(ks, work)
+            CALL cp_fm_uplo_to_full(ks, work)
             CALL cp_fm_cholesky_restore(mo_coeff, nmo, ortho, c0, "MULTIPLY")
          CASE (cholesky_restore)
             CALL cp_fm_cholesky_restore(ks, nao, ortho, work, &

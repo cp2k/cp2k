@@ -113,7 +113,7 @@ Accelerate and reference BLAS/LAPACK.
 
 When building on/for Windows using the Minimalist GNU for Windows (MinGW) environment, you must set
 `-D__MINGW`, `-D__NO_STATM_ACCESS` and `-D__NO_SOCKETS` to avoid undefined references during
-linking, respectively errors while printing the statistics.
+linking, and to respectively avoid errors while printing the statistics.
 
 ### 2e. MPI and ScaLAPACK (optional, required for MPI parallel builds)
 

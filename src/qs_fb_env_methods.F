@@ -27,7 +27,7 @@ MODULE qs_fb_env_methods
                                               cp_fm_symm,&
                                               cp_fm_triangular_invert,&
                                               cp_fm_triangular_multiply,&
-                                              cp_fm_upper_to_full
+                                              cp_fm_uplo_to_full
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                               cp_fm_cholesky_reduce,&
                                               cp_fm_cholesky_restore
@@ -652,7 +652,7 @@ CONTAINS
                CALL choose_eigv_solver(fm_KS, fm_work, mo_eigenvalues)
                CALL cp_fm_cholesky_restore(fm_work, nmo, fm_ortho, mo_coeff, "SOLVE")
             CASE (cholesky_restore)
-               CALL cp_fm_upper_to_full(fm_KS, fm_work)
+               CALL cp_fm_uplo_to_full(fm_KS, fm_work)
                CALL cp_fm_cholesky_restore(fm_KS, nao, fm_ortho, fm_work, "SOLVE", &
                                            pos="RIGHT")
                CALL cp_fm_cholesky_restore(fm_work, nao, fm_ortho, fm_KS, "SOLVE", &
@@ -661,7 +661,7 @@ CONTAINS
                CALL cp_fm_cholesky_restore(fm_work, nmo, fm_ortho, mo_coeff, "SOLVE")
             CASE (cholesky_inverse)
                CALL cp_fm_triangular_invert(fm_ortho)
-               CALL cp_fm_upper_to_full(fm_KS, fm_work)
+               CALL cp_fm_uplo_to_full(fm_KS, fm_work)
                CALL cp_fm_triangular_multiply(fm_ortho, &
                                               fm_KS, &
                                               side="R", &

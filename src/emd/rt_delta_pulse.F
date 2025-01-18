@@ -36,7 +36,7 @@ MODULE rt_delta_pulse
                                               dbcsr_deallocate_matrix_set
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,&
                                               cp_fm_triangular_multiply,&
-                                              cp_fm_upper_to_full
+                                              cp_fm_uplo_to_full
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                               cp_fm_cholesky_invert,&
                                               cp_fm_cholesky_reduce,&
@@ -467,7 +467,7 @@ CONTAINS
       CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, S_inv_fm)
       CALL cp_fm_cholesky_decompose(S_inv_fm)
       CALL cp_fm_cholesky_invert(S_inv_fm)
-      CALL cp_fm_upper_to_full(S_inv_fm, tmp)
+      CALL cp_fm_uplo_to_full(S_inv_fm, tmp)
       CALL cp_fm_release(tmp)
 
       DO i = 1, SIZE(mos)

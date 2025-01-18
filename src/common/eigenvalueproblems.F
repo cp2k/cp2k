@@ -40,35 +40,22 @@ CONTAINS
 !> \brief ...
 !> \param matrix ...
 !> \param mysize ...
-!> \param storageform ...
+!> \param uplo ...
 !> \param eigenvalues ...
 !> \param eigenvectors ...
 ! **************************************************************************************************
-   SUBROUTINE diagonalise_ssyev(matrix, mysize, storageform, eigenvalues, &
+   SUBROUTINE diagonalise_ssyev(matrix, mysize, uplo, eigenvalues, &
                                 eigenvectors)
 
       REAL(KIND=dp), INTENT(IN)                          :: matrix(:, :)
       INTEGER, INTENT(IN)                                :: mysize
-      CHARACTER(LEN=*), INTENT(IN)                       :: storageform
+      CHARACTER(LEN=1), INTENT(IN)                       :: uplo
       REAL(KIND=dp), INTENT(OUT)                         :: eigenvalues(:), eigenvectors(:, :)
 
       CHARACTER, PARAMETER                               :: jobz = "V"
 
-      CHARACTER                                          :: uplo
       INTEGER                                            :: info, lda, lwork
       REAL(KIND=dp)                                      :: work(3*mysize - 1)
-
-      IF (storageform(1:5) == "Lower" .OR. &
-          storageform(1:5) == "LOWER" .OR. &
-          storageform(1:5) == "lower") THEN
-         uplo = "L"
-      ELSE IF (storageform(1:5) == "Upper" .OR. &
-               storageform(1:5) == "upper" .OR. &
-               storageform(1:5) == "UPPER") THEN
-         uplo = "U"
-      ELSE
-         CPABORT("Unknown form of storage")
-      END IF
 
       lda = SIZE(matrix, 1)
       lwork = 3*mysize - 1
@@ -87,37 +74,24 @@ CONTAINS
 !> \brief ...
 !> \param matrix ...
 !> \param mysize ...
-!> \param storageform ...
+!> \param uplo ...
 !> \param eigenvalues ...
 !> \param eigenvectors ...
 ! **************************************************************************************************
-   SUBROUTINE diagonalise_chpev(matrix, mysize, storageform, eigenvalues, &
+   SUBROUTINE diagonalise_chpev(matrix, mysize, uplo, eigenvalues, &
                                 eigenvectors)
 
       COMPLEX(KIND=dp), INTENT(INOUT)                    :: matrix(:)
       INTEGER, INTENT(IN)                                :: mysize
-      CHARACTER(LEN=*), INTENT(IN)                       :: storageform
+      CHARACTER(LEN=1), INTENT(IN)                       :: uplo
       REAL(KIND=dp), INTENT(OUT)                         :: eigenvalues(:)
       COMPLEX(KIND=dp), INTENT(OUT)                      :: eigenvectors(:, :)
 
       CHARACTER, PARAMETER                               :: jobz = "V"
 
-      CHARACTER                                          :: uplo
       INTEGER                                            :: info
       COMPLEX(KIND=dp)                                   :: work(2*mysize - 1)
       REAL(KIND=dp)                                      :: rwork(3*mysize - 2)
-
-      IF (storageform(1:5) == "Lower" .OR. &
-          storageform(1:5) == "LOWER" .OR. &
-          storageform(1:5) == "lower") THEN
-         uplo = "L"
-      ELSE IF (storageform(1:5) == "Upper" .OR. &
-               storageform(1:5) == "upper" .OR. &
-               storageform(1:5) == "UPPER") THEN
-         uplo = "U"
-      ELSE
-         CPABORT("Unknown form of storage")
-      END IF
 
       CALL zhpev(jobz, uplo, mysize, matrix, eigenvalues, &
                  eigenvectors, mysize, work, rwork, info)

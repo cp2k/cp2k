@@ -47,7 +47,7 @@ CONTAINS
 !> \author Joost
 ! **************************************************************************************************
    SUBROUTINE cp_fm_cholesky_decompose(matrix, n, info_out)
-      TYPE(cp_fm_type), INTENT(IN)          :: matrix
+      TYPE(cp_fm_type), INTENT(IN)             :: matrix
       INTEGER, INTENT(in), OPTIONAL            :: n
       INTEGER, INTENT(out), OPTIONAL           :: info_out
 

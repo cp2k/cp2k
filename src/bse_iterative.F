@@ -954,13 +954,13 @@ CONTAINS
       !MG to do: Check for symmetry of ZAZ!
       ALLOCATE (WORK(1))
       WORK = 0.0_dp
-      CALL DSYEV("V", "U", num_Z_vectors, ZAZ, num_Z_vectors, Subspace_full_eigenval, WORK, -1, ZAZ_diag_info)
+      CALL dsyev("V", "U", num_Z_vectors, ZAZ, num_Z_vectors, Subspace_full_eigenval, WORK, -1, ZAZ_diag_info)
       LWORK = INT(WORK(1))
       DEALLOCATE (WORK)
       ALLOCATE (WORK(LWORK))
       WORK = 0.0_dp
       !MG to check: Usage of symmetric routine okay? (Correct LWORK?)
-      CALL DSYEV("V", "U", num_Z_vectors, ZAZ, num_Z_vectors, Subspace_full_eigenval, WORK, LWORK, ZAZ_diag_info)
+      CALL dsyev("V", "U", num_Z_vectors, ZAZ, num_Z_vectors, Subspace_full_eigenval, WORK, LWORK, ZAZ_diag_info)
 
       IF (ZAZ_diag_info /= 0) THEN
          CPABORT("ZAZ could not be diagonalized successfully.")
@@ -1185,13 +1185,13 @@ CONTAINS
          !MG to do: Check for symmetry of ZAZ!
          ALLOCATE (WORK(1))
          WORK = 0.0_dp
-         CALL DSYEV("N", "U", homo*virtual, A_full_reshaped, homo*virtual, Full_exc_spectrum, WORK, -1, diag_info)
+         CALL dsyev("N", "U", homo*virtual, A_full_reshaped, homo*virtual, Full_exc_spectrum, WORK, -1, diag_info)
          LWORK = INT(WORK(1))
          DEALLOCATE (WORK)
          ALLOCATE (WORK(LWORK))
          WORK = 0.0_dp
          !MG to check: Usage of symmetric routine okay? (Correct LWORK?)
-         CALL DSYEV("N", "U", homo*virtual, A_full_reshaped, homo*virtual, Full_exc_spectrum, WORK, LWORK, diag_info)
+         CALL dsyev("N", "U", homo*virtual, A_full_reshaped, homo*virtual, Full_exc_spectrum, WORK, LWORK, diag_info)
 
          DEALLOCATE (WORK)
 

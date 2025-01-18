@@ -239,7 +239,6 @@ CONTAINS
 
          END DO
          IF (dft_control%apply_efield_field) energy%efield_core = efield_ener
-!          energy%efield_core = efield_ener
       END IF
       CALL timestop(handle)
    END SUBROUTINE calculate_ecore_efield

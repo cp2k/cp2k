@@ -182,7 +182,7 @@ CONTAINS
                                              para_env=qs_ot_env(1)%para_env, blacs_env=qs_ot_env(1)%blacs_env)
             CALL cp_dbcsr_cholesky_invert(matrix_os_ortho, &
                                           para_env=qs_ot_env(1)%para_env, blacs_env=qs_ot_env(1)%blacs_env, &
-                                          upper_to_full=.TRUE.)
+                                          uplo_to_full=.TRUE.)
 
             CALL dbcsr_multiply('T', 'N', rone, matrix_s_ortho, matrix_c, &
                                 rzero, matrix_buf1_ortho)

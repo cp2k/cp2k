@@ -351,7 +351,7 @@ CONTAINS
       TYPE(global_environment_type), POINTER             :: globenv
 
       CHARACTER(LEN=3*default_string_length)             :: message
-      CHARACTER(len=default_string_length)               :: c_val
+      CHARACTER(LEN=default_string_length)               :: c_val
       INTEGER                                            :: i, iw
       TYPE(cp_logger_type), POINTER                      :: logger
 
@@ -506,9 +506,9 @@ CONTAINS
 
       CHARACTER(LEN=6), PARAMETER                        :: start_section_label = "GLOBAL"
 
-      CHARACTER(len=13)                                  :: omp_stacksize, tracing_string
-      CHARACTER(len=6)                                   :: print_level_string
-      CHARACTER(len=default_path_length)                 :: basis_set_file_name, coord_file_name, &
+      CHARACTER(LEN=13)                                  :: omp_stacksize, tracing_string
+      CHARACTER(LEN=6)                                   :: print_level_string
+      CHARACTER(LEN=default_path_length)                 :: basis_set_file_name, coord_file_name, &
                                                             mm_potential_file_name, &
                                                             potential_file_name
       CHARACTER(LEN=default_string_length)               :: env_num, model_name, project_name
@@ -1104,7 +1104,7 @@ CONTAINS
    SUBROUTINE fm_setup(glob_section)
       TYPE(section_vals_type), POINTER                   :: glob_section
 
-      INTEGER                                            :: multiplication_type, ncb, nrb
+      INTEGER                                            :: mm_type, ncb, nrb
       LOGICAL                                            :: force_me
       TYPE(section_vals_type), POINTER                   :: fm_section
 
@@ -1113,13 +1113,10 @@ CONTAINS
       CALL section_vals_val_get(fm_section, "NROW_BLOCKS", i_val=nrb)
       CALL section_vals_val_get(fm_section, "NCOL_BLOCKS", i_val=ncb)
       CALL section_vals_val_get(fm_section, "FORCE_BLOCK_SIZE", l_val=force_me)
-
       CALL cp_fm_struct_config(nrow_block=nrb, ncol_block=ncb, force_block=force_me)
 
-      CALL section_vals_val_get(fm_section, "TYPE_OF_MATRIX_MULTIPLICATION", &
-                                i_val=multiplication_type)
-
-      CALL cp_fm_setup(multiplication_type)
+      CALL section_vals_val_get(fm_section, "TYPE_OF_MATRIX_MULTIPLICATION", i_val=mm_type)
+      CALL cp_fm_setup(mm_type)
 
    END SUBROUTINE fm_setup
 
@@ -1172,7 +1169,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp2k_get_walltime(section, keyword_name, walltime)
       TYPE(section_vals_type), POINTER                   :: section
-      CHARACTER(len=*), INTENT(in)                       :: keyword_name
+      CHARACTER(LEN=*), INTENT(in)                       :: keyword_name
       REAL(KIND=dp), INTENT(out)                         :: walltime
 
       CHARACTER(LEN=1)                                   :: c1, c2

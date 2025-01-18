@@ -319,7 +319,7 @@ CONTAINS
 
          DO iat = 1, natomkind
             iatom = atom_list(iat)
-            CALL diagonalise(efg_tensor(:, :, iatom), 3, "UPPER", &
+            CALL diagonalise(efg_tensor(:, :, iatom), 3, "U", &
                              eigenvalues, eigenvectors)
             CALL efgsort(eigenvalues, efg_diagval(:, iatom))
          END DO
