@@ -115,8 +115,6 @@ proprietary software packages, like e.g. MKL, these have to be installed separat
 | pexsi     | [BSD 3-Clause](https://bitbucket.org/berkeleylab/pexsi/src/master/LICENSE)         | Yes                                                                              |
 | plumed    | [LGPL](https://github.com/plumed/plumed2/blob/master/COPYING.LESSER)               | Yes                                                                              |
 | ptscotch  | [CeCILL-C](https://www.labri.fr/perso/pelegrin/scotch/)                            | [Yes](https://cecill.info/faq.en.html#gpl)                                       |
-| quip      | [GPL](https://github.com/libAtoms/QUIP/blob/public/src/libAtoms/COPYRIGHT)         | Yes                                                                              |
-| fox       | [BSD 3-Clause](https://github.com/andreww/fox/blob/master/LICENSE)                 | Yes                                                                              |
 | reflapack | [BSD 3-Clause](http://www.netlib.org/lapack/LICENSE.txt)                           | Yes                                                                              |
 | scalapack | [BSD 3-Clause](http://www.netlib.org/scalapack/LICENSE)                            | Yes                                                                              |
 | sirius    | [BSD 2-Clause](https://github.com/electronic-structure/SIRIUS/blob/master/LICENSE) | Yes                                                                              |
