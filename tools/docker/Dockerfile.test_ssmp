@@ -61,7 +61,7 @@ RUN ./scripts/generate_arch_files.sh && rm -rf ./build
 
 # Install DBCSR
 COPY ./tools/docker/scripts/install_dbcsr.sh ./
-RUN /bin/bash -o pipefail -c "source /opt/cp2k-toolchain/install/setup; ./install_dbcsr.sh"
+RUN ./install_dbcsr.sh toolchain ssmp
 
 # Install CP2K sources.
 WORKDIR /opt/cp2k

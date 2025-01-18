@@ -16,9 +16,10 @@ def main() -> None:
 
     for version in "sdbg", "ssmp", "pdbg", "psmp":
         with OutputFile(f"Dockerfile.test_{version}", args.check) as f:
-            if version == "ssmp":
-                # Use ssmp as guinea pig
+            if version in ("ssmp", "psmp"):
+                # Use ssmp/psmp as guinea pigs
                 f.write(toolchain_full(with_dbcsr=True))
+                f.write(install_dbcsr("toolchain", version))
                 f.write(regtest_cmake("toolchain", version))
             else:
                 f.write(toolchain_full() + regtest(version))
@@ -34,16 +35,16 @@ def main() -> None:
         f.write(toolchain_full(base_image="fedora:38") + regtest("psmp"))
 
     with OutputFile(f"Dockerfile.test_intel-psmp", args.check) as f:
-        f.write(
-            toolchain_intel()
-            + regtest("psmp", intel=True, testopts="--mpiexec mpiexec")
-        )
+        f.write(toolchain_intel())
+        f.write(regtest("psmp", intel=True, testopts="--mpiexec mpiexec"))
 
     with OutputFile(f"Dockerfile.test_nvhpc", args.check) as f:
         f.write(toolchain_nvhpc())
 
     with OutputFile(f"Dockerfile.test_minimal", args.check) as f:
-        f.write(toolchain_ubuntu_nompi() + regtest_cmake("minimal", "ssmp"))
+        f.write(toolchain_ubuntu_nompi())
+        f.write(install_dbcsr("minimal", "ssmp"))
+        f.write(regtest_cmake("minimal", "ssmp"))
 
     with OutputFile(f"Dockerfile.test_spack", args.check) as f:
         f.write(spack_env_toolchain() + regtest_cmake("spack", "psmp"))
@@ -60,6 +61,7 @@ def main() -> None:
         with OutputFile(f"Dockerfile.test_gcc{gcc_version}", args.check) as f:
             if gcc_version > 8:
                 f.write(toolchain_ubuntu_nompi(gcc_version=gcc_version))
+                f.write(install_dbcsr("ubuntu", "ssmp"))
                 f.write(regtest_cmake("ubuntu", "ssmp"))
             else:
                 f.write(toolchain_ubuntu2004_nompi(gcc_version=gcc_version))
@@ -72,6 +74,7 @@ def main() -> None:
                 base_image="i386/debian:12.5", gcc_version=12, with_libxsmm=False
             )
         )
+        f.write(install_dbcsr("ubuntu_i386", "ssmp"))
         f.write(regtest_cmake("ubuntu_i386", "ssmp"))
 
     with OutputFile("Dockerfile.test_arm64-psmp", args.check) as f:
@@ -118,7 +121,9 @@ def main() -> None:
 
     for name in "aiida", "ase", "gromacs", "i-pi":
         with OutputFile(f"Dockerfile.test_{name}", args.check) as f:
-            f.write(toolchain_ubuntu_nompi() + test_3rd_party(name))
+            f.write(toolchain_ubuntu_nompi())
+            f.write(install_dbcsr("ubuntu", "ssmp"))
+            f.write(test_3rd_party(name))
 
     for name in "misc", "doxygen":
         with OutputFile(f"Dockerfile.test_{name}", args.check) as f:
@@ -399,6 +404,15 @@ COPY ./tools/regtesting ./tools/regtesting
 
 
 # ======================================================================================
+def install_dbcsr(profile: str, version: str) -> str:
+    return rf"""
+# Install DBCSR
+COPY ./tools/docker/scripts/install_dbcsr.sh ./
+RUN ./install_dbcsr.sh {profile} {version}
+"""
+
+
+# ======================================================================================
 def toolchain_full(
     base_image: str = "ubuntu:24.04",
     with_gcc: str = "system",
@@ -409,12 +423,6 @@ def toolchain_full(
     output += install_toolchain(
         base_image=base_image, install_all="", with_gcc=with_gcc, **kwargs
     )
-    if with_dbcsr:
-        output += r"""
-# Install DBCSR
-COPY ./tools/docker/scripts/install_dbcsr.sh ./
-RUN /bin/bash -o pipefail -c "source /opt/cp2k-toolchain/install/setup; ./install_dbcsr.sh"
-"""
     return output
 
 
@@ -461,10 +469,6 @@ RUN export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true && \
 RUN ln -sf /usr/bin/gcc-{gcc_version}      /usr/local/bin/gcc  && \
     ln -sf /usr/bin/g++-{gcc_version}      /usr/local/bin/g++  && \
     ln -sf /usr/bin/gfortran-{gcc_version} /usr/local/bin/gfortran
-
-# Install DBCSR
-COPY ./tools/docker/scripts/install_dbcsr.sh ./
-RUN  ./install_dbcsr.sh
 """
     return output
 

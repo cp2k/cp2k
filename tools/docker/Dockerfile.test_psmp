@@ -59,25 +59,25 @@ COPY ./tools/toolchain/scripts/arch_base.tmpl \
      ./scripts/
 RUN ./scripts/generate_arch_files.sh && rm -rf ./build
 
-# Install CP2K using local.psmp.
+# Install DBCSR
+COPY ./tools/docker/scripts/install_dbcsr.sh ./
+RUN ./install_dbcsr.sh toolchain psmp
+
+# Install CP2K sources.
 WORKDIR /opt/cp2k
-COPY ./Makefile .
 COPY ./src ./src
-COPY ./exts ./exts
-COPY ./tools/build_utils ./tools/build_utils
-RUN /bin/bash -c " \
-    mkdir -p arch && \
-    ln -vs /opt/cp2k-toolchain/install/arch/local.psmp ./arch/"
 COPY ./data ./data
 COPY ./tests ./tests
-COPY ./tools/regtesting ./tools/regtesting
+COPY ./tools/build_utils ./tools/build_utils
+COPY ./cmake ./cmake
+COPY ./CMakeLists.txt .
 
-# Run regression tests.
+# Build CP2K with CMake and run regression tests.
 ARG TESTOPTS=""
-COPY ./tools/docker/scripts/test_regtest.sh ./
+COPY ./tools/docker/scripts/build_cp2k_cmake.sh ./tools/docker/scripts/test_regtest_cmake.sh ./
 RUN /bin/bash -o pipefail -c " \
     TESTOPTS='${TESTOPTS}' \
-    ./test_regtest.sh 'local' 'psmp' |& tee report.log && \
+    ./test_regtest_cmake.sh toolchain psmp |& tee report.log && \
     rm -rf regtesting"
 
 # Output the report if the image is old and was therefore pulled from the build cache.
