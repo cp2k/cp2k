@@ -584,36 +584,23 @@ CONTAINS
       b => matrix_b%local_data
       c => matrix_c%local_data
 
-      IF (PRESENT(a_first_row)) THEN
-         i_a = a_first_row
-      ELSE
-         i_a = 1
-      END IF
-      IF (PRESENT(a_first_col)) THEN
-         j_a = a_first_col
-      ELSE
-         j_a = 1
-      END IF
-      IF (PRESENT(b_first_row)) THEN
-         i_b = b_first_row
-      ELSE
-         i_b = 1
-      END IF
-      IF (PRESENT(b_first_col)) THEN
-         j_b = b_first_col
-      ELSE
-         j_b = 1
-      END IF
-      IF (PRESENT(c_first_row)) THEN
-         i_c = c_first_row
-      ELSE
-         i_c = 1
-      END IF
-      IF (PRESENT(c_first_col)) THEN
-         j_c = c_first_col
-      ELSE
-         j_c = 1
-      END IF
+      i_a = 1
+      IF (PRESENT(a_first_row)) i_a = a_first_row
+
+      j_a = 1
+      IF (PRESENT(a_first_col)) j_a = a_first_col
+
+      i_b = 1
+      IF (PRESENT(b_first_row)) i_b = b_first_row
+
+      j_b = 1
+      IF (PRESENT(b_first_col)) j_b = b_first_col
+
+      i_c = 1
+      IF (PRESENT(c_first_row)) i_c = c_first_row
+
+      j_c = 1
+      IF (PRESENT(c_first_col)) j_c = c_first_col
 
 #if defined(__parallel)
       desca(:) = matrix_a%matrix_struct%descriptor(:)
@@ -627,6 +614,7 @@ CONTAINS
       ldb = SIZE(b, 1)
       ldc = SIZE(c, 1)
 
+      ! consider zgemm3m
       CALL zgemm(transa, transb, m, n, k, alpha, a(i_a, j_a), &
                  lda, b(i_b, j_b), ldb, beta, c(i_c, j_c), ldc)
 #endif
@@ -1130,7 +1118,7 @@ CONTAINS
       INTEGER                                            :: handle, ncol_global, nrow_global
 #if defined(__parallel)
       INTEGER, DIMENSION(9)                              :: desca, descc
-#else
+#elif !defined(__MKL)
       INTEGER                                            :: ii, jj
 #endif
 
@@ -1160,6 +1148,8 @@ CONTAINS
       CASE DEFAULT
          CPABORT("trans only accepts 'T' or 'C'")
       END SELECT
+#elif defined(__MKL)
+      CALL mkl_zomatcopy('C', trans, nrow_global, ncol_global, 1.0_dp, a(1, 1), nrow_global, c(1, 1), ncol_global)
 #else
       SELECT CASE (trans)
       CASE ('T')
