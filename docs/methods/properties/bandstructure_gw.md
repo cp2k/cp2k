@@ -80,15 +80,13 @@ $\varepsilon_{n\mathbf{k}}^\text{DFT}$ and we add the xc contribution from
 $\braket{\psi_{n\mathbf{k}}|
 \Sigma^{G_0W_0}(\varepsilon_{n\mathbf{k}}^{G_0W_0}) |\psi_{n\mathbf{k}}}$.
 
-The DFT xc start functional of *G*<sub>0</sub>*W*<sub>0</sub> can influence the
-*G*<sub>0</sub>*W*<sub>0</sub> quasiparticle energies. For molecules, it is recommended to start the
-*G*<sub>0</sub>*W*<sub>0</sub> calculation from the PBE0 functional and for solids, from the PBE
+CP2K also allows to perform eigenvalue-selfconsistency in $G$ (ev*GW*<sub>0</sub>) and
+eigenvalue-selfconsistency in $G$ and in $W$ (ev*GW*), where especially the
+*G*<sub>0</sub>*W*<sub>0</sub> quasiparticle energies can be heavily influenced by the DFT xc
 functional.
 
-CP2K also allows to perform eigenvalue-selfconsistency in $G$ (ev*GW*<sub>0</sub>) and
-eigenvalue-selfconsistency in $G$ and in $W$ (ev*GW*). For solids, it has been shown that band gaps
-from ev*GW*$_0$@PBE can be in better agreement with experimental band gaps than band gaps from
-*G*<sub>0</sub>*W*<sub>0</sub>@PBE.
+In general, we recommend to use ev*GW*<sub>0</sub>@PBE for both molecules and solids, motivated by
+the discussion in \[[](#Schambeck2024)\].
 
 CP2K contains three different *GW* implementations:
 
@@ -146,10 +144,10 @@ and $\varepsilon_\text{LUMO}^{G_0W_0\text{@PBE}}$ = 2.37 eV; CP2K input and outp
 The following settings from DFT will also have an influence on *GW* quasiparticle energies:
 
 - [XC_FUNCTIONAL](#CP2K_INPUT.FORCE_EVAL.DFT.XC.XC_FUNCTIONAL): Starting xc functional for the
-  *G*<sub>0</sub>*W*<sub>0</sub>, ev*GW*<sub>0</sub> or ev*GW* calculation. For molecules, we
-  recommend either ev*GW*<sub>0</sub>@PBE or *G*<sub>0</sub>*W*<sub>0</sub>@PBE0. For further
-  guidance on selecting an appropriate DFT starting functional and self-consistency scheme for your
-  system, you may consult \[[](#Golze2019)\].
+  *G*<sub>0</sub>*W*<sub>0</sub>, ev*GW*<sub>0</sub> or ev*GW* calculation. We recommend to use
+  ev*GW*<sub>0</sub>@PBE, as discussed in \[[](#Schambeck2024)\]. For further guidance on selecting
+  an appropriate DFT starting functional and self-consistency scheme for your system, you may
+  consult \[[](#Golze2019)\].
 
 - [BASIS_SET](#CP2K_INPUT.FORCE_EVAL.SUBSYS.KIND.BASIS_SET): The basis set is of Gaussian type and
   can have strong influence on the quasiparticle energies. For computing quasiparticle energies, a
