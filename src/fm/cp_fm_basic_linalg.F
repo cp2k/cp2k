@@ -179,11 +179,8 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      IF (PRESENT(matrix_b)) THEN
-         my_beta = 1.0_dp
-      ELSE
-         my_beta = 0.0_dp
-      END IF
+      my_beta = 0.0_dp
+      IF (PRESENT(matrix_b)) my_beta = 1.0_dp
       IF (PRESENT(beta)) my_beta = beta
       NULLIFY (a, b)
 
@@ -206,7 +203,7 @@ CONTAINS
          size_a = SIZE(a, 1)*SIZE(a, 2)
       END IF
 
-      IF (alpha /= 1.0_dp) THEN
+      IF (alpha .NE. 1.0_dp) THEN
          IF (matrix_a%use_sp) THEN
             CALL sscal(size_a, REAL(alpha, sp), a_sp, 1)
          ELSE
@@ -214,7 +211,7 @@ CONTAINS
          END IF
       END IF
       IF (my_beta .NE. 0.0_dp) THEN
-         IF (matrix_a%matrix_struct%context /= matrix_b%matrix_struct%context) &
+         IF (matrix_a%matrix_struct%context .NE. matrix_b%matrix_struct%context) &
             CPABORT("Matrices must be in the same blacs context")
 
          IF (cp_fm_struct_equivalent(matrix_a%matrix_struct, &
@@ -227,7 +224,7 @@ CONTAINS
             ELSE
                size_b = SIZE(b, 1)*SIZE(b, 2)
             END IF
-            IF (size_a /= size_b) &
+            IF (size_a .NE. size_b) &
                CPABORT("Matrices must have same local sizes")
 
             IF (matrix_a%use_sp .AND. matrix_b%use_sp) THEN
@@ -281,7 +278,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER :: aa, bb
 #if defined(__parallel)
       INTEGER, DIMENSION(9) :: desca, descb
-#else
+#elif !defined(__MKL)
       INTEGER :: ii, jj
 #endif
 
@@ -476,36 +473,23 @@ CONTAINS
       b_sp => matrix_b%local_data_sp
       c_sp => matrix_c%local_data_sp
 
-      IF (PRESENT(a_first_row)) THEN
-         i_a = a_first_row
-      ELSE
-         i_a = 1
-      END IF
-      IF (PRESENT(a_first_col)) THEN
-         j_a = a_first_col
-      ELSE
-         j_a = 1
-      END IF
-      IF (PRESENT(b_first_row)) THEN
-         i_b = b_first_row
-      ELSE
-         i_b = 1
-      END IF
-      IF (PRESENT(b_first_col)) THEN
-         j_b = b_first_col
-      ELSE
-         j_b = 1
-      END IF
-      IF (PRESENT(c_first_row)) THEN
-         i_c = c_first_row
-      ELSE
-         i_c = 1
-      END IF
-      IF (PRESENT(c_first_col)) THEN
-         j_c = c_first_col
-      ELSE
-         j_c = 1
-      END IF
+      i_a = 1
+      IF (PRESENT(a_first_row)) i_a = a_first_row
+
+      j_a = 1
+      IF (PRESENT(a_first_col)) j_a = a_first_col
+
+      i_b = 1
+      IF (PRESENT(b_first_row)) i_b = b_first_row
+
+      j_b = 1
+      IF (PRESENT(b_first_col)) j_b = b_first_col
+
+      i_c = 1
+      IF (PRESENT(c_first_row)) i_c = c_first_row
+
+      j_c = 1
+      IF (PRESENT(c_first_col)) j_c = c_first_col
 
 #if defined(__parallel)
 
@@ -1249,7 +1233,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, c
 #if defined(__parallel)
       INTEGER, DIMENSION(9)                    :: desca, descc
-#else
+#elif !defined(__MKL)
       INTEGER                                  :: i, j
 #endif
 
@@ -1269,6 +1253,8 @@ CONTAINS
       desca(:) = matrix%matrix_struct%descriptor(:)
       descc(:) = matrixt%matrix_struct%descriptor(:)
       CALL pdtran(ncol_global, nrow_global, 1.0_dp, a(1, 1), 1, 1, desca, 0.0_dp, c(1, 1), 1, 1, descc)
+#elif defined(__MKL)
+      CALL mkl_domatcopy('C', 'T', nrow_global, ncol_global, 1.0_dp, a(1, 1), nrow_global, c(1, 1), ncol_global)
 #else
       DO j = 1, ncol_global
          DO i = 1, nrow_global
