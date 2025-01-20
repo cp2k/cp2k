@@ -1149,7 +1149,7 @@ CONTAINS
          CPABORT("trans only accepts 'T' or 'C'")
       END SELECT
 #elif defined(__MKL)
-      CALL mkl_zomatcopy('C', trans, nrow_global, ncol_global, 1.0_dp, a(1, 1), nrow_global, c(1, 1), ncol_global)
+      CALL mkl_zomatcopy('C', trans, nrow_global, ncol_global, 1.0_dp, aa(1, 1), nrow_global, cc(1, 1), ncol_global)
 #else
       SELECT CASE (trans)
       CASE ('T')

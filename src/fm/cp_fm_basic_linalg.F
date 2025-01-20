@@ -308,7 +308,7 @@ CONTAINS
                    descb)
 #elif defined(__MKL)
       CALL mkl_domatadd('C', trans, 'N', nrow_global, ncol_global, &
-                        alpha, aa, nrow_global, beta, b, nrow_global, bb, nrow_global)
+                        alpha, aa, nrow_global, beta, bb, nrow_global, bb, nrow_global)
 #else
       ! dgeadd is not a standard BLAS function, although it is implemented
       ! in some libraries like OpenBLAS, so not going to use it here
