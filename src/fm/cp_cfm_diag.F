@@ -131,13 +131,13 @@ CONTAINS
       ! Let's add some margin to avoid crashes.
       lwork = CEILING(REAL(work(1), KIND=dp)) + 1000
       ! needed to correct for a bug in scalapack, unclear how much the right number is
-      lrwork = CEILING(REAL(rwork(1), KIND=dp)) + 1000000
+      lrwork = CEILING(rwork(1)) + 1000000
       liwork = iwork(1)
 #else
       CALL zheevd('V', 'U', n, m(1, 1), SIZE(m, 1), eigenvalues(1), &
                   work(1), lwork, rwork(1), lrwork, iwork(1), liwork, info)
       lwork = CEILING(REAL(work(1), KIND=dp))
-      lrwork = CEILING(REAL(rwork(1), KIND=dp))
+      lrwork = CEILING(rwork(1))
       liwork = iwork(1)
 #endif
 

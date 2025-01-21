@@ -53,7 +53,7 @@ MODULE qs_diis
    USE input_section_types,             ONLY: section_vals_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp
-   USE mathlib,                         ONLY: complex_diag,&
+   USE mathlib,                         ONLY: diag_complex,&
                                               diamat_all
    USE message_passing,                 ONLY: mp_para_env_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
@@ -1226,7 +1226,7 @@ CONTAINS
          ! Solve the linear DIIS equation system
          ev(1:nb1) = 0.0_dp !eigenvalues
          a(1:nb1, 1:nb1) = 0.0_dp !eigenvectors
-         CALL complex_diag(b(1:nb1, 1:nb1), a(1:nb1, 1:nb1), ev(1:nb1))
+         CALL diag_complex(b(1:nb1, 1:nb1), a(1:nb1, 1:nb1), ev(1:nb1))
          b(1:nb1, 1:nb1) = a(1:nb1, 1:nb1)
 
          eigenvectors_discarded = .FALSE.
