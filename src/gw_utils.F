@@ -84,7 +84,8 @@ MODULE gw_utils
    USE mathconstants,                   ONLY: gaussi,&
                                               z_one,&
                                               z_zero
-   USE mathlib,                         ONLY: gcd
+   USE mathlib,                         ONLY: diag_complex,&
+                                              gcd
    USE message_passing,                 ONLY: mp_cart_type,&
                                               mp_para_env_type
    USE minimax_exp,                     ONLY: get_exp_minimax_coeff
@@ -2985,58 +2986,25 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'power'
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :)     :: eigenvectors
-      COMPLEX(KIND=dp), DIMENSION(:), POINTER            :: work
-      COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: A
-      INTEGER                                            :: handle, i, info, liwork, lrwork, lwork, n
-      INTEGER, DIMENSION(:), POINTER                     :: iwork
+      INTEGER                                            :: handle, i, n
       REAL(KIND=dp)                                      :: pos_eval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: rwork
 
       CALL timeset(routineN, handle)
-
-      ! code by Ole Schütt
-      IF (SIZE(matrix, 1) /= SIZE(matrix, 2)) CPABORT("expected square matrix")
 
       ! make matrix perfectly Hermitian
       matrix(:, :) = 0.5_dp*(matrix(:, :) + CONJG(TRANSPOSE(matrix(:, :))))
 
       n = SIZE(matrix, 1)
-      ALLOCATE (iwork(1), rwork(1), work(1), A(n, n), eigenvalues(n), eigenvectors(n, n))
-
-      A(:, :) = matrix ! ZHEEVD will overwrite A
-      ! work space query
-      lwork = -1
-      lrwork = -1
-      liwork = -1
-
-      CALL zheevd('V', 'U', n, A(1, 1), n, eigenvalues(1), &
-                  work(1), lwork, rwork(1), lrwork, iwork(1), liwork, info)
-      lwork = INT(REAL(work(1), dp))
-      lrwork = INT(REAL(rwork(1), dp))
-      liwork = iwork(1)
-
-      DEALLOCATE (iwork, rwork, work)
-      ALLOCATE (iwork(liwork))
-      iwork(:) = 0
-      ALLOCATE (rwork(lrwork))
-      rwork(:) = 0.0_dp
-      ALLOCATE (work(lwork))
-      work(:) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
-
-      CALL zheevd('V', 'U', n, A(1, 1), n, eigenvalues(1), &
-                  work(1), lwork, rwork(1), lrwork, iwork(1), liwork, info)
-
-      eigenvectors(:, :) = A(:, :)
-
-      IF (info /= 0) CPABORT("diagonalization failed")
+      ALLOCATE (eigenvalues(n), eigenvectors(n, n))
+      CALL diag_complex(matrix, eigenvectors, eigenvalues)
 
       IF (PRESENT(cond_nr)) cond_nr = MAXVAL(ABS(eigenvalues))/MINVAL(ABS(eigenvalues))
       IF (PRESENT(min_ev)) min_ev = MINVAL(ABS(eigenvalues))
       IF (PRESENT(max_ev)) max_ev = MAXVAL(ABS(eigenvalues))
 
       DO i = 1, n
-         IF (eigenvalues(i) > eps) THEN
+         IF (eps < eigenvalues(i)) THEN
             pos_eval = (eigenvalues(i))**(0.5_dp*exponent)
          ELSE
             pos_eval = 0.0_dp
@@ -3046,7 +3014,7 @@ CONTAINS
 
       CALL ZGEMM("N", "C", n, n, n, z_one, eigenvectors, n, eigenvectors, n, z_zero, matrix, n)
 
-      DEALLOCATE (iwork, rwork, work, A, eigenvalues, eigenvectors)
+      DEALLOCATE (eigenvalues, eigenvectors)
 
       CALL timestop(handle)
 

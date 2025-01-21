@@ -17,7 +17,8 @@ MODULE pao_param_exp
         dbcsr_p_type, dbcsr_release, dbcsr_reserve_diag_blocks, dbcsr_set, dbcsr_type
    USE dm_ls_scf_types,                 ONLY: ls_scf_env_type
    USE kinds,                           ONLY: dp
-   USE mathlib,                         ONLY: diamat_all
+   USE mathlib,                         ONLY: diag_antisym,&
+                                              diamat_all
    USE pao_param_methods,               ONLY: pao_calc_AB_from_U,&
                                               pao_calc_grad_lnv_wrt_U
    USE pao_potentials,                  ONLY: pao_guess_initial_potential
@@ -347,90 +348,5 @@ CONTAINS
 
       DEALLOCATE (RM, RMR, F, RF, RFR)
    END FUNCTION fold_derivatives
-
-! **************************************************************************************************
-!> \brief Helper routine for diagonalizing anti symmetric matrices
-!> \param matrix ...
-!> \param evecs ...
-!> \param evals ...
-! **************************************************************************************************
-   SUBROUTINE diag_antisym(matrix, evecs, evals)
-      REAL(dp), DIMENSION(:, :)                          :: matrix
-      COMPLEX(dp), DIMENSION(:, :)                       :: evecs
-      COMPLEX(dp), DIMENSION(:)                          :: evals
-
-      COMPLEX(dp), DIMENSION(:, :), POINTER              :: matrix_c
-      INTEGER                                            :: N
-      REAL(dp), DIMENSION(:), POINTER                    :: evals_r
-
-      IF (MAXVAL(ABS(matrix + TRANSPOSE(matrix))) > 1e-14_dp) CPABORT("Expected anti-symmetric matrix")
-      N = SIZE(matrix, 1)
-      ALLOCATE (matrix_c(N, N), evals_r(N))
-
-      matrix_c = CMPLX(0.0_dp, -matrix, kind=dp)
-      CALL zheevd_wrapper(matrix_c, evecs, evals_r)
-      evals = CMPLX(0.0_dp, evals_r, kind=dp)
-
-      DEALLOCATE (matrix_c, evals_r)
-   END SUBROUTINE diag_antisym
-
-! **************************************************************************************************
-!> \brief Helper routine for calling LAPACK zheevd
-!> \param matrix ...
-!> \param eigenvectors ...
-!> \param eigenvalues ...
-! **************************************************************************************************
-   SUBROUTINE zheevd_wrapper(matrix, eigenvectors, eigenvalues)
-      COMPLEX(dp), DIMENSION(:, :)                       :: matrix, eigenvectors
-      REAL(dp), DIMENSION(:)                             :: eigenvalues
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'zheevd_wrapper'
-
-      COMPLEX(KIND=dp), DIMENSION(:), POINTER            :: work
-      COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: A
-      INTEGER                                            :: handle, info, liwork, lrwork, lwork, n
-      INTEGER, DIMENSION(:), POINTER                     :: iwork
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: rwork
-
-      CALL timeset(routineN, handle)
-
-      IF (SIZE(matrix, 1) /= SIZE(matrix, 2)) CPABORT("expected square matrix")
-      IF (MAXVAL(ABS(matrix - CONJG(TRANSPOSE(matrix)))) > 1e-14_dp) CPABORT("Expect hermitian matrix")
-
-      n = SIZE(matrix, 1)
-      ALLOCATE (iwork(1), rwork(1), work(1), A(n, n))
-
-      A(:, :) = matrix ! ZHEEVD will overwrite A
-      ! work space query
-      lwork = -1
-      lrwork = -1
-      liwork = -1
-
-      CALL zheevd('V', 'U', n, A(1, 1), n, eigenvalues(1), &
-                  work(1), lwork, rwork(1), lrwork, iwork(1), liwork, info)
-      lwork = INT(REAL(work(1), dp))
-      lrwork = INT(REAL(rwork(1), dp))
-      liwork = iwork(1)
-
-      DEALLOCATE (iwork, rwork, work)
-      ALLOCATE (iwork(liwork))
-      iwork(:) = 0
-      ALLOCATE (rwork(lrwork))
-      rwork(:) = 0.0_dp
-      ALLOCATE (work(lwork))
-      work(:) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
-
-      CALL zheevd('V', 'U', n, A(1, 1), n, eigenvalues(1), &
-                  work(1), lwork, rwork(1), lrwork, iwork(1), liwork, info)
-
-      eigenvectors = A
-
-      IF (info /= 0) CPABORT("diagonalization failed")
-
-      DEALLOCATE (iwork, rwork, work, A)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE zheevd_wrapper
 
 END MODULE pao_param_exp
