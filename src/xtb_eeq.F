@@ -60,7 +60,7 @@ MODULE xtb_eeq
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xtb_eeq'
 
-   PUBLIC :: xtb_eeq_calculation, xtb_eeq_forces
+   PUBLIC :: xtb_eeq_calculation, xtb_eeq_forces, xtb_eeq_lagrange
 
 CONTAINS
 
@@ -220,14 +220,17 @@ CONTAINS
 !> \param qs_env ...
 !> \param charges ...
 !> \param dcharges ...
+!> \param qlagrange ...
 !> \param cnumbers ...
 !> \param dcnum ...
 !> \param eeq_sparam ...
 ! **************************************************************************************************
-   SUBROUTINE xtb_eeq_forces(qs_env, charges, dcharges, cnumbers, dcnum, eeq_sparam)
+   SUBROUTINE xtb_eeq_forces(qs_env, charges, dcharges, qlagrange, cnumbers, dcnum, eeq_sparam)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: charges, dcharges, cnumbers
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: charges, dcharges
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: qlagrange
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: cnumbers
       TYPE(dcnum_type), DIMENSION(:), INTENT(IN)         :: dcnum
       TYPE(eeq_solver_type), INTENT(IN)                  :: eeq_sparam
 
@@ -240,7 +243,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       LOGICAL                                            :: defined, do_ewald, use_virial
       REAL(KIND=dp)                                      :: ala, alb, alpha, cn, ctot, dr, dr2, drk, &
-                                                            elag, esg, gam2, gama, grc, kappa, &
+                                                            elag, esg, fe, gam2, gama, grc, kappa, &
                                                             qlam, qq, qq1, qq2, rcut, scn, sgamma, &
                                                             totalcharge, xi
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: gam
@@ -393,7 +396,7 @@ CONTAINS
       IF (do_ewald) THEN
          CALL get_qs_env(qs_env, sab_tbe=sab_tbe)
          CALL ewald_env_get(ewald_env, alpha=alpha, rcut=rcut)
-         rcut = 2.0_dp*rcut
+         rcut = 1.0_dp*rcut
          CALL neighbor_list_iterator_create(nl_iterator, sab_tbe)
          DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
             CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
@@ -404,6 +407,8 @@ CONTAINS
             dr2 = SUM(rij**2)
             dr = SQRT(dr2)
             IF (dr > rcut .OR. dr < 1.E-6_dp) CYCLE
+            fe = 1.0_dp
+            IF (iatom == jatom) fe = 0.5_dp
             qq = (0.5_dp*charges(iatom) - qlag(iatom))*charges(jatom)
             gama = gab(ikind, jkind)
             gam2 = gama*gama
@@ -415,13 +420,13 @@ CONTAINS
             force(ikind)%rho_elec(:, atom_a) = force(ikind)%rho_elec(:, atom_a) + fdik(:)
             force(jkind)%rho_elec(:, atom_b) = force(jkind)%rho_elec(:, atom_b) - fdik(:)
             IF (use_virial) THEN
-               CALL virial_pair_force(virial%pv_virial, 1._dp, fdik, rij)
+               CALL virial_pair_force(virial%pv_virial, fe, fdik, rij)
             END IF
             fdik(:) = qq2*grc*rij(:)/dr
             force(ikind)%rho_elec(:, atom_a) = force(ikind)%rho_elec(:, atom_a) - fdik(:)
             force(jkind)%rho_elec(:, atom_b) = force(jkind)%rho_elec(:, atom_b) + fdik(:)
             IF (use_virial) THEN
-               CALL virial_pair_force(virial%pv_virial, -1._dp, fdik, rij)
+               CALL virial_pair_force(virial%pv_virial, -fe, fdik, rij)
             END IF
          END DO
          CALL neighbor_list_iterator_release(nl_iterator)
@@ -482,10 +487,114 @@ CONTAINS
          END IF
       END IF
 
+      ! return Lagrange multipliers
+      qlagrange(1:natom) = qlag(1:natom)
+
       DEALLOCATE (gab, chrgx, dchia, qlag)
 
       CALL timestop(handle)
 
    END SUBROUTINE xtb_eeq_forces
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param dcharges ...
+!> \param qlagrange ...
+!> \param eeq_sparam ...
+! **************************************************************************************************
+   SUBROUTINE xtb_eeq_lagrange(qs_env, dcharges, qlagrange, eeq_sparam)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: dcharges
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: qlagrange
+      TYPE(eeq_solver_type), INTENT(IN)                  :: eeq_sparam
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'xtb_eeq_lagrange'
+
+      INTEGER                                            :: handle, ikind, iunit, jkind, natom, nkind
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
+      LOGICAL                                            :: defined, do_ewald
+      REAL(KIND=dp)                                      :: ala, alb, elag, gama, qlam, totalcharge
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: gam
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: gab
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: qlag
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(ewald_environment_type), POINTER              :: ewald_env
+      TYPE(ewald_pw_type), POINTER                       :: ewald_pw
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(xtb_atom_type), POINTER                       :: xtb_atom_a, xtb_atom_b
+      TYPE(xtb_control_type), POINTER                    :: xtb_control
+
+      CALL timeset(routineN, handle)
+
+      iunit = cp_logger_get_default_unit_nr()
+
+      CALL get_qs_env(qs_env, &
+                      qs_kind_set=qs_kind_set, &
+                      atomic_kind_set=atomic_kind_set, &
+                      particle_set=particle_set, &
+                      cell=cell, &
+                      dft_control=dft_control)
+      CALL get_qs_env(qs_env, nkind=nkind, natom=natom)
+
+      xtb_control => dft_control%qs_control%xtb_control
+
+      totalcharge = dft_control%charge
+
+      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
+                               atom_of_kind=atom_of_kind, kind_of=kind_of)
+
+      ! gamma[a,b]
+      ALLOCATE (gab(nkind, nkind), gam(nkind))
+      gab = 0.0_dp
+      DO ikind = 1, nkind
+         CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_atom_a)
+         CALL get_xtb_atom_param(xtb_atom_a, defined=defined)
+         IF (.NOT. defined) CYCLE
+         CALL get_xtb_atom_param(xtb_atom_a, alpg=ala, eta=gama)
+         gam(ikind) = gama
+         DO jkind = 1, nkind
+            CALL get_qs_kind(qs_kind_set(jkind), xtb_parameter=xtb_atom_b)
+            CALL get_xtb_atom_param(xtb_atom_b, defined=defined)
+            IF (.NOT. defined) CYCLE
+            CALL get_xtb_atom_param(xtb_atom_b, alpg=alb)
+            !
+            gab(ikind, jkind) = SQRT(1._dp/(ala*ala + alb*alb))
+            !
+         END DO
+      END DO
+
+      ALLOCATE (qlag(natom))
+
+      do_ewald = xtb_control%do_ewald
+
+      CALL get_qs_env(qs_env, para_env=para_env, blacs_env=blacs_env)
+      IF (do_ewald) THEN
+         CALL get_qs_env(qs_env=qs_env, &
+                         ewald_env=ewald_env, ewald_pw=ewald_pw)
+         CALL eeq_solver(qlag, qlam, elag, &
+                         particle_set, kind_of, cell, -dcharges, gam, gab, &
+                         para_env, blacs_env, dft_control, eeq_sparam, &
+                         ewald=do_ewald, ewald_env=ewald_env, ewald_pw=ewald_pw, iounit=iunit)
+      ELSE
+         CALL eeq_solver(qlag, qlam, elag, &
+                         particle_set, kind_of, cell, -dcharges, gam, gab, &
+                         para_env, blacs_env, dft_control, eeq_sparam, iounit=iunit)
+      END IF
+
+      ! return Lagrange multipliers
+      qlagrange(1:natom) = qlag(1:natom)
+
+      DEALLOCATE (gab, qlag)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE xtb_eeq_lagrange
 
 END MODULE xtb_eeq

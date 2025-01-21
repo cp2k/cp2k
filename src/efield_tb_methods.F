@@ -345,7 +345,7 @@ CONTAINS
          END DO
       END DO
       qi = AIMAG(LOG(zi))
-      energy%efield = -SUM(fpolvec(:)*qi(:))
+      energy%efield = SUM(fpolvec(:)*qi(:))
 
       IF (.NOT. just_energy) THEN
          CALL get_qs_env(qs_env=qs_env, matrix_s_kp=matrix_s)
@@ -364,7 +364,7 @@ CONTAINS
             CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind, kind_of=kind_of)
             IF (para_env%mepos == 0) THEN
                DO ia = 1, natom
-                  charge = -mcharge(ia)
+                  charge = mcharge(ia)
                   iatom = atom_of_kind(ia)
                   ikind = kind_of(ia)
                   force(ikind)%efield(:, iatom) = fieldpol(:)*charge
@@ -409,9 +409,9 @@ CONTAINS
                   CALL dbcsr_get_block_p(matrix=ks_matrix(is, 1)%matrix, &
                                          row=irow, col=icol, block=ks_block, found=found)
                   CPASSERT(found)
-                  ks_block = ks_block + 0.5_dp*fdir*s_block
+                  ks_block = ks_block - 0.5_dp*fdir*s_block
                END DO
-               IF (calculate_forces) THEN
+               IF (calculate_forces .AND. irow /= icol) THEN
                   ikind = kind_of(irow)
                   jkind = kind_of(icol)
                   atom_a = atom_of_kind(irow)
@@ -425,7 +425,7 @@ CONTAINS
                         CALL dbcsr_get_block_p(matrix=matrix_s(idir + 1, 1)%matrix, &
                                                row=irow, col=icol, BLOCK=ds_block, found=found)
                         CPASSERT(found)
-                        fij(idir) = fij(idir) + SUM(p_block*ds_block)
+                        fij(idir) = fij(idir) - SUM(p_block*ds_block)
                      END DO
                   END DO
                   force(ikind)%efield(1:3, atom_a) = force(ikind)%efield(1:3, atom_a) + fdir*fij(1:3)
@@ -471,10 +471,10 @@ CONTAINS
                                  kvec(:) = twopi*cell%h_inv(idir, :)
                                  dd = SUM(kvec(:)*ria(:))
                                  zdeta = CMPLX(COS(dd), SIN(dd), KIND=dp)
-                                 fdir = fdir + fpolvec(idir)*AIMAG(LOG(zdeta))
+                                 fdir = fdir - fpolvec(idir)*AIMAG(LOG(zdeta))
                                  dd = SUM(kvec(:)*rib(:))
                                  zdeta = CMPLX(COS(dd), SIN(dd), KIND=dp)
-                                 fdir = fdir + fpolvec(idir)*AIMAG(LOG(zdeta))
+                                 fdir = fdir - fpolvec(idir)*AIMAG(LOG(zdeta))
                               END DO
                               fi = 1.0_dp
                               IF (iatom == jatom) fi = 0.5_dp
@@ -535,7 +535,7 @@ CONTAINS
                   CALL dbcsr_get_block_p(matrix=ks_matrix(is, ic)%matrix, &
                                          row=irow, col=icol, block=ks_block, found=found)
                   CPASSERT(found)
-                  ks_block = ks_block + 0.5_dp*fdir*s_block
+                  ks_block = ks_block - 0.5_dp*fdir*s_block
                END DO
                IF (calculate_forces) THEN
                   atom_a = atom_of_kind(iatom)
@@ -549,7 +549,7 @@ CONTAINS
                         CALL dbcsr_get_block_p(matrix=matrix_s(idir + 1, ic)%matrix, &
                                                row=irow, col=icol, BLOCK=ds_block, found=found)
                         CPASSERT(found)
-                        fij(idir) = fij(idir) + SUM(p_block*ds_block)
+                        fij(idir) = fij(idir) - SUM(p_block*ds_block)
                      END DO
                   END DO
                   IF (irow == iatom) fij = -fij

@@ -1455,6 +1455,8 @@ CONTAINS
             qs_control%xtb_control%coulomb_lr = .FALSE.
             qs_control%xtb_control%tb3_interaction = .FALSE.
             qs_control%xtb_control%check_atomic_charges = .FALSE.
+            CALL section_vals_val_get(xtb_section, "VARIATIONAL_DIPOLE", &
+                                      l_val=qs_control%xtb_control%var_dipole)
          CASE (1)
             ! For debugging purposes
             CALL section_vals_val_get(xtb_section, "COULOMB_INTERACTION", &
@@ -1466,6 +1468,7 @@ CONTAINS
             ! Check for bad atomic charges
             CALL section_vals_val_get(xtb_section, "CHECK_ATOMIC_CHARGES", &
                                       l_val=qs_control%xtb_control%check_atomic_charges)
+            qs_control%xtb_control%var_dipole = .FALSE.
          CASE (2)
             CPABORT("gfn2-xtb tbd")
          CASE DEFAULT

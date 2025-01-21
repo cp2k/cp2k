@@ -169,6 +169,7 @@ MODULE cp_control_types
       LOGICAL                              :: coulomb_lr = .FALSE.
       LOGICAL                              :: tb3_interaction = .FALSE.
       LOGICAL                              :: check_atomic_charges = .FALSE.
+      LOGICAL                              :: var_dipole = .FALSE.
       !
       REAL(KIND=dp)                        :: xb_radius = 0.0_dp
       REAL(KIND=dp)                        :: coulomb_sr_cut = 0.0_dp

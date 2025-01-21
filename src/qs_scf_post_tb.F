@@ -136,6 +136,7 @@ MODULE qs_scf_post_tb
    USE task_list_methods,               ONLY: generate_qs_task_list
    USE task_list_types,                 ONLY: allocate_task_list,&
                                               task_list_type
+   USE xtb_qresp,                       ONLY: build_xtb_qresp
    USE xtb_types,                       ONLY: get_xtb_atom_param,&
                                               xtb_atom_type
 #include "./base/base_uses.f90"
@@ -171,18 +172,17 @@ CONTAINS
 
       CHARACTER(LEN=6)                                   :: ana
       CHARACTER(LEN=default_string_length)               :: aname
-      INTEGER :: after, enshift_type, gfn_type, handle, homo, iat, iatom, ikind, img, ispin, iw, &
-         nat, natom, nkind, nlumo_stm, nlumos, nspins, print_level, unit_nr
+      INTEGER :: after, gfn_type, handle, homo, iat, iatom, ikind, img, ispin, iw, nat, natom, &
+         nkind, nlumo_stm, nlumos, nspins, print_level, unit_nr
       LOGICAL                                            :: do_cube, do_kpoints, explicit, gfn0, &
                                                             has_homo, omit_headers, print_it, &
-                                                            rebuild
+                                                            rebuild, vdip
       REAL(KIND=dp)                                      :: zeff
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: mcharge
       REAL(KIND=dp), DIMENSION(2, 2)                     :: homo_lumo
       REAL(KIND=dp), DIMENSION(:), POINTER               :: echarge, mo_eigenvalues
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: charges
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_1d_r_p_type), DIMENSION(:), POINTER        :: unoccupied_evals_stm
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: unoccupied_orbs_stm
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
@@ -212,12 +212,14 @@ CONTAINS
       logger => cp_get_default_logger()
 
       gfn0 = .FALSE.
+      vdip = .FALSE.
       CALL get_qs_env(qs_env, dft_control=dft_control)
       SELECT CASE (TRIM(tb_type))
       CASE ("DFTB")
       CASE ("xTB")
          gfn_type = dft_control%qs_control%xtb_control%gfn_type
          gfn0 = (gfn_type == 0)
+         vdip = dft_control%qs_control%xtb_control%var_dipole
       CASE DEFAULT
          CPABORT("unknown TB type")
       END SELECT
@@ -392,16 +394,14 @@ CONTAINS
                                         extension=".data", middle_name="tb_dipole", log_filename=.FALSE.)
          moments_section => section_vals_get_subs_vals(print_section, "MOMENTS")
          IF (gfn0) THEN
-            enshift_type = dft_control%qs_control%xtb_control%enshift_type
-            IF (enshift_type == 0) THEN
-               CALL get_qs_env(qs_env, cell=cell)
-               enshift_type = 1
-               IF (.NOT. ALL(cell%perd == 0)) enshift_type = 2
-            END IF
             NULLIFY (echarge)
             CALL get_qs_env(qs_env, eeq=echarge)
             CPASSERT(ASSOCIATED(echarge))
-            CALL tb_dipole(qs_env, moments_section, unit_nr, echarge)
+            IF (vdip) THEN
+               CALL build_xtb_qresp(qs_env, mcharge)
+               mcharge = echarge - mcharge
+            END IF
+            CALL tb_dipole(qs_env, moments_section, unit_nr, mcharge)
          ELSE
             CALL tb_dipole(qs_env, moments_section, unit_nr, mcharge)
          END IF
@@ -844,7 +844,7 @@ CONTAINS
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(/,T2,A,T31,A50)') &
             'TB_DIPOLE| Dipole type', ADJUSTR(TRIM(dipole_type))
-         WRITE (unit_nr, "(T2,A,T33,3F16.8)") "TB_DIPOLE| Reference Point [Bohr]", rcc
+         WRITE (unit_nr, "(T2,A,T30,3(1X,F16.8))") "TB_DIPOLE| Ref. Point [Bohr]", rcc
          WRITE (unit_nr, '(T2,A,T30,3(1X,F16.8))') &
             'TB_DIPOLE| Moment [a.u.]', dipole(1:3)
          WRITE (unit_nr, '(T2,A,T30,3(1X,F16.8))') &

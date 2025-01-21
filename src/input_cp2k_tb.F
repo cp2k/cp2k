@@ -216,6 +216,12 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="VARIATIONAL_DIPOLE", &
+                          description="gfn0-xTB use dipole definition from energy derivative.", &
+                          usage="VARIATIONAL_DIPOLE T", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="EPS_PAIRPOTENTIAL", &
                           description="Accuracy for the repulsive pair potential.", &
                           usage="EPS_PAIRPOTENTIAL 1.0E-8", default_r_val=1.0e-10_dp)

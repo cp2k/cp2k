@@ -2498,6 +2498,16 @@ CONTAINS
          IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Total Force ", fodeb
          DEALLOCATE (ftot1, ftot2, ftot3)
       END IF
+      IF (debug_stress .AND. use_virial) THEN
+         stdeb = fconv*(virial%pv_virial - sttot)
+         CALL para_env%sum(stdeb)
+         IF (iounit > 0) WRITE (UNIT=iounit, FMT="(T2,A,T41,2(1X,ES19.11))") &
+            'STRESS| Stress Response    ', one_third_sum_diag(stdeb), det_3x3(stdeb)
+!deb
+         stdeb = (virial%pv_virial - sttot)
+         WRITE (6, *) "STRESS>> RESPONSE  :", stdeb(1, 1), stdeb(2, 2), stdeb(3, 3)
+!deb
+      END IF
 
       IF (do_ex) THEN
          CALL dbcsr_deallocate_matrix_set(mpa)

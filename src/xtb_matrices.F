@@ -159,7 +159,7 @@ CONTAINS
       REAL(KIND=dp) :: dfp, dhij, dr, drk, drx, eeq_energy, ef_energy, enonbonded, enscale, erep, &
          esrb, etaa, etab, f0, f1, f2, fhua, fhub, fhud, foab, fqa, fqb, hij, kf, qlambda, rcova, &
          rcovab, rcovb, rrab
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: charges, cnumbers, dcharges
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: charges, cnumbers, dcharges, qlagrange
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dfblock, dhuckel, dqhuckel, huckel, owork
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: oint, sint
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: kijab
@@ -669,7 +669,8 @@ CONTAINS
       ! EEQ forces (response and direct)
       IF (calculate_forces) THEN
          CALL para_env%sum(dcharges)
-         CALL xtb_eeq_forces(qs_env, charges, dcharges, cnumbers, dcnum, eeq_sparam)
+         ALLOCATE (qlagrange(natom))
+         CALL xtb_eeq_forces(qs_env, charges, dcharges, qlagrange, cnumbers, dcnum, eeq_sparam)
       END IF
 
       kf = xtb_control%kf
@@ -725,7 +726,7 @@ CONTAINS
       ! deallocate charges
       DEALLOCATE (charges)
       IF (calculate_forces) THEN
-         DEALLOCATE (dcharges)
+         DEALLOCATE (dcharges, qlagrange)
       END IF
 
       ! AO matrix outputs

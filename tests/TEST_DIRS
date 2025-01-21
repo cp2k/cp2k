@@ -17,6 +17,7 @@ QS/regtest-debug-5                                          libint
 QS/regtest-gpw-4
 ATOM/regtest-1
 xTB/regtest-gfn0                                            libdftd4
+xTB/regtest-gfn0-d                                          libdftd4
 xTB/regtest-gfn0-m1                                         libdftd4
 xTB/regtest-gfn0-m2                                         libdftd4
 xTB/regtest-gfn0-m3                                         libdftd4
@@ -39,6 +40,7 @@ QS/regtest-ot
 QS/regtest-ec-force                                         libint
 QS/regtest-embed                                            libint
 xTB/regtest-5
+xTB/regtest-gfn1-d
 QS/regtest-gpw-2-3
 QS/regtest-p-efield
 SIRIUS/regtest-1                                            sirius
