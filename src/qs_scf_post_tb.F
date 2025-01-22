@@ -399,7 +399,7 @@ CONTAINS
             CPASSERT(ASSOCIATED(echarge))
             IF (vdip) THEN
                CALL build_xtb_qresp(qs_env, mcharge)
-               mcharge = echarge - mcharge
+               mcharge(1:natom) = echarge(1:natom) - mcharge(1:natom)
             END IF
             CALL tb_dipole(qs_env, moments_section, unit_nr, mcharge)
          ELSE
