@@ -2674,7 +2674,7 @@ CONTAINS
       IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
          unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%EEQ_CHARGES", extension=".eeq", log_filename=.FALSE.)
          print_level = 1
-         CALL eeq_print(qs_env, unit_nr, print_level)
+         CALL eeq_print(qs_env, unit_nr, print_level, ext=.FALSE.)
          CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%MULLIKEN")
       END IF
 

@@ -308,6 +308,8 @@ MODULE qs_environment_types
       TYPE(pw_r3d_rs_type), POINTER                         :: spin_embed_pot => NULL()
       ! Polarizability tensor
       TYPE(polar_env_type), POINTER                         :: polar_env => NULL()
+      ! EEQ charges
+      REAL(KIND=dp), DIMENSION(:), POINTER                  :: eeq => NULL()
       ! Resp charges
       REAL(KIND=dp), DIMENSION(:), POINTER                  :: rhs => NULL()
       REAL(KIND=dp)                                         :: total_zeff_corr = -1.0_dp, surface_dipole_moment = -1.0_dp
@@ -475,6 +477,7 @@ CONTAINS
 !> \param spin_embed_pot ...
 !> \param polar_env ...
 !> \param mos_last_converged ... [SGh]
+!> \param eeq ...
 !> \param rhs ...
 !> \date    23.01.2002
 !> \author  MK
@@ -506,7 +509,8 @@ CONTAINS
                          rho_external, external_vxc, mask, mp2_env, bs_env, kg_env, &
                          WannierCentres, atprop, ls_scf_env, do_transport, transport_env, v_hartree_rspace, &
                          s_mstruct_changed, rho_changed, potential_changed, forces_up_to_date, mscfg_env, almo_scf_env, &
-                         gradient_history, variable_history, embed_pot, spin_embed_pot, polar_env, mos_last_converged, rhs)
+                         gradient_history, variable_history, embed_pot, spin_embed_pot, polar_env, mos_last_converged, &
+                         eeq, rhs)
       TYPE(qs_environment_type), INTENT(IN)              :: qs_env
       TYPE(atomic_kind_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: atomic_kind_set
@@ -639,7 +643,7 @@ CONTAINS
       TYPE(pw_r3d_rs_type), OPTIONAL, POINTER            :: embed_pot, spin_embed_pot
       TYPE(polar_env_type), OPTIONAL, POINTER            :: polar_env
       TYPE(mo_set_type), DIMENSION(:), OPTIONAL, POINTER :: mos_last_converged
-      REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: rhs
+      REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: eeq, rhs
 
       TYPE(rho0_mpole_type), POINTER                     :: rho0_m
 
@@ -705,6 +709,9 @@ CONTAINS
 
       ! Polarisability tensor
       IF (PRESENT(polar_env)) polar_env => qs_env%polar_env
+
+      ! EEQ charges
+      IF (PRESENT(eeq)) eeq => qs_env%eeq
 
       ! Resp charges
       IF (PRESENT(rhs)) rhs => qs_env%rhs
@@ -1023,6 +1030,7 @@ CONTAINS
 !> \param spin_embed_pot ...
 !> \param polar_env ...
 !> \param mos_last_converged ... [SGh]
+!> \param eeq ...
 !> \param rhs ...
 !> \date    23.01.2002
 !> \author  MK
@@ -1043,7 +1051,7 @@ CONTAINS
                          do_transport, transport_env, lri_env, lri_density, exstate_env, ec_env, dispersion_env, &
                          harris_env, gcp_env, mp2_env, bs_env, kg_env, force, &
                          kpoints, WannierCentres, almo_scf_env, gradient_history, variable_history, embed_pot, &
-                         spin_embed_pot, polar_env, mos_last_converged, rhs)
+                         spin_embed_pot, polar_env, mos_last_converged, eeq, rhs)
 
       TYPE(qs_environment_type), INTENT(INOUT)           :: qs_env
       TYPE(cell_type), OPTIONAL, POINTER                 :: super_cell
@@ -1119,7 +1127,7 @@ CONTAINS
       TYPE(pw_r3d_rs_type), OPTIONAL, POINTER            :: embed_pot, spin_embed_pot
       TYPE(polar_env_type), OPTIONAL, POINTER            :: polar_env
       TYPE(mo_set_type), DIMENSION(:), OPTIONAL, POINTER :: mos_last_converged
-      REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: rhs
+      REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: eeq, rhs
 
       TYPE(qs_subsys_type), POINTER                      :: subsys
 
@@ -1342,6 +1350,9 @@ CONTAINS
       IF (PRESENT(gcp_env)) qs_env%gcp_env => gcp_env
       IF (PRESENT(WannierCentres)) qs_env%WannierCentres => WannierCentres
       IF (PRESENT(kpoints)) CALL set_ks_env(qs_env%ks_env, kpoints=kpoints)
+
+      ! EEQ charges
+      IF (PRESENT(eeq)) qs_env%eeq => eeq
 
       ! Resp charges
       IF (PRESENT(rhs)) qs_env%rhs => rhs
@@ -1597,6 +1608,8 @@ CONTAINS
          END DO
          DEALLOCATE (qs_env%WannierCentres)
       END IF
+      ! EEQ charges
+      IF (ASSOCIATED(qs_env%eeq)) DEALLOCATE (qs_env%eeq)
       ! Resp charges
       IF (ASSOCIATED(qs_env%rhs)) DEALLOCATE (qs_env%rhs)
 
@@ -1814,6 +1827,8 @@ CONTAINS
          END DO
          DEALLOCATE (qs_env%WannierCentres)
       END IF
+      ! EEQ charges
+      IF (ASSOCIATED(qs_env%eeq)) DEALLOCATE (qs_env%eeq)
       ! Resp charges
       IF (ASSOCIATED(qs_env%rhs)) DEALLOCATE (qs_env%rhs)
 

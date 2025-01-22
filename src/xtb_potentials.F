@@ -222,7 +222,7 @@ CONTAINS
                                                             dr0, drk, enta, entb, esrbij, etasrb, &
                                                             f1, fhua, fhub, gscal, ksrb, rra0, &
                                                             rrb0, shift
-      REAL(KIND=dp), DIMENSION(3)                        :: fdik, fdika, fdikb, force_rr, rij, rik
+      REAL(KIND=dp), DIMENSION(3)                        :: fdik, force_rr, rij, rik
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atprop_type), POINTER                         :: atprop
       TYPE(neighbor_list_iterator_p_type), &
@@ -309,11 +309,10 @@ CONTAINS
                   rik = dcnum(iatom)%rik(:, i)
                   drk = SQRT(SUM(rik(:)**2))
                   IF (drk > 1.e-3_dp) THEN
-                     fdika(:) = fhua*dcnum(iatom)%dvals(i)*rik(:)/drk
-                     force(ikind)%repulsive(:, atom_a) = force(ikind)%repulsive(:, atom_a) - fdika(:)
-                     force(kkind)%repulsive(:, atom_c) = force(kkind)%repulsive(:, atom_c) + fdika(:)
+                     fdik(:) = fhua*dcnum(iatom)%dvals(i)*rik(:)/drk
+                     force(ikind)%repulsive(:, atom_a) = force(ikind)%repulsive(:, atom_a) - fdik(:)
+                     force(kkind)%repulsive(:, atom_c) = force(kkind)%repulsive(:, atom_c) + fdik(:)
                      IF (use_virial) THEN
-                        fdik = fdika + fdikb
                         CALL virial_pair_force(virial%pv_virial, -1._dp, fdik, rik)
                      END IF
                   END IF

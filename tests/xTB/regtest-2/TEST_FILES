@@ -8,8 +8,8 @@ H2O-field-gopt.inp                                     1      3e-11             
 H2O-field-gopt-lsd.inp                                 1      4e-12              -5.76970797174834
 H2O-field.inp                                          0      4e-13
 H2O-field-lsd.inp                                      1      4e-14              -5.76959233315201
-HF-field.inp                                           1      1e-12              -5.62813329327978
-HF-field-gopt.inp                                      1      5e-09              -5.66367831097363
+HF-field.inp                                           1      1e-12              -5.70162277773935
+HF-field-gopt.inp                                      1      5e-09              -5.65593182181073
 HF-field-debug.inp                                     0      1e-12
 HF-dfilter-debug.inp                                   0      1e-12
 HF-dfield-gopt.inp                                     1      1e-09              -5.66065888870620
