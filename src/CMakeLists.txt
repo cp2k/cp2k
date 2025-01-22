@@ -848,6 +848,7 @@ list(
   xas_tdp_utils.F
   xas_tp_scf.F
   xray_diffraction.F
+  xtb_qresp.F
   xtb_coulomb.F
   xtb_eeq.F
   xtb_ehess.F
