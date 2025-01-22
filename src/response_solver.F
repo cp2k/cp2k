@@ -2503,10 +2503,6 @@ CONTAINS
          CALL para_env%sum(stdeb)
          IF (iounit > 0) WRITE (UNIT=iounit, FMT="(T2,A,T41,2(1X,ES19.11))") &
             'STRESS| Stress Response    ', one_third_sum_diag(stdeb), det_3x3(stdeb)
-!deb
-         stdeb = (virial%pv_virial - sttot)
-         WRITE (6, *) "STRESS>> RESPONSE  :", stdeb(1, 1), stdeb(2, 2), stdeb(3, 3)
-!deb
       END IF
 
       IF (do_ex) THEN
