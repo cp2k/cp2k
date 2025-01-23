@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -568,7 +568,7 @@ CONTAINS
       tddfpt_control => dft_control%tddfpt2_control
 
       ! no k-points
-      IF (.NOT. dft_control%nimages <= 1) CPABORT("k-points not implemented for TDDFPT")
+      IF (dft_control%nimages > 1) CPABORT("k-points not implemented for TDDFPT")
 
       IF (tddfpt_control%nstates <= 0) THEN
          CALL integer_to_string(tddfpt_control%nstates, nstates_str)
