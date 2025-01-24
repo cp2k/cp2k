@@ -154,10 +154,9 @@ CONTAINS
          ec_env%cpmos => cpmos
       ELSE
          ! get external information
-!deb     CALL ec_ext_interface(qs_env, ec_env%ex, mo_ref, cpmos, calculate_forces, unit_nr)
+         CALL ec_ext_interface(qs_env, ec_env, mo_ref, cpmos, calculate_forces, unit_nr)
          ec_env%mo_occ => mo_ref
          ec_env%cpmos => cpmos
-         CPABORT("EC EXT NYA")
       END IF
 
       IF (calculate_forces) THEN
@@ -181,6 +180,57 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE ec_ext_energy
+
+! **************************************************************************************************
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param ec_env ...
+!> \param mo_ref ...
+!> \param cpmos ...
+!> \param calculate_forces ...
+!> \param unit_nr ...
+! **************************************************************************************************
+   SUBROUTINE ec_ext_interface(qs_env, ec_env, mo_ref, cpmos, calculate_forces, unit_nr)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(energy_correction_type), POINTER              :: ec_env
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: mo_ref, cpmos
+      LOGICAL, INTENT(IN)                                :: calculate_forces
+      INTEGER, INTENT(IN)                                :: unit_nr
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ec_ext_interface'
+
+      INTEGER                                            :: handle, ispin, nao, nocc(2), nspins
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+
+      CALL timeset(routineN, handle)
+
+      MARK_USED(qs_env)
+      MARK_USED(ec_env)
+      MARK_USED(mo_ref)
+      MARK_USED(cpmos)
+      MARK_USED(calculate_forces)
+      MARK_USED(unit_nr)
+
+      CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, para_env=para_env)
+
+      nspins = dft_control%nspins
+      CALL get_qs_env(qs_env, mos=mos)
+      nocc = 0
+      DO ispin = 1, nspins
+         CALL get_mo_set(mo_set=mos(ispin), nao=nao, homo=nocc(ispin))
+      END DO
+
+      IF (unit_nr > 0) THEN
+         WRITE (unit_nr, '(T2,A)') "Read EXTERNAL Response from file: "//TRIM(ec_env%exresp_fn)
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE ec_ext_interface
 
 ! **************************************************************************************************
 

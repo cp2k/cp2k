@@ -112,10 +112,13 @@ MODULE ec_env_types
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER        :: matrix_hz => Null(), matrix_wz => Null(), &
                                                           matrix_z => Null(), z_admm => Null()
       ! Harris (rhoout), and response density (rhoz) on grid
-      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER             :: rhoout_r => Null(), rhoz_r => Null()
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER      :: rhoout_r => Null(), &
+                                                          rhoz_r => Null()
       ! potentials from input density
-      TYPE(pw_r3d_rs_type)                                    :: vh_rspace = pw_r3d_rs_type()
-      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER             :: vxc_rspace => Null(), vtau_rspace => Null(), vadmm_rspace => Null()
+      TYPE(pw_r3d_rs_type)                             :: vh_rspace = pw_r3d_rs_type()
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER      :: vxc_rspace => Null(), &
+                                                          vtau_rspace => Null(), &
+                                                          vadmm_rspace => Null()
       ! efield
       TYPE(efield_berry_type), POINTER                 :: efield => NULL()
       ! LS matrices and types
@@ -123,8 +126,15 @@ MODULE ec_env_types
       ! Environment for Hartree-Fock exchange
       TYPE(hfx_type), DIMENSION(:, :), POINTER         :: x_data => Null()
       ! ADMM XC environments
-      TYPE(section_vals_type), POINTER         :: xc_section_primary => Null(), &
-                                                  xc_section_aux => Null()
+      TYPE(section_vals_type), POINTER                 :: xc_section_primary => Null(), &
+                                                          xc_section_aux => Null()
+      ! External
+      CHARACTER(len=40)                                :: exresp_fn = ""
+      CHARACTER(len=40)                                :: exresult_fn = ""
+      LOGICAL                                          :: do_error = .FALSE.
+      REAL(KIND=dp), DIMENSION(3, 3)                   :: rpv = 0.0_dp, rpverror = 0.0_dp
+      REAL(KIND=dp), DIMENSION(:, :), POINTER          :: rf => NULL(), &
+                                                          rferror => NULL()
    END TYPE energy_correction_type
 
 CONTAINS
@@ -214,6 +224,13 @@ CONTAINS
 
          CALL cp_fm_release(ec_env%mo_occ)
          CALL cp_fm_release(ec_env%cpmos)
+
+         IF (ASSOCIATED(ec_env%rf)) THEN
+            DEALLOCATE (ec_env%rf)
+         END IF
+         IF (ASSOCIATED(ec_env%rferror)) THEN
+            DEALLOCATE (ec_env%rferror)
+         END IF
 
          DEALLOCATE (ec_env)
 
