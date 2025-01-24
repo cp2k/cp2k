@@ -43,9 +43,11 @@ case "$with_spglib" in
       cmake \
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
         -DCMAKE_BUILD_TYPE="RelWithDebInfo" \
+        -DCMAKE_INSTALL_LIBDIR=lib \
         -DCMAKE_VERBOSE_MAKEFILE=ON \
         -DSPGLIB_SHARED_LIBS=OFF \
         -DSPGLIB_USE_OMP=ON \
+        -DSPGLIB_WITH_Fortran=ON \
         -DSPGLIB_WITH_TESTS=OFF \
         .. > configure.log 2>&1 || tail -n ${LOG_LINES} configure.log
       make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
