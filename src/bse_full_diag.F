@@ -475,7 +475,12 @@ CONTAINS
       ALLOCATE (Exc_ens(homo*virtual))
 
       CALL choose_eigv_solver(fm_C, fm_eigvec_Z, Exc_ens, diag_info)
-      CPASSERT(diag_info == 0)
+
+      IF (diag_info /= 0) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "Diagonalization of C=(A-B)^0.5 (A+B) (A-B)^0.5 failed in BSE")
+      END IF
+
       ! C could have negative eigenvalues, since we do not explicitly check A+B
       ! for positive definiteness (would make another O(N^6) Diagon. necessary)
       ! Instead, we include a check here
@@ -589,7 +594,12 @@ CONTAINS
       ALLOCATE (Exc_ens(homo*virtual))
 
       CALL choose_eigv_solver(fm_A, fm_eigvec, Exc_ens, diag_info)
-      CPASSERT(diag_info == 0)
+
+      IF (diag_info /= 0) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "Diagonalization of A failed in TDA-BSE")
+      END IF
+
       CALL postprocess_bse(Exc_ens, fm_eigvec, mp2_env, qs_env, mo_coeff, &
                            homo, virtual, homo_irred, unit_nr, .TRUE.)
 

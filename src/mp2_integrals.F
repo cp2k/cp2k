@@ -332,8 +332,12 @@ CONTAINS
       END IF
 
       IF (do_bse) THEN
-         CPASSERT(my_do_gw)
-         CPASSERT(.NOT. do_im_time)
+         IF (.NOT. my_do_gw) THEN
+            CALL cp_abort(__LOCATION__, "BSE calculations require prior GW calculations.")
+         END IF
+         IF (do_im_time) THEN
+            CALL cp_abort(__LOCATION__, "BSE calculations are not implemented for low-scaling GW.")
+         END IF
          ! GPW integrals have to be implemented later
          IF (eri_method == do_eri_gpw) THEN
             CALL cp_abort(__LOCATION__, &
