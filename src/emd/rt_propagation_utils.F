@@ -47,7 +47,8 @@ MODULE rt_propagation_utils
                                               section_get_lval,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
-                                              section_vals_val_get
+                                              section_vals_val_get,&
+                                              section_vals_get
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
@@ -103,7 +104,8 @@ MODULE rt_propagation_utils
              calc_update_rho_sparse, &
              calculate_P_imaginary, &
              write_rtp_mos_to_output_unit, &
-             write_rtp_mo_cubes
+             write_rtp_mo_cubes, &
+             warn_section_unused
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rt_propagation_utils'
 
@@ -871,5 +873,24 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE write_rtp_mo_cubes
+
+! **************************************************************************************************
+!> \brief Warn about unused sections of the print section - only implemented for some of the methods
+!> \param section Parent section
+!> \param subsection_name Name of the subsection which is not used even when explicitly included
+!> \param error_message Message to display as warning
+!> \author Stepan Marek (01.25)
+! **************************************************************************************************
+   SUBROUTINE warn_section_unused(section, subsection_name, error_message)
+      TYPE(section_vals_type), POINTER                   :: section
+      CHARACTER(len=*)                                   :: subsection_name, &
+                                                            error_message
+      TYPE(section_vals_type), POINTER                   :: target_section
+      LOGICAL                                            :: explicit
+
+      target_section => section_vals_get_subs_vals(section, subsection_name)
+      CALL section_vals_get(target_section, explicit=explicit)
+      IF (explicit) CPWARN(error_message)
+   END SUBROUTINE
 
 END MODULE rt_propagation_utils

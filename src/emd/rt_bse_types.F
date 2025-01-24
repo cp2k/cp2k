@@ -67,6 +67,7 @@ MODULE rt_bse_types
    USE post_scf_bandstructure_utils, ONLY: create_and_init_bs_env
    USE rt_propagation_types, ONLY: rt_prop_type, &
                                    get_rtp
+   USE rt_propagation_utils, ONLY: warn_section_unused
    USE rt_propagator_init, ONLY: rt_initialize_rho_from_mos
    USE rt_propagation_methods, ONLY: s_matrices_create
    USE qs_moments, ONLY: build_local_moment_matrix
@@ -368,6 +369,17 @@ CONTAINS
       rtbse_env%rho_section => section_vals_get_subs_vals(input, "DFT%REAL_TIME_PROPAGATION%PRINT%DENSITY_MATRIX")
       rtbse_env%ft_section => section_vals_get_subs_vals(input, "DFT%REAL_TIME_PROPAGATION%PRINT%MOMENTS_FT")
       rtbse_env%pol_section => section_vals_get_subs_vals(input, "DFT%REAL_TIME_PROPAGATION%PRINT%POLARIZABILITY")
+      ! Warn the user about print sections which are not yet implemented in the RTBSE run
+      CALL warn_section_unused(input, "DFT%REAL_TIME_PROPAGATION%PRINT%CURRENT", &
+                               "CURRENT print section not yet implemented for RTBSE.")
+      CALL warn_section_unused(input, "DFT%REAL_TIME_PROPAGATION%PRINT%E_CONSTITUENTS", &
+                               "E_CONSTITUENTS print section not yet implemented for RTBSE.")
+      CALL warn_section_unused(input, "DFT%REAL_TIME_PROPAGATION%PRINT%PROGRAM_RUN_INFO", &
+                               "PROGRAM_RUN_INFO print section not yet implemented for RTBSE.")
+      CALL warn_section_unused(input, "DFT%REAL_TIME_PROPAGATION%PRINT%PROJECTION_MO", &
+                               "PROJECTION_MO print section not yet implemented for RTBSE.")
+      CALL warn_section_unused(input, "DFT%REAL_TIME_PROPAGATION%PRINT%RESTART_HISTORY", &
+                               "RESTART_HISTORY print section not yet implemented for RTBSE.")
       ! DEBUG : References to previous environments
       rtbse_env%qs_env => qs_env
       rtbse_env%bs_env => bs_env
