@@ -149,6 +149,7 @@ append_path LD_LIBRARY_PATH "${pkg_install_dir}/lib"
 append_path LD_RUN_PATH "${pkg_install_dir}/lib"
 append_path LIBRARY_PATH "${pkg_install_dir}/lib"
 append_path CPATH "${pkg_install_dir}/include"
+prepend_path PKG_CONFIG_PATH "${pkg_install_dir}/lib/pkgconfig"
 EOF
   fi
   cat "${BUILDDIR}/setup_mpich" >> ${SETUPFILE}
