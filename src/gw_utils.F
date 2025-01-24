@@ -1500,7 +1500,7 @@ CONTAINS
       ! for periodic systems and for 20 minimax points, we use a regularized minimax mesh
       ! (from experience: regularized minimax meshes converges faster for periodic systems
       !  and for 20 pts)
-      IF (SUM(bs_env%periodic) .NE. 0 .OR. bs_env%num_time_freq_points == 20) THEN
+      IF (SUM(bs_env%periodic) .NE. 0 .OR. bs_env%num_time_freq_points >= 20) THEN
          bs_env%regularization_minimax = 1.0E-6_dp
       ELSE
          bs_env%regularization_minimax = 0.0_dp
