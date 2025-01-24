@@ -361,6 +361,31 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="EXTERNAL_RESPONSE_FILENAME", &
+                          description="Name of the file that contains response information.", &
+                          usage="EXTERNAL_RESPONSE_FILENAME <FILENAME>", &
+                          default_c_val="TREXIO")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="EXTERNAL_RESULT_FILENAME", &
+                          description="Name of the file that contains results from external response calculation.", &
+                          usage="EXTERNAL_RESULT_FILENAME <FILENAME>", &
+                          default_c_val="CP2K_EXRESP.result")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
+         keyword, __LOCATION__, &
+         name="ERROR_ESTIMATION", &
+         description="Perform an error estimation for the response forces/stress. "// &
+         "Requires error estimates for the RHS of the response equation from input. ", &
+         usage="ERROR_ESTIMATION", &
+         default_l_val=.FALSE., &
+         lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
    END SUBROUTINE create_ec_section
 
 ! **************************************************************************************************
