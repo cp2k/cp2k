@@ -602,8 +602,9 @@ if(CP2K_USE_COSMA)
   get_target_property(CP2K_COSMA_LINK_LIBRARIES cosma::cosma
                       INTERFACE_LINK_LIBRARIES)
 
-  # check that cosma::cosma_pxgemm and cosma::cosma_prefixed_pxgemm exist
-  if(NOT TARGET cosma::cosma_pxgemm OR NOT TARGET cosma::cosma_prefixed_pxgemm)
+  # check that cosma::cosma_pxgemm_cpp and cosma::cosma_prefixed_pxgemm exist
+  if(NOT TARGET cosma::cosma_pxgemm_cpp OR NOT TARGET
+                                           cosma::cosma_prefixed_pxgemm)
     message(
       FATAL_ERROR
         " COSMA needs to be build with scalapack offloading support. COSTA_SCALAPACK and COSMA_SCALAPACK should probably be set properly"
