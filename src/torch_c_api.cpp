@@ -27,12 +27,12 @@ static torch::Device get_device() {
  * \author Ole Schuett
  ******************************************************************************/
 static torch_c_tensor_t *tensor_from_array(const torch::Dtype dtype,
-                                           const int ndims,
+                                           const bool req_grad, const int ndims,
                                            const int64_t sizes[],
                                            void *source) {
-  const auto options = torch::TensorOptions().dtype(dtype);
+  const auto opts = torch::TensorOptions().dtype(dtype).requires_grad(req_grad);
   const auto sizes_ref = c10::IntArrayRef(sizes, ndims);
-  return new torch_c_tensor_t(torch::from_blob(source, sizes_ref, options));
+  return new torch_c_tensor_t(torch::from_blob(source, sizes_ref, opts));
 }
 
 /*******************************************************************************
@@ -61,9 +61,10 @@ extern "C" {
  *        The passed array has to outlive the tensor!
  * \author Ole Schuett
  ******************************************************************************/
-void torch_c_tensor_from_array_float(torch_c_tensor_t **tensor, const int ndims,
+void torch_c_tensor_from_array_float(torch_c_tensor_t **tensor,
+                                     const bool req_grad, const int ndims,
                                      const int64_t sizes[], float source[]) {
-  *tensor = tensor_from_array(torch::kFloat32, ndims, sizes, source);
+  *tensor = tensor_from_array(torch::kFloat32, req_grad, ndims, sizes, source);
 }
 
 /*******************************************************************************
@@ -71,9 +72,10 @@ void torch_c_tensor_from_array_float(torch_c_tensor_t **tensor, const int ndims,
  *        The passed array has to outlive the tensor!
  * \author Ole Schuett
  ******************************************************************************/
-void torch_c_tensor_from_array_int64(torch_c_tensor_t **tensor, const int ndims,
+void torch_c_tensor_from_array_int64(torch_c_tensor_t **tensor,
+                                     const bool req_grad, const int ndims,
                                      const int64_t sizes[], int64_t source[]) {
-  *tensor = tensor_from_array(torch::kInt64, ndims, sizes, source);
+  *tensor = tensor_from_array(torch::kInt64, req_grad, ndims, sizes, source);
 }
 
 /*******************************************************************************
@@ -82,9 +84,9 @@ void torch_c_tensor_from_array_int64(torch_c_tensor_t **tensor, const int ndims,
  * \author Ole Schuett
  ******************************************************************************/
 void torch_c_tensor_from_array_double(torch_c_tensor_t **tensor,
-                                      const int ndims, const int64_t sizes[],
-                                      double source[]) {
-  *tensor = tensor_from_array(torch::kFloat64, ndims, sizes, source);
+                                      const bool req_grad, const int ndims,
+                                      const int64_t sizes[], double source[]) {
+  *tensor = tensor_from_array(torch::kFloat64, req_grad, ndims, sizes, source);
 }
 
 /*******************************************************************************
@@ -118,6 +120,26 @@ void torch_c_tensor_data_ptr_double(const torch_c_tensor_t *tensor,
                                     const int ndims, int64_t sizes[],
                                     double **data_ptr) {
   *data_ptr = (double *)get_data_ptr(tensor, torch::kFloat64, ndims, sizes);
+}
+
+/*******************************************************************************
+ * \brief Runs autograd on a Torch tensor.
+ * \author Ole Schuett
+ ******************************************************************************/
+void torch_c_tensor_backward(const torch_c_tensor_t *tensor,
+                             const torch_c_tensor_t *outer_grad) {
+  tensor->backward(*outer_grad);
+}
+
+/*******************************************************************************
+ * \brief Returns the gradient of a Torch tensor which was computed by autograd.
+ * \author Ole Schuett
+ ******************************************************************************/
+void torch_c_tensor_grad(const torch_c_tensor_t *tensor,
+                         torch_c_tensor_t **grad) {
+  const torch::Tensor maybe_grad = tensor->grad();
+  assert(maybe_grad.defined());
+  *grad = new torch_c_tensor_t(maybe_grad.cpu().contiguous());
 }
 
 /*******************************************************************************
