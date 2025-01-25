@@ -92,7 +92,7 @@ elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "sdbg" ]]; then
   CMAKE_EXIT_CODE=$?
 
 elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "psmp" ]]; then
-  # TODO Fix ELPA, COSMA, SIRIUS, and Torch.
+  # TODO Fix, SIRIUS.
   # https://github.com/cp2k/cp2k/issues/3416
   cmake \
     -GNinja \
@@ -109,10 +109,11 @@ elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "psmp" ]]; then
     -DCP2K_USE_LIBXSMM=ON \
     -DCP2K_USE_PLUMED=ON \
     -DCP2K_USE_SPLA=ON \
-    -DCP2K_USE_ELPA=OFF \
-    -DCP2K_USE_COSMA=OFF \
+    -DCP2K_USE_ELPA=ON \
+    -DCP2K_USE_COSMA=ON \
     -DCP2K_USE_SIRIUS=OFF \
-    -DCP2K_USE_LIBTORCH=OFF \
+    -DCP2K_USE_LIBTORCH=ON \
+    -DCP2K_USE_DFTD4=ON \
     -DCP2K_USE_DLAF=OFF \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
