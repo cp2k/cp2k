@@ -30,14 +30,10 @@ MODULE manybody_allegro
                                               pair_potential_pp_type,&
                                               pair_potential_single_type
    USE particle_types,                  ONLY: particle_type
-   USE torch_api,                       ONLY: torch_dict_create,&
-                                              torch_dict_get,&
-                                              torch_dict_insert,&
-                                              torch_dict_release,&
-                                              torch_dict_type,&
-                                              torch_model_eval,&
-                                              torch_model_freeze,&
-                                              torch_model_load
+   USE torch_api,                       ONLY: &
+        torch_dict_create, torch_dict_get, torch_dict_insert, torch_dict_release, torch_dict_type, &
+        torch_model_eval, torch_model_freeze, torch_model_load, torch_tensor_data_ptr, &
+        torch_tensor_from_array, torch_tensor_release, torch_tensor_type
    USE util,                            ONLY: sort
 #include "./base/base_uses.f90"
 
@@ -263,6 +259,9 @@ CONTAINS
       TYPE(neighbor_kind_pairs_type), POINTER            :: neighbor_kind_pair
       TYPE(pair_potential_single_type), POINTER          :: pot
       TYPE(torch_dict_type)                              :: inputs, outputs
+      TYPE(torch_tensor_type) :: atom_types_tensor, atomic_energy_tensor, forces_tensor, &
+         lattice_tensor, new_edge_cell_shifts_tensor, pos_tensor, t_edge_index_tensor, &
+         virial_tensor
 
       CALL timeset(routineN, handle)
 
@@ -426,52 +425,64 @@ CONTAINS
          new_edge_cell_shifts_sp(:, :) = REAL(new_edge_cell_shifts(:, :), kind=sp)
          pos_sp(:, :) = REAL(pos(:, :), kind=sp)
          DEALLOCATE (pos, new_edge_cell_shifts)
-         CALL torch_dict_insert(inputs, "pos", pos_sp)
-         CALL torch_dict_insert(inputs, "edge_cell_shift", new_edge_cell_shifts_sp)
-         CALL torch_dict_insert(inputs, "cell", lattice_sp)
+         CALL torch_tensor_from_array(pos_tensor, pos_sp)
+         CALL torch_tensor_from_array(new_edge_cell_shifts_tensor, new_edge_cell_shifts_sp)
+         CALL torch_tensor_from_array(lattice_tensor, lattice_sp)
       ELSE
-         CALL torch_dict_insert(inputs, "pos", pos)
-         CALL torch_dict_insert(inputs, "edge_cell_shift", new_edge_cell_shifts)
-         CALL torch_dict_insert(inputs, "cell", lattice)
+         CALL torch_tensor_from_array(pos_tensor, pos)
+         CALL torch_tensor_from_array(new_edge_cell_shifts_tensor, new_edge_cell_shifts)
+         CALL torch_tensor_from_array(lattice_tensor, lattice)
       END IF
-      CALL torch_dict_insert(inputs, "edge_index", t_edge_index)
-      CALL torch_dict_insert(inputs, "atom_types", atom_types)
+
+      CALL torch_dict_insert(inputs, "pos", pos_tensor)
+      CALL torch_dict_insert(inputs, "edge_cell_shift", new_edge_cell_shifts_tensor)
+      CALL torch_dict_insert(inputs, "cell", lattice_tensor)
+      CALL torch_tensor_release(pos_tensor)
+      CALL torch_tensor_release(new_edge_cell_shifts_tensor)
+      CALL torch_tensor_release(lattice_tensor)
+
+      CALL torch_tensor_from_array(t_edge_index_tensor, t_edge_index)
+      CALL torch_dict_insert(inputs, "edge_index", t_edge_index_tensor)
+      CALL torch_tensor_release(t_edge_index_tensor)
+
+      CALL torch_tensor_from_array(atom_types_tensor, atom_types)
+      CALL torch_dict_insert(inputs, "atom_types", atom_types_tensor)
+      CALL torch_tensor_release(atom_types_tensor)
+
       CALL torch_dict_create(outputs)
       CALL torch_model_eval(allegro_data%model, inputs, outputs)
       pot_allegro = 0.0_dp
 
+      CALL torch_dict_get(outputs, "atomic_energy", atomic_energy_tensor)
+      CALL torch_dict_get(outputs, "forces", forces_tensor)
       IF (allegro%do_allegro_sp) THEN
-         CALL torch_dict_get(outputs, "atomic_energy", atomic_energy_sp)
-         CALL torch_dict_get(outputs, "forces", forces_sp)
-         IF (use_virial) THEN
-            ALLOCATE (virial(3, 3))
-            CALL torch_dict_get(outputs, "virial", virial3d)
-            virial = RESHAPE(virial3d, (/3, 3/))
-            allegro_data%virial(:, :) = virial(:, :)*allegro%unit_energy_val
-            DEALLOCATE (virial, virial3d)
-         END IF
+         CALL torch_tensor_data_ptr(atomic_energy_tensor, atomic_energy_sp)
+         CALL torch_tensor_data_ptr(forces_tensor, forces_sp)
          allegro_data%force(:, :) = REAL(forces_sp(:, :), kind=dp)*allegro%unit_forces_val
          DO iat_use = 1, SIZE(unique_list_a)
             i = unique_list_a(iat_use)
             pot_allegro = pot_allegro + REAL(atomic_energy_sp(1, i), kind=dp)*allegro%unit_energy_val
          END DO
-         DEALLOCATE (forces_sp, atomic_energy_sp, new_edge_cell_shifts_sp, pos_sp)
+         DEALLOCATE (new_edge_cell_shifts_sp, pos_sp)
       ELSE
-         CALL torch_dict_get(outputs, "atomic_energy", atomic_energy)
-         CALL torch_dict_get(outputs, "forces", forces)
-         IF (use_virial) THEN
-            ALLOCATE (virial(3, 3))
-            CALL torch_dict_get(outputs, "virial", virial3d)
-            virial = RESHAPE(virial3d, (/3, 3/))
-            allegro_data%virial(:, :) = virial(:, :)*allegro%unit_energy_val
-            DEALLOCATE (virial, virial3d)
-         END IF
+         CALL torch_tensor_data_ptr(atomic_energy_tensor, atomic_energy)
+         CALL torch_tensor_data_ptr(forces_tensor, forces)
+
          allegro_data%force(:, :) = forces(:, :)*allegro%unit_forces_val
          DO iat_use = 1, SIZE(unique_list_a)
             i = unique_list_a(iat_use)
             pot_allegro = pot_allegro + atomic_energy(1, i)*allegro%unit_energy_val
          END DO
-         DEALLOCATE (forces, atomic_energy, pos, new_edge_cell_shifts)
+         DEALLOCATE (pos, new_edge_cell_shifts)
+      END IF
+      CALL torch_tensor_release(atomic_energy_tensor)
+      CALL torch_tensor_release(forces_tensor)
+
+      IF (use_virial) THEN
+         CALL torch_dict_get(outputs, "virial", virial_tensor)
+         CALL torch_tensor_data_ptr(virial_tensor, virial3d)
+         allegro_data%virial(:, :) = RESHAPE(virial3d, (/3, 3/))*allegro%unit_energy_val
+         CALL torch_tensor_release(virial_tensor)
       END IF
 
       CALL torch_dict_release(inputs)

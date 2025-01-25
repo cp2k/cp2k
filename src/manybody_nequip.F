@@ -30,14 +30,10 @@ MODULE manybody_nequip
                                               pair_potential_pp_type,&
                                               pair_potential_single_type
    USE particle_types,                  ONLY: particle_type
-   USE torch_api,                       ONLY: torch_dict_create,&
-                                              torch_dict_get,&
-                                              torch_dict_insert,&
-                                              torch_dict_release,&
-                                              torch_dict_type,&
-                                              torch_model_eval,&
-                                              torch_model_freeze,&
-                                              torch_model_load
+   USE torch_api,                       ONLY: &
+        torch_dict_create, torch_dict_get, torch_dict_insert, torch_dict_release, torch_dict_type, &
+        torch_model_eval, torch_model_freeze, torch_model_load, torch_tensor_data_ptr, &
+        torch_tensor_from_array, torch_tensor_release, torch_tensor_type
    USE util,                            ONLY: sort
 #include "./base/base_uses.f90"
 
@@ -233,8 +229,7 @@ CONTAINS
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :)        :: edge_cell_shifts, lattice, pos, &
                                                             temp_edge_cell_shifts
       REAL(kind=dp), DIMENSION(3)                        :: cell_v, cvi
-      REAL(kind=dp), DIMENSION(:, :), POINTER            :: atomic_energy, forces, total_energy, &
-                                                            virial
+      REAL(kind=dp), DIMENSION(:, :), POINTER            :: atomic_energy, forces, total_energy
       REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: virial3d
       REAL(kind=sp), ALLOCATABLE, DIMENSION(:, :)        :: edge_cell_shifts_sp, lattice_sp, pos_sp
       REAL(kind=sp), DIMENSION(:, :), POINTER            :: atomic_energy_sp, forces_sp, &
@@ -243,10 +238,13 @@ CONTAINS
       TYPE(nequip_data_type), POINTER                    :: nequip_data
       TYPE(pair_potential_single_type), POINTER          :: pot
       TYPE(torch_dict_type)                              :: inputs, outputs
+      TYPE(torch_tensor_type) :: atom_types_tensor, atomic_energy_tensor, edge_cell_shifts_tensor, &
+         forces_tensor, lattice_tensor, pos_tensor, t_edge_index_tensor, total_energy_tensor, &
+         virial_tensor
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (total_energy, atomic_energy, forces, total_energy_sp, atomic_energy_sp, forces_sp, virial3d, virial)
+      NULLIFY (total_energy, atomic_energy, forces, total_energy_sp, atomic_energy_sp, forces_sp, virial3d)
       n_atoms = SIZE(particle_set)
       ALLOCATE (use_atom(n_atoms))
       use_atom = .FALSE.
@@ -427,50 +425,60 @@ CONTAINS
          ALLOCATE (pos_sp(3, n_atoms_use), edge_cell_shifts_sp(3, nedges_tot))
          pos_sp(:, :) = REAL(pos(:, :), kind=sp)
          edge_cell_shifts_sp(:, :) = REAL(edge_cell_shifts(:, :), kind=sp)
-         CALL torch_dict_insert(inputs, "pos", pos_sp)
-         CALL torch_dict_insert(inputs, "edge_cell_shift", edge_cell_shifts_sp)
-         CALL torch_dict_insert(inputs, "cell", lattice_sp)
+         CALL torch_tensor_from_array(pos_tensor, pos_sp)
+         CALL torch_tensor_from_array(edge_cell_shifts_tensor, edge_cell_shifts_sp)
+         CALL torch_tensor_from_array(lattice_tensor, lattice_sp)
       ELSE
-         CALL torch_dict_insert(inputs, "pos", pos)
-         CALL torch_dict_insert(inputs, "edge_cell_shift", edge_cell_shifts)
-         CALL torch_dict_insert(inputs, "cell", lattice)
+         CALL torch_tensor_from_array(pos_tensor, pos)
+         CALL torch_tensor_from_array(edge_cell_shifts_tensor, edge_cell_shifts)
+         CALL torch_tensor_from_array(lattice_tensor, lattice)
       END IF
 
-      CALL torch_dict_insert(inputs, "edge_index", t_edge_index)
-      CALL torch_dict_insert(inputs, "atom_types", atom_types)
+      CALL torch_dict_insert(inputs, "pos", pos_tensor)
+      CALL torch_dict_insert(inputs, "edge_cell_shift", edge_cell_shifts_tensor)
+      CALL torch_dict_insert(inputs, "cell", lattice_tensor)
+      CALL torch_tensor_release(pos_tensor)
+      CALL torch_tensor_release(edge_cell_shifts_tensor)
+      CALL torch_tensor_release(lattice_tensor)
+
+      CALL torch_tensor_from_array(t_edge_index_tensor, t_edge_index)
+      CALL torch_dict_insert(inputs, "edge_index", t_edge_index_tensor)
+      CALL torch_tensor_release(t_edge_index_tensor)
+
+      CALL torch_tensor_from_array(atom_types_tensor, atom_types)
+      CALL torch_dict_insert(inputs, "atom_types", atom_types_tensor)
+      CALL torch_tensor_release(atom_types_tensor)
 
       CALL torch_dict_create(outputs)
-
       CALL torch_model_eval(nequip_data%model, inputs, outputs)
 
+      CALL torch_dict_get(outputs, "total_energy", total_energy_tensor)
+      CALL torch_dict_get(outputs, "atomic_energy", atomic_energy_tensor)
+      CALL torch_dict_get(outputs, "forces", forces_tensor)
       IF (nequip%do_nequip_sp) THEN
-         CALL torch_dict_get(outputs, "total_energy", total_energy_sp)
-         CALL torch_dict_get(outputs, "atomic_energy", atomic_energy_sp)
-         CALL torch_dict_get(outputs, "forces", forces_sp)
-         IF (use_virial) THEN
-            ALLOCATE (virial(3, 3))
-            CALL torch_dict_get(outputs, "virial", virial3d)
-            virial = RESHAPE(virial3d, (/3, 3/))
-            nequip_data%virial(:, :) = virial(:, :)*nequip%unit_energy_val
-            DEALLOCATE (virial, virial3d)
-         END IF
+         CALL torch_tensor_data_ptr(total_energy_tensor, total_energy_sp)
+         CALL torch_tensor_data_ptr(atomic_energy_tensor, atomic_energy_sp)
+         CALL torch_tensor_data_ptr(forces_tensor, forces_sp)
          pot_nequip = REAL(total_energy_sp(1, 1), kind=dp)*nequip%unit_energy_val
          nequip_data%force(:, :) = REAL(forces_sp(:, :), kind=dp)*nequip%unit_forces_val
-         DEALLOCATE (pos_sp, edge_cell_shifts_sp, total_energy_sp, atomic_energy_sp, forces_sp)
+         DEALLOCATE (pos_sp, edge_cell_shifts_sp)
       ELSE
-         CALL torch_dict_get(outputs, "total_energy", total_energy)
-         CALL torch_dict_get(outputs, "atomic_energy", atomic_energy)
-         CALL torch_dict_get(outputs, "forces", forces)
-         IF (use_virial) THEN
-            ALLOCATE (virial(3, 3))
-            CALL torch_dict_get(outputs, "virial", virial3d)
-            virial = RESHAPE(virial3d, (/3, 3/))
-            nequip_data%virial(:, :) = virial(:, :)*nequip%unit_energy_val
-            DEALLOCATE (virial, virial3d)
-         END IF
+         CALL torch_tensor_data_ptr(total_energy_tensor, total_energy)
+         CALL torch_tensor_data_ptr(atomic_energy_tensor, atomic_energy)
+         CALL torch_tensor_data_ptr(forces_tensor, forces)
          pot_nequip = total_energy(1, 1)*nequip%unit_energy_val
          nequip_data%force(:, :) = forces(:, :)*nequip%unit_forces_val
-         DEALLOCATE (pos, edge_cell_shifts, total_energy, atomic_energy, forces)
+         DEALLOCATE (pos, edge_cell_shifts)
+      END IF
+      CALL torch_tensor_release(total_energy_tensor)
+      CALL torch_tensor_release(atomic_energy_tensor)
+      CALL torch_tensor_release(forces_tensor)
+
+      IF (use_virial) THEN
+         CALL torch_dict_get(outputs, "virial", virial_tensor)
+         CALL torch_tensor_data_ptr(virial_tensor, virial3d)
+         nequip_data%virial(:, :) = RESHAPE(virial3d, (/3, 3/))*nequip%unit_energy_val
+         CALL torch_tensor_release(virial_tensor)
       END IF
 
       CALL torch_dict_release(inputs)

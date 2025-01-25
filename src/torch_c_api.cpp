@@ -10,6 +10,7 @@
 #include <torch/csrc/api/include/torch/cuda.h>
 #include <torch/script.h>
 
+typedef torch::Tensor torch_c_tensor_t;
 typedef c10::Dict<std::string, torch::Tensor> torch_c_dict_t;
 typedef torch::jit::Module torch_c_model_t;
 
@@ -22,29 +23,33 @@ static torch::Device get_device() {
 }
 
 /*******************************************************************************
- * \brief Internal helper for retrieving arrays from Torch dictionary.
+ * \brief Internal helper for creating a Torch tensor from an array.
  * \author Ole Schuett
  ******************************************************************************/
-template <typename T>
-static void torch_c_dict_get(const torch_c_dict_t *dict, const char *key,
-                             const int ndims, int64_t sizes[], T **dest) {
+static torch_c_tensor_t *tensor_from_array(const torch::Dtype dtype,
+                                           const int ndims,
+                                           const int64_t sizes[],
+                                           void *source) {
+  const auto options = torch::TensorOptions().dtype(dtype);
+  const auto sizes_ref = c10::IntArrayRef(sizes, ndims);
+  return new torch_c_tensor_t(torch::from_blob(source, sizes_ref, options));
+}
 
-  assert(dict->contains(key));
-  const torch::Tensor tensor = dict->at(key).cpu();
-
-  assert(tensor.ndimension() == ndims);
-  int64_t size_flat = 1;
+/*******************************************************************************
+ * \brief Internal helper for getting the data_ptr and sizes of a Torch tensor.
+ * \author Ole Schuett
+ ******************************************************************************/
+static void *get_data_ptr(const torch_c_tensor_t *tensor,
+                          const torch::Dtype dtype, const int ndims,
+                          int64_t sizes[]) {
+  assert(tensor->type().scalarType() == dtype);
+  assert(tensor->ndimension() == ndims);
   for (int i = 0; i < ndims; i++) {
-    sizes[i] = tensor.size(i);
-    size_flat *= sizes[i];
+    sizes[i] = tensor->size(i);
   }
-  *dest = (T *)malloc(size_flat * sizeof(T));
 
-  const torch::Tensor tensor_flat = tensor.flatten();
-  const auto accessor = tensor_flat.accessor<T, 1>();
-  for (int i = 0; i < size_flat; i++) {
-    (*dest)[i] = accessor[i];
-  }
+  assert(tensor->is_contiguous());
+  return tensor->data_ptr();
 };
 
 #ifdef __cplusplus
@@ -52,79 +57,74 @@ extern "C" {
 #endif
 
 /*******************************************************************************
- * \brief Inserts array of floats into Torch dictionary.
- *        The passed array has to outlive the dictionary!
+ * \brief Creates a Torch tensor from an array of floats.
+ *        The passed array has to outlive the tensor!
  * \author Ole Schuett
  ******************************************************************************/
-void torch_c_dict_insert_float(torch_c_dict_t *dict, const char *key,
-                               const int ndims, const int64_t sizes[],
-                               float source[]) {
-  const auto options = torch::TensorOptions().dtype(torch::kFloat32);
-  const auto sizes_ref = c10::IntArrayRef(sizes, ndims);
-  const torch::Tensor tensor = torch::from_blob(source, sizes_ref, options);
-  dict->insert(key, tensor.to(get_device()));
+void torch_c_tensor_from_array_float(torch_c_tensor_t **tensor, const int ndims,
+                                     const int64_t sizes[], float source[]) {
+  *tensor = tensor_from_array(torch::kFloat32, ndims, sizes, source);
 }
 
 /*******************************************************************************
- * \brief Inserts array of int64s into Torch dictionary.
- *        The passed array has to outlive the dictionary!
+ * \brief Creates a Torch tensor from an array of int64s.
+ *        The passed array has to outlive the tensor!
  * \author Ole Schuett
  ******************************************************************************/
-void torch_c_dict_insert_int64(torch_c_dict_t *dict, const char *key,
-                               const int ndims, const int64_t sizes[],
-                               int64_t source[]) {
-  const auto options = torch::TensorOptions().dtype(torch::kInt64);
-  const auto sizes_ref = c10::IntArrayRef(sizes, ndims);
-  const torch::Tensor tensor = torch::from_blob(source, sizes_ref, options);
-  dict->insert(key, tensor.to(get_device()));
+void torch_c_tensor_from_array_int64(torch_c_tensor_t **tensor, const int ndims,
+                                     const int64_t sizes[], int64_t source[]) {
+  *tensor = tensor_from_array(torch::kInt64, ndims, sizes, source);
 }
 
 /*******************************************************************************
- * \brief Inserts array of doubles into Torch dictionary.
- *        The passed array has to outlive the dictionary!
+ * \brief Creates a Torch tensor from an array of doubles.
+ *        The passed array has to outlive the tensor!
  * \author Ole Schuett
  ******************************************************************************/
-void torch_c_dict_insert_double(torch_c_dict_t *dict, const char *key,
-                                const int ndims, const int64_t sizes[],
-                                double source[]) {
-  const auto options = torch::TensorOptions().dtype(torch::kFloat64);
-  const auto sizes_ref = c10::IntArrayRef(sizes, ndims);
-  const torch::Tensor tensor = torch::from_blob(source, sizes_ref, options);
-  dict->insert(key, tensor.to(get_device()));
+void torch_c_tensor_from_array_double(torch_c_tensor_t **tensor,
+                                      const int ndims, const int64_t sizes[],
+                                      double source[]) {
+  *tensor = tensor_from_array(torch::kFloat64, ndims, sizes, source);
 }
 
 /*******************************************************************************
- * \brief Retrieves array of floats from Torch dictionary.
- *        The returned array has to be deallocated by caller!
+ * \brief Returns the data_ptr and sizes of a Torch tensor of floats.
+ *        The returned pointer is only valide during the tensor's lifetime!
  * \author Ole Schuett
  ******************************************************************************/
-void torch_c_dict_get_float(const torch_c_dict_t *dict, const char *key,
-                            const int ndims, int64_t sizes[], float **dest) {
-
-  torch_c_dict_get<float>(dict, key, ndims, sizes, dest);
+void torch_c_tensor_data_ptr_float(const torch_c_tensor_t *tensor,
+                                   const int ndims, int64_t sizes[],
+                                   float **data_ptr) {
+  *data_ptr = (float *)get_data_ptr(tensor, torch::kFloat32, ndims, sizes);
 }
 
 /*******************************************************************************
- * \brief Retrieves array of int64s from Torch dictionary.
- *        The returned array has to be deallocated by caller!
+ * \brief Returns the data_ptr and sizes of a Torch tensor of int64s.
+ *        The returned pointer is only valide during the tensor's live time!
  * \author Ole Schuett
  ******************************************************************************/
-void torch_c_dict_get_int64(const torch_c_dict_t *dict, const char *key,
-                            const int ndims, int64_t sizes[], int64_t **dest) {
-
-  torch_c_dict_get<int64_t>(dict, key, ndims, sizes, dest);
+void torch_c_tensor_data_ptr_int64(const torch_c_tensor_t *tensor,
+                                   const int ndims, int64_t sizes[],
+                                   int64_t **data_ptr) {
+  *data_ptr = (int64_t *)get_data_ptr(tensor, torch::kInt64, ndims, sizes);
 }
 
 /*******************************************************************************
- * \brief Retrieves array of doubles from Torch dictionary.
- *        The returned array has to be deallocated by caller!
+ * \brief Returns the data_ptr and sizes of a Torch tensor of doubles.
+ *        The returned pointer is only valide during the tensor's live time!
  * \author Ole Schuett
  ******************************************************************************/
-void torch_c_dict_get_double(const torch_c_dict_t *dict, const char *key,
-                             const int ndims, int64_t sizes[], double **dest) {
-
-  torch_c_dict_get<double>(dict, key, ndims, sizes, dest);
+void torch_c_tensor_data_ptr_double(const torch_c_tensor_t *tensor,
+                                    const int ndims, int64_t sizes[],
+                                    double **data_ptr) {
+  *data_ptr = (double *)get_data_ptr(tensor, torch::kFloat64, ndims, sizes);
 }
+
+/*******************************************************************************
+ * \brief Releases a Torch tensor and all its ressources.
+ * \author Ole Schuett
+ ******************************************************************************/
+void torch_c_tensor_release(torch_c_tensor_t *tensor) { delete (tensor); }
 
 /*******************************************************************************
  * \brief Creates an empty Torch dictionary.
@@ -133,6 +133,25 @@ void torch_c_dict_get_double(const torch_c_dict_t *dict, const char *key,
 void torch_c_dict_create(torch_c_dict_t **dict_out) {
   assert(*dict_out == NULL);
   *dict_out = new c10::Dict<std::string, torch::Tensor>();
+}
+
+/*******************************************************************************
+ * \brief Inserts a Torch tensor into a Torch dictionary.
+ * \author Ole Schuett
+ ******************************************************************************/
+void torch_c_dict_insert(const torch_c_dict_t *dict, const char *key,
+                         const torch_c_tensor_t *tensor) {
+  dict->insert(key, tensor->to(get_device()));
+}
+
+/*******************************************************************************
+ * \brief Retrieves a Torch tensor from a Torch dictionary.
+ * \author Ole Schuett
+ ******************************************************************************/
+void torch_c_dict_get(const torch_c_dict_t *dict, const char *key,
+                      torch_c_tensor_t **tensor) {
+  assert(dict->contains(key));
+  *tensor = new torch_c_tensor_t(dict->at(key).cpu().contiguous());
 }
 
 /*******************************************************************************

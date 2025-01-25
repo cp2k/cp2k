@@ -33,14 +33,10 @@ MODULE pao_model
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
-   USE torch_api,                       ONLY: torch_dict_create,&
-                                              torch_dict_get,&
-                                              torch_dict_insert,&
-                                              torch_dict_release,&
-                                              torch_dict_type,&
-                                              torch_model_eval,&
-                                              torch_model_get_attr,&
-                                              torch_model_load
+   USE torch_api,                       ONLY: &
+        torch_dict_create, torch_dict_get, torch_dict_insert, torch_dict_release, torch_dict_type, &
+        torch_model_eval, torch_model_get_attr, torch_model_load, torch_tensor_data_ptr, &
+        torch_tensor_from_array, torch_tensor_release, torch_tensor_type
    USE util,                            ONLY: sort
 #include "./base/base_uses.f90"
 
@@ -202,6 +198,9 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(torch_dict_type)                              :: model_inputs, model_outputs
+      TYPE(torch_tensor_type)                            :: neighbors_features_tensor, &
+                                                            neighbors_relpos_tensor, &
+                                                            predicted_xblock_tensor
 
       CALL get_qs_env(qs_env, &
                       para_env=para_env, &
@@ -248,21 +247,29 @@ CONTAINS
 
       ! Inference.
       CALL torch_dict_create(model_inputs)
-      CALL torch_dict_insert(model_inputs, "neighbors_relpos", neighbors_relpos)
-      CALL torch_dict_insert(model_inputs, "neighbors_features", neighbors_features)
+
+      CALL torch_tensor_from_array(neighbors_relpos_tensor, neighbors_relpos)
+      CALL torch_dict_insert(model_inputs, "neighbors_relpos", neighbors_relpos_tensor)
+      CALL torch_tensor_release(neighbors_relpos_tensor)
+
+      CALL torch_tensor_from_array(neighbors_features_tensor, neighbors_features)
+      CALL torch_dict_insert(model_inputs, "neighbors_features", neighbors_features_tensor)
+      CALL torch_tensor_release(neighbors_features_tensor)
+
       CALL torch_dict_create(model_outputs)
       CALL torch_model_eval(model%torch_model, model_inputs, model_outputs)
 
       ! Copy predicted XBlock.
       NULLIFY (predicted_xblock)
-      CALL torch_dict_get(model_outputs, "xblock", predicted_xblock)
+      CALL torch_dict_get(model_outputs, "xblock", predicted_xblock_tensor)
+      CALL torch_tensor_data_ptr(predicted_xblock_tensor, predicted_xblock)
       block_X = RESHAPE(predicted_xblock, (/SIZE(block_X), 1/))
+      CALL torch_tensor_release(predicted_xblock_tensor)
 
       ! Clean up.
       CALL torch_dict_release(model_inputs)
       CALL torch_dict_release(model_outputs)
-      DEALLOCATE (neighbors_distance, neighbors_index)
-      DEALLOCATE (predicted_xblock, neighbors_relpos, neighbors_features)
+      DEALLOCATE (neighbors_distance, neighbors_index, neighbors_relpos, neighbors_features)
 
    END SUBROUTINE predict_single_atom
 
