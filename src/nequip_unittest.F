@@ -17,7 +17,7 @@ PROGRAM nequip_unittest
                                               evolt
    USE torch_api,                       ONLY: &
         torch_cuda_is_available, torch_dict_create, torch_dict_get, torch_dict_insert, &
-        torch_dict_release, torch_dict_type, torch_model_eval, torch_model_load, &
+        torch_dict_release, torch_dict_type, torch_model_forward, torch_model_load, &
         torch_model_read_metadata, torch_model_release, torch_model_type, torch_tensor_data_ptr, &
         torch_tensor_from_array, torch_tensor_release, torch_tensor_type
 #include "./base/base_uses.f90"
@@ -197,7 +197,7 @@ PROGRAM nequip_unittest
    CALL torch_dict_insert(inputs, "atom_types", atom_types_tensor)
    CALL torch_tensor_release(atom_types_tensor)
 
-   CALL torch_model_eval(model, inputs, outputs)
+   CALL torch_model_forward(model, inputs, outputs)
 
    CALL torch_dict_get(outputs, "total_energy", total_energy_tensor)
    CALL torch_tensor_data_ptr(total_energy_tensor, total_energy)
