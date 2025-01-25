@@ -15,6 +15,7 @@
 ! **************************************************************************************************
 MODULE cp2k_info
 
+   USE iso_fortran_env,                 ONLY: compiler_options
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length
    USE machine,                         ONLY: m_datum,&
@@ -85,6 +86,10 @@ CONTAINS
       ! Ensure that tmp_str is used to silence compiler warnings
       tmp_str = ""
       flags = TRIM(flags)//TRIM(tmp_str)
+
+      IF (INDEX(COMPILER_OPTIONS(), "-fsanitize=leak") > 0) THEN
+         flags = TRIM(flags)//" lsan"
+      END IF
 
 !$    flags = TRIM(flags)//" omp"
 #if defined(__LIBINT)
