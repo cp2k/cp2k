@@ -10,6 +10,8 @@
 !> \author Ole Schuett
 ! **************************************************************************************************
 MODULE pao_types
+   USE OMP_LIB,                         ONLY: omp_destroy_lock,&
+                                              omp_lock_kind
    USE cp_dbcsr_api,                    ONLY: dbcsr_distribution_release,&
                                               dbcsr_distribution_type,&
                                               dbcsr_release,&
@@ -66,6 +68,7 @@ MODULE pao_types
       INTEGER                                   :: num_neighbors = -1
       REAL(dp)                                  :: cutoff = 0.0_dp
       INTEGER, DIMENSION(:), ALLOCATABLE        :: feature_kinds
+      INTEGER(kind=omp_lock_kind)               :: lock = -1
    END TYPE pao_model_type
 
 ! **************************************************************************************************
@@ -257,6 +260,7 @@ CONTAINS
             IF (pao%models(i)%version > 0) THEN
                CALL torch_model_release(pao%models(i)%torch_model)
             END IF
+            CALL omp_destroy_lock(pao%models(i)%lock)
          END DO
          DEALLOCATE (pao%models)
       END IF

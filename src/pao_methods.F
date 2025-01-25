@@ -44,7 +44,8 @@ MODULE pao_methods
                                               diamat_all
    USE message_passing,                 ONLY: mp_para_env_type
    USE pao_ml,                          ONLY: pao_ml_forces
-   USE pao_model,                       ONLY: pao_model_load
+   USE pao_model,                       ONLY: pao_model_forces,&
+                                              pao_model_load
    USE pao_param,                       ONLY: pao_calc_AB,&
                                               pao_param_count
    USE pao_types,                       ONLY: pao_env_type
@@ -999,7 +1000,7 @@ CONTAINS
          CALL pao_ml_forces(pao, qs_env, pao%matrix_G, forces)
 
       IF (ALLOCATED(pao%models)) &
-         CPABORT("PAO forces for PyTorch models are not yet implemented.")
+         CALL pao_model_forces(pao, qs_env, pao%matrix_G, forces)
 
       CALL para_env%sum(forces)
       DO iatom = 1, natoms
