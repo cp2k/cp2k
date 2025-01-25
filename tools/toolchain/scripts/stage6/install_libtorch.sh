@@ -45,7 +45,7 @@ case "${with_libtorch}" in
       unzip -q ${archive_file}
       mv libtorch ${pkg_install_dir}
 
-      write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage7/$(basename "${SCRIPT_NAME}")"
+      write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage6/$(basename "${SCRIPT_NAME}")"
     fi
     LIBTORCH_CXXFLAGS="-I${pkg_install_dir}/include"
     LIBTORCH_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath='${pkg_install_dir}/lib'"
