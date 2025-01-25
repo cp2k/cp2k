@@ -35,7 +35,7 @@ MODULE pao_model
                                               qs_kind_type
    USE torch_api,                       ONLY: &
         torch_dict_create, torch_dict_get, torch_dict_insert, torch_dict_release, torch_dict_type, &
-        torch_model_eval, torch_model_get_attr, torch_model_load, torch_tensor_data_ptr, &
+        torch_model_forward, torch_model_get_attr, torch_model_load, torch_tensor_data_ptr, &
         torch_tensor_from_array, torch_tensor_release, torch_tensor_type
    USE util,                            ONLY: sort
 #include "./base/base_uses.f90"
@@ -257,7 +257,7 @@ CONTAINS
       CALL torch_tensor_release(neighbors_features_tensor)
 
       CALL torch_dict_create(model_outputs)
-      CALL torch_model_eval(model%torch_model, model_inputs, model_outputs)
+      CALL torch_model_forward(model%torch_model, model_inputs, model_outputs)
 
       ! Copy predicted XBlock.
       NULLIFY (predicted_xblock)

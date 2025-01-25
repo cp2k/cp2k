@@ -32,7 +32,7 @@ MODULE manybody_nequip
    USE particle_types,                  ONLY: particle_type
    USE torch_api,                       ONLY: &
         torch_dict_create, torch_dict_get, torch_dict_insert, torch_dict_release, torch_dict_type, &
-        torch_model_eval, torch_model_freeze, torch_model_load, torch_tensor_data_ptr, &
+        torch_model_forward, torch_model_freeze, torch_model_load, torch_tensor_data_ptr, &
         torch_tensor_from_array, torch_tensor_release, torch_tensor_type
    USE util,                            ONLY: sort
 #include "./base/base_uses.f90"
@@ -450,7 +450,7 @@ CONTAINS
       CALL torch_tensor_release(atom_types_tensor)
 
       CALL torch_dict_create(outputs)
-      CALL torch_model_eval(nequip_data%model, inputs, outputs)
+      CALL torch_model_forward(nequip_data%model, inputs, outputs)
 
       CALL torch_dict_get(outputs, "total_energy", total_energy_tensor)
       CALL torch_dict_get(outputs, "atomic_energy", atomic_energy_tensor)

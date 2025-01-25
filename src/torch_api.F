@@ -67,7 +67,7 @@ MODULE torch_api
 
    PUBLIC :: torch_tensor_type, torch_tensor_from_array, torch_tensor_data_ptr, torch_tensor_release
    PUBLIC :: torch_dict_type, torch_dict_create, torch_dict_insert, torch_dict_get, torch_dict_release
-   PUBLIC :: torch_model_type, torch_model_load, torch_model_eval, torch_model_release
+   PUBLIC :: torch_model_type, torch_model_load, torch_model_forward, torch_model_release
    PUBLIC :: torch_model_get_attr, torch_model_read_metadata
    PUBLIC :: torch_cuda_is_available, torch_allow_tf32, torch_model_freeze
 
@@ -340,37 +340,37 @@ CONTAINS
    END SUBROUTINE torch_model_load
 
 ! **************************************************************************************************
-!> \brief Evaluates the given Torch model. (In Torch lingo this operation is called forward())
+!> \brief Evaluates the given Torch model.
 !> \author Ole Schuett
 ! **************************************************************************************************
-   SUBROUTINE torch_model_eval(model, inputs, outputs)
+   SUBROUTINE torch_model_forward(model, inputs, outputs)
       TYPE(torch_model_type), INTENT(INOUT)              :: model
       TYPE(torch_dict_type), INTENT(IN)                  :: inputs
       TYPE(torch_dict_type), INTENT(INOUT)               :: outputs
 
 #if defined(__LIBTORCH)
       INTERFACE
-         SUBROUTINE torch_c_model_eval(model, inputs, outputs) BIND(C, name="torch_c_model_eval")
+         SUBROUTINE torch_c_model_forward(model, inputs, outputs) BIND(C, name="torch_c_model_forward")
             IMPORT :: C_PTR
             TYPE(C_PTR), VALUE                        :: model
             TYPE(C_PTR), VALUE                        :: inputs
             TYPE(C_PTR), VALUE                        :: outputs
-         END SUBROUTINE torch_c_model_eval
+         END SUBROUTINE torch_c_model_forward
       END INTERFACE
 
       CPASSERT(C_ASSOCIATED(model%c_ptr))
       CPASSERT(C_ASSOCIATED(inputs%c_ptr))
       CPASSERT(C_ASSOCIATED(outputs%c_ptr))
-      CALL torch_c_model_eval(model=model%c_ptr, &
-                              inputs=inputs%c_ptr, &
-                              outputs=outputs%c_ptr)
+      CALL torch_c_model_forward(model=model%c_ptr, &
+                                 inputs=inputs%c_ptr, &
+                                 outputs=outputs%c_ptr)
 #else
       CPABORT("CP2K was compiled without Torch library.")
       MARK_USED(model)
       MARK_USED(inputs)
       MARK_USED(outputs)
 #endif
-   END SUBROUTINE torch_model_eval
+   END SUBROUTINE torch_model_forward
 
 ! **************************************************************************************************
 !> \brief Releases a Torch model and all its ressources.

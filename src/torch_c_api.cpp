@@ -175,11 +175,10 @@ void torch_c_model_load(torch_c_model_t **model_out, const char *filename) {
 
 /*******************************************************************************
  * \brief Evaluates the given Torch model.
- *        In Torch lingo this operation is called forward().
  * \author Ole Schuett
  ******************************************************************************/
-void torch_c_model_eval(torch_c_model_t *model, const torch_c_dict_t *inputs,
-                        torch_c_dict_t *outputs) {
+void torch_c_model_forward(torch_c_model_t *model, const torch_c_dict_t *inputs,
+                           torch_c_dict_t *outputs) {
 
   auto untyped_output = model->forward({*inputs}).toGenericDict();
   outputs->clear();
