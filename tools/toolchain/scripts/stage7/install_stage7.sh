@@ -7,7 +7,6 @@
 ./scripts/stage7/install_libvdwxc.sh
 ./scripts/stage7/install_spglib.sh
 ./scripts/stage7/install_libvori.sh
-./scripts/stage7/install_libtorch.sh
 ./scripts/stage7/install_libsmeagol.sh
 
 #EOF
