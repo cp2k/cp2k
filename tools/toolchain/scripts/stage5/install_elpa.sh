@@ -170,18 +170,28 @@ if [ "$with_elpa" != "__DONTUSE__" ]; then
   ELPA_LIBS="-lelpa${elpa_dir_openmp}"
   cat << EOF > "${BUILDDIR}/setup_elpa"
 export ELPA_VER="${elpa_ver}"
-prepend_path CPATH "$elpa_include"
+prepend_path CPATH "${elpa_include}"
 EOF
   if [ "$with_elpa" != "__SYSTEM__" ]; then
     cat << EOF >> "${BUILDDIR}/setup_elpa"
-prepend_path PATH "$pkg_install_dir/bin"
-prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"
-prepend_path LD_RUN_PATH "$pkg_install_dir/lib"
-prepend_path LIBRARY_PATH "$pkg_install_dir/lib"
-prepend_path PKG_CONFIG_PATH "$pkg_install_dir/lib/pkgconfig"
-prepend_path CMAKE_PREFIX_PATH "$pkg_install_dir"
-export ELPA_ROOT="$pkg_install_dir"
+export ELPA_ROOT="${pkg_install_dir}"
+prepend_path PATH "${pkg_install_dir}/cpu/bin"
+prepend_path LD_LIBRARY_PATH "${pkg_install_dir}/cpu/lib"
+prepend_path LD_RUN_PATH "${pkg_install_dir}/cpu/lib"
+prepend_path LIBRARY_PATH "${pkg_install_dir}/cpu/lib"
+prepend_path PKG_CONFIG_PATH "${pkg_install_dir}/cpu/lib/pkgconfig"
+prepend_path CMAKE_PREFIX_PATH "${pkg_install_dir}/cpu"
 EOF
+    if [ -d ${pkg_install_dir}/nvidia ]; then
+      cat << EOF >> "${BUILDDIR}/setup_elpa"
+prepend_path PATH "${pkg_install_dir}/nvidia/bin"
+prepend_path LD_LIBRARY_PATH "${pkg_install_dir}/nvidia/lib"
+prepend_path LD_RUN_PATH "${pkg_install_dir}/nvidia/lib"
+prepend_path LIBRARY_PATH "${pkg_install_dir}/nvidia/lib"
+prepend_path PKG_CONFIG_PATH "${pkg_install_dir}/nvidia/lib/pkgconfig"
+prepend_path CMAKE_PREFIX_PATH "${pkg_install_dir}/nvidia"
+EOF
+    fi
   fi
   cat "${BUILDDIR}/setup_elpa" >> $SETUPFILE
   cat << EOF >> "${BUILDDIR}/setup_elpa"
