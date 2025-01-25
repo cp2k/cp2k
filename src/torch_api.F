@@ -124,9 +124,9 @@ CONTAINS
             CPASSERT(C_ASSOCIATED(tensor%c_ptr))
 #else
             CPABORT("CP2K compiled without the Torch library.")
-            MARK_USED(key)
-            MARK_USED(source)
             MARK_USED(tensor)
+            MARK_USED(source)
+            MARK_USED(requires_grad)
 #endif
          END SUBROUTINE torch_tensor_from_array_${typename}$_${ndims}$d
 
@@ -173,9 +173,8 @@ CONTAINS
             CALL C_F_POINTER(data_ptr_c, data_ptr, shape=sizes_f)
 #else
             CPABORT("CP2K compiled without the Torch library.")
-            MARK_USED(dict)
-            MARK_USED(key)
-            MARK_USED(dest)
+            MARK_USED(tensor)
+            MARK_USED(data_ptr)
 #endif
          END SUBROUTINE torch_tensor_data_ptr_${typename}$_${ndims}$d
 
@@ -210,9 +209,8 @@ CONTAINS
       CALL timestop(handle)
 #else
       CPABORT("CP2K compiled without the Torch library.")
-      MARK_USED(dict)
-      MARK_USED(key)
       MARK_USED(tensor)
+      MARK_USED(outer_grad)
 #endif
    END SUBROUTINE torch_tensor_backward
 
@@ -240,9 +238,8 @@ CONTAINS
       CPASSERT(C_ASSOCIATED(grad%c_ptr))
 #else
       CPABORT("CP2K compiled without the Torch library.")
-      MARK_USED(dict)
-      MARK_USED(key)
       MARK_USED(tensor)
+      MARK_USED(grad)
 #endif
    END SUBROUTINE torch_tensor_grad
 
@@ -266,7 +263,7 @@ CONTAINS
       tensor%c_ptr = C_NULL_PTR
 #else
       CPABORT("CP2K was compiled without Torch library.")
-      MARK_USED(dict)
+      MARK_USED(tensor)
 #endif
    END SUBROUTINE torch_tensor_release
 
