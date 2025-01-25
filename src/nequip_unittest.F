@@ -18,7 +18,8 @@ PROGRAM nequip_unittest
    USE torch_api,                       ONLY: &
         torch_cuda_is_available, torch_dict_create, torch_dict_get, torch_dict_insert, &
         torch_dict_release, torch_dict_type, torch_model_eval, torch_model_load, &
-        torch_model_read_metadata, torch_model_release, torch_model_type
+        torch_model_read_metadata, torch_model_release, torch_model_type, torch_tensor_data_ptr, &
+        torch_tensor_from_array, torch_tensor_release, torch_tensor_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -38,6 +39,8 @@ PROGRAM nequip_unittest
    ! Torch objects.
    TYPE(torch_model_type) :: model
    TYPE(torch_dict_type) :: inputs, outputs
+   TYPE(torch_tensor_type) :: pos_tensor, edge_index_tensor, edge_cell_shift_tensor, cell_tensor, &
+                              atom_types_tensor, total_energy_tensor, atomic_energy_tensor, forces_tensor
 
    ! Outputs.
    REAL(sp), DIMENSION(:, :), POINTER :: total_energy, atomic_energy, forces
@@ -172,18 +175,39 @@ PROGRAM nequip_unittest
    WRITE (*, *) "Found", nedges, "neighbor edges between", natoms, "atoms."
 
    CALL torch_dict_create(inputs)
-   CALL torch_dict_insert(inputs, "pos", pos)
-   CALL torch_dict_insert(inputs, "edge_index", edge_index)
-   CALL torch_dict_insert(inputs, "edge_cell_shift", edge_cell_shift)
-   CALL torch_dict_insert(inputs, "cell", cell)
-   CALL torch_dict_insert(inputs, "atom_types", atom_types)
-
    CALL torch_dict_create(outputs)
+
+   CALL torch_tensor_from_array(pos_tensor, pos)
+   CALL torch_dict_insert(inputs, "pos", pos_tensor)
+   CALL torch_tensor_release(pos_tensor)
+
+   CALL torch_tensor_from_array(edge_index_tensor, edge_index)
+   CALL torch_dict_insert(inputs, "edge_index", edge_index_tensor)
+   CALL torch_tensor_release(edge_index_tensor)
+
+   CALL torch_tensor_from_array(edge_cell_shift_tensor, edge_cell_shift)
+   CALL torch_dict_insert(inputs, "edge_cell_shift", edge_cell_shift_tensor)
+   CALL torch_tensor_release(edge_cell_shift_tensor)
+
+   CALL torch_tensor_from_array(cell_tensor, cell)
+   CALL torch_dict_insert(inputs, "cell", cell_tensor)
+   CALL torch_tensor_release(cell_tensor)
+
+   CALL torch_tensor_from_array(atom_types_tensor, atom_types)
+   CALL torch_dict_insert(inputs, "atom_types", atom_types_tensor)
+   CALL torch_tensor_release(atom_types_tensor)
+
    CALL torch_model_eval(model, inputs, outputs)
 
-   CALL torch_dict_get(outputs, "total_energy", total_energy)
-   CALL torch_dict_get(outputs, "atomic_energy", atomic_energy)
-   CALL torch_dict_get(outputs, "forces", forces)
+   CALL torch_dict_get(outputs, "total_energy", total_energy_tensor)
+   CALL torch_tensor_data_ptr(total_energy_tensor, total_energy)
+
+   CALL torch_dict_get(outputs, "atomic_energy", atomic_energy_tensor)
+   CALL torch_tensor_data_ptr(atomic_energy_tensor, atomic_energy)
+
+   CALL torch_dict_get(outputs, "forces", forces_tensor)
+   CALL torch_tensor_data_ptr(forces_tensor, forces)
+
    WRITE (*, *) "Total Energy [Hartree] : ", total_energy(1, 1)/evolt
    WRITE (*, *) "FORCES: [Hartree/Bohr]: "
    DO iatom = 1, natoms
@@ -191,10 +215,13 @@ PROGRAM nequip_unittest
    END DO
    CPASSERT(ABS(-14985.4443_dp - REAL(total_energy(1, 1), kind=dp)) < 2e-3_dp)
 
+   CALL torch_tensor_release(total_energy_tensor)
+   CALL torch_tensor_release(atomic_energy_tensor)
+   CALL torch_tensor_release(forces_tensor)
    CALL torch_dict_release(inputs)
    CALL torch_dict_release(outputs)
    CALL torch_model_release(model)
-   DEALLOCATE (edge_index, edge_cell_shift, total_energy, atomic_energy, forces, pos, cell, atom_types)
+   DEALLOCATE (edge_index, edge_cell_shift, pos, cell, atom_types)
 
    WRITE (*, *) "NequIP unittest was successfully :-)"
 
