@@ -836,6 +836,10 @@ if [ "${with_plumed}" = "__INSTALL__" ]; then
   [ "${with_fftw}" = "__DONTUSE__" ] && with_fftw="__INSTALL__"
 fi
 
+if [ "${with_deepmd}" = "__INSTALL__" ]; then
+  [ "${with_libtorch}" = "__DONTUSE__" ] && with_libtorch="__INSTALL__"
+fi
+
 # ------------------------------------------------------------------------
 # Preliminaries
 # ------------------------------------------------------------------------
