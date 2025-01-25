@@ -92,7 +92,7 @@ elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "sdbg" ]]; then
   CMAKE_EXIT_CODE=$?
 
 elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "psmp" ]]; then
-  # TODO Fix, SIRIUS.
+  # TODO Fix SIRIUS.
   # https://github.com/cp2k/cp2k/issues/3416
   cmake \
     -GNinja \
