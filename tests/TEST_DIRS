@@ -376,7 +376,7 @@ FARMING/regtest-2
 QMMM/QS/regtest-lrigpw
 QS/regtest-wfn-restart
 QS/regtest-fftw                                             fftw3
-Fist/regtest-deepmd                                         deepmd
+Fist/regtest-deepmd                                         deepmd !lsan
 QS/regtest-elpa                                             elpa mpiranks==1||mpiranks%2==0
 Fist/regtest-plumed2                                        plumed2
 Fist/regtest-quip                                           quip

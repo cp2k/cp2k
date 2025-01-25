@@ -390,10 +390,15 @@ class Batch:
         self.huge_suppressions = cfg.huge_suppressions
 
     def requirements_satisfied(self, flags: List[str], mpiranks: int) -> bool:
+        result = True
         for r in self.requirements:
-            if not (r in flags or ("mpiranks" in r and eval(r.replace("||", " or ")))):
-                return False
-        return True
+            if "mpiranks" in r:
+                result &= eval(r.replace("||", " or "))
+            elif r.startswith("!"):
+                result &= r[1:] not in flags
+            else:
+                result &= r in flags
+        return result
 
 
 # ======================================================================================
