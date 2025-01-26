@@ -10,7 +10,9 @@
 !> \author Ole Schuett
 ! **************************************************************************************************
 MODULE pao_model
-   USE OMP_LIB,                         ONLY: omp_init_lock
+   USE OMP_LIB,                         ONLY: omp_init_lock,&
+                                              omp_set_lock,&
+                                              omp_unset_lock
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind
    USE basis_set_types,                 ONLY: gto_basis_set_type
