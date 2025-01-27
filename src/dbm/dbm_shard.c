@@ -63,16 +63,13 @@ static void hashtable_init(dbm_shard_t *shard) {
  ******************************************************************************/
 void dbm_shard_init(dbm_shard_t *shard) {
   shard->nblocks = 0;
-  shard->nblocks_allocated = INITIAL_NBLOCKS_ALLOCATED;
-  shard->blocks = malloc(shard->nblocks_allocated * sizeof(dbm_block_t));
-  assert(shard->blocks != NULL);
+  shard->nblocks_allocated = 0;
+  shard->blocks = NULL;
   hashtable_init(shard);
   shard->data_size = 0;
   shard->data_promised = 0;
-  shard->data_allocated = INITIAL_DATA_ALLOCATED;
-  shard->data = malloc(shard->data_allocated * sizeof(double));
-  assert(shard->data != NULL);
-
+  shard->data_allocated = 0;
+  shard->data = NULL;
   omp_init_lock(&shard->lock);
 }
 
@@ -87,31 +84,38 @@ void dbm_shard_copy(dbm_shard_t *shard_a, const dbm_shard_t *shard_b) {
     free(shard_a->blocks);
     shard_a->blocks = malloc(shard_b->nblocks * sizeof(dbm_block_t));
     shard_a->nblocks_allocated = shard_b->nblocks;
+    assert(shard_a->blocks != NULL);
   }
   shard_a->nblocks = shard_b->nblocks;
-  assert(shard_a->blocks != NULL);
-  memcpy(shard_a->blocks, shard_b->blocks,
-         shard_b->nblocks * sizeof(dbm_block_t));
 
   if (shard_a->hashtable_size < shard_b->hashtable_size) {
     free(shard_a->hashtable);
     shard_a->hashtable = malloc(shard_b->hashtable_size * sizeof(int));
+    assert(shard_a->hashtable != NULL);
   }
   shard_a->hashtable_size = shard_b->hashtable_size;
   shard_a->hashtable_mask = shard_b->hashtable_mask;
   shard_a->hashtable_prime = shard_b->hashtable_prime;
-  assert(shard_a->hashtable != NULL);
-  memcpy(shard_a->hashtable, shard_b->hashtable,
-         shard_b->hashtable_size * sizeof(int));
 
   if (shard_a->data_allocated < shard_b->data_size) {
     free(shard_a->data);
     shard_a->data = malloc(shard_b->data_size * sizeof(double));
     shard_a->data_allocated = shard_b->data_size;
+    assert(shard_a->data != NULL);
   }
   shard_a->data_size = shard_b->data_size;
-  assert(shard_a->data != NULL);
-  memcpy(shard_a->data, shard_b->data, shard_b->data_size * sizeof(double));
+
+  if (shard_a->blocks != NULL) {
+    memcpy(shard_a->blocks, shard_b->blocks,
+           shard_b->nblocks * sizeof(dbm_block_t));
+  }
+  if (shard_a->hashtable != NULL) {
+    memcpy(shard_a->hashtable, shard_b->hashtable,
+           shard_b->hashtable_size * sizeof(int));
+  }
+  if (shard_a->data != NULL) {
+    memcpy(shard_a->data, shard_b->data, shard_b->data_size * sizeof(double));
+  }
 }
 
 /*******************************************************************************

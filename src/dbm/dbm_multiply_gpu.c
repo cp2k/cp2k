@@ -44,7 +44,8 @@ void dbm_multiply_gpu_start(const int max_batch_size, const int nshards,
     dbm_shard_gpu_t *shard_c_dev = &ctx->shards_c_dev[i];
     offloadStreamCreate(&shard_c_dev->stream);
     shard_c_dev->data_size = shard_c_host->data_size;
-    shard_c_dev->data_allocated = shard_c_host->data_allocated;
+    // only allocate data_size on device rather than data_allocated
+    shard_c_dev->data_allocated = shard_c_host->data_size;
     shard_c_dev->data =
         dbm_mempool_device_malloc(shard_c_dev->data_allocated * sizeof(double));
     offloadMemcpyAsyncHtoD(shard_c_dev->data, shard_c_host->data,
