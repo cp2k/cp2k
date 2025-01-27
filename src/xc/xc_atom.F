@@ -377,7 +377,9 @@ CONTAINS
          lsd = .TRUE.
       END IF
       my_fac_triplet = 1.0_dp
-      IF ((PRESENT(do_triplet)) .AND. (do_triplet)) my_fac_triplet = -1.0_dp
+      IF (PRESENT(do_triplet)) THEN
+         IF (do_triplet) my_fac_triplet = -1.0_dp
+      END IF
 
       CALL xc_rho_set_get(rho_set, drho_cutoff=drho_cutoff)
       xc_fun_section => section_vals_get_subs_vals(xc_section, &
