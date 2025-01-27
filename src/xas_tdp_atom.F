@@ -182,7 +182,9 @@ CONTAINS
       nex_kinds = xas_tdp_env%nex_kinds
       nex_atoms = xas_tdp_env%nex_atoms
       do_xc = xas_tdp_control%do_xc
-      IF (PRESENT(ltddfpt) .AND. ltddfpt) do_xc = .FALSE.
+      IF (PRESENT(ltddfpt)) THEN
+         IF (ltddfpt) do_xc = .FALSE.
+      END IF
       nspins = 1; IF (xas_tdp_control%do_uks .OR. xas_tdp_control%do_roks) nspins = 2
 
       xas_atom_env%nspins = nspins
