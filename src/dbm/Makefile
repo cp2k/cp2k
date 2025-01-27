@@ -91,10 +91,10 @@ endif
 all: dbm_miniapp.x
 
 clean:
-	rm -fv *.o ../offload/*.o $(OPENCL_GENKRNL)
+	rm -fv $(ALL_OBJECTS) $(OPENCL_GENKRNL)
 
 realclean: clean
-	rm -fv *.x
+	rm -fv dbm_miniapp.x
 
 
 # Enable OpenCL when DBCSR library was prebuilt (assume __DBCSR_ACC).
@@ -169,7 +169,7 @@ endif
 
 # Enable HIP/ROCm when hipcc compiler is present.
 else ifneq ($(HIPCC),)
-ALL_OBJECTS += dbm_multiply_gpu.o
+ALL_OBJECTS += dbm_multiply_gpu.o dbm_multiply_gpu_kernel.o
 CFLAGS += -I${ROCM_PATH}/include -D__OFFLOAD_HIP -D__HIP_PLATFORM_AMD__
 LIBS += -L${ROCM_PATH}/lib -lamdhip64 -lhipfft -lhipblas -lrocblas
 
