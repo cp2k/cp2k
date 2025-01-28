@@ -47,6 +47,8 @@ fi
 
 echo "==================== Building CP2K ===================="
 
+ls  /opt/cp2k-toolchain/install/df
+
 # Using Ninja because of https://gitlab.kitware.com/cmake/cmake/issues/18188
 
 # Run CMake.
