@@ -1260,6 +1260,13 @@ CONTAINS
 
       END DO
 
+      ! Marek : In the RTBSE run, check also for zero frequency W
+      IF (bs_env%rtp_method == rtp_method_bse) THEN
+         WRITE (f_W_t, '(3A,I1,A)') TRIM(prefix), "W_freq_rtp", "_0", 0, ".matrix"
+         INQUIRE (file=TRIM(f_W_t), exist=W_time_exists)
+         bs_env%all_W_exist = bs_env%all_W_exist .AND. W_time_exists
+      END IF
+
       IF (bs_env%all_W_exist) THEN
          bs_env%read_chi(:) = .FALSE.
          bs_env%calc_chi(:) = .FALSE.
