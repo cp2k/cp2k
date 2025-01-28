@@ -84,6 +84,7 @@ if [[ "${PROFILE}" == "spack" ]] && [[ "${VERSION}" == "psmp" ]]; then
     -DCP2K_USE_SIRIUS=ON \
     -DCP2K_USE_LIBTORCH=OFF \
     -DCP2K_USE_DLAF=ON \
+    -DCP2K_USE_DFTD4=ON \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
 
@@ -105,6 +106,9 @@ elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "ssmp" ]]; then
     -DCP2K_USE_MPI_F08=OFF \
     -DCP2K_USE_SPGLIB=ON \
     -DCP2K_USE_VORI=ON \
+    -DCP2K_USE_DLAF=OFF \
+    -DCP2K_USE_LIBTORCH=ON \
+    -DCP2K_USE_DFTD4=ON \
     -Werror=dev \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
@@ -126,6 +130,7 @@ elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "sdbg" ]]; then
     -DCP2K_USE_COSMA=OFF \
     -DCP2K_USE_DLAF=OFF \
     -DCP2K_USE_LIBTORCH=OFF \
+    -DCP2K_USE_DFTD4=ON \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
 
@@ -174,6 +179,7 @@ elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "pdbg" ]]; then
     -DCP2K_USE_COSMA=OFF \
     -DCP2K_USE_DLAF=OFF \
     -DCP2K_USE_LIBTORCH=OFF \
+    -DCP2K_USE_DFTD4=ON \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
 
@@ -195,6 +201,7 @@ elif [[ "${PROFILE}" == "ubuntu" ]] && [[ "${VERSION}" == "ssmp" ]]; then
     -DCP2K_USE_COSMA=OFF \
     -DCP2K_USE_DLAF=OFF \
     -DCP2K_USE_LIBTORCH=OFF \
+    -DCP2K_USE_DFTD4=ON \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
 
@@ -216,6 +223,7 @@ elif [[ "${PROFILE}" == "ubuntu_i386" ]] && [[ "${VERSION}" == "ssmp" ]]; then
     -DCP2K_USE_COSMA=OFF \
     -DCP2K_USE_DLAF=OFF \
     -DCP2K_USE_LIBTORCH=OFF \
+    -DCP2K_USE_DFTD4=OFF \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
 
@@ -236,6 +244,7 @@ elif [[ "${PROFILE}" == "minimal" ]] && [[ "${VERSION}" == "ssmp" ]]; then
     -DCP2K_USE_DLAF=OFF \
     -DCP2K_USE_SPGLIB=OFF \
     -DCP2K_USE_LIBTORCH=OFF \
+    -DCP2K_USE_DFTD4=OFF \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
 

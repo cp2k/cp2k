@@ -848,7 +848,7 @@ endif()
 if(CP2K_USE_DFTD4)
   message(" - DFTD4 :\n"
           "   - include directories :  ${CP2K_DFTD4_INCLUDE_DIR}\n"
-          "   - libraries           :  ${CP2K_DFTD4_LIBDIR}\n\n")
+          "   - libraries           :  ${CP2K_DFTD4_LINK_LIBRARIES};${CP2K_MCTC_LINK_LIBRARIES};${CP2K_MULTICHARGE_LINK_LIBRARIES}\n\n")
 endif()
 
 if(CP2K_USE_SIRIUS)
