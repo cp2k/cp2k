@@ -909,17 +909,38 @@ CONTAINS
       ! Release SCF work storage
       CALL cp_fm_release(scf_env%scf_work1)
 
+      IF (ASSOCIATED(scf_env%scf_work1_red)) THEN
+         CALL cp_fm_release(scf_env%scf_work1_red)
+      END IF
       IF (ASSOCIATED(scf_env%scf_work2)) THEN
          CALL cp_fm_release(scf_env%scf_work2)
          DEALLOCATE (scf_env%scf_work2)
+         NULLIFY (scf_env%scf_work2)
+      END IF
+      IF (ASSOCIATED(scf_env%scf_work2_red)) THEN
+         CALL cp_fm_release(scf_env%scf_work2_red)
+         DEALLOCATE (scf_env%scf_work2_red)
+         NULLIFY (scf_env%scf_work2_red)
       END IF
       IF (ASSOCIATED(scf_env%ortho)) THEN
          CALL cp_fm_release(scf_env%ortho)
          DEALLOCATE (scf_env%ortho)
+         NULLIFY (scf_env%ortho)
+      END IF
+      IF (ASSOCIATED(scf_env%ortho_red)) THEN
+         CALL cp_fm_release(scf_env%ortho_red)
+         DEALLOCATE (scf_env%ortho_red)
+         NULLIFY (scf_env%ortho_red)
       END IF
       IF (ASSOCIATED(scf_env%ortho_m1)) THEN
          CALL cp_fm_release(scf_env%ortho_m1)
          DEALLOCATE (scf_env%ortho_m1)
+         NULLIFY (scf_env%ortho_m1)
+      END IF
+      IF (ASSOCIATED(scf_env%ortho_m1_red)) THEN
+         CALL cp_fm_release(scf_env%ortho_m1_red)
+         DEALLOCATE (scf_env%ortho_m1_red)
+         NULLIFY (scf_env%ortho_m1_red)
       END IF
 
       IF (ASSOCIATED(scf_env%ortho_dbcsr)) THEN

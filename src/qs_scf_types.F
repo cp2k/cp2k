@@ -243,44 +243,49 @@ CONTAINS
       CALL cp_fm_release(scf_env%scf_work1)
       IF (ASSOCIATED(scf_env%scf_work1_red)) THEN
          CALL cp_fm_release(scf_env%scf_work1_red)
+         DEALLOCATE (scf_env%scf_work1_red)
+         NULLIFY (scf_env%scf_work1_red)
       END IF
       IF (ASSOCIATED(scf_env%scf_work2)) THEN
          CALL cp_fm_release(scf_env%scf_work2)
          DEALLOCATE (scf_env%scf_work2)
+         NULLIFY (scf_env%scf_work2)
       END IF
       IF (ASSOCIATED(scf_env%scf_work2_red)) THEN
          CALL cp_fm_release(scf_env%scf_work2_red)
          DEALLOCATE (scf_env%scf_work2_red)
+         NULLIFY (scf_env%scf_work2_red)
       END IF
       IF (ASSOCIATED(scf_env%ortho)) THEN
          CALL cp_fm_release(scf_env%ortho)
          DEALLOCATE (scf_env%ortho)
+         NULLIFY (scf_env%ortho)
       END IF
       IF (ASSOCIATED(scf_env%ortho_red)) THEN
          CALL cp_fm_release(scf_env%ortho_red)
          DEALLOCATE (scf_env%ortho_red)
+         NULLIFY (scf_env%ortho_red)
       END IF
       IF (ASSOCIATED(scf_env%ortho_m1)) THEN
          CALL cp_fm_release(scf_env%ortho_m1)
          DEALLOCATE (scf_env%ortho_m1)
+         NULLIFY (scf_env%ortho_m1)
       END IF
       IF (ASSOCIATED(scf_env%ortho_m1_red)) THEN
          CALL cp_fm_release(scf_env%ortho_m1_red)
          DEALLOCATE (scf_env%ortho_m1_red)
+         NULLIFY (scf_env%ortho_m1_red)
       END IF
       IF (ASSOCIATED(scf_env%ortho_dbcsr)) THEN
          ! we should not end up here, and give back using the pools
-         CPASSERT(.TRUE.)
          CALL dbcsr_deallocate_matrix(scf_env%ortho_dbcsr)
       END IF
       IF (ASSOCIATED(scf_env%buf1_dbcsr)) THEN
          ! we should not end up here, and give back using the pools
-         CPASSERT(.TRUE.)
          CALL dbcsr_deallocate_matrix(scf_env%buf1_dbcsr)
       END IF
       IF (ASSOCIATED(scf_env%buf2_dbcsr)) THEN
          ! we should not end up here, and give back using the pools
-         CPASSERT(.TRUE.)
          CALL dbcsr_deallocate_matrix(scf_env%buf2_dbcsr)
       END IF
       IF (ASSOCIATED(scf_env%s_half)) THEN
@@ -293,12 +298,10 @@ CONTAINS
       END IF
       IF (ASSOCIATED(scf_env%p_mix_new)) THEN
          ! we should not end up here, and give back using the pools
-         CPASSERT(.TRUE.)
          CALL dbcsr_deallocate_matrix_set(scf_env%p_mix_new)
       END IF
       IF (ASSOCIATED(scf_env%p_delta)) THEN
          ! we should not end up here, and give back using the pools
-         CPASSERT(.TRUE.)
          CALL dbcsr_deallocate_matrix_set(scf_env%p_delta)
       END IF
       IF (ASSOCIATED(scf_env%ot_preconditioner)) THEN

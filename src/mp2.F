@@ -32,7 +32,7 @@ MODULE mp2
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                               cp_fm_syrk,&
                                               cp_fm_triangular_invert,&
-                                              cp_fm_upper_to_full
+                                              cp_fm_uplo_to_full
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
    USE cp_fm_diag,                      ONLY: choose_eigv_solver
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -408,7 +408,7 @@ CONTAINS
             evals = SQRT(evals)
             CALL cp_fm_column_scale(evecs, evals)
             CALL cp_fm_syrk("U", "N", nao, 1.0_dp, evecs, 1, 1, 0.0_dp, fm_matrix_s)
-            CALL cp_fm_upper_to_full(fm_matrix_s, fm_matrix_work)
+            CALL cp_fm_uplo_to_full(fm_matrix_s, fm_matrix_work)
          END IF
 
          CALL cp_fm_release(evecs)
