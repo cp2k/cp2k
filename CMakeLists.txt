@@ -846,9 +846,12 @@ if(CP2K_USE_SPLA)
 endif()
 
 if(CP2K_USE_DFTD4)
+  get_target_property(CP2K_DFTD4_LINK_LIBRARIES dftd4::dftd4 INTERFACE_LINK_LIBRARIES)
+  get_target_property(CP2K_DFTD4_LIB_LINK_LIBRARIES dftd4::dftd4-lib INTERFACE_LINK_LIBRARIES)
+  get_target_property(CP2K_DFTD4_INCLUDE_DIR dftd4::dftd4-lib INTERFACE_INCLUDE_DIRECTORIES)
   message(" - DFTD4 :\n"
-          "   - include directories :  ${CP2K_DFTD4_INCLUDE_DIR}\n"
-          "   - libraries           :  ${CP2K_DFTD4_LINK_LIBRARIES};${CP2K_MCTC_LINK_LIBRARIES};${CP2K_MULTICHARGE_LINK_LIBRARIES}\n\n")
+    "   - include directories :  ${CP2K_DFTD4_INCLUDE_DIR}\n"
+    "   - libraries           :  ${CP2K_DFTD4_LINK_LIBRARIES};${CP2K_DFTD4_LIB_LINK_LIBRARIES}\n\n")
 endif()
 
 if(CP2K_USE_SIRIUS)
