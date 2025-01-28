@@ -660,7 +660,7 @@ CONTAINS
       TYPE(distribution_2d_type), POINTER                :: distribution_2d
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      LOGICAL, INTENT(in)                                :: skip_load_balance, reorder_grid_ranks                         
+      LOGICAL, INTENT(in)                                :: skip_load_balance, reorder_grid_ranks
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_build_tasklist'
 
