@@ -53,7 +53,8 @@ MODULE cp_output_handling
    USE message_passing,                 ONLY: mp_file_delete,&
                                               mp_file_get_amode,&
                                               mp_file_type
-   USE openpmd_api,                     ONLY: openpmd_access_create,&
+   USE openpmd_api,                     ONLY: cp2k_log,&
+                                              openpmd_access_create,&
                                               openpmd_get_default_extension,&
                                               openpmd_series_close,&
                                               openpmd_series_create,&
@@ -931,10 +932,16 @@ CONTAINS
 
    END FUNCTION cp_print_key_generate_filename
 
-
-
+! **************************************************************************************************
+!> \brief ...
+!> \param logger ...
+!> \param print_key ...
+!> \param extension ...
+!> \param my_local ...
+!> \return ...
+! **************************************************************************************************
    FUNCTION cp_print_key_generate_openpmd_filename(logger, print_key, extension, &
-                                           my_local) RESULT(filename)
+                                                   my_local) RESULT(filename)
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: print_key
       CHARACTER(len=*), INTENT(IN)                       :: extension
@@ -1028,9 +1035,9 @@ CONTAINS
 
       CHARACTER(len=default_path_length)                 :: filename, filename_bak, filename_bak_1, &
                                                             filename_bak_2
-      CHARACTER(len=default_string_length)               :: my_file_action, &
-                                                            my_file_form, my_file_position, &
-                                                            my_file_status, outPath
+      CHARACTER(len=default_string_length)               :: my_file_action, my_file_form, &
+                                                            my_file_position, my_file_status, &
+                                                            outPath
       INTEGER                                            :: c_i_level, f_backup_level, i, mpi_amode, &
                                                             my_backup_level, my_nbak, nbak, &
                                                             s_backup_level, unit_nr
@@ -1099,6 +1106,11 @@ CONTAINS
          ELSE
             IF (cp_use_openpmd .AND. extension == ".cube") THEN
                my_use_openpmd = .TRUE.
+               filename = cp_print_key_generate_filename(logger, print_key, middle_name, extension, &
+                                                         my_local)
+
+               CALL cp2k_log(filename)
+
                filename = cp_print_key_generate_openpmd_filename(logger, print_key, "."//openpmd_get_default_extension(), my_local)
             ELSE
                my_use_openpmd = .FALSE.
