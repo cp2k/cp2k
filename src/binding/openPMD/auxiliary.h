@@ -16,6 +16,8 @@ void CP2K_MPI_Comm_f2c(
 
 size_t CP2K_strlen(char const *);
 
+void CP2K_log(char const *);
+
 #ifdef __cplusplus
 } // extern "C"
 #endif // defined(__cplusplus)

@@ -35,6 +35,7 @@ MODULE openPMD_api
    PUBLIC :: openpmd_series_create, openpmd_series_close
    PUBLIC :: openpmd_access_create, openpmd_access_read_only
    PUBLIC :: openpmd_get_default_extension
+   PUBLIC :: cp2k_log
 
 CONTAINS
 
@@ -49,6 +50,23 @@ CONTAINS
 
       res = this%c_ptr
    END FUNCTION as_pointer
+
+! **************************************************************************************************
+!> \brief ...
+!> \param message ...
+! **************************************************************************************************
+   SUBROUTINE cp2k_log(message)
+      CHARACTER(len=*), INTENT(IN)                       :: message
+
+      INTERFACE
+         SUBROUTINE cp2k_c_log(message) BIND(C, name="CP2K_log")
+            IMPORT :: C_PTR, C_CHAR
+            CHARACTER(kind=C_CHAR), DIMENSION(*) :: message
+         END SUBROUTINE
+      END INTERFACE
+
+      CALL cp2k_c_log(message=TRIM(message)//C_NULL_CHAR)
+   END SUBROUTINE cp2k_log
 
 ! **************************************************************************************************
 !> \brief ...
