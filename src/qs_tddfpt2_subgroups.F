@@ -289,27 +289,29 @@ CONTAINS
 
             CALL tddfpt_build_distribution_2d(distribution_2d=sub_env%dist_2d, dbcsr_dist=sub_env%dbcsr_dist, &
                                               blacs_env=sub_env%blacs_env, qs_env=qs_env)
+
             CALL tddfpt_build_tasklist(task_list=sub_env%task_list_orb, sab=sub_env%sab_orb, basis_type="ORB", &
                                        distribution_2d=sub_env%dist_2d, pw_env=sub_env%pw_env, qs_env=qs_env, &
-                                       soft_valid=.FALSE., skip_load_balance=qs_control%skip_load_balance_distributed, &
+                                       skip_load_balance=qs_control%skip_load_balance_distributed, &
                                        reorder_grid_ranks=.TRUE.)
+
             IF (qs_control%gapw .OR. qs_control%gapw_xc) THEN
-               CALL tddfpt_build_tasklist(task_list=sub_env%task_list_orb_soft, sab=sub_env%sab_orb, basis_type="ORB", &
+               CALL tddfpt_build_tasklist(task_list=sub_env%task_list_orb_soft, sab=sub_env%sab_orb, basis_type="ORB_SOFT", &
                                           distribution_2d=sub_env%dist_2d, pw_env=sub_env%pw_env, qs_env=qs_env, &
-                                          soft_valid=.TRUE., skip_load_balance=qs_control%skip_load_balance_distributed, &
+                                          skip_load_balance=qs_control%skip_load_balance_distributed, &
                                           reorder_grid_ranks=.TRUE.)
             END IF
 
             IF (dft_control%do_admm) THEN
                CALL tddfpt_build_tasklist(task_list=sub_env%task_list_aux_fit, sab=sub_env%sab_aux_fit, &
                                           basis_type="AUX_FIT", distribution_2d=sub_env%dist_2d, &
-                                          pw_env=sub_env%pw_env, qs_env=qs_env, soft_valid=.FALSE., &
+                                          pw_env=sub_env%pw_env, qs_env=qs_env, &
                                           skip_load_balance=qs_control%skip_load_balance_distributed, &
                                           reorder_grid_ranks=.FALSE.)
                IF (qs_control%gapw .OR. qs_control%gapw_xc) THEN
                   CALL tddfpt_build_tasklist(task_list=sub_env%task_list_aux_fit_soft, sab=sub_env%sab_aux_fit, &
-                                             basis_type="AUX_FIT", distribution_2d=sub_env%dist_2d, &
-                                             pw_env=sub_env%pw_env, qs_env=qs_env, soft_valid=.TRUE., &
+                                             basis_type="AUX_FIT_SOFT", distribution_2d=sub_env%dist_2d, &
+                                             pw_env=sub_env%pw_env, qs_env=qs_env, &
                                              skip_load_balance=qs_control%skip_load_balance_distributed, &
                                              reorder_grid_ranks=.FALSE.)
                END IF
@@ -642,7 +644,6 @@ CONTAINS
 !> \param distribution_2d     two-dimensional distribution of pairs of particles
 !> \param pw_env              plane wave environment
 !> \param qs_env              Quickstep environment
-!> \param soft_valid          generate a task list for soft basis functions (GAPW, GAPW_XC)
 !> \param skip_load_balance   do not perform load balancing
 !> \param reorder_grid_ranks  re-optimise grid ranks and re-create the real-space grid descriptor
 !>                            as well as grids
@@ -651,7 +652,7 @@ CONTAINS
 !>   * 01.2017 moved from qs_tddfpt2_methods [Sergey Chulkov]
 ! **************************************************************************************************
    SUBROUTINE tddfpt_build_tasklist(task_list, sab, basis_type, distribution_2d, pw_env, qs_env, &
-                                    soft_valid, skip_load_balance, reorder_grid_ranks)
+                                    skip_load_balance, reorder_grid_ranks)
       TYPE(task_list_type), POINTER                      :: task_list
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab
@@ -659,8 +660,7 @@ CONTAINS
       TYPE(distribution_2d_type), POINTER                :: distribution_2d
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      LOGICAL, INTENT(in)                                :: soft_valid, skip_load_balance, &
-                                                            reorder_grid_ranks
+      LOGICAL, INTENT(in)                                :: skip_load_balance, reorder_grid_ranks                         
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_build_tasklist'
 
@@ -719,8 +719,8 @@ CONTAINS
 
       CALL allocate_task_list(task_list)
       CALL generate_qs_task_list(ks_env, task_list, &
-                                 reorder_rs_grid_ranks=reorder_grid_ranks, soft_valid=soft_valid, &
-                                 basis_type=basis_type, skip_load_balance_distributed=skip_load_balance, &
+                                 reorder_rs_grid_ranks=reorder_grid_ranks, basis_type=basis_type, &
+                                 skip_load_balance_distributed=skip_load_balance, &
                                  pw_env_external=pw_env, sab_orb_external=sab)
 
       CALL timestop(handle)
