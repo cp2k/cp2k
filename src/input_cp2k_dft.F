@@ -2034,7 +2034,11 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
 
       CALL section_create(section, __LOCATION__, name="RTBSE", &
-                          description="Controls options for the real-time Bethe-Salpeter (RTBSE) propagation", &
+                          description="Controls options for the real-time Bethe-Salpeter (RTBSE) propagation. "// &
+                          "Note that running RTBSE requires previous low-scaling " // &
+                          "[GW](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BANDSTRUCTURE.GW) calculation. Also note that " // &
+                          "designating this section as RTBSE run but choosing run type ENERGY leads to potential " // &
+                          "deallocation errors.", &
                           repeats=.FALSE.)
 
       ! Marek : Controlling flow to RTBSE

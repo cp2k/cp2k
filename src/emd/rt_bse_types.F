@@ -306,7 +306,7 @@ CONTAINS
                       input=input)
       bs_sec => section_vals_get_subs_vals(input, "PROPERTIES%BANDSTRUCTURE")
       IF (.NOT. ASSOCIATED(bs_env)) THEN
-         CPABORT("Cannot run RT-aGW without running GW calculation (PROPERTIES) before")
+         CPABORT("Cannot run RT-BSE without running GW calculation (PROPERTIES) before")
       END IF
       ! Number of spins
       rtbse_env%n_spin = bs_env%n_spin

@@ -73,9 +73,10 @@ polarizability element.
 ## Running the Propagation
 
 To run the RTBSE propagation, include the
-[REAL_TIME_PROPAGATION](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION) section in the input file
-and set the [RTP_METHOD](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.RTP_METHOD) to `RTBSE` -
-otherwise, the standard TDDFT propagation is employed.
+[RTBSE](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.RTBSE) section in the input file.
+[SECTION_PARAMETERS](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.RTBSE.SECTION_PARAMETERS)
+can be used to choose TDDFT method as a debug method, but including the section alone leads to
+a RTBSE run.
 
 Furthermore, the [TIMESTEP](#CP2K_INPUT.MOTION.MD.TIMESTEP) and [STEPS](#CP2K_INPUT.MOTION.MD.STEPS)
 influence the size of each timestep and the total time of propagation. From the properties of the
@@ -128,9 +129,6 @@ For inexact methods, a threshold for the cutoff of exponential series is provide
 [EXP_ACCURACY](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.EXP_ACCURACY) keyword. For these,
 the [MAX_ITER](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.MAX_ITER) keyword also sets the
 maximum number of iterations before the program is stopped and non-convergence is reported.
-
-Use [RTP_METHOD](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.RTP_METHOD) to start the
-calculation by setting it to TDAGW.
 
 ### Excitation Method
 
@@ -193,7 +191,8 @@ one
 
 ```
 &REAL_TIME_PROPAGATION
-    RTP_METHOD RTBSE ! Start the RTBSE method
+    &RTBSE ! Start the RTBSE method
+    &END RTBSE
     EPS_ITER 1.0E-8 ! Check convergence
     MAT_EXP BCH
     EXP_ACCURACY 1.0E-14 ! Less than EPS_ITER
