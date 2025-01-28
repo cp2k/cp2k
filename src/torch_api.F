@@ -482,6 +482,9 @@ CONTAINS
       CHARACTER(:), ALLOCATABLE                           :: res
 
 #if defined(__LIBTORCH)
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'torch_model_read_metadata'
+      INTEGER                                            :: handle
+
       CHARACTER(LEN=1, KIND=C_CHAR), DIMENSION(:), &
          POINTER                                         :: content_f
       INTEGER                                            :: i
@@ -498,6 +501,7 @@ CONTAINS
          END SUBROUTINE torch_c_model_read_metadata
       END INTERFACE
 
+      CALL timeset(routineN, handle)
       content_c = C_NULL_PTR
       length = -1
       CALL torch_c_model_read_metadata(filename=TRIM(filename)//C_NULL_CHAR, &
@@ -517,6 +521,7 @@ CONTAINS
       END DO
 
       DEALLOCATE (content_f) ! Was allocated on the C side.
+      CALL timestop(handle)
 #else
       CPABORT("CP2K was compiled without Torch library.")
       MARK_USED(filename)
