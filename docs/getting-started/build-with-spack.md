@@ -6,10 +6,10 @@ HPC.
 
 To install CP2K with [Spack], you need to [install Spack].
 
-.. note:: 
-
-   If it is the first time you use [Spack], you might have to run `spack compiler find` to
-   setup the compilers. See [Spack Compiler Configuration] for more information.
+```{note}
+If it is the first time you use [Spack], you might have to run `spack compiler find` to setup the
+compilers. See [Spack Compiler Configuration] for more information.
+```
 
 ## Install CP2K with Spack
 
