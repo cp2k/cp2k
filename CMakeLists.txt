@@ -865,6 +865,12 @@ if(CP2K_USE_DFTD4)
   )
 endif()
 
+if(CP2K_USE_LIBSMEAGOL)
+  message(" - LIBSMEAGOL :\n"
+          "   - include directories :  ${CP2K_LIBSMEAGOL_INCLUDE_DIR}\n"
+          "   - libraries           :  ${CP2K_LIBSMEAGOL_LINK_LIBRARIES}\n\n")
+endif()
+
 if(CP2K_USE_SIRIUS)
   message(" - SIRIUS")
 endif()

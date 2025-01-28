@@ -85,6 +85,7 @@ if [[ "${PROFILE}" == "spack" ]] && [[ "${VERSION}" == "psmp" ]]; then
     -DCP2K_USE_LIBTORCH=OFF \
     -DCP2K_USE_DLAF=ON \
     -DCP2K_USE_DFTD4=ON \
+    -DCP2K_USE_LIBSMEAGOL=ON \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
 
@@ -155,6 +156,7 @@ elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "psmp" ]]; then
     -DCP2K_USE_SPGLIB=ON \
     -DCP2K_USE_SPLA=ON \
     -DCP2K_USE_VORI=ON \
+    --debug-find \
     -Werror=dev \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
