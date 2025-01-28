@@ -77,7 +77,8 @@ MODULE rt_bse
    USE dbt_api, ONLY: dbt_clear, &
                       dbt_contract, &
                       dbt_copy_matrix_to_tensor, &
-                      dbt_copy_tensor_to_matrix
+                      dbt_copy_tensor_to_matrix, &
+                      dbt_type
    USE libint_2c_3c, ONLY: libint_potential_type
    USE mp2_ri_2c, ONLY: RI_2c_integral_mat
    USE qs_tensors, ONLY: neighbor_list_3c_destroy, &
@@ -976,7 +977,7 @@ CONTAINS
 !> \date 09.2024
 ! **************************************************************************************************
    SUBROUTINE get_sigma_complex(rtbse_env, sigma_cfm, prefactor_opt, greens_cfm)
-      TYPE(rtbse_env_type)                               :: rtbse_env
+      TYPE(rtbse_env_type), POINTER                      :: rtbse_env
       TYPE(cp_cfm_type)                                  :: sigma_cfm ! resulting self energy
       REAL(kind=dp), INTENT(IN), OPTIONAL                :: prefactor_opt
       TYPE(cp_cfm_type), INTENT(IN)                      :: greens_cfm ! matrix to contract with RI_W
@@ -1009,7 +1010,7 @@ CONTAINS
 !> \date 09.2024
 ! **************************************************************************************************
    SUBROUTINE get_sigma_real(rtbse_env, sigma_fm, prefactor_opt, greens_fm)
-      TYPE(rtbse_env_type)                               :: rtbse_env
+      TYPE(rtbse_env_type), POINTER                      :: rtbse_env
       TYPE(cp_fm_type)                                   :: sigma_fm ! resulting self energy
       REAL(kind=dp), INTENT(IN), OPTIONAL                :: prefactor_opt
       TYPE(cp_fm_type), INTENT(IN)                       :: greens_fm ! matrix to contract with RI_W
@@ -1021,23 +1022,57 @@ CONTAINS
       ! Carry out the sigma part twice
       ! Convert to dbcsr
       CALL copy_fm_to_dbcsr(greens_fm, rtbse_env%rho_dbcsr)
-      CALL get_sigma(rtbse_env, sigma_fm, prefactor, rtbse_env%rho_dbcsr)
+      CALL get_sigma_dbcsr(rtbse_env, sigma_fm, prefactor, rtbse_env%rho_dbcsr)
 
    END SUBROUTINE get_sigma_real
 ! **************************************************************************************************
 !> \brief Calculates the self-energy by contraction of screened potential
 !> \note Can be used for both the Coulomb hole part and screened exchange part
-!> \param qs_env Quickstep environment data, entry point of the calculation
 !> \param greens_fm Pointer to the Green's function matrix, which is used as input data
 !> \param sigma_fm Pointer to the self-energy full matrix, which is overwritten by this routine
 !> \author Stepan Marek
 !> \date 01.2024
 ! **************************************************************************************************
    SUBROUTINE get_sigma_dbcsr(rtbse_env, sigma_fm, prefactor_opt, greens_dbcsr)
-      TYPE(rtbse_env_type)                               :: rtbse_env
+      TYPE(rtbse_env_type), POINTER                      :: rtbse_env
       TYPE(cp_fm_type)                                   :: sigma_fm ! resulting self energy
       REAL(kind=dp), INTENT(IN), OPTIONAL                :: prefactor_opt
       TYPE(dbcsr_type)                                   :: greens_dbcsr
+      REAL(kind=dp)                                      :: prefactor
+
+      prefactor = 1.0_dp
+      IF (PRESENT(prefactor_opt)) prefactor = prefactor_opt
+
+      CALL get_sigma_noenv(sigma_fm, prefactor_opt, greens_dbcsr, &
+                           rtbse_env%screened_dbt, rtbse_env%t_3c_w, &
+                           rtbse_env%t_3c_work_RI_AO__AO, rtbse_env%t_3c_work2_RI_AO__AO, &
+                           rtbse_env%greens_dbt)
+   END SUBROUTINE get_sigma_dbcsr
+! **************************************************************************************************
+!> \brief Calculates the self-energy by contraction of screened potential
+!> \note Can be used for both the Coulomb hole part and screened exchange part
+!> \note Separated from the rtbse_env - can be in principle called outside of the RTBSE code
+!> \param sigma_fm Pointer to the self-energy full matrix, which is overwritten by this routine
+!> \param prefactor_opt Optional argument for the prefactor (used for Coulomb hole calculation)
+!> \param greens_dbcsr Matrix storing the lesser Green's function elements
+!> \param screened_dbt Tensor storing the W_PQ screened Coulomb interaction RI matrix elements
+!> \param int_3c_dbt Tensor storing the 3c integrals (RI| ORB ORB )
+!> \param work_dbt_3c_1 Tensor workspace optimised for RI_AO__AO contractions
+!> \param work_dbt_3c_2 Tensor workspace optimised for RI_AO__AO contractions
+!> \param work_dbt_2c Tensor workspace for 2c integrals (Green's function and self-energy)
+!> \author Stepan Marek
+!> \date 01.2025
+! **************************************************************************************************
+   SUBROUTINE get_sigma_noenv(sigma_fm, prefactor_opt, greens_dbcsr, screened_dbt, &
+                              int_3c_dbt, work_dbt_3c_1, work_dbt_3c_2, work_dbt_2c)
+      TYPE(cp_fm_type)                                   :: sigma_fm ! resulting self energy
+      REAL(kind=dp), INTENT(IN), OPTIONAL                :: prefactor_opt
+      TYPE(dbcsr_type)                                   :: greens_dbcsr
+      TYPE(dbt_type)                                     :: screened_dbt, &
+                                                            int_3c_dbt, &
+                                                            work_dbt_3c_1, &
+                                                            work_dbt_3c_2, &
+                                                            work_dbt_2c
       CHARACTER(len=*), PARAMETER                        :: routineN = 'get_sigma'
       REAL(kind=dp)                                      :: prefactor
       TYPE(dbcsr_type)                                   :: sigma_dbcsr
@@ -1058,47 +1093,47 @@ CONTAINS
       ! Probably just use the tensors already present in bs_env? They seem to be mostly work tensors
       ! Create by template
       CALL dbt_contract(alpha=1.0_dp, &
-                        tensor_1=rtbse_env%screened_dbt, &
-                        tensor_2=rtbse_env%t_3c_w, &
+                        tensor_1=screened_dbt, &
+                        tensor_2=int_3c_dbt, &
                         beta=0.0_dp, &
-                        tensor_3=rtbse_env%t_3c_work_RI_AO__AO, &
+                        tensor_3=work_dbt_3c_1, &
                         contract_1=[2], notcontract_1=[1], map_1=[1], &
                         contract_2=[1], notcontract_2=[2, 3], map_2=[2, 3])!,&
       !filter_eps=bs_env%eps_filter)
       ! t_work1 now contains B^P_(nu beta) = sum _ Q W _ (PQ) (iomega = 0) (Q| nu beta)
       ! Next step is to convert the greens full matrix to dbcsr matrix
-      CALL dbt_copy_matrix_to_tensor(greens_dbcsr, rtbse_env%greens_dbt)
+      CALL dbt_copy_matrix_to_tensor(greens_dbcsr, work_dbt_2c)
       ! Then contract it
       ! no scaling applied - this has to be applied externally
       CALL dbt_contract(alpha=1.0_dp, &
-                        tensor_1=rtbse_env%t_3c_work_RI_AO__AO, &
-                        tensor_2=rtbse_env%greens_dbt, &
+                        tensor_1=work_dbt_3c_1, &
+                        tensor_2=work_dbt_2c, &
                         beta=0.0_dp, &
-                        tensor_3=rtbse_env%t_3c_work2_RI_AO__AO, &
+                        tensor_3=work_dbt_3c_2, &
                         contract_1=[2], notcontract_1=[1, 3], map_1=[1, 3], &
                         contract_2=[2], notcontract_2=[1], map_2=[2])
       ! workspace 2 now contains C ^ P _ (mu beta) sum _ nu B ^ P _ (nu beta) g _ (mu nu)
       CALL dbt_contract(alpha=prefactor, &
-                        tensor_1=rtbse_env%t_3c_w, &
-                        tensor_2=rtbse_env%t_3c_work2_RI_AO__AO, &
+                        tensor_1=int_3c_dbt, &
+                        tensor_2=work_dbt_3c_2, &
                         beta=0.0_dp, &
-                        tensor_3=rtbse_env%sigma_dbt, &
+                        tensor_3=work_dbt_2c, &
                         contract_1=[1, 3], notcontract_1=[2], map_1=[1], &
                         contract_2=[1, 2], notcontract_2=[3], map_2=[2])!,&
       !filter_eps=bs_env%eps_filter)
       ! Finally, convert the COH tensor to matrix and then to fm matrix
-      CALL dbcsr_create(sigma_dbcsr, name="sigma", template=rtbse_env%rho_dbcsr)
-      CALL dbt_copy_tensor_to_matrix(rtbse_env%sigma_dbt, sigma_dbcsr)
+      ! TODO : extra workspace?
+      CALL dbcsr_create(sigma_dbcsr, name="sigma", template=greens_dbcsr)
+      CALL dbt_copy_tensor_to_matrix(work_dbt_2c, sigma_dbcsr)
       CALL copy_dbcsr_to_fm(sigma_dbcsr, sigma_fm)
       CALL dbcsr_release(sigma_dbcsr)
       ! Clear workspaces - saves memory?
-      CALL dbt_clear(rtbse_env%t_3c_work_RI_AO__AO)
-      CALL dbt_clear(rtbse_env%t_3c_work2_RI_AO__AO)
-      CALL dbt_clear(rtbse_env%sigma_dbt)
-      CALL dbt_clear(rtbse_env%greens_dbt)
+      CALL dbt_clear(work_dbt_3c_1)
+      CALL dbt_clear(work_dbt_3c_2)
+      CALL dbt_clear(work_dbt_2c)
       CALL timestop(handle)
 
-   END SUBROUTINE get_sigma_dbcsr
+   END SUBROUTINE get_sigma_noenv
 ! **************************************************************************************************
 !> \brief Creates the RI matrix and populates it with correct values
 !> \note Tensor contains Hartree elements in the auxiliary basis

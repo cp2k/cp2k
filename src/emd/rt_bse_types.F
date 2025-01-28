@@ -168,10 +168,8 @@ MODULE rt_bse_types
 !> \param v_dbcsr Sparse matrix with bare Coulomb in RI basis
 !> \param w_dbcsr Sparse matrix with correlation part of dressed Coulomb in RI basis (without bare Coulomb)
 !> \param screened_dbt Tensor for screened Coulomb interaction
-!> \param sigma_dbt Tensor for self-energy
 !> \param greens_dbt Tensor for greens function/density matrix
 !> \param t_3c_w Tensor containing 3c integrals
-!> \param t_3c_work_RI__AO_AO Tensor sigma contraction
 !> \param t_3c_work_RI_AO__AO Tensor sigma contraction
 !> \param t_3c_work2_RI_AO__AO Tensor sigma contraction
 !> \param sigma_SEX Screened exchange self-energy
@@ -254,18 +252,14 @@ MODULE rt_bse_types
                                                                    w_dbcsr = dbcsr_type()
 #if defined(FTN_NO_DEFAULT_INIT)
       TYPE(dbt_type)                                            :: screened_dbt, &
-                                                                   sigma_dbt, &
                                                                    greens_dbt, &
                                                                    t_3c_w, &
-                                                                   t_3c_work_RI__AO_AO, &
                                                                    t_3c_work_RI_AO__AO, &
                                                                    t_3c_work2_RI_AO__AO
 #else
       TYPE(dbt_type)                                            :: screened_dbt = dbt_type(), &
-                                                                   sigma_dbt = dbt_type(), &
                                                                    greens_dbt = dbt_type(), &
                                                                    t_3c_w = dbt_type(), &
-                                                                   t_3c_work_RI__AO_AO = dbt_type(), &
                                                                    t_3c_work_RI_AO__AO = dbt_type(), &
                                                                    t_3c_work2_RI_AO__AO = dbt_type()
 #endif
@@ -726,26 +720,47 @@ CONTAINS
    SUBROUTINE create_sigma_workspace(rtbse_env, qs_env)
       TYPE(rtbse_env_type)                               :: rtbse_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
+
+      CALL create_sigma_workspace_qs_only(qs_env, rtbse_env%screened_dbt, rtbse_env%w_dbcsr, &
+                                          rtbse_env%t_3c_w, rtbse_env%t_3c_work_RI_AO__AO, &
+                                          rtbse_env%t_3c_work2_RI_AO__AO, rtbse_env%greens_dbt)
+   END SUBROUTINE create_sigma_workspace
+! **************************************************************************************************
+!> \brief Allocates the workspaces for self-energy determination routine
+!> \note Does so without referencing the rtbse_env
+!> \note References bs_env
+!> \param rtbse_env Structure for holding information and workspace structures
+!> \param qs_env Quickstep environment - entry point of calculation
+!> \author Stepan Marek
+!> \date 02.2024
+! **************************************************************************************************
+   SUBROUTINE create_sigma_workspace_qs_only(qs_env, screened_dbt, screened_dbcsr, int_3c_dbt, &
+                                             work_dbt_3c_1, work_dbt_3c_2, work_dbt_2c)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(dbcsr_type)                                   :: screened_dbcsr
+      TYPE(dbt_type)                                     :: screened_dbt, &
+                                                            int_3c_dbt, &
+                                                            work_dbt_3c_1, &
+                                                            work_dbt_3c_2, &
+                                                            work_dbt_2c
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
 
       CALL get_qs_env(qs_env, bs_env=bs_env)
 
       ! t_3c_w
-      CALL dbt_create(bs_env%t_RI__AO_AO, rtbse_env%t_3c_w)
+      CALL dbt_create(bs_env%t_RI__AO_AO, int_3c_dbt)
       ! TODO : Provide option/decision whether to store the 3c integrals precomputed
-      CALL compute_3c_integrals(qs_env, bs_env, rtbse_env%t_3c_w)
+      CALL compute_3c_integrals(qs_env, bs_env, int_3c_dbt)
       ! t_3c_work_RI_AO__AO
-      CALL dbt_create(bs_env%t_RI_AO__AO, rtbse_env%t_3c_work_RI_AO__AO)
+      CALL dbt_create(bs_env%t_RI_AO__AO, work_dbt_3c_1)
       ! t_3c_work2_RI_AO__AO
-      CALL dbt_create(bs_env%t_RI_AO__AO, rtbse_env%t_3c_work2_RI_AO__AO)
+      CALL dbt_create(bs_env%t_RI_AO__AO, work_dbt_3c_2)
       ! t_W
       ! Populate screened_dbt from gw run
-      CALL dbcsr_create(rtbse_env%w_dbcsr, name="W", template=bs_env%mat_RI_RI%matrix)
-      CALL dbt_create(rtbse_env%w_dbcsr, rtbse_env%screened_dbt)
-      ! sigma_dbt
-      CALL dbt_create(bs_env%mat_ao_ao%matrix, rtbse_env%sigma_dbt)
+      CALL dbcsr_create(screened_dbcsr, name="W", template=bs_env%mat_RI_RI%matrix)
+      CALL dbt_create(screened_dbcsr, screened_dbt)
       ! greens_dbt
-      CALL dbt_create(bs_env%mat_ao_ao%matrix, rtbse_env%greens_dbt)
+      CALL dbt_create(bs_env%mat_ao_ao%matrix, work_dbt_2c)
    END SUBROUTINE
 ! **************************************************************************************************
 !> \brief Releases the workspaces for self-energy determination
@@ -760,7 +775,6 @@ CONTAINS
       CALL dbt_destroy(rtbse_env%t_3c_work_RI_AO__AO)
       CALL dbt_destroy(rtbse_env%t_3c_work2_RI_AO__AO)
       CALL dbt_destroy(rtbse_env%screened_dbt)
-      CALL dbt_destroy(rtbse_env%sigma_dbt)
       CALL dbt_destroy(rtbse_env%greens_dbt)
       CALL dbcsr_release(rtbse_env%w_dbcsr)
    END SUBROUTINE
