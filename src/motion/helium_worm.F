@@ -94,6 +94,9 @@ CONTAINS
          helium%saveiperm(:) = helium%iperm(:)
          helium%savepermutation(:) = helium%permutation(:)
       END IF
+      !make sure work array is in sync with pos
+      ! (helium_print_coordinates for example messes with that...)
+      helium%work = helium%pos
 
       nMC = helium%iter_rot
       ncycle = 0
