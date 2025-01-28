@@ -931,6 +931,56 @@ CONTAINS
 
    END FUNCTION cp_print_key_generate_filename
 
+
+
+   FUNCTION cp_print_key_generate_openpmd_filename(logger, print_key, extension, &
+                                           my_local) RESULT(filename)
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(section_vals_type), POINTER                   :: print_key
+      CHARACTER(len=*), INTENT(IN)                       :: extension
+      LOGICAL, INTENT(IN)                                :: my_local
+      CHARACTER(len=default_path_length)                 :: filename
+
+      CHARACTER(len=default_path_length)                 :: outPath, root
+      CHARACTER(len=default_string_length)               :: outName
+      INTEGER                                            :: my_ind1, my_ind2
+      LOGICAL                                            :: has_root
+
+      CALL section_vals_val_get(print_key, "FILENAME", c_val=outPath)
+      IF (outPath(1:1) == '=') THEN
+         CPASSERT(LEN(outPath) - 1 <= LEN(filename))
+         filename = outPath(2:)
+         RETURN
+      END IF
+      IF (outPath == "__STD_OUT__") outPath = ""
+      outName = outPath
+      has_root = .FALSE.
+      my_ind1 = INDEX(outPath, "/")
+      my_ind2 = LEN_TRIM(outPath)
+      IF (my_ind1 /= 0) THEN
+         has_root = .TRUE.
+         DO WHILE (INDEX(outPath(my_ind1 + 1:my_ind2), "/") /= 0)
+            my_ind1 = INDEX(outPath(my_ind1 + 1:my_ind2), "/") + my_ind1
+         END DO
+         IF (my_ind1 == my_ind2) THEN
+            outName = ""
+         ELSE
+            outName = outPath(my_ind1 + 1:my_ind2)
+         END IF
+      END IF
+
+      IF (.NOT. has_root) THEN
+         root = TRIM(logger%iter_info%project_name)
+      ELSE IF (outName == "") THEN
+         root = outPath(1:my_ind1)//TRIM(logger%iter_info%project_name)
+      ELSE
+         root = outPath(1:my_ind1)
+      END IF
+
+      filename = ADJUSTL(TRIM(root)//TRIM(extension))
+
+   END FUNCTION cp_print_key_generate_openpmd_filename
+
 ! **************************************************************************************************
 !> \brief ...
 !> \param logger ...
@@ -978,7 +1028,7 @@ CONTAINS
 
       CHARACTER(len=default_path_length)                 :: filename, filename_bak, filename_bak_1, &
                                                             filename_bak_2
-      CHARACTER(len=default_string_length)               :: my_extension, my_file_action, &
+      CHARACTER(len=default_string_length)               :: my_file_action, &
                                                             my_file_form, my_file_position, &
                                                             my_file_status, outPath
       INTEGER                                            :: c_i_level, f_backup_level, i, mpi_amode, &
@@ -1049,19 +1099,18 @@ CONTAINS
          ELSE
             IF (cp_use_openpmd .AND. extension == ".cube") THEN
                my_use_openpmd = .TRUE.
-               my_extension = "."//openpmd_get_default_extension()
+               filename = cp_print_key_generate_openpmd_filename(logger, print_key, "."//openpmd_get_default_extension(), my_local)
             ELSE
                my_use_openpmd = .FALSE.
-               my_extension = extension
+               !
+               ! complex logic to build filename:
+               !   1)  Try to avoid '--' and '-.'
+               !   2)  If outPath contains '/' (as in ./filename) do not prepend the project_name
+               !
+               ! if it is actually a full path, use it as the root
+               filename = cp_print_key_generate_filename(logger, print_key, middle_name, extension, &
+                                                         my_local)
             END IF
-            !
-            ! complex logic to build filename:
-            !   1)  Try to avoid '--' and '-.'
-            !   2)  If outPath contains '/' (as in ./filename) do not prepend the project_name
-            !
-            ! if it is actually a full path, use it as the root
-            filename = cp_print_key_generate_filename(logger, print_key, middle_name, my_extension, &
-                                                      my_local)
             ! Give back info about a possible existence of the file if required
             IF (PRESENT(is_new_file)) THEN
                INQUIRE (FILE=filename, EXIST=found)
