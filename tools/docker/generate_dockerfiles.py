@@ -861,7 +861,7 @@ RUN spack compiler find
 RUN spack external find --all --not-buildable
 
 # Enable Spack build cache
-ARG SPACK_BUILD_CACHE=develop-205-01-26
+ARG SPACK_BUILD_CACHE=develop-2025-01-26
 RUN spack mirror add ${{SPACK_BUILD_CACHE}} https://binaries.spack.io/${{SPACK_BUILD_CACHE}} && \
     spack mirror add develop https://binaries.spack.io/develop && \
     spack buildcache keys --install --trust --force && \
