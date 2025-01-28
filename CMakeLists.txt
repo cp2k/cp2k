@@ -690,6 +690,13 @@ endif()
 
 if(CP2K_USE_DFTD4)
   find_package(dftd4 REQUIRED)
+
+  get_target_property(CP2K_DFTD4_LINK_LIBRARIES dftd4::dftd4
+                      INTERFACE_LINK_LIBRARIES)
+  get_target_property(CP2K_DFTD4_LIB_LINK_LIBRARIES dftd4::dftd4-lib
+                      INTERFACE_LINK_LIBRARIES)
+  get_target_property(CP2K_DFTD4_INCLUDE_DIR dftd4::dftd4-lib
+                      INTERFACE_INCLUDE_DIRECTORIES)
 endif()
 
 # SIRIUS
@@ -847,9 +854,10 @@ endif()
 
 if(CP2K_USE_DFTD4)
   message(
-    " - DFTD4 :\n" "   - include modules     :  ${DFTD4_DFTD4};${DFTD4_MCTC}\n"
-    "   - include directories :  ${DFTD4_INCLUDE_DIR}\n"
-    "   - libraries           :  ${DFTD4_LIBDIR}\n\n")
+    " - DFTD4 :\n"
+    "   - include directories :  ${CP2K_DFTD4_INCLUDE_DIR}\n"
+    "   - libraries           :  ${CP2K_DFTD4_LINK_LIBRARIES};${CP2K_DFTD4_LIB_LINK_LIBRARIES}\n\n"
+  )
 endif()
 
 if(CP2K_USE_SIRIUS)

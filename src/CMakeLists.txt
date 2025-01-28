@@ -1600,9 +1600,6 @@ endif()
 
 add_library(cp2k_link_libs INTERFACE)
 
-include_directories(${DFTD4_DFTD4})
-include_directories(${DFTD4_MCTC})
-
 # the order is important so keep it that way
 target_link_libraries(
   cp2k_link_libs
