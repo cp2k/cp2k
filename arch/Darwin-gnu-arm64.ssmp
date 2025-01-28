@@ -8,7 +8,7 @@
 # Usage: Source this arch file and then run make as instructed.
 #        Ensure the links in /opt/homebrew/bin to the gcc version.
 #
-# Last update: 09.01.2025
+# Last update: 28.01.2025
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -43,7 +43,7 @@
    ./install_cp2k_toolchain.sh -j${maxtasks} --mpi-mode=no --no-arch-files --target-cpu=${target_cpu} \
       --with-cmake=$(brew --prefix cmake) --with-dftd4 --with-fftw=$(brew --prefix fftw) --with-gcc=system \
       --with-hdf5=$(brew --prefix hdf5) --with-libxc=$(brew --prefix libxc) --with-ninja=$(brew --prefix ninja) \
-      --with-openblas=$(brew --prefix openblas) --with-trexio
+      --with-openblas=$(brew --prefix openblas) --with-trexio --with-libtorch=no --with-deepmd=no; \
    source ./install/setup; \
    cd ../..; \
    echo; \
@@ -179,19 +179,6 @@ ifneq ($(USE_LIBXSMM),)
    LIBS           += $(LIBXSMM_LIB)/libxsmmf.a
    LIBS           += $(LIBXSMM_LIB)/libxsmmext.a
    LIBS           += $(LIBXSMM_LIB)/libxsmm.a
-endif
-
-ifneq ($(USE_TREXIO),)
-   USE_TREXIO     := $(strip $(USE_TREXIO))
-   TREXIO_INC     := $(INSTALL_PATH)/trexio-$(USE_TREXIO)/include
-   TREXIO_LIB     := $(INSTALL_PATH)/trexio-$(USE_TREXIO)/lib
-   CFLAGS         += -I$(TREXIO_INC)
-   DFLAGS         += -D__TREXIO
-   ifeq ($(SHARED), yes)
-      LIBS           += -Wl,-rpath=$(TREXIO_LIB) -L$(TREXIO_LIB) -ltrexio
-   else
-      LIBS           += $(TREXIO_LIB)/libtrexio.a
-   endif
 endif
 
 FFTW_HOME      := $(shell brew --prefix fftw)
