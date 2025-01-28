@@ -106,7 +106,7 @@ MODULE qs_scf_types
       TYPE(cp_fm_type), DIMENSION(:), POINTER :: scf_work1 => NULL(), scf_work1_red => NULL()
       TYPE(cp_fm_type), POINTER  :: scf_work2 => NULL(), ortho => NULL(), ortho_m1 => NULL(), &
                                     s_half => NULL(), s_minus_one => NULL(), &
-                                    scf_work2_red => NULL(), ortho_red => NULL()
+                                    scf_work2_red => NULL(), ortho_red => NULL(), ortho_m1_red => NULL()
       TYPE(krylov_space_type), POINTER :: krylov_space => NULL()
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER :: p_delta => NULL(), p_mix_new => NULL()
       TYPE(dbcsr_type), POINTER :: ortho_dbcsr => NULL(), buf1_dbcsr => NULL(), buf2_dbcsr => NULL()
@@ -170,6 +170,7 @@ CONTAINS
       NULLIFY (scf_env%ortho_red)
       NULLIFY (scf_env%ortho_dbcsr)
       NULLIFY (scf_env%ortho_m1)
+      NULLIFY (scf_env%ortho_m1_red)
       NULLIFY (scf_env%p_mix_new)
       NULLIFY (scf_env%ot_preconditioner)
       NULLIFY (scf_env%qs_ot_env)
@@ -262,6 +263,10 @@ CONTAINS
       IF (ASSOCIATED(scf_env%ortho_m1)) THEN
          CALL cp_fm_release(scf_env%ortho_m1)
          DEALLOCATE (scf_env%ortho_m1)
+      END IF
+      IF (ASSOCIATED(scf_env%ortho_m1_red)) THEN
+         CALL cp_fm_release(scf_env%ortho_m1_red)
+         DEALLOCATE (scf_env%ortho_m1_red)
       END IF
       IF (ASSOCIATED(scf_env%ortho_dbcsr)) THEN
          ! we should not end up here, and give back using the pools

@@ -277,6 +277,22 @@ CONTAINS
 
          IF (do_level_shift) THEN
          DO ispin = 1, nspin
+         IF (ASSOCIATED(scf_env%scf_work1_red) .AND. ASSOCIATED(scf_env%scf_work2_red) &
+             .AND. ASSOCIATED(scf_env%ortho_red) .AND. ASSOCIATED(scf_env%ortho_m1_red)) THEN
+            CALL eigensolver_symm(matrix_ks_fm=scf_env%scf_work1(ispin), &
+                                  mo_set=mos(ispin), &
+                                  ortho=ortho, &
+                                  work=scf_env%scf_work2, &
+                                  do_level_shift=do_level_shift, &
+                                  level_shift=scf_control%level_shift, &
+                                  matrix_u_fm=scf_env%ortho_m1, &
+                                  use_jacobi=use_jacobi, &
+                                  jacobi_threshold=scf_control%diagonalization%jacobi_threshold, &
+                                  matrix_ks_fm_red=scf_env%scf_work1_red(ispin), &
+                                  ortho_red=scf_env%ortho_red, &
+                                  work_red=scf_env%scf_work2_red, &
+                                  matrix_u_fm_red=scf_env%ortho_m1_red)
+         ELSE
             CALL eigensolver_symm(matrix_ks_fm=scf_env%scf_work1(ispin), &
                                   mo_set=mos(ispin), &
                                   ortho=ortho, &
@@ -286,6 +302,7 @@ CONTAINS
                                   matrix_u_fm=scf_env%ortho_m1, &
                                   use_jacobi=use_jacobi, &
                                   jacobi_threshold=scf_control%diagonalization%jacobi_threshold)
+         END IF
          END DO
          ELSE
          DO ispin = 1, nspin

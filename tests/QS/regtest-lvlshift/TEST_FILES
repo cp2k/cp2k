@@ -11,6 +11,9 @@ c2h2-gpw-inverse.inp                                  52     1.0E-8             
 # METHOD gpw  ; CHOLESKY off
 c2h2-gpw-off.inp                                       1    1.0E-12               -12.47387109223699
 c2h2-gpw-off.inp                                      52     1.0E-8                         0.261219
+# METHOD gpw  ; CHOLESKY off, EPS_EIGVAL 1.0E-1 to check reduction
+c2h2-gpw-off_svd.inp                                   1    1.0E-12               -12.36315070103809
+c2h2-gpw-off_svd.inp                                  52     1.0E-8                         0.299207
 # METHOD gpw  ; CHOLESKY reduce
 c2h2-gpw-reduce.inp                                    1    1.0E-12               -12.47387109223699
 c2h2-gpw-reduce.inp                                   52     1.0E-8                         0.261219

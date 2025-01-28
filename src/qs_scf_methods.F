@@ -67,8 +67,6 @@ MODULE qs_scf_methods
              eigensolver_simple, &
              scf_env_density_mixing
 
-   PRIVATE :: correct_mo_eigenvalues, shift_unocc_mos
-
    INTERFACE combine_ks_matrices
       MODULE PROCEDURE combine_ks_matrices_1, &
          combine_ks_matrices_2
@@ -198,7 +196,7 @@ CONTAINS
          CALL cp_fm_cholesky_reduce(matrix_ks_fm, ortho)
 
          IF (do_level_shift) &
-            CALL shift_unocc_mos(matrix_ks_fm=matrix_ks_fm, mo_coeff=mo_coeff, homo=homo, nmo=nmo, nao=nao, &
+            CALL shift_unocc_mos(matrix_ks_fm=matrix_ks_fm, mo_coeff=mo_coeff, homo=homo, &
                                  level_shift=level_shift, is_triangular=.TRUE., matrix_u_fm=matrix_u_fm)
 
          CALL choose_eigv_solver(matrix_ks_fm, work, mo_eigenvalues)
@@ -214,7 +212,7 @@ CONTAINS
                                      "SOLVE", pos="LEFT", transa="T")
 
          IF (do_level_shift) &
-            CALL shift_unocc_mos(matrix_ks_fm=matrix_ks_fm, mo_coeff=mo_coeff, homo=homo, nmo=nmo, nao=nao, &
+            CALL shift_unocc_mos(matrix_ks_fm=matrix_ks_fm, mo_coeff=mo_coeff, homo=homo, &
                                  level_shift=level_shift, is_triangular=.TRUE., matrix_u_fm=matrix_u_fm)
 
          CALL choose_eigv_solver(matrix_ks_fm, work, mo_eigenvalues)
@@ -232,7 +230,7 @@ CONTAINS
                                         invert_tr=.FALSE., uplo_tr="U", n_rows=nao, n_cols=nao, alpha=1.0_dp)
 
          IF (do_level_shift) &
-            CALL shift_unocc_mos(matrix_ks_fm=matrix_ks_fm, mo_coeff=mo_coeff, homo=homo, nmo=nmo, nao=nao, &
+            CALL shift_unocc_mos(matrix_ks_fm=matrix_ks_fm, mo_coeff=mo_coeff, homo=homo, &
                                  level_shift=level_shift, is_triangular=.TRUE., matrix_u_fm=matrix_u_fm)
 
          CALL choose_eigv_solver(matrix_ks_fm, work, mo_eigenvalues)
@@ -324,10 +322,11 @@ CONTAINS
 !> \param ortho_red ...
 !> \param work_red ...
 !> \param matrix_ks_fm_red ...
+!> \param matrix_u_fm_red ...
 ! **************************************************************************************************
    SUBROUTINE eigensolver_symm(matrix_ks_fm, mo_set, ortho, work, do_level_shift, &
                                level_shift, matrix_u_fm, use_jacobi, jacobi_threshold, &
-                               ortho_red, work_red, matrix_ks_fm_red)
+                               ortho_red, work_red, matrix_ks_fm_red, matrix_u_fm_red)
       TYPE(cp_fm_type), INTENT(IN)                       :: matrix_ks_fm
       TYPE(mo_set_type), INTENT(IN)                      :: mo_set
       TYPE(cp_fm_type), INTENT(IN)                       :: ortho, work
@@ -336,7 +335,8 @@ CONTAINS
       TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: matrix_u_fm
       LOGICAL, INTENT(IN)                                :: use_jacobi
       REAL(KIND=dp), INTENT(IN)                          :: jacobi_threshold
-      TYPE(cp_fm_type), INTENT(INOUT), OPTIONAL          :: ortho_red, work_red, matrix_ks_fm_red
+      TYPE(cp_fm_type), INTENT(INOUT), OPTIONAL          :: ortho_red, work_red, matrix_ks_fm_red, &
+                                                            matrix_u_fm_red
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'eigensolver_symm'
 
@@ -377,15 +377,11 @@ CONTAINS
             CALL cp_fm_get_info(ortho_red, ncol_global=nao_red)
             CALL cp_fm_symm("L", "U", nao, nao_red, 1.0_dp, matrix_ks_fm, ortho_red, 0.0_dp, work_red)
             CALL parallel_gemm("T", "N", nao_red, nao_red, nao, 1.0_dp, ortho_red, work_red, 0.0_dp, matrix_ks_fm_red)
-         END IF
-         CALL cp_fm_symm("L", "U", nao, nao, 1.0_dp, matrix_ks_fm, ortho, 0.0_dp, work)
-         CALL parallel_gemm("T", "N", nao, nao, nao, 1.0_dp, ortho, work, 0.0_dp, matrix_ks_fm)
 
-         IF (do_level_shift) &
-            CALL shift_unocc_mos(matrix_ks_fm=matrix_ks_fm, mo_coeff=mo_coeff, homo=homo, nmo=nmo, nao=nao, &
-                                 level_shift=level_shift, is_triangular=.FALSE., matrix_u_fm=matrix_u_fm)
+            IF (do_level_shift) &
+               CALL shift_unocc_mos(matrix_ks_fm=matrix_ks_fm_red, mo_coeff=mo_coeff, homo=homo, &
+                                    level_shift=level_shift, is_triangular=.FALSE., matrix_u_fm=matrix_u_fm_red)
 
-         IF (PRESENT(work_red) .AND. PRESENT(ortho_red) .AND. PRESENT(matrix_ks_fm_red)) THEN
             CALL cp_fm_create(work_red2, matrix_ks_fm_red%matrix_struct)
             ALLOCATE (eigenvalues(nao_red))
             CALL choose_eigv_solver(matrix_ks_fm_red, work_red2, eigenvalues)
@@ -394,6 +390,9 @@ CONTAINS
                                mo_coeff)
             CALL cp_fm_release(work_red2)
          ELSE
+            IF (do_level_shift) &
+               CALL shift_unocc_mos(matrix_ks_fm=matrix_ks_fm, mo_coeff=mo_coeff, homo=homo, &
+                                    level_shift=level_shift, is_triangular=.FALSE., matrix_u_fm=matrix_u_fm)
             CALL choose_eigv_solver(matrix_ks_fm, work, mo_eigenvalues)
             CALL parallel_gemm("N", "N", nao, nmo, nao, 1.0_dp, ortho, work, 0.0_dp, &
                                mo_coeff)
@@ -452,7 +451,7 @@ CONTAINS
 
       IF (do_level_shift) THEN
          ! matrix_u_fm is simply an identity matrix, so we omit it here
-         CALL shift_unocc_mos(matrix_ks_fm=matrix_ks, mo_coeff=mo_coeff, homo=homo, nmo=nmo, nao=nao, &
+         CALL shift_unocc_mos(matrix_ks_fm=matrix_ks, mo_coeff=mo_coeff, homo=homo, &
                               level_shift=level_shift, is_triangular=.FALSE.)
       END IF
 
@@ -782,8 +781,6 @@ CONTAINS
 !> \param matrix_ks_fm   transformed Kohn-Sham matrix = U^{-1,T} * KS * U^{-1}
 !> \param mo_coeff       matrix of molecular orbitals (C)
 !> \param homo           number of occupied molecular orbitals
-!> \param nmo            number of molecular orbitals
-!> \param nao            number of atomic orbitals
 !> \param level_shift    amount of shift applying (in a.u.)
 !> \param is_triangular  indicates that matrix_u_fm contains an upper triangular matrix
 !> \param matrix_u_fm    matrix U: S (overlap matrix) = U^T * U;
@@ -791,26 +788,34 @@ CONTAINS
 !> \par History
 !>      03.2016 created [Sergey Chulkov]
 ! **************************************************************************************************
-   SUBROUTINE shift_unocc_mos(matrix_ks_fm, mo_coeff, homo, nmo, nao, &
+   SUBROUTINE shift_unocc_mos(matrix_ks_fm, mo_coeff, homo, &
                               level_shift, is_triangular, matrix_u_fm)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: matrix_ks_fm, mo_coeff
-      INTEGER, INTENT(in)                                :: homo, nmo, nao
+      INTEGER, INTENT(in)                                :: homo
       REAL(kind=dp), INTENT(in)                          :: level_shift
       LOGICAL, INTENT(in)                                :: is_triangular
       TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: matrix_u_fm
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'shift_unocc_mos'
 
-      INTEGER                                            :: handle
+      INTEGER                                            :: handle, nao, nao_red, nmo
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: weights
       TYPE(cp_fm_struct_type), POINTER                   :: ao_mo_fmstruct
       TYPE(cp_fm_type)                                   :: u_mo, u_mo_scaled
 
       CALL timeset(routineN, handle)
 
+      IF (PRESENT(matrix_u_fm)) THEN
+         CALL cp_fm_get_info(mo_coeff, ncol_global=nmo)
+         CALL cp_fm_get_info(matrix_u_fm, nrow_global=nao_red, ncol_global=nao)
+      ELSE
+         CALL cp_fm_get_info(mo_coeff, ncol_global=nmo, nrow_global=nao)
+         nao_red = nao
+      END IF
+
       NULLIFY (ao_mo_fmstruct)
-      CALL cp_fm_struct_create(ao_mo_fmstruct, nrow_global=nao, ncol_global=nmo, &
+      CALL cp_fm_struct_create(ao_mo_fmstruct, nrow_global=nao_red, ncol_global=nmo, &
                                para_env=mo_coeff%matrix_struct%para_env, context=mo_coeff%matrix_struct%context)
 
       CALL cp_fm_create(u_mo, ao_mo_fmstruct)
@@ -825,7 +830,7 @@ CONTAINS
             CALL cp_fm_triangular_multiply(matrix_u_fm, u_mo, side="L", transpose_tr=.FALSE., &
                                            invert_tr=.FALSE., uplo_tr="U", n_rows=nao, n_cols=nmo, alpha=1.0_dp)
          ELSE
-            CALL parallel_gemm("N", "N", nao, nmo, nao, 1.0_dp, matrix_u_fm, mo_coeff, 0.0_dp, u_mo)
+            CALL parallel_gemm("N", "N", nao_red, nmo, nao, 1.0_dp, matrix_u_fm, mo_coeff, 0.0_dp, u_mo)
          END IF
       ELSE
          ! assume U is an identity matrix
@@ -846,7 +851,7 @@ CONTAINS
       DEALLOCATE (weights)
 
       ! NewKS = U^{-1,T} * KS * U^{-1} + (U * C) * DELTA * (U * C)^T
-      CALL parallel_gemm("N", "T", nao, nao, nmo, 1.0_dp, u_mo, u_mo_scaled, 1.0_dp, matrix_ks_fm)
+      CALL parallel_gemm("N", "T", nao_red, nao_red, nmo, 1.0_dp, u_mo, u_mo_scaled, 1.0_dp, matrix_ks_fm)
 
       CALL cp_fm_release(u_mo_scaled)
       CALL cp_fm_release(u_mo)

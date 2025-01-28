@@ -22,9 +22,9 @@ MODULE qs_scf_initialization
                                               cp_dbcsr_sm_fm_multiply
    USE cp_dbcsr_output,                 ONLY: write_fm_with_basis_info
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
-                                              cp_fm_syrk,&
-                                              cp_fm_triangular_invert,&
-                                              cp_fm_upper_to_full
+                                              cp_fm_row_scale,&
+                                              cp_fm_transpose,&
+                                              cp_fm_triangular_invert
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
    USE cp_fm_diag,                      ONLY: choose_eigv_solver,&
                                               cp_fm_power
@@ -974,71 +974,81 @@ CONTAINS
             ! Determine the eigenvalues of the inverse square root
             evals(ndep + 1:nao) = 1.0_dp/SQRT(evals(ndep + 1:nao))
 
-            IF (ndep > 0) THEN
-               ! Create reduced matrices
-               NULLIFY (fm_struct)
+            ! Create reduced matrices
+            NULLIFY (fm_struct)
+            CALL cp_fm_struct_create(fm_struct, template_fmstruct=scf_env%ortho%matrix_struct, &
+                                     nrow_global=nao, ncol_global=needed_evals)
+
+            ALLOCATE (scf_env%ortho_red, scf_env%scf_work2_red)
+            CALL cp_fm_create(scf_env%ortho_red, fm_struct)
+            CALL cp_fm_create(scf_env%scf_work2_red, fm_struct)
+            CALL cp_fm_struct_release(fm_struct)
+
+            IF (scf_control%level_shift /= 0.0_dp) THEN
                CALL cp_fm_struct_create(fm_struct, template_fmstruct=scf_env%ortho%matrix_struct, &
-                                        nrow_global=nao, ncol_global=needed_evals)
+                                        nrow_global=needed_evals, ncol_global=nao)
 
-               ALLOCATE (scf_env%ortho_red, scf_env%scf_work2_red)
-               CALL cp_fm_create(scf_env%ortho_red, fm_struct)
-               CALL cp_fm_create(scf_env%scf_work2_red, fm_struct)
+               ALLOCATE (scf_env%ortho_m1_red)
+               CALL cp_fm_create(scf_env%ortho_m1_red, fm_struct)
                CALL cp_fm_struct_release(fm_struct)
+            END IF
 
-               ALLOCATE (scf_env%scf_work1_red(SIZE(scf_env%scf_work1)))
-               DO ispin = 1, SIZE(scf_env%scf_work1)
-                  CALL cp_fm_struct_create(fm_struct, template_fmstruct=scf_env%ortho%matrix_struct, &
-                                           nrow_global=needed_evals, ncol_global=needed_evals)
-                  CALL cp_fm_create(scf_env%scf_work1_red(ispin), fm_struct)
-                  CALL cp_fm_struct_release(fm_struct)
-               END DO
+            ALLOCATE (scf_env%scf_work1_red(SIZE(scf_env%scf_work1)))
+            DO ispin = 1, SIZE(scf_env%scf_work1)
+               CALL cp_fm_struct_create(fm_struct, template_fmstruct=scf_env%ortho%matrix_struct, &
+                                        nrow_global=needed_evals, ncol_global=needed_evals)
+               CALL cp_fm_create(scf_env%scf_work1_red(ispin), fm_struct)
+               CALL cp_fm_struct_release(fm_struct)
+            END DO
 
-               ! Scale the eigenvalues and copy them to
-               CALL cp_fm_to_fm(evecs, scf_env%ortho_red, needed_evals, ndep + 1, 1)
-               CALL cp_fm_column_scale(scf_env%ortho_red, evals(ndep + 1:))
+            ! Scale the eigenvalues and copy them to
+            CALL cp_fm_to_fm(evecs, scf_env%ortho_red, needed_evals, ndep + 1, 1)
 
-               ! Copy the linear dependent columns to the mo sets and set their orbital energies
-               ! to a very large value to reduce the probability of occupying them
-               DO ispin = 1, SIZE(mos)
-                  CALL get_mo_set(mos(ispin), nmo=nmo, mo_coeff=mo_coeff, homo=homo, eigenvalues=eigenvalues)
-                  IF (needed_evals < nmo) THEN
-                     IF (needed_evals < homo) THEN
-                        CALL cp_abort(__LOCATION__, &
-                                      "The numerical rank of the overlap matrix is lower than the "// &
-                                      "number of orbitals to be occupied! Check the geometry or increase "// &
-                                      "EPS_DEFAULT or EPS_PGF_ORB!")
-                     END IF
-                     CALL cp_warn(__LOCATION__, &
-                                  "The numerical rank of the overlap matrix is lower than the number of requested MOs! "// &
-                             "Reduce the number of MOs to the number of available MOs. If necessary, request a lower number of "// &
-                                  "MOs or increase EPS_DEFAULT or EPS_PGF_ORB.")
-                     CALL set_mo_set(mos(ispin), nmo=needed_evals)
+            IF (scf_control%level_shift /= 0.0_dp) THEN
+               CALL cp_fm_transpose(scf_env%ortho_red, scf_env%ortho_m1_red)
+            END IF
+
+            CALL cp_fm_column_scale(scf_env%ortho_red, evals(ndep + 1:))
+
+            ! Copy the linear dependent columns to the mo sets and set their orbital energies
+            ! to a very large value to reduce the probability of occupying them
+            DO ispin = 1, SIZE(mos)
+               CALL get_mo_set(mos(ispin), nmo=nmo, mo_coeff=mo_coeff, homo=homo, eigenvalues=eigenvalues)
+               IF (needed_evals < nmo) THEN
+                  IF (needed_evals < homo) THEN
+                     CALL cp_abort(__LOCATION__, &
+                                   "The numerical rank of the overlap matrix is lower than the "// &
+                                   "number of orbitals to be occupied! Check the geometry or increase "// &
+                                   "EPS_DEFAULT or EPS_PGF_ORB!")
                   END IF
-                  ! Copy the last columns to mo_coeff if the container is large enough
-                  CALL cp_fm_to_fm(evecs, mo_coeff, MIN(ndep, MAX(0, nmo - needed_evals)), 1, needed_evals + 1)
-                  ! Set the corresponding eigenvalues to a large value
-                  ! This prevents their occupation but still keeps the information on them
-                  eigenvalues(needed_evals + 1:MIN(nao, nmo)) = 1.0_dp/scf_control%eps_eigval
-               END DO
+                  CALL cp_warn(__LOCATION__, &
+                               "The numerical rank of the overlap matrix is lower than the number of requested MOs! "// &
+                             "Reduce the number of MOs to the number of available MOs. If necessary, request a lower number of "// &
+                               "MOs or increase EPS_DEFAULT or EPS_PGF_ORB.")
+                  CALL set_mo_set(mos(ispin), nmo=needed_evals)
+               END IF
+               ! Copy the last columns to mo_coeff if the container is large enough
+               CALL cp_fm_to_fm(evecs, mo_coeff, MIN(ndep, MAX(0, nmo - needed_evals)), 1, needed_evals + 1)
+               ! Set the corresponding eigenvalues to a large value
+               ! This prevents their occupation but still keeps the information on them
+               eigenvalues(needed_evals + 1:MIN(nao, nmo)) = 1.0_dp/scf_control%eps_eigval
+            END DO
 
-               ! Obtain ortho from (P)DGEMM, skip the linear dependent columns
-               CALL parallel_gemm("N", "T", nao, nao, needed_evals, 1.0_dp, scf_env%ortho_red, evecs, &
-                                  0.0_dp, scf_env%ortho, b_first_col=ndep + 1)
-            ELSE
-               ! Take the square roots of the target values to allow application of SYRK
-               evals = SQRT(evals)
-               CALL cp_fm_column_scale(evecs, evals)
-               CALL cp_fm_syrk("U", "N", nao, 1.0_dp, evecs, 1, 1, 0.0_dp, scf_env%ortho)
-               CALL cp_fm_upper_to_full(scf_env%ortho, scf_env%scf_work2)
+            ! Obtain ortho from (P)DGEMM, skip the linear dependent columns
+            CALL parallel_gemm("N", "T", nao, nao, needed_evals, 1.0_dp, scf_env%ortho_red, evecs, &
+                               0.0_dp, scf_env%ortho, b_first_col=ndep + 1)
+
+            IF (scf_control%level_shift /= 0.0_dp) THEN
+               ! We need SQRT(evals) of the eigenvalues of H, so 1/SQRT(evals) of ortho_red
+               evals(ndep + 1:nao) = 1.0_dp/evals(ndep + 1:nao)
+               CALL cp_fm_row_scale(scf_env%ortho_m1_red, evals(ndep + 1:))
+
+               CALL parallel_gemm("T", "T", nao, nao, needed_evals, 1.0_dp, scf_env%ortho_m1_red, evecs, &
+                                  0.0_dp, scf_env%ortho_m1, b_first_col=ndep + 1)
             END IF
 
             CALL cp_fm_release(evecs)
 
-            IF (scf_control%level_shift /= 0.0_dp) THEN
-               CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, scf_env%ortho_m1)
-               CALL cp_fm_power(scf_env%ortho_m1, scf_env%scf_work2, 0.5_dp, &
-                                scf_control%eps_eigval, ndep)
-            END IF
             s_minus_half_available = .TRUE.
          END IF
 
