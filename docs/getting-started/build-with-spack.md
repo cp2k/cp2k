@@ -8,7 +8,8 @@ To install CP2K with [Spack], you need to [install Spack].
 
 ```{note}
 If it is the first time you use [Spack], you might have to run `spack compiler find` to setup the
-compilers. See [Spack Compiler Configuration] for more information.
+compilers. See [Spack Compiler Configuration](https://spack.readthedocs.io/en/latest/getting_started.html#compiler-configuration)
+for more information.
 ```
 
 ## Install CP2K with Spack
@@ -132,7 +133,6 @@ From here, you can iterate CP2K development using the native build system as Spa
 [install spack]: https://spack.readthedocs.io/en/latest/getting_started.html#installation
 [intel oneapi spack package]: https://packages.spack.io/package.html?name=intel-oneapi-mkl
 [spack]: https://spack.readthedocs.io/en/latest/
-[spack compiler configuration]: https://spack.readthedocs.io/en/latest/getting_started.html#compiler-configuration
 [spack package variants]: https://spack.readthedocs.io/en/latest/basic_usage.html#variants
 [spec]: https://spack.readthedocs.io/en/latest/basic_usage.html#specs-dependencies
 [using installed spack packages]: https://spack.readthedocs.io/en/latest/basic_usage.html#using-installed-packages
