@@ -17,8 +17,11 @@ def main() -> None:
     for version in "sdbg", "ssmp", "pdbg", "psmp":
         with OutputFile(f"Dockerfile.test_{version}", args.check) as f:
             if version in ("ssmp", "psmp"):
+                kwargs = {}
+                if version == "psmp":
+                    kwargs = {"with_libsmeagol": ""}
                 # Use ssmp/psmp as guinea pigs
-                f.write(toolchain_full(with_dbcsr=True))
+                f.write(toolchain_full(with_dbcsr=True, **kwargs))
                 f.write(install_dbcsr("toolchain", version))
                 f.write(regtest_cmake("toolchain", version))
             else:

@@ -156,7 +156,7 @@ elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "psmp" ]]; then
     -DCP2K_USE_SPGLIB=ON \
     -DCP2K_USE_SPLA=ON \
     -DCP2K_USE_VORI=ON \
-    --debug-find \
+    --debug-find-pkg=libsmeagol \
     -Werror=dev \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
