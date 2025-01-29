@@ -867,7 +867,7 @@ endif()
 
 if(CP2K_USE_LIBSMEAGOL)
   message(" - LIBSMEAGOL :\n"
-          "   - include directories :  ${CP2K_LIBSMEAGOL_INCLUDE_DIR}\n"
+          "   - include directories :  ${CP2K_LIBSMEAGOL_INCLUDE_DIRS}\n"
           "   - libraries           :  ${CP2K_LIBSMEAGOL_LINK_LIBRARIES}\n\n")
 endif()
 
