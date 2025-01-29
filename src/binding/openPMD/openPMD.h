@@ -64,6 +64,7 @@ char const *openPMD_get_default_extension();
 int openPMD_attributable_set_attribute_vec_int(openPMD_Attributable attr,
                                                char const *attr_name,
                                                int const *begin,
+                                               int const *second,
                                                int const *length);
 
 /**********************

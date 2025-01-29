@@ -146,6 +146,7 @@ extern "C"
         openPMD_Attributable attr,
         char const *attr_name,
         const int *begin,
+        const int *second,
         int const *length)
     {
         auto attributable = reinterpret_cast<openPMD::Attributable *>(attr);

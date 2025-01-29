@@ -1021,10 +1021,10 @@ CONTAINS
       l => logger%iter_info%iteration
       r => cp_current_iteration_counter%complex_iteration
 
-      IF (.NOT. ASSOCIATED(r)) THEN
+      IF (.NOT. ASSOCIATED(cp_current_iteration_counter%complex_iteration)) THEN
          opened_new_iteration = .TRUE.
          cp_current_iteration_counter%flat_iteration = 0
-      ELSE IF (SIZE(l) /= SIZE(r) .OR. ANY(l /= r)) THEN
+      ELSE IF (SIZE(l) /= SIZE(cp_current_iteration_counter%complex_iteration) .OR. ANY(l /= cp_current_iteration_counter%complex_iteration)) THEN
          cp_current_iteration_counter%flat_iteration = cp_current_iteration_counter%flat_iteration + 1
          opened_new_iteration = .TRUE.
       END IF
