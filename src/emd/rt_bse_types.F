@@ -117,7 +117,8 @@ MODULE rt_bse_types
              release_rtbse_env, &
              multiply_cfm_fm, &
              multiply_fm_cfm, &
-             create_hartree_ri_3c
+             create_hartree_ri_3c, &
+             create_sigma_workspace_qs_only
 
    ! Created so that we can have an array of pointers to arrays
    TYPE series_real_type
