@@ -119,6 +119,7 @@ option(
   "Use DLA-Future for Cholesky decompositions and the solution of eigenvalue problems"
   OFF)
 option(CP2K_USE_LIBXSMM "Use libxsmm for small gemms" OFF)
+option(CP2K_USE_LIBSMEAGOL "Enable libsmeagol support" OFF)
 # option(CP2K_USE_LIBGRPP "Use libgrpp" OFF)
 option(BUILD_SHARED_LIBS "Build cp2k shared library" ON)
 option(
@@ -671,6 +672,10 @@ if(CP2K_USE_SPGLIB)
   find_package(Spglib CONFIG REQUIRED)
 endif()
 
+if(CP2K_USE_LIBSMEAGOL)
+  find_package(libsmeagol REQUIRED)
+endif()
+
 if(CP2K_USE_SPLA)
   find_package(SPLA REQUIRED)
   get_target_property(SPLA_INCLUDE_DIRS SPLA::spla
@@ -860,6 +865,12 @@ if(CP2K_USE_DFTD4)
   )
 endif()
 
+if(CP2K_USE_LIBSMEAGOL)
+  message(" - LIBSMEAGOL :\n"
+          "   - include directories :  ${CP2K_LIBSMEAGOL_INCLUDE_DIRS}\n"
+          "   - libraries           :  ${CP2K_LIBSMEAGOL_LINK_LIBRARIES}\n\n")
+endif()
+
 if(CP2K_USE_SIRIUS)
   message(" - SIRIUS")
 endif()
@@ -914,6 +925,10 @@ endif()
 
 if(NOT CP2K_USE_SPGLIB)
   message("   - SPGLIB")
+endif()
+
+if(NOT CP2K_USE_LIBSMEAGOL)
+  message("   - libSMEAGOL")
 endif()
 
 if(NOT CP2K_USE_COSMA)

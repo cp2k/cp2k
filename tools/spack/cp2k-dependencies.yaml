@@ -19,6 +19,7 @@ spack:
     - "libvori@220621"
     - "spla@1.6.1 +fortran"
     - "dftd4@3.6.0 build_system=cmake"
+    # - "libsmeagol@1.2"
    # Unfortunately, ScaLAPACK 2.2.1 has not yet been packaged by Spack.
    # https://github.com/Reference-ScaLAPACK/scalapack/tree/v2.2.1
    # which contains https://github.com/Reference-ScaLAPACK/scalapack/pull/26

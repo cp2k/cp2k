@@ -39,11 +39,18 @@ case "${with_libsmeagol}" in
       [ -d libsmeagol-${libsmeagol_ver} ] && rm -rf libsmeagol-${libsmeagol_ver}
       tar -xzf libsmeagol-${libsmeagol_ver}.tar.gz
       cd libsmeagol-${libsmeagol_ver}
+      if ("${FC}" --version | grep -q 'GNU'); then
+        FCFLAGS_FIX="-ffixed-form"
+        FCFLAGS_FREE="-ffree-form -ffree-line-length-none"
+      else
+        FCFLAGS_FIX=""
+        FCFLAGS_FREE=""
+      fi
       make -j $(get_nprocs) \
         FC=${MPIFC} \
         FCFLAGS="-DMPI -fallow-argument-mismatch ${FCFLAGS}" \
-        FCFLAGS_FIXEDFORM="" \
-        FCFLAGS_FREEFORM="" \
+        FCFLAGS_FIXEDFORM="${FCFLAGS_FIX}" \
+        FCFLAGS_FREEFORM="${FCFLAGS_FREE}" \
         > make.log 2>&1 || tail -n ${LOG_LINES} make.log
       # The libsmeagol makefile does not provide an install target
       [ -d ${pkg_install_dir} ] && rm -rf ${pkg_install_dir}

@@ -17,8 +17,11 @@ def main() -> None:
     for version in "sdbg", "ssmp", "pdbg", "psmp":
         with OutputFile(f"Dockerfile.test_{version}", args.check) as f:
             if version in ("ssmp", "psmp"):
+                kwargs = {}
+                if version == "psmp":
+                    kwargs = {"with_libsmeagol": ""}
                 # Use ssmp/psmp as guinea pigs
-                f.write(toolchain_full(with_dbcsr=True))
+                f.write(toolchain_full(with_dbcsr=True, **kwargs))
                 f.write(install_dbcsr("toolchain", version))
                 f.write(regtest_cmake("toolchain", version))
             else:
@@ -850,7 +853,7 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
 
 # Install a recent developer version of Spack.
 WORKDIR /opt/spack
-ARG SPACK_VERSION=56495a8cd81640302a9d3a22249ce42bc4698a38
+ARG SPACK_VERSION=0f54995e53d48095a30f1d0203e4f9bdb95e29fa
 RUN git init --quiet && \
     git remote add origin https://github.com/spack/spack.git && \
     git fetch --quiet --depth 1 origin ${{SPACK_VERSION}} --no-tags && \
