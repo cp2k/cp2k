@@ -2030,7 +2030,6 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
 
       NULLIFY (keyword)
-      NULLIFY (subsection)
       CPASSERT(.NOT. ASSOCIATED(section))
 
       CALL section_create(section, __LOCATION__, name="RTBSE", &
