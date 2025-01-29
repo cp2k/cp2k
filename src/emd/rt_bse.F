@@ -173,10 +173,18 @@ MODULE rt_bse
    #:include "rt_bse_macros.fypp"
 
    PUBLIC :: run_propagation_bse, &
-             get_hartree_noenv
+             get_hartree, &
+             get_sigma
 
    INTERFACE get_sigma
-      MODULE PROCEDURE get_sigma_dbcsr, get_sigma_real, get_sigma_complex
+      MODULE PROCEDURE get_sigma_complex, &
+              get_sigma_real, &
+              get_sigma_dbcsr, &
+              get_sigma_noenv
+   END INTERFACE
+   INTERFACE get_hartree
+      MODULE PROCEDURE get_hartree_env, &
+              get_hartree_noenv
    END INTERFACE
 
 CONTAINS
@@ -426,7 +434,7 @@ CONTAINS
       ! Calculate the original Hartree potential
       ! Uses rho_orig - same as rho for initial run but different for continued run
       DO i = 1, rtbse_env%n_spin
-         CALL get_hartree_env(rtbse_env, rtbse_env%rho_orig(i), rtbse_env%hartree_curr(i))
+         CALL get_hartree(rtbse_env, rtbse_env%rho_orig(i), rtbse_env%hartree_curr(i))
          ! Scaling by spin degeneracy
          CALL cp_fm_scale(rtbse_env%spin_degeneracy, rtbse_env%hartree_curr(i))
          ! Subtract the reference from the reference Hamiltonian
@@ -684,7 +692,7 @@ CONTAINS
                                    CMPLX(1.0, 0.0, kind=dp), rtbse_env%sigma_SEX(j))
          ! Calculate Hartree potential
          ! Hartree potential is scaled by number of electrons in each MO - spin degeneracy
-         CALL get_hartree_env(rtbse_env, rho(j), &
+         CALL get_hartree(rtbse_env, rho(j), &
                               rtbse_env%hartree_curr(j))
          CALL cp_fm_to_cfm(msourcer=rtbse_env%hartree_curr(j), mtarget=rtbse_env%ham_workspace(1))
          CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), rtbse_env%ham_effective(j), &
