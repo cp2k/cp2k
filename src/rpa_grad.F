@@ -2806,7 +2806,7 @@ CONTAINS
 
       INTEGER                                            :: i_global, i_local, np_global, proc
 
-      CALL struct_global%context%get(number_of_process_rows=np_global)
+      CALL struct_global%context%get(number_of_process_columns=np_global)
 
       ALLOCATE (data2send(0:np_global - 1))
       data2send = 0
