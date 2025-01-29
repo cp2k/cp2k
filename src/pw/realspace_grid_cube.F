@@ -13,13 +13,13 @@ MODULE realspace_grid_cube
                                               open_file
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE cp_output_handling,              ONLY: cp_get_openpmd_entry,&
+                                              cp_unit_nr_for_openpmd_value_type,&
                                               cp_use_openpmd
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: &
         file_amode_rdonly, file_offset, mp_comm_type, mp_file_descriptor_type, mp_file_type, &
         mp_file_type_free, mp_file_type_hindexed_make_chv, mp_file_type_set_view_chv, &
         mpi_character_size
-   USE openPMD_api,                     ONLY: openpmd_series_type
    USE pw_grid_types,                   ONLY: PW_MODE_LOCAL
    USE pw_types,                        ONLY: pw_r3d_rs_type
 #include "../base/base_uses.f90"
@@ -67,9 +67,9 @@ CONTAINS
          my_stride(3), np, num_linebreak, num_pe, rank(2), size_of_z, source, tag, U1, U2, U3
       LOGICAL                                            :: be_silent, my_zero_tails, parallel_write
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: buf
+      TYPE(cp_unit_nr_for_openpmd_value_type)            :: openpmd_data
       TYPE(mp_comm_type)                                 :: gid
       TYPE(mp_file_type)                                 :: mp_unit
-      TYPE(openpmd_series_type)                          :: series
 
       CALL timeset(routineN, handle)
 
@@ -97,7 +97,7 @@ CONTAINS
       END IF
 
       IF (cp_use_openpmd) THEN
-         series = cp_get_openpmd_entry(unit_nr)
+         openpmd_data = cp_get_openpmd_entry(unit_nr)
          CALL timestop(handle)
          RETURN
       END IF

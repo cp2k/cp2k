@@ -50,6 +50,7 @@ MODULE openPMD_api
 
    PUBLIC :: openpmd_series_type, openpmd_iteration_type
    PUBLIC :: openpmd_series_create, openpmd_series_close
+   PUBLIC :: openpmd_series_present
    PUBLIC :: openpmd_series_write_iteration
    PUBLIC :: openpmd_access_create, openpmd_access_read_only
    PUBLIC :: openpmd_get_default_extension
@@ -88,6 +89,33 @@ CONTAINS
 
       CALL openpmd_c_series_as_attributable(this%c_ptr, res%c_ptr)
    END FUNCTION openpmd_series_as_attributable
+
+! **************************************************************************************************
+!> \brief ...
+!> \param series ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION openpmd_series_present(series) RESULT(res)
+      CLASS(openpmd_series_type), INTENT(IN) :: series
+      LOGICAL :: res
+      INTEGER :: res_internal
+
+      INTERFACE
+         FUNCTION openpmd_c_series_present(series) RESULT(res) BIND(C, NAME="openPMD_Series_present")
+            IMPORT :: C_PTR, C_INT
+            TYPE(C_PTR), VALUE, INTENT(IN) :: series
+            INTEGER(kind=C_INT) :: res
+         END FUNCTION openpmd_c_series_present
+      END INTERFACE
+
+      IF (.NOT. C_ASSOCIATED(series%c_ptr)) THEN
+         res = .FALSE.
+         RETURN
+      END IF
+
+      res_internal = openpmd_c_series_present(series%c_ptr)
+      res = res_internal /= 0
+   END FUNCTION
 
 ! **************************************************************************************************
 !> \brief ...
@@ -214,27 +242,22 @@ CONTAINS
 ! **************************************************************************************************
    FUNCTION openpmd_series_write_iteration(series, index) RESULT(iteration)
       TYPE(openpmd_series_type)                          :: series
-      INTEGER(kind=8)                                    :: index
+      INTEGER, TARGET                                    :: index
       TYPE(openpmd_iteration_type)                       :: iteration
 
+      INTEGER(kind=C_INT)                                :: status
       INTERFACE
-         SUBROUTINE openpmd_c_series_write_iteration(series, index, iteration) BIND(C, name="openPMD_Series_write_Iteration")
-            IMPORT :: C_PTR, C_INT64_T
+   FUNCTION openpmd_c_series_write_iteration(series, index, iteration) RESULT(status) BIND(C, name="openPMD_Series_write_Iteration")
+            IMPORT :: C_PTR, C_INT64_T, C_INT, C_SIZE_T
             TYPE(C_PTR), VALUE :: series
-            INTEGER(kind=C_INT64_T) :: index
+            TYPE(C_PTR), VALUE :: index
             TYPE(C_PTR) :: iteration
-         END SUBROUTINE openpmd_c_series_write_iteration
+            INTEGER(KIND=C_INT) :: status
+         END FUNCTION openpmd_c_series_write_iteration
       END INTERFACE
 
-! **************************************************************************************************
-!> \brief ...
-!> \param series ...
-!> \param index ...
-!> \param iteration ...
-! **************************************************************************************************
-
       CPASSERT(.NOT. C_ASSOCIATED(iteration%c_ptr))
-      CALL openpmd_c_series_write_iteration(series%c_ptr, index, iteration%c_ptr)
+      status = openpmd_c_series_write_iteration(series%c_ptr, c_loc(index), iteration%c_ptr)
       CPASSERT(C_ASSOCIATED(iteration%c_ptr))
    END FUNCTION openpmd_series_write_iteration
 

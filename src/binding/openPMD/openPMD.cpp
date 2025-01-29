@@ -94,14 +94,14 @@ extern "C"
 
     int openPMD_Series_write_Iteration(
         openPMD_Series series_param,
-        openPMD_Iteration_Index_t index,
+        openPMD_Iteration_Index_t const * index,
         openPMD_Iteration *iteration)
     {
         auto series = reinterpret_cast<openPMD::Series *>(series_param);
         auto &res_iteration =
             series->writeIterations()[openPMD::Iteration::IterationIndex_t(
-                index)];
-        *reinterpret_cast<openPMD::Iteration *>(iteration) = res_iteration;
+                *index)];
+        *reinterpret_cast<openPMD::Iteration **>(iteration) = &res_iteration;
         return 0;
     }
 
@@ -113,6 +113,15 @@ extern "C"
     {
         return implementation::
             do_upcast<openPMD::Series, openPMD::Attributable>(series, attr);
+    }
+
+    int openPMD_Series_present(
+        openPMD_Series series_param
+    )
+    {
+        auto series = reinterpret_cast<openPMD::Series *>(series_param);
+        bool res = series && *series;
+        return res ? 1 : 0;
     }
 
     char const *openPMD_get_default_extension()

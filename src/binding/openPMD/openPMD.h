@@ -19,7 +19,7 @@ typedef struct openPMD_Iteration_opaque *openPMD_Iteration;
 
 // Actually uint64_t, but ISO C bindings for Fortran only have that as a GNU
 // extension, so we use signed integers and convert
-typedef int64_t openPMD_Iteration_Index_t;
+typedef int openPMD_Iteration_Index_t;
 
 /*******************
  * Series members. *
@@ -43,7 +43,7 @@ int openPMD_Series_close(
 
 int openPMD_Series_write_Iteration(
     // in
-    openPMD_Series series, openPMD_Iteration_Index_t index,
+    openPMD_Series series, openPMD_Iteration_Index_t const *index,
     // out
     openPMD_Iteration *iteration);
 
@@ -52,6 +52,8 @@ int openPMD_Series_upcast_to_attributable(
     openPMD_Series series,
     // out
     openPMD_Attributable *attr);
+
+int openPMD_Series_present(openPMD_Series series);
 
 char const *openPMD_get_default_extension();
 
