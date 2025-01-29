@@ -7,8 +7,6 @@
 #ifndef DBM_MULTIPLY_CPU_H
 #define DBM_MULTIPLY_CPU_H
 
-#include <stdbool.h>
-
 #include "dbm_multiply_internal.h"
 #include "dbm_shard.h"
 
