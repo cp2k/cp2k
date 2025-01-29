@@ -9,6 +9,7 @@ MODULE openPMD_api
                                               C_CHAR,&
                                               C_INT,&
                                               C_INT64_T,&
+                                              C_LOC,&
                                               C_NULL_CHAR,&
                                               C_NULL_PTR,&
                                               C_PTR,&
@@ -25,16 +26,26 @@ MODULE openPMD_api
       ENUMERATOR :: openpmd_access_create, openpmd_access_read_only
    END ENUM
 
+   TYPE openpmd_attributable_type
+      PRIVATE
+      TYPE(C_PTR) :: c_ptr = C_NULL_PTR
+   CONTAINS
+
+   END TYPE openpmd_attributable_type
+
    TYPE openpmd_series_type
       PRIVATE
       TYPE(C_PTR) :: c_ptr = C_NULL_PTR
    CONTAINS
       PROCEDURE, PUBLIC :: as_pointer
+      PROCEDURE, PUBLIC :: openpmd_series_as_attributable
    END TYPE openpmd_series_type
 
    TYPE openpmd_iteration_type
       PRIVATE
       TYPE(C_PTR) :: c_ptr = C_NULL_PTR
+   CONTAINS
+      PROCEDURE, PUBLIC :: openpmd_iteration_as_attributable
    END TYPE openpmd_iteration_type
 
    PUBLIC :: openpmd_series_type, openpmd_iteration_type
@@ -57,6 +68,46 @@ CONTAINS
 
       res = this%c_ptr
    END FUNCTION as_pointer
+
+! **************************************************************************************************
+!> \brief ...
+!> \param this ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION openpmd_series_as_attributable(this) RESULT(res)
+      CLASS(openpmd_series_type), INTENT(IN) :: this
+      TYPE(openpmd_attributable_type) :: res
+
+      INTERFACE
+         SUBROUTINE openpmd_c_series_as_attributable(series, attributable) BIND(C, name="openPMD_Iteration_upcast_to_attributable")
+            IMPORT :: C_PTR
+            TYPE(C_PTR), VALUE :: series
+            TYPE(C_PTR) :: attributable
+         END SUBROUTINE
+      END INTERFACE
+
+      CALL openpmd_c_series_as_attributable(this%c_ptr, res%c_ptr)
+   END FUNCTION openpmd_series_as_attributable
+
+! **************************************************************************************************
+!> \brief ...
+!> \param this ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION openpmd_iteration_as_attributable(this) RESULT(res)
+      CLASS(openpmd_iteration_type), INTENT(IN) :: this
+      TYPE(openpmd_attributable_type) :: res
+
+      INTERFACE
+    SUBROUTINE openpmd_c_iteration_as_attributable(iteration, attributable) BIND(C, name="openPMD_Iteration_upcast_to_attributable")
+            IMPORT :: C_PTR
+            TYPE(C_PTR), VALUE :: iteration
+            TYPE(C_PTR) :: attributable
+         END SUBROUTINE
+      END INTERFACE
+
+      CALL openpmd_c_iteration_as_attributable(this%c_ptr, res%c_ptr)
+   END FUNCTION openpmd_iteration_as_attributable
 
 ! **************************************************************************************************
 !> \brief ...
@@ -229,5 +280,30 @@ CONTAINS
       extension = TRIM(ADJUSTL(TRANSFER(c_extension(1:length_of_c_string + 1), extension)))
 
    END FUNCTION
+
+! **************************************************************************************************
+!> \brief ...
+!> \param attributable ...
+!> \param name ...
+!> \param vec ...
+! **************************************************************************************************
+   SUBROUTINE openpmd_attributable_set_attribute_vec_int(attributable, name, vec)
+      TYPE(openpmd_attributable_type)                    :: attributable
+      CHARACTER(len=*), INTENT(IN)                       :: name
+      INTEGER, DIMENSION(:), POINTER                     :: vec
+
+      INTERFACE
+         SUBROUTINE openpmd_c_attributable_set_attribute_vec_int(attributable, name, vec, length) BIND(C, NAME="openPMD_attributable_set_attribute_vec_int")
+            IMPORT :: C_CHAR, C_SIZE_T, C_INT, C_PTR
+            TYPE(C_PTR), VALUE :: attributable
+            CHARACTER(kind=C_CHAR), DIMENSION(*) :: name
+            TYPE(C_PTR) :: vec
+            INTEGER(kind=C_INT) :: length
+         END SUBROUTINE
+      END INTERFACE
+
+      CALL openpmd_c_attributable_set_attribute_vec_int(attributable%c_ptr, name, C_LOC(vec), SIZE(vec))
+
+   END SUBROUTINE
 
 END MODULE openPMD_api
