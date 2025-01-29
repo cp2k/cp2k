@@ -1,6 +1,8 @@
 #ifndef CP2K_OPENPMD_H
 #define CP2K_OPENPMD_H
 
+#include <stdint.h>
+
 #include <mpi.h>
 
 #ifdef __cplusplus
@@ -10,6 +12,12 @@ extern "C" {
 typedef enum { openPMD_Access_create, openPMD_Access_read_only } openPMD_Access;
 
 typedef struct openPMD_Series_opaque *openPMD_Series;
+
+typedef struct openPMD_Iteration_opaque *openPMD_Iteration;
+
+// Actually uint64_t, but ISO C bindings for Fortran only have that as a GNU
+// extension, so we use signed integers and convert
+typedef int64_t openPMD_Iteration_Index_t;
 
 int openPMD_Series_create(
     // in
@@ -26,6 +34,12 @@ int openPMD_Series_create_mpi(
 int openPMD_Series_close(
     // in
     openPMD_Series series);
+
+int openPMD_Series_write_Iteration(
+    // in
+    openPMD_Series series, openPMD_Iteration_Index_t index,
+    // out
+    openPMD_Iteration *iteration);
 
 char const *openPMD_get_default_extension();
 
