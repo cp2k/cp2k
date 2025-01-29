@@ -56,9 +56,11 @@ MODULE cp_output_handling
    USE openpmd_api,                     ONLY: cp2k_log,&
                                               openpmd_access_create,&
                                               openpmd_get_default_extension,&
-                                              openpmd_series_close,&
+                                              openpmd_iteration_type,&
                                               openpmd_series_create,&
-                                              openpmd_series_type
+                                              openpmd_series_present,&
+                                              openpmd_series_type,&
+                                              openpmd_series_write_iteration
    USE string_utilities,                ONLY: compress,&
                                               s2a
 #include "../base/base_uses.f90"
@@ -72,7 +74,7 @@ MODULE cp_output_handling
    PUBLIC :: cp_iter_string, cp_print_key_section_create
    PUBLIC :: cp_print_key_unit_nr, cp_print_key_finished_output
    PUBLIC :: cp_print_key_generate_filename, cp_printkey_is_on
-   PUBLIC :: cp_get_openpmd_entry
+   PUBLIC :: cp_get_openpmd_entry, cp_unit_nr_for_openpmd_value_type
 
    INTEGER, PARAMETER, PUBLIC               :: add_last_no = 0, &
                                                add_last_numeric = 1, &
@@ -155,13 +157,28 @@ MODULE cp_output_handling
       INTEGER :: default_val = 0
    END TYPE cp_out_flags_type
 
+   TYPE :: cp_unit_nr_for_openpmd_value_type
+      TYPE(openpmd_series_type) :: series
+      TYPE(openpmd_iteration_type) :: iteration
+      ! mesh, particle_species
+   END TYPE
+
    TYPE :: cp_unit_nr_for_openpmd
       INTEGER :: unit_nr ! key
-      TYPE(openpmd_series_type) :: value
+      TYPE(cp_unit_nr_for_openpmd_value_type) :: value
    END TYPE cp_unit_nr_for_openpmd
 
    TYPE(cp_unit_nr_for_openpmd), ALLOCATABLE :: cp_openpmd_files(:)
    INTEGER :: cp_num_openpmd_files = 0
+   ! @todo: Have different output series per caller
+   TYPE(openpmd_series_type) :: cp_openpmd_output_series
+
+   TYPE :: cp_current_iteration_counter_type
+      INTEGER :: flat_iteration = 0
+      INTEGER, DIMENSION(:), POINTER :: complex_iteration
+   END TYPE cp_current_iteration_counter_type
+
+   TYPE(cp_current_iteration_counter_type) :: cp_current_iteration_counter
 
 CONTAINS
 
@@ -172,7 +189,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_add_openpmd_entry(unit_nr, value)
       INTEGER, INTENT(in)                                :: unit_nr
-      TYPE(openpmd_series_type), INTENT(in)              :: value
+      TYPE(cp_unit_nr_for_openpmd_value_type), &
+         INTENT(in)                                      :: value
 
       INTEGER                                            :: i
 
@@ -198,7 +216,7 @@ CONTAINS
 ! **************************************************************************************************
    FUNCTION cp_get_openpmd_entry(unit_nr) RESULT(value)
       INTEGER, INTENT(in)                                :: unit_nr
-      TYPE(openpmd_series_type)                          :: value
+      TYPE(cp_unit_nr_for_openpmd_value_type)            :: value
 
       INTEGER                                            :: i
 
@@ -237,7 +255,7 @@ CONTAINS
 ! **************************************************************************************************
    FUNCTION cp_remove_openpmd_entry(unit_nr) RESULT(value)
       INTEGER, INTENT(in)                                :: unit_nr
-      TYPE(openpmd_series_type)                          :: value
+      TYPE(cp_unit_nr_for_openpmd_value_type)            :: value
 
       INTEGER                                            :: i
 
@@ -990,6 +1008,30 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param series ...
+!> \param logger ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION cp_open_openpmd_entry(series, logger) RESULT(res)
+      TYPE(openpmd_series_type)                          :: series
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(cp_unit_nr_for_openpmd_value_type)            :: res
+
+      res%series = series
+
+      IF (.NOT. ASSOCIATED(cp_current_iteration_counter%complex_iteration)) THEN
+         cp_current_iteration_counter%complex_iteration => logger%iter_info%iteration
+         cp_current_iteration_counter%flat_iteration = 0
+      ELSE IF (SIZE(logger%iter_info%iteration) /= SIZE(cp_current_iteration_counter%complex_iteration) .OR. ANY(logger%iter_info%iteration /= cp_current_iteration_counter%complex_iteration)) THEN
+         cp_current_iteration_counter%flat_iteration = cp_current_iteration_counter%flat_iteration + 1
+         cp_current_iteration_counter%complex_iteration => logger%iter_info%iteration
+      END IF
+
+      res%iteration = openpmd_series_write_iteration(series, cp_current_iteration_counter%flat_iteration)
+   END FUNCTION
+
+! **************************************************************************************************
+!> \brief ...
 !> \param logger ...
 !> \param basis_section ...
 !> \param print_key_path ...
@@ -1047,7 +1089,6 @@ CONTAINS
                                                             replace
       TYPE(cp_iteration_info_type), POINTER              :: iteration_info
       TYPE(mp_file_type)                                 :: mp_unit
-      TYPE(openpmd_series_type)                          :: series
       TYPE(section_vals_type), POINTER                   :: print_key
 
       my_local = .FALSE.
@@ -1196,13 +1237,15 @@ CONTAINS
 
                OPEN (newunit=res, status='scratch', action='write')
 
-               IF (my_mpi_io) THEN
-                  series = openpmd_series_create(filename, openpmd_access_create, logger%para_env)
-               ELSE
-                  series = openpmd_series_create(filename, openpmd_access_create)
+               IF (.NOT. openpmd_series_present(cp_openpmd_output_series)) THEN
+                  IF (my_mpi_io) THEN
+                     cp_openpmd_output_series = openpmd_series_create(filename, openpmd_access_create, logger%para_env)
+                  ELSE
+                     cp_openpmd_output_series = openpmd_series_create(filename, openpmd_access_create)
+                  END IF
                END IF
 
-               CALL cp_add_openpmd_entry(res, series)
+               CALL cp_add_openpmd_entry(res, cp_open_openpmd_entry(cp_openpmd_output_series, logger))
 
                RETURN
             ELSE IF (.NOT. my_mpi_io) THEN
@@ -1264,8 +1307,8 @@ CONTAINS
       CHARACTER(len=default_string_length)               :: outPath
       LOGICAL                                            :: my_local, my_mpi_io, my_on_file, &
                                                             my_should_output
+      TYPE(cp_unit_nr_for_openpmd_value_type)            :: removed_entry
       TYPE(mp_file_type)                                 :: mp_unit
-      TYPE(openpmd_series_type)                          :: series
       TYPE(section_vals_type), POINTER                   :: print_key
 
       my_local = .FALSE.
@@ -1286,9 +1329,8 @@ CONTAINS
                                   my_mpi_io)) THEN
          CALL section_vals_val_get(print_key, "FILENAME", c_val=outPath)
          IF (cp_use_openpmd .AND. cp_has_openpmd_entry(unit_nr)) THEN
-            series = cp_remove_openpmd_entry(unit_nr)
+            removed_entry = cp_remove_openpmd_entry(unit_nr)
             CLOSE (unit_nr)
-            CALL openpmd_series_close(series)
             unit_nr = -1
          ELSE IF (my_on_file .OR. outPath .NE. '__STD_OUT__') THEN
             CPASSERT(unit_nr > 0)
