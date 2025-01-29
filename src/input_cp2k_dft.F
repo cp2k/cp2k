@@ -2013,7 +2013,7 @@ CONTAINS
       CALL section_add_subsection(section, print_section)
       CALL section_release(print_section)
 
-      NULLIFY(subsection)
+      NULLIFY (subsection)
       CALL create_rtbse_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
@@ -2035,9 +2035,9 @@ CONTAINS
 
       CALL section_create(section, __LOCATION__, name="RTBSE", &
                           description="Controls options for the real-time Bethe-Salpeter (RTBSE) propagation. "// &
-                          "Note that running RTBSE requires previous low-scaling " // &
-                          "[GW](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BANDSTRUCTURE.GW) calculation. Also note that " // &
-                          "designating this section as RTBSE run but choosing run type ENERGY leads to potential " // &
+                          "Note that running RTBSE requires previous low-scaling "// &
+                          "[GW](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BANDSTRUCTURE.GW) calculation. Also note that "// &
+                          "designating this section as RTBSE run but choosing run type ENERGY leads to potential "// &
                           "deallocation errors.", &
                           repeats=.FALSE.)
 

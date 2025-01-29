@@ -46,12 +46,12 @@
       INITIAL_WFN SCF_WFN
       MAT_EXP BCH
       PERIODIC .FALSE.
-      &RTBSE
-      &END RTBSE
       &PRINT
         &MOMENTS
         &END MOMENTS
       &END PRINT
+      &RTBSE
+      &END RTBSE
     &END REAL_TIME_PROPAGATION
     &SCF
       ADDED_MOS -1

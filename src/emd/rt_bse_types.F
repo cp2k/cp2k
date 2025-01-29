@@ -618,7 +618,7 @@ CONTAINS
    SUBROUTINE create_hartree_ri_3c(rho_dbcsr, int_3c, n_ao, n_RI, basis_set_AO, basis_set_RI, &
                                    i_RI_start_from_atom, ri_metric, qs_env, unit_nr)
       TYPE(dbcsr_type)                                  :: rho_dbcsr
-      REAL(kind=dp), DIMENSION(:,:,:), POINTER          :: int_3c
+      REAL(kind=dp), DIMENSION(:, :, :), POINTER          :: int_3c
       INTEGER                                           :: n_ao, n_RI
       TYPE(gto_basis_set_p_type), DIMENSION(:)          :: basis_set_AO, &
                                                            basis_set_RI
@@ -644,10 +644,10 @@ CONTAINS
                                                            row_blk_size, &
                                                            col_blk_size
       ! TODO : Implement option/decision to not precompute all the 3c integrals
-      size_mb = REAL(n_ao, kind=dp) * REAL(n_ao, kind=dp) * REAL(n_RI, kind=dp) * &
-              REAL(STORAGE_SIZE(size_mb), kind=dp) / 8.0_dp / 1024.0_dp / 1024.0_dp
-      IF ( unit_nr > 0 ) WRITE(unit_nr, '(A44,E32.2E3,A4)') &
-              " RTBSE| Approximate size of the 3c integrals", size_mb, " MiB"
+      size_mb = REAL(n_ao, kind=dp)*REAL(n_ao, kind=dp)*REAL(n_RI, kind=dp)* &
+                REAL(STORAGE_SIZE(size_mb), kind=dp)/8.0_dp/1024.0_dp/1024.0_dp
+      IF (unit_nr > 0) WRITE (unit_nr, '(A44,E32.2E3,A4)') &
+         " RTBSE| Approximate size of the 3c integrals", size_mb, " MiB"
 
       ! Get the number of block rows and columns
       CALL dbcsr_get_info(rho_dbcsr, nblkrows_local=nblkrows_local, nblkcols_local=nblkcols_local)
@@ -658,29 +658,29 @@ CONTAINS
 
       ! Get the total required local rows and cols
       nrows_local = 0
-      DO i_blk_local=1,nblkrows_local
+      DO i_blk_local = 1, nblkrows_local
          nrows_local = nrows_local + row_blk_size(local_blk_rows(i_blk_local))
       END DO
       ncols_local = 0
-      DO j_blk_local=1,nblkcols_local
+      DO j_blk_local = 1, nblkcols_local
          ncols_local = ncols_local + col_blk_size(local_blk_cols(j_blk_local))
       END DO
 
       ! Allocate the appropriate storage
-      ALLOCATE(int_3c(nrows_local, ncols_local, n_RI))
+      ALLOCATE (int_3c(nrows_local, ncols_local, n_RI))
 
       ! Fill the storage with appropriate values, block by block
       row_local_offset = 1
-      DO i_blk_local=1,nblkrows_local
+      DO i_blk_local = 1, nblkrows_local
          col_local_offset = 1
-         DO j_blk_local=1,nblkcols_local
+         DO j_blk_local = 1, nblkcols_local
             start_row_index = row_local_offset
             end_row_index = start_row_index + row_blk_size(local_blk_rows(i_blk_local)) - 1
             start_col_index = col_local_offset
             end_col_index = start_col_index + col_blk_size(local_blk_cols(j_blk_local)) - 1
-            CALL build_3c_integral_block(int_3c(start_row_index:end_row_index,&
-                                                                start_col_index:end_col_index,&
-                                                                1:n_RI), &
+            CALL build_3c_integral_block(int_3c(start_row_index:end_row_index, &
+                                                start_col_index:end_col_index, &
+                                                1:n_RI), &
                                          qs_env, potential_parameter=ri_metric, &
                                          basis_j=basis_set_AO, basis_k=basis_set_AO, &
                                          basis_i=basis_set_RI, &

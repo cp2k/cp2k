@@ -173,7 +173,7 @@ MODULE rt_bse
    #:include "rt_bse_macros.fypp"
 
    PUBLIC :: run_propagation_bse, &
-           get_hartree_noenv
+             get_hartree_noenv
 
    INTERFACE get_sigma
       MODULE PROCEDURE get_sigma_dbcsr, get_sigma_real, get_sigma_complex
@@ -685,7 +685,7 @@ CONTAINS
          ! Calculate Hartree potential
          ! Hartree potential is scaled by number of electrons in each MO - spin degeneracy
          CALL get_hartree_env(rtbse_env, rho(j), &
-                                rtbse_env%hartree_curr(j))
+                              rtbse_env%hartree_curr(j))
          CALL cp_fm_to_cfm(msourcer=rtbse_env%hartree_curr(j), mtarget=rtbse_env%ham_workspace(1))
          CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), rtbse_env%ham_effective(j), &
                                    CMPLX(rtbse_env%spin_degeneracy, 0.0, kind=dp), rtbse_env%ham_workspace(1))
@@ -716,7 +716,7 @@ CONTAINS
       LOGICAL                                           :: converged
       INTEGER                                           :: k
       REAL(kind=dp)                                     :: metric
-      CHARACTER(len=*), PARAMETER                       :: routineN="etrs_scf_loop"
+      CHARACTER(len=*), PARAMETER                       :: routineN = "etrs_scf_loop"
       INTEGER                                           :: j, handle
 
       CALL timeset(routineN, handle)
@@ -747,7 +747,7 @@ CONTAINS
       rtbse_env%sim_time = rtbse_env%sim_time + rtbse_env%sim_dt
       converged = .FALSE.
       CALL print_etrs_info_header(rtbse_env)
-      DO k=1,rtbse_env%etrs_max_iter
+      DO k = 1, rtbse_env%etrs_max_iter
          ! Get the Hamiltonian following from the last timestep
          CALL update_effective_ham(rtbse_env, rtbse_env%rho_new_last)
          CALL ham_to_exp(rtbse_env, rtbse_env%ham_effective, rtbse_env%ham_workspace)
@@ -1294,24 +1294,24 @@ CONTAINS
       CALL cp_cfm_to_fm(msource=rho_fm, mtargetr=v_fm)
       CALL copy_fm_to_dbcsr(v_fm, rho_dbcsr)
       j_offset = 0
-      CALL dbcsr_get_info(rho_dbcsr, nblkrows_local=nblkrows_local, nblkcols_local=nblkcols_local,&
-              local_rows=local_blk_rows, local_cols=local_blk_cols)
-      DO j_blk=1, nblkrows_local
+      CALL dbcsr_get_info(rho_dbcsr, nblkrows_local=nblkrows_local, nblkcols_local=nblkcols_local, &
+                          local_rows=local_blk_rows, local_cols=local_blk_cols)
+      DO j_blk = 1, nblkrows_local
          k_offset = 0
-         DO k_blk=1, nblkcols_local
+         DO k_blk = 1, nblkcols_local
             ! Check whether we can retrieve the rho block
             ! TODO : Handle transposed case?
             CALL dbcsr_get_block_p(rho_dbcsr, local_blk_rows(j_blk), local_blk_cols(k_blk), &
                                    block=block_matrix, found=found, row_size=row_size, col_size=col_size)
             ! If the block is not found, then the density matrix here has below threshold values
-            IF ( .NOT. found ) CYCLE
+            IF (.NOT. found) CYCLE
             ! With the block retrieved, add its contributions to the Q-vector
             !$OMP PARALLEL DO DEFAULT(none) PRIVATE(i,j,k) &
             !$OMP SHARED(n_RI, row_size, col_size, Qvector, int_3c, j_offset, k_offset, block_matrix)
-            DO i=1,n_RI
-               DO j=1,row_size
-                  DO k=1,col_size
-                     Qvector(i) = Qvector(i) + int_3c(j_offset + j, k_offset + k, i) * block_matrix(j, k)
+            DO i = 1, n_RI
+               DO j = 1, row_size
+                  DO k = 1, col_size
+                     Qvector(i) = Qvector(i) + int_3c(j_offset + j, k_offset + k, i)*block_matrix(j, k)
                   END DO
                END DO
             END DO
@@ -1353,29 +1353,29 @@ CONTAINS
       ! TODO : Clear or set blocks to zero
       ! CALL dbcsr_clear(v_ao_dbcsr)
       j_offset = 0
-      DO j_blk=1, nblkrows_local
+      DO j_blk = 1, nblkrows_local
          k_offset = 0
-         DO k_blk=1, nblkcols_local
+         DO k_blk = 1, nblkcols_local
             ! Check whether we can retrieve the rho block
             ! TODO : Handle transposed case?
             CALL dbcsr_get_block_p(v_ao_dbcsr, local_blk_rows(j_blk), local_blk_cols(k_blk), &
                                    block=block_matrix, found=found, row_size=row_size, col_size=col_size)
             ! If the block is not found, reserve it
-            IF ( .NOT. found ) THEN
+            IF (.NOT. found) THEN
                ! Reservations
                CALL dbcsr_reserve_blocks(v_ao_dbcsr, local_blk_rows(j_blk:j_blk), local_blk_cols(k_blk:k_blk))
                ! Rerun the getter to get the new block
                CALL dbcsr_get_block_p(v_ao_dbcsr, local_blk_rows(j_blk), local_blk_cols(k_blk), &
                                       block=block_matrix, found=found, row_size=row_size, col_size=col_size)
             END IF
-            ! With the block retrieved, contract with the P vector 
+            ! With the block retrieved, contract with the P vector
             !$OMP PARALLEL DO DEFAULT(none) PRIVATE(i,j,k) &
             !$OMP SHARED(row_size, col_size, n_RI, block_matrix, Pvector, int_3c, j_offset, k_offset)
-            DO j=1,row_size
-               DO k=1,col_size
+            DO j = 1, row_size
+               DO k = 1, col_size
                   block_matrix(j, k) = 0.0_dp
-                  DO i=1,n_RI
-                     block_matrix(j, k) = block_matrix(j, k) + Pvector(i) * int_3c(j_offset + j, k_offset + k, i)
+                  DO i = 1, n_RI
+                     block_matrix(j, k) = block_matrix(j, k) + Pvector(i)*int_3c(j_offset + j, k_offset + k, i)
                   END DO
                END DO
             END DO

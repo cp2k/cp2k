@@ -74,9 +74,9 @@ polarizability element.
 
 To run the RTBSE propagation, include the
 [RTBSE](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.RTBSE) section in the input file.
-[SECTION_PARAMETERS](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.RTBSE.SECTION_PARAMETERS)
-can be used to choose TDDFT method as a debug method, but including the section alone leads to
-a RTBSE run.
+[SECTION_PARAMETERS](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.RTBSE.SECTION_PARAMETERS) can
+be used to choose TDDFT method as a debug method, but including the section alone leads to a RTBSE
+run.
 
 Furthermore, the [TIMESTEP](#CP2K_INPUT.MOTION.MD.TIMESTEP) and [STEPS](#CP2K_INPUT.MOTION.MD.STEPS)
 influence the size of each timestep and the total time of propagation. From the properties of the

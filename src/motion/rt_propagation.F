@@ -84,7 +84,7 @@ MODULE rt_propagation
    USE rt_propagation_utils,            ONLY: calc_S_derivs,&
                                               calc_update_rho,&
                                               calc_update_rho_sparse,&
-                                              get_restart_wfn, &
+                                              get_restart_wfn,&
                                               warn_section_unused
    USE rt_propagation_velocity_gauge,   ONLY: velocity_gauge_ks_matrix
    USE rt_propagator_init,              ONLY: init_propagators,&
@@ -121,7 +121,8 @@ CONTAINS
       TYPE(rtp_control_type), POINTER                    :: rtp_control
       TYPE(section_vals_type), POINTER                   :: hfx_sections, input, ls_scf_section, &
                                                             md_section, motion_section, &
-                                                            print_moments_section, rtp_print_section
+                                                            print_moments_section, &
+                                                            rtp_print_section
 
       NULLIFY (qs_env, rtp_control, dft_control)
 

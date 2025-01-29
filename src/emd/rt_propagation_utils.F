@@ -45,10 +45,10 @@ MODULE rt_propagation_utils
    USE input_section_types,             ONLY: section_get_ival,&
                                               section_get_ivals,&
                                               section_get_lval,&
+                                              section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
-                                              section_vals_val_get,&
-                                              section_vals_get
+                                              section_vals_val_get
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
@@ -883,10 +883,10 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE warn_section_unused(section, subsection_name, error_message)
       TYPE(section_vals_type), POINTER                   :: section
-      CHARACTER(len=*)                                   :: subsection_name, &
-                                                            error_message
-      TYPE(section_vals_type), POINTER                   :: target_section
+      CHARACTER(len=*)                                   :: subsection_name, error_message
+
       LOGICAL                                            :: explicit
+      TYPE(section_vals_type), POINTER                   :: target_section
 
       target_section => section_vals_get_subs_vals(section, subsection_name)
       CALL section_vals_get(target_section, explicit=explicit)
