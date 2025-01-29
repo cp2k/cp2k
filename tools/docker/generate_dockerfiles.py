@@ -532,6 +532,7 @@ FROM intel/hpckit:2024.2.1-0-devel-ubuntu22.04
         with_mkl="",
         with_libsmeagol="",
         with_libtorch="no",
+        with_deepmd="no",
     )
 
 
