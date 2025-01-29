@@ -53,14 +53,10 @@ MODULE cp_output_handling
    USE message_passing,                 ONLY: mp_file_delete,&
                                               mp_file_get_amode,&
                                               mp_file_type
-   USE openpmd_api,                     ONLY: cp2k_log,&
-                                              openpmd_access_create,&
-                                              openpmd_get_default_extension,&
-                                              openpmd_iteration_type,&
-                                              openpmd_series_create,&
-                                              openpmd_series_present,&
-                                              openpmd_series_type,&
-                                              openpmd_series_write_iteration
+   USE openpmd_api,                     ONLY: &
+        cp2k_log, openpmd_access_create, openpmd_attributable_set_attribute_vec_int, &
+        openpmd_get_default_extension, openpmd_iteration_type, openpmd_series_create, &
+        openpmd_series_present, openpmd_series_type, openpmd_series_write_iteration
    USE string_utilities,                ONLY: compress,&
                                               s2a
 #include "../base/base_uses.f90"
@@ -1017,17 +1013,28 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_unit_nr_for_openpmd_value_type)            :: res
 
+      INTEGER, DIMENSION(:), POINTER                     :: l, r
+      LOGICAL                                            :: opened_new_iteration = .FALSE.
+
       res%series = series
 
-      IF (.NOT. ASSOCIATED(cp_current_iteration_counter%complex_iteration)) THEN
-         cp_current_iteration_counter%complex_iteration => logger%iter_info%iteration
+      l => logger%iter_info%iteration
+      r => cp_current_iteration_counter%complex_iteration
+
+      IF (.NOT. ASSOCIATED(r)) THEN
+         opened_new_iteration = .TRUE.
          cp_current_iteration_counter%flat_iteration = 0
-      ELSE IF (SIZE(logger%iter_info%iteration) /= SIZE(cp_current_iteration_counter%complex_iteration) .OR. ANY(logger%iter_info%iteration /= cp_current_iteration_counter%complex_iteration)) THEN
+      ELSE IF (SIZE(l) /= SIZE(r) .OR. ANY(l /= r)) THEN
          cp_current_iteration_counter%flat_iteration = cp_current_iteration_counter%flat_iteration + 1
-         cp_current_iteration_counter%complex_iteration => logger%iter_info%iteration
+         opened_new_iteration = .TRUE.
       END IF
 
       res%iteration = openpmd_series_write_iteration(series, cp_current_iteration_counter%flat_iteration)
+
+      IF (opened_new_iteration) THEN
+         cp_current_iteration_counter%complex_iteration => logger%iter_info%iteration
+       CALL openpmd_attributable_set_attribute_vec_int(res%iteration%openpmd_iteration_as_attributable(), "ndim_iteration_index", l)
+      END IF
    END FUNCTION
 
 ! **************************************************************************************************

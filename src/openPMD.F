@@ -54,6 +54,7 @@ MODULE openPMD_api
    PUBLIC :: openpmd_series_write_iteration
    PUBLIC :: openpmd_access_create, openpmd_access_read_only
    PUBLIC :: openpmd_get_default_extension
+   PUBLIC :: openpmd_attributable_set_attribute_vec_int
    PUBLIC :: cp2k_log
 
 CONTAINS
@@ -315,17 +316,19 @@ CONTAINS
       CHARACTER(len=*), INTENT(IN)                       :: name
       INTEGER, DIMENSION(:), POINTER                     :: vec
 
+      INTEGER, TARGET                                    :: size_
       INTERFACE
          SUBROUTINE openpmd_c_attributable_set_attribute_vec_int(attributable, name, vec, length) BIND(C, NAME="openPMD_attributable_set_attribute_vec_int")
             IMPORT :: C_CHAR, C_SIZE_T, C_INT, C_PTR
             TYPE(C_PTR), VALUE :: attributable
             CHARACTER(kind=C_CHAR), DIMENSION(*) :: name
             TYPE(C_PTR) :: vec
-            INTEGER(kind=C_INT) :: length
+            TYPE(C_PTR), VALUE :: length
          END SUBROUTINE
       END INTERFACE
 
-      CALL openpmd_c_attributable_set_attribute_vec_int(attributable%c_ptr, name, C_LOC(vec), SIZE(vec))
+      size_ = SIZE(vec)
+      CALL openpmd_c_attributable_set_attribute_vec_int(attributable%c_ptr, name, C_LOC(vec), C_LOC(size_))
 
    END SUBROUTINE
 

@@ -146,11 +146,11 @@ extern "C"
         openPMD_Attributable attr,
         char const *attr_name,
         const int *begin,
-        int length)
+        int const *length)
     {
         auto attributable = reinterpret_cast<openPMD::Attributable *>(attr);
         attributable->setAttribute(
-            attr_name, std::vector<int>{begin, begin + size_t(length)});
+            attr_name, std::vector<int>{begin, begin + size_t(*length)});
         return 0;
     }
 
