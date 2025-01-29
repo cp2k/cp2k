@@ -21,9 +21,13 @@ MODULE qs_scf_initialization
                                               cp_dbcsr_m_by_n_from_row_template,&
                                               cp_dbcsr_sm_fm_multiply
    USE cp_dbcsr_output,                 ONLY: write_fm_with_basis_info
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_triangular_invert
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
+                                              cp_fm_row_scale,&
+                                              cp_fm_transpose,&
+                                              cp_fm_triangular_invert
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
-   USE cp_fm_diag,                      ONLY: cp_fm_power
+   USE cp_fm_diag,                      ONLY: choose_eigv_solver,&
+                                              cp_fm_power
    USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                               fm_pool_get_el_struct
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -32,6 +36,7 @@ MODULE qs_scf_initialization
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
+                                              cp_fm_release,&
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_to_fm_triangular,&
@@ -55,6 +60,7 @@ MODULE qs_scf_initialization
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: kpoint_type
    USE message_passing,                 ONLY: mp_para_env_type
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE pw_types,                        ONLY: pw_c1d_gs_type
    USE qmmm_image_charge,               ONLY: conditional_calc_image_matrix
    USE qs_block_davidson_types,         ONLY: block_davidson_allocate,&
@@ -88,7 +94,8 @@ MODULE qs_scf_initialization
    USE qs_mo_occupation,                ONLY: set_mo_occupation
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               init_mo_set,&
-                                              mo_set_type
+                                              mo_set_type,&
+                                              set_mo_set
    USE qs_outer_scf,                    ONLY: outer_loop_extrapolate,&
                                               outer_loop_switch,&
                                               outer_loop_variables_count
@@ -876,12 +883,18 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'init_scf_run'
 
-      INTEGER                                            :: after, handle, ikind, iw, nao, ndep, &
+      INTEGER                                            :: after, handle, homo, ii, ikind, ispin, &
+                                                            iw, nao, ndep, needed_evals, nmo, &
                                                             output_unit
       LOGICAL                                            :: dft_plus_u_atom, do_kpoints, &
                                                             init_u_ramping_each_scf, omit_headers, &
                                                             s_minus_half_available
       REAL(KIND=dp)                                      :: u_ramping
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: evals
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
+      TYPE(cp_fm_type)                                   :: evecs
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -894,7 +907,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (qs_kind_set, matrix_s, dft_control, mos, qs_kind, rho, xas_env)
+      NULLIFY (qs_kind_set, matrix_s, dft_control, mos, qs_kind, rho, xas_env, mo_coeff)
 
       logger => cp_get_default_logger()
 
@@ -936,13 +949,106 @@ CONTAINS
                CALL cp_fm_triangular_invert(scf_env%ortho_m1)
             END IF
          ELSE
-            CALL cp_fm_power(scf_env%ortho, scf_env%scf_work2, -0.5_dp, &
-                             scf_control%eps_eigval, ndep)
+            CALL cp_fm_get_info(scf_env%ortho, ncol_global=nao)
+            ALLOCATE (evals(nao))
+            evals = 0
+
+            CALL cp_fm_create(evecs, scf_env%ortho%matrix_struct)
+
+            ! Perform an EVD
+            CALL choose_eigv_solver(scf_env%ortho, evecs, evals)
+
+            ! Determine the number of neglectable eigenvalues assuming that the eigenvalues are in ascending order
+            ! (Required by Lapack)
+            ndep = 0
+            DO ii = 1, nao
+               IF (evals(ii) > scf_control%eps_eigval) THEN
+                  ndep = ii - 1
+                  EXIT
+               END IF
+            END DO
+            needed_evals = nao - ndep
+
+            ! Set the eigenvalue of the eigenvectors belonging to the linear subspace to zero
+            evals(1:ndep) = 0.0_dp
+            ! Determine the eigenvalues of the inverse square root
+            evals(ndep + 1:nao) = 1.0_dp/SQRT(evals(ndep + 1:nao))
+
+            ! Create reduced matrices
+            NULLIFY (fm_struct)
+            CALL cp_fm_struct_create(fm_struct, template_fmstruct=scf_env%ortho%matrix_struct, &
+                                     nrow_global=nao, ncol_global=needed_evals)
+
+            ALLOCATE (scf_env%ortho_red, scf_env%scf_work2_red)
+            CALL cp_fm_create(scf_env%ortho_red, fm_struct)
+            CALL cp_fm_create(scf_env%scf_work2_red, fm_struct)
+            CALL cp_fm_struct_release(fm_struct)
+
             IF (scf_control%level_shift /= 0.0_dp) THEN
-               CALL copy_dbcsr_to_fm(matrix_s(1)%matrix, scf_env%ortho_m1)
-               CALL cp_fm_power(scf_env%ortho_m1, scf_env%scf_work2, 0.5_dp, &
-                                scf_control%eps_eigval, ndep)
+               CALL cp_fm_struct_create(fm_struct, template_fmstruct=scf_env%ortho%matrix_struct, &
+                                        nrow_global=needed_evals, ncol_global=nao)
+
+               ALLOCATE (scf_env%ortho_m1_red)
+               CALL cp_fm_create(scf_env%ortho_m1_red, fm_struct)
+               CALL cp_fm_struct_release(fm_struct)
             END IF
+
+            ALLOCATE (scf_env%scf_work1_red(SIZE(scf_env%scf_work1)))
+            DO ispin = 1, SIZE(scf_env%scf_work1)
+               CALL cp_fm_struct_create(fm_struct, template_fmstruct=scf_env%ortho%matrix_struct, &
+                                        nrow_global=needed_evals, ncol_global=needed_evals)
+               CALL cp_fm_create(scf_env%scf_work1_red(ispin), fm_struct)
+               CALL cp_fm_struct_release(fm_struct)
+            END DO
+
+            ! Scale the eigenvalues and copy them to
+            CALL cp_fm_to_fm(evecs, scf_env%ortho_red, needed_evals, ndep + 1, 1)
+
+            IF (scf_control%level_shift /= 0.0_dp) THEN
+               CALL cp_fm_transpose(scf_env%ortho_red, scf_env%ortho_m1_red)
+            END IF
+
+            CALL cp_fm_column_scale(scf_env%ortho_red, evals(ndep + 1:))
+
+            ! Copy the linear dependent columns to the mo sets and set their orbital energies
+            ! to a very large value to reduce the probability of occupying them
+            DO ispin = 1, SIZE(mos)
+               CALL get_mo_set(mos(ispin), nmo=nmo, mo_coeff=mo_coeff, homo=homo, eigenvalues=eigenvalues)
+               IF (needed_evals < nmo) THEN
+                  IF (needed_evals < homo) THEN
+                     CALL cp_abort(__LOCATION__, &
+                                   "The numerical rank of the overlap matrix is lower than the "// &
+                                   "number of orbitals to be occupied! Check the geometry or increase "// &
+                                   "EPS_DEFAULT or EPS_PGF_ORB!")
+                  END IF
+                  CALL cp_warn(__LOCATION__, &
+                               "The numerical rank of the overlap matrix is lower than the number of requested MOs! "// &
+                             "Reduce the number of MOs to the number of available MOs. If necessary, request a lower number of "// &
+                               "MOs or increase EPS_DEFAULT or EPS_PGF_ORB.")
+                  CALL set_mo_set(mos(ispin), nmo=needed_evals)
+               END IF
+               ! Copy the last columns to mo_coeff if the container is large enough
+               CALL cp_fm_to_fm(evecs, mo_coeff, MIN(ndep, MAX(0, nmo - needed_evals)), 1, needed_evals + 1)
+               ! Set the corresponding eigenvalues to a large value
+               ! This prevents their occupation but still keeps the information on them
+               eigenvalues(needed_evals + 1:MIN(nao, nmo)) = 1.0_dp/scf_control%eps_eigval
+            END DO
+
+            ! Obtain ortho from (P)DGEMM, skip the linear dependent columns
+            CALL parallel_gemm("N", "T", nao, nao, needed_evals, 1.0_dp, scf_env%ortho_red, evecs, &
+                               0.0_dp, scf_env%ortho, b_first_col=ndep + 1)
+
+            IF (scf_control%level_shift /= 0.0_dp) THEN
+               ! We need SQRT(evals) of the eigenvalues of H, so 1/SQRT(evals) of ortho_red
+               evals(ndep + 1:nao) = 1.0_dp/evals(ndep + 1:nao)
+               CALL cp_fm_row_scale(scf_env%ortho_m1_red, evals(ndep + 1:))
+
+               CALL parallel_gemm("T", "T", nao, nao, needed_evals, 1.0_dp, scf_env%ortho_m1_red, evecs, &
+                                  0.0_dp, scf_env%ortho_m1, b_first_col=ndep + 1)
+            END IF
+
+            CALL cp_fm_release(evecs)
+
             s_minus_half_available = .TRUE.
          END IF
 
