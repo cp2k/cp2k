@@ -13,6 +13,7 @@
 
 #include "../offload/offload_library.h"
 #include "../offload/offload_runtime.h"
+#include "dbm_hyperparams.h"
 #include "dbm_mempool.h"
 #include "dbm_mpi.h"
 
@@ -95,25 +96,34 @@ static void *internal_mempool_malloc(const size_t size, const bool on_device) {
     return NULL;
   }
 
-  dbm_memchunk_t *chunk;
+  dbm_memchunk_t *chunk = NULL;
 
 #pragma omp critical(dbm_mempool_modify)
   {
-    // Find a suitable chuck in mempool_available.
-    dbm_memchunk_t **indirect = &mempool_available_head;
-    while (*indirect != NULL && (*indirect)->on_device != on_device) {
+    // Find a suitable chunk in mempool_available.
+    dbm_memchunk_t **indirect = &mempool_available_head, **hit = NULL;
+    while (*indirect != NULL) {
+      if ((*indirect)->on_device == on_device) {
+        const size_t max_size = (size_t)(ALLOCATION_FACTOR * size + 0.5);
+        const size_t hit_size = (*indirect)->size;
+        if (NULL == hit) { // Fallback
+          hit = indirect;
+        }
+        if (size <= hit_size && hit_size <= max_size) {
+          hit = indirect;
+          break;
+        }
+      }
       indirect = &(*indirect)->next;
     }
-    chunk = *indirect;
 
     // If a chunck was found, remove it from mempool_available.
-    if (chunk != NULL) {
+    if (hit != NULL) {
+      chunk = *hit;
+      *hit = chunk->next;
       assert(chunk->on_device == on_device);
-      *indirect = chunk->next;
-    }
-
-    // If no chunk was found, allocate a new one.
-    if (chunk == NULL) {
+    } else { // Allocate a new chunk.
+      assert(chunk == NULL);
       chunk = malloc(sizeof(dbm_memchunk_t));
       assert(chunk != NULL);
       chunk->on_device = on_device;
@@ -121,16 +131,16 @@ static void *internal_mempool_malloc(const size_t size, const bool on_device) {
       chunk->mem = NULL;
     }
 
-    // Resize chunk if needed.
-    if (chunk->size < size) {
-      actual_free(chunk->mem, chunk->on_device);
-      chunk->mem = actual_malloc(size, chunk->on_device);
-      chunk->size = size;
-    }
-
     // Insert chunk into mempool_allocated.
     chunk->next = mempool_allocated_head;
     mempool_allocated_head = chunk;
+  }
+
+  // Resize chunk if needed (outside of critical section).
+  if (chunk->size < size) {
+    actual_free(chunk->mem, chunk->on_device);
+    chunk->mem = actual_malloc(size, chunk->on_device);
+    chunk->size = size;
   }
 
   return chunk->mem;
@@ -163,7 +173,7 @@ void dbm_mempool_free(void *mem) {
 
 #pragma omp critical(dbm_mempool_modify)
   {
-    // Find chuck in mempool_allocated.
+    // Find chunk in mempool_allocated.
     dbm_memchunk_t **indirect = &mempool_allocated_head;
     while (*indirect != NULL && (*indirect)->mem != mem) {
       indirect = &(*indirect)->next;
@@ -171,10 +181,10 @@ void dbm_mempool_free(void *mem) {
     dbm_memchunk_t *chunk = *indirect;
     assert(chunk != NULL && chunk->mem == mem);
 
-    // Remove chuck from mempool_allocated.
+    // Remove chunk from mempool_allocated.
     *indirect = chunk->next;
 
-    // Add chuck to mempool_available.
+    // Add chunk to mempool_available.
     chunk->next = mempool_available_head;
     mempool_available_head = chunk;
   }
