@@ -822,9 +822,9 @@ if(CP2K_USE_CUSOLVER_MP)
 endif()
 
 if(CP2K_USE_LIBXC)
-  message("  - LibXC" "   - Libxc_VERSION:  ${Libxc_VERSION}\n"
-          "   - Libxc_INCLUDE_DIRS : ${Libxc_INCLUDE_DIRS}\n"
-          "   - Libxc_LIBRARIES : ${Libxc_LIBRARIES}\n\n")
+  message("  - LibXC\n" "    - Libxc_VERSION:  ${Libxc_VERSION}\n"
+          "    - Libxc_INCLUDE_DIRS : ${Libxc_INCLUDE_DIRS}\n"
+          "    - Libxc_LIBRARIES : ${Libxc_LIBRARIES}\n\n")
 endif()
 
 if(CP2K_USE_LIBTORCH)
