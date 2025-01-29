@@ -588,7 +588,7 @@ if(CP2K_USE_ELPA)
 endif()
 
 if(CP2K_USE_LIBXC)
-  find_package(LibXC 7 REQUIRED)
+  find_package(Libxc 7 REQUIRED CONFIG)
 endif()
 
 # uncomment this when libgrpp cmake support is complete
@@ -822,10 +822,9 @@ if(CP2K_USE_CUSOLVER_MP)
 endif()
 
 if(CP2K_USE_LIBXC)
-  message(
-    "  - LIBXC (note to package managers : libxc can be build with cmake as well)"
-    "   - include directories : ${CP2K_LIBXC_INCLUDE_DIRS}\n"
-    "   - libraries : ${CP2K_LIBXC_LINK_LIBRARIES}\n\n")
+  message("  - LibXC" "   - Libxc_VERSION:  ${Libxc_VERSION}\n"
+          "   - Libxc_INCLUDE_DIRS : ${Libxc_INCLUDE_DIRS}\n"
+          "   - Libxc_LIBRARIES : ${Libxc_LIBRARIES}\n\n")
 endif()
 
 if(CP2K_USE_LIBTORCH)
