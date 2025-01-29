@@ -178,13 +178,13 @@ MODULE rt_bse
 
    INTERFACE get_sigma
       MODULE PROCEDURE get_sigma_complex, &
-              get_sigma_real, &
-              get_sigma_dbcsr, &
-              get_sigma_noenv
+         get_sigma_real, &
+         get_sigma_dbcsr, &
+         get_sigma_noenv
    END INTERFACE
    INTERFACE get_hartree
       MODULE PROCEDURE get_hartree_env, &
-              get_hartree_noenv
+         get_hartree_noenv
    END INTERFACE
 
 CONTAINS
@@ -693,7 +693,7 @@ CONTAINS
          ! Calculate Hartree potential
          ! Hartree potential is scaled by number of electrons in each MO - spin degeneracy
          CALL get_hartree(rtbse_env, rho(j), &
-                              rtbse_env%hartree_curr(j))
+                          rtbse_env%hartree_curr(j))
          CALL cp_fm_to_cfm(msourcer=rtbse_env%hartree_curr(j), mtarget=rtbse_env%ham_workspace(1))
          CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), rtbse_env%ham_effective(j), &
                                    CMPLX(rtbse_env%spin_degeneracy, 0.0, kind=dp), rtbse_env%ham_workspace(1))
