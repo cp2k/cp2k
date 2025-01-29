@@ -29,7 +29,7 @@ namespace
             *series =
                 new openPMD::Series(std::forward<Args>(constructor_args)...);
         }
-        catch (std::exception const & e)
+        catch (std::exception const &e)
         {
             std::cout << "[Series_create] Caught error: '" << e.what() << "'\n";
             delete *series;
@@ -75,6 +75,18 @@ extern "C"
         auto series = reinterpret_cast<openPMD::Series *>(series_param);
         series->close();
         delete series;
+        return 0;
+    }
+
+    int openPMD_Series_write_Iteration(
+        openPMD_Series series_param,
+        openPMD_Iteration_Index_t index,
+        openPMD_Iteration *iteration)
+    {
+        auto series = reinterpret_cast<openPMD::Series *>(series_param);
+        auto &res_iteration =
+            series->writeIterations()[openPMD::Iteration::IterationIndex_t(index)];
+        *reinterpret_cast<openPMD::Iteration *>(iteration) = res_iteration;
         return 0;
     }
 

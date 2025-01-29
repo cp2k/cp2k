@@ -8,6 +8,7 @@ MODULE openPMD_api
    USE ISO_C_BINDING,                   ONLY: C_ASSOCIATED,&
                                               C_CHAR,&
                                               C_INT,&
+                                              C_INT64_T,&
                                               C_NULL_CHAR,&
                                               C_NULL_PTR,&
                                               C_PTR,&
@@ -31,8 +32,14 @@ MODULE openPMD_api
       PROCEDURE, PUBLIC :: as_pointer
    END TYPE openpmd_series_type
 
-   PUBLIC :: openpmd_series_type
+   TYPE openpmd_iteration_type
+      PRIVATE
+      TYPE(C_PTR) :: c_ptr = C_NULL_PTR
+   END TYPE openpmd_iteration_type
+
+   PUBLIC :: openpmd_series_type, openpmd_iteration_type
    PUBLIC :: openpmd_series_create, openpmd_series_close
+   PUBLIC :: openpmd_series_write_iteration
    PUBLIC :: openpmd_access_create, openpmd_access_read_only
    PUBLIC :: openpmd_get_default_extension
    PUBLIC :: cp2k_log
@@ -147,6 +154,38 @@ CONTAINS
       CALL openpmd_c_series_close(series=series%c_ptr)
       series%c_ptr = C_NULL_PTR
    END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief ...
+!> \param series ...
+!> \param index ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION openpmd_series_write_iteration(series, index) RESULT(iteration)
+      TYPE(openpmd_series_type)                          :: series
+      INTEGER(kind=8)                                    :: index
+      TYPE(openpmd_iteration_type)                       :: iteration
+
+      INTERFACE
+         SUBROUTINE openpmd_c_series_write_iteration(series, index, iteration) BIND(C, name="openPMD_Series_write_Iteration")
+            IMPORT :: C_PTR, C_INT64_T
+            TYPE(C_PTR), VALUE :: series
+            INTEGER(kind=C_INT64_T) :: index
+            TYPE(C_PTR) :: iteration
+         END SUBROUTINE openpmd_c_series_write_iteration
+      END INTERFACE
+
+! **************************************************************************************************
+!> \brief ...
+!> \param series ...
+!> \param index ...
+!> \param iteration ...
+! **************************************************************************************************
+
+      CPASSERT(.NOT. C_ASSOCIATED(iteration%c_ptr))
+      CALL openpmd_c_series_write_iteration(series%c_ptr, index, iteration%c_ptr)
+      CPASSERT(C_ASSOCIATED(iteration%c_ptr))
+   END FUNCTION openpmd_series_write_iteration
 
 ! **************************************************************************************************
 !> \brief ...
