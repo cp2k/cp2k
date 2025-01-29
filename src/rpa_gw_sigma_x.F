@@ -130,6 +130,7 @@ CONTAINS
       REAL(KIND=dp) :: E_GAP_GW, E_HOMO_GW, E_LUMO_GW, eh1, ehfx, eigval_dft, eigval_hf_at_dft, &
          energy_exc, energy_exc1, energy_exc1_aux_fit, energy_exc_aux_fit, energy_total, &
          exx_minus_vxc, hfx_fraction, min_direct_HF_at_DFT_gap, t1, t2, tmp
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: matrix_tmp_2_diag
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: Eigenval_kp_HF_at_DFT, vec_Sigma_x
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Eigenval_kp, vec_Sigma_x_minus_vxc_gw, &
                                                             vec_Sigma_x_minus_vxc_gw_im
@@ -535,6 +536,8 @@ CONTAINS
 
                ALLOCATE (vec_Sigma_x_minus_vxc_gw(nmo, nspins, nkp))
                vec_Sigma_x_minus_vxc_gw = 0.0_dp
+
+               ALLOCATE (matrix_tmp_2_diag(dimen))
             END IF
 
             CALL dbcsr_set(mo_coeff_b, 0.0_dp)
@@ -620,7 +623,8 @@ CONTAINS
                                 matrix_tmp, 0.0_dp, matrix_tmp_2, first_row=homo + 1 - gw_corr_lev_occ, &
                                 last_row=homo + gw_corr_lev_virt)
 
-            CALL dbcsr_get_diag(matrix_tmp_2, vec_Sigma_x_minus_vxc_gw(:, ispin, 1))
+            CALL dbcsr_get_diag(matrix_tmp_2, matrix_tmp_2_diag)
+            vec_Sigma_x_minus_vxc_gw(1:nmo, ispin, 1) = matrix_tmp_2_diag(1:nmo)
 
             CALL dbcsr_set(matrix_tmp, 0.0_dp)
             CALL dbcsr_set(matrix_tmp_2, 0.0_dp)
