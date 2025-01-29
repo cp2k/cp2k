@@ -43,6 +43,20 @@ namespace
         }
         return 0;
     }
+
+    template <
+        typename From,
+        typename To,
+        typename FromOpaque,
+        typename ToOpaque>
+    int do_upcast(FromOpaque from_param, ToOpaque *to_param)
+    {
+        auto from = reinterpret_cast<From *>(from_param);
+        auto to = reinterpret_cast<To **>(to_param);
+        auto from_upcasted = static_cast<To *>(from);
+        *to = from_upcasted;
+        return 0;
+    }
 } // namespace
 } // namespace implementation
 
@@ -85,9 +99,20 @@ extern "C"
     {
         auto series = reinterpret_cast<openPMD::Series *>(series_param);
         auto &res_iteration =
-            series->writeIterations()[openPMD::Iteration::IterationIndex_t(index)];
+            series->writeIterations()[openPMD::Iteration::IterationIndex_t(
+                index)];
         *reinterpret_cast<openPMD::Iteration *>(iteration) = res_iteration;
         return 0;
+    }
+
+    int openPMD_Series_upcast_to_attributable(
+        // in
+        openPMD_Series series,
+        // out
+        openPMD_Attributable *attr)
+    {
+        return implementation::
+            do_upcast<openPMD::Series, openPMD::Attributable>(series, attr);
     }
 
     char const *openPMD_get_default_extension()
@@ -106,5 +131,28 @@ extern "C"
             }
         }
         return nullptr;
+    }
+
+    int openPMD_attributable_set_attribute_vec_int(
+        openPMD_Attributable attr,
+        char const *attr_name,
+        const int *begin,
+        int length)
+    {
+        auto attributable = reinterpret_cast<openPMD::Attributable *>(attr);
+        attributable->setAttribute(
+            attr_name, std::vector<int>{begin, begin + size_t(length)});
+        return 0;
+    }
+
+    int openPMD_Iteration_upcast_to_attributable(
+        // in
+        openPMD_Iteration iteration,
+        // out
+        openPMD_Attributable *attr)
+    {
+        return implementation::
+            do_upcast<openPMD::Iteration, openPMD::Attributable>(
+                iteration, attr);
     }
 }
