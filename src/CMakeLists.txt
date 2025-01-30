@@ -1636,6 +1636,8 @@ target_link_libraries(
     $<$<BOOL:${CP2K_USE_COSMA}>:cosma::cosma_prefixed_pxgemm>
     $<$<BOOL:${CP2K_USE_COSMA}>:cosma::cosma>
     $<$<BOOL:${CP2K_USE_DLAF}>:DLAF::Fortran>
+    $<$<BOOL:${CP2K_USE_HDF5}>:HDF5::HDF5
+    hdf5::hdf5_fortran>
     DBCSR::dbcsr
     $<$<BOOL:${CP2K_USE_MPI}>:cp2k::SCALAPACK::scalapack>
     cp2k_linalg_libs
@@ -1674,6 +1676,7 @@ target_compile_definitions(
     $<$<BOOL:${CP2K_USE_ELPA}>:__ELPA>
     $<$<BOOL:${CP2K_USE_DLAF}>:__DLAF>
     $<$<BOOL:${CP2K_USE_LIBXC}>:__LIBXC>
+    $<$<BOOL:${CP2K_USE_HDF5}>:__HDF5>
     $<$<OR:$<BOOL:${CP2K_USE_FFTW3_}>,$<BOOL:${CP2K_USE_FFTW3_MKL_}>>:__FFTW3>
     $<$<BOOL:${CP2K_USE_FFTW3_MKL_}>:__FFTW3_MKL>
     $<$<BOOL:${CP2K_USE_LIBINT2}>:__LIBINT>

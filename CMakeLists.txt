@@ -118,6 +118,7 @@ option(
   CP2K_USE_DLAF
   "Use DLA-Future for Cholesky decompositions and the solution of eigenvalue problems"
   OFF)
+option(CP2K_USE_HDF5 "Enable HDF5 support" OFF)
 option(CP2K_USE_LIBXSMM "Use libxsmm for small gemms" OFF)
 option(CP2K_USE_LIBSMEAGOL "Enable libsmeagol support" OFF)
 # option(CP2K_USE_LIBGRPP "Use libgrpp" OFF)
@@ -195,6 +196,7 @@ if(${cp2k_build_options_up} STREQUAL "FULL")
   set(CP2K_USE_ELPA ON)
   set(CP2K_USE_SPGLIB ON)
   set(CP2K_USE_LIBTORCH ON)
+  set(CP2K_USE_HDF5 ON)
   # set(CP@K_USE_LIBGRPP ON)
 endif()
 
@@ -594,6 +596,10 @@ if(CP2K_USE_LIBXC)
   find_package(Libxc 7 REQUIRED CONFIG)
 endif()
 
+if(CP2K_USE_HDF5)
+  find_package(HDF5 REQUIRED COMPONENTS C Fortran)
+endif()
+
 # uncomment this when libgrpp cmake support is complete
 
 # if (CP2K_USE_LIBGRPP) find_package(libgrpp REQUIRED) endif()
@@ -834,6 +840,10 @@ if(CP2K_USE_LIBTORCH)
   message("  - LIBTORCH\n" "    - libraries : ${CP2K_LIBTORCH_LIBRARIES}\n\n")
 endif()
 
+if(CP2K_USE_HDF5)
+  message("  - HDF5\n")
+endif()
+
 if(CP2K_USE_FFTW3)
   message("  - FFTW3\n"
           "    - include directories : ${CP2K_FFTW3_INCLUDE_DIRS}\n"
@@ -939,6 +949,10 @@ endif()
 
 if(NOT CP2K_USE_SPLA)
   message("   - SPLA")
+endif()
+
+if(NOT CP2K_USE_HDF5)
+  message("   - HDF5\n")
 endif()
 
 if(${CP2K_USE_ACCEL} MATCHES "NONE")
