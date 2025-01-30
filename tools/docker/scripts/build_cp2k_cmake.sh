@@ -72,6 +72,7 @@ if [[ "${PROFILE}" == "spack" ]] && [[ "${VERSION}" == "psmp" ]]; then
     -DCP2K_USE_LIBINT2=ON \
     -DCP2K_USE_LIBXC=ON \
     -DCP2K_USE_FFTW3=ON \
+    -DCP2K_USE_HDF5=ON \
     -DCP2K_USE_SPGLIB=ON \
     -DCP2K_USE_VORI=ON \
     -DCP2K_USE_MPI=ON \

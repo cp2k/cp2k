@@ -841,7 +841,9 @@ if(CP2K_USE_LIBTORCH)
 endif()
 
 if(CP2K_USE_HDF5)
-  message("  - HDF5\n")
+  message("  - HDF5\n" "   - HDF5_VERSION : ${HDF5_VERSION}\n"
+          "   - HDF5_INCLUDE_DIRS : ${HDF5_INCLUDE_DIRS}\n"
+          "   - HDF5_LIBRARIES : ${HDF5_LIBRARIES}\n\n")
 endif()
 
 if(CP2K_USE_FFTW3)
