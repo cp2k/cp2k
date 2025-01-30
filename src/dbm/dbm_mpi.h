@@ -142,13 +142,6 @@ void dbm_mpi_sum_int64(int64_t *values, const int count,
                        const dbm_mpi_comm_t comm);
 
 /*******************************************************************************
- * \brief Wrapper around MPI_Allreduce for op MPI_SUM and datatype MPI_UINT64_T.
- * \author Hans Pabst
- ******************************************************************************/
-void dbm_mpi_sum_uint64(uint64_t *values, const int count,
-                        const dbm_mpi_comm_t comm);
-
-/*******************************************************************************
  * \brief Wrapper around MPI_Allreduce for op MPI_SUM and datatype MPI_DOUBLE.
  * \author Ole Schuett
  ******************************************************************************/
