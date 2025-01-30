@@ -402,6 +402,7 @@ MODULE mp2_types
       TYPE(local_gemm_ctxt_type)                         :: local_gemm_ctx = local_gemm_ctxt_type()
       REAL(dp)                                           :: e_gap = 0.0_dp, &
                                                             e_range = 0.0_dp
+      LOGICAL                                            :: ri_aux_auto_generated = .FALSE.
    END TYPE mp2_type
 
    TYPE integ_mat_buffer_type

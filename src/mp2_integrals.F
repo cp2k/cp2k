@@ -541,6 +541,15 @@ CONTAINS
              (ri_metric%potential_type == do_potential_coulomb .OR. ri_metric%potential_type == do_potential_long) .OR. &
              eri_method == do_eri_os .AND. ri_metric%potential_type == do_potential_coulomb) THEN
 
+            ! Add a warning for automatically generated RI_AUX basis sets
+            ! Tend to be not sufficiently converged
+            IF (qs_env%mp2_env%ri_aux_auto_generated) THEN
+               CALL cp_warn(__LOCATION__, &
+                            "At least one RI_AUX basis set was not explicitly invoked in &KIND-section. "// &
+                            "Automatically RI-basis sets and ERI_METHOD OS tend to be not converged. "// &
+                            "Consider specifying BASIS_SET RI_AUX explicitly with a sufficiently large basis.")
+            END IF
+
             NULLIFY (mat_munu_local_L)
             ALLOCATE (mat_munu_local_L(my_group_L_size))
             DO LLL = 1, my_group_L_size
