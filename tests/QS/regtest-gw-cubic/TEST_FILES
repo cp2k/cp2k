@@ -7,6 +7,7 @@ G0W0_H2O_PBE0_30_pts_minimax_regularization.inp       78      1e-04             
 scGW0_and_evGW_H2O_PBE0_trunc_minimax.inp             11      1e-08            -17.108489005370274
 scGW0_H2O_PBE0_trunc_minimax_RI_HFX.inp               11      1e-08            -13.191093644224157
 G0W0_H2O_PBE_periodic.inp                             78      1e-04                         16.475
+G0W0_H2O_PBE_cholesky_off.inp                         78      1e-04                         18.969
 G0W0_OH_PBE.inp                                       79      1e-04                         11.797
 G0W0_OH_PBE_svd.inp                                   79      1e-04                         11.797
 G0W0_OH_PBE_ADMM.inp                                  79      1e-04                         11.490
