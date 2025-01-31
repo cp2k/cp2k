@@ -94,7 +94,7 @@ extern "C"
 
     int openPMD_Series_write_Iteration(
         openPMD_Series series_param,
-        openPMD_Iteration_Index_t const * index,
+        openPMD_Iteration_Index_t const *index,
         openPMD_Iteration *iteration)
     {
         auto series = reinterpret_cast<openPMD::Series *>(series_param);
@@ -115,9 +115,7 @@ extern "C"
             do_upcast<openPMD::Series, openPMD::Attributable>(series, attr);
     }
 
-    int openPMD_Series_present(
-        openPMD_Series series_param
-    )
+    int openPMD_Series_present(openPMD_Series series_param)
     {
         auto series = reinterpret_cast<openPMD::Series *>(series_param);
         bool res = series && *series;
@@ -146,12 +144,11 @@ extern "C"
         openPMD_Attributable attr,
         char const *attr_name,
         const int *begin,
-        const int *second,
-        int const *length)
+        int length)
     {
         auto attributable = reinterpret_cast<openPMD::Attributable *>(attr);
         attributable->setAttribute(
-            attr_name, std::vector<int>{begin, begin + size_t(*length)});
+            attr_name, std::vector<int>{begin, begin + size_t(length)});
         return 0;
     }
 

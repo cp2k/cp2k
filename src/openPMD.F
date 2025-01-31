@@ -318,18 +318,17 @@ CONTAINS
 
       INTEGER, TARGET                                    :: size_
       INTERFACE
-         SUBROUTINE openpmd_c_attributable_set_attribute_vec_int(attributable, name, vec, vec2, length) BIND(C, NAME="openPMD_attributable_set_attribute_vec_int")
+         SUBROUTINE openpmd_c_attributable_set_attribute_vec_int(attributable, name, vec, length) BIND(C, NAME="openPMD_attributable_set_attribute_vec_int")
             IMPORT :: C_CHAR, C_SIZE_T, C_INT, C_PTR
             TYPE(C_PTR), VALUE :: attributable
             CHARACTER(kind=C_CHAR), DIMENSION(*) :: name
-            TYPE(C_PTR) :: vec
-            TYPE(C_PTR) :: vec2
-            TYPE(C_PTR), VALUE :: length
+            TYPE(C_PTR), VALUE :: vec
+            INTEGER(kind=C_INT), VALUE :: length
          END SUBROUTINE
       END INTERFACE
 
       size_ = SIZE(vec)
-      CALL openpmd_c_attributable_set_attribute_vec_int(attributable%c_ptr, name, C_LOC(vec(1)), C_LOC(vec(1)), C_LOC(size_))
+      CALL openpmd_c_attributable_set_attribute_vec_int(attributable%c_ptr, name, C_LOC(vec(1)), size_)
 
    END SUBROUTINE
 
