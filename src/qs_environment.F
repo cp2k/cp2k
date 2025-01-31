@@ -1011,6 +1011,9 @@ CONTAINS
                   ! Generate a default basis
                   CALL create_ri_aux_basis_set(ri_aux_basis_set, qs_kind, dft_control%auto_basis_ri_aux, basis_sort=sort_basis)
                   CALL add_basis_set_to_container(qs_kind%basis_sets, ri_aux_basis_set, "RI_AUX")
+                  ! Add a flag, which allows to check if the basis was generated
+                  !  when applying ERI_METHOD OS to mp2, ri-rpa, gw etc
+                  qs_env%mp2_env%ri_aux_auto_generated = .TRUE.
                END IF
             END DO
          END IF

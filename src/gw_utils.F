@@ -362,7 +362,10 @@ CONTAINS
       DO ikind = 1, n_kind
          CALL get_qs_kind(qs_kind=qs_kind_set(ikind), basis_set=basis_set_a, &
                           basis_type="RI_AUX")
-         CPASSERT(ASSOCIATED(basis_set_a))
+         IF (.NOT. ASSOCIATED(basis_set_a)) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "At least one RI_AUX basis set was not explicitly invoked in &KIND-section.")
+         END IF
       END DO
 
       ALLOCATE (bs_env%i_RI_start_from_atom(n_atom))

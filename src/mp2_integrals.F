@@ -334,8 +334,12 @@ CONTAINS
       END IF
 
       IF (do_bse) THEN
-         CPASSERT(my_do_gw)
-         CPASSERT(.NOT. do_im_time)
+         IF (.NOT. my_do_gw) THEN
+            CALL cp_abort(__LOCATION__, "BSE calculations require prior GW calculations.")
+         END IF
+         IF (do_im_time) THEN
+            CALL cp_abort(__LOCATION__, "BSE calculations are not implemented for low-scaling GW.")
+         END IF
          ! GPW integrals have to be implemented later
          IF (eri_method == do_eri_gpw) THEN
             CALL cp_abort(__LOCATION__, &
@@ -538,6 +542,15 @@ CONTAINS
          IF (eri_method == do_eri_mme .AND. &
              (ri_metric%potential_type == do_potential_coulomb .OR. ri_metric%potential_type == do_potential_long) .OR. &
              eri_method == do_eri_os .AND. ri_metric%potential_type == do_potential_coulomb) THEN
+
+            ! Add a warning for automatically generated RI_AUX basis sets
+            ! Tend to be not sufficiently converged
+            IF (qs_env%mp2_env%ri_aux_auto_generated) THEN
+               CALL cp_warn(__LOCATION__, &
+                            "At least one RI_AUX basis set was not explicitly invoked in &KIND-section. "// &
+                            "Automatically RI-basis sets and ERI_METHOD OS tend to be not converged. "// &
+                            "Consider specifying BASIS_SET RI_AUX explicitly with a sufficiently large basis.")
+            END IF
 
             NULLIFY (mat_munu_local_L)
             ALLOCATE (mat_munu_local_L(my_group_L_size))
