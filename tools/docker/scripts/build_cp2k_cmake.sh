@@ -182,6 +182,7 @@ elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "pdbg" ]]; then
 
 elif [[ "${PROFILE}" == "ubuntu" ]] && [[ "${VERSION}" == "ssmp" ]]; then
   # TODO fix spglib https://github.com/cp2k/cp2k/issues/3414
+  # NOTE: libxc 5.2.3 is provided, CP2K requires libxc 7
   cmake \
     -GNinja \
     -DCMAKE_INSTALL_PREFIX=/opt/cp2k \
@@ -190,6 +191,7 @@ elif [[ "${PROFILE}" == "ubuntu" ]] && [[ "${VERSION}" == "ssmp" ]]; then
     -DCP2K_USE_LIBINT2=ON \
     -DCP2K_USE_LIBXC=ON \
     -DCP2K_USE_FFTW3=ON \
+    -DCP2K_USE_LIBXC=OFF \
     -DCP2K_USE_LIBXSMM=ON \
     -DCP2K_USE_SPGLIB=OFF \
     -DCP2K_USE_MPI=OFF \

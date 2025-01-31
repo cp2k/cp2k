@@ -7,7 +7,7 @@ spack:
     - "netlib-scalapack@2.2.0"
     - "libxsmm@1.17"
     - "fftw@3.3.10 +openmp"
-    - "libxc@6.2.2"
+    - "libxc@7.0.0 +kxc build_system=cmake"
     - "spglib@2.3.0"
     - "dla-future@0.7.3 +scalapack"
     - "dla-future-fortran@0.2.0"
