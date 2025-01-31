@@ -1027,6 +1027,8 @@ CONTAINS
       ELSE IF (SIZE(l) /= SIZE(cp_current_iteration_counter%complex_iteration) .OR. ANY(l /= cp_current_iteration_counter%complex_iteration)) THEN
          cp_current_iteration_counter%flat_iteration = cp_current_iteration_counter%flat_iteration + 1
          opened_new_iteration = .TRUE.
+      ELSE
+         opened_new_iteration = .FALSE.
       END IF
 
       res%iteration = openpmd_series_write_iteration(series, cp_current_iteration_counter%flat_iteration)
