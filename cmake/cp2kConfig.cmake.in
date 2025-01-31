@@ -60,7 +60,7 @@ if(NOT TARGET cp2k::cp2k)
   endif()
 
   if(@CP2K_USE_LIBXC@)
-    find_dependency(LibXC 7 REQUIRED)
+    find_dependency(LibXC 7 REQUIRED CONFIG)
   endif()
 
   if(@CP2K_USE_COSMA@)
@@ -99,6 +99,23 @@ if(NOT TARGET cp2k::cp2k)
     find_dependency(Torch REQUIRED)
   endif()
 
+  if(@CP2K_USE_HDF5@)
+    find_dependency(HDF5 REQUIRED COMPONENTS C Fortran)
+  endif()
+
+  if(@CP2K_USE_DFTD4@)
+    find_dependency(dftd4 REQUIRED)
+  endif()
+
+  if(@CP2K_USE_LIBSMEAGOL@)
+    find_dependency(libsmeagol REQUIRED)
+  endif()
+
+  find_dependency(dbcsr 2.6 REQUIRED)
+
+  if(@CP2K_USE_VORI@)
+    find_dependency(LibVORI REQUIRED)
+  endif()
   include("${CMAKE_CURRENT_LIST_DIR}/cp2kTargets.cmake")
 
   # Clean-up module path.

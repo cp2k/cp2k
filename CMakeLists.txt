@@ -321,26 +321,11 @@ cmake_dependent_option(DBCSR_USE_OPENMP "Enable openmp support in DBCSR" ON
 # ##############################################################################
 
 set(__cp2k_ext "")
-set(__cp2k_cmake_name "")
 
 if(CP2K_USE_MPI)
   set(__cp2k_ext "psmp")
 else()
   set(__cp2k_ext "ssmp")
-endif()
-
-set(__cp2k_cmake_name "local")
-
-if(CP2K_USE_ACCEL MATCHES "CUDA")
-  set(__cp2k_cmake_name "local_cuda")
-endif()
-
-if(CP2K_USE_ACCEL MATCHES "HIP")
-  set(__cp2k_cmake_name "local_hip")
-endif()
-
-if(CP2K_CMAKE_SUFFIX)
-  string(APPEND __cp2k_cmake_name "${CP2K_CMAKE_SUFFIX}")
 endif()
 
 # we can run the src consistency checks without actually searching for any
@@ -841,8 +826,7 @@ if(CP2K_USE_LIBTORCH)
 endif()
 
 if(CP2K_USE_HDF5)
-  message("  - HDF5\n"
-          "   - HDF5_VERSION : ${HDF5_VERSION}\n"
+  message("  - HDF5\n" "   - HDF5_VERSION : ${HDF5_VERSION}\n"
           "   - HDF5_INCLUDE_DIRS : ${HDF5_INCLUDE_DIRS}\n"
           "   - HDF5_LIBRARIES : ${HDF5_LIBRARIES}\n\n")
 endif()
