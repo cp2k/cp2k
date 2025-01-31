@@ -55,8 +55,9 @@ MODULE cp_output_handling
                                               mp_file_type
    USE openpmd_api,                     ONLY: &
         cp2k_log, openpmd_access_create, openpmd_attributable_set_attribute_vec_int, &
-        openpmd_get_default_extension, openpmd_iteration_type, openpmd_series_create, &
-        openpmd_series_present, openpmd_series_type, openpmd_series_write_iteration
+        openpmd_get_default_extension, openpmd_iteration_type, openpmd_series_close, &
+        openpmd_series_create, openpmd_series_present, openpmd_series_type, &
+        openpmd_series_write_iteration
    USE string_utilities,                ONLY: compress,&
                                               s2a
 #include "../base/base_uses.f90"
@@ -71,6 +72,7 @@ MODULE cp_output_handling
    PUBLIC :: cp_print_key_unit_nr, cp_print_key_finished_output
    PUBLIC :: cp_print_key_generate_filename, cp_printkey_is_on
    PUBLIC :: cp_get_openpmd_entry, cp_unit_nr_for_openpmd_value_type
+   PUBLIC :: cp_output_finalize
 
    INTEGER, PARAMETER, PUBLIC               :: add_last_no = 0, &
                                                add_last_numeric = 1, &
@@ -1041,6 +1043,15 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+! **************************************************************************************************
+   SUBROUTINE cp_output_finalize()
+      IF (openpmd_series_present(cp_openpmd_output_series)) THEN
+         CALL openpmd_series_close(cp_openpmd_output_series)
+      END IF
+   END SUBROUTINE cp_output_finalize
+
+! **************************************************************************************************
+!> \brief ...
 !> \param logger ...
 !> \param basis_section ...
 !> \param print_key_path ...
@@ -1161,7 +1172,7 @@ CONTAINS
 
                CALL cp2k_log(filename)
 
-               filename = cp_print_key_generate_openpmd_filename(logger, print_key, "."//openpmd_get_default_extension(), my_local)
+           filename = cp_print_key_generate_openpmd_filename(logger, print_key, "_%06T."//openpmd_get_default_extension(), my_local)
             ELSE
                my_use_openpmd = .FALSE.
                !
