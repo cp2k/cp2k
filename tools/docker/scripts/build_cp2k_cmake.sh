@@ -85,7 +85,7 @@ if [[ "${PROFILE}" == "spack" ]] && [[ "${VERSION}" == "psmp" ]]; then
     -DCP2K_USE_LIBTORCH=OFF \
     -DCP2K_USE_DLAF=ON \
     -DCP2K_USE_DFTD4=ON \
-    -DCP2K_USE_LIBSMEAGOL=OFF \
+    -DCP2K_USE_LIBSMEAGOL=ON \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
 
