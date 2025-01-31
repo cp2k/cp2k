@@ -55,7 +55,10 @@ MODULE cp_output_handling
                                               mp_file_type
    USE openpmd_api,                     ONLY: &
         cp2k_log, openpmd_access_create, openpmd_attributable_set_attribute_vec_int, &
-        openpmd_get_default_extension, openpmd_iteration_type, openpmd_series_close, &
+        openpmd_get_default_extension, openpmd_iteration_get_mesh, &
+        openpmd_iteration_get_particle_species, openpmd_iteration_type, openpmd_mesh_type, &
+        openpmd_particle_species_get_record, openpmd_particle_species_type, &
+        openpmd_record_component_make_empty_int, openpmd_record_type, openpmd_series_close, &
         openpmd_series_create, openpmd_series_present, openpmd_series_type, &
         openpmd_series_write_iteration
    USE string_utilities,                ONLY: compress,&
@@ -158,7 +161,8 @@ MODULE cp_output_handling
    TYPE :: cp_unit_nr_for_openpmd_value_type
       TYPE(openpmd_series_type) :: series
       TYPE(openpmd_iteration_type) :: iteration
-      ! mesh, particle_species
+      TYPE(openpmd_mesh_type) :: mesh
+      TYPE(openpmd_particle_species_type) :: particle_species
    END TYPE
 
    TYPE :: cp_unit_nr_for_openpmd
@@ -1007,16 +1011,19 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param series ...
+!> \param middle_name ...
 !> \param logger ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION cp_open_openpmd_entry(series, logger) RESULT(res)
+   FUNCTION cp_open_openpmd_entry(series, middle_name, logger) RESULT(res)
       TYPE(openpmd_series_type)                          :: series
+      CHARACTER(len=*), INTENT(IN)                       :: middle_name
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_unit_nr_for_openpmd_value_type)            :: res
 
       INTEGER, DIMENSION(:), POINTER                     :: l, r
       LOGICAL                                            :: opened_new_iteration = .FALSE.
+      TYPE(openpmd_record_type)                          :: position, positionOffset
 
       res%series = series
 
@@ -1034,6 +1041,14 @@ CONTAINS
       END IF
 
       res%iteration = openpmd_series_write_iteration(series, cp_current_iteration_counter%flat_iteration)
+
+      res%mesh = openpmd_iteration_get_mesh(res%iteration, middle_name)
+      CALL openpmd_record_component_make_empty_int(res%mesh%openpmd_mesh_as_record_component(), 3)
+      res%particle_species = openpmd_iteration_get_particle_species(res%iteration, middle_name)
+      position = openpmd_particle_species_get_record(res%particle_species, "position")
+      CALL openpmd_record_component_make_empty_int(position%openpmd_record_as_record_component(), 3)
+      positionOffset = openpmd_particle_species_get_record(res%particle_species, "positionOffset")
+      CALL openpmd_record_component_make_empty_int(positionOffset%openpmd_record_as_record_component(), 3)
 
       IF (opened_new_iteration) THEN
          cp_current_iteration_counter%complex_iteration => logger%iter_info%iteration
@@ -1265,7 +1280,7 @@ CONTAINS
                   END IF
                END IF
 
-               CALL cp_add_openpmd_entry(res, cp_open_openpmd_entry(cp_openpmd_output_series, logger))
+               CALL cp_add_openpmd_entry(res, cp_open_openpmd_entry(cp_openpmd_output_series, middle_name, logger))
 
                RETURN
             ELSE IF (.NOT. my_mpi_io) THEN

@@ -17,6 +17,14 @@ typedef struct openPMD_Series_opaque *openPMD_Series;
 
 typedef struct openPMD_Iteration_opaque *openPMD_Iteration;
 
+typedef struct openPMD_Mesh_opaque *openPMD_Mesh;
+
+typedef struct openPMD_ParticleSpecies_opaque *openPMD_ParticleSpecies;
+
+typedef struct openPMD_RecordComponent_opaque *openPMD_RecordComponent;
+
+typedef struct openPMD_Record_opaque *openPMD_Record;
+
 // Actually uint64_t, but ISO C bindings for Fortran only have that as a GNU
 // extension, so we use signed integers and convert
 typedef int openPMD_Iteration_Index_t;
@@ -74,6 +82,56 @@ int openPMD_Iteration_upcast_to_attributable(
     openPMD_Iteration iteration,
     // out
     openPMD_Attributable *attr);
+
+int openPMD_Iteration_get_mesh(
+    // in
+    openPMD_Iteration iteration, char const *name,
+    // out
+    openPMD_Mesh *mesh);
+
+int openPMD_Iteration_get_particle_species(
+    // in
+    openPMD_Iteration iteration, char const *name,
+    // out
+    openPMD_ParticleSpecies *particle_species);
+
+/****************
+ * Mesh members *
+ ****************/
+
+int openPMD_Mesh_upcast_to_RecordComponent(
+    // in
+    openPMD_Mesh mesh,
+    // out
+    openPMD_RecordComponent rc);
+
+/***************************
+ * RecordComponent members *
+ ***************************/
+
+int openPMD_RecordComponent_makeEmpty_int(
+    // in
+    openPMD_RecordComponent rc, int dimensions);
+
+/***************************
+ * ParticleSpecies members *
+ ***************************/
+
+int openPMD_ParticleSpecies_get_Record(
+    // in
+    openPMD_ParticleSpecies, char const *name,
+    // out
+    openPMD_Record *);
+
+/******************
+ * Record members *
+ ******************/
+
+int openPMD_Record_upcast_to_RecordComponent(
+    // in
+    openPMD_Record record,
+    // out
+    openPMD_RecordComponent rc);
 
 #ifdef __cplusplus
 } // extern "C"

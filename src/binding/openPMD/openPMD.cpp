@@ -162,4 +162,75 @@ extern "C"
             do_upcast<openPMD::Iteration, openPMD::Attributable>(
                 iteration, attr);
     }
+
+    int openPMD_Iteration_get_mesh(
+        // in
+        openPMD_Iteration iteration_param,
+        char const *name,
+        // out
+        openPMD_Mesh *mesh)
+    {
+        auto iteration =
+            reinterpret_cast<openPMD::Iteration *>(iteration_param);
+        auto &res = iteration->meshes[name];
+        *reinterpret_cast<openPMD::Mesh **>(mesh) = &res;
+        return 0;
+    }
+
+    int openPMD_Iteration_get_particle_species(
+        // in
+        openPMD_Iteration iteration_param,
+        char const *name,
+        // out
+        openPMD_ParticleSpecies *particle_species)
+    {
+        auto iteration =
+            reinterpret_cast<openPMD::Iteration *>(iteration_param);
+        auto &res = iteration->particles[name];
+        *reinterpret_cast<openPMD::ParticleSpecies **>(particle_species) = &res;
+        return 0;
+    }
+
+    int openPMD_Mesh_upcast_to_RecordComponent(
+        // in
+        openPMD_Mesh mesh_param,
+        // out
+        openPMD_RecordComponent rc)
+    {
+        return implementation::
+            do_upcast<openPMD::Mesh, openPMD::RecordComponent>(mesh_param, rc);
+    }
+
+    int openPMD_RecordComponent_makeEmpty_int(
+        // in
+        openPMD_RecordComponent rc_param,
+        int dimensions)
+    {
+        auto rc = reinterpret_cast<openPMD::RecordComponent *>(rc_param);
+        rc->makeEmpty<int>(dimensions);
+        return 0;
+    }
+
+    int openPMD_ParticleSpecies_get_Record(
+        // in
+        openPMD_ParticleSpecies ps_param,
+        char const *name,
+        // out
+        openPMD_Record *record)
+    {
+        auto ps = reinterpret_cast<openPMD::ParticleSpecies *>(ps_param);
+        auto &res = ps->operator[](name);
+        *reinterpret_cast<openPMD::Record **>(record) = &res;
+        return 0;
+    }
+
+    int openPMD_Record_upcast_to_RecordComponent(
+        // in
+        openPMD_Record record,
+        // out
+        openPMD_RecordComponent rc)
+    {
+        return implementation::
+            do_upcast<openPMD::Record, openPMD::RecordComponent>(record, rc);
+    }
 }
