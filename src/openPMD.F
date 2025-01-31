@@ -5,15 +5,8 @@
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
 MODULE openPMD_api
-   USE ISO_C_BINDING,                   ONLY: C_ASSOCIATED,&
-                                              C_CHAR,&
-                                              C_INT,&
-                                              C_INT64_T,&
-                                              C_LOC,&
-                                              C_NULL_CHAR,&
-                                              C_NULL_PTR,&
-                                              C_PTR,&
-                                              C_SIZE_T
+   USE ISO_C_BINDING,                   ONLY: &
+        C_ASSOCIATED, C_CHAR, C_INT, C_INT64_T, C_LOC, C_NULL_CHAR, C_NULL_PTR, C_PTR, C_SIZE_T
    USE kinds,                           ONLY: default_string_length
    USE message_passing,                 ONLY: mp_comm_type
 #include "./base/base_uses.f90"
@@ -48,13 +41,40 @@ MODULE openPMD_api
       PROCEDURE, PUBLIC :: openpmd_iteration_as_attributable
    END TYPE openpmd_iteration_type
 
-   PUBLIC :: openpmd_series_type, openpmd_iteration_type
+   TYPE openpmd_mesh_type
+      PRIVATE
+      TYPE(C_PTR) :: c_ptr = C_NULL_PTR
+   CONTAINS
+      PROCEDURE, PUBLIC:: openpmd_mesh_as_record_component
+   END TYPE openpmd_mesh_type
+
+   TYPE openpmd_particle_species_type
+      PRIVATE
+      TYPE(C_PTR) :: c_ptr = C_NULL_PTR
+   END TYPE openpmd_particle_species_type
+
+   TYPE openpmd_record_component_type
+      PRIVATE
+      TYPE(C_PTR) :: c_ptr = C_NULL_PTR
+   END TYPE openpmd_record_component_type
+
+   TYPE openpmd_record_type
+      PRIVATE
+      TYPE(C_PTR) :: c_ptr = C_NULL_PTR
+   CONTAINS
+      PROCEDURE, PUBLIC :: openpmd_record_as_record_component
+   END TYPE openpmd_record_type
+
+   PUBLIC :: openpmd_series_type, openpmd_iteration_type, openpmd_mesh_type, openpmd_particle_species_type, openpmd_record_component_type, openpmd_record_type
    PUBLIC :: openpmd_series_create, openpmd_series_close
    PUBLIC :: openpmd_series_present
    PUBLIC :: openpmd_series_write_iteration
    PUBLIC :: openpmd_access_create, openpmd_access_read_only
    PUBLIC :: openpmd_get_default_extension
    PUBLIC :: openpmd_attributable_set_attribute_vec_int
+   PUBLIC :: openpmd_iteration_get_mesh, openpmd_iteration_get_particle_species
+   PUBLIC :: openpmd_record_component_make_empty_int
+   PUBLIC :: openpmd_particle_species_get_record
    PUBLIC :: cp2k_log
 
 CONTAINS
@@ -90,6 +110,46 @@ CONTAINS
 
       CALL openpmd_c_series_as_attributable(this%c_ptr, res%c_ptr)
    END FUNCTION openpmd_series_as_attributable
+
+! **************************************************************************************************
+!> \brief ...
+!> \param this ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION openpmd_mesh_as_record_component(this) RESULT(res)
+      CLASS(openpmd_mesh_type), INTENT(IN) :: this
+      TYPE(openpmd_record_component_type) :: res
+
+      INTERFACE
+        SUBROUTINE openpmd_c_mesh_as_record_component(mesh, record_component) BIND(C, name="openPMD_Mesh_upcast_to_RecordComponent")
+            IMPORT :: C_PTR
+            TYPE(C_PTR), VALUE :: mesh
+            TYPE(C_PTR) :: record_component
+         END SUBROUTINE
+      END INTERFACE
+
+      CALL openpmd_c_mesh_as_record_component(this%c_ptr, res%c_ptr)
+   END FUNCTION openpmd_mesh_as_record_component
+
+! **************************************************************************************************
+!> \brief ...
+!> \param this ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION openpmd_record_as_record_component(this) RESULT(res)
+      CLASS(openpmd_record_type), INTENT(IN) :: this
+      TYPE(openpmd_record_component_type) :: res
+
+      INTERFACE
+    SUBROUTINE openpmd_c_record_as_record_component(record, record_component) BIND(C, name="openPMD_Mesh_upcast_to_RecordComponent")
+            IMPORT :: C_PTR
+            TYPE(C_PTR), VALUE :: record
+            TYPE(C_PTR) :: record_component
+         END SUBROUTINE
+      END INTERFACE
+
+      CALL openpmd_c_record_as_record_component(this%c_ptr, res%c_ptr)
+   END FUNCTION openpmd_record_as_record_component
 
 ! **************************************************************************************************
 !> \brief ...
@@ -331,5 +391,108 @@ CONTAINS
       CALL openpmd_c_attributable_set_attribute_vec_int(attributable%c_ptr, name, C_LOC(vec(1)), size_)
 
    END SUBROUTINE
+
+! **************************************************************************************************
+!> \brief ...
+!> \param iteration ...
+!> \param name ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION openpmd_iteration_get_mesh(iteration, name) RESULT(mesh)
+      TYPE(openpmd_iteration_type)                       :: iteration
+      CHARACTER(len=*), INTENT(IN)                       :: name
+      TYPE(openpmd_mesh_type)                            :: mesh
+
+      INTEGER(kind=C_INT)                                :: status
+      INTERFACE
+         FUNCTION openpmd_c_iteration_get_mesh(iteration, name, mesh) RESULT(status) BIND(C, name="openPMD_Iteration_get_mesh")
+            IMPORT :: C_PTR, C_INT64_T, C_INT, C_SIZE_T, C_CHAR
+            TYPE(C_PTR), VALUE :: iteration
+            CHARACTER(kind=C_CHAR), DIMENSION(*) :: name
+            TYPE(C_PTR) :: mesh
+            INTEGER(KIND=C_INT) :: status
+         END FUNCTION openpmd_c_iteration_get_mesh
+      END INTERFACE
+
+      CPASSERT(.NOT. C_ASSOCIATED(mesh%c_ptr))
+      status = openpmd_c_iteration_get_mesh(iteration%c_ptr, name//C_NULL_CHAR, mesh%c_ptr)
+      CPASSERT(C_ASSOCIATED(mesh%c_ptr))
+   END FUNCTION openpmd_iteration_get_mesh
+
+! **************************************************************************************************
+!> \brief ...
+!> \param iteration ...
+!> \param name ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION openpmd_iteration_get_particle_species(iteration, name) RESULT(particle_species)
+      TYPE(openpmd_iteration_type)                       :: iteration
+      CHARACTER(len=*), INTENT(IN)                       :: name
+      TYPE(openpmd_particle_species_type)                :: particle_species
+
+      INTEGER(kind=C_INT)                                :: status
+      INTERFACE
+         FUNCTION openpmd_c_iteration_get_particle_species(iteration, name, particle_species) RESULT(status) BIND(C, name="openPMD_Iteration_get_particle_species")
+            IMPORT :: C_PTR, C_INT64_T, C_INT, C_SIZE_T, C_CHAR
+            TYPE(C_PTR), VALUE :: iteration
+            CHARACTER(kind=C_CHAR), DIMENSION(*) :: name
+            TYPE(C_PTR) :: particle_species
+            INTEGER(KIND=C_INT) :: status
+         END FUNCTION openpmd_c_iteration_get_particle_species
+      END INTERFACE
+
+      CPASSERT(.NOT. C_ASSOCIATED(particle_species%c_ptr))
+      status = openpmd_c_iteration_get_particle_species(iteration%c_ptr, name//C_NULL_CHAR, particle_species%c_ptr)
+      CPASSERT(C_ASSOCIATED(particle_species%c_ptr))
+   END FUNCTION openpmd_iteration_get_particle_species
+
+! **************************************************************************************************
+!> \brief ...
+!> \param record_component ...
+!> \param dimensionality ...
+! **************************************************************************************************
+   SUBROUTINE openpmd_record_component_make_empty_int(record_component, dimensionality)
+      TYPE(openpmd_record_component_type)                :: record_component
+      INTEGER                                            :: dimensionality
+
+      INTEGER(kind=C_INT)                                :: status
+      INTERFACE
+         FUNCTION openpmd_c_record_component_make_empty_int(record_component, dimensionality) RESULT(status) BIND(C, name="openPMD_RecordComponent_makeEmpty_int")
+            IMPORT :: C_PTR, C_INT64_T, C_INT, C_SIZE_T, C_CHAR
+            TYPE(C_PTR), VALUE :: record_component
+            INTEGER(KIND=C_INT), VALUE :: dimensionality
+            INTEGER(KIND=C_INT) :: status
+         END FUNCTION openpmd_c_record_component_make_empty_int
+      END INTERFACE
+
+      status = openpmd_c_record_component_make_empty_int(record_component%c_ptr, dimensionality)
+   END SUBROUTINE openpmd_record_component_make_empty_int
+
+! **************************************************************************************************
+!> \brief ...
+!> \param particle_species ...
+!> \param name ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION openpmd_particle_species_get_record(particle_species, name) RESULT(record)
+      TYPE(openpmd_particle_species_type)                :: particle_species
+      CHARACTER(len=*), INTENT(IN)                       :: name
+      TYPE(openpmd_record_type)                          :: record
+
+      INTEGER(kind=C_INT)                                :: status
+      INTERFACE
+         FUNCTION openpmd_c_particle_species_get_record(particle_species, name, record) RESULT(status) BIND(C, name="openPMD_ParticleSpecies_get_Record")
+            IMPORT :: C_PTR, C_INT64_T, C_INT, C_SIZE_T, C_CHAR
+            TYPE(C_PTR), VALUE :: particle_species
+            CHARACTER(kind=C_CHAR), DIMENSION(*) :: name
+            TYPE(C_PTR) :: record
+            INTEGER(KIND=C_INT) :: status
+         END FUNCTION openpmd_c_particle_species_get_record
+      END INTERFACE
+
+      CPASSERT(.NOT. C_ASSOCIATED(record%c_ptr))
+      status = openpmd_c_particle_species_get_record(particle_species%c_ptr, name//C_NULL_CHAR, record%c_ptr)
+      CPASSERT(C_ASSOCIATED(record%c_ptr))
+   END FUNCTION openpmd_particle_species_get_record
 
 END MODULE openPMD_api
