@@ -853,7 +853,7 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
 
 # Install a recent developer version of Spack.
 WORKDIR /opt/spack
-ARG SPACK_VERSION=0f54995e53d48095a30f1d0203e4f9bdb95e29fa
+ARG SPACK_VERSION=7ebabfcf0ec31ba2a0470d0405bf7ae84a446c00
 RUN git init --quiet && \
     git remote add origin https://github.com/spack/spack.git && \
     git fetch --quiet --depth 1 origin ${{SPACK_VERSION}} --no-tags && \
