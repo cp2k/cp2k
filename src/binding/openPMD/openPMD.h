@@ -35,13 +35,14 @@ typedef int openPMD_Iteration_Index_t;
 
 int openPMD_Series_create(
     // in
-    char const *filename, openPMD_Access access,
+    char const *filename, openPMD_Access access, char const *config,
     // out
     openPMD_Series *series);
 
 int openPMD_Series_create_mpi(
     // in
     char const *filename, openPMD_Access access, MPI_Comm comm,
+    char const *config,
     // out
     openPMD_Series *series);
 
