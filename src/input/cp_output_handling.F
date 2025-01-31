@@ -1125,6 +1125,7 @@ CONTAINS
       TYPE(cp_iteration_info_type), POINTER              :: iteration_info
       TYPE(mp_file_type)                                 :: mp_unit
       TYPE(section_vals_type), POINTER                   :: print_key
+      CHARACTER(len=default_string_length) :: openpmd_config = 'iteration_encoding = "variable_based"'
 
       my_local = .FALSE.
       my_do_backup = .FALSE.
@@ -1187,7 +1188,7 @@ CONTAINS
 
                CALL cp2k_log(filename)
 
-           filename = cp_print_key_generate_openpmd_filename(logger, print_key, "_%06T."//openpmd_get_default_extension(), my_local)
+           filename = cp_print_key_generate_openpmd_filename(logger, print_key, "."//openpmd_get_default_extension(), my_local)
             ELSE
                my_use_openpmd = .FALSE.
                !
@@ -1274,9 +1275,9 @@ CONTAINS
 
                IF (.NOT. openpmd_series_present(cp_openpmd_output_series)) THEN
                   IF (my_mpi_io) THEN
-                     cp_openpmd_output_series = openpmd_series_create(filename, openpmd_access_create, logger%para_env)
+                     cp_openpmd_output_series = openpmd_series_create(filename, openpmd_access_create, logger%para_env, openpmd_config)
                   ELSE
-                     cp_openpmd_output_series = openpmd_series_create(filename, openpmd_access_create)
+                     cp_openpmd_output_series = openpmd_series_create(filename, openpmd_access_create, config=openpmd_config)
                   END IF
                END IF
 

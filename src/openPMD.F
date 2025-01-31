@@ -220,16 +220,18 @@ CONTAINS
 !> \param path ...
 !> \param access ...
 !> \param mpi_comm ...
+!> \param config ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION openpmd_series_create(path, access, mpi_comm) RESULT(series)
+   FUNCTION openpmd_series_create(path, access, mpi_comm, config) RESULT(series)
       CHARACTER(len=*), INTENT(IN)                       :: path
       INTEGER(kind=C_INT), INTENT(IN)                    :: access
-
       CLASS(mp_comm_type), INTENT(in), OPTIONAL          :: mpi_comm
+      CHARACTER(len=*), INTENT(IN), OPTIONAL :: config
       TYPE(openpmd_series_type)                          :: series
 
       TYPE(c_ptr)                                        :: comm_c = C_NULL_PTR
+      CHARACTER(len=default_string_length) :: my_config = "{}"
       INTERFACE
 ! **************************************************************************************************
 !> \brief ...
@@ -245,29 +247,33 @@ CONTAINS
          END SUBROUTINE
       END INTERFACE
       INTERFACE
-         SUBROUTINE openpmd_c_series_create_mpi(path, access, mpi_comm, series) BIND(C, name="openPMD_Series_create_mpi")
+         SUBROUTINE openpmd_c_series_create_mpi(path, access, mpi_comm, config, series) BIND(C, name="openPMD_Series_create_mpi")
             IMPORT :: C_PTR, C_CHAR, C_INT
             CHARACTER(kind=C_CHAR), DIMENSION(*) :: path
             INTEGER(kind=C_INT), VALUE :: access
             TYPE(C_PTR), value :: mpi_comm
+            CHARACTER(kind=C_CHAR), DIMENSION(*) :: config
             TYPE(C_PTR) :: series
          END SUBROUTINE
       END INTERFACE
       INTERFACE
-         SUBROUTINE openpmd_c_series_create(path, access, series) BIND(C, name="openPMD_Series_create")
+         SUBROUTINE openpmd_c_series_create(path, access, config, series) BIND(C, name="openPMD_Series_create")
             IMPORT :: C_PTR, C_CHAR, C_INT
             TYPE(C_PTR) :: series
             CHARACTER(kind=C_CHAR), DIMENSION(*) :: path
             INTEGER(kind=C_INT), VALUE :: access
+            CHARACTER(kind=C_CHAR), DIMENSION(*) :: config
          END SUBROUTINE
       END INTERFACE
+
+      IF (PRESENT(config)) my_config = config
 
       CPASSERT(.NOT. C_ASSOCIATED(series%c_ptr))
       IF (PRESENT(mpi_comm)) THEN
          CALL cp2k_c_mpi_comm_f2c(mpi_comm%get_handle(), comm_c)
-         CALL openpmd_c_series_create_mpi(path=TRIM(path)//C_NULL_CHAR, access=access, mpi_comm=comm_c, series=series%c_ptr)
+         CALL openpmd_c_series_create_mpi(path=TRIM(path)//C_NULL_CHAR, access=access, mpi_comm=comm_c, config=my_config//C_NULL_CHAR, series=series%c_ptr)
       ELSE
-         CALL openpmd_c_series_create(path=TRIM(path)//C_NULL_CHAR, access=access, series=series%c_ptr)
+       CALL openpmd_c_series_create(path=TRIM(path)//C_NULL_CHAR, access=access, config=my_config//C_NULL_CHAR, series=series%c_ptr)
       END IF
       CPASSERT(C_ASSOCIATED(series%c_ptr))
    END FUNCTION openpmd_series_create

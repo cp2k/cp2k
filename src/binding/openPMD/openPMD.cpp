@@ -65,23 +65,37 @@ extern "C"
     int openPMD_Series_create(
         char const *filename,
         openPMD_Access access,
+        char const *config,
         openPMD_Series *series_param)
     {
+        if (!config)
+        {
+            config = "";
+        }
         return implementation::Series_create(
-            series_param, filename, implementation::access_c_to_cxx(access));
+            series_param,
+            filename,
+            implementation::access_c_to_cxx(access),
+            config);
     }
 
     int openPMD_Series_create_mpi(
         char const *filename,
         openPMD_Access access,
         MPI_Comm comm,
+        char const *config,
         openPMD_Series *series_param)
     {
+        if (!config)
+        {
+            config = "";
+        }
         return implementation::Series_create(
             series_param,
             filename,
             implementation::access_c_to_cxx(access),
-            comm);
+            comm,
+            config);
     }
 
     int openPMD_Series_close(openPMD_Series series_param)
