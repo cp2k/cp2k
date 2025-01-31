@@ -20,14 +20,14 @@ MODULE tblite_interface
    USE tblite_basis_type, ONLY: get_cutoff
    USE tblite_container, ONLY: container_cache
    USE tblite_scf_info, ONLY: scf_info, atom_resolved, shell_resolved, &
-                                 & orbital_resolved, not_used
+                              orbital_resolved, not_used
    USE tblite_scf_potential, ONLY: potential_type, new_potential
    USE tblite_wavefunction_type, ONLY: wavefunction_type, new_wavefunction
    USE tblite_xtb_calculator, ONLY: xtb_calculator, new_xtb_calculator
    USE tblite_xtb_gfn1, ONLY: new_gfn1_calculator
    USE tblite_xtb_gfn2, ONLY: new_gfn2_calculator
    USE tblite_xtb_h0, ONLY: get_selfenergy, get_hamiltonian, get_occupation, &
-                                 & get_hamiltonian_gradient, tb_hamiltonian
+                            get_hamiltonian_gradient, tb_hamiltonian
    USE tblite_xtb_ipea1, ONLY: new_ipea1_calculator
 #endif
    USE ai_contraction, ONLY: block_add, &
@@ -40,8 +40,11 @@ MODULE tblite_interface
    USE cell_types, ONLY: cell_type, get_cell
    USE cp_blacs_env, ONLY: cp_blacs_env_type
    USE cp_control_types, ONLY: dft_control_type
-   USE cp_dbcsr_api, ONLY: dbcsr_type, dbcsr_p_type, dbcsr_create, dbcsr_get_block_p, &
-                           & dbcsr_print, dbcsr_finalize, dbcsr_add
+   USE cp_dbcsr_api, ONLY: dbcsr_type, dbcsr_p_type, dbcsr_create, dbcsr_add, &
+                           dbcsr_print, dbcsr_get_block_p, dbcsr_finalize, &
+                           dbcsr_iterator_type, dbcsr_iterator_blocks_left, &
+                           dbcsr_iterator_start, dbcsr_iterator_stop, &
+                           dbcsr_iterator_next_block
    USE cp_dbcsr_cp2k_link, ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations, ONLY: dbcsr_allocate_matrix_set
    USE cp_log_handling, ONLY: cp_get_default_logger, &
@@ -51,6 +54,7 @@ MODULE tblite_interface
    USE input_constants, ONLY: gfn1xtb, gfn2xtb, ipea1xtb
    USE input_section_types, ONLY: section_vals_val_get
    USE kinds, ONLY: dp, default_string_length
+   USE kpoint_types, ONLY: get_kpoint_info, kpoint_type
    USE memory_utilities, ONLY: reallocate
    USE message_passing, ONLY: mp_para_env_type
    USE mulliken, ONLY: ao_charges
@@ -65,8 +69,8 @@ MODULE tblite_interface
    USE qs_kind_types, ONLY: get_qs_kind, qs_kind_type, get_qs_kind_set
    USE qs_ks_types, ONLY: qs_ks_env_type, set_ks_env
    USE qs_neighbor_list_types, ONLY: neighbor_list_iterator_create, neighbor_list_iterate, &
-                                    & get_iterator_info, neighbor_list_set_p_type, &
-                                    & neighbor_list_iterator_p_type
+                                     get_iterator_info, neighbor_list_set_p_type, &
+                                     neighbor_list_iterator_p_type, neighbor_list_iterator_release
    USE qs_overlap, ONLY: create_sab_matrix
    USE qs_rho_types, ONLY: qs_rho_get, qs_rho_type
    USE qs_scf_types, ONLY: qs_scf_env_type
@@ -75,6 +79,7 @@ MODULE tblite_interface
    USE virial_types, ONLY: virial_type
    USE xtb_types, ONLY: get_xtb_atom_param, xtb_atom_type
    USE xtb_types, ONLY: xtb_atom_type
+
 #include "./base/base_uses.f90"
    IMPLICIT NONE
 
@@ -84,7 +89,7 @@ MODULE tblite_interface
 
    PUBLIC :: tb_init_geometry, tb_init_ham, tb_init_wf
    PUBLIC :: tb_set_calculator, tb_get_basis, build_tblite_matrices
-   PUBLIC :: tb_get_energy, tb_update_charges
+   PUBLIC :: tb_get_energy, tb_update_charges, tb_ham_add_coulomb
 
 CONTAINS
 
@@ -318,12 +323,12 @@ CONTAINS
       energy%xtb_xb_inter = SUM(tb%e_hal)
       energy%hartree = SUM(tb%e_es)
       energy%dftb3 = SUM(tb%e_scd)
-      
-      write(*,*) "+++++++  ehal: ",tb%e_hal
-      write(*,*) "+++++++  erep: ",tb%e_rep
-      write(*,*) "+++++++ edisp: ",tb%e_disp 
-      write(*,*) "+++++++  escd: ",tb%e_scd
-      write(*,*) "+++++++   ees: ",tb%e_es
+
+      WRITE (*, *) "+++++++  ehal: ", tb%e_hal
+      WRITE (*, *) "+++++++  erep: ", tb%e_rep
+      WRITE (*, *) "+++++++ edisp: ", tb%e_disp
+      WRITE (*, *) "+++++++  escd: ", tb%e_scd
+      WRITE (*, *) "+++++++   ees: ", tb%e_es
 
 #else
       CPABORT("Build without TBLITE")
@@ -363,9 +368,9 @@ CONTAINS
          IF (i_type == tb%el_num(id_atom)) EXIT
       END DO
       param%z = i_type
-      param%symbol= element_symbol
+      param%symbol = element_symbol
       param%defined = .TRUE.
-      
+
       !getting size information
       nset = tb%calc%bas%nsh_at(id_atom)
       nshell = 1
@@ -718,6 +723,7 @@ CONTAINS
          DEALLOCATE (oint, owork, sint, hint)
 
       END DO
+      CALL neighbor_list_iterator_release(nl_iterator)
 
       DO i = 1, SIZE(matrix_s, 1)
          DO img = 1, nimg
@@ -756,15 +762,17 @@ CONTAINS
 !> \param para_env ...
 !> \param dft_control ...
 !> \param tb ...
+!> \param charges ...
 !> \param calculate_forces ...
 ! **************************************************************************************************
-   SUBROUTINE tb_update_charges(qs_env, para_env, dft_control, tb, calculate_forces)
+   SUBROUTINE tb_update_charges(qs_env, para_env, dft_control, tb, charges, calculate_forces)
 
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(mp_para_env_type), POINTER                    :: para_env
-      TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(tblite_type), POINTER                         :: tb
-      LOGICAL, INTENT(IN)                                :: calculate_forces
+      TYPE(qs_environment_type), POINTER                       :: qs_env
+      TYPE(mp_para_env_type), POINTER                          :: para_env
+      TYPE(dft_control_type), POINTER                          :: dft_control
+      TYPE(tblite_type), POINTER                               :: tb
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), INTENT(OUT) :: charges
+      LOGICAL, INTENT(IN)                                      :: calculate_forces
 
       INTEGER                                            :: iatom, ikind, is, atom_a, ii, ns
       INTEGER                                            :: nimg, nkind, natom, nsgf, natorb, na
@@ -773,7 +781,7 @@ CONTAINS
       INTEGER, DIMENSION(25)                             :: lao
       INTEGER, DIMENSION(25)                             :: nao
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: mcharge
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: aocg, charges
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: aocg
 
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s, matrix_p
@@ -818,7 +826,7 @@ CONTAINS
             atom_a = atomic_kind_set(ikind)%atom_list(iatom)
             DO is = 1, natorb
                ns = lao(is) + 1
-               ref_occ=tb%calc%h0%refocc(nao(is), atom_a)/(2*lao(is) + 1)
+               ref_occ = tb%calc%h0%refocc(nao(is), atom_a)/(2*lao(is) + 1)
                charges(atom_a, ns) = aocg(is, atom_a) - ref_occ + charges(atom_a, ns)
             END DO
          END DO
@@ -830,10 +838,13 @@ CONTAINS
       ELSE
          CALL get_qs_env(qs_env=qs_env, scf_env=scf_env)
          CALL charge_mixing(scf_env%mixing_method, scf_env%mixing_store, &
-                        charges, para_env, scf_env%iter_count)
+                            charges, para_env, scf_env%iter_count)
       END IF
 
       !setting new wave function
+      CALL tb%pot%reset
+      tb%e_es = 0.0_dp
+      tb%e_scd = 0.0_dp
       DO iatom = 1, natom
          ii = tb%calc%bas%ish_at(iatom)
          DO is = 1, tb%calc%bas%nsh_at(iatom)
@@ -841,9 +852,7 @@ CONTAINS
          END DO
          mcharge(iatom, 1) = SUM(charges(iatom, :))
          tb%wfn%qat(iatom, 1) = -mcharge(iatom, 1)
-         write(*,*) "++++++++++++  dQatom: ",charges(iatom, :)
       END DO
-      write(*,*) "++++++++++++++++++++++  dQ Atom: ",mcharge(:, 1)
 
       IF (ALLOCATED(tb%calc%coulomb)) THEN
          CALL tb%calc%coulomb%get_potential(tb%mol, tb%cache, tb%wfn, tb%pot)
@@ -852,20 +861,189 @@ CONTAINS
          CALL tb%calc%dispersion%get_potential(tb%mol, tb%dcache, tb%wfn, tb%pot)
       END IF
 
+      WRITE (*, *) '>>>>>>>>>>>>>>>>>  qsh: ', tb%wfn%qsh(:, 1)
+      WRITE (*, *) '>>>>>>>>>>>>>>>>>  qat: ', tb%wfn%qat(:, 1)
       IF (ALLOCATED(tb%calc%coulomb)) THEN
          CALL tb%calc%coulomb%get_energy(tb%mol, tb%cache, tb%wfn, tb%e_es)
+         WRITE (*, *) '>>>>>>>>> ees: ', tb%e_es
       END IF
       IF (ALLOCATED(tb%calc%dispersion)) THEN
          CALL tb%calc%dispersion%get_energy(tb%mol, tb%dcache, tb%wfn, tb%e_scd)
       END IF
 
-      DEALLOCATE (mcharge, charges)
+      DEALLOCATE (mcharge)
 
 #else
       CPABORT("Build without TBLITE")
 #endif
 
    END SUBROUTINE tb_update_charges
+
+   ! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param tb ...
+!> \param ks_matrix ...
+!> \param dft_control ...
+!> \param charges ...
+!> \param calculate_forces ...
+! **************************************************************************************************
+   SUBROUTINE tb_ham_add_coulomb(qs_env, tb, ks_matrix, dft_control, charges, calculate_forces)
+
+      TYPE(qs_environment_type), POINTER                       :: qs_env
+      TYPE(tblite_type), POINTER                               :: tb
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER             :: ks_matrix
+      TYPE(dft_control_type), POINTER                          :: dft_control
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)               :: charges
+      LOGICAL, INTENT(IN)                                      :: calculate_forces
+
+      INTEGER                                            :: ikind, jkind, iatom, jatom, icol, irow
+      INTEGER                                            :: ic, is, nimg, blk, ni, nj, i, j
+      INTEGER                                            :: la, lb, za, zb
+      LOGICAL                                            :: found
+      INTEGER, DIMENSION(3)                              :: cellind
+      INTEGER, DIMENSION(25)                             :: laoa, laob
+      REAL(KIND=dp), DIMENSION(3)                        :: rij
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of, sum_shell
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ashift, bshift
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: ksblock, sblock
+      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
+
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(dbcsr_iterator_type)                          :: iter
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(neighbor_list_iterator_p_type), &
+         DIMENSION(:), POINTER                           :: nl_iterator
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: n_list
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(xtb_atom_type), POINTER                       :: xtb_atom_a, xtb_atom_b
+
+#if defined(__TBLITE)
+
+      nimg = dft_control%nimages
+
+      NULLIFY (matrix_s, n_list)
+      CALL get_qs_env(qs_env=qs_env, sab_orb=n_list, matrix_s_kp=matrix_s, qs_kind_set=qs_kind_set)
+
+      !creating sum of shell lists
+      ALLOCATE (sum_shell(tb%mol%nat))
+      i = 0
+      DO j = 1, tb%mol%nat
+         sum_shell(j) = i
+         i = i + tb%calc%bas%nsh_at(j)
+      END DO
+
+      IF (nimg == 1) THEN
+         ! no k-points; all matrices have been transformed to periodic bsf
+         CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set)
+         CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
+                                  kind_of=kind_of)
+         CALL dbcsr_iterator_start(iter, matrix_s(1, 1)%matrix)
+         DO WHILE (dbcsr_iterator_blocks_left(iter))
+            CALL dbcsr_iterator_next_block(iter, irow, icol, sblock, blk)
+
+            ikind = kind_of(irow)
+            jkind = kind_of(icol)
+
+            ! atomic parameters
+            CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_atom_a)
+            CALL get_qs_kind(qs_kind_set(jkind), xtb_parameter=xtb_atom_b)
+            CALL get_xtb_atom_param(xtb_atom_a, z=za, lao=laoa)
+            CALL get_xtb_atom_param(xtb_atom_b, z=zb, lao=laob)
+
+            ni = SIZE(sblock, 1)
+            ALLOCATE (ashift(ni, ni))
+            ashift = 0.0_dp
+            DO i = 1, ni
+               la = laoa(i) + 1 + sum_shell(irow)
+               ashift(i, i) = tb%pot%vsh(la, 1)
+            END DO
+
+            nj = SIZE(sblock, 2)
+            ALLOCATE (bshift(nj, nj))
+            bshift = 0.0_dp
+            DO j = 1, nj
+               lb = laob(j) + 1 + sum_shell(icol)
+               bshift(j, j) = tb%pot%vsh(lb, 1)
+            END DO
+
+            DO is = 1, SIZE(ks_matrix, 1)
+               NULLIFY (ksblock)
+               CALL dbcsr_get_block_p(matrix=ks_matrix(is, 1)%matrix, &
+                                      row=irow, col=icol, block=ksblock, found=found)
+               CPASSERT(found)
+               ksblock = ksblock - 0.5_dp*( &
+                         MATMUL(ashift, sblock) + MATMUL(sblock, bshift))
+            END DO
+            DEALLOCATE (ashift, bshift)
+         END DO
+         CALL dbcsr_iterator_stop(iter)
+      ELSE
+
+         NULLIFY (kpoints)
+         CALL get_qs_env(qs_env=qs_env, kpoints=kpoints)
+         NULLIFY (cell_to_index)
+         CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index)
+
+         CALL neighbor_list_iterator_create(nl_iterator, n_list)
+         DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
+            CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
+                                   iatom=iatom, jatom=jatom, r=rij, cell=cellind)
+
+            icol = MAX(iatom, jatom)
+            irow = MIN(iatom, jatom)
+
+            !ishift = tb%pot%vat(icol, 1)
+
+            ic = cell_to_index(cellind(1), cellind(2), cellind(3))
+            CPASSERT(ic > 0)
+
+            NULLIFY (sblock)
+            CALL dbcsr_get_block_p(matrix=matrix_s(1, ic)%matrix, &
+                                   row=irow, col=icol, block=sblock, found=found)
+            CPASSERT(found)
+
+            ! atomic parameters
+            CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_atom_a)
+            CALL get_qs_kind(qs_kind_set(jkind), xtb_parameter=xtb_atom_b)
+            CALL get_xtb_atom_param(xtb_atom_a, z=za, lao=laoa)
+            CALL get_xtb_atom_param(xtb_atom_b, z=zb, lao=laob)
+
+            ni = SIZE(sblock, 1)
+            ALLOCATE (ashift(ni, ni))
+            ashift = 0.0_dp
+            DO i = 1, ni
+               la = laoa(i) + 1 + sum_shell(irow)
+               ashift(i, i) = tb%pot%vsh(la, 1)
+            END DO
+
+            nj = SIZE(sblock, 2)
+            ALLOCATE (bshift(nj, nj))
+            bshift = 0.0_dp
+            DO j = 1, nj
+               lb = laob(j) + 1 + sum_shell(icol)
+               bshift(j, j) = tb%pot%vsh(lb, 1)
+            END DO
+
+            DO is = 1, SIZE(ks_matrix, 1)
+               NULLIFY (ksblock)
+               CALL dbcsr_get_block_p(matrix=ks_matrix(is, ic)%matrix, &
+                                      row=irow, col=icol, block=ksblock, found=found)
+               CPASSERT(found)
+               ksblock = ksblock - 0.5_dp*( &
+                         MATMUL(ashift, sblock) + MATMUL(sblock, bshift))
+            END DO
+         END DO
+         CALL neighbor_list_iterator_release(nl_iterator)
+      END IF
+
+#else
+      CPABORT("Build without TBLITE")
+#endif
+
+   END SUBROUTINE tb_ham_add_coulomb
 
 END MODULE tblite_interface
 

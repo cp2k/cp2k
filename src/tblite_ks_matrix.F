@@ -38,6 +38,7 @@ MODULE tblite_ks_matrix
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE tblite_interface,                ONLY: tb_get_energy,&
+                                              tb_ham_add_coulomb,&
                                               tb_update_charges
 #include "./base/base_uses.f90"
 
@@ -70,6 +71,7 @@ CONTAINS
                                                             nspins
       LOGICAL                                            :: do_efield
       REAL(KIND=dp)                                      :: pc_ener, qmmm_el
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: charges
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_p1, mo_derivs
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_matrix, matrix_h
@@ -115,10 +117,12 @@ CONTAINS
       CPASSERT(ASSOCIATED(rho))
       CPASSERT(SIZE(ks_matrix) > 0)
 
+      !WRITE (*, *) "::::::::::::::::: building GFN1 matrix, ks_matrix, in:"
       DO ispin = 1, nspins
          DO img = 1, nimg
             ! copy the core matrix into the fock matrix
             CALL dbcsr_copy(ks_matrix(ispin, img)%matrix, matrix_h(1, img)%matrix)
+            !CALL dbcsr_print(ks_matrix(ispin, img)%matrix)
          END DO
       END DO
 
@@ -129,6 +133,10 @@ CONTAINS
       ELSE
          do_efield = .FALSE.
       END IF
+
+      CALL tb_update_charges(qs_env, para_env, dft_control, qs_env%tb_tblite, charges, calculate_forces)
+
+      CALL tb_ham_add_coulomb(qs_env, qs_env%tb_tblite, ks_matrix, dft_control, charges, calculate_forces)
 
       IF (qs_env%qmmm) THEN
          CPASSERT(SIZE(ks_matrix, 2) == 1)
@@ -145,8 +153,6 @@ CONTAINS
          pc_ener = qs_env%ks_qmmm_env%pc_ener
          energy%qmmm_el = energy%qmmm_el + pc_ener
       END IF
-
-      CALL tb_update_charges(qs_env, para_env, dft_control, qs_env%tb_tblite, calculate_forces)
 
       CALL tb_get_energy(qs_env%tb_tblite, energy)
 
@@ -196,6 +202,11 @@ CONTAINS
             END DO
          END BLOCK
       END IF
+
+      !WRITE (*, *) "::::::::::::::::: built GFN1 matrix, ks_matrix, out:"
+      !DO ispin = 1, nspins
+      !   CALL dbcsr_print(ks_matrix(ispin, 1)%matrix)
+      !END DO
 
       CALL timestop(handle)
 
