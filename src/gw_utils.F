@@ -1263,6 +1263,13 @@ CONTAINS
 
       END DO
 
+      ! Marek : In the RTBSE run, check also for zero frequency W
+      IF (bs_env%rtp_method == rtp_method_bse) THEN
+         WRITE (f_W_t, '(3A,I1,A)') TRIM(prefix), "W_freq_rtp", "_0", 0, ".matrix"
+         INQUIRE (file=TRIM(f_W_t), exist=W_time_exists)
+         bs_env%all_W_exist = bs_env%all_W_exist .AND. W_time_exists
+      END IF
+
       IF (bs_env%all_W_exist) THEN
          bs_env%read_chi(:) = .FALSE.
          bs_env%calc_chi(:) = .FALSE.
@@ -1503,7 +1510,7 @@ CONTAINS
       ! for periodic systems and for 20 minimax points, we use a regularized minimax mesh
       ! (from experience: regularized minimax meshes converges faster for periodic systems
       !  and for 20 pts)
-      IF (SUM(bs_env%periodic) .NE. 0 .OR. bs_env%num_time_freq_points == 20) THEN
+      IF (SUM(bs_env%periodic) .NE. 0 .OR. bs_env%num_time_freq_points >= 20) THEN
          bs_env%regularization_minimax = 1.0E-6_dp
       ELSE
          bs_env%regularization_minimax = 0.0_dp

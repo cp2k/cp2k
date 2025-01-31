@@ -2670,9 +2670,9 @@ CONTAINS
                                 i_val=dft_control%rtp_control%aspc_order)
       CALL section_vals_val_get(rtp_section, "EXP_ACCURACY", &
                                 r_val=dft_control%rtp_control%eps_exp)
-      CALL section_vals_val_get(rtp_section, "RTP_METHOD", &
+      CALL section_vals_val_get(rtp_section, "RTBSE%_SECTION_PARAMETERS_", &
                                 i_val=dft_control%rtp_control%rtp_method)
-      CALL section_vals_val_get(rtp_section, "RTBSE_HAMILTONIAN", &
+      CALL section_vals_val_get(rtp_section, "RTBSE%RTBSE_HAMILTONIAN", &
                                 i_val=dft_control%rtp_control%rtbse_ham)
       CALL section_vals_val_get(rtp_section, "PROPAGATOR", &
                                 i_val=dft_control%rtp_control%propagator)

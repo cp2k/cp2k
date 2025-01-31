@@ -77,7 +77,8 @@ MODULE rt_bse
    USE dbt_api, ONLY: dbt_clear, &
                       dbt_contract, &
                       dbt_copy_matrix_to_tensor, &
-                      dbt_copy_tensor_to_matrix
+                      dbt_copy_tensor_to_matrix, &
+                      dbt_type
    USE libint_2c_3c, ONLY: libint_potential_type
    USE mp2_ri_2c, ONLY: RI_2c_integral_mat
    USE qs_tensors, ONLY: neighbor_list_3c_destroy, &
@@ -171,10 +172,19 @@ MODULE rt_bse
 
    #:include "rt_bse_macros.fypp"
 
-   PUBLIC :: run_propagation_bse
+   PUBLIC :: run_propagation_bse, &
+             get_hartree, &
+             get_sigma
 
    INTERFACE get_sigma
-      MODULE PROCEDURE get_sigma_dbcsr, get_sigma_real, get_sigma_complex
+      MODULE PROCEDURE get_sigma_complex, &
+         get_sigma_real, &
+         get_sigma_dbcsr, &
+         get_sigma_noenv
+   END INTERFACE
+   INTERFACE get_hartree
+      MODULE PROCEDURE get_hartree_env, &
+         get_hartree_noenv
    END INTERFACE
 
 CONTAINS
@@ -236,58 +246,8 @@ CONTAINS
          ! Update the simulation time
          rtbse_env%sim_time = REAL(i, dp)*rtbse_env%sim_dt
          rtbse_env%sim_step = i
-         ! Start the enforced time reversal method
-         ! This method determines the density matrix at time (t+dt) by guessing the effective Hamiltonian at (t + dt)
-         ! and using the Hamiltonian at time (t), it propagates density from time (t) while ensuring that the density
-         ! at (t + dt/2) is the same for both forward and backwards propagation. Then, density at (t + dt) is
-         ! used to calculate the new Hamiltonian at (t+dt), which is then used to get the new propagator, and so on
-         ! until the density matrix does not change within certain limit
-         ! Pseudocode of the algorithm
-         !      rho_M = exp(-i S^(-1) H[rho(t)] dt/2) rho(t) exp(i H[rho(t)] S^(-1) dt/2)
-         !      rho(t+dt, 0) = rho_M
-         !      for j in 1,max_self_iter
-         !              rho(t+dt,j) = exp(- i S^(-1) H[rho(t+dt,j-1)] dt/2) rho_M exp(i H [rho(t+dt,j-1)] S^(-1) dt/2)
-         !              if ||rho(t+dt,j) - rho(t+dt,j-1)|| < epsilon
-         !                      break
-         ! *************** Determine rho_M ***************
-         ! Update the effective Hamiltonian
-         !  - sets the correct external field, updates Hartree and COHSEX terms to current density
-         CALL update_effective_ham(rtbse_env, rtbse_env%rho)
-         ! Convert the effective hamiltonian into the exponential
-         ! TODO : Store the result more explicitly - explicit dependence on input/output matrices
-         CALL ham_to_exp(rtbse_env)
-         ! Propagate the density to mid-point
-         CALL propagate_density(rtbse_env, rtbse_env%ham_workspace, rtbse_env%rho, rtbse_env%rho_M)
-         ! In initial iteration, copy rho_M to rho_new_last - that is our initial guess
-         DO j = 1, rtbse_env%n_spin
-            CALL cp_cfm_to_cfm(rtbse_env%rho_M(j), rtbse_env%rho_new_last(j))
-         END DO
-         ! *********** Start the self-consistent loop ************************
-         ! The guess Hamiltonian uses the guess density and field from the next timestep
-         rtbse_env%sim_time = REAL(i + 1, dp)*rtbse_env%sim_dt
-         rtbse_env%sim_step = i + 1
-         converged = .FALSE.
-         ! Prints the grid for etrs info dumping - only for log level > medium
-         CALL print_etrs_info_header(rtbse_env)
-         DO k = 1, rtbse_env%etrs_max_iter
-            CALL update_effective_ham(rtbse_env, rtbse_env%rho_new_last)
-            CALL ham_to_exp(rtbse_env)
-            CALL propagate_density(rtbse_env, rtbse_env%ham_workspace, rtbse_env%rho_M, rtbse_env%rho_new)
-            ! *** Self-consistency check ***
-            metric = rho_metric(rtbse_env%rho_new, rtbse_env%rho_new_last, rtbse_env%n_spin)
-            ! ETRS info - only for log level > medium
-            CALL print_etrs_info(rtbse_env, k, metric)
-            IF (metric < rtbse_env%etrs_threshold) THEN
-               converged = .TRUE.
-               EXIT
-            ELSE
-               ! Copy rho_new to rho_new_last
-               DO j = 1, rtbse_env%n_spin
-                  ! Leaving for free convergence
-                  CALL cp_cfm_to_cfm(rtbse_env%rho_new(j), rtbse_env%rho_new_last(j))
-               END DO
-            END IF
-         END DO
+         ! Carry out the ETRS self-consistent propagation - propagates rho to rho_new (through rho_M)
+         CALL etrs_scf_loop(rtbse_env, rtbse_env%rho, rtbse_env%rho_M, rtbse_env%rho_new, converged, k, metric)
          CALL get_electron_number(rtbse_env, rtbse_env%rho_new, enum_re, enum_im)
          IF (.FALSE.) THEN
             ! Not all of these are used, but they are all good metrics to check the convergence in problematic cases
@@ -302,7 +262,7 @@ CONTAINS
             END DO
          END IF
          CALL print_timestep_info(rtbse_env, i, metric, enum_re, k)
-         CPASSERT(converged)
+         IF (.NOT. converged) CPABORT("ETRS did not converge")
          DO j = 1, rtbse_env%n_spin
             CALL cp_cfm_to_cfm(rtbse_env%rho_new(j), rtbse_env%rho(j))
          END DO
@@ -474,7 +434,7 @@ CONTAINS
       ! Calculate the original Hartree potential
       ! Uses rho_orig - same as rho for initial run but different for continued run
       DO i = 1, rtbse_env%n_spin
-         CALL get_hartree_local(rtbse_env, rtbse_env%rho_orig(i), rtbse_env%hartree_curr(i))
+         CALL get_hartree(rtbse_env, rtbse_env%rho_orig(i), rtbse_env%hartree_curr(i))
          ! Scaling by spin degeneracy
          CALL cp_fm_scale(rtbse_env%spin_degeneracy, rtbse_env%hartree_curr(i))
          ! Subtract the reference from the reference Hamiltonian
@@ -531,7 +491,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ! Report application
-      IF (rtbse_env%unit_nr > 0) WRITE (rtbse_env%unit_nr, '(A27)') ' RTBSE| Applying delta pulse'
+      IF (rtbse_env%unit_nr > 0) WRITE (rtbse_env%unit_nr, '(A28)') ' RTBSE| Applying delta pulse'
       ! Extra minus for the propagation of density
       intensity = -rtbse_env%dft_control%rtp_control%delta_pulse_scale
       metric = 0.0_dp
@@ -556,17 +516,17 @@ CONTAINS
                             0.0_dp, rtbse_env%real_workspace(2))
          DO i = 1, rtbse_env%n_spin
             ! Sets real part to zero
-            CALL cp_fm_to_cfm(msourcei=rtbse_env%real_workspace(2), mtarget=rtbse_env%ham_effective(i))
+            CALL cp_fm_to_cfm(msourcei=rtbse_env%real_workspace(2), mtarget=rtbse_env%ham_workspace(i))
          END DO
       ELSE IF (rtbse_env%mat_exp_method == do_exact) THEN
          DO i = 1, rtbse_env%n_spin
-            CALL cp_fm_to_cfm(msourcer=rtbse_env%real_workspace(1), mtarget=rtbse_env%ham_workspace(i))
-            CALL cp_cfm_gexp(rtbse_env%ham_workspace(i), rtbse_env%S_cfm, rtbse_env%ham_effective(i), &
+            CALL cp_fm_to_cfm(msourcer=rtbse_env%real_workspace(1), mtarget=rtbse_env%ham_effective(i))
+            CALL cp_cfm_gexp(rtbse_env%ham_effective(i), rtbse_env%S_cfm, rtbse_env%ham_workspace(i), &
                              CMPLX(0.0, intensity, kind=dp), rtbse_env%rho_workspace)
          END DO
       END IF
       ! Propagate the density by the effect of the delta pulse
-      CALL propagate_density(rtbse_env, rtbse_env%ham_effective, rtbse_env%rho, rtbse_env%rho_new)
+      CALL propagate_density(rtbse_env, rtbse_env%ham_workspace, rtbse_env%rho, rtbse_env%rho_new)
       metric = rho_metric(rtbse_env%rho_new, rtbse_env%rho, rtbse_env%n_spin)
       IF (rtbse_env%unit_nr > 0) WRITE (rtbse_env%unit_nr, ('(A42,E38.8E3)')) " RTBSE| Metric difference after delta kick", metric
       ! Copy the new density to the old density
@@ -654,8 +614,10 @@ CONTAINS
 !>                  uses complex_workspace, complex_ham, complex_s, real_eigvals and exp_eigvals.
 !>                  Results are stored in ham_workspace.
 ! **************************************************************************************************
-   SUBROUTINE ham_to_exp(rtbse_env)
-      TYPE(rtbse_env_type)                               :: rtbse_env
+   SUBROUTINE ham_to_exp(rtbse_env, ham, ham_exp)
+      TYPE(rtbse_env_type), POINTER                      :: rtbse_env
+      TYPE(cp_cfm_type), DIMENSION(:), POINTER           :: ham, &
+                                                            ham_exp
       CHARACTER(len=*), PARAMETER                        :: routineN = "ham_to_exp"
       INTEGER                                            :: j, handle
       CALL timeset(routineN, handle)
@@ -664,16 +626,16 @@ CONTAINS
             ! In Taylor and BCH, we first evaluate the entire exponent and then evaluate exponential in series
             ! In order to produce correct result, need to remultiply by inverse overlap matrix
             CALL multiply_fm_cfm("N", "N", rtbse_env%n_ao, rtbse_env%n_ao, rtbse_env%n_ao, &
-                                 1.0_dp, rtbse_env%S_inv_fm, rtbse_env%ham_effective(j), &
+                                 1.0_dp, rtbse_env%S_inv_fm, ham(j), &
                                  0.0_dp, rtbse_env%rho_workspace(1))
 
             ! The evolution of density matrix is derived from the right multiplying term
             ! Imaginary part of the exponent = -real part of the matrix
             CALL cp_cfm_scale(CMPLX(0.0, -rtbse_env%sim_dt/2, kind=dp), rtbse_env%rho_workspace(1))
             ! In BCH, exponential is not calculated explicitly, but the propagation is solved in series
-            CALL cp_cfm_to_cfm(rtbse_env%rho_workspace(1), rtbse_env%ham_workspace(j))
+            CALL cp_cfm_to_cfm(rtbse_env%rho_workspace(1), ham_exp(j))
          ELSE IF (rtbse_env%mat_exp_method == do_exact) THEN
-            CALL cp_cfm_gexp(rtbse_env%ham_effective(j), rtbse_env%S_cfm, rtbse_env%ham_workspace(j), &
+            CALL cp_cfm_gexp(ham(j), rtbse_env%S_cfm, ham_exp(j), &
                              CMPLX(0.0, -rtbse_env%sim_dt/2, kind=dp), rtbse_env%rho_workspace)
          ELSE
             CPABORT("Only BCH and Taylor matrix exponentiation implemented")
@@ -689,7 +651,7 @@ CONTAINS
 !> \param rho Real and imaginary parts ( + spin) of the density at current time
 ! **************************************************************************************************
    SUBROUTINE update_effective_ham(rtbse_env, rho)
-      TYPE(rtbse_env_type)                               :: rtbse_env
+      TYPE(rtbse_env_type), POINTER                      :: rtbse_env
       TYPE(cp_cfm_type), DIMENSION(:), POINTER           :: rho
       CHARACTER(len=*), PARAMETER                        :: routineN = "update_effective_ham"
       INTEGER                                            :: k, j, nspin, handle
@@ -730,8 +692,8 @@ CONTAINS
                                    CMPLX(1.0, 0.0, kind=dp), rtbse_env%sigma_SEX(j))
          ! Calculate Hartree potential
          ! Hartree potential is scaled by number of electrons in each MO - spin degeneracy
-         CALL get_hartree_local(rtbse_env, rho(j), &
-                                rtbse_env%hartree_curr(j))
+         CALL get_hartree(rtbse_env, rho(j), &
+                          rtbse_env%hartree_curr(j))
          CALL cp_fm_to_cfm(msourcer=rtbse_env%hartree_curr(j), mtarget=rtbse_env%ham_workspace(1))
          CALL cp_cfm_scale_and_add(CMPLX(1.0, 0.0, kind=dp), rtbse_env%ham_effective(j), &
                                    CMPLX(rtbse_env%spin_degeneracy, 0.0, kind=dp), rtbse_env%ham_workspace(1))
@@ -744,6 +706,79 @@ CONTAINS
       END DO
       CALL timestop(handle)
    END SUBROUTINE update_effective_ham
+! **************************************************************************************************
+!> \brief Self-consistently (ETRS) propagates the density to the next timestep
+!> \note Uses rtbse_env%rho_new_last, assumes correct timestep information is given in rtbse_env
+!> \param rho_start Initial density matrix
+!> \param rho_mid Midpoint density (propagated to by the initial Hamiltonian)
+!> \param rho_end Endpoint density (propagated to by endpoint Hamiltonian)
+!> \param converged Whether the resulting rho_end is self-consistent
+!> \param k How many SC iterations were done
+!> \param metric The difference metric from the last self-consistent iteration (for printing/evaluation)
+! **************************************************************************************************
+   SUBROUTINE etrs_scf_loop(rtbse_env, rho_start, rho_mid, rho_end, converged, k, metric)
+      TYPE(rtbse_env_type), POINTER                     :: rtbse_env
+      TYPE(cp_cfm_type), DIMENSION(:), POINTER          :: rho_start, &
+                                                           rho_mid, &
+                                                           rho_end
+      LOGICAL                                           :: converged
+      INTEGER                                           :: k
+      REAL(kind=dp)                                     :: metric
+      CHARACTER(len=*), PARAMETER                       :: routineN = "etrs_scf_loop"
+      INTEGER                                           :: j, handle
+
+      CALL timeset(routineN, handle)
+
+      ! This method determines the density matrix at time (t+dt) by guessing the effective Hamiltonian at (t + dt)
+      ! and using the Hamiltonian at time (t), it propagates density from time (t) while ensuring that the density
+      ! at (t + dt/2) is the same for both forward and backwards propagation. Then, density at (t + dt) is
+      ! used to calculate the new Hamiltonian at (t+dt), which is then used to get the new propagator, and so on
+      ! until the density matrix does not change within certain limit
+      ! Pseudocode of the algorithm
+      !      rho_M = exp(-i S^(-1) H[rho(t)] dt/2) rho(t) exp(i H[rho(t)] S^(-1) dt/2)
+      !      rho(t+dt, 0) = rho_M
+      !      for j in 1,max_self_iter
+      !              rho(t+dt,j) = exp(- i S^(-1) H[rho(t+dt,j-1)] dt/2) rho_M exp(i H [rho(t+dt,j-1)] S^(-1) dt/2)
+      !              if ||rho(t+dt,j) - rho(t+dt,j-1)|| < epsilon
+      !                      break
+
+      ! Initial setup - calculate the Hamiltonian
+      CALL update_effective_ham(rtbse_env, rho_start)
+      ! Create the exponential
+      CALL ham_to_exp(rtbse_env, rtbse_env%ham_effective, rtbse_env%ham_workspace)
+      ! Propagate to rho_mid
+      CALL propagate_density(rtbse_env, rtbse_env%ham_workspace, rho_start, rho_mid)
+      ! Propagate to initial guess
+      CALL propagate_density(rtbse_env, rtbse_env%ham_workspace, rho_mid, rtbse_env%rho_new_last)
+      ! Update bookkeeping to the next timestep - Hamiltonians are now evaluated at the next timestep
+      rtbse_env%sim_step = rtbse_env%sim_step + 1
+      rtbse_env%sim_time = rtbse_env%sim_time + rtbse_env%sim_dt
+      converged = .FALSE.
+      CALL print_etrs_info_header(rtbse_env)
+      DO k = 1, rtbse_env%etrs_max_iter
+         ! Get the Hamiltonian following from the last timestep
+         CALL update_effective_ham(rtbse_env, rtbse_env%rho_new_last)
+         CALL ham_to_exp(rtbse_env, rtbse_env%ham_effective, rtbse_env%ham_workspace)
+         ! Propagate to new guess
+         CALL propagate_density(rtbse_env, rtbse_env%ham_workspace, rho_mid, rho_end)
+         ! Check for self-consistency
+         metric = rho_metric(rho_end, rtbse_env%rho_new_last, rtbse_env%n_spin)
+         ! ETRS info - only for log level > medium
+         CALL print_etrs_info(rtbse_env, k, metric)
+         IF (metric < rtbse_env%etrs_threshold) THEN
+            converged = .TRUE.
+            EXIT
+         ELSE
+            ! Copy rho_new to rho_new_last
+            DO j = 1, rtbse_env%n_spin
+               ! Leaving for free convergence
+               CALL cp_cfm_to_cfm(rho_end(j), rtbse_env%rho_new_last(j))
+            END DO
+         END IF
+      END DO
+      ! Error handling in the case where the propagation did not converge is left to the main routine
+      CALL timestop(handle)
+   END SUBROUTINE etrs_scf_loop
 
 ! **************************************************************************************************
 !> \brief Does the BCH iterative determination of the exponential
@@ -950,7 +985,7 @@ CONTAINS
 !> \date 09.2024
 ! **************************************************************************************************
    SUBROUTINE get_sigma_complex(rtbse_env, sigma_cfm, prefactor_opt, greens_cfm)
-      TYPE(rtbse_env_type)                               :: rtbse_env
+      TYPE(rtbse_env_type), POINTER                      :: rtbse_env
       TYPE(cp_cfm_type)                                  :: sigma_cfm ! resulting self energy
       REAL(kind=dp), INTENT(IN), OPTIONAL                :: prefactor_opt
       TYPE(cp_cfm_type), INTENT(IN)                      :: greens_cfm ! matrix to contract with RI_W
@@ -983,7 +1018,7 @@ CONTAINS
 !> \date 09.2024
 ! **************************************************************************************************
    SUBROUTINE get_sigma_real(rtbse_env, sigma_fm, prefactor_opt, greens_fm)
-      TYPE(rtbse_env_type)                               :: rtbse_env
+      TYPE(rtbse_env_type), POINTER                      :: rtbse_env
       TYPE(cp_fm_type)                                   :: sigma_fm ! resulting self energy
       REAL(kind=dp), INTENT(IN), OPTIONAL                :: prefactor_opt
       TYPE(cp_fm_type), INTENT(IN)                       :: greens_fm ! matrix to contract with RI_W
@@ -995,23 +1030,57 @@ CONTAINS
       ! Carry out the sigma part twice
       ! Convert to dbcsr
       CALL copy_fm_to_dbcsr(greens_fm, rtbse_env%rho_dbcsr)
-      CALL get_sigma(rtbse_env, sigma_fm, prefactor, rtbse_env%rho_dbcsr)
+      CALL get_sigma_dbcsr(rtbse_env, sigma_fm, prefactor, rtbse_env%rho_dbcsr)
 
    END SUBROUTINE get_sigma_real
 ! **************************************************************************************************
 !> \brief Calculates the self-energy by contraction of screened potential
 !> \note Can be used for both the Coulomb hole part and screened exchange part
-!> \param qs_env Quickstep environment data, entry point of the calculation
 !> \param greens_fm Pointer to the Green's function matrix, which is used as input data
 !> \param sigma_fm Pointer to the self-energy full matrix, which is overwritten by this routine
 !> \author Stepan Marek
 !> \date 01.2024
 ! **************************************************************************************************
    SUBROUTINE get_sigma_dbcsr(rtbse_env, sigma_fm, prefactor_opt, greens_dbcsr)
-      TYPE(rtbse_env_type)                               :: rtbse_env
+      TYPE(rtbse_env_type), POINTER                      :: rtbse_env
       TYPE(cp_fm_type)                                   :: sigma_fm ! resulting self energy
       REAL(kind=dp), INTENT(IN), OPTIONAL                :: prefactor_opt
       TYPE(dbcsr_type)                                   :: greens_dbcsr
+      REAL(kind=dp)                                      :: prefactor
+
+      prefactor = 1.0_dp
+      IF (PRESENT(prefactor_opt)) prefactor = prefactor_opt
+
+      CALL get_sigma_noenv(sigma_fm, prefactor_opt, greens_dbcsr, &
+                           rtbse_env%screened_dbt, rtbse_env%t_3c_w, &
+                           rtbse_env%t_3c_work_RI_AO__AO, rtbse_env%t_3c_work2_RI_AO__AO, &
+                           rtbse_env%greens_dbt)
+   END SUBROUTINE get_sigma_dbcsr
+! **************************************************************************************************
+!> \brief Calculates the self-energy by contraction of screened potential
+!> \note Can be used for both the Coulomb hole part and screened exchange part
+!> \note Separated from the rtbse_env - can be in principle called outside of the RTBSE code
+!> \param sigma_fm Pointer to the self-energy full matrix, which is overwritten by this routine
+!> \param prefactor_opt Optional argument for the prefactor (used for Coulomb hole calculation)
+!> \param greens_dbcsr Matrix storing the lesser Green's function elements
+!> \param screened_dbt Tensor storing the W_PQ screened Coulomb interaction RI matrix elements
+!> \param int_3c_dbt Tensor storing the 3c integrals (RI| ORB ORB )
+!> \param work_dbt_3c_1 Tensor workspace optimised for RI_AO__AO contractions
+!> \param work_dbt_3c_2 Tensor workspace optimised for RI_AO__AO contractions
+!> \param work_dbt_2c Tensor workspace for 2c integrals (Green's function and self-energy)
+!> \author Stepan Marek
+!> \date 01.2025
+! **************************************************************************************************
+   SUBROUTINE get_sigma_noenv(sigma_fm, prefactor_opt, greens_dbcsr, screened_dbt, &
+                              int_3c_dbt, work_dbt_3c_1, work_dbt_3c_2, work_dbt_2c)
+      TYPE(cp_fm_type)                                   :: sigma_fm ! resulting self energy
+      REAL(kind=dp), INTENT(IN), OPTIONAL                :: prefactor_opt
+      TYPE(dbcsr_type)                                   :: greens_dbcsr
+      TYPE(dbt_type)                                     :: screened_dbt, &
+                                                            int_3c_dbt, &
+                                                            work_dbt_3c_1, &
+                                                            work_dbt_3c_2, &
+                                                            work_dbt_2c
       CHARACTER(len=*), PARAMETER                        :: routineN = 'get_sigma'
       REAL(kind=dp)                                      :: prefactor
       TYPE(dbcsr_type)                                   :: sigma_dbcsr
@@ -1032,47 +1101,47 @@ CONTAINS
       ! Probably just use the tensors already present in bs_env? They seem to be mostly work tensors
       ! Create by template
       CALL dbt_contract(alpha=1.0_dp, &
-                        tensor_1=rtbse_env%screened_dbt, &
-                        tensor_2=rtbse_env%t_3c_w, &
+                        tensor_1=screened_dbt, &
+                        tensor_2=int_3c_dbt, &
                         beta=0.0_dp, &
-                        tensor_3=rtbse_env%t_3c_work_RI_AO__AO, &
+                        tensor_3=work_dbt_3c_1, &
                         contract_1=[2], notcontract_1=[1], map_1=[1], &
                         contract_2=[1], notcontract_2=[2, 3], map_2=[2, 3])!,&
       !filter_eps=bs_env%eps_filter)
       ! t_work1 now contains B^P_(nu beta) = sum _ Q W _ (PQ) (iomega = 0) (Q| nu beta)
       ! Next step is to convert the greens full matrix to dbcsr matrix
-      CALL dbt_copy_matrix_to_tensor(greens_dbcsr, rtbse_env%greens_dbt)
+      CALL dbt_copy_matrix_to_tensor(greens_dbcsr, work_dbt_2c)
       ! Then contract it
       ! no scaling applied - this has to be applied externally
       CALL dbt_contract(alpha=1.0_dp, &
-                        tensor_1=rtbse_env%t_3c_work_RI_AO__AO, &
-                        tensor_2=rtbse_env%greens_dbt, &
+                        tensor_1=work_dbt_3c_1, &
+                        tensor_2=work_dbt_2c, &
                         beta=0.0_dp, &
-                        tensor_3=rtbse_env%t_3c_work2_RI_AO__AO, &
+                        tensor_3=work_dbt_3c_2, &
                         contract_1=[2], notcontract_1=[1, 3], map_1=[1, 3], &
                         contract_2=[2], notcontract_2=[1], map_2=[2])
       ! workspace 2 now contains C ^ P _ (mu beta) sum _ nu B ^ P _ (nu beta) g _ (mu nu)
       CALL dbt_contract(alpha=prefactor, &
-                        tensor_1=rtbse_env%t_3c_w, &
-                        tensor_2=rtbse_env%t_3c_work2_RI_AO__AO, &
+                        tensor_1=int_3c_dbt, &
+                        tensor_2=work_dbt_3c_2, &
                         beta=0.0_dp, &
-                        tensor_3=rtbse_env%sigma_dbt, &
+                        tensor_3=work_dbt_2c, &
                         contract_1=[1, 3], notcontract_1=[2], map_1=[1], &
                         contract_2=[1, 2], notcontract_2=[3], map_2=[2])!,&
       !filter_eps=bs_env%eps_filter)
       ! Finally, convert the COH tensor to matrix and then to fm matrix
-      CALL dbcsr_create(sigma_dbcsr, name="sigma", template=rtbse_env%rho_dbcsr)
-      CALL dbt_copy_tensor_to_matrix(rtbse_env%sigma_dbt, sigma_dbcsr)
+      ! TODO : extra workspace?
+      CALL dbcsr_create(sigma_dbcsr, name="sigma", template=greens_dbcsr)
+      CALL dbt_copy_tensor_to_matrix(work_dbt_2c, sigma_dbcsr)
       CALL copy_dbcsr_to_fm(sigma_dbcsr, sigma_fm)
       CALL dbcsr_release(sigma_dbcsr)
       ! Clear workspaces - saves memory?
-      CALL dbt_clear(rtbse_env%t_3c_work_RI_AO__AO)
-      CALL dbt_clear(rtbse_env%t_3c_work2_RI_AO__AO)
-      CALL dbt_clear(rtbse_env%sigma_dbt)
-      CALL dbt_clear(rtbse_env%greens_dbt)
+      CALL dbt_clear(work_dbt_3c_1)
+      CALL dbt_clear(work_dbt_3c_2)
+      CALL dbt_clear(work_dbt_2c)
       CALL timestop(handle)
 
-   END SUBROUTINE get_sigma_dbcsr
+   END SUBROUTINE get_sigma_noenv
 ! **************************************************************************************************
 !> \brief Creates the RI matrix and populates it with correct values
 !> \note Tensor contains Hartree elements in the auxiliary basis
@@ -1162,89 +1231,119 @@ CONTAINS
 !> \param rho_ao Density matrix in ao basis
 !> \param v_ao Overwritten by the Hartree matrix in the atomic orbital basis
 !> \author Stepan Marek
-!> \date 02.2024
+!> \date 01.2025
 ! **************************************************************************************************
-   SUBROUTINE get_hartree_local(rtbse_env, rho_ao, v_ao)
-      TYPE(rtbse_env_type)                               :: rtbse_env
-      TYPE(cp_cfm_type), INTENT(IN)                      :: rho_ao
-      TYPE(cp_fm_type)                                   :: v_ao
-      CHARACTER(len=*), PARAMETER                        :: routineN = "get_hartree_local"
-      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+   SUBROUTINE get_hartree_env(rtbse_env, rho_fm, v_fm)
+      TYPE(rtbse_env_type), POINTER                      :: rtbse_env
+      TYPE(cp_cfm_type)                                  :: rho_fm
+      TYPE(cp_fm_type)                                   :: v_fm
       TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+
+      CALL get_qs_env(rtbse_env%qs_env, para_env=para_env, bs_env=bs_env)
+
+      CALL get_hartree_noenv(v_fm, rho_fm, rtbse_env%int_3c_array, rtbse_env%v_dbcsr, &
+                             rtbse_env%n_RI, bs_env%sizes_RI, &
+                             para_env, rtbse_env%rho_dbcsr, rtbse_env%v_ao_dbcsr)
+   END SUBROUTINE get_hartree_env
+! **************************************************************************************************
+!> \brief Calculates the Hartree matrix in the atomic orbital basis, given a density matrix, in local arrays
+!>        Calculates the values for single spin species present in given rho
+!> \param v_fm Hartree potential in atomic orbital basis - is overwritten by the updated potential
+!> \param rho_fm Density matrix corresponding to single spin species, in atomic orbital basis
+!> \param int_3c Previously allocated array (best to use create_hartree_ri_3c) for 3c integrals
+!> \param v_dbcsr Previously calculated 2c Coulomb repulsion between RI orbitals
+!> \param n_RI Number of RI basis orbitals
+!> \param sizes_RI Number of RI basis orbitals per atom
+!> \param para_env MPI Parallel environment (used for summation across ranks)
+!> \param rho_dbcsr Previously created dbcsr matrix, used as workspace
+!> \param v_ao_dbcsr Previously created dbcsr matrix, used as workspace
+!> \author Stepan Marek
+!> \date 01.2025
+! **************************************************************************************************
+   SUBROUTINE get_hartree_noenv(v_fm, rho_fm, int_3c, v_dbcsr, n_RI, sizes_RI, para_env, rho_dbcsr, v_ao_dbcsr)
+      TYPE(cp_fm_type)                                   :: v_fm
+      TYPE(cp_cfm_type), INTENT(IN)                      :: rho_fm
+      REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: int_3c
+      TYPE(dbcsr_type)                                   :: v_dbcsr
+      INTEGER                                            :: n_RI
+      INTEGER, DIMENSION(:)                              :: sizes_RI
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(dbcsr_type)                                   :: rho_dbcsr, v_ao_dbcsr
+      CHARACTER(len=*), PARAMETER                        :: routineN = "get_hartree"
       TYPE(dbcsr_iterator_type)                          :: iterator_matrix
       INTEGER                                            :: i, j, k, n, nblocks, ind_1, ind_2, row_offset, col_offset, &
-                                                            row_size, col_size, j_n_AO, k_n_AO, i_n_RI, n_RI, &
+                                                            row_size, col_size, j_n_AO, k_n_AO, i_n_RI, &
                                                             ri_offset, ind_i, handle
       REAL(kind=dp), DIMENSION(:), ALLOCATABLE           :: Pvector, Qvector
       REAL(kind=dp), DIMENSION(:, :), POINTER            :: block_matrix
-      REAL(kind=dp), DIMENSION(:, :, :), POINTER         :: int_3c
-      TYPE(dbcsr_type)                                   :: v_dbcsr_ao
+      INTEGER                                            :: nblkrows_local, nblkcols_local, j_blk, k_blk, j_offset, k_offset
+      INTEGER, DIMENSION(:), POINTER                     :: local_blk_rows, local_blk_cols
+      LOGICAL                                            :: found
+
+      MARK_USED(i_n_RI)
+      MARK_USED(ri_offset)
+      MARK_USED(ind_i)
 
       ! No memory optimisation so far - calculate all 3cs an all ranks
       ! Importantly - dbcsr blocks are ordered by atoms - i.e. ethene with 6 atoms will have 6x6 block structure
       ! Number of basis states on each basis set is known is post_scf_bandstructure env
 
       CALL timeset(routineN, handle)
-      ! Get the relevant environments
-      CALL get_qs_env(rtbse_env%qs_env, bs_env=bs_env, para_env=para_env)
-      n_RI = rtbse_env%n_RI
-      int_3c => rtbse_env%int_3c_array
 
       ! Allocate the Q and Pvector on each rank
-      ALLOCATE (Qvector(rtbse_env%n_RI), source=0.0_dp)
-      ALLOCATE (Pvector(rtbse_env%n_RI), source=0.0_dp)
+      ALLOCATE (Qvector(n_RI), source=0.0_dp)
+      ALLOCATE (Pvector(n_RI), source=0.0_dp)
 
       ! First step - analyze the structure of copied dbcsr matrix on all ranks
-      CALL dbcsr_clear(rtbse_env%rho_dbcsr)
+      CALL dbcsr_clear(rho_dbcsr)
       ! Only the real part of the density matrix contributes
-      CALL cp_cfm_to_fm(msource=rho_ao, mtargetr=rtbse_env%real_workspace(1))
-      CALL copy_fm_to_dbcsr(rtbse_env%real_workspace(1), rtbse_env%rho_dbcsr)
-      nblocks = dbcsr_get_num_blocks(rtbse_env%rho_dbcsr)
-      CALL dbcsr_iterator_start(iterator_matrix, rtbse_env%rho_dbcsr)
-      DO n = 1, nblocks
-         CALL dbcsr_iterator_next_block(iterator_matrix, ind_1, ind_2, block_matrix, &
-                                        row_offset=row_offset, col_offset=col_offset, row_size=row_size, col_size=col_size)
-         ! Now we have a block corresponding to a single atom pair
-         j_n_AO = bs_env%sizes_AO(ind_1)
-         k_n_AO = bs_env%sizes_AO(ind_2)
-         ! For each atom pair, we need to get contributions from all RI atoms
-         ! The allocations are as follows
-         ! Now, get the relevant 3c integrals
-         ri_offset = 0
-         DO ind_i = 1, bs_env%n_atom
-            i_n_RI = bs_env%sizes_RI(ind_i)
+      ! Use v_fm as workspace
+      CALL cp_cfm_to_fm(msource=rho_fm, mtargetr=v_fm)
+      CALL copy_fm_to_dbcsr(v_fm, rho_dbcsr)
+      j_offset = 0
+      CALL dbcsr_get_info(rho_dbcsr, nblkrows_local=nblkrows_local, nblkcols_local=nblkcols_local, &
+                          local_rows=local_blk_rows, local_cols=local_blk_cols)
+      DO j_blk = 1, nblkrows_local
+         k_offset = 0
+         DO k_blk = 1, nblkcols_local
+            ! Check whether we can retrieve the rho block
+            ! TODO : Handle transposed case?
+            CALL dbcsr_get_block_p(rho_dbcsr, local_blk_rows(j_blk), local_blk_cols(k_blk), &
+                                   block=block_matrix, found=found, row_size=row_size, col_size=col_size)
+            ! If the block is not found, then the density matrix here has below threshold values
+            IF (.NOT. found) CYCLE
+            ! With the block retrieved, add its contributions to the Q-vector
             !$OMP PARALLEL DO DEFAULT(none) PRIVATE(i,j,k) &
-            !$OMP SHARED(Qvector, int_3c, block_matrix,i_n_RI,j_n_AO,k_n_AO, ri_offset, ind_1, ind_2, ind_i, bs_env)
-            DO i = 1, i_n_RI
-               DO j = 1, j_n_AO
-                  DO k = 1, k_n_AO
-                     ! Different OMP threads write to different places in memory - should be safe from data race
-                     Qvector(ri_offset + i) = Qvector(ri_offset + i) + int_3c(j + bs_env%i_ao_start_from_atom(ind_1) - 1, &
-                                                                              k + bs_env%i_ao_start_from_atom(ind_2) - 1, &
-                                                                              i + bs_env%i_RI_start_from_atom(ind_i) - 1) &
-                                              *block_matrix(j, k)
+            !$OMP SHARED(n_RI, row_size, col_size, Qvector, int_3c, j_offset, k_offset, block_matrix)
+            DO i = 1, n_RI
+               DO j = 1, row_size
+                  DO k = 1, col_size
+                     Qvector(i) = Qvector(i) + int_3c(j_offset + j, k_offset + k, i)*block_matrix(j, k)
                   END DO
                END DO
             END DO
             !$OMP END PARALLEL DO
-            ri_offset = ri_offset + i_n_RI
+            ! Increment k-offset - setup for the next block
+            k_offset = k_offset + col_size
          END DO
+         ! Increments the j-offset - row_size is carried over from the last iteration
+         j_offset = j_offset + row_size
       END DO
-      CALL dbcsr_iterator_stop(iterator_matrix)
       ! Now, each rank has contributions from D_jk within its scope
       ! Need to sum over different ranks to get the total vector on all ranks
       CALL para_env%sum(Qvector)
       ! Once this is done, Pvector is current on all ranks
       ! Continue with V_PQ summation
-      nblocks = dbcsr_get_num_blocks(rtbse_env%v_dbcsr)
-      CALL dbcsr_iterator_start(iterator_matrix, rtbse_env%v_dbcsr)
+      nblocks = dbcsr_get_num_blocks(v_dbcsr)
+      CALL dbcsr_iterator_start(iterator_matrix, v_dbcsr)
       DO n = 1, nblocks
          ! TODO : Try OMP parallelisation over different blocks - expect many more available speedup for large systems
          CALL dbcsr_iterator_next_block(iterator_matrix, ind_1, ind_2, block_matrix, &
                                         row_offset=row_offset, col_offset=col_offset, row_size=row_size, col_size=col_size)
          ! TODO : Better names for RI
-         j_n_AO = bs_env%sizes_RI(ind_1)
-         k_n_AO = bs_env%sizes_RI(ind_2)
+         j_n_AO = sizes_RI(ind_1)
+         k_n_AO = sizes_RI(ind_2)
          ! The allocations are as follows
          !$OMP PARALLEL DO DEFAULT(none) PRIVATE(j,k) &
          !$OMP SHARED(block_matrix, Pvector, Qvector,j_n_AO,k_n_AO,row_offset,col_offset)
@@ -1258,46 +1357,51 @@ CONTAINS
       CALL dbcsr_iterator_stop(iterator_matrix)
       ! Again, make sure that the P vector is present on all ranks
       CALL para_env%sum(Pvector)
-      ! Now, for the final trick, iterate over local blocks of v_dbcsr_ao to get the Hartree as dbcsr, then convert to fm
-      CALL dbcsr_create(v_dbcsr_ao, "Hartree ao", rtbse_env%rho_dbcsr)
-      CALL copy_fm_to_dbcsr(v_ao, v_dbcsr_ao)
-      nblocks = dbcsr_get_num_blocks(v_dbcsr_ao)
-      CALL dbcsr_iterator_start(iterator_matrix, v_dbcsr_ao)
-      DO n = 1, nblocks
-         CALL dbcsr_iterator_next_block(iterator_matrix, ind_1, ind_2, block_matrix, &
-                                        row_offset=row_offset, col_offset=col_offset)
-         j_n_AO = bs_env%sizes_AO(ind_1)
-         k_n_AO = bs_env%sizes_AO(ind_2)
-         ri_offset = 0
-         block_matrix(:, :) = 0.0_dp
-         DO ind_i = 1, bs_env%n_atom
-            i_n_RI = bs_env%sizes_RI(ind_i)
-            ! TODO : In principle, can parallelize over both directions here
+      ! Now, for the final trick, iterate over local blocks of v_ao_dbcsr to get the Hartree as dbcsr, then convert to fm
+      ! TODO : Clear or set blocks to zero
+      ! CALL dbcsr_clear(v_ao_dbcsr)
+      j_offset = 0
+      DO j_blk = 1, nblkrows_local
+         k_offset = 0
+         DO k_blk = 1, nblkcols_local
+            ! Check whether we can retrieve the rho block
+            ! TODO : Handle transposed case?
+            CALL dbcsr_get_block_p(v_ao_dbcsr, local_blk_rows(j_blk), local_blk_cols(k_blk), &
+                                   block=block_matrix, found=found, row_size=row_size, col_size=col_size)
+            ! If the block is not found, reserve it
+            IF (.NOT. found) THEN
+               ! Reservations
+               CALL dbcsr_reserve_blocks(v_ao_dbcsr, local_blk_rows(j_blk:j_blk), local_blk_cols(k_blk:k_blk))
+               ! Rerun the getter to get the new block
+               CALL dbcsr_get_block_p(v_ao_dbcsr, local_blk_rows(j_blk), local_blk_cols(k_blk), &
+                                      block=block_matrix, found=found, row_size=row_size, col_size=col_size)
+            END IF
+            ! With the block retrieved, contract with the P vector
             !$OMP PARALLEL DO DEFAULT(none) PRIVATE(i,j,k) &
-            !$OMP SHARED(block_matrix, Pvector, int_3c, i_n_RI, j_n_AO, k_n_AO, ri_offset, ind_1, ind_2, ind_i, bs_env)
-            DO j = 1, j_n_AO
-               DO k = 1, k_n_AO
-                  ! Add all the summed up values
-                  DO i = 1, i_n_RI
-                     block_matrix(j, k) = block_matrix(j, k) + int_3c(j + bs_env%i_ao_start_from_atom(ind_1) - 1, &
-                                                                      k + bs_env%i_ao_start_from_atom(ind_2) - 1, &
-                                                                  i + bs_env%i_RI_start_from_atom(ind_i) - 1)*Pvector(i + ri_offset)
+            !$OMP SHARED(row_size, col_size, n_RI, block_matrix, Pvector, int_3c, j_offset, k_offset)
+            DO j = 1, row_size
+               DO k = 1, col_size
+                  block_matrix(j, k) = 0.0_dp
+                  DO i = 1, n_RI
+                     block_matrix(j, k) = block_matrix(j, k) + Pvector(i)*int_3c(j_offset + j, k_offset + k, i)
                   END DO
                END DO
             END DO
             !$OMP END PARALLEL DO
-            ri_offset = ri_offset + i_n_RI
+            ! Increment k-offset - setup for the next block
+            k_offset = k_offset + col_size
          END DO
+         ! Increments the j-offset - row_size is carried over from the last iteration
+         j_offset = j_offset + row_size
       END DO
-      CALL dbcsr_iterator_stop(iterator_matrix)
       ! Since P vector was present on all the ranks, v_dbcsr_ao has the complete Hartree result
-      CALL copy_dbcsr_to_fm(v_dbcsr_ao, v_ao)
-      CALL dbcsr_release(v_dbcsr_ao)
+      ! copy_dbcsr_to_fm should set all values in v_fm to zero
+      CALL copy_dbcsr_to_fm(v_ao_dbcsr, v_fm)
       DEALLOCATE (Qvector)
       DEALLOCATE (Pvector)
 
       CALL timestop(handle)
-   END SUBROUTINE get_hartree_local
+   END SUBROUTINE get_hartree_noenv
 ! **************************************************************************************************
 !> \brief Calculates the exponential of a matrix in a generalized eigenvalue problem. Specifically,
 !>        it assumes we have a Hermitian matrix A in the eigenvalue problem AX = BXE, where B is some overlap

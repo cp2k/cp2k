@@ -1598,7 +1598,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: section
 
       TYPE(keyword_type), POINTER                        :: keyword
-      TYPE(section_type), POINTER                        :: print_key, print_section
+      TYPE(section_type), POINTER                        :: print_key, print_section, subsection
 
       NULLIFY (keyword)
       CPASSERT(.NOT. ASSOCIATED(section))
@@ -1672,33 +1672,6 @@ CONTAINS
                           "is an upper bound for the needed one.", &
                           usage="EXP_ACCURACY 1.0E-6", &
                           default_r_val=1.0E-9_dp)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      ! Marek : Controlling flow to GWBSE
-      CALL keyword_create(keyword, __LOCATION__, name="RTP_METHOD", &
-                          description="Which method is used for the time propagation of electronic structure. "// &
-                          "By default, use the TDDFT method. Can also choose RT-BSE method, which propagates the lesser "// &
-                          "Green's function instead of density matrix/molecular orbitals.", &
-                          usage="RTP_METHOD RTBSE", &
-                          default_i_val=rtp_method_tddft, &
-                          enum_c_vals=s2a("TDDFT", "RTBSE"), &
-                          enum_i_vals=(/rtp_method_tddft, rtp_method_bse/), &
-                          enum_desc=s2a("Use TDDFT for density matrix/MO propagation.", &
-                                        "Use RT-BSE for Green's function propagation"))
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      ! Marek : Development option - run GWBSE starting from the KS Hamiltonian
-      CALL keyword_create(keyword, __LOCATION__, name="RTBSE_HAMILTONIAN", &
-                          description="Which Hamiltonian to use as the single-particle Hamiltonian"// &
-                          " in the Green's propagator.", &
-                          usage="RTBSE_HAMILTONIAN G0W0", &
-                          default_i_val=rtp_bse_ham_g0w0, &
-                          enum_c_vals=s2a("KS", "G0W0"), &
-                          enum_i_vals=(/rtp_bse_ham_ks, rtp_bse_ham_g0w0/), &
-                          enum_desc=s2a("Use Kohn-Sham Hamiltonian for Green's propagation.", &
-                                        "Use G0W0 Hamiltonian for Green's function propagation"))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -2040,7 +2013,62 @@ CONTAINS
       CALL section_add_subsection(section, print_section)
       CALL section_release(print_section)
 
+      NULLIFY (subsection)
+      CALL create_rtbse_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
    END SUBROUTINE create_rtp_section
+! **************************************************************************************************
+!> \brief Creates the subsection for specialized options of RTBSE code
+!> \param section The created RTBSE section
+!> \author Stepan Marek
+! **************************************************************************************************
+   SUBROUTINE create_rtbse_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      NULLIFY (keyword)
+      CPASSERT(.NOT. ASSOCIATED(section))
+
+      CALL section_create(section, __LOCATION__, name="RTBSE", &
+                          description="Controls options for the real-time Bethe-Salpeter (RTBSE) propagation. "// &
+                          "Note that running RTBSE requires previous low-scaling "// &
+                          "[GW](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BANDSTRUCTURE.GW) calculation. Also note that "// &
+                          "designating this section as RTBSE run but choosing run type ENERGY leads to potential "// &
+                          "deallocation errors.", &
+                          repeats=.FALSE.)
+
+      ! Marek : Controlling flow to RTBSE
+      CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
+                          description="Which method is used for the time propagation of electronic structure. "// &
+                          "By default, use the TDDFT method. Can also choose RT-BSE method, which propagates the lesser "// &
+                          "Green's function instead of density matrix/molecular orbitals.", &
+                          usage="&RTBSE TDDFT", &
+                          default_i_val=rtp_method_tddft, &
+                          lone_keyword_i_val=rtp_method_bse, &
+                          enum_c_vals=s2a("TDDFT", "RTBSE"), &
+                          enum_i_vals=(/rtp_method_tddft, rtp_method_bse/), &
+                          enum_desc=s2a("Use TDDFT for density matrix/MO propagation.", &
+                                        "Use RT-BSE for Green's function propagation"))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      ! Marek : Development option - run GWBSE starting from the KS Hamiltonian
+      CALL keyword_create(keyword, __LOCATION__, name="RTBSE_HAMILTONIAN", &
+                          description="Which Hamiltonian to use as the single-particle Hamiltonian"// &
+                          " in the Green's propagator.", &
+                          usage="RTBSE_HAMILTONIAN G0W0", &
+                          default_i_val=rtp_bse_ham_g0w0, &
+                          enum_c_vals=s2a("KS", "G0W0"), &
+                          enum_i_vals=(/rtp_bse_ham_ks, rtp_bse_ham_g0w0/), &
+                          enum_desc=s2a("Use Kohn-Sham Hamiltonian for Green's propagation.", &
+                                        "Use G0W0 Hamiltonian for Green's function propagation"))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE create_rtbse_section
 
 ! **************************************************************************************************
 !> \brief      Create CP2K input section for the SCCS model
