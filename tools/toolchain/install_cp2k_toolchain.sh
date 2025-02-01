@@ -428,8 +428,7 @@ while [ $# -ge 1 ]; do
       for ii in ${package_list}; do
         if [ "${ii}" != "intel" ] &&
           [ "${ii}" != "intelmpi" ] &&
-          [ "${ii}" != "amd" ] &&
-          [ "${ii}" != "libsmeagol" ]; then
+          [ "${ii}" != "amd" ]; then
           eval with_${ii}="__INSTALL__"
         fi
       done

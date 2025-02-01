@@ -17,11 +17,8 @@ def main() -> None:
     for version in "sdbg", "ssmp", "pdbg", "psmp":
         with OutputFile(f"Dockerfile.test_{version}", args.check) as f:
             if version in ("ssmp", "psmp"):
-                kwargs = {}
-                if version == "psmp":
-                    kwargs = {"with_libsmeagol": ""}
                 # Use ssmp/psmp as guinea pigs
-                f.write(install_deps_toolchain(with_dbcsr=True, **kwargs))
+                f.write(install_deps_toolchain())
                 f.write(install_dbcsr("toolchain", version))
                 f.write(regtest_cmake("toolchain", version))
             else:
@@ -425,7 +422,6 @@ RUN ./install_dbcsr.sh {profile} {version}
 def install_deps_toolchain(
     base_image: str = "ubuntu:24.04",
     with_gcc: str = "system",
-    with_dbcsr: bool = False,
     **kwargs: str,
 ) -> str:
     output = f"\nFROM {base_image}\n\n"
