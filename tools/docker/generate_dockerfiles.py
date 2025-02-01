@@ -21,114 +21,116 @@ def main() -> None:
                 if version == "psmp":
                     kwargs = {"with_libsmeagol": ""}
                 # Use ssmp/psmp as guinea pigs
-                f.write(toolchain_full(with_dbcsr=True, **kwargs))
+                f.write(install_deps_toolchain(with_dbcsr=True, **kwargs))
                 f.write(install_dbcsr("toolchain", version))
                 f.write(regtest_cmake("toolchain", version))
             else:
-                f.write(toolchain_full() + regtest(version))
+                f.write(install_deps_toolchain())
+                f.write(regtest(version))
 
         with OutputFile(f"Dockerfile.test_generic_{version}", args.check) as f:
-            f.write(toolchain_full(target_cpu="generic") + regtest(version))
+            f.write(install_deps_toolchain(target_cpu="generic"))
+            f.write(regtest(version))
 
     with OutputFile(f"Dockerfile.test_openmpi-psmp", args.check) as f:
-        f.write(toolchain_full(mpi_mode="openmpi"))
+        f.write(install_deps_toolchain(mpi_mode="openmpi"))
         f.write(regtest("psmp"))
 
     with OutputFile(f"Dockerfile.test_fedora-psmp", args.check) as f:
-        f.write(toolchain_full(base_image="fedora:38") + regtest("psmp"))
+        f.write(install_deps_toolchain(base_image="fedora:38"))
+        f.write(regtest("psmp"))
 
-    with OutputFile(f"Dockerfile.test_intel-ssmp", args.check) as f:
-        f.write(toolchain_intel())
-        f.write(regtest("ssmp", intel=True, testopts="--mpiexec mpiexec"))
-
-    with OutputFile(f"Dockerfile.test_intel-psmp", args.check) as f:
-        f.write(toolchain_intel())
-        f.write(regtest("psmp", intel=True, testopts="--mpiexec mpiexec"))
+    for version in "ssmp", "psmp":
+        with OutputFile(f"Dockerfile.test_intel-{version}", args.check) as f:
+            f.write(install_deps_toolchain_intel())
+            f.write(regtest(version, intel=True, testopts="--mpiexec mpiexec"))
 
     with OutputFile(f"Dockerfile.test_nvhpc", args.check) as f:
-        f.write(toolchain_nvhpc())
+        f.write(install_deps_toolchain_nvhpc())
 
     with OutputFile(f"Dockerfile.test_minimal", args.check) as f:
-        f.write(toolchain_ubuntu_nompi())
+        f.write(install_deps_ubuntu())
         f.write(install_dbcsr("minimal", "ssmp"))
         f.write(regtest_cmake("minimal", "ssmp"))
 
     with OutputFile(f"Dockerfile.test_spack", args.check) as f:
-        f.write(spack_env_toolchain() + regtest_cmake("spack", "psmp"))
+        f.write(install_deps_spack())
+        f.write(regtest_cmake("spack", "psmp"))
 
     for version in "ssmp", "psmp":
         with OutputFile(f"Dockerfile.test_asan-{version}", args.check) as f:
-            f.write(toolchain_full() + regtest(version, "local_asan"))
+            f.write(install_deps_toolchain())
+            f.write(regtest(version, "local_asan"))
 
     for version in "sdbg", "pdbg":
         with OutputFile(f"Dockerfile.test_coverage-{version}", args.check) as f:
-            f.write(toolchain_full() + coverage(version))
+            f.write(install_deps_toolchain())
+            f.write(coverage(version))
 
     for gcc_version in 8, 9, 10, 11, 12, 13, 14:
         with OutputFile(f"Dockerfile.test_gcc{gcc_version}", args.check) as f:
             if gcc_version > 8:
-                f.write(toolchain_ubuntu_nompi(gcc_version=gcc_version))
+                f.write(install_deps_ubuntu(gcc_version=gcc_version))
                 f.write(install_dbcsr("ubuntu", "ssmp"))
                 f.write(regtest_cmake("ubuntu", "ssmp"))
             else:
-                f.write(toolchain_ubuntu2004_nompi(gcc_version=gcc_version))
+                f.write(install_deps_ubuntu2004(gcc_version=gcc_version))
                 # Skip some tests due to bug in LDA_C_PMGB06 functional in libxc <5.2.0.
                 f.write(regtest("ssmp", testopts="--skipdir=QS/regtest-rs-dhft"))
 
     with OutputFile("Dockerfile.test_i386", args.check) as f:
-        f.write(
-            toolchain_ubuntu_nompi(
-                base_image="i386/debian:12.5", gcc_version=12, with_libxsmm=False
-            )
-        )
+        base_img = "i386/debian:12.5"
+        f.write(install_deps_ubuntu(base_img, gcc_version=12, with_libxsmm=False))
         f.write(install_dbcsr("ubuntu_i386", "ssmp"))
         f.write(regtest_cmake("ubuntu_i386", "ssmp"))
 
     with OutputFile("Dockerfile.test_arm64-psmp", args.check) as f:
-        f.write(
-            toolchain_full(
-                base_image="arm64v8/ubuntu:24.04",
-                with_libtorch="no",
-                with_deepmd="no",
-            )
-        )
+        base_img = "arm64v8/ubuntu:24.04"
+        f.write(install_deps_toolchain(base_img, with_libtorch="no", with_deepmd="no"))
         f.write(regtest("psmp"))
 
     with OutputFile(f"Dockerfile.test_performance", args.check) as f:
-        f.write(toolchain_full() + performance())
+        f.write(install_deps_toolchain())
+        f.write(performance())
 
     for gpu_ver in "P100", "V100", "A100":
         with OutputFile(f"Dockerfile.test_cuda_{gpu_ver}", args.check) as f:
-            f.write(toolchain_cuda(gpu_ver=gpu_ver) + regtest("psmp", "local_cuda"))
+            f.write(install_deps_toolchain_cuda(gpu_ver=gpu_ver))
+            f.write(regtest("psmp", "local_cuda"))
 
         with OutputFile(f"Dockerfile.test_hip_cuda_{gpu_ver}", args.check) as f:
-            f.write(toolchain_hip_cuda(gpu_ver=gpu_ver) + regtest("psmp", "local_hip"))
+            f.write(install_deps_toolchain_hip_cuda(gpu_ver=gpu_ver))
+            f.write(regtest("psmp", "local_hip"))
 
         with OutputFile(f"Dockerfile.test_performance_cuda_{gpu_ver}", args.check) as f:
-            f.write(toolchain_cuda(gpu_ver=gpu_ver) + performance("local_cuda"))
+            f.write(install_deps_toolchain_cuda(gpu_ver=gpu_ver))
+            f.write(performance("local_cuda"))
 
     for gpu_ver in "Mi50", "Mi100":
         with OutputFile(f"Dockerfile.test_hip_rocm_{gpu_ver}", args.check) as f:
             # ROCm containers require --device, which is not available for docker build.
             # https://rocmdocs.amd.com/en/latest/ROCm_Virtualization_Containers/ROCm-Virtualization-&-Containers.html#docker-hub
-            f.write(toolchain_hip_rocm(gpu_ver=gpu_ver))
+            f.write(install_deps_toolchain_hip_rocm(gpu_ver=gpu_ver))
             f.write(regtest_postponed("psmp", "local_hip"))
 
         with OutputFile(f"Dockerfile.build_hip_rocm_{gpu_ver}", args.check) as f:
-            f.write(toolchain_hip_rocm(gpu_ver=gpu_ver) + build("psmp", "local_hip"))
+            f.write(install_deps_toolchain_hip_rocm(gpu_ver=gpu_ver))
+            f.write(build("psmp", "local_hip"))
 
     with OutputFile(f"Dockerfile.test_conventions", args.check) as f:
-        f.write(toolchain_full() + conventions())
+        f.write(install_deps_toolchain())
+        f.write(conventions())
 
     with OutputFile(f"Dockerfile.test_manual", args.check) as f:
-        f.write(toolchain_full() + manual())
+        f.write(install_deps_toolchain())
+        f.write(manual())
 
     with OutputFile(f"Dockerfile.test_precommit", args.check) as f:
         f.write(precommit())
 
     for name in "aiida", "ase", "gromacs", "i-pi":
         with OutputFile(f"Dockerfile.test_{name}", args.check) as f:
-            f.write(toolchain_ubuntu_nompi())
+            f.write(install_deps_ubuntu())
             f.write(install_dbcsr("ubuntu", "ssmp"))
             f.write(test_3rd_party(name))
 
@@ -420,7 +422,7 @@ RUN ./install_dbcsr.sh {profile} {version}
 
 
 # ======================================================================================
-def toolchain_full(
+def install_deps_toolchain(
     base_image: str = "ubuntu:24.04",
     with_gcc: str = "system",
     with_dbcsr: bool = False,
@@ -434,7 +436,7 @@ def toolchain_full(
 
 
 # ======================================================================================
-def toolchain_ubuntu_nompi(
+def install_deps_ubuntu(
     base_image: str = "ubuntu:24.04", gcc_version: int = 13, with_libxsmm: bool = True
 ) -> str:
     assert gcc_version > 8
@@ -481,7 +483,7 @@ RUN ln -sf /usr/bin/gcc-{gcc_version}      /usr/local/bin/gcc  && \
 
 
 # ======================================================================================
-def toolchain_ubuntu2004_nompi(gcc_version: int = 8) -> str:
+def install_deps_ubuntu2004(gcc_version: int = 8) -> str:
     output = rf"""
 FROM ubuntu:20.04
 
@@ -524,7 +526,7 @@ RUN ln -sf /usr/bin/gcc-{gcc_version}      /usr/local/bin/gcc  && \
 
 
 # ======================================================================================
-def toolchain_intel() -> str:
+def install_deps_toolchain_intel() -> str:
     return rf"""
 FROM intel/hpckit:2024.2.1-0-devel-ubuntu22.04
 
@@ -540,7 +542,7 @@ FROM intel/hpckit:2024.2.1-0-devel-ubuntu22.04
 
 
 # ======================================================================================
-def toolchain_nvhpc() -> str:
+def install_deps_toolchain_nvhpc() -> str:
     return rf"""
 FROM ubuntu:22.04
 
@@ -588,7 +590,7 @@ RUN make -j ARCH=Linux-x86-64-nvhpc VERSION=ssmp cp2k
 
 
 # ======================================================================================
-def toolchain_cuda(gpu_ver: str) -> str:
+def install_deps_toolchain_cuda(gpu_ver: str) -> str:
     return rf"""
 FROM nvidia/cuda:11.8.0-devel-ubuntu22.04
 
@@ -613,7 +615,7 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
 
 
 # ======================================================================================
-def toolchain_hip_cuda(gpu_ver: str) -> str:
+def install_deps_toolchain_hip_cuda(gpu_ver: str) -> str:
     return rf"""
 FROM nvidia/cuda:11.8.0-devel-ubuntu22.04
 
@@ -720,7 +722,7 @@ RUN hipconfig
 
 
 # ======================================================================================
-def toolchain_hip_rocm(gpu_ver: str) -> str:
+def install_deps_toolchain_hip_rocm(gpu_ver: str) -> str:
     return rf"""
 FROM rocm/dev-ubuntu-22.04:5.3.2-complete
 
@@ -812,7 +814,7 @@ RUN ./scripts/generate_arch_files.sh && rm -rf ./build
 
 
 # ======================================================================================
-def spack_env_toolchain() -> str:
+def install_deps_spack() -> str:
     return rf"""
 FROM ubuntu:24.04
 
