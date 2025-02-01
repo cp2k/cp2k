@@ -189,10 +189,9 @@ elif [[ "${PROFILE}" == "ubuntu" ]] && [[ "${VERSION}" == "ssmp" ]]; then
     -Werror=dev \
     -DCP2K_BLAS_VENDOR=OpenBLAS \
     -DCP2K_USE_LIBINT2=ON \
-    -DCP2K_USE_LIBXC=ON \
     -DCP2K_USE_FFTW3=ON \
-    -DCP2K_USE_LIBXC=OFF \
     -DCP2K_USE_LIBXSMM=ON \
+    -DCP2K_USE_LIBXC=OFF \
     -DCP2K_USE_SPGLIB=OFF \
     -DCP2K_USE_MPI=OFF \
     -DCP2K_USE_MPI_F08=OFF \
@@ -211,8 +210,8 @@ elif [[ "${PROFILE}" == "ubuntu_i386" ]] && [[ "${VERSION}" == "ssmp" ]]; then
     -Werror=dev \
     -DCP2K_BLAS_VENDOR=OpenBLAS \
     -DCP2K_USE_LIBINT2=ON \
-    -DCP2K_USE_LIBXC=ON \
     -DCP2K_USE_FFTW3=ON \
+    -DCP2K_USE_LIBXC=OFF \
     -DCP2K_USE_LIBXSMM=OFF \
     -DCP2K_USE_SPGLIB=OFF \
     -DCP2K_USE_MPI=OFF \
