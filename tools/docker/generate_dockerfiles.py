@@ -127,8 +127,8 @@ def main() -> None:
 
     for name in "aiida", "ase", "gromacs", "i-pi":
         with OutputFile(f"Dockerfile.test_{name}", args.check) as f:
-            f.write(install_deps_ubuntu())
-            f.write(install_dbcsr("ubuntu", "ssmp"))
+            f.write(install_deps_toolchain())
+            f.write(install_dbcsr("toolchain", "ssmp"))
             f.write(test_3rd_party(name))
 
     for name in "misc", "doxygen":
