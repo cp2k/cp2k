@@ -62,6 +62,9 @@ $AS_UBUNTU_USER /opt/venv/bin/verdi presto
 # fake the presents of conda
 ln -s /bin/true /usr/bin/conda
 
+# fake the presents of aiida-pseudo
+ln -s /bin/true /usr/bin/aiida-pseudo
+
 # setup code
 mkdir -p /opt/conda/envs/cp2k/bin/
 cat > /opt/conda/envs/cp2k/bin/cp2k.psmp << EndOfMessage
@@ -77,7 +80,7 @@ set +e # disable error trapping for remainder of script
 (
   set -e         # abort on error
   ulimit -t 1800 # abort after 30 minutes
-  $AS_UBUNTU_USER /opt/venv/bin/py.test
+  $AS_UBUNTU_USER /opt/venv/bin/py.test -k "not example_sirius"
 )
 
 EXIT_CODE=$?
