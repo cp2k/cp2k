@@ -3,7 +3,7 @@
 # author: Ole Schuett
 
 # Compile CP2K.
-./build_cp2k_cmake.sh "ubuntu" "ssmp" || exit 0
+./build_cp2k_cmake.sh "toolchain" "ssmp" || exit 0
 
 echo -e "\n========== Installing Dependencies =========="
 apt-get update -qq
@@ -67,6 +67,7 @@ mkdir -p /opt/conda/envs/cp2k/bin/
 cat > /opt/conda/envs/cp2k/bin/cp2k.psmp << EndOfMessage
 #!/bin/bash -e
 export OMP_NUM_THREADS=2
+source /opt/cp2k-toolchain/install/setup
 /opt/cp2k/build/bin/cp2k.ssmp "\$@"
 EndOfMessage
 chmod +x /opt/conda/envs/cp2k/bin/cp2k.psmp
