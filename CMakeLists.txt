@@ -99,6 +99,7 @@ option(CP2K_ENABLE_CONSISTENCY_CHECKS
 option(CP2K_DEBUG_MODE "Enable several additional options for debugging cp2k."
        OFF)
 option(CP2K_USE_DFTD4 "Enable dispersion coorections DFTD4" OFF)
+option(CP2K_USE_DEEPMD "Enable DeePMD" OFF)
 option(CP2K_USE_SIRIUS "Enable plane wave dft calculations with sirius" OFF)
 option(CP2K_USE_FFTW3 "Use fftw3 for the calculating fast fourier transforms"
        ON)
@@ -698,6 +699,10 @@ if(CP2K_USE_DFTD4)
                       INTERFACE_INCLUDE_DIRECTORIES)
 endif()
 
+if(CP2K_USE_DEEPMD)
+  find_package(DeePMD REQUIRED CONFIG)
+endif()
+
 # SIRIUS
 if(CP2K_USE_SIRIUS)
   find_package(sirius REQUIRED)
@@ -864,6 +869,10 @@ if(CP2K_USE_DFTD4)
   )
 endif()
 
+if(CP2K_USE_DEEPMD)
+  message(" - DeePMD\n\n")
+endif()
+
 if(CP2K_USE_LIBSMEAGOL)
   message(" - LIBSMEAGOL :\n"
           "   - include directories :  ${CP2K_LIBSMEAGOL_INCLUDE_DIRS}\n"
@@ -916,6 +925,10 @@ endif()
 
 if(NOT CP2K_USE_DFTD4)
   message("   - DFTD4")
+endif()
+
+if(NOT CP2K_USE_DFTD4)
+  message("   - DeePMD")
 endif()
 
 if(NOT CP2K_USE_SIRIUS)

@@ -97,6 +97,7 @@ elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "ssmp" ]]; then
     -DCMAKE_INSTALL_LIBDIR=lib \
     -DCP2K_BLAS_VENDOR=OpenBLAS \
     -DCP2K_USE_COSMA=OFF \
+    -DCP2K_USE_DEEPMD=ON \
     -DCP2K_USE_DFTD4=ON \
     -DCP2K_USE_DLAF=OFF \
     -DCP2K_USE_FFTW3=ON \
@@ -133,14 +134,13 @@ elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "sdbg" ]]; then
   CMAKE_EXIT_CODE=$?
 
 elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "psmp" ]]; then
-  # TODO Fix SIRIUS.
-  # https://github.com/cp2k/cp2k/issues/3416
   cmake \
     -GNinja \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
     -DCMAKE_INSTALL_LIBDIR=lib \
     -DCP2K_BLAS_VENDOR=OpenBLAS \
     -DCP2K_USE_COSMA=ON \
+    -DCP2K_USE_DEEPMD=ON \
     -DCP2K_USE_DFTD4=ON \
     -DCP2K_USE_DLAF=OFF \
     -DCP2K_USE_ELPA=ON \
