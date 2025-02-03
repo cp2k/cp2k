@@ -927,7 +927,7 @@ if(NOT CP2K_USE_DFTD4)
   message("   - DFTD4")
 endif()
 
-if(NOT CP2K_USE_DFTD4)
+if(NOT CP2K_USE_DEEPMD)
   message("   - DeePMD")
 endif()
 
