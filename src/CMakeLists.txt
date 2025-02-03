@@ -1620,6 +1620,8 @@ target_link_libraries(
   cp2k_link_libs
   INTERFACE
     $<$<BOOL:${CP2K_USE_DFTD4}>:dftd4::dftd4>
+    $<$<BOOL:${CP2K_USE_DFTD4}>:DeePMD::deepmd
+    DeePMD::deepmd_c>
     $<$<BOOL:${CP2K_USE_SIRIUS}>:sirius::sirius>
     $<$<BOOL:${CP2K_USE_VORI}>:cp2k::VORI::vori>
     $<$<BOOL:${CP2K_USE_SPGLIB}>:Spglib::symspg>
@@ -1669,6 +1671,7 @@ target_compile_definitions(
     $<$<BOOL:${CP2K_USE_SPGLIB}>:__SPGLIB>
     $<$<BOOL:${CP2K_USE_LIBSMEAGOL}>:__SMEAGOL>
     $<$<BOOL:${CP2K_USE_DFTD4}>:__DFTD4>
+    $<$<BOOL:${CP2K_USE_DEEPMD}>:__DEEPMD>
     $<$<BOOL:${CP2K_USE_SIRIUS}>:__SIRIUS>
     $<$<BOOL:${CP2K_USE_SPLA}>:__SPLA>
     $<$<BOOL:${CP2K_USE_SpFFT}>:__SPFFT>
