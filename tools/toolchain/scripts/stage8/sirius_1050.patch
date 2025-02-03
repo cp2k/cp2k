@@ -1,0 +1,24 @@
+From dfb030e1cc2633d34b22c0a81f9c0b79ea4c54b4 Mon Sep 17 00:00:00 2001
+From: Mathieu Taillefumier <mathieu.taillefumier@free.fr>
+Date: Mon, 20 Jan 2025 16:14:32 +0100
+Subject: [PATCH] Add pugixml to sirius_cxxConfig.cmake.in
+
+---
+ cmake/sirius_cxxConfig.cmake.in | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/cmake/sirius_cxxConfig.cmake.in b/cmake/sirius_cxxConfig.cmake.in
+index 5a2f296ce..cc4612d88 100644
+--- a/cmake/sirius_cxxConfig.cmake.in
++++ b/cmake/sirius_cxxConfig.cmake.in
+@@ -90,6 +90,10 @@ if(NOT TARGET sirius::sirius_cxx)
+     find_package(umpire ${mode})
+   endif()
+ 
++  if(@SIRIUS_USE_PUGIXML@)
++    find_package(pugixml ${mode})
++  endif()
++
+   # Clean-up module path.
+   list(REMOVE_ITEM CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/modules")
+ 
