@@ -193,7 +193,7 @@ MODULE qs_scf_post_gpw
    USE scf_control_types,               ONLY: scf_control_type
    USE stm_images,                      ONLY: th_stm_image
    USE transport,                       ONLY: qs_scf_post_transport
-   USE trexio_utils,                    ONLY: write_trexio
+   USE trexio_utils,                    ONLY: write_trexio, read_trexio
    USE virial_types,                    ONLY: virial_type
    USE voronoi_interface,               ONLY: entry_voronoi_or_bqb
    USE xray_diffraction,                ONLY: calculate_rhotot_elec_gspace,&
@@ -1699,6 +1699,7 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos_trexio
       TYPE(molecule_type), POINTER                       :: molecule_set(:)
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -1752,6 +1753,11 @@ CONTAINS
          CALL section_vals_get(trexio_section, explicit=explicit)
          IF (explicit) THEN
             CALL write_trexio(qs_env, trexio_section)
+            ! testing
+            ALLOCATE (mos_trexio(dft_control%nspins))
+            CALL read_trexio(qs_env, trexio_section, mos_trexio)
+            DEALLOCATE (mos_trexio)
+            !!!
          END IF
          IF (.NOT. do_kpoints) THEN
             CALL get_qs_env(qs_env, mos=mos, matrix_ks=ks_rmpv)
