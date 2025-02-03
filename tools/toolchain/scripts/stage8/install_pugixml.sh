@@ -49,7 +49,7 @@ case "${with_pugixml}" in
       cd ..
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage8/$(basename ${SCRIPT_NAME})"
     fi
-    PUGIXML_ROOT="${pkg_install_dir}"
+    pugixml_ROOT="${pkg_install_dir}"
     PUGIXML_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
     ;;
   __SYSTEM__)
@@ -85,14 +85,14 @@ prepend_path LD_LIBRARY_PATH "${pkg_install_dir}/lib"
 prepend_path LD_RUN_PATH "${pkg_install_dir}/lib"
 prepend_path LIBRARY_PATH "${pkg_install_dir}/lib"
 export PUGIXML_LIBS="-lpugixml"
-export PUGIXML_ROOT="${pkg_install_dir}"
+export pugixml_ROOT="${pkg_install_dir}"
 prepend_path CMAKE_PREFIX_PATH "${pkg_install_dir}"
 EOF
   fi
   cat << EOF >> "${BUILDDIR}/setup_pugixml"
 export PUGIXML_LDFLAGS="${SPLA_LDFLAGS}"
 export PUGIXML_LIBRARY="-lpugixml"
-export PUGIXML_ROOT="$pkg_install_dir"
+export pugixml_ROOT="$pkg_install_dir"
 export PUGIXML_VERSION=${pugixml-ver}
 export CP_LIBS="IF_MPI(${PUGIXML_LIBS}|) \${CP_LIBS}"
 EOF

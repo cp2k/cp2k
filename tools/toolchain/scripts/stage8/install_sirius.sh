@@ -121,6 +121,8 @@ case "$with_sirius" in
 
       # Patch SIRIUS 7.6.1 for Libxc 7.0.0
       patch -p1 src/potential/xc_functional_base.hpp < ${SCRIPT_DIR}/stage8/sirius_libxc7.patch
+      # Patch SIRIUS 7.6.1 for pugixml (CMake)
+      patch -p1 cmake/sirius_cxxConfig.cmake.in < ${SCRIPT_DIR}/stage8/sirius_1050.patch
 
       rm -Rf build
       mkdir build
