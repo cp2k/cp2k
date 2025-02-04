@@ -1620,7 +1620,7 @@ target_link_libraries(
   cp2k_link_libs
   INTERFACE
     $<$<BOOL:${CP2K_USE_DFTD4}>:dftd4::dftd4>
-    $<$<BOOL:${CP2K_USE_DFTD4}>:DeePMD::deepmd
+    $<$<BOOL:${CP2K_USE_DEEPMD}>:DeePMD::deepmd
     DeePMD::deepmd_c>
     $<$<BOOL:${CP2K_USE_SIRIUS}>:sirius::sirius>
     $<$<BOOL:${CP2K_USE_VORI}>:cp2k::VORI::vori>
