@@ -170,17 +170,37 @@ MODULE cp_output_handling
       TYPE(cp_unit_nr_for_openpmd_value_type) :: value
    END TYPE cp_unit_nr_for_openpmd
 
-   TYPE(cp_unit_nr_for_openpmd), ALLOCATABLE :: cp_openpmd_files(:)
-   INTEGER :: cp_num_openpmd_files = 0
-   ! @todo: Have different output series per caller
-   TYPE(openpmd_series_type) :: cp_openpmd_output_series
-
    TYPE :: cp_current_iteration_counter_type
       INTEGER :: flat_iteration = 0
       INTEGER, DIMENSION(:), POINTER :: complex_iteration
    END TYPE cp_current_iteration_counter_type
 
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   ! Begin data members for openPMD output. !
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+   ! Map that associates opened unit numbers with their associated openPMD content.
+   ! Since CP2K logically opens a new file for every single dataset, multiple
+   ! unit numbers may point to the same openPMD Series.
+   TYPE(cp_unit_nr_for_openpmd), ALLOCATABLE :: cp_openpmd_files(:)
+   INTEGER :: cp_num_openpmd_files = 0
+
+   ! TODO The below members should be distinguished by their callers, such that
+   !      logically different output is also physically independent from each
+   !      each other. Currently, only one openPMD Series is opened, named after
+   !      the project name and containing everything.
+   !      Similarly, the Iterations are currently still counted globally.
+
+   ! openPMD output Series.
+   TYPE(openpmd_series_type) :: cp_openpmd_output_series
+   ! Information on the last Iteration that was written to, including
+   ! CP2K'2 complex Iteration number and its associated contiguous scalar
+   ! openPMD Iteration number.
    TYPE(cp_current_iteration_counter_type) :: cp_current_iteration_counter
+
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+   ! End data members for openPMD output. !
+   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 CONTAINS
 
