@@ -60,7 +60,7 @@ elif [[ "${PROFILE}" == "toolchain" ]]; then
   # shellcheck disable=SC1091
   source "${TOOLCHAIN_DIR}/install/setup"
 fi
-
+export
 # TODO: Reconcile PROFILE/VERSION with CP2K_BUILD_OPTIONS in CMakeLists.txt.
 if [[ "${PROFILE}" == "spack" ]] && [[ "${VERSION}" == "psmp" ]]; then
   cmake \
@@ -83,6 +83,8 @@ if [[ "${PROFILE}" == "spack" ]] && [[ "${VERSION}" == "psmp" ]]; then
     -DCP2K_USE_ELPA=ON \
     -DCP2K_USE_COSMA=ON \
     -DCP2K_USE_SIRIUS=ON \
+    -DCP2K_USE_GRPP=OFF \
+    -DCP2K_USE_TREXIO=OFF \
     -DCP2K_USE_LIBTORCH=OFF \
     -DCP2K_USE_DLAF=ON \
     -DCP2K_USE_DFTD4=ON \
@@ -109,6 +111,8 @@ elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "ssmp" ]]; then
     -DCP2K_USE_MPI_F08=OFF \
     -DCP2K_USE_SPGLIB=ON \
     -DCP2K_USE_VORI=ON \
+    -DCP2K_USE_GRPP=OFF \
+    -DCP2K_USE_TREXIO=OFF \
     -Werror=dev \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
@@ -158,6 +162,8 @@ elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "psmp" ]]; then
     -DCP2K_USE_SPLA=ON \
     -DCP2K_USE_VORI=ON \
     -DCP2K_USE_HDF5=ON \
+    -DCP2K_USE_GRPP=OFF \
+    -DCP2K_USE_TREXIO=OFF \
     -Werror=dev \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?

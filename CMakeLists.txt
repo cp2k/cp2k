@@ -119,6 +119,8 @@ option(
   CP2K_USE_DLAF
   "Use DLA-Future for Cholesky decompositions and the solution of eigenvalue problems"
   OFF)
+option(CP2K_USE_GRPP "Enable libgrpp support" OFF)
+option(CP2K_USE_TREXIO "Enable trexio support" OFF)
 option(CP2K_USE_HDF5 "Enable HDF5 support" OFF)
 option(CP2K_USE_LIBXSMM "Use libxsmm for small gemms" OFF)
 option(CP2K_USE_LIBSMEAGOL "Enable libsmeagol support" OFF)
@@ -723,6 +725,16 @@ if(CP2K_USE_MPI_F08 AND NOT MPI_Fortran_HAVE_F08_MODULE)
   )
 endif()
 
+if(CP2K_USE_TREXIO)
+  set(CP2K_USE_GRPP ON)
+  message(INFO "GRPP will also be enabled.")
+  find_package(TrexIO REQUIRED)
+endif()
+
+if(CP2K_USE_GRPP)
+  # we need grpp when TREXIO is on
+  find_package(grpp REQUIRED CONFIG)
+endif()
 # OPTION HANDLING
 
 # make sure that the default build type is RELEASE
@@ -912,6 +924,17 @@ if(CP2K_USE_DLAF)
           "   - libraries           :  ${CP2K_DLAF_LINK_LIBRARIES}\n\n")
 endif()
 
+if(CP2K_USE_GRPP)
+  message(" - grpp\n" "   - include directories : ${GRPP_INCLUDE_DIRS}\n"
+          "   - libraries           :  ${GRPP_LINK_LIBRARIES}\n\n")
+endif()
+
+if(CP2K_USE_TREXIO)
+  message(" - trexio\n"
+          "   - include directories : ${CP2K_TREXIO_INCLUDE_DIRS}\n"
+          "   - libraries           :  ${CP2K_TREXIO_LINK_LIBRARIES}\n\n")
+endif()
+
 message(
   "--------------------------------------------------------------------\n"
   "-                                                                  -\n"
@@ -993,6 +1016,14 @@ endif()
 
 if(NOT CP2K_USE_LIBTORCH)
   message("   - libtorch")
+endif()
+
+if(NOT CP2K_USE_TREXIO)
+  message("   - trexio")
+endif()
+
+if(NOT CP2K_USE_GRPP)
+  message("   - grpp")
 endif()
 
 message("\n\n" "To run the regtests you need to run the following commands\n"
