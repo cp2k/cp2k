@@ -42,29 +42,25 @@ case "${with_libgrpp}" in
       [ -d libgrpp-main ] && rm -rf libgrpp-main
       unzip -qq ${libgrpp_pkg}
       cd libgrpp-main
+      patch -Np1 -i ${SCRIPT_DIR}/stage3/grpp-cmake.patch
       mkdir build
       cd build
-      CC=${CC} FC=${FC} cmake .. > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
+      CC=${CC} FC=${FC} cmake -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" -DCMAKE_INSTALL_LIBDIR="lib" .. > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
       make > make.log 2>&1 || tail -n ${LOG_LINES} make.log
-      cd ..
-
-      install -d "${pkg_install_dir}/lib" >> install.log 2>&1
-      install -d "${pkg_install_dir}/include" >> install.log 2>&1
-      install -m 644 build/libgrpp/liblibgrpp.a "${pkg_install_dir}/lib" >> install.log 2>&1
-      install -m 644 build/libgrpp.mod "${pkg_install_dir}/include" >> install.log 2>&1
-
+      make install > make.log 2>&1 || tail -n ${LOG_LINES} make.log
       cd ..
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage3/$(basename ${SCRIPT_NAME})"
     fi
 
-    LIBGRPP_CFLAGS="-I'${pkg_install_dir}/include'"
+    PKG_CONFIG_PATH=${PKG_CONFIG_PATH}:${pkg_install_dir}/lib/pkgconfig:${pkg_install_dir}/lib64/pkgconfig
+    LIBGRPP_CFLAGS=$(pkg-config --cflags libgrpp)
     LIBGRPP_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
     ;;
   __SYSTEM__)
     echo "==================== Finding libgrpp from system paths ===================="
-    check_lib -llibgrpp "libgrpp"
-    add_include_from_paths -p LIBGRPP_CFLAGS "libgrpp" $INCLUDE_PATHS
-    add_lib_from_paths LIBGRPP_LDFLAGS "liblibgrpp.*" $LIB_PATHS
+    check_lib -lgrpp "grpp"
+    add_include_from_paths -p LIBGRPP_CFLAGS "grpp.h" $INCLUDE_PATHS
+    add_lib_from_paths LIBGRPP_LDFLAGS "libgrpp.*" $LIB_PATHS
     ;;
   __DONTUSE__) ;;
 
@@ -78,7 +74,7 @@ case "${with_libgrpp}" in
     ;;
 esac
 if [ "$with_libgrpp" != "__DONTUSE__" ]; then
-  LIBGRPP_LIBS="-llibgrpp"
+  LIBGRPP_LIBS="-lgrpp"
   cat << EOF > "${BUILDDIR}/setup_libgrpp"
 export LIBGRPP_VER="${libgrpp_ver}"
 EOF
@@ -90,6 +86,8 @@ prepend_path LIBRARY_PATH "$pkg_install_dir/lib"
 prepend_path PKG_CONFIG_PATH "$pkg_install_dir/lib/pkgconfig"
 prepend_path CMAKE_PREFIX_PATH "$pkg_install_dir"
 export LIBGRPP_ROOT="${pkg_install_dir}"
+prepend_path PKG_CONFIG_PATH "${pkg_install_dir}/lib/pkgconfig"
+prepend_path CMAKE_PREFIX_PATH "${pkg_install_dir}"
 EOF
     cat "${BUILDDIR}/setup_libgrpp" >> $SETUPFILE
   fi

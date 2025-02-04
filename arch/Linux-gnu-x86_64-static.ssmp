@@ -129,6 +129,7 @@ endif
 ifneq ($(USE_LIBGRPP),)
    USE_LIBGRPP    := $(strip $(USE_LIBGRPP))
    LIBGRPP_INC    := $(INSTALL_PATH)/libgrpp-main-$(USE_LIBGRPP)/include
+   LIBGRPP_INC    += $(INSTALL_PATH)/libgrpp-main-$(USE_LIBGRPP)/include/GNU-$(GNU_VER)/fortran_modules
    LIBGRPP_LIB    := $(INSTALL_PATH)/libgrpp-main-$(USE_LIBGRPP)/lib
    CFLAGS         += -I$(LIBGRPP_INC)
    DFLAGS         += -D__LIBGRPP
