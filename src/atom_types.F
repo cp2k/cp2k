@@ -2980,6 +2980,7 @@ CONTAINS
       SELECT CASE (nel)
       CASE DEFAULT
          CPABORT("Unknown Core State")
+      CASE (0)
       CASE (2)
          potential%econf(0:3) = potential%econf(0:3) - ptable(2)%e_conv(0:3)
       CASE (10)

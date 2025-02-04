@@ -934,6 +934,7 @@ list(
   common/eigenvalueproblems.F
   common/fparser.F
   common/gamma.F
+  common/gfun.F
   common/kahan_sum.F
   common/lebedev.F
   common/linear_systems.F

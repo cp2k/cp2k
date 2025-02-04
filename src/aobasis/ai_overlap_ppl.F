@@ -29,9 +29,11 @@ MODULE ai_overlap_ppl
                                               os_3center
    USE ai_overlap_debug,                ONLY: init_os_overlap2,&
                                               os_overlap2
+   USE gamma,                           ONLY: fgamma => fgamma_0
+   USE gfun,                            ONLY: gfun_values
    USE kinds,                           ONLY: dp
-   USE mathconstants,                   ONLY: fac,&
-                                              pi
+   USE mathconstants,                   ONLY: pi
+   USE mathlib,                         ONLY: binomial
    USE orbital_pointers,                ONLY: indco,&
                                               ncoset
 #include "../base/base_uses.f90"
@@ -44,7 +46,7 @@ MODULE ai_overlap_ppl
 
 ! *** Public subroutines ***
 
-   PUBLIC :: ppl_integral, ppl_integral_ri
+   PUBLIC :: ecploc_integral, ppl_integral, ppl_integral_ri
 
 CONTAINS
 
@@ -182,6 +184,140 @@ CONTAINS
       DEALLOCATE (auxint)
 
    END SUBROUTINE ppl_integral
+
+! **************************************************************************************************
+!> \brief   Calculation of three-center potential integrals <a|V(r)|b> over
+!>          Cartesian Gaussian functions for the local part of ECP
+!>          pseudopotential.  Multiple terms C1-4 are possible.
+!>
+!>           <a|V(ecploc)|b> = <a| C1/r*exp(-a1*r**2) + C2*exp(-a2*r**2) + C3*r*exp(-a3*r**2) +
+!>                                 C4*r**2*exp(-a4*r**2)|b>
+!>
+!> \param la_max_set ...
+!> \param la_min_set ...
+!> \param npgfa ...
+!> \param rpgfa ...
+!> \param zeta ...
+!> \param lb_max_set ...
+!> \param lb_min_set ...
+!> \param npgfb ...
+!> \param rpgfb ...
+!> \param zetb ...
+!> \param nexp_ppl ...
+!> \param alpha_ppl ...
+!> \param nct_ppl ...
+!> \param cexp_ppl ...
+!> \param rpgfc ...
+!> \param rab ...
+!> \param dab ...
+!> \param rac ...
+!> \param dac ...
+!> \param rbc ...
+!> \param dbc ...
+!> \param vab ...
+!> \param s ...
+!> \param pab ...
+!> \param force_a ...
+!> \param force_b ...
+!> \param fs ...
+!> \param hab2 The derivative of the ppl integrals according to the weighting factors deltaR
+!> \param hab2_work ...
+!> \param deltaR Weighting factors for the derivatives wrt. nuclear positions
+!> \param iatom ...
+!> \param jatom ...
+!> \param katom ...
+!> \date    2025
+!> \author  Juerg Hutter
+!> \version 1.0
+! **************************************************************************************************
+   SUBROUTINE ecploc_integral(la_max_set, la_min_set, npgfa, rpgfa, zeta, &
+                              lb_max_set, lb_min_set, npgfb, rpgfb, zetb, &
+                              nexp_ppl, alpha_ppl, nct_ppl, cexp_ppl, rpgfc, &
+                              rab, dab, rac, dac, rbc, dbc, vab, s, pab, &
+                              force_a, force_b, fs, hab2, hab2_work, &
+                              deltaR, iatom, jatom, katom)
+      INTEGER, INTENT(IN)                                :: la_max_set, la_min_set, npgfa
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: rpgfa, zeta
+      INTEGER, INTENT(IN)                                :: lb_max_set, lb_min_set, npgfb
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: rpgfb, zetb
+      INTEGER, INTENT(IN)                                :: nexp_ppl
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: alpha_ppl
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: nct_ppl
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: cexp_ppl
+      REAL(KIND=dp), INTENT(IN)                          :: rpgfc
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rab
+      REAL(KIND=dp), INTENT(IN)                          :: dab
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rac
+      REAL(KIND=dp), INTENT(IN)                          :: dac
+      REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: rbc
+      REAL(KIND=dp), INTENT(IN)                          :: dbc
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: vab
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: s
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
+         OPTIONAL                                        :: pab
+      REAL(KIND=dp), DIMENSION(3), INTENT(OUT), OPTIONAL :: force_a, force_b
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT), &
+         OPTIONAL                                        :: fs, hab2, hab2_work
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
+         OPTIONAL                                        :: deltaR
+      INTEGER, INTENT(IN), OPTIONAL                      :: iatom, jatom, katom
+
+      INTEGER                                            :: iexp, ij, ipgf, jpgf, mmax, nexp
+      REAL(KIND=dp)                                      :: rho, sab, t, zetc
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: auxint
+      REAL(KIND=dp), DIMENSION(3)                        :: pci
+
+      IF (PRESENT(pab)) THEN
+         CPASSERT(PRESENT(force_a))
+         CPASSERT(PRESENT(force_b))
+         CPASSERT(PRESENT(fs))
+         mmax = la_max_set + lb_max_set + 2
+         force_a(:) = 0.0_dp
+         force_b(:) = 0.0_dp
+      ELSE IF (PRESENT(hab2)) THEN
+         mmax = la_max_set + lb_max_set + 2
+      ELSE
+         mmax = la_max_set + lb_max_set
+      END IF
+
+      ALLOCATE (auxint(0:mmax, npgfa*npgfb))
+      auxint = 0._dp
+
+      ! *** Calculate auxiliary integrals ***
+
+      DO ipgf = 1, npgfa
+         ! *** Screening ***
+         IF (rpgfa(ipgf) + rpgfc < dac) CYCLE
+         DO jpgf = 1, npgfb
+            ! *** Screening ***
+            IF ((rpgfb(jpgf) + rpgfc < dbc) .OR. &
+                (rpgfa(ipgf) + rpgfb(jpgf) < dab)) CYCLE
+            ij = (ipgf - 1)*npgfb + jpgf
+            rho = zeta(ipgf) + zetb(jpgf)
+            pci(:) = -(zeta(ipgf)*rac(:) + zetb(jpgf)*rbc(:))/rho
+            sab = EXP(-(zeta(ipgf)*zetb(jpgf)/rho*dab*dab))
+            t = rho*SUM(pci(:)*pci(:))
+
+            DO iexp = 1, nexp_ppl
+               nexp = nct_ppl(iexp)
+               zetc = alpha_ppl(iexp)
+               CALL ecploc_aux(auxint(0:mmax, ij), mmax, t, rho, nexp, cexp_ppl(1, iexp), zetc)
+            END DO
+
+            auxint(0:mmax, ij) = sab*auxint(0:mmax, ij)
+
+         END DO
+      END DO
+
+      CALL os_3center(la_max_set, la_min_set, npgfa, rpgfa, zeta, &
+                      lb_max_set, lb_min_set, npgfb, rpgfb, zetb, auxint, rpgfc, &
+                      rab, dab, rac, dac, rbc, dbc, vab, s, pab, force_a, force_b, fs, &
+                      vab2=hab2, vab2_work=hab2_work, &
+                      deltaR=deltaR, iatom=iatom, jatom=jatom, katom=katom)
+
+      DEALLOCATE (auxint)
+
+   END SUBROUTINE ecploc_integral
 ! **************************************************************************************************
 !> \brief   Calculation of two-center overlap integrals <a|c> over
 !>          Cartesian Gaussian functions for the local part of the Goedecker
@@ -453,29 +589,135 @@ CONTAINS
          DO j = 0, MIN(i, pmax)
             kp = j
             ke = i - j
-            auxint(i) = auxint(i) + expder(ke)*polder(kp)*choose(i, j)
+            auxint(i) = auxint(i) + expder(ke)*polder(kp)*binomial(i, j)
          END DO
       END DO
 
    END SUBROUTINE ppl_aux
 ! **************************************************************************************************
 !> \brief ...
-!> \param n ...
-!> \param k ...
-!> \return ...
+!> \param auxint ...
+!> \param mmax ...
+!> \param t ...
+!> \param rho ...
+!> \param nexp ...
+!> \param cexp ...
+!> \param zetc ...
 ! **************************************************************************************************
-   FUNCTION choose(n, k)
+   SUBROUTINE ecploc_aux(auxint, mmax, t, rho, nexp, cexp, zetc)
+      INTEGER, INTENT(IN)                                :: mmax
+      REAL(KIND=dp), DIMENSION(0:mmax)                   :: auxint
+      REAL(KIND=dp), INTENT(IN)                          :: t, rho
+      INTEGER, INTENT(IN)                                :: nexp
+      REAL(KIND=dp), INTENT(IN)                          :: cexp, zetc
 
-      INTEGER, INTENT(IN)                                :: n, k
-      REAL(KIND=dp)                                      :: choose
+      INTEGER                                            :: i, j, ke, kf
+      REAL(KIND=dp)                                      :: c0, c1, cc, cval, fa, fr, q, ts
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: expder, fdiff, funder, gfund
 
-      IF (n >= k) THEN
-         choose = REAL(NINT(fac(n)/(fac(k)*fac(n - k))), KIND=dp)
-      ELSE
-         choose = 0.0_dp
-      END IF
+      q = rho + zetc
+      fa = zetc/q
+      fr = rho/q
+      !
+      ALLOCATE (expder(0:mmax), funder(0:mmax + 1))
+      !
+      SELECT CASE (nexp)
+      CASE (0)
+         cval = 2.0_dp*cexp/SQRT(q)*pi**1.5_dp*EXP(-t*fa)
+         expder(0) = cval
+         DO i = 1, mmax
+            expder(i) = fa*expder(i - 1)
+         END DO
+         ts = fr*t
+         ALLOCATE (gfund(0:mmax))
+         CALL gfun_values(mmax, ts, gfund)
 
-   END FUNCTION choose
+         funder(0) = gfund(0)
+         DO i = 1, mmax
+            funder(i) = 0.0_dp
+            DO j = 0, i
+               funder(i) = funder(i) + (-1)**j*binomial(i, j)*gfund(j)
+            END DO
+         END DO
+
+         DEALLOCATE (gfund)
+         DO i = 1, mmax
+            funder(i) = fr**i*funder(i)
+         END DO
+         DO i = 0, mmax
+            DO j = 0, i
+               kf = j
+               ke = i - j
+               auxint(i) = auxint(i) + expder(ke)*funder(kf)*binomial(i, j)
+            END DO
+         END DO
+      CASE (1)
+         cval = cexp*2._dp*pi/q*EXP(-t*fa)
+         expder(0) = cval
+         DO i = 1, mmax
+            expder(i) = fa*expder(i - 1)
+         END DO
+         ts = fr*t
+         CALL fgamma(mmax, ts, funder)
+         DO i = 1, mmax
+            funder(i) = fr**i*funder(i)
+         END DO
+         DO i = 0, mmax
+            DO j = 0, i
+               kf = j
+               ke = i - j
+               auxint(i) = auxint(i) + expder(ke)*funder(kf)*binomial(i, j)
+            END DO
+         END DO
+      CASE (2)
+         cval = cexp*(pi/q)**1.5_dp*EXP(-t*fa)
+         expder(0) = cval
+         DO i = 1, mmax
+            expder(i) = fa*expder(i - 1)
+         END DO
+         auxint(0:mmax) = auxint(0:mmax) + expder(0:mmax)
+      CASE (3)
+         cval = 2.*pi*cexp/q**2*EXP(-t*fa)
+         expder(0) = cval
+         DO i = 1, mmax
+            expder(i) = fa*expder(i - 1)
+         END DO
+         ts = fr*t
+         CALL fgamma(mmax + 1, ts, funder)
+         ALLOCATE (fdiff(0:mmax))
+         fdiff(0) = (1.0_dp + ts)*funder(0) - t*funder(1)
+         DO i = 1, mmax
+            fdiff(i) = fr**i*(-i*funder(i - 1) + (1.0_dp + ts)*funder(i) &
+                              + i*funder(i) - ts*funder(i + 1))
+         END DO
+         DO i = 0, mmax
+            DO j = 0, i
+               kf = j
+               ke = i - j
+               auxint(i) = auxint(i) + expder(ke)*fdiff(kf)*binomial(i, j)
+            END DO
+         END DO
+         DEALLOCATE (fdiff)
+      CASE (4)
+         cval = cexp/(4._dp*q**2)*(pi/q)**1.5_dp*EXP(-t*fa)
+         expder(0) = cval
+         DO i = 1, mmax
+            expder(i) = fa*expder(i - 1)
+         END DO
+         c0 = 4._dp*rho/fa
+         c1 = 6._dp*q + 4._dp*rho*t
+         DO i = 0, mmax
+            cc = -i*c0 + c1
+            expder(i) = cc*expder(i)
+         END DO
+         auxint(0:mmax) = auxint(0:mmax) + expder(0:mmax)
+      CASE DEFAULT
+         CPABORT("nexp out of range [1..4]")
+      END SELECT
+      !
+      DEALLOCATE (expder, funder)
+
+   END SUBROUTINE ecploc_aux
 ! **************************************************************************************************
 
 END MODULE ai_overlap_ppl
