@@ -17,7 +17,9 @@ def loss_function(prediction: torch.Tensor, label: torch.Tensor) -> torch.Tensor
 
 # ======================================================================================
 def train_model(
-    model: PaoModel, dataloader: DataLoader[PaoRecord], epochs: int
+    model: PaoModel | torch.jit.ScriptModule,
+    dataloader: DataLoader[PaoRecord],
+    epochs: int,
 ) -> None:
     # Train the model.
     optim = torch.optim.Adam(model.parameters())

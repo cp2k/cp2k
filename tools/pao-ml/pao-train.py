@@ -53,7 +53,7 @@ def main() -> None:
     )
 
     # Compile the model to TorchScript.
-    model = cast(PaoModel, torch.jit.script(model_py))
+    model = torch.jit.script(model_py)
 
     num_model_params = sum(p.numel() for p in model.parameters())
     print(f"PAO-ML model will have {num_model_params} parameters.")
@@ -64,7 +64,7 @@ def main() -> None:
     # Save the model.
     default_fn = f"{dataset.kind.prim_basis_name}-PAO{dataset.kind.pao_basis_size}-{args.kind}.pt"
     fn = args.model or default_fn
-    model.save(fn)
+    torch.jit.save(model, fn)  # type: ignore
     print(f"Saved model to file: {fn}")
 
 
