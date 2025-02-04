@@ -50,7 +50,7 @@ def main() -> None:
     train_model(model, dataloader, args.epochs)
 
     # Save the model.
-    model.save(args.model)
+    torch.jit.save(model, args.model)  # type: ignore
     print(f"Saved model to file: {args.model}")
 
 
