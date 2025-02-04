@@ -172,7 +172,8 @@ MODULE cp_output_handling
 
    TYPE :: cp_current_iteration_counter_type
       INTEGER :: flat_iteration = 0
-      INTEGER, DIMENSION(:), POINTER :: complex_iteration
+      INTEGER, ALLOCATABLE :: complex_iteration(:)
+      INTEGER :: complex_iteration_depth = 0
    END TYPE cp_current_iteration_counter_type
 
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1030,6 +1031,37 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param logger ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION cp_advance_iteration_number(logger) RESULT(did_advance_iteration)
+      TYPE(cp_logger_type), POINTER                      :: logger
+      LOGICAL                                            :: did_advance_iteration
+
+      INTEGER                                            :: len
+
+      did_advance_iteration = .FALSE.
+      len = SIZE(logger%iter_info%iteration)
+      IF (len /= cp_current_iteration_counter%complex_iteration_depth) THEN
+         did_advance_iteration = .TRUE.
+         cp_current_iteration_counter%complex_iteration_depth = len
+         ALLOCATE (cp_current_iteration_counter%complex_iteration(len))
+      ELSE
+         did_advance_iteration &
+            = ANY(cp_current_iteration_counter%complex_iteration(1:len) &
+                  /= logger%iter_info%iteration(1:len))
+      END IF
+
+      IF (.NOT. did_advance_iteration) RETURN
+
+      cp_current_iteration_counter%flat_iteration = cp_current_iteration_counter%flat_iteration + 1
+      cp_current_iteration_counter%complex_iteration(1:len) &
+         = logger%iter_info%iteration(1:len)
+
+   END FUNCTION cp_advance_iteration_number
+
+! **************************************************************************************************
+!> \brief ...
 !> \param series ...
 !> \param middle_name ...
 !> \param logger ...
@@ -1041,24 +1073,12 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_unit_nr_for_openpmd_value_type)            :: res
 
-      INTEGER, DIMENSION(:), POINTER                     :: l, r
       LOGICAL                                            :: opened_new_iteration = .FALSE.
       TYPE(openpmd_record_type)                          :: position, positionOffset
 
       res%series = series
 
-      l => logger%iter_info%iteration
-      r => cp_current_iteration_counter%complex_iteration
-
-      IF (.NOT. ASSOCIATED(cp_current_iteration_counter%complex_iteration)) THEN
-         opened_new_iteration = .TRUE.
-         cp_current_iteration_counter%flat_iteration = 0
-      ELSE IF (SIZE(l) /= SIZE(cp_current_iteration_counter%complex_iteration) .OR. ANY(l /= cp_current_iteration_counter%complex_iteration)) THEN
-         cp_current_iteration_counter%flat_iteration = cp_current_iteration_counter%flat_iteration + 1
-         opened_new_iteration = .TRUE.
-      ELSE
-         opened_new_iteration = .FALSE.
-      END IF
+      opened_new_iteration = cp_advance_iteration_number(logger)
 
       res%iteration = openpmd_series_write_iteration(series, cp_current_iteration_counter%flat_iteration)
 
@@ -1071,8 +1091,10 @@ CONTAINS
       CALL openpmd_record_component_make_empty_int(positionOffset%openpmd_record_as_record_component(), 3)
 
       IF (opened_new_iteration) THEN
-         cp_current_iteration_counter%complex_iteration => logger%iter_info%iteration
-       CALL openpmd_attributable_set_attribute_vec_int(res%iteration%openpmd_iteration_as_attributable(), "ndim_iteration_index", l)
+         CALL openpmd_attributable_set_attribute_vec_int( &
+            res%iteration%openpmd_iteration_as_attributable(), &
+            "ndim_iteration_index", &
+            cp_current_iteration_counter%complex_iteration)
       END IF
    END FUNCTION
 
@@ -1132,9 +1154,8 @@ CONTAINS
 
       CHARACTER(len=default_path_length)                 :: filename, filename_bak, filename_bak_1, &
                                                             filename_bak_2
-      CHARACTER(len=default_string_length)               :: my_file_action, my_file_form, &
-                                                            my_file_position, my_file_status, &
-                                                            outPath
+      CHARACTER(len=default_string_length) :: my_file_action, my_file_form, my_file_position, &
+         my_file_status, openpmd_config = 'iteration_encoding = "variable_based"', outPath
       INTEGER                                            :: c_i_level, f_backup_level, i, mpi_amode, &
                                                             my_backup_level, my_nbak, nbak, &
                                                             s_backup_level, unit_nr
@@ -1145,7 +1166,6 @@ CONTAINS
       TYPE(cp_iteration_info_type), POINTER              :: iteration_info
       TYPE(mp_file_type)                                 :: mp_unit
       TYPE(section_vals_type), POINTER                   :: print_key
-      CHARACTER(len=default_string_length) :: openpmd_config = 'iteration_encoding = "variable_based"'
 
       my_local = .FALSE.
       my_do_backup = .FALSE.
@@ -1208,7 +1228,7 @@ CONTAINS
 
                CALL cp2k_log(filename)
 
-           filename = cp_print_key_generate_openpmd_filename(logger, print_key, "."//openpmd_get_default_extension(), my_local)
+               filename = cp_print_key_generate_openpmd_filename(logger, print_key, "."//openpmd_get_default_extension(), my_local)
             ELSE
                my_use_openpmd = .FALSE.
                !
@@ -1295,7 +1315,7 @@ CONTAINS
 
                IF (.NOT. openpmd_series_present(cp_openpmd_output_series)) THEN
                   IF (my_mpi_io) THEN
-                     cp_openpmd_output_series = openpmd_series_create(filename, openpmd_access_create, logger%para_env, openpmd_config)
+                  cp_openpmd_output_series = openpmd_series_create(filename, openpmd_access_create, logger%para_env, openpmd_config)
                   ELSE
                      cp_openpmd_output_series = openpmd_series_create(filename, openpmd_access_create, config=openpmd_config)
                   END IF
