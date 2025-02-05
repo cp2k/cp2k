@@ -613,7 +613,7 @@ CONTAINS
 
       INTEGER                                            :: i, j, ke, kf
       REAL(KIND=dp)                                      :: c0, c1, cc, cval, fa, fr, q, ts
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: expder, fdiff, funder, gfund
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: expder, fdiff, funder, gfund, auxt, auxi
 
       q = rho + zetc
       fa = zetc/q
@@ -685,7 +685,7 @@ CONTAINS
          ts = fr*t
          CALL fgamma(mmax + 1, ts, funder)
          ALLOCATE (fdiff(0:mmax))
-         fdiff(0) = (1.0_dp + ts)*funder(0) - t*funder(1)
+         fdiff(0) = (1.0_dp + ts)*funder(0) - ts*funder(1)
          DO i = 1, mmax
             fdiff(i) = fr**i*(-i*funder(i - 1) + (1.0_dp + ts)*funder(i) &
                               + i*funder(i) - ts*funder(i + 1))

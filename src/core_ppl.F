@@ -33,7 +33,9 @@ MODULE core_ppl
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE libgrpp_integrals,               ONLY: libgrpp_semilocal_forces_ref,&
-                                              libgrpp_semilocal_integrals
+                                              libgrpp_semilocal_integrals,&
+                                              libgrpp_local_integrals,&
+                                              libgrpp_local_forces_ref
    USE lri_environment_types,           ONLY: lri_kind_type
    USE orbital_pointers,                ONLY: init_orbital_pointers,&
                                               ncoset
@@ -114,7 +116,6 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'build_core_ppl'
       INTEGER, PARAMETER                                 :: nexp_max = 30
-      LOGICAL                                            :: libgrpp_local = .FALSE.
 
       INTEGER :: atom_a, handle, i, iatom, icol, ikind, img, irow, iset, jatom, jkind, jset, &
          katom, kkind, ldai, ldsab, maxco, maxder, maxl, maxlgto, maxlppl, maxnset, maxsgf, mepos, &
@@ -130,7 +131,8 @@ CONTAINS
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       INTEGER, DIMENSION(nexp_max)                       :: nct_ppl
       LOGICAL                                            :: do_dR, doat, dokp, ecp_local, &
-                                                            ecp_semi_local, found, lpotextended, &
+                                                            ecp_semi_local, found, &
+                                                            libgrpp_local = .FALSE., lpotextended, &
                                                             only_gaussians
       REAL(KIND=dp)                                      :: alpha, atk0, atk1, dab, dac, dbc, f0, &
                                                             ppl_radius
@@ -424,11 +426,7 @@ CONTAINS
                   nct_ppl(1:nloc) = nrloc(1:nloc)
                   alpha_ppl(1:nloc) = bloc(1:nloc)
                   cval_ppl(1, 1:nloc) = aloc(1:nloc)
-!deb
                   only_gaussians = .FALSE.
-!                 only_gaussians = ALL(nct_ppl(1:nloc) == 2)
-!                 IF (only_gaussians) nct_ppl(1:nloc) = nct_ppl(1:nloc) - 1
-!deb
                ELSE
                   CALL get_potential(potential=sgp_potential, n_local=n_local, a_local=a_local, c_local=c_local)
                   nexp_ppl = n_local
