@@ -11,10 +11,6 @@
 #include "dbm_multiply_gpu_kernel.h"
 #include "dbm_multiply_opencl.cl.h"
 
-#if !defined(OPENCL_DBM_TLS) && 1
-#define OPENCL_DBM_TLS LIBXSMM_TLS
-#endif
-
 void dbm_multiply_gpu_launch_kernel(const offloadStream_t stream,
                                     const int mnk_range[3][2], double alpha,
                                     int ntasks, const dbm_task_t *tasks,
@@ -23,11 +19,7 @@ void dbm_multiply_gpu_launch_kernel(const offloadStream_t stream,
                                     double *shard_c_data) {
   /* creating/calling kernel must be consistent across threads */
   static cl_kernel kernel_global = NULL;
-#if defined(OPENCL_DBM_TLS)
-  static OPENCL_DBM_TLS cl_kernel kernel = NULL;
-#else
-  cl_kernel kernel = NULL;
-#endif
+  static LIBXSMM_TLS cl_kernel kernel = NULL;
   static int ndims = 1;
   static size_t wgsize[] = {0, 0, 0};
   const libxsmm_timer_tickint start = libxsmm_timer_tick();
@@ -63,7 +55,10 @@ void dbm_multiply_gpu_launch_kernel(const offloadStream_t stream,
       const int gen = (NULL == gen_env ? 1 /*default*/ : atoi(gen_env));
       const int xf = (NULL == xf_env ? -1 /*default*/ : atoi(xf_env));
       const int lu = LIBXSMM_CLMP(NULL == lu_env ? 0 : atoi(lu_env), -2, 1);
-      const int bn = LIBXSMM_CLMP(NULL == bn_env ? 8 : atoi(bn_env), 4, 32);
+      const int bn0 = (0 == c_dbcsr_acc_opencl_config.device.nv
+                           ? (0 == c_dbcsr_acc_opencl_config.device.amd ? 4 : 8)
+                           : 2);
+      const int bn = LIBXSMM_CLMP(NULL == bn_env ? bn0 : atoi(bn_env), 1, 32);
       const char *extensions[] = {NULL, NULL}, *flags = NULL;
       size_t nextensions = sizeof(extensions) / sizeof(*extensions);
       const size_t wgsize0 = c_dbcsr_acc_opencl_config.device.wgsize[0];

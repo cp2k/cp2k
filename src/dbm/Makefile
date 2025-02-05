@@ -24,26 +24,32 @@ endif
 # Optimization flag derived from OPT flag
 OPTFLAG ?= -O$(patsubst O%,%,$(OPT))
 
-CFLAGS := -g $(OPTFLAG) -march=native -Wall -Wextra -Wcast-qual
+CFLAGS := -fPIC -g $(OPTFLAG) -march=native -Wall -Wextra -Wcast-qual
 
 # Intel Compiler
 ICX := $(shell which icx 2>/dev/null)
 INTEL ?= $(if $(ICX),1,0)
 
+# Build with MPI when MPICC is given
+MPI ?= $(if $(MPICC),1,0)
+
 ifeq ($(INTEL),0)
 MKL_FCRTL := gf
 LIBS += $(if $(OMPRT),-l$(OMPRT),-fopenmp)
-CFLAGS += -fopenmp
+CFLAGS += -fopenmp -Wno-vla-parameter
+CC := $(if $(filter-out 0,$(MPI)),mpicc,gcc)
 else
 MKL_FCRTL := intel
 LIBS += $(if $(OMPRT),-l$(OMPRT),-qopenmp)
 CFLAGS += -qopenmp
-CC := icx
+CC := $(if $(filter-out 0,$(MPI)),mpiicx,icx)
 endif
 
-# Some additional flags when relying on default-CC
-ifeq ($(CC),)
-CFLAGS += -Wno-vla-parameter
+ifneq ($(MPI),0)
+CFLAGS += -D__parallel
+ifneq ($(MPICC),)
+CC := $(MPICC)
+endif
 endif
 
 NVCC := $(shell which nvcc 2>/dev/null)
@@ -91,7 +97,11 @@ endif
 all: dbm_miniapp.x
 
 clean:
-	rm -fv $(ALL_OBJECTS) $(OPENCL_GENKRNL)
+	rm -fv $(ALL_OBJECTS) $(OPENCL_GENKRNL) \
+        dbm_multiply_gpu.o \
+        dbm_multiply_gpu_kernel.o \
+        dbm_multiply_opencl.o \
+        dbm_miniapp.o
 
 realclean: clean
 	rm -fv dbm_miniapp.x
@@ -177,32 +187,18 @@ LIBS += -L${ROCM_PATH}/lib -lamdhip64 -lhipfft -lhipblas -lrocblas
 	cd $(dir $<); $(HIPCC) -c $(HIPFLAGS) $(notdir $<)
 endif
 
-
 # Make LIBXSMM available
 ifneq ($(LIBXSMMROOT),)
 CFLAGS += -D__LIBXSMM -I$(LIBXSMMROOT)/include
-LIBS += \
-        $(LIBXSMMROOT)/lib/libxsmm.a $(LIBXSMMROOT)/lib/libxsmmext.a \
+LIBS += $(LIBXSMMROOT)/lib/libxsmm.a \
+        $(LIBXSMMROOT)/lib/libxsmmext.a \
         -lpthread -lrt
 endif
 
-
-# Build with MPI when mpicc compiler is present.
-ifneq ($(MPICC),)
-%.o: %.c $(OMP_TRACE) $(ALL_HEADERS)
-	cd $(dir $<); $(MPICC) -c -std=c11 $(CFLAGS) -D__parallel $(notdir $<)
-
-dbm_miniapp.x: dbm_miniapp.o $(ALL_OBJECTS)
-	$(MPICC) $(CFLAGS) -o $@ $^ $(LIBS)
-
-
-# Build without MPI otherwise.
-else
 %.o: %.c $(OMP_TRACE) $(ALL_HEADERS)
 	cd $(dir $<); $(CC) -c -std=c11 $(CFLAGS) $(notdir $<)
 
 dbm_miniapp.x: dbm_miniapp.o $(ALL_OBJECTS)
 	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
 
-endif
 #EOF

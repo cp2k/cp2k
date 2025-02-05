@@ -831,7 +831,7 @@ CONTAINS
 !> \return ...
 !> \author Patrick Seewald
 ! **************************************************************************************************
-   FUNCTION dbt_tas_nblkrows_total(matrix) RESULT(nblkrows_total)
+   PURE FUNCTION dbt_tas_nblkrows_total(matrix) RESULT(nblkrows_total)
       TYPE(dbt_tas_type), INTENT(IN)                     :: matrix
       INTEGER(KIND=int_8)                                :: nblkrows_total
 
@@ -844,7 +844,7 @@ CONTAINS
 !> \return ...
 !> \author Patrick Seewald
 ! **************************************************************************************************
-   FUNCTION dbt_tas_nfullrows_total(matrix) RESULT(nfullrows_total)
+   PURE FUNCTION dbt_tas_nfullrows_total(matrix) RESULT(nfullrows_total)
       TYPE(dbt_tas_type), INTENT(IN)                     :: matrix
       INTEGER(KIND=int_8)                                :: nfullrows_total
 
@@ -857,7 +857,7 @@ CONTAINS
 !> \return ...
 !> \author Patrick Seewald
 ! **************************************************************************************************
-   FUNCTION dbt_tas_nblkcols_total(matrix) RESULT(nblkcols_total)
+   PURE FUNCTION dbt_tas_nblkcols_total(matrix) RESULT(nblkcols_total)
       TYPE(dbt_tas_type), INTENT(IN)                     :: matrix
       INTEGER(KIND=int_8)                                :: nblkcols_total
 
@@ -870,7 +870,7 @@ CONTAINS
 !> \return ...
 !> \author Patrick Seewald
 ! **************************************************************************************************
-   FUNCTION dbt_tas_nfullcols_total(matrix) RESULT(nfullcols_total)
+   PURE FUNCTION dbt_tas_nfullcols_total(matrix) RESULT(nfullcols_total)
       TYPE(dbt_tas_type), INTENT(IN)                     :: matrix
       INTEGER(KIND=int_8)                                :: nfullcols_total
 
@@ -1003,11 +1003,11 @@ CONTAINS
          OPTIONAL                                        :: local_rows, local_cols
 
       CLASS(dbt_tas_distribution), ALLOCATABLE, OPTIONAL, &
-         INTENT(OUT)                                                  :: proc_row_dist, proc_col_dist
+         INTENT(OUT)                                                :: proc_row_dist, proc_col_dist
       CLASS(dbt_tas_rowcol_data), ALLOCATABLE, OPTIONAL, &
-         INTENT(OUT)                                                  :: row_blk_size, col_blk_size
+         INTENT(OUT)                                                :: row_blk_size, col_blk_size
       TYPE(dbt_tas_distribution_type), OPTIONAL                     :: distribution
-      CHARACTER(len=*), INTENT(OUT), OPTIONAL                         :: name
+      CHARACTER(len=*), INTENT(OUT), OPTIONAL                       :: name
 
       TYPE(dbt_tas_split_info)                                      :: info
       INTEGER                                                       :: irow, icol
