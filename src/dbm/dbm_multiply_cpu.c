@@ -120,21 +120,27 @@ void dbm_multiply_cpu_process_batch(const int ntasks, dbm_task_t batch[ntasks],
     task_next = batch[batch_order[(itask + 1) < ntasks ? (itask + 1) : itask]];
 
     if (task.m != kernel_m || task.n != kernel_n || task.k != kernel_k) {
+      if (LIBXSMM_SMM(task.m, task.n, task.m, 1 /*assume in-$, no RFO*/,
+                      sizeof(double))) {
 #if LIBXSMM_VERSION2(1, 17) < LIBXSMM_VERSION_NUMBER
-      const libxsmm_gemm_shape shape = libxsmm_create_gemm_shape(
-          task.m, task.n, task.k, task.m /*lda*/, task.n /*ldb*/,
-          task.m /*ldc*/, LIBXSMM_DATATYPE_F64 /*aprec*/,
-          LIBXSMM_DATATYPE_F64 /*bprec*/, LIBXSMM_DATATYPE_F64 /*cprec*/,
-          LIBXSMM_DATATYPE_F64 /*calcp*/);
-      kernel_func = (LIBXSMM_FEQ(1.0, alpha)
-                         ? libxsmm_dispatch_gemm(shape, (libxsmm_bitfield)flags,
-                                                 (libxsmm_bitfield)prefetch)
-                         : NULL);
+        const libxsmm_gemm_shape shape = libxsmm_create_gemm_shape(
+            task.m, task.n, task.k, task.m /*lda*/, task.n /*ldb*/,
+            task.m /*ldc*/, LIBXSMM_DATATYPE_F64 /*aprec*/,
+            LIBXSMM_DATATYPE_F64 /*bprec*/, LIBXSMM_DATATYPE_F64 /*cprec*/,
+            LIBXSMM_DATATYPE_F64 /*calcp*/);
+        kernel_func =
+            (LIBXSMM_FEQ(1.0, alpha)
+                 ? libxsmm_dispatch_gemm(shape, (libxsmm_bitfield)flags,
+                                         (libxsmm_bitfield)prefetch)
+                 : NULL);
 #else
-      kernel_func = libxsmm_dmmdispatch(task.m, task.n, task.k, NULL /*lda*/,
-                                        NULL /*ldb*/, NULL /*ldc*/, &alpha,
-                                        &beta, &flags, &prefetch);
+        kernel_func = libxsmm_dmmdispatch(task.m, task.n, task.k, NULL /*lda*/,
+                                          NULL /*ldb*/, NULL /*ldc*/, &alpha,
+                                          &beta, &flags, &prefetch);
 #endif
+      } else {
+        kernel_func = NULL;
+      }
       kernel_m = task.m;
       kernel_n = task.n;
       kernel_k = task.k;

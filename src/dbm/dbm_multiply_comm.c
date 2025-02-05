@@ -210,13 +210,14 @@ static void fill_send_buffers(
       const dbm_shard_t *shard = &matrix->shards[ishard];
       const double *blk_data = &shard->data[blk->offset];
       const int row_size = plan->row_size, col_size = plan->col_size;
+      const int plan_size = row_size * col_size;
       const int irank = plan->rank;
 
       // The blk_send_data is ordered by rank, thread, and block.
       //   data_send_displ[irank]: Start of data for irank within blk_send_data.
       //   ndata_mythread[irank]: Current threads offset within data for irank.
       nblks_mythread[irank] -= 1;
-      ndata_mythread[irank] -= row_size * col_size;
+      ndata_mythread[irank] -= plan_size;
       const int offset = data_send_displ[irank] + ndata_mythread[irank];
       const int jblock = blks_send_displ[irank] + nblks_mythread[irank];
 
@@ -226,17 +227,17 @@ static void fill_send_buffers(
         for (int i = 0; i < row_size; i++) {
           for (int j = 0; j < col_size; j++) {
             const double element = blk_data[j * row_size + i];
-            norm += element * element;
             data_send[offset + i * col_size + j] = element;
+            norm += element * element;
           }
         }
         blks_send[jblock].free_index = plan->blk->col;
         blks_send[jblock].sum_index = plan->blk->row;
       } else {
-        for (int i = 0; i < row_size * col_size; i++) {
+        for (int i = 0; i < plan_size; i++) {
           const double element = blk_data[i];
-          norm += element * element;
           data_send[offset + i] = element;
+          norm += element * element;
         }
         blks_send[jblock].free_index = plan->blk->row;
         blks_send[jblock].sum_index = plan->blk->col;
