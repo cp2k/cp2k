@@ -136,15 +136,15 @@ void dbm_multiply_gpu_process_batch(const int ntasks, const dbm_task_t *batch,
     offloadMemcpyAsyncDtoD(shard_c_dev->data, old_data_dev,
                            shard_c_dev->data_size * sizeof(double),
                            shard_c_dev->stream);
-    offloadEventRecord(memsetup, shard_c_dev->stream);
+  }
+  offloadEventRecord(memsetup, shard_c_dev->stream);
 
-    // Zero new blocks if necessary.
+  // Zero new blocks if necessary.
+  if (shard_c_host->data_promised > shard_c_dev->data_size) {
     const int tail = shard_c_host->data_promised - shard_c_dev->data_size;
     offloadMemsetAsync(&shard_c_dev->data[shard_c_dev->data_size], 0,
                        tail * sizeof(double), shard_c_dev->stream);
     shard_c_dev->data_size = shard_c_host->data_promised;
-  } else { // event only covers offloadMemcpyAsyncHtoD
-    offloadEventRecord(memsetup, shard_c_dev->stream);
   }
 
   // Launch kernel.
