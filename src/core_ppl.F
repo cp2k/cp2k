@@ -17,7 +17,8 @@
 ! **************************************************************************************************
 MODULE core_ppl
 
-   USE ai_overlap_ppl,                  ONLY: ppl_integral,&
+   USE ai_overlap_ppl,                  ONLY: ecploc_integral,&
+                                              ppl_integral,&
                                               ppl_integral_ri
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind_set
@@ -130,11 +131,12 @@ CONTAINS
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       INTEGER, DIMENSION(nexp_max)                       :: nct_ppl
       LOGICAL                                            :: do_dR, doat, dokp, ecp_local, &
-                                                            ecp_semi_local, found, lpotextended, &
+                                                            ecp_semi_local, found, &
+                                                            libgrpp_local = .FALSE., lpotextended, &
                                                             only_gaussians
       REAL(KIND=dp)                                      :: alpha, atk0, atk1, dab, dac, dbc, f0, &
                                                             ppl_radius
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: qab, work
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: work
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: hab2_w, ppl_fwork, ppl_work
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: hab, pab
       REAL(KIND=dp), ALLOCATABLE, &
@@ -232,13 +234,13 @@ CONTAINS
 !$OMP SHARED  (ap_iterator, basis_set_list, calculate_forces, use_virial, &
 !$OMP          matrix_h, matrix_p, atomic_kind_set, qs_kind_set, particle_set, &
 !$OMP          sab_orb, sac_ppl, nthread, ncoset, nkind, cell_to_index, &
-!$OMP          ldsab,  maxnset, maxder, do_dR, deltaR, doat, &
+!$OMP          ldsab,  maxnset, maxder, do_dR, deltaR, doat, libgrpp_local, &
 !$OMP          maxlgto, nder, maxco, dokp, locks, natom) &
 !$OMP PRIVATE (ikind, jkind, iatom, jatom, rab, basis_set_a, basis_set_b, &
 !$OMP          first_sgfa, la_max, la_min, npgfa, nsgfa, sphi_a, &
 !$OMP          zeta, first_sgfb, lb_max, lb_min, npgfb, nsetb, rpgfb, set_radius_b, sphi_b, &
 !$OMP          zetb, dab, irow, icol, h_block, found, iset, ncoa, &
-!$OMP          sgfa, jset, ncob, sgfb, nsgfb, p_block, work, pab, hab, hab2, hab2_w, qab, &
+!$OMP          sgfa, jset, ncob, sgfb, nsgfb, p_block, work, pab, hab, hab2, hab2_w, &
 !$OMP          atk0, atk1, h1_1block, h1_2block, h1_3block, kkind, nseta, &
 !$OMP          gth_potential, sgp_potential, alpha, cexp_ppl, lpotextended, &
 !$OMP          ppl_radius, nexp_lpot, nexp_ppl, alpha_ppl, alpha_lpot, nct_ppl, &
@@ -278,7 +280,6 @@ CONTAINS
          IF (do_dR) THEN
             ALLOCATE (hab2(ldsab, ldsab, 4, maxnset, maxnset))
             ALLOCATE (hab2_w(ldsab, ldsab, 6))
-            ALLOCATE (qab(ldsab, ldsab))
             ALLOCATE (ppl_fwork(ldai, ldai, maxder))
          END IF
 
@@ -425,8 +426,7 @@ CONTAINS
                   nct_ppl(1:nloc) = nrloc(1:nloc)
                   alpha_ppl(1:nloc) = bloc(1:nloc)
                   cval_ppl(1, 1:nloc) = aloc(1:nloc)
-                  only_gaussians = ALL(nct_ppl(1:nloc) == 2)
-                  IF (only_gaussians) nct_ppl(1:nloc) = nct_ppl(1:nloc) - 1
+                  only_gaussians = .FALSE.
                ELSE
                   CALL get_potential(potential=sgp_potential, n_local=n_local, a_local=a_local, c_local=c_local)
                   nexp_ppl = n_local
@@ -488,8 +488,7 @@ CONTAINS
                               rab, dab, rac, dac, rbc, dbc, &
                               hab(:, :, iset, jset), ppl_work, pab(:, :, iset, jset), &
                               force_a, force_b, ppl_fwork)
-                        ELSE
-
+                        ELSEIF (libgrpp_local) THEN
 !$OMP CRITICAL(type1)
                            CALL libgrpp_local_forces_ref(la_max(iset), la_min(iset), npgfa(iset), &
                                                          rpgfa(:, iset), zeta(:, iset), &
@@ -500,6 +499,16 @@ CONTAINS
                                                          hab(:, :, iset, jset), pab(:, :, iset, jset), &
                                                          force_a, force_b)
 !$OMP END CRITICAL(type1)
+                        ELSE
+                           CALL ecploc_integral( &
+                              la_max(iset), la_min(iset), npgfa(iset), &
+                              rpgfa(:, iset), zeta(:, iset), &
+                              lb_max(jset), lb_min(jset), npgfb(jset), &
+                              rpgfb(:, jset), zetb(:, jset), &
+                              nexp_ppl, alpha_ppl, nct_ppl, cval_ppl, ppl_radius, &
+                              rab, dab, rac, dac, rbc, dbc, &
+                              hab(:, :, iset, jset), ppl_work, pab(:, :, iset, jset), &
+                              force_a, force_b, ppl_fwork)
                         END IF
 
                         IF (ecp_semi_local) THEN
@@ -565,7 +574,7 @@ CONTAINS
                               nexp_ppl, alpha_ppl, nct_ppl, cval_ppl, ppl_radius, &
                               rab, dab, rac, dac, rbc, dbc, hab(:, :, iset, jset), ppl_work)
 
-                        ELSE
+                        ELSEIF (libgrpp_local) THEN
                            !If the local part of the potential is more complex, we need libgrpp
 !$OMP CRITICAL(type1)
                            CALL libgrpp_local_integrals(la_max(iset), la_min(iset), npgfa(iset), &
@@ -576,6 +585,14 @@ CONTAINS
                                                         ppl_radius, rab, dab, rac, dac, dbc, &
                                                         hab(:, :, iset, jset))
 !$OMP END CRITICAL(type1)
+                        ELSE
+                           CALL ecploc_integral( &
+                              la_max(iset), la_min(iset), npgfa(iset), &
+                              rpgfa(:, iset), zeta(:, iset), &
+                              lb_max(jset), lb_min(jset), npgfb(jset), &
+                              rpgfb(:, jset), zetb(:, jset), &
+                              nexp_ppl, alpha_ppl, nct_ppl, cval_ppl, ppl_radius, &
+                              rab, dab, rac, dac, rbc, dbc, hab(:, :, iset, jset), ppl_work)
                         END IF
 
                         IF (ecp_semi_local) THEN
@@ -684,7 +701,7 @@ CONTAINS
             END DO
          END DO
          END IF
-         IF (do_dR) DEALLOCATE (qab, hab2, ppl_fwork, hab2_w)
+         IF (do_dR) DEALLOCATE (hab2, ppl_fwork, hab2_w)
       END DO ! slot
 
       DEALLOCATE (hab, work, ppl_work)
