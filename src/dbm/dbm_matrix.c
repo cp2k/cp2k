@@ -300,7 +300,11 @@ void dbm_filter(dbm_matrix_t *matrix, const double eps) {
       const int block_size = row_size * col_size;
       double norm = 0.0;
       for (int i = 0; i < block_size; i++) {
-        norm += old_blk_data[i] * old_blk_data[i];
+        const double value = old_blk_data[i];
+        norm += value * value;
+        if (eps2 <= norm) {
+          break;
+        }
       }
       // For historic reasons zero-sized blocks are never filtered.
       if (block_size > 0 && norm < eps2) {
@@ -311,7 +315,7 @@ void dbm_filter(dbm_matrix_t *matrix, const double eps) {
           shard, old_blk.row, old_blk.col, block_size);
       assert(new_blk->offset <= old_blk.offset);
       if (new_blk->offset != old_blk.offset) {
-        // Using memmove instead of memcpy because it handles overlap correctly.
+        // Using memmove because it can handle overlapping buffers.
         double *new_blk_data = &shard->data[new_blk->offset];
         memmove(new_blk_data, old_blk_data, block_size * sizeof(double));
       }
