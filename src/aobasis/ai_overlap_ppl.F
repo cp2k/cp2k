@@ -613,7 +613,7 @@ CONTAINS
 
       INTEGER                                            :: i, j, ke, kf
       REAL(KIND=dp)                                      :: c0, c1, cc, cval, fa, fr, q, ts
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: expder, fdiff, funder, gfund, auxt, auxi
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: expder, fdiff, funder, gfund
 
       q = rho + zetc
       fa = zetc/q

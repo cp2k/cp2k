@@ -32,10 +32,10 @@ MODULE core_ppl
                                               sgp_potential_type
    USE kinds,                           ONLY: dp,&
                                               int_8
-   USE libgrpp_integrals,               ONLY: libgrpp_semilocal_forces_ref,&
-                                              libgrpp_semilocal_integrals,&
+   USE libgrpp_integrals,               ONLY: libgrpp_local_forces_ref,&
                                               libgrpp_local_integrals,&
-                                              libgrpp_local_forces_ref
+                                              libgrpp_semilocal_forces_ref,&
+                                              libgrpp_semilocal_integrals
    USE lri_environment_types,           ONLY: lri_kind_type
    USE orbital_pointers,                ONLY: init_orbital_pointers,&
                                               ncoset
