@@ -63,11 +63,16 @@ fi
 export
 # TODO: Reconcile PROFILE/VERSION with CP2K_BUILD_OPTIONS in CMakeLists.txt.
 if [[ "${PROFILE}" == "spack" ]] && [[ "${VERSION}" == "psmp" ]]; then
+  # PyTorch's TorchConfig.cmake is buried in the Python site-packages directory
+  export Torch_DIR="/opt/spack/var/spack/environments/myenv/spack-env/view/lib/python3.11/site-packages/torch/share/cmake/Torch"
+  ls -l "${Torch_DIR}"
   cmake \
     -GNinja \
     -DCMAKE_C_FLAGS="-fno-lto" \
     -DCMAKE_Fortran_FLAGS="-fno-lto" \
     -DCMAKE_INSTALL_PREFIX=/opt/cp2k \
+    -DCP2K_BLAS_VENDOR="OpenBLAS" \
+    -DCP2K_SCALAPACK_VENDOR="GENERIC" \
     -Werror=dev \
     -DCP2K_USE_LIBINT2=ON \
     -DCP2K_USE_LIBXC=ON \
@@ -85,7 +90,7 @@ if [[ "${PROFILE}" == "spack" ]] && [[ "${VERSION}" == "psmp" ]]; then
     -DCP2K_USE_SIRIUS=ON \
     -DCP2K_USE_GRPP=OFF \
     -DCP2K_USE_TREXIO=OFF \
-    -DCP2K_USE_LIBTORCH=OFF \
+    -DCP2K_USE_LIBTORCH=ON \
     -DCP2K_USE_DLAF=ON \
     -DCP2K_USE_DFTD4=ON \
     -DCP2K_USE_LIBSMEAGOL=ON \
