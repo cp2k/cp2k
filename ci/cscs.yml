@@ -1,0 +1,26 @@
+include:
+  - remote: 'https://gitlab.com/cscs-ci/recipes/-/raw/master/templates/v2/.ci-ext.yml'
+
+stages:
+  - build
+  - test
+
+variables:
+  PERSIST_IMAGE_NAME: $CSCS_REGISTRY_PATH/cp2k:$CI_COMMIT_SHORT_SHA
+
+build_job:
+  stage: build
+  extends: .container-builder-cscs-zen2
+  variables:
+    DOCKERFILE: ci/docker/test_psmp.Dockerfile
+
+test_job:
+  stage: test
+  extends: .container-runner-eiger
+  image: $PERSIST_IMAGE_NAME
+  script:
+    - /opt/cp2k/tools/docker/scripts/test_regtest_cmake.sh toolchain psmp
+  variables:
+    OMP_NUM_THREADS: 2
+    SLURM_NTASKS: 64
+    SLURM_TIMELIMIT: "60:00"
