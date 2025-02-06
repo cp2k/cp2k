@@ -131,9 +131,8 @@ CONTAINS
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       INTEGER, DIMENSION(nexp_max)                       :: nct_ppl
       LOGICAL                                            :: do_dR, doat, dokp, ecp_local, &
-                                                            ecp_semi_local, found, &
-                                                            libgrpp_local = .FALSE., lpotextended, &
-                                                            only_gaussians
+                                                            ecp_semi_local, found, libgrpp_local, &
+                                                            lpotextended, only_gaussians
       REAL(KIND=dp)                                      :: alpha, atk0, atk1, dab, dac, dbc, f0, &
                                                             ppl_radius
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: work
@@ -170,6 +169,9 @@ CONTAINS
       do_dR = PRESENT(deltaR)
       doat = PRESENT(atcore)
       MARK_USED(int_8)
+
+      ! Use internal integral routine for local ECP terms or use libgrrp
+      libgrpp_local = .FALSE.
 
       IF (calculate_forces) THEN
          CALL timeset(routineN//"_forces", handle)
