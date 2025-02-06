@@ -65,7 +65,7 @@ export
 if [[ "${PROFILE}" == "spack" ]] && [[ "${VERSION}" == "psmp" ]]; then
   # PyTorch's TorchConfig.cmake is buried in the Python site-packages directory
   export Torch_DIR="/opt/spack/var/spack/environments/myenv/spack-env/view/lib/python3.11/site-packages/torch/share/cmake/Torch"
-  ls -l "${Torch_DIR}"
+
   cmake \
     -GNinja \
     -DCMAKE_C_FLAGS="-fno-lto" \
