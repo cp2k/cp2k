@@ -1445,17 +1445,17 @@ set(CP2K_PROGS_F
     nequip_unittest.F)
 
 if(CP2K_USE_CUDA OR CP2K_USE_HIP)
-  if(NOT CP2K_DISABLE_PW_GPU)
+  if(CP2K_ENABLE_PW_GPU)
     list(APPEND CP2K_SRCS_GPU "pw/gpu/pw_gpu_kernels.cu")
     list(APPEND CP2K_SRCS_C ${CP2K_PW_SRCS_C})
   endif()
 
-  if(NOT CP2K_DISABLE_DBM_GPU)
+  if(CP2K_ENABLE_DBM_GPU)
     list(APPEND CP2K_DBM_SRCS_C ${CP2K_DBM_SRCS_GPU_C})
     list(APPEND CP2K_SRCS_GPU ${CP2K_DBM_SRCS_GPU})
   endif()
 
-  if(NOT CP2K_DISABLE_GRID_GPU)
+  if(CP2K_ENABLE_GRID_GPU)
     if(CP2K_USE_HIP)
       list(APPEND CP2K_SRCS_GPU ${CP2K_GRID_SRCS_HIP})
     endif()
@@ -1515,9 +1515,6 @@ if(CP2K_USE_HIP)
     INTERFACE hip::hipfft roc::hipblas hip::host
               $<$<STREQUAL:"${CMAKE_HIP_PLATFORM}","nvidia">:CUDA::toolkit
               CUDA::cudart CUDA::cuda_driver>)
-  # if (CMAKE_HIP_PLATFORM MATCHES "nvidia") include_directories("
-  # -I$ENV{ROCM_PATH}/include") include_directories("
-  # -I${CUDAToolkit_INCLUDE_DIRS}") endif()
 endif()
 add_library(cp2k_linalg_libs INTERFACE)
 target_link_libraries(
@@ -1585,8 +1582,6 @@ set_target_properties(
 if(CP2K_USE_ACCEL MATCHES "CUDA")
   set_property(TARGET cp2k PROPERTY CUDA_ARCHITECTURES
                                     ${CMAKE_CUDA_ARCHITECTURES})
-  target_compile_definitions(
-    cp2k PUBLIC __OFFLOAD_CUDA $<$<COMPILE_LANGUAGE:CUDA>:__OFFLOAD_CUDA>)
   include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
 elseif(CP2K_USE_ACCEL MATCHES "HIP")
   set_property(TARGET cp2k PROPERTY HIP_ARCHITECTURES
@@ -1697,14 +1692,12 @@ target_compile_definitions(
     ${CP2K_GPU_DFLAGS})
 
 if(CP2K_USE_CUDA OR CP2K_USE_HIP)
-  # these checks are only relevant when the debug mode is on
-
   target_compile_definitions(
     cp2k
     PUBLIC $<$<NOT:$<BOOL:${CP2K_DBCSR_USE_CPU_ONLY}>>:__DBCSR_ACC>
-           $<$<BOOL:${CP2K_DISABLE_GRID_GPU}>:__NO_OFFLOAD_GRID>
-           $<$<BOOL:${CP2K_DISABLE_PW_GPU}>:__NO_OFFLOAD_PW>
-           $<$<BOOL:${CP2K_DISABLE_DBM_GPU}>:__NO_OFFLOAD_DBM>)
+           $<$<NOT:$<BOOL:${CP2K_ENABLE_GRID_GPU}>>:__NO_OFFLOAD_GRID>
+           $<$<NOT:$<BOOL:${CP2K_ENABLE_PW_GPU}>>:__NO_OFFLOAD_PW>
+           $<$<NOT:$<BOOL:${CP2K_ENABLE_DBM_GPU}>>:__NO_OFFLOAD_DBM>)
 endif()
 
 # add an alias for the FetchContent. Note that FindPackage will automatically

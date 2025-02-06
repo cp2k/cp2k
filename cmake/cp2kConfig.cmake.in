@@ -36,7 +36,7 @@ if(NOT TARGET cp2k::cp2k)
 
   set(cp2k_VERSION @cp2k_VERSION@)
 
-  find_dependency(DBCSR 2.5 REQUIRED)
+  find_dependency(DBCSR 2.8 REQUIRED)
 
   if(@CP2K_USE_LIBXSMM@)
     find_dependency(LibXSMM REQUIRED)
@@ -114,8 +114,6 @@ if(NOT TARGET cp2k::cp2k)
   if(@CP2K_USE_LIBSMEAGOL@)
     find_dependency(libsmeagol REQUIRED)
   endif()
-
-  find_dependency(dbcsr 2.6 REQUIRED)
 
   if(@CP2K_USE_VORI@)
     find_dependency(LibVORI REQUIRED)
