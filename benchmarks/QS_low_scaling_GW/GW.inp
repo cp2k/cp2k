@@ -27,7 +27,6 @@
       CHOLESKY OFF
       EPS_SCF 1.0E-6
       MAX_SCF 200
-      SCF_GUESS RESTART
     &END SCF
     &XC
       &WF_CORRELATION

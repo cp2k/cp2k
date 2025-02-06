@@ -31,7 +31,6 @@
     &SCF  ! Parameters controlling the convergence of the scf. This section should not be changed.
       EPS_SCF 1.0E-6
       MAX_SCF 300
-      SCF_GUESS RESTART
       &OT T
         MINIMIZER DIIS
         PRECONDITIONER FULL_ALL
