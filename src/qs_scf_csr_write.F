@@ -13,12 +13,12 @@
 ! **************************************************************************************************
 MODULE qs_scf_csr_write
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_add, dbcsr_convert_dbcsr_to_csr, dbcsr_copy, dbcsr_create, &
-        dbcsr_csr_create_from_dbcsr, dbcsr_csr_dbcsr_blkrow_dist, dbcsr_csr_destroy, &
-        dbcsr_csr_type, dbcsr_csr_write, dbcsr_desymmetrize, dbcsr_finalize, dbcsr_get_block_p, &
-        dbcsr_has_symmetry, dbcsr_p_type, dbcsr_put_block, dbcsr_release, dbcsr_set, dbcsr_type, &
-        dbcsr_type_antisymmetric, dbcsr_type_complex_8, dbcsr_type_no_symmetry, dbcsr_type_real_8, &
-        dbcsr_type_symmetric
+        dbcsr_convert_dbcsr_to_csr, dbcsr_copy, dbcsr_create, &
+        dbcsr_csr_create_and_convert_complex, dbcsr_csr_create_from_dbcsr, &
+        dbcsr_csr_dbcsr_blkrow_dist, dbcsr_csr_destroy, dbcsr_csr_type, dbcsr_csr_write, &
+        dbcsr_desymmetrize, dbcsr_finalize, dbcsr_get_block_p, dbcsr_has_symmetry, dbcsr_p_type, &
+        dbcsr_put_block, dbcsr_release, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, &
+        dbcsr_type_no_symmetry, dbcsr_type_real_8, dbcsr_type_symmetric
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
@@ -320,8 +320,6 @@ CONTAINS
       CHARACTER(*), INTENT(in)                           :: prefix
 
       CHARACTER(len=*), PARAMETER :: routineN = 'write_matrix_kp_csr'
-      COMPLEX(KIND=dp), PARAMETER :: cone = CMPLX(1.0_dp, 0.0_dp, KIND=dp), &
-         ione = CMPLX(0.0_dp, 1.0_dp, KIND=dp)
 
       CHARACTER(LEN=default_path_length)                 :: file_name, fileformat, subs_string
       INTEGER                                            :: handle, igroup, ik, ikp, ispin, kplocal, &
@@ -334,8 +332,8 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_csr_type)                               :: mat_csr
       TYPE(dbcsr_type)                                   :: matrix_nosym
-      TYPE(dbcsr_type), POINTER                          :: cmatrix, imatrix, imatrix_nosym, &
-                                                            rmatrix, rmatrix_nosym, tmatrix
+      TYPE(dbcsr_type), POINTER                          :: imatrix, imatrix_nosym, rmatrix, &
+                                                            rmatrix_nosym
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
 
@@ -369,24 +367,16 @@ CONTAINS
 
       IF (.NOT. use_real_wfn) THEN
          ! Allocate temporary variables
-         ALLOCATE (rmatrix_nosym, imatrix, imatrix_nosym, cmatrix, tmatrix)
+         ALLOCATE (rmatrix_nosym, imatrix, imatrix_nosym)
          CALL dbcsr_create(rmatrix_nosym, template=mat(1, 1)%matrix, &
                            matrix_type=dbcsr_type_no_symmetry)
          CALL dbcsr_create(imatrix, template=mat(1, 1)%matrix, &
                            matrix_type=dbcsr_type_antisymmetric)
          CALL dbcsr_create(imatrix_nosym, template=mat(1, 1)%matrix, &
                            matrix_type=dbcsr_type_no_symmetry)
-         CALL dbcsr_create(cmatrix, template=mat(1, 1)%matrix, &
-                           matrix_type=dbcsr_type_no_symmetry, &
-                           data_type=dbcsr_type_complex_8)
-         CALL dbcsr_create(tmatrix, template=mat(1, 1)%matrix, &
-                           matrix_type=dbcsr_type_no_symmetry, &
-                           data_type=dbcsr_type_complex_8)
          CALL cp_dbcsr_alloc_block_from_nbl(rmatrix_nosym, sab_nl)
          CALL cp_dbcsr_alloc_block_from_nbl(imatrix, sab_nl)
          CALL cp_dbcsr_alloc_block_from_nbl(imatrix_nosym, sab_nl)
-         CALL cp_dbcsr_alloc_block_from_nbl(cmatrix, sab_nl)
-         CALL cp_dbcsr_alloc_block_from_nbl(tmatrix, sab_nl)
       END IF
 
       kplocal = kp_range(2) - kp_range(1) + 1
@@ -415,12 +405,11 @@ CONTAINS
                   ! cmatrix
                   CALL dbcsr_desymmetrize(rmatrix, rmatrix_nosym)
                   CALL dbcsr_desymmetrize(imatrix, imatrix_nosym)
-                  CALL dbcsr_copy(cmatrix, rmatrix_nosym)
-                  CALL dbcsr_copy(tmatrix, imatrix_nosym)
-                  CALL dbcsr_add(cmatrix, tmatrix, cone, ione)
                   ! Convert to csr
-                  CALL dbcsr_csr_create_from_dbcsr(cmatrix, mat_csr, dbcsr_csr_dbcsr_blkrow_dist)
-                  CALL dbcsr_convert_dbcsr_to_csr(cmatrix, mat_csr)
+                  CALL dbcsr_csr_create_and_convert_complex(rmatrix=rmatrix_nosym, &
+                                                            imatrix=imatrix_nosym, &
+                                                            csr_mat=mat_csr, &
+                                                            dist_format=dbcsr_csr_dbcsr_blkrow_dist)
                END IF
                ! Write to file
                WRITE (file_name, '(2(A,I0))') prefix//"_SPIN_", ispin, "_K_", ik
@@ -441,9 +430,7 @@ CONTAINS
          CALL dbcsr_release(rmatrix_nosym)
          CALL dbcsr_release(imatrix)
          CALL dbcsr_release(imatrix_nosym)
-         CALL dbcsr_release(cmatrix)
-         CALL dbcsr_release(tmatrix)
-         DEALLOCATE (rmatrix_nosym, imatrix, imatrix_nosym, cmatrix, tmatrix)
+         DEALLOCATE (rmatrix_nosym, imatrix, imatrix_nosym)
       END IF
       CALL timestop(handle)
 
