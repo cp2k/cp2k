@@ -248,6 +248,7 @@ MODULE cp_dbcsr_api
    PUBLIC :: dbcsr_csr_dbcsr_blkrow_dist
    PUBLIC :: dbcsr_csr_print_sparsity
    PUBLIC :: dbcsr_csr_write
+   PUBLIC :: dbcsr_csr_create_and_convert_complex
 
    ! binary io
    PUBLIC :: dbcsr_binary_write
@@ -564,6 +565,34 @@ CONTAINS
          CALL dbcsr_csr_create_from_dbcsr_prv(dbcsr_mat%prv, csr_mat, dist_format, numnodes=numnodes)
       END IF
    END SUBROUTINE dbcsr_csr_create_from_dbcsr
+
+! **************************************************************************************************
+!> \brief Combines csr_create_from_dbcsr and convert_dbcsr_to_csr to produce a complex CSR matrix.
+!> \param rmatrix Real part of the matrix.
+!> \param rmatrix Imaginary part of the matrix.
+!> \param csr_mat The resulting CSR matrix.
+! **************************************************************************************************
+   SUBROUTINE dbcsr_csr_create_and_convert_complex(rmatrix, imatrix, csr_mat, dist_format)
+      TYPE(dbcsr_type), INTENT(IN)                       :: rmatrix, imatrix
+      TYPE(dbcsr_csr_type), INTENT(INOUT)                :: csr_mat
+      INTEGER                                            :: dist_format
+
+      COMPLEX(KIND=dp), PARAMETER                        :: rone = CMPLX(1.0_dp, 0.0_dp, KIND=dp)
+      COMPLEX(KIND=dp), PARAMETER                        :: ione = CMPLX(0.0_dp, 1.0_dp, KIND=dp)
+
+      TYPE(dbcsr_type)                                   :: tmp_matrix, cmatrix
+
+      CALL dbcsr_create_prv(tmp_matrix%prv, template=rmatrix%prv, data_type=dbcsr_type_complex_8)
+      CALL dbcsr_create_prv(cmatrix%prv, template=rmatrix%prv, data_type=dbcsr_type_complex_8)
+      CALL dbcsr_copy_prv(cmatrix%prv, rmatrix%prv)
+      CALL dbcsr_copy_prv(tmp_matrix%prv, imatrix%prv)
+      CALL dbcsr_add_prv(cmatrix%prv, tmp_matrix%prv, rone, ione)
+      CALL dbcsr_release_prv(tmp_matrix%prv)
+      ! Convert to csr
+      CALL dbcsr_csr_create_from_dbcsr_prv(cmatrix%prv, csr_mat, dist_format)
+      CALL convert_dbcsr_to_csr_prv(cmatrix%prv, csr_mat)
+      CALL dbcsr_release_prv(cmatrix%prv)
+   END SUBROUTINE dbcsr_csr_create_and_convert_complex
 
 ! **************************************************************************************************
 !> \brief ...
