@@ -698,8 +698,7 @@ endif()
 
 if(CP2K_USE_LIBTORCH)
   find_package(Torch REQUIRED)
-  get_target_property(CP2K_TORCH_CXX_STANDARD torch
-    CXX_STANDARD)
+  get_target_property(CP2K_TORCH_CXX_STANDARD torch CXX_STANDARD)
   if(${CP2K_TORCH_CXX_STANDARD} VERSION_GREATER ${CMAKE_CXX_STANDARD})
     set(CMAKE_CXX_STANDARD ${CP2K_TORCH_CXX_STANDARD})
     message("-- Torch setting CMAKE_CXX_STANDARD to ${CP2K_TORCH_CXX_STANDARD}")
