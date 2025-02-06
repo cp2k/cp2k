@@ -44,41 +44,45 @@ __device__ __inline__ void block_to_cab(const kernel_params &params,
   // two products are fused to conserve shared memory.
   const int tid =
       threadIdx.x + blockDim.x * (threadIdx.y + blockDim.y * threadIdx.z);
-  for (int i = 0; i < task.nsgf_setb; i++) {
-    for (int j = 0; j < task.nsgf_seta; j++) {
-      T block_val;
-      if (task.block_transposed) {
-        block_val = task.pab_block[j * task.nsgfb + i] * task.off_diag_twice;
-      } else {
-        block_val = task.pab_block[i * task.nsgfa + j] * task.off_diag_twice;
+
+  for (int jco = task.first_cosetb + tid / 16; jco < task.ncosetb; jco += 4) {
+    for (int ico = task.first_coseta + (tid % 16); ico < task.ncoseta;
+         ico += 16) {
+      T pab_val = 0.0;
+      for (int i = 0; i < task.nsgf_setb; i++) {
+        const T sphib = task.sphib[i * task.maxcob + jco];
+        T tmp_val = 0.0;
+        for (int j = 0; j < task.nsgf_seta; j++) {
+          T block_val;
+          if (task.block_transposed) {
+            block_val =
+                task.pab_block[j * task.nsgfb + i] * task.off_diag_twice;
+          } else {
+            block_val =
+                task.pab_block[i * task.nsgfa + j] * task.off_diag_twice;
+          }
+          //          const T sphia = task.sphia[j * task.maxcoa + ico];
+          tmp_val += block_val * task.sphia[j * task.maxcoa + ico];
+        }
+        pab_val += tmp_val * sphib;
       }
 
-      // fast path for common case
-      // const int jco_start = task.first_cosetb;
-      for (int jco = task.first_cosetb + tid / 16; jco < task.ncosetb;
-           jco += 4) {
-        const T sphib = task.sphib[i * task.maxcob + jco];
-        for (int ico = task.first_coseta + (tid % 16); ico < task.ncoseta;
-             ico += 16) {
-          const T sphia = task.sphia[j * task.maxcoa + ico];
-          const T pab_val = block_val * sphia * sphib;
-          if (IS_FUNC_AB) {
-            cab[jco * task.ncoseta + ico] += pab_val;
-          } else {
-            const auto a = coset_inv[ico];
-            const auto b = coset_inv[jco];
-            prepare_pab(params.func, a, b, task.zeta, task.zetb, pab_val,
-                        task.n1, cab);
-          }
-        }
+      if (IS_FUNC_AB) {
+        cab[jco * task.ncoseta + ico] += pab_val;
+      } else {
+        const auto a = coset_inv[ico];
+        const auto b = coset_inv[jco];
+        // remains the atomicAdd used in prepare_pab. Are they needed ?
+        prepare_pab(params.func, a, b, task.zeta, task.zetb, pab_val, task.n1,
+                    cab);
       }
-      __syncthreads();
     }
   }
 }
 
 template <typename T, bool IS_FUNC_AB>
-__global__ void calculate_coefficients(const kernel_params dev_) {
+__global__
+__launch_bounds__(64) void calculate_coefficients(const kernel_params dev_) {
   __shared__ smem_task<T> task;
   if (dev_.tasks[dev_.first_task + blockIdx.x].skip_task)
     return;
