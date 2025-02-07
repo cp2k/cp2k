@@ -89,7 +89,7 @@ if [[ "${PROFILE}" == "spack" ]] && [[ "${VERSION}" == "psmp" ]]; then
     -DCP2K_USE_COSMA=ON \
     -DCP2K_USE_SIRIUS=ON \
     -DCP2K_USE_GRPP=OFF \
-    -DCP2K_USE_TREXIO=OFF \
+    -DCP2K_USE_TREXIO=ON \
     -DCP2K_USE_LIBTORCH=ON \
     -DCP2K_USE_DLAF=ON \
     -DCP2K_USE_DFTD4=ON \
@@ -108,6 +108,8 @@ elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "ssmp" ]]; then
     -DCP2K_USE_DFTD4=ON \
     -DCP2K_USE_DLAF=OFF \
     -DCP2K_USE_FFTW3=ON \
+    -DCP2K_USE_GRPP=OFF \
+    -DCP2K_USE_HDF5=ON \
     -DCP2K_USE_LIBINT2=ON \
     -DCP2K_USE_LIBTORCH=ON \
     -DCP2K_USE_LIBXC=ON \
@@ -115,9 +117,8 @@ elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "ssmp" ]]; then
     -DCP2K_USE_MPI=OFF \
     -DCP2K_USE_MPI_F08=OFF \
     -DCP2K_USE_SPGLIB=ON \
+    -DCP2K_USE_TREXIO=ON \
     -DCP2K_USE_VORI=ON \
-    -DCP2K_USE_GRPP=OFF \
-    -DCP2K_USE_TREXIO=OFF \
     -Werror=dev \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
@@ -154,6 +155,8 @@ elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "psmp" ]]; then
     -DCP2K_USE_DLAF=OFF \
     -DCP2K_USE_ELPA=ON \
     -DCP2K_USE_FFTW3=ON \
+    -DCP2K_USE_GRPP=OFF \
+    -DCP2K_USE_HDF5=ON \
     -DCP2K_USE_LIBINT2=ON \
     -DCP2K_USE_LIBSMEAGOL=ON \
     -DCP2K_USE_LIBTORCH=ON \
@@ -165,10 +168,8 @@ elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "psmp" ]]; then
     -DCP2K_USE_SIRIUS=ON \
     -DCP2K_USE_SPGLIB=ON \
     -DCP2K_USE_SPLA=ON \
+    -DCP2K_USE_TREXIO=ON \
     -DCP2K_USE_VORI=ON \
-    -DCP2K_USE_HDF5=ON \
-    -DCP2K_USE_GRPP=OFF \
-    -DCP2K_USE_TREXIO=OFF \
     -Werror=dev \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
