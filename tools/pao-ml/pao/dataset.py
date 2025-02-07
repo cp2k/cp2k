@@ -35,32 +35,37 @@ class PaoDataset(Dataset[PaoRecord]):
             f = parse_pao_file(fn)
 
             # Build  k-d tree of atom positions.
-            assert 0 < num_neighbors < f.coords.shape[0]
+            assert 0 < num_neighbors
             assert np.all(f.cell == np.diag(np.diagonal(f.cell)))
             boxsize = np.diagonal(f.cell)
             kdtree = scipy.spatial.KDTree(np.mod(f.coords, boxsize), boxsize=boxsize)
             # alternative: https://wiki.fysik.dtu.dk/ase/ase/neighborlist.html
 
-            for i, k in enumerate(f.atom2kind):
-                if k == kind_name:
-                    # Find indicies of neighbor atoms.
-                    nearest = kdtree.query(f.coords[i], num_neighbors + 1)[1]
-                    neighbors = [j for j in nearest if j != i]  # filter central atom
+            # Small systems might contain less atoms than the model's num_neighbors.
+            num_available_neighbors = min(f.coords.shape[0] - 1, num_neighbors)
+            for iatom, ikind in enumerate(f.atom2kind):
+                if ikind != kind_name:
+                    continue
 
-                    # Compute relative positions of neighbor atoms.
-                    relpos = [f.coords[j] - f.coords[i] for j in neighbors]
-                    self.neighbors_relpos.append(_as_tensor(relpos))
+                # Find indicies of neighbor atoms.
+                nearest = kdtree.query(f.coords[iatom], num_available_neighbors + 1)[1]
+                assert nearest[0] == iatom  # the central atom should be the nearest
 
+                # Compute relative positions and features of neighbor atoms.
+                relpos = np.zeros([num_neighbors, 3])
+                features = np.zeros([num_neighbors, len(self.feature_kind_names)])
+                for jneighbor in range(num_available_neighbors):
+                    jatom = nearest[jneighbor + 1]  # +1 to skip over central atom
+                    relpos[jneighbor, :] = f.coords[jatom] - f.coords[iatom]
                     # Features of neighbor atoms is the one-hot encoding of their kind.
-                    features = [
-                        f.atom2kind[j] == np.array(self.feature_kind_names)
-                        for j in neighbors
-                    ]
-                    self.neighbors_features.append(_as_tensor(features))
+                    one_hot = f.atom2kind[jatom] == np.array(self.feature_kind_names)
+                    features[jneighbor, :] = one_hot
+                self.neighbors_relpos.append(_as_tensor(relpos))
+                self.neighbors_features.append(_as_tensor(features))
 
-                    # Orthonormalize labels as it's required for the loss_functions.
-                    label = np.linalg.svd(f.xblocks[i], full_matrices=False)[2]
-                    self.labels.append(_as_tensor(label))
+                # Orthonormalize labels as it's required for the loss_functions.
+                label = np.linalg.svd(f.xblocks[iatom], full_matrices=False)[2]
+                self.labels.append(_as_tensor(label))
 
     def __len__(self) -> int:
         return len(self.labels)
