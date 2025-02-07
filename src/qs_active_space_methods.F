@@ -29,6 +29,7 @@ MODULE qs_active_space_methods
                                   cp_dbcsr_sm_fm_multiply, &
                                   dbcsr_allocate_matrix_set, &
                                   cp_dbcsr_m_by_n_from_template, copy_dbcsr_to_fm
+   USE cp_dbcsr_output, ONLY: cp_dbcsr_write_sparse_matrix
    USE cp_files, ONLY: close_file, &
                        file_exists, &
                        open_file
@@ -436,9 +437,9 @@ CONTAINS
          IF (dft_control%restricted) THEN
             CPABORT("Unclear how we define MOs in the restricted case ... stopping")
          ELSE
-            IF (dft_control%do_admm) THEN
-               CPABORT("ADMM currently not possible for canonical orbital options")
-            END IF
+            ! IF (dft_control%do_admm) THEN
+            !    CPABORT("ADMM currently not possible for canonical orbital options")
+            ! END IF
 
             ALLOCATE (eigenvalues(nmo_occ, nspins))
             eigenvalues = 0.0_dp
@@ -564,9 +565,9 @@ CONTAINS
          IF (dft_control%restricted) THEN
             CPABORT("Unclear how we define MOs in the restricted case ... stopping")
          ELSE
-            IF (dft_control%do_admm) THEN
-               CPABORT("ADMM currently not possible for manual orbitals selection")
-            END IF
+            ! IF (dft_control%do_admm) THEN
+            !    CPABORT("ADMM currently not possible for manual orbitals selection")
+            ! END IF
 
             CALL section_vals_val_get(as_input, "ACTIVE_ORBITAL_INDICES", explicit=explicit, i_vals=invals)
             IF (.NOT. explicit) THEN
@@ -1086,6 +1087,7 @@ CONTAINS
       ! Vxc matrix
       CALL cp_fm_release(active_space_env%vxc_sub)
 
+      ! TODO: this is actually never computed!!!! (And never used in the embedding algorithm)
       NULLIFY (matrix_vxc)
       CALL get_qs_env(qs_env, matrix_vxc=matrix_vxc)
       IF (ASSOCIATED(matrix_vxc)) THEN
@@ -2829,7 +2831,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: alpha, delta_E, energy_corr, energy_new, &
                                                             energy_old, energy_scf, eps_iter, t1, t2
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao, matrix_vxc, matrix_ks
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos_active
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(qs_energy_type), POINTER                      :: energy
@@ -2901,6 +2903,17 @@ CONTAINS
          energy_new = active_space_env%energy_total
          energy_corr = energy_new - energy_scf
          delta_E = energy_new - energy_old
+
+         CALL get_qs_env(qs_env, matrix_vxc=matrix_vxc, matrix_ks=matrix_ks)
+         ! write out the density matrix in AO basis
+         CALL cp_dbcsr_write_sparse_matrix(rho_ao(1)%matrix, 4, 4, qs_env, para_env, &
+                                           output_unit=iw, omit_headers=.false.)
+
+         CALL cp_dbcsr_write_sparse_matrix(matrix_ks(1)%matrix, 4, 4, qs_env, para_env, &
+                                           output_unit=iw, omit_headers=.false.)
+
+         ! CALL cp_dbcsr_write_sparse_matrix(matrix_vxc(1)%matrix, 4, 4, qs_env, para_env, &
+         !                                   output_unit=iw, omit_headers=.false.)
 
          ! get timer
          t2 = t1
