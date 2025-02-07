@@ -42,7 +42,7 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
 
 # Install a recent developer version of Spack.
 WORKDIR /opt/spack
-ARG SPACK_VERSION=7ebabfcf0ec31ba2a0470d0405bf7ae84a446c00
+ARG SPACK_VERSION=develop-2025-02-02
 RUN git init --quiet && \
     git remote add origin https://github.com/spack/spack.git && \
     git fetch --quiet --depth 1 origin ${SPACK_VERSION} --no-tags && \
@@ -54,7 +54,7 @@ RUN spack compiler find
 RUN spack external find --all --not-buildable
 
 # Enable Spack build cache
-ARG SPACK_BUILD_CACHE=develop-2025-01-26
+ARG SPACK_BUILD_CACHE=develop-2025-02-02
 RUN spack mirror add ${SPACK_BUILD_CACHE} https://binaries.spack.io/${SPACK_BUILD_CACHE} && \
     spack mirror add develop https://binaries.spack.io/develop && \
     spack buildcache keys --install --trust --force && \
