@@ -17,8 +17,8 @@ MODULE dm_ls_scf_curvy
                                               cite_reference
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_dot, dbcsr_filter, dbcsr_frobenius_norm, &
-        dbcsr_multiply, dbcsr_norm, dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_transposed, &
-        dbcsr_type, dbcsr_type_no_symmetry
+        dbcsr_multiply, dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_transposed, dbcsr_type, &
+        dbcsr_type_no_symmetry
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
@@ -381,7 +381,6 @@ CONTAINS
          CALL dbcsr_add(matrix_b, matrix_PKs, -1.0_dp, -1.0_dp)
 
 ! Setup some values to check convergence and safety checks for eigenvalue shifting
-         CALL dbcsr_norm(matrix_res, which_norm=2, norm_scalar=old_conv)
          old_conv = dbcsr_frobenius_norm(matrix_res)
          shift = MIN(10.0_dp, MAX(min_shift, 0.05_dp*old_conv))
          conv_val = MAX(0.010_dp*old_conv, 100.0_dp*eps_filter)

@@ -21,9 +21,9 @@ MODULE cp_dbcsr_operations
         dbcsr_add, dbcsr_complete_redistribute, dbcsr_convert_sizes_to_offsets, dbcsr_copy, &
         dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, dbcsr_distribution_get, &
         dbcsr_distribution_new, dbcsr_distribution_release, dbcsr_distribution_type, &
-        dbcsr_get_data_type, dbcsr_get_info, dbcsr_get_matrix_type, dbcsr_iterator_blocks_left, &
-        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
-        dbcsr_multiply, dbcsr_norm, dbcsr_norm_frobenius, dbcsr_p_type, dbcsr_release, &
+        dbcsr_frobenius_norm, dbcsr_get_data_type, dbcsr_get_info, dbcsr_get_matrix_type, &
+        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
+        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
         dbcsr_reserve_all_blocks, dbcsr_scale, dbcsr_type, dbcsr_type_antisymmetric, &
         dbcsr_type_no_symmetry, dbcsr_type_real_8, dbcsr_type_symmetric, dbcsr_valid_index, &
         dbcsr_verify_matrix
@@ -830,8 +830,7 @@ CONTAINS
             CALL copy_fm_to_dbcsr(fm_matrix, sparse_matrix2, keep_sparsity=my_keep_sparsity)
             CALL dbcsr_add(sparse_matrix2, sparse_matrix, alpha_scalar=1.0_dp, &
                            beta_scalar=-1.0_dp)
-            CALL dbcsr_norm(sparse_matrix2, which_norm=dbcsr_norm_frobenius, &
-                            norm_scalar=norm)
+            norm = dbcsr_frobenius_norm(sparse_matrix2)
             WRITE (*, *) 'nao=', nao, ' k=', k, ' ncol=', ncol, ' my_alpha=', my_alpha
             WRITE (*, *) 'PRESENT (matrix_g)', PRESENT(matrix_g)
             WRITE (*, *) 'matrix_type=', dbcsr_get_matrix_type(sparse_matrix)

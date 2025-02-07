@@ -52,8 +52,7 @@ MODULE cp_dbcsr_api
         dbcsr_nblkcols_total_prv => dbcsr_nblkcols_total, &
         dbcsr_nblkrows_total_prv => dbcsr_nblkrows_total, &
         dbcsr_nfullcols_total_prv => dbcsr_nfullcols_total, &
-        dbcsr_nfullrows_total_prv => dbcsr_nfullrows_total, dbcsr_no_transpose, dbcsr_norm_column, &
-        dbcsr_norm_frobenius, dbcsr_norm_maxabsnorm, dbcsr_norm_prv => dbcsr_norm, &
+        dbcsr_nfullrows_total_prv => dbcsr_nfullrows_total, dbcsr_no_transpose, &
         dbcsr_print_block_sum_prv => dbcsr_print_block_sum, dbcsr_print_config, &
         dbcsr_print_prv => dbcsr_print, dbcsr_print_statistics, &
         dbcsr_put_block_prv => dbcsr_put_block, dbcsr_release_prv => dbcsr_release, &
@@ -184,9 +183,6 @@ MODULE cp_dbcsr_api
    PUBLIC :: dbcsr_test_mm
 
    ! high level matrix functions
-   PUBLIC :: dbcsr_norm_frobenius
-   PUBLIC :: dbcsr_norm_maxabsnorm
-   PUBLIC :: dbcsr_norm_column
    PUBLIC :: dbcsr_hadamard_product
    PUBLIC :: dbcsr_func_dtanh
    PUBLIC :: dbcsr_func_inverse
@@ -195,7 +191,6 @@ MODULE cp_dbcsr_api
    PUBLIC :: dbcsr_print_block_sum
    PUBLIC :: dbcsr_checksum
    PUBLIC :: dbcsr_maxabs
-   PUBLIC :: dbcsr_norm
    PUBLIC :: dbcsr_gershgorin_norm
    PUBLIC :: dbcsr_frobenius_norm
    PUBLIC :: dbcsr_init_random
@@ -249,10 +244,6 @@ MODULE cp_dbcsr_api
       MODULE PROCEDURE dbcsr_iterator_next_block_index
       MODULE PROCEDURE dbcsr_iterator_next_1d_block
       MODULE PROCEDURE dbcsr_iterator_next_2d_block
-   END INTERFACE
-
-   INTERFACE dbcsr_norm
-      MODULE PROCEDURE dbcsr_norm_scalar, dbcsr_norm_vector
    END INTERFACE
 
    INTERFACE dbcsr_put_block
@@ -1230,34 +1221,6 @@ CONTAINS
 
       nfullrows_total = dbcsr_nfullrows_total_prv(matrix%prv)
    END FUNCTION dbcsr_nfullrows_total
-
-! **************************************************************************************************
-!> \brief ...
-!> \param matrix ...
-!> \param which_norm ...
-!> \param norm_scalar ...
-! **************************************************************************************************
-   SUBROUTINE dbcsr_norm_scalar(matrix, which_norm, norm_scalar)
-      TYPE(dbcsr_type), INTENT(INOUT), TARGET            :: matrix
-      INTEGER, INTENT(IN)                                :: which_norm
-      REAL(dp), INTENT(OUT)                              :: norm_scalar
-
-      CALL dbcsr_norm_prv(matrix%prv, which_norm, norm_scalar)
-   END SUBROUTINE dbcsr_norm_scalar
-
-! **************************************************************************************************
-!> \brief ...
-!> \param matrix ...
-!> \param which_norm ...
-!> \param norm_vector ...
-! **************************************************************************************************
-   SUBROUTINE dbcsr_norm_vector(matrix, which_norm, norm_vector)
-      TYPE(dbcsr_type), INTENT(INOUT), TARGET            :: matrix
-      INTEGER, INTENT(IN)                                :: which_norm
-      REAL(dp), DIMENSION(:), INTENT(OUT)                :: norm_vector
-
-      CALL dbcsr_norm_prv(matrix%prv, which_norm, norm_vector)
-   END SUBROUTINE dbcsr_norm_vector
 
 ! **************************************************************************************************
 !> \brief ...

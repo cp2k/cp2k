@@ -19,9 +19,9 @@ MODULE iterate_matrix
         dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, &
         dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_filter, dbcsr_frobenius_norm, &
         dbcsr_gershgorin_norm, dbcsr_get_diag, dbcsr_get_info, dbcsr_get_matrix_type, &
-        dbcsr_get_occupation, dbcsr_multiply, dbcsr_norm, dbcsr_norm_maxabsnorm, dbcsr_p_type, &
-        dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_set_diag, dbcsr_trace, dbcsr_transposed, &
-        dbcsr_type, dbcsr_type_no_symmetry
+        dbcsr_get_occupation, dbcsr_maxabs, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
+        dbcsr_scale, dbcsr_set, dbcsr_set_diag, dbcsr_trace, dbcsr_transposed, dbcsr_type, &
+        dbcsr_type_no_symmetry
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
@@ -217,8 +217,7 @@ CONTAINS
             det = det*EXP(trace)
 
             occ_matrix = dbcsr_get_occupation(tmp1)
-            CALL dbcsr_norm(tmp1, &
-                            dbcsr_norm_maxabsnorm, norm_scalar=maxnorm)
+            maxnorm = dbcsr_maxabs(tmp1)
 
             t2 = m_walltime()
 
@@ -393,8 +392,7 @@ CONTAINS
          CALL dbcsr_desymmetrize(tmp3_sym, tmp1)
 
          ! for the convergence check
-         CALL dbcsr_norm(tmp3_sym, &
-                         dbcsr_norm_maxabsnorm, norm_scalar=maxnorm_matrix)
+         maxnorm_matrix = dbcsr_maxabs(tmp3_sym)
 
          t2 = m_walltime()
          occ_matrix = dbcsr_get_occupation(matrix_inverse)
@@ -420,7 +418,7 @@ CONTAINS
                           filter_eps=filter_eps)
       CALL dbcsr_add_on_diag(tmp1, -1.0_dp)
       !frob_matrix =  dbcsr_frobenius_norm(tmp1)
-      CALL dbcsr_norm(tmp1, dbcsr_norm_maxabsnorm, norm_scalar=maxnorm_matrix)
+      maxnorm_matrix = dbcsr_maxabs(tmp1)
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T6,A,E12.5)') "Final Taylor error", maxnorm_matrix
          WRITE (unit_nr, '()')
@@ -597,8 +595,7 @@ CONTAINS
 
          ! for the convergence check
          CALL dbcsr_add_on_diag(tmp1, -1.0_dp)
-         CALL dbcsr_norm(tmp1, &
-                         dbcsr_norm_maxabsnorm, norm_scalar=maxnorm_matrix)
+         maxnorm_matrix = dbcsr_maxabs(tmp1)
          CALL dbcsr_add_on_diag(tmp1, +1.0_dp)
 
          ! tmp2 = S^-1 S S^-1

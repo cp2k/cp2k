@@ -44,11 +44,10 @@ MODULE almo_scf_optimizer
         dbcsr_frobenius_norm, dbcsr_func_dtanh, dbcsr_func_inverse, dbcsr_func_tanh, &
         dbcsr_function_of_elements, dbcsr_get_block_p, dbcsr_get_diag, dbcsr_get_info, &
         dbcsr_hadamard_product, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
-        dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_norm, dbcsr_norm_maxabsnorm, &
-        dbcsr_p_type, dbcsr_print_block_sum, dbcsr_release, dbcsr_reserve_block2d, dbcsr_scale, &
-        dbcsr_set, dbcsr_set_diag, dbcsr_triu, dbcsr_type, dbcsr_type_no_symmetry, &
-        dbcsr_work_create
+        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_maxabs, &
+        dbcsr_multiply, dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_p_type, &
+        dbcsr_print_block_sum, dbcsr_release, dbcsr_reserve_block2d, dbcsr_scale, dbcsr_set, &
+        dbcsr_set_diag, dbcsr_triu, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_work_create
    USE cp_dbcsr_cholesky,               ONLY: cp_dbcsr_cholesky_decompose,&
                                               cp_dbcsr_cholesky_invert,&
                                               cp_dbcsr_cholesky_restore
@@ -224,9 +223,7 @@ CONTAINS
          prev_error_norm = error_norm
          DO ispin = 1, nspin
             !error_norm=dbcsr_frobenius_norm(almo_scf_env%matrix_err_blk(ispin))
-            CALL dbcsr_norm(almo_scf_env%matrix_err_blk(ispin), &
-                            dbcsr_norm_maxabsnorm, &
-                            norm_scalar=error_norm_ispin)
+            error_norm_ispin = dbcsr_maxabs(almo_scf_env%matrix_err_blk(ispin))
             IF (ispin .EQ. 1) error_norm = error_norm_ispin
             IF (ispin .GT. 1 .AND. error_norm_ispin .GT. error_norm) &
                error_norm = error_norm_ispin
@@ -578,9 +575,7 @@ CONTAINS
          converged = .TRUE.
          DO ispin = 1, nspin
             !error_norm=dbcsr_frobenius_norm(almo_scf_env%matrix_err_blk(ispin))
-            CALL dbcsr_norm(almo_scf_env%matrix_err_xx(ispin), &
-                            dbcsr_norm_maxabsnorm, &
-                            norm_scalar=error_norm)
+            error_norm = dbcsr_maxabs(almo_scf_env%matrix_err_xx(ispin))
             CALL maxnorm_submatrices(almo_scf_env%domain_err(:, ispin), &
                                      norm=error_norm_0)
             IF (error_norm .GT. optimizer%eps_error) THEN
@@ -1487,8 +1482,7 @@ CONTAINS
 
             ! check convergence and other exit criteria
             DO ispin = 1, nspins
-               CALL dbcsr_norm(grad(ispin), dbcsr_norm_maxabsnorm, &
-                               norm_scalar=grad_norm_spin(ispin))
+               grad_norm_spin(ispin) = dbcsr_maxabs(grad(ispin))
             END DO ! ispin
             grad_norm = MAXVAL(grad_norm_spin)
 
@@ -2518,8 +2512,7 @@ CONTAINS
 
             ! check convergence and other exit criteria
             DO ispin = 1, nspins
-               CALL dbcsr_norm(grad(ispin), dbcsr_norm_maxabsnorm, &
-                               norm_scalar=grad_norm_spin(ispin))
+               grad_norm_spin(ispin) = dbcsr_maxabs(grad(ispin))
             END DO ! ispin
             grad_norm = MAXVAL(grad_norm_spin)
 
@@ -3964,7 +3957,7 @@ CONTAINS
 
                         ! check convergence and other exit criteria
                         grad_norm_frob = dbcsr_frobenius_norm(grad)
-                        CALL dbcsr_norm(grad, dbcsr_norm_maxabsnorm, norm_scalar=grad_norm)
+                        grad_norm = dbcsr_maxabs(grad)
                         converged = (grad_norm .LT. almo_scf_env%opt_k_eps_convergence)
                         IF (converged .OR. (iteration .GE. opt_k_max_iter)) THEN
                            prepare_to_exit = .TRUE.
@@ -6158,10 +6151,8 @@ CONTAINS
                              0.0_dp, m_tmp_no_1, &
                              retain_sparsity=.TRUE.)
          ! this norm does not contain the normalization factors
-         CALL dbcsr_norm(m_tmp_no_1, dbcsr_norm_maxabsnorm, &
-                         norm_scalar=penalty_occ_vol_g_norm)
-         CALL dbcsr_norm(m_tmp_no_2, dbcsr_norm_maxabsnorm, &
-                         norm_scalar=energy_g_norm)
+         penalty_occ_vol_g_norm = dbcsr_maxabs(m_tmp_no_1)
+         energy_g_norm = dbcsr_maxabs(m_tmp_no_2)
          !WRITE (*, "(A30,2F20.10)") "Energy/penalty g norms (no norm): ", energy_g_norm, penalty_occ_vol_g_norm
          CALL dbcsr_add(m_tmp_no_2, m_tmp_no_1, 1.0_dp, 1.0_dp)
       END IF
@@ -6281,15 +6272,12 @@ CONTAINS
       !        1.0_dp,m_tmp_no_2,&
       !        retain_sparsity=.TRUE.,&
       !        )
-      !CALL dbcsr_norm(m_tmp_no_2, dbcsr_norm_maxabsnorm,&
-      !        norm_scalar=penalty_occ_vol_g_norm, )
+      !penalty_occ_vol_g_norm = dbcsr_maxabs(m_tmp_no_2)
       !WRITE(*,"(A50,2F20.10)") "Virtual-space projection of the gradient", penalty_occ_vol_g_norm
       !CALL dbcsr_add(m_tmp_no_2,m_tmp_no_1,1.0_dp,-1.0_dp)
-      !CALL dbcsr_norm(m_tmp_no_2, dbcsr_norm_maxabsnorm,&
-      !        norm_scalar=penalty_occ_vol_g_norm, )
+      !penalty_occ_vol_g_norm = dbcsr_maxabs(m_tmp_no_2)
       !WRITE(*,"(A50,2F20.10)") "Occupied-space projection of the gradient", penalty_occ_vol_g_norm
-      !CALL dbcsr_norm(m_tmp_no_1, dbcsr_norm_maxabsnorm,&
-      !        norm_scalar=penalty_occ_vol_g_norm, )
+      !penalty_occ_vol_g_norm = dbcsr_maxabs(m_tmp_no_1)
       !WRITE(*,"(A50,2F20.10)") "Full gradient", penalty_occ_vol_g_norm
 
       ! transform d_E/d_T to d_E/d_theta
@@ -6710,10 +6698,8 @@ CONTAINS
                           m_siginv, &
                           0.0_dp, m_temp_oo_3, &
                           filter_eps=eps_filter)
-      CALL dbcsr_norm(m_temp_oo_3, &
-                      dbcsr_norm_maxabsnorm, norm_scalar=norm_vol)
-      CALL dbcsr_norm(m_temp_oo_1, &
-                      dbcsr_norm_maxabsnorm, norm_scalar=norm_loc)
+      norm_vol = dbcsr_maxabs(m_temp_oo_3)
+      norm_loc = dbcsr_maxabs(m_temp_oo_1)
       suggested_vol_penalty = norm_loc/norm_vol
       CALL dbcsr_add(m_temp_oo_1, m_temp_oo_3, &
                      1.0_dp, 2.0_dp*penalty_vol_prefactor)
@@ -6843,8 +6829,7 @@ CONTAINS
       IF (optimize_theta) THEN
          ! check that all MO coefficients of the guess are less
          ! than the maximum allowed amplitude
-         CALL dbcsr_norm(m_tmp_no_1, &
-                         dbcsr_norm_maxabsnorm, norm_scalar=t_norm)
+         t_norm = dbcsr_maxabs(m_tmp_no_1)
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, *) "Maximum norm of the initial guess: ", t_norm
             WRITE (unit_nr, *) "Maximum allowed amplitude: ", &
@@ -7774,8 +7759,7 @@ CONTAINS
                CALL dbcsr_copy(m_residue_prev(ispin), m_residue(ispin))
                CALL dbcsr_add(m_residue(ispin), m_Hstep(ispin), &
                               1.0_dp, -1.0_dp*alpha)
-               CALL dbcsr_norm(m_residue(ispin), dbcsr_norm_maxabsnorm, &
-                               norm_scalar=residue_max_norm(ispin))
+               residue_max_norm(ispin) = dbcsr_maxabs(m_residue(ispin))
 
             END DO ! ispin
 
@@ -7923,15 +7907,12 @@ CONTAINS
                              m_tmp_oo_2, &
                              0.0_dp, m_zet(ispin), &
                              retain_sparsity=.TRUE.)
-         CALL dbcsr_norm(m_zet(ispin), dbcsr_norm_maxabsnorm, &
-                         norm_scalar=alpha)
+         alpha = dbcsr_maxabs(m_zet(ispin))
          WRITE (unit_nr, "(A50,2F20.10)") "Occupied-space projection of the step", alpha
          CALL dbcsr_add(m_zet(ispin), m_delta(ispin), -1.0_dp, 1.0_dp)
-         CALL dbcsr_norm(m_zet(ispin), dbcsr_norm_maxabsnorm, &
-                         norm_scalar=alpha)
+         alpha = dbcsr_maxabs(m_zet(ispin))
          WRITE (unit_nr, "(A50,2F20.10)") "Virtual-space projection of the step", alpha
-         CALL dbcsr_norm(m_delta(ispin), dbcsr_norm_maxabsnorm, &
-                         norm_scalar=alpha)
+         alpha = dbcsr_maxabs(m_delta(ispin))
          WRITE (unit_nr, "(A50,2F20.10)") "Full step", alpha
          CALL dbcsr_release(m_tmp_oo_1)
          CALL dbcsr_release(m_tmp_oo_2)
@@ -9041,8 +9022,7 @@ CONTAINS
       CALL dbcsr_scale(matrix_S_ao_sym, 2.0_dp*spin_factor)
       CALL dbcsr_add(matrix_S_ao_sym, matrix_grad, &
                      1.0_dp, 1.0_dp)
-      CALL dbcsr_norm(matrix_S_ao_sym, dbcsr_norm_maxabsnorm, &
-                      norm_scalar=test_error)
+      test_error = dbcsr_maxabs(matrix_S_ao_sym)
       WRITE (unit_nr, *) "NEWTOL step error: ", test_error
       CALL dbcsr_release(matrix_S_ao_sym)
       CALL dbcsr_release(matrix_F_ao_sym)
@@ -9431,8 +9411,7 @@ CONTAINS
 
          ! check convergence and other exit criteria
          DO ispin = 1, nspins
-            CALL dbcsr_norm(grad(ispin), dbcsr_norm_maxabsnorm, &
-                            norm_scalar=grad_norm_spin(ispin))
+            grad_norm_spin(ispin) = dbcsr_maxabs(grad(ispin))
             !grad_norm_frob = dbcsr_frobenius_norm(grad(ispin)) / &
             !                 dbcsr_frobenius_norm(quench_t(ispin))
          END DO ! ispin
@@ -9992,8 +9971,7 @@ CONTAINS
 
             ! Model grad norm
             DO ispin = 1, nspins
-               CALL dbcsr_norm(m_model_r(ispin), dbcsr_norm_maxabsnorm, &
-                               norm_scalar=grad_norm_spin(ispin))
+               grad_norm_spin(ispin) = dbcsr_maxabs(m_model_r(ispin))
                !grad_norm_frob = dbcsr_frobenius_norm(grad(ispin)) / &
                !                 dbcsr_frobenius_norm(quench_t(ispin))
             END DO ! ispin

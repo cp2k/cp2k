@@ -18,10 +18,10 @@ MODULE ct_methods
         dbcsr_frobenius_norm, dbcsr_func_inverse, dbcsr_function_of_elements, dbcsr_get_diag, &
         dbcsr_get_info, dbcsr_get_stored_coordinates, dbcsr_hadamard_product, &
         dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
-        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_nblkcols_total, &
-        dbcsr_nblkrows_total, dbcsr_norm, dbcsr_norm_maxabsnorm, dbcsr_release, &
-        dbcsr_reserve_block2d, dbcsr_scale, dbcsr_set, dbcsr_set_diag, dbcsr_transposed, &
-        dbcsr_type, dbcsr_type_no_symmetry, dbcsr_work_create
+        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_maxabs, dbcsr_multiply, &
+        dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_release, dbcsr_reserve_block2d, &
+        dbcsr_scale, dbcsr_set, dbcsr_set_diag, dbcsr_transposed, dbcsr_type, &
+        dbcsr_type_no_symmetry, dbcsr_work_create
    USE cp_dbcsr_cholesky,               ONLY: cp_dbcsr_cholesky_decompose,&
                                               cp_dbcsr_cholesky_invert
    USE cp_dbcsr_diag,                   ONLY: cp_dbcsr_syevd
@@ -864,7 +864,7 @@ CONTAINS
                                       filter_eps=eps_filter)
                END IF
             END IF
-            CALL dbcsr_norm(res, dbcsr_norm_maxabsnorm, norm_scalar=best_norm)
+            best_norm = dbcsr_maxabs(res)
          ELSE
             CALL dbcsr_add(res, m, 1.0_dp, best_step_size)
             CALL dbcsr_add(res, n, 1.0_dp, -best_step_size*best_step_size)
@@ -1119,7 +1119,7 @@ CONTAINS
                ! RZK-warning objective function might be different in the case of
                ! tensor_up_down
                !obj_function=0.5_dp*(dbcsr_frobenius_norm(res_trial))**2
-               CALL dbcsr_norm(res_trial, dbcsr_norm_maxabsnorm, norm_scalar=obj_function)
+               obj_function = dbcsr_maxabs(res_trial)
                IF (obj_function .LT. best_norm) THEN
                   best_norm = obj_function
                   best_step_size = step_size(istep)
