@@ -2,44 +2,89 @@
 spack:
   specs:
     - "mpich@4.1.2"
-    - "openblas@0.3.24 +fortran threads=openmp"
-    - "dbcsr@2.8.0 +openmp +mpi"
-    - "netlib-scalapack@2.2.0"
-    - "libxsmm@1.17"
-    - "fftw@3.3.10 +openmp"
-    - "libxc@7.0.0 +kxc build_system=cmake"
-    - "spglib@2.3.0"
-    - "dla-future@0.7.3 +scalapack"
+    - "openblas@0.3.24"
+    - "netlib-scalapack@2.2.2"
+    - "cosma@2.6.6"
+    - "dbcsr@2.8.0"
+    - "dftd4@3.6.0"
+    - "dla-future@0.7.3"
     - "dla-future-fortran@0.2.0"
-    - "libint@2.9.0 +fortran tune=cp2k-lmax-5"
-    - "cosma@2.6.6 +scalapack"
-    - "plumed@2.9.2"
-    - "elpa@2024.03.001 +openmp"
-    - "sirius @7.6.1 +fortran +pugixml ~apps"
-    - "libvori@220621"
-    - "spla@1.6.1 +fortran"
-    - "trexio@2.5.0 +hdf5 build_system=cmake"
-    - "dftd4@3.6.0 build_system=cmake"
-    - "libsmeagol@1.2"
+    - "elpa@2024.03.001"
+    - "fftw@3.3.10"
     - "hdf5@1.14"
-    - "py-torch@2.5"
+    - "libint@2.9.0"
+    - "libsmeagol@1.2"
+    - "libvori@220621"
+    - "libxc@7.0.0"
+    - "libxsmm@1.17"
+    - "plumed@2.9.2"
     - "python@3.11"
-   # Unfortunately, ScaLAPACK 2.2.1 has not yet been packaged by Spack.
-   # https://github.com/Reference-ScaLAPACK/scalapack/tree/v2.2.1
-   # which contains https://github.com/Reference-ScaLAPACK/scalapack/pull/26
-
-   # TODO:
-   # scotch_6.0.0.tar.gz
-   # superlu_dist_6.1.0.tar.gz: OK
-   # libvdwxc-0.4.0.tar.gz: OK
+    - "py-torch@2.5"
+    - "sirius@7.6.1"
+    - "spglib@2.3.0"
+    - "spla@1.6.1"
+    - "trexio@2.5.0"
   packages:
-    hdf5:
+    all:
+      prefer:
+        - +mpi
+        - ~cuda
+        - ~rocm
+    # MPI, BLAS, LAPACK, ScaLAPACK
+    mpi:
       require:
-        - +fortran
+        - mpich
     mpich:
       require:
         - device=ch3
         - netmod=tcp
+    blas:
+      require:
+        - openblas
+    lapack:
+      require:
+        - openblas
+    scalapack:
+      require:
+        - netlib-scalapack
+    openblas:
+      require:
+        - +fortran
+        - threads=openmp
+    # Dependencies for CP2K
+    cosma:
+      require:
+        - +scalapack
+    dbcsr:
+      require:
+        - +openmp
+    dftd4:
+      require:
+        - build_system=cmake
+    dla-future:
+      require:
+        - +scalapack
+    elpa:
+      require:
+        - +openmp
+    fftw-api:
+      require:
+        - "@3"
+        - fftw
+    fftw:
+      require:
+        - +openmp
+    hdf5:
+      require:
+        - +fortran
+    libint:
+      require:
+        - +fortran
+        - tune=cp2k-lmax-5
+    libxc:
+      require:
+        - +kxc
+        - build_system=cmake
     py-torch:
       require:
         - +custom-protobuf
@@ -47,6 +92,19 @@ spack:
         - ~rocm
         - ~kineto
         - ~distributed
+    sirius:
+      require:
+        - +fortran
+        - +pugixml
+        - ~apps
+        - +vdwxc
+    spla:
+      require:
+        - +fortran
+    trexio:
+      require:
+        - +hdf5
+        - build_system=cmake
   view:
     default:
       root: ./spack-env/view

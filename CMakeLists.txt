@@ -143,6 +143,10 @@ option(
   "disable the dbm accelerated (mostly GPU) backend. It is only effective when general gpu support is enabled."
   ON)
 
+
+cmake_dependent_option(CP2K_USE_LIBVDWXC
+  "Enable libvdwxc support WITH SIRIUS" ON "CP2K_USE_SIRIUS" OFF)
+
 cmake_dependent_option(
   CP2K_USE_UNIFIED_MEMORY "Use CPU/GPU unified memory.
   requires Mi250x or future AMD architectures to be fully functional" OFF
