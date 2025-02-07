@@ -90,9 +90,7 @@ MODULE rt_bse
                                   copy_fm_to_dbcsr, &
                                   dbcsr_allocate_matrix_set, &
                                   dbcsr_deallocate_matrix_set, &
-                                  cp_dbcsr_sm_fm_multiply, &
-                                  copy_cfm_to_dbcsr, &
-                                  copy_dbcsr_to_cfm
+                                  cp_dbcsr_sm_fm_multiply
    USE cp_fm_basic_linalg, ONLY: cp_fm_scale, &
                                  cp_fm_invert, &
                                  cp_fm_trace, &

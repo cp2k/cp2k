@@ -6,105 +6,73 @@
 !--------------------------------------------------------------------------------------------------!
 
 MODULE cp_dbcsr_api
-   USE kinds, ONLY: dp, int_8
-   USE dbcsr_api, ONLY: &
-      dbcsr_add_prv => dbcsr_add, &
-      dbcsr_add_block_node_prv => dbcsr_add_block_node, &
-      dbcsr_add_on_diag_prv => dbcsr_add_on_diag, &
-      dbcsr_binary_read_prv => dbcsr_binary_read, &
-      dbcsr_binary_write_prv => dbcsr_binary_write, &
-      dbcsr_checksum_prv => dbcsr_checksum, &
-      dbcsr_clear_prv => dbcsr_clear, &
-      dbcsr_clear_mempools, &
-      dbcsr_complete_redistribute_prv => dbcsr_complete_redistribute, &
-      convert_csr_to_dbcsr_prv => dbcsr_convert_csr_to_dbcsr, &
-      convert_dbcsr_to_csr_prv => dbcsr_convert_dbcsr_to_csr, &
-      dbcsr_convert_offsets_to_sizes, &
-      dbcsr_convert_sizes_to_offsets, &
-      dbcsr_copy_prv => dbcsr_copy, &
-      dbcsr_create_prv => dbcsr_create, &
-      dbcsr_csr_create, &
-      dbcsr_csr_create_from_dbcsr_prv => dbcsr_csr_create_from_dbcsr, &
-      dbcsr_csr_dbcsr_blkrow_dist, dbcsr_csr_destroy, dbcsr_csr_eqrow_floor_dist, &
-      dbcsr_csr_p_type, dbcsr_csr_print_sparsity, dbcsr_csr_type, dbcsr_csr_write, &
-      dbcsr_desymmetrize_prv => dbcsr_desymmetrize, &
-      dbcsr_distribute_prv => dbcsr_distribute, &
-      dbcsr_distribution_get_prv => dbcsr_distribution_get, &
-      dbcsr_distribution_get_num_images, &
-      dbcsr_distribution_hold_prv => dbcsr_distribution_hold, &
-      dbcsr_distribution_new_prv => dbcsr_distribution_new, &
-      dbcsr_distribution_release_prv => dbcsr_distribution_release, &
-      dbcsr_distribution_type_prv => dbcsr_distribution_type, &
-      dbcsr_dot_prv => dbcsr_dot, &
-      dbcsr_filter_prv => dbcsr_filter, &
-      dbcsr_finalize_prv => dbcsr_finalize, &
-      dbcsr_finalize_lib, &
-      dbcsr_frobenius_norm_prv => dbcsr_frobenius_norm, &
-      dbcsr_func_dtanh, dbcsr_func_inverse, dbcsr_func_tanh, &
-      dbcsr_function_of_elements_prv => dbcsr_function_of_elements, &
-      dbcsr_gershgorin_norm_prv => dbcsr_gershgorin_norm, &
-      dbcsr_get_block_diag_prv => dbcsr_get_block_diag, &
-      dbcsr_get_block_p_prv => dbcsr_get_block_p, &
-      dbcsr_get_data_p_prv => dbcsr_get_data_p, &
-      dbcsr_get_data_size_prv => dbcsr_get_data_size, &
-      dbcsr_get_data_type_prv => dbcsr_get_data_type, &
-      dbcsr_get_default_config, &
-      dbcsr_get_diag_prv => dbcsr_get_diag, &
-      dbcsr_get_info_prv => dbcsr_get_info, &
-      dbcsr_get_matrix_type_prv => dbcsr_get_matrix_type, &
-      dbcsr_get_num_blocks_prv => dbcsr_get_num_blocks, &
-      dbcsr_get_occupation_prv => dbcsr_get_occupation, &
-      dbcsr_get_stored_coordinates_prv => dbcsr_get_stored_coordinates, &
-      dbcsr_hadamard_product_prv => dbcsr_hadamard_product, &
-      dbcsr_has_symmetry_prv => dbcsr_has_symmetry, &
-      dbcsr_init_lib, &
-      dbcsr_init_random_prv => dbcsr_init_random, &
-      dbcsr_iterator_blocks_left_prv => dbcsr_iterator_blocks_left, &
-      dbcsr_iterator_next_block_prv => dbcsr_iterator_next_block, &
-      dbcsr_iterator_start_prv => dbcsr_iterator_start, &
-      dbcsr_iterator_stop_prv => dbcsr_iterator_stop, &
-      dbcsr_iterator_type_prv => dbcsr_iterator_type, &
-      dbcsr_maxabs_prv => dbcsr_maxabs, &
-      dbcsr_mp_grid_setup_prv => dbcsr_mp_grid_setup, &
-      dbcsr_multiply_prv => dbcsr_multiply, &
-      dbcsr_nblkcols_total_prv => dbcsr_nblkcols_total, &
-      dbcsr_nblkrows_total_prv => dbcsr_nblkrows_total, &
-      dbcsr_nfullcols_total_prv => dbcsr_nfullcols_total, &
-      dbcsr_nfullrows_total_prv => dbcsr_nfullrows_total, &
-      dbcsr_no_transpose, &
-      dbcsr_norm_prv => dbcsr_norm, &
-      dbcsr_norm_column, dbcsr_norm_frobenius, dbcsr_norm_maxabsnorm, &
-      dbcsr_print_prv => dbcsr_print, &
-      dbcsr_print_block_sum_prv => dbcsr_print_block_sum, &
-      dbcsr_print_config, dbcsr_print_statistics, &
-      dbcsr_put_block_prv => dbcsr_put_block, &
-      dbcsr_release_prv => dbcsr_release, &
-      dbcsr_replicate_all_prv => dbcsr_replicate_all, &
-      dbcsr_reserve_all_blocks_prv => dbcsr_reserve_all_blocks, &
-      dbcsr_reserve_block2d_prv => dbcsr_reserve_block2d, &
-      dbcsr_reserve_blocks_prv => dbcsr_reserve_blocks, &
-      dbcsr_reserve_diag_blocks_prv => dbcsr_reserve_diag_blocks, &
-      dbcsr_reset_randmat_seed, dbcsr_run_tests, &
-      dbcsr_scale_prv => dbcsr_scale, &
-      dbcsr_scale_by_vector_prv => dbcsr_scale_by_vector, &
-      dbcsr_set_prv => dbcsr_set, &
-      dbcsr_set_config, &
-      dbcsr_set_diag_prv => dbcsr_set_diag, &
-      dbcsr_setname_prv => dbcsr_setname, &
-      dbcsr_sum_replicated_prv => dbcsr_sum_replicated, &
-      dbcsr_test_binary_io, dbcsr_test_mm, &
-      dbcsr_trace_prv => dbcsr_trace, &
-      dbcsr_transpose, &
-      dbcsr_transposed_prv => dbcsr_transposed, &
-      dbcsr_triu_prv => dbcsr_triu, &
-      dbcsr_type_prv => dbcsr_type, &
-      dbcsr_type_antisymmetric, dbcsr_type_complex_8, &
-      dbcsr_type_complex_default, dbcsr_type_no_symmetry, dbcsr_type_real_8, &
-      dbcsr_type_real_default, dbcsr_type_symmetric, &
-      dbcsr_valid_index_prv => dbcsr_valid_index, &
-      dbcsr_verify_matrix_prv => dbcsr_verify_matrix, &
-      dbcsr_work_create_prv => dbcsr_work_create
-
+   USE dbcsr_api,                       ONLY: &
+        convert_csr_to_dbcsr_prv => dbcsr_convert_csr_to_dbcsr, &
+        convert_dbcsr_to_csr_prv => dbcsr_convert_dbcsr_to_csr, &
+        dbcsr_add_block_node_prv => dbcsr_add_block_node, &
+        dbcsr_add_on_diag_prv => dbcsr_add_on_diag, dbcsr_add_prv => dbcsr_add, &
+        dbcsr_binary_read_prv => dbcsr_binary_read, dbcsr_binary_write_prv => dbcsr_binary_write, &
+        dbcsr_checksum_prv => dbcsr_checksum, dbcsr_clear_mempools, &
+        dbcsr_clear_prv => dbcsr_clear, &
+        dbcsr_complete_redistribute_prv => dbcsr_complete_redistribute, &
+        dbcsr_convert_offsets_to_sizes, dbcsr_convert_sizes_to_offsets, &
+        dbcsr_copy_prv => dbcsr_copy, dbcsr_create_prv => dbcsr_create, dbcsr_csr_create, &
+        dbcsr_csr_create_from_dbcsr_prv => dbcsr_csr_create_from_dbcsr, &
+        dbcsr_csr_dbcsr_blkrow_dist, dbcsr_csr_destroy, dbcsr_csr_eqrow_floor_dist, &
+        dbcsr_csr_p_type, dbcsr_csr_print_sparsity, dbcsr_csr_type, dbcsr_csr_write, &
+        dbcsr_desymmetrize_prv => dbcsr_desymmetrize, dbcsr_distribute_prv => dbcsr_distribute, &
+        dbcsr_distribution_get_num_images, dbcsr_distribution_get_prv => dbcsr_distribution_get, &
+        dbcsr_distribution_hold_prv => dbcsr_distribution_hold, &
+        dbcsr_distribution_new_prv => dbcsr_distribution_new, &
+        dbcsr_distribution_release_prv => dbcsr_distribution_release, &
+        dbcsr_distribution_type_prv => dbcsr_distribution_type, dbcsr_dot_prv => dbcsr_dot, &
+        dbcsr_filter_prv => dbcsr_filter, dbcsr_finalize_lib, &
+        dbcsr_finalize_prv => dbcsr_finalize, dbcsr_frobenius_norm_prv => dbcsr_frobenius_norm, &
+        dbcsr_func_dtanh, dbcsr_func_inverse, dbcsr_func_tanh, &
+        dbcsr_function_of_elements_prv => dbcsr_function_of_elements, &
+        dbcsr_gershgorin_norm_prv => dbcsr_gershgorin_norm, &
+        dbcsr_get_block_diag_prv => dbcsr_get_block_diag, &
+        dbcsr_get_block_p_prv => dbcsr_get_block_p, dbcsr_get_data_p_prv => dbcsr_get_data_p, &
+        dbcsr_get_data_size_prv => dbcsr_get_data_size, &
+        dbcsr_get_data_type_prv => dbcsr_get_data_type, dbcsr_get_default_config, &
+        dbcsr_get_diag_prv => dbcsr_get_diag, dbcsr_get_info_prv => dbcsr_get_info, &
+        dbcsr_get_matrix_type_prv => dbcsr_get_matrix_type, &
+        dbcsr_get_num_blocks_prv => dbcsr_get_num_blocks, &
+        dbcsr_get_occupation_prv => dbcsr_get_occupation, &
+        dbcsr_get_stored_coordinates_prv => dbcsr_get_stored_coordinates, &
+        dbcsr_hadamard_product_prv => dbcsr_hadamard_product, &
+        dbcsr_has_symmetry_prv => dbcsr_has_symmetry, dbcsr_init_lib, &
+        dbcsr_init_random_prv => dbcsr_init_random, &
+        dbcsr_iterator_blocks_left_prv => dbcsr_iterator_blocks_left, &
+        dbcsr_iterator_next_block_prv => dbcsr_iterator_next_block, &
+        dbcsr_iterator_start_prv => dbcsr_iterator_start, &
+        dbcsr_iterator_stop_prv => dbcsr_iterator_stop, &
+        dbcsr_iterator_type_prv => dbcsr_iterator_type, dbcsr_maxabs_prv => dbcsr_maxabs, &
+        dbcsr_mp_grid_setup_prv => dbcsr_mp_grid_setup, dbcsr_multiply_prv => dbcsr_multiply, &
+        dbcsr_nblkcols_total_prv => dbcsr_nblkcols_total, &
+        dbcsr_nblkrows_total_prv => dbcsr_nblkrows_total, &
+        dbcsr_nfullcols_total_prv => dbcsr_nfullcols_total, &
+        dbcsr_nfullrows_total_prv => dbcsr_nfullrows_total, dbcsr_no_transpose, dbcsr_norm_column, &
+        dbcsr_norm_frobenius, dbcsr_norm_maxabsnorm, dbcsr_norm_prv => dbcsr_norm, &
+        dbcsr_print_block_sum_prv => dbcsr_print_block_sum, dbcsr_print_config, &
+        dbcsr_print_prv => dbcsr_print, dbcsr_print_statistics, &
+        dbcsr_put_block_prv => dbcsr_put_block, dbcsr_release_prv => dbcsr_release, &
+        dbcsr_replicate_all_prv => dbcsr_replicate_all, &
+        dbcsr_reserve_all_blocks_prv => dbcsr_reserve_all_blocks, &
+        dbcsr_reserve_block2d_prv => dbcsr_reserve_block2d, &
+        dbcsr_reserve_blocks_prv => dbcsr_reserve_blocks, &
+        dbcsr_reserve_diag_blocks_prv => dbcsr_reserve_diag_blocks, dbcsr_reset_randmat_seed, &
+        dbcsr_run_tests, dbcsr_scale_by_vector_prv => dbcsr_scale_by_vector, &
+        dbcsr_scale_prv => dbcsr_scale, dbcsr_set_config, dbcsr_set_diag_prv => dbcsr_set_diag, &
+        dbcsr_set_prv => dbcsr_set, dbcsr_setname_prv => dbcsr_setname, &
+        dbcsr_sum_replicated_prv => dbcsr_sum_replicated, dbcsr_test_mm, &
+        dbcsr_trace_prv => dbcsr_trace, dbcsr_transpose, dbcsr_transposed_prv => dbcsr_transposed, &
+        dbcsr_triu_prv => dbcsr_triu, dbcsr_type_antisymmetric, dbcsr_type_complex_8, &
+        dbcsr_type_no_symmetry, dbcsr_type_prv => dbcsr_type, dbcsr_type_real_8, &
+        dbcsr_type_real_default, dbcsr_type_symmetric, dbcsr_valid_index_prv => dbcsr_valid_index, &
+        dbcsr_verify_matrix_prv => dbcsr_verify_matrix, dbcsr_work_create_prv => dbcsr_work_create
+   USE kinds,                           ONLY: dp,&
+                                              int_8
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -116,9 +84,7 @@ MODULE cp_dbcsr_api
    PUBLIC :: dbcsr_type_antisymmetric
    PUBLIC :: dbcsr_transpose
    PUBLIC :: dbcsr_no_transpose
-   PUBLIC :: dbcsr_type_complex_8
    PUBLIC :: dbcsr_type_real_8
-   PUBLIC :: dbcsr_type_complex_default
    PUBLIC :: dbcsr_type_real_default
 
    ! types
@@ -253,7 +219,6 @@ MODULE cp_dbcsr_api
    ! binary io
    PUBLIC :: dbcsr_binary_write
    PUBLIC :: dbcsr_binary_read
-   PUBLIC :: dbcsr_test_binary_io
 
    TYPE dbcsr_p_type
       TYPE(dbcsr_type), POINTER :: matrix => Null()
@@ -271,43 +236,19 @@ MODULE cp_dbcsr_api
       TYPE(dbcsr_iterator_type_prv), PRIVATE :: prv = dbcsr_iterator_type_prv()
    END TYPE dbcsr_iterator_type
 
-   INTERFACE dbcsr_add
-      MODULE PROCEDURE dbcsr_add_d, dbcsr_add_z
-   END INTERFACE
-
-   INTERFACE dbcsr_add_on_diag
-      MODULE PROCEDURE dbcsr_add_on_diag_d, dbcsr_add_on_diag_z
-   END INTERFACE
-
    INTERFACE dbcsr_create
       MODULE PROCEDURE dbcsr_create_new, dbcsr_create_template
    END INTERFACE
 
-   INTERFACE dbcsr_dot
-      MODULE PROCEDURE dbcsr_dot_d, dbcsr_dot_z
-   END INTERFACE
-
    INTERFACE dbcsr_get_block_p
-      MODULE PROCEDURE dbcsr_get_block_p_d, dbcsr_get_block_p_z
-      MODULE PROCEDURE dbcsr_get_2d_block_p_d, dbcsr_get_2d_block_p_z
-   END INTERFACE
-
-   INTERFACE dbcsr_get_data_p
-      MODULE PROCEDURE dbcsr_get_data_d, dbcsr_get_data_z
-   END INTERFACE
-
-   INTERFACE dbcsr_get_diag
-      MODULE PROCEDURE dbcsr_get_diag_d, dbcsr_get_diag_z
+      MODULE PROCEDURE dbcsr_get_block_p
+      MODULE PROCEDURE dbcsr_get_2d_block_p
    END INTERFACE
 
    INTERFACE dbcsr_iterator_next_block
       MODULE PROCEDURE dbcsr_iterator_next_block_index
-      MODULE PROCEDURE dbcsr_iterator_next_1d_block_d, dbcsr_iterator_next_1d_block_z
-      MODULE PROCEDURE dbcsr_iterator_next_2d_block_d, dbcsr_iterator_next_2d_block_z
-   END INTERFACE
-
-   INTERFACE dbcsr_multiply
-      MODULE PROCEDURE dbcsr_multiply_d, dbcsr_multiply_z
+      MODULE PROCEDURE dbcsr_iterator_next_1d_block
+      MODULE PROCEDURE dbcsr_iterator_next_2d_block
    END INTERFACE
 
    INTERFACE dbcsr_norm
@@ -315,38 +256,15 @@ MODULE cp_dbcsr_api
    END INTERFACE
 
    INTERFACE dbcsr_put_block
-      MODULE PROCEDURE dbcsr_put_block_d, dbcsr_put_block_z
-      MODULE PROCEDURE dbcsr_put_block2d_d, dbcsr_put_block2d_z
-   END INTERFACE
-
-   INTERFACE dbcsr_reserve_block2d
-      MODULE PROCEDURE dbcsr_reserve_block2d_d, dbcsr_reserve_block2d_z
-   END INTERFACE
-
-   INTERFACE dbcsr_scale
-      MODULE PROCEDURE dbcsr_scale_d, dbcsr_scale_z
-   END INTERFACE
-
-   INTERFACE dbcsr_scale_by_vector
-      MODULE PROCEDURE dbcsr_scale_by_vector_d, dbcsr_scale_by_vector_z
-   END INTERFACE
-
-   INTERFACE dbcsr_set
-      MODULE PROCEDURE dbcsr_set_d, dbcsr_set_z
-   END INTERFACE
-
-   INTERFACE dbcsr_set_diag
-      MODULE PROCEDURE dbcsr_set_diag_d, dbcsr_set_diag_z
-   END INTERFACE
-
-   INTERFACE dbcsr_trace
-      MODULE PROCEDURE dbcsr_trace_d, dbcsr_trace_z
+      MODULE PROCEDURE dbcsr_put_block
+      MODULE PROCEDURE dbcsr_put_block2d
    END INTERFACE
 
 CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param matrix ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_init_p(matrix)
       TYPE(dbcsr_type), POINTER                          :: matrix
@@ -361,6 +279,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param matrix ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_release_p(matrix)
       TYPE(dbcsr_type), POINTER                          :: matrix
@@ -373,9 +292,11 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param matrix ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_deallocate_matrix(matrix)
       TYPE(dbcsr_type), POINTER                          :: matrix
+
       CALL dbcsr_release(matrix)
       IF (dbcsr_valid_index(matrix)) &
          CALL cp_abort(__LOCATION__, &
@@ -386,19 +307,25 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param matrix_a ...
+!> \param matrix_b ...
+!> \param alpha_scalar ...
+!> \param beta_scalar ...
 ! **************************************************************************************************
-   #:for nametype1, type1 in [('d', 'REAL(kind=dp)'), ('z', 'COMPLEX(kind=dp)')]
-      SUBROUTINE dbcsr_add_${nametype1}$ (matrix_a, matrix_b, alpha_scalar, beta_scalar)
-         TYPE(dbcsr_type), INTENT(INOUT)            :: matrix_a
-         TYPE(dbcsr_type), INTENT(IN)               :: matrix_b
-         ${type1}$, INTENT(IN)                      :: alpha_scalar, beta_scalar
+   SUBROUTINE dbcsr_add(matrix_a, matrix_b, alpha_scalar, beta_scalar)
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_a
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix_b
+      REAL(kind=dp), INTENT(IN)                          :: alpha_scalar, beta_scalar
 
-         CALL dbcsr_add_prv(matrix_a%prv, matrix_b%prv, alpha_scalar, beta_scalar)
-      END SUBROUTINE dbcsr_add_${nametype1}$
-   #:endfor
+      CALL dbcsr_add_prv(matrix_a%prv, matrix_b%prv, alpha_scalar, beta_scalar)
+   END SUBROUTINE dbcsr_add
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param matrix ...
+!> \param block_row ...
+!> \param block_col ...
+!> \param block ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_add_block_node(matrix, block_row, block_col, block)
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
@@ -410,18 +337,21 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param matrix ...
+!> \param alpha_scalar ...
 ! **************************************************************************************************
-   #:for nametype1, type1 in [('d', 'REAL(kind=dp)'), ('z', 'COMPLEX(kind=dp)')]
-      SUBROUTINE dbcsr_add_on_diag_${nametype1}$ (matrix, alpha_scalar)
-         TYPE(dbcsr_type), INTENT(INOUT)                      :: matrix
-         ${type1}$, INTENT(IN)                                :: alpha_scalar
+   SUBROUTINE dbcsr_add_on_diag(matrix, alpha_scalar)
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
+      REAL(kind=dp), INTENT(IN)                          :: alpha_scalar
 
-         CALL dbcsr_add_on_diag_prv(matrix%prv, alpha_scalar)
-      END SUBROUTINE dbcsr_add_on_diag_${nametype1}$
-   #:endfor
+      CALL dbcsr_add_on_diag_prv(matrix%prv, alpha_scalar)
+   END SUBROUTINE dbcsr_add_on_diag
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param filepath ...
+!> \param distribution ...
+!> \param matrix_new ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_binary_read(filepath, distribution, matrix_new)
       CHARACTER(len=*), INTENT(IN)                       :: filepath
@@ -433,6 +363,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param matrix ...
+!> \param filepath ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_binary_write(matrix, filepath)
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
@@ -443,6 +375,9 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param matrix ...
+!> \param pos ...
+!> \return ...
 ! **************************************************************************************************
    FUNCTION dbcsr_checksum(matrix, pos) RESULT(checksum)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
@@ -454,15 +389,18 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param matrix ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_clear(matrix)
-      TYPE(dbcsr_type), INTENT(INOUT) :: matrix
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
 
       CALL dbcsr_clear_prv(matrix%prv)
    END SUBROUTINE
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param matrix ...
+!> \param redist ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_complete_redistribute(matrix, redist)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
@@ -473,6 +411,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param dbcsr_mat ...
+!> \param csr_mat ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_convert_csr_to_dbcsr(dbcsr_mat, csr_mat)
       TYPE(dbcsr_type), INTENT(INOUT)                    :: dbcsr_mat
@@ -483,6 +423,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param dbcsr_mat ...
+!> \param csr_mat ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_convert_dbcsr_to_csr(dbcsr_mat, csr_mat)
       TYPE(dbcsr_type), INTENT(IN)                       :: dbcsr_mat
@@ -493,6 +435,11 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param matrix_b ...
+!> \param matrix_a ...
+!> \param name ...
+!> \param keep_sparsity ...
+!> \param keep_imaginary ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_copy(matrix_b, matrix_a, name, keep_sparsity, keep_imaginary)
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_b
@@ -506,6 +453,16 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param matrix ...
+!> \param name ...
+!> \param dist ...
+!> \param matrix_type ...
+!> \param row_blk_size ...
+!> \param col_blk_size ...
+!> \param nze ...
+!> \param data_type ...
+!> \param reuse_arrays ...
+!> \param mutable_work ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_create_new(matrix, name, dist, matrix_type, row_blk_size, col_blk_size, nze, &
                                data_type, reuse_arrays, mutable_work)
@@ -525,6 +482,17 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param matrix ...
+!> \param name ...
+!> \param template ...
+!> \param dist ...
+!> \param matrix_type ...
+!> \param row_blk_size ...
+!> \param col_blk_size ...
+!> \param nze ...
+!> \param data_type ...
+!> \param reuse_arrays ...
+!> \param mutable_work ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_create_template(matrix, name, template, dist, matrix_type, &
                                     row_blk_size, col_blk_size, nze, data_type, &
@@ -549,6 +517,11 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param dbcsr_mat ...
+!> \param csr_mat ...
+!> \param dist_format ...
+!> \param csr_sparsity ...
+!> \param numnodes ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_csr_create_from_dbcsr(dbcsr_mat, csr_mat, dist_format, csr_sparsity, numnodes)
 
@@ -569,18 +542,19 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Combines csr_create_from_dbcsr and convert_dbcsr_to_csr to produce a complex CSR matrix.
 !> \param rmatrix Real part of the matrix.
-!> \param rmatrix Imaginary part of the matrix.
+!> \param imatrix Imaginary part of the matrix.
 !> \param csr_mat The resulting CSR matrix.
+!> \param dist_format ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_csr_create_and_convert_complex(rmatrix, imatrix, csr_mat, dist_format)
       TYPE(dbcsr_type), INTENT(IN)                       :: rmatrix, imatrix
       TYPE(dbcsr_csr_type), INTENT(INOUT)                :: csr_mat
       INTEGER                                            :: dist_format
 
-      COMPLEX(KIND=dp), PARAMETER                        :: rone = CMPLX(1.0_dp, 0.0_dp, KIND=dp)
-      COMPLEX(KIND=dp), PARAMETER                        :: ione = CMPLX(0.0_dp, 1.0_dp, KIND=dp)
+      COMPLEX(KIND=dp), PARAMETER :: ione = CMPLX(0.0_dp, 1.0_dp, KIND=dp), &
+         rone = CMPLX(1.0_dp, 0.0_dp, KIND=dp)
 
-      TYPE(dbcsr_type)                                   :: tmp_matrix, cmatrix
+      TYPE(dbcsr_type)                                   :: cmatrix, tmp_matrix
 
       CALL dbcsr_create_prv(tmp_matrix%prv, template=rmatrix%prv, data_type=dbcsr_type_complex_8)
       CALL dbcsr_create_prv(cmatrix%prv, template=rmatrix%prv, data_type=dbcsr_type_complex_8)
@@ -596,6 +570,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param matrix_a ...
+!> \param matrix_b ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_desymmetrize(matrix_a, matrix_b)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix_a
@@ -606,6 +582,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param matrix ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_distribute(matrix)
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
@@ -615,6 +592,23 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param dist ...
+!> \param row_dist ...
+!> \param col_dist ...
+!> \param nrows ...
+!> \param ncols ...
+!> \param has_threads ...
+!> \param group ...
+!> \param mynode ...
+!> \param numnodes ...
+!> \param nprows ...
+!> \param npcols ...
+!> \param myprow ...
+!> \param mypcol ...
+!> \param pgrid ...
+!> \param subgroups_defined ...
+!> \param prow_group ...
+!> \param pcol_group ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_distribution_get(dist, row_dist, col_dist, nrows, ncols, has_threads, &
                                      group, mynode, numnodes, nprows, npcols, myprow, mypcol, &
@@ -623,19 +617,20 @@ CONTAINS
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: row_dist, col_dist
       INTEGER, INTENT(OUT), OPTIONAL                     :: nrows, ncols
       LOGICAL, INTENT(OUT), OPTIONAL                     :: has_threads
-      INTEGER, INTENT(OUT), OPTIONAL                     :: group, mynode, numnodes, &
-                                                            nprows, npcols, myprow, mypcol
+      INTEGER, INTENT(OUT), OPTIONAL                     :: group, mynode, numnodes, nprows, npcols, &
+                                                            myprow, mypcol
       INTEGER, DIMENSION(:, :), OPTIONAL, POINTER        :: pgrid
       LOGICAL, INTENT(OUT), OPTIONAL                     :: subgroups_defined
       INTEGER, INTENT(OUT), OPTIONAL                     :: prow_group, pcol_group
 
-      call dbcsr_distribution_get_prv(dist%prv, row_dist, col_dist, nrows, ncols, has_threads, &
+      CALL dbcsr_distribution_get_prv(dist%prv, row_dist, col_dist, nrows, ncols, has_threads, &
                                       group, mynode, numnodes, nprows, npcols, myprow, mypcol, &
                                       pgrid, subgroups_defined, prow_group, pcol_group)
    END SUBROUTINE dbcsr_distribution_get
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param dist ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_distribution_hold(dist)
       TYPE(dbcsr_distribution_type)                      :: dist
@@ -645,6 +640,13 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param dist ...
+!> \param template ...
+!> \param group ...
+!> \param pgrid ...
+!> \param row_dist ...
+!> \param col_dist ...
+!> \param reuse_arrays ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_distribution_new(dist, template, group, pgrid, row_dist, col_dist, reuse_arrays)
       TYPE(dbcsr_distribution_type), INTENT(OUT)         :: dist
@@ -661,6 +663,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param dist ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_distribution_release(dist)
       TYPE(dbcsr_distribution_type)                      :: dist
@@ -670,18 +673,21 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param matrix_a ...
+!> \param matrix_b ...
+!> \param RESULT ...
 ! **************************************************************************************************
-   #:for nametype1, type1 in [('d', 'REAL(kind=dp)'), ('z', 'COMPLEX(kind=dp)')]
-      SUBROUTINE dbcsr_dot_${nametype1}$ (matrix_a, matrix_b, result)
-         TYPE(dbcsr_type), INTENT(IN)              :: matrix_a, matrix_b
-         ${type1}$, INTENT(INOUT)                  :: result
+   SUBROUTINE dbcsr_dot(matrix_a, matrix_b, RESULT)
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix_a, matrix_b
+      REAL(kind=dp), INTENT(INOUT)                       :: result
 
-         CALL dbcsr_dot_prv(matrix_a%prv, matrix_b%prv, result)
-      END SUBROUTINE dbcsr_dot_${nametype1}$
-   #:endfor
+      CALL dbcsr_dot_prv(matrix_a%prv, matrix_b%prv, RESULT)
+   END SUBROUTINE dbcsr_dot
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param matrix ...
+!> \param eps ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_filter(matrix, eps)
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
@@ -692,6 +698,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param matrix ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_finalize(matrix)
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
@@ -701,6 +708,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param matrix ...
+!> \return ...
 ! **************************************************************************************************
    FUNCTION dbcsr_frobenius_norm(matrix) RESULT(norm)
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
@@ -711,6 +720,11 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param matrix ...
+!> \param func ...
+!> \param a0 ...
+!> \param a1 ...
+!> \param a2 ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_function_of_elements(matrix, func, a0, a1, a2)
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
@@ -722,6 +736,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param matrix ...
+!> \return ...
 ! **************************************************************************************************
    FUNCTION dbcsr_gershgorin_norm(matrix) RESULT(norm)
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
@@ -732,6 +748,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param matrix ...
+!> \param diag ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_get_block_diag(matrix, diag)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
@@ -742,50 +760,65 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param matrix ...
+!> \param row ...
+!> \param col ...
+!> \param block ...
+!> \param found ...
+!> \param row_size ...
+!> \param col_size ...
 ! **************************************************************************************************
-   #:for nametype1, type1 in [('d', 'REAL(kind=dp)'), ('z', 'COMPLEX(kind=dp)')]
-      SUBROUTINE dbcsr_get_block_p_${nametype1}$ (matrix, row, col, block, found, row_size, col_size)
-         TYPE(dbcsr_type), INTENT(IN)              :: matrix
-         INTEGER, INTENT(IN)                       :: row, col
-         ${type1}$, DIMENSION(:), POINTER          :: block
-         LOGICAL, INTENT(OUT)                      :: found
-         INTEGER, INTENT(OUT), OPTIONAL            :: row_size, col_size
+   SUBROUTINE dbcsr_get_block_p(matrix, row, col, block, found, row_size, col_size)
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
+      INTEGER, INTENT(IN)                                :: row, col
+      REAL(kind=dp), DIMENSION(:), POINTER               :: block
+      LOGICAL, INTENT(OUT)                               :: found
+      INTEGER, INTENT(OUT), OPTIONAL                     :: row_size, col_size
 
-         CALL dbcsr_get_block_p_prv(matrix%prv, row, col, block, found, row_size, col_size)
-      END SUBROUTINE dbcsr_get_block_p_${nametype1}$
-   #:endfor
-
-! **************************************************************************************************
-!> \brief ...
-! **************************************************************************************************
-   #:for nametype1, type1 in [('d', 'REAL(kind=dp)'), ('z', 'COMPLEX(kind=dp)')]
-      SUBROUTINE dbcsr_get_2d_block_p_${nametype1}$ (matrix, row, col, block, found, row_size, col_size)
-         TYPE(dbcsr_type), INTENT(INOUT)          :: matrix
-         INTEGER, INTENT(IN)                      :: row, col
-         ${type1}$, DIMENSION(:, :), POINTER      :: block
-         LOGICAL, INTENT(OUT)                     :: found
-         INTEGER, INTENT(OUT), OPTIONAL           :: row_size, col_size
-
-         CALL dbcsr_get_block_p_prv(matrix%prv, row, col, block, found, row_size, col_size)
-      END SUBROUTINE dbcsr_get_2d_block_p_${nametype1}$
-   #:endfor
+      CALL dbcsr_get_block_p_prv(matrix%prv, row, col, block, found, row_size, col_size)
+   END SUBROUTINE dbcsr_get_block_p
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param matrix ...
+!> \param row ...
+!> \param col ...
+!> \param block ...
+!> \param found ...
+!> \param row_size ...
+!> \param col_size ...
 ! **************************************************************************************************
-   #:for nametype1, type1 in [('d', 'REAL(kind=dp)'), ('z', 'COMPLEX(kind=dp)')]
-      FUNCTION dbcsr_get_data_${nametype1}$ (matrix, select_data_type, lb, ub) RESULT(res)
-         TYPE(dbcsr_type), INTENT(IN)             :: matrix
-         ${type1}$, INTENT(IN)                    :: select_data_type
-         ${type1}$, DIMENSION(:), POINTER         :: res
-         INTEGER, INTENT(IN), OPTIONAL            :: lb, ub
+   SUBROUTINE dbcsr_get_2d_block_p(matrix, row, col, block, found, row_size, col_size)
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
+      INTEGER, INTENT(IN)                                :: row, col
+      REAL(kind=dp), DIMENSION(:, :), POINTER            :: block
+      LOGICAL, INTENT(OUT)                               :: found
+      INTEGER, INTENT(OUT), OPTIONAL                     :: row_size, col_size
 
-         res => dbcsr_get_data_p_prv(matrix%prv, select_data_type, lb, ub)
-      END FUNCTION dbcsr_get_data_${nametype1}$
-   #:endfor
+      CALL dbcsr_get_block_p_prv(matrix%prv, row, col, block, found, row_size, col_size)
+   END SUBROUTINE dbcsr_get_2d_block_p
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param matrix ...
+!> \param select_data_type ...
+!> \param lb ...
+!> \param ub ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION dbcsr_get_data_p(matrix, select_data_type, lb, ub) RESULT(res)
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
+      REAL(kind=dp), INTENT(IN)                          :: select_data_type
+      INTEGER, INTENT(IN), OPTIONAL                      :: lb, ub
+      REAL(kind=dp), DIMENSION(:), POINTER               :: res
+
+      res => dbcsr_get_data_p_prv(matrix%prv, select_data_type, lb, ub)
+   END FUNCTION dbcsr_get_data_p
+
+! **************************************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \return ...
 ! **************************************************************************************************
    FUNCTION dbcsr_get_data_size(matrix) RESULT(data_size)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
@@ -796,6 +829,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param matrix ...
+!> \return ...
 ! **************************************************************************************************
    PURE FUNCTION dbcsr_get_data_type(matrix) RESULT(data_type)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
@@ -806,18 +841,42 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param matrix ...
+!> \param diag ...
 ! **************************************************************************************************
-   #:for nametype1, type1 in [('d', 'REAL(kind=dp)'), ('z', 'COMPLEX(kind=dp)')]
-      SUBROUTINE dbcsr_get_diag_${nametype1}$ (matrix, diag)
-         TYPE(dbcsr_type), INTENT(IN)                       :: matrix
-         ${type1}$, DIMENSION(:), INTENT(OUT)                 :: diag
+   SUBROUTINE dbcsr_get_diag(matrix, diag)
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
+      REAL(kind=dp), DIMENSION(:), INTENT(OUT)           :: diag
 
-         CALL dbcsr_get_diag_prv(matrix%prv, diag)
-      END SUBROUTINE dbcsr_get_diag_${nametype1}$
-   #:endfor
+      CALL dbcsr_get_diag_prv(matrix%prv, diag)
+   END SUBROUTINE dbcsr_get_diag
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param matrix ...
+!> \param nblkrows_total ...
+!> \param nblkcols_total ...
+!> \param nfullrows_total ...
+!> \param nfullcols_total ...
+!> \param nblkrows_local ...
+!> \param nblkcols_local ...
+!> \param nfullrows_local ...
+!> \param nfullcols_local ...
+!> \param my_prow ...
+!> \param my_pcol ...
+!> \param local_rows ...
+!> \param local_cols ...
+!> \param proc_row_dist ...
+!> \param proc_col_dist ...
+!> \param row_blk_size ...
+!> \param col_blk_size ...
+!> \param row_blk_offset ...
+!> \param col_blk_offset ...
+!> \param distribution ...
+!> \param name ...
+!> \param matrix_type ...
+!> \param data_type ...
+!> \param group ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_get_info(matrix, nblkrows_total, nblkcols_total, &
                              nfullrows_total, nfullcols_total, nblkrows_local, nblkcols_local, &
@@ -827,12 +886,10 @@ CONTAINS
                              distribution, name, matrix_type, data_type, group)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       INTEGER, INTENT(OUT), OPTIONAL :: nblkrows_total, nblkcols_total, nfullrows_total, &
-                                        nfullcols_total, nblkrows_local, nblkcols_local, &
-                                        nfullrows_local, nfullcols_local, my_prow, my_pcol
-      INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: local_rows, local_cols, &
-                                                            proc_row_dist, proc_col_dist, &
-                                                            row_blk_size, col_blk_size, &
-                                                            row_blk_offset, col_blk_offset
+         nfullcols_total, nblkrows_local, nblkcols_local, nfullrows_local, nfullcols_local, &
+         my_prow, my_pcol
+      INTEGER, DIMENSION(:), OPTIONAL, POINTER :: local_rows, local_cols, proc_row_dist, &
+         proc_col_dist, row_blk_size, col_blk_size, row_blk_offset, col_blk_offset
       TYPE(dbcsr_distribution_type), INTENT(OUT), &
          OPTIONAL                                        :: distribution
       CHARACTER(len=*), INTENT(OUT), OPTIONAL            :: name
@@ -872,6 +929,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param matrix ...
+!> \return ...
 ! **************************************************************************************************
    PURE FUNCTION dbcsr_get_matrix_type(matrix) RESULT(matrix_type)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
@@ -882,6 +941,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param matrix ...
+!> \return ...
 ! **************************************************************************************************
    PURE FUNCTION dbcsr_get_num_blocks(matrix) RESULT(num_blocks)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
@@ -892,6 +953,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param matrix ...
+!> \return ...
 ! **************************************************************************************************
    FUNCTION dbcsr_get_occupation(matrix) RESULT(occupation)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
@@ -902,6 +965,10 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param matrix ...
+!> \param row ...
+!> \param column ...
+!> \param processor ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_get_stored_coordinates(matrix, row, column, processor)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
@@ -913,6 +980,10 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param matrix_a ...
+!> \param matrix_b ...
+!> \param matrix_c ...
+!> \param b_assume_value ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_hadamard_product(matrix_a, matrix_b, matrix_c, b_assume_value)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix_a, matrix_b
@@ -924,6 +995,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param matrix ...
+!> \return ...
 ! **************************************************************************************************
    PURE FUNCTION dbcsr_has_symmetry(matrix) RESULT(has_symmetry)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
@@ -934,6 +1007,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param matrix ...
+!> \param keep_sparsity ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_init_random(matrix, keep_sparsity)
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
@@ -944,6 +1019,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param iterator ...
+!> \return ...
 ! **************************************************************************************************
    PURE FUNCTION dbcsr_iterator_blocks_left(iterator) RESULT(blocks_left)
       TYPE(dbcsr_iterator_type), INTENT(IN)              :: iterator
@@ -954,6 +1031,10 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param iterator ...
+!> \param row ...
+!> \param column ...
+!> \param blk ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_iterator_next_block_index(iterator, row, column, blk)
       TYPE(dbcsr_iterator_type), INTENT(INOUT)           :: iterator
@@ -964,42 +1045,62 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param iterator ...
+!> \param row ...
+!> \param column ...
+!> \param block ...
+!> \param block_number ...
+!> \param row_size ...
+!> \param col_size ...
+!> \param row_offset ...
+!> \param col_offset ...
 ! **************************************************************************************************
-   #:for nametype1, type1 in [('d', 'REAL(kind=dp)'), ('z', 'COMPLEX(kind=dp)')]
-      SUBROUTINE dbcsr_iterator_next_1d_block_${nametype1}$ (iterator, row, column, block, &
-                                                             block_number, row_size, col_size, &
-                                                             row_offset, col_offset)
-         TYPE(dbcsr_iterator_type), INTENT(INOUT)        :: iterator
-         INTEGER, INTENT(OUT)                            :: row, column
-         ${type1}$, DIMENSION(:), POINTER                :: block
-         INTEGER, INTENT(OUT), OPTIONAL                  :: block_number, row_size, col_size, &
+   SUBROUTINE dbcsr_iterator_next_1d_block(iterator, row, column, block, &
+                                           block_number, row_size, col_size, &
+                                           row_offset, col_offset)
+      TYPE(dbcsr_iterator_type), INTENT(INOUT)           :: iterator
+      INTEGER, INTENT(OUT)                               :: row, column
+      REAL(kind=dp), DIMENSION(:), POINTER               :: block
+      INTEGER, INTENT(OUT), OPTIONAL                     :: block_number, row_size, col_size, &
                                                             row_offset, col_offset
 
-         CALL dbcsr_iterator_next_block_prv(iterator%prv, row, column, block, block_number, &
-                                            row_size, col_size, row_offset, col_offset)
-      END SUBROUTINE dbcsr_iterator_next_1d_block_${nametype1}$
-   #:endfor
+      CALL dbcsr_iterator_next_block_prv(iterator%prv, row, column, block, block_number, &
+                                         row_size, col_size, row_offset, col_offset)
+   END SUBROUTINE dbcsr_iterator_next_1d_block
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param iterator ...
+!> \param row ...
+!> \param column ...
+!> \param block ...
+!> \param block_number ...
+!> \param row_size ...
+!> \param col_size ...
+!> \param row_offset ...
+!> \param col_offset ...
 ! **************************************************************************************************
-   #:for nametype1, type1 in [('d', 'REAL(kind=dp)'), ('z', 'COMPLEX(kind=dp)')]
-      SUBROUTINE dbcsr_iterator_next_2d_block_${nametype1}$ (iterator, row, column, block, &
-                                                             block_number, row_size, col_size, &
-                                                             row_offset, col_offset)
-         TYPE(dbcsr_iterator_type), INTENT(INOUT)        :: iterator
-         INTEGER, INTENT(OUT)                            :: row, column
-         ${type1}$, DIMENSION(:, :), POINTER             :: block
-         INTEGER, INTENT(OUT), OPTIONAL                  :: block_number, row_size, col_size, &
+   SUBROUTINE dbcsr_iterator_next_2d_block(iterator, row, column, block, &
+                                           block_number, row_size, col_size, &
+                                           row_offset, col_offset)
+      TYPE(dbcsr_iterator_type), INTENT(INOUT)           :: iterator
+      INTEGER, INTENT(OUT)                               :: row, column
+      REAL(kind=dp), DIMENSION(:, :), POINTER            :: block
+      INTEGER, INTENT(OUT), OPTIONAL                     :: block_number, row_size, col_size, &
                                                             row_offset, col_offset
 
-         CALL dbcsr_iterator_next_block_prv(iterator%prv, row, column, block, block_number, &
-                                            row_size, col_size, row_offset, col_offset)
-      END SUBROUTINE dbcsr_iterator_next_2d_block_${nametype1}$
-   #:endfor
+      CALL dbcsr_iterator_next_block_prv(iterator%prv, row, column, block, block_number, &
+                                         row_size, col_size, row_offset, col_offset)
+   END SUBROUTINE dbcsr_iterator_next_2d_block
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param iterator ...
+!> \param matrix ...
+!> \param shared ...
+!> \param dynamic ...
+!> \param dynamic_byrows ...
+!> \param read_only ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_iterator_start(iterator, matrix, shared, dynamic, dynamic_byrows, read_only)
       TYPE(dbcsr_iterator_type), INTENT(OUT)             :: iterator
@@ -1013,6 +1114,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param iterator ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_iterator_stop(iterator)
       TYPE(dbcsr_iterator_type), INTENT(INOUT)           :: iterator
@@ -1022,6 +1124,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param matrix ...
+!> \return ...
 ! **************************************************************************************************
    FUNCTION dbcsr_maxabs(matrix) RESULT(norm)
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
@@ -1032,6 +1136,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param dist ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_mp_grid_setup(dist)
       TYPE(dbcsr_distribution_type), INTENT(INOUT)       :: dist
@@ -1041,32 +1146,47 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param transa ...
+!> \param transb ...
+!> \param alpha ...
+!> \param matrix_a ...
+!> \param matrix_b ...
+!> \param beta ...
+!> \param matrix_c ...
+!> \param first_row ...
+!> \param last_row ...
+!> \param first_column ...
+!> \param last_column ...
+!> \param first_k ...
+!> \param last_k ...
+!> \param retain_sparsity ...
+!> \param filter_eps ...
+!> \param flop ...
 ! **************************************************************************************************
-   #:for nametype1, type1 in [('d', 'REAL(kind=dp)'), ('z', 'COMPLEX(kind=dp)')]
-      SUBROUTINE dbcsr_multiply_${nametype1}$ (transa, transb, alpha, matrix_a, matrix_b, beta, &
-                                               matrix_c, first_row, last_row, &
-                                               first_column, last_column, first_k, last_k, &
-                                               retain_sparsity, filter_eps, flop)
-         CHARACTER(LEN=1), INTENT(IN)                    :: transa, transb
-         ${type1}$, INTENT(IN)                           :: alpha
-         TYPE(dbcsr_type), INTENT(IN)                    :: matrix_a, matrix_b
-         ${type1}$, INTENT(IN)                           :: beta
-         TYPE(dbcsr_type), INTENT(INOUT)                 :: matrix_c
-         INTEGER, INTENT(IN), OPTIONAL                   :: first_row, last_row, &
-                                                            first_column, last_column, &
-                                                            first_k, last_k
-         LOGICAL, INTENT(IN), OPTIONAL                   :: retain_sparsity
-         REAL(kind=dp), INTENT(IN), OPTIONAL             :: filter_eps
-         INTEGER(int_8), INTENT(OUT), OPTIONAL           :: flop
+   SUBROUTINE dbcsr_multiply(transa, transb, alpha, matrix_a, matrix_b, beta, &
+                             matrix_c, first_row, last_row, &
+                             first_column, last_column, first_k, last_k, &
+                             retain_sparsity, filter_eps, flop)
+      CHARACTER(LEN=1), INTENT(IN)                       :: transa, transb
+      REAL(kind=dp), INTENT(IN)                          :: alpha
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix_a, matrix_b
+      REAL(kind=dp), INTENT(IN)                          :: beta
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_c
+      INTEGER, INTENT(IN), OPTIONAL                      :: first_row, last_row, first_column, &
+                                                            last_column, first_k, last_k
+      LOGICAL, INTENT(IN), OPTIONAL                      :: retain_sparsity
+      REAL(kind=dp), INTENT(IN), OPTIONAL                :: filter_eps
+      INTEGER(int_8), INTENT(OUT), OPTIONAL              :: flop
 
-         CALL dbcsr_multiply_prv(transa, transb, alpha, matrix_a%prv, matrix_b%prv, beta, &
-                                 matrix_c%prv, first_row, last_row, first_column, last_column, &
-                                 first_k, last_k, retain_sparsity, filter_eps=filter_eps, flop=flop)
-      END SUBROUTINE dbcsr_multiply_${nametype1}$
-   #:endfor
+      CALL dbcsr_multiply_prv(transa, transb, alpha, matrix_a%prv, matrix_b%prv, beta, &
+                              matrix_c%prv, first_row, last_row, first_column, last_column, &
+                              first_k, last_k, retain_sparsity, filter_eps=filter_eps, flop=flop)
+   END SUBROUTINE dbcsr_multiply
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param matrix ...
+!> \return ...
 ! **************************************************************************************************
    FUNCTION dbcsr_nblkcols_total(matrix) RESULT(nblkcols_total)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
@@ -1077,6 +1197,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param matrix ...
+!> \return ...
 ! **************************************************************************************************
    FUNCTION dbcsr_nblkrows_total(matrix) RESULT(nblkrows_total)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
@@ -1087,6 +1209,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param matrix ...
+!> \return ...
 ! **************************************************************************************************
    FUNCTION dbcsr_nfullcols_total(matrix) RESULT(nfullcols_total)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
@@ -1097,6 +1221,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param matrix ...
+!> \return ...
 ! **************************************************************************************************
    FUNCTION dbcsr_nfullrows_total(matrix) RESULT(nfullrows_total)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
@@ -1107,6 +1233,9 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param matrix ...
+!> \param which_norm ...
+!> \param norm_scalar ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_norm_scalar(matrix, which_norm, norm_scalar)
       TYPE(dbcsr_type), INTENT(INOUT), TARGET            :: matrix
@@ -1118,6 +1247,9 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param matrix ...
+!> \param which_norm ...
+!> \param norm_vector ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_norm_vector(matrix, which_norm, norm_vector)
       TYPE(dbcsr_type), INTENT(INOUT), TARGET            :: matrix
@@ -1129,6 +1261,11 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param matrix ...
+!> \param nodata ...
+!> \param matlab_format ...
+!> \param variable_name ...
+!> \param unit_nr ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_print(matrix, nodata, matlab_format, variable_name, unit_nr)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
@@ -1141,6 +1278,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param matrix ...
+!> \param unit_nr ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_print_block_sum(matrix, unit_nr)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
@@ -1151,34 +1290,41 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param matrix ...
+!> \param row ...
+!> \param col ...
+!> \param block ...
+!> \param summation ...
 ! **************************************************************************************************
-   #:for nametype1, type1 in [('d', 'REAL(kind=dp)'), ('z', 'COMPLEX(kind=dp)')]
-      SUBROUTINE dbcsr_put_block2d_${nametype1}$ (matrix, row, col, block, summation)
-         TYPE(dbcsr_type), INTENT(INOUT)                 :: matrix
-         INTEGER, INTENT(IN)                             :: row, col
-         ${type1}$, DIMENSION(:, :), INTENT(IN)          :: block
-         LOGICAL, INTENT(IN), OPTIONAL                   :: summation
+   SUBROUTINE dbcsr_put_block2d(matrix, row, col, block, summation)
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
+      INTEGER, INTENT(IN)                                :: row, col
+      REAL(kind=dp), DIMENSION(:, :), INTENT(IN)         :: block
+      LOGICAL, INTENT(IN), OPTIONAL                      :: summation
 
-         CALL dbcsr_put_block_prv(matrix%prv, row, col, block, summation=summation)
-      END SUBROUTINE dbcsr_put_block2d_${nametype1}$
-   #:endfor
-
-! **************************************************************************************************
-!> \brief ...
-! **************************************************************************************************
-   #:for nametype1, type1 in [('d', 'REAL(kind=dp)'), ('z', 'COMPLEX(kind=dp)')]
-      SUBROUTINE dbcsr_put_block_${nametype1}$ (matrix, row, col, block, summation)
-         TYPE(dbcsr_type), INTENT(INOUT)                 :: matrix
-         INTEGER, INTENT(IN)                             :: row, col
-         ${type1}$, DIMENSION(:), INTENT(IN)             :: block
-         LOGICAL, INTENT(IN), OPTIONAL                   :: summation
-
-         CALL dbcsr_put_block_prv(matrix%prv, row, col, block, summation=summation)
-      END SUBROUTINE dbcsr_put_block_${nametype1}$
-   #:endfor
+      CALL dbcsr_put_block_prv(matrix%prv, row, col, block, summation=summation)
+   END SUBROUTINE dbcsr_put_block2d
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param matrix ...
+!> \param row ...
+!> \param col ...
+!> \param block ...
+!> \param summation ...
+! **************************************************************************************************
+   SUBROUTINE dbcsr_put_block(matrix, row, col, block, summation)
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
+      INTEGER, INTENT(IN)                                :: row, col
+      REAL(kind=dp), DIMENSION(:), INTENT(IN)            :: block
+      LOGICAL, INTENT(IN), OPTIONAL                      :: summation
+
+      CALL dbcsr_put_block_prv(matrix%prv, row, col, block, summation=summation)
+   END SUBROUTINE dbcsr_put_block
+
+! **************************************************************************************************
+!> \brief ...
+!> \param matrix ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_release(matrix)
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
@@ -1188,6 +1334,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param matrix ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_replicate_all(matrix)
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
@@ -1197,6 +1344,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param matrix ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_reserve_all_blocks(matrix)
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
@@ -1206,19 +1354,24 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param matrix ...
+!> \param row ...
+!> \param col ...
+!> \param block ...
 ! **************************************************************************************************
-   #:for nametype1, type1 in [('d', 'REAL(kind=dp)'), ('z', 'COMPLEX(kind=dp)')]
-      SUBROUTINE dbcsr_reserve_block2d_${nametype1}$ (matrix, row, col, block)
-         TYPE(dbcsr_type), INTENT(INOUT)                 :: matrix
-         INTEGER, INTENT(IN)                             :: row, col
-         ${type1}$, DIMENSION(:, :), POINTER             :: block
+   SUBROUTINE dbcsr_reserve_block2d(matrix, row, col, block)
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
+      INTEGER, INTENT(IN)                                :: row, col
+      REAL(kind=dp), DIMENSION(:, :), POINTER            :: block
 
-         CALL dbcsr_reserve_block2d_prv(matrix%prv, row, col, block)
-      END SUBROUTINE dbcsr_reserve_block2d_${nametype1}$
-   #:endfor
+      CALL dbcsr_reserve_block2d_prv(matrix%prv, row, col, block)
+   END SUBROUTINE dbcsr_reserve_block2d
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param matrix ...
+!> \param rows ...
+!> \param cols ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_reserve_blocks(matrix, rows, cols)
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
@@ -1229,6 +1382,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param matrix ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_reserve_diag_blocks(matrix)
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
@@ -1238,55 +1392,58 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param matrix ...
+!> \param alpha_scalar ...
 ! **************************************************************************************************
-   #:for nametype1, type1 in [('d', 'REAL(kind=dp)'), ('z', 'COMPLEX(kind=dp)')]
-      SUBROUTINE dbcsr_scale_${nametype1}$ (matrix, alpha_scalar)
-         TYPE(dbcsr_type), INTENT(INOUT)                 :: matrix
-         ${type1}$, INTENT(IN)                           :: alpha_scalar
+   SUBROUTINE dbcsr_scale(matrix, alpha_scalar)
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
+      REAL(kind=dp), INTENT(IN)                          :: alpha_scalar
 
-         CALL dbcsr_scale_prv(matrix%prv, alpha_scalar)
-      END SUBROUTINE dbcsr_scale_${nametype1}$
-   #:endfor
-
-! **************************************************************************************************
-!> \brief ...
-! **************************************************************************************************
-   #:for nametype1, type1 in [('d', 'REAL(kind=dp)'), ('z', 'COMPLEX(kind=dp)')]
-      SUBROUTINE dbcsr_scale_by_vector_${nametype1}$ (matrix, alpha, side)
-         TYPE(dbcsr_type), INTENT(INOUT)                 :: matrix
-         ${type1}$, DIMENSION(:), INTENT(IN), TARGET     :: alpha
-         CHARACTER(LEN=*), INTENT(IN)                    :: side
-
-         CALL dbcsr_scale_by_vector_prv(matrix%prv, alpha, side)
-      END SUBROUTINE dbcsr_scale_by_vector_${nametype1}$
-   #:endfor
+      CALL dbcsr_scale_prv(matrix%prv, alpha_scalar)
+   END SUBROUTINE dbcsr_scale
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param matrix ...
+!> \param alpha ...
+!> \param side ...
 ! **************************************************************************************************
-   #:for nametype1, type1 in [('d', 'REAL(kind=dp)'), ('z', 'COMPLEX(kind=dp)')]
-      SUBROUTINE dbcsr_set_${nametype1}$ (matrix, alpha)
-         TYPE(dbcsr_type), INTENT(INOUT)                 :: matrix
-         ${type1}$, INTENT(IN)                           :: alpha
+   SUBROUTINE dbcsr_scale_by_vector(matrix, alpha, side)
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
+      REAL(kind=dp), DIMENSION(:), INTENT(IN), TARGET    :: alpha
+      CHARACTER(LEN=*), INTENT(IN)                       :: side
 
-         CALL dbcsr_set_prv(matrix%prv, alpha)
-      END SUBROUTINE dbcsr_set_${nametype1}$
-   #:endfor
-
-! **************************************************************************************************
-!> \brief ...
-! **************************************************************************************************
-   #:for nametype1, type1 in [('d', 'REAL(kind=dp)'), ('z', 'COMPLEX(kind=dp)')]
-      SUBROUTINE dbcsr_set_diag_${nametype1}$ (matrix, diag)
-         TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
-         ${type1}$, DIMENSION(:), INTENT(IN)                  :: diag
-
-         CALL dbcsr_set_diag_prv(matrix%prv, diag)
-      END SUBROUTINE dbcsr_set_diag_${nametype1}$
-   #:endfor
+      CALL dbcsr_scale_by_vector_prv(matrix%prv, alpha, side)
+   END SUBROUTINE dbcsr_scale_by_vector
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param matrix ...
+!> \param alpha ...
+! **************************************************************************************************
+   SUBROUTINE dbcsr_set(matrix, alpha)
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
+      REAL(kind=dp), INTENT(IN)                          :: alpha
+
+      CALL dbcsr_set_prv(matrix%prv, alpha)
+   END SUBROUTINE dbcsr_set
+
+! **************************************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \param diag ...
+! **************************************************************************************************
+   SUBROUTINE dbcsr_set_diag(matrix, diag)
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
+      REAL(kind=dp), DIMENSION(:), INTENT(IN)            :: diag
+
+      CALL dbcsr_set_diag_prv(matrix%prv, diag)
+   END SUBROUTINE dbcsr_set_diag
+
+! **************************************************************************************************
+!> \brief ...
+!> \param matrix ...
+!> \param newname ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_setname(matrix, newname)
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
@@ -1297,6 +1454,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param matrix ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_sum_replicated(matrix)
       TYPE(dbcsr_type), INTENT(inout)                    :: matrix
@@ -1306,18 +1464,23 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param matrix ...
+!> \param trace ...
 ! **************************************************************************************************
-   #:for nametype1, type1 in [('d', 'REAL(kind=dp)'), ('z', 'COMPLEX(kind=dp)')]
-      SUBROUTINE dbcsr_trace_${nametype1}$ (matrix, trace)
-         TYPE(dbcsr_type), INTENT(IN)                    :: matrix
-         ${type1}$, INTENT(OUT)                          :: trace
+   SUBROUTINE dbcsr_trace(matrix, trace)
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
+      REAL(kind=dp), INTENT(OUT)                         :: trace
 
-         CALL dbcsr_trace_prv(matrix%prv, trace)
-      END SUBROUTINE dbcsr_trace_${nametype1}$
-   #:endfor
+      CALL dbcsr_trace_prv(matrix%prv, trace)
+   END SUBROUTINE dbcsr_trace
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param transposed ...
+!> \param normal ...
+!> \param shallow_data_copy ...
+!> \param transpose_distribution ...
+!> \param use_distribution ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_transposed(transposed, normal, shallow_data_copy, transpose_distribution, &
                                use_distribution)
@@ -1339,6 +1502,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param matrix ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_triu(matrix)
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
@@ -1348,6 +1512,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param matrix ...
+!> \return ...
 ! **************************************************************************************************
    PURE FUNCTION dbcsr_valid_index(matrix) RESULT(valid_index)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
@@ -1358,6 +1524,9 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param matrix ...
+!> \param verbosity ...
+!> \param local ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_verify_matrix(matrix, verbosity, local)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
@@ -1369,6 +1538,11 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param matrix ...
+!> \param nblks_guess ...
+!> \param sizedata_guess ...
+!> \param n ...
+!> \param work_mutable ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_work_create(matrix, nblks_guess, sizedata_guess, n, work_mutable)
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
