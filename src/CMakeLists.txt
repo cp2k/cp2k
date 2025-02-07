@@ -1635,7 +1635,7 @@ target_link_libraries(
     $<$<BOOL:${CP2K_USE_COSMA}>:cosma::cosma>
     $<$<BOOL:${CP2K_USE_DLAF}>:DLAF::Fortran>
     $<$<BOOL:${CP2K_USE_TREXIO}>:cp2k::trexio::trexio>
-    $<$<BOOL:${CP2K_USE_GRPP}>:grpp::grpp>
+    $<$<BOOL:${CP2K_USE_GRPP}>:cp2k::grpp::grpp>
     $<$<BOOL:${CP2K_USE_HDF5}>:HDF5::HDF5
     hdf5::hdf5_fortran>
     DBCSR::dbcsr
