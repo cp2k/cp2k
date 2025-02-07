@@ -1671,6 +1671,7 @@ target_compile_definitions(
     $<$<BOOL:${CP2K_USE_DFTD4}>:__DFTD4>
     $<$<BOOL:${CP2K_USE_DEEPMD}>:__DEEPMD>
     $<$<BOOL:${CP2K_USE_SIRIUS}>:__SIRIUS>
+    $<$<BOOL:${CP2K_USE_LIBVDWXC}>:__LIBVDWXC>
     $<$<BOOL:${CP2K_USE_SPLA}>:__SPLA>
     $<$<BOOL:${CP2K_USE_SpFFT}>:__SPFFT>
     $<$<BOOL:${CP2K_USE_SPLA_GEMM_OFFLOADING}>:__OFFLOAD_GEMM>

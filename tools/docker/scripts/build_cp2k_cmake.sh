@@ -88,6 +88,7 @@ if [[ "${PROFILE}" == "spack" ]] && [[ "${VERSION}" == "psmp" ]]; then
     -DCP2K_USE_ELPA=ON \
     -DCP2K_USE_COSMA=ON \
     -DCP2K_USE_SIRIUS=ON \
+    -DCP2K_USE_LIBVDWXC=ON \
     -DCP2K_USE_GRPP=OFF \
     -DCP2K_USE_TREXIO=ON \
     -DCP2K_USE_LIBTORCH=ON \
