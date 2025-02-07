@@ -258,7 +258,7 @@ CONTAINS
                           variants=(/"F_ROKS"/), &
                           description="Allows to define the parameter f for the "// &
                           "general ROKS scheme.", &
-                          usage="ROKS_PARAMETER 1/2", &
+                          usage="ROKS_F 1/2", &
                           repeats=.FALSE., &
                           n_var=1, &
                           type_of_var=real_t, &

@@ -18,6 +18,7 @@ MODULE atom_pseudo
    USE atom_output,                     ONLY: atom_print_basis,&
                                               atom_print_info,&
                                               atom_print_method,&
+                                              atom_print_orbitals,&
                                               atom_print_potential
    USE atom_types,                      ONLY: &
         atom_basis_type, atom_integrals, atom_optimization_type, atom_orbitals, atom_p_type, &
@@ -75,7 +76,7 @@ CONTAINS
                                                             zval, zz
       INTEGER, DIMENSION(0:lmat)                         :: maxn
       INTEGER, DIMENSION(:), POINTER                     :: cn
-      LOGICAL                                            :: do_gh, eri_c, eri_e, pp_calc
+      LOGICAL                                            :: do_gh, eri_c, eri_e, graph, pp_calc
       REAL(KIND=dp)                                      :: ne, nm
       REAL(KIND=dp), DIMENSION(0:lmat, 10)               :: pocc
       TYPE(atom_basis_type), POINTER                     :: ae_basis, pp_basis
@@ -379,6 +380,18 @@ CONTAINS
          CALL atom_print_potential(p_pot, iw)
       END IF
       CALL cp_print_key_finished_output(iw, logger, atom_section, "PRINT%POTENTIAL")
+
+      ! Print out the orbitals if requested
+      iw = cp_print_key_unit_nr(logger, atom_section, "PRINT%ORBITALS", extension=".log")
+      CALL section_vals_val_get(atom_section, "PRINT%ORBITALS%XMGRACE", l_val=graph)
+      IF (iw > 0) THEN
+         DO in = 1, n_rep
+            DO im = 1, n_meth
+               CALL atom_print_orbitals(atom_info(in, im)%atom, iw, xmgrace=graph)
+            END DO
+         END DO
+      END IF
+      CALL cp_print_key_finished_output(iw, logger, atom_section, "PRINT%ORBITALS")
 
       ! clean up
       CALL atom_int_release(ae_int)
