@@ -3,4 +3,6 @@
 # see regtest/TEST_FILES
 diamond_kp_rks.inp                                     0
 h2o_pbc_uks_cart.inp                                   0
+Ne_ecp_rks_cartesian.inp                               0
+Ne_ecp_rks_filename.inp                                0
 #EOF
