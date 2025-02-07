@@ -86,7 +86,6 @@ prepend_path LIBRARY_PATH "$pkg_install_dir/lib"
 prepend_path PKG_CONFIG_PATH "$pkg_install_dir/lib/pkgconfig"
 prepend_path CMAKE_PREFIX_PATH "$pkg_install_dir"
 export LIBGRPP_ROOT="${pkg_install_dir}"
-export grpp_DIR="${pkg_install_dir}/lib/cmake/libgrpp/"
 EOF
     cat "${BUILDDIR}/setup_libgrpp" >> $SETUPFILE
   fi
