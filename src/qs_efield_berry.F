@@ -689,10 +689,8 @@ CONTAINS
                                                             npgfb, nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       LOGICAL                                            :: found, uniform, use_virial
-      REAL(dp)                                           :: charge, ci(3), cqi(3), dab, dd, di(3), &
-                                                            ener_field, fab, fieldpol(3), focc, &
-                                                            hmat(3, 3), occ, omega, qi(3), &
-                                                            rlog(3), strength, zlog(3)
+      REAL(dp) :: charge, ci(3), cqi(3), dab, dd, di(3), ener_field, fab, fieldpol(3), focc, &
+         hmat(3, 3), occ, omega, qi(3), rlog(3), strength, zlog(3)
       REAL(dp), DIMENSION(3)                             :: dfilter, forcea, forceb, kvec, ra, rab, &
                                                             rb, ria
       REAL(dp), DIMENSION(:, :), POINTER                 :: cosab, iblock, rblock, sinab, work

@@ -97,7 +97,6 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-
       CALL keyword_create(keyword, __LOCATION__, name="INTENSITY_LIST", &
                           description="Intensities of the electric field in a.u. "// &
                           "They are applied sequentially, one per frame. "// &
@@ -110,10 +109,10 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="START_FRAME", &
                           description="First frame the field is applied. "// &
-                          "(1: first frame) "// &
+                          "(0: first frame) "// &
                           "Attention: ignored for eeq", &
-                          usage="start_frame 1", &
-                          default_i_val=1)
+                          usage="start_frame 0", &
+                          default_i_val=0)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -123,8 +122,8 @@ CONTAINS
                           "must be a multiple of the number of "// &
                           "the given intensity values. (-1: no end) "// &
                           "Attention: ignored for eeq", &
-         usage = "end_frame -1", &
-         default_i_val = -1)
+                          usage="end_frame -1", &
+                          default_i_val=-1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

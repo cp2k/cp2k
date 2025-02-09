@@ -514,7 +514,6 @@ CONTAINS
          CALL section_vals_val_get(tmp_section, "DISPLACEMENT_FIELD", &
                                    l_val=dft_control%period_efield%displacement_field)
 
-
          CALL section_vals_val_get(tmp_section, "INTENSITY_LIST", r_vals=pol)
 
          IF (SIZE(pol) > 1 .OR. pol(1) /= 0.0_dp) THEN
@@ -546,7 +545,6 @@ CONTAINS
                              "[PERIODIC FIELD] Number of active frames must be a multiple of the number of intensities")
             END IF
          END IF
-
 
          ! periodic fields don't work with RTP
          CPASSERT(.NOT. do_rtp)
@@ -1986,13 +1984,12 @@ CONTAINS
                WRITE (UNIT=output_unit, FMT="(T2,A,T66,1X,I14)") &
                   "PERIODIC_EFIELD| Number of Intensities:", &
                   SIZE(dft_control%period_efield%strength_list)
-
                WRITE (UNIT=output_unit, FMT="(T2,A,I10,T66,1X,ES14.6)") &
                   "PERIODIC_EFIELD| Intensity List [a.u.] ", &
                   1, dft_control%period_efield%strength_list(1)
                DO i = 2, SIZE(dft_control%period_efield%strength_list)
                   WRITE (UNIT=output_unit, FMT="(T2,A,I10,T66,1X,ES14.6)") &
-                     "PERIODIC_EFIELD|                        ", &
+                     "PERIODIC_EFIELD|                       ", &
                      i, dft_control%period_efield%strength_list(i)
                END DO
             ELSE

@@ -271,7 +271,7 @@ MODULE cp_control_types
       REAL(KIND=dp), DIMENSION(3)          :: d_filter = 0.0_dp
       REAL(KIND=dp)                        :: strength = 0.0_dp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: strength_list
-      INTEGER                              :: start_frame = 1
+      INTEGER                              :: start_frame = 0
       INTEGER                              :: end_frame = -1
    END TYPE period_efield_type
 
