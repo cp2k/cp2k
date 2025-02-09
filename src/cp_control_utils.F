@@ -513,6 +513,41 @@ CONTAINS
          dft_control%period_efield%displacement_field = .FALSE.
          CALL section_vals_val_get(tmp_section, "DISPLACEMENT_FIELD", &
                                    l_val=dft_control%period_efield%displacement_field)
+
+
+         CALL section_vals_val_get(tmp_section, "INTENSITY_LIST", r_vals=pol)
+
+         IF (SIZE(pol) > 1 .OR. pol(1) /= 0.0_dp) THEN
+            ! if INTENSITY_LIST is present, INTENSITY must not be present
+            IF (dft_control%period_efield%strength /= 0.0_dp) THEN
+               CPABORT("[PERIODIC FIELD] Only one of INTENSITY or INTENSITY_LIST can be specified.")
+            END IF
+
+            ALLOCATE (dft_control%period_efield%strength_list(SIZE(pol)))
+            dft_control%period_efield%strength_list(1:SIZE(pol)) = pol(1:SIZE(pol))
+         END IF
+
+         CALL section_vals_val_get(tmp_section, "START_FRAME", &
+                                   i_val=dft_control%period_efield%start_frame)
+         CALL section_vals_val_get(tmp_section, "END_FRAME", &
+                                   i_val=dft_control%period_efield%end_frame)
+
+         IF (dft_control%period_efield%end_frame /= -1) THEN
+            ! check if valid bounds are given
+            ! if an end frame is given, the number of active frames must be a
+            ! multiple of the number of intensities
+            IF (dft_control%period_efield%start_frame > dft_control%period_efield%end_frame) THEN
+               CPABORT("[PERIODIC FIELD] START_FRAME > END_FRAME")
+            ELSE IF (dft_control%period_efield%start_frame < 1) THEN
+               CPABORT("[PERIODIC FIELD] START_FRAME < 1")
+            ELSE IF (MOD(dft_control%period_efield%end_frame - &
+                         dft_control%period_efield%start_frame + 1, SIZE(pol)) /= 0) THEN
+               CALL cp_abort(__LOCATION__, &
+                             "[PERIODIC FIELD] Number of active frames must be a multiple of the number of intensities")
+            END IF
+         END IF
+
+
          ! periodic fields don't work with RTP
          CPASSERT(.NOT. do_rtp)
          IF (dft_control%period_efield%displacement_field) THEN
@@ -1804,7 +1839,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'write_dft_control'
 
       CHARACTER(LEN=20)                                  :: tmpStr
-      INTEGER                                            :: handle, output_unit
+      INTEGER                                            :: handle, i, output_unit
       REAL(kind=dp)                                      :: density_cut, density_smooth_cut_range, &
                                                             gradient_cut, tau_cut
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -1939,9 +1974,33 @@ CONTAINS
                "PERIODIC_EFIELD|                            y", &
                dft_control%period_efield%polarisation(2), &
                "PERIODIC_EFIELD|                            z", &
-               dft_control%period_efield%polarisation(3), &
-               "PERIODIC_EFIELD| Intensity [a.u.]:", &
-               dft_control%period_efield%strength
+               dft_control%period_efield%polarisation(3)
+
+            WRITE (UNIT=output_unit, FMT="(T2,A,T66,1X,I14)") &
+               "PERIODIC_EFIELD| Start Frame:", &
+               dft_control%period_efield%start_frame, &
+               "PERIODIC_EFIELD| End Frame:", &
+               dft_control%period_efield%end_frame
+
+            IF (ALLOCATED(dft_control%period_efield%strength_list)) THEN
+               WRITE (UNIT=output_unit, FMT="(T2,A,T66,1X,I14)") &
+                  "PERIODIC_EFIELD| Number of Intensities:", &
+                  SIZE(dft_control%period_efield%strength_list)
+
+               WRITE (UNIT=output_unit, FMT="(T2,A,I10,T66,1X,ES14.6)") &
+                  "PERIODIC_EFIELD| Intensity List [a.u.] ", &
+                  1, dft_control%period_efield%strength_list(1)
+               DO i = 2, SIZE(dft_control%period_efield%strength_list)
+                  WRITE (UNIT=output_unit, FMT="(T2,A,I10,T66,1X,ES14.6)") &
+                     "PERIODIC_EFIELD|                        ", &
+                     i, dft_control%period_efield%strength_list(i)
+               END DO
+            ELSE
+               WRITE (UNIT=output_unit, FMT="(T2,A,T66,1X,ES14.6)") &
+                  "PERIODIC_EFIELD| Intensity [a.u.]:", &
+                  dft_control%period_efield%strength
+            END IF
+
             IF (SQRT(DOT_PRODUCT(dft_control%period_efield%polarisation, &
                                  dft_control%period_efield%polarisation)) < EPSILON(0.0_dp)) THEN
                CPABORT("Invalid (too small) polarisation vector specified for PERIODIC_EFIELD")
