@@ -12,6 +12,8 @@
 !> \author JGH
 ! **************************************************************************************************
 MODULE qs_active_space_methods
+   USE admm_types,                      ONLY: admm_type,&
+                                              get_admm_env
    USE atomic_kind_types, ONLY: atomic_kind_type
    USE basis_set_types, ONLY: allocate_sto_basis_set, &
                               create_gto_from_sto_basis, &
@@ -2831,11 +2833,13 @@ CONTAINS
       REAL(KIND=dp)                                      :: alpha, delta_E, energy_corr, energy_new, &
                                                             energy_old, energy_scf, eps_iter, t1, t2
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao, matrix_vxc, matrix_ks
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao, matrix_vxc, matrix_ks, rho_ao_aux_fit
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos_active
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(qs_energy_type), POINTER                      :: energy
-      TYPE(qs_rho_type), POINTER                         :: rho
+      TYPE(qs_rho_type), POINTER                         :: rho, rho_aux_fit
+      TYPE(admm_type), POINTER                           :: admm_env
+      TYPE(dft_control_type), POINTER                    :: dft_control
 
       CALL timeset(routineN, handle)
 
@@ -2867,7 +2871,7 @@ CONTAINS
       CALL send_eri_to_client(client_fd, active_space_env, para_env)
 
       ! get pointer to density in ao basis
-      CALL get_qs_env(qs_env, rho=rho, energy=energy)
+      CALL get_qs_env(qs_env, rho=rho, energy=energy, dft_control=dft_control)
       CALL qs_rho_get(rho, rho_ao=rho_ao)
 
       IF (iw > 0) THEN
@@ -2912,8 +2916,20 @@ CONTAINS
          CALL cp_dbcsr_write_sparse_matrix(matrix_ks(1)%matrix, 4, 4, qs_env, para_env, &
                                            output_unit=iw, omit_headers=.false.)
 
-         ! CALL cp_dbcsr_write_sparse_matrix(matrix_vxc(1)%matrix, 4, 4, qs_env, para_env, &
-         !                                   output_unit=iw, omit_headers=.false.)
+         ! TODO: the issue with ADMM is the MO vs DM methods
+         ! For admm_mo, the auxiliary density is computed from the MOs, which never change
+         ! and therefore it screws everything up
+         ! For admm_dm, the auxiliary density is computed from the density matrix, which is
+         ! updated at each iteration and therefore works!
+         IF (dft_control%do_admm) THEN
+            IF (iw > 0) WRITE (iw,*) dft_control%do_admm_mo
+            IF (iw > 0) WRITE (iw,*) dft_control%do_admm_dm
+            CALL get_qs_env(qs_env, admm_env=admm_env)
+            CALL get_admm_env(admm_env, rho_aux_fit=rho_aux_fit)
+            CALL qs_rho_get(rho_aux_fit, rho_ao=rho_ao_aux_fit)
+            CALL cp_dbcsr_write_sparse_matrix(rho_ao_aux_fit(1)%matrix, 4, 4, qs_env, para_env, &
+                                           output_unit=iw, omit_headers=.false.)
+         END IF
 
          ! get timer
          t2 = t1
@@ -2928,12 +2944,28 @@ CONTAINS
 
          ! update total density in AO basis with the AS contribution
          CALL update_density_ao(active_space_env, rho_ao) ! rho_ao is updated
+         !!!!! DEBUG
+         IF (dft_control%do_admm) THEN
+            CALL update_density_ao(active_space_env, rho_ao_aux_fit) ! rho_ao is updated
+            CALL cp_dbcsr_write_sparse_matrix(rho_ao_aux_fit(1)%matrix, 4, 4, qs_env, para_env, &
+                                           output_unit=iw, omit_headers=.false.)
+         END IF
+
+
+         ! CALL cp_dbcsr_write_sparse_matrix(rho_ao(1)%matrix, 4, 4, qs_env, para_env, &
+         !                                   output_unit=iw, omit_headers=.false.)
+         !!!!!
 
          ! calculate F_ks in AO basis (which contains Vxc) with the new density
          qs_env%requires_matrix_vxc = .TRUE.
-         CALL qs_rho_update_rho(rho, qs_env) ! updates rho_r and rho_g using rho_ao
+         CALL qs_rho_update_rho(rho, qs_env=qs_env) ! updates rho_r and rho_g using rho_ao
          CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE.) ! set flags about the change
          CALL qs_ks_update_qs_env(qs_env) ! this call actually calculates F_ks
+
+         !!!!! DEBUG
+         ! CALL cp_dbcsr_write_sparse_matrix(rho_ao(1)%matrix, 4, 4, qs_env, para_env, &
+         !                                   output_unit=iw, omit_headers=.false.)
+         !!!!!!
 
          ! update the reference energy
          active_space_env%energy_ref = energy%total
