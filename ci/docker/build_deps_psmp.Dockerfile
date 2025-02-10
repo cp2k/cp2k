@@ -1,4 +1,4 @@
-FROM ubuntu:24.04
+FROM ubuntu:24.04 AS build
 
 # Install requirements for the toolchain
 WORKDIR /opt/cp2k-toolchain

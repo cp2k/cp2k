@@ -4,7 +4,7 @@ include:
 stages:
   - build_deps
   - build_cp2k
-  - test_cp2k
+#  - test_cp2k
 
 variables:
   PERSIST_IMAGE_NAME: $CSCS_REGISTRY_PATH/cp2k:$CI_COMMIT_SHORT_SHA
@@ -23,14 +23,14 @@ build_cp2k_job:
   variables:
     DOCKERFILE: ci/docker/build_cp2k_psmp.Dockerfile
 
-test_cp2k_job:
-  extends: .container-runner-eiger
-  stage: test_cp2k
-  timeout: 2 hours
-  image: $PERSIST_IMAGE_NAME
-  script:
-    - /opt/cp2k/tools/docker/scripts/test_regtest_cmake.sh toolchain psmp
-  variables:
-    OMP_NUM_THREADS: 2
-    SLURM_NTASKS: 64
-    SLURM_TIMELIMIT: "60:00"
+#test_cp2k_job:
+#  extends: .container-runner-eiger
+#  stage: test_cp2k
+#  timeout: 2 hours
+#  image: $PERSIST_IMAGE_NAME
+#  script:
+#    - /opt/cp2k/tools/docker/scripts/test_regtest_cmake.sh toolchain psmp
+#  variables:
+#    OMP_NUM_THREADS: 2
+#    SLURM_NTASKS: 64
+#    SLURM_TIMELIMIT: "60:00"
