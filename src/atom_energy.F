@@ -91,8 +91,8 @@ CONTAINS
       INTEGER, DIMENSION(0:lmat)                         :: maxn
       INTEGER, DIMENSION(:), POINTER                     :: cn
       LOGICAL                                            :: dm, do_gh, do_zmp, doread, eri_c, eri_e, &
-                                                            had_ae, had_pp, lcomp, lcond, pp_calc, &
-                                                            read_vxc
+                                                            graph, had_ae, had_pp, lcomp, lcond, &
+                                                            pp_calc, read_vxc
       REAL(KIND=dp)                                      :: crad, delta, lambda
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ext_density, ext_vxc
       REAL(KIND=dp), DIMENSION(0:lmat, 10)               :: pocc
@@ -357,8 +357,9 @@ CONTAINS
 
                ! Print out the orbitals if requested
                iw = cp_print_key_unit_nr(logger, atom_section, "PRINT%ORBITALS", extension=".log")
+               CALL section_vals_val_get(atom_section, "PRINT%ORBITALS%XMGRACE", l_val=graph)
                IF (iw > 0) THEN
-                  CALL atom_print_orbitals(atom_info(in, im)%atom, iw)
+                  CALL atom_print_orbitals(atom_info(in, im)%atom, iw, xmgrace=graph)
                END IF
                CALL cp_print_key_finished_output(iw, logger, atom_section, "PRINT%ORBITALS")
 
