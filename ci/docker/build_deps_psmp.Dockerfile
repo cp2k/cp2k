@@ -1,11 +1,11 @@
 FROM ubuntu:24.04
 
-# Install requirements for the toolchain.
+# Install requirements for the toolchain
 WORKDIR /opt/cp2k-toolchain
 COPY ./tools/toolchain/install_requirements*.sh ./
 RUN ./install_requirements.sh ubuntu:24.04
 
-# Install the toolchain.
+# Install the toolchain
 RUN mkdir scripts
 COPY ./tools/toolchain/scripts/VERSION \
      ./tools/toolchain/scripts/parse_if.py \
@@ -20,8 +20,8 @@ RUN ./install_cp2k_toolchain.sh \
     --with-gcc=system \
     --dry-run
 
-# Dry-run leaves behind config files for the followup install scripts.
-# This breaks up the lengthy installation into smaller docker build steps.
+# Dry-run leaves behind config files for the followup install scripts
+# This breaks up the lengthy installation into smaller docker build steps
 COPY ./tools/toolchain/scripts/stage0/ ./scripts/stage0/
 RUN  ./scripts/stage0/install_stage0.sh && rm -rf ./build
 
@@ -57,26 +57,5 @@ RUN ./scripts/generate_arch_files.sh && rm -rf ./build
 # Install DBCSR
 COPY ./tools/docker/scripts/install_dbcsr.sh ./
 RUN ./install_dbcsr.sh toolchain psmp
-
-# Install CP2K sources.
-WORKDIR /opt/cp2k
-COPY ./src ./src
-COPY ./data ./data
-COPY ./tests ./tests
-COPY ./tools/build_utils ./tools/build_utils
-COPY ./cmake ./cmake
-COPY ./CMakeLists.txt .
-
-# Build CP2K with CMake and run regression tests.
-ARG TESTOPTS=""
-COPY ./tools/docker/scripts/build_cp2k_cmake.sh ./tools/docker/scripts/test_regtest_cmake.sh ./
-RUN /bin/bash -o pipefail -c " \
-    TESTOPTS='${TESTOPTS}' \
-    ./test_regtest_cmake.sh toolchain psmp |& tee report.log && \
-    rm -rf regtesting"
-
-# Output the report if the image is old and was therefore pulled from the build cache.
-CMD cat $(find ./report.log -mmin +10) | sed '/^Summary:/ s/$/ (cached)/'
-ENTRYPOINT []
 
 #EOF
