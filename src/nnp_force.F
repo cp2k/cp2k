@@ -386,7 +386,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: unit_nr
       LOGICAL, INTENT(IN)                                :: file_is_new
 
-      CHARACTER(len=default_path_length)                 :: fmt_string
+      CHARACTER(LEN=12)                                  :: fmt_string
       INTEGER                                            :: i
       REAL(KIND=dp)                                      :: std
 
@@ -399,8 +399,8 @@ CONTAINS
          WRITE (unit_nr, "(A)") ""
       END IF
 
-      fmt_string = "(2X,2(F20.9))"
-      WRITE (fmt_string, "(A,I3,A)") "(2X", nnp%n_committee + 2, "(F20.9))"
+      fmt_string = "(2X,  F20.9)"
+      WRITE (UNIT=fmt_string(5:6), FMT="(I2)") nnp%n_committee + 2
       std = SUM((SUM(nnp%atomic_energy, 1) - nnp%nnp_potential_energy)**2)
       std = std/REAL(nnp%n_committee, dp)
       std = SQRT(std)
