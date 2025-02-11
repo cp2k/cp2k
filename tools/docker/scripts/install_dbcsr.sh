@@ -1,7 +1,8 @@
 #!/bin/bash -e
 
 if (($# != 2)); then
-  echo "Usage: install_dbcsr.sh <PROFILE> <VERSION>"
+  echo "ERROR: Script ${BASH_SOURCE##*/} expects exactly two arguments"
+  echo "Usage: ${BASH_SOURCE##*/} <PROFILE> <VERSION>"
   exit 1
 fi
 
@@ -11,26 +12,10 @@ VERSION=$2
 DBCSR_ver="2.8.0"
 DBCSR_sha256="d55e4f052f28d1ed0faeaa07557241439243287a184d1fd27f875c8b9ca6bd96"
 
-echo "==================== Installing DBCSR ===================="
+[[ -z "${TOOLCHAIN_DIR}" ]] && TOOLCHAIN_DIR="/opt/cp2k-toolchain"
+[[ -z "${INSTALL_PREFIX}" ]] && INSTALL_PREFIX="/opt/cp2k"
 
-if [[ "${PROFILE}" == "toolchain-cwd" ]]; then
-  CWD=${PWD}
-  TOOLCHAIN_DIR="${CWD}/tools/toolchain"
-  INSTALL_PREFIX="${TOOLCHAIN_DIR}/install/dbcsr-${DBCSR_ver}/${VERSION}"
-  DBCSR_DIR="${INSTALL_PREFIX}/lib/cmake/dbcsr"
-  echo "export DBCSR_DIR=${INSTALL_PREFIX}/lib/cmake/dbcsr" >> "${TOOLCHAIN_DIR}/install/setup"
-  if [[ -d "${DBCSR_DIR}" ]]; then
-    echo "dbcsr-${DBCSR_ver} is already installed, skipping it."
-    exit
-  else
-    [[ ! -d "${TOOLCHAIN_DIR}/build" ]] && mkdir -p "${TOOLCHAIN_DIR}/build"
-    cd "${TOOLCHAIN_DIR}/build"
-  fi
-  PROFILE="toolchain"
-else
-  TOOLCHAIN_DIR="/opt/cp2k-toolchain"
-  INSTALL_PREFIX="/opt/dbcsr"
-fi
+echo "==================== Installing DBCSR ===================="
 
 wget -q "https://github.com/cp2k/dbcsr/releases/download/v${DBCSR_ver}/dbcsr-${DBCSR_ver}.tar.gz"
 echo "${DBCSR_sha256}  dbcsr-${DBCSR_ver}.tar.gz" | sha256sum --check > /dev/null
