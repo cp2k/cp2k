@@ -14,6 +14,9 @@ MODULE qs_gapw_densities
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
+   USE pw_env_types,                    ONLY: pw_env_get,&
+                                              pw_env_type
+   USE pw_pool_types,                   ONLY: pw_pool_p_type
    USE qs_charges_types,                ONLY: qs_charges_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -26,6 +29,8 @@ MODULE qs_gapw_densities
                                               rho0_mpole_type
    USE qs_rho_atom_methods,             ONLY: calculate_rho_atom
    USE qs_rho_atom_types,               ONLY: rho_atom_type
+   USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
+                                              realspace_grid_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -44,14 +49,16 @@ CONTAINS
 !> \param local_rho_set ...
 !> \param do_rho0 ...
 !> \param kind_set_external can be provided to use different projectors/grids/basis than the default
+!> \param pw_env_sub ...
 ! **************************************************************************************************
-   SUBROUTINE prepare_gapw_den(qs_env, local_rho_set, do_rho0, kind_set_external)
+   SUBROUTINE prepare_gapw_den(qs_env, local_rho_set, do_rho0, kind_set_external, pw_env_sub)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(local_rho_type), OPTIONAL, POINTER            :: local_rho_set
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_rho0
       TYPE(qs_kind_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: kind_set_external
+      TYPE(pw_env_type), OPTIONAL                        :: pw_env_sub
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'prepare_gapw_den'
 
@@ -65,8 +72,12 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gapw_control_type), POINTER                   :: gapw_control
       TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: my_pools
       TYPE(qs_charges_type), POINTER                     :: qs_charges
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: my_kind_set
+      TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
+         POINTER                                         :: my_rs_descs
+      TYPE(realspace_grid_type), DIMENSION(:), POINTER   :: my_rs_grids
       TYPE(rho0_atom_type), DIMENSION(:), POINTER        :: rho0_atom_set
       TYPE(rho0_mpole_type), POINTER                     :: rho0_mpole
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom_set
@@ -101,6 +112,7 @@ CONTAINS
 
       gapw_control => dft_control%qs_control%gapw_control
 
+      ! If TDDFPT%MGRID is defined, overwrite QS grid info accordingly
       IF (PRESENT(local_rho_set)) THEN
          rho_atom_set => local_rho_set%rho_atom_set
          IF (my_do_rho0) THEN
@@ -151,8 +163,22 @@ CONTAINS
 
          IF (my_do_rho0) THEN
             rho0_mpole%total_rho0_h = -rho0_h_tot
-            !Put the rho0_soft on the global grid
-            CALL put_rho0_on_grid(qs_env, rho0_mpole, tot_rs_int)
+
+            ! When MGRID is defined within TDDFPT
+            IF (PRESENT(pw_env_sub)) THEN
+               ! Find pool
+               NULLIFY (my_pools, my_rs_grids, my_rs_descs)
+               CALL pw_env_get(pw_env=pw_env_sub, rs_grids=my_rs_grids, &
+                               rs_descs=my_rs_descs, pw_pools=my_pools)
+               ! Put the rho0_soft on the global grid
+               CALL put_rho0_on_grid(qs_env, rho0_mpole, tot_rs_int, my_pools=my_pools, &
+                                     my_rs_grids=my_rs_grids, my_rs_descs=my_rs_descs)
+            ELSE
+               ! Put the rho0_soft on the global grid
+               CALL put_rho0_on_grid(qs_env, rho0_mpole, tot_rs_int)
+            END IF
+
+            ! TODO: proper cpwarn
             IF (ABS(rho0_h_tot) .GE. 1.0E-5_dp) THEN
                IF (ABS(1.0_dp - ABS(tot_rs_int/rho0_h_tot)) .GT. 1.0E-3_dp) THEN
                   IF (output_unit > 0) THEN

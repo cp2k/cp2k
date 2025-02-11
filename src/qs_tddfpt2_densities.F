@@ -111,7 +111,7 @@ CONTAINS
                                 pw_env_external=sub_env%pw_env, &
                                 task_list_external=sub_env%task_list_orb_soft, &
                                 para_env_external=sub_env%para_env)
-         CALL prepare_gapw_den(qs_env, local_rho_set=sub_env%local_rho_set)
+         CALL prepare_gapw_den(qs_env, local_rho_set=sub_env%local_rho_set, pw_env_sub=sub_env%pw_env)
       ELSEIF (dft_control%qs_control%gapw_xc) THEN
          CALL qs_rho_update_rho(rho_orb_struct, qs_env, &
                                 rho_xc_external=rho_xc_struct, &
