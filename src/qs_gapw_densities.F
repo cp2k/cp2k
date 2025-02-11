@@ -178,7 +178,6 @@ CONTAINS
                CALL put_rho0_on_grid(qs_env, rho0_mpole, tot_rs_int)
             END IF
 
-            ! TODO: proper cpwarn
             IF (ABS(rho0_h_tot) .GE. 1.0E-5_dp) THEN
                IF (ABS(1.0_dp - ABS(tot_rs_int/rho0_h_tot)) .GT. 1.0E-3_dp) THEN
                   IF (output_unit > 0) THEN
