@@ -1404,6 +1404,46 @@ set(CP2K_GRID_SRCS_C
     grid/cpu/grid_cpu_task_list.c
     grid/grid_replay.c)
 
+set(CP2K_GRPP_SRCS_C
+    grpp/src/angular_integrals.c
+    grpp/src/binomial.c
+    grpp/src/diff_gaussian.c
+    grpp/src/factorial.c
+    grpp/src/fortran.c
+    grpp/src/full_grpp_integrals.c
+    grpp/src/grpp.c
+    grpp/src/grpp_integrals_gradient.c
+    grpp/src/init_finalize.c
+    grpp/src/kinetic.c
+    grpp/src/lmatrix.c
+    grpp/src/momentum.c
+    grpp/src/norm_gaussian.c
+    grpp/src/nuclear_attraction.c
+    grpp/src/nuclear_models.c
+    grpp/src/outercore_integrals.c
+    grpp/src/overlap.c
+    grpp/src/overlap_gradient.c
+    grpp/src/parameters.c
+    grpp/src/potential.c
+    grpp/src/radial_type1_integral.c
+    grpp/src/radial_type2_integral.c
+    grpp/src/screening.c
+    grpp/src/shell.c
+    grpp/src/specfunc_bessel_table.c
+    grpp/src/specfunc_boys.c
+    grpp/src/specfunc_dawson.c
+    grpp/src/specfunc_fermi_sk.c
+    grpp/src/specfunc_gfun.c
+    grpp/src/specfunc_scaled_mod_sph_bessel.c
+    grpp/src/spherical_harmonics.c
+    grpp/src/spin_orbit_integrals.c
+    grpp/src/type1_integrals.c
+    grpp/src/type1_mcmurchie_davidson.c
+    grpp/src/type2_integrals.c
+    grpp/src/utils.c)
+
+set(CP2K_GRPP_SRCS_F libgrpp.F)
+
 set(CP2K_FPGA_SRC_C pw/fpga/fft_fpga.c pw/fpga/opencl_utils.c)
 set(CP2K_PW_SRCS_C pw/gpu/pw_gpu_internal.c)
 set(CP2K_OFFLOAD_SRCS_C offload/offload_buffer.c offload/offload_library.c)
@@ -1489,6 +1529,10 @@ endif()
 
 list(APPEND CP2K_SRCS_C ${CP2K_DBM_SRCS_C} ${CP2K_GRID_SRCS_C})
 
+if(CP2K_USE_GRPP)
+  list(APPEND CP2K_SRCS_C ${CP2K_GRPP_SRCS_C})
+  list(APPEND CP2K_SRCS_F ${CP2K_GRPP_SRCS_F})
+endif()
 # ##############################################################################
 # check that the files registered in CMakeLists.txt are all present and return
 # an error otherwise. cmake only runs this test nothing else below
@@ -1496,12 +1540,12 @@ list(APPEND CP2K_SRCS_C ${CP2K_DBM_SRCS_C} ${CP2K_GRID_SRCS_C})
 
 if(CP2K_ENABLE_CONSISTENCY_CHECKS)
   cp2k_compare_src_with_list(
-    "${CP2K_FPGA_SRC_C};${CP2K_SRCS_C};${CP2K_OFFLOAD_SRCS_C};${CP2K_DBM_SRCS_C};${CP2K_GRID_SRCS_C};${CP2K_PW_SRCS_C};${CP2K_DBM_SRCS_GPU_C};${CP2K_PROGS_C}"
+    "${CP2K_FPGA_SRC_C};${CP2K_SRCS_C};${CP2K_OFFLOAD_SRCS_C};${CP2K_DBM_SRCS_C};${CP2K_GRID_SRCS_C};${CP2K_PW_SRCS_C};${CP2K_DBM_SRCS_GPU_C};${CP2K_PROGS_C};${CP2K_GRPP_SRCS_C}"
     "*.c"
     "${CP2K_EXCLUDED_SRCS_C}")
   cp2k_compare_src_with_list(
-    "${CP2K_SRCS_F};${CP2K_OFFLOAD_SRCS_F};${CP2K_PROGS_F}" "*.F"
-    "${CP2K_EXCLUDED_SRCS_F}")
+    "${CP2K_GRPP_SRCS_F};${CP2K_SRCS_F};${CP2K_OFFLOAD_SRCS_F};${CP2K_PROGS_F}"
+    "*.F" "${CP2K_EXCLUDED_SRCS_F}")
   cp2k_compare_src_with_list(
     "${CP2K_GRID_SRCS_GPU};${CP2K_GRID_SRCS_HIP};${CP2K_DBM_SRCS_GPU};${CP2K_PW_SRCS_GPU}"
     "*.cu"
@@ -1658,7 +1702,6 @@ target_link_libraries(
     $<$<BOOL:${CP2K_USE_COSMA}>:cosma::cosma>
     $<$<BOOL:${CP2K_USE_DLAF}>:DLAF::Fortran>
     $<$<BOOL:${CP2K_USE_TREXIO}>:cp2k::trexio::trexio>
-    $<$<BOOL:${CP2K_USE_GRPP}>:cp2k::grpp::grpp>
     $<$<BOOL:${CP2K_USE_HDF5}>:HDF5::HDF5
     hdf5::hdf5_fortran>
     DBCSR::dbcsr

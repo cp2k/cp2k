@@ -32,10 +32,12 @@ FLAG_EXCEPTIONS = (
     r"GRID_DO_COLLOCATE",
     r"INTEL_MKL_VERSION",
     r"LIBINT2_MAX_AM_eri",
+    r"LIBGRPP_H",
     r"LIBINT_CONTRACTED_INTS",
     r"XC_MAJOR_VERSION",
     r"XC_MINOR_VERSION",
     r"NDEBUG",
+    r"M_PI",
     r"OMP_DEFAULT_NONE_WITH_OOP",
     r"FTN_NO_DEFAULT_INIT",
     r"_OPENMP",
@@ -147,12 +149,15 @@ def check_file(path: pathlib.Path) -> List[str]:
     - undocumented preprocessor flags
     - stray unicode characters
     """
-    warnings = []
+    warnings = []  # type: List[str]
 
     fn_ext = path.suffix
     abspath = path.resolve()
     basefn = path.name
     is_executable = os.access(abspath, os.X_OK)
+
+    if str(path).find("grpp") != 0:
+        return warnings
 
     if not PORTABLE_FILENAME_RE.match(str(path)):
         warnings += [f"Filename '{path}' not portable"]
