@@ -688,34 +688,36 @@ CONTAINS
 
       nkinds = SIZE(atomic_kind_set)
 
-      ALLOCATE (atom2d(nkinds))
-      CALL atom2d_build(atom2d, local_particles, distribution_2d, atomic_kind_set, &
-                        molecule_set, molecule_only=.FALSE., particle_set=particle_set)
+      IF (.NOT. (ASSOCIATED(sab))) THEN
+         ALLOCATE (atom2d(nkinds))
+         CALL atom2d_build(atom2d, local_particles, distribution_2d, atomic_kind_set, &
+                           molecule_set, molecule_only=.FALSE., particle_set=particle_set)
 
-      ALLOCATE (orb_present(nkinds))
-      ALLOCATE (orb_radius(nkinds))
-      ALLOCATE (pair_radius(nkinds, nkinds))
+         ALLOCATE (orb_present(nkinds))
+         ALLOCATE (orb_radius(nkinds))
+         ALLOCATE (pair_radius(nkinds, nkinds))
 
-      DO ikind = 1, nkinds
-         CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set, basis_type=basis_type)
-         IF (ASSOCIATED(orb_basis_set)) THEN
-            orb_present(ikind) = .TRUE.
-            CALL get_gto_basis_set(gto_basis_set=orb_basis_set, kind_radius=orb_radius(ikind))
-         ELSE
-            orb_present(ikind) = .FALSE.
-            orb_radius(ikind) = 0.0_dp
-         END IF
-      END DO
+         DO ikind = 1, nkinds
+            CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set, basis_type=basis_type)
+            IF (ASSOCIATED(orb_basis_set)) THEN
+               orb_present(ikind) = .TRUE.
+               CALL get_gto_basis_set(gto_basis_set=orb_basis_set, kind_radius=orb_radius(ikind))
+            ELSE
+               orb_present(ikind) = .FALSE.
+               orb_radius(ikind) = 0.0_dp
+            END IF
+         END DO
 
-      CALL pair_radius_setup(orb_present, orb_present, orb_radius, orb_radius, pair_radius)
+         CALL pair_radius_setup(orb_present, orb_present, orb_radius, orb_radius, pair_radius)
 
-      NULLIFY (sab)
-      CALL section_vals_val_get(input, "DFT%SUBCELLS", r_val=subcells)
-      CALL build_neighbor_lists(sab, particle_set, atom2d, cell, pair_radius, &
-                                mic=.FALSE., subcells=subcells, molecular=.FALSE., nlname="sab_orb")
+         NULLIFY (sab)
+         CALL section_vals_val_get(input, "DFT%SUBCELLS", r_val=subcells)
+         CALL build_neighbor_lists(sab, particle_set, atom2d, cell, pair_radius, &
+                                 mic=.FALSE., subcells=subcells, molecular=.FALSE., nlname="sab_orb")
 
-      CALL atom2d_cleanup(atom2d)
-      DEALLOCATE (atom2d, orb_present, orb_radius, pair_radius)
+         CALL atom2d_cleanup(atom2d)
+         DEALLOCATE (atom2d, orb_present, orb_radius, pair_radius)
+      END IF
 
       CALL allocate_task_list(task_list)
       CALL generate_qs_task_list(ks_env, task_list, &
