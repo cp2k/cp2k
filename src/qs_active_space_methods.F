@@ -439,9 +439,11 @@ CONTAINS
          IF (dft_control%restricted) THEN
             CPABORT("Unclear how we define MOs in the restricted case ... stopping")
          ELSE
-            ! IF (dft_control%do_admm) THEN
-            !    CPABORT("ADMM currently not possible for canonical orbital options")
-            ! END IF
+            IF (dft_control%do_admm) THEN
+               IF (dft_control%do_admm_mo) THEN
+                  CPABORT("ADMM currently possible only with purification none_dm")
+               END IF
+            END IF
 
             ALLOCATE (eigenvalues(nmo_occ, nspins))
             eigenvalues = 0.0_dp
@@ -567,9 +569,15 @@ CONTAINS
          IF (dft_control%restricted) THEN
             CPABORT("Unclear how we define MOs in the restricted case ... stopping")
          ELSE
-            ! IF (dft_control%do_admm) THEN
-            !    CPABORT("ADMM currently not possible for manual orbitals selection")
-            ! END IF
+            IF (dft_control%do_admm) THEN
+               ! For admm_mo, the auxiliary density is computed from the MOs, which never change
+               ! in the rs-dft embedding, therefore the energy is wrong as the LR HFX never changes
+               ! For admm_dm, the auxiliary density is computed from the density matrix, which is
+               ! updated at each iteration and therefore works!
+               IF (dft_control%do_admm_mo) THEN
+                  CPABORT("ADMM currently possible only with purification none_dm")
+               END IF
+            END IF
 
             CALL section_vals_val_get(as_input, "ACTIVE_ORBITAL_INDICES", explicit=explicit, i_vals=invals)
             IF (.NOT. explicit) THEN
@@ -2833,12 +2841,11 @@ CONTAINS
       REAL(KIND=dp)                                      :: alpha, delta_E, energy_corr, energy_new, &
                                                             energy_old, energy_scf, eps_iter, t1, t2
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao, matrix_vxc, matrix_ks, rho_ao_aux_fit
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos_active
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(qs_energy_type), POINTER                      :: energy
-      TYPE(qs_rho_type), POINTER                         :: rho, rho_aux_fit
-      TYPE(admm_type), POINTER                           :: admm_env
+      TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(dft_control_type), POINTER                    :: dft_control
 
       CALL timeset(routineN, handle)
@@ -2908,28 +2915,7 @@ CONTAINS
          energy_corr = energy_new - energy_scf
          delta_E = energy_new - energy_old
 
-         CALL get_qs_env(qs_env, matrix_vxc=matrix_vxc, matrix_ks=matrix_ks)
-         ! write out the density matrix in AO basis
-         CALL cp_dbcsr_write_sparse_matrix(rho_ao(1)%matrix, 4, 4, qs_env, para_env, &
-                                           output_unit=iw, omit_headers=.false.)
-
-         CALL cp_dbcsr_write_sparse_matrix(matrix_ks(1)%matrix, 4, 4, qs_env, para_env, &
-                                           output_unit=iw, omit_headers=.false.)
-
-         ! TODO: the issue with ADMM is the MO vs DM methods
-         ! For admm_mo, the auxiliary density is computed from the MOs, which never change
-         ! and therefore it screws everything up
-         ! For admm_dm, the auxiliary density is computed from the density matrix, which is
-         ! updated at each iteration and therefore works!
-         IF (dft_control%do_admm) THEN
-            IF (iw > 0) WRITE (iw,*) dft_control%do_admm_mo
-            IF (iw > 0) WRITE (iw,*) dft_control%do_admm_dm
-            CALL get_qs_env(qs_env, admm_env=admm_env)
-            CALL get_admm_env(admm_env, rho_aux_fit=rho_aux_fit)
-            CALL qs_rho_get(rho_aux_fit, rho_ao=rho_ao_aux_fit)
-            CALL cp_dbcsr_write_sparse_matrix(rho_ao_aux_fit(1)%matrix, 4, 4, qs_env, para_env, &
-                                           output_unit=iw, omit_headers=.false.)
-         END IF
+         ! CALL get_qs_env(qs_env, matrix_vxc=matrix_vxc, matrix_ks=matrix_ks)
 
          ! get timer
          t2 = t1
@@ -2944,28 +2930,12 @@ CONTAINS
 
          ! update total density in AO basis with the AS contribution
          CALL update_density_ao(active_space_env, rho_ao) ! rho_ao is updated
-         !!!!! DEBUG
-         IF (dft_control%do_admm) THEN
-            CALL update_density_ao(active_space_env, rho_ao_aux_fit) ! rho_ao is updated
-            CALL cp_dbcsr_write_sparse_matrix(rho_ao_aux_fit(1)%matrix, 4, 4, qs_env, para_env, &
-                                           output_unit=iw, omit_headers=.false.)
-         END IF
-
-
-         ! CALL cp_dbcsr_write_sparse_matrix(rho_ao(1)%matrix, 4, 4, qs_env, para_env, &
-         !                                   output_unit=iw, omit_headers=.false.)
-         !!!!!
 
          ! calculate F_ks in AO basis (which contains Vxc) with the new density
          qs_env%requires_matrix_vxc = .TRUE.
          CALL qs_rho_update_rho(rho, qs_env=qs_env) ! updates rho_r and rho_g using rho_ao
          CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE.) ! set flags about the change
          CALL qs_ks_update_qs_env(qs_env) ! this call actually calculates F_ks
-
-         !!!!! DEBUG
-         ! CALL cp_dbcsr_write_sparse_matrix(rho_ao(1)%matrix, 4, 4, qs_env, para_env, &
-         !                                   output_unit=iw, omit_headers=.false.)
-         !!!!!!
 
          ! update the reference energy
          active_space_env%energy_ref = energy%total
