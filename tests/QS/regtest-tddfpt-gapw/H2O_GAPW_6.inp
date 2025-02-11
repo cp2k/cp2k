@@ -37,8 +37,8 @@
       METHOD basis_projection
     &END AUXILIARY_DENSITY_MATRIX_METHOD
     &MGRID
-      NGRIDS 4
       CUTOFF 200
+      NGRIDS 4
       REL_CUTOFF 40
     &END MGRID
     &POISSON
@@ -64,10 +64,10 @@
       MAX_KV 10
       NSTATES 3
       &MGRID
-         NGRIDS 5
-         CUTOFF 250
-         REL_CUTOFF 50
-      &END
+        CUTOFF 250
+        NGRIDS 5
+        REL_CUTOFF 50
+      &END MGRID
     &END TDDFPT
   &END PROPERTIES
   &SUBSYS

@@ -144,14 +144,14 @@ CONTAINS
       eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
 
       NULLIFY (descs, pw_pools)
-      CALL pw_env_get(pw_env=pw_env, rs_descs=descs, rs_grids=grids, pw_pools=pw_pools) ! wrong pool
+      CALL pw_env_get(pw_env=pw_env, rs_descs=descs, rs_grids=grids, pw_pools=pw_pools)
       auxbas_grid = pw_env%auxbas_grid
 
       NULLIFY (rho0_s_gs, rho0_s_rs)
       CALL get_rho0_mpole(rho0_mpole=rho0, lmax_0=lmax0, &
                           zet0_h=zet0, igrid_zet0_s=igrid, &
                           rho0_s_gs=rho0_s_gs, &
-                          rho0_s_rs=rho0_s_rs) !!! rho0_s_rs comes from here, correct
+                          rho0_s_rs=rho0_s_rs)
 
       ! *** set up the rs grid at level igrid
       NULLIFY (rs_grid, desc, pw_pool)
@@ -441,7 +441,7 @@ CONTAINS
       ! Setup of the potential on the multigrids
       NULLIFY (rs_descs, pw_pools)
       CPASSERT(ASSOCIATED(pw_env))
-      CALL pw_env_get(pw_env, rs_descs=rs_descs, pw_pools=pw_pools) !! wrong pool if tddfpt%mgrid is defined
+      CALL pw_env_get(pw_env, rs_descs=rs_descs, pw_pools=pw_pools)
 
       ! Assign from pw_env
       auxbas_grid = pw_env%auxbas_grid
