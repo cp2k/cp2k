@@ -822,7 +822,7 @@ CONTAINS
 
       CHARACTER(LEN=40)                                  :: fnbody
       INTEGER                                            :: z
-      LOGICAL                                            :: graph = .FALSE.
+      LOGICAL                                            :: graph
 
       SELECT CASE (atom%method_type)
       CASE DEFAULT
@@ -841,6 +841,7 @@ CONTAINS
          CPABORT("")
       END SELECT
 
+      graph = .FALSE.
       IF (PRESENT(xmgrace)) graph = xmgrace
       IF (graph .AND. iw > 0) THEN
          z = atom%z
