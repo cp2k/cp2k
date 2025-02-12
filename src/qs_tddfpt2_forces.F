@@ -11,6 +11,8 @@ MODULE qs_tddfpt2_forces
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind,&
                                               get_atomic_kind_set
+   USE bibliography,                    ONLY: Sertcan2024,&
+                                              cite_reference
    USE cp_control_types,                ONLY: dft_control_type,&
                                               tddfpt2_control_type
    USE cp_dbcsr_api,                    ONLY: &
@@ -125,9 +127,6 @@ MODULE qs_tddfpt2_forces
    USE xtb_ehess,                       ONLY: xtb_coulomb_hessian
    USE xtb_types,                       ONLY: get_xtb_atom_param,&
                                               xtb_atom_type
-
-   USE bibliography,                    ONLY: Sertcan2024,&
-                                              cite_reference                                              
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE

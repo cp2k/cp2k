@@ -1913,7 +1913,7 @@ CONTAINS
 
       CALL add_reference(key=Sertcan2024, &
                          authors=s2a("B. Sertcan-Gokmen", "J. Hutter", "A. Hehn"), &
-                         title="Excited-State Forces with the Gaussian and Augmented Plane Wave Method"// & 
+                         title="Excited-State Forces with the Gaussian and Augmented Plane Wave Method "// &
                          "for the Tamm–Dancoff Approximation of Time-Dependent Density Functional Theory", &
                          source="J. Chem. Theory Comput.", volume="20", pages="8494-8504", &
                          year=2024, doi="10.1021/acs.jctc.4c00614")
