@@ -1,25 +1,3 @@
-##REFERENCE##
-#
-# PBE
-# HF Energy  -76.3600550759
-#
-# Excited State   1:      Singlet-B1     7.0944 eV  174.76 nm  f=0.0271  <S**2>=0.000
-#       5 ->  6         0.70668
-# Excited State   2:      Singlet-A2     8.9854 eV  137.98 nm  f=0.0000  <S**2>=0.000
-#       5 ->  7         0.70699
-# Excited State   3:      Singlet-A1     9.3872 eV  132.08 nm  f=0.0899  <S**2>=0.000
-#       4 ->  6         0.70208
-#
-# PBE0
-# HF Energy  -76.3624232785
-#
-# Excited State   1:      Singlet-B1     7.7365 eV  160.26 nm  f=0.0285  <S**2>=0.000
-#       5 ->  6         0.70657
-# Excited State   2:      Singlet-A2     9.6344 eV  128.69 nm  f=0.0000  <S**2>=0.000
-#       5 ->  7         0.70484
-# Excited State   3:      Singlet-A1    10.0954 eV  122.81 nm  f=0.0955  <S**2>=0.000
-#       4 ->  6         0.70276
-#############
 &GLOBAL
   PRINT_LEVEL LOW
   PROJECT H2O_GAPW
@@ -43,7 +21,7 @@
     &END MGRID
     &POISSON
       PERIODIC NONE
-      POISSON_SOLVER WAVELET
+      POISSON_SOLVER MT
     &END POISSON
     &QS
       METHOD GAPW
