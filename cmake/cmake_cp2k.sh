@@ -27,9 +27,6 @@ if [[ "${PROFILE}" == "spack" ]]; then
 elif [[ "${PROFILE}" == "toolchain" ]]; then
   # shellcheck disable=SC1091
   source "${TOOLCHAIN_DIR}/install/setup"
-else
-  echo "Unknown PROFILE=\"${PROFILE}\" specified (select spack or toolchain)"
-  return 1
 fi
 
 # Run CMake
