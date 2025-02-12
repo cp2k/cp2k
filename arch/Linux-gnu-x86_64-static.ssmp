@@ -6,7 +6,7 @@
 #
 # Usage: Source this arch file and then run make as instructed.
 #
-# Last update: 07.01.2025
+# Last update: 12.02.2025
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -133,7 +133,7 @@ ifneq ($(USE_LIBGRPP),)
    LIBGRPP_LIB    := $(INSTALL_PATH)/libgrpp-main-$(USE_LIBGRPP)/lib
    CFLAGS         += -I$(LIBGRPP_INC)
    DFLAGS         += -D__LIBGRPP
-   LIBS           += $(LIBGRPP_LIB)/liblibgrpp.a
+   LIBS           += $(LIBGRPP_LIB)/libgrpp.a
 endif
 
 ifneq ($(USE_LIBINT),)
