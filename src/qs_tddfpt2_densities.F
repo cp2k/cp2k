@@ -122,7 +122,8 @@ CONTAINS
                                 para_env_external=sub_env%para_env)
          CALL pw_env_get(sub_env%pw_env, auxbas_pw_pool=auxbas_pw_pool)
          CALL qs_rho_copy(rho_xc_struct, rho_orb_struct, auxbas_pw_pool, nspins)
-         CALL prepare_gapw_den(qs_env, local_rho_set=sub_env%local_rho_set, do_rho0=.FALSE.)
+         CALL prepare_gapw_den(qs_env, local_rho_set=sub_env%local_rho_set, do_rho0=.FALSE., &
+                               pw_env_sub=sub_env%pw_env)
       ELSE
          CALL qs_rho_update_rho(rho_orb_struct, qs_env, &
                                 pw_env_external=sub_env%pw_env, &
@@ -219,7 +220,8 @@ CONTAINS
                                        qs_kind_set=admm_env%admm_gapw_env%admm_kind_set, &
                                        oce=admm_env%admm_gapw_env%oce, sab=sab_aux_fit, para_env=sub_env%para_env)
          CALL prepare_gapw_den(qs_env, local_rho_set=local_rho_set, &
-                               do_rho0=.FALSE., kind_set_external=admm_env%admm_gapw_env%admm_kind_set)
+                               do_rho0=.FALSE., kind_set_external=admm_env%admm_gapw_env%admm_kind_set, &
+                               pw_env_sub=sub_env%pw_env)
       END IF
 
       CALL timestop(handle)

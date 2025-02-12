@@ -309,11 +309,17 @@ CONTAINS
                                           skip_load_balance=qs_control%skip_load_balance_distributed, &
                                           reorder_grid_ranks=.FALSE.)
                IF (qs_control%gapw .OR. qs_control%gapw_xc) THEN
+                  WRITE (*, *) "before build_tasklist"
+                  IF (ASSOCIATED(sub_env%task_list_aux_fit_soft)) WRITE (*, *) "task_list_aux_fit_soft allocated"
+                  IF (ASSOCIATED(sub_env%sab_aux_fit)) WRITE (*, *) "sab_aux_fit allocated"
                   CALL tddfpt_build_tasklist(task_list=sub_env%task_list_aux_fit_soft, sab=sub_env%sab_aux_fit, &
                                              basis_type="AUX_FIT_SOFT", distribution_2d=sub_env%dist_2d, &
                                              pw_env=sub_env%pw_env, qs_env=qs_env, &
                                              skip_load_balance=qs_control%skip_load_balance_distributed, &
                                              reorder_grid_ranks=.FALSE.)
+                  WRITE (*, *) "after build_tasklist"
+                  IF (ASSOCIATED(sub_env%task_list_aux_fit_soft)) WRITE (*, *) "task_list_aux_fit_soft allocated"
+                  IF (ASSOCIATED(sub_env%sab_aux_fit)) WRITE (*, *) "sab_aux_fit allocated"
                END IF
             END IF
 
@@ -377,7 +383,8 @@ CONTAINS
          sub_env%is_mgrid = .FALSE.
          NULLIFY (sub_env%dbcsr_dist, sub_env%dist_2d)
          NULLIFY (sub_env%sab_orb, sub_env%sab_aux_fit)
-         NULLIFY (sub_env%task_list_orb, sub_env%task_list_orb_soft, sub_env%task_list_aux_fit)
+         NULLIFY (sub_env%task_list_orb, sub_env%task_list_orb_soft)
+         NULLIFY (sub_env%task_list_aux_fit, sub_env%task_list_aux_fit_soft)
          NULLIFY (sub_env%pw_env)
          IF (sub_env%is_split) THEN
             CPABORT('Subsys option not available')
@@ -388,7 +395,8 @@ CONTAINS
          sub_env%is_mgrid = .FALSE.
          NULLIFY (sub_env%dbcsr_dist, sub_env%dist_2d)
          NULLIFY (sub_env%sab_orb, sub_env%sab_aux_fit)
-         NULLIFY (sub_env%task_list_orb, sub_env%task_list_orb_soft, sub_env%task_list_aux_fit)
+         NULLIFY (sub_env%task_list_orb, sub_env%task_list_orb_soft)
+         NULLIFY (sub_env%task_list_aux_fit, sub_env%task_list_aux_fit_soft)
          NULLIFY (sub_env%pw_env)
          IF (sub_env%is_split) THEN
             CPABORT('Subsys option not available')
@@ -421,6 +429,9 @@ CONTAINS
       IF (sub_env%is_mgrid) THEN
          IF (ASSOCIATED(sub_env%task_list_aux_fit)) &
             CALL deallocate_task_list(sub_env%task_list_aux_fit)
+
+         IF (ASSOCIATED(sub_env%task_list_aux_fit_soft)) &
+            CALL deallocate_task_list(sub_env%task_list_aux_fit_soft)
 
          IF (ASSOCIATED(sub_env%task_list_orb)) &
             CALL deallocate_task_list(sub_env%task_list_orb)
