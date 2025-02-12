@@ -1,13 +1,7 @@
-# References GPW
-#
-#            1   8.25275 eV
-#            2  10.24447 eV
-#            3  10.44004 eV
-#
 # References GAPW
-#            1   8.27031 eV
-#            2  10.28919 eV
-#            3  10.46240 eV
+#            1  11.71610 eV
+#            2  13.74523 eV
+#            3  13.81581 eV
 #
 &GLOBAL
   PRINT_LEVEL LOW
@@ -20,6 +14,11 @@
   &DFT
     BASIS_SET_FILE_NAME BASIS_SET
     POTENTIAL_FILE_NAME POTENTIAL
+    &AUXILIARY_DENSITY_MATRIX_METHOD
+      ADMM_PURIFICATION_METHOD none
+      EXCH_CORRECTION_FUNC NONE
+      METHOD basis_projection
+    &END AUXILIARY_DENSITY_MATRIX_METHOD
     &MGRID
       CUTOFF 200
       NGRIDS 4
@@ -37,7 +36,7 @@
       SCF_GUESS ATOMIC
     &END SCF
     &XC
-      &XC_FUNCTIONAL PBE
+      &XC_FUNCTIONAL PBE0
       &END XC_FUNCTIONAL
     &END XC
   &END DFT
@@ -47,6 +46,11 @@
       MAX_ITER 10
       MAX_KV 10
       NSTATES 3
+      &MGRID
+        CUTOFF 250
+        NGRIDS 5
+        REL_CUTOFF 50
+      &END MGRID
       &XC
         &XC_FUNCTIONAL PBE
         &END XC_FUNCTIONAL
@@ -55,7 +59,7 @@
   &END PROPERTIES
   &SUBSYS
     &CELL
-      ABC 6.0 6.0 6.0
+      ABC 5.0 5.0 5.0
       PERIODIC NONE
     &END CELL
     &COORD
@@ -64,11 +68,13 @@
       H   0.000000    0.757136    0.520545 H2O
     &END COORD
     &KIND H
-      BASIS_SET DZVP-GTH-PADE
+      BASIS_SET ORB DZVP-GTH-PADE
+      BASIS_SET AUX_FIT SZV-GTH-PADE
       POTENTIAL GTH-PADE-q1
     &END KIND
     &KIND O
-      BASIS_SET DZVP-GTH-PADE
+      BASIS_SET ORB DZVP-GTH-PADE
+      BASIS_SET AUX_FIT SZV-GTH-PADE
       POTENTIAL GTH-PADE-q6
     &END KIND
     &TOPOLOGY

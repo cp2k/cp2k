@@ -84,12 +84,21 @@ CONTAINS
 !> \param qs_env ...
 !> \param rho0 ...
 !> \param tot_rs_int ...
+!> \param my_pools ...
+!> \param my_rs_grids ...
+!> \param my_rs_descs ...
 ! **************************************************************************************************
-   SUBROUTINE put_rho0_on_grid(qs_env, rho0, tot_rs_int)
+   SUBROUTINE put_rho0_on_grid(qs_env, rho0, tot_rs_int, my_pools, my_rs_grids, my_rs_descs)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(rho0_mpole_type), POINTER                     :: rho0
       REAL(KIND=dp), INTENT(OUT)                         :: tot_rs_int
+      TYPE(pw_pool_p_type), DIMENSION(:), OPTIONAL, &
+         POINTER                                         :: my_pools
+      TYPE(realspace_grid_type), DIMENSION(:), &
+         OPTIONAL, POINTER                               :: my_rs_grids
+      TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
+         OPTIONAL, POINTER                               :: my_rs_descs
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'put_rho0_on_grid'
 
@@ -146,9 +155,16 @@ CONTAINS
 
       ! *** set up the rs grid at level igrid
       NULLIFY (rs_grid, desc, pw_pool)
-      desc => descs(igrid)%rs_desc
-      rs_grid => grids(igrid)
-      pw_pool => pw_pools(igrid)%pool
+      ! IF present, overwrite qs grid for new pool
+      IF (PRESENT(my_pools)) THEN
+         desc => my_rs_descs(igrid)%rs_desc
+         rs_grid => my_rs_grids(igrid)
+         pw_pool => my_pools(igrid)%pool
+      ELSE
+         desc => descs(igrid)%rs_desc
+         rs_grid => grids(igrid)
+         pw_pool => pw_pools(igrid)%pool
+      END IF
 
       CPASSERT(ASSOCIATED(desc))
       CPASSERT(ASSOCIATED(pw_pool))
@@ -310,9 +326,11 @@ CONTAINS
 !> \param local_rho_set_2nd ...
 !> \param atener ...
 !> \param kforce ...
+!> \param my_pools ...
+!> \param my_rs_descs ...
 ! **************************************************************************************************
    SUBROUTINE integrate_vhg0_rspace(qs_env, v_rspace, para_env, calculate_forces, local_rho_set, &
-                                    local_rho_set_2nd, atener, kforce)
+                                    local_rho_set_2nd, atener, kforce, my_pools, my_rs_descs) ! ,my_rs_grids)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(pw_r3d_rs_type), INTENT(IN)                   :: v_rspace
@@ -321,6 +339,10 @@ CONTAINS
       TYPE(local_rho_type), OPTIONAL, POINTER            :: local_rho_set, local_rho_set_2nd
       REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: atener
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: kforce
+      TYPE(pw_pool_p_type), DIMENSION(:), OPTIONAL, &
+         POINTER                                         :: my_pools
+      TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
+         OPTIONAL, POINTER                               :: my_rs_descs
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_vhg0_rspace'
 
@@ -424,10 +446,15 @@ CONTAINS
       ! Assign from pw_env
       auxbas_grid = pw_env%auxbas_grid
 
+      ! IF present, overwrite qs grid for new pool
       ! Get the potential on the right grid
-      NULLIFY (rs_desc, pw_pool, pw_aux)
-      rs_desc => rs_descs(igrid)%rs_desc
-      pw_pool => pw_pools(igrid)%pool
+      IF (PRESENT(my_pools)) THEN
+         rs_desc => my_rs_descs(igrid)%rs_desc
+         pw_pool => my_pools(igrid)%pool
+      ELSE
+         rs_desc => rs_descs(igrid)%rs_desc
+         pw_pool => pw_pools(igrid)%pool
+      END IF
 
       CALL pw_pool%create_pw(coeff_gspace)
       CALL pw_pool%create_pw(coeff_rspace)

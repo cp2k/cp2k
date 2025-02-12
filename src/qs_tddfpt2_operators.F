@@ -44,7 +44,8 @@ MODULE qs_tddfpt2_operators
                                               pw_zero
    USE pw_poisson_methods,              ONLY: pw_poisson_solve
    USE pw_poisson_types,                ONLY: pw_poisson_type
-   USE pw_pool_types,                   ONLY: pw_pool_type
+   USE pw_pool_types,                   ONLY: pw_pool_p_type,&
+                                              pw_pool_type
    USE pw_types,                        ONLY: pw_c1d_gs_type,&
                                               pw_r3d_rs_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -58,6 +59,8 @@ MODULE qs_tddfpt2_operators
    USE qs_tddfpt2_subgroups,            ONLY: tddfpt_subgroup_env_type
    USE qs_tddfpt2_types,                ONLY: tddfpt_ground_state_mos,&
                                               tddfpt_work_matrices
+   USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
+                                              realspace_grid_type
    USE xc,                              ONLY: xc_calc_2nd_deriv_analytical,&
                                               xc_calc_2nd_deriv_numerical
    USE xc_rho_set_types,                ONLY: xc_rho_set_type,&
@@ -158,6 +161,7 @@ CONTAINS
 !> \param gapw           Flag indicating GAPW cacluation
 !> \param work_v_gspace  work reciprocal-space grid to store Coulomb potential (modified on exit)
 !> \param work_v_rspace  work real-space grid to store Coulomb potential (modified on exit)
+!> \param tddfpt_mgrid ...
 !> \par History
 !>    * 05.2016 compute all coulomb terms in one go [Sergey Chulkov]
 !>    * 03.2017 proceed excited states sequentially; minimise the number of conversions between
@@ -168,7 +172,7 @@ CONTAINS
 !>       Mohamed Fawzi on 10.2002.
 ! **************************************************************************************************
    SUBROUTINE tddfpt_apply_coulomb(A_ia_rspace, rho_ia_g, local_rho_set, hartree_local, &
-                                   qs_env, sub_env, gapw, work_v_gspace, work_v_rspace)
+                                   qs_env, sub_env, gapw, work_v_gspace, work_v_rspace, tddfpt_mgrid)
       TYPE(pw_r3d_rs_type), DIMENSION(:), INTENT(INOUT)  :: A_ia_rspace
       TYPE(pw_c1d_gs_type), INTENT(INOUT)                :: rho_ia_g
       TYPE(local_rho_type), POINTER                      :: local_rho_set
@@ -178,6 +182,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: gapw
       TYPE(pw_c1d_gs_type), INTENT(INOUT)                :: work_v_gspace
       TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: work_v_rspace
+      LOGICAL, INTENT(IN)                                :: tddfpt_mgrid
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_apply_coulomb'
 
@@ -185,12 +190,21 @@ CONTAINS
       REAL(kind=dp)                                      :: alpha, pair_energy
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
+      TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: my_pools
+      TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
+         POINTER                                         :: my_rs_descs
+      TYPE(realspace_grid_type), DIMENSION(:), POINTER   :: my_rs_grids
 
       CALL timeset(routineN, handle)
 
       nspins = SIZE(A_ia_rspace)
       pw_env => sub_env%pw_env
-      CALL pw_env_get(pw_env, poisson_env=poisson_env)
+      IF (tddfpt_mgrid) THEN
+         CALL pw_env_get(pw_env, poisson_env=poisson_env, rs_grids=my_rs_grids, &
+                         rs_descs=my_rs_descs, pw_pools=my_pools)
+      ELSE
+         CALL pw_env_get(pw_env, poisson_env=poisson_env)
+      END IF
 
       IF (nspins > 1) THEN
          alpha = 1.0_dp
@@ -221,9 +235,16 @@ CONTAINS
                                  local_rho_set, &
                                  sub_env%para_env, tddft=.TRUE., core_2nd=.TRUE.)
          CALL pw_scale(work_v_rspace, work_v_rspace%pw_grid%dvol)
-         CALL integrate_vhg0_rspace(qs_env, work_v_rspace, sub_env%para_env, &
-                                    calculate_forces=.FALSE., &
-                                    local_rho_set=local_rho_set)
+         IF (tddfpt_mgrid) THEN
+            CALL integrate_vhg0_rspace(qs_env, work_v_rspace, sub_env%para_env, &
+                                       calculate_forces=.FALSE., &
+                                       local_rho_set=local_rho_set, my_pools=my_pools, &
+                                       my_rs_descs=my_rs_descs)
+         ELSE
+            CALL integrate_vhg0_rspace(qs_env, work_v_rspace, sub_env%para_env, &
+                                       calculate_forces=.FALSE., &
+                                       local_rho_set=local_rho_set)
+         END IF
       END IF
 
       CALL timestop(handle)

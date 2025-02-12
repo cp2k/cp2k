@@ -3,6 +3,7 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
+h2o_f01.inp                              37    1.0E-4              0.138356E+00
 h2o_f01_coulomb_only.inp                 37    1.0E-4              0.101128E+01
 h2o_f01_pbe_gapwxc.inp                   37    1.0E-4              0.138361E+00
 h2o_f01_pbe.inp                          37    1.0E-4              0.141150E+00

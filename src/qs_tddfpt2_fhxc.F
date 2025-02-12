@@ -87,6 +87,7 @@ CONTAINS
 !> \param admm_symm             use symmetric definition of ADMM kernel correction
 !> \param admm_xc_correction    use ADMM XC kernel correction
 !> \param do_lrigpw ...
+!> \param tddfpt_mgrid ...
 !> \par History
 !>    * 06.2016 created [Sergey Chulkov]
 !>    * 03.2017 refactored [Sergey Chulkov]
@@ -94,14 +95,16 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE fhxc_kernel(Aop_evects, evects, is_rks_triplets, &
                           do_hfx, do_admm, qs_env, kernel_env, kernel_env_admm_aux, &
-                          sub_env, work_matrices, admm_symm, admm_xc_correction, do_lrigpw)
+                          sub_env, work_matrices, admm_symm, admm_xc_correction, do_lrigpw, &
+                          tddfpt_mgrid)
       TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: Aop_evects, evects
       LOGICAL, INTENT(in)                                :: is_rks_triplets, do_hfx, do_admm
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(full_kernel_env_type), POINTER                :: kernel_env, kernel_env_admm_aux
       TYPE(tddfpt_subgroup_env_type), INTENT(in)         :: sub_env
       TYPE(tddfpt_work_matrices), INTENT(inout)          :: work_matrices
-      LOGICAL, INTENT(in)                                :: admm_symm, admm_xc_correction, do_lrigpw
+      LOGICAL, INTENT(in)                                :: admm_symm, admm_xc_correction, &
+                                                            do_lrigpw, tddfpt_mgrid
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'fhxc_kernel'
 
@@ -198,7 +201,7 @@ CONTAINS
                                       task_list_external=sub_env%task_list_orb_soft, &
                                       para_env_external=sub_env%para_env)
                CALL prepare_gapw_den(qs_env, work_matrices%local_rho_set, &
-                                     do_rho0=(.NOT. is_rks_triplets))
+                                     do_rho0=(.NOT. is_rks_triplets), pw_env_sub=sub_env%pw_env)
             ELSEIF (gapw_xc) THEN
                CALL qs_rho_update_rho(work_matrices%rho_orb_struct_sub, qs_env, &
                                       rho_xc_external=work_matrices%rho_xc_struct_sub, &
@@ -207,7 +210,8 @@ CONTAINS
                                       task_list_external=sub_env%task_list_orb, &
                                       task_list_external_soft=sub_env%task_list_orb_soft, &
                                       para_env_external=sub_env%para_env)
-               CALL prepare_gapw_den(qs_env, work_matrices%local_rho_set, do_rho0=.FALSE.)
+               CALL prepare_gapw_den(qs_env, work_matrices%local_rho_set, do_rho0=.FALSE., &
+                                     pw_env_sub=sub_env%pw_env)
             ELSE
                CALL qs_rho_update_rho(work_matrices%rho_orb_struct_sub, qs_env, &
                                       pw_env_external=sub_env%pw_env, &
@@ -391,7 +395,8 @@ CONTAINS
                                       hartree_local=work_matrices%hartree_local, &
                                       qs_env=qs_env, sub_env=sub_env, gapw=gapw, &
                                       work_v_gspace=work_matrices%wpw_gspace_sub(1), &
-                                      work_v_rspace=work_matrices%wpw_rspace_sub(1))
+                                      work_v_rspace=work_matrices%wpw_rspace_sub(1), &
+                                      tddfpt_mgrid=tddfpt_mgrid)
          END IF
 
          ! convert from the plane-wave representation into the Gaussian basis set representation
