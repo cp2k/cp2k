@@ -89,7 +89,7 @@ MODULE bibliography
                             Stein2022, Stein2024, Pracht2019, &
                             Blase2018, Blase2020, Bruneval2015, Golze2019, Gui2018, Jacquemin2017, Liu2020, &
                             Sander2015, Schreiber2008, vanSetten2015, Setyawan2010, Ahart2024, Knysh2024, &
-                            Schambeck2024, Mewes2018
+                            Schambeck2024, Mewes2018, Sertcan2024
 
 CONTAINS
 
@@ -1910,6 +1910,13 @@ CONTAINS
                          title="Benchmarking Excited-State Calculations Using Exciton Properties", &
                          source="J. Chem. Theory Comput.", volume="14", pages="710-725", &
                          year=2018, doi="10.1021/acs.jctc.7b01145 ")
+
+      CALL add_reference(key=Sertcan2024, &
+                         authors=s2a("B. Sertcan-Gokmen", "J. Hutter", "A. Hehn"), &
+                         title="Excited-State Forces with the Gaussian and Augmented Plane Wave Method"// & 
+                         "for the Tamm–Dancoff Approximation of Time-Dependent Density Functional Theory", &
+                         source="J. Chem. Theory Comput.", volume="20", pages="8494-8504", &
+                         year=2024, doi="10.1021/acs.jctc.4c00614")
 
    END SUBROUTINE add_all_references
 
