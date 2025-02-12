@@ -252,7 +252,7 @@ ifneq ($(USE_LIBGRPP),)
    LIBGRPP_LIB    := $(INSTALL_PATH)/libgrpp-main-$(USE_LIBGRPP)/lib
    CFLAGS         += -I$(LIBGRPP_INC)
    DFLAGS         += -D__LIBGRPP
-   LIBS           += $(LIBGRPP_LIB)/liblibgrpp.a
+   LIBS           += $(LIBGRPP_LIB)/libgrpp.a
 endif
 
 ifneq ($(USE_LIBINT),)

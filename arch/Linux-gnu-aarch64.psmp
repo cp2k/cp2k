@@ -7,7 +7,7 @@
 # Usage: Source this arch file and then run make as instructed.
 #        A full toolchain installation is performed as default.
 #
-# Last update: 12.09.2024
+# Last update: 12.02.2025
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -228,7 +228,7 @@ ifneq ($(USE_LIBGRPP),)
    LIBGRPP_LIB    := $(INSTALL_PATH)/libgrpp-main-$(USE_LIBGRPP)/lib
    CFLAGS         += -I$(LIBGRPP_INC)
    DFLAGS         += -D__LIBGRPP
-   LIBS           += $(LIBGRPP_LIB)/liblibgrpp.a
+   LIBS           += $(LIBGRPP_LIB)/libgrpp.a
 endif
 
 ifneq ($(USE_LIBINT),)
