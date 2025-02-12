@@ -35,7 +35,7 @@
          ./install_cp2k_toolchain.sh --install-all -j${maxtasks} --no-arch-files --target-cpu=${target_cpu} --with-gcc=system --with-${mpi_implementation}; \
       fi; \
    else \
-      ./install_cp2k_toolchain.sh --install-all -j${maxtasks} --no-arch-files --target-cpu=${target_cpu} --with-gcc --with-${mpi_implementation} --with-libsmeagol; \
+      ./install_cp2k_toolchain.sh --install-all -j${maxtasks} --no-arch-files --target-cpu=${target_cpu} --with-gcc --with-${mpi_implementation} --with-deepmd; \
    fi; \
    source ./install/setup; \
    cd ../..; \
@@ -65,6 +65,7 @@ TARGET_CPU     := native
 # Retrieve package versions
 GNU_VER        := $(shell gcc -dumpfullversion)
 USE_COSMA      := $(COSMA_VER)
+USE_DEEPMD     := $(DEEPMD_VER)
 USE_DFTD4      := $(DFTD4_VER)
 USE_ELPA       := $(ELPA_VER)
 USE_FFTW       := $(FFTW_VER)
@@ -366,6 +367,20 @@ ifneq ($(USE_TREXIO),)
       LIBS           += -Wl,-rpath=$(TREXIO_LIB) -L$(TREXIO_LIB) -ltrexio
    else
       LIBS           += $(TREXIO_LIB)/libtrexio.a
+   endif
+endif
+
+ifneq ($(USE_DEEPMD),)
+   USE_DEEPMD     := $(strip $(USE_DEEPMD))
+   DEEPMD_INC     := $(INSTALL_PATH)/deepmd-kit-$(USE_DEEPMD)/include
+   DEEPMD_LIB     := $(INSTALL_PATH)/deepmd-kit-$(USE_DEEPMD)/lib
+   CFLAGS         += -I$(DEEPMD_INC)
+   DFLAGS         += -D__DEEPMD
+   ifeq ($(SHARED), yes)
+      LIBS           += -Wl,-rpath=$(DEEPMD_LIB) -L$(DEEPMD_LIB) -ldeepmd_c
+   else
+      #LIBS          += $(DEEPMD_LIB)/libdeepmd_c.a
+      LIBS           += -Wl,-rpath=$(DEEPMD_LIB) -L$(DEEPMD_LIB) -ldeepmd_c
    endif
 endif
 
