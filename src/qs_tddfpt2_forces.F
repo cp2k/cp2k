@@ -125,6 +125,9 @@ MODULE qs_tddfpt2_forces
    USE xtb_ehess,                       ONLY: xtb_coulomb_hessian
    USE xtb_types,                       ONLY: get_xtb_atom_param,&
                                               xtb_atom_type
+
+   USE bibliography,                    ONLY: Sertcan2024,&
+                                              cite_reference                                              
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -172,6 +175,9 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       CALL get_qs_env(qs_env, dft_control=dft_control)
+
+      IF (dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc) CALL cite_reference(Sertcan2024)
+
       nspins = dft_control%nspins
       tddfpt_control => dft_control%tddfpt2_control
       ! rhs of linres equation
