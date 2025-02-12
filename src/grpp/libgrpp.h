@@ -12,8 +12,8 @@
  *  Copyright (C) 2021-2023 Alexander Oleynichenko
  */
 
-#ifndef LIBGRPP_H
-#define LIBGRPP_H
+#ifndef LIBGRPP_LIBGRPP_H
+#define LIBGRPP_LIBGRPP_H
 
 #include "parameters.h"
 

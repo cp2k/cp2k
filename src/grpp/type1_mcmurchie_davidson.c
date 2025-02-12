@@ -74,15 +74,15 @@ struct mmd_data {
  * functions used below in the file
  */
 
-void evaluate_rpp_type1_mmd_n2_primitive_shell_pair(
+double evaluate_rpp_type1_mmd_n2_primitive_shell_pair(
     libgrpp_shell_t *shell_A, double alpha_A, libgrpp_shell_t *shell_B,
     double alpha_B, double *rpp_origin, double rpp_alpha, double *rpp_matrix);
 
-void evaluate_rpp_type1_mmd_n1_primitive_shell_pair(
+double evaluate_rpp_type1_mmd_n1_primitive_shell_pair(
     libgrpp_shell_t *shell_A, double alpha_A, libgrpp_shell_t *shell_B,
     double alpha_B, double *rpp_origin, double rpp_alpha, double *rpp_matrix);
 
-void evaluate_rpp_type1_mmd_n0_primitive_shell_pair(
+double evaluate_rpp_type1_mmd_n0_primitive_shell_pair(
     libgrpp_shell_t *shell_A, double alpha_A, libgrpp_shell_t *shell_B,
     double alpha_B, double *rpp_origin, double rpp_alpha, double *rpp_matrix);
 
@@ -147,7 +147,7 @@ void libgrpp_type1_integrals_mcmurchie_davidson_1978(
 /**
  * Integrals of the operator: e^{-ar^2}/r^2
  */
-void evaluate_rpp_type1_mmd_n0_primitive_shell_pair(
+double evaluate_rpp_type1_mmd_n0_primitive_shell_pair(
     libgrpp_shell_t *shell_A, double alpha_A, libgrpp_shell_t *shell_B,
     double alpha_B, double *rpp_origin, double rpp_alpha, double *rpp_matrix) {
   double a = alpha_A;
@@ -243,7 +243,7 @@ void evaluate_rpp_type1_mmd_n0_primitive_shell_pair(
 /**
  * Integrals of the operator: e^{-ar^2}/r
  */
-void evaluate_rpp_type1_mmd_n1_primitive_shell_pair(
+double evaluate_rpp_type1_mmd_n1_primitive_shell_pair(
     libgrpp_shell_t *shell_A, double alpha_A, libgrpp_shell_t *shell_B,
     double alpha_B, double *rpp_origin, double rpp_alpha, double *rpp_matrix) {
   double a = alpha_A;
@@ -340,7 +340,7 @@ void evaluate_rpp_type1_mmd_n1_primitive_shell_pair(
 /**
  * Integrals of the operator: e^{-ar^2}
  */
-void evaluate_rpp_type1_mmd_n2_primitive_shell_pair(
+double evaluate_rpp_type1_mmd_n2_primitive_shell_pair(
     libgrpp_shell_t *shell_A, double alpha_A, libgrpp_shell_t *shell_B,
     double alpha_B, double *rpp_origin, double rpp_alpha, double *rpp_matrix) {
   double a = alpha_A;

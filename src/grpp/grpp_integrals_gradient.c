@@ -691,14 +691,14 @@ void grpp_gradient_contribution(libgrpp_shell_t *shell_A,
                                 double **grad_so_x, double **grad_so_y,
                                 double **grad_so_z, int diff_bra,
                                 double factor) {
-  // int diff_ket = 0;
+  int diff_ket = 0;
 
   if (diff_bra == 0) {
     diff_bra = 0;
-    //    diff_ket = 1;
+    diff_ket = 1;
   } else {
     diff_bra = 1;
-    //    diff_ket = 0;
+    diff_ket = 0;
   }
 
   /*
@@ -811,14 +811,14 @@ void grpp_gradient_diff_gaussian(
     double **arep_matrix_up, double **so_x_matrix_up, double **so_y_matrix_up,
     double **so_z_matrix_up, int *cart_size_down, int *cart_size_up,
     int diff_bra) {
-  //  int diff_ket = 0;
+  int diff_ket = 0;
 
   if (diff_bra == 0) {
     diff_bra = 0;
-    //    diff_ket = 1;
+    diff_ket = 1;
   } else {
     diff_bra = 1;
-    //    diff_ket = 0;
+    diff_ket = 0;
   }
 
   /*
