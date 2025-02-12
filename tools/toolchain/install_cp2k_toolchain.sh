@@ -168,6 +168,8 @@ The --with-PKG options follow the rules:
   --with-intelmpi         Intel MPI, MPI library like OpenMPI. one should
                           use only one of OpenMPI, MPICH or Intel MPI.
                           Default = system
+  --with-dbcsr            Install DBCSR library with toolchain
+                          Default = install
   --with-libxc            libxc, exchange-correlation library. Needed for
                           QuickStep DFT and hybrid calculations.
                           Default = install
@@ -270,8 +272,8 @@ EOF
 tool_list="gcc intel amd cmake ninja"
 mpi_list="mpich openmpi intelmpi"
 math_list="mkl acml openblas"
-lib_list="fftw libint libxc libgrpp libxsmm cosma scalapack elpa cusolvermp plumed \
-          spfft spla gsl spglib hdf5 libvdwxc sirius
+lib_list="fftw libint libxc libgrpp libxsmm cosma scalapack elpa dbcsr
+          cusolvermp plumed spfft spla gsl spglib hdf5 libvdwxc sirius
           libvori libtorch deepmd dftd4 pugixml libsmeagol trexio"
 package_list="${tool_list} ${mpi_list} ${math_list} ${lib_list}"
 # ------------------------------------------------------------------------
@@ -289,6 +291,7 @@ done
 with_gcc="__SYSTEM__"
 
 # libs to turn on by default, the math and mpi libraries are chosen by there respective modes:
+with_dbcsr="__INSTALL__"
 with_fftw="__INSTALL__"
 with_libint="__INSTALL__"
 with_libgrpp="__INSTALL__"
@@ -675,6 +678,9 @@ while [ $# -ge 1 ]; do
     --with-trexio*)
       with_trexio=$(read_with "${1}")
       ;;
+    --with-dbcsr*)
+      with_dbcsr=$(read_with $1)
+      ;;
     --help*)
       show_help
       exit 0
@@ -1010,7 +1016,7 @@ else
   ./scripts/stage6/install_stage6.sh
   ./scripts/stage7/install_stage7.sh
   ./scripts/stage8/install_stage8.sh
-  # Stage 9 is reserved for DBCSR.
+  ./scripts/stage9/install_stage9.sh
   if [ "${no_arch_files}" = "__FALSE__" ]; then
     ./scripts/generate_arch_files.sh
   fi
