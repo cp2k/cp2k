@@ -102,20 +102,20 @@ OPTIONS:
                           options are: K20X, K40, K80, P100, V100, Mi50, Mi100, Mi250,
                           and no.
                           This setting determines the value of nvcc's '-arch' flag.
-                          Default = no.
+                          Default = no
 --libint-lmax             Maximum supported angular momentum by libint.
                           Higher values will increase build time and library size.
                           Default = 5
 --log-lines               Number of log file lines dumped in case of a non-zero exit code.
                           Default = 200
 --target-cpu              Compile for the specified target CPU (e.g. haswell or generic), i.e.
-                          do not optimize for the actual host system which is the default (native)
---no-arch-files           Do not generate arch files
+                          do not optimize for the actual host system which is the default (native).
+--no-arch-files           Do not generate arch files.
 --dry-run                 Write only config files, but don't actually build packages.
 
 The --enable-FEATURE options follow the rules:
-  --enable-FEATURE=yes    Enable this particular feature
-  --enable-FEATURE=no     Disable this particular feature
+  --enable-FEATURE=yes    Enable this particular feature.
+  --enable-FEATURE=no     Disable this particular feature.
   --enable-FEATURE        The option keyword alone is equivalent to
                           --enable-FEATURE=yes
 
@@ -154,34 +154,34 @@ The --with-PKG options follow the rules:
                           Default = no
   --with-amd              Use the AMD compiler to build CP2K.
                           Default = system
-  --with-cmake            Cmake utilities
+  --with-cmake            CMake utilities.
                           Default = install
-  --with-ninja            Ninja utilities
+  --with-ninja            Ninja utilities.
                           Default = install
   --with-openmpi          OpenMPI, important if you want a parallel version of CP2K.
                           Default = system
   --with-mpich            MPICH, MPI library like OpenMPI. one should
                           use only one of OpenMPI, MPICH or Intel MPI.
                           Default = system
-  --with-mpich-device     Select the MPICH device, implies the use of MPICH as MPI library
+  --with-mpich-device     Select the MPICH device, implies the use of MPICH as MPI library.
                           Default = ch4
   --with-intelmpi         Intel MPI, MPI library like OpenMPI. one should
                           use only one of OpenMPI, MPICH or Intel MPI.
                           Default = system
-  --with-dbcsr            Install DBCSR library with toolchain
+  --with-dbcsr            Install DBCSR library with toolchain.
                           Default = install
-  --with-libxc            libxc, exchange-correlation library. Needed for
-                          QuickStep DFT and hybrid calculations.
+  --with-libxc            libxc, exchange-correlation library. Needed for QuickStep DFT
+                          and hybrid calculations.
                           Default = install
   --with-libint           libint, library for evaluation of two-body molecular
-                          integrals, needed for hybrid functional calculations
+                          integrals, needed for hybrid functional calculations.
                           Default = install
   --with-libgrpp          libgrpp, library for the evaluation of ECP integrals, needed
-                          for any calculations with semi-local ECP pseudopotentials
+                          for any calculations with semi-local ECP pseudopotentials.
                           Default = install
-  --with-fftw             FFTW3, library for fast fourier transform
+  --with-fftw             Install FFTW3 library for fast fourier transform.
                           Default = install
-  --with-acml             AMD core maths library, which provides LAPACK and BLAS
+  --with-acml             AMD core maths library, which provides LAPACK and BLAS.
                           Default = system
   --with-mkl              Intel Math Kernel Library, which provides LAPACK, and BLAS.
                           If MKL's FFTW3 interface is suitable (no FFTW-MPI support),
@@ -191,8 +191,7 @@ The --with-PKG options follow the rules:
   --with-openblas         OpenBLAS is a free high performance LAPACK and BLAS library,
                           the successor to GotoBLAS.
                           Default = install
-  --with-scalapack        Parallel linear algebra library, needed for parallel
-                          calculations.
+  --with-scalapack        Parallel linear algebra library, needed for parallel calculations.
                           Default = install
   --with-libxsmm          Small matrix multiplication library.
                           Default = install
@@ -203,39 +202,40 @@ The --with-PKG options follow the rules:
                           Default = no
   --with-deepmd           Enable interface to DeePMD-kit library.
                           Default = no
-  --with-plumed           Enable interface to the PLUMED library.
+  --with-plumed           Enable interface to the PLUMED library (requires MPI).
                           Default = no
   --with-sirius           Enable interface to the plane wave SIRIUS library.
-                          This package requires: gsl, libspg, elpa, scalapack, hdf5, libxc and pugixml
+                          This package requires: GSL, libspg, ELPA, ScaLAPACK, HDF5, Libxc and pugixml.
                           Default = install
   --with-pugixml          Enable support for XML parsing using the pugixml library.
                           This library is required by SIRIUS.
                           Default = no (unless a SIRIUS installation is requested)
   --with-gsl              Enable the gnu scientific library (required for PLUMED and SIRIUS)
                           Default = install
-  --with-libvdwxc         Enable support of Van der Waals interactions in SIRIUS. Support provided by libvdwxc
+  --with-libvdwxc         Enable support of Van der Waals interactions in SIRIUS.
+                          Support provided by libvdwxc.
                           Default = install
-  --with-spglib           Enable the spg library (search of symmetry groups)
-                          This package depends on cmake.
+  --with-spglib           Enable the spg library (search of symmetry groups).
+                          This package depends on CMake.
                           Default = install
   --with-hdf5             Enable the hdf5 library (used by the sirius and trexio libraries)
                           Default = install
   --with-spfft            Enable the spare fft used in SIRIUS (hard dependency)
                           Default = install
-  --with-spla             Enable the Specialized Parallel Linear Algebra library (required by SIRIUS)
+  --with-spla             Enable the Specialized Parallel Linear Algebra library (required by SIRIUS).
                           Default = install
-  --with-cosma            Enable cosma as a replacement for scalapack matrix multiplication
+  --with-cosma            Enable cosma as a replacement for ScaLAPACK matrix multiplication
                           Default = install
-  --with-libvori          Enable libvori for the Voronoi integration (and the BQB compressed trajectory format)
+  --with-libvori          Enable libvori for the Voronoi integration and the BQB compressed trajectory format.
                           Default = install
-  --with-libtorch         Enable libtorch the machine learning framework needed for NequIP and Allegro
+  --with-libtorch         Enable libtorch the machine learning framework needed for NequIP and Allegro.
                           Default = no
-  --with-libsmeagol       Enable interface to SMEAGOL NEGF library
+  --with-libsmeagol       Enable interface to SMEAGOL NEGF library (requires MPI).
                           Default = no
-  --with-dftd4            Enable the DFTD4 package by Grimme
-                          This package requires cmake, ninja
+  --with-dftd4            Enable the DFTD4 package by Grimme.
+                          This package requires CMake and Ninja.
                           Default = install
-  --with-trexio           Enable the trexio library (read/write TREXIO files)
+  --with-trexio           Enable the trexio library (read/write TREXIO files).
                           Default = no
 
 FURTHER INSTRUCTIONS
@@ -723,7 +723,7 @@ fi
 # MPI library conflicts
 if [ "${MPI_MODE}" = "no" ]; then
   if [ "${with_scalapack}" != "__DONTUSE__" ]; then
-    echo "Not using MPI, so scalapack is disabled."
+    echo "Not using MPI, so ScaLAPACK is disabled."
     with_scalapack="__DONTUSE__"
   fi
   if [ "${with_elpa}" != "__DONTUSE__" ]; then
@@ -734,20 +734,24 @@ if [ "${MPI_MODE}" = "no" ]; then
     echo "Not using MPI, so PLUMED is disabled."
     with_plumed="__DONTUSE__"
   fi
+  if [ "${with_libsmeagol}" != "__DONTUSE__" ]; then
+    echo "Not using MPI, so libsmeagol is disabled."
+    with_libsmeagol="__DONTUSE__"
+  fi
   if [ "${with_sirius}" != "__DONTUSE__" ]; then
     echo "Not using MPI, so SIRIUS is disabled"
     with_sirius="__DONTUSE__"
   fi
   if [ "${with_spfft}" != "__DONTUSE__" ]; then
-    echo "Not using MPI, so spfft is disabled"
+    echo "Not using MPI, so SpFFT is disabled"
     with_spfft="__DONTUSE__"
   fi
   if [ "${with_spla}" != "__DONTUSE__" ]; then
-    echo "Not using MPI, so spla is disabled"
+    echo "Not using MPI, so SpLA is disabled"
     with_spla="__DONTUSE__"
   fi
   if [ "${with_cosma}" != "__DONTUSE__" ]; then
-    echo "Not using MPI, so cosma is disabled"
+    echo "Not using MPI, so COSMA is disabled"
     with_cosma="__DONTUSE__"
   fi
 else
@@ -820,7 +824,7 @@ if [ "${with_spglib}" = "__INSTALL__" ] ||
   [ "${with_cmake}" = "__DONTUSE__" ] && with_cmake="__INSTALL__"
 fi
 
-# SIRIUS dependencies. Remove the gsl library from the dependencies if SIRIUS is not activated
+# SIRIUS dependencies. Remove the GSL library from the dependencies if SIRIUS is not activated
 if [ "${with_sirius}" = "__INSTALL__" ]; then
   [ "${with_spfft}" = "__DONTUSE__" ] && with_spfft="__INSTALL__"
   [ "${with_spla}" = "__DONTUSE__" ] && with_spla="__INSTALL__"

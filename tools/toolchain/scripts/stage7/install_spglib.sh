@@ -21,7 +21,7 @@ cd "${BUILDDIR}"
 
 case "$with_spglib" in
   __INSTALL__)
-    echo "==================== Installing spglib ===================="
+    echo "==================== Installing Spglib ===================="
     pkg_install_dir="${INSTALLDIR}/spglib-${spglib_ver}"
     install_lock_file="$pkg_install_dir/install_successful"
     if verify_checksums "${install_lock_file}"; then
@@ -63,7 +63,7 @@ case "$with_spglib" in
     fi
     ;;
   __SYSTEM__)
-    echo "==================== Finding spglib from system paths ===================="
+    echo "==================== Finding Spglib from system paths ===================="
     check_command pkg-config --modversion spglib
     add_include_from_paths SPGLIB_CFLAGS "spglib.h" $INCLUDE_PATHS
     add_lib_from_paths SPGLIB_LDFLAGS "libspglib.*" $LIB_PATHS
@@ -71,7 +71,7 @@ case "$with_spglib" in
   __DONTUSE__) ;;
 
   *)
-    echo "==================== Linking spglib to user paths ===================="
+    echo "==================== Linking Spglib to user paths ===================="
     pkg_install_dir="$with_spglib"
     check_dir "$pkg_install_dir/lib"
     check_dir "$pkg_install_dir/include"

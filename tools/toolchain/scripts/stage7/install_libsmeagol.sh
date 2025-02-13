@@ -19,8 +19,14 @@ source "${INSTALLDIR}"/toolchain.env
 LIBSMEAGOL_CFLAGS=""
 LIBSMEAGOL_LDFLAGS=""
 LIBSMEAGOL_LIBS=""
+
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
+
+if [ "${MPI_MODE}" = "no" ]; then
+  report_warning ${LINENO} "MPI is disabled, skipping libsmeagol installation"
+  exit 0
+fi
 
 case "${with_libsmeagol}" in
   __INSTALL__)
