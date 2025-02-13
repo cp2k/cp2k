@@ -24,6 +24,12 @@ PLUMED_LIBS=''
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
+# PLUMED works only with MPI switched on
+if [ "${MPI_MODE}" = "no" ]; then
+  report_warning ${LINENO} "MPI is disabled, skipping PLUMED installation"
+  exit 0
+fi
+
 case "$with_plumed" in
   __INSTALL__)
     echo "==================== Installing PLUMED ===================="

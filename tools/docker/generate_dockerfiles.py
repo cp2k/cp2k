@@ -18,11 +18,16 @@ def main() -> None:
         with OutputFile(f"Dockerfile.test_{version}", args.check) as f:
             if version in ("ssmp", "psmp"):
                 # Use ssmp/psmp as guinea pigs
-                f.write(install_deps_toolchain())
-                f.write(install_dbcsr("toolchain", version))
+                if version == "ssmp":
+                    f.write(install_deps_toolchain(mpi_mode="no"))
+                elif version == "psmp":
+                    f.write(install_deps_toolchain(mpi_mode="mpich"))
                 f.write(regtest_cmake("toolchain", version))
             else:
-                f.write(install_deps_toolchain())
+                if version == "sdbg":
+                    f.write(install_deps_toolchain(mpi_mode="no"))
+                elif version == "pdbg":
+                    f.write(install_deps_toolchain(mpi_mode="mpich"))
                 f.write(regtest(version))
 
         with OutputFile(f"Dockerfile.test_generic_{version}", args.check) as f:
@@ -128,7 +133,6 @@ def main() -> None:
     for name in "aiida", "ase", "gromacs", "i-pi":
         with OutputFile(f"Dockerfile.test_{name}", args.check) as f:
             f.write(install_deps_toolchain())
-            f.write(install_dbcsr("toolchain", "ssmp"))
             f.write(test_3rd_party(name))
 
     for name in "misc", "doxygen":
@@ -421,12 +425,17 @@ RUN ./install_dbcsr.sh {profile} {version}
 # ======================================================================================
 def install_deps_toolchain(
     base_image: str = "ubuntu:24.04",
+    mpi_mode: str = "mpich",
     with_gcc: str = "system",
     **kwargs: str,
 ) -> str:
     output = f"\nFROM {base_image}\n\n"
     output += install_toolchain(
-        base_image=base_image, install_all="", with_gcc=with_gcc, **kwargs
+        base_image=base_image,
+        install_all="",
+        mpi_mode=mpi_mode,
+        with_gcc=with_gcc,
+        **kwargs,
     )
     return output
 
@@ -802,6 +811,9 @@ RUN  ./scripts/stage7/install_stage7.sh && rm -rf ./build
 
 COPY ./tools/toolchain/scripts/stage8/ ./scripts/stage8/
 RUN  ./scripts/stage8/install_stage8.sh && rm -rf ./build
+
+COPY ./tools/toolchain/scripts/stage9/ ./scripts/stage9/
+RUN  ./scripts/stage9/install_stage9.sh && rm -rf ./build
 
 COPY ./tools/toolchain/scripts/arch_base.tmpl \
      ./tools/toolchain/scripts/generate_arch_files.sh \
