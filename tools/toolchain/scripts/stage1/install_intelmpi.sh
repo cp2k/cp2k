@@ -56,7 +56,7 @@ case "${with_intelmpi}" in
     # Nothing to do
     ;;
   *)
-    echo "==================== Linking INTELMPI to user paths ===================="
+    echo "==================== Linking Intel MPI to user paths ===================="
     pkg_install_dir="${with_intelmpi}"
     check_dir "${pkg_install_dir}/bin"
     check_dir "${pkg_install_dir}/lib"
