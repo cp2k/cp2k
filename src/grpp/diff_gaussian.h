@@ -22,7 +22,8 @@
 
 #include "libgrpp.h"
 
-void differentiate_shell(libgrpp_shell_t *shell, libgrpp_shell_t **shell_minus,
-                         libgrpp_shell_t **shell_plus);
+void libgrpp_differentiate_shell(libgrpp_shell_t *shell,
+                                 libgrpp_shell_t **shell_minus,
+                                 libgrpp_shell_t **shell_plus);
 
 #endif // LIBGRPP_DIFF_GAUSSIAN_H

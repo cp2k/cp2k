@@ -28,7 +28,7 @@ static uint64_t gcd_ui(uint64_t x, uint64_t y);
  * ( n )
  * ( k )
  */
-uint64_t binomial(uint64_t n, uint64_t k) {
+uint64_t libgrpp_binomial(uint64_t n, uint64_t k) {
   uint64_t d, g, r = 1;
 
   if (k == 0) {

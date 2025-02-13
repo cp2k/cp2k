@@ -159,7 +159,7 @@ void overlap_gradient_diff_bra_overlap_integrals(
    */
   libgrpp_shell_t *shell_A_down = NULL;
   libgrpp_shell_t *shell_A_up = NULL;
-  differentiate_shell(shell_A, &shell_A_down, &shell_A_up);
+  libgrpp_differentiate_shell(shell_A, &shell_A_down, &shell_A_up);
 
   *cart_size_down = 0;
   if (shell_A_down != NULL) {

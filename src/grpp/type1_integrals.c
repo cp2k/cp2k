@@ -160,8 +160,8 @@ void evaluate_radially_local_potential_integral_primitive_gaussians(
   int L_A = cart_list_A[0] + cart_list_A[1] + cart_list_A[2];
   int L_B = cart_list_B[0] + cart_list_B[1] + cart_list_B[2];
 
-  double N_A = gaussian_norm_factor(L_A, 0, 0, alpha_A);
-  double N_B = gaussian_norm_factor(L_B, 0, 0, alpha_B);
+  double N_A = libgrpp_gaussian_norm_factor(L_A, 0, 0, alpha_A);
+  double N_B = libgrpp_gaussian_norm_factor(L_B, 0, 0, alpha_B);
   double D_ABC = 4 * M_PI * N_A * N_B;
 
   int lambda_max = L_A + L_B;
@@ -171,7 +171,7 @@ void evaluate_radially_local_potential_integral_primitive_gaussians(
   /*
    * pre-compute type 1 radial integrals
    */
-  radial_type1_table_t *radial_table = tabulate_radial_type1_integrals(
+  radial_type1_table_t *radial_table = libgrpp_tabulate_radial_type1_integrals(
       lambda_max, n_max, CA_2, CB_2, alpha_A, alpha_B, k, D_ABC, potential,
       potential_params);
 
@@ -192,27 +192,27 @@ void evaluate_radially_local_potential_integral_primitive_gaussians(
       int m_B = cart_list_B[3 * jcart + 2];
 
       for (int a = 0; a <= n_A; a++) {
-        double C_nA_a = binomial(n_A, a);
+        double C_nA_a = libgrpp_binomial(n_A, a);
         double pow_CA_x = pow(CA_x, n_A - a);
 
         for (int b = 0; b <= l_A; b++) {
-          double C_lA_b = binomial(l_A, b);
+          double C_lA_b = libgrpp_binomial(l_A, b);
           double pow_CA_y = pow(CA_y, l_A - b);
 
           for (int c = 0; c <= m_A; c++) {
-            double C_mA_c = binomial(m_A, c);
+            double C_mA_c = libgrpp_binomial(m_A, c);
             double pow_CA_z = pow(CA_z, m_A - c);
 
             for (int d = 0; d <= n_B; d++) {
-              double C_nB_d = binomial(n_B, d);
+              double C_nB_d = libgrpp_binomial(n_B, d);
               double pow_CB_x = pow(CB_x, n_B - d);
 
               for (int e = 0; e <= l_B; e++) {
-                double C_lB_e = binomial(l_B, e);
+                double C_lB_e = libgrpp_binomial(l_B, e);
                 double pow_CB_y = pow(CB_y, l_B - e);
 
                 for (int f = 0; f <= m_B; f++) {
-                  double C_mB_f = binomial(m_B, f);
+                  double C_mB_f = libgrpp_binomial(m_B, f);
                   double pow_CB_z = pow(CB_z, m_B - f);
 
                   double factor = C_nA_a * C_lA_b * C_mA_c * C_nB_d * C_lB_e *
@@ -227,14 +227,14 @@ void evaluate_radially_local_potential_integral_primitive_gaussians(
                   double sum_omega_Q = 0.0;
                   for (int lambda = 0; lambda <= lambda_max; lambda++) {
 
-                    double Q =
-                        get_radial_type1_integral(radial_table, lambda, N);
+                    double Q = libgrpp_get_radial_type1_integral(radial_table,
+                                                                 lambda, N);
                     if (fabs(Q) < 1e-16) {
                       continue;
                     }
 
-                    double omega = angular_type1_integral(lambda, a + d, b + e,
-                                                          c + f, kvec);
+                    double omega = libgrpp_angular_type1_integral(
+                        lambda, a + d, b + e, c + f, kvec);
 
                     sum_omega_Q += omega * Q;
                   }
@@ -251,5 +251,5 @@ void evaluate_radially_local_potential_integral_primitive_gaussians(
     }
   }
 
-  delete_radial_type1_integrals(radial_table);
+  libgrpp_delete_radial_type1_integrals(radial_table);
 }

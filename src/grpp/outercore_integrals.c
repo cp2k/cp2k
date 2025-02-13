@@ -154,8 +154,8 @@ void libgrpp_outercore_potential_integrals_part_1(
       int r = oc_shell->cart_list[3 * icart + 0];
       int s = oc_shell->cart_list[3 * icart + 1];
       int t = oc_shell->cart_list[3 * icart + 2];
-      double u =
-          spherical_to_cartesian_coef(L, m, r, s, t) / ang_norm_factor(r, s, t);
+      double u = libgrpp_spherical_to_cartesian_coef(L, m, r, s, t) /
+                 ang_norm_factor(r, s, t);
       S_lm_coef[size_nlj * (m + L) + icart] = u;
     }
   }
@@ -223,8 +223,8 @@ void libgrpp_outercore_potential_integrals_part_1(
    * < a | P_nlj U(r) L P_L + U(r) P_nlj L P_L | b >
    */
   double **L_matrices = alloc_zeros_2d(3, (2 * L + 1) * (2 * L + 1));
-  construct_angular_momentum_matrices_rsh(L, L_matrices[0], L_matrices[1],
-                                          L_matrices[2]);
+  libgrpp_construct_angular_momentum_matrices_rsh(L, L_matrices[0],
+                                                  L_matrices[1], L_matrices[2]);
 
   double **so_buf = alloc_zeros_2d(3, size_A * size_B);
   buf = alloc_zeros_1d((2 * L + 1) * int_max2(size_A, size_B));
@@ -320,8 +320,8 @@ void libgrpp_outercore_potential_integrals_part_2(
       int r = oc_shell_1->cart_list[3 * icart + 0];
       int s = oc_shell_1->cart_list[3 * icart + 1];
       int t = oc_shell_1->cart_list[3 * icart + 2];
-      double u =
-          spherical_to_cartesian_coef(L, m, r, s, t) / ang_norm_factor(r, s, t);
+      double u = libgrpp_spherical_to_cartesian_coef(L, m, r, s, t) /
+                 ang_norm_factor(r, s, t);
       S_lm_coef[size_nlj * (m + L) + icart] = u;
     }
   }
@@ -367,8 +367,8 @@ void libgrpp_outercore_potential_integrals_part_2(
    * < a | P_nlj U(r) L P_L + U(r) P_nlj L P_L | b >
    */
   double **L_matrices = alloc_zeros_2d(3, (2 * L + 1) * (2 * L + 1));
-  construct_angular_momentum_matrices_rsh(L, L_matrices[0], L_matrices[1],
-                                          L_matrices[2]);
+  libgrpp_construct_angular_momentum_matrices_rsh(L, L_matrices[0],
+                                                  L_matrices[1], L_matrices[2]);
 
   double **so_buf = alloc_zeros_2d(3, size_A * size_B);
   buf = alloc_zeros_1d((2 * L + 1) * size_B);
@@ -467,11 +467,11 @@ double analytic_one_center_rpp_integral_primitive(int L, double alpha1,
 
   if (n % 2 == 0) { // even n
     int k = L + n / 2;
-    return double_factorial(2 * k - 1) / (pow(2.0, k + 1) * pow(a, k)) *
+    return libgrpp_double_factorial(2 * k - 1) / (pow(2.0, k + 1) * pow(a, k)) *
            sqrt(M_PI / a);
   } else { // odd n
     int k = L + (n - 1) / 2;
-    return factorial(k) / (2.0 * pow(a, k + 1));
+    return libgrpp_factorial(k) / (2.0 * pow(a, k + 1));
   }
 }
 
@@ -538,7 +538,7 @@ double ang_norm_factor(int lx, int ly, int lz) {
   int L = lx + ly + lz;
 
   return 1.0 / (2.0 * sqrt(M_PI)) *
-         sqrt(double_factorial(2 * L + 1)
+         sqrt(libgrpp_double_factorial(2 * L + 1)
               /*(double_factorial(2 * lx - 1) * double_factorial(2 * ly - 1) *
                  double_factorial(2 * lz - 1))*/
          );

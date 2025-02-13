@@ -24,16 +24,17 @@
 #include <stdlib.h>
 #include <string.h>
 
-void get_transformation_coeffs_csh_to_rsh(int l, int m, double complex *a,
-                                          double complex *b);
+static void get_transformation_coeffs_csh_to_rsh(int l, int m,
+                                                 double complex *a,
+                                                 double complex *b);
 
 /**
  * Constructs matrices of the Lx, Ly, Lz operators for the given angular
  * momentum L in the basis of real spherical harmonics (rsh).
  */
-void construct_angular_momentum_matrices_rsh(int L, double *lx_matrix,
-                                             double *ly_matrix,
-                                             double *lz_matrix) {
+void libgrpp_construct_angular_momentum_matrices_rsh(int L, double *lx_matrix,
+                                                     double *ly_matrix,
+                                                     double *lz_matrix) {
   int dim = 2 * L + 1;
 
   // set all matrices to zero
@@ -45,8 +46,8 @@ void construct_angular_momentum_matrices_rsh(int L, double *lx_matrix,
   double *ly_matrix_csh = calloc(dim * dim, sizeof(double));
   double *lz_matrix_csh = calloc(dim * dim, sizeof(double));
 
-  construct_angular_momentum_matrices_csh(L, lx_matrix_csh, ly_matrix_csh,
-                                          lz_matrix_csh);
+  libgrpp_construct_angular_momentum_matrices_csh(L, lx_matrix_csh,
+                                                  ly_matrix_csh, lz_matrix_csh);
 
   for (int m1 = -L; m1 <= L; m1++) {
     for (int m2 = -L; m2 <= L; m2++) {
@@ -96,9 +97,9 @@ void construct_angular_momentum_matrices_rsh(int L, double *lx_matrix,
  * complex spherical harmonics (csh) |Y_lm> for angular momentum l=L.
  * Matrices of size (2*L+1) x (2*L+1) must be pre-allocated.
  */
-void construct_angular_momentum_matrices_csh(int L, double *lx_matrix,
-                                             double *ly_matrix,
-                                             double *lz_matrix) {
+void libgrpp_construct_angular_momentum_matrices_csh(int L, double *lx_matrix,
+                                                     double *ly_matrix,
+                                                     double *lz_matrix) {
   int dim = 2 * L + 1;
 
   // set all matrices to zero
@@ -131,8 +132,9 @@ void construct_angular_momentum_matrices_csh(int L, double *lx_matrix,
  * coefficients can be found elsewhere, see, for example,
  * https://en.wikipedia.org/wiki/Table_of_spherical_harmonics
  */
-void get_transformation_coeffs_csh_to_rsh(int l, int m, double complex *a,
-                                          double complex *b) {
+static void get_transformation_coeffs_csh_to_rsh(int l, int m,
+                                                 double complex *a,
+                                                 double complex *b) {
   if (m == 0) {
     *a = 0.5;
     *b = 0.5;

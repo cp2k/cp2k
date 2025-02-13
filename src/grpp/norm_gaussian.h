@@ -15,6 +15,6 @@
 #ifndef LIBGRPP_NORM_GAUSSIAN_H
 #define LIBGRPP_NORM_GAUSSIAN_H
 
-double gaussian_norm_factor(int n, int l, int m, double alpha);
+double libgrpp_gaussian_norm_factor(int n, int l, int m, double alpha);
 
 #endif // LIBGRPP_NORM_GAUSSIAN_H

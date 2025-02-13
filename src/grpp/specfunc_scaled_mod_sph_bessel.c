@@ -65,7 +65,7 @@ void pretabulate_bessel() {
 /*
  * evaluates scaled modified spherical Bessel function of the n-th order.
  */
-double modified_bessel_scaled(int n, double x) {
+double libgrpp_modified_bessel_scaled(int n, double x) {
   // static int bessel_pretabulated = 0;
 
   /*

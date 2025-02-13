@@ -66,10 +66,11 @@ double analytic_one_center_rpp_integral_primitive(int L, double alpha1,
  * screening for the type 1 radial integrals
  * for the pair of contracted gaussian functions.
  */
-int screening_radial_type1(int lambda, int n, double CA_2, double CB_2,
-                           double alpha_A, double alpha_B, double k,
-                           double prefactor, libgrpp_potential_t *potential,
-                           double *screened_value) {
+int libgrpp_screening_radial_type1(int lambda, int n, double CA_2, double CB_2,
+                                   double alpha_A, double alpha_B, double k,
+                                   double prefactor,
+                                   libgrpp_potential_t *potential,
+                                   double *screened_value) {
   *screened_value = 0.0;
 
   if (lambda >= 1 && fabs(k) <= LIBGRPP_ZERO_THRESH) {
@@ -133,7 +134,8 @@ int screening_radial_type1_integral_primitive(int lambda, int n, double CA_2,
    * envelope function for the integrand
    */
   *screened_value =
-      sqrt(M_PI / p) * pow(r0, n) * modified_bessel_scaled(lambda, k * r0) *
+      sqrt(M_PI / p) * pow(r0, n) *
+      libgrpp_modified_bessel_scaled(lambda, k * r0) *
       exp(-p * r0 * r0 - alpha_A * CA_2 - alpha_B * CB_2 + k * r0) * 0.5 *
       (1 + erf(sqrt(p) * r0));
 
@@ -147,11 +149,11 @@ double screening_type1_equation_for_maximum(double r, int n, int lambda,
                                             double p, double k) {
   double K_ratio = 0.0;
   if (lambda == 0) {
-    K_ratio =
-        modified_bessel_scaled(1, k * r) / modified_bessel_scaled(0, k * r);
+    K_ratio = libgrpp_modified_bessel_scaled(1, k * r) /
+              libgrpp_modified_bessel_scaled(0, k * r);
   } else {
-    K_ratio = modified_bessel_scaled(lambda - 1, k * r) /
-              modified_bessel_scaled(lambda, k * r);
+    K_ratio = libgrpp_modified_bessel_scaled(lambda - 1, k * r) /
+              libgrpp_modified_bessel_scaled(lambda, k * r);
   }
 
   double a = n + K_ratio * k * r;
@@ -166,10 +168,11 @@ double screening_type1_equation_for_maximum(double r, int n, int lambda,
  * screening for the type 2 radial integrals
  * for the pair of contracted gaussian functions.
  */
-int screening_radial_type2(int lambda1, int lambda2, int n, double CA_2,
-                           double CB_2, libgrpp_shell_t *bra,
-                           libgrpp_shell_t *ket, libgrpp_potential_t *potential,
-                           double *screened_value) {
+int libgrpp_screening_radial_type2(int lambda1, int lambda2, int n, double CA_2,
+                                   double CB_2, libgrpp_shell_t *bra,
+                                   libgrpp_shell_t *ket,
+                                   libgrpp_potential_t *potential,
+                                   double *screened_value) {
   *screened_value = 0.0;
 
   double CA = sqrt(CA_2);
@@ -222,11 +225,11 @@ int screening_radial_type2(int lambda1, int lambda2, int n, double CA_2,
 double gaussian_integral(int n, double a) {
   if (n % 2 == 0) {
     int k = n / 2;
-    return double_factorial(2 * k - 1) / (pow(2.0, k + 1) * pow(a, k)) *
+    return libgrpp_double_factorial(2 * k - 1) / (pow(2.0, k + 1) * pow(a, k)) *
            sqrt(M_PI / a);
   } else {
     int k = (n - 1) / 2;
-    return factorial(k) / (2.0 * pow(a, k + 1));
+    return libgrpp_factorial(k) / (2.0 * pow(a, k + 1));
   }
 }
 
@@ -290,8 +293,8 @@ int screening_radial_type2_integral_primitive(int lambda1, int lambda2, int n,
    * envelope function for the integrand
    */
   *screened_value = sqrt(M_PI / p) * pow(r0, n) *
-                    modified_bessel_scaled(lambda1, k1 * r0) *
-                    modified_bessel_scaled(lambda2, k2 * r0) *
+                    libgrpp_modified_bessel_scaled(lambda1, k1 * r0) *
+                    libgrpp_modified_bessel_scaled(lambda2, k2 * r0) *
                     exp(-eta * r0 * r0 - alpha_A * (r0 - CA) * (r0 - CA) -
                         alpha_B * (r0 - CB) * (r0 - CB)) *
                     0.5 * (1 + erf(sqrt(p) * r0));
@@ -308,21 +311,21 @@ double screening_type2_equation_for_maximum(double r, int n, int lambda1,
   double K1_ratio = 0.0;
   double k1_r = k1 * r;
   if (lambda1 == 0) {
-    K1_ratio =
-        modified_bessel_scaled(1, k1_r) / modified_bessel_scaled(0, k1_r);
+    K1_ratio = libgrpp_modified_bessel_scaled(1, k1_r) /
+               libgrpp_modified_bessel_scaled(0, k1_r);
   } else {
-    K1_ratio = modified_bessel_scaled(lambda1 - 1, k1_r) /
-               modified_bessel_scaled(lambda1, k1_r);
+    K1_ratio = libgrpp_modified_bessel_scaled(lambda1 - 1, k1_r) /
+               libgrpp_modified_bessel_scaled(lambda1, k1_r);
   }
 
   double K2_ratio = 0.0;
   double k2_r = k2 * r;
   if (lambda2 == 0) {
-    K2_ratio =
-        modified_bessel_scaled(1, k2_r) / modified_bessel_scaled(0, k2_r);
+    K2_ratio = libgrpp_modified_bessel_scaled(1, k2_r) /
+               libgrpp_modified_bessel_scaled(0, k2_r);
   } else {
-    K2_ratio = modified_bessel_scaled(lambda2 - 1, k2_r) /
-               modified_bessel_scaled(lambda2, k2_r);
+    K2_ratio = libgrpp_modified_bessel_scaled(lambda2 - 1, k2_r) /
+               libgrpp_modified_bessel_scaled(lambda2, k2_r);
   }
 
   double a = K1_ratio * k1_r + K2_ratio * k2_r + n;

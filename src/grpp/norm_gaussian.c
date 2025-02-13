@@ -20,7 +20,7 @@
  * Calculates normalization factor for the cartesian Gaussian x^n y^l z^m
  * exp(-alpha*r^2)
  */
-double gaussian_norm_factor(int n, int l, int m, double alpha) {
+double libgrpp_gaussian_norm_factor(int n, int l, int m, double alpha) {
   return pow(2 * alpha / M_PI, 0.75) *
          pow(4 * alpha, 0.5 * (n + l + m)); /* /
           sqrt((double) double_factorial(2 * n - 1) *

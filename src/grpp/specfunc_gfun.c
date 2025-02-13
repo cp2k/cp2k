@@ -40,7 +40,7 @@ static double gfun_taylor(int n, double x);
  * Calculates values of the Gn(x) auxiliary function for n = 0, ..., nmax
  * and stores them into the g[] array.
  */
-void gfun_values(double x, int nmax, double *g) {
+void libgrpp_gfun_values(double x, int nmax, double *g) {
   memset(g, 0, (nmax + 1) * sizeof(double));
 
   if (x <= 12.0) {
@@ -57,7 +57,7 @@ void gfun_values(double x, int nmax, double *g) {
      * upward recursion
      */
     double sqrt_x = sqrt(x);
-    g[0] = Dawsons_Integral(sqrt_x) / sqrt_x;
+    g[0] = libgrpp_Dawsons_Integral(sqrt_x) / sqrt_x;
 
     for (int n = 0; n < nmax; n++) {
       g[n + 1] = (1.0 - (2 * n + 1) * g[n]) / (2.0 * x);
@@ -77,7 +77,7 @@ static double gfun_taylor(int n, double x) {
 
     double y_exp = exp(-x);
     double y_pow = pow(x, k);
-    double y_fac = factorial(k);
+    double y_fac = libgrpp_factorial(k);
     double y_nk1 = 2.0 * n + 2.0 * k + 1.0;
 
     double contrib = y_exp * y_pow / y_fac / y_nk1;

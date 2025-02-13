@@ -20,16 +20,16 @@
 #ifndef LIBGRPP_SPECFUNC_H
 #define LIBGRPP_SPECFUNC_H
 
-double modified_bessel_scaled(int n, double x);
+double libgrpp_modified_bessel_scaled(int n, double x);
 
-void gfun_values(double x, int nmax, double *g);
+void libgrpp_gfun_values(double x, int nmax, double *g);
 
-double boys_function(int n, double x);
+double libgrpp_boys_function(int n, double x);
 
-void boys_values(double x, int nmax, double *b);
+void libgrpp_boys_values(double x, int nmax, double *b);
 
-double specfunc_fermi_sk(int k, double x);
+double libgrpp_specfunc_fermi_sk(int k, double x);
 
-double Dawsons_Integral(double x);
+double libgrpp_Dawsons_Integral(double x);
 
 #endif // LIBGRPP_SPECFUNC_H

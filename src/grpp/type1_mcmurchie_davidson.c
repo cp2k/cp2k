@@ -187,7 +187,7 @@ double evaluate_rpp_type1_mmd_n0_primitive_shell_pair(
   int L_A = shell_A->L;
   int L_B = shell_B->L;
   int Nmax = L_A + L_B;
-  gfun_values(q * data.R_QC_2, Nmax, data.boys);
+  libgrpp_gfun_values(q * data.R_QC_2, Nmax, data.boys);
 
   /*
    * setup E array
@@ -204,8 +204,8 @@ double evaluate_rpp_type1_mmd_n0_primitive_shell_pair(
    */
   int size_A = libgrpp_get_shell_size(shell_A);
   int size_B = libgrpp_get_shell_size(shell_B);
-  double N_A = gaussian_norm_factor(L_A, 0, 0, alpha_A);
-  double N_B = gaussian_norm_factor(L_B, 0, 0, alpha_B);
+  double N_A = libgrpp_gaussian_norm_factor(L_A, 0, 0, alpha_A);
+  double N_B = libgrpp_gaussian_norm_factor(L_B, 0, 0, alpha_B);
 
   for (int m = 0; m < size_A; m++) {
     for (int n = 0; n < size_B; n++) {
@@ -284,7 +284,7 @@ double evaluate_rpp_type1_mmd_n1_primitive_shell_pair(
   int L_B = shell_B->L;
   int Nmax = L_A + L_B;
 
-  boys_values(q * data.R_QC_2, Nmax, data.boys);
+  libgrpp_boys_values(q * data.R_QC_2, Nmax, data.boys);
 
   /*
    * setup E array
@@ -301,8 +301,8 @@ double evaluate_rpp_type1_mmd_n1_primitive_shell_pair(
    */
   int size_A = libgrpp_get_shell_size(shell_A);
   int size_B = libgrpp_get_shell_size(shell_B);
-  double N_A = gaussian_norm_factor(L_A, 0, 0, alpha_A);
-  double N_B = gaussian_norm_factor(L_B, 0, 0, alpha_B);
+  double N_A = libgrpp_gaussian_norm_factor(L_A, 0, 0, alpha_A);
+  double N_B = libgrpp_gaussian_norm_factor(L_B, 0, 0, alpha_B);
 
   for (int m = 0; m < size_A; m++) {
     for (int n = 0; n < size_B; n++) {
@@ -391,8 +391,8 @@ double evaluate_rpp_type1_mmd_n2_primitive_shell_pair(
    */
   int size_A = libgrpp_get_shell_size(shell_A);
   int size_B = libgrpp_get_shell_size(shell_B);
-  double N_A = gaussian_norm_factor(L_A, 0, 0, alpha_A);
-  double N_B = gaussian_norm_factor(L_B, 0, 0, alpha_B);
+  double N_A = libgrpp_gaussian_norm_factor(L_A, 0, 0, alpha_A);
+  double N_B = libgrpp_gaussian_norm_factor(L_B, 0, 0, alpha_B);
 
   for (int m = 0; m < size_A; m++) {
     for (int n = 0; n < size_B; n++) {

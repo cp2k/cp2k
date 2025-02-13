@@ -92,11 +92,10 @@ double gaussian_integral(int n, double a);
 /**
  * Creates table with pre-calculated radial type 2 integrals.
  */
-radial_type2_table_t *
-tabulate_radial_type2_integrals(int lambda1_max, int lambda2_max, int n_max,
-                                double CA_2, double CB_2,
-                                libgrpp_potential_t *potential,
-                                libgrpp_shell_t *bra, libgrpp_shell_t *ket) {
+radial_type2_table_t *libgrpp_tabulate_radial_type2_integrals(
+    int lambda1_max, int lambda2_max, int n_max, double CA_2, double CB_2,
+    libgrpp_potential_t *potential, libgrpp_shell_t *bra,
+    libgrpp_shell_t *ket) {
   /*
    * create empty table containing pre-tabulated radial type 2 integrals
    */
@@ -116,12 +115,12 @@ tabulate_radial_type2_integrals(int lambda1_max, int lambda2_max, int n_max,
     for (int i = 0; i < bra->num_primitives; i++) {
       double alpha_A = bra->alpha[i];
       double coef_i =
-          bra->coeffs[i] * gaussian_norm_factor(bra->L, 0, 0, alpha_A);
+          bra->coeffs[i] * libgrpp_gaussian_norm_factor(bra->L, 0, 0, alpha_A);
 
       for (int j = 0; j < ket->num_primitives; j++) {
         double alpha_B = ket->alpha[j];
-        double coef_j =
-            ket->coeffs[j] * gaussian_norm_factor(ket->L, 0, 0, alpha_B);
+        double coef_j = ket->coeffs[j] *
+                        libgrpp_gaussian_norm_factor(ket->L, 0, 0, alpha_B);
 
         for (int k = 0; k < potential->num_primitives; k++) {
           double eta = potential->alpha[k];
@@ -200,7 +199,7 @@ tabulate_radial_type2_integrals(int lambda1_max, int lambda2_max, int n_max,
 /**
  * destructor for the table of radial type 2 integrals
  */
-void delete_radial_type2_integrals(radial_type2_table_t *table) {
+void libgrpp_delete_radial_type2_integrals(radial_type2_table_t *table) {
   free(table->radial_integrals);
   free(table);
 }
@@ -208,8 +207,8 @@ void delete_radial_type2_integrals(radial_type2_table_t *table) {
 /**
  * Returns radial integral at complex index (lambda1,lambda2,N)
  */
-double get_radial_type2_integral(radial_type2_table_t *table, int lambda1,
-                                 int lambda2, int n) {
+double libgrpp_get_radial_type2_integral(radial_type2_table_t *table,
+                                         int lambda1, int lambda2, int n) {
   int lambda1_max = table->lambda1_max;
   int lambda2_max = table->lambda2_max;
   int n_max = table->n_max;
@@ -250,7 +249,7 @@ double calculate_radial_type2_integral(radial_type2_grid_t *grid, int n,
   double CB = grid->params->CB;
 
   double screened = 0.0;
-  int screen_success = screening_radial_type2(
+  int screen_success = libgrpp_screening_radial_type2(
       lambda1, lambda2, n, CA * CA, CB * CB, grid->params->bra,
       grid->params->ket, grid->params->potential, &screened);
 
@@ -452,7 +451,8 @@ double radial_type2_integrand_fun_contracted(double r, int lambda, double *k,
 
   for (int i = 0; i < nprim; i++) {
     double power = -alpha[i] * r_CA_2;
-    F += coeffs[i] * exp(power) * modified_bessel_scaled(lambda, k[i] * r);
+    F += coeffs[i] * exp(power) *
+         libgrpp_modified_bessel_scaled(lambda, k[i] * r);
   }
 
   return F;

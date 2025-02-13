@@ -39,7 +39,8 @@ static double integrate_unitary_sphere_polynomial(int i, int j, int k);
  * Type 1 angular integral.
  * (see MrMurchie & Davidson, formula (28))
  */
-double angular_type1_integral(int lambda, int II, int JJ, int KK, double *k) {
+double libgrpp_angular_type1_integral(int lambda, int II, int JJ, int KK,
+                                      double *k) {
   double sum = 0.0;
 
   for (int mu = -lambda; mu <= lambda; mu++) {
@@ -48,7 +49,8 @@ double angular_type1_integral(int lambda, int II, int JJ, int KK, double *k) {
       for (int s = 0; s <= lambda; s++) {
         for (int t = 0; t <= lambda; t++) {
           if (r + s + t == lambda) {
-            double y_lm_rst = spherical_to_cartesian_coef(lambda, mu, r, s, t);
+            double y_lm_rst =
+                libgrpp_spherical_to_cartesian_coef(lambda, mu, r, s, t);
             double usp_int =
                 integrate_unitary_sphere_polynomial(II + r, JJ + s, KK + t);
             sum2 += y_lm_rst * usp_int;
@@ -56,7 +58,7 @@ double angular_type1_integral(int lambda, int II, int JJ, int KK, double *k) {
         }
       }
     }
-    sum += sum2 * evaluate_real_spherical_harmonic(lambda, mu, k);
+    sum += sum2 * libgrpp_evaluate_real_spherical_harmonic(lambda, mu, k);
   }
 
   return sum;
@@ -66,13 +68,14 @@ double angular_type1_integral(int lambda, int II, int JJ, int KK, double *k) {
  * Type 2 angular integral.
  * (see MrMurchie & Davidson, formula (29))
  */
-double angular_type2_integral(const int lambda, const int L, const int m,
-                              const int a, const int b, const int c,
-                              const double *rsh_values) {
+double libgrpp_angular_type2_integral(const int lambda, const int L,
+                                      const int m, const int a, const int b,
+                                      const int c, const double *rsh_values) {
   double sum = 0.0;
 
-  rsh_coef_table_t *rsh_coef_lambda = get_real_spherical_harmonic_table(lambda);
-  rsh_coef_table_t *rsh_coef_L = get_real_spherical_harmonic_table(L);
+  rsh_coef_table_t *rsh_coef_lambda =
+      libgrpp_get_real_spherical_harmonic_table(lambda);
+  rsh_coef_table_t *rsh_coef_L = libgrpp_get_real_spherical_harmonic_table(L);
 
   int ncomb_rst = rsh_coef_lambda->n_cart_comb;
   int ncomb_uvw = rsh_coef_L->n_cart_comb;
@@ -124,10 +127,10 @@ double angular_type2_integral(const int lambda, const int L, const int m,
  */
 static double integrate_unitary_sphere_polynomial(int i, int j, int k) {
   if ((i % 2 == 0) && (j % 2 == 0) && (k % 2 == 0)) {
-    double dfac_i = (double)double_factorial(i - 1);
-    double dfac_j = (double)double_factorial(j - 1);
-    double dfac_k = (double)double_factorial(k - 1);
-    double dfac_ijk = (double)double_factorial(i + j + k + 1);
+    double dfac_i = (double)libgrpp_double_factorial(i - 1);
+    double dfac_j = (double)libgrpp_double_factorial(j - 1);
+    double dfac_k = (double)libgrpp_double_factorial(k - 1);
+    double dfac_ijk = (double)libgrpp_double_factorial(i + j + k + 1);
     return 4 * M_PI * dfac_i * dfac_j * dfac_k / dfac_ijk;
   } else {
     return 0.0;

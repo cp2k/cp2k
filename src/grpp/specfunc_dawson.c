@@ -40,11 +40,11 @@
 #define Asymptotic_Expansion_Cutoff 50
 
 //                         Externally Defined Routines                        //
-extern long double xChebyshev_Tn_Series(long double x, long double a[],
+static long double xChebyshev_Tn_Series(long double x, long double a[],
                                         int degree);
 
 //                         Internally Defined Routines                        //
-double Dawsons_Integral(double x);
+double libgrpp_Dawsons_Integral(double x);
 long double xDawsons_Integral(long double x);
 
 static long double Dawson_Power_Series(long double x);
@@ -57,7 +57,7 @@ static long double Dawson_Chebyshev_Expansion_550_725(long double x);
 static long double Dawson_Asymptotic_Expansion(long double x);
 
 ////////////////////////////////////////////////////////////////////////////////
-// double Dawsons_Integral( double x )                                        //
+// double libgrpp_Dawsons_Integral( double x ) //
 //                                                                            //
 //  Description:                                                              //
 //     Dawson's integral, Daw(x), is the integral with integrand              //
@@ -77,7 +77,7 @@ static long double Dawson_Asymptotic_Expansion(long double x);
 //                                                                            //
 //     y = Dawsons_Integral( x );                                             //
 ////////////////////////////////////////////////////////////////////////////////
-double Dawsons_Integral(double x) {
+double libgrpp_Dawsons_Integral(double x) {
   return (double)xDawsons_Integral((long double)x);
 }
 
@@ -543,7 +543,8 @@ static long double Dawson_Asymptotic_Expansion(long double x) {
 //     p = xChebyshev_Tn_Series(x, a, deg);                                   //
 ////////////////////////////////////////////////////////////////////////////////
 
-long double xChebyshev_Tn_Series(long double x, long double a[], int degree) {
+static long double xChebyshev_Tn_Series(long double x, long double a[],
+                                        int degree) {
   long double yp2 = 0.0L;
   long double yp1 = 0.0L;
   long double y = 0.0L;

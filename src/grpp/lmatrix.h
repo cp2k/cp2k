@@ -15,12 +15,12 @@
 #ifndef LIBGRPP_LMATRIX_H
 #define LIBGRPP_LMATRIX_H
 
-void construct_angular_momentum_matrices_rsh(int L, double *lx_matrix,
-                                             double *ly_matrix,
-                                             double *lz_matrix);
+void libgrpp_construct_angular_momentum_matrices_rsh(int L, double *lx_matrix,
+                                                     double *ly_matrix,
+                                                     double *lz_matrix);
 
-void construct_angular_momentum_matrices_csh(int L, double *lx_matrix,
-                                             double *ly_matrix,
-                                             double *lz_matrix);
+void libgrpp_construct_angular_momentum_matrices_csh(int L, double *lx_matrix,
+                                                     double *ly_matrix,
+                                                     double *lz_matrix);
 
 #endif // LIBGRPP_LMATRIX_H

@@ -562,7 +562,7 @@ void radial_gto_norm_factor_(int32_t *L, int32_t *num_primitives,
                                         coeffs, alpha, origin, L, &zero, &zero,
                                         num_primitives, coeffs, alpha, &S);
 
-  *norm = sqrt(double_factorial(2 * (*L) - 1)) / sqrt(S);
+  *norm = sqrt(libgrpp_double_factorial(2 * (*L) - 1)) / sqrt(S);
 }
 
 /*

@@ -32,11 +32,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-void kinetic_energy_integrals_shell_pair_obara_saika(libgrpp_shell_t *shell_A,
-                                                     libgrpp_shell_t *shell_B,
-                                                     double alpha_A,
-                                                     double alpha_B,
-                                                     double *kinetic_matrix);
+static void kinetic_energy_integrals_shell_pair_obara_saika(
+    libgrpp_shell_t *shell_A, libgrpp_shell_t *shell_B, double alpha_A,
+    double alpha_B, double *kinetic_matrix);
 
 void libgrpp_kinetic_energy_integrals(libgrpp_shell_t *shell_A,
                                       libgrpp_shell_t *shell_B,
@@ -66,17 +64,15 @@ void libgrpp_kinetic_energy_integrals(libgrpp_shell_t *shell_A,
   free(buf);
 }
 
-void kinetic_energy_integrals_shell_pair_obara_saika(libgrpp_shell_t *shell_A,
-                                                     libgrpp_shell_t *shell_B,
-                                                     double alpha_A,
-                                                     double alpha_B,
-                                                     double *kinetic_matrix) {
+static void kinetic_energy_integrals_shell_pair_obara_saika(
+    libgrpp_shell_t *shell_A, libgrpp_shell_t *shell_B, double alpha_A,
+    double alpha_B, double *kinetic_matrix) {
   int size_A = libgrpp_get_shell_size(shell_A);
   int size_B = libgrpp_get_shell_size(shell_B);
   int L_A = shell_A->L;
   int L_B = shell_B->L;
-  double N_A = gaussian_norm_factor(L_A, 0, 0, alpha_A);
-  double N_B = gaussian_norm_factor(L_B, 0, 0, alpha_B);
+  double N_A = libgrpp_gaussian_norm_factor(L_A, 0, 0, alpha_A);
+  double N_B = libgrpp_gaussian_norm_factor(L_B, 0, 0, alpha_B);
 
   double p = alpha_A + alpha_B;
   double mu = alpha_A * alpha_B / (alpha_A + alpha_B);

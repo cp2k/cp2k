@@ -25,10 +25,10 @@
 
 #define LMAX (2 * LIBGRPP_MAX_BASIS_L + LIBGRPP_MAX_RPP_L)
 
-double type2_angular_sum(int L, int lambda_1, int a, int b, int c,
-                         double *kA_vec, int lambda_2, int d, int e, int f,
-                         double *kB_vec, double *rsh_values_kA,
-                         double *rsh_values_kB);
+static double type2_angular_sum(int L, int lambda_1, int a, int b, int c,
+                                double *kA_vec, int lambda_2, int d, int e,
+                                int f, double *kB_vec, double *rsh_values_kA,
+                                double *rsh_values_kB);
 
 /**
  * Evaluation of type 2 RPP integrals (scalar-relativistic semilocal RPP with
@@ -93,7 +93,7 @@ void libgrpp_type2_integrals(libgrpp_shell_t *shell_A, libgrpp_shell_t *shell_B,
   /*
    * pre-compute type 2 radial integrals
    */
-  radial_type2_table_t *radial_table = tabulate_radial_type2_integrals(
+  radial_type2_table_t *radial_table = libgrpp_tabulate_radial_type2_integrals(
       lambda1_max, lambda2_max, N_max, CA_2, CB_2, potential, shell_A, shell_B);
 
   /*
@@ -103,10 +103,10 @@ void libgrpp_type2_integrals(libgrpp_shell_t *shell_A, libgrpp_shell_t *shell_B,
   double rsh_values_kB[3 * LMAX][6 * LMAX];
 
   for (int lambda = 0; lambda <= lmax; lambda++) {
-    evaluate_real_spherical_harmonics_array(lambda, kA_vec,
-                                            rsh_values_kA[lambda]);
-    evaluate_real_spherical_harmonics_array(lambda, kB_vec,
-                                            rsh_values_kB[lambda]);
+    libgrpp_evaluate_real_spherical_harmonics_array(lambda, kA_vec,
+                                                    rsh_values_kA[lambda]);
+    libgrpp_evaluate_real_spherical_harmonics_array(lambda, kB_vec,
+                                                    rsh_values_kB[lambda]);
   }
 
   /*
@@ -127,32 +127,32 @@ void libgrpp_type2_integrals(libgrpp_shell_t *shell_A, libgrpp_shell_t *shell_B,
 
       for (int a = 0; a <= n_A; a++) {
 
-        double C_nA_a = binomial(n_A, a);
+        double C_nA_a = libgrpp_binomial(n_A, a);
         double pow_CA_x = pow(CA_x, n_A - a);
 
         for (int b = 0; b <= l_A; b++) {
 
-          double C_lA_b = binomial(l_A, b);
+          double C_lA_b = libgrpp_binomial(l_A, b);
           double pow_CA_y = pow(CA_y, l_A - b);
 
           for (int c = 0; c <= m_A; c++) {
 
-            double C_mA_c = binomial(m_A, c);
+            double C_mA_c = libgrpp_binomial(m_A, c);
             double pow_CA_z = pow(CA_z, m_A - c);
 
             for (int d = 0; d <= n_B; d++) {
 
-              double C_nB_d = binomial(n_B, d);
+              double C_nB_d = libgrpp_binomial(n_B, d);
               double pow_CB_x = pow(CB_x, n_B - d);
 
               for (int e = 0; e <= l_B; e++) {
 
-                double C_lB_e = binomial(l_B, e);
+                double C_lB_e = libgrpp_binomial(l_B, e);
                 double pow_CB_y = pow(CB_y, l_B - e);
 
                 for (int f = 0; f <= m_B; f++) {
 
-                  double C_mB_f = binomial(m_B, f);
+                  double C_mB_f = libgrpp_binomial(m_B, f);
                   double pow_CB_z = pow(CB_z, m_B - f);
 
                   double factor = C_nA_a * C_lA_b * C_mA_c * C_nB_d * C_lB_e *
@@ -183,7 +183,7 @@ void libgrpp_type2_integrals(libgrpp_shell_t *shell_A, libgrpp_shell_t *shell_B,
                         continue;
                       }
 
-                      double QN = get_radial_type2_integral(
+                      double QN = libgrpp_get_radial_type2_integral(
                           radial_table, lambda_1, lambda_2, N);
                       if (fabs(QN) < 1e-16) {
                         continue;
@@ -212,17 +212,17 @@ void libgrpp_type2_integrals(libgrpp_shell_t *shell_A, libgrpp_shell_t *shell_B,
     }
   }
 
-  delete_radial_type2_integrals(radial_table);
+  libgrpp_delete_radial_type2_integrals(radial_table);
 }
 
 /*
  * Sum of products of type 2 angular integrals
  * (McMurchie, Davidson, 1981, formulas (23) and (24))
  */
-double type2_angular_sum(int L, int lambda_1, int a, int b, int c,
-                         double *kA_vec, int lambda_2, int d, int e, int f,
-                         double *kB_vec, double *rsh_values_kA,
-                         double *rsh_values_kB) {
+static double type2_angular_sum(int L, int lambda_1, int a, int b, int c,
+                                double *kA_vec, int lambda_2, int d, int e,
+                                int f, double *kB_vec, double *rsh_values_kA,
+                                double *rsh_values_kB) {
   double sum_angular = 0.0;
 
   /*
@@ -230,13 +230,13 @@ double type2_angular_sum(int L, int lambda_1, int a, int b, int c,
    */
   for (int m = -L; m <= L; m++) {
     double omega_1 =
-        angular_type2_integral(lambda_1, L, m, a, b, c, rsh_values_kA);
+        libgrpp_angular_type2_integral(lambda_1, L, m, a, b, c, rsh_values_kA);
     if (fabs(omega_1) < 1e-16) {
       continue;
     }
 
     double omega_2 =
-        angular_type2_integral(lambda_2, L, m, d, e, f, rsh_values_kB);
+        libgrpp_angular_type2_integral(lambda_2, L, m, d, e, f, rsh_values_kB);
 
     sum_angular += omega_1 * omega_2;
   }

@@ -14,7 +14,7 @@
 
 #include "libgrpp.h"
 
-void create_real_spherical_harmonic_coeffs_tables(int Lmax);
+void libgrpp_create_real_spherical_harmonic_coeffs_tables(int Lmax);
 void pretabulate_bessel();
 
 static int libgrpp_initialized = 0;
@@ -26,7 +26,7 @@ void libgrpp_init() {
 #pragma omp critical
   {
     if (libgrpp_initialized == 0) {
-      create_real_spherical_harmonic_coeffs_tables(40);
+      libgrpp_create_real_spherical_harmonic_coeffs_tables(40);
       pretabulate_bessel();
 
       libgrpp_initialized = 1;

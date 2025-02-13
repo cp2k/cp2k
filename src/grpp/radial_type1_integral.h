@@ -23,14 +23,14 @@ typedef struct {
   double *radial_integrals;
 } radial_type1_table_t;
 
-radial_type1_table_t *tabulate_radial_type1_integrals(
+radial_type1_table_t *libgrpp_tabulate_radial_type1_integrals(
     int lambda_max, int n_max, double CA_2, double CB_2, double alpha_A,
     double alpha_B, double k, double prefactor,
     double (*potential)(double r, void *params), void *potential_params);
 
-void delete_radial_type1_integrals(radial_type1_table_t *table);
+void libgrpp_delete_radial_type1_integrals(radial_type1_table_t *table);
 
-double get_radial_type1_integral(radial_type1_table_t *table, int lambda,
-                                 int n);
+double libgrpp_get_radial_type1_integral(radial_type1_table_t *table,
+                                         int lambda, int n);
 
 #endif // LIBGRPP_RADIAL_TYPE1_INTEGRAL_H

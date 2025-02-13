@@ -17,6 +17,6 @@
 
 #include <stdint.h>
 
-uint64_t binomial(uint64_t n, uint64_t k);
+uint64_t libgrpp_binomial(uint64_t n, uint64_t k);
 
 #endif // LIBGRPP_BINOMIAL_H

@@ -24,7 +24,7 @@ extern const double boys_table[301][40];
 /**
  * Boys function
  */
-double boys_function(int n, double x) {
+double libgrpp_boys_function(int n, double x) {
   if (x <= 30.0) {
     double step = 0.1;
     int idx = (int)(round(x / step) + 1e-6);
@@ -43,16 +43,16 @@ double boys_function(int n, double x) {
            boys_values[n + 6] * dx6 / 720.0;
   } else {
     // asymptotic behaviour
-    return double_factorial(2 * n - 1) / pow(2.0, n + 1) *
+    return libgrpp_double_factorial(2 * n - 1) / pow(2.0, n + 1) *
            sqrt(M_PI / pow(x, 2 * n + 1));
   }
 }
 
-void boys_values(double x, int nmax, double *b) {
+void libgrpp_boys_values(double x, int nmax, double *b) {
   memset(b, 0, (nmax + 1) * sizeof(double));
 
   for (int n = 0; n <= nmax; n++) {
-    b[n] = boys_function(n, x);
+    b[n] = libgrpp_boys_function(n, x);
   }
 }
 

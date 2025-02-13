@@ -454,7 +454,7 @@ void grpp_gradient_diff_bra_grpp_integrals(
    */
   libgrpp_shell_t *shell_A_down = NULL;
   libgrpp_shell_t *shell_A_up = NULL;
-  differentiate_shell(shell_A, &shell_A_down, &shell_A_up);
+  libgrpp_differentiate_shell(shell_A, &shell_A_down, &shell_A_up);
 
   *cart_size_down = 0;
   if (shell_A_down != NULL) {
@@ -632,7 +632,7 @@ void grpp_gradient_diff_ket_grpp_integrals(
    */
   libgrpp_shell_t *shell_B_down = NULL;
   libgrpp_shell_t *shell_B_up = NULL;
-  differentiate_shell(shell_B, &shell_B_down, &shell_B_up);
+  libgrpp_differentiate_shell(shell_B, &shell_B_down, &shell_B_up);
 
   *cart_size_down = 0;
   if (shell_B_down != NULL) {
@@ -839,7 +839,7 @@ void grpp_gradient_diff_gaussian(
    */
   libgrpp_shell_t *shell_down = NULL;
   libgrpp_shell_t *shell_up = NULL;
-  differentiate_shell(diff_shell, &shell_down, &shell_up);
+  libgrpp_differentiate_shell(diff_shell, &shell_down, &shell_up);
 
   *cart_size_down = 0;
   if (shell_down != NULL) {

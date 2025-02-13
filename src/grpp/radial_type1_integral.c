@@ -83,7 +83,7 @@ double calculate_radial_type1_integral(radial_type1_grid_t *grid, int n,
                                        int lambda, double tolerance,
                                        int *converged);
 
-radial_type1_table_t *tabulate_radial_type1_integrals(
+radial_type1_table_t *libgrpp_tabulate_radial_type1_integrals(
     int lambda_max, int n_max, double CA_2, double CB_2, double alpha_A,
     double alpha_B, double k, double prefactor,
     double (*potential)(double r, void *params), void *potential_params) {
@@ -125,13 +125,13 @@ radial_type1_table_t *tabulate_radial_type1_integrals(
   return table;
 }
 
-void delete_radial_type1_integrals(radial_type1_table_t *table) {
+void libgrpp_delete_radial_type1_integrals(radial_type1_table_t *table) {
   free(table->radial_integrals);
   free(table);
 }
 
-double get_radial_type1_integral(radial_type1_table_t *table, int lambda,
-                                 int n) {
+double libgrpp_get_radial_type1_integral(radial_type1_table_t *table,
+                                         int lambda, int n) {
   int lambda_max = table->lambda_max;
   return table->radial_integrals[lambda * (lambda_max + 1) + n];
 }
@@ -187,7 +187,7 @@ radial_type1_grid_t *create_radial_type1_grid(int lambda_max, int n_max,
 
     for (int lambda = 0; lambda <= lambda_max; lambda++) {
       grid->mod_bessel[lambda][i - 1] =
-          modified_bessel_scaled(lambda, ri * params->k);
+          libgrpp_modified_bessel_scaled(lambda, ri * params->k);
     }
 
     for (int n = 0; n <= n_max; n++) {
@@ -236,7 +236,7 @@ void expand_radial_type1_grid(radial_type1_grid_t *grid, int nr) {
 
     for (int lambda = 0; lambda <= grid->lambda_max; lambda++) {
       double kr = grid->params->k * ri;
-      double bessel = modified_bessel_scaled(lambda, kr);
+      double bessel = libgrpp_modified_bessel_scaled(lambda, kr);
       grid->mod_bessel[lambda][idx] = bessel;
     }
 

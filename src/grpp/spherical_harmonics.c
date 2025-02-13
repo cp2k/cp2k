@@ -42,7 +42,7 @@ static int rsh_tables_lmax = -1;
 /*
  * Function pre-definitions
  */
-rsh_coef_table_t *tabulate_real_spherical_harmonic_coeffs(int L);
+rsh_coef_table_t *libgrpp_tabulate_real_spherical_harmonic_coeffs(int L);
 
 int *generate_cartesian_combinations(int L, int *num);
 
@@ -51,7 +51,7 @@ int *generate_cartesian_combinations(int L, int *num);
  * (up to maximum angular momentum Lmax).
  * (pretabulation step)
  */
-void create_real_spherical_harmonic_coeffs_tables(int Lmax) {
+void libgrpp_create_real_spherical_harmonic_coeffs_tables(int Lmax) {
   if (Lmax <= rsh_tables_lmax) {
     // nothing to do
   } else {
@@ -60,7 +60,7 @@ void create_real_spherical_harmonic_coeffs_tables(int Lmax) {
         rsh_coef_tables, (Lmax + 1) * sizeof(rsh_coef_table_t *));
 
     for (int L = rsh_tables_lmax + 1; L <= Lmax; L++) {
-      rsh_coef_tables[L] = tabulate_real_spherical_harmonic_coeffs(L);
+      rsh_coef_tables[L] = libgrpp_tabulate_real_spherical_harmonic_coeffs(L);
     }
     rsh_tables_lmax = Lmax;
   }
@@ -70,7 +70,7 @@ void create_real_spherical_harmonic_coeffs_tables(int Lmax) {
  * Calculates all C_{l,m}^{lx,ly,lz} coefficients for the given angular momentum
  * L.
  */
-rsh_coef_table_t *tabulate_real_spherical_harmonic_coeffs(int L) {
+rsh_coef_table_t *libgrpp_tabulate_real_spherical_harmonic_coeffs(int L) {
   int ncart = (L + 1) * (L + 2) / 2;
 
   rsh_coef_table_t *coef_table =
@@ -84,7 +84,8 @@ rsh_coef_table_t *tabulate_real_spherical_harmonic_coeffs(int L) {
       int lx = coef_table->cartesian_comb[3 * icomb];
       int ly = coef_table->cartesian_comb[3 * icomb + 1];
       int lz = coef_table->cartesian_comb[3 * icomb + 2];
-      double u_lm_lx_ly_lz = spherical_to_cartesian_coef(L, m, lx, ly, lz);
+      double u_lm_lx_ly_lz =
+          libgrpp_spherical_to_cartesian_coef(L, m, lx, ly, lz);
       int index = (m + L) * ncart + icomb;
       coef_table->coeffs[index] = u_lm_lx_ly_lz;
     }
@@ -96,7 +97,7 @@ rsh_coef_table_t *tabulate_real_spherical_harmonic_coeffs(int L) {
 /**
  * Access to the table for the angular momentum value L.
  */
-rsh_coef_table_t *get_real_spherical_harmonic_table(int L) {
+rsh_coef_table_t *libgrpp_get_real_spherical_harmonic_table(int L) {
   if (L > rsh_tables_lmax) {
     printf("get_real_spherical_harmonic_table(): %d > Lmax\n", L);
     return NULL;
@@ -115,7 +116,8 @@ rsh_coef_table_t *get_real_spherical_harmonic_table(int L) {
  * doi: 10.1002/jcc.20410
  * (formula 32)
  */
-double spherical_to_cartesian_coef(int l, int m, int lx, int ly, int lz) {
+double libgrpp_spherical_to_cartesian_coef(int l, int m, int lx, int ly,
+                                           int lz) {
   int j = lx + ly - abs(m);
   if (j % 2 != 0) {
     return 0.0;
@@ -127,9 +129,10 @@ double spherical_to_cartesian_coef(int l, int m, int lx, int ly, int lz) {
     return 0.0;
   }
 
-  double prefactor = sqrt((2 * l + 1) / (2 * M_PI) * factorial(l - abs(m)) /
-                          factorial(l + abs(m)));
-  prefactor /= pow(2, l) * factorial(l);
+  double prefactor =
+      sqrt((2 * l + 1) / (2 * M_PI) * libgrpp_factorial(l - abs(m)) /
+           libgrpp_factorial(l + abs(m)));
+  prefactor /= pow(2, l) * libgrpp_factorial(l);
 
   double u_lm_lx_ly_lz = 0.0;
   for (int i = j; i <= (l - abs(m)) / 2; i++) {
@@ -143,12 +146,13 @@ double spherical_to_cartesian_coef(int l, int m, int lx, int ly, int lz) {
       break;
     }
 
-    double factor_1 = binomial(l, i) * binomial(i, j) * pow(-1, i) *
-                      factorial_ratio(2 * l - 2 * i, l - abs(m) - 2 * i);
+    double factor_1 =
+        libgrpp_binomial(l, i) * libgrpp_binomial(i, j) * pow(-1, i) *
+        libgrpp_factorial_ratio(2 * l - 2 * i, l - abs(m) - 2 * i);
 
     double sum = 0.0;
     for (int k = 0; k <= j; k++) {
-      sum += binomial(j, k) * binomial(abs(m), lx - 2 * k) *
+      sum += libgrpp_binomial(j, k) * libgrpp_binomial(abs(m), lx - 2 * k) *
              pow(-1, (abs(m) - lx + 2 * k) / 2);
     }
 
@@ -167,8 +171,8 @@ double spherical_to_cartesian_coef(int l, int m, int lx, int ly, int lz) {
  * Calculates value of the real spherical harmonic S_lm at the point k/|k| of
  * the unit sphere.
  */
-double evaluate_real_spherical_harmonic(const int l, const int m,
-                                        const double *k) {
+double libgrpp_evaluate_real_spherical_harmonic(const int l, const int m,
+                                                const double *k) {
   double unitary_kx;
   double unitary_ky;
   double unitary_kz;
@@ -176,7 +180,7 @@ double evaluate_real_spherical_harmonic(const int l, const int m,
   double ky_powers[200];
   double kz_powers[200];
 
-  rsh_coef_table_t *rsh_coef_l = get_real_spherical_harmonic_table(l);
+  rsh_coef_table_t *rsh_coef_l = libgrpp_get_real_spherical_harmonic_table(l);
 
   double length_k = sqrt(k[0] * k[0] + k[1] * k[1] + k[2] * k[2]);
 
@@ -219,8 +223,9 @@ double evaluate_real_spherical_harmonic(const int l, const int m,
  * Calculates values of the real spherical harmonic S_lm at the point k/|k| of
  * the unit sphere for all m = -l, ..., +l
  */
-void evaluate_real_spherical_harmonics_array(const int l, const double *k,
-                                             double *rsh_array) {
+void libgrpp_evaluate_real_spherical_harmonics_array(const int l,
+                                                     const double *k,
+                                                     double *rsh_array) {
   double unitary_kx;
   double unitary_ky;
   double unitary_kz;
@@ -228,7 +233,7 @@ void evaluate_real_spherical_harmonics_array(const int l, const double *k,
   double ky_powers[200];
   double kz_powers[200];
 
-  rsh_coef_table_t *rsh_coef_l = get_real_spherical_harmonic_table(l);
+  rsh_coef_table_t *rsh_coef_l = libgrpp_get_real_spherical_harmonic_table(l);
 
   double length_k = sqrt(k[0] * k[0] + k[1] * k[1] + k[2] * k[2]);
 

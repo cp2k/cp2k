@@ -27,11 +27,12 @@
 
 #define LMAX (2 * LIBGRPP_MAX_BASIS_L + LIBGRPP_MAX_RPP_L)
 
-void type3_angular_sum(int L, double *Lx_matrix, double *Ly_matrix,
-                       double *Lz_matrix, int lambda_1, int a, int b, int c,
-                       double *rsh_values_kA, int lambda_2, int d, int e, int f,
-                       double *rsh_values_kB, double *sum_angular_x,
-                       double *sum_angular_y, double *sum_angular_z);
+static void type3_angular_sum(int L, double *Lx_matrix, double *Ly_matrix,
+                              double *Lz_matrix, int lambda_1, int a, int b,
+                              int c, double *rsh_values_kA, int lambda_2, int d,
+                              int e, int f, double *rsh_values_kB,
+                              double *sum_angular_x, double *sum_angular_y,
+                              double *sum_angular_z);
 
 /**
  * Evaluation of spin-orbit ("type 3") RPP integrals.
@@ -102,7 +103,8 @@ void libgrpp_spin_orbit_integrals(libgrpp_shell_t *shell_A,
   double *Lx_matrix = calloc((2 * L + 1) * (2 * L + 1), sizeof(double));
   double *Ly_matrix = calloc((2 * L + 1) * (2 * L + 1), sizeof(double));
   double *Lz_matrix = calloc((2 * L + 1) * (2 * L + 1), sizeof(double));
-  construct_angular_momentum_matrices_rsh(L, Lx_matrix, Ly_matrix, Lz_matrix);
+  libgrpp_construct_angular_momentum_matrices_rsh(L, Lx_matrix, Ly_matrix,
+                                                  Lz_matrix);
 
   /*
    * for further evaluation of angular integrals
@@ -117,16 +119,16 @@ void libgrpp_spin_orbit_integrals(libgrpp_shell_t *shell_A,
   double rsh_values_kB[LMAX][2 * LMAX + 1];
 
   for (int lambda = 0; lambda <= lmax; lambda++) {
-    evaluate_real_spherical_harmonics_array(lambda, kA_vec,
-                                            rsh_values_kA[lambda]);
-    evaluate_real_spherical_harmonics_array(lambda, kB_vec,
-                                            rsh_values_kB[lambda]);
+    libgrpp_evaluate_real_spherical_harmonics_array(lambda, kA_vec,
+                                                    rsh_values_kA[lambda]);
+    libgrpp_evaluate_real_spherical_harmonics_array(lambda, kB_vec,
+                                                    rsh_values_kB[lambda]);
   }
 
   /*
    * pre-compute radial integrals
    */
-  radial_type2_table_t *radial_table = tabulate_radial_type2_integrals(
+  radial_type2_table_t *radial_table = libgrpp_tabulate_radial_type2_integrals(
       lambda1_max, lambda2_max, N_max, CA_2, CB_2, potential, shell_A, shell_B);
 
   /*
@@ -148,32 +150,32 @@ void libgrpp_spin_orbit_integrals(libgrpp_shell_t *shell_A,
 
       for (int a = 0; a <= n_A; a++) {
 
-        double C_nA_a = binomial(n_A, a);
+        double C_nA_a = libgrpp_binomial(n_A, a);
         double pow_CA_x = pow(CA_x, n_A - a);
 
         for (int b = 0; b <= l_A; b++) {
 
-          double C_lA_b = binomial(l_A, b);
+          double C_lA_b = libgrpp_binomial(l_A, b);
           double pow_CA_y = pow(CA_y, l_A - b);
 
           for (int c = 0; c <= m_A; c++) {
 
-            double C_mA_c = binomial(m_A, c);
+            double C_mA_c = libgrpp_binomial(m_A, c);
             double pow_CA_z = pow(CA_z, m_A - c);
 
             for (int d = 0; d <= n_B; d++) {
 
-              double C_nB_d = binomial(n_B, d);
+              double C_nB_d = libgrpp_binomial(n_B, d);
               double pow_CB_x = pow(CB_x, n_B - d);
 
               for (int e = 0; e <= l_B; e++) {
 
-                double C_lB_e = binomial(l_B, e);
+                double C_lB_e = libgrpp_binomial(l_B, e);
                 double pow_CB_y = pow(CB_y, l_B - e);
 
                 for (int f = 0; f <= m_B; f++) {
 
-                  double C_mB_f = binomial(m_B, f);
+                  double C_mB_f = libgrpp_binomial(m_B, f);
                   double pow_CB_z = pow(CB_z, m_B - f);
 
                   int N = a + b + c + d + e + f;
@@ -210,7 +212,7 @@ void libgrpp_spin_orbit_integrals(libgrpp_shell_t *shell_A,
                         continue;
                       }
 
-                      double QN = get_radial_type2_integral(
+                      double QN = libgrpp_get_radial_type2_integral(
                           radial_table, lambda_1, lambda_2, N);
                       if (fabs(QN) < LIBGRPP_ZERO_THRESH) {
                         continue;
@@ -245,7 +247,7 @@ void libgrpp_spin_orbit_integrals(libgrpp_shell_t *shell_A,
     }
   }
 
-  delete_radial_type2_integrals(radial_table);
+  libgrpp_delete_radial_type2_integrals(radial_table);
   free(Lx_matrix);
   free(Ly_matrix);
   free(Lz_matrix);
@@ -255,11 +257,12 @@ void libgrpp_spin_orbit_integrals(libgrpp_shell_t *shell_A,
  * Double sum of products of type 2 angular integrals
  * (Pitzer, Winter, 1991, formula on the top of the page 776)
  */
-void type3_angular_sum(int L, double *Lx_matrix, double *Ly_matrix,
-                       double *Lz_matrix, int lambda_1, int a, int b, int c,
-                       double *rsh_values_kA, int lambda_2, int d, int e, int f,
-                       double *rsh_values_kB, double *sum_angular_x,
-                       double *sum_angular_y, double *sum_angular_z) {
+static void type3_angular_sum(int L, double *Lx_matrix, double *Ly_matrix,
+                              double *Lz_matrix, int lambda_1, int a, int b,
+                              int c, double *rsh_values_kA, int lambda_2, int d,
+                              int e, int f, double *rsh_values_kB,
+                              double *sum_angular_x, double *sum_angular_y,
+                              double *sum_angular_z) {
   *sum_angular_x = 0.0;
   *sum_angular_y = 0.0;
   *sum_angular_z = 0.0;
@@ -278,14 +281,14 @@ void type3_angular_sum(int L, double *Lx_matrix, double *Ly_matrix,
         continue;
       }
 
-      double omega_1 =
-          angular_type2_integral(lambda_1, L, m1, a, b, c, rsh_values_kA);
+      double omega_1 = libgrpp_angular_type2_integral(lambda_1, L, m1, a, b, c,
+                                                      rsh_values_kA);
       if (fabs(omega_1) < LIBGRPP_ZERO_THRESH) {
         continue;
       }
 
-      double omega_2 =
-          angular_type2_integral(lambda_2, L, m2, d, e, f, rsh_values_kB);
+      double omega_2 = libgrpp_angular_type2_integral(lambda_2, L, m2, d, e, f,
+                                                      rsh_values_kB);
 
       *sum_angular_x += omega_1 * omega_2 * lx;
       *sum_angular_y += omega_1 * omega_2 * ly;

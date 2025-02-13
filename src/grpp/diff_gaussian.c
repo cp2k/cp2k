@@ -36,8 +36,9 @@ static double norm_factor(double alpha, int L);
  * Chapter 9.2.2, "Recurrence relations for Cartesian Gaussians"
  *
  */
-void differentiate_shell(libgrpp_shell_t *shell, libgrpp_shell_t **shell_minus,
-                         libgrpp_shell_t **shell_plus) {
+void libgrpp_differentiate_shell(libgrpp_shell_t *shell,
+                                 libgrpp_shell_t **shell_minus,
+                                 libgrpp_shell_t **shell_plus) {
   // downwards
   if (shell->L > 0) {
     *shell_minus =

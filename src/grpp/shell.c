@@ -83,7 +83,8 @@ void libgrpp_shell_shrink(libgrpp_shell_t *shell) {
  */
 void libgrpp_shell_mult_normcoef(libgrpp_shell_t *shell) {
   for (int i = 0; i < shell->num_primitives; i++) {
-    double norm_factor = gaussian_norm_factor(shell->L, 0, 0, shell->alpha[i]);
+    double norm_factor =
+        libgrpp_gaussian_norm_factor(shell->L, 0, 0, shell->alpha[i]);
     shell->coeffs[i] *= norm_factor;
   }
 }

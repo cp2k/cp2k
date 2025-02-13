@@ -36,8 +36,7 @@
  * k = -2, ..., +7 (overall 10 numbers per 1 x-point)
  * overall 2000 x-points.
  */
-
-extern const double specfunc_fermi_sk_table[2001][10];
+static const double specfunc_fermi_sk_table[2001][10];
 
 
 /**
@@ -46,7 +45,7 @@ extern const double specfunc_fermi_sk_table[2001][10];
  *
  * allowed values of k: 2, 3, 4, 5, 6, 7
  */
-double specfunc_fermi_sk(int k, double x)
+double libgrpp_specfunc_fermi_sk(int k, double x)
 {
     assert(k >= 2 && k <= 7);
 
@@ -102,7 +101,7 @@ double specfunc_fermi_sk(int k, double x)
  * used in the formula for the electrostatic potential induced by the Fermi charge distribution.
  * "exact" implementation, direct summation, no approximate Taylor series.
  */
-double fermi_model_Sk(int k, double x)
+static double fermi_model_Sk(int k, double x)
 {
     const double tol = 1e-12;
     const int max_iter = 10000000; // to achieve such tolerance at x=0
@@ -133,7 +132,7 @@ double fermi_model_Sk(int k, double x)
 }
 
 
-const double specfunc_fermi_sk_table[2001][10] = {
+static const double specfunc_fermi_sk_table[2001][10] = {
 // x = -10.0000
         {
                 -4.5391685990113197e-05, -4.5395807735951667e-05, -4.5397868702434395e-05, -4.5398899216864647e-05,

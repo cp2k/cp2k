@@ -39,13 +39,13 @@ static uint64_t pretabulated_factorials[] = {1,
                                              121645100408832000,
                                              2432902008176640000};
 
-double factorial(int n) {
+double libgrpp_factorial(int n) {
   if (n < 0) {
     return 1;
   } else if (n <= 20) {
     return (double)pretabulated_factorials[n];
   } else {
-    return n * factorial(n - 1);
+    return n * libgrpp_factorial(n - 1);
   }
 }
 
@@ -55,12 +55,12 @@ double factorial(int n) {
  *  ----
  *   m!
  */
-double factorial_ratio(int n, int m) {
+double libgrpp_factorial_ratio(int n, int m) {
   if (n == m) {
     return 1.0;
   }
   if (n < m) {
-    return 1.0 / factorial_ratio(m, n);
+    return 1.0 / libgrpp_factorial_ratio(m, n);
   } else { // n > m
     double prod = 1.0;
     for (int i = m + 1; i <= n; i++) {
@@ -104,13 +104,13 @@ static uint64_t pretabulated_double_factorials[] = {
     42849873690624000 // 30!!
 };
 
-double double_factorial(int n) {
+double libgrpp_double_factorial(int n) {
   assert(n >= -1 && n <= 30);
   if (n == -1) {
     return 1;
   } else if (n <= 30) {
     return (double)pretabulated_double_factorials[n];
   } else {
-    return n * double_factorial(n - 2);
+    return n * libgrpp_double_factorial(n - 2);
   }
 }
