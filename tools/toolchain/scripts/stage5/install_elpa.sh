@@ -26,16 +26,13 @@ elpa_dir_openmp="_openmp"
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
 
-# elpa only works with MPI switched on
-if [ $MPI_MODE = no ]; then
-  report_warning $LINENO "MPI is disabled, skipping elpa installation"
-  cat << EOF > "${BUILDDIR}/setup_elpa"
-with_elpa="__FALSE__"
-EOF
+# ELPA works only with MPI switched on
+if [ "${MPI_MODE}" = "no" ]; then
+  report_warning ${LINENO} "MPI is disabled, skipping ELPA installation"
   exit 0
 fi
 
-case "$with_elpa" in
+case "${with_elpa}" in
   __INSTALL__)
     echo "==================== Installing ELPA ===================="
     pkg_install_dir="${INSTALLDIR}/elpa-${elpa_ver}"

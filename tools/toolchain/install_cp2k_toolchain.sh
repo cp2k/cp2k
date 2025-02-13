@@ -730,6 +730,10 @@ if [ "${MPI_MODE}" = "no" ]; then
     echo "Not using MPI, so ELPA is disabled."
     with_elpa="__DONTUSE__"
   fi
+  if [ "${with_plumed}" != "__DONTUSE__" ]; then
+    echo "Not using MPI, so PLUMED is disabled."
+    with_plumed="__DONTUSE__"
+  fi
   if [ "${with_sirius}" != "__DONTUSE__" ]; then
     echo "Not using MPI, so SIRIUS is disabled"
     with_sirius="__DONTUSE__"
