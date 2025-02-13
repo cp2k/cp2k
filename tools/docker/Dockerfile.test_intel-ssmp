@@ -22,6 +22,7 @@ COPY ./tools/toolchain/scripts/VERSION \
 COPY ./tools/toolchain/install_cp2k_toolchain.sh .
 RUN ./install_cp2k_toolchain.sh \
     --install-all \
+    --with-dbcsr=no \
     --with-intelmpi \
     --with-mkl \
     --with-libsmeagol \

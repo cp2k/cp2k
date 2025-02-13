@@ -19,9 +19,9 @@ def main() -> None:
             if version in ("ssmp", "psmp"):
                 # Use ssmp/psmp as guinea pigs
                 if version == "ssmp":
-                    f.write(install_deps_toolchain(mpi_mode="no"))
+                    f.write(install_deps_toolchain(mpi_mode="no", with_dbcsr="yes"))
                 elif version == "psmp":
-                    f.write(install_deps_toolchain(mpi_mode="mpich"))
+                    f.write(install_deps_toolchain(mpi_mode="mpich", with_dbcsr="yes"))
                 f.write(regtest_cmake("toolchain", version))
             else:
                 if version == "sdbg":
@@ -426,6 +426,7 @@ RUN ./install_dbcsr.sh {profile} {version}
 def install_deps_toolchain(
     base_image: str = "ubuntu:24.04",
     mpi_mode: str = "mpich",
+    with_dbcsr: str = "no",
     with_gcc: str = "system",
     **kwargs: str,
 ) -> str:
@@ -434,6 +435,7 @@ def install_deps_toolchain(
         base_image=base_image,
         install_all="",
         mpi_mode=mpi_mode,
+        with_dbcsr=with_dbcsr,
         with_gcc=with_gcc,
         **kwargs,
     )
@@ -540,6 +542,7 @@ FROM intel/hpckit:2024.2.1-0-devel-ubuntu22.04
 """ + install_toolchain(
         base_image="ubuntu",
         install_all="",
+        with_dbcsr="no",
         with_intelmpi="",
         with_mkl="",
         with_libsmeagol="",
@@ -617,7 +620,11 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
    && rm -rf /var/lib/apt/lists/*
 
 """ + install_toolchain(
-        base_image="ubuntu", mpi_mode="mpich", enable_cuda="yes", gpu_ver=gpu_ver
+        base_image="ubuntu",
+        mpi_mode="mpich",
+        enable_cuda="yes",
+        gpu_ver=gpu_ver,
+        with_dbcsr="no",
     )
 
 
@@ -724,7 +731,11 @@ ENV HIP_PLATFORM nvidia
 RUN hipconfig
 
 """ + install_toolchain(
-        base_image="ubuntu", mpi_mode="mpich", enable_hip="yes", gpu_ver=gpu_ver
+        base_image="ubuntu",
+        mpi_mode="mpich",
+        enable_hip="yes",
+        gpu_ver=gpu_ver,
+        with_dbcsr="no",
     )
 
 
@@ -749,7 +760,11 @@ ENV HIP_PLATFORM amd
 RUN hipconfig
 
 """ + install_toolchain(
-        base_image="ubuntu", mpi_mode="mpich", enable_hip="yes", gpu_ver=gpu_ver
+        base_image="ubuntu",
+        mpi_mode="mpich",
+        enable_hip="yes",
+        gpu_ver=gpu_ver,
+        with_dbcsr="no",
     )
 
 
