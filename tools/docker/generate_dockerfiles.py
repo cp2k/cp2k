@@ -517,6 +517,7 @@ RUN ln -sf /usr/bin/gcc-{gcc_version}      /usr/local/bin/gcc  && \
         mpi_mode="no",
         with_gcc="system",
         with_cmake="system",
+        with_dbcsr="no",
         with_fftw="system",
         with_openblas="system",
         with_gsl="system",
