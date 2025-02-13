@@ -1442,7 +1442,7 @@ set(CP2K_GRPP_SRCS_C
     grpp/type2_integrals.c
     grpp/utils.c)
 
-set(CP2K_GRPP_SRCS_F libgrpp.F)
+set(CP2K_GRPP_SRCS_F grpp/libgrpp.F)
 
 set(CP2K_FPGA_SRC_C pw/fpga/fft_fpga.c pw/fpga/opencl_utils.c)
 set(CP2K_PW_SRCS_C pw/gpu/pw_gpu_internal.c)
