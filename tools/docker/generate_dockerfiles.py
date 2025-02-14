@@ -19,9 +19,9 @@ def main() -> None:
             if version in ("ssmp", "psmp"):
                 # Use ssmp/psmp as guinea pigs
                 if version == "ssmp":
-                    f.write(install_deps_toolchain(mpi_mode="no", with_dbcsr="yes"))
+                    f.write(install_deps_toolchain(mpi_mode="no", with_dbcsr=""))
                 elif version == "psmp":
-                    f.write(install_deps_toolchain(mpi_mode="mpich", with_dbcsr="yes"))
+                    f.write(install_deps_toolchain(mpi_mode="mpich", with_dbcsr=""))
                 f.write(regtest_cmake("toolchain", version))
             else:
                 if version == "sdbg":
