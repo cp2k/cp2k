@@ -1412,7 +1412,7 @@ set(CP2K_SRCS_CPP torch_c_api.cpp)
 list(APPEND CP2K_SRCS_C "${CP2K_OFFLOAD_SRCS_C}")
 
 # ##############################################################################
-# gpu code                                     #
+# gpu code
 # ##############################################################################
 
 set(CP2K_SRCS_GPU "")
@@ -1492,7 +1492,7 @@ if(CP2K_ENABLE_CONSISTENCY_CHECKS)
 endif()
 
 # ##############################################################################
-# alias targets encapsulating cuda and hip libraries #
+# alias targets encapsulating cuda and hip libraries
 # ##############################################################################
 
 # create some short version of these libraries to ease things afterwards

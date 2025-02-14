@@ -15,16 +15,12 @@ set(CP2K_LIBXSMMF_ROOT "${CP2K_LIBXSMM_PREFIX}")
 set(CP2K_LIBXSMMNOBLAS_ROOT "${CP2K_LIBXSMM_PREFIX}")
 
 if(PKG_CONFIG_FOUND)
-  pkg_check_modules(CP2K_LIBXSMM IMPORTED_TARGET GLOBAL libxsmm)
-  pkg_check_modules(CP2K_LIBXSMMEXT IMPORTED_TARGET GLOBAL libxsmmext)
-  pkg_check_modules(CP2K_LIBXSMMF IMPORTED_TARGET GLOBAL libxsmmf)
-  pkg_check_modules(CP2K_LIBXSMMNOBLAS IMPORTED_TARGET GLOBAL libxsmmnoblas)
-
-  # i need to do it twice because of dbcsr build option
-  pkg_check_modules(LIBXSMM QUIET IMPORTED_TARGET GLOBAL libxsmm)
-  pkg_check_modules(LIBXSMMEXT QUIET IMPORTED_TARGET GLOBAL libxsmmext)
-  pkg_check_modules(LIBXSMMF QUIET IMPORTED_TARGET GLOBAL libxsmmf)
-  pkg_check_modules(LIBXSMMNOBLAS QUIET IMPORTED_TARGET GLOBAL libxsmmnoblas)
+  foreach(__lib libxsmm libxsmmf libxsmmext libxsmmnoblas)
+    string(TOUPPER "${__lib}" __lib_search_up)
+    pkg_check_modules(CP2K_${__lib_search_up} IMPORTED_TARGET GLOBAL ${__lib})
+    # need to do it twice because of dbcsr build option
+    pkg_check_modules(${__lib_search_up} QUIET IMPORTED_TARGET GLOBAL ${__lib})
+  endforeach()
 endif()
 
 if(NOT CP2K_LIBXSMM_FOUND)
@@ -60,8 +56,11 @@ endif()
 if(NOT TARGET cp2k::LibXSMM::libxsmm)
   foreach(__lib libxsmm libxsmmf libxsmmext libxsmmnoblas)
     string(TOUPPER "CP2K_${__lib}" __lib_search_up)
+
     if(${__lib_search_up}_FOUND AND NOT TARGET cp2k::LibXSMM::${__lib})
       add_library(cp2k::LibXSMM::${__lib} INTERFACE IMPORTED)
+      target_link_directories(cp2k::LibXSMM::${__lib} INTERFACE
+                              ${${__lib_search_up}_LIBRARY_DIRS})
     endif()
 
     set_target_properties(
@@ -79,6 +78,6 @@ if(NOT TARGET cp2k::LibXSMM::libxsmm)
 endif()
 
 mark_as_advanced(
-  CP2K_LIBXSMM_INCLUDE_DIRS CP2K_LIBXSMMNOBLAS_LINK_LIBRARIES
-  CP2K_LIBXSMMEXT_LINK_LIBRARIES CP2K_LIBXSMMF_LINK_LIBRARIES
-  CP2K_LIBXSMM_LINK_LIBRARIES)
+  CP2K_LIBXSMM_INCLUDE_DIRS CP2K_LIBXSMM_LIBRARY_DIRS
+  CP2K_LIBXSMMNOBLAS_LINK_LIBRARIES CP2K_LIBXSMMEXT_LINK_LIBRARIES
+  CP2K_LIBXSMMF_LINK_LIBRARIES CP2K_LIBXSMM_LINK_LIBRARIES)
