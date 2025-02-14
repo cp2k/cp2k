@@ -534,7 +534,7 @@ CONTAINS
 
       INTEGER                                            :: col_atom, handle, row_atom
       LOGICAL                                            :: found
-      REAL(dp), DIMENSION(:), POINTER                    :: block_values, block_values2
+      REAL(dp), DIMENSION(:, :), POINTER                 :: block_values, block_values2
       TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(dbcsr_type), POINTER                          :: tmp
 

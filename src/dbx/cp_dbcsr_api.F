@@ -242,7 +242,6 @@ MODULE cp_dbcsr_api
 
    INTERFACE dbcsr_iterator_next_block
       MODULE PROCEDURE dbcsr_iterator_next_block_index
-      MODULE PROCEDURE dbcsr_iterator_next_1d_block
       MODULE PROCEDURE dbcsr_iterator_next_2d_block
    END INTERFACE
 
@@ -1033,31 +1032,6 @@ CONTAINS
 
       CALL dbcsr_iterator_next_block_prv(iterator%prv, row=row, column=column, blk=blk)
    END SUBROUTINE dbcsr_iterator_next_block_index
-
-! **************************************************************************************************
-!> \brief ...
-!> \param iterator ...
-!> \param row ...
-!> \param column ...
-!> \param block ...
-!> \param block_number ...
-!> \param row_size ...
-!> \param col_size ...
-!> \param row_offset ...
-!> \param col_offset ...
-! **************************************************************************************************
-   SUBROUTINE dbcsr_iterator_next_1d_block(iterator, row, column, block, &
-                                           block_number, row_size, col_size, &
-                                           row_offset, col_offset)
-      TYPE(dbcsr_iterator_type), INTENT(INOUT)           :: iterator
-      INTEGER, INTENT(OUT)                               :: row, column
-      REAL(kind=dp), DIMENSION(:), POINTER               :: block
-      INTEGER, INTENT(OUT), OPTIONAL                     :: block_number, row_size, col_size, &
-                                                            row_offset, col_offset
-
-      CALL dbcsr_iterator_next_block_prv(iterator%prv, row, column, block, block_number, &
-                                         row_size, col_size, row_offset, col_offset)
-   END SUBROUTINE dbcsr_iterator_next_1d_block
 
 ! **************************************************************************************************
 !> \brief ...

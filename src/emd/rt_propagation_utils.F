@@ -131,7 +131,7 @@ CONTAINS
                                                             nder, row_atom
       INTEGER, DIMENSION(6, 2)                           :: c_map_mat
       LOGICAL                                            :: return_s_derivatives
-      REAL(dp), DIMENSION(:), POINTER                    :: block_values
+      REAL(dp), DIMENSION(:, :), POINTER                 :: block_values
       TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: C_mat, S_der, s_derivs
       TYPE(dbcsr_type), POINTER                          :: B_mat, tmp_mat, tmp_mat2

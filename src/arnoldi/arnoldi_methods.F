@@ -207,7 +207,7 @@ CONTAINS
       REAL(dp)                                           :: rnorm
       REAL(kind=dp)                                      :: norm
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: v_vec, w_vec
-      REAL(kind=dp), DIMENSION(:), POINTER               :: data_vec
+      REAL(kind=dp), DIMENSION(:, :), POINTER            :: data_block
       TYPE(arnoldi_control_type), POINTER                :: control
       TYPE(arnoldi_data_type), POINTER                   :: ar_data
       TYPE(dbcsr_iterator_type)                          :: iter
@@ -235,9 +235,9 @@ CONTAINS
          ! Setup the initial normalized random vector (sufficient if it only happens on proc_col 0)
          CALL dbcsr_iterator_start(iter, vectors%input_vec)
          DO WHILE (dbcsr_iterator_blocks_left(iter))
-            CALL dbcsr_iterator_next_block(iter, row, col, data_vec, row_size=row_size, col_size=col_size)
+            CALL dbcsr_iterator_next_block(iter, row, col, data_block, row_size=row_size, col_size=col_size)
             iseed(1) = 2; iseed(2) = MOD(row, 4095); iseed(3) = MOD(col, 4095); iseed(4) = 11
-            CALL dlarnv(2, iseed, row_size*col_size, data_vec)
+            CALL dlarnv(2, iseed, row_size*col_size, data_block)
          END DO
          CALL dbcsr_iterator_stop(iter)
       END IF
@@ -298,7 +298,7 @@ CONTAINS
       REAL(dp)                                           :: rnorm
       REAL(kind=dp)                                      :: denom, norm
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: v_vec, w_vec
-      REAL(kind=dp), DIMENSION(:), POINTER               :: data_vec
+      REAL(kind=dp), DIMENSION(:, :), POINTER            :: data_block
       TYPE(arnoldi_control_type), POINTER                :: control
       TYPE(arnoldi_data_type), POINTER                   :: ar_data
       TYPE(dbcsr_iterator_type)                          :: iter
@@ -326,9 +326,9 @@ CONTAINS
          ! Setup the initial normalized random vector (sufficient if it only happens on proc_col 0)
          CALL dbcsr_iterator_start(iter, vectors%input_vec)
          DO WHILE (dbcsr_iterator_blocks_left(iter))
-            CALL dbcsr_iterator_next_block(iter, row, col, data_vec, row_size=row_size, col_size=col_size)
+            CALL dbcsr_iterator_next_block(iter, row, col, data_block, row_size=row_size, col_size=col_size)
             iseed(1) = 2; iseed(2) = MOD(row, 4095); iseed(3) = MOD(col, 4095); iseed(4) = 11
-            CALL dlarnv(2, iseed, row_size*col_size, data_vec)
+            CALL dlarnv(2, iseed, row_size*col_size, data_block)
          END DO
          CALL dbcsr_iterator_stop(iter)
       END IF
