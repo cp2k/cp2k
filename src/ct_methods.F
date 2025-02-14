@@ -15,13 +15,12 @@ MODULE ct_methods
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, &
         dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_dot, dbcsr_filter, dbcsr_finalize, &
-        dbcsr_frobenius_norm, dbcsr_func_inverse, dbcsr_function_of_elements, dbcsr_get_diag, &
-        dbcsr_get_info, dbcsr_get_stored_coordinates, dbcsr_hadamard_product, &
-        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
-        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_maxabs, dbcsr_multiply, &
-        dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_release, dbcsr_reserve_block2d, &
-        dbcsr_scale, dbcsr_set, dbcsr_set_diag, dbcsr_transposed, dbcsr_type, &
-        dbcsr_type_no_symmetry, dbcsr_work_create
+        dbcsr_frobenius_norm, dbcsr_get_diag, dbcsr_get_info, dbcsr_get_stored_coordinates, &
+        dbcsr_hadamard_product, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_maxabs, &
+        dbcsr_multiply, dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_release, &
+        dbcsr_reserve_block2d, dbcsr_scale, dbcsr_set, dbcsr_set_diag, dbcsr_transposed, &
+        dbcsr_type, dbcsr_type_no_symmetry, dbcsr_work_create
    USE cp_dbcsr_cholesky,               ONLY: cp_dbcsr_cholesky_decompose,&
                                               cp_dbcsr_cholesky_invert
    USE cp_dbcsr_diag,                   ONLY: cp_dbcsr_syevd
@@ -1310,12 +1309,37 @@ CONTAINS
       !CALL dbcsr_hadamard_product(res,qp,t2)
       !CALL dbcsr_add(prec,t2,1.0_dp,-2.0_dp)
       CALL dbcsr_release(t2)
-      CALL dbcsr_function_of_elements(prec, func=dbcsr_func_inverse)
+      CALL inverse_of_elements(prec)
       CALL dbcsr_filter(prec, eps_filter)
 
       CALL timestop(handle)
 
    END SUBROUTINE create_preconditioner
+
+! **************************************************************************************************
+!> \brief Computes 1/x of the matrix elements.
+!> \param matrix ...
+!> \author Ole Schuett
+! **************************************************************************************************
+   SUBROUTINE inverse_of_elements(matrix)
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'inverse_of_elements'
+
+      INTEGER                                            :: handle
+      REAL(kind=dp), DIMENSION(:, :), POINTER            :: block
+      TYPE(dbcsr_iterator_type)                          :: iter
+
+      CALL timeset(routineN, handle)
+      CALL dbcsr_iterator_start(iter, matrix)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, block=block)
+         block = 1.0_dp/block
+      END DO
+      CALL dbcsr_iterator_stop(iter)
+      CALL timestop(handle)
+
+   END SUBROUTINE inverse_of_elements
 
 ! **************************************************************************************************
 !> \brief Finds real roots of a cubic equation

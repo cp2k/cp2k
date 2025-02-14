@@ -41,8 +41,7 @@ MODULE almo_scf_optimizer
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, &
         dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_dot, dbcsr_filter, dbcsr_finalize, &
-        dbcsr_frobenius_norm, dbcsr_func_dtanh, dbcsr_func_inverse, dbcsr_func_tanh, &
-        dbcsr_function_of_elements, dbcsr_get_block_p, dbcsr_get_diag, dbcsr_get_info, &
+        dbcsr_frobenius_norm, dbcsr_get_block_p, dbcsr_get_diag, dbcsr_get_info, &
         dbcsr_hadamard_product, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_maxabs, &
         dbcsr_multiply, dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_p_type, &
@@ -1699,10 +1698,7 @@ CONTAINS
 
                            !CALL dbcsr_copy(m_tmp_no_3,&
                            !        quench_t(ispin))
-                           !CALL dbcsr_function_of_elements(m_tmp_no_3,&
-                           !        func=dbcsr_func_inverse,&
-                           !        a0=0.0_dp,&
-                           !        a1=1.0_dp)
+                           !CALL inverse_of_elements(m_tmp_no_3)
                            !CALL dbcsr_copy(m_tmp_no_2,step)
                            !CALL dbcsr_hadamard_product(&
                            !        m_tmp_no_2,&
@@ -5043,7 +5039,7 @@ CONTAINS
 
       CALL dbcsr_add(prec, t1, 1.0_dp, 1.0_dp)
 
-      CALL dbcsr_function_of_elements(prec, dbcsr_func_inverse)
+      CALL inverse_of_elements(prec)
       CALL dbcsr_filter(prec, eps_filter)
 
       DEALLOCATE (q_diagonal)
@@ -5271,8 +5267,7 @@ CONTAINS
       CALL dbcsr_scale(almo_scf_env%opt_k_denom(ispin), &
                        2.0_dp*spin_factor)
 
-      CALL dbcsr_function_of_elements(almo_scf_env%opt_k_denom(ispin), &
-                                      dbcsr_func_inverse)
+      CALL inverse_of_elements(almo_scf_env%opt_k_denom(ispin))
       CALL dbcsr_filter(almo_scf_env%opt_k_denom(ispin), &
                         eps_filter)
 
@@ -5903,7 +5898,7 @@ CONTAINS
 !
 !  END SUBROUTINE truncate_subspace_v_blk
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Compute the gradient wrt the main variable (e.g. Theta, X)
 !> \param m_grad_out ...
 !> \param m_ks ...
@@ -6283,13 +6278,8 @@ CONTAINS
       ! transform d_E/d_T to d_E/d_theta
       IF (optimize_theta) THEN
          CALL dbcsr_copy(m_tmp_no_2, m_theta)
-         CALL dbcsr_function_of_elements(m_tmp_no_2, &
-                                         !func=dbcsr_func_cos,&
-                                         func=dbcsr_func_dtanh, &
-                                         a0=0.0_dp, &
-                                         a1=1.0_dp/envelope_amplitude)
-         CALL dbcsr_scale(m_tmp_no_2, &
-                          envelope_amplitude)
+         CALL dtanh_of_elements(m_tmp_no_2, alpha=1.0_dp/envelope_amplitude)
+         CALL dbcsr_scale(m_tmp_no_2, envelope_amplitude)
          CALL dbcsr_set(m_tmp_no_3, 0.0_dp)
          CALL dbcsr_filter(m_tmp_no_3, eps_filter)
          CALL dbcsr_hadamard_product(m_tmp_no_1, &
@@ -6320,7 +6310,7 @@ CONTAINS
 
    END SUBROUTINE compute_gradient
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Serial code that prints matrices readable by Mathematica
 !> \param matrix - matrix to print
 !> \param filename ...
@@ -6428,7 +6418,7 @@ CONTAINS
 
    END SUBROUTINE print_mathematica_matrix
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Compute the objective functional of NLMOs
 !> \param localization_obj_function_ispin ...
 !> \param penalty_func_ispin ...
@@ -6566,7 +6556,7 @@ CONTAINS
 
    END SUBROUTINE compute_obj_nlmos
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Compute the gradient wrt the main variable
 !> \param m_grad_out ...
 !> \param m_B0 ...
@@ -6748,7 +6738,7 @@ CONTAINS
 
    END SUBROUTINE compute_gradient_nlmos
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Compute MO coeffs from the main optimized variable (e.g. Theta, X)
 !> \param m_var_in ...
 !> \param m_t_out ...
@@ -6839,12 +6829,8 @@ CONTAINS
             CPABORT("Max norm of the initial guess is too large")
          END IF
          ! use artanh to tame MOs
-         CALL dbcsr_function_of_elements(m_tmp_no_1, &
-                                         func=dbcsr_func_tanh, &
-                                         a0=0.0_dp, &
-                                         a1=1.0_dp/envelope_amplitude)
-         CALL dbcsr_scale(m_tmp_no_1, &
-                          envelope_amplitude)
+         CALL tanh_of_elements(m_tmp_no_1, alpha=1.0_dp/envelope_amplitude)
+         CALL dbcsr_scale(m_tmp_no_1, envelope_amplitude)
       END IF
       CALL dbcsr_hadamard_product(m_tmp_no_1, m_quench_t, &
                                   m_t_out)
@@ -6908,7 +6894,7 @@ CONTAINS
 
    END SUBROUTINE compute_xalmos_from_main_var
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Compute the preconditioner matrices and invert them if necessary
 !> \param domain_prec_out ...
 !> \param m_prec_out ...
@@ -7237,7 +7223,7 @@ CONTAINS
 
    END SUBROUTINE compute_preconditioner
 
-! *****************************************************************************
+! **************************************************************************************************
 !> \brief Compute beta for conjugate gradient algorithms
 !> \param beta ...
 !> \param numer ...
@@ -7400,9 +7386,8 @@ CONTAINS
 
    END SUBROUTINE compute_cg_beta
 
-! *****************************************************************************
-!> \brief computes the step matrix from the gradient and Hessian using
-!>         the Newton-Raphson method
+! **************************************************************************************************
+!> \brief computes the step matrix from the gradient and Hessian using the Newton-Raphson method
 !> \param optimizer ...
 !> \param m_grad ...
 !> \param m_delta ...
@@ -11047,6 +11032,85 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE wrap_up_xalmo_scf
+
+! **************************************************************************************************
+!> \brief Computes tanh(alpha*x) of the matrix elements. Fails if |alpha*x| >= 1.
+!> \param matrix ...
+!> \param alpha ...
+!> \author Ole Schuett
+! **************************************************************************************************
+   SUBROUTINE tanh_of_elements(matrix, alpha)
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
+      REAL(kind=dp), INTENT(IN)                          :: alpha
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'tanh_of_elements'
+
+      INTEGER                                            :: handle
+      REAL(kind=dp), DIMENSION(:, :), POINTER            :: block
+      TYPE(dbcsr_iterator_type)                          :: iter
+
+      CALL timeset(routineN, handle)
+      CALL dbcsr_iterator_start(iter, matrix)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, block=block)
+         block = TANH(alpha*block)
+      END DO
+      CALL dbcsr_iterator_stop(iter)
+      CALL timestop(handle)
+
+   END SUBROUTINE tanh_of_elements
+
+! **************************************************************************************************
+!> \brief Computes d(tanh(alpha*x)) / dx of the matrix elements. Fails if |alpha*x| >= 1.
+!> \param matrix ...
+!> \param alpha ...
+!> \author Ole Schuett
+! **************************************************************************************************
+   SUBROUTINE dtanh_of_elements(matrix, alpha)
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
+      REAL(kind=dp), INTENT(IN)                          :: alpha
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'dtanh_of_elements'
+
+      INTEGER                                            :: handle
+      REAL(kind=dp), DIMENSION(:, :), POINTER            :: block
+      TYPE(dbcsr_iterator_type)                          :: iter
+
+      CALL timeset(routineN, handle)
+      CALL dbcsr_iterator_start(iter, matrix)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, block=block)
+         block = alpha*(1.0_dp - TANH(block)**2)
+      END DO
+      CALL dbcsr_iterator_stop(iter)
+      CALL timestop(handle)
+
+   END SUBROUTINE dtanh_of_elements
+
+! **************************************************************************************************
+!> \brief Computes 1/x of the matrix elements.
+!> \param matrix ...
+!> \author Ole Schuett
+! **************************************************************************************************
+   SUBROUTINE inverse_of_elements(matrix)
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'inverse_of_elements'
+
+      INTEGER                                            :: handle
+      REAL(kind=dp), DIMENSION(:, :), POINTER            :: block
+      TYPE(dbcsr_iterator_type)                          :: iter
+
+      CALL timeset(routineN, handle)
+      CALL dbcsr_iterator_start(iter, matrix)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, block=block)
+         block = 1.0_dp/block
+      END DO
+      CALL dbcsr_iterator_stop(iter)
+      CALL timestop(handle)
+
+   END SUBROUTINE inverse_of_elements
 
 END MODULE almo_scf_optimizer
 
