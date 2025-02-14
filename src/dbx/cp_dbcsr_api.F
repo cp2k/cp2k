@@ -1075,13 +1075,19 @@ CONTAINS
                                            block_number, row_size, col_size, &
                                            row_offset, col_offset)
       TYPE(dbcsr_iterator_type), INTENT(INOUT)           :: iterator
-      INTEGER, INTENT(OUT)                               :: row, column
-      REAL(kind=dp), DIMENSION(:, :), POINTER            :: block
+      INTEGER, INTENT(OUT), OPTIONAL                     :: row, column
+      REAL(kind=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: block
       INTEGER, INTENT(OUT), OPTIONAL                     :: block_number, row_size, col_size, &
                                                             row_offset, col_offset
 
-      CALL dbcsr_iterator_next_block_prv(iterator%prv, row, column, block, block_number, &
+      INTEGER                                            :: my_column, my_row
+      REAL(kind=dp), DIMENSION(:, :), POINTER            :: my_block
+
+      CALL dbcsr_iterator_next_block_prv(iterator%prv, my_row, my_column, my_block, block_number, &
                                          row_size, col_size, row_offset, col_offset)
+      IF (PRESENT(block)) block => my_block
+      IF (PRESENT(row)) row = my_row
+      IF (PRESENT(column)) column = my_column
    END SUBROUTINE dbcsr_iterator_next_2d_block
 
 ! **************************************************************************************************
