@@ -61,12 +61,11 @@ MODULE cp_dbcsr_api
         dbcsr_reserve_diag_blocks_prv => dbcsr_reserve_diag_blocks, dbcsr_reset_randmat_seed, &
         dbcsr_run_tests, dbcsr_scale_by_vector_prv => dbcsr_scale_by_vector, &
         dbcsr_scale_prv => dbcsr_scale, dbcsr_set_config, dbcsr_set_diag_prv => dbcsr_set_diag, &
-        dbcsr_set_prv => dbcsr_set, dbcsr_setname_prv => dbcsr_setname, &
-        dbcsr_sum_replicated_prv => dbcsr_sum_replicated, dbcsr_test_mm, &
-        dbcsr_trace_prv => dbcsr_trace, dbcsr_transpose, dbcsr_transposed_prv => dbcsr_transposed, &
-        dbcsr_type_antisymmetric, dbcsr_type_complex_8, dbcsr_type_no_symmetry, &
-        dbcsr_type_prv => dbcsr_type, dbcsr_type_real_8, dbcsr_type_real_default, &
-        dbcsr_type_symmetric, dbcsr_valid_index_prv => dbcsr_valid_index, &
+        dbcsr_set_prv => dbcsr_set, dbcsr_sum_replicated_prv => dbcsr_sum_replicated, &
+        dbcsr_test_mm, dbcsr_trace_prv => dbcsr_trace, dbcsr_transpose, &
+        dbcsr_transposed_prv => dbcsr_transposed, dbcsr_type_antisymmetric, dbcsr_type_complex_8, &
+        dbcsr_type_no_symmetry, dbcsr_type_prv => dbcsr_type, dbcsr_type_real_8, &
+        dbcsr_type_real_default, dbcsr_type_symmetric, dbcsr_valid_index_prv => dbcsr_valid_index, &
         dbcsr_verify_matrix_prv => dbcsr_verify_matrix, dbcsr_work_create_prv => dbcsr_work_create
    USE kinds,                           ONLY: dp,&
                                               int_8
@@ -146,7 +145,6 @@ MODULE cp_dbcsr_api
    ! getters / setters
    PUBLIC :: dbcsr_get_info
    PUBLIC :: dbcsr_distribution_get
-   PUBLIC :: dbcsr_setname
    PUBLIC :: dbcsr_get_matrix_type
    PUBLIC :: dbcsr_get_occupation
    PUBLIC :: dbcsr_nblkrows_total
@@ -1298,18 +1296,6 @@ CONTAINS
 
       CALL dbcsr_set_diag_prv(matrix%prv, diag)
    END SUBROUTINE dbcsr_set_diag
-
-! **************************************************************************************************
-!> \brief ...
-!> \param matrix ...
-!> \param newname ...
-! **************************************************************************************************
-   SUBROUTINE dbcsr_setname(matrix, newname)
-      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
-      CHARACTER(len=*), INTENT(IN)                       :: newname
-
-      CALL dbcsr_setname_prv(matrix%prv, newname)
-   END SUBROUTINE dbcsr_setname
 
 ! **************************************************************************************************
 !> \brief ...

@@ -23,7 +23,7 @@ MODULE population_analyses
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_copy, dbcsr_deallocate_matrix, dbcsr_get_block_p, dbcsr_iterator_blocks_left, &
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
-        dbcsr_p_type, dbcsr_set, dbcsr_setname, dbcsr_type
+        dbcsr_p_type, dbcsr_set, dbcsr_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               cp_dbcsr_sm_fm_multiply
    USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix,&
@@ -329,9 +329,14 @@ CONTAINS
          sm_s => matrix_s(1, 1)%matrix ! Overlap matrix in sparse format
          ALLOCATE (sm_ps)
          headline = "MULLIKEN NET ATOMIC ORBITAL AND OVERLAP POPULATION MATRIX"
-         CALL dbcsr_copy(matrix_b=sm_ps, &
-                         matrix_a=sm_s, &
-                         name=TRIM(headline))
+         IF (nspin > 1) THEN
+            IF (ispin == 1) THEN
+               headline = TRIM(headline)//" For Alpha Spin"
+            ELSE
+               headline = TRIM(headline)//" For Beta Spin"
+            END IF
+         END IF
+         CALL dbcsr_copy(matrix_b=sm_ps, matrix_a=sm_s, name=TRIM(headline))
       END IF
 
       ! Build Mulliken population matrix for each spin
@@ -387,15 +392,7 @@ CONTAINS
 
          IF (print_level > 2) THEN
             ! Write the full Mulliken net AO and overlap population matrix
-            IF (nspin > 1) THEN
-               IF (ispin == 1) THEN
-                  CALL dbcsr_setname(sm_ps, TRIM(headline)//" For Alpha Spin")
-               ELSE
-                  CALL dbcsr_setname(sm_ps, TRIM(headline)//" For Beta Spin")
-               END IF
-            END IF
-            CALL cp_dbcsr_write_sparse_matrix(sm_ps, 4, 6, qs_env, para_env, &
-                                              output_unit=output_unit)
+            CALL cp_dbcsr_write_sparse_matrix(sm_ps, 4, 6, qs_env, para_env, output_unit=output_unit)
          END IF
       END DO
 
