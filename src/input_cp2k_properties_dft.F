@@ -2190,6 +2190,15 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="MINIMAX_VERSION", &
+                          description="Version of the minimax time and frequency grid "// &
+                          "for Fourier transforms χ(iτ) -> χ(iω) -> W(iω) -> W(iτ) -> "// &
+                          "Σ(iτ) -> Σ(iω). At present, version 1 and 2 is available.", &
+                          usage="MINIMAX_VERSION 2", &
+                          default_i_val=1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       NULLIFY (subsection, print_key)
       CALL section_create(subsection, __LOCATION__, name="PRINT", &
                           description="Printing of GW restarts.", &

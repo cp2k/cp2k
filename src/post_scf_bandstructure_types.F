@@ -128,7 +128,8 @@ MODULE post_scf_bandstructure_types
 
       ! imaginary time and frequency grids
       INTEGER                                         :: num_time_freq_points = -1, &
-                                                         num_freq_points_fit = -1
+                                                         num_freq_points_fit = -1, &
+                                                         minimax_version = -1
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE        :: imag_time_points, &
                                                          imag_time_weights_freq_zero, &
                                                          imag_freq_points, &
