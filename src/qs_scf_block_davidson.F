@@ -483,9 +483,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'generate_extended_space_sparse'
 
-      INTEGER :: col, col_offset, handle, homo, i_first, i_last, imo, iteration, j, jj, k, &
-         max_iter, n, nao, nmat, nmat2, nmo, nmo_converged, nmo_not_converged, nset, nset_conv, &
-         nset_not_conv, row
+      INTEGER :: col_offset, handle, homo, i_first, i_last, imo, iteration, j, jj, k, max_iter, n, &
+         nao, nmat, nmat2, nmo, nmo_converged, nmo_not_converged, nset, nset_conv, nset_not_conv
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iconv, inotconv
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: iconv_set, inotconv_set
       LOGICAL                                            :: converged, do_apply_preconditioner
@@ -577,7 +576,7 @@ CONTAINS
          vnorm = 0.0_dp
          CALL dbcsr_iterator_start(iter, matrix_z)
          DO WHILE (dbcsr_iterator_blocks_left(iter))
-            CALL dbcsr_iterator_next_block(iter, row, col, block, col_offset=col_offset)
+            CALL dbcsr_iterator_next_block(iter, block=block, col_offset=col_offset)
             DO j = 1, SIZE(block, 2)
                vnorm(col_offset + j - 1) = vnorm(col_offset + j - 1) + SUM(block(:, j)**2)
             END DO

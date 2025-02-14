@@ -476,7 +476,7 @@ CONTAINS
       INTEGER                                            :: col_atom, group_handle, handle, i, &
                                                             ispin, row_atom
       REAL(dp)                                           :: alpha, max_alpha
-      REAL(dp), DIMENSION(:), POINTER                    :: block_values
+      REAL(dp), DIMENSION(:, :), POINTER                 :: block_values
       TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_new
       TYPE(dbcsr_type), POINTER                          :: tmp

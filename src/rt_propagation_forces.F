@@ -168,7 +168,7 @@ CONTAINS
 
       INTEGER                                            :: col_atom, i, ikind, kind_atom, row_atom
       LOGICAL                                            :: found
-      REAL(dp), DIMENSION(:), POINTER                    :: block_values, block_values2
+      REAL(dp), DIMENSION(:, :), POINTER                 :: block_values, block_values2
       TYPE(dbcsr_iterator_type)                          :: iter
 
       DO i = 1, 3
@@ -185,7 +185,7 @@ CONTAINS
                !The block_values are in a vector format,
                ! so the dot_product is the sum over all elements of the hamand product, that I need
                force(ikind)%ehrenfest(i, kind_atom) = force(ikind)%ehrenfest(i, kind_atom) + &
-                                                      2.0_dp*DOT_PRODUCT(block_values, block_values2)
+                                                      2.0_dp*SUM(block_values*block_values2)
             END IF
          END DO
          CALL dbcsr_iterator_stop(iter)
@@ -202,7 +202,7 @@ CONTAINS
                !The block_values are in a vector format, so the dot_product is
                ! the sum over all elements of the hamand product, that I need
                force(ikind)%ehrenfest(i, kind_atom) = force(ikind)%ehrenfest(i, kind_atom) + &
-                                                      2.0_dp*DOT_PRODUCT(block_values, block_values2)
+                                                      2.0_dp*SUM(block_values*block_values2)
             END IF
          END DO
          CALL dbcsr_iterator_stop(iter)
