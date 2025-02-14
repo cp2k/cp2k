@@ -489,8 +489,9 @@ CONTAINS
          send_pair_disps, send_sizes
       INTEGER, DIMENSION(:), POINTER                     :: halo_atoms, ntfns, row_block_size_data
       INTEGER, DIMENSION(:, :), POINTER                  :: tfns
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: recv_buf, send_buf
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), TARGET   :: recv_buf, send_buf
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: atomic_filter_mat, atomic_H, atomic_S
+      REAL(kind=dp), DIMENSION(:), POINTER               :: vector
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
       TYPE(fb_com_atom_pairs_obj)                        :: com_pairs_recv, com_pairs_send
 
@@ -729,9 +730,10 @@ CONTAINS
             nrows_blk = row_block_size_data(iatom_global)
             ncols_blk = col_block_size_data(jatom_global)
             ind = recv_disps(ipe) + recv_sizes(ipe)
+            vector => recv_buf((ind + 1):(ind + nrows_blk*ncols_blk))
             CALL dbcsr_put_block(filter_mat, &
                                  iatom_global, jatom_global, &
-                                 recv_buf((ind + 1):(ind + nrows_blk*ncols_blk)))
+                                 block=RESHAPE(vector, [nrows_blk, ncols_blk]))
             recv_sizes(ipe) = recv_sizes(ipe) + nrows_blk*ncols_blk
          END DO ! ipair
       END DO ! ipe

@@ -240,11 +240,6 @@ MODULE cp_dbcsr_api
       MODULE PROCEDURE dbcsr_iterator_next_2d_block
    END INTERFACE
 
-   INTERFACE dbcsr_put_block
-      MODULE PROCEDURE dbcsr_put_block
-      MODULE PROCEDURE dbcsr_put_block2d
-   END INTERFACE
-
 CONTAINS
 
 ! **************************************************************************************************
@@ -1214,27 +1209,10 @@ CONTAINS
 !> \param block ...
 !> \param summation ...
 ! **************************************************************************************************
-   SUBROUTINE dbcsr_put_block2d(matrix, row, col, block, summation)
-      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
-      INTEGER, INTENT(IN)                                :: row, col
-      REAL(kind=dp), DIMENSION(:, :), INTENT(IN)         :: block
-      LOGICAL, INTENT(IN), OPTIONAL                      :: summation
-
-      CALL dbcsr_put_block_prv(matrix%prv, row, col, block, summation=summation)
-   END SUBROUTINE dbcsr_put_block2d
-
-! **************************************************************************************************
-!> \brief ...
-!> \param matrix ...
-!> \param row ...
-!> \param col ...
-!> \param block ...
-!> \param summation ...
-! **************************************************************************************************
    SUBROUTINE dbcsr_put_block(matrix, row, col, block, summation)
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
       INTEGER, INTENT(IN)                                :: row, col
-      REAL(kind=dp), DIMENSION(:), INTENT(IN)            :: block
+      REAL(kind=dp), DIMENSION(:, :), INTENT(IN)         :: block
       LOGICAL, INTENT(IN), OPTIONAL                      :: summation
 
       CALL dbcsr_put_block_prv(matrix%prv, row, col, block, summation=summation)

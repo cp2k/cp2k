@@ -1122,7 +1122,8 @@ CONTAINS
          recv_sizes, send_disps, send_pair_count, send_pair_disps, send_sizes
       INTEGER, DIMENSION(:), POINTER                     :: col_block_size_data, row_block_size_data
       LOGICAL                                            :: check_ok, found
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: recv_buf, send_buf
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), TARGET   :: recv_buf, send_buf
+      REAL(kind=dp), DIMENSION(:), POINTER               :: vector
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: mat_block
 
       CALL timeset(routineN, handle)
@@ -1237,9 +1238,10 @@ CONTAINS
             nrows_blk = row_block_size_data(iatom)
             ncols_blk = col_block_size_data(jatom)
             ind = recv_disps(ipe) + recv_sizes(ipe)
+            vector => recv_buf((ind + 1):(ind + nrows_blk*ncols_blk))
             CALL dbcsr_put_block(dbcsr_mat, &
                                  iatom, jatom, &
-                                 recv_buf((ind + 1):(ind + nrows_blk*ncols_blk)))
+                                 block=RESHAPE(vector, [nrows_blk, ncols_blk]))
             recv_sizes(ipe) = recv_sizes(ipe) + nrows_blk*ncols_blk
          END DO ! ipair
       END DO ! ipe

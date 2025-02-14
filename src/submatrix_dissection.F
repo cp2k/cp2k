@@ -786,7 +786,8 @@ CONTAINS
       TYPE(dbcsr_type), INTENT(INOUT)                                 :: resultmat
 
       INTEGER                                                         :: i, j, k, cur_row, cur_col, cur_sm, cur_buf, last_buf, &
-                                                                         bufsize, bufsize_next
+                                                                         bufsize, bufsize_next, row_size, col_size
+      REAL(kind=dp), DIMENSION(:), POINTER                            :: vector
       TYPE(buffer_type), DIMENSION(:), ALLOCATABLE                    :: result_recvbufs
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'submatrix_communicate_results'
@@ -829,9 +830,12 @@ CONTAINS
          cur_sm = (cur_col - 1)/this%cols_per_sm + 1
          cur_buf = this%submatrix_owners(cur_sm)
          IF (cur_buf .GT. last_buf) bufsize = 0
-         bufsize_next = bufsize + this%col_blk_size(cur_row)*this%col_blk_size(cur_col)
+         row_size = this%row_blk_size(cur_row)
+         col_size = this%col_blk_size(cur_col)
+         bufsize_next = bufsize + row_size*col_size
+         vector => result_recvbufs(cur_buf)%data(bufsize + 1:bufsize_next)
          CALL dbcsr_put_block(matrix=resultmat, row=cur_row, col=cur_col, &
-                              block=result_recvbufs(cur_buf)%data(bufsize + 1:bufsize_next))
+                              block=RESHAPE(vector, [row_size, col_size]))
          bufsize = bufsize_next
          last_buf = cur_buf
       END DO
