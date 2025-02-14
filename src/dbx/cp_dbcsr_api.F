@@ -235,11 +235,6 @@ MODULE cp_dbcsr_api
       MODULE PROCEDURE dbcsr_create_new, dbcsr_create_template
    END INTERFACE
 
-   INTERFACE dbcsr_iterator_next_block
-      MODULE PROCEDURE dbcsr_iterator_next_block_index
-      MODULE PROCEDURE dbcsr_iterator_next_2d_block
-   END INTERFACE
-
 CONTAINS
 
 ! **************************************************************************************************
@@ -994,20 +989,6 @@ CONTAINS
 !> \param iterator ...
 !> \param row ...
 !> \param column ...
-!> \param blk ...
-! **************************************************************************************************
-   SUBROUTINE dbcsr_iterator_next_block_index(iterator, row, column, blk)
-      TYPE(dbcsr_iterator_type), INTENT(INOUT)           :: iterator
-      INTEGER, INTENT(OUT)                               :: row, column, blk
-
-      CALL dbcsr_iterator_next_block_prv(iterator%prv, row=row, column=column, blk=blk)
-   END SUBROUTINE dbcsr_iterator_next_block_index
-
-! **************************************************************************************************
-!> \brief ...
-!> \param iterator ...
-!> \param row ...
-!> \param column ...
 !> \param block ...
 !> \param block_number ...
 !> \param row_size ...
@@ -1015,9 +996,9 @@ CONTAINS
 !> \param row_offset ...
 !> \param col_offset ...
 ! **************************************************************************************************
-   SUBROUTINE dbcsr_iterator_next_2d_block(iterator, row, column, block, &
-                                           block_number, row_size, col_size, &
-                                           row_offset, col_offset)
+   SUBROUTINE dbcsr_iterator_next_block(iterator, row, column, block, &
+                                        block_number, row_size, col_size, &
+                                        row_offset, col_offset)
       TYPE(dbcsr_iterator_type), INTENT(INOUT)           :: iterator
       INTEGER, INTENT(OUT), OPTIONAL                     :: row, column
       REAL(kind=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: block
@@ -1032,7 +1013,7 @@ CONTAINS
       IF (PRESENT(block)) block => my_block
       IF (PRESENT(row)) row = my_row
       IF (PRESENT(column)) column = my_column
-   END SUBROUTINE dbcsr_iterator_next_2d_block
+   END SUBROUTINE dbcsr_iterator_next_block
 
 ! **************************************************************************************************
 !> \brief ...

@@ -144,7 +144,7 @@ CONTAINS
       CLASS(submatrix_dissection_type), INTENT(INOUT)  :: this
       TYPE(dbcsr_type), INTENT(IN)                     :: matrix_p
 
-      INTEGER                                          :: cur_row, cur_col, cur_blk, i, j, k, l, m, l_limit_left, l_limit_right, &
+      INTEGER                                          :: cur_row, cur_col, i, j, k, l, m, l_limit_left, l_limit_right, &
                                                           bufsize, bufsize_next
       INTEGER, DIMENSION(:), ALLOCATABLE               :: blocks_per_rank, coo_dsplcmnts, num_blockids_send, num_blockids_recv
       TYPE(dbcsr_iterator_type)                        :: iter
@@ -203,7 +203,7 @@ CONTAINS
       this%local_blocks = 0
       CALL dbcsr_iterator_start(iter, this%dbcsr_mat, read_only=.TRUE.)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
-         CALL dbcsr_iterator_next_block(iter, cur_row, cur_col, cur_blk)
+         CALL dbcsr_iterator_next_block(iter, cur_row, cur_col)
          this%local_blocks = this%local_blocks + 1
       END DO
       CALL dbcsr_iterator_stop(iter)
@@ -218,7 +218,7 @@ CONTAINS
       i = 1
       CALL dbcsr_iterator_start(iter, this%dbcsr_mat, read_only=.TRUE.)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
-         CALL dbcsr_iterator_next_block(iter, cur_row, cur_col, cur_blk)
+         CALL dbcsr_iterator_next_block(iter, cur_row, cur_col)
          this%coo_cols_local(i) = cur_col
          this%coo_rows_local(i) = cur_row
          i = i + 1

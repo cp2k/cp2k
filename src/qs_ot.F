@@ -869,7 +869,7 @@ CONTAINS
       TYPE(dbcsr_iterator_type)                :: iter
       INTEGER, DIMENSION(:), POINTER           :: row_blk_offset, col_blk_offset
       REAL(dp), DIMENSION(:, :), POINTER       :: block_in_re, block_in_im, block_out_re, block_out_im
-      INTEGER                                  :: row, col, blk
+      INTEGER                                  :: row, col
       LOGICAL                                  :: found
       COMPLEX(dp)                              :: cval_in, cval_out
       TYPE(dbcsr_distribution_type)            :: dist
@@ -901,7 +901,7 @@ CONTAINS
          CALL dbcsr_get_info(qs_ot_env%rot_mat_dedu, row_blk_offset=row_blk_offset, col_blk_offset=col_blk_offset)
          CALL dbcsr_iterator_start(iter, qs_ot_env%rot_mat_dedu)
          DO WHILE (dbcsr_iterator_blocks_left(iter))
-            CALL dbcsr_iterator_next_block(iter, row, col, blk)
+            CALL dbcsr_iterator_next_block(iter, row, col)
             CALL dbcsr_get_block_p(inner_deriv_re, row, col, block_in_re, found)
             CALL dbcsr_get_block_p(inner_deriv_im, row, col, block_in_im, found)
             CALL dbcsr_get_block_p(outer_deriv_re, row, col, block_out_re, found)

@@ -521,8 +521,8 @@ CONTAINS
       TYPE(cp_1d_i_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: neighbor_set
 
-      INTEGER                                            :: blk, i, iat, ibase, iblk, jblk, mepos, &
-                                                            natom, nb, nbase
+      INTEGER                                            :: i, iat, ibase, iblk, jblk, mepos, natom, &
+                                                            nb, nbase
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: blk_to_base, inb, who_is_there
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: n_neighbors
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: is_base_atom
@@ -557,7 +557,7 @@ CONTAINS
       CALL dbcsr_iterator_start(iter, mat_s)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
 
-         CALL dbcsr_iterator_next_block(iter, row=iblk, column=jblk, blk=blk)
+         CALL dbcsr_iterator_next_block(iter, row=iblk, column=jblk)
 
          !avoid self-neighbors
          IF (iblk == jblk) CYCLE
@@ -594,7 +594,7 @@ CONTAINS
       inb = 1
       DO WHILE (dbcsr_iterator_blocks_left(iter))
 
-         CALL dbcsr_iterator_next_block(iter, row=iblk, column=jblk, blk=blk)
+         CALL dbcsr_iterator_next_block(iter, row=iblk, column=jblk)
          IF (iblk == jblk) CYCLE
 
          !test distance
@@ -766,7 +766,7 @@ CONTAINS
       CALL dbcsr_iterator_start(iter, whole_s)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
 
-         CALL dbcsr_iterator_next_block(iter, row=iat, column=jat, blk=blk)
+         CALL dbcsr_iterator_next_block(iter, row=iat, column=jat)
          CALL dbcsr_get_block_p(whole_s, iat, jat, block_whole, found_whole)
 
          !only interested in neighbors
@@ -799,7 +799,7 @@ CONTAINS
       CALL dbcsr_iterator_start(iter, ri_sinv)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
 
-         CALL dbcsr_iterator_next_block(iter, row=inb, column=jnb, blk=blk)
+         CALL dbcsr_iterator_next_block(iter, row=inb, column=jnb)
          CALL dbcsr_get_block_p(ri_sinv, inb, jnb, block_risinv, found_risinv)
 
          IF (.NOT. found_risinv) CYCLE
@@ -3376,8 +3376,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'integrate_soc_atoms'
 
-      INTEGER                                            :: blk, handle, i, iat, ikind, ir, jat, &
-                                                            maxso, na, nkind, nr, nset, nsgf
+      INTEGER                                            :: handle, i, iat, ikind, ir, jat, maxso, &
+                                                            na, nkind, nr, nset, nsgf
       LOGICAL                                            :: all_potential_present
       REAL(dp)                                           :: zeff
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: Vr
@@ -3470,7 +3470,7 @@ CONTAINS
          CALL dbcsr_iterator_start(iter, matrix_s(1)%matrix)
          DO WHILE (dbcsr_iterator_blocks_left(iter))
 
-            CALL dbcsr_iterator_next_block(iter, row=iat, column=jat, blk=blk)
+            CALL dbcsr_iterator_next_block(iter, row=iat, column=jat)
             IF (.NOT. iat == jat) CYCLE
             ikind = particle_set(iat)%atomic_kind%kind_number
 
