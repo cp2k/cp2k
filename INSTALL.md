@@ -454,12 +454,10 @@ Calls to `offload_dgemm` also accept pointers on GPU or a combination of them.
 
 ### 2y. libgrpp (optional, enables calculations with ECPs)
 
-- libgrpp is a library for the calculation of integrals with GTOs and ECPs
-- The libgrpp library can be found under <https://github.com/aoleynichenko/libgrpp>
-- During the installation, the directories `$(LIBGRPP_DIR)/lib` and `$(LIBGRPP_DIR)/include` are
-  created.
-- Add `-D__LIBGRPP` to DFLAGS, `-I$(LIBGRPP_DIR)/include` to FCFLAGS and
-  `-L$(LIBGRPP_DIR)/lib -llibgrpp` to LIBS
+libgrpp is a library for the calculation of integrals with GTOs and ECPs. The source code of the
+library is part of cp2k.
+
+- Add `-D__LIBGRPP` to DFLAGS.
 
 <!---
 ### 2y. LibMaxwell (External Maxwell Solver)
