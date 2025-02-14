@@ -1916,8 +1916,9 @@ CONTAINS
       TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:), &
          INTENT(IN)                                      :: matrix
 
-      INTEGER :: iblock_col, iblock_col_size, iblock_row, iblock_row_size, icol, irow, ispin, &
-         Ncols, Nrows, nspins, para_group_handle, unit_nr
+      INTEGER                                            :: iblock_col, iblock_col_size, iblock_row, &
+                                                            iblock_row_size, icol, irow, ispin, &
+                                                            Ncols, Nrows, nspins, unit_nr
       LOGICAL                                            :: element_by_element
       REAL(KIND=dp)                                      :: energy, eps_local, eps_start, &
                                                             max_element, spin_factor
@@ -1926,7 +1927,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:)        :: matrix_p_tmp, matrix_t_tmp
-      TYPE(mp_comm_type)                                 :: para_group
+      TYPE(mp_comm_type)                                 :: group
 
       ! define the output_unit
       logger => cp_get_default_logger()
@@ -2024,11 +2025,10 @@ CONTAINS
             CALL dbcsr_finalize(matrix_t_tmp(ispin))
             CALL dbcsr_filter(matrix_t_tmp(ispin), eps_local)
 
-            CALL dbcsr_get_info(matrix_t_tmp(ispin), group=para_group_handle, &
+            CALL dbcsr_get_info(matrix_t_tmp(ispin), group=group, &
                                 nfullrows_total=Nrows, &
                                 nfullcols_total=Ncols)
-            CALL para_group%set_handle(para_group_handle)
-            CALL para_group%sum(retained(ispin))
+            CALL group%sum(retained(ispin))
 
             !devide by the total no. elements
             occ(ispin) = retained(ispin)/Nrows/Ncols

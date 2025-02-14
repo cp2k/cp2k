@@ -112,8 +112,8 @@ CONTAINS
       INTEGER, PARAMETER                                 :: taylor_order = 50
       REAL(KIND=dp), PARAMETER                           :: alpha = 0.1_dp, f2_eps = 0.01_dp
 
-      INTEGER                                            :: col, col_size, group_handle, handle, i, &
-                                                            k, n, p, row, row_size
+      INTEGER                                            :: col, col_size, handle, i, k, n, p, row, &
+                                                            row_size
       REAL(dp), DIMENSION(:, :), POINTER                 :: block
       REAL(KIND=dp)                                      :: expfactor, f2, norm_fro, norm_gct, tmp
       TYPE(dbcsr_distribution_type)                      :: dist
@@ -150,8 +150,7 @@ CONTAINS
          END DO
       END DO
       CALL dbcsr_iterator_stop(iter)
-      CALL dbcsr_get_info(C, group=group_handle)
-      CALL group%set_handle(group_handle)
+      CALL dbcsr_get_info(C, group=group)
       CALL group%sum(f2)
       !
       !

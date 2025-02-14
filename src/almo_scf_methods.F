@@ -3212,7 +3212,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'construct_test'
 
-      INTEGER                                            :: GroupID, handle, ndomains
+      INTEGER                                            :: handle, ndomains
       TYPE(dbcsr_type)                                   :: copy1
       TYPE(domain_submatrix_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: subm_nn, subm_no
@@ -3221,8 +3221,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ndomains = dbcsr_nblkcols_total(dpattern)
-      CALL dbcsr_get_info(dpattern, group=GroupID)
-      CALL group%set_handle(groupid)
+      CALL dbcsr_get_info(dpattern, group=group)
 
       ALLOCATE (subm_no(ndomains), subm_nn(ndomains))
       CALL init_submatrices(subm_no)

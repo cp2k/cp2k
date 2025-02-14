@@ -158,7 +158,7 @@ CONTAINS
       TYPE(intBuffer_type), DIMENSION(:), ALLOCATABLE  :: blocks_for_rank
 
       ! Additional structures for threaded parts
-      INTEGER                                          :: numthreads, mytid, group_handle
+      INTEGER                                          :: numthreads, mytid
       ! Indexing starts at 0 to match thread ids
       TYPE(setarray_type), DIMENSION(:), ALLOCATABLE   :: nonzero_rows_t
       TYPE(setarray_type), DIMENSION(:), ALLOCATABLE   :: result_blocks_from_rank_t, result_blocks_for_rank_t, &
@@ -175,10 +175,8 @@ CONTAINS
 
       this%dbcsr_mat = matrix_p
       CALL dbcsr_get_info(matrix=this%dbcsr_mat, nblkcols_total=this%nblkcols, nblkrows_total=this%nblkrows, &
-                         row_blk_size=this%row_blk_size, col_blk_size=this%col_blk_size, group=group_handle, distribution=this%dist)
+                          row_blk_size=this%row_blk_size, col_blk_size=this%col_blk_size, group=this%group, distribution=this%dist)
       CALL dbcsr_distribution_get(dist=this%dist, mynode=this%myrank, numnodes=this%numnodes)
-
-      CALL this%group%set_handle(group_handle)
 
       IF (this%nblkcols .NE. this%nblkrows) THEN
          CPABORT("Number of block rows and cols need to be identical")

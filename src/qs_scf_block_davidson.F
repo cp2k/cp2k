@@ -51,6 +51,7 @@ MODULE qs_scf_block_davidson
                                               cp_fm_vectorsnorm
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_walltime
+   USE message_passing,                 ONLY: mp_comm_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE preconditioner,                  ONLY: apply_preconditioner
    USE preconditioner_types,            ONLY: preconditioner_type
@@ -501,6 +502,7 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: c_out, matrix_hc, matrix_mm, matrix_pz, &
                                                             matrix_sc, matrix_z, mo_coeff_b, &
                                                             mo_conv, mo_notconv, smo_conv
+      TYPE(mp_comm_type)                                 :: group
 
       CALL timeset(routineN, handle)
 
@@ -545,7 +547,7 @@ CONTAINS
                            matrix_type=dbcsr_type_no_symmetry, &
                            nze=0, data_type=dbcsr_type_real_default)
 
-         CALL dbcsr_get_info(mo_coeff_b, nfullrows_total=n, nfullcols_total=k)
+         CALL dbcsr_get_info(mo_coeff_b, nfullrows_total=n, nfullcols_total=k, group=group)
          CALL dbcsr_multiply('n', 'n', 1.0_dp, matrix_h, mo_coeff_b, 0.0_dp, matrix_hc, last_column=k)
          CALL dbcsr_multiply('n', 'n', 1.0_dp, matrix_s, mo_coeff_b, 0.0_dp, matrix_sc, last_column=k)
 
@@ -582,7 +584,7 @@ CONTAINS
             END DO
          END DO
          CALL dbcsr_iterator_stop(iter)
-         CALL mo_coeff%matrix_struct%para_env%sum(vnorm)
+         CALL group%sum(vnorm)
          vnorm = SQRT(vnorm)
 
          ! Check for converged eigenvectors

@@ -175,8 +175,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pao_calc_AB_equi'
 
-      INTEGER                                            :: acol, arow, group_handle, handle, i, &
-                                                            iatom, j, k, m, n
+      INTEGER                                            :: acol, arow, handle, i, iatom, j, k, m, n
       LOGICAL                                            :: found
       REAL(dp)                                           :: denom, w
       REAL(dp), DIMENSION(:), POINTER                    :: ANNA_evals
@@ -333,8 +332,7 @@ CONTAINS
 
       ! sum penalty energies across ranks
       IF (PRESENT(penalty)) THEN
-         CALL dbcsr_get_info(pao%matrix_X, group=group_handle)
-         CALL group%set_handle(group_handle)
+         CALL dbcsr_get_info(pao%matrix_X, group=group)
          CALL group%sum(penalty)
       END IF
 
