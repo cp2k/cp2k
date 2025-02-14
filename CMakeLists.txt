@@ -682,13 +682,6 @@ endif()
 
 if(CP2K_USE_DFTD4)
   find_package(dftd4 REQUIRED)
-
-  get_target_property(CP2K_DFTD4_LINK_LIBRARIES dftd4::dftd4
-                      INTERFACE_LINK_LIBRARIES)
-  get_target_property(CP2K_DFTD4_LIB_LINK_LIBRARIES dftd4::dftd4-lib
-                      INTERFACE_LINK_LIBRARIES)
-  get_target_property(CP2K_DFTD4_INCLUDE_DIR dftd4::dftd4-lib
-                      INTERFACE_INCLUDE_DIRECTORIES)
 endif()
 
 if(CP2K_USE_DEEPMD)
@@ -880,10 +873,12 @@ endif()
 
 if(CP2K_USE_DFTD4)
   message(
-    " - DFTD4\n"
-    "   - include directories: ${CP2K_DFTD4_INCLUDE_DIR}\n"
-    "   - libraries: ${CP2K_DFTD4_LINK_LIBRARIES};${CP2K_DFTD4_LIB_LINK_LIBRARIES}\n\n"
-  )
+    " - DFTD4 :\n"
+    "   - version     :  ${DFTD4_VERSION}\n"
+    "   - include directories :  ${DFTD4_INCLUDE_DIRS}\n"
+    "   - libraries           :  ${DFTD4_LINK_LIBRARIES}\n"
+    "   - mctc include dir.   :  ${MCTC-LIB_INCLUDE_DIRS}\n"
+    "   - mctc libraries      :  ${MCTC-LIB_LINK_LIBRARIES}\n\n")
 endif()
 
 if(CP2K_USE_DEEPMD)
@@ -982,7 +977,7 @@ if(NOT CP2K_USE_SPLA)
 endif()
 
 if(NOT CP2K_USE_HDF5)
-  message("   - HDF5\n")
+  message("   - HDF5")
 endif()
 
 if(${CP2K_USE_ACCEL} MATCHES "NONE")
@@ -1032,6 +1027,8 @@ endif()
 if(NOT CP2K_USE_GRPP)
   message("   - grpp")
 endif()
+
+message("\n" "Compile now with: \n" "cmake --build build \n")
 
 message(
   "\n\n" # let below line separate
