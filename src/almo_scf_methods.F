@@ -2104,8 +2104,7 @@ CONTAINS
    SUBROUTINE apply_domain_operators(matrix_in, matrix_out, operator1, operator2, &
                                      dpattern, map, node_of_domain, my_action, filter_eps, matrix_trimmer, use_trimmer)
 
-      TYPE(dbcsr_type), INTENT(IN)                       :: matrix_in
-      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_out
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_in, matrix_out
       TYPE(domain_submatrix_type), DIMENSION(:), &
          INTENT(IN)                                      :: operator1
       TYPE(domain_submatrix_type), DIMENSION(:), &
@@ -2471,7 +2470,7 @@ CONTAINS
    SUBROUTINE construct_domain_s_sqrt(matrix_s, subm_s_sqrt, subm_s_sqrt_inv, &
                                       dpattern, map, node_of_domain)
 
-      TYPE(dbcsr_type), INTENT(IN)                       :: matrix_s
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_s
       TYPE(domain_submatrix_type), DIMENSION(:), &
          INTENT(INOUT)                                   :: subm_s_sqrt, subm_s_sqrt_inv
       TYPE(dbcsr_type), INTENT(IN)                       :: dpattern
@@ -2543,7 +2542,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE construct_domain_s_inv(matrix_s, subm_s_inv, dpattern, map, &
                                      node_of_domain)
-      TYPE(dbcsr_type), INTENT(IN)                       :: matrix_s
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_s
       TYPE(domain_submatrix_type), DIMENSION(:), &
          INTENT(INOUT)                                   :: subm_s_inv
       TYPE(dbcsr_type), INTENT(IN)                       :: dpattern
@@ -3207,7 +3206,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE construct_test(matrix_no, dpattern, map, node_of_domain)
 
-      TYPE(dbcsr_type), INTENT(IN)                       :: matrix_no, dpattern
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_no, dpattern
       TYPE(domain_map_type), INTENT(IN)                  :: map
       INTEGER, DIMENSION(:), INTENT(IN)                  :: node_of_domain
 

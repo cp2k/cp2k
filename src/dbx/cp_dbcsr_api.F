@@ -235,11 +235,6 @@ MODULE cp_dbcsr_api
       MODULE PROCEDURE dbcsr_create_new, dbcsr_create_template
    END INTERFACE
 
-   INTERFACE dbcsr_get_block_p
-      MODULE PROCEDURE dbcsr_get_block_p
-      MODULE PROCEDURE dbcsr_get_2d_block_p
-   END INTERFACE
-
    INTERFACE dbcsr_iterator_next_block
       MODULE PROCEDURE dbcsr_iterator_next_block_index
       MODULE PROCEDURE dbcsr_iterator_next_2d_block
@@ -759,26 +754,6 @@ CONTAINS
 !> \param col_size ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_get_block_p(matrix, row, col, block, found, row_size, col_size)
-      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
-      INTEGER, INTENT(IN)                                :: row, col
-      REAL(kind=dp), DIMENSION(:), POINTER               :: block
-      LOGICAL, INTENT(OUT)                               :: found
-      INTEGER, INTENT(OUT), OPTIONAL                     :: row_size, col_size
-
-      CALL dbcsr_get_block_p_prv(matrix%prv, row, col, block, found, row_size, col_size)
-   END SUBROUTINE dbcsr_get_block_p
-
-! **************************************************************************************************
-!> \brief ...
-!> \param matrix ...
-!> \param row ...
-!> \param col ...
-!> \param block ...
-!> \param found ...
-!> \param row_size ...
-!> \param col_size ...
-! **************************************************************************************************
-   SUBROUTINE dbcsr_get_2d_block_p(matrix, row, col, block, found, row_size, col_size)
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
       INTEGER, INTENT(IN)                                :: row, col
       REAL(kind=dp), DIMENSION(:, :), POINTER            :: block
@@ -786,7 +761,7 @@ CONTAINS
       INTEGER, INTENT(OUT), OPTIONAL                     :: row_size, col_size
 
       CALL dbcsr_get_block_p_prv(matrix%prv, row, col, block, found, row_size, col_size)
-   END SUBROUTINE dbcsr_get_2d_block_p
+   END SUBROUTINE dbcsr_get_block_p
 
 ! **************************************************************************************************
 !> \brief ...
