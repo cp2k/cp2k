@@ -59,7 +59,6 @@ MODULE rt_bse
                            dbcsr_add, &
                            dbcsr_set, &
                            dbcsr_clear, &
-                           dbcsr_setname, &
                            dbcsr_iterator_type, &
                            dbcsr_iterator_start, &
                            dbcsr_iterator_stop, &
