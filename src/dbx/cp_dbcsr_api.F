@@ -27,9 +27,7 @@ MODULE cp_dbcsr_api
         dbcsr_distribution_release_prv => dbcsr_distribution_release, &
         dbcsr_distribution_type_prv => dbcsr_distribution_type, dbcsr_dot_prv => dbcsr_dot, &
         dbcsr_filter_prv => dbcsr_filter, dbcsr_finalize_lib, &
-        dbcsr_finalize_prv => dbcsr_finalize, dbcsr_frobenius_norm_prv => dbcsr_frobenius_norm, &
-        dbcsr_gershgorin_norm_prv => dbcsr_gershgorin_norm, &
-        dbcsr_get_block_diag_prv => dbcsr_get_block_diag, &
+        dbcsr_finalize_prv => dbcsr_finalize, dbcsr_get_block_diag_prv => dbcsr_get_block_diag, &
         dbcsr_get_block_p_prv => dbcsr_get_block_p, dbcsr_get_data_p_prv => dbcsr_get_data_p, &
         dbcsr_get_data_size_prv => dbcsr_get_data_size, &
         dbcsr_get_data_type_prv => dbcsr_get_data_type, dbcsr_get_default_config, &
@@ -38,14 +36,12 @@ MODULE cp_dbcsr_api
         dbcsr_get_num_blocks_prv => dbcsr_get_num_blocks, &
         dbcsr_get_occupation_prv => dbcsr_get_occupation, &
         dbcsr_get_stored_coordinates_prv => dbcsr_get_stored_coordinates, &
-        dbcsr_hadamard_product_prv => dbcsr_hadamard_product, &
         dbcsr_has_symmetry_prv => dbcsr_has_symmetry, dbcsr_init_lib, &
-        dbcsr_init_random_prv => dbcsr_init_random, &
         dbcsr_iterator_blocks_left_prv => dbcsr_iterator_blocks_left, &
         dbcsr_iterator_next_block_prv => dbcsr_iterator_next_block, &
         dbcsr_iterator_start_prv => dbcsr_iterator_start, &
         dbcsr_iterator_stop_prv => dbcsr_iterator_stop, &
-        dbcsr_iterator_type_prv => dbcsr_iterator_type, dbcsr_maxabs_prv => dbcsr_maxabs, &
+        dbcsr_iterator_type_prv => dbcsr_iterator_type, &
         dbcsr_mp_grid_setup_prv => dbcsr_mp_grid_setup, dbcsr_multiply_prv => dbcsr_multiply, &
         dbcsr_nblkcols_total_prv => dbcsr_nblkcols_total, &
         dbcsr_nblkrows_total_prv => dbcsr_nblkrows_total, &
@@ -180,14 +176,9 @@ MODULE cp_dbcsr_api
    PUBLIC :: dbcsr_test_mm
 
    ! high level matrix functions
-   PUBLIC :: dbcsr_hadamard_product
    PUBLIC :: dbcsr_print
    PUBLIC :: dbcsr_print_block_sum
    PUBLIC :: dbcsr_checksum
-   PUBLIC :: dbcsr_maxabs
-   PUBLIC :: dbcsr_gershgorin_norm
-   PUBLIC :: dbcsr_frobenius_norm
-   PUBLIC :: dbcsr_init_random
 
    ! csr conversion
    PUBLIC :: dbcsr_csr_type
@@ -676,30 +667,6 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param matrix ...
-!> \return ...
-! **************************************************************************************************
-   FUNCTION dbcsr_frobenius_norm(matrix) RESULT(norm)
-      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
-      REAL(KIND=dp)                                      :: norm
-
-      norm = dbcsr_frobenius_norm_prv(matrix%prv)
-   END FUNCTION dbcsr_frobenius_norm
-
-! **************************************************************************************************
-!> \brief ...
-!> \param matrix ...
-!> \return ...
-! **************************************************************************************************
-   FUNCTION dbcsr_gershgorin_norm(matrix) RESULT(norm)
-      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
-      REAL(KIND=dp)                                      :: norm
-
-      norm = dbcsr_gershgorin_norm_prv(matrix%prv)
-   END FUNCTION dbcsr_gershgorin_norm
-
-! **************************************************************************************************
-!> \brief ...
-!> \param matrix ...
 !> \param diag ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_get_block_diag(matrix, diag)
@@ -914,21 +881,6 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param matrix_a ...
-!> \param matrix_b ...
-!> \param matrix_c ...
-!> \param b_assume_value ...
-! **************************************************************************************************
-   SUBROUTINE dbcsr_hadamard_product(matrix_a, matrix_b, matrix_c, b_assume_value)
-      TYPE(dbcsr_type), INTENT(IN)                       :: matrix_a, matrix_b
-      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_c
-      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: b_assume_value
-
-      CALL dbcsr_hadamard_product_prv(matrix_a%prv, matrix_b%prv, matrix_c%prv, b_assume_value)
-   END SUBROUTINE dbcsr_hadamard_product
-
-! **************************************************************************************************
-!> \brief ...
 !> \param matrix ...
 !> \return ...
 ! **************************************************************************************************
@@ -938,18 +890,6 @@ CONTAINS
 
       has_symmetry = dbcsr_has_symmetry_prv(matrix%prv)
    END FUNCTION dbcsr_has_symmetry
-
-! **************************************************************************************************
-!> \brief ...
-!> \param matrix ...
-!> \param keep_sparsity ...
-! **************************************************************************************************
-   SUBROUTINE dbcsr_init_random(matrix, keep_sparsity)
-      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
-      LOGICAL, OPTIONAL                                  :: keep_sparsity
-
-      CALL dbcsr_init_random_prv(matrix%prv, keep_sparsity=keep_sparsity)
-   END SUBROUTINE dbcsr_init_random
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1027,18 +967,6 @@ CONTAINS
 
       CALL dbcsr_iterator_stop_prv(iterator%prv)
    END SUBROUTINE dbcsr_iterator_stop
-
-! **************************************************************************************************
-!> \brief ...
-!> \param matrix ...
-!> \return ...
-! **************************************************************************************************
-   FUNCTION dbcsr_maxabs(matrix) RESULT(norm)
-      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
-      REAL(KIND=dp)                                      :: norm
-
-      norm = dbcsr_maxabs_prv(matrix%prv)
-   END FUNCTION dbcsr_maxabs
 
 ! **************************************************************************************************
 !> \brief ...
