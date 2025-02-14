@@ -300,7 +300,7 @@ CONTAINS
       TYPE(dbt_type), INTENT(INOUT)  :: tensor_out
       TYPE(dbcsr_type), POINTER               :: matrix_in_desym
 
-      INTEGER                            :: blk, iblk, nblk, nblk_per_thread, a, b
+      INTEGER                            :: iblk, nblk, nblk_per_thread, a, b
       INTEGER, ALLOCATABLE, DIMENSION(:) :: blk_ind_1, blk_ind_2
       INTEGER, DIMENSION(2)              :: ind_2d
       TYPE(dbcsr_iterator_type)          :: iter
@@ -320,7 +320,7 @@ CONTAINS
       ALLOCATE (blk_ind_1(nblk), blk_ind_2(nblk))
       CALL dbcsr_iterator_start(iter, matrix_in_desym)
       DO iblk = 1, nblk
-         CALL dbcsr_iterator_next_block(iter, ind_2d(1), ind_2d(2), blk)
+         CALL dbcsr_iterator_next_block(iter, ind_2d(1), ind_2d(2))
          blk_ind_1(iblk) = ind_2d(1); blk_ind_2(iblk) = ind_2d(2)
       END DO
       CALL dbcsr_iterator_stop(iter)

@@ -668,7 +668,7 @@ CONTAINS
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      INTEGER                                            :: blk, group, iblk, iso, jblk, jso, nblk, &
+      INTEGER                                            :: group, iblk, iso, jblk, jso, nblk, &
                                                             ndo_mo, ndo_so, nsgfa, nsgfp, ri_atom, &
                                                             source
       INTEGER, DIMENSION(:), POINTER                     :: col_dist, col_dist_work, row_dist, &
@@ -766,7 +766,7 @@ CONTAINS
             CALL dbcsr_iterator_start(iter, abIJ)
             DO WHILE (dbcsr_iterator_blocks_left(iter))
 
-               CALL dbcsr_iterator_next_block(iter, row=iblk, column=jblk, blk=blk)
+               CALL dbcsr_iterator_next_block(iter, row=iblk, column=jblk)
                IF (iso == jso .AND. jblk < iblk) CYCLE
 
                CALL dbcsr_get_block_p(abIJ, iblk, jblk, pblock, found)
@@ -905,7 +905,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ri_atom
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      INTEGER                                            :: blk, i, iblk, jblk, n
+      INTEGER                                            :: i, iblk, jblk, n
       LOGICAL                                            :: found
       REAL(dp), DIMENSION(:, :), POINTER                 :: pblock_m, pblock_s
       TYPE(dbcsr_distribution_type)                      :: dist
@@ -931,7 +931,7 @@ CONTAINS
       CALL dbcsr_iterator_start(iter, template)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
 
-         CALL dbcsr_iterator_next_block(iter, row=iblk, column=jblk, blk=blk)
+         CALL dbcsr_iterator_next_block(iter, row=iblk, column=jblk)
          !only have a,b pair if one of them is the ri_atom
          IF (iblk .NE. ri_atom .AND. jblk .NE. ri_atom) CYCLE
 
@@ -1268,7 +1268,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:)                   :: contr_int
       REAL(dp), DIMENSION(:, :), INTENT(IN)              :: PQ
 
-      INTEGER                                            :: blk, iblk, imo, jblk, ndo_mo, s1, s2
+      INTEGER                                            :: iblk, imo, jblk, ndo_mo, s1, s2
       LOGICAL                                            :: found
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: work
       REAL(dp), DIMENSION(:, :), POINTER                 :: pblock
@@ -1282,7 +1282,7 @@ CONTAINS
          CALL dbcsr_iterator_start(iter, contr_int(imo)%matrix)
          DO WHILE (dbcsr_iterator_blocks_left(iter))
 
-            CALL dbcsr_iterator_next_block(iter, row=iblk, column=jblk, blk=blk)
+            CALL dbcsr_iterator_next_block(iter, row=iblk, column=jblk)
             CALL dbcsr_get_block_p(contr_int(imo)%matrix, iblk, jblk, pblock, found)
 
             IF (found) THEN
@@ -1346,8 +1346,7 @@ CONTAINS
       REAL(dp), INTENT(IN), OPTIONAL                     :: eps_filter
       LOGICAL, INTENT(IN), OPTIONAL                      :: mo_transpose
 
-      INTEGER                                            :: blk, i, iblk, iso, j, jblk, jso, nblk, &
-                                                            ndo_so
+      INTEGER                                            :: i, iblk, iso, j, jblk, jso, nblk, ndo_so
       LOGICAL                                            :: found, my_mt
       REAL(dp), DIMENSION(:, :), POINTER                 :: pblock
       TYPE(dbcsr_iterator_type)                          :: iter
@@ -1386,7 +1385,7 @@ CONTAINS
             CALL dbcsr_iterator_start(iter, prod)
             DO WHILE (dbcsr_iterator_blocks_left(iter))
 
-               CALL dbcsr_iterator_next_block(iter, row=iblk, column=jblk, blk=blk)
+               CALL dbcsr_iterator_next_block(iter, row=iblk, column=jblk)
                IF ((iso == jso .AND. jblk < iblk) .AND. .NOT. quadrants(2)) CYCLE
 
                CALL dbcsr_get_block_p(prod, iblk, jblk, pblock, found)

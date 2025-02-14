@@ -2004,8 +2004,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_ext_2c_int'
 
-      INTEGER :: blk, group, handle, handle2, i_img, i_RI, iatom, iblk, ikind, img_tot, j_img, &
-         j_RI, jatom, jblk, jkind, n_dependent, natom, nblks_RI, nimg, nkind
+      INTEGER :: group, handle, handle2, i_img, i_RI, iatom, iblk, ikind, img_tot, j_img, j_RI, &
+         jatom, jblk, jkind, n_dependent, natom, nblks_RI, nimg, nkind
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: dist1, dist2
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: present_atoms_i, present_atoms_j
       INTEGER, DIMENSION(3)                              :: cell_b, cell_i, cell_j, cell_tot
@@ -2158,7 +2158,7 @@ CONTAINS
 
             CALL dbcsr_iterator_start(dbcsr_iter, mat_orig(img_tot))
             DO WHILE (dbcsr_iterator_blocks_left(dbcsr_iter))
-               CALL dbcsr_iterator_next_block(dbcsr_iter, row=iatom, column=jatom, blk=blk)
+               CALL dbcsr_iterator_next_block(dbcsr_iter, row=iatom, column=jatom)
                IF (present_atoms_i(iatom, i_img) == 0) CYCLE
                IF (present_atoms_j(jatom, j_img) == 0) CYCLE
                IF (my_offd .AND. (i_RI - 1)*natom + iatom == (j_RI - 1)*natom + jatom) CYCLE

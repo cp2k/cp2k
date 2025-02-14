@@ -2994,8 +2994,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'get_2c_mme_forces'
 
-      INTEGER :: atom_a, atom_b, blk, G_count, handle, i_xyz, iatom, ikind, iset, jatom, jkind, &
-         jset, natom, nkind, nseta, nsetb, offset_hab_a, offset_hab_b, R_count, sgfa, sgfb
+      INTEGER :: atom_a, atom_b, G_count, handle, i_xyz, iatom, ikind, iset, jatom, jkind, jset, &
+         natom, nkind, nseta, nsetb, offset_hab_a, offset_hab_b, R_count, sgfa, sgfb
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
                                                             npgfb, nsgfa, nsgfb
@@ -3037,7 +3037,7 @@ CONTAINS
       CALL dbcsr_iterator_start(iter, G_PQ)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
 
-         CALL dbcsr_iterator_next_block(iter, row=iatom, column=jatom, blk=blk)
+         CALL dbcsr_iterator_next_block(iter, row=iatom, column=jatom)
          CALL dbcsr_get_block_p(G_PQ, iatom, jatom, pblock, found)
          IF (.NOT. found) CYCLE
          IF (iatom > jatom) CYCLE
