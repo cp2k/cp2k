@@ -83,7 +83,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'build_dftb3_diagonal'
 
-      INTEGER                                            :: atom_i, atom_j, blk, handle, i, ia, iac, &
+      INTEGER                                            :: atom_i, atom_j, handle, i, ia, iac, &
                                                             iatom, ic, icol, ikind, irow, is, &
                                                             jatom, jkind, natom, nimg, nkind
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
@@ -164,7 +164,7 @@ CONTAINS
             ! no k-points; all matrices have been transformed to periodic bsf
             CALL dbcsr_iterator_start(iter, matrix_s(1, 1)%matrix)
             DO WHILE (dbcsr_iterator_blocks_left(iter))
-               CALL dbcsr_iterator_next_block(iter, irow, icol, sblock, blk)
+               CALL dbcsr_iterator_next_block(iter, irow, icol, sblock)
                ikind = kind_of(irow)
                atom_i = atom_of_kind(irow)
                ui = xgamma(ikind)
@@ -311,7 +311,7 @@ CONTAINS
             ! no k-points; all matrices have been transformed to periodic bsf
             CALL dbcsr_iterator_start(iter, matrix_s(1, 1)%matrix)
             DO WHILE (dbcsr_iterator_blocks_left(iter))
-               CALL dbcsr_iterator_next_block(iter, irow, icol, sblock, blk)
+               CALL dbcsr_iterator_next_block(iter, irow, icol, sblock)
                ikind = kind_of(irow)
                ui = xgamma(ikind)
                jkind = kind_of(icol)

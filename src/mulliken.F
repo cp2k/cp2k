@@ -78,8 +78,8 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: ks_matrix, w_matrix
 
-      INTEGER                                            :: blk, iblock_col, iblock_row, ispin, &
-                                                            nblock, nspin
+      INTEGER                                            :: iblock_col, iblock_row, ispin, nblock, &
+                                                            nspin
       LOGICAL                                            :: found
       REAL(kind=dp)                                      :: mult, my_energy, my_order_p
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: charges, charges_deriv, ks_block, &
@@ -113,7 +113,7 @@ CONTAINS
          DO ispin = 1, nspin
             CALL dbcsr_iterator_start(iter, s_matrix)
             DO WHILE (dbcsr_iterator_blocks_left(iter))
-               CALL dbcsr_iterator_next_block(iter, iblock_row, iblock_col, s_block, blk)
+               CALL dbcsr_iterator_next_block(iter, iblock_row, iblock_col, s_block)
                CALL dbcsr_get_block_p(matrix=ks_matrix(ispin)%matrix, &
                                       row=iblock_row, col=iblock_col, BLOCK=ks_block, found=found)
 
@@ -136,7 +136,7 @@ CONTAINS
          DO ispin = 1, nspin
             CALL dbcsr_iterator_start(iter, p_matrix(ispin)%matrix)
             DO WHILE (dbcsr_iterator_blocks_left(iter))
-               CALL dbcsr_iterator_next_block(iter, iblock_row, iblock_col, p_block, blk)
+               CALL dbcsr_iterator_next_block(iter, iblock_row, iblock_col, p_block)
                CALL dbcsr_get_block_p(matrix=w_matrix(ispin)%matrix, &
                                       row=iblock_row, col=iblock_col, BLOCK=w_block, found=found)
 
@@ -218,7 +218,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: charges
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
-      INTEGER                                            :: blk, iblock_col, iblock_row, ispin, nspin
+      INTEGER                                            :: iblock_col, iblock_row, ispin, nspin
       LOGICAL                                            :: found
       REAL(kind=dp)                                      :: mult
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p_block, s_block
@@ -231,7 +231,7 @@ CONTAINS
          CALL dbcsr_iterator_start(iter, s_matrix)
          DO WHILE (dbcsr_iterator_blocks_left(iter))
             NULLIFY (s_block, p_block)
-            CALL dbcsr_iterator_next_block(iter, iblock_row, iblock_col, s_block, blk)
+            CALL dbcsr_iterator_next_block(iter, iblock_row, iblock_col, s_block)
             CALL dbcsr_get_block_p(matrix=p_matrix(ispin)%matrix, &
                                    row=iblock_row, col=iblock_col, BLOCK=p_block, found=found)
 
@@ -270,7 +270,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:)                        :: charges
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
-      INTEGER                                            :: blk, iblock_col, iblock_row
+      INTEGER                                            :: iblock_col, iblock_row
       LOGICAL                                            :: found
       REAL(kind=dp)                                      :: mult
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p_block, s_block
@@ -280,7 +280,7 @@ CONTAINS
       CALL dbcsr_iterator_start(iter, s_matrix)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          NULLIFY (s_block, p_block)
-         CALL dbcsr_iterator_next_block(iter, iblock_row, iblock_col, s_block, blk)
+         CALL dbcsr_iterator_next_block(iter, iblock_row, iblock_col, s_block)
          CALL dbcsr_get_block_p(matrix=p_matrix, &
                                 row=iblock_row, col=iblock_col, BLOCK=p_block, found=found)
 
@@ -317,8 +317,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: charges, dcharges
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
-      INTEGER                                            :: blk, iblock_col, iblock_row, ider, &
-                                                            ispin, nspin
+      INTEGER                                            :: iblock_col, iblock_row, ider, ispin, &
+                                                            nspin
       LOGICAL                                            :: found
       REAL(kind=dp)                                      :: mult
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: ds_block, p_block, s_block
@@ -332,7 +332,7 @@ CONTAINS
          CALL dbcsr_iterator_start(iter, s_matrix(1)%matrix)
          DO WHILE (dbcsr_iterator_blocks_left(iter))
             NULLIFY (s_block, p_block)
-            CALL dbcsr_iterator_next_block(iter, iblock_row, iblock_col, s_block, blk)
+            CALL dbcsr_iterator_next_block(iter, iblock_row, iblock_col, s_block)
             CALL dbcsr_get_block_p(matrix=p_matrix(ispin)%matrix, &
                                    row=iblock_row, col=iblock_col, BLOCK=p_block, found=found)
 
@@ -657,7 +657,7 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: psmat, spmat
       REAL(KIND=dp), DIMENSION(:, :)                     :: bond_order
 
-      INTEGER                                            :: blk, iat, jat
+      INTEGER                                            :: iat, jat
       LOGICAL                                            :: found
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: ps, sp
       TYPE(dbcsr_iterator_type)                          :: iter
@@ -665,7 +665,7 @@ CONTAINS
       CALL dbcsr_iterator_start(iter, psmat)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          NULLIFY (ps, sp)
-         CALL dbcsr_iterator_next_block(iter, iat, jat, ps, blk)
+         CALL dbcsr_iterator_next_block(iter, iat, jat, ps)
          CALL dbcsr_get_block_p(matrix=spmat, &
                                 row=iat, col=jat, BLOCK=sp, found=found)
          IF (.NOT. found) CYCLE
@@ -698,7 +698,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'ao_charges_1'
 
-      INTEGER                                            :: blk, handle, i, iblock_col, iblock_row, &
+      INTEGER                                            :: handle, i, iblock_col, iblock_row, &
                                                             ispin, j, nspin
       LOGICAL                                            :: found
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p_block, s_block
@@ -712,7 +712,7 @@ CONTAINS
          CALL dbcsr_iterator_start(iter, s_matrix)
          DO WHILE (dbcsr_iterator_blocks_left(iter))
             NULLIFY (s_block, p_block)
-            CALL dbcsr_iterator_next_block(iter, iblock_row, iblock_col, s_block, blk)
+            CALL dbcsr_iterator_next_block(iter, iblock_row, iblock_col, s_block)
             CALL dbcsr_get_block_p(matrix=p_matrix(ispin)%matrix, &
                                    row=iblock_row, col=iblock_col, BLOCK=p_block, found=found)
 
@@ -761,7 +761,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'ao_charges_2'
 
-      INTEGER                                            :: blk, handle, i, iblock_col, iblock_row, &
+      INTEGER                                            :: handle, i, iblock_col, iblock_row, &
                                                             ispin, j, nspin
       LOGICAL                                            :: found
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p_block, s_block
@@ -775,7 +775,7 @@ CONTAINS
          CALL dbcsr_iterator_start(iter, s_matrix)
          DO WHILE (dbcsr_iterator_blocks_left(iter))
             NULLIFY (s_block, p_block)
-            CALL dbcsr_iterator_next_block(iter, iblock_row, iblock_col, s_block, blk)
+            CALL dbcsr_iterator_next_block(iter, iblock_row, iblock_col, s_block)
             CALL dbcsr_get_block_p(matrix=p_matrix(ispin)%matrix, &
                                    row=iblock_row, col=iblock_col, BLOCK=p_block, found=found)
 
@@ -916,7 +916,7 @@ CONTAINS
       REAL(kind=dp), INTENT(IN)                          :: factor
       REAL(KIND=dp), DIMENSION(:), POINTER               :: atrace
 
-      INTEGER                                            :: blk, iblock_col, iblock_row, nblock
+      INTEGER                                            :: iblock_col, iblock_row, nblock
       LOGICAL                                            :: found
       REAL(kind=dp)                                      :: btr, mult
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: a_block, b_block
@@ -927,7 +927,7 @@ CONTAINS
 
       CALL dbcsr_iterator_start(iter, bmat)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
-         CALL dbcsr_iterator_next_block(iter, iblock_row, iblock_col, b_block, blk)
+         CALL dbcsr_iterator_next_block(iter, iblock_row, iblock_col, b_block)
          CALL dbcsr_get_block_p(matrix=amat, &
                                 row=iblock_row, col=iblock_col, BLOCK=a_block, found=found)
 

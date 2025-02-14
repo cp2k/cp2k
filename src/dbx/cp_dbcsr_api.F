@@ -990,26 +990,31 @@ CONTAINS
 !> \param row ...
 !> \param column ...
 !> \param block ...
-!> \param block_number ...
+!> \param block_number_argument_has_been_removed ...
 !> \param row_size ...
 !> \param col_size ...
 !> \param row_offset ...
 !> \param col_offset ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_iterator_next_block(iterator, row, column, block, &
-                                        block_number, row_size, col_size, &
+                                        block_number_argument_has_been_removed, &
+                                        row_size, col_size, &
                                         row_offset, col_offset)
       TYPE(dbcsr_iterator_type), INTENT(INOUT)           :: iterator
       INTEGER, INTENT(OUT), OPTIONAL                     :: row, column
       REAL(kind=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: block
-      INTEGER, INTENT(OUT), OPTIONAL                     :: block_number, row_size, col_size, &
-                                                            row_offset, col_offset
+      LOGICAL, OPTIONAL :: block_number_argument_has_been_removed
+      INTEGER, INTENT(OUT), OPTIONAL                     :: row_size, col_size, row_offset, &
+                                                            col_offset
 
       INTEGER                                            :: my_column, my_row
       REAL(kind=dp), DIMENSION(:, :), POINTER            :: my_block
 
-      CALL dbcsr_iterator_next_block_prv(iterator%prv, my_row, my_column, my_block, block_number, &
-                                         row_size, col_size, row_offset, col_offset)
+      CPASSERT(.NOT. PRESENT(block_number_argument_has_been_removed))
+
+      CALL dbcsr_iterator_next_block_prv(iterator%prv, row=my_row, column=my_column, block=my_block, &
+                                         row_size=row_size, col_size=col_size, &
+                                         row_offset=row_offset, col_offset=col_offset)
       IF (PRESENT(block)) block => my_block
       IF (PRESENT(row)) row = my_row
       IF (PRESENT(column)) column = my_column

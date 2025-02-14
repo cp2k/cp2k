@@ -1285,8 +1285,10 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'stda_force'
 
-      INTEGER :: atom_i, atom_j, blk, ewald_type, handle, i, ia, iatom, idimk, ikind, iounit, is, &
-         ispin, jatom, jkind, jspin, nao, natom, norb, nsgf, nspins
+      INTEGER                                            :: atom_i, atom_j, ewald_type, handle, i, &
+                                                            ia, iatom, idimk, ikind, iounit, is, &
+                                                            ispin, jatom, jkind, jspin, nao, &
+                                                            natom, norb, nsgf, nspins
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, first_sgf, kind_of, &
                                                             last_sgf
       INTEGER, DIMENSION(2)                              :: nactive, nlim
@@ -1439,7 +1441,7 @@ CONTAINS
             tempmat => gamma_matrix(1)%matrix
             CALL dbcsr_iterator_start(iter, tempmat)
             DO WHILE (dbcsr_iterator_blocks_left(iter))
-               CALL dbcsr_iterator_next_block(iter, iatom, jatom, gab, blk)
+               CALL dbcsr_iterator_next_block(iter, iatom, jatom, gab)
                gtcharge(iatom, 1) = gtcharge(iatom, 1) + gab(1, 1)*tcharge(jatom)
                IF (iatom /= jatom) THEN
                   gtcharge(jatom, 1) = gtcharge(jatom, 1) + gab(1, 1)*tcharge(iatom)
@@ -1604,7 +1606,7 @@ CONTAINS
             hfx = stda_env%hfx_fraction
             CALL dbcsr_iterator_start(iter, pdens)
             DO WHILE (dbcsr_iterator_blocks_left(iter))
-               CALL dbcsr_iterator_next_block(iter, iatom, jatom, pblock, blk)
+               CALL dbcsr_iterator_next_block(iter, iatom, jatom, pblock)
                rij = particle_set(iatom)%r - particle_set(jatom)%r
                rij = pbc(rij, cell)
                dr = SQRT(SUM(rij(:)**2))

@@ -256,9 +256,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mulliken_population_analysis'
 
       CHARACTER(LEN=default_string_length)               :: headline
-      INTEGER                                            :: blk, handle, iatom, ic, isgf, ispin, &
-                                                            jatom, jsgf, natom, nsgf, nspin, sgfa, &
-                                                            sgfb
+      INTEGER                                            :: handle, iatom, ic, isgf, ispin, jatom, &
+                                                            jsgf, natom, nsgf, nspin, sgfa, sgfb
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf_atom
       LOGICAL                                            :: found, print_gop
       REAL(KIND=dp)                                      :: ps
@@ -347,7 +346,7 @@ CONTAINS
             ! CALL dbcsr_hadamard_product(sm_p,sm_s,sm_ps)
             CALL dbcsr_iterator_start(iter, sm_s)
             DO WHILE (dbcsr_iterator_blocks_left(iter))
-               CALL dbcsr_iterator_next_block(iter, iatom, jatom, s_block, blk)
+               CALL dbcsr_iterator_next_block(iter, iatom, jatom, s_block)
                IF (.NOT. (ASSOCIATED(s_block))) CYCLE
                CALL dbcsr_get_block_p(matrix=sm_p, &
                                       row=iatom, &

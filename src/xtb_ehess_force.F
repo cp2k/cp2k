@@ -94,9 +94,9 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calc_xtb_ehess_force'
 
-      INTEGER :: atom_i, atom_j, blk, ewald_type, handle, i, ia, iatom, icol, ikind, iounit, irow, &
-         j, jatom, jkind, la, lb, lmaxa, lmaxb, natom, natorb_a, natorb_b, ni, nimg, nj, nkind, &
-         nmat, za, zb
+      INTEGER :: atom_i, atom_j, ewald_type, handle, i, ia, iatom, icol, ikind, iounit, irow, j, &
+         jatom, jkind, la, lb, lmaxa, lmaxb, natom, natorb_a, natorb_b, ni, nimg, nj, nkind, nmat, &
+         za, zb
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       INTEGER, DIMENSION(25)                             :: laoa, laob
       INTEGER, DIMENSION(3)                              :: cellind, periodic
@@ -353,7 +353,7 @@ CONTAINS
       IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
       CALL dbcsr_iterator_start(iter, matrix_s(1, 1)%matrix)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
-         CALL dbcsr_iterator_next_block(iter, irow, icol, sblock, blk)
+         CALL dbcsr_iterator_next_block(iter, irow, icol, sblock)
          ikind = kind_of(irow)
          jkind = kind_of(icol)
 
@@ -466,8 +466,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dftb3_diagonal_hessian_force'
 
-      INTEGER                                            :: atom_i, atom_j, blk, handle, i, icol, &
-                                                            ikind, irow, jkind
+      INTEGER                                            :: atom_i, atom_j, handle, i, icol, ikind, &
+                                                            irow, jkind
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       LOGICAL                                            :: found
       REAL(KIND=dp)                                      :: fi, gmijp, gmijq, ui, uj
@@ -486,7 +486,7 @@ CONTAINS
       ! no k-points; all matrices have been transformed to periodic bsf
       CALL dbcsr_iterator_start(iter, matrix_s(1)%matrix)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
-         CALL dbcsr_iterator_next_block(iter, irow, icol, sblock, blk)
+         CALL dbcsr_iterator_next_block(iter, irow, icol, sblock)
          ikind = kind_of(irow)
          atom_i = atom_of_kind(irow)
          ui = xgamma(ikind)

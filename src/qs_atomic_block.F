@@ -62,8 +62,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_atomic_block_dm'
 
-      INTEGER                                            :: blk, handle, icol, ikind, irow, ispin, &
-                                                            nc, nkind, nocc(2)
+      INTEGER                                            :: handle, icol, ikind, irow, ispin, nc, &
+                                                            nkind, nocc(2)
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: nok
       REAL(dp), DIMENSION(:, :), POINTER                 :: pdata
@@ -109,7 +109,7 @@ CONTAINS
          nocc(ispin) = 0
          CALL dbcsr_iterator_start(iter, matrix_p)
          DO WHILE (dbcsr_iterator_blocks_left(iter))
-            CALL dbcsr_iterator_next_block(iter, irow, icol, pdata, blk)
+            CALL dbcsr_iterator_next_block(iter, irow, icol, pdata)
             ikind = kind_of(irow)
             IF (icol .EQ. irow) THEN
                IF (ispin == 1) THEN

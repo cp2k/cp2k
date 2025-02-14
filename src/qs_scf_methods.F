@@ -503,7 +503,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_sm_mix'
 
-      INTEGER                                            :: blk, handle, i, iblock_col, iblock_row, j
+      INTEGER                                            :: handle, i, iblock_col, iblock_row, j
       LOGICAL                                            :: found
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p_delta_block, p_new_block, p_old_block
       TYPE(dbcsr_iterator_type)                          :: iter
@@ -513,7 +513,7 @@ CONTAINS
 
       CALL dbcsr_iterator_start(iter, m1)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
-         CALL dbcsr_iterator_next_block(iter, iblock_row, iblock_col, p_new_block, blk)
+         CALL dbcsr_iterator_next_block(iter, iblock_row, iblock_col, p_new_block)
          CALL dbcsr_get_block_p(matrix=m2, row=iblock_row, col=iblock_col, &
                                 BLOCK=p_old_block, found=found)
          CPASSERT(ASSOCIATED(p_old_block))

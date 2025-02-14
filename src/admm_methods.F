@@ -909,7 +909,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'fit_mo_coeffs'
 
-      INTEGER                                            :: blk, handle, iatom, jatom, nao_aux_fit, &
+      INTEGER                                            :: handle, iatom, jatom, nao_aux_fit, &
                                                             nao_orb
       REAL(dp), DIMENSION(:, :), POINTER                 :: sparse_block
       TYPE(dbcsr_iterator_type)                          :: iter
@@ -935,7 +935,7 @@ CONTAINS
 
          CALL dbcsr_iterator_start(iter, matrix_s_tilde)
          DO WHILE (dbcsr_iterator_blocks_left(iter))
-            CALL dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, blk)
+            CALL dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block)
             IF (admm_env%block_map(iatom, jatom) == 0) THEN
                sparse_block = 0.0_dp
             END IF
@@ -1253,7 +1253,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'merge_ks_matrix_cauchy'
 
-      INTEGER                                            :: blk, handle, i, iatom, ispin, j, jatom, &
+      INTEGER                                            :: handle, i, iatom, ispin, j, jatom, &
                                                             nao_aux_fit, nao_orb, nmo
       REAL(dp)                                           :: eig_diff, pole, tmp
       REAL(dp), DIMENSION(:, :), POINTER                 :: sparse_block
@@ -1384,7 +1384,7 @@ CONTAINS
             ! ** now loop through the list and nullify blocks
             CALL dbcsr_iterator_start(iter, matrix_k_tilde)
             DO WHILE (dbcsr_iterator_blocks_left(iter))
-               CALL dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, blk)
+               CALL dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block)
                IF (admm_env%block_map(iatom, jatom) == 0) THEN
                   sparse_block = 0.0_dp
                END IF
@@ -1701,7 +1701,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'merge_ks_matrix_none'
 
-      INTEGER                                            :: blk, handle, iatom, ispin, jatom, &
+      INTEGER                                            :: handle, iatom, ispin, jatom, &
                                                             nao_aux_fit, nao_orb, nmo
       REAL(dp), DIMENSION(:, :), POINTER                 :: sparse_block
       REAL(KIND=dp)                                      :: ener_k(2), ener_x(2), ener_x1(2), &
@@ -1744,7 +1744,7 @@ CONTAINS
          IF (admm_env%block_dm) THEN
             CALL dbcsr_iterator_start(iter, matrix_ks_aux_fit(ispin)%matrix)
             DO WHILE (dbcsr_iterator_blocks_left(iter))
-               CALL dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, blk)
+               CALL dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block)
                IF (admm_env%block_map(iatom, jatom) == 0) THEN
                   sparse_block = 0.0_dp
                END IF
@@ -3737,7 +3737,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'blockify_density_matrix'
 
-      INTEGER                                            :: blk, handle, iatom, jatom
+      INTEGER                                            :: handle, iatom, jatom
       LOGICAL                                            :: found
       REAL(dp), DIMENSION(:, :), POINTER                 :: sparse_block, sparse_block_aux
       TYPE(dbcsr_iterator_type)                          :: iter
@@ -3750,10 +3750,10 @@ CONTAINS
       ! ** now loop through the list and copy corresponding blocks
       CALL dbcsr_iterator_start(iter, density_matrix)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
-         CALL dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, blk)
+         CALL dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block)
          IF (admm_env%block_map(iatom, jatom) == 1) THEN
             CALL dbcsr_get_block_p(density_matrix_aux, &
-                                   row=iatom, col=jatom, BLOCK=sparse_block_aux, found=found)
+                                   row=iatom, col=jatom, block=sparse_block_aux, found=found)
             IF (found) THEN
                sparse_block_aux = sparse_block
             END IF

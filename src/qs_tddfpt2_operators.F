@@ -772,7 +772,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'tddfpt_apply_hfxlr_kernel'
 
-      INTEGER                                            :: blk, handle, iatom, ispin, jatom, natom, &
+      INTEGER                                            :: handle, iatom, ispin, jatom, natom, &
                                                             nsgf, nspins
       INTEGER, DIMENSION(2)                              :: nactive
       REAL(KIND=dp)                                      :: dr, eps_filter, fcut, gabr
@@ -831,7 +831,7 @@ CONTAINS
          ! P(nu,mu) = P(nu,mu)*g(a of nu,b of mu)
          CALL dbcsr_iterator_start(iter, pdens)
          DO WHILE (dbcsr_iterator_blocks_left(iter))
-            CALL dbcsr_iterator_next_block(iter, iatom, jatom, pblock, blk)
+            CALL dbcsr_iterator_next_block(iter, iatom, jatom, pblock)
             rij = particle_set(iatom)%r - particle_set(jatom)%r
             rij = pbc(rij, cell)
             dr = SQRT(SUM(rij(:)**2))

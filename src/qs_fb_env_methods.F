@@ -1126,7 +1126,7 @@ CONTAINS
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_out
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix_in
 
-      INTEGER                                            :: iatom, iblk, jatom, nblkcols_total, &
+      INTEGER                                            :: iatom, jatom, nblkcols_total, &
                                                             nblkrows_total, nblks
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: cols, rows
       REAL(dp), DIMENSION(:, :), POINTER                 :: mat_block
@@ -1141,14 +1141,13 @@ CONTAINS
       ALLOCATE (cols(nblks))
       rows(:) = 0
       cols(:) = 0
-      iblk = 0
       nblks = 0
       CALL dbcsr_iterator_start(iter, matrix_in)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
-         CALL dbcsr_iterator_next_block(iter, iatom, jatom, mat_block, iblk)
-         rows(iblk) = iatom
-         cols(iblk) = jatom
+         CALL dbcsr_iterator_next_block(iter, iatom, jatom, mat_block)
          nblks = nblks + 1
+         rows(nblks) = iatom
+         cols(nblks) = jatom
       END DO
       CALL dbcsr_iterator_stop(iter)
       CALL dbcsr_reserve_blocks(matrix_out, rows(1:nblks), cols(1:nblks))
