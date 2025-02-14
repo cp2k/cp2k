@@ -46,7 +46,7 @@ MODULE almo_scf_optimizer
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_maxabs, &
         dbcsr_multiply, dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_p_type, &
         dbcsr_print_block_sum, dbcsr_release, dbcsr_reserve_block2d, dbcsr_scale, dbcsr_set, &
-        dbcsr_set_diag, dbcsr_triu, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_work_create
+        dbcsr_set_diag, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_work_create
    USE cp_dbcsr_cholesky,               ONLY: cp_dbcsr_cholesky_decompose,&
                                               cp_dbcsr_cholesky_invert,&
                                               cp_dbcsr_cholesky_restore
@@ -3683,7 +3683,7 @@ CONTAINS
                         CALL cp_dbcsr_cholesky_decompose(sigma_vv_sqrt, &
                                                          para_env=almo_scf_env%para_env, &
                                                          blacs_env=almo_scf_env%blacs_env)
-                        CALL dbcsr_triu(sigma_vv_sqrt)
+                        CALL make_triu(sigma_vv_sqrt)
                         CALL dbcsr_filter(sigma_vv_sqrt, almo_scf_env%eps_filter)
                         ! apply SOLVE to compute U^(-1) : U*U^(-1)=I
                         CALL dbcsr_get_info(sigma_vv_sqrt, nfullrows_total=n)
@@ -4891,6 +4891,39 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE harris_foulkes_correction
+
+! **************************************************************************************************
+!> \brief triu of a dbcsr matrix
+!> \param matrix ...
+! **************************************************************************************************
+   SUBROUTINE make_triu(matrix)
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'make_triu'
+
+      INTEGER                                            :: col, handle, i, j, row
+      REAL(dp), DIMENSION(:, :), POINTER                 :: block
+      TYPE(dbcsr_iterator_type)                          :: iter
+
+      CALL timeset(routineN, handle)
+
+      CALL dbcsr_iterator_start(iter, matrix)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, row, col, block)
+         IF (row > col) CALL dbcsr_remove_block(matrix, row, col)
+         IF (row == col) THEN
+            DO j = 1, SIZE(block, 2)
+            DO i = j + 1, SIZE(block, 1)
+               block(i, j) = 0.0_dp
+            END DO
+            END DO
+         END IF
+      END DO
+      CALL dbcsr_iterator_stop(iter)
+      CALL dbcsr_finalize(matrix)
+
+      CALL timestop(handle)
+   END SUBROUTINE make_triu
 
 ! **************************************************************************************************
 !> \brief Computes a diagonal preconditioner for the cg optimization of k matrix
