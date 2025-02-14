@@ -261,11 +261,11 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'copy_repl_dbcsr_to_repl_fm'
 
-      INTEGER                                            :: blk, col, handle, i, j, nblkcols_total, &
+      INTEGER                                            :: col, handle, i, j, nblkcols_total, &
                                                             nblkrows_total, nc, nr, row
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: c_offset, r_offset
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, row_blk_size
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: DATA
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: block
       TYPE(dbcsr_iterator_type)                          :: iter
 
       CALL timeset(routineN, handle)
@@ -299,10 +299,10 @@ CONTAINS
 
       CALL dbcsr_iterator_start(iter, sparse_matrix)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
-         CALL dbcsr_iterator_next_block(iter, row, col, DATA, blk)
-         DO j = 1, SIZE(DATA, 2)
-         DO i = 1, SIZE(DATA, 1)
-            fm(r_offset(row) + i - 1, c_offset(col) + j - 1) = DATA(i, j)
+         CALL dbcsr_iterator_next_block(iter, row, col, block)
+         DO j = 1, SIZE(block, 2)
+         DO i = 1, SIZE(block, 1)
+            fm(r_offset(row) + i - 1, c_offset(col) + j - 1) = block(i, j)
          END DO
          END DO
       END DO

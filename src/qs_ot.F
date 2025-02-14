@@ -112,9 +112,9 @@ CONTAINS
       INTEGER, PARAMETER                                 :: taylor_order = 50
       REAL(KIND=dp), PARAMETER                           :: alpha = 0.1_dp, f2_eps = 0.01_dp
 
-      INTEGER                                            :: blk, col, col_size, group_handle, &
-                                                            handle, i, k, n, p, row, row_size
-      REAL(dp), DIMENSION(:, :), POINTER                 :: DATA
+      INTEGER                                            :: col, col_size, group_handle, handle, i, &
+                                                            k, n, p, row, row_size
+      REAL(dp), DIMENSION(:, :), POINTER                 :: block
       REAL(KIND=dp)                                      :: expfactor, f2, norm_fro, norm_gct, tmp
       TYPE(dbcsr_distribution_type)                      :: dist
       TYPE(dbcsr_iterator_type)                          :: iter
@@ -140,13 +140,12 @@ CONTAINS
       CALL dbcsr_copy(C, C_NEW)
       CALL dbcsr_iterator_start(iter, C)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
-         CALL dbcsr_iterator_next_block(iter, row, col, DATA, blk, &
-                                        row_size=row_size, col_size=col_size)
+         CALL dbcsr_iterator_next_block(iter, row, col, block, row_size=row_size, col_size=col_size)
          DO p = 1, col_size ! p
          DO i = 1, row_size ! i
-            tmp = SQRT(DATA(i, p)**2 + f2_eps)
+            tmp = SQRT(block(i, p)**2 + f2_eps)
             f2 = f2 + tmp
-            DATA(i, p) = DATA(i, p)/tmp
+            block(i, p) = block(i, p)/tmp
          END DO
          END DO
       END DO
@@ -1403,9 +1402,9 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_ot_p2m_diag'
       REAL(KIND=dp), PARAMETER                           :: rone = 1.0_dp, rzero = 0.0_dp
 
-      INTEGER                                            :: blk, col, col_offset, col_size, handle, &
-                                                            i, j, k, row, row_offset, row_size
-      REAL(dp), DIMENSION(:, :), POINTER                 :: DATA
+      INTEGER                                            :: col, col_offset, col_size, handle, i, j, &
+                                                            k, row, row_offset, row_size
+      REAL(dp), DIMENSION(:, :), POINTER                 :: block
       REAL(KIND=dp)                                      :: a, b
       TYPE(dbcsr_iterator_type)                          :: iter
 
@@ -1440,8 +1439,8 @@ CONTAINS
       CALL dbcsr_copy(qs_ot_env%matrix_cosp_b, qs_ot_env%matrix_cosp)
       CALL dbcsr_iterator_start(iter, qs_ot_env%matrix_cosp_b)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
-         CALL dbcsr_iterator_next_block(iter, row, col, DATA, &
-                                        block_number=blk, row_size=row_size, col_size=col_size, &
+         CALL dbcsr_iterator_next_block(iter, row, col, block, &
+                                        row_size=row_size, col_size=col_size, &
                                         row_offset=row_offset, col_offset=col_offset)
          DO j = 1, col_size
          DO i = 1, row_size
@@ -1449,7 +1448,7 @@ CONTAINS
                  - SQRT(qs_ot_env%evals(col_offset + j - 1)))/2.0_dp
             b = (SQRT(qs_ot_env%evals(row_offset + i - 1)) &
                  + SQRT(qs_ot_env%evals(col_offset + j - 1)))/2.0_dp
-            DATA(i, j) = -0.5_dp*qs_ot_sinc(a)*qs_ot_sinc(b)
+            block(i, j) = -0.5_dp*qs_ot_sinc(a)*qs_ot_sinc(b)
          END DO
          END DO
       END DO
@@ -1458,14 +1457,14 @@ CONTAINS
       CALL dbcsr_copy(qs_ot_env%matrix_sinp_b, qs_ot_env%matrix_sinp)
       CALL dbcsr_iterator_start(iter, qs_ot_env%matrix_sinp_b)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
-         CALL dbcsr_iterator_next_block(iter, row, col, DATA, &
-                                        block_number=blk, row_size=row_size, col_size=col_size, &
+         CALL dbcsr_iterator_next_block(iter, row, col, block, &
+                                        row_size=row_size, col_size=col_size, &
                                         row_offset=row_offset, col_offset=col_offset)
          DO j = 1, col_size
          DO i = 1, row_size
             a = SQRT(qs_ot_env%evals(row_offset + i - 1))
             b = SQRT(qs_ot_env%evals(col_offset + j - 1))
-            DATA(i, j) = qs_ot_sincf(a, b)
+            block(i, j) = qs_ot_sincf(a, b)
          END DO
          END DO
       END DO

@@ -130,9 +130,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'efield_tb_local'
 
-      INTEGER                                            :: atom_a, atom_b, blk, handle, ia, icol, &
-                                                            idir, ikind, irow, ispin, jkind, &
-                                                            natom, nspin
+      INTEGER                                            :: atom_a, atom_b, handle, ia, icol, idir, &
+                                                            ikind, irow, ispin, jkind, natom, nspin
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       LOGICAL                                            :: do_kpoints, found, use_virial
       REAL(dp)                                           :: charge, fdir
@@ -205,7 +204,7 @@ CONTAINS
          CALL dbcsr_iterator_start(iter, matrix_s(1)%matrix)
          DO WHILE (dbcsr_iterator_blocks_left(iter))
             NULLIFY (ks_block, s_block, p_block)
-            CALL dbcsr_iterator_next_block(iter, irow, icol, s_block, blk)
+            CALL dbcsr_iterator_next_block(iter, irow, icol, s_block)
             ria = particle_set(irow)%r
             ria = pbc(ria, cell)
             rib = particle_set(icol)%r
@@ -278,9 +277,9 @@ CONTAINS
 
       COMPLEX(KIND=dp)                                   :: zdeta
       COMPLEX(KIND=dp), DIMENSION(3)                     :: zi(3)
-      INTEGER                                            :: atom_a, atom_b, blk, handle, ia, iac, &
-                                                            iatom, ic, icol, idir, ikind, irow, &
-                                                            is, ispin, jatom, jkind, natom, nimg, &
+      INTEGER                                            :: atom_a, atom_b, handle, ia, iac, iatom, &
+                                                            ic, icol, idir, ikind, irow, is, &
+                                                            ispin, jatom, jkind, natom, nimg, &
                                                             nkind, nspin
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       INTEGER, DIMENSION(3)                              :: cellind
@@ -389,7 +388,7 @@ CONTAINS
             ! no k-points; all matrices have been transformed to periodic bsf
             CALL dbcsr_iterator_start(iter, matrix_s(1, 1)%matrix)
             DO WHILE (dbcsr_iterator_blocks_left(iter))
-               CALL dbcsr_iterator_next_block(iter, irow, icol, s_block, blk)
+               CALL dbcsr_iterator_next_block(iter, irow, icol, s_block)
 
                fdir = 0.0_dp
                ria = particle_set(irow)%r
@@ -602,10 +601,9 @@ CONTAINS
 
       COMPLEX(KIND=dp)                                   :: zdeta
       COMPLEX(KIND=dp), DIMENSION(3)                     :: zi(3)
-      INTEGER                                            :: atom_a, atom_b, blk, handle, i, ia, &
-                                                            iatom, ic, icol, idir, ikind, irow, &
-                                                            is, ispin, jatom, jkind, natom, nimg, &
-                                                            nspin
+      INTEGER                                            :: atom_a, atom_b, handle, i, ia, iatom, &
+                                                            ic, icol, idir, ikind, irow, is, &
+                                                            ispin, jatom, jkind, natom, nimg, nspin
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       INTEGER, DIMENSION(3)                              :: cellind
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
@@ -750,7 +748,7 @@ CONTAINS
             ! no k-points; all matrices have been transformed to periodic bsf
             CALL dbcsr_iterator_start(iter, matrix_s(1, 1)%matrix)
             DO WHILE (dbcsr_iterator_blocks_left(iter))
-               CALL dbcsr_iterator_next_block(iter, irow, icol, s_block, blk)
+               CALL dbcsr_iterator_next_block(iter, irow, icol, s_block)
 
                DO idir = 1, 3
                   hdi(idir) = -SUM(di(1:3)*hmat(1:3, idir))

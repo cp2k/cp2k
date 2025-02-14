@@ -940,8 +940,7 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: p_matrix
       REAL(KIND=dp), DIMENSION(:)                        :: charges
 
-      INTEGER                                            :: blk, group_handle, i, iblock_col, &
-                                                            iblock_row
+      INTEGER                                            :: group_handle, i, iblock_col, iblock_row
       REAL(kind=dp)                                      :: trace
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p_block
       TYPE(dbcsr_iterator_type)                          :: iter
@@ -952,7 +951,7 @@ CONTAINS
       CALL dbcsr_iterator_start(iter, p_matrix)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          NULLIFY (p_block)
-         CALL dbcsr_iterator_next_block(iter, iblock_row, iblock_col, p_block, blk)
+         CALL dbcsr_iterator_next_block(iter, iblock_row, iblock_col, p_block)
          CPASSERT(iblock_row == iblock_col)
          trace = 0.0_dp
          DO i = 1, SIZE(p_block, 1)

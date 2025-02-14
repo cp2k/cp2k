@@ -190,7 +190,7 @@ CONTAINS
    SUBROUTINE map_dm_blocked(qs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      INTEGER                                            :: blk, iatom, ispin, jatom
+      INTEGER                                            :: iatom, ispin, jatom
       LOGICAL                                            :: found
       REAL(dp), DIMENSION(:, :), POINTER                 :: sparse_block, sparse_block_aux
       TYPE(admm_dm_type), POINTER                        :: admm_dm
@@ -213,7 +213,7 @@ CONTAINS
          ! ** now loop through the list and copy corresponding blocks
          CALL dbcsr_iterator_start(iter, rho_ao(ispin)%matrix)
          DO WHILE (dbcsr_iterator_blocks_left(iter))
-            CALL dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, blk)
+            CALL dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block)
             IF (admm_dm%block_map(iatom, jatom) == 1) THEN
                CALL dbcsr_get_block_p(rho_ao_aux(ispin)%matrix, &
                                       row=iatom, col=jatom, BLOCK=sparse_block_aux, found=found)
@@ -317,7 +317,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_merge
 
-      INTEGER                                            :: blk, iatom, ispin, jatom
+      INTEGER                                            :: iatom, ispin, jatom
       REAL(dp), DIMENSION(:, :), POINTER                 :: sparse_block
       TYPE(admm_dm_type), POINTER                        :: admm_dm
       TYPE(dbcsr_iterator_type)                          :: iter
@@ -332,7 +332,7 @@ CONTAINS
       DO ispin = 1, dft_control%nspins
          CALL dbcsr_iterator_start(iter, matrix_ks_merge(ispin)%matrix)
          DO WHILE (dbcsr_iterator_blocks_left(iter))
-            CALL dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, blk)
+            CALL dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block)
             IF (admm_dm%block_map(iatom, jatom) == 0) &
                sparse_block = 0.0_dp
          END DO

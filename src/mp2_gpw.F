@@ -893,7 +893,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_dbcsr_from_rows'
 
-      INTEGER :: blk, col, col_offset, col_size, handle, i, i_global, j, j_global, my_mu_end, &
+      INTEGER :: col, col_offset, col_size, handle, i, i_global, j, j_global, my_mu_end, &
          my_mu_start, ncol_global, proc_receive, proc_send, proc_shift, rec_mu_end, rec_mu_size, &
          rec_mu_start, row, row_offset, row_size
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: rec_C
@@ -913,7 +913,7 @@ CONTAINS
       ! accumulate data on mo_coeff_to_build starting from myself
       CALL dbcsr_iterator_start(iter, mo_coeff_to_build)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
-         CALL dbcsr_iterator_next_block(iter, row, col, data_block, blk, &
+         CALL dbcsr_iterator_next_block(iter, row, col, data_block, &
                                         row_size=row_size, col_size=col_size, &
                                         row_offset=row_offset, col_offset=col_offset)
          DO i = 1, row_size
@@ -945,7 +945,7 @@ CONTAINS
          ! accumulate data on mo_coeff_to_build the data received from proc_rec
          CALL dbcsr_iterator_start(iter, mo_coeff_to_build)
          DO WHILE (dbcsr_iterator_blocks_left(iter))
-            CALL dbcsr_iterator_next_block(iter, row, col, data_block, blk, &
+            CALL dbcsr_iterator_next_block(iter, row, col, data_block, &
                                            row_size=row_size, col_size=col_size, &
                                            row_offset=row_offset, col_offset=col_offset)
             DO i = 1, row_size

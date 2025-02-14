@@ -109,7 +109,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'build_dftb_coulomb'
 
-      INTEGER :: atom_i, atom_j, blk, ewald_type, handle, i, ia, iac, iatom, ic, icol, ikind, img, &
+      INTEGER :: atom_i, atom_j, ewald_type, handle, i, ia, iac, iatom, ic, icol, ikind, img, &
          irow, is, jatom, jkind, natom, natorb_a, natorb_b, nimg, nkind, nmat
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       INTEGER, DIMENSION(3)                              :: cellind, periodic
@@ -368,7 +368,7 @@ CONTAINS
             ! no k-points; all matrices have been transformed to periodic bsf
             CALL dbcsr_iterator_start(iter, matrix_s(1, 1)%matrix)
             DO WHILE (dbcsr_iterator_blocks_left(iter))
-               CALL dbcsr_iterator_next_block(iter, irow, icol, sblock, blk)
+               CALL dbcsr_iterator_next_block(iter, irow, icol, sblock)
                gmij = 0.5_dp*(gmcharge(irow, 1) + gmcharge(icol, 1))
                DO is = 1, SIZE(ks_matrix, 1)
                   NULLIFY (ksblock)

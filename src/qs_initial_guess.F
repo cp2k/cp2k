@@ -134,7 +134,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_first_density_matrix'
 
       CHARACTER(LEN=default_path_length)                 :: file_name, filename
-      INTEGER :: atom_a, blk, density_guess, handle, homo, i, iatom, ic, icol, id_nr, ikind, irow, &
+      INTEGER :: atom_a, density_guess, handle, homo, i, iatom, ic, icol, id_nr, ikind, irow, &
          iseed(4), ispin, istart_col, istart_row, j, last_read, n, n_cols, n_rows, nao, natom, &
          natoms, natoms_tmp, nblocks, nelectron, nmo, nmo_tmp, not_read, nsgf, nspin, nvec, ounit, &
          safe_density_guess, size_atomic_kind_set, z
@@ -812,7 +812,7 @@ CONTAINS
             !
             CALL dbcsr_iterator_start(iter, p_rmpv(ispin)%matrix)
             DO WHILE (dbcsr_iterator_blocks_left(iter))
-               CALL dbcsr_iterator_next_block(iter, irow, icol, pdata, blk)
+               CALL dbcsr_iterator_next_block(iter, irow, icol, pdata)
                ikind = kind_of(irow)
                IF (icol .EQ. irow) THEN
                   IF (ispin == 1) THEN

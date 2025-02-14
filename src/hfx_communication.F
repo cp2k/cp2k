@@ -85,8 +85,8 @@ CONTAINS
       TYPE(dbcsr_type), OPTIONAL, POINTER                :: rho_beta
       LOGICAL, INTENT(IN)                                :: antisymmetric
 
-      INTEGER :: blk, block_size, data_from, dest, i, iatom, icpu, ikind, iset, jatom, jkind, &
-         jset, mepos, ncpu, nseta, nsetb, pa, pa1, pb, pb1, source, source_cpu
+      INTEGER :: block_size, data_from, dest, i, iatom, icpu, ikind, iset, jatom, jkind, jset, &
+         mepos, ncpu, nseta, nsetb, pa, pa1, pb, pb1, source, source_cpu
       INTEGER, DIMENSION(:), POINTER                     :: nsgfa, nsgfb
       LOGICAL                                            :: found
       REAL(dp)                                           :: symmfac
@@ -102,7 +102,7 @@ CONTAINS
       i = 1
       CALL dbcsr_iterator_start(iter, rho, shared=.FALSE.)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
-         CALL dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, blk)
+         CALL dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block)
          ! the resulting vector will be only the upper triangle.
          ! in case of antisymmetry take care to change signs if a lower block gets copied
          symmfac = 1.0_dp
@@ -208,8 +208,8 @@ CONTAINS
       TYPE(hfx_basis_type), DIMENSION(:), POINTER        :: basis_parameter
       REAL(dp), INTENT(IN), OPTIONAL                     :: off_diag_fac, diag_fac
 
-      INTEGER :: blk, block_size, data_to, dest, dest_cpu, i, iatom, icpu, ikind, iset, jatom, &
-         jkind, jset, mepos, ncpu, nseta, nsetb, pa, pa1, pb, pb1, source
+      INTEGER :: block_size, data_to, dest, dest_cpu, i, iatom, icpu, ikind, iset, jatom, jkind, &
+         jset, mepos, ncpu, nseta, nsetb, pa, pa1, pb, pb1, source
       INTEGER, DIMENSION(:), POINTER                     :: nsgfa, nsgfb
       REAL(dp)                                           :: my_fac, myd_fac
       REAL(dp), DIMENSION(:), POINTER                    :: recbuffer, sendbuffer, swapbuffer
@@ -254,7 +254,7 @@ CONTAINS
       i = 1
       CALL dbcsr_iterator_start(iter, ks_matrix, shared=.FALSE.)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
-         CALL dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, blk)
+         CALL dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block)
 
          ikind = kind_of(iatom)
          nseta = basis_parameter(ikind)%nset
@@ -437,8 +437,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_atomic_block_maps'
 
-      INTEGER :: blk, handle, iatom, ibuf, icpu, ikind, ilist, iset, itask, jatom, jkind, jset, &
-         natom, ncpu, nseta, nsetb, number_of_p_blocks, offset, tmp(2)
+      INTEGER :: handle, iatom, ibuf, icpu, ikind, ilist, iset, itask, jatom, jkind, jset, natom, &
+         ncpu, nseta, nsetb, number_of_p_blocks, offset, tmp(2)
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: buffer_in, buffer_out, counter, rcount, &
                                                             rdispl
       INTEGER, DIMENSION(:), POINTER                     :: iatom_list, jatom_list, nsgfa, nsgfb
@@ -456,7 +456,7 @@ CONTAINS
       !
       CALL dbcsr_iterator_start(iter, matrix, shared=.FALSE.)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
-         CALL dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, blk)
+         CALL dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block)
          ikind = kind_of(iatom)
          jkind = kind_of(jatom)
          number_of_p_blocks = number_of_p_blocks + 1
@@ -482,7 +482,7 @@ CONTAINS
 
       CALL dbcsr_iterator_start(iter, matrix, shared=.FALSE.)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
-         CALL dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, blk)
+         CALL dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block)
 
          buffer_in(ibuf + 1) = iatom
          buffer_in(ibuf + 2) = jatom

@@ -1532,8 +1532,8 @@ CONTAINS
       CHARACTER(LEN=10)                                  :: spin_info
       CHARACTER(LEN=6), ALLOCATABLE, DIMENSION(:)        :: symbol
       CHARACTER(LEN=default_string_length)               :: atomic_kind_name
-      INTEGER :: atom_a, blk, handle, i, iatom, ikind, isb, iset, isgf, ishell, ispin, jatom, &
-         jsgf, lu, m, natom, natom_of_kind, nkind, nsb, nset, nsgf, nspin, sgf
+      INTEGER :: atom_a, handle, i, iatom, ikind, isb, iset, isgf, ishell, ispin, jatom, jsgf, lu, &
+         m, natom, natom_of_kind, nkind, nsb, nset, nsgf, nspin, sgf
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf_atom
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, nshell
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgf, l, last_sgf
@@ -1673,7 +1673,7 @@ CONTAINS
 
          DO WHILE (dbcsr_iterator_blocks_left(iter))
 
-            CALL dbcsr_iterator_next_block(iter, iatom, jatom, p_block, blk)
+            CALL dbcsr_iterator_next_block(iter, iatom, jatom, p_block)
 
             IF (orthonormal_basis) THEN
 
@@ -1895,7 +1895,7 @@ CONTAINS
 
             DO WHILE (dbcsr_iterator_blocks_left(iter))
 
-               CALL dbcsr_iterator_next_block(iter, iatom, jatom, h_block, blk)
+               CALL dbcsr_iterator_next_block(iter, iatom, jatom, h_block)
 
                IF (orthonormal_basis) THEN
 
@@ -1964,7 +1964,7 @@ CONTAINS
 
             DO WHILE (dbcsr_iterator_blocks_left(iter))
 
-               CALL dbcsr_iterator_next_block(iter, iatom, jatom, p_block, blk)
+               CALL dbcsr_iterator_next_block(iter, iatom, jatom, p_block)
 
                ! Skip the diagonal blocks of the W matrix
 

@@ -540,7 +540,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
-      INTEGER                                            :: blk, iatom, ikind, jatom
+      INTEGER                                            :: iatom, ikind, jatom
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: hblock, reltmat
       TYPE(dbcsr_iterator_type)                          :: iter
@@ -549,7 +549,7 @@ CONTAINS
 
       CALL dbcsr_iterator_start(iter, matrix_h)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
-         CALL dbcsr_iterator_next_block(iter, iatom, jatom, hblock, blk)
+         CALL dbcsr_iterator_next_block(iter, iatom, jatom, hblock)
          IF (iatom == jatom) THEN
             ikind = kind_of(iatom)
             CALL get_qs_kind(qs_kind_set(ikind), reltmat=reltmat)

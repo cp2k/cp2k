@@ -466,7 +466,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_multiply_local'
 
-      INTEGER                                            :: blk, col, coloff, my_ncol, row, rowoff, &
+      INTEGER                                            :: col, coloff, my_ncol, row, rowoff, &
                                                             timing_handle
       LOGICAL                                            :: has_symm
       REAL(dp)                                           :: my_alpha, my_alpha2
@@ -489,10 +489,10 @@ CONTAINS
                   dbcsr_get_matrix_type(matrix_a) .EQ. dbcsr_type_antisymmetric)
 
 !$OMP     PARALLEL DEFAULT(NONE) SHARED(matrix_a,vec_b,vec_c,ncol,my_alpha2,my_alpha,my_ncol,has_symm) &
-!$OMP              PRIVATE(iter,row,col,data_d,blk,rowoff,coloff)
+!$OMP              PRIVATE(iter,row,col,data_d,rowoff,coloff)
       CALL dbcsr_iterator_start(iter, matrix_a, read_only=.TRUE., dynamic=.TRUE., dynamic_byrows=.TRUE.)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
-         CALL dbcsr_iterator_next_block(iter, row, col, data_d, blk, row_offset=rowoff, col_offset=coloff)
+         CALL dbcsr_iterator_next_block(iter, row, col, data_d, row_offset=rowoff, col_offset=coloff)
          IF (my_ncol .NE. 1) THEN
             CALL dgemm('N', 'N', &
                        SIZE(data_d, 1), my_ncol, SIZE(data_d, 2), &
@@ -514,7 +514,7 @@ CONTAINS
       IF (has_symm) THEN
          CALL dbcsr_iterator_start(iter, matrix_a)
          DO WHILE (dbcsr_iterator_blocks_left(iter))
-            CALL dbcsr_iterator_next_block(iter, row, col, data_d, blk, row_offset=rowoff, col_offset=coloff)
+            CALL dbcsr_iterator_next_block(iter, row, col, data_d, row_offset=rowoff, col_offset=coloff)
             IF (row .NE. col) THEN
                IF (my_ncol .NE. 1) THEN
                   CALL dgemm('T', 'N', &

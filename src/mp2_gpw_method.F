@@ -123,7 +123,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'mp2_gpw_compute'
 
-      INTEGER :: a, a_group_counter, b, b_global, b_group_counter, blk, col, col_offset, col_size, &
+      INTEGER :: a, a_group_counter, b, b_global, b_group_counter, col, col_offset, col_size, &
          color_counter, EX_end, EX_end_send, EX_start, EX_start_send, group_counter, handle, &
          handle2, handle3, i, i_counter, i_group_counter, index_proc_shift, ispin, j, max_b_size, &
          max_batch_size_A, max_batch_size_I, max_row_col_local, my_A_batch_size, my_A_virtual_end, &
@@ -416,7 +416,7 @@ CONTAINS
             CALL timeset(routineN//"_E_Cou", handle3)
             CALL dbcsr_iterator_start(iter, matrix_ia_jb(1))
             DO WHILE (dbcsr_iterator_blocks_left(iter))
-               CALL dbcsr_iterator_next_block(iter, row, col, data_block, blk, &
+               CALL dbcsr_iterator_next_block(iter, row, col, data_block, &
                                               row_size=row_size, col_size=col_size, &
                                               row_offset=row_offset, col_offset=col_offset)
                DO b = 1, col_size
@@ -432,7 +432,7 @@ CONTAINS
                ! Compute the coulomb only= SO = MP2 alpha-beta  MP2 energy component
                CALL dbcsr_iterator_start(iter, matrix_ia_jb(2))
                DO WHILE (dbcsr_iterator_blocks_left(iter))
-                  CALL dbcsr_iterator_next_block(iter, row, col, data_block, blk, &
+                  CALL dbcsr_iterator_next_block(iter, row, col, data_block, &
                                                  row_size=row_size, col_size=col_size, &
                                                  row_offset=row_offset, col_offset=col_offset)
                   DO b = 1, col_size
@@ -751,8 +751,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'grep_occ_virt_wavefunc'
 
-      INTEGER                                            :: blk, col, col_offset, col_size, handle, &
-                                                            i, i_global, j, j_global, row, &
+      INTEGER                                            :: col, col_offset, col_size, handle, i, &
+                                                            i_global, j, j_global, row, &
                                                             row_offset, row_size
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: data_block
       TYPE(dbcsr_iterator_type)                          :: iter
@@ -768,7 +768,7 @@ CONTAINS
       ! accumulate data from mo_coeff_o into Cocc
       CALL dbcsr_iterator_start(iter, mo_coeff_o)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
-         CALL dbcsr_iterator_next_block(iter, row, col, data_block, blk, &
+         CALL dbcsr_iterator_next_block(iter, row, col, data_block, &
                                         row_size=row_size, col_size=col_size, &
                                         row_offset=row_offset, col_offset=col_offset)
          DO j = 1, col_size
@@ -788,7 +788,7 @@ CONTAINS
       ! accumulate data from mo_coeff_o into Cocc
       CALL dbcsr_iterator_start(iter, mo_coeff_v)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
-         CALL dbcsr_iterator_next_block(iter, row, col, data_block, blk, &
+         CALL dbcsr_iterator_next_block(iter, row, col, data_block, &
                                         row_size=row_size, col_size=col_size, &
                                         row_offset=row_offset, col_offset=col_offset)
          DO j = 1, col_size

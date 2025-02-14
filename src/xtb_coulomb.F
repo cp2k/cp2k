@@ -111,7 +111,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'build_xtb_coulomb'
 
-      INTEGER :: atom_i, atom_j, blk, ewald_type, handle, i, ia, iac, iatom, ic, icol, ikind, img, &
+      INTEGER :: atom_i, atom_j, ewald_type, handle, i, ia, iac, iatom, ic, icol, ikind, img, &
          irow, is, j, jatom, jkind, la, lb, lmaxa, lmaxb, natom, natorb_a, natorb_b, ni, nimg, nj, &
          nkind, nmat, za, zb
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
@@ -407,7 +407,7 @@ CONTAINS
             ! no k-points; all matrices have been transformed to periodic bsf
             CALL dbcsr_iterator_start(iter, matrix_s(1, 1)%matrix)
             DO WHILE (dbcsr_iterator_blocks_left(iter))
-               CALL dbcsr_iterator_next_block(iter, irow, icol, sblock, blk)
+               CALL dbcsr_iterator_next_block(iter, irow, icol, sblock)
                ikind = kind_of(irow)
                jkind = kind_of(icol)
 
