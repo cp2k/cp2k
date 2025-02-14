@@ -837,7 +837,7 @@ CONTAINS
    SUBROUTINE construct_submatrices(matrix, submatrix, distr_pattern, domain_map, &
                                     node_of_domain, job_type)
 
-      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
       TYPE(domain_submatrix_type), DIMENSION(:), &
          INTENT(INOUT)                                   :: submatrix
       TYPE(dbcsr_type), INTENT(IN)                       :: distr_pattern
@@ -861,7 +861,7 @@ CONTAINS
       LOGICAL                                            :: found, transp
       REAL(KIND=dp)                                      :: antifactor
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: recv_data, send_data
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: block_p
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: block_p
       TYPE(dbcsr_distribution_type)                      :: pattern_dist
       TYPE(mp_comm_type)                                 :: group
 
@@ -1073,8 +1073,7 @@ CONTAINS
                      col_offset = row_size*col_size
                      start_data = send_offset_cpu(dest_node + 1) + &
                                   offset_block(dest_node + 1)
-                     send_data(start_data + 1:start_data + col_offset) = &
-                        block_p(1:col_offset)
+                     send_data(start_data + 1:start_data + col_offset) = RESHAPE(block_p, [col_offset])
                      offset_block(dest_node + 1) = offset_block(dest_node + 1) + col_offset
                      ! fill out row,col information
                      send_data2(send_offset2_cpu(dest_node + 1) + &

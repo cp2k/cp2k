@@ -165,7 +165,7 @@ CONTAINS
                                                           blocks_from_rank_t
 
       LOGICAL                                          :: valid
-      REAL(KIND=dp), DIMENSION(:), POINTER             :: blockp
+      REAL(KIND=dp), DIMENSION(:, :), POINTER           :: blockp
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'submatrix_dissection_init'
       INTEGER :: handle
@@ -472,7 +472,7 @@ CONTAINS
                CPABORT("Block included in our COO and placed on our rank could not be fetched!")
             END IF
             bufsize_next = bufsize + SIZE(blockp)
-            sendbufs(i)%data(bufsize + 1:bufsize_next) = blockp
+            sendbufs(i)%data(bufsize + 1:bufsize_next) = RESHAPE(blockp, [SIZE(blockp)])
             bufsize = bufsize_next
          END DO
       END DO

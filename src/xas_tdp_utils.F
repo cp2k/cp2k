@@ -1092,7 +1092,7 @@ CONTAINS
                                                             nblk_row, ndo_mo, nspins
       INTEGER, DIMENSION(:), POINTER                     :: blk_size_q, row_blk_size
       LOGICAL                                            :: found_block, my_dosf
-      REAL(dp), DIMENSION(:), POINTER                    :: work_block
+      REAL(dp), DIMENSION(:, :), POINTER                 :: work_block
       TYPE(dbcsr_distribution_type), POINTER             :: dist_q
       TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(dbcsr_type), POINTER                          :: one_sp
@@ -1180,7 +1180,7 @@ CONTAINS
                                                             nblk_row, ndo_mo, nspins
       INTEGER, DIMENSION(:), POINTER                     :: blk_size_a, row_blk_size
       LOGICAL                                            :: found_block, my_dosf
-      REAL(dp), DIMENSION(:), POINTER                    :: work_block
+      REAL(dp), DIMENSION(:, :), POINTER                 :: work_block
       TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist, dist_a
       TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: m_ks, matrix_ks, matrix_s
@@ -1311,7 +1311,7 @@ CONTAINS
                                                             nblk_row, ndo_mo, nspins
       INTEGER, DIMENSION(:), POINTER                     :: blk_size_g, row_blk_size
       LOGICAL                                            :: found_block, my_do_inv
-      REAL(dp), DIMENSION(:), POINTER                    :: work_block
+      REAL(dp), DIMENSION(:, :), POINTER                 :: work_block
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(dbcsr_distribution_type), POINTER             :: dist_g
       TYPE(dbcsr_iterator_type)                          :: iter

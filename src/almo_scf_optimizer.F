@@ -10624,7 +10624,7 @@ CONTAINS
 
       !RZK-noncritical: can be formulated without submatrices
       REAL(KIND=dp), INTENT(INOUT)                       :: reduction_out
-      TYPE(dbcsr_type), DIMENSION(:), INTENT(IN)         :: grad_in, step_in, hess_in
+      TYPE(dbcsr_type), DIMENSION(:), INTENT(INOUT)      :: grad_in, step_in, hess_in
       TYPE(domain_submatrix_type), DIMENSION(:, :), &
          INTENT(IN)                                      :: hess_submatrix_in
       TYPE(dbcsr_type), DIMENSION(:), INTENT(IN)         :: quench_t_in
