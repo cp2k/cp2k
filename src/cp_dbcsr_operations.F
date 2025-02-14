@@ -21,12 +21,12 @@ MODULE cp_dbcsr_operations
         dbcsr_add, dbcsr_complete_redistribute, dbcsr_convert_sizes_to_offsets, dbcsr_copy, &
         dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, dbcsr_distribution_get, &
         dbcsr_distribution_new, dbcsr_distribution_release, dbcsr_distribution_type, &
-        dbcsr_frobenius_norm, dbcsr_get_data_type, dbcsr_get_info, dbcsr_get_matrix_type, &
-        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
-        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
-        dbcsr_reserve_all_blocks, dbcsr_scale, dbcsr_type, dbcsr_type_antisymmetric, &
-        dbcsr_type_no_symmetry, dbcsr_type_real_8, dbcsr_type_symmetric, dbcsr_valid_index, &
-        dbcsr_verify_matrix
+        dbcsr_get_data_type, dbcsr_get_info, dbcsr_get_matrix_type, dbcsr_iterator_blocks_left, &
+        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
+        dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_reserve_all_blocks, dbcsr_scale, &
+        dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_type_real_8, &
+        dbcsr_type_symmetric, dbcsr_valid_index, dbcsr_verify_matrix
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_frobenius_norm
    USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&

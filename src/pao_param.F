@@ -11,10 +11,10 @@
 ! **************************************************************************************************
 MODULE pao_param
    USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
-                                              dbcsr_frobenius_norm,&
                                               dbcsr_multiply,&
                                               dbcsr_release,&
                                               dbcsr_type
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_frobenius_norm
    USE dm_ls_scf_types,                 ONLY: ls_scf_env_type
    USE kinds,                           ONLY: dp
    USE pao_input,                       ONLY: pao_equi_param,&

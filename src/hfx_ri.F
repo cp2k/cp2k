@@ -24,11 +24,12 @@ MODULE hfx_ri
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_add_on_diag, dbcsr_complete_redistribute, dbcsr_copy, dbcsr_create, &
         dbcsr_desymmetrize, dbcsr_distribution_get, dbcsr_distribution_release, &
-        dbcsr_distribution_type, dbcsr_dot, dbcsr_filter, dbcsr_frobenius_norm, dbcsr_get_info, &
-        dbcsr_get_num_blocks, dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_scale, &
-        dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_type_symmetric
+        dbcsr_distribution_type, dbcsr_dot, dbcsr_filter, dbcsr_get_info, dbcsr_get_num_blocks, &
+        dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_scale, dbcsr_type, &
+        dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE cp_dbcsr_cholesky,               ONLY: cp_dbcsr_cholesky_decompose,&
                                               cp_dbcsr_cholesky_invert
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_frobenius_norm
    USE cp_dbcsr_diag,                   ONLY: cp_dbcsr_power
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
