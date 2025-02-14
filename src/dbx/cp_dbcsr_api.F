@@ -64,9 +64,9 @@ MODULE cp_dbcsr_api
         dbcsr_set_prv => dbcsr_set, dbcsr_setname_prv => dbcsr_setname, &
         dbcsr_sum_replicated_prv => dbcsr_sum_replicated, dbcsr_test_mm, &
         dbcsr_trace_prv => dbcsr_trace, dbcsr_transpose, dbcsr_transposed_prv => dbcsr_transposed, &
-        dbcsr_triu_prv => dbcsr_triu, dbcsr_type_antisymmetric, dbcsr_type_complex_8, &
-        dbcsr_type_no_symmetry, dbcsr_type_prv => dbcsr_type, dbcsr_type_real_8, &
-        dbcsr_type_real_default, dbcsr_type_symmetric, dbcsr_valid_index_prv => dbcsr_valid_index, &
+        dbcsr_type_antisymmetric, dbcsr_type_complex_8, dbcsr_type_no_symmetry, &
+        dbcsr_type_prv => dbcsr_type, dbcsr_type_real_8, dbcsr_type_real_default, &
+        dbcsr_type_symmetric, dbcsr_valid_index_prv => dbcsr_valid_index, &
         dbcsr_verify_matrix_prv => dbcsr_verify_matrix, dbcsr_work_create_prv => dbcsr_work_create
    USE kinds,                           ONLY: dp,&
                                               int_8
@@ -189,7 +189,6 @@ MODULE cp_dbcsr_api
    PUBLIC :: dbcsr_gershgorin_norm
    PUBLIC :: dbcsr_frobenius_norm
    PUBLIC :: dbcsr_init_random
-   PUBLIC :: dbcsr_triu
 
    ! csr conversion
    PUBLIC :: dbcsr_csr_type
@@ -1359,16 +1358,6 @@ CONTAINS
                                    transpose_distribution=transpose_distribution)
       END IF
    END SUBROUTINE dbcsr_transposed
-
-! **************************************************************************************************
-!> \brief ...
-!> \param matrix ...
-! **************************************************************************************************
-   SUBROUTINE dbcsr_triu(matrix)
-      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
-
-      CALL dbcsr_triu_prv(matrix%prv)
-   END SUBROUTINE dbcsr_triu
 
 ! **************************************************************************************************
 !> \brief ...
