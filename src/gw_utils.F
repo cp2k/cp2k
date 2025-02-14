@@ -286,6 +286,7 @@ CONTAINS
       CALL section_vals_val_get(gw_sec, "SIZE_LATTICE_SUM", i_val=bs_env%size_lattice_sum_V)
       CALL section_vals_val_get(gw_sec, "KPOINTS_W", i_vals=bs_env%nkp_grid_chi_eps_W_input)
       CALL section_vals_val_get(gw_sec, "HEDIN_SHIFT", l_val=bs_env%do_hedin_shift)
+      CALL section_vals_val_get(gw_sec, "MINIMAX_VERSION", i_val=bs_env%minimax_version)
 
       CALL timestop(handle)
 
@@ -1510,11 +1511,18 @@ CONTAINS
       ! for periodic systems and for 20 minimax points, we use a regularized minimax mesh
       ! (from experience: regularized minimax meshes converges faster for periodic systems
       !  and for 20 pts)
-      IF (SUM(bs_env%periodic) .NE. 0 .OR. bs_env%num_time_freq_points >= 20) THEN
-         bs_env%regularization_minimax = 1.0E-6_dp
-      ELSE
-         bs_env%regularization_minimax = 0.0_dp
-      END IF
+      SELECT CASE (bs_env%minimax_version)
+      CASE (1)
+         IF (SUM(bs_env%periodic) .NE. 0 .OR. bs_env%num_time_freq_points >= 20) THEN
+            bs_env%regularization_minimax = 1.0E-6_dp
+         ELSE
+            bs_env%regularization_minimax = 0.0_dp
+         END IF
+      CASE (2)
+         bs_env%regularization_minimax = 1.0E-5_dp
+      CASE DEFAULT
+         CPABORT("Only minimax regularization version 1 and 2 available.")
+      END SELECT
 
       bs_env%stabilize_exp = 70.0_dp
       bs_env%eps_atom_grid_2d_mat = 1.0E-50_dp
@@ -1603,9 +1611,10 @@ CONTAINS
             '-------------------------------'
          WRITE (u, '(T2,A)') ' '
          WRITE (u, '(T2,A,I45)') 'Input: Number of time/freq. points', bs_env%num_time_freq_points
+         WRITE (u, FMT="(T2,A,I59)") 'Minimax grid version', bs_env%minimax_version
          WRITE (u, '(T2,A,ES27.1)') 'Input: Filter threshold for sparse tensor operations', &
             bs_env%eps_filter
-         WRITE (bs_env%unit_nr, FMT="(T2,A,L62)") "Apply Hedin shift", bs_env%do_hedin_shift
+         WRITE (u, FMT="(T2,A,L62)") 'Apply Hedin shift', bs_env%do_hedin_shift
       END IF
 
       CALL timestop(handle)
@@ -1795,6 +1804,11 @@ CONTAINS
          E_min = MIN(E_min, E_min_ispin)
          E_max = MAX(E_max, E_max_ispin)
       END DO
+
+      IF (bs_env%minimax_version == 2) THEN
+         E_min = MAX(E_min - 0.5_dp/evolt, 0.3_dp/evolt)
+         E_max = 2*E_max
+      END IF
 
       E_range = E_max/E_min
 

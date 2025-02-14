@@ -9,4 +9,5 @@
 05_G0W0_SOC_TeH_chain_open_shell.inp                        108     5e-04        5.134
 06_G0W0_periodic_H2O_Hedin_shift.inp                        106     1e-03       10.417
 07_G0W0_periodic_H2Te_kp_sampling_SCF.inp                   108     5e-04       10.315
+08_G0W0_periodic_H2Te_kp_sampling_SCF_minimax_2.inp         108     5e-04       10.318
 #EOF
