@@ -28,8 +28,6 @@ MODULE cp_dbcsr_api
         dbcsr_distribution_type_prv => dbcsr_distribution_type, dbcsr_dot_prv => dbcsr_dot, &
         dbcsr_filter_prv => dbcsr_filter, dbcsr_finalize_lib, &
         dbcsr_finalize_prv => dbcsr_finalize, dbcsr_frobenius_norm_prv => dbcsr_frobenius_norm, &
-        dbcsr_func_dtanh, dbcsr_func_inverse, dbcsr_func_tanh, &
-        dbcsr_function_of_elements_prv => dbcsr_function_of_elements, &
         dbcsr_gershgorin_norm_prv => dbcsr_gershgorin_norm, &
         dbcsr_get_block_diag_prv => dbcsr_get_block_diag, &
         dbcsr_get_block_p_prv => dbcsr_get_block_p, dbcsr_get_data_p_prv => dbcsr_get_data_p, &
@@ -184,9 +182,6 @@ MODULE cp_dbcsr_api
 
    ! high level matrix functions
    PUBLIC :: dbcsr_hadamard_product
-   PUBLIC :: dbcsr_func_dtanh
-   PUBLIC :: dbcsr_func_inverse
-   PUBLIC :: dbcsr_func_tanh
    PUBLIC :: dbcsr_print
    PUBLIC :: dbcsr_print_block_sum
    PUBLIC :: dbcsr_checksum
@@ -194,7 +189,6 @@ MODULE cp_dbcsr_api
    PUBLIC :: dbcsr_gershgorin_norm
    PUBLIC :: dbcsr_frobenius_norm
    PUBLIC :: dbcsr_init_random
-   PUBLIC :: dbcsr_function_of_elements
    PUBLIC :: dbcsr_triu
 
    ! csr conversion
@@ -692,22 +686,6 @@ CONTAINS
 
       norm = dbcsr_frobenius_norm_prv(matrix%prv)
    END FUNCTION dbcsr_frobenius_norm
-
-! **************************************************************************************************
-!> \brief ...
-!> \param matrix ...
-!> \param func ...
-!> \param a0 ...
-!> \param a1 ...
-!> \param a2 ...
-! **************************************************************************************************
-   SUBROUTINE dbcsr_function_of_elements(matrix, func, a0, a1, a2)
-      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
-      INTEGER, INTENT(IN)                                :: func
-      REAL(kind=dp), INTENT(IN), OPTIONAL                :: a0, a1, a2
-
-      CALL dbcsr_function_of_elements_prv(matrix%prv, func, a0, a1, a2)
-   END SUBROUTINE dbcsr_function_of_elements
 
 ! **************************************************************************************************
 !> \brief ...
