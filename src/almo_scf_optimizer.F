@@ -874,7 +874,7 @@ CONTAINS
       CHARACTER(LEN=20)                                  :: iter_type
       INTEGER :: cg_iteration, dim_op, fixed_line_search_niter, handle, idim0, ielem, ispin, &
          iteration, line_search_iteration, max_iter, my_special_case, ndomains, nmo, nspins, &
-         outer_iteration, outer_max_iter, para_group_handle, prec_type, reim, unit_nr
+         outer_iteration, outer_max_iter, prec_type, reim, unit_nr
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nocc
       LOGICAL :: blissful_neglect, converged, just_started, line_search, normalize_orbitals, &
          optimize_theta, outer_prepare_to_exit, penalty_occ_local, penalty_occ_vol, &
@@ -896,7 +896,7 @@ CONTAINS
          STsiginv_0, tempNOcc, tempNOcc_1, tempOccOcc
       TYPE(domain_submatrix_type), ALLOCATABLE, &
          DIMENSION(:, :)                                 :: bad_modes_projector_down, domain_r_down
-      TYPE(mp_comm_type)                                 :: para_group
+      TYPE(mp_comm_type)                                 :: group
 
       CALL timeset(routineN, handle)
 
@@ -1309,8 +1309,7 @@ CONTAINS
                   ALLOCATE (z2(nmo))
                   ALLOCATE (reim_diag(nmo))
 
-                  CALL dbcsr_get_info(tempOccOcc(ispin), group=para_group_handle)
-                  CALL para_group%set_handle(para_group_handle)
+                  CALL dbcsr_get_info(tempOccOcc(ispin), group=group)
 
                   DO idim0 = 1, SIZE(op_sm_set_qs, 2) ! this loop is over miller ind
 
@@ -1335,7 +1334,7 @@ CONTAINS
 
                         reim_diag = 0.0_dp
                         CALL dbcsr_get_diag(tempOccOcc(ispin), reim_diag)
-                        CALL para_group%sum(reim_diag)
+                        CALL group%sum(reim_diag)
                         z2(:) = z2(:) + reim_diag(:)*reim_diag(:)
 
                      END DO
@@ -2012,7 +2011,7 @@ CONTAINS
       CHARACTER(LEN=30)                                  :: iter_type, print_string
       INTEGER :: cg_iteration, dim_op, handle, iatom, idim0, isgf, ispin, iteration, &
          line_search_iteration, linear_search_type, max_iter, natom, ncol, nspins, &
-         outer_iteration, outer_max_iter, para_group_handle, prec_type, reim, unit_nr
+         outer_iteration, outer_max_iter, prec_type, reim, unit_nr
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf, last_sgf, nocc, nsgf
       LOGICAL                                            :: converged, d_bfgs, just_started, l_bfgs, &
                                                             line_search, outer_prepare_to_exit, &
@@ -2035,7 +2034,7 @@ CONTAINS
          tempOccOcc2, tempOccOcc3
       TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:, :, :)  :: m_B0
       TYPE(lbfgs_history_type)                           :: nlmo_lbfgs_history
-      TYPE(mp_comm_type)                                 :: para_group
+      TYPE(mp_comm_type)                                 :: group
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
@@ -2406,8 +2405,7 @@ CONTAINS
 
             DO ispin = 1, nspins
 
-               CALL dbcsr_get_info(m_sig_sqrti_ii(ispin), group=para_group_handle)
-               CALL para_group%set_handle(para_group_handle)
+               CALL dbcsr_get_info(m_sig_sqrti_ii(ispin), group=group)
 
                ! compute diagonal (a^t.sigma0.a)^(-1/2)
                CALL dbcsr_multiply("N", "N", 1.0_dp, &
@@ -2422,7 +2420,7 @@ CONTAINS
                                    retain_sparsity=.TRUE.)
                ALLOCATE (diagonal(nocc(ispin)))
                CALL dbcsr_get_diag(m_sig_sqrti_ii(ispin), diagonal)
-               CALL para_group%sum(diagonal)
+               CALL group%sum(diagonal)
                ! TODO: works for zero diagonal elements?
                diagonal(:) = 1.0_dp/SQRT(diagonal(:))
                CALL dbcsr_set(m_sig_sqrti_ii(ispin), 0.0_dp)
@@ -4950,8 +4948,9 @@ CONTAINS
                                           spin_factor, eps_filter)
 
       TYPE(dbcsr_type), INTENT(INOUT)                    :: prec
-      TYPE(dbcsr_type), INTENT(IN)                       :: vd_prop, f, x, oo_inv_x_tr, s, grad, &
-                                                            vd_blk, t, template_vd_vd_blk, &
+      TYPE(dbcsr_type), INTENT(IN)                       :: vd_prop, f, x, oo_inv_x_tr, s
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: grad
+      TYPE(dbcsr_type), INTENT(IN)                       :: vd_blk, t, template_vd_vd_blk, &
                                                             template_vr_vr_blk, template_n_vr
       REAL(KIND=dp), INTENT(IN)                          :: spin_factor, eps_filter
 
@@ -5977,9 +5976,8 @@ CONTAINS
                                special_case, m_sig_sqrti_ii, op_sm_set, weights, energy_coeff, &
                                localiz_coeff)
 
-      TYPE(dbcsr_type), INTENT(INOUT)                    :: m_grad_out
-      TYPE(dbcsr_type), INTENT(IN)                       :: m_ks, m_s, m_t, m_t0, m_siginv, &
-                                                            m_quench_t, m_FTsiginv, &
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: m_grad_out, m_ks, m_s, m_t, m_t0, &
+                                                            m_siginv, m_quench_t, m_FTsiginv, &
                                                             m_siginvTFTsiginv, m_ST, m_STsiginv0, &
                                                             m_theta
       TYPE(domain_submatrix_type), DIMENSION(:), &
@@ -6317,8 +6315,7 @@ CONTAINS
          CALL dbcsr_filter(m_tmp_no_3, eps_filter)
          CALL dbcsr_hadamard_product(m_tmp_no_1, &
                                      m_tmp_no_2, &
-                                     m_tmp_no_3, &
-                                     b_assume_value=1.0_dp)
+                                     m_tmp_no_3)
          CALL dbcsr_hadamard_product(m_tmp_no_3, &
                                      m_quench_t, &
                                      m_grad_out)
@@ -6489,12 +6486,11 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'compute_obj_nlmos'
 
-      INTEGER                                            :: handle, idim0, ielem, para_group_handle, &
-                                                            reim
+      INTEGER                                            :: handle, idim0, ielem, reim
       REAL(KIND=dp)                                      :: det1, fval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: reim_diag, z2
       TYPE(dbcsr_type)                                   :: tempNOcc1, tempOccOcc1, tempOccOcc2
-      TYPE(mp_comm_type)                                 :: para_group
+      TYPE(mp_comm_type)                                 :: group
 
       CALL timeset(routineN, handle)
 
@@ -6513,8 +6509,7 @@ CONTAINS
       ALLOCATE (z2(nocc))
       ALLOCATE (reim_diag(nocc))
 
-      CALL dbcsr_get_info(tempOccOcc2, group=para_group_handle)
-      CALL para_group%set_handle(para_group_handle)
+      CALL dbcsr_get_info(tempOccOcc2, group=group)
 
       DO idim0 = 1, SIZE(m_B0, 2) ! this loop is over miller ind
 
@@ -6537,7 +6532,7 @@ CONTAINS
 
             reim_diag = 0.0_dp
             CALL dbcsr_get_diag(tempOccOcc2, reim_diag)
-            CALL para_group%sum(reim_diag)
+            CALL group%sum(reim_diag)
             z2(:) = z2(:) + reim_diag(:)*reim_diag(:)
 
          END DO
@@ -6807,10 +6802,9 @@ CONTAINS
                                            special_case, nocc_of_domain, order_lanczos, eps_lanczos, max_iter_lanczos)
 
       TYPE(dbcsr_type), INTENT(IN)                       :: m_var_in
-      TYPE(dbcsr_type), INTENT(INOUT)                    :: m_t_out
-      TYPE(dbcsr_type), INTENT(IN)                       :: m_quench_t, m_t0, m_oo_template, &
-                                                            m_STsiginv0, m_s
-      TYPE(dbcsr_type), INTENT(INOUT)                    :: m_sig_sqrti_ii_out
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: m_t_out, m_quench_t, m_t0, &
+                                                            m_oo_template, m_STsiginv0, m_s, &
+                                                            m_sig_sqrti_ii_out
       TYPE(domain_submatrix_type), DIMENSION(:), &
          INTENT(IN)                                      :: domain_r_down, domain_s_inv
       TYPE(domain_map_type), INTENT(IN)                  :: domain_map
@@ -10293,8 +10287,8 @@ CONTAINS
       TYPE(dbcsr_type), DIMENSION(:), INTENT(INOUT)      :: m_t_out
       REAL(KIND=dp), INTENT(OUT)                         :: energy_out, penalty_out
       TYPE(dbcsr_type), DIMENSION(:), INTENT(INOUT)      :: m_sig_sqrti_ii_out, m_FTsiginv_out, &
-                                                            m_siginvTFTsiginv_out, m_ST_out
-      TYPE(dbcsr_type), DIMENSION(:), INTENT(IN)         :: m_STsiginv0_in, m_quench_t_in
+                                                            m_siginvTFTsiginv_out, m_ST_out, &
+                                                            m_STsiginv0_in, m_quench_t_in
       TYPE(domain_submatrix_type), DIMENSION(:, :), &
          INTENT(IN)                                      :: domain_r_down_in
       LOGICAL, INTENT(IN)                                :: assume_t0_q0x, just_started, &

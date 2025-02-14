@@ -69,6 +69,7 @@ MODULE cp_dbcsr_api
         dbcsr_verify_matrix_prv => dbcsr_verify_matrix, dbcsr_work_create_prv => dbcsr_work_create
    USE kinds,                           ONLY: dp,&
                                               int_8
+   USE message_passing,                 ONLY: mp_comm_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -824,8 +825,10 @@ CONTAINS
          OPTIONAL                                        :: distribution
       CHARACTER(len=*), INTENT(OUT), OPTIONAL            :: name
       CHARACTER, INTENT(OUT), OPTIONAL                   :: matrix_type
-      INTEGER, INTENT(OUT), OPTIONAL                     :: data_type, group
+      INTEGER, INTENT(OUT), OPTIONAL                     :: data_type
+      TYPE(mp_comm_type), INTENT(OUT), OPTIONAL          :: group
 
+      INTEGER                                            :: group_handle
       TYPE(dbcsr_distribution_type_prv)                  :: my_distribution
 
       CALL dbcsr_get_info_prv(matrix=matrix%prv, &
@@ -851,9 +854,10 @@ CONTAINS
                               name=name, &
                               matrix_type=matrix_type, &
                               data_type=data_type, &
-                              group=group)
+                              group=group_handle)
 
       IF (PRESENT(distribution)) distribution%prv = my_distribution
+      IF (PRESENT(group)) CALL group%set_handle(group_handle)
 
    END SUBROUTINE dbcsr_get_info
 

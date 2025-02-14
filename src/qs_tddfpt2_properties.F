@@ -1363,7 +1363,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'vec_product'
 
-      INTEGER                                            :: group_handle, handle, icol, irow
+      INTEGER                                            :: handle, icol, irow
       LOGICAL                                            :: found
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: vba, vbb
       TYPE(dbcsr_iterator_type)                          :: iter
@@ -1373,8 +1373,7 @@ CONTAINS
 
       res = 0.0_dp
 
-      CALL dbcsr_get_info(va, group=group_handle)
-      CALL group%set_handle(group_handle)
+      CALL dbcsr_get_info(va, group=group)
       CALL dbcsr_iterator_start(iter, va)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, irow, icol, vba)

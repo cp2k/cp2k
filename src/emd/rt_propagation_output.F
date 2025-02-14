@@ -473,8 +473,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'rt_convergence_density'
       REAL(KIND=dp), PARAMETER                           :: one = 1.0_dp, zero = 0.0_dp
 
-      INTEGER                                            :: col_atom, group_handle, handle, i, &
-                                                            ispin, row_atom
+      INTEGER                                            :: col_atom, handle, i, ispin, row_atom
       REAL(dp)                                           :: alpha, max_alpha
       REAL(dp), DIMENSION(:, :), POINTER                 :: block_values
       TYPE(dbcsr_iterator_type)                          :: iter
@@ -517,8 +516,7 @@ CONTAINS
          END DO
          CALL dbcsr_iterator_stop(iter)
       END DO
-      CALL dbcsr_get_info(delta_P(1)%matrix, group=group_handle)
-      CALL group%set_handle(group_handle)
+      CALL dbcsr_get_info(delta_P(1)%matrix, group=group)
       CALL group%max(max_alpha)
       delta_eps = SQRT(max_alpha)
       CALL dbcsr_deallocate_matrix(tmp)

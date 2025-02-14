@@ -157,9 +157,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_gth_preconditioner'
 
-      INTEGER                                            :: acol, arow, group_handle, handle, i, &
-                                                            iatom, ioffset, j, jatom, joffset, m, &
-                                                            n, natoms
+      INTEGER                                            :: acol, arow, handle, i, iatom, ioffset, &
+                                                            j, jatom, joffset, m, n, natoms
       LOGICAL                                            :: arnoldi_converged, converged, found
       REAL(dp)                                           :: eval_max, eval_min
       REAL(dp), DIMENSION(:, :), POINTER                 :: block, block_overlap, block_V_term
@@ -171,8 +170,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       CALL get_qs_env(qs_env, ls_scf_env=ls_scf_env)
-      CALL dbcsr_get_info(pao%matrix_V_terms, group=group_handle)
-      CALL group%set_handle(group_handle)
+      CALL dbcsr_get_info(pao%matrix_V_terms, group=group)
       natoms = SIZE(nterms)
 
       CALL dbcsr_create(matrix_gth_overlap, &
@@ -295,8 +293,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pao_calc_U_gth'
 
-      INTEGER                                            :: acol, arow, group_handle, handle, iatom, &
-                                                            idx, iterm, n, natoms
+      INTEGER                                            :: acol, arow, handle, iatom, idx, iterm, &
+                                                            n, natoms
       INTEGER, DIMENSION(:), POINTER                     :: nterms
       LOGICAL                                            :: found
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: gaps
@@ -309,8 +307,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL dbcsr_get_info(pao%matrix_X, row_blk_size=nterms, group=group_handle)
-      CALL group%set_handle(group_handle)
+      CALL dbcsr_get_info(pao%matrix_X, row_blk_size=nterms, group=group)
       natoms = SIZE(nterms)
       ALLOCATE (gaps(natoms))
       gaps(:) = HUGE(dp)

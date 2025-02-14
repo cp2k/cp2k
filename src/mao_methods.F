@@ -90,8 +90,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: eps1
       INTEGER, INTENT(IN)                                :: iolevel, iw
 
-      INTEGER                                            :: group_handle, i, iatom, info, jatom, &
-                                                            lwork, m, n, nblk
+      INTEGER                                            :: i, iatom, info, jatom, lwork, m, n, nblk
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_sizes, mao_blk, row_blk, &
                                                             row_blk_sizes
       LOGICAL                                            :: found
@@ -140,8 +139,7 @@ CONTAINS
       CALL dbcsr_iterator_stop(dbcsr_iter)
 
       IF (eps1 < 10.0_dp) THEN
-         CALL dbcsr_get_info(mao_coef, row_blk_size=row_blk_sizes, group=group_handle)
-         CALL group%set_handle(group_handle)
+         CALL dbcsr_get_info(mao_coef, row_blk_size=row_blk_sizes, group=group)
          ALLOCATE (row_blk(nblk), mao_blk(nblk))
          mao_blk = 0
          row_blk = row_blk_sizes
@@ -182,8 +180,7 @@ CONTAINS
 
       IF (iolevel > 2) THEN
          CALL dbcsr_get_info(mao_coef, col_blk_size=col_blk_sizes, &
-                             row_blk_size=row_blk_sizes, group=group_handle)
-         CALL group%set_handle(group_handle)
+                             row_blk_size=row_blk_sizes, group=group)
          DO iatom = 1, nblk
             n = row_blk_sizes(iatom)
             m = col_blk_sizes(iatom)
@@ -402,7 +399,7 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: fmat1, fmat2
       REAL(KIND=dp)                                      :: spro
 
-      INTEGER                                            :: group_handle, iatom, jatom, m, n
+      INTEGER                                            :: iatom, jatom, m, n
       LOGICAL                                            :: found
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: ablock, bblock
       TYPE(dbcsr_iterator_type)                          :: dbcsr_iter
@@ -422,8 +419,7 @@ CONTAINS
       END DO
       CALL dbcsr_iterator_stop(dbcsr_iter)
 
-      CALL dbcsr_get_info(fmat1, group=group_handle)
-      CALL group%set_handle(group_handle)
+      CALL dbcsr_get_info(fmat1, group=group)
       CALL group%sum(spro)
 
    END FUNCTION mao_scalar_product

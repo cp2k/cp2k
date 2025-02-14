@@ -940,7 +940,7 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: p_matrix
       REAL(KIND=dp), DIMENSION(:)                        :: charges
 
-      INTEGER                                            :: group_handle, i, iblock_col, iblock_row
+      INTEGER                                            :: i, iblock_col, iblock_row
       REAL(kind=dp)                                      :: trace
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p_block
       TYPE(dbcsr_iterator_type)                          :: iter
@@ -961,9 +961,7 @@ CONTAINS
       END DO
       CALL dbcsr_iterator_stop(iter)
 
-      CALL dbcsr_get_info(p_matrix, group=group_handle)
-      CALL group%set_handle(group_handle)
-
+      CALL dbcsr_get_info(p_matrix, group=group)
       CALL group%sum(charges)
 
    END SUBROUTINE iao_charges
@@ -1406,7 +1404,7 @@ CONTAINS
       INTEGER                                            :: handle, i, i1, i2, iao, iatom, ikind, &
                                                             iset, ishell, ispin, l, m, maxl, n, &
                                                             natom, nkind, noce, ns, nset, nsgf, &
-                                                            nspin, para_group_handle
+                                                            nspin
       INTEGER, DIMENSION(:), POINTER                     :: iao_blk_sizes, nshell, oce_blk_sizes, &
                                                             orb_blk_sizes
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgf, last_sgf, lval
@@ -1418,7 +1416,7 @@ CONTAINS
       TYPE(dbcsr_distribution_type)                      :: dbcsr_dist
       TYPE(dbcsr_type)                                   :: iao_vec, sx_vec
       TYPE(gto_basis_set_type), POINTER                  :: oce_basis
-      TYPE(mp_comm_type)                                 :: para_type
+      TYPE(mp_comm_type)                                 :: group
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
@@ -1453,8 +1451,7 @@ CONTAINS
          sinv_kind(ikind)%array = smat_kind(ikind)%array
          CALL invmat_symm(sinv_kind(ikind)%array)
       END DO
-      CALL dbcsr_get_info(iao_vec, group=para_group_handle)
-      CALL para_type%set_handle(para_group_handle)
+      CALL dbcsr_get_info(iao_vec, group=group)
 
       nspin = SIZE(iao_coef, 1)
       ALLOCATE (oce_comp(natom, nspin))
@@ -1498,7 +1495,7 @@ CONTAINS
          END DO
       END DO
 
-      CALL para_type%sum(oce_comp)
+      CALL group%sum(oce_comp)
       IF (unit_nr > 0) THEN
          DO iatom = 1, natom
             WRITE (unit_nr, "(T4,A,I6,T30,A,2F12.4)") "Atom:", iatom, " Completeness: ", oce_comp(iatom, 1:nspin)

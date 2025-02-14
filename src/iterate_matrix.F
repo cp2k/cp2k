@@ -118,9 +118,7 @@ CONTAINS
       ! compute the product of the diagonal elements
       BLOCK
          TYPE(mp_comm_type) :: group
-         INTEGER :: group_handle
-         CALL dbcsr_get_info(matrix, nfullrows_total=nsize, group=group_handle)
-         CALL group%set_handle(group_handle)
+         CALL dbcsr_get_info(matrix, nfullrows_total=nsize, group=group)
          ALLOCATE (diagonal(nsize))
          CALL dbcsr_get_diag(matrix, diagonal)
          CALL group%sum(diagonal)
@@ -1367,8 +1365,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'matrix_sign_submatrix'
 
-      INTEGER                                            :: group, handle, i, myrank, nblkcols, &
-                                                            order, sm_size, unit_nr
+      INTEGER                                            :: handle, i, myrank, nblkcols, order, &
+                                                            sm_size, unit_nr
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: my_sms
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: sm, sm_sign
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -1387,7 +1385,7 @@ CONTAINS
          order = 2
       END IF
 
-      CALL dbcsr_get_info(matrix=matrix, nblkcols_total=nblkcols, distribution=dist, group=group)
+      CALL dbcsr_get_info(matrix=matrix, nblkcols_total=nblkcols, distribution=dist)
       CALL dbcsr_distribution_get(dist=dist, mynode=myrank)
 
       CALL dissection%init(matrix)
@@ -1446,9 +1444,9 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'matrix_sign_submatrix_mu_adjust'
       REAL(KIND=dp), PARAMETER                           :: initial_increment = 0.01_dp
 
-      INTEGER                                            :: group_handle, handle, i, j, myrank, &
-                                                            nblkcols, sm_firstcol, sm_lastcol, &
-                                                            sm_size, unit_nr
+      INTEGER                                            :: handle, i, j, myrank, nblkcols, &
+                                                            sm_firstcol, sm_lastcol, sm_size, &
+                                                            unit_nr
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: my_sms
       LOGICAL                                            :: has_mu_high, has_mu_low
       REAL(KIND=dp)                                      :: increment, mu_high, mu_low, new_mu, trace
@@ -1465,10 +1463,8 @@ CONTAINS
       logger => cp_get_default_logger()
       unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
 
-      CALL dbcsr_get_info(matrix=matrix, nblkcols_total=nblkcols, distribution=dist, group=group_handle)
+      CALL dbcsr_get_info(matrix=matrix, nblkcols_total=nblkcols, distribution=dist, group=group)
       CALL dbcsr_distribution_get(dist=dist, mynode=myrank)
-
-      CALL group%set_handle(group_handle)
 
       CALL dissection%init(matrix)
       CALL dissection%get_sm_ids_for_rank(myrank, my_sms)
