@@ -191,6 +191,7 @@ CONTAINS
       CHARACTER(len=*), INTENT(in), OPTIONAL             :: deprecation_notice
       LOGICAL, INTENT(in), OPTIONAL                      :: removed
 
+      CHARACTER(LEN=default_string_length)               :: tmp_string
       INTEGER                                            :: i, n
       LOGICAL                                            :: check
 
@@ -221,6 +222,19 @@ CONTAINS
       IF (PRESENT(usage)) THEN
          CPASSERT(LEN_TRIM(usage) <= LEN(keyword%usage))
          keyword%usage = usage
+         ! Check that the usage string starts with one of the keyword names.
+         IF (keyword%names(1) /= "_SECTION_PARAMETERS_" .AND. keyword%names(1) /= "_DEFAULT_KEYWORD_") THEN
+            tmp_string = usage
+            CALL uppercase(tmp_string)
+            check = .FALSE.
+            DO i = 1, SIZE(keyword%names)
+               check = check .OR. (INDEX(tmp_string, TRIM(keyword%names(i))) == 1)
+            END DO
+            !TODO: Arm this check once all the existing usage strings have been fixed.
+            !IF (.NOT. check) THEN
+            !   CPABORT("Usage string must start with one of the keyword name.")
+            !END IF
+         END IF
       ELSE
          keyword%usage = ""
       END IF
