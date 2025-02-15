@@ -783,7 +783,7 @@ CONTAINS
                                                             istat, m, n, n_rep, nao, natom, &
                                                             nspins, output_unit
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf, last_sgf
-      INTEGER, DIMENSION(:), POINTER                     :: list, row_blk_sizes
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: list, row_blk_sizes
       LOGICAL                                            :: gapw
       TYPE(cp_fm_struct_type), POINTER                   :: tmp_fm_struct
       TYPE(cp_fm_type), POINTER                          :: mo_coeff

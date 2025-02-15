@@ -170,7 +170,7 @@ CONTAINS
 
       INTEGER                                            :: handle, i, iatom, icol, ikind, imat, &
                                                             irow, jatom, jkind, natom, nmat
-      INTEGER, DIMENSION(:), POINTER                     :: row_blk_sizes
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: row_blk_sizes
       LOGICAL                                            :: found
       REAL(KIND=dp)                                      :: dfcut, dgb, dr, eta, fcut, r, rcut, &
                                                             rcuta, rcutb, x

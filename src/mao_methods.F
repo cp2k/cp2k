@@ -91,7 +91,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: iolevel, iw
 
       INTEGER                                            :: i, iatom, info, jatom, lwork, m, n, nblk
-      INTEGER, DIMENSION(:), POINTER                     :: col_blk_sizes, mao_blk, row_blk, &
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_blk_sizes, mao_blk, row_blk, &
                                                             row_blk_sizes
       LOGICAL                                            :: found
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: w, work

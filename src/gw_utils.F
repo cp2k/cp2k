@@ -2904,7 +2904,7 @@ CONTAINS
 
       INTEGER                                            :: handle, img, nimages_scf_desymm
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: sizes_RI
-      INTEGER, DIMENSION(:), POINTER                     :: col_bsize, row_bsize
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_bsize, row_bsize
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_V_tr_R
       TYPE(dbcsr_distribution_type)                      :: dbcsr_dist

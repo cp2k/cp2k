@@ -2597,7 +2597,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mao_create_matrices'
 
       INTEGER                                            :: handle, ispin, nspins
-      INTEGER, DIMENSION(:), POINTER                     :: col_blk_sizes
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_blk_sizes
       TYPE(dbcsr_distribution_type)                      :: dbcsr_dist
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mao_coef
       TYPE(dbcsr_type)                                   :: cgmat

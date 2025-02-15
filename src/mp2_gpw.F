@@ -1003,7 +1003,7 @@ CONTAINS
 
       CHARACTER                                          :: my_dbcsr_sym_type
       INTEGER                                            :: handle, ikind, natom, nkind
-      INTEGER, DIMENSION(:), POINTER                     :: col_blk_sizes, row_blk_sizes
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_blk_sizes, row_blk_sizes
       LOGICAL                                            :: my_do_alloc_blocks_from_nbl, &
                                                             my_do_kpoints, my_do_mixed_basis, &
                                                             my_do_ri_aux_basis

@@ -61,7 +61,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'mao_optimize'
 
       INTEGER                                            :: handle, i, ispin, iter, nspin
-      INTEGER, DIMENSION(:), POINTER                     :: col_blk_sizes, mao_sizes_a, mao_sizes_b
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_blk_sizes, mao_sizes_a, mao_sizes_b
       LOGICAL                                            :: spin_warning
       REAL(KIND=dp)                                      :: a1, a2, alpha, an, beta, eps_fun, fa1, &
                                                             fa2, fnnew, fnold, fval, grad_norm

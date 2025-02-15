@@ -252,7 +252,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'pao_calc_grad_lnv_wrt_AB'
 
       INTEGER                                            :: handle, nspin
-      INTEGER, DIMENSION(:), POINTER                     :: pao_blk_sizes
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: pao_blk_sizes
       REAL(KIND=dp)                                      :: filter_eps
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s, rho_ao
       TYPE(dbcsr_type) :: matrix_HB, matrix_HPS, matrix_M, matrix_M1, matrix_M1_dc, matrix_M2, &

@@ -761,7 +761,7 @@ CONTAINS
       CHARACTER                                          :: matrix_type
       CHARACTER(len=default_string_length)               :: matrix_name
       INTEGER                                            :: handle
-      INTEGER, DIMENSION(:), POINTER                     :: col_blk_sizes, row_blk_sizes
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_blk_sizes, row_blk_sizes
 
       CALL timeset(routineN, handle)
 

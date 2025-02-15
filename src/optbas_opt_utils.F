@@ -88,7 +88,7 @@ CONTAINS
 
       INTEGER                                            :: handle, ispin, iunit, naux, nmo, norb, &
                                                             nspins
-      INTEGER, DIMENSION(:), POINTER                     :: col_blk_sizes, row_blk_sizes
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_blk_sizes, row_blk_sizes
       REAL(KIND=dp)                                      :: tmp_energy, trace
       REAL(KIND=dp), DIMENSION(2)                        :: condnum
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env

@@ -107,7 +107,7 @@ CONTAINS
                                                             ls_data_type, natom, nmol
       INTEGER, ALLOCATABLE, DIMENSION(:), TARGET         :: atom_to_cluster, atom_to_cluster_primus, &
                                                             clustered_blk_sizes, primus_of_mol
-      INTEGER, DIMENSION(:), POINTER                     :: clustered_col_dist, clustered_row_dist, &
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: clustered_col_dist, clustered_row_dist, &
                                                             ls_blk_sizes, ls_col_dist, ls_row_dist
       TYPE(dbcsr_distribution_type)                      :: ls_dist, ls_dist_clustered
 
@@ -220,7 +220,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'matrix_qs_to_ls'
 
       INTEGER                                            :: handle
-      INTEGER, DIMENSION(:), POINTER                     :: pao_blk_sizes
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: pao_blk_sizes
       TYPE(dbcsr_type)                                   :: matrix_pao, matrix_tmp
       TYPE(dbcsr_type), POINTER                          :: matrix_trafo
 
@@ -315,7 +315,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'matrix_ls_to_qs'
 
       INTEGER                                            :: handle
-      INTEGER, DIMENSION(:), POINTER                     :: pao_blk_sizes
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: pao_blk_sizes
       LOGICAL                                            :: my_keep_sparsity
       TYPE(dbcsr_type)                                   :: matrix_declustered, matrix_tmp1, &
                                                             matrix_tmp2

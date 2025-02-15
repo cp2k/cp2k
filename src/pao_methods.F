@@ -265,7 +265,7 @@ CONTAINS
 
       INTEGER                                            :: acol, arow, handle, i, iatom, ikind, M, &
                                                             natoms
-      INTEGER, DIMENSION(:), POINTER                     :: blk_sizes_aux, blk_sizes_pri
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: blk_sizes_aux, blk_sizes_pri
       REAL(dp), DIMENSION(:, :), POINTER                 :: block_Y
       TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
@@ -372,7 +372,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'pao_build_matrix_X'
 
       INTEGER                                            :: handle, iatom, ikind, natoms
-      INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, row_blk_size
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_blk_size, row_blk_size
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
       CALL timeset(routineN, handle)
