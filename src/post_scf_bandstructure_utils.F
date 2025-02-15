@@ -254,17 +254,12 @@ CONTAINS
       u = bs_env%unit_nr
 
       IF (u > 0) THEN
-         WRITE (u, *) ' '
-         WRITE (u, '(T2,2A)') '-------------------------------------------------', &
-            '------------------------------'
-         WRITE (u, '(T2,2A)') '-                                                ', &
-            '                             -'
-         WRITE (u, '(T2,2A)') '-                          BANDSTRUCTURE CALCULATION', &
-            '                          -'
-         WRITE (u, '(T2,2A)') '-                                                ', &
-            '                             -'
-         WRITE (u, '(T2,2A)') '--------------------------------------------------', &
-            '-----------------------------'
+         WRITE (u, '(T2,A)') ' '
+         WRITE (u, '(T2,A)') REPEAT('-', 79)
+         WRITE (u, '(T2,A,A78)') '-', '-'
+         WRITE (u, '(T2,A,A51,A27)') '-', 'BANDSTRUCTURE CALCULATION', '-'
+         WRITE (u, '(T2,A,A78)') '-', '-'
+         WRITE (u, '(T2,A)') REPEAT('-', 79)
          WRITE (u, '(T2,A)') ' '
       END IF
 

@@ -40,6 +40,7 @@
         KPOINTS 1 2 2
       &END DOS
       &GW
+        FREQ_MAX_FIT 27.211
         HEDIN_SHIFT
         NUM_TIME_FREQ_POINTS 6
       &END GW

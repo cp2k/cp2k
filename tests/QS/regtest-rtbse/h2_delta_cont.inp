@@ -75,6 +75,7 @@
   &PROPERTIES
     &BANDSTRUCTURE
       &GW
+        FREQ_MAX_FIT 27.211
         ! Simplest setting for quick checks
         NUM_TIME_FREQ_POINTS 20
       &END GW

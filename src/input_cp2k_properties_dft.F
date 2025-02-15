@@ -2190,12 +2190,19 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="MINIMAX_VERSION", &
-                          description="Version of the minimax time and frequency grid "// &
-                          "for Fourier transforms χ(iτ) -> χ(iω) -> W(iω) -> W(iτ) -> "// &
-                          "Σ(iτ) -> Σ(iω). At present, version 1 and 2 is available.", &
-                          usage="MINIMAX_VERSION 2", &
-                          default_i_val=1)
+      CALL keyword_create(keyword, __LOCATION__, name="FREQ_MAX_FIT", &
+                          description="Determines fitting range for the self-energy Σ(iω) on "// &
+                          "imaginary axis: i*[0, ω_max] for empty orbitals/bands, i*[-ω_max,0] "// &
+                          "for occ orbitals. A smaller ω_max might lead to better numerical "// &
+                          "stability (i.e., if you observe clearly wrong GW eigenvalues/bands "// &
+                          "around HOMO/LUMO, decreasing ω_max might fix this issue). "// &
+                          "A small benchmark of ω_max is contained in Fig. 5 of "// &
+                          "J. Wilhelm et al., JCTC 12, 3623-3635 (2016). "// &
+                          "Note that we used ω_max = 1 Ha = 27.211 eV in the benchmark "// &
+                          "M. Azizi et al., PRB 109, 245101 (2024).", &
+                          unit_str="eV", &
+                          usage="FREQ_MAX_FIT 20.0", &
+                          default_r_val=cp_unit_to_cp2k(value=10.0_dp, unit_str="eV"))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
