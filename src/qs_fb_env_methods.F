@@ -140,7 +140,7 @@ CONTAINS
       CHARACTER(len=default_string_length)               :: name
       INTEGER :: filtered_nfullrowsORcols_total, handle, homo_filtered, ispin, lfomo_filtered, &
          my_nmo, nao, ndep, nelectron, nmo, nmo_filtered, nspin, original_nfullrowsORcols_total
-      INTEGER, DIMENSION(:), POINTER                     :: filtered_rowORcol_block_sizes, &
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: filtered_rowORcol_block_sizes, &
                                                             original_rowORcol_block_sizes
       LOGICAL                                            :: collective_com
       REAL(kind=dp) :: diis_error, eps_default, eps_diis, eps_eigval, fermi_level, filter_temp, &

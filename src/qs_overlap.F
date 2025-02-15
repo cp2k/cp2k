@@ -1028,7 +1028,7 @@ CONTAINS
       CHARACTER(LEN=32)                                  :: symmetry_string
       CHARACTER(LEN=default_string_length)               :: mname, name
       INTEGER                                            :: i, maxs, natom
-      INTEGER, DIMENSION(:), POINTER                     :: col_blk_sizes, row_blk_sizes
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_blk_sizes, row_blk_sizes
       TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -1119,7 +1119,7 @@ CONTAINS
       CHARACTER(LEN=32)                                  :: symmetry_string
       CHARACTER(LEN=default_string_length)               :: mname, name
       INTEGER                                            :: i1, i2, natom
-      INTEGER, DIMENSION(:), POINTER                     :: col_blk_sizes, row_blk_sizes
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_blk_sizes, row_blk_sizes
       TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set

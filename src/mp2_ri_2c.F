@@ -576,7 +576,7 @@ CONTAINS
                                                             ikp_for_xkp, img, n_real_imag, natom, &
                                                             nimg, nkind, nkp
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: sizes_RI
-      INTEGER, DIMENSION(:), POINTER                     :: col_bsize, row_bsize
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_bsize, row_bsize
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: my_do_build_cell_index, my_put_mat_KS_env
       REAL(KIND=dp)                                      :: my_regularization_RI

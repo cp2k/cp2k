@@ -203,7 +203,7 @@ CONTAINS
 
       INTEGER, DIMENSION(:), INTENT(IN)                  :: gw_corr_lev_occ, gw_corr_lev_virt, homo
       INTEGER, INTENT(IN)                                :: nmo, num_integ_points, unit_nr
-      INTEGER, DIMENSION(:), POINTER                     :: RI_blk_sizes
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: RI_blk_sizes
       LOGICAL, INTENT(IN)                                :: do_ic_model
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:), &

@@ -204,9 +204,9 @@ CONTAINS
                                                             dist_RI, dummy_end, dummy_start, &
                                                             end_blocks, sizes_AO, sizes_RI, &
                                                             start_blocks
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_bsize, row_bsize
       INTEGER, DIMENSION(2)                              :: pdims_t2c
       INTEGER, DIMENSION(3)                              :: nblks_total, pcoord, pdims, pdims_t3c
-      INTEGER, DIMENSION(:), POINTER                     :: col_bsize, row_bsize
       LOGICAL                                            :: do_periodic, use_virial
       REAL(dp)                                           :: compression_factor, eps_pgf_orb, &
                                                             eps_pgf_orb_old, memory, occ

@@ -189,7 +189,7 @@ CONTAINS
                                                             j, jstate, nao, natom, nmo, nspins, &
                                                             nstates(2), output_unit, unit_nr
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf, last_sgf
-      INTEGER, DIMENSION(:), POINTER                     :: row_blk_sizes
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: row_blk_sizes
       LOGICAL                                            :: append_cube, gapw, mpi_io
       REAL(dp)                                           :: dk(3), jrho_tot_G(3, 3), &
                                                             jrho_tot_R(3, 3), maxocc, scale_fac
@@ -2277,7 +2277,7 @@ CONTAINS
       INTEGER :: handle, icenter, idir, idir2, ii, iiB, iii, iiiB, ispin, istate, j, jstate, &
          max_states, nao, natom, nbr_center(2), nmo, nspins, nstate_loc, nstates(2), output_unit
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf, last_sgf
-      INTEGER, DIMENSION(:), POINTER                     :: row_blk_sizes
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: row_blk_sizes
       LOGICAL                                            :: chi_pbc, gapw
       REAL(dp)                                           :: chi(3), chi_tmp, contrib, contrib2, &
                                                             dk(3), int_current(3), &
@@ -2702,7 +2702,7 @@ CONTAINS
       INTEGER :: handle, idir, idir2, iiB, iiiB, ispin, jdir, jjdir, kdir, max_states, nao, natom, &
          nbr_center(2), nmo, nspins, nstates(2), output_unit
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf, last_sgf
-      INTEGER, DIMENSION(:), POINTER                     :: row_blk_sizes
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: row_blk_sizes
       LOGICAL                                            :: chi_pbc, gapw
       REAL(dp)                                           :: chi(3), contrib, dk(3), int_current(3), &
                                                             maxocc

@@ -200,9 +200,9 @@ CONTAINS
       INTEGER                                            :: add_blocks_after, dimen, iblock_col, &
                                                             iblock_row, iblock_size, nblocks, &
                                                             nblocks_new, start_index, trailing_size
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER :: blk_distr, blk_sizes, block_sizes_new, &
+         col_distr_new, col_sizes_new, distr_new_array, row_distr_new, row_sizes_new
       INTEGER, DIMENSION(2)                              :: add_blocks_before
-      INTEGER, DIMENSION(:), POINTER :: blk_distr, blk_sizes, block_sizes_new, col_distr_new, &
-         col_sizes_new, distr_new_array, row_distr_new, row_sizes_new
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: data_p, p_new_block
       TYPE(dbcsr_distribution_type)                      :: dist_new, dist_qs
       TYPE(dbcsr_iterator_type)                          :: iter

@@ -111,7 +111,7 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: basis_type
       INTEGER                                            :: handle, ikind, ispin, ivect, nao, &
                                                             nao_aux, nkind, nspins, nvects
-      INTEGER, DIMENSION(:), POINTER                     :: blk_sizes
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: blk_sizes
       INTEGER, DIMENSION(maxspins)                       :: nactive
       LOGICAL                                            :: gapw, gapw_xc
       TYPE(admm_type), POINTER                           :: admm_env

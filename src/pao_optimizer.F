@@ -58,7 +58,7 @@ CONTAINS
    SUBROUTINE pao_opt_init_bfgs(pao)
       TYPE(pao_env_type), POINTER                        :: pao
 
-      INTEGER, DIMENSION(:), POINTER                     :: nparams
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: nparams
 
       CALL dbcsr_get_info(pao%matrix_X, row_blk_size=nparams)
 

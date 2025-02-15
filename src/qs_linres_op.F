@@ -135,7 +135,7 @@ CONTAINS
                                                             nbr_center(2), nmo, nsgf, nspins, &
                                                             nstates(2), output_unit
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf, last_sgf
-      INTEGER, DIMENSION(:), POINTER                     :: row_blk_sizes
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: row_blk_sizes
       REAL(dp)                                           :: chk(3), ck(3), ckdk(3), dk(3)
       REAL(dp), DIMENSION(:, :), POINTER                 :: basisfun_center, vecbuf_c0
       TYPE(cell_type), POINTER                           :: cell
