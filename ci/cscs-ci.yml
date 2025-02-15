@@ -32,5 +32,6 @@ test_cp2k_job:
     - /opt/cp2k/bin/run_tests
   variables:
     OMP_NUM_THREADS: 2
+    SLURM_CONSTRAINT: mc
     SLURM_NTASKS: 64
     SLURM_TIMELIMIT: "60:00"
