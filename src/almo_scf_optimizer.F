@@ -4910,7 +4910,7 @@ CONTAINS
       CALL dbcsr_iterator_start(iter, matrix)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, row, col, block)
-         IF (row > col) CALL dbcsr_remove_block(matrix, row, col)
+         IF (row > col) block(:, :) = 0.0_dp
          IF (row == col) THEN
             DO j = 1, SIZE(block, 2)
             DO i = j + 1, SIZE(block, 1)
@@ -4920,7 +4920,7 @@ CONTAINS
          END IF
       END DO
       CALL dbcsr_iterator_stop(iter)
-      CALL dbcsr_finalize(matrix)
+      CALL dbcsr_filter(matrix, eps=0.0_dp)
 
       CALL timestop(handle)
    END SUBROUTINE make_triu
