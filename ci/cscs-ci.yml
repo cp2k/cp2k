@@ -16,6 +16,7 @@ build_cp2k_job:
     - TAG_IMAGE=`echo ${BASE_IMAGE##*/} | sed 's/[:]//g'`
     - TAG_DOCKERFILE=`sha256sum ${DOCKERFILE} | head -c 16`
     - TAG=${TAG_IMAGE}-${TAG_DOCKERFILE}
+    - MAX_TASKS=${NUM_CORES_BUILD_DEPS}
     - echo "BUILD_IMAGE=${PERSIST_IMAGE_NAME}" > build.env
     - 'echo "INFO: Building image ${PERSIST_IMAGE_NAME}"'
     - 'echo "INFO: Using MAX_TASKS=${MAX_TASKS}"'
@@ -32,7 +33,7 @@ build_cp2k_job:
     BASE_IMAGE: ubuntu:24.04
 
 test_cp2k_job:
-  extends: .container-runner-eiger
+  extends: .container-runner-eiger-zen2
   stage: test_cp2k
   timeout: 1 hours
   image: ${PERSIST_IMAGE_NAME}
