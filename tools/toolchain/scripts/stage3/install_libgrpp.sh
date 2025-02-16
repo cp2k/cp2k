@@ -6,10 +6,6 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-libgrpp_ver="20231225"
-libgrpp_sha="64d157f1dc95815096b1fd437a5851abeb3425929cf7b2092bf8262db9c5e33d"
-libgrpp_pkg="libgrpp-main-${libgrpp_ver}.zip"
-
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
@@ -18,85 +14,11 @@ source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_libgrpp" ] && rm "${BUILDDIR}/setup_libgrpp"
 
-LIBGRPP_CFLAGS=""
-LIBGRPP_LDFLAGS=""
-LIBGRPP_LIBS=""
-! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
-cd "${BUILDDIR}"
-
-case "${with_libgrpp}" in
-  __INSTALL__)
-    echo "==================== Installing LIBGRPP ===================="
-    pkg_install_dir="${INSTALLDIR}/libgrpp-main-${libgrpp_ver}"
-    install_lock_file="$pkg_install_dir/install_successful"
-
-    if verify_checksums "${install_lock_file}"; then
-      echo "libgrpp-main-${libgrpp_ver} is already installed, skipping it."
-    else
-      if [ -f ${libgrpp_pkg} ]; then
-        echo "${libgrpp_pkg} is found"
-      else
-        download_pkg_from_cp2k_org "${libgrpp_sha}" "${libgrpp_pkg}"
-      fi
-      echo "Installing from scratch into ${pkg_install_dir}"
-      [ -d libgrpp-main ] && rm -rf libgrpp-main
-      unzip -qq ${libgrpp_pkg}
-      cd libgrpp-main
-      patch -Np1 -i ${SCRIPT_DIR}/stage3/grpp-cmake.patch
-      mkdir build
-      cd build
-      CC=${CC} FC=${FC} cmake -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" -DCMAKE_INSTALL_LIBDIR="lib" .. > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
-      make > make.log 2>&1 || tail -n ${LOG_LINES} make.log
-      make install > make.log 2>&1 || tail -n ${LOG_LINES} make.log
-      cd ..
-      write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage3/$(basename ${SCRIPT_NAME})"
-    fi
-
-    PKG_CONFIG_PATH=${PKG_CONFIG_PATH}:${pkg_install_dir}/lib/pkgconfig:${pkg_install_dir}/lib64/pkgconfig
-    LIBGRPP_CFLAGS=$(pkg-config --cflags libgrpp)
-    LIBGRPP_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
-    ;;
-  __SYSTEM__)
-    echo "==================== Finding libgrpp from system paths ===================="
-    check_lib -lgrpp "grpp"
-    add_include_from_paths -p LIBGRPP_CFLAGS "grpp.h" $INCLUDE_PATHS
-    add_lib_from_paths LIBGRPP_LDFLAGS "libgrpp.*" $LIB_PATHS
-    ;;
-  __DONTUSE__) ;;
-
-  *)
-    echo "==================== Linking libgrpp to user paths ===================="
-    pkg_install_dir="$with_libgrpp"
-    check_dir "${pkg_install_dir}/include"
-    check_dir "${pkg_install_dir}/lib"
-    LIBGRPP_CFLAGS="-I'${pkg_install_dir}/include'"
-    LIBGRPP_LDFLAGS="-L'${pkg_install_dir}/lib'"
-    ;;
-esac
 if [ "$with_libgrpp" != "__DONTUSE__" ]; then
-  LIBGRPP_LIBS="-lgrpp"
-  cat << EOF > "${BUILDDIR}/setup_libgrpp"
-export LIBGRPP_VER="${libgrpp_ver}"
-EOF
-  if [ "$with_libgrpp" != "__SYSTEM__" ]; then
-    cat << EOF >> "${BUILDDIR}/setup_libgrpp"
-prepend_path LD_LIBRARY_PATH "$pkg_install_dir/lib"
-prepend_path LD_RUN_PATH "$pkg_install_dir/lib"
-prepend_path LIBRARY_PATH "$pkg_install_dir/lib"
-prepend_path PKG_CONFIG_PATH "$pkg_install_dir/lib/pkgconfig"
-prepend_path CMAKE_PREFIX_PATH "$pkg_install_dir"
-export LIBGRPP_ROOT="${pkg_install_dir}"
-EOF
-    cat "${BUILDDIR}/setup_libgrpp" >> $SETUPFILE
-  fi
+  echo "==================== Using libgrpp ===================="
+
   cat << EOF >> "${BUILDDIR}/setup_libgrpp"
-export LIBGRPP_CFLAGS="${LIBGRPP_CFLAGS}"
-export LIBGRPP_LDFLAGS="${LIBGRPP_LDFLAGS}"
-export LIBGRPP_LIBS="${LIBGRPP_LIBS}"
 export CP_DFLAGS="\${CP_DFLAGS} -D__LIBGRPP"
-export CP_CFLAGS="\${CP_CFLAGS} ${LIBGRPP_CFLAGS}"
-export CP_LDFLAGS="\${CP_LDFLAGS} ${LIBGRPP_LDFLAGS}"
-export CP_LIBS="${LIBGRPP_LIBS} \${CP_LIBS}"
 EOF
 fi
 

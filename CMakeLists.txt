@@ -716,10 +716,6 @@ if(CP2K_USE_TREXIO)
   find_package(TrexIO REQUIRED)
 endif()
 
-if(CP2K_USE_GRPP)
-  # we need grpp when TREXIO is on
-  find_package(grpp REQUIRED CONFIG)
-endif()
 # OPTION HANDLING
 
 # make sure that the default build type is RELEASE
@@ -911,8 +907,7 @@ if(CP2K_USE_DLAF)
 endif()
 
 if(CP2K_USE_GRPP)
-  message(" - grpp\n" "   - include directories: ${GRPP_INCLUDE_DIRS}\n"
-          "   - libraries:           ${GRPP_LINK_LIBRARIES}\n\n")
+  message(" - grpp\n")
 endif()
 
 if(CP2K_USE_TREXIO)

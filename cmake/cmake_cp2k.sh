@@ -61,7 +61,7 @@ if [[ "${PROFILE}" == "spack" ]] && [[ "${VERSION}" == "psmp" ]]; then
     -DCP2K_USE_COSMA=ON \
     -DCP2K_USE_SIRIUS=ON \
     -DCP2K_USE_LIBVDWXC=ON \
-    -DCP2K_USE_GRPP=OFF \
+    -DCP2K_USE_GRPP=ON \
     -DCP2K_USE_TREXIO=ON \
     -DCP2K_USE_LIBTORCH=ON \
     -DCP2K_USE_DLAF=ON \
@@ -82,7 +82,7 @@ elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "ssmp" ]]; then
     -DCP2K_USE_DFTD4=ON \
     -DCP2K_USE_DLAF=OFF \
     -DCP2K_USE_FFTW3=ON \
-    -DCP2K_USE_GRPP=OFF \
+    -DCP2K_USE_GRPP=ON \
     -DCP2K_USE_HDF5=ON \
     -DCP2K_USE_LIBINT2=ON \
     -DCP2K_USE_LIBTORCH=ON \
@@ -129,7 +129,7 @@ elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "psmp" ]]; then
     -DCP2K_USE_DLAF=OFF \
     -DCP2K_USE_ELPA=ON \
     -DCP2K_USE_FFTW3=ON \
-    -DCP2K_USE_GRPP=OFF \
+    -DCP2K_USE_GRPP=ON \
     -DCP2K_USE_HDF5=ON \
     -DCP2K_USE_LIBINT2=ON \
     -DCP2K_USE_LIBSMEAGOL=ON \
