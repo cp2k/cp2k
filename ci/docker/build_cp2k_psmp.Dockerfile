@@ -1,5 +1,6 @@
 # Stage 1a: Build CP2K toolchain
-FROM ubuntu:24.04 AS build
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE} AS build
 
 # Install packages required for the CP2K toolchain build
 RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
@@ -112,7 +113,7 @@ RUN /bin/bash -c -o pipefail " \
     cp /opt/cp2k/tools/toolchain/scripts/tool_kit.sh /toolchain/scripts"
 
 # Stage 2: Install CP2K
-FROM ubuntu:24.04 AS install
+FROM ${BASE_IMAGE} AS install
 
 # Install required packages
 RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
