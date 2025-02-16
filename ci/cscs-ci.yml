@@ -12,18 +12,37 @@ build_cp2k_job:
   extends: .container-builder-cscs-zen2
   stage: build_cp2k
   timeout: 2 hours
+  before_script:
+    - TAG_IMAGE=`echo ${BASE_IMAGE##*/} | sed 's/[:]//g'`
+    - TAG_DOCKERFILE=`sha256sum ${DOCKERFILE} | head -c 16`
+    - TAG=${TAG_IMAGE}-${TAG_DOCKERFILE}
+    - echo "BUILD_IMAGE=${PERSIST_IMAGE_NAME}" > build.env
+    - 'echo "INFO: Building image ${PERSIST_IMAGE_NAME}"'
+    - 'echo "INFO: Using NUM_CORES_BUILD_DEPS=${NUM_CORES_BUILD_DEPS}"'
+    - 'echo "INFO: Created TAG=${TAG}"'
+  artifacts:
+    reports:
+      dotenv: build.env
   variables:
+    DOCKER_BUILD_ARGS: '[
+        "BASE_IMAGE",
+        "NUM_PROCS=${NUM_CORES_BUILD_DEPS}"
+      ]'
     DOCKERFILE: ci/docker/build_cp2k_psmp.Dockerfile
+    BASE_IMAGE: ubuntu:24.04
 
 test_cp2k_job:
   extends: .container-runner-eiger
   stage: test_cp2k
-  timeout: 2 hours
-  image: $PERSIST_IMAGE_NAME
+  timeout: 1 hours
+  image: ${PERSIST_IMAGE_NAME}
   script:
+    - echo PATH=${PATH}
+    - pwd
+    - export
     - /opt/cp2k/bin/run_tests
   variables:
-    OMP_NUM_THREADS: 2
     SLURM_CONSTRAINT: mc
-    SLURM_NTASKS: 64
+    SLURM_NTASKS: 128
     SLURM_TIMELIMIT: "60:00"
+    THREADS_MAX_PER_TASK: 2
