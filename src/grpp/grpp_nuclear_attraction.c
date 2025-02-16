@@ -45,25 +45,25 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-void evaluate_radially_local_potential_integral_primitive_gaussians(
+void libgrpp_evaluate_radially_local_potential_integral_primitive_gaussians(
     double *A, int n_cart_A, int *cart_list_A, double alpha_A, double *B,
     int n_cart_B, int *cart_list_B, double alpha_B, double *C,
     double (*potential)(double r, void *params), void *potential_params,
     double *matrix);
 
-double evaluate_rpp_type1_mmd_n1_primitive_shell_pair(
+void libgrpp_evaluate_rpp_type1_mmd_n1_primitive_shell_pair(
     libgrpp_shell_t *shell_A, double alpha_A, libgrpp_shell_t *shell_B,
     double alpha_B, double *rpp_origin, double rpp_alpha, double *rpp_matrix);
 
-double wrapper_coulomb_potential_point(double r, void *params);
+static double wrapper_coulomb_potential_point(double r, void *params);
 
-double wrapper_coulomb_potential_ball(double r, void *params);
+static double wrapper_coulomb_potential_ball(double r, void *params);
 
-double wrapper_coulomb_potential_gaussian(double r, void *params);
+static double wrapper_coulomb_potential_gaussian(double r, void *params);
 
-double wrapper_coulomb_potential_fermi(double r, void *params);
+static double wrapper_coulomb_potential_fermi(double r, void *params);
 
-double wrapper_coulomb_potential_fermi_bubble(double r, void *params);
+static double wrapper_coulomb_potential_fermi_bubble(double r, void *params);
 
 /**
  * Calculates nuclear attraction integral between two shells
@@ -106,7 +106,7 @@ void libgrpp_nuclear_attraction_integrals(libgrpp_shell_t *shell_A,
       if (nuclear_model == LIBGRPP_NUCLEAR_MODEL_POINT_CHARGE) {
 
         // use code for RPP type-1 integrals with RPP exponent = 0.0
-        evaluate_rpp_type1_mmd_n1_primitive_shell_pair(
+        libgrpp_evaluate_rpp_type1_mmd_n1_primitive_shell_pair(
             shell_A, shell_A->alpha[i], shell_B, shell_B->alpha[j],
             charge_origin, 0.0, buf);
 
@@ -151,7 +151,7 @@ void libgrpp_nuclear_attraction_integrals(libgrpp_shell_t *shell_A,
         /*
          * calculate integrals for the shell pair
          */
-        evaluate_radially_local_potential_integral_primitive_gaussians(
+        libgrpp_evaluate_radially_local_potential_integral_primitive_gaussians(
             shell_A->origin, size_A, shell_A->cart_list, shell_A->alpha[i],
             shell_B->origin, size_B, shell_B->cart_list, shell_B->alpha[j],
             charge_origin, electrostatic_potential_fun, params, buf);
@@ -272,27 +272,27 @@ void libgrpp_nuclear_attraction_integrals_fermi_bubble_model(
  * the 'params' argument is unpacked, then the specific routines are invoked.
  */
 
-double wrapper_coulomb_potential_point(double r, void *params) {
+static double wrapper_coulomb_potential_point(double r, void *params) {
   double Z = ((double *)params)[0];
 
   return libgrpp_coulomb_potential_point(r, Z);
 }
 
-double wrapper_coulomb_potential_ball(double r, void *params) {
+static double wrapper_coulomb_potential_ball(double r, void *params) {
   double Z = ((double *)params)[0];
   double R_rms = ((double *)params)[1];
 
   return libgrpp_coulomb_potential_ball(r, Z, R_rms);
 }
 
-double wrapper_coulomb_potential_gaussian(double r, void *params) {
+static double wrapper_coulomb_potential_gaussian(double r, void *params) {
   double Z = ((double *)params)[0];
   double R_rms = ((double *)params)[1];
 
   return libgrpp_coulomb_potential_gaussian(r, Z, R_rms);
 }
 
-double wrapper_coulomb_potential_fermi(double r, void *params) {
+static double wrapper_coulomb_potential_fermi(double r, void *params) {
   double Z = ((double *)params)[0];
   double c = ((double *)params)[1];
   double a = ((double *)params)[2];
@@ -300,7 +300,7 @@ double wrapper_coulomb_potential_fermi(double r, void *params) {
   return libgrpp_coulomb_potential_fermi(r, Z, c, a);
 }
 
-double wrapper_coulomb_potential_fermi_bubble(double r, void *params) {
+static double wrapper_coulomb_potential_fermi_bubble(double r, void *params) {
   double Z = ((double *)params)[0];
   double c = ((double *)params)[1];
   double a = ((double *)params)[2];

@@ -13,19 +13,20 @@
  */
 
 #include "overlap_gradient.h"
+#include "libgrpp.h"
 
 #include <stdlib.h>
 #include <string.h>
 
 #include "diff_gaussian.h"
-#include "libgrpp.h"
 #include "utils.h"
 
-void overlap_gradient_diff_bra_contribution(libgrpp_shell_t *shell_A,
-                                            libgrpp_shell_t *shell_B,
-                                            double **grad, double factor);
+static void overlap_gradient_diff_bra_contribution(libgrpp_shell_t *shell_A,
+                                                   libgrpp_shell_t *shell_B,
+                                                   double **grad,
+                                                   double factor);
 
-void overlap_gradient_diff_bra_overlap_integrals(
+static void overlap_gradient_diff_bra_overlap_integrals(
     libgrpp_shell_t *shell_A, libgrpp_shell_t *shell_B, double **overlap_down,
     double **overlap_up, int *cart_size_down, int *cart_size_up);
 
@@ -81,9 +82,10 @@ void libgrpp_overlap_integrals_gradient(libgrpp_shell_t *shell_A,
  *
  * (bra basis function is differentiated).
  */
-void overlap_gradient_diff_bra_contribution(libgrpp_shell_t *shell_A,
-                                            libgrpp_shell_t *shell_B,
-                                            double **grad, double factor) {
+static void overlap_gradient_diff_bra_contribution(libgrpp_shell_t *shell_A,
+                                                   libgrpp_shell_t *shell_B,
+                                                   double **grad,
+                                                   double factor) {
   /*
    * calculate overlap integrals < df/dA | B >
    */
@@ -113,8 +115,8 @@ void overlap_gradient_diff_bra_contribution(libgrpp_shell_t *shell_A,
          */
         if (shell_A->L > 0) {
           bra_nlm[icoord] -= 1;
-          int bra_index = nlm_to_linear(bra_nlm);
-          int ket_index = nlm_to_linear(ket_nlm);
+          int bra_index = libgrpp_nlm_to_linear(bra_nlm);
+          int ket_index = libgrpp_nlm_to_linear(ket_nlm);
           bra_nlm[icoord] += 1;
 
           grad[icoord][index] -=
@@ -126,8 +128,8 @@ void overlap_gradient_diff_bra_contribution(libgrpp_shell_t *shell_A,
          * contribution from the L+1 gaussian
          */
         bra_nlm[icoord] += 1;
-        int bra_index = nlm_to_linear(bra_nlm);
-        int ket_index = nlm_to_linear(ket_nlm);
+        int bra_index = libgrpp_nlm_to_linear(bra_nlm);
+        int ket_index = libgrpp_nlm_to_linear(ket_nlm);
         bra_nlm[icoord] -= 1;
 
         grad[icoord][index] +=
@@ -151,7 +153,7 @@ void overlap_gradient_diff_bra_contribution(libgrpp_shell_t *shell_A,
  * "upgraded" Gaussian functions: < G(L-1) | G' > and < G(L+1) | G' >
  *
  */
-void overlap_gradient_diff_bra_overlap_integrals(
+static void overlap_gradient_diff_bra_overlap_integrals(
     libgrpp_shell_t *shell_A, libgrpp_shell_t *shell_B, double **overlap_down,
     double **overlap_up, int *cart_size_down, int *cart_size_up) {
   /*
@@ -200,7 +202,7 @@ void overlap_gradient_diff_bra_overlap_integrals(
  * calculates sequential ("linear") index of the (n,l,m) primitive in the
  * cartesian shell
  */
-int nlm_to_linear(int *nlm) {
+int libgrpp_nlm_to_linear(int *nlm) {
   int n = nlm[0];
   int l = nlm[1];
   int m = nlm[2];

@@ -41,7 +41,6 @@
 #include <math.h>
 #include <stdlib.h>
 
-#include "screening.h"
 #include "specfunc.h"
 #include "utils.h"
 
@@ -72,16 +71,17 @@ typedef struct {
   radial_type1_params_t *params;
 } radial_type1_grid_t;
 
-radial_type1_grid_t *create_radial_type1_grid(int lambda_max, int n_max,
-                                              radial_type1_params_t *params);
+static radial_type1_grid_t *
+create_radial_type1_grid(int lambda_max, int n_max,
+                         radial_type1_params_t *params);
 
-void expand_radial_type1_grid(radial_type1_grid_t *grid, int nr);
+static void expand_radial_type1_grid(radial_type1_grid_t *grid, int nr);
 
-void delete_radial_type1_grid(radial_type1_grid_t *grid);
+static void delete_radial_type1_grid(radial_type1_grid_t *grid);
 
-double calculate_radial_type1_integral(radial_type1_grid_t *grid, int n,
-                                       int lambda, double tolerance,
-                                       int *converged);
+static double calculate_radial_type1_integral(radial_type1_grid_t *grid, int n,
+                                              int lambda, double tolerance,
+                                              int *converged);
 
 radial_type1_table_t *libgrpp_tabulate_radial_type1_integrals(
     int lambda_max, int n_max, double CA_2, double CB_2, double alpha_A,
@@ -136,8 +136,8 @@ double libgrpp_get_radial_type1_integral(radial_type1_table_t *table,
   return table->radial_integrals[lambda * (lambda_max + 1) + n];
 }
 
-double radial_type1_integrand_fun(double r, int N,
-                                  radial_type1_params_t *params) {
+static double radial_type1_integrand_fun(double r, int N,
+                                         radial_type1_params_t *params) {
   double alpha_A = params->alpha_A;
   double alpha_B = params->alpha_B;
   double k = params->k;
@@ -151,8 +151,9 @@ double radial_type1_integrand_fun(double r, int N,
   return prefactor * exp(power);
 }
 
-radial_type1_grid_t *create_radial_type1_grid(int lambda_max, int n_max,
-                                              radial_type1_params_t *params) {
+static radial_type1_grid_t *
+create_radial_type1_grid(int lambda_max, int n_max,
+                         radial_type1_params_t *params) {
   radial_type1_grid_t *grid =
       (radial_type1_grid_t *)calloc(1, sizeof(radial_type1_grid_t));
 
@@ -198,7 +199,7 @@ radial_type1_grid_t *create_radial_type1_grid(int lambda_max, int n_max,
   return grid;
 }
 
-void delete_radial_type1_grid(radial_type1_grid_t *grid) {
+static void delete_radial_type1_grid(radial_type1_grid_t *grid) {
   free(grid->r);
   free(grid->w);
   free(grid->pot_values);
@@ -208,7 +209,7 @@ void delete_radial_type1_grid(radial_type1_grid_t *grid) {
   free(grid);
 }
 
-void expand_radial_type1_grid(radial_type1_grid_t *grid, int nr) {
+static void expand_radial_type1_grid(radial_type1_grid_t *grid, int nr) {
   const double R = 5.0;
   const double R3 = R * R * R;
 
@@ -249,9 +250,9 @@ void expand_radial_type1_grid(radial_type1_grid_t *grid, int nr) {
   grid->nr = nr;
 }
 
-double calculate_radial_type1_integral(radial_type1_grid_t *grid, int n,
-                                       int lambda, double tolerance,
-                                       int *converged) {
+static double calculate_radial_type1_integral(radial_type1_grid_t *grid, int n,
+                                              int lambda, double tolerance,
+                                              int *converged) {
   int nr = MIN_GRID;
 
   *converged = 0;

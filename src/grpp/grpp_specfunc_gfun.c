@@ -26,13 +26,11 @@
  * geometric derivatives. Int. J. Quantum Chem. 111(4), 858 (2011).
  *     doi: 10.1002/qua.22886
  */
-
-#include "specfunc.h"
 #include <math.h>
-#include <stdio.h>
 #include <string.h>
 
 #include "factorial.h"
+#include "specfunc.h"
 
 static double gfun_taylor(int n, double x);
 

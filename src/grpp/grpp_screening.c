@@ -26,41 +26,36 @@
  */
 
 #include "screening.h"
+#include "libgrpp.h"
 
 #include <math.h>
-#include <stdio.h>
 #include <stdlib.h>
 
 #include "factorial.h"
-#include "libgrpp.h"
 #include "specfunc.h"
 
 /*
  * functions defined below in the file
  */
 
-int screening_radial_type1_integral_primitive(int lambda, int n, double CA_2,
-                                              double CB_2, double alpha_A,
-                                              double alpha_B, double k,
-                                              double eta,
-                                              double *screened_value);
+static int screening_radial_type1_integral_primitive(
+    int lambda, int n, double CA_2, double CB_2, double alpha_A, double alpha_B,
+    double k, double eta, double *screened_value);
 
-double screening_type1_equation_for_maximum(double r, int n, int lambda,
-                                            double p, double k);
+static double screening_type1_equation_for_maximum(double r, int n, int lambda,
+                                                   double p, double k);
 
-int screening_radial_type2_integral_primitive(int lambda1, int lambda2, int n,
-                                              double CA_2, double CB_2,
-                                              double alpha_A, double alpha_B,
-                                              double k1, double k2, double eta,
-                                              double *screened_value);
+static int screening_radial_type2_integral_primitive(
+    int lambda1, int lambda2, int n, double CA_2, double CB_2, double alpha_A,
+    double alpha_B, double k1, double k2, double eta, double *screened_value);
 
-double screening_type2_equation_for_maximum(double r, int n, int lambda1,
-                                            int lambda2, double p, double k1,
-                                            double k2);
+static double screening_type2_equation_for_maximum(double r, int n, int lambda1,
+                                                   int lambda2, double p,
+                                                   double k1, double k2);
 
-double analytic_one_center_rpp_integral_primitive(int L, double alpha1,
-                                                  double alpha2, int n,
-                                                  double zeta);
+static double analytic_one_center_rpp_integral_primitive(int L, double alpha1,
+                                                         double alpha2, int n,
+                                                         double zeta);
 
 /**
  * screening for the type 1 radial integrals
@@ -102,11 +97,9 @@ int libgrpp_screening_radial_type1(int lambda, int n, double CA_2, double CB_2,
  * screening for the type 1 radial integrals
  * for the pair of primitive gaussian functions.
  */
-int screening_radial_type1_integral_primitive(int lambda, int n, double CA_2,
-                                              double CB_2, double alpha_A,
-                                              double alpha_B, double k,
-                                              double eta,
-                                              double *screened_value) {
+static int screening_radial_type1_integral_primitive(
+    int lambda, int n, double CA_2, double CB_2, double alpha_A, double alpha_B,
+    double k, double eta, double *screened_value) {
   double p = alpha_A + alpha_B + eta;
   double CA = sqrt(CA_2);
   double CB = sqrt(CB_2);
@@ -145,8 +138,8 @@ int screening_radial_type1_integral_primitive(int lambda, int n, double CA_2,
 /**
  * transcendental equation for finding maximum of the type 1 integrand
  */
-double screening_type1_equation_for_maximum(double r, int n, int lambda,
-                                            double p, double k) {
+static double screening_type1_equation_for_maximum(double r, int n, int lambda,
+                                                   double p, double k) {
   double K_ratio = 0.0;
   if (lambda == 0) {
     K_ratio = libgrpp_modified_bessel_scaled(1, k * r) /
@@ -222,7 +215,7 @@ int libgrpp_screening_radial_type2(int lambda1, int lambda2, int n, double CA_2,
  * Analytically evaluates Gaussian integral:
  * \int_0^\infty r^n e^(-a r^2) dr
  */
-double gaussian_integral(int n, double a) {
+double libgrpp_gaussian_integral(int n, double a) {
   if (n % 2 == 0) {
     int k = n / 2;
     return libgrpp_double_factorial(2 * k - 1) / (pow(2.0, k + 1) * pow(a, k)) *
@@ -237,11 +230,9 @@ double gaussian_integral(int n, double a) {
  * screening for the type 2 radial integrals
  * for the pair of primitive gaussian functions.
  */
-int screening_radial_type2_integral_primitive(int lambda1, int lambda2, int n,
-                                              double CA_2, double CB_2,
-                                              double alpha_A, double alpha_B,
-                                              double k1, double k2, double eta,
-                                              double *screened_value) {
+static int screening_radial_type2_integral_primitive(
+    int lambda1, int lambda2, int n, double CA_2, double CB_2, double alpha_A,
+    double alpha_B, double k1, double k2, double eta, double *screened_value) {
   *screened_value = 0.0;
 
   if (lambda1 >= 1 && fabs(k1) <= LIBGRPP_ZERO_THRESH) {
@@ -264,8 +255,8 @@ int screening_radial_type2_integral_primitive(int lambda1, int lambda2, int n,
    */
   if (lambda1 == 0 && lambda2 == 0) {
     if (fabs(k1) <= LIBGRPP_ZERO_THRESH && fabs(k2) <= LIBGRPP_ZERO_THRESH) {
-      *screened_value =
-          exp(-alpha_A * CA * CA - alpha_B * CB * CB) * gaussian_integral(n, p);
+      *screened_value = exp(-alpha_A * CA * CA - alpha_B * CB * CB) *
+                        libgrpp_gaussian_integral(n, p);
       return EXIT_SUCCESS;
     }
   }
@@ -305,9 +296,9 @@ int screening_radial_type2_integral_primitive(int lambda1, int lambda2, int n,
 /**
  * transcendental equation for finding maximum of the type 2 integrand
  */
-double screening_type2_equation_for_maximum(double r, int n, int lambda1,
-                                            int lambda2, double p, double k1,
-                                            double k2) {
+static double screening_type2_equation_for_maximum(double r, int n, int lambda1,
+                                                   int lambda2, double p,
+                                                   double k1, double k2) {
   double K1_ratio = 0.0;
   double k1_r = k1 * r;
   if (lambda1 == 0) {

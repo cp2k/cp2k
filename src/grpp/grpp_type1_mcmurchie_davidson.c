@@ -43,7 +43,6 @@
 
 #include <assert.h>
 #include <math.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -74,23 +73,23 @@ struct mmd_data {
  * functions used below in the file
  */
 
-double evaluate_rpp_type1_mmd_n2_primitive_shell_pair(
+static void evaluate_rpp_type1_mmd_n2_primitive_shell_pair(
     libgrpp_shell_t *shell_A, double alpha_A, libgrpp_shell_t *shell_B,
     double alpha_B, double *rpp_origin, double rpp_alpha, double *rpp_matrix);
 
-double evaluate_rpp_type1_mmd_n1_primitive_shell_pair(
+void libgrpp_evaluate_rpp_type1_mmd_n1_primitive_shell_pair(
     libgrpp_shell_t *shell_A, double alpha_A, libgrpp_shell_t *shell_B,
     double alpha_B, double *rpp_origin, double rpp_alpha, double *rpp_matrix);
 
-double evaluate_rpp_type1_mmd_n0_primitive_shell_pair(
+static void evaluate_rpp_type1_mmd_n0_primitive_shell_pair(
     libgrpp_shell_t *shell_A, double alpha_A, libgrpp_shell_t *shell_B,
     double alpha_B, double *rpp_origin, double rpp_alpha, double *rpp_matrix);
 
-void setup_E_array(struct mmd_data *data, int L_A, int L_B);
+static void setup_E_array(struct mmd_data *data, int L_A, int L_B);
 
-void setup_R_array(struct mmd_data *data, int L_A, int L_B);
+static void setup_R_array(struct mmd_data *data, int L_A, int L_B);
 
-void setup_G_array(struct mmd_data *data, int L_A, int L_B);
+static void setup_G_array(struct mmd_data *data, int L_A, int L_B);
 
 /**
  * General interface for the McMurchie-Davidson algorithm for integrals
@@ -128,7 +127,7 @@ void libgrpp_type1_integrals_mcmurchie_davidson_1978(
             shell_A, shell_A->alpha[i], shell_B, shell_B->alpha[j], origin_C,
             alpha_C, buf);
       } else if (ecp_power == 1) {
-        evaluate_rpp_type1_mmd_n1_primitive_shell_pair(
+        libgrpp_evaluate_rpp_type1_mmd_n1_primitive_shell_pair(
             shell_A, shell_A->alpha[i], shell_B, shell_B->alpha[j], origin_C,
             alpha_C, buf);
       } else if (ecp_power == 0) {
@@ -147,7 +146,7 @@ void libgrpp_type1_integrals_mcmurchie_davidson_1978(
 /**
  * Integrals of the operator: e^{-ar^2}/r^2
  */
-double evaluate_rpp_type1_mmd_n0_primitive_shell_pair(
+static void evaluate_rpp_type1_mmd_n0_primitive_shell_pair(
     libgrpp_shell_t *shell_A, double alpha_A, libgrpp_shell_t *shell_B,
     double alpha_B, double *rpp_origin, double rpp_alpha, double *rpp_matrix) {
   double a = alpha_A;
@@ -243,7 +242,7 @@ double evaluate_rpp_type1_mmd_n0_primitive_shell_pair(
 /**
  * Integrals of the operator: e^{-ar^2}/r
  */
-double evaluate_rpp_type1_mmd_n1_primitive_shell_pair(
+void libgrpp_evaluate_rpp_type1_mmd_n1_primitive_shell_pair(
     libgrpp_shell_t *shell_A, double alpha_A, libgrpp_shell_t *shell_B,
     double alpha_B, double *rpp_origin, double rpp_alpha, double *rpp_matrix) {
   double a = alpha_A;
@@ -340,7 +339,7 @@ double evaluate_rpp_type1_mmd_n1_primitive_shell_pair(
 /**
  * Integrals of the operator: e^{-ar^2}
  */
-double evaluate_rpp_type1_mmd_n2_primitive_shell_pair(
+static void evaluate_rpp_type1_mmd_n2_primitive_shell_pair(
     libgrpp_shell_t *shell_A, double alpha_A, libgrpp_shell_t *shell_B,
     double alpha_B, double *rpp_origin, double rpp_alpha, double *rpp_matrix) {
   double a = alpha_A;
@@ -417,7 +416,7 @@ double evaluate_rpp_type1_mmd_n2_primitive_shell_pair(
 /**
  * Calculation of the R_{tuv}^N auxiliary integrals for the 1/r operator
  */
-void setup_R_array(struct mmd_data *data, int L_A, int L_B) {
+static void setup_R_array(struct mmd_data *data, int L_A, int L_B) {
   double q = data->q;
   double X_QC = data->Q[0] - data->C[0];
   double Y_QC = data->Q[1] - data->C[1];
@@ -467,7 +466,7 @@ void setup_R_array(struct mmd_data *data, int L_A, int L_B) {
 /**
  * Calculation of the R_{tuv}^N auxiliary integrals for the 1/r^2 operator
  */
-void setup_G_array(struct mmd_data *data, int L_A, int L_B) {
+static void setup_G_array(struct mmd_data *data, int L_A, int L_B) {
   double q = data->q;
   double X_QC = data->Q[0] - data->C[0];
   double Y_QC = data->Q[1] - data->C[1];
@@ -523,7 +522,7 @@ void setup_G_array(struct mmd_data *data, int L_A, int L_B) {
 /**
  * Calculates E^{ij}_t coefficients in the MMD scheme.
  */
-void setup_E_array(struct mmd_data *data, int L_A, int L_B) {
+static void setup_E_array(struct mmd_data *data, int L_A, int L_B) {
   double q = data->q;
 
   for (int coord = 0; coord < 3; coord++) {

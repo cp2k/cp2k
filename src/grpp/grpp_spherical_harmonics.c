@@ -21,8 +21,6 @@
  * doi: 10.1002/jcc.20410
  */
 
-#include "spherical_harmonics.h"
-
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -31,7 +29,7 @@
 #include "binomial.h"
 #include "factorial.h"
 #include "libgrpp.h"
-
+#include "spherical_harmonics.h"
 /*
  * Tables with pretabulated expansion coefficients
  */
@@ -44,7 +42,7 @@ static int rsh_tables_lmax = -1;
  */
 rsh_coef_table_t *libgrpp_tabulate_real_spherical_harmonic_coeffs(int L);
 
-int *generate_cartesian_combinations(int L, int *num);
+static int *generate_cartesian_combinations(int L, int *num);
 
 /**
  * Constructs the set of tables with C_{l,m}^{lx,ly,lz} coefficients
@@ -277,7 +275,7 @@ void libgrpp_evaluate_real_spherical_harmonics_array(const int l,
   }
 }
 
-int *generate_cartesian_combinations(int L, int *num) {
+static int *generate_cartesian_combinations(int L, int *num) {
   *num = (L + 1) * (L + 2) / 2;
 
   int *combinations = (int *)calloc(*num, 3 * sizeof(int));

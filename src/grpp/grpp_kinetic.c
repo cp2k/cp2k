@@ -25,7 +25,6 @@
 
 #include "libgrpp.h"
 #include "norm_gaussian.h"
-#include "overlap.h"
 #include "utils.h"
 
 #include <math.h>

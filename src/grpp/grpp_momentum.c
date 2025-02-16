@@ -25,19 +25,16 @@
 
 #include "libgrpp.h"
 #include "norm_gaussian.h"
-#include "overlap.h"
 #include "utils.h"
 
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
 
-void momentum_integrals_shell_pair_obara_saika(libgrpp_shell_t *shell_A,
-                                               libgrpp_shell_t *shell_B,
-                                               double alpha_A, double alpha_B,
-                                               double *momentum_x_matrix,
-                                               double *momentum_y_matrix,
-                                               double *momentum_z_matrix);
+static void momentum_integrals_shell_pair_obara_saika(
+    libgrpp_shell_t *shell_A, libgrpp_shell_t *shell_B, double alpha_A,
+    double alpha_B, double *momentum_x_matrix, double *momentum_y_matrix,
+    double *momentum_z_matrix);
 
 /**
  * returns imaginary(!) part of integrals over the momentum operator p = -i
@@ -84,12 +81,10 @@ void libgrpp_momentum_integrals(libgrpp_shell_t *shell_A,
   free(buf_z);
 }
 
-void momentum_integrals_shell_pair_obara_saika(libgrpp_shell_t *shell_A,
-                                               libgrpp_shell_t *shell_B,
-                                               double alpha_A, double alpha_B,
-                                               double *momentum_x_matrix,
-                                               double *momentum_y_matrix,
-                                               double *momentum_z_matrix) {
+static void momentum_integrals_shell_pair_obara_saika(
+    libgrpp_shell_t *shell_A, libgrpp_shell_t *shell_B, double alpha_A,
+    double alpha_B, double *momentum_x_matrix, double *momentum_y_matrix,
+    double *momentum_z_matrix) {
   int size_A = libgrpp_get_shell_size(shell_A);
   int size_B = libgrpp_get_shell_size(shell_B);
   int L_A = shell_A->L;

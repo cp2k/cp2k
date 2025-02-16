@@ -22,7 +22,6 @@
 #include "binomial.h"
 #include "norm_gaussian.h"
 #include "radial_type1_integral.h"
-#include "spherical_harmonics.h"
 #include "type1_mcmurchie_davidson.h"
 #include "utils.h"
 
@@ -32,13 +31,13 @@ void evaluate_type1_integral_primitive_gaussians(double *A, int n_cart_A, int
 alpha_B, double *C, libgrpp_potential_t *potential, double *matrix);
 */
 
-void evaluate_radially_local_potential_integral_primitive_gaussians(
+void libgrpp_evaluate_radially_local_potential_integral_primitive_gaussians(
     double *A, int n_cart_A, int *cart_list_A, double alpha_A, double *B,
     int n_cart_B, int *cart_list_B, double alpha_B, double *C,
     double (*potential)(double r, void *params), void *potential_params,
     double *matrix);
 
-double evaluate_pseudopotential(double r, void *params);
+static double evaluate_pseudopotential(double r, void *params);
 
 /**
  * Evaluation of type 1 RPP integrals (scalar-relativistic radially local RPP).
@@ -110,14 +109,14 @@ void evaluate_type1_integral_primitive_gaussians(
     libgrpp_potential_t *potential, double *matrix) {
   libgrpp_potential_t *potential_shrinked = libgrpp_shrink_potential(potential);
 
-  evaluate_radially_local_potential_integral_primitive_gaussians(
+  libgrpp_evaluate_radially_local_potential_integral_primitive_gaussians(
       A, n_cart_A, cart_list_A, alpha_A, B, n_cart_B, cart_list_B, alpha_B, C,
       evaluate_pseudopotential, potential_shrinked, matrix);
 
   libgrpp_delete_potential(potential_shrinked);
 }
 
-double evaluate_pseudopotential(double r, void *params) {
+static double evaluate_pseudopotential(double r, void *params) {
   libgrpp_potential_t *potential = (libgrpp_potential_t *)params;
 
   double u = libgrpp_potential_value(potential, r);
@@ -129,7 +128,7 @@ double evaluate_pseudopotential(double r, void *params) {
  * Evaluation of AO integrals for an arbitrary radially-local operator
  * for the pair of shells constructed from primitive Gaussians.
  */
-void evaluate_radially_local_potential_integral_primitive_gaussians(
+void libgrpp_evaluate_radially_local_potential_integral_primitive_gaussians(
     double *A, int n_cart_A, int *cart_list_A, double alpha_A, double *B,
     int n_cart_B, int *cart_list_B, double alpha_B, double *C,
     double (*potential)(double r, void *params), void *potential_params,

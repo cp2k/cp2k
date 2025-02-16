@@ -22,18 +22,19 @@
  */
 
 #include "overlap.h"
+#include "libgrpp.h"
 #include "norm_gaussian.h"
 
-#include "libgrpp.h"
 #include "utils.h"
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
 
-void overlap_integrals_shell_pair_obara_saika(libgrpp_shell_t *shell_A,
-                                              libgrpp_shell_t *shell_B,
-                                              double alpha_A, double alpha_B,
-                                              double *overlap_matrix);
+static void overlap_integrals_shell_pair_obara_saika(libgrpp_shell_t *shell_A,
+                                                     libgrpp_shell_t *shell_B,
+                                                     double alpha_A,
+                                                     double alpha_B,
+                                                     double *overlap_matrix);
 
 /**
  * Calculates overlap integral between two shells represented by contracted
@@ -67,10 +68,11 @@ void libgrpp_overlap_integrals(libgrpp_shell_t *shell_A,
   free(buf);
 }
 
-void overlap_integrals_shell_pair_obara_saika(libgrpp_shell_t *shell_A,
-                                              libgrpp_shell_t *shell_B,
-                                              double alpha_A, double alpha_B,
-                                              double *overlap_matrix) {
+static void overlap_integrals_shell_pair_obara_saika(libgrpp_shell_t *shell_A,
+                                                     libgrpp_shell_t *shell_B,
+                                                     double alpha_A,
+                                                     double alpha_B,
+                                                     double *overlap_matrix) {
   int size_A = libgrpp_get_shell_size(shell_A);
   int size_B = libgrpp_get_shell_size(shell_B);
   int L_A = shell_A->L;

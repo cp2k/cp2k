@@ -16,9 +16,9 @@
 
 #include <assert.h>
 
-int cartesian_generator_dirac(int L, int *cart_list);
+static int cartesian_generator_dirac(int L, int *cart_list);
 
-int cartesian_generator_turbomole(int L, int *cart_list);
+static int cartesian_generator_turbomole(int L, int *cart_list);
 
 libgrpp_parameters_t libgrpp_params = {
     // tolerance of radial integration
@@ -76,7 +76,7 @@ void libgrpp_set_cartesian_generator(
   { libgrpp_params.cartesian_generator = cartesian_generator; }
 }
 
-int cartesian_generator_dirac(int L, int *cart_list) {
+static int cartesian_generator_dirac(int L, int *cart_list) {
   int count = 0;
   int n_cart = (L + 1) * (L + 2) / 2;
 
@@ -96,7 +96,7 @@ int cartesian_generator_dirac(int L, int *cart_list) {
   return n_cart;
 }
 
-int cartesian_generator_turbomole(int L, int *cart_list) {
+static int cartesian_generator_turbomole(int L, int *cart_list) {
   int count = 0;
   int n_cart = (L + 1) * (L + 2) / 2;
 

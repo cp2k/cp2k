@@ -47,28 +47,29 @@ void libgrpp_outercore_potential_integrals_part_2(
     double *arep_matrix, double *so_x_matrix, double *so_y_matrix,
     double *so_z_matrix);
 
-double calculate_delta_integral(libgrpp_potential_t *oc_pot_1,
-                                libgrpp_shell_t *oc_shell_1,
-                                libgrpp_potential_t *oc_pot_2,
-                                libgrpp_shell_t *oc_shell_2);
+static double calculate_delta_integral(libgrpp_potential_t *oc_pot_1,
+                                       libgrpp_shell_t *oc_shell_1,
+                                       libgrpp_potential_t *oc_pot_2,
+                                       libgrpp_shell_t *oc_shell_2);
 
-void transform_to_sph_basis_ket(int dim_bra, int dim_ket_cart, int dim_ket_sph,
-                                double *A_in, double *A_out, double *S_lm_coef);
+static void transform_to_sph_basis_ket(int dim_bra, int dim_ket_cart,
+                                       int dim_ket_sph, double *A_in,
+                                       double *A_out, double *S_lm_coef);
 
-void transform_to_sph_basis_bra(int dim_bra_cart, int dim_bra_sph, int dim_ket,
-                                double *A_in, double *A_out, double *S_lm_coef);
+static void transform_to_sph_basis_bra(int dim_bra_cart, int dim_bra_sph,
+                                       int dim_ket, double *A_in, double *A_out,
+                                       double *S_lm_coef);
 
-double ang_norm_factor(int lx, int ly, int lz);
+static double ang_norm_factor(int lx, int ly, int lz);
 
-double analytic_one_center_rpp_integral_contracted(libgrpp_shell_t *bra,
-                                                   libgrpp_shell_t *ket,
-                                                   libgrpp_potential_t *pot);
+static double analytic_one_center_rpp_integral_contracted(
+    libgrpp_shell_t *bra, libgrpp_shell_t *ket, libgrpp_potential_t *pot);
 
-double analytic_one_center_rpp_integral_primitive(int L, double alpha1,
-                                                  double alpha2, int n,
-                                                  double zeta);
+static double analytic_one_center_rpp_integral_primitive(int L, double alpha1,
+                                                         double alpha2, int n,
+                                                         double zeta);
 
-double radial_gto_norm_factor(int L, double alpha);
+static double radial_gto_norm_factor(int L, double alpha);
 
 /**
  * Calculates non-local contributions to the scalar-relativistic ECP and
@@ -401,10 +402,10 @@ void libgrpp_outercore_potential_integrals_part_2(
  * Calculation of radial "delta" integrals.
  * Is performed analytically.
  */
-double calculate_delta_integral(libgrpp_potential_t *oc_pot_1,
-                                libgrpp_shell_t *oc_shell_1,
-                                libgrpp_potential_t *oc_pot_2,
-                                libgrpp_shell_t *oc_shell_2) {
+static double calculate_delta_integral(libgrpp_potential_t *oc_pot_1,
+                                       libgrpp_shell_t *oc_shell_1,
+                                       libgrpp_potential_t *oc_pot_2,
+                                       libgrpp_shell_t *oc_shell_2) {
   // both shells must have equal L,J quantum numbers, otherwise
   // the < nlj | U | n'l'j' > integral is strictly zero
   if (oc_pot_1->L != oc_pot_2->L || oc_pot_1->J != oc_pot_2->J) {
@@ -423,9 +424,8 @@ double calculate_delta_integral(libgrpp_potential_t *oc_pot_1,
  * analytic formula for one-center RPP integral between two contracted gaussian
  * functions.
  */
-double analytic_one_center_rpp_integral_contracted(libgrpp_shell_t *bra,
-                                                   libgrpp_shell_t *ket,
-                                                   libgrpp_potential_t *pot) {
+static double analytic_one_center_rpp_integral_contracted(
+    libgrpp_shell_t *bra, libgrpp_shell_t *ket, libgrpp_potential_t *pot) {
   double sum = 0.0;
   int L = pot->L;
 
@@ -460,9 +460,9 @@ double analytic_one_center_rpp_integral_contracted(libgrpp_shell_t *bra,
  * analytic formula for one-center RPP integral between two gaussian primitives.
  * normalization factors are omitted here.
  */
-double analytic_one_center_rpp_integral_primitive(int L, double alpha1,
-                                                  double alpha2, int n,
-                                                  double zeta) {
+static double analytic_one_center_rpp_integral_primitive(int L, double alpha1,
+                                                         double alpha2, int n,
+                                                         double zeta) {
   double a = alpha1 + alpha2 + zeta;
 
   if (n % 2 == 0) { // even n
@@ -479,7 +479,7 @@ double analytic_one_center_rpp_integral_primitive(int L, double alpha1,
  * calculate normalization factor for the radial Gaussian-type orbital:
  * G(r) = N * r^L * exp(-alpha * r^2)
  */
-double radial_gto_norm_factor(int L, double alpha) {
+static double radial_gto_norm_factor(int L, double alpha) {
   // pre-tabulated factors for calculation of normalization constants
   // (for each value of L)
   const static double factors[] = {
@@ -499,9 +499,9 @@ double radial_gto_norm_factor(int L, double alpha) {
  * to the basis of real spherical harmonics S_lm
  * (separately for 'bra' and 'ket' vectors)
  */
-void transform_to_sph_basis_ket(int dim_bra, int dim_ket_cart, int dim_ket_sph,
-                                double *A_in, double *A_out,
-                                double *S_lm_coef) {
+static void transform_to_sph_basis_ket(int dim_bra, int dim_ket_cart,
+                                       int dim_ket_sph, double *A_in,
+                                       double *A_out, double *S_lm_coef) {
   for (int i = 0; i < dim_bra; i++) {
     for (int j = 0; j < dim_ket_sph; j++) {
       double s = 0.0;
@@ -516,9 +516,9 @@ void transform_to_sph_basis_ket(int dim_bra, int dim_ket_cart, int dim_ket_sph,
   }
 }
 
-void transform_to_sph_basis_bra(int dim_bra_cart, int dim_bra_sph, int dim_ket,
-                                double *A_in, double *A_out,
-                                double *S_lm_coef) {
+static void transform_to_sph_basis_bra(int dim_bra_cart, int dim_bra_sph,
+                                       int dim_ket, double *A_in, double *A_out,
+                                       double *S_lm_coef) {
   for (int j = 0; j < dim_ket; j++) {
     for (int i = 0; i < dim_bra_sph; i++) {
 
@@ -534,7 +534,7 @@ void transform_to_sph_basis_bra(int dim_bra_cart, int dim_bra_sph, int dim_ket,
   }
 }
 
-double ang_norm_factor(int lx, int ly, int lz) {
+static double ang_norm_factor(int lx, int ly, int lz) {
   int L = lx + ly + lz;
 
   return 1.0 / (2.0 * sqrt(M_PI)) *

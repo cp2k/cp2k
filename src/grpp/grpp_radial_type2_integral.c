@@ -69,25 +69,25 @@ typedef struct {
  * pre-definitions of the functions used below
  */
 
-double calculate_radial_type2_integral(radial_type2_grid_t *grid, int n,
-                                       int lambda1, int lambda2,
-                                       double tolerance, int *converged);
+static double calculate_radial_type2_integral(radial_type2_grid_t *grid, int n,
+                                              int lambda1, int lambda2,
+                                              double tolerance, int *converged);
 
-radial_type2_grid_t *create_radial_type2_grid(int lambda1_max, int lambda2_max,
-                                              int n_max,
-                                              radial_type2_params_t *params);
+static radial_type2_grid_t *
+create_radial_type2_grid(int lambda1_max, int lambda2_max, int n_max,
+                         radial_type2_params_t *params);
 
-void delete_radial_type2_grid(radial_type2_grid_t *grid);
+static void delete_radial_type2_grid(radial_type2_grid_t *grid);
 
-double radial_type2_integrand_fun_contracted(double r, int lambda, double *k,
-                                             double CA,
-                                             libgrpp_shell_t *gauss_fun);
+static double radial_type2_integrand_fun_contracted(double r, int lambda,
+                                                    double *k, double CA,
+                                                    libgrpp_shell_t *gauss_fun);
 
-void expand_radial_type2_grid(radial_type2_grid_t *grid, int nr);
+static void expand_radial_type2_grid(radial_type2_grid_t *grid, int nr);
 
-void calc_k_values(int nprim, const double *alpha, double CA, double *k);
+static void calc_k_values(int nprim, const double *alpha, double CA, double *k);
 
-double gaussian_integral(int n, double a);
+double libgrpp_gaussian_integral(int n, double a);
 
 /**
  * Creates table with pre-calculated radial type 2 integrals.
@@ -132,7 +132,7 @@ radial_type2_table_t *libgrpp_tabulate_radial_type2_integrals(
 
           for (int n = 0; n <= n_max; n++) {
 
-            double val_ijk = gaussian_integral(ni + n, p);
+            double val_ijk = libgrpp_gaussian_integral(ni + n, p);
             table->radial_integrals[n] += factor * val_ijk;
             ;
           }
@@ -226,9 +226,10 @@ double libgrpp_get_radial_type2_integral(radial_type2_table_t *table,
  * calculates type 2 radial integral T^N_{lambda1,lambda2}
  * for the two given contracted gaussian functions and the contracted potential
  */
-double calculate_radial_type2_integral(radial_type2_grid_t *grid, int n,
-                                       int lambda1, int lambda2,
-                                       double tolerance, int *converged) {
+static double calculate_radial_type2_integral(radial_type2_grid_t *grid, int n,
+                                              int lambda1, int lambda2,
+                                              double tolerance,
+                                              int *converged) {
   int nr = MIN_GRID;
 
   *converged = 0;
@@ -300,9 +301,9 @@ double calculate_radial_type2_integral(radial_type2_grid_t *grid, int n,
 /**
  * Numerical integration on the Log3 grid
  */
-radial_type2_grid_t *create_radial_type2_grid(int lambda1_max, int lambda2_max,
-                                              int n_max,
-                                              radial_type2_params_t *params) {
+static radial_type2_grid_t *
+create_radial_type2_grid(int lambda1_max, int lambda2_max, int n_max,
+                         radial_type2_params_t *params) {
   radial_type2_grid_t *grid =
       (radial_type2_grid_t *)calloc(1, sizeof(radial_type2_grid_t));
 
@@ -365,7 +366,7 @@ radial_type2_grid_t *create_radial_type2_grid(int lambda1_max, int lambda2_max,
 /**
  * constructs new radial grid points
  */
-void expand_radial_type2_grid(radial_type2_grid_t *grid, int nr) {
+static void expand_radial_type2_grid(radial_type2_grid_t *grid, int nr) {
   const double R = 5.0;
   const double R3 = R * R * R;
 
@@ -426,7 +427,7 @@ void expand_radial_type2_grid(radial_type2_grid_t *grid, int nr) {
 /**
  * deallocates memory used for the radial grid
  */
-void delete_radial_type2_grid(radial_type2_grid_t *grid) {
+static void delete_radial_type2_grid(radial_type2_grid_t *grid) {
   free(grid->r);
   free(grid->w);
   free(grid->rpp_values);
@@ -439,9 +440,9 @@ void delete_radial_type2_grid(radial_type2_grid_t *grid) {
 /**
  * Calculate the value of the integrand function
  */
-double radial_type2_integrand_fun_contracted(double r, int lambda, double *k,
-                                             double CA,
-                                             libgrpp_shell_t *gauss_fun) {
+static double
+radial_type2_integrand_fun_contracted(double r, int lambda, double *k,
+                                      double CA, libgrpp_shell_t *gauss_fun) {
   double F = 0.0;
   double r_CA_2 = (r - CA) * (r - CA);
 
@@ -458,7 +459,8 @@ double radial_type2_integrand_fun_contracted(double r, int lambda, double *k,
   return F;
 }
 
-void calc_k_values(int nprim, const double *alpha, double CA, double *k) {
+static void calc_k_values(int nprim, const double *alpha, double CA,
+                          double *k) {
   for (int i = 0; i < nprim; i++) {
     k[i] = 2.0 * alpha[i] * CA;
   }

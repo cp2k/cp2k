@@ -64,7 +64,7 @@ void grpp_gradient_diff_gaussian(
     double **so_z_matrix_up, int *cart_size_down, int *cart_size_up,
     int diff_bra);
 
-int nlm_to_linear(int *nlm);
+extern int libgrpp_nlm_to_linear(int *nlm);
 
 double **libgrpp_alloc_gradients(libgrpp_shell_t *bra, libgrpp_shell_t *ket);
 
@@ -381,8 +381,8 @@ void grpp_gradient_diff_bra_contribution(
          */
         if (shell_A->L > 0) {
           bra_nlm[icoord] -= 1;
-          int bra_index = nlm_to_linear(bra_nlm);
-          int ket_index = nlm_to_linear(ket_nlm);
+          int bra_index = libgrpp_nlm_to_linear(bra_nlm);
+          int ket_index = libgrpp_nlm_to_linear(ket_nlm);
           bra_nlm[icoord] += 1;
 
           grad_arep[icoord][index] -=
@@ -403,8 +403,8 @@ void grpp_gradient_diff_bra_contribution(
          * contribution from the L+1 gaussian
          */
         bra_nlm[icoord] += 1;
-        int bra_index = nlm_to_linear(bra_nlm);
-        int ket_index = nlm_to_linear(ket_nlm);
+        int bra_index = libgrpp_nlm_to_linear(bra_nlm);
+        int ket_index = libgrpp_nlm_to_linear(ket_nlm);
         bra_nlm[icoord] -= 1;
 
         grad_arep[icoord][index] +=
@@ -559,8 +559,8 @@ void grpp_gradient_diff_ket_contribution(
          */
         if (shell_B->L > 0) {
           ket_nlm[icoord] -= 1;
-          int bra_index = nlm_to_linear(bra_nlm);
-          int ket_index = nlm_to_linear(ket_nlm);
+          int bra_index = libgrpp_nlm_to_linear(bra_nlm);
+          int ket_index = libgrpp_nlm_to_linear(ket_nlm);
           ket_nlm[icoord] += 1;
 
           grad_arep[icoord][index] -=
@@ -581,8 +581,8 @@ void grpp_gradient_diff_ket_contribution(
          * contribution from the L+1 gaussian
          */
         ket_nlm[icoord] += 1;
-        int bra_index = nlm_to_linear(bra_nlm);
-        int ket_index = nlm_to_linear(ket_nlm);
+        int bra_index = libgrpp_nlm_to_linear(bra_nlm);
+        int ket_index = libgrpp_nlm_to_linear(ket_nlm);
         ket_nlm[icoord] -= 1;
 
         grad_arep[icoord][index] +=
@@ -747,8 +747,8 @@ void grpp_gradient_contribution(libgrpp_shell_t *shell_A,
          */
         if (cart_size_down > 0) {
           diff_nlm[icoord] -= 1;
-          int bra_index = nlm_to_linear(bra_nlm);
-          int ket_index = nlm_to_linear(ket_nlm);
+          int bra_index = libgrpp_nlm_to_linear(bra_nlm);
+          int ket_index = libgrpp_nlm_to_linear(ket_nlm);
           diff_nlm[icoord] += 1;
 
           int n = diff_nlm[icoord];
@@ -765,8 +765,8 @@ void grpp_gradient_contribution(libgrpp_shell_t *shell_A,
          * contribution from the L+1 gaussian
          */
         diff_nlm[icoord] += 1;
-        int bra_index = nlm_to_linear(bra_nlm);
-        int ket_index = nlm_to_linear(ket_nlm);
+        int bra_index = libgrpp_nlm_to_linear(bra_nlm);
+        int ket_index = libgrpp_nlm_to_linear(ket_nlm);
         diff_nlm[icoord] -= 1;
 
         int row_len = diff_bra ? shell_B->cart_size : cart_size_up;

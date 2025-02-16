@@ -11,14 +11,10 @@
  *
  *  Copyright (C) 2021-2023 Alexander Oleynichenko
  */
-
-#include "specfunc.h"
-
 #include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
 
 #include "libgrpp.h"
+#include "specfunc.h"
 
 /*
  * assumed max angular momentum
@@ -38,14 +34,14 @@
  */
 double bessel_table[NPOINTS][3 * LMAX][10];
 
-double modified_scaled_bessel_derivative(int n, int lambda, int ix);
+static double modified_scaled_bessel_derivative(int n, int lambda, int ix);
 
-double bessel_asymptotic_R_function(int n, double x);
+static double bessel_asymptotic_R_function(int n, double x);
 
 extern const double rfun_coeffs[50][50];
 extern const double bessel_table_0[1601][60];
 
-void pretabulate_bessel() {
+void libgrpp_pretabulate_bessel() {
   for (int i = 0; i <= 1600; i++) {
 
     // Bessel functions
@@ -129,7 +125,7 @@ double libgrpp_modified_bessel_scaled(int n, double x) {
  * Half-numerical evaluation of pseudopotential integrals.
  * J. Comput. Chem. 27 (9), 1009 (2006), doi: 10.1002/jcc.20410
  */
-double modified_scaled_bessel_derivative(int n, int lambda, int ix) {
+static double modified_scaled_bessel_derivative(int n, int lambda, int ix) {
   /*
    * base of recursion
    */
@@ -172,7 +168,7 @@ double modified_scaled_bessel_derivative(int n, int lambda, int ix) {
  * k));
  * }
  */
-double bessel_asymptotic_R_function(int n, double x) {
+static double bessel_asymptotic_R_function(int n, double x) {
   double sum = 0.0;
 
   double denom = 1.0;
