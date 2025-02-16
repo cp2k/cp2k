@@ -128,9 +128,6 @@ prepend_path CMAKE_INSTALL_PREFIX "${pkg_install_dir1}"
 export DBCSR_ROOT="${pkg_install_dir}"
 export DBCSR_HIP_ROOT="${pkg_install_dir}-hip"
 export DBCSR_CUDA_ROOT="${pkg_install_dir}-cuda"
-EOF
-fi
-cat << EOF >> "${BUILDDIR}/setup_dbcsr"
 export DBCSR_VER="${dbcsr_ver}"
 export DBCSR_DIR="${pkg_install_dir1}/lib/cmake/dbcsr"
 export DBCSR_CFLAGS="${DBCSR_CFLAGS}"
@@ -141,6 +138,7 @@ export CP_CFLAGS="\${CP_CFLAGS} ${DBCSR_CFLAGS}"
 export CP_LDFLAGS="\${CP_LDFLAGS} ${DBCSR_LDFLAGS}"
 export CP_LIBS="${DBCSR_LIBS} \${CP_LIBS}"
 EOF
+fi
 
 cat "${BUILDDIR}/setup_dbcsr" >> ${SETUPFILE}
 
