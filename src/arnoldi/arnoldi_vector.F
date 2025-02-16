@@ -86,7 +86,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_col_vec_from_matrix'
 
       INTEGER                                            :: data_type, handle, npcols
-      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_blk_size, col_dist, row_blk_size, &
+      INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, col_dist, row_blk_size, &
                                                             row_dist
       TYPE(dbcsr_distribution_type)                      :: dist, dist_col_vec
 
@@ -130,7 +130,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_row_vec_from_matrix'
 
       INTEGER                                            :: data_type, handle, nprows
-      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_blk_size, col_dist, row_blk_size, &
+      INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, col_dist, row_blk_size, &
                                                             row_dist
       TYPE(dbcsr_distribution_type)                      :: dist, dist_row_vec
 
@@ -174,7 +174,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_replicated_col_vec_from_matrix'
 
       INTEGER                                            :: data_type, handle, i, npcols
-      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_blk_size, col_dist, row_blk_size, &
+      INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, col_dist, row_blk_size, &
                                                             row_dist
       TYPE(dbcsr_distribution_type)                      :: dist, dist_col_vec
 
@@ -220,7 +220,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_replicated_row_vec_from_matrix'
 
       INTEGER                                            :: data_type, handle, i, nprows
-      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_blk_size, col_dist, row_blk_size, &
+      INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, col_dist, row_blk_size, &
                                                             row_dist
       TYPE(dbcsr_distribution_type)                      :: dist, dist_row_vec
 

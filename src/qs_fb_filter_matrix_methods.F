@@ -117,7 +117,7 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: name_string
       INTEGER                                            :: handle, iblkcol, ihalo, ikind, &
                                                             max_nhalos, nblkcols_total, nhalos
-      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_blk_size, dummy_halo_atoms, ntfns, &
+      INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, dummy_halo_atoms, ntfns, &
                                                             row_blk_size
       LOGICAL                                            :: send_data_only
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
@@ -278,7 +278,7 @@ CONTAINS
                                                             natoms_global, natoms_in_halo, &
                                                             nblkcols_total, nblks_recv, nhalos, &
                                                             nmax
-      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_blk_size, ntfns, row_blk_size
+      INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, ntfns, row_blk_size
       LOGICAL                                            :: check_ok
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
       TYPE(dbcsr_distribution_type)                      :: dbcsr_dist

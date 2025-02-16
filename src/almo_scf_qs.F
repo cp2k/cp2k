@@ -128,8 +128,8 @@ CONTAINS
       INTEGER                                            :: dimen, handle, hold, iatom, iblock_col, &
                                                             iblock_row, imol, mynode, natoms, &
                                                             nblkrows_tot, nlength, nmols, row
-      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER :: blk_distr, blk_sizes, block_sizes_new, &
-         col_distr_new, col_sizes_new, distr_new_array, row_distr_new, row_sizes_new
+      INTEGER, DIMENSION(:), POINTER :: blk_distr, blk_sizes, block_sizes_new, col_distr_new, &
+         col_sizes_new, distr_new_array, row_distr_new, row_sizes_new
       LOGICAL                                            :: active, one_dim_is_mo, tr
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p_new_block
       TYPE(dbcsr_distribution_type)                      :: dist_new, dist_qs

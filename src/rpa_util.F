@@ -165,7 +165,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(OUT) :: index_to_cell_3c
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(OUT)                                     :: cell_to_index_3c
-      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_blk_size
+      INTEGER, DIMENSION(:), POINTER                     :: col_blk_size
       LOGICAL, INTENT(IN)                                :: do_ic_model, do_kpoints_cubic_RPA, &
                                                             do_kpoints_from_Gamma, do_ri_Sigma_x, &
                                                             my_open_shell
@@ -195,7 +195,7 @@ CONTAINS
       INTEGER                                            :: cell_grid_dm(3), first_ikp_local, &
                                                             handle, i_dim, i_kp, ispin, jquad, &
                                                             nspins_P_omega, periodic(3)
-      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: row_blk_size
+      INTEGER, DIMENSION(:), POINTER                     :: row_blk_size
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: wkp_V
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct, fm_struct_sub_kp
@@ -496,7 +496,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'reorder_mat_L'
 
       INTEGER                                            :: handle, ikp, j_size, nblk
-      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_blk_size, row_blk_size
+      INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, row_blk_size
       LOGICAL                                            :: do_kpoints, my_allocate_mat_L
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct

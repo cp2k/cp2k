@@ -61,7 +61,7 @@ CONTAINS
 
       INTEGER                                            :: acol, arow, handle, iatom, idx, ikind, &
                                                             iterm, jatom, maxl, n, natoms
-      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: blk_sizes_pri, col_blk_size, nterms, &
+      INTEGER, DIMENSION(:), POINTER                     :: blk_sizes_pri, col_blk_size, nterms, &
                                                             row_blk_size
       REAL(dp), DIMENSION(:, :), POINTER                 :: block_V_term, vec_V_terms
       TYPE(dbcsr_iterator_type)                          :: iter
@@ -153,7 +153,7 @@ CONTAINS
    SUBROUTINE pao_param_gth_preconditioner(pao, qs_env, nterms)
       TYPE(pao_env_type), POINTER                        :: pao
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: nterms
+      INTEGER, DIMENSION(:), POINTER                     :: nterms
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_gth_preconditioner'
 

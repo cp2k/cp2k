@@ -1405,7 +1405,7 @@ CONTAINS
                                                             iset, ishell, ispin, l, m, maxl, n, &
                                                             natom, nkind, noce, ns, nset, nsgf, &
                                                             nspin
-      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: iao_blk_sizes, nshell, oce_blk_sizes, &
+      INTEGER, DIMENSION(:), POINTER                     :: iao_blk_sizes, nshell, oce_blk_sizes, &
                                                             orb_blk_sizes
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgf, last_sgf, lval
       LOGICAL                                            :: found

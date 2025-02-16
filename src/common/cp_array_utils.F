@@ -53,6 +53,8 @@ MODULE cp_array_utils
       #:endfor
    END INTERFACE
 
+!***
+
    #:for nametype1, type1, defaultFormatType1, lessQ in inst_params
 
 ! **************************************************************************************************
@@ -61,9 +63,9 @@ MODULE cp_array_utils
 !>      02.2003 created [fawzi]
 !> \author fawzi
 ! **************************************************************************************************
-      TYPE cp_1d_${nametype1}$_p_type
-         ${type1}$, dimension(:), CONTIGUOUS, POINTER :: array => NULL()
-      END TYPE cp_1d_${nametype1}$_p_type
+      type cp_1d_${nametype1}$_p_type
+         ${type1}$, dimension(:), pointer :: array => NULL()
+      end type cp_1d_${nametype1}$_p_type
 
 ! **************************************************************************************************
 !> \brief represent a pointer to a 2d array
@@ -71,9 +73,9 @@ MODULE cp_array_utils
 !>      02.2003 created [fawzi]
 !> \author fawzi
 ! **************************************************************************************************
-      TYPE cp_2d_${nametype1}$_p_type
-         ${type1}$, dimension(:, :), CONTIGUOUS, POINTER :: array => NULL()
-      END TYPE cp_2d_${nametype1}$_p_type
+      type cp_2d_${nametype1}$_p_type
+         ${type1}$, dimension(:, :), pointer :: array => NULL()
+      end type cp_2d_${nametype1}$_p_type
 
 ! **************************************************************************************************
 !> \brief represent a pointer to a 3d array
@@ -81,9 +83,9 @@ MODULE cp_array_utils
 !>      02.2003 created [fawzi]
 !> \author fawzi
 ! **************************************************************************************************
-      TYPE cp_3d_${nametype1}$_p_type
-         ${type1}$, dimension(:, :, :), CONTIGUOUS, POINTER :: array => NULL()
-      END TYPE cp_3d_${nametype1}$_p_type
+      type cp_3d_${nametype1}$_p_type
+         ${type1}$, dimension(:, :, :), pointer :: array => NULL()
+      end type cp_3d_${nametype1}$_p_type
 
 ! **************************************************************************************************
 !> \brief represent a pointer to a contiguous 1d array
@@ -91,9 +93,9 @@ MODULE cp_array_utils
 !>      02.2003 created [fawzi]
 !> \author fawzi
 ! **************************************************************************************************
-      TYPE cp_1d_${nametype1}$_cp_type
-         ${type1}$, dimension(:), CONTIGUOUS, POINTER :: array => NULL()
-      END TYPE cp_1d_${nametype1}$_cp_type
+      type cp_1d_${nametype1}$_cp_type
+         ${type1}$, dimension(:), contiguous, pointer :: array => NULL()
+      end type cp_1d_${nametype1}$_cp_type
 
 ! **************************************************************************************************
 !> \brief represent a pointer to a contiguous 2d array
@@ -101,9 +103,9 @@ MODULE cp_array_utils
 !>      02.2003 created [fawzi]
 !> \author fawzi
 ! **************************************************************************************************
-      TYPE cp_2d_${nametype1}$_cp_type
-         ${type1}$, dimension(:, :), CONTIGUOUS, POINTER :: array => NULL()
-      END TYPE cp_2d_${nametype1}$_cp_type
+      type cp_2d_${nametype1}$_cp_type
+         ${type1}$, dimension(:, :), contiguous, pointer :: array => NULL()
+      end type cp_2d_${nametype1}$_cp_type
 
 ! **************************************************************************************************
 !> \brief represent a pointer to a contiguous 3d array
@@ -111,9 +113,9 @@ MODULE cp_array_utils
 !>      02.2003 created [fawzi]
 !> \author fawzi
 ! **************************************************************************************************
-      TYPE cp_3d_${nametype1}$_cp_type
-         ${type1}$, dimension(:, :, :), CONTIGUOUS, POINTER :: array => NULL()
-      END TYPE cp_3d_${nametype1}$_cp_type
+      type cp_3d_${nametype1}$_cp_type
+         ${type1}$, dimension(:, :, :), contiguous, pointer :: array => NULL()
+      end type cp_3d_${nametype1}$_cp_type
 
    #:endfor
 

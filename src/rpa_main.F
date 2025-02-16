@@ -1119,7 +1119,7 @@ CONTAINS
       INTEGER(int_8)                                     :: dbcsr_nflop
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: index_to_cell_3c
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: cell_to_index_3c
-      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_blk_size, prim_blk_sizes, &
+      INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, prim_blk_sizes, &
                                                             RI_blk_sizes
       LOGICAL :: do_apply_ic_corr_to_gw, do_gw_im_time, do_ic_model, do_kpoints_cubic_RPA, &
          do_periodic, do_print, do_ri_Sigma_x, exit_ev_gw, first_cycle, &

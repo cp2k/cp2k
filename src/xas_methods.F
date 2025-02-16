@@ -607,8 +607,8 @@ CONTAINS
          nsgf_gto, nsgf_sto, nspins, nvirtual, nvirtual2
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf, kind_type_tmp, kind_z_tmp, &
                                                             last_sgf
-      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: bounds, list, lq, nq, row_blk_sizes
       INTEGER, DIMENSION(4, 7)                           :: ne
+      INTEGER, DIMENSION(:), POINTER                     :: bounds, list, lq, nq, row_blk_sizes
       LOGICAL                                            :: ihavethis
       REAL(dp)                                           :: nele, occ_estate, occ_homo, &
                                                             occ_homo_plus, zatom
