@@ -135,12 +135,12 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: dist1, dist2, dist3, sizes_AO, &
                                                             sizes_AO_split, sizes_MO, sizes_MO_1, &
                                                             sizes_RI, sizes_RI_split, tmp
-      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: distp_1, distp_2, sizes_MO_blocked, &
-                                                            sizes_MO_p1, sizes_MO_p2
       INTEGER, DIMENSION(2)                              :: pdims_2d
       INTEGER, DIMENSION(2, 1)                           :: bounds
       INTEGER, DIMENSION(2, 3)                           :: ibounds
       INTEGER, DIMENSION(3)                              :: bounds_3c, pdims
+      INTEGER, DIMENSION(:), POINTER                     :: distp_1, distp_2, sizes_MO_blocked, &
+                                                            sizes_MO_p1, sizes_MO_p2
       LOGICAL                                            :: memory_info, my_do_alpha
       REAL(dp)                                           :: compression_factor, memory_3c, occ
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: norm

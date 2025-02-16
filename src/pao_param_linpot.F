@@ -64,7 +64,7 @@ CONTAINS
 
       INTEGER                                            :: acol, arow, handle, iatom, ikind, N, &
                                                             natoms, nterms
-      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: blk_sizes_pri, col_blk_size, row_blk_size
+      INTEGER, DIMENSION(:), POINTER                     :: blk_sizes_pri, col_blk_size, row_blk_size
       REAL(dp), DIMENSION(:, :), POINTER                 :: block_V_terms
       REAL(dp), DIMENSION(:, :, :), POINTER              :: V_blocks
       TYPE(dbcsr_iterator_type)                          :: iter
@@ -142,7 +142,7 @@ CONTAINS
 
       INTEGER                                            :: acol, arow, handle, i, iatom, j, k, &
                                                             nterms
-      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: blk_sizes_nterms
+      INTEGER, DIMENSION(:), POINTER                     :: blk_sizes_nterms
       LOGICAL                                            :: found
       REAL(dp)                                           :: v, w
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: S_evals
@@ -217,7 +217,7 @@ CONTAINS
 
       INTEGER                                            :: acol, arow, handle, i, iatom, j, k, &
                                                             nterms
-      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: blk_sizes_nterms
+      INTEGER, DIMENSION(:), POINTER                     :: blk_sizes_nterms
       LOGICAL                                            :: found
       REAL(dp)                                           :: eval_capped
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: S_evals

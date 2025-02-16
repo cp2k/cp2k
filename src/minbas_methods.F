@@ -85,7 +85,7 @@ CONTAINS
       INTEGER                                            :: handle, homo, i, iab, ispin, nao, natom, &
                                                             ndep, nmao, nmo, nmx, np, np1, nspin, &
                                                             nvirt, unit_nr
-      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_blk_sizes, row_blk_sizes
+      INTEGER, DIMENSION(:), POINTER                     :: col_blk_sizes, row_blk_sizes
       LOGICAL                                            :: do_minbas, my_full_ortho
       REAL(KIND=dp)                                      :: my_eps_filter
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dval, dvalo, dvalv, eigval

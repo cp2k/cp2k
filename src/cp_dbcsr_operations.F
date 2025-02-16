@@ -153,7 +153,7 @@ CONTAINS
       INTEGER                                            :: col, handle, ncol_block, ncol_global, &
                                                             nrow_block, nrow_global, row
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_col, first_row, last_col, last_row
-      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_blk_size, row_blk_size
+      INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, row_blk_size
       INTEGER, DIMENSION(:, :), POINTER                  :: pgrid
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: dbcsr_block, fm_block
       TYPE(dbcsr_distribution_type)                      :: bc_dist
@@ -220,7 +220,7 @@ CONTAINS
       INTEGER                                            :: group_handle, handle, ncol_block, &
                                                             nfullcols_total, nfullrows_total, &
                                                             nrow_block
-      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_blk_size, row_blk_size
+      INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, row_blk_size
       INTEGER, DIMENSION(:, :), POINTER                  :: pgrid
       TYPE(dbcsr_distribution_type)                      :: bc_dist, dist
       TYPE(dbcsr_type)                                   :: bc_mat, matrix_nosym
@@ -561,7 +561,7 @@ CONTAINS
       INTEGER                                            :: a_ncol, a_nrow, b_ncol, b_nrow, c_ncol, &
                                                             c_nrow, k_in, k_out, timing_handle, &
                                                             timing_handle_mult
-      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_blk_size, col_blk_size_right_in, &
+      INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, col_blk_size_right_in, &
                                                             col_blk_size_right_out, col_dist, &
                                                             row_blk_size, row_dist
       TYPE(dbcsr_type)                                   :: in, out
@@ -705,7 +705,7 @@ CONTAINS
 
       INTEGER                                            :: data_type, k, my_symmetry_mode, nao, &
                                                             npcols, timing_handle
-      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_blk_size_left, col_dist_left, &
+      INTEGER, DIMENSION(:), POINTER                     :: col_blk_size_left, col_dist_left, &
                                                             row_blk_size, row_dist
       LOGICAL                                            :: check_product, my_keep_sparsity
       REAL(KIND=dp)                                      :: my_alpha, norm
@@ -881,7 +881,7 @@ CONTAINS
       TYPE(dbcsr_type), INTENT(IN)                       :: template
 
       INTEGER                                            :: data_type, k_in
-      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_blk_size_right_in, row_blk_size
+      INTEGER, DIMENSION(:), POINTER                     :: col_blk_size_right_in, row_blk_size
       TYPE(dbcsr_distribution_type)                      :: dist_right_in, tmpl_dist
 
       CALL cp_fm_get_info(fm_in, ncol_global=k_in)
@@ -918,7 +918,7 @@ CONTAINS
 
       CHARACTER                                          :: mysym
       INTEGER                                            :: my_data_type, npcols, nprows
-      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_blk_size, col_dist, row_blk_size, &
+      INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, col_dist, row_blk_size, &
                                                             row_dist
       TYPE(dbcsr_distribution_type)                      :: dist_m_n, tmpl_dist
 
@@ -968,7 +968,7 @@ CONTAINS
 
       CHARACTER                                          :: mysym
       INTEGER                                            :: my_data_type, npcols
-      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_blk_size, col_dist, row_blk_size, &
+      INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, col_dist, row_blk_size, &
                                                             row_dist
       TYPE(dbcsr_distribution_type)                      :: dist_m_n, tmpl_dist
 

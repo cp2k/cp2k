@@ -1510,8 +1510,8 @@ CONTAINS
 
       INTEGER :: handle, i, iatom, ic, icol, ikind, inode, irow, iset, jatom, jkind, jset, ldab, &
          ldsa, ldsb, ldwork, natom, ncoa, ncob, nimg, nkind, nseta, nsetb, sgfa, sgfb
-      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: row_blk_sizes
       INTEGER, DIMENSION(3)                              :: icell
+      INTEGER, DIMENSION(:), POINTER                     :: row_blk_sizes
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: found, use_cell_mapping
       REAL(dp), DIMENSION(:, :), POINTER                 :: cblock, cosab, sblock, sinab, work

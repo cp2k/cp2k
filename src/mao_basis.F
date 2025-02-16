@@ -90,7 +90,7 @@ CONTAINS
       INTEGER                                            :: handle, iab, iatom, ikind, iolev, ispin, &
                                                             iw, mao_max_iter, natom, nbas, &
                                                             nimages, nkind, nmao, nspin
-      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_blk_sizes, row_blk_sizes
+      INTEGER, DIMENSION(:), POINTER                     :: col_blk_sizes, row_blk_sizes
       LOGICAL                                            :: do_nmao_external, molecule
       REAL(KIND=dp)                                      :: electra(2), eps1, eps_filter, eps_fun, &
                                                             mao_eps_grad

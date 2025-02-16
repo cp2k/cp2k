@@ -110,7 +110,7 @@ CONTAINS
       INTEGER                                            :: handle, homo, i, ispin, nao, natom, &
                                                             nimages, nmao, nmo, nspin
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: ecount
-      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_blk_sizes, row_blk_sizes
+      INTEGER, DIMENSION(:), POINTER                     :: col_blk_sizes, row_blk_sizes
       LOGICAL                                            :: do_bondorder, explicit, full_ortho, occeq
       REAL(KIND=dp)                                      :: alpha, amax, eps_filter, filter_eps, &
                                                             trace

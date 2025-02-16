@@ -221,7 +221,7 @@ CONTAINS
                                                             isg, istate, itp, jj, nactive, nao, &
                                                             nex, npcols, nprows, nsg, ntot, ntp
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: evects_sort
-      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_blk_size, col_dist, row_blk_size, &
+      INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, col_dist, row_blk_size, &
                                                             row_dist, row_dist_new
       INTEGER, DIMENSION(:, :), POINTER                  :: pgrid
       LOGICAL                                            :: print_ev, print_some, print_splitting, &

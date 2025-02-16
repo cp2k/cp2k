@@ -64,10 +64,9 @@ MODULE cp_dbcsr_api
         dbcsr_type_real_default, dbcsr_type_symmetric, dbcsr_valid_index_prv => dbcsr_valid_index, &
         dbcsr_verify_matrix_prv => dbcsr_verify_matrix, dbcsr_work_create_prv => dbcsr_work_create
    USE dbm_api,                         ONLY: &
-        dbm_add, dbm_checksum, dbm_clear, dbm_copy, dbm_create, dbm_distribution_obj, &
-        dbm_iterator, dbm_redistribute, dbm_scale, dbm_type, dbm_zero
-   USE kinds,                           ONLY: default_string_length,&
-                                              dp,&
+        dbm_add, dbm_checksum, dbm_clear, dbm_copy, dbm_distribution_obj, dbm_iterator, &
+        dbm_redistribute, dbm_scale, dbm_type, dbm_zero
+   USE kinds,                           ONLY: dp,&
                                               int_8
    USE message_passing,                 ONLY: mp_comm_type
 #include "../base/base_uses.f90"
@@ -489,7 +488,7 @@ CONTAINS
       CHARACTER(len=*), INTENT(IN)                       :: name
       TYPE(dbcsr_distribution_type), INTENT(IN)          :: dist
       CHARACTER, INTENT(IN)                              :: matrix_type
-      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: row_blk_size, col_blk_size
+      INTEGER, DIMENSION(:), INTENT(INOUT), POINTER      :: row_blk_size, col_blk_size
       INTEGER, INTENT(IN), OPTIONAL                      :: nze, data_type
       LOGICAL, INTENT(IN), OPTIONAL                      :: reuse_arrays, mutable_work
 
@@ -499,12 +498,7 @@ CONTAINS
                                col_blk_size=col_blk_size, nze=nze, data_type=data_type, &
                                reuse_arrays=reuse_arrays, mutable_work=mutable_work)
       ELSE
-         IF (matrix_type /= "N" .OR. PRESENT(nze) .OR. PRESENT(data_type) .OR. &
-             PRESENT(reuse_arrays) .OR. PRESENT(mutable_work)) THEN
-            CPABORT("Not yet implemented for DBM.")
-         END IF
-         CALL dbm_create(matrix%dbm, name=name, dist=dist%dbm, &
-                         row_block_sizes=row_blk_size, col_block_sizes=col_blk_size)
+         CPABORT("Not yet implemented for DBM.")
       END IF
    END SUBROUTINE dbcsr_create_new
 
@@ -531,15 +525,10 @@ CONTAINS
       TYPE(dbcsr_distribution_type), INTENT(IN), &
          OPTIONAL                                        :: dist
       CHARACTER, INTENT(IN), OPTIONAL                    :: matrix_type
-      INTEGER, CONTIGUOUS, DIMENSION(:), OPTIONAL, &
+      INTEGER, DIMENSION(:), INTENT(INOUT), OPTIONAL, &
          POINTER                                         :: row_blk_size, col_blk_size
       INTEGER, INTENT(IN), OPTIONAL                      :: nze, data_type
       LOGICAL, INTENT(IN), OPTIONAL                      :: reuse_arrays, mutable_work
-
-      CHARACTER                                          :: my_matrix_type
-      CHARACTER(len=default_string_length)               :: my_name
-      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: my_col_blk_size, my_row_blk_size
-      TYPE(dbcsr_distribution_type)                      :: my_dist
 
       IF (USE_DBCSR_BACKEND) THEN
          CALL dbcsr_create_prv(matrix=matrix%dbcsr, name=name, template=template%dbcsr, &
@@ -548,19 +537,7 @@ CONTAINS
                                nze=nze, data_type=data_type, reuse_arrays=reuse_arrays, &
                                mutable_work=mutable_work)
       ELSE
-         CALL dbcsr_get_info(template, name=my_name, matrix_type=my_matrix_type, distribution=my_dist, &
-                             row_blk_size=my_row_blk_size, col_blk_size=my_col_blk_size)
-         IF (PRESENT(name)) my_name = name
-         IF (PRESENT(dist)) my_dist = dist
-         IF (PRESENT(matrix_type)) my_matrix_type = matrix_type
-         IF (PRESENT(row_blk_size)) my_row_blk_size = row_blk_size
-         IF (PRESENT(col_blk_size)) my_col_blk_size = col_blk_size
-         IF (my_matrix_type /= "N" .OR. PRESENT(nze) .OR. PRESENT(data_type) .OR. &
-             PRESENT(reuse_arrays) .OR. PRESENT(mutable_work)) THEN
-            CPABORT("Not yet implemented for DBM.")
-         END IF
-         CALL dbm_create(matrix%dbm, name=my_name, dist=my_dist%dbm, &
-                         row_block_sizes=my_row_blk_size, col_block_sizes=my_col_blk_size)
+         CPABORT("Not yet implemented for DBM.")
       END IF
    END SUBROUTINE dbcsr_create_template
 

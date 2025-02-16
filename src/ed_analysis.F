@@ -131,8 +131,8 @@ CONTAINS
       INTEGER                                            :: handle, iatom, ikind, iorb, ispin, jorb, &
                                                             nao, natom, nimages, nkind, no, norb, &
                                                             nref, nspin
-      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: refbas_blk_sizes
       INTEGER, DIMENSION(2)                              :: nocc
+      INTEGER, DIMENSION(:), POINTER                     :: refbas_blk_sizes
       LOGICAL :: detailed_ener, do_hfx, ewald_correction, explicit, gapw, gapw_xc, &
          ref_orb_canonical, skip_localize, uniform_occupation, uocc
       REAL(KIND=dp)                                      :: ateps, checksum, e1, e2, e_pot, ealpha, &

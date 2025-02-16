@@ -874,7 +874,7 @@ CONTAINS
       INTEGER                                            :: i, natom, neighbor_list_id, nkind, nmat, &
                                                             nsgf
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf, last_sgf
-      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: row_blk_sizes
+      INTEGER, DIMENSION(:), POINTER                     :: row_blk_sizes
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -961,7 +961,7 @@ CONTAINS
       INTEGER                                            :: i, img, natom, neighbor_list_id, nkind, &
                                                             nmat, nsgf
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf, last_sgf
-      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: row_blk_sizes
+      INTEGER, DIMENSION(:), POINTER                     :: row_blk_sizes
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set

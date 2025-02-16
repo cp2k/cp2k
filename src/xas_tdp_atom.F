@@ -682,7 +682,7 @@ CONTAINS
       INTEGER                                            :: blk, dest, group_handle, handle, iat, &
                                                             ikind, inb, ir, is, jat, jnb, natom, &
                                                             nnb, npcols, nprows, source, tag
-      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: col_dist, nsgf, row_dist
+      INTEGER, DIMENSION(:), POINTER                     :: col_dist, nsgf, row_dist
       INTEGER, DIMENSION(:, :), POINTER                  :: pgrid
       LOGICAL                                            :: found_risinv, found_whole
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: is_neighbor

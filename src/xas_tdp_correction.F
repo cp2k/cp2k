@@ -1069,9 +1069,9 @@ CONTAINS
                                                             nblk_aos, nblk_mos(2), nblk_occ(2), &
                                                             nblk_pqX(3), nblk_ri, nblk_virt(2), &
                                                             nspins
-      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: ao_blk_size, ao_col_dist, ao_row_dist, &
-                                                            mo_dist_3, ri_blk_size, ri_dist_3
       INTEGER, DIMENSION(3)                              :: pdims
+      INTEGER, DIMENSION(:), POINTER                     :: ao_blk_size, ao_col_dist, ao_row_dist, &
+                                                            mo_dist_3, ri_blk_size, ri_dist_3
       INTEGER, DIMENSION(:, :), POINTER                  :: mat_pgrid
       TYPE(cp_1d_i_p_type), ALLOCATABLE, DIMENSION(:)    :: mo_blk_size, mo_col_dist, mo_row_dist
       TYPE(dbcsr_distribution_type)                      :: mat_dist

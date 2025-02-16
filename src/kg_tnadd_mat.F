@@ -104,7 +104,7 @@ CONTAINS
          maxco, maxder, maxl, maxlgto, maxnset, maxpol, maxsgf, mepos, natom, ncoa, ncob, nder, &
          ngau, nkind, npol, nseta, nsetb, nthread, sgfa, sgfb
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind
-      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: atom_to_molecule, col_blk_sizes, la_max, &
+      INTEGER, DIMENSION(:), POINTER                     :: atom_to_molecule, col_blk_sizes, la_max, &
                                                             la_min, lb_max, lb_min, npgfa, npgfb, &
                                                             nsgfa, nsgfb, row_blk_sizes
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb

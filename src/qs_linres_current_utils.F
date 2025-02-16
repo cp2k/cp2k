@@ -137,7 +137,7 @@ CONTAINS
          jcenter, jstate, max_nbr_center, max_states, nao, natom, nbr_center(2), ncubes, nmo, &
          nspins, nstates(2), output_unit
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf, last_sgf
-      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: list_cubes, row_blk_sizes
+      INTEGER, DIMENSION(:), POINTER                     :: list_cubes, row_blk_sizes
       INTEGER, DIMENSION(:, :, :), POINTER               :: statetrueindex
       LOGICAL                                            :: append_cube, should_stop
       REAL(dp)                                           :: dk(3), dkl(3), dl(3)
@@ -575,7 +575,7 @@ CONTAINS
          n_rep, nao, natom, nbr_box, ncubes, nmo, nspins, nstate, nstate_list(2), output_unit
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: buff, first_sgf, last_sgf
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: state_list
-      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: bounds, list, nbox, &
+      INTEGER, DIMENSION(:), POINTER                     :: bounds, list, nbox, &
                                                             selected_states_on_atom_list
       LOGICAL                                            :: force_no_full, gapw, is0, &
                                                             uniform_occupation
