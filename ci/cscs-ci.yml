@@ -2,19 +2,11 @@ include:
   - remote: 'https://gitlab.com/cscs-ci/recipes/-/raw/master/templates/v2/.ci-ext.yml'
 
 stages:
-  - build_deps
   - build_cp2k
   - test_cp2k
 
 variables:
   PERSIST_IMAGE_NAME: $CSCS_REGISTRY_PATH/cp2k:$CI_COMMIT_SHORT_SHA
-
-build_deps_job:
-  extends: .container-builder-cscs-zen2
-  stage: build_deps
-  timeout: 2 hours
-  variables:
-    DOCKERFILE: ci/docker/build_deps_psmp.Dockerfile
 
 build_cp2k_job:
   extends: .container-builder-cscs-zen2
