@@ -138,6 +138,8 @@ export CP_CFLAGS="\${CP_CFLAGS} ${DBCSR_CFLAGS}"
 export CP_LDFLAGS="\${CP_LDFLAGS} ${DBCSR_LDFLAGS}"
 export CP_LIBS="${DBCSR_LIBS} \${CP_LIBS}"
 EOF
+else
+  touch "${BUILDDIR}/setup_dbcsr"
 fi
 
 cat "${BUILDDIR}/setup_dbcsr" >> ${SETUPFILE}
