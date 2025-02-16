@@ -155,7 +155,8 @@ source /opt/cp2k/tools/toolchain/install/setup\n\
 >/opt/cp2k/bin/entrypoint.sh && chmod 755 /opt/cp2k/bin/entrypoint.sh
 
 # Create shortcut for regression test
-RUN printf "/opt/cp2k/tests/do_regtest.py --workbasedir /mnt \$* /opt/cp2k/bin psmp" \
+ARG MAX_TASKS
+RUN printf "/opt/cp2k/tests/do_regtest.py --maxtasks ${MAX_TASKS} --mpiexec srun --workbasedir /mnt \$* /opt/cp2k/bin psmp" \
 >/opt/cp2k/bin/run_tests && chmod 755 /opt/cp2k/bin/run_tests
 
 # Define entrypoint
