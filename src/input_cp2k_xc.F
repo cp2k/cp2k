@@ -1089,7 +1089,7 @@ CONTAINS
                           description="Parameters for the short-range bond correction to the DFT-D3 model. "// &
                           "s*(za*zb)^t1*EXP(-g*dr*r0ab^t2), parameters: s, g, t1, t2 "// &
                           "Defaults: s=0.08, g=10.0, t1=0.5, t2=-1.0 ", &
-                          usage="SHORT_RANGE_CORRECTION_PARAMETRS", default_r_vals=(/0.08_dp, 10.0_dp, 0.5_dp, -1.0_dp/), &
+                          usage="SHORT_RANGE_CORRECTION_PARAMETERS", default_r_vals=(/0.08_dp, 10.0_dp, 0.5_dp, -1.0_dp/), &
                           n_var=4, type_of_var=real_t)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
