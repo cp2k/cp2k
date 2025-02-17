@@ -343,7 +343,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="D2_EXP_PRE", &
                           description="Exp prefactor for damping for the D2 dispersion method,", &
-                          usage="EXP_PRE 2.0", default_r_val=2.0_dp)
+                          usage="D2_EXP_PRE 2.0", default_r_val=2.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
