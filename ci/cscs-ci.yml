@@ -19,7 +19,6 @@ build_cp2k_job:
     - MAX_TASKS=${NUM_CORES_BUILD_DEPS}
     - echo "BUILD_IMAGE=${PERSIST_IMAGE_NAME}" > build.env
     - 'echo "INFO: Building image ${PERSIST_IMAGE_NAME}"'
-    - 'echo "INFO: Using MAX_TASKS=${MAX_TASKS}"'
     - 'echo "INFO: Created TAG=${TAG}"'
   artifacts:
     reports:
@@ -27,7 +26,6 @@ build_cp2k_job:
   variables:
     DOCKER_BUILD_ARGS: '[
         "BASE_IMAGE",
-        "MAX_TASKS=${NUM_CORES_BUILD_DEPS}"
       ]'
     DOCKERFILE: ci/docker/build_cp2k_psmp.Dockerfile
     BASE_IMAGE: ubuntu:24.04
@@ -48,6 +46,6 @@ test_cp2k_job:
     SLURM_CONSTRAINT: mc
     SLURM_CPU_BIND: verbose
     SLURM_HINT: nomultithread
-    SLURM_NTASKS: ${MAX_TASKS}
+    SLURM_NTASKS: 64
     SLURM_TIMELIMIT: "60:00"
     SRUN_CPUS_PER_TASK: 2
