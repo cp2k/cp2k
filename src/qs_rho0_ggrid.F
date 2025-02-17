@@ -330,7 +330,7 @@ CONTAINS
 !> \param my_rs_descs ...
 ! **************************************************************************************************
    SUBROUTINE integrate_vhg0_rspace(qs_env, v_rspace, para_env, calculate_forces, local_rho_set, &
-                                    local_rho_set_2nd, atener, kforce, my_pools, my_rs_descs) ! ,my_rs_grids)
+                                    local_rho_set_2nd, atener, kforce, my_pools, my_rs_descs)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(pw_r3d_rs_type), INTENT(IN)                   :: v_rspace
