@@ -448,7 +448,7 @@ CONTAINS
                           "By default, takes the value of QS%EPS_PGF_ORB. Useful if "// &
                           "the former value is tiny due to possible ground state HFX "// &
                           "contributions.", &
-                          usage="EPS_PGS_XAS {real}", &
+                          usage="EPS_PGF_XAS {real}", &
                           type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
