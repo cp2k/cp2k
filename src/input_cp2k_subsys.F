@@ -724,7 +724,7 @@ CONTAINS
                           description="Specify the units of measurement for the velocities "// &
                           "(currently works only for the path integral code). "// &
                           "All available CP2K units can be used.", &
-                          usage="UNIT angstrom*au_t^-1", &
+                          usage="PINT_UNIT angstrom*au_t^-1", &
                           default_c_val="bohr*au_t^-1")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1111,7 +1111,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="ELEC_CONF", &
                           description="Specifies the electronic configuration used in construction the "// &
                           "atomic initial guess (see the pseudo potential file for the default values).", &
-                          usage="ELEC_COND n_elec(s)  n_elec(p)  n_elec(d)  ... ", &
+                          usage="ELEC_CONF n_elec(s)  n_elec(p)  n_elec(d)  ... ", &
                           n_var=-1, type_of_var=integer_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1224,7 +1224,7 @@ CONTAINS
                           description="the radius which defines the atomic region where "// &
                           "the hard compensation density is confined. "// &
                           "should be less than HARD_EXP_RADIUS (GAPW) (Bohr, default equals HARD_EXP_RADIUS)", &
-                          usage="RHO_EXP_RADIUS 0.9", type_of_var=real_t, n_var=1)
+                          usage="RHO0_EXP_RADIUS 0.9", type_of_var=real_t, n_var=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
