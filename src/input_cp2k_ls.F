@@ -275,7 +275,7 @@ CONTAINS
          keyword, __LOCATION__, name="RESTART_WRITE", &
          description="Write the density matrix at the end of the SCF (currently requires EXTRAPOLATION_ORDER>0). "// &
          "Files might be rather large.", &
-         usage="RESTART_READ", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+         usage="RESTART_WRITE", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -287,7 +287,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="S_INVERSION", &
                           description="Method used to compute the inverse of S.", &
-                          usage="S_PRECONDITIONER MOLECULAR", &
+                          usage="S_INVERSION MOLECULAR", &
                           default_i_val=ls_s_inversion_sign_sqrt, &
                           enum_c_vals=s2a("SIGN_SQRT", "HOTELLING"), &
                           enum_desc=s2a("Using the inverse sqrt as obtained from sign function iterations.", &
@@ -432,7 +432,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="LINE_SEARCH", &
                           description="Line serch type used in the curvy_setp optimization.", &
-                          usage="LINE Search 3POINT", default_i_val=ls_scf_line_search_3point, &
+                          usage="LINE_SEARCH 3POINT", default_i_val=ls_scf_line_search_3point, &
                           enum_c_vals=s2a("3POINT", "3POINT_2D"), &
                           enum_desc=s2a("Performs a three point line search", &
                                         "Only for spin unrestricted calcualtions. Separate step sizes for alpha and beta spin"// &
@@ -473,7 +473,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="MIN_FILTER", &
                           description="Lowest EPS_FILTER in dynamic filtering. Given as multiple of EPS_FILTER:"// &
                           " EPS_FILTER_MIN=EPS_FILTER*MIN_FILTER", &
-                          usage="FILTER_FACTOR 1.0", default_r_val=1.0_dp)
+                          usage="MIN_FILTER 1.0", default_r_val=1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
