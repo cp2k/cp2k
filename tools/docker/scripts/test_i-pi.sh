@@ -6,7 +6,7 @@
 source /opt/cp2k-toolchain/install/setup
 
 # Compile CP2K.
-./build_cp2k_cmake.sh "toolchain" "ssmp" || exit 0
+./build_cp2k_cmake.sh "toolchain" "psmp" || exit 0
 
 echo -e "\n========== Installing Dependencies =========="
 apt-get update -qq
@@ -43,7 +43,7 @@ ulimit -t ${TIMEOUT_SEC} # Limit cpu time.
   cd run_1
   echo 42 > cp2k_exit_code
   sleep 10 # give i-pi some time to startup
-  OMP_NUM_THREADS=2 /opt/cp2k/build/bin/cp2k.ssmp ../in.cp2k
+  OMP_NUM_THREADS=2 /opt/cp2k/build/bin/cp2k.psmp ../in.cp2k
   echo $? > cp2k_exit_code
 ) &
 
@@ -83,14 +83,14 @@ export OMP_NUM_THREADS=2
   cd run_client
   echo 42 > cp2k_client_exit_code
   sleep 10 # give server some time to startup
-  /opt/cp2k/build/bin/cp2k.ssmp /opt/cp2k/tests/i-PI/ipi_client.inp
+  /opt/cp2k/build/bin/cp2k.psmp /opt/cp2k/tests/i-PI/ipi_client.inp
   echo $? > cp2k_client_exit_code
 ) &
 
 # launch cp2k in server mode
 mkdir -p run_server
 cd run_server
-/opt/cp2k/build/bin/cp2k.ssmp /opt/cp2k/tests/i-PI/ipi_server.inp
+/opt/cp2k/build/bin/cp2k.psmp /opt/cp2k/tests/i-PI/ipi_server.inp
 SERVER_EXIT_CODE=$?
 
 wait # for cp2k client to shutdown
