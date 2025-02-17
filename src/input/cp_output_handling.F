@@ -54,7 +54,7 @@ MODULE cp_output_handling
                                               mp_file_get_amode,&
                                               mp_file_type
    USE openpmd_api,                     ONLY: &
-        cp2k_log, openpmd_access_create, openpmd_attributable_set_attribute_vec_int, &
+        openpmd_access_create, openpmd_attributable_set_attribute_vec_int, &
         openpmd_get_default_extension, openpmd_iteration_get_mesh, &
         openpmd_iteration_get_particle_species, openpmd_iteration_type, openpmd_mesh_type, &
         openpmd_particle_species_get_record, openpmd_particle_species_type, &
@@ -85,7 +85,6 @@ MODULE cp_output_handling
                                                medium_print_level = 2, &
                                                high_print_level = 3, &
                                                debug_print_level = 4
-   LOGICAL, PUBLIC :: cp_use_openpmd = .TRUE.
 
 !! flags controlling the printing and storing of a property.
 !!
@@ -977,15 +976,16 @@ CONTAINS
 !> \brief ...
 !> \param logger ...
 !> \param print_key ...
+!> \param openpmd_basename ...
 !> \param extension ...
 !> \param my_local ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION cp_print_key_generate_openpmd_filename(logger, print_key, extension, &
+   FUNCTION cp_print_key_generate_openpmd_filename(logger, print_key, openpmd_basename, extension, &
                                                    my_local) RESULT(filename)
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: print_key
-      CHARACTER(len=*), INTENT(IN)                       :: extension
+      CHARACTER(len=*), INTENT(IN)                       :: openpmd_basename, extension
       LOGICAL, INTENT(IN)                                :: my_local
       CHARACTER(len=default_path_length)                 :: filename
 
@@ -1025,7 +1025,7 @@ CONTAINS
          root = outPath(1:my_ind1)
       END IF
 
-      filename = ADJUSTL(TRIM(root)//TRIM(extension))
+      filename = ADJUSTL(TRIM(root)//"_"//TRIM(openpmd_basename)//TRIM(extension))
 
    END FUNCTION cp_print_key_generate_openpmd_filename
 
@@ -1131,12 +1131,14 @@ CONTAINS
 !> \param fout   Name of the actual file where the output will be written. Needed mainly for MPI IO
 !>               because inquiring the filename from the MPI filehandle does not work across
 !>               all MPI libraries.
+!> \param openpmd_basename ...
+!> \param use_openpmd ...
 !> \return ...
 ! **************************************************************************************************
    FUNCTION cp_print_key_unit_nr(logger, basis_section, print_key_path, extension, &
                                  middle_name, local, log_filename, ignore_should_output, file_form, file_position, &
                                  file_action, file_status, do_backup, on_file, is_new_file, mpi_io, &
-                                 fout) RESULT(res)
+                                 fout, openpmd_basename, use_openpmd) RESULT(res)
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), INTENT(IN)                :: basis_section
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: print_key_path
@@ -1150,6 +1152,8 @@ CONTAINS
       LOGICAL, INTENT(INOUT), OPTIONAL                   :: mpi_io
       CHARACTER(len=default_path_length), INTENT(OUT), &
          OPTIONAL                                        :: fout
+      CHARACTER(len=*), INTENT(IN), OPTIONAL             :: openpmd_basename
+      LOGICAL, INTENT(IN), OPTIONAL                      :: use_openpmd
       INTEGER                                            :: res
 
       CHARACTER(len=default_path_length)                 :: filename, filename_bak, filename_bak_1, &
@@ -1173,6 +1177,7 @@ CONTAINS
       replace = .FALSE.
       found = .FALSE.
       res = -1
+      my_use_openpmd = .FALSE.
       my_file_form = "FORMATTED"
       my_file_position = "APPEND"
       my_file_action = "WRITE"
@@ -1187,6 +1192,7 @@ CONTAINS
       IF (PRESENT(on_file)) my_on_file = on_file
       IF (PRESENT(local)) my_local = local
       IF (PRESENT(is_new_file)) is_new_file = .FALSE.
+      IF (PRESENT(use_openpmd)) my_use_openpmd = use_openpmd
       IF (PRESENT(mpi_io)) THEN
 #if defined(__parallel)
          IF (cp_mpi_io_get() .AND. logger%para_env%num_pe > 1 .AND. mpi_io) THEN
@@ -1221,14 +1227,13 @@ CONTAINS
          IF (outPath == '__STD_OUT__' .AND. .NOT. my_on_file) THEN
             res = cp_logger_get_default_unit_nr(logger, local=my_local)
          ELSE
-            IF (cp_use_openpmd .AND. extension == ".cube") THEN
-               my_use_openpmd = .TRUE.
-               filename = cp_print_key_generate_filename(logger, print_key, middle_name, extension, &
-                                                         my_local)
+            IF (PRESENT(openpmd_basename) .AND. my_use_openpmd) THEN
+               ! filename = cp_print_key_generate_filename(logger, print_key, middle_name, extension, &
+               !                                           my_local)
 
-               CALL cp2k_log(filename)
+               ! CALL cp2k_log(filename)
 
-               filename = cp_print_key_generate_openpmd_filename(logger, print_key, "."//openpmd_get_default_extension(), my_local)
+               filename = cp_print_key_generate_openpmd_filename(logger, print_key, openpmd_basename, "."//openpmd_get_default_extension(), my_local)
             ELSE
                my_use_openpmd = .FALSE.
                !
@@ -1363,6 +1368,7 @@ CONTAINS
 !> \param ignore_should_output ...
 !> \param on_file ...
 !> \param mpi_io True if file was opened in parallel with MPI
+!> \param use_openpmd ...
 !> \par History
 !>      08.2002 created [fawzi]
 !> \author Fawzi Mohamed
@@ -1372,17 +1378,17 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_print_key_finished_output(unit_nr, logger, basis_section, &
                                            print_key_path, local, ignore_should_output, on_file, &
-                                           mpi_io)
+                                           mpi_io, use_openpmd)
       INTEGER, INTENT(INOUT)                             :: unit_nr
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), INTENT(IN)                :: basis_section
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: print_key_path
       LOGICAL, INTENT(IN), OPTIONAL                      :: local, ignore_should_output, on_file, &
-                                                            mpi_io
+                                                            mpi_io, use_openpmd
 
       CHARACTER(len=default_string_length)               :: outPath
       LOGICAL                                            :: my_local, my_mpi_io, my_on_file, &
-                                                            my_should_output
+                                                            my_should_output, my_use_openpmd
       TYPE(cp_unit_nr_for_openpmd_value_type)            :: removed_entry
       TYPE(mp_file_type)                                 :: mp_unit
       TYPE(section_vals_type), POINTER                   :: print_key
@@ -1390,10 +1396,12 @@ CONTAINS
       my_local = .FALSE.
       my_on_file = .FALSE.
       my_mpi_io = .FALSE.
+      my_use_openpmd = .FALSE.
       NULLIFY (print_key)
       IF (PRESENT(local)) my_local = local
       IF (PRESENT(on_file)) my_on_file = on_file
       IF (PRESENT(mpi_io)) my_mpi_io = mpi_io
+      IF (PRESENT(use_openpmd)) my_use_openpmd = use_openpmd
       CPASSERT(ASSOCIATED(logger))
       CPASSERT(basis_section%ref_count > 0)
       CPASSERT(logger%ref_count > 0)
@@ -1404,9 +1412,11 @@ CONTAINS
                                   logger%para_env%is_source() .OR. &
                                   my_mpi_io)) THEN
          CALL section_vals_val_get(print_key, "FILENAME", c_val=outPath)
-         IF (cp_use_openpmd .AND. cp_has_openpmd_entry(unit_nr)) THEN
-            removed_entry = cp_remove_openpmd_entry(unit_nr)
-            CLOSE (unit_nr)
+         IF (my_use_openpmd) THEN
+            IF (cp_has_openpmd_entry(unit_nr)) THEN
+               removed_entry = cp_remove_openpmd_entry(unit_nr)
+               CLOSE (unit_nr)
+            END IF
             unit_nr = -1
          ELSE IF (my_on_file .OR. outPath .NE. '__STD_OUT__') THEN
             CPASSERT(unit_nr > 0)
