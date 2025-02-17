@@ -132,7 +132,7 @@ def main() -> None:
 
     for name in "aiida", "ase", "gromacs", "i-pi":
         with OutputFile(f"Dockerfile.test_{name}", args.check) as f:
-            f.write(install_deps_toolchain(with_dbcsr=""))
+            f.write(install_deps_toolchain(mpi_mode="no", with_dbcsr=""))
             f.write(test_3rd_party(name))
 
     for name in "misc", "doxygen":
