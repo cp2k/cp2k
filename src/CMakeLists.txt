@@ -1638,6 +1638,7 @@ add_library(cp2k_link_libs INTERFACE)
 target_link_libraries(
   cp2k_link_libs
   INTERFACE
+    $<$<BOOL:${CP2K_USE_DFTD4}>:mctc-lib::mctc-lib>
     $<$<BOOL:${CP2K_USE_DFTD4}>:dftd4::dftd4>
     $<$<BOOL:${CP2K_USE_DEEPMD}>:DeePMD::deepmd
     DeePMD::deepmd_c>
