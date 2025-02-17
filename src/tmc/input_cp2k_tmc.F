@@ -88,9 +88,9 @@ CONTAINS
 
       ! size of a group calculating the exact energy
       CALL keyword_create(keyword, __LOCATION__, &
-                          name="GROUP_ANLYSIS_NR", &
+                          name="GROUP_ANALYSIS_NR", &
                           description="amount of groups (cores) for analysing the configurations", &
-                          usage="GROUP_ANLYSIS_NR {INTEGER}", &
+                          usage="GROUP_ANALYSIS_NR {INTEGER}", &
                           default_i_val=1, lone_keyword_i_val=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
