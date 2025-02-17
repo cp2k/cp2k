@@ -316,7 +316,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="S_INVERSION", &
                           description="Method used to compute the inverse of S.", &
-                          usage="S_PRECONDITIONER MOLECULAR", &
+                          usage="S_INVERSION MOLECULAR", &
                           default_i_val=ls_s_inversion_sign_sqrt, &
                           enum_c_vals=s2a("SIGN_SQRT", "HOTELLING"), &
                           enum_desc=s2a("Using the inverse sqrt as obtained from sign function iterations.", &
@@ -525,7 +525,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="S_INVERSION", &
                           description="Method used to compute the inverse of S.", &
-                          usage="S_PRECONDITIONER MOLECULAR", &
+                          usage="S_INVERSION MOLECULAR", &
                           default_i_val=ls_s_inversion_sign_sqrt, &
                           enum_c_vals=s2a("SIGN_SQRT", "HOTELLING"), &
                           enum_desc=s2a("Using the inverse sqrt as obtained from sign function iterations.", &
