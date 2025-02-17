@@ -567,7 +567,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="WEIGHT_TYPE", &
                           description="Defines the weight used to define the center of the sphere"// &
                           " (if ATOM_LIST is provided)", &
-                          usage="WEIGHT (UNIT|MASS)", &
+                          usage="WEIGHT_TYPE (UNIT|MASS)", &
                           enum_c_vals=(/"UNIT", "MASS"/), &
                           enum_i_vals=(/weight_type_unit, weight_type_mass/), &
                           default_i_val=weight_type_unit)
