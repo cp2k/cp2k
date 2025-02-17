@@ -595,7 +595,7 @@ CONTAINS
       CALL section_vals_val_get(tmc_section, "GROUP_ENERGY_SIZE", i_val=tmc_env%tmc_comp_set%group_ener_size)
       CALL section_vals_val_get(tmc_section, "GROUP_ENERGY_NR", i_val=tmc_env%tmc_comp_set%group_ener_nr)
       CALL section_vals_val_get(tmc_section, "GROUP_CC_SIZE", i_val=tmc_env%tmc_comp_set%group_cc_size)
-      CALL section_vals_val_get(tmc_section, "GROUP_ANLYSIS_NR", i_val=itmp)
+      CALL section_vals_val_get(tmc_section, "GROUP_ANALYSIS_NR", i_val=itmp)
       IF (tmc_env%tmc_comp_set%ana_on_the_fly .GT. 0) &
          tmc_env%tmc_comp_set%ana_on_the_fly = itmp
       IF (tmc_env%tmc_comp_set%ana_on_the_fly .GT. 1) &
