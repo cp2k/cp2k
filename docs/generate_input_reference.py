@@ -311,11 +311,6 @@ def render_keyword(
     location = get_text(keyword.find("LOCATION"))
     lone_keyword_value = get_text(keyword.find("LONE_KEYWORD_VALUE"))
 
-    # Check that the usage string starts with one of the keyword names.
-    if keyword.tag == "KEYWORD" and usage:
-        if not any(usage.upper().startswith(n) for n in keyword_names):
-            print(f"Warning: Keyword {keyword_xref} has bad usage: {location}")
-
     # Find keyword data type.
     data_type_element = keyword.find("DATA_TYPE")
     assert data_type_element is not None

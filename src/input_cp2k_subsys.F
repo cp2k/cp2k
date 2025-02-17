@@ -1088,7 +1088,7 @@ CONTAINS
          keyword, __LOCATION__, name="LRI_BASIS_SET", &
          variants=s2a("LRI_BASIS"), &
          description="The local resolution of identity basis set (GTO type)", &
-         usage="", default_c_val=" ", &
+         usage="LRI_BASIS_SET", default_c_val=" ", &
          n_var=1, &
          deprecation_notice="Use 'BASIS_SET LRI ...' instead.", &
          removed=.TRUE.)

@@ -230,10 +230,9 @@ CONTAINS
             DO i = 1, SIZE(keyword%names)
                check = check .OR. (INDEX(tmp_string, TRIM(keyword%names(i))) == 1)
             END DO
-            !TODO: Arm this check once all the existing usage strings have been fixed.
-            !IF (.NOT. check) THEN
-            !   CPABORT("Usage string must start with one of the keyword name.")
-            !END IF
+            IF (.NOT. check) THEN
+               CPABORT("Usage string must start with one of the keyword name.")
+            END IF
          END IF
       ELSE
          keyword%usage = ""
