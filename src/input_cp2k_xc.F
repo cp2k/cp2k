@@ -760,7 +760,7 @@ CONTAINS
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="K_RHO", &
                           description="Value of the K_rho parameter (default = 0.42).", &
-                          usage="ALPHA 0.42", default_r_val=0.42_dp)
+                          usage="K_RHO 0.42", default_r_val=0.42_dp)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
       CALL section_add_subsection(section, subsection)
@@ -844,7 +844,7 @@ CONTAINS
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="C_CAA", &
                           description="B97 C parameters for opposite spin correlation.", &
-                          usage="C_CAB <REAL> <REAL> <REAL>", &
+                          usage="C_CAA <REAL> <REAL> <REAL>", &
                           default_r_vals=(/0.17_dp, 2.35_dp, -2.55_dp/), &
                           type_of_var=real_t, n_var=3)
       CALL section_add_keyword(section, keyword)
