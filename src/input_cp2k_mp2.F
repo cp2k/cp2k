@@ -1744,7 +1744,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="PRINT_IC_LIST", &
                           description="If true, the image charge correction values are printed in a list, "// &
                           "such that it can be used as input for a subsequent evGW calculation.", &
-                          usage="PRINT_IC_LIST", &
+                          usage="PRINT_IC_LIST .TRUE.", &
                           default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
