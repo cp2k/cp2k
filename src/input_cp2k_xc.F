@@ -1309,7 +1309,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="DENSITY_SMOOTH_CUTOFF_RANGE", &
                           description="Parameter for the smoothing procedure in xc calculation", &
-                          usage="gradient_cutoff {real}", default_r_val=0.0_dp)
+                          usage="DENSITY_SMOOTH_CUTOFF_RANGE {real}", default_r_val=0.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
