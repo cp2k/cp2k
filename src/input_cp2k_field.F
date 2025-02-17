@@ -293,14 +293,14 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="START_STEP_OUT", &
                           description="Step when the field starts to vanish ", &
-                          usage="START_STEP 0", &
+                          usage="START_STEP_OUT 0", &
                           default_i_val=0)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="END_STEP_OUT", &
                           description="Step when the field disappears", &
-                          usage="END_TIME 2", &
+                          usage="END_STEP_OUT 2", &
                           default_i_val=-1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -332,7 +332,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="TIMESTEP", &
                           description="The time step between the entries in the list with the electric field.", &
-                          usage="TIME_STEP 1", &
+                          usage="TIMESTEP 1", &
                           unit_str="fs", &
                           default_r_val=1.0_dp)
       CALL section_add_keyword(section, keyword)
