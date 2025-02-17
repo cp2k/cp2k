@@ -38,6 +38,15 @@ if(DFTD4_FOUND)
     dftd4::dftd4
     PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${DFTD4_INCLUDE_DIRS}"
                INTERFACE_LINK_LIBRARIES "${DFTD4_LINK_LIBRARIES}")
+
+  if(NOT TARGET dftd4::dftd4-lib)
+    add_library(dftd4::dftd4-lib INTERFACE IMPORTED)
+  endif()
+  set_target_properties(
+    dftd4::dftd4-lib
+    PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${DFTD4_INCLUDE_DIRS}"
+               INTERFACE_LINK_LIBRARIES "${DFTD4_LINK_LIBRARIES}")
+
 endif()
 
 mark_as_advanced(DFTD4_LINK_LIBRARIES DFTD4_INCLUDE_DIRS DFTD4_FOUND)
