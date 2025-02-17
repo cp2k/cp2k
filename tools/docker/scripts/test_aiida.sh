@@ -66,13 +66,13 @@ ln -s /bin/true /usr/bin/aiida-pseudo
 
 # setup code
 mkdir -p /opt/conda/envs/cp2k/bin/
-cat > /opt/conda/envs/cp2k/bin/cp2k.ssmp << EndOfMessage
+cat > /opt/conda/envs/cp2k/bin/cp2k.psmp << EndOfMessage
 #!/bin/bash -e
 export OMP_NUM_THREADS=2
 source /opt/cp2k-toolchain/install/setup
 /opt/cp2k/build/bin/cp2k.ssmp "\$@"
 EndOfMessage
-chmod +x /opt/conda/envs/cp2k/bin/cp2k.ssmp
+chmod +x /opt/conda/envs/cp2k/bin/cp2k.psmp
 
 echo -e "\n========== Running AiiDA-CP2K Tests =========="
 set +e # disable error trapping for remainder of script
