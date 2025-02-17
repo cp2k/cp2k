@@ -214,7 +214,7 @@ CONTAINS
                                         "Method based on Mulliken gross orbital populations (GOP)"), &
                           n_var=1, &
                           default_i_val=plus_u_mulliken, &
-                          usage="METHOD Lowdin")
+                          usage="PLUS_U_METHOD Lowdin")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
