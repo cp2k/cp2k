@@ -204,7 +204,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="CENTER_GRID", &
                           description="This keyword specifies whether the QM system is centered in units of the grid spacing.", &
-                          usage="grid_center LOGICAL", &
+                          usage="CENTER_GRID LOGICAL", &
                           default_l_val=.FALSE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -302,7 +302,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="CORR_RADIUS", &
                           description="Specifies the correction radius of the atomic kinds"// &
                           " The correction radius is connected to the use of the compatibility keyword.", &
-                          usage="RADIUS real", n_var=1, type_of_var=real_t, unit_str="angstrom")
+                          usage="CORR_RADIUS real", n_var=1, type_of_var=real_t, unit_str="angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -970,7 +970,7 @@ CONTAINS
          keyword, __LOCATION__, name="CORR_RADIUS", &
          description="Overwrite the specification of the correction radius only for the MM atom involved in the link. "// &
          "Default is to use the same correction radius as for the specified type.", &
-         usage="RADIUS real", n_var=1, type_of_var=real_t, unit_str="angstrom")
+         usage="CORR_RADIUS real", n_var=1, type_of_var=real_t, unit_str="angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1006,7 +1006,7 @@ CONTAINS
                           " This keyword affects only the QM/MM potential, it doesn't affect the electrostatic in"// &
                           " the classical part of the code."// &
                           " Default 1.0 i.e. no charge rescaling of the MM atom of the QM/MM link bond.", &
-                          usage="SCALE_FACTOR real", n_var=1, type_of_var=real_t, &
+                          usage="QMMM_SCALE_FACTOR real", n_var=1, type_of_var=real_t, &
                           default_r_val=CHARGE_SCALE_FACTOR)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1019,7 +1019,7 @@ CONTAINS
                           " This keyword modifies the MM charge in FIST. The modified charge will be used then also"// &
                           " for the generation of the QM/MM potential. "// &
                           "Default 1.0 i.e. no charge rescaling of the MM atom of the QM/MM link bond.", &
-                          usage="SCALE_FACTOR real", n_var=1, type_of_var=real_t, &
+                          usage="FIST_SCALE_FACTOR real", n_var=1, type_of_var=real_t, &
                           default_r_val=CHARGE_SCALE_FACTOR)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1058,7 +1058,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="CORR_RADIUS", &
                           description="Specifies the correction radius used for the QM/MM electrostatic coupling after movement", &
-                          usage="RADIUS real", n_var=1, type_of_var=real_t, unit_str="angstrom", default_r_val=0.0_dp)
+                          usage="CORR_RADIUS real", n_var=1, type_of_var=real_t, unit_str="angstrom", default_r_val=0.0_dp)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
@@ -1102,7 +1102,7 @@ CONTAINS
       CALL keyword_create( &
          keyword, __LOCATION__, name="CORR_RADIUS", &
          description="Specifies the correction radius used for the QM/MM electrostatic coupling for the added source", &
-         usage="RADIUS real", n_var=1, unit_str="angstrom", &
+         usage="CORR_RADIUS real", n_var=1, unit_str="angstrom", &
          default_r_val=cp_unit_to_cp2k(RADIUS_QMMM_DEFAULT, "angstrom"))
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
@@ -1155,7 +1155,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="aint_precond", &
                           description="the approximate inverse to use to get the starting point"// &
                           " for the linear solver of the spline3 methods", &
-                          usage="kind spline3", &
+                          usage="aint_precond copy", &
                           default_i_val=precond_spl3_aint, &
                           enum_c_vals=s2a("copy", "spl3_nopbc_aint1", "spl3_nopbc_precond1", &
                                           "spl3_nopbc_aint2", "spl3_nopbc_precond2", "spl3_nopbc_precond3"), &
@@ -1167,7 +1167,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="precond", &
                           description="The preconditioner used"// &
                           " for the linear solver of the spline3 methods", &
-                          usage="kind spline3", &
+                          usage="precond copy", &
                           default_i_val=precond_spl3_3, &
                           enum_c_vals=s2a("copy", "spl3_nopbc_aint1", "spl3_nopbc_precond1", &
                                           "spl3_nopbc_aint2", "spl3_nopbc_precond2", "spl3_nopbc_precond3"), &

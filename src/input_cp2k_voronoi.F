@@ -115,7 +115,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="REFINEMENT_FACTOR", &
                           description="Sets the refinement factor for the Voronoi integration.", &
-                          usage="REFINEMENT 2", n_var=1, default_i_val=1, type_of_var=integer_t)
+                          usage="REFINEMENT_FACTOR 2", n_var=1, default_i_val=1, type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 

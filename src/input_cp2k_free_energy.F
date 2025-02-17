@@ -687,7 +687,7 @@ CONTAINS
       CALL keyword_create( &
          keyword, __LOCATION__, name="TYPE", &
          description="Specify the type of wall", &
-         usage=" TYPE (REFLECTIVE|QUADRATIC|QUARTIC|GAUSSIAN|NONE)", &
+         usage="TYPE (REFLECTIVE|QUADRATIC|QUARTIC|GAUSSIAN|NONE)", &
          enum_c_vals=s2a("REFLECTIVE", "QUADRATIC", "QUARTIC", "GAUSSIAN", "NONE"), &
          enum_desc=s2a("Reflective wall. Colvar velocity is inverted when the colvar is beyond the wall position.", &
                        "Applies a quadratic potential at the wall position.", &
@@ -713,7 +713,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="DIRECTION", &
                           description="Specify the direction of the wall.", &
-                          usage=" TYPE (WALL_PLUS|WALL_MINUS)", &
+                          usage="DIRECTION (WALL_PLUS|WALL_MINUS)", &
                           enum_c_vals=s2a("WALL_PLUS", "WALL_MINUS"), &
                           enum_desc=s2a("Wall extends from the position towards larger values of COLVAR", &
                                         "Wall extends from the position towards smaller values of COLVAR"), &
@@ -730,7 +730,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="DIRECTION", &
                           description="Specify the direction of the wall.", &
-                          usage=" TYPE (WALL_PLUS|WALL_MINUS)", &
+                          usage="DIRECTION (WALL_PLUS|WALL_MINUS)", &
                           enum_c_vals=s2a("WALL_PLUS", "WALL_MINUS"), &
                           enum_desc=s2a("Wall extends from the position towards larger values of COLVAR", &
                                         "Wall extends from the position towards smaller values of COLVAR"), &
@@ -755,7 +755,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="DIRECTION", &
                           description="Specify the direction of the wall.", &
-                          usage=" TYPE (WALL_PLUS|WALL_MINUS)", &
+                          usage="DIRECTION (WALL_PLUS|WALL_MINUS)", &
                           enum_c_vals=s2a("WALL_PLUS", "WALL_MINUS"), &
                           enum_desc=s2a("Wall extends from the position towards larger values of COLVAR", &
                                         "Wall extends from the position towards smaller values of COLVAR"), &
@@ -780,7 +780,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="WW", &
                           description="Specify the height of the gaussian: WW*e^(-((CV-POS)/sigma)^2)", &
-                          usage="K <REAL>", unit_str='hartree', &
+                          usage="WW <REAL>", unit_str='hartree', &
                           type_of_var=real_t)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)

@@ -199,7 +199,7 @@ CONTAINS
                           "when the number of MPI processes is varied. If the print key PRINT_ELPA is "// &
                           "active the validity of the eigenvalues is checked against values calculated without "// &
                           "ELPA QR.", &
-                          usage="ELPA_QR", &
+                          usage="ELPA_QR_UNSAFE", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

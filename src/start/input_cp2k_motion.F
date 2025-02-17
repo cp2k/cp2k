@@ -242,7 +242,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="ENSEMBLE", &
                           description="Specify the type of simulation", &
-                          usage="PROGRAM (TRADITIONAL|GEMC_NVT|GEMC_NPT|VIRIAL)", &
+                          usage="ENSEMBLE (TRADITIONAL|GEMC_NVT|GEMC_NPT|VIRIAL)", &
                           enum_c_vals=s2a("TRADITIONAL", "GEMC_NVT", "GEMC_NPT", "VIRIAL"), &
                           enum_i_vals=(/do_mc_traditional, do_mc_gemc_nvt, do_mc_gemc_npt, do_mc_virial/), &
                           default_i_val=do_mc_traditional)
@@ -1122,7 +1122,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="METHOD", &
                           description="Specify which kind of method to use for locating transition states", &
                           citations=(/Henkelman1999/), &
-                          usage="TYPE (DIMER)", &
+                          usage="METHOD (DIMER)", &
                           enum_c_vals=s2a("DIMER"), &
                           enum_desc=s2a("Uses the dimer method to optimize transition states."), &
                           enum_i_vals=(/default_dimer_method_id/), &
@@ -1152,7 +1152,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="ANGLE_TOLERANCE", &
                           description="This keyword sets the value of the tolerance angle for the line search"// &
                           " performed to optimize the orientation of the dimer.", &
-                          usage="ANGLE_TOL {real}", unit_str='rad', &
+                          usage="ANGLE_TOLERANCE {real}", unit_str='rad', &
                           default_r_val=cp_unit_to_cp2k(5.0_dp, "deg"))
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
@@ -1331,7 +1331,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="FLETCHER_REEVES", &
                           description="Uses FLETCHER-REEVES instead of POLAK-RIBIERE when using Conjugate Gradients", &
-                          usage="FLETCHER-REEVES", &
+                          usage="FLETCHER_REEVES", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -2584,7 +2584,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="MIN_CYCLE_LENGTHS_WDG", &
                           description="Density of winding paths "// &
                           "not shorter than the given length", &
-                          repeats=.FALSE., usage="<INT> <INT> .. <INT>", &
+                          repeats=.FALSE., usage="MIN_CYCLE_LENGTHS_WDG <INT> <INT> .. <INT>", &
                           type_of_var=integer_t, n_var=-1)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
@@ -2592,7 +2592,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="MIN_CYCLE_LENGTHS_NON", &
                           description="Density of non-winding paths "// &
                           "not shorter than the given length", &
-                          repeats=.FALSE., usage="<INT> <INT> .. <INT>", &
+                          repeats=.FALSE., usage="MIN_CYCLE_LENGTHS_NON <INT> <INT> .. <INT>", &
                           type_of_var=integer_t, n_var=-1)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
@@ -2600,7 +2600,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="MIN_CYCLE_LENGTHS_ALL", &
                           description="Density of all paths "// &
                           "not shorter than the given length", &
-                          repeats=.FALSE., usage="<INT> <INT> .. <INT>", &
+                          repeats=.FALSE., usage="MIN_CYCLE_LENGTHS_ALL <INT> <INT> .. <INT>", &
                           type_of_var=integer_t, n_var=-1)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
@@ -2675,37 +2675,37 @@ CONTAINS
                           n_keywords=7, n_subsections=0, repeats=.FALSE.)
       CALL keyword_create(keyword, __LOCATION__, name="PROJECTED_AREA", &
                           description="Projected area vector for all environments", &
-                          repeats=.TRUE., usage="<REAL> <REAL> .. <REAL>", &
+                          repeats=.TRUE., usage="PROJECTED_AREA <REAL> <REAL> .. <REAL>", &
                           type_of_var=real_t, n_var=-1)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="PROJECTED_AREA_2", &
                           description="Projected area vector squared for all environments", &
-                          repeats=.TRUE., usage="<REAL> <REAL> .. <REAL>", &
+                          repeats=.TRUE., usage="PROJECTED_AREA_2 <REAL> <REAL> .. <REAL>", &
                           type_of_var=real_t, n_var=-1)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="WINDING_NUMBER_2", &
                           description="Winding number vector squared for all environments", &
-                          repeats=.TRUE., usage="<REAL> <REAL> .. <REAL>", &
+                          repeats=.TRUE., usage="WINDING_NUMBER_2 <REAL> <REAL> .. <REAL>", &
                           type_of_var=real_t, n_var=-1)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="MOMENT_OF_INERTIA", &
                           description="Moment of inertia vector for all environments", &
-                          repeats=.TRUE., usage="<REAL> <REAL> .. <REAL>", &
+                          repeats=.TRUE., usage="MOMENT_OF_INERTIA <REAL> <REAL> .. <REAL>", &
                           type_of_var=real_t, n_var=-1)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="RDF", &
                           description="Radial distributions averaged over all environments", &
-                          repeats=.TRUE., usage="<REAL> <REAL> .. <REAL>", &
+                          repeats=.TRUE., usage="RDF <REAL> <REAL> .. <REAL>", &
                           type_of_var=real_t, n_var=-1)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="RHO", &
                           description="Spatial distributions averaged over all environments", &
-                          repeats=.TRUE., usage="<REAL> <REAL> .. <REAL>", &
+                          repeats=.TRUE., usage="RHO <REAL> <REAL> .. <REAL>", &
                           type_of_var=real_t, n_var=-1)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)

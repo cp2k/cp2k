@@ -760,7 +760,7 @@ CONTAINS
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="K_RHO", &
                           description="Value of the K_rho parameter (default = 0.42).", &
-                          usage="ALPHA 0.42", default_r_val=0.42_dp)
+                          usage="K_RHO 0.42", default_r_val=0.42_dp)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
       CALL section_add_subsection(section, subsection)
@@ -844,7 +844,7 @@ CONTAINS
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="C_CAA", &
                           description="B97 C parameters for opposite spin correlation.", &
-                          usage="C_CAB <REAL> <REAL> <REAL>", &
+                          usage="C_CAA <REAL> <REAL> <REAL>", &
                           default_r_vals=(/0.17_dp, 2.35_dp, -2.55_dp/), &
                           type_of_var=real_t, n_var=3)
       CALL section_add_keyword(section, keyword)
@@ -1089,7 +1089,7 @@ CONTAINS
                           description="Parameters for the short-range bond correction to the DFT-D3 model. "// &
                           "s*(za*zb)^t1*EXP(-g*dr*r0ab^t2), parameters: s, g, t1, t2 "// &
                           "Defaults: s=0.08, g=10.0, t1=0.5, t2=-1.0 ", &
-                          usage="SHORT_RANGE_CORRECTION_PARAMETRS", default_r_vals=(/0.08_dp, 10.0_dp, 0.5_dp, -1.0_dp/), &
+                          usage="SHORT_RANGE_CORRECTION_PARAMETERS", default_r_vals=(/0.08_dp, 10.0_dp, 0.5_dp, -1.0_dp/), &
                           n_var=4, type_of_var=real_t)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
@@ -1309,7 +1309,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="DENSITY_SMOOTH_CUTOFF_RANGE", &
                           description="Parameter for the smoothing procedure in xc calculation", &
-                          usage="gradient_cutoff {real}", default_r_val=0.0_dp)
+                          usage="DENSITY_SMOOTH_CUTOFF_RANGE {real}", default_r_val=0.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

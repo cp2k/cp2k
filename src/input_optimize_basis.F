@@ -124,7 +124,7 @@ CONTAINS
          "The first entry corresponds to the original basis sets. Every further value is assigned to the combinations "// &
          "in the order given for BASIS_COMBINATIONS.", &
          repeats=.TRUE., &
-         usage="CONTITION_WEIGHT REAL ", default_r_val=1.0_dp)
+         usage="CONDITION_WEIGHT REAL ", default_r_val=1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -177,7 +177,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="BASIS_SET", &
                           description="The name of the basis set for the kind. Has to be specified in BASIS_TEMPLATE_FILE.", &
-                          usage="H", default_c_val="DEFAULT")
+                          usage="BASIS_SET H", default_c_val="DEFAULT")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -268,7 +268,7 @@ CONTAINS
                           description="Specifies the reference basis ID which is used as template to create the new set. "// &
                           "The original basis has ID 0. All following sets are counted in order as specified in the Input."// &
                           " The descriptors always assume the structure of the input basis set.", &
-                          repeats=.FALSE., usage="REFERNCE_SET INTEGER", default_i_val=0)
+                          repeats=.FALSE., usage="REFERENCE_SET INTEGER", default_i_val=0)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

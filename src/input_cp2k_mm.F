@@ -292,7 +292,7 @@ CONTAINS
                           description="Do not abort when critical force-field parameters "// &
                           "are missing. CP2K will run as if the terms containing the "// &
                           "missing parameters are zero.", &
-                          usage="IGNORE_MISSING_BOND_PARAMS T", default_l_val=.FALSE., &
+                          usage="IGNORE_MISSING_CRITICAL_PARAMS .TRUE.", default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1515,7 +1515,7 @@ CONTAINS
                           description="Units of coordinates in the NEQUIP model.pth file. "// &
                           "The units of positions, energies and forces must be self-consistent: "// &
                           "e.g. coordinates in Angstrom, energies in eV, forces in eV/Angstrom. ", &
-                          usage="UNIT angstrom", default_c_val="angstrom")
+                          usage="UNIT_COORDS angstrom", default_c_val="angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1523,7 +1523,7 @@ CONTAINS
                           description="Units of energy in the NEQUIP model.pth file. "// &
                           "The units of positions, energies and forces must be self-consistent: "// &
                           "e.g. coordinates in Angstrom, energies in eV, forces in eV/Angstrom. ", &
-                          usage="UNIT hartree", default_c_val="eV")
+                          usage="UNIT_ENERGY hartree", default_c_val="eV")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1531,7 +1531,7 @@ CONTAINS
                           description="Units of the forces in the NEQUIP model.pth file. "// &
                           "The units of positions, energies and forces must be self-consistent: "// &
                           "e.g. coordinates in Angstrom, energies in eV, forces in eV/Angstrom. ", &
-                          usage="UNIT hartree/bohr", default_c_val="eV/Angstrom")
+                          usage="UNIT_FORCES hartree/bohr", default_c_val="eV/Angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1539,7 +1539,7 @@ CONTAINS
                           description="Units of the cell vectors in the NEQUIP model.pth file. "// &
                           "The units of positions, energies and forces must be self-consistent: "// &
                           "e.g. coordinates in Angstrom, energies in eV, forces in eV/Angstrom. ", &
-                          usage="UNIT angstrom", default_c_val="angstrom")
+                          usage="UNIT_CELL angstrom", default_c_val="angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1587,7 +1587,7 @@ CONTAINS
                           description="Units of coordinates in the ALLEGRO model.pth file. "// &
                           "The units of positions, energies and forces must be self-consistent: "// &
                           "e.g. coordinates in Angstrom, energies in eV, forces in eV/Angstrom. ", &
-                          usage="UNIT angstrom", default_c_val="angstrom")
+                          usage="UNIT_COORDS angstrom", default_c_val="angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1595,7 +1595,7 @@ CONTAINS
                           description="Units of energy in the ALLEGRO model.pth file. "// &
                           "The units of positions, energies and forces must be self-consistent: "// &
                           "e.g. coordinates in Angstrom, energies in eV, forces in eV/Angstrom. ", &
-                          usage="UNIT hartree", default_c_val="eV")
+                          usage="UNIT_ENERGY hartree", default_c_val="eV")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1603,7 +1603,7 @@ CONTAINS
                           description="Units of the forces in the ALLEGRO model.pth file. "// &
                           "The units of positions, energies and forces must be self-consistent: "// &
                           "e.g. coordinates in Angstrom, energies in eV, forces in eV/Angstrom. ", &
-                          usage="UNIT hartree/bohr", default_c_val="eV/Angstrom")
+                          usage="UNIT_FORCES hartree/bohr", default_c_val="eV/Angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1611,7 +1611,7 @@ CONTAINS
                           description="Units of the cell vectors in the ALLEGRO model.pth file. "// &
                           "The units of positions, energies and forces must be self-consistent: "// &
                           "e.g. coordinates in Angstrom, energies in eV, forces in eV/Angstrom. ", &
-                          usage="UNIT angstrom", default_c_val="angstrom")
+                          usage="UNIT_CELL angstrom", default_c_val="angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1955,7 +1955,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="MAP_ATOMS", &
                           description="Defines the kinds for which internally is defined the BMHFT nonbond potential"// &
                           " at the moment only Na and Cl.", &
-                          usage="ATOMS {KIND1} {KIND2}", type_of_var=char_t, &
+                          usage="MAP_ATOMS {KIND1} {KIND2}", type_of_var=char_t, &
                           n_var=2)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -2043,7 +2043,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="MAP_ATOMS", &
                           description="Defines the kinds for which internally is defined the BMHFTD nonbond potential"// &
                           " at the moment no species included.", &
-                          usage="ATOMS {KIND1} {KIND2}", type_of_var=char_t, &
+                          usage="MAP_ATOMS {KIND1} {KIND2}", type_of_var=char_t, &
                           n_var=2)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -2192,7 +2192,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="POLY2", &
                           description="Coefficients of the polynomial used in the third range "// &
                           "This keyword can be repeated several times.", &
-                          usage="POLY1 C1 C2 C3 ..", &
+                          usage="POLY2 C1 C2 C3 ..", &
                           n_var=-1, unit_str="K_e", type_of_var=real_t, repeats=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -2542,7 +2542,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="F", &
                           description="Defines the F parameter of Siepmann potential", &
-                          usage="B {real}", type_of_var=real_t, &
+                          usage="F {real}", type_of_var=real_t, &
                           default_r_val=13.3_dp, n_var=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -2598,7 +2598,7 @@ CONTAINS
                           " the formation of such ions. The T3 term (dipole term)"// &
                           " is then switched off for evaluating the interaction"// &
                           " between the O^2- ion and the metal.", &
-                          usage="ALLOW_O2-_FORMATION TRUE", &
+                          usage="ALLOW_O_FORMATION .TRUE.", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

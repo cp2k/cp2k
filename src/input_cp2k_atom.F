@@ -338,20 +338,20 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="NUM_GTO_CORE", &
                           description="Number of Gaussian type functions for s, p, d, ... "// &
                           "for the main body of the basis", &
-                          usage="NUM_GTO 6 ", n_var=1, type_of_var=integer_t, &
+                          usage="NUM_GTO_CORE 6 ", n_var=1, type_of_var=integer_t, &
                           default_i_val=-1)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="NUM_GTO_EXTENDED", &
                           description="Number of Gaussian type functions for s, p, d, ... "// &
                           "for the extension set", &
-                          usage="NUM_GTO 4 ", n_var=1, type_of_var=integer_t, &
+                          usage="NUM_GTO_EXTENDED 4 ", n_var=1, type_of_var=integer_t, &
                           default_i_val=-1)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="NUM_GTO_POLARIZATION", &
                           description="Number of Gaussian type functions for the polarization set", &
-                          usage="NUM_GTO 4 ", n_var=1, type_of_var=integer_t, &
+                          usage="NUM_GTO_POLARIZATION 4 ", n_var=1, type_of_var=integer_t, &
                           default_i_val=-1)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)

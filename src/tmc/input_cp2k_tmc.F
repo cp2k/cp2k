@@ -90,7 +90,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, &
                           name="GROUP_ANLYSIS_NR", &
                           description="amount of groups (cores) for analysing the configurations", &
-                          usage="GROUP_ANALYSIS_NR {INTEGER}", &
+                          usage="GROUP_ANLYSIS_NR {INTEGER}", &
                           default_i_val=1, lone_keyword_i_val=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -107,7 +107,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, &
                           name="RND_DETERMINISTIC", &
                           description="the initialisation number for the random number generator", &
-                          usage="RND_INIT {INTEGER}", &
+                          usage="RND_DETERMINISTIC {INTEGER}", &
                           default_i_val=-1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -124,7 +124,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, &
                           name="NR_TEMPERATURE", &
                           description="the number of different temperature for parallel tempering", &
-                          usage="NR_TEMP {INTEGER}", &
+                          usage="NR_TEMPERATURE {INTEGER}", &
                           default_i_val=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -250,7 +250,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, &
                           name="RESTART_IN", &
                           description="if existing use the last restart file", &
-                          usage="RESTART or RSTART {FILENAME}", &
+                          usage="RESTART_IN {FILENAME}", &
                           default_c_val="", lone_keyword_c_val=tmc_default_unspecified_name)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -263,7 +263,7 @@ CONTAINS
                           "If the value is 0, no restart file is written at all. "// &
                           "The frequency specifies is related "// &
                           "to the calculated Markov chain elements", &
-                          usage="RESTART or RESTART {INTEGER}", &
+                          usage="RESTART_OUT {INTEGER}", &
                           default_i_val=-1, lone_keyword_i_val=-9)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -535,7 +535,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, &
                           name="NR_TEMPERATURE", &
                           description="the number of different temperature for parallel tempering", &
-                          usage="NR_TEMP {INTEGER}", &
+                          usage="NR_TEMPERATURE {INTEGER}", &
                           default_i_val=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -632,7 +632,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="PREFIX_ANA_FILES", &
                           description="specifies a prefix for all analysis files.", &
-                          usage="ANA_FILES_PREFIX {prefix}", &
+                          usage="PREFIX_ANA_FILES {prefix}", &
                           default_c_val="")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

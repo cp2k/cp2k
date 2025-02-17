@@ -601,7 +601,7 @@ CONTAINS
                           "Default is POTENTIAL_TYPE from INTERACTION_POTENTIAL. "// &
                           "The standard "// &
                           "Coulomb operator cannot be used in periodic systems.", &
-                          usage="OPERATOR {string}", &
+                          usage="RI_METRIC {string}", &
                           repeats=.FALSE., &
                           variants=(/"KP_RI_METRIC"/), &
                           default_i_val=0, &

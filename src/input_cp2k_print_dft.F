@@ -1055,7 +1055,7 @@ CONTAINS
                           name="VEL_REPRS", &
                           description="Calculate expectation values of the el. multipole moments in their velocity "// &
                           "representation during RTP. Implemented up to el. quadrupole moment.", &
-                          usage="VEL_REPS yes", &
+                          usage="VEL_REPRS yes", &
                           repeats=.FALSE., &
                           n_var=1, &
                           default_l_val=.FALSE., &
@@ -1343,7 +1343,7 @@ CONTAINS
                           description="Indexes of the atoms minimal basis to be printed as cube files "// &
                           "This keyword can be repeated several times "// &
                           "(useful if you have to specify many indexes).", &
-                          usage="CUBES_LIST 1 2", &
+                          usage="ATOM_LIST 1 2", &
                           n_var=-1, type_of_var=integer_t, repeats=.TRUE.)
       CALL section_add_keyword(sub_print_key, keyword)
       CALL keyword_release(keyword)
@@ -1655,7 +1655,7 @@ CONTAINS
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="PRINT_CUBES", &
                           description="Print the energy windows to cube files", &
-                          usage="DENSITY_PROPAGATION .TRUE.", &
+                          usage="PRINT_CUBES .TRUE.", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
@@ -2480,7 +2480,7 @@ CONTAINS
                           description="Specifies the MO according to "// &
                           "the marks set in MOLECULAR_STATES. The value corresponds to the repetition "// &
                           "of MARK_STATES in MOLECULAR_STATES", &
-                          usage="ORIG_MARKED_STATE 1", type_of_var=integer_t, default_i_val=0)
+                          usage="RESULT_MARKED_STATE 1", type_of_var=integer_t, default_i_val=0)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
@@ -2699,7 +2699,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="aint_precond", &
                           description="the approximate inverse to use to get the starting point"// &
                           " for the linear solver of the spline3 methods", &
-                          usage="kind spline3", &
+                          usage="aint_precond copy", &
                           default_i_val=precond_spl3_aint, &
                           enum_c_vals=s2a("copy", "spl3_nopbc_aint1", "spl3_nopbc_precond1", &
                                           "spl3_nopbc_aint2", "spl3_nopbc_precond2", "spl3_nopbc_precond3"), &
@@ -2711,7 +2711,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="precond", &
                           description="The preconditioner used"// &
                           " for the linear solver of the spline3 methods", &
-                          usage="kind spline3", &
+                          usage="precond copy", &
                           default_i_val=precond_spl3_3, &
                           enum_c_vals=s2a("copy", "spl3_nopbc_aint1", "spl3_nopbc_precond1", &
                                           "spl3_nopbc_aint2", "spl3_nopbc_precond2", "spl3_nopbc_precond3"), &

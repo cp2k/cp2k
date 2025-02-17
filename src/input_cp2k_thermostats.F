@@ -85,7 +85,7 @@ CONTAINS
       IF (.NOT. my_coupled_thermostat) THEN
          CALL keyword_create(keyword, __LOCATION__, name="TYPE", &
                              description="Specify the thermostat used for the constant temperature ensembles.", &
-                             usage="thermostat NOSE", &
+                             usage="TYPE NOSE", &
                              default_i_val=do_thermo_nose, &
                              enum_c_vals=s2a("NOSE"), &
                              enum_i_vals=(/do_thermo_nose/), &
@@ -158,7 +158,7 @@ CONTAINS
       IF (.NOT. my_coupled_thermostat) THEN
          CALL keyword_create(keyword, __LOCATION__, name="TYPE", &
                              description="Specify the thermostat used for the constant temperature ensembles.", &
-                             usage="thermostat NOSE", &
+                             usage="TYPE NOSE", &
                              default_i_val=do_thermo_nose, &
                              enum_c_vals=s2a("NOSE"), &
                              enum_i_vals=(/do_thermo_nose/), &
@@ -233,7 +233,7 @@ CONTAINS
       IF (.NOT. my_coupled_thermostat) THEN
          CALL keyword_create(keyword, __LOCATION__, name="TYPE", &
                              description="Specify the thermostat used for the constant temperature ensembles.", &
-                             usage="thermostat NOSE", &
+                             usage="TYPE NOSE", &
                              default_i_val=do_thermo_nose, &
                              enum_c_vals=s2a("NOSE", "CSVR", "GLE", "AD_LANGEVIN"), &
                              enum_i_vals=(/do_thermo_nose, &
@@ -261,7 +261,7 @@ CONTAINS
       ELSE
          CALL keyword_create(keyword, __LOCATION__, name="TYPE", &
                              description="Specify the thermostat used for the constant temperature ensembles.", &
-                             usage="thermostat NOSE", &
+                             usage="TYPE NOSE", &
                              default_i_val=do_thermo_same_as_part, &
                              enum_c_vals=s2a("SAME_AS_PARTICLE", "NOSE", "CSVR"), &
                              enum_i_vals=(/do_thermo_same_as_part, do_thermo_nose, do_thermo_csvr/), &

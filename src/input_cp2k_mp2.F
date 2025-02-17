@@ -427,7 +427,7 @@ CONTAINS
          description="Number of groups for the integration in the Laplace method. Each groups processes "// &
          "the same amount of quadrature points. It must be a divisor of the number of quadrature points and "// &
          "NUM_INTEG_GROUPS*GROUP_SIZE must be a divisor of the total number of processes. The default (-1) is automatic.", &
-         usage="SIZE_INTEG_GROUP 2", &
+         usage="NUM_INTEG_GROUPS 2", &
          default_i_val=-1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -554,7 +554,7 @@ CONTAINS
                           "the same amount of quadrature points. It must be a divisor of the number of quadrature points and "// &
                           "NUM_INTEG_GROUPS*GROUP_SIZE must be a divisor of the total number of processes. "// &
                           "The default (-1) is automatic.", &
-                          usage="SIZE_INTEG_GROUP 2", &
+                          usage="NUM_INTEG_GROUPS 2", &
                           default_i_val=-1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -724,7 +724,7 @@ CONTAINS
                           "Updates of Kohn-Sham orbitals (for example qsGW) are not implemented. "// &
                           "For details which type of eigenvalue self-consistency might be good, "// &
                           "please consult Golze, Dvorak, Rinke, Front. Chem. 2019.", &
-                          usage="GW_SELF_CONSISTENCY evGW0", &
+                          usage="SELF_CONSISTENCY evGW0", &
                           enum_c_vals=s2a("G0W0", "evGW0", "evGW"), &
                           enum_i_vals=(/G0W0, evGW0, evGW/), &
                           enum_desc=s2a("Use DFT eigenvalues; not update.", &
@@ -842,7 +842,7 @@ CONTAINS
                           "If the G0W0 HOMO-LUMO gap differs by less than the "// &
                           "target accuracy during the iteration, the eigenvalue "// &
                           "self-consistency cycle stops. Unit: Hartree.", &
-                          usage="EPS_EV_SC_ITER 0.00005", &
+                          usage="EPS_ITER 0.00005", &
                           default_r_val=cp_unit_to_cp2k(value=0.00136_dp, unit_str="eV"), &
                           unit_str="eV")
 
@@ -882,7 +882,7 @@ CONTAINS
                           description="If true, print the self-energy for all levels for real energy "// &
                           "together with the straight line to see the quasiparticle energy as intersection. "// &
                           "In addition, prints the self-energy for imaginary frequencies together with the Pade fit.", &
-                          usage="SELF_ENERGY", &
+                          usage="PRINT_SELF_ENERGY", &
                           default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -982,7 +982,7 @@ CONTAINS
                           description="Specify number of k-points for the k-point grid of the self-energy. Internally, a "// &
                           "Monkhorst-Pack grid is used. A dense k-point grid may be necessary to compute an accurate density "// &
                           "of state from GW. Large self-energy k-meshes do not cost much more computation time.", &
-                          usage="KPOINTS  nx  ny  nz", repeats=.TRUE., &
+                          usage="KPOINTS_SELF_ENERGY  nx  ny  nz", repeats=.TRUE., &
                           n_var=3, type_of_var=integer_t, default_i_vals=(/0, 0, 0/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1261,7 +1261,7 @@ CONTAINS
                           "in case a diffused basis is used for GW to converge the HOMO-LUMO gap. In this case, "// &
                           "numerical problems may occur due to diffuse functions in the basis. This keyword only works if "// &
                           "AUX_GW <basis set>  is specified in the kind section for every atom kind.", &
-                          usage="AUX_BAS_GW TRUE", &
+                          usage="DO_AUX_BAS_GW TRUE", &
                           default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -1709,7 +1709,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="NUM_DAVIDSON_ITER", &
                           description="Maximum number of iterations for determining the transition energies.", &
-                          usage="MAX_ITER 100", &
+                          usage="NUM_DAVIDSON_ITER 100", &
                           default_i_val=100)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1744,7 +1744,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="PRINT_IC_LIST", &
                           description="If true, the image charge correction values are printed in a list, "// &
                           "such that it can be used as input for a subsequent evGW calculation.", &
-                          usage="PRINT_IC_VALUES", &
+                          usage="PRINT_IC_LIST .TRUE.", &
                           default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -1911,7 +1911,7 @@ CONTAINS
          name="EPS_EIGVAL_S_GAMMA", &
          description="Parameter to reduce the expansion coefficients in RI for periodic GW. Removes all "// &
          "eigenvectors and eigenvalues of M_PQ(k=0) that are smaller than EPS_EIGVAL_S. ", &
-         usage="EPS_EIGVAL_S 1.0E-3", &
+         usage="EPS_EIGVAL_S_GAMMA 1.0E-3", &
          default_r_val=0.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -2169,7 +2169,7 @@ CONTAINS
                           description="Use a Polak-Ribiere update of the search vector in CG instead of the Fletcher "// &
                           "Reeves update. Improves the convergence with modified step sizes. "// &
                           "Ignored with other methods than CG.", &
-                          usage="ENFORCE_DECREASE T", &
+                          usage="DO_POLAK_RIBIERE T", &
                           lone_keyword_l_val=.TRUE., &
                           default_l_val=.FALSE.)
       CALL section_add_keyword(section, keyword)
@@ -2204,7 +2204,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="EPS_CONV", &
                           description="Target accuracy for Z-vector euation solution.", &
-                          usage="EPS 1.e-6", default_r_val=1.e-6_dp)
+                          usage="EPS_CONV 1.e-6", default_r_val=1.e-6_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -2333,7 +2333,7 @@ CONTAINS
          name="SCALE_COULOMB", &
          description="Scaling factor of (truncated) Coulomb potential in mixed (truncated) Coulomb/Longrange potential. "// &
          "Only valid when mixed potential is requested.", &
-         usage="OMEGA 0.5", type_of_var=real_t, &
+         usage="SCALE_COULOMB 0.5", type_of_var=real_t, &
          default_r_val=1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -2343,7 +2343,7 @@ CONTAINS
          name="SCALE_LONGRANGE", &
          description="Scaling factor of longrange Coulomb potential in mixed (truncated) Coulomb/Longrange potential. "// &
          "Only valid when mixed potential is requested.", &
-         usage="OMEGA 0.5", type_of_var=real_t, &
+         usage="SCALE_LONGRANGE 0.5", type_of_var=real_t, &
          default_r_val=1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

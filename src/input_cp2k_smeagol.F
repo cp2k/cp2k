@@ -114,7 +114,7 @@ CONTAINS
       ! use a list of atomic indices (AM.SpeciesBS) instead of list of atomic kind labels (AM.SpeciesBS)
       CALL keyword_create(keyword, __LOCATION__, name="AM.AtomListBS", &
                           description="Specifies a list of atoms to include.", &
-                          usage="AM.SpeciesBS {integer} {integer} .. {integer}", repeats=.FALSE., &
+                          usage="AM.AtomListBS {integer} {integer} .. {integer}", repeats=.FALSE., &
                           n_var=-1, type_of_var=integer_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

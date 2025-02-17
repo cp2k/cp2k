@@ -1444,7 +1444,7 @@ CONTAINS
                           description="Name of the reference spin density cube file for fragment A."// &
                           " May include a path. The reference spin density needs to be outputted"// &
                           " on the same grid as the full system (same cutoff and cell, output stride 1).", &
-                          usage="FRAGMENT_A_FILE_NAME <FILENAME>", &
+                          usage="FRAGMENT_A_SPIN_FILE <FILENAME>", &
                           default_lc_val="fragment_a_spin.cube")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1454,7 +1454,7 @@ CONTAINS
                           description="Name of the reference spin density cube file for fragment B."// &
                           " May include a path. The reference spin density needs to be outputted"// &
                           " on the same grid as the full system (same cutoff and cell, output stride 1).", &
-                          usage="FRAGMENT_B_FILE_NAME <FILENAME>", &
+                          usage="FRAGMENT_B_SPIN_FILE <FILENAME>", &
                           default_lc_val="fragment_b_spin.cube")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1697,7 +1697,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="USE_BOHR", &
                           description="Convert the Gaussian radius from angstrom to bohr. This results in a larger "// &
                           "Gaussian than without unit conversion.", &
-                          usage="CAVITY_USE_BOHR TRUE", &
+                          usage="USE_BOHR .TRUE.", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

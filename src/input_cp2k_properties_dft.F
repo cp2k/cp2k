@@ -189,7 +189,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="EPS_FILTER", &
                           description="Filter threshold for response density matrix.", &
-                          usage="EPS 1.e-8", default_r_val=def_eps_filter)
+                          usage="EPS_FILTER 1.e-8", default_r_val=def_eps_filter)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -358,7 +358,7 @@ CONTAINS
 
          CALL keyword_create(keyword, __LOCATION__, name="LIST_OF_ATOMS", &
                              description="Specifies a list of atoms.", &
-                             usage="LIST {integer} {integer} .. {integer}", repeats=.TRUE., &
+                             usage="LIST_OF_ATOMS {integer} {integer} .. {integer}", repeats=.TRUE., &
                              n_var=-1, type_of_var=integer_t)
          CALL section_add_keyword(section, keyword)
          CALL keyword_release(keyword)
@@ -468,7 +468,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="LIST_OF_ATOMS", &
                           description="Specifies a list of atoms.", &
-                          usage="LIST {integer} {integer} .. {integer}", repeats=.TRUE., &
+                          usage="LIST_OF_ATOMS {integer} {integer} .. {integer}", repeats=.TRUE., &
                           n_var=-1, type_of_var=integer_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -520,7 +520,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="MAGNETIC_ORIGIN_REFERENCE", &
                           description="User-defined reference point of the magnetic dipole operator.", &
-                          usage="REFERENCE_POINT x y z", &
+                          usage="MAGNETIC_ORIGIN_REFERENCE x y z", &
                           repeats=.FALSE., n_var=3, type_of_var=real_t, unit_str='bohr')
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -543,7 +543,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="SPATIAL_ORIGIN_REFERENCE", &
                           description="User-defined reference point of the velocity gauge factor/spatial origin.", &
-                          usage="REFERENCE_POINT x y z", &
+                          usage="SPATIAL_ORIGIN_REFERENCE x y z", &
                           repeats=.FALSE., n_var=3, type_of_var=real_t, unit_str='bohr')
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -893,7 +893,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="ATOMS_LIST", &
                           description="list of atoms for which the shift is printed into a file ", &
-                          usage="LIST_ATOMS 1 2", n_var=-1, &
+                          usage="ATOMS_LIST 1 2", n_var=-1, &
                           type_of_var=integer_t, repeats=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
@@ -992,7 +992,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="ATOMS_LIST", &
                           description="list of atoms for which the indirect spin-spin is printed into a file ", &
-                          usage="LIST_ATOMS 1 2", n_var=-1, &
+                          usage="ATOMS_LIST 1 2", n_var=-1, &
                           type_of_var=integer_t, repeats=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
@@ -2176,7 +2176,7 @@ CONTAINS
          "Automatic choice of the k-point mesh for negative "// &
          "values, i.e. KPOINTS_W -1 -1 -1. "// &
          "K-point extrapolation of W is automatically switched on.", &
-         usage="KPOINTS N_x  N_y  N_z", &
+         usage="KPOINTS_W N_x  N_y  N_z", &
          n_var=3, type_of_var=integer_t, default_i_vals=(/-1, -1, -1/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

@@ -214,7 +214,7 @@ CONTAINS
                                         "Method based on Mulliken gross orbital populations (GOP)"), &
                           n_var=1, &
                           default_i_val=plus_u_mulliken, &
-                          usage="METHOD Lowdin")
+                          usage="PLUS_U_METHOD Lowdin")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -567,7 +567,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="WEIGHT_TYPE", &
                           description="Defines the weight used to define the center of the sphere"// &
                           " (if ATOM_LIST is provided)", &
-                          usage="WEIGHT (UNIT|MASS)", &
+                          usage="WEIGHT_TYPE (UNIT|MASS)", &
                           enum_c_vals=(/"UNIT", "MASS"/), &
                           enum_i_vals=(/weight_type_unit, weight_type_mass/), &
                           default_i_val=weight_type_unit)
@@ -710,7 +710,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="BLOCK_LIST", &
                           description="Specifies a list of atoms.", &
-                          usage="LIST {integer} {integer} .. {integer}", &
+                          usage="BLOCK_LIST {integer} {integer} .. {integer}", &
                           n_var=-1, type_of_var=integer_t, repeats=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -784,7 +784,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="CONDITION_NUMBER", &
                           description="Prints information regarding the condition numbers of the A matrix (to be inverted)", &
-                          usage="ANALYTICAL_GTERM <LOGICAL>", &
+                          usage="CONDITION_NUMBER <LOGICAL>", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
