@@ -13,8 +13,7 @@ MODULE realspace_grid_cube
                                               open_file
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE cp_output_handling,              ONLY: cp_get_openpmd_entry,&
-                                              cp_unit_nr_for_openpmd_value_type,&
-                                              cp_use_openpmd
+                                              cp_unit_nr_for_openpmd_value_type
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: &
         file_amode_rdonly, file_offset, mp_comm_type, mp_file_descriptor_type, mp_file_type, &
@@ -96,7 +95,7 @@ CONTAINS
          CPASSERT(my_stride(3) > 0)
       END IF
 
-      IF (cp_use_openpmd) THEN
+      IF (.TRUE.) THEN
          openpmd_data = cp_get_openpmd_entry(unit_nr)
          CALL timestop(handle)
          RETURN

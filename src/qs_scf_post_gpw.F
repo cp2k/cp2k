@@ -1087,11 +1087,11 @@ CONTAINS
             mpi_io = .TRUE.
             unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%MO_CUBES", extension=".cube", &
                                            middle_name=TRIM(filename), file_position=my_pos_cube, log_filename=.FALSE., &
-                                           mpi_io=mpi_io)
+                                           mpi_io=mpi_io, openpmd_basename="dft-mo-cubes", use_openpmd=.TRUE.)
             WRITE (title, *) "WAVEFUNCTION ", ivector, " spin ", ispin, " i.e. HOMO - ", ivector - homo
             CALL cp_pw_to_cube(wf_r, unit_nr, title, particles=particles, &
                                stride=section_get_ivals(dft_section, "PRINT%MO_CUBES%STRIDE"), mpi_io=mpi_io)
-            CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%MO_CUBES", mpi_io=mpi_io)
+            CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%MO_CUBES", mpi_io=mpi_io, use_openpmd=.TRUE.)
          END DO
          IF (ASSOCIATED(list_index)) DEALLOCATE (list_index)
       END IF
@@ -1174,11 +1174,11 @@ CONTAINS
 
             unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%MO_CUBES", extension=".cube", &
                                            middle_name=TRIM(filename), file_position=my_pos_cube, log_filename=.FALSE., &
-                                           mpi_io=mpi_io)
+                                           mpi_io=mpi_io, openpmd_basename="dft-mo-cubes", use_openpmd=.TRUE.)
             WRITE (title, *) "WAVEFUNCTION ", index_mo, " spin ", ispin, " i.e. LUMO + ", ifirst + ivector - 2
             CALL cp_pw_to_cube(wf_r, unit_nr, title, particles=particles, &
                                stride=section_get_ivals(dft_section, "PRINT%MO_CUBES%STRIDE"), mpi_io=mpi_io)
-            CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%MO_CUBES", mpi_io=mpi_io)
+            CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%MO_CUBES", mpi_io=mpi_io, use_openpmd=.TRUE.)
          END DO
       END IF
 
