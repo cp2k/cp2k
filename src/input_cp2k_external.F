@@ -197,7 +197,7 @@ CONTAINS
                           "one grid. The number of points in each direction, and the spacing must "// &
                           "be previously defined choosing the plane waves cut-off in section MGRID "// &
                           "keyword CUTOFF, and the cube dimension in section SUBSYS / CELL / keyword ABC", &
-                          usage="DENSITY_FILE_NAME <FILENAME>", &
+                          usage="FILE_DENSITY <FILENAME>", &
                           type_of_var=char_t, default_c_val="RHO_O.dat", n_var=-1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -208,7 +208,7 @@ CONTAINS
                           "the values depending, restarting from the previous calculation with the smaller "// &
                           "value. To choose the progressive values of LAMBDA look at the convergence of the "// &
                           "eigenvalues.", &
-                          usage="DX <REAL>", default_r_val=10.0_dp)
+                          usage="LAMBDA <REAL>", default_r_val=10.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
