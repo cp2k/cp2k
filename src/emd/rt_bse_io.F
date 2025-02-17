@@ -50,6 +50,12 @@ MODULE rt_bse_io
    USE physcon, ONLY: femtoseconds, &
                       evolt
    USE mathconstants, ONLY: twopi
+#if defined (__GREENX)
+   USE gx_ac, ONLY: create_thiele_pade, &
+                    evaluate_thiele_pade_at, &
+                    free_params, &
+                    params
+#endif
 
 #include "../base/base_uses.f90"
 
@@ -578,6 +584,12 @@ CONTAINS
       !  - first dimension is 6 - 1 - real part along x, 2 - imag part along x, 3 - real part along y, ...
       REAL(kind=dp), DIMENSION(:, :), ALLOCATABLE         :: ft_full_series
       INTEGER                                             :: i, n, ft_unit
+      REAL(kind=dp)                                       :: delta_omega
+      TYPE(params)                                        :: params_thiele
+      COMPLEX(kind=dp), DIMENSION(:), ALLOCATABLE         :: pade_query, &
+                                                             pade_fit, &
+                                                             pade_x_in, &
+                                                             pade_y_in
 
       logger => cp_get_default_logger()
 
@@ -621,8 +633,43 @@ CONTAINS
       CALL cp_print_key_finished_output(ft_unit, logger, rtbse_env%ft_section)
       DEALLOCATE (ft_real_series)
       DEALLOCATE (ft_imag_series)
+#if defined (__GREENX)
+      ALLOCATE(pade_x_in(n))
+      ALLOCATE(pade_y_in(n))
+      DO i=1,n
+         pade_x_in(i) = CMPLX(omega_series(i), 0.0, kind=dp)
+         pade_y_in(i) = CMPLX(ft_full_series(1,i), ft_full_series(2,i), kind=dp)
+      END DO
+      params_thiele = create_thiele_pade(n/2, pade_x_in, pade_y_in, enforce_symmetry="conjugate")
+      delta_omega = twopi/(rtbse_env%time_trace%series(n) - rtbse_env%time_trace%series(1))
+      ! Fit the Padé approximant
+      ! Enforce the conjugate symmetry - the time trace of moments is real
+      ALLOCATE(pade_fit(10*n))
+      ALLOCATE(pade_query(10*n))
+      DO i=1, 10*n
+         pade_query(i) = CMPLX( delta_omega * REAL(i-1, kind=dp) / REAL(10, kind=dp), 0.0, kind=dp)
+      END DO
+      ! Construct the relevant omega grid
+      pade_fit(1:10*n) = evaluate_thiele_pade_at(params_thiele, pade_query)
+      ! Write into alternative file
+      ft_unit = cp_print_key_unit_nr(logger, rtbse_env%ft_section, extension="_PADE.dat", &
+                                     file_form="FORMATTED", file_position="REWIND")
+      IF (ft_unit > 0) THEN
+         DO i = 1, SIZE(rtbse_env%time_trace%series)
+            WRITE (ft_unit, '(E20.8E3,E20.8E3,E20.8E3)') &
+               REAL(pade_query(i)), REAL(pade_fit(i)), AIMAG(pade_fit(i))
+         END DO
+      END IF
+      CALL cp_print_key_finished_output(ft_unit, logger, rtbse_env%ft_section)
+      DEALLOCATE(pade_x_in)
+      DEALLOCATE(pade_y_in)
+      DEALLOCATE(pade_query)
+      DEALLOCATE(pade_fit)
+      CALL free_params(params_thiele)
+#endif
       DEALLOCATE (omega_series)
       DEALLOCATE (ft_full_series)
+      ! Perform control with gx_ac
    END SUBROUTINE output_moments_ft
 ! **************************************************************************************************
 !> \brief Outputs the isotropic polarizability tensor element alpha _ ij = mu_i(omega)/E_j(omega),
