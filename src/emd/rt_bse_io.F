@@ -584,12 +584,11 @@ CONTAINS
       !  - first dimension is 6 - 1 - real part along x, 2 - imag part along x, 3 - real part along y, ...
       REAL(kind=dp), DIMENSION(:, :), ALLOCATABLE         :: ft_full_series
       INTEGER                                             :: i, n, ft_unit
-      REAL(kind=dp)                                       :: delta_omega
-      TYPE(params)                                        :: params_thiele
-      COMPLEX(kind=dp), DIMENSION(:), ALLOCATABLE         :: pade_query, &
-                                                             pade_fit, &
-                                                             pade_x_in, &
-                                                             pade_y_in
+#if defined (__GREENX)
+      REAL(kind=dp), DIMENSION(:), POINTER                :: refined_omega, &
+                                                             refined_moments_real, &
+                                                             refined_moments_imag
+#endif
 
       logger => cp_get_default_logger()
 
@@ -634,43 +633,92 @@ CONTAINS
       DEALLOCATE (ft_real_series)
       DEALLOCATE (ft_imag_series)
 #if defined (__GREENX)
-      ALLOCATE(pade_x_in(n))
-      ALLOCATE(pade_y_in(n))
-      DO i=1,n
-         pade_x_in(i) = CMPLX(omega_series(i), 0.0, kind=dp)
-         pade_y_in(i) = CMPLX(ft_full_series(1,i), ft_full_series(2,i), kind=dp)
-      END DO
-      params_thiele = create_thiele_pade(n/2, pade_x_in, pade_y_in, enforce_symmetry="conjugate")
-      delta_omega = twopi/(rtbse_env%time_trace%series(n) - rtbse_env%time_trace%series(1))
-      ! Fit the Padé approximant
-      ! Enforce the conjugate symmetry - the time trace of moments is real
-      ALLOCATE(pade_fit(10*n))
-      ALLOCATE(pade_query(10*n))
-      DO i=1, 10*n
-         pade_query(i) = CMPLX( delta_omega * REAL(i-1, kind=dp) / REAL(10, kind=dp), 0.0, kind=dp)
-      END DO
-      ! Construct the relevant omega grid
-      pade_fit(1:10*n) = evaluate_thiele_pade_at(params_thiele, pade_query)
+      NULLIFY (refined_moments_real)
+      NULLIFY (refined_moments_imag)
+      NULLIFY (refined_omega)
+      ALLOCATE(refined_moments_real(rtbse_env%pade_npoints))
+      ALLOCATE(refined_moments_imag(rtbse_env%pade_npoints))
+      ft_real_series(:) = ft_full_series(1,:)
+      ft_imag_series(:) = ft_full_series(2,:)
+      ALLOCATE(refined_omega(rtbse_env%pade_npoints))
+      CALL refine_moments_ft(rtbse_env, omega_series, ft_real_series, ft_imag_series, &
+                             refined_omega, refined_moments_real, refined_moments_imag)
       ! Write into alternative file
       ft_unit = cp_print_key_unit_nr(logger, rtbse_env%ft_section, extension="_PADE.dat", &
                                      file_form="FORMATTED", file_position="REWIND")
       IF (ft_unit > 0) THEN
-         DO i = 1, SIZE(rtbse_env%time_trace%series)
+         DO i = 1, rtbse_env%pade_npoints
             WRITE (ft_unit, '(E20.8E3,E20.8E3,E20.8E3)') &
-               REAL(pade_query(i)), REAL(pade_fit(i)), AIMAG(pade_fit(i))
+               refined_omega(i), refined_moments_real(i), refined_moments_imag(i)
          END DO
       END IF
       CALL cp_print_key_finished_output(ft_unit, logger, rtbse_env%ft_section)
-      DEALLOCATE(pade_x_in)
-      DEALLOCATE(pade_y_in)
-      DEALLOCATE(pade_query)
-      DEALLOCATE(pade_fit)
-      CALL free_params(params_thiele)
+      DEALLOCATE(refined_omega)
+      DEALLOCATE(refined_moments_real)
+      DEALLOCATE(refined_moments_imag)
 #endif
       DEALLOCATE (omega_series)
+      DEALLOCATE (ft_real_series)
+      DEALLOCATE (ft_imag_series)
       DEALLOCATE (ft_full_series)
       ! Perform control with gx_ac
    END SUBROUTINE output_moments_ft
+#if defined (__GREENX)
+! **************************************************************************************************
+!> \brief Refines the FT grid using Padé approximants
+!> \param rtbse_env RT-BSE environment
+!> \param omega_series Input x-variables
+!> \param moment_series_real Real input y-variables
+!> \param moment_series_imag Imaginary input y-variables
+! **************************************************************************************************
+   SUBROUTINE refine_moments_ft(rtbse_env, omega_series, moment_series_real, moment_series_imag, &
+                                omega_refined, moment_refined_real, moment_refined_imag)
+      TYPE(rtbse_env_type), POINTER                      :: rtbse_env
+      REAL(kind=dp), DIMENSION(:), POINTER               :: omega_series, &
+                                                            moment_series_real, &
+                                                            moment_series_imag, &
+                                                            omega_refined, &
+                                                            moment_refined_real, &
+                                                            moment_refined_imag
+      INTEGER                                            :: n, i
+      TYPE(params)                                       :: pade_params
+      ! Translations to complex types
+      COMPLEX(kind=dp), DIMENSION(:), ALLOCATABLE        :: omega_complex, &
+                                                            moment_complex
+
+      n = SIZE(omega_series)
+      ALLOCATE (omega_complex(n))
+      ALLOCATE (moment_complex(n))
+      DO i=1,n
+         omega_complex(i) = CMPLX(omega_series(i), 0.0, kind=dp)
+         moment_complex(i) = CMPLX(moment_series_real(i), moment_series_imag(i), kind=dp)
+      END DO
+      ! Fit the params
+      ! TODO : Allow for symmetry setting?
+      pade_params = create_thiele_pade(n/2, omega_complex, moment_complex, enforce_symmetry="conjugate")
+      ! Once the params are fitted, reallocate to get the interpolation
+      DEALLOCATE (omega_complex)
+      DEALLOCATE (moment_complex)
+      ALLOCATE (omega_complex(rtbse_env%pade_npoints))
+      ALLOCATE (moment_complex(rtbse_env%pade_npoints))
+      ! Create the x_query
+      DO i=1, rtbse_env%pade_npoints
+         omega_complex(i) = CMPLX(rtbse_env%pade_e_step*(i-1), 0.0, kind=dp)
+      END DO
+      ! Get the interpolation
+      moment_complex(1:rtbse_env%pade_npoints) = evaluate_thiele_pade_at(pade_params, omega_complex)
+      CALL free_params(pade_params)
+      ! Translate back to reals
+      DO i=1,rtbse_env%pade_npoints
+         omega_refined(i) = REAL(omega_complex(i))
+         moment_refined_real(i) = REAL(moment_complex(i))
+         moment_refined_imag(i) = AIMAG(moment_complex(i))
+      END DO
+      ! Deallocate
+      DEALLOCATE (omega_complex)
+      DEALLOCATE (moment_complex)
+   END SUBROUTINE refine_moments_ft
+#endif
 ! **************************************************************************************************
 !> \brief Outputs the isotropic polarizability tensor element alpha _ ij = mu_i(omega)/E_j(omega),
 !>        where i and j are provided by the configuration. The tensor element is energy dependent and

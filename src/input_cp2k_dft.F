@@ -1852,8 +1852,10 @@ CONTAINS
       TYPE(section_type), POINTER                        :: section
 
       TYPE(keyword_type), POINTER                        :: keyword
+      TYPE(section_type), POINTER                        :: subsection
 
       NULLIFY (keyword)
+      NULLIFY (subsection)
       CPASSERT(.NOT. ASSOCIATED(section))
 
       CALL section_create(section, __LOCATION__, name="RTBSE", &
@@ -1916,6 +1918,37 @@ CONTAINS
                           default_r_val=0.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
+
+      ! Padé FT refinement
+      CALL section_create(subsection, __LOCATION__, name="PADE_FT",&
+                          description="Options for the Padé approximant refinement of the Fourier transform.", &
+                          repeats=.FALSE.)
+      CALL keyword_create(keyword, __LOCATION__, name="E_MIN", &
+                          description="Energy minimum for the refined energy grid.", &
+                          unit_str="eV", &
+                          type_of_var=real_t, &
+                          default_r_val=0.0_dp)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="E_MAX", &
+                          description="Energy maximum for the refined energy grid.", &
+                          unit_str="eV", &
+                          type_of_var=real_t, &
+                          default_r_val=100.0_dp)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="E_STEP", &
+                          description="Energy resolution of the refined energy grid.", &
+                          unit_str="eV", &
+                          type_of_var=real_t, &
+                          default_r_val=0.05_dp)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
 
    END SUBROUTINE create_rtbse_section
 

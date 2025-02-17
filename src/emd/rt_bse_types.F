@@ -264,6 +264,11 @@ MODULE rt_bse_types
       INTEGER                                                   :: mat_exp_method = 4
       INTEGER                                                   :: unit_nr = -1
       REAL(kind=dp), DIMENSION(:, :, :), POINTER                :: int_3c_array => NULL()
+      ! Parameters for Padé refinement
+      REAL(kind=dp)                                             :: pade_e_min = 0.0_dp, &
+                                                                   pade_e_max = 100.0_dp, &
+                                                                   pade_e_step = 0.05_dp
+      INTEGER                                                   :: pade_npoints = 0
 
    END TYPE rtbse_env_type
 
@@ -435,6 +440,14 @@ CONTAINS
       ! DEBUG : References to previous environments
       rtbse_env%qs_env => qs_env
       rtbse_env%bs_env => bs_env
+      ! Padé refinement
+      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%PADE_FT%E_MIN", &
+                                r_val=rtbse_env%pade_e_min)
+      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%PADE_FT%E_MAX", &
+                                r_val=rtbse_env%pade_e_max)
+      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%PADE_FT%E_STEP", &
+                                r_val=rtbse_env%pade_e_step)
+      rtbse_env%pade_npoints = INT((rtbse_env%pade_e_max - rtbse_env%pade_e_min)/rtbse_env%pade_e_step)
 
       ! Allocate moments matrices
       NULLIFY (rtbse_env%moments)
