@@ -30,6 +30,10 @@ MODULE trexio_utils
    USE cp_log_handling, ONLY: cp_get_default_logger, &
                               cp_logger_get_default_io_unit, &
                               cp_logger_type
+   USE cp_dbcsr_api, ONLY: dbcsr_p_type, dbcsr_iterator_type, dbcsr_iterator_start, &
+                           dbcsr_iterator_stop, dbcsr_iterator_blocks_left, &
+                           dbcsr_reserve_all_blocks, dbcsr_iterator_next_block
+   USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
    USE external_potential_types, ONLY: sgp_potential_type, get_potential
    USE input_section_types, ONLY: section_vals_type, section_vals_get, &
                                   section_vals_val_get
@@ -986,18 +990,19 @@ CONTAINS
 !> \param qs_env the qs environment with all the info of the computation
 !> \param trexio_section the section with the trexio info
 ! **************************************************************************************************
-   SUBROUTINE read_trexio(qs_env, trexio_section, mo_set_trexio)
+   SUBROUTINE read_trexio(qs_env, trexio_section, mo_set_trexio, energy_derivative)
       TYPE(qs_environment_type), INTENT(IN), POINTER                    :: qs_env
       TYPE(section_vals_type), INTENT(IN), POINTER                      :: trexio_section
       TYPE(mo_set_type), INTENT(OUT), DIMENSION(:), POINTER, OPTIONAL   :: mo_set_trexio
+      TYPE(dbcsr_p_type), INTENT(OUT), DIMENSION(:), POINTER, OPTIONAL  :: energy_derivative
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'read_trexio'
 
       INTEGER                                            :: handle
 
 #ifdef __TREXIO
-      INTEGER                                            :: output_unit
-      CHARACTER(len=default_path_length)                 :: filename
+      INTEGER                                            :: output_unit, unit_dE
+      CHARACTER(len=default_path_length)                 :: filename, filename_dE
       INTEGER(trexio_t)                                  :: f        ! The TREXIO file handle
       INTEGER(trexio_exit_code)                          :: rc       ! TREXIO return code
 
@@ -1009,13 +1014,15 @@ CONTAINS
       INTEGER                                            :: ao_num, mo_num, nmo, nspins, ispin, nsgf, &
                                                             save_cartesian, i, j, k, l, m, imo, ishell, &
                                                             nshell, shell_num, nucleus_num, natoms, ikind, &
-                                                            iatom, nrow_global, nelectron
+                                                            iatom, nrow_global, nelectron, nrows, ncols, &
+                                                            row, col, blk_row, blk_col, row_size, col_size
       INTEGER, DIMENSION(2)                              :: nmo_spin, electron_num
-      INTEGER, DIMENSION(:), ALLOCATABLE                 :: mo_spin, shell_ang_mom
+      INTEGER, DIMENSION(:), ALLOCATABLE                 :: mo_spin, shell_ang_mom, trexio_to_cp2k_ang_mom
 
       REAL(KIND=dp)                                      :: zeff, maxocc
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: mo_energy, mo_occupation, charge
-      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE        :: mo_coefficient, mos_sgf, coord
+      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE        :: mo_coefficient, mos_sgf, coord, dEdP, temp
+      REAL(KIND=dp), DIMENSION(:,:), POINTER             :: data_block
 
       TYPE(cp_logger_type), POINTER                      :: logger => Null()
       TYPE(cp_fm_type), POINTER                          :: mo_coeff_ref, mo_coeff_target
@@ -1027,6 +1034,7 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: kind_set => Null()
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos => Null()
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set => Null()
+      TYPE(dbcsr_iterator_type)                          :: iter
 #endif
 
       CALL timeset(routineN, handle)
@@ -1041,14 +1049,14 @@ CONTAINS
       CALL section_vals_val_get(trexio_section, "FILENAME", c_val=filename, explicit=explicit)
       IF (.NOT. explicit) THEN
          filename = TRIM(logger%iter_info%project_name)//'-TREXIO.h5'
+         filename_dE = TRIM(logger%iter_info%project_name)//'-TREXIO.dEdP.dat'
       ELSE
          filename = TRIM(filename)//'.h5'
+         filename_dE = TRIM(filename)//'.dEdP.dat'
       END IF
 
       CALL get_qs_env(qs_env, para_env=para_env)
       ionode = para_env%is_source()
-
-      ! fmtstr = "(T2,A,I5,1X,I5,1X,A,1X,A6,  (1X,F  .  ))"
 
       ! Open the TREXIO file and check that we have the same molecule as in qs_env
       IF (ionode) THEN
@@ -1268,9 +1276,128 @@ CONTAINS
          DEALLOCATE (mo_energy)
          DEALLOCATE (mo_occupation)
          DEALLOCATE (mo_spin)
-         DEALLOCATE (shell_ang_mom)
+         ! DEALLOCATE (shell_ang_mom)
 
       END IF ! if MOs should be read
+
+      ! check whether we want to read derivatives
+      IF (PRESENT(energy_derivative)) THEN
+         IF (output_unit > 1) THEN
+            WRITE(output_unit, "((T2,A))") 'TREXIO| Reading Energy derivatives...'
+         END IF
+
+         ! Temporary solution: allocate here the energy derivatives matrix
+         ! TODO: once available in TREXIO, first read size and then allocate
+         ! in the same way done for the MOs
+         ALLOCATE (dEdP(nsgf, nsgf))
+         dEdP(:,:) = 0.0_dp
+
+         ! check if file exists and open it
+         IF (ionode) THEN
+            IF (file_exists(filename_dE)) THEN
+               CALL open_file(file_name=filename_dE, file_status="OLD", unit_number=unit_dE)
+            ELSE
+               CPABORT("Energy derivatives file "//TRIM(filename_dE)//" not found")
+            END IF
+
+            ! read the header and check everything is fine
+            WRITE(output_unit, "((T2,A))") 'TREXIO| Reading header information...'
+            READ(unit_dE, *) nrows, ncols
+            WRITE(output_unit, "((T2,A))") 'TREXIO| Check size of dEdP matrix...'
+            CPASSERT(nrows == nsgf)
+            CPASSERT(ncols == nsgf)
+
+            ! read the data
+            WRITE(output_unit, "((T2,A))") 'TREXIO| Reading dEdP matrix...'
+            ! Read the data matrix
+            DO i = 1, nrows
+               READ(unit_dE, *) (dEdP(i,j), j=1, ncols)
+            END DO
+
+            !!!! DEBUG
+            ! DO i = 1, 5
+            !    WRITE(output_unit,'(*(F12.8))') (dEdP(i,j), j=1, 5)
+            ! END DO
+            !!!!
+
+            CALL close_file(unit_number=unit_dE)
+         END IF
+
+         ! send data to all processes
+         CALL para_env%bcast(dEdP, para_env%source)
+
+         ! AO order map from TREXIO to CP2K
+         ALLOCATE (trexio_to_cp2k_ang_mom(nsgf))
+         i = 0
+         DO ishell = 1, shell_num
+            l = shell_ang_mom(ishell)
+            DO k = 1, 2*l + 1
+               m = (-1)**k*FLOOR(REAL(k, KIND=dp)/2.0_dp)
+               trexio_to_cp2k_ang_mom(i + l + 1 + m) = i + k
+            END DO
+            i = i + 2*l + 1
+         END DO
+         CPASSERT(i == nsgf)
+
+         !!!! DEBUG
+         ! DO i = 1, nsgf
+         !    WRITE(output_unit, '(*(I4,A,I4))') i, ' → ', trexio_to_cp2k_ang_mom(i)
+         ! END DO
+         !!!!
+
+         ! Reshuffle
+         ALLOCATE(temp(nsgf, nsgf))
+         temp(:,:) = dEdP(:,:)
+
+         ! Reorder rows and columns according to trexio_to_cp2k_ang_mom mapping
+         DO j = 1, nsgf
+            DO i = 1, nsgf
+               dEdP(trexio_to_cp2k_ang_mom(i), trexio_to_cp2k_ang_mom(j)) = temp(i,j)
+            END DO
+         END DO
+
+         DEALLOCATE(temp)
+         !!!! DEBUG
+         ! IF (output_unit > 1) THEN
+         !    DO i = 1, 5
+         !       WRITE(output_unit,'(*(F12.8))') (dEdP(i,j), j=1, 5)
+         !    END DO
+         ! END IF
+         !!!!
+
+         DO ispin = 1, nspins
+            ASSOCIATE(matrix => energy_derivative(ispin)%matrix)
+            CALL cp_dbcsr_write_sparse_matrix(matrix, 4, 4, qs_env, para_env, &
+                                              output_unit=output_unit, omit_headers=.false.)
+
+            CALL dbcsr_reserve_all_blocks(matrix)
+            CALL dbcsr_iterator_start(iter, matrix)
+            DO WHILE (dbcsr_iterator_blocks_left(iter))
+               CALL dbcsr_iterator_next_block(iter, row, col, data_block, &
+                                       row_size=row_size, col_size=col_size)
+
+               ! Copy data from array to block
+               DO blk_col = 1, col_size
+                  DO blk_row = 1, row_size
+                     i = row + blk_row - 1
+                     j = col + blk_col - 1
+                     ! WRITE(output_unit, '(*(A, I4,A,I4))') 'Accessing element', i, ',',j
+                     data_block(blk_row, blk_col) = dEdP(i,j)
+                  END DO
+               END DO
+            END DO
+            CALL dbcsr_iterator_stop(iter)
+            CALL cp_dbcsr_write_sparse_matrix(matrix, 4, 4, qs_env, para_env, &
+                                              output_unit=output_unit, omit_headers=.false.)
+            END ASSOCIATE
+         END DO
+
+      END IF
+
+      ! Clean up
+      IF (ALLOCATED(shell_ang_mom)) DEALLOCATE (shell_ang_mom)
+      IF (ALLOCATED(trexio_to_cp2k_ang_mom)) DEALLOCATE (trexio_to_cp2k_ang_mom)
+      IF (ALLOCATED(dEdP)) DEALLOCATE (dEdP)
 
       ! Close the TREXIO file
       IF (ionode) THEN
