@@ -710,7 +710,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="BLOCK_LIST", &
                           description="Specifies a list of atoms.", &
-                          usage="LIST {integer} {integer} .. {integer}", &
+                          usage="BLOCK_LIST {integer} {integer} .. {integer}", &
                           n_var=-1, type_of_var=integer_t, repeats=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -784,7 +784,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="CONDITION_NUMBER", &
                           description="Prints information regarding the condition numbers of the A matrix (to be inverted)", &
-                          usage="ANALYTICAL_GTERM <LOGICAL>", &
+                          usage="CONDITION_NUMBER <LOGICAL>", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
