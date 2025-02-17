@@ -100,7 +100,7 @@ CONTAINS
                           "Use this keyword if REFERENCE_TYPE=SCF. "// &
                           "Set to -1 to project on all the MO available. "// &
                           "One file will be generated per index defined.", &
-                          usage="MO_REF_INDEX 1 2", &
+                          usage="REF_MO_INDEX 1 2", &
                           default_i_vals=(/1/), &
                           n_var=-1, type_of_var=integer_t, repeats=.FALSE.)
       CALL section_add_keyword(section, keyword)
@@ -140,7 +140,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="TD_MO_INDEX", &
                           description="Indexes of the time dependent MOs to project on the reference MOs. "// &
                           "Set to -1 to project on all the TD MOs.", &
-                          usage="MO_TD_INDEX 1 2", &
+                          usage="TD_MO_INDEX 1 2", &
                           default_i_vals=(/1/), &
                           n_var=-1, type_of_var=integer_t, repeats=.FALSE.)
       CALL section_add_keyword(section, keyword)
@@ -149,7 +149,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="TD_MO_SPIN", &
                           description="Spin of the TD MOs to consider. 1 for ALPHA spin, 2 for BETA spin. "// &
                           "If the TD calculation is spin independent this key is not used.", &
-                          usage="MO_TD_SPIN 1", &
+                          usage="TD_MO_SPIN 1", &
                           default_i_val=1, &
                           n_var=1, type_of_var=integer_t)
       CALL section_add_keyword(section, keyword)
