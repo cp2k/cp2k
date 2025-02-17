@@ -283,7 +283,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="BLIST", &
                           description="List of beta orbitals to be printed. -1 defaults to all values", &
-                          usage="ALIST {1 2 3 ...}", n_var=-1, default_i_vals=(/-1/), &
+                          usage="BLIST {1 2 3 ...}", n_var=-1, default_i_vals=(/-1/), &
                           lone_keyword_i_val=-1, type_of_var=integer_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
