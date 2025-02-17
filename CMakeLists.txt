@@ -180,9 +180,9 @@ set(CP2K_BLAS_VENDOR
     "auto"
     CACHE STRING "Blas library for computations on host")
 
-set(CP2K_SCALAPACK_VENDOR_LIST "MKL" "SCI" "GENERIC")
+set(CP2K_SCALAPACK_VENDOR_LIST "MKL" "SCI" "GENERIC" "auto")
 set(CP2K_SCALAPACK_VENDOR
-    "GENERIC"
+    "auto"
     CACHE STRING "scalapack vendor/generic backend")
 set_property(CACHE CP2K_SCALAPACK_VENDOR PROPERTY STRINGS
                                                   ${CP2K_SCALAPACK_VENDOR_LIST})

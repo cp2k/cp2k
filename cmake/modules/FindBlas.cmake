@@ -125,6 +125,9 @@ else()
   set(CP2K_BLAS_FOUND ON)
 endif()
 
+# cleanup list (regularly contains empty items)
+list(FILTER CP2K_BLAS_LINK_LIBRARIES EXCLUDE REGEX "^$")
+
 # we exclude the CP2K_BLAS_INCLUDE_DIRS from the list of mandatory variables as
 # having the fortran interface is usually enough. C, C++ and others languages
 # might require this information though
