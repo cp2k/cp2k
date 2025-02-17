@@ -475,7 +475,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="aint_precond", &
                           description="the approximate inverse to use to get the starting point"// &
                           " for the linear solver of the spline3 methods", &
-                          usage="kind spline3", &
+                          usage="aint_precond copy", &
                           default_i_val=precond_spl3_aint, &
                           enum_c_vals=s2a("copy", "spl3_nopbc_aint1", "spl3_nopbc_precond1", &
                                           "spl3_nopbc_aint2", "spl3_nopbc_precond2", "spl3_nopbc_precond3"), &
@@ -487,7 +487,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="precond", &
                           description="The preconditioner used"// &
                           " for the linear solver of the spline3 methods", &
-                          usage="kind spline3", &
+                          usage="precond copy", &
                           default_i_val=precond_spl3_3, &
                           enum_c_vals=s2a("copy", "spl3_nopbc_aint1", "spl3_nopbc_precond1", &
                                           "spl3_nopbc_aint2", "spl3_nopbc_precond2", "spl3_nopbc_precond3"), &
@@ -821,7 +821,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="base_radii", &
                           description="The base radius of the annulus.", &
-                          usage="base_radius <r1(real)> <r2(real)>", unit_str="angstrom", &
+                          usage="base_radii <r1(real)> <r2(real)>", unit_str="angstrom", &
                           n_var=2, type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
