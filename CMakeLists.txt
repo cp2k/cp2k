@@ -681,6 +681,7 @@ if(CP2K_USE_SPLA)
 endif()
 
 if(CP2K_USE_DFTD4)
+  find_package(mctc-lib)
   find_package(dftd4 REQUIRED)
 endif()
 
