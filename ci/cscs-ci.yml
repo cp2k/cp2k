@@ -16,16 +16,16 @@ build_cp2k_job:
     - TAG_IMAGE=`echo ${BASE_IMAGE##*/} | sed 's/[:]//g'`
     - TAG_DOCKERFILE=`sha256sum ${DOCKERFILE} | head -c 16`
     - TAG=${TAG_IMAGE}-${TAG_DOCKERFILE}
-    - MAX_TASKS=${NUM_CORES_BUILD_DEPS}
     - echo "BUILD_IMAGE=${PERSIST_IMAGE_NAME}" > build.env
     - 'echo "INFO: Building image ${PERSIST_IMAGE_NAME}"'
-    - 'echo "INFO: Created TAG=${TAG}"'
+    - 'echo "INFO: Created TAG ${TAG}"'
+    - 'echo "INFO: NUM_PROCS=${NUM_PROCS}"'
   artifacts:
     reports:
       dotenv: build.env
   variables:
     DOCKER_BUILD_ARGS: '[
-        "BASE_IMAGE",
+        "BASE_IMAGE"
       ]'
     DOCKERFILE: ci/docker/build_cp2k_psmp.Dockerfile
     BASE_IMAGE: ubuntu:24.04
