@@ -331,7 +331,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="PRINT_ATOM_KIND", &
                           description="Write the atom kind given in the subsys section instead of the element symbol. "// &
                           "Only valid for the XMOL format.", &
-                          usage="PRINT_ELEMENT_NAME logical", &
+                          usage="PRINT_ATOM_KIND logical", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
