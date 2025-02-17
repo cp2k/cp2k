@@ -23,8 +23,8 @@ apt-get install -qq --no-install-recommends \
   plocate \
   sudo \
   git \
-  ssh \
-  rm -rf /var/lib/apt/lists/*
+  ssh
+rm -rf /var/lib/apt/lists/*
 
 # Create and activate a virtual environment for Python packages.
 python3 -m venv /opt/venv
