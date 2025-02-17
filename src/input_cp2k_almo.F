@@ -688,7 +688,7 @@ CONTAINS
                              description="Maximum number of iterations in the outer loop. "// &
                              "Use the outer loop to update the preconditioner and reset the conjugator. "// &
                              "This can speed up convergence significantly.", &
-                             usage="MAX_ITER 10", default_i_val=0)
+                             usage="MAX_ITER_OUTER_LOOP 10", default_i_val=0)
          CALL section_add_keyword(section, keyword)
          CALL keyword_release(keyword)
 
