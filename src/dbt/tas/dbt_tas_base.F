@@ -120,10 +120,10 @@ CONTAINS
       CHARACTER(len=*), INTENT(IN)                       :: name
       TYPE(dbt_tas_distribution_type), INTENT(INOUT)     :: dist
 
-      CLASS(dbt_tas_rowcol_data), INTENT(IN)       :: row_blk_size, col_blk_size
+      CLASS(dbt_tas_rowcol_data), INTENT(IN)         :: row_blk_size, col_blk_size
       LOGICAL, INTENT(IN), OPTIONAL                  :: own_dist
 
-      TYPE(dbt_tas_split_info)                     :: info
+      TYPE(dbt_tas_split_info), POINTER              :: info
 
       INTEGER, DIMENSION(:), POINTER, CONTIGUOUS     :: row_blk_size_vec, col_blk_size_vec
       INTEGER                                        :: nrows, ncols, irow, col, icol, row
@@ -145,7 +145,7 @@ CONTAINS
       ALLOCATE (matrix%row_blk_size, source=row_blk_size)
       ALLOCATE (matrix%col_blk_size, source=col_blk_size)
 
-      info = dbt_tas_info(matrix)
+      info => dbt_tas_info(matrix)
 
       SELECT CASE (info%split_rowcol)
       CASE (rowsplit)
@@ -464,11 +464,11 @@ CONTAINS
       INTEGER, INTENT(OUT)                               :: processor
 
       INTEGER, DIMENSION(2)                              :: pcoord
-      TYPE(dbt_tas_split_info)                           :: info
+      TYPE(dbt_tas_split_info), POINTER                  :: info
 
       pcoord(1) = matrix%dist%row_dist%dist(row)
       pcoord(2) = matrix%dist%col_dist%dist(column)
-      info = dbt_tas_info(matrix)
+      info => dbt_tas_info(matrix)
 
       ! workaround for inefficient mpi_cart_rank
       processor = pcoord(1)*info%pdims(2) + pcoord(2)
@@ -751,12 +751,15 @@ CONTAINS
 
       INTEGER                                            :: handle, i
       INTEGER, DIMENSION(SIZE(rows))                     :: columns_group, rows_group
+      TYPE(dbt_tas_split_info), POINTER                  :: info
 
       CALL timeset(routineN, handle)
 
+      info => dbt_tas_info(matrix)
+
       CPASSERT(SIZE(rows) == SIZE(columns))
       DO i = 1, SIZE(rows)
-         CALL dbt_index_global_to_local(dbt_tas_info(matrix), matrix%dist, &
+         CALL dbt_index_global_to_local(info, matrix%dist, &
                                         row=rows(i), row_group=rows_group(i), &
                                         column=columns(i), column_group=columns_group(i))
       END DO
@@ -819,10 +822,10 @@ CONTAINS
 !> \author Patrick Seewald
 ! **************************************************************************************************
    FUNCTION dbt_tas_info(matrix)
-      TYPE(dbt_tas_type), INTENT(IN)                     :: matrix
-      TYPE(dbt_tas_split_info)                           :: dbt_tas_info
+      TYPE(dbt_tas_type), INTENT(IN), TARGET             :: matrix
+      TYPE(dbt_tas_split_info), POINTER                  :: dbt_tas_info
 
-      dbt_tas_info = matrix%dist%info
+      dbt_tas_info => matrix%dist%info
    END FUNCTION
 
 ! **************************************************************************************************
