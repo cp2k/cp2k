@@ -1425,6 +1425,12 @@ set(CP2K_GRID_SRCS_HIP
     grid/hip/grid_hip_collocate.cu grid/hip/grid_hip_integrate.cu
     grid/hip/grid_hip_context.cu)
 
+set(CP2K_OPENCL_TOOLDIR
+    ${CMAKE_CURRENT_SOURCE_DIR}/../exts/dbcsr/src/acc/opencl)
+set(CP2K_OPENCL_SCRIPT ${CP2K_OPENCL_TOOLDIR}/acc_opencl.sh)
+set(CP2K_OPENCL_COMMON common/opencl_atomics.h common/opencl_common.h)
+list(TRANSFORM CP2K_OPENCL_COMMON PREPEND ${CP2K_OPENCL_TOOLDIR}/)
+
 set(CP2K_DBM_SRCS_GPU dbm/dbm_multiply_gpu_kernel.cu)
 set(CP2K_DBM_SRCS_GPU_C dbm/dbm_multiply_opencl.c dbm/dbm_multiply_gpu.c)
 set(CP2K_DBM_SRCS_OPENCL dbm/dbm_multiply_opencl.cl)
@@ -1445,13 +1451,27 @@ set(CP2K_PROGS_F
     motion/xyz2dcd.F
     nequip_unittest.F)
 
-if(CP2K_USE_CUDA OR CP2K_USE_HIP)
+if(CP2K_USE_CUDA
+   OR CP2K_USE_HIP
+   OR CP2K_USE_OPENCL)
   if(CP2K_ENABLE_PW_GPU)
     list(APPEND CP2K_SRCS_GPU "pw/gpu/pw_gpu_kernels.cu")
     list(APPEND CP2K_SRCS_C ${CP2K_PW_SRCS_C})
   endif()
 
   if(CP2K_ENABLE_DBM_GPU)
+    if(CP2K_USE_OPENCL)
+      # DBM-kernel: OpenCL code is packaged into string-literal (include file)
+      add_custom_target(
+        CP2K_DBM_OPENCL_TARGET ALL
+        COMMAND
+          ${CP2K_OPENCL_SCRIPT} -b 6 -p \"\"
+          ${CMAKE_CURRENT_SOURCE_DIR}/${CP2K_DBM_SRCS_OPENCL}
+          ${CMAKE_CURRENT_SOURCE_DIR}/${CP2K_DBM_SRCS_OPENCL}.h
+        DEPENDS ${CP2K_OPENCL_SCRIPT} ${CP2K_OPENCL_COMMON}
+                ${CMAKE_CURRENT_SOURCE_DIR}/${CP2K_DBM_SRCS_OPENCL}
+        BYPRODUCTS ${CMAKE_CURRENT_SOURCE_DIR}/${CP2K_DBM_SRCS_OPENCL}.h)
+    endif()
     list(APPEND CP2K_DBM_SRCS_C ${CP2K_DBM_SRCS_GPU_C})
     list(APPEND CP2K_SRCS_GPU ${CP2K_DBM_SRCS_GPU})
   endif()
@@ -1470,11 +1490,10 @@ endif()
 list(APPEND CP2K_SRCS_C ${CP2K_DBM_SRCS_C} ${CP2K_GRID_SRCS_C})
 
 # ##############################################################################
-#
-# ##############################################################################
-
 # check that the files registered in CMakeLists.txt are all present and return
 # an error otherwise. cmake only runs this test nothing else below
+# ##############################################################################
+
 if(CP2K_ENABLE_CONSISTENCY_CHECKS)
   cp2k_compare_src_with_list(
     "${CP2K_FPGA_SRC_C};${CP2K_SRCS_C};${CP2K_OFFLOAD_SRCS_C};${CP2K_DBM_SRCS_C};${CP2K_GRID_SRCS_C};${CP2K_PW_SRCS_C};${CP2K_DBM_SRCS_GPU_C};${CP2K_PROGS_C}"
@@ -1542,6 +1561,7 @@ else()
 endif()
 set(CP2K_GPU_DFLAGS
     $<$<BOOL:${CP2K_USE_UNIFIED_MEMORY}>:__OFFLOAD_UNIFIED_MEMORY>
+    $<$<BOOL:${CP2K_USE_OPENCL}>:__OFFLOAD_OPENCL>
     $<$<BOOL:${CP2K_USE_CUDA}>:__OFFLOAD_CUDA>
     $<$<COMPILE_LANGUAGE:CUDA>:__OFFLOAD_CUDA>
     $<$<BOOL:${CP2K_USE_HIP}>:__OFFLOAD_HIP
@@ -1587,6 +1607,8 @@ if(CP2K_USE_ACCEL MATCHES "CUDA")
 elseif(CP2K_USE_ACCEL MATCHES "HIP")
   set_property(TARGET cp2k PROPERTY HIP_ARCHITECTURES
                                     ${CMAKE_HIP_ARCHITECTURES})
+elseif(CP2K_USE_ACCEL MATCHES "OPENCL")
+  include_directories(${CP2K_OPENCL_TOOLDIR})
 endif()
 
 # mix the target and variables pointing to the include directories.
@@ -1693,7 +1715,9 @@ target_compile_definitions(
     $<$<BOOL:${CP2K_USE_CUSOLVER_MP}>:__CUSOLVERMP>
     ${CP2K_GPU_DFLAGS})
 
-if(CP2K_USE_CUDA OR CP2K_USE_HIP)
+if(CP2K_USE_CUDA
+   OR CP2K_USE_HIP
+   OR CP2K_USE_OPENCL)
   target_compile_definitions(
     cp2k
     PUBLIC $<$<NOT:$<BOOL:${CP2K_DBCSR_USE_CPU_ONLY}>>:__DBCSR_ACC>

@@ -34,7 +34,7 @@
 #include <hip/hip_version.h>
 #elif defined(__OFFLOAD_OPENCL)
 /* No relative path aka double-quote to avoid PACKAGE deps (-Iexts/dbcsr). */
-#include <src/acc/opencl/acc_opencl.h>
+#include <acc_opencl.h>
 #endif
 
 #ifdef __cplusplus
