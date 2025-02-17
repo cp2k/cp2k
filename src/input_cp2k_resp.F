@@ -382,7 +382,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="RMAX_KIND", &
                           description="Specifies the maximum distance a fit point is away from an atom "// &
                           "of a given kind", &
-                          usage="RMAX 2.5 Br", repeats=.TRUE., &
+                          usage="RMAX_KIND 2.5 Br", repeats=.TRUE., &
                           n_var=-1, type_of_var=char_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -390,7 +390,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="RMIN_KIND", &
                           description="Specifies the minimum distance a fit point is away from an atom "// &
                           "of a given kind", &
-                          usage="RMIN 2.1 Br", repeats=.TRUE., &
+                          usage="RMIN_KIND 2.1 Br", repeats=.TRUE., &
                           n_var=-1, type_of_var=char_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
