@@ -718,7 +718,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="MAX_JOBS_PER_GROUP", &
                           variants=(/"MAX_JOBS"/), &
                           description="maximum number of jobs executed per group", &
-                          usage="max_step 4", default_i_val=65535)
+                          usage="MAX_JOBS_PER_GROUP 4", default_i_val=65535)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
