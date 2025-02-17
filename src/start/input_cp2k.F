@@ -237,7 +237,7 @@ CONTAINS
                           "Klimes, Kresse, JCTC 10, 2498 (2014), Eq. 30. Printed is the L1-error (=minimax "// &
                           "error for a given range and a given number of grid points. The input parameter is "// &
                           "the given number of different Rc values.", &
-                          usage="MINIMAX 1000", default_i_val=0)
+                          usage="LEAST_SQ_FT 1000", default_i_val=0)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -966,17 +966,17 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="K", &
                           description="Dimension 1 of C", &
-                          usage="A 1024", default_i_val=256)
+                          usage="K 1024", default_i_val=256)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="M", &
                           description="Inner dimension M   ", &
-                          usage="A 1024", default_i_val=256)
+                          usage="M 1024", default_i_val=256)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="N", &
                           description="Dimension 2 of C", &
-                          usage="A 1024", default_i_val=256)
+                          usage="N 1024", default_i_val=256)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -988,7 +988,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="NCOL_BLOCK", &
                           description="block_size for cols", &
-                          usage="nrow_block 64", default_i_val=32)
+                          usage="NCOL_BLOCK 64", default_i_val=32)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1132,17 +1132,17 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="M", &
                           description="Dimension 1 of C", &
-                          usage="A 1024", default_i_val=256)
+                          usage="M 1024", default_i_val=256)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="N", &
                           description="Dimension 2 of C", &
-                          usage="A 1024", default_i_val=256)
+                          usage="N 1024", default_i_val=256)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="K", &
                           description="Inner dimension M   ", &
-                          usage="A 1024", default_i_val=256)
+                          usage="K 1024", default_i_val=256)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1212,13 +1212,13 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="BSPARSITY", &
                           description="Sparsity of B matrix", &
-                          usage="ASPARSITY 80", default_r_val=0.0_dp)
+                          usage="BSPARSITY 80", default_r_val=0.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="CSPARSITY", &
                           description="Sparsity of C matrix", &
-                          usage="ASPARSITY 90", default_r_val=0.0_dp)
+                          usage="CSPARSITY 90", default_r_val=0.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1272,17 +1272,17 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="M", &
                           description="Dimension 1 of C", &
-                          usage="A 1024", default_i_val=256)
+                          usage="M 1024", default_i_val=256)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="N", &
                           description="Dimension 2 of C", &
-                          usage="A 1024", default_i_val=256)
+                          usage="N 1024", default_i_val=256)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="K", &
                           description="Inner dimension M   ", &
-                          usage="A 1024", default_i_val=256)
+                          usage="K 1024", default_i_val=256)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1330,13 +1330,13 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="BSPARSITY", &
                           description="Sparsity of B matrix", &
-                          usage="ASPARSITY 80", default_r_val=0.0_dp)
+                          usage="BSPARSITY 80", default_r_val=0.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="CSPARSITY", &
                           description="Sparsity of C matrix", &
-                          usage="ASPARSITY 90", default_r_val=0.0_dp)
+                          usage="CSPARSITY 90", default_r_val=0.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
