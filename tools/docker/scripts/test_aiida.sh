@@ -23,7 +23,8 @@ apt-get install -qq --no-install-recommends \
   plocate \
   sudo \
   git \
-  ssh
+  ssh \
+  mpich
 rm -rf /var/lib/apt/lists/*
 
 # Create and activate a virtual environment for Python packages.
