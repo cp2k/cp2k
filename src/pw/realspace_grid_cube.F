@@ -12,8 +12,8 @@ MODULE realspace_grid_cube
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
-   USE cp_output_handling,              ONLY: cp_get_openpmd_entry,&
-                                              cp_unit_nr_for_openpmd_value_type
+   USE cp_output_handling,              ONLY: cp_openpmd_get_unit_nr,&
+                                              cp_openpmd_per_call_value_type
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: &
         file_amode_rdonly, file_offset, mp_comm_type, mp_file_descriptor_type, mp_file_type, &
@@ -66,7 +66,7 @@ CONTAINS
          my_stride(3), np, num_linebreak, num_pe, rank(2), size_of_z, source, tag, U1, U2, U3
       LOGICAL                                            :: be_silent, my_zero_tails, parallel_write
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: buf
-      TYPE(cp_unit_nr_for_openpmd_value_type)            :: openpmd_data
+      TYPE(cp_openpmd_per_call_value_type)               :: openpmd_data
       TYPE(mp_comm_type)                                 :: gid
       TYPE(mp_file_type)                                 :: mp_unit
 
@@ -96,7 +96,7 @@ CONTAINS
       END IF
 
       IF (.TRUE.) THEN
-         openpmd_data = cp_get_openpmd_entry(unit_nr)
+         openpmd_data = cp_openpmd_get_unit_nr(unit_nr)
          CALL timestop(handle)
          RETURN
       END IF

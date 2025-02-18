@@ -74,7 +74,7 @@ MODULE cp_output_handling
    PUBLIC :: cp_iter_string, cp_print_key_section_create
    PUBLIC :: cp_print_key_unit_nr, cp_print_key_finished_output
    PUBLIC :: cp_print_key_generate_filename, cp_printkey_is_on
-   PUBLIC :: cp_get_openpmd_entry, cp_unit_nr_for_openpmd_value_type
+   PUBLIC :: cp_openpmd_get_unit_nr, cp_openpmd_per_call_value_type
    PUBLIC :: cp_output_finalize
 
    INTEGER, PARAMETER, PUBLIC               :: add_last_no = 0, &
@@ -157,17 +157,17 @@ MODULE cp_output_handling
       INTEGER :: default_val = 0
    END TYPE cp_out_flags_type
 
-   TYPE :: cp_unit_nr_for_openpmd_value_type
+   TYPE :: cp_openpmd_per_call_value_type
       TYPE(openpmd_series_type) :: series
       TYPE(openpmd_iteration_type) :: iteration
       TYPE(openpmd_mesh_type) :: mesh
       TYPE(openpmd_particle_species_type) :: particle_species
    END TYPE
 
-   TYPE :: cp_unit_nr_for_openpmd
+   TYPE :: cp_openpmd_per_call_type
       INTEGER :: unit_nr ! key
-      TYPE(cp_unit_nr_for_openpmd_value_type) :: value
-   END TYPE cp_unit_nr_for_openpmd
+      TYPE(cp_openpmd_per_call_value_type) :: value
+   END TYPE cp_openpmd_per_call_type
 
    TYPE :: cp_current_iteration_counter_type
       INTEGER :: flat_iteration = 0
@@ -182,8 +182,8 @@ MODULE cp_output_handling
    ! Map that associates opened unit numbers with their associated openPMD content.
    ! Since CP2K logically opens a new file for every single dataset, multiple
    ! unit numbers may point to the same openPMD Series.
-   TYPE(cp_unit_nr_for_openpmd), ALLOCATABLE :: cp_openpmd_files(:)
-   INTEGER :: cp_num_openpmd_files = 0
+   TYPE(cp_openpmd_per_call_type), ALLOCATABLE :: cp_openpmd_per_call(:)
+   INTEGER :: cp_num_openpmd_per_call = 0
 
    ! TODO The below members should be distinguished by their callers, such that
    !      logically different output is also physically independent from each
@@ -209,97 +209,96 @@ CONTAINS
 !> \param unit_nr ...
 !> \param value ...
 ! **************************************************************************************************
-   SUBROUTINE cp_add_openpmd_entry(unit_nr, value)
+   SUBROUTINE cp_openpmd_add_unit_nr(unit_nr, value)
       INTEGER, INTENT(in)                                :: unit_nr
-      TYPE(cp_unit_nr_for_openpmd_value_type), &
-         INTENT(in)                                      :: value
+      TYPE(cp_openpmd_per_call_value_type), INTENT(in)   :: value
 
       INTEGER                                            :: i
 
       ! Check if the key already exists
-      DO i = 1, cp_num_openpmd_files
-         IF (cp_openpmd_files(i)%unit_nr == unit_nr) THEN
-            cp_openpmd_files(i)%value = value
+      DO i = 1, cp_num_openpmd_per_call
+         IF (cp_openpmd_per_call(i)%unit_nr == unit_nr) THEN
+            cp_openpmd_per_call(i)%value = value
             RETURN
          END IF
       END DO
 
       ! If the key does not exist, add a new entry
-      cp_num_openpmd_files = cp_num_openpmd_files + 1
-      ALLOCATE (cp_openpmd_files(cp_num_openpmd_files))
-      cp_openpmd_files(cp_num_openpmd_files)%unit_nr = unit_nr
-      cp_openpmd_files(cp_num_openpmd_files)%value = value
-   END SUBROUTINE cp_add_openpmd_entry
+      cp_num_openpmd_per_call = cp_num_openpmd_per_call + 1
+      ALLOCATE (cp_openpmd_per_call(cp_num_openpmd_per_call))
+      cp_openpmd_per_call(cp_num_openpmd_per_call)%unit_nr = unit_nr
+      cp_openpmd_per_call(cp_num_openpmd_per_call)%value = value
+   END SUBROUTINE cp_openpmd_add_unit_nr
 
 ! **************************************************************************************************
 !> \brief ...
 !> \param unit_nr ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION cp_get_openpmd_entry(unit_nr) RESULT(value)
+   FUNCTION cp_openpmd_get_unit_nr(unit_nr) RESULT(value)
       INTEGER, INTENT(in)                                :: unit_nr
-      TYPE(cp_unit_nr_for_openpmd_value_type)            :: value
+      TYPE(cp_openpmd_per_call_value_type)               :: value
 
       INTEGER                                            :: i
 
-      DO i = 1, cp_num_openpmd_files
-         IF (cp_openpmd_files(i)%unit_nr == unit_nr) THEN
-            value = cp_openpmd_files(i)%value
+      DO i = 1, cp_num_openpmd_per_call
+         IF (cp_openpmd_per_call(i)%unit_nr == unit_nr) THEN
+            value = cp_openpmd_per_call(i)%value
             RETURN
          END IF
       END DO
-   END FUNCTION cp_get_openpmd_entry
+   END FUNCTION cp_openpmd_get_unit_nr
 
 ! **************************************************************************************************
 !> \brief ...
 !> \param unit_nr ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION cp_has_openpmd_entry(unit_nr) RESULT(res)
+   FUNCTION cp_openpmd_has_unit_nr(unit_nr) RESULT(res)
       INTEGER, INTENT(in)                                :: unit_nr
       LOGICAL                                            :: res
 
       INTEGER                                            :: i
 
-      DO i = 1, cp_num_openpmd_files
-         IF (cp_openpmd_files(i)%unit_nr == unit_nr) THEN
+      DO i = 1, cp_num_openpmd_per_call
+         IF (cp_openpmd_per_call(i)%unit_nr == unit_nr) THEN
             res = .TRUE.
             RETURN
          END IF
       END DO
       res = .FALSE.
-   END FUNCTION cp_has_openpmd_entry
+   END FUNCTION cp_openpmd_has_unit_nr
 
 ! **************************************************************************************************
 !> \brief ...
 !> \param unit_nr ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION cp_remove_openpmd_entry(unit_nr) RESULT(value)
+   FUNCTION cp_openpmd_remove_unit_nr(unit_nr) RESULT(value)
       INTEGER, INTENT(in)                                :: unit_nr
-      TYPE(cp_unit_nr_for_openpmd_value_type)            :: value
+      TYPE(cp_openpmd_per_call_value_type)               :: value
 
       INTEGER                                            :: i
 
       ! Search for the key and remove the entry if found
-      DO i = 1, cp_num_openpmd_files
-         IF (cp_openpmd_files(i)%unit_nr == unit_nr) THEN
-            value = cp_openpmd_files(i)%value
-            IF (i /= cp_num_openpmd_files) THEN
+      DO i = 1, cp_num_openpmd_per_call
+         IF (cp_openpmd_per_call(i)%unit_nr == unit_nr) THEN
+            value = cp_openpmd_per_call(i)%value
+            IF (i /= cp_num_openpmd_per_call) THEN
                ! Swap last element to now freed place
-               cp_openpmd_files(i) = cp_openpmd_files(cp_num_openpmd_files)
+               cp_openpmd_per_call(i) = cp_openpmd_per_call(cp_num_openpmd_per_call)
             END IF
-            cp_num_openpmd_files = cp_num_openpmd_files - 1
+            cp_num_openpmd_per_call = cp_num_openpmd_per_call - 1
             ! Optionally, you can deallocate the last element
-            IF (cp_num_openpmd_files > 0) THEN
-               ALLOCATE (cp_openpmd_files(cp_num_openpmd_files))
+            IF (cp_num_openpmd_per_call > 0) THEN
+               ALLOCATE (cp_openpmd_per_call(cp_num_openpmd_per_call))
             ELSE
-               DEALLOCATE (cp_openpmd_files)
+               DEALLOCATE (cp_openpmd_per_call)
             END IF
             RETURN
          END IF
       END DO
-   END FUNCTION cp_remove_openpmd_entry
+   END FUNCTION cp_openpmd_remove_unit_nr
 
 ! **************************************************************************************************
 !> \brief creates a print_key section
@@ -1067,11 +1066,11 @@ CONTAINS
 !> \param logger ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION cp_open_openpmd_entry(series, middle_name, logger) RESULT(res)
+   FUNCTION cp_openpmd_create_unit_nr_entry(series, middle_name, logger) RESULT(res)
       TYPE(openpmd_series_type)                          :: series
       CHARACTER(len=*), INTENT(IN)                       :: middle_name
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_unit_nr_for_openpmd_value_type)            :: res
+      TYPE(cp_openpmd_per_call_value_type)               :: res
 
       LOGICAL                                            :: opened_new_iteration = .FALSE.
       TYPE(openpmd_record_type)                          :: position, positionOffset
@@ -1326,7 +1325,10 @@ CONTAINS
                   END IF
                END IF
 
-               CALL cp_add_openpmd_entry(res, cp_open_openpmd_entry(cp_openpmd_output_series, middle_name, logger))
+               CALL cp_openpmd_add_unit_nr( &
+                  res, &
+                  cp_openpmd_create_unit_nr_entry( &
+                  cp_openpmd_output_series, middle_name, logger))
 
                RETURN
             ELSE IF (.NOT. my_mpi_io) THEN
@@ -1389,7 +1391,7 @@ CONTAINS
       CHARACTER(len=default_string_length)               :: outPath
       LOGICAL                                            :: my_local, my_mpi_io, my_on_file, &
                                                             my_should_output, my_use_openpmd
-      TYPE(cp_unit_nr_for_openpmd_value_type)            :: removed_entry
+      TYPE(cp_openpmd_per_call_value_type)               :: removed_entry
       TYPE(mp_file_type)                                 :: mp_unit
       TYPE(section_vals_type), POINTER                   :: print_key
 
@@ -1413,8 +1415,8 @@ CONTAINS
                                   my_mpi_io)) THEN
          CALL section_vals_val_get(print_key, "FILENAME", c_val=outPath)
          IF (my_use_openpmd) THEN
-            IF (cp_has_openpmd_entry(unit_nr)) THEN
-               removed_entry = cp_remove_openpmd_entry(unit_nr)
+            IF (cp_openpmd_has_unit_nr(unit_nr)) THEN
+               removed_entry = cp_openpmd_remove_unit_nr(unit_nr)
                CLOSE (unit_nr)
             END IF
             unit_nr = -1
