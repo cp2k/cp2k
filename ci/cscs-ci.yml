@@ -32,7 +32,7 @@ build_cp2k_job:
 test_cp2k_job:
   extends: .uenv-runner-eiger-zen2
   stage: test_cp2k
-  needs: build_cp2k_job
+  needs: [build_cp2k_job]
   timeout: 1h
   image: ${PERSIST_IMAGE_NAME}
   script:
