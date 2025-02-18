@@ -34,7 +34,7 @@ build_cp2k:
 test_cp2k:
   extends: .container-runner-eiger-zen2
   stage: test
-  needs: [build]
+  needs: [build_cp2k]
   timeout: 1h
   image: ${PERSIST_IMAGE_NAME}
   script:

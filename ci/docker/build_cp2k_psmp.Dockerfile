@@ -213,7 +213,6 @@ CMD ["cp2k", "--help"]
 
 # Label docker image
 LABEL author="CP2K Developers" \
-      build_type="${BUILD_TYPE}" \
       cp2k_version="master" \
       container_type="production_psmp" \
       dockerfile_generator_version="0.1"
