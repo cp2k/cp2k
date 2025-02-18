@@ -11,7 +11,7 @@ variables:
 build_cp2k_job:
   extends: .container-builder-cscs-zen2
   stage: build_cp2k
-  timeout: 2 hours
+  timeout: 1h
   before_script:
     - TAG_IMAGE=`echo ${BASE_IMAGE##*/} | sed 's/[:]//g'`
     - TAG_DOCKERFILE=`sha256sum ${DOCKERFILE} | head -c 16`
@@ -30,9 +30,10 @@ build_cp2k_job:
     BASE_IMAGE: ubuntu:24.04
 
 test_cp2k_job:
-  extends: .container-runner-eiger-zen2
+  extends: .uenv-runner-eiger-zen2
   stage: test_cp2k
-  timeout: 1 hours
+  needs: build_cp2k_job
+  timeout: 1h
   image: ${PERSIST_IMAGE_NAME}
   script:
     - echo PATH=${PATH}
