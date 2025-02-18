@@ -1,5 +1,14 @@
+# Dockerfile for CP2K continous integration (CI) runs
+#
+# A stand-alone docker build in this folder can be performed using the command:
+# DOCKER_BUILDKIT=0 docker build --shm-size=1g -f build_cp2k_psmp.Dockerfile ../../
+#
+# Author: Matthias Krack
+#
 # Stage 1a: Build CP2K toolchain
-ARG BASE_IMAGE
+
+ARG BASE_IMAGE="ubuntu:24.04"
+
 FROM ${BASE_IMAGE} AS build
 
 # Install packages required for the CP2K toolchain build
@@ -20,16 +29,51 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     wget \
     zlib1g-dev
 
+# Install an MPI version ABI-compatible with the host MPI on Cray at CSCS
+RUN wget -q http://www.mpich.org/static/downloads/3.1.4/mpich-3.1.4.tar.gz \
+    && tar -xf mpich-3.1.4.tar.gz \
+    && cd mpich-3.1.4 \
+    && ./configure --prefix="/usr/local" --enable-fast=all \
+       FFLAGS="${FFLAGS} -fallow-argument-mismatch" \
+       FCFLAGS="${FCFLAGS} -fallow-argument-mismatch" \
+    && make -j \
+    && make install \
+    && ldconfig \
+    && cd .. \
+    && rm -rf mpich-3.1.4 \
+    && rm mpich-3.1.4.tar.gz
+
 # Build CP2K toolchain
+ARG BUILD_TYPE="minimal"
 COPY ./tools/toolchain /opt/cp2k/tools/toolchain
 WORKDIR /opt/cp2k/tools/toolchain
-RUN ./install_cp2k_toolchain.sh -j \
-    --dry-run \
-    --install-all \
-    --no-arch-files \
-    --target-cpu=native \
-    --with-gcc=system \
-    --with-mpich
+RUN echo "\nBuild type: ${BUILD_TYPE}\n" && \
+    if [ "${BUILD_TYPE}" = "minimal" ]; then \
+      ./install_cp2k_toolchain.sh -j \
+        --dry-run \
+        --no-arch-files \
+        --target-cpu=native \
+        --with-gcc=system \
+        --with-mpich=system \
+        --with-ninja \
+        --with-cosma=no \
+        --with-dftd4=no \
+        --with-elpa=no \
+        --with-libgrpp=no \
+        --with-libint=no \
+        --with-libvori=no \
+        --with-libxc=no \
+        --with-sirius=no \
+        --with-spglib=no; \
+    elif [ "${BUILD_TYPE}" = "toolchain" ]; then \
+      ./install_cp2k_toolchain.sh -j \
+        --dry-run \
+        --install-all \
+        --no-arch-files \
+        --target-cpu=native \
+        --with-gcc=system \
+        --with-mpich=system; \
+    fi
 
 # Perform toolchain build step-wise in stages after its initialization with dry-run
 COPY ./tools/toolchain/scripts/stage0/ ./scripts/stage0/
@@ -74,7 +118,7 @@ COPY ./tools/build_utils ./tools/build_utils
 # Run CMake
 RUN /bin/bash -c -o pipefail " \
     TOOLCHAIN_DIR=/opt/cp2k/tools/toolchain; \
-    source ./cmake/cmake_cp2k.sh toolchain psmp |& tee cmake.log"
+    source ./cmake/cmake_cp2k.sh "${BUILD_TYPE}" psmp |& tee cmake.log"
 
 # Compile CP2K
 WORKDIR /opt/cp2k/build
@@ -121,6 +165,10 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     gcc \
     gfortran \
     python3 && rm -rf /var/lib/apt/lists/*
+
+# Copy MPI binaries and libraries
+COPY --from=build /usr/local/bin /usr/bin
+COPY --from=build /usr/local/lib /usr/lib
 
 # Install CP2K binaries and libraries
 WORKDIR /opt/cp2k
