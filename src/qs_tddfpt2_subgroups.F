@@ -309,17 +309,11 @@ CONTAINS
                                           skip_load_balance=qs_control%skip_load_balance_distributed, &
                                           reorder_grid_ranks=.FALSE.)
                IF (qs_control%gapw .OR. qs_control%gapw_xc) THEN
-                  WRITE (*, *) "before build_tasklist"
-                  IF (ASSOCIATED(sub_env%task_list_aux_fit_soft)) WRITE (*, *) "task_list_aux_fit_soft allocated"
-                  IF (ASSOCIATED(sub_env%sab_aux_fit)) WRITE (*, *) "sab_aux_fit allocated"
                   CALL tddfpt_build_tasklist(task_list=sub_env%task_list_aux_fit_soft, sab=sub_env%sab_aux_fit, &
                                              basis_type="AUX_FIT_SOFT", distribution_2d=sub_env%dist_2d, &
                                              pw_env=sub_env%pw_env, qs_env=qs_env, &
                                              skip_load_balance=qs_control%skip_load_balance_distributed, &
                                              reorder_grid_ranks=.FALSE.)
-                  WRITE (*, *) "after build_tasklist"
-                  IF (ASSOCIATED(sub_env%task_list_aux_fit_soft)) WRITE (*, *) "task_list_aux_fit_soft allocated"
-                  IF (ASSOCIATED(sub_env%sab_aux_fit)) WRITE (*, *) "sab_aux_fit allocated"
                END IF
             END IF
 
