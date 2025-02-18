@@ -93,18 +93,21 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_dispersion_d4_pairpot'
 
-      INTEGER                                            :: atoma, cnfun, enshift, handle, iatom, &
-                                                            ikind, mref, natom
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, atomtype, kind_of
+      INTEGER                                            :: atoma, cnfun, enshift, handle, i, iatom, &
+                                                            ikind, mref, natom, nghost
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, atomtype, kind_of, &
+                                                            t_atomtype
       INTEGER, DIMENSION(3)                              :: periodic
-      LOGICAL                                            :: debug, grad, use_virial
+      LOGICAL                                            :: debug, grad, ifloating, ighost, &
+                                                            use_virial
+      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: a_ghost
       LOGICAL, DIMENSION(3)                              :: lperiod
       REAL(KIND=dp)                                      :: ed2, ed3, ev1, ev2, ev3, ev4, pd2, pd3, &
                                                             ta, tb, tc, td, te, ts
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cn, cnd, dEdcn, dEdq, edcn, edq, enerd2, &
                                                             enerd3, energies, energies3, q, qd
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ga, gradient, gwdcn, gwdq, gwvec, tvec, &
-                                                            xyz
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ga, gradient, gwdcn, gwdq, gwvec, t_xyz, &
+                                                            tvec, xyz
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: gdeb
       REAL(KIND=dp), DIMENSION(3, 3)                     :: sigma, stress
       REAL(KIND=dp), DIMENSION(3, 3, 4)                  :: sdeb
@@ -132,13 +135,28 @@ CONTAINS
 
       !get information about particles
       natom = SIZE(particle_set)
-      ALLOCATE (xyz(3, natom), atomtype(natom))
+      nghost = 0
+      ALLOCATE (t_xyz(3, natom), t_atomtype(natom), a_ghost(natom))
       CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set)
       DO iatom = 1, natom
-         xyz(:, iatom) = particle_set(iatom)%r(:)
+         t_xyz(:, iatom) = particle_set(iatom)%r(:)
          ikind = kind_of(iatom)
-         CALL get_qs_kind(qs_kind_set(ikind), zatom=atomtype(iatom))
+         CALL get_qs_kind(qs_kind_set(ikind), zatom=t_atomtype(iatom), ghost=ighost, floating=ifloating)
+         a_ghost(iatom) = ighost .OR. ifloating
+         IF (a_ghost(iatom)) nghost = nghost + 1
       END DO
+
+      natom = natom - nghost
+      iatom = 0
+      ALLOCATE (xyz(3, natom), atomtype(natom))
+      DO i = 1, natom + nghost
+         IF (.NOT. a_ghost(i)) THEN
+            iatom = iatom + 1
+            xyz(:, iatom) = t_xyz(:, i)
+            atomtype(iatom) = t_atomtype(i)
+         END IF
+      END DO
+      DEALLOCATE (a_ghost, t_xyz, t_atomtype)
 
       !get information about cell / lattice
       CALL get_cell(cell=cell, periodic=periodic)
