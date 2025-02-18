@@ -23,46 +23,46 @@
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
 MODULE cp_output_handling
-   USE cp_files,                        ONLY: close_file,&
-                                              open_file
-   USE cp_iter_types,                   ONLY: cp_iteration_info_release,&
-                                              cp_iteration_info_retain,&
-                                              cp_iteration_info_type,&
-                                              each_desc_labels,&
-                                              each_possible_labels
-   USE cp_log_handling,                 ONLY: cp_logger_generate_filename,&
-                                              cp_logger_get_default_unit_nr,&
-                                              cp_logger_get_unit_nr,&
-                                              cp_logger_type,&
-                                              cp_to_string
-   USE input_keyword_types,             ONLY: keyword_create,&
-                                              keyword_release,&
-                                              keyword_type
-   USE input_section_types,             ONLY: section_add_keyword,&
-                                              section_add_subsection,&
-                                              section_create,&
-                                              section_release,&
-                                              section_type,&
-                                              section_vals_get_subs_vals,&
-                                              section_vals_type,&
-                                              section_vals_val_get
-   USE kinds,                           ONLY: default_path_length,&
-                                              default_string_length
-   USE machine,                         ONLY: m_mov
-   USE memory_utilities,                ONLY: reallocate
-   USE message_passing,                 ONLY: mp_file_delete,&
-                                              mp_file_get_amode,&
-                                              mp_file_type
-   USE openpmd_api,                     ONLY: &
-        openpmd_access_create, openpmd_attributable_set_attribute_vec_int, &
-        openpmd_get_default_extension, openpmd_iteration_get_mesh, &
-        openpmd_iteration_get_particle_species, openpmd_iteration_type, openpmd_mesh_type, &
-        openpmd_particle_species_get_record, openpmd_particle_species_type, &
-        openpmd_record_component_make_empty_int, openpmd_record_type, openpmd_series_close, &
-        openpmd_series_create, openpmd_series_present, openpmd_series_type, &
-        openpmd_series_write_iteration
-   USE string_utilities,                ONLY: compress,&
-                                              s2a
+   USE cp_files, ONLY: close_file, &
+                       open_file
+   USE cp_iter_types, ONLY: cp_iteration_info_release, &
+                            cp_iteration_info_retain, &
+                            cp_iteration_info_type, &
+                            each_desc_labels, &
+                            each_possible_labels
+   USE cp_log_handling, ONLY: cp_logger_generate_filename, &
+                              cp_logger_get_default_unit_nr, &
+                              cp_logger_get_unit_nr, &
+                              cp_logger_type, &
+                              cp_to_string
+   USE input_keyword_types, ONLY: keyword_create, &
+                                  keyword_release, &
+                                  keyword_type
+   USE input_section_types, ONLY: section_add_keyword, &
+                                  section_add_subsection, &
+                                  section_create, &
+                                  section_release, &
+                                  section_type, &
+                                  section_vals_get_subs_vals, &
+                                  section_vals_type, &
+                                  section_vals_val_get
+   USE kinds, ONLY: default_path_length, &
+                    default_string_length
+   USE machine, ONLY: m_mov
+   USE memory_utilities, ONLY: reallocate
+   USE message_passing, ONLY: mp_file_delete, &
+                              mp_file_get_amode, &
+                              mp_file_type
+   USE openpmd_api, ONLY: &
+      openpmd_access_create, openpmd_attributable_set_attribute_vec_int, &
+      openpmd_get_default_extension, openpmd_iteration_get_mesh, &
+      openpmd_iteration_get_particle_species, openpmd_iteration_type, openpmd_mesh_type, &
+      openpmd_particle_species_get_record, openpmd_particle_species_type, &
+      openpmd_record_component_make_empty_int, openpmd_record_type, openpmd_series_close, &
+      openpmd_series_create, openpmd_series_present, openpmd_series_type, &
+      openpmd_series_write_iteration
+   USE string_utilities, ONLY: compress, &
+                               s2a
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -165,7 +165,7 @@ MODULE cp_output_handling
    END TYPE
 
    TYPE :: cp_openpmd_per_call_type
-      INTEGER :: unit_nr ! key
+      INTEGER :: key ! unit_nr
       TYPE(cp_openpmd_per_call_value_type) :: value
    END TYPE cp_openpmd_per_call_type
 
@@ -174,6 +174,20 @@ MODULE cp_output_handling
       INTEGER, ALLOCATABLE :: complex_iteration(:)
       INTEGER :: complex_iteration_depth = 0
    END TYPE cp_current_iteration_counter_type
+
+   TYPE :: cp_openpmd_per_callsite_value_type
+      ! openPMD output Series.
+      TYPE(openpmd_series_type) :: output_series
+      ! Information on the last Iteration that was written to, including
+      ! CP2K'2 complex Iteration number and its associated contiguous scalar
+      ! openPMD Iteration number.
+      TYPE(cp_current_iteration_counter_type) :: current_iteration_counter
+   END TYPE cp_openpmd_per_callsite_value_type
+
+   TYPE :: cp_openpmd_per_callsite_type
+      CHARACTER(len=default_string_length) :: key ! openpmd_basename
+      TYPE(cp_openpmd_per_callsite_value_type) :: value
+   END TYPE cp_openpmd_per_callsite_type
 
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    ! Begin data members for openPMD output. !
@@ -185,7 +199,7 @@ MODULE cp_output_handling
    TYPE(cp_openpmd_per_call_type), ALLOCATABLE :: cp_openpmd_per_call(:)
    INTEGER :: cp_num_openpmd_per_call = 0
 
-   ! TODO The below members should be distinguished by their callers, such that
+   ! TODO The below members should be distinguished by their callsites, such that
    !      logically different output is also physically independent from each
    !      each other. Currently, only one openPMD Series is opened, named after
    !      the project name and containing everything.
@@ -198,107 +212,119 @@ MODULE cp_output_handling
    ! openPMD Iteration number.
    TYPE(cp_current_iteration_counter_type) :: cp_current_iteration_counter
 
+   TYPE(cp_openpmd_per_callsite_type), ALLOCATABLE :: cp_openpmd_per_callsite(:)
+   INTEGER :: cp_num_openpmd_per_callsite = 0
+
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    ! End data members for openPMD output. !
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 CONTAINS
 
-! **************************************************************************************************
-!> \brief ...
-!> \param unit_nr ...
-!> \param value ...
-! **************************************************************************************************
-   SUBROUTINE cp_openpmd_add_unit_nr(unit_nr, value)
-      INTEGER, INTENT(in)                                :: unit_nr
-      TYPE(cp_openpmd_per_call_value_type), INTENT(in)   :: value
+   #:set name_suffixes = ['unit_nr', 'openpmd_file']
+   #:set key_types = ['INTEGER', 'CHARACTER(len=default_string_length)']
+   #:set value_types = ['cp_openpmd_per_call_value_type', 'cp_openpmd_per_callsite_value_type']
+   #:set map_storages = ['cp_openpmd_per_call', 'cp_openpmd_per_callsite']
+   #:set map_counters = ['cp_num_openpmd_per_call', 'cp_num_openpmd_per_callsite']
 
-      INTEGER                                            :: i
+   #:for name_suffix, key_type, value_type, map_storage, map_counter in zip(name_suffixes, key_types, value_types, map_storages, map_counters)
+      ! **************************************************************************************************
+      !> \brief ...
+      !> \param key ...
+      !> \param value ...
+      ! **************************************************************************************************
+      SUBROUTINE cp_openpmd_add_${name_suffix}$ (key, value)
+         ${key_type}$, INTENT(in)                           :: key
+         TYPE(${value_type}$), INTENT(in)                   :: value
 
-      ! Check if the key already exists
-      DO i = 1, cp_num_openpmd_per_call
-         IF (cp_openpmd_per_call(i)%unit_nr == unit_nr) THEN
-            cp_openpmd_per_call(i)%value = value
-            RETURN
-         END IF
-      END DO
+         INTEGER                                            :: i
 
-      ! If the key does not exist, add a new entry
-      cp_num_openpmd_per_call = cp_num_openpmd_per_call + 1
-      ALLOCATE (cp_openpmd_per_call(cp_num_openpmd_per_call))
-      cp_openpmd_per_call(cp_num_openpmd_per_call)%unit_nr = unit_nr
-      cp_openpmd_per_call(cp_num_openpmd_per_call)%value = value
-   END SUBROUTINE cp_openpmd_add_unit_nr
-
-! **************************************************************************************************
-!> \brief ...
-!> \param unit_nr ...
-!> \return ...
-! **************************************************************************************************
-   FUNCTION cp_openpmd_get_unit_nr(unit_nr) RESULT(value)
-      INTEGER, INTENT(in)                                :: unit_nr
-      TYPE(cp_openpmd_per_call_value_type)               :: value
-
-      INTEGER                                            :: i
-
-      DO i = 1, cp_num_openpmd_per_call
-         IF (cp_openpmd_per_call(i)%unit_nr == unit_nr) THEN
-            value = cp_openpmd_per_call(i)%value
-            RETURN
-         END IF
-      END DO
-   END FUNCTION cp_openpmd_get_unit_nr
-
-! **************************************************************************************************
-!> \brief ...
-!> \param unit_nr ...
-!> \return ...
-! **************************************************************************************************
-   FUNCTION cp_openpmd_has_unit_nr(unit_nr) RESULT(res)
-      INTEGER, INTENT(in)                                :: unit_nr
-      LOGICAL                                            :: res
-
-      INTEGER                                            :: i
-
-      DO i = 1, cp_num_openpmd_per_call
-         IF (cp_openpmd_per_call(i)%unit_nr == unit_nr) THEN
-            res = .TRUE.
-            RETURN
-         END IF
-      END DO
-      res = .FALSE.
-   END FUNCTION cp_openpmd_has_unit_nr
-
-! **************************************************************************************************
-!> \brief ...
-!> \param unit_nr ...
-!> \return ...
-! **************************************************************************************************
-   FUNCTION cp_openpmd_remove_unit_nr(unit_nr) RESULT(value)
-      INTEGER, INTENT(in)                                :: unit_nr
-      TYPE(cp_openpmd_per_call_value_type)               :: value
-
-      INTEGER                                            :: i
-
-      ! Search for the key and remove the entry if found
-      DO i = 1, cp_num_openpmd_per_call
-         IF (cp_openpmd_per_call(i)%unit_nr == unit_nr) THEN
-            value = cp_openpmd_per_call(i)%value
-            IF (i /= cp_num_openpmd_per_call) THEN
-               ! Swap last element to now freed place
-               cp_openpmd_per_call(i) = cp_openpmd_per_call(cp_num_openpmd_per_call)
+         ! Check if the key already exists
+         DO i = 1, ${map_counter}$
+            IF (${map_storage}$(i)%key == key) THEN
+               ${map_storage}$(i)%value = value
+               RETURN
             END IF
-            cp_num_openpmd_per_call = cp_num_openpmd_per_call - 1
-            ! Optionally, you can deallocate the last element
-            IF (cp_num_openpmd_per_call > 0) THEN
-               ALLOCATE (cp_openpmd_per_call(cp_num_openpmd_per_call))
-            ELSE
-               DEALLOCATE (cp_openpmd_per_call)
+         END DO
+
+         ! If the key does not exist, add a new entry
+         ${map_counter}$ = ${map_counter}$ + 1
+         ALLOCATE (${map_storage}$(${map_counter}$))
+         ${map_storage}$(${map_counter}$)%key = key
+         ${map_storage}$(${map_counter}$)%value = value
+      END SUBROUTINE cp_openpmd_add_${name_suffix}$
+
+      ! **************************************************************************************************
+      !> \brief ...
+      !> \param key ...
+      !> \return ...
+      ! **************************************************************************************************
+      FUNCTION cp_openpmd_get_${name_suffix}$ (key) RESULT(value)
+         ${key_type}$, INTENT(in)                           :: key
+         TYPE(${value_type}$)                               :: value
+
+         INTEGER                                            :: i
+
+         DO i = 1, ${map_counter}$
+            IF (${map_storage}$(i)%key == key) THEN
+               value = ${map_storage}$(i)%value
+               RETURN
             END IF
-            RETURN
-         END IF
-      END DO
-   END FUNCTION cp_openpmd_remove_unit_nr
+         END DO
+      END FUNCTION cp_openpmd_get_${name_suffix}$
+
+      ! **************************************************************************************************
+      !> \brief ...
+      !> \param key ...
+      !> \return ...
+      ! **************************************************************************************************
+      FUNCTION cp_openpmd_has_${name_suffix}$ (key) RESULT(res)
+         ${key_type}$, INTENT(in)                           :: key
+         LOGICAL                                            :: res
+
+         INTEGER                                            :: i
+
+         DO i = 1, ${map_counter}$
+            IF (${map_storage}$(i)%key == key) THEN
+               res = .TRUE.
+               RETURN
+            END IF
+         END DO
+         res = .FALSE.
+      END FUNCTION cp_openpmd_has_${name_suffix}$
+
+      ! **************************************************************************************************
+      !> \brief ...
+      !> \param key ...
+      !> \return ...
+      ! **************************************************************************************************
+      FUNCTION cp_openpmd_remove_${name_suffix}$ (key) RESULT(value)
+         ${key_type}$, INTENT(in)                           :: key
+         TYPE(${value_type}$)                               :: value
+
+         INTEGER                                            :: i
+
+         ! Search for the key and remove the entry if found
+         DO i = 1, ${map_counter}$
+            IF (${map_storage}$(i)%key == key) THEN
+               value = ${map_storage}$(i)%value
+               IF (i /= ${map_counter}$) THEN
+                  ! Swap last element to now freed place
+                  ${map_storage}$(i) = ${map_storage}$(${map_counter}$)
+               END IF
+               ${map_counter}$ = ${map_counter}$ - 1
+               ! Optionally, you can deallocate the last element
+               IF (${map_counter}$ > 0) THEN
+                  ALLOCATE (${map_storage}$(${map_counter}$))
+               ELSE
+                  DEALLOCATE (${map_storage}$)
+               END IF
+               RETURN
+            END IF
+         END DO
+      END FUNCTION cp_openpmd_remove_${name_suffix}$
+
+   #:endfor
 
 ! **************************************************************************************************
 !> \brief creates a print_key section
@@ -1158,7 +1184,7 @@ CONTAINS
       CHARACTER(len=default_path_length)                 :: filename, filename_bak, filename_bak_1, &
                                                             filename_bak_2
       CHARACTER(len=default_string_length) :: my_file_action, my_file_form, my_file_position, &
-         my_file_status, openpmd_config = 'iteration_encoding = "variable_based"', outPath
+                                              my_file_status, openpmd_config = 'iteration_encoding = "variable_based"', outPath
       INTEGER                                            :: c_i_level, f_backup_level, i, mpi_amode, &
                                                             my_backup_level, my_nbak, nbak, &
                                                             s_backup_level, unit_nr
