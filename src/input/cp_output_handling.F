@@ -181,7 +181,7 @@ MODULE cp_output_handling
       ! Information on the last Iteration that was written to, including
       ! CP2K'2 complex Iteration number and its associated contiguous scalar
       ! openPMD Iteration number.
-      TYPE(cp_current_iteration_counter_type) :: current_iteration_counter
+      TYPE(cp_current_iteration_counter_type) :: iteration_counter
    END TYPE cp_openpmd_per_callsite_value_type
 
    TYPE :: cp_openpmd_per_callsite_type
@@ -196,7 +196,7 @@ MODULE cp_output_handling
    ! Map that associates opened unit numbers with their associated openPMD content.
    ! Since CP2K logically opens a new file for every single dataset, multiple
    ! unit numbers may point to the same openPMD Series.
-   TYPE(cp_openpmd_per_call_type), ALLOCATABLE :: cp_openpmd_per_call(:)
+   TYPE(cp_openpmd_per_call_type), ALLOCATABLE, TARGET :: cp_openpmd_per_call(:)
    INTEGER :: cp_num_openpmd_per_call = 0
 
    ! TODO The below members should be distinguished by their callsites, such that
@@ -205,14 +205,14 @@ MODULE cp_output_handling
    !      the project name and containing everything.
    !      Similarly, the Iterations are currently still counted globally.
 
-   ! openPMD output Series.
-   TYPE(openpmd_series_type) :: cp_openpmd_output_series
-   ! Information on the last Iteration that was written to, including
-   ! CP2K'2 complex Iteration number and its associated contiguous scalar
-   ! openPMD Iteration number.
-   TYPE(cp_current_iteration_counter_type) :: cp_current_iteration_counter
+   !! ! openPMD output Series.
+   !! TYPE(openpmd_series_type) :: cp_openpmd_output_series
+   !! ! Information on the last Iteration that was written to, including
+   !! ! CP2K'2 complex Iteration number and its associated contiguous scalar
+   !! ! openPMD Iteration number.
+   !! TYPE(cp_current_iteration_counter_type) :: cp_current_iteration_counter
 
-   TYPE(cp_openpmd_per_callsite_type), ALLOCATABLE :: cp_openpmd_per_callsite(:)
+   TYPE(cp_openpmd_per_callsite_type), ALLOCATABLE, TARGET :: cp_openpmd_per_callsite(:)
    INTEGER :: cp_num_openpmd_per_callsite = 0
 
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -221,7 +221,7 @@ MODULE cp_output_handling
 
 CONTAINS
 
-   #:set name_suffixes = ['unit_nr', 'openpmd_file']
+   #:set name_suffixes = ['unit_nr', 'filedata']
    #:set key_types = ['INTEGER', 'CHARACTER(len=default_string_length)']
    #:set value_types = ['cp_openpmd_per_call_value_type', 'cp_openpmd_per_callsite_value_type']
    #:set map_storages = ['cp_openpmd_per_call', 'cp_openpmd_per_callsite']
@@ -241,17 +241,17 @@ CONTAINS
 
          ! Check if the key already exists
          DO i = 1, ${map_counter}$
-            IF (${map_storage}$(i)%key == key) THEN
-               ${map_storage}$(i)%value = value
+            IF (${map_storage}$ (i)%key == key) THEN
+               ${map_storage}$ (i)%value = value
                RETURN
             END IF
          END DO
 
          ! If the key does not exist, add a new entry
-         ${map_counter}$ = ${map_counter}$ + 1
-         ALLOCATE (${map_storage}$(${map_counter}$))
-         ${map_storage}$(${map_counter}$)%key = key
-         ${map_storage}$(${map_counter}$)%value = value
+         ${map_counter}$ = ${map_counter}$+1
+         ALLOCATE (${map_storage}$ (${map_counter}$))
+         ${map_storage}$ (${map_counter}$)%key = key
+         ${map_storage}$ (${map_counter}$)%value = value
       END SUBROUTINE cp_openpmd_add_${name_suffix}$
 
       ! **************************************************************************************************
@@ -261,13 +261,13 @@ CONTAINS
       ! **************************************************************************************************
       FUNCTION cp_openpmd_get_${name_suffix}$ (key) RESULT(value)
          ${key_type}$, INTENT(in)                           :: key
-         TYPE(${value_type}$)                               :: value
+         TYPE(${value_type}$), POINTER                      :: value
 
          INTEGER                                            :: i
 
          DO i = 1, ${map_counter}$
-            IF (${map_storage}$(i)%key == key) THEN
-               value = ${map_storage}$(i)%value
+            IF (${map_storage}$ (i)%key == key) THEN
+               value => ${map_storage}$ (i)%value
                RETURN
             END IF
          END DO
@@ -285,7 +285,7 @@ CONTAINS
          INTEGER                                            :: i
 
          DO i = 1, ${map_counter}$
-            IF (${map_storage}$(i)%key == key) THEN
+            IF (${map_storage}$ (i)%key == key) THEN
                res = .TRUE.
                RETURN
             END IF
@@ -306,16 +306,16 @@ CONTAINS
 
          ! Search for the key and remove the entry if found
          DO i = 1, ${map_counter}$
-            IF (${map_storage}$(i)%key == key) THEN
-               value = ${map_storage}$(i)%value
+            IF (${map_storage}$ (i)%key == key) THEN
+               value = ${map_storage}$ (i)%value
                IF (i /= ${map_counter}$) THEN
                   ! Swap last element to now freed place
-                  ${map_storage}$(i) = ${map_storage}$(${map_counter}$)
+                  ${map_storage}$ (i) = ${map_storage}$ (${map_counter}$)
                END IF
-               ${map_counter}$ = ${map_counter}$ - 1
+               ${map_counter}$ = ${map_counter}$-1
                ! Optionally, you can deallocate the last element
                IF (${map_counter}$ > 0) THEN
-                  ALLOCATE (${map_storage}$(${map_counter}$))
+                  ALLOCATE (${map_storage}$ (${map_counter}$))
                ELSE
                   DEALLOCATE (${map_storage}$)
                END IF
@@ -1059,28 +1059,31 @@ CONTAINS
 !> \param logger ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION cp_advance_iteration_number(logger) RESULT(did_advance_iteration)
+   FUNCTION cp_advance_iteration_number(logger, openpmd_file) RESULT(did_advance_iteration)
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(cp_openpmd_per_callsite_value_type), POINTER  :: openpmd_file
       LOGICAL                                            :: did_advance_iteration
 
       INTEGER                                            :: len
 
+      #:set ic = 'openpmd_file%iteration_counter'
+
       did_advance_iteration = .FALSE.
       len = SIZE(logger%iter_info%iteration)
-      IF (len /= cp_current_iteration_counter%complex_iteration_depth) THEN
+      IF (len /= ${ic}$%complex_iteration_depth) THEN
          did_advance_iteration = .TRUE.
-         cp_current_iteration_counter%complex_iteration_depth = len
-         ALLOCATE (cp_current_iteration_counter%complex_iteration(len))
+         ${ic}$%complex_iteration_depth = len
+         ALLOCATE (${ic}$%complex_iteration(len))
       ELSE
          did_advance_iteration &
-            = ANY(cp_current_iteration_counter%complex_iteration(1:len) &
+            = ANY(${ic}$%complex_iteration(1:len) &
                   /= logger%iter_info%iteration(1:len))
       END IF
 
       IF (.NOT. did_advance_iteration) RETURN
 
-      cp_current_iteration_counter%flat_iteration = cp_current_iteration_counter%flat_iteration + 1
-      cp_current_iteration_counter%complex_iteration(1:len) &
+      ${ic}$%flat_iteration = ${ic}$%flat_iteration + 1
+      ${ic}$%complex_iteration(1:len) &
          = logger%iter_info%iteration(1:len)
 
    END FUNCTION cp_advance_iteration_number
@@ -1092,8 +1095,8 @@ CONTAINS
 !> \param logger ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION cp_openpmd_create_unit_nr_entry(series, middle_name, logger) RESULT(res)
-      TYPE(openpmd_series_type)                          :: series
+   FUNCTION cp_openpmd_create_unit_nr_entry(openpmd_file, middle_name, logger) RESULT(res)
+      TYPE(cp_openpmd_per_callsite_value_type), POINTER  :: openpmd_file
       CHARACTER(len=*), INTENT(IN)                       :: middle_name
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_openpmd_per_call_value_type)               :: res
@@ -1101,11 +1104,12 @@ CONTAINS
       LOGICAL                                            :: opened_new_iteration = .FALSE.
       TYPE(openpmd_record_type)                          :: position, positionOffset
 
-      res%series = series
+      res%series = openpmd_file%output_series
 
-      opened_new_iteration = cp_advance_iteration_number(logger)
+      opened_new_iteration = cp_advance_iteration_number(logger, openpmd_file)
 
-      res%iteration = openpmd_series_write_iteration(series, cp_current_iteration_counter%flat_iteration)
+      res%iteration = openpmd_series_write_iteration( &
+                      openpmd_file%output_series, openpmd_file%iteration_counter%flat_iteration)
 
       res%mesh = openpmd_iteration_get_mesh(res%iteration, middle_name)
       CALL openpmd_record_component_make_empty_int(res%mesh%openpmd_mesh_as_record_component(), 3)
@@ -1119,17 +1123,37 @@ CONTAINS
          CALL openpmd_attributable_set_attribute_vec_int( &
             res%iteration%openpmd_iteration_as_attributable(), &
             "ndim_iteration_index", &
-            cp_current_iteration_counter%complex_iteration)
+            openpmd_file%iteration_counter%complex_iteration)
       END IF
+   END FUNCTION
+
+   FUNCTION cp_openpmd_get_openpmd_file_entry(openpmd_basename, filename, openpmd_config, logger) RESULT(res)
+      CHARACTER(len=*), INTENT(IN)             :: openpmd_basename, filename, openpmd_config
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(cp_openpmd_per_callsite_value_type), POINTER  :: res
+
+      TYPE(cp_openpmd_per_callsite_value_type) :: emplace_new
+
+      IF (.NOT. cp_openpmd_has_filedata(TRIM(openpmd_basename))) THEN
+         emplace_new%output_series = openpmd_series_create( &
+                                     filename, openpmd_access_create, logger%para_env, openpmd_config)
+         CALL cp_openpmd_add_filedata(TRIM(openpmd_basename), emplace_new)
+      END IF
+
+      res => cp_openpmd_get_filedata(TRIM(openpmd_basename))
    END FUNCTION
 
 ! **************************************************************************************************
 !> \brief ...
 ! **************************************************************************************************
    SUBROUTINE cp_output_finalize()
-      IF (openpmd_series_present(cp_openpmd_output_series)) THEN
-         CALL openpmd_series_close(cp_openpmd_output_series)
-      END IF
+      INTEGER :: i
+      DO i = 1, cp_num_openpmd_per_callsite
+         DEALLOCATE (cp_openpmd_per_callsite(i)%value%iteration_counter%complex_iteration)
+         CALL openpmd_series_close(cp_openpmd_per_callsite(i)%value%output_series)
+      END DO
+      DEALLOCATE (cp_openpmd_per_callsite)
+      cp_num_openpmd_per_callsite = 0
    END SUBROUTINE cp_output_finalize
 
 ! **************************************************************************************************
@@ -1193,6 +1217,7 @@ CONTAINS
                                                             my_should_output, my_use_openpmd, &
                                                             replace
       TYPE(cp_iteration_info_type), POINTER              :: iteration_info
+      TYPE(cp_openpmd_per_callsite_value_type), POINTER  :: openpmd_file_info
       TYPE(mp_file_type)                                 :: mp_unit
       TYPE(section_vals_type), POINTER                   :: print_key
 
@@ -1341,20 +1366,23 @@ CONTAINS
 
             IF (my_use_openpmd) THEN
 
+               openpmd_file_info => cp_openpmd_get_openpmd_file_entry( &
+                                   openpmd_basename, filename, openpmd_config, logger)
+
                OPEN (newunit=res, status='scratch', action='write')
 
-               IF (.NOT. openpmd_series_present(cp_openpmd_output_series)) THEN
-                  IF (my_mpi_io) THEN
-                  cp_openpmd_output_series = openpmd_series_create(filename, openpmd_access_create, logger%para_env, openpmd_config)
-                  ELSE
-                     cp_openpmd_output_series = openpmd_series_create(filename, openpmd_access_create, config=openpmd_config)
-                  END IF
-               END IF
+               ! IF (.NOT. openpmd_series_present(cp_openpmd_output_series)) THEN
+               !    IF (my_mpi_io) THEN
+               !    cp_openpmd_output_series = openpmd_series_create(filename, openpmd_access_create, logger%para_env, openpmd_config)
+               !    ELSE
+               !       cp_openpmd_output_series = openpmd_series_create(filename, openpmd_access_create, config=openpmd_config)
+               !    END IF
+               ! END IF
 
                CALL cp_openpmd_add_unit_nr( &
                   res, &
                   cp_openpmd_create_unit_nr_entry( &
-                  cp_openpmd_output_series, middle_name, logger))
+                  openpmd_file_info, middle_name, logger))
 
                RETURN
             ELSE IF (.NOT. my_mpi_io) THEN
