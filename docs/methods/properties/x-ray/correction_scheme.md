@@ -95,13 +95,11 @@ This example covers GW2X corrected L-edge spectroscopy with spin-orbit coupling.
 
     &XC
       &XC_FUNCTIONAL                ! The PBEh(45%) functional
-         &LIBXC
-            FUNCTIONAL GGA_C_PBE
-         &END LIBXC
-         &LIBXC
-            FUNCTIONAL GGA_X_PBE
-            SCALE 0.55
-         &END LIBXC
+        &GGA_C_PBE
+        &END
+        &GGA_X_PBE
+          SCALE 0.55
+        &END
       &END XC_FUNCTIONAL
 
       &HF
@@ -133,13 +131,11 @@ This example covers GW2X corrected L-edge spectroscopy with spin-orbit coupling.
       &KERNEL
          RI_REGION 3.0
          &XC_FUNCTIONAL
-            &LIBXC
-               FUNCTIONAL GGA_C_PBE
-            &END LIBXC
-            &LIBXC
-               FUNCTIONAL GGA_X_PBE
-               SCALE 0.55
-            &END LIBXC
+            &GGA_C_PBE
+            &END
+            &GGA_X_PBE
+              SCALE 0.55
+            &END
          &END XC_FUNCTIONAL
          &EXACT_EXCHANGE
             FRACTION 0.45
@@ -287,12 +283,10 @@ heavier to run (~45 minutes on 24 cores).
 
     &XC
       &XC_FUNCTIONAL
-         &LIBXC
-            FUNCTIONAL GGA_X_PBE
+         &GGA_X_PBE
             SCALE 0.55
          &END
-         &LIBXC
-            FUNCTIONAL GGA_C_PBE
+         &GGA_C_PBE
          &END
       &END XC_FUNCTIONAL
       &HF
@@ -322,12 +316,10 @@ heavier to run (~45 minutes on 24 cores).
 
       &KERNEL
          &XC_FUNCTIONAL
-            &LIBXC
-               FUNCTIONAL GGA_X_PBE
+            &GGA_X_PBE
                SCALE 0.55
             &END
-            &LIBXC
-               FUNCTIONAL GGA_C_PBE
+            &GGA_C_PBE
             &END
          &END XC_FUNCTIONAL
          &EXACT_EXCHANGE

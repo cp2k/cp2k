@@ -133,9 +133,8 @@ input file is displayed below:
 
     &XC
       &XC_FUNCTIONAL
-         &LIBXC
-            FUNCTIONAL HYB_GGA_XC_BHandHLYP
-         &END LIBXC
+         &HYB_GGA_XC_BHandHLYP
+         &END
       &END XC_FUNCTIONAL
       &HF
          FRACTION 0.5                    ! BHandHLYP functional requires 50% exact exchange
@@ -159,9 +158,8 @@ input file is displayed below:
          RI_REGION 2.0                   ! Include RI basis elements from atoms within a 2.0 Ang
                                          ! sphere radius around the excited atom for the density projection
          &XC_FUNCTIONAL
-            &LIBXC
-               FUNCTIONAL HYB_GGA_XC_BHandHLYP
-            &END LIBXC
+            &HYB_GGA_XC_BHandHLYP
+            &END
          &END XC_FUNCTIONAL
          &EXACT_EXCHANGE
             FRACTION 0.5                 ! Definition of the functional for the TDDFT kernel
@@ -437,9 +435,8 @@ This example covers L-edge spectroscopy with the addition of spin-orbit coupling
 
     &XC
       &XC_FUNCTIONAL
-         &LIBXC
-            FUNCTIONAL HYB_GGA_XC_B3LYP
-         &END LIBXC
+         &HYB_GGA_XC_B3LYP
+         &END
       &END XC_FUNCTIONAL
       &HF
          FRACTION 0.2
@@ -465,9 +462,8 @@ This example covers L-edge spectroscopy with the addition of spin-orbit coupling
       &KERNEL
          RI_REGION 5.0              ! To get the best possible density projection
       &XC_FUNCTIONAL
-         &LIBXC
-            FUNCTIONAL HYB_GGA_XC_B3LYP
-         &END LIBXC
+         &HYB_GGA_XC_B3LYP
+         &END
       &END XC_FUNCTIONAL
          &EXACT_EXCHANGE
             FRACTION 0.2
