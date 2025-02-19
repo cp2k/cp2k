@@ -1,5 +1,14 @@
+# Dockerfile for CP2K continous integration (CI) runs
+#
+# A stand-alone docker build in this folder can be performed using the command:
+# DOCKER_BUILDKIT=0 docker build -f build_cp2k_psmp.Dockerfile ../../
+#
+# Author: Matthias Krack
+#
 # Stage 1a: Build CP2K toolchain
-ARG BASE_IMAGE
+
+ARG BASE_IMAGE="ubuntu:24.04"
+
 FROM ${BASE_IMAGE} AS build
 
 # Install packages required for the CP2K toolchain build
@@ -20,16 +29,55 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     wget \
     zlib1g-dev
 
+# Retrieve the number of available CPU cores
+ARG NUM_PROCS=32
+
+# Install an MPI version ABI-compatible with the host MPI on Cray at CSCS
+ARG MPICH_VER="3.1.4"
+RUN wget -q https://www.mpich.org/static/downloads/${MPICH_VER}/mpich-${MPICH_VER}.tar.gz \
+    && tar -xf mpich-${MPICH_VER}.tar.gz \
+    && cd mpich-${MPICH_VER} \
+    && ./configure --prefix="/usr/local" \
+       FFLAGS="${FFLAGS} -fallow-argument-mismatch" \
+       FCFLAGS="${FCFLAGS} -fallow-argument-mismatch" \
+    && make -j ${NUM_PROCS} \
+    && make install \
+    && ldconfig \
+    && cd .. \
+    && rm -rf mpich-${MPICH_VER} \
+    && rm mpich-${MPICH_VER}.tar.gz
+
 # Build CP2K toolchain
+ARG BUILD_TYPE="minimal"
 COPY ./tools/toolchain /opt/cp2k/tools/toolchain
 WORKDIR /opt/cp2k/tools/toolchain
-RUN ./install_cp2k_toolchain.sh -j \
-    --dry-run \
-    --install-all \
-    --no-arch-files \
-    --target-cpu=native \
-    --with-gcc=system \
-    --with-mpich
+RUN echo "\nBuild type: ${BUILD_TYPE}\n" && \
+    if [ "${BUILD_TYPE}" = "minimal" ]; then \
+      ./install_cp2k_toolchain.sh -j ${NUM_PROCS} \
+        --dry-run \
+        --no-arch-files \
+        --target-cpu=native \
+        --with-gcc=system \
+        --with-mpich=system \
+        --with-ninja \
+        --with-cosma=no \
+        --with-dftd4=no \
+        --with-elpa=no \
+        --with-libgrpp=no \
+        --with-libint=no \
+        --with-libvori=no \
+        --with-libxc=no \
+        --with-sirius=no \
+        --with-spglib=no; \
+    elif [ "${BUILD_TYPE}" = "toolchain" ]; then \
+      ./install_cp2k_toolchain.sh -j ${NUM_PROCS} \
+        --dry-run \
+        --install-all \
+        --no-arch-files \
+        --target-cpu=native \
+        --with-gcc=system \
+        --with-mpich=system; \
+    fi
 
 # Perform toolchain build step-wise in stages after its initialization with dry-run
 COPY ./tools/toolchain/scripts/stage0/ ./scripts/stage0/
@@ -74,16 +122,16 @@ COPY ./tools/build_utils ./tools/build_utils
 # Run CMake
 RUN /bin/bash -c -o pipefail " \
     TOOLCHAIN_DIR=/opt/cp2k/tools/toolchain; \
-    source ./cmake/cmake_cp2k.sh toolchain psmp |& tee cmake.log"
+    source ./cmake/cmake_cp2k.sh "${BUILD_TYPE}" psmp |& tee cmake.log"
 
 # Compile CP2K
 WORKDIR /opt/cp2k/build
 RUN /bin/bash -c -o pipefail " \
     source /opt/cp2k/tools/toolchain/install/setup; \
-    echo -en '\nCompiling CP2K ... '; \
+    echo -e '\nCompiling CP2K ... \c'; \
     if ninja --verbose &> ninja.log; then \
       echo -e 'done\n'; \
-      echo -en 'Installing CP2K ... '; \
+      echo -e 'Installing CP2K ... \c'; \
       if ninja --verbose install &> install.log; then \
         echo -e 'done\n'; \
       else \
@@ -122,9 +170,17 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     gfortran \
     python3 && rm -rf /var/lib/apt/lists/*
 
-# Install CP2K binaries and libraries
+# Copy MPI installation
+COPY --from=build /usr/local/bin /usr/bin
+COPY --from=build /usr/local/include /usr/include
+COPY --from=build /usr/local/lib /usr/lib
+RUN ldconfig
+
+# Install CP2K binaries
 WORKDIR /opt/cp2k
 COPY --from=build /opt/cp2k/bin ./bin
+
+# Install CP2K libraries
 COPY --from=build /opt/cp2k/lib ./lib
 
 # Install CP2K database files
@@ -133,6 +189,9 @@ COPY --from=build /opt/cp2k/share ./share
 # Install CP2K regression tests
 COPY --from=build /opt/cp2k/tests ./tests
 COPY --from=build /opt/cp2k/src/grid/sample_tasks ./src/grid/sample_tasks
+
+# Install CP2K benchmarks
+COPY --from=build /opt/cp2k/benchmarks/QS/00512_H2O ./benchmarks/QS/00512_H2O
 
 # Create links to CP2K binaries
 WORKDIR /opt/cp2k/bin
@@ -155,7 +214,7 @@ source /opt/cp2k/tools/toolchain/install/setup\n\
 >/opt/cp2k/bin/entrypoint.sh && chmod 755 /opt/cp2k/bin/entrypoint.sh
 
 # Create shortcut for regression test
-RUN printf "/opt/cp2k/tests/do_regtest.py --mpiexec srun --workbasedir /mnt \$* /opt/cp2k/bin psmp" \
+RUN printf "/opt/cp2k/tests/do_regtest.py \$* /opt/cp2k/bin psmp" \
 >/opt/cp2k/bin/run_tests && chmod 755 /opt/cp2k/bin/run_tests
 
 # Define entrypoint
