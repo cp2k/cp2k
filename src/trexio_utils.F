@@ -35,6 +35,7 @@ MODULE trexio_utils
                            dbcsr_reserve_all_blocks, dbcsr_iterator_next_block, &
                            dbcsr_copy, dbcsr_set
    USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
+   USE cp_output_handling,              ONLY: medium_print_level
    USE external_potential_types, ONLY: sgp_potential_type, get_potential
    USE input_section_types, ONLY: section_vals_type, section_vals_get, &
                                   section_vals_val_get
@@ -1019,7 +1020,7 @@ CONTAINS
                                                             nshell, shell_num, nucleus_num, natoms, ikind, &
                                                             iatom, nrow_global, nelectron, nrows, ncols, &
                                                             row, col, row_size, col_size, &
-                                                            row_offset, col_offset
+                                                            row_offset, col_offset, myprint
       INTEGER, DIMENSION(2)                              :: nmo_spin, electron_num
       INTEGER, DIMENSION(:), ALLOCATABLE                 :: mo_spin, shell_ang_mom, trexio_to_cp2k_ang_mom
 
@@ -1046,6 +1047,7 @@ CONTAINS
 #ifdef __TREXIO
       logger => cp_get_default_logger()
       output_unit = cp_logger_get_default_io_unit(logger)
+      myprint = logger%iter_info%print_level
 
       CPASSERT(ASSOCIATED(qs_env))
 
@@ -1067,21 +1069,29 @@ CONTAINS
          f = trexio_open(filename, 'r', TREXIO_HDF5, rc)
          CALL trexio_error(rc)
 
-         WRITE(output_unit, "((T2,A))") 'TREXIO| Reading number of nuclei...'
+         IF (myprint > medium_print_level) THEN
+            WRITE(output_unit, "((T2,A))") 'TREXIO| Reading molecule information...'
+         END IF
          rc = trexio_read_nucleus_num(f, nucleus_num)
          CALL trexio_error(rc)
 
-         WRITE(output_unit, "((T2,A))") 'TREXIO| Reading nuclear coordinates...'
+         IF (myprint > medium_print_level) THEN
+            WRITE(output_unit, "((T2,A))") 'TREXIO| Reading nuclear coordinates...'
+         END IF
          ALLOCATE (coord(3, nucleus_num))
          rc = trexio_read_nucleus_coord(f, coord)
          CALL trexio_error(rc)
 
-         WRITE(output_unit, "((T2,A))") 'TREXIO| Reading nuclear labels...'
+         IF (myprint > medium_print_level) THEN
+            WRITE(output_unit, "((T2,A))") 'TREXIO| Reading nuclear labels...'
+         END IF
          ALLOCATE (label(nucleus_num))
          rc = trexio_read_nucleus_label(f, label, 3)
          CALL trexio_error(rc)
 
-         WRITE(output_unit, "((T2,A))") 'TREXIO| Reading nuclear charges...'
+         IF (myprint > medium_print_level) THEN
+            WRITE(output_unit, "((T2,A))") 'TREXIO| Reading nuclear charges...'
+         END IF
          ALLOCATE (charge(nucleus_num))
          rc = trexio_read_nucleus_charge(f, charge)
          CALL trexio_error(rc)
@@ -1119,7 +1129,7 @@ CONTAINS
       ! check whether we want to read something
       IF (PRESENT(mo_set_trexio)) THEN
          IF (output_unit > 1) THEN
-            WRITE(output_unit, "((T2,A))") 'TREXIO| Reading MOs information...'
+            WRITE(output_unit, "((T2,A))") 'TREXIO| Reading molecular orbitals...'
          END IF
 
          ! at the moment, we assume that the basis set is the same
@@ -1185,23 +1195,33 @@ CONTAINS
 
          ! read the MOs info
          IF (ionode) THEN
-            WRITE(output_unit, "((T2,A))") 'TREXIO| Reading MO coefficients...'
+            IF (myprint > medium_print_level) THEN
+               WRITE(output_unit, "((T2,A))") 'TREXIO| Reading MO coefficients...'
+            END IF
             rc = trexio_read_mo_coefficient(f, mo_coefficient)
             CALL trexio_error(rc)
 
-            WRITE(output_unit, "((T2,A))") 'TREXIO| Reading MO energies...'
+            IF (myprint > medium_print_level) THEN
+               WRITE(output_unit, "((T2,A))") 'TREXIO| Reading MO energies...'
+            END IF
             rc = trexio_read_mo_energy(f, mo_energy)
             CALL trexio_error(rc)
 
-            WRITE(output_unit, "((T2,A))") 'TREXIO| Reading MO occupations...'
+            IF (myprint > medium_print_level) THEN
+               WRITE(output_unit, "((T2,A))") 'TREXIO| Reading MO occupations...'
+            END IF
             rc = trexio_read_mo_occupation(f, mo_occupation)
             CALL trexio_error(rc)
 
-            WRITE(output_unit, "((T2,A))") 'TREXIO| Reading MO spins...'
+            IF (myprint > medium_print_level) THEN
+               WRITE(output_unit, "((T2,A))") 'TREXIO| Reading MO spins...'
+            END IF
             rc = trexio_read_mo_spin(f, mo_spin)
             CALL trexio_error(rc)
 
-            WRITE(output_unit, "((T2,A))") 'TREXIO| Reading shell angular momenta...'
+            IF (myprint > medium_print_level) THEN
+               WRITE(output_unit, "((T2,A))") 'TREXIO| Reading shell angular momenta...'
+            END IF
             rc = trexio_read_basis_shell_ang_mom(f, shell_ang_mom)
             CALL trexio_error(rc)
          END IF
@@ -1282,7 +1302,7 @@ CONTAINS
       ! check whether we want to read derivatives
       IF (PRESENT(energy_derivative)) THEN
          IF (output_unit > 1) THEN
-            WRITE(output_unit, "((T2,A))") 'TREXIO| Reading Energy derivatives...'
+            WRITE(output_unit, "((T2,A))") 'TREXIO| Reading energy derivatives...'
          END IF
 
          ! Temporary solution: allocate here the energy derivatives matrix here
@@ -1301,14 +1321,20 @@ CONTAINS
             END IF
 
             ! read the header and check everything is fine
-            WRITE(output_unit, "((T2,A))") 'TREXIO| Reading header information...'
+            IF (myprint > medium_print_level) THEN
+               WRITE(output_unit, "((T2,A))") 'TREXIO| Reading header information...'
+            END IF
             READ(unit_dE, *) nrows, ncols
-            WRITE(output_unit, "((T2,A))") 'TREXIO| Check size of dEdP matrix...'
+            IF (myprint > medium_print_level) THEN
+               WRITE(output_unit, "((T2,A))") 'TREXIO| Check size of dEdP matrix...'
+            END IF
             CPASSERT(nrows == nsgf)
             CPASSERT(ncols == nsgf)
 
             ! read the data
-            WRITE(output_unit, "((T2,A))") 'TREXIO| Reading dEdP matrix...'
+            IF (myprint > medium_print_level) THEN
+               WRITE(output_unit, "((T2,A))") 'TREXIO| Reading dEdP matrix...'
+            END IF
             ! Read the data matrix
             DO i = 1, nrows
                READ(unit_dE, *) (dEdP(i,j), j=1, ncols)
@@ -1390,6 +1416,7 @@ CONTAINS
 
       ! Close the TREXIO file
       IF (ionode) THEN
+         WRITE(output_unit, "((T2,A,A))") 'TREXIO| Closing file named ', TRIM(filename)
          rc = trexio_close(f)
          CALL trexio_error(rc)
       END IF
