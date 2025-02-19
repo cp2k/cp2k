@@ -989,11 +989,13 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Read a trexio file
 !> \param qs_env the qs environment with all the info of the computation
-!> \param trexio_section the section with the trexio info
+!> \param trexio_filename the trexio filename without the extension
+!> \param mo_set_trexio the MO set to read from the trexio file
+!> \param energy_derivative the energy derivative to read from the trexio file
 ! **************************************************************************************************
-   SUBROUTINE read_trexio(qs_env, trexio_section, mo_set_trexio, energy_derivative)
+   SUBROUTINE read_trexio(qs_env, trexio_filename, mo_set_trexio, energy_derivative)
       TYPE(qs_environment_type), INTENT(IN), POINTER                    :: qs_env
-      TYPE(section_vals_type), INTENT(IN), POINTER                      :: trexio_section
+      CHARACTER(len=*), INTENT(IN), OPTIONAL                            :: trexio_filename
       TYPE(mo_set_type), INTENT(OUT), DIMENSION(:), POINTER, OPTIONAL   :: mo_set_trexio
       TYPE(dbcsr_p_type), INTENT(OUT), DIMENSION(:), POINTER, OPTIONAL  :: energy_derivative
 
@@ -1007,7 +1009,7 @@ CONTAINS
       INTEGER(trexio_t)                                  :: f        ! The TREXIO file handle
       INTEGER(trexio_exit_code)                          :: rc       ! TREXIO return code
 
-      LOGICAL                                            :: explicit, ionode
+      LOGICAL                                            :: ionode
 
       CHARACTER(LEN=2)                                   :: element_symbol
       CHARACTER(LEN=2), DIMENSION(:), ALLOCATABLE        :: label
@@ -1048,13 +1050,12 @@ CONTAINS
       CPASSERT(ASSOCIATED(qs_env))
 
       ! get filename
-      CALL section_vals_val_get(trexio_section, "FILENAME", c_val=filename, explicit=explicit)
-      IF (.NOT. explicit) THEN
+      IF (.NOT. PRESENT(trexio_filename)) THEN
          filename = TRIM(logger%iter_info%project_name)//'-TREXIO.h5'
          filename_dE = TRIM(logger%iter_info%project_name)//'-TREXIO.dEdP.dat'
       ELSE
-         filename = TRIM(filename)//'.h5'
-         filename_dE = TRIM(filename)//'.dEdP.dat'
+         filename = TRIM(trexio_filename)//'.h5'
+         filename_dE = TRIM(trexio_filename)//'.dEdP.dat'
       END IF
 
       CALL get_qs_env(qs_env, para_env=para_env)

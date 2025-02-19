@@ -1760,7 +1760,8 @@ CONTAINS
             ! allocate the energy derivative matrix
             NULLIFY (energy_derivative)
             CALL dbcsr_allocate_matrix_set(energy_derivative, dft_control%nspins)
-            CALL read_trexio(qs_env, trexio_section, mos_trexio, energy_derivative)
+            CALL read_trexio(qs_env, trexio_filename='SiC-TREXIO', mo_set_trexio=mos_trexio, &
+                             energy_derivative=energy_derivative)
             ! deallocate everything
             DO ispin = 1, SIZE(mos_trexio)
                CALL deallocate_mo_set(mos_trexio(ispin))
