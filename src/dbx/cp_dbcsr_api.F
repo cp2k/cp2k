@@ -47,7 +47,6 @@ MODULE cp_dbcsr_api
         dbcsr_put_block_prv => dbcsr_put_block, dbcsr_release_prv => dbcsr_release, &
         dbcsr_replicate_all_prv => dbcsr_replicate_all, &
         dbcsr_reserve_all_blocks_prv => dbcsr_reserve_all_blocks, &
-        dbcsr_reserve_block2d_prv => dbcsr_reserve_block2d, &
         dbcsr_reserve_blocks_prv => dbcsr_reserve_blocks, &
         dbcsr_reserve_diag_blocks_prv => dbcsr_reserve_diag_blocks, dbcsr_reset_randmat_seed, &
         dbcsr_run_tests, dbcsr_scale_by_vector_prv => dbcsr_scale_by_vector, &
@@ -125,7 +124,6 @@ MODULE cp_dbcsr_api
 
    ! block reservation
    PUBLIC :: dbcsr_reserve_diag_blocks
-   PUBLIC :: dbcsr_reserve_block2d
    PUBLIC :: dbcsr_reserve_blocks
    PUBLIC :: dbcsr_reserve_all_blocks
 
@@ -1241,25 +1239,6 @@ CONTAINS
          CPABORT("Not yet implemented for DBM.")
       END IF
    END SUBROUTINE dbcsr_reserve_all_blocks
-
-! **************************************************************************************************
-!> \brief ...
-!> \param matrix ...
-!> \param row ...
-!> \param col ...
-!> \param block ...
-! **************************************************************************************************
-   SUBROUTINE dbcsr_reserve_block2d(matrix, row, col, block)
-      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
-      INTEGER, INTENT(IN)                                :: row, col
-      REAL(kind=dp), DIMENSION(:, :), POINTER            :: block
-
-      IF (USE_DBCSR_BACKEND) THEN
-         CALL dbcsr_reserve_block2d_prv(matrix%dbcsr, row, col, block)
-      ELSE
-         CPABORT("Not yet implemented for DBM.")
-      END IF
-   END SUBROUTINE dbcsr_reserve_block2d
 
 ! **************************************************************************************************
 !> \brief ...

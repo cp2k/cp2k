@@ -13,12 +13,12 @@
 ! **************************************************************************************************
 MODULE ct_methods
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, &
-        dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_dot, dbcsr_filter, dbcsr_finalize, &
-        dbcsr_get_diag, dbcsr_get_info, dbcsr_get_stored_coordinates, dbcsr_iterator_blocks_left, &
+        dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, dbcsr_dot, &
+        dbcsr_filter, dbcsr_finalize, dbcsr_get_diag, dbcsr_get_info, dbcsr_iterator_blocks_left, &
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
-        dbcsr_multiply, dbcsr_release, dbcsr_reserve_block2d, dbcsr_scale, dbcsr_set, &
-        dbcsr_set_diag, dbcsr_transposed, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_work_create
+        dbcsr_multiply, dbcsr_put_block, dbcsr_release, dbcsr_reserve_diag_blocks, dbcsr_scale, &
+        dbcsr_set, dbcsr_set_diag, dbcsr_transposed, dbcsr_type, dbcsr_type_no_symmetry, &
+        dbcsr_work_create
    USE cp_dbcsr_cholesky,               ONLY: cp_dbcsr_cholesky_decompose,&
                                               cp_dbcsr_cholesky_invert
    USE cp_dbcsr_contrib,                ONLY: dbcsr_frobenius_norm,&
@@ -1197,13 +1197,10 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'create_preconditioner'
 
-      INTEGER                                            :: col, handle, hold, iblock_col, &
-                                                            iblock_row, mynode, nblkcols_tot, &
-                                                            nblkrows_tot, p_nrows, q_nrows, row
-      LOGICAL                                            :: tr
+      INTEGER                                            :: handle, p_nrows, q_nrows
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: p_diagonal, q_diagonal
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p_new_block
-      TYPE(dbcsr_distribution_type)                      :: dist
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: block
+      TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(dbcsr_type)                                   :: pp_diag, qq_diag, t1, t2, tmp
 
 !LOGICAL, INTENT(IN)                      :: use_virt_orbs
@@ -1222,27 +1219,13 @@ CONTAINS
 !
       ! initialize a matrix to 1.0
       CALL dbcsr_create(tmp, template=prec)
-      ! use an ugly hack to set all elements of tmp to 1
-      ! because dbcsr_set does not do it (despite its name)
-      !CALL dbcsr_set(tmp,1.0_dp)
-      CALL dbcsr_get_info(tmp, distribution=dist, nblkrows_total=nblkrows_tot, nblkcols_total=nblkcols_tot)
-      CALL dbcsr_distribution_get(dist, mynode=mynode)
-      CALL dbcsr_work_create(tmp, work_mutable=.TRUE.)
-      DO row = 1, nblkrows_tot
-         DO col = 1, nblkcols_tot
-            tr = .FALSE.
-            iblock_row = row
-            iblock_col = col
-            CALL dbcsr_get_stored_coordinates(tmp, iblock_row, iblock_col, hold)
-            IF (hold .EQ. mynode) THEN
-               NULLIFY (p_new_block)
-               CALL dbcsr_reserve_block2d(tmp, iblock_row, iblock_col, p_new_block)
-               CPASSERT(ASSOCIATED(p_new_block))
-               p_new_block(:, :) = 1.0_dp
-            END IF ! mynode
-         END DO
+      CALL dbcsr_reserve_diag_blocks(tmp)
+      CALL dbcsr_iterator_start(iter, tmp)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, block=block)
+         block(:, :) = 1.0_dp
       END DO
-      CALL dbcsr_finalize(tmp)
+      CALL dbcsr_iterator_stop(iter)
 
       ! copy diagonal elements of pp into cols of a matrix
       CALL dbcsr_get_info(pp, nfullrows_total=p_nrows)
@@ -1519,8 +1502,8 @@ CONTAINS
                                                             iblock_size, info, lwork, orbital
       LOGICAL                                            :: block_needed, do_eigenvalues
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues, work
-      REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :)        :: data_copy
-      REAL(kind=dp), DIMENSION(:, :), POINTER            :: data_p, p_new_block
+      REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :)        :: data_copy, new_block
+      REAL(kind=dp), DIMENSION(:, :), POINTER            :: data_p
       TYPE(dbcsr_iterator_type)                          :: iter
 
       CALL timeset(routineN, handle)
@@ -1565,20 +1548,17 @@ CONTAINS
             IF (INFO .NE. 0) CPABORT("DSYEV failed")
 
             ! copy eigenvectors into a cp_dbcsr matrix
-            NULLIFY (p_new_block)
-            CALL dbcsr_reserve_block2d(c, iblock_row, iblock_col, p_new_block)
-            CPASSERT(ASSOCIATED(p_new_block))
-            p_new_block(:, :) = data_copy(:, :)
+            CALL dbcsr_put_block(c, iblock_row, iblock_col, block=data_copy)
 
             ! if requested copy eigenvalues into a cp_dbcsr matrix
             IF (do_eigenvalues) THEN
-               NULLIFY (p_new_block)
-               CALL dbcsr_reserve_block2d(e, iblock_row, iblock_col, p_new_block)
-               CPASSERT(ASSOCIATED(p_new_block))
-               p_new_block(:, :) = 0.0_dp
+               ALLOCATE (new_block(iblock_size, iblock_size))
+               new_block(:, :) = 0.0_dp
                DO orbital = 1, iblock_size
-                  p_new_block(orbital, orbital) = eigenvalues(orbital)
+                  new_block(orbital, orbital) = eigenvalues(orbital)
                END DO
+               CALL dbcsr_put_block(e, iblock_row, iblock_col, new_block)
+               DEALLOCATE (new_block)
             END IF
 
             DEALLOCATE (WORK)

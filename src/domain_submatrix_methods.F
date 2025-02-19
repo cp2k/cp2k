@@ -17,7 +17,7 @@ MODULE domain_submatrix_methods
         dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_filter, dbcsr_finalize, &
         dbcsr_get_block_p, dbcsr_get_info, dbcsr_get_matrix_type, dbcsr_get_stored_coordinates, &
         dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
-        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_reserve_block2d, dbcsr_type, &
+        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_put_block, dbcsr_type, &
         dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_type_symmetric, dbcsr_work_create
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
@@ -1349,6 +1349,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, row_blk_size
       LOGICAL                                            :: transp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: recv_data, send_data
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: new_block
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: block_p
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_distribution_type)                      :: pattern_dist
@@ -1554,19 +1555,16 @@ CONTAINS
             ! read the (row,col) of the block
             row = recv_data2(recv_offset2_cpu(iNode) + (iBlock - 1)*2 + 1)
             col = recv_data2(recv_offset2_cpu(iNode) + (iBlock - 1)*2 + 2)
-            !CALL dbcsr_get_block_p(matrix,row,col,block_p,found)
-            !IF (.NOT.found) THEN
-            NULLIFY (block_p)
-            CALL dbcsr_reserve_block2d(matrix, row, col, block_p)
-            CPASSERT(ASSOCIATED(block_p))
-            !ENDIF
             ! copy data from the received array into the matrix block
             start_data = recv_offset_cpu(iNode) + block_offset + 1
+            ALLOCATE (new_block(row_blk_size(row), col_blk_size(col)))
             DO icol = 1, col_blk_size(col)
-               block_p(:, icol) = &
+               new_block(:, icol) = &
                   recv_data(start_data:start_data + row_blk_size(row) - 1)
                start_data = start_data + row_blk_size(row)
             END DO
+            CALL dbcsr_put_block(matrix, row, col, new_block)
+            DEALLOCATE (new_block)
             block_offset = block_offset + col_blk_size(col)*row_blk_size(row)
          END DO
       END DO
