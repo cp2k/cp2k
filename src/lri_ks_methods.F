@@ -16,10 +16,10 @@ MODULE lri_ks_methods
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind_set
    USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
-                                              dbcsr_add_block_node,&
                                               dbcsr_finalize,&
                                               dbcsr_get_block_p,&
                                               dbcsr_p_type,&
+                                              dbcsr_reserve_blocks,&
                                               dbcsr_type
    USE kinds,                           ONLY: dp
    USE lri_compression,                 ONLY: lri_decomp_i
@@ -232,7 +232,8 @@ CONTAINS
             NULLIFY (h_block)
             CALL dbcsr_get_block_p(hmat, row, col, h_block, found)
             IF (.NOT. ASSOCIATED(h_block)) THEN
-               CALL dbcsr_add_block_node(hmat, row, col, h_block)
+               CALL dbcsr_reserve_blocks(hmat, rows=[row], cols=[col])
+               CALL dbcsr_get_block_p(hmat, row, col, h_block, found)
             END IF
             IF (lrii%lrisr) THEN
                fw = lrii%wsr
