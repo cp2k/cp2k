@@ -9,7 +9,6 @@ MODULE cp_dbcsr_api
    USE dbcsr_api,                       ONLY: &
         convert_csr_to_dbcsr_prv => dbcsr_convert_csr_to_dbcsr, &
         convert_dbcsr_to_csr_prv => dbcsr_convert_dbcsr_to_csr, &
-        dbcsr_add_block_node_prv => dbcsr_add_block_node, &
         dbcsr_add_on_diag_prv => dbcsr_add_on_diag, dbcsr_add_prv => dbcsr_add, &
         dbcsr_binary_read_prv => dbcsr_binary_read, dbcsr_binary_write_prv => dbcsr_binary_write, &
         dbcsr_checksum_prv => dbcsr_checksum, dbcsr_clear_mempools, &
@@ -156,7 +155,6 @@ MODULE cp_dbcsr_api
    PUBLIC :: dbcsr_valid_index
 
    ! work operations
-   PUBLIC :: dbcsr_add_block_node
    PUBLIC :: dbcsr_put_block
    PUBLIC :: dbcsr_work_create
    PUBLIC :: dbcsr_verify_matrix
@@ -291,25 +289,6 @@ CONTAINS
          CALL dbm_add(matrix_a%dbm, matrix_b%dbm)
       END IF
    END SUBROUTINE dbcsr_add
-
-! **************************************************************************************************
-!> \brief ...
-!> \param matrix ...
-!> \param block_row ...
-!> \param block_col ...
-!> \param block ...
-! **************************************************************************************************
-   SUBROUTINE dbcsr_add_block_node(matrix, block_row, block_col, block)
-      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
-      INTEGER, INTENT(IN)                                :: block_row, block_col
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: block
-
-      IF (USE_DBCSR_BACKEND) THEN
-         CALL dbcsr_add_block_node_prv(matrix%dbcsr, block_row, block_col, block)
-      ELSE
-         CPABORT("Not yet implemented for DBM.")
-      END IF
-   END SUBROUTINE dbcsr_add_block_node
 
 ! **************************************************************************************************
 !> \brief ...
