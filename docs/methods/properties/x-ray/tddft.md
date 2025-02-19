@@ -462,9 +462,8 @@ This example covers L-edge spectroscopy with the addition of spin-orbit coupling
       &KERNEL
          RI_REGION 5.0              ! To get the best possible density projection
       &XC_FUNCTIONAL
-         &LIBXC
-            FUNCTIONAL HYB_GGA_XC_B3LYP
-         &END LIBXC
+         &HYB_GGA_XC_B3LYP
+         &END
       &END XC_FUNCTIONAL
          &EXACT_EXCHANGE
             FRACTION 0.2
