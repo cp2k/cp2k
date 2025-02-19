@@ -1287,7 +1287,9 @@ CONTAINS
                                 do_kpoints_cubic_RPA, Emin, Emax, e_fermi(1))
          CALL gx_minimax_grid(num_integ_points, Emin, Emax, tau_tj, tau_wj, tj, wj,&
                               weights_cos_tf_t_to_w,weights_cos_tf_w_to_t,weights_sin_tf_t_to_w,&
-                              max_errors_greenx, cosft_duality_error_greenx, ierr, bare_cos_sin_weights=.TRUE.)
+                              max_errors_greenx, cosft_duality_error_greenx, ierr,&
+                              bare_cos_sin_weights=.TRUE.,&
+                              regularization=qs_env%mp2_env%ri_g0w0%regularization_minimax)
          wj(:)=wj(:)*4.0_dp
          IF(ierr == 0) THEN
            IF (unit_nr > 0) THEN
