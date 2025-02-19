@@ -634,6 +634,9 @@ CONTAINS
       DEALLOCATE (ft_imag_series)
 #if defined (__GREENX)
       IF (rtbse_env%pade_requested) THEN
+         ! Report Padé refinement
+         IF (rtbse_env%unit_nr > 0) WRITE(rtbse_env%unit_nr, '(A10,A27,E23.8E3,E20.8E3)') &
+                 " PADE_FT| ", "Evaluation grid bounds [eV]", rtbse_env%pade_e_min, rtbse_env%pade_e_max
          ALLOCATE (omega_complex(n))
          ALLOCATE (moments_ft_complex(n))
          ALLOCATE (moments_eval_complex(3,rtbse_env%pade_npoints))
