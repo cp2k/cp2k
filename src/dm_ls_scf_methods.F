@@ -15,10 +15,10 @@ MODULE dm_ls_scf_methods
    USE arnoldi_api,                     ONLY: arnoldi_extremal
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, dbcsr_dot, &
-        dbcsr_filter, dbcsr_finalize, dbcsr_get_data_type, dbcsr_get_occupation, &
-        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
-        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_put_block, dbcsr_release, &
-        dbcsr_scale, dbcsr_set, dbcsr_trace, dbcsr_type, dbcsr_type_no_symmetry
+        dbcsr_filter, dbcsr_finalize, dbcsr_get_occupation, dbcsr_iterator_blocks_left, &
+        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
+        dbcsr_multiply, dbcsr_put_block, dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_trace, &
+        dbcsr_type, dbcsr_type_no_symmetry
    USE cp_dbcsr_contrib,                ONLY: dbcsr_frobenius_norm
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
@@ -226,15 +226,13 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_matrix_preconditioner'
 
-      INTEGER                                            :: datatype, handle, iblock_col, iblock_row
+      INTEGER                                            :: handle, iblock_col, iblock_row
       LOGICAL                                            :: block_needed
       REAL(dp), DIMENSION(:, :), POINTER                 :: block_dp
       TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(dbcsr_type)                                   :: matrix_bs
 
       CALL timeset(routineN, handle)
-
-      datatype = dbcsr_get_data_type(matrix_s) ! could be single or double precision
 
       ! first generate a block diagonal copy of s
       CALL dbcsr_create(matrix_bs, template=matrix_s)

@@ -2615,11 +2615,11 @@ CONTAINS
          ALLOCATE (ksmat(ispin, 1)%matrix)
          CALL dbcsr_create(ksmat(ispin, 1)%matrix, dist=dbcsr_dist, name="MAO KS mat", &
                            matrix_type=dbcsr_type_symmetric, row_blk_size=col_blk_sizes, &
-                           col_blk_size=col_blk_sizes, nze=0)
+                           col_blk_size=col_blk_sizes)
          ALLOCATE (smat(ispin, 1)%matrix)
          CALL dbcsr_create(smat(ispin, 1)%matrix, dist=dbcsr_dist, name="MAO S mat", &
                            matrix_type=dbcsr_type_symmetric, row_blk_size=col_blk_sizes, &
-                           col_blk_size=col_blk_sizes, nze=0)
+                           col_blk_size=col_blk_sizes)
       END DO
       !
       CALL dbcsr_create(cgmat, name="TEMP matrix", template=mao_coef(1)%matrix)

@@ -21,11 +21,11 @@ MODULE cp_dbcsr_operations
         dbcsr_add, dbcsr_complete_redistribute, dbcsr_convert_sizes_to_offsets, dbcsr_copy, &
         dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, dbcsr_distribution_get, &
         dbcsr_distribution_new, dbcsr_distribution_release, dbcsr_distribution_type, &
-        dbcsr_get_data_type, dbcsr_get_info, dbcsr_get_matrix_type, dbcsr_iterator_blocks_left, &
+        dbcsr_get_info, dbcsr_get_matrix_type, dbcsr_iterator_blocks_left, &
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
         dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_reserve_all_blocks, dbcsr_scale, &
-        dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_type_real_8, &
-        dbcsr_type_symmetric, dbcsr_valid_index, dbcsr_verify_matrix
+        dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_type_symmetric, &
+        dbcsr_valid_index, dbcsr_verify_matrix
    USE cp_dbcsr_contrib,                ONLY: dbcsr_frobenius_norm
    USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -180,8 +180,7 @@ CONTAINS
 
       ! Create the block-cyclic DBCSR matrix
       CALL dbcsr_create(bc_mat, "Block-cyclic ", bc_dist, &
-                        dbcsr_type_no_symmetry, row_blk_size, col_blk_size, nze=0, &
-                        reuse_arrays=.TRUE., data_type=dbcsr_type_real_8)
+                        dbcsr_type_no_symmetry, row_blk_size, col_blk_size, reuse_arrays=.TRUE.)
       CALL dbcsr_distribution_release(bc_dist)
 
       ! allocate all blocks
@@ -251,9 +250,7 @@ CONTAINS
                                           row_blk_sizes=row_blk_size, col_blk_sizes=col_blk_size)
 
       CALL dbcsr_create(bc_mat, "Block-cyclic"//name, bc_dist, &
-                        dbcsr_type_no_symmetry, row_blk_size, col_blk_size, &
-                        nze=0, data_type=dbcsr_get_data_type(matrix), &
-                        reuse_arrays=.TRUE.)
+                        dbcsr_type_no_symmetry, row_blk_size, col_blk_size, reuse_arrays=.TRUE.)
       CALL dbcsr_distribution_release(bc_dist)
 
       CALL dbcsr_create(matrix_nosym, template=matrix, matrix_type="N")
@@ -597,7 +594,7 @@ CONTAINS
          CALL dbcsr_create_dist_r_unrot(dist_right_in, dist, k_in, col_blk_size_right_in)
 
          CALL dbcsr_create(in, "D", dist_right_in, dbcsr_type_no_symmetry, &
-                           col_blk_size, col_blk_size_right_in, nze=0)
+                           col_blk_size, col_blk_size_right_in)
 
          CALL dbcsr_distribution_get(dist, row_dist=row_dist)
          CALL dbcsr_distribution_get(dist_right_in, col_dist=col_dist)
@@ -613,7 +610,7 @@ CONTAINS
          !endif
 
          CALL dbcsr_create(out, "D", product_dist, dbcsr_type_no_symmetry, &
-                           row_blk_size, col_blk_size_right_out, nze=0)
+                           row_blk_size, col_blk_size_right_out)
 
          CALL copy_fm_to_dbcsr(fm_in, in)
          IF (ncol .NE. k_out .OR. my_beta .NE. 0.0_dp) &
@@ -703,8 +700,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_dbcsr_plus_fm_fm_t'
 
-      INTEGER                                            :: data_type, k, my_symmetry_mode, nao, &
-                                                            npcols, timing_handle
+      INTEGER                                            :: k, my_symmetry_mode, nao, npcols, &
+                                                            timing_handle
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_size_left, col_dist_left, &
                                                             row_blk_size, row_dist
       LOGICAL                                            :: check_product, my_keep_sparsity
@@ -740,16 +737,16 @@ CONTAINS
          CALL dbcsr_distribution_new(dist_left, template=sparse_dist, &
                                      row_dist=row_dist, col_dist=col_dist_left)
          DEALLOCATE (col_dist_left)
-         CALL dbcsr_get_info(sparse_matrix, row_blk_size=row_blk_size, data_type=data_type)
+         CALL dbcsr_get_info(sparse_matrix, row_blk_size=row_blk_size)
          CALL dbcsr_create(mat_v, "DBCSR matrix_v", dist_left, dbcsr_type_no_symmetry, &
-                           row_blk_size, col_blk_size_left, nze=0, data_type=data_type)
+                           row_blk_size, col_blk_size_left)
          CALL copy_fm_to_dbcsr(matrix_v, mat_v)
          CALL dbcsr_verify_matrix(mat_v)
          !
          ! Setup matrix_g
          IF (PRESENT(matrix_g)) THEN
             CALL dbcsr_create(mat_g, "DBCSR matrix_g", dist_left, dbcsr_type_no_symmetry, &
-                              row_blk_size, col_blk_size_left, data_type=data_type)
+                              row_blk_size, col_blk_size_left)
             CALL copy_fm_to_dbcsr(matrix_g, mat_g)
          END IF
          !
@@ -880,7 +877,7 @@ CONTAINS
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_in
       TYPE(dbcsr_type), INTENT(IN)                       :: template
 
-      INTEGER                                            :: data_type, k_in
+      INTEGER                                            :: k_in
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_size_right_in, row_blk_size
       TYPE(dbcsr_distribution_type)                      :: dist_right_in, tmpl_dist
 
@@ -888,9 +885,9 @@ CONTAINS
 
       CALL dbcsr_get_info(template, distribution=tmpl_dist)
       CALL dbcsr_create_dist_r_unrot(dist_right_in, tmpl_dist, k_in, col_blk_size_right_in)
-      CALL dbcsr_get_info(template, row_blk_size=row_blk_size, data_type=data_type)
+      CALL dbcsr_get_info(template, row_blk_size=row_blk_size)
       CALL dbcsr_create(matrix, "D", dist_right_in, dbcsr_type_no_symmetry, &
-                        row_blk_size, col_blk_size_right_in, nze=0, data_type=data_type)
+                        row_blk_size, col_blk_size_right_in)
 
       CALL copy_fm_to_dbcsr(fm_in, matrix)
       DEALLOCATE (col_blk_size_right_in)
@@ -908,27 +905,21 @@ CONTAINS
 !> \param m global row size of output matrix
 !> \param n global col size of output matrix
 !> \param sym ...
-!> \param data_type ...
 ! **************************************************************************************************
-   SUBROUTINE cp_dbcsr_m_by_n_from_template(matrix, template, m, n, sym, data_type)
+   SUBROUTINE cp_dbcsr_m_by_n_from_template(matrix, template, m, n, sym)
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix, template
       INTEGER, INTENT(IN)                                :: m, n
       CHARACTER, INTENT(IN), OPTIONAL                    :: sym
-      INTEGER, INTENT(IN), OPTIONAL                      :: data_type
 
       CHARACTER                                          :: mysym
-      INTEGER                                            :: my_data_type, npcols, nprows
+      INTEGER                                            :: npcols, nprows
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, col_dist, row_blk_size, &
                                                             row_dist
       TYPE(dbcsr_distribution_type)                      :: dist_m_n, tmpl_dist
 
-      CALL dbcsr_get_info(template, &
-                          matrix_type=mysym, &
-                          data_type=my_data_type, &
-                          distribution=tmpl_dist)
+      CALL dbcsr_get_info(template, matrix_type=mysym, distribution=tmpl_dist)
 
       IF (PRESENT(sym)) mysym = sym
-      IF (PRESENT(data_type)) my_data_type = data_type
 
       NULLIFY (row_dist, col_dist)
       NULLIFY (row_blk_size, col_blk_size)
@@ -943,8 +934,7 @@ CONTAINS
                                   reuse_arrays=.TRUE.)
 
       CALL dbcsr_create(matrix, "m_n_template", dist_m_n, mysym, &
-                        row_blk_size, col_blk_size, nze=0, data_type=my_data_type, &
-                        reuse_arrays=.TRUE.)
+                        row_blk_size, col_blk_size, reuse_arrays=.TRUE.)
       CALL dbcsr_distribution_release(dist_m_n)
 
    END SUBROUTINE cp_dbcsr_m_by_n_from_template
@@ -958,24 +948,20 @@ CONTAINS
 !> \param template template dbcsr matrix giving its mp_env
 !> \param n global col size of output matrix
 !> \param sym ...
-!> \param data_type ...
 ! **************************************************************************************************
-   SUBROUTINE cp_dbcsr_m_by_n_from_row_template(matrix, template, n, sym, data_type)
+   SUBROUTINE cp_dbcsr_m_by_n_from_row_template(matrix, template, n, sym)
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix, template
       INTEGER                                            :: n
       CHARACTER, OPTIONAL                                :: sym
-      INTEGER, OPTIONAL                                  :: data_type
 
       CHARACTER                                          :: mysym
-      INTEGER                                            :: my_data_type, npcols
+      INTEGER                                            :: npcols
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, col_dist, row_blk_size, &
                                                             row_dist
       TYPE(dbcsr_distribution_type)                      :: dist_m_n, tmpl_dist
 
       mysym = dbcsr_get_matrix_type(template)
       IF (PRESENT(sym)) mysym = sym
-      my_data_type = dbcsr_get_data_type(template)
-      IF (PRESENT(data_type)) my_data_type = data_type
 
       CALL dbcsr_get_info(template, distribution=tmpl_dist)
       CALL dbcsr_distribution_get(tmpl_dist, &
@@ -988,8 +974,7 @@ CONTAINS
                                   row_dist=row_dist, col_dist=col_dist)
 
       CALL dbcsr_get_info(template, row_blk_size=row_blk_size)
-      CALL dbcsr_create(matrix, "m_n_template", dist_m_n, mysym, &
-                        row_blk_size, col_blk_size, nze=0, data_type=my_data_type)
+      CALL dbcsr_create(matrix, "m_n_template", dist_m_n, mysym, row_blk_size, col_blk_size)
 
       DEALLOCATE (col_dist, col_blk_size)
       CALL dbcsr_distribution_release(dist_m_n)

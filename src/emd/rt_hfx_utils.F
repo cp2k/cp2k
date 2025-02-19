@@ -104,7 +104,7 @@ CONTAINS
       DO i = 1, nspins
          ALLOCATE (matrix_p(i)%matrix)
          CALL dbcsr_create(matrix=matrix_p(i)%matrix, template=matrix_s(1)%matrix, &
-                           name="Imaginary density matrix", matrix_type=dbcsr_type_antisymmetric, nze=0)
+                           name="Imaginary density matrix", matrix_type=dbcsr_type_antisymmetric)
          CALL cp_dbcsr_alloc_block_from_nbl(matrix_p(i)%matrix, sab_orb)
          CALL dbcsr_set(matrix_p(i)%matrix, 0.0_dp)
       END DO
@@ -117,7 +117,7 @@ CONTAINS
       DO i = 1, nspins
          ALLOCATE (matrix_ks(i)%matrix)
          CALL dbcsr_create(matrix=matrix_ks(i)%matrix, template=matrix_s(1)%matrix, &
-                           name="Imaginary Kohn-Sham matrix", matrix_type=dbcsr_type_antisymmetric, nze=0)
+                           name="Imaginary Kohn-Sham matrix", matrix_type=dbcsr_type_antisymmetric)
          CALL cp_dbcsr_alloc_block_from_nbl(matrix_ks(i)%matrix, sab_orb)
          CALL dbcsr_set(matrix_ks(i)%matrix, 0.0_dp)
       END DO

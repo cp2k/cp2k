@@ -992,7 +992,7 @@ CONTAINS
          DO i = 1, nspin
             ALLOCATE (subspace_env%p_matrix_store(i)%matrix)
             CALL dbcsr_create(matrix=subspace_env%p_matrix_store(i)%matrix, template=matrix_s(1)%matrix, &
-                              name="DENSITY_STORE", matrix_type=dbcsr_type_symmetric, nze=0)
+                              name="DENSITY_STORE", matrix_type=dbcsr_type_symmetric)
             CALL cp_dbcsr_alloc_block_from_nbl(subspace_env%p_matrix_store(i)%matrix, &
                                                sab_orb)
             CALL dbcsr_set(subspace_env%p_matrix_store(i)%matrix, 0.0_dp)

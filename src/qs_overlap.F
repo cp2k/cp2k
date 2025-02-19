@@ -1084,8 +1084,7 @@ CONTAINS
          CALL dbcsr_create(matrix=matrix_s(i)%matrix, &
                            name=TRIM(name), &
                            dist=dbcsr_dist, matrix_type=symmetry_string, &
-                           row_blk_size=row_blk_sizes, col_blk_size=col_blk_sizes, &
-                           nze=0)
+                           row_blk_size=row_blk_sizes, col_blk_size=col_blk_sizes)
          CALL cp_dbcsr_alloc_block_from_nbl(matrix_s(i)%matrix, sab_nl)
       END DO
 
@@ -1174,8 +1173,7 @@ CONTAINS
             CALL dbcsr_create(matrix=matrix_s(i1, i2)%matrix, &
                               name=TRIM(name), &
                               dist=dbcsr_dist, matrix_type=symmetry_string, &
-                              row_blk_size=row_blk_sizes, col_blk_size=col_blk_sizes, &
-                              nze=0)
+                              row_blk_size=row_blk_sizes, col_blk_size=col_blk_sizes)
             CALL cp_dbcsr_alloc_block_from_nbl(matrix_s(i1, i2)%matrix, sab_nl)
          END DO
       END DO

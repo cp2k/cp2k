@@ -769,7 +769,7 @@ CONTAINS
          ALLOCATE (matrix)
       END IF
 
-      CALL dbcsr_create(matrix, matrix_name, dbcsr_dist, matrix_type, row_blk_sizes, col_blk_sizes, nze=0)
+      CALL dbcsr_create(matrix, matrix_name, dbcsr_dist, matrix_type, row_blk_sizes, col_blk_sizes)
       CALL cp_dbcsr_alloc_block_from_nbl(matrix, sab)
 
       CALL timestop(handle)

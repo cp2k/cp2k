@@ -1298,7 +1298,7 @@ CONTAINS
                END IF
                ALLOCATE (matrixkp_ks(ispin, ic)%matrix)
                CALL dbcsr_create(matrix=matrixkp_ks(ispin, ic)%matrix, template=refmatrix, &
-                                 name=TRIM(headline), matrix_type=dbcsr_type_symmetric, nze=0)
+                                 name=TRIM(headline), matrix_type=dbcsr_type_symmetric)
                CALL cp_dbcsr_alloc_block_from_nbl(matrixkp_ks(ispin, ic)%matrix, sab_orb)
                CALL dbcsr_set(matrixkp_ks(ispin, ic)%matrix, 0.0_dp)
             END DO
@@ -1325,7 +1325,7 @@ CONTAINS
                   ALLOCATE (matrixkp_im_ks(ispin, ic)%matrix)
                   refmatrix => matrixkp_ks(ispin, ic)%matrix  ! base on real part, but anti-symmetric
                   CALL dbcsr_create(matrix=matrixkp_im_ks(ispin, ic)%matrix, template=refmatrix, &
-                                    name=TRIM(headline), matrix_type=dbcsr_type_antisymmetric, nze=0)
+                                    name=TRIM(headline), matrix_type=dbcsr_type_antisymmetric)
                   CALL cp_dbcsr_alloc_block_from_nbl(matrixkp_im_ks(ispin, ic)%matrix, sab_orb)
                   CALL dbcsr_set(matrixkp_im_ks(ispin, ic)%matrix, 0.0_dp)
                END DO

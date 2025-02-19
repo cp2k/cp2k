@@ -245,7 +245,7 @@ CONTAINS
          ALLOCATE (mao_coef(ispin)%matrix)
          CALL dbcsr_create(matrix=mao_coef(ispin)%matrix, &
                            name="MAO_COEF", dist=dbcsr_dist, matrix_type=dbcsr_type_no_symmetry, &
-                           row_blk_size=row_blk_sizes, col_blk_size=col_blk_sizes, nze=0)
+                           row_blk_size=row_blk_sizes, col_blk_size=col_blk_sizes)
          CALL dbcsr_reserve_diag_blocks(matrix=mao_coef(ispin)%matrix)
       END DO
       DEALLOCATE (row_blk_sizes, col_blk_sizes)
@@ -269,15 +269,15 @@ CONTAINS
          ALLOCATE (mao_dmat(ispin)%matrix)
          CALL dbcsr_create(mao_dmat(ispin)%matrix, name="MAO density", dist=dbcsr_dist, &
                            matrix_type=dbcsr_type_symmetric, row_blk_size=col_blk_sizes, &
-                           col_blk_size=col_blk_sizes, nze=0)
+                           col_blk_size=col_blk_sizes)
          ALLOCATE (mao_smat(ispin)%matrix)
          CALL dbcsr_create(mao_smat(ispin)%matrix, name="MAO overlap", dist=dbcsr_dist, &
                            matrix_type=dbcsr_type_symmetric, row_blk_size=col_blk_sizes, &
-                           col_blk_size=col_blk_sizes, nze=0)
+                           col_blk_size=col_blk_sizes)
          ALLOCATE (mao_qmat(ispin)%matrix)
          CALL dbcsr_create(mao_qmat(ispin)%matrix, name="MAO covar density", dist=dbcsr_dist, &
                            matrix_type=dbcsr_type_symmetric, row_blk_size=col_blk_sizes, &
-                           col_blk_size=col_blk_sizes, nze=0)
+                           col_blk_size=col_blk_sizes)
       END DO
       CALL dbcsr_create(amat, name="MAO overlap", template=mao_dmat(1)%matrix)
       CALL dbcsr_create(tmat, name="MAO Overlap Inverse", template=amat)
@@ -622,15 +622,15 @@ CONTAINS
             mao_blk = row_blk_sizes
             mao_blk(ia) = col_blk_sizes(ia)
             CALL dbcsr_create(sumat, name="Smat", dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric, &
-                              row_blk_size=mao_blk, col_blk_size=mao_blk, nze=0)
+                              row_blk_size=mao_blk, col_blk_size=mao_blk)
             CALL cp_dbcsr_alloc_block_from_nbl(sumat, sab_orb)
             CALL dbcsr_create(cholmat, name="Cholesky matrix", dist=dbcsr_dist, &
-                              matrix_type=dbcsr_type_no_symmetry, row_blk_size=mao_blk, col_blk_size=mao_blk, nze=0)
+                              matrix_type=dbcsr_type_no_symmetry, row_blk_size=mao_blk, col_blk_size=mao_blk)
             CALL dbcsr_create(rumat, name="Rmat", dist=dbcsr_dist, matrix_type=dbcsr_type_no_symmetry, &
-                              row_blk_size=orb_blk, col_blk_size=mao_blk, nze=0)
+                              row_blk_size=orb_blk, col_blk_size=mao_blk)
             CALL cp_dbcsr_alloc_block_from_nbl(rumat, sab_orb, .TRUE.)
             CALL dbcsr_create(crumat, name="Rmat*Umat", dist=dbcsr_dist, matrix_type=dbcsr_type_no_symmetry, &
-                              row_blk_size=orb_blk, col_blk_size=mao_blk, nze=0)
+                              row_blk_size=orb_blk, col_blk_size=mao_blk)
             ! replicate row and col of smo matrix
             ALLOCATE (rowblock(natom))
             DO ib = 1, natom

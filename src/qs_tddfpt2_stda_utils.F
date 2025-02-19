@@ -207,11 +207,11 @@ CONTAINS
 
       CALL dbcsr_create(gamma_matrix(1)%matrix, name="gamma", dist=dbcsr_dist, &
                         matrix_type=dbcsr_type_symmetric, row_blk_size=row_blk_sizes, &
-                        col_blk_size=row_blk_sizes, nze=0)
+                        col_blk_size=row_blk_sizes)
       DO imat = 2, nmat
          CALL dbcsr_create(gamma_matrix(imat)%matrix, name="dgamma", dist=dbcsr_dist, &
                            matrix_type=dbcsr_type_antisymmetric, row_blk_size=row_blk_sizes, &
-                           col_blk_size=row_blk_sizes, nze=0)
+                           col_blk_size=row_blk_sizes)
       END DO
 
       DEALLOCATE (row_blk_sizes)

@@ -927,7 +927,7 @@ CONTAINS
                            name=TRIM(matnames), &
                            dist=dbcsr_dist, matrix_type=symmetry_type, &
                            row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-                           nze=0, mutable_work=.TRUE.)
+                           mutable_work=.TRUE.)
          CALL cp_dbcsr_alloc_block_from_nbl(matrices(i)%matrix, sab_nl)
       END DO
 
@@ -1015,7 +1015,7 @@ CONTAINS
                               name=TRIM(matnames), &
                               dist=dbcsr_dist, matrix_type=symmetry_type, &
                               row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-                              nze=0, mutable_work=.TRUE.)
+                              mutable_work=.TRUE.)
             CALL cp_dbcsr_alloc_block_from_nbl(matrices(i, img)%matrix, sab_nl)
          END DO
       END DO

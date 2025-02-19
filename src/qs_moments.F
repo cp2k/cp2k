@@ -1577,8 +1577,7 @@ CONTAINS
          CALL dbcsr_create(matrix=sinmat(1, i)%matrix, &
                            name="SINMAT", &
                            dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric, &
-                           row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-                           nze=0)
+                           row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes)
          CALL cp_dbcsr_alloc_block_from_nbl(sinmat(1, i)%matrix, sab_orb)
          CALL dbcsr_set(sinmat(1, i)%matrix, 0.0_dp)
          ! cos
@@ -1586,8 +1585,7 @@ CONTAINS
          CALL dbcsr_create(matrix=cosmat(1, i)%matrix, &
                            name="COSMAT", &
                            dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric, &
-                           row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-                           nze=0)
+                           row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes)
          CALL cp_dbcsr_alloc_block_from_nbl(cosmat(1, i)%matrix, sab_orb)
          CALL dbcsr_set(cosmat(1, i)%matrix, 0.0_dp)
       END DO

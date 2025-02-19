@@ -190,7 +190,7 @@ CONTAINS
             ALLOCATE (quambo(ispin)%matrix)
             CALL dbcsr_create(matrix=quambo(ispin)%matrix, &
                               name="QUAMBO", dist=dbcsr_dist, matrix_type=dbcsr_type_no_symmetry, &
-                              row_blk_size=row_blk_sizes, col_blk_size=col_blk_sizes, nze=0)
+                              row_blk_size=row_blk_sizes, col_blk_size=col_blk_sizes)
          END DO
 
          ! initialize MAOs
@@ -199,7 +199,7 @@ CONTAINS
 
          ! sortho (nmao x nmao)
          CALL dbcsr_create(sortho, name="SORTHO", dist=dbcsr_dist, matrix_type=dbcsr_type_no_symmetry, &
-                           row_blk_size=col_blk_sizes, col_blk_size=col_blk_sizes, nze=0)
+                           row_blk_size=col_blk_sizes, col_blk_size=col_blk_sizes)
          CALL dbcsr_reserve_diag_blocks(matrix=sortho)
 
          DEALLOCATE (row_blk_sizes, col_blk_sizes)

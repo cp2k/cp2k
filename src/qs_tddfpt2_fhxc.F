@@ -288,7 +288,7 @@ CONTAINS
                      ALLOCATE (A_xc_munu_sub(ispin)%matrix)
                      CALL dbcsr_create(matrix=A_xc_munu_sub(ispin)%matrix, name="ADMM_XC", &
                                        dist=sub_env%dbcsr_dist, matrix_type=dbcsr_type_symmetric, &
-                                       row_blk_size=blk_sizes, col_blk_size=blk_sizes, nze=0)
+                                       row_blk_size=blk_sizes, col_blk_size=blk_sizes)
                      CALL cp_dbcsr_alloc_block_from_nbl(A_xc_munu_sub(ispin)%matrix, sub_env%sab_aux_fit)
                      CALL dbcsr_set(A_xc_munu_sub(ispin)%matrix, 0.0_dp)
                   END DO

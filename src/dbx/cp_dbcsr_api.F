@@ -19,7 +19,8 @@ MODULE cp_dbcsr_api
         dbcsr_copy_prv => dbcsr_copy, dbcsr_create_prv => dbcsr_create, dbcsr_csr_create, &
         dbcsr_csr_create_from_dbcsr_prv => dbcsr_csr_create_from_dbcsr, &
         dbcsr_csr_dbcsr_blkrow_dist, dbcsr_csr_destroy, dbcsr_csr_eqrow_floor_dist, &
-        dbcsr_csr_p_type, dbcsr_csr_print_sparsity, dbcsr_csr_type, dbcsr_csr_write, &
+        dbcsr_csr_p_type, dbcsr_csr_print_sparsity, dbcsr_csr_type, &
+        dbcsr_csr_type_real_8 => dbcsr_type_real_8, dbcsr_csr_write, &
         dbcsr_desymmetrize_prv => dbcsr_desymmetrize, dbcsr_distribute_prv => dbcsr_distribute, &
         dbcsr_distribution_get_num_images, dbcsr_distribution_get_prv => dbcsr_distribution_get, &
         dbcsr_distribution_hold_prv => dbcsr_distribution_hold, &
@@ -29,8 +30,7 @@ MODULE cp_dbcsr_api
         dbcsr_filter_prv => dbcsr_filter, dbcsr_finalize_lib, &
         dbcsr_finalize_prv => dbcsr_finalize, dbcsr_get_block_diag_prv => dbcsr_get_block_diag, &
         dbcsr_get_block_p_prv => dbcsr_get_block_p, dbcsr_get_data_p_prv => dbcsr_get_data_p, &
-        dbcsr_get_data_size_prv => dbcsr_get_data_size, &
-        dbcsr_get_data_type_prv => dbcsr_get_data_type, dbcsr_get_default_config, &
+        dbcsr_get_data_size_prv => dbcsr_get_data_size, dbcsr_get_default_config, &
         dbcsr_get_diag_prv => dbcsr_get_diag, dbcsr_get_info_prv => dbcsr_get_info, &
         dbcsr_get_matrix_type_prv => dbcsr_get_matrix_type, &
         dbcsr_get_num_blocks_prv => dbcsr_get_num_blocks, &
@@ -61,7 +61,7 @@ MODULE cp_dbcsr_api
         dbcsr_test_mm, dbcsr_trace_prv => dbcsr_trace, dbcsr_transpose, &
         dbcsr_transposed_prv => dbcsr_transposed, dbcsr_type_antisymmetric, dbcsr_type_complex_8, &
         dbcsr_type_no_symmetry, dbcsr_type_prv => dbcsr_type, dbcsr_type_real_8, &
-        dbcsr_type_real_default, dbcsr_type_symmetric, dbcsr_valid_index_prv => dbcsr_valid_index, &
+        dbcsr_type_symmetric, dbcsr_valid_index_prv => dbcsr_valid_index, &
         dbcsr_verify_matrix_prv => dbcsr_verify_matrix, dbcsr_work_create_prv => dbcsr_work_create
    USE dbm_api,                         ONLY: &
         dbm_add, dbm_checksum, dbm_clear, dbm_copy, dbm_distribution_obj, dbm_iterator, &
@@ -80,8 +80,6 @@ MODULE cp_dbcsr_api
    PUBLIC :: dbcsr_type_antisymmetric
    PUBLIC :: dbcsr_transpose
    PUBLIC :: dbcsr_no_transpose
-   PUBLIC :: dbcsr_type_real_8
-   PUBLIC :: dbcsr_type_real_default
 
    ! types
    PUBLIC :: dbcsr_type
@@ -156,7 +154,6 @@ MODULE cp_dbcsr_api
    PUBLIC :: dbcsr_nfullcols_total
    PUBLIC :: dbcsr_get_stored_coordinates
    PUBLIC :: dbcsr_valid_index
-   PUBLIC :: dbcsr_get_data_type
 
    ! work operations
    PUBLIC :: dbcsr_add_block_node
@@ -196,6 +193,7 @@ MODULE cp_dbcsr_api
    PUBLIC :: dbcsr_csr_print_sparsity
    PUBLIC :: dbcsr_csr_write
    PUBLIC :: dbcsr_csr_create_and_convert_complex
+   PUBLIC :: dbcsr_csr_type_real_8
 
    ! binary io
    PUBLIC :: dbcsr_binary_write
@@ -477,25 +475,22 @@ CONTAINS
 !> \param matrix_type ...
 !> \param row_blk_size ...
 !> \param col_blk_size ...
-!> \param nze ...
-!> \param data_type ...
 !> \param reuse_arrays ...
 !> \param mutable_work ...
 ! **************************************************************************************************
-   SUBROUTINE dbcsr_create_new(matrix, name, dist, matrix_type, row_blk_size, col_blk_size, nze, &
-                               data_type, reuse_arrays, mutable_work)
+   SUBROUTINE dbcsr_create_new(matrix, name, dist, matrix_type, row_blk_size, col_blk_size, &
+                               reuse_arrays, mutable_work)
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
       CHARACTER(len=*), INTENT(IN)                       :: name
       TYPE(dbcsr_distribution_type), INTENT(IN)          :: dist
       CHARACTER, INTENT(IN)                              :: matrix_type
       INTEGER, DIMENSION(:), INTENT(INOUT), POINTER      :: row_blk_size, col_blk_size
-      INTEGER, INTENT(IN), OPTIONAL                      :: nze, data_type
       LOGICAL, INTENT(IN), OPTIONAL                      :: reuse_arrays, mutable_work
 
       IF (USE_DBCSR_BACKEND) THEN
          CALL dbcsr_create_prv(matrix=matrix%dbcsr, name=name, dist=dist%dbcsr, &
                                matrix_type=matrix_type, row_blk_size=row_blk_size, &
-                               col_blk_size=col_blk_size, nze=nze, data_type=data_type, &
+                               col_blk_size=col_blk_size, nze=0, data_type=dbcsr_type_real_8, &
                                reuse_arrays=reuse_arrays, mutable_work=mutable_work)
       ELSE
          CPABORT("Not yet implemented for DBM.")
@@ -511,14 +506,11 @@ CONTAINS
 !> \param matrix_type ...
 !> \param row_blk_size ...
 !> \param col_blk_size ...
-!> \param nze ...
-!> \param data_type ...
 !> \param reuse_arrays ...
 !> \param mutable_work ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_create_template(matrix, name, template, dist, matrix_type, &
-                                    row_blk_size, col_blk_size, nze, data_type, &
-                                    reuse_arrays, mutable_work)
+                                    row_blk_size, col_blk_size, reuse_arrays, mutable_work)
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: name
       TYPE(dbcsr_type), INTENT(IN)                       :: template
@@ -527,14 +519,13 @@ CONTAINS
       CHARACTER, INTENT(IN), OPTIONAL                    :: matrix_type
       INTEGER, DIMENSION(:), INTENT(INOUT), OPTIONAL, &
          POINTER                                         :: row_blk_size, col_blk_size
-      INTEGER, INTENT(IN), OPTIONAL                      :: nze, data_type
       LOGICAL, INTENT(IN), OPTIONAL                      :: reuse_arrays, mutable_work
 
       IF (USE_DBCSR_BACKEND) THEN
          CALL dbcsr_create_prv(matrix=matrix%dbcsr, name=name, template=template%dbcsr, &
                                dist=dist%dbcsr, matrix_type=matrix_type, &
                                row_blk_size=row_blk_size, col_blk_size=col_blk_size, &
-                               nze=nze, data_type=data_type, reuse_arrays=reuse_arrays, &
+                               nze=0, data_type=dbcsr_type_real_8, reuse_arrays=reuse_arrays, &
                                mutable_work=mutable_work)
       ELSE
          CPABORT("Not yet implemented for DBM.")
@@ -820,19 +811,17 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param matrix ...
-!> \param select_data_type ...
 !> \param lb ...
 !> \param ub ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION dbcsr_get_data_p(matrix, select_data_type, lb, ub) RESULT(res)
+   FUNCTION dbcsr_get_data_p(matrix, lb, ub) RESULT(res)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
-      REAL(kind=dp), INTENT(IN)                          :: select_data_type
       INTEGER, INTENT(IN), OPTIONAL                      :: lb, ub
       REAL(kind=dp), DIMENSION(:), POINTER               :: res
 
       IF (USE_DBCSR_BACKEND) THEN
-         res => dbcsr_get_data_p_prv(matrix%dbcsr, select_data_type, lb, ub)
+         res => dbcsr_get_data_p_prv(matrix%dbcsr, select_data_type=0.0_dp, lb=lb, ub=ub)
       ELSE
          CPABORT("Not yet implemented for DBM.")
       END IF
@@ -853,22 +842,6 @@ CONTAINS
          CPABORT("Not yet implemented for DBM.")
       END IF
    END FUNCTION dbcsr_get_data_size
-
-! **************************************************************************************************
-!> \brief ...
-!> \param matrix ...
-!> \return ...
-! **************************************************************************************************
-   FUNCTION dbcsr_get_data_type(matrix) RESULT(data_type)
-      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
-      INTEGER                                            :: data_type
-
-      IF (USE_DBCSR_BACKEND) THEN
-         data_type = dbcsr_get_data_type_prv(matrix%dbcsr)
-      ELSE
-         CPABORT("Not yet implemented for DBM.")
-      END IF
-   END FUNCTION dbcsr_get_data_type
 
 ! **************************************************************************************************
 !> \brief ...
@@ -910,7 +883,6 @@ CONTAINS
 !> \param distribution ...
 !> \param name ...
 !> \param matrix_type ...
-!> \param data_type ...
 !> \param group ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_get_info(matrix, nblkrows_total, nblkcols_total, &
@@ -918,7 +890,7 @@ CONTAINS
                              nfullrows_local, nfullcols_local, my_prow, my_pcol, &
                              local_rows, local_cols, proc_row_dist, proc_col_dist, &
                              row_blk_size, col_blk_size, row_blk_offset, col_blk_offset, &
-                             distribution, name, matrix_type, data_type, group)
+                             distribution, name, matrix_type, group)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       INTEGER, INTENT(OUT), OPTIONAL :: nblkrows_total, nblkcols_total, nfullrows_total, &
          nfullcols_total, nblkrows_local, nblkcols_local, nfullrows_local, nfullcols_local, &
@@ -929,7 +901,6 @@ CONTAINS
          OPTIONAL                                        :: distribution
       CHARACTER(len=*), INTENT(OUT), OPTIONAL            :: name
       CHARACTER, INTENT(OUT), OPTIONAL                   :: matrix_type
-      INTEGER, INTENT(OUT), OPTIONAL                     :: data_type
       TYPE(mp_comm_type), INTENT(OUT), OPTIONAL          :: group
 
       INTEGER                                            :: group_handle
@@ -958,7 +929,6 @@ CONTAINS
                                  distribution=my_distribution, &
                                  name=name, &
                                  matrix_type=matrix_type, &
-                                 data_type=data_type, &
                                  group=group_handle)
 
          IF (PRESENT(distribution)) distribution%dbcsr = my_distribution

@@ -187,11 +187,11 @@ CONTAINS
             ALLOCATE (sqmat(ispin)%matrix)
             CALL dbcsr_create(matrix=sqmat(ispin)%matrix, &
                               name="SQMAT", dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric, &
-                              row_blk_size=col_blk_sizes, col_blk_size=col_blk_sizes, nze=0)
+                              row_blk_size=col_blk_sizes, col_blk_size=col_blk_sizes)
             ALLOCATE (pqmat(ispin)%matrix)
             CALL dbcsr_create(matrix=pqmat(ispin)%matrix, &
                               name="PQMAT", dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric, &
-                              row_blk_size=col_blk_sizes, col_blk_size=col_blk_sizes, nze=0)
+                              row_blk_size=col_blk_sizes, col_blk_size=col_blk_sizes)
          END DO
          DEALLOCATE (row_blk_sizes, col_blk_sizes)
 

@@ -2291,7 +2291,7 @@ CONTAINS
             ALLOCATE (matrix_k_tilde(ispin, img)%matrix)
             CALL dbcsr_create(matrix=matrix_k_tilde(ispin, img)%matrix, template=matrix_ks_kp(1, 1)%matrix, &
                               name='MATRIX K_tilde '//TRIM(ADJUSTL(cp_to_string(ispin)))//'_'//TRIM(ADJUSTL(cp_to_string(img))), &
-                              matrix_type=dbcsr_type_symmetric, nze=0)
+                              matrix_type=dbcsr_type_symmetric)
             CALL cp_dbcsr_alloc_block_from_nbl(matrix_k_tilde(ispin, img)%matrix, sab_kp)
             CALL dbcsr_set(matrix_k_tilde(ispin, img)%matrix, 0.0_dp)
          END DO

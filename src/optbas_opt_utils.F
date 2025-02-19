@@ -108,8 +108,7 @@ CONTAINS
                           row_blk_size=row_blk_sizes, col_blk_size=col_blk_sizes)
       CALL dbcsr_create(matrix=Qt, name="Qt", &
                         dist=dbcsr_dist, matrix_type=dbcsr_type_no_symmetry, &
-                        row_blk_size=col_blk_sizes, col_blk_size=row_blk_sizes, &
-                        nze=0)
+                        row_blk_size=col_blk_sizes, col_blk_size=row_blk_sizes)
       CALL dbcsr_transposed(Qt, Q)
       !
       fval = 0.0_dp

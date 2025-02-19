@@ -19,8 +19,7 @@ MODULE dm_ls_scf_qs
         dbcsr_complete_redistribute, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, &
         dbcsr_distribution_get, dbcsr_distribution_hold, dbcsr_distribution_new, &
         dbcsr_distribution_release, dbcsr_distribution_type, dbcsr_finalize, dbcsr_get_info, &
-        dbcsr_multiply, dbcsr_nblkrows_total, dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type, &
-        dbcsr_type_real_8
+        dbcsr_multiply, dbcsr_nblkrows_total, dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -103,8 +102,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'matrix_ls_create'
 
       CHARACTER(len=default_string_length)               :: name
-      INTEGER                                            :: handle, iatom, imol, jatom, &
-                                                            ls_data_type, natom, nmol
+      INTEGER                                            :: handle, iatom, imol, jatom, natom, nmol
       INTEGER, ALLOCATABLE, DIMENSION(:), TARGET         :: atom_to_cluster, atom_to_cluster_primus, &
                                                             clustered_blk_sizes, primus_of_mol
       INTEGER, DIMENSION(:), POINTER                     :: clustered_col_dist, clustered_row_dist, &
@@ -117,7 +115,6 @@ CONTAINS
       CALL dbcsr_get_info(matrix_qs, col_blk_size=ls_blk_sizes, distribution=ls_dist)
       CALL dbcsr_distribution_hold(ls_dist)
       CALL dbcsr_distribution_get(ls_dist, row_dist=ls_row_dist, col_dist=ls_col_dist)
-      ls_data_type = dbcsr_type_real_8
 
       ! PAO ----------------------------------------------------------------------------------------
       IF (ls_mstruct%do_pao) THEN
@@ -189,7 +186,6 @@ CONTAINS
                         name=name, &
                         dist=ls_dist, &
                         matrix_type="S", &
-                        data_type=ls_data_type, &
                         row_blk_size=ls_blk_sizes, &
                         col_blk_size=ls_blk_sizes)
       CALL dbcsr_distribution_release(ls_dist)
@@ -273,7 +269,7 @@ CONTAINS
 
       SELECT CASE (ls_mstruct%cluster_type)
       CASE (ls_cluster_atomic)
-         CALL dbcsr_copy(matrix_out, matrix_in) ! takes care of an eventual data_type conversion
+         CALL dbcsr_copy(matrix_out, matrix_in)
 
       CASE (ls_cluster_molecular)
          ! desymmetrize the qs matrix
@@ -281,7 +277,7 @@ CONTAINS
          CALL dbcsr_desymmetrize(matrix_in, matrix_in_nosym)
 
          ! perform the magic complete redistribute copy
-         CALL dbcsr_complete_redistribute(matrix_in_nosym, matrix_out); 
+         CALL dbcsr_complete_redistribute(matrix_in_nosym, matrix_out)
          CALL dbcsr_release(matrix_in_nosym)
 
       CASE DEFAULT
@@ -377,7 +373,7 @@ CONTAINS
 
       SELECT CASE (ls_mstruct%cluster_type)
       CASE (ls_cluster_atomic)
-         CALL dbcsr_copy(matrix_out, matrix_in) ! takes care of an eventual data_type conversion
+         CALL dbcsr_copy(matrix_out, matrix_in)
 
       CASE (ls_cluster_molecular)
          ! perform the magic complete redistribute copy

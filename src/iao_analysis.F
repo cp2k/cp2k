@@ -1437,10 +1437,10 @@ CONTAINS
 
       CALL dbcsr_create(iao_vec, name="IAO_VEC", dist=dbcsr_dist, &
                         matrix_type=dbcsr_type_no_symmetry, row_blk_size=orb_blk_sizes, &
-                        col_blk_size=iao_blk_sizes, nze=0)
+                        col_blk_size=iao_blk_sizes)
       CALL dbcsr_create(sx_vec, name="SX_VEC", dist=dbcsr_dist, &
                         matrix_type=dbcsr_type_no_symmetry, row_blk_size=oce_blk_sizes, &
-                        col_blk_size=iao_blk_sizes, nze=0)
+                        col_blk_size=iao_blk_sizes)
       CALL dbcsr_reserve_diag_blocks(matrix=sx_vec)
 
       nkind = SIZE(smat_kind)

@@ -193,7 +193,7 @@ CONTAINS
                         name="Nonadditive kinetic energy potential", &
                         dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric, &
                         row_blk_size=row_blk_sizes, col_blk_size=col_blk_sizes, &
-                        nze=0, reuse_arrays=.TRUE.)
+                        reuse_arrays=.TRUE.)
       CALL cp_dbcsr_alloc_block_from_nbl(matrix_kg(1)%matrix, sab_orb)
       CALL dbcsr_set(matrix_kg(1)%matrix, 0.0_dp)
 

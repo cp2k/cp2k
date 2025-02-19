@@ -299,7 +299,7 @@ CONTAINS
                            name="density_matrix0", &
                            dist=dbcsr_dist, matrix_type=dbcsr_type_no_symmetry, &
                            row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-                           nze=0, mutable_work=.TRUE.)
+                           mutable_work=.TRUE.)
          CALL cp_dbcsr_alloc_block_from_nbl(density_matrix0(ispin)%matrix, sab_all)
          !
          !density_matrix_a
@@ -2374,7 +2374,7 @@ CONTAINS
                         name="op_mom", &
                         dist=dbcsr_dist, matrix_type=dbcsr_type_no_symmetry, &
                         row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-                        nze=0, mutable_work=.TRUE.)
+                        mutable_work=.TRUE.)
       CALL cp_dbcsr_alloc_block_from_nbl(op_mom_ao(1)%matrix, sab_all)
 
       DO idir2 = 1, 3
@@ -2400,7 +2400,7 @@ CONTAINS
                         name="op_p_ao", &
                         dist=dbcsr_dist, matrix_type=dbcsr_type_antisymmetric, &
                         row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-                        nze=0, mutable_work=.TRUE.)
+                        mutable_work=.TRUE.)
       CALL cp_dbcsr_alloc_block_from_nbl(op_p_ao(1)%matrix, sab_orb)
 
       DO idir = 2, 3
@@ -2786,7 +2786,7 @@ CONTAINS
                         name="op_mom", &
                         dist=dbcsr_dist, matrix_type=dbcsr_type_no_symmetry, &
                         row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-                        nze=0, mutable_work=.TRUE.)
+                        mutable_work=.TRUE.)
       CALL cp_dbcsr_alloc_block_from_nbl(op_mom_ao(1)%matrix, sab_all)
 
       DO idir2 = 1, 3
@@ -2812,7 +2812,7 @@ CONTAINS
                         name="op_p_ao", &
                         dist=dbcsr_dist, matrix_type=dbcsr_type_antisymmetric, &
                         row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-                        nze=0, mutable_work=.TRUE.)
+                        mutable_work=.TRUE.)
       CALL cp_dbcsr_alloc_block_from_nbl(op_p_ao(1)%matrix, sab_orb)
 
       DO idir = 2, 3

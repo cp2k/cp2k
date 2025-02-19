@@ -365,8 +365,7 @@ CONTAINS
       CALL dbcsr_get_info(smat, distribution=dbcsr_dist)
       CALL dbcsr_create(matrix=dmat, name="DMAT", &
                         dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric, &
-                        row_blk_size=refbas_blk_sizes, col_blk_size=refbas_blk_sizes, &
-                        nze=0)
+                        row_blk_size=refbas_blk_sizes, col_blk_size=refbas_blk_sizes)
       CALL dbcsr_reserve_diag_blocks(dmat)
       !
       NULLIFY (fm_struct)
