@@ -113,6 +113,7 @@ RUN  ./scripts/stage9/install_stage9.sh && rm -rf ./build
 # Stage 1b: Build CP2K with CMake
 WORKDIR /opt/cp2k
 COPY ./CMakeLists.txt .
+COPY ./benchmarks/QS/00512_H2O ./benchmarks/QS/00512_H2O
 COPY ./cmake ./cmake
 COPY ./data ./data
 COPY ./src ./src
