@@ -26,10 +26,9 @@ MODULE qs_scf_post_gpw
    USE cp_array_utils,                  ONLY: cp_1d_r_p_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_add, &
                                               dbcsr_p_type,&
-                                              dbcsr_type, dbcsr_set,&
-                                              dbcsr_create, dbcsr_release
+                                              dbcsr_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               dbcsr_deallocate_matrix_set, &
                                               dbcsr_allocate_matrix_set
@@ -162,7 +161,7 @@ MODULE qs_scf_post_gpw
                                               make_mo_eig
    USE qs_mo_occupation,                ONLY: set_mo_occupation
    USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_type
+                                              mo_set_type, deallocate_mo_set
    USE qs_moments,                      ONLY: qs_moment_berry_phase,&
                                               qs_moment_locop
    USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
@@ -1755,27 +1754,21 @@ CONTAINS
          CALL section_vals_get(trexio_section, explicit=explicit)
          IF (explicit) THEN
             CALL write_trexio(qs_env, trexio_section)
-            ! testing
+
+            !!!!! Testing read_trexio
             ALLOCATE (mos_trexio(dft_control%nspins))
             ! allocate the energy derivative matrix
-            ! ALLOCATE (energy_derivative(dft_control%nspins))
-
             NULLIFY (energy_derivative)
             CALL dbcsr_allocate_matrix_set(energy_derivative, dft_control%nspins)
-            CALL get_qs_env(qs_env, matrix_s=matrix_s)
-            DO ispin = 1, dft_control%nspins
-               ALLOCATE (energy_derivative(ispin)%matrix)
-               CALL dbcsr_create(matrix=energy_derivative(ispin)%matrix, &
-                                 template=matrix_s(ispin)%matrix, name='Energy Derivative')
-               CALL dbcsr_set(energy_derivative(ispin)%matrix, 0.0_dp)
-            END DO
             CALL read_trexio(qs_env, trexio_section, mos_trexio, energy_derivative)
-            DEALLOCATE (mos_trexio)
-            DO ispin = 1, dft_control%nspins
-               CALL dbcsr_release(energy_derivative(ispin)%matrix)
-               DEALLOCATE (energy_derivative(ispin)%matrix)
+            ! deallocate everything
+            DO ispin = 1, SIZE(mos_trexio)
+               CALL deallocate_mo_set(mos_trexio(ispin))
             END DO
-            !!!
+            DEALLOCATE (mos_trexio)
+            CALL dbcsr_deallocate_matrix_set(energy_derivative)
+            !!!!!!
+
          END IF
          IF (.NOT. do_kpoints) THEN
             CALL get_qs_env(qs_env, mos=mos, matrix_ks=ks_rmpv)

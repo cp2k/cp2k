@@ -32,7 +32,8 @@ MODULE trexio_utils
                               cp_logger_type
    USE cp_dbcsr_api, ONLY: dbcsr_p_type, dbcsr_iterator_type, dbcsr_iterator_start, &
                            dbcsr_iterator_stop, dbcsr_iterator_blocks_left, &
-                           dbcsr_reserve_all_blocks, dbcsr_iterator_next_block
+                           dbcsr_reserve_all_blocks, dbcsr_iterator_next_block, &
+                           dbcsr_copy, dbcsr_set
    USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
    USE external_potential_types, ONLY: sgp_potential_type, get_potential
    USE input_section_types, ONLY: section_vals_type, section_vals_get, &
@@ -1015,7 +1016,8 @@ CONTAINS
                                                             save_cartesian, i, j, k, l, m, imo, ishell, &
                                                             nshell, shell_num, nucleus_num, natoms, ikind, &
                                                             iatom, nrow_global, nelectron, nrows, ncols, &
-                                                            row, col, blk_row, blk_col, row_size, col_size
+                                                            row, col, row_size, col_size, &
+                                                            row_offset, col_offset
       INTEGER, DIMENSION(2)                              :: nmo_spin, electron_num
       INTEGER, DIMENSION(:), ALLOCATABLE                 :: mo_spin, shell_ang_mom, trexio_to_cp2k_ang_mom
 
@@ -1028,9 +1030,9 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: mo_coeff_ref, mo_coeff_target
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
       TYPE(cp_blacs_env_type), POINTER                   :: context
-      ! TYPE(cell_type), POINTER                           :: cell => Null()
       TYPE(mp_para_env_type), POINTER                    :: para_env => Null()
       TYPE(dft_control_type), POINTER                    :: dft_control => Null()
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s => Null()
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: kind_set => Null()
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos => Null()
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set => Null()
@@ -1168,10 +1170,6 @@ CONTAINS
          END DO
          CPASSERT(mo_num == SUM(nmo_spin))
 
-            ! ALLOCATE (ao_shell(ao_num))
-            ! rc = trexio_read_ao_shell(f, ao_shell)
-            ! CALL trexio_error(rc)
-
          ALLOCATE (mo_coefficient(ao_num, mo_num))
          ALLOCATE (mo_energy(mo_num))
          ALLOCATE (mo_occupation(mo_num))
@@ -1286,7 +1284,8 @@ CONTAINS
             WRITE(output_unit, "((T2,A))") 'TREXIO| Reading Energy derivatives...'
          END IF
 
-         ! Temporary solution: allocate here the energy derivatives matrix
+         ! Temporary solution: allocate here the energy derivatives matrix here
+         ! assuming that nsgf is the same as the number read from the dEdP file
          ! TODO: once available in TREXIO, first read size and then allocate
          ! in the same way done for the MOs
          ALLOCATE (dEdP(nsgf, nsgf))
@@ -1314,12 +1313,6 @@ CONTAINS
                READ(unit_dE, *) (dEdP(i,j), j=1, ncols)
             END DO
 
-            !!!! DEBUG
-            ! DO i = 1, 5
-            !    WRITE(output_unit,'(*(F12.8))') (dEdP(i,j), j=1, 5)
-            ! END DO
-            !!!!
-
             CALL close_file(unit_number=unit_dE)
          END IF
 
@@ -1339,12 +1332,6 @@ CONTAINS
          END DO
          CPASSERT(i == nsgf)
 
-         !!!! DEBUG
-         ! DO i = 1, nsgf
-         !    WRITE(output_unit, '(*(I4,A,I4))') i, ' → ', trexio_to_cp2k_ang_mom(i)
-         ! END DO
-         !!!!
-
          ! Reshuffle
          ALLOCATE(temp(nsgf, nsgf))
          temp(:,:) = dEdP(:,:)
@@ -1357,42 +1344,43 @@ CONTAINS
          END DO
 
          DEALLOCATE(temp)
-         !!!! DEBUG
-         ! IF (output_unit > 1) THEN
-         !    DO i = 1, 5
-         !       WRITE(output_unit,'(*(F12.8))') (dEdP(i,j), j=1, 5)
-         !    END DO
-         ! END IF
-         !!!!
 
+         CALL get_qs_env(qs_env, matrix_ks=matrix_s)
          DO ispin = 1, nspins
-            ASSOCIATE(matrix => energy_derivative(ispin)%matrix)
-            CALL cp_dbcsr_write_sparse_matrix(matrix, 4, 4, qs_env, para_env, &
-                                              output_unit=output_unit, omit_headers=.false.)
+            ALLOCATE (energy_derivative(ispin)%matrix)
 
-            CALL dbcsr_reserve_all_blocks(matrix)
-            CALL dbcsr_iterator_start(iter, matrix)
+            ! we use the overlap matrix as a template, copying it but removing the sparsity
+            CALL dbcsr_copy(energy_derivative(ispin)%matrix, matrix_s(ispin)%matrix, &
+                            name='Energy Derivative', keep_sparsity=.FALSE.)
+            CALL dbcsr_set(energy_derivative(ispin)%matrix, 0.0_dp)
+
+            !!!! DEBUG
+            ! CALL cp_dbcsr_write_sparse_matrix(energy_derivative(ispin)%matrix, 4, 4, qs_env, para_env, &
+            !                                   output_unit=output_unit, omit_headers=.false.)
+            !!!!
+
+            ! CALL dbcsr_reserve_all_blocks(matrix)
+            CALL dbcsr_iterator_start(iter,energy_derivative(ispin)%matrix)
             DO WHILE (dbcsr_iterator_blocks_left(iter))
                CALL dbcsr_iterator_next_block(iter, row, col, data_block, &
-                                       row_size=row_size, col_size=col_size)
+                                       row_size=row_size, col_size=col_size, &
+                                       row_offset=row_offset, col_offset=col_offset)
 
                ! Copy data from array to block
-               DO blk_col = 1, col_size
-                  DO blk_row = 1, row_size
-                     i = row + blk_row - 1
-                     j = col + blk_col - 1
-                     ! WRITE(output_unit, '(*(A, I4,A,I4))') 'Accessing element', i, ',',j
-                     data_block(blk_row, blk_col) = dEdP(i,j)
+               DO i = 1, row_size
+                  DO j = 1, col_size
+                     data_block(i, j) = dEdP(row_offset + i - 1, col_offset + j - 1)
                   END DO
                END DO
             END DO
             CALL dbcsr_iterator_stop(iter)
-            CALL cp_dbcsr_write_sparse_matrix(matrix, 4, 4, qs_env, para_env, &
-                                              output_unit=output_unit, omit_headers=.false.)
-            END ASSOCIATE
+            !!!! DEBUG
+            ! CALL cp_dbcsr_write_sparse_matrix(energy_derivative(ispin)%matrix, 4, 4, qs_env, para_env, &
+            !                                   output_unit=output_unit, omit_headers=.false.)
+            !!!!
          END DO
 
-      END IF
+      END IF ! finished reading energy derivatives
 
       ! Clean up
       IF (ALLOCATED(shell_ang_mom)) DEALLOCATE (shell_ang_mom)
