@@ -16,8 +16,8 @@ MODULE mscfg_types
         dbcsr_add, dbcsr_complete_redistribute, dbcsr_create, dbcsr_distribution_get, &
         dbcsr_distribution_new, dbcsr_distribution_release, dbcsr_distribution_type, &
         dbcsr_finalize, dbcsr_get_info, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_release, &
-        dbcsr_reserve_block2d, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_work_create
+        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_put_block, &
+        dbcsr_release, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_work_create
    USE kinds,                           ONLY: dp
 #include "./base/base_uses.f90"
 
@@ -199,7 +199,7 @@ CONTAINS
       INTEGER, DIMENSION(2)                              :: add_blocks_before
       INTEGER, DIMENSION(:), POINTER :: blk_distr, blk_sizes, block_sizes_new, col_distr_new, &
          col_sizes_new, distr_new_array, row_distr_new, row_sizes_new
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: data_p, p_new_block
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: data_p
       TYPE(dbcsr_distribution_type)                      :: dist_new, dist_qs
       TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(dbcsr_type)                                   :: matrix_new
@@ -299,17 +299,10 @@ CONTAINS
          ! that of the small matrix but has the same number of columns and rows
          ! as the super-system matrix. this is necessary for complete redistribute
          ! to work
-         NULLIFY (p_new_block)
-         CALL dbcsr_reserve_block2d(matrix_new, &
-                                    iblock_row + add_blocks_before(1), &
-                                    iblock_col + add_blocks_before(2), &
-                                    p_new_block)
-
-         CPASSERT(ASSOCIATED(p_new_block))
-         CPASSERT(SIZE(p_new_block, 1) .EQ. SIZE(data_p, 1))
-         CPASSERT(SIZE(p_new_block, 2) .EQ. SIZE(data_p, 2))
-
-         p_new_block(:, :) = data_p(:, :)
+         CALL dbcsr_put_block(matrix_new, &
+                              row=iblock_row + add_blocks_before(1), &
+                              col=iblock_col + add_blocks_before(2), &
+                              block=data_p)
 
       END DO
       CALL dbcsr_iterator_stop(iter)
