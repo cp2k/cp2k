@@ -12,8 +12,7 @@ MODULE realspace_grid_cube
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
-   USE cp_output_handling,              ONLY: cp_openpmd_get_unit_nr,&
-                                              cp_openpmd_per_call_value_type
+   USE cp_output_handling,              ONLY: cp_openpmd_get_unit_nr
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: &
         file_amode_rdonly, file_offset, mp_comm_type, mp_file_descriptor_type, mp_file_type, &
@@ -63,10 +62,10 @@ CONTAINS
       INTEGER, PARAMETER                                 :: entry_len = 13, num_entries_line = 6
 
       INTEGER :: checksum, dest, handle, i, I1, I2, I3, iat, ip, L1, L2, L3, msglen, my_rank, &
-         my_stride(3), np, num_linebreak, num_pe, rank(2), size_of_z, source, tag, U1, U2, U3
+         my_stride(3), np, num_linebreak, num_pe, openpmd_data_index, rank(2), size_of_z, source, &
+         tag, U1, U2, U3
       LOGICAL                                            :: be_silent, my_zero_tails, parallel_write
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: buf
-      TYPE(cp_openpmd_per_call_value_type)               :: openpmd_data
       TYPE(mp_comm_type)                                 :: gid
       TYPE(mp_file_type)                                 :: mp_unit
 
@@ -96,7 +95,7 @@ CONTAINS
       END IF
 
       IF (.TRUE.) THEN
-         openpmd_data = cp_openpmd_get_unit_nr(unit_nr)
+         openpmd_data_index = cp_openpmd_get_unit_nr(unit_nr)
          CALL timestop(handle)
          RETURN
       END IF

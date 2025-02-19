@@ -196,7 +196,7 @@ MODULE cp_output_handling
    ! Map that associates opened unit numbers with their associated openPMD content.
    ! Since CP2K logically opens a new file for every single dataset, multiple
    ! unit numbers may point to the same openPMD Series.
-   TYPE(cp_openpmd_per_call_type), ALLOCATABLE, TARGET :: cp_openpmd_per_call(:)
+   TYPE(cp_openpmd_per_call_type), ALLOCATABLE :: cp_openpmd_per_call(:)
    INTEGER :: cp_num_openpmd_per_call = 0
 
    ! TODO The below members should be distinguished by their callsites, such that
@@ -212,7 +212,7 @@ MODULE cp_output_handling
    !! ! openPMD Iteration number.
    !! TYPE(cp_current_iteration_counter_type) :: cp_current_iteration_counter
 
-   TYPE(cp_openpmd_per_callsite_type), ALLOCATABLE, TARGET :: cp_openpmd_per_callsite(:)
+   TYPE(cp_openpmd_per_callsite_type), ALLOCATABLE :: cp_openpmd_per_callsite(:)
    INTEGER :: cp_num_openpmd_per_callsite = 0
 
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -228,14 +228,18 @@ CONTAINS
    #:set map_counters = ['cp_num_openpmd_per_call', 'cp_num_openpmd_per_callsite']
 
    #:for name_suffix, key_type, value_type, map_storage, map_counter in zip(name_suffixes, key_types, value_types, map_storages, map_counters)
+
+      ! TODO Reallocation doesnt work like done in the below functions
+
       ! **************************************************************************************************
       !> \brief ...
       !> \param key ...
       !> \param value ...
       ! **************************************************************************************************
-      SUBROUTINE cp_openpmd_add_${name_suffix}$ (key, value)
+      FUNCTION cp_openpmd_add_${name_suffix}$ (key, value) RESULT(index)
          ${key_type}$, INTENT(in)                           :: key
          TYPE(${value_type}$), INTENT(in)                   :: value
+         INTEGER                                            :: index
 
          INTEGER                                            :: i
 
@@ -243,6 +247,7 @@ CONTAINS
          DO i = 1, ${map_counter}$
             IF (${map_storage}$ (i)%key == key) THEN
                ${map_storage}$ (i)%value = value
+               index = i
                RETURN
             END IF
          END DO
@@ -252,22 +257,25 @@ CONTAINS
          ALLOCATE (${map_storage}$ (${map_counter}$))
          ${map_storage}$ (${map_counter}$)%key = key
          ${map_storage}$ (${map_counter}$)%value = value
-      END SUBROUTINE cp_openpmd_add_${name_suffix}$
+         index = ${map_counter}$
+      END FUNCTION cp_openpmd_add_${name_suffix}$
 
       ! **************************************************************************************************
       !> \brief ...
       !> \param key ...
       !> \return ...
       ! **************************************************************************************************
-      FUNCTION cp_openpmd_get_${name_suffix}$ (key) RESULT(value)
+      FUNCTION cp_openpmd_get_${name_suffix}$ (key) RESULT(index)
          ${key_type}$, INTENT(in)                           :: key
-         TYPE(${value_type}$), POINTER                      :: value
+         INTEGER                                            :: index
 
          INTEGER                                            :: i
 
+         index = -1
+
          DO i = 1, ${map_counter}$
             IF (${map_storage}$ (i)%key == key) THEN
-               value => ${map_storage}$ (i)%value
+               index = i
                RETURN
             END IF
          END DO
@@ -278,42 +286,24 @@ CONTAINS
       !> \param key ...
       !> \return ...
       ! **************************************************************************************************
-      FUNCTION cp_openpmd_has_${name_suffix}$ (key) RESULT(res)
+      FUNCTION cp_openpmd_remove_${name_suffix}$ (key) RESULT(was_found)
          ${key_type}$, INTENT(in)                           :: key
-         LOGICAL                                            :: res
+         LOGICAL                                            :: was_found
 
          INTEGER                                            :: i
 
-         DO i = 1, ${map_counter}$
-            IF (${map_storage}$ (i)%key == key) THEN
-               res = .TRUE.
-               RETURN
-            END IF
-         END DO
-         res = .FALSE.
-      END FUNCTION cp_openpmd_has_${name_suffix}$
-
-      ! **************************************************************************************************
-      !> \brief ...
-      !> \param key ...
-      !> \return ...
-      ! **************************************************************************************************
-      FUNCTION cp_openpmd_remove_${name_suffix}$ (key) RESULT(value)
-         ${key_type}$, INTENT(in)                           :: key
-         TYPE(${value_type}$)                               :: value
-
-         INTEGER                                            :: i
+         was_found = .FALSE.
 
          ! Search for the key and remove the entry if found
          DO i = 1, ${map_counter}$
             IF (${map_storage}$ (i)%key == key) THEN
-               value = ${map_storage}$ (i)%value
+               was_found = .TRUE.
                IF (i /= ${map_counter}$) THEN
                   ! Swap last element to now freed place
                   ${map_storage}$ (i) = ${map_storage}$ (${map_counter}$)
                END IF
+
                ${map_counter}$ = ${map_counter}$-1
-               ! Optionally, you can deallocate the last element
                IF (${map_counter}$ > 0) THEN
                   ALLOCATE (${map_storage}$ (${map_counter}$))
                ELSE
@@ -1061,7 +1051,7 @@ CONTAINS
 ! **************************************************************************************************
    FUNCTION cp_advance_iteration_number(logger, openpmd_file) RESULT(did_advance_iteration)
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_openpmd_per_callsite_value_type), POINTER  :: openpmd_file
+      TYPE(cp_openpmd_per_callsite_value_type)           :: openpmd_file
       LOGICAL                                            :: did_advance_iteration
 
       INTEGER                                            :: len
@@ -1095,8 +1085,8 @@ CONTAINS
 !> \param logger ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION cp_openpmd_create_unit_nr_entry(openpmd_file, middle_name, logger) RESULT(res)
-      TYPE(cp_openpmd_per_callsite_value_type), POINTER  :: openpmd_file
+   FUNCTION cp_openpmd_create_unit_nr_entry(openpmd_file_index, middle_name, logger) RESULT(res)
+      INTEGER                                            :: openpmd_file_index
       CHARACTER(len=*), INTENT(IN)                       :: middle_name
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_openpmd_per_call_value_type)               :: res
@@ -1104,12 +1094,14 @@ CONTAINS
       LOGICAL                                            :: opened_new_iteration = .FALSE.
       TYPE(openpmd_record_type)                          :: position, positionOffset
 
-      res%series = openpmd_file%output_series
+      #:set opmd = 'cp_openpmd_per_callsite(openpmd_file_index)%value'
 
-      opened_new_iteration = cp_advance_iteration_number(logger, openpmd_file)
+      res%series = ${opmd}$%output_series
+
+      opened_new_iteration = cp_advance_iteration_number(logger, ${opmd}$)
 
       res%iteration = openpmd_series_write_iteration( &
-                      openpmd_file%output_series, openpmd_file%iteration_counter%flat_iteration)
+                      ${opmd}$%output_series, ${opmd}$%iteration_counter%flat_iteration)
 
       res%mesh = openpmd_iteration_get_mesh(res%iteration, middle_name)
       CALL openpmd_record_component_make_empty_int(res%mesh%openpmd_mesh_as_record_component(), 3)
@@ -1123,24 +1115,26 @@ CONTAINS
          CALL openpmd_attributable_set_attribute_vec_int( &
             res%iteration%openpmd_iteration_as_attributable(), &
             "ndim_iteration_index", &
-            openpmd_file%iteration_counter%complex_iteration)
+            ${opmd}$%iteration_counter%complex_iteration)
       END IF
    END FUNCTION
 
-   FUNCTION cp_openpmd_get_openpmd_file_entry(openpmd_basename, filename, openpmd_config, logger) RESULT(res)
+   FUNCTION cp_openpmd_get_openpmd_file_entry(openpmd_basename, filename, openpmd_config, logger) RESULT(file_index)
       CHARACTER(len=*), INTENT(IN)             :: openpmd_basename, filename, openpmd_config
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(cp_openpmd_per_callsite_value_type), POINTER  :: res
+      INTEGER                                            :: file_index
 
+      CHARACTER(len=default_string_length)     :: basename_copied = ' '
       TYPE(cp_openpmd_per_callsite_value_type) :: emplace_new
 
-      IF (.NOT. cp_openpmd_has_filedata(TRIM(openpmd_basename))) THEN
-         emplace_new%output_series = openpmd_series_create( &
-                                     filename, openpmd_access_create, logger%para_env, openpmd_config)
-         CALL cp_openpmd_add_filedata(TRIM(openpmd_basename), emplace_new)
-      END IF
+      basename_copied(1:LEN_TRIM(openpmd_basename)) = TRIM(openpmd_basename)
 
-      res => cp_openpmd_get_filedata(TRIM(openpmd_basename))
+      file_index = cp_openpmd_get_filedata(basename_copied)
+      IF (file_index /= -1) RETURN
+
+      emplace_new%output_series = openpmd_series_create( &
+                                  filename, openpmd_access_create, logger%para_env, openpmd_config)
+      file_index = cp_openpmd_add_filedata(basename_copied, emplace_new)
    END FUNCTION
 
 ! **************************************************************************************************
@@ -1217,7 +1211,7 @@ CONTAINS
                                                             my_should_output, my_use_openpmd, &
                                                             replace
       TYPE(cp_iteration_info_type), POINTER              :: iteration_info
-      TYPE(cp_openpmd_per_callsite_value_type), POINTER  :: openpmd_file_info
+      INTEGER                                            :: openpmd_file_index, openpmd_call_index
       TYPE(mp_file_type)                                 :: mp_unit
       TYPE(section_vals_type), POINTER                   :: print_key
 
@@ -1366,8 +1360,8 @@ CONTAINS
 
             IF (my_use_openpmd) THEN
 
-               openpmd_file_info => cp_openpmd_get_openpmd_file_entry( &
-                                   openpmd_basename, filename, openpmd_config, logger)
+               openpmd_file_index = cp_openpmd_get_openpmd_file_entry( &
+                                    openpmd_basename, filename, openpmd_config, logger)
 
                OPEN (newunit=res, status='scratch', action='write')
 
@@ -1379,10 +1373,10 @@ CONTAINS
                !    END IF
                ! END IF
 
-               CALL cp_openpmd_add_unit_nr( &
-                  res, &
-                  cp_openpmd_create_unit_nr_entry( &
-                  openpmd_file_info, middle_name, logger))
+               openpmd_call_index = cp_openpmd_add_unit_nr( &
+                                    res, &
+                                    cp_openpmd_create_unit_nr_entry( &
+                                    openpmd_file_index, middle_name, logger))
 
                RETURN
             ELSE IF (.NOT. my_mpi_io) THEN
@@ -1445,7 +1439,6 @@ CONTAINS
       CHARACTER(len=default_string_length)               :: outPath
       LOGICAL                                            :: my_local, my_mpi_io, my_on_file, &
                                                             my_should_output, my_use_openpmd
-      TYPE(cp_openpmd_per_call_value_type)               :: removed_entry
       TYPE(mp_file_type)                                 :: mp_unit
       TYPE(section_vals_type), POINTER                   :: print_key
 
@@ -1469,8 +1462,7 @@ CONTAINS
                                   my_mpi_io)) THEN
          CALL section_vals_val_get(print_key, "FILENAME", c_val=outPath)
          IF (my_use_openpmd) THEN
-            IF (cp_openpmd_has_unit_nr(unit_nr)) THEN
-               removed_entry = cp_openpmd_remove_unit_nr(unit_nr)
+            IF (cp_openpmd_remove_unit_nr(unit_nr)) THEN
                CLOSE (unit_nr)
             END IF
             unit_nr = -1
