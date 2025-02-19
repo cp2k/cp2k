@@ -16,9 +16,8 @@ MODULE mscfg_types
         dbcsr_add, dbcsr_complete_redistribute, dbcsr_create, dbcsr_distribution_get, &
         dbcsr_distribution_new, dbcsr_distribution_release, dbcsr_distribution_type, &
         dbcsr_finalize, dbcsr_get_info, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_nfullcols_total, &
-        dbcsr_nfullrows_total, dbcsr_release, dbcsr_reserve_block2d, dbcsr_set, dbcsr_type, &
-        dbcsr_type_no_symmetry, dbcsr_work_create
+        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_release, &
+        dbcsr_reserve_block2d, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_work_create
    USE kinds,                           ONLY: dp
 #include "./base/base_uses.f90"
 
@@ -141,9 +140,7 @@ CONTAINS
                         template=matrix_out, &
                         matrix_type=dbcsr_type_no_symmetry)
       CALL dbcsr_set(matrix_out, 0.0_dp)
-
-      matrix_size(1) = dbcsr_nfullrows_total(matrix_out)
-      matrix_size(2) = dbcsr_nfullcols_total(matrix_out)
+      CALL dbcsr_get_info(matrix_out, nfullrows_total=matrix_size(1), nfullcols_total=matrix_size(2))
 
       ! assume that the initial offset is zero
       offset(1) = 0
@@ -153,9 +150,8 @@ CONTAINS
 
          CPASSERT(iset .LE. mscfg_env%nmosets_of_frag(ifrag))
 
-         submatrix_size(1) = dbcsr_nfullrows_total(mscfg_env%mos_of_frag(ifrag, iset))
-         submatrix_size(2) = dbcsr_nfullcols_total(mscfg_env%mos_of_frag(ifrag, iset))
-
+         CALL dbcsr_get_info(mscfg_env%mos_of_frag(ifrag, iset), &
+                             nfullrows_total=submatrix_size(1), nfullcols_total=submatrix_size(2))
          CALL copy_submatrix_into_matrix(mscfg_env%mos_of_frag(ifrag, iset), &
                                          matrix_temp, offset, submatrix_size, matrix_size)
 

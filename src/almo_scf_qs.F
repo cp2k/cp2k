@@ -26,9 +26,9 @@ MODULE almo_scf_qs
         dbcsr_complete_redistribute, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, &
         dbcsr_distribution_get, dbcsr_distribution_new, dbcsr_distribution_release, &
         dbcsr_distribution_type, dbcsr_filter, dbcsr_finalize, dbcsr_get_block_p, dbcsr_get_info, &
-        dbcsr_get_num_blocks, dbcsr_get_stored_coordinates, dbcsr_multiply, dbcsr_nblkcols_total, &
-        dbcsr_nblkrows_total, dbcsr_p_type, dbcsr_release, dbcsr_reserve_block2d, dbcsr_set, &
-        dbcsr_type, dbcsr_type_no_symmetry, dbcsr_work_create
+        dbcsr_get_num_blocks, dbcsr_get_stored_coordinates, dbcsr_multiply, dbcsr_p_type, &
+        dbcsr_release, dbcsr_reserve_block2d, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry, &
+        dbcsr_work_create
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -290,8 +290,7 @@ CONTAINS
          ! startQQQ - this part of the code scales quadratically
          ! therefore it is replaced with a less general but linear scaling algorithm below
          ! the quadratic algorithm is kept to be re-written later
-         !QQQnblkrows_tot = dbcsr_nblkrows_total(matrix_new)
-         !QQQnblkcols_tot = dbcsr_nblkcols_total(matrix_new)
+         !QQQCALL dbcsr_get_info(matrix_new, nblkrows_total=nblkrows_tot, nblkcols_total=nblkcols_tot)
          !QQQDO row = 1, nblkrows_tot
          !QQQ   DO col = 1, nblkcols_tot
          !QQQ      tr = .FALSE.
@@ -347,7 +346,7 @@ CONTAINS
          ! endQQQ - end of the quadratic part
          ! start linear-scaling replacement:
          ! works only for molecular blocks AND molecular distributions
-         nblkrows_tot = dbcsr_nblkrows_total(matrix_new)
+         CALL dbcsr_get_info(matrix_new, nblkrows_total=nblkrows_tot)
          DO row = 1, nblkrows_tot
             tr = .FALSE.
             iblock_row = row
@@ -933,13 +932,9 @@ CONTAINS
                               init_domains=.FALSE.)
 
       ! initialize distance quencher
-      CALL dbcsr_work_create(almo_scf_env%quench_t(ispin), &
-                             work_mutable=.TRUE.)
-
-      nblkrows_tot = dbcsr_nblkrows_total(almo_scf_env%quench_t(ispin))
-      nblkcols_tot = dbcsr_nblkcols_total(almo_scf_env%quench_t(ispin))
-
-      CALL dbcsr_get_info(almo_scf_env%quench_t(ispin), distribution=dist)
+      CALL dbcsr_work_create(almo_scf_env%quench_t(ispin), work_mutable=.TRUE.)
+      CALL dbcsr_get_info(almo_scf_env%quench_t(ispin), distribution=dist, &
+                          nblkrows_total=nblkrows_tot, nblkcols_total=nblkcols_tot)
       CALL dbcsr_distribution_get(dist, numnodes=nNodes, group=GroupID, mynode=mynode)
       CALL group%set_handle(groupid)
 
@@ -1508,8 +1503,8 @@ CONTAINS
 
       !mynode = dbcsr_mp_mynode(dbcsr_distribution_mp(&
       !   dbcsr_distribution(almo_scf_env%quench_t(ispin))))
-      !nblkrows_tot = dbcsr_nblkrows_total(almo_scf_env%quench_t(ispin))
-      !nblkcols_tot = dbcsr_nblkcols_total(almo_scf_env%quench_t(ispin))
+      !CALL dbcsr_get_info(almo_scf_env%quench_t(ispin), distribution=dist, &
+      !                    nblkrows_total=nblkrows_tot, nblkcols_total=nblkcols_tot)
       !DO row = 1, nblkrows_tot
       !   DO col = 1, nblkcols_tot
       !      tr = .FALSE.

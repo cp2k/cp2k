@@ -19,7 +19,7 @@ MODULE dm_ls_scf_qs
         dbcsr_complete_redistribute, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, &
         dbcsr_distribution_get, dbcsr_distribution_hold, dbcsr_distribution_new, &
         dbcsr_distribution_release, dbcsr_distribution_type, dbcsr_finalize, dbcsr_get_info, &
-        dbcsr_multiply, dbcsr_nblkrows_total, dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type
+        dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -127,7 +127,7 @@ CONTAINS
          ! do nothing
       CASE (ls_cluster_molecular)
          ! create format of the clustered matrix
-         natom = dbcsr_nblkrows_total(matrix_qs)
+         CALL dbcsr_get_info(matrix_qs, nblkrows_total=natom)
          nmol = MAXVAL(ls_mstruct%atom_to_molecule)
          ALLOCATE (atom_to_cluster_primus(natom))
          ALLOCATE (atom_to_cluster(natom))

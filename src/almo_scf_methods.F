@@ -24,9 +24,9 @@ MODULE almo_scf_methods
         dbcsr_distribution_type, dbcsr_filter, dbcsr_finalize, dbcsr_get_block_p, dbcsr_get_diag, &
         dbcsr_get_info, dbcsr_get_stored_coordinates, dbcsr_iterator_blocks_left, &
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
-        dbcsr_multiply, dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_print, dbcsr_release, &
-        dbcsr_reserve_block2d, dbcsr_scale_by_vector, dbcsr_set, dbcsr_set_diag, dbcsr_transposed, &
-        dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric, dbcsr_work_create
+        dbcsr_multiply, dbcsr_print, dbcsr_release, dbcsr_reserve_block2d, dbcsr_scale_by_vector, &
+        dbcsr_set, dbcsr_set_diag, dbcsr_transposed, dbcsr_type, dbcsr_type_no_symmetry, &
+        dbcsr_type_symmetric, dbcsr_work_create
    USE cp_dbcsr_cholesky,               ONLY: cp_dbcsr_cholesky_decompose,&
                                               cp_dbcsr_cholesky_invert
    USE cp_dbcsr_contrib,                ONLY: dbcsr_frobenius_norm,&
@@ -103,11 +103,10 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p_new_block
       TYPE(dbcsr_distribution_type)                      :: dist
 
-      CALL dbcsr_get_info(matrix, distribution=dist)
+      CALL dbcsr_get_info(matrix, distribution=dist, &
+                          nblkrows_total=nblkrows_tot, nblkcols_total=nblkcols_tot)
       CALL dbcsr_distribution_get(dist, mynode=mynode)
       CALL dbcsr_work_create(matrix, work_mutable=.TRUE.)
-      nblkrows_tot = dbcsr_nblkrows_total(matrix)
-      nblkcols_tot = dbcsr_nblkcols_total(matrix)
       DO row = 1, nblkrows_tot
          DO col = 1, nblkcols_tot
             tr = .FALSE.
@@ -155,7 +154,7 @@ CONTAINS
 
       DO ispin = 1, almo_scf_env%nspins
 
-         ndomains = dbcsr_nblkcols_total(almo_scf_env%quench_t(ispin))
+         CALL dbcsr_get_info(almo_scf_env%quench_t(ispin), nblkcols_total=ndomains)
 
          ! 0. Create KS_xx
          CALL construct_submatrices( &
@@ -1799,12 +1798,10 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p_new_block
       TYPE(dbcsr_distribution_type)                      :: dist
 
-      CALL dbcsr_get_info(matrix, distribution=dist)
+      CALL dbcsr_get_info(matrix, distribution=dist, nblkrows_total=nblkrows_tot)
       CALL dbcsr_distribution_get(dist, mynode=mynode)
       !mynode = dbcsr_mp_mynode(dbcsr_distribution_mp(dbcsr_distribution(matrix)))
       CALL dbcsr_work_create(matrix, work_mutable=.TRUE.)
-
-      nblkrows_tot = dbcsr_nblkrows_total(matrix)
 
       DO row = 1, nblkrows_tot
          IF (nocc_of_domain(row) == 0) THEN
@@ -2150,7 +2147,7 @@ CONTAINS
          CPABORT("TRIMMER MATRIX IS REQUIRED")
       END IF
 
-      ndomains = dbcsr_nblkcols_total(dpattern)
+      CALL dbcsr_get_info(dpattern, nblkcols_total=ndomains)
 
       ALLOCATE (subm_in(ndomains))
       ALLOCATE (subm_temp(ndomains))
@@ -2487,7 +2484,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      ndomains = dbcsr_nblkcols_total(dpattern)
+      CALL dbcsr_get_info(dpattern, nblkcols_total=ndomains)
       CPASSERT(SIZE(subm_s_sqrt) .EQ. ndomains)
       CPASSERT(SIZE(subm_s_sqrt_inv) .EQ. ndomains)
       ALLOCATE (subm_s(ndomains))
@@ -2559,7 +2556,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      ndomains = dbcsr_nblkcols_total(dpattern)
+      CALL dbcsr_get_info(dpattern, nblkcols_total=ndomains)
 
       CPASSERT(SIZE(subm_s_inv) .EQ. ndomains)
       ALLOCATE (subm_s(ndomains))
@@ -2650,7 +2647,7 @@ CONTAINS
       CALL dbcsr_release(m_tmp_no_1)
       CALL dbcsr_release(m_tmp_no_2)
 
-      ndomains = dbcsr_nblkcols_total(dpattern)
+      CALL dbcsr_get_info(dpattern, nblkcols_total=ndomains)
       CPASSERT(SIZE(subm_r_down) .EQ. ndomains)
 
       CALL construct_submatrices(matrix_r, subm_r_down, &
@@ -3221,8 +3218,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      ndomains = dbcsr_nblkcols_total(dpattern)
-      CALL dbcsr_get_info(dpattern, group=group)
+      CALL dbcsr_get_info(dpattern, group=group, nblkcols_total=ndomains)
 
       ALLOCATE (subm_no(ndomains), subm_nn(ndomains))
       CALL init_submatrices(subm_no)

@@ -9,8 +9,7 @@ MODULE cp_dbcsr_contrib
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_clear, dbcsr_finalize, dbcsr_get_block_p, dbcsr_get_info, dbcsr_has_symmetry, &
         dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
-        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_nblkcols_total, dbcsr_nblkrows_total, &
-        dbcsr_nfullcols_total, dbcsr_nfullrows_total, dbcsr_put_block, dbcsr_reserve_all_blocks, &
+        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_put_block, dbcsr_reserve_all_blocks, &
         dbcsr_type
    USE dbm_tests,                       ONLY: generate_larnv_seed
    USE kinds,                           ONLY: dp
@@ -39,14 +38,17 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_hadamard_product'
 
-      INTEGER                                            :: col, handle, row
+      INTEGER                                            :: col, handle, nblkrows_tot_a, &
+                                                            nblkrows_tot_b, nblkrows_tot_c, row
       LOGICAL                                            :: found_b
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: block_a, block_b
       TYPE(dbcsr_iterator_type)                          :: iter
 
       CALL timeset(routineN, handle)
-      IF (dbcsr_nblkrows_total(matrix_a) .NE. dbcsr_nblkrows_total(matrix_b) .OR. &
-          dbcsr_nblkrows_total(matrix_c) .NE. dbcsr_nblkrows_total(matrix_a)) THEN
+      CALL dbcsr_get_info(matrix_a, nblkrows_total=nblkrows_tot_a)
+      CALL dbcsr_get_info(matrix_b, nblkrows_total=nblkrows_tot_b)
+      CALL dbcsr_get_info(matrix_c, nblkrows_total=nblkrows_tot_c)
+      IF (nblkrows_tot_a /= nblkrows_tot_b .OR. nblkrows_tot_a /= nblkrows_tot_c) THEN
          CPABORT("matrices not consistent")
       END IF
 
@@ -157,8 +159,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       has_symmetry = dbcsr_has_symmetry(matrix)
-      nrow = dbcsr_nfullrows_total(matrix)
-      ncol = dbcsr_nfullcols_total(matrix)
+      CALL dbcsr_get_info(matrix, nfullrows_total=nrow, nfullcols_total=ncol)
       CPASSERT(nrow == ncol)
       ALLOCATE (buffer(nrow))
       buffer = 0.0_dp
@@ -208,9 +209,7 @@ CONTAINS
       my_keep_sparsity = .FALSE.
       IF (PRESENT(keep_sparsity)) my_keep_sparsity = keep_sparsity
       IF (.NOT. my_keep_sparsity) CALL dbcsr_reserve_all_blocks(matrix)
-
-      nrow = dbcsr_nblkrows_total(matrix)
-      ncol = dbcsr_nblkcols_total(matrix)
+      CALL dbcsr_get_info(matrix, nblkrows_total=nrow, nblkcols_total=ncol)
 
       CALL dbcsr_iterator_start(iter, matrix)
       DO WHILE (dbcsr_iterator_blocks_left(iter))

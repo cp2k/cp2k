@@ -19,11 +19,11 @@ MODULE qs_initial_guess
                                               gto_basis_set_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_checksum, dbcsr_copy, dbcsr_dot, dbcsr_filter, dbcsr_get_diag, dbcsr_get_num_blocks, &
-        dbcsr_get_occupation, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
-        dbcsr_nfullrows_total, dbcsr_p_type, dbcsr_release, dbcsr_scale, dbcsr_set, &
-        dbcsr_set_diag, dbcsr_type, dbcsr_verify_matrix
+        dbcsr_checksum, dbcsr_copy, dbcsr_dot, dbcsr_filter, dbcsr_get_diag, dbcsr_get_info, &
+        dbcsr_get_num_blocks, dbcsr_get_occupation, dbcsr_iterator_blocks_left, &
+        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
+        dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_set_diag, &
+        dbcsr_type, dbcsr_verify_matrix
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
                                               cp_dbcsr_sm_fm_multiply,&
@@ -1223,7 +1223,7 @@ CONTAINS
       END DO
 
       natom = SIZE(particle_set)
-      nao = dbcsr_nfullrows_total(pmat(1)%matrix)
+      CALL dbcsr_get_info(pmat(1)%matrix, nfullrows_total=nao)
       IF (nspin == 1) THEN
          maxocc = 2.0_dp
       ELSE
