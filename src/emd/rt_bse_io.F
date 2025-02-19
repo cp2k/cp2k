@@ -655,6 +655,9 @@ CONTAINS
       IF (fit_start == -1) fit_start = 1
       IF (fit_end == -1) fit_end = n
       rtbse_env%pade_fit_npoints = fit_end - fit_start + 1
+      IF (rtbse_env%pade_fit_npoints > 2000) THEN
+         CPWARN("More then 1000 Padé parameters requested - may reduce with FIT_E_MIN/FIT_E_MAX.")
+      END IF
       DO i=1,3
          ! Copy the fitting parameters
          CALL refine_moments_ft(rtbse_env, omega_series(fit_start:fit_end), &
