@@ -42,12 +42,8 @@ MODULE cp_dbcsr_api
         dbcsr_iterator_stop_prv => dbcsr_iterator_stop, &
         dbcsr_iterator_type_prv => dbcsr_iterator_type, &
         dbcsr_mp_grid_setup_prv => dbcsr_mp_grid_setup, dbcsr_multiply_prv => dbcsr_multiply, &
-        dbcsr_nblkcols_total_prv => dbcsr_nblkcols_total, &
-        dbcsr_nblkrows_total_prv => dbcsr_nblkrows_total, &
-        dbcsr_nfullcols_total_prv => dbcsr_nfullcols_total, &
-        dbcsr_nfullrows_total_prv => dbcsr_nfullrows_total, dbcsr_no_transpose, &
-        dbcsr_print_block_sum_prv => dbcsr_print_block_sum, dbcsr_print_config, &
-        dbcsr_print_prv => dbcsr_print, dbcsr_print_statistics, &
+        dbcsr_no_transpose, dbcsr_print_block_sum_prv => dbcsr_print_block_sum, &
+        dbcsr_print_config, dbcsr_print_prv => dbcsr_print, dbcsr_print_statistics, &
         dbcsr_put_block_prv => dbcsr_put_block, dbcsr_release_prv => dbcsr_release, &
         dbcsr_replicate_all_prv => dbcsr_replicate_all, &
         dbcsr_reserve_all_blocks_prv => dbcsr_reserve_all_blocks, &
@@ -144,13 +140,9 @@ MODULE cp_dbcsr_api
    PUBLIC :: dbcsr_distribution_get
    PUBLIC :: dbcsr_get_matrix_type
    PUBLIC :: dbcsr_get_occupation
-   PUBLIC :: dbcsr_nblkrows_total
-   PUBLIC :: dbcsr_nblkcols_total
    PUBLIC :: dbcsr_get_num_blocks
    PUBLIC :: dbcsr_get_data_size
    PUBLIC :: dbcsr_has_symmetry
-   PUBLIC :: dbcsr_nfullrows_total
-   PUBLIC :: dbcsr_nfullcols_total
    PUBLIC :: dbcsr_get_stored_coordinates
    PUBLIC :: dbcsr_valid_index
 
@@ -1149,70 +1141,6 @@ CONTAINS
          CPABORT("Not yet implemented for DBM.")
       END IF
    END SUBROUTINE dbcsr_multiply
-
-! **************************************************************************************************
-!> \brief ...
-!> \param matrix ...
-!> \return ...
-! **************************************************************************************************
-   FUNCTION dbcsr_nblkcols_total(matrix) RESULT(nblkcols_total)
-      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
-      INTEGER                                            :: nblkcols_total
-
-      IF (USE_DBCSR_BACKEND) THEN
-         nblkcols_total = dbcsr_nblkcols_total_prv(matrix%dbcsr)
-      ELSE
-         CPABORT("Not yet implemented for DBM.")
-      END IF
-   END FUNCTION dbcsr_nblkcols_total
-
-! **************************************************************************************************
-!> \brief ...
-!> \param matrix ...
-!> \return ...
-! **************************************************************************************************
-   FUNCTION dbcsr_nblkrows_total(matrix) RESULT(nblkrows_total)
-      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
-      INTEGER                                            :: nblkrows_total
-
-      IF (USE_DBCSR_BACKEND) THEN
-         nblkrows_total = dbcsr_nblkrows_total_prv(matrix%dbcsr)
-      ELSE
-         CPABORT("Not yet implemented for DBM.")
-      END IF
-   END FUNCTION dbcsr_nblkrows_total
-
-! **************************************************************************************************
-!> \brief ...
-!> \param matrix ...
-!> \return ...
-! **************************************************************************************************
-   FUNCTION dbcsr_nfullcols_total(matrix) RESULT(nfullcols_total)
-      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
-      INTEGER                                            :: nfullcols_total
-
-      IF (USE_DBCSR_BACKEND) THEN
-         nfullcols_total = dbcsr_nfullcols_total_prv(matrix%dbcsr)
-      ELSE
-         CPABORT("Not yet implemented for DBM.")
-      END IF
-   END FUNCTION dbcsr_nfullcols_total
-
-! **************************************************************************************************
-!> \brief ...
-!> \param matrix ...
-!> \return ...
-! **************************************************************************************************
-   FUNCTION dbcsr_nfullrows_total(matrix) RESULT(nfullrows_total)
-      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
-      INTEGER                                            :: nfullrows_total
-
-      IF (USE_DBCSR_BACKEND) THEN
-         nfullrows_total = dbcsr_nfullrows_total_prv(matrix%dbcsr)
-      ELSE
-         CPABORT("Not yet implemented for DBM.")
-      END IF
-   END FUNCTION dbcsr_nfullrows_total
 
 ! **************************************************************************************************
 !> \brief ...

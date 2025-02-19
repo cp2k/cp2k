@@ -43,9 +43,9 @@ MODULE almo_scf_optimizer
         dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_dot, dbcsr_filter, dbcsr_finalize, &
         dbcsr_get_block_p, dbcsr_get_diag, dbcsr_get_info, dbcsr_iterator_blocks_left, &
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
-        dbcsr_multiply, dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_p_type, &
-        dbcsr_print_block_sum, dbcsr_release, dbcsr_reserve_block2d, dbcsr_scale, dbcsr_set, &
-        dbcsr_set_diag, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_work_create
+        dbcsr_multiply, dbcsr_p_type, dbcsr_print_block_sum, dbcsr_release, dbcsr_reserve_block2d, &
+        dbcsr_scale, dbcsr_set, dbcsr_set_diag, dbcsr_type, dbcsr_type_no_symmetry, &
+        dbcsr_work_create
    USE cp_dbcsr_cholesky,               ONLY: cp_dbcsr_cholesky_decompose,&
                                               cp_dbcsr_cholesky_invert,&
                                               cp_dbcsr_cholesky_restore
@@ -6388,11 +6388,9 @@ CONTAINS
          CPABORT("mathematica files: serial code only")
       END IF
 
-      nblkrows_tot = dbcsr_nblkrows_total(matrix)
-      nblkcols_tot = dbcsr_nblkcols_total(matrix)
+      CALL dbcsr_get_info(matrix, row_blk_size=ao_blk_sizes, col_blk_size=mo_blk_sizes, &
+                          nblkrows_total=nblkrows_tot, nblkcols_total=nblkcols_tot)
       CPASSERT(nblkrows_tot == nblkcols_tot)
-      CALL dbcsr_get_info(matrix, row_blk_size=ao_blk_sizes)
-      CALL dbcsr_get_info(matrix, col_blk_size=mo_blk_sizes)
       ALLOCATE (mo_block_sizes(nblkcols_tot), ao_block_sizes(nblkcols_tot))
       mo_block_sizes(:) = mo_blk_sizes(:)
       ao_block_sizes(:) = ao_blk_sizes(:)
@@ -8375,11 +8373,9 @@ CONTAINS
          CPABORT("serial code only")
       END IF
 
-      nblkrows_tot = dbcsr_nblkrows_total(quench_t)
-      nblkcols_tot = dbcsr_nblkcols_total(quench_t)
+      CALL dbcsr_get_info(quench_t, row_blk_size=ao_blk_sizes, col_blk_size=mo_blk_sizes, &
+                          nblkrows_total=nblkrows_tot, nblkcols_total=nblkcols_tot)
       CPASSERT(nblkrows_tot == nblkcols_tot)
-      CALL dbcsr_get_info(quench_t, row_blk_size=ao_blk_sizes)
-      CALL dbcsr_get_info(quench_t, col_blk_size=mo_blk_sizes)
       ALLOCATE (mo_block_sizes(nblkcols_tot), ao_block_sizes(nblkcols_tot))
       ALLOCATE (ao_domain_sizes(nblkcols_tot))
       mo_block_sizes(:) = mo_blk_sizes(:)

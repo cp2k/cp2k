@@ -17,9 +17,8 @@ MODULE domain_submatrix_methods
         dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_filter, dbcsr_finalize, &
         dbcsr_get_block_p, dbcsr_get_info, dbcsr_get_matrix_type, dbcsr_get_stored_coordinates, &
         dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
-        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_nblkcols_total, dbcsr_nblkrows_total, &
-        dbcsr_reserve_block2d, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, &
-        dbcsr_type_symmetric, dbcsr_work_create
+        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_reserve_block2d, dbcsr_type, &
+        dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_type_symmetric, dbcsr_work_create
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
@@ -872,9 +871,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      nblkrows_tot = dbcsr_nblkrows_total(matrix)
-      nblkcols_tot = dbcsr_nblkcols_total(matrix)
-
+      CALL dbcsr_get_info(matrix, nblkrows_total=nblkrows_tot, nblkcols_total=nblkcols_tot)
       ndomains = nblkcols_tot ! RZK-warning not true for atomic distributions
       CALL dbcsr_get_info(distr_pattern, distribution=pattern_dist)
       CALL dbcsr_distribution_get(pattern_dist, numnodes=nNodes, group=GroupID, mynode=myNode)
@@ -1368,9 +1365,7 @@ CONTAINS
          unit_nr = -1
       END IF
 
-      nblkrows_tot = dbcsr_nblkrows_total(matrix)
-      nblkcols_tot = dbcsr_nblkcols_total(matrix)
-
+      CALL dbcsr_get_info(matrix, nblkrows_total=nblkrows_tot, nblkcols_total=nblkcols_tot)
       ndomains = nblkcols_tot ! RZK-warning not true for atomic distributions
       ndomains2 = SIZE(submatrix)
 

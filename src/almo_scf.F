@@ -52,9 +52,8 @@ MODULE almo_scf
         dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_filter, dbcsr_finalize, &
         dbcsr_get_info, dbcsr_get_stored_coordinates, dbcsr_iterator_blocks_left, &
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
-        dbcsr_multiply, dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_p_type, dbcsr_release, &
-        dbcsr_reserve_block2d, dbcsr_scale, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry, &
-        dbcsr_type_symmetric, dbcsr_work_create
+        dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_reserve_block2d, dbcsr_scale, &
+        dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric, dbcsr_work_create
    USE cp_dbcsr_contrib,                ONLY: dbcsr_init_random
    USE cp_dbcsr_diag,                   ONLY: cp_dbcsr_syevd
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
@@ -227,10 +226,9 @@ CONTAINS
 
       ! copy basic quantities
       almo_scf_env%nspins = dft_control%nspins
-      almo_scf_env%natoms = dbcsr_nblkrows_total(matrix_s(1)%matrix)
       almo_scf_env%nmolecules = SIZE(molecule_set)
-      CALL dbcsr_get_info(matrix_s(1)%matrix, nfullrows_total=naos)
-      almo_scf_env%naos = naos
+      CALL dbcsr_get_info(matrix_s(1)%matrix, &
+                          nfullrows_total=almo_scf_env%naos, nblkrows_total=almo_scf_env%natoms)
 
       !! retrieve smearing parameters, and check compatibility of methods requested
       almo_scf_env%smear = dft_control%smear
@@ -255,6 +253,7 @@ CONTAINS
       nspins = almo_scf_env%nspins
       nmols = almo_scf_env%nmolecules
       natoms = almo_scf_env%natoms
+      naos = almo_scf_env%naos
 
       ! Define groups: either atomic or molecular
       IF (almo_scf_env%domain_layout_mos == almo_domain_layout_molecular) THEN
@@ -1401,12 +1400,10 @@ CONTAINS
          CALL dbcsr_create(no_quench(1), &
                            template=almo_scf_env%matrix_t(1), &
                            matrix_type=dbcsr_type_no_symmetry)
-         CALL dbcsr_get_info(no_quench(1), distribution=dist)
+         CALL dbcsr_get_info(no_quench(1), distribution=dist, &
+                             nblkrows_total=nblkrows_tot, nblkcols_total=nblkcols_tot)
          CALL dbcsr_distribution_get(dist, mynode=mynode)
-         CALL dbcsr_work_create(no_quench(1), &
-                                work_mutable=.TRUE.)
-         nblkrows_tot = dbcsr_nblkrows_total(no_quench(1))
-         nblkcols_tot = dbcsr_nblkcols_total(no_quench(1))
+         CALL dbcsr_work_create(no_quench(1), work_mutable=.TRUE.)
          ! RZK-warning: is it a quadratic-scaling routine?
          ! As a matter of fact it is! But this block treats
          ! fully delocalized MOs. So it is unavoidable.
