@@ -781,7 +781,7 @@ CONTAINS
          ALLOCATE (matrix_h_im(1, image)%matrix)
          template => matrix_h(1, image)%matrix ! base on real part, but anti-symmetric
          CALL dbcsr_create(matrix=matrix_h_im(1, image)%matrix, template=template, &
-                           name=TRIM(headline), matrix_type=dbcsr_type_antisymmetric, nze=0)
+                           name=TRIM(headline), matrix_type=dbcsr_type_antisymmetric)
          CALL cp_dbcsr_alloc_block_from_nbl(matrix_h_im(1, image)%matrix, sab_orb)
          CALL dbcsr_set(matrix_h_im(1, image)%matrix, 0.0_dp)
       END DO

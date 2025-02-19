@@ -25,10 +25,10 @@ MODULE pexsi_methods
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_convert_csr_to_dbcsr, dbcsr_convert_dbcsr_to_csr, dbcsr_copy, dbcsr_create, &
         dbcsr_csr_create, dbcsr_csr_create_from_dbcsr, dbcsr_csr_destroy, &
-        dbcsr_csr_eqrow_floor_dist, dbcsr_csr_print_sparsity, dbcsr_desymmetrize, &
-        dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_get_info, dbcsr_has_symmetry, &
-        dbcsr_p_type, dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry, &
-        dbcsr_type_real_8
+        dbcsr_csr_eqrow_floor_dist, dbcsr_csr_print_sparsity, dbcsr_csr_type_real_8, &
+        dbcsr_desymmetrize, dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_get_info, &
+        dbcsr_has_symmetry, dbcsr_p_type, dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_type, &
+        dbcsr_type_no_symmetry
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_to_csr_screening
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -195,8 +195,7 @@ CONTAINS
       END IF
 
       CALL dbcsr_create(pexsi_env%csr_sparsity, "CSR sparsity", &
-                        template=pexsi_env%dbcsr_template_matrix_sym, &
-                        data_type=dbcsr_type_real_8)
+                        template=pexsi_env%dbcsr_template_matrix_sym)
       CALL dbcsr_copy(pexsi_env%csr_sparsity, pexsi_env%dbcsr_template_matrix_sym)
 
       CALL cp_dbcsr_to_csr_screening(ks_env, pexsi_env%csr_sparsity)
@@ -344,8 +343,8 @@ CONTAINS
             CPABORT("PEXSI interface expects a non-symmetric DBCSR overlap matrix")
 
          ! Assertion on datatype
-         IF ((pexsi_env%csr_mat_s%nzval_local%data_type .NE. dbcsr_type_real_8) &
-             .OR. (pexsi_env%csr_mat_ks%nzval_local%data_type .NE. dbcsr_type_real_8)) &
+         IF ((pexsi_env%csr_mat_s%nzval_local%data_type .NE. dbcsr_csr_type_real_8) &
+             .OR. (pexsi_env%csr_mat_ks%nzval_local%data_type .NE. dbcsr_csr_type_real_8)) &
             CPABORT("Complex data type not supported by PEXSI")
 
          ! Assertion on number of non-zero elements

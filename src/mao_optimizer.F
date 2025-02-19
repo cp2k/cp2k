@@ -116,7 +116,7 @@ CONTAINS
          DO ispin = 1, nspin
             CALL dbcsr_get_info(mao_coef(ispin)%matrix, col_blk_size=col_blk_sizes, distribution=dbcsr_dist)
             CALL dbcsr_create(binv, name="Binv", dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric, &
-                              row_blk_size=col_blk_sizes, col_blk_size=col_blk_sizes, nze=0)
+                              row_blk_size=col_blk_sizes, col_blk_size=col_blk_sizes)
             CALL mao_function(mao_coef(ispin)%matrix, fval, matrix_q(ispin)%matrix, &
                               matrix_smm(1)%matrix, binv, .FALSE.)
             IF (iw > 0) THEN
@@ -137,7 +137,7 @@ CONTAINS
          END DO
          CALL dbcsr_get_info(mao_coef(1)%matrix, col_blk_size=col_blk_sizes, distribution=dbcsr_dist)
          CALL dbcsr_create(binv, name="Binv", dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric, &
-                           row_blk_size=col_blk_sizes, col_blk_size=col_blk_sizes, nze=0)
+                           row_blk_size=col_blk_sizes, col_blk_size=col_blk_sizes)
          CALL dbcsr_create(cgmat, template=mao_grad(1)%matrix)
          CALL dbcsr_create(amat, template=mao_coef(1)%matrix)
          DO ispin = 1, nspin

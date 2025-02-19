@@ -18,7 +18,7 @@ MODULE qs_scf_csr_write
         dbcsr_csr_dbcsr_blkrow_dist, dbcsr_csr_destroy, dbcsr_csr_type, dbcsr_csr_write, &
         dbcsr_desymmetrize, dbcsr_finalize, dbcsr_get_block_p, dbcsr_has_symmetry, dbcsr_p_type, &
         dbcsr_put_block, dbcsr_release, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, &
-        dbcsr_type_no_symmetry, dbcsr_type_real_8, dbcsr_type_symmetric
+        dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
@@ -518,8 +518,7 @@ CONTAINS
             ALLOCATE (mat_nosym(ispin, ic)%matrix)
             CALL dbcsr_create(matrix=mat_nosym(ispin, ic)%matrix, &
                               template=mat(1, 1)%matrix, &
-                              matrix_type=dbcsr_type_no_symmetry, &
-                              data_type=dbcsr_type_real_8)
+                              matrix_type=dbcsr_type_no_symmetry)
             CALL cp_dbcsr_alloc_block_from_nbl(mat_nosym(ispin, ic)%matrix, &
                                                sab_nl, desymmetrize=.TRUE.)
             CALL dbcsr_set(mat_nosym(ispin, ic)%matrix, 0.0_dp)

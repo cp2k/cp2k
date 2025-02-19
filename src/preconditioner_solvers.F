@@ -23,7 +23,7 @@ MODULE preconditioner_solvers
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_create, dbcsr_filter, dbcsr_get_info, dbcsr_get_occupation, dbcsr_init_p, &
-        dbcsr_p_type, dbcsr_release, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_real_8
+        dbcsr_p_type, dbcsr_release, dbcsr_type, dbcsr_type_no_symmetry
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr
    USE cp_fm_basic_linalg,              ONLY: cp_fm_uplo_to_full
@@ -315,8 +315,7 @@ CONTAINS
             CALL dbcsr_init_p(dbcsr_matrix)
             CALL dbcsr_create(dbcsr_matrix, template=template_mat, &
                               name="preconditioner_env%dbcsr_matrix", &
-                              matrix_type=dbcsr_type_no_symmetry, &
-                              nze=0, data_type=dbcsr_type_real_8)
+                              matrix_type=dbcsr_type_no_symmetry)
          END IF
          CALL copy_fm_to_dbcsr(fm_matrix, dbcsr_matrix)
          CALL cp_fm_release(fm_matrix)

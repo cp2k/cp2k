@@ -165,8 +165,7 @@ CONTAINS
                         dist=dbcsr_dist, &
                         matrix_type=symmetry_string, &
                         row_blk_size=row_blk_size, &
-                        col_blk_size=col_blk_size, &
-                        nze=0)
+                        col_blk_size=col_blk_size)
       DEALLOCATE (col_blk_size)
 
       CALL fb_atomic_halo_list_get(atomic_halos=atomic_halos, &
@@ -329,8 +328,7 @@ CONTAINS
                         dist=dbcsr_dist, &
                         matrix_type=dbcsr_type_no_symmetry, &
                         row_blk_size=row_blk_size, &
-                        col_blk_size=col_blk_size, &
-                        nze=0)
+                        col_blk_size=col_blk_size)
       DEALLOCATE (col_blk_size)
 
       ! get all the blocks required for constructing atomic matrics, and

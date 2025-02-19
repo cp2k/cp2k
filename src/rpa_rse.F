@@ -158,7 +158,7 @@ CONTAINS
       DO ispin = 1, nspins
          ALLOCATE (mat_mu_nu(ispin)%matrix)
          CALL dbcsr_create(matrix=mat_mu_nu(ispin)%matrix, template=matrix_s(1)%matrix, name="T_mu_nu", &
-                           matrix_type=dbcsr_type_symmetric, nze=0)
+                           matrix_type=dbcsr_type_symmetric)
          CALL cp_dbcsr_alloc_block_from_nbl(mat_mu_nu(ispin)%matrix, sab_orb)
          CALL dbcsr_set(mat_mu_nu(ispin)%matrix, 0.0_dp)
       END DO

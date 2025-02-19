@@ -23,8 +23,7 @@ MODULE qs_ot_types
                                               dbcsr_release_p,&
                                               dbcsr_set,&
                                               dbcsr_type,&
-                                              dbcsr_type_no_symmetry,&
-                                              dbcsr_type_real_8
+                                              dbcsr_type_no_symmetry
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_m_by_n_from_row_template,&
                                               cp_dbcsr_m_by_n_from_template,&
                                               dbcsr_allocate_matrix_set,&
@@ -410,18 +409,18 @@ CONTAINS
 
       CALL dbcsr_init_p(qs_ot_env%matrix_gx)
       CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%matrix_gx, template=matrix_s, n=k, &
-                                             sym=dbcsr_type_no_symmetry, data_type=dbcsr_type_real_8)
+                                             sym=dbcsr_type_no_symmetry)
 
       IF (qs_ot_env%use_dx) THEN
          CALL dbcsr_init_p(qs_ot_env%matrix_dx)
          CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%matrix_dx, template=matrix_s, n=k, &
-                                                sym=dbcsr_type_no_symmetry, data_type=dbcsr_type_real_8)
+                                                sym=dbcsr_type_no_symmetry)
       END IF
 
       IF (qs_ot_env%use_gx_old) THEN
          CALL dbcsr_init_p(qs_ot_env%matrix_gx_old)
          CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%matrix_gx_old, template=matrix_s, n=k, &
-                                                sym=dbcsr_type_no_symmetry, data_type=dbcsr_type_real_8)
+                                                sym=dbcsr_type_no_symmetry)
       END IF
 
       SELECT CASE (qs_ot_env%settings%ot_algorithm)
@@ -535,11 +534,11 @@ CONTAINS
          DO i = 1, m_diis
             CALL dbcsr_init_p(qs_ot_env%matrix_h_x(i)%matrix)
             CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%matrix_h_x(i)%matrix, template=matrix_s, n=k, &
-                                                   sym=dbcsr_type_no_symmetry, data_type=dbcsr_type_real_8)
+                                                   sym=dbcsr_type_no_symmetry)
 
             CALL dbcsr_init_p(qs_ot_env%matrix_h_e(i)%matrix)
             CALL cp_dbcsr_m_by_n_from_row_template(qs_ot_env%matrix_h_e(i)%matrix, template=matrix_s, n=k, &
-                                                   sym=dbcsr_type_no_symmetry, data_type=dbcsr_type_real_8)
+                                                   sym=dbcsr_type_no_symmetry)
          END DO
       END IF
 

@@ -14,8 +14,7 @@ MODULE qs_scf_initialization
                                               dbcsr_init_p,&
                                               dbcsr_p_type,&
                                               dbcsr_type,&
-                                              dbcsr_type_no_symmetry,&
-                                              dbcsr_type_real_default
+                                              dbcsr_type_no_symmetry
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
                                               cp_dbcsr_m_by_n_from_row_template,&
@@ -604,8 +603,7 @@ CONTAINS
                NULLIFY (mo_derivs(ispin)%matrix)
                CALL dbcsr_init_p(mo_derivs(ispin)%matrix)
                CALL dbcsr_create(mo_derivs(ispin)%matrix, template=mo_coeff_b, &
-                                 name="mo_derivs", matrix_type=dbcsr_type_no_symmetry, &
-                                 nze=0, data_type=dbcsr_type_real_default)
+                                 name="mo_derivs", matrix_type=dbcsr_type_no_symmetry)
             END DO
             CALL set_qs_env(qs_env, mo_derivs=mo_derivs)
          END IF

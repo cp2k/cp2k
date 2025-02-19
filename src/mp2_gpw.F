@@ -28,7 +28,7 @@ MODULE mp2_gpw
         dbcsr_distribution_type, dbcsr_filter, dbcsr_init_p, dbcsr_iterator_blocks_left, &
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
         dbcsr_p_type, dbcsr_release, dbcsr_reserve_all_blocks, dbcsr_type, dbcsr_type_no_symmetry, &
-        dbcsr_type_real_default, dbcsr_type_symmetric
+        dbcsr_type_symmetric
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_dist2d_to_dist,&
                                               cp_dbcsr_m_by_n_from_row_template
@@ -907,7 +907,7 @@ CONTAINS
       CALL get_group_dist(gd_array, para_env_sub%mepos, my_mu_start, my_mu_end)
 
       CALL cp_dbcsr_m_by_n_from_row_template(mo_coeff_to_build, template=mat_munu, n=ncol_global, &
-                                             sym=dbcsr_type_no_symmetry, data_type=dbcsr_type_real_default)
+                                             sym=dbcsr_type_no_symmetry)
       CALL dbcsr_reserve_all_blocks(mo_coeff_to_build)
 
       ! accumulate data on mo_coeff_to_build starting from myself
@@ -1191,24 +1191,21 @@ CONTAINS
          CALL dbcsr_create(matrix=mat_munu%matrix, &
                            name="(ai|munu)", &
                            dist=dbcsr_dist_sub, matrix_type=my_dbcsr_sym_type, &
-                           row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-                           nze=0)
+                           row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes)
 
       ELSE IF (my_do_mixed_basis) THEN
 
          CALL dbcsr_create(matrix=mat_munu%matrix, &
                            name="(ai|munu)", &
                            dist=dbcsr_dist_sub, matrix_type=my_dbcsr_sym_type, &
-                           row_blk_size=row_blk_sizes, col_blk_size=col_blk_sizes, &
-                           nze=0)
+                           row_blk_size=row_blk_sizes, col_blk_size=col_blk_sizes)
 
       ELSE
 
          CALL dbcsr_create(matrix=mat_munu%matrix, &
                            name="(ai|munu)", &
                            dist=dbcsr_dist_sub, matrix_type=my_dbcsr_sym_type, &
-                           row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-                           nze=0)
+                           row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes)
 
          IF (my_do_alloc_blocks_from_nbl) THEN
 

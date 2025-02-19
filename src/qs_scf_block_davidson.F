@@ -21,8 +21,7 @@ MODULE qs_scf_block_davidson
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_get_diag, dbcsr_get_info, dbcsr_init_p, &
         dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
         dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_release_p, &
-        dbcsr_scale_by_vector, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_real_default, &
-        dbcsr_type_symmetric
+        dbcsr_scale_by_vector, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
                                               cp_dbcsr_m_by_n_from_row_template,&
@@ -539,13 +538,11 @@ CONTAINS
          CALL dbcsr_init_p(matrix_hc)
          CALL dbcsr_create(matrix_hc, template=mo_coeff_b, &
                            name="matrix_hc", &
-                           matrix_type=dbcsr_type_no_symmetry, &
-                           nze=0, data_type=dbcsr_type_real_default)
+                           matrix_type=dbcsr_type_no_symmetry)
          CALL dbcsr_init_p(matrix_sc)
          CALL dbcsr_create(matrix_sc, template=mo_coeff_b, &
                            name="matrix_sc", &
-                           matrix_type=dbcsr_type_no_symmetry, &
-                           nze=0, data_type=dbcsr_type_real_default)
+                           matrix_type=dbcsr_type_no_symmetry)
 
          CALL dbcsr_get_info(mo_coeff_b, nfullrows_total=n, nfullcols_total=k, group=group)
          CALL dbcsr_multiply('n', 'n', 1.0_dp, matrix_h, mo_coeff_b, 0.0_dp, matrix_hc, last_column=k)
@@ -568,8 +565,7 @@ CONTAINS
          CALL dbcsr_init_p(matrix_z)
          CALL dbcsr_create(matrix_z, template=mo_coeff_b, &
                            name="matrix_z", &
-                           matrix_type=dbcsr_type_no_symmetry, &
-                           nze=0, data_type=dbcsr_type_real_default)
+                           matrix_type=dbcsr_type_no_symmetry)
          CALL dbcsr_copy(matrix_z, matrix_sc)
          CALL dbcsr_scale_by_vector(matrix_z, ritz_coeff, side='right')
          CALL dbcsr_add(matrix_z, matrix_hc, -1.0_dp, 1.0_dp)
@@ -694,8 +690,7 @@ CONTAINS
             CALL dbcsr_init_p(c_out)
             CALL dbcsr_create(c_out, template=matrix_s, &
                               name="c_out", &
-                              matrix_type=dbcsr_type_symmetric, &
-                              nze=0, data_type=dbcsr_type_real_default)
+                              matrix_type=dbcsr_type_symmetric)
 
             ! allocate mo_conv sparse
             CALL dbcsr_init_p(mo_conv)
@@ -787,8 +782,7 @@ CONTAINS
          CALL dbcsr_init_p(matrix_pz)
          CALL dbcsr_create(matrix_pz, template=matrix_z, &
                            name="matrix_pz", &
-                           matrix_type=dbcsr_type_no_symmetry, &
-                           nze=0, data_type=dbcsr_type_real_default)
+                           matrix_type=dbcsr_type_no_symmetry)
 
          IF (do_apply_preconditioner) THEN
             IF (preconditioner%in_use /= 0) THEN

@@ -331,8 +331,7 @@ CONTAINS
                         name=TRIM("FILTERED_KS_MATRIX"), &
                         matrix_type=dbcsr_type_no_symmetry, &
                         row_blk_size=filtered_rowORcol_block_sizes, &
-                        col_blk_size=filtered_rowORcol_block_sizes, &
-                        nze=0)
+                        col_blk_size=filtered_rowORcol_block_sizes)
       CALL dbcsr_finalize(matrix_filtered_ks)
 
       ! create DBCSR filtered S (overlap) matrix. Note that
@@ -348,8 +347,7 @@ CONTAINS
                         name=TRIM("FILTERED_S_MATRIX"), &
                         matrix_type=dbcsr_type_no_symmetry, &
                         row_blk_size=filtered_rowORcol_block_sizes, &
-                        col_blk_size=filtered_rowORcol_block_sizes, &
-                        nze=0)
+                        col_blk_size=filtered_rowORcol_block_sizes)
       CALL dbcsr_finalize(matrix_filtered_s)
 
       ! create temporary matrix for constructing filtered KS and S
@@ -358,8 +356,7 @@ CONTAINS
                         name=TRIM("TEMPORARY_MATRIX"), &
                         matrix_type=dbcsr_type_no_symmetry, &
                         row_blk_size=original_rowORcol_block_sizes, &
-                        col_blk_size=filtered_rowORcol_block_sizes, &
-                        nze=0)
+                        col_blk_size=filtered_rowORcol_block_sizes)
       CALL dbcsr_finalize(matrix_tmp)
 
       ! create fm format matrices used for diagonalisation
@@ -461,8 +458,7 @@ CONTAINS
       CALL dbcsr_create(matrix=matrix_filtered_p, template=scf_env%p_mix_new(1, 1)%matrix, &
                         name=TRIM("FILTERED_MATRIX_P"), &
                         row_blk_size=filtered_rowORcol_block_sizes, &
-                        col_blk_size=filtered_rowORcol_block_sizes, &
-                        nze=0)
+                        col_blk_size=filtered_rowORcol_block_sizes)
       CALL dbcsr_finalize(matrix_filtered_p)
       CALL fb_dbcsr_copy_sparse_struct(matrix_filtered_p, &
                                        scf_env%p_mix_new(1, 1)%matrix)

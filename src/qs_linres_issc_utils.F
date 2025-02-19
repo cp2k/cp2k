@@ -942,7 +942,7 @@ CONTAINS
                         name="efg (3xx-rr)/3", &
                         dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric, &
                         row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-                        nze=0, mutable_work=.TRUE.)
+                        mutable_work=.TRUE.)
       CALL cp_dbcsr_alloc_block_from_nbl(issc_env%matrix_efg(1)%matrix, sab_orb)
 
       ALLOCATE (issc_env%matrix_efg(2)%matrix, &
@@ -973,7 +973,7 @@ CONTAINS
                         name="pso x", &
                         dist=dbcsr_dist, matrix_type=dbcsr_type_antisymmetric, &
                         row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-                        nze=0, mutable_work=.TRUE.)
+                        mutable_work=.TRUE.)
       CALL cp_dbcsr_alloc_block_from_nbl(issc_env%matrix_pso(1)%matrix, sab_orb)
 
       ALLOCATE (issc_env%matrix_pso(2)%matrix, issc_env%matrix_pso(3)%matrix)

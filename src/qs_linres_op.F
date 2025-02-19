@@ -244,7 +244,7 @@ CONTAINS
                         name="op_ao", &
                         dist=dbcsr_dist, matrix_type=dbcsr_type_no_symmetry, &
                         row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-                        nze=0, mutable_work=.TRUE.)
+                        mutable_work=.TRUE.)
       CALL cp_dbcsr_alloc_block_from_nbl(op_ao(1)%matrix, sab_all)
       CALL dbcsr_set(op_ao(1)%matrix, 0.0_dp)
 
@@ -309,7 +309,7 @@ CONTAINS
                         name="op_ao", &
                         dist=dbcsr_dist, matrix_type=dbcsr_type_antisymmetric, &
                         row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-                        nze=0, mutable_work=.TRUE.)
+                        mutable_work=.TRUE.)
       CALL cp_dbcsr_alloc_block_from_nbl(op_ao(1)%matrix, sab_orb)
       CALL dbcsr_set(op_ao(1)%matrix, 0.0_dp)
 

@@ -160,8 +160,7 @@ CONTAINS
          CALL dbcsr_get_info(mao_coef, distribution=dbcsr_dist)
          CALL dbcsr_release(mao_coef)
          CALL dbcsr_create(mao_coef, name="MAO_COEF", dist=dbcsr_dist, &
-                           matrix_type=dbcsr_type_no_symmetry, row_blk_size=row_blk, &
-                           col_blk_size=mao_blk, nze=0)
+                           matrix_type=dbcsr_type_no_symmetry, row_blk_size=row_blk, col_blk_size=mao_blk)
          CALL dbcsr_reserve_diag_blocks(matrix=mao_coef)
          DEALLOCATE (mao_blk, row_blk)
          !

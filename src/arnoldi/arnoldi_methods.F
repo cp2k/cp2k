@@ -662,7 +662,7 @@ CONTAINS
 
       REAL(kind=dp), DIMENSION(:), POINTER               :: data_vec
 
-      data_vec => dbcsr_get_data_p(vec, select_data_type=0.0_dp)
+      data_vec => dbcsr_get_data_p(vec)
       IF (is_local) array(1:n) = data_vec(1:n)
 
    END SUBROUTINE transfer_dbcsr_to_local_array
@@ -682,7 +682,7 @@ CONTAINS
 
       REAL(kind=dp), DIMENSION(:), POINTER               :: data_vec
 
-      data_vec => dbcsr_get_data_p(vec, select_data_type=0.0_dp)
+      data_vec => dbcsr_get_data_p(vec)
       IF (is_local) data_vec(1:n) = array(1:n)
 
    END SUBROUTINE transfer_local_array_to_dbcsr

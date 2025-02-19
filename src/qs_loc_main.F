@@ -341,7 +341,7 @@ CONTAINS
                ALLOCATE (p_rmpv(jspin)%matrix)
                tmatrix => p_rmpv(jspin)%matrix
                CALL dbcsr_create(matrix=tmatrix, template=refmatrix, &
-                                 matrix_type=dbcsr_type_symmetric, nze=0)
+                                 matrix_type=dbcsr_type_symmetric)
                CALL cp_dbcsr_alloc_block_from_nbl(tmatrix, sab_orb)
                CALL dbcsr_set(tmatrix, 0.0_dp)
             END DO

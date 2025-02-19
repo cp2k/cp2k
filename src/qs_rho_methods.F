@@ -200,7 +200,7 @@ CONTAINS
                ALLOCATE (rho_ao_kp(i, ic)%matrix)
                tmatrix => rho_ao_kp(i, ic)%matrix
                CALL dbcsr_create(matrix=tmatrix, template=refmatrix, name=TRIM(headline), &
-                                 matrix_type=dbcsr_type_symmetric, nze=0)
+                                 matrix_type=dbcsr_type_symmetric)
                CALL cp_dbcsr_alloc_block_from_nbl(tmatrix, sab_orb)
                CALL dbcsr_set(tmatrix, 0.0_dp)
             END DO
@@ -225,7 +225,7 @@ CONTAINS
                   ALLOCATE (rho_ao_im_kp(i, ic)%matrix)
                   tmatrix => rho_ao_im_kp(i, ic)%matrix
                   CALL dbcsr_create(matrix=tmatrix, template=refmatrix, name=TRIM(headline), &
-                                    matrix_type=dbcsr_type_antisymmetric, nze=0)
+                                    matrix_type=dbcsr_type_antisymmetric)
                   CALL cp_dbcsr_alloc_block_from_nbl(tmatrix, sab_orb)
                   CALL dbcsr_set(tmatrix, 0.0_dp)
                END DO
@@ -1480,7 +1480,7 @@ CONTAINS
             ALLOCATE (rho_ao_im_kp(i, ic)%matrix)
             template => rho_ao_kp(i, ic)%matrix ! base on real part, but anti-symmetric
             CALL dbcsr_create(matrix=rho_ao_im_kp(i, ic)%matrix, template=template, &
-                              name=TRIM(headline), matrix_type=dbcsr_type_antisymmetric, nze=0)
+                              name=TRIM(headline), matrix_type=dbcsr_type_antisymmetric)
             CALL cp_dbcsr_alloc_block_from_nbl(rho_ao_im_kp(i, ic)%matrix, sab_orb)
             CALL dbcsr_set(rho_ao_im_kp(i, ic)%matrix, 0.0_dp)
          END DO

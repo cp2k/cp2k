@@ -20,7 +20,7 @@ MODULE arnoldi_vector
         dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
         dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_release, dbcsr_reserve_all_blocks, &
         dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, &
-        dbcsr_type_real_8, dbcsr_type_symmetric
+        dbcsr_type_symmetric
    USE kinds,                           ONLY: dp,&
                                               real_8
    USE message_passing,                 ONLY: mp_comm_type
@@ -85,27 +85,23 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_col_vec_from_matrix'
 
-      INTEGER                                            :: data_type, handle, npcols
+      INTEGER                                            :: handle, npcols
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, col_dist, row_blk_size, &
                                                             row_dist
       TYPE(dbcsr_distribution_type)                      :: dist, dist_col_vec
 
       CALL timeset(routineN, handle)
 
-      CALL dbcsr_get_info(matrix, data_type=data_type, row_blk_size=row_blk_size, distribution=dist)
+      CALL dbcsr_get_info(matrix, row_blk_size=row_blk_size, distribution=dist)
       CALL dbcsr_distribution_get(dist, npcols=npcols, row_dist=row_dist)
-      CPASSERT(data_type == dbcsr_type_real_8)
 
       ALLOCATE (col_dist(1), col_blk_size(1))
       col_dist(1) = 0
       col_blk_size(1) = ncol
       CALL dbcsr_distribution_new(dist_col_vec, template=dist, row_dist=row_dist, col_dist=col_dist)
 
-      CALL dbcsr_create(dbcsr_vec, "D", dist_col_vec, &
-                        matrix_type=dbcsr_type_no_symmetry, &
-                        row_blk_size=row_blk_size, &
-                        col_blk_size=col_blk_size, &
-                        nze=0, data_type=data_type)
+      CALL dbcsr_create(dbcsr_vec, "D", dist_col_vec, matrix_type=dbcsr_type_no_symmetry, &
+                        row_blk_size=row_blk_size, col_blk_size=col_blk_size)
       CALL dbcsr_reserve_all_blocks(dbcsr_vec)
 
       CALL dbcsr_distribution_release(dist_col_vec)
@@ -129,27 +125,23 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_row_vec_from_matrix'
 
-      INTEGER                                            :: data_type, handle, nprows
+      INTEGER                                            :: handle, nprows
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, col_dist, row_blk_size, &
                                                             row_dist
       TYPE(dbcsr_distribution_type)                      :: dist, dist_row_vec
 
       CALL timeset(routineN, handle)
 
-      CALL dbcsr_get_info(matrix, data_type=data_type, col_blk_size=col_blk_size, distribution=dist)
+      CALL dbcsr_get_info(matrix, col_blk_size=col_blk_size, distribution=dist)
       CALL dbcsr_distribution_get(dist, nprows=nprows, col_dist=col_dist)
-      CPASSERT(data_type == dbcsr_type_real_8)
 
       ALLOCATE (row_dist(1), row_blk_size(1))
       row_dist(1) = 0
       row_blk_size(1) = nrow
       CALL dbcsr_distribution_new(dist_row_vec, template=dist, row_dist=row_dist, col_dist=col_dist)
 
-      CALL dbcsr_create(dbcsr_vec, "D", dist_row_vec, &
-                        matrix_type=dbcsr_type_no_symmetry, &
-                        row_blk_size=row_blk_size, &
-                        col_blk_size=col_blk_size, &
-                        nze=0, data_type=data_type)
+      CALL dbcsr_create(dbcsr_vec, "D", dist_row_vec, matrix_type=dbcsr_type_no_symmetry, &
+                        row_blk_size=row_blk_size, col_blk_size=col_blk_size)
       CALL dbcsr_reserve_all_blocks(dbcsr_vec)
 
       CALL dbcsr_distribution_release(dist_row_vec)
@@ -173,16 +165,15 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_replicated_col_vec_from_matrix'
 
-      INTEGER                                            :: data_type, handle, i, npcols
+      INTEGER                                            :: handle, i, npcols
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, col_dist, row_blk_size, &
                                                             row_dist
       TYPE(dbcsr_distribution_type)                      :: dist, dist_col_vec
 
       CALL timeset(routineN, handle)
 
-      CALL dbcsr_get_info(matrix, data_type=data_type, row_blk_size=row_blk_size, distribution=dist)
+      CALL dbcsr_get_info(matrix, row_blk_size=row_blk_size, distribution=dist)
       CALL dbcsr_distribution_get(dist, npcols=npcols, row_dist=row_dist)
-      CPASSERT(data_type == dbcsr_type_real_8)
 
       ALLOCATE (col_dist(npcols), col_blk_size(npcols))
       col_blk_size(:) = ncol
@@ -191,11 +182,8 @@ CONTAINS
       END DO
       CALL dbcsr_distribution_new(dist_col_vec, template=dist, row_dist=row_dist, col_dist=col_dist)
 
-      CALL dbcsr_create(dbcsr_vec, "D", dist_col_vec, &
-                        matrix_type=dbcsr_type_no_symmetry, &
-                        row_blk_size=row_blk_size, &
-                        col_blk_size=col_blk_size, &
-                        nze=0, data_type=data_type)
+      CALL dbcsr_create(dbcsr_vec, "D", dist_col_vec, matrix_type=dbcsr_type_no_symmetry, &
+                        row_blk_size=row_blk_size, col_blk_size=col_blk_size)
       CALL dbcsr_reserve_all_blocks(dbcsr_vec)
 
       CALL dbcsr_distribution_release(dist_col_vec)
@@ -219,16 +207,15 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_replicated_row_vec_from_matrix'
 
-      INTEGER                                            :: data_type, handle, i, nprows
+      INTEGER                                            :: handle, i, nprows
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, col_dist, row_blk_size, &
                                                             row_dist
       TYPE(dbcsr_distribution_type)                      :: dist, dist_row_vec
 
       CALL timeset(routineN, handle)
 
-      CALL dbcsr_get_info(matrix, distribution=dist, col_blk_size=col_blk_size, data_type=data_type)
+      CALL dbcsr_get_info(matrix, distribution=dist, col_blk_size=col_blk_size)
       CALL dbcsr_distribution_get(dist, nprows=nprows, col_dist=col_dist)
-      CPASSERT(data_type == dbcsr_type_real_8)
 
       ALLOCATE (row_dist(nprows), row_blk_size(nprows))
       row_blk_size(:) = nrow
@@ -238,8 +225,7 @@ CONTAINS
       CALL dbcsr_distribution_new(dist_row_vec, template=dist, row_dist=row_dist, col_dist=col_dist)
 
       CALL dbcsr_create(dbcsr_vec, "D", dist_row_vec, dbcsr_type_no_symmetry, &
-                        row_blk_size=row_blk_size, col_blk_size=col_blk_size, &
-                        nze=0, data_type=data_type)
+                        row_blk_size=row_blk_size, col_blk_size=col_blk_size)
       CALL dbcsr_reserve_all_blocks(dbcsr_vec)
 
       CALL dbcsr_distribution_release(dist_row_vec)
@@ -547,10 +533,8 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: work_row, work_col
 
       CHARACTER                                          :: matrix_type
-      INTEGER                                            :: data_type
 
-      CALL dbcsr_get_info(matrix, data_type=data_type, matrix_type=matrix_type)
-      CPASSERT(data_type == dbcsr_type_real_8)
+      CALL dbcsr_get_info(matrix, matrix_type=matrix_type)
 
       SELECT CASE (matrix_type)
       CASE (dbcsr_type_no_symmetry)
@@ -583,9 +567,9 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_matrix_vector_mult'
 
-      INTEGER                                            :: col, data_type, handle, handle1, &
-                                                            ithread, mypcol, myprow, ncols, nrows, &
-                                                            pcol, prow, prow_handle, row
+      INTEGER                                            :: col, handle, handle1, ithread, mypcol, &
+                                                            myprow, ncols, nrows, pcol, prow, &
+                                                            prow_handle, row
       REAL(kind=real_8), DIMENSION(:), POINTER           :: data_vec
       REAL(kind=real_8), DIMENSION(:, :), POINTER        :: data_d, vec_res
       TYPE(dbcsr_distribution_type)                      :: dist
@@ -597,9 +581,8 @@ CONTAINS
       ithread = 0
 
       ! Collect some data about the parallel environment. We will use them later to move the vector around
-      CALL dbcsr_get_info(matrix, distribution=dist, data_type=data_type)
+      CALL dbcsr_get_info(matrix, distribution=dist)
       CALL dbcsr_distribution_get(dist, prow_group=prow_handle, myprow=myprow, mypcol=mypcol)
-      CPASSERT(data_type == dbcsr_type_real_8)
 
       CALL prow_group%set_handle(prow_handle)
 
@@ -646,7 +629,7 @@ CONTAINS
       CALL timestop(handle1)
 
       ! sum all the data onto the first processor col where the original vector is stored
-      data_vec => dbcsr_get_data_p(work_col, select_data_type=0.0_real_8)
+      data_vec => dbcsr_get_data_p(work_col)
       CALL dbcsr_get_info(matrix=work_col, nfullrows_local=nrows, nfullcols_local=ncols)
       CALL prow_group%sum(data_vec(1:nrows*ncols))
 
@@ -690,8 +673,10 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_matrixT_vector_mult'
 
-      INTEGER :: col, col_size, data_type, handle, handle1, ithread, mypcol, myprow, ncols, nrows, &
-         pcol, pcol_handle, prow, prow_handle, row, row_size
+      INTEGER                                            :: col, col_size, handle, handle1, ithread, &
+                                                            mypcol, myprow, ncols, nrows, pcol, &
+                                                            pcol_handle, prow, prow_handle, row, &
+                                                            row_size
       REAL(kind=real_8), DIMENSION(:), POINTER           :: data_vec
       REAL(kind=real_8), DIMENSION(:, :), POINTER        :: data_d, vec_bl, vec_res
       TYPE(dbcsr_distribution_type)                      :: dist
@@ -703,9 +688,8 @@ CONTAINS
       ithread = 0
 
       ! Collect some data about the parallel environment. We will use them later to move the vector around
-      CALL dbcsr_get_info(matrix, distribution=dist, data_type=data_type)
+      CALL dbcsr_get_info(matrix, distribution=dist)
       CALL dbcsr_distribution_get(dist, prow_group=prow_handle, pcol_group=pcol_handle, myprow=myprow, mypcol=mypcol)
-      CPASSERT(data_type == dbcsr_type_real_8)
 
       CALL prow_group%set_handle(prow_handle)
       CALL pcol_group%set_handle(pcol_handle)
@@ -725,7 +709,7 @@ CONTAINS
       END DO
       CALL dbcsr_iterator_stop(iter)
       ! Replicate the data on all processore in the row
-      data_vec => dbcsr_get_data_p(work_col, select_data_type=0.0_real_8)
+      data_vec => dbcsr_get_data_p(work_col)
       CALL prow_group%bcast(data_vec, 0)
 
       ! Perform the local multiply. Here it is obvious why the vectors are replicated on the mpi rows and cols
@@ -759,7 +743,7 @@ CONTAINS
       CALL timestop(handle1)
 
       ! sum all the data within a processor column to obtain the replicated result
-      data_vec => dbcsr_get_data_p(work_row, select_data_type=0.0_real_8)
+      data_vec => dbcsr_get_data_p(work_row)
       ! we use the replicated vector but the final answer is only summed to proc_col 0 for efficiency
       CALL dbcsr_get_info(matrix=work_row, nfullrows_local=nrows, nfullcols_local=ncols)
       CALL pcol_group%sum(data_vec(1:nrows*ncols))
@@ -825,8 +809,8 @@ CONTAINS
 
       ! Copy the local vector to the replicated on the first processor column (this is where vec_in lives)
       CALL dbcsr_get_info(matrix=rep_col_vec, nfullrows_local=nrows, nfullcols_local=ncols)
-      data_vec_rep => dbcsr_get_data_p(rep_col_vec, select_data_type=0.0_real_8)
-      data_vec => dbcsr_get_data_p(vec_in, select_data_type=0.0_real_8)
+      data_vec_rep => dbcsr_get_data_p(rep_col_vec)
+      data_vec => dbcsr_get_data_p(vec_in)
       IF (mypcol == 0) data_vec_rep(1:nrows*ncols) = data_vec(1:nrows*ncols)
       ! Replicate the data along the row
       CALL prow_group%bcast(data_vec_rep(1:nrows*ncols), 0)
@@ -849,7 +833,7 @@ CONTAINS
       END DO
       CALL dbcsr_iterator_stop(iter)
       CALL dbcsr_get_info(matrix=rep_row_vec, nfullrows_local=nrows, nfullcols_local=ncols)
-      data_vec_rep => dbcsr_get_data_p(rep_row_vec, select_data_type=0.0_real_8)
+      data_vec_rep => dbcsr_get_data_p(rep_row_vec)
       CALL pcol_group%sum(data_vec_rep(1:ncols*nrows))
 
       CALL timestop(handle)
@@ -910,7 +894,7 @@ CONTAINS
       END DO
       CALL dbcsr_iterator_stop(iter)
       CALL dbcsr_get_info(matrix=rep_col_vec, nfullrows_local=nrows, nfullcols_local=ncols)
-      data_vec_rep => dbcsr_get_data_p(rep_col_vec, select_data_type=0.0_real_8)
+      data_vec_rep => dbcsr_get_data_p(rep_col_vec)
       CALL prow_group%sum(data_vec_rep(1:nrows*ncols))
 
       CALL timestop(handle)
@@ -1020,7 +1004,7 @@ CONTAINS
       CALL timestop(handle1)
 
       ! sum all the data within a processor column to obtain the replicated result from lower
-      data_vec => dbcsr_get_data_p(result_row, select_data_type=0.0_real_8)
+      data_vec => dbcsr_get_data_p(result_row)
       CALL dbcsr_get_info(matrix=result_row, nfullrows_local=nrows, nfullcols_local=ncols)
 
       CALL pcol_group%sum(data_vec(1:nrows*ncols))
