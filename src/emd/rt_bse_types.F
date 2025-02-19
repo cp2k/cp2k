@@ -271,7 +271,7 @@ MODULE rt_bse_types
                                                                    pade_fit_e_min = 0.0_dp, &
                                                                    pade_fit_e_max = -1.0_dp
       INTEGER                                                   :: pade_npoints = 0, &
-                                                                   pade_fit_points = 0
+                                                                   pade_fit_npoints = 0
 
    END TYPE rtbse_env_type
 
@@ -455,6 +455,8 @@ CONTAINS
       CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%PADE_FT%FIT_E_MAX", &
                                 r_val=rtbse_env%pade_fit_e_max)
       rtbse_env%pade_npoints = INT((rtbse_env%pade_e_max - rtbse_env%pade_e_min)/rtbse_env%pade_e_step)
+      ! To be calculated later, once the FT is known
+      rtbse_env%pade_fit_npoints = 0
 
       ! Allocate moments matrices
       NULLIFY (rtbse_env%moments)

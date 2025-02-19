@@ -585,9 +585,11 @@ CONTAINS
       REAL(kind=dp), DIMENSION(:, :), ALLOCATABLE         :: ft_full_series
       INTEGER                                             :: i, n, ft_unit
 #if defined (__GREENX)
-      REAL(kind=dp), DIMENSION(:), POINTER                :: refined_omega, &
-                                                             refined_moments_real, &
+      REAL(kind=dp), DIMENSION(:), POINTER                :: refined_omega
+      REAL(kind=dp), DIMENSION(:, :), POINTER             :: refined_moments_real, &
                                                              refined_moments_imag
+      INTEGER                                             :: fit_start, &
+                                                             fit_end
 #endif
 
       logger => cp_get_default_logger()
@@ -636,20 +638,38 @@ CONTAINS
       NULLIFY (refined_moments_real)
       NULLIFY (refined_moments_imag)
       NULLIFY (refined_omega)
-      ALLOCATE(refined_moments_real(rtbse_env%pade_npoints))
-      ALLOCATE(refined_moments_imag(rtbse_env%pade_npoints))
-      ft_real_series(:) = ft_full_series(1,:)
-      ft_imag_series(:) = ft_full_series(2,:)
+      ALLOCATE(refined_moments_real(3, rtbse_env%pade_npoints))
+      ALLOCATE(refined_moments_imag(3, rtbse_env%pade_npoints))
       ALLOCATE(refined_omega(rtbse_env%pade_npoints))
-      CALL refine_moments_ft(rtbse_env, omega_series, ft_real_series, ft_imag_series, &
-                             refined_omega, refined_moments_real, refined_moments_imag)
+      fit_start = -1
+      fit_end = -1
+      ! Search for the subset of FT points which is within energy limits given by
+      ! the input
+      ! Do not search when automatic request of highest energy is made
+      IF (rtbse_env%pade_fit_e_max < 0) fit_end = n
+      DO i=1,n
+         IF (fit_start == -1 .AND. omega_series(i) >= rtbse_env%pade_fit_e_min) fit_start = i
+         IF (fit_end == -1 .AND. omega_series(i) > rtbse_env%pade_fit_e_max) fit_end = i-1
+         IF (fit_start > 0 .AND. fit_end > 0) EXIT
+      END DO
+      IF (fit_start == -1) fit_start = 1
+      IF (fit_end == -1) fit_end = n
+      rtbse_env%pade_fit_npoints = fit_end - fit_start + 1
+      DO i=1,3
+         ! Copy the fitting parameters
+         CALL refine_moments_ft(rtbse_env, omega_series(fit_start:fit_end), &
+                                ft_full_series(2*i-1, fit_start:fit_end), ft_full_series(2*i, fit_start:fit_end), &
+                                refined_omega, refined_moments_real(i, :), refined_moments_imag(i, :))
+      END DO
       ! Write into alternative file
       ft_unit = cp_print_key_unit_nr(logger, rtbse_env%ft_section, extension="_PADE.dat", &
                                      file_form="FORMATTED", file_position="REWIND")
       IF (ft_unit > 0) THEN
          DO i = 1, rtbse_env%pade_npoints
-            WRITE (ft_unit, '(E20.8E3,E20.8E3,E20.8E3)') &
-               refined_omega(i), refined_moments_real(i), refined_moments_imag(i)
+            WRITE (ft_unit, '(E20.8E3,E20.8E3,E20.8E3,E20.8E3,E20.8E3,E20.8E3,E20.8E3)') &
+               refined_omega(i), refined_moments_real(1, i), refined_moments_imag(1, i), &
+               refined_moments_real(2, i), refined_moments_imag(2, i), &
+               refined_moments_real(3, i), refined_moments_imag(3, i)
          END DO
       END IF
       CALL cp_print_key_finished_output(ft_unit, logger, rtbse_env%ft_section)
@@ -658,8 +678,6 @@ CONTAINS
       DEALLOCATE(refined_moments_imag)
 #endif
       DEALLOCATE (omega_series)
-      DEALLOCATE (ft_real_series)
-      DEALLOCATE (ft_imag_series)
       DEALLOCATE (ft_full_series)
       ! Perform control with gx_ac
    END SUBROUTINE output_moments_ft
@@ -674,29 +692,28 @@ CONTAINS
    SUBROUTINE refine_moments_ft(rtbse_env, omega_series, moment_series_real, moment_series_imag, &
                                 omega_refined, moment_refined_real, moment_refined_imag)
       TYPE(rtbse_env_type), POINTER                      :: rtbse_env
-      REAL(kind=dp), DIMENSION(:), POINTER               :: omega_series, &
+      REAL(kind=dp), DIMENSION(:)                        :: omega_series, &
                                                             moment_series_real, &
-                                                            moment_series_imag, &
-                                                            omega_refined, &
+                                                            moment_series_imag
+      REAL(kind=dp), DIMENSION(:)                        :: omega_refined, &
                                                             moment_refined_real, &
                                                             moment_refined_imag
-      INTEGER                                            :: n, i
+      INTEGER                                            :: i
       TYPE(params)                                       :: pade_params
       ! Translations to complex types
       COMPLEX(kind=dp), DIMENSION(:), ALLOCATABLE        :: omega_complex, &
                                                             moment_complex
 
-      n = SIZE(omega_series)
-      ALLOCATE (omega_complex(n))
-      ALLOCATE (moment_complex(n))
-      DO i=1,n
+      ALLOCATE (omega_complex(rtbse_env%pade_fit_npoints))
+      ALLOCATE (moment_complex(rtbse_env%pade_fit_npoints))
+      DO i=1,rtbse_env%pade_fit_npoints
          omega_complex(i) = CMPLX(omega_series(i), 0.0, kind=dp)
          moment_complex(i) = CMPLX(moment_series_real(i), moment_series_imag(i), kind=dp)
       END DO
       ! Fit the params
       ! TODO : Allow for symmetry setting?
-      ! TODO : Set number of parameters by input
-      pade_params = create_thiele_pade(128, omega_complex, moment_complex, enforce_symmetry="conjugate")
+      ! Number of Padé parameters M is half of the available frequency points - TODO : Ref
+      pade_params = create_thiele_pade(rtbse_env%pade_fit_npoints/2, omega_complex, moment_complex, enforce_symmetry="conjugate")
       ! Once the params are fitted, reallocate to get the interpolation
       DEALLOCATE (omega_complex)
       DEALLOCATE (moment_complex)
