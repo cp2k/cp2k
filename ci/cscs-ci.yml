@@ -40,14 +40,11 @@ test_cp2k:
   timeout: 1h
   image: ${PERSIST_IMAGE_NAME}
   script:
-    - cd /opt/cp2k/benchmarks/QS/00512_H2O
-    - cp2k H2O-512_md.inp
+    - cp2k.popt /opt/cp2k/benchmarks/QS/00512_H2O/H2O-512_md.inp
   variables:
-    OMP_NUM_THREADS: 2
+    OMP_NUM_THREADS: 1
     SLURM_CONSTRAINT: mc
-    SLURM_CPU_BIND: verbose
     SLURM_HINT: nomultithread
-    SLURM_NTASKS: 64
+    SLURM_NTASKS: 128
     SLURM_TIMELIMIT: "20:00"
-    SRUN_CPUS_PER_TASK: 2
     USE_MPI: auto
