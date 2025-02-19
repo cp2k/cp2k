@@ -267,8 +267,11 @@ MODULE rt_bse_types
       ! Parameters for Padé refinement
       REAL(kind=dp)                                             :: pade_e_min = 0.0_dp, &
                                                                    pade_e_max = 100.0_dp, &
-                                                                   pade_e_step = 0.05_dp
-      INTEGER                                                   :: pade_npoints = 0
+                                                                   pade_e_step = 0.05_dp, &
+                                                                   pade_fit_e_min = 0.0_dp, &
+                                                                   pade_fit_e_max = -1.0_dp
+      INTEGER                                                   :: pade_npoints = 0, &
+                                                                   pade_fit_points = 0
 
    END TYPE rtbse_env_type
 
@@ -447,6 +450,10 @@ CONTAINS
                                 r_val=rtbse_env%pade_e_max)
       CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%PADE_FT%E_STEP", &
                                 r_val=rtbse_env%pade_e_step)
+      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%PADE_FT%FIT_E_MIN", &
+                                r_val=rtbse_env%pade_fit_e_min)
+      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%PADE_FT%FIT_E_MAX", &
+                                r_val=rtbse_env%pade_fit_e_max)
       rtbse_env%pade_npoints = INT((rtbse_env%pade_e_max - rtbse_env%pade_e_min)/rtbse_env%pade_e_step)
 
       ! Allocate moments matrices

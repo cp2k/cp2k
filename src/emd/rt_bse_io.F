@@ -695,7 +695,8 @@ CONTAINS
       END DO
       ! Fit the params
       ! TODO : Allow for symmetry setting?
-      pade_params = create_thiele_pade(n/2, omega_complex, moment_complex, enforce_symmetry="conjugate")
+      ! TODO : Set number of parameters by input
+      pade_params = create_thiele_pade(128, omega_complex, moment_complex, enforce_symmetry="conjugate")
       ! Once the params are fitted, reallocate to get the interpolation
       DEALLOCATE (omega_complex)
       DEALLOCATE (moment_complex)

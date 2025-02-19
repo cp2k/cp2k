@@ -1920,11 +1920,15 @@ CONTAINS
       CALL keyword_release(keyword)
 
       ! Padé FT refinement
+      ! TODO : Link MOMENTS_FT in documentation.
       CALL section_create(subsection, __LOCATION__, name="PADE_FT",&
-                          description="Options for the Padé approximant refinement of the Fourier transform.", &
+                          description="Options for the Padé approximant refinement of the Fourier transform. Uses GreenX "// &
+                          "library to perform the analytic continuation and interpolation of the Fourier transform of "// &
+                          "dipole moments. The resulting moments are printed into the MOMENTS_FT file.", &
                           repeats=.FALSE.)
+
       CALL keyword_create(keyword, __LOCATION__, name="E_MIN", &
-                          description="Energy minimum for the refined energy grid.", &
+                          description="Minimal energy of the interpolated values.", &
                           unit_str="eV", &
                           type_of_var=real_t, &
                           default_r_val=0.0_dp)
@@ -1932,7 +1936,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="E_MAX", &
-                          description="Energy maximum for the refined energy grid.", &
+                          description="Maximal energy of the interpolated values.", &
                           unit_str="eV", &
                           type_of_var=real_t, &
                           default_r_val=100.0_dp)
@@ -1940,10 +1944,29 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="E_STEP", &
-                          description="Energy resolution of the refined energy grid.", &
+                          description="Energy resolution of the interpolated values.", &
                           unit_str="eV", &
                           type_of_var=real_t, &
                           default_r_val=0.05_dp)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="FIT_E_MIN", &
+                          description="Minimum energy to be used in the fitting of Padé approximants. "// &
+                          "Can be used to restrict the number of Padé parameters.", &
+                          unit_str="eV", &
+                          type_of_var=real_t, &
+                          default_r_val=0.0_dp)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="FIT_E_MAX", &
+                          description="Maximum energy to be used in the fitting of Padé approximants. "// &
+                          "Can be used to restrict the number of Padé parameters. Negative energy is interpreted "// &
+                          "as default of maximum available energy from the original Fourier transform.", &
+                          unit_str="eV", &
+                          type_of_var=real_t, &
+                          default_r_val=-1.0_dp)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
