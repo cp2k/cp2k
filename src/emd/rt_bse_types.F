@@ -272,6 +272,8 @@ MODULE rt_bse_types
                                                                    pade_fit_e_max = -1.0_dp
       INTEGER                                                   :: pade_npoints = 0, &
                                                                    pade_fit_npoints = 0
+      LOGICAL                                                   :: pade_requested = .FALSE.
+      COMPLEX(kind=dp), DIMENSION(:), POINTER                   :: pade_x_eval => NULL()
 
    END TYPE rtbse_env_type
 
@@ -444,6 +446,8 @@ CONTAINS
       rtbse_env%qs_env => qs_env
       rtbse_env%bs_env => bs_env
       ! Padé refinement
+      CALL section_vals_get(section_vals_get_subs_vals(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%PADE_FT"), &
+                            explicit=rtbse_env%pade_requested)
       CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%PADE_FT%E_MIN", &
                                 r_val=rtbse_env%pade_e_min)
       CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%PADE_FT%E_MAX", &
@@ -457,6 +461,18 @@ CONTAINS
       rtbse_env%pade_npoints = INT((rtbse_env%pade_e_max - rtbse_env%pade_e_min)/rtbse_env%pade_e_step)
       ! To be calculated later, once the FT is known
       rtbse_env%pade_fit_npoints = 0
+      ! Evaluate the evaluation grid
+      IF (rtbse_env%pade_requested) THEN
+#if defined(__GREENX)
+         NULLIFY (rtbse_env%pade_x_eval)
+         ALLOCATE (rtbse_env%pade_x_eval(rtbse_env%pade_npoints))
+         DO i = 1, rtbse_env%pade_npoints
+            rtbse_env%pade_x_eval(i) = CMPLX(rtbse_env%pade_e_step * REAL(i-1, kind=dp), 0.0, kind=dp)
+         END DO
+#else
+         CPABORT("Padé refinement of FT requires linking GreenX - recompile CP2K with GreenX.")
+#endif
+      END IF
 
       ! Allocate moments matrices
       NULLIFY (rtbse_env%moments)
@@ -647,6 +663,9 @@ CONTAINS
       DEALLOCATE (rtbse_env%time_trace%series)
 
       DEALLOCATE (rtbse_env%pol_elements)
+#if defined(__GREENX)
+      IF (rtbse_env%pade_requested) DEALLOCATE (rtbse_env%pade_x_eval)
+#endif
 
       ! Deallocate the neighbour list that is not deallocated in gw anymore
       IF (ASSOCIATED(rtbse_env%bs_env%nl_3c%ij_list)) CALL neighbor_list_3c_destroy(rtbse_env%bs_env%nl_3c)

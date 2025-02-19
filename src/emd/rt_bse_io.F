@@ -585,11 +585,9 @@ CONTAINS
       REAL(kind=dp), DIMENSION(:, :), ALLOCATABLE         :: ft_full_series
       INTEGER                                             :: i, n, ft_unit
 #if defined (__GREENX)
-      REAL(kind=dp), DIMENSION(:), POINTER                :: refined_omega
-      REAL(kind=dp), DIMENSION(:, :), POINTER             :: refined_moments_real, &
-                                                             refined_moments_imag
-      INTEGER                                             :: fit_start, &
-                                                             fit_end
+      COMPLEX(kind=dp), DIMENSION(:), ALLOCATABLE         :: omega_complex, &
+                                                             moments_ft_complex
+      COMPLEX(kind=dp), DIMENSION(:, :), ALLOCATABLE      :: moments_eval_complex
 #endif
 
       logger => cp_get_default_logger()
@@ -635,111 +633,119 @@ CONTAINS
       DEALLOCATE (ft_real_series)
       DEALLOCATE (ft_imag_series)
 #if defined (__GREENX)
-      NULLIFY (refined_moments_real)
-      NULLIFY (refined_moments_imag)
-      NULLIFY (refined_omega)
-      ALLOCATE(refined_moments_real(3, rtbse_env%pade_npoints))
-      ALLOCATE(refined_moments_imag(3, rtbse_env%pade_npoints))
-      ALLOCATE(refined_omega(rtbse_env%pade_npoints))
-      fit_start = -1
-      fit_end = -1
-      ! Search for the subset of FT points which is within energy limits given by
-      ! the input
-      ! Do not search when automatic request of highest energy is made
-      IF (rtbse_env%pade_fit_e_max < 0) fit_end = n
-      DO i=1,n
-         IF (fit_start == -1 .AND. omega_series(i) >= rtbse_env%pade_fit_e_min) fit_start = i
-         IF (fit_end == -1 .AND. omega_series(i) > rtbse_env%pade_fit_e_max) fit_end = i-1
-         IF (fit_start > 0 .AND. fit_end > 0) EXIT
-      END DO
-      IF (fit_start == -1) fit_start = 1
-      IF (fit_end == -1) fit_end = n
-      rtbse_env%pade_fit_npoints = fit_end - fit_start + 1
-      IF (rtbse_env%pade_fit_npoints > 2000) THEN
-         CPWARN("More then 1000 Padé parameters requested - may reduce with FIT_E_MIN/FIT_E_MAX.")
-      END IF
-      DO i=1,3
-         ! Copy the fitting parameters
-         CALL refine_moments_ft(rtbse_env, omega_series(fit_start:fit_end), &
-                                ft_full_series(2*i-1, fit_start:fit_end), ft_full_series(2*i, fit_start:fit_end), &
-                                refined_omega, refined_moments_real(i, :), refined_moments_imag(i, :))
-      END DO
-      ! Write into alternative file
-      ft_unit = cp_print_key_unit_nr(logger, rtbse_env%ft_section, extension="_PADE.dat", &
-                                     file_form="FORMATTED", file_position="REWIND")
-      IF (ft_unit > 0) THEN
-         DO i = 1, rtbse_env%pade_npoints
-            WRITE (ft_unit, '(E20.8E3,E20.8E3,E20.8E3,E20.8E3,E20.8E3,E20.8E3,E20.8E3)') &
-               refined_omega(i), refined_moments_real(1, i), refined_moments_imag(1, i), &
-               refined_moments_real(2, i), refined_moments_imag(2, i), &
-               refined_moments_real(3, i), refined_moments_imag(3, i)
+      IF (rtbse_env%pade_requested) THEN
+         ALLOCATE (omega_complex(n))
+         ALLOCATE (moments_ft_complex(n))
+         ALLOCATE (moments_eval_complex(3,rtbse_env%pade_npoints))
+         omega_complex(:) = CMPLX(omega_series(:), 0.0, kind=dp)
+         DO i=1,3
+            moments_ft_complex(:) = CMPLX(ft_full_series(2*i-1, :), &
+                                          ft_full_series(2*i, :), &
+                                          kind=dp)
+            ! Copy the fitting parameters
+            ! TODO : Optional direct setting of parameters?
+            CALL refine_ft(rtbse_env%pade_fit_e_min, rtbse_env%pade_fit_e_max, &
+                    omega_complex, moments_ft_complex, rtbse_env%pade_x_eval, moments_eval_complex(i,:))
          END DO
+         ! Write into alternative file
+         ft_unit = cp_print_key_unit_nr(logger, rtbse_env%ft_section, extension="_PADE.dat", &
+                                        file_form="FORMATTED", file_position="REWIND")
+         IF (ft_unit > 0) THEN
+            DO i = 1, rtbse_env%pade_npoints
+               WRITE (ft_unit, '(E20.8E3,E20.8E3,E20.8E3,E20.8E3,E20.8E3,E20.8E3,E20.8E3)') &
+                  REAL(rtbse_env%pade_x_eval(i)), REAL(moments_eval_complex(1, i)), AIMAG(moments_eval_complex(1, i)), &
+                  REAL(moments_eval_complex(2, i)), AIMAG(moments_eval_complex(2, i)), &
+                  REAL(moments_eval_complex(3, i)), AIMAG(moments_eval_complex(3, i))
+            END DO
+         END IF
+         CALL cp_print_key_finished_output(ft_unit, logger, rtbse_env%ft_section)
+         DEALLOCATE(omega_complex)
+         DEALLOCATE(moments_ft_complex)
+         DEALLOCATE(moments_eval_complex)
       END IF
-      CALL cp_print_key_finished_output(ft_unit, logger, rtbse_env%ft_section)
-      DEALLOCATE(refined_omega)
-      DEALLOCATE(refined_moments_real)
-      DEALLOCATE(refined_moments_imag)
 #endif
       DEALLOCATE (omega_series)
       DEALLOCATE (ft_full_series)
       ! Perform control with gx_ac
    END SUBROUTINE output_moments_ft
-#if defined (__GREENX)
 ! **************************************************************************************************
 !> \brief Refines the FT grid using Padé approximants
-!> \param rtbse_env RT-BSE environment
-!> \param omega_series Input x-variables
-!> \param moment_series_real Real input y-variables
-!> \param moment_series_imag Imaginary input y-variables
+!> \param x_fit Input x-variables
+!> \param y_fit Input y-variables
+!> \param x_eval Refined x-variables
+!> \param y_eval Refined y-variables
 ! **************************************************************************************************
-   SUBROUTINE refine_moments_ft(rtbse_env, omega_series, moment_series_real, moment_series_imag, &
-                                omega_refined, moment_refined_real, moment_refined_imag)
-      TYPE(rtbse_env_type), POINTER                      :: rtbse_env
-      REAL(kind=dp), DIMENSION(:)                        :: omega_series, &
-                                                            moment_series_real, &
-                                                            moment_series_imag
-      REAL(kind=dp), DIMENSION(:)                        :: omega_refined, &
-                                                            moment_refined_real, &
-                                                            moment_refined_imag
-      INTEGER                                            :: i
+   SUBROUTINE refine_ft(fit_e_min, fit_e_max, x_fit, y_fit, x_eval, y_eval, n_pade_opt)
+      REAL(kind=dp)                                      :: fit_e_min, &
+                                                            fit_e_max
+      COMPLEX(kind=dp), DIMENSION(:)                     :: x_fit, &
+                                                            y_fit, &
+                                                            x_eval, &
+                                                            y_eval
+      INTEGER, OPTIONAL                                  :: n_pade_opt
+#if defined (__GREENX)
+      CHARACTER(len=*), PARAMETER                        :: routineN="refine_ft"
+      INTEGER                                            :: handle, &
+                                                            fit_start, &
+                                                            fit_end, &
+                                                            max_fit, &
+                                                            n_fit, &
+                                                            n_pade, &
+                                                            n_eval, &
+                                                            i
       TYPE(params)                                       :: pade_params
-      ! Translations to complex types
-      COMPLEX(kind=dp), DIMENSION(:), ALLOCATABLE        :: omega_complex, &
-                                                            moment_complex
+      CALL timeset(routineN, handle)
 
-      ALLOCATE (omega_complex(rtbse_env%pade_fit_npoints))
-      ALLOCATE (moment_complex(rtbse_env%pade_fit_npoints))
-      DO i=1,rtbse_env%pade_fit_npoints
-         omega_complex(i) = CMPLX(omega_series(i), 0.0, kind=dp)
-         moment_complex(i) = CMPLX(moment_series_real(i), moment_series_imag(i), kind=dp)
+      ! Get the sizes from arrays
+      max_fit = SIZE(x_fit)
+      n_eval = SIZE(x_eval)
+
+      ! Search for the fit start and end indices
+      fit_start = -1
+      fit_end = -1
+      ! Search for the subset of FT points which is within energy limits given by
+      ! the input
+      ! Do not search when automatic request of highest energy is made
+      IF (fit_e_max < 0) fit_end = max_fit
+      DO i=1,max_fit
+         IF (fit_start == -1 .AND. REAL(x_fit(i)) >= fit_e_min) fit_start = i
+         IF (fit_end == -1 .AND. REAL(x_fit(i)) > fit_e_max) fit_end = i-1
+         IF (fit_start > 0 .AND. fit_end > 0) EXIT
       END DO
-      ! Fit the params
-      ! TODO : Allow for symmetry setting?
-      ! Number of Padé parameters M is half of the available frequency points - TODO : Ref
-      pade_params = create_thiele_pade(rtbse_env%pade_fit_npoints/2, omega_complex, moment_complex, enforce_symmetry="conjugate")
-      ! Once the params are fitted, reallocate to get the interpolation
-      DEALLOCATE (omega_complex)
-      DEALLOCATE (moment_complex)
-      ALLOCATE (omega_complex(rtbse_env%pade_npoints))
-      ALLOCATE (moment_complex(rtbse_env%pade_npoints))
-      ! Create the x_query
-      DO i=1, rtbse_env%pade_npoints
-         omega_complex(i) = CMPLX(rtbse_env%pade_e_step*(i-1), 0.0, kind=dp)
-      END DO
-      ! Get the interpolation
-      moment_complex(1:rtbse_env%pade_npoints) = evaluate_thiele_pade_at(pade_params, omega_complex)
+      IF (fit_start == -1) fit_start = 1
+      IF (fit_end == -1) fit_end = max_fit
+      n_fit = fit_end - fit_start + 1
+
+      n_pade = n_fit/2
+      IF (PRESENT(n_pade_opt)) n_pade = n_pade_opt
+
+      ! Warn about a large number of Padé parameters
+      IF (n_pade > 1000) THEN
+         CPWARN("More then 1000 Padé parameters requested - may reduce with FIT_E_MIN/FIT_E_MAX.")
+      END IF
+      ! TODO : Symmetry mode settable?
+      ! Here, we assume that ft corresponds to transform of real trace
+      pade_params = create_thiele_pade(n_pade, x_fit(fit_start:fit_end), y_fit(fit_start:fit_end),&
+                                       enforce_symmetry="conjugate")
+
+      ! Check whetner the splice is needed or not
+      y_eval(1:n_eval) = evaluate_thiele_pade_at(pade_params, x_eval)
+
       CALL free_params(pade_params)
-      ! Translate back to reals
-      DO i=1,rtbse_env%pade_npoints
-         omega_refined(i) = REAL(omega_complex(i))
-         moment_refined_real(i) = REAL(moment_complex(i))
-         moment_refined_imag(i) = AIMAG(moment_complex(i))
-      END DO
-      ! Deallocate
-      DEALLOCATE (omega_complex)
-      DEALLOCATE (moment_complex)
-   END SUBROUTINE refine_moments_ft
+
+      CALL timestop(handle)
+#else
+      ! Mark used
+      MARK_USED(fit_e_min)
+      MARK_USED(fit_e_max)
+      MARK_USED(x_fit)
+      MARK_USED(y_fit)
+      MARK_USED(x_eval)
+      MARK_USED(y_eval)
+      MARK_USED(n_pade_opt)
+      CPABORT("refine_ft called but CP2K compiled without GreenX - GreenX needed.")
 #endif
+   END SUBROUTINE refine_ft
 ! **************************************************************************************************
 !> \brief Outputs the isotropic polarizability tensor element alpha _ ij = mu_i(omega)/E_j(omega),
 !>        where i and j are provided by the configuration. The tensor element is energy dependent and
