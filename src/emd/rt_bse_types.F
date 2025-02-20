@@ -198,7 +198,7 @@ MODULE rt_bse_types
                                                                    ft_damping = 0.0_dp, &
                                                                    ft_start = 0.0_dp
       ! Which element of polarizability to print out
-      INTEGER, DIMENSION(:, :), POINTER                          :: pol_elements => NULL()
+      INTEGER, DIMENSION(:, :), POINTER                         :: pol_elements => NULL()
       TYPE(dft_control_type), POINTER                           :: dft_control => NULL()
       ! DEBUG : Trying keeping the reference to previous environments inside this one
       TYPE(qs_environment_type), POINTER                        :: qs_env => NULL()
@@ -270,8 +270,7 @@ MODULE rt_bse_types
                                                                    pade_e_step = 0.05_dp, &
                                                                    pade_fit_e_min = 0.0_dp, &
                                                                    pade_fit_e_max = -1.0_dp
-      INTEGER                                                   :: pade_npoints = 0, &
-                                                                   pade_fit_npoints = 0
+      INTEGER                                                   :: pade_npoints = 0
       LOGICAL                                                   :: pade_requested = .FALSE.
       COMPLEX(kind=dp), DIMENSION(:), POINTER                   :: pade_x_eval => NULL()
 
@@ -459,8 +458,6 @@ CONTAINS
       CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%PADE_FT%FIT_E_MAX", &
                                 r_val=rtbse_env%pade_fit_e_max)
       rtbse_env%pade_npoints = INT((rtbse_env%pade_e_max - rtbse_env%pade_e_min)/rtbse_env%pade_e_step)
-      ! To be calculated later, once the FT is known
-      rtbse_env%pade_fit_npoints = 0
       ! Evaluate the evaluation grid
       IF (rtbse_env%pade_requested) THEN
 #if defined(__GREENX)

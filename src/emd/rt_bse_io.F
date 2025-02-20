@@ -763,9 +763,13 @@ CONTAINS
                                                             ft_imag_series, &
                                                             value_series
       COMPLEX(kind=dp), DIMENSION(:), ALLOCATABLE        :: moment_series, &
-                                                            field_series
-      COMPLEX(kind=dp), DIMENSION(:, :), ALLOCATABLE     :: polarizability_series
-      INTEGER                                            :: pol_unit, &
+                                                            field_series, &
+                                                            moment_refined, &
+                                                            field_refined, &
+                                                            omega_complex
+      COMPLEX(kind=dp), DIMENSION(:, :), ALLOCATABLE     :: polarizability_series, &
+                                                            polarizability_refined
+      INTEGER                                            :: pol_unit, pol_ref_unit, &
                                                             i, k, n, n_elems
 
       logger => cp_get_default_logger()
@@ -780,6 +784,14 @@ CONTAINS
       ALLOCATE (moment_series(n), source=CMPLX(0.0, 0.0, kind=dp))
       ALLOCATE (field_series(n), source=CMPLX(0.0, 0.0, kind=dp))
       ALLOCATE (polarizability_series(n_elems, n), source=CMPLX(0.0, 0.0, kind=dp))
+
+      ! Allocations for Padé refinement
+      IF (rtbse_env%pade_requested) THEN
+         ALLOCATE (omega_complex(n), source=CMPLX(0.0, 0.0, kind=dp))
+         ALLOCATE (field_refined(rtbse_env%pade_npoints), source=CMPLX(0.0, 0.0, kind=dp))
+         ALLOCATE (moment_refined(rtbse_env%pade_npoints), source=CMPLX(0.0, 0.0, kind=dp))
+         ALLOCATE (polarizability_refined(n_elems, rtbse_env%pade_npoints), source=CMPLX(0.0, 0.0, kind=dp))
+      END IF
 
       DO k = 1, n_elems
          ! The moment ft
@@ -812,7 +824,26 @@ CONTAINS
             field_series(:) = CMPLX(ft_real_series(:), ft_imag_series(:) + 1.0e-20, kind=dp)
          END IF
          ! Divide to get the polarizability series
+         ! Real part
          polarizability_series(k, :) = moment_series(:)/field_series(:)
+
+         ! Refinement of the grid via Padé approximants, if requested
+         IF (rtbse_env%pade_requested) THEN
+            omega_complex(:) = CMPLX(omega_series(:), 0.0, kind=dp)
+            ! No need to refine the field if it is known exactly
+            ! Also GreenX has trouble fitting constant functions
+            IF (rtbse_env%dft_control%rtp_control%apply_delta_pulse) THEN
+               field_refined(:) = CMPLX( &
+                  rtbse_env%dft_control%rtp_control%delta_pulse_direction(rtbse_env%pol_elements(k,2)) * &
+                  rtbse_env%dft_control%rtp_control%delta_pulse_scale, 0.0, kind=dp)
+            ELSE
+               CALL refine_ft(rtbse_env%pade_fit_e_min, rtbse_env%pade_fit_e_max, omega_complex, field_series, &
+                              rtbse_env%pade_x_eval, field_refined)
+            END IF
+            CALL refine_ft(rtbse_env%pade_fit_e_min, rtbse_env%pade_fit_e_max, omega_complex, moment_series, &
+                           rtbse_env%pade_x_eval, moment_refined)
+            polarizability_refined(k, :) = moment_refined(:)/field_refined(:)
+         END IF
       END DO
 
       ! Change units to eV for energy
@@ -871,6 +902,12 @@ CONTAINS
 
       DEALLOCATE (omega_series)
       DEALLOCATE (polarizability_series)
+
+      IF (rtbse_env%pade_requested) THEN
+         DEALLOCATE (field_refined)
+         DEALLOCATE (moment_refined)
+         DEALLOCATE (polarizability_refined)
+      END IF
    END SUBROUTINE output_polarizability
 ! **************************************************************************************************
 !> \brief Naively calculates the Fourier transform - it is not the bottleneck of this calculation
