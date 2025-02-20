@@ -41,6 +41,7 @@ test cp2k eiger:
     OMP_NUM_THREADS: 2
     SLURM_CONSTRAINT: mc
     SLURM_HINT: nomultithread
-    SLURM_JOB_NUM_NODES: 1
+    SLURM_JOB_NUM_NODES: 2
     SLURM_NTASKS_PER_NODE: 64
+    SRUN_CPUS_PER_TASK: 2
     USE_MPI: YES

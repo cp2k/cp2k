@@ -130,7 +130,7 @@ WORKDIR /opt/cp2k/build
 RUN /bin/bash -c -o pipefail " \
     source /opt/cp2k/tools/toolchain/install/setup; \
     echo -e '\nCompiling CP2K ... \c'; \
-    if ninja --verbose | tee ninja.log; then \
+    if ninja --verbose &> ninja.log; then \
       echo -e 'done\n'; \
       echo -e 'Installing CP2K ... \c'; \
       if ninja --verbose install &> install.log; then \
