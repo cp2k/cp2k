@@ -26,12 +26,11 @@ MODULE qs_scf_post_gpw
    USE cp_array_utils,                  ONLY: cp_1d_r_p_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_api,                    ONLY: dbcsr_add, &
+   USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
                                               dbcsr_p_type,&
                                               dbcsr_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
-                                              dbcsr_deallocate_matrix_set, &
-                                              dbcsr_allocate_matrix_set
+                                              dbcsr_deallocate_matrix_set
    USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
    USE cp_ddapc_util,                   ONLY: get_ddapc
    USE cp_fm_diag,                      ONLY: choose_eigv_solver
@@ -161,7 +160,7 @@ MODULE qs_scf_post_gpw
                                               make_mo_eig
    USE qs_mo_occupation,                ONLY: set_mo_occupation
    USE qs_mo_types,                     ONLY: get_mo_set,&
-                                              mo_set_type, deallocate_mo_set
+                                              mo_set_type
    USE qs_moments,                      ONLY: qs_moment_berry_phase,&
                                               qs_moment_locop
    USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
@@ -194,7 +193,7 @@ MODULE qs_scf_post_gpw
    USE scf_control_types,               ONLY: scf_control_type
    USE stm_images,                      ONLY: th_stm_image
    USE transport,                       ONLY: qs_scf_post_transport
-   USE trexio_utils,                    ONLY: write_trexio, read_trexio
+   USE trexio_utils,                    ONLY: write_trexio
    USE virial_types,                    ONLY: virial_type
    USE voronoi_interface,               ONLY: entry_voronoi_or_bqb
    USE xray_diffraction,                ONLY: calculate_rhotot_elec_gspace,&
@@ -1695,12 +1694,11 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_rmpv, matrix_s, energy_derivative
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_rmpv, matrix_s
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_deriv
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
-      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos_trexio
       TYPE(molecule_type), POINTER                       :: molecule_set(:)
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -1754,22 +1752,6 @@ CONTAINS
          CALL section_vals_get(trexio_section, explicit=explicit)
          IF (explicit) THEN
             CALL write_trexio(qs_env, trexio_section)
-
-            !!!!! Testing read_trexio
-            ALLOCATE (mos_trexio(dft_control%nspins))
-            ! allocate the energy derivative matrix
-            NULLIFY (energy_derivative)
-            CALL dbcsr_allocate_matrix_set(energy_derivative, dft_control%nspins)
-            CALL read_trexio(qs_env, trexio_filename='SiC-TREXIO', mo_set_trexio=mos_trexio, &
-                             energy_derivative=energy_derivative)
-            ! deallocate everything
-            DO ispin = 1, SIZE(mos_trexio)
-               CALL deallocate_mo_set(mos_trexio(ispin))
-            END DO
-            DEALLOCATE (mos_trexio)
-            CALL dbcsr_deallocate_matrix_set(energy_derivative)
-            !!!!!!
-
          END IF
          IF (.NOT. do_kpoints) THEN
             CALL get_qs_env(qs_env, mos=mos, matrix_ks=ks_rmpv)
