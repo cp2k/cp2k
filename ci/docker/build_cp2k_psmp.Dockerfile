@@ -113,7 +113,7 @@ RUN  ./scripts/stage9/install_stage9.sh && rm -rf ./build
 # Stage 1b: Build CP2K with CMake
 WORKDIR /opt/cp2k
 COPY ./CMakeLists.txt .
-COPY ./benchmarks/QS/00512_H2O ./benchmarks/QS/00512_H2O
+COPY ./benchmarks/CI ./benchmarks/CI
 COPY ./cmake ./cmake
 COPY ./data ./data
 COPY ./src ./src
@@ -191,8 +191,8 @@ COPY --from=build /opt/cp2k/share ./share
 COPY --from=build /opt/cp2k/tests ./tests
 COPY --from=build /opt/cp2k/src/grid/sample_tasks ./src/grid/sample_tasks
 
-# Install CP2K/Quickstep benchmarks
-COPY --from=build /opt/cp2k/benchmarks/QS ./benchmarks/QS
+# Install CP2K/Quickstep CI benchmarks
+COPY --from=build /opt/cp2k/benchmarks/CI ./benchmarks/CI
 
 # Create links to CP2K binaries
 WORKDIR /opt/cp2k/bin

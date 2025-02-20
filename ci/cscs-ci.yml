@@ -8,7 +8,7 @@ stages:
 variables:
   PERSIST_IMAGE_NAME: $CSCS_REGISTRY_PATH/cp2k:$CI_COMMIT_SHORT_SHA
 
-build_cp2k:
+build cp2k eiger:
   extends: .container-builder-cscs-zen2
   stage: build
   timeout: 1h
@@ -29,18 +29,18 @@ build_cp2k:
     DOCKERFILE: ci/docker/build_cp2k_psmp.Dockerfile
     MPICH_VERSION: 3.1.4
 
-test_cp2k:
+test cp2k eiger:
   extends: .container-runner-eiger-zen2
   stage: test
-  needs: [build_cp2k]
+  needs: ["build cp2k eiger"]
   timeout: 1h
   image: ${PERSIST_IMAGE_NAME}
   script:
-    - cp2k.popt /opt/cp2k/benchmarks/QS/00512_H2O/H2O-512_md.inp
+    - cp2k /opt/cp2k/benchmarks/CI/H2O-128_md.inp
   variables:
-    OMP_NUM_THREADS: 1
+    OMP_NUM_THREADS: 2
     SLURM_CONSTRAINT: mc
     SLURM_HINT: nomultithread
     SLURM_JOB_NUM_NODES: 1
-    SLURM_NTASKS_PER_NODE: 128
+    SLURM_NTASKS_PER_NODE: 64
     USE_MPI: YES
