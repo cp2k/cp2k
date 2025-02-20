@@ -7,10 +7,10 @@
 
 MODULE cp_dbcsr_contrib
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_clear, dbcsr_finalize, dbcsr_get_block_p, dbcsr_get_info, dbcsr_has_symmetry, &
+        dbcsr_clear, dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_finalize, &
+        dbcsr_get_block_p, dbcsr_get_info, dbcsr_get_stored_coordinates, dbcsr_has_symmetry, &
         dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
-        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_put_block, dbcsr_reserve_all_blocks, &
-        dbcsr_type
+        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_put_block, dbcsr_reserve_blocks, dbcsr_type
    USE dbm_tests,                       ONLY: generate_larnv_seed
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_comm_type
@@ -24,6 +24,9 @@ MODULE cp_dbcsr_contrib
    PUBLIC :: dbcsr_frobenius_norm
    PUBLIC :: dbcsr_gershgorin_norm
    PUBLIC :: dbcsr_init_random
+   PUBLIC :: dbcsr_reserve_diag_blocks
+   PUBLIC :: dbcsr_reserve_all_blocks
+   PUBLIC :: dbcsr_add_on_diag
 
 CONTAINS
 
@@ -223,5 +226,117 @@ CONTAINS
 
       CALL timestop(handle)
    END SUBROUTINE dbcsr_init_random
+
+! **************************************************************************************************
+!> \brief Reserves all diagonal blocks.
+!> \param matrix ...
+! **************************************************************************************************
+   SUBROUTINE dbcsr_reserve_diag_blocks(matrix)
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_reserve_diag_blocks'
+
+      INTEGER                                            :: handle, i, k, mynode, nblkcols_total, &
+                                                            nblkrows_total, owner
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: local_diag
+      INTEGER, DIMENSION(:), POINTER                     :: local_rows
+      TYPE(dbcsr_distribution_type)                      :: dist
+
+      CALL timeset(routineN, handle)
+
+      CALL dbcsr_get_info(matrix, nblkrows_total=nblkrows_total, nblkcols_total=nblkcols_total)
+      CPASSERT(nblkrows_total == nblkcols_total)
+
+      CALL dbcsr_get_info(matrix, local_rows=local_rows, distribution=dist)
+      CALL dbcsr_distribution_get(dist, mynode=mynode)
+      ALLOCATE (local_diag(SIZE(local_rows)))
+
+      k = 0
+      DO i = 1, SIZE(local_rows)
+         CALL dbcsr_get_stored_coordinates(matrix, row=local_rows(i), column=local_rows(i), processor=owner)
+         IF (owner == mynode) THEN
+            k = k + 1
+            local_diag(k) = local_rows(i)
+         END IF
+      END DO
+
+      CALL dbcsr_reserve_blocks(matrix, rows=local_diag(1:k), cols=local_diag(1:k))
+      DEALLOCATE (local_diag)
+
+      CALL timestop(handle)
+   END SUBROUTINE dbcsr_reserve_diag_blocks
+
+! **************************************************************************************************
+!> \brief Reserves all blocks.
+!> \param matrix ...
+! **************************************************************************************************
+   SUBROUTINE dbcsr_reserve_all_blocks(matrix)
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_reserve_all_blocks'
+
+      INTEGER                                            :: handle, i, j, k, mynode, n, owner
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: cols, rows
+      INTEGER, DIMENSION(:), POINTER                     :: local_cols, local_rows
+      TYPE(dbcsr_distribution_type)                      :: dist
+
+      CALL timeset(routineN, handle)
+
+      CALL dbcsr_get_info(matrix, local_rows=local_rows, local_cols=local_cols, distribution=dist)
+      CALL dbcsr_distribution_get(dist, mynode=mynode)
+      n = SIZE(local_rows)*SIZE(local_cols)
+      ALLOCATE (rows(n), cols(n))
+
+      k = 0
+      DO i = 1, SIZE(local_rows)
+      DO j = 1, SIZE(local_cols)
+         CALL dbcsr_get_stored_coordinates(matrix, row=local_rows(i), column=local_cols(j), processor=owner)
+         IF (owner == mynode) THEN
+            k = k + 1
+            rows(k) = local_rows(i)
+            cols(k) = local_cols(j)
+         END IF
+      END DO
+      END DO
+
+      CALL dbcsr_reserve_blocks(matrix, rows=rows(1:k), cols=cols(1:k))
+      DEALLOCATE (rows, cols)
+
+      CALL timestop(handle)
+   END SUBROUTINE dbcsr_reserve_all_blocks
+
+! **************************************************************************************************
+!> \brief Adds the given scalar to the diagonal of the matrix. Reserves any missing diagonal blocks.
+!> \param matrix ...
+!> \param alpha ...
+! **************************************************************************************************
+   SUBROUTINE dbcsr_add_on_diag(matrix, alpha)
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
+      REAL(kind=dp), INTENT(IN)                          :: alpha
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'dbcsr_add_on_diag'
+
+      INTEGER                                            :: col, col_size, handle, i, row, row_size
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: block
+      TYPE(dbcsr_iterator_type)                          :: iter
+
+      CALL timeset(routineN, handle)
+
+      CALL dbcsr_reserve_diag_blocks(matrix)
+
+      CALL dbcsr_iterator_start(iter, matrix)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, row, col, block, row_size=row_size, col_size=col_size)
+         IF (row == col) THEN
+            CPASSERT(row_size == col_size)
+            DO i = 1, row_size
+               block(i, i) = block(i, i) + alpha
+            END DO
+         END IF
+      END DO
+      CALL dbcsr_iterator_stop(iter)
+
+      CALL timestop(handle)
+   END SUBROUTINE dbcsr_add_on_diag
 
 END MODULE cp_dbcsr_contrib

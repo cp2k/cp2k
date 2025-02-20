@@ -20,8 +20,8 @@ MODULE mao_basis
    USE cp_dbcsr_api,                    ONLY: dbcsr_create,&
                                               dbcsr_distribution_type,&
                                               dbcsr_p_type,&
-                                              dbcsr_reserve_diag_blocks,&
                                               dbcsr_type_no_symmetry
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_reserve_diag_blocks
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
    USE kinds,                           ONLY: dp

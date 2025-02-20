@@ -15,15 +15,16 @@
 MODULE qs_ot
    USE arnoldi_api,                     ONLY: arnoldi_extremal
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_distribution_type, dbcsr_filter, &
-        dbcsr_get_block_p, dbcsr_get_info, dbcsr_get_occupation, dbcsr_init_p, &
-        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
-        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_release, dbcsr_release_p, &
-        dbcsr_scale, dbcsr_scale_by_vector, dbcsr_set, dbcsr_transposed, dbcsr_type
+        dbcsr_add, dbcsr_copy, dbcsr_distribution_type, dbcsr_filter, dbcsr_get_block_p, &
+        dbcsr_get_info, dbcsr_get_occupation, dbcsr_init_p, dbcsr_iterator_blocks_left, &
+        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
+        dbcsr_multiply, dbcsr_release, dbcsr_release_p, dbcsr_scale, dbcsr_scale_by_vector, &
+        dbcsr_set, dbcsr_transposed, dbcsr_type
    USE cp_dbcsr_cholesky,               ONLY: cp_dbcsr_cholesky_decompose,&
                                               cp_dbcsr_cholesky_invert,&
                                               cp_dbcsr_cholesky_restore
-   USE cp_dbcsr_contrib,                ONLY: dbcsr_frobenius_norm,&
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_add_on_diag,&
+                                              dbcsr_frobenius_norm,&
                                               dbcsr_gershgorin_norm,&
                                               dbcsr_hadamard_product
    USE cp_dbcsr_diag,                   ONLY: cp_dbcsr_heevd,&
@@ -633,7 +634,7 @@ CONTAINS
          r = -10.0_dp/8.0_dp
          CALL dbcsr_add(FY, P, alpha_scalar=1.0_dp, beta_scalar=r)
          r = 15.0_dp/8.0_dp
-         CALL dbcsr_add_on_diag(FY, alpha_scalar=r)
+         CALL dbcsr_add_on_diag(FY, alpha=r)
       CASE (3)
          ! C_out = C_in * ( 35/16 * I - 35/16 * P + 21/16 * P^2 - 5/16 P^3)
          CALL dbcsr_multiply('N', 'N', 1.0_dp, P, P, 0.0_dp, P2)
@@ -654,7 +655,7 @@ CONTAINS
          r = -35.0_dp/16.0_dp
          CALL dbcsr_add(FY, P, alpha_scalar=1.0_dp, beta_scalar=r)
          r = 35.0_dp/16.0_dp
-         CALL dbcsr_add_on_diag(FY, alpha_scalar=r)
+         CALL dbcsr_add_on_diag(FY, alpha=r)
       CASE (4)
          ! C_out = C_in * ( 315/128 * I - 420/128 * P + 378/128 * P^2 - 180/128 P^3 + 35/128 P^4 )
          !       = C_in * ( 315/128 * I - 420/128 * P + 378/128 * P^2 + ( - 180/128 * P + 35/128 * P^2 ) * P^2 )
@@ -679,7 +680,7 @@ CONTAINS
          r = -420.0_dp/128.0_dp
          CALL dbcsr_add(FY, P, alpha_scalar=1.0_dp, beta_scalar=r) ! Y=Y-420/128*P
          r = 315.0_dp/128.0_dp
-         CALL dbcsr_add_on_diag(FY, alpha_scalar=r) ! Y=Y+315/128*I
+         CALL dbcsr_add_on_diag(FY, alpha=r) ! Y=Y+315/128*I
       CASE DEFAULT
          CPABORT("This irac_order NYI")
       END SELECT

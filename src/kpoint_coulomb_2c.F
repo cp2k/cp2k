@@ -23,7 +23,8 @@ MODULE kpoint_coulomb_2c
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_create, dbcsr_init_p, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, &
-        dbcsr_release_p, dbcsr_reserve_all_blocks, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
+        dbcsr_release_p, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_reserve_all_blocks
    USE generic_shg_integrals,           ONLY: int_operators_r12_ab_shg
    USE generic_shg_integrals_init,      ONLY: contraction_matrix_shg
    USE kinds,                           ONLY: dp

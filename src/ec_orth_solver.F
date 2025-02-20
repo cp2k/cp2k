@@ -17,10 +17,10 @@ MODULE ec_orth_solver
                                               get_admm_env
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_add, dbcsr_add_on_diag, dbcsr_checksum, dbcsr_copy, dbcsr_create, &
-        dbcsr_desymmetrize, dbcsr_dot, dbcsr_filter, dbcsr_finalize, dbcsr_get_info, &
-        dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_transposed, &
-        dbcsr_type, dbcsr_type_no_symmetry
+        dbcsr_add, dbcsr_checksum, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, dbcsr_dot, &
+        dbcsr_filter, dbcsr_finalize, dbcsr_get_info, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
+        dbcsr_scale, dbcsr_set, dbcsr_transposed, dbcsr_type, dbcsr_type_no_symmetry
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_add_on_diag
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
    USE cp_external_control,             ONLY: external_control

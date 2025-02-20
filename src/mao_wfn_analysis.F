@@ -24,10 +24,11 @@ MODULE mao_wfn_analysis
         dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, dbcsr_distribution_type, dbcsr_dot, &
         dbcsr_get_block_diag, dbcsr_get_block_p, dbcsr_get_info, dbcsr_iterator_blocks_left, &
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
-        dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_replicate_all, &
-        dbcsr_reserve_diag_blocks, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric
+        dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_replicate_all, dbcsr_type, &
+        dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE cp_dbcsr_cholesky,               ONLY: cp_dbcsr_cholesky_decompose,&
                                               cp_dbcsr_cholesky_restore
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_reserve_diag_blocks
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set

@@ -12,10 +12,11 @@
 MODULE pao_optimizer
    USE arnoldi_api,                     ONLY: arnoldi_extremal
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_dot, dbcsr_get_info, &
-        dbcsr_multiply, dbcsr_release, dbcsr_reserve_diag_blocks, dbcsr_scale, dbcsr_set, &
-        dbcsr_type
-   USE cp_dbcsr_contrib,                ONLY: dbcsr_frobenius_norm
+        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_dot, dbcsr_get_info, dbcsr_multiply, &
+        dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_type
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_add_on_diag,&
+                                              dbcsr_frobenius_norm,&
+                                              dbcsr_reserve_diag_blocks
    USE kinds,                           ONLY: dp
    USE pao_input,                       ONLY: pao_opt_bfgs,&
                                               pao_opt_cg
