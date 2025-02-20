@@ -17,9 +17,9 @@ MODULE qs_fb_env_methods
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_create, dbcsr_finalize, dbcsr_get_info, dbcsr_iterator_blocks_left, &
-        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
-        dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_reserve_blocks, dbcsr_set, dbcsr_type, &
-        dbcsr_type_no_symmetry
+        dbcsr_iterator_next_block, dbcsr_iterator_readonly_start, dbcsr_iterator_stop, &
+        dbcsr_iterator_type, dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_reserve_blocks, &
+        dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
@@ -1125,7 +1125,6 @@ CONTAINS
       INTEGER                                            :: iatom, jatom, nblkcols_total, &
                                                             nblkrows_total, nblks
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: cols, rows
-      REAL(dp), DIMENSION(:, :), POINTER                 :: mat_block
       TYPE(dbcsr_iterator_type)                          :: iter
 
       CALL dbcsr_get_info(matrix=matrix_in, &
@@ -1138,9 +1137,9 @@ CONTAINS
       rows(:) = 0
       cols(:) = 0
       nblks = 0
-      CALL dbcsr_iterator_start(iter, matrix_in)
+      CALL dbcsr_iterator_readonly_start(iter, matrix_in)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
-         CALL dbcsr_iterator_next_block(iter, iatom, jatom, mat_block)
+         CALL dbcsr_iterator_next_block(iter, iatom, jatom)
          nblks = nblks + 1
          rows(nblks) = iatom
          cols(nblks) = jatom

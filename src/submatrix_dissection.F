@@ -44,8 +44,8 @@ MODULE submatrix_dissection
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_finalize, dbcsr_get_block_p, &
         dbcsr_get_info, dbcsr_get_stored_coordinates, dbcsr_iterator_blocks_left, &
-        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
-        dbcsr_put_block, dbcsr_type
+        dbcsr_iterator_next_block, dbcsr_iterator_readonly_start, dbcsr_iterator_stop, &
+        dbcsr_iterator_type, dbcsr_put_block, dbcsr_type
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_comm_type
    USE submatrix_types,                 ONLY: buffer_type,&
@@ -199,7 +199,7 @@ CONTAINS
 
       ! Determine number of locally stored blocks
       this%local_blocks = 0
-      CALL dbcsr_iterator_start(iter, this%dbcsr_mat, read_only=.TRUE.)
+      CALL dbcsr_iterator_readonly_start(iter, this%dbcsr_mat)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, cur_row, cur_col)
          this%local_blocks = this%local_blocks + 1
@@ -214,7 +214,7 @@ CONTAINS
                 this%result_blocks_for_rank_buf_offsets(0:this%numnodes - 1))
 
       i = 1
-      CALL dbcsr_iterator_start(iter, this%dbcsr_mat, read_only=.TRUE.)
+      CALL dbcsr_iterator_readonly_start(iter, this%dbcsr_mat)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, cur_row, cur_col)
          this%coo_cols_local(i) = cur_col

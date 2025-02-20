@@ -10,8 +10,8 @@ MODULE cp_dbcsr_contrib
         dbcsr_clear, dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_finalize, &
         dbcsr_get_info, dbcsr_get_readonly_block_p, dbcsr_get_stored_coordinates, &
         dbcsr_has_symmetry, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_put_block, &
-        dbcsr_reserve_blocks, dbcsr_type
+        dbcsr_iterator_readonly_start, dbcsr_iterator_start, dbcsr_iterator_stop, &
+        dbcsr_iterator_type, dbcsr_put_block, dbcsr_reserve_blocks, dbcsr_type
    USE dbm_tests,                       ONLY: generate_larnv_seed
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_comm_type
@@ -58,7 +58,7 @@ CONTAINS
       END IF
 
       CALL dbcsr_clear(matrix_c)
-      CALL dbcsr_iterator_start(iter, matrix_a)
+      CALL dbcsr_iterator_readonly_start(iter, matrix_a)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, row, col, block_a)
          CALL dbcsr_get_readonly_block_p(matrix_b, row, col, block_b, found_b)
@@ -90,7 +90,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       norm = 0.0_dp
-      CALL dbcsr_iterator_start(iter, matrix)
+      CALL dbcsr_iterator_readonly_start(iter, matrix)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, block=block)
          norm = MAX(norm, MAXVAL(ABS(block)))
@@ -124,7 +124,7 @@ CONTAINS
 
       has_symmetry = dbcsr_has_symmetry(matrix)
       norm = 0.0_dp
-      CALL dbcsr_iterator_start(iter, matrix)
+      CALL dbcsr_iterator_readonly_start(iter, matrix)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, row, col, block)
          IF (has_symmetry .AND. row /= col) THEN
@@ -169,7 +169,7 @@ CONTAINS
       ALLOCATE (buffer(nrow))
       buffer = 0.0_dp
 
-      CALL dbcsr_iterator_start(iter, matrix)
+      CALL dbcsr_iterator_readonly_start(iter, matrix)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, row, col, block, row_offset=row_offset, col_offset=col_offset)
          DO j = 1, SIZE(block, 2)

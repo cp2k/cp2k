@@ -453,7 +453,8 @@ CONTAINS
 
       ! Routine arguments
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_fm_type), INTENT(IN)                       :: mat_t, mat_i, mat_w
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: mat_t, mat_i
+      TYPE(cp_fm_type), INTENT(IN)                       :: mat_w
 
       INTEGER                                            :: n_deps
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_s

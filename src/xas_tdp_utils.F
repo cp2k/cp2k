@@ -737,7 +737,7 @@ CONTAINS
                             xas_tdp_control, qs_env)
 
       TYPE(dbcsr_type), POINTER                          :: matrix_tdp, metric
-      TYPE(cp_fm_type), INTENT(IN)                       :: evecs
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: evecs
       REAL(dp), DIMENSION(:)                             :: evals
       INTEGER, INTENT(IN)                                :: neig
       LOGICAL                                            :: do_sf

@@ -262,10 +262,11 @@ CONTAINS
 !> \param ksbuf2 ...
 ! **************************************************************************************************
    SUBROUTINE eigensolver_dbcsr(matrix_ks, matrix_ks_fm, mo_set, ortho_dbcsr, ksbuf1, ksbuf2)
-      TYPE(dbcsr_type), POINTER                          :: matrix_ks
-      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_ks_fm
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix_ks
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: matrix_ks_fm
       TYPE(mo_set_type), INTENT(IN)                      :: mo_set
-      TYPE(dbcsr_type), POINTER                          :: ortho_dbcsr, ksbuf1, ksbuf2
+      TYPE(dbcsr_type), INTENT(IN)                       :: ortho_dbcsr
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: ksbuf1, ksbuf2
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'eigensolver_dbcsr'
 

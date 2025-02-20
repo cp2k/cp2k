@@ -97,7 +97,8 @@ CONTAINS
                           do_hfx, do_admm, qs_env, kernel_env, kernel_env_admm_aux, &
                           sub_env, work_matrices, admm_symm, admm_xc_correction, do_lrigpw, &
                           tddfpt_mgrid)
-      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: Aop_evects, evects
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(INOUT)   :: Aop_evects
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: evects
       LOGICAL, INTENT(in)                                :: is_rks_triplets, do_hfx, do_admm
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(full_kernel_env_type), POINTER                :: kernel_env, kernel_env_admm_aux
@@ -495,7 +496,8 @@ CONTAINS
                           qs_env, stda_control, stda_env, &
                           sub_env, work_matrices)
 
-      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: Aop_evects, evects
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(INOUT)   :: Aop_evects
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: evects
       LOGICAL, INTENT(in)                                :: is_rks_triplets
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(stda_control_type)                            :: stda_control

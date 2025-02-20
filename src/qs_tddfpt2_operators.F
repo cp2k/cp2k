@@ -102,7 +102,8 @@ CONTAINS
 !>       Thomas Chassaing on 08.2002.
 ! **************************************************************************************************
    SUBROUTINE tddfpt_apply_energy_diff(Aop_evects, evects, S_evects, gs_mos, matrix_ks)
-      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(in)      :: Aop_evects, evects, S_evects
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(INOUT)   :: Aop_evects
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: evects, S_evects
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          INTENT(in)                                      :: gs_mos
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(in)       :: matrix_ks
@@ -515,7 +516,8 @@ CONTAINS
    SUBROUTINE tddfpt_apply_hfx(Aop_evects, evects, gs_mos, do_admm, qs_env, &
                                work_rho_ia_ao_symm, work_hmat_symm, work_rho_ia_ao_asymm, &
                                work_hmat_asymm, wfm_rho_orb)
-      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(in)      :: Aop_evects, evects
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(INOUT)   :: Aop_evects
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: evects
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          INTENT(in)                                      :: gs_mos
       LOGICAL, INTENT(in)                                :: do_admm
@@ -768,7 +770,8 @@ CONTAINS
       TYPE(tddfpt_subgroup_env_type)                     :: sub_env
       REAL(KIND=dp), INTENT(IN)                          :: rcut, hfx_scale
       TYPE(tddfpt_work_matrices)                         :: work
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: X, res
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: X
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: res
 
       CHARACTER(len=*), PARAMETER :: routineN = 'tddfpt_apply_hfxlr_kernel'
 

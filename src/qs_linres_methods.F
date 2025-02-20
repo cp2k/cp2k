@@ -567,7 +567,9 @@ CONTAINS
       !
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       TYPE(qs_p_env_type)                                :: p_env
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: c0, v, Av, chc
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: c0, v
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: Av
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: chc
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'apply_op'
 
@@ -662,7 +664,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE apply_op_1(v, Av, matrix_ks, matrix_s, chc)
       !
-      TYPE(cp_fm_type), INTENT(IN)                       :: v, Av
+      TYPE(cp_fm_type), INTENT(IN)                       :: v
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: Av
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix_ks, matrix_s
       TYPE(cp_fm_type), INTENT(IN)                       :: chc
 

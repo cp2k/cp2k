@@ -22,10 +22,10 @@ MODULE cp_dbcsr_operations
         dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, dbcsr_distribution_get, &
         dbcsr_distribution_new, dbcsr_distribution_release, dbcsr_distribution_type, &
         dbcsr_get_info, dbcsr_get_matrix_type, dbcsr_iterator_blocks_left, &
-        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
-        dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_scale, dbcsr_type, &
-        dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_type_symmetric, dbcsr_valid_index, &
-        dbcsr_verify_matrix
+        dbcsr_iterator_next_block, dbcsr_iterator_readonly_start, dbcsr_iterator_start, &
+        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
+        dbcsr_scale, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, &
+        dbcsr_type_symmetric, dbcsr_valid_index, dbcsr_verify_matrix
    USE cp_dbcsr_contrib,                ONLY: dbcsr_frobenius_norm,&
                                               dbcsr_reserve_all_blocks
    USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
@@ -212,7 +212,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE copy_dbcsr_to_fm(matrix, fm)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'copy_dbcsr_to_fm'
 
@@ -273,7 +273,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE copy_dbcsr_to_fm_bc(bc_mat, fm)
       TYPE(dbcsr_type), INTENT(IN)                       :: bc_mat
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'copy_dbcsr_to_fm_bc'
 
@@ -293,7 +293,7 @@ CONTAINS
       fm_block = REAL(0.0, KIND=dp)
 !$OMP PARALLEL DEFAULT(NONE) PRIVATE(iter, row, col, dbcsr_block) &
 !$OMP SHARED(bc_mat, last_row, first_row, last_col, first_col, fm_block)
-      CALL dbcsr_iterator_start(iter, bc_mat)
+      CALL dbcsr_iterator_readonly_start(iter, bc_mat)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, row, col, dbcsr_block)
          fm_block(first_row(row):last_row(row), first_col(col):last_col(col)) = dbcsr_block(:, :)
@@ -488,7 +488,7 @@ CONTAINS
 
 !$OMP     PARALLEL DEFAULT(NONE) SHARED(matrix_a,vec_b,vec_c,ncol,my_alpha2,my_alpha,my_ncol,has_symm) &
 !$OMP              PRIVATE(iter,row,col,data_d,rowoff,coloff)
-      CALL dbcsr_iterator_start(iter, matrix_a, read_only=.TRUE., dynamic=.TRUE., dynamic_byrows=.TRUE.)
+      CALL dbcsr_iterator_readonly_start(iter, matrix_a, dynamic=.TRUE., dynamic_byrows=.TRUE.)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, row, col, data_d, row_offset=rowoff, col_offset=coloff)
          IF (my_ncol .NE. 1) THEN
@@ -510,7 +510,7 @@ CONTAINS
       ! FIXME ... in the symmetric case, the writes to vec_c depend on the column, not the row. This makes OMP-ing more difficult
       ! needs e.g. a buffer for vec_c and a reduction of that buffer.
       IF (has_symm) THEN
-         CALL dbcsr_iterator_start(iter, matrix_a)
+         CALL dbcsr_iterator_readonly_start(iter, matrix_a)
          DO WHILE (dbcsr_iterator_blocks_left(iter))
             CALL dbcsr_iterator_next_block(iter, row, col, data_d, row_offset=rowoff, col_offset=coloff)
             IF (row .NE. col) THEN
@@ -550,7 +550,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_dbcsr_sm_fm_multiply(matrix, fm_in, fm_out, ncol, alpha, beta)
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_in, fm_out
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_in
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_out
       INTEGER, INTENT(IN)                                :: ncol
       REAL(dp), INTENT(IN), OPTIONAL                     :: alpha, beta
 

@@ -648,7 +648,7 @@ CONTAINS
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          POINTER                                         :: gs_mos
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_hz
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: cpmos
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: cpmos
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'tddfpt_resvec2'
 
@@ -1142,7 +1142,7 @@ CONTAINS
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          POINTER                                         :: gs_mos
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_hz
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: cpmos
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: cpmos
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_resvec2_xtb'
 

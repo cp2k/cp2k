@@ -117,6 +117,7 @@ MODULE cp_dbcsr_api
 
    ! iterator
    PUBLIC :: dbcsr_iterator_start
+   PUBLIC :: dbcsr_iterator_readonly_start
    PUBLIC :: dbcsr_iterator_stop
    PUBLIC :: dbcsr_iterator_blocks_left
    PUBLIC :: dbcsr_iterator_next_block
@@ -1065,21 +1066,40 @@ CONTAINS
 !> \param shared ...
 !> \param dynamic ...
 !> \param dynamic_byrows ...
-!> \param read_only ...
 ! **************************************************************************************************
-   SUBROUTINE dbcsr_iterator_start(iterator, matrix, shared, dynamic, dynamic_byrows, read_only)
+   SUBROUTINE dbcsr_iterator_start(iterator, matrix, shared, dynamic, dynamic_byrows)
       TYPE(dbcsr_iterator_type), INTENT(OUT)             :: iterator
-      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
-      LOGICAL, INTENT(IN), OPTIONAL                      :: shared, dynamic, dynamic_byrows, &
-                                                            read_only
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
+      LOGICAL, INTENT(IN), OPTIONAL                      :: shared, dynamic, dynamic_byrows
 
       IF (USE_DBCSR_BACKEND) THEN
-         CALL dbcsr_iterator_start_prv(iterator%dbcsr, matrix%dbcsr, shared, dynamic, &
-                                       dynamic_byrows, read_only)
+         CALL dbcsr_iterator_start_prv(iterator%dbcsr, matrix%dbcsr, shared, dynamic, dynamic_byrows)
       ELSE
          CPABORT("Not yet implemented for DBM.")
       END IF
    END SUBROUTINE dbcsr_iterator_start
+
+! **************************************************************************************************
+!> \brief Like dbcsr_iterator_start() but with matrix being INTENT(IN).
+!>        When invoking this routine, the caller promises not to modify the returned blocks.
+!> \param iterator ...
+!> \param matrix ...
+!> \param shared ...
+!> \param dynamic ...
+!> \param dynamic_byrows ...
+! **************************************************************************************************
+   SUBROUTINE dbcsr_iterator_readonly_start(iterator, matrix, shared, dynamic, dynamic_byrows)
+      TYPE(dbcsr_iterator_type), INTENT(OUT)             :: iterator
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
+      LOGICAL, INTENT(IN), OPTIONAL                      :: shared, dynamic, dynamic_byrows
+
+      IF (USE_DBCSR_BACKEND) THEN
+         CALL dbcsr_iterator_start_prv(iterator%dbcsr, matrix%dbcsr, shared, dynamic, &
+                                       dynamic_byrows, read_only=.TRUE.)
+      ELSE
+         CPABORT("Not yet implemented for DBM.")
+      END IF
+   END SUBROUTINE dbcsr_iterator_readonly_start
 
 ! **************************************************************************************************
 !> \brief ...
