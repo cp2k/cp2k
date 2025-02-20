@@ -25,7 +25,7 @@ build cp2k eiger:
       "MPICH_VERSION"
     ]'
     BASE_IMAGE: ubuntu:24.04
-    BUILD_TYPE: minimal
+    BUILD_TYPE: toolchain
     DOCKERFILE: ci/docker/build_cp2k_psmp.Dockerfile
     MPICH_VERSION: 3.1.4
 
