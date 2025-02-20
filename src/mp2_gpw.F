@@ -27,8 +27,8 @@ MODULE mp2_gpw
         dbcsr_clear_mempools, dbcsr_copy, dbcsr_create, dbcsr_distribution_release, &
         dbcsr_distribution_type, dbcsr_filter, dbcsr_init_p, dbcsr_iterator_blocks_left, &
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
-        dbcsr_p_type, dbcsr_release, dbcsr_reserve_all_blocks, dbcsr_type, dbcsr_type_no_symmetry, &
-        dbcsr_type_symmetric
+        dbcsr_p_type, dbcsr_release, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_reserve_all_blocks
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_dist2d_to_dist,&
                                               cp_dbcsr_m_by_n_from_row_template

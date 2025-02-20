@@ -16,8 +16,8 @@ MODULE rpa_im_time
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_clear, dbcsr_copy, dbcsr_create, dbcsr_distribution_get, &
         dbcsr_distribution_type, dbcsr_filter, dbcsr_get_info, dbcsr_init_p, dbcsr_p_type, &
-        dbcsr_release_p, dbcsr_reserve_all_blocks, dbcsr_scale, dbcsr_set, dbcsr_type, &
-        dbcsr_type_no_symmetry
+        dbcsr_release_p, dbcsr_scale, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_reserve_all_blocks
    USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
                                               dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set

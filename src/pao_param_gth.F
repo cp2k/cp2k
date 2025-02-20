@@ -18,8 +18,9 @@ MODULE pao_param_gth
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_create, dbcsr_get_block_p, dbcsr_get_info, dbcsr_iterator_blocks_left, &
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
-        dbcsr_p_type, dbcsr_release, dbcsr_reserve_all_blocks, dbcsr_reserve_diag_blocks, &
-        dbcsr_set, dbcsr_type
+        dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_reserve_all_blocks,&
+                                              dbcsr_reserve_diag_blocks
    USE dm_ls_scf_types,                 ONLY: ls_scf_env_type
    USE iterate_matrix,                  ONLY: matrix_sqrt_Newton_Schulz
    USE kinds,                           ONLY: dp

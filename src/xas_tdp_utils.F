@@ -24,10 +24,11 @@ MODULE xas_tdp_utils
         dbcsr_distribution_release, dbcsr_distribution_type, dbcsr_finalize, dbcsr_get_block_p, &
         dbcsr_get_info, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
-        dbcsr_p_type, dbcsr_put_block, dbcsr_release, dbcsr_reserve_all_blocks, dbcsr_set, &
-        dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric
+        dbcsr_p_type, dbcsr_put_block, dbcsr_release, dbcsr_set, dbcsr_type, &
+        dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE cp_dbcsr_cholesky,               ONLY: cp_dbcsr_cholesky_decompose,&
                                               cp_dbcsr_cholesky_invert
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_reserve_all_blocks
    USE cp_dbcsr_diag,                   ONLY: cp_dbcsr_power
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&

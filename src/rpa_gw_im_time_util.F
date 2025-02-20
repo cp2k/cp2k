@@ -17,12 +17,14 @@ MODULE rpa_gw_im_time_util
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_add_on_diag, dbcsr_create, dbcsr_distribution_get, dbcsr_distribution_new, &
-        dbcsr_distribution_release, dbcsr_distribution_type, dbcsr_filter, dbcsr_get_diag, &
-        dbcsr_get_info, dbcsr_get_stored_coordinates, dbcsr_init_p, dbcsr_iterator_blocks_left, &
+        dbcsr_create, dbcsr_distribution_get, dbcsr_distribution_new, dbcsr_distribution_release, &
+        dbcsr_distribution_type, dbcsr_filter, dbcsr_get_diag, dbcsr_get_info, &
+        dbcsr_get_stored_coordinates, dbcsr_init_p, dbcsr_iterator_blocks_left, &
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
-        dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_release_p, dbcsr_reserve_all_blocks, &
-        dbcsr_set_diag, dbcsr_type, dbcsr_type_no_symmetry
+        dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_release_p, dbcsr_set_diag, dbcsr_type, &
+        dbcsr_type_no_symmetry
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_add_on_diag,&
+                                              dbcsr_reserve_all_blocks
    USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
                                               cp_dbcsr_m_by_n_from_row_template
    USE cp_fm_types,                     ONLY: cp_fm_create,&

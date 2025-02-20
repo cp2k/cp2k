@@ -18,9 +18,9 @@ MODULE arnoldi_vector
         dbcsr_copy, dbcsr_create, dbcsr_distribution_get, dbcsr_distribution_new, &
         dbcsr_distribution_release, dbcsr_distribution_type, dbcsr_get_data_p, dbcsr_get_info, &
         dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
-        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_release, dbcsr_reserve_all_blocks, &
-        dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, &
-        dbcsr_type_symmetric
+        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_release, dbcsr_set, dbcsr_type, &
+        dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_type_symmetric
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_reserve_all_blocks
    USE kinds,                           ONLY: dp,&
                                               real_8
    USE message_passing,                 ONLY: mp_comm_type

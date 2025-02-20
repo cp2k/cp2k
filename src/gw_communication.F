@@ -15,7 +15,8 @@ MODULE gw_communication
         dbcsr_copy, dbcsr_create, dbcsr_filter, dbcsr_finalize, dbcsr_get_info, &
         dbcsr_get_stored_coordinates, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, &
-        dbcsr_release, dbcsr_reserve_all_blocks, dbcsr_reserve_blocks, dbcsr_set, dbcsr_type
+        dbcsr_release, dbcsr_reserve_blocks, dbcsr_set, dbcsr_type
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_reserve_all_blocks
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&

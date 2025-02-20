@@ -15,7 +15,8 @@ MODULE pao_param_equi
         dbcsr_complete_redistribute, dbcsr_create, dbcsr_distribution_type, dbcsr_get_block_p, &
         dbcsr_get_info, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, &
-        dbcsr_release, dbcsr_reserve_diag_blocks, dbcsr_type
+        dbcsr_release, dbcsr_type
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_reserve_diag_blocks
    USE dm_ls_scf_types,                 ONLY: ls_mstruct_type,&
                                               ls_scf_env_type
    USE kinds,                           ONLY: dp

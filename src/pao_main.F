@@ -17,9 +17,9 @@ MODULE pao_main
                                               dbcsr_create,&
                                               dbcsr_p_type,&
                                               dbcsr_release,&
-                                              dbcsr_reserve_diag_blocks,&
                                               dbcsr_set,&
                                               dbcsr_type
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_reserve_diag_blocks
    USE cp_external_control,             ONLY: external_control
    USE dm_ls_scf_types,                 ONLY: ls_mstruct_type,&
                                               ls_scf_env_type

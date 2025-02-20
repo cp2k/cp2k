@@ -27,10 +27,11 @@ MODULE xas_tdp_methods
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_add_on_diag, dbcsr_complete_redistribute, dbcsr_copy, dbcsr_create, dbcsr_filter, &
-        dbcsr_finalize, dbcsr_get_info, dbcsr_get_occupation, dbcsr_multiply, dbcsr_p_type, &
-        dbcsr_release, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, &
+        dbcsr_complete_redistribute, dbcsr_copy, dbcsr_create, dbcsr_filter, dbcsr_finalize, &
+        dbcsr_get_info, dbcsr_get_occupation, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
+        dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, &
         dbcsr_type_symmetric
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_add_on_diag
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
                                               cp_dbcsr_sm_fm_multiply

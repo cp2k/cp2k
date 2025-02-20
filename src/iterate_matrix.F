@@ -16,12 +16,13 @@ MODULE iterate_matrix
    USE bibliography,                    ONLY: Richters2018,&
                                               cite_reference
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, &
-        dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_filter, dbcsr_get_diag, &
-        dbcsr_get_info, dbcsr_get_matrix_type, dbcsr_get_occupation, dbcsr_multiply, dbcsr_p_type, &
-        dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_set_diag, dbcsr_trace, dbcsr_transposed, &
-        dbcsr_type, dbcsr_type_no_symmetry
-   USE cp_dbcsr_contrib,                ONLY: dbcsr_frobenius_norm,&
+        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, dbcsr_distribution_get, &
+        dbcsr_distribution_type, dbcsr_filter, dbcsr_get_diag, dbcsr_get_info, &
+        dbcsr_get_matrix_type, dbcsr_get_occupation, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
+        dbcsr_scale, dbcsr_set, dbcsr_set_diag, dbcsr_trace, dbcsr_transposed, dbcsr_type, &
+        dbcsr_type_no_symmetry
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_add_on_diag,&
+                                              dbcsr_frobenius_norm,&
                                               dbcsr_gershgorin_norm,&
                                               dbcsr_maxabs
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -2149,7 +2150,7 @@ CONTAINS
       ! set the B matrix as B=Identity+D
       CALL dbcsr_create(B, template=matrix, matrix_type=dbcsr_type_no_symmetry)
       CALL dbcsr_copy(B, D)
-      CALL dbcsr_add_on_diag(B, alpha_scalar=one)
+      CALL dbcsr_add_on_diag(B, alpha=one)
 
       !   CALL dbcsr_print(B, nodata=.FALSE., matlab_format=.TRUE., variable_name="B", unit_nr=6)
 
