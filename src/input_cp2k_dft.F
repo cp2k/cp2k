@@ -96,6 +96,8 @@ MODULE input_cp2k_dft
                                               precond_spl3_aint,&
                                               precond_spl3_aint2
    USE string_utilities,                ONLY: s2a
+   USE physcon,                         ONLY: femtoseconds, &
+                                              evolt
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -1939,7 +1941,7 @@ CONTAINS
                           description="Maximal energy of the interpolated values.", &
                           unit_str="eV", &
                           type_of_var=real_t, &
-                          default_r_val=100.0_dp)
+                          default_r_val=100.0_dp/evolt)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
@@ -1947,7 +1949,7 @@ CONTAINS
                           description="Energy resolution of the interpolated values.", &
                           unit_str="eV", &
                           type_of_var=real_t, &
-                          default_r_val=0.05_dp)
+                          default_r_val=0.02_dp/evolt)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
@@ -1966,7 +1968,7 @@ CONTAINS
                           "as default of maximum available energy from the original Fourier transform.", &
                           unit_str="eV", &
                           type_of_var=real_t, &
-                          default_r_val=-1.0_dp)
+                          default_r_val=-1.0_dp/evolt)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
