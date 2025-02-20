@@ -103,23 +103,17 @@ MODULE cp_dbcsr_api
    PUBLIC :: dbcsr_set
    PUBLIC :: dbcsr_add
    PUBLIC :: dbcsr_scale
-   PUBLIC :: dbcsr_scale_by_vector
    PUBLIC :: dbcsr_transposed
    PUBLIC :: dbcsr_multiply
    PUBLIC :: dbcsr_copy
    PUBLIC :: dbcsr_desymmetrize
-   PUBLIC :: dbcsr_get_block_diag
-   PUBLIC :: dbcsr_set_diag
-   PUBLIC :: dbcsr_get_diag
    PUBLIC :: dbcsr_filter
-   PUBLIC :: dbcsr_trace
-   PUBLIC :: dbcsr_dot
    PUBLIC :: dbcsr_complete_redistribute
-   PUBLIC :: dbcsr_get_block_p
-   PUBLIC :: dbcsr_clear
-
-   ! block reservation
    PUBLIC :: dbcsr_reserve_blocks
+   PUBLIC :: dbcsr_put_block
+   PUBLIC :: dbcsr_get_block_p
+   PUBLIC :: dbcsr_get_readonly_block_p
+   PUBLIC :: dbcsr_clear
 
    ! iterator
    PUBLIC :: dbcsr_iterator_start
@@ -127,7 +121,7 @@ MODULE cp_dbcsr_api
    PUBLIC :: dbcsr_iterator_blocks_left
    PUBLIC :: dbcsr_iterator_next_block
 
-   ! getters / setters
+   ! getters
    PUBLIC :: dbcsr_get_info
    PUBLIC :: dbcsr_distribution_get
    PUBLIC :: dbcsr_get_matrix_type
@@ -139,7 +133,6 @@ MODULE cp_dbcsr_api
    PUBLIC :: dbcsr_valid_index
 
    ! work operations
-   PUBLIC :: dbcsr_put_block
    PUBLIC :: dbcsr_work_create
    PUBLIC :: dbcsr_verify_matrix
    PUBLIC :: dbcsr_get_data_p
@@ -161,6 +154,12 @@ MODULE cp_dbcsr_api
    PUBLIC :: dbcsr_print
    PUBLIC :: dbcsr_print_block_sum
    PUBLIC :: dbcsr_checksum
+   PUBLIC :: dbcsr_get_block_diag
+   PUBLIC :: dbcsr_set_diag
+   PUBLIC :: dbcsr_get_diag
+   PUBLIC :: dbcsr_scale_by_vector
+   PUBLIC :: dbcsr_trace
+   PUBLIC :: dbcsr_dot
 
    ! csr conversion
    PUBLIC :: dbcsr_csr_type
@@ -754,6 +753,41 @@ CONTAINS
          CPABORT("Not yet implemented for DBM.")
       END IF
    END SUBROUTINE dbcsr_get_block_p
+
+! **************************************************************************************************
+!> \brief Like dbcsr_get_block_p() but with matrix being INTENT(IN).
+!>        When invoking this routine, the caller promises not to modify the returned block.
+!> \param matrix ...
+!> \param row ...
+!> \param col ...
+!> \param block ...
+!> \param found ...
+!> \param row_size ...
+!> \param col_size ...
+! **************************************************************************************************
+   SUBROUTINE dbcsr_get_readonly_block_p(matrix, row, col, block, found, row_size, col_size)
+      TYPE(dbcsr_type), INTENT(IN), TARGET               :: matrix
+      INTEGER, INTENT(IN)                                :: row, col
+      REAL(kind=dp), DIMENSION(:, :), POINTER            :: block
+      LOGICAL, INTENT(OUT)                               :: found
+      INTEGER, INTENT(OUT), OPTIONAL                     :: row_size, col_size
+
+      TYPE(dbcsr_type), POINTER                          :: matrix_p
+
+      MARK_USED(matrix)
+      MARK_USED(row)
+      MARK_USED(col)
+      MARK_USED(block)
+      MARK_USED(found)
+      MARK_USED(row_size)
+      MARK_USED(col_size)
+      IF (USE_DBCSR_BACKEND) THEN
+         matrix_p => matrix ! Hacky workaround to shake the INTENT(IN).
+         CALL dbcsr_get_block_p_prv(matrix_p%dbcsr, row, col, block, found, row_size, col_size)
+      ELSE
+         CPABORT("Not yet implemented for DBM.")
+      END IF
+   END SUBROUTINE dbcsr_get_readonly_block_p
 
 ! **************************************************************************************************
 !> \brief ...
