@@ -8,9 +8,10 @@
 MODULE cp_dbcsr_contrib
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_clear, dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_finalize, &
-        dbcsr_get_block_p, dbcsr_get_info, dbcsr_get_stored_coordinates, dbcsr_has_symmetry, &
-        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
-        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_put_block, dbcsr_reserve_blocks, dbcsr_type
+        dbcsr_get_info, dbcsr_get_readonly_block_p, dbcsr_get_stored_coordinates, &
+        dbcsr_has_symmetry, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_put_block, &
+        dbcsr_reserve_blocks, dbcsr_type
    USE dbm_tests,                       ONLY: generate_larnv_seed
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_comm_type
@@ -37,7 +38,8 @@ CONTAINS
 !> \param matrix_c ...
 ! **************************************************************************************************
    SUBROUTINE dbcsr_hadamard_product(matrix_a, matrix_b, matrix_c)
-      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_a, matrix_b, matrix_c
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix_a, matrix_b
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_c
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_hadamard_product'
 
@@ -59,7 +61,7 @@ CONTAINS
       CALL dbcsr_iterator_start(iter, matrix_a)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, row, col, block_a)
-         CALL dbcsr_get_block_p(matrix_b, row, col, block_b, found_b)
+         CALL dbcsr_get_readonly_block_p(matrix_b, row, col, block_b, found_b)
          IF (found_b) THEN
             CALL dbcsr_put_block(matrix_c, row, col, block_a*block_b)
          END IF
@@ -75,7 +77,7 @@ CONTAINS
 !> \return ...
 ! **************************************************************************************************
    FUNCTION dbcsr_maxabs(matrix) RESULT(norm)
-      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       REAL(dp)                                           :: norm
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'dbcsr_maxabs'
@@ -107,7 +109,7 @@ CONTAINS
 !> \return ...
 ! **************************************************************************************************
    FUNCTION dbcsr_frobenius_norm(matrix) RESULT(norm)
-      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       REAL(dp)                                           :: norm
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_frobenius_norm'
@@ -146,7 +148,7 @@ CONTAINS
 !> \return ...
 ! **************************************************************************************************
    FUNCTION dbcsr_gershgorin_norm(matrix) RESULT(norm)
-      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
       REAL(dp)                                           :: norm
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dbcsr_gershgorin_norm'
