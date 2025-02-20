@@ -468,8 +468,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE get_lowdin_x(shalf, xvec, xt)
 
-      TYPE(dbcsr_type)                                   :: shalf
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: xvec, xt
+      TYPE(dbcsr_type), INTENT(IN)                       :: shalf
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: xvec
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: xt
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'get_lowdin_x'
 
@@ -512,7 +513,8 @@ CONTAINS
       TYPE(tddfpt_subgroup_env_type)                     :: sub_env
       TYPE(tddfpt_work_matrices)                         :: work
       LOGICAL, INTENT(IN)                                :: is_rks_triplets
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: X, res
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: X
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: res
 
       CHARACTER(len=*), PARAMETER :: routineN = 'stda_calculate_kernel'
 

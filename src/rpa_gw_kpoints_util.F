@@ -414,7 +414,7 @@ CONTAINS
                                 fm_mat_work, cfm_mat_Q, ikp, nkp, ikp_local, para_env)
 
       TYPE(dbcsr_p_type), DIMENSION(:, :), INTENT(INOUT) :: mat_P_omega_kp
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_RI_global_work, fm_mat_work
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_RI_global_work, fm_mat_work
       TYPE(cp_cfm_type), INTENT(IN)                      :: cfm_mat_Q
       INTEGER, INTENT(IN)                                :: ikp, nkp, ikp_local
       TYPE(mp_para_env_type), POINTER                    :: para_env

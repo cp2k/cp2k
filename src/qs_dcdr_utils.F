@@ -111,7 +111,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE multiply_localization(ao_matrix, mo_coeff, work, nmo, icenter, res)
       TYPE(dbcsr_type), INTENT(IN), POINTER              :: ao_matrix
-      TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff, work
+      TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: work
       INTEGER, INTENT(IN)                                :: nmo, icenter
       TYPE(cp_fm_type), INTENT(IN)                       :: res
 

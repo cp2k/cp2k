@@ -320,7 +320,7 @@ CONTAINS
       TYPE(cp_logger_type), INTENT(in), POINTER          :: logger
       TYPE(section_vals_type), INTENT(in), POINTER       :: tddfpt_print_section
       TYPE(dbcsr_type), INTENT(in), POINTER              :: matrix_s
-      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(in)      :: S_evects
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(INOUT)   :: S_evects
       TYPE(tddfpt_subgroup_env_type), INTENT(in)         :: sub_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_write_newtonx_output'
@@ -512,7 +512,7 @@ CONTAINS
 
       TYPE(cp_fm_type), DIMENSION(:, :), INTENT(in)      :: evects
       INTEGER, INTENT(in)                                :: ounit
-      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(in)      :: S_evects
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(INOUT)   :: S_evects
       TYPE(dbcsr_type), INTENT(in), POINTER              :: matrix_s
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_check_orthonormality'

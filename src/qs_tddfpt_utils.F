@@ -367,7 +367,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE normalize(X, tmp_vec, metric)
 
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: x, tmp_vec
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: x
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: tmp_vec
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: metric
 
       INTEGER                                            :: n_spins, spin

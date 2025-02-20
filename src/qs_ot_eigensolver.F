@@ -73,7 +73,7 @@ CONTAINS
 
       TYPE(dbcsr_type), POINTER                          :: matrix_h, matrix_s
       TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: matrix_orthogonal_space_fm
-      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_c_fm
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: matrix_c_fm
       TYPE(preconditioner_type), OPTIONAL, POINTER       :: preconditioner
       REAL(KIND=dp)                                      :: eps_gradient
       INTEGER, INTENT(IN)                                :: iter_max

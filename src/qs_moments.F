@@ -2110,7 +2110,7 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: cosmat, sinmat
       TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos
       TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: op_fm_set
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: opvec
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: opvec
 
       INTEGER                                            :: i, nao, nmo
       TYPE(cp_fm_type), POINTER                          :: mo_coeff

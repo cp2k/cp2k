@@ -1264,9 +1264,10 @@ CONTAINS
    SUBROUTINE contract_P_omega_with_mat_L(mat_P_omega, mat_L, mat_work, eps_filter_im_time, fm_mat_work, dimen_RI, &
                                           dimen_RI_red, fm_mat_L, fm_mat_Q)
 
-      TYPE(dbcsr_type), POINTER                          :: mat_P_omega, mat_L, mat_work
+      TYPE(dbcsr_type), INTENT(IN)                       :: mat_P_omega, mat_L
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: mat_work
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter_im_time
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_work
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_work
       INTEGER, INTENT(IN)                                :: dimen_RI, dimen_RI_red
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_L, fm_mat_Q
 

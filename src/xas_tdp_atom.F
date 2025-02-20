@@ -31,9 +31,10 @@ MODULE xas_tdp_atom
         dbcsr_copy, dbcsr_create, dbcsr_distribution_get, dbcsr_distribution_new, &
         dbcsr_distribution_release, dbcsr_distribution_type, dbcsr_filter, dbcsr_finalize, &
         dbcsr_get_block_p, dbcsr_get_stored_coordinates, dbcsr_iterator_blocks_left, &
-        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
-        dbcsr_p_type, dbcsr_put_block, dbcsr_release, dbcsr_replicate_all, dbcsr_set, dbcsr_type, &
-        dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_type_symmetric
+        dbcsr_iterator_next_block, dbcsr_iterator_readonly_start, dbcsr_iterator_start, &
+        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, dbcsr_put_block, dbcsr_release, &
+        dbcsr_replicate_all, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, &
+        dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE cp_dbcsr_cholesky,               ONLY: cp_dbcsr_cholesky_decompose,&
                                               cp_dbcsr_cholesky_invert
    USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
@@ -554,7 +555,7 @@ CONTAINS
       ALLOCATE (n_neighbors(nbase, 0:para_env%num_pe - 1))
       n_neighbors = 0
 
-      CALL dbcsr_iterator_start(iter, mat_s)
+      CALL dbcsr_iterator_readonly_start(iter, mat_s)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
 
          CALL dbcsr_iterator_next_block(iter, row=iblk, column=jblk)
@@ -589,7 +590,7 @@ CONTAINS
       END DO
 
       ! Loop a second time over S, this time fill the neighbors details
-      CALL dbcsr_iterator_start(iter, mat_s)
+      CALL dbcsr_iterator_readonly_start(iter, mat_s)
       ALLOCATE (inb(nbase))
       inb = 1
       DO WHILE (dbcsr_iterator_blocks_left(iter))

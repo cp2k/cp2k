@@ -20,9 +20,9 @@ MODULE rpa_gw_im_time_util
         dbcsr_create, dbcsr_distribution_get, dbcsr_distribution_new, dbcsr_distribution_release, &
         dbcsr_distribution_type, dbcsr_filter, dbcsr_get_diag, dbcsr_get_info, &
         dbcsr_get_stored_coordinates, dbcsr_init_p, dbcsr_iterator_blocks_left, &
-        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
-        dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_release_p, dbcsr_set_diag, dbcsr_type, &
-        dbcsr_type_no_symmetry
+        dbcsr_iterator_next_block, dbcsr_iterator_readonly_start, dbcsr_iterator_start, &
+        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
+        dbcsr_release_p, dbcsr_set_diag, dbcsr_type, dbcsr_type_no_symmetry
    USE cp_dbcsr_contrib,                ONLY: dbcsr_add_on_diag,&
                                               dbcsr_reserve_all_blocks
    USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
@@ -582,11 +582,10 @@ CONTAINS
       num_entries_send = 0
       num_blocks_send = 0
 
-      CALL dbcsr_iterator_start(iter, mat_orig)
+      CALL dbcsr_iterator_readonly_start(iter, mat_orig)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
 
-         CALL dbcsr_iterator_next_block(iter, row, col, data_block, &
-                                        row_size=row_size, col_size=col_size)
+         CALL dbcsr_iterator_next_block(iter, row, col, row_size=row_size, col_size=col_size)
 
          row_reflected = image_atom(row)
 
@@ -650,7 +649,7 @@ CONTAINS
       ALLOCATE (entry_counter(0:para_env%num_pe - 1))
       entry_counter(:) = 0
 
-      CALL dbcsr_iterator_start(iter, mat_orig)
+      CALL dbcsr_iterator_readonly_start(iter, mat_orig)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
 
          CALL dbcsr_iterator_next_block(iter, row, col, data_block, &

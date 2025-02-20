@@ -718,7 +718,8 @@ CONTAINS
       TYPE(qs_p_env_type)                                :: p_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: spin
-      TYPE(cp_fm_type), INTENT(IN)                       :: v, res
+      TYPE(cp_fm_type), INTENT(IN)                       :: v
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: res
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'p_op_l1_spin'
 

@@ -262,7 +262,7 @@ CONTAINS
    SUBROUTINE tddfpt_orthonormalize_psi1_psi1(evects, nvects_new, S_evects, matrix_s)
       TYPE(cp_fm_type), DIMENSION(:, :), INTENT(in)      :: evects
       INTEGER, INTENT(in)                                :: nvects_new
-      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(in)      :: S_evects
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(INOUT)   :: S_evects
       TYPE(dbcsr_type), POINTER                          :: matrix_s
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_orthonormalize_psi1_psi1'
@@ -342,7 +342,8 @@ CONTAINS
    SUBROUTINE tddfpt_compute_Aop_evects(Aop_evects, evects, S_evects, gs_mos, tddfpt_control, &
                                         matrix_ks, qs_env, kernel_env, &
                                         sub_env, work_matrices, matrix_s)
-      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(in)      :: Aop_evects, evects, S_evects
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(INOUT)   :: Aop_evects
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: evects, S_evects
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          INTENT(in)                                      :: gs_mos
       TYPE(tddfpt2_control_type), POINTER                :: tddfpt_control

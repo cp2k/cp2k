@@ -16,7 +16,7 @@ MODULE mscfg_types
         dbcsr_add, dbcsr_complete_redistribute, dbcsr_create, dbcsr_distribution_get, &
         dbcsr_distribution_new, dbcsr_distribution_release, dbcsr_distribution_type, &
         dbcsr_finalize, dbcsr_get_info, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_put_block, &
+        dbcsr_iterator_readonly_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_put_block, &
         dbcsr_release, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_work_create
    USE kinds,                           ONLY: dp
 #include "./base/base_uses.f90"
@@ -289,7 +289,7 @@ CONTAINS
       CALL dbcsr_work_create(matrix_new, work_mutable=.TRUE.)
 
       ! iterate over local blocks of the small matrix
-      CALL dbcsr_iterator_start(iter, submatrix_in)
+      CALL dbcsr_iterator_readonly_start(iter, submatrix_in)
 
       DO WHILE (dbcsr_iterator_blocks_left(iter))
 
