@@ -23,11 +23,12 @@ MODULE cp_dbcsr_api
         dbcsr_distribution_hold_prv => dbcsr_distribution_hold, &
         dbcsr_distribution_new_prv => dbcsr_distribution_new, &
         dbcsr_distribution_release_prv => dbcsr_distribution_release, &
-        dbcsr_distribution_type_prv => dbcsr_distribution_type, dbcsr_filter_prv => dbcsr_filter, &
-        dbcsr_finalize_lib, dbcsr_finalize_prv => dbcsr_finalize, &
-        dbcsr_get_block_p_prv => dbcsr_get_block_p, dbcsr_get_data_p_prv => dbcsr_get_data_p, &
-        dbcsr_get_data_size_prv => dbcsr_get_data_size, dbcsr_get_default_config, &
-        dbcsr_get_info_prv => dbcsr_get_info, dbcsr_get_matrix_type_prv => dbcsr_get_matrix_type, &
+        dbcsr_distribution_type_prv => dbcsr_distribution_type, dbcsr_dot_prv => dbcsr_dot, &
+        dbcsr_filter_prv => dbcsr_filter, dbcsr_finalize_lib, &
+        dbcsr_finalize_prv => dbcsr_finalize, dbcsr_get_block_p_prv => dbcsr_get_block_p, &
+        dbcsr_get_data_p_prv => dbcsr_get_data_p, dbcsr_get_data_size_prv => dbcsr_get_data_size, &
+        dbcsr_get_default_config, dbcsr_get_info_prv => dbcsr_get_info, &
+        dbcsr_get_matrix_type_prv => dbcsr_get_matrix_type, &
         dbcsr_get_num_blocks_prv => dbcsr_get_num_blocks, &
         dbcsr_get_occupation_prv => dbcsr_get_occupation, &
         dbcsr_get_stored_coordinates_prv => dbcsr_get_stored_coordinates, &
@@ -145,6 +146,7 @@ MODULE cp_dbcsr_api
    PUBLIC :: dbcsr_convert_sizes_to_offsets
    PUBLIC :: dbcsr_run_tests
    PUBLIC :: dbcsr_test_mm
+   PUBLIC :: dbcsr_dot_threadsafe
 
    ! csr conversion
    PUBLIC :: dbcsr_csr_type
@@ -1289,5 +1291,22 @@ CONTAINS
          ! Does not apply to DBM.
       END IF
    END SUBROUTINE dbcsr_work_create
+
+! **************************************************************************************************
+!> \brief ...
+!> \param matrix_a ...
+!> \param matrix_b ...
+!> \param RESULT ...
+! **************************************************************************************************
+   SUBROUTINE dbcsr_dot_threadsafe(matrix_a, matrix_b, RESULT)
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix_a, matrix_b
+      REAL(kind=dp), INTENT(INOUT)                       :: result
+
+      IF (USE_DBCSR_BACKEND) THEN
+         CALL dbcsr_dot_prv(matrix_a%dbcsr, matrix_b%dbcsr, RESULT)
+      ELSE
+         CPABORT("Not yet implemented for DBM.")
+      END IF
+   END SUBROUTINE dbcsr_dot_threadsafe
 
 END MODULE cp_dbcsr_api
