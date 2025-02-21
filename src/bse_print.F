@@ -619,7 +619,7 @@ CONTAINS
                prefix_output, i_exc, exc_descr(i_exc)%norm_XpY, &
                exc_descr(i_exc)%diff_r_abs*angstrom, &
                exc_descr(i_exc)%sigma_e*angstrom, exc_descr(i_exc)%sigma_h*angstrom, &
-               exc_descr(i_exc)%diff_r_sqr*angstrom, exc_descr(i_exc)%corr_e_h*angstrom
+               exc_descr(i_exc)%diff_r_sqr*angstrom, exc_descr(i_exc)%corr_e_h
          END DO
          WRITE (unit_nr, '(T2,A4)') prefix_output
          ! For debug runs, print first d_exc separately to allow the regtests to read in
