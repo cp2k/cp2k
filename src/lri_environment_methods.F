@@ -24,13 +24,13 @@ MODULE lri_environment_methods
    USE core_ppl,                        ONLY: build_core_ppl_ri
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_create,&
-                                              dbcsr_dot,&
-                                              dbcsr_get_block_diag,&
                                               dbcsr_get_block_p,&
                                               dbcsr_p_type,&
                                               dbcsr_release,&
                                               dbcsr_replicate_all,&
                                               dbcsr_type
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_dot,&
+                                              dbcsr_get_block_diag
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&

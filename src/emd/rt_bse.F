@@ -47,9 +47,9 @@ MODULE rt_bse
                            cp_cfm_release
    USE kinds, ONLY: dp, &
                     default_path_length
+   USE cp_dbcsr_contrib, ONLY: dbcsr_print
    USE cp_dbcsr_api, ONLY: dbcsr_p_type, &
                            dbcsr_type, &
-                           dbcsr_print, &
                            dbcsr_has_symmetry, &
                            dbcsr_desymmetrize, &
                            dbcsr_create, &

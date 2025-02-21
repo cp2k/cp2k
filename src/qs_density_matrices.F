@@ -16,9 +16,9 @@ MODULE qs_density_matrices
    USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
                                               dbcsr_multiply,&
                                               dbcsr_release,&
-                                              dbcsr_scale_by_vector,&
                                               dbcsr_set,&
                                               dbcsr_type
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_scale_by_vector
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
                                               cp_dbcsr_plus_fm_fm_t,&

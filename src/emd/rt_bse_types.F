@@ -33,11 +33,11 @@ MODULE rt_bse_types
                                  cp_fm_column_scale, &
                                  cp_fm_scale_and_add
    USE cp_cfm_basic_linalg, ONLY: cp_cfm_column_scale
+   USE cp_dbcsr_contrib, ONLY: dbcsr_print
    USE cp_dbcsr_api, ONLY: dbcsr_type, &
                            dbcsr_p_type, &
                            dbcsr_create, &
                            dbcsr_release, &
-                           dbcsr_print, &
                            dbcsr_get_info, &
                            dbcsr_copy, &
                            dbcsr_set, &
