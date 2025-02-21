@@ -22,13 +22,20 @@ MODULE trexio_utils
    USE cp_dbcsr_operations, ONLY: copy_dbcsr_to_fm
    USE cp_files, ONLY: close_file, file_exists, open_file
    USE cp_fm_types, ONLY: cp_fm_get_info, cp_fm_type, cp_fm_create, cp_fm_set_all, &
-                          cp_fm_get_submatrix, cp_fm_to_fm_submat_general, cp_fm_release
+                          cp_fm_get_submatrix, cp_fm_to_fm_submat_general, cp_fm_release, &
+                          cp_fm_set_element
    USE cp_fm_struct, ONLY: cp_fm_struct_create, &
                            cp_fm_struct_release, &
                            cp_fm_struct_type
    USE cp_log_handling, ONLY: cp_get_default_logger, &
                               cp_logger_get_default_io_unit, &
                               cp_logger_type
+   USE cp_dbcsr_api, ONLY: dbcsr_p_type, dbcsr_iterator_type, dbcsr_iterator_start, &
+                           dbcsr_iterator_stop, dbcsr_iterator_blocks_left, &
+                           dbcsr_reserve_all_blocks, dbcsr_iterator_next_block, &
+                           dbcsr_copy, dbcsr_set
+   USE cp_dbcsr_output, ONLY: cp_dbcsr_write_sparse_matrix
+   USE cp_output_handling, ONLY: medium_print_level
    USE external_potential_types, ONLY: sgp_potential_type, get_potential
    USE input_section_types, ONLY: section_vals_type, section_vals_get, &
                                   section_vals_val_get
@@ -45,27 +52,32 @@ MODULE trexio_utils
                                    qs_environment_type
    USE qs_kind_types, ONLY: get_qs_kind, get_qs_kind_set, &
                             qs_kind_type
-   USE qs_mo_types, ONLY: mo_set_type, get_mo_set
+   USE qs_mo_types, ONLY: mo_set_type, get_mo_set, init_mo_set, allocate_mo_set
 #ifdef __TREXIO
    USE trexio, ONLY: trexio_open, trexio_close, &
                      TREXIO_HDF5, TREXIO_SUCCESS, &
                      trexio_string_of_error, trexio_t, trexio_exit_code, &
                      trexio_write_metadata_code, trexio_write_metadata_code_num, &
-                     trexio_write_nucleus_coord, trexio_write_nucleus_num, &
-                     trexio_write_nucleus_charge, trexio_write_nucleus_label, &
+                     trexio_write_nucleus_coord, trexio_read_nucleus_coord, &
+                     trexio_write_nucleus_num, trexio_read_nucleus_num, &
+                     trexio_write_nucleus_charge, trexio_read_nucleus_charge, &
+                     trexio_write_nucleus_label, trexio_read_nucleus_label, &
                      trexio_write_nucleus_repulsion, &
                      trexio_write_cell_a, trexio_write_cell_b, trexio_write_cell_c, &
                      trexio_write_cell_g_a, trexio_write_cell_g_b, &
                      trexio_write_cell_g_c, trexio_write_cell_two_pi, &
                      trexio_write_pbc_periodic, trexio_write_pbc_k_point_num, &
                      trexio_write_pbc_k_point, trexio_write_pbc_k_point_weight, &
-                     trexio_write_electron_num, trexio_write_electron_up_num, &
-                     trexio_write_electron_dn_num, &
+                     trexio_write_electron_num, trexio_read_electron_num, &
+                     trexio_write_electron_up_num, trexio_read_electron_up_num, &
+                     trexio_write_electron_dn_num, trexio_read_electron_dn_num, &
                      trexio_write_state_num, trexio_write_state_id, &
                      trexio_write_state_energy, &
                      trexio_write_basis_type, trexio_write_basis_prim_num, &
-                     trexio_write_basis_shell_num, trexio_write_basis_nucleus_index, &
-                     trexio_write_basis_shell_ang_mom, trexio_write_basis_shell_factor, &
+                     trexio_write_basis_shell_num, trexio_read_basis_shell_num, &
+                     trexio_write_basis_nucleus_index, &
+                     trexio_write_basis_shell_ang_mom, trexio_read_basis_shell_ang_mom, &
+                     trexio_write_basis_shell_factor, &
                      trexio_write_basis_r_power, trexio_write_basis_shell_index, &
                      trexio_write_basis_exponent, trexio_write_basis_coefficient, &
                      trexio_write_basis_prim_factor, &
@@ -74,10 +86,15 @@ MODULE trexio_utils
                      trexio_write_ecp_nucleus_index, trexio_write_ecp_exponent, &
                      trexio_write_ecp_coefficient, trexio_write_ecp_power, &
                      trexio_write_ao_cartesian, trexio_write_ao_num, &
+                     trexio_read_ao_cartesian, trexio_read_ao_num, &
                      trexio_write_ao_shell, trexio_write_ao_normalization, &
+                     trexio_read_ao_shell, trexio_read_ao_normalization, &
                      trexio_write_mo_num, trexio_write_mo_energy, &
+                     trexio_read_mo_num, trexio_read_mo_energy, &
                      trexio_write_mo_occupation, trexio_write_mo_spin, &
+                     trexio_read_mo_occupation, trexio_read_mo_spin, &
                      trexio_write_mo_class, trexio_write_mo_coefficient, &
+                     trexio_read_mo_class, trexio_read_mo_coefficient, &
                      trexio_write_mo_coefficient_im, trexio_write_mo_k_point, &
                      trexio_write_mo_type
 #endif
@@ -89,7 +106,7 @@ MODULE trexio_utils
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'trexio_utils'
 
-   PUBLIC :: write_trexio
+   PUBLIC :: write_trexio, read_trexio
 
 CONTAINS
 
@@ -968,6 +985,448 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE write_trexio
+
+! **************************************************************************************************
+!> \brief Read a trexio file
+!> \param qs_env the qs environment with all the info of the computation
+!> \param trexio_filename the trexio filename without the extension
+!> \param mo_set_trexio the MO set to read from the trexio file
+!> \param energy_derivative the energy derivative to read from the trexio file
+! **************************************************************************************************
+   SUBROUTINE read_trexio(qs_env, trexio_filename, mo_set_trexio, energy_derivative)
+      TYPE(qs_environment_type), INTENT(IN), POINTER                    :: qs_env
+      CHARACTER(len=*), INTENT(IN), OPTIONAL                            :: trexio_filename
+      TYPE(mo_set_type), INTENT(OUT), DIMENSION(:), POINTER, OPTIONAL   :: mo_set_trexio
+      TYPE(dbcsr_p_type), INTENT(OUT), DIMENSION(:), POINTER, OPTIONAL  :: energy_derivative
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'read_trexio'
+
+      INTEGER                                            :: handle
+
+#ifdef __TREXIO
+      INTEGER                                            :: output_unit, unit_dE
+      CHARACTER(len=default_path_length)                 :: filename, filename_dE
+      INTEGER(trexio_t)                                  :: f        ! The TREXIO file handle
+      INTEGER(trexio_exit_code)                          :: rc       ! TREXIO return code
+
+      LOGICAL                                            :: ionode
+
+      CHARACTER(LEN=2)                                   :: element_symbol
+      CHARACTER(LEN=2), DIMENSION(:), ALLOCATABLE        :: label
+
+      INTEGER                                            :: ao_num, mo_num, nmo, nspins, ispin, nsgf, &
+                                                            save_cartesian, i, j, k, l, m, imo, ishell, &
+                                                            nshell, shell_num, nucleus_num, natoms, ikind, &
+                                                            iatom, nrow_global, nelectron, nrows, ncols, &
+                                                            row, col, row_size, col_size, &
+                                                            row_offset, col_offset, myprint
+      INTEGER, DIMENSION(2)                              :: nmo_spin, electron_num
+      INTEGER, DIMENSION(:), ALLOCATABLE                 :: mo_spin, shell_ang_mom, trexio_to_cp2k_ang_mom
+
+      REAL(KIND=dp)                                      :: zeff, maxocc
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: mo_energy, mo_occupation, charge
+      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE        :: mo_coefficient, mos_sgf, coord, dEdP, temp
+      REAL(KIND=dp), DIMENSION(:, :), POINTER             :: data_block
+
+      TYPE(cp_logger_type), POINTER                      :: logger => Null()
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff_ref, mo_coeff_target
+      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
+      TYPE(cp_blacs_env_type), POINTER                   :: context
+      TYPE(mp_para_env_type), POINTER                    :: para_env => Null()
+      TYPE(dft_control_type), POINTER                    :: dft_control => Null()
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s => Null()
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: kind_set => Null()
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos => Null()
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set => Null()
+      TYPE(dbcsr_iterator_type)                          :: iter
+#endif
+
+      CALL timeset(routineN, handle)
+
+#ifdef __TREXIO
+      logger => cp_get_default_logger()
+      output_unit = cp_logger_get_default_io_unit(logger)
+      myprint = logger%iter_info%print_level
+
+      CPASSERT(ASSOCIATED(qs_env))
+
+      ! get filename
+      IF (.NOT. PRESENT(trexio_filename)) THEN
+         filename = TRIM(logger%iter_info%project_name)//'-TREXIO.h5'
+         filename_dE = TRIM(logger%iter_info%project_name)//'-TREXIO.dEdP.dat'
+      ELSE
+         filename = TRIM(trexio_filename)//'.h5'
+         filename_dE = TRIM(trexio_filename)//'.dEdP.dat'
+      END IF
+
+      CALL get_qs_env(qs_env, para_env=para_env)
+      ionode = para_env%is_source()
+
+      ! Open the TREXIO file and check that we have the same molecule as in qs_env
+      IF (ionode) THEN
+         WRITE (output_unit, "((T2,A,A))") 'TREXIO| Opening file named ', TRIM(filename)
+         f = trexio_open(filename, 'r', TREXIO_HDF5, rc)
+         CALL trexio_error(rc)
+
+         IF (myprint > medium_print_level) THEN
+            WRITE (output_unit, "((T2,A))") 'TREXIO| Reading molecule information...'
+         END IF
+         rc = trexio_read_nucleus_num(f, nucleus_num)
+         CALL trexio_error(rc)
+
+         IF (myprint > medium_print_level) THEN
+            WRITE (output_unit, "((T2,A))") 'TREXIO| Reading nuclear coordinates...'
+         END IF
+         ALLOCATE (coord(3, nucleus_num))
+         rc = trexio_read_nucleus_coord(f, coord)
+         CALL trexio_error(rc)
+
+         IF (myprint > medium_print_level) THEN
+            WRITE (output_unit, "((T2,A))") 'TREXIO| Reading nuclear labels...'
+         END IF
+         ALLOCATE (label(nucleus_num))
+         rc = trexio_read_nucleus_label(f, label, 3)
+         CALL trexio_error(rc)
+
+         IF (myprint > medium_print_level) THEN
+            WRITE (output_unit, "((T2,A))") 'TREXIO| Reading nuclear charges...'
+         END IF
+         ALLOCATE (charge(nucleus_num))
+         rc = trexio_read_nucleus_charge(f, charge)
+         CALL trexio_error(rc)
+
+         ! get the same info from qs_env
+         CALL get_qs_env(qs_env, particle_set=particle_set, qs_kind_set=kind_set, natom=natoms)
+
+         ! check that we have the same number of atoms
+         CPASSERT(nucleus_num == natoms)
+
+         DO iatom = 1, natoms
+            ! compare the coordinates within a certain tolerance
+            DO i = 1, 3
+               CPASSERT(ABS(coord(i, iatom) - particle_set(iatom)%r(i)) < 1.0E-6_dp)
+            END DO
+
+            ! figure out the element symbol and to which kind_set entry this atomic_kind corresponds to
+            CALL get_atomic_kind(particle_set(iatom)%atomic_kind, element_symbol=element_symbol, kind_number=ikind)
+            ! check that the element symbol is the same
+            CPASSERT(TRIM(element_symbol) == TRIM(label(iatom)))
+
+            ! get the effective nuclear charge for this kind
+            CALL get_qs_kind(kind_set(ikind), zeff=zeff)
+            ! check that the nuclear charge is also the same
+            CPASSERT(charge(iatom) == zeff)
+         END DO
+
+         WRITE (output_unit, "((T2,A))") 'TREXIO| Molecule is the same as in qs_env'
+         ! if we get here, we have the same molecule
+         DEALLOCATE (coord)
+         DEALLOCATE (label)
+         DEALLOCATE (charge)
+      END IF
+
+      ! check whether we want to read something
+      IF (PRESENT(mo_set_trexio)) THEN
+         IF (output_unit > 1) THEN
+            WRITE (output_unit, "((T2,A))") 'TREXIO| Reading molecular orbitals...'
+         END IF
+
+         ! at the moment, we assume that the basis set is the same
+         ! first we read all arrays lengths we need from the trexio file
+         IF (ionode) THEN
+            rc = trexio_read_ao_cartesian(f, save_cartesian)
+            CALL trexio_error(rc)
+
+            rc = trexio_read_ao_num(f, ao_num)
+            CALL trexio_error(rc)
+
+            rc = trexio_read_mo_num(f, mo_num)
+            CALL trexio_error(rc)
+
+            rc = trexio_read_basis_shell_num(f, shell_num)
+            CALL trexio_error(rc)
+
+            rc = trexio_read_electron_up_num(f, electron_num(1))
+            CALL trexio_error(rc)
+
+            rc = trexio_read_electron_dn_num(f, electron_num(2))
+            CALL trexio_error(rc)
+         END IF
+
+         ! broadcast information to all processors and allocate arrays
+         CALL para_env%bcast(save_cartesian, para_env%source)
+         CALL para_env%bcast(ao_num, para_env%source)
+         CALL para_env%bcast(mo_num, para_env%source)
+         CALL para_env%bcast(electron_num, para_env%source)
+         CALL para_env%bcast(shell_num, para_env%source)
+
+         IF (save_cartesian == 1) THEN
+            CPABORT('Reading Cartesian AOs is not yet supported.')
+         END IF
+
+         ! check that the number of AOs and shells is the same
+         CALL get_qs_env(qs_env, qs_kind_set=kind_set)
+         CALL get_qs_kind_set(kind_set, nsgf=nsgf, nshell=nshell)
+         CPASSERT(ao_num == nsgf)
+         CPASSERT(shell_num == nshell)
+
+         ! check that the number of MOs is the same
+         CALL get_qs_env(qs_env, mos=mos, dft_control=dft_control)
+         nspins = dft_control%nspins
+         nmo_spin(:) = 0
+         DO ispin = 1, nspins
+            CALL get_mo_set(mos(ispin), nmo=nmo)
+            nmo_spin(ispin) = nmo
+         END DO
+         CPASSERT(mo_num == SUM(nmo_spin))
+
+         ALLOCATE (mo_coefficient(ao_num, mo_num))
+         ALLOCATE (mo_energy(mo_num))
+         ALLOCATE (mo_occupation(mo_num))
+         ALLOCATE (mo_spin(mo_num))
+         ALLOCATE (shell_ang_mom(shell_num))
+
+         mo_coefficient(:, :) = 0.0_dp
+         mo_energy(:) = 0.0_dp
+         mo_occupation(:) = 0.0_dp
+         mo_spin(:) = 0
+         shell_ang_mom(:) = 0
+
+         ! read the MOs info
+         IF (ionode) THEN
+            IF (myprint > medium_print_level) THEN
+               WRITE (output_unit, "((T2,A))") 'TREXIO| Reading MO coefficients...'
+            END IF
+            rc = trexio_read_mo_coefficient(f, mo_coefficient)
+            CALL trexio_error(rc)
+
+            IF (myprint > medium_print_level) THEN
+               WRITE (output_unit, "((T2,A))") 'TREXIO| Reading MO energies...'
+            END IF
+            rc = trexio_read_mo_energy(f, mo_energy)
+            CALL trexio_error(rc)
+
+            IF (myprint > medium_print_level) THEN
+               WRITE (output_unit, "((T2,A))") 'TREXIO| Reading MO occupations...'
+            END IF
+            rc = trexio_read_mo_occupation(f, mo_occupation)
+            CALL trexio_error(rc)
+
+            IF (myprint > medium_print_level) THEN
+               WRITE (output_unit, "((T2,A))") 'TREXIO| Reading MO spins...'
+            END IF
+            rc = trexio_read_mo_spin(f, mo_spin)
+            CALL trexio_error(rc)
+
+            IF (myprint > medium_print_level) THEN
+               WRITE (output_unit, "((T2,A))") 'TREXIO| Reading shell angular momenta...'
+            END IF
+            rc = trexio_read_basis_shell_ang_mom(f, shell_ang_mom)
+            CALL trexio_error(rc)
+         END IF
+
+         ! broadcast the data to all processors
+         CALL para_env%bcast(mo_coefficient, para_env%source)
+         CALL para_env%bcast(mo_energy, para_env%source)
+         CALL para_env%bcast(mo_occupation, para_env%source)
+         CALL para_env%bcast(mo_spin, para_env%source)
+         CALL para_env%bcast(shell_ang_mom, para_env%source)
+
+         ! assume nspins and nmo_spin match the ones in the trexio file
+         ! reorder magnetic quantum number
+         DO ispin = 1, nspins
+            ! global MOs index
+            imo = (ispin - 1)*nmo_spin(1)
+            ! get number of MOs for this spin
+            nmo = nmo_spin(ispin)
+            ! allocate local temp array to read MOs
+            ALLOCATE (mos_sgf(nsgf, nmo))
+            mos_sgf(:, :) = 0.0_dp
+
+            ! we need to reorder the MOs according to CP2K convention
+            ! from m =  0, +1, -1, +2, -2, ..., +l, -l of TREXIO
+            !   to m = -l, -l+1, ..., 0, ..., l-1, l   of CP2K
+            i = 0
+            DO ishell = 1, shell_num
+               l = shell_ang_mom(ishell)
+               DO k = 1, 2*l + 1
+                  ! map from running index k: 1...2l+1 to magnetic quantum number m in TREXIO convention
+                  m = (-1)**k*FLOOR(REAL(k, KIND=dp)/2.0_dp)
+                  mos_sgf(i + l + 1 + m, :) = mo_coefficient(i + k, imo + 1:imo + nmo)
+               END DO
+               i = i + 2*l + 1
+            END DO
+            CPASSERT(i == nsgf)
+
+            IF (nspins == 1) THEN
+               maxocc = 2.0_dp
+               nelectron = electron_num(1) + electron_num(2)
+            ELSE
+               maxocc = 1.0_dp
+               nelectron = electron_num(ispin)
+            END IF
+            ! the right number of active electrons per spin channel is initialized further down
+            CALL allocate_mo_set(mo_set_trexio(ispin), nsgf, nmo, nelectron, 0.0_dp, maxocc, 0.0_dp)
+
+            CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff_ref)
+            CALL cp_fm_get_info(mo_coeff_ref, context=context, para_env=para_env, nrow_global=nrow_global)
+            CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=context, &
+                                     nrow_global=nrow_global, ncol_global=nmo)
+            CALL init_mo_set(mo_set_trexio(ispin), fm_struct=fm_struct_tmp, name="TREXIO MOs")
+            CALL cp_fm_struct_release(fm_struct_tmp)
+
+            CALL get_mo_set(mo_set_trexio(ispin), mo_coeff=mo_coeff_target)
+            DO j = 1, nmo
+               ! make sure I copy the right spin channel
+               CPASSERT(mo_spin(j) == ispin - 1)
+               mo_set_trexio(ispin)%eigenvalues(j) = mo_energy(imo + j)
+               mo_set_trexio(ispin)%occupation_numbers(j) = mo_occupation(imo + j)
+               DO i = 1, nsgf
+                  CALL cp_fm_set_element(mo_coeff_target, i, j, mos_sgf(i, j))
+               END DO
+            END DO
+
+            DEALLOCATE (mos_sgf)
+         END DO
+
+         DEALLOCATE (mo_coefficient)
+         DEALLOCATE (mo_energy)
+         DEALLOCATE (mo_occupation)
+         DEALLOCATE (mo_spin)
+         ! DEALLOCATE (shell_ang_mom)
+
+      END IF ! if MOs should be read
+
+      ! check whether we want to read derivatives
+      IF (PRESENT(energy_derivative)) THEN
+         IF (output_unit > 1) THEN
+            WRITE (output_unit, "((T2,A))") 'TREXIO| Reading energy derivatives...'
+         END IF
+
+         ! Temporary solution: allocate here the energy derivatives matrix here
+         ! assuming that nsgf is the same as the number read from the dEdP file
+         ! TODO: once available in TREXIO, first read size and then allocate
+         ! in the same way done for the MOs
+         ALLOCATE (dEdP(nsgf, nsgf))
+         dEdP(:, :) = 0.0_dp
+
+         ! check if file exists and open it
+         IF (ionode) THEN
+            IF (file_exists(filename_dE)) THEN
+               CALL open_file(file_name=filename_dE, file_status="OLD", unit_number=unit_dE)
+            ELSE
+               CPABORT("Energy derivatives file "//TRIM(filename_dE)//" not found")
+            END IF
+
+            ! read the header and check everything is fine
+            IF (myprint > medium_print_level) THEN
+               WRITE (output_unit, "((T2,A))") 'TREXIO| Reading header information...'
+            END IF
+            READ (unit_dE, *) nrows, ncols
+            IF (myprint > medium_print_level) THEN
+               WRITE (output_unit, "((T2,A))") 'TREXIO| Check size of dEdP matrix...'
+            END IF
+            CPASSERT(nrows == nsgf)
+            CPASSERT(ncols == nsgf)
+
+            ! read the data
+            IF (myprint > medium_print_level) THEN
+               WRITE (output_unit, "((T2,A))") 'TREXIO| Reading dEdP matrix...'
+            END IF
+            ! Read the data matrix
+            DO i = 1, nrows
+               READ (unit_dE, *) (dEdP(i, j), j=1, ncols)
+            END DO
+
+            CALL close_file(unit_number=unit_dE)
+         END IF
+
+         ! send data to all processes
+         CALL para_env%bcast(dEdP, para_env%source)
+
+         ! AO order map from TREXIO to CP2K
+         ALLOCATE (trexio_to_cp2k_ang_mom(nsgf))
+         i = 0
+         DO ishell = 1, shell_num
+            l = shell_ang_mom(ishell)
+            DO k = 1, 2*l + 1
+               m = (-1)**k*FLOOR(REAL(k, KIND=dp)/2.0_dp)
+               trexio_to_cp2k_ang_mom(i + l + 1 + m) = i + k
+            END DO
+            i = i + 2*l + 1
+         END DO
+         CPASSERT(i == nsgf)
+
+         ! Reshuffle
+         ALLOCATE (temp(nsgf, nsgf))
+         temp(:, :) = dEdP(:, :)
+
+         ! Reorder rows and columns according to trexio_to_cp2k_ang_mom mapping
+         DO j = 1, nsgf
+            DO i = 1, nsgf
+               dEdP(trexio_to_cp2k_ang_mom(i), trexio_to_cp2k_ang_mom(j)) = temp(i, j)
+            END DO
+         END DO
+
+         DEALLOCATE (temp)
+
+         CALL get_qs_env(qs_env, matrix_ks=matrix_s)
+         DO ispin = 1, nspins
+            ALLOCATE (energy_derivative(ispin)%matrix)
+
+            ! we use the overlap matrix as a template, copying it but removing the sparsity
+            CALL dbcsr_copy(energy_derivative(ispin)%matrix, matrix_s(ispin)%matrix, &
+                            name='Energy Derivative', keep_sparsity=.FALSE.)
+            CALL dbcsr_set(energy_derivative(ispin)%matrix, 0.0_dp)
+
+            !!!! DEBUG
+            ! CALL cp_dbcsr_write_sparse_matrix(energy_derivative(ispin)%matrix, 4, 4, qs_env, para_env, &
+            !                                   output_unit=output_unit, omit_headers=.false.)
+            !!!!
+
+            ! CALL dbcsr_reserve_all_blocks(matrix)
+            CALL dbcsr_iterator_start(iter, energy_derivative(ispin)%matrix)
+            DO WHILE (dbcsr_iterator_blocks_left(iter))
+               CALL dbcsr_iterator_next_block(iter, row, col, data_block, &
+                                              row_size=row_size, col_size=col_size, &
+                                              row_offset=row_offset, col_offset=col_offset)
+
+               ! Copy data from array to block
+               DO i = 1, row_size
+                  DO j = 1, col_size
+                     data_block(i, j) = dEdP(row_offset + i - 1, col_offset + j - 1)
+                  END DO
+               END DO
+            END DO
+            CALL dbcsr_iterator_stop(iter)
+            !!!! DEBUG
+            ! CALL cp_dbcsr_write_sparse_matrix(energy_derivative(ispin)%matrix, 4, 4, qs_env, para_env, &
+            !                                   output_unit=output_unit, omit_headers=.false.)
+            !!!!
+         END DO
+
+      END IF ! finished reading energy derivatives
+
+      ! Clean up
+      IF (ALLOCATED(shell_ang_mom)) DEALLOCATE (shell_ang_mom)
+      IF (ALLOCATED(trexio_to_cp2k_ang_mom)) DEALLOCATE (trexio_to_cp2k_ang_mom)
+      IF (ALLOCATED(dEdP)) DEALLOCATE (dEdP)
+
+      ! Close the TREXIO file
+      IF (ionode) THEN
+         WRITE (output_unit, "((T2,A,A))") 'TREXIO| Closing file named ', TRIM(filename)
+         rc = trexio_close(f)
+         CALL trexio_error(rc)
+      END IF
+
+#else
+      MARK_USED(qs_env)
+      MARK_USED(trexio_section)
+      CPWARN('TREXIO support has not been enabled in this build.')
+#endif
+      CALL timestop(handle)
+
+   END SUBROUTINE read_trexio
 
 #ifdef __TREXIO
 ! **************************************************************************************************

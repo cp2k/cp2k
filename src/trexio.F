@@ -11,6 +11,9 @@
 !>      05.2024 created [SB]
 !> \author Stefano Battaglia
 ! **************************************************************************************************
+! There could be an issue by including the trexio library in this way, which is that if this
+! file is not compiled before files containing TREXIO import statements, the compiler will complain
+! that it is not able to find the TREXIO module and will fail.
 
 #ifdef __TREXIO
 #include <trexio_f.f90>
