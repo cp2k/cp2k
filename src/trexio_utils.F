@@ -32,8 +32,9 @@ MODULE trexio_utils
                               cp_logger_type
    USE cp_dbcsr_api, ONLY: dbcsr_p_type, dbcsr_iterator_type, dbcsr_iterator_start, &
                            dbcsr_iterator_stop, dbcsr_iterator_blocks_left, &
-                           dbcsr_reserve_all_blocks, dbcsr_iterator_next_block, &
+                           dbcsr_iterator_next_block, &
                            dbcsr_copy, dbcsr_set
+   USE cp_dbcsr_contrib, ONLY: dbcsr_reserve_all_blocks
    USE cp_dbcsr_output, ONLY: cp_dbcsr_write_sparse_matrix
    USE cp_output_handling, ONLY: medium_print_level
    USE external_potential_types, ONLY: sgp_potential_type, get_potential
@@ -1421,7 +1422,9 @@ CONTAINS
 
 #else
       MARK_USED(qs_env)
-      MARK_USED(trexio_section)
+      MARK_USED(trexio_filename)
+      MARK_USED(mo_set_trexio)
+      MARK_USED(energy_derivative)
       CPWARN('TREXIO support has not been enabled in this build.')
 #endif
       CALL timestop(handle)
