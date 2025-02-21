@@ -41,9 +41,9 @@ MODULE almo_scf_optimizer
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, dbcsr_distribution_get, &
         dbcsr_distribution_type, dbcsr_filter, dbcsr_finalize, dbcsr_get_block_p, dbcsr_get_info, &
-        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
-        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_p_type, &
-        dbcsr_print_block_sum, dbcsr_put_block, dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_type, &
+        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_readonly_start, &
+        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
+        dbcsr_p_type, dbcsr_put_block, dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_type, &
         dbcsr_type_no_symmetry, dbcsr_work_create
    USE cp_dbcsr_cholesky,               ONLY: cp_dbcsr_cholesky_decompose,&
                                               cp_dbcsr_cholesky_invert,&
@@ -746,7 +746,7 @@ CONTAINS
                   !WRITE(mynodestr,'(I6.6)') mynode
                   !mylogfile='EDA.'//TRIM(ADJUSTL(mynodestr))
                   !OPEN (iunit,file=mylogfile,status='REPLACE')
-                  !CALL dbcsr_print_block_sum(matrix_tmp_no,iunit)
+                  !CALL print_block_sum(matrix_tmp_no,iunit)
                   !CLOSE(iunit)
                   !
                   !CALL dbcsr_release(matrix_tmp_no)
@@ -4705,12 +4705,12 @@ CONTAINS
             !!   WRITE(unit_nr,*)
             !!   WRITE(unit_nr,'(T2,A)') "ENERGY DECOMPOSITION"
             !!ENDIF
-            !!CALL dbcsr_print_block_sum(eda_matrix(ispin))
+            !!CALL print_block_sum(eda_matrix(ispin), unit_nr=6)
             !!IF (unit_nr>0) THEN
             !!   WRITE(unit_nr,*)
             !!   WRITE(unit_nr,'(T2,A)') "CHARGE DECOMPOSITION"
             !!ENDIF
-            !!CALL dbcsr_print_block_sum(cta_matrix(ispin))
+            !!CALL print_block_sum(cta_matrix(ispin), unit_nr=6)
 
             ! obtain density matrix from updated MOs
             ! RZK-later sigma and sigma_inv are lost here
@@ -10996,7 +10996,7 @@ CONTAINS
                almo_print_section => section_vals_get_subs_vals(input, "DFT%ALMO_SCF%ANALYSIS%PRINT")
                eda_unit = cp_print_key_unit_nr(logger, almo_print_section, &
                                                "ALMO_EDA_CT", extension=".dat", local=.TRUE.)
-               CALL dbcsr_print_block_sum(m_temp_no1(ispin), eda_unit)
+               CALL print_block_sum(m_temp_no1(ispin), eda_unit)
                CALL cp_print_key_finished_output(eda_unit, logger, almo_print_section, &
                                                  "ALMO_EDA_CT", local=.TRUE.)
 
@@ -11007,7 +11007,7 @@ CONTAINS
 
                eda_unit = cp_print_key_unit_nr(logger, almo_print_section, &
                                                "ALMO_CTA", extension=".dat", local=.TRUE.)
-               CALL dbcsr_print_block_sum(m_temp_no2(ispin), eda_unit)
+               CALL print_block_sum(m_temp_no2(ispin), eda_unit)
                CALL cp_print_key_finished_output(eda_unit, logger, almo_print_section, &
                                                  "ALMO_CTA", local=.TRUE.)
 
@@ -11120,6 +11120,35 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE inverse_of_elements
+
+! **************************************************************************************************
+!> \brief Prints the sum of the elements for each block.
+!> \param matrix ...
+!> \param unit_nr ...
+! **************************************************************************************************
+   SUBROUTINE print_block_sum(matrix, unit_nr)
+      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
+      INTEGER, INTENT(IN)                                :: unit_nr
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'print_block_sum'
+
+      INTEGER                                            :: col, handle, row
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: block
+      TYPE(dbcsr_iterator_type)                          :: iter
+
+      CALL timeset(routineN, handle)
+
+      IF (unit_nr > 0) THEN
+         CALL dbcsr_iterator_readonly_start(iter, matrix)
+         DO WHILE (dbcsr_iterator_blocks_left(iter))
+            CALL dbcsr_iterator_next_block(iter, row, col, block)
+            WRITE (unit_nr, '(I6,I6,ES18.9)') row, col, SUM(block)
+         END DO
+         CALL dbcsr_iterator_stop(iter)
+      END IF
+
+      CALL timestop(handle)
+   END SUBROUTINE print_block_sum
 
 END MODULE almo_scf_optimizer
 
