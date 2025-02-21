@@ -38,9 +38,9 @@ MODULE cp_dbcsr_api
         dbcsr_iterator_stop_prv => dbcsr_iterator_stop, &
         dbcsr_iterator_type_prv => dbcsr_iterator_type, &
         dbcsr_mp_grid_setup_prv => dbcsr_mp_grid_setup, dbcsr_multiply_prv => dbcsr_multiply, &
-        dbcsr_no_transpose, dbcsr_print_block_sum_prv => dbcsr_print_block_sum, &
-        dbcsr_print_config, dbcsr_print_statistics, dbcsr_put_block_prv => dbcsr_put_block, &
-        dbcsr_release_prv => dbcsr_release, dbcsr_replicate_all_prv => dbcsr_replicate_all, &
+        dbcsr_no_transpose, dbcsr_print_config, dbcsr_print_statistics, &
+        dbcsr_put_block_prv => dbcsr_put_block, dbcsr_release_prv => dbcsr_release, &
+        dbcsr_replicate_all_prv => dbcsr_replicate_all, &
         dbcsr_reserve_blocks_prv => dbcsr_reserve_blocks, dbcsr_reset_randmat_seed, &
         dbcsr_run_tests, dbcsr_scale_prv => dbcsr_scale, dbcsr_set_config, &
         dbcsr_set_prv => dbcsr_set, dbcsr_sum_replicated_prv => dbcsr_sum_replicated, &
@@ -145,9 +145,6 @@ MODULE cp_dbcsr_api
    PUBLIC :: dbcsr_convert_sizes_to_offsets
    PUBLIC :: dbcsr_run_tests
    PUBLIC :: dbcsr_test_mm
-
-   ! high level matrix functions
-   PUBLIC :: dbcsr_print_block_sum
 
    ! csr conversion
    PUBLIC :: dbcsr_csr_type
@@ -1090,22 +1087,6 @@ CONTAINS
          CPABORT("Not yet implemented for DBM.")
       END IF
    END SUBROUTINE dbcsr_multiply
-
-! **************************************************************************************************
-!> \brief ...
-!> \param matrix ...
-!> \param unit_nr ...
-! **************************************************************************************************
-   SUBROUTINE dbcsr_print_block_sum(matrix, unit_nr)
-      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
-      INTEGER, OPTIONAL                                  :: unit_nr
-
-      IF (USE_DBCSR_BACKEND) THEN
-         CALL dbcsr_print_block_sum_prv(matrix%dbcsr, unit_nr)
-      ELSE
-         CPABORT("Not yet implemented for DBM.")
-      END IF
-   END SUBROUTINE dbcsr_print_block_sum
 
 ! **************************************************************************************************
 !> \brief ...
