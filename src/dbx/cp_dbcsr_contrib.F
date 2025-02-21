@@ -6,6 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 MODULE cp_dbcsr_contrib
+   USE OMP_LIB,                         ONLY: omp_get_num_threads
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_clear, dbcsr_create, dbcsr_distribution_get, dbcsr_distribution_type, &
         dbcsr_finalize, dbcsr_get_data_size, dbcsr_get_info, dbcsr_get_num_blocks, &
@@ -61,6 +62,8 @@ CONTAINS
       TYPE(dbcsr_iterator_type)                          :: iter
 
       CALL timeset(routineN, handle)
+      CPASSERT(omp_get_num_threads() == 1)
+
       CALL dbcsr_get_info(matrix_a, nblkrows_total=nblkrows_tot_a)
       CALL dbcsr_get_info(matrix_b, nblkrows_total=nblkrows_tot_b)
       CALL dbcsr_get_info(matrix_c, nblkrows_total=nblkrows_tot_c)
@@ -99,6 +102,7 @@ CONTAINS
       TYPE(mp_comm_type)                                 :: group
 
       CALL timeset(routineN, handle)
+      CPASSERT(omp_get_num_threads() == 1)
 
       norm = 0.0_dp
       CALL dbcsr_iterator_readonly_start(iter, matrix)
@@ -132,6 +136,7 @@ CONTAINS
       TYPE(mp_comm_type)                                 :: group
 
       CALL timeset(routineN, handle)
+      CPASSERT(omp_get_num_threads() == 1)
 
       has_symmetry = dbcsr_has_symmetry(matrix)
       norm = 0.0_dp
@@ -173,6 +178,7 @@ CONTAINS
       TYPE(mp_comm_type)                                 :: group
 
       CALL timeset(routineN, handle)
+      CPASSERT(omp_get_num_threads() == 1)
 
       has_symmetry = dbcsr_has_symmetry(matrix)
       CALL dbcsr_get_info(matrix, nfullrows_total=nrow, nfullcols_total=ncol)
@@ -221,6 +227,7 @@ CONTAINS
       TYPE(dbcsr_iterator_type)                          :: iter
 
       CALL timeset(routineN, handle)
+      CPASSERT(omp_get_num_threads() == 1)
 
       my_keep_sparsity = .FALSE.
       IF (PRESENT(keep_sparsity)) my_keep_sparsity = keep_sparsity
@@ -256,6 +263,7 @@ CONTAINS
       TYPE(dbcsr_distribution_type)                      :: dist
 
       CALL timeset(routineN, handle)
+      CPASSERT(omp_get_num_threads() == 1)
 
       CALL dbcsr_get_info(matrix, nblkrows_total=nblkrows_total, nblkcols_total=nblkcols_total)
       CPASSERT(nblkrows_total == nblkcols_total)
@@ -293,6 +301,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: local_cols, local_rows
 
       CALL timeset(routineN, handle)
+      CPASSERT(omp_get_num_threads() == 1)
 
       CALL dbcsr_get_info(matrix, local_rows=local_rows, local_cols=local_cols)
       n = SIZE(local_rows)*SIZE(local_cols)
@@ -329,6 +338,7 @@ CONTAINS
       TYPE(dbcsr_iterator_type)                          :: iter
 
       CALL timeset(routineN, handle)
+      CPASSERT(omp_get_num_threads() == 1)
 
       CALL dbcsr_reserve_diag_blocks(matrix)
 
@@ -366,6 +376,7 @@ CONTAINS
       TYPE(mp_comm_type)                                 :: group
 
       CALL timeset(routineN, handle)
+      CPASSERT(omp_get_num_threads() == 1)
 
       CPASSERT(dbcsr_has_symmetry(matrix_a) .EQV. dbcsr_has_symmetry(matrix_b))
       has_symmetry = dbcsr_has_symmetry(matrix_a)
@@ -409,6 +420,7 @@ CONTAINS
       TYPE(mp_comm_type)                                 :: group
 
       CALL timeset(routineN, handle)
+      CPASSERT(omp_get_num_threads() == 1)
 
       trace = 0.0_dp
       CALL dbcsr_iterator_readonly_start(iter, matrix)
@@ -446,6 +458,7 @@ CONTAINS
       TYPE(dbcsr_iterator_type)                          :: iter
 
       CALL timeset(routineN, handle)
+      CPASSERT(omp_get_num_threads() == 1)
 
       CALL dbcsr_get_info(matrix, name=name)
       CALL dbcsr_create(diag, template=matrix, name='diag of '//name)
@@ -484,6 +497,7 @@ CONTAINS
       TYPE(dbcsr_iterator_type)                          :: iter
 
       CALL timeset(routineN, handle)
+      CPASSERT(omp_get_num_threads() == 1)
 
       IF (side == 'right') THEN
          right = .TRUE.
@@ -539,6 +553,7 @@ CONTAINS
       TYPE(dbcsr_iterator_type)                          :: iter
 
       CALL timeset(routineN, handle)
+      CPASSERT(omp_get_num_threads() == 1)
 
       CALL dbcsr_get_info(matrix, nfullrows_total=nfullrows_total, nfullcols_total=nfullcols_total)
       CPASSERT(nfullrows_total == nfullcols_total)
@@ -579,6 +594,7 @@ CONTAINS
       TYPE(dbcsr_iterator_type)                          :: iter
 
       CALL timeset(routineN, handle)
+      CPASSERT(omp_get_num_threads() == 1)
 
       CALL dbcsr_get_info(matrix, nfullrows_total=nfullrows_total, nfullcols_total=nfullcols_total)
       CPASSERT(nfullrows_total == nfullcols_total)
@@ -625,6 +641,7 @@ CONTAINS
       TYPE(mp_comm_type)                                 :: group
 
       CALL timeset(routineN, handle)
+      CPASSERT(omp_get_num_threads() == 1)
 
       my_pos = .FALSE.
       IF (PRESENT(pos)) THEN
@@ -675,6 +692,7 @@ CONTAINS
       TYPE(dbcsr_iterator_type)                          :: iter
 
       CALL timeset(routineN, handle)
+      CPASSERT(omp_get_num_threads() == 1)
 
       iw = default_output_unit
       IF (PRESENT(unit_nr)) iw = unit_nr
@@ -689,7 +707,7 @@ CONTAINS
       WRITE (iw, *) "===", routineN, "==="
       WRITE (iw, *) "Name:", name
       WRITE (iw, *) "Symmetry:", dbcsr_has_symmetry(matrix)
-      WRITE (iw, *) "Block:", dbcsr_get_num_blocks(matrix)
+      WRITE (iw, *) "Number of blocks:", dbcsr_get_num_blocks(matrix)
       WRITE (iw, *) "Data size:", dbcsr_get_data_size(matrix)
       WRITE (iw, *) "Occupation:", dbcsr_get_occupation(matrix)
       WRITE (iw, *) "Full size:", nfullrows_total, "x", nfullcols_total
