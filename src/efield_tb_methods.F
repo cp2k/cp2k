@@ -91,22 +91,22 @@ CONTAINS
       energy%efield = 0.0_dp
       CALL get_qs_env(qs_env, dft_control=dft_control)
       IF (dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb) THEN
-         if_apply: IF (dft_control%apply_period_efield) THEN
+         IF (dft_control%apply_period_efield) THEN
             ! check if the periodic efield should be applied in the current step
-            IF (dft_control%period_efield%start_frame > qs_env%sim_step) EXIT if_apply
-            IF (dft_control%period_efield%end_frame /= -1 .AND. &
-                dft_control%period_efield%end_frame < qs_env%sim_step) EXIT if_apply
+            IF (dft_control%period_efield%start_frame <= qs_env%sim_step .AND. &
+               (dft_control%period_efield%end_frame == -1 .OR. dft_control%period_efield%end_frame >= qs_env%sim_step)) THEN 
 
-            IF (dft_control%period_efield%displacement_field) THEN
-               CALL dfield_tb_berry(qs_env, ks_matrix, rho, mcharge, energy, calculate_forces, just_energy)
-            ELSE
-               CALL efield_tb_berry(qs_env, ks_matrix, rho, mcharge, energy, calculate_forces, just_energy)
+               IF (dft_control%period_efield%displacement_field) THEN
+                  CALL dfield_tb_berry(qs_env, ks_matrix, rho, mcharge, energy, calculate_forces, just_energy)
+               ELSE
+                  CALL efield_tb_berry(qs_env, ks_matrix, rho, mcharge, energy, calculate_forces, just_energy)
+               END IF
             END IF
          ELSE IF (dft_control%apply_efield) THEN
             CALL efield_tb_local(qs_env, ks_matrix, rho, mcharge, energy, calculate_forces, just_energy)
          ELSE IF (dft_control%apply_efield_field) THEN
             CPABORT("efield_filed")
-         END IF if_apply
+         END IF
       ELSE
          CPABORT("This routine should only be called from TB")
       END IF
