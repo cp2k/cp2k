@@ -123,7 +123,7 @@ CONTAINS
       IF (dft_control%apply_period_efield) THEN
          ! check if the periodic efield should be applied in the current step
          IF (dft_control%period_efield%start_frame <= qs_env%sim_step .AND. &
-            (dft_control%period_efield%end_frame == -1 .OR. dft_control%period_efield%end_frame >= qs_env%sim_step)) THEN
+             (dft_control%period_efield%end_frame == -1 .OR. dft_control%period_efield%end_frame >= qs_env%sim_step)) THEN
 
             IF (s_mstruct_changed) CALL qs_efield_integrals(qs_env)
             IF (dft_control%period_efield%displacement_field) THEN

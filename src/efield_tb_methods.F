@@ -94,7 +94,7 @@ CONTAINS
          IF (dft_control%apply_period_efield) THEN
             ! check if the periodic efield should be applied in the current step
             IF (dft_control%period_efield%start_frame <= qs_env%sim_step .AND. &
-               (dft_control%period_efield%end_frame == -1 .OR. dft_control%period_efield%end_frame >= qs_env%sim_step)) THEN 
+                (dft_control%period_efield%end_frame == -1 .OR. dft_control%period_efield%end_frame >= qs_env%sim_step)) THEN 
 
                IF (dft_control%period_efield%displacement_field) THEN
                   CALL dfield_tb_berry(qs_env, ks_matrix, rho, mcharge, energy, calculate_forces, just_energy)

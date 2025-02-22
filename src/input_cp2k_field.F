@@ -102,7 +102,7 @@ CONTAINS
                           "They are applied sequentially, one per frame. "// &
                           "If the number of frames exceeds the number of values, "// &
                           "the list is cyclically repeated. Attention: not implemented for eeq.", &
-                          usage="INTENSITIES {real} {real} .. {real}", &
+                          usage="INTENSITY_LIST {real} {real} .. {real}", &
                           n_var=-1, type_of_var=real_t, default_r_vals=(/0.0_dp/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -111,7 +111,7 @@ CONTAINS
                           description="First frame the field is applied. "// &
                           "(0: first frame) "// &
                           "Attention: ignored for eeq", &
-                          usage="start_frame 0", &
+                          usage="START_FRAME 0", &
                           default_i_val=0)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -122,7 +122,7 @@ CONTAINS
                           "must be a multiple of the number of "// &
                           "the given intensity values. (-1: no end) "// &
                           "Attention: ignored for eeq", &
-                          usage="end_frame -1", &
+                          usage="END_FRAME -1", &
                           default_i_val=-1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
