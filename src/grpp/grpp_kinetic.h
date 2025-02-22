@@ -15,7 +15,7 @@
 #ifndef LIBGRPP_KINETIC_H
 #define LIBGRPP_KINETIC_H
 
-#include "libgrpp.h"
+#include "libgrpp_types.h"
 
 void libgrpp_kinetic_energy_integrals(libgrpp_shell_t *shell_A,
                                       libgrpp_shell_t *shell_B,

@@ -12,14 +12,14 @@
  *  Copyright (C) 2021-2023 Alexander Oleynichenko
  */
 
-#include "overlap_gradient.h"
-#include "libgrpp.h"
-
 #include <stdlib.h>
 #include <string.h>
 
-#include "diff_gaussian.h"
-#include "utils.h"
+#include "grpp_overlap_gradient.h"
+#include "libgrpp.h"
+
+#include "grpp_diff_gaussian.h"
+#include "grpp_utils.h"
 
 static void overlap_gradient_diff_bra_contribution(libgrpp_shell_t *shell_A,
                                                    libgrpp_shell_t *shell_B,

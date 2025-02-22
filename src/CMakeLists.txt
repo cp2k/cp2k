@@ -1405,42 +1405,42 @@ set(CP2K_GRID_SRCS_C
     grid/grid_replay.c)
 
 set(CP2K_GRPP_SRCS_C
-    grpp/angular_integrals.c
-    grpp/binomial.c
-    grpp/diff_gaussian.c
-    grpp/factorial.c
-    grpp/fortran.c
-    grpp/full_grpp_integrals.c
+    grpp/grpp_angular_integrals.c
+    grpp/grpp_binomial.c
+    grpp/grpp_diff_gaussian.c
+    grpp/grpp_factorial.c
+    grpp/grpp_fortran.c
+    grpp/grpp_full_grpp_integrals.c
     grpp/grpp.c
     grpp/grpp_integrals_gradient.c
-    grpp/init_finalize.c
-    grpp/kinetic.c
-    grpp/lmatrix.c
-    grpp/momentum.c
-    grpp/norm_gaussian.c
-    grpp/nuclear_attraction.c
-    grpp/nuclear_models.c
-    grpp/outercore_integrals.c
-    grpp/overlap.c
-    grpp/overlap_gradient.c
-    grpp/parameters.c
-    grpp/potential.c
-    grpp/radial_type1_integral.c
-    grpp/radial_type2_integral.c
-    grpp/screening.c
-    grpp/shell.c
-    grpp/specfunc_bessel_table.c
-    grpp/specfunc_boys.c
-    grpp/specfunc_dawson.c
-    grpp/specfunc_fermi_sk.c
-    grpp/specfunc_gfun.c
-    grpp/specfunc_scaled_mod_sph_bessel.c
-    grpp/spherical_harmonics.c
-    grpp/spin_orbit_integrals.c
-    grpp/type1_integrals.c
-    grpp/type1_mcmurchie_davidson.c
-    grpp/type2_integrals.c
-    grpp/utils.c)
+    grpp/grpp_init_finalize.c
+    grpp/grpp_kinetic.c
+    grpp/grpp_lmatrix.c
+    grpp/grpp_momentum.c
+    grpp/grpp_norm_gaussian.c
+    grpp/grpp_nuclear_attraction.c
+    grpp/grpp_nuclear_models.c
+    grpp/grpp_outercore_integrals.c
+    grpp/grpp_overlap.c
+    grpp/grpp_overlap_gradient.c
+    grpp/grpp_parameters.c
+    grpp/grpp_potential.c
+    grpp/grpp_radial_type1_integral.c
+    grpp/grpp_radial_type2_integral.c
+    grpp/grpp_screening.c
+    grpp/grpp_shell.c
+    grpp/grpp_specfunc_bessel_table.c
+    grpp/grpp_specfunc_boys.c
+    grpp/grpp_specfunc_dawson.c
+    grpp/grpp_specfunc_fermi_sk.c
+    grpp/grpp_specfunc_gfun.c
+    grpp/grpp_specfunc_scaled_mod_sph_bessel.c
+    grpp/grpp_spherical_harmonics.c
+    grpp/grpp_spin_orbit_integrals.c
+    grpp/grpp_type1_integrals.c
+    grpp/grpp_type1_mcmurchie_davidson.c
+    grpp/grpp_type2_integrals.c
+    grpp/grpp_utils.c)
 
 set(CP2K_GRPP_SRCS_F grpp/libgrpp.F)
 

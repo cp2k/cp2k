@@ -25,8 +25,7 @@ typedef struct {
   double *coeffs;
 } rsh_coef_table_t;
 
-double libgrpp_spherical_to_cartesian_coef(int l, int m, int lx, int ly,
-                                           int lz);
+double libgrpp_spherical_to_cartesian_coef(int l, int m, int lx, int ly);
 
 double libgrpp_evaluate_real_spherical_harmonic(int l, int m, const double *k);
 

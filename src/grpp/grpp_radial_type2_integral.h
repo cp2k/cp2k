@@ -15,7 +15,7 @@
 #ifndef LIBGRPP_RADIAL_TYPE2_INTEGRAL_H
 #define LIBGRPP_RADIAL_TYPE2_INTEGRAL_H
 
-#include "libgrpp.h"
+#include "libgrpp_types.h"
 
 typedef struct {
   int lambda1_max;

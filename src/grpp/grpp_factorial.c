@@ -12,7 +12,7 @@
  *  Copyright (C) 2021-2023 Alexander Oleynichenko
  */
 
-#include "factorial.h"
+#include "grpp_factorial.h"
 
 #include <assert.h>
 #include <stdint.h>

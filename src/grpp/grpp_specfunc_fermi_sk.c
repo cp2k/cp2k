@@ -12,11 +12,15 @@
  *  Copyright (C) 2021-2023 Alexander Oleynichenko
  */
 
-#include "specfunc.h"
-
 #include <assert.h>
 #include <math.h>
 #include <stdio.h>
+
+#ifndef M_PI
+#define M_PI 3.1415926535897932384626433
+#endif
+
+#include "grpp_specfunc.h"
 
 /*
  * This file contains pre-tabulated values of the special function S_k(x)
@@ -94,34 +98,34 @@ double libgrpp_specfunc_fermi_sk(int k, double x) {
  * charge distribution. "exact" implementation, direct summation, no approximate
  * Taylor series.
  */
-static double fermi_model_Sk(int k, double x) {
-  const double tol = 1e-12;
-  const int max_iter = 10000000; // to achieve such tolerance at x=0
-  double prev_sum = 0.0;
-  double sum = 0.0;
-  int converged = 0;
-
-  for (int i = 1; i < max_iter; i++) {
-    double d = pow(-1, i) * exp(i * x) / pow(i, k);
-    sum += d;
-
-    if (fabs(sum - prev_sum) < tol) {
-      converged = 1;
-      break;
-    }
-
-    prev_sum = sum;
-  }
-
-  if (!converged) {
-    printf("prev_sum = %e\n", prev_sum);
-    printf("sum   = %e\n", sum);
-    printf("delta = %e\n", sum - prev_sum);
-    printf("S(%d,%f) not converged!\n", k, x);
-  }
-
-  return sum;
-}
+// static double fermi_model_Sk(int k, double x) {
+//   const double tol = 1e-12;
+//   const int max_iter = 10000000; // to achieve such tolerance at x=0
+//   double prev_sum = 0.0;
+//   double sum = 0.0;
+//   int converged = 0;
+//
+//   for (int i = 1; i < max_iter; i++) {
+//     double d = pow(-1, i) * exp(i * x) / pow(i, k);
+//     sum += d;
+//
+//     if (fabs(sum - prev_sum) < tol) {
+//       converged = 1;
+//       break;
+//     }
+//
+//     prev_sum = sum;
+//   }
+//
+//   if (!converged) {
+//     printf("prev_sum = %e\n", prev_sum);
+//     printf("sum   = %e\n", sum);
+//     printf("delta = %e\n", sum - prev_sum);
+//     printf("S(%d,%f) not converged!\n", k, x);
+//   }
+//
+//   return sum;
+// }
 
 static const double specfunc_fermi_sk_table[2001][10] = {
     // x = -10.0000

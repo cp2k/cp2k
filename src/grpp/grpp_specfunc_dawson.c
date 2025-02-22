@@ -12,7 +12,13 @@
  *  Copyright (C) 2021-2023 Alexander Oleynichenko
  */
 
-#include "specfunc.h"
+#include <float.h> // required for LDBL_EPSILON
+#include <math.h>  // required for fabsl()
+#ifndef M_PI
+#define M_PI 3.1415926535897932384626433
+#endif
+
+#include "grpp_specfunc.h"
 
 /*
  * This code is taken from the website:
@@ -34,9 +40,6 @@
 //                Daw(x) = exp(-x^2) * I[0,x] (exp(t^2)) dt,                  //
 //     where I[0,x] indicates the integral from 0 to x.                       //
 ////////////////////////////////////////////////////////////////////////////////
-#include <float.h> // required for LDBL_EPSILON
-#include <math.h>  // required for fabsl()
-
 #define Asymptotic_Expansion_Cutoff 50
 
 //                         Externally Defined Routines                        //
@@ -341,8 +344,8 @@ static long double Dawson_Chebyshev_Expansion_325_425(long double x) {
       -1.869294542789169825747e-22L};
 
   static const int degree = sizeof(c) / sizeof(long double) - 1;
-  static const long double lower_bound = 3.25L;
-  static const long double upper_bound = 4.25L;
+  // static const long double lower_bound = 3.25L;
+  // static const long double upper_bound = 4.25L;
   static const long double midpoint = (4.25L + 3.25L) / 2.0L;
   static const long double half_length = (4.25L - 3.25L) / 2.0L;
   long double daw =
@@ -442,8 +445,8 @@ static long double Dawson_Chebyshev_Expansion_550_725(long double x) {
                                 9.218280404899298404756e-23L};
 
   static const int degree = sizeof(c) / sizeof(long double) - 1;
-  static const long double lower_bound = 5.50L;
-  static const long double upper_bound = 7.25L;
+  // static const long double lower_bound = 5.50L;
+  // static const long double upper_bound = 7.25L;
   static const long double midpoint = (7.25L + 5.50L) / 2.0L;
   static const long double half_length = (7.25L - 5.50L) / 2.0L;
   long double daw =

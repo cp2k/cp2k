@@ -15,13 +15,16 @@
 /*
  * representation of atom-centered shell of contracted Gaussian functions
  */
-
-#include "libgrpp.h"
-
 #include <math.h>
 #include <stdlib.h>
 
-#include "norm_gaussian.h"
+#ifndef M_PI
+#define M_PI 3.1415926535897932384626433
+#endif
+
+#include "libgrpp.h"
+
+#include "grpp_norm_gaussian.h"
 
 /**
  * constructs new object representing a shell; returns pointer to it.

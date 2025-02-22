@@ -25,13 +25,16 @@
  * doi: 10.1016/0021-9991(81)90053-x
  */
 
-#include "angular_integrals.h"
-
 #include <math.h>
 
-#include "factorial.h"
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
+#include "grpp_angular_integrals.h"
+#include "grpp_factorial.h"
+#include "grpp_spherical_harmonics.h"
 #include "libgrpp.h"
-#include "spherical_harmonics.h"
 
 static double integrate_unitary_sphere_polynomial(int i, int j, int k);
 
@@ -50,7 +53,7 @@ double libgrpp_angular_type1_integral(int lambda, int II, int JJ, int KK,
         for (int t = 0; t <= lambda; t++) {
           if (r + s + t == lambda) {
             double y_lm_rst =
-                libgrpp_spherical_to_cartesian_coef(lambda, mu, r, s, t);
+                libgrpp_spherical_to_cartesian_coef(lambda, mu, r, s);
             double usp_int =
                 integrate_unitary_sphere_polynomial(II + r, JJ + s, KK + t);
             sum2 += y_lm_rst * usp_int;

@@ -12,9 +12,13 @@
  *  Copyright (C) 2021-2023 Alexander Oleynichenko
  */
 
-#include "norm_gaussian.h"
-
 #include <math.h>
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
+#include "grpp_norm_gaussian.h"
 
 /**
  * Calculates normalization factor for the cartesian Gaussian x^n y^l z^m

@@ -38,18 +38,21 @@
  * geometric derivatives. Int. J. Quantum Chem. 111(4), 858 (2011).
  *     doi: 10.1002/qua.22886
  */
-
-#include "type1_mcmurchie_davidson.h"
-
 #include <assert.h>
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "grpp_type1_mcmurchie_davidson.h"
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
+#include "grpp_norm_gaussian.h"
+#include "grpp_specfunc.h"
+#include "grpp_utils.h"
 #include "libgrpp.h"
-#include "norm_gaussian.h"
-#include "specfunc.h"
-#include "utils.h"
 
 #define LMAX LIBGRPP_MAX_BASIS_L
 

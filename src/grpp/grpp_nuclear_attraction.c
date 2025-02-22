@@ -36,10 +36,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "grpp_norm_gaussian.h"
+#include "grpp_nuclear_models.h"
+#include "grpp_utils.h"
 #include "libgrpp.h"
-#include "norm_gaussian.h"
-#include "nuclear_models.h"
-#include "utils.h"
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846

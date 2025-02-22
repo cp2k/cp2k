@@ -18,18 +18,25 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "angular_integrals.h"
-#include "binomial.h"
-#include "norm_gaussian.h"
-#include "radial_type1_integral.h"
-#include "type1_mcmurchie_davidson.h"
-#include "utils.h"
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 
+#include "grpp_angular_integrals.h"
+#include "grpp_binomial.h"
+#include "grpp_norm_gaussian.h"
+#include "grpp_radial_type1_integral.h"
+#include "grpp_type1_mcmurchie_davidson.h"
+#include "grpp_utils.h"
+#include "libgrpp.h"
+#include "libgrpp_types.h"
 /* for the old (numerical) version:
 void evaluate_type1_integral_primitive_gaussians(double *A, int n_cart_A, int
 *cart_list_A, double alpha_A, double *B, int n_cart_B, int *cart_list_B, double
 alpha_B, double *C, libgrpp_potential_t *potential, double *matrix);
 */
+
+extern void libgrpp_delete_radial_type1_integrals(radial_type1_table_t *table);
 
 void libgrpp_evaluate_radially_local_potential_integral_primitive_gaussians(
     double *A, int n_cart_A, int *cart_list_A, double alpha_A, double *B,

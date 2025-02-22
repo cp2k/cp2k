@@ -12,7 +12,7 @@
  *  Copyright (C) 2021-2023 Alexander Oleynichenko
  */
 
-#include "binomial.h"
+#include "grpp_binomial.h"
 
 #include <stdint.h>
 

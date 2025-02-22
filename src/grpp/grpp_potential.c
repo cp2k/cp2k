@@ -16,11 +16,15 @@
  * representation of (generalized) effective core potentials
  */
 
-#include "libgrpp.h"
-
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
+
+#ifndef M_PI
+#define M_PI 3.1415926535897932384626433
+#endif
+
+#include "libgrpp.h"
 
 /**
  * constructor for the pseudopotential

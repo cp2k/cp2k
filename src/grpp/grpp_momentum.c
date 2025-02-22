@@ -20,16 +20,17 @@
  * John Wiley & Sons Ltd, 2000.
  * Chapter 9.3.4, "Momentum and kinetic-energy integrals"
  */
-
-#include "momentum.h"
-
-#include "libgrpp.h"
-#include "norm_gaussian.h"
-#include "utils.h"
-
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+#include "grpp_momentum.h"
+
+#include "grpp_norm_gaussian.h"
+#include "grpp_utils.h"
+#include "libgrpp.h"
 
 static void momentum_integrals_shell_pair_obara_saika(
     libgrpp_shell_t *shell_A, libgrpp_shell_t *shell_B, double alpha_A,

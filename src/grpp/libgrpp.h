@@ -15,45 +15,27 @@
 #ifndef LIBGRPP_LIBGRPP_H
 #define LIBGRPP_LIBGRPP_H
 
-#include "parameters.h"
+#include "grpp_parameters.h"
+#include "libgrpp_types.h"
 
 /*
- * maximum angular momentum of basis functions
+ * other integrals
  */
-#define LIBGRPP_MAX_BASIS_L 10
+
+#include "grpp_kinetic.h"
+#include "grpp_momentum.h"
+#include "grpp_overlap.h"
+#include "grpp_overlap_gradient.h"
 
 /*
- * maximum angular momentum occuring in the RPP operator
+ * models of nuclear charge density distribution
  */
-#define LIBGRPP_MAX_RPP_L 10
 
-/*
- * threshold for zero
- */
-#define LIBGRPP_ZERO_THRESH 1e-14
+#include "grpp_nuclear_models.h"
 
-/*
- * tolerance of radial integrals evaluation
- */
-#define LIBGRPP_RADIAL_TOL 1e-14
-
-void libgrpp_init();
-
-void libgrpp_finalize();
-
-int libgrpp_is_initialized();
-
-/*
- * representation of (generalized) effective core potentials
- */
-typedef struct {
-  int L;
-  int J;
-  int num_primitives;
-  int *powers;
-  double *coeffs;
-  double *alpha;
-} libgrpp_potential_t;
+extern void libgrpp_init();
+extern void libgrpp_finalize();
+extern int libgrpp_is_initialized();
 
 libgrpp_potential_t *libgrpp_new_potential(int L, int J, int num_primitives,
                                            int *powers, double *coeffs,
@@ -69,19 +51,6 @@ libgrpp_shrink_potential(libgrpp_potential_t *src_potential);
 libgrpp_potential_t *
 libgrpp_shrink_potential_n0(libgrpp_potential_t *src_potential);
 
-/*
- * representation of atom-centered shell of contracted Gaussian functions
- */
-typedef struct {
-  int L;
-  int cart_size;
-  int *cart_list;
-  int num_primitives;
-  double *coeffs;
-  double *alpha;
-  double origin[3];
-} libgrpp_shell_t;
-
 libgrpp_shell_t *libgrpp_new_shell(double *origin, int L, int num_primitives,
                                    double *coeffs, double *alpha);
 
@@ -96,20 +65,6 @@ libgrpp_shell_t *libgrpp_shell_deep_copy(libgrpp_shell_t *src_shell);
 void libgrpp_shell_shrink(libgrpp_shell_t *shell);
 
 void libgrpp_shell_mult_normcoef(libgrpp_shell_t *shell);
-
-/**
- * Generalized relativistic pseudopotential: all-in-one
- */
-typedef struct {
-  int n_arep;
-  int n_esop;
-  int n_oc_shells;
-  libgrpp_potential_t *U_L;
-  libgrpp_potential_t **U_arep;
-  libgrpp_potential_t **U_esop;
-  libgrpp_potential_t **U_oc;
-  libgrpp_shell_t **oc_shells;
-} libgrpp_grpp_t;
 
 libgrpp_grpp_t *libgrpp_new_grpp();
 
@@ -194,15 +149,6 @@ void libgrpp_full_grpp_integrals_gradient(
     double **grad_so_z);
 
 /*
- * other integrals
- */
-
-#include "kinetic.h"
-#include "momentum.h"
-#include "overlap.h"
-#include "overlap_gradient.h"
-
-/*
  * integrator for nuclear attraction integrals
  */
 
@@ -247,11 +193,5 @@ void libgrpp_nuclear_attraction_integrals_fermi_bubble_model(
     libgrpp_shell_t *shell_A, libgrpp_shell_t *shell_B, double *charge_origin,
     int charge, double param_c, double param_a, double param_k,
     double *coulomb_matrix);
-
-/*
- * models of nuclear charge density distribution
- */
-
-#include "nuclear_models.h"
 
 #endif // LIBGRPP_LIBGRPP_H

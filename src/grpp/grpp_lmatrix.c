@@ -17,15 +17,14 @@
  * in the bases of either real or complex spherical harmonics.
  */
 
-#include "lmatrix.h"
+#include "grpp_lmatrix.h"
 
 #include <complex.h>
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
 
-static void get_transformation_coeffs_csh_to_rsh(int l, int m,
-                                                 double complex *a,
+static void get_transformation_coeffs_csh_to_rsh(int m, double complex *a,
                                                  double complex *b);
 
 /**
@@ -55,8 +54,8 @@ void libgrpp_construct_angular_momentum_matrices_rsh(int L, double *lx_matrix,
       // coefficients: S_lm = a * Y_{l,-m} + b * Y_{l,m}
       double complex a1, b1;
       double complex a2, b2;
-      get_transformation_coeffs_csh_to_rsh(L, m1, &a1, &b1); // bra
-      get_transformation_coeffs_csh_to_rsh(L, m2, &a2, &b2); // ket
+      get_transformation_coeffs_csh_to_rsh(m1, &a1, &b1); // bra
+      get_transformation_coeffs_csh_to_rsh(m2, &a2, &b2); // ket
 
       int m1m = -abs(m1);
       int m1p = +abs(m1);
@@ -132,8 +131,7 @@ void libgrpp_construct_angular_momentum_matrices_csh(int L, double *lx_matrix,
  * coefficients can be found elsewhere, see, for example,
  * https://en.wikipedia.org/wiki/Table_of_spherical_harmonics
  */
-static void get_transformation_coeffs_csh_to_rsh(int l, int m,
-                                                 double complex *a,
+static void get_transformation_coeffs_csh_to_rsh(int m, double complex *a,
                                                  double complex *b) {
   if (m == 0) {
     *a = 0.5;

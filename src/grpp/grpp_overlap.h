@@ -15,6 +15,7 @@
 #ifndef LIBGRPP_OVERLAP_H
 #define LIBGRPP_OVERLAP_H
 
+#include "libgrpp_types.h"
 void libgrpp_overlap_integrals(libgrpp_shell_t *shell_A,
                                libgrpp_shell_t *shell_B,
                                double *overlap_matrix);

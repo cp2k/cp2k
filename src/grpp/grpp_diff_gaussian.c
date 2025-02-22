@@ -16,11 +16,14 @@
  * Differentiation of contracted Gaussian functions.
  * Derivatives are then used to calculate analytic gradients of 1-el integrals.
  */
-
-#include "diff_gaussian.h"
-
 #include <math.h>
 #include <stdlib.h>
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
+#include "grpp_diff_gaussian.h"
 
 #include "libgrpp.h"
 

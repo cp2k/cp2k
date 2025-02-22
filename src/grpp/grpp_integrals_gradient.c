@@ -18,8 +18,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "diff_gaussian.h"
-#include "utils.h"
+#include "grpp_diff_gaussian.h"
+#include "grpp_utils.h"
 
 void grpp_gradient_diff_bra_contribution(
     libgrpp_shell_t *shell_A, libgrpp_shell_t *shell_B,

@@ -26,15 +26,18 @@
  * 296, 445 (1998)
  */
 
-#include "radial_type2_integral.h"
-
 #include <math.h>
 #include <stdlib.h>
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 
-#include "norm_gaussian.h"
-#include "screening.h"
-#include "specfunc.h"
-#include "utils.h"
+#include "grpp_radial_type2_integral.h"
+
+#include "grpp_norm_gaussian.h"
+#include "grpp_screening.h"
+#include "grpp_specfunc.h"
+#include "grpp_utils.h"
 
 #define MIN_GRID 31
 #define MAX_GRID 10000
@@ -176,7 +179,7 @@ radial_type2_table_t *libgrpp_tabulate_radial_type2_integrals(
         double Q = calculate_radial_type2_integral(grid, n, lambda_1, lambda_2,
                                                    1e-16, &converged);
 
-        int dim1 = lambda1_max + 1;
+        //        int dim1 = lambda1_max + 1;
         int dim2 = lambda2_max + 1;
         int dimn = n_max + 1;
         table->radial_integrals[dim2 * dimn * lambda_1 + dimn * lambda_2 + n] =
@@ -209,10 +212,10 @@ void libgrpp_delete_radial_type2_integrals(radial_type2_table_t *table) {
  */
 double libgrpp_get_radial_type2_integral(radial_type2_table_t *table,
                                          int lambda1, int lambda2, int n) {
-  int lambda1_max = table->lambda1_max;
+  // int lambda1_max = table->lambda1_max;
   int lambda2_max = table->lambda2_max;
   int n_max = table->n_max;
-  int dim1 = lambda1_max + 1;
+  // int dim1 = lambda1_max + 1;
   int dim2 = lambda2_max + 1;
   int dimn = n_max + 1;
 
@@ -237,7 +240,7 @@ static double calculate_radial_type2_integral(radial_type2_grid_t *grid, int n,
   double sum = 0.0;
 
   double *w = grid->w;
-  double *r = grid->r;
+  // double *r = grid->r;
   double *pot_values = grid->rpp_values;
   double *F1 = grid->F1[lambda1];
   double *F2 = grid->F2[lambda2];

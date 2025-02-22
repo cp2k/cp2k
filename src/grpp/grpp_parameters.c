@@ -11,10 +11,9 @@
  *
  *  Copyright (C) 2021-2023 Alexander Oleynichenko
  */
-
-#include "parameters.h"
-
 #include <assert.h>
+
+#include "grpp_parameters.h"
 
 static int cartesian_generator_dirac(int L, int *cart_list);
 

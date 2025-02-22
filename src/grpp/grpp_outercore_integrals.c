@@ -23,12 +23,16 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "factorial.h"
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
+#include "grpp_factorial.h"
+#include "grpp_lmatrix.h"
+#include "grpp_overlap.h"
+#include "grpp_spherical_harmonics.h"
+#include "grpp_utils.h"
 #include "libgrpp.h"
-#include "lmatrix.h"
-#include "overlap.h"
-#include "spherical_harmonics.h"
-#include "utils.h"
 
 /*
  * pre-definitions of function used below
@@ -155,7 +159,7 @@ void libgrpp_outercore_potential_integrals_part_1(
       int r = oc_shell->cart_list[3 * icart + 0];
       int s = oc_shell->cart_list[3 * icart + 1];
       int t = oc_shell->cart_list[3 * icart + 2];
-      double u = libgrpp_spherical_to_cartesian_coef(L, m, r, s, t) /
+      double u = libgrpp_spherical_to_cartesian_coef(L, m, r, s) /
                  ang_norm_factor(r, s, t);
       S_lm_coef[size_nlj * (m + L) + icart] = u;
     }
@@ -321,7 +325,7 @@ void libgrpp_outercore_potential_integrals_part_2(
       int r = oc_shell_1->cart_list[3 * icart + 0];
       int s = oc_shell_1->cart_list[3 * icart + 1];
       int t = oc_shell_1->cart_list[3 * icart + 2];
-      double u = libgrpp_spherical_to_cartesian_coef(L, m, r, s, t) /
+      double u = libgrpp_spherical_to_cartesian_coef(L, m, r, s) /
                  ang_norm_factor(r, s, t);
       S_lm_coef[size_nlj * (m + L) + icart] = u;
     }
@@ -482,7 +486,7 @@ static double analytic_one_center_rpp_integral_primitive(int L, double alpha1,
 static double radial_gto_norm_factor(int L, double alpha) {
   // pre-tabulated factors for calculation of normalization constants
   // (for each value of L)
-  const static double factors[] = {
+  static const double factors[] = {
       2.5264751109842587,    2.9173221708553032,    2.6093322745198853,
       1.9724697960897537,    1.3149798640598356,    7.9296269381073192e-1,
       4.3985656185609934e-1, 2.2714095183849672e-1, 1.1017954545099481e-1,

@@ -21,14 +21,18 @@
  * "Overlap integrals"
  */
 
-#include "overlap.h"
-#include "libgrpp.h"
-#include "norm_gaussian.h"
-
-#include "utils.h"
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
+#include "grpp_norm_gaussian.h"
+#include "grpp_overlap.h"
+#include "libgrpp.h"
+
+#include "grpp_utils.h"
 
 static void overlap_integrals_shell_pair_obara_saika(libgrpp_shell_t *shell_A,
                                                      libgrpp_shell_t *shell_B,

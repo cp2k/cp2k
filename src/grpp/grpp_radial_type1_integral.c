@@ -35,14 +35,17 @@
  * which involve projection operators.
  * Chem. Phys. Lett. 296, 445 (1998)
  */
-
-#include "radial_type1_integral.h"
-
 #include <math.h>
 #include <stdlib.h>
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 
-#include "specfunc.h"
-#include "utils.h"
+#include "grpp_radial_type1_integral.h"
+#include "libgrpp.h"
+
+#include "grpp_specfunc.h"
+#include "grpp_utils.h"
 
 #define MIN_GRID 2047
 #define MAX_GRID 10000
@@ -136,7 +139,7 @@ double libgrpp_get_radial_type1_integral(radial_type1_table_t *table,
   return table->radial_integrals[lambda * (lambda_max + 1) + n];
 }
 
-static double radial_type1_integrand_fun(double r, int N,
+static double radial_type1_integrand_fun(double r,
                                          radial_type1_params_t *params) {
   double alpha_A = params->alpha_A;
   double alpha_B = params->alpha_B;
@@ -184,7 +187,7 @@ create_radial_type1_grid(int lambda_max, int n_max,
     grid->r[i - 1] = ri;
     grid->w[i - 1] = wi;
     grid->pot_values[i - 1] = params->potential(ri, params->potential_params);
-    grid->gto_values[i - 1] = radial_type1_integrand_fun(ri, 0, params);
+    grid->gto_values[i - 1] = radial_type1_integrand_fun(ri, params);
 
     for (int lambda = 0; lambda <= lambda_max; lambda++) {
       grid->mod_bessel[lambda][i - 1] =
@@ -233,7 +236,7 @@ static void expand_radial_type1_grid(radial_type1_grid_t *grid, int nr) {
     grid->w[idx] = wi;
     grid->pot_values[idx] =
         grid->params->potential(ri, grid->params->potential_params);
-    grid->gto_values[idx] = radial_type1_integrand_fun(ri, 0, grid->params);
+    grid->gto_values[idx] = radial_type1_integrand_fun(ri, grid->params);
 
     for (int lambda = 0; lambda <= grid->lambda_max; lambda++) {
       double kr = grid->params->k * ri;
@@ -260,7 +263,7 @@ static double calculate_radial_type1_integral(radial_type1_grid_t *grid, int n,
   double sum = 0.0;
 
   double *w = grid->w;
-  double *r = grid->r;
+  // double *r = grid->r;
   double *pot_values = grid->pot_values;
   double *gto_values = grid->gto_values;
   double *r_N = grid->r_N[n];

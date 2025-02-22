@@ -15,20 +15,22 @@
 #include <assert.h>
 #include <math.h>
 #include <string.h>
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 
-#include "angular_integrals.h"
-#include "binomial.h"
+#include "grpp_angular_integrals.h"
+#include "grpp_binomial.h"
+#include "grpp_radial_type2_integral.h"
+#include "grpp_spherical_harmonics.h"
+#include "grpp_utils.h"
 #include "libgrpp.h"
-#include "radial_type2_integral.h"
-#include "spherical_harmonics.h"
-#include "utils.h"
 
 #define LMAX (2 * LIBGRPP_MAX_BASIS_L + LIBGRPP_MAX_RPP_L)
 
 static double type2_angular_sum(int L, int lambda_1, int a, int b, int c,
-                                double *kA_vec, int lambda_2, int d, int e,
-                                int f, double *kB_vec, double *rsh_values_kA,
-                                double *rsh_values_kB);
+                                int lambda_2, int d, int e, int f,
+                                double *rsh_values_kA, double *rsh_values_kB);
 
 /**
  * Evaluation of type 2 RPP integrals (scalar-relativistic semilocal RPP with
@@ -190,9 +192,8 @@ void libgrpp_type2_integrals(libgrpp_shell_t *shell_A, libgrpp_shell_t *shell_B,
                       }
 
                       double sum_angular = type2_angular_sum(
-                          L, lambda_1, a, b, c, kA_vec, lambda_2, d, e, f,
-                          kB_vec, rsh_values_kA[lambda_1],
-                          rsh_values_kB[lambda_2]);
+                          L, lambda_1, a, b, c, lambda_2, d, e, f,
+                          rsh_values_kA[lambda_1], rsh_values_kB[lambda_2]);
 
                       sum_omega_Q += QN * sum_angular;
                     } // loop over lambda_2
@@ -220,9 +221,8 @@ void libgrpp_type2_integrals(libgrpp_shell_t *shell_A, libgrpp_shell_t *shell_B,
  * (McMurchie, Davidson, 1981, formulas (23) and (24))
  */
 static double type2_angular_sum(int L, int lambda_1, int a, int b, int c,
-                                double *kA_vec, int lambda_2, int d, int e,
-                                int f, double *kB_vec, double *rsh_values_kA,
-                                double *rsh_values_kB) {
+                                int lambda_2, int d, int e, int f,
+                                double *rsh_values_kA, double *rsh_values_kB) {
   double sum_angular = 0.0;
 
   /*

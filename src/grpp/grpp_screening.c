@@ -25,14 +25,16 @@
  * type 2 integrals is not correct.
  */
 
-#include "screening.h"
-#include "libgrpp.h"
-
 #include <math.h>
 #include <stdlib.h>
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 
-#include "factorial.h"
-#include "specfunc.h"
+#include "grpp_factorial.h"
+#include "grpp_screening.h"
+#include "grpp_specfunc.h"
+#include "libgrpp.h"
 
 /*
  * functions defined below in the file
@@ -53,9 +55,10 @@ static double screening_type2_equation_for_maximum(double r, int n, int lambda1,
                                                    int lambda2, double p,
                                                    double k1, double k2);
 
-static double analytic_one_center_rpp_integral_primitive(int L, double alpha1,
-                                                         double alpha2, int n,
-                                                         double zeta);
+// static double analytic_one_center_rpp_integral_primitive(int L, double
+// alpha1,
+//                                                          double alpha2, int
+//                                                          n, double zeta);
 
 /**
  * screening for the type 1 radial integrals

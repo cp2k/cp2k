@@ -12,10 +12,10 @@
  *  Copyright (C) 2021-2023 Alexander Oleynichenko
  */
 
-#ifndef TYPE1_MCMURCHIE_DAVIDSON_H
-#define TYPE1_MCMURCHIE_DAVIDSON_H
+#ifndef __TYPE1_MCMURCHIE_DAVIDSON_H__
+#define __TYPE1_MCMURCHIE_DAVIDSON_H__
 
-#include "libgrpp.h"
+#include "libgrpp_types.h"
 
 void libgrpp_type1_integrals_mcmurchie_davidson_1978(
     libgrpp_shell_t *shell_A, libgrpp_shell_t *shell_B, double *origin_C,

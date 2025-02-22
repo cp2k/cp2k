@@ -11,11 +11,10 @@
  *
  *  Copyright (C) 2021-2023 Alexander Oleynichenko
  */
-
-#include "utils.h"
-
 #include <math.h>
 #include <stdlib.h>
+
+#include "grpp_utils.h"
 
 inline int int_max2(int x, int y) { return (x > y) ? x : y; }
 

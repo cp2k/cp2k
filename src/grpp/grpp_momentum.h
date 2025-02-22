@@ -15,7 +15,7 @@
 #ifndef LIBGRPP_MOMENTUM_H
 #define LIBGRPP_MOMENTUM_H
 
-#include "libgrpp.h"
+#include "libgrpp_types.h"
 
 void libgrpp_momentum_integrals(libgrpp_shell_t *shell_A,
                                 libgrpp_shell_t *shell_B,

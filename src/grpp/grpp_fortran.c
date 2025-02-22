@@ -26,7 +26,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "factorial.h"
+#include "grpp_factorial.h"
 #include "libgrpp.h"
 
 /*

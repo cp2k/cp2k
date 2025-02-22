@@ -26,10 +26,18 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "binomial.h"
-#include "factorial.h"
+#ifndef M_PI
+#define M_PI 3.1415926535897932384626433
+#endif
+
+#ifndef M_SQRT1_2
+#define M_SQRT1_2 0.70710678118654752440
+#endif
+
+#include "grpp_binomial.h"
+#include "grpp_factorial.h"
+#include "grpp_spherical_harmonics.h"
 #include "libgrpp.h"
-#include "spherical_harmonics.h"
 /*
  * Tables with pretabulated expansion coefficients
  */
@@ -81,9 +89,8 @@ rsh_coef_table_t *libgrpp_tabulate_real_spherical_harmonic_coeffs(int L) {
     for (int icomb = 0; icomb < ncart; icomb++) {
       int lx = coef_table->cartesian_comb[3 * icomb];
       int ly = coef_table->cartesian_comb[3 * icomb + 1];
-      int lz = coef_table->cartesian_comb[3 * icomb + 2];
-      double u_lm_lx_ly_lz =
-          libgrpp_spherical_to_cartesian_coef(L, m, lx, ly, lz);
+      // int lz = coef_table->cartesian_comb[3 * icomb + 2];
+      double u_lm_lx_ly_lz = libgrpp_spherical_to_cartesian_coef(L, m, lx, ly);
       int index = (m + L) * ncart + icomb;
       coef_table->coeffs[index] = u_lm_lx_ly_lz;
     }
@@ -114,8 +121,7 @@ rsh_coef_table_t *libgrpp_get_real_spherical_harmonic_table(int L) {
  * doi: 10.1002/jcc.20410
  * (formula 32)
  */
-double libgrpp_spherical_to_cartesian_coef(int l, int m, int lx, int ly,
-                                           int lz) {
+double libgrpp_spherical_to_cartesian_coef(int l, int m, int lx, int ly) {
   int j = lx + ly - abs(m);
   if (j % 2 != 0) {
     return 0.0;

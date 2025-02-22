@@ -14,9 +14,12 @@
 
 #include <math.h>
 #include <string.h>
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 
-#include "factorial.h"
-#include "specfunc.h"
+#include "grpp_factorial.h"
+#include "grpp_specfunc.h"
 
 extern const double boys_table[301][40];
 

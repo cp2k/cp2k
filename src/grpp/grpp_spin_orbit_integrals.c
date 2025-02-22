@@ -17,13 +17,17 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "angular_integrals.h"
-#include "binomial.h"
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
+#include "grpp_angular_integrals.h"
+#include "grpp_binomial.h"
+#include "grpp_lmatrix.h"
+#include "grpp_radial_type2_integral.h"
+#include "grpp_spherical_harmonics.h"
+#include "grpp_utils.h"
 #include "libgrpp.h"
-#include "lmatrix.h"
-#include "radial_type2_integral.h"
-#include "spherical_harmonics.h"
-#include "utils.h"
 
 #define LMAX (2 * LIBGRPP_MAX_BASIS_L + LIBGRPP_MAX_RPP_L)
 

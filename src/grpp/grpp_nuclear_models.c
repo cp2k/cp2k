@@ -12,8 +12,8 @@
  *  Copyright (C) 2021-2023 Alexander Oleynichenko
  */
 
-#include "nuclear_models.h"
-#include "specfunc.h"
+#include "grpp_nuclear_models.h"
+#include "grpp_specfunc.h"
 #include <math.h>
 
 #ifndef M_PI

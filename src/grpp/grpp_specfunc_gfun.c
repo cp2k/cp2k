@@ -29,8 +29,12 @@
 #include <math.h>
 #include <string.h>
 
-#include "factorial.h"
-#include "specfunc.h"
+#ifndef M_PI
+#define M_PI 3.1415926535897932384626433
+#endif
+
+#include "grpp_factorial.h"
+#include "grpp_specfunc.h"
 
 static double gfun_taylor(int n, double x);
 

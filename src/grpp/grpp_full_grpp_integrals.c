@@ -19,7 +19,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "utils.h"
+#include "grpp_utils.h"
 
 /**
  * Evaluates integrals over the full GRPP operator consisting of three parts:

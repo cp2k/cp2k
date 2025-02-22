@@ -20,7 +20,7 @@
 #ifndef LIBGRPP_DIFF_GAUSSIAN_H
 #define LIBGRPP_DIFF_GAUSSIAN_H
 
-#include "libgrpp.h"
+#include "libgrpp_types.h"
 
 void libgrpp_differentiate_shell(libgrpp_shell_t *shell,
                                  libgrpp_shell_t **shell_minus,
