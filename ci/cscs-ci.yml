@@ -30,13 +30,15 @@ build cp2k eiger:
     MPICH_VERSION: 3.1.4
 
 test cp2k eiger:
-  extends: .container-runner-eiger-zen2
+  extends: .baremetal-runner-eiger-zen2
   stage: test
   needs: ["build cp2k eiger"]
   timeout: 1h
   image: ${PERSIST_IMAGE_NAME}
   script:
-    - cp2k /opt/cp2k/benchmarks/CI/H2O-128_md.inp
+    - hostname
+    - ls -al /opt/cp2k/tests
+    - srun -v cp2k /opt/cp2k/benchmarks/CI/H2O-128_md.inp
   variables:
     OMP_NUM_THREADS: 2
     SLURM_CONSTRAINT: mc
