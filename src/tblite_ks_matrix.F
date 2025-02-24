@@ -20,13 +20,6 @@ MODULE tblite_ks_matrix
                                               dbcsr_multiply,&
                                               dbcsr_p_type,&
                                               dbcsr_type
-   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
-                                              cp_logger_get_default_io_unit,&
-                                              cp_logger_type
-   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
-                                              cp_print_key_unit_nr
-   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                              section_vals_type
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
    USE qs_energy_types,                 ONLY: qs_energy_type
@@ -37,8 +30,7 @@ MODULE tblite_ks_matrix
                                               mo_set_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
-   USE tblite_interface,                ONLY: tb_get_energy,&
-                                              tb_ham_add_coulomb,&
+   USE tblite_interface,                ONLY: tb_ham_add_coulomb,&
                                               tb_update_charges
 #include "./base/base_uses.f90"
 
@@ -67,12 +59,10 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'build_tblite_ks_matrix'
 
-      INTEGER                                            :: handle, img, iounit, ispin, nimg, ns, &
-                                                            nspins
+      INTEGER                                            :: handle, img, ispin, nimg, ns, nspins
       LOGICAL                                            :: do_efield
       REAL(KIND=dp)                                      :: pc_ener, qmmm_el
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: charges
-      TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_p1, mo_derivs
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_matrix, matrix_h
       TYPE(dbcsr_type), POINTER                          :: mo_coeff
@@ -81,16 +71,11 @@ CONTAINS
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
-      TYPE(section_vals_type), POINTER                   :: scf_section
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (dft_control, logger, scf_section, ks_env, &
-               ks_matrix, rho, energy)
+      NULLIFY (dft_control, ks_env, ks_matrix, rho, energy)
       CPASSERT(ASSOCIATED(qs_env))
-
-      logger => cp_get_default_logger()
-      iounit = cp_logger_get_default_io_unit(logger)
 
       CALL get_qs_env(qs_env, &
                       dft_control=dft_control, &
@@ -110,7 +95,6 @@ CONTAINS
 
       energy%qmmm_el = 0.0_dp
 
-      scf_section => section_vals_get_subs_vals(qs_env%input, "DFT%SCF")
       nspins = dft_control%nspins
       nimg = dft_control%nimages
       CPASSERT(ASSOCIATED(matrix_h))
@@ -134,7 +118,7 @@ CONTAINS
          do_efield = .FALSE.
       END IF
 
-      CALL tb_update_charges(qs_env, para_env, dft_control, qs_env%tb_tblite, charges, calculate_forces)
+      CALL tb_update_charges(qs_env, dft_control, qs_env%tb_tblite, calculate_forces, .TRUE., charges=charges)
 
       CALL tb_ham_add_coulomb(qs_env, qs_env%tb_tblite, ks_matrix, dft_control, charges, calculate_forces)
 
@@ -154,38 +138,6 @@ CONTAINS
          energy%qmmm_el = energy%qmmm_el + pc_ener
       END IF
 
-      CALL tb_get_energy(qs_env%tb_tblite, energy)
-
-      energy%total = energy%core + energy%hartree + energy%efield + energy%qmmm_el + &
-                     energy%repulsive + energy%dispersion + energy%dftb3 + energy%kTS
-
-      iounit = cp_print_key_unit_nr(logger, scf_section, "PRINT%DETAILED_ENERGY", &
-                                    extension=".scfLog")
-      IF (iounit > 0) THEN
-         WRITE (UNIT=iounit, FMT="(/,(T9,A,T60,F20.10))") &
-            "Repulsive pair potential energy:               ", energy%repulsive, &
-            "Zeroth order Hamiltonian energy:               ", energy%core, &
-            "Charge fluctuation energy:                     ", energy%hartree, &
-            "London dispersion energy:                      ", energy%dispersion
-         IF (dft_control%qs_control%xtb_control%xb_interaction) &
-            WRITE (UNIT=iounit, FMT="(T9,A,T60,F20.10)") &
-            "Correction for halogen bonding:                ", energy%xtb_xb_inter
-         IF (dft_control%qs_control%xtb_control%do_nonbonded) &
-            WRITE (UNIT=iounit, FMT="(T9,A,T60,F20.10)") &
-            "Correction for nonbonded interactions:         ", energy%xtb_nonbonded
-         IF (ABS(energy%efield) > 1.e-12_dp) THEN
-            WRITE (UNIT=iounit, FMT="(T9,A,T60,F20.10)") &
-               "Electric field interaction energy:             ", energy%efield
-         END IF
-         WRITE (UNIT=iounit, FMT="(T9,A,T60,F20.10)") &
-            "DFTB3 3rd Order Energy Correction              ", energy%dftb3
-         IF (qs_env%qmmm) THEN
-            WRITE (UNIT=iounit, FMT="(T9,A,T60,F20.10)") &
-               "QM/MM Electrostatic energy:                    ", energy%qmmm_el
-         END IF
-      END IF
-      CALL cp_print_key_finished_output(iounit, logger, scf_section, &
-                                        "PRINT%DETAILED_ENERGY")
       ! here we compute dE/dC if needed. Assumes dE/dC is H_{ks}C
       IF (qs_env%requires_mo_derivs .AND. .NOT. just_energy) THEN
          CPASSERT(SIZE(ks_matrix, 2) == 1)
