@@ -171,6 +171,8 @@ MODULE qs_scf
    USE scf_control_types,               ONLY: scf_control_type
    USE smeagol_interface,               ONLY: run_smeagol_bulktrans,&
                                               run_smeagol_emtrans
+   USE tblite_interface,                ONLY: tb_get_energy,&
+                                              tb_update_charges
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -506,6 +508,11 @@ CONTAINS
 
             ! Print requested MO information (can be computationally expensive with OT)
             CALL qs_scf_write_mos(qs_env, scf_env, final_mos=.FALSE.)
+
+            IF (dft_control%qs_control%xtb_control%do_tblite) THEN
+               CALL tb_update_charges(qs_env, dft_control, qs_env%tb_tblite, .FALSE., .FALSE.)
+               CALL tb_get_energy(qs_env, dft_control, qs_env%tb_tblite, energy)
+            END IF
 
             CALL qs_scf_density_mixing(scf_env, rho, para_env, diis_step)
 

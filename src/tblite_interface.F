@@ -48,9 +48,9 @@ MODULE tblite_interface
    USE cp_dbcsr_cp2k_link, ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations, ONLY: dbcsr_allocate_matrix_set
    USE cp_log_handling, ONLY: cp_get_default_logger, &
-                              cp_logger_type
+                              cp_logger_type, cp_logger_get_default_io_unit
    USE cp_output_handling, ONLY: cp_print_key_should_output, &
-                                 cp_print_key_unit_nr
+                                 cp_print_key_unit_nr, cp_print_key_finished_output
    USE input_constants, ONLY: gfn1xtb, gfn2xtb, ipea1xtb
    USE input_section_types, ONLY: section_vals_val_get
    USE kinds, ONLY: dp, default_string_length
@@ -74,6 +74,7 @@ MODULE tblite_interface
    USE qs_overlap, ONLY: create_sab_matrix
    USE qs_rho_types, ONLY: qs_rho_get, qs_rho_type
    USE qs_scf_types, ONLY: qs_scf_env_type
+   USE input_section_types, ONLY: section_vals_get_subs_vals, section_vals_type
    USE string_utilities, ONLY: integer_to_string
    USE tblite_types, ONLY: tblite_type, deallocate_tblite_type, allocate_tblite_type
    USE virial_types, ONLY: virial_type
@@ -308,15 +309,29 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param qs_env ...
+!> \param dft_control ...
 !> \param tb ...
 !> \param energy ...
 ! **************************************************************************************************
-   SUBROUTINE tb_get_energy(tb, energy)
+   SUBROUTINE tb_get_energy(qs_env, dft_control, tb, energy)
 
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(tblite_type), POINTER                         :: tb
       TYPE(qs_energy_type), POINTER                      :: energy
 
+      INTEGER                                            :: iounit
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(section_vals_type), POINTER                   :: scf_section
+
 #if defined(__TBLITE)
+
+      NULLIFY (scf_section, logger)
+
+      logger => cp_get_default_logger()
+      iounit = cp_logger_get_default_io_unit(logger)
+      scf_section => section_vals_get_subs_vals(qs_env%input, "DFT%SCF")
 
       energy%repulsive = SUM(tb%e_rep)
       energy%dispersion = SUM(tb%e_disp)
@@ -329,6 +344,37 @@ CONTAINS
       WRITE (*, *) "+++++++ edisp: ", tb%e_disp
       WRITE (*, *) "+++++++  escd: ", tb%e_scd
       WRITE (*, *) "+++++++   ees: ", tb%e_es
+
+      energy%total = energy%core + energy%hartree + energy%efield + energy%qmmm_el + &
+                     energy%repulsive + energy%dispersion + energy%dftb3 + energy%kTS
+
+      iounit = cp_print_key_unit_nr(logger, scf_section, "PRINT%DETAILED_ENERGY", &
+                                    extension=".scfLog")
+      IF (iounit > 0) THEN
+         WRITE (UNIT=iounit, FMT="(/,(T9,A,T60,F20.10))") &
+            "Repulsive pair potential energy:               ", energy%repulsive, &
+            "Zeroth order Hamiltonian energy:               ", energy%core, &
+            "Charge fluctuation energy:                     ", energy%hartree, &
+            "London dispersion energy:                      ", energy%dispersion
+         IF (dft_control%qs_control%xtb_control%xb_interaction) &
+            WRITE (UNIT=iounit, FMT="(T9,A,T60,F20.10)") &
+            "Correction for halogen bonding:                ", energy%xtb_xb_inter
+         IF (dft_control%qs_control%xtb_control%do_nonbonded) &
+            WRITE (UNIT=iounit, FMT="(T9,A,T60,F20.10)") &
+            "Correction for nonbonded interactions:         ", energy%xtb_nonbonded
+         IF (ABS(energy%efield) > 1.e-12_dp) THEN
+            WRITE (UNIT=iounit, FMT="(T9,A,T60,F20.10)") &
+               "Electric field interaction energy:             ", energy%efield
+         END IF
+         WRITE (UNIT=iounit, FMT="(T9,A,T60,F20.10)") &
+            "DFTB3 3rd Order Energy Correction              ", energy%dftb3
+         IF (qs_env%qmmm) THEN
+            WRITE (UNIT=iounit, FMT="(T9,A,T60,F20.10)") &
+               "QM/MM Electrostatic energy:                    ", energy%qmmm_el
+         END IF
+      END IF
+      CALL cp_print_key_finished_output(iounit, logger, scf_section, &
+                                        "PRINT%DETAILED_ENERGY")
 
 #else
       CPABORT("Build without TBLITE")
@@ -759,34 +805,37 @@ CONTAINS
    ! **************************************************************************************************
 !> \brief ...
 !> \param qs_env ...
-!> \param para_env ...
 !> \param dft_control ...
 !> \param tb ...
-!> \param charges ...
 !> \param calculate_forces ...
+!> \param use_rho ...
+!> \param charges ...
 ! **************************************************************************************************
-   SUBROUTINE tb_update_charges(qs_env, para_env, dft_control, tb, charges, calculate_forces)
+   SUBROUTINE tb_update_charges(qs_env, dft_control, tb, calculate_forces, use_rho, charges)
 
-      TYPE(qs_environment_type), POINTER                       :: qs_env
-      TYPE(mp_para_env_type), POINTER                          :: para_env
-      TYPE(dft_control_type), POINTER                          :: dft_control
-      TYPE(tblite_type), POINTER                               :: tb
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), INTENT(OUT) :: charges
-      LOGICAL, INTENT(IN)                                      :: calculate_forces
+      TYPE(qs_environment_type), POINTER                                 :: qs_env
+      TYPE(dft_control_type), POINTER                                    :: dft_control
+      TYPE(tblite_type), POINTER                                         :: tb
+      LOGICAL, INTENT(IN)                                                :: calculate_forces
+      LOGICAL, INTENT(IN)                                               :: use_rho
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), INTENT(OUT), OPTIONAL :: charges
 
-      INTEGER                                            :: iatom, ikind, is, atom_a, ii, ns
-      INTEGER                                            :: nimg, nkind, natom, nsgf, natorb, na
-      REAL(KIND=dp)                                      :: ref_occ
+      LOGICAL                                            :: do_charges
+      INTEGER                                            :: iatom, ikind, is, ns, atom_a, ii
+      INTEGER                                            :: nimg, nkind, nsgf, natorb, na
+      INTEGER                                            :: n_atom, max_orb, max_shell
+      REAL(KIND=dp)                                      :: norm
       INTEGER, DIMENSION(5)                              :: occ
       INTEGER, DIMENSION(25)                             :: lao
       INTEGER, DIMENSION(25)                             :: nao
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: mcharge
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ch_atom, ch_shell, ch_ref, ch_orb
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: aocg
 
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s, matrix_p
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: p_matrix
       TYPE(dbcsr_type), POINTER                          :: s_matrix
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -795,20 +844,41 @@ CONTAINS
 
 #if defined(__TBLITE)
 
+      do_charges = .FALSE.
+      IF (PRESENT(charges)) do_charges = .TRUE.
+
       ! compute mulliken charges required for charge update
       NULLIFY (particle_set, qs_kind_set, atomic_kind_set)
-      CALL get_qs_env(qs_env=qs_env, particle_set=particle_set, qs_kind_set=qs_kind_set, &
-                      atomic_kind_set=atomic_kind_set, matrix_s_kp=matrix_s, rho=rho)
-      CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
-      natom = SIZE(particle_set)
+      CALL get_qs_env(qs_env=qs_env, scf_env=scf_env, particle_set=particle_set, qs_kind_set=qs_kind_set, &
+                      atomic_kind_set=atomic_kind_set, matrix_s_kp=matrix_s, rho=rho, para_env=para_env)
+      NULLIFY (matrix_p)
+      IF (use_rho) THEN
+         CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
+      ELSE
+         matrix_p => scf_env%p_mix_new
+      END IF
+      n_atom = SIZE(particle_set)
       nkind = SIZE(atomic_kind_set)
       nimg = dft_control%nimages
-      ALLOCATE (mcharge(natom, 1), charges(natom, 5))
-      charges = 0.0_dp
       CALL get_qs_kind_set(qs_kind_set, maxsgf=nsgf)
-      ALLOCATE (aocg(nsgf, natom))
+      ALLOCATE (aocg(nsgf, n_atom))
       aocg = 0.0_dp
-      flush (6)
+      max_orb = 0
+      max_shell = 0
+      DO is = 1, n_atom
+         max_shell = MAX(max_shell, tb%calc%bas%nsh_at(is))
+         natorb = 0
+         DO ii = 1, tb%calc%bas%nsh_at(is)
+            natorb = natorb + (2*tb%calc%bas%cgto(ii, is)%ang + 1)
+         END DO
+         max_orb = MAX(max_orb, natorb)
+      END DO
+      ALLOCATE (ch_atom(n_atom, 1), ch_shell(n_atom, max_shell))
+      ALLOCATE (ch_orb(max_orb, n_atom), ch_ref(max_orb, n_atom))
+      ch_atom = 0.0_dp
+      ch_shell = 0.0_dp
+      ch_orb = 0.0_dp
+      ch_ref = 0.0_dp
       IF (nimg > 1) THEN
          CALL ao_charges(matrix_p, matrix_s, aocg, para_env)
       ELSE
@@ -826,32 +896,34 @@ CONTAINS
             atom_a = atomic_kind_set(ikind)%atom_list(iatom)
             DO is = 1, natorb
                ns = lao(is) + 1
-               ref_occ = tb%calc%h0%refocc(nao(is), atom_a)/(2*lao(is) + 1)
-               charges(atom_a, ns) = aocg(is, atom_a) - ref_occ + charges(atom_a, ns)
+               norm = 2*lao(is) + 1
+               ch_ref(is, atom_a) = tb%calc%h0%refocc(nao(is), atom_a)/norm
+               ch_orb(is, atom_a) = aocg(is, atom_a) - ch_ref(is, atom_a)
+               ch_shell(atom_a, ns) = ch_orb(is, atom_a) + ch_shell(atom_a, ns)
             END DO
+            ch_atom(atom_a, 1) = SUM(ch_orb(:, atom_a))
          END DO
       END DO
       DEALLOCATE (aocg)
+
       ! charge mixing
       IF (dft_control%qs_control%do_ls_scf) THEN
          !
       ELSE
-         CALL get_qs_env(qs_env=qs_env, scf_env=scf_env)
          CALL charge_mixing(scf_env%mixing_method, scf_env%mixing_store, &
-                            charges, para_env, scf_env%iter_count)
+                            ch_shell, para_env, scf_env%iter_count)
       END IF
 
       !setting new wave function
       CALL tb%pot%reset
       tb%e_es = 0.0_dp
       tb%e_scd = 0.0_dp
-      DO iatom = 1, natom
+      DO iatom = 1, n_atom
          ii = tb%calc%bas%ish_at(iatom)
          DO is = 1, tb%calc%bas%nsh_at(iatom)
-            tb%wfn%qsh(ii + is, 1) = -charges(iatom, is)
+            tb%wfn%qsh(ii + is, 1) = -ch_shell(iatom, is)
          END DO
-         mcharge(iatom, 1) = SUM(charges(iatom, :))
-         tb%wfn%qat(iatom, 1) = -mcharge(iatom, 1)
+         tb%wfn%qat(iatom, 1) = -ch_atom(iatom, 1)
       END DO
 
       IF (ALLOCATED(tb%calc%coulomb)) THEN
@@ -871,7 +943,12 @@ CONTAINS
          CALL tb%calc%dispersion%get_energy(tb%mol, tb%dcache, tb%wfn, tb%e_scd)
       END IF
 
-      DEALLOCATE (mcharge)
+      IF (do_charges) THEN
+         ALLOCATE (charges(n_atom, 5))
+         charges(:, 1:max_shell) = ch_shell(:, 1:max_shell)
+      END IF
+
+      DEALLOCATE (ch_atom, ch_shell, ch_orb, ch_ref)
 
 #else
       CPABORT("Build without TBLITE")
@@ -994,8 +1071,6 @@ CONTAINS
 
             icol = MAX(iatom, jatom)
             irow = MIN(iatom, jatom)
-
-            !ishift = tb%pot%vat(icol, 1)
 
             ic = cell_to_index(cellind(1), cellind(2), cellind(3))
             CPASSERT(ic > 0)
