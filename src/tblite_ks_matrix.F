@@ -62,7 +62,6 @@ CONTAINS
       INTEGER                                            :: handle, img, ispin, nimg, ns, nspins
       LOGICAL                                            :: do_efield
       REAL(KIND=dp)                                      :: pc_ener, qmmm_el
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: charges
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_p1, mo_derivs
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_matrix, matrix_h
       TYPE(dbcsr_type), POINTER                          :: mo_coeff
@@ -118,9 +117,8 @@ CONTAINS
          do_efield = .FALSE.
       END IF
 
-      CALL tb_update_charges(qs_env, dft_control, qs_env%tb_tblite, calculate_forces, .TRUE., charges=charges)
-
-      CALL tb_ham_add_coulomb(qs_env, qs_env%tb_tblite, ks_matrix, dft_control, charges, calculate_forces)
+      CALL tb_update_charges(qs_env, dft_control, qs_env%tb_tblite, calculate_forces, .TRUE.)
+      CALL tb_ham_add_coulomb(qs_env, qs_env%tb_tblite, dft_control, .FALSE.)
 
       IF (qs_env%qmmm) THEN
          CPASSERT(SIZE(ks_matrix, 2) == 1)

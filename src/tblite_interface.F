@@ -809,18 +809,15 @@ CONTAINS
 !> \param tb ...
 !> \param calculate_forces ...
 !> \param use_rho ...
-!> \param charges ...
 ! **************************************************************************************************
-   SUBROUTINE tb_update_charges(qs_env, dft_control, tb, calculate_forces, use_rho, charges)
+   SUBROUTINE tb_update_charges(qs_env, dft_control, tb, calculate_forces, use_rho)
 
       TYPE(qs_environment_type), POINTER                                 :: qs_env
       TYPE(dft_control_type), POINTER                                    :: dft_control
       TYPE(tblite_type), POINTER                                         :: tb
       LOGICAL, INTENT(IN)                                                :: calculate_forces
-      LOGICAL, INTENT(IN)                                               :: use_rho
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), INTENT(OUT), OPTIONAL :: charges
+      LOGICAL, INTENT(IN)                                                :: use_rho
 
-      LOGICAL                                            :: do_charges
       INTEGER                                            :: iatom, ikind, is, ns, atom_a, ii
       INTEGER                                            :: nimg, nkind, nsgf, natorb, na
       INTEGER                                            :: n_atom, max_orb, max_shell
@@ -843,9 +840,6 @@ CONTAINS
       TYPE(xtb_atom_type), POINTER                       :: xtb_kind
 
 #if defined(__TBLITE)
-
-      do_charges = .FALSE.
-      IF (PRESENT(charges)) do_charges = .TRUE.
 
       ! compute mulliken charges required for charge update
       NULLIFY (particle_set, qs_kind_set, atomic_kind_set)
@@ -943,11 +937,6 @@ CONTAINS
          CALL tb%calc%dispersion%get_energy(tb%mol, tb%dcache, tb%wfn, tb%e_scd)
       END IF
 
-      IF (do_charges) THEN
-         ALLOCATE (charges(n_atom, 5))
-         charges(:, 1:max_shell) = ch_shell(:, 1:max_shell)
-      END IF
-
       DEALLOCATE (ch_atom, ch_shell, ch_orb, ch_ref)
 
 #else
@@ -960,18 +949,14 @@ CONTAINS
 !> \brief ...
 !> \param qs_env ...
 !> \param tb ...
-!> \param ks_matrix ...
 !> \param dft_control ...
-!> \param charges ...
 !> \param calculate_forces ...
 ! **************************************************************************************************
-   SUBROUTINE tb_ham_add_coulomb(qs_env, tb, ks_matrix, dft_control, charges, calculate_forces)
+   SUBROUTINE tb_ham_add_coulomb(qs_env, tb, dft_control, calculate_forces)
 
       TYPE(qs_environment_type), POINTER                       :: qs_env
       TYPE(tblite_type), POINTER                               :: tb
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER             :: ks_matrix
       TYPE(dft_control_type), POINTER                          :: dft_control
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)               :: charges
       LOGICAL, INTENT(IN)                                      :: calculate_forces
 
       INTEGER                                            :: ikind, jkind, iatom, jatom, icol, irow
@@ -989,6 +974,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_matrix
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: nl_iterator
@@ -1001,8 +987,8 @@ CONTAINS
 
       nimg = dft_control%nimages
 
-      NULLIFY (matrix_s, n_list)
-      CALL get_qs_env(qs_env=qs_env, sab_orb=n_list, matrix_s_kp=matrix_s, qs_kind_set=qs_kind_set)
+      NULLIFY (matrix_s, ks_matrix, n_list, qs_kind_set)
+      CALL get_qs_env(qs_env=qs_env, sab_orb=n_list, matrix_s_kp=matrix_s, matrix_ks_kp=ks_matrix, qs_kind_set=qs_kind_set)
 
       !creating sum of shell lists
       ALLOCATE (sum_shell(tb%mol%nat))
