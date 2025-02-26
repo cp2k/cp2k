@@ -1,14 +1,15 @@
-nclude:
+include:
   - remote: 'https://gitlab.com/cscs-ci/recipes/-/raw/master/templates/v2/.ci-ext.yml'
 
 stages:
   - build
+  - test
 
 variables:
   PERSIST_IMAGE_NAME: $CSCS_REGISTRY_PATH/cp2k:$CI_COMMIT_SHORT_SHA
 
 build cp2k eiger:
-  extends: .uenv-builder-eiger-zen2
+  extends: .container-builder-cscs-zen2
   stage: build
   timeout: 1h
   variables:
@@ -21,3 +22,20 @@ build cp2k eiger:
     BUILD_TYPE: minimal
     DOCKERFILE: ci/docker/build_cp2k_toolchain_psmp.Dockerfile
     MPICH_VERSION: 3.1.4
+
+test cp2k eiger:
+  extends: .baremetal-runner-eiger-zen2
+  stage: test
+  needs: ["build cp2k eiger"]
+  timeout: 1h
+  script:
+    - hostname
+    - ls -al /opt/cp2k/tests
+    - srun -v cp2k /opt/cp2k/benchmarks/CI/H2O-128_md.inp
+  variables:
+    OMP_NUM_THREADS: 2
+    SLURM_CONSTRAINT: mc
+    SLURM_HINT: nomultithread
+    SLURM_JOB_NUM_NODES: 1
+    SLURM_NTASKS_PER_NODE: 64
+    USE_MPI: YES
