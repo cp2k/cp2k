@@ -765,8 +765,10 @@ CONTAINS
          DO i = 1, nrow_local
             DO j = 1, ncol_local
                IF (ABS(fm%local_data(i, j)) > thresh) THEN
-                  WRITE (unit_nr, "(A7,T10,I5,T20,I5,T30,F13.5)") header, row_indices(i), col_indices(j), &
-                     ABS(fm%local_data(i, j))
+                  IF (unit_nr > 0) THEN
+                     WRITE (unit_nr, "(A7,T10,I5,T20,I5,T30,F13.5)") header, row_indices(i), col_indices(j), &
+                        ABS(fm%local_data(i, j))
+                  END IF
                END IF
             END DO
          END DO
@@ -774,8 +776,10 @@ CONTAINS
          DO i = 1, nrow_local
             DO j = 1, ncol_local
                IF (ABS(fm%local_data(i, j)) > thresh) THEN
-                  WRITE (unit_nr, "(A7,T10,I5,T20,I5,T30,F13.5)") header, row_indices(i), col_indices(j), &
-                     fm%local_data(i, j)
+                  IF (unit_nr > 0) THEN
+                     WRITE (unit_nr, "(A7,T10,I5,T20,I5,T30,F13.5)") header, row_indices(i), col_indices(j), &
+                        fm%local_data(i, j)
+                  END IF
                END IF
             END DO
          END DO
