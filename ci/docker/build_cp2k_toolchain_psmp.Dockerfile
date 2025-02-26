@@ -1,7 +1,7 @@
 # Dockerfile for CP2K continous integration (CI) runs
 #
 # A stand-alone docker build in this folder can be performed using the command:
-# DOCKER_BUILDKIT=0 docker build -f build_cp2k_psmp.Dockerfile ../../
+# DOCKER_BUILDKIT=0 docker build -f build_cp2k_toolchain_psmp.Dockerfile ../../
 #
 # Author: Matthias Krack
 #
@@ -30,7 +30,7 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     zlib1g-dev
 
 # Retrieve the number of available CPU cores
-ARG NUM_PROCS=32
+ARG NUM_PROCS=64
 
 # Install an MPI version ABI-compatible with the host MPI on Cray at CSCS
 ARG MPICH_VERSION=3.1.4
@@ -130,7 +130,7 @@ WORKDIR /opt/cp2k/build
 RUN /bin/bash -c -o pipefail " \
     source /opt/cp2k/tools/toolchain/install/setup; \
     echo -e '\nCompiling CP2K ... \c'; \
-    if ninja --verbose &> ninja.log; then \
+    if ninja --verbose | tee ninja.log; then \
       echo -e 'done\n'; \
       echo -e 'Installing CP2K ... \c'; \
       if ninja --verbose install &> install.log; then \
