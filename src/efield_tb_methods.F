@@ -92,10 +92,15 @@ CONTAINS
       CALL get_qs_env(qs_env, dft_control=dft_control)
       IF (dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb) THEN
          IF (dft_control%apply_period_efield) THEN
-            IF (dft_control%period_efield%displacement_field) THEN
-               CALL dfield_tb_berry(qs_env, ks_matrix, rho, mcharge, energy, calculate_forces, just_energy)
-            ELSE
-               CALL efield_tb_berry(qs_env, ks_matrix, rho, mcharge, energy, calculate_forces, just_energy)
+            ! check if the periodic efield should be applied in the current step
+            IF (dft_control%period_efield%start_frame <= qs_env%sim_step .AND. &
+                (dft_control%period_efield%end_frame == -1 .OR. dft_control%period_efield%end_frame >= qs_env%sim_step)) THEN
+
+               IF (dft_control%period_efield%displacement_field) THEN
+                  CALL dfield_tb_berry(qs_env, ks_matrix, rho, mcharge, energy, calculate_forces, just_energy)
+               ELSE
+                  CALL efield_tb_berry(qs_env, ks_matrix, rho, mcharge, energy, calculate_forces, just_energy)
+               END IF
             END IF
          ELSE IF (dft_control%apply_efield) THEN
             CALL efield_tb_local(qs_env, ks_matrix, rho, mcharge, energy, calculate_forces, just_energy)
@@ -285,7 +290,7 @@ CONTAINS
       INTEGER, DIMENSION(3)                              :: cellind
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: found, use_virial
-      REAL(KIND=dp)                                      :: charge, dd, dr, fdir, fi
+      REAL(KIND=dp)                                      :: charge, dd, dr, fdir, fi, strength
       REAL(KIND=dp), DIMENSION(3)                        :: fieldpol, fij, forcea, fpolvec, kvec, &
                                                             qi, rab, ria, rib, rij
       REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
@@ -321,9 +326,16 @@ CONTAINS
       use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
       use_virial = use_virial .AND. calculate_forces
 
+      ! if an intensities list is given, select the value for the current step
+      strength = dft_control%period_efield%strength
+      IF (ALLOCATED(dft_control%period_efield%strength_list)) THEN
+         strength = dft_control%period_efield%strength_list(MOD(qs_env%sim_step &
+                                        - dft_control%period_efield%start_frame, SIZE(dft_control%period_efield%strength_list)) + 1)
+      END IF
+
       fieldpol = dft_control%period_efield%polarisation
       fieldpol = fieldpol/SQRT(DOT_PRODUCT(fieldpol, fieldpol))
-      fieldpol = -fieldpol*dft_control%period_efield%strength
+      fieldpol = -fieldpol*strength
       hmat = cell%hmat(:, :)/twopi
       DO idir = 1, 3
          fpolvec(idir) = fieldpol(1)*hmat(1, idir) + fieldpol(2)*hmat(2, idir) + fieldpol(3)*hmat(3, idir)
@@ -608,7 +620,8 @@ CONTAINS
       INTEGER, DIMENSION(3)                              :: cellind
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: found, use_virial
-      REAL(KIND=dp)                                      :: charge, dd, ener_field, fdir, omega
+      REAL(KIND=dp)                                      :: charge, dd, ener_field, fdir, omega, &
+                                                            strength
       REAL(KIND=dp), DIMENSION(3)                        :: ci, cqi, dfilter, di, fieldpol, fij, &
                                                             hdi, kvec, qi, rab, ria, rib
       REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
@@ -653,9 +666,16 @@ CONTAINS
 
       dfilter(1:3) = dft_control%period_efield%d_filter(1:3)
 
+      ! if an intensities list is given, select the value for the current step
+      strength = dft_control%period_efield%strength
+      IF (ALLOCATED(dft_control%period_efield%strength_list)) THEN
+         strength = dft_control%period_efield%strength_list(MOD(qs_env%sim_step &
+                                        - dft_control%period_efield%start_frame, SIZE(dft_control%period_efield%strength_list)) + 1)
+      END IF
+
       fieldpol = dft_control%period_efield%polarisation
       fieldpol = fieldpol/SQRT(DOT_PRODUCT(fieldpol, fieldpol))
-      fieldpol = fieldpol*dft_control%period_efield%strength
+      fieldpol = fieldpol*strength
 
       omega = cell%deth
       hmat = cell%hmat(:, :)/twopi

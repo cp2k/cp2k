@@ -1529,6 +1529,10 @@ CONTAINS
       IF (dft_control%apply_period_efield) THEN
          dfield = dft_control%period_efield%displacement_field
 
+         IF (ALLOCATED(dft_control%period_efield%strength_list)) THEN
+            CPABORT("use of strength_list not implemented for eeq_efield_energy")
+         END IF
+
          fieldpol = dft_control%period_efield%polarisation
          fieldpol = fieldpol/SQRT(DOT_PRODUCT(fieldpol, fieldpol))
          fieldpol = -fieldpol*dft_control%period_efield%strength
@@ -1607,6 +1611,10 @@ CONTAINS
       IF (dft_control%apply_period_efield) THEN
          dfield = dft_control%period_efield%displacement_field
 
+         IF (ALLOCATED(dft_control%period_efield%strength_list)) THEN
+            CPABORT("use of strength_list not implemented for eeq_efield_pot")
+         END IF
+
          fieldpol = dft_control%period_efield%polarisation
          fieldpol = fieldpol/SQRT(DOT_PRODUCT(fieldpol, fieldpol))
          fieldpol = -fieldpol*dft_control%period_efield%strength
@@ -1672,6 +1680,10 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
 
       natom = SIZE(particle_set)
+
+      IF (ALLOCATED(dft_control%period_efield%strength_list)) THEN
+         CPABORT("use of strength_list not implemented for eeq_dfield_pot")
+      END IF
 
       dfilter(1:3) = dft_control%period_efield%d_filter(1:3)
       fieldpol = dft_control%period_efield%polarisation
@@ -1787,6 +1799,10 @@ CONTAINS
 
       dfield = dft_control%period_efield%displacement_field
       CPASSERT(.NOT. dfield)
+
+      IF (ALLOCATED(dft_control%period_efield%strength_list)) THEN
+         CPABORT("use of strength_list not implemented for eeq_efield_force_periodic")
+      END IF
 
       fieldpol = dft_control%period_efield%polarisation
       fieldpol = fieldpol/SQRT(DOT_PRODUCT(fieldpol, fieldpol))
