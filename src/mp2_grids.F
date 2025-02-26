@@ -177,6 +177,11 @@ CONTAINS
             wj(jquad) = x_tw(jquad + num_integ_points)
          END DO
 
+         ! for the smaller grids, the factor of 4 is included in get_rpa_minimax_coeff for wj 
+         IF (num_integ_points >= 26) THEN
+             wj(:)=wj(:)*4.0_dp
+         ENDIF
+
          DEALLOCATE (x_tw)
 
          IF (unit_nr > 0 .AND. do_print) THEN
