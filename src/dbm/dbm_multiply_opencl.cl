@@ -8,9 +8,9 @@
 #include "dbm_multiply_opencl.irh"
 #else
 #include "../../exts/dbcsr/src/acc/opencl/common/opencl_atomics.h"
-#include "dbm_multiply_internal.h"
+#include "dbm_internal.h"
 
-#if defined(GPU) && defined(WG) && (0 < WG) && (200 <= ACC_OPENCL_VERSION)
+#if defined(WG) && (0 < WG) && defined(GPU) && (200 <= ACC_OPENCL_VERSION)
 #if defined(SG) && (0 < SG)
 #define BCST_WG(V) sub_group_broadcast(V, 0)
 #else
@@ -18,6 +18,12 @@
 #endif
 #endif
 #define BCST_NO(V) (V)
+
+#if defined(SM) && (0 < SM)
+#define TLS(MEM) (MEM)[get_local_id(0)]
+#else
+#define TLS(MEM) (MEM)
+#endif
 
 #define SINT short
 
@@ -74,6 +80,11 @@ dbm_multiply(double alpha, int itask, int ntasks, int size,
              global const dbm_task_t *tasks, global const double *restrict amat,
              global const double *restrict bmat, global double *restrict cmat) {
   const int i = (int)get_global_id(0);
+#if defined(SM) && (0 < SM)
+  local double cvec[WG][BN + SM - 1];
+#else
+  double cvec[BN];
+#endif
 #if defined(BCST_WG)
   if (i < size)
 #endif
@@ -82,15 +93,14 @@ dbm_multiply(double alpha, int itask, int ntasks, int size,
     const SINT m = i - tid * max_m;
     global const dbm_task_t *const task = &tasks[itask + tid];
     if (m < XM(task)) { /* valid task */
-      double cvec[BN];
       bmat += XB(task);
 #if defined(BCST_WG)
       if (XM(task) <= XN(task)) { /* BCST_WG to broadcast B-values */
-        DBM_MULTIPLY(alpha, task, amat, bmat, cmat, cvec, m, BN, BCST_WG);
+        DBM_MULTIPLY(alpha, task, amat, bmat, cmat, TLS(cvec), m, BN, BCST_WG);
       } else
 #endif
       {
-        DBM_MULTIPLY(alpha, task, amat, bmat, cmat, cvec, m, BN, BCST_NO);
+        DBM_MULTIPLY(alpha, task, amat, bmat, cmat, TLS(cvec), m, BN, BCST_NO);
       }
     }
   }
