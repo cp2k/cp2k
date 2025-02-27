@@ -681,8 +681,7 @@ CONTAINS
       ! Obtain dipoles in MO basis
       CALL get_multipoles_mo(fm_dipole_ai_trunc, fm_dipole_ij_trunc, fm_dipole_ab_trunc, &
                              qs_env, mo_coeff, ref_point_multipole, 1, &
-                             homo, virtual, fm_eigvec_X%matrix_struct%context, &
-                             unit_nr)
+                             homo, virtual, fm_eigvec_X%matrix_struct%context)
       ! Compute exciton descriptors from these multipoles
       IF (mp2_env%bse%num_print_exc_descr > 0) THEN
          ! Obtain quadrupoles in MO basis
@@ -691,8 +690,7 @@ CONTAINS
          ALLOCATE (fm_quadpole_ai_trunc(n_moments_quad))
          CALL get_multipoles_mo(fm_quadpole_ai_trunc, fm_quadpole_ij_trunc, fm_quadpole_ab_trunc, &
                                 qs_env, mo_coeff, ref_point_multipole, 2, &
-                                homo, virtual, fm_eigvec_X%matrix_struct%context, &
-                                unit_nr)
+                                homo, virtual, fm_eigvec_X%matrix_struct%context)
          ! Iterate over excitation index outside of routine to make it compatible with tddft module
          ALLOCATE (exc_descr(mp2_env%bse%num_print_exc_descr))
          DO i_exc = 1, mp2_env%bse%num_print_exc_descr
