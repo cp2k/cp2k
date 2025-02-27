@@ -224,7 +224,6 @@ CONTAINS
          scaling = 2.0_dp
          IF (do_ri_sos_laplace_mp2) scaling = 1.0_dp
 
-         !ALLOCATE (tau_tj(0:num_integ_points))
          ALLOCATE (tau_tj(num_integ_points))
          tau_tj = 0.0_dp
 

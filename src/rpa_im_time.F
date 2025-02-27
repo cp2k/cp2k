@@ -159,7 +159,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter_im_time, alpha, eps_filter, &
                                                             e_fermi
-      !REAL(KIND=dp), DIMENSION(0:num_integ_points), &  !DG
       REAL(KIND=dp), DIMENSION(:), &
          INTENT(IN)                                      :: tau_tj
       INTEGER, INTENT(IN)                                :: cut_memory, unit_nr
@@ -667,7 +666,6 @@ CONTAINS
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_scaled_dm_occ_tau, &
                                                             fm_scaled_dm_virt_tau
       INTEGER, INTENT(IN)                                :: num_integ_points
-      !REAL(KIND=dp), DIMENSION(0:num_integ_points), & !DG
       REAL(KIND=dp), DIMENSION(:), &
          INTENT(IN)                                      :: tau_tj
       INTEGER, INTENT(IN)                                :: nmo

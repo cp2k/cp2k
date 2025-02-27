@@ -137,7 +137,6 @@ CONTAINS
                                                             count_ev_sc_GW
       TYPE(mp_para_env_type), POINTER                    :: para_env
       REAL(KIND=dp), INTENT(INOUT)                       :: Erpa
-     ! REAL(KIND=dp), DIMENSION(0:num_integ_points), & !DG
       REAL(KIND=dp), DIMENSION(:), &
          INTENT(IN)                                      :: tau_tj
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: tj, wj
@@ -1006,7 +1005,6 @@ CONTAINS
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_L_re, fm_mat_L_im
       INTEGER, INTENT(IN)                                :: dimen_RI, num_integ_points, jquad, ikp
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: tj
-      !REAL(KIND=dp), DIMENSION(0:num_integ_points), &  !DG
       REAL(KIND=dp), DIMENSION(num_integ_points), &
          INTENT(IN)                                      :: tau_tj
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: weights_cos_tf_w_to_t

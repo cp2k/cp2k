@@ -682,7 +682,6 @@ CONTAINS
                                                             ends_array_mc_block
       INTEGER, INTENT(IN)                                :: num_integ_points, nmo
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
-      !REAL(KIND=dp), DIMENSION(0:num_integ_points), &
       REAL(KIND=dp), DIMENSION(num_integ_points), &
          INTENT(IN)                                      :: tau_tj
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
@@ -1240,7 +1239,6 @@ CONTAINS
                                                             weights_cos_tf_w_to_t
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(IN)                                      :: tj, wj
-      !REAL(KIND=dp), DIMENSION(0:num_integ_points), &  !DG
       REAL(KIND=dp), DIMENSION(num_integ_points), &
          INTENT(IN)                                      :: tau_tj
       INTEGER, INTENT(IN)                                :: cut_memory, ispin
@@ -3943,7 +3941,6 @@ CONTAINS
 
       IF (do_laplace .OR. do_im_time) THEN
          IF (.NOT. ASSOCIATED(qs_env%mp2_env%ri_rpa_im_time%tau_tj)) THEN
-           ! ALLOCATE (qs_env%mp2_env%ri_rpa_im_time%tau_tj(0:num_integ_points)) !DG
             ALLOCATE (qs_env%mp2_env%ri_rpa_im_time%tau_tj(num_integ_points))
             ALLOCATE (qs_env%mp2_env%ri_rpa_im_time%tau_wj(num_integ_points))
             qs_env%mp2_env%ri_rpa_im_time%tau_tj(:) = tau_tj(:)

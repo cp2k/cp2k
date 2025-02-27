@@ -1169,7 +1169,7 @@ CONTAINS
       TYPE(rpa_grad_type)                                :: rpa_grad
       TYPE(rpa_sigma_type)                               :: rpa_sigma
       TYPE(two_dim_int_array), ALLOCATABLE, DIMENSION(:) :: t_3c_O_mo_ind
-      INTEGER                                            :: gi, ierr !DG
+      INTEGER                                            :: gi, ierr
 
       CALL timeset(routineN, handle)
 
@@ -1290,6 +1290,7 @@ CONTAINS
                               max_errors_greenx, cosft_duality_error_greenx, ierr,&
                               bare_cos_sin_weights=.TRUE.,&
                               regularization=qs_env%mp2_env%ri_g0w0%regularization_minimax)
+         ! Factor 4 is hard-coded in the RPA weights in the internal CP2K minimax routines
          wj(:)=wj(:)*4.0_dp
          IF(ierr == 0) THEN
            IF (unit_nr > 0) THEN
