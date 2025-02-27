@@ -8,7 +8,7 @@ stages:
 
 variables:
   PERSIST_IMAGE_NAME: ${CSCS_REGISTRY_PATH}/cp2k:${CI_COMMIT_SHORT_SHA}
-  PODMAN_TAR_FILE: ${SCRATCH}/cp2k_${CI_COMMIT_SHORT_SHA}.tar
+  PODMAN_TAR_FILE: /capstor/scratch/cscs/mkrack/cp2k_${CI_COMMIT_SHORT_SHA}.tar
 
 build cp2k eiger:
   extends: .container-builder-cscs-zen2
@@ -45,7 +45,7 @@ benchmark cp2k eiger:
     SLURM_CONSTRAINT: mc
     SLURM_HINT: nomultithread
     SLURM_JOB_NUM_NODES: 1
-    SLURM_NTASKS_PER_NODE: 128
+    SLURM_NTASKS_PER_NODE: 64
     USE_MPI: YES
 
 test cp2k eiger:
@@ -56,6 +56,7 @@ test cp2k eiger:
   script:
     - podman load -i ${PODMAN_TAR_FILE}
     - podman images
+    - echo SCRATCH=${SCRATCH}
     - podman run --mount type=bind,src=${SCRATCH},target=${SCRATCH} --workdir=${SCRATCH} ${PERSIST_IMAGE_NAME} /opt/cp2k/tests/do_regtest.py --maxtasks 128 /opt/cp2k/bin psmp
   variables:
     SLURM_CONSTRAINT: mc
