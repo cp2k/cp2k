@@ -28,7 +28,7 @@ CFLAGS := -fPIC -g $(OPTFLAG) -march=native -Wall -Wextra -Wcast-qual
 
 # Intel Compiler
 ICX := $(shell which icx 2>/dev/null)
-INTEL ?= $(if $(ICX),1,0)
+INTEL ?= $(if $(ICX),$(if $(filter-out 0,$(GNU)),0,1),0)
 
 # Build with MPI when MPICC is given
 MPI ?= $(if $(MPICC),1,0)
@@ -115,7 +115,8 @@ OPENCL_GEN := $(CP2KHOME)/exts/dbcsr/src/acc/opencl/acc_opencl.sh
 ALL_HEADERS += $(OPENCL_GENKRNL)
 
 ALL_OBJECTS += dbm_multiply_gpu.o dbm_multiply_opencl.o
-CFLAGS += -I$(CP2KHOME)/exts/dbcsr -D__OFFLOAD_OPENCL -D__DBCSR_ACC
+CFLAGS += -I$(CP2KHOME)/exts/dbcsr -I$(CP2KHOME)/exts/dbcsr/src/acc/opencl
+CFLAGS += -D__OFFLOAD_OPENCL -D__DBCSR_ACC
 LIBS += $(OPENCL_OFFLOAD) -lgfortran
 
 ifneq (Darwin,$(shell uname))
