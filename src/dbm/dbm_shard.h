@@ -33,7 +33,6 @@ typedef struct {
   dbm_block_t *blocks;
 
   int hashtable_size;  // should be a power of two
-  int hashtable_mask;  // should be hashtable_size - 1, ie. a bit-mask
   int hashtable_prime; // should be a coprime of hashtable_size
   int *hashtable;      // maps row/col to block numbers
 

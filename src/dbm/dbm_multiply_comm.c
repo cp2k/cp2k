@@ -12,14 +12,7 @@
 #include <string.h>
 
 #include "dbm_hyperparams.h"
-#include "dbm_mempool.h"
 #include "dbm_mpi.h"
-
-/*******************************************************************************
- * \brief Returns the larger of two given integer (missing from the C standard)
- * \author Ole Schuett
- ******************************************************************************/
-static inline int imax(int x, int y) { return (x > y ? x : y); }
 
 /*******************************************************************************
  * \brief Private routine for computing greatest common divisor of two numbers.
@@ -361,12 +354,12 @@ static dbm_packed_matrix_t pack_matrix(const bool trans_matrix,
   // Allocate send buffers for maximum number of blocks/data over all packs.
   int nblks_send_max = 0, ndata_send_max = 0;
   for (int ipack = 0; ipack < nsend_packs; ++ipack) {
-    nblks_send_max = imax(nblks_send_max, nblks_send_per_pack[ipack]);
-    ndata_send_max = imax(ndata_send_max, ndata_send_per_pack[ipack]);
+    nblks_send_max = DBM_MAX(nblks_send_max, nblks_send_per_pack[ipack]);
+    ndata_send_max = DBM_MAX(ndata_send_max, ndata_send_per_pack[ipack]);
   }
   dbm_pack_block_t *blks_send =
       dbm_mpi_alloc_mem(nblks_send_max * sizeof(dbm_pack_block_t));
-  double *data_send = dbm_mempool_host_malloc(ndata_send_max * sizeof(double));
+  double *data_send = dbm_mpi_alloc_mem(ndata_send_max * sizeof(double));
 
   // Cannot parallelize over packs (there might be too few of them).
   for (int ipack = 0; ipack < nsend_packs; ipack++) {
@@ -409,7 +402,7 @@ static dbm_packed_matrix_t pack_matrix(const bool trans_matrix,
     const int ndata_recv = isum(nranks, data_recv_count);
 
     // 4th communication: Exchange data.
-    double *data_recv = dbm_mempool_host_malloc(ndata_recv * sizeof(double));
+    double *data_recv = dbm_mpi_alloc_mem(ndata_recv * sizeof(double));
     dbm_mpi_alltoallv_double(data_send, data_send_count, data_send_displ,
                              data_recv, data_recv_count, data_recv_displ,
                              dist->comm);
@@ -426,13 +419,13 @@ static dbm_packed_matrix_t pack_matrix(const bool trans_matrix,
 
   // Deallocate send buffers.
   dbm_mpi_free_mem(blks_send);
-  dbm_mempool_free(data_send);
+  dbm_mpi_free_mem(data_send);
 
   // Allocate pack_recv.
   int max_nblocks = 0, max_data_size = 0;
   for (int ipack = 0; ipack < packed.nsend_packs; ipack++) {
-    max_nblocks = imax(max_nblocks, packed.send_packs[ipack].nblocks);
-    max_data_size = imax(max_data_size, packed.send_packs[ipack].data_size);
+    max_nblocks = DBM_MAX(max_nblocks, packed.send_packs[ipack].nblocks);
+    max_data_size = DBM_MAX(max_data_size, packed.send_packs[ipack].data_size);
   }
   dbm_mpi_max_int(&max_nblocks, 1, packed.dist_ticks->comm);
   dbm_mpi_max_int(&max_data_size, 1, packed.dist_ticks->comm);
@@ -441,7 +434,7 @@ static dbm_packed_matrix_t pack_matrix(const bool trans_matrix,
   packed.recv_pack.blocks =
       dbm_mpi_alloc_mem(packed.max_nblocks * sizeof(dbm_pack_block_t));
   packed.recv_pack.data =
-      dbm_mempool_host_malloc(packed.max_data_size * sizeof(double));
+      dbm_mpi_alloc_mem(packed.max_data_size * sizeof(double));
 
   return packed; // Ownership of packed transfers to caller.
 }
@@ -509,10 +502,10 @@ static dbm_pack_t *sendrecv_pack(const int itick, const int nticks,
  ******************************************************************************/
 static void free_packed_matrix(dbm_packed_matrix_t *packed) {
   dbm_mpi_free_mem(packed->recv_pack.blocks);
-  dbm_mempool_free(packed->recv_pack.data);
+  dbm_mpi_free_mem(packed->recv_pack.data);
   for (int ipack = 0; ipack < packed->nsend_packs; ipack++) {
     dbm_mpi_free_mem(packed->send_packs[ipack].blocks);
-    dbm_mempool_free(packed->send_packs[ipack].data);
+    dbm_mpi_free_mem(packed->send_packs[ipack].data);
   }
   free(packed->send_packs);
 }

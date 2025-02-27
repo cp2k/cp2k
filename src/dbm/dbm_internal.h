@@ -5,8 +5,13 @@
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
 
-#ifndef DBM_MULTIPLY_INTERNAL_H
-#define DBM_MULTIPLY_INTERNAL_H
+#ifndef DBM_INTERNAL_H
+#define DBM_INTERNAL_H
+
+/*******************************************************************************
+ * \brief Returns the larger of two given integer (missing from the C standard)
+ ******************************************************************************/
+#define DBM_MAX(X, Y) ((X) > (Y) ? (X) : (Y))
 
 /*******************************************************************************
  * \brief Internal struct for storing a dbm_block_t plus its norm.

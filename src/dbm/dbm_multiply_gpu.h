@@ -11,7 +11,7 @@
 #include "../offload/offload_runtime.h"
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_DBM)
 
-#include "dbm_multiply_internal.h"
+#include "dbm_internal.h"
 #include "dbm_shard.h"
 
 /*******************************************************************************
