@@ -41,7 +41,7 @@ RUN /bin/bash -c -o pipefail " \
     wget -q https://www.mpich.org/static/downloads/${MPICH_VERSION}/mpich-${MPICH_VERSION}.tar.gz; \
     tar -xf mpich-${MPICH_VERSION}.tar.gz; \
     cd mpich-${MPICH_VERSION}; \
-    ./configure --prefix='/usr/local' --enable-fast=O3 \
+    ./configure --prefix='/usr/local' --enable-fast=all,O3 \
       CFLAGS='${CFLAGS} -mtune=native' \
       CXXFLAGS='${CXXFLAGS} -mtune=native' \
       FFLAGS='${FFLAGS} -fallow-argument-mismatch -mtune=native' \
