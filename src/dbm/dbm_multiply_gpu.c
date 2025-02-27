@@ -128,7 +128,7 @@ void dbm_multiply_gpu_process_batch(const int ntasks, const dbm_task_t *batch,
   double *old_data_dev = NULL;
   if (shard_c_host->data_promised > shard_c_dev->data_allocated) {
     shard_c_dev->data_allocated =
-        ALLOCATION_FACTOR * shard_c_host->data_promised;
+        DBM_ALLOCATION_FACTOR * shard_c_host->data_promised;
     old_data_dev = shard_c_dev->data;
     shard_c_dev->data =
         dbm_mempool_device_malloc(shard_c_dev->data_allocated * sizeof(double));
@@ -174,7 +174,7 @@ void dbm_multiply_gpu_download_results(dbm_multiply_gpu_context_t *ctx) {
   // Select GPU device.
   offload_activate_chosen_device();
 
-#pragma omp parallel for schedule(dynamic)
+#pragma omp parallel for DBM_OMP_SCHEDULE
   for (int i = 0; i < ctx->nshards; i++) {
     // Grow host buffer if necessary.
     dbm_shard_t *shard_c_host = &ctx->shards_c_host[i];
@@ -198,7 +198,7 @@ void dbm_multiply_gpu_stop(dbm_multiply_gpu_context_t *ctx) {
   offload_activate_chosen_device();
 
   // Wait for completion, then free gpu ressources.
-#pragma omp parallel for schedule(dynamic)
+#pragma omp parallel for DBM_OMP_SCHEDULE
   for (int i = 0; i < ctx->nshards; i++) {
     dbm_shard_gpu_t *shard_c_dev = &ctx->shards_c_dev[i];
     offloadStreamSynchronize(shard_c_dev->stream);

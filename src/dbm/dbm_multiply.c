@@ -12,12 +12,12 @@
 
 #include "../offload/offload_runtime.h"
 #include "dbm_hyperparams.h"
+#include "dbm_internal.h"
 #include "dbm_library.h"
 #include "dbm_multiply.h"
 #include "dbm_multiply_comm.h"
 #include "dbm_multiply_cpu.h"
 #include "dbm_multiply_gpu.h"
-#include "dbm_multiply_internal.h"
 
 /*******************************************************************************
  * \brief Returns the larger of two given integer (missing from the C standard).
@@ -67,7 +67,7 @@ static float *compute_rows_max_eps(const bool trans, const dbm_matrix_t *matrix,
 #pragma omp for
     for (int i = 0; i < nrows; i++) {
       const float f =
-          ((float)filter_eps) / ((float)imax(1, nblocks_per_row[i]));
+          ((float)filter_eps) / ((float)DBM_MAX(1, nblocks_per_row[i]));
       row_max_eps[i] = f * f;
     }
   } // end of omp parallel region
@@ -94,7 +94,7 @@ static backend_context_t *backend_start(const dbm_matrix_t *matrix_c) {
   backend_context_t *ctx = calloc(1, sizeof(backend_context_t));
 
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_DBM)
-  dbm_multiply_gpu_start(MAX_BATCH_SIZE, dbm_get_num_shards(matrix_c),
+  dbm_multiply_gpu_start(DBM_MAX_BATCH_SIZE, dbm_get_num_shards(matrix_c),
                          matrix_c->shards, &ctx->gpu);
 #else
   (void)matrix_c; // mark as used
@@ -219,12 +219,12 @@ static void multiply_packs(const bool transa, const bool transb,
       }
     }
 
-#pragma omp for collapse(2) schedule(dynamic, 1)
+#pragma omp for collapse(2) DBM_OMP_SCHEDULE
     for (int shard_row = 0; shard_row < nshard_rows; shard_row++) {
       for (int shard_col = 0; shard_col < nshard_cols; shard_col++) {
         const int ishard = shard_row * nshard_cols + shard_col;
         dbm_shard_t *shard_c = &matrix_c->shards[ishard];
-        dbm_task_t batch[MAX_BATCH_SIZE];
+        dbm_task_t batch[DBM_MAX_BATCH_SIZE];
         int mnk_range[][2] = {{INT_MAX, 0}, {INT_MAX, 0}, {INT_MAX, 0}};
         int ntasks = 0;
 
@@ -299,7 +299,7 @@ static void multiply_packs(const bool transa, const bool transb,
             min_max(mnk_range[1], n);
             min_max(mnk_range[2], k);
 
-            if (ntasks == MAX_BATCH_SIZE) {
+            if (ntasks == DBM_MAX_BATCH_SIZE) {
               backend_process_batch(ntasks, batch, mnk_range, alpha, pack_a,
                                     pack_b, ishard, shard_c, ctx);
               mnk_range[0][0] = mnk_range[1][0] = mnk_range[2][0] = INT_MAX;

@@ -7,7 +7,7 @@
 #ifndef DBM_MULTIPLY_CPU_H
 #define DBM_MULTIPLY_CPU_H
 
-#include "dbm_multiply_internal.h"
+#include "dbm_internal.h"
 #include "dbm_shard.h"
 
 /*******************************************************************************

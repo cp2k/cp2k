@@ -111,7 +111,7 @@ static void *internal_mempool_malloc(const size_t size, const bool on_device) {
     dbm_memchunk_t **indirect = &mempool_available_head, **hit = NULL;
     while (*indirect != NULL) {
       if ((*indirect)->on_device == on_device) {
-        const size_t max_size = (size_t)(ALLOCATION_FACTOR * size /*+ 0.5*/);
+        const size_t max_size = DBM_ALLOCATION_FACTOR * size;
         const size_t hit_size = (*indirect)->size;
         if (NULL == hit) { // Fallback
           hit = indirect;

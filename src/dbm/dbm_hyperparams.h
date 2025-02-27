@@ -8,13 +8,12 @@
 #ifndef DBM_HYPERPARAMS_H
 #define DBM_HYPERPARAMS_H
 
-// TODO: Tune parameters, check if dynamic OpenMP scheduling is really faster?
-
-#define HASHTABLE_FACTOR 3.0
-#define ALLOCATION_FACTOR 1.5
-#define SHARDS_PER_THREAD 1.0
-#define MAX_BATCH_SIZE 30000
-#define BATCH_NUM_BUCKETS 1000
+#define DBM_OMP_SCHEDULE schedule(dynamic, 1)
+#define DBM_HASHTABLE_FACTOR 3.0
+#define DBM_ALLOCATION_FACTOR 1.5
+#define DBM_SHARDS_PER_THREAD 1.0
+#define DBM_MAX_BATCH_SIZE 30000
+#define DBM_BATCH_NUM_BUCKETS 1000
 
 #endif
 

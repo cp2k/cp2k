@@ -81,19 +81,18 @@ void dbm_multiply_cpu_process_batch(const int ntasks, dbm_task_t batch[ntasks],
 #if defined(__LIBXSMM)
 
   // Sort tasks approximately by m,n,k via bucket sort.
-  int buckets[BATCH_NUM_BUCKETS];
-  memset(buckets, 0, BATCH_NUM_BUCKETS * sizeof(int));
+  int buckets[DBM_BATCH_NUM_BUCKETS] = {0};
   for (int itask = 0; itask < ntasks; ++itask) {
-    const int i = hash(batch[itask]) % BATCH_NUM_BUCKETS;
+    const int i = hash(batch[itask]) % DBM_BATCH_NUM_BUCKETS;
     ++buckets[i];
   }
-  for (int i = 1; i < BATCH_NUM_BUCKETS; ++i) {
+  for (int i = 1; i < DBM_BATCH_NUM_BUCKETS; ++i) {
     buckets[i] += buckets[i - 1];
   }
-  assert(buckets[BATCH_NUM_BUCKETS - 1] == ntasks);
+  assert(buckets[DBM_BATCH_NUM_BUCKETS - 1] == ntasks);
   int batch_order[ntasks];
   for (int itask = 0; itask < ntasks; ++itask) {
-    const int i = hash(batch[itask]) % BATCH_NUM_BUCKETS;
+    const int i = hash(batch[itask]) % DBM_BATCH_NUM_BUCKETS;
     --buckets[i];
     batch_order[buckets[i]] = itask;
   }

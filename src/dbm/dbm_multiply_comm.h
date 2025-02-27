@@ -9,8 +9,8 @@
 #define DBM_MULTIPLY_COMM_H
 
 #include "dbm_distribution.h"
+#include "dbm_internal.h"
 #include "dbm_matrix.h"
-#include "dbm_multiply_internal.h"
 
 #include <stdbool.h>
 
