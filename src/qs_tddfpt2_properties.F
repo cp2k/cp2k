@@ -1241,7 +1241,7 @@ CONTAINS
 
       CALL get_multipoles_mo(fm_multipole_ai, fm_multipole_ij, fm_multipole_ab, &
                              qs_env, mo_coeff, ref_point_multipole, 2, &
-                             nmo_occ(1), nmo_virt(1), blacs_env, 1)
+                             nmo_occ(1), nmo_virt(1), blacs_env)
 
       CALL cp_fm_release(mo_coeff)
 

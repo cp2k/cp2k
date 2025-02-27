@@ -30,8 +30,7 @@ MODULE bse_util
                                               cp_fm_cholesky_invert
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
-                                              cp_fm_struct_type, &
-                                              cp_fm_struct_write_info
+                                              cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
                                               cp_fm_release,&
@@ -1712,8 +1711,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE get_multipoles_mo(fm_multipole_ai_trunc, fm_multipole_ij_trunc, fm_multipole_ab_trunc, &
                                 qs_env, mo_coeff, rpoint, n_moments, &
-                                homo_red, virtual_red, context_BSE, &
-                                unit_nr)
+                                homo_red, virtual_red, context_BSE)
 
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:), &
          INTENT(INOUT)                                   :: fm_multipole_ai_trunc, &
@@ -1724,7 +1722,6 @@ CONTAINS
       REAL(dp), ALLOCATABLE, DIMENSION(:), INTENT(INOUT) :: rpoint
       INTEGER, INTENT(IN)                                :: n_moments, homo_red, virtual_red
       TYPE(cp_blacs_env_type), POINTER                   :: context_BSE
-      INTEGER                                            :: unit_nr
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_multipoles_mo'
 
@@ -1732,7 +1729,7 @@ CONTAINS
                                                             n_virt, nao, nmo_mp2
       REAL(KIND=dp), DIMENSION(:), POINTER               :: ref_point
       TYPE(cp_fm_struct_type), POINTER :: fm_struct_mp_ab_trunc, fm_struct_mp_ai_trunc, &
-         fm_struct_mp_ij_trunc, fm_struct_multipoles_ao, fm_struct_nmo_nmo, fm_struct_nao_nmo
+         fm_struct_mp_ij_trunc, fm_struct_multipoles_ao, fm_struct_nao_nmo, fm_struct_nmo_nmo
       TYPE(cp_fm_type)                                   :: fm_work
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_multipole_per_dir
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_multipole, matrix_s
@@ -1780,14 +1777,8 @@ CONTAINS
       CALL get_mo_set(mo_set=mos(1), homo=n_occ, nao=nao)
       ! Takes into account removed nullspace values from SVD
       nmo_mp2 = mo_coeff(1)%matrix_struct%ncol_global
-
       n_virt = nmo_mp2 - n_occ
-      print *, "MG - bse - nao", nao
-      print *, "MG - bse - nmo_mp2", nmo_mp2
-      print *, "MG - bse - n_occ", n_occ
-      IF (unit_nr >0) THEN
-         CALL cp_fm_struct_write_info(mo_coeff(1)%matrix_struct,unit_nr)
-      END IF
+
       ! At the end, we need four different layouts of matrices in this multiplication, e.g. for a dipole:
       ! D_pq = full multipole matrix for occupied and unoccupied
       ! Final result:D_pq= C_{mu p}        <\mu|\vec{r}|\nu>        C_{\nu q}              EQ.I
@@ -1839,8 +1830,7 @@ CONTAINS
          ! Now obtain the multipoles by the final multiplication;
          ! We do that inside the loop to obtain multipoles per axis for print
          CALL parallel_gemm('T', 'N', nmo_mp2, nmo_mp2, nao, 1.0_dp, mo_coeff(1), fm_work, 0.0_dp, fm_multipole_per_dir(idir))
-         
-         CALL fm_write_thresh(fm_multipole_per_dir(idir), 1.0E-3_dp, "Multipole matrix", unit_nr, .TRUE.)
+
          ! Truncate full matrix to the BSE indices
          ! D_ai
          CALL cp_fm_to_fm_submat_general(fm_multipole_per_dir(idir), &
@@ -1932,69 +1922,5 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE trace_exciton_descr
-
-   SUBROUTINE fm_write_thresh(fm, thresh, header, unit_nr, abs_vals)
-
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm
-      REAL(KIND=dp), INTENT(IN)                          :: thresh
-      CHARACTER(LEN=*), INTENT(IN)                       :: header
-      INTEGER, INTENT(IN)                                :: unit_nr
-      LOGICAL, OPTIONAL                                  :: abs_vals
-
-      CHARACTER(LEN=*), PARAMETER :: my_footer = " | ENDING WRITING OF MATRIX", &
-         routineN = 'fm_write_thresh'
-
-      INTEGER                                            :: handle, i, j, ncol_local, nrow_local
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      LOGICAL                                            :: my_abs_vals
-
-      CALL timeset(routineN, handle)
-
-      IF (PRESENT(abs_vals)) THEN
-         my_abs_vals = abs_vals
-      ELSE
-         my_abs_vals = .FALSE.
-      END IF
-
-      CALL cp_fm_get_info(matrix=fm, &
-                          nrow_local=nrow_local, &
-                          ncol_local=ncol_local, &
-                          row_indices=row_indices, &
-                          col_indices=col_indices)
-
-      IF (unit_nr > 0) THEN
-         WRITE (unit_nr, *) header
-      END IF
-      IF (my_abs_vals) THEN
-         DO i = 1, nrow_local
-            DO j = 1, ncol_local
-               IF (ABS(fm%local_data(i, j)) > thresh) THEN
-                  IF (unit_nr > 0) THEN
-                     WRITE (unit_nr, "(A7,T10,I5,T20,I5,T30,F13.5)") header, row_indices(i), col_indices(j), &
-                        ABS(fm%local_data(i, j))
-                  END IF
-               END IF
-            END DO
-         END DO
-      ELSE
-         DO i = 1, nrow_local
-            DO j = 1, ncol_local
-               IF (ABS(fm%local_data(i, j)) > thresh) THEN
-                  IF (unit_nr > 0) THEN
-                     WRITE (unit_nr, "(A7,T10,I5,T20,I5,T30,F13.5)") header, row_indices(i), col_indices(j), &
-                        fm%local_data(i, j)
-                  END IF
-               END IF
-            END DO
-         END DO
-      END IF
-      CALL fm%matrix_struct%para_env%sync()
-      IF (unit_nr > 0) THEN
-         WRITE (unit_nr, *) my_footer
-      END IF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE
 
 END MODULE

@@ -123,9 +123,9 @@ CONTAINS
       CHARACTER(4)                                       :: occ_virt
       CHARACTER(LEN=40)                                  :: line
       INTEGER :: dimen, gw_corr_lev_occ, gw_corr_lev_tot, gw_corr_lev_virt, handle, homo, &
-         homo_reduced_bse, homo_startindex_bse, i_img, ikp, irep, ispin, iunit, myfun, myfun_aux, &
-         myfun_prim, n_level_gw, n_level_gw_ref, n_rep_hf, nkp, nkp_Sigma, nmo, nspins, print_exx, &
-         virtual_reduced_bse, virtual_startindex_bse, max_corr_lev_occ, max_corr_lev_virt
+         homo_reduced_bse, homo_startindex_bse, i_img, ikp, irep, ispin, iunit, max_corr_lev_occ, &
+         max_corr_lev_virt, myfun, myfun_aux, myfun_prim, n_level_gw, n_level_gw_ref, n_rep_hf, &
+         nkp, nkp_Sigma, nmo, nspins, print_exx, virtual_reduced_bse, virtual_startindex_bse
       LOGICAL :: calc_ints, charge_constrain_tmp, do_admm_rpa, do_hfx, do_kpoints_cubic_RPA, &
          do_kpoints_from_Gamma, do_ri_Sigma_x, really_read_line
       REAL(KIND=dp) :: E_GAP_GW, E_HOMO_GW, E_LUMO_GW, eh1, ehfx, eigval_dft, eigval_hf_at_dft, &
@@ -561,9 +561,6 @@ CONTAINS
             ! If SVD is used to invert overlap matrix (for CHOLESKY OFF), some MOs are removed
             ! Therefore, setting the number of gw_corr_lev_virt simply to dimen - homo leads to index problems
             ! Instead, we take into account the removed MOs
-            print *, "MG - homo", homo
-            print *, "MG - nmo", nmo
-            print *, "MG - dimen", dimen
             max_corr_lev_occ = homo
             max_corr_lev_virt = nmo - homo
 
@@ -851,8 +848,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'transform_sigma_x_minus_vxc_to_MO_basis'
 
       INTEGER :: dimen, gw_corr_lev_occ, gw_corr_lev_virt, handle, homo, i_global, iiB, ikp, &
-         ispin, j_global, jjB, ncol_local, nkp, nrow_local, nspins, &
-         max_corr_lev_occ, max_corr_lev_virt 
+         ispin, j_global, jjB, max_corr_lev_occ, max_corr_lev_virt, ncol_local, nkp, nrow_local, &
+         nspins
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       REAL(KIND=dp)                                      :: imval, reval

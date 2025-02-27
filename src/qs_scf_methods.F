@@ -392,7 +392,7 @@ CONTAINS
             CALL cp_fm_release(work_red2)
          ELSE
             CALL cp_fm_symm("L", "U", nao, nao, 1.0_dp, matrix_ks_fm, ortho, 0.0_dp, work)
-            CALL parallel_gemm("T", "N", nao, nao, nao, 1.0_dp, ortho, work, 0.0_dp, matrix_ks_fm)   
+            CALL parallel_gemm("T", "N", nao, nao, nao, 1.0_dp, ortho, work, 0.0_dp, matrix_ks_fm)
             IF (do_level_shift) &
                CALL shift_unocc_mos(matrix_ks_fm=matrix_ks_fm, mo_coeff=mo_coeff, homo=homo, &
                                     level_shift=level_shift, is_triangular=.FALSE., matrix_u_fm=matrix_u_fm)
