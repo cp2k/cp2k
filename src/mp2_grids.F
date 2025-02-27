@@ -177,10 +177,10 @@ CONTAINS
             wj(jquad) = x_tw(jquad + num_integ_points)
          END DO
 
-         ! for the smaller grids, the factor of 4 is included in get_rpa_minimax_coeff for wj 
+         ! for the smaller grids, the factor of 4 is included in get_rpa_minimax_coeff for wj
          IF (num_integ_points >= 26) THEN
-             wj(:)=wj(:)*4.0_dp
-         ENDIF
+            wj(:) = wj(:)*4.0_dp
+         END IF
 
          DEALLOCATE (x_tw)
 
@@ -1532,26 +1532,29 @@ CONTAINS
 !> \brief returns minimal and maximal energy values for the E_range for the minimax grid selection
 !> \param qs_env ...
 !> \param para_env ...
-!> \param e_fermi ...
+!> \param homo index of the homo level for the respective spin channel
+!> \param Eigenval eigenvalues
+!> \param do_ri_sos_laplace_mp2 flag for SOS-MP2
+!> \param do_kpoints_cubic_RPA flag for cubic-scaling RPA with k-points
+!> \param Emin minimal eigenvalue difference (gap of the system)
+!> \param Emax maximal eigenvalue difference
+!> \param e_fermi Fermi level
 ! **************************************************************************************************
-   SUBROUTINE init_greenx_grids(qs_env, para_env, homo, Eigenval, do_ri_sos_laplace_mp2,&
+   SUBROUTINE init_greenx_grids(qs_env, para_env, homo, Eigenval, do_ri_sos_laplace_mp2, &
                                 do_kpoints_cubic_RPA, Emin, Emax, e_fermi)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: Eigenval
-      LOGICAL, INTENT(IN)                                :: do_ri_sos_laplace_mp2
-      LOGICAL, INTENT(IN)                                :: do_kpoints_cubic_RPA
-      REAL(KIND=dp), INTENT(OUT)                         :: Emin, Emax
-      REAL(KIND=dp), INTENT(OUT)                         :: e_fermi
+      LOGICAL, INTENT(IN)                                :: do_ri_sos_laplace_mp2, &
+                                                            do_kpoints_cubic_RPA
+      REAL(KIND=dp), INTENT(OUT)                         :: Emin, Emax, e_fermi
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'init_greenx_grids'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'init_greenx_grids'
 
-      INTEGER                                            :: handle
-      INTEGER                                            :: ispin, nspins
-      LOGICAL                                            :: my_do_kpoints,&
-                                                            my_open_shell
+      INTEGER                                            :: handle, ispin, nspins
+      LOGICAL                                            :: my_do_kpoints, my_open_shell
       REAL(KIND=dp)                                      :: my_E_Range
       TYPE(section_vals_type), POINTER                   :: input
 

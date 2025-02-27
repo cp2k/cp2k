@@ -116,8 +116,9 @@ MODULE rpa_main
                                               remove_scaling_factor_rpa
    USE util,                            ONLY: get_limit
 #if defined (__GREENX)
-   USE gx_minimax,                      ONLY:  gx_minimax_grid      
+   USE gx_minimax,                      ONLY: gx_minimax_grid
 #endif
+
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -1116,8 +1117,8 @@ CONTAINS
 
       COMPLEX(KIND=dp), ALLOCATABLE, &
          DIMENSION(:, :, :, :)                           :: vec_Sigma_c_gw
-      INTEGER :: count_ev_sc_GW, cut_memory, group_size_P, gw_corr_lev_tot, handle, handle3, i, &
-         ikp_local, ispin, iter_evGW, iter_sc_GW0, j, jquad, min_bsize, mm_style, nkp, &
+      INTEGER :: count_ev_sc_GW, cut_memory, gi, group_size_P, gw_corr_lev_tot, handle, handle3, &
+         i, ierr, ikp_local, ispin, iter_evGW, iter_sc_GW0, j, jquad, min_bsize, mm_style, nkp, &
          nkp_self_energy, nmo, nspins, num_3c_repl, num_cells_dm, num_fit_points, Pspin, Qspin, &
          size_P
       INTEGER(int_8)                                     :: dbcsr_nflop
@@ -1129,10 +1130,10 @@ CONTAINS
          do_periodic, do_print, do_ri_Sigma_x, exit_ev_gw, first_cycle, &
          first_cycle_periodic_correction, my_open_shell, print_ic_values
       LOGICAL, ALLOCATABLE, DIMENSION(:, :, :, :, :)     :: has_mat_P_blocks
-      REAL(KIND=dp) :: a_scaling, alpha, dbcsr_time, e_exchange, e_exchange_corr, eps_filter, &
-         eps_filter_im_time, ext_scaling, fermi_level_offset, fermi_level_offset_input, &
-         my_flop_rate, omega, omega_max_fit, omega_old, tau, tau_old, &
-         Emin, Emax, max_errors_greenx(3), cosft_duality_error_greenx
+      REAL(KIND=dp) :: a_scaling, alpha, cosft_duality_error_greenx, dbcsr_time, e_exchange, &
+         e_exchange_corr, Emax, Emin, eps_filter, eps_filter_im_time, ext_scaling, fermi_level_offset, &
+         fermi_level_offset_input, max_errors_greenx(3), my_flop_rate, omega, omega_max_fit, &
+         omega_old, tau, tau_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: delta_corr, e_fermi, tau_tj, tau_wj, tj, &
                                                             trace_Qomega, vec_omega_fit_gw, wj, &
                                                             wkp_W
@@ -1169,7 +1170,6 @@ CONTAINS
       TYPE(rpa_grad_type)                                :: rpa_grad
       TYPE(rpa_sigma_type)                               :: rpa_sigma
       TYPE(two_dim_int_array), ALLOCATABLE, DIMENSION(:) :: t_3c_O_mo_ind
-      INTEGER                                            :: gi, ierr
 
       CALL timeset(routineN, handle)
 
@@ -1283,71 +1283,71 @@ CONTAINS
       IF (do_minimax_quad .OR. do_ri_sos_laplace_mp2) THEN
          do_print = .NOT. do_ic_model
 #if defined (__GREENX)
-         CALL init_greenx_grids(qs_env, para_env, homo, Eigenval, do_ri_sos_laplace_mp2,&
+         CALL init_greenx_grids(qs_env, para_env, homo, Eigenval, do_ri_sos_laplace_mp2, &
                                 do_kpoints_cubic_RPA, Emin, Emax, e_fermi(1))
-         CALL gx_minimax_grid(num_integ_points, Emin, Emax, tau_tj, tau_wj, tj, wj,&
-                              weights_cos_tf_t_to_w,weights_cos_tf_w_to_t,weights_sin_tf_t_to_w,&
-                              max_errors_greenx, cosft_duality_error_greenx, ierr,&
-                              bare_cos_sin_weights=.TRUE.,&
+         CALL gx_minimax_grid(num_integ_points, Emin, Emax, tau_tj, tau_wj, tj, wj, &
+                              weights_cos_tf_t_to_w, weights_cos_tf_w_to_t, weights_sin_tf_t_to_w, &
+                              max_errors_greenx, cosft_duality_error_greenx, ierr, &
+                              bare_cos_sin_weights=.TRUE., &
                               regularization=qs_env%mp2_env%ri_g0w0%regularization_minimax)
          ! Factor 4 is hard-coded in the RPA weights in the internal CP2K minimax routines
-         wj(:)=wj(:)*4.0_dp
-         IF(ierr == 0) THEN
-           IF (unit_nr > 0) THEN
-              WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
-                "GREENX MINIMAX_INFO| Number of integration points:", num_integ_points 
-              WRITE (UNIT=unit_nr, FMT="(T3,A,T61,3F20.7)") &
-                "GREENX MINIMAX_INFO| Gap (Emin):", Emin
-              WRITE (UNIT=unit_nr, FMT="(T3,A,T61,3F20.7)") &
-                "GREENX MINIMAX_INFO| Maximum eigenvalue difference (Emax):", Emax
-              WRITE (UNIT=unit_nr, FMT="(T3,A,T61,3F20.4)") &
-                "GREENX MINIMAX_INFO| Energy range (Emax/Emin):", Emax/Emin
-              WRITE (UNIT=unit_nr, FMT="(T3,A,T54,A,T72,A)") &
-                    "GREENX MINIMAX_INFO| Frequency grid (scaled):", "Weights", "Abscissas"
-              DO gi = 1, num_integ_points
-                 WRITE (UNIT=unit_nr, FMT="(T41,F20.10,F20.10)") wj(gi), tj(gi)
-              END DO
-              WRITE (UNIT=unit_nr, FMT="(T3,A,T54,A,T72,A)") &
-                    "GREENX MINIMAX_INFO| Time grid (scaled):", "Weights", "Abscissas"
-              DO gi = 1, num_integ_points
-                 WRITE (UNIT=unit_nr, FMT="(T41,F20.10,F20.10)") tau_wj(gi), tau_tj(gi)
-              END DO
-             CALL m_flush(unit_nr)
-           END IF
+         wj(:) = wj(:)*4.0_dp
+         IF (ierr == 0) THEN
+            IF (unit_nr > 0) THEN
+               WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
+                  "GREENX MINIMAX_INFO| Number of integration points:", num_integ_points
+               WRITE (UNIT=unit_nr, FMT="(T3,A,T61,3F20.7)") &
+                  "GREENX MINIMAX_INFO| Gap (Emin):", Emin
+               WRITE (UNIT=unit_nr, FMT="(T3,A,T61,3F20.7)") &
+                  "GREENX MINIMAX_INFO| Maximum eigenvalue difference (Emax):", Emax
+               WRITE (UNIT=unit_nr, FMT="(T3,A,T61,3F20.4)") &
+                  "GREENX MINIMAX_INFO| Energy range (Emax/Emin):", Emax/Emin
+               WRITE (UNIT=unit_nr, FMT="(T3,A,T54,A,T72,A)") &
+                  "GREENX MINIMAX_INFO| Frequency grid (scaled):", "Weights", "Abscissas"
+               DO gi = 1, num_integ_points
+                  WRITE (UNIT=unit_nr, FMT="(T41,F20.10,F20.10)") wj(gi), tj(gi)
+               END DO
+               WRITE (UNIT=unit_nr, FMT="(T3,A,T54,A,T72,A)") &
+                  "GREENX MINIMAX_INFO| Time grid (scaled):", "Weights", "Abscissas"
+               DO gi = 1, num_integ_points
+                  WRITE (UNIT=unit_nr, FMT="(T41,F20.10,F20.10)") tau_wj(gi), tau_tj(gi)
+               END DO
+               CALL m_flush(unit_nr)
+            END IF
          ELSE
-           IF (unit_nr > 0) THEN
-              WRITE (UNIT=unit_nr, FMT="(T3,A,T75)") &
-                    "GREENX MINIMAX_INFO| Grid not available, use internal CP2K grids"
-              CALL m_flush(unit_nr)
-           ENDIF
-           IF(ALLOCATED(tau_tj)) THEN 
-             DEALLOCATE(tau_tj)
-           ENDIF
-           IF(ALLOCATED(tau_wj)) THEN 
-             DEALLOCATE(tau_wj)
-           ENDIF
-           IF(ALLOCATED(tj)) THEN 
-             DEALLOCATE(tj)
-           ENDIF
-           IF(ALLOCATED(wj)) THEN 
-             DEALLOCATE(wj)
-           ENDIF
-           IF(ALLOCATED(weights_cos_tf_t_to_w)) THEN 
-             DEALLOCATE(weights_cos_tf_t_to_w)
-           ENDIF
-           IF(ALLOCATED(weights_cos_tf_w_to_t)) THEN 
-             DEALLOCATE(weights_cos_tf_w_to_t)
-           ENDIF
-           IF(ALLOCATED(weights_sin_tf_t_to_w)) THEN 
-             DEALLOCATE(weights_sin_tf_t_to_w)
-           ENDIF
-           CALL get_minimax_grid(para_env, unit_nr, homo, Eigenval, num_integ_points, do_im_time, &
-                                 do_ri_sos_laplace_mp2, do_print, &
-                                 tau_tj, tau_wj, qs_env, do_gw_im_time, &
-                                 do_kpoints_cubic_RPA, e_fermi(1), tj, wj, &
-                                 weights_cos_tf_t_to_w, weights_cos_tf_w_to_t, weights_sin_tf_t_to_w, &
-                                 qs_env%mp2_env%ri_g0w0%regularization_minimax)
-         ENDIF
+            IF (unit_nr > 0) THEN
+               WRITE (UNIT=unit_nr, FMT="(T3,A,T75)") &
+                  "GREENX MINIMAX_INFO| Grid not available, use internal CP2K grids"
+               CALL m_flush(unit_nr)
+            END IF
+            IF (ALLOCATED(tau_tj)) THEN
+               DEALLOCATE (tau_tj)
+            END IF
+            IF (ALLOCATED(tau_wj)) THEN
+               DEALLOCATE (tau_wj)
+            END IF
+            IF (ALLOCATED(tj)) THEN
+               DEALLOCATE (tj)
+            END IF
+            IF (ALLOCATED(wj)) THEN
+               DEALLOCATE (wj)
+            END IF
+            IF (ALLOCATED(weights_cos_tf_t_to_w)) THEN
+               DEALLOCATE (weights_cos_tf_t_to_w)
+            END IF
+            IF (ALLOCATED(weights_cos_tf_w_to_t)) THEN
+               DEALLOCATE (weights_cos_tf_w_to_t)
+            END IF
+            IF (ALLOCATED(weights_sin_tf_t_to_w)) THEN
+               DEALLOCATE (weights_sin_tf_t_to_w)
+            END IF
+            CALL get_minimax_grid(para_env, unit_nr, homo, Eigenval, num_integ_points, do_im_time, &
+                                  do_ri_sos_laplace_mp2, do_print, &
+                                  tau_tj, tau_wj, qs_env, do_gw_im_time, &
+                                  do_kpoints_cubic_RPA, e_fermi(1), tj, wj, &
+                                  weights_cos_tf_t_to_w, weights_cos_tf_w_to_t, weights_sin_tf_t_to_w, &
+                                  qs_env%mp2_env%ri_g0w0%regularization_minimax)
+         END IF
 #else
          CALL get_minimax_grid(para_env, unit_nr, homo, Eigenval, num_integ_points, do_im_time, &
                                do_ri_sos_laplace_mp2, do_print, &
