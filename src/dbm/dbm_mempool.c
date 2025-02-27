@@ -68,13 +68,12 @@ static void actual_free(void *memory, const bool on_device) {
  * \brief Private struct for storing a chunk of memory.
  * \author Ole Schuett
  ******************************************************************************/
-struct dbm_memchunk {
+typedef struct dbm_memchunk {
   bool on_device;
   size_t size;
   void *mem;
   struct dbm_memchunk *next;
-};
-typedef struct dbm_memchunk dbm_memchunk_t;
+} dbm_memchunk_t;
 
 /*******************************************************************************
  * \brief Private linked list of memory chunks that are available.
@@ -108,24 +107,28 @@ static void *internal_mempool_malloc(const size_t size, const bool on_device) {
 #pragma omp critical(dbm_mempool_modify)
   {
     // Find a suitable chunk in mempool_available.
-    dbm_memchunk_t **indirect = &mempool_available_head, **hit = NULL;
-    while (*indirect != NULL) {
+    dbm_memchunk_t **indirect = &mempool_available_head;
+    dbm_memchunk_t **hit = NULL, **fallback = NULL;
+    for (; NULL != *indirect; indirect = &(*indirect)->next) {
       if ((*indirect)->on_device == on_device) {
-        const size_t max_size = DBM_ALLOCATION_FACTOR * size;
-        const size_t hit_size = (*indirect)->size;
-        if (NULL == hit) { // Fallback
+        if ((*indirect)->size < size) {
+          if (NULL == fallback || (*fallback)->size < (*indirect)->size) {
+            fallback = indirect;
+          }
+        } else if (NULL == hit || (*indirect)->size < (*hit)->size) {
           hit = indirect;
-        }
-        if (size <= hit_size && hit_size <= max_size) {
-          hit = indirect;
-          break;
+          if (size == (*hit)->size) {
+            break;
+          }
         }
       }
-      indirect = &(*indirect)->next;
+    }
+    if (NULL == hit) {
+      hit = fallback;
     }
 
     // If a chunck was found, remove it from mempool_available.
-    if (hit != NULL) {
+    if (NULL != hit) {
       chunk = *hit;
       *hit = chunk->next;
       assert(chunk->on_device == on_device);
