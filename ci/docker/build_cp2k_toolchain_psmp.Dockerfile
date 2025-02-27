@@ -126,22 +126,23 @@ RUN /bin/bash -c -o pipefail " \
     source ./cmake/cmake_cp2k.sh "${BUILD_TYPE}" psmp |& tee cmake.log"
 
 # Compile CP2K
+ARG LOG_LINES=100
 WORKDIR /opt/cp2k/build
 RUN /bin/bash -c -o pipefail " \
     source /opt/cp2k/tools/toolchain/install/setup; \
     echo -e '\nCompiling CP2K ... \c'; \
-    if ninja --verbose | tee ninja.log; then \
+    if ninja --verbose &> ninja.log; then \
       echo -e 'done\n'; \
       echo -e 'Installing CP2K ... \c'; \
       if ninja --verbose install &> install.log; then \
         echo -e 'done\n'; \
       else \
         echo -e 'failed\n'; \
-        cat install.log; \
+        tail -n ${LOG_LINES} install.log; \
       fi; \
     else \
       echo -e 'failed\n'; \
-      cat ninja.log; \
+      tail -n ${LOG_LINES} ninja.log; \
     fi"
 
 # Update environment variables
