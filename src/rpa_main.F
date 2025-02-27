@@ -1295,41 +1295,22 @@ CONTAINS
            IF (unit_nr > 0) THEN
               WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
                 "GREENX MINIMAX_INFO| Number of integration points:", num_integ_points 
-              WRITE (UNIT=unit_nr, FMT="(T3,A,T75,3F20.10)") &
-                "GREENX MINIMAX_INFO| Emin, Emax, E_rgange:", Emin, Emax, Emax/Emin
-              WRITE (UNIT=unit_nr, FMT="(T3,A,T75,F20.10)") &
-                "GREENX MINIMAX_INFO| Duality error:", cosft_duality_error_greenx
-              WRITE (UNIT=unit_nr, FMT="(T3,A,T75)") &
-                    "GREENX MINIMAX_INFO| Frequency grid"
+              WRITE (UNIT=unit_nr, FMT="(T3,A,T61,3F20.7)") &
+                "GREENX MINIMAX_INFO| Gap (Emin):", Emin
+              WRITE (UNIT=unit_nr, FMT="(T3,A,T61,3F20.7)") &
+                "GREENX MINIMAX_INFO| Maximum eigenvalue difference (Emax):", Emax
+              WRITE (UNIT=unit_nr, FMT="(T3,A,T61,3F20.4)") &
+                "GREENX MINIMAX_INFO| Energy range (Emax/Emin):", Emax/Emin
+              WRITE (UNIT=unit_nr, FMT="(T3,A,T54,A,T72,A)") &
+                    "GREENX MINIMAX_INFO| Frequency grid (scaled):", "Weights", "Abscissas"
               DO gi = 1, num_integ_points
                  WRITE (UNIT=unit_nr, FMT="(T41,F20.10,F20.10)") wj(gi), tj(gi)
               END DO
-              WRITE (UNIT=unit_nr, FMT="(T3,A,T75)") &
-                    "GREENX MINIMAX_INFO| Time grid"
+              WRITE (UNIT=unit_nr, FMT="(T3,A,T54,A,T72,A)") &
+                    "GREENX MINIMAX_INFO| Time grid (scaled):", "Weights", "Abscissas"
               DO gi = 1, num_integ_points
                  WRITE (UNIT=unit_nr, FMT="(T41,F20.10,F20.10)") tau_wj(gi), tau_tj(gi)
               END DO
-              WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
-                    "GREENX MINIMAX_INFO| weights_cos_tf_t_to_w"
-              DO gi = 1, num_integ_points
-                DO jquad = 1, num_integ_points
-                 WRITE (UNIT=unit_nr, FMT="(T41,2i6,F20.10)") gi, jquad,  weights_cos_tf_t_to_w(gi,jquad) 
-                ENDDO
-              ENDDO
-              WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
-                    "GREENX MINIMAX_INFO| weights_cos_tf_w_to_t"
-              DO gi = 1, num_integ_points
-                DO jquad = 1, num_integ_points
-                 WRITE (UNIT=unit_nr, FMT="(T41,2i6,F20.10)") gi, jquad,  weights_cos_tf_w_to_t(gi,jquad)
-                ENDDO
-              ENDDO
-              WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
-                    "weights_sin_tf_t_to_w"
-              DO gi = 1, num_integ_points
-                DO jquad = 1, num_integ_points
-                 WRITE (UNIT=unit_nr, FMT="(T41,2i6,F20.10)") gi, jquad, weights_sin_tf_t_to_w(gi,jquad)
-                ENDDO
-              ENDDO
              CALL m_flush(unit_nr)
            END IF
          ELSE
