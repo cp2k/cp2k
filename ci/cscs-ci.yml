@@ -6,12 +6,16 @@ stages:
   - test
 
 variables:
-  PERSIST_IMAGE_NAME: $CSCS_REGISTRY_PATH/cp2k:$CI_COMMIT_SHORT_SHA
+  PERSIST_IMAGE_NAME: ${CSCS_REGISTRY_PATH}/cp2k:${CI_COMMIT_SHORT_SHA}
 
 build cp2k eiger:
   extends: .container-builder-cscs-zen2
   stage: build
   timeout: 1h
+  after_script:
+    - echo PERSIST_IMAGE_NAME=${PERSIST_IMAGE_NAME}
+    - sarus images
+    - podman images
   variables:
     DOCKER_BUILD_ARGS: '[
       "BASE_IMAGE",
@@ -29,9 +33,10 @@ test cp2k eiger:
   needs: ["build cp2k eiger"]
   timeout: 1h
   script:
-    - hostname
-    - ls -al /opt/cp2k/tests
-    - srun -v cp2k /opt/cp2k/benchmarks/CI/H2O-128_md.inp
+    - podman images
+    - podman load -i ${PERSIST_IMAGE_NAME}
+    - podman images
+    - srun cp2k /opt/cp2k/benchmarks/CI/H2O-128_md.inp
   variables:
     OMP_NUM_THREADS: 2
     SLURM_CONSTRAINT: mc
