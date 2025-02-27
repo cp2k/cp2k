@@ -1037,8 +1037,10 @@ CONTAINS
                CALL dbcsr_get_block_p(matrix=ks_matrix(is, 1)%matrix, &
                                       row=irow, col=icol, block=ksblock, found=found)
                CPASSERT(found)
-               ksblock = ksblock - 0.5_dp*( &
-                         MATMUL(ashift, sblock) + MATMUL(sblock, bshift))
+               ksblock = ksblock - 0.5_dp*(MATMUL(ashift, sblock) &
+                                           + MATMUL(sblock, bshift))
+               ksblock = ksblock - 0.5_dp*(tb%pot%vat(irow, 1) &
+                                           + tb%pot%vat(icol, 1))*sblock
             END DO
             DEALLOCATE (ashift, bshift)
          END DO
@@ -1093,8 +1095,10 @@ CONTAINS
                CALL dbcsr_get_block_p(matrix=ks_matrix(is, ic)%matrix, &
                                       row=irow, col=icol, block=ksblock, found=found)
                CPASSERT(found)
-               ksblock = ksblock - 0.5_dp*( &
-                         MATMUL(ashift, sblock) + MATMUL(sblock, bshift))
+               ksblock = ksblock - 0.5_dp*(MATMUL(ashift, sblock) &
+                                           + MATMUL(sblock, bshift))
+               ksblock = ksblock - 0.5_dp*(tb%pot%vat(irow, 1) &
+                                           + tb%pot%vat(icol, 1))*sblock
             END DO
          END DO
          CALL neighbor_list_iterator_release(nl_iterator)
