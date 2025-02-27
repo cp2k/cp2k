@@ -19,6 +19,7 @@
 "BSE_H2O_PBE_evGW0_custom_screening.inp" = [{matcher="M110", tol=2e-05, ref=14.9538}]
 "BSE_H2O_PBE_evGW0_spectra.inp"         = [{matcher="M124", tol=2e-02, ref=25.3518},
                                            {matcher="M125", tol=2e-02, ref=0.7006}]
+"TDA_H2_PBE_G0W0_CHOLESKY_OFF.inp"             = [{matcher="M109", tol=2e-05 , ref=16.9750}]
 #EOF
 #Low convergence criteria for evGW make a higher threshold necessary for these tests
 #Logic: Absolute errors (for G0W0/evGW0) should be within 1e-4, i.e. relative errors are
