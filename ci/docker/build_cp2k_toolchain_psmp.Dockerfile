@@ -30,22 +30,28 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     zlib1g-dev
 
 # Retrieve the number of available CPU cores
-ARG NUM_PROCS=64
+ARG NUM_PROCS=32
+
+# Retrieve the maximum number log file lines printed on error
+ARG LOG_LINES=100
 
 # Install an MPI version ABI-compatible with the host MPI on Cray at CSCS
 ARG MPICH_VERSION=3.1.4
-RUN wget -q https://www.mpich.org/static/downloads/${MPICH_VERSION}/mpich-${MPICH_VERSION}.tar.gz \
-    && tar -xf mpich-${MPICH_VERSION}.tar.gz \
-    && cd mpich-${MPICH_VERSION} \
-    && ./configure --prefix="/usr/local" \
-       FFLAGS="${FFLAGS} -fallow-argument-mismatch" \
-       FCFLAGS="${FCFLAGS} -fallow-argument-mismatch" \
-    && make -j ${NUM_PROCS} \
-    && make install \
-    && ldconfig \
-    && cd .. \
-    && rm -rf mpich-${MPICH_VERSION} \
-    && rm mpich-${MPICH_VERSION}.tar.gz
+RUN /bin/bash -c -o pipefail " \
+    wget -q https://www.mpich.org/static/downloads/${MPICH_VERSION}/mpich-${MPICH_VERSION}.tar.gz; \
+    tar -xf mpich-${MPICH_VERSION}.tar.gz; \
+    cd mpich-${MPICH_VERSION}; \
+    ./configure --prefix='/usr/local' --enable-fast=O3 \
+      CFLAGS='${CFLAGS} -mtune=native' \
+      CXXFLAGS='${CXXFLAGS} -mtune=native' \
+      FFLAGS='${FFLAGS} -fallow-argument-mismatch -mtune=native' \
+      FCFLAGS='${FCFLAGS} -fallow-argument-mismatch -mtune=native' \
+      &>configure.log || tail -n ${LOG_LINES} configure.log; \
+    make -j ${NUM_PROCS} &>make.log || tail -n ${LOG_LINES} make.log; \
+    make install &>install.log || tail -n ${LOG_LINES} install.log; \
+    ldconfig; cd ..; \
+    rm -rf mpich-${MPICH_VERSION} \
+    rm mpich-${MPICH_VERSION}.tar.gz"
 
 # Build CP2K toolchain
 ARG BUILD_TYPE="minimal"
@@ -126,15 +132,14 @@ RUN /bin/bash -c -o pipefail " \
     source ./cmake/cmake_cp2k.sh "${BUILD_TYPE}" psmp |& tee cmake.log"
 
 # Compile CP2K
-ARG LOG_LINES=100
 WORKDIR /opt/cp2k/build
 RUN /bin/bash -c -o pipefail " \
     source /opt/cp2k/tools/toolchain/install/setup; \
     echo -e '\nCompiling CP2K ... \c'; \
-    if ninja --verbose &> ninja.log; then \
+    if ninja --verbose &>ninja.log; then \
       echo -e 'done\n'; \
       echo -e 'Installing CP2K ... \c'; \
-      if ninja --verbose install &> install.log; then \
+      if ninja --verbose install &>install.log; then \
         echo -e 'done\n'; \
       else \
         echo -e 'failed\n'; \
