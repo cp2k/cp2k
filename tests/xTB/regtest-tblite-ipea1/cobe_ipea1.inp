@@ -1,0 +1,44 @@
+&GLOBAL
+  PRINT_LEVEL HIGH
+  PROJECT COBe
+  RUN_TYPE ENERGY
+&END GLOBAL
+
+&FORCE_EVAL
+  &DFT
+    &PRINT
+      &MOMENTS ON
+        PERIODIC .FALSE.
+        REFERENCE COM
+      &END MOMENTS
+    &END PRINT
+    &QS
+      METHOD xTB
+      &XTB
+        &TBLITE
+          METHOD IPEA1
+        &END TBLITE
+      &END XTB
+    &END QS
+    &SCF
+      EPS_SCF 1.e-8
+      MAX_SCF 100
+      SCF_GUESS MOPAC
+      &MIXING
+        ALPHA 0.2
+        METHOD DIRECT_P_MIXING
+      &END MIXING
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 20.0 20.0 20.0
+      PERIODIC NONE
+    &END CELL
+    &COORD
+      O    -0.564000    0.000000    0.000000
+      C     0.564000    0.000000    0.000000
+      Be    0.000000    4.000000    0.000000
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL
