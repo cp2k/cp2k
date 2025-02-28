@@ -33,10 +33,13 @@ FLAG_EXCEPTIONS = (
     r"GRID_DO_COLLOCATE",
     r"INTEL_MKL_VERSION",
     r"LIBINT2_MAX_AM_eri",
+    r"LIBGRPP",
+    r"M_",
     r"LIBINT_CONTRACTED_INTS",
     r"XC_MAJOR_VERSION",
     r"XC_MINOR_VERSION",
     r"NDEBUG",
+    r"M_PI",
     r"OMP_DEFAULT_NONE_WITH_OOP",
     r"FTN_NO_DEFAULT_INIT",
     r"_OPENMP",
@@ -68,6 +71,8 @@ FLAG_EXCEPTIONS = (
     r"LIBXSMM_VERSION2",
     r"LIBXSMM_VERSION3",
     r"LIBXSMM_VERSION4",
+    r"LIBGRPP_..*",
+    r"TEST_LIBGRPP_..*",
     r"__LIBXSMM2",
     r"CPVERSION",
     r"_WIN32",
@@ -118,6 +123,8 @@ C_EXTENSIONS = (".c", ".cu", ".cpp", ".cc", ".h", ".hpp")
 
 BSD_PATHS = ("src/offload/", "src/grid/", "src/dbm/", "src/base/openmp_trace.c")
 
+MIT_PATHS = "src/grpp/"
+
 
 @lru_cache(maxsize=None)
 def get_install_txt() -> str:
@@ -148,7 +155,7 @@ def check_file(path: pathlib.Path) -> List[str]:
     - undocumented preprocessor flags
     - stray unicode characters
     """
-    warnings = []
+    warnings = []  # type: List[str]
 
     fn_ext = path.suffix
     abspath = path.resolve()
@@ -192,8 +199,18 @@ def check_file(path: pathlib.Path) -> List[str]:
     # check banner
     year = datetime.now(timezone.utc).year
     bsd_licensed = any(str(path).startswith(p) for p in BSD_PATHS)
-    spdx = "BSD-3-Clause    " if bsd_licensed else "GPL-2.0-or-later"
+    # mit_licensed = any(str(path).startswith(p) for p in MIT_PATHS)
+    spdx = "GPL-2.0-or-later"
+    if bsd_licensed:
+        spdx = "BSD-3-Clause    "
+    else:
+        if str(path).startswith(MIT_PATHS):
+            spdx = "MIT             "
+        else:
+            spdx = "GPL-2.0-or-later"
+
     if fn_ext == ".F" and not content.startswith(BANNER_F.format(year, spdx)):
+        print(BANNER_F.format(year, spdx))
         warnings += [f"{path}: Copyright banner malformed"]
     if fn_ext == ".fypp" and not content.startswith(BANNER_SHELL.format(year, spdx)):
         warnings += [f"{path}: Copyright banner malformed"]
@@ -211,7 +228,6 @@ def check_file(path: pathlib.Path) -> List[str]:
     PY_SHEBANG = "#!/usr/bin/env python3"
     if fn_ext == ".py" and is_executable and not content.startswith(f"{PY_SHEBANG}\n"):
         warnings += [f"{path}: Wrong shebang, please use '{PY_SHEBANG}'"]
-
     # find all flags
     flags = set()
     line_continuation = False

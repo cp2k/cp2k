@@ -50,8 +50,8 @@ endif()
 # set language and standard
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_C_STANDARD 11)
-set(CMAKE_HIP_STANDARD 11)
-set(CMAKE_CUDA_STANDARD 11)
+set(CMAKE_HIP_STANDARD 14)
+set(CMAKE_CUDA_STANDARD 14)
 # remove NDEBUG flag
 string(REPLACE "-DNDEBUG" "" CMAKE_C_FLAGS_RELEASE ${CMAKE_C_FLAGS_RELEASE})
 string(REPLACE "-DNDEBUG" "" CMAKE_CXX_FLAGS_RELEASE ${CMAKE_CXX_FLAGS_RELEASE})
@@ -724,10 +724,6 @@ if(CP2K_USE_TREXIO)
   find_package(TrexIO REQUIRED)
 endif()
 
-if(CP2K_USE_GRPP)
-  # we need grpp when TREXIO is on
-  find_package(grpp REQUIRED CONFIG)
-endif()
 # OPTION HANDLING
 
 # make sure that the default build type is RELEASE
@@ -931,9 +927,7 @@ if(CP2K_USE_DLAF)
 endif()
 
 if(CP2K_USE_GRPP)
-  message(" - grpp\n" # let below line separate
-          "   - include directories: ${GRPP_INCLUDE_DIRS}\n"
-          "   - libraries: ${GRPP_LINK_LIBRARIES}\n\n")
+  message(" - grpp\n")
 endif()
 
 if(CP2K_USE_TREXIO)
