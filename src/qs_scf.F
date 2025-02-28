@@ -123,7 +123,8 @@ MODULE qs_scf
                                               set_qs_env
    USE qs_integrate_potential,          ONLY: integrate_v_rspace
    USE qs_kind_types,                   ONLY: qs_kind_type
-   USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
+   USE qs_ks_methods,                   ONLY: evaluate_core_matrix_p_mix_new,&
+                                              qs_ks_update_qs_env
    USE qs_ks_types,                     ONLY: qs_ks_did_change,&
                                               qs_ks_env_type
    USE qs_mo_io,                        ONLY: write_mo_set_to_restart
@@ -511,6 +512,7 @@ CONTAINS
 
             IF (dft_control%qs_control%xtb_control%do_tblite) THEN
                CALL tb_update_charges(qs_env, dft_control, qs_env%tb_tblite, .FALSE., .FALSE.)
+               CALL evaluate_core_matrix_p_mix_new(qs_env)
                CALL tb_get_energy(qs_env, dft_control, qs_env%tb_tblite, energy)
             END IF
 
