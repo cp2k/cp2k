@@ -63,6 +63,7 @@ benchmark cp2k eiger:
     SLURM_HINT: nomultithread
     SLURM_JOB_NUM_NODES: 1
     SLURM_NTASKS: 32
+    SLURM_TIMELIMIT: 30
     USE_MPI: YES
 
 # EOF
