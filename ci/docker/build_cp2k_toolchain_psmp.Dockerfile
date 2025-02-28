@@ -42,10 +42,8 @@ RUN /bin/bash -c -o pipefail " \
     tar -xf mpich-${MPICH_VERSION}.tar.gz; \
     cd mpich-${MPICH_VERSION}; \
     ./configure --prefix='/usr/local' --enable-fast=all,O3 \
-      CFLAGS='${CFLAGS} -mtune=native' \
-      CXXFLAGS='${CXXFLAGS} -mtune=native' \
-      FFLAGS='${FFLAGS} -fallow-argument-mismatch -mtune=native' \
-      FCFLAGS='${FCFLAGS} -fallow-argument-mismatch -mtune=native' \
+      FFLAGS='${FFLAGS} -fallow-argument-mismatch' \
+      FCFLAGS='${FCFLAGS} -fallow-argument-mismatch' \
       &>configure.log || tail -n ${LOG_LINES} configure.log; \
     make -j ${NUM_PROCS} &>make.log || tail -n ${LOG_LINES} make.log; \
     make install &>install.log || tail -n ${LOG_LINES} install.log; \

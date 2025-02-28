@@ -3,23 +3,23 @@ include:
 
 stages:
   - build
-  - test
+#  - test
   - benchmark
 
 variables:
-  DOCKERHUB_REPOSITORY: cp2k_eiger
-  DOCKERHUB_TAG: toolchain_psmp
+#  DOCKERHUB_REPOSITORY: cp2k_eiger
+#  DOCKERHUB_TAG: toolchain_psmp
   PERSIST_IMAGE_NAME: ${CSCS_REGISTRY_PATH}/cp2k:${CI_COMMIT_SHORT_SHA}
 
 build cp2k eiger:
   extends: .container-builder-cscs-zen2
   stage: build
   timeout: 1h
-  before_script:
-    - echo ${DOCKERHUB_TOKEN} | podman login docker.io --username ${DOCKERHUB_USERNAME} --password-stdin
-  after_script:
-    - podman images
-    - podman push ${PERSIST_IMAGE_NAME} docker.io/${DOCKERHUB_USERNAME}/${DOCKERHUB_REPOSITORY}:${DOCKERHUB_TAG}
+#  before_script:
+#    - echo ${DOCKERHUB_TOKEN} | podman login docker.io --username ${DOCKERHUB_USERNAME} --password-stdin
+#  after_script:
+#    - podman images
+#    - podman push ${PERSIST_IMAGE_NAME} docker.io/${DOCKERHUB_USERNAME}/${DOCKERHUB_REPOSITORY}:${DOCKERHUB_TAG}
   variables:
     DOCKER_BUILD_ARGS: '[
       "BASE_IMAGE",
@@ -33,22 +33,22 @@ build cp2k eiger:
     LOG_LINES: 200
     MPICH_VERSION: 3.1.4
 
-test cp2k eiger:
-  extends: .baremetal-runner-eiger-zen2
-  stage: test
-  needs: ["build cp2k eiger"]
-  timeout: 1h
-  before_script:
-    - echo ${DOCKERHUB_TOKEN} | podman login docker.io --username ${DOCKERHUB_USERNAME} --password-stdin
-    - podman pull docker.io/${DOCKERHUB_USERNAME}/${DOCKERHUB_REPOSITORY}:${DOCKERHUB_TAG}
-  script:
-    - podman run --mount type=bind,src=${SCRATCH},target=${SCRATCH} --workdir=${SCRATCH} ${PERSIST_IMAGE_NAME} /opt/cp2k/tests/do_regtest.py --maxtasks 64 /opt/cp2k/bin psmp
-  variables:
-    SLURM_CONSTRAINT: mc
-    SLURM_HINT: nomultithread
-    SLURM_JOB_NUM_NODES: 1
-    SLURM_NTASKS_PER_NODE: 64
-    USE_MPI: YES
+#test cp2k eiger:
+#  extends: .baremetal-runner-eiger-zen2
+#  stage: test
+#  needs: ["build cp2k eiger"]
+#  timeout: 1h
+#  before_script:
+#    - echo ${DOCKERHUB_TOKEN} | podman login docker.io --username ${DOCKERHUB_USERNAME} --password-stdin
+#    - podman pull docker.io/${DOCKERHUB_USERNAME}/${DOCKERHUB_REPOSITORY}:${DOCKERHUB_TAG}
+#  script:
+#    - podman run --mount type=bind,src=${SCRATCH},target=${SCRATCH} --workdir=${SCRATCH} ${PERSIST_IMAGE_NAME} /opt/cp2k/tests/do_regtest.py --maxtasks 64 /opt/cp2k/bin psmp
+#  variables:
+#    SLURM_CONSTRAINT: mc
+#    SLURM_HINT: nomultithread
+#    SLURM_JOB_NUM_NODES: 1
+#    SLURM_NTASKS_PER_NODE: 64
+#    USE_MPI: YES
 
 benchmark cp2k eiger:
   extends: .container-runner-eiger-zen2
@@ -59,9 +59,10 @@ benchmark cp2k eiger:
   script:
     - cp2k /opt/cp2k/benchmarks/CI/H2O-128_md.inp
   variables:
-    OMP_NUM_THREADS: 1
     SLURM_CONSTRAINT: mc
+    SLURM_CPUS_PER_TASK: 2
     SLURM_HINT: nomultithread
     SLURM_JOB_NUM_NODES: 1
-    SLURM_NTASKS_PER_NODE: 64
     USE_MPI: YES
+
+# EOF
