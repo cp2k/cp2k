@@ -60,6 +60,7 @@ benchmark cp2k eiger:
     - cp2k /opt/cp2k/benchmarks/CI/H2O-128_md.inp
   variables:
     SLURM_CONSTRAINT: mc
+    SLURM_CPUS_PER_TASK: 2
     SLURM_HINT: nomultithread
     SLURM_JOB_NUM_NODES: 1
     SLURM_NTASKS: 32
