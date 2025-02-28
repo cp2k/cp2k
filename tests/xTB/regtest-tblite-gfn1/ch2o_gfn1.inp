@@ -1,13 +1,11 @@
 &GLOBAL
-  PRINT_LEVEL DEBUG
-  PROJECT COBe
+  PRINT_LEVEL HIGH
+  PROJECT CH2O
   RUN_TYPE ENERGY
 &END GLOBAL
 
 &FORCE_EVAL
   &DFT
-    &EFIELD
-    &END EFIELD
     &PRINT
       &MOMENTS ON
         PERIODIC .FALSE.
@@ -17,6 +15,9 @@
     &QS
       METHOD xTB
       &XTB
+        &TBLITE
+          METHOD GFN1
+        &END TBLITE
       &END XTB
     &END QS
     &SCF
@@ -35,9 +36,10 @@
       PERIODIC NONE
     &END CELL
     &COORD
-      O    -0.564000    0.000000    0.000000
-      C     0.564000    0.000000    0.000000
-      Be    0.000000    4.000000    0.000000
+      O     0.051368    0.000000    0.000000
+      C     1.278612    0.000000    0.000000
+      H     1.870460    0.939607    0.000000
+      H     1.870460   -0.939607    0.000000
     &END COORD
   &END SUBSYS
 &END FORCE_EVAL

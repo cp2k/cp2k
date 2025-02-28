@@ -1,5 +1,5 @@
 &GLOBAL
-  PRINT_LEVEL DEBUG
+  PRINT_LEVEL HIGH
   PROJECT COBe
   RUN_TYPE ENERGY
 &END GLOBAL
@@ -16,7 +16,7 @@
       METHOD xTB
       &XTB
         &TBLITE
-          METHOD GFN2
+          METHOD GFN1
         &END TBLITE
       &END XTB
     &END QS
