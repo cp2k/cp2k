@@ -608,7 +608,7 @@ CONTAINS
             WRITE (funit, *)
             WRITE (funit, *) "   CELL // RESPONSE PRESSURE // ERRORS  "
             DO ia = 1, 3
-               WRITE (funit, "(3F15.8,5x,3G15.8,5x,3G15.8)") cell%hmat(ia, 1:3), &
+               WRITE (funit, "(3F15.8,5x,3F15.8,5x,3F15.8)") cell%hmat(ia, 1:3), &
                   ec_env%rpv(ia, 1:3), ec_env%rpverror(ia, 1:3)
             END DO
 

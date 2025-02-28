@@ -1018,7 +1018,7 @@ CONTAINS
       INTEGER                                            :: ao_num, mo_num, nmo, nspins, ispin, nsgf, &
                                                             save_cartesian, i, j, k, l, m, imo, ishell, &
                                                             nshell, shell_num, nucleus_num, natoms, ikind, &
-                                                            iatom, nrow_global, nelectron, nrows, ncols, &
+                                                            iatom, nelectron, nrows, ncols, &
                                                             row, col, row_size, col_size, &
                                                             row_offset, col_offset, myprint
       INTEGER, DIMENSION(2)                              :: nmo_spin, electron_num
@@ -1031,8 +1031,6 @@ CONTAINS
 
       TYPE(cp_logger_type), POINTER                      :: logger => Null()
       TYPE(cp_fm_type), POINTER                          :: mo_coeff_ref, mo_coeff_target
-      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
-      TYPE(cp_blacs_env_type), POINTER                   :: context
       TYPE(mp_para_env_type), POINTER                    :: para_env => Null()
       TYPE(dft_control_type), POINTER                    :: dft_control => Null()
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s => Null()
@@ -1270,11 +1268,7 @@ CONTAINS
             CALL allocate_mo_set(mo_set_trexio(ispin), nsgf, nmo, nelectron, 0.0_dp, maxocc, 0.0_dp)
 
             CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff_ref)
-            CALL cp_fm_get_info(mo_coeff_ref, context=context, para_env=para_env, nrow_global=nrow_global)
-            CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=context, &
-                                     nrow_global=nrow_global, ncol_global=nmo)
-            CALL init_mo_set(mo_set_trexio(ispin), fm_struct=fm_struct_tmp, name="TREXIO MOs")
-            CALL cp_fm_struct_release(fm_struct_tmp)
+            CALL init_mo_set(mo_set_trexio(ispin), fm_ref=mo_coeff_ref, name="TREXIO MOs")
 
             CALL get_mo_set(mo_set_trexio(ispin), mo_coeff=mo_coeff_target)
             DO j = 1, nmo
@@ -1371,12 +1365,12 @@ CONTAINS
 
          DEALLOCATE (temp)
 
-         CALL get_qs_env(qs_env, matrix_ks=matrix_s)
+         CALL get_qs_env(qs_env, matrix_s=matrix_s)
          DO ispin = 1, nspins
             ALLOCATE (energy_derivative(ispin)%matrix)
 
             ! we use the overlap matrix as a template, copying it but removing the sparsity
-            CALL dbcsr_copy(energy_derivative(ispin)%matrix, matrix_s(ispin)%matrix, &
+            CALL dbcsr_copy(energy_derivative(ispin)%matrix, matrix_s(1)%matrix, &
                             name='Energy Derivative', keep_sparsity=.FALSE.)
             CALL dbcsr_set(energy_derivative(ispin)%matrix, 0.0_dp)
 
@@ -1426,6 +1420,7 @@ CONTAINS
       MARK_USED(mo_set_trexio)
       MARK_USED(energy_derivative)
       CPWARN('TREXIO support has not been enabled in this build.')
+      CPABORT('TREXIO Not Available')
 #endif
       CALL timestop(handle)
 

@@ -58,12 +58,14 @@ MODULE ec_external
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_kinetic,                      ONLY: build_kinetic_matrix
    USE qs_ks_types,                     ONLY: qs_ks_env_type
-   USE qs_mo_types,                     ONLY: get_mo_set,&
+   USE qs_mo_types,                     ONLY: deallocate_mo_set,&
+                                              get_mo_set,&
                                               mo_set_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_overlap,                      ONLY: build_overlap_matrix
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
+   USE trexio_utils,                    ONLY: read_trexio
    USE virial_methods,                  ONLY: one_third_sum_diag
    USE virial_types,                    ONLY: virial_type
 #include "./base/base_uses.f90"
@@ -120,23 +122,24 @@ CONTAINS
 
       CALL get_qs_env(qs_env, mos=mos)
       ALLOCATE (cpmos(nspins), mo_ref(nspins), mo_occ(nspins))
-      DO ispin = 1, nspins
-         CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, homo=nocc)
-         NULLIFY (fm_struct)
-         CALL cp_fm_struct_create(fm_struct, ncol_global=nocc, &
-                                  template_fmstruct=mo_coeff%matrix_struct)
-         CALL cp_fm_create(cpmos(ispin), fm_struct)
-         CALL cp_fm_set_all(cpmos(ispin), 0.0_dp)
-         CALL cp_fm_create(mo_ref(ispin), fm_struct)
-         CALL cp_fm_set_all(mo_ref(ispin), 0.0_dp)
-         CALL cp_fm_create(mo_occ(ispin), fm_struct)
-         CALL cp_fm_to_fm(mo_coeff, mo_occ(ispin), nocc)
-         CALL cp_fm_struct_release(fm_struct)
-      END DO
 
       CALL cp_fm_release(ec_env%mo_occ)
       CALL cp_fm_release(ec_env%cpmos)
       IF (ec_env%debug_external) THEN
+         !
+         DO ispin = 1, nspins
+            CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, homo=nocc)
+            NULLIFY (fm_struct)
+            CALL cp_fm_struct_create(fm_struct, ncol_global=nocc, &
+                                     template_fmstruct=mo_coeff%matrix_struct)
+            CALL cp_fm_create(cpmos(ispin), fm_struct)
+            CALL cp_fm_set_all(cpmos(ispin), 0.0_dp)
+            CALL cp_fm_create(mo_ref(ispin), fm_struct)
+            CALL cp_fm_set_all(mo_ref(ispin), 0.0_dp)
+            CALL cp_fm_create(mo_occ(ispin), fm_struct)
+            CALL cp_fm_to_fm(mo_coeff, mo_occ(ispin), nocc)
+            CALL cp_fm_struct_release(fm_struct)
+         END DO
          !
          ec_env%mo_occ => mo_ref
          CALL ec_ext_debug(qs_env, ec_env, calculate_forces, unit_nr)
@@ -153,8 +156,22 @@ CONTAINS
          END IF
          ec_env%cpmos => cpmos
       ELSE
+         DO ispin = 1, nspins
+            CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, homo=nocc)
+            NULLIFY (fm_struct)
+            CALL cp_fm_struct_create(fm_struct, ncol_global=nocc, &
+                                     template_fmstruct=mo_coeff%matrix_struct)
+            CALL cp_fm_create(cpmos(ispin), fm_struct)
+            CALL cp_fm_set_all(cpmos(ispin), 0.0_dp)
+            CALL cp_fm_create(mo_occ(ispin), fm_struct)
+            CALL cp_fm_to_fm(mo_coeff, mo_occ(ispin), nocc)
+            CALL cp_fm_create(mo_ref(ispin), fm_struct)
+            CALL cp_fm_set_all(mo_ref(ispin), 0.0_dp)
+            CALL cp_fm_struct_release(fm_struct)
+         END DO
+
          ! get external information
-         CALL ec_ext_interface(qs_env, ec_env, mo_ref, cpmos, calculate_forces, unit_nr)
+         CALL ec_ext_interface(qs_env, ec_env%exresp_fn, mo_occ, mo_ref, cpmos, calculate_forces, unit_nr)
          ec_env%mo_occ => mo_ref
          ec_env%cpmos => cpmos
       END IF
@@ -186,47 +203,72 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param qs_env ...
-!> \param ec_env ...
+!> \param trexio_fn ...
+!> \param mo_occ ...
 !> \param mo_ref ...
 !> \param cpmos ...
 !> \param calculate_forces ...
 !> \param unit_nr ...
 ! **************************************************************************************************
-   SUBROUTINE ec_ext_interface(qs_env, ec_env, mo_ref, cpmos, calculate_forces, unit_nr)
+   SUBROUTINE ec_ext_interface(qs_env, trexio_fn, mo_occ, mo_ref, cpmos, calculate_forces, unit_nr)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(energy_correction_type), POINTER              :: ec_env
-      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: mo_ref, cpmos
+      CHARACTER(LEN=*)                                   :: trexio_fn
+      TYPE(cp_fm_type), DIMENSION(:), POINTER            :: mo_occ, mo_ref, cpmos
       LOGICAL, INTENT(IN)                                :: calculate_forces
       INTEGER, INTENT(IN)                                :: unit_nr
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ec_ext_interface'
 
-      INTEGER                                            :: handle, ispin, nao, nocc(2), nspins
+      INTEGER                                            :: handle, ispin, nao, nmos, nocc(2), nspins
+      REAL(KIND=dp)                                      :: focc
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: energy_derivative
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos_trexio
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
       CALL timeset(routineN, handle)
 
-      MARK_USED(qs_env)
-      MARK_USED(ec_env)
-      MARK_USED(mo_ref)
-      MARK_USED(cpmos)
-      MARK_USED(calculate_forces)
-      MARK_USED(unit_nr)
-
       CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, para_env=para_env)
 
       nspins = dft_control%nspins
-      CALL get_qs_env(qs_env, mos=mos)
       nocc = 0
       DO ispin = 1, nspins
-         CALL get_mo_set(mo_set=mos(ispin), nao=nao, homo=nocc(ispin))
+         CALL cp_fm_get_info(mo_occ(ispin), nrow_global=nao, ncol_global=nocc(ispin))
       END DO
 
       IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(T2,A)') "Read EXTERNAL Response from file: "//TRIM(ec_env%exresp_fn)
+         WRITE (unit_nr, '(T2,A)') " Read EXTERNAL Response from file: "//TRIM(trexio_fn)
       END IF
+      ALLOCATE (mos_trexio(nspins))
+      IF (calculate_forces) THEN
+         NULLIFY (energy_derivative)
+         CALL dbcsr_allocate_matrix_set(energy_derivative, nspins)
+         !
+         CALL read_trexio(qs_env, trexio_filename=trexio_fn, &
+                          mo_set_trexio=mos_trexio, &
+                          energy_derivative=energy_derivative)
+         !
+         focc = 2.0_dp
+         IF (nspins == 1) focc = 4.0_dp
+         DO ispin = 1, nspins
+            CALL get_mo_set(mo_set=mos_trexio(ispin), mo_coeff=mo_coeff, homo=nmos)
+            CALL cp_dbcsr_sm_fm_multiply(energy_derivative(ispin)%matrix, mo_occ(ispin), &
+                                         cpmos(ispin), ncol=nmos, alpha=focc, beta=0.0_dp)
+         END DO
+         !
+         CALL dbcsr_deallocate_matrix_set(energy_derivative)
+      ELSE
+         CALL read_trexio(qs_env, trexio_filename=trexio_fn, &
+                          mo_set_trexio=mos_trexio)
+      END IF
+      !
+      DO ispin = 1, nspins
+         CALL get_mo_set(mo_set=mos_trexio(ispin), mo_coeff=mo_coeff, homo=nmos)
+         CALL cp_fm_to_fm(mo_coeff, mo_ref(ispin), nmos)
+         CALL deallocate_mo_set(mos_trexio(ispin))
+      END DO
+      DEALLOCATE (mos_trexio)
 
       CALL timestop(handle)
 
