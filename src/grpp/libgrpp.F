@@ -13,6 +13,8 @@
 !
 
 MODULE libgrpp
+   USE ISO_C_BINDING,                   ONLY: C_DOUBLE,&
+                                              C_INT32_T
 
    INTEGER(4), PARAMETER :: LIBGRPP_CART_ORDER_DIRAC = 0
    INTEGER(4), PARAMETER :: LIBGRPP_CART_ORDER_TURBOMOLE = 1
@@ -273,6 +275,88 @@ CONTAINS
                                                             so_y_matrix(*), so_z_matrix(*)
 
       INTEGER                                            :: i, j, ncart1, ncart2
+      INTERFACE
+         SUBROUTINE libgrpp_outercore_potential_integrals_part_1( &
+            origin_A, L_A, num_primitives_A, coeffs_A, alpha_A, &
+            origin_B, L_B, num_primitives_B, coeffs_B, alpha_B, &
+            pot_origin, pot_L, pot_J, pot_num_primitives, pot_powers, pot_coeffs, pot_alpha, &
+            oc_shell_num_primitives, oc_shell_coeffs, oc_shell_alpha, &
+            arep_matrix, so_x_matrix, so_y_matrix, so_z_matrix) &
+            BIND(C, name="libgrpp_outercore_potential_integrals_part_1_")
+            IMPORT :: C_INT32_T, C_DOUBLE
+            REAL(kind=C_DOUBLE), DIMENSION(*)        :: origin_A
+            INTEGER(kind=C_INT32_T)                  :: L_A
+            INTEGER(kind=C_INT32_T)                  :: num_primitives_A
+            REAL(kind=C_DOUBLE), DIMENSION(*)        :: coeffs_A
+            REAL(kind=C_DOUBLE), DIMENSION(*)        :: alpha_A
+            REAL(kind=C_DOUBLE), DIMENSION(*)        :: origin_B
+            INTEGER(kind=C_INT32_T)                  :: L_B
+            INTEGER(kind=C_INT32_T)                  :: num_primitives_B
+            REAL(kind=C_DOUBLE), DIMENSION(*)        :: coeffs_B
+            REAL(kind=C_DOUBLE), DIMENSION(*)        :: alpha_B
+            REAL(kind=C_DOUBLE), DIMENSION(*)        :: pot_origin
+            INTEGER(kind=C_INT32_T)                  :: pot_L
+            INTEGER(kind=C_INT32_T)                  :: pot_J
+            INTEGER(kind=C_INT32_T)                  :: pot_num_primitives
+            INTEGER(kind=C_INT32_T), DIMENSION(*)    :: pot_powers
+            REAL(kind=C_DOUBLE), DIMENSION(*)        :: pot_coeffs
+            REAL(kind=C_DOUBLE), DIMENSION(*)        :: pot_alpha
+            INTEGER(kind=C_INT32_T)                  :: oc_shell_num_primitives
+            REAL(kind=C_DOUBLE), DIMENSION(*)        :: oc_shell_coeffs
+            REAL(kind=C_DOUBLE), DIMENSION(*)        :: oc_shell_alpha
+            REAL(kind=C_DOUBLE), DIMENSION(*)        :: arep_matrix
+            REAL(kind=C_DOUBLE), DIMENSION(*)        :: so_x_matrix
+            REAL(kind=C_DOUBLE), DIMENSION(*)        :: so_y_matrix
+            REAL(kind=C_DOUBLE), DIMENSION(*)        :: so_z_matrix
+         END SUBROUTINE libgrpp_outercore_potential_integrals_part_1
+      END INTERFACE
+      INTERFACE
+         SUBROUTINE libgrpp_outercore_potential_integrals_part_2( &
+            origin_A, L_A, num_primitives_A, coeffs_A, alpha_A, &
+            origin_B, L_B, num_primitives_B, coeffs_B, alpha_B, &
+            pot_origin, oc_shell_1_L, oc_shell_1_J, &
+            pot1_num_primitives, pot1_powers, pot1_coeffs, pot1_alpha, &
+            oc_shell_1_num_primitives, oc_shell_1_coeffs, oc_shell_1_alpha, &
+            oc_shell_2_L, oc_shell_2_J, pot2_num_primitives, pot2_powers, pot2_coeffs, &
+            pot2_alpha, oc_shell_2_num_primitives, oc_shell_2_coeffs, oc_shell_2_alpha, &
+            arep_matrix, so_x_matrix, so_y_matrix, so_z_matrix) &
+            BIND(C, name="libgrpp_outercore_potential_integrals_part_2_")
+            IMPORT :: C_INT32_T, C_DOUBLE
+            REAL(kind=C_DOUBLE), DIMENSION(*)        :: origin_A
+            INTEGER(kind=C_INT32_T)                  :: L_A
+            INTEGER(kind=C_INT32_T)                  :: num_primitives_A
+            REAL(kind=C_DOUBLE), DIMENSION(*)        :: coeffs_A
+            REAL(kind=C_DOUBLE), DIMENSION(*)        :: alpha_A
+            REAL(kind=C_DOUBLE), DIMENSION(*)        :: origin_B
+            INTEGER(kind=C_INT32_T)                  :: L_B
+            INTEGER(kind=C_INT32_T)                  :: num_primitives_B
+            REAL(kind=C_DOUBLE), DIMENSION(*)        :: coeffs_B
+            REAL(kind=C_DOUBLE), DIMENSION(*)        :: alpha_B
+            REAL(kind=C_DOUBLE), DIMENSION(*)        :: pot_origin
+            INTEGER(kind=C_INT32_T)                  :: oc_shell_1_L
+            INTEGER(kind=C_INT32_T)                  :: oc_shell_1_J
+            INTEGER(kind=C_INT32_T)                  :: pot1_num_primitives
+            INTEGER(kind=C_INT32_T), DIMENSION(*)    :: pot1_powers
+            REAL(kind=C_DOUBLE), DIMENSION(*)        :: pot1_coeffs
+            REAL(kind=C_DOUBLE), DIMENSION(*)        :: pot1_alpha
+            INTEGER(kind=C_INT32_T)                  :: oc_shell_1_num_primitives
+            REAL(kind=C_DOUBLE), DIMENSION(*)        :: oc_shell_1_coeffs
+            REAL(kind=C_DOUBLE), DIMENSION(*)        :: oc_shell_1_alpha
+            INTEGER(kind=C_INT32_T)                  :: oc_shell_2_L
+            INTEGER(kind=C_INT32_T)                  :: oc_shell_2_J
+            INTEGER(kind=C_INT32_T)                  :: pot2_num_primitives
+            INTEGER(kind=C_INT32_T), DIMENSION(*)    :: pot2_powers
+            REAL(kind=C_DOUBLE), DIMENSION(*)        :: pot2_coeffs
+            REAL(kind=C_DOUBLE), DIMENSION(*)        :: pot2_alpha
+            INTEGER(kind=C_INT32_T)                  :: oc_shell_2_num_primitives
+            REAL(kind=C_DOUBLE), DIMENSION(*)        :: oc_shell_2_coeffs
+            REAL(kind=C_DOUBLE), DIMENSION(*)        :: oc_shell_2_alpha
+            REAL(kind=C_DOUBLE), DIMENSION(*)        :: arep_matrix
+            REAL(kind=C_DOUBLE), DIMENSION(*)        :: so_x_matrix
+            REAL(kind=C_DOUBLE), DIMENSION(*)        :: so_y_matrix
+            REAL(kind=C_DOUBLE), DIMENSION(*)        :: so_z_matrix
+         END SUBROUTINE libgrpp_outercore_potential_integrals_part_2
+      END INTERFACE
 
 ! shell centered on atom B
 ! pseudopotential expansion
