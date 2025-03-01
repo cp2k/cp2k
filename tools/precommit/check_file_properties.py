@@ -18,17 +18,17 @@ T = TypeVar("T")
 CP2K_DIR = pathlib.Path(__file__).resolve().parents[2]
 
 FLAG_EXCEPTIONS = (
-    r"\$\{..*\}\$",
-    r"__..*__",
-    r"_M_..*",
+    r"\$\{.+\}\$",
+    r"__.+__",
+    r"_M_.+",
     r"__ARM_ARCH",
-    r"__ARM_FEATURE_..*",
+    r"__ARM_FEATURE_.+",
     r"CUDA_VERSION",
     r"DBM_LIBXSMM_PREFETCH",
     r"DBM_VALIDATE_AGAINST_DBCSR",
     r"OPENMP_TRACE_SYMBOL",
-    r"OPENCL_DBM_..*",
-    r"ACC_OPENCL_..*",
+    r"OPENCL_DBM_.+",
+    r"ACC_OPENCL_.+",
     r"FD_DEBUG",
     r"GRID_DO_COLLOCATE",
     r"INTEL_MKL_VERSION",
@@ -71,8 +71,8 @@ FLAG_EXCEPTIONS = (
     r"LIBXSMM_VERSION2",
     r"LIBXSMM_VERSION3",
     r"LIBXSMM_VERSION4",
-    r"LIBGRPP_..*",
-    r"TEST_LIBGRPP_..*",
+    r"LIBGRPP_.+",
+    r"TEST_LIBGRPP_.+",
     r"__LIBXSMM2",
     r"CPVERSION",
     r"_WIN32",
@@ -123,7 +123,7 @@ C_EXTENSIONS = (".c", ".cu", ".cpp", ".cc", ".h", ".hpp")
 
 BSD_PATHS = ("src/offload/", "src/grid/", "src/dbm/", "src/base/openmp_trace.c")
 
-MIT_PATHS = "src/grpp/"
+MIT_PATHS = ("src/grpp/",)
 
 
 @lru_cache(maxsize=None)
@@ -155,7 +155,7 @@ def check_file(path: pathlib.Path) -> List[str]:
     - undocumented preprocessor flags
     - stray unicode characters
     """
-    warnings = []  # type: List[str]
+    warnings: List[str] = []
 
     fn_ext = path.suffix
     abspath = path.resolve()
@@ -199,18 +199,15 @@ def check_file(path: pathlib.Path) -> List[str]:
     # check banner
     year = datetime.now(timezone.utc).year
     bsd_licensed = any(str(path).startswith(p) for p in BSD_PATHS)
-    # mit_licensed = any(str(path).startswith(p) for p in MIT_PATHS)
-    spdx = "GPL-2.0-or-later"
+    mit_licensed = any(str(path).startswith(p) for p in MIT_PATHS)
     if bsd_licensed:
         spdx = "BSD-3-Clause    "
+    elif mit_licensed:
+        spdx = "MIT             "
     else:
-        if str(path).startswith(MIT_PATHS):
-            spdx = "MIT             "
-        else:
-            spdx = "GPL-2.0-or-later"
+        spdx = "GPL-2.0-or-later"
 
     if fn_ext == ".F" and not content.startswith(BANNER_F.format(year, spdx)):
-        print(BANNER_F.format(year, spdx))
         warnings += [f"{path}: Copyright banner malformed"]
     if fn_ext == ".fypp" and not content.startswith(BANNER_SHELL.format(year, spdx)):
         warnings += [f"{path}: Copyright banner malformed"]
