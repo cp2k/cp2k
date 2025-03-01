@@ -127,6 +127,9 @@ double libgrpp_specfunc_fermi_sk(int k, double x) {
 //   return sum;
 // }
 
+// To format the rest of this file clang-format would require 1.4 GB of memory.
+//
+// clang-format off
 static const double specfunc_fermi_sk_table[2001][10] = {
     // x = -10.0000
     {-4.5391685990113197e-05, -4.5395807735951667e-05, -4.5397868702434395e-05,

@@ -290,7 +290,7 @@ FROM ubuntu:24.04
 WORKDIR /opt/cp2k-precommit
 COPY ./tools/precommit/ /opt/cp2k-precommit/
 RUN ./install_requirements.sh
-ENV PATH="/opt/venv/bin:$PATH"
+ENV PATH="/opt/venv/bin:/opt/cp2k-precommit:$PATH"
 
 # Install sources.
 WORKDIR /opt/cp2k
