@@ -19,6 +19,7 @@ BSE_H2O_PBE_evGW0_TDHF_screening.inp                     110      2e-05         
 BSE_H2O_PBE_evGW0_custom_screening.inp                   110      2e-05            14.9538
 BSE_H2O_PBE_evGW0_spectra.inp                            124      2e-02            25.3518
 BSE_H2O_PBE_evGW0_spectra.inp                            125      2e-02            0.7006
+TDA_H2_PBE_G0W0_CHOLESKY_OFF.inp                         109      2e-05            16.9750
 #EOF
 #Low convergence criteria for evGW make a higher threshold necessary for these tests
 #Logic: Absolute errors (for G0W0/evGW0) should be within 1e-4, i.e. relative errors are
