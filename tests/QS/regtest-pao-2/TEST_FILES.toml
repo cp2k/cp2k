@@ -1,0 +1,33 @@
+# All pao methods should reproduce the reference energy
+"H2O_ref.inp"                           = [{matcher="M011", tol=9e-14, ref=-17.202700812329230}]
+"H2O_pao_exp.inp"                       = [{matcher="M011", tol=1e-08, ref=-17.202700812326320}]
+"H2O_pao_fock.inp"                      = [{matcher="M011", tol=1e-08, ref=-17.202700812326320}]
+"H2O_pao_rotinv.inp"                    = [{matcher="M011", tol=1e-06, ref=-17.202700812326320}]
+"H2O_pao_eq_prim.inp"                   = [{matcher="M011", tol=3e-09, ref=-17.202700812326320}]
+"H2O_pao_gth.inp"                       = [{matcher="M011", tol=9e-05, ref=-17.202700812326320}]
+"H2O_pao_equi.inp"                      = [{matcher="M011", tol=1e-08, ref=-17.202700812326320}]
+#
+# molecular blocking and single precision
+#
+"H2O_pao_exp_cluster.inp"               = [{matcher="M011", tol=1e-08, ref=-17.202700812326320}]
+"H2O_pao_exp_cluster_MD.inp"            = [{matcher="M002", tol=2e-05, ref=-17.2025787384}]
+#
+# hybrids calculations where Oxygen uses full primary basis set
+#
+"H2O_pao_exp_hybrid.inp"                = [{matcher="M011", tol=1e-08, ref=-17.202700812326320}]
+"H2O_pao_fock_hybrid.inp"               = [{matcher="M011", tol=1e-08, ref=-17.202700812326320}]
+"H2O_pao_rotinv_hybrid.inp"             = [{matcher="M011", tol=1e-06, ref=-17.202700812326320}]
+"H2O_pao_gth_hybrid.inp"                = [{matcher="M011", tol=9e-05, ref=-17.202700812326320}]
+"H2O_pao_equi_hybrid.inp"               = [{matcher="M011", tol=1e-08, ref=-17.202700812326320}]
+#
+# rotated system, energy changes slightly due to grid and cell
+#
+"H2O_ref2.inp"                          = [{matcher="M011", tol=9e-14, ref=-17.202822380856801}]
+"H2O_pao_rotinv_restart.inp"            = [{matcher="M011", tol=1e-06, ref=-17.202822380853704}]
+#
+# misc
+#
+"H2O_pao_check_grad.inp"                = []
+"H2O_pao_mixing.inp"                    = [{matcher="M011", tol=1e-07, ref=-17.204698253588596}]
+"H2O_pao_minimal.inp"                   = [{matcher="M011", tol=1e-07, ref=-17.140031230468164}]
+#EOF

@@ -1,0 +1,22 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# see regtest/TEST_FILES
+# These tests are a representative set of the GPW ADMM tests, but run under GAPW. The results differ
+# because of the highly non-convreged nature of the calculations (but agree for converged parameters) 
+"CH3-BP-MO_DIAG.inp"                    = [{matcher="M001", tol=1e-12, ref=-7.34857884918408}]
+"CH3-BP-MO_NO_DIAG.inp"                 = [{matcher="M001", tol=1e-12, ref=-7.34857884918410}]
+"CH3-BP-CAUCHY.inp"                     = [{matcher="M001", tol=1e-12, ref=-7.34857884918407}]
+"CH4-BP-CAUCHY_SUBSPACE.inp"            = [{matcher="M001", tol=1e-12, ref=-8.05244367959413}]
+"H2+-BLOCKED-PURIFY-FULL.inp"           = [{matcher="M001", tol=1e-12, ref=-0.50560527586196}]
+"H2O-ADMMP-OPTX.inp"                    = [{matcher="M001", tol=1e-12, ref=-16.84585714177486}]
+"O2-triplet-ADMMS.inp"                  = [{matcher="M001", tol=1e-10, ref=-31.31453544662221}]
+"MD-1.inp"                              = [{matcher="M001", tol=5e-10, ref=-8.05212222523879}]
+# these tests are only possible under GAPW since they involve ALL electron calculations
+"H2-geo-ALL.inp"                        = [{matcher="M001", tol=5e-10, ref=-1.15560300364748}]
+"MD-2-ALL.inp"                          = [{matcher="M001", tol=5e-10, ref=-8.05318571814679}]
+# GAPW_XC tests
+"H2-geo-XC.inp"                         = [{matcher="M001", tol=5e-10, ref=-1.15201574159787}]
+"H2O-ADMMP-XC.inp"                      = [{matcher="M001", tol=1e-12, ref=-16.85600729246631}]
+# GAPW ADMM with RTP
+"H2O-admm-emd.inp"                      = [{matcher="M002", tol=1e-10, ref=-0.167606735386E+02}]
+#EOF

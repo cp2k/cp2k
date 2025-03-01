@@ -1,0 +1,6 @@
+"H2O_stress_an.inp"                     = [{matcher="M031", tol=4E-5, ref=-5.25556165651E+03}]
+"H2O_stress_numdiag_mme.inp"            = [{matcher="M031", tol=4e-04, ref=7.71586253050E+02}]
+"H2_stress_num.inp"                     = [{matcher="M031", tol=2e-04, ref=-3.15708775879E+04}]
+"H2_stress_num_mme.inp"                 = [{matcher="M031", tol=1e-06, ref=-1.10003978495E+04}]
+"CH3_stress_an.inp"                     = [{matcher="M031", tol=3e-04, ref=1.66390217667E+05}]
+#EOF

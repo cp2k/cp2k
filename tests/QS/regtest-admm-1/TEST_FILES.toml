@@ -1,0 +1,13 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# see regtest/TEST_FILES
+"CH3-BP-MO_DIAG.inp"                    = [{matcher="M001", tol=1e-13, ref=-7.36936246287967}]
+"CH3-BP-MO_NO_DIAG.inp"                 = [{matcher="M001", tol=1e-13, ref=-7.36936246287966}]
+"CH3-BP-NONE.inp"                       = [{matcher="M001", tol=5e-13, ref=-7.36784986947964}]
+"CH3-BP-NONE_OT_OFF.inp"                = [{matcher="M001", tol=5e-14, ref=-7.39804794172732}]
+"CH3-BP-NO_CORR_GPW.inp"                = [{matcher="M001", tol=1e-13, ref=-7.40339636702633}]
+"CH3-BP-NO_CORR_GAPW.inp"               = [{matcher="M001", tol=5e-13, ref=-38.83705343348557}]
+"H2O-admm-emd.inp"                      = [{matcher="M002", tol=1e-11, ref=-0.167643118299E+02}]
+"H2-admm-rtp.inp"                       = [{matcher="M001", tol=1e-12, ref=-0.76379607928513}]
+"H2-admm-rtp_restart.inp"               = [{matcher="M001", tol=1e-12, ref=-0.76379608071662}]
+#EOF

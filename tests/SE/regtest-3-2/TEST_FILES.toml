@@ -1,0 +1,13 @@
+"H2_check.inp"                          = [{matcher="M011", tol=1.0E-14, ref=-0.037115662799135}]
+"O2.inp"                                = [{matcher="M011", tol=1.0E-14, ref=-23.350344185743410}]
+"H2O-3.inp"                             = [{matcher="M011", tol=3e-14, ref=-23.374149178307782}]
+"N3-rp_colvar.inp"                      = [{matcher="M011", tol=2e-08, ref=-270.21563443117373}]
+"Periclase.inp"                         = [{matcher="M011", tol=6e-06, ref=-44.998481897026977}]
+"Periclase_2.inp"                       = [{matcher="M011", tol=6e-06, ref=-42.8230822631}]
+# dumped KDSO
+"H2O-MNDO-KDSOd.inp"                    = [{matcher="M003", tol=1.0E-14, ref=-351.37908064005433}]
+"LM-KSDO.inp"                           = [{matcher="M003", tol=4e-14, ref=-5270.2816931625184}]
+"LM-KSDO-D.inp"                         = [{matcher="M003", tol=6e-14, ref=-5270.3771015808616}]
+# Multipole with NONE MAX_EXPANSION
+"SiO2.inp"                              = [{matcher="M003", tol=1e-04, ref=-2190.7548560169639}]
+#EOF

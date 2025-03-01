@@ -1,0 +1,4 @@
+# Test of NequIP using libtorch https://pytorch.org/cppdocs/installing.html
+"water-sp.inp"                          = [{matcher="M011", tol=1.0E-6, ref=-17.195440909240052}]
+"water-bulk-dp.inp"                     = [{matcher="M031", tol=1.0E-9, ref=3.78036960937E+04}]
+#EOF

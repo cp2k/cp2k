@@ -1,0 +1,46 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+# tests GAPW GTH and ALL
+"H2O-gapw-gth.inp"                      = [{matcher="M001", tol=3e-14, ref=-17.16034506414043}]
+"H2O-gapw-all.inp"                      = [{matcher="M001", tol=1.0E-14, ref=-75.88129901177527}]
+"H2O-gapw-all_localize.inp"             = [{matcher="M023", tol=4e-10, ref=7.0288209649}]
+"H2O-gapw-all_localize_crazy.inp"       = [{matcher="M023", tol=1.0E-14, ref=7.0288209644}]
+"H2O-gapw-all_loc_list.inp"             = [{matcher="M023", tol=4e-10, ref=6.9876037457000004}]
+"H2O-gapwxc-gth.inp"                    = [{matcher="M001", tol=2e-13, ref=-17.16421780562204}]
+# test with presence of soft S
+"H2S-gapw.inp"                          = [{matcher="M001", tol=3e-13, ref=-11.26886317831731}]
+# tests GAPW  6-311++G(3df,3pd)
+"HF_gapw_all_LB.inp"                    = [{matcher="M001", tol=2e-12, ref=-98.788147813994456}]
+# tests GAPW  6-311++G(3df,3pd) and LSD
+"OF_gapw_all_lsd_LB.inp"                = [{matcher="M001", tol=2e-10, ref=-174.10093735008826}]
+# keep special case alive
+"H-gapw-all.inp"                        = [{matcher="M001", tol=2e-13, ref=-0.49303180665610002}]
+# test the full_all with LSD and GAPW
+"He2-all.inp"                           = [{matcher="M001", tol=3e-13, ref=-5.00398521082516}]
+"He2-all-md.inp"                        = [{matcher="M001", tol=7e-10, ref=-5.02915069972336}]
+# new option : stride_xyz
+"H2O-gapw-gth-pvh.inp"                  = [{matcher="M001", tol=3e-14, ref=-17.16034506414043}]
+# localization with non orthorhombic cell
+"H2O-gapw-all_noortho.inp"              = [{matcher="M001", tol=1.0E-14, ref=-75.88145710711736}]
+"H2O-gapw-all_localize_noortho.inp"     = [{matcher="M023", tol=2e-09, ref=7.0317611595}]
+"H2O-gapw-all_localize_crazy_noortho.inp" = [{matcher="M023", tol=2e-09, ref=7.0317611684}]
+# TPSS functional
+"Be_GAPW.inp"                           = [{matcher="M001", tol=7e-13, ref=-14.78558413889751}]
+# Single atom isolated function
+"Na_atom.inp"                           = [{matcher="M001", tol=5e-13, ref=-154.80563563671905}]
+#
+"h2o_dist.inp"                          = [{matcher="M001", tol=6e-13, ref=-17.10541211310302}]
+"H2S-gapw-gop.inp"                      = [{matcher="M001", tol=5e-13, ref=-11.25667348799467}]
+"H2S-gapw-ot.inp"                       = [{matcher="M001", tol=1e-12, ref=-11.03318649928833}]
+"H2S-gapw-gop-ot.inp"                   = [{matcher="M001", tol=3e-13, ref=-11.25777225805304}]
+# XRD total density output to file
+"xrd.inp"                               = []
+# TEST GAPW meta functional (was buggy, now corrected. Edit: was wrongly corrected, now OK)
+"HF_gapw_TPSS.inp"                      = [{matcher="M001", tol=1e-10, ref=-100.38256127620652}]
+# GAPW Voronoi integration
+"HF_voronoi.inp"                        = [{matcher="M001", tol=1e-10, ref=-24.76685070840898}]
+"HF_all_voronoi.inp"                    = [{matcher="M001", tol=1e-10, ref=-99.81892929878380}]
+#EOF

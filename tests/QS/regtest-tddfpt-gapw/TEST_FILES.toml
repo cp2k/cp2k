@@ -1,0 +1,19 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+#
+"H2O_GAPW_1.inp"                        = [{matcher="M037", tol=4.0E-06, ref=0.548880E+00}]
+"H2O_GAPW_2.inp"                        = [{matcher="M037", tol=4.0E-06, ref=0.590943E+00}]
+"H2O_GAPW_3.inp"                        = [{matcher="M037", tol=4.0E-06, ref=0.609312E+00}]
+"H2O_GAPW_4.inp"                        = [{matcher="M037", tol=4.0E-06, ref=0.619451E+00}]
+"H2O_GAPW_5.inp"                        = [{matcher="M037", tol=4.0E-06, ref=0.548873E+00}]
+"H2O_GAPW_6.inp"                        = [{matcher="M037", tol=4.0E-06, ref=0.609352E+00}]
+"H2O_GAPW_XC_1.inp"                     = [{matcher="M037", tol=4.0E-06, ref=0.619451E+00}]
+"H2O_GAPW_XC_2.inp"                     = [{matcher="M037", tol=4.0E-06, ref=0.812642E+00}]
+"H2O_GAPW_XC_3.inp"                     = [{matcher="M037", tol=4.0E-06, ref=0.845166E+00}]
+"H2O_GAPW_XC_4.inp"                     = [{matcher="M037", tol=4.0E-06, ref=0.845146E+00}]
+"H2O_GAPW_1_triplet.inp"                = [{matcher="M037", tol=4.0E-06, ref=0.509622E+00}]
+"Ne_GAPW_triplet.inp"                   = [{matcher="M037", tol=4.0E-06, ref=0.166970E+01}]
+#EOF

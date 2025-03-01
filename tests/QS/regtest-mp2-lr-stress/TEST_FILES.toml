@@ -1,0 +1,5 @@
+"H2O_mp2_lr.inp"                        = [{matcher="M031", tol=1e-05, ref=-9.32628949342E+04}]
+"CH_mp2_lr.inp"                         = [{matcher="M031", tol=1e-05, ref=-5.78120564924E+04}]
+"H2O_mp2_lr_Coulomb_metric.inp"         = [{matcher="M031", tol=1e-05, ref=-9.32542295092E+04}]
+"H2O_mp2_mix_cl.inp"                    = [{matcher="M031", tol=1e-05, ref=-8.27072031429E+04}]
+#EOF

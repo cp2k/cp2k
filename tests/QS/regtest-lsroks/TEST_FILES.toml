@@ -1,0 +1,7 @@
+"O2.inp"                                = [{matcher="M001", tol=1e-12, ref=-31.38777641185785}]
+"O2_pbe0.inp"                           = [{matcher="M001", tol=1e-12, ref=-31.93896892726076}]
+#O2_loc_wan_jac.inp                                    99      1e-10              13.2816505274
+#mO2_mo_cubes.inp                                       11      1e-12             -31.387776411857825
+"ch2o_rs.inp"                           = [{matcher="M001", tol=2e-08, ref=-22.5843713873}]
+"ch2o_hf.inp"                           = [{matcher="M001", tol=2e-08, ref=-22.0854638839}]
+#EOF

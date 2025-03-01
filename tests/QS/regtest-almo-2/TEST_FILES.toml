@@ -1,0 +1,10 @@
+"almo-fullx.inp"                        = [{matcher="M011", tol=1e-11, ref=-137.653869649992146}]
+"almo-no-deloc.inp"                     = [{matcher="M011", tol=9e-12, ref=-137.557304848837759}]
+"s-almo-no-deloc.inp"                   = [{matcher="M011", tol=2e-5, ref=-376.101195076451177}]
+"s-almo-no-deloc-odd-ne.inp"            = [{matcher="M011", tol=2e-5, ref=-115.255611348790495}]
+"FH-chain.inp"                          = [{matcher="M011", tol=3e-10, ref=-98.108319997143496}]
+"ion-pair.inp"                          = [{matcher="M011", tol=2e-13, ref=-115.006279639496825}]
+"LiF.inp"                               = [{matcher="M011", tol=4e-12, ref=-127.539319485641016}]
+"zero-electron-frag.inp"                = [{matcher="M011", tol=1e-08, ref=-98.728605260047331}]
+"matrix-iterate.inp"                    = [{matcher="M011", tol=1e-09, ref=-127.379124535900814}]
+#EOF

@@ -1,0 +1,17 @@
+# multiple_unit_cell with AMBER connectivity
+"pc-222.inp"                            = [{matcher="M002", tol=1.0E-14, ref=-0.176219641248E+02}]
+"check_ex_14.inp"                       = [{matcher="M011", tol=1.0E-14, ref=0.005020140884419}]
+"test_ex_14.inp"                        = [{matcher="M011", tol=1.0E-14, ref=0.005020140884419}]
+"si_muc_cell_opt.inp"                   = [{matcher="M011", tol=1.0E-13, ref=-2.722226045365259}]
+"H2O2_auto_excl.inp"                    = [{matcher="M011", tol=1.0E-14, ref=1.344430914415782}]
+"H2O2_topo_excl.inp"                    = [{matcher="M011", tol=1.0E-14, ref=1.351188670996930}]
+"SF6_auto_excl.inp"                     = [{matcher="M011", tol=1.0E-14, ref=0.036554090374405}]
+"SF6_topo_excl.inp"                     = [{matcher="M011", tol=1.0E-14, ref=0.050504879801888}]
+"Pt_1H2O_eam_tersoff.inp"               = [{matcher="M011", tol=1.0E-14, ref=-0.323317211983553}]
+"Si_direct_cell_opt.inp"                = [{matcher="M011", tol=1.0E-13, ref=-20.281318879181363}]
+"Si_direct_cell_opt_sym.inp"            = [{matcher="M011", tol=1.0E-13, ref=-20.281318879182081}]
+"Si_geo_opt_cell_opt.inp"               = [{matcher="M011", tol=1.0E-13, ref=-20.281318879181441}]
+"Si_nosym_hexagonal_abc.inp"            = [{matcher="M011", tol=1.0E-13, ref=-18.375043216682144}]
+"Si_nosym_hexagonal.inp"                = [{matcher="M011", tol=1.0E-13, ref=-18.375043216690411}]
+"Si_sym_hexagonal_gamma_120.inp"        = [{matcher="M011", tol=1.0E-13, ref=-18.375043216681973}]
+#EOF

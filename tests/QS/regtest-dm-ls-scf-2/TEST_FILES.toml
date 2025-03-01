@@ -1,0 +1,11 @@
+"H2O-32-dftb-ls-4.inp"                  = [{matcher="M011", tol=1e-14, ref=-65.156509160977791}]
+"ace_ala_nme_pm6_01.inp"                = [{matcher="M011", tol=2e-13, ref=-67.527159993652958}]
+"ace_ala_nme_pm6_02.inp"                = [{matcher="M011", tol=1e-13, ref=-67.527159993652958}]
+"ace_ala_nme_pm6_03.inp"                = [{matcher="M011", tol=1e-13, ref=-67.527159993652731}]
+"ace_ala_nme_pm6_04.inp"                = [{matcher="M011", tol=1e-13, ref=-67.52716001935687}]
+"ace_ala_nme_pm6_05.inp"                = [{matcher="M011", tol=1e-13, ref=-67.52716001935687}]
+"ace_ala_nme_pm6_06.inp"                = [{matcher="M011", tol=1e-13, ref=-67.52716001935687}]
+"H2O-32-dftb-trs4.inp"                  = [{matcher="M011", tol=1e-14, ref=-32.574186126112359}]
+"H2O-32-dftb-ls-5.inp"                  = [{matcher="M011", tol=1e-14, ref=-65.156508922082025}]
+"H2O-32-dftb-ls-6.inp"                  = [{matcher="M011", tol=1e-14, ref=-65.156509160977791}]
+#EOF

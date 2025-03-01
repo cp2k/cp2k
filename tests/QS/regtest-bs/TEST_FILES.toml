@@ -1,0 +1,12 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+# tests simmetry breaking in initialization for spin polarized systems
+"cu2cl6_m1_std.inp"                     = [{matcher="M001", tol=2e-11, ref=-183.77482833928417}]
+"cu2cl6_m3_std.inp"                     = [{matcher="M001", tol=8e-11, ref=-169.43148332807669}]
+"cu2cl6_m1_clp6cud9.inp"                = [{matcher="M001", tol=5e-13, ref=-183.98920658853234}]
+"cu2cl6_m3_clp6cud9.inp"                = [{matcher="M001", tol=1e-12, ref=-183.76051965979829}]
+"o2.inp"                                = [{matcher="M001", tol=6e-13, ref=-31.67129696553070}]
+#EOF

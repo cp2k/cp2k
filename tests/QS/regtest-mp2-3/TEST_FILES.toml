@@ -1,0 +1,3 @@
+"H2O-03.inp"                            = [{matcher="M011", tol=3e-13, ref=-17.156342200276399}]
+"CH3_GPW.inp"                           = [{matcher="M011", tol=4e-13, ref=-7.299545357477856}]
+#EOF

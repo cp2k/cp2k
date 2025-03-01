@@ -1,0 +1,28 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+# QM/MM
+"water_3.inp"                           = [{matcher="M002", tol=1.0E-14, ref=-0.127773471727E+02}]
+"mol.inp"                               = [{matcher="M002", tol=1.0E-14, ref=-0.713831957463E+02}]
+"h2_dbg_0.inp"                          = [{matcher="M002", tol=1.0E-14, ref=-0.752127006152E-02}]
+"h2_dbg_1.inp"                          = [{matcher="M002", tol=1.0E-14, ref=0.744910443617E-01}]
+"h2_dbg_-2_2.inp"                       = [{matcher="M003", tol=1.0E-14, ref=-316.51427641772011}]
+"h2_dbg_-2.inp"                         = [{matcher="M003", tol=1.0E-14, ref=-14.74473538369448}]
+"water_3_fdbg.inp"                      = [{matcher="M003", tol=1.0E-14, ref=-348.94150458005100}]
+"water_3_fdbg_inv.inp"                  = [{matcher="M003", tol=1.0E-14, ref=-352.12828908277055}]
+"water_3_full.inp"                      = [{matcher="M007", tol=1.0E-14, ref=-12.8190719912}]
+"water_3_full_num.inp"                  = [{matcher="M007", tol=1.0E-14, ref=-12.8190719693}]
+#QMMM Walls
+"water_3_NOwalls.inp"                   = [{matcher="M002", tol=1.0E-14, ref=-0.127907027267E+02}]
+"water_3_walls.inp"                     = [{matcher="M002", tol=1.0E-14, ref=-0.127764135533E+02}]
+"water_3_walls_q.inp"                   = [{matcher="M002", tol=1.0E-14, ref=-0.127866977452E+02}]
+"zwitt.inp"                             = [{matcher="M002", tol=6e-12, ref=-0.336338875788E+02}]
+#QMMM thermostat regions
+"mol_CSVR_gen1.inp"                     = [{matcher="M002", tol=1.0E-14, ref=-0.376904929147E+02}]
+"mol_CSVR_gen2.inp"                     = [{matcher="M002", tol=1.0E-14, ref=-0.376750907406E+02}]
+"mol_CSVR_gen3.inp"                     = [{matcher="M002", tol=1.0E-14, ref=-0.377007451987E+02}]
+#Spherical cutoff
+"mol_sph_cut.inp"                       = [{matcher="M002", tol=1.0E-14, ref=-0.707096968263E+02}]
+#EOF

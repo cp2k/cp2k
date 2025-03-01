@@ -1,0 +1,18 @@
+# generate training-data / reference
+"H2_dist_0.7_pao.inp"                   = [{matcher="M011", tol=2e-13, ref=-1.162990066005869}]
+"H2_dist_0.9_pao.inp"                   = [{matcher="M011", tol=2e-13, ref=-1.153696829899648}]
+"H2_dist_1.2_pao.inp"                   = [{matcher="M011", tol=2e-13, ref=-1.105593015895884}]
+#
+# predict mid-point using machine learning
+"H2_dist_0.9_GP.inp"                    = [{matcher="M011", tol=1e-4, ref=-1.153696829898623}]
+"H2_dist_0.9_NN.inp"                    = [{matcher="M011", tol=1e-4, ref=-1.153696829898623}]
+"H2_dist_0.9_LAZY.inp"                  = [{matcher="M011", tol=5e-4, ref=-1.153696829898623}]
+#
+# check forces
+"H2_GP_pot_checkforces.inp"             = []
+"H2_GP_overlap_checkforces.inp"         = []
+"H2_GP_r12_checkforces.inp"             = []
+"H2_LAZY_checkforces.inp"               = []
+"H2_NN_r12_checkforces.inp"             = []
+#
+#EOF
