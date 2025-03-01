@@ -17,9 +17,12 @@ import shutil
 import subprocess
 import sys
 import time
-import tomllib
-
 from matchers import run_matcher
+
+try:
+    import tomllib  # not available before Python 3.11
+except ImportError:
+    import pip._vendor.tomli as tomllib  # type: ignore
 
 try:
     from typing import Literal  # not available before Python 3.8
