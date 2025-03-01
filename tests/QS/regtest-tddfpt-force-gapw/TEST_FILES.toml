@@ -1,0 +1,31 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+"h2o_f01.inp"                           = [{matcher="M037", tol=1.0E-4, ref=0.138356E+00}]
+"h2o_f01_coulomb_only.inp"              = [{matcher="M037", tol=1.0E-4, ref=0.101128E+01}]
+"h2o_f01_pbe_gapwxc.inp"                = [{matcher="M037", tol=1.0E-4, ref=0.138361E+00}]
+"h2o_f01_pbe.inp"                       = [{matcher="M037", tol=1.0E-4, ref=0.141150E+00}]
+"h2o_f02_coulomb_only.inp"              = [{matcher="M037", tol=1.0E-4, ref=0.202091E+00}]
+"h2o_t01.inp"                           = []
+"h2o_t02.inp"                           = []
+"h2o_t03.inp"                           = []
+"h2o_t04.inp"                           = []
+"h2o_t05.inp"                           = []
+"h2o_t06.inp"                           = []
+"h2o_t07.inp"                           = []
+"h2o_t08.inp"                           = []
+"h2o_t09.inp"                           = []
+"h2o_t10.inp"                           = []
+"h2o_t11.inp"                           = []
+"h2o_t12.inp"                           = []
+#
+"bnt1.inp"                              = []
+"bnt2.inp"                              = []
+"bnt3.inp"                              = []
+#
+"ft1.inp"                               = []
+"ft2.inp"                               = []
+"ft3.inp"                               = []
+#EOF

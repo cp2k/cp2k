@@ -1,0 +1,43 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# see regtest/TEST_FILES
+# Density-corrected DFT Force tests
+# LDA - LDA
+"N2_t01.inp"                            = [{matcher="M011", tol=1e-11, ref=-19.811978822953012}]
+# LDA - PBE
+"N2_t02.inp"                            = [{matcher="M011", tol=2e-11, ref=-19.918999952069047}]
+# PBE - LDA
+"N2_t03.inp"                            = [{matcher="M011", tol=1e-11, ref=-19.810879217896087}]
+# PBE - PBE
+"N2_t04.inp"                            = [{matcher="M011", tol=1e-12, ref=-19.919507647923325}]
+# LDA - TPSS MO solver
+"N2_t05.inp"                            = [{matcher="M011", tol=5e-12, ref=-19.597072615859805}]
+# TPSS - LDA MO solver
+"N2_t06.inp"                            = [{matcher="M011", tol=5e-12, ref=-19.794531050533937}]
+# LDA - BR89 AO solver
+"N2_t07.inp"                            = [{matcher="M011", tol=1e-12, ref=-19.518445253058768}]
+# BR89 - LDA AO solver
+"N2_t08.inp"                            = [{matcher="M011", tol=5e-12, ref=-19.794774602971181}]
+# HFX - PBE
+"N2_t09.inp"                            = [{matcher="M011", tol=1e-12, ref=-19.910974562321606}]
+# HFX - PBE AO solver
+"N2_t10.inp"                            = [{matcher="M011", tol=1e-12, ref=-19.910894021355617}]
+# PBE0 - LDA
+"N2_t11.inp"                            = [{matcher="M011", tol=1e-12, ref=-19.807038516362912}]
+# PBE0 - LDA AO solver
+"N2_t12.inp"                            = [{matcher="M011", tol=1e-12, ref=-19.807038021121674}]
+# HFX-ADMM-NONE - PBE
+"N2_t13.inp"                            = [{matcher="M011", tol=1e-12, ref=-19.890454343902313}]
+# HFX-ADMM-NONE - PBE AO solver
+"N2_t14.inp"                            = [{matcher="M011", tol=1e-12, ref=-19.890468803153006}]
+# HFX-ADMM-DEFAULT - PBE
+"N2_t15.inp"                            = [{matcher="M011", tol=1e-12, ref=-19.894462652578405}]
+# HFX-ADMM-DEFAULT - PBE AO solver
+"N2_t16.inp"                            = [{matcher="M011", tol=1e-12, ref=-19.894473054900882}]
+# LDA - PBE | ADDED_MOS MO solver
+"N2_t17.inp"                            = [{matcher="M011", tol=2e-11, ref=-19.917073388683157}]
+# LDA - PBE | ADDED_MOS AO solver
+"N2_t18.inp"                            = [{matcher="M011", tol=2e-11, ref=-19.917073435881086}]
+#
+"dipole.inp"                            = []
+#EOF

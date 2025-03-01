@@ -1,0 +1,2 @@
+# Test of DeePMD using libdeepmd_c https://docs.deepmodeling.com/projects/deepmd/en/master/install/install-from-c-library.html
+"deepmd_water.inp"                      = [{matcher="M011", tol=1.0E-6, ref=-17.266752586704772}]

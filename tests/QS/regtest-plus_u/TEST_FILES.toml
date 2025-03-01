@@ -1,0 +1,19 @@
+"H2O-rks-diag.inp"                      = [{matcher="M024", tol=1E-11, ref=0.0081038814259000000}]
+"H2O-rks-otcg.inp"                      = [{matcher="M024", tol=2e-07, ref=0.0081042461219499994}]
+"H2O-uks-diag.inp"                      = [{matcher="M024", tol=3e-12, ref=0.0070826097691200000}]
+"H2O-uks-otcg.inp"                      = [{matcher="M024", tol=1e-07, ref=0.0070825676291199997}]
+"H2O-rks-diag-mulliken.inp"             = [{matcher="M024", tol=2e-11, ref=0.04016461029714}]
+"H2O-rks-otcg-mulliken.inp"             = [{matcher="M024", tol=9e-08, ref=0.04016161493608}]
+"H2O-uks-diag-mulliken.inp"             = [{matcher="M024", tol=5e-13, ref=0.04340509184236}]
+"H2O-uks-otcg-mulliken.inp"             = [{matcher="M024", tol=2e-08, ref=0.04340807378205}]
+"H2O-rks-diag-lowdin.inp"               = [{matcher="M024", tol=1E-12, ref=0.07674874415138}]
+"H2O-rks-otcg-lowdin.inp"               = [{matcher="M024", tol=1E-12, ref=0.07674870925125}]
+"H2O-uks-diag-lowdin.inp"               = [{matcher="M024", tol=1E-12, ref=0.08364867485442}]
+"H2O-uks-otcg-lowdin.inp"               = [{matcher="M024", tol=1e-08, ref=0.08365011953223}]
+# U ramping
+"H2O-rks-u_ramping.inp"                 = [{matcher="M024", tol=1e-06, ref=0.0401615789381200020}]
+"H2O-uks-u_ramping.inp"                 = [{matcher="M024", tol=3e-07, ref=0.0401667259122000030}]
+# U ramping with reset
+"H2O-rks-u_ramping_reset.inp"           = [{matcher="M024", tol=1e-06, ref=0.0401603036212100010}]
+"H2O-uks-u_ramping_reset.inp"           = [{matcher="M024", tol=3e-07, ref=0.0401651853272299990}]
+#EOF

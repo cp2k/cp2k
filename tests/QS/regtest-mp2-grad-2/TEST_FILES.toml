@@ -1,0 +1,8 @@
+"O2_dyn.inp"                            = [{matcher="M011", tol=2e-11, ref=-31.519148246527070}]
+"O2_dyn_mme.inp"                        = [{matcher="M072", tol=1e-8, ref=0.50585576}]
+"CH_dyn_screen.inp"                     = [{matcher="M011", tol=2e-04, ref=-5.700357832727161}]
+"CH_dyn_screen_single_group.inp"        = [{matcher="M011", tol=2e-04, ref=-5.700357832727161}]
+"MOM_MP2_geoopt.inp"                    = [{matcher="M011", tol=4e-06, ref=-13.969417268095397}]
+"H2O_MD_mme.inp"                        = [{matcher="M011", tol=5e-10, ref=-17.056807583220188}]
+"O2_dyn_ri-hfx.inp"                     = [{matcher="M011", tol=1e-10, ref=-31.518511363027905}]
+#EOF

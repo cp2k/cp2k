@@ -1,0 +1,77 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+# isokinetic ensemble
+"H2O-5.inp"                             = [{matcher="M001", tol=2e-14, ref=-17.14546535886802}]
+# the added_MOs keyword
+"H2O-6.inp"                             = [{matcher="M001", tol=2e-14, ref=-17.14603641519601}]
+# tests BFGS and LBFGS and CG
+"H2-geo-1.inp"                          = [{matcher="M001", tol=3e-11, ref=-0.58531808517407002}]
+"H2-geo-2.inp"                          = [{matcher="M001", tol=2e-14, ref=-1.12365243716354}]
+"H2-geo-3.inp"                          = [{matcher="M001", tol=4e-14, ref=-1.12364549811055}]
+"H2-geo-4.inp"                          = [{matcher="M001", tol=8e-13, ref=-1.09108573600833}]
+"H2-geo-5.inp"                          = [{matcher="M001", tol=1E-11, ref=-1.15154865139492}]
+# some problems with CU
+"Cu.inp"                                = [{matcher="M001", tol=5.0E-14, ref=-64.51883502594850}]
+# test derivatives and keywords
+"H2O-debug-1.inp"                       = [{matcher="M001", tol=3e-14, ref=-8.12084591824419}]
+"H2O-debug-2.inp"                       = [{matcher="M001", tol=1.0E-14, ref=-16.00183627257292}]
+"H2O-debug-3.inp"                       = [{matcher="M001", tol=4e-14, ref=-15.74262975093193}]
+"H2O-debug-4.inp"                       = [{matcher="M001", tol=4e-14, ref=-15.74262975093193}]
+"H2O-debug-5.inp"                       = [{matcher="M086", tol=4e-10, ref=-0.535129866059}]
+"H2O-debug-6.inp"                       = [{matcher="M086", tol=4e-10, ref=-0.535125994114}]
+"H2O-debug-7.inp"                       = [{matcher="M001", tol=4e-12, ref=-34.01122049558151}]
+"H2O-debug-8.inp"                       = [{matcher="M086", tol=4e-10, ref=-0.482971230807}]
+# new colvar
+"C2H4-meta.inp"                         = [{matcher="M001", tol=7e-14, ref=-14.34735860769572}]
+# improved atomic_kind
+"test-pdb.inp"                          = [{matcher="M001", tol=4e-12, ref=-115.77996962516318}]
+# Spin density DDAP charges
+"H2O+SC.inp"                            = []
+# spin restraint
+"spin_restraint.inp"                    = [{matcher="M001", tol=9e-11, ref=-4.6386880246752602}]
+#New grouping colvar
+"H2O-meta_g.inp"                        = [{matcher="M001", tol=2e-14, ref=-17.16168353866058}]
+#Colvar for hydronium
+"H2O-meta_hydro.inp"                    = [{matcher="M001", tol=1e-12, ref=-77.65379785769734}]
+#NPT ensemble with QS
+"H2O-7.inp"                             = [{matcher="M001", tol=3e-14, ref=-17.14737299451047}]
+#test wavelet based poisson solver for different boundary conditions
+"H2O_wavelet_free.inp"                  = [{matcher="M001", tol=2e-13, ref=-16.59417144640717}]
+"H2O_wavelet_free2.inp"                 = [{matcher="M001", tol=4e-13, ref=-16.58217277110943}]
+"H2O_wavelet_XZ.inp"                    = [{matcher="M001", tol=3e-14, ref=-16.58705134722980}]
+#function to compute splined values - distributed grids
+"NO2-EFG-1.inp"                         = [{matcher="M019", tol=7e-09, ref=0.2895206349779316}]
+"H2O-8.inp"                             = [{matcher="M001", tol=6e-13, ref=-16.99998002342145}]
+"H2O-9.inp"                             = [{matcher="M001", tol=5e-13, ref=-17.16151288984377}]
+# a system with a very small (1x1) KS matrix
+"H.inp"                                 = [{matcher="M001", tol=2e-13, ref=-0.40345508311902}]
+# one (ghost) atom has no basis set associated
+"basis_none_1.inp"                      = [{matcher="M001", tol=3e-12, ref=-17.10569678759877}]
+"basis_none_2.inp"                      = [{matcher="M001", tol=2e-12, ref=-17.11076726695875}]
+# cell opt with a restart
+"cell-1.inp"                            = [{matcher="M007", tol=1.0E-14, ref=-21.0495583581}]
+"cell-2.inp"                            = [{matcher="M007", tol=1.0E-14, ref=-21.0496558677}]
+#multiple ddapc restraints
+"He3_multi_ddapc.inp"                   = [{matcher="M001", tol=3e-09, ref=-7.33496694404064}]
+#many added MOS with LSD
+"N.inp"                                 = [{matcher="M001", tol=2e-13, ref=-9.66927782045851}]
+"N_notfixedMM.inp"                      = [{matcher="M001", tol=2e-13, ref=-9.66080047890004}]
+#new diagonalization
+"h2o-otdiag.inp"                        = [{matcher="M001", tol=8e-13, ref=-17.09951347030708}]
+"h2o-diag.inp"                          = [{matcher="M001", tol=6e-14, ref=-16.10105776251690}]
+"h2o-diag-sub.inp"                      = [{matcher="M001", tol=6e-14, ref=-17.10796281427774}]
+"h2o-otdiag-lsd.inp"                    = [{matcher="M001", tol=1E-13, ref=-12.43939517338400}]
+#external electrostatic field
+"H2O-extpot.inp"                        = [{matcher="M011", tol=2e-12, ref=-17.140002715561561}]
+"H-extpot.inp"                          = [{matcher="M011", tol=1e-12, ref=0.367583149161544}]
+"H2O-analytic_vee.inp"                  = [{matcher="M011", tol=3e-12, ref=-17.165089831918642}]
+"H2O-read_cube.inp"                     = [{matcher="M011", tol=3e-12, ref=-17.165069594404645}]
+# welltempered metadynamics
+"2H2O_meta_welltemp.inp"                = [{matcher="M001", tol=8e-14, ref=-34.16302155139748}]
+"ND3_meta_welltemp.inp"                 = [{matcher="M001", tol=2e-14, ref=-11.80921591725154}]
+# gapw + npt
+"H2O-gapw.inp"                          = [{matcher="M001", tol=3e-14, ref=-17.138804316237351}]
+#EOF

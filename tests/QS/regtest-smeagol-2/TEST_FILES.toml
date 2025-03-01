@@ -1,0 +1,5 @@
+# Regression tests for CP2K/SMEAGOL interface. These tests require libsmeagol library
+"au-1x1x4-bulk.inp"                     = [{matcher="M120", tol=3e-06, ref=396.000000}]
+# Disable very slow test
+# au-h2-au-1x1x1-1V-forces.inp                           72     5e-02              0.121820
+#EOF

@@ -1,0 +1,4 @@
+"2H2O_equivar_ML.inp"                   = [{matcher="M011", tol=1e-9, ref=-34.467985160768627}]
+"2H2O_equivar_ML_checkforces.inp"       = []
+
+#EOF

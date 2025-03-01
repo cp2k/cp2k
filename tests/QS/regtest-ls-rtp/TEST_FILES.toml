@@ -1,0 +1,21 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+# test mulliken constraints
+"H2O-ls-emd.inp"                        = [{matcher="M001", tol=1e-11, ref=-17.08906866085189}]
+"H2O-ls-emd-ewindow.inp"                = [{matcher="M067", tol=2e-11, ref=0.05293807927656}]
+"H2O-ls-emd-ngs.inp"                    = [{matcher="M001", tol=2e-14, ref=-17.02550719518036}]
+"H2O-ls-rtp-bch.inp"                    = [{matcher="M001", tol=3e-14, ref=-17.08907706662020}]
+"H2O-ls-rtp.inp"                        = [{matcher="M001", tol=6e-14, ref=-17.08907732641316}]
+"H2O-ls-rtp-scf-restart.inp"            = [{matcher="M001", tol=6e-14, ref=-17.08907732641317}]
+"H2O-ls-emd-scf-restart.inp"            = [{matcher="M001", tol=1e-11, ref=-17.08906866085163}]
+"H2O-ls-emd-mcweeny.inp"                = [{matcher="M001", tol=1e-11, ref=-17.08906866085162}]
+"H2O-ls-emd-mcweeny-rt-restart.inp"     = [{matcher="M001", tol=1e-11, ref=-17.08905987362605}]
+"emd-KG.inp"                            = [{matcher="M001", tol=1e-14, ref=-18.11820186591314}]
+"H2plus-ls-rtp.inp"                     = [{matcher="M001", tol=2e-12, ref=-0.52809706445746}]
+"H2plus-ls-rtp2.inp"                    = [{matcher="M001", tol=3e-13, ref=-0.53624161700164}]
+"H2O-ls-emd-mixing.inp"                 = [{matcher="M001", tol=2e-11, ref=-17.08894042116007}]
+"Ar_mixed_aa_planar-rtp-osc-field.inp"  = [{matcher="M001", tol=8e-13, ref=-21.07372556817139}]
+#EOF

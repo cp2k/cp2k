@@ -1,0 +1,6 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# see regtest/TEST_FILES
+"Ne_ecp_rks_cartesian.inp"              = []
+"Ne_ecp_rks_filename.inp"               = []
+#EOF

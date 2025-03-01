@@ -1,0 +1,26 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# see regtest/TEST_FILES
+#
+"2H2O_eda.inp"                          = []
+"H2O_ed.inp"                            = []
+"H2O_hyb.inp"                           = []
+"H2O_gapw.inp"                          = []
+"H2O_gapw_at.inp"                       = []
+"H2O_mgga.inp"                          = []
+"H2O_mgga_at.inp"                       = []
+"H2O_mgga_gapw.inp"                     = []
+"H2O_gapw_all.inp"                      = []
+"H2O_gapw_xc.inp"                       = []
+"H2O_gapw_xc_at.inp"                    = []
+"H2O_at.inp"                            = []
+"H2O_at_2.inp"                          = []
+"H2O_D3.inp"                            = []
+"H2O_cc.inp"                            = []
+"si8_pmix.inp"                          = []
+"si8_pmix_at.inp"                       = []
+"H2O_detail.inp"                        = []
+"H2O_canon.inp"                         = []
+"H2O_hyb_detail.inp"                    = []
+"H2O_ewald.inp"                         = []
+#EOF

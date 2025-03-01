@@ -1,0 +1,23 @@
+# ANGULAR VELOCITY
+"ar3_angvel_zero_000.inp"               = [{matcher="M002", tol=1.0E-14, ref=-0.189300330270E-03}]
+"ar3_angvel_zero_001.inp"               = [{matcher="M002", tol=1.0E-14, ref=-0.281894421237E-03}]
+"ar3_angvel_zero_002.inp"               = [{matcher="M002", tol=1.0E-14, ref=-0.187969911467E-03}]
+"water_2_angvel_zero_000.inp"           = [{matcher="M002", tol=1.0E-14, ref=0.419276310080E-02}]
+"water_2_angvel_zero_001.inp"           = [{matcher="M002", tol=1.0E-14, ref=0.434526284501E-02}]
+"water_2_angvel_zero_002.inp"           = [{matcher="M002", tol=1.0E-14, ref=0.654998307196E-03}]
+#walls for metadynamics
+"nh3-meta-0.inp"                        = [{matcher="M002", tol=1.0E-14, ref=0.110355972496E+00}]
+"nh3-meta-1.inp"                        = [{matcher="M002", tol=1.0E-14, ref=0.239548069118E-01}]
+"nh3-meta-2.inp"                        = [{matcher="M002", tol=2e-10, ref=0.0064611945330999999}]
+"nh3-meta-3.inp"                        = [{matcher="M002", tol=8e-12, ref=0.256487807803E-02}]
+"nh3-meta-4.inp"                        = [{matcher="M002", tol=1e-11, ref=0.015294452581499999}]
+#new colvar
+"c60_pl_pl_angl1_restr.inp"             = [{matcher="M002", tol=1.0E-14, ref=-0.148068455776E+02}]
+"c60_pl_pl_angl2_restr.inp"             = [{matcher="M002", tol=1.0E-14, ref=-0.147676373113E+02}]
+#METADYN LANGEVIN ON COLVARS
+"c60_meta_lagr.inp"                     = [{matcher="M002", tol=1.0E-14, ref=-0.146982914564E+02}]
+#Reaction path Colvar
+"2gly_mtd_rp_dp_rmsd.inp"               = [{matcher="M002", tol=2e-11, ref=-0.286918916536E+00}]
+"2gly_mtd_rprmsd.inp"                   = [{matcher="M002", tol=5e-11, ref=-0.283975150003}]
+"2gly_mtd_dprmsd.inp"                   = [{matcher="M002", tol=7e-12, ref=-0.287254064957E+00}]
+#EOF

@@ -1,0 +1,51 @@
+#free energy calculation
+"NaCl_fe.inp"                           = [{matcher="M002", tol=1.0E-14, ref=0.127003379061E+01}]
+# new constraints distance_difference
+"water_3_ddist.inp"                     = [{matcher="M002", tol=1.0E-14, ref=0.124331490580E-01}]
+# distributed grid for spme/pme
+"JAC_distr.inp"                         = [{matcher="M002", tol=1.0E-14, ref=-123.353543684}]
+"H2O-32_PME_distr.inp"                  = [{matcher="M002", tol=1.0E-14, ref=-0.611544181350E+00}]
+# Central Force Water test (Nir)
+"cf_genpot.inp"                         = [{matcher="M002", tol=1.0E-14, ref=-0.437747928494E+00}]
+# Tersoff potential test
+"Si_tersoff_rcut.inp"                   = [{matcher="M002", tol=1.0E-14, ref=-0.441068723056E+01}]
+"Si_tersoff.inp"                        = [{matcher="M002", tol=1.0E-14, ref=-0.441068723056E+01}]
+"Si_tersoff_2.inp"                      = [{matcher="M002", tol=1.0E-14, ref=-0.168775130786E+01}]
+"Si_tersoff_3.inp"                      = [{matcher="M002", tol=1.0E-14, ref=-0.759727944846E+01}]
+"C_tersoff.inp"                         = [{matcher="M002", tol=1.0E-14, ref=-0.971545611681E+02}]
+"SiH_tersoff.inp"                       = [{matcher="M002", tol=1.0E-14, ref=-0.343343965527E+01}]
+# New grouping colvar
+"ethene_colv1_g.inp"                    = [{matcher="M002", tol=8e-10, ref=0.0064656266809200004}]
+"ethene_colv2_g.inp"                    = [{matcher="M002", tol=3e-10, ref=0.017674386846599999}]
+"nh3-meta-1_g.inp"                      = [{matcher="M002", tol=1.0E-14, ref=0.110355972496E+00}]
+"water_3_ddist_g.inp"                   = [{matcher="M002", tol=1.0E-14, ref=0.124331490580E-01}]
+"water_3_dist_g.inp"                    = [{matcher="M002", tol=1.0E-14, ref=-0.146090953012E-03}]
+"water_3_dist_centers.inp"              = [{matcher="M002", tol=1.0E-14, ref=0.123695356882E-03}]
+"water_3_dist_centers2.inp"             = [{matcher="M002", tol=1.0E-14, ref=0.111776817045E-02}]
+"water_3_dist_centers3.inp"             = [{matcher="M002", tol=1.0E-14, ref=0.396688628991E-02}]
+# more on pbc
+"cubane_15.inp"                         = [{matcher="M007", tol=1.0E-14, ref=0.1143720633}]
+"cubane_0.inp"                          = [{matcher="M007", tol=1.0E-14, ref=0.1143720633}]
+#fist debug run
+"cf_genpot_debug.inp"                   = []
+# buck-morse potential
+"uo2_buckmorse_nve.inp"                 = [{matcher="M002", tol=1.0E-14, ref=-0.507683890563E+02}]
+# colvar dist xyz component test
+"water_3_dist_xyz.inp"                  = [{matcher="M002", tol=1.0E-14, ref=0.367836190353E-03}]
+"argon_ext.inp"                         = [{matcher="M002", tol=1.0E-14, ref=0.184419373617E-01}]
+#external potential on a selected list of atoms
+"extern_pot-test-01.inp"                = [{matcher="M002", tol=1.0E-14, ref=-0.237349831229E+01}]
+"extern_pot-test-02.inp"                = [{matcher="M002", tol=1.0E-14, ref=-0.237349831229E+01}]
+"extern_pot-test-03.inp"                = [{matcher="M002", tol=1.0E-14, ref=-0.237349831229E+01}]
+#Siepmann-Sprik potential test
+"siepmann_sprik_top.inp"                = [{matcher="M002", tol=1.0E-14, ref=-0.138487875314E-01}]
+"siepmann_sprik_fcc.inp"                = [{matcher="M002", tol=1.0E-14, ref=-0.561022623398E-02}]
+"siepmann_sprik_OH.inp"                 = [{matcher="M002", tol=1.0E-14, ref=-0.075739572366600005}]
+"siepmann_sprik_H3O.inp"                = [{matcher="M002", tol=1.0E-14, ref=-0.559829150856E-01}]
+"siepmann_sprik_O.inp"                  = [{matcher="M002", tol=1.0E-14, ref=-0.576203680700E-01}]
+#Tabulated potential test
+"tabpot_total.inp"                      = [{matcher="M011", tol=1.0E-13, ref=-2.196556655374748}]
+"tabpot_cgo-cgo.inp"                    = [{matcher="M011", tol=1.0E-13, ref=1.822518208510981}]
+"tabpot_cgo-res.inp"                    = [{matcher="M011", tol=1.0E-13, ref=-6.383543979427067}]
+"tabpot_res-res.inp"                    = [{matcher="M011", tol=1.0E-13, ref=2.364469115541450}]
+#EOF

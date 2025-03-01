@@ -1,0 +1,10 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+"H2O-chi-gpw-1.inp"                     = [{matcher="M016", tol=1e-03, ref=0.212696E+03}]
+"H2O-chi-gpw-2.inp"                     = [{matcher="M016", tol=1e-03, ref=0.212696E+03}]
+"O2-uks-chi-gpw-1.inp"                  = [{matcher="M016", tol=5e-04, ref=102.375}]
+"O2-uks-chi-gpw-2.inp"                  = [{matcher="M016", tol=5e-04, ref=102.375}]
+#EOF

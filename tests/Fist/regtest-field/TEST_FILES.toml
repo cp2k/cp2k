@@ -1,0 +1,5 @@
+# ANGULAR VELOCITY
+"efield.inp"                            = []
+"dfield.inp"                            = []
+"efield_md.inp"                         = [{matcher="M002", tol=1.0E-14, ref=0.374760458659E-02}]
+#EOF

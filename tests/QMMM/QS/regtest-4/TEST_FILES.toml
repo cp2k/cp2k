@@ -1,0 +1,17 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+#Periodic calculation
+"crys_per_qmmm.inp"                     = [{matcher="M001", tol=7e-12, ref=-0.08375440741138}]
+"crys_per_qmmm_anal.inp"                = [{matcher="M001", tol=4e-11, ref=-0.03306937253896}]
+"crys_per_qmmm_spln.inp"                = [{matcher="M001", tol=4e-11, ref=-0.03306936689191}]
+# none calculation + periodic -> switch off periodic
+"crys_per_qmmm_none.inp"                = [{matcher="M001", tol=7e-12, ref=-0.08375440741161}]
+# check zero of the potential for charged QM systems
+"acn-qmmm-re.inp"                       = [{matcher="M001", tol=1e-12, ref=-14.78512402427952}]
+# check a qm/mm nasty topology
+"acn-conn-1.inp"                        = [{matcher="M001", tol=4e-09, ref=-291.88277947852032}]
+"wat_nacl.inp"                          = [{matcher="M011", tol=2e-13, ref=-16.691503876246994}]
+#EOF

@@ -1,0 +1,8 @@
+"almo-x.inp"                            = [{matcher="M011", tol=1e-11, ref=-137.653122944336531}]
+"almo-guess.inp"                        = [{matcher="M011", tol=1e-11, ref=-137.653042893416284}]
+"almo-scf.inp"                          = [{matcher="M011", tol=1e-11, ref=-137.652214083887657}]
+"almo-d.inp"                            = [{matcher="M011", tol=2e-11, ref=-85.963944793676802}]
+"almo-fullx.inp"                        = [{matcher="M011", tol=4e-12, ref=-137.653899517158095}]
+"almo-fullx-then-scf.inp"               = [{matcher="M011", tol=4e-12, ref=-137.653043387277364}]
+"almo-then-wannier.inp"                 = [{matcher="M011", tol=4e-12, ref=-137.653091045563713}]
+#EOF

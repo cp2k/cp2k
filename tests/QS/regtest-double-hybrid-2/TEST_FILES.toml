@@ -1,0 +1,3 @@
+"H2O_B2GPPLYP.inp"                      = [{matcher="M011", tol=9e-14, ref=-76.279036985508839}]
+"H2O_DSD-BLYP.inp"                      = [{matcher="M011", tol=1e-13, ref=-76.311305833143180}]
+#EOF
