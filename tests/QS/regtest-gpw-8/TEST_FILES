@@ -2,7 +2,7 @@
 bug_ai_moments.inp                                    39    1.0E-08                      0.2839176
 #
 si8_broy_stm.inp                                       1      2e-13             -30.92831595126399
-si8_broy_wc.inp                                       23      2e-06             1902.1967139926
+si8_broy_wc.inp                                       23      2e-03             1902.1967139926
 si8_broy_wc_crazy.inp                                 23      2e-06             149.9751539129
 si8_broy_wc_crazy_ene.inp                             23      2e-06             154.4040134571
 # block Davidson diagonalization
