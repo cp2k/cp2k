@@ -1,0 +1,3 @@
+"H2O_B2PLYP_GPW.inp"                    = [{matcher="M011", tol=2e-06, ref=-17.155342777785719}]
+"H2O_B2PLYP.inp"                        = [{matcher="M011", tol=6e-14, ref=-76.294872753305484}]
+#EOF

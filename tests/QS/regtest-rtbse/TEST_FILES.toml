@@ -1,0 +1,6 @@
+"h2_rt.inp"                             = [{matcher="M115", tol=1e-3, ref=0.14574977E-005},
+                                           {matcher="M116", tol=1e-5, ref=0.00000000E+000}]
+"h2_rt_cont.inp"                        = [{matcher="M117", tol=1e-3, ref=0.86385600E-006}]
+"h2_delta.inp"                          = [{matcher="M115", tol=1e-3, ref=-0.21190408E-001}]
+"h2_delta_cont.inp"                     = [{matcher="M117", tol=1e-3, ref=0.88156804E-002}]
+"h2_ft.inp"                             = [{matcher="M118", tol=1e-3, ref=0.83649881E+001}]

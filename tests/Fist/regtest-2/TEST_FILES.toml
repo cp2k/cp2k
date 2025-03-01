@@ -1,0 +1,32 @@
+"H2O-32_ewald.inp"                      = [{matcher="M002", tol=1.0E-14, ref=-0.611543935804E+00}]
+"H2O-32_PME.inp"                        = [{matcher="M002", tol=1.0E-14, ref=-0.611544181350E+00}]
+"H2O-32_SPME.inp"                       = [{matcher="M002", tol=1.0E-14, ref=-0.611545021294E+00}]
+"H2O-32_SPME_avg2.inp"                  = [{matcher="M032", tol=1.0E-14, ref=-0.605273198468E+00}]
+"H2O-32_SPME_res_1.inp"                 = [{matcher="M002", tol=1.0E-14, ref=-0.600749554011E+00}]
+"H2O-32_SPME_res_2.inp"                 = [{matcher="M002", tol=3e-12, ref=-0.58993480332299997}]
+"H2O-32_SPME_res_3.inp"                 = [{matcher="M002", tol=1.0E-14, ref=-0.595881653299E+00}]
+"H2O-32_SPME_res_4.inp"                 = [{matcher="M002", tol=1.0E-14, ref=-0.608953026888E+00}]
+"H2O-32_NPT.inp"                        = [{matcher="M002", tol=1.0E-14, ref=-0.614523994245E+00}]
+"H2O-32_NPT_res_1.inp"                  = [{matcher="M002", tol=1.0E-14, ref=-0.597314905695E+00}]
+"H2O-32_NPT_res_2.inp"                  = [{matcher="M002", tol=1.0E-14, ref=-0.588376552563E+00}]
+"H2O-32_NPT_res_3.inp"                  = [{matcher="M002", tol=1.0E-14, ref=-0.601709162862E+00}]
+"H2O-32_NPT_res_4.inp"                  = [{matcher="M002", tol=1.0E-14, ref=-0.617383381810E+00}]
+"H2O-32_NPT_res_5.inp"                  = [{matcher="M002", tol=1.0E-14, ref=-0.614523994245E+00}]
+"water_IPBV.inp"                        = [{matcher="M002", tol=1e-09, ref=-7.7442661855899999}]
+"water_IPBV_flex.inp"                   = [{matcher="M002", tol=9e-10, ref=-6.42809999235}]
+"sod.inp"                               = [{matcher="M002", tol=1.0E-14, ref=0.119421504330E+02}]
+"sod2.inp"                              = [{matcher="M002", tol=1.0E-14, ref=0.119421504330E+02}]
+#Nose with constraints
+"H2O-32_SPME_fixed.inp"                 = [{matcher="M002", tol=1.0E-14, ref=-0.624623885392E+00}]
+"H2O-32_SPME_fixed_mol.inp"             = [{matcher="M002", tol=1.0E-14, ref=-0.629346529701E+00}]
+"nacl_wat.inp"                          = [{matcher="M002", tol=1.0E-14, ref=-0.911029622425E+01}]
+#Stress Tensor automatic debug
+"H2O-ST_debug.inp"                      = [{matcher="M042", tol=4e-03, ref=1.9802000000000001e-06}]
+#new colvars (position diagonal and cross term)
+"H2O-32_SPME_fixed_clv.inp"             = [{matcher="M002", tol=5e-12, ref=-8.0220274432699995E-05}]
+"H2O-32_SPME_fixed_cross_clv.inp"       = [{matcher="M002", tol=1.0E-14, ref=-0.452324222648E-02}]
+# Core-shell atoms plus intra-molecular forces
+"H2O_cs_intra_debug.inp"                = [{matcher="M054", tol=1.0E-14, ref=0.0E+00},
+                                           {matcher="M082", tol=1.0E-14, ref=0.00000157}]
+"H2O_cs_intra_geo_opt.inp"              = [{matcher="M011", tol=1.0E-14, ref=-0.917699614533378}]
+#EOF

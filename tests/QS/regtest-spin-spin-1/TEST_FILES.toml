@@ -1,0 +1,12 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+"ch4-gapw-issc-1.inp"                   = []
+"ch4-gapw-issc-2.inp"                   = [{matcher="M036", tol=1e-05, ref=1.1241313419141019}]
+"no-gapw-issc-1.inp"                    = [{matcher="M036", tol=9e-05, ref=241.12852863820481}]
+"nh3-issc-op-1.inp"                     = [{matcher="M034", tol=1.0E-14, ref=0.1840828423510557E+02}]
+"ch4-gapw-issc-pso-1.inp"               = [{matcher="M038", tol=5e-05, ref=0.386542E+01}]
+"he-polar-1.inp"                        = [{matcher="M038", tol=1.0E-14, ref=0.136258E+02}]
+#EOF

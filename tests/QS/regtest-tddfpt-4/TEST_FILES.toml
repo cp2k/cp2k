@@ -1,0 +1,30 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+#
+"test01.inp"                            = [{matcher="M037", tol=5.0E-06, ref=0.976371E+00}]
+"test02.inp"                            = [{matcher="M037", tol=5.0E-06, ref=0.102132E+01}]
+"test03.inp"                            = [{matcher="M037", tol=5.0E-06, ref=0.102132E+01}]
+"test04.inp"                            = [{matcher="M037", tol=5.0E-06, ref=0.102641E+01}]
+"test05.inp"                            = [{matcher="M037", tol=5.0E-06, ref=0.101974E+01}]
+"test06.inp"                            = [{matcher="M037", tol=5.0E-06, ref=0.102171E+01}]
+"test07.inp"                            = [{matcher="M037", tol=5.0E-06, ref=0.101792E+01}]
+"test08.inp"                            = [{matcher="M037", tol=5.0E-06, ref=0.103120E+01}]
+"test09.inp"                            = [{matcher="M037", tol=5.0E-06, ref=0.101371E+01}]
+"test10.inp"                            = [{matcher="M037", tol=5.0E-06, ref=0.997064E+00}]
+"test11.inp"                            = [{matcher="M037", tol=5.0E-06, ref=0.105541E+01}]
+"test12.inp"                            = [{matcher="M037", tol=5.0E-06, ref=0.105058E+01}]
+"test13.inp"                            = [{matcher="M037", tol=5.0E-06, ref=0.105541E+01}]
+"test14.inp"                            = [{matcher="M037", tol=5.0E-06, ref=0.105058E+01}]
+"test15.inp"                            = [{matcher="M037", tol=5.0E-06, ref=0.109231E+01}]
+"test16.inp"                            = [{matcher="M037", tol=5.0E-06, ref=0.106367E+01}]
+"test17.inp"                            = [{matcher="M037", tol=5.0E-06, ref=0.170669E+01}]
+"test18.inp"                            = [{matcher="M037", tol=5.0E-06, ref=0.169670E+01}]
+"test19.inp"                            = [{matcher="M037", tol=5.0E-06, ref=0.121034E+01}]
+"test20.inp"                            = [{matcher="M037", tol=5.0E-06, ref=0.120983E+01}]
+"test21.inp"                            = [{matcher="M037", tol=5.0E-06, ref=0.105522E+01}]
+"test22.inp"                            = [{matcher="M037", tol=5.0E-06, ref=0.109138E+01}]
+"test23.inp"                            = [{matcher="M037", tol=5.0E-06, ref=0.109296E+01}]
+#EOF

@@ -1,0 +1,20 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+"H2O-32-xtb-ls-1.inp"                   = [{matcher="M011", tol=1.0E-12, ref=-46.140441340701784}]
+"H2O-32-xtb-ls-2.inp"                   = [{matcher="M011", tol=1.0E-12, ref=-46.149897222623842}]
+"H2O-32-xtb-ls-3.inp"                   = [{matcher="M011", tol=1.0E-12, ref=-92.314662149041851}]
+"H2O-32-xtb-ls-4.inp"                   = [{matcher="M011", tol=1.0E-12, ref=-92.314660970750793}]
+"H2O-32-xtb-ls-5.inp"                   = [{matcher="M011", tol=1.0E-12, ref=-92.314661815852020}]
+"H2O-32-xtb-ls-6.inp"                   = [{matcher="M011", tol=1.0E-12, ref=-92.314660970750793}]
+"H2O-32-xtb-ls-7.inp"                   = [{matcher="M011", tol=1.0E-12, ref=-92.314661795311508}]
+"H2O-32-xtb-ls-8.inp"                   = [{matcher="M011", tol=1.0E-12, ref=-92.314661818553091}]
+"H2O-xtb-tc2-1.inp"                     = [{matcher="M011", tol=1.0E-12, ref=-92.314663104141061}]
+"H2O-xtb-tc2-2.inp"                     = [{matcher="M011", tol=1.0E-12, ref=-92.314663104135690}]
+"H2O-32-xtb-trs4.inp"                   = [{matcher="M011", tol=1.0E-12, ref=-46.149897253047165}]
+"H2O-32-xtb-trs4-dyn.inp"               = [{matcher="M011", tol=1.0E-12, ref=-46.149897253047165}]
+"h2o_vib.inp"                           = [{matcher="M008", tol=8.0E-06, ref=1465.672}]
+"tmol.inp"                              = [{matcher="M011", tol=1.0E-12, ref=-41.908456607784821}]
+#EOF

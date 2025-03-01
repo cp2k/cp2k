@@ -1,0 +1,4 @@
+# Tests from regtest-xastdp
+"Ne-pbc-shortrange.inp"                 = [{matcher="M088", tol=1e-08, ref=890.608044}]
+"Ar-HF-2p-SOC-os.inp"                   = [{matcher="M088", tol=1e-08, ref=261.347679}]
+#EOF

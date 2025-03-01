@@ -1,0 +1,5 @@
+"H2O_grad_admm_none.inp"                = [{matcher="M011", tol=1e-08, ref=-16.859419960981924}]
+"CH_grad_admm_none.inp"                 = [{matcher="M011", tol=1e-08, ref=-5.846828413331910}]
+"H2O_grad_admm.inp"                     = [{matcher="M011", tol=1e-08, ref=-16.879772701908799}]
+"CH_grad_admm.inp"                      = [{matcher="M011", tol=1e-08, ref=-5.847427828405277}]
+#EOF

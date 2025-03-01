@@ -1,0 +1,5 @@
+"argon-ref.inp"                         = []
+"driver.inp"                            = [{matcher="M045", tol=1e-05, ref=107.23470637605151}]
+"driver-restart.inp"                    = [{matcher="M045", tol=1e-06, ref=107.6965059321592}]
+"driver-stride.inp"                     = [{matcher="M045", tol=1.0E-14, ref=0.1072343388958498E+03}]
+#EOF

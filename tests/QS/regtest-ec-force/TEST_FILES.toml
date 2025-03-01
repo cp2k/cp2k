@@ -1,0 +1,39 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# see regtest/TEST_FILES
+# Harris functional energy correction force tests
+# PADE - PADE MO solver
+"N2_t01.inp"                            = [{matcher="M011", tol=1e-12, ref=-19.811978822934346}]
+# PADE - PBE
+"N2_t02.inp"                            = [{matcher="M011", tol=5e-12, ref=-19.920157485812176}]
+# PBE - PADE
+"N2_t03.inp"                            = [{matcher="M011", tol=5e-11, ref=-19.812276059625223}]
+# PBE - PBE
+"N2_t04.inp"                            = [{matcher="M011", tol=1e-12, ref=-19.919507649230656}]
+# NONE - PBE 
+"N2_t05.inp"                            = [{matcher="M011", tol=5e-11, ref=-19.921963323828781}]
+# PBE0 - PADE 
+"N2_t06.inp"                            = [{matcher="M011", tol=5e-11, ref=-19.812023408522769}]
+# PADE - PADE w/ Harris basis
+"N2_t07.inp"                            = [{matcher="M011", tol=1e-11, ref=-19.971002008270300}]
+# PBE - PBE  w/ Harris basis
+"N2_t08.inp"                            = [{matcher="M011", tol=5e-11, ref=-20.085007089026508}]
+# PBE0 - PBE w/ Harris basis AO solver
+"N2_t08b.inp"                           = [{matcher="M011", tol=5e-11, ref=-20.085007124872416}]
+# PBE0 - PBE w/ Harris basis
+"N2_t09.inp"                            = [{matcher="M011", tol=5e-12, ref=-20.088188602561136}]
+# HFX - PBE w/ Harris basis
+"N2_t10.inp"                            = [{matcher="M011", tol=1e-12, ref=-20.097436478908300}]
+# HFX-ADMM-NONE - PBE
+"N2_t11.inp"                            = [{matcher="M011", tol=1e-12, ref=-19.903215481271037}]
+# PBE0-ADMM-NONE - PBE w/ Harris basis
+"N2_t12.inp"                            = [{matcher="M011", tol=1e-12, ref=-19.927659863155839}]
+# PBE0-ADMM-DEFAULT - PBE 
+"N2_t13.inp"                            = [{matcher="M011", tol=1e-12, ref=-19.903137809792312}]
+# PBE0-ADMM-DEFAULT - PBE w/ Harris basis
+"N2_t14.inp"                            = [{matcher="M011", tol=5e-10, ref=-19.927232207418513}]
+# PADE - PBE | ADDED_MOS MO solver
+"N2_t15.inp"                            = [{matcher="M011", tol=2e-11, ref=-19.918432714159358}]
+# PADE - PBE | ADDED_MOS AO solver
+"N2_t16.inp"                            = [{matcher="M011", tol=2e-11, ref=-19.918432696987356}]
+#EOF

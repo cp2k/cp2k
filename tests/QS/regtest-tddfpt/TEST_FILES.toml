@@ -1,0 +1,21 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+"H2O_tddfpt-s-1.inp"                    = [{matcher="M037", tol=4.0E-06, ref=0.600232E+00}]
+"H2O_tddfpt-t-1.inp"                    = [{matcher="M037", tol=4.0E-06, ref=0.289055E+00}]
+"NO_tddfpt-s-1.inp"                     = [{matcher="M037", tol=4.0E-06, ref=0.319837E+00}]
+"NO_tddfpt-t-1.inp"                     = [{matcher="M037", tol=2.0E-04, ref=0.324319E+00}]
+"H2O_tddfpt-s-2.inp"                    = [{matcher="M037", tol=4.0E-06, ref=0.543390E+00}]
+"H2O_tddfpt-t-2.inp"                    = [{matcher="M037", tol=4.0E-06, ref=0.548605E+00}]
+"NO_tddfpt-t-2.inp"                     = [{matcher="M037", tol=4.0E-06, ref=0.340342E+00}]
+"H2O_tddfpt-s-3.inp"                    = [{matcher="M037", tol=4.0E-06, ref=0.543390E+00}]
+"H2O_tddfpt-t-3.inp"                    = [{matcher="M037", tol=4.0E-06, ref=0.579030E+00}]
+"NO_tddfpt-s-3.inp"                     = [{matcher="M037", tol=4.0E-06, ref=0.326331E+00}]
+"NO_tddfpt-t-3.inp"                     = [{matcher="M037", tol=4.0E-06, ref=0.340342E+00}]
+"H2O_tddfpt_NTO.inp"                    = [{matcher="M037", tol=4.0E-06, ref=0.542432E+00}]
+"H2O_tddfpt_NTO_slist.inp"              = [{matcher="M037", tol=4.0E-06, ref=0.542432E+00}]
+"H2O_tddfpt_NTO_restart.inp"            = [{matcher="M037", tol=4.0E-06, ref=0.542432E+00}]
+#
+#EOF

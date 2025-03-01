@@ -17,6 +17,9 @@ import shutil
 import subprocess
 import sys
 import time
+import tomllib
+
+from matchers import run_matcher
 
 try:
     from typing import Literal  # not available before Python 3.8
@@ -120,12 +123,6 @@ async def main() -> None:
             batch.unittests.append(Unittest(line.split()[0], batch.workdir))
             batches.append(batch)
 
-    # Read TEST_TYPES.
-    test_types_fn = cfg.cp2k_root / "tests" / "TEST_TYPES"
-    test_types: List[Optional[TestType]] = [None]  # test type zero
-    lines = test_types_fn.read_text(encoding="utf8").split("\n")
-    test_types += [TestType(l) for l in lines[1 : int(lines[0]) + 1]]
-
     # Read TEST_DIRS.
     test_dirs_fn = cfg.cp2k_root / "tests" / "TEST_DIRS"
     for line in test_dirs_fn.read_text(encoding="utf8").split("\n"):
@@ -134,13 +131,11 @@ async def main() -> None:
             continue
         batch = Batch(line, cfg)
 
-        # Read TEST_FILES.
-        test_files_fn = Path(batch.src_dir / "TEST_FILES")
-        for line in test_files_fn.read_text(encoding="utf8").split("\n"):
-            line = line.split("#", 1)[0].strip()
-            if not line:
-                continue
-            batch.regtests.append(Regtest(line, test_types, batch.workdir))
+        # Read TEST_FILES.toml
+        test_files_fn = Path(batch.src_dir / "TEST_FILES.toml")
+        test_files_content = test_files_fn.read_text(encoding="utf8")
+        for inp_fn, matcher_specs in tomllib.loads(test_files_content).items():
+            batch.regtests.append(Regtest(inp_fn, matcher_specs, batch.workdir))
             if cfg.smoketest:
                 break  # run only one test per directory
         batches.append(batch)
@@ -323,33 +318,6 @@ class Config:
 
 
 # ======================================================================================
-class TestType:
-    """Search pattern for result values, ie. a line in the TEST_TYPES file."""
-
-    def __init__(self, line: str):
-        parts = line.rsplit("!", 1)
-        self.pattern = parts[0]
-        self.pattern = self.pattern.replace("[[:space:]]", r"\s")
-        for c in r"|()+":
-            self.pattern = self.pattern.replace(c, f"\\{c}")  # escape special chars
-        try:
-            self.regex = re.compile(self.pattern)
-        except Exception:
-            print("Bad regex: " + self.pattern)
-            raise
-        self.column = int(parts[1])
-
-    def grep(self, output: str) -> Optional[str]:
-        for line in reversed(output.split("\n")):
-            match = self.regex.search(line)
-            if match:
-                # print("pattern:" + self.pattern)
-                # print("line:"+line)
-                return line.split()[self.column - 1]
-        return None
-
-
-# ======================================================================================
 class Unittest:
     """A unit test, ie. a standalone binary that matches '*_unittest.{cfg.version}'."""
 
@@ -362,17 +330,11 @@ class Unittest:
 class Regtest:
     """A single input file to test, ie. a line in a TEST_FILES file."""
 
-    def __init__(self, line: str, test_types: List[Optional[TestType]], workdir: Path):
-        parts = line.split()
-        self.inp_fn = parts[0]
+    def __init__(self, inp_fn: str, matcher_specs: List[Any], workdir: Path):
+        self.inp_fn = inp_fn
         self.name = self.inp_fn
+        self.matcher_specs = matcher_specs
         self.out_path = workdir / (self.name + ".out")
-
-        self.test_type = test_types[int(parts[1])]
-        if self.test_type:
-            self.tolerance = float(parts[2])
-            self.ref_value_txt = parts[3]
-            self.ref_value = float(self.ref_value_txt)
 
 
 # ======================================================================================
@@ -583,8 +545,9 @@ async def run_regtests_keepalive(batch: Batch, cfg: Config) -> List[TestResult]:
             await shell.start()
         duration = time.perf_counter() - start_time
         output_size = dirsize(batch.workdir) - start_dirsize
-        res = eval_regtest(batch, test, duration, output_size, returncode, timed_out)
-        results.append(res)
+        results += eval_regtest(
+            batch, test, duration, output_size, returncode, timed_out
+        )
 
     await shell.stop()
     return results
@@ -601,8 +564,9 @@ async def run_regtests_classic(batch: Batch, cfg: Config) -> List[TestResult]:
         test.out_path.write_bytes(output)
         duration = time.perf_counter() - start_time
         output_size = dirsize(batch.workdir) - start_dirsize
-        res = eval_regtest(batch, test, duration, output_size, returncode, timed_out)
-        results.append(res)
+        results += eval_regtest(
+            batch, test, duration, output_size, returncode, timed_out
+        )
 
     return results
 
@@ -620,7 +584,7 @@ def eval_regtest(
     output_size: int,
     returncode: int,
     timed_out: bool,
-) -> TestResult:
+) -> List[TestResult]:
     is_huge_suppressed = f"{batch.name}/{test.name}" in batch.huge_suppressions
     output_bytes = test.out_path.read_bytes() if test.out_path.exists() else b""
     output = output_bytes.decode("utf8", errors="replace")
@@ -630,45 +594,32 @@ def eval_regtest(
     # check for timeout
     if timed_out:
         error += f"{output_tail}\n\nTimed out after {duration} seconds."
-        return TestResult(batch, test, duration, "TIMED OUT", error=error)
+        return [TestResult(batch, test, duration, "TIMED OUT", error=error)]
 
     # check for crash
     if returncode != 0:
         error += f"{output_tail}\n\nRuntime failure with code {returncode}."
-        return TestResult(batch, test, duration, "RUNTIME FAIL", error=error)
+        return [TestResult(batch, test, duration, "RUNTIME FAIL", error=error)]
 
     # check for huge output
     if output_size > 2 * 1024 * 1024 and not is_huge_suppressed:  # 2MiB limit
         error += f"Test produced {output_size/1024/1024:.2f} MiB of output."
-        return TestResult(batch, test, duration, "HUGE OUTPUT", error=error)
+        return [TestResult(batch, test, duration, "HUGE OUTPUT", error=error)]
 
-    # happy end for test type zero
-    if not test.test_type:
-        return TestResult(batch, test, duration, "OK")
+    # happy end if there are no matchers
+    if not test.matcher_specs:
+        return [TestResult(batch, test, duration, "OK")]
 
-    # grep result
-    value_txt = test.test_type.grep(output)
-    if not value_txt:
-        error += f"{output_tail}\n\nResult not found: '{test.test_type.pattern}'."
-        return TestResult(batch, test, duration, "WRONG RESULT", error=error)
+    results = []
+    for spec in test.matcher_specs:
+        m = run_matcher(output, **spec)
+        if m.successful:
+            results.append(TestResult(batch, test, duration, "OK", value=m.value))
+        else:
+            err = "x" * 100 + f"\n{test.out_path}\n{output_tail}\n\n{spec}\n{m.error}\n"
+            results.append(TestResult(batch, test, duration, "WRONG RESULT", error=err))
 
-    # parse result
-    try:
-        value = float(value_txt)
-    except:
-        error += f"Could not parse result as float: '{value_txt}'."
-        return TestResult(batch, test, duration, "WRONG RESULT", error=error)
-
-    # compare result to reference
-    diff = value - test.ref_value
-    rel_error = abs(diff / test.ref_value if test.ref_value != 0.0 else diff)
-    if rel_error > test.tolerance:
-        error += f"Difference too large: {rel_error:.2e} > {test.tolerance}, "
-        error += f"ref_value: {test.ref_value_txt}, value: {value_txt}."
-        return TestResult(batch, test, duration, "WRONG RESULT", value, error)
-
-    # happy end
-    return TestResult(batch, test, duration, "OK", value)
+    return results
 
 
 # ======================================================================================

@@ -1,0 +1,9 @@
+"CH4-BP-NONE_OT_OFF.inp"                = [{matcher="M001", tol=3e-14, ref=-8.07712136198516}]
+"CH4-BP-CAUCHY_SUBSPACE.inp"            = [{matcher="M001", tol=2e-13, ref=-8.07859057522753}]
+"CH4-BP-CAUCHY_SUBSPACE_OT_OFF.inp"     = [{matcher="M001", tol=3e-14, ref=-8.07921185105874}]
+"CH4-BP-CAUCHY.inp"                     = [{matcher="M001", tol=2e-13, ref=-8.07859057522754}]
+"CH4-BP-CAUCHY_OT_OFF.inp"              = [{matcher="M001", tol=3e-14, ref=-8.07921185105874}]
+"H2+-BLOCKED-PURIFY-OFF.inp"            = [{matcher="M001", tol=2e-12, ref=-0.45795647554813002}]
+"H2+-BLOCKED-PURIFY-FULL.inp"           = [{matcher="M001", tol=2e-07, ref=-0.49529003346435002}]
+"admm_dbcsr_thread_dist.inp"            = [{matcher="M001", tol=6e-07, ref=-217.925807548683224}]
+#EOF

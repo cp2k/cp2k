@@ -1,0 +1,7 @@
+"H2O_grad_cg.inp"                       = [{matcher="M011", tol=8e-08, ref=-16.990049776121932}]
+"H2O_grad_sd.inp"                       = [{matcher="M011", tol=7e-08, ref=-16.990049436156660}]
+"H2O_grad_pr.inp"                       = [{matcher="M011", tol=7e-08, ref=-16.990049239382305}]
+"H2O_grad_richardson.inp"               = [{matcher="M011", tol=7e-08, ref=-16.990050849715541}]
+"H2O_grad_cg_enforce.inp"               = [{matcher="M011", tol=8e-08, ref=-16.990049776121932}]
+"H2O_grad_cg_recalc.inp"                = [{matcher="M011", tol=7e-08, ref=-16.990049367524890}]
+#EOF

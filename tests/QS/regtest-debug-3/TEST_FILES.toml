@@ -1,0 +1,22 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+"h2o_pbe0.inp"                          = [{matcher="M060", tol=1e-05, ref=0.411901963703}]
+"h2o_pbe0_admm.inp"                     = [{matcher="M060", tol=1e-05, ref=0.426369189904}]
+#
+"h2o_HSE06.inp"                         = [{matcher="M060", tol=1e-05, ref=0.436263865396}]
+"h2o_HSE06_admm.inp"                    = [{matcher="M060", tol=1e-05, ref=0.381688458912}]
+#h2o_B88_mixcl.inp                 functional B88_LR   60      1e-05             0.000000000000E+00
+#h2o_B88_mixcl_admm.inp            functional B88_LR   60      1e-05             0.000000000000E+00
+"h2o_pbe0TC.inp"                        = [{matcher="M060", tol=1e-05, ref=0.430192264863}]
+"h2o_pbe0TC_admm.inp"                   = [{matcher="M060", tol=3e-05, ref=0.390384448833}]
+#h2o_B88_mixcl_TC_admm.inp         functional B88_LR   60      1e-05             0.000000000000E+00
+#h2o_B88_mixcl_TC.inp              functional B88_LR   60      1e-05             0.000000000000E+00
+#h2o_pbe0TC_LRC.inp                functional LRC
+#h2o_pbe0TC_LRC_admm.inp           functional LRC
+#h2o_mgga_VV3_mixcl_admm.inp       functional mgga
+#h2o_mgga_VV3_mixcl.inp            functional mgga
+#EOF
+
