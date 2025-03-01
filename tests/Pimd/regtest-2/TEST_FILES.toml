@@ -1,0 +1,20 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# see regtest/TEST_FILES
+"water-micro-helium.inp"                = [{matcher="M009", tol=1e-13, ref=1.0713489620190466E-003}]
+"water-micro-helium-therminit.inp"      = [{matcher="M009", tol=1e-13, ref=1.0713749938279485E-003}]
+"w512_pint_nose.inp"                    = [{matcher="M009", tol=8e-14, ref=9.5780711530210407}]
+"w512_pint_gle.inp"                     = [{matcher="M009", tol=3e-13, ref=-3.5646497002020765}]
+"w512_pint_pile.inp"                    = [{matcher="M009", tol=3e-12, ref=3.1079980573539614}]
+"w512_pint_piglet.inp"                  = [{matcher="M009", tol=1e-11, ref=218.99114652708764}]
+"w512_pint_qtb_fp0.inp"                 = [{matcher="M009", tol=3e-12, ref=3.1097152626523572}]
+"w512_pint_qtb_fp1.inp"                 = [{matcher="M009", tol=3e-11, ref=3.1102704018032394}]
+"w512_pint_qtb_fp1-1.restart"           = [{matcher="M009", tol=4e-10, ref=3.1548759203858978}]
+"centroid_velocity_init.inp"            = [{matcher="M009", tol=1.0E-14, ref=0.32999751991202331}]
+"he32_density.inp"                      = [{matcher="M040", tol=2e-14, ref=-2.1415575929544138E-005}]
+"he32_only_worm.inp"                    = [{matcher="M040", tol=1e-11, ref=3.2848032583585659E-004}]
+"he32_only_worm_restart.inp"            = [{matcher="M040", tol=1e-11, ref=3.1056893819001927E-004}]
+"water-in-helium-worm.inp"              = [{matcher="M009", tol=1e-11, ref=-4.2435303435780906E-004}]
+"water-in-helium-striding.inp"          = [{matcher="M009", tol=1e-11, ref=9.2149634888323367E-002}]
+"water_in_helium_nnp.inp"               = [{matcher="M009", tol=1e-11, ref=0.188542848154504}]
+#EOF

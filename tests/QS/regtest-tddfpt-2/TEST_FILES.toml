@@ -1,0 +1,28 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+#
+# Compute the lowest 3 singlet and triplet excited states of a formaldehyde molecule at PBE / aug-TZV2P-GTH level of theory.
+# Reference TDDFT singlet excitation energies (in eV): 3.85, 5.85, 6.60
+# Reference TDDFT triplet excitation energies (in eV): 3.18, 5.70, 6.94 ???
+"ch2o_pbe_rks_s_tddfpt.inp"             = [{matcher="M068", tol=1.0E-03, ref=3.80635}]
+"ch2o_pbe_rks_t_tddfpt.inp"             = [{matcher="M068", tol=1.0E-03, ref=3.06218}]
+# Compute the lowest 3 singlet and triplet excited states of a formaldehyde molecule at PBE0 / DZVP-GTH level of theory.
+# Reference TDDFT singlet excitation energies (in eV): 3.90, 6.68, 7.50
+# Reference TDDFT triplet excitation energies (in eV): 3.16, 4.79, 6.48
+"ch2o_pbe0_rks_s_tddfpt.inp"            = [{matcher="M068", tol=1.0E-03, ref=4.07191}]
+"ch2o_pbe0_rks_t_tddfpt.inp"            = [{matcher="M068", tol=1.0E-03, ref=3.29612}]
+# Compute the lowest 2 singlet excited states of a formaldehyde molecule at PBE0 / aug-TZV2P-GTH level of theory
+# using the auxiliary density matrix method with aug-cFIT3 auxiliary basis set.
+# Further acceleration techniques in use are:
+#   ch2o_pbe0_rks_s_tddfpt_admm  -- compute excited states simultaneously using one MPI process per excited state
+#   ch2o_pbe0_rks_s_tddfpt_admm2 -- reduced TDDFPT plane wave cutoff
+# Reference TDDFT singlet excitation energies (in eV): 3.87, 6.70
+"ch2o_pbe0_rks_s_tddfpt_admm.inp"       = [{matcher="M068", tol=1.0E-03, ref=3.96493}]
+"ch2o_pbe0_rks_s_tddfpt_admm2.inp"      = [{matcher="M068", tol=1.0E-03, ref=3.96586}]
+# Compute the lowest 3 doublet excited states of a nitrogen monooxyde molecule at PBE / aug-TZV2P-GTH level of theory.
+# Reference excitation energies (in eV): 0.13, 5.44, 6.14
+"no_pbe_uks_d_tddfpt.inp"               = [{matcher="M068", tol=1.0E-02, ref=0.18686}]
+#EOF

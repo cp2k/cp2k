@@ -1,0 +1,7 @@
+"almo-md-full-scf.inp"                  = [{matcher="M011", tol=1e-12, ref=-136.705845207359971}]
+"almo-md-full-x-then-scf.inp"           = [{matcher="M011", tol=2e-12, ref=-136.986095054991779}]
+"almo-md-no-aspc.inp"                   = [{matcher="M011", tol=1e-12, ref=-136.473484272129724}]
+"xalmo-scf-md.inp"                      = [{matcher="M011", tol=1e-12, ref=-136.705599283542284}]
+"almo-md.inp"                           = [{matcher="M011", tol=2e-12, ref=-136.622582484212415}]
+"almo-md-wannier.inp"                   = [{matcher="M011", tol=1e-12, ref=-136.473478973446618}]
+#EOF

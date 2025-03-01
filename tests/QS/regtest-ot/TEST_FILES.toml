@@ -1,0 +1,50 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+# test mulliken constraints
+"C2H4-init.inp"                         = [{matcher="M001", tol=2.0E-14, ref=-12.67942273926137}]
+"C2H4.inp"                              = [{matcher="M001", tol=3e-14, ref=-13.40449179131761}]
+# test ddapc constraints
+"He2_ddapc_constraint.inp"              = [{matcher="M001", tol=2e-12, ref=-5.12409717641076}]
+"He2_ddapc_constraint-2.inp"            = [{matcher="M001", tol=4e-05, ref=-45.939163153444291}]
+"He2_ddapc_constraint-3.inp"            = [{matcher="M001", tol=4e-09, ref=-6.8373640812944796}]
+# outer scf loop none
+"He2_none.inp"                          = [{matcher="M001", tol=3e-13, ref=-5.14307655580282}]
+"He2_none_full_all.inp"                 = [{matcher="M001", tol=7e-13, ref=-5.1463341944901098}]
+"He2_none_full_single.inp"              = [{matcher="M001", tol=3e-13, ref=-5.14635296460525}]
+"He2_none_full_inverse.inp"             = [{matcher="M001", tol=2e-09, ref=-5.1463532149369504}]
+"He2_lumos.inp"                         = []
+# check that ot / geo / mo / pdos can be used together
+"H2O-geo-ot-evals.inp"                  = [{matcher="M001", tol=3e-13, ref=-16.79779859561386}]
+"H2O-geo-ot-mols.inp"                   = [{matcher="M001", tol=3e-13, ref=-33.56384349082011}]
+"H2O-geo-ot-pdos.inp"                   = [{matcher="M001", tol=3e-13, ref=-17.11010057083330}]
+"H2O-geo-pdos.inp"                      = [{matcher="M001", tol=5e-14, ref=-17.11090886162136}]
+"H2O-geo-pdos_comp.inp"                 = [{matcher="M001", tol=4e-14, ref=-17.11090886166302}]
+"H2O-geo-ot-pdos-lumo-comp.inp"         = [{matcher="M001", tol=3e-13, ref=-17.11010057083329}]
+"H2O-geo-pdos_comp_list.inp"            = [{matcher="M001", tol=4e-14, ref=-17.11090886166302}]
+"H2O-geo-ot-lumo-all.inp"               = [{matcher="M001", tol=9e-14, ref=-17.08951226957496}]
+# sic ddapc decoupled
+"sic_ddapc_rt.inp"                      = [{matcher="M001", tol=2E-11, ref=-13.49756236388298}]
+# introduce coeff
+"He2_ddapc_constraint-4.inp"            = [{matcher="M001", tol=2e-12, ref=-5.1130698445832703}]
+#test constraint on becke wight population
+"H2-BECKE-MD.inp"                       = [{matcher="M001", tol=1e-03, ref=-1.2233386124261501}]
+"H2-diffBECKE-ET_coupling.inp"          = [{matcher="M011", tol=5e-08, ref=-1.24257949981589}]
+# just energy with sic
+"sic_energy.inp"                        = [{matcher="M001", tol=6e-14, ref=-16.68885651353145}]
+# elf
+"C2H4-elf.inp"                          = [{matcher="M001", tol=1.0E-14, ref=-13.40989428421623}]
+# analytic poisson solver
+"He_a_xyz.inp"                          = [{matcher="M001", tol=2e-13, ref=-2.7989297163646398}]
+"He_a_xz.inp"                           = [{matcher="M001", tol=5e-11, ref=-2.79892785102722}]
+"He_a_yz.inp"                           = [{matcher="M001", tol=5e-11, ref=-2.79892785102722}]
+"He_a_xy.inp"                           = [{matcher="M001", tol=5e-11, ref=-2.79892785102722}]
+"He_a_x.inp"                            = [{matcher="M001", tol=2e-13, ref=-2.79892988624903}]
+"He_a_y.inp"                            = [{matcher="M001", tol=2e-13, ref=-2.79892988624903}]
+"He_a_z.inp"                            = [{matcher="M001", tol=2e-13, ref=-2.79892988624903}]
+# DOS
+"H2O-geo-dos-1.inp"                     = [{matcher="M001", tol=5e-14, ref=-17.11090886164507}]
+"H2O-geo-dos-2.inp"                     = [{matcher="M001", tol=5e-14, ref=-17.11090886164507}]
+#EOF

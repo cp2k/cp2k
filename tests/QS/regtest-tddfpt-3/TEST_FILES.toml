@@ -1,0 +1,15 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+#
+# test of new LSD KERNEL and finite differences
+"ch2o_t1.inp"                           = [{matcher="M037", tol=5.0E-06, ref=0.181985E+00}]
+"ch2o_t2.inp"                           = [{matcher="M037", tol=5.0E-06, ref=0.241729E+00}]
+"ch2o_t3.inp"                           = [{matcher="M037", tol=5.0E-06, ref=0.182932E+00}]
+"ch2o_t4.inp"                           = [{matcher="M037", tol=5.0E-06, ref=0.241502E+00}]
+"h2o_fxc_lda.inp"                       = [{matcher="M037", tol=5.0E-06, ref=0.599836E+00}]
+"h2o_fxc_pade.inp"                      = [{matcher="M037", tol=5.0E-06, ref=0.599826E+00}]
+"h2o_fxc_gga.inp"                       = [{matcher="M037", tol=5.0E-06, ref=0.789552E+00}]
+#EOF

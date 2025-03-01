@@ -1,0 +1,25 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+"h2o_check1.inp"                        = [{matcher="M086", tol=1e-08, ref=0.908927636671E+00}]
+"h2o_check2.inp"                        = [{matcher="M082", tol=1e-06, ref=0.00000058}]
+#
+"h2o_dip40.inp"                         = []
+"h2o_dip41.inp"                         = []
+"h2o_dip42.inp"                         = []
+"h2o_dip43.inp"                         = []
+"ch2o_dip44.inp"                        = []
+"ch2o_dip45.inp"                        = []
+"ch2o_dip46.inp"                        = []
+"ch2o_dip47.inp"                        = []
+"h2o_xc_dip40.inp"                      = []
+"h2o_xc_dip41.inp"                      = []
+"h2o_xc_dip42.inp"                      = []
+"h2o_xc_dip43.inp"                      = []
+"ch2o_xc_dip44.inp"                     = []
+"ch2o_xc_dip45.inp"                     = []
+"ch2o_xc_dip46.inp"                     = []
+"ch2o_xc_dip47.inp"                     = []
+#EOF

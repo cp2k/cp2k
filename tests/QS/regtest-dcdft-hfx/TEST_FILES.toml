@@ -1,0 +1,21 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# see regtest/TEST_FILES
+# Density-corrected DFT with exact exchange contribution
+# PBE0 - B3LYP - MO solver
+"N2_t01.inp"                            = [{matcher="M011", tol=2e-11, ref=-19.832131213645233}]
+# PBE0 - B3LYP - AO solver
+"N2_t02.inp"                            = [{matcher="M011", tol=2e-11, ref=-19.833869175515250}]
+# PBE0 - PBE0 (no hfx_reuse)
+"N2_t03.inp"                            = [{matcher="M011", tol=2e-11, ref=-19.844497503972438}]
+# HFX(ADMM-NONE) - PBE0 (no hfx_reuse)
+"N2_t04.inp"                            = [{matcher="M011", tol=2e-11, ref=-19.828806787106984}]
+# HFX(ADMM-PBEX) - PBE0 (no hfx_reuse)
+"N2_t05.inp"                            = [{matcher="M011", tol=2e-11, ref=-19.835052685265172}]
+# HFX(ADMM-PBEX) - PBE0(ADMM) - MO solver (no hfx_reuse)
+"N2_t06.inp"                            = [{matcher="M011", tol=2e-11, ref=-19.826210273097672}]
+# HFX(ADMM-PBEX) - PBE0(ADMM) - MO solver (hfx_reuse)
+"N2_t07.inp"                            = [{matcher="M011", tol=2e-11, ref=-19.829509514937030}]
+# HFX(ADMM-PBEX) - B3LYP(ADMM) - AO solver (hfx_reuse)
+"N2_t08.inp"                            = [{matcher="M011", tol=2e-11, ref=-19.829523049876734}]
+#EOF

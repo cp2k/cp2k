@@ -1,0 +1,27 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+
+"simple_non-ortho_grid_auto.inp"        = [{matcher="M001", tol=1e-12, ref=-18.04976254476928}]
+"simple_non-ortho_grid_validate.inp"    = [{matcher="M001", tol=1e-12, ref=-18.04976254476928}]
+"simple_non-ortho_grid_ref.inp"         = [{matcher="M001", tol=1e-12, ref=-18.04976254476928}]
+"simple_non-ortho_grid_cpu.inp"         = [{matcher="M001", tol=1e-12, ref=-18.04976254476928}]
+"simple_non-ortho_grid_dgemm.inp"       = [{matcher="M001", tol=4e-08, ref=-18.05635361766292}]
+
+"simple_ortho_grid_auto.inp"            = [{matcher="M001", tol=2e-14, ref=-21.04944231395059}]
+"simple_ortho_grid_validate.inp"        = [{matcher="M001", tol=2e-14, ref=-21.04944231395059}]
+"simple_ortho_grid_ref.inp"             = [{matcher="M001", tol=2e-14, ref=-21.04944231395059}]
+"simple_ortho_grid_cpu.inp"             = [{matcher="M001", tol=2e-14, ref=-21.04944231395059}]
+"simple_ortho_grid_dgemm.inp"           = [{matcher="M001", tol=2e-14, ref=-21.04944231897051}]
+
+"H2O-1_non-ortho_grid_auto.inp"         = [{matcher="M001", tol=1.0E-12, ref=-17.178574723910064}]
+"H2O-1_non-ortho_grid_cpu.inp"          = [{matcher="M001", tol=1.0E-12, ref=-17.178574723910064}]
+"H2O-1_non-ortho_grid_dgemm.inp"        = [{matcher="M001", tol=1.0E-12, ref=-17.178574725912100}]
+
+"H2O-1_ortho_grid_auto.inp"             = [{matcher="M001", tol=1.0E-12, ref=-17.178574764501384}]
+"H2O-1_ortho_grid_cpu.inp"              = [{matcher="M001", tol=1.0E-12, ref=-17.178574764501384}]
+"H2O-1_ortho_grid_dgemm.inp"            = [{matcher="M001", tol=1.0E-12, ref=-17.178574764551222}]
+
+#EOF

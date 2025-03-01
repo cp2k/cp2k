@@ -1,0 +1,23 @@
+# All pao methods should reproduce the reference energy
+"H2_ref.inp"                            = [{matcher="M011", tol=9e-14, ref=-1.160920966916433}]
+"H2_pao_exp.inp"                        = [{matcher="M011", tol=1e-07, ref=-1.160920966911983}]
+"H2_pao_fock.inp"                       = [{matcher="M011", tol=1e-07, ref=-1.160920966911983}]
+"H2_pao_rotinv.inp"                     = [{matcher="M011", tol=1e-07, ref=-1.160920966911983}]
+"H2_pao_gth.inp"                        = [{matcher="M011", tol=1e-07, ref=-1.160920966911983}]
+"H2_pao_equi.inp"                       = [{matcher="M011", tol=1e-07, ref=-1.160920966911983}]
+#
+"H2_pao_MD.inp"                         = [{matcher="M002", tol=1e-07, ref=-0.116085621247E+01}]
+#
+"H2_pao_exp_checkgrad.inp"              = []
+"H2_pao_fock_checkgrad.inp"             = []
+"H2_pao_rotinv_checkgrad.inp"           = []
+"H2_pao_gth_checkgrad.inp"              = []
+"H2_pao_equi_checkgrad.inp"             = []
+#
+"H2_pao_fock_checkforces.inp"           = []
+"H2_pao_rotinv_checkforces.inp"         = []
+#
+# using single frame of H2 for predicting H2O with pao disabled on Oxygen
+# ...obviously the resulting energy is way off.
+"H2O_hybrid_ML.inp"                     = [{matcher="M011", tol=1e-10, ref=-17.187378917410030}]
+#EOF

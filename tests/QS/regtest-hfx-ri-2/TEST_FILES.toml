@@ -1,0 +1,9 @@
+#Testing the forces:
+"CH-hfx-ri-rho.inp"                     = [{matcher="M011", tol=1.0E-8, ref=-38.264743594934089}]
+"CH-hfx-ri-mo.inp"                      = [{matcher="M011", tol=1.0E-9, ref=-38.267664144104820}]
+"Ne-hfx-pbc-metric-rho.inp"             = [{matcher="M011", tol=1.0E-9, ref=-636.720103843241191}]
+"Ne-hfx-pbc-metric-mo.inp"              = [{matcher="M011", tol=1.0E-9, ref=-635.511722336957519}]
+"CH3-b3lyp-ADMM.inp"                    = [{matcher="M011", tol=1.0E-9, ref=-7.347189043204780}]
+"H2O-pbe0-stress-truncated.inp"         = [{matcher="M031", tol=1.0E-8, ref=1.10578148678E+04}]
+"H2O-hfx-stress-identity.inp"           = [{matcher="M031", tol=1.0E-8, ref=7.89429744040E+03}]
+#EOF

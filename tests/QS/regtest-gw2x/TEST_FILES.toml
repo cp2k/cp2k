@@ -1,0 +1,16 @@
+#Testing the GW2X correction scheme for the XAS_TDP method and the keyword combinations it involves
+#Checking basic calculations with the 2 approaches to GW2X: psudo-canonical and GW2X*
+"H2O-B3LYP-pseudo_cano.inp"             = [{matcher="M088", tol=1e-08, ref=538.170258}]
+"H2O-B3LYP-GW2Xs.inp"                   = [{matcher="M088", tol=1e-08, ref=537.831758}]
+#Checking the individual scaling of spin-contributions (here using SCS-MP2)
+"HCN-PBE0-SCS_GW2X.inp"                 = [{matcher="M088", tol=1e-08, ref=404.819361}]
+#Checking unrestricted KS ground state
+"O2-HF-uks.inp"                         = [{matcher="M088", tol=1e-08, ref=524.866496}]
+#Checking the use of ADMM, pseudo-potentials and varying batch size
+"CH3F-PBEh-admm-pseudo.inp"             = [{matcher="M088", tol=1e-08, ref=680.050621}]
+#Checking PBCs (non-practical calculations)
+"Ne-pbc-shortrange.inp"                 = [{matcher="M088", tol=1e-08, ref=904.378971}]
+"Ne-pbc-truncated.inp"                  = [{matcher="M088", tol=1e-08, ref=919.922795}]
+#XPS only calculation, bypassing all XAS_TDP stuff
+"SiH4-HF-xps_only.inp"                  = [{matcher="M091", tol=1e-08, ref=106.675736}]
+"SiH4-BHandHLYP-xps_only.inp"           = [{matcher="M091", tol=1e-08, ref=106.089668}]

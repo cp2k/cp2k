@@ -1,0 +1,9 @@
+# GROMOS TOPOLOGY AND CONNECTIVITY TESTS
+"G87.inp"                               = [{matcher="M002", tol=1.0E-14, ref=-0.145433971013E+01}]
+"G87_2.inp"                             = [{matcher="M002", tol=1.0E-14, ref=-0.145433971013E+01}]
+"G96.inp"                               = [{matcher="M002", tol=1.0E-14, ref=-0.136974966200E+01}]
+"G96_ei_scale.inp"                      = [{matcher="M002", tol=1.0E-14, ref=-0.145768067252E+01}]
+"water.inp"                             = [{matcher="M002", tol=9e-12, ref=-2.17671791223e-05}]
+"water_vel.inp"                         = [{matcher="M002", tol=6e-12, ref=0.000326955141886}]
+"water_2.inp"                           = [{matcher="M002", tol=1.0E-14, ref=0.210987116850E-02}]
+#EOF

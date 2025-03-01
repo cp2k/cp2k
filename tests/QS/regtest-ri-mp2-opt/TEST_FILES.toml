@@ -1,0 +1,4 @@
+"opt_basis_O_ext_init.inp"              = [{matcher="M057", tol=9e-06, ref=-0.097046226431369995}]
+"opt_basis_O_auto_gen.inp"              = [{matcher="M057", tol=1e-04, ref=-0.097002051066109998}]
+"opt_basis_O_num_func.inp"              = [{matcher="M057", tol=4e-05, ref=-0.097065881652240005}]
+#EOF

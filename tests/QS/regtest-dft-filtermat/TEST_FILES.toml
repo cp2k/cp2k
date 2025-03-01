@@ -1,0 +1,6 @@
+"Si_bulk8.inp"                          = [{matcher="M011", tol=1e-10, ref=-31.297821641276180}]
+"Si_bulk8-2.inp"                        = [{matcher="M011", tol=1e-10, ref=-31.297821641276180}]
+"Si_bulk8-3.inp"                        = [{matcher="M011", tol=1e-10, ref=-31.297821641276180}]
+"Si_bulk8-4.inp"                        = [{matcher="M011", tol=1e-10, ref=-31.297821641276180}]
+"Si_bulk8-5.inp"                        = [{matcher="M011", tol=3e-10, ref=-31.297821641276180}]
+#EOF

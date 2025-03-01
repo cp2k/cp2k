@@ -1,0 +1,5 @@
+"test_pexsi_md.inp"                     = [{matcher="M011", tol=4e-13, ref=-17.161733577340730}]
+"test_pexsi.inp"                        = [{matcher="M011", tol=1e-10, ref=-103.006481139376916}]
+"test_entropic_pexsi.inp"               = [{matcher="M011", tol=6e-11, ref=-31.161826985004726}]
+"rho_mixing_pexsi.inp"                  = [{matcher="M011", tol=1e-10, ref=-43.839713739029456}]
+#EOF
