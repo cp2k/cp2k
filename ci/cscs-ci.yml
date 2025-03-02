@@ -20,7 +20,7 @@ build cp2k eiger:
     - echo ${DOCKERHUB_TOKEN} | podman login docker.io --username ${DOCKERHUB_USERNAME} --password-stdin
   after_script:
     - podman images
-    - podman push ${PERSIST_IMAGE_NAME} ${DOCKERHUB_INAGE_NAME}
+    - podman push ${PERSIST_IMAGE_NAME} ${DOCKERHUB_IMAGE_NAME}
   variables:
     DOCKER_BUILD_ARGS: '[
       "BASE_IMAGE",
@@ -80,8 +80,8 @@ benchmark H2O-512_md cp2k eiger:
     SLURM_CONSTRAINT: mc
     SLURM_CPUS_PER_TASK: 1
     SLURM_HINT: nomultithread
-    SLURM_JOB_NUM_NODES: 1
-    SLURM_NTASKS: 128
+    SLURM_JOB_NUM_NODES: 2
+#    SLURM_NTASKS: 256
     SLURM_TIMELIMIT: 30
     USE_MPI: YES
 
