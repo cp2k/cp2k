@@ -32,7 +32,7 @@ build cp2k eiger:
     BUILD_TYPE: toolchain
     DOCKERFILE: ci/docker/build_cp2k_${DOCKERHUB_TAG}.Dockerfile
     LOG_LINES: 200
-    MPICH_VERSION: 3.1.4
+    MPICH_VERSION: 3.3
 
 test cp2k eiger:
   extends: .baremetal-runner-eiger-zen2

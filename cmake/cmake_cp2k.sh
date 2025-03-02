@@ -137,7 +137,7 @@ elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "psmp" ]]; then
     -DCP2K_USE_LIBXC=ON \
     -DCP2K_USE_LIBXSMM=ON \
     -DCP2K_USE_MPI=ON \
-    -DCP2K_USE_MPI_F08=OFF \
+    -DCP2K_USE_MPI_F08=ON \
     -DCP2K_USE_PLUMED=ON \
     -DCP2K_USE_SIRIUS=ON \
     -DCP2K_USE_SPGLIB=ON \
