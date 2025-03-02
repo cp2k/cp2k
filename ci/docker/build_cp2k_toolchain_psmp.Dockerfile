@@ -37,19 +37,19 @@ ARG LOG_LINES=100
 
 # Install an MPI version ABI-compatible with the host MPI on Cray at CSCS
 ARG MPICH_VERSION=3.1.4
-#RUN /bin/bash -c -o pipefail " \
-#    wget -q https://www.mpich.org/static/downloads/${MPICH_VERSION}/mpich-${MPICH_VERSION}.tar.gz; \
-#    tar -xf mpich-${MPICH_VERSION}.tar.gz; \
-#    cd mpich-${MPICH_VERSION}; \
-#    ./configure --prefix='/usr/local' --enable-fast=all,O3 \
-#      FFLAGS='${FFLAGS} -fallow-argument-mismatch' \
-#      FCFLAGS='${FCFLAGS} -fallow-argument-mismatch' \
-#      &>configure.log || tail -n ${LOG_LINES} configure.log; \
-#    make -j ${NUM_PROCS} &>make.log || tail -n ${LOG_LINES} make.log; \
-#    make install &>install.log || tail -n ${LOG_LINES} install.log; \
-#    ldconfig; cd ..; \
-#    rm -rf mpich-${MPICH_VERSION} \
-#    rm mpich-${MPICH_VERSION}.tar.gz"
+RUN /bin/bash -c -o pipefail " \
+    wget -q https://www.mpich.org/static/downloads/${MPICH_VERSION}/mpich-${MPICH_VERSION}.tar.gz; \
+    tar -xf mpich-${MPICH_VERSION}.tar.gz; \
+    cd mpich-${MPICH_VERSION}; \
+    ./configure --prefix='/usr/local' --enable-fast=all,O3 \
+      FFLAGS='${FFLAGS} -fallow-argument-mismatch' \
+      FCFLAGS='${FCFLAGS} -fallow-argument-mismatch' \
+      &>configure.log || tail -n ${LOG_LINES} configure.log; \
+    make -j ${NUM_PROCS} &>make.log || tail -n ${LOG_LINES} make.log; \
+    make install &>install.log || tail -n ${LOG_LINES} install.log; \
+    ldconfig; cd ..; \
+    rm -rf mpich-${MPICH_VERSION} \
+    rm mpich-${MPICH_VERSION}.tar.gz"
 
 # Build CP2K toolchain
 ARG BUILD_TYPE="minimal"
@@ -80,7 +80,7 @@ RUN echo "\nBuild type: ${BUILD_TYPE}\n" && \
         --no-arch-files \
         --target-cpu=native \
         --with-gcc=system \
-        --with-mpich; \
+        --with-mpich=system; \
     fi
 
 # Perform toolchain build step-wise in stages after its initialization with dry-run

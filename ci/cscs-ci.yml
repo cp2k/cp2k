@@ -49,7 +49,7 @@ test cp2k eiger:
     SLURM_HINT: nomultithread
     SLURM_JOB_NUM_NODES: 1
     SLURM_NTASKS: 128
-    USE_MPI: NO
+    USE_MPI: YES
 
 benchmark cp2k 1 eiger node:
   extends: .container-runner-eiger-zen2
