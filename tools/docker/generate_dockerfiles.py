@@ -16,18 +16,12 @@ def main() -> None:
 
     for version in "sdbg", "ssmp", "pdbg", "psmp":
         with OutputFile(f"Dockerfile.test_{version}", args.check) as f:
+            mpi_mode = "mpich" if version.startswith("p") else "no"
+            with_dbcsr = "" if version.endswith("smp") else "no"
+            f.write(install_deps_toolchain(mpi_mode=mpi_mode, with_dbcsr=with_dbcsr))
             if version in ("ssmp", "psmp"):
-                # Use ssmp/psmp as guinea pigs
-                if version == "ssmp":
-                    f.write(install_deps_toolchain(mpi_mode="no", with_dbcsr=""))
-                elif version == "psmp":
-                    f.write(install_deps_toolchain(mpi_mode="mpich", with_dbcsr=""))
                 f.write(regtest_cmake("toolchain", version))
             else:
-                if version == "sdbg":
-                    f.write(install_deps_toolchain(mpi_mode="no"))
-                elif version == "pdbg":
-                    f.write(install_deps_toolchain(mpi_mode="mpich"))
                 f.write(regtest(version))
 
         with OutputFile(f"Dockerfile.test_generic_{version}", args.check) as f:
