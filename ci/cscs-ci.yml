@@ -9,7 +9,7 @@ stages:
 variables:
   DOCKERHUB_REPOSITORY: cp2k_eiger
   DOCKERHUB_TAG: toolchain_psmp
-  DOCKER_IMAGE_NAME: docker.io/${DOCKERHUB_USERNAME}/${DOCKERHUB_REPOSITORY}:${DOCKERHUB_TAG}
+  DOCKERHUB_IMAGE_NAME: docker.io/${DOCKERHUB_USERNAME}/${DOCKERHUB_REPOSITORY}:${DOCKERHUB_TAG}
   PERSIST_IMAGE_NAME: ${CSCS_REGISTRY_PATH}/cp2k:${CI_COMMIT_SHORT_SHA}
 
 build cp2k eiger:
@@ -41,9 +41,9 @@ test cp2k eiger:
   timeout: 1h
   before_script:
     - echo ${DOCKERHUB_TOKEN} | podman login docker.io --username ${DOCKERHUB_USERNAME} --password-stdin
-    - podman pull ${DOCKERHUB_INAGE_NAME}
+    - podman pull ${DOCKERHUB_IMAGE_NAME}
   script:
-    - podman run --mount type=bind,src=${SCRATCH},target=${SCRATCH} --workdir=${SCRATCH} ${DOCKERHUB_INAGE_NAME} /opt/cp2k/tests/do_regtest.py --maxtasks 64 /opt/cp2k/bin psmp
+    - podman run --mount type=bind,src=${SCRATCH},target=${SCRATCH} --workdir=${SCRATCH} ${DOCKERHUB_IMAGE_NAME} /opt/cp2k/tests/do_regtest.py --maxtasks 64 /opt/cp2k/bin psmp
   variables:
     SLURM_CONSTRAINT: mc
     SLURM_HINT: nomultithread
@@ -78,9 +78,9 @@ benchmark H2O-512_md cp2k eiger:
     - cp2k /opt/cp2k/benchmarks/CI/H2O-512_md.inp
   variables:
     SLURM_CONSTRAINT: mc
-    SLURM_CPUS_PER_TASK: 2
+    SLURM_CPUS_PER_TASK: 1
     SLURM_HINT: nomultithread
-    SLURM_JOB_NUM_NODES: 2
+    SLURM_JOB_NUM_NODES: 1
     SLURM_NTASKS: 128
     SLURM_TIMELIMIT: 30
     USE_MPI: YES
