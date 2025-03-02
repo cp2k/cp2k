@@ -30,7 +30,7 @@ build cp2k eiger:
     ]'
     BASE_IMAGE: ubuntu:24.04
     BUILD_TYPE: minimal
-    DOCKERFILE: ci/docker/build_${DOCKERHUB_TAG}.Dockerfile
+    DOCKERFILE: ci/docker/build_cp2k_${DOCKERHUB_TAG}.Dockerfile
     LOG_LINES: 200
     MPICH_VERSION: 3.1.4
 
