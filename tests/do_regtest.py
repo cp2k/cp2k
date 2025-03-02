@@ -19,10 +19,17 @@ import sys
 import time
 from matchers import run_matcher
 
+# Try importing toml from various places.
 try:
     import tomllib  # not available before Python 3.11
 except ImportError:
-    import pip._vendor.tomli as tomllib  # type: ignore
+    try:
+        import pip._vendor.tomli as tomllib  # type: ignore
+    except ImportError:
+        try:
+            import pip._vendor.toml as tomllib  # type: ignore
+        except ImportError:
+            import toml as tomllib  # type: ignore
 
 try:
     from typing import Literal  # not available before Python 3.8
