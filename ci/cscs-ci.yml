@@ -4,30 +4,35 @@ include:
 stages:
   - build
   - test
+  - benchmark
 
 variables:
-  PERSIST_IMAGE_NAME: $CSCS_REGISTRY_PATH/cp2k:$CI_COMMIT_SHORT_SHA
+  DOCKERHUB_REPOSITORY: cp2k_eiger
+  DOCKERHUB_TAG: toolchain_psmp
+  DOCKERHUB_IMAGE_NAME: docker.io/${DOCKERHUB_USERNAME}/${DOCKERHUB_REPOSITORY}:${DOCKERHUB_TAG}
+  PERSIST_IMAGE_NAME: ${CSCS_REGISTRY_PATH}/cp2k:${CI_COMMIT_SHORT_SHA}
 
 build cp2k eiger:
   extends: .container-builder-cscs-zen2
   stage: build
   timeout: 1h
   before_script:
-    - echo "BUILD_IMAGE=${PERSIST_IMAGE_NAME}" > build.env
-    - 'echo "INFO: Building image ${PERSIST_IMAGE_NAME}"'
-  artifacts:
-    reports:
-      dotenv: build.env
+    - echo ${DOCKERHUB_TOKEN} | podman login docker.io --username ${DOCKERHUB_USERNAME} --password-stdin
+  after_script:
+    - podman images
+    - podman push ${PERSIST_IMAGE_NAME} ${DOCKERHUB_IMAGE_NAME}
   variables:
     DOCKER_BUILD_ARGS: '[
       "BASE_IMAGE",
       "BUILD_TYPE",
+      "LOG_LINES",
       "MPICH_VERSION"
     ]'
     BASE_IMAGE: ubuntu:24.04
     BUILD_TYPE: toolchain
-    DOCKERFILE: ci/docker/build_cp2k_psmp.Dockerfile
-    MPICH_VERSION: 3.1.4
+    DOCKERFILE: ci/docker/build_cp2k_${DOCKERHUB_TAG}.Dockerfile
+    LOG_LINES: 200
+    MPICH_VERSION: 3.4.3
 
 test cp2k eiger:
   extends: .container-runner-eiger-zen2
@@ -36,11 +41,75 @@ test cp2k eiger:
   timeout: 1h
   image: ${PERSIST_IMAGE_NAME}
   script:
-    - cp2k /opt/cp2k/benchmarks/CI/H2O-128_md.inp
+    - cp2k /opt/cp2k/benchmarks/CI/H2O-32_md.inp
   variables:
-    OMP_NUM_THREADS: 2
     SLURM_CONSTRAINT: mc
+    SLURM_CPUS_PER_TASK: 4
+    SLURM_DEBUG: 1
     SLURM_HINT: nomultithread
     SLURM_JOB_NUM_NODES: 1
-    SLURM_NTASKS_PER_NODE: 64
+    SLURM_NTASKS: 8
+    SLURM_NTASKS_PER_NODE: 8
+    SLURM_TIMELIMIT: 10
     USE_MPI: YES
+
+regression test cp2k eiger:
+  extends: .baremetal-runner-eiger-zen2
+  stage: test
+  needs: ["build cp2k eiger","test cp2k eiger"]
+  timeout: 1h
+  before_script:
+    - echo ${DOCKERHUB_TOKEN} | podman login docker.io --username ${DOCKERHUB_USERNAME} --password-stdin
+    - podman pull ${DOCKERHUB_IMAGE_NAME}
+  script:
+    - podman run --mount type=bind,src=${SCRATCH},target=${SCRATCH} --workdir=${SCRATCH} ${DOCKERHUB_IMAGE_NAME} /opt/cp2k/tests/do_regtest.py --maxtasks 128 /opt/cp2k/bin psmp
+  variables:
+    SLURM_CONSTRAINT: mc
+    SLURM_DEBUG: 1
+    SLURM_HINT: nomultithread
+    SLURM_JOB_NUM_NODES: 1
+    SLURM_NTASKS: 128
+    SLURM_TIMELIMIT: 30
+    USE_MPI: YES
+
+benchmark cp2k 1 eiger node:
+  extends: .container-runner-eiger-zen2
+  stage: benchmark
+  needs: ["build cp2k eiger","test cp2k eiger","regression test cp2k eiger"]
+  timeout: 1h
+  image: ${PERSIST_IMAGE_NAME}
+  script:
+    - cp2k /opt/cp2k/benchmarks/CI/H2O-128_md.inp
+  variables:
+    SLURM_CONSTRAINT: mc
+    SLURM_CPUS_PER_TASK: 1
+    SLURM_DEBUG: 1
+    SLURM_HINT: nomultithread
+    SLURM_JOB_NUM_NODES: 1
+    SLURM_NTASKS: 128
+    SLURM_NTASKS_PER_NODE: 128
+    SLURM_TIMELIMIT: 30
+    USE_MPI: YES
+
+benchmark cp2k 2 eiger nodes:
+  extends: .container-runner-eiger-zen2
+  stage: benchmark
+  needs: ["build cp2k eiger","test cp2k eiger","regression test cp2k eiger"]
+  timeout: 1h
+  image: ${PERSIST_IMAGE_NAME}
+  before_script:
+    - export MPICH_NOLOCAL=1
+  script:
+    - cp2k /opt/cp2k/benchmarks/CI/H2O-512_md.inp
+  variables:
+    SLURM_CONSTRAINT: mc
+    SLURM_CPUS_PER_TASK: 1
+    SLURM_DEBUG: 1
+    SLURM_HINT: nomultithread
+    SLURM_JOB_NUM_NODES: 2
+    SLURM_NTASKS: 256
+    SLURM_NTASKS_PER_NODE: 128
+    SLURM_TIMELIMIT: 30
+    USE_MPI: YES
+
+# EOF

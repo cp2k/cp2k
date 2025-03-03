@@ -35,8 +35,8 @@ endif()
 # https://github.com/cp2k/dbcsr/issues/261 eventually check compiler version
 # (similar to -h system_alloc)
 add_compile_options(
-  "$<$<COMPILE_LANG_AND_ID:C,GNU>:-ftree-vectorize;-funroll-loops;-mtune=native>"
-  "$<$<COMPILE_LANG_AND_ID:Fortran,GNU>:-fbacktrace;-fno-omit-frame-pointer;-ftree-vectorize;-funroll-loops;-mtune=native;-ffree-line-length-none;-ffree-form;-std=f2008;-fimplicit-none;-Werror=aliasing;-Werror=ampersand;-Werror=c-binding-type;-Werror=conversion;-Werror=intrinsic-shadow;-Werror=intrinsics-std;-Werror=line-truncation;-Werror=tabs;-Werror=target-lifetime;-Werror=underflow;-Werror=unused-but-set-variable;-Werror=unused-variable>"
+  "$<$<COMPILE_LANG_AND_ID:C,GNU>:-march=native;-mtune=native>"
+  "$<$<COMPILE_LANG_AND_ID:Fortran,GNU>:-march=native;-mtune=native;-fbacktrace;-ffree-line-length-none;-ffree-form;-std=f2008;-fimplicit-none;-Werror=aliasing;-Werror=ampersand;-Werror=c-binding-type;-Werror=conversion;-Werror=intrinsic-shadow;-Werror=intrinsics-std;-Werror=line-truncation;-Werror=tabs;-Werror=target-lifetime;-Werror=underflow;-Werror=unused-but-set-variable;-Werror=unused-variable>"
   "$<$<AND:$<COMPILE_LANG_AND_ID:Fortran,GNU>,$<VERSION_GREATER_EQUAL:${CMAKE_Fortran_COMPILER_VERSION},11>>:-fallow-argument-mismatch>"
   "$<$<COMPILE_LANG_AND_ID:Fortran,Intel>:-free -stand=f18 -fpp -heap-arrays>"
   "$<$<COMPILE_LANG_AND_ID:Fortran,PGI>:-Mfreeform -Mextend -Mallocatable=03>"
@@ -46,12 +46,12 @@ add_compile_options(
 )
 
 add_compile_options(
-  "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:Fortran,GNU>>:-O3;-g;-funroll-loops>"
+  "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:Fortran,GNU>>:-g;-funroll-loops>"
   "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:Fortran,PGI>>:-fast>"
   "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:Fortran,Intel>>:-O3;-g>"
   "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:Fortran,Cray>>:-O2;-G2>"
   "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:Fortran,NAG>>:-gline>"
-  "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:C,GNU>>:-O3;-g;-funroll-loops;-Wall>"
+  "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:C,GNU>>:-g;-funroll-loops;-Wall>"
   "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:C,PGI>>:-fast>"
   "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:C,Intel>>:-O3;-g>"
   "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:C,Cray>>:-O3>"
