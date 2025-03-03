@@ -1726,10 +1726,10 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_multipoles_mo'
 
       INTEGER                                            :: handle, idir, n_multipole, n_occ, &
-                                                            n_virt, nao
+                                                            n_virt, nao, nmo_mp2
       REAL(KIND=dp), DIMENSION(:), POINTER               :: ref_point
       TYPE(cp_fm_struct_type), POINTER :: fm_struct_mp_ab_trunc, fm_struct_mp_ai_trunc, &
-         fm_struct_mp_ij_trunc, fm_struct_multipoles_ao, fm_struct_nao_nao
+         fm_struct_mp_ij_trunc, fm_struct_multipoles_ao, fm_struct_nao_nmo, fm_struct_nmo_nmo
       TYPE(cp_fm_type)                                   :: fm_work
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_multipole_per_dir
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_multipole, matrix_s
@@ -1773,9 +1773,11 @@ CONTAINS
       ! Now we transform them to MO
       ! n_occ is the number of occupied MOs, nao the number of all AOs
       ! Writing homo to n_occ instead if nmo,
-      ! takes care of ADDED_MOS, which would overwrite nmo, if invoked
+      ! takes care of ADDED_MOS, which would overwrite nmo of qs_env-mos, if invoked
       CALL get_mo_set(mo_set=mos(1), homo=n_occ, nao=nao)
-      n_virt = nao - n_occ
+      ! Takes into account removed nullspace values from SVD
+      nmo_mp2 = mo_coeff(1)%matrix_struct%ncol_global
+      n_virt = nmo_mp2 - n_occ
 
       ! At the end, we need four different layouts of matrices in this multiplication, e.g. for a dipole:
       ! D_pq = full multipole matrix for occupied and unoccupied
@@ -1787,9 +1789,12 @@ CONTAINS
       ! fm_work =                 <\mu|\vec{r}|\nu>        C_{\nu q}              EQ.II
 
       ! Struct for the full multipole matrix
-      CALL cp_fm_struct_create(fm_struct_nao_nao, &
+      CALL cp_fm_struct_create(fm_struct_nao_nmo, &
                                fm_struct_multipoles_ao%para_env, fm_struct_multipoles_ao%context, &
-                               nao, nao)
+                               nao, nmo_mp2)
+      CALL cp_fm_struct_create(fm_struct_nmo_nmo, &
+                               fm_struct_multipoles_ao%para_env, fm_struct_multipoles_ao%context, &
+                               nmo_mp2, nmo_mp2)
 
       ! At the very end, we copy the multipoles corresponding to truncated BSE indices in i and a
       CALL cp_fm_struct_create(fm_struct_mp_ai_trunc, para_env_BSE, &
@@ -1812,19 +1817,20 @@ CONTAINS
 
       ! Need another temporary matrix to store intermediate result from right multiplication
       ! D = C_{mu a}        <\mu|\vec{r}|\nu>        C_{\nu i}
-      CALL cp_fm_create(fm_work, matrix_struct=fm_struct_nao_nao, name="multipole_work")
+      CALL cp_fm_create(fm_work, matrix_struct=fm_struct_nao_nmo, name="multipole_work")
       CALL cp_fm_set_all(fm_work, 0.0_dp)
 
       DO idir = 1, n_multipole
          ! Create the full multipole matrix per direction
-         CALL cp_fm_create(fm_multipole_per_dir(idir), matrix_struct=fm_struct_nao_nao, name="multipoles_mo")
+         CALL cp_fm_create(fm_multipole_per_dir(idir), matrix_struct=fm_struct_nmo_nmo, name="multipoles_mo")
          CALL cp_fm_set_all(fm_multipole_per_dir(idir), 0.0_dp)
          ! Fill final (MO) multipole matrix
          CALL cp_dbcsr_sm_fm_multiply(matrix_multipole(idir)%matrix, mo_coeff(1), &
-                                      fm_work, ncol=nao)
+                                      fm_work, ncol=nmo_mp2)
          ! Now obtain the multipoles by the final multiplication;
          ! We do that inside the loop to obtain multipoles per axis for print
-         CALL parallel_gemm('T', 'N', nao, nao, nao, 1.0_dp, mo_coeff(1), fm_work, 0.0_dp, fm_multipole_per_dir(idir))
+         CALL parallel_gemm('T', 'N', nmo_mp2, nmo_mp2, nao, 1.0_dp, mo_coeff(1), fm_work, 0.0_dp, fm_multipole_per_dir(idir))
+
          ! Truncate full matrix to the BSE indices
          ! D_ai
          CALL cp_fm_to_fm_submat_general(fm_multipole_per_dir(idir), &
@@ -1863,7 +1869,8 @@ CONTAINS
       CALL cp_fm_struct_release(fm_struct_mp_ai_trunc)
       CALL cp_fm_struct_release(fm_struct_mp_ij_trunc)
       CALL cp_fm_struct_release(fm_struct_mp_ab_trunc)
-      CALL cp_fm_struct_release(fm_struct_nao_nao)
+      CALL cp_fm_struct_release(fm_struct_nao_nmo)
+      CALL cp_fm_struct_release(fm_struct_nmo_nmo)
       DO idir = 1, n_multipole
          CALL cp_fm_release(fm_multipole_per_dir(idir))
       END DO
