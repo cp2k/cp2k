@@ -964,6 +964,7 @@ CONTAINS
       IF (PRESENT(damping_opt)) THEN
          ! Damping is given a time in which the moments reduce by factor of 1/e
          IF (damping_opt > 0.0_dp) damping = 1.0_dp/damping_opt
+         ! Special case - zero damping
          IF (damping_opt == 0.0_dp) damping = 0.0_dp
       END IF
 
@@ -992,7 +993,6 @@ CONTAINS
                                 EXP(-damping*delta_t*(j - 1))*(value_series(j_wrap) - value_subtract)
          END DO
       END DO
-      delta_omega = twopi/(time_series(N) - time_series(1))
       result_series(:) = delta_t*result_series(:)
       iresult_series(:) = delta_t*iresult_series(:)
 
