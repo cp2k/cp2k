@@ -149,7 +149,7 @@ RUN /bin/bash -c -o pipefail " \
     fi"
 
 # Update environment variables
-ENV LD_LIBRARY_PATH=/opt/cp2k/lib:${LD_LIBRARY} \
+ENV LD_LIBRARY_PATH=/opt/cp2k/lib:${LD_LIBRARY_PATH} \
     PATH=/opt/cp2k/bin:${PATH}
 
 # Collect components for installation
