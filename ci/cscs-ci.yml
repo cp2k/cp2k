@@ -45,9 +45,11 @@ test cp2k eiger:
   variables:
     SLURM_CONSTRAINT: mc
     SLURM_CPUS_PER_TASK: 4
+    SLURM_DEBUG: 1
     SLURM_HINT: nomultithread
     SLURM_JOB_NUM_NODES: 1
     SLURM_NTASKS: 8
+    SLURM_NTASKS_PER_NODE: 8
     SLURM_TIMELIMIT: 10
     USE_MPI: YES
 
@@ -63,6 +65,7 @@ regression test cp2k eiger:
     - podman run --mount type=bind,src=${SCRATCH},target=${SCRATCH} --workdir=${SCRATCH} ${DOCKERHUB_IMAGE_NAME} /opt/cp2k/tests/do_regtest.py --maxtasks 128 /opt/cp2k/bin psmp
   variables:
     SLURM_CONSTRAINT: mc
+    SLURM_DEBUG: 1
     SLURM_HINT: nomultithread
     SLURM_JOB_NUM_NODES: 1
     SLURM_NTASKS: 128
@@ -80,6 +83,7 @@ benchmark cp2k 1 eiger node:
   variables:
     SLURM_CONSTRAINT: mc
     SLURM_CPUS_PER_TASK: 1
+    SLURM_DEBUG: 1
     SLURM_HINT: nomultithread
     SLURM_JOB_NUM_NODES: 1
     SLURM_NTASKS: 128
@@ -99,11 +103,12 @@ benchmark cp2k 2 eiger nodes:
     - cp2k /opt/cp2k/benchmarks/CI/H2O-512_md.inp
   variables:
     SLURM_CONSTRAINT: mc
-    SLURM_CPUS_PER_TASK: 2
+    SLURM_CPUS_PER_TASK: 1
+    SLURM_DEBUG: 1
     SLURM_HINT: nomultithread
     SLURM_JOB_NUM_NODES: 2
-    SLURM_NTASKS: 128
-    SLURM_NTASKS_PER_NODE: 64
+    SLURM_NTASKS: 256
+    SLURM_NTASKS_PER_NODE: 128
     SLURM_TIMELIMIT: 30
     USE_MPI: YES
 
