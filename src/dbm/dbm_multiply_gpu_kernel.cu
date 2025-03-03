@@ -43,6 +43,14 @@ __device__ static void atomicAddDouble(double *address, double val) {
 }
 
 /*******************************************************************************
+ * \brief Returns the larger of two given integer (missing from the C standard)
+ * \author Ole Schuett
+ ******************************************************************************/
+__device__ constexpr static inline int imax(int x, int y) {
+  return (x > y ? x : y);
+}
+
+/*******************************************************************************
  * \brief Processes a task using tile dimensions give by template parameters.
  * \author Ole Schuett
  ******************************************************************************/
@@ -52,9 +60,9 @@ __device__ static void process_task(const int m, const int n, const int k,
                                     const double *block_b, double *block_c,
                                     double *shared_mem) {
 
-  constexpr int K = NUM_THREADS / DBM_MAX(M, N);
+  constexpr int K = NUM_THREADS / imax(M, N);
 
-  static_assert(K * DBM_MAX(M, N) == NUM_THREADS, "Wasting threads.");
+  static_assert(K * imax(M, N) == NUM_THREADS, "Wasting threads.");
   static_assert(M * N <= NUM_THREADS, "Not enough threads to cover tile.");
 
   double *tile_a = shared_mem;

@@ -75,7 +75,7 @@ static void dbm_dist_1d_free(dbm_dist_1d_t *dist) {
  ******************************************************************************/
 static int find_best_nrow_shards(const int nshards, const int nrows,
                                  const int ncols) {
-  const double target = (double)DBM_MAX(nrows, 1) / (double)DBM_MAX(ncols, 1);
+  const double target = imax(nrows, 1) / (double)imax(ncols, 1);
   int best_nrow_shards = nshards;
   double best_error = fabs(log(target / (double)nshards));
 

@@ -20,12 +20,6 @@
 #include "dbm_multiply_gpu.h"
 
 /*******************************************************************************
- * \brief Returns the larger of two given integer (missing from the C standard).
- * \author Ole Schuett
- ******************************************************************************/
-static inline int imax(int x, int y) { return (x > y ? x : y); }
-
-/*******************************************************************************
  * \brief Updates the min/max of a range of values (initially {INT_MAX, 0}).
  * \author Hans Pabst
  ******************************************************************************/
@@ -67,7 +61,7 @@ static float *compute_rows_max_eps(const bool trans, const dbm_matrix_t *matrix,
 #pragma omp for
     for (int i = 0; i < nrows; i++) {
       const float f =
-          ((float)filter_eps) / ((float)DBM_MAX(1, nblocks_per_row[i]));
+          ((float)filter_eps) / ((float)imax(1, nblocks_per_row[i]));
       row_max_eps[i] = f * f;
     }
   } // end of omp parallel region

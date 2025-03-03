@@ -10,8 +10,9 @@
 
 /*******************************************************************************
  * \brief Returns the larger of two given integer (missing from the C standard)
+ * \author Ole Schuett
  ******************************************************************************/
-#define DBM_MAX(X, Y) ((X) > (Y) ? (X) : (Y))
+static inline int imax(int x, int y) { return (x > y ? x : y); }
 
 /*******************************************************************************
  * \brief Internal struct for storing a dbm_block_t plus its norm.
