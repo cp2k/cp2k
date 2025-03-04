@@ -2,25 +2,33 @@ include:
   - remote: 'https://gitlab.com/cscs-ci/recipes/-/raw/master/templates/v2/.ci-ext.yml'
 
 stages:
-  - build
+  - deps
+  - cp2k
   - test
   - benchmark
 
 variables:
+  BASE_IMAGE: ubuntu:24.04
+  BUILD_TYPE: toolchain
   DOCKERHUB_REPOSITORY: cp2k_eiger
   DOCKERHUB_TAG: toolchain_psmp
+  DOCKERHUB_BASE_IMAGE_NAME: docker.io/${DOCKERHUB_USERNAME}/${DOCKERHUB_REPOSITORY}:${DOCKERHUB_TAG}_base_image
   DOCKERHUB_IMAGE_NAME: docker.io/${DOCKERHUB_USERNAME}/${DOCKERHUB_REPOSITORY}:${DOCKERHUB_TAG}
   PERSIST_IMAGE_NAME: ${CSCS_REGISTRY_PATH}/cp2k:${CI_COMMIT_SHORT_SHA}
 
-build cp2k eiger:
+build deps eiger:
   extends: .container-builder-cscs-zen2
-  stage: build
+  stage: deps
   timeout: 1h
+# rules:
+#   - changes:
+#     - tools/toolchain/scripts/install_cp2k_toolchain.sh
+#     - tools/toolchain/scripts/**/*
   before_script:
     - echo ${DOCKERHUB_TOKEN} | podman login docker.io --username ${DOCKERHUB_USERNAME} --password-stdin
   after_script:
     - podman images
-    - podman push ${PERSIST_IMAGE_NAME} ${DOCKERHUB_IMAGE_NAME}
+    - podman push ${PERSIST_IMAGE_NAME} ${DOCKERHUB_BASE_IMAGE_NAME}
   variables:
     DOCKER_BUILD_ARGS: '[
       "BASE_IMAGE",
@@ -28,11 +36,38 @@ build cp2k eiger:
       "LOG_LINES",
       "MPICH_VERSION"
     ]'
-    BASE_IMAGE: ubuntu:24.04
-    BUILD_TYPE: toolchain
-    DOCKERFILE: ci/docker/build_cp2k_${DOCKERHUB_TAG}.Dockerfile
+    BASE_IMAGE: ${BASE_IMAGE}
+    BUILD_TYPE: ${BUILD_TYPE}
+    DOCKERFILE: ci/docker/build_${CI_JOB_STAGE}_${DOCKERHUB_TAG}.Dockerfile
     LOG_LINES: 200
     MPICH_VERSION: 3.4.3
+
+build cp2k eiger:
+  extends: .container-builder-cscs-zen2
+  stage: cp2k
+  needs: ["build deps eiger"]
+  timeout: 1h
+  before_script:
+    - echo ${DOCKERHUB_TOKEN} | podman login docker.io --username ${DOCKERHUB_USERNAME} --password-stdin
+  after_script:
+    - podman images
+    - podman push ${PERSIST_IMAGE_NAME} ${DOCKERHUB_IMAGE_NAME}
+  artifacts:
+    paths:
+      - build/ninja.log
+      - build/install.log
+  variables:
+    DOCKER_BUILD_ARGS: '[
+      "BASE_IMAGE",
+      "DEPS_IMAGE",
+      "BUILD_TYPE",
+      "LOG_LINES",
+    ]'
+    BASE_IMAGE: ${BASE_IMAGE}
+    BUILD_TYPE: ${BUILD_TYPE}
+    DEPS_IMAGE: ${DOCKERHUB_BASE_IMAGE_NAME}
+    DOCKERFILE: ci/docker/build_${CI_JOB_STAGE}_${DOCKERHUB_TAG}.Dockerfile
+    LOG_LINES: 200
 
 test cp2k eiger:
   extends: .container-runner-eiger-zen2
