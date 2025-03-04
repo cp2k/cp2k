@@ -198,7 +198,7 @@ MODULE rt_bse_types
                                                                    ft_damping = 0.0_dp, &
                                                                    ft_start = 0.0_dp
       ! Which element of polarizability to print out
-      INTEGER, DIMENSION(:,:), POINTER                          :: pol_elements => NULL()
+      INTEGER, DIMENSION(:, :), POINTER                          :: pol_elements => NULL()
       TYPE(dft_control_type), POINTER                           :: dft_control => NULL()
       ! DEBUG : Trying keeping the reference to previous environments inside this one
       TYPE(qs_environment_type), POINTER                        :: qs_env => NULL()
@@ -354,12 +354,12 @@ CONTAINS
          CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%PRINT%POLARIZABILITY%ELEMENT", &
                                    i_vals=pol_tmp, i_rep_val=i)
          IF (SIZE(pol_tmp) < 2) CPABORT("Less than two elements provided for polarizability")
-         rtbse_env%pol_elements(i,:) = pol_tmp(:)
+         rtbse_env%pol_elements(i, :) = pol_tmp(:)
       END DO
       ! Do basic sanity checks for pol_element
       DO j = 1, k
          DO i = 1, 2
-            IF (rtbse_env%pol_elements(j,i) > 3 .OR. rtbse_env%pol_elements(j,i) < 1) &
+            IF (rtbse_env%pol_elements(j, i) > 3 .OR. rtbse_env%pol_elements(j, i) < 1) &
                CPABORT("Polarisation tensor element not 1,2 or 3 in at least one index")
          END DO
       END DO

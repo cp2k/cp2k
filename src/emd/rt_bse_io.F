@@ -674,8 +674,8 @@ CONTAINS
             ! Only divide by constant magnitude in atomic units
             ! TODO : Fix for field with more than one direction
             field_series(:) = CMPLX( &
-               rtbse_env%dft_control%rtp_control%delta_pulse_direction(rtbse_env%pol_elements(k,2)) * &
-               rtbse_env%dft_control%rtp_control%delta_pulse_scale, 0.0, kind=dp)
+                              rtbse_env%dft_control%rtp_control%delta_pulse_direction(rtbse_env%pol_elements(k, 2))* &
+                              rtbse_env%dft_control%rtp_control%delta_pulse_scale, 0.0, kind=dp)
          ELSE
             ! Calculate the transform of the field as well and divide by it
             ! The field FT is not damped - assume field is localised in time
@@ -710,12 +710,12 @@ CONTAINS
          ! Print a header for each polarizability element
          DO k = 1, n_elems - 1
             WRITE (pol_unit, '(A16,I2,I2,A16,I2,I2)', advance="no") &
-                    "Real pol.", rtbse_env%pol_elements(k,1), rtbse_env%pol_elements(k,2), &
-                    "Imag pol.", rtbse_env%pol_elements(k,1), rtbse_env%pol_elements(k,2)
+               "Real pol.", rtbse_env%pol_elements(k, 1), rtbse_env%pol_elements(k, 2), &
+               "Imag pol.", rtbse_env%pol_elements(k, 1), rtbse_env%pol_elements(k, 2)
          END DO
          WRITE (pol_unit, '(A16,I2,I2,A16,I2,I2)') &
-                 "Real pol.", rtbse_env%pol_elements(n_elems,1), rtbse_env%pol_elements(n_elems,2), &
-                 "Imag pol.", rtbse_env%pol_elements(n_elems,1), rtbse_env%pol_elements(n_elems,2)
+            "Real pol.", rtbse_env%pol_elements(n_elems, 1), rtbse_env%pol_elements(n_elems, 2), &
+            "Imag pol.", rtbse_env%pol_elements(n_elems, 1), rtbse_env%pol_elements(n_elems, 2)
          DO i = 1, n
             IF (pol_unit == rtbse_env%unit_nr) THEN
                ! Print the stdout preline
@@ -726,7 +726,7 @@ CONTAINS
             END IF
             ! Common values
             WRITE (pol_unit, '(E20.8E3)', advance="no") value_series(i)
-            DO k = 1,n_elems-1
+            DO k = 1, n_elems - 1
                WRITE (pol_unit, '(E20.8E3,E20.8E3)', advance="no") &
                   REAL(polarizability_series(k, i)), AIMAG(polarizability_series(k, i))
             END DO
@@ -821,7 +821,7 @@ CONTAINS
       DO i = 1, N
          result_series(i) = 0.0_dp
          iresult_series(i) = 0.0_dp
-         IF(PRESENT(omega_series)) omega_series(i) = delta_omega*(i - 1)
+         IF (PRESENT(omega_series)) omega_series(i) = delta_omega*(i - 1)
          DO j = 1, N
             j_wrap = MODULO(j + t0_i - 2, N) + 1
             result_series(i) = result_series(i) + COS(twopi*(i - 1)*(j - 1)/N)* &

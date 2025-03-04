@@ -89,6 +89,7 @@ MODULE input_cp2k_dft
                                               lchar_t,&
                                               real_t
    USE kinds,                           ONLY: dp
+   USE physcon,                         ONLY: femtoseconds
    USE pw_spline_utils,                 ONLY: no_precond,&
                                               precond_spl3_1,&
                                               precond_spl3_2,&
@@ -96,8 +97,6 @@ MODULE input_cp2k_dft
                                               precond_spl3_aint,&
                                               precond_spl3_aint2
    USE string_utilities,                ONLY: s2a
-   USE physcon,                         ONLY: femtoseconds, &
-                                              evolt
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -2055,9 +2054,9 @@ CONTAINS
       CALL keyword_release(keyword)
       ! Marek : Options for the Fourier transform
       CALL keyword_create(keyword, __LOCATION__, "FT_DAMPING", &
-                          description="Numerical Fourier transform (required for calculation of"// &
+                          description="Numerical Fourier transform (required for calculation of "// &
                           "MOMENTS_FT and POLARIZABILITY) can oscillate "// &
-                          "when the final values are far away from zero."// &
+                          "when the final values are far away from zero. "// &
                           "This keyword controls the exponential damping in the Fourier transform "// &
                           "(Fourier transform is used for calculation of MOMENTS_FT and POLARIZABILITY). "// &
                           "For negative values (the default), calculates the damping at the run time so that the last point "// &
