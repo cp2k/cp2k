@@ -96,6 +96,8 @@ MODULE input_cp2k_dft
                                               precond_spl3_aint,&
                                               precond_spl3_aint2
    USE string_utilities,                ONLY: s2a
+   USE physcon,                         ONLY: femtoseconds, &
+                                              evolt
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -1962,22 +1964,6 @@ CONTAINS
                                        each_iter_names=s2a("MD"), &
                                        each_iter_values=(/1/), &
                                        filename="MOMENTS_FT")
-      CALL keyword_create(keyword, __LOCATION__, "DAMPING", &
-                          description="Sets the exponential damping of the time trace before carrying out Fourier transform. "// &
-                          "For negative values (the default), calculates the damping at the run time so that the last point "// &
-                          "in the time trace is reduced by factor e^(-4). Uses atomic units of inverse time.", &
-                          type_of_var=real_t, &
-                          default_r_val=-1.0_dp)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
-      CALL keyword_create(keyword, __LOCATION__, "START_TIME", &
-                          description="The starting time from which damping is applied and from which on the trace is "// &
-                          "considered for the Fourier transform. Useful for real-time pulse - "// &
-                          "one can specify the center of the pulse as the starting point.", &
-                          type_of_var=real_t, &
-                          default_r_val=0.0_dp)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
       CALL section_add_subsection(print_section, print_key)
       CALL section_release(print_key)
       ! Marek : Chosen element of (Fourier transformed) polarizability tensor (energy dependent) - text format
@@ -1994,7 +1980,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, "ELEMENT", &
                           description="Specifies the element of polarizability which is to be printed out "// &
                           "(indexing starts at 1).", &
-                          type_of_var=integer_t, default_i_vals=(/1, 1/), n_var=2, usage="ELEMENT 1 1")
+                          type_of_var=integer_t, default_i_vals=(/1, 1/), n_var=2, usage="ELEMENT 1 1", repeats=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL section_add_subsection(print_section, print_key)
@@ -2065,6 +2051,31 @@ CONTAINS
                           enum_i_vals=(/rtp_bse_ham_ks, rtp_bse_ham_g0w0/), &
                           enum_desc=s2a("Use Kohn-Sham Hamiltonian for Green's propagation.", &
                                         "Use G0W0 Hamiltonian for Green's function propagation"))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      ! Marek : Options for the Fourier transform
+      CALL keyword_create(keyword, __LOCATION__, "FT_DAMPING", &
+                          description="Numerical Fourier transform (required for calculation of"// &
+                          "MOMENTS_FT and POLARIZABILITY) can oscillate "// &
+                          "when the final values are far away from zero."// &
+                          "This keyword controls the exponential damping in the Fourier transform "// &
+                          "(Fourier transform is used for calculation of MOMENTS_FT and POLARIZABILITY). "// &
+                          "For negative values (the default), calculates the damping at the run time so that the last point "// &
+                          "in the time trace is reduced by factor e^(-4). When set manually, determines the time in which "// &
+                          "the moments trace is reduced by factor of e^(-1).", &
+                          type_of_var=real_t, &
+                          unit_str="fs", &
+                          default_r_val=-1.0_dp/femtoseconds)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, "FT_START_TIME", &
+                          description="The starting time from which damping is applied and from which on the trace is "// &
+                          "considered for the Fourier transform (Fourier transform is used for the calculation of "// &
+                          "MOMENTS_FT and POLARIZABILITY). Useful for real-time pulse - "// &
+                          "one can specify the center of the pulse as the starting point.", &
+                          type_of_var=real_t, &
+                          unit_str="fs", &
+                          default_r_val=0.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

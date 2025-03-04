@@ -78,13 +78,6 @@ MODULE rt_bse_types
    USE gw_integrals, ONLY: build_3c_integral_block
    USE gw_large_cell_Gamma, ONLY: compute_3c_integrals
    USE qs_tensors, ONLY: neighbor_list_3c_destroy
-!    USE gw_utils,                        ONLY: create_and_init_bs_env_for_gw,&
-!                                               setup_AO_and_RI_basis_set,&
-!                                               get_RI_basis_and_basis_function_indices,&
-!                                               set_heuristic_parameters,&
-!                                               set_parallelization_parameters,&
-!                                               allocate_and_fill_matrices_and_arrays,&
-!                                               create_tensors
    USE libint_wrapper, ONLY: cp_libint_static_init
    USE libint_2c_3c, ONLY: libint_potential_type
    USE input_constants, ONLY: use_mom_ref_coac, &
@@ -99,6 +92,7 @@ MODULE rt_bse_types
    USE physcon, ONLY: angstrom
    USE mathconstants, ONLY: z_zero
    USE input_section_types, ONLY: section_vals_type, &
+                                  section_vals_get, &
                                   section_vals_val_get, &
                                   section_vals_get_subs_vals
 
@@ -204,7 +198,7 @@ MODULE rt_bse_types
                                                                    ft_damping = 0.0_dp, &
                                                                    ft_start = 0.0_dp
       ! Which element of polarizability to print out
-      INTEGER, DIMENSION(2)                                     :: pol_element = [1, 1]
+      INTEGER, DIMENSION(:,:), POINTER                          :: pol_elements => NULL()
       TYPE(dft_control_type), POINTER                           :: dft_control => NULL()
       ! DEBUG : Trying keeping the reference to previous environments inside this one
       TYPE(qs_environment_type), POINTER                        :: qs_env => NULL()
@@ -290,7 +284,7 @@ CONTAINS
       TYPE(rt_prop_type), POINTER                               :: rtp
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER                 :: matrix_s
       TYPE(mo_set_type), DIMENSION(:), POINTER                  :: mos
-      INTEGER                                                   :: i, k
+      INTEGER                                                   :: i, j, k
       TYPE(section_vals_type), POINTER                          :: input, bs_sec, md_sec
       INTEGER, DIMENSION(:), POINTER                            :: pol_tmp
 
@@ -346,19 +340,28 @@ CONTAINS
       rtbse_env%sim_start_orig = rtbse_env%sim_start
       CALL section_vals_val_get(md_sec, "STEPS", i_val=rtbse_env%sim_nsteps)
       ! Get the values for the FT
-      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%PRINT%MOMENTS_FT%DAMPING", &
+      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%FT_DAMPING", &
                                 r_val=rtbse_env%ft_damping)
-      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%PRINT%MOMENTS_FT%START_TIME", &
+      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%FT_START_TIME", &
                                 r_val=rtbse_env%ft_start)
       ! TODO : Units for starting time and damping - so far give atomic units
+      ! Iterate over all ELEMENT keywords
       CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%PRINT%POLARIZABILITY%ELEMENT", &
-                                i_vals=pol_tmp)
-      IF (SIZE(pol_tmp) < 2) CPABORT("Less than two elements provided for polarizability")
-      rtbse_env%pol_element(:) = pol_tmp(:)
+                                n_rep_val=k)
+      ! By default, fill with 1 1 elements
+      ALLOCATE (rtbse_env%pol_elements(k, 2), source=1)
+      DO i = 1, k
+         CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%PRINT%POLARIZABILITY%ELEMENT", &
+                                   i_vals=pol_tmp, i_rep_val=i)
+         IF (SIZE(pol_tmp) < 2) CPABORT("Less than two elements provided for polarizability")
+         rtbse_env%pol_elements(i,:) = pol_tmp(:)
+      END DO
       ! Do basic sanity checks for pol_element
-      DO k = 1, 2
-         IF (rtbse_env%pol_element(k) > 3 .OR. rtbse_env%pol_element(k) < 1) &
-            CPABORT("Polarisation tensor element not 1,2 or 3 in at least one index")
+      DO j = 1, k
+         DO i = 1, 2
+            IF (rtbse_env%pol_elements(j,i) > 3 .OR. rtbse_env%pol_elements(j,i) < 1) &
+               CPABORT("Polarisation tensor element not 1,2 or 3 in at least one index")
+         END DO
       END DO
 
       ! Get the restart section
