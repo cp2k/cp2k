@@ -8,11 +8,9 @@ stages:
   - benchmark
 
 variables:
-  DOCKERHUB_REPOSITORY: cp2k_eiger
-  DOCKERHUB_TAG: toolchain_psmp
-  DOCKERHUB_BASE_IMAGE_NAME: docker.io/${DOCKERHUB_USERNAME}/${DOCKERHUB_REPOSITORY}:${DOCKERHUB_TAG}_base_image
-  DOCKERHUB_IMAGE_NAME: docker.io/${DOCKERHUB_USERNAME}/${DOCKERHUB_REPOSITORY}:${DOCKERHUB_TAG}
-  PERSIST_IMAGE_NAME: ${CSCS_REGISTRY_PATH}/cp2k:${CI_COMMIT_SHORT_SHA}
+  REPOSITORY: cp2k_eiger
+  TAG: toolchain_psmp
+  DOCKERHUB_IMAGE_NAME: docker.io/${DOCKERHUB_USERNAME}/${REPOSITORY}:${TAG}
 
 build deps eiger:
   extends: .container-builder-cscs-zen2
@@ -22,11 +20,11 @@ build deps eiger:
 #   - changes:
 #     - tools/toolchain/scripts/install_cp2k_toolchain.sh
 #     - tools/toolchain/scripts/**/*
-  before_script:
-    - echo ${DOCKERHUB_TOKEN} | podman login docker.io --username ${DOCKERHUB_USERNAME} --password-stdin
-  after_script:
-    - podman images
-    - podman push ${PERSIST_IMAGE_NAME} ${DOCKERHUB_BASE_IMAGE_NAME}
+# before_script:
+#   - echo ${DOCKERHUB_TOKEN} | podman login docker.io --username ${DOCKERHUB_USERNAME} --password-stdin
+# after_script:
+#   - podman images
+#   - podman push ${PERSIST_IMAGE_NAME} ${DOCKERHUB_BASE_IMAGE_NAME}_base
   variables:
     DOCKER_BUILD_ARGS: '[
       "BASE_IMAGE",
@@ -36,20 +34,23 @@ build deps eiger:
     ]'
     BASE_IMAGE: ubuntu:24.04
     BUILD_TYPE: minimal
-    DOCKERFILE: ci/docker/build_${CI_JOB_STAGE}_${DOCKERHUB_TAG}.Dockerfile
+    DOCKERFILE: ci/docker/build_${CI_JOB_STAGE}_${TAG}.Dockerfile
     LOG_LINES: 200
-    MPICH_VERSION: "3.4.3"
+    MPICH_VERSION: 3.4.3
+    PERSIST_IMAGE_NAME: ${DOCKERHUB_IMAGE_NAME}_base
+    SECONDARY_IMAGE_USERNAME: ${DOCKERHUB_USERNAME}
+    SECONDARY_IMAGE_PASSWORD: ${DOCKERHUB_TOKEN}
 
 build cp2k eiger:
   extends: .container-builder-cscs-zen2
   stage: cp2k
   needs: ["build deps eiger"]
   timeout: 1h
-  before_script:
-    - echo ${DOCKERHUB_TOKEN} | podman login docker.io --username ${DOCKERHUB_USERNAME} --password-stdin
-  after_script:
-    - podman images
-    - podman push ${PERSIST_IMAGE_NAME} ${DOCKERHUB_IMAGE_NAME}
+# before_script:
+#   - echo ${DOCKERHUB_TOKEN} | podman login docker.io --username ${DOCKERHUB_USERNAME} --password-stdin
+# after_script:
+#   - podman images
+#   - podman push ${PERSIST_IMAGE_NAME} ${DOCKERHUB_IMAGE_NAME}
   artifacts:
     paths:
       - build/ninja.log
@@ -63,16 +64,19 @@ build cp2k eiger:
     ]'
     BASE_IMAGE: ubuntu:24.04
     BUILD_TYPE: minimal
-    DEPS_IMAGE: ${DOCKERHUB_BASE_IMAGE_NAME}
-    DOCKERFILE: ci/docker/build_${CI_JOB_STAGE}_${DOCKERHUB_TAG}.Dockerfile
+    DEPS_IMAGE: ${DOCKERHUB_IMAGE_NAME}_base
+    DOCKERFILE: ci/docker/build_${CI_JOB_STAGE}_${TAG}.Dockerfile
     LOG_LINES: 200
+    PERSIST_IMAGE_NAME: ${DOCKERHUB_IMAGE_NAME}
+    SECONDARY_IMAGE_USERNAME: ${DOCKERHUB_USERNAME}
+    SECONDARY_IMAGE_PASSWORD: ${DOCKERHUB_TOKEN}
 
 test cp2k eiger:
   extends: .container-runner-eiger-zen2
   stage: test
   needs: ["build cp2k eiger"]
   timeout: 1h
-  image: ${PERSIST_IMAGE_NAME}
+  image: ${DOCKERHUB_IMAGE_NAME}
   script:
     - cp2k /opt/cp2k/benchmarks/CI/H2O-32_md.inp
   variables:
@@ -91,9 +95,9 @@ regression test cp2k eiger:
   stage: test
   needs: ["build cp2k eiger","test cp2k eiger"]
   timeout: 1h
-  before_script:
-    - echo ${DOCKERHUB_TOKEN} | podman login docker.io --username ${DOCKERHUB_USERNAME} --password-stdin
-    - podman pull ${DOCKERHUB_IMAGE_NAME}
+# before_script:
+#   - echo ${DOCKERHUB_TOKEN} | podman login docker.io --username ${DOCKERHUB_USERNAME} --password-stdin
+#   - podman pull ${DOCKERHUB_IMAGE_NAME}
   script:
     - podman run --mount type=bind,src=${SCRATCH},target=${SCRATCH} --workdir=${SCRATCH} ${DOCKERHUB_IMAGE_NAME} /opt/cp2k/tests/do_regtest.py --maxtasks 128 /opt/cp2k/bin psmp
   variables:
@@ -110,7 +114,7 @@ benchmark cp2k 1 eiger node:
   stage: benchmark
   needs: ["build cp2k eiger","test cp2k eiger","regression test cp2k eiger"]
   timeout: 1h
-  image: ${PERSIST_IMAGE_NAME}
+  image: ${DOCKERHUB_IMAGE_NAME}
   script:
     - cp2k /opt/cp2k/benchmarks/CI/H2O-128_md.inp
   variables:
@@ -129,7 +133,7 @@ benchmark cp2k 2 eiger nodes:
   stage: benchmark
   needs: ["build cp2k eiger","test cp2k eiger","regression test cp2k eiger"]
   timeout: 1h
-  image: ${PERSIST_IMAGE_NAME}
+  image: ${DOCKERHUB_IMAGE_NAME}
   before_script:
     - export MPICH_NOLOCAL=1
   script:
