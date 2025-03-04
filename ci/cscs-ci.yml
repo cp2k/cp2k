@@ -97,8 +97,6 @@ benchmark cp2k 2 eiger nodes:
   needs: ["build cp2k eiger","test cp2k eiger","regression test cp2k eiger"]
   timeout: 1h
   image: ${PERSIST_IMAGE_NAME}
-  before_script:
-    - export MPICH_NOLOCAL=1
   script:
     - cp2k /opt/cp2k/benchmarks/CI/H2O-512_md.inp
   variables:
