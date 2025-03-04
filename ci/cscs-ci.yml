@@ -62,7 +62,7 @@ build cp2k eiger:
       "BASE_IMAGE",
       "DEPS_IMAGE",
       "BUILD_TYPE",
-      "LOG_LINES",
+      "LOG_LINES"
     ]'
     BASE_IMAGE: ubuntu:24.04
     BUILD_TYPE: minimal
