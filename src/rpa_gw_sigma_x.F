@@ -123,9 +123,9 @@ CONTAINS
       CHARACTER(4)                                       :: occ_virt
       CHARACTER(LEN=40)                                  :: line
       INTEGER :: dimen, gw_corr_lev_occ, gw_corr_lev_tot, gw_corr_lev_virt, handle, homo, &
-         homo_reduced_bse, homo_startindex_bse, i_img, ikp, irep, ispin, iunit, myfun, myfun_aux, &
-         myfun_prim, n_level_gw, n_level_gw_ref, n_rep_hf, nkp, nkp_Sigma, nmo, nspins, print_exx, &
-         virtual_reduced_bse, virtual_startindex_bse
+         homo_reduced_bse, homo_startindex_bse, i_img, ikp, irep, ispin, iunit, max_corr_lev_occ, &
+         max_corr_lev_virt, myfun, myfun_aux, myfun_prim, n_level_gw, n_level_gw_ref, n_rep_hf, &
+         nkp, nkp_Sigma, nmo, nspins, print_exx, virtual_reduced_bse, virtual_startindex_bse
       LOGICAL :: calc_ints, charge_constrain_tmp, do_admm_rpa, do_hfx, do_kpoints_cubic_RPA, &
          do_kpoints_from_Gamma, do_ri_Sigma_x, really_read_line
       REAL(KIND=dp) :: E_GAP_GW, E_HOMO_GW, E_LUMO_GW, eh1, ehfx, eigval_dft, eigval_hf_at_dft, &
@@ -558,6 +558,12 @@ CONTAINS
             gw_corr_lev_occ = mp2_env%ri_g0w0%corr_mos_occ
             gw_corr_lev_virt = mp2_env%ri_g0w0%corr_mos_virt
 
+            ! If SVD is used to invert overlap matrix (for CHOLESKY OFF), some MOs are removed
+            ! Therefore, setting the number of gw_corr_lev_virt simply to dimen - homo leads to index problems
+            ! Instead, we take into account the removed MOs
+            max_corr_lev_occ = homo
+            max_corr_lev_virt = nmo - homo
+
             ! If BSE is invoked, manipulate corrected MO number
             IF (mp2_env%bse%do_bse) THEN
                ! Logic: If cutoff is negative, all MOs are included in BSE, i.e. we need to correct them all
@@ -582,7 +588,7 @@ CONTAINS
 
                ! Obtain indices from DFT if gw_corr... are set to -2
                CALL determine_cutoff_indices(mo_eigenvalues, &
-                                             homo, dimen - homo, &
+                                             homo, max_corr_lev_virt, &
                                              homo_reduced_bse, virtual_reduced_bse, &
                                              homo_startindex_bse, virtual_startindex_bse, &
                                              mp2_env)
@@ -599,8 +605,8 @@ CONTAINS
             ! if requested number of occ/virt levels for correction either exceed the number of
             ! occ/virt levels or the requested number is negative, default to correct all
             ! occ/virt level energies
-            IF (gw_corr_lev_occ > homo .OR. gw_corr_lev_occ < 0) gw_corr_lev_occ = homo
-            IF (gw_corr_lev_virt > dimen - homo .OR. gw_corr_lev_virt < 0) gw_corr_lev_virt = dimen - homo
+            IF (gw_corr_lev_occ > homo .OR. gw_corr_lev_occ < 0) gw_corr_lev_occ = max_corr_lev_occ
+            IF (gw_corr_lev_virt > max_corr_lev_virt .OR. gw_corr_lev_virt < 0) gw_corr_lev_virt = max_corr_lev_virt
             IF (ispin == 1) THEN
                mp2_env%ri_g0w0%corr_mos_occ = gw_corr_lev_occ
                mp2_env%ri_g0w0%corr_mos_virt = gw_corr_lev_virt
@@ -842,7 +848,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'transform_sigma_x_minus_vxc_to_MO_basis'
 
       INTEGER :: dimen, gw_corr_lev_occ, gw_corr_lev_virt, handle, homo, i_global, iiB, ikp, &
-         ispin, j_global, jjB, ncol_local, nkp, nrow_local, nspins
+         ispin, j_global, jjB, max_corr_lev_occ, max_corr_lev_virt, ncol_local, nkp, nrow_local, &
+         nspins
       INTEGER, DIMENSION(2)                              :: kp_range
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       REAL(KIND=dp)                                      :: imval, reval
@@ -942,17 +949,22 @@ CONTAINS
 
       CALL para_env%sum(vec_Sigma_x_minus_vxc_gw)
       CALL para_env%sum(vec_Sigma_x_minus_vxc_gw_im)
-
       ! also adjust in the case of kpoints too big gw_corr_lev_occ and gw_corr_lev_virt
       DO ispin = 1, nspins
          CALL get_mo_set(mo_set=kpoints%kp_env(1)%kpoint_env%mos(ispin, 1), &
                          homo=homo, nao=dimen)
+         ! If SVD is used to invert overlap matrix (for CHOLESKY OFF), some MOs are removed
+         ! Therefore, setting the number of gw_corr_lev_virt simply to dimen - homo leads to index problems
+         ! Instead, we take into account the removed MOs
+         max_corr_lev_occ = homo
+         max_corr_lev_virt = nmo - homo
+
          gw_corr_lev_occ = mp2_env%ri_g0w0%corr_mos_occ
          gw_corr_lev_virt = mp2_env%ri_g0w0%corr_mos_virt
-         ! if corrected occ/virt levels exceed the number of occ/virt levels,
+         ! if corrected occ/virt levels exceed the number of occ/virt levels or are negative,
          ! correct all occ/virt level energies
-         IF (gw_corr_lev_occ > homo) gw_corr_lev_occ = homo
-         IF (gw_corr_lev_virt > dimen - homo) gw_corr_lev_virt = dimen - homo
+         IF (gw_corr_lev_occ > homo .OR. gw_corr_lev_occ < 0) gw_corr_lev_occ = max_corr_lev_occ
+         IF (gw_corr_lev_virt > max_corr_lev_virt .OR. gw_corr_lev_virt < 0) gw_corr_lev_virt = max_corr_lev_virt
          IF (ispin == 1) THEN
             mp2_env%ri_g0w0%corr_mos_occ = gw_corr_lev_occ
             mp2_env%ri_g0w0%corr_mos_virt = gw_corr_lev_virt
