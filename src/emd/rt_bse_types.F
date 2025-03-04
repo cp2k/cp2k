@@ -284,9 +284,12 @@ CONTAINS
       TYPE(rt_prop_type), POINTER                               :: rtp
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER                 :: matrix_s
       TYPE(mo_set_type), DIMENSION(:), POINTER                  :: mos
-      INTEGER                                                   :: i, j, k
+      INTEGER                                                   :: i, j, k, single_pol_index
       TYPE(section_vals_type), POINTER                          :: input, bs_sec, md_sec
       INTEGER, DIMENSION(:), POINTER                            :: pol_tmp
+      LOGICAL                                                   :: pol_elements_explicit, &
+                                                                   pol_vector_known
+      REAL(kind=dp), DIMENSION(3)                               :: pol_vector
 
       ! Allocate the storage for the gwbse environment
       NULLIFY (rtbse_env)
@@ -344,25 +347,71 @@ CONTAINS
                                 r_val=rtbse_env%ft_damping)
       CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%FT_START_TIME", &
                                 r_val=rtbse_env%ft_start)
-      ! TODO : Units for starting time and damping - so far give atomic units
+      ! Handle ELEMENT keywords
+      ! By default, if the keywords are not present, check whether just one element in polarization/delta_pulse direction
+      ! is non-zero. If that is the case, print 3 finite elements of polarizability. Otherwise, warn and print
+      ! just diagonal elements for each non-zero e-field element
       ! Iterate over all ELEMENT keywords
       CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%PRINT%POLARIZABILITY%ELEMENT", &
-                                n_rep_val=k)
-      ! By default, fill with 1 1 elements
-      ALLOCATE (rtbse_env%pol_elements(k, 2), source=1)
-      DO i = 1, k
-         CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%PRINT%POLARIZABILITY%ELEMENT", &
-                                   i_vals=pol_tmp, i_rep_val=i)
-         IF (SIZE(pol_tmp) < 2) CPABORT("Less than two elements provided for polarizability")
-         rtbse_env%pol_elements(i, :) = pol_tmp(:)
-      END DO
-      ! Do basic sanity checks for pol_element
-      DO j = 1, k
-         DO i = 1, 2
-            IF (rtbse_env%pol_elements(j, i) > 3 .OR. rtbse_env%pol_elements(j, i) < 1) &
-               CPABORT("Polarisation tensor element not 1,2 or 3 in at least one index")
+                                n_rep_val=k, explicit=pol_elements_explicit)
+      IF (pol_elements_explicit) THEN
+         ! By default, fill with 1 1 elements
+         ALLOCATE (rtbse_env%pol_elements(k, 2), source=1)
+         DO i = 1, k
+            CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%PRINT%POLARIZABILITY%ELEMENT", &
+                                      i_vals=pol_tmp, i_rep_val=i)
+            IF (SIZE(pol_tmp) < 2) CPABORT("Less than two elements provided for polarizability")
+            rtbse_env%pol_elements(i, :) = pol_tmp(:)
          END DO
-      END DO
+         ! Do basic sanity checks for pol_element
+         DO j = 1, k
+            DO i = 1, 2
+               IF (rtbse_env%pol_elements(j, i) > 3 .OR. rtbse_env%pol_elements(j, i) < 1) &
+                  CPABORT("Polarisation tensor element not 1,2 or 3 in at least one index")
+            END DO
+         END DO
+      ELSE
+         ! Figure out whether delta direction or polarization is applicable
+         pol_vector_known = .FALSE.
+         IF (rtbse_env%dft_control%rtp_control%apply_delta_pulse) THEN
+            ! Delta pulse polarization
+            pol_vector(:) = rtbse_env%dft_control%rtp_control%delta_pulse_direction(:)
+            pol_vector_known = .TRUE.
+         ELSE IF (SIZE(rtbse_env%dft_control%efield_fields) > 0) THEN
+            ! real time field polarization
+            ! Maybe generalize for all fields?
+            pol_vector(:) = rtbse_env%dft_control%efield_fields(1)%efield%polarisation(:)
+            pol_vector_known = .TRUE.
+         END IF
+         ! Check whether the vector is not explicitly zero
+         IF (DOT_PRODUCT(pol_vector, pol_vector) == 0.0_dp) pol_vector_known = .FALSE.
+         IF (pol_vector_known) THEN
+            ! Iterate over the pol vector, check whether just one is non-zero
+            single_pol_index = -1
+            DO i = 1, 3
+               IF (pol_vector(i) /= 0.0_dp .AND. &
+                       pol_vector(MODULO(i, 3)+1) == 0.0_dp .AND. &
+                       pol_vector(MODULO(i+1, 3)+1) == 0.0_dp) THEN
+                  single_pol_index = i
+                  EXIT
+               END IF
+            END DO
+            IF (single_pol_index > 0) THEN
+               ! Print 3 elements
+               ALLOCATE(rtbse_env%pol_elements(3,2), source=1)
+               DO i = 1, 3
+                  rtbse_env%pol_elements(i,1) = i
+                  rtbse_env%pol_elements(i,2) = single_pol_index
+               END DO
+            ELSE
+               ! More than one non-zero efield component - abort
+               CPABORT("RTBSE : Guess for polarizability elements failed - please specify")
+            END IF
+         ELSE
+            ! Pol vector is unknown, but polarizability is requested - abort and request an element
+            CPABORT("RTBSE : Guess for polarizability elements failed - please specify")
+         END IF
+      END IF
 
       ! Get the restart section
       rtbse_env%restart_section => section_vals_get_subs_vals(input, "DFT%REAL_TIME_PROPAGATION%PRINT%RESTART")
@@ -574,6 +623,8 @@ CONTAINS
          DEALLOCATE (rtbse_env%field_trace(i)%series)
       END DO
       DEALLOCATE (rtbse_env%time_trace%series)
+
+      DEALLOCATE (rtbse_env%pol_elements)
 
       ! Deallocate the neighbour list that is not deallocated in gw anymore
       IF (ASSOCIATED(rtbse_env%bs_env%nl_3c%ij_list)) CALL neighbor_list_3c_destroy(rtbse_env%bs_env%nl_3c)
