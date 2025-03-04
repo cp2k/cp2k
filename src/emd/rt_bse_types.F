@@ -390,18 +390,18 @@ CONTAINS
             single_pol_index = -1
             DO i = 1, 3
                IF (pol_vector(i) /= 0.0_dp .AND. &
-                       pol_vector(MODULO(i, 3)+1) == 0.0_dp .AND. &
-                       pol_vector(MODULO(i+1, 3)+1) == 0.0_dp) THEN
+                   pol_vector(MODULO(i, 3) + 1) == 0.0_dp .AND. &
+                   pol_vector(MODULO(i + 1, 3) + 1) == 0.0_dp) THEN
                   single_pol_index = i
                   EXIT
                END IF
             END DO
             IF (single_pol_index > 0) THEN
                ! Print 3 elements
-               ALLOCATE(rtbse_env%pol_elements(3,2), source=1)
+               ALLOCATE (rtbse_env%pol_elements(3, 2), source=1)
                DO i = 1, 3
-                  rtbse_env%pol_elements(i,1) = i
-                  rtbse_env%pol_elements(i,2) = single_pol_index
+                  rtbse_env%pol_elements(i, 1) = i
+                  rtbse_env%pol_elements(i, 2) = single_pol_index
                END DO
             ELSE
                ! More than one non-zero efield component - abort

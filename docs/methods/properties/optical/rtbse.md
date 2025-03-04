@@ -183,10 +183,10 @@ continue running the calculation in the same directory for longer time without r
 calculated time steps. Note that total length of the propagation time controls the energy/frequency
 precision, while timestep size controls the energy/frequency range.
 
-For applied field pulse not centered at zero in time,
-one can use [FT_START_TIME](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.RTBSE.FT_START_TIME)
-to set the center of Fourier transforms to a provided time $t_0$. Furthermore,
-the damping $\gamma$ in the Fourier transform is controlled by
+For applied field pulse not centered at zero in time, one can use
+[FT_START_TIME](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.RTBSE.FT_START_TIME) to set the
+center of Fourier transforms to a provided time $t_0$. Furthermore, the damping $\gamma$ in the
+Fourier transform is controlled by
 [FT_DAMPING](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.RTBSE.FT_DAMPING) parameter.
 Explicilty, in such case, the Fourier transform of function $f(t)$ is
 

@@ -1978,7 +1978,9 @@ CONTAINS
                                        filename="POLARIZABILITY")
       CALL keyword_create(keyword, __LOCATION__, "ELEMENT", &
                           description="Specifies the element of polarizability which is to be printed out "// &
-                          "(indexing starts at 1).", &
+                          "(indexing starts at 1). If not explicitly provided, RTBSE code tries to guess "// &
+                          "the optimal values - for applied electric field (both delta pulse and RT field) "// &
+                          "with only a single non-zero cartesian component, prints the 3 trivially available elements.", &
                           type_of_var=integer_t, default_i_vals=(/1, 1/), n_var=2, usage="ELEMENT 1 1", repeats=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
