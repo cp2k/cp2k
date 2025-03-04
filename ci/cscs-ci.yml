@@ -8,13 +8,11 @@ stages:
   - benchmark
 
 variables:
-  BASE_IMAGE: "ubuntu:24.04"
-  BUILD_TYPE: "toolchain"
-  DOCKERHUB_REPOSITORY: "cp2k_eiger"
-  DOCKERHUB_TAG: "toolchain_psmp"
-  DOCKERHUB_BASE_IMAGE_NAME: "docker.io/${DOCKERHUB_USERNAME}/${DOCKERHUB_REPOSITORY}:${DOCKERHUB_TAG}_base_image"
-  DOCKERHUB_IMAGE_NAME: "docker.io/${DOCKERHUB_USERNAME}/${DOCKERHUB_REPOSITORY}:${DOCKERHUB_TAG}"
-  PERSIST_IMAGE_NAME: "${CSCS_REGISTRY_PATH}/cp2k:${CI_COMMIT_SHORT_SHA}"
+  DOCKERHUB_REPOSITORY: cp2k_eiger
+  DOCKERHUB_TAG: toolchain_psmp
+  DOCKERHUB_BASE_IMAGE_NAME: docker.io/${DOCKERHUB_USERNAME}/${DOCKERHUB_REPOSITORY}:${DOCKERHUB_TAG}_base_image
+  DOCKERHUB_IMAGE_NAME: docker.io/${DOCKERHUB_USERNAME}/${DOCKERHUB_REPOSITORY}:${DOCKERHUB_TAG}
+  PERSIST_IMAGE_NAME: ${CSCS_REGISTRY_PATH}/cp2k:${CI_COMMIT_SHORT_SHA}
 
 build deps eiger:
   extends: .container-builder-cscs-zen2
@@ -36,9 +34,9 @@ build deps eiger:
       "LOG_LINES",
       "MPICH_VERSION"
     ]'
-    BASE_IMAGE: "${BASE_IMAGE}"
-    BUILD_TYPE: "${BUILD_TYPE}"
-    DOCKERFILE: "ci/docker/build_${CI_JOB_STAGE}_${DOCKERHUB_TAG}.Dockerfile"
+    BASE_IMAGE: ubuntu:24.04
+    BUILD_TYPE: minimal
+    DOCKERFILE: ci/docker/build_${CI_JOB_STAGE}_${DOCKERHUB_TAG}.Dockerfile
     LOG_LINES: 200
     MPICH_VERSION: "3.4.3"
 
@@ -63,10 +61,10 @@ build cp2k eiger:
       "BUILD_TYPE",
       "LOG_LINES",
     ]'
-    BASE_IMAGE: "${BASE_IMAGE}"
-    BUILD_TYPE: "${BUILD_TYPE}"
-    DEPS_IMAGE: "${DOCKERHUB_BASE_IMAGE_NAME}"
-    DOCKERFILE: "ci/docker/build_${CI_JOB_STAGE}_${DOCKERHUB_TAG}.Dockerfile"
+    BASE_IMAGE: ubuntu:24.04
+    BUILD_TYPE: minimal
+    DEPS_IMAGE: ${DOCKERHUB_BASE_IMAGE_NAME}
+    DOCKERFILE: ci/docker/build_${CI_JOB_STAGE}_${DOCKERHUB_TAG}.Dockerfile
     LOG_LINES: 200
 
 test cp2k eiger:
