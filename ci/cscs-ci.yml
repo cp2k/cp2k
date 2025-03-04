@@ -20,11 +20,11 @@ build deps eiger:
 #   - changes:
 #     - tools/toolchain/scripts/install_cp2k_toolchain.sh
 #     - tools/toolchain/scripts/**/*
-# before_script:
-#   - echo ${DOCKERHUB_TOKEN} | podman login docker.io --username ${DOCKERHUB_USERNAME} --password-stdin
-# after_script:
-#   - podman images
-#   - podman push ${PERSIST_IMAGE_NAME} ${DOCKERHUB_BASE_IMAGE_NAME}_base
+  before_script:
+    - echo ${DOCKERHUB_TOKEN} | podman login docker.io --username ${DOCKERHUB_USERNAME} --password-stdin
+  after_script:
+    - podman images
+    - podman push ${PERSIST_IMAGE_NAME} ${DOCKERHUB_IMAGE_NAME}_base
   variables:
     DOCKER_BUILD_ARGS: '[
       "BASE_IMAGE",
@@ -37,20 +37,21 @@ build deps eiger:
     DOCKERFILE: ci/docker/build_${CI_JOB_STAGE}_${TAG}.Dockerfile
     LOG_LINES: 200
     MPICH_VERSION: 3.4.3
-    PERSIST_IMAGE_NAME: ${DOCKERHUB_IMAGE_NAME}_base
-    SECONDARY_IMAGE_USERNAME: ${DOCKERHUB_USERNAME}
-    SECONDARY_IMAGE_PASSWORD: ${DOCKERHUB_TOKEN}
+    PERSIST_IMAGE_NAME: ${CSCS_REGISTRY_PATH}/${REPOSITORY}:${TAG}_${CI_COMMIT_SHORT_SHA}
+#   PERSIST_IMAGE_NAME: ${DOCKERHUB_IMAGE_NAME}_base
+#   SECONDARY_IMAGE_USERNAME: ${DOCKERHUB_USERNAME}
+#   SECONDARY_IMAGE_PASSWORD: ${DOCKERHUB_TOKEN}
 
 build cp2k eiger:
   extends: .container-builder-cscs-zen2
   stage: cp2k
   needs: ["build deps eiger"]
   timeout: 1h
-# before_script:
-#   - echo ${DOCKERHUB_TOKEN} | podman login docker.io --username ${DOCKERHUB_USERNAME} --password-stdin
-# after_script:
-#   - podman images
-#   - podman push ${PERSIST_IMAGE_NAME} ${DOCKERHUB_IMAGE_NAME}
+  before_script:
+    - echo ${DOCKERHUB_TOKEN} | podman login docker.io --username ${DOCKERHUB_USERNAME} --password-stdin
+  after_script:
+    - podman images
+    - podman push ${PERSIST_IMAGE_NAME} ${DOCKERHUB_IMAGE_NAME}
   artifacts:
     paths:
       - build/ninja.log
@@ -67,9 +68,10 @@ build cp2k eiger:
     DEPS_IMAGE: ${DOCKERHUB_IMAGE_NAME}_base
     DOCKERFILE: ci/docker/build_${CI_JOB_STAGE}_${TAG}.Dockerfile
     LOG_LINES: 200
-    PERSIST_IMAGE_NAME: ${DOCKERHUB_IMAGE_NAME}
-    SECONDARY_IMAGE_USERNAME: ${DOCKERHUB_USERNAME}
-    SECONDARY_IMAGE_PASSWORD: ${DOCKERHUB_TOKEN}
+    PERSIST_IMAGE_NAME: ${CSCS_REGISTRY_PATH}/${REPOSITORY}:${TAG}_${CI_COMMIT_SHORT_SHA}
+#   PERSIST_IMAGE_NAME: ${DOCKERHUB_IMAGE_NAME}
+#   SECONDARY_IMAGE_USERNAME: ${DOCKERHUB_USERNAME}
+#   SECONDARY_IMAGE_PASSWORD: ${DOCKERHUB_TOKEN}
 
 test cp2k eiger:
   extends: .container-runner-eiger-zen2
