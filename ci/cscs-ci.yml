@@ -10,8 +10,8 @@ stages:
 variables:
   REPOSITORY: cp2k_eiger
   TAG: toolchain_psmp
+  CSCS_IMAGE_NAME: ${CSCS_REGISTRY_PATH}/${REPOSITORY}:${TAG}_${CI_COMMIT_SHORT_SHA}
   DOCKERHUB_IMAGE_NAME: docker.io/${DOCKERHUB_USERNAME}/${REPOSITORY}:${TAG}
-  PERSIST_IMAGE_NAME: ${CSCS_REGISTRY_PATH}/${REPOSITORY}:${TAG}_${CI_COMMIT_SHORT_SHA}
 
 build deps eiger:
   extends: .container-builder-cscs-zen2
@@ -38,7 +38,7 @@ build deps eiger:
     DOCKERFILE: ci/docker/build_${CI_JOB_STAGE}_${TAG}.Dockerfile
     LOG_LINES: 200
     MPICH_VERSION: 3.4.3
-    PERSIST_IMAGE_NAME: ${PERSIST_IMAGE_NAME}_base
+    PERSIST_IMAGE_NAME: ${CSCS_IMAGE_NAME}_base
 #   PERSIST_IMAGE_NAME: ${DOCKERHUB_IMAGE_NAME}_base
 #   SECONDARY_IMAGE_USERNAME: ${DOCKERHUB_USERNAME}
 #   SECONDARY_IMAGE_PASSWORD: ${DOCKERHUB_TOKEN}
@@ -69,6 +69,7 @@ build cp2k eiger:
     DEPS_IMAGE: ${DOCKERHUB_IMAGE_NAME}_base
     DOCKERFILE: ci/docker/build_${CI_JOB_STAGE}_${TAG}.Dockerfile
     LOG_LINES: 200
+    PERSIST_IMAGE_NAME: ${CSCS_IMAGE_NAME}
 #   PERSIST_IMAGE_NAME: ${DOCKERHUB_IMAGE_NAME}
 #   SECONDARY_IMAGE_USERNAME: ${DOCKERHUB_USERNAME}
 #   SECONDARY_IMAGE_PASSWORD: ${DOCKERHUB_TOKEN}
@@ -116,7 +117,7 @@ benchmark cp2k 1 eiger node:
   stage: benchmark
   needs: ["build cp2k eiger","test cp2k eiger","regression test cp2k eiger"]
   timeout: 1h
-  image: ${PERSIST_IMAGE_NAME}
+  image: ${CSCS_IMAGE_NAME}
   script:
     - cp2k /opt/cp2k/benchmarks/CI/H2O-128_md.inp
   variables:
@@ -135,7 +136,7 @@ benchmark cp2k 2 eiger nodes:
   stage: benchmark
   needs: ["build cp2k eiger","test cp2k eiger","regression test cp2k eiger"]
   timeout: 1h
-  image: ${PERSIST_IMAGE_NAME}
+  image: ${CSCS_IMAGE_NAME}
   before_script:
     - export MPICH_NOLOCAL=1
   script:
