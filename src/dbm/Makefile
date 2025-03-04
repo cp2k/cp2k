@@ -26,6 +26,11 @@ OPTFLAG ?= -O$(patsubst O%,%,$(OPT))
 
 CFLAGS := -fPIC -g $(OPTFLAG) -march=native -Wall -Wextra -Wcast-qual
 
+VALIDATE ?= 0
+ifneq ($(VALIDATE),0)
+CFLAGS += -DDBM_VALIDATE_AGAINST_LIBXSMM
+endif
+
 # Intel Compiler
 ICX := $(shell which icx 2>/dev/null)
 INTEL ?= $(if $(ICX),$(if $(filter-out 0,$(GNU)),0,1),0)
