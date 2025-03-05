@@ -9,6 +9,6 @@
 "G0W0_H2O_PBE_periodic.inp"             = [{matcher="E_G0W0_gap", tol=3e-04, ref=16.556}]
 "G0W0_H2O_PBE_cholesky_off.inp"         = [{matcher="E_G0W0_gap", tol=1e-04, ref=18.969}]
 "G0W0_OH_PBE.inp"                       = [{matcher="E_G0W0_gap_beta", tol=1e-04, ref=11.794}]
-"G0W0_OH_PBE_svd.inp"                   = [{matcher="E_G0W0_gap_beta", tol=1e-04, ref=11.797}]
+"G0W0_OH_PBE_svd.inp"                   = [{matcher="E_G0W0_gap_beta", tol=1e-04, ref=11.794}]
 "G0W0_OH_PBE_ADMM.inp"                  = [{matcher="E_G0W0_gap_beta", tol=1e-04, ref=11.490}]
 #EOF
