@@ -101,17 +101,17 @@ COPY --from=build_cp2k /opt/cp2k/src/grid/sample_tasks ./src/grid/sample_tasks
 # Install CP2K/Quickstep CI benchmarks
 COPY --from=build_cp2k /opt/cp2k/benchmarks/CI ./benchmarks/CI
 
+# Install shared libraries required by the CP2K binaries
+COPY --from=build_cp2k /toolchain /opt/cp2k/tools/toolchain
+
+# Import compressed build log file
+COPY --from=build_cp2k /opt/cp2k/build/build.log.gz .build/
+
 # Create links to CP2K binaries
 WORKDIR /opt/cp2k/bin
 RUN ln -sf cp2k.psmp cp2k && \
     ln -sf cp2k.psmp cp2k.popt && \
     ln -sf cp2k.psmp cp2k_shell
-
-# Install shared libraries required by the CP2K binaries
-COPY --from=build_cp2k /toolchain /opt/cp2k/tools/toolchain
-
-# Import build log file
-COPY --from=build_cp2k /opt/cp2k/build/build.log.gz /opt/cp2k/
 
 # Create entrypoint script file
 RUN printf "#!/bin/bash\n\
