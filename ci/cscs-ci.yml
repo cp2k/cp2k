@@ -10,6 +10,7 @@ stages:
 variables:
   REPOSITORY: cp2k_eiger
   TAG: toolchain_psmp
+  CSCS_BASE_IMAGE_NAME: ${CSCS_REGISTRY_PATH}/base/${REPOSITORY}:${TAG}_${CI_COMMIT_SHORT_SHA}
   CSCS_IMAGE_NAME: ${CSCS_REGISTRY_PATH}/${REPOSITORY}:${TAG}_${CI_COMMIT_SHORT_SHA}
   DOCKERHUB_IMAGE_NAME: docker.io/${DOCKERHUB_USERNAME}/${REPOSITORY}:${TAG}
 
@@ -25,7 +26,7 @@ build deps eiger:
     - echo ${DOCKERHUB_TOKEN} | podman login docker.io --username ${DOCKERHUB_USERNAME} --password-stdin
   after_script:
     - podman images
-    - podman push ${PERSIST_IMAGE_NAME}_base ${DOCKERHUB_IMAGE_NAME}_base
+    - podman push ${PERSIST_IMAGE_NAME} ${DOCKERHUB_IMAGE_NAME}_base
   variables:
     DOCKER_BUILD_ARGS: '[
       "BASE_IMAGE",
@@ -38,7 +39,7 @@ build deps eiger:
     DOCKERFILE: ci/docker/build_${CI_JOB_STAGE}_${TAG}.Dockerfile
     LOG_LINES: 200
     MPICH_VERSION: 3.4.3
-    PERSIST_IMAGE_NAME: ${CSCS_IMAGE_NAME}_base
+    PERSIST_IMAGE_NAME: ${CSCS_BASE_IMAGE_NAME}
 #   PERSIST_IMAGE_NAME: ${DOCKERHUB_IMAGE_NAME}_base
 #   SECONDARY_IMAGE_USERNAME: ${DOCKERHUB_USERNAME}
 #   SECONDARY_IMAGE_PASSWORD: ${DOCKERHUB_TOKEN}
