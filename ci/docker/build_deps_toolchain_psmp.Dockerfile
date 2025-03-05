@@ -131,6 +131,7 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
 COPY --from=build_deps /usr/local/bin /usr/local/bin
 COPY --from=build_deps /usr/local/include /usr/local/include
 COPY --from=build_deps /usr/local/lib /usr/local/lib
+RUN ldconfig
 
 # Install CP2K dependencies (toolchain)
 COPY --from=build_deps /opt/cp2k/tools/toolchain/install /opt/cp2k/tools/toolchain/install

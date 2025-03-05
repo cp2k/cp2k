@@ -82,6 +82,7 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
 COPY --from=build_cp2k /usr/local/bin /usr/local/bin
 COPY --from=build_cp2k /usr/local/include /usr/local/include
 COPY --from=build_cp2k /usr/local/lib /usr/local/lib
+RUN ldconfig
 
 # Install CP2K binaries
 WORKDIR /opt/cp2k

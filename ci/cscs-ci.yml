@@ -17,18 +17,13 @@ build deps eiger:
   extends: .container-builder-cscs-zen2
   stage: deps
   timeout: 1h
-# rules:
-#   - changes:
-#     - tools/toolchain/scripts/install_cp2k_toolchain.sh
-#     - tools/toolchain/scripts/**/*
   before_script:
     - echo ${DOCKERHUB_TOKEN} | podman login docker.io --username ${DOCKERHUB_USERNAME} --password-stdin
     - DEPS_IMAGE_TAG=`cat tools/toolchain/install_cp2k_toolchain.sh $(find tools/toolchain/scripts -type f) | sha256sum - | head -c 16`
     - export PERSIST_IMAGE_NAME=${CSCS_REGISTRY_PATH}/base/${REPOSITORY}:${TAG}_${DEPS_IMAGE_TAG}
-    - echo "DEPS_IMAGE_NAME=${PERSIST_IMAGE_NAME}" >build.env
+    - echo "DEPS_IMAGE_NAME=${PERSIST_IMAGE_NAME}" | tee build.env
   after_script:
     - podman images
-    - podman push ${PERSIST_IMAGE_NAME} ${DOCKERHUB_IMAGE_NAME}_base
   artifacts:
     reports:
       dotenv: build.env
@@ -44,9 +39,6 @@ build deps eiger:
     BUILD_TYPE: minimal
     LOG_LINES: 200
     MPICH_VERSION: 3.4.3
-#   PERSIST_IMAGE_NAME: ${DOCKERHUB_IMAGE_NAME}_base
-#   SECONDARY_IMAGE_USERNAME: ${DOCKERHUB_USERNAME}
-#   SECONDARY_IMAGE_PASSWORD: ${DOCKERHUB_TOKEN}
 
 build cp2k eiger:
   extends: .container-builder-cscs-zen2
@@ -55,7 +47,7 @@ build cp2k eiger:
   timeout: 1h
   before_script:
     - echo ${DOCKERHUB_TOKEN} | podman login docker.io --username ${DOCKERHUB_USERNAME} --password-stdin
-    - echo CI_PROJECT_DIR=${CI_PROJECT_DIR}
+    - ls -al ${CI_PROJECT_DIR}
   after_script:
     - podman images
     - podman push ${PERSIST_IMAGE_NAME} ${DOCKERHUB_IMAGE_NAME}
@@ -76,9 +68,6 @@ build cp2k eiger:
     DEPS_IMAGE: ${DEPS_IMAGE_NAME}
     LOG_LINES: 200
     PERSIST_IMAGE_NAME: ${CSCS_IMAGE_NAME}
-#   PERSIST_IMAGE_NAME: ${DOCKERHUB_IMAGE_NAME}
-#   SECONDARY_IMAGE_USERNAME: ${DOCKERHUB_USERNAME}
-#   SECONDARY_IMAGE_PASSWORD: ${DOCKERHUB_TOKEN}
 
 test cp2k eiger:
   extends: .container-runner-eiger-zen2
