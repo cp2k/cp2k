@@ -552,6 +552,7 @@ CONTAINS
                DO i = 1, 3
                   rtbse_env%moments_trace(i)%series(n) = CMPLX(moments_re(i), moments_im(i), kind=dp)
                END DO
+               rtbse_env%time_trace%series(n) = timestamp
             END DO
             ! Change back to atomic units in the trace
             rtbse_env%time_trace%series(:) = rtbse_env%time_trace%series(:)/femtoseconds
@@ -576,7 +577,7 @@ CONTAINS
       ! Stores the data in ready for output format
       !  - first dimension is 6 - 1 - real part along x, 2 - imag part along x, 3 - real part along y, ...
       REAL(kind=dp), DIMENSION(:, :), ALLOCATABLE         :: ft_full_series
-      INTEGER                                            :: i, n, ft_unit
+      INTEGER                                             :: i, n, ft_unit
 
       logger => cp_get_default_logger()
 
@@ -594,19 +595,17 @@ CONTAINS
       DO i = 1, 3
          ! Real part of the value first
          value_series(:) = REAL(rtbse_env%moments_trace(i)%series(:))
-         CALL ft_simple(rtbse_env%time_trace%series, value_series, omega_series, ft_real_series, ft_imag_series, &
-                        rtbse_env%ft_damping, rtbse_env%ft_start)
+         CALL ft_simple(rtbse_env%time_trace%series, value_series, ft_real_series, ft_imag_series, &
+                        damping_opt=rtbse_env%ft_damping, t0_opt=rtbse_env%ft_start, subtract_initial_opt=.TRUE.)
          ft_full_series(2*i - 1, :) = ft_real_series(:)
          ft_full_series(2*i, :) = ft_imag_series(:)
          ! Now imaginary part
          value_series(:) = AIMAG(rtbse_env%moments_trace(i)%series(:))
-         CALL ft_simple(rtbse_env%time_trace%series, value_series, omega_series, ft_real_series, ft_imag_series, &
-                        rtbse_env%ft_damping, rtbse_env%ft_start)
+         CALL ft_simple(rtbse_env%time_trace%series, value_series, ft_real_series, ft_imag_series, omega_series, &
+                        damping_opt=rtbse_env%ft_damping, t0_opt=rtbse_env%ft_start, subtract_initial_opt=.TRUE.)
          ft_full_series(2*i - 1, :) = ft_full_series(2*i - 1, :) - ft_imag_series
          ft_full_series(2*i, :) = ft_full_series(2*i, :) + ft_real_series
       END DO
-      DEALLOCATE (ft_real_series)
-      DEALLOCATE (ft_imag_series)
       DEALLOCATE (value_series)
       ! Now, write these to file
       ft_unit = cp_print_key_unit_nr(logger, rtbse_env%ft_section, extension=".dat", &
@@ -620,6 +619,8 @@ CONTAINS
          END DO
       END IF
       CALL cp_print_key_finished_output(ft_unit, logger, rtbse_env%ft_section)
+      DEALLOCATE (ft_real_series)
+      DEALLOCATE (ft_imag_series)
       DEALLOCATE (omega_series)
       DEALLOCATE (ft_full_series)
    END SUBROUTINE output_moments_ft
@@ -637,14 +638,15 @@ CONTAINS
                                                             ft_imag_series, &
                                                             value_series
       COMPLEX(kind=dp), DIMENSION(:), ALLOCATABLE        :: moment_series, &
-                                                            field_series, &
-                                                            polarizability_series
+                                                            field_series
+      COMPLEX(kind=dp), DIMENSION(:, :), ALLOCATABLE     :: polarizability_series
       INTEGER                                            :: pol_unit, &
-                                                            i, n
+                                                            i, k, n, n_elems
 
       logger => cp_get_default_logger()
 
       n = rtbse_env%sim_nsteps + 2
+      n_elems = SIZE(rtbse_env%pol_elements, 1)
       ! All allocations together, although could save some memory, if required by consequent deallocations
       ALLOCATE (omega_series(n), source=0.0_dp)
       ALLOCATE (ft_real_series(n), source=0.0_dp)
@@ -652,66 +654,87 @@ CONTAINS
       ALLOCATE (value_series(n), source=0.0_dp)
       ALLOCATE (moment_series(n), source=CMPLX(0.0, 0.0, kind=dp))
       ALLOCATE (field_series(n), source=CMPLX(0.0, 0.0, kind=dp))
-      ALLOCATE (polarizability_series(n), source=CMPLX(0.0, 0.0, kind=dp))
+      ALLOCATE (polarizability_series(n_elems, n), source=CMPLX(0.0, 0.0, kind=dp))
 
-      ! The moment ft
-      ! Real part
-      value_series(:) = REAL(rtbse_env%moments_trace(rtbse_env%pol_element(1))%series(:))
-      CALL ft_simple(rtbse_env%time_trace%series, value_series, omega_series, ft_real_series, ft_imag_series, &
-                     rtbse_env%ft_damping, rtbse_env%ft_start, .TRUE.)
-      moment_series(:) = CMPLX(ft_real_series(:), ft_imag_series(:), kind=dp)
-      ! Imaginary part
-      value_series(:) = AIMAG(rtbse_env%moments_trace(rtbse_env%pol_element(1))%series(:))
-      CALL ft_simple(rtbse_env%time_trace%series, value_series, omega_series, ft_real_series, ft_imag_series, &
-                     rtbse_env%ft_damping, rtbse_env%ft_start, .TRUE.)
-      moment_series(:) = moment_series(:) + CMPLX(-ft_imag_series(:), ft_real_series(:), kind=dp)
+      DO k = 1, n_elems
+         ! The moment ft
+         ! Real part
+         value_series(:) = REAL(rtbse_env%moments_trace(rtbse_env%pol_elements(k, 1))%series(:))
+         CALL ft_simple(rtbse_env%time_trace%series, value_series, ft_real_series, ft_imag_series, &
+                        damping_opt=rtbse_env%ft_damping, t0_opt=rtbse_env%ft_start, subtract_initial_opt=.TRUE.)
+         moment_series(:) = CMPLX(ft_real_series(:), ft_imag_series(:), kind=dp)
+         ! Imaginary part
+         value_series(:) = AIMAG(rtbse_env%moments_trace(rtbse_env%pol_elements(k, 1))%series(:))
+         CALL ft_simple(rtbse_env%time_trace%series, value_series, ft_real_series, ft_imag_series, omega_series, &
+                        damping_opt=rtbse_env%ft_damping, t0_opt=rtbse_env%ft_start, subtract_initial_opt=.TRUE.)
+         moment_series(:) = moment_series(:) + CMPLX(-ft_imag_series(:), ft_real_series(:), kind=dp)
 
-      ! Calculate the field transform - store it in ft_real_series
-      IF (rtbse_env%dft_control%rtp_control%apply_delta_pulse) THEN
-         ! Only divide by constant magnitude in atomic units
-         field_series(:) = CMPLX(rtbse_env%dft_control%rtp_control%delta_pulse_scale, 0.0, kind=dp)
-      ELSE
-         ! Calculate the transform of the field as well and divide by it
-         ! The field FT is not damped - assume field is localised in time
-         ! The field is strictly real
-         CALL ft_simple(rtbse_env%time_trace%series, rtbse_env%field_trace(rtbse_env%pol_element(2))%series, &
-                        omega_series, ft_real_series, ft_imag_series, 0.0_dp, rtbse_env%ft_start, .FALSE.)
-         ! Regularization for the case when ft_series becomes identically zero - TODO : Set in config
-         field_series(:) = CMPLX(ft_real_series(:), ft_imag_series(:) + 1.0e-20, kind=dp)
-      END IF
-      ! Divide to get the polarizability series
-      ! Real part
-      polarizability_series(:) = moment_series(:)/field_series(:)
+         ! Calculate the field transform - store it in ft_real_series
+         IF (rtbse_env%dft_control%rtp_control%apply_delta_pulse) THEN
+            ! Only divide by constant magnitude in atomic units
+            ! TODO : Fix for field with more than one direction
+            field_series(:) = CMPLX( &
+                              rtbse_env%dft_control%rtp_control%delta_pulse_direction(rtbse_env%pol_elements(k, 2))* &
+                              rtbse_env%dft_control%rtp_control%delta_pulse_scale, 0.0, kind=dp)
+         ELSE
+            ! Calculate the transform of the field as well and divide by it
+            ! The field FT is not damped - assume field is localised in time
+            ! The field is strictly real
+            CALL ft_simple(rtbse_env%time_trace%series, rtbse_env%field_trace(rtbse_env%pol_elements(k, 2))%series, &
+                           ft_real_series, ft_imag_series, omega_series, &
+                           0.0_dp, rtbse_env%ft_start, .FALSE.)
+            ! Regularization for the case when ft_series becomes identically zero - TODO : Set in config
+            field_series(:) = CMPLX(ft_real_series(:), ft_imag_series(:) + 1.0e-20, kind=dp)
+         END IF
+         ! Divide to get the polarizability series
+         polarizability_series(k, :) = moment_series(:)/field_series(:)
+      END DO
 
       ! Change units to eV for energy
       ! use value_series for energy and moment_series for polarizability
       value_series(:) = omega_series(:)*evolt
-      ! Use below for printing of field FT in case of problems
-      ! PRINT *, "=== Field FT"
-      ! DO i=1,n
-      !    PRINT '(E20.8E3,E20.8E3,E20.8E3)', value_series(i), REAL(field_series(i)), AIMAG(field_series(i))
-      ! END DO
-      ! PRINT *, "=== Field FT"
       ! Print out the polarizability to a file
       pol_unit = cp_print_key_unit_nr(logger, rtbse_env%pol_section, extension=".dat", &
                                       file_form="FORMATTED", file_position="REWIND")
+      ! Printing for both the stdout and separate file
       IF (pol_unit > 0) THEN
          IF (pol_unit == rtbse_env%unit_nr) THEN
-            WRITE (pol_unit, '(A16,A20,A22,A22)') &
-               " POLARIZABILITY|", "Energy [eV]", "Real polarizability", "Imag polarizability"
-            DO i = 1, n
-               WRITE (pol_unit, '(A16,E20.8E3,E22.8E3,E22.8E3)') &
-                  " POLARIZABILITY|", value_series(i), REAL(polarizability_series(i)), AIMAG(polarizability_series(i))
-            END DO
+            ! Print the stdout preline
+            WRITE (pol_unit, '(A16)', advance="no") " POLARIZABILITY|"
          ELSE
-            WRITE (pol_unit, '(A1,A19,A20,A20,A20)') &
-               "#", "omega [a.u.]", "Energy [eV]", "Real polarizability", "Imag polarizability"
-            DO i = 1, n
-               WRITE (pol_unit, '(E20.8E3,E20.8E3,E20.8E3,E20.8E3)') &
-                  omega_series(i), value_series(i), REAL(polarizability_series(i)), AIMAG(polarizability_series(i))
-            END DO
-            CALL cp_print_key_finished_output(pol_unit, logger, rtbse_env%ft_section)
+            ! Print also the energy in atomic units
+            WRITE (pol_unit, '(A1,A19)', advance="no") "#", "omega [a.u.]"
          END IF
+         ! Common - print the energy in eV
+         WRITE (pol_unit, '(A20)', advance="no") "Energy [eV]"
+         ! Print a header for each polarizability element
+         DO k = 1, n_elems - 1
+            WRITE (pol_unit, '(A16,I2,I2,A16,I2,I2)', advance="no") &
+               "Real pol.", rtbse_env%pol_elements(k, 1), rtbse_env%pol_elements(k, 2), &
+               "Imag pol.", rtbse_env%pol_elements(k, 1), rtbse_env%pol_elements(k, 2)
+         END DO
+         WRITE (pol_unit, '(A16,I2,I2,A16,I2,I2)') &
+            "Real pol.", rtbse_env%pol_elements(n_elems, 1), rtbse_env%pol_elements(n_elems, 2), &
+            "Imag pol.", rtbse_env%pol_elements(n_elems, 1), rtbse_env%pol_elements(n_elems, 2)
+         DO i = 1, n
+            IF (pol_unit == rtbse_env%unit_nr) THEN
+               ! Print the stdout preline
+               WRITE (pol_unit, '(A16)', advance="no") " POLARIZABILITY|"
+            ELSE
+               ! omega in a.u.
+               WRITE (pol_unit, '(E20.8E3)', advance="no") omega_series(i)
+            END IF
+            ! Common values
+            WRITE (pol_unit, '(E20.8E3)', advance="no") value_series(i)
+            DO k = 1, n_elems - 1
+               WRITE (pol_unit, '(E20.8E3,E20.8E3)', advance="no") &
+                  REAL(polarizability_series(k, i)), AIMAG(polarizability_series(k, i))
+            END DO
+            ! Print the final value and advance
+            WRITE (pol_unit, '(E20.8E3,E20.8E3)') &
+               REAL(polarizability_series(n_elems, i)), AIMAG(polarizability_series(n_elems, i))
+         END DO
+         CALL cp_print_key_finished_output(pol_unit, logger, rtbse_env%pol_section)
       END IF
 
       DEALLOCATE (value_series)
@@ -739,13 +762,13 @@ CONTAINS
 !> \date 09.2024
 ! **************************************************************************************************
    ! So far only for defined one dimensional series
-   SUBROUTINE ft_simple(time_series, value_series, omega_series, result_series, iresult_series, &
+   SUBROUTINE ft_simple(time_series, value_series, result_series, iresult_series, omega_series, &
                         damping_opt, t0_opt, subtract_initial_opt)
       REAL(kind=dp), DIMENSION(:)                        :: time_series
       REAL(kind=dp), DIMENSION(:)                        :: value_series
-      REAL(kind=dp), DIMENSION(:)                        :: omega_series
       REAL(kind=dp), DIMENSION(:)                        :: result_series
       REAL(kind=dp), DIMENSION(:)                        :: iresult_series
+      REAL(kind=dp), DIMENSION(:), OPTIONAL              :: omega_series
       REAL(kind=dp), OPTIONAL                            :: damping_opt
       REAL(kind=dp), OPTIONAL                            :: t0_opt
       LOGICAL, OPTIONAL                                  :: subtract_initial_opt
@@ -777,7 +800,9 @@ CONTAINS
       ! Default damping so that at the end of the time series, divide value by e^-4
       damping = 4.0_dp/(time_series(N) - time_series(t0_i))
       IF (PRESENT(damping_opt)) THEN
-         IF (damping_opt >= 0.0_dp) damping = damping_opt
+         ! Damping is given a time in which the moments reduce by factor of 1/e
+         IF (damping_opt > 0.0_dp) damping = 1.0_dp/damping_opt
+         IF (damping_opt == 0.0_dp) damping = 0.0_dp
       END IF
 
       IF (PRESENT(subtract_initial_opt)) THEN
@@ -792,11 +817,11 @@ CONTAINS
       delta_omega = twopi/(time_series(N) - time_series(1))
       ! Subtract initial value, if requested (default is to subtract the value)
       value_subtract = 0.0_dp
-      IF (subtract_initial) value_subtract = value_series(t0_i)
+      IF (subtract_initial) value_subtract = value_series(1)
       DO i = 1, N
          result_series(i) = 0.0_dp
          iresult_series(i) = 0.0_dp
-         omega_series(i) = delta_omega*(i - 1)
+         IF (PRESENT(omega_series)) omega_series(i) = delta_omega*(i - 1)
          DO j = 1, N
             j_wrap = MODULO(j + t0_i - 2, N) + 1
             result_series(i) = result_series(i) + COS(twopi*(i - 1)*(j - 1)/N)* &
