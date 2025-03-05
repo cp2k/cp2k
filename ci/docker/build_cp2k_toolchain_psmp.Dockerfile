@@ -105,7 +105,7 @@ COPY --from=build_cp2k /opt/cp2k/benchmarks/CI ./benchmarks/CI
 COPY --from=build_cp2k /toolchain /opt/cp2k/tools/toolchain
 
 # Import compressed build log file
-COPY --from=build_cp2k /opt/cp2k/build/build.log.gz .build/
+COPY --from=build_cp2k /opt/cp2k/build/build.log.gz ./
 
 # Create links to CP2K binaries
 WORKDIR /opt/cp2k/bin
