@@ -81,8 +81,8 @@ RUN echo "\nBuild type: ${BUILD_TYPE}\n" && \
         --target-cpu=native \
         --with-gcc=system \
         --with-mpich=system; \
-    else; \
-      echo "ERROR: Unknown BUILD_TYPE ${BUILD_TYPE} specified"; \
+    else \
+      echo "ERROR: Unknown BUILD_TYPE ${BUILD_TYPE} was specified"; \
       exit 1; \
     fi
 
