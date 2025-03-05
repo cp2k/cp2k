@@ -42,7 +42,7 @@ build dependencies eiger:
 build cp2k eiger:
   extends: .container-builder-cscs-zen2
   stage: cp2k
-  needs: ["build deps eiger"]
+  needs: ["build dependencies eiger"]
   timeout: 1h
   before_script:
     - echo ${DOCKERHUB_TOKEN} | podman login docker.io --username ${DOCKERHUB_USERNAME} --password-stdin
