@@ -817,7 +817,7 @@ CONTAINS
       delta_omega = twopi/(time_series(N) - time_series(1))
       ! Subtract initial value, if requested (default is to subtract the value)
       value_subtract = 0.0_dp
-      IF (subtract_initial) value_subtract = value_series(t0_i)
+      IF (subtract_initial) value_subtract = value_series(1)
       DO i = 1, N
          result_series(i) = 0.0_dp
          iresult_series(i) = 0.0_dp
