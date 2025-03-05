@@ -10,12 +10,11 @@ stages:
 variables:
   REPOSITORY: cp2k_eiger
   TAG: toolchain_psmp
-  BUILD_TYPE: toolchain
   UBUNTU_IMAGE_NAME: ubuntu:24.04
   CSCS_IMAGE_NAME: ${CSCS_REGISTRY_PATH}/${REPOSITORY}:${TAG}_${CI_COMMIT_SHORT_SHA}
   DOCKERHUB_IMAGE_NAME: docker.io/${DOCKERHUB_USERNAME}/${REPOSITORY}:${TAG}
 
-build deps eiger:
+build dependencies eiger:
   extends: .container-builder-cscs-zen2
   stage: deps
   timeout: 1h
@@ -36,7 +35,7 @@ build deps eiger:
     ]'
     DOCKERFILE: ci/docker/build_${CI_JOB_STAGE}_${TAG}.Dockerfile
     BASE_IMAGE: ${UBUNTU_IMAGE_NAME}
-    BUILD_TYPE: ${BUILD_TYPE}
+    BUILD_TYPE: toolchain
     LOG_LINES: 200
     MPICH_VERSION: 3.4.3
 
@@ -53,7 +52,7 @@ build cp2k eiger:
   artifacts:
 #   when: on_failure
     paths:
-      - build/build.log.gz
+      - build.log.gz
   variables:
     DOCKER_BUILD_ARGS: '[
       "BASE_IMAGE",
@@ -63,7 +62,7 @@ build cp2k eiger:
     ]'
     DOCKERFILE: ci/docker/build_${CI_JOB_STAGE}_${TAG}.Dockerfile
     BASE_IMAGE: ${UBUNTU_IMAGE_NAME}
-    BUILD_TYPE: ${BUILD_TYPE}
+    BUILD_TYPE: toolchain
     DEPS_IMAGE: ${DEPS_IMAGE_NAME}
     LOG_LINES: 200
     PERSIST_IMAGE_NAME: ${CSCS_IMAGE_NAME}
