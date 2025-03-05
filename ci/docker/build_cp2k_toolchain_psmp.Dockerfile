@@ -36,19 +36,20 @@ WORKDIR /opt/cp2k/build
 RUN /bin/bash -c -o pipefail " \
     source /opt/cp2k/tools/toolchain/install/setup; \
     echo -e '\nCompiling CP2K ... \c'; \
-    if ninja --verbose &>ninja.log; then \
+    if ninja --verbose &>build.log; then \
       echo -e 'done\n'; \
       echo -e 'Installing CP2K ... \c'; \
-      if ninja --verbose install &>install.log; then \
+      if ninja --verbose install &>>build.log; then \
         echo -e 'done\n'; \
       else \
         echo -e 'failed\n'; \
-        tail -n ${LOG_LINES} install.log; \
+        tail -n ${LOG_LINES} build.log; \
       fi; \
     else \
       echo -e 'failed\n'; \
-      tail -n ${LOG_LINES} ninja.log; \
-    fi"
+      tail -n ${LOG_LINES} build.log; \
+    fi; \
+    gzip build.log"
 
 # Update environment variables
 ENV LD_LIBRARY_PATH=/opt/cp2k/lib:/usr/local/lib:${LD_LIBRARY_PATH} \
@@ -107,6 +108,9 @@ RUN ln -sf cp2k.psmp cp2k && \
 
 # Install shared libraries required by the CP2K binaries
 COPY --from=build_cp2k /toolchain /opt/cp2k/tools/toolchain
+
+# Import build log file
+COPY --from=build_cp2k /opt/cp2k/build/build.log.gz /opt/cp2k/
 
 # Create entrypoint script file
 RUN printf "#!/bin/bash\n\

@@ -55,9 +55,9 @@ build cp2k eiger:
     - podman images
     - podman push ${PERSIST_IMAGE_NAME} ${DOCKERHUB_IMAGE_NAME}
   artifacts:
+    when: on_failure
     paths:
-      - build/ninja.log
-      - build/install.log
+      - /opt/cp2k/build.log.gz
   variables:
     DOCKER_BUILD_ARGS: '[
       "BASE_IMAGE",
@@ -67,7 +67,7 @@ build cp2k eiger:
     ]'
     BASE_IMAGE: ubuntu:24.04
     BUILD_TYPE: minimal
-    DEPS_IMAGE: ${DOCKERHUB_IMAGE_NAME}_base
+    DEPS_IMAGE: ${CSCS_BASE_IMAGE_NAME}
     DOCKERFILE: ci/docker/build_${CI_JOB_STAGE}_${TAG}.Dockerfile
     LOG_LINES: 200
     PERSIST_IMAGE_NAME: ${CSCS_IMAGE_NAME}
@@ -80,7 +80,7 @@ test cp2k eiger:
   stage: test
   needs: ["build cp2k eiger"]
   timeout: 1h
-  image: ${DOCKERHUB_IMAGE_NAME}
+  image: ${CSCS_IMAGE_NAME}
   script:
     - cp2k /opt/cp2k/benchmarks/CI/H2O-32_md.inp
   variables:
