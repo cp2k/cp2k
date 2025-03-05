@@ -55,7 +55,7 @@ build cp2k eiger:
     - podman images
     - podman push ${PERSIST_IMAGE_NAME} ${DOCKERHUB_IMAGE_NAME}
   artifacts:
-    when: on_failure
+#   when: on_failure
     paths:
       - /opt/cp2k/build.log.gz
   variables:
