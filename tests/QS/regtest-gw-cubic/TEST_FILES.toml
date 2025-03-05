@@ -1,7 +1,7 @@
 "scGW0_H2O_PBE_default_values.inp"      = [{matcher="E_evGW0_gap", tol=1e-04, ref=17.2026}]
 "evGW_H2O_PBE_default_values.inp"       = [{matcher="E_evGW_gap", tol=1e-04, ref=17.5131}]
 "G0W0_H2O_PBE_GAPW.inp"                 = [{matcher="E_G0W0_gap", tol=1e-04, ref=16.699}]
-"G0W0_H2O_PBE0.inp"                     = [{matcher="E_G0W0_gap", tol=1e-04, ref=16.717}]
+"G0W0_H2O_PBE0.inp"                     = [{matcher="E_G0W0_gap", tol=1e-04, ref=16.730}]
 "G0W0_H2O_PBE0_30_pts.inp"              = [{matcher="E_G0W0_gap", tol=1e-04, ref=15.607}]
 "G0W0_H2O_PBE0_30_pts_minimax_regularization.inp" = [{matcher="E_G0W0_gap", tol=1e-04, ref=15.965}]
 "scGW0_and_evGW_H2O_PBE0_trunc_minimax.inp" = [{matcher="M011", tol=1e-08, ref=-17.108489005370274}]
