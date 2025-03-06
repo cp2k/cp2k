@@ -22,10 +22,12 @@
 
 #if defined(__OFFLOAD_CUDA) || defined(__OFFLOAD_HIP) ||                       \
     defined(__OFFLOAD_OPENCL)
-#define __OFFLOAD
-
 #include <stdio.h>
 #include <stdlib.h>
+
+#if !defined(__OFFLOAD)
+#define __OFFLOAD
+#endif
 
 #if defined(__OFFLOAD_CUDA)
 #include <cuda_runtime.h>

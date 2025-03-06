@@ -506,15 +506,31 @@ void dbm_iterator_next_block(dbm_iterator_t *iter, int *row, int *col,
 void dbm_iterator_stop(dbm_iterator_t *iter) { free(iter); }
 
 /*******************************************************************************
+ * \brief Private routine to accumulate using Kahan's summation.
+ * \author Hans Pabst
+ ******************************************************************************/
+static double kahan_sum(double value, double *accumulator,
+                        double *compensation) {
+  double r, c;
+  assert(NULL != accumulator && NULL != compensation);
+  c = value - *compensation;
+  r = *accumulator + c;
+  *compensation = (r - *accumulator) - c;
+  *accumulator = r;
+  return r;
+}
+
+/*******************************************************************************
  * \brief Computes a checksum of the given matrix.
  * \author Ole Schuett
  ******************************************************************************/
 double dbm_checksum(const dbm_matrix_t *matrix) {
-  double checksum = 0.0;
+  double checksum = 0.0, compensation = 0.0;
   for (int ishard = 0; ishard < dbm_get_num_shards(matrix); ishard++) {
     const dbm_shard_t *shard = &matrix->shards[ishard];
     for (int i = 0; i < shard->data_size; i++) {
-      checksum += shard->data[i] * shard->data[i];
+      const double value = shard->data[i];
+      kahan_sum(value * value, &checksum, &compensation);
     }
   }
   dbm_mpi_sum_double(&checksum, 1, matrix->dist->comm);

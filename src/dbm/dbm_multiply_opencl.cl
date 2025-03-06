@@ -19,12 +19,6 @@
 #endif
 #define BCST_NO(V) (V)
 
-#if defined(SM) && (0 < SM)
-#define TLS(MEM) (MEM)[get_local_id(0)]
-#else
-#define TLS(MEM) (MEM)
-#endif
-
 #define SINT short
 
 #define X(T, I) (T)->I /* task can be taken by value or by pointer */
@@ -81,7 +75,7 @@ dbm_multiply(double alpha, int itask, int ntasks, int size,
              global const double *restrict bmat, global double *restrict cmat) {
   const int i = (int)get_global_id(0);
 #if defined(SM) && (0 < SM)
-  local double cvec[WG][BN + SM - 1];
+  local double tls[WG][BN + SM - 1], *const cvec = &tls[get_local_id(0)];
 #else
   double cvec[BN];
 #endif
@@ -92,15 +86,18 @@ dbm_multiply(double alpha, int itask, int ntasks, int size,
     const int max_m = size / ntasks, tid = i / max_m;
     const SINT m = i - tid * max_m;
     global const dbm_task_t *const task = &tasks[itask + tid];
-    if (m < XM(task)) { /* valid task */
+#if !defined(NDEBUG)
+    if (m < XM(task))
+#endif
+    { /* valid task */
       bmat += XB(task);
 #if defined(BCST_WG)
       if (XM(task) <= XN(task)) { /* BCST_WG to broadcast B-values */
-        DBM_MULTIPLY(alpha, task, amat, bmat, cmat, TLS(cvec), m, BN, BCST_WG);
+        DBM_MULTIPLY(alpha, task, amat, bmat, cmat, cvec, m, BN, BCST_WG);
       } else
 #endif
       {
-        DBM_MULTIPLY(alpha, task, amat, bmat, cmat, TLS(cvec), m, BN, BCST_NO);
+        DBM_MULTIPLY(alpha, task, amat, bmat, cmat, cvec, m, BN, BCST_NO);
       }
     }
   }
