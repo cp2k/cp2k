@@ -216,6 +216,8 @@ MODULE qs_environment
    USE xtb_potentials,                  ONLY: xtb_pp_radius
    USE xtb_types,                       ONLY: allocate_xtb_atom_param,&
                                               set_xtb_atom_param
+   !USE rixs_types,                      ONLY: read_rixs_control
+
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -652,7 +654,7 @@ CONTAINS
       TYPE(se_taper_type), POINTER                       :: se_taper
       TYPE(section_vals_type), POINTER :: dft_section, et_coupling_section, et_ddapc_section, &
          ewald_section, harris_section, lri_section, mp2_section, nl_section, poisson_section, &
-         pp_section, print_section, qs_section, se_section, tddfpt_section, xc_section
+         pp_section, print_section, qs_section, se_section, tddfpt_section, xc_section, rixs_section
       TYPE(semi_empirical_control_type), POINTER         :: se_control
       TYPE(semi_empirical_si_type), POINTER              :: se_store_int_env
       TYPE(xtb_control_type), POINTER                    :: xtb_control
@@ -684,6 +686,7 @@ CONTAINS
       et_coupling_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%ET_COUPLING")
       ! reimplemented TDDFPT
       tddfpt_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%TDDFPT")
+      rixs_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%RIXS")
 
       CALL qs_subsys_get(subsys, particle_set=particle_set, &
                          qs_kind_set=qs_kind_set, &
@@ -750,6 +753,11 @@ CONTAINS
 
       ! reimplemented TDDFPT
       CALL read_tddfpt2_control(dft_control%tddfpt2_control, tddfpt_section, dft_control%qs_control)
+
+      ! rixs
+      ! TODO: maybe need to do something here
+      ! then check for dft_control%do_rixs
+
 
       !   Create relativistic control section
       BLOCK

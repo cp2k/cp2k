@@ -619,6 +619,7 @@ MODULE cp_control_types
                                               pos_dir_surf_dip = 0.0_dp
       LOGICAL                              :: do_xas_calculation = .FALSE., &
                                               do_xas_tdp_calculation = .FALSE., &
+                                              do_rixs = .FALSE., &
                                               drho_by_collocation = .FALSE., &
                                               use_kinetic_energy_density = .FALSE., &
                                               restricted = .FALSE., &

@@ -476,6 +476,7 @@ CONTAINS
                                    l_val=dft_control%do_xas_calculation)
       END IF
 
+      !!! not clear why this is necessary
       tmp_section => section_vals_get_subs_vals(dft_section, "XAS_TDP")
       CALL section_vals_get(tmp_section, explicit=dft_control%do_xas_tdp_calculation)
       IF (dft_control%do_xas_tdp_calculation) THEN

@@ -67,6 +67,7 @@ MODULE qs_energy_utils
    USE xas_tdp_methods,                 ONLY: xas_tdp
    USE xc_derivatives,                  ONLY: xc_functionals_get_needs
    USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
+   USE rixs_methods,                    ONLY: rixs
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -180,6 +181,8 @@ CONTAINS
       END IF
 
       !Properties
+      ! TODO: initialisation should come before xas_tdp and tddfpt2
+
       IF (dft_control%do_xas_calculation) THEN
          CALL xas(qs_env, dft_control)
       END IF
@@ -195,6 +198,11 @@ CONTAINS
 
       IF (dft_control%tddfpt2_control%enabled) THEN
          CALL tddfpt(qs_env, calc_forces)
+      END IF
+
+      ! must come after xas_tdp and tddfpt2
+      IF (dft_control%do_rixs) THEN !! TODO: define qs_env%ks_env%dft_control%rixs_control
+         CALL rixs(qs_env)
       END IF
 
       ! post-SCF bandstructure calculation from higher level methods

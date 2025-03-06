@@ -415,6 +415,12 @@ CONTAINS
                                   kernel_env_admm_aux)
       END IF
 
+      ! if do_rixs true: share evects, evals and mo_coefs with rixs
+      IF (dft_control%do_rixs) THEN
+         ! do something
+         WRITE (*, *) "RIXS requested"
+      END IF
+
       !print forces for selected states
       IF (calc_forces) THEN
          CALL tddfpt_print_forces(qs_env, evects, evals, ostrength, &

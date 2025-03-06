@@ -455,7 +455,7 @@ CONTAINS
                      IF (xas_tdp_control%do_spin_cons) THEN
                         CALL solve_xas_tdp_prob(current_state, xas_tdp_control, xas_tdp_env, qs_env, &
                                                 ex_type=tddfpt_spin_cons)
-                        CALL compute_dipole_fosc(current_state, xas_tdp_control, xas_tdp_env)
+                        CALL compute_dipole_fosc(current_state, xas_tdp_control, xas_tdp_env) !!! calculate dipmat
                         IF (xas_tdp_control%do_quad) CALL compute_quadrupole_fosc(current_state, &
                                                                                   xas_tdp_control, xas_tdp_env)
                         CALL xas_tdp_post(tddfpt_spin_cons, current_state, xas_tdp_env, &
@@ -502,13 +502,17 @@ CONTAINS
                         END IF
                      END IF
 
+                     ! Save the current_state details for rixs, %dipmat, sg_evlas, gs_coeffs
+                     ! before moving on to next state
+                     !!!!! 
+
 !                    Print the requested properties
                      CALL print_xas_tdp_to_file(current_state, xas_tdp_env, xas_tdp_control, xas_tdp_section)
                   END IF !xps_only
                   IF (xas_tdp_control%do_gw2x) CALL print_xps(current_state, xas_tdp_env, xas_tdp_control, qs_env)
 
 !                 Free some unneeded attributes of current_state
-                  CALL free_ds_memory(current_state)
+                  CALL free_ds_memory(current_state) !!! donor-state cleaned here
 
                   current_state_index = current_state_index + 1
                   NULLIFY (current_state)

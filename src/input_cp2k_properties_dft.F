@@ -129,6 +129,9 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
+      CALL create_rixs_section(subsection)
+      CALL section_release(subsection)
+
       CALL create_bandstructure_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
@@ -138,6 +141,38 @@ CONTAINS
       CALL section_release(subsection)
 
    END SUBROUTINE create_properties_section
+
+! **************************************************************************************************
+!> \brief creates the input structure used to activate
+!>      a resonant inelastic xray scattering (RIXS) calculation
+! **************************************************************************************************
+
+   SUBROUTINE create_rixs_section(section)
+      TYPE(section_type), POINTER                        :: section
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      REAL(KIND=DP)                                      :: def_dum
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+
+      NULLIFY(keyword)
+
+      def_dum = 1.e-6_dp
+
+      CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
+                          description="controls the activation of the RIXS calculation", &
+                          usage="&RIXS T", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="DUMMY", &
+                          description="some dummy parameter", &
+                          usage="DUMMY 1.e-6", default_r_val=def_dum)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+
+   END SUBROUTINE create_rixs_section
 
 ! **************************************************************************************************
 !> \brief creates the input structure used to activate
