@@ -8,10 +8,10 @@ stages:
   - benchmark
 
 variables:
-  REPOSITORY: cp2k_eiger
-  BUILD_TYPE: toolchain
-  VERSION: psmp
-  TAG: "${BUILD_TYPE}_${VERSION}"
+  REPOSITORY: "cp2k_eiger"
+  CP2K_BUILD_TYPE: "toolchain"
+  VERSION: "psmp"
+  TAG: "${CP2K_BUILD_TYPE}_${VERSION}"
   UBUNTU_IMAGE_NAME: "ubuntu:24.04"
   CSCS_IMAGE_NAME: "${CSCS_REGISTRY_PATH}/${REPOSITORY}:${TAG}_${CI_COMMIT_SHORT_SHA}"
   DOCKERHUB_IMAGE_NAME: "docker.io/${DOCKERHUB_USERNAME}/${REPOSITORY}:${TAG}"
@@ -36,7 +36,7 @@ build deps eiger:
     ]'
     DOCKERFILE: "ci/docker/build_${CI_JOB_STAGE}_${TAG}.Dockerfile"
     BASE_IMAGE: "${UBUNTU_IMAGE_NAME}"
-    BUILD_TYPE: "${BUILD_TYPE}"
+    BUILD_TYPE: "${CP2K_BUILD_TYPE}"
     LOG_LINES: "200"
     MPICH_VERSION: "3.4.3"
 
@@ -59,7 +59,7 @@ build cp2k eiger:
     ]'
     DOCKERFILE: ci/docker/build_${CI_JOB_STAGE}_${TAG}.Dockerfile
     BASE_IMAGE: ${UBUNTU_IMAGE_NAME}
-    BUILD_TYPE: ${BUILD_TYPE}
+    BUILD_TYPE: ${CP2K_BUILD_TYPE}
     DEPS_IMAGE: ${DEPS_IMAGE_NAME}
     LOG_LINES: 200
     PERSIST_IMAGE_NAME: ${CSCS_IMAGE_NAME}
