@@ -9,7 +9,7 @@
 #define DBM_INTERNAL_H
 
 /*******************************************************************************
- * \brief Returns the larger of two given integer (missing from the C standard)
+ * \brief Returns the larger of two given integers (missing from the C standard)
  * \author Ole Schuett
  ******************************************************************************/
 static inline int imax(int x, int y) { return (x > y ? x : y); }

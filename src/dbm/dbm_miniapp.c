@@ -32,7 +32,7 @@ static void print_func(char *message, int output_unit) {
 }
 
 /*******************************************************************************
- * \brief Returns the smaller of two given integer (missing from the C standard)
+ * \brief Returns the smaller of the two integers (missing from the C standard).
  * \author Ole Schuett
  ******************************************************************************/
 static inline int imin(int x, int y) { return (x < y ? x : y); }
@@ -168,8 +168,7 @@ static void set_all_blocks(dbm_matrix_t *matrix) {
       dbm_iterator_next_block(iter, &row, &col, &block, &row_size, &col_size);
       const int block_size = row_size * col_size;
       for (int i = 0; i < block_size; i++) {
-#if defined(DBM_VALIDATE_AGAINST_LIBXSMM) && defined(__LIBXSMM) &&             \
-    defined(__OFFLOAD) && !defined(__NO_OFFLOAD_DBM)
+#if defined(DBM_VALIDATE_AGAINST_LIBXSMM) && defined(__LIBXSMM)
         block[i] = 1.0 / (i + 1);
 #else
         block[i] = 1.0;
@@ -185,8 +184,7 @@ static void set_all_blocks(dbm_matrix_t *matrix) {
  ******************************************************************************/
 void benchmark_multiply(const int M, const int N, const int K, const int m,
                         const int n, const int k, const dbm_mpi_comm_t comm) {
-#if defined(DBM_VALIDATE_AGAINST_LIBXSMM) && defined(__LIBXSMM) &&             \
-    defined(__OFFLOAD) && !defined(__NO_OFFLOAD_DBM)
+#if defined(DBM_VALIDATE_AGAINST_LIBXSMM) && defined(__LIBXSMM)
   dbm_matrix_t *matrix_a = create_some_matrix(M, K, 1, m, k, k, comm);
   dbm_matrix_t *matrix_b = create_some_matrix(K, N, k, k, 1, n, comm);
 #else
@@ -212,12 +210,10 @@ void benchmark_multiply(const int M, const int N, const int K, const int m,
 
   // Validate checksum.
   // Since all matrix elements were set to 1.0 the checksum is an integer.
-#if defined(DBM_VALIDATE_AGAINST_LIBXSMM) && defined(__LIBXSMM) &&             \
-    defined(__OFFLOAD) && !defined(__NO_OFFLOAD_DBM)
+#if defined(DBM_VALIDATE_AGAINST_LIBXSMM) && defined(__LIBXSMM)
   const double expected = 0, checksum = 0;
 #else
-  const double expected = (int64_t)M * (int64_t)m * (int64_t)N * (int64_t)n *
-                          (int64_t)K * (int64_t)K * (int64_t)k * (int64_t)k;
+  const double expected = (uint64_t)M * m * N * n * K * K * k * k;
   const double checksum = dbm_checksum(matrix_c);
 #endif
 
@@ -326,17 +322,19 @@ int main(int argc, char *argv[]) {
         continue;
       }
       if (0 < mnk[0]) { /* valid MxNxK? */
-        int nm = (NULL == arg ? 0 : atoi(arg)), nn, nk;
-        if (0 < nm) {
+        const int m = mnk[0];
+        const int n = (0 < mnk[1] ? mnk[1] : m);
+        const int k = (0 < mnk[2] ? mnk[2] : m);
+        int M = (NULL == arg ? 0 : atoi(arg)), N, K;
+        if (0 < M) {
           arg = strtok(NULL, delims);
-          nn = (NULL == arg ? 1 : atoi(arg));
+          N = (NULL == arg ? 1 : atoi(arg));
           arg = strtok(NULL, delims);
-          nk = (NULL == arg ? 1 : atoi(arg));
+          K = (NULL == arg ? 1 : atoi(arg));
         } else { /* default */
-          nm = nn = nk = 128;
+          M = N = K = 128;
         }
-        benchmark_multiply(nm, nn, nk, mnk[0], 0 < mnk[1] ? mnk[1] : mnk[0],
-                           0 < mnk[2] ? mnk[2] : mnk[0], comm);
+        benchmark_multiply(M, N, K, m, n, k, comm);
         mnk[0] = mnk[1] = mnk[2] = 0;
       } else {
         fprintf(stderr, "ERROR: invalid argument(s)\n");

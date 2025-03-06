@@ -12,7 +12,7 @@
 #include "dbm_multiply_opencl.cl.h"
 
 void dbm_multiply_gpu_launch_kernel(const offloadStream_t stream,
-                                    const int mnk_range[3][2], double alpha,
+                                    const int mnk[3][2], double alpha,
                                     int ntasks, const dbm_task_t *tasks,
                                     const double *pack_a_data,
                                     const double *pack_b_data,
@@ -27,17 +27,14 @@ void dbm_multiply_gpu_launch_kernel(const offloadStream_t stream,
   cl_event event, *const perf_event =
                       ((0 <= verbosity && 2 >= verbosity) ? NULL : &event);
   const c_dbcsr_acc_opencl_stream_t *const str = ACC_OPENCL_STREAM(stream);
-  const size_t max_m = mnk_range[0][1], work_tasks = ntasks;
+  const size_t max_m = mnk[0][1], work_tasks = ntasks;
   size_t work_size[] = {1, 1, 1}, ibatch = 0, iadata = 0, ibdata = 0,
          icdata = 0;
   c_dbcsr_acc_opencl_info_memptr_t adata, bdata, cdata, batch;
   assert(NULL != pack_a_data && NULL != pack_b_data && NULL != shard_c_data);
-  assert(0 < mnk_range[0][0] && 0 < mnk_range[0][1] &&
-         mnk_range[0][0] <= mnk_range[0][1]);
-  assert(0 < mnk_range[1][0] && 0 < mnk_range[1][1] &&
-         mnk_range[1][0] <= mnk_range[1][1]);
-  assert(0 < mnk_range[2][0] && 0 < mnk_range[2][1] &&
-         mnk_range[2][0] <= mnk_range[2][1]);
+  assert(0 < mnk[0][0] && 0 < mnk[0][1] && mnk[0][0] <= mnk[0][1]);
+  assert(0 < mnk[1][0] && 0 < mnk[1][1] && mnk[1][0] <= mnk[1][1]);
+  assert(0 < mnk[2][0] && 0 < mnk[2][1] && mnk[2][0] <= mnk[2][1]);
   assert(NULL != str && NULL != str->queue);
   assert(0 < ntasks && NULL != tasks);
 #if defined(OPENCL_DBM_SOURCE_MULTIPLY)
@@ -55,9 +52,10 @@ void dbm_multiply_gpu_launch_kernel(const offloadStream_t stream,
       const int bn0 = (0 == c_dbcsr_acc_opencl_config.device.nv
                            ? (0 == c_dbcsr_acc_opencl_config.device.amd ? 4 : 8)
                            : 2);
-      int bn = LIBXSMM_CLMP(NULL == bn_env ? bn0 : atoi(bn_env), 1, 32);
       int lu = LIBXSMM_CLMP(NULL == lu_env ? 0 : atoi(lu_env), -2, 1);
       int sm = (NULL == sm_env ? 0 /*default*/ : atoi(sm_env));
+      int bn = LIBXSMM_CLMP(
+          NULL == bn_env ? (0 == sm ? bn0 : (bn0 * 2)) : atoi(bn_env), 1, 32);
       int gen = ((NULL == lu_env && NULL == bn_env && NULL == sm_env &&
                   NULL == wg_env)
                      ? (NULL == gen_env ? 1 /*default*/ : atoi(gen_env))
@@ -70,8 +68,10 @@ void dbm_multiply_gpu_launch_kernel(const offloadStream_t stream,
       const size_t wgsize0 = c_dbcsr_acc_opencl_config.device.wgsize[0];
       const size_t wgsize1 = c_dbcsr_acc_opencl_config.device.wgsize[1];
       size_t wgsize2 = c_dbcsr_acc_opencl_config.device.wgsize[2];
-      size_t offset =
-          (0 == c_dbcsr_acc_opencl_config.debug ? strlen(params) : 0);
+      size_t offset = ((0 == c_dbcsr_acc_opencl_config.debug &&
+                        0 == c_dbcsr_acc_opencl_config.dump)
+                           ? strlen(params)
+                           : 0);
       offset += (size_t)c_dbcsr_acc_opencl_flags_atomics(
           &c_dbcsr_acc_opencl_config.device, c_dbcsr_acc_opencl_atomic_fp_64,
           extensions, &nextensions, params + offset, sizeof(params) - offset);
@@ -209,14 +209,14 @@ void dbm_multiply_gpu_launch_kernel(const offloadStream_t stream,
         EXIT_SUCCESS == clGetEventProfilingInfo(*perf_event,
                                                 CL_PROFILING_COMMAND_END,
                                                 sizeof(cl_ulong), &end, NULL)) {
-      const size_t flops = max_m * mnk_range[1][1] * mnk_range[2][1] * ntasks;
+      const double flops = 1E-6 * mnk[0][1] * mnk[1][1] * mnk[2][1] * ntasks;
       const double dkrnl = 1E-9 * LIBXSMM_DELTA(begin, end);
       const double dtotl = 1E+3 * LIBXSMM_MAX(dkrnl, dhost);
       fprintf(stderr,
               "INFO ACC/LIBDBM: DBM-kernel mnk=%ix%ix%i ntasks=%i "
               "kernel_ms=%.2g total_ms=%.2g gflops=%.1f\n",
-              mnk_range[0][1], mnk_range[1][1], mnk_range[2][1], ntasks, dkrnl,
-              dtotl, 1E-6 * flops / dtotl);
+              mnk[0][1], mnk[1][1], mnk[2][1], ntasks, dkrnl, dtotl,
+              flops / dtotl);
     }
   }
   OFFLOAD_CHECK(result);
