@@ -8,7 +8,7 @@
 # Stage 2a: Build CP2K
 
 ARG BASE_IMAGE="ubuntu:24.04"
-ARG DEPS_IMAGE="mkrack/cp2k_eiger:toolchain_psmp_base_image"
+ARG DEPS_IMAGE=""
 
 FROM ${DEPS_IMAGE} AS build_cp2k
 
@@ -29,27 +29,27 @@ COPY ./tools/build_utils ./tools/build_utils
 ARG BUILD_TYPE="minimal"
 RUN /bin/bash -c -o pipefail " \
     TOOLCHAIN_DIR=/opt/cp2k/tools/toolchain; \
-    source ./cmake/cmake_cp2k.sh "${BUILD_TYPE}" psmp"
+    source ./cmake/cmake_cp2k.sh ${BUILD_TYPE} psmp"
 
 # Compile CP2K
 WORKDIR /opt/cp2k/build
 RUN /bin/bash -c -o pipefail " \
     source /opt/cp2k/tools/toolchain/install/setup; \
     echo -e '\nCompiling CP2K ... \c'; \
-    if ninja --verbose &>build.log; then \
+    if ninja --verbose &>ninja.log; then \
       echo -e 'done\n'; \
       echo -e 'Installing CP2K ... \c'; \
-      if ninja --verbose install &>>build.log; then \
+      if ninja --verbose install &>install.log; then \
         echo -e 'done\n'; \
       else \
         echo -e 'failed\n'; \
-        tail -n ${LOG_LINES} build.log; \
+        tail -n ${LOG_LINES} install.log; \
       fi; \
     else \
       echo -e 'failed\n'; \
-      tail -n ${LOG_LINES} build.log; \
+      tail -n ${LOG_LINES} ninja.log; \
     fi; \
-    gzip build.log"
+    cat cmake.log ninja.log install.log | gzip >build_cp2k.log.gz"
 
 # Update environment variables
 ENV LD_LIBRARY_PATH=/opt/cp2k/lib:/usr/local/lib:${LD_LIBRARY_PATH} \
@@ -105,7 +105,7 @@ COPY --from=build_cp2k /opt/cp2k/benchmarks/CI ./benchmarks/CI
 COPY --from=build_cp2k /toolchain /opt/cp2k/tools/toolchain
 
 # Import compressed build log file
-COPY --from=build_cp2k /opt/cp2k/build/build.log.gz ./
+COPY --from=build_cp2k /opt/cp2k/build/build_cp2k.log.gz /opt/cp2k/build/build_cp2k.log.gz
 
 # Create links to CP2K binaries
 WORKDIR /opt/cp2k/bin
