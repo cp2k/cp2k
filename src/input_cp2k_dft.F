@@ -1904,7 +1904,8 @@ CONTAINS
                           "(Fourier transform is used for calculation of MOMENTS_FT and POLARIZABILITY). "// &
                           "For negative values (the default), calculates the damping at the run time so that the last point "// &
                           "in the time trace is reduced by factor e^(-4). When set manually, determines the time in which "// &
-                          "the moments trace is reduced by factor of e^(-1).", &
+                          "the moments trace is reduced by factor of e^(-1), except when set to zero, in which case "// &
+                          "the damping is not applied.", &
                           type_of_var=real_t, &
                           unit_str="fs", &
                           default_r_val=-1.0_dp/femtoseconds)
