@@ -769,7 +769,7 @@ CONTAINS
                                                             omega_complex
       COMPLEX(kind=dp), DIMENSION(:, :), ALLOCATABLE     :: polarizability_series, &
                                                             polarizability_refined
-      INTEGER                                            :: pol_unit, pol_ref_unit, &
+      INTEGER                                            :: pol_unit, &
                                                             i, k, n, n_elems
 
       logger => cp_get_default_logger()
