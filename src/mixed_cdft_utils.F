@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -803,7 +803,7 @@ CONTAINS
             NULLIFY (qs_kind_set)
             CALL cp_subsys_get(subsys_mix, atomic_kind_set=atomic_kind_set)
             CALL create_qs_kind_set(qs_kind_set, atomic_kind_set, kind_section, &
-                                    force_env%para_env, force_env_section)
+                                    force_env%para_env, force_env_section, silent=.FALSE.)
             mixed_cdft%qs_kind_set => qs_kind_set
             DEALLOCATE (i_force_eval)
             CALL section_vals_release(force_env_section)
@@ -990,7 +990,7 @@ CONTAINS
             NULLIFY (qs_kind_set)
             CALL cp_subsys_get(subsys_mix, atomic_kind_set=atomic_kind_set)
             CALL create_qs_kind_set(qs_kind_set, atomic_kind_set, kind_section, &
-                                    force_env%para_env, force_env_section)
+                                    force_env%para_env, force_env_section, silent=.FALSE.)
             mixed_cdft%qs_kind_set => qs_kind_set
             DEALLOCATE (i_force_eval)
             CALL section_vals_release(force_env_section)

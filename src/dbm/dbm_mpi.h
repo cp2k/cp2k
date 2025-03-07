@@ -1,6 +1,6 @@
 /*----------------------------------------------------------------------------*/
 /*  CP2K: A general program to perform molecular dynamics simulations         */
-/*  Copyright 2000-2024 CP2K developers group <https://cp2k.org>              */
+/*  Copyright 2000-2025 CP2K developers group <https://cp2k.org>              */
 /*                                                                            */
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
@@ -113,6 +113,13 @@ bool dbm_mpi_comms_are_similar(const dbm_mpi_comm_t comm1,
  * \author Ole Schuett
  ******************************************************************************/
 void dbm_mpi_max_int(int *values, const int count, const dbm_mpi_comm_t comm);
+
+/*******************************************************************************
+ * \brief Wrapper around MPI_Allreduce for op MPI_MAX and datatype MPI_UINT64_T.
+ * \author Hans Pabst
+ ******************************************************************************/
+void dbm_mpi_max_uint64(uint64_t *values, const int count,
+                        const dbm_mpi_comm_t comm);
 
 /*******************************************************************************
  * \brief Wrapper around MPI_Allreduce for op MPI_MAX and datatype MPI_DOUBLE.

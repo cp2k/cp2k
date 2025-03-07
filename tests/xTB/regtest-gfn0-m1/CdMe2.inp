@@ -1,0 +1,49 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT CdMe2
+  RUN_TYPE ENERGY
+&END GLOBAL
+
+&FORCE_EVAL
+  &DFT
+    CHARGE 0
+    MULTIPLICITY 1
+    &QS
+      METHOD xTB
+      &XTB
+        DO_EWALD F
+        GFN_TYPE 0
+        VDW_POTENTIAL DFTD4
+      &END XTB
+    &END QS
+    &SCF
+      ADDED_MOS -1 -1
+      SCF_GUESS NONE
+      &SMEAR ON
+        ELECTRONIC_TEMPERATURE 300
+        METHOD Fermi_Dirac
+      &END SMEAR
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 15 15 15
+      PERIODIC NONE
+    &END CELL
+    &COORD
+      Cd       9.02816240       8.94130728       8.98996179
+      C       9.03363565       8.94234624      11.12482487
+      C       9.03446039       8.94230538       6.85889036
+      H       9.58624505       9.82568477      11.50481358
+      H       9.53503321       8.02964198      11.50629355
+      H       8.00376305       8.97214789      11.53551080
+      H       8.21628990       8.30623220       6.46448920
+      H       9.99623695       8.55179440       6.46919586
+      H       8.89358692       9.97035802       6.46789002
+    &END COORD
+    &TOPOLOGY
+      &CENTER_COORDINATES T
+      &END CENTER_COORDINATES
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL

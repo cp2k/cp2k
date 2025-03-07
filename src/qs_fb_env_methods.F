@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -17,9 +17,9 @@ MODULE qs_fb_env_methods
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_create, dbcsr_finalize, dbcsr_get_info, dbcsr_iterator_blocks_left, &
-        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
-        dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_reserve_blocks, dbcsr_set, dbcsr_type, &
-        dbcsr_type_no_symmetry
+        dbcsr_iterator_next_block, dbcsr_iterator_readonly_start, dbcsr_iterator_stop, &
+        dbcsr_iterator_type, dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_reserve_blocks, &
+        dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
@@ -27,7 +27,7 @@ MODULE qs_fb_env_methods
                                               cp_fm_symm,&
                                               cp_fm_triangular_invert,&
                                               cp_fm_triangular_multiply,&
-                                              cp_fm_upper_to_full
+                                              cp_fm_uplo_to_full
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                               cp_fm_cholesky_reduce,&
                                               cp_fm_cholesky_restore
@@ -331,8 +331,7 @@ CONTAINS
                         name=TRIM("FILTERED_KS_MATRIX"), &
                         matrix_type=dbcsr_type_no_symmetry, &
                         row_blk_size=filtered_rowORcol_block_sizes, &
-                        col_blk_size=filtered_rowORcol_block_sizes, &
-                        nze=0)
+                        col_blk_size=filtered_rowORcol_block_sizes)
       CALL dbcsr_finalize(matrix_filtered_ks)
 
       ! create DBCSR filtered S (overlap) matrix. Note that
@@ -348,8 +347,7 @@ CONTAINS
                         name=TRIM("FILTERED_S_MATRIX"), &
                         matrix_type=dbcsr_type_no_symmetry, &
                         row_blk_size=filtered_rowORcol_block_sizes, &
-                        col_blk_size=filtered_rowORcol_block_sizes, &
-                        nze=0)
+                        col_blk_size=filtered_rowORcol_block_sizes)
       CALL dbcsr_finalize(matrix_filtered_s)
 
       ! create temporary matrix for constructing filtered KS and S
@@ -358,8 +356,7 @@ CONTAINS
                         name=TRIM("TEMPORARY_MATRIX"), &
                         matrix_type=dbcsr_type_no_symmetry, &
                         row_blk_size=original_rowORcol_block_sizes, &
-                        col_blk_size=filtered_rowORcol_block_sizes, &
-                        nze=0)
+                        col_blk_size=filtered_rowORcol_block_sizes)
       CALL dbcsr_finalize(matrix_tmp)
 
       ! create fm format matrices used for diagonalisation
@@ -461,8 +458,7 @@ CONTAINS
       CALL dbcsr_create(matrix=matrix_filtered_p, template=scf_env%p_mix_new(1, 1)%matrix, &
                         name=TRIM("FILTERED_MATRIX_P"), &
                         row_blk_size=filtered_rowORcol_block_sizes, &
-                        col_blk_size=filtered_rowORcol_block_sizes, &
-                        nze=0)
+                        col_blk_size=filtered_rowORcol_block_sizes)
       CALL dbcsr_finalize(matrix_filtered_p)
       CALL fb_dbcsr_copy_sparse_struct(matrix_filtered_p, &
                                        scf_env%p_mix_new(1, 1)%matrix)
@@ -652,7 +648,7 @@ CONTAINS
                CALL choose_eigv_solver(fm_KS, fm_work, mo_eigenvalues)
                CALL cp_fm_cholesky_restore(fm_work, nmo, fm_ortho, mo_coeff, "SOLVE")
             CASE (cholesky_restore)
-               CALL cp_fm_upper_to_full(fm_KS, fm_work)
+               CALL cp_fm_uplo_to_full(fm_KS, fm_work)
                CALL cp_fm_cholesky_restore(fm_KS, nao, fm_ortho, fm_work, "SOLVE", &
                                            pos="RIGHT")
                CALL cp_fm_cholesky_restore(fm_work, nao, fm_ortho, fm_KS, "SOLVE", &
@@ -661,7 +657,7 @@ CONTAINS
                CALL cp_fm_cholesky_restore(fm_work, nmo, fm_ortho, mo_coeff, "SOLVE")
             CASE (cholesky_inverse)
                CALL cp_fm_triangular_invert(fm_ortho)
-               CALL cp_fm_upper_to_full(fm_KS, fm_work)
+               CALL cp_fm_uplo_to_full(fm_KS, fm_work)
                CALL cp_fm_triangular_multiply(fm_ortho, &
                                               fm_KS, &
                                               side="R", &
@@ -1126,10 +1122,9 @@ CONTAINS
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_out
       TYPE(dbcsr_type), INTENT(IN)                       :: matrix_in
 
-      INTEGER                                            :: iatom, iblk, jatom, nblkcols_total, &
+      INTEGER                                            :: iatom, jatom, nblkcols_total, &
                                                             nblkrows_total, nblks
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: cols, rows
-      REAL(dp), DIMENSION(:, :), POINTER                 :: mat_block
       TYPE(dbcsr_iterator_type)                          :: iter
 
       CALL dbcsr_get_info(matrix=matrix_in, &
@@ -1141,14 +1136,13 @@ CONTAINS
       ALLOCATE (cols(nblks))
       rows(:) = 0
       cols(:) = 0
-      iblk = 0
       nblks = 0
-      CALL dbcsr_iterator_start(iter, matrix_in)
+      CALL dbcsr_iterator_readonly_start(iter, matrix_in)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
-         CALL dbcsr_iterator_next_block(iter, iatom, jatom, mat_block, iblk)
-         rows(iblk) = iatom
-         cols(iblk) = jatom
+         CALL dbcsr_iterator_next_block(iter, iatom, jatom)
          nblks = nblks + 1
+         rows(nblks) = iatom
+         cols(nblks) = jatom
       END DO
       CALL dbcsr_iterator_stop(iter)
       CALL dbcsr_reserve_blocks(matrix_out, rows(1:nblks), cols(1:nblks))

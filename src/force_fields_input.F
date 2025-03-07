@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -775,6 +775,7 @@ CONTAINS
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: atm_names
       INTEGER                                            :: isec, jsec, n_items
+      TYPE(nequip_pot_type)                              :: nequip
 
       n_items = 1
       isec = 1
@@ -786,6 +787,15 @@ CONTAINS
       CALL section_vals_val_get(section, "UNIT_FORCES", c_val=unit_forces)
       CALL section_vals_val_get(section, "UNIT_CELL", c_val=unit_cell)
 
+      ! Since reading nequip metadata is expensive we do it only once.
+      nequip%nequip_file_name = discover_file(nequip_file_name)
+      nequip%unit_coords = unit_coords
+      nequip%unit_forces = unit_forces
+      nequip%unit_energy = unit_energy
+      nequip%unit_cell = unit_cell
+      CALL read_nequip_data(nequip)
+      CALL check_cp2k_atom_names_in_torch(atm_names, nequip%type_names_torch)
+
       DO isec = 1, SIZE(atm_names)
          DO jsec = isec, SIZE(atm_names)
             nonbonded%pot(start + n_items)%pot%type = nequip_type
@@ -793,14 +803,8 @@ CONTAINS
             nonbonded%pot(start + n_items)%pot%at2 = atm_names(jsec)
             CALL uppercase(nonbonded%pot(start + n_items)%pot%at1)
             CALL uppercase(nonbonded%pot(start + n_items)%pot%at2)
-            nonbonded%pot(start + n_items)%pot%set(1)%nequip%nequip_file_name = discover_file(nequip_file_name)
-            nonbonded%pot(start + n_items)%pot%set(1)%nequip%unit_coords = unit_coords
-            nonbonded%pot(start + n_items)%pot%set(1)%nequip%unit_forces = unit_forces
-            nonbonded%pot(start + n_items)%pot%set(1)%nequip%unit_energy = unit_energy
-            nonbonded%pot(start + n_items)%pot%set(1)%nequip%unit_cell = unit_cell
-            CALL read_nequip_data(nonbonded%pot(start + n_items)%pot%set(1)%nequip)
-            CALL check_cp2k_atom_names_in_torch(atm_names, nonbonded%pot(start + n_items)%pot%set(1)%nequip%type_names_torch)
-            nonbonded%pot(start + n_items)%pot%rcutsq = nonbonded%pot(start + n_items)%pot%set(1)%nequip%rcutsq
+            nonbonded%pot(start + n_items)%pot%set(1)%nequip = nequip
+            nonbonded%pot(start + n_items)%pot%rcutsq = nequip%rcutsq
             n_items = n_items + 1
          END DO
       END DO
@@ -824,6 +828,7 @@ CONTAINS
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: atm_names
       INTEGER                                            :: isec, jsec, n_items
+      TYPE(allegro_pot_type)                             :: allegro
 
       n_items = 1
       isec = 1
@@ -835,6 +840,15 @@ CONTAINS
       CALL section_vals_val_get(section, "UNIT_FORCES", c_val=unit_forces)
       CALL section_vals_val_get(section, "UNIT_CELL", c_val=unit_cell)
 
+      ! Since reading allegro metadata is expensive we do it only once.
+      allegro%allegro_file_name = discover_file(allegro_file_name)
+      allegro%unit_coords = unit_coords
+      allegro%unit_forces = unit_forces
+      allegro%unit_energy = unit_energy
+      allegro%unit_cell = unit_cell
+      CALL read_allegro_data(allegro)
+      CALL check_cp2k_atom_names_in_torch(atm_names, allegro%type_names_torch)
+
       DO isec = 1, SIZE(atm_names)
          DO jsec = isec, SIZE(atm_names)
             nonbonded%pot(start + n_items)%pot%type = allegro_type
@@ -842,14 +856,8 @@ CONTAINS
             nonbonded%pot(start + n_items)%pot%at2 = atm_names(jsec)
             CALL uppercase(nonbonded%pot(start + n_items)%pot%at1)
             CALL uppercase(nonbonded%pot(start + n_items)%pot%at2)
-            nonbonded%pot(start + n_items)%pot%set(1)%allegro%allegro_file_name = discover_file(allegro_file_name)
-            nonbonded%pot(start + n_items)%pot%set(1)%allegro%unit_coords = unit_coords
-            nonbonded%pot(start + n_items)%pot%set(1)%allegro%unit_forces = unit_forces
-            nonbonded%pot(start + n_items)%pot%set(1)%allegro%unit_energy = unit_energy
-            nonbonded%pot(start + n_items)%pot%set(1)%allegro%unit_cell = unit_cell
-            CALL read_allegro_data(nonbonded%pot(start + n_items)%pot%set(1)%allegro)
-            CALL check_cp2k_atom_names_in_torch(atm_names, nonbonded%pot(start + n_items)%pot%set(1)%allegro%type_names_torch)
-            nonbonded%pot(start + n_items)%pot%rcutsq = nonbonded%pot(start + n_items)%pot%set(1)%allegro%rcutsq
+            nonbonded%pot(start + n_items)%pot%set(1)%allegro = allegro
+            nonbonded%pot(start + n_items)%pot%rcutsq = allegro%rcutsq
             n_items = n_items + 1
          END DO
       END DO
@@ -2431,13 +2439,14 @@ CONTAINS
 !> \author Gabriele Tocci
 ! **************************************************************************************************
    SUBROUTINE read_nequip_data(nequip)
-      TYPE(nequip_pot_type), POINTER                     :: nequip
+      TYPE(nequip_pot_type)                              :: nequip
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'read_nequip_data'
       CHARACTER(LEN=1), PARAMETER                        :: delimiter = ' '
 
       CHARACTER(LEN=100), ALLOCATABLE, DIMENSION(:)      :: tokenized_string
-      CHARACTER(LEN=default_path_length)                 :: allow_tf32_str, cutoff_str, types_str
+      CHARACTER(LEN=default_path_length)                 :: allow_tf32_str, cutoff_str, &
+                                                            default_dtype, model_dtype, types_str
       INTEGER                                            :: handle
       LOGICAL                                            :: allow_tf32, found
 
@@ -2470,17 +2479,16 @@ CONTAINS
       nequip%unit_energy_val = cp_unit_to_cp2k(nequip%unit_energy_val, nequip%unit_energy)
       nequip%unit_cell_val = cp_unit_to_cp2k(nequip%unit_cell_val, nequip%unit_cell)
 
-      IF (torch_model_read_metadata(nequip%nequip_file_name, "default_dtype") == "float32" .AND. &
-          torch_model_read_metadata(nequip%nequip_file_name, "model_dtype") == "float32") THEN
+      default_dtype = torch_model_read_metadata(nequip%nequip_file_name, "default_dtype")
+      model_dtype = torch_model_read_metadata(nequip%nequip_file_name, "model_dtype")
+      IF (TRIM(default_dtype) == "float32" .AND. TRIM(model_dtype) == "float32") THEN
          nequip%do_nequip_sp = .TRUE.
-      ELSE IF (torch_model_read_metadata(nequip%nequip_file_name, "default_dtype") == "float64" .AND. &
-               torch_model_read_metadata(nequip%nequip_file_name, "model_dtype") == "float64") THEN
+      ELSE IF (TRIM(default_dtype) == "float64" .AND. TRIM(model_dtype) == "float64") THEN
          nequip%do_nequip_sp = .FALSE.
       ELSE
          CALL cp_abort(__LOCATION__, &
                        "Both default_dtype and model_dtype should be either float32 or float64. Currently, default_dtype is <"// &
-                       torch_model_read_metadata(nequip%nequip_file_name, "default_dtype")//"> and model_dtype is <"// &
-                       torch_model_read_metadata(nequip%nequip_file_name, "model_dtype")//">.")
+                       TRIM(default_dtype)//"> and model_dtype is <"//TRIM(model_dtype)//">.")
       END IF
 
       allow_tf32_str = torch_model_read_metadata(nequip%nequip_file_name, "allow_tf32")
@@ -2501,13 +2509,14 @@ CONTAINS
 !> \author Gabriele Tocci
 ! **************************************************************************************************
    SUBROUTINE read_allegro_data(allegro)
-      TYPE(allegro_pot_type), POINTER                    :: allegro
+      TYPE(allegro_pot_type)                             :: allegro
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'read_allegro_data'
       CHARACTER(LEN=1), PARAMETER                        :: delimiter = ' '
 
       CHARACTER(LEN=100), ALLOCATABLE, DIMENSION(:)      :: tokenized_string
-      CHARACTER(LEN=default_path_length)                 :: allow_tf32_str, cutoff_str, types_str
+      CHARACTER(LEN=default_path_length)                 :: allow_tf32_str, cutoff_str, &
+                                                            default_dtype, model_dtype, types_str
       INTEGER                                            :: handle
       LOGICAL                                            :: allow_tf32, found
 
@@ -2544,17 +2553,16 @@ CONTAINS
       allegro%unit_energy_val = cp_unit_to_cp2k(allegro%unit_energy_val, allegro%unit_energy)
       allegro%unit_cell_val = cp_unit_to_cp2k(allegro%unit_cell_val, allegro%unit_cell)
 
-      IF (torch_model_read_metadata(allegro%allegro_file_name, "default_dtype") == "float32" .AND. &
-          torch_model_read_metadata(allegro%allegro_file_name, "model_dtype") == "float32") THEN
+      default_dtype = torch_model_read_metadata(allegro%allegro_file_name, "default_dtype")
+      model_dtype = torch_model_read_metadata(allegro%allegro_file_name, "model_dtype")
+      IF (TRIM(default_dtype) == "float32" .AND. TRIM(model_dtype) == "float32") THEN
          allegro%do_allegro_sp = .TRUE.
-      ELSE IF (torch_model_read_metadata(allegro%allegro_file_name, "default_dtype") == "float64" .AND. &
-               torch_model_read_metadata(allegro%allegro_file_name, "model_dtype") == "float64") THEN
+      ELSE IF (TRIM(default_dtype) == "float64" .AND. TRIM(model_dtype) == "float64") THEN
          allegro%do_allegro_sp = .FALSE.
       ELSE
          CALL cp_abort(__LOCATION__, &
                        "Both default_dtype and model_dtype should be either float32 or float64. Currently, default_dtype is <"// &
-                       torch_model_read_metadata(allegro%allegro_file_name, "default_dtype")//"> and model_dtype is <"// &
-                       torch_model_read_metadata(allegro%allegro_file_name, "model_dtype")//">.")
+                       TRIM(default_dtype)//"> and model_dtype is <"//TRIM(model_dtype)//">.")
       END IF
 
       allow_tf32_str = torch_model_read_metadata(allegro%allegro_file_name, "allow_tf32")

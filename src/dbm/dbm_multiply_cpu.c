@@ -1,6 +1,6 @@
 /*----------------------------------------------------------------------------*/
 /*  CP2K: A general program to perform molecular dynamics simulations         */
-/*  Copyright 2000-2024 CP2K developers group <https://cp2k.org>              */
+/*  Copyright 2000-2025 CP2K developers group <https://cp2k.org>              */
 /*                                                                            */
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
@@ -54,12 +54,14 @@ static inline void dbm_dgemm(const char transa, const char transb, const int m,
  *        http://szudzik.com/ElegantPairing.pdf
  * \author Ole Schuett
  ******************************************************************************/
+#if defined(__LIBXSMM)
 static inline unsigned int hash(const dbm_task_t task) {
   const unsigned int m = task.m, n = task.n, k = task.k;
   const unsigned int mn = (m >= n) ? m * m + m + n : m + n * n;
   const unsigned int mnk = (mn >= k) ? mn * mn + mn + k : mn + k * k;
   return mnk;
 }
+#endif
 
 /*******************************************************************************
  * \brief Internal routine for executing the tasks in given batch on the CPU.
@@ -79,19 +81,18 @@ void dbm_multiply_cpu_process_batch(const int ntasks, dbm_task_t batch[ntasks],
 #if defined(__LIBXSMM)
 
   // Sort tasks approximately by m,n,k via bucket sort.
-  int buckets[BATCH_NUM_BUCKETS];
-  memset(buckets, 0, BATCH_NUM_BUCKETS * sizeof(int));
+  int buckets[DBM_BATCH_NUM_BUCKETS] = {0};
   for (int itask = 0; itask < ntasks; ++itask) {
-    const int i = hash(batch[itask]) % BATCH_NUM_BUCKETS;
+    const int i = hash(batch[itask]) % DBM_BATCH_NUM_BUCKETS;
     ++buckets[i];
   }
-  for (int i = 1; i < BATCH_NUM_BUCKETS; ++i) {
+  for (int i = 1; i < DBM_BATCH_NUM_BUCKETS; ++i) {
     buckets[i] += buckets[i - 1];
   }
-  assert(buckets[BATCH_NUM_BUCKETS - 1] == ntasks);
+  assert(buckets[DBM_BATCH_NUM_BUCKETS - 1] == ntasks);
   int batch_order[ntasks];
   for (int itask = 0; itask < ntasks; ++itask) {
-    const int i = hash(batch[itask]) % BATCH_NUM_BUCKETS;
+    const int i = hash(batch[itask]) % DBM_BATCH_NUM_BUCKETS;
     --buckets[i];
     batch_order[buckets[i]] = itask;
   }
@@ -118,21 +119,27 @@ void dbm_multiply_cpu_process_batch(const int ntasks, dbm_task_t batch[ntasks],
     task_next = batch[batch_order[(itask + 1) < ntasks ? (itask + 1) : itask]];
 
     if (task.m != kernel_m || task.n != kernel_n || task.k != kernel_k) {
+      if (LIBXSMM_SMM(task.m, task.n, task.m, 1 /*assume in-$, no RFO*/,
+                      sizeof(double))) {
 #if LIBXSMM_VERSION2(1, 17) < LIBXSMM_VERSION_NUMBER
-      const libxsmm_gemm_shape shape = libxsmm_create_gemm_shape(
-          task.m, task.n, task.k, task.m /*lda*/, task.n /*ldb*/,
-          task.m /*ldc*/, LIBXSMM_DATATYPE_F64 /*aprec*/,
-          LIBXSMM_DATATYPE_F64 /*bprec*/, LIBXSMM_DATATYPE_F64 /*cprec*/,
-          LIBXSMM_DATATYPE_F64 /*calcp*/);
-      kernel_func = (LIBXSMM_FEQ(1.0, alpha)
-                         ? libxsmm_dispatch_gemm(shape, (libxsmm_bitfield)flags,
-                                                 (libxsmm_bitfield)prefetch)
-                         : NULL);
+        const libxsmm_gemm_shape shape = libxsmm_create_gemm_shape(
+            task.m, task.n, task.k, task.m /*lda*/, task.n /*ldb*/,
+            task.m /*ldc*/, LIBXSMM_DATATYPE_F64 /*aprec*/,
+            LIBXSMM_DATATYPE_F64 /*bprec*/, LIBXSMM_DATATYPE_F64 /*cprec*/,
+            LIBXSMM_DATATYPE_F64 /*calcp*/);
+        kernel_func =
+            (LIBXSMM_FEQ(1.0, alpha)
+                 ? libxsmm_dispatch_gemm(shape, (libxsmm_bitfield)flags,
+                                         (libxsmm_bitfield)prefetch)
+                 : NULL);
 #else
-      kernel_func = libxsmm_dmmdispatch(task.m, task.n, task.k, NULL /*lda*/,
-                                        NULL /*ldb*/, NULL /*ldc*/, &alpha,
-                                        &beta, &flags, &prefetch);
+        kernel_func = libxsmm_dmmdispatch(task.m, task.n, task.k, NULL /*lda*/,
+                                          NULL /*ldb*/, NULL /*ldc*/, &alpha,
+                                          &beta, &flags, &prefetch);
 #endif
+      } else {
+        kernel_func = NULL;
+      }
       kernel_m = task.m;
       kernel_n = task.n;
       kernel_k = task.k;

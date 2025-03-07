@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -37,7 +37,6 @@ MODULE atom_grb
                                               section_vals_val_get
    USE kinds,                           ONLY: default_string_length,&
                                               dp
-   USE lapack,                          ONLY: lapack_ssygv
    USE mathconstants,                   ONLY: dfac,&
                                               rootpi
    USE orbital_pointers,                ONLY: deallocate_orbital_pointers,&
@@ -1236,7 +1235,7 @@ CONTAINS
       ! solve
       lwork = 100*n
       ALLOCATE (w(n), work(lwork))
-      CALL lapack_ssygv(1, "V", "U", n, hmat, n, smat, n, w, work, lwork, info)
+      CALL dsygv(1, "V", "U", n, hmat, n, smat, n, w, work, lwork, info)
       CPASSERT(info == 0)
       orb(1:n, 1:n) = hmat(1:n, 1:n)
       ener(1:n) = w(1:n)

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -94,6 +94,9 @@ CONTAINS
          helium%saveiperm(:) = helium%iperm(:)
          helium%savepermutation(:) = helium%permutation(:)
       END IF
+      !make sure work array is in sync with pos
+      ! (helium_print_coordinates for example messes with that...)
+      helium%work = helium%pos
 
       nMC = helium%iter_rot
       ncycle = 0

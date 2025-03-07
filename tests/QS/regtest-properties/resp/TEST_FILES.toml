@@ -1,0 +1,13 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      51 compare to the RESP charge on atom with index 1
+#      for details see cp2k/tools/do_regtest
+# RESP fitting
+"CH3OH_nonperiodic.inp"                 = [{matcher="M051", tol=1.0E-14, ref=4.418290}]
+"CH3OH_periodic.inp"                    = [{matcher="M051", tol=1.0E-14, ref=2.456029}]
+"graphite.inp"                          = [{matcher="M051", tol=1.0E-14, ref=-1.073313}]
+"CH3OH_periodic_repeat.inp"             = [{matcher="M051", tol=1.0E-14, ref=-4.871712}]
+"graphite_REPEAT.inp"                   = [{matcher="M051", tol=1.0E-14, ref=0.006058}]
+#EOF

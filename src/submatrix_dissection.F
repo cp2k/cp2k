@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -44,8 +44,8 @@ MODULE submatrix_dissection
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_finalize, dbcsr_get_block_p, &
         dbcsr_get_info, dbcsr_get_stored_coordinates, dbcsr_iterator_blocks_left, &
-        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
-        dbcsr_put_block, dbcsr_type
+        dbcsr_iterator_next_block, dbcsr_iterator_readonly_start, dbcsr_iterator_stop, &
+        dbcsr_iterator_type, dbcsr_put_block, dbcsr_type
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_comm_type
    USE submatrix_types,                 ONLY: buffer_type,&
@@ -144,7 +144,7 @@ CONTAINS
       CLASS(submatrix_dissection_type), INTENT(INOUT)  :: this
       TYPE(dbcsr_type), INTENT(IN)                     :: matrix_p
 
-      INTEGER                                          :: cur_row, cur_col, cur_blk, i, j, k, l, m, l_limit_left, l_limit_right, &
+      INTEGER                                          :: cur_row, cur_col, i, j, k, l, m, l_limit_left, l_limit_right, &
                                                           bufsize, bufsize_next
       INTEGER, DIMENSION(:), ALLOCATABLE               :: blocks_per_rank, coo_dsplcmnts, num_blockids_send, num_blockids_recv
       TYPE(dbcsr_iterator_type)                        :: iter
@@ -158,14 +158,14 @@ CONTAINS
       TYPE(intBuffer_type), DIMENSION(:), ALLOCATABLE  :: blocks_for_rank
 
       ! Additional structures for threaded parts
-      INTEGER                                          :: numthreads, mytid, group_handle
+      INTEGER                                          :: numthreads, mytid
       ! Indexing starts at 0 to match thread ids
       TYPE(setarray_type), DIMENSION(:), ALLOCATABLE   :: nonzero_rows_t
       TYPE(setarray_type), DIMENSION(:), ALLOCATABLE   :: result_blocks_from_rank_t, result_blocks_for_rank_t, &
                                                           blocks_from_rank_t
 
       LOGICAL                                          :: valid
-      REAL(KIND=dp), DIMENSION(:), POINTER             :: blockp
+      REAL(KIND=dp), DIMENSION(:, :), POINTER           :: blockp
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'submatrix_dissection_init'
       INTEGER :: handle
@@ -175,10 +175,8 @@ CONTAINS
 
       this%dbcsr_mat = matrix_p
       CALL dbcsr_get_info(matrix=this%dbcsr_mat, nblkcols_total=this%nblkcols, nblkrows_total=this%nblkrows, &
-                         row_blk_size=this%row_blk_size, col_blk_size=this%col_blk_size, group=group_handle, distribution=this%dist)
+                          row_blk_size=this%row_blk_size, col_blk_size=this%col_blk_size, group=this%group, distribution=this%dist)
       CALL dbcsr_distribution_get(dist=this%dist, mynode=this%myrank, numnodes=this%numnodes)
-
-      CALL this%group%set_handle(group_handle)
 
       IF (this%nblkcols .NE. this%nblkrows) THEN
          CPABORT("Number of block rows and cols need to be identical")
@@ -201,9 +199,9 @@ CONTAINS
 
       ! Determine number of locally stored blocks
       this%local_blocks = 0
-      CALL dbcsr_iterator_start(iter, this%dbcsr_mat, read_only=.TRUE.)
+      CALL dbcsr_iterator_readonly_start(iter, this%dbcsr_mat)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
-         CALL dbcsr_iterator_next_block(iter, cur_row, cur_col, cur_blk)
+         CALL dbcsr_iterator_next_block(iter, cur_row, cur_col)
          this%local_blocks = this%local_blocks + 1
       END DO
       CALL dbcsr_iterator_stop(iter)
@@ -216,9 +214,9 @@ CONTAINS
                 this%result_blocks_for_rank_buf_offsets(0:this%numnodes - 1))
 
       i = 1
-      CALL dbcsr_iterator_start(iter, this%dbcsr_mat, read_only=.TRUE.)
+      CALL dbcsr_iterator_readonly_start(iter, this%dbcsr_mat)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
-         CALL dbcsr_iterator_next_block(iter, cur_row, cur_col, cur_blk)
+         CALL dbcsr_iterator_next_block(iter, cur_row, cur_col)
          this%coo_cols_local(i) = cur_col
          this%coo_rows_local(i) = cur_row
          i = i + 1
@@ -472,7 +470,7 @@ CONTAINS
                CPABORT("Block included in our COO and placed on our rank could not be fetched!")
             END IF
             bufsize_next = bufsize + SIZE(blockp)
-            sendbufs(i)%data(bufsize + 1:bufsize_next) = blockp
+            sendbufs(i)%data(bufsize + 1:bufsize_next) = RESHAPE(blockp, [SIZE(blockp)])
             bufsize = bufsize_next
          END DO
       END DO
@@ -786,7 +784,8 @@ CONTAINS
       TYPE(dbcsr_type), INTENT(INOUT)                                 :: resultmat
 
       INTEGER                                                         :: i, j, k, cur_row, cur_col, cur_sm, cur_buf, last_buf, &
-                                                                         bufsize, bufsize_next
+                                                                         bufsize, bufsize_next, row_size, col_size
+      REAL(kind=dp), DIMENSION(:), POINTER                            :: vector
       TYPE(buffer_type), DIMENSION(:), ALLOCATABLE                    :: result_recvbufs
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'submatrix_communicate_results'
@@ -829,9 +828,12 @@ CONTAINS
          cur_sm = (cur_col - 1)/this%cols_per_sm + 1
          cur_buf = this%submatrix_owners(cur_sm)
          IF (cur_buf .GT. last_buf) bufsize = 0
-         bufsize_next = bufsize + this%col_blk_size(cur_row)*this%col_blk_size(cur_col)
+         row_size = this%row_blk_size(cur_row)
+         col_size = this%col_blk_size(cur_col)
+         bufsize_next = bufsize + row_size*col_size
+         vector => result_recvbufs(cur_buf)%data(bufsize + 1:bufsize_next)
          CALL dbcsr_put_block(matrix=resultmat, row=cur_row, col=cur_col, &
-                              block=result_recvbufs(cur_buf)%data(bufsize + 1:bufsize_next))
+                              block=RESHAPE(vector, [row_size, col_size]))
          bufsize = bufsize_next
          last_buf = cur_buf
       END DO

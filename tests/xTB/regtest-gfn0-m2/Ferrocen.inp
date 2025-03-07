@@ -1,0 +1,61 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT Ferrocen
+  RUN_TYPE ENERGY
+&END GLOBAL
+
+&FORCE_EVAL
+  &DFT
+    CHARGE 0
+    MULTIPLICITY 1
+    &QS
+      METHOD xTB
+      &XTB
+        DO_EWALD F
+        GFN_TYPE 0
+        VDW_POTENTIAL DFTD4
+      &END XTB
+    &END QS
+    &SCF
+      ADDED_MOS -1 -1
+      SCF_GUESS NONE
+      &SMEAR ON
+        ELECTRONIC_TEMPERATURE 300
+        METHOD Fermi_Dirac
+      &END SMEAR
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 15 15 15
+      PERIODIC NONE
+    &END CELL
+    &COORD
+      Fe       8.27821487       8.50000000       8.50000000
+      C       9.50358347       8.50000000      10.14006367
+      C       8.65687459       9.66539479      10.14006367
+      C       7.28687086       9.22025359      10.14006367
+      C       7.28687086       7.77974641      10.14006367
+      C       8.65687459       7.33460521      10.14006367
+      C       9.50358347       8.50000000       6.85993633
+      C       8.65687459       7.33460521       6.85993633
+      C       7.28687086       7.77974641       6.85993633
+      C       7.28687086       9.22025359       6.85993633
+      C       8.65687459       9.66539479       6.85993633
+      H      10.60077887       8.50000000      10.13261069
+      H       8.99592662      10.70888962      10.13261069
+      H       6.39922113       9.86516886      10.13261069
+      H       6.39922113       7.13483114      10.13261069
+      H       8.99592662       6.29111038      10.13261069
+      H      10.60077887       8.50000000       6.86738931
+      H       8.99592662       6.29111038       6.86738931
+      H       6.39922113       7.13483114       6.86738931
+      H       6.39922113       9.86516886       6.86738931
+      H       8.99592662      10.70888962       6.86738931
+    &END COORD
+    &TOPOLOGY
+      &CENTER_COORDINATES T
+      &END CENTER_COORDINATES
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL

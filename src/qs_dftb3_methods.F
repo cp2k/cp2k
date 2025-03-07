@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -83,7 +83,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'build_dftb3_diagonal'
 
-      INTEGER                                            :: atom_i, atom_j, blk, handle, i, ia, iac, &
+      INTEGER                                            :: atom_i, atom_j, handle, i, ia, iac, &
                                                             iatom, ic, icol, ikind, irow, is, &
                                                             jatom, jkind, natom, nimg, nkind
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
@@ -164,7 +164,7 @@ CONTAINS
             ! no k-points; all matrices have been transformed to periodic bsf
             CALL dbcsr_iterator_start(iter, matrix_s(1, 1)%matrix)
             DO WHILE (dbcsr_iterator_blocks_left(iter))
-               CALL dbcsr_iterator_next_block(iter, irow, icol, sblock, blk)
+               CALL dbcsr_iterator_next_block(iter, irow, icol, sblock)
                ikind = kind_of(irow)
                atom_i = atom_of_kind(irow)
                ui = xgamma(ikind)
@@ -226,10 +226,6 @@ CONTAINS
                               fi = 1.0_dp
                               IF (iatom == jatom) fi = 0.5_dp
                               CALL virial_pair_force(virial%pv_virial, fi, fij, rij)
-                              IF (atprop%stress) THEN
-                                 CALL virial_pair_force(atprop%atstress(:, :, irow), fi*0.5_dp, fij, rij)
-                                 CALL virial_pair_force(atprop%atstress(:, :, icol), fi*0.5_dp, fij, rij)
-                              END IF
                            END IF
                         END DO
                      END DO
@@ -284,10 +280,6 @@ CONTAINS
                   fi = 1.0_dp
                   IF (iatom == jatom) fi = 0.5_dp
                   CALL virial_pair_force(virial%pv_virial, fi, fij, rij)
-                  IF (atprop%stress) THEN
-                     CALL virial_pair_force(atprop%atstress(:, :, iatom), fi*0.5_dp, fij, rij)
-                     CALL virial_pair_force(atprop%atstress(:, :, jatom), fi*0.5_dp, fij, rij)
-                  END IF
                END IF
 
             END DO
@@ -319,7 +311,7 @@ CONTAINS
             ! no k-points; all matrices have been transformed to periodic bsf
             CALL dbcsr_iterator_start(iter, matrix_s(1, 1)%matrix)
             DO WHILE (dbcsr_iterator_blocks_left(iter))
-               CALL dbcsr_iterator_next_block(iter, irow, icol, sblock, blk)
+               CALL dbcsr_iterator_next_block(iter, irow, icol, sblock)
                ikind = kind_of(irow)
                ui = xgamma(ikind)
                jkind = kind_of(icol)

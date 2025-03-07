@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -17,10 +17,10 @@ MODULE admm_dm_methods
    USE admm_types,                      ONLY: get_admm_env
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_frobenius_norm, dbcsr_get_block_p, &
-        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
-        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
-        dbcsr_scale, dbcsr_set, dbcsr_type
+        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_get_block_p, dbcsr_iterator_blocks_left, &
+        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
+        dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_type
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_frobenius_norm
    USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
    USE cp_log_handling,                 ONLY: cp_logger_get_default_unit_nr
    USE input_constants,                 ONLY: do_admm_basis_projection,&
@@ -190,7 +190,7 @@ CONTAINS
    SUBROUTINE map_dm_blocked(qs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      INTEGER                                            :: blk, iatom, ispin, jatom
+      INTEGER                                            :: iatom, ispin, jatom
       LOGICAL                                            :: found
       REAL(dp), DIMENSION(:, :), POINTER                 :: sparse_block, sparse_block_aux
       TYPE(admm_dm_type), POINTER                        :: admm_dm
@@ -213,7 +213,7 @@ CONTAINS
          ! ** now loop through the list and copy corresponding blocks
          CALL dbcsr_iterator_start(iter, rho_ao(ispin)%matrix)
          DO WHILE (dbcsr_iterator_blocks_left(iter))
-            CALL dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, blk)
+            CALL dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block)
             IF (admm_dm%block_map(iatom, jatom) == 1) THEN
                CALL dbcsr_get_block_p(rho_ao_aux(ispin)%matrix, &
                                       row=iatom, col=jatom, BLOCK=sparse_block_aux, found=found)
@@ -317,7 +317,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_merge
 
-      INTEGER                                            :: blk, iatom, ispin, jatom
+      INTEGER                                            :: iatom, ispin, jatom
       REAL(dp), DIMENSION(:, :), POINTER                 :: sparse_block
       TYPE(admm_dm_type), POINTER                        :: admm_dm
       TYPE(dbcsr_iterator_type)                          :: iter
@@ -332,7 +332,7 @@ CONTAINS
       DO ispin = 1, dft_control%nspins
          CALL dbcsr_iterator_start(iter, matrix_ks_merge(ispin)%matrix)
          DO WHILE (dbcsr_iterator_blocks_left(iter))
-            CALL dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, blk)
+            CALL dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block)
             IF (admm_dm%block_map(iatom, jatom) == 0) &
                sparse_block = 0.0_dp
          END DO

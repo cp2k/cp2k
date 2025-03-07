@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -11,7 +11,6 @@ MODULE qs_fb_distribution_methods
    USE cp_dbcsr_api,                    ONLY: dbcsr_distribution_get,&
                                               dbcsr_distribution_type,&
                                               dbcsr_get_info,&
-                                              dbcsr_nblkcols_total,&
                                               dbcsr_p_type,&
                                               dbcsr_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -454,18 +453,15 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(OUT)                 :: common_set_ids
       INTEGER, INTENT(OUT)                               :: n_common_sets
 
-      INTEGER                                            :: icol, nprows, pcol, prow
+      INTEGER                                            :: icol, nblkcols_tot, nprows, pcol, prow
       INTEGER, DIMENSION(:), POINTER                     :: col_dist
       INTEGER, DIMENSION(:, :), POINTER                  :: pgrid
-      LOGICAL                                            :: check_ok
       TYPE(dbcsr_distribution_type)                      :: dbcsr_dist
 
-      check_ok = natoms .LE. dbcsr_nblkcols_total(dbcsr_mat)
-      CPASSERT(check_ok)
-      check_ok = SIZE(preferred_procs_set) .GE. natoms
-      CPASSERT(check_ok)
-      check_ok = SIZE(common_set_ids) .GE. natoms
-      CPASSERT(check_ok)
+      CALL dbcsr_get_info(dbcsr_mat, nblkcols_total=nblkcols_tot)
+      CPASSERT(natoms <= nblkcols_tot)
+      CPASSERT(SIZE(preferred_procs_set) >= natoms)
+      CPASSERT(SIZE(common_set_ids) >= natoms)
 
       CALL dbcsr_get_info(dbcsr_mat, distribution=dbcsr_dist, proc_col_dist=col_dist)
       CALL dbcsr_distribution_get(dbcsr_dist, pgrid=pgrid, nprows=nprows, npcols=n_common_sets)

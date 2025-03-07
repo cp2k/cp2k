@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -38,7 +38,6 @@ MODULE atom_fit
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
-   USE lapack,                          ONLY: lapack_sgesv
    USE mathconstants,                   ONLY: fac,&
                                               fourpi,&
                                               pi
@@ -1356,7 +1355,7 @@ CONTAINS
       smat(n + 1, n + 1) = 0._dp
 
       ALLOCATE (ipiv(n + 1))
-      CALL lapack_sgesv(n + 1, 1, smat, n + 1, ipiv, tval, n + 1, info)
+      CALL dgesv(n + 1, 1, smat, n + 1, ipiv, tval, n + 1, info)
       DEALLOCATE (ipiv)
       CPASSERT(info == 0)
       co(1:n) = tval(1:n, 1)

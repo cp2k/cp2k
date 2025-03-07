@@ -1,0 +1,48 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT Li4H4
+  RUN_TYPE ENERGY
+&END GLOBAL
+
+&FORCE_EVAL
+  &DFT
+    CHARGE 0
+    MULTIPLICITY 1
+    &QS
+      METHOD xTB
+      &XTB
+        DO_EWALD F
+        GFN_TYPE 0
+        VDW_POTENTIAL DFTD4
+      &END XTB
+    &END QS
+    &SCF
+      ADDED_MOS -1 -1
+      SCF_GUESS NONE
+      &SMEAR ON
+        ELECTRONIC_TEMPERATURE 300
+        METHOD Fermi_Dirac
+      &END SMEAR
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 15 15 15
+      PERIODIC NONE
+    &END CELL
+    &COORD
+      Li       8.90002734       8.90002735       8.90002800
+      Li       7.09997266       8.90002737       7.09997242
+      Li       7.09997212       7.09997212       8.90002764
+      Li       8.90002736       7.09997267       7.09997241
+      H       7.01599581       8.98400396       8.98400411
+      H       7.01599569       7.01599570       7.01599589
+      H       8.98400399       7.01599581       8.98400411
+      H       8.98400431       8.98400430       7.01599595
+    &END COORD
+    &TOPOLOGY
+      &CENTER_COORDINATES T
+      &END CENTER_COORDINATES
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL

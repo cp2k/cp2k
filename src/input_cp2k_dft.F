@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -89,6 +89,7 @@ MODULE input_cp2k_dft
                                               lchar_t,&
                                               real_t
    USE kinds,                           ONLY: dp
+   USE physcon,                         ONLY: femtoseconds
    USE pw_spline_utils,                 ONLY: no_precond,&
                                               precond_spl3_1,&
                                               precond_spl3_2,&
@@ -214,7 +215,7 @@ CONTAINS
                                         "Method based on Mulliken gross orbital populations (GOP)"), &
                           n_var=1, &
                           default_i_val=plus_u_mulliken, &
-                          usage="METHOD Lowdin")
+                          usage="PLUS_U_METHOD Lowdin")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -567,7 +568,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="WEIGHT_TYPE", &
                           description="Defines the weight used to define the center of the sphere"// &
                           " (if ATOM_LIST is provided)", &
-                          usage="WEIGHT (UNIT|MASS)", &
+                          usage="WEIGHT_TYPE (UNIT|MASS)", &
                           enum_c_vals=(/"UNIT", "MASS"/), &
                           enum_i_vals=(/weight_type_unit, weight_type_mass/), &
                           default_i_val=weight_type_unit)
@@ -710,7 +711,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="BLOCK_LIST", &
                           description="Specifies a list of atoms.", &
-                          usage="LIST {integer} {integer} .. {integer}", &
+                          usage="BLOCK_LIST {integer} {integer} .. {integer}", &
                           n_var=-1, type_of_var=integer_t, repeats=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -784,7 +785,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="CONDITION_NUMBER", &
                           description="Prints information regarding the condition numbers of the A matrix (to be inverted)", &
-                          usage="ANALYTICAL_GTERM <LOGICAL>", &
+                          usage="CONDITION_NUMBER <LOGICAL>", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
@@ -1598,7 +1599,7 @@ CONTAINS
       TYPE(section_type), POINTER                        :: section
 
       TYPE(keyword_type), POINTER                        :: keyword
-      TYPE(section_type), POINTER                        :: print_key, print_section
+      TYPE(section_type), POINTER                        :: print_key, print_section, subsection
 
       NULLIFY (keyword)
       CPASSERT(.NOT. ASSOCIATED(section))
@@ -1672,33 +1673,6 @@ CONTAINS
                           "is an upper bound for the needed one.", &
                           usage="EXP_ACCURACY 1.0E-6", &
                           default_r_val=1.0E-9_dp)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      ! Marek : Controlling flow to GWBSE
-      CALL keyword_create(keyword, __LOCATION__, name="RTP_METHOD", &
-                          description="Which method is used for the time propagation of electronic structure. "// &
-                          "By default, use the TDDFT method. Can also choose RT-BSE method, which propagates the lesser "// &
-                          "Green's function instead of density matrix/molecular orbitals.", &
-                          usage="RTP_METHOD RTBSE", &
-                          default_i_val=rtp_method_tddft, &
-                          enum_c_vals=s2a("TDDFT", "RTBSE"), &
-                          enum_i_vals=(/rtp_method_tddft, rtp_method_bse/), &
-                          enum_desc=s2a("Use TDDFT for density matrix/MO propagation.", &
-                                        "Use RT-BSE for Green's function propagation"))
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      ! Marek : Development option - run GWBSE starting from the KS Hamiltonian
-      CALL keyword_create(keyword, __LOCATION__, name="RTBSE_HAMILTONIAN", &
-                          description="Which Hamiltonian to use as the single-particle Hamiltonian"// &
-                          " in the Green's propagator.", &
-                          usage="RTBSE_HAMILTONIAN G0W0", &
-                          default_i_val=rtp_bse_ham_g0w0, &
-                          enum_c_vals=s2a("KS", "G0W0"), &
-                          enum_i_vals=(/rtp_bse_ham_ks, rtp_bse_ham_g0w0/), &
-                          enum_desc=s2a("Use Kohn-Sham Hamiltonian for Green's propagation.", &
-                                        "Use G0W0 Hamiltonian for Green's function propagation"))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1989,22 +1963,6 @@ CONTAINS
                                        each_iter_names=s2a("MD"), &
                                        each_iter_values=(/1/), &
                                        filename="MOMENTS_FT")
-      CALL keyword_create(keyword, __LOCATION__, "DAMPING", &
-                          description="Sets the exponential damping of the time trace before carrying out Fourier transform. "// &
-                          "For negative values (the default), calculates the damping at the run time so that the last point "// &
-                          "in the time trace is reduced by factor e^(-4). Uses atomic units of inverse time.", &
-                          type_of_var=real_t, &
-                          default_r_val=-1.0_dp)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
-      CALL keyword_create(keyword, __LOCATION__, "START_TIME", &
-                          description="The starting time from which damping is applied and from which on the trace is "// &
-                          "considered for the Fourier transform. Useful for real-time pulse - "// &
-                          "one can specify the center of the pulse as the starting point.", &
-                          type_of_var=real_t, &
-                          default_r_val=0.0_dp)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
       CALL section_add_subsection(print_section, print_key)
       CALL section_release(print_key)
       ! Marek : Chosen element of (Fourier transformed) polarizability tensor (energy dependent) - text format
@@ -2020,8 +1978,10 @@ CONTAINS
                                        filename="POLARIZABILITY")
       CALL keyword_create(keyword, __LOCATION__, "ELEMENT", &
                           description="Specifies the element of polarizability which is to be printed out "// &
-                          "(indexing starts at 1).", &
-                          type_of_var=integer_t, default_i_vals=(/1, 1/), n_var=2, usage="ELEMENT 1 1")
+                          "(indexing starts at 1). If not explicitly provided, RTBSE code tries to guess "// &
+                          "the optimal values - for applied electric field (both delta pulse and RT field) "// &
+                          "with only a single non-zero cartesian component, prints the 3 trivially available elements.", &
+                          type_of_var=integer_t, default_i_vals=(/1, 1/), n_var=2, usage="ELEMENT 1 1", repeats=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL section_add_subsection(print_section, print_key)
@@ -2040,7 +2000,87 @@ CONTAINS
       CALL section_add_subsection(section, print_section)
       CALL section_release(print_section)
 
+      NULLIFY (subsection)
+      CALL create_rtbse_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
    END SUBROUTINE create_rtp_section
+! **************************************************************************************************
+!> \brief Creates the subsection for specialized options of RTBSE code
+!> \param section The created RTBSE section
+!> \author Stepan Marek
+! **************************************************************************************************
+   SUBROUTINE create_rtbse_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      NULLIFY (keyword)
+      CPASSERT(.NOT. ASSOCIATED(section))
+
+      CALL section_create(section, __LOCATION__, name="RTBSE", &
+                          description="Controls options for the real-time Bethe-Salpeter (RTBSE) propagation. "// &
+                          "Note that running RTBSE requires previous low-scaling "// &
+                          "[GW](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BANDSTRUCTURE.GW) calculation. Also note that "// &
+                          "designating this section as RTBSE run but choosing run type ENERGY leads to potential "// &
+                          "deallocation errors.", &
+                          repeats=.FALSE.)
+
+      ! Marek : Controlling flow to RTBSE
+      CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
+                          description="Which method is used for the time propagation of electronic structure. "// &
+                          "By default, use the TDDFT method. Can also choose RT-BSE method, which propagates the lesser "// &
+                          "Green's function instead of density matrix/molecular orbitals.", &
+                          usage="&RTBSE TDDFT", &
+                          default_i_val=rtp_method_tddft, &
+                          lone_keyword_i_val=rtp_method_bse, &
+                          enum_c_vals=s2a("TDDFT", "RTBSE"), &
+                          enum_i_vals=(/rtp_method_tddft, rtp_method_bse/), &
+                          enum_desc=s2a("Use TDDFT for density matrix/MO propagation.", &
+                                        "Use RT-BSE for Green's function propagation"))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      ! Marek : Development option - run GWBSE starting from the KS Hamiltonian
+      CALL keyword_create(keyword, __LOCATION__, name="RTBSE_HAMILTONIAN", &
+                          description="Which Hamiltonian to use as the single-particle Hamiltonian"// &
+                          " in the Green's propagator.", &
+                          usage="RTBSE_HAMILTONIAN G0W0", &
+                          default_i_val=rtp_bse_ham_g0w0, &
+                          enum_c_vals=s2a("KS", "G0W0"), &
+                          enum_i_vals=(/rtp_bse_ham_ks, rtp_bse_ham_g0w0/), &
+                          enum_desc=s2a("Use Kohn-Sham Hamiltonian for Green's propagation.", &
+                                        "Use G0W0 Hamiltonian for Green's function propagation"))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      ! Marek : Options for the Fourier transform
+      CALL keyword_create(keyword, __LOCATION__, "FT_DAMPING", &
+                          description="Numerical Fourier transform (required for calculation of "// &
+                          "MOMENTS_FT and POLARIZABILITY) can oscillate "// &
+                          "when the final values are far away from zero. "// &
+                          "This keyword controls the exponential damping in the Fourier transform "// &
+                          "(Fourier transform is used for calculation of MOMENTS_FT and POLARIZABILITY). "// &
+                          "For negative values (the default), calculates the damping at the run time so that the last point "// &
+                          "in the time trace is reduced by factor e^(-4). When set manually, determines the time in which "// &
+                          "the moments trace is reduced by factor of e^(-1).", &
+                          type_of_var=real_t, &
+                          unit_str="fs", &
+                          default_r_val=-1.0_dp/femtoseconds)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, "FT_START_TIME", &
+                          description="The starting time from which damping is applied and from which on the trace is "// &
+                          "considered for the Fourier transform (Fourier transform is used for the calculation of "// &
+                          "MOMENTS_FT and POLARIZABILITY). Useful for real-time pulse - "// &
+                          "one can specify the center of the pulse as the starting point.", &
+                          type_of_var=real_t, &
+                          unit_str="fs", &
+                          default_r_val=0.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE create_rtbse_section
 
 ! **************************************************************************************************
 !> \brief      Create CP2K input section for the SCCS model

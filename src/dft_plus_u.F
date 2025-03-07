@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -27,9 +27,10 @@ MODULE dft_plus_u
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_deallocate_matrix, dbcsr_get_block_diag, dbcsr_get_block_p, &
-        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
-        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, dbcsr_set, dbcsr_type
+        dbcsr_deallocate_matrix, dbcsr_get_block_p, dbcsr_iterator_blocks_left, &
+        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
+        dbcsr_p_type, dbcsr_set, dbcsr_type
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_get_block_diag
    USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
                                               cp_dbcsr_plus_fm_fm_t,&
                                               cp_dbcsr_sm_fm_multiply
@@ -1532,8 +1533,8 @@ CONTAINS
       CHARACTER(LEN=10)                                  :: spin_info
       CHARACTER(LEN=6), ALLOCATABLE, DIMENSION(:)        :: symbol
       CHARACTER(LEN=default_string_length)               :: atomic_kind_name
-      INTEGER :: atom_a, blk, handle, i, iatom, ikind, isb, iset, isgf, ishell, ispin, jatom, &
-         jsgf, lu, m, natom, natom_of_kind, nkind, nsb, nset, nsgf, nspin, sgf
+      INTEGER :: atom_a, handle, i, iatom, ikind, isb, iset, isgf, ishell, ispin, jatom, jsgf, lu, &
+         m, natom, natom_of_kind, nkind, nsb, nset, nsgf, nspin, sgf
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf_atom
       INTEGER, DIMENSION(:), POINTER                     :: atom_list, nshell
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgf, l, last_sgf
@@ -1673,7 +1674,7 @@ CONTAINS
 
          DO WHILE (dbcsr_iterator_blocks_left(iter))
 
-            CALL dbcsr_iterator_next_block(iter, iatom, jatom, p_block, blk)
+            CALL dbcsr_iterator_next_block(iter, iatom, jatom, p_block)
 
             IF (orthonormal_basis) THEN
 
@@ -1895,7 +1896,7 @@ CONTAINS
 
             DO WHILE (dbcsr_iterator_blocks_left(iter))
 
-               CALL dbcsr_iterator_next_block(iter, iatom, jatom, h_block, blk)
+               CALL dbcsr_iterator_next_block(iter, iatom, jatom, h_block)
 
                IF (orthonormal_basis) THEN
 
@@ -1964,7 +1965,7 @@ CONTAINS
 
             DO WHILE (dbcsr_iterator_blocks_left(iter))
 
-               CALL dbcsr_iterator_next_block(iter, iatom, jatom, p_block, blk)
+               CALL dbcsr_iterator_next_block(iter, iatom, jatom, p_block)
 
                ! Skip the diagonal blocks of the W matrix
 

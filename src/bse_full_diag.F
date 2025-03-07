@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -13,11 +13,19 @@
 ! **************************************************************************************************
 MODULE bse_full_diag
 
+   USE bse_print,                       ONLY: print_excitation_energies,&
+                                              print_exciton_descriptors,&
+                                              print_optical_properties,&
+                                              print_output_header,&
+                                              print_transition_amplitudes
+   USE bse_properties,                  ONLY: calculate_NTOs,&
+                                              exciton_descr_type,&
+                                              get_exciton_descriptors,&
+                                              get_oscillator_strengths
    USE bse_util,                        ONLY: comp_eigvec_coeff_BSE,&
-                                              compute_absorption_spectrum,&
                                               fm_general_add_bse,&
-                                              get_oscillator_strengths,&
-                                              print_transition_probabilities
+                                              get_multipoles_mo,&
+                                              reshuffle_eigvec
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
@@ -33,13 +41,14 @@ MODULE bse_full_diag
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
-   USE input_constants,                 ONLY: bse_singlet,&
+   USE input_constants,                 ONLY: bse_screening_alpha,&
+                                              bse_screening_rpa,&
+                                              bse_singlet,&
                                               bse_triplet
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
    USE mp2_types,                       ONLY: mp2_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
-   USE physcon,                         ONLY: evolt
    USE qs_environment_types,            ONLY: qs_environment_type
 #include "./base/base_uses.f90"
 
@@ -93,24 +102,30 @@ CONTAINS
                                                             ncol_local_A, nrow_local_A
       INTEGER, DIMENSION(4)                              :: reordering
       INTEGER, DIMENSION(:), POINTER                     :: col_indices_A, row_indices_A
-      REAL(KIND=dp)                                      :: alpha, eigen_diff
+      REAL(KIND=dp)                                      :: alpha, alpha_screening, eigen_diff
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_A, fm_struct_W
       TYPE(cp_fm_type)                                   :: fm_W
 
       CALL timeset(routineN, handle)
 
-      IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
+      IF (unit_nr > 0 .AND. mp2_env%bse%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A10)') 'BSE|DEBUG|', 'Creating A'
       END IF
 
       !Determines factor of exchange term, depending on requested spin configuration (cf. input_constants.F)
-      SELECT CASE (mp2_env%ri_g0w0%bse_spin_config)
+      SELECT CASE (mp2_env%bse%bse_spin_config)
       CASE (bse_singlet)
          alpha = 2.0_dp
       CASE (bse_triplet)
          alpha = 0.0_dp
       END SELECT
+
+      IF (mp2_env%bse%screening_method == bse_screening_alpha) THEN
+         alpha_screening = mp2_env%bse%screening_factor
+      ELSE
+         alpha_screening = 1.0_dp
+      END IF
 
       ! create the blacs env for ij matrices (NOT fm_mat_S_ia_bse%matrix_struct related parallel_gemms!)
       NULLIFY (blacs_env)
@@ -138,16 +153,19 @@ CONTAINS
                          matrix_a=fm_mat_S_ia_bse, matrix_b=fm_mat_S_ia_bse, beta=0.0_dp, &
                          matrix_c=fm_A)
 
-      IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
+      IF (unit_nr > 0 .AND. mp2_env%bse%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A16)') 'BSE|DEBUG|', 'Allocated A_iajb'
       END IF
 
-      !W_ij,ab = \sum_P \bar{B}^P_ij B^P_ab
-      CALL parallel_gemm(transa="T", transb="N", m=homo**2, n=virtual**2, k=dimen_RI, alpha=1.0_dp, &
-                         matrix_a=fm_mat_S_bar_ij_bse, matrix_b=fm_mat_S_ab_bse, beta=0.0_dp, &
-                         matrix_c=fm_W)
+      ! If infinite screening is applied, fm_W is simply 0 - Otherwise it needs to be computed from 3c integrals
+      IF (mp2_env%bse%screening_method /= bse_screening_rpa) THEN
+         !W_ij,ab = \sum_P \bar{B}^P_ij B^P_ab
+         CALL parallel_gemm(transa="T", transb="N", m=homo**2, n=virtual**2, k=dimen_RI, alpha=alpha_screening, &
+                            matrix_a=fm_mat_S_bar_ij_bse, matrix_b=fm_mat_S_ab_bse, beta=0.0_dp, &
+                            matrix_c=fm_W)
+      END IF
 
-      IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
+      IF (unit_nr > 0 .AND. mp2_env%bse%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A16)') 'BSE|DEBUG|', 'Allocated W_ijab'
       END IF
 
@@ -160,9 +178,13 @@ CONTAINS
       ! Writing -1.0_dp * W_ij,ab to A_ia,jb, i.e. beta = -1.0_dp,
       ! W_ij,ab: nrow_secidx_in  = homo,    ncol_secidx_in  = virtual
       ! A_ia,jb: nrow_secidx_out = virtual, ncol_secidx_out = virtual
-      reordering = (/1, 3, 2, 4/)
-      CALL fm_general_add_bse(fm_A, fm_W, -1.0_dp, homo, virtual, &
-                              virtual, virtual, unit_nr, reordering, mp2_env)
+
+      ! If infinite screening is applied, fm_W is simply 0 - Otherwise it needs to be computed from 3c integrals
+      IF (mp2_env%bse%screening_method /= bse_screening_rpa) THEN
+         reordering = (/1, 3, 2, 4/)
+         CALL fm_general_add_bse(fm_A, fm_W, -1.0_dp, homo, virtual, &
+                                 virtual, virtual, unit_nr, reordering, mp2_env)
+      END IF
       !full matrix W is not needed anymore, release it to save memory
       CALL cp_fm_release(fm_W)
 
@@ -221,23 +243,29 @@ CONTAINS
 
       INTEGER                                            :: handle
       INTEGER, DIMENSION(4)                              :: reordering
-      REAL(KIND=dp)                                      :: alpha
+      REAL(KIND=dp)                                      :: alpha, alpha_screening
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_v
       TYPE(cp_fm_type)                                   :: fm_W
 
       CALL timeset(routineN, handle)
 
-      IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
+      IF (unit_nr > 0 .AND. mp2_env%bse%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A10)') 'BSE|DEBUG|', 'Creating B'
       END IF
 
       ! Determines factor of exchange term, depending on requested spin configuration (cf. input_constants.F)
-      SELECT CASE (mp2_env%ri_g0w0%bse_spin_config)
+      SELECT CASE (mp2_env%bse%bse_spin_config)
       CASE (bse_singlet)
          alpha = 2.0_dp
       CASE (bse_triplet)
          alpha = 0.0_dp
       END SELECT
+
+      IF (mp2_env%bse%screening_method == bse_screening_alpha) THEN
+         alpha_screening = mp2_env%bse%screening_factor
+      ELSE
+         alpha_screening = 1.0_dp
+      END IF
 
       CALL cp_fm_struct_create(fm_struct_v, context=fm_mat_S_ia_bse%matrix_struct%context, nrow_global=homo*virtual, &
                                ncol_global=homo*virtual, para_env=fm_mat_S_ia_bse%matrix_struct%para_env)
@@ -247,7 +275,7 @@ CONTAINS
       CALL cp_fm_create(fm_W, fm_struct_v, name="fm_W_ibaj")
       CALL cp_fm_set_all(fm_W, 0.0_dp)
 
-      IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
+      IF (unit_nr > 0 .AND. mp2_env%bse%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A16)') 'BSE|DEBUG|', 'Allocated B_iajb'
       END IF
       ! v_ia,jb = \sum_P B^P_ia B^P_jb
@@ -255,17 +283,21 @@ CONTAINS
                          matrix_a=fm_mat_S_ia_bse, matrix_b=fm_mat_S_ia_bse, beta=0.0_dp, &
                          matrix_c=fm_B)
 
-      ! W_ib,aj = \sum_P \bar{B}^P_ib B^P_aj
-      CALL parallel_gemm(transa="T", transb="N", m=homo*virtual, n=homo*virtual, k=dimen_RI, alpha=1.0_dp, &
-                         matrix_a=fm_mat_S_bar_ia_bse, matrix_b=fm_mat_S_ia_bse, beta=0.0_dp, &
-                         matrix_c=fm_W)
-      ! from W_ib,ja to A_ia,jb (formally: W_ib,aj, but our internal indexorder is different)
-      ! Writing -1.0_dp * W_ib,ja to A_ia,jb, i.e. beta = -1.0_dp,
-      ! W_ib,ja: nrow_secidx_in  = virtual,    ncol_secidx_in  = virtual
-      ! A_ia,jb: nrow_secidx_out = virtual, ncol_secidx_out = virtual
-      reordering = (/1, 4, 3, 2/)
-      CALL fm_general_add_bse(fm_B, fm_W, -1.0_dp, virtual, virtual, &
-                              virtual, virtual, unit_nr, reordering, mp2_env)
+      ! If infinite screening is applied, fm_W is simply 0 - Otherwise it needs to be computed from 3c integrals
+      IF (mp2_env%bse%screening_method /= bse_screening_rpa) THEN
+         ! W_ib,aj = \sum_P \bar{B}^P_ib B^P_aj
+         CALL parallel_gemm(transa="T", transb="N", m=homo*virtual, n=homo*virtual, k=dimen_RI, alpha=alpha_screening, &
+                            matrix_a=fm_mat_S_bar_ia_bse, matrix_b=fm_mat_S_ia_bse, beta=0.0_dp, &
+                            matrix_c=fm_W)
+
+         ! from W_ib,ja to A_ia,jb (formally: W_ib,aj, but our internal indexorder is different)
+         ! Writing -1.0_dp * W_ib,ja to A_ia,jb, i.e. beta = -1.0_dp,
+         ! W_ib,ja: nrow_secidx_in  = virtual,    ncol_secidx_in  = virtual
+         ! A_ia,jb: nrow_secidx_out = virtual, ncol_secidx_out = virtual
+         reordering = (/1, 4, 3, 2/)
+         CALL fm_general_add_bse(fm_B, fm_W, -1.0_dp, virtual, virtual, &
+                                 virtual, virtual, unit_nr, reordering, mp2_env)
+      END IF
 
       CALL cp_fm_release(fm_W)
       CALL cp_fm_struct_release(fm_struct_v)
@@ -335,7 +367,7 @@ CONTAINS
 
       CALL cp_fm_create(fm_work_product, fm_A%matrix_struct)
 
-      IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
+      IF (unit_nr > 0 .AND. mp2_env%bse%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A19)') 'BSE|DEBUG|', 'Created work arrays'
       END IF
 
@@ -385,7 +417,7 @@ CONTAINS
                          fm_C)
       CALL cp_fm_release(fm_work_product)
 
-      IF (unit_nr > 0 .AND. mp2_env%ri_g0w0%bse_debug_print) THEN
+      IF (unit_nr > 0 .AND. mp2_env%bse%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A36)') 'BSE|DEBUG|', 'Filled C=(A-B)^0.5 (A+B) (A-B)^0.5'
       END IF
 
@@ -443,14 +475,21 @@ CONTAINS
       ALLOCATE (Exc_ens(homo*virtual))
 
       CALL choose_eigv_solver(fm_C, fm_eigvec_Z, Exc_ens, diag_info)
-      CPASSERT(diag_info == 0)
+
+      IF (diag_info /= 0) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "Diagonalization of C=(A-B)^0.5 (A+B) (A-B)^0.5 failed in BSE")
+      END IF
+
       ! C could have negative eigenvalues, since we do not explicitly check A+B
       ! for positive definiteness (would make another O(N^6) Diagon. necessary)
       ! Instead, we include a check here
       IF (Exc_ens(1) < 0) THEN
-         CALL cp_abort(__LOCATION__, &
-                       "Matrix C=(A-B)^0.5 (A+B) (A-B)^0.5 has negative eigenvalues, i.e. "// &
-                       "(A+B) is not positive definite.")
+         IF (unit_nr > 0) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "Matrix C=(A-B)^0.5 (A+B) (A-B)^0.5 has negative eigenvalues, i.e. "// &
+                          "(A+B) is not positive definite.")
+         END IF
       END IF
       Exc_ens = SQRT(Exc_ens)
 
@@ -469,6 +508,7 @@ CONTAINS
                          matrix_a=fm_sqrt_A_minus_B, matrix_b=fm_eigvec_Z, beta=0.0_dp, &
                          matrix_c=fm_mat_eigvec_transform_sum)
       CALL cp_fm_release(fm_sqrt_A_minus_B)
+      ! This normalizes the eigenvectors
       CALL comp_eigvec_coeff_BSE(fm_mat_eigvec_transform_sum, Exc_ens, -0.5_dp, gamma=2.0_dp, do_transpose=.TRUE.)
 
       ! Second, Eq. II from (A10) from Furche: (X-Y)_n = (Ω_n)^0.5 (A-B)^-0.5 T_n
@@ -479,6 +519,8 @@ CONTAINS
                          matrix_c=fm_mat_eigvec_transform_diff)
       CALL cp_fm_release(fm_inv_sqrt_A_minus_B)
       CALL cp_fm_release(fm_eigvec_Z)
+
+      ! This normalizes the eigenvectors
       CALL comp_eigvec_coeff_BSE(fm_mat_eigvec_transform_diff, Exc_ens, 0.5_dp, gamma=2.0_dp, do_transpose=.TRUE.)
 
       ! Now, we add the two equations to obtain X_n
@@ -497,7 +539,7 @@ CONTAINS
       CALL cp_fm_release(fm_mat_eigvec_transform_diff)
       CALL cp_fm_release(fm_mat_eigvec_transform_sum)
 
-      CALL success_message(Exc_ens, fm_eigvec_X, mp2_env, qs_env, mo_coeff, &
+      CALL postprocess_bse(Exc_ens, fm_eigvec_X, mp2_env, qs_env, mo_coeff, &
                            homo, virtual, homo_irred, unit_nr, &
                            .FALSE., fm_eigvec_Y)
 
@@ -552,8 +594,13 @@ CONTAINS
       ALLOCATE (Exc_ens(homo*virtual))
 
       CALL choose_eigv_solver(fm_A, fm_eigvec, Exc_ens, diag_info)
-      CPASSERT(diag_info == 0)
-      CALL success_message(Exc_ens, fm_eigvec, mp2_env, qs_env, mo_coeff, &
+
+      IF (diag_info /= 0) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "Diagonalization of A failed in TDA-BSE")
+      END IF
+
+      CALL postprocess_bse(Exc_ens, fm_eigvec, mp2_env, qs_env, mo_coeff, &
                            homo, virtual, homo_irred, unit_nr, .TRUE.)
 
       CALL cp_fm_release(fm_eigvec)
@@ -577,7 +624,7 @@ CONTAINS
 !> \param flag_TDA ...
 !> \param fm_eigvec_Y ...
 ! **************************************************************************************************
-   SUBROUTINE success_message(Exc_ens, fm_eigvec_X, mp2_env, qs_env, mo_coeff, &
+   SUBROUTINE postprocess_bse(Exc_ens, fm_eigvec_X, mp2_env, qs_env, mo_coeff, &
                               homo, virtual, homo_irred, unit_nr, &
                               flag_TDA, fm_eigvec_Y)
 
@@ -590,18 +637,24 @@ CONTAINS
       LOGICAL, OPTIONAL                                  :: flag_TDA
       TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: fm_eigvec_Y
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'success_message'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'postprocess_bse'
 
       CHARACTER(LEN=10)                                  :: info_approximation, multiplet
-      INTEGER                                            :: handle, i_exc
+      INTEGER                                            :: handle, i_exc, idir, n_moments_di, &
+                                                            n_moments_quad
       REAL(KIND=dp)                                      :: alpha
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: oscill_str
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: dipole_exc
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: oscill_str, ref_point_multipole
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: polarizability_residues, trans_mom_bse
+      TYPE(cp_fm_type)                                   :: fm_X_ia, fm_Y_ia
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:) :: fm_dipole_ab_trunc, fm_dipole_ai_trunc, &
+         fm_dipole_ij_trunc, fm_quadpole_ab_trunc, fm_quadpole_ai_trunc, fm_quadpole_ij_trunc
+      TYPE(exciton_descr_type), ALLOCATABLE, &
+         DIMENSION(:)                                    :: exc_descr
 
       CALL timeset(routineN, handle)
 
       !Prepare variables for printing
-      IF (mp2_env%ri_g0w0%bse_spin_config == 0) THEN
+      IF (mp2_env%bse%bse_spin_config == 0) THEN
          multiplet = "Singlet"
          alpha = 2.0_dp
       ELSE
@@ -617,190 +670,119 @@ CONTAINS
          info_approximation = "-ABBA-"
       END IF
 
-      !Get information about eigenvector
+      n_moments_di = 3
+      n_moments_quad = 9
+      ! Compute BSE dipoles and oscillator strengths - Keep in memory for later usage
+      ! Need dipoles also for spatial expectation values, which are well-defined also for triplets
+      ALLOCATE (fm_dipole_ij_trunc(n_moments_di))
+      ALLOCATE (fm_dipole_ab_trunc(n_moments_di))
+      ALLOCATE (fm_dipole_ai_trunc(n_moments_di))
+      ALLOCATE (ref_point_multipole(3))
+      ! Obtain dipoles in MO basis
+      CALL get_multipoles_mo(fm_dipole_ai_trunc, fm_dipole_ij_trunc, fm_dipole_ab_trunc, &
+                             qs_env, mo_coeff, ref_point_multipole, 1, &
+                             homo, virtual, fm_eigvec_X%matrix_struct%context)
+      ! Compute exciton descriptors from these multipoles
+      IF (mp2_env%bse%num_print_exc_descr > 0) THEN
+         ! Obtain quadrupoles in MO basis
+         ALLOCATE (fm_quadpole_ij_trunc(n_moments_quad))
+         ALLOCATE (fm_quadpole_ab_trunc(n_moments_quad))
+         ALLOCATE (fm_quadpole_ai_trunc(n_moments_quad))
+         CALL get_multipoles_mo(fm_quadpole_ai_trunc, fm_quadpole_ij_trunc, fm_quadpole_ab_trunc, &
+                                qs_env, mo_coeff, ref_point_multipole, 2, &
+                                homo, virtual, fm_eigvec_X%matrix_struct%context)
+         ! Iterate over excitation index outside of routine to make it compatible with tddft module
+         ALLOCATE (exc_descr(mp2_env%bse%num_print_exc_descr))
+         DO i_exc = 1, mp2_env%bse%num_print_exc_descr
+            CALL reshuffle_eigvec(fm_eigvec_X, fm_X_ia, homo, virtual, i_exc, &
+                                  .FALSE., unit_nr, mp2_env)
+            IF (.NOT. flag_TDA) THEN
+               CALL reshuffle_eigvec(fm_eigvec_Y, fm_Y_ia, homo, virtual, i_exc, &
+                                     .FALSE., unit_nr, mp2_env)
 
-      IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         IF (flag_TDA) THEN
-            WRITE (unit_nr, '(T2,A4,T7,A74)') 'BSE|', '**************************************************************************'
-            WRITE (unit_nr, '(T2,A4,T7,A74)') 'BSE|', '*   Bethe Salpeter equation (BSE) with Tamm Dancoff approximation (TDA)  *'
-            WRITE (unit_nr, '(T2,A4,T7,A74)') 'BSE|', '**************************************************************************'
-            WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            WRITE (unit_nr, '(T2,A4,T7,A48,A23)') 'BSE|', 'The excitations are calculated by diagonalizing ', &
-               'the BSE within the TDA:'
-            WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            WRITE (unit_nr, '(T2,A4,T29,A16)') 'BSE|', 'A X^n = Ω^n X^n'
-            WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            WRITE (unit_nr, '(T2,A4,T7,A23)') 'BSE|', 'i.e. in index notation:'
-            WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            WRITE (unit_nr, '(T2,A4,T7,A41)') 'BSE|', 'sum_jb ( A_ia,jb   X_jb^n ) = Ω^n X_ia^n'
-            WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            WRITE (unit_nr, '(T2,A4,T7,A30)') 'BSE|', 'prelim Ref.: Eq. (36) with B=0'
-            WRITE (unit_nr, '(T2,A4,T7,A71)') 'BSE|', 'in PRB 92,045209 (2015); http://dx.doi.org/10.1103/PhysRevB.92.045209 .'
-         ELSE
-            WRITE (unit_nr, '(T2,A4,T7,A74)') 'BSE|', '**************************************************************************'
-            WRITE (unit_nr, '(T2,A4,T7,A74)') 'BSE|', '*      Full ("ABBA") Bethe Salpeter equation (BSE) (i.e. without TDA)    *'
-            WRITE (unit_nr, '(T2,A4,T7,A74)') 'BSE|', '**************************************************************************'
-            WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            WRITE (unit_nr, '(T2,A4,T7,A48,A24)') 'BSE|', 'The excitations are calculated by diagonalizing ', &
-               'the BSE without the TDA:'
-            WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            WRITE (unit_nr, '(T2,A4,T22,A30)') 'BSE|', '|A B| |X^n|       |1  0| |X^n|'
-            WRITE (unit_nr, '(T2,A4,T22,A31)') 'BSE|', '|B A| |Y^n| = Ω^n |0 -1| |Y^n|'
-            WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            WRITE (unit_nr, '(T2,A4,T7,A23)') 'BSE|', 'i.e. in index notation:'
-            WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            WRITE (unit_nr, '(T2,A4,T7,A62)') 'BSE|', '  sum_jb ( A_ia,jb   X_jb^n + B_ia,jb   Y_jb^n ) = Ω^n X_ia^n'
-            WRITE (unit_nr, '(T2,A4,T7,A62)') 'BSE|', '- sum_jb ( B_ia,jb   X_jb^n + A_ia,jb   Y_jb^n ) = Ω^n Y_ia^n'
-         END IF
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T7,A4,T18,A42,T70,A1,I4,A1,I4,A1)') 'BSE|', 'i,j:', &
-            'occupied molecular orbitals, i.e. state in', '[', homo_irred - homo + 1, ',', homo_irred, ']'
-         WRITE (unit_nr, '(T2,A4,T7,A4,T18,A44,T70,A1,I4,A1,I4,A1)') 'BSE|', 'a,b:', &
-            'unoccupied molecular orbitals, i.e. state in', '[', homo_irred + 1, ',', homo_irred + virtual, ']'
-         WRITE (unit_nr, '(T2,A4,T7,A2,T18,A16)') 'BSE|', 'n:', 'Excitation index'
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T7,A58)') 'BSE|', 'A_ia,jb = (ε_a-ε_i) δ_ij δ_ab + α * v_ia,jb - W_ij,ab'
-         IF (.NOT. flag_TDA) THEN
-            WRITE (unit_nr, '(T2,A4,T7,A32)') 'BSE|', 'B_ia,jb = α * v_ia,jb - W_ib,aj'
-            WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            WRITE (unit_nr, '(T2,A4,T7,A35)') 'BSE|', 'prelim Ref.: Eqs. (24-27),(30),(35)'
-            WRITE (unit_nr, '(T2,A4,T7,A71)') 'BSE|', 'in PRB 92,045209 (2015); http://dx.doi.org/10.1103/PhysRevB.92.045209 .'
-         END IF
-         IF (.NOT. flag_TDA) THEN
-            WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            WRITE (unit_nr, '(T2,A4,T7,A74)') 'BSE|', 'The BSE is solved for Ω^n and X_ia^n as a hermitian problem, e.g. Eq.(42)'
-            WRITE (unit_nr, '(T2,A4,T7,A71)') 'BSE|', 'in PRB 92,045209 (2015); http://dx.doi.org/10.1103/PhysRevB.92.045209 .'
-            ! WRITE (unit_nr, '(T2,A4,T7,A69)') 'BSE|', 'C_ia,jb = sum_kc,ld ((A-B)^0.5)_ia,kc (A+B)_kc,ld ((A-B)^0.5)_ld,jb'
-            ! WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            ! WRITE (unit_nr, '(T2,A4,T7,A58)') 'BSE|', '(X+Y)_ia,n = sum_jb,m  ((A-B)^0.5)ia,jb Z_jb,m (Ω_m)^-0.5'
-            ! WRITE (unit_nr, '(T2,A4,T7,A58)') 'BSE|', '(X-Y)_ia,n = sum_jb,m  ((A-B)^-0.5)ia,jb Z_jb,m (Ω_m)^0.5'
-         END IF
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T7,A7,T19,A23)') 'BSE|', 'ε_...:', 'GW quasiparticle energy'
-         WRITE (unit_nr, '(T2,A4,T7,A7,T19,A15)') 'BSE|', 'δ_...:', 'Kronecker delta'
-         WRITE (unit_nr, '(T2,A4,T7,A3,T19,A21)') 'BSE|', 'α:', 'spin-dependent factor (Singlet/Triplet)'
-         WRITE (unit_nr, '(T2,A4,T7,A6,T18,A34)') 'BSE|', 'v_...:', 'Electron-hole exchange interaction'
-         WRITE (unit_nr, '(T2,A4,T7,A6,T18,A27)') 'BSE|', 'W_...:', 'Screened direct interaction'
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T7,A47,A7,A9,F3.1)') 'BSE|', &
-            'The spin-dependent factor is for the requested ', multiplet, " is α = ", alpha
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         IF (flag_TDA) THEN
-            WRITE (unit_nr, '(T2,A4,T7,A56)') 'BSE|', 'Excitation energies from solving the BSE within the TDA:'
-         ELSE
-            WRITE (unit_nr, '(T2,A4,T7,A57)') 'BSE|', 'Excitation energies from solving the BSE without the TDA:'
-         END IF
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T11,A12,T26,A11,T44,A8,T55,A27)') 'BSE|', &
-            'Excitation n', "Spin Config", 'TDA/ABBA', 'Excitation energy Ω^n (eV)'
-      END IF
-      !prints actual energies values
-      IF (unit_nr > 0) THEN
-         DO i_exc = 1, MIN(homo*virtual, mp2_env%ri_g0w0%num_print_exc)
-            WRITE (unit_nr, '(T2,A4,T7,I16,T30,A7,T46,A6,T59,F22.4)') &
-               'BSE|', i_exc, multiplet, info_approximation, Exc_ens(i_exc)*evolt
+               CALL get_exciton_descriptors(exc_descr, fm_X_ia, &
+                                            fm_quadpole_ij_trunc, fm_quadpole_ab_trunc, &
+                                            fm_quadpole_ai_trunc, &
+                                            i_exc, homo, virtual, &
+                                            fm_Y_ia)
+            ELSE
+               CALL get_exciton_descriptors(exc_descr, fm_X_ia, &
+                                            fm_quadpole_ij_trunc, fm_quadpole_ab_trunc, &
+                                            fm_quadpole_ai_trunc, &
+                                            i_exc, homo, virtual)
+            END IF
+            CALL cp_fm_release(fm_X_ia)
+            IF (.NOT. flag_TDA) THEN
+               CALL cp_fm_release(fm_Y_ia)
+            END IF
          END DO
       END IF
-      !prints single particle transitions
-      IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T7,A61)') &
-            'BSE|', "Single-particle transitions are built up by (de-)excitations,"
-         WRITE (unit_nr, '(T2,A4,T7,A18)') &
-            'BSE|', "which we denote by"
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T20,A2,T30,A40)') &
-            'BSE|', "=>", "for excitations, i.e. entries of X_ia^n,"
-         WRITE (unit_nr, '(T2,A4,T20,A2,T30,A42)') &
-            'BSE|', "<=", "for deexcitations, i.e. entries of Y_ia^n."
-         WRITE (unit_nr, '(T2,A4)') &
-            'BSE|'
-         WRITE (unit_nr, '(T2,A4,T7,A73)') &
-            'BSE|', "The following single-particle transitions have significant contributions,"
-         WRITE (unit_nr, '(T2,A4,T7,A16,F5.3,A15,F5.3,A16)') &
-            'BSE|', "i.e. |X_ia^n| < ", mp2_env%ri_g0w0%eps_x, " or |Y_ia^n| < ", &
-            mp2_env%ri_g0w0%eps_x, ", respectively :"
 
-         WRITE (unit_nr, '(T2,A4,T15,A27,I5,A13,I5,A3)') 'BSE|', '-- Quick reminder: HOMO i =', &
-            homo_irred, ' and LUMO a =', homo_irred + 1, " --"
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T7,A12,T30,A1,T32,A5,T42,A1,T49,A8,T64,A17)') &
-            "BSE|", "Excitation n", "i", "=>/<=", "a", 'TDA/ABBA', "|X_ia^n|/|Y_ia^n|"
+      IF (mp2_env%bse%bse_spin_config == 0) THEN
+         CALL get_oscillator_strengths(fm_eigvec_X, Exc_ens, fm_dipole_ai_trunc, &
+                                       trans_mom_bse, oscill_str, polarizability_residues, &
+                                       mp2_env, homo, virtual, unit_nr, &
+                                       fm_eigvec_Y)
       END IF
-      DO i_exc = 1, MIN(homo*virtual, mp2_env%ri_g0w0%num_print_exc)
+
+      ! Prints basic definitions used in BSE calculation
+      CALL print_output_header(homo, virtual, homo_irred, flag_TDA, &
+                               multiplet, alpha, mp2_env, unit_nr)
+
+      ! Prints excitation energies up to user-specified number
+      CALL print_excitation_energies(Exc_ens, homo, virtual, flag_TDA, multiplet, &
+                                     info_approximation, mp2_env, unit_nr)
+
+      ! Print single particle transition amplitudes, i.e. components of eigenvectors X and Y
+      CALL print_transition_amplitudes(fm_eigvec_X, homo, virtual, homo_irred, &
+                                       info_approximation, mp2_env, unit_nr, fm_eigvec_Y)
+
+      ! Prints optical properties, if state is a singlet
+      CALL print_optical_properties(Exc_ens, oscill_str, trans_mom_bse, polarizability_residues, &
+                                    homo, virtual, homo_irred, flag_TDA, &
+                                    info_approximation, mp2_env, unit_nr)
+      ! Print exciton descriptors if keyword is invoked
+      IF (mp2_env%bse%num_print_exc_descr > 0) THEN
+         CALL print_exciton_descriptors(exc_descr, ref_point_multipole, unit_nr, &
+                                        mp2_env%bse%num_print_exc_descr, mp2_env%bse%bse_debug_print, &
+                                        mp2_env%bse%print_directional_exc_descr, &
+                                        'BSE|', qs_env)
+      END IF
+
+      ! Compute and print excitation wavefunctions
+      IF (mp2_env%bse%do_nto_analysis) THEN
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
+            WRITE (unit_nr, '(T2,A4,T7,A47)') &
+               'BSE|', "Calculating Natural Transition Orbitals (NTOs)."
+            WRITE (unit_nr, '(T2,A4)') 'BSE|'
          END IF
-         !Iterate through eigenvector and print values above threshold
-         CALL print_transition_probabilities(fm_eigvec_X, "=>", info_approximation, &
-                                             i_exc, virtual, homo, homo_irred, &
-                                             unit_nr, mp2_env)
-         IF (PRESENT(fm_eigvec_Y)) THEN
-            CALL print_transition_probabilities(fm_eigvec_Y, "<=", info_approximation, &
-                                                i_exc, virtual, homo, homo_irred, &
-                                                unit_nr, mp2_env)
-         END IF
-      END DO
-      ! Compute BSE dipoles and oscillator strengths
-      CALL get_oscillator_strengths(fm_eigvec_X, Exc_ens, &
-                                    dipole_exc, oscill_str, &
-                                    mp2_env, qs_env, mo_coeff, &
-                                    homo, virtual, unit_nr, &
-                                    fm_eigvec_Y)
-      IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T7,A63)') &
-            'BSE|', "Dipoles d_r^n and oscillator strength f^n of excitation level n"
-         WRITE (unit_nr, '(T2,A4,T7,A17)') &
-            'BSE|', "are obtained from"
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         IF (flag_TDA) THEN
-            WRITE (unit_nr, '(T2,A4,T12,A51)') &
-               'BSE|', "d_r^n = sqrt(2) sum_ia < ψ_i | µ | ψ_a >  X_ia^n"
-         ELSE
-            WRITE (unit_nr, '(T2,A4,T12,A63)') &
-               'BSE|', "d_r^n = sqrt(2) sum_ia < ψ_i | µ | ψ_a > ( X_ia^n + Y_ia^n )"
-         END IF
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T20,A44)') &
-            'BSE|', "f^n = 2/3 * Ω^n sum_r∈(x,y,z) ( d_r^n )^2"
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T7,A19)') &
-            'BSE|', "where we introduced"
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T7,A5,T15,A28)') &
-            'BSE|', "ψ_i:", "occupied molecular orbitals,"
-         WRITE (unit_nr, '(T2,A4,T7,A5,T15,A28)') &
-            'BSE|', "ψ_a:", "empty molecular orbitals and"
-         WRITE (unit_nr, '(T2,A4,T7,A3,T15,A16)') &
-            'BSE|', "µ:", "dipole operator."
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T7,A28)') &
-            'BSE|', "prelim Ref.: Eqs. (23), (24)"
-         WRITE (unit_nr, '(T2,A4,T7,A71)') &
-            'BSE|', "in J. Chem. Phys. 152, 044105 (2020); https://doi.org/10.1063/1.5123290"
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T8,A12,T22,A8,T35,A8,T45,A8,T55,A8,T65,A16)') 'BSE|', &
-            'Excitation n', "TDA/ABBA", "Dipole X", "Dipole Y", "Dipole Z", 'Osc. strength'
-         DO i_exc = 1, MIN(homo*virtual, mp2_env%ri_g0w0%num_print_exc)
-            WRITE (unit_nr, '(T2,A4,T8,I12,T24,A6,T35,F8.3,T45,F8.3,T55,F8.3,T65,F16.3)') &
-               'BSE|', i_exc, info_approximation, dipole_exc(1, 1, i_exc), dipole_exc(2, 1, i_exc), &
-               dipole_exc(3, 1, i_exc), oscill_str(i_exc)
-         END DO
-         WRITE (unit_nr, '(T2,A4)') 'BSE|'
+         CALL calculate_NTOs(fm_eigvec_X, fm_eigvec_Y, &
+                             mo_coeff, homo, virtual, &
+                             info_approximation, &
+                             oscill_str, &
+                             qs_env, unit_nr, mp2_env)
       END IF
 
-      ! Compute and print the absorption spectrum to external file
-      IF (mp2_env%ri_g0w0%bse_print_spectrum) THEN
-         CALL compute_absorption_spectrum(oscill_str, Exc_ens, &
-                                          info_approximation, unit_nr, mp2_env)
+      DO idir = 1, n_moments_di
+         CALL cp_fm_release(fm_dipole_ai_trunc(idir))
+         CALL cp_fm_release(fm_dipole_ij_trunc(idir))
+         CALL cp_fm_release(fm_dipole_ab_trunc(idir))
+      END DO
+      IF (mp2_env%bse%num_print_exc_descr > 0) THEN
+         DO idir = 1, n_moments_quad
+            CALL cp_fm_release(fm_quadpole_ai_trunc(idir))
+            CALL cp_fm_release(fm_quadpole_ij_trunc(idir))
+            CALL cp_fm_release(fm_quadpole_ab_trunc(idir))
+         END DO
+         DEALLOCATE (fm_quadpole_ai_trunc, fm_quadpole_ij_trunc, fm_quadpole_ab_trunc)
+         DEALLOCATE (exc_descr)
       END IF
-      DEALLOCATE (oscill_str, dipole_exc)
+      DEALLOCATE (fm_dipole_ai_trunc, fm_dipole_ij_trunc, fm_dipole_ab_trunc)
+      DEALLOCATE (ref_point_multipole)
+      IF (mp2_env%bse%bse_spin_config == 0) THEN
+         DEALLOCATE (oscill_str, trans_mom_bse, polarizability_residues)
+      END IF
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
@@ -808,6 +790,6 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE success_message
+   END SUBROUTINE postprocess_bse
 
 END MODULE bse_full_diag

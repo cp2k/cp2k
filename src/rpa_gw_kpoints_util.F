@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -15,12 +15,11 @@ MODULE rpa_gw_kpoints_util
                                               get_cell,&
                                               pbc
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
-   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_cholesky_decompose,&
-                                              cp_cfm_cholesky_invert,&
-                                              cp_cfm_column_scale,&
-                                              cp_cfm_scale_and_add,&
+   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_column_scale,&
                                               cp_cfm_scale_and_add_fm,&
-                                              cp_cfm_transpose
+                                              cp_cfm_uplo_to_full
+   USE cp_cfm_cholesky,                 ONLY: cp_cfm_cholesky_decompose,&
+                                              cp_cfm_cholesky_invert
    USE cp_cfm_diag,                     ONLY: cp_cfm_geeig,&
                                               cp_cfm_geeig_canon,&
                                               cp_cfm_heevd
@@ -36,8 +35,8 @@ MODULE rpa_gw_kpoints_util
         dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, dbcsr_filter, &
         dbcsr_get_block_p, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, &
-        dbcsr_release, dbcsr_reserve_all_blocks, dbcsr_set, dbcsr_transposed, dbcsr_type, &
-        dbcsr_type_no_symmetry
+        dbcsr_release, dbcsr_set, dbcsr_transposed, dbcsr_type, dbcsr_type_no_symmetry
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_reserve_all_blocks
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
                                               dbcsr_allocate_matrix_set
@@ -88,7 +87,7 @@ MODULE rpa_gw_kpoints_util
 
    PUBLIC :: invert_eps_compute_W_and_Erpa_kp, cp_cfm_power, real_space_to_kpoint_transform_rpa, &
              get_mat_cell_T_from_mat_gamma, get_bandstruc_and_k_dependent_MOs, &
-             compute_wkp_W, mat_kp_from_mat_gamma, cp_cfm_upper_to_full
+             compute_wkp_W, mat_kp_from_mat_gamma
 
 CONTAINS
 
@@ -415,7 +414,7 @@ CONTAINS
                                 fm_mat_work, cfm_mat_Q, ikp, nkp, ikp_local, para_env)
 
       TYPE(dbcsr_p_type), DIMENSION(:, :), INTENT(INOUT) :: mat_P_omega_kp
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_RI_global_work, fm_mat_work
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_RI_global_work, fm_mat_work
       TYPE(cp_cfm_type), INTENT(IN)                      :: cfm_mat_Q
       INTEGER, INTENT(IN)                                :: ikp, nkp, ikp_local
       TYPE(mp_para_env_type), POINTER                    :: para_env
@@ -1064,7 +1063,7 @@ CONTAINS
       CALL cp_cfm_cholesky_invert(cfm_mat_Q)
 
       ! symmetrize the result
-      CALL cp_cfm_upper_to_full(cfm_mat_Q)
+      CALL cp_cfm_uplo_to_full(cfm_mat_Q)
 
       ! subtract exchange part by subtracing identity matrix from epsilon
       CALL cp_cfm_get_info(matrix=cfm_mat_Q, &
@@ -1421,55 +1420,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE
-
-! **************************************************************************************************
-!> \brief ...
-!> \param cfm_mat_Q ...
-! **************************************************************************************************
-   SUBROUTINE cp_cfm_upper_to_full(cfm_mat_Q)
-
-      TYPE(cp_cfm_type), INTENT(IN)                      :: cfm_mat_Q
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_cfm_upper_to_full'
-
-      INTEGER                                            :: handle, i_global, iiB, j_global, jjB, &
-                                                            ncol_local, nrow_local
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      TYPE(cp_cfm_type)                                  :: cfm_mat_work
-
-      CALL timeset(routineN, handle)
-
-      CALL cp_cfm_create(cfm_mat_work, cfm_mat_Q%matrix_struct)
-
-      ! get info of fm_mat_Q
-      CALL cp_cfm_get_info(matrix=cfm_mat_Q, &
-                           nrow_local=nrow_local, &
-                           ncol_local=ncol_local, &
-                           row_indices=row_indices, &
-                           col_indices=col_indices)
-
-      DO jjB = 1, ncol_local
-         j_global = col_indices(jjB)
-         DO iiB = 1, nrow_local
-            i_global = row_indices(iiB)
-            IF (j_global < i_global) THEN
-               cfm_mat_Q%local_data(iiB, jjB) = z_zero
-            END IF
-            IF (j_global == i_global) THEN
-               cfm_mat_Q%local_data(iiB, jjB) = cfm_mat_Q%local_data(iiB, jjB)/(2.0_dp, 0.0_dp)
-            END IF
-         END DO
-      END DO
-
-      CALL cp_cfm_transpose(cfm_mat_Q, 'C', cfm_mat_work)
-
-      CALL cp_cfm_scale_and_add(z_one, cfm_mat_Q, z_one, cfm_mat_work)
-
-      CALL cp_cfm_release(cfm_mat_work)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE cp_cfm_upper_to_full
 
 ! **************************************************************************************************
 !> \brief ...

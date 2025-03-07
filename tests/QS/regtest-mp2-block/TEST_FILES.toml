@@ -1,0 +1,8 @@
+"H2O_block_mp2.inp"                     = [{matcher="M011", tol=7e-08, ref=-17.182557707513990}]
+"CH3_block_mp2.inp"                     = [{matcher="M011", tol=3e-10, ref=-7.284101370683207}]
+"H2O_block_lr.inp"                      = [{matcher="M011", tol=3e-10, ref=-16.850610874885060}]
+"H2O_block_rpa.inp"                     = [{matcher="M011", tol=3e-10, ref=-17.145691221375799}]
+"H2O_block_mp2_grad.inp"                = [{matcher="M011", tol=5e-08, ref=-16.990049367524886}]
+"H2O_block_sos_mp2_grad.inp"            = [{matcher="M011", tol=1e-07, ref=-17.129600930195657}]
+"H2O_block_rpa_grad.inp"                = [{matcher="M011", tol=1e-07, ref=-17.504315036503410}]
+#EOF

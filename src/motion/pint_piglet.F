@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -716,7 +716,7 @@ CONTAINS
       A(:, :) = SST(:, :)
 
       !first call to figure out how big work array needs to be
-      CALL DSYEV('V', & ! Compute eigenvalues and eigenvectors
+      CALL dsyev('V', & ! Compute eigenvalues and eigenvectors
                  'U', & ! Store upper triagonal matrix
                  n, & ! order of matrix A to calculate the eigenvalues/vectors from
                  A, & ! Matrix to calculate the eigenvalues/vectors from
@@ -730,7 +730,7 @@ CONTAINS
       ALLOCATE (work(lwork))
       work(:) = 0.0_dp
 
-      CALL DSYEV('V', & ! Compute eigenvalues and eigenvectors
+      CALL dsyev('V', & ! Compute eigenvalues and eigenvectors
                  'U', & ! Store upper triagonal matrix
                  n, & ! order of matrix A to calculate the eigenvalues/vectors from
                  A, & ! Matrix to calculate the eigenvalues/vectors from
@@ -753,7 +753,7 @@ CONTAINS
       tmpmatrix(:, :) = 0.0_dp
       ! Transform matrix back
       !tmpmatrix = A*S
-      CALL DGEMM('N', & ! A-matrix is not transposed
+      CALL dgemm('N', & ! A-matrix is not transposed
                  'N', & ! S-matrix is not transposed
                  n, & ! number of rows of A-matrix
                  n, & ! number of columns of S-matrix
@@ -767,7 +767,7 @@ CONTAINS
                  tmpmatrix, & ! result matrix: tmpmatrix
                  n) ! leading dimension of tmpmatrix
       !S = tmpmatrix*TRANSPOSE(A) = A*S*TRANSPOSE(A)
-      CALL DGEMM('N', & ! tmpmatrix not transposed
+      CALL dgemm('N', & ! tmpmatrix not transposed
                  'T', & ! A-matrix is transposed
                  n, & ! number of rows of tmpmatrix
                  n, & ! number of columns of A-matrix

@@ -1,0 +1,19 @@
+#vibrational analysis
+"wat_freq.inp"                          = [{matcher="M008", tol=1.0E-14, ref=1736.710173}]
+"wat_freq_norot.inp"                    = [{matcher="M008", tol=1.0E-14, ref=1736.710173}]
+"wat_freq_freeze.inp"                   = [{matcher="M008", tol=1.0E-14, ref=-37.593284}]
+"wat_mode_sel.inp"                      = []
+"wat_mode_sel_range.inp"                = []
+# MD inititalization with velocities from vibrational analysis
+"wat_md_vib_init.inp"                   = [{matcher="M070", tol=1.0E-1, ref=165.644}]
+"ethene-vib-mode-sel-int.inp"           = [{matcher="M021", tol=1.0E-14, ref=57.938395}]
+# new mode_selective tests for several restart types
+"N3dye_geoopt.inp"                      = [{matcher="M007", tol=1.0E-14, ref=0.5616272352}]
+"N3dye_vib_bfgs.inp"                    = [{matcher="M018", tol=1e-03, ref=1503.8296069999999}]
+"N3dye_vib_bfgs2.inp"                   = [{matcher="M018", tol=2e-08, ref=1721.1518249999999}]
+"N3dye_vib_inv_atoms.inp"               = [{matcher="M018", tol=1.0E-14, ref=1434.154489}]
+"N3dye_vib_restart_vec3.inp"            = [{matcher="M018", tol=1.0E-14, ref=1720.504985}]
+"N3dye_vib_restart_vec2.inp"            = [{matcher="M018", tol=1.0E-14, ref=1434.156631}]
+"N3dye_vib_restart_vec.inp"             = [{matcher="M018", tol=1.0E-14, ref=1720.504999}]
+"N3dye_vib_restart_vec4.inp"            = [{matcher="M018", tol=1.0E-14, ref=1720.506967}]
+#EOF

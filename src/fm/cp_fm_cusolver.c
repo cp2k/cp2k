@@ -1,6 +1,6 @@
 /*----------------------------------------------------------------------------*/
 /*  CP2K: A general program to perform molecular dynamics simulations         */
-/*  Copyright 2000-2024 CP2K developers group <https://cp2k.org>              */
+/*  Copyright 2000-2025 CP2K developers group <https://cp2k.org>              */
 /*                                                                            */
 /*  SPDX-License-Identifier: GPL-2.0-or-later                                 */
 /*----------------------------------------------------------------------------*/
@@ -316,6 +316,163 @@ void cp_fm_diag_cusolver(const int fortran_comm, const int matrix_desc[9],
   MPI_Barrier(comm);
 }
 
+/*******************************************************************************
+ * \brief Driver routine to solve A*x = lambda*B*x with cuSOLVERMp sygvd.
+ * \author Jiri Vyskocil
+ ******************************************************************************/
+void cp_fm_diag_cusolver_sygvd(const int fortran_comm,
+                               const int a_matrix_desc[9],
+                               const int b_matrix_desc[9], const int nprow,
+                               const int npcol, const int myprow,
+                               const int mypcol, const int n,
+                               const double *aMatrix, const double *bMatrix,
+                               double *eigenvectors, double *eigenvalues) {
+
+  offload_activate_chosen_device();
+  const int local_device = offload_get_chosen_device();
+
+  MPI_Comm comm = MPI_Comm_f2c(fortran_comm);
+  int rank, nranks;
+  MPI_Comm_rank(comm, &rank);
+  MPI_Comm_size(comm, &nranks);
+
+  // Create CAL communicator
+  cal_comm_t cal_comm = NULL;
+  cal_comm_create_params_t params;
+  params.allgather = &allgather;
+  params.req_test = &req_test;
+  params.req_free = &req_free;
+  params.data = &comm;
+  params.rank = rank;
+  params.nranks = nranks;
+  params.local_device = local_device;
+  CAL_CHECK(cal_comm_create(params, &cal_comm));
+
+  // Create CUDA stream and cuSOLVER handle
+  cudaStream_t stream = NULL;
+  CUDA_CHECK(cudaStreamCreate(&stream));
+
+  cusolverMpHandle_t cusolvermp_handle = NULL;
+  CUSOLVER_CHECK(cusolverMpCreate(&cusolvermp_handle, local_device, stream));
+
+  // Define grid for device computation
+  cusolverMpGrid_t grid = NULL;
+  CUSOLVER_CHECK(cusolverMpCreateDeviceGrid(cusolvermp_handle, &grid, cal_comm,
+                                            nprow, npcol,
+                                            CUSOLVERMP_GRID_MAPPING_ROW_MAJOR));
+
+  // Matrix descriptors for A, B, and Z
+  const int mb_a = a_matrix_desc[4];
+  const int nb_a = a_matrix_desc[5];
+  const int rsrc_a = a_matrix_desc[6];
+  const int csrc_a = a_matrix_desc[7];
+  const int ldA = a_matrix_desc[8];
+
+  const int mb_b = b_matrix_desc[4];
+  const int nb_b = b_matrix_desc[5];
+  const int rsrc_b = b_matrix_desc[6];
+  const int csrc_b = b_matrix_desc[7];
+  const int ldB = b_matrix_desc[8];
+
+  // Ensure consistency in block sizes and sources
+  assert(mb_a == mb_b && nb_a == nb_b);
+  assert(rsrc_a == rsrc_b && csrc_a == csrc_b);
+
+  const int np_a = cusolverMpNUMROC(n, mb_a, myprow, rsrc_a, nprow);
+  const int nq_a = cusolverMpNUMROC(n, nb_a, mypcol, csrc_a, npcol);
+
+  const cublasFillMode_t uplo = CUBLAS_FILL_MODE_LOWER;
+  const cusolverEigType_t itype = CUSOLVER_EIG_TYPE_1;
+  const cusolverEigMode_t jobz = CUSOLVER_EIG_MODE_VECTOR;
+  const cudaDataType_t data_type = CUDA_R_64F;
+
+  // Create matrix descriptors
+  cusolverMpMatrixDescriptor_t descrA = NULL;
+  cusolverMpMatrixDescriptor_t descrB = NULL;
+  cusolverMpMatrixDescriptor_t descrZ = NULL;
+
+  CUSOLVER_CHECK(cusolverMpCreateMatrixDesc(&descrA, grid, data_type, n, n,
+                                            mb_a, nb_a, rsrc_a, csrc_a, np_a));
+  CUSOLVER_CHECK(cusolverMpCreateMatrixDesc(&descrB, grid, data_type, n, n,
+                                            mb_b, nb_b, rsrc_b, csrc_b, np_a));
+  CUSOLVER_CHECK(cusolverMpCreateMatrixDesc(&descrZ, grid, data_type, n, n,
+                                            mb_a, nb_a, rsrc_a, csrc_a, np_a));
+
+  // Allocate device memory for matrices
+  double *dev_A = NULL, *dev_B = NULL;
+  size_t matrix_local_size = ldA * nq_a * sizeof(double);
+  CUDA_CHECK(cudaMalloc((void **)&dev_A, matrix_local_size));
+  CUDA_CHECK(cudaMalloc((void **)&dev_B, matrix_local_size));
+
+  // Copy matrices from host to device
+  CUDA_CHECK(cudaMemcpyAsync(dev_A, aMatrix, matrix_local_size,
+                             cudaMemcpyHostToDevice, stream));
+  CUDA_CHECK(cudaMemcpyAsync(dev_B, bMatrix, matrix_local_size,
+                             cudaMemcpyHostToDevice, stream));
+
+  // Allocate device memory for eigenvalues and eigenvectors
+  double *dev_Z = NULL, *eigenvalues_dev = NULL;
+  CUDA_CHECK(cudaMalloc((void **)&dev_Z, matrix_local_size));
+  CUDA_CHECK(cudaMalloc((void **)&eigenvalues_dev, n * sizeof(double)));
+
+  // Allocate workspace
+  size_t work_dev_size = 0, work_host_size = 0;
+  CUSOLVER_CHECK(cusolverMpSygvd_bufferSize(
+      cusolvermp_handle, itype, jobz, uplo, n, 1, 1, descrA, 1, 1, descrB, 1, 1,
+      descrZ, data_type, &work_dev_size, &work_host_size));
+
+  void *work_dev = NULL, *work_host = NULL;
+  CUDA_CHECK(cudaMalloc(&work_dev, work_dev_size));
+  CUDA_CHECK(cudaMallocHost(&work_host, work_host_size));
+
+  // Allocate device memory for info
+  int *info_dev = NULL;
+  CUDA_CHECK(cudaMalloc((void **)&info_dev, sizeof(int)));
+
+  // Call cusolverMpSygvd
+  CUSOLVER_CHECK(cusolverMpSygvd(
+      cusolvermp_handle, itype, jobz, uplo, n, dev_A, 1, 1, descrA, dev_B, 1, 1,
+      descrB, eigenvalues_dev, dev_Z, 1, 1, descrZ, data_type, work_dev,
+      work_dev_size, work_host, work_host_size, info_dev));
+
+  // Wait for computation to finish
+  CUDA_CHECK(cudaStreamSynchronize(stream));
+
+  // Check info
+  int info;
+  CUDA_CHECK(cudaMemcpy(&info, info_dev, sizeof(int), cudaMemcpyDeviceToHost));
+  if (info != 0) {
+    fprintf(stderr, "ERROR: cusolverMpSygvd failed with info = %d\n", info);
+    abort();
+  }
+
+  // Copy results back to host
+  CUDA_CHECK(cudaMemcpyAsync(eigenvectors, dev_Z, matrix_local_size,
+                             cudaMemcpyDeviceToHost, stream));
+  CUDA_CHECK(cudaMemcpyAsync(eigenvalues, eigenvalues_dev, n * sizeof(double),
+                             cudaMemcpyDeviceToHost, stream));
+
+  // Wait for copy to finish
+  CUDA_CHECK(cudaStreamSynchronize(stream));
+
+  // Clean up resources
+  CUDA_CHECK(cudaFree(dev_A));
+  CUDA_CHECK(cudaFree(dev_B));
+  CUDA_CHECK(cudaFree(dev_Z));
+  CUDA_CHECK(cudaFree(eigenvalues_dev));
+  CUDA_CHECK(cudaFree(info_dev));
+  CUDA_CHECK(cudaFree(work_dev));
+  CUDA_CHECK(cudaFreeHost(work_host));
+  CUSOLVER_CHECK(cusolverMpDestroyMatrixDesc(descrA));
+  CUSOLVER_CHECK(cusolverMpDestroyMatrixDesc(descrB));
+  CUSOLVER_CHECK(cusolverMpDestroyMatrixDesc(descrZ));
+  CUSOLVER_CHECK(cusolverMpDestroyGrid(grid));
+  CUSOLVER_CHECK(cusolverMpDestroy(cusolvermp_handle));
+  CUDA_CHECK(cudaStreamDestroy(stream));
+  CAL_CHECK(cal_comm_destroy(cal_comm));
+
+  MPI_Barrier(comm); // Synchronize MPI ranks
+}
 #endif
 
 // EOF

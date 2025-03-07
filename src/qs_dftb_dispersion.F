@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -238,10 +238,6 @@ CONTAINS
                END IF
                IF (calculate_forces .AND. (dr > 0.001_dp) .AND. use_virial) THEN
                   CALL virial_pair_force(virial%pv_virial, -1._dp, fdij, rij)
-                  IF (atprop%stress) THEN
-                     CALL virial_pair_force(atprop%atstress(:, :, iatom), -0.5_dp, fdij, rij)
-                     CALL virial_pair_force(atprop%atstress(:, :, jatom), -0.5_dp, fdij, rij)
-                  END IF
                END IF
             END IF
          END DO

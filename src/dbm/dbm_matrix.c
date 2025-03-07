@@ -1,6 +1,6 @@
 /*----------------------------------------------------------------------------*/
 /*  CP2K: A general program to perform molecular dynamics simulations         */
-/*  Copyright 2000-2024 CP2K developers group <https://cp2k.org>              */
+/*  Copyright 2000-2025 CP2K developers group <https://cp2k.org>              */
 /*                                                                            */
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
@@ -97,7 +97,7 @@ void dbm_copy(dbm_matrix_t *matrix_a, const dbm_matrix_t *matrix_b) {
 
   assert(matrix_a->dist == matrix_b->dist);
 
-#pragma omp parallel for schedule(dynamic)
+#pragma omp parallel for DBM_OMP_SCHEDULE
   for (int ishard = 0; ishard < dbm_get_num_shards(matrix_a); ishard++) {
     dbm_shard_copy(&matrix_a->shards[ishard], &matrix_b->shards[ishard]);
   }
@@ -260,7 +260,7 @@ void dbm_put_block(dbm_matrix_t *matrix, const int row, const int col,
 void dbm_clear(dbm_matrix_t *matrix) {
   assert(omp_get_num_threads() == 1);
 
-#pragma omp parallel for schedule(dynamic)
+#pragma omp parallel for DBM_OMP_SCHEDULE
   for (int ishard = 0; ishard < dbm_get_num_shards(matrix); ishard++) {
     dbm_shard_t *shard = &matrix->shards[ishard];
     shard->nblocks = 0;
@@ -284,7 +284,7 @@ void dbm_filter(dbm_matrix_t *matrix, const double eps) {
   }
   const double eps2 = eps * eps;
 
-#pragma omp parallel for schedule(dynamic)
+#pragma omp parallel for DBM_OMP_SCHEDULE
   for (int ishard = 0; ishard < dbm_get_num_shards(matrix); ishard++) {
     dbm_shard_t *shard = &matrix->shards[ishard];
     const int old_nblocks = shard->nblocks;
@@ -300,7 +300,11 @@ void dbm_filter(dbm_matrix_t *matrix, const double eps) {
       const int block_size = row_size * col_size;
       double norm = 0.0;
       for (int i = 0; i < block_size; i++) {
-        norm += old_blk_data[i] * old_blk_data[i];
+        const double value = old_blk_data[i];
+        norm += value * value;
+        if (eps2 <= norm) {
+          break;
+        }
       }
       // For historic reasons zero-sized blocks are never filtered.
       if (block_size > 0 && norm < eps2) {
@@ -311,7 +315,7 @@ void dbm_filter(dbm_matrix_t *matrix, const double eps) {
           shard, old_blk.row, old_blk.col, block_size);
       assert(new_blk->offset <= old_blk.offset);
       if (new_blk->offset != old_blk.offset) {
-        // Using memmove instead of memcpy because it handles overlap correctly.
+        // Using memmove because it can handle overlapping buffers.
         double *new_blk_data = &shard->data[new_blk->offset];
         memmove(new_blk_data, old_blk_data, block_size * sizeof(double));
       }
@@ -346,7 +350,7 @@ void dbm_reserve_blocks(dbm_matrix_t *matrix, const int nblocks,
   }
 #pragma omp barrier
 
-#pragma omp for schedule(dynamic)
+#pragma omp for DBM_OMP_SCHEDULE
   for (int ishard = 0; ishard < dbm_get_num_shards(matrix); ishard++) {
     dbm_shard_t *shard = &matrix->shards[ishard];
     dbm_shard_allocate_promised_blocks(shard);
@@ -367,7 +371,7 @@ void dbm_scale(dbm_matrix_t *matrix, const double alpha) {
     return;
   }
 
-#pragma omp parallel for schedule(dynamic)
+#pragma omp parallel for DBM_OMP_SCHEDULE
   for (int ishard = 0; ishard < dbm_get_num_shards(matrix); ishard++) {
     dbm_shard_t *shard = &matrix->shards[ishard];
     for (int i = 0; i < shard->data_size; i++) {
@@ -383,7 +387,7 @@ void dbm_scale(dbm_matrix_t *matrix, const double alpha) {
 void dbm_zero(dbm_matrix_t *matrix) {
   assert(omp_get_num_threads() == 1);
 
-#pragma omp parallel for schedule(dynamic)
+#pragma omp parallel for DBM_OMP_SCHEDULE
   for (int ishard = 0; ishard < dbm_get_num_shards(matrix); ishard++) {
     dbm_shard_t *shard = &matrix->shards[ishard];
     memset(shard->data, 0, shard->data_size * sizeof(double));
@@ -398,7 +402,7 @@ void dbm_add(dbm_matrix_t *matrix_a, const dbm_matrix_t *matrix_b) {
   assert(omp_get_num_threads() == 1);
   assert(matrix_a->dist == matrix_b->dist);
 
-#pragma omp parallel for schedule(dynamic)
+#pragma omp parallel for DBM_OMP_SCHEDULE
   for (int ishard = 0; ishard < dbm_get_num_shards(matrix_b); ishard++) {
     dbm_shard_t *shard_a = &matrix_a->shards[ishard];
     const dbm_shard_t *shard_b = &matrix_b->shards[ishard];
@@ -502,15 +506,31 @@ void dbm_iterator_next_block(dbm_iterator_t *iter, int *row, int *col,
 void dbm_iterator_stop(dbm_iterator_t *iter) { free(iter); }
 
 /*******************************************************************************
+ * \brief Private routine to accumulate using Kahan's summation.
+ * \author Hans Pabst
+ ******************************************************************************/
+static double kahan_sum(double value, double *accumulator,
+                        double *compensation) {
+  double r, c;
+  assert(NULL != accumulator && NULL != compensation);
+  c = value - *compensation;
+  r = *accumulator + c;
+  *compensation = (r - *accumulator) - c;
+  *accumulator = r;
+  return r;
+}
+
+/*******************************************************************************
  * \brief Computes a checksum of the given matrix.
  * \author Ole Schuett
  ******************************************************************************/
 double dbm_checksum(const dbm_matrix_t *matrix) {
-  double checksum = 0.0;
+  double checksum = 0.0, compensation = 0.0;
   for (int ishard = 0; ishard < dbm_get_num_shards(matrix); ishard++) {
     const dbm_shard_t *shard = &matrix->shards[ishard];
     for (int i = 0; i < shard->data_size; i++) {
-      checksum += shard->data[i] * shard->data[i];
+      const double value = shard->data[i];
+      kahan_sum(value * value, &checksum, &compensation);
     }
   }
   dbm_mpi_sum_double(&checksum, 1, matrix->dist->comm);
@@ -518,13 +538,13 @@ double dbm_checksum(const dbm_matrix_t *matrix) {
 }
 
 /*******************************************************************************
- * \brief Returns the absolute value of the larges element of the entire matrix.
+ * \brief Returns the largest absolute value of all matrix elements.
  * \author Ole Schuett
  ******************************************************************************/
 double dbm_maxabs(const dbm_matrix_t *matrix) {
   double maxabs = 0.0;
   for (int ishard = 0; ishard < dbm_get_num_shards(matrix); ishard++) {
-    dbm_shard_t *shard = &matrix->shards[ishard];
+    const dbm_shard_t *shard = &matrix->shards[ishard];
     for (int i = 0; i < shard->data_size; i++) {
       maxabs = fmax(maxabs, fabs(shard->data[i]));
     }

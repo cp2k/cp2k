@@ -1,6 +1,6 @@
 /*----------------------------------------------------------------------------*/
 /*  CP2K: A general program to perform molecular dynamics simulations         */
-/*  Copyright 2000-2024 CP2K developers group <https://cp2k.org>              */
+/*  Copyright 2000-2025 CP2K developers group <https://cp2k.org>              */
 /*                                                                            */
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
@@ -414,15 +414,17 @@ extern "C" void grid_hip_collocate_task_list(const void *ptr,
     ctx->grid_[level].zero(ctx->level_streams[level]);
   }
 
-  ctx->pab_block_.associate(pab_blocks->host_buffer, pab_blocks->device_buffer,
-                            pab_blocks->size / sizeof(double));
-
   int lp_diff = -1;
 
   ctx->synchronize(ctx->main_stream);
 
   for (int level = 0; level < ctx->nlevels; level++) {
     ctx->collocate_one_grid_level(level, func, &lp_diff);
+  }
+
+  // download result from device to host.
+  for (int level = 0; level < ctx->nlevels; level++) {
+    ctx->grid_[level].copy_to_host(ctx->level_streams[level]);
   }
 
   // update counters while we wait for kernels to finish. It is not thread safe
@@ -444,11 +446,6 @@ extern "C" void grid_hip_collocate_task_list(const void *ptr,
         }
       }
     }
-  }
-
-  // download result from device to host.
-  for (int level = 0; level < ctx->nlevels; level++) {
-    ctx->grid_[level].copy_to_host(ctx->level_streams[level]);
   }
 
   // need to wait for all streams to finish
@@ -475,8 +472,6 @@ extern "C" void grid_hip_integrate_task_list(
   ctx->verify_checksum();
   // Select GPU device.
   ctx->set_device();
-
-  // ctx->coef_dev_.zero(ctx->level_streams[0]);
 
   for (int level = 0; level < ctx->nlevels; level++) {
     if (ctx->number_of_tasks_per_level_[level]) {
@@ -517,7 +512,6 @@ extern "C" void grid_hip_integrate_task_list(
 
   // we can actually treat the full task list without bothering about the level
   // at that stage. This can be taken care of inside the kernel.
-
   for (int level = 0; level < ctx->nlevels; level++) {
     // launch kernel, but only after grid has arrived
     ctx->integrate_one_grid_level(level, &lp_diff);
@@ -544,7 +538,6 @@ extern "C" void grid_hip_integrate_task_list(
     if (ctx->number_of_tasks_per_level_[level])
       ctx->synchronize(ctx->level_streams[level]);
   }
-
   // computing the hab coefficients does not depend on the number of grids so we
   // can run these calculations on the main stream
   ctx->compute_hab_coefficients();

@@ -336,7 +336,7 @@ def render_keyword(
 
     # Use Sphinx's py:data directive to document keywords.
     output += [f"```{{py:data}}  {canonical_name}"]
-    n_var_brackets = f"[{n_var}]" if n_var > 1 else ""
+    n_var_brackets = f"[{n_var}]" if n_var > 1 else "[ ]" if n_var == -1 else ""
     if section_xref:
         output += [f":module: {section_xref}"]
     else:
@@ -386,9 +386,10 @@ def render_keyword(
 def find_all_mentions() -> Dict[str, Set[Path]]:
     root_dir = Path(__file__).resolve().parent
     mentions = defaultdict(set)
-    for fn in (root_dir / "methods").glob("**/*.md"):
-        for xref in re.findall(r"\(#(CP2K_INPUT\..*)\)", fn.read_text()):
-            mentions[xref].add(fn.relative_to(root_dir))
+    for subdir in "getting-started", "methods", "technologies":
+        for fn in (root_dir / subdir).glob("**/*.md"):
+            for xref in re.findall(r"\(#(CP2K_INPUT\..*)\)", fn.read_text()):
+                mentions[xref].add(fn.relative_to(root_dir))
     return mentions
 
 

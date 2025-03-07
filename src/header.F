@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -211,24 +211,36 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param iw ...
+!> \param gfn_type ...
 ! **************************************************************************************************
-   SUBROUTINE xtb_header(iw)
-      INTEGER, INTENT(in)                                :: iw
+   SUBROUTINE xtb_header(iw, gfn_type)
+      INTEGER, INTENT(in)                                :: iw, gfn_type
 
       IF (iw < 0) RETURN
       WRITE (iw, '( / )')
-      WRITE (iw, '( 11(16x,a,/) )') &
+      WRITE (iw, '( 7(16x,a,/) )') &
          '  #####   #####        #          ####### ######   ', &
          ' #     # #     #      #              #    #     #  ', &
          ' #     # #           #    ##   ##    #    #     #  ', &
          ' #     #  #####     #      ## ##     #    ######   ', &
          ' #   # #       #   #        ###      #    #     #  ', &
          ' #    #  #     #  #        ## ##     #    #     #  ', &
-         '  #### #  #####  #        ##   ##    #    ######   ', &
-         '                                                   ', &
-         '                 Version 1.0                       ', &
-         '            J. Hutter and A. Hehn                  ', &
-         '                                                   '
+         '  #### #  #####  #        ##   ##    #    ######   '
+
+      SELECT CASE (gfn_type)
+      CASE (0)
+         WRITE (iw, '( 34x,a )') ' GFN0-xTB '
+      CASE (1)
+         WRITE (iw, '( 34x,a )') ' GFN1-xTB '
+      CASE (2)
+         WRITE (iw, '( 34x,a )') ' GFN2-xTB '
+      CASE DEFAULT
+      END SELECT
+
+      WRITE (iw, '( 2(16x,a,/) )') &
+         '                 Version 1.1                       ', &
+         '            J. Hutter and A. Hehn                  '
+
    END SUBROUTINE xtb_header
 ! **************************************************************************************************
 !> \brief ...
@@ -278,7 +290,7 @@ CONTAINS
          "**                                                                           **", &
          "**                                                ... make the atoms dance   **", &
          "**                                                                           **", &
-         "**            Copyright (C) by CP2K developers group (2000-2024)             **", &
+         "**            Copyright (C) by CP2K developers group (2000-2025)             **", &
          "**                      J. Chem. Phys. 152, 194103 (2020)                    **", &
          "**                                                                           **", &
          "*******************************************************************************"

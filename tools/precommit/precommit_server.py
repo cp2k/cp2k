@@ -51,7 +51,7 @@ def mdformat():
 # ======================================================================================
 @app.route("/clangformat", methods=["POST"])
 def clangformat():
-    return run_tool(["clang-format", "--style=llvm", "-i"])
+    return run_tool(["clang_format_wrapper.sh"])
 
 
 # ======================================================================================

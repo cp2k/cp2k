@@ -2,11 +2,11 @@
 #
 # CP2K (GNU aarch64) arch file for a serial static ARM64 binary
 #
-# Tested with: GNU 14.2.0 and MPICH 4.0.3
+# Tested with: GNU 14.2.0
 #
 # Usage: Source this arch file and then run make as instructed.
 #
-# Last update: 06.09.2024
+# Last update: 12.02.2025
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -121,11 +121,7 @@ endif
 
 ifneq ($(USE_LIBGRPP),)
    USE_LIBGRPP    := $(strip $(USE_LIBGRPP))
-   LIBGRPP_INC    := $(INSTALL_PATH)/libgrpp-main-$(USE_LIBGRPP)/include
-   LIBGRPP_LIB    := $(INSTALL_PATH)/libgrpp-main-$(USE_LIBGRPP)/lib
-   CFLAGS         += -I$(LIBGRPP_INC)
    DFLAGS         += -D__LIBGRPP
-   LIBS           += $(LIBGRPP_LIB)/liblibgrpp.a
 endif
 
 ifneq ($(USE_LIBINT),)

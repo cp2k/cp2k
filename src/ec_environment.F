@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -202,6 +202,13 @@ CONTAINS
                                    l_val=ec_env%debug_external)
          ! ADMM
          CALL section_vals_val_get(ec_section, "ADMM", l_val=ec_env%do_ec_admm)
+         ! EXTERNAL
+         CALL section_vals_val_get(ec_section, "EXTERNAL_RESPONSE_FILENAME", &
+                                   c_val=ec_env%exresp_fn)
+         CALL section_vals_val_get(ec_section, "EXTERNAL_RESULT_FILENAME", &
+                                   c_val=ec_env%exresult_fn)
+         CALL section_vals_val_get(ec_section, "ERROR_ESTIMATION", &
+                                   l_val=ec_env%do_error)
 
          ec_env%do_skip = .FALSE.
 

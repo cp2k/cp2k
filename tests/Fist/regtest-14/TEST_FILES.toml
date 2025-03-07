@@ -1,0 +1,29 @@
+# test of gle thermostat
+"argon-nve.inp"                         = [{matcher="M002", tol=1.0E-14, ref=-0.174623742212E+00}]
+"argon-nose.inp"                        = [{matcher="M002", tol=1.0E-14, ref=-0.169562375558E+00}]
+"argon-csvr.inp"                        = [{matcher="M002", tol=1.0E-14, ref=-0.170032262039E+00}]
+"argon-gle.inp"                         = [{matcher="M002", tol=1.0E-14, ref=-0.178882251343E+00}]
+"argon-gle_r.inp"                       = [{matcher="M002", tol=2.0E-11, ref=-0.170320310331E+00}]
+#new FF
+"water_mm3.inp"                         = [{matcher="M011", tol=1.0E-14, ref=0.003534941656640}]
+#mol_set + amber
+"lamol.inp"                             = [{matcher="M002", tol=1.0E-14, ref=0.808816509404E+00}]
+#impropers read from input file section
+"imp_test_11.inp"                       = [{matcher="M011", tol=1.0E-14, ref=0.804574647188983}]
+"imp_test_12.inp"                       = [{matcher="M011", tol=1.0E-14, ref=0.804574647188983}]
+"imp_test_21.inp"                       = [{matcher="M011", tol=1.0E-14, ref=0.804574647188983}]
+"imp_test_22.inp"                       = [{matcher="M011", tol=1.0E-14, ref=0.804574647188983}]
+"opbend_test.inp"                       = [{matcher="M011", tol=1.0E-14, ref=3.691532536434223}]
+# new exclusions
+"11_exvdw_12_exei.inp"                  = [{matcher="M011", tol=1.0E-14, ref=1.750198649929873}]
+"11_exvdw_11_exei.inp"                  = [{matcher="M011", tol=1.0E-14, ref=-3.230293212724743}]
+"12_exvdw_12_exei.inp"                  = [{matcher="M011", tol=1.0E-14, ref=1.313453412771051}]
+"12_exvdw_12_exei_list_1.inp"           = [{matcher="M011", tol=1.0E-14, ref=-3.667038449883563}]
+"12_exvdw_12_exei_list_1_check.inp"     = [{matcher="M011", tol=1.0E-14, ref=-3.667038449883563}]
+"12_exvdw_12_exei_list_2.inp"           = [{matcher="M011", tol=1.0E-14, ref=1.750198649929873}]
+"12_exvdw_12_exei_list_2_c.inp"         = [{matcher="M011", tol=1.0E-14, ref=1.750198649929873}]
+"12_exvdw_12_exei_list_empty.inp"       = [{matcher="M011", tol=1.0E-14, ref=-3.230293212724743}]
+#fues
+"H2O-1-fues.inp"                        = [{matcher="M011", tol=1.0E-14, ref=0.015367750775911}]
+"ignore.inp"                            = [{matcher="M002", tol=1.0E-14, ref=-0.911636536623E-06}]
+#EOF

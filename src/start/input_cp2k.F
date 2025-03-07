@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -12,16 +12,16 @@
 !> \author fawzi
 ! **************************************************************************************************
 MODULE input_cp2k
-   USE cp_dbcsr_api,                    ONLY: dbcsr_test_binary_io,&
-                                              dbcsr_test_mm,&
-                                              dbcsr_type_complex_8,&
-                                              dbcsr_type_real_8
    USE cp_eri_mme_interface,            ONLY: create_eri_mme_test_section
    USE cp_output_handling,              ONLY: add_last_numeric,&
                                               cp_print_key_section_create,&
                                               low_print_level,&
                                               medium_print_level,&
                                               silent_print_level
+   USE dbcsr_api,                       ONLY: dbcsr_test_binary_io,&
+                                              dbcsr_test_mm,&
+                                              dbcsr_type_complex_8,&
+                                              dbcsr_type_real_8
    USE input_constants,                 ONLY: &
         do_diag_syevd, do_diag_syevx, do_mat_random, do_mat_read, do_pwgrid_ns_fullspace, &
         do_pwgrid_ns_halfspace, do_pwgrid_spherical, ehrenfest, numerical
@@ -237,7 +237,7 @@ CONTAINS
                           "Klimes, Kresse, JCTC 10, 2498 (2014), Eq. 30. Printed is the L1-error (=minimax "// &
                           "error for a given range and a given number of grid points. The input parameter is "// &
                           "the given number of different Rc values.", &
-                          usage="MINIMAX 1000", default_i_val=0)
+                          usage="LEAST_SQ_FT 1000", default_i_val=0)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -250,7 +250,7 @@ CONTAINS
       CALL section_release(print_key)
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, "PROGRAM_RUN_INFO", &
-                                       description="controls the printing of tests output", &
+                                       description="Controls the printing of the test output", &
                                        print_level=silent_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
@@ -718,7 +718,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="MAX_JOBS_PER_GROUP", &
                           variants=(/"MAX_JOBS"/), &
                           description="maximum number of jobs executed per group", &
-                          usage="max_step 4", default_i_val=65535)
+                          usage="MAX_JOBS_PER_GROUP 4", default_i_val=65535)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -791,7 +791,7 @@ CONTAINS
       CALL section_release(sub_section)
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, "PROGRAM_RUN_INFO", &
-                                       description="controls the printing of FARMING specific output", &
+                                       description="Controls the printing of FARMING specific output", &
                                        print_level=low_print_level, add_last=add_last_numeric, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
@@ -966,17 +966,17 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="K", &
                           description="Dimension 1 of C", &
-                          usage="A 1024", default_i_val=256)
+                          usage="K 1024", default_i_val=256)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="M", &
                           description="Inner dimension M   ", &
-                          usage="A 1024", default_i_val=256)
+                          usage="M 1024", default_i_val=256)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="N", &
                           description="Dimension 2 of C", &
-                          usage="A 1024", default_i_val=256)
+                          usage="N 1024", default_i_val=256)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -988,7 +988,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="NCOL_BLOCK", &
                           description="block_size for cols", &
-                          usage="nrow_block 64", default_i_val=32)
+                          usage="NCOL_BLOCK 64", default_i_val=32)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1132,17 +1132,17 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="M", &
                           description="Dimension 1 of C", &
-                          usage="A 1024", default_i_val=256)
+                          usage="M 1024", default_i_val=256)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="N", &
                           description="Dimension 2 of C", &
-                          usage="A 1024", default_i_val=256)
+                          usage="N 1024", default_i_val=256)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="K", &
                           description="Inner dimension M   ", &
-                          usage="A 1024", default_i_val=256)
+                          usage="K 1024", default_i_val=256)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1212,13 +1212,13 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="BSPARSITY", &
                           description="Sparsity of B matrix", &
-                          usage="ASPARSITY 80", default_r_val=0.0_dp)
+                          usage="BSPARSITY 80", default_r_val=0.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="CSPARSITY", &
                           description="Sparsity of C matrix", &
-                          usage="ASPARSITY 90", default_r_val=0.0_dp)
+                          usage="CSPARSITY 90", default_r_val=0.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1272,17 +1272,17 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="M", &
                           description="Dimension 1 of C", &
-                          usage="A 1024", default_i_val=256)
+                          usage="M 1024", default_i_val=256)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="N", &
                           description="Dimension 2 of C", &
-                          usage="A 1024", default_i_val=256)
+                          usage="N 1024", default_i_val=256)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="K", &
                           description="Inner dimension M   ", &
-                          usage="A 1024", default_i_val=256)
+                          usage="K 1024", default_i_val=256)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1330,13 +1330,13 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="BSPARSITY", &
                           description="Sparsity of B matrix", &
-                          usage="ASPARSITY 80", default_r_val=0.0_dp)
+                          usage="BSPARSITY 80", default_r_val=0.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="CSPARSITY", &
                           description="Sparsity of C matrix", &
-                          usage="ASPARSITY 90", default_r_val=0.0_dp)
+                          usage="CSPARSITY 90", default_r_val=0.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

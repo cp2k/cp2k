@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -308,6 +308,8 @@ MODULE qs_environment_types
       TYPE(pw_r3d_rs_type), POINTER                         :: spin_embed_pot => NULL()
       ! Polarizability tensor
       TYPE(polar_env_type), POINTER                         :: polar_env => NULL()
+      ! EEQ charges
+      REAL(KIND=dp), DIMENSION(:), POINTER                  :: eeq => NULL()
       ! Resp charges
       REAL(KIND=dp), DIMENSION(:), POINTER                  :: rhs => NULL()
       REAL(KIND=dp)                                         :: total_zeff_corr = -1.0_dp, surface_dipole_moment = -1.0_dp
@@ -346,6 +348,7 @@ CONTAINS
 !> \param sab_tbe ...
 !> \param sab_core ...
 !> \param sab_xb ...
+!> \param sab_xtb_pp ...
 !> \param sab_xtb_nonbond ...
 !> \param sab_almo ...
 !> \param sab_kp ...
@@ -474,6 +477,7 @@ CONTAINS
 !> \param spin_embed_pot ...
 !> \param polar_env ...
 !> \param mos_last_converged ... [SGh]
+!> \param eeq ...
 !> \param rhs ...
 !> \date    23.01.2002
 !> \author  MK
@@ -482,7 +486,8 @@ CONTAINS
    SUBROUTINE get_qs_env(qs_env, atomic_kind_set, qs_kind_set, cell, super_cell, cell_ref, use_ref_cell, kpoints, &
                          dft_control, mos, sab_orb, sab_all, qmmm, qmmm_periodic, sac_ae, sac_ppl, sac_lri, &
                          sap_ppnl, sab_vdw, sab_scp, sap_oce, sab_lrc, sab_se, sab_xtbe, sab_tbe, sab_core, &
-                         sab_xb, sab_xtb_nonbond, sab_almo, sab_kp, sab_kp_nosym, particle_set, energy, force, &
+                         sab_xb, sab_xtb_pp, sab_xtb_nonbond, sab_almo, &
+                         sab_kp, sab_kp_nosym, particle_set, energy, force, &
                          matrix_h, matrix_h_im, matrix_ks, matrix_ks_im, matrix_vxc, run_rtp, rtp, &
                          matrix_h_kp, matrix_h_im_kp, matrix_ks_kp, matrix_ks_im_kp, matrix_vxc_kp, kinetic_kp, matrix_s_kp, &
                          matrix_w_kp, matrix_s_RI_aux_kp, matrix_s, matrix_s_RI_aux, matrix_w, &
@@ -504,7 +509,8 @@ CONTAINS
                          rho_external, external_vxc, mask, mp2_env, bs_env, kg_env, &
                          WannierCentres, atprop, ls_scf_env, do_transport, transport_env, v_hartree_rspace, &
                          s_mstruct_changed, rho_changed, potential_changed, forces_up_to_date, mscfg_env, almo_scf_env, &
-                         gradient_history, variable_history, embed_pot, spin_embed_pot, polar_env, mos_last_converged, rhs)
+                         gradient_history, variable_history, embed_pot, spin_embed_pot, polar_env, mos_last_converged, &
+                         eeq, rhs)
       TYPE(qs_environment_type), INTENT(IN)              :: qs_env
       TYPE(atomic_kind_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: atomic_kind_set
@@ -520,7 +526,7 @@ CONTAINS
       LOGICAL, OPTIONAL                                  :: qmmm, qmmm_periodic
       TYPE(neighbor_list_set_p_type), DIMENSION(:), OPTIONAL, POINTER :: sac_ae, sac_ppl, sac_lri, &
          sap_ppnl, sab_vdw, sab_scp, sap_oce, sab_lrc, sab_se, sab_xtbe, sab_tbe, sab_core, &
-         sab_xb, sab_xtb_nonbond, sab_almo, sab_kp, sab_kp_nosym
+         sab_xb, sab_xtb_pp, sab_xtb_nonbond, sab_almo, sab_kp, sab_kp_nosym
       TYPE(particle_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: particle_set
       TYPE(qs_energy_type), OPTIONAL, POINTER            :: energy
@@ -637,7 +643,7 @@ CONTAINS
       TYPE(pw_r3d_rs_type), OPTIONAL, POINTER            :: embed_pot, spin_embed_pot
       TYPE(polar_env_type), OPTIONAL, POINTER            :: polar_env
       TYPE(mo_set_type), DIMENSION(:), OPTIONAL, POINTER :: mos_last_converged
-      REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: rhs
+      REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: eeq, rhs
 
       TYPE(rho0_mpole_type), POINTER                     :: rho0_m
 
@@ -703,6 +709,9 @@ CONTAINS
 
       ! Polarisability tensor
       IF (PRESENT(polar_env)) polar_env => qs_env%polar_env
+
+      ! EEQ charges
+      IF (PRESENT(eeq)) eeq => qs_env%eeq
 
       ! Resp charges
       IF (PRESENT(rhs)) rhs => qs_env%rhs
@@ -791,6 +800,7 @@ CONTAINS
                       sab_xtbe=sab_xtbe, &
                       sab_core=sab_core, &
                       sab_xb=sab_xb, &
+                      sab_xtb_pp=sab_xtb_pp, &
                       sab_xtb_nonbond=sab_xtb_nonbond, &
                       sab_almo=sab_almo, &
                       sab_kp=sab_kp, &
@@ -1020,6 +1030,7 @@ CONTAINS
 !> \param spin_embed_pot ...
 !> \param polar_env ...
 !> \param mos_last_converged ... [SGh]
+!> \param eeq ...
 !> \param rhs ...
 !> \date    23.01.2002
 !> \author  MK
@@ -1040,7 +1051,7 @@ CONTAINS
                          do_transport, transport_env, lri_env, lri_density, exstate_env, ec_env, dispersion_env, &
                          harris_env, gcp_env, mp2_env, bs_env, kg_env, force, &
                          kpoints, WannierCentres, almo_scf_env, gradient_history, variable_history, embed_pot, &
-                         spin_embed_pot, polar_env, mos_last_converged, rhs)
+                         spin_embed_pot, polar_env, mos_last_converged, eeq, rhs)
 
       TYPE(qs_environment_type), INTENT(INOUT)           :: qs_env
       TYPE(cell_type), OPTIONAL, POINTER                 :: super_cell
@@ -1116,7 +1127,7 @@ CONTAINS
       TYPE(pw_r3d_rs_type), OPTIONAL, POINTER            :: embed_pot, spin_embed_pot
       TYPE(polar_env_type), OPTIONAL, POINTER            :: polar_env
       TYPE(mo_set_type), DIMENSION(:), OPTIONAL, POINTER :: mos_last_converged
-      REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: rhs
+      REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: eeq, rhs
 
       TYPE(qs_subsys_type), POINTER                      :: subsys
 
@@ -1339,6 +1350,9 @@ CONTAINS
       IF (PRESENT(gcp_env)) qs_env%gcp_env => gcp_env
       IF (PRESENT(WannierCentres)) qs_env%WannierCentres => WannierCentres
       IF (PRESENT(kpoints)) CALL set_ks_env(qs_env%ks_env, kpoints=kpoints)
+
+      ! EEQ charges
+      IF (PRESENT(eeq)) qs_env%eeq => eeq
 
       ! Resp charges
       IF (PRESENT(rhs)) qs_env%rhs => rhs
@@ -1594,6 +1608,8 @@ CONTAINS
          END DO
          DEALLOCATE (qs_env%WannierCentres)
       END IF
+      ! EEQ charges
+      IF (ASSOCIATED(qs_env%eeq)) DEALLOCATE (qs_env%eeq)
       ! Resp charges
       IF (ASSOCIATED(qs_env%rhs)) DEALLOCATE (qs_env%rhs)
 
@@ -1811,6 +1827,8 @@ CONTAINS
          END DO
          DEALLOCATE (qs_env%WannierCentres)
       END IF
+      ! EEQ charges
+      IF (ASSOCIATED(qs_env%eeq)) DEALLOCATE (qs_env%eeq)
       ! Resp charges
       IF (ASSOCIATED(qs_env%rhs)) DEALLOCATE (qs_env%rhs)
 

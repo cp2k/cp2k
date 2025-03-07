@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -109,7 +109,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'build_dftb_coulomb'
 
-      INTEGER :: atom_i, atom_j, blk, ewald_type, handle, i, ia, iac, iatom, ic, icol, ikind, img, &
+      INTEGER :: atom_i, atom_j, ewald_type, handle, i, ia, iac, iatom, ic, icol, ikind, img, &
          irow, is, jatom, jkind, natom, natorb_a, natorb_b, nimg, nkind, nmat
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       INTEGER, DIMENSION(3)                              :: cellind, periodic
@@ -234,10 +234,6 @@ CONTAINS
                fi = 1.0_dp
                IF (iatom == jatom) fi = 0.5_dp
                CALL virial_pair_force(virial%pv_virial, fi, fij, rij)
-               IF (atprop%stress) THEN
-                  CALL virial_pair_force(atprop%atstress(:, :, iatom), fi*0.5_dp, fij, rij)
-                  CALL virial_pair_force(atprop%atstress(:, :, jatom), fi*0.5_dp, fij, rij)
-               END IF
             END IF
          END IF
       END DO
@@ -259,8 +255,7 @@ CONTAINS
          CALL get_cell(cell=cell, periodic=periodic, deth=deth)
          CALL ewald_env_get(ewald_env, alpha=alpha, ewald_type=ewald_type)
          CALL get_qs_env(qs_env=qs_env, sab_tbe=n_list)
-         CALL tb_ewald_overlap(gmcharge, mcharge, alpha, n_list, &
-                               virial, use_virial, atprop=atprop)
+         CALL tb_ewald_overlap(gmcharge, mcharge, alpha, n_list, virial, use_virial)
          SELECT CASE (ewald_type)
          CASE DEFAULT
             CPABORT("Invalid Ewald type")
@@ -272,8 +267,7 @@ CONTAINS
             CPABORT("PME not implemented in DFTB")
          CASE (do_ewald_spme)
             CALL tb_spme_evaluate(ewald_env, ewald_pw, particle_set, cell, &
-                                  gmcharge, mcharge, calculate_forces, virial, &
-                                  use_virial, atprop=atprop)
+                                  gmcharge, mcharge, calculate_forces, virial, use_virial)
          END SELECT
       ELSE
          ! direct sum
@@ -374,7 +368,7 @@ CONTAINS
             ! no k-points; all matrices have been transformed to periodic bsf
             CALL dbcsr_iterator_start(iter, matrix_s(1, 1)%matrix)
             DO WHILE (dbcsr_iterator_blocks_left(iter))
-               CALL dbcsr_iterator_next_block(iter, irow, icol, sblock, blk)
+               CALL dbcsr_iterator_next_block(iter, irow, icol, sblock)
                gmij = 0.5_dp*(gmcharge(irow, 1) + gmcharge(icol, 1))
                DO is = 1, SIZE(ks_matrix, 1)
                   NULLIFY (ksblock)
@@ -437,10 +431,6 @@ CONTAINS
                               fi = 1.0_dp
                               IF (iatom == jatom) fi = 0.5_dp
                               CALL virial_pair_force(virial%pv_virial, fi, fij, rij)
-                              IF (atprop%stress) THEN
-                                 CALL virial_pair_force(atprop%atstress(:, :, iatom), 0.5_dp*fi, fij, rij)
-                                 CALL virial_pair_force(atprop%atstress(:, :, jatom), 0.5_dp*fi, fij, rij)
-                              END IF
                            END IF
                         END DO
                      END DO
@@ -498,10 +488,6 @@ CONTAINS
                      fi = 1.0_dp
                      IF (iatom == jatom) fi = 0.5_dp
                      CALL virial_pair_force(virial%pv_virial, fi, fij, rij)
-                     IF (atprop%stress) THEN
-                        CALL virial_pair_force(atprop%atstress(:, :, iatom), fi*0.5_dp, fij, rij)
-                        CALL virial_pair_force(atprop%atstress(:, :, jatom), fi*0.5_dp, fij, rij)
-                     END IF
                   END IF
                END IF
             END DO

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -39,6 +39,7 @@ MODULE qmmm_image_charge
    USE kinds,                           ONLY: default_path_length,&
                                               dp
    USE mathconstants,                   ONLY: pi
+   USE mathlib,                         ONLY: invmat_symm
    USE memory_utilities,                ONLY: reallocate
    USE message_passing,                 ONLY: mp_para_env_type
    USE pw_env_types,                    ONLY: pw_env_get,&
@@ -182,8 +183,8 @@ CONTAINS
       pot_const(:) = -pot_const(:) + V0*SQRT((pi/eta)**3)
 
       !solve linear system of equations T*coeff=-pot_const
-      !LU factorization of T  by DGETRF done in calculate_image_matrix
-      CALL DGETRS('N', natom, 1, qs_env%image_matrix, natom, qs_env%ipiv, &
+      !LU factorization of T by DGETRF done in calculate_image_matrix
+      CALL dgetrs('N', natom, 1, qs_env%image_matrix, natom, qs_env%ipiv, &
                   pot_const, natom, info)
       CPASSERT(info == 0)
 
@@ -616,7 +617,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_image_matrix'
 
-      INTEGER                                            :: handle, j, k, natom, output_unit, stat
+      INTEGER                                            :: handle, natom, output_unit, stat
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: input
 
@@ -664,20 +665,12 @@ CONTAINS
 
       IF (qmmm_env%image_charge_pot%coeff_iterative) THEN
          !inversion --> preconditioner matrix for CG
-         CALL DPOTRF('L', natom, qs_env%image_matrix, natom, stat)
-         CPASSERT(stat == 0)
-         CALL DPOTRI('L', natom, qs_env%image_matrix, natom, stat)
-         CPASSERT(stat == 0)
-         DO j = 1, natom
-            DO k = j + 1, natom
-               qs_env%image_matrix(j, k) = qs_env%image_matrix(k, j)
-            END DO
-         END DO
+         CALL invmat_symm(qs_env%image_matrix)
          CALL write_image_matrix(qs_env%image_matrix, qs_env)
       ELSE
          !pivoting prior to DGETRS (Gaussian elimination)
          IF (PRESENT(ipiv)) THEN
-            CALL DGETRF(natom, natom, image_matrix, natom, ipiv, stat)
+            CALL dgetrf(natom, natom, image_matrix, natom, ipiv, stat)
             CPASSERT(stat == 0)
          END IF
       END IF

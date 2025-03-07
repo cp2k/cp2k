@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -882,12 +882,12 @@ CONTAINS
          work = 0.0_dp
          lwork = -1
          ! get lwork
-         CALL DSYTRD('U', nn, smat, nn, diag, off_diag, tau, work, lwork, info)
+         CALL dsytrd('U', nn, smat, nn, diag, off_diag, tau, work, lwork, info)
          lwork = INT(work(1))
          CALL reallocate(work, 1, lwork)
          ! get the eigenvalues
-         CALL DSYTRD('U', nn, smat, nn, diag, off_diag, tau, work, lwork, info)
-         CALL DSTERF(nn, diag, off_diag, info)
+         CALL dsytrd('U', nn, smat, nn, diag, off_diag, tau, work, lwork, info)
+         CALL dsterf(nn, diag, off_diag, info)
 
          lrii%cond_num = MAXVAL(ABS(diag))/MINVAL(ABS(diag))
 

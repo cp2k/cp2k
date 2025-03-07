@@ -1,0 +1,48 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT H3PO4
+  RUN_TYPE ENERGY
+&END GLOBAL
+
+&FORCE_EVAL
+  &DFT
+    CHARGE 0
+    MULTIPLICITY 1
+    &QS
+      METHOD xTB
+      &XTB
+        DO_EWALD F
+        GFN_TYPE 0
+        VDW_POTENTIAL DFTD4
+      &END XTB
+    &END QS
+    &SCF
+      ADDED_MOS -1 -1
+      SCF_GUESS NONE
+      &SMEAR ON
+        ELECTRONIC_TEMPERATURE 300
+        METHOD Fermi_Dirac
+      &END SMEAR
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 15 15 15
+      PERIODIC NONE
+    &END CELL
+    &COORD
+      P       7.96285062       8.49999998       8.11422991
+      O       9.42203689       8.50000021       7.38885554
+      O       7.23214096       9.76251190       7.38881498
+      O       7.23214170       7.23748774       7.38881495
+      O       7.96346389       8.50000001       9.61118505
+      H      10.11089898       8.49999989       8.08154873
+      H       6.88910106      10.36031503       8.08117309
+      H       6.88910102       6.63968497       8.08117307
+    &END COORD
+    &TOPOLOGY
+      &CENTER_COORDINATES T
+      &END CENTER_COORDINATES
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL

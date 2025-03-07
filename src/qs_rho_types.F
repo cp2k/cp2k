@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -61,26 +61,28 @@ MODULE qs_rho_types
 ! **************************************************************************************************
    TYPE qs_rho_type
       PRIVATE
-      TYPE(kpoint_transitional_type)                 :: rho_ao = kpoint_transitional_type()
-      TYPE(kpoint_transitional_type)                 :: rho_ao_im = kpoint_transitional_type()
+      TYPE(kpoint_transitional_type)                        :: rho_ao = kpoint_transitional_type()
+      TYPE(kpoint_transitional_type)                        :: rho_ao_im = kpoint_transitional_type()
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER           :: rho_r => Null()
-      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER ::                                                        rho_g => Null()
-      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER ::                                                        tau_r => Null()
-      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER ::                 tau_g => Null()
-      TYPE(pw_r3d_rs_type), DIMENSION(:, :), POINTER :: drho_r => NULL()
-      TYPE(pw_c1d_gs_type), DIMENSION(:, :), POINTER :: drho_g => NULL()
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER           :: rho_g => Null()
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER           :: tau_r => Null()
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER           :: tau_g => Null()
+      TYPE(pw_r3d_rs_type), DIMENSION(:, :), POINTER        :: drho_r => NULL()
+      TYPE(pw_c1d_gs_type), DIMENSION(:, :), POINTER        :: drho_g => NULL()
       ! Final rho_iter of last SCCS cycle (r-space)
       TYPE(pw_r3d_rs_type), POINTER                         :: rho_r_sccs => Null()
-      LOGICAL                                        :: rho_g_valid = .FALSE., &
-                                                        rho_r_valid = .FALSE., &
-                                                        drho_r_valid = .FALSE., &
-                                                        drho_g_valid = .FALSE., &
-                                                        tau_r_valid = .FALSE., &
-                                                        tau_g_valid = .FALSE., &
-                                                        soft_valid = .FALSE., &
-                                                        complex_rho_ao = .FALSE.
-      REAL(KIND=dp), DIMENSION(:), POINTER           :: tot_rho_r => Null(), &
-                                                        tot_rho_g => Null()
+      !
+      LOGICAL                                               :: rho_g_valid = .FALSE., &
+                                                               rho_r_valid = .FALSE., &
+                                                               drho_r_valid = .FALSE., &
+                                                               drho_g_valid = .FALSE., &
+                                                               tau_r_valid = .FALSE., &
+                                                               tau_g_valid = .FALSE., &
+                                                               soft_valid = .FALSE., &
+                                                               complex_rho_ao = .FALSE.
+      !
+      REAL(KIND=dp), DIMENSION(:), POINTER                  :: tot_rho_r => Null(), &
+                                                               tot_rho_g => Null()
    END TYPE qs_rho_type
 
 ! **************************************************************************************************
@@ -175,10 +177,8 @@ CONTAINS
 
       CALL kpoint_transitional_release(rho_struct%rho_ao_im)
 
-      IF (ASSOCIATED(rho_struct%tot_rho_r)) &
-         DEALLOCATE (rho_struct%tot_rho_r)
-      IF (ASSOCIATED(rho_struct%tot_rho_g)) &
-         DEALLOCATE (rho_struct%tot_rho_g)
+      IF (ASSOCIATED(rho_struct%tot_rho_r)) DEALLOCATE (rho_struct%tot_rho_r)
+      IF (ASSOCIATED(rho_struct%tot_rho_g)) DEALLOCATE (rho_struct%tot_rho_g)
 
    END SUBROUTINE qs_rho_clear
 

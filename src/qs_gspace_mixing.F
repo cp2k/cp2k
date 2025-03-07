@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -291,7 +291,7 @@ CONTAINS
                                                             inv_err, norm, norm_c_inv, res_norm, &
                                                             vol
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: alpha_c, ev
-      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: a, b, c, c_inv, cpc_h_mix, cpc_s_mix
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: b, c, c_inv, cpc_h_mix, cpc_s_mix
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom
@@ -365,17 +365,20 @@ CONTAINS
             mixing_store%ncall_p(ispin) = mixing_store%ncall_p(ispin) - 1
          ELSE
             nb1 = nb + 1
-            ALLOCATE (a(nb1, nb1))
-            a = 0.0_dp
+            IF (ALLOCATED(b)) DEALLOCATE (b)
             ALLOCATE (b(nb1, nb1))
             b = 0.0_dp
+            IF (ALLOCATED(c)) DEALLOCATE (c)
             ALLOCATE (c(nb, nb))
             c = 0.0_dp
+            IF (ALLOCATED(c_inv)) DEALLOCATE (c_inv)
             ALLOCATE (c_inv(nb, nb))
             c_inv = 0.0_dp
+            IF (ALLOCATED(alpha_c)) DEALLOCATE (alpha_c)
             ALLOCATE (alpha_c(nb))
             alpha_c = 0.0_dp
             norm_c_inv = 0.0_dp
+            IF (ALLOCATED(ev)) DEALLOCATE (ev)
             ALLOCATE (ev(nb1))
             ev = 0.0_dp
 
@@ -505,7 +508,6 @@ CONTAINS
          END IF ! nb==1
 
          IF (res_norm > 1.E-14_dp) THEN
-            DEALLOCATE (a)
             DEALLOCATE (b)
             DEALLOCATE (ev)
             DEALLOCATE (c, c_inv, alpha_c)

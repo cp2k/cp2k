@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -19,9 +19,9 @@ MODULE qs_core_energies
                                               atprop_type
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
-   USE cp_dbcsr_api,                    ONLY: dbcsr_dot,&
-                                              dbcsr_p_type,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type,&
                                               dbcsr_type
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_dot
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: oorootpi,&

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -620,7 +620,7 @@ CONTAINS
       !Solve for tab
       tx(1:nfit, 1:nfun) = fx(1:nfit, 1:nfun)
       x2(1:nfit, 1:nfit) = xx(1:nfit, 1:nfit)
-      CALL DPOSV("U", nfit, nfun, x2, nfit, tx, nfit, info)
+      CALL dposv("U", nfit, nfun, x2, nfit, tx, nfit, info)
       IF (info == 0) THEN
          ! value t*xx*t
          xij = 0.0_dp

@@ -1,6 +1,6 @@
 /*----------------------------------------------------------------------------*/
 /*  CP2K: A general program to perform molecular dynamics simulations         */
-/*  Copyright 2000-2024 CP2K developers group <https://cp2k.org>              */
+/*  Copyright 2000-2025 CP2K developers group <https://cp2k.org>              */
 /*                                                                            */
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
@@ -24,6 +24,7 @@ extern "C" {
 
 #include "../../offload/offload_library.h"
 #include "../../offload/offload_runtime.h"
+
 namespace rocm_backend {
 // a little helper class in the same spirit than std::vector. it must exist
 // somewhere. Maybe possible to get the same thing with std::vector and

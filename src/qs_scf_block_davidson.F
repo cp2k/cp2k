@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -18,9 +18,12 @@
 MODULE qs_scf_block_davidson
 
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_get_diag, dbcsr_get_info, dbcsr_init_p, &
-        dbcsr_multiply, dbcsr_norm, dbcsr_norm_column, dbcsr_release_p, dbcsr_scale_by_vector, &
-        dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_real_default, dbcsr_type_symmetric
+        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_get_info, dbcsr_init_p, &
+        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
+        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_release_p, dbcsr_type, &
+        dbcsr_type_no_symmetry, dbcsr_type_symmetric
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_get_diag,&
+                                              dbcsr_scale_by_vector
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
                                               cp_dbcsr_m_by_n_from_row_template,&
@@ -31,7 +34,7 @@ MODULE qs_scf_block_davidson
                                               cp_fm_symm,&
                                               cp_fm_transpose,&
                                               cp_fm_triangular_invert,&
-                                              cp_fm_upper_to_full
+                                              cp_fm_uplo_to_full
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                               cp_fm_cholesky_restore
    USE cp_fm_diag,                      ONLY: choose_eigv_solver,&
@@ -49,6 +52,7 @@ MODULE qs_scf_block_davidson
                                               cp_fm_vectorsnorm
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_walltime
+   USE message_passing,                 ONLY: mp_comm_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE preconditioner,                  ONLY: apply_preconditioner
    USE preconditioner_types,            ONLY: preconditioner_type
@@ -242,7 +246,7 @@ CONTAINS
             CALL cp_fm_create(s_fm, fm_struct_tmp, name="matrix_tmp")
             !copy matrix_h in h_fm
             CALL copy_dbcsr_to_fm(matrix_h, h_fm)
-            CALL cp_fm_upper_to_full(h_fm, s_fm)
+            CALL cp_fm_uplo_to_full(h_fm, s_fm)
 
             !copy matrix_s in s_fm
 !        CALL cp_fm_set_all(s_fm,0.0_dp)
@@ -481,22 +485,25 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'generate_extended_space_sparse'
 
-      INTEGER :: handle, homo, i_first, i_last, imo, iter, j, jj, k, max_iter, n, nao, nmat, &
-         nmat2, nmo, nmo_converged, nmo_not_converged, nset, nset_conv, nset_not_conv
+      INTEGER :: col_offset, handle, homo, i_first, i_last, imo, iteration, j, jj, k, max_iter, n, &
+         nao, nmat, nmat2, nmo, nmo_converged, nmo_not_converged, nset, nset_conv, nset_not_conv
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: iconv, inotconv
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: iconv_set, inotconv_set
       LOGICAL                                            :: converged, do_apply_preconditioner
       REAL(dp)                                           :: lambda, max_norm, min_norm, t1, t2
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: eig_not_conv, evals, ritz_coeff, vnorm
       REAL(dp), DIMENSION(:), POINTER                    :: eigenvalues
+      REAL(dp), DIMENSION(:, :), POINTER                 :: block
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
       TYPE(cp_fm_type)                                   :: h_block, matrix_mm_fm, matrix_mmt_fm, &
                                                             matrix_nm_fm, matrix_z_fm, mo_conv_fm, &
                                                             s_block, v_block, w_block
       TYPE(cp_fm_type), POINTER                          :: mo_coeff, mo_notconv_fm
+      TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(dbcsr_type), POINTER                          :: c_out, matrix_hc, matrix_mm, matrix_pz, &
                                                             matrix_sc, matrix_z, mo_coeff_b, &
                                                             mo_conv, mo_notconv, smo_conv
+      TYPE(mp_comm_type)                                 :: group
 
       CALL timeset(routineN, handle)
 
@@ -527,21 +534,19 @@ CONTAINS
       ALLOCATE (vnorm(nmo))
 
       converged = .FALSE.
-      DO iter = 1, max_iter
+      DO iteration = 1, max_iter
          NULLIFY (c_out, mo_conv, mo_notconv_fm, mo_notconv)
          ! Prepare HC and SC, using mo_coeff_b (sparse), these are still sparse
          CALL dbcsr_init_p(matrix_hc)
          CALL dbcsr_create(matrix_hc, template=mo_coeff_b, &
                            name="matrix_hc", &
-                           matrix_type=dbcsr_type_no_symmetry, &
-                           nze=0, data_type=dbcsr_type_real_default)
+                           matrix_type=dbcsr_type_no_symmetry)
          CALL dbcsr_init_p(matrix_sc)
          CALL dbcsr_create(matrix_sc, template=mo_coeff_b, &
                            name="matrix_sc", &
-                           matrix_type=dbcsr_type_no_symmetry, &
-                           nze=0, data_type=dbcsr_type_real_default)
+                           matrix_type=dbcsr_type_no_symmetry)
 
-         CALL dbcsr_get_info(mo_coeff_b, nfullrows_total=n, nfullcols_total=k)
+         CALL dbcsr_get_info(mo_coeff_b, nfullrows_total=n, nfullcols_total=k, group=group)
          CALL dbcsr_multiply('n', 'n', 1.0_dp, matrix_h, mo_coeff_b, 0.0_dp, matrix_hc, last_column=k)
          CALL dbcsr_multiply('n', 'n', 1.0_dp, matrix_s, mo_coeff_b, 0.0_dp, matrix_sc, last_column=k)
 
@@ -562,15 +567,25 @@ CONTAINS
          CALL dbcsr_init_p(matrix_z)
          CALL dbcsr_create(matrix_z, template=mo_coeff_b, &
                            name="matrix_z", &
-                           matrix_type=dbcsr_type_no_symmetry, &
-                           nze=0, data_type=dbcsr_type_real_default)
+                           matrix_type=dbcsr_type_no_symmetry)
          CALL dbcsr_copy(matrix_z, matrix_sc)
          CALL dbcsr_scale_by_vector(matrix_z, ritz_coeff, side='right')
          CALL dbcsr_add(matrix_z, matrix_hc, -1.0_dp, 1.0_dp)
 
-         ! Check for converged eigenvectors
+         ! Compute the column norms of matrix_z.
          vnorm = 0.0_dp
-         CALL dbcsr_norm(matrix_z, which_norm=dbcsr_norm_column, norm_vector=vnorm)
+         CALL dbcsr_iterator_start(iter, matrix_z)
+         DO WHILE (dbcsr_iterator_blocks_left(iter))
+            CALL dbcsr_iterator_next_block(iter, block=block, col_offset=col_offset)
+            DO j = 1, SIZE(block, 2)
+               vnorm(col_offset + j - 1) = vnorm(col_offset + j - 1) + SUM(block(:, j)**2)
+            END DO
+         END DO
+         CALL dbcsr_iterator_stop(iter)
+         CALL group%sum(vnorm)
+         vnorm = SQRT(vnorm)
+
+         ! Check for converged eigenvectors
          nmo_converged = 0
          nmo_not_converged = 0
          max_norm = 0.0_dp
@@ -644,9 +659,9 @@ CONTAINS
             t2 = m_walltime()
             IF (output_unit > 0) THEN
                WRITE (output_unit, '(T16,I5,T24,I6,T33,E12.4,2x,E12.4,T60,F8.3)') &
-                  iter, nmo_converged, max_norm, min_norm, t2 - t1
+                  iteration, nmo_converged, max_norm, min_norm, t2 - t1
 
-               WRITE (output_unit, *) " Reached convergence in ", iter, &
+               WRITE (output_unit, *) " Reached convergence in ", iteration, &
                   " Davidson iterations"
             END IF
 
@@ -677,8 +692,7 @@ CONTAINS
             CALL dbcsr_init_p(c_out)
             CALL dbcsr_create(c_out, template=matrix_s, &
                               name="c_out", &
-                              matrix_type=dbcsr_type_symmetric, &
-                              nze=0, data_type=dbcsr_type_real_default)
+                              matrix_type=dbcsr_type_symmetric)
 
             ! allocate mo_conv sparse
             CALL dbcsr_init_p(mo_conv)
@@ -770,8 +784,7 @@ CONTAINS
          CALL dbcsr_init_p(matrix_pz)
          CALL dbcsr_create(matrix_pz, template=matrix_z, &
                            name="matrix_pz", &
-                           matrix_type=dbcsr_type_no_symmetry, &
-                           nze=0, data_type=dbcsr_type_real_default)
+                           matrix_type=dbcsr_type_no_symmetry)
 
          IF (do_apply_preconditioner) THEN
             IF (preconditioner%in_use /= 0) THEN
@@ -907,11 +920,11 @@ CONTAINS
          t2 = m_walltime()
          IF (output_unit > 0) THEN
             WRITE (output_unit, '(T16,I5,T24,I6,T33,E12.4,2x,E12.4,T60,F8.3)') &
-               iter, nmo_converged, max_norm, min_norm, t2 - t1
+               iteration, nmo_converged, max_norm, min_norm, t2 - t1
          END IF
          t1 = m_walltime()
 
-      END DO ! iter
+      END DO ! iteration
 
       DEALLOCATE (ritz_coeff)
       DEALLOCATE (iconv)

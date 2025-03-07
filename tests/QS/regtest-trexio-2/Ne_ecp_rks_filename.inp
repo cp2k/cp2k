@@ -1,0 +1,70 @@
+&GLOBAL
+  PRINT_LEVEL low
+  PROJECT Ne
+  RUN_TYPE energy
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD quickstep
+  &DFT
+    BASIS_SET_FILE_NAME ./stuttgart_rlc.cp2k
+    CHARGE 0
+    MULTIPLICITY 1
+    POTENTIAL_FILE_NAME ./stuttgart_rlc.cp2k
+    UKS false
+    &MGRID
+      CUTOFF 120
+      REL_CUTOFF 30
+    &END MGRID
+    &POISSON
+      PERIODIC none
+      PSOLVER analytic
+    &END POISSON
+    &PRINT
+      &TREXIO
+        FILENAME Ne_atom
+      &END TREXIO
+    &END PRINT
+    &QS
+      EPS_DEFAULT 1.0e-12
+      METHOD gpw
+    &END QS
+    &SCF
+      ADDED_MOS -1
+      EPS_SCF 1.0e-5
+      IGNORE_CONVERGENCE_FAILURE
+      MAX_SCF 6
+      SCF_GUESS atomic
+      &MIXING
+        ALPHA 0.50
+        METHOD direct_p_mixing
+      &END MIXING
+      &PRINT
+        &RESTART off
+        &END RESTART
+      &END PRINT
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL pade
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 10 10 10
+      PERIODIC none
+    &END CELL
+    &COORD
+      Ne    0.00000    0.00000    0.00000
+    &END COORD
+    &KIND Ne
+      BASIS_SET Stuttgart_RLC
+      ELEMENT Ne
+      POTENTIAL ecp Stuttgart_RLC_ECP
+    &END KIND
+    &TOPOLOGY
+      &CENTER_COORDINATES
+      &END CENTER_COORDINATES
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL

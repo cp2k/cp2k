@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -26,6 +26,7 @@ MODULE input_cp2k_mp2
    USE cp_units, ONLY: cp_unit_to_cp2k
    USE input_constants, ONLY: &
       bse_fulldiag, bse_iterdiag, bse_tda, bse_abba, bse_both, &
+      bse_screening_w0, bse_screening_tdhf, bse_screening_rpa, bse_screening_alpha, &
       bse_iter_both_cond, bse_iter_en_cond, bse_iter_res_cond, bse_singlet, &
       bse_triplet, do_eri_gpw, do_eri_mme, do_eri_os, do_potential_coulomb, do_potential_id, &
       do_potential_long, do_potential_mix_cl, do_potential_short, do_potential_truncated, &
@@ -49,7 +50,10 @@ MODULE input_cp2k_mp2
                                   section_create, &
                                   section_release, &
                                   section_type
-   USE input_val_types, ONLY: integer_t, &
+
+   USE input_val_types, ONLY: char_t, &
+                              integer_t, &
+                              logical_t, &
                               real_t
    USE kinds, ONLY: dp
    USE string_utilities, ONLY: newline, &
@@ -423,7 +427,7 @@ CONTAINS
          description="Number of groups for the integration in the Laplace method. Each groups processes "// &
          "the same amount of quadrature points. It must be a divisor of the number of quadrature points and "// &
          "NUM_INTEG_GROUPS*GROUP_SIZE must be a divisor of the total number of processes. The default (-1) is automatic.", &
-         usage="SIZE_INTEG_GROUP 2", &
+         usage="NUM_INTEG_GROUPS 2", &
          default_i_val=-1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -550,7 +554,7 @@ CONTAINS
                           "the same amount of quadrature points. It must be a divisor of the number of quadrature points and "// &
                           "NUM_INTEG_GROUPS*GROUP_SIZE must be a divisor of the total number of processes. "// &
                           "The default (-1) is automatic.", &
-                          usage="SIZE_INTEG_GROUP 2", &
+                          usage="NUM_INTEG_GROUPS 2", &
                           default_i_val=-1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -720,7 +724,7 @@ CONTAINS
                           "Updates of Kohn-Sham orbitals (for example qsGW) are not implemented. "// &
                           "For details which type of eigenvalue self-consistency might be good, "// &
                           "please consult Golze, Dvorak, Rinke, Front. Chem. 2019.", &
-                          usage="GW_SELF_CONSISTENCY evGW0", &
+                          usage="SELF_CONSISTENCY evGW0", &
                           enum_c_vals=s2a("G0W0", "evGW0", "evGW"), &
                           enum_i_vals=(/G0W0, evGW0, evGW/), &
                           enum_desc=s2a("Use DFT eigenvalues; not update.", &
@@ -838,7 +842,7 @@ CONTAINS
                           "If the G0W0 HOMO-LUMO gap differs by less than the "// &
                           "target accuracy during the iteration, the eigenvalue "// &
                           "self-consistency cycle stops. Unit: Hartree.", &
-                          usage="EPS_EV_SC_ITER 0.00005", &
+                          usage="EPS_ITER 0.00005", &
                           default_r_val=cp_unit_to_cp2k(value=0.00136_dp, unit_str="eV"), &
                           unit_str="eV")
 
@@ -878,7 +882,7 @@ CONTAINS
                           description="If true, print the self-energy for all levels for real energy "// &
                           "together with the straight line to see the quasiparticle energy as intersection. "// &
                           "In addition, prints the self-energy for imaginary frequencies together with the Pade fit.", &
-                          usage="SELF_ENERGY", &
+                          usage="PRINT_SELF_ENERGY", &
                           default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -978,7 +982,7 @@ CONTAINS
                           description="Specify number of k-points for the k-point grid of the self-energy. Internally, a "// &
                           "Monkhorst-Pack grid is used. A dense k-point grid may be necessary to compute an accurate density "// &
                           "of state from GW. Large self-energy k-meshes do not cost much more computation time.", &
-                          usage="KPOINTS  nx  ny  nz", repeats=.TRUE., &
+                          usage="KPOINTS_SELF_ENERGY  nx  ny  nz", repeats=.TRUE., &
                           n_var=3, type_of_var=integer_t, default_i_vals=(/0, 0, 0/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1109,7 +1113,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="LOWER_BOUND", &
                           description="Lower bound for GW-DOS in eV.", &
-                          usage="GW_DOS_LOWER_BOUND -20.0", &
+                          usage="LOWER_BOUND -20.0", &
                           default_r_val=cp_unit_to_cp2k(value=-20.0_dp, unit_str="eV"), &
                           unit_str="eV")
       CALL section_add_keyword(gw_dos_section, keyword)
@@ -1117,7 +1121,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="UPPER_BOUND", &
                           description="Upper bound for GW-DOS in eV.", &
-                          usage="GW_DOS_UPPER_BOUND 5.0", &
+                          usage="UPPER_BOUND 5.0", &
                           default_r_val=cp_unit_to_cp2k(value=0.0_dp, unit_str="eV"), &
                           unit_str="eV")
       CALL section_add_keyword(gw_dos_section, keyword)
@@ -1125,7 +1129,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="STEP", &
                           description="Difference of two consecutive energy levels for GW-DOS.", &
-                          usage="GW_DOS_PRECISION 0.1", &
+                          usage="STEP 0.1", &
                           default_r_val=cp_unit_to_cp2k(value=0.0_dp, unit_str="eV"), &
                           unit_str="eV")
       CALL section_add_keyword(gw_dos_section, keyword)
@@ -1133,14 +1137,14 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="MIN_LEVEL_SPECTRAL", &
                           description="Lowest energy level to print the self energy to files.", &
-                          usage="MIN_LEVEL_SELF_ENERGY 3", &
+                          usage="MIN_LEVEL_SPECTRAL 3", &
                           default_i_val=1)
       CALL section_add_keyword(gw_dos_section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="MAX_LEVEL_SPECTRAL", &
                           description="Highest energy level to print the self energy to files.", &
-                          usage="MAX_LEVEL_SELF_ENERGY 6", &
+                          usage="MAX_LEVEL_SPECTRAL 6", &
                           default_i_val=0)
       CALL section_add_keyword(gw_dos_section, keyword)
       CALL keyword_release(keyword)
@@ -1257,7 +1261,7 @@ CONTAINS
                           "in case a diffused basis is used for GW to converge the HOMO-LUMO gap. In this case, "// &
                           "numerical problems may occur due to diffuse functions in the basis. This keyword only works if "// &
                           "AUX_GW <basis set>  is specified in the kind section for every atom kind.", &
-                          usage="AUX_BAS_GW TRUE", &
+                          usage="DO_AUX_BAS_GW TRUE", &
                           default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -1298,7 +1302,8 @@ CONTAINS
                           "$\left( \begin{array}{cc}\mathbf{X}^{(n)}\\\mathbf{Y}^{(n)}\end{array} \right) = "// &
                           "\Omega^{(n)}\left(\begin{array}{cc}1&0\\0&-1\end{array}\right)$ "// &
                           "$\left(\begin{array}{cc}\mathbf{X}^{(n)}\\\mathbf{Y}^{(n)}\end{array}\right)$ "// &
-                          "enables of electronic excitation energies $\Omega^{(n)}$. The BSE can be solved by diagonalizing "// &
+                          "enables, for example, the computation of electronic excitation energies $\Omega^{(n)}$ "// &
+                          "as well as optical properties. The BSE can be solved by diagonalizing "// &
                           "the full ABBA-matrix or by setting B=0, i.e. within the Tamm-Dancoff approximation (TDA). "// &
                          "Preliminary reference: Eq. (35) in PRB 92, 045209 (2015); http://dx.doi.org/10.1103/PhysRevB.92.045209", &
                           n_keywords=8, n_subsections=3, repeats=.FALSE.)
@@ -1326,7 +1331,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="BSE_DIAG_METHOD", &
                           description="Method for BSE calculations. "// &
                           "Choose between full or iterative diagonalization.", &
-                          usage="&BSE_DIAG_METHOD FULLDIAG", &
+                          usage="BSE_DIAG_METHOD FULLDIAG", &
                           enum_c_vals=s2a("FULLDIAG", "ITERDIAG"), &
                           enum_i_vals=(/bse_fulldiag, bse_iterdiag/), &
                           enum_desc=s2a("Fully diagonalizes the BSE matrices within the chosen level of approximation.", &
@@ -1338,7 +1343,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="TDA", &
                           description="Level of approximation applied to BSE calculations. "// &
                           "Choose between Tamm Dancoff approximation (TDA) and/or diagonalization of the full ABBA-matrix.", &
-                          usage="&TDA ON", &
+                          usage="TDA ON", &
                           enum_c_vals=s2a("ON", "OFF", "TDA+ABBA"), &
                           enum_i_vals=(/bse_tda, bse_abba, bse_both/), &
                           enum_desc=s2a("The TDA is applied, i.e. B=0.", &
@@ -1370,15 +1375,32 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="BSE_DEBUG_PRINT", &
                           description="Activates debug print statements in the BSE calculation.", &
-                          usage="&BSE_DEBUG_PRINT .TRUE.", &
+                          usage="BSE_DEBUG_PRINT .TRUE.", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="NUM_PRINT_EXC", &
-                          description="Number of printed excitation energies. Does not affect computation time.", &
+                          description="Number of printed excitation levels with respective "// &
+                          "energies and oscillator strengths. Does not affect computation time.", &
                           usage="NUM_PRINT_EXC 25", &
                           default_i_val=25)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="NUM_PRINT_EXC_DESCR", &
+                          description="Number of excitation levels for which the exciton "// &
+                          "descriptors are computed. Negative or too large "// &
+                          "NUM_PRINT_EXC_DESCR defaults to NUM_PRINT_EXC.", &
+                          usage="NUM_PRINT_EXC_DESCR 5", &
+                          default_i_val=0)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="PRINT_DIRECTIONAL_EXC_DESCR", &
+                          description="Activates printing of exciton descriptors per direction.", &
+                          usage="PRINT_DIRECTIONAL_EXC_DESCR .TRUE.", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1390,6 +1412,18 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="USE_KS_ENERGIES", &
+                          description="Uses KS energies instead of GW quasiparticle energies.", &
+                          usage="USE_KS_ENERGIES .TRUE.", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      NULLIFY (subsection)
+      CALL create_bse_screening_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
       NULLIFY (subsection)
       CALL create_bse_iterat_section(subsection)
       CALL section_add_subsection(section, subsection)
@@ -1400,7 +1434,141 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
+      NULLIFY (subsection)
+      CALL create_bse_nto_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
    END SUBROUTINE
+
+   SUBROUTINE create_bse_screening_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+
+      CALL section_create(section, __LOCATION__, name="SCREENING_IN_W", &
+                          description="Screening $\epsilon$ applied to $W(\omega=0)=\epsilon^{-1}(\omega=0) v $ "// &
+                          "in the BSE calculation. Besides default BSE, i.e. $W_0$ (screening with DFT energies), "// &
+                          "a fixed $\alpha = \epsilon^{-1}(\omega)$ can be applied, which is similar to the mixing "// &
+                          "parameter for hybrid functionals in LR-TDDFT. In addition, the keywords TDHF "// &
+                          "(no screening - $\alpha = 1$) and RPA (infinite screening - $\alpha = 0$) can be applied.", &
+                          n_keywords=2, n_subsections=0, repeats=.FALSE.)
+
+      NULLIFY (keyword)
+
+      CALL keyword_create( &
+         keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
+         description="Shortcut for the most common functional combinations.", &
+         usage="&xc_functional BLYP", &
+         enum_c_vals=s2a("W_0", "TDHF", "RPA", "ALPHA"), &
+         enum_i_vals=(/bse_screening_w0, bse_screening_tdhf, bse_screening_rpa, bse_screening_alpha/), &
+         enum_desc=s2a("The Coulomb interaction is screened by applying DFT energies "// &
+                       "$\varepsilon_p^{DFT}$, which is typically used for GW-BSE and "// &
+                       "often labeled as $W_0$.", &
+                       "The Coulomb interaction is not screened, i.e. $W_{pq,rs}(\omega=0) "// &
+                       "\rightarrow v_{pq,rs}$ enters.", &
+                       "Infinite screening is applied, i.e. $W_{pq,rs}(\omega=0) \rightarrow 0$.", &
+                       "Arbitrary screening parameter. Specify within section."), &
+         default_i_val=bse_screening_w0, &
+         lone_keyword_i_val=bse_screening_w0)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="ALPHA", &
+                          description="Screening parameter similar to the mixing in hybrid functionals used in TDDFT. "// &
+                          "$\alpha$ mimicks the screening $\epsilon^{-1}(\omega)$ and enforces $W = \alpha v$ "// &
+                          "in the BSE calculation.", &
+                          usage="ALPHA 0.25", &
+                          type_of_var=real_t, default_r_val=-1.00_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE create_bse_screening_section
+
+   SUBROUTINE create_bse_nto_section(print_key)
+      TYPE(section_type), POINTER                        :: print_key
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      CPASSERT(.NOT. ASSOCIATED(print_key))
+
+      CALL cp_print_key_section_create(print_key, __LOCATION__, name="NTO_ANALYSIS", &
+                                description="Perform a natural transition orbital analysis, i.e. the transition density matrix "// &
+                            "$T^{(n)}=\left( \begin{array}{cc}0& {X}^{(n)}\\ \left({Y}^{(n)} \right)^T & 0\end{array} \right)$ "// &
+                                       "is decomposed into its singular values "// &
+                                       "$T^{(n)} = {U}^{(n)} {\Lambda^{(n)}} \left({V}^{(n)}\right)^T$ "// &
+                                       "in order to compute the NTO pairs "// &
+                   "$\phi_I^{(n)}(\mathbf{r}_e) = \sum_{p=1}^{N_b} \varphi_p(\mathbf{r}_e) V_{p,I}^{(n)}$ for the electron and "// &
+                            "$\chi_I^{(n)}(\mathbf{r}_h) = \sum_{q=1}^{N_b} \varphi_q(\mathbf{r}_h) U_{q,I}^{(n)}$ for the hole.", &
+                                       print_level=debug_print_level + 1, &  ! Corresponds to "off" as default behavior
+                                       filename="BSE-NTO_ANALYSIS")        ! All other print levels will trigger the analysis
+      ! cf. input/cp_output_handling.F:cp_print_key_section_create
+
+      NULLIFY (keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_NTO_EIGVAL", &
+                          description="Threshold for NTO eigenvalues, i.e. only "// &
+                          "${\left(\lambda_I^{(n)}\right)}^2$ > EPS_NTO_EIGVAL are considered.", &
+                          usage="EPS_NTO_EIGVAL 0.01", &
+                          n_var=1, &
+                          type_of_var=real_t, &
+                          default_r_val=0.01_dp)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_OSC_STR", &
+                          description="Threshold of oscillator strengths $f^{(n)}$ for an excitation level. "// &
+                          "In case, the excitation level n has a smaller oscillator strength, the "// &
+                          "NTOs for this excitation level are not printed.", &
+                          usage="EPS_OSC_STR 0.01", &
+                          n_var=1, &
+                          type_of_var=real_t, &
+                          default_r_val=-1.0_dp)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="NUM_PRINT_EXC_NTOS", &
+                          description="Number of excitation level $n$ up to which NTOs are printed. "// &
+                          "By default, this is set to NUM_PRINT_EXC. Negative or too large "// &
+                          "NUM_PRINT_EXC_NTOS defaults to NUM_PRINT_EXC.", &
+                          usage="NUM_PRINT_EXC_NTOS 5", &
+                          n_var=1, &
+                          type_of_var=integer_t, &
+                          default_i_val=-1)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="STATE_LIST", &
+                          description="Specifies a list of excitation levels $n$ for which NTOs are printed. "// &
+                          "Overrides NUM_PRINT_EXC_NTOS.", &
+                          usage="STATE_LIST {integer} {integer} .. {integer}", &
+                          n_var=-1, type_of_var=integer_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="CUBE_FILES", &
+                          description="Print NTOs on Cube Files", &
+                          usage="CUBE_FILES {logical}", repeats=.FALSE., n_var=1, &
+                          default_l_val=.TRUE., lone_keyword_l_val=.TRUE., type_of_var=logical_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="STRIDE", &
+                          description="The stride (X,Y,Z) used to write the cube file "// &
+                          "(larger values result in smaller cube files). Provide 3 numbers (for X,Y,Z) or"// &
+                          " 1 number valid for all components.", &
+                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
+                          description="append the cube files when they already exist", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE create_bse_nto_section
 
    SUBROUTINE create_bse_spectrum_section(section)
       TYPE(section_type), POINTER                        :: section
@@ -1409,21 +1577,27 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="BSE_SPECTRUM", &
-                          description="Parameters influencing the output of the optical spectrum "// &
-                          "obtained from a BSE calculation.", &
+                          description="Parameters influencing the output of the optical absorption spectrum, i.e. "// &
+                          "the dynamical dipole polarizability tensor $\alpha_{\mu,\mu'}(\omega)$ "// &
+                          "($\mu,\mu'\in\{x,y,z\}$), obtained from a BSE calculation, which is defined as "// &
+                          "$ \alpha_{\mu,\mu'}(\omega) = \sum_n \frac{2 E^{(n)} d^{(n)}_{\mu} d^{(n)}_{\mu'}} "// &
+                          "{(\omega+i\eta)^2-\left(\Omega^{(n)}\right)^2} $. "// &
+                          "The printed file will contain the specified frequency range $\omega$ and the "// &
+                          "corresponding imaginary part of the average $\bar{\alpha}(\omega)=\frac{1}{3}\mathrm{Tr} "// &
+                          "\left[ \alpha_{\mu,\mu'}(\omega)\right]$ as well as of the elements of $\alpha_{\mu,\mu'}(\omega)$.", &
                           n_keywords=9, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
-                          description="Activates printing of optical spectrum after a BSE calculation.", &
+                          description="Activates printing of optical absorption spectrum from the BSE calculation.", &
                           usage="&BSE .TRUE.", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="FREQUENCY_STEP_SIZE", &
-                          description="Step size of frequencies for the optical spectrum.", &
+                          description="Step size of frequencies for the optical absorption spectrum.", &
                           usage="FREQUENCY_STEP_SIZE 0.1", unit_str="eV", &
                           type_of_var=real_t, &
                           default_r_val=cp_unit_to_cp2k(value=0.1_dp, unit_str="eV"))
@@ -1431,14 +1605,14 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="FREQUENCY_STARTING_POINT", &
-                          description="First frequency to print in the optical spectrum.", &
+                          description="First frequency to print in the optical absorption spectrum.", &
                           usage="FREQUENCY_STARTING_POINT 0", unit_str="eV", &
                           type_of_var=real_t, default_r_val=0.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="FREQUENCY_END_POINT", &
-                          description="Last frequency to print in the optical spectrum.", &
+                          description="Last frequency to print in the optical absorption spectrum.", &
                           usage="FREQUENCY_END_POINT 0", unit_str="eV", &
                           type_of_var=real_t, &
                           default_r_val=cp_unit_to_cp2k(value=100.0_dp, unit_str="eV"))
@@ -1446,7 +1620,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="ETA_LIST", &
-                          description="List of broadening of the peaks in the optical spectrum.", &
+                          description="List of broadening of the peaks in the optical absorption spectrum.", &
                           usage="ETA_LIST 0.01 ...", unit_str="eV", &
                           default_r_vals=(/cp_unit_to_cp2k(value=0.01_dp, unit_str="eV")/), &
                           type_of_var=real_t, n_var=-1)
@@ -1535,7 +1709,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="NUM_DAVIDSON_ITER", &
                           description="Maximum number of iterations for determining the transition energies.", &
-                          usage="MAX_ITER 100", &
+                          usage="NUM_DAVIDSON_ITER 100", &
                           default_i_val=100)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1570,7 +1744,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="PRINT_IC_LIST", &
                           description="If true, the image charge correction values are printed in a list, "// &
                           "such that it can be used as input for a subsequent evGW calculation.", &
-                          usage="PRINT_IC_VALUES", &
+                          usage="PRINT_IC_LIST .TRUE.", &
                           default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -1737,7 +1911,7 @@ CONTAINS
          name="EPS_EIGVAL_S_GAMMA", &
          description="Parameter to reduce the expansion coefficients in RI for periodic GW. Removes all "// &
          "eigenvectors and eigenvalues of M_PQ(k=0) that are smaller than EPS_EIGVAL_S. ", &
-         usage="EPS_EIGVAL_S 1.0E-3", &
+         usage="EPS_EIGVAL_S_GAMMA 1.0E-3", &
          default_r_val=0.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1995,7 +2169,7 @@ CONTAINS
                           description="Use a Polak-Ribiere update of the search vector in CG instead of the Fletcher "// &
                           "Reeves update. Improves the convergence with modified step sizes. "// &
                           "Ignored with other methods than CG.", &
-                          usage="ENFORCE_DECREASE T", &
+                          usage="DO_POLAK_RIBIERE T", &
                           lone_keyword_l_val=.TRUE., &
                           default_l_val=.FALSE.)
       CALL section_add_keyword(section, keyword)
@@ -2030,7 +2204,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="EPS_CONV", &
                           description="Target accuracy for Z-vector euation solution.", &
-                          usage="EPS 1.e-6", default_r_val=1.e-6_dp)
+                          usage="EPS_CONV 1.e-6", default_r_val=1.e-6_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -2159,7 +2333,7 @@ CONTAINS
          name="SCALE_COULOMB", &
          description="Scaling factor of (truncated) Coulomb potential in mixed (truncated) Coulomb/Longrange potential. "// &
          "Only valid when mixed potential is requested.", &
-         usage="OMEGA 0.5", type_of_var=real_t, &
+         usage="SCALE_COULOMB 0.5", type_of_var=real_t, &
          default_r_val=1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -2169,7 +2343,7 @@ CONTAINS
          name="SCALE_LONGRANGE", &
          description="Scaling factor of longrange Coulomb potential in mixed (truncated) Coulomb/Longrange potential. "// &
          "Only valid when mixed potential is requested.", &
-         usage="OMEGA 0.5", type_of_var=real_t, &
+         usage="SCALE_LONGRANGE 0.5", type_of_var=real_t, &
          default_r_val=1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -2244,6 +2418,13 @@ CONTAINS
                           "potential is employed.", &
                           usage="DO_SVD  .TRUE.", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_SVD", &
+                          description="Determines the upper bound of eigenvectors to be removed during the SVD (see DO_SVD).", &
+                          usage="EPS_SVD  1E-5", &
+                          default_r_val=0.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

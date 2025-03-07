@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -238,7 +238,7 @@ CONTAINS
 !> \param fm_struct ...
 !> \param name ...
 !> \par History
-!>      11.2002 rewamped [fawzi]
+!>      11.2002 revamped [fawzi]
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    SUBROUTINE init_mo_set(mo_set, fm_pool, fm_ref, fm_struct, name)

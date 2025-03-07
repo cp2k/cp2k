@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -16,7 +16,8 @@ MODULE pao_param_linpot
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_create, dbcsr_get_block_p, dbcsr_get_info, dbcsr_iterator_blocks_left, &
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
-        dbcsr_p_type, dbcsr_release, dbcsr_reserve_diag_blocks, dbcsr_type
+        dbcsr_p_type, dbcsr_release, dbcsr_type
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_reserve_diag_blocks
    USE dm_ls_scf_types,                 ONLY: ls_scf_env_type
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_flush
@@ -404,8 +405,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pao_calc_U_linpot'
 
-      INTEGER                                            :: acol, arow, group_handle, handle, iatom, &
-                                                            kterm, n, natoms, nterms
+      INTEGER                                            :: acol, arow, handle, iatom, kterm, n, &
+                                                            natoms, nterms
       LOGICAL                                            :: found
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: gaps
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: evals
@@ -427,8 +428,7 @@ CONTAINS
       evals(:, :) = 0.0_dp
       gaps(:) = HUGE(1.0_dp)
       regu_energy = 0.0_dp
-      CALL dbcsr_get_info(matrix_U, group=group_handle)
-      CALL group%set_handle(group_handle)
+      CALL dbcsr_get_info(matrix_U, group=group)
 
       CALL dbcsr_iterator_start(iter, pao%matrix_X)
       DO WHILE (dbcsr_iterator_blocks_left(iter))

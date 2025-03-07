@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -19,8 +19,7 @@ MODULE dm_ls_scf_qs
         dbcsr_complete_redistribute, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, &
         dbcsr_distribution_get, dbcsr_distribution_hold, dbcsr_distribution_new, &
         dbcsr_distribution_release, dbcsr_distribution_type, dbcsr_finalize, dbcsr_get_info, &
-        dbcsr_multiply, dbcsr_nblkrows_total, dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type, &
-        dbcsr_type_real_8
+        dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -47,12 +46,15 @@ MODULE dm_ls_scf_qs
                                               pw_r3d_rs_type
    USE qs_atomic_block,                 ONLY: calculate_atomic_block_dm
    USE qs_collocate_density,            ONLY: calculate_rho_elec
+   USE qs_core_energies,                ONLY: calculate_ptrace
    USE qs_density_mixing_types,         ONLY: direct_mixing_nr,&
                                               gspace_mixing_nr
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_gspace_mixing,                ONLY: gspace_mixing
+   USE qs_harris_types,                 ONLY: harris_type
+   USE qs_harris_utils,                 ONLY: harris_density_update
    USE qs_initial_guess,                ONLY: calculate_mopac_dm
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
@@ -78,8 +80,8 @@ MODULE dm_ls_scf_qs
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dm_ls_scf_qs'
 
    PUBLIC :: matrix_ls_create, matrix_qs_to_ls, matrix_ls_to_qs, ls_scf_init_qs, &
-             ls_scf_dm_to_ks, ls_scf_qs_atomic_guess, write_matrix_to_cube, rho_mixing_ls_init, &
-             matrix_decluster
+             ls_nonscf_ks, ls_nonscf_energy, ls_scf_dm_to_ks, ls_scf_qs_atomic_guess, &
+             write_matrix_to_cube, rho_mixing_ls_init, matrix_decluster
 
 CONTAINS
 
@@ -100,8 +102,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'matrix_ls_create'
 
       CHARACTER(len=default_string_length)               :: name
-      INTEGER                                            :: handle, iatom, imol, jatom, &
-                                                            ls_data_type, natom, nmol
+      INTEGER                                            :: handle, iatom, imol, jatom, natom, nmol
       INTEGER, ALLOCATABLE, DIMENSION(:), TARGET         :: atom_to_cluster, atom_to_cluster_primus, &
                                                             clustered_blk_sizes, primus_of_mol
       INTEGER, DIMENSION(:), POINTER                     :: clustered_col_dist, clustered_row_dist, &
@@ -114,7 +115,6 @@ CONTAINS
       CALL dbcsr_get_info(matrix_qs, col_blk_size=ls_blk_sizes, distribution=ls_dist)
       CALL dbcsr_distribution_hold(ls_dist)
       CALL dbcsr_distribution_get(ls_dist, row_dist=ls_row_dist, col_dist=ls_col_dist)
-      ls_data_type = dbcsr_type_real_8
 
       ! PAO ----------------------------------------------------------------------------------------
       IF (ls_mstruct%do_pao) THEN
@@ -127,7 +127,7 @@ CONTAINS
          ! do nothing
       CASE (ls_cluster_molecular)
          ! create format of the clustered matrix
-         natom = dbcsr_nblkrows_total(matrix_qs)
+         CALL dbcsr_get_info(matrix_qs, nblkrows_total=natom)
          nmol = MAXVAL(ls_mstruct%atom_to_molecule)
          ALLOCATE (atom_to_cluster_primus(natom))
          ALLOCATE (atom_to_cluster(natom))
@@ -186,7 +186,6 @@ CONTAINS
                         name=name, &
                         dist=ls_dist, &
                         matrix_type="S", &
-                        data_type=ls_data_type, &
                         row_blk_size=ls_blk_sizes, &
                         col_blk_size=ls_blk_sizes)
       CALL dbcsr_distribution_release(ls_dist)
@@ -270,7 +269,7 @@ CONTAINS
 
       SELECT CASE (ls_mstruct%cluster_type)
       CASE (ls_cluster_atomic)
-         CALL dbcsr_copy(matrix_out, matrix_in) ! takes care of an eventual data_type conversion
+         CALL dbcsr_copy(matrix_out, matrix_in)
 
       CASE (ls_cluster_molecular)
          ! desymmetrize the qs matrix
@@ -278,7 +277,7 @@ CONTAINS
          CALL dbcsr_desymmetrize(matrix_in, matrix_in_nosym)
 
          ! perform the magic complete redistribute copy
-         CALL dbcsr_complete_redistribute(matrix_in_nosym, matrix_out); 
+         CALL dbcsr_complete_redistribute(matrix_in_nosym, matrix_out)
          CALL dbcsr_release(matrix_in_nosym)
 
       CASE DEFAULT
@@ -374,7 +373,7 @@ CONTAINS
 
       SELECT CASE (ls_mstruct%cluster_type)
       CASE (ls_cluster_atomic)
-         CALL dbcsr_copy(matrix_out, matrix_in) ! takes care of an eventual data_type conversion
+         CALL dbcsr_copy(matrix_out, matrix_in)
 
       CASE (ls_cluster_molecular)
          ! perform the magic complete redistribute copy
@@ -448,20 +447,24 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief get an atomic initial guess
 !> \param qs_env ...
+!> \param ls_scf_env ...
 !> \param energy ...
+!> \param nonscf ...
 !> \par History
 !>       2012.11 created [Joost VandeVondele]
 !> \author Joost VandeVondele
 ! **************************************************************************************************
-   SUBROUTINE ls_scf_qs_atomic_guess(qs_env, energy)
+   SUBROUTINE ls_scf_qs_atomic_guess(qs_env, ls_scf_env, energy, nonscf)
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(ls_scf_env_type)                              :: ls_scf_env
       REAL(KIND=dp)                                      :: energy
+      LOGICAL, INTENT(IN), OPTIONAL                      :: nonscf
 
       CHARACTER(len=*), PARAMETER :: routineN = 'ls_scf_qs_atomic_guess'
 
       INTEGER                                            :: handle, nspin, unit_nr
       INTEGER, DIMENSION(2)                              :: nelectron_spin
-      LOGICAL                                            :: has_unit_metric
+      LOGICAL                                            :: do_scf, has_unit_metric
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s, rho_ao
@@ -513,11 +516,16 @@ CONTAINS
                                         nspin, nelectron_spin, unit_nr, para_env)
       END IF
 
-      CALL qs_rho_update_rho(rho, qs_env=qs_env)
-      CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE.)
-      CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE., just_energy=.FALSE.)
-
-      energy = qs_energy%total
+      do_scf = .TRUE.
+      IF (PRESENT(nonscf)) do_scf = .NOT. nonscf
+      IF (do_scf) THEN
+         CALL qs_rho_update_rho(rho, qs_env=qs_env)
+         CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE.)
+         CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE., just_energy=.FALSE.)
+         energy = qs_energy%total
+      ELSE
+         CALL ls_nonscf_ks(qs_env, ls_scf_env, energy)
+      END IF
 
       CALL timestop(handle)
 
@@ -603,6 +611,105 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE ls_scf_dm_to_ks
+
+! **************************************************************************************************
+!> \brief use the external density in ls_scf_env to compute the new KS matrix
+!> \param qs_env ...
+!> \param ls_scf_env ...
+!> \param energy_new ...
+! **************************************************************************************************
+   SUBROUTINE ls_nonscf_ks(qs_env, ls_scf_env, energy_new)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(ls_scf_env_type)                              :: ls_scf_env
+      REAL(KIND=dp)                                      :: energy_new
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'ls_nonscf_ks'
+
+      INTEGER                                            :: handle, ispin, nspin
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
+      TYPE(harris_type), POINTER                         :: harris_env
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(qs_energy_type), POINTER                      :: energy
+      TYPE(qs_rho_type), POINTER                         :: rho
+
+      NULLIFY (energy, rho, rho_ao)
+      CALL timeset(routineN, handle)
+
+      nspin = ls_scf_env%nspins
+      CALL get_qs_env(qs_env, para_env=para_env, energy=energy, rho=rho)
+      CALL qs_rho_get(rho, rho_ao=rho_ao)
+
+      ! set the new density matrix
+      DO ispin = 1, nspin
+         CALL matrix_ls_to_qs(rho_ao(ispin)%matrix, ls_scf_env%matrix_p(ispin), &
+                              ls_scf_env%ls_mstruct, covariant=.FALSE.)
+      END DO
+
+      IF (qs_env%harris_method) THEN
+         CALL get_qs_env(qs_env, harris_env=harris_env)
+         CALL harris_density_update(qs_env, harris_env)
+      END IF
+      ! compute the corresponding KS matrix and new energy
+      CALL qs_rho_update_rho(rho, qs_env=qs_env)
+      IF (ls_scf_env%do_rho_mixing) THEN
+         CPABORT("P mixing not implemented in linear scaling NONSCF. ")
+      END IF
+
+      CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE.)
+      CALL qs_ks_update_qs_env(qs_env, calculate_forces=.FALSE., &
+                               just_energy=.FALSE., print_active=.TRUE.)
+      energy_new = energy%total
+
+      CALL timestop(handle)
+
+   END SUBROUTINE ls_nonscf_ks
+
+! **************************************************************************************************
+!> \brief use the new density matrix in ls_scf_env to compute the new energy
+!> \param qs_env ...
+!> \param ls_scf_env ...
+! **************************************************************************************************
+   SUBROUTINE ls_nonscf_energy(qs_env, ls_scf_env)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(ls_scf_env_type)                              :: ls_scf_env
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'ls_nonscf_energy'
+
+      INTEGER                                            :: handle, ispin, nspin
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_h, matrix_ks, rho_ao
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(qs_energy_type), POINTER                      :: energy
+      TYPE(qs_rho_type), POINTER                         :: rho
+
+      NULLIFY (energy, rho, rho_ao)
+      CALL timeset(routineN, handle)
+      IF (qs_env%qmmm) THEN
+         CPABORT("NYA")
+      END IF
+
+      nspin = ls_scf_env%nspins
+      CALL get_qs_env(qs_env, para_env=para_env, energy=energy, rho=rho)
+      CALL qs_rho_get(rho, rho_ao=rho_ao)
+
+      ! set the new density matrix
+      DO ispin = 1, nspin
+         CALL matrix_ls_to_qs(rho_ao(ispin)%matrix, ls_scf_env%matrix_p(ispin), &
+                              ls_scf_env%ls_mstruct, covariant=.FALSE.)
+      END DO
+
+      CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE.)
+
+      ! band energy : Tr(PH)
+      CALL get_qs_env(qs_env, matrix_ks=matrix_ks)
+      CALL calculate_ptrace(matrix_ks, rho_ao, energy%band, nspin)
+      ! core energy : Tr(Ph)
+      energy%total = energy%total - energy%core
+      CALL get_qs_env(qs_env, matrix_h=matrix_h)
+      CALL calculate_ptrace(matrix_h, rho_ao, energy%core, nspin)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE ls_nonscf_energy
 
 ! **************************************************************************************************
 !> \brief ...

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -19,12 +19,15 @@ MODULE pao_methods
                                               cite_reference
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_add, dbcsr_binary_read, dbcsr_checksum, dbcsr_complete_redistribute, dbcsr_copy, &
-        dbcsr_create, dbcsr_desymmetrize, dbcsr_distribution_get, dbcsr_distribution_new, &
-        dbcsr_distribution_type, dbcsr_dot, dbcsr_filter, dbcsr_get_block_p, dbcsr_get_info, &
+        dbcsr_add, dbcsr_binary_read, dbcsr_complete_redistribute, dbcsr_copy, dbcsr_create, &
+        dbcsr_desymmetrize, dbcsr_distribution_get, dbcsr_distribution_new, &
+        dbcsr_distribution_type, dbcsr_filter, dbcsr_get_block_p, dbcsr_get_info, &
         dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
-        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, dbcsr_release, &
-        dbcsr_reserve_diag_blocks, dbcsr_scale, dbcsr_set, dbcsr_type
+        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, dbcsr_release, dbcsr_scale, &
+        dbcsr_set, dbcsr_type
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_checksum,&
+                                              dbcsr_dot,&
+                                              dbcsr_reserve_diag_blocks
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type,&
                                               cp_to_string
@@ -44,7 +47,8 @@ MODULE pao_methods
                                               diamat_all
    USE message_passing,                 ONLY: mp_para_env_type
    USE pao_ml,                          ONLY: pao_ml_forces
-   USE pao_model,                       ONLY: pao_model_load
+   USE pao_model,                       ONLY: pao_model_forces,&
+                                              pao_model_load
    USE pao_param,                       ONLY: pao_calc_AB,&
                                               pao_param_count
    USE pao_types,                       ONLY: pao_env_type
@@ -878,7 +882,7 @@ CONTAINS
             pao%need_initial_scf = .FALSE.
             pao%preopt_dm_file = "" ! load only for first MD step
          ELSE
-            CALL ls_scf_qs_atomic_guess(qs_env, ls_scf_env%energy_init)
+            CALL ls_scf_qs_atomic_guess(qs_env, ls_scf_env, ls_scf_env%energy_init)
             IF (pao%iw > 0) WRITE (pao%iw, '(A,F20.9)') &
                " PAO| Energy from initial atomic guess:", ls_scf_env%energy_init
             pao%need_initial_scf = .TRUE.
@@ -999,7 +1003,7 @@ CONTAINS
          CALL pao_ml_forces(pao, qs_env, pao%matrix_G, forces)
 
       IF (ALLOCATED(pao%models)) &
-         CPABORT("PAO forces for PyTorch models are not yet implemented.")
+         CALL pao_model_forces(pao, qs_env, pao%matrix_G, forces)
 
       CALL para_env%sum(forces)
       DO iatom = 1, natoms

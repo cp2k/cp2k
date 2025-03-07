@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -32,8 +32,9 @@ MODULE mp2_ri_2c
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, &
         dbcsr_distribution_release, dbcsr_distribution_type, dbcsr_p_type, dbcsr_release, &
-        dbcsr_reserve_all_blocks, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, &
-        dbcsr_type_no_symmetry, dbcsr_type_symmetric
+        dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, &
+        dbcsr_type_symmetric
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_reserve_all_blocks
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               cp_dbcsr_dist2d_to_dist,&
@@ -138,6 +139,7 @@ CONTAINS
 !> \param gd_array ...
 !> \param calc_PQ_cond_num ...
 !> \param do_svd ...
+!> \param eps_svd ...
 !> \param potential ...
 !> \param ri_metric ...
 !> \param fm_matrix_L_kpoints ...
@@ -155,7 +157,7 @@ CONTAINS
    SUBROUTINE get_2c_integrals(qs_env, eri_method, eri_param, para_env, para_env_sub, mp2_memory, &
                                my_Lrows, my_Vrows, fm_matrix_PQ, ngroup, color_sub, dimen_RI, dimen_RI_red, &
                                kpoints, my_group_L_size, my_group_L_start, my_group_L_end, &
-                               gd_array, calc_PQ_cond_num, do_svd, potential, ri_metric, &
+                               gd_array, calc_PQ_cond_num, do_svd, eps_svd, potential, ri_metric, &
                                fm_matrix_L_kpoints, fm_matrix_Minv_L_kpoints, &
                                fm_matrix_Minv, fm_matrix_Minv_Vtrunc_Minv, &
                                do_im_time, do_kpoints, mp2_eps_pgf_orb_S, qs_kind_set, sab_orb_sub, calc_forces, unit_nr)
@@ -175,6 +177,7 @@ CONTAINS
                                                             my_group_L_end
       TYPE(group_dist_d1_type), INTENT(OUT)              :: gd_array
       LOGICAL, INTENT(IN)                                :: calc_PQ_cond_num, do_svd
+      REAL(KIND=dp), INTENT(IN)                          :: eps_svd
       TYPE(libint_potential_type)                        :: potential, ri_metric
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_matrix_L_kpoints, &
                                                             fm_matrix_Minv_L_kpoints, &
@@ -216,7 +219,7 @@ CONTAINS
       dimen_RI_red = dimen_RI
 
       IF (compare_potential_types(ri_metric, potential) .AND. .NOT. do_im_time) THEN
-         CALL decomp_mat_L(fm_matrix_L_work, do_svd, num_small_eigen, cond_num, .TRUE., gd_array, ngroup, &
+         CALL decomp_mat_L(fm_matrix_L_work, do_svd, eps_svd, num_small_eigen, cond_num, .TRUE., gd_array, ngroup, &
                            dimen_RI, dimen_RI_red, para_env)
       ELSE
 
@@ -281,14 +284,14 @@ CONTAINS
                CALL cp_fm_create(fm_matrix_V, fm_matrix_L_work%matrix_struct)
                CALL cp_fm_to_fm(fm_matrix_L_work, fm_matrix_V)
 
-               CALL decomp_mat_L(fm_matrix_V, do_svd, num_small_eigen, cond_num, .TRUE., gd_array, ngroup, &
+               CALL decomp_mat_L(fm_matrix_V, do_svd, eps_svd, num_small_eigen, cond_num, .TRUE., gd_array, ngroup, &
                                  dimen_RI, dimen_RI_red, para_env)
             END IF
 
-            CALL decomp_mat_L(fm_matrix_L_work, do_svd, num_small_eigen, cond_num, .FALSE., gd_array, ngroup, &
+            CALL decomp_mat_L(fm_matrix_L_work, do_svd, eps_svd, num_small_eigen, cond_num, .FALSE., gd_array, ngroup, &
                               dimen_RI, dimen_RI_red, para_env)
 
-            CALL decomp_mat_L(fm_matrix_Minv_L_kpoints(1, 1), .FALSE., num_small_eigen, cond_num, .TRUE., &
+            CALL decomp_mat_L(fm_matrix_Minv_L_kpoints(1, 1), .FALSE., 0.0_dp, num_small_eigen, cond_num, .TRUE., &
                               gd_array, ngroup, dimen_RI, dimen_RI_red, para_env)
 
             CALL cp_fm_create(fm_matrix_M_inv_work, fm_matrix_Minv_L_kpoints(1, 1)%matrix_struct)
@@ -359,6 +362,7 @@ CONTAINS
 !> \brief ...
 !> \param fm_matrix_L ...
 !> \param do_svd ...
+!> \param eps_svd ...
 !> \param num_small_eigen ...
 !> \param cond_num ...
 !> \param do_inversion ...
@@ -368,11 +372,12 @@ CONTAINS
 !> \param dimen_RI_red ...
 !> \param para_env ...
 ! **************************************************************************************************
-   SUBROUTINE decomp_mat_L(fm_matrix_L, do_svd, num_small_eigen, cond_num, do_inversion, gd_array, ngroup, &
+   SUBROUTINE decomp_mat_L(fm_matrix_L, do_svd, eps_svd, num_small_eigen, cond_num, do_inversion, gd_array, ngroup, &
                            dimen_RI, dimen_RI_red, para_env)
 
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_matrix_L
       LOGICAL, INTENT(IN)                                :: do_svd
+      REAL(KIND=dp), INTENT(IN)                          :: eps_svd
       INTEGER, INTENT(INOUT)                             :: num_small_eigen
       REAL(KIND=dp), INTENT(INOUT)                       :: cond_num
       LOGICAL, INTENT(IN)                                :: do_inversion
@@ -382,7 +387,7 @@ CONTAINS
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
 
       IF (do_svd) THEN
-         CALL matrix_root_with_svd(fm_matrix_L, num_small_eigen, cond_num, do_inversion, para_env)
+         CALL matrix_root_with_svd(fm_matrix_L, num_small_eigen, cond_num, eps_svd, do_inversion, para_env)
 
          dimen_RI_red = dimen_RI - num_small_eigen
 
@@ -1071,13 +1076,15 @@ CONTAINS
 !> \param matrix ...
 !> \param num_small_evals ...
 !> \param cond_num ...
+!> \param eps_svd ...
 !> \param do_inversion ...
 !> \param para_env ...
 ! **************************************************************************************************
-   SUBROUTINE matrix_root_with_svd(matrix, num_small_evals, cond_num, do_inversion, para_env)
+   SUBROUTINE matrix_root_with_svd(matrix, num_small_evals, cond_num, eps_svd, do_inversion, para_env)
       TYPE(cp_fm_type), INTENT(INOUT)                    :: matrix
       INTEGER, INTENT(OUT)                               :: num_small_evals
       REAL(KIND=dp), INTENT(OUT)                         :: cond_num
+      REAL(KIND=dp), INTENT(IN)                          :: eps_svd
       LOGICAL, INTENT(IN)                                :: do_inversion
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
 
@@ -1106,7 +1113,7 @@ CONTAINS
       ! Determine the number of neglectable eigenvalues assuming that the eigenvalues are in ascending order
       num_small_evals = 0
       DO ii = 1, nrow
-         IF (evals(ii) > 0.0_dp) THEN
+         IF (evals(ii) > eps_svd) THEN
             num_small_evals = ii - 1
             EXIT
          END IF
@@ -1699,16 +1706,17 @@ CONTAINS
 
       CALL cp_fm_triangular_invert(matrix_a=fm_matrix_L, uplo_tr='U')
 
-      ! clean the lower part of the L^{-1} matrix (just to not have surprises afterwards)
+      ! clear the lower part of the L^{-1} matrix (just to have no surprises afterwards)
       CALL cp_fm_get_info(matrix=fm_matrix_L, &
                           nrow_local=nrow_local, &
                           ncol_local=ncol_local, &
                           row_indices=row_indices, &
                           col_indices=col_indices)
-      DO iiB = 1, nrow_local
-         i_global = row_indices(iiB)
-         DO jjB = 1, ncol_local
-            j_global = col_indices(jjB)
+      ! assume upper triangular format
+      DO jjB = 1, ncol_local
+         j_global = col_indices(jjB)
+         DO iiB = 1, nrow_local
+            i_global = row_indices(iiB)
             IF (j_global < i_global) fm_matrix_L%local_data(iiB, jjB) = 0.0_dp
          END DO
       END DO

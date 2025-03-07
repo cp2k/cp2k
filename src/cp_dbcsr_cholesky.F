@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -23,7 +23,7 @@ MODULE cp_dbcsr_cholesky
    USE cp_fm_basic_linalg,              ONLY: cp_fm_cholesky_restore,&
                                               cp_fm_potrf,&
                                               cp_fm_potri,&
-                                              cp_fm_upper_to_full
+                                              cp_fm_uplo_to_full
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
@@ -54,7 +54,7 @@ CONTAINS
 !> \param blacs_env ...
 !> \par History
 !>      05.2002 created [JVdV]
-!>      12.2002 updated, added n optional parm [fawzi]
+!>      12.2002 updated, added n optional argument [fawzi]
 !> \author Joost
 ! **************************************************************************************************
    SUBROUTINE cp_dbcsr_cholesky_decompose(matrix, n, para_env, blacs_env)
@@ -105,17 +105,17 @@ CONTAINS
 !> \param n size of the matrix to invert (defaults to the min(size(matrix)))
 !> \param para_env ...
 !> \param blacs_env ...
-!> \param upper_to_full ...
+!> \param uplo_to_full ...
 !> \par History
 !>      05.2002 created [JVdV]
 !> \author Joost VandeVondele
 ! **************************************************************************************************
-   SUBROUTINE cp_dbcsr_cholesky_invert(matrix, n, para_env, blacs_env, upper_to_full)
+   SUBROUTINE cp_dbcsr_cholesky_invert(matrix, n, para_env, blacs_env, uplo_to_full)
       TYPE(dbcsr_type)                                   :: matrix
       INTEGER, INTENT(in), OPTIONAL                      :: n
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      LOGICAL, INTENT(IN)                                :: upper_to_full
+      LOGICAL, INTENT(IN)                                :: uplo_to_full
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_dbcsr_cholesky_invert'
 
@@ -145,9 +145,9 @@ CONTAINS
 
       CALL cp_fm_potri(fm_matrix, my_n)
 
-      IF (upper_to_full) THEN
+      IF (uplo_to_full) THEN
          CALL cp_fm_create(fm_matrix_tmp, fm_matrix%matrix_struct, name="fm_matrix_tmp")
-         CALL cp_fm_upper_to_full(fm_matrix, fm_matrix_tmp)
+         CALL cp_fm_uplo_to_full(fm_matrix, fm_matrix_tmp)
          CALL cp_fm_release(fm_matrix_tmp)
       END IF
 

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -136,6 +136,7 @@ MODULE scf_control_types
                                                use_cholesky = .FALSE., use_ot = .FALSE., &
                                                use_diag = .FALSE., do_outer_scf_reortho = .FALSE., &
                                                ignore_convergence_failure = .FALSE.
+      LOGICAL                               :: force_scf_calculation = .FALSE.
       LOGICAL                               :: non_selfconsistent = .FALSE.
       INTEGER, DIMENSION(2)                 :: added_mos = -1
       INTEGER                               :: roks_scheme = -1
@@ -185,6 +186,7 @@ CONTAINS
       scf_control%do_diag_sub = .FALSE.
       scf_control%use_ot = .FALSE.
       scf_control%ignore_convergence_failure = .FALSE.
+      scf_control%force_scf_calculation = .FALSE.
       scf_control%do_outer_scf_reortho = .TRUE.
       scf_control%max_diis = 4
       scf_control%eps_diis = 0.1_dp
@@ -348,6 +350,7 @@ CONTAINS
          scf_control%use_cholesky = .TRUE.
       END IF
       CALL section_vals_val_get(scf_section, "IGNORE_CONVERGENCE_FAILURE", l_val=scf_control%ignore_convergence_failure)
+      CALL section_vals_val_get(scf_section, "FORCE_SCF_CALCULATION", l_val=scf_control%force_scf_calculation)
       CALL section_vals_val_get(scf_section, "eps_scf", r_val=scf_control%eps_scf)
       CALL section_vals_val_get(scf_section, "level_shift", r_val=scf_control%level_shift)
       CALL section_vals_val_get(scf_section, "max_diis", i_val=scf_control%max_diis)
@@ -565,7 +568,7 @@ CONTAINS
             keyword => section_get_keyword(section, "SCF_GUESS")
             CALL keyword_get(keyword, enum=enum)
 
-            IF (.NOT. scf_control%non_selfconsistent) THEN
+            IF (.NOT. scf_control%non_selfconsistent .OR. scf_control%force_scf_calculation) THEN
                WRITE (UNIT=output_unit, &
                       FMT="(/,/,T2,A,T25,A,T51,A30,/,T25,56('-'),3(/,T25,A,T76,I5),/, "// &
                       "T25,56('-'),4(/,T25,A,T72,ES9.2),/,T25,56('-'), "// &

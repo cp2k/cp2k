@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -34,7 +34,6 @@ MODULE atom_utils
    USE kahan_sum,                       ONLY: accurate_dot_product
    USE kinds,                           ONLY: default_string_length,&
                                               dp
-   USE lapack,                          ONLY: lapack_ssyev
    USE mathconstants,                   ONLY: dfac,&
                                               fac,&
                                               fourpi,&
@@ -961,7 +960,7 @@ CONTAINS
             lwork = 10*m
             ALLOCATE (a(n, n), w(n), work(lwork))
             a(1:m, 1:m) = MATMUL(TRANSPOSE(umat(1:n, 1:m, l)), MATMUL(hmat(1:n, 1:n, l), umat(1:n, 1:m, l)))
-            CALL lapack_ssyev("V", "U", m, a(1:m, 1:m), m, w(1:m), work, lwork, info)
+            CALL dsyev("V", "U", m, a(1:m, 1:m), m, w(1:m), work, lwork, info)
             a(1:n, 1:m) = MATMUL(umat(1:n, 1:m, l), a(1:m, 1:m))
 
             m = MIN(m, SIZE(orb, 2))
@@ -1443,11 +1442,11 @@ CONTAINS
 
       ! First Bessel transform
       work_inp(:nc) = density(:nc)*wr(:nc)
-      CALL DSYMV('U', nc, 1.0_dp, kernel, nc, work_inp, 1, 0.0_dp, work_out, 1)
+      CALL dsymv('U', nc, 1.0_dp, kernel, nc, work_inp, 1, 0.0_dp, work_out, 1)
 
       ! Second Bessel transform
       work_inp(:nc) = work_out(:nc)*EXP(-r(:nc)**2)/r(:nc)**2*wr(:nc)
-      CALL DSYMV('U', nc, 1.0_dp, kernel, nc, work_inp, 1, 0.0_dp, work_out, 1)
+      CALL dsymv('U', nc, 1.0_dp, kernel, nc, work_inp, 1, 0.0_dp, work_out, 1)
 
       cpot(:nc) = work_out(:nc)*(2.0_dp*REAL(nu, dp) + 1.0_dp)*4.0_dp/pi*omega
 
@@ -2590,7 +2589,7 @@ CONTAINS
       lwork = MAX(nbas*nbas, nbas + 100)
       ALLOCATE (weig(nbas), work(lwork))
 
-      CALL lapack_ssyev("N", "U", nbas, smat, nbas, weig, work, lwork, info)
+      CALL dsyev("N", "U", nbas, smat, nbas, weig, work, lwork, info)
       CPASSERT(info == 0)
       IF (weig(1) < 0.0_dp) THEN
          cnum = 100._dp

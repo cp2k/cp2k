@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -65,7 +65,8 @@ CONTAINS
       NULLIFY (keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="INTENSITY", &
-                          description="Intensity of the electric field in a.u", &
+                          description="Intensity of the electric field in a.u, "// &
+                          "not allowed together with INTENSITY_LIST", &
                           usage="INTENSITY  0.001", &
                           default_r_val=0._dp)
       CALL section_add_keyword(section, keyword)
@@ -73,7 +74,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="POLARISATION", &
                           description="Polarisation vector of electric field", &
-                          usage="POLARISIATION  0.0 0.0 1.0", &
+                          usage="POLARISATION  0.0 0.0 1.0", &
                           repeats=.FALSE., n_var=3, &
                           type_of_var=real_t, default_r_vals=(/0.0_dp, 0.0_dp, 1.0_dp/))
       CALL section_add_keyword(section, keyword)
@@ -89,10 +90,40 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="D_FILTER", &
-                          description="Filter for displacement field (x,y,z-dirction)", &
+                          description="Filter for displacement field (x,y,z-direction)", &
                           usage="D_FILTER  1.0 0.0 0.0", &
                           repeats=.FALSE., n_var=3, &
                           type_of_var=real_t, default_r_vals=(/1.0_dp, 1.0_dp, 1.0_dp/))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="INTENSITY_LIST", &
+                          description="Intensities of the electric field in a.u. "// &
+                          "They are applied sequentially, one per frame. "// &
+                          "If the number of frames exceeds the number of values, "// &
+                          "the list is cyclically repeated. Attention: not implemented for eeq.", &
+                          usage="INTENSITY_LIST {real} {real} .. {real}", &
+                          n_var=-1, type_of_var=real_t, default_r_vals=(/0.0_dp/))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="START_FRAME", &
+                          description="First frame the field is applied. "// &
+                          "(0: first frame) "// &
+                          "Attention: ignored for eeq", &
+                          usage="START_FRAME 0", &
+                          default_i_val=0)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="END_FRAME", &
+                          description="Last frame the field is applied. "// &
+                          "If an end frame is specified, the number of active frames "// &
+                          "must be a multiple of the number of "// &
+                          "the given intensity values. (-1: no end) "// &
+                          "Attention: ignored for eeq", &
+                          usage="END_FRAME -1", &
+                          default_i_val=-1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -293,14 +324,14 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="START_STEP_OUT", &
                           description="Step when the field starts to vanish ", &
-                          usage="START_STEP 0", &
+                          usage="START_STEP_OUT 0", &
                           default_i_val=0)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="END_STEP_OUT", &
                           description="Step when the field disappears", &
-                          usage="END_TIME 2", &
+                          usage="END_STEP_OUT 2", &
                           default_i_val=-1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -332,7 +363,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="TIMESTEP", &
                           description="The time step between the entries in the list with the electric field.", &
-                          usage="TIME_STEP 1", &
+                          usage="TIMESTEP 1", &
                           unit_str="fs", &
                           default_r_val=1.0_dp)
       CALL section_add_keyword(section, keyword)

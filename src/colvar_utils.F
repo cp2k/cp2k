@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -570,6 +570,7 @@ CONTAINS
 
       CHARACTER(len=3)                                   :: name_kind
       INTEGER                                            :: i, ii, j, natoms, nkinds, nr_frame, stat
+      REAL(KIND=dp)                                      :: mtot
 
       natoms = SIZE(particles)
       IF (colvar%type_id == coord_colvar_id) THEN
@@ -749,12 +750,21 @@ CONTAINS
       END IF
 
       IF (colvar%type_id == rmsd_colvar_id) THEN
-         IF (colvar%rmsd_param%subset == rmsd_all .OR. colvar%rmsd_param%subset == rmsd_list) THEN
+         IF (colvar%rmsd_param%subset == rmsd_all) THEN
             ! weights are masses
             DO i = 1, SIZE(colvar%rmsd_param%i_rmsd)
                ii = colvar%rmsd_param%i_rmsd(i)
                colvar%rmsd_param%weights(ii) = particles(ii)%atomic_kind%mass
             END DO
+            mtot = MINVAL(colvar%rmsd_param%weights)
+            colvar%rmsd_param%weights = colvar%rmsd_param%weights/mtot
+         ELSE IF (colvar%rmsd_param%subset == rmsd_list) THEN
+            ! all weights are = 1
+            DO i = 1, SIZE(colvar%rmsd_param%i_rmsd)
+               ii = colvar%rmsd_param%i_rmsd(i)
+               colvar%rmsd_param%weights(ii) = 1.0_dp ! particles(ii)%atomic_kind%mass
+            END DO
+
          END IF
 
          IF (colvar%rmsd_param%align_frames) THEN

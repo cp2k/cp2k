@@ -124,11 +124,12 @@ def main() -> None:
                 continue
             file_list += [os.path.join(root, fn) for fn in files]
 
-    # Filter symlinks, backup copies, logs, and hidden files.
+    # Filter symlinks, backup copies, logs, hidden, and very large files.
     file_list = [fn for fn in file_list if not os.path.islink(fn)]
     file_list = [fn for fn in file_list if not fn[-1] in ("~", "#")]
     file_list = [fn for fn in file_list if not fn.endswith(".log")]
     file_list = [fn for fn in file_list if not os.path.basename(fn).startswith(".")]
+    file_list = [fn for fn in file_list if os.path.getsize(fn) < 2**20]  # 1MiB
 
     # Sort files by size as larger ones will take longer to process.
     file_list.sort(reverse=True, key=lambda fn: os.path.getsize(fn))

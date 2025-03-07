@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -12,6 +12,7 @@
 MODULE qs_dispersion_cnum
 
    USE kinds,                           ONLY: dp
+   USE mathconstants,                   ONLY: oorootpi
    USE memory_utilities,                ONLY: reallocate
    USE message_passing,                 ONLY: mp_para_env_type
    USE particle_types,                  ONLY: particle_type
@@ -19,6 +20,8 @@ MODULE qs_dispersion_cnum
    USE qs_dispersion_types,             ONLY: qs_dispersion_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                              qs_kind_type
    USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
                                               neighbor_list_iterate,&
                                               neighbor_list_iterator_create,&
@@ -40,7 +43,7 @@ MODULE qs_dispersion_cnum
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_dispersion_cnum'
 
-   PUBLIC :: exclude_d3_kind_pair, setcn, setr0ab
+   PUBLIC :: exclude_d3_kind_pair, setcn, setr0ab, setrcov, seten
 
    TYPE dcnum_type
       INTEGER                                :: neighbors = -1
@@ -50,6 +53,7 @@ MODULE qs_dispersion_cnum
    END TYPE dcnum_type
 
    PUBLIC :: d3_cnumber, dcnum_type, dcnum_distribute
+   PUBLIC :: cnumber_init, cnumber_release, get_cn_radius
 
 ! **************************************************************************************************
 
@@ -882,6 +886,31 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param rcov ...
+! **************************************************************************************************
+   SUBROUTINE setrcov(rcov)
+      ! set cut-off radii
+      REAL(KIND=dp), DIMENSION(:)                        :: rcov
+
+      ! covalent radii (taken from Pyykko and Atsumi, Chem. Eur. J. 15, 2009, 188-197)
+      ! values for metals decreased by 10 %
+      rcov(1:94) = (/ &
+                   0.32, 0.46, 1.20, 0.94, 0.77, 0.75, 0.71, 0.63, 0.64, 0.67 &
+                   , 1.40, 1.25, 1.13, 1.04, 1.10, 1.02, 0.99, 0.96, 1.76, 1.54 &
+                   , 1.33, 1.22, 1.21, 1.10, 1.07, 1.04, 1.00, 0.99, 1.01, 1.09 &
+                   , 1.12, 1.09, 1.15, 1.10, 1.14, 1.17, 1.89, 1.67, 1.47, 1.39 &
+                   , 1.32, 1.24, 1.15, 1.13, 1.13, 1.08, 1.15, 1.23, 1.28, 1.26 &
+                   , 1.26, 1.23, 1.32, 1.31, 2.09, 1.76, 1.62, 1.47, 1.58, 1.57 &
+                   , 1.56, 1.55, 1.51, 1.52, 1.51, 1.50, 1.49, 1.49, 1.48, 1.53 &
+                   , 1.46, 1.37, 1.31, 1.23, 1.18, 1.16, 1.11, 1.12, 1.13, 1.32 &
+                   , 1.30, 1.30, 1.36, 1.31, 1.38, 1.42, 2.01, 1.81, 1.67, 1.58 &
+                   , 1.52, 1.53, 1.54, 1.55 &
+                   /)
+
+   END SUBROUTINE setrcov
+
+! **************************************************************************************************
+!> \brief ...
 !> \param cnout ...
 ! **************************************************************************************************
    SUBROUTINE setcn(cnout)
@@ -909,31 +938,62 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param enout ...
+! **************************************************************************************************
+   SUBROUTINE seten(enout)
+      ! Element Pauling Electronegativity
+      REAL(KIND=dp), DIMENSION(:)                        :: enout
+
+      INTEGER                                            :: n
+      REAL(KIND=dp), DIMENSION(104)                      :: en
+
+      en(1:104) = [2.20_dp, 3.00_dp, & ! 2
+                   0.98_dp, 1.57_dp, 2.04_dp, 2.55_dp, 3.04_dp, 3.44_dp, 3.98_dp, 4.50_dp, & ! 10
+                   0.93_dp, 1.31_dp, 1.61_dp, 1.90_dp, 2.19_dp, 2.58_dp, 3.16_dp, 3.50_dp, & ! 18
+                   0.82_dp, 1.00_dp, 1.36_dp, 1.54_dp, 1.63_dp, 1.66_dp, 1.55_dp, 1.83_dp, &
+                   1.88_dp, 1.91_dp, 1.90_dp, 1.65_dp, 1.81_dp, 2.01_dp, 2.18_dp, 2.55_dp, 2.96_dp, 3.00_dp, & ! 36
+                   0.82_dp, 0.95_dp, 1.22_dp, 1.33_dp, 1.60_dp, 2.16_dp, 1.90_dp, 2.20_dp, &
+                   2.28_dp, 2.20_dp, 1.93_dp, 1.69_dp, 1.78_dp, 1.96_dp, 2.05_dp, 2.10_dp, 2.66_dp, 2.60_dp, & ! 54
+                   0.79_dp, 0.89_dp, 1.10_dp, &
+                   1.12_dp, 1.13_dp, 1.14_dp, 1.15_dp, 1.17_dp, 1.18_dp, 1.20_dp, 1.21_dp, &
+                   1.22_dp, 1.23_dp, 1.24_dp, 1.25_dp, 1.26_dp, 1.27_dp, & ! Lanthanides
+                   1.30_dp, 1.50_dp, 2.36_dp, 1.90_dp, 2.20_dp, 2.20_dp, 2.28_dp, 2.54_dp, &
+                   2.00_dp, 2.04_dp, 2.33_dp, 2.02_dp, 2.00_dp, 2.20_dp, 2.20_dp, & ! 86
+                   0.70_dp, 0.89_dp, 1.10_dp, &
+                   1.30_dp, 1.50_dp, 1.38_dp, 1.36_dp, 1.28_dp, 1.30_dp, 1.30_dp, 1.30_dp, &
+                   1.30_dp, 1.30_dp, 1.30_dp, 1.30_dp, 1.30_dp, 1.50_dp, & !  Actinides
+                   1.50_dp]
+
+      enout = 0._dp
+      n = MIN(SIZE(en), SIZE(enout))
+      enout(1:n) = en(1:n)
+
+   END SUBROUTINE seten
+
+! **************************************************************************************************
+!> \brief ...
 !> \param rab ...
-!> \param rcova ...
-!> \param rcovb ...
+!> \param rcovab ...
 !> \param k1 ...
 !> \param cnab ...
 !> \param dcnab ...
 ! **************************************************************************************************
-   SUBROUTINE cnparam_d3(rab, rcova, rcovb, k1, cnab, dcnab)
+   SUBROUTINE cnparam_d3(rab, rcovab, k1, cnab, dcnab)
 
-      REAL(KIND=dp), INTENT(IN)                          :: rab, rcova, rcovb, k1
+      REAL(KIND=dp), INTENT(IN)                          :: rab, rcovab, k1
       REAL(KIND=dp), INTENT(OUT)                         :: cnab, dcnab
 
-      REAL(KIND=dp)                                      :: dfz, ee, fz, rco, rr
+      REAL(KIND=dp)                                      :: dfz, ee, fz, rr
 
-! covalent distance in Bohr
-
-      rco = rcova + rcovb
-      rr = rco/rab
+      ! covalent distance in Bohr
+      rr = rcovab/rab
       ! counting function exponential has a better long-range behavior
       ! than MHGs inverse damping
       ! factor k2 already included into rcov
       ee = EXP(-k1*(rr - 1.0_dp))
       ! force the function to zero using a second step function
-      fz = 0.5_dp*(1.0_dp - TANH(rab - 2.0_dp*rco))
-      dfz = 0.5_dp*((TANH(rab - 2.0_dp*rco))**2 - 1.0_dp)
+      fz = 0.5_dp*(1.0_dp - TANH(rab - 2.0_dp*rcovab))
+      dfz = 0.5_dp*((TANH(rab - 2.0_dp*rcovab))**2 - 1.0_dp)
       cnab = 1.0_dp/(1.0_dp + ee)*fz
       dcnab = -cnab*cnab*k1*rr/rab*ee + 1.0_dp/(1.0_dp + ee)*dfz
 
@@ -954,8 +1014,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dvals
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: rik
 
-! we only have to do something if this is a parallel run
-
+      ! we only have to do something if this is a parallel run
       IF (para_env%num_pe > 1) THEN
          natom = SIZE(dcnum)
          !pack my dcnum data
@@ -1013,33 +1072,65 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param dispersion_env ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION get_cn_radius(dispersion_env) RESULT(rcut)
+      TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
+      REAL(KIND=dp)                                      :: rcut
+
+      INTEGER                                            :: i
+      REAL(KIND=dp)                                      :: cnab, cnfun, dcnab, den, rcov
+
+      cnfun = dispersion_env%cnfun
+      rcut = 0.0_dp
+      rcov = 1.5_dp*MAXVAL(dispersion_env%rcov)
+      DO i = 1, 250
+         rcut = rcut + 0.1_dp
+         IF (cnfun == 1) THEN
+            CALL cnparam_d3(rcut, rcov, dispersion_env%k1, cnab, dcnab)
+         ELSEIF (cnfun == 2) THEN
+            CALL modcn_d3(rcut, rcov, cnab, dcnab)
+         ELSEIF (cnfun == 3) THEN
+            den = 0.0_dp
+            CALL cn_d4per(rcut, rcov, den, cnab, dcnab)
+         ELSE
+            CPABORT("cnfun in get_cn_radius")
+         END IF
+         IF (cnab < 10._dp*dispersion_env%eps_cn) EXIT
+      END DO
+
+   END FUNCTION get_cn_radius
+
+! **************************************************************************************************
+!> \brief ...
 !> \param qs_env ...
 !> \param dispersion_env ...
 !> \param cnumbers ...
 !> \param dcnum ...
-!> \param ghost ...
-!> \param floating ...
+!> \param exclude ...
 !> \param atomnumber ...
-!> \param calculate_forces ...
-!> \param debugall ...
+!> \param derivatives ...
+!> \param cnfun ...
 ! **************************************************************************************************
-   SUBROUTINE d3_cnumber(qs_env, dispersion_env, cnumbers, dcnum, ghost, floating, atomnumber, &
-                         calculate_forces, debugall)
+   SUBROUTINE d3_cnumber(qs_env, dispersion_env, cnumbers, dcnum, exclude, atomnumber, &
+                         derivatives, cnfun)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: cnumbers
       TYPE(dcnum_type), DIMENSION(:), INTENT(INOUT)      :: dcnum
-      LOGICAL, DIMENSION(:), INTENT(IN)                  :: ghost, floating
+      LOGICAL, DIMENSION(:), INTENT(IN)                  :: exclude
       INTEGER, DIMENSION(:), INTENT(IN)                  :: atomnumber
-      LOGICAL, INTENT(IN)                                :: calculate_forces, debugall
+      LOGICAL, INTENT(IN)                                :: derivatives
+      INTEGER, INTENT(IN)                                :: cnfun
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'd3_cnumber'
 
       INTEGER                                            :: handle, iatom, ikind, jatom, jkind, &
                                                             mepos, natom, ni, nj, num_pe, za, zb
       LOGICAL                                            :: exclude_pair
-      REAL(KIND=dp)                                      :: cnab, dcnab, eps_cn, rcc, rcova, rcovb
+      REAL(KIND=dp)                                      :: cnab, dcnab, den, eps_cn, rcc, rcovab
       REAL(KIND=dp), DIMENSION(3)                        :: rij
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: nl_iterator
@@ -1066,13 +1157,13 @@ CONTAINS
 
 !$OMP PARALLEL DEFAULT( NONE )                                        &
 !$OMP           SHARED( locks, number_of_locks, nl_iterator           &
-!$OMP                 , ghost, floating, atomnumber, eps_cn           &
-!$OMP                 , dispersion_env, calculate_forces, debugall    &
-!$OMP                 , dcnum, cnumbers                               &
+!$OMP                 , exclude, atomnumber, eps_cn                   &
+!$OMP                 , dispersion_env, derivatives                   &
+!$OMP                 , dcnum, cnumbers, cnfun                        &
 !$OMP                 )                                               &
 !$OMP          PRIVATE( mepos                                         &
 !$OMP                 , ikind, jkind, iatom, jatom, rij, rcc          &
-!$OMP                 , za, zb, rcova, rcovb, cnab, dcnab             &
+!$OMP                 , za, zb, rcovab, cnab, dcnab, den              &
 !$OMP                 , ni, nj, exclude_pair                          &
 !$OMP                 )
 
@@ -1091,7 +1182,7 @@ CONTAINS
       DO WHILE (neighbor_list_iterate(nl_iterator, mepos=mepos) == 0)
 
          CALL get_iterator_info(nl_iterator, mepos=mepos, ikind=ikind, jkind=jkind, iatom=iatom, jatom=jatom, r=rij)
-         IF (ghost(ikind) .OR. ghost(jkind) .OR. floating(ikind) .OR. floating(jkind)) CYCLE
+         IF (exclude(ikind) .OR. exclude(jkind)) CYCLE
          IF (dispersion_env%nd3_exclude_pair > 0) THEN
             CALL exclude_d3_kind_pair(dispersion_env%d3_exclude_pair, ikind, jkind, exclude=exclude_pair)
             IF (exclude_pair) CYCLE
@@ -1101,9 +1192,17 @@ CONTAINS
          IF (rcc > 1.e-6_dp) THEN
             za = atomnumber(ikind)
             zb = atomnumber(jkind)
-            rcova = dispersion_env%rcov(za)
-            rcovb = dispersion_env%rcov(zb)
-            CALL cnparam_d3(rcc, rcova, rcovb, dispersion_env%k1, cnab, dcnab)
+            rcovab = dispersion_env%rcov(za) + dispersion_env%rcov(zb)
+            IF (cnfun == 1) THEN
+               CALL cnparam_d3(rcc, rcovab, dispersion_env%k1, cnab, dcnab)
+            ELSEIF (cnfun == 2) THEN
+               CALL modcn_d3(rcc, rcovab, cnab, dcnab)
+            ELSEIF (cnfun == 3) THEN
+               den = ABS(dispersion_env%eneg(za) - dispersion_env%eneg(zb))
+               CALL cn_d4per(rcc, rcovab, den, cnab, dcnab)
+            ELSE
+               CPABORT("cnfun in d3_cnumber")
+            END IF
             IF (cnab > eps_cn) THEN
 !$OMP ATOMIC
                cnumbers(iatom) = cnumbers(iatom) + cnab
@@ -1112,7 +1211,7 @@ CONTAINS
                   cnumbers(jatom) = cnumbers(jatom) + cnab
                END IF
             END IF
-            IF (calculate_forces .OR. debugall .AND. cnab > eps_cn) THEN
+            IF (derivatives .AND. cnab > eps_cn) THEN
 !$             CALL omp_set_lock(locks(iatom))
                dcnum(iatom)%neighbors = dcnum(iatom)%neighbors + 1
                ni = dcnum(iatom)%neighbors
@@ -1163,6 +1262,55 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param rab ...
+!> \param rcovab ...
+!> \param cnab ...
+!> \param dcnab ...
+! **************************************************************************************************
+   SUBROUTINE modcn_d3(rab, rcovab, cnab, dcnab)
+
+      REAL(KIND=dp), INTENT(IN)                          :: rab, rcovab
+      REAL(KIND=dp), INTENT(OUT)                         :: cnab, dcnab
+
+      REAL(KIND=dp)                                      :: ee, k1, rr
+
+      rr = rab/rcovab
+      k1 = 7.5_dp
+      ee = ERF(-k1*(rr - 1.0_dp))
+      cnab = 0.5_dp*(1.0_dp + ee)
+      dcnab = -k1*oorootpi/rcovab*EXP(-k1*k1*(rr - 1.0_dp)**2)
+
+   END SUBROUTINE modcn_d3
+
+! **************************************************************************************************
+!> \brief ...
+!> \param rab ...
+!> \param rcovab ...
+!> \param den ...
+!> \param cnab ...
+!> \param dcnab ...
+! **************************************************************************************************
+   SUBROUTINE cn_d4per(rab, rcovab, den, cnab, dcnab)
+
+      REAL(KIND=dp), INTENT(IN)                          :: rab, rcovab, den
+      REAL(KIND=dp), INTENT(OUT)                         :: cnab, dcnab
+
+      REAL(KIND=dp), PARAMETER                           :: k0 = 7.5_dp, k1 = 4.10451_dp, &
+                                                            k2 = 19.08857_dp, k3 = 2*11.28174_dp**2
+
+      REAL(KIND=dp)                                      :: dee, dij, ee, rr
+
+      rr = rab/rcovab
+      dij = k1*EXP(-((den + k2)**2)/k3)
+      ee = ERF(-k0*(rr - 1.0_dp))
+      cnab = 0.5_dp*dij*(1.0_dp + ee)
+      dee = -2.0_dp*k0/rcovab*oorootpi*EXP(-k0*k0*(rr - 1.0_dp)**2)
+      dcnab = 0.5_dp*dij*dee
+
+   END SUBROUTINE cn_d4per
+
+! **************************************************************************************************
+!> \brief ...
 !> \param exclude_list List of kind pairs to exclude
 !> \param za first kind
 !> \param zb second kind
@@ -1202,5 +1350,98 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE exclude_d3_kind_pair
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param cnumbers ...
+!> \param dcnum ...
+!> \param ftype ...
+!> \param derivatives ...
+!> \param disp_env ...
+! **************************************************************************************************
+   SUBROUTINE cnumber_init(qs_env, cnumbers, dcnum, ftype, derivatives, disp_env)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cnumbers
+      TYPE(dcnum_type), ALLOCATABLE, DIMENSION(:)        :: dcnum
+      INTEGER, INTENT(IN)                                :: ftype
+      LOGICAL, INTENT(IN)                                :: derivatives
+      TYPE(qs_dispersion_type), OPTIONAL, POINTER        :: disp_env
+
+      INTEGER                                            :: iatom, ikind, natom, nkind, za
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atomnumber
+      LOGICAL                                            :: floating_a, ghost_a
+      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: exclude
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+
+      CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set, &
+                      dispersion_env=dispersion_env, &
+                      para_env=para_env, &
+                      nkind=nkind, natom=natom)
+      IF (PRESENT(disp_env)) dispersion_env => disp_env
+
+      CALL cnumber_release(cnumbers, dcnum, derivatives)
+
+      ALLOCATE (cnumbers(natom))
+      cnumbers = 0._dp
+      IF (derivatives) THEN
+         ALLOCATE (dcnum(natom))
+         dcnum(:)%neighbors = 0
+         DO iatom = 1, natom
+            ALLOCATE (dcnum(iatom)%nlist(10), dcnum(iatom)%dvals(10), dcnum(iatom)%rik(3, 10))
+         END DO
+      ELSE
+         ALLOCATE (dcnum(1))
+      END IF
+
+      ALLOCATE (exclude(nkind), atomnumber(nkind))
+      DO ikind = 1, nkind
+         CALL get_qs_kind(qs_kind_set(ikind), zatom=za, ghost=ghost_a, floating=floating_a)
+         exclude(ikind) = ghost_a .OR. floating_a
+         atomnumber(ikind) = za
+      END DO
+
+      CALL d3_cnumber(qs_env, dispersion_env, cnumbers, dcnum, exclude, atomnumber, &
+                      derivatives, ftype)
+
+      CALL para_env%sum(cnumbers)
+      IF (derivatives) THEN
+         CALL dcnum_distribute(dcnum, para_env)
+      END IF
+
+      DEALLOCATE (exclude, atomnumber)
+
+   END SUBROUTINE cnumber_init
+
+! **************************************************************************************************
+!> \brief ...
+!> \param cnumbers ...
+!> \param dcnum ...
+!> \param derivatives ...
+! **************************************************************************************************
+   SUBROUTINE cnumber_release(cnumbers, dcnum, derivatives)
+
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cnumbers
+      TYPE(dcnum_type), ALLOCATABLE, DIMENSION(:)        :: dcnum
+      LOGICAL, INTENT(IN)                                :: derivatives
+
+      INTEGER                                            :: iatom, natom
+
+      ! deallocate coordination numbers
+      IF (ALLOCATED(cnumbers)) DEALLOCATE (cnumbers)
+      IF (ALLOCATED(dcnum)) THEN
+         IF (derivatives) THEN
+            natom = SIZE(dcnum)
+            DO iatom = 1, natom
+               DEALLOCATE (dcnum(iatom)%nlist, dcnum(iatom)%dvals, dcnum(iatom)%rik)
+            END DO
+         END IF
+         DEALLOCATE (dcnum)
+      END IF
+
+   END SUBROUTINE cnumber_release
 
 END MODULE qs_dispersion_cnum

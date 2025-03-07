@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -540,7 +540,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
-      INTEGER                                            :: blk, iatom, ikind, jatom
+      INTEGER                                            :: iatom, ikind, jatom
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: hblock, reltmat
       TYPE(dbcsr_iterator_type)                          :: iter
@@ -549,7 +549,7 @@ CONTAINS
 
       CALL dbcsr_iterator_start(iter, matrix_h)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
-         CALL dbcsr_iterator_next_block(iter, iatom, jatom, hblock, blk)
+         CALL dbcsr_iterator_next_block(iter, iatom, jatom, hblock)
          IF (iatom == jatom) THEN
             ikind = kind_of(iatom)
             CALL get_qs_kind(qs_kind_set(ikind), reltmat=reltmat)
@@ -781,7 +781,7 @@ CONTAINS
          ALLOCATE (matrix_h_im(1, image)%matrix)
          template => matrix_h(1, image)%matrix ! base on real part, but anti-symmetric
          CALL dbcsr_create(matrix=matrix_h_im(1, image)%matrix, template=template, &
-                           name=TRIM(headline), matrix_type=dbcsr_type_antisymmetric, nze=0)
+                           name=TRIM(headline), matrix_type=dbcsr_type_antisymmetric)
          CALL cp_dbcsr_alloc_block_from_nbl(matrix_h_im(1, image)%matrix, sab_orb)
          CALL dbcsr_set(matrix_h_im(1, image)%matrix, 0.0_dp)
       END DO

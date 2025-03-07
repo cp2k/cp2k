@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -69,7 +69,7 @@ MODULE md_energies
                                               set_md_env
    USE message_passing,                 ONLY: mp_para_env_type
    USE motion_utils,                    ONLY: write_simulation_cell,&
-                                              write_stress_tensor,&
+                                              write_stress_tensor_to_file,&
                                               write_trajectory
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_methods,                ONLY: write_structure_data
@@ -467,7 +467,7 @@ CONTAINS
          CALL print_barostat_status(barostat, simpar, my_pos, my_act, cell, itimes, time)
 
          ! Print Stress Tensor
-         CALL write_stress_tensor(virial, cell, motion_section, itimes, time*femtoseconds, my_pos, my_act)
+         CALL write_stress_tensor_to_file(virial, cell, motion_section, itimes, time*femtoseconds, my_pos, my_act)
 
          ! Print Polarisability Tensor
          IF (ASSOCIATED(force_env%qs_env)) THEN

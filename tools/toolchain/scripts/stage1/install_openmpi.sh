@@ -6,8 +6,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-openmpi_ver="5.0.5"
-openmpi_sha256="6588d57c0a4bd299a24103f4e196051b29e8b55fbda49e11d5b3d32030a32776"
+openmpi_ver="5.0.6"
+openmpi_sha256="bd4183fcbc43477c254799b429df1a6e576c042e74a2d2f8b37d537b2ff98157"
 openmpi_pkg="openmpi-${openmpi_ver}.tar.bz2"
 
 source "${SCRIPT_DIR}"/common_vars.sh
@@ -61,7 +61,6 @@ case "${with_openmpi}" in
         --libdir="${pkg_install_dir}/lib" \
         --enable-mpi1-compatibility \
         --enable-static \
-        --with-hwloc=internal \
         --with-libevent=internal \
         > configure.log 2>&1 || tail -n ${LOG_LINES} configure.log
       make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
@@ -72,7 +71,7 @@ case "${with_openmpi}" in
     check_dir "${pkg_install_dir}/bin"
     check_dir "${pkg_install_dir}/lib"
     check_dir "${pkg_install_dir}/include"
-    check_install ${pkg_install_dir}/bin/mpiexec "openmpi" && MPIRUN="${pkg_install_dir}/bin/mpiexec" || exit 1
+    check_install ${pkg_install_dir}/bin/mpiexec "openmpi" && MPIEXEC="${pkg_install_dir}/bin/mpiexec" || exit 1
     check_install ${pkg_install_dir}/bin/mpicc "openmpi" && MPICC="${pkg_install_dir}/bin/mpicc" || exit 1
     check_install ${pkg_install_dir}/bin/mpicxx "openmpi" && MPICXX="${pkg_install_dir}/bin/mpicxx" || exit 1
     check_install ${pkg_install_dir}/bin/mpifort "openmpi" && MPIFC="${pkg_install_dir}/bin/mpifort" || exit 1
@@ -83,7 +82,7 @@ case "${with_openmpi}" in
     ;;
   __SYSTEM__)
     echo "==================== Finding OpenMPI from system paths ===================="
-    check_command mpiexec "openmpi" && MPIRUN="$(command -v mpiexec)"
+    check_command mpiexec "openmpi" && MPIEXEC="$(command -v mpiexec)"
     check_command mpicc "openmpi" && MPICC="$(command -v mpicc)" || exit 1
     check_command mpic++ "openmpi" && MPICXX="$(command -v mpic++)" || exit 1
     check_command mpifort "openmpi" && MPIFC="$(command -v mpifort)" || exit 1
@@ -103,7 +102,7 @@ case "${with_openmpi}" in
     check_dir "${pkg_install_dir}/bin"
     check_dir "${pkg_install_dir}/lib"
     check_dir "${pkg_install_dir}/include"
-    check_command ${pkg_install_dir}/bin/mpiexec "openmpi" && MPIRUN="${pkg_install_dir}/bin/mpiexec" || exit 1
+    check_command ${pkg_install_dir}/bin/mpiexec "openmpi" && MPIEXEC="${pkg_install_dir}/bin/mpiexec" || exit 1
     check_command ${pkg_install_dir}/bin/mpicc "openmpi" && MPICC="${pkg_install_dir}/bin/mpicc" || exit 1
     check_command ${pkg_install_dir}/bin/mpic++ "openmpi" && MPICXX="${pkg_install_dir}/bin/mpic++" || exit 1
     check_command ${pkg_install_dir}/bin/mpifort "openmpi" && MPIFC="${pkg_install_dir}/bin/mpifort" || exit 1
@@ -135,7 +134,7 @@ if [ "${with_openmpi}" != "__DONTUSE__" ]; then
   done
   cat << EOF > "${BUILDDIR}/setup_openmpi"
 export MPI_MODE="${MPI_MODE}"
-export MPIRUN="${MPIRUN}"
+export MPIEXEC="${MPIEXEC}"
 export MPICC="${MPICC}"
 export MPICXX="${MPICXX}"
 export MPIFC="${MPIFC}"

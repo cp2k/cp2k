@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -12,10 +12,11 @@
 ! **************************************************************************************************
 MODULE qs_ot_eigensolver
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_copy, dbcsr_dot, dbcsr_init_p, dbcsr_multiply, dbcsr_p_type, dbcsr_release_p, &
-        dbcsr_scale, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
+        dbcsr_copy, dbcsr_init_p, dbcsr_multiply, dbcsr_p_type, dbcsr_release_p, dbcsr_scale, &
+        dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
    USE cp_dbcsr_cholesky,               ONLY: cp_dbcsr_cholesky_decompose,&
                                               cp_dbcsr_cholesky_invert
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_dot
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               cp_dbcsr_m_by_n_from_template,&
                                               cp_fm_to_dbcsr_row_template,&
@@ -73,7 +74,7 @@ CONTAINS
 
       TYPE(dbcsr_type), POINTER                          :: matrix_h, matrix_s
       TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: matrix_orthogonal_space_fm
-      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_c_fm
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: matrix_c_fm
       TYPE(preconditioner_type), OPTIONAL, POINTER       :: preconditioner
       REAL(KIND=dp)                                      :: eps_gradient
       INTEGER, INTENT(IN)                                :: iter_max
@@ -182,7 +183,7 @@ CONTAINS
                                              para_env=qs_ot_env(1)%para_env, blacs_env=qs_ot_env(1)%blacs_env)
             CALL cp_dbcsr_cholesky_invert(matrix_os_ortho, &
                                           para_env=qs_ot_env(1)%para_env, blacs_env=qs_ot_env(1)%blacs_env, &
-                                          upper_to_full=.TRUE.)
+                                          uplo_to_full=.TRUE.)
 
             CALL dbcsr_multiply('T', 'N', rone, matrix_s_ortho, matrix_c, &
                                 rzero, matrix_buf1_ortho)

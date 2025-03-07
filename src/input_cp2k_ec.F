@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -316,7 +316,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="S_INVERSION", &
                           description="Method used to compute the inverse of S.", &
-                          usage="S_PRECONDITIONER MOLECULAR", &
+                          usage="S_INVERSION MOLECULAR", &
                           default_i_val=ls_s_inversion_sign_sqrt, &
                           enum_c_vals=s2a("SIGN_SQRT", "HOTELLING"), &
                           enum_desc=s2a("Using the inverse sqrt as obtained from sign function iterations.", &
@@ -356,6 +356,31 @@ CONTAINS
          "In most cases, the Hartree-Fock exchange is not too expensive and there is no need for ADMM, "// &
          "ADMM can however provide significant speedup and memory savings in case of diffuse basis sets. ", &
          usage="ADMM", &
+         default_l_val=.FALSE., &
+         lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="EXTERNAL_RESPONSE_FILENAME", &
+                          description="Name of the file that contains response information.", &
+                          usage="EXTERNAL_RESPONSE_FILENAME <FILENAME>", &
+                          default_c_val="TREXIO")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="EXTERNAL_RESULT_FILENAME", &
+                          description="Name of the file that contains results from external response calculation.", &
+                          usage="EXTERNAL_RESULT_FILENAME <FILENAME>", &
+                          default_c_val="CP2K_EXRESP.result")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
+         keyword, __LOCATION__, &
+         name="ERROR_ESTIMATION", &
+         description="Perform an error estimation for the response forces/stress. "// &
+         "Requires error estimates for the RHS of the response equation from input. ", &
+         usage="ERROR_ESTIMATION", &
          default_l_val=.FALSE., &
          lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -500,7 +525,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="S_INVERSION", &
                           description="Method used to compute the inverse of S.", &
-                          usage="S_PRECONDITIONER MOLECULAR", &
+                          usage="S_INVERSION MOLECULAR", &
                           default_i_val=ls_s_inversion_sign_sqrt, &
                           enum_c_vals=s2a("SIGN_SQRT", "HOTELLING"), &
                           enum_desc=s2a("Using the inverse sqrt as obtained from sign function iterations.", &

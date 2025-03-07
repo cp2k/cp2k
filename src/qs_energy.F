@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -37,6 +37,7 @@ MODULE qs_energy
    USE qs_matrix_w,                     ONLY: compute_matrix_w
    USE qs_nonscf,                       ONLY: nonscf
    USE qs_scf,                          ONLY: scf
+   USE qs_tddfpt2_smearing_methods,     ONLY: deallocate_fermi_params
    USE scf_control_types,               ONLY: scf_control_type
 #include "./base/base_uses.f90"
 
@@ -109,7 +110,7 @@ CONTAINS
 
          ! *** Perform a SCF run ***
          IF (.NOT. loverlap_deltat) THEN
-            IF (scf_control%non_selfconsistent) THEN
+            IF (scf_control%non_selfconsistent .AND. .NOT. scf_control%force_scf_calculation) THEN
                CALL nonscf(qs_env)
             ELSE IF (dft_control%qs_control%do_ls_scf) THEN
                CALL ls_scf(qs_env)
@@ -163,6 +164,11 @@ CONTAINS
             CALL excited_state_energy(qs_env, calculate_forces=.FALSE.)
          END IF
 
+         IF (dft_control%tddfpt2_control%do_smearing) THEN
+            IF (.NOT. ASSOCIATED(dft_control%tddfpt2_control%smeared_occup)) &
+               CPABORT("Smearing occupation not associated.")
+            CALL deallocate_fermi_params(dft_control%tddfpt2_control%smeared_occup)
+         END IF
          IF (dft_control%qs_control%lrigpw) THEN
             CALL lri_print_stat(qs_env)
          END IF

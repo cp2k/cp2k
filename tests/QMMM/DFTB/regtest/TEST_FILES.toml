@@ -1,0 +1,22 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+# QM/MM
+"wdim_scc.inp"                          = [{matcher="M011", tol=1.0E-14, ref=-4.071762227106622}]
+"wdim_nonscc.inp"                       = [{matcher="M011", tol=1.0E-14, ref=-4.103196491657343}]
+"wdimmc_scc.inp"                        = [{matcher="M011", tol=1.0E-14, ref=-4.073207386660245}]
+"wdimmc_nonscc.inp"                     = [{matcher="M011", tol=1.0E-14, ref=-4.104297786205956}]
+"epc_1.inp"                             = [{matcher="M011", tol=1.0E-14, ref=-4.071784048619484}]
+"epc_2.inp"                             = [{matcher="M011", tol=1.0E-14, ref=-4.071742011375120}]
+"epc_3.inp"                             = [{matcher="M011", tol=1.0E-14, ref=-4.103221098162717}]
+"epc_4.inp"                             = [{matcher="M011", tol=1.0E-14, ref=-4.071792193944629}]
+"fdeb_1.inp"                            = []
+"fdeb_2.inp"                            = []
+"fdeb_3.inp"                            = []
+"fdeb_4.inp"                            = []
+"fdeb_5.inp"                            = []
+"fdeb_6.inp"                            = []
+"fdeb_7.inp"                            = []
+#EOF

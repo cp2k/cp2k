@@ -31,7 +31,7 @@
     &TDDFPT
       CONVERGENCE 1.0e-5
       MAX_ITER 10
-      MAX_KV 10
+      MAX_KV 30
       NSTATES 3
       OE_CORR SAOP
       &XC

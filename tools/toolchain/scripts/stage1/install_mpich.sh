@@ -6,8 +6,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-mpich_ver="4.0.3"
-mpich_sha256="17406ea90a6ed4ecd5be39c9ddcbfac9343e6ab4f77ac4e8c5ebe4a3e3b6c501"
+mpich_ver="4.2.3"
+mpich_sha256="7a019180c51d1738ad9c5d8d452314de65e828ee240bcb2d1f80de9a65be88a8"
 mpich_pkg="mpich-${mpich_ver}.tar.gz"
 
 source "${SCRIPT_DIR}"/common_vars.sh
@@ -68,7 +68,7 @@ case "${with_mpich}" in
     check_dir "${pkg_install_dir}/bin"
     check_dir "${pkg_install_dir}/lib"
     check_dir "${pkg_install_dir}/include"
-    check_install ${pkg_install_dir}/bin/mpiexec "mpich" && MPIRUN="${pkg_install_dir}/bin/mpiexec" || exit 1
+    check_install ${pkg_install_dir}/bin/mpiexec "mpich" && MPIEXEC="${pkg_install_dir}/bin/mpiexec" || exit 1
     check_install ${pkg_install_dir}/bin/mpicc "mpich" && MPICC="${pkg_install_dir}/bin/mpicc" || exit 1
     check_install ${pkg_install_dir}/bin/mpicxx "mpich" && MPICXX="${pkg_install_dir}/bin/mpicxx" || exit 1
     check_install ${pkg_install_dir}/bin/mpifort "mpich" && MPIFC="${pkg_install_dir}/bin/mpifort" || exit 1
@@ -79,7 +79,7 @@ case "${with_mpich}" in
     ;;
   __SYSTEM__)
     echo "==================== Finding MPICH from system paths ===================="
-    check_command mpiexec "mpich" && MPIRUN="$(command -v mpiexec)"
+    check_command mpiexec "mpich" && MPIEXEC="$(command -v mpiexec)"
     check_command mpicc "mpich" && MPICC="$(command -v mpicc)" || exit 1
     if [ $(command -v mpic++ > /dev/null 2>&1) ]; then
       check_command mpic++ "mpich" && MPICXX="$(command -v mpic++)" || exit 1
@@ -104,7 +104,7 @@ case "${with_mpich}" in
     check_dir "${pkg_install_dir}/bin"
     check_dir "${pkg_install_dir}/lib"
     check_dir "${pkg_install_dir}/include"
-    check_command ${pkg_install_dir}/bin/mpiexec "mpich" && MPIRUN="${pkg_install_dir}/bin/mpiexec" || exit 1
+    check_command ${pkg_install_dir}/bin/mpiexec "mpich" && MPIEXEC="${pkg_install_dir}/bin/mpiexec" || exit 1
     check_command ${pkg_install_dir}/bin/mpicc "mpich" && MPICC="${pkg_install_dir}/bin/mpicc" || exit 1
     check_command ${pkg_install_dir}/bin/mpicxx "mpich" && MPICXX="${pkg_install_dir}/bin/mpicxx" || exit 1
     check_command ${pkg_install_dir}/bin/mpifort "mpich" && MPIFC="${pkg_install_dir}/bin/mpifort" || exit 1
@@ -123,7 +123,7 @@ if [ "${with_mpich}" != "__DONTUSE__" ]; then
   MPICH_LIBS="-lmpifort -lmpicxx -lmpi"
   cat << EOF > "${BUILDDIR}/setup_mpich"
 export MPI_MODE="${MPI_MODE}"
-export MPIRUN="${MPIRUN}"
+export MPIEXEC="${MPIEXEC}"
 export MPICC="${MPICC}"
 export MPICXX="${MPICXX}"
 export MPIFC="${MPIFC}"
@@ -149,6 +149,7 @@ append_path LD_LIBRARY_PATH "${pkg_install_dir}/lib"
 append_path LD_RUN_PATH "${pkg_install_dir}/lib"
 append_path LIBRARY_PATH "${pkg_install_dir}/lib"
 append_path CPATH "${pkg_install_dir}/include"
+prepend_path PKG_CONFIG_PATH "${pkg_install_dir}/lib/pkgconfig"
 EOF
   fi
   cat "${BUILDDIR}/setup_mpich" >> ${SETUPFILE}
@@ -159,6 +160,8 @@ cat << EOF >> ${INSTALLDIR}/lsan.supp
 # MPICH 3.3.2 with GCC 10.3.0
 leak:MPIR_Find_local_and_external
 leak:MPIU_Find_local_and_external
+# MPICH 4.2.3
+leak:MPL_malloc
 EOF
 
 load "${BUILDDIR}/setup_mpich"

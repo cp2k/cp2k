@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -17,9 +17,8 @@ MODULE domain_submatrix_methods
         dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_filter, dbcsr_finalize, &
         dbcsr_get_block_p, dbcsr_get_info, dbcsr_get_matrix_type, dbcsr_get_stored_coordinates, &
         dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
-        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_nblkcols_total, dbcsr_nblkrows_total, &
-        dbcsr_reserve_block2d, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, &
-        dbcsr_type_symmetric, dbcsr_work_create
+        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_put_block, dbcsr_type, &
+        dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_type_symmetric, dbcsr_work_create
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
@@ -837,7 +836,7 @@ CONTAINS
    SUBROUTINE construct_submatrices(matrix, submatrix, distr_pattern, domain_map, &
                                     node_of_domain, job_type)
 
-      TYPE(dbcsr_type), INTENT(IN)                       :: matrix
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
       TYPE(domain_submatrix_type), DIMENSION(:), &
          INTENT(INOUT)                                   :: submatrix
       TYPE(dbcsr_type), INTENT(IN)                       :: distr_pattern
@@ -861,7 +860,7 @@ CONTAINS
       LOGICAL                                            :: found, transp
       REAL(KIND=dp)                                      :: antifactor
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: recv_data, send_data
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: block_p
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: block_p
       TYPE(dbcsr_distribution_type)                      :: pattern_dist
       TYPE(mp_comm_type)                                 :: group
 
@@ -872,9 +871,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      nblkrows_tot = dbcsr_nblkrows_total(matrix)
-      nblkcols_tot = dbcsr_nblkcols_total(matrix)
-
+      CALL dbcsr_get_info(matrix, nblkrows_total=nblkrows_tot, nblkcols_total=nblkcols_tot)
       ndomains = nblkcols_tot ! RZK-warning not true for atomic distributions
       CALL dbcsr_get_info(distr_pattern, distribution=pattern_dist)
       CALL dbcsr_distribution_get(pattern_dist, numnodes=nNodes, group=GroupID, mynode=myNode)
@@ -1073,8 +1070,7 @@ CONTAINS
                      col_offset = row_size*col_size
                      start_data = send_offset_cpu(dest_node + 1) + &
                                   offset_block(dest_node + 1)
-                     send_data(start_data + 1:start_data + col_offset) = &
-                        block_p(1:col_offset)
+                     send_data(start_data + 1:start_data + col_offset) = RESHAPE(block_p, [col_offset])
                      offset_block(dest_node + 1) = offset_block(dest_node + 1) + col_offset
                      ! fill out row,col information
                      send_data2(send_offset2_cpu(dest_node + 1) + &
@@ -1353,6 +1349,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, row_blk_size
       LOGICAL                                            :: transp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: recv_data, send_data
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: new_block
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: block_p
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_distribution_type)                      :: pattern_dist
@@ -1369,9 +1366,7 @@ CONTAINS
          unit_nr = -1
       END IF
 
-      nblkrows_tot = dbcsr_nblkrows_total(matrix)
-      nblkcols_tot = dbcsr_nblkcols_total(matrix)
-
+      CALL dbcsr_get_info(matrix, nblkrows_total=nblkrows_tot, nblkcols_total=nblkcols_tot)
       ndomains = nblkcols_tot ! RZK-warning not true for atomic distributions
       ndomains2 = SIZE(submatrix)
 
@@ -1560,19 +1555,16 @@ CONTAINS
             ! read the (row,col) of the block
             row = recv_data2(recv_offset2_cpu(iNode) + (iBlock - 1)*2 + 1)
             col = recv_data2(recv_offset2_cpu(iNode) + (iBlock - 1)*2 + 2)
-            !CALL dbcsr_get_block_p(matrix,row,col,block_p,found)
-            !IF (.NOT.found) THEN
-            NULLIFY (block_p)
-            CALL dbcsr_reserve_block2d(matrix, row, col, block_p)
-            CPASSERT(ASSOCIATED(block_p))
-            !ENDIF
             ! copy data from the received array into the matrix block
             start_data = recv_offset_cpu(iNode) + block_offset + 1
+            ALLOCATE (new_block(row_blk_size(row), col_blk_size(col)))
             DO icol = 1, col_blk_size(col)
-               block_p(:, icol) = &
+               new_block(:, icol) = &
                   recv_data(start_data:start_data + row_blk_size(row) - 1)
                start_data = start_data + row_blk_size(row)
             END DO
+            CALL dbcsr_put_block(matrix, row, col, new_block)
+            DEALLOCATE (new_block)
             block_offset = block_offset + col_blk_size(col)*row_blk_size(row)
          END DO
       END DO

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -208,7 +208,8 @@ MODULE input_constants
                                                mopac_guess = 7, &
                                                sparse_guess = 8, &
                                                almo_scf_guess = 9, &
-                                               molecular_guess = 10
+                                               molecular_guess = 10, &
+                                               eht_guess = 11
 
    ! Projection formulas for the maximum overlap method
    INTEGER, PARAMETER, PUBLIC               :: momproj_norm = 0, &
@@ -623,6 +624,10 @@ MODULE input_constants
 
    INTEGER, PARAMETER, PUBLIC               :: xc_pot_none = 1000, &
                                                xc_pot_saop = 1001
+
+   INTEGER, PARAMETER, PUBLIC               :: xtb_vdw_type_none = 0, &
+                                               xtb_vdw_type_d3 = 1, &
+                                               xtb_vdw_type_d4 = 2
 
    ! Hirshfeld partitioning
    INTEGER, PARAMETER, PUBLIC               :: shape_function_gaussian = 1, &
@@ -1315,6 +1320,12 @@ MODULE input_constants
    INTEGER, PARAMETER, PUBLIC               :: bse_tda = 0, &
                                                bse_abba = 1, &
                                                bse_both = 2
+
+   ! BSE level of approximation to the screening
+   INTEGER, PARAMETER, PUBLIC               :: bse_screening_w0 = 0, &
+                                               bse_screening_tdhf = 1, &
+                                               bse_screening_rpa = 2, &
+                                               bse_screening_alpha = 3
 
    ! BSE iterative abortion condition
    INTEGER, PARAMETER, PUBLIC               :: bse_iter_en_cond = 0, &

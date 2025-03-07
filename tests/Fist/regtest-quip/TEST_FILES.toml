@@ -1,0 +1,3 @@
+# Test of QUIP package from http://www.libatoms.org
+"Quip_Cu_LJ.inp"                        = [{matcher="M011", tol=1.0E-14, ref=1232949.871903293998912}]
+#EOF

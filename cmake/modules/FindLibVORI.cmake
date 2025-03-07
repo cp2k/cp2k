@@ -1,6 +1,6 @@
 #!-------------------------------------------------------------------------------------------------!
 #!   CP2K: A general program to perform molecular dynamics simulations                             !
-#!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                  !
+#!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                  !
 #!                                                                                                 !
 #!   SPDX-License-Identifier: GPL-2.0-or-later                                                     !
 #!-------------------------------------------------------------------------------------------------!
@@ -14,7 +14,6 @@ include(cp2k_utils)
 
 cp2k_set_default_paths(LIBVORI "LibVORI")
 cp2k_find_libraries(LIBVORI vori)
-# cp2k_include_dirs(LIBVORI )
 
 if(CP2K_LIBVORI_INCLUDE_DIRS)
   find_package_handle_standard_args(

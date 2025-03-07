@@ -54,11 +54,12 @@
       INITIAL_WFN RT_RESTART
       MAT_EXP BCH
       PERIODIC .FALSE.
-      RTP_METHOD RTBSE
       &PRINT
         &MOMENTS
         &END MOMENTS
       &END PRINT
+      &RTBSE
+      &END RTBSE
     &END REAL_TIME_PROPAGATION
     &SCF
       ADDED_MOS -1
@@ -82,6 +83,7 @@
   &PROPERTIES
     &BANDSTRUCTURE
       &GW
+        FREQ_MAX_FIT 27.211
         ! Simplest setting for quick checks
         NUM_TIME_FREQ_POINTS 20
       &END GW

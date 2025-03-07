@@ -1,0 +1,3 @@
+"H2O-sos-mp2-cubic-lr.inp"              = [{matcher="M011", tol=1e-8, ref=-16.861102426455496}]
+"H2O-sos-mp2-lr.inp"                    = [{matcher="M011", tol=1e-8, ref=-16.861066997408049}]
+#EOF

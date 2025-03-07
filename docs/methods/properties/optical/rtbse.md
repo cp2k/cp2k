@@ -73,9 +73,10 @@ polarizability element.
 ## Running the Propagation
 
 To run the RTBSE propagation, include the
-[REAL_TIME_PROPAGATION](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION) section in the input file
-and set the [RTP_METHOD](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.RTP_METHOD) to `RTBSE` -
-otherwise, the standard TDDFT propagation is employed.
+[RTBSE](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.RTBSE) section in the input file.
+[SECTION_PARAMETERS](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.RTBSE.SECTION_PARAMETERS) can
+be used to choose TDDFT method as a debug method, but including the section alone leads to a RTBSE
+run.
 
 Furthermore, the [TIMESTEP](#CP2K_INPUT.MOTION.MD.TIMESTEP) and [STEPS](#CP2K_INPUT.MOTION.MD.STEPS)
 influence the size of each timestep and the total time of propagation. From the properties of the
@@ -128,9 +129,6 @@ For inexact methods, a threshold for the cutoff of exponential series is provide
 [EXP_ACCURACY](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.EXP_ACCURACY) keyword. For these,
 the [MAX_ITER](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.MAX_ITER) keyword also sets the
 maximum number of iterations before the program is stopped and non-convergence is reported.
-
-Use [RTP_METHOD](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.RTP_METHOD) to start the
-calculation by setting it to TDAGW.
 
 ### Excitation Method
 
@@ -185,6 +183,16 @@ continue running the calculation in the same directory for longer time without r
 calculated time steps. Note that total length of the propagation time controls the energy/frequency
 precision, while timestep size controls the energy/frequency range.
 
+For applied field pulse not centered at zero in time, one can use
+[FT_START_TIME](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.RTBSE.FT_START_TIME) to set the
+center of Fourier transforms to a provided time $t_0$. Furthermore, the damping $\gamma$ in the
+Fourier transform is controlled by
+[FT_DAMPING](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.RTBSE.FT_DAMPING) parameter.
+Explicilty, in such case, the Fourier transform of function $f(t)$ is
+
+$$ f(\omega) = \int dt e^{i (\omega + i \gamma) t } f(t + t_0)
+$$
+
 ### Example Input
 
 A typical input file which runs the RTBSE propagation will have the
@@ -193,7 +201,8 @@ one
 
 ```
 &REAL_TIME_PROPAGATION
-    RTP_METHOD RTBSE ! Start the RTBSE method
+    &RTBSE ! Start the RTBSE method
+    &END RTBSE
     EPS_ITER 1.0E-8 ! Check convergence
     MAT_EXP BCH
     EXP_ACCURACY 1.0E-14 ! Less than EPS_ITER
@@ -207,8 +216,6 @@ one
         &END MOMENTS
         &MOMENTS_FT
             FILENAME MOMENTS-FT
-            DAMPING 0.1 ! Exponential damping
-            START_TIME ! Fourier transform offset
         &END MOMENTS_FT
         &FIELD
             FILENAME FIELD
@@ -216,6 +223,7 @@ one
         &POLARIZABILITY
             FILENAME POLARIZABILITY
             ELEMENT 1 1
+            ELEMENT 2 2 ! print two different elements of tensor
         &END POLARIZABILITY
     &END PRINT
 &END REAL_TIME_PROPAGATION

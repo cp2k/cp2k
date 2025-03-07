@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -106,8 +106,7 @@ CONTAINS
 
       INTEGER                                            :: stress_tensor
       INTEGER, DIMENSION(:), POINTER                     :: seed_vals
-      LOGICAL                                            :: atomic_energy, atomic_stress, &
-                                                            my_use_motion_section, &
+      LOGICAL                                            :: atomic_energy, my_use_motion_section, &
                                                             pv_availability, pv_diagonal, &
                                                             pv_numerical
       TYPE(atomic_kind_list_type), POINTER               :: atomic_kinds
@@ -208,12 +207,6 @@ CONTAINS
       CALL atprop_create(subsys%atprop)
       CALL section_vals_val_get(my_force_env_section, "PROPERTIES%ATOMIC%ENERGY", l_val=atomic_energy)
       subsys%atprop%energy = atomic_energy
-      CALL section_vals_val_get(my_force_env_section, "PROPERTIES%ATOMIC%PRESSURE", l_val=atomic_stress)
-      IF (atomic_stress) THEN
-         CPASSERT(pv_availability)
-         CPASSERT(.NOT. pv_numerical)
-      END IF
-      subsys%atprop%stress = atomic_stress
 
       CALL cp_result_create(subsys%results)
    END SUBROUTINE cp_subsys_create

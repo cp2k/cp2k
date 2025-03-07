@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -147,7 +147,7 @@ MODULE response_solver
    USE virial_types,                    ONLY: virial_type
    USE xtb_ehess,                       ONLY: xtb_coulomb_hessian
    USE xtb_ehess_force,                 ONLY: calc_xtb_ehess_force
-   USE xtb_matrices,                    ONLY: xtb_hab_force
+   USE xtb_hab_force,                   ONLY: build_xtb_hab_force
    USE xtb_types,                       ONLY: get_xtb_atom_param,&
                                               xtb_atom_type
 #include "./base/base_uses.f90"
@@ -2498,6 +2498,12 @@ CONTAINS
          IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Total Force ", fodeb
          DEALLOCATE (ftot1, ftot2, ftot3)
       END IF
+      IF (debug_stress .AND. use_virial) THEN
+         stdeb = fconv*(virial%pv_virial - sttot)
+         CALL para_env%sum(stdeb)
+         IF (iounit > 0) WRITE (UNIT=iounit, FMT="(T2,A,T41,2(1X,ES19.11))") &
+            'STRESS| Stress Response    ', one_third_sum_diag(stdeb), det_3x3(stdeb)
+      END IF
 
       IF (do_ex) THEN
          CALL dbcsr_deallocate_matrix_set(mpa)
@@ -2606,7 +2612,7 @@ CONTAINS
       END IF
       ! Hcore  matrix
       IF (debug_forces) fodeb(1:3) = force(1)%all_potential(1:3, 1)
-      CALL xtb_hab_force(qs_env, mpa(1)%matrix)
+      CALL build_xtb_hab_force(qs_env, mpa(1)%matrix)
       IF (debug_forces) THEN
          fodeb(1:3) = force(1)%all_potential(1:3, 1) - fodeb(1:3)
          CALL para_env%sum(fodeb)

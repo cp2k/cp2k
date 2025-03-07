@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -12,7 +12,7 @@ MODULE dkh_main
                                               cp_fm_syrk,&
                                               cp_fm_transpose,&
                                               cp_fm_triangular_multiply,&
-                                              cp_fm_upper_to_full
+                                              cp_fm_uplo_to_full
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                               cp_fm_cholesky_reduce
    USE cp_fm_diag,                      ONLY: cp_fm_syevd
@@ -197,7 +197,7 @@ CONTAINS
       !-----------------------------------------------------------------------
 
       CALL cp_fm_cholesky_reduce(matrix_v, matrix_sinv)
-      CALL cp_fm_upper_to_full(matrix_v, matrix_aux)
+      CALL cp_fm_uplo_to_full(matrix_v, matrix_aux)
       CALL parallel_gemm("T", "N", n, n, n, 1.0_dp, matrix_eig, matrix_v, 0.0_dp, matrix_aux)
       CALL parallel_gemm("N", "N", n, n, n, 1.0_dp, matrix_aux, matrix_eig, 0.0_dp, matrix_v)
 
@@ -206,7 +206,7 @@ CONTAINS
       !-----------------------------------------------------------------------
 
       CALL cp_fm_cholesky_reduce(matrix_pVp, matrix_sinv)
-      CALL cp_fm_upper_to_full(matrix_pVp, matrix_aux)
+      CALL cp_fm_uplo_to_full(matrix_pVp, matrix_aux)
       CALL parallel_gemm("T", "N", n, n, n, 1.0_dp, matrix_eig, matrix_pVp, 0.0_dp, matrix_aux)
       CALL parallel_gemm("N", "N", n, n, n, 1.0_dp, matrix_aux, matrix_eig, 0.0_dp, matrix_pVp)
 
@@ -275,7 +275,7 @@ CONTAINS
       !-----------------------------------------------------------------------
 
       CALL cp_fm_scale_and_add(1.0_dp, matrix_ev1, 1.0_dp, matrix_ev2)
-      CALL cp_fm_upper_to_full(matrix_ev1, matrix_aux)
+      CALL cp_fm_uplo_to_full(matrix_ev1, matrix_aux)
       CALL cp_fm_to_fm(matrix_ev1, matrix_v)
       IF (dkh_order .GE. 3) THEN
          CALL cp_fm_scale_and_add(1.0_dp, matrix_v, 1.0_dp, matrix_ev3)
@@ -427,7 +427,7 @@ CONTAINS
       END DO
 
       CALL cp_fm_syrk('U', 'N', 1, 1.0_dp, vec_a, 1, 1, 0.0_dp, matrix_aux)
-      CALL cp_fm_upper_to_full(matrix_aux, matrix_aux2)
+      CALL cp_fm_uplo_to_full(matrix_aux, matrix_aux2)
       CALL cp_fm_schur_product(matrix_v, matrix_aux, matrix_pe1p)
 
       DO i = 1, nrow_local
@@ -435,7 +435,7 @@ CONTAINS
       END DO
 
       CALL cp_fm_syrk('U', 'N', 1, 1.0_dp, vec_a, 1, 1, 0.0_dp, matrix_aux)
-      CALL cp_fm_upper_to_full(matrix_aux, matrix_aux2)
+      CALL cp_fm_uplo_to_full(matrix_aux, matrix_aux2)
       CALL cp_fm_schur_product(matrix_pvp, matrix_aux, matrix_aux2)
 
       CALL cp_fm_scale_and_add(4.0_dp, matrix_pe1p, 1.0_dp, matrix_aux2)
@@ -1058,7 +1058,7 @@ CONTAINS
       END DO
 
       CALL cp_fm_syrk('U', 'N', 1, 1.0_dp, vec_a, 1, 1, 0.0_dp, matrix_aux)
-      CALL cp_fm_upper_to_full(matrix_aux, matrix_axa)
+      CALL cp_fm_uplo_to_full(matrix_aux, matrix_axa)
       CALL cp_fm_schur_product(matrix_x, matrix_aux, matrix_axa)
 
       !     DO i=1,n
@@ -1121,7 +1121,7 @@ CONTAINS
       END DO
 
       CALL cp_fm_syrk('U', 'N', 1, 1.0_dp, vec_a, 1, 1, 0.0_dp, matrix_aux)
-      CALL cp_fm_upper_to_full(matrix_aux, matrix_axa)
+      CALL cp_fm_uplo_to_full(matrix_aux, matrix_axa)
       CALL cp_fm_schur_product(matrix_x, matrix_aux, matrix_axa)
 
       CALL cp_fm_release(vec_a)

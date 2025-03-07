@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -12,8 +12,8 @@
 !> \author Joost VandeVondele (2003-09)
 ! **************************************************************************************************
 MODULE cp_cfm_diag
-   USE cp_cfm_basic_linalg, ONLY: cp_cfm_cholesky_decompose, &
-                                  cp_cfm_gemm, &
+   USE cp_cfm_cholesky, ONLY: cp_cfm_cholesky_decompose
+   USE cp_cfm_basic_linalg, ONLY: cp_cfm_gemm, &
                                   cp_cfm_column_scale, &
                                   cp_cfm_scale, &
                                   cp_cfm_triangular_invert, &
@@ -22,17 +22,23 @@ MODULE cp_cfm_diag
                            cp_cfm_set_element, &
                            cp_cfm_to_cfm, &
                            cp_cfm_type
+#if defined(__DLAF)
+   USE cp_cfm_dlaf_api, ONLY: cp_cfm_diag_gen_dlaf, &
+                              cp_cfm_diag_dlaf
+   USE cp_fm_diag, ONLY: diag_type, dlaf_neigvec_min, FM_DIAG_TYPE_DLAF
+#endif
    USE kinds, ONLY: dp
 #if defined (__HAS_IEEE_EXCEPTIONS)
    USE ieee_exceptions, ONLY: ieee_get_halting_mode, &
                               ieee_set_halting_mode, &
-                              ieee_all
+                              IEEE_ALL
 #endif
 
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE
+
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_cfm_diag'
 
    PUBLIC :: cp_cfm_heevd, cp_cfm_geeig, cp_cfm_geeig_canon
@@ -45,19 +51,53 @@ CONTAINS
 !> \param eigenvectors ...
 !> \param eigenvalues ...
 !> \par History
-!>      - (De)Allocation checks updated (15.02.2011,MK)
+!>      12.2024 Added DLA-Future support [Rocco Meli]
 !> \author Joost VandeVondele
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_heevd(matrix, eigenvectors, eigenvalues)
 
+      TYPE(cp_cfm_type), INTENT(IN)                      :: matrix, eigenvectors
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: eigenvalues
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_cfm_heevd'
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
+#if defined(__DLAF)
+      IF (diag_type == FM_DIAG_TYPE_DLAF .AND. matrix%matrix_struct%nrow_global >= dlaf_neigvec_min) THEN
+         CALL cp_cfm_diag_dlaf(matrix, eigenvectors, eigenvalues)
+      ELSE
+#endif
+         CALL cp_cfm_heevd_base(matrix, eigenvectors, eigenvalues)
+#if defined(__DLAF)
+      END IF
+#endif
+
+      CALL timestop(handle)
+
+   END SUBROUTINE cp_cfm_heevd
+
+! **************************************************************************************************
+!> \brief Perform a diagonalisation of a complex matrix
+!> \param matrix ...
+!> \param eigenvectors ...
+!> \param eigenvalues ...
+!> \par History
+!>      - (De)Allocation checks updated (15.02.2011,MK)
+!> \author Joost VandeVondele
+! **************************************************************************************************
+   SUBROUTINE cp_cfm_heevd_base(matrix, eigenvectors, eigenvalues)
+
       TYPE(cp_cfm_type), INTENT(IN)            :: matrix, eigenvectors
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: eigenvalues
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_heevd'
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_heevd_base'
 
       COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: work
       COMPLEX(KIND=dp), DIMENSION(:, :), &
-         POINTER                                :: m
+         POINTER                               :: m
       INTEGER                                  :: handle, info, liwork, &
                                                   lrwork, lwork, n
       INTEGER, DIMENSION(:), POINTER           :: iwork
@@ -65,7 +105,7 @@ CONTAINS
 #if defined(__parallel)
       INTEGER, DIMENSION(9)                    :: descm, descv
       COMPLEX(KIND=dp), DIMENSION(:, :), &
-         POINTER                                :: v
+         POINTER                               :: v
 #if defined (__HAS_IEEE_EXCEPTIONS)
       LOGICAL, DIMENSION(5)                    :: halt
 #endif
@@ -91,13 +131,13 @@ CONTAINS
       ! Let's add some margin to avoid crashes.
       lwork = CEILING(REAL(work(1), KIND=dp)) + 1000
       ! needed to correct for a bug in scalapack, unclear how much the right number is
-      lrwork = CEILING(REAL(rwork(1), KIND=dp)) + 1000000
+      lrwork = CEILING(rwork(1)) + 1000000
       liwork = iwork(1)
 #else
       CALL zheevd('V', 'U', n, m(1, 1), SIZE(m, 1), eigenvalues(1), &
                   work(1), lwork, rwork(1), lrwork, iwork(1), liwork, info)
       lwork = CEILING(REAL(work(1), KIND=dp))
-      lrwork = CEILING(REAL(rwork(1), KIND=dp))
+      lrwork = CEILING(rwork(1))
       liwork = iwork(1)
 #endif
 
@@ -119,7 +159,7 @@ CONTAINS
       CALL ieee_set_halting_mode(IEEE_ALL, halt)
 #endif
 #else
-      CALL ZHEEVD('V', 'U', n, m(1, 1), SIZE(m, 1), eigenvalues(1), &
+      CALL zheevd('V', 'U', n, m(1, 1), SIZE(m, 1), eigenvalues(1), &
                   work(1), lwork, rwork(1), lrwork, iwork(1), liwork, info)
       eigenvectors%local_data = matrix%local_data
 #endif
@@ -130,7 +170,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE cp_cfm_heevd
+   END SUBROUTINE cp_cfm_heevd_base
 
 ! **************************************************************************************************
 !> \brief General Eigenvalue Problem  AX = BXE
@@ -140,6 +180,8 @@ CONTAINS
 !> \param eigenvectors ...
 !> \param eigenvalues ...
 !> \param work ...
+!> \par History
+!>      12.2024 Added DLA-Future support [Rocco Meli]
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_geeig(amatrix, bmatrix, eigenvectors, eigenvalues, work)
 
@@ -156,18 +198,29 @@ CONTAINS
 
       CALL cp_cfm_get_info(amatrix, nrow_global=nao)
       ALLOCATE (evals(nao))
-      ! Cholesky decompose S=U(T)U
-      CALL cp_cfm_cholesky_decompose(bmatrix)
-      ! Invert to get U^(-1)
-      CALL cp_cfm_triangular_invert(bmatrix)
-      ! Reduce to get U^(-T) * H * U^(-1)
-      CALL cp_cfm_triangular_multiply(bmatrix, amatrix, side="R")
-      CALL cp_cfm_triangular_multiply(bmatrix, amatrix, transa_tr="C")
-      ! Diagonalize
-      CALL cp_cfm_heevd(matrix=amatrix, eigenvectors=work, eigenvalues=evals)
-      ! Restore vectors C = U^(-1) * C*
-      CALL cp_cfm_triangular_multiply(bmatrix, work)
       nmo = SIZE(eigenvalues)
+
+#if defined(__DLAF)
+      IF (diag_type == FM_DIAG_TYPE_DLAF .AND. amatrix%matrix_struct%nrow_global >= dlaf_neigvec_min) THEN
+         ! Use DLA-Future generalized eigenvalue solver for large matrices
+         CALL cp_cfm_diag_gen_dlaf(amatrix, bmatrix, work, evals)
+      ELSE
+#endif
+         ! Cholesky decompose S=U(T)U
+         CALL cp_cfm_cholesky_decompose(bmatrix)
+         ! Invert to get U^(-1)
+         CALL cp_cfm_triangular_invert(bmatrix)
+         ! Reduce to get U^(-T) * H * U^(-1)
+         CALL cp_cfm_triangular_multiply(bmatrix, amatrix, side="R")
+         CALL cp_cfm_triangular_multiply(bmatrix, amatrix, transa_tr="C")
+         ! Diagonalize
+         CALL cp_cfm_heevd(matrix=amatrix, eigenvectors=work, eigenvalues=evals)
+         ! Restore vectors C = U^(-1) * C*
+         CALL cp_cfm_triangular_multiply(bmatrix, work)
+#if defined(__DLAF)
+      END IF
+#endif
+
       CALL cp_cfm_to_cfm(work, eigenvectors, nmo)
       eigenvalues(1:nmo) = evals(1:nmo)
 
@@ -190,7 +243,7 @@ CONTAINS
    SUBROUTINE cp_cfm_geeig_canon(amatrix, bmatrix, eigenvectors, eigenvalues, work, epseig)
 
       TYPE(cp_cfm_type), INTENT(IN)                      :: amatrix, bmatrix, eigenvectors
-      REAL(KIND=dp), DIMENSION(:)                        :: eigenvalues
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: eigenvalues
       TYPE(cp_cfm_type), INTENT(IN)                      :: work
       REAL(KIND=dp), INTENT(IN)                          :: epseig
 
@@ -238,7 +291,7 @@ CONTAINS
          ! Set small eigenvalues to a dummy save value
          evals(nc + 1:nao) = 1.0_dp
       END IF
-      ! calculate U*s**(-1/2)
+      ! Calculate U*s**(-1/2)
       cevals(:) = CMPLX(1.0_dp/SQRT(evals(:)), 0.0_dp, KIND=dp)
       CALL cp_cfm_column_scale(work, cevals)
       ! Reduce to get U^(-C) * H * U^(-1)

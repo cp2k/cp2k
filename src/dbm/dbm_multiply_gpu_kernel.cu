@@ -1,6 +1,6 @@
 /*----------------------------------------------------------------------------*/
 /*  CP2K: A general program to perform molecular dynamics simulations         */
-/*  Copyright 2000-2024 CP2K developers group <https://cp2k.org>              */
+/*  Copyright 2000-2025 CP2K developers group <https://cp2k.org>              */
 /*                                                                            */
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
@@ -43,14 +43,6 @@ __device__ static void atomicAddDouble(double *address, double val) {
 }
 
 /*******************************************************************************
- * \brief Returns the larger of two given integer (missing from the C standard)
- * \author Ole Schuett
- ******************************************************************************/
-__device__ constexpr static inline int imax(int x, int y) {
-  return (x > y ? x : y);
-}
-
-/*******************************************************************************
  * \brief Processes a task using tile dimensions give by template parameters.
  * \author Ole Schuett
  ******************************************************************************/
@@ -60,9 +52,10 @@ __device__ static void process_task(const int m, const int n, const int k,
                                     const double *block_b, double *block_c,
                                     double *shared_mem) {
 
-  constexpr int K = NUM_THREADS / imax(M, N);
+  constexpr int MAXEXTENT = (M > N ? M : N);
+  constexpr int K = NUM_THREADS / MAXEXTENT;
 
-  static_assert(K * imax(M, N) == NUM_THREADS, "Wasting threads.");
+  static_assert(K * MAXEXTENT == NUM_THREADS, "Wasting threads.");
   static_assert(M * N <= NUM_THREADS, "Not enough threads to cover tile.");
 
   double *tile_a = shared_mem;

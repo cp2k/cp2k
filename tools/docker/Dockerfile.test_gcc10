@@ -23,6 +23,7 @@ RUN export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true && \
     libopenblas-dev \
     libint2-dev \
     libxc-dev \
+    libhdf5-dev \
     libxsmm-dev \
     libspglib-f08-dev \
    && rm -rf /var/lib/apt/lists/*
@@ -34,7 +35,7 @@ RUN ln -sf /usr/bin/gcc-10      /usr/local/bin/gcc  && \
 
 # Install DBCSR
 COPY ./tools/docker/scripts/install_dbcsr.sh ./
-RUN  ./install_dbcsr.sh
+RUN ./install_dbcsr.sh ubuntu ssmp
 
 # Install CP2K sources.
 WORKDIR /opt/cp2k

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -100,7 +100,7 @@ CONTAINS
       ! calculate weights
       ALLOCATE (weights(npoints))
       weights(:) = cov(:)
-      CALL DPOTRS("U", npoints, 1, training_matrix%GP, npoints, weights, npoints, info)
+      CALL dpotrs("U", npoints, 1, training_matrix%GP, npoints, weights, npoints, info)
       CPASSERT(info == 0)
 
       ! calculate predicted output
@@ -150,7 +150,7 @@ CONTAINS
       ! calculate derivative of covariances
       ALLOCATE (cov_deriv(npoints))
       cov_deriv(:) = weights_deriv(:)
-      CALL DPOTRS("U", npoints, 1, training_matrix%GP, npoints, cov_deriv, npoints, info)
+      CALL dpotrs("U", npoints, 1, training_matrix%GP, npoints, cov_deriv, npoints, info)
       CPASSERT(info == 0)
 
       ! calculate derivative of kernel

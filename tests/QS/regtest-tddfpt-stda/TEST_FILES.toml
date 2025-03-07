@@ -1,0 +1,22 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+"CH2O_tddfpt_stda-s-1.inp"              = [{matcher="M037", tol=1.0E-05, ref=0.349885E+00}]
+"CH2Oplus_tddfpt_stda-lsd.inp"          = [{matcher="M037", tol=1.0E-05, ref=0.212147E+00}]
+"CH2O_tddfpt_stda-pbe-s.inp"            = [{matcher="M037", tol=1.0E-05, ref=0.125452E+00}]
+"CH2O_tddfpt_stda-pbe-s_doexchange.inp" = [{matcher="M037", tol=1.0E-05, ref=0.155105E+00}]
+"CH2O_tddfpt_stda-xtb-s.inp"            = [{matcher="M037", tol=1.0E-05, ref=0.150482E+00}]
+"CH2O_stda-xtb-s.inp"                   = [{matcher="M037", tol=1.0E-05, ref=0.779158E-01}]
+"CH2O_stda-dip.inp"                     = [{matcher="M037", tol=1.0E-05, ref=0.779158E-01}]
+"H2O_tddfpt_stda-pbe-s.inp"             = [{matcher="M037", tol=1.0E-05, ref=0.599658E+00}]
+"H2Oplus_tddfpt_stda-pbe-lsd.inp"       = [{matcher="M037", tol=1.0E-05, ref=0.463329E+00}]
+"H2O_tddfpt_stda-pbe-t.inp"             = [{matcher="M037", tol=1.0E-05, ref=0.595565E+00}]
+"H2O_tddfpt_stda-pbe0-s.inp"            = [{matcher="M037", tol=1.0E-05, ref=0.637391E+00}]
+"H2O_tddfpt_stda-pbe0-t.inp"            = [{matcher="M037", tol=1.0E-05, ref=0.633489E+00}]
+"H2O_tddfpt_stda-s-1.inp"               = [{matcher="M037", tol=1.0E-05, ref=0.173021E+00}]
+"NO_tddfpt_stda-s-1.inp"                = [{matcher="M037", tol=1.0E-05, ref=0.375613E+00}]
+"water_xTB.inp"                         = [{matcher="M037", tol=2.0E-05, ref=0.125917E+00}]
+"water_xTBi_NTO.inp"                    = [{matcher="M037", tol=2.0E-05, ref=0.125917E+00}]
+#EOF

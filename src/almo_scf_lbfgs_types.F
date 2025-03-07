@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -16,10 +16,10 @@ MODULE almo_scf_lbfgs_types
    USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
                                               dbcsr_copy,&
                                               dbcsr_create,&
-                                              dbcsr_dot,&
                                               dbcsr_release,&
                                               dbcsr_scale,&
                                               dbcsr_type
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_dot
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr
    !USE cp_log_handling,                 ONLY: cp_to_string

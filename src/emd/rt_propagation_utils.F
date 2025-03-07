@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -17,11 +17,11 @@ MODULE rt_propagation_utils
    USE cp_control_types,                ONLY: dft_control_type,&
                                               rtp_control_type
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_add, dbcsr_binary_read, dbcsr_checksum, dbcsr_copy, dbcsr_create, &
-        dbcsr_deallocate_matrix, dbcsr_desymmetrize, dbcsr_distribution_type, dbcsr_filter, &
-        dbcsr_get_info, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, dbcsr_scale, &
-        dbcsr_set, dbcsr_type
+        dbcsr_add, dbcsr_binary_read, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, &
+        dbcsr_desymmetrize, dbcsr_distribution_type, dbcsr_filter, dbcsr_get_info, &
+        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
+        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, dbcsr_scale, dbcsr_set, dbcsr_type
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_checksum
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_plus_fm_fm_t,&
                                               dbcsr_deallocate_matrix_set
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale
@@ -45,6 +45,7 @@ MODULE rt_propagation_utils
    USE input_section_types,             ONLY: section_get_ival,&
                                               section_get_ivals,&
                                               section_get_lval,&
+                                              section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -103,7 +104,8 @@ MODULE rt_propagation_utils
              calc_update_rho_sparse, &
              calculate_P_imaginary, &
              write_rtp_mos_to_output_unit, &
-             write_rtp_mo_cubes
+             write_rtp_mo_cubes, &
+             warn_section_unused
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rt_propagation_utils'
 
@@ -129,7 +131,7 @@ CONTAINS
                                                             nder, row_atom
       INTEGER, DIMENSION(6, 2)                           :: c_map_mat
       LOGICAL                                            :: return_s_derivatives
-      REAL(dp), DIMENSION(:), POINTER                    :: block_values
+      REAL(dp), DIMENSION(:, :), POINTER                 :: block_values
       TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: C_mat, S_der, s_derivs
       TYPE(dbcsr_type), POINTER                          :: B_mat, tmp_mat, tmp_mat2
@@ -871,5 +873,24 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE write_rtp_mo_cubes
+
+! **************************************************************************************************
+!> \brief Warn about unused sections of the print section - only implemented for some of the methods
+!> \param section Parent section
+!> \param subsection_name Name of the subsection which is not used even when explicitly included
+!> \param error_message Message to display as warning
+!> \author Stepan Marek (01.25)
+! **************************************************************************************************
+   SUBROUTINE warn_section_unused(section, subsection_name, error_message)
+      TYPE(section_vals_type), POINTER                   :: section
+      CHARACTER(len=*)                                   :: subsection_name, error_message
+
+      LOGICAL                                            :: explicit
+      TYPE(section_vals_type), POINTER                   :: target_section
+
+      target_section => section_vals_get_subs_vals(section, subsection_name)
+      CALL section_vals_get(target_section, explicit=explicit)
+      IF (explicit) CPWARN(error_message)
+   END SUBROUTINE
 
 END MODULE rt_propagation_utils

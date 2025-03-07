@@ -1,0 +1,21 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# see regtest/TEST_FILES
+"h2o_pint_fist_nose.inp"                = [{matcher="M009", tol=2e-14, ref=1.0721132870718006E-002}]
+"h2o_pint_fist_nose_restart.inp"        = [{matcher="M009", tol=2e-14, ref=1.0723685835629522E-002}]
+"h2o_pint_qs_nve.inp"                   = [{matcher="M009", tol=2E-14, ref=-17.137404051037059}]
+"h2o_pint_qs_nose.inp"                  = [{matcher="M009", tol=2E-14, ref=-17.129537082566628}]
+"h2o_pint_qs_nose_restart.inp"          = [{matcher="M009", tol=2e-09, ref=-17.1295368929579}]
+"h2o_pint_exact_harm.inp"               = [{matcher="M009", tol=3e-14, ref=2.8542777100474888E-003}]
+"h2o_pint_rpmd.inp"                     = [{matcher="M009", tol=2e-14, ref=1.1503487725277912E-002}]
+"h2o_pint_constraints_nose.inp"         = [{matcher="M009", tol=2e-14, ref=9.7527488124538198E-003}]
+"h2o_pint_constraints_exact.inp"        = [{matcher="M009", tol=2e-14, ref=2.8127812079331727E-003}]
+"h2o_pint_beadwise_constraints_exact.inp" = [{matcher="M009", tol=2e-14, ref=2.6566645545283095E-003}]
+"he32_only.inp"                         = [{matcher="M040", tol=2e-14, ref=-2.1415575929544138E-005}]
+"he32_only_restart.inp"                 = [{matcher="M040", tol=2e-13, ref=-1.4377236656991897E-005}]
+"water-in-helium.inp"                   = [{matcher="M009", tol=7e-14, ref=1.0717546824070511E-003}]
+"water-in-helium-restart.inp"           = [{matcher="M009", tol=1e-13, ref=1.0716120146125518E-003}]
+"water-in-helium-lastforce.inp"         = [{matcher="M009", tol=1e-13, ref=1.0708166830830485E-003}]
+"h2o_cmd_nose.inp"                      = [{matcher="M009", tol=1e-13, ref=2.5049926484361770E-002}]
+"h2o_cmd_pile.inp"                      = [{matcher="M009", tol=1e-13, ref=6.7246877655376420E-003}]
+#EOF

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -33,10 +33,10 @@ MODULE input_cp2k_scf
         cdft_alpha_constraint, cdft_beta_constraint, cdft_charge_constraint, &
         cdft_magnetization_constraint, cholesky_dbcsr, cholesky_inverse, cholesky_off, &
         cholesky_reduce, cholesky_restore, core_guess, diag_block_davidson, diag_block_krylov, &
-        diag_filter_matrix, diag_ot, diag_standard, gaussian, general_roks, high_spin_roks, &
-        history_guess, jacobian_fd1, jacobian_fd1_backward, jacobian_fd1_central, jacobian_fd2, &
-        jacobian_fd2_backward, ls_2pnt, ls_3pnt, ls_gold, ls_none, mopac_guess, no_guess, &
-        numerical, ot_algo_irac, ot_algo_taylor_or_diag, ot_chol_irac, ot_lwdn_irac, &
+        diag_filter_matrix, diag_ot, diag_standard, eht_guess, gaussian, general_roks, &
+        high_spin_roks, history_guess, jacobian_fd1, jacobian_fd1_backward, jacobian_fd1_central, &
+        jacobian_fd2, jacobian_fd2_backward, ls_2pnt, ls_3pnt, ls_gold, ls_none, mopac_guess, &
+        no_guess, numerical, ot_algo_irac, ot_algo_taylor_or_diag, ot_chol_irac, ot_lwdn_irac, &
         ot_mini_broyden, ot_mini_cg, ot_mini_diis, ot_mini_sd, ot_poly_irac, ot_precond_full_all, &
         ot_precond_full_kinetic, ot_precond_full_single, ot_precond_full_single_inverse, &
         ot_precond_none, ot_precond_s_inverse, ot_precond_solver_default, &
@@ -207,17 +207,18 @@ CONTAINS
          description="Change the initial guess for the wavefunction.", &
          usage="SCF_GUESS RESTART", default_i_val=atomic_guess, &
          enum_c_vals=s2a("ATOMIC", "RESTART", "RANDOM", "CORE", &
-                         "HISTORY_RESTART", "MOPAC", "SPARSE", "NONE"), &
+                         "HISTORY_RESTART", "MOPAC", "EHT", "SPARSE", "NONE"), &
          enum_desc=s2a("Generate an atomic density using the atomic code", &
                        "Use the RESTART file as an initial guess (and ATOMIC if not present).", &
                        "Use random wavefunction coefficients.", &
                        "Diagonalize the core hamiltonian for an initial guess.", &
                        "Extrapolated from previous RESTART files.", &
                        "Use same guess as MOPAC for semi-empirical methods or a simple diagonal density matrix for other methods", &
+                       "Use the EHT (gfn0-xTB) code to generate an initial wavefunction.", &
                        "Generate a sparse wavefunction using the atomic code (for OT based methods)", &
                        "Skip initial guess (only for non-self consistent methods)."), &
          enum_i_vals=(/atomic_guess, restart_guess, random_guess, core_guess, &
-                       history_guess, mopac_guess, sparse_guess, no_guess/))
+                       history_guess, mopac_guess, eht_guess, sparse_guess, no_guess/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -257,7 +258,7 @@ CONTAINS
                           variants=(/"F_ROKS"/), &
                           description="Allows to define the parameter f for the "// &
                           "general ROKS scheme.", &
-                          usage="ROKS_PARAMETER 1/2", &
+                          usage="ROKS_F 1/2", &
                           repeats=.FALSE., &
                           n_var=1, &
                           type_of_var=real_t, &
@@ -285,6 +286,14 @@ CONTAINS
                           "iteration has not converged. By default, a run is aborted "// &
                           "if the required convergence criteria have not been achieved.", &
                           usage="IGNORE_CONVERGENCE_FAILURE logical_value", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="FORCE_SCF_CALCULATION", &
+                          description="Request a SCF type solution even for nonSCF methods. ", &
+                          usage="FORCE_SCF_CALCULATION logical_value", &
                           default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -1435,7 +1444,7 @@ CONTAINS
                           description="Name of the reference spin density cube file for fragment A."// &
                           " May include a path. The reference spin density needs to be outputted"// &
                           " on the same grid as the full system (same cutoff and cell, output stride 1).", &
-                          usage="FRAGMENT_A_FILE_NAME <FILENAME>", &
+                          usage="FRAGMENT_A_SPIN_FILE <FILENAME>", &
                           default_lc_val="fragment_a_spin.cube")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1445,7 +1454,7 @@ CONTAINS
                           description="Name of the reference spin density cube file for fragment B."// &
                           " May include a path. The reference spin density needs to be outputted"// &
                           " on the same grid as the full system (same cutoff and cell, output stride 1).", &
-                          usage="FRAGMENT_B_FILE_NAME <FILENAME>", &
+                          usage="FRAGMENT_B_SPIN_FILE <FILENAME>", &
                           default_lc_val="fragment_b_spin.cube")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1688,7 +1697,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="USE_BOHR", &
                           description="Convert the Gaussian radius from angstrom to bohr. This results in a larger "// &
                           "Gaussian than without unit conversion.", &
-                          usage="CAVITY_USE_BOHR TRUE", &
+                          usage="USE_BOHR .TRUE.", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

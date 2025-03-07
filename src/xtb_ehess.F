@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -82,8 +82,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'xtb_coulomb_hessian'
 
-      INTEGER :: blk, ewald_type, handle, i, ia, iatom, icol, ikind, irow, is, j, jatom, jkind, &
-         la, lb, lmaxa, lmaxb, natom, natorb_a, natorb_b, ni, nj, nkind, nmat, za, zb
+      INTEGER :: ewald_type, handle, i, ia, iatom, icol, ikind, irow, is, j, jatom, jkind, la, lb, &
+         lmaxa, lmaxb, natom, natorb_a, natorb_b, ni, nj, nkind, nmat, za, zb
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
       INTEGER, DIMENSION(25)                             :: laoa, laob
       INTEGER, DIMENSION(3)                              :: cellind, periodic
@@ -141,11 +141,7 @@ CONTAINS
       ! loop over all atom pairs (sab_xtbe)
       kg = xtb_control%kg
       NULLIFY (n_list)
-      IF (xtb_control%old_coulomb_damping) THEN
-         CALL get_qs_env(qs_env=qs_env, sab_orb=n_list)
-      ELSE
-         CALL get_qs_env(qs_env=qs_env, sab_xtbe=n_list)
-      END IF
+      CALL get_qs_env(qs_env=qs_env, sab_xtbe=n_list)
       CALL neighbor_list_iterator_create(nl_iterator, n_list)
       DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
          CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
@@ -243,7 +239,7 @@ CONTAINS
       ! no k-points; all matrices have been transformed to periodic bsf
       CALL dbcsr_iterator_start(iter, matrix_s(1, 1)%matrix)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
-         CALL dbcsr_iterator_next_block(iter, irow, icol, sblock, blk)
+         CALL dbcsr_iterator_next_block(iter, irow, icol, sblock)
          ikind = kind_of(irow)
          jkind = kind_of(icol)
 
@@ -314,7 +310,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'dftb3_diagonal_hessian'
 
-      INTEGER                                            :: blk, handle, icol, ikind, irow, is, jkind
+      INTEGER                                            :: handle, icol, ikind, irow, is, jkind
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
       LOGICAL                                            :: found
       REAL(KIND=dp)                                      :: gmij, ui, uj
@@ -332,7 +328,7 @@ CONTAINS
       ! no k-points; all matrices have been transformed to periodic bsf
       CALL dbcsr_iterator_start(iter, matrix_s(1, 1)%matrix)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
-         CALL dbcsr_iterator_next_block(iter, irow, icol, sblock, blk)
+         CALL dbcsr_iterator_next_block(iter, irow, icol, sblock)
          ikind = kind_of(irow)
          ui = xgamma(ikind)
          jkind = kind_of(icol)

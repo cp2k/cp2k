@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -540,15 +540,6 @@ CONTAINS
                   DO i = 1, 3
                      DO j = 1, 3
                         pv_thread(j, i) = pv_thread(j, i) + pv(j, i)
-                        ! Update atomic stress tensors
-                        IF (atprop_env%stress) THEN
-!$OMP                          ATOMIC
-                           atprop_env%atstress(j, i, atom_a) = atprop_env%atstress(j, i, atom_a) + &
-                                                               0.5_dp*pv(j, i)
-!$OMP                          ATOMIC
-                           atprop_env%atstress(j, i, atom_b) = atprop_env%atstress(j, i, atom_b) + &
-                                                               0.5_dp*pv(j, i)
-                        END IF
                      END DO
                   END DO
                END IF
@@ -976,13 +967,6 @@ CONTAINS
          fbc(3, 2) = -fij_com(3)*rij(2)
          fbc(3, 3) = -fij_com(3)*rij(3)
          pv_bc(:, :) = pv_bc(:, :) + fbc(:, :)
-         IF (atprop_env%stress) THEN
-            ! Atomic stress tensors
-            iatom = particle_set1(i)%atom_index
-            atprop_env%atstress(:, :, iatom) = atprop_env%atstress(:, :, iatom) + 0.5_dp*fbc(:, :)
-            jatom = particle_set2(j)%atom_index
-            atprop_env%atstress(:, :, jatom) = atprop_env%atstress(:, :, jatom) + 0.5_dp*fbc(:, :)
-         END IF
       END IF
 
    END SUBROUTINE bonded_correct_gaussian_low
@@ -1091,11 +1075,6 @@ CONTAINS
          fbc(3, 2) = -fr(3)*rij(2)
          fbc(3, 3) = -fr(3)*rij(3)
          pv_bc(:, :) = pv_bc(:, :) + fbc(:, :)
-         IF (atprop_env%stress) THEN
-            ! Atomic stress tensors
-            iatom = shell_particle_set(i)%atom_index
-            atprop_env%atstress(:, :, iatom) = atprop_env%atstress(:, :, iatom) + fbc(:, :)
-         END IF
       END IF
 
    END SUBROUTINE bonded_correct_gaussian_low_sh

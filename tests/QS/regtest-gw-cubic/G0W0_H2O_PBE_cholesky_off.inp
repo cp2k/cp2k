@@ -1,0 +1,102 @@
+&GLOBAL
+  PRINT_LEVEL MEDIUM
+  PROJECT G0W0_H2O_PBE_periodic
+  RUN_TYPE ENERGY
+  &TIMINGS
+    THRESHOLD 0.01
+  &END TIMINGS
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME HFX_BASIS
+    POTENTIAL_FILE_NAME GTH_POTENTIALS
+    SORT_BASIS EXP
+    &MGRID
+      CUTOFF 100
+      REL_CUTOFF 20
+    &END MGRID
+    &POISSON
+      PERIODIC NONE
+      POISSON_SOLVER MT
+    &END POISSON
+    &QS
+      EPS_DEFAULT 1.0E-15
+      EPS_PGF_ORB 1.0E-30
+      METHOD GPW
+    &END QS
+    &SCF
+      CHOLESKY OFF
+      EPS_EIGVAL 1.0E-1
+      EPS_SCF 1.0E-4
+      MAX_SCF 100
+      SCF_GUESS ATOMIC
+      &PRINT
+        &RESTART OFF
+        &END RESTART
+      &END PRINT
+    &END SCF
+    &XC
+      &WF_CORRELATION
+        MEMORY 200.
+        NUMBER_PROC 1
+        &LOW_SCALING
+          MEMORY_CUT 1
+        &END LOW_SCALING
+        &RI_RPA
+          RPA_NUM_QUAD_POINTS 10
+          &GW
+            ANALYTIC_CONTINUATION TWO_POLE
+            CORR_MOS_OCC 4
+            CORR_MOS_VIRT 6
+            CROSSING_SEARCH Z_SHOT
+            PERIODIC_CORRECTION
+            RI_SIGMA_X FALSE
+            &PERIODIC_CORRECTION
+              # That value should be chosen much larger !
+              NUM_OMEGA_POINTS 5
+            &END PERIODIC_CORRECTION
+          &END GW
+          &HF
+            FRACTION 1.0000000
+            &SCREENING
+              EPS_SCHWARZ 1.0E-6
+              SCREEN_ON_INITIAL_P FALSE
+            &END SCREENING
+          &END HF
+        &END RI_RPA
+      &END WF_CORRELATION
+      &XC_FUNCTIONAL PBE
+        &PBE
+          SCALE_C 1.0000000
+          SCALE_X 1.0000000
+        &END PBE
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC [angstrom] 7.500 7.500 7.500
+      PERIODIC NONE
+    &END CELL
+    &KIND H
+      BASIS_SET DZVP-GTH
+      BASIS_SET RI_AUX RI_DZVP-GTH
+      BASIS_SET AUX_GW DZVP-GTH
+      POTENTIAL GTH-PBE-q1
+    &END KIND
+    &KIND O
+      BASIS_SET DZVP-GTH
+      BASIS_SET RI_AUX RI_DZVP-GTH
+      BASIS_SET AUX_GW DZVP-GTH
+      POTENTIAL GTH-PBE-q6
+    &END KIND
+    &TOPOLOGY
+      COORD_FILE_FORMAT xyz
+      COORD_FILE_NAME H2O_gas.xyz
+      &CENTER_COORDINATES
+      &END CENTER_COORDINATES
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -20,10 +20,11 @@ MODULE bse_main
                                               diagonalize_C
    USE bse_iterative,                   ONLY: do_subspace_iterations,&
                                               fill_local_3c_arrays
-   USE bse_util,                        ONLY: deallocate_matrices_bse,&
+   USE bse_print,                       ONLY: print_BSE_start_flag
+   USE bse_util,                        ONLY: adapt_BSE_input_params,&
+                                              deallocate_matrices_bse,&
                                               estimate_BSE_resources,&
                                               mult_B_with_W,&
-                                              print_BSE_start_flag,&
                                               truncate_BSE_matrices
    USE cp_fm_types,                     ONLY: cp_fm_release,&
                                               cp_fm_type
@@ -35,6 +36,8 @@ MODULE bse_main
                                               bse_both,&
                                               bse_fulldiag,&
                                               bse_iterdiag,&
+                                              bse_screening_alpha,&
+                                              bse_screening_tdhf,&
                                               bse_tda
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
@@ -116,7 +119,7 @@ CONTAINS
       my_do_tda = .FALSE.
       my_do_abba = .FALSE.
       !Method: Iterative or full diagonalization
-      SELECT CASE (mp2_env%ri_g0w0%bse_diag_method)
+      SELECT CASE (mp2_env%bse%bse_diag_method)
       CASE (bse_iterdiag)
          my_do_iterat_diag = .TRUE.
          !MG: Basics of the Davidson solver are implemented, but not rigorously checked.
@@ -125,7 +128,7 @@ CONTAINS
          my_do_fulldiag = .TRUE.
       END SELECT
       !Approximation: TDA and/or full ABBA matrix
-      SELECT CASE (mp2_env%ri_g0w0%flag_tda)
+      SELECT CASE (mp2_env%bse%flag_tda)
       CASE (bse_tda)
          my_do_tda = .TRUE.
       CASE (bse_abba)
@@ -140,7 +143,7 @@ CONTAINS
       ! Link BSE debug flag against debug print level
       logger => cp_get_default_logger()
       IF (logger%iter_info%print_level == debug_print_level) THEN
-         mp2_env%ri_g0w0%bse_debug_print = .TRUE.
+         mp2_env%bse%bse_debug_print = .TRUE.
       END IF
 
       CALL fm_mat_S_ia_bse%matrix_struct%para_env%sync()
@@ -168,6 +171,8 @@ CONTAINS
                                    gd_array, color_sub, para_env)
       END IF
 
+      CALL adapt_BSE_input_params(homo_red, virtual_red, unit_nr, mp2_env, qs_env)
+
       IF (my_do_fulldiag) THEN
          ! Quick estimate of memory consumption and runtime of diagonalizations
          CALL estimate_BSE_resources(homo_red, virtual_red, unit_nr, my_do_abba, &
@@ -178,18 +183,36 @@ CONTAINS
          ! α is a spin-dependent factor
          ! v_ia,jb = \sum_P B^P_ia B^P_jb (unscreened Coulomb interaction)
          ! W_ij,ab = \sum_P \bar{B}^P_ij B^P_ab (screened Coulomb interaction)
-         CALL create_A(fm_mat_S_ia_trunc, fm_mat_S_bar_ij_bse, fm_mat_S_ab_trunc, &
-                       fm_A_BSE, Eigenval_reduced, unit_nr, &
-                       homo_red, virtual_red, dimen_RI, mp2_env, &
-                       para_env)
+
+         ! For unscreened W matrix, we need fm_mat_S_ij_trunc
+         IF (mp2_env%bse%screening_method == bse_screening_tdhf .OR. &
+             mp2_env%bse%screening_method == bse_screening_alpha) THEN
+            CALL create_A(fm_mat_S_ia_trunc, fm_mat_S_ij_trunc, fm_mat_S_ab_trunc, &
+                          fm_A_BSE, Eigenval_reduced, unit_nr, &
+                          homo_red, virtual_red, dimen_RI, mp2_env, &
+                          para_env)
+         ELSE
+            CALL create_A(fm_mat_S_ia_trunc, fm_mat_S_bar_ij_bse, fm_mat_S_ab_trunc, &
+                          fm_A_BSE, Eigenval_reduced, unit_nr, &
+                          homo_red, virtual_red, dimen_RI, mp2_env, &
+                          para_env)
+         END IF
          IF (my_do_abba) THEN
             ! Matrix B constructed from 3c-B-matrices (cf. subroutine mult_B_with_W)
             ! B_ia,jb = α * v_ia,jb - W_ib,aj
             ! α is a spin-dependent factor
             ! v_ia,jb = \sum_P B^P_ia B^P_jb (unscreened Coulomb interaction)
             ! W_ib,aj = \sum_P \bar{B}^P_ib B^P_aj (screened Coulomb interaction)
-            CALL create_B(fm_mat_S_ia_trunc, fm_mat_S_bar_ia_bse, fm_B_BSE, &
-                          homo_red, virtual_red, dimen_RI, unit_nr, mp2_env)
+
+            ! For unscreened W matrix, we need fm_mat_S_ia_trunc
+            IF (mp2_env%bse%screening_method == bse_screening_tdhf .OR. &
+                mp2_env%bse%screening_method == bse_screening_alpha) THEN
+               CALL create_B(fm_mat_S_ia_trunc, fm_mat_S_ia_trunc, fm_B_BSE, &
+                             homo_red, virtual_red, dimen_RI, unit_nr, mp2_env)
+            ELSE
+               CALL create_B(fm_mat_S_ia_trunc, fm_mat_S_bar_ia_bse, fm_B_BSE, &
+                             homo_red, virtual_red, dimen_RI, unit_nr, mp2_env)
+            END IF
             ! Construct Matrix C=(A-B)^0.5 (A+B) (A-B)^0.5 to solve full BSE matrix as a hermitian problem
             ! (cf. Eq. (A7) in F. Furche J. Chem. Phys., Vol. 114, No. 14, (2001)).
             ! We keep fm_sqrt_A_minus_B and fm_inv_sqrt_A_minus_B for print of singleparticle transitions
@@ -220,12 +243,12 @@ CONTAINS
 
       CALL deallocate_matrices_bse(fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse, &
                                    fm_mat_S_ia_trunc, fm_mat_S_ij_trunc, fm_mat_S_ab_trunc, &
-                                   fm_mat_Q_static_bse_gemm)
+                                   fm_mat_Q_static_bse_gemm, mp2_env)
       DEALLOCATE (Eigenval_reduced)
       IF (my_do_iterat_diag) THEN
          ! Contains untested Block-Davidson algorithm
          CALL do_subspace_iterations(B_bar_ijQ_bse_local, B_abQ_bse_local, B_bar_iaQ_bse_local, &
-                                     B_iaQ_bse_local, homo(1), virtual(1), mp2_env%ri_g0w0%bse_spin_config, unit_nr, &
+                                     B_iaQ_bse_local, homo(1), virtual(1), mp2_env%bse%bse_spin_config, unit_nr, &
                                      Eigenval(:, 1, 1), para_env, mp2_env)
          ! Deallocate local 3c-B-matrices
          DEALLOCATE (B_bar_ijQ_bse_local, B_abQ_bse_local, B_bar_iaQ_bse_local, B_iaQ_bse_local)

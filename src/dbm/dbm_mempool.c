@@ -1,18 +1,20 @@
 /*----------------------------------------------------------------------------*/
 /*  CP2K: A general program to perform molecular dynamics simulations         */
-/*  Copyright 2000-2024 CP2K developers group <https://cp2k.org>              */
+/*  Copyright 2000-2025 CP2K developers group <https://cp2k.org>              */
 /*                                                                            */
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
 
 #include <assert.h>
 #include <omp.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 #include "../offload/offload_library.h"
 #include "../offload/offload_runtime.h"
+#include "dbm_hyperparams.h"
 #include "dbm_mempool.h"
 #include "dbm_mpi.h"
 
@@ -66,13 +68,12 @@ static void actual_free(void *memory, const bool on_device) {
  * \brief Private struct for storing a chunk of memory.
  * \author Ole Schuett
  ******************************************************************************/
-struct dbm_memchunk {
+typedef struct dbm_memchunk {
   bool on_device;
   size_t size;
   void *mem;
   struct dbm_memchunk *next;
-};
-typedef struct dbm_memchunk dbm_memchunk_t;
+} dbm_memchunk_t;
 
 /*******************************************************************************
  * \brief Private linked list of memory chunks that are available.
@@ -87,6 +88,12 @@ static dbm_memchunk_t *mempool_available_head = NULL;
 static dbm_memchunk_t *mempool_allocated_head = NULL;
 
 /*******************************************************************************
+ * \brief Private statistics (survives dbm_mempool_clear).
+ * \author Hans Pabst
+ ******************************************************************************/
+static dbm_memstats_t mempool_stats = {0};
+
+/*******************************************************************************
  * \brief Private routine for allocating host or device memory from the pool.
  * \author Ole Schuett
  ******************************************************************************/
@@ -95,25 +102,38 @@ static void *internal_mempool_malloc(const size_t size, const bool on_device) {
     return NULL;
   }
 
-  dbm_memchunk_t *chunk;
+  dbm_memchunk_t *chunk = NULL;
 
 #pragma omp critical(dbm_mempool_modify)
   {
-    // Find a suitable chuck in mempool_available.
+    // Find a suitable chunk in mempool_available.
     dbm_memchunk_t **indirect = &mempool_available_head;
-    while (*indirect != NULL && (*indirect)->on_device != on_device) {
-      indirect = &(*indirect)->next;
+    dbm_memchunk_t **hit = NULL, **fallback = NULL;
+    for (; NULL != *indirect; indirect = &(*indirect)->next) {
+      if ((*indirect)->on_device == on_device) {
+        if ((*indirect)->size < size) {
+          if (NULL == fallback || (*fallback)->size < (*indirect)->size) {
+            fallback = indirect;
+          }
+        } else if (NULL == hit || (*indirect)->size < (*hit)->size) {
+          hit = indirect;
+          if (size == (*hit)->size) {
+            break;
+          }
+        }
+      }
     }
-    chunk = *indirect;
+    if (NULL == hit) {
+      hit = fallback;
+    }
 
     // If a chunck was found, remove it from mempool_available.
-    if (chunk != NULL) {
+    if (NULL != hit) {
+      chunk = *hit;
+      *hit = chunk->next;
       assert(chunk->on_device == on_device);
-      *indirect = chunk->next;
-    }
-
-    // If no chunk was found, allocate a new one.
-    if (chunk == NULL) {
+    } else { // Allocate a new chunk.
+      assert(chunk == NULL);
       chunk = malloc(sizeof(dbm_memchunk_t));
       assert(chunk != NULL);
       chunk->on_device = on_device;
@@ -121,16 +141,27 @@ static void *internal_mempool_malloc(const size_t size, const bool on_device) {
       chunk->mem = NULL;
     }
 
-    // Resize chunk if needed.
-    if (chunk->size < size) {
-      actual_free(chunk->mem, chunk->on_device);
-      chunk->mem = actual_malloc(size, chunk->on_device);
-      chunk->size = size;
-    }
-
     // Insert chunk into mempool_allocated.
     chunk->next = mempool_allocated_head;
     mempool_allocated_head = chunk;
+
+    // Update statistics
+    if (chunk->size < size) {
+      if (on_device) {
+        mempool_stats.device_size += size - chunk->size;
+        ++mempool_stats.device_mallocs;
+      } else {
+        mempool_stats.host_size += size - chunk->size;
+        ++mempool_stats.host_mallocs;
+      }
+    }
+  }
+
+  // Resize chunk if needed (outside of critical section).
+  if (chunk->size < size) {
+    actual_free(chunk->mem, chunk->on_device);
+    chunk->mem = actual_malloc(size, chunk->on_device);
+    chunk->size = size; // update
   }
 
   return chunk->mem;
@@ -163,7 +194,7 @@ void dbm_mempool_free(void *mem) {
 
 #pragma omp critical(dbm_mempool_modify)
   {
-    // Find chuck in mempool_allocated.
+    // Find chunk in mempool_allocated.
     dbm_memchunk_t **indirect = &mempool_allocated_head;
     while (*indirect != NULL && (*indirect)->mem != mem) {
       indirect = &(*indirect)->next;
@@ -171,17 +202,17 @@ void dbm_mempool_free(void *mem) {
     dbm_memchunk_t *chunk = *indirect;
     assert(chunk != NULL && chunk->mem == mem);
 
-    // Remove chuck from mempool_allocated.
+    // Remove chunk from mempool_allocated.
     *indirect = chunk->next;
 
-    // Add chuck to mempool_available.
+    // Add chunk to mempool_available.
     chunk->next = mempool_available_head;
     mempool_available_head = chunk;
   }
 }
 
 /*******************************************************************************
- * \brief Internal routine for freeing all memory in the pool.
+ * \brief Internal routine for freeing all memory in the pool (not thread-safe).
  * \author Ole Schuett
  ******************************************************************************/
 void dbm_mempool_clear(void) {
@@ -196,13 +227,22 @@ void dbm_mempool_clear(void) {
   //  free(chunk);
   //}
 
-  // Free chunks in mempool_avavailable.
+  // Free chunks in mempool_available.
   while (mempool_available_head != NULL) {
     dbm_memchunk_t *chunk = mempool_available_head;
     mempool_available_head = chunk->next;
     actual_free(chunk->mem, chunk->on_device);
     free(chunk);
   }
+}
+
+/*******************************************************************************
+ * \brief Internal routine to query statistics (not thread-safe).
+ * \author Hans Pabst
+ ******************************************************************************/
+void dbm_mempool_statistics(dbm_memstats_t *memstats) {
+  assert(NULL != memstats);
+  *memstats = mempool_stats;
 }
 
 // EOF

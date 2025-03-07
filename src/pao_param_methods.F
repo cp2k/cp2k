@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -15,7 +15,8 @@ MODULE pao_param_methods
         dbcsr_add, dbcsr_complete_redistribute, dbcsr_create, dbcsr_get_block_p, dbcsr_get_info, &
         dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
         dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
-        dbcsr_reserve_diag_blocks, dbcsr_scale, dbcsr_type
+        dbcsr_scale, dbcsr_type
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_reserve_diag_blocks
    USE cp_log_handling,                 ONLY: cp_to_string
    USE dm_ls_scf_qs,                    ONLY: matrix_decluster
    USE dm_ls_scf_types,                 ONLY: ls_mstruct_type,&
@@ -187,8 +188,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pao_assert_unitary'
 
-      INTEGER                                            :: acol, arow, group_handle, handle, i, &
-                                                            iatom, M, N
+      INTEGER                                            :: acol, arow, handle, i, iatom, M, N
       INTEGER, DIMENSION(:), POINTER                     :: blk_sizes_pao, blk_sizes_pri
       REAL(dp)                                           :: delta_max
       REAL(dp), DIMENSION(:, :), POINTER                 :: block_test, tmp1, tmp2
@@ -227,8 +227,7 @@ CONTAINS
       CALL dbcsr_iterator_stop(iter)
 !$OMP END PARALLEL
 
-      CALL dbcsr_get_info(matrix_U, group=group_handle)
-      CALL group%set_handle(group_handle)
+      CALL dbcsr_get_info(matrix_U, group=group)
 
       CALL group%max(delta_max)
       IF (pao%iw > 0) WRITE (pao%iw, *) 'PAO| checked unitaryness, max delta:', delta_max

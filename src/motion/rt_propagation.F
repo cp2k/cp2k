@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -84,7 +84,8 @@ MODULE rt_propagation
    USE rt_propagation_utils,            ONLY: calc_S_derivs,&
                                               calc_update_rho,&
                                               calc_update_rho_sparse,&
-                                              get_restart_wfn
+                                              get_restart_wfn,&
+                                              warn_section_unused
    USE rt_propagation_velocity_gauge,   ONLY: velocity_gauge_ks_matrix
    USE rt_propagator_init,              ONLY: init_propagators,&
                                               rt_initialize_rho_from_mos
@@ -120,7 +121,8 @@ CONTAINS
       TYPE(rtp_control_type), POINTER                    :: rtp_control
       TYPE(section_vals_type), POINTER                   :: hfx_sections, input, ls_scf_section, &
                                                             md_section, motion_section, &
-                                                            print_moments_section
+                                                            print_moments_section, &
+                                                            rtp_print_section
 
       NULLIFY (qs_env, rtp_control, dft_control)
 
@@ -165,6 +167,19 @@ CONTAINS
       rtp%track_imag_density = (magnetic) .OR. (vel_reprs) .OR. (rtp_control%velocity_gauge) &
                                .OR. (rtp%do_hfx) .OR. (.NOT. rtp_control%fixed_ions)
       rtp%propagate_complex_ks = rtp%do_hfx .OR. rtp_control%velocity_gauge
+
+      ! Marek : In case some print sections that apply so far only to RTBSE are present,
+      !         warn the user that the quantities will not be in fact printed out
+      rtp_print_section => section_vals_get_subs_vals(force_env%root_section, &
+                                                      "FORCE_EVAL%DFT%REAL_TIME_PROPAGATION%PRINT")
+      CALL warn_section_unused(rtp_print_section, "POLARIZABILITY", &
+                               "POLARIZABILITY printing not implemented for non-RTBSE code.")
+      CALL warn_section_unused(rtp_print_section, "MOMENTS", &
+                               "MOMENTS not implemented: Use DFT%PRINT%MOMENTS for moments printing with TDDFT.")
+      CALL warn_section_unused(rtp_print_section, "MOMENTS_FT", &
+                               "MOMENTS_FT printing not implemented for non-RTBSE code.")
+      CALL warn_section_unused(rtp_print_section, "DENSITY_MATRIX", &
+                               "DENSITY_MATRIX printing not implemented for non-RTBSE code.")
 
       CALL rt_init_complex_quantities(qs_env, imag_p=rtp%track_imag_density, &
                                       imag_ks=rtp%propagate_complex_ks, imag_h=rtp_control%velocity_gauge)

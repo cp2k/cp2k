@@ -1,0 +1,60 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT Li4C4H12
+  RUN_TYPE ENERGY
+&END GLOBAL
+
+&FORCE_EVAL
+  &DFT
+    CHARGE 0
+    MULTIPLICITY 1
+    &QS
+      METHOD xTB
+      &XTB
+        DO_EWALD F
+        GFN_TYPE 0
+        VDW_POTENTIAL DFTD4
+      &END XTB
+    &END QS
+    &SCF
+      ADDED_MOS -1 -1
+      SCF_GUESS NONE
+      &SMEAR ON
+        ELECTRONIC_TEMPERATURE 300
+        METHOD Fermi_Dirac
+      &END SMEAR
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 15 15 15
+      PERIODIC NONE
+    &END CELL
+    &COORD
+      Li       9.37159037       7.62841257       9.37159191
+      Li       7.62841307       9.37159122       9.37158843
+      Li       7.62841250       7.62841326       7.62841217
+      Li       9.37159168       9.37159058       7.62841210
+      C       7.21389088       7.21389215       9.78611138
+      C       7.21389227       9.78611294       7.21389327
+      C       9.78611950       7.21389986       7.21388572
+      C       9.78611192       9.78611215       9.78611175
+      H       6.51392055       6.51392094       9.25557096
+      H       6.51391957       9.25557426       6.51392052
+      H      10.48608201       6.51391644       7.74443592
+      H      10.48608268       9.25557181      10.48608241
+      H      10.48608515       7.74441790       6.51393182
+      H       7.74443327      10.48608331       6.51391759
+      H       7.74443189       6.51392090      10.48608221
+      H      10.48608274      10.48608356       9.25557060
+      H       9.25556958       6.51391937       6.51391952
+      H       6.51392034       7.74443240      10.48608235
+      H       9.25557164      10.48608308      10.48608202
+      H       6.51391485      10.48607882       7.74444556
+    &END COORD
+    &TOPOLOGY
+      &CENTER_COORDINATES T
+      &END CENTER_COORDINATES
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL

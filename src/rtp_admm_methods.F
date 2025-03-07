@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -24,7 +24,7 @@ MODULE rtp_admm_methods
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
                                               cp_dbcsr_plus_fm_fm_t
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_upper_to_full
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_uplo_to_full
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                               cp_fm_cholesky_invert
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&
@@ -339,7 +339,7 @@ CONTAINS
 
       IF (geometry_did_change) THEN
          CALL copy_dbcsr_to_fm(matrix_s_aux_fit(1)%matrix, admm_env%S_inv)
-         CALL cp_fm_upper_to_full(admm_env%S_inv, admm_env%work_aux_aux)
+         CALL cp_fm_uplo_to_full(admm_env%S_inv, admm_env%work_aux_aux)
          CALL cp_fm_to_fm(admm_env%S_inv, admm_env%S)
 
          CALL copy_dbcsr_to_fm(matrix_s_mixed(1)%matrix, admm_env%Q)
@@ -348,7 +348,7 @@ CONTAINS
          CALL cp_fm_cholesky_decompose(admm_env%S_inv)
          CALL cp_fm_cholesky_invert(admm_env%S_inv)
          !! Symmetrize the guy
-         CALL cp_fm_upper_to_full(admm_env%S_inv, admm_env%work_aux_aux)
+         CALL cp_fm_uplo_to_full(admm_env%S_inv, admm_env%work_aux_aux)
          !! Calculate A=S'^(-1)*P
          CALL parallel_gemm('N', 'N', nao_aux_fit, nao_orb, nao_aux_fit, &
                             1.0_dp, admm_env%S_inv, admm_env%Q, 0.0_dp, &

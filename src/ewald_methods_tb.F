@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -10,7 +10,6 @@
 !> \author JGH
 ! **************************************************************************************************
 MODULE ewald_methods_tb
-   USE atprop_types,                    ONLY: atprop_type
    USE cell_types,                      ONLY: cell_type
    USE dgs,                             ONLY: dg_sum_patch,&
                                               dg_sum_patch_force_1d,&
@@ -29,13 +28,9 @@ MODULE ewald_methods_tb
                                               set_list
    USE pw_grid_types,                   ONLY: pw_grid_type
    USE pw_grids,                        ONLY: get_pw_grid_info
-   USE pw_methods,                      ONLY: pw_copy,&
-                                              pw_derive,&
-                                              pw_integral_a2b,&
-                                              pw_multiply,&
+   USE pw_methods,                      ONLY: pw_integral_a2b,&
                                               pw_multiply_with,&
-                                              pw_transfer,&
-                                              pw_zero
+                                              pw_transfer
    USE pw_poisson_methods,              ONLY: pw_poisson_rebuild,&
                                               pw_poisson_solve
    USE pw_poisson_types,                ONLY: greens_fn_type,&
@@ -83,10 +78,9 @@ CONTAINS
 !> \param calculate_forces ...
 !> \param virial ...
 !> \param use_virial ...
-!> \param atprop ...
 ! **************************************************************************************************
    SUBROUTINE tb_spme_evaluate(ewald_env, ewald_pw, particle_set, box, &
-                               gmcharge, mcharge, calculate_forces, virial, use_virial, atprop)
+                               gmcharge, mcharge, calculate_forces, virial, use_virial)
 
       TYPE(ewald_environment_type), POINTER              :: ewald_env
       TYPE(ewald_pw_type), POINTER                       :: ewald_pw
@@ -97,15 +91,14 @@ CONTAINS
       LOGICAL, INTENT(in)                                :: calculate_forces
       TYPE(virial_type), POINTER                         :: virial
       LOGICAL, INTENT(in)                                :: use_virial
-      TYPE(atprop_type), OPTIONAL, POINTER               :: atprop
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'tb_spme_evaluate'
 
-      INTEGER                                            :: handle, i, ig, ipart, j, n, npart, &
-                                                            o_spline, p1
+      INTEGER                                            :: handle, i, ipart, j, n, npart, o_spline, &
+                                                            p1
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: center
-      INTEGER, DIMENSION(3)                              :: nd, npts
-      REAL(KIND=dp)                                      :: alpha, dvols, fat(3), ffa, ffb, fint, vgc
+      INTEGER, DIMENSION(3)                              :: npts
+      REAL(KIND=dp)                                      :: alpha, dvols, fat(3), ffa, fint, vgc
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: delta
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: rhos
       REAL(KIND=dp), DIMENSION(3, 3)                     :: f_stress, h_stress
@@ -113,7 +106,7 @@ CONTAINS
       TYPE(mp_comm_type)                                 :: group
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(pw_c1d_gs_type), DIMENSION(3)                 :: dphi_g
-      TYPE(pw_c1d_gs_type), POINTER                      :: phi_g, phib_g, rhob_g
+      TYPE(pw_c1d_gs_type), POINTER                      :: phi_g, rhob_g
       TYPE(pw_grid_type), POINTER                        :: grid_spme
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: pw_pool
@@ -194,71 +187,6 @@ CONTAINS
 
       CALL rs_grid_create(rpot, rs_desc)
       CALL rs_grid_set_box(grid_spme, rs=rpot)
-
-      ! Atomic Stress
-      IF (PRESENT(atprop)) THEN
-         IF (ASSOCIATED(atprop)) THEN
-            IF (atprop%stress .AND. use_virial) THEN
-
-               CALL rs_grid_zero(rpot)
-               CALL pw_zero(rhob_g)
-               CALL pw_multiply(rhob_g, phi_g, green%p3m_charge)
-               CALL pw_transfer(rhob_g, rhob_r)
-               CALL transfer_pw2rs(rpot, rhob_r)
-               ipart = 0
-               DO
-                  CALL set_list(particle_set, npart, center, p1, rden, ipart)
-                  IF (p1 == 0) EXIT
-                  ! calculate function on small boxes
-                  CALL get_patch(particle_set, delta, green, p1, rhos, is_core=.FALSE., &
-                                 is_shell=.FALSE., unit_charge=.TRUE.)
-                  CALL dg_sum_patch_force_1d(rpot, rhos, center(:, p1), fint)
-                  atprop%atstress(1, 1, p1) = atprop%atstress(1, 1, p1) + 0.5_dp*mcharge(p1)*fint*dvols
-                  atprop%atstress(2, 2, p1) = atprop%atstress(2, 2, p1) + 0.5_dp*mcharge(p1)*fint*dvols
-                  atprop%atstress(3, 3, p1) = atprop%atstress(3, 3, p1) + 0.5_dp*mcharge(p1)*fint*dvols
-               END DO
-
-               NULLIFY (phib_g)
-               ALLOCATE (phib_g)
-               CALL pw_pool%create_pw(phib_g)
-               ffa = (0.5_dp/alpha)**2
-               ffb = 1.0_dp/fourpi
-               DO i = 1, 3
-                  DO ig = grid_spme%first_gne0, grid_spme%ngpts_cut_local
-                     phib_g%array(ig) = ffb*dphi_g(i)%array(ig)*(1.0_dp + ffa*grid_spme%gsq(ig))
-                     phib_g%array(ig) = phib_g%array(ig)*green%influence_fn%array(ig)
-                  END DO
-                  IF (grid_spme%have_g0) phib_g%array(1) = 0.0_dp
-                  DO j = 1, i
-                     nd = 0
-                     nd(j) = 1
-                     CALL pw_copy(phib_g, rhob_g)
-                     CALL pw_derive(rhob_g, nd)
-                     CALL pw_multiply_with(rhob_g, green%p3m_charge)
-                     CALL pw_transfer(rhob_g, rhob_r)
-                     CALL transfer_pw2rs(rpot, rhob_r)
-
-                     ipart = 0
-                     DO
-                        CALL set_list(particle_set, npart, center, p1, rden, ipart)
-                        IF (p1 == 0) EXIT
-                        ! calculate function on small boxes
-                        CALL get_patch(particle_set, delta, green, p1, rhos, &
-                                       is_core=.FALSE., is_shell=.FALSE., unit_charge=.TRUE.)
-                        ! integrate box and potential
-                        CALL dg_sum_patch_force_1d(rpot, rhos, center(:, p1), fint)
-                        atprop%atstress(i, j, p1) = atprop%atstress(i, j, p1) + fint*dvols*mcharge(p1)
-                        IF (i /= j) atprop%atstress(j, i, p1) = atprop%atstress(j, i, p1) + fint*dvols*mcharge(p1)
-                     END DO
-
-                  END DO
-               END DO
-               CALL pw_pool%give_back_pw(phib_g)
-               DEALLOCATE (phib_g)
-
-            END IF
-         END IF
-      END IF
 
       CALL pw_pool%give_back_pw(rhob_g)
       DEALLOCATE (rhob_g)
@@ -358,9 +286,8 @@ CONTAINS
 !> \param n_list ...
 !> \param virial ...
 !> \param use_virial ...
-!> \param atprop ...
 ! **************************************************************************************************
-   SUBROUTINE tb_ewald_overlap(gmcharge, mcharge, alpha, n_list, virial, use_virial, atprop)
+   SUBROUTINE tb_ewald_overlap(gmcharge, mcharge, alpha, n_list, virial, use_virial)
 
       REAL(KIND=dp), DIMENSION(:, :), INTENT(inout)      :: gmcharge
       REAL(KIND=dp), DIMENSION(:), INTENT(in)            :: mcharge
@@ -369,7 +296,6 @@ CONTAINS
          POINTER                                         :: n_list
       TYPE(virial_type), POINTER                         :: virial
       LOGICAL, INTENT(IN)                                :: use_virial
-      TYPE(atprop_type), OPTIONAL, POINTER               :: atprop
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'tb_ewald_overlap'
 
@@ -406,14 +332,6 @@ CONTAINS
                   pfr = -dfr*mcharge(iatom)*mcharge(jatom)
                END IF
                CALL virial_pair_force(virial%pv_virial, -pfr, rij, rij)
-               IF (PRESENT(atprop)) THEN
-                  IF (ASSOCIATED(atprop)) THEN
-                     IF (atprop%stress) THEN
-                        CALL virial_pair_force(atprop%atstress(:, :, iatom), -0.5_dp*pfr, rij, rij)
-                        CALL virial_pair_force(atprop%atstress(:, :, jatom), -0.5_dp*pfr, rij, rij)
-                     END IF
-                  END IF
-               END IF
             END IF
          END IF
 

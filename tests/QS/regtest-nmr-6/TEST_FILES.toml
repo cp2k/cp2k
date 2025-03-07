@@ -1,0 +1,28 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+"ch4-gapw-1.inp"                        = [{matcher="M014", tol=2e-03, ref=0.332896E+03}]
+"ch4-gapw-2.inp"                        = [{matcher="M014", tol=2e-04, ref=0.333015E+03}]
+"ch4-gapw-3.inp"                        = [{matcher="M014", tol=2e-03, ref=0.333051E+03}]
+"ch4-gapw-4.inp"                        = [{matcher="M014", tol=2e-03, ref=0.333493E+03}]
+"ch4-gapw-5.inp"                        = [{matcher="M014", tol=2.0E-03, ref=0.290901E+03}]
+"no-gapw-1.inp"                         = [{matcher="M014", tol=4e-02, ref=1586.4400000000001}]
+"no-gapw-2.inp"                         = [{matcher="M014", tol=1e-04, ref=13170.600000000001}]
+"no-gapw-3.inp"                         = [{matcher="M014", tol=2e-04, ref=13191.100000000000}]
+"no-gapw-4.inp"                         = [{matcher="M014", tol=3e-01, ref=329.47000000000003}]
+"no-gapw-5.inp"                         = [{matcher="M014", tol=1e-03, ref=16357.4}]
+"ch4-gapw-1-distributed.inp"            = [{matcher="M014", tol=2e-03, ref=0.332896E+03}]
+"ch4-gapw-1-replicated.inp"             = [{matcher="M014", tol=2e-03, ref=0.332896E+03}]
+"no-gapw-1-distributed.inp"             = [{matcher="M014", tol=3.5e-02, ref=1586.5600000000000}]
+"no-gapw-1-replicated.inp"              = [{matcher="M014", tol=3.5e-02, ref=1586.5600000000000}]
+"w2_qmmm-1.inp"                         = [{matcher="M014", tol=8e-03, ref=229.358}]
+"w2_qmmm-2.inp"                         = [{matcher="M014", tol=2e-03, ref=230.05799999999999}]
+"w2_qmmm-3.inp"                         = [{matcher="M014", tol=4e-03, ref=230.13999999999999}]
+"ch4-gapw-gpw-1.inp"                    = [{matcher="M014", tol=7e-05, ref=0.163314E+03}]
+"no-gapw-gpw-1.inp"                     = [{matcher="M014", tol=4e-02, ref=1621.23}]
+"h2-gapw-1.inp"                         = [{matcher="M014", tol=1.0E-14, ref=0.236339E+02}]
+"ch3m-gapw-1.inp"                       = [{matcher="M014", tol=3e-03, ref=424.976}]
+"ch3p-gapw-1.inp"                       = [{matcher="M014", tol=2e-04, ref=692.08399999999995}]
+#EOF

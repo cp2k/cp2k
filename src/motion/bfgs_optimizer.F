@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -150,6 +150,7 @@ CONTAINS
       conv = .FALSE.
       rat = 0.0_dp
       wildcard = " BFGS"
+      hes_filename = ""
 
       ! Stop if not yet implemented
       SELECT CASE (gopt_env%type_id)
@@ -307,8 +308,20 @@ CONTAINS
          IF (((its - iter_nr) == 1) .AND. hesrest) THEN
             IF (ionode) THEN
                CALL section_vals_val_get(geo_section, "BFGS%RESTART_FILE_NAME", c_val=hes_filename)
-               CALL open_file(file_name=hes_filename, file_status="OLD", &
+               IF (LEN_TRIM(hes_filename) == 0) THEN
+                  ! Set default Hessian restart file name if no file name is defined
+                  hes_filename = TRIM(logger%iter_info%project_name)//"-BFGS.Hessian"
+               END IF
+               IF (output_unit > 0) THEN
+                  WRITE (UNIT=output_unit, FMT="(/,T2,A)") &
+                     "BFGS| Checking for Hessian restart file <"//TRIM(ADJUSTL(hes_filename))//">"
+               END IF
+               CALL open_file(file_name=TRIM(hes_filename), file_status="OLD", &
                               file_form="UNFORMATTED", file_action="READ", unit_number=hesunit_read)
+               IF (output_unit > 0) THEN
+                  WRITE (UNIT=output_unit, FMT="(T2,A)") &
+                     "BFGS| Hessian restart file read"
+               END IF
             END IF
             CALL cp_fm_read_unformatted(hess_mat, hesunit_read)
             IF (ionode) CALL close_file(unit_number=hesunit_read)

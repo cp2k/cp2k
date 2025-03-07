@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -165,8 +165,7 @@ CONTAINS
                         dist=dbcsr_dist, &
                         matrix_type=symmetry_string, &
                         row_blk_size=row_blk_size, &
-                        col_blk_size=col_blk_size, &
-                        nze=0)
+                        col_blk_size=col_blk_size)
       DEALLOCATE (col_blk_size)
 
       CALL fb_atomic_halo_list_get(atomic_halos=atomic_halos, &
@@ -329,8 +328,7 @@ CONTAINS
                         dist=dbcsr_dist, &
                         matrix_type=dbcsr_type_no_symmetry, &
                         row_blk_size=row_blk_size, &
-                        col_blk_size=col_blk_size, &
-                        nze=0)
+                        col_blk_size=col_blk_size)
       DEALLOCATE (col_blk_size)
 
       ! get all the blocks required for constructing atomic matrics, and
@@ -489,8 +487,9 @@ CONTAINS
          send_pair_disps, send_sizes
       INTEGER, DIMENSION(:), POINTER                     :: halo_atoms, ntfns, row_block_size_data
       INTEGER, DIMENSION(:, :), POINTER                  :: tfns
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: recv_buf, send_buf
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), TARGET   :: recv_buf, send_buf
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: atomic_filter_mat, atomic_H, atomic_S
+      REAL(kind=dp), DIMENSION(:), POINTER               :: vector
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
       TYPE(fb_com_atom_pairs_obj)                        :: com_pairs_recv, com_pairs_send
 
@@ -729,9 +728,10 @@ CONTAINS
             nrows_blk = row_block_size_data(iatom_global)
             ncols_blk = col_block_size_data(jatom_global)
             ind = recv_disps(ipe) + recv_sizes(ipe)
+            vector => recv_buf((ind + 1):(ind + nrows_blk*ncols_blk))
             CALL dbcsr_put_block(filter_mat, &
                                  iatom_global, jatom_global, &
-                                 recv_buf((ind + 1):(ind + nrows_blk*ncols_blk)))
+                                 block=RESHAPE(vector, [nrows_blk, ncols_blk]))
             recv_sizes(ipe) = recv_sizes(ipe) + nrows_blk*ncols_blk
          END DO ! ipair
       END DO ! ipe
@@ -1297,18 +1297,10 @@ CONTAINS
       CALL timeset("fb_atomic_filter_dsygv", handle_dsygv)
 
       info = 0
-      CALL dsygv(1, &
-                 'V', &
-                 'U', &
-                 mat_dim, &
-                 eigenvectors, &
-                 mat_dim, &
-                 atomic_S_copy, &
-                 mat_dim, &
-                 eigenvalues, &
-                 work, &
-                 -1, &
-                 info)
+      CALL dsygv(1, 'V', 'U', &
+                 mat_dim, eigenvectors, mat_dim, &
+                 atomic_S_copy, mat_dim, eigenvalues, &
+                 work, -1, info)
       work_array_size = NINT(work(1))
       ! now allocate work array
       DEALLOCATE (work)
@@ -1318,18 +1310,10 @@ CONTAINS
       atomic_S_copy(:, :) = atomic_S(:, :)
       eigenvectors(:, :) = atomic_H(:, :)
       info = 0
-      CALL dsygv(1, &
-                 'V', &
-                 'U', &
-                 mat_dim, &
-                 eigenvectors, &
-                 mat_dim, &
-                 atomic_S_copy, &
-                 mat_dim, &
-                 eigenvalues, &
-                 work, &
-                 work_array_size, &
-                 info)
+      CALL dsygv(1, 'V', 'U', &
+                 mat_dim, eigenvectors, mat_dim, &
+                 atomic_S_copy, mat_dim, eigenvalues, &
+                 work, work_array_size, info)
       ! check if diagonalisation is successful
       IF (info .NE. 0) THEN
          WRITE (*, *) "DSYGV ERROR MESSAGE: ", info

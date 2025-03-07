@@ -28,7 +28,7 @@ case "$with_dftd4" in
   __DONTUSE__) ;;
 
   __INSTALL__)
-    echo "==================== Installing GRIMME D4 ===================="
+    echo "==================== Installing DFTD4 ===================="
     require_env OPENBLAS_ROOT
     require_env MATH_LIBS
 
@@ -56,6 +56,7 @@ case "$with_dftd4" in
       CMAKE_PREFIX_PATH="${CMAKE_PREFIX_PATH}:${OPENBLAS_ROOT}" cmake \
         -B . -G Ninja \
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
+        -DCMAKE_INSTALL_LIBDIR=lib \
         -DCMAKE_C_COMPILER="${MPICC}" \
         -DCMAKE_Fortran_COMPILER="${MPIFC}" \
         -DCMAKE_VERBOSE_MAKEFILE=ON \
@@ -65,13 +66,12 @@ case "$with_dftd4" in
       cmake --install . >> install.log 2>&1 || tail -n ${LOG_LINES} install.log
 
       cd ..
-      echo "==================== Linking Grimme_D4 to user paths ===================="
     fi
     write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage8/$(basename ${SCRIPT_NAME})"
     ;;
 
   __SYSTEM__)
-    echo "==================== Finding dftd4 from system paths ===================="
+    echo "==================== Finding DFTD4 from system paths ===================="
     check_command pkg-config --modversion dftd4
     add_include_from_paths DFTD4_CFLAGS "dftd4.h" $INCLUDE_PATHS
     add_include_from_paths DFTD4_CFLAGS "dftd4.mod" $INCLUDE_PATHS
@@ -80,7 +80,7 @@ case "$with_dftd4" in
     ;;
 
   *)
-    echo "==================== Linking dftd4 to user paths ===================="
+    echo "==================== Linking DFTD4 to user paths ===================="
     pkg_install_dir="$with_dftd4"
     check_dir "${pkg_install_dir}/include"
     ;;

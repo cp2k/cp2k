@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -22,9 +22,10 @@ MODULE ed_analysis
    USE core_ae,                         ONLY: build_erfc
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_distribution_type, dbcsr_dot, dbcsr_get_info, &
-        dbcsr_p_type, dbcsr_release, dbcsr_reserve_diag_blocks, dbcsr_scale, dbcsr_set, &
-        dbcsr_type, dbcsr_type_symmetric
+        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_distribution_type, dbcsr_get_info, &
+        dbcsr_p_type, dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_type, dbcsr_type_symmetric
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_dot,&
+                                              dbcsr_reserve_diag_blocks
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_plus_fm_fm_t,&
                                               cp_dbcsr_sm_fm_multiply
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -365,8 +366,7 @@ CONTAINS
       CALL dbcsr_get_info(smat, distribution=dbcsr_dist)
       CALL dbcsr_create(matrix=dmat, name="DMAT", &
                         dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric, &
-                        row_blk_size=refbas_blk_sizes, col_blk_size=refbas_blk_sizes, &
-                        nze=0)
+                        row_blk_size=refbas_blk_sizes, col_blk_size=refbas_blk_sizes)
       CALL dbcsr_reserve_diag_blocks(dmat)
       !
       NULLIFY (fm_struct)

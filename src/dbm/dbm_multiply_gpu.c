@@ -1,6 +1,6 @@
 /*----------------------------------------------------------------------------*/
 /*  CP2K: A general program to perform molecular dynamics simulations         */
-/*  Copyright 2000-2024 CP2K developers group <https://cp2k.org>              */
+/*  Copyright 2000-2025 CP2K developers group <https://cp2k.org>              */
 /*                                                                            */
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
@@ -44,7 +44,8 @@ void dbm_multiply_gpu_start(const int max_batch_size, const int nshards,
     dbm_shard_gpu_t *shard_c_dev = &ctx->shards_c_dev[i];
     offloadStreamCreate(&shard_c_dev->stream);
     shard_c_dev->data_size = shard_c_host->data_size;
-    shard_c_dev->data_allocated = shard_c_host->data_allocated;
+    // only allocate data_size on device rather than data_allocated
+    shard_c_dev->data_allocated = shard_c_host->data_size;
     shard_c_dev->data =
         dbm_mempool_device_malloc(shard_c_dev->data_allocated * sizeof(double));
     offloadMemcpyAsyncHtoD(shard_c_dev->data, shard_c_host->data,
@@ -105,7 +106,6 @@ void dbm_multiply_gpu_process_batch(const int ntasks, const dbm_task_t *batch,
                                     const int mnk_range[3][2],
                                     const double alpha, const int kshard,
                                     dbm_multiply_gpu_context_t *ctx) {
-
   if (ntasks == 0) {
     return; // Nothing to do.
   }
@@ -115,29 +115,29 @@ void dbm_multiply_gpu_process_batch(const int ntasks, const dbm_task_t *batch,
 
   const dbm_shard_t *shard_c_host = &ctx->shards_c_host[kshard];
   dbm_shard_gpu_t *shard_c_dev = &ctx->shards_c_dev[kshard];
+  assert(NULL != shard_c_host && NULL != shard_c_dev);
 
   // Upload new batch.
   dbm_task_t *batch_dev = &ctx->batches_dev[kshard * ctx->max_batch_size];
   const size_t size = ntasks * sizeof(dbm_task_t);
   offloadMemcpyAsyncHtoD(batch_dev, batch, size, shard_c_dev->stream);
-  offloadEvent_t batch_uploaded;
-  offloadEventCreate(&batch_uploaded);
-  offloadEventRecord(batch_uploaded, shard_c_dev->stream);
+  offloadEvent_t memsetup;
+  offloadEventCreate(&memsetup);
 
   // Reallocate shard_c_dev->data if necessary.
+  double *old_data_dev = NULL;
   if (shard_c_host->data_promised > shard_c_dev->data_allocated) {
-    double *old_data_dev = shard_c_dev->data;
     shard_c_dev->data_allocated =
-        ALLOCATION_FACTOR * shard_c_host->data_promised;
+        DBM_ALLOCATION_FACTOR * shard_c_host->data_promised;
+    old_data_dev = shard_c_dev->data;
     shard_c_dev->data =
         dbm_mempool_device_malloc(shard_c_dev->data_allocated * sizeof(double));
+    // Omit to wait for copy before freeing old buffer.
     offloadMemcpyAsyncDtoD(shard_c_dev->data, old_data_dev,
                            shard_c_dev->data_size * sizeof(double),
                            shard_c_dev->stream);
-    // Wait for copy to complete before freeing old buffer.
-    offloadStreamSynchronize(shard_c_dev->stream);
-    dbm_mempool_free(old_data_dev);
   }
+  offloadEventRecord(memsetup, shard_c_dev->stream);
 
   // Zero new blocks if necessary.
   if (shard_c_host->data_promised > shard_c_dev->data_size) {
@@ -148,14 +148,22 @@ void dbm_multiply_gpu_process_batch(const int ntasks, const dbm_task_t *batch,
   }
 
   // Launch kernel.
+  assert(0 != shard_c_dev->data_size);
   dbm_multiply_gpu_launch_kernel(shard_c_dev->stream, mnk_range, alpha, ntasks,
                                  batch_dev, ctx->pack_a_dev.data,
                                  ctx->pack_b_dev.data, shard_c_dev->data);
   OFFLOAD_CHECK(offloadGetLastError());
 
-  // Wait for batch to be uploaded before refilling it.
-  offloadEventSynchronize(batch_uploaded);
-  offloadEventDestroy(batch_uploaded);
+  // Wait for:
+  // - Batch to be uploaded (before refilling it).
+  // - Device memory buffer (if resized).
+  offloadEventSynchronize(memsetup);
+  offloadEventDestroy(memsetup);
+
+  // Safely freeing old buffer.
+  if (NULL != old_data_dev) {
+    dbm_mempool_free(old_data_dev);
+  }
 }
 
 /*******************************************************************************
@@ -166,7 +174,7 @@ void dbm_multiply_gpu_download_results(dbm_multiply_gpu_context_t *ctx) {
   // Select GPU device.
   offload_activate_chosen_device();
 
-#pragma omp parallel for schedule(dynamic)
+#pragma omp parallel for DBM_OMP_SCHEDULE
   for (int i = 0; i < ctx->nshards; i++) {
     // Grow host buffer if necessary.
     dbm_shard_t *shard_c_host = &ctx->shards_c_host[i];
@@ -190,7 +198,7 @@ void dbm_multiply_gpu_stop(dbm_multiply_gpu_context_t *ctx) {
   offload_activate_chosen_device();
 
   // Wait for completion, then free gpu ressources.
-#pragma omp parallel for schedule(dynamic)
+#pragma omp parallel for DBM_OMP_SCHEDULE
   for (int i = 0; i < ctx->nshards; i++) {
     dbm_shard_gpu_t *shard_c_dev = &ctx->shards_c_dev[i];
     offloadStreamSynchronize(shard_c_dev->stream);

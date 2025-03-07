@@ -2,14 +2,14 @@
 #
 # CP2K (GNU x86_64) arch file for Linux clusters
 #
-# Tested with: GNU 14.2.0, MPICH 4.0.3 and OpenMPI 5.0.5 on the Merlin cluster (PSI)
+# Tested with: GNU 14.2.0, MPICH 4.2.3 and OpenMPI 5.0.6 on the Merlin cluster (PSI)
 #
 # Usage: Source this arch file and then run make as instructed.
 #        A full toolchain installation is performed as default.
 #        Optionally, GNU compiler and MPI implementation can be specified as arguments.
 #        Replace or adapt the "module add" commands below if needed.
 #
-# Last update: 12.09.2024
+# Last update: 07.01.2025
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -35,7 +35,7 @@
          ./install_cp2k_toolchain.sh --install-all -j${maxtasks} --no-arch-files --target-cpu=${target_cpu} --with-gcc=system --with-${mpi_implementation}; \
       fi; \
    else \
-      ./install_cp2k_toolchain.sh --install-all -j${maxtasks} --no-arch-files --target-cpu=${target_cpu} --with-gcc --with-${mpi_implementation}; \
+      ./install_cp2k_toolchain.sh --install-all -j${maxtasks} --no-arch-files --target-cpu=${target_cpu} --with-gcc --with-${mpi_implementation} --with-deepmd; \
    fi; \
    source ./install/setup; \
    cd ../..; \
@@ -65,12 +65,14 @@ TARGET_CPU     := native
 # Retrieve package versions
 GNU_VER        := $(shell gcc -dumpfullversion)
 USE_COSMA      := $(COSMA_VER)
+USE_DEEPMD     := $(DEEPMD_VER)
 USE_DFTD4      := $(DFTD4_VER)
 USE_ELPA       := $(ELPA_VER)
 USE_FFTW       := $(FFTW_VER)
 USE_HDF5       := $(HDF5_VER)
 USE_LIBGRPP    := $(LIBGRPP_VER)
 USE_LIBINT     := $(LIBINT_VER)
+USE_LIBSMEAGOL := $(LIBSMEAGOL_VER)
 USE_LIBTORCH   := $(LIBTORCH_VER)
 USE_LIBVORI    := $(LIBVORI_VER)
 USE_LIBXC      := $(LIBXC_VER)
@@ -84,6 +86,7 @@ USE_SIRIUS     := $(SIRIUS_VER)
 USE_SPFFT      := $(SPFFT_VER)
 USE_SPGLIB     := $(SPGLIB_VER)
 USE_SPLA       := $(SPLA_VER)
+USE_TREXIO     := $(TREXIO_VER)
 
 LMAX           := 5
 MAX_CONTR      := 4
@@ -100,6 +103,7 @@ else
 endif
 
 DFLAGS         := -D__parallel
+DFLAGS         += -D__MPI_F08
 DFLAGS         += -D__HAS_IEEE_EXCEPTIONS
 DFLAGS         += -D__MAX_CONTR=$(strip $(MAX_CONTR))
 
@@ -229,7 +233,7 @@ endif
 ifneq ($(USE_DFTD4),)
    USE_DFTD4      := $(strip $(USE_DFTD4))
    DFTD4_INC      := $(INSTALL_PATH)/dftd4-$(USE_DFTD4)/include
-   DFTD4_LIB      := $(INSTALL_PATH)/dftd4-$(USE_DFTD4)/lib64
+   DFTD4_LIB      := $(INSTALL_PATH)/dftd4-$(USE_DFTD4)/lib
    CFLAGS         += -I$(DFTD4_INC)/dftd4/GNU-$(GNU_VER)
    DFLAGS         += -D__DFTD4
    ifeq ($(SHARED), yes)
@@ -244,11 +248,7 @@ endif
 
 ifneq ($(USE_LIBGRPP),)
    USE_LIBGRPP    := $(strip $(USE_LIBGRPP))
-   LIBGRPP_INC    := $(INSTALL_PATH)/libgrpp-main-$(USE_LIBGRPP)/include
-   LIBGRPP_LIB    := $(INSTALL_PATH)/libgrpp-main-$(USE_LIBGRPP)/lib
-   CFLAGS         += -I$(LIBGRPP_INC)
    DFLAGS         += -D__LIBGRPP
-   LIBS           += $(LIBGRPP_LIB)/liblibgrpp.a
 endif
 
 ifneq ($(USE_LIBINT),)
@@ -340,6 +340,42 @@ ifneq ($(USE_SPLA),)
       LIBS           += -Wl,-rpath=$(SPLA_LIB) -L$(SPLA_LIB) -lspla
    else
       LIBS           += $(SPLA_LIB)/libspla.a
+   endif
+endif
+
+ifneq ($(USE_LIBSMEAGOL),)
+   USE_LIBSMEAGOL := $(strip $(USE_LIBSMEAGOL))
+   LIBSMEAGOL_LIB := $(INSTALL_PATH)/libsmeagol-$(USE_LIBSMEAGOL)/lib
+   LIBSMEAGOL_INC := $(INSTALL_PATH)/libsmeagol-$(USE_LIBSMEAGOL)/include
+   CFLAGS         += -I$(LIBSMEAGOL_INC)
+   DFLAGS         += -D__SMEAGOL
+   LIBS           += $(LIBSMEAGOL_LIB)/libsmeagol.a
+endif
+
+ifneq ($(USE_TREXIO),)
+   USE_TREXIO     := $(strip $(USE_TREXIO))
+   TREXIO_INC     := $(INSTALL_PATH)/trexio-$(USE_TREXIO)/include
+   TREXIO_LIB     := $(INSTALL_PATH)/trexio-$(USE_TREXIO)/lib
+   CFLAGS         += -I$(TREXIO_INC)
+   DFLAGS         += -D__TREXIO
+   ifeq ($(SHARED), yes)
+      LIBS           += -Wl,-rpath=$(TREXIO_LIB) -L$(TREXIO_LIB) -ltrexio
+   else
+      LIBS           += $(TREXIO_LIB)/libtrexio.a
+   endif
+endif
+
+ifneq ($(USE_DEEPMD),)
+   USE_DEEPMD     := $(strip $(USE_DEEPMD))
+   DEEPMD_INC     := $(INSTALL_PATH)/deepmd-kit-$(USE_DEEPMD)/include
+   DEEPMD_LIB     := $(INSTALL_PATH)/deepmd-kit-$(USE_DEEPMD)/lib
+   CFLAGS         += -I$(DEEPMD_INC)
+   DFLAGS         += -D__DEEPMD
+   ifeq ($(SHARED), yes)
+      LIBS           += -Wl,-rpath=$(DEEPMD_LIB) -L$(DEEPMD_LIB) -ldeepmd_c
+   else
+      #LIBS          += $(DEEPMD_LIB)/libdeepmd_c.a
+      LIBS           += -Wl,-rpath=$(DEEPMD_LIB) -L$(DEEPMD_LIB) -ldeepmd_c
    endif
 endif
 

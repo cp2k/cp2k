@@ -119,6 +119,11 @@ case "$with_sirius" in
       # https://github.com/electronic-structure/SIRIUS/issues/854
       sed -i'' -e '1s/.*/#include <cstdint>\n&/' src/*.hpp
 
+      # Patch SIRIUS 7.6.1 for Libxc 7.0.0
+      patch -p1 src/potential/xc_functional_base.hpp < ${SCRIPT_DIR}/stage8/sirius_libxc7.patch
+      # Patch SIRIUS 7.6.1 for pugixml (CMake)
+      patch -p1 cmake/sirius_cxxConfig.cmake.in < ${SCRIPT_DIR}/stage8/sirius_1050.patch
+
       rm -Rf build
       mkdir build
       cd build
@@ -131,23 +136,18 @@ case "$with_sirius" in
 
       if [ -n "${SCALAPACK_LIBS}" ]; then
         export SCALAPACK_LIB="${SCALAPACK_LIBS}"
-        if [ -s "${SCALAPACK_ROOT}" ]; then
-          EXTRA_CMAKE_FLAGS="-DUSE_SCALAPACK=ON -DSCALAPACK_INCLUDE_DIR=${SCALAPACK_ROOT}/include ${EXTRA_CMAKE_FLAGS}"
-        else
-          EXTRA_CMAKE_FLAGS="-DUSE_SCALAPACK=ON ${EXTRA_CMAKE_FLAGS}"
-        fi
       fi
       if [ -n "${HDF5_LIBS}" ]; then
         CMAKE_PREFIX_PATH="${HDF5_ROOT} ${CMAKE_PREFIX_PATH}"
       fi
       if [ -n "${LIBVDWXC_LIBS}" ]; then
         CMAKE_PREFIX_PATH="${LIBVDWXC_ROOT} ${CMAKE_PREFIX_PATH}"
-        EXTRA_CMAKE_FLAGS="-DUSE_VDWXC=ON ${EXTRA_CMAKE_FLAGS}"
+        EXTRA_CMAKE_FLAGS="-DSIRIUS_USE_VDWXC=ON ${EXTRA_CMAKE_FLAGS}"
       else
-        EXTRA_CMAKE_FLAGS="-DUSE_VDWXC=OFF ${EXTRA_CMAKE_FLAGS}"
+        EXTRA_CMAKE_FLAGS="-DSIRIUS_USE_VDWXC=OFF ${EXTRA_CMAKE_FLAGS}"
       fi
       if [ -n "${MKL_LIBS}" ]; then
-        EXTRA_CMAKE_FLAGS="-DUSE_MKL=ON -DMKL_DEF_LIBRARY=${MKLROOT}/lib/intel64 -DUSE_SCALAPACK=ON ${EXTRA_CMAKE_FLAGS}"
+        EXTRA_CMAKE_FLAGS="-DSIRIUS_USE_MKL=ON ${EXTRA_CMAKE_FLAGS}"
       fi
       SpFFT_DIR="${SpFFT_ROOT}/lib/cmake/SpFFT"
       SpLA_DIR="${SpLA_ROOT}/lib/cmake/SPLA"

@@ -1,6 +1,6 @@
 /*----------------------------------------------------------------------------*/
 /*  CP2K: A general program to perform molecular dynamics simulations         */
-/*  Copyright 2000-2024 CP2K developers group <https://cp2k.org>              */
+/*  Copyright 2000-2025 CP2K developers group <https://cp2k.org>              */
 /*                                                                            */
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
@@ -117,77 +117,85 @@ __global__ __launch_bounds__(64) void compute_hab_v2(const kernel_params dev_) {
     __syncthreads();
     cxyz_to_cab(task, smem_alpha, coef_, smem_cab);
     __syncthreads();
-
-    for (int i = tid / 8; i < task.nsgf_setb; i += 8) {
-      for (int j = tid % 8; j < task.nsgf_seta; j += 8) {
-        T res = 0.0;
-
-        T block_val1 = 0.0;
+    for (int jco = task.first_cosetb; jco < task.ncosetb; jco++) {
+      const auto &b = coset_inv[jco];
+      for (int ico = task.first_coseta; ico < task.ncoseta; ico++) {
+        const auto &a = coset_inv[ico];
+        const T hab = get_hab<COMPUTE_TAU, T>(a, b, task.zeta, task.zetb,
+                                              task.n1, smem_cab);
+        __shared__ T shared_forces_a[3];
+        __shared__ T shared_forces_b[3];
+        __shared__ T shared_virial[9];
 
         if (CALCULATE_FORCES) {
-          if (task.block_transposed) {
-            block_val1 =
-                task.pab_block[j * task.nsgfb + i] * task.off_diag_twice;
-          } else {
-            block_val1 =
-                task.pab_block[i * task.nsgfa + j] * task.off_diag_twice;
+          if (tid < 3) {
+            shared_forces_a[tid] = get_force_a<COMPUTE_TAU, T>(
+                a, b, tid, task.zeta, task.zetb, task.n1, smem_cab);
+            shared_forces_b[tid] = get_force_b<COMPUTE_TAU, T>(
+                a, b, tid, task.zeta, task.zetb, task.rab, task.n1, smem_cab);
+          }
+          if ((tid < 9) && (dev_.ptr_dev[5] != nullptr)) {
+            shared_virial[tid] =
+                get_virial_a<COMPUTE_TAU, T>(a, b, tid / 3, tid % 3, task.zeta,
+                                             task.zetb, task.n1, smem_cab) +
+                get_virial_b<COMPUTE_TAU, T>(a, b, tid / 3, tid % 3, task.zeta,
+                                             task.zetb, task.rab, task.n1,
+                                             smem_cab);
           }
         }
-
-        for (int jco = task.first_cosetb; jco < task.ncosetb; jco++) {
-          const auto &b = coset_inv[jco];
-          T block_val = 0.0;
+        __syncthreads();
+        for (int i = tid / 8; i < task.nsgf_setb; i += 8) {
           const T sphib = task.sphib[i * task.maxcob + jco];
-          for (int ico = task.first_coseta; ico < task.ncoseta; ico++) {
-            const auto &a = coset_inv[ico];
-            const T hab = get_hab<COMPUTE_TAU, T>(a, b, task.zeta, task.zetb,
-                                                  task.n1, smem_cab);
-            const T sphia = task.sphia[j * task.maxcoa + ico];
-            block_val += hab * sphia * sphib;
+          for (int j = tid % 8; j < task.nsgf_seta; j += 8) {
+            const T sphia_times_sphib =
+                task.sphia[j * task.maxcoa + ico] * sphib;
+            // T block_val = hab * sphia_times_sphib;
 
             if (CALCULATE_FORCES) {
+              T block_val1 = 0.0;
+              if (task.block_transposed) {
+                block_val1 =
+                    task.pab_block[j * task.nsgfb + i] * task.off_diag_twice;
+              } else {
+                block_val1 =
+                    task.pab_block[i * task.nsgfa + j] * task.off_diag_twice;
+              }
               for (int k = 0; k < 3; k++) {
-                fa[k] += block_val1 * sphia * sphib *
-                         get_force_a<COMPUTE_TAU, T>(
-                             a, b, k, task.zeta, task.zetb, task.n1, smem_cab);
-                fb[k] +=
-                    block_val1 * sphia * sphib *
-                    get_force_b<COMPUTE_TAU, T>(a, b, k, task.zeta, task.zetb,
-                                                task.rab, task.n1, smem_cab);
+                fa[k] += block_val1 * sphia_times_sphib * shared_forces_a[k];
+                // get_force_a<COMPUTE_TAU, T>(
+                //     a, b, k, task.zeta, task.zetb, task.n1, smem_cab);
+                fb[k] += block_val1 * sphia_times_sphib * shared_forces_b[k];
+                // get_force_b<COMPUTE_TAU, T>(a, b, k, task.zeta, task.zetb,
+                //                             task.rab, task.n1, smem_cab);
               }
               if (dev_.ptr_dev[5] != nullptr) {
                 for (int k = 0; k < 3; k++) {
                   for (int l = 0; l < 3; l++) {
-                    virial[3 * k + l] +=
-                        (get_virial_a<COMPUTE_TAU, T>(a, b, k, l, task.zeta,
-                                                      task.zetb, task.n1,
-                                                      smem_cab) +
-                         get_virial_b<COMPUTE_TAU, T>(a, b, k, l, task.zeta,
-                                                      task.zetb, task.rab,
-                                                      task.n1, smem_cab)) *
-                        block_val1 * sphia * sphib;
+                    virial[3 * k + l] += shared_virial[3 * k + l] * block_val1 *
+                                         sphia_times_sphib;
                   }
                 }
               }
             }
+            // we can use shuffle_down if it exists for T
+
+            // these atomic operations are not needed since the blocks are
+            // updated by one single block thread. However the grid_miniapp will
+            // fail if not there.
+            if (task.block_transposed) {
+              task.hab_block[j * task.nsgfb + i] += hab * sphia_times_sphib;
+              //              atomicAdd(task.hab_block + j * task.nsgfb + i, hab
+              //              *  sphia_times_sphib);
+            } else {
+              task.hab_block[i * task.nsgfa + j] += hab * sphia_times_sphib;
+              // atomicAdd(task.hab_block + i * task.nsgfa + j, hab *
+              // sphia_times_sphib);
+            }
           }
-
-          res += block_val;
         }
-
-        // we can use shuffle_down if it exists for T
-
-        // these atomic operations are not needed since the blocks are updated
-        // by one single block thread. However the grid_miniapp will fail if not
-        // there.
-        if (task.block_transposed) {
-          atomicAdd(task.hab_block + j * task.nsgfb + i, res);
-        } else {
-          atomicAdd(task.hab_block + i * task.nsgfa + j, res);
-        }
+        __syncthreads();
       }
     }
-    __syncthreads();
   }
 
   if (CALCULATE_FORCES) {
@@ -555,11 +563,17 @@ __launch_bounds__(64) void integrate_kernel(const kernel_params dev_) {
             for (int ic = 0; (ic < lbatch) && ((ic + ico) < length); ic++) {
               auto &co = coset_inv[ic + ico];
               T tmp = 1.0;
-              for (int po = 0; po < co.l[2]; po++)
+              for (int po = 0; po < (co.l[2] >> 1); po++)
+                tmp *= r3z2;
+              if (co.l[2] & 0x1)
                 tmp *= r3.z;
-              for (int po = 0; po < co.l[1]; po++)
+              for (int po = 0; po < (co.l[1] >> 1); po++)
+                tmp *= r3y2;
+              if (co.l[1] & 0x1)
                 tmp *= r3.y;
-              for (int po = 0; po < co.l[0]; po++)
+              for (int po = 0; po < (co.l[0] >> 1); po++)
+                tmp *= r3x2;
+              if (co.l[0] & 0x1)
                 tmp *= r3.x;
               accumulator[ic][tid] += tmp * grid_value;
             }

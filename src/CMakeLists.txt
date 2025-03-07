@@ -1,6 +1,6 @@
 #!-------------------------------------------------------------------------------------------------!
 #!   CP2K: A general program to perform molecular dynamics simulations                             !
-#!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                  !
+#!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                  !
 #!                                                                                                 !
 #!   SPDX-License-Identifier: GPL-2.0-or-later                                                     !
 #!-------------------------------------------------------------------------------------------------!
@@ -72,6 +72,8 @@ list(
   bse_main.F
   bse_full_diag.F
   bse_iterative.F
+  bse_print.F
+  bse_properties.F
   bse_util.F
   bsse.F
   cell_methods.F
@@ -131,6 +133,9 @@ list(
   dm_ls_scf_types.F
   domain_submatrix_methods.F
   domain_submatrix_types.F
+  eeq_data.F
+  eeq_input.F
+  eeq_method.F
   ec_efield_local.F
   ec_environment.F
   ec_env_types.F
@@ -587,6 +592,7 @@ list(
   qs_harmonics_atom.F
   qs_hash_table_functions.F
   qs_initial_guess.F
+  qs_eht_guess.F
   qs_integral_utils.F
   qs_integrate_potential.F
   qs_integrate_potential_product.F
@@ -647,6 +653,7 @@ list(
   qs_neighbor_list_types.F
   qs_nl_hash_table_types.F
   qs_nonscf.F
+  qs_nonscf_utils.F
   qs_o3c_methods.F
   qs_o3c_types.F
   qs_oce_methods.F
@@ -706,6 +713,7 @@ list(
   qs_tddfpt2_soc_types.F
   qs_tddfpt2_stda_types.F
   qs_tddfpt2_stda_utils.F
+  qs_tddfpt2_smearing_methods.F
   qs_tddfpt2_subgroups.F
   qs_tddfpt2_types.F
   qs_tddfpt2_utils.F
@@ -820,6 +828,8 @@ list(
   torch_api.F
   transport_env_types.F
   transport.F
+  trexio.F
+  trexio_utils.F
   uff_vdw_radii_table.F
   virial_methods.F
   voronoi_interface.F
@@ -839,11 +849,17 @@ list(
   xas_tdp_utils.F
   xas_tp_scf.F
   xray_diffraction.F
+  xtb_qresp.F
   xtb_coulomb.F
+  xtb_eeq.F
   xtb_ehess.F
   xtb_ehess_force.F
+  xtb_hcore.F
+  xtb_hab_force.F
+  xtb_ks_matrix.F
   xtb_matrices.F
   xtb_parameters.F
+  xtb_potentials.F
   xtb_types.F)
 
 list(
@@ -891,7 +907,8 @@ list(
   arnoldi/arnoldi_data_methods.F
   arnoldi/arnoldi_geev.F
   arnoldi/arnoldi_methods.F
-  arnoldi/arnoldi_types.F)
+  arnoldi/arnoldi_types.F
+  arnoldi/arnoldi_vector.F)
 
 list(APPEND CP2K_SRCS_F base/base_hooks.F base/kinds.F base/machine.F)
 
@@ -918,8 +935,8 @@ list(
   common/eigenvalueproblems.F
   common/fparser.F
   common/gamma.F
+  common/gfun.F
   common/kahan_sum.F
-  common/lapack.F
   common/lebedev.F
   common/linear_systems.F
   common/list_callstackentry.F
@@ -950,9 +967,8 @@ list(
   common/timings_types.F
   common/t_sh_p_s_c.F
   common/util.F
+  common/xmgrace.F
   common/whittaker.F)
-
-list(APPEND CP2K_SRCS_F dbcsrx/dbcsr_vector.F)
 
 list(APPEND CP2K_SRCS_F dbm/dbm_api.F dbm/dbm_tests.F)
 
@@ -980,7 +996,7 @@ list(
   dbt/tas/dbt_tas_types.F
   dbt/tas/dbt_tas_util.F)
 
-list(APPEND CP2K_SRCS_F dbx/cp_dbcsr_api.F)
+list(APPEND CP2K_SRCS_F dbx/cp_dbcsr_api.F dbx/cp_dbcsr_contrib.F)
 
 list(
   APPEND
@@ -1002,6 +1018,7 @@ list(
   CP2K_SRCS_F
   fm/cp_blacs_env.F
   fm/cp_blacs_types.F
+  fm/cp_cfm_cholesky.F
   fm/cp_cfm_basic_linalg.F
   fm/cp_cfm_diag.F
   fm/cp_cfm_basic_linalg.F
@@ -1019,7 +1036,8 @@ list(
 
 list(APPEND CP2K_SRCS_C fm/cp_fm_cusolver.c)
 
-list(APPEND CP2K_SRCS_F fm/cp_dlaf_utils_api.F fm/cp_fm_dlaf_api.F)
+list(APPEND CP2K_SRCS_F fm/cp_dlaf_utils_api.F fm/cp_fm_dlaf_api.F
+     fm/cp_cfm_dlaf_api.F)
 
 list(APPEND CP2K_SRCS_F hfxbase/hfx_compression_core_methods.F
      hfxbase/hfx_contract_block.F hfxbase/hfx_contraction_methods.F)
@@ -1350,7 +1368,7 @@ list(
   xc/xc_xpbe_hole_t_c_lr.F
   xc/xc_xwpbe.F)
 
-list(APPEND CP2K_SRCS_C sockets.c base/machine_cpuid.c)
+list(APPEND CP2K_SRCS_C sockets.c base/machine_cpuid.c base/openmp_trace.c)
 
 set(CP2K_DBM_SRCS_C
     dbm/dbm_distribution.c
@@ -1387,6 +1405,46 @@ set(CP2K_GRID_SRCS_C
     grid/cpu/grid_cpu_task_list.c
     grid/grid_replay.c)
 
+set(CP2K_GRPP_SRCS_C
+    grpp/grpp_angular_integrals.c
+    grpp/grpp_binomial.c
+    grpp/grpp_diff_gaussian.c
+    grpp/grpp_factorial.c
+    grpp/grpp_fortran.c
+    grpp/grpp_full_grpp_integrals.c
+    grpp/grpp.c
+    grpp/grpp_integrals_gradient.c
+    grpp/grpp_init_finalize.c
+    grpp/grpp_kinetic.c
+    grpp/grpp_lmatrix.c
+    grpp/grpp_momentum.c
+    grpp/grpp_norm_gaussian.c
+    grpp/grpp_nuclear_attraction.c
+    grpp/grpp_nuclear_models.c
+    grpp/grpp_outercore_integrals.c
+    grpp/grpp_overlap.c
+    grpp/grpp_overlap_gradient.c
+    grpp/grpp_parameters.c
+    grpp/grpp_potential.c
+    grpp/grpp_radial_type1_integral.c
+    grpp/grpp_radial_type2_integral.c
+    grpp/grpp_screening.c
+    grpp/grpp_shell.c
+    grpp/grpp_specfunc_bessel_table.c
+    grpp/grpp_specfunc_boys.c
+    grpp/grpp_specfunc_dawson.c
+    grpp/grpp_specfunc_fermi_sk.c
+    grpp/grpp_specfunc_gfun.c
+    grpp/grpp_specfunc_scaled_mod_sph_bessel.c
+    grpp/grpp_spherical_harmonics.c
+    grpp/grpp_spin_orbit_integrals.c
+    grpp/grpp_type1_integrals.c
+    grpp/grpp_type1_mcmurchie_davidson.c
+    grpp/grpp_type2_integrals.c
+    grpp/grpp_utils.c)
+
+set(CP2K_GRPP_SRCS_F grpp/libgrpp.F)
+
 set(CP2K_FPGA_SRC_C pw/fpga/fft_fpga.c pw/fpga/opencl_utils.c)
 set(CP2K_PW_SRCS_C pw/gpu/pw_gpu_internal.c)
 set(CP2K_OFFLOAD_SRCS_C offload/offload_buffer.c offload/offload_library.c)
@@ -1395,7 +1453,7 @@ set(CP2K_SRCS_CPP torch_c_api.cpp)
 list(APPEND CP2K_SRCS_C "${CP2K_OFFLOAD_SRCS_C}")
 
 # ##############################################################################
-# gpu code                                     #
+# gpu code
 # ##############################################################################
 
 set(CP2K_SRCS_GPU "")
@@ -1407,6 +1465,12 @@ set(CP2K_GRID_SRCS_GPU
 set(CP2K_GRID_SRCS_HIP
     grid/hip/grid_hip_collocate.cu grid/hip/grid_hip_integrate.cu
     grid/hip/grid_hip_context.cu)
+
+set(CP2K_OPENCL_TOOLDIR
+    ${CMAKE_CURRENT_SOURCE_DIR}/../exts/dbcsr/src/acc/opencl)
+set(CP2K_OPENCL_SCRIPT ${CP2K_OPENCL_TOOLDIR}/acc_opencl.sh)
+set(CP2K_OPENCL_COMMON common/opencl_atomics.h common/opencl_common.h)
+list(TRANSFORM CP2K_OPENCL_COMMON PREPEND ${CP2K_OPENCL_TOOLDIR}/)
 
 set(CP2K_DBM_SRCS_GPU dbm/dbm_multiply_gpu_kernel.cu)
 set(CP2K_DBM_SRCS_GPU_C dbm/dbm_multiply_opencl.c dbm/dbm_multiply_gpu.c)
@@ -1428,18 +1492,32 @@ set(CP2K_PROGS_F
     motion/xyz2dcd.F
     nequip_unittest.F)
 
-if(CP2K_USE_CUDA OR CP2K_USE_HIP)
-  if(NOT CP2K_DISABLE_PW_GPU)
+if(CP2K_USE_CUDA
+   OR CP2K_USE_HIP
+   OR CP2K_USE_OPENCL)
+  if(CP2K_ENABLE_PW_GPU)
     list(APPEND CP2K_SRCS_GPU "pw/gpu/pw_gpu_kernels.cu")
     list(APPEND CP2K_SRCS_C ${CP2K_PW_SRCS_C})
   endif()
 
-  if(NOT CP2K_DISABLE_DBM_GPU)
+  if(CP2K_ENABLE_DBM_GPU)
+    if(CP2K_USE_OPENCL)
+      # DBM-kernel: OpenCL code is packaged into string-literal (include file)
+      add_custom_target(
+        CP2K_DBM_OPENCL_TARGET ALL
+        COMMAND
+          ${CP2K_OPENCL_SCRIPT} -b 6 -p \"\"
+          ${CMAKE_CURRENT_SOURCE_DIR}/${CP2K_DBM_SRCS_OPENCL}
+          ${CMAKE_CURRENT_SOURCE_DIR}/${CP2K_DBM_SRCS_OPENCL}.h
+        DEPENDS ${CP2K_OPENCL_SCRIPT} ${CP2K_OPENCL_COMMON}
+                ${CMAKE_CURRENT_SOURCE_DIR}/${CP2K_DBM_SRCS_OPENCL}
+        BYPRODUCTS ${CMAKE_CURRENT_SOURCE_DIR}/${CP2K_DBM_SRCS_OPENCL}.h)
+    endif()
     list(APPEND CP2K_DBM_SRCS_C ${CP2K_DBM_SRCS_GPU_C})
     list(APPEND CP2K_SRCS_GPU ${CP2K_DBM_SRCS_GPU})
   endif()
 
-  if(NOT CP2K_DISABLE_GRID_GPU)
+  if(CP2K_ENABLE_GRID_GPU)
     if(CP2K_USE_HIP)
       list(APPEND CP2K_SRCS_GPU ${CP2K_GRID_SRCS_HIP})
     endif()
@@ -1452,20 +1530,23 @@ endif()
 
 list(APPEND CP2K_SRCS_C ${CP2K_DBM_SRCS_C} ${CP2K_GRID_SRCS_C})
 
+if(CP2K_USE_GRPP)
+  list(APPEND CP2K_SRCS_C ${CP2K_GRPP_SRCS_C})
+  list(APPEND CP2K_SRCS_F ${CP2K_GRPP_SRCS_F})
+endif()
 # ##############################################################################
-#
-# ##############################################################################
-
 # check that the files registered in CMakeLists.txt are all present and return
 # an error otherwise. cmake only runs this test nothing else below
+# ##############################################################################
+
 if(CP2K_ENABLE_CONSISTENCY_CHECKS)
   cp2k_compare_src_with_list(
-    "${CP2K_FPGA_SRC_C};${CP2K_SRCS_C};${CP2K_OFFLOAD_SRCS_C};${CP2K_DBM_SRCS_C};${CP2K_GRID_SRCS_C};${CP2K_PW_SRCS_C};${CP2K_DBM_SRCS_GPU_C};${CP2K_PROGS_C}"
+    "${CP2K_FPGA_SRC_C};${CP2K_SRCS_C};${CP2K_OFFLOAD_SRCS_C};${CP2K_DBM_SRCS_C};${CP2K_GRID_SRCS_C};${CP2K_PW_SRCS_C};${CP2K_DBM_SRCS_GPU_C};${CP2K_PROGS_C};${CP2K_GRPP_SRCS_C}"
     "*.c"
     "${CP2K_EXCLUDED_SRCS_C}")
   cp2k_compare_src_with_list(
-    "${CP2K_SRCS_F};${CP2K_OFFLOAD_SRCS_F};${CP2K_PROGS_F}" "*.F"
-    "${CP2K_EXCLUDED_SRCS_F}")
+    "${CP2K_GRPP_SRCS_F};${CP2K_SRCS_F};${CP2K_OFFLOAD_SRCS_F};${CP2K_PROGS_F}"
+    "*.F" "${CP2K_EXCLUDED_SRCS_F}")
   cp2k_compare_src_with_list(
     "${CP2K_GRID_SRCS_GPU};${CP2K_GRID_SRCS_HIP};${CP2K_DBM_SRCS_GPU};${CP2K_PW_SRCS_GPU}"
     "*.cu"
@@ -1475,7 +1556,7 @@ if(CP2K_ENABLE_CONSISTENCY_CHECKS)
 endif()
 
 # ##############################################################################
-# alias targets encapsulating cuda and hip libraries #
+# alias targets encapsulating cuda and hip libraries
 # ##############################################################################
 
 # create some short version of these libraries to ease things afterwards
@@ -1486,18 +1567,20 @@ if(CP2K_USE_CUDA)
   else()
     target_link_libraries(
       cp2k_cuda_libs
-      INTERFACE $<$<BOOL:${CP2K_USE_CUSOLVER_MP}>:cp2k::CUSOLVER_MP::cusolvermp>
-                CUDA::cufft CUDA::cufftw CUDA::cublas CUDA::cudart
-                CUDA::cuda_driver)
+      INTERFACE
+        $<$<BOOL:${CP2K_USE_CUSOLVER_MP}>:cp2k::CUSOLVER_MP::cusolver_mp>
+        CUDA::cufft CUDA::cufftw CUDA::cublas CUDA::cudart CUDA::cuda_driver)
   endif()
 endif()
 
 if(CP2K_USE_HIP)
   add_library(cp2k_hip_libs INTERFACE)
-  target_link_libraries(cp2k_hip_libs INTERFACE hip::hipfft roc::hipblas
-                                                hip::host)
+  target_link_libraries(
+    cp2k_hip_libs
+    INTERFACE hip::hipfft roc::hipblas hip::host
+              $<$<STREQUAL:"${CMAKE_HIP_PLATFORM}","nvidia">:CUDA::toolkit
+              CUDA::cudart CUDA::cuda_driver>)
 endif()
-
 add_library(cp2k_linalg_libs INTERFACE)
 target_link_libraries(
   cp2k_linalg_libs
@@ -1514,13 +1597,22 @@ target_link_libraries(
             OpenMP::OpenMP_C
             OpenMP::OpenMP_CXX)
 
+if(CMAKE_HIP_PLATFORM MATCHES "amd")
+  set(CP2K_GPU_PLATFORM_DFLAGS "__HIP_PLATFORM_AMD__")
+else()
+  set(CP2K_HIP_INCLUDES "${CP2K_HIP_PATH}/include")
+  message("Info: ${CP2K_HIP_INCLUDES}")
+  set(CP2K_GPU_PLATFORM_DFLAGS "__HIP_PLATFORM_NVIDIA__")
+endif()
 set(CP2K_GPU_DFLAGS
-    $<$<BOOL:${CP2K_USE_HIP}>:__HIP_PLATFORM_AMD__
-    __OFFLOAD_HIP>
-    $<$<COMPILE_LANGUAGE:HIP>:__HIP_PLATFORM_AMD__
-    __OFFLOAD_HIP>
+    $<$<BOOL:${CP2K_USE_UNIFIED_MEMORY}>:__OFFLOAD_UNIFIED_MEMORY>
+    $<$<BOOL:${CP2K_USE_OPENCL}>:__OFFLOAD_OPENCL>
     $<$<BOOL:${CP2K_USE_CUDA}>:__OFFLOAD_CUDA>
-    $<$<COMPILE_LANGUAGE:CUDA>:__OFFLOAD_CUDA>)
+    $<$<COMPILE_LANGUAGE:CUDA>:__OFFLOAD_CUDA>
+    $<$<BOOL:${CP2K_USE_HIP}>:__OFFLOAD_HIP
+    ${CP2K_GPU_PLATFORM_DFLAGS}>
+    $<$<COMPILE_LANGUAGE:HIP>:__OFFLOAD_HIP
+    ${CP2K_GPU_PLATFORM_DFLAGS}>)
 
 # ##############################################################################
 # set properties for the cp2k target.
@@ -1560,23 +1652,24 @@ set_target_properties(
 if(CP2K_USE_ACCEL MATCHES "CUDA")
   set_property(TARGET cp2k PROPERTY CUDA_ARCHITECTURES
                                     ${CMAKE_CUDA_ARCHITECTURES})
-  target_compile_definitions(
-    cp2k PUBLIC __OFFLOAD_CUDA $<$<COMPILE_LANGUAGE:CUDA>:__OFFLOAD_CUDA>)
   include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
 elseif(CP2K_USE_ACCEL MATCHES "HIP")
   set_property(TARGET cp2k PROPERTY HIP_ARCHITECTURES
                                     ${CMAKE_HIP_ARCHITECTURES})
+elseif(CP2K_USE_ACCEL MATCHES "OPENCL")
+  include_directories(${CP2K_OPENCL_TOOLDIR})
 endif()
 
 # mix the target and variables pointing to the include directories.
 
 include_directories(
   ${CMAKE_MPI_INCLUDE_DIRECTORIES}
+  $<$<BOOL:${CUDAToolkit_FOUND}>:${CUDAToolkit_INCLUDE_DIRS}>
+  $<$<BOOL:${CP2K_USE_HIP}>:${CMAKE_HIP_INCLUDE_DIRECTORIES}>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/base>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/common>
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/dbcsrx>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/motion>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/dbm>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/mod_files>)
@@ -1590,20 +1683,18 @@ endif()
 
 add_library(cp2k_link_libs INTERFACE)
 
-include_directories(${DFTD4_DFTD4})
-include_directories(${DFTD4_MCTC})
-
 # the order is important so keep it that way
 target_link_libraries(
   cp2k_link_libs
   INTERFACE
     $<$<BOOL:${CP2K_USE_DFTD4}>:dftd4::dftd4>
+    $<$<BOOL:${CP2K_USE_DEEPMD}>:DeePMD::deepmd
+    DeePMD::deepmd_c>
     $<$<BOOL:${CP2K_USE_SIRIUS}>:sirius::sirius>
     $<$<BOOL:${CP2K_USE_VORI}>:cp2k::VORI::vori>
-    $<$<BOOL:${CP2K_USE_PEXSI}>:cp2k::PEXSI::pexsi>
-    $<$<BOOL:${CP2K_USE_PEXSI}>:cp2k::ptscotch::ptscotch>
     $<$<BOOL:${CP2K_USE_SPGLIB}>:Spglib::symspg>
-    $<$<BOOL:${CP2K_USE_LIBXC}>:cp2k::Libxc::xc>
+    $<$<BOOL:${CP2K_USE_LIBSMEAGOL}>:cp2k::libsmeagol::smeagol>
+    $<$<BOOL:${CP2K_USE_LIBXC}>:Libxc::xcf03>
     $<$<BOOL:${CP2K_USE_ELPA}>:cp2k::ELPA::elpa>
     $<$<BOOL:${CP2K_USE_PLUMED}>:cp2k::plumed::plumed>
     $<$<BOOL:${CP2K_USE_FFTW3_}>:cp2k::FFTW3::fftw3>
@@ -1611,10 +1702,13 @@ target_link_libraries(
     $<$<AND:$<BOOL:${CP2K_USE_FFTW3_}>,$<BOOL:${CP2K_ENABLE_FFTW3_OPENMP_SUPPORT}>>:cp2k::FFTW3::fftw3_omp>
     $<$<BOOL:${CP2K_USE_SPLA}>:SPLA::spla>
     $<$<BOOL:${CP2K_USE_LIBINT2}>:cp2k::Libint2::int2>
-    $<$<BOOL:${CP2K_USE_TORCH}>:${TORCH_LIBRARIES}>
+    $<$<BOOL:${CP2K_USE_LIBTORCH}>:${TORCH_LIBRARIES}>
     $<$<BOOL:${CP2K_USE_COSMA}>:cosma::cosma_prefixed_pxgemm>
     $<$<BOOL:${CP2K_USE_COSMA}>:cosma::cosma>
     $<$<BOOL:${CP2K_USE_DLAF}>:DLAF::Fortran>
+    $<$<BOOL:${CP2K_USE_TREXIO}>:cp2k::trexio::trexio>
+    $<$<BOOL:${CP2K_USE_HDF5}>:HDF5::HDF5
+    hdf5::hdf5_fortran>
     DBCSR::dbcsr
     $<$<BOOL:${CP2K_USE_MPI}>:cp2k::SCALAPACK::scalapack>
     cp2k_linalg_libs
@@ -1640,47 +1734,44 @@ target_compile_definitions(
     $<$<CONFIG:COVERAGE>:__NO_ABORT>
     $<$<CONFIG:DEBUG>:__HAS_IEEE_EXCEPTIONS>
     $<$<CONFIG:DEBUG>:__CHECK_DIAG>
-    $<$<BOOL:${CP2K_USE_PEXSI}>:__PEXSI>
     $<$<BOOL:${CP2K_USE_PLUMED}>:__PLUMED2>
-    $<$<BOOL:${CP2K_USE_QUIP}>:__QUIP>
     $<$<BOOL:${CP2K_USE_MAXWELL}>:__LIBMAXWELL>
     $<$<BOOL:${CP2K_USE_VORI}>:__LIBVORI>
     $<$<BOOL:${CP2K_USE_SPGLIB}>:__SPGLIB>
+    $<$<BOOL:${CP2K_USE_LIBSMEAGOL}>:__SMEAGOL>
     $<$<BOOL:${CP2K_USE_DFTD4}>:__DFTD4>
+    $<$<BOOL:${CP2K_USE_DEEPMD}>:__DEEPMD>
     $<$<BOOL:${CP2K_USE_SIRIUS}>:__SIRIUS>
+    $<$<BOOL:${CP2K_USE_LIBVDWXC}>:__LIBVDWXC>
     $<$<BOOL:${CP2K_USE_SPLA}>:__SPLA>
     $<$<BOOL:${CP2K_USE_SpFFT}>:__SPFFT>
     $<$<BOOL:${CP2K_USE_SPLA_GEMM_OFFLOADING}>:__OFFLOAD_GEMM>
     $<$<BOOL:${CP2K_USE_ELPA}>:__ELPA>
     $<$<BOOL:${CP2K_USE_DLAF}>:__DLAF>
     $<$<BOOL:${CP2K_USE_LIBXC}>:__LIBXC>
+    $<$<BOOL:${CP2K_USE_HDF5}>:__HDF5>
+    $<$<BOOL:${CP2K_USE_TREXIO}>:__TREXIO>
+    $<$<BOOL:${CP2K_USE_GRPP}>:__LIBGRPP>
     $<$<OR:$<BOOL:${CP2K_USE_FFTW3_}>,$<BOOL:${CP2K_USE_FFTW3_MKL_}>>:__FFTW3>
     $<$<BOOL:${CP2K_USE_FFTW3_MKL_}>:__FFTW3_MKL>
     $<$<BOOL:${CP2K_USE_LIBINT2}>:__LIBINT>
-    $<$<BOOL:${CP2K_USE_PEXSI}>:__LIBPEXSI>
     $<$<BOOL:${CP2K_USE_LIBTORCH}>:__LIBTORCH>
     $<$<BOOL:${CP2K_USE_COSMA}>:__COSMA>
     $<$<BOOL:${CP2K_USE_LIBXSMM}>:__LIBXSMM>
-    $<$<STREQUAL:${CP2K_BLAS_VENDOR},MKL>:__MKL>
-    $<$<STREQUAL:${CP2K_BLAS_VENDOR},Apple>:__ACCELERATE>
+    $<$<STREQUAL:"${CP2K_BLAS_VENDOR}","MKL">:__MKL>
+    $<$<STREQUAL:"${CP2K_BLAS_VENDOR}","Apple">:__ACCELERATE>
     $<$<BOOL:${CP2K_USE_CUSOLVER_MP}>:__CUSOLVERMP>
-    $<$<BOOL:${CP2K_USE_CUDA}>:__OFFLOAD_CUDA>
-    $<$<COMPILE_LANGUAGE:CUDA>:__OFFLOAD_CUDA>
-    $<$<BOOL:${CP2K_USE_HIP}>:__HIP_PLATFORM_AMD__
-    __OFFLOAD_HIP>
-    $<$<BOOL:${CP2K_USE_UNIFIED_MEMORY}>:__OFFLOAD_UNIFIED_MEMORY>
-    $<$<COMPILE_LANGUAGE:HIP>:__HIP_PLATFORM_AMD__
-    __OFFLOAD_HIP>)
+    ${CP2K_GPU_DFLAGS})
 
-if(CP2K_USE_CUDA OR CP2K_USE_HIP)
-  # these checks are only relevant when the debug mode is on
-
+if(CP2K_USE_CUDA
+   OR CP2K_USE_HIP
+   OR CP2K_USE_OPENCL)
   target_compile_definitions(
     cp2k
     PUBLIC $<$<NOT:$<BOOL:${CP2K_DBCSR_USE_CPU_ONLY}>>:__DBCSR_ACC>
-           $<$<BOOL:${CP2K_DISABLE_GRID_GPU}>:__NO_OFFLOAD_GRID>
-           $<$<BOOL:${CP2K_DISABLE_PW_GPU}>:__NO_OFFLOAD_PW>
-           $<$<BOOL:${CP2K_DISABLE_DBM_GPU}>:__NO_OFFLOAD_DBM>)
+           $<$<NOT:$<BOOL:${CP2K_ENABLE_GRID_GPU}>>:__NO_OFFLOAD_GRID>
+           $<$<NOT:$<BOOL:${CP2K_ENABLE_PW_GPU}>>:__NO_OFFLOAD_PW>
+           $<$<NOT:$<BOOL:${CP2K_ENABLE_DBM_GPU}>>:__NO_OFFLOAD_DBM>)
 endif()
 
 # add an alias for the FetchContent. Note that FindPackage will automatically
@@ -1751,7 +1842,7 @@ add_executable(dbm_miniapp dbm/dbm_miniapp.c ${CP2K_DBM_SRCS_C}
                            ${CP2K_DBM_SRCS_GPU} ${CP2K_OFFLOAD_SRCS_C})
 target_compile_definitions(
   dbm_miniapp PRIVATE $<$<BOOL:${CP2K_USE_LIBXSMM}>:__LIBXSMM>
-                      $<$<STREQUAL:${CP2K_BLAS_VENDOR},"MKL">:__MKL>)
+                      $<$<STREQUAL:"${CP2K_BLAS_VENDOR}","MKL">:__MKL>)
 
 if(CP2K_DISABLE_DBM_GPU)
   target_compile_definitions(dbm_miniapp PRIVATE __NO_OFFLOAD_DBM)
@@ -1769,7 +1860,7 @@ foreach(__app grid_miniapp grid_unittest)
     ${CP2K_OFFLOAD_SRCS_C})
   target_compile_definitions(
     ${__app} PRIVATE $<$<BOOL:${CP2K_USE_LIBXSMM}>:__LIBXSMM>
-                     $<$<STREQUAL:${CP2K_BLAS_VENDOR},"MKL">:__MKL>)
+                     $<$<STREQUAL:"${CP2K_BLAS_VENDOR}","MKL">:__MKL>)
 
   if(CP2K_DISABLE_GRID_GPU)
     target_compile_definitions(${__app} PUBLIC __NO_OFFLOAD_GRID)

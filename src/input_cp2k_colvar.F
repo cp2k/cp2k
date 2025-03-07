@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -460,7 +460,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="LAMBDA", &
                           description="Specify the lambda parameter at the exponent of the conditioned distance function.", &
-                          usage="R0 {real}", default_r_val=3.0_dp, &
+                          usage="LAMBDA {real}", default_r_val=3.0_dp, &
                           unit_str="bohr", n_var=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -856,7 +856,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="COMPONENT", &
                           description="Define the component of the position vector which will be used "// &
                           "as a colvar.", &
-                          usage="AXIS (XYZ | X | Y | Z | XY| XZ | YZ)", &
+                          usage="COMPONENT (XYZ | X | Y | Z | XY| XZ | YZ)", &
                           enum_c_vals=s2a("XYZ", "X", "Y", "Z", "XY", "XZ", "YZ"), &
                           enum_i_vals=(/do_clv_xyz, do_clv_x, do_clv_y, do_clv_z, do_clv_xy, do_clv_xz, do_clv_yz/), &
                           default_i_val=do_clv_xyz)
@@ -915,7 +915,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="COMPONENT_A", &
                           description="Define the component of the position vector which will be used "// &
                           "as a colvar for atom A.", &
-                          usage="AXIS (XYZ | X | Y | Z | XY| XZ | YZ)", &
+                          usage="COMPONENT_A (XYZ | X | Y | Z | XY| XZ | YZ)", &
                           enum_c_vals=s2a("XYZ", "X", "Y", "Z", "XY", "XZ", "YZ"), &
                           enum_i_vals=(/do_clv_xyz, do_clv_x, do_clv_y, do_clv_z, do_clv_xy, do_clv_xz, do_clv_yz/), &
                           default_i_val=do_clv_xyz)
@@ -925,7 +925,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="COMPONENT_B", &
                           description="Define the component of the position vector which will be used "// &
                           "as a colvar for atom B.", &
-                          usage="AXIS (XYZ | X | Y | Z | XY| XZ | YZ)", &
+                          usage="COMPONENT_B (XYZ | X | Y | Z | XY| XZ | YZ)", &
                           enum_c_vals=s2a("XYZ", "X", "Y", "Z", "XY", "XZ", "YZ"), &
                           enum_i_vals=(/do_clv_xyz, do_clv_x, do_clv_y, do_clv_z, do_clv_xy, do_clv_xz, do_clv_yz/), &
                           default_i_val=do_clv_xyz)
@@ -1527,7 +1527,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="OXYGENS_WATER", &
                           description="Specifies indexes of atoms building the coordination variable."// &
                           " Oxygens of the water molecules. ", &
-                          usage="OXYGENS {integer} {integer} ..", repeats=.TRUE., &
+                          usage="OXYGENS_WATER {integer} {integer} ..", repeats=.TRUE., &
                           n_var=-1, type_of_var=integer_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1535,7 +1535,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="OXYGENS_ACID", &
                           description="Specifies indexes of atoms building the coordination variable."// &
                           " Oxygens of the carboxyl groups.", &
-                          usage="OXYGENS {integer} {integer} ..", repeats=.TRUE., &
+                          usage="OXYGENS_ACID {integer} {integer} ..", repeats=.TRUE., &
                           n_var=-1, type_of_var=integer_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1654,7 +1654,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="OXYGENS_WATER", &
                           description="Specifies indexes of atoms building the coordination variable."// &
                           " Oxygens of the water molecules. ", &
-                          usage="OXYGENS {integer} {integer} ..", repeats=.TRUE., &
+                          usage="OXYGENS_WATER {integer} {integer} ..", repeats=.TRUE., &
                           n_var=-1, type_of_var=integer_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1662,7 +1662,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="OXYGENS_ACID", &
                           description="Specifies indexes of atoms building the coordination variable."// &
                           " Oxygens of the carboxyl groups.", &
-                          usage="OXYGENS {integer} {integer} ..", repeats=.TRUE., &
+                          usage="OXYGENS_ACID {integer} {integer} ..", repeats=.TRUE., &
                           n_var=-1, type_of_var=integer_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1823,7 +1823,9 @@ CONTAINS
 
       NULLIFY (keyword, subsection, subsubsection)
       CALL keyword_create(keyword, __LOCATION__, name="SUBSET_TYPE", &
-                          description="Define the subsytem used to compute the RMSD", &
+                          description="Define the subsytem used to compute the RMSD. With ALL the displacements"// &
+                          " are mass-weighted, with LIST all weights are set to 1,"// &
+                          " with WEIGHT_LIST a list of weights is expected from input.", &
                           usage="SUBSET_TYPE ALL", &
                           enum_c_vals=s2a("ALL", "LIST", "WEIGHT_LIST"), &
                           enum_i_vals=(/rmsd_all, rmsd_list, rmsd_weightlist/), &
@@ -1833,7 +1835,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="ALIGN_FRAMES", &
                           description="Whether the reference frames should be aligned to minimize the RMSD", &
-                          usage="ALIGN_FRAME", &
+                          usage="ALIGN_FRAMES", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1846,7 +1848,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="WEIGHTS", &
-                          description="Specify weights of atoms building the subset. ", &
+                          description="Specify weights of atoms building the subset. It is used only with WEIGHT_LIST ", &
                           usage="weightS {real} {real} ..", repeats=.TRUE., &
                           n_var=-1, type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
@@ -1956,7 +1958,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="ALIGN_FRAMES", &
                           description="Whether the reference frames should be aligned to minimize the RMSD", &
-                          usage="ALIGN_FRAME", &
+                          usage="ALIGN_FRAMES", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -2045,7 +2047,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="GRID_SPACING", &
                           description="Distance between two gridpoints for the grid on the COLVAR", &
-                          usage="STEP_SIZE {real}", repeats=.TRUE., &
+                          usage="GRID_SPACING {real}", repeats=.TRUE., &
                           type_of_var=real_t, default_r_val=0.01_dp)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
@@ -2097,7 +2099,7 @@ CONTAINS
                           description="Specifies the name of the variable that parametrises the FUNCTION "// &
                           "defining how COLVARS should be combined. The matching follows the same order of the "// &
                           "COLVARS definition in the input file.", &
-                          usage="VARIABLE CV1 CV2 CV3", type_of_var=char_t, n_var=-1, repeats=.FALSE.)
+                          usage="VARIABLES CV1 CV2 CV3", type_of_var=char_t, n_var=-1, repeats=.FALSE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

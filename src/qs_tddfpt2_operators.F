@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -44,7 +44,8 @@ MODULE qs_tddfpt2_operators
                                               pw_zero
    USE pw_poisson_methods,              ONLY: pw_poisson_solve
    USE pw_poisson_types,                ONLY: pw_poisson_type
-   USE pw_pool_types,                   ONLY: pw_pool_type
+   USE pw_pool_types,                   ONLY: pw_pool_p_type,&
+                                              pw_pool_type
    USE pw_types,                        ONLY: pw_c1d_gs_type,&
                                               pw_r3d_rs_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -58,6 +59,8 @@ MODULE qs_tddfpt2_operators
    USE qs_tddfpt2_subgroups,            ONLY: tddfpt_subgroup_env_type
    USE qs_tddfpt2_types,                ONLY: tddfpt_ground_state_mos,&
                                               tddfpt_work_matrices
+   USE realspace_grid_types,            ONLY: realspace_grid_desc_p_type,&
+                                              realspace_grid_type
    USE xc,                              ONLY: xc_calc_2nd_deriv_analytical,&
                                               xc_calc_2nd_deriv_numerical
    USE xc_rho_set_types,                ONLY: xc_rho_set_type,&
@@ -99,7 +102,8 @@ CONTAINS
 !>       Thomas Chassaing on 08.2002.
 ! **************************************************************************************************
    SUBROUTINE tddfpt_apply_energy_diff(Aop_evects, evects, S_evects, gs_mos, matrix_ks)
-      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(in)      :: Aop_evects, evects, S_evects
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(INOUT)   :: Aop_evects
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: evects, S_evects
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          INTENT(in)                                      :: gs_mos
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(in)       :: matrix_ks
@@ -158,6 +162,7 @@ CONTAINS
 !> \param gapw           Flag indicating GAPW cacluation
 !> \param work_v_gspace  work reciprocal-space grid to store Coulomb potential (modified on exit)
 !> \param work_v_rspace  work real-space grid to store Coulomb potential (modified on exit)
+!> \param tddfpt_mgrid ...
 !> \par History
 !>    * 05.2016 compute all coulomb terms in one go [Sergey Chulkov]
 !>    * 03.2017 proceed excited states sequentially; minimise the number of conversions between
@@ -168,7 +173,7 @@ CONTAINS
 !>       Mohamed Fawzi on 10.2002.
 ! **************************************************************************************************
    SUBROUTINE tddfpt_apply_coulomb(A_ia_rspace, rho_ia_g, local_rho_set, hartree_local, &
-                                   qs_env, sub_env, gapw, work_v_gspace, work_v_rspace)
+                                   qs_env, sub_env, gapw, work_v_gspace, work_v_rspace, tddfpt_mgrid)
       TYPE(pw_r3d_rs_type), DIMENSION(:), INTENT(INOUT)  :: A_ia_rspace
       TYPE(pw_c1d_gs_type), INTENT(INOUT)                :: rho_ia_g
       TYPE(local_rho_type), POINTER                      :: local_rho_set
@@ -178,6 +183,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: gapw
       TYPE(pw_c1d_gs_type), INTENT(INOUT)                :: work_v_gspace
       TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: work_v_rspace
+      LOGICAL, INTENT(IN)                                :: tddfpt_mgrid
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_apply_coulomb'
 
@@ -185,12 +191,21 @@ CONTAINS
       REAL(kind=dp)                                      :: alpha, pair_energy
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
+      TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: my_pools
+      TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
+         POINTER                                         :: my_rs_descs
+      TYPE(realspace_grid_type), DIMENSION(:), POINTER   :: my_rs_grids
 
       CALL timeset(routineN, handle)
 
       nspins = SIZE(A_ia_rspace)
       pw_env => sub_env%pw_env
-      CALL pw_env_get(pw_env, poisson_env=poisson_env)
+      IF (tddfpt_mgrid) THEN
+         CALL pw_env_get(pw_env, poisson_env=poisson_env, rs_grids=my_rs_grids, &
+                         rs_descs=my_rs_descs, pw_pools=my_pools)
+      ELSE
+         CALL pw_env_get(pw_env, poisson_env=poisson_env)
+      END IF
 
       IF (nspins > 1) THEN
          alpha = 1.0_dp
@@ -221,9 +236,16 @@ CONTAINS
                                  local_rho_set, &
                                  sub_env%para_env, tddft=.TRUE., core_2nd=.TRUE.)
          CALL pw_scale(work_v_rspace, work_v_rspace%pw_grid%dvol)
-         CALL integrate_vhg0_rspace(qs_env, work_v_rspace, sub_env%para_env, &
-                                    calculate_forces=.FALSE., &
-                                    local_rho_set=local_rho_set)
+         IF (tddfpt_mgrid) THEN
+            CALL integrate_vhg0_rspace(qs_env, work_v_rspace, sub_env%para_env, &
+                                       calculate_forces=.FALSE., &
+                                       local_rho_set=local_rho_set, my_pools=my_pools, &
+                                       my_rs_descs=my_rs_descs)
+         ELSE
+            CALL integrate_vhg0_rspace(qs_env, work_v_rspace, sub_env%para_env, &
+                                       calculate_forces=.FALSE., &
+                                       local_rho_set=local_rho_set)
+         END IF
       END IF
 
       CALL timestop(handle)
@@ -494,7 +516,8 @@ CONTAINS
    SUBROUTINE tddfpt_apply_hfx(Aop_evects, evects, gs_mos, do_admm, qs_env, &
                                work_rho_ia_ao_symm, work_hmat_symm, work_rho_ia_ao_asymm, &
                                work_hmat_asymm, wfm_rho_orb)
-      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(in)      :: Aop_evects, evects
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(INOUT)   :: Aop_evects
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: evects
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          INTENT(in)                                      :: gs_mos
       LOGICAL, INTENT(in)                                :: do_admm
@@ -747,11 +770,12 @@ CONTAINS
       TYPE(tddfpt_subgroup_env_type)                     :: sub_env
       REAL(KIND=dp), INTENT(IN)                          :: rcut, hfx_scale
       TYPE(tddfpt_work_matrices)                         :: work
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: X, res
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: X
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: res
 
       CHARACTER(len=*), PARAMETER :: routineN = 'tddfpt_apply_hfxlr_kernel'
 
-      INTEGER                                            :: blk, handle, iatom, ispin, jatom, natom, &
+      INTEGER                                            :: handle, iatom, ispin, jatom, natom, &
                                                             nsgf, nspins
       INTEGER, DIMENSION(2)                              :: nactive
       REAL(KIND=dp)                                      :: dr, eps_filter, fcut, gabr
@@ -810,7 +834,7 @@ CONTAINS
          ! P(nu,mu) = P(nu,mu)*g(a of nu,b of mu)
          CALL dbcsr_iterator_start(iter, pdens)
          DO WHILE (dbcsr_iterator_blocks_left(iter))
-            CALL dbcsr_iterator_next_block(iter, iatom, jatom, pblock, blk)
+            CALL dbcsr_iterator_next_block(iter, iatom, jatom, pblock)
             rij = particle_set(iatom)%r - particle_set(jatom)%r
             rij = pbc(rij, cell)
             dr = SQRT(SUM(rij(:)**2))

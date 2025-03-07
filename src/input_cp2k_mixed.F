@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -222,7 +222,7 @@ CONTAINS
                           "nonorthogonal diabatic CDFT Hamiltonian. The energies and expansion coefficients "// &
                           "of the CDFT-CI states are outputted. Keyword COUPLING must be active "// &
                           "to use this feature.", &
-                          usage="LOWDIN", type_of_var=logical_t, &
+                          usage="CI", type_of_var=logical_t, &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)

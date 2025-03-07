@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -878,7 +878,7 @@ CONTAINS
                            name="xas_env%ostrength_sm", &
                            dist=dbcsr_dist, matrix_type=dbcsr_type_antisymmetric, &
                            row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-                           nze=0, mutable_work=.TRUE.)
+                           mutable_work=.TRUE.)
          CALL cp_dbcsr_alloc_block_from_nbl(xas_env%ostrength_sm(1)%matrix, sab_orb)
          CALL dbcsr_set(xas_env%ostrength_sm(1)%matrix, 0.0_dp)
          DO i = 2, 3

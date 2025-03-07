@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -15,10 +15,10 @@ MODULE almo_scf_diis_types
    USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
                                               dbcsr_copy,&
                                               dbcsr_create,&
-                                              dbcsr_dot,&
                                               dbcsr_release,&
                                               dbcsr_set,&
                                               dbcsr_type
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_dot
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
@@ -388,18 +388,16 @@ CONTAINS
             ! Query the optimal workspace for dsyev
             LWORK = -1
             ALLOCATE (WORK(MAX(1, LWORK)))
-            CALL DSYEV('V', 'L', diis_env%buffer_length + 1, m_b_copy, &
+            CALL dsyev('V', 'L', diis_env%buffer_length + 1, m_b_copy, &
                        diis_env%buffer_length + 1, eigenvalues, WORK, LWORK, INFO)
             LWORK = INT(WORK(1))
             DEALLOCATE (WORK)
 
             ! Allocate the workspace and solve the eigenproblem
             ALLOCATE (WORK(MAX(1, LWORK)))
-            CALL DSYEV('V', 'L', diis_env%buffer_length + 1, m_b_copy, &
+            CALL dsyev('V', 'L', diis_env%buffer_length + 1, m_b_copy, &
                        diis_env%buffer_length + 1, eigenvalues, WORK, LWORK, INFO)
-            IF (INFO .NE. 0) THEN
-               CPABORT("DSYEV failed")
-            END IF
+            IF (INFO .NE. 0) CPABORT("DSYEV failed")
             DEALLOCATE (WORK)
 
             ! use the eigensystem to invert (implicitly) B matrix

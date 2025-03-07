@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -15,7 +15,8 @@ MODULE pao_param_equi
         dbcsr_complete_redistribute, dbcsr_create, dbcsr_distribution_type, dbcsr_get_block_p, &
         dbcsr_get_info, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, &
-        dbcsr_release, dbcsr_reserve_diag_blocks, dbcsr_type
+        dbcsr_release, dbcsr_type
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_reserve_diag_blocks
    USE dm_ls_scf_types,                 ONLY: ls_mstruct_type,&
                                               ls_scf_env_type
    USE kinds,                           ONLY: dp
@@ -175,8 +176,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pao_calc_AB_equi'
 
-      INTEGER                                            :: acol, arow, group_handle, handle, i, &
-                                                            iatom, j, k, m, n
+      INTEGER                                            :: acol, arow, handle, i, iatom, j, k, m, n
       LOGICAL                                            :: found
       REAL(dp)                                           :: denom, w
       REAL(dp), DIMENSION(:), POINTER                    :: ANNA_evals
@@ -333,8 +333,7 @@ CONTAINS
 
       ! sum penalty energies across ranks
       IF (PRESENT(penalty)) THEN
-         CALL dbcsr_get_info(pao%matrix_X, group=group_handle)
-         CALL group%set_handle(group_handle)
+         CALL dbcsr_get_info(pao%matrix_X, group=group)
          CALL group%sum(penalty)
       END IF
 

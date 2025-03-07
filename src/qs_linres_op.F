@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -28,11 +28,11 @@ MODULE qs_linres_op
                                               cp_cfm_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_checksum, dbcsr_convert_offsets_to_sizes, dbcsr_copy, dbcsr_create, &
-        dbcsr_deallocate_matrix, dbcsr_distribution_type, dbcsr_get_block_p, &
-        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
-        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, dbcsr_set, dbcsr_type, &
-        dbcsr_type_antisymmetric, dbcsr_type_no_symmetry
+        dbcsr_convert_offsets_to_sizes, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, &
+        dbcsr_distribution_type, dbcsr_get_block_p, dbcsr_iterator_blocks_left, &
+        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
+        dbcsr_p_type, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_checksum
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply,&
                                               dbcsr_allocate_matrix_set,&
@@ -244,7 +244,7 @@ CONTAINS
                         name="op_ao", &
                         dist=dbcsr_dist, matrix_type=dbcsr_type_no_symmetry, &
                         row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-                        nze=0, mutable_work=.TRUE.)
+                        mutable_work=.TRUE.)
       CALL cp_dbcsr_alloc_block_from_nbl(op_ao(1)%matrix, sab_all)
       CALL dbcsr_set(op_ao(1)%matrix, 0.0_dp)
 
@@ -309,7 +309,7 @@ CONTAINS
                         name="op_ao", &
                         dist=dbcsr_dist, matrix_type=dbcsr_type_antisymmetric, &
                         row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-                        nze=0, mutable_work=.TRUE.)
+                        mutable_work=.TRUE.)
       CALL cp_dbcsr_alloc_block_from_nbl(op_ao(1)%matrix, sab_orb)
       CALL dbcsr_set(op_ao(1)%matrix, 0.0_dp)
 
@@ -862,8 +862,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'polar_tb_operators_berry'
 
       COMPLEX(dp)                                        :: zdeta
-      INTEGER                                            :: blk, handle, i, icol, idir, irow, ispin, &
-                                                            nmo, nspins
+      INTEGER                                            :: handle, i, icol, idir, irow, ispin, nmo, &
+                                                            nspins
       LOGICAL                                            :: do_raman, found
       REAL(dp)                                           :: dd, fdir
       REAL(dp), DIMENSION(3)                             :: kvec, ria, rib
@@ -905,7 +905,7 @@ CONTAINS
          CALL dbcsr_iterator_start(iter, matrix_s(1)%matrix)
          DO WHILE (dbcsr_iterator_blocks_left(iter))
             NULLIFY (s_block, d_block)
-            CALL dbcsr_iterator_next_block(iter, irow, icol, s_block, blk)
+            CALL dbcsr_iterator_next_block(iter, irow, icol, s_block)
             ria = particle_set(irow)%r
             rib = particle_set(icol)%r
             DO idir = 1, 3
@@ -1187,8 +1187,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'polar_tb_operators_local'
 
-      INTEGER                                            :: blk, handle, i, icol, irow, ispin, nmo, &
-                                                            nspins
+      INTEGER                                            :: handle, i, icol, irow, ispin, nmo, nspins
       LOGICAL                                            :: do_raman, found
       REAL(dp)                                           :: fdir
       REAL(dp), DIMENSION(3)                             :: ria, rib
@@ -1226,7 +1225,7 @@ CONTAINS
          CALL dbcsr_iterator_start(iter, matrix_s(1)%matrix)
          DO WHILE (dbcsr_iterator_blocks_left(iter))
             NULLIFY (s_block, d_block)
-            CALL dbcsr_iterator_next_block(iter, irow, icol, s_block, blk)
+            CALL dbcsr_iterator_next_block(iter, irow, icol, s_block)
             ria = particle_set(irow)%r
             ria = pbc(ria, cell)
             rib = particle_set(icol)%r

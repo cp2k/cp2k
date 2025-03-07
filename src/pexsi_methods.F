@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -15,20 +15,20 @@
 ! **************************************************************************************************
 
 MODULE pexsi_methods
-   USE arnoldi_api,                     ONLY: arnoldi_data_type,&
+   USE arnoldi_api,                     ONLY: arnoldi_env_type,&
                                               arnoldi_ev,&
-                                              deallocate_arnoldi_data,&
+                                              deallocate_arnoldi_env,&
                                               get_selected_ritz_val,&
                                               get_selected_ritz_vector,&
                                               set_arnoldi_initial_vector,&
-                                              setup_arnoldi_data
+                                              setup_arnoldi_env
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_convert_csr_to_dbcsr, dbcsr_convert_dbcsr_to_csr, dbcsr_copy, dbcsr_create, &
         dbcsr_csr_create, dbcsr_csr_create_from_dbcsr, dbcsr_csr_destroy, &
-        dbcsr_csr_eqrow_floor_dist, dbcsr_csr_print_sparsity, dbcsr_desymmetrize, &
-        dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_get_info, dbcsr_has_symmetry, &
-        dbcsr_p_type, dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry, &
-        dbcsr_type_real_8
+        dbcsr_csr_eqrow_floor_dist, dbcsr_csr_print_sparsity, dbcsr_csr_type_real_8, &
+        dbcsr_desymmetrize, dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_get_info, &
+        dbcsr_has_symmetry, dbcsr_p_type, dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_type, &
+        dbcsr_type_no_symmetry
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_to_csr_screening
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -195,8 +195,7 @@ CONTAINS
       END IF
 
       CALL dbcsr_create(pexsi_env%csr_sparsity, "CSR sparsity", &
-                        template=pexsi_env%dbcsr_template_matrix_sym, &
-                        data_type=dbcsr_type_real_8)
+                        template=pexsi_env%dbcsr_template_matrix_sym)
       CALL dbcsr_copy(pexsi_env%csr_sparsity, pexsi_env%dbcsr_template_matrix_sym)
 
       CALL cp_dbcsr_to_csr_screening(ks_env, pexsi_env%csr_sparsity)
@@ -317,7 +316,7 @@ CONTAINS
       LOGICAL                                            :: first_call, pexsi_convergence
       REAL(KIND=dp) :: delta_E, energy_H, energy_S, free_energy, mu_max_in, mu_max_out, mu_min_in, &
          mu_min_out, nel_tol, nelectron_diff, nelectron_exact_pexsi, nelectron_out
-      TYPE(arnoldi_data_type)                            :: my_arnoldi
+      TYPE(arnoldi_env_type)                             :: arnoldi_env
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_distribution_type)                      :: dist
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: arnoldi_matrices
@@ -344,8 +343,8 @@ CONTAINS
             CPABORT("PEXSI interface expects a non-symmetric DBCSR overlap matrix")
 
          ! Assertion on datatype
-         IF ((pexsi_env%csr_mat_s%nzval_local%data_type .NE. dbcsr_type_real_8) &
-             .OR. (pexsi_env%csr_mat_ks%nzval_local%data_type .NE. dbcsr_type_real_8)) &
+         IF ((pexsi_env%csr_mat_s%nzval_local%data_type .NE. dbcsr_csr_type_real_8) &
+             .OR. (pexsi_env%csr_mat_ks%nzval_local%data_type .NE. dbcsr_csr_type_real_8)) &
             CPABORT("Complex data type not supported by PEXSI")
 
          ! Assertion on number of non-zero elements
@@ -373,17 +372,17 @@ CONTAINS
       CALL dbcsr_allocate_matrix_set(arnoldi_matrices, 2)
       arnoldi_matrices(1)%matrix => matrix_ks
       arnoldi_matrices(2)%matrix => matrix_s
-      CALL setup_arnoldi_data(my_arnoldi, arnoldi_matrices, max_iter=20, &
-                              threshold=1.0E-2_dp, selection_crit=2, nval_request=1, nrestarts=21, &
-                              generalized_ev=.TRUE., iram=.FALSE.)
-      IF (iscf .GT. 1) CALL set_arnoldi_initial_vector(my_arnoldi, pexsi_env%max_ev_vector(ispin))
-      CALL arnoldi_ev(arnoldi_matrices, my_arnoldi)
-      delta_E = REAL(get_selected_ritz_val(my_arnoldi, 1), dp)
+      CALL setup_arnoldi_env(arnoldi_env, arnoldi_matrices, max_iter=20, &
+                             threshold=1.0E-2_dp, selection_crit=2, nval_request=1, nrestarts=21, &
+                             generalized_ev=.TRUE., iram=.FALSE.)
+      IF (iscf .GT. 1) CALL set_arnoldi_initial_vector(arnoldi_env, pexsi_env%max_ev_vector(ispin))
+      CALL arnoldi_ev(arnoldi_matrices, arnoldi_env)
+      delta_E = REAL(get_selected_ritz_val(arnoldi_env, 1), dp)
       ! increase delta_E a bit to make sure that it really is an upper bound
       delta_E = delta_E + 1.0E-2_dp*ABS(delta_E)
-      CALL get_selected_ritz_vector(my_arnoldi, 1, arnoldi_matrices(1)%matrix, &
+      CALL get_selected_ritz_vector(arnoldi_env, 1, arnoldi_matrices(1)%matrix, &
                                     pexsi_env%max_ev_vector(ispin))
-      CALL deallocate_arnoldi_data(my_arnoldi)
+      CALL deallocate_arnoldi_env(arnoldi_env)
       DEALLOCATE (arnoldi_matrices)
 
       nelectron_exact_pexsi = nelectron_exact

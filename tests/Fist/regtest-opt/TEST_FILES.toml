@@ -1,0 +1,61 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      for details see cp2k/tools/do_regtest
+#
+# Geometry optimisation
+"geo_opt_bfgs.inp"                      = [{matcher="M011", tol=1.0E-14, ref=-35.282422070543703}]
+"geo_opt_cg_2pnt.inp"                   = [{matcher="M011", tol=2e-14, ref=-35.282422123859703}]
+"geo_opt_cg_fit.inp"                    = [{matcher="M011", tol=1.0E-12, ref=-35.2824221258401}]
+"geo_opt_cg_gold.inp"                   = [{matcher="M011", tol=1.0E-14, ref=-35.282422125930793}]
+"geo_opt_lbfgs.inp"                     = [{matcher="M011", tol=1.0E-14, ref=-35.282422125160856}]
+# Direct cell optimisation (combined geometry and cell optimiser)
+"cell_opt_direct_bfgs.inp"              = [{matcher="M011", tol=1.0E-14, ref=-35.644084205321462}]
+"cell_opt_direct_cg_2pnt.inp"           = [{matcher="M011", tol=1.0E-14, ref=-35.644084205340675}]
+"cell_opt_direct_cg_gold.inp"           = [{matcher="M011", tol=4e-10, ref=-35.644084195146633}]
+"cell_opt_direct_lbfgs.inp"             = [{matcher="M011", tol=3.0E-11, ref=-35.644084204213243}]
+# Cell optimisation
+"cell_opt_bfgs_geo_opt_bfgs.inp"        = [{matcher="M011", tol=1.0E-14, ref=-35.644084174653557}]
+"cell_opt_bfgs_geo_opt_lbfgs.inp"       = [{matcher="M011", tol=8e-10, ref=-35.644084152053679}]
+"cell_opt_cg_2pnt_geo_opt_cg_2pnt.inp"  = [{matcher="M011", tol=1e-11, ref=-35.644084203937524}]
+"cell_opt_cg_2pnt_geo_opt_lbfgs.inp"    = [{matcher="M011", tol=2e-09, ref=-35.644084203808582}]
+"cell_opt_lbfgs_geo_opt_lbfgs.inp"      = [{matcher="M011", tol=4e-09, ref=-35.644084195558335}]
+# Geometry optimisation using core-shell models
+"cs_geo_opt_bfgs.inp"                   = [{matcher="M011", tol=1.0E-14, ref=-34.165775691654950}]
+"cs_geo_opt_cg_2pnt.inp"                = [{matcher="M011", tol=2e-14, ref=-34.165775860241943}]
+"cs_geo_opt_cg_fit.inp"                 = [{matcher="M011", tol=1.0E-11, ref=-34.165775838192260}]
+"cs_geo_opt_cg_gold.inp"                = [{matcher="M011", tol=1.0E-14, ref=-34.165775835825670}]
+"cs_geo_opt_lbfgs.inp"                  = [{matcher="M011", tol=1.0E-14, ref=-34.165775670048319}]
+# Direct cell optimisation using core-shell models
+"cs_cell_opt_direct_bfgs.inp"           = [{matcher="M011", tol=1.0E-14, ref=-34.187395867233498}]
+"cs_cell_opt_direct_cg_2pnt.inp"        = [{matcher="M011", tol=1.0E-14, ref=-34.187395869049013}]
+"cs_cell_opt_direct_cg_gold.inp"        = [{matcher="M011", tol=5e-11, ref=-34.187395868578747}]
+"cs_cell_opt_direct_lbfgs.inp"          = [{matcher="M011", tol=1.0E-14, ref=-34.18739586621215}]
+# Cell optimisation using core-shell models
+"cs_cell_opt_bfgs_geo_opt_bfgs.inp"     = [{matcher="M011", tol=1.0E-14, ref=-34.187394923767854}]
+"cs_cell_opt_bfgs_geo_opt_lbfgs.inp"    = [{matcher="M011", tol=2e-08, ref=-34.187395701823966}]
+"cs_cell_opt_cg_2pnt_geo_opt_cg_2pnt.inp" = [{matcher="M011", tol=2e-12, ref=-34.187395859433593}]
+"cs_cell_opt_cg_2pnt_geo_opt_lbfgs.inp" = [{matcher="M011", tol=2e-09, ref=-34.187395863249009}]
+"cs_cell_opt_lbfgs_geo_opt_lbfgs.inp"   = [{matcher="M011", tol=4e-09, ref=-34.187395819688689}]
+# Test parsing of products
+"mc_cs_geo_opt_lbfgs.inp"               = [{matcher="M011", tol=1e-08, ref=-136.663104867266583}]
+# Cell symmetry constraint
+"cell_sym_cubic.inp"                    = [{matcher="M011", tol=1e-10, ref=-129.12247913626771}]
+"cell_sym_hexagonal_gamma_120.inp"      = [{matcher="M011", tol=4e-09, ref=-129.05206532631195}]
+"cell_sym_hexagonal_gamma_60.inp"       = [{matcher="M011", tol=4e-09, ref=-129.05206533232612}]
+"cell_sym_hexagonal.inp"                = [{matcher="M011", tol=4e-09, ref=-129.05206533232612}]
+"cell_sym_monoclinic.inp"               = [{matcher="M011", tol=3e-09, ref=-129.28637033131494}]
+"cell_sym_monoclinic_gamma_ab.inp"      = [{matcher="M011", tol=3e-09, ref=-129.23692670296523}]
+"cell_sym_none.inp"                     = [{matcher="M011", tol=4e-09, ref=-129.28637032411459}]
+"cell_sym_orthorhombic.inp"             = [{matcher="M011", tol=1E-11, ref=-129.28636945323004}]
+"cell_sym_rhombohedral.inp"             = [{matcher="M011", tol=1E-13, ref=-129.03437105082563}]
+"cell_sym_tetragonal_ab.inp"            = [{matcher="M011", tol=2e-09, ref=-129.2369243617301}]
+"cell_sym_tetragonal_ac.inp"            = [{matcher="M011", tol=2e-08, ref=-129.22195126442756}]
+"cell_sym_tetragonal_bc.inp"            = [{matcher="M011", tol=1E-13, ref=-129.12318608682179}]
+"cell_sym_tetragonal.inp"               = [{matcher="M011", tol=2e-09, ref=-129.2369243617301}]
+"cell_sym_triclinic.inp"                = [{matcher="M011", tol=2e-09, ref=-129.28637032103501}]
+# Cell optimisation constraint
+"cell_opt_constraint_none.inp"          = [{matcher="M011", tol=1.0E-10, ref=-1210.562919201514887}]
+"cell_opt_constraint_xy.inp"            = [{matcher="M011", tol=1.0E-10, ref=-1210.460826328278017}]
+"cell_opt_constraint_z.inp"             = [{matcher="M011", tol=1.0E-10, ref=-1210.524637046745283}]
+#EOF

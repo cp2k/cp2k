@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -30,7 +30,6 @@ MODULE atprop_types
 ! **************************************************************************************************
    TYPE atprop_type
       LOGICAL                                   :: energy = .FALSE.
-      LOGICAL                                   :: stress = .FALSE.
       REAL(KIND=dp), DIMENSION(:), POINTER      :: atener => NULL()
       REAL(KIND=dp), DIMENSION(:), POINTER      :: ateb => NULL()
       REAL(KIND=dp), DIMENSION(:), POINTER      :: atexc => NULL()
@@ -40,7 +39,6 @@ MODULE atprop_types
       REAL(KIND=dp), DIMENSION(:), POINTER      :: atecc => NULL()
       REAL(KIND=dp), DIMENSION(:), POINTER      :: ate1c => NULL()
       REAL(KIND=dp), DIMENSION(:), POINTER      :: atecoul => NULL()
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER  :: atstress => NULL()
    END TYPE atprop_type
 
 CONTAINS
@@ -76,15 +74,6 @@ CONTAINS
          CALL atprop_array_release(atprop_env%ateself)
          CALL atprop_array_release(atprop_env%atexc)
          CALL atprop_array_release(atprop_env%ate1c)
-      END IF
-
-      IF (atprop_env%stress) THEN
-         IF (ASSOCIATED(atprop_env%atstress)) THEN
-            CPASSERT(SIZE(atprop_env%atstress, 3) == natom)
-         ELSE
-            ALLOCATE (atprop_env%atstress(3, 3, natom))
-         END IF
-         atprop_env%atstress = 0._dp
       END IF
 
    END SUBROUTINE atprop_init
@@ -154,10 +143,6 @@ CONTAINS
          CALL atprop_array_release(atprop_env%atecc)
          CALL atprop_array_release(atprop_env%ate1c)
          CALL atprop_array_release(atprop_env%atecoul)
-         ! stress
-         IF (ASSOCIATED(atprop_env%atstress)) THEN
-            DEALLOCATE (atprop_env%atstress)
-         END IF
          ! atprop type
          DEALLOCATE (atprop_env)
       END IF

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -36,9 +36,11 @@ MODULE qs_moments
                                               cp_cfm_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_distribution_type, dbcsr_dot, &
-        dbcsr_get_block_p, dbcsr_init_p, dbcsr_multiply, dbcsr_p_type, dbcsr_set, dbcsr_trace, &
-        dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_type_symmetric
+        dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_distribution_type, &
+        dbcsr_get_block_p, dbcsr_init_p, dbcsr_multiply, dbcsr_p_type, dbcsr_set, dbcsr_type, &
+        dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_type_symmetric
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_dot,&
+                                              dbcsr_trace
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply,&
                                               dbcsr_allocate_matrix_set,&
@@ -1577,8 +1579,7 @@ CONTAINS
          CALL dbcsr_create(matrix=sinmat(1, i)%matrix, &
                            name="SINMAT", &
                            dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric, &
-                           row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-                           nze=0)
+                           row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes)
          CALL cp_dbcsr_alloc_block_from_nbl(sinmat(1, i)%matrix, sab_orb)
          CALL dbcsr_set(sinmat(1, i)%matrix, 0.0_dp)
          ! cos
@@ -1586,8 +1587,7 @@ CONTAINS
          CALL dbcsr_create(matrix=cosmat(1, i)%matrix, &
                            name="COSMAT", &
                            dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric, &
-                           row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-                           nze=0)
+                           row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes)
          CALL cp_dbcsr_alloc_block_from_nbl(cosmat(1, i)%matrix, sab_orb)
          CALL dbcsr_set(cosmat(1, i)%matrix, 0.0_dp)
       END DO
@@ -2112,7 +2112,7 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: cosmat, sinmat
       TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos
       TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: op_fm_set
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: opvec
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: opvec
 
       INTEGER                                            :: i, nao, nmo
       TYPE(cp_fm_type), POINTER                          :: mo_coeff

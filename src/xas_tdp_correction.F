@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -60,7 +60,7 @@ MODULE xas_tdp_correction
                                               section_vals_type
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_flush
-   USE mathlib,                         ONLY: complex_diag
+   USE mathlib,                         ONLY: diag_complex
    USE message_passing,                 ONLY: mp_para_env_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE physcon,                         ONLY: evolt
@@ -1875,7 +1875,7 @@ CONTAINS
       ! And diagonalize. Since tiny matrix (6x6), diagonalize locally
       ALLOCATE (evals(ndo_so), evecs(ndo_so, ndo_so), hami(ndo_so, ndo_so))
       CALL cp_cfm_get_submatrix(hami_cfm, hami)
-      CALL complex_diag(hami, evecs, evals)
+      CALL diag_complex(hami, evecs, evals)
 
       !The SOC corrected KS eigenvalues
       ALLOCATE (tmp_shifts(ndo_mo, 2))

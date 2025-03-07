@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -16,10 +16,10 @@ MODULE xas_tdp_kernel
         dbcsr_add, dbcsr_complete_redistribute, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, &
         dbcsr_distribution_get, dbcsr_distribution_new, dbcsr_distribution_release, &
         dbcsr_distribution_type, dbcsr_filter, dbcsr_finalize, dbcsr_get_block_p, dbcsr_get_info, &
-        dbcsr_get_stored_coordinates, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
-        dbcsr_p_type, dbcsr_put_block, dbcsr_release, dbcsr_reserve_block2d, dbcsr_set, &
-        dbcsr_transposed, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric
+        dbcsr_get_num_blocks, dbcsr_get_stored_coordinates, dbcsr_iterator_blocks_left, &
+        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
+        dbcsr_multiply, dbcsr_p_type, dbcsr_put_block, dbcsr_release, dbcsr_reserve_blocks, &
+        dbcsr_set, dbcsr_transposed, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_dist2d_to_dist,&
                                               dbcsr_deallocate_matrix_set
    USE dbt_api,                         ONLY: dbt_get_block,&
@@ -668,7 +668,7 @@ CONTAINS
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      INTEGER                                            :: blk, group, iblk, iso, jblk, jso, nblk, &
+      INTEGER                                            :: group, iblk, iso, jblk, jso, nblk, &
                                                             ndo_mo, ndo_so, nsgfa, nsgfp, ri_atom, &
                                                             source
       INTEGER, DIMENSION(:), POINTER                     :: col_dist, col_dist_work, row_dist, &
@@ -766,7 +766,7 @@ CONTAINS
             CALL dbcsr_iterator_start(iter, abIJ)
             DO WHILE (dbcsr_iterator_blocks_left(iter))
 
-               CALL dbcsr_iterator_next_block(iter, row=iblk, column=jblk, blk=blk)
+               CALL dbcsr_iterator_next_block(iter, row=iblk, column=jblk)
                IF (iso == jso .AND. jblk < iblk) CYCLE
 
                CALL dbcsr_get_block_p(abIJ, iblk, jblk, pblock, found)
@@ -905,53 +905,49 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ri_atom
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      INTEGER                                            :: blk, i, iblk, jblk, n
-      LOGICAL                                            :: found
-      REAL(dp), DIMENSION(:, :), POINTER                 :: pblock_m, pblock_s
+      INTEGER                                            :: i, iblk, jblk, max_nblks, nblks
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: reserve_cols, reserve_rows
       TYPE(dbcsr_distribution_type)                      :: dist
       TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(dbcsr_type)                                   :: template, work
 
-      NULLIFY (matrix_s, pblock_s, pblock_m)
+      NULLIFY (matrix_s)
 
-!  Initialization
+      ! Initialization
       CALL get_qs_env(qs_env, matrix_s=matrix_s)
-      n = SIZE(matrices)
       CALL dbcsr_get_info(matrices(1)%matrix, distribution=dist)
 
-!  Need to redistribute matrix_s in the distribution of matrices
+      ! Need to redistribute matrix_s in the distribution of matrices
       CALL dbcsr_create(work, template=matrix_s(1)%matrix, dist=dist)
       CALL dbcsr_complete_redistribute(matrix_s(1)%matrix, work)
 
-!  Need to desymmetrize matrix as as a template
+      ! Need to desymmetrize matrix as as a template
       CALL dbcsr_desymmetrize(work, template)
 
-!  Loop over matrix_s as need a,b to overlap
+      ! Allocate space for block indicies to reserve.
+      max_nblks = dbcsr_get_num_blocks(template)
+      ALLOCATE (reserve_rows(max_nblks), reserve_cols(max_nblks))
+
+      ! Loop over matrix_s as need a,b to overlap
+      nblks = 0
       CALL dbcsr_iterator_start(iter, template)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
-
-         CALL dbcsr_iterator_next_block(iter, row=iblk, column=jblk, blk=blk)
+         CALL dbcsr_iterator_next_block(iter, row=iblk, column=jblk)
          !only have a,b pair if one of them is the ri_atom
-         IF (iblk .NE. ri_atom .AND. jblk .NE. ri_atom) CYCLE
-
-         CALL dbcsr_get_block_p(template, iblk, jblk, pblock_s, found)
-
-         IF (found) THEN
-            DO i = 1, n
-               NULLIFY (pblock_m)
-               CALL dbcsr_reserve_block2d(matrices(i)%matrix, iblk, jblk, pblock_m)
-               pblock_m = 0.0_dp
-            END DO
+         IF (iblk == ri_atom .OR. jblk == ri_atom) THEN
+            nblks = nblks + 1
+            reserve_rows(nblks) = iblk
+            reserve_cols(nblks) = jblk
          END IF
-
-      END DO !dbcsr iter
+      END DO
       CALL dbcsr_iterator_stop(iter)
-      DO i = 1, n
-         CALL dbcsr_finalize(matrices(i)%matrix)
+
+      DO i = 1, SIZE(matrices)
+         CALL dbcsr_reserve_blocks(matrices(i)%matrix, rows=reserve_rows(1:nblks), cols=reserve_cols(1:nblks))
       END DO
 
-!  Clean-up
+      ! Clean-up
       CALL dbcsr_release(template)
       CALL dbcsr_release(work)
 
@@ -1268,7 +1264,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:)                   :: contr_int
       REAL(dp), DIMENSION(:, :), INTENT(IN)              :: PQ
 
-      INTEGER                                            :: blk, iblk, imo, jblk, ndo_mo, s1, s2
+      INTEGER                                            :: iblk, imo, jblk, ndo_mo, s1, s2
       LOGICAL                                            :: found
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: work
       REAL(dp), DIMENSION(:, :), POINTER                 :: pblock
@@ -1282,7 +1278,7 @@ CONTAINS
          CALL dbcsr_iterator_start(iter, contr_int(imo)%matrix)
          DO WHILE (dbcsr_iterator_blocks_left(iter))
 
-            CALL dbcsr_iterator_next_block(iter, row=iblk, column=jblk, blk=blk)
+            CALL dbcsr_iterator_next_block(iter, row=iblk, column=jblk)
             CALL dbcsr_get_block_p(contr_int(imo)%matrix, iblk, jblk, pblock, found)
 
             IF (found) THEN
@@ -1346,8 +1342,7 @@ CONTAINS
       REAL(dp), INTENT(IN), OPTIONAL                     :: eps_filter
       LOGICAL, INTENT(IN), OPTIONAL                      :: mo_transpose
 
-      INTEGER                                            :: blk, i, iblk, iso, j, jblk, jso, nblk, &
-                                                            ndo_so
+      INTEGER                                            :: i, iblk, iso, j, jblk, jso, nblk, ndo_so
       LOGICAL                                            :: found, my_mt
       REAL(dp), DIMENSION(:, :), POINTER                 :: pblock
       TYPE(dbcsr_iterator_type)                          :: iter
@@ -1386,7 +1381,7 @@ CONTAINS
             CALL dbcsr_iterator_start(iter, prod)
             DO WHILE (dbcsr_iterator_blocks_left(iter))
 
-               CALL dbcsr_iterator_next_block(iter, row=iblk, column=jblk, blk=blk)
+               CALL dbcsr_iterator_next_block(iter, row=iblk, column=jblk)
                IF ((iso == jso .AND. jblk < iblk) .AND. .NOT. quadrants(2)) CYCLE
 
                CALL dbcsr_get_block_p(prod, iblk, jblk, pblock, found)

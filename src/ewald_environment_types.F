@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -32,6 +32,7 @@ MODULE ewald_environment_types
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: twopi
+   USE mathlib,                         ONLY: det_3x3
    USE message_passing,                 ONLY: mp_comm_type,&
                                               mp_para_env_release,&
                                               mp_para_env_type
@@ -380,20 +381,29 @@ CONTAINS
 !> \param ewald_env the pointer to the ewald_env
 !> \param ewald_section ...
 !> \param hmat ...
+!> \param silent ...
+!> \param pset ...
 !> \author JGH
 ! **************************************************************************************************
-   SUBROUTINE read_ewald_section_tb(ewald_env, ewald_section, hmat)
+   SUBROUTINE read_ewald_section_tb(ewald_env, ewald_section, hmat, silent, pset)
       TYPE(ewald_environment_type), INTENT(INOUT)        :: ewald_env
       TYPE(section_vals_type), POINTER                   :: ewald_section
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: hmat
+      LOGICAL, INTENT(IN), OPTIONAL                      :: silent
+      CHARACTER(LEN=*), OPTIONAL                         :: pset
 
+      CHARACTER(LEN=5)                                   :: param
       INTEGER                                            :: i, iw, n(3)
       INTEGER, DIMENSION(:), POINTER                     :: gmax_read
-      LOGICAL                                            :: explicit
-      REAL(KIND=dp)                                      :: alat, cutoff, dummy
+      LOGICAL                                            :: do_print, explicit
+      REAL(KIND=dp)                                      :: alat, cutoff, dummy, omega
       TYPE(cp_logger_type), POINTER                      :: logger
 
       logger => cp_get_default_logger()
+      do_print = .TRUE.
+      IF (PRESENT(silent)) do_print = .NOT. silent
+      param = "none"
+      IF (PRESENT(pset)) param = pset
 
       ewald_env%do_multipoles = .FALSE.
       ewald_env%do_ipol = 0
@@ -417,11 +427,33 @@ CONTAINS
       IF (explicit) THEN
          CALL section_vals_val_get(ewald_section, "ALPHA", r_val=ewald_env%alpha)
       ELSE
-         ewald_env%alpha = 1.0_dp
+         SELECT CASE (param)
+         CASE DEFAULT
+            ewald_env%alpha = 1.0_dp
+         CASE ("EEQ")
+            omega = ABS(det_3x3(hmat))
+            ewald_env%alpha = SQRT(twopi)/omega**(1./3.)
+         END SELECT
       END IF
 
-      CALL section_vals_val_get(ewald_section, "EWALD_ACCURACY", r_val=ewald_env%precs)
-      CALL section_vals_val_get(ewald_section, "O_SPLINE", i_val=ewald_env%o_spline)
+      CALL section_vals_val_get(ewald_section, "EWALD_ACCURACY", explicit=explicit)
+      IF (explicit) THEN
+         CALL section_vals_val_get(ewald_section, "EWALD_ACCURACY", r_val=ewald_env%precs)
+      ELSE
+         CALL section_vals_val_get(ewald_section, "EWALD_ACCURACY", r_val=ewald_env%precs)
+      END IF
+
+      CALL section_vals_val_get(ewald_section, "O_SPLINE", explicit=explicit)
+      IF (explicit) THEN
+         CALL section_vals_val_get(ewald_section, "O_SPLINE", i_val=ewald_env%o_spline)
+      ELSE
+         SELECT CASE (param)
+         CASE DEFAULT
+            ewald_env%o_spline = 6
+         CASE ("EEQ")
+            ewald_env%o_spline = 4
+         END SELECT
+      END IF
 
       CALL section_vals_val_get(ewald_section, "RCUT", explicit=explicit)
       IF (explicit) THEN
@@ -442,8 +474,14 @@ CONTAINS
             CPABORT("")
          END SELECT
       ELSE
-         ! set GMAX using ECUT=alpha*45 Ry
-         cutoff = 45._dp*ewald_env%alpha
+         SELECT CASE (param)
+         CASE DEFAULT
+            ! set GMAX using ECUT=alpha*45 Ry
+            cutoff = 45._dp*ewald_env%alpha
+         CASE ("EEQ")
+            ! set GMAX using ECUT=alpha*45 Ry
+            cutoff = 30._dp*ewald_env%alpha
+         END SELECT
          DO i = 1, 3
             alat = SUM(hmat(:, i)**2)
             CPASSERT(alat /= 0._dp)
@@ -455,7 +493,7 @@ CONTAINS
 
       iw = cp_print_key_unit_nr(logger, ewald_section, "PRINT%PROGRAM_RUN_INFO", &
                                 extension=".log")
-      IF (iw > 0) THEN
+      IF (iw > 0 .AND. do_print) THEN
          WRITE (iw, '(/,T2,"EWALD| ",A,T67,A14 )') 'Summation is done by:', ADJUSTR("SPME")
          dummy = cp_unit_from_cp2k(ewald_env%alpha, "angstrom^-1")
          WRITE (iw, '( T2,"EWALD| ",A,A18,A,T71,F10.4 )') &

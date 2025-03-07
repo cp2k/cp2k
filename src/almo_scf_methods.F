@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -20,16 +20,17 @@ MODULE almo_scf_methods
                                               cite_reference
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_distribution_get, &
-        dbcsr_distribution_type, dbcsr_filter, dbcsr_finalize, dbcsr_frobenius_norm, &
-        dbcsr_get_block_p, dbcsr_get_diag, dbcsr_get_info, dbcsr_get_stored_coordinates, &
-        dbcsr_init_random, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
-        dbcsr_nblkcols_total, dbcsr_nblkrows_total, dbcsr_print, dbcsr_release, &
-        dbcsr_reserve_block2d, dbcsr_scale_by_vector, dbcsr_set, dbcsr_set_diag, dbcsr_transposed, &
-        dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric, dbcsr_work_create
+        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_distribution_get, dbcsr_distribution_type, &
+        dbcsr_filter, dbcsr_finalize, dbcsr_get_info, dbcsr_iterator_blocks_left, &
+        dbcsr_iterator_next_block, dbcsr_iterator_readonly_start, dbcsr_iterator_start, &
+        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_put_block, dbcsr_release, &
+        dbcsr_set, dbcsr_transposed, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric, &
+        dbcsr_work_create
    USE cp_dbcsr_cholesky,               ONLY: cp_dbcsr_cholesky_decompose,&
                                               cp_dbcsr_cholesky_invert
+   USE cp_dbcsr_contrib,                ONLY: &
+        dbcsr_add_on_diag, dbcsr_frobenius_norm, dbcsr_get_diag, dbcsr_init_random, dbcsr_print, &
+        dbcsr_reserve_all_blocks, dbcsr_reserve_diag_blocks, dbcsr_scale_by_vector, dbcsr_set_diag
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
@@ -53,7 +54,8 @@ MODULE almo_scf_methods
                                               invert_Taylor,&
                                               matrix_sqrt_Newton_Schulz
    USE kinds,                           ONLY: dp
-   USE mathlib,                         ONLY: binomial
+   USE mathlib,                         ONLY: binomial,&
+                                              invmat_symm
    USE message_passing,                 ONLY: mp_comm_type,&
                                               mp_para_env_type
    USE util,                            ONLY: sort
@@ -92,38 +94,10 @@ CONTAINS
 !> \author Rustam Z Khaliullin
 ! **************************************************************************************************
    SUBROUTINE fill_matrix_with_ones(matrix)
-
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix
 
-      INTEGER                                            :: col, hold, iblock_col, iblock_row, &
-                                                            mynode, nblkcols_tot, nblkrows_tot, row
-      LOGICAL                                            :: tr
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p_new_block
-      TYPE(dbcsr_distribution_type)                      :: dist
-
-      CALL dbcsr_get_info(matrix, distribution=dist)
-      CALL dbcsr_distribution_get(dist, mynode=mynode)
-      CALL dbcsr_work_create(matrix, work_mutable=.TRUE.)
-      nblkrows_tot = dbcsr_nblkrows_total(matrix)
-      nblkcols_tot = dbcsr_nblkcols_total(matrix)
-      DO row = 1, nblkrows_tot
-         DO col = 1, nblkcols_tot
-            tr = .FALSE.
-            iblock_row = row
-            iblock_col = col
-            CALL dbcsr_get_stored_coordinates(matrix, &
-                                              iblock_row, iblock_col, hold)
-            IF (hold .EQ. mynode) THEN
-               NULLIFY (p_new_block)
-               CALL dbcsr_reserve_block2d(matrix, &
-                                          iblock_row, iblock_col, p_new_block)
-               CPASSERT(ASSOCIATED(p_new_block))
-               p_new_block(:, :) = 1.0_dp
-            END IF
-         END DO
-      END DO
-      CALL dbcsr_finalize(matrix)
-
+      CALL dbcsr_reserve_all_blocks(matrix)
+      CALL dbcsr_set(matrix, 1.0_dp)
    END SUBROUTINE fill_matrix_with_ones
 
 ! **************************************************************************************************
@@ -153,7 +127,7 @@ CONTAINS
 
       DO ispin = 1, almo_scf_env%nspins
 
-         ndomains = dbcsr_nblkcols_total(almo_scf_env%quench_t(ispin))
+         CALL dbcsr_get_info(almo_scf_env%quench_t(ispin), nblkcols_total=ndomains)
 
          ! 0. Create KS_xx
          CALL construct_submatrices( &
@@ -837,16 +811,14 @@ CONTAINS
                ! Query the optimal workspace for dsyev
                LWORK = -1
                ALLOCATE (WORK(MAX(1, LWORK)))
-               CALL DSYEV('V', 'L', iblock_size, data_copy, iblock_size, eigenvalues, WORK, LWORK, INFO)
+               CALL dsyev('V', 'L', iblock_size, data_copy, iblock_size, eigenvalues, WORK, LWORK, INFO)
                LWORK = INT(WORK(1))
                DEALLOCATE (WORK)
 
                ! Allocate the workspace and solve the eigenproblem
                ALLOCATE (WORK(MAX(1, LWORK)))
-               CALL DSYEV('V', 'L', iblock_size, data_copy, iblock_size, eigenvalues, WORK, LWORK, INFO)
-               IF (INFO .NE. 0) THEN
-                  CPABORT("DSYEV failed")
-               END IF
+               CALL dsyev('V', 'L', iblock_size, data_copy, iblock_size, eigenvalues, WORK, LWORK, INFO)
+               IF (INFO .NE. 0) CPABORT("DSYEV failed")
 
                ! Copy occupied eigenvectors
                IF (almo_scf_env%domain_t(idomain, ispin)%ncols .NE. &
@@ -922,8 +894,8 @@ CONTAINS
                                                             nocc_of_block, nvirt_of_block, orbital
       LOGICAL                                            :: block_needed
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues, work
-      REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :)        :: data_copy
-      REAL(kind=dp), DIMENSION(:, :), POINTER            :: data_p, p_new_block
+      REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :)        :: data_copy, new_block
+      REAL(kind=dp), DIMENSION(:, :), POINTER            :: data_p
       TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(dbcsr_type)                                   :: matrix_ks_blk_orthog, &
                                                             matrix_t_blk_orthog, matrix_tmp, &
@@ -988,16 +960,14 @@ CONTAINS
                ! Query the optimal workspace for dsyev
                LWORK = -1
                ALLOCATE (WORK(MAX(1, LWORK)))
-               CALL DSYEV('V', 'L', iblock_size, data_copy, iblock_size, eigenvalues, WORK, LWORK, INFO)
+               CALL dsyev('V', 'L', iblock_size, data_copy, iblock_size, eigenvalues, WORK, LWORK, INFO)
                LWORK = INT(WORK(1))
                DEALLOCATE (WORK)
 
                ! Allocate the workspace and solve the eigenproblem
                ALLOCATE (WORK(MAX(1, LWORK)))
-               CALL DSYEV('V', 'L', iblock_size, data_copy, iblock_size, eigenvalues, WORK, LWORK, INFO)
-               IF (INFO .NE. 0) THEN
-                  CPABORT("DSYEV failed")
-               END IF
+               CALL dsyev('V', 'L', iblock_size, data_copy, iblock_size, eigenvalues, WORK, LWORK, INFO)
+               IF (INFO .NE. 0) CPABORT("DSYEV failed")
 
                !!! RZK-warning                                               !!!
                !!! IT IS EXTREMELY IMPORTANT THAT THE DIAGONAL BLOCKS OF THE !!!
@@ -1008,18 +978,16 @@ CONTAINS
                ! copy eigenvectors into two dbcsr matrices - occupied and virtuals
                nocc_of_block = almo_scf_env%nocc_of_domain(iblock_col, ispin)
                IF (nocc_of_block .GT. 0) THEN
-                  NULLIFY (p_new_block)
-                  CALL dbcsr_reserve_block2d(matrix_t_blk_orthog, iblock_row, iblock_col, p_new_block)
-                  CPASSERT(ASSOCIATED(p_new_block))
-                  p_new_block(:, :) = data_copy(:, 1:nocc_of_block)
+                  CALL dbcsr_put_block(matrix_t_blk_orthog, iblock_row, iblock_col, &
+                                       block=data_copy(:, 1:nocc_of_block))
                   ! copy eigenvalues into diagonal dbcsr matrix - Eoo
-                  NULLIFY (p_new_block)
-                  CALL dbcsr_reserve_block2d(almo_scf_env%matrix_eoo(ispin), iblock_row, iblock_col, p_new_block)
-                  CPASSERT(ASSOCIATED(p_new_block))
-                  p_new_block(:, :) = 0.0_dp
+                  ALLOCATE (new_block(nocc_of_block, nocc_of_block))
+                  new_block(:, :) = 0.0_dp
                   DO orbital = 1, nocc_of_block
-                     p_new_block(orbital, orbital) = eigenvalues(orbital)
+                     new_block(orbital, orbital) = eigenvalues(orbital)
                   END DO
+                  CALL dbcsr_put_block(almo_scf_env%matrix_eoo(ispin), iblock_row, iblock_col, new_block)
+                  DEALLOCATE (new_block)
                   !! Retrieve occupied MOs energies for smearing purpose, if requested
                   !! RS-WARNING: Hack to retrieve the occupied energies, since matrix_eoo seems to be ill-defined
                   !!             for multiprocessing (any idea for fix?)
@@ -1038,18 +1006,16 @@ CONTAINS
                ! now virtuals
                nvirt_of_block = almo_scf_env%nvirt_of_domain(iblock_col, ispin)
                IF (nvirt_of_block .GT. 0) THEN
-                  NULLIFY (p_new_block)
-                  CALL dbcsr_reserve_block2d(matrix_v_blk_orthog, iblock_row, iblock_col, p_new_block)
-                  CPASSERT(ASSOCIATED(p_new_block))
-                  p_new_block(:, :) = data_copy(:, (nocc_of_block + 1):(nocc_of_block + nvirt_of_block))
+                  CALL dbcsr_put_block(matrix_v_blk_orthog, iblock_row, iblock_col, &
+                                       block=data_copy(:, (nocc_of_block + 1):(nocc_of_block + nvirt_of_block)))
                   ! virtual energies
-                  NULLIFY (p_new_block)
-                  CALL dbcsr_reserve_block2d(almo_scf_env%matrix_evv_full(ispin), iblock_row, iblock_col, p_new_block)
-                  CPASSERT(ASSOCIATED(p_new_block))
-                  p_new_block(:, :) = 0.0_dp
+                  ALLOCATE (new_block(nvirt_of_block, nvirt_of_block))
+                  new_block(:, :) = 0.0_dp
                   DO orbital = 1, nvirt_of_block
-                     p_new_block(orbital, orbital) = eigenvalues(nocc_of_block + orbital)
+                     new_block(orbital, orbital) = eigenvalues(nocc_of_block + orbital)
                   END DO
+                  CALL dbcsr_put_block(almo_scf_env%matrix_evv_full(ispin), iblock_row, iblock_col, new_block)
+                  DEALLOCATE (new_block)
                END IF
 
                DEALLOCATE (WORK)
@@ -1115,7 +1081,7 @@ CONTAINS
       INTEGER                                            :: handle, iblock_col, iblock_row, &
                                                             iblock_size, methodID
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :)        :: data_copy
-      REAL(kind=dp), DIMENSION(:, :), POINTER            :: data_p, p_new_block
+      REAL(kind=dp), DIMENSION(:, :), POINTER            :: data_p
       TYPE(dbcsr_iterator_type)                          :: iter
 
       CALL timeset(routineN, handle)
@@ -1123,7 +1089,7 @@ CONTAINS
       CALL dbcsr_create(matrix_out, template=matrix_in)
       CALL dbcsr_work_create(matrix_out, work_mutable=.TRUE.)
 
-      CALL dbcsr_iterator_start(iter, matrix_in)
+      CALL dbcsr_iterator_readonly_start(iter, matrix_in)
 
       DO WHILE (dbcsr_iterator_blocks_left(iter))
 
@@ -1146,13 +1112,8 @@ CONTAINS
             !!! IT IS EXTREMELY IMPORTANT THAT THE BLOCKS OF THE "OUT"  !!!
             !!! MATRIX ARE DISTRIBUTED AS THE BLOCKS OF THE "IN" MATRIX !!!
 
-            NULLIFY (p_new_block)
-            CALL dbcsr_reserve_block2d(matrix_out, iblock_row, iblock_col, p_new_block)
-            CPASSERT(ASSOCIATED(p_new_block))
-            p_new_block(:, :) = data_copy(:, :)
-
+            CALL dbcsr_put_block(matrix_out, iblock_row, iblock_col, data_copy)
             DEALLOCATE (data_copy)
-
          END IF
 
       END DO
@@ -1185,7 +1146,7 @@ CONTAINS
       LOGICAL                                            :: block_needed
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: eigenvalues, work
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :)        :: data_copy
-      REAL(kind=dp), DIMENSION(:, :), POINTER            :: data_p, p_new_block
+      REAL(kind=dp), DIMENSION(:, :), POINTER            :: data_p
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_iterator_type)                          :: iter
       TYPE(dbcsr_type)                                   :: matrix_t_blk_tmp
@@ -1232,14 +1193,14 @@ CONTAINS
                ! Query the optimal workspace for dsyev
                LWORK = -1
                ALLOCATE (WORK(MAX(1, LWORK)))
-               CALL DSYEV('V', 'L', iblock_size, data_copy, iblock_size, eigenvalues, &
+               CALL dsyev('V', 'L', iblock_size, data_copy, iblock_size, eigenvalues, &
                           WORK, LWORK, INFO)
                LWORK = INT(WORK(1))
                DEALLOCATE (WORK)
 
                ! Allocate the workspace and solve the eigenproblem
                ALLOCATE (WORK(MAX(1, LWORK)))
-               CALL DSYEV('V', 'L', iblock_size, data_copy, iblock_size, eigenvalues, WORK, LWORK, INFO)
+               CALL dsyev('V', 'L', iblock_size, data_copy, iblock_size, eigenvalues, WORK, LWORK, INFO)
                IF (INFO .NE. 0) THEN
                   IF (unit_nr > 0) THEN
                      WRITE (unit_nr, *) 'BLOCK  = ', iblock_row
@@ -1253,14 +1214,10 @@ CONTAINS
                !!! P AND T MATRICES ARE LOCATED ON THE SAME NODES            !!!
 
                ! copy eigenvectors into two dbcsr matrices - occupied and virtuals
-               NULLIFY (p_new_block)
-               CALL dbcsr_reserve_block2d(matrix_t_blk_tmp, &
-                                          iblock_row, iblock_col, p_new_block)
-               nocc_of_block = SIZE(p_new_block, 2)
-               CPASSERT(ASSOCIATED(p_new_block))
-               CPASSERT(nocc_of_block .GT. 0)
-               p_new_block(:, :) = data_copy(:, iblock_size - nocc_of_block + 1:)
-
+               nocc_of_block = almo_scf_env%nocc_of_domain(iblock_col, ispin)
+               CPASSERT(nocc_of_block > 0)
+               CALL dbcsr_put_block(matrix_t_blk_tmp, iblock_row, iblock_col, &
+                                    block=data_copy(:, iblock_size - nocc_of_block + 1:))
                DEALLOCATE (WORK)
                DEALLOCATE (data_copy)
                DEALLOCATE (eigenvalues)
@@ -1755,7 +1712,7 @@ CONTAINS
             CALL cp_dbcsr_cholesky_invert(sigma_inv, &
                                           para_env=para_env, &
                                           blacs_env=blacs_env, &
-                                          upper_to_full=.TRUE.)
+                                          uplo_to_full=.TRUE.)
             CALL dbcsr_filter(sigma_inv, eps_filter)
          CASE DEFAULT
             CPABORT("Illegal MO overalp inversion algorithm")
@@ -1795,40 +1752,20 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN)                  :: nocc_of_domain
       REAL(KIND=dp), INTENT(IN)                          :: value
 
-      INTEGER                                            :: hold, iblock_col, iblock_row, mynode, &
-                                                            nblkrows_tot, row
-      LOGICAL                                            :: found, tr
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p_new_block
-      TYPE(dbcsr_distribution_type)                      :: dist
+      INTEGER                                            :: col, row
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: block
+      TYPE(dbcsr_iterator_type)                          :: iter
 
-      CALL dbcsr_get_info(matrix, distribution=dist)
-      CALL dbcsr_distribution_get(dist, mynode=mynode)
-      !mynode = dbcsr_mp_mynode(dbcsr_distribution_mp(dbcsr_distribution(matrix)))
-      CALL dbcsr_work_create(matrix, work_mutable=.TRUE.)
+      CALL dbcsr_reserve_diag_blocks(matrix)
 
-      nblkrows_tot = dbcsr_nblkrows_total(matrix)
-
-      DO row = 1, nblkrows_tot
-         IF (nocc_of_domain(row) == 0) THEN
-            tr = .FALSE.
-            iblock_row = row
-            iblock_col = row
-            CALL dbcsr_get_stored_coordinates(matrix, iblock_row, iblock_col, hold)
-            IF (hold .EQ. mynode) THEN
-               NULLIFY (p_new_block)
-               CALL dbcsr_get_block_p(matrix, iblock_row, iblock_col, p_new_block, found)
-               IF (found) THEN
-                  p_new_block(1, 1) = value
-               ELSE
-                  CALL dbcsr_reserve_block2d(matrix, iblock_row, iblock_col, p_new_block)
-                  CPASSERT(ASSOCIATED(p_new_block))
-                  p_new_block(1, 1) = value
-               END IF
-            END IF ! mynode
-         END IF !zero-electron block
+      CALL dbcsr_iterator_start(iter, matrix)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, row, col, block)
+         IF (row == col .AND. nocc_of_domain(row) == 0) THEN
+            block(1, 1) = value
+         END IF
       END DO
-
-      CALL dbcsr_finalize(matrix)
+      CALL dbcsr_iterator_stop(iter)
 
    END SUBROUTINE set_zero_electron_blocks_in_mo_mo_matrix
 
@@ -2107,8 +2044,7 @@ CONTAINS
    SUBROUTINE apply_domain_operators(matrix_in, matrix_out, operator1, operator2, &
                                      dpattern, map, node_of_domain, my_action, filter_eps, matrix_trimmer, use_trimmer)
 
-      TYPE(dbcsr_type), INTENT(IN)                       :: matrix_in
-      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_out
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_in, matrix_out
       TYPE(domain_submatrix_type), DIMENSION(:), &
          INTENT(IN)                                      :: operator1
       TYPE(domain_submatrix_type), DIMENSION(:), &
@@ -2153,7 +2089,7 @@ CONTAINS
          CPABORT("TRIMMER MATRIX IS REQUIRED")
       END IF
 
-      ndomains = dbcsr_nblkcols_total(dpattern)
+      CALL dbcsr_get_info(dpattern, nblkcols_total=ndomains)
 
       ALLOCATE (subm_in(ndomains))
       ALLOCATE (subm_temp(ndomains))
@@ -2474,7 +2410,7 @@ CONTAINS
    SUBROUTINE construct_domain_s_sqrt(matrix_s, subm_s_sqrt, subm_s_sqrt_inv, &
                                       dpattern, map, node_of_domain)
 
-      TYPE(dbcsr_type), INTENT(IN)                       :: matrix_s
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_s
       TYPE(domain_submatrix_type), DIMENSION(:), &
          INTENT(INOUT)                                   :: subm_s_sqrt, subm_s_sqrt_inv
       TYPE(dbcsr_type), INTENT(IN)                       :: dpattern
@@ -2490,7 +2426,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      ndomains = dbcsr_nblkcols_total(dpattern)
+      CALL dbcsr_get_info(dpattern, nblkcols_total=ndomains)
       CPASSERT(SIZE(subm_s_sqrt) .EQ. ndomains)
       CPASSERT(SIZE(subm_s_sqrt_inv) .EQ. ndomains)
       ALLOCATE (subm_s(ndomains))
@@ -2546,7 +2482,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE construct_domain_s_inv(matrix_s, subm_s_inv, dpattern, map, &
                                      node_of_domain)
-      TYPE(dbcsr_type), INTENT(IN)                       :: matrix_s
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_s
       TYPE(domain_submatrix_type), DIMENSION(:), &
          INTENT(INOUT)                                   :: subm_s_inv
       TYPE(dbcsr_type), INTENT(IN)                       :: dpattern
@@ -2562,7 +2498,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      ndomains = dbcsr_nblkcols_total(dpattern)
+      CALL dbcsr_get_info(dpattern, nblkcols_total=ndomains)
 
       CPASSERT(SIZE(subm_s_inv) .EQ. ndomains)
       ALLOCATE (subm_s(ndomains))
@@ -2653,7 +2589,7 @@ CONTAINS
       CALL dbcsr_release(m_tmp_no_1)
       CALL dbcsr_release(m_tmp_no_2)
 
-      ndomains = dbcsr_nblkcols_total(dpattern)
+      CALL dbcsr_get_info(dpattern, nblkcols_total=ndomains)
       CPASSERT(SIZE(subm_r_down) .EQ. ndomains)
 
       CALL construct_submatrices(matrix_r, subm_r_down, &
@@ -2701,12 +2637,12 @@ CONTAINS
          unit_nr = -1
       END IF
 
-      !CALL DPOTRF('L', N, Ainv, N, INFO )
+      !CALL dpotrf('L', N, Ainv, N, INFO )
       !IF( INFO.NE.0 ) THEN
       !   CPErrorMessage(cp_failure_level,routineP,"DPOTRF failed")
       !   CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
       !END IF
-      !CALL DPOTRI('L', N, Ainv, N, INFO )
+      !CALL dpotri('L', N, Ainv, N, INFO )
       !IF( INFO.NE.0 ) THEN
       !   CPErrorMessage(cp_failure_level,routineP,"DPOTRI failed")
       !   CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
@@ -2724,12 +2660,12 @@ CONTAINS
       ! Query the optimal workspace for dsyev
       LWORK = -1
       ALLOCATE (WORK(MAX(1, LWORK)))
-      CALL DSYEV('V', 'L', N, Asqrtinv, N, eigenvalues, WORK, LWORK, INFO)
+      CALL dsyev('V', 'L', N, Asqrtinv, N, eigenvalues, WORK, LWORK, INFO)
       LWORK = INT(WORK(1))
       DEALLOCATE (WORK)
       ! Allocate the workspace and solve the eigenproblem
       ALLOCATE (WORK(MAX(1, LWORK)))
-      CALL DSYEV('V', 'L', N, Asqrtinv, N, eigenvalues, WORK, LWORK, INFO)
+      CALL dsyev('V', 'L', N, Asqrtinv, N, eigenvalues, WORK, LWORK, INFO)
       IF (INFO .NE. 0) THEN
          IF (unit_nr > 0) WRITE (unit_nr, *) 'DSYEV ERROR MESSAGE: ', INFO
          CPABORT("DSYEV failed")
@@ -2808,7 +2744,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pseudo_invert_matrix'
 
-      INTEGER                                            :: handle, ii, INFO, jj, LWORK, range1_eiv, &
+      INTEGER                                            :: handle, INFO, jj, LWORK, range1_eiv, &
                                                             range2_eiv, range3_eiv, unit_nr
       LOGICAL                                            :: use_both, use_ranges_only, use_thr_only
       REAL(KIND=dp)                                      :: my_shift
@@ -2868,23 +2804,7 @@ CONTAINS
 
       SELECT CASE (method)
       CASE (0) ! Inversion via cholesky factorization
-
-         CALL DPOTRF('L', N, Ainv, N, INFO)
-         IF (INFO .NE. 0) THEN
-            CPABORT("DPOTRF failed")
-         END IF
-         CALL DPOTRI('L', N, Ainv, N, INFO)
-         IF (INFO .NE. 0) THEN
-            CPABORT("DPOTRI failed")
-         END IF
-         ! complete the matrix
-         DO ii = 1, N
-            DO jj = ii + 1, N
-               Ainv(ii, jj) = Ainv(jj, ii)
-            END DO
-            !WRITE(*,'(100F13.9)') Ainv(ii,:)
-         END DO
-
+         CALL invmat_symm(Ainv)
       CASE (1)
 
          ! diagonalize first
@@ -2892,19 +2812,19 @@ CONTAINS
          ALLOCATE (temp1(N, N))
          ALLOCATE (temp4(N, N))
          IF (PRESENT(s_inv_half)) THEN
-            CALL DSYMM('L', 'U', N, N, 1.0_dp, s_inv_half, N, A, N, 0.0_dp, temp1, N)
-            CALL DSYMM('R', 'U', N, N, 1.0_dp, s_inv_half, N, temp1, N, 0.0_dp, Ainv, N)
+            CALL dsymm('L', 'U', N, N, 1.0_dp, s_inv_half, N, A, N, 0.0_dp, temp1, N)
+            CALL dsymm('R', 'U', N, N, 1.0_dp, s_inv_half, N, temp1, N, 0.0_dp, Ainv, N)
          END IF
          ! Query the optimal workspace for dsyev
          LWORK = -1
          ALLOCATE (WORK(MAX(1, LWORK)))
-         CALL DSYEV('V', 'L', N, Ainv, N, eigenvalues, WORK, LWORK, INFO)
+         CALL dsyev('V', 'L', N, Ainv, N, eigenvalues, WORK, LWORK, INFO)
 
          LWORK = INT(WORK(1))
          DEALLOCATE (WORK)
          ! Allocate the workspace and solve the eigenproblem
          ALLOCATE (WORK(MAX(1, LWORK)))
-         CALL DSYEV('V', 'L', N, Ainv, N, eigenvalues, WORK, LWORK, INFO)
+         CALL dsyev('V', 'L', N, Ainv, N, eigenvalues, WORK, LWORK, INFO)
 
          IF (INFO .NE. 0) THEN
             IF (unit_nr > 0) WRITE (unit_nr, *) 'EIGENSYSTEM ERROR MESSAGE: ', INFO
@@ -2973,20 +2893,20 @@ CONTAINS
          !WRITE(*,*) ' EIV RANGES: ', range1_eiv, range2_eiv, range3_eiv
          IF (PRESENT(bad_modes_projector_down)) THEN
             IF (PRESENT(s_half)) THEN
-               CALL DSYMM('L', 'U', N, N, 1.0_dp, s_half, N, temp2, N, 0.0_dp, Ainv, N)
-               CALL DSYMM('R', 'U', N, N, 1.0_dp, s_half, N, temp3, N, 0.0_dp, temp4, N)
-               CALL DGEMM('N', 'N', N, N, N, 1.0_dp, Ainv, N, temp4, N, 0.0_dp, bad_modes_projector_down, N)
+               CALL dsymm('L', 'U', N, N, 1.0_dp, s_half, N, temp2, N, 0.0_dp, Ainv, N)
+               CALL dsymm('R', 'U', N, N, 1.0_dp, s_half, N, temp3, N, 0.0_dp, temp4, N)
+               CALL dgemm('N', 'N', N, N, N, 1.0_dp, Ainv, N, temp4, N, 0.0_dp, bad_modes_projector_down, N)
             ELSE
-               CALL DGEMM('N', 'N', N, N, N, 1.0_dp, temp2, N, temp3, N, 0.0_dp, bad_modes_projector_down, N)
+               CALL dgemm('N', 'N', N, N, N, 1.0_dp, temp2, N, temp3, N, 0.0_dp, bad_modes_projector_down, N)
             END IF
          END IF
 
          IF (PRESENT(s_inv_half)) THEN
-            CALL DSYMM('L', 'U', N, N, 1.0_dp, s_inv_half, N, temp2, N, 0.0_dp, temp4, N)
-            CALL DSYMM('R', 'U', N, N, 1.0_dp, s_inv_half, N, temp1, N, 0.0_dp, temp2, N)
-            CALL DGEMM('N', 'N', N, N, N, 1.0_dp, temp4, N, temp2, N, 0.0_dp, Ainv, N)
+            CALL dsymm('L', 'U', N, N, 1.0_dp, s_inv_half, N, temp2, N, 0.0_dp, temp4, N)
+            CALL dsymm('R', 'U', N, N, 1.0_dp, s_inv_half, N, temp1, N, 0.0_dp, temp2, N)
+            CALL dgemm('N', 'N', N, N, N, 1.0_dp, temp4, N, temp2, N, 0.0_dp, Ainv, N)
          ELSE
-            CALL DGEMM('N', 'N', N, N, N, 1.0_dp, temp2, N, temp1, N, 0.0_dp, Ainv, N)
+            CALL dgemm('N', 'N', N, N, N, 1.0_dp, temp2, N, temp1, N, 0.0_dp, Ainv, N)
          END IF
          DEALLOCATE (temp1, temp2, temp4)
          IF (PRESENT(bad_modes_projector_down)) DEALLOCATE (temp3)
@@ -3030,7 +2950,6 @@ CONTAINS
 !>       2012.04 created [Rustam Z. Khaliullin]
 !> \author Rustam Z. Khaliullin
 ! **************************************************************************************************
-
    SUBROUTINE pseudo_matrix_power(A, Apow, power, N, range1, range1_thr, shift)
 
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: A
@@ -3091,14 +3010,13 @@ CONTAINS
       ! Query the optimal workspace for dsyev
       LWORK = -1
       ALLOCATE (WORK(MAX(1, LWORK)))
-      CALL DSYEV('V', 'L', N, Apow, N, eigenvalues, WORK, LWORK, INFO)
+      CALL dsyev('V', 'L', N, Apow, N, eigenvalues, WORK, LWORK, INFO)
 
       LWORK = INT(WORK(1))
       DEALLOCATE (WORK)
       ! Allocate the workspace and solve the eigenproblem
       ALLOCATE (WORK(MAX(1, LWORK)))
-
-      CALL DSYEV('V', 'L', N, Apow, N, eigenvalues, WORK, LWORK, INFO)
+      CALL dsyev('V', 'L', N, Apow, N, eigenvalues, WORK, LWORK, INFO)
 
       IF (INFO .NE. 0) THEN
          IF (unit_nr > 0) WRITE (unit_nr, *) 'EIGENSYSTEM ERROR MESSAGE: ', INFO
@@ -3228,13 +3146,13 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE construct_test(matrix_no, dpattern, map, node_of_domain)
 
-      TYPE(dbcsr_type), INTENT(IN)                       :: matrix_no, dpattern
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_no, dpattern
       TYPE(domain_map_type), INTENT(IN)                  :: map
       INTEGER, DIMENSION(:), INTENT(IN)                  :: node_of_domain
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'construct_test'
 
-      INTEGER                                            :: GroupID, handle, ndomains
+      INTEGER                                            :: handle, ndomains
       TYPE(dbcsr_type)                                   :: copy1
       TYPE(domain_submatrix_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: subm_nn, subm_no
@@ -3242,9 +3160,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      ndomains = dbcsr_nblkcols_total(dpattern)
-      CALL dbcsr_get_info(dpattern, group=GroupID)
-      CALL group%set_handle(groupid)
+      CALL dbcsr_get_info(dpattern, group=group, nblkcols_total=ndomains)
 
       ALLOCATE (subm_no(ndomains), subm_nn(ndomains))
       CALL init_submatrices(subm_no)

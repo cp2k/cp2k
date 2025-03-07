@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -25,9 +25,9 @@ MODULE qs_linres_current
                                               cp_2d_r_p_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_add_block_node, dbcsr_convert_offsets_to_sizes, dbcsr_copy, dbcsr_create, &
-        dbcsr_deallocate_matrix, dbcsr_distribution_type, dbcsr_finalize, dbcsr_get_block_p, &
-        dbcsr_p_type, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry
+        dbcsr_convert_offsets_to_sizes, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, &
+        dbcsr_distribution_type, dbcsr_finalize, dbcsr_get_block_p, dbcsr_p_type, dbcsr_put_block, &
+        dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_plus_fm_fm_t,&
                                               cp_dbcsr_sm_fm_multiply,&
@@ -299,7 +299,7 @@ CONTAINS
                            name="density_matrix0", &
                            dist=dbcsr_dist, matrix_type=dbcsr_type_no_symmetry, &
                            row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-                           nze=0, mutable_work=.TRUE.)
+                           mutable_work=.TRUE.)
          CALL cp_dbcsr_alloc_block_from_nbl(density_matrix0(ispin)%matrix, sab_all)
          !
          !density_matrix_a
@@ -606,8 +606,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: ra, rab, rb, rp
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
       REAL(KIND=dp), DIMENSION(:, :), POINTER :: jp_block_a, jp_block_b, jp_block_c, jp_block_d, &
-         jpab_a, jpab_b, jpab_c, jpab_d, jpblock_a, jpblock_b, jpblock_c, jpblock_d, rpgfa, rpgfb, &
-         sphi_a, sphi_b, work, zeta, zetb
+         jpab_a, jpab_b, jpab_c, jpab_d, rpgfa, rpgfb, sphi_a, sphi_b, work, zeta, zetb
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: jpabt_a, jpabt_b, jpabt_c, jpabt_d, workt
       TYPE(atom_pair_type), DIMENSION(:), POINTER        :: atom_pair_recv, atom_pair_send
       TYPE(cell_type), POINTER                           :: cell
@@ -643,7 +642,6 @@ CONTAINS
                workt, mat_a, mat_b, mat_c, mat_d, rs_gauge)
       NULLIFY (deltajp_a, deltajp_b, deltajp_c, deltajp_d)
       NULLIFY (jp_block_a, jp_block_b, jp_block_c, jp_block_d)
-      NULLIFY (jpblock_a, jpblock_b, jpblock_c, jpblock_d)
       NULLIFY (jpabt_a, jpabt_b, jpabt_c, jpabt_d)
       NULLIFY (atom_pair_send, atom_pair_recv)
 
@@ -839,22 +837,12 @@ CONTAINS
          IF (.NOT. ASSOCIATED(jp_block_a)) CYCLE
 
          IF (distributed_rs_grids) THEN
-            NULLIFY (jpblock_a, jpblock_b, jpblock_c, jpblock_d)
-            CALL dbcsr_add_block_node(deltajp_a(1)%matrix, brow, bcol, jpblock_a)
-            jpblock_a = jp_block_a
-            CALL dbcsr_add_block_node(deltajp_b(1)%matrix, brow, bcol, jpblock_b)
-            jpblock_b = jp_block_b
-            CALL dbcsr_add_block_node(deltajp_c(1)%matrix, brow, bcol, jpblock_c)
-            jpblock_c = jp_block_c
+            CALL dbcsr_put_block(deltajp_a(1)%matrix, brow, bcol, jp_block_a)
+            CALL dbcsr_put_block(deltajp_b(1)%matrix, brow, bcol, jp_block_b)
+            CALL dbcsr_put_block(deltajp_c(1)%matrix, brow, bcol, jp_block_c)
             IF (do_igaim) THEN
-               CALL dbcsr_add_block_node(deltajp_d(1)%matrix, brow, bcol, jpblock_d)
-               jpblock_d = jp_block_d
+               CALL dbcsr_put_block(deltajp_d(1)%matrix, brow, bcol, jp_block_d)
             END IF
-         ELSE
-            jpblock_a => jp_block_a
-            jpblock_b => jp_block_b
-            jpblock_c => jp_block_c
-            IF (do_igaim) jpblock_d => jp_block_d
          END IF
 
          CALL task_list_inner_loop(tasks, ntasks, curr_tasks, rs_descs, &
@@ -2374,7 +2362,7 @@ CONTAINS
                         name="op_mom", &
                         dist=dbcsr_dist, matrix_type=dbcsr_type_no_symmetry, &
                         row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-                        nze=0, mutable_work=.TRUE.)
+                        mutable_work=.TRUE.)
       CALL cp_dbcsr_alloc_block_from_nbl(op_mom_ao(1)%matrix, sab_all)
 
       DO idir2 = 1, 3
@@ -2400,7 +2388,7 @@ CONTAINS
                         name="op_p_ao", &
                         dist=dbcsr_dist, matrix_type=dbcsr_type_antisymmetric, &
                         row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-                        nze=0, mutable_work=.TRUE.)
+                        mutable_work=.TRUE.)
       CALL cp_dbcsr_alloc_block_from_nbl(op_p_ao(1)%matrix, sab_orb)
 
       DO idir = 2, 3
@@ -2786,7 +2774,7 @@ CONTAINS
                         name="op_mom", &
                         dist=dbcsr_dist, matrix_type=dbcsr_type_no_symmetry, &
                         row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-                        nze=0, mutable_work=.TRUE.)
+                        mutable_work=.TRUE.)
       CALL cp_dbcsr_alloc_block_from_nbl(op_mom_ao(1)%matrix, sab_all)
 
       DO idir2 = 1, 3
@@ -2812,7 +2800,7 @@ CONTAINS
                         name="op_p_ao", &
                         dist=dbcsr_dist, matrix_type=dbcsr_type_antisymmetric, &
                         row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-                        nze=0, mutable_work=.TRUE.)
+                        mutable_work=.TRUE.)
       CALL cp_dbcsr_alloc_block_from_nbl(op_p_ao(1)%matrix, sab_orb)
 
       DO idir = 2, 3

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -319,7 +319,7 @@ CONTAINS
 
          DO iat = 1, natomkind
             iatom = atom_list(iat)
-            CALL diagonalise(efg_tensor(:, :, iatom), 3, "UPPER", &
+            CALL diagonalise(efg_tensor(:, :, iatom), 3, "U", &
                              eigenvalues, eigenvectors)
             CALL efgsort(eigenvalues, efg_diagval(:, iatom))
          END DO

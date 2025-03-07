@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -28,7 +28,6 @@
 MODULE splines
 
    USE kinds,                           ONLY: dp
-   USE lapack,                          ONLY: lapack_sgbsv
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -228,7 +227,7 @@ CONTAINS
 
       ! solve spline equations -- LAPACK band form
       bmat(:, 1) = bs
-      CALL lapack_sgbsv(2*(n - 1), 1, 2, 1, As, 5, ipiv2, bmat, 2*(n - 1), info)
+      CALL dgbsv(2*(n - 1), 1, 2, 1, As, 5, ipiv2, bmat, 2*(n - 1), info)
       IF (info /= 0) CALL stop_error("spline3pars error: dgbsv error.")
       cs = bmat(:, 1)
 

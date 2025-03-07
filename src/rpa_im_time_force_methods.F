@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -28,14 +28,16 @@ MODULE rpa_im_time_force_methods
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_add, dbcsr_add_on_diag, dbcsr_clear, dbcsr_complete_redistribute, dbcsr_copy, &
-        dbcsr_create, dbcsr_distribution_new, dbcsr_distribution_release, dbcsr_distribution_type, &
-        dbcsr_frobenius_norm, dbcsr_get_block_p, dbcsr_iterator_blocks_left, &
-        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
-        dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_type, &
-        dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_type_symmetric
+        dbcsr_add, dbcsr_clear, dbcsr_complete_redistribute, dbcsr_copy, dbcsr_create, &
+        dbcsr_distribution_new, dbcsr_distribution_release, dbcsr_distribution_type, &
+        dbcsr_get_block_p, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
+        dbcsr_p_type, dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, &
+        dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE cp_dbcsr_cholesky,               ONLY: cp_dbcsr_cholesky_decompose,&
                                               cp_dbcsr_cholesky_invert
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_add_on_diag,&
+                                              dbcsr_frobenius_norm
    USE cp_dbcsr_diag,                   ONLY: cp_dbcsr_power
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
@@ -491,7 +493,7 @@ CONTAINS
 
       CALL dbcsr_copy(dbcsr_work, t_2c_int_tmp(1))
       CALL cp_dbcsr_cholesky_decompose(dbcsr_work, para_env=para_env, blacs_env=blacs_env)
-      CALL cp_dbcsr_cholesky_invert(dbcsr_work, para_env=para_env, blacs_env=blacs_env, upper_to_full=.TRUE.)
+      CALL cp_dbcsr_cholesky_invert(dbcsr_work, para_env=para_env, blacs_env=blacs_env, uplo_to_full=.TRUE.)
 
       CALL dbt_create(dbcsr_work, t_2c_tmp)
       CALL dbt_copy_matrix_to_tensor(dbcsr_work, t_2c_tmp)
@@ -558,7 +560,7 @@ CONTAINS
       CALL dbcsr_create(force_data%inv_ovlp, template=matrix_s(1)%matrix)
       CALL dbcsr_copy(force_data%inv_ovlp, matrix_s(1)%matrix)
       CALL cp_dbcsr_cholesky_decompose(force_data%inv_ovlp, para_env=para_env, blacs_env=blacs_env)
-      CALL cp_dbcsr_cholesky_invert(force_data%inv_ovlp, para_env=para_env, blacs_env=blacs_env, upper_to_full=.TRUE.)
+      CALL cp_dbcsr_cholesky_invert(force_data%inv_ovlp, para_env=para_env, blacs_env=blacs_env, uplo_to_full=.TRUE.)
 
       DO i_xyz = 1, 3
          CALL dbt_create(t_2c_der_tmp(1, i_xyz), t_2c_tmp)
@@ -1423,7 +1425,7 @@ CONTAINS
          CALL dbcsr_add_on_diag(dbcsr_work_symm, 1.0_dp)
 
          CALL cp_dbcsr_cholesky_decompose(dbcsr_work_symm, para_env=para_env, blacs_env=blacs_env)
-         CALL cp_dbcsr_cholesky_invert(dbcsr_work_symm, para_env=para_env, blacs_env=blacs_env, upper_to_full=.TRUE.)
+         CALL cp_dbcsr_cholesky_invert(dbcsr_work_symm, para_env=para_env, blacs_env=blacs_env, uplo_to_full=.TRUE.)
 
          CALL dbcsr_add_on_diag(dbcsr_work_symm, -1.0_dp)
 
@@ -2994,8 +2996,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'get_2c_mme_forces'
 
-      INTEGER :: atom_a, atom_b, blk, G_count, handle, i_xyz, iatom, ikind, iset, jatom, jkind, &
-         jset, natom, nkind, nseta, nsetb, offset_hab_a, offset_hab_b, R_count, sgfa, sgfb
+      INTEGER :: atom_a, atom_b, G_count, handle, i_xyz, iatom, ikind, iset, jatom, jkind, jset, &
+         natom, nkind, nseta, nsetb, offset_hab_a, offset_hab_b, R_count, sgfa, sgfb
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
                                                             npgfb, nsgfa, nsgfb
@@ -3037,7 +3039,7 @@ CONTAINS
       CALL dbcsr_iterator_start(iter, G_PQ)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
 
-         CALL dbcsr_iterator_next_block(iter, row=iatom, column=jatom, blk=blk)
+         CALL dbcsr_iterator_next_block(iter, row=iatom, column=jatom)
          CALL dbcsr_get_block_p(G_PQ, iatom, jatom, pblock, found)
          IF (.NOT. found) CYCLE
          IF (iatom > jatom) CYCLE

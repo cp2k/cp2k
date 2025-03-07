@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -979,7 +979,11 @@ CONTAINS
       END IF
 
       ! release blacs_env
-      IF (.NOT. my_blacs_S_ext) CALL cp_blacs_env_release(blacs_env)
+      IF (.NOT. my_blacs_S_ext) THEN
+         CALL cp_blacs_env_release(blacs_env)
+      ELSE
+         NULLIFY (blacs_env)
+      END IF
 
       CALL timestop(handle)
 
@@ -1745,8 +1749,7 @@ CONTAINS
          IF (mp2_env%ri_g0w0%iter_evGW > 1) THEN
             IF (unit_nr > 0) THEN
                CALL cp_warn(__LOCATION__, &
-                            "BSE@evGW applies W0, i.e. screening with DFT energies! "// &
-                            "Use BSE@evGW0 to avoid this warning!")
+                            "BSE@evGW applies W0, i.e. screening with DFT energies to the BSE!")
             END IF
          END IF
          ! Create a copy of fm_mat_S for usage in BSE

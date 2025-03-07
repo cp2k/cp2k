@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -34,8 +34,9 @@ MODULE iao_analysis
         dbcsr_copy, dbcsr_create, dbcsr_distribution_type, dbcsr_get_block_p, dbcsr_get_info, &
         dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
         dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
-        dbcsr_replicate_all, dbcsr_reserve_diag_blocks, dbcsr_set, dbcsr_trace, dbcsr_type, &
-        dbcsr_type_no_symmetry
+        dbcsr_replicate_all, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_reserve_diag_blocks,&
+                                              dbcsr_trace
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
                                               cp_dbcsr_plus_fm_fm_t,&
@@ -940,8 +941,7 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: p_matrix
       REAL(KIND=dp), DIMENSION(:)                        :: charges
 
-      INTEGER                                            :: blk, group_handle, i, iblock_col, &
-                                                            iblock_row
+      INTEGER                                            :: i, iblock_col, iblock_row
       REAL(kind=dp)                                      :: trace
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: p_block
       TYPE(dbcsr_iterator_type)                          :: iter
@@ -952,7 +952,7 @@ CONTAINS
       CALL dbcsr_iterator_start(iter, p_matrix)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          NULLIFY (p_block)
-         CALL dbcsr_iterator_next_block(iter, iblock_row, iblock_col, p_block, blk)
+         CALL dbcsr_iterator_next_block(iter, iblock_row, iblock_col, p_block)
          CPASSERT(iblock_row == iblock_col)
          trace = 0.0_dp
          DO i = 1, SIZE(p_block, 1)
@@ -962,9 +962,7 @@ CONTAINS
       END DO
       CALL dbcsr_iterator_stop(iter)
 
-      CALL dbcsr_get_info(p_matrix, group=group_handle)
-      CALL group%set_handle(group_handle)
-
+      CALL dbcsr_get_info(p_matrix, group=group)
       CALL group%sum(charges)
 
    END SUBROUTINE iao_charges
@@ -1407,7 +1405,7 @@ CONTAINS
       INTEGER                                            :: handle, i, i1, i2, iao, iatom, ikind, &
                                                             iset, ishell, ispin, l, m, maxl, n, &
                                                             natom, nkind, noce, ns, nset, nsgf, &
-                                                            nspin, para_group_handle
+                                                            nspin
       INTEGER, DIMENSION(:), POINTER                     :: iao_blk_sizes, nshell, oce_blk_sizes, &
                                                             orb_blk_sizes
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgf, last_sgf, lval
@@ -1419,7 +1417,7 @@ CONTAINS
       TYPE(dbcsr_distribution_type)                      :: dbcsr_dist
       TYPE(dbcsr_type)                                   :: iao_vec, sx_vec
       TYPE(gto_basis_set_type), POINTER                  :: oce_basis
-      TYPE(mp_comm_type)                                 :: para_type
+      TYPE(mp_comm_type)                                 :: group
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
@@ -1440,10 +1438,10 @@ CONTAINS
 
       CALL dbcsr_create(iao_vec, name="IAO_VEC", dist=dbcsr_dist, &
                         matrix_type=dbcsr_type_no_symmetry, row_blk_size=orb_blk_sizes, &
-                        col_blk_size=iao_blk_sizes, nze=0)
+                        col_blk_size=iao_blk_sizes)
       CALL dbcsr_create(sx_vec, name="SX_VEC", dist=dbcsr_dist, &
                         matrix_type=dbcsr_type_no_symmetry, row_blk_size=oce_blk_sizes, &
-                        col_blk_size=iao_blk_sizes, nze=0)
+                        col_blk_size=iao_blk_sizes)
       CALL dbcsr_reserve_diag_blocks(matrix=sx_vec)
 
       nkind = SIZE(smat_kind)
@@ -1454,8 +1452,7 @@ CONTAINS
          sinv_kind(ikind)%array = smat_kind(ikind)%array
          CALL invmat_symm(sinv_kind(ikind)%array)
       END DO
-      CALL dbcsr_get_info(iao_vec, group=para_group_handle)
-      CALL para_type%set_handle(para_group_handle)
+      CALL dbcsr_get_info(iao_vec, group=group)
 
       nspin = SIZE(iao_coef, 1)
       ALLOCATE (oce_comp(natom, nspin))
@@ -1499,7 +1496,7 @@ CONTAINS
          END DO
       END DO
 
-      CALL para_type%sum(oce_comp)
+      CALL group%sum(oce_comp)
       IF (unit_nr > 0) THEN
          DO iatom = 1, natom
             WRITE (unit_nr, "(T4,A,I6,T30,A,2F12.4)") "Atom:", iatom, " Completeness: ", oce_comp(iatom, 1:nspin)

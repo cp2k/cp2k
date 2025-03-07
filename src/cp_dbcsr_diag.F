@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -20,12 +20,12 @@ MODULE cp_dbcsr_diag
    USE cp_cfm_diag,                     ONLY: cp_cfm_heevd
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_release,&
-                                              cp_cfm_type
+                                              cp_cfm_to_fm,&
+                                              cp_cfm_type,&
+                                              cp_fm_to_cfm
    USE cp_dbcsr_api,                    ONLY: dbcsr_get_info,&
                                               dbcsr_type
-   USE cp_dbcsr_operations,             ONLY: copy_cfm_to_dbcsr,&
-                                              copy_dbcsr_to_cfm,&
-                                              copy_dbcsr_to_fm,&
+   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr
    USE cp_fm_diag,                      ONLY: choose_eigv_solver,&
                                               cp_fm_power,&
@@ -67,7 +67,7 @@ CONTAINS
 
       ! Computes all eigenvalues and vectors of a real symmetric matrix
       ! should be quite a bit faster than syevx for that case
-      ! especially in parallel with thightly clustered evals
+      ! especially in parallel with tightly clustered evals
       ! needs more workspace in the worst case, but much better distributed
 
       TYPE(dbcsr_type)                                   :: matrix, eigenvectors
@@ -173,16 +173,19 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param matrix ...
-!> \param eigenvectors ...
+!> \param matrix_re ...
+!> \param matrix_im ...
+!> \param eigenvectors_re ...
+!> \param eigenvectors_im ...
 !> \param eigenvalues ...
 !> \param para_env ...
 !> \param blacs_env ...
 ! **************************************************************************************************
-   SUBROUTINE cp_dbcsr_heevd(matrix, eigenvectors, eigenvalues, para_env, blacs_env)
+   SUBROUTINE cp_dbcsr_heevd(matrix_re, matrix_im, eigenvectors_re, eigenvectors_im, &
+                             eigenvalues, para_env, blacs_env)
 
-      TYPE(dbcsr_type)                                   :: matrix
-      TYPE(dbcsr_type), OPTIONAL, POINTER                :: eigenvectors
+      TYPE(dbcsr_type), OPTIONAL                         :: matrix_re, matrix_im, eigenvectors_re, &
+                                                            eigenvectors_im
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: eigenvalues
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
@@ -190,28 +193,71 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_dbcsr_heevd'
 
       INTEGER                                            :: handle, nfullrows_total
-      TYPE(cp_cfm_type)                                  :: fm_eigenvectors, fm_matrix
+      TYPE(cp_cfm_type)                                  :: cfm_eigenvectors, cfm_matrix
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
+      TYPE(cp_fm_type)                                   :: fm_eigenvectors_im, fm_eigenvectors_re, &
+                                                            fm_matrix_im, fm_matrix_re
 
       CALL timeset(routineN, handle)
 
+      ! Create full matrix structure.
       NULLIFY (fm_struct)
-      CALL dbcsr_get_info(matrix, nfullrows_total=nfullrows_total)
-
+      IF (PRESENT(matrix_re)) THEN
+         CALL dbcsr_get_info(matrix_re, nfullrows_total=nfullrows_total)
+      ELSE IF (PRESENT(matrix_im)) THEN
+         CALL dbcsr_get_info(matrix_im, nfullrows_total=nfullrows_total)
+      ELSE
+         CPABORT("Neither matrix_re nor matrix_im are present.")
+      END IF
       CALL cp_fm_struct_create(fm_struct, context=blacs_env, nrow_global=nfullrows_total, &
                                ncol_global=nfullrows_total, para_env=para_env)
-      CALL cp_cfm_create(fm_matrix, fm_struct, name="fm_matrix")
-      CALL cp_cfm_create(fm_eigenvectors, fm_struct, name="fm_eigenvectors")
+
+      ! Create full real matrices.
+      IF (PRESENT(matrix_re)) THEN
+         CALL cp_fm_create(fm_matrix_re, fm_struct, name="fm_matrix_re")
+         CALL copy_dbcsr_to_fm(matrix_re, fm_matrix_re)
+      END IF
+      IF (PRESENT(matrix_im)) THEN
+         CALL cp_fm_create(fm_matrix_im, fm_struct, name="fm_matrix_im")
+         CALL copy_dbcsr_to_fm(matrix_im, fm_matrix_im)
+      END IF
+
+      ! Combine the two real matrices into a complex matrix.
+      CALL cp_cfm_create(cfm_matrix, fm_struct, name="cfm_matrix")
+      IF (PRESENT(matrix_re) .AND. PRESENT(matrix_im)) THEN
+         CALL cp_fm_to_cfm(msourcer=fm_matrix_re, msourcei=fm_matrix_im, mtarget=cfm_matrix)
+      ELSE IF (PRESENT(matrix_re) .AND. .NOT. PRESENT(matrix_im)) THEN
+         CALL cp_fm_to_cfm(msourcer=fm_matrix_re, mtarget=cfm_matrix)
+      ELSE IF (.NOT. PRESENT(matrix_re) .AND. PRESENT(matrix_im)) THEN
+         CALL cp_fm_to_cfm(msourcei=fm_matrix_im, mtarget=cfm_matrix)
+      ELSE
+         CPABORT("Neither matrix_re nor matrix_im are present.")
+      END IF
+      IF (PRESENT(matrix_re)) CALL cp_fm_release(fm_matrix_re)
+      IF (PRESENT(matrix_im)) CALL cp_fm_release(fm_matrix_im)
+
+      ! Diagnonalize the full complex matrix.
+      CALL cp_cfm_create(cfm_eigenvectors, fm_struct, name="cfm_eigenvectors")
+      CALL cp_cfm_heevd(cfm_matrix, cfm_eigenvectors, eigenvalues)
+      CALL cp_cfm_release(cfm_matrix)
+
+      ! Copy the complex eigenvectors back into two real DBCSR matrices.
+      IF (PRESENT(eigenvectors_re)) THEN
+         CALL cp_fm_create(fm_eigenvectors_re, fm_struct, name="fm_eigenvectors_re")
+         CALL cp_cfm_to_fm(msource=cfm_eigenvectors, mtargetr=fm_eigenvectors_re)
+         CALL copy_fm_to_dbcsr(fm_eigenvectors_re, eigenvectors_re)
+         CALL cp_fm_release(fm_eigenvectors_re)
+      END IF
+      IF (PRESENT(eigenvectors_im)) THEN
+         CALL cp_fm_create(fm_eigenvectors_im, fm_struct, name="fm_eigenvectors_im")
+         CALL cp_cfm_to_fm(msource=cfm_eigenvectors, mtargeti=fm_eigenvectors_im)
+         CALL copy_fm_to_dbcsr(fm_eigenvectors_im, eigenvectors_im)
+         CALL cp_fm_release(fm_eigenvectors_im)
+      END IF
+
+      ! Clean up.
+      CALL cp_cfm_release(cfm_eigenvectors)
       CALL cp_fm_struct_release(fm_struct)
-
-      CALL copy_dbcsr_to_cfm(matrix, fm_matrix)
-
-      CALL cp_cfm_heevd(fm_matrix, fm_eigenvectors, eigenvalues)
-
-      CALL copy_cfm_to_dbcsr(fm_eigenvectors, eigenvectors)
-
-      CALL cp_cfm_release(fm_matrix)
-      CALL cp_cfm_release(fm_eigenvectors)
 
       CALL timestop(handle)
 

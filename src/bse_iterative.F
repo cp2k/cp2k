@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -89,15 +89,15 @@ CONTAINS
       num_res_unconverged = -1
       num_exact_en_unconverged = -1
 
-      bse_davidson_abort_cond = mp2_env%ri_g0w0%davidson_abort_cond
-      num_exc_en = mp2_env%ri_g0w0%num_exc_en
-      num_add_start_z_space = mp2_env%ri_g0w0%num_add_start_z_space
-      fac_max_z_space = mp2_env%ri_g0w0%fac_max_z_space
-      num_new_t = mp2_env%ri_g0w0%num_new_t
-      num_davidson_iter = mp2_env%ri_g0w0%num_davidson_iter
-      eps_res = mp2_env%ri_g0w0%eps_res
-      eps_exc_en = mp2_env%ri_g0w0%eps_exc_en
-      z_space_energy_cutoff = mp2_env%ri_g0w0%z_space_energy_cutoff
+      bse_davidson_abort_cond = mp2_env%bse%davidson_abort_cond
+      num_exc_en = mp2_env%bse%num_exc_en
+      num_add_start_z_space = mp2_env%bse%num_add_start_z_space
+      fac_max_z_space = mp2_env%bse%fac_max_z_space
+      num_new_t = mp2_env%bse%num_new_t
+      num_davidson_iter = mp2_env%bse%num_davidson_iter
+      eps_res = mp2_env%bse%eps_res
+      eps_exc_en = mp2_env%bse%eps_exc_en
+      z_space_energy_cutoff = mp2_env%bse%z_space_energy_cutoff
 
       num_Z_vectors_init = num_exc_en + num_add_start_z_space
 
@@ -244,7 +244,7 @@ CONTAINS
          END IF
 
          IF (davidson_converged == 1) THEN
-            CALL success_message(Subspace_full_eigenval, num_new_t, eps_res, num_res_unconverged, &
+            CALL postprocess_bse(Subspace_full_eigenval, num_new_t, eps_res, num_res_unconverged, &
                                  bse_spin_config, unit_nr, num_exc_en, num_Z_vectors_init, &
                                  num_davidson_iter, i_iter, num_Z_vectors, num_max_z_space, max_res_norm, &
                                  max_en_diff, num_en_unconverged, bse_davidson_abort_cond_string, &
@@ -469,7 +469,7 @@ CONTAINS
 !> \param success_abort_string ...
 !> \param z_space_energy_cutoff ...
 ! **************************************************************************************************
-   SUBROUTINE success_message(Subspace_full_eigenval, num_new_t, eps_res, num_res_unconverged, &
+   SUBROUTINE postprocess_bse(Subspace_full_eigenval, num_new_t, eps_res, num_res_unconverged, &
                               bse_spin_config, unit_nr, num_exc_en, num_Z_vectors_init, &
                               num_davidson_iter, i_iter, num_Z_vectors, num_max_z_space, max_res_norm, &
                               max_en_diff, num_en_unconverged, bse_davidson_abort_cond_string, &
@@ -487,7 +487,7 @@ CONTAINS
       CHARACTER(LEN=10)                                  :: success_abort_string
       REAL(KIND=dp)                                      :: z_space_energy_cutoff
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'success_message'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'postprocess_bse'
 
       CHARACTER(LEN=10)                                  :: multiplet
       INTEGER                                            :: handle, i
@@ -954,13 +954,13 @@ CONTAINS
       !MG to do: Check for symmetry of ZAZ!
       ALLOCATE (WORK(1))
       WORK = 0.0_dp
-      CALL DSYEV("V", "U", num_Z_vectors, ZAZ, num_Z_vectors, Subspace_full_eigenval, WORK, -1, ZAZ_diag_info)
+      CALL dsyev("V", "U", num_Z_vectors, ZAZ, num_Z_vectors, Subspace_full_eigenval, WORK, -1, ZAZ_diag_info)
       LWORK = INT(WORK(1))
       DEALLOCATE (WORK)
       ALLOCATE (WORK(LWORK))
       WORK = 0.0_dp
       !MG to check: Usage of symmetric routine okay? (Correct LWORK?)
-      CALL DSYEV("V", "U", num_Z_vectors, ZAZ, num_Z_vectors, Subspace_full_eigenval, WORK, LWORK, ZAZ_diag_info)
+      CALL dsyev("V", "U", num_Z_vectors, ZAZ, num_Z_vectors, Subspace_full_eigenval, WORK, LWORK, ZAZ_diag_info)
 
       IF (ZAZ_diag_info /= 0) THEN
          CPABORT("ZAZ could not be diagonalized successfully.")
@@ -1185,13 +1185,13 @@ CONTAINS
          !MG to do: Check for symmetry of ZAZ!
          ALLOCATE (WORK(1))
          WORK = 0.0_dp
-         CALL DSYEV("N", "U", homo*virtual, A_full_reshaped, homo*virtual, Full_exc_spectrum, WORK, -1, diag_info)
+         CALL dsyev("N", "U", homo*virtual, A_full_reshaped, homo*virtual, Full_exc_spectrum, WORK, -1, diag_info)
          LWORK = INT(WORK(1))
          DEALLOCATE (WORK)
          ALLOCATE (WORK(LWORK))
          WORK = 0.0_dp
          !MG to check: Usage of symmetric routine okay? (Correct LWORK?)
-         CALL DSYEV("N", "U", homo*virtual, A_full_reshaped, homo*virtual, Full_exc_spectrum, WORK, LWORK, diag_info)
+         CALL dsyev("N", "U", homo*virtual, A_full_reshaped, homo*virtual, Full_exc_spectrum, WORK, LWORK, diag_info)
 
          DEALLOCATE (WORK)
 

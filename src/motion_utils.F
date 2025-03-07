@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -53,7 +53,7 @@ MODULE motion_utils
 
    PRIVATE
 
-   PUBLIC :: write_trajectory, write_stress_tensor, write_simulation_cell, &
+   PUBLIC :: write_trajectory, write_stress_tensor_to_file, write_simulation_cell, &
              get_output_format, rot_ana
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'motion_utils'
@@ -522,8 +522,7 @@ CONTAINS
 !> \author  Teodoro Laino [tlaino] - University of Zurich
 !> \version 1.0
 ! **************************************************************************************************
-   SUBROUTINE write_stress_tensor(virial, cell, motion_section, itimes, time, pos, &
-                                  act)
+   SUBROUTINE write_stress_tensor_to_file(virial, cell, motion_section, itimes, time, pos, act)
 
       TYPE(virial_type), POINTER                         :: virial
       TYPE(cell_type), POINTER                           :: cell
@@ -581,7 +580,7 @@ CONTAINS
                                            "PRINT%STRESS")
       END IF
 
-   END SUBROUTINE write_stress_tensor
+   END SUBROUTINE write_stress_tensor_to_file
 
 ! **************************************************************************************************
 !> \brief   Prints the Simulation Cell

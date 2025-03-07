@@ -1,0 +1,51 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT FeCO5
+  RUN_TYPE ENERGY
+&END GLOBAL
+
+&FORCE_EVAL
+  &DFT
+    CHARGE 0
+    MULTIPLICITY 1
+    &QS
+      METHOD xTB
+      &XTB
+        DO_EWALD F
+        GFN_TYPE 0
+        VDW_POTENTIAL DFTD4
+      &END XTB
+    &END QS
+    &SCF
+      ADDED_MOS -1 -1
+      SCF_GUESS NONE
+      &SMEAR ON
+        ELECTRONIC_TEMPERATURE 300
+        METHOD Fermi_Dirac
+      &END SMEAR
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 15 15 15
+      PERIODIC NONE
+    &END CELL
+    &COORD
+      Fe      10.24064194       9.50000000       9.50000000
+      C      11.14213490       7.93856839       9.50000000
+      C      11.14213490      11.06143161       9.50000000
+      C       8.43765602       9.50000000       9.50000000
+      C      10.24064194       9.50000000      11.30352229
+      C      10.24064194       9.50000000       7.69647771
+      O      11.72192582       6.93434105       9.50000000
+      O      11.72192582      12.06565895       9.50000000
+      O       7.27807418       9.50000000       9.50000000
+      O      10.24064194       9.50000000      12.46046637
+      O      10.24064194       9.50000000       6.53953363
+    &END COORD
+    &TOPOLOGY
+      &CENTER_COORDINATES T
+      &END CENTER_COORDINATES
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL

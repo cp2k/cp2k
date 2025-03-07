@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -189,7 +189,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="EPS_FILTER", &
                           description="Filter threshold for response density matrix.", &
-                          usage="EPS 1.e-8", default_r_val=def_eps_filter)
+                          usage="EPS_FILTER 1.e-8", default_r_val=def_eps_filter)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -358,7 +358,7 @@ CONTAINS
 
          CALL keyword_create(keyword, __LOCATION__, name="LIST_OF_ATOMS", &
                              description="Specifies a list of atoms.", &
-                             usage="LIST {integer} {integer} .. {integer}", repeats=.TRUE., &
+                             usage="LIST_OF_ATOMS {integer} {integer} .. {integer}", repeats=.TRUE., &
                              n_var=-1, type_of_var=integer_t)
          CALL section_add_keyword(section, keyword)
          CALL keyword_release(keyword)
@@ -468,7 +468,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="LIST_OF_ATOMS", &
                           description="Specifies a list of atoms.", &
-                          usage="LIST {integer} {integer} .. {integer}", repeats=.TRUE., &
+                          usage="LIST_OF_ATOMS {integer} {integer} .. {integer}", repeats=.TRUE., &
                           n_var=-1, type_of_var=integer_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -520,7 +520,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="MAGNETIC_ORIGIN_REFERENCE", &
                           description="User-defined reference point of the magnetic dipole operator.", &
-                          usage="REFERENCE_POINT x y z", &
+                          usage="MAGNETIC_ORIGIN_REFERENCE x y z", &
                           repeats=.FALSE., n_var=3, type_of_var=real_t, unit_str='bohr')
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -543,7 +543,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="SPATIAL_ORIGIN_REFERENCE", &
                           description="User-defined reference point of the velocity gauge factor/spatial origin.", &
-                          usage="REFERENCE_POINT x y z", &
+                          usage="SPATIAL_ORIGIN_REFERENCE x y z", &
                           repeats=.FALSE., n_var=3, type_of_var=real_t, unit_str='bohr')
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -893,7 +893,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="ATOMS_LIST", &
                           description="list of atoms for which the shift is printed into a file ", &
-                          usage="LIST_ATOMS 1 2", n_var=-1, &
+                          usage="ATOMS_LIST 1 2", n_var=-1, &
                           type_of_var=integer_t, repeats=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
@@ -992,7 +992,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="ATOMS_LIST", &
                           description="list of atoms for which the indirect spin-spin is printed into a file ", &
-                          usage="LIST_ATOMS 1 2", n_var=-1, &
+                          usage="ATOMS_LIST 1 2", n_var=-1, &
                           type_of_var=integer_t, repeats=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
@@ -1593,6 +1593,28 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="DO_SMEARING", &
+                          description="Implying smeared occupation. ", &
+                          n_var=1, type_of_var=logical_t, &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="EXCITON_DESCRIPTORS", &
+                          description="Compute exciton descriptors. "// &
+                          "Details given in Manual section about Bethe Salpeter equation.", &
+                          n_var=1, type_of_var=logical_t, &
+                          default_l_val=.FALSE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="DIRECTIONAL_EXCITON_DESCRIPTORS", &
+                          description="Print cartesian components of exciton descriptors.", &
+                          n_var=1, type_of_var=logical_t, &
+                          default_l_val=.FALSE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       ! Strings
       CALL keyword_create(keyword, __LOCATION__, name="WFN_RESTART_FILE_NAME", &
                           variants=(/"RESTART_FILE_NAME"/), &
@@ -2037,11 +2059,14 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="GW", &
                           description="Parameters needed to set up a GW calculation for "// &
-                          "electronic level energies of molecules and the band structure of "// &
-                          "materials (currently only 2D materials tested). For the GW "// &
-                          "algorithm for molecules, see "// &
+                          "electronic level energies $\varepsilon_{n\mathbf{k}}^{G_0W_0}$ "// &
+                          "of molecules and the band structure of materials: "// &
+                          "$\varepsilon_{n\mathbf{k}}^{G_0W_0}=  "// &
+                          "\varepsilon_{n\mathbf{k}}^\text{DFT}+\Sigma_{n\mathbf{k}} "// &
+                          "-v^\text{xc}_{n\mathbf{k}}$. "// &
+                          "For the GW algorithm for molecules, see "// &
                           "<https://doi.org/10.1021/acs.jctc.0c01282>. "// &
-                          "For 2D materials, see <http://arxiv.org/abs/2306.16066>.", &
+                          "For 2D materials, see <https://doi.org/10.1021/acs.jctc.3c01230>.", &
                           n_keywords=1, n_subsections=1, repeats=.FALSE.)
 
       NULLIFY (keyword)
@@ -2130,6 +2155,32 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="SIZE_LATTICE_SUM", &
+                          description="Parameter determines how many neighbor cells $\mathbf{R}$ "// &
+                          "are used for computing "// &
+                          "$V_{PQ}(\mathbf{k}) = "// &
+                          "\sum_{\mathbf{R}} e^{i\mathbf{k}\cdot\mathbf{R}}\,\langle P, "// &
+                          "\text{cell}{=}\mathbf{0}|1/r|Q,\text{cell}{=}\mathbf{R}\rangle$. "// &
+                          "Normally, parameter does not need to be touched.", &
+                          usage="SIZE_LATTICE_SUM 4", &
+                          default_i_val=3)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
+         keyword, __LOCATION__, name="KPOINTS_W", &
+         description="Monkhorst-Pack k-point mesh of size N_x, N_y, N_z for calculating "// &
+         "$W_{PQ}^\mathbf{R}=\int_\text{BZ}\frac{d\mathbf{k}}{\Omega_\text{BZ}}\, "// &
+         "e^{-i\mathbf{k}\cdot\mathbf{R}}\,W_{PQ}(\mathbf{k})$. "// &
+         "For non-periodic directions α, choose N_α = 1. "// &
+         "Automatic choice of the k-point mesh for negative "// &
+         "values, i.e. KPOINTS_W -1 -1 -1. "// &
+         "K-point extrapolation of W is automatically switched on.", &
+         usage="KPOINTS_W N_x  N_y  N_z", &
+         n_var=3, type_of_var=integer_t, default_i_vals=(/-1, -1, -1/))
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="HEDIN_SHIFT", &
                           description="If true, use Hedin's shift in G0W0, evGW and evGW0. "// &
                           "Details see in Li et al. JCTC 18, 7570 "// &
@@ -2139,6 +2190,28 @@ CONTAINS
                           usage="HEDIN_SHIFT", &
                           default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="FREQ_MAX_FIT", &
+                          description="For analytic continuation, a fit on Σ(iω) is performed. "// &
+                          "This fit is then evaluated at a real frequency, Σ(ω), which is used "// &
+                          "in the quasiparticle equation "// &
+                          "$\varepsilon_{n\mathbf{k}}^{G_0W_0}=  "// &
+                          "\varepsilon_{n\mathbf{k}}^\text{DFT}+\Sigma_{n\mathbf{k}} "// &
+                          "-v^\text{xc}_{n\mathbf{k}}$. The keyword FREQ_MAX_FIT "// &
+                          "determines fitting range for the self-energy Σ(iω) on "// &
+                          "imaginary axis: i*[0, ω_max] for empty orbitals/bands, i*[-ω_max,0] "// &
+                          "for occ orbitals. A smaller ω_max might lead to better numerical "// &
+                          "stability (i.e., if you observe clearly wrong GW eigenvalues/bands "// &
+                          "around HOMO/LUMO, decreasing ω_max might fix this issue). "// &
+                          "A small benchmark of ω_max is contained in Fig. 5 of "// &
+                          "J. Wilhelm et al., JCTC 12, 3623-3635 (2016). "// &
+                          "Note that we used ω_max = 1 Ha = 27.211 eV in the benchmark "// &
+                          "M. Azizi et al., PRB 109, 245101 (2024).", &
+                          unit_str="eV", &
+                          usage="FREQ_MAX_FIT 20.0", &
+                          default_r_val=cp_unit_to_cp2k(value=10.0_dp, unit_str="eV"))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -2270,7 +2343,7 @@ CONTAINS
          "the density of states (DOS). In GW, the KPOINT_DOS mesh is thus used as k-point "// &
          "mesh for the self-energy. For non-periodic directions α, choose N_α = 1. "// &
          "Automatic choice of the k-point mesh for negative "// &
-         "values, e.g. KPOINTS_DOS -1 -1 -1 (automatic choice: N_α = 1 in non-periodic "// &
+         "values, i.e. KPOINTS_DOS -1 -1 -1 (automatic choice: N_α = 1 in non-periodic "// &
          "direction, 8 k-points in periodic direction). If you like to compute a "// &
          "band structure along a k-path, you can specify the k-path in "// &
          "&KPOINT_SET.", &

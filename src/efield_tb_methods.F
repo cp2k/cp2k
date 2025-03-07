@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -92,10 +92,15 @@ CONTAINS
       CALL get_qs_env(qs_env, dft_control=dft_control)
       IF (dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb) THEN
          IF (dft_control%apply_period_efield) THEN
-            IF (dft_control%period_efield%displacement_field) THEN
-               CALL dfield_tb_berry(qs_env, ks_matrix, rho, mcharge, energy, calculate_forces, just_energy)
-            ELSE
-               CALL efield_tb_berry(qs_env, ks_matrix, rho, mcharge, energy, calculate_forces, just_energy)
+            ! check if the periodic efield should be applied in the current step
+            IF (dft_control%period_efield%start_frame <= qs_env%sim_step .AND. &
+                (dft_control%period_efield%end_frame == -1 .OR. dft_control%period_efield%end_frame >= qs_env%sim_step)) THEN
+
+               IF (dft_control%period_efield%displacement_field) THEN
+                  CALL dfield_tb_berry(qs_env, ks_matrix, rho, mcharge, energy, calculate_forces, just_energy)
+               ELSE
+                  CALL efield_tb_berry(qs_env, ks_matrix, rho, mcharge, energy, calculate_forces, just_energy)
+               END IF
             END IF
          ELSE IF (dft_control%apply_efield) THEN
             CALL efield_tb_local(qs_env, ks_matrix, rho, mcharge, energy, calculate_forces, just_energy)
@@ -130,9 +135,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'efield_tb_local'
 
-      INTEGER                                            :: atom_a, atom_b, blk, handle, ia, icol, &
-                                                            idir, ikind, irow, ispin, jkind, &
-                                                            natom, nspin
+      INTEGER                                            :: atom_a, atom_b, handle, ia, icol, idir, &
+                                                            ikind, irow, ispin, jkind, natom, nspin
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       LOGICAL                                            :: do_kpoints, found, use_virial
       REAL(dp)                                           :: charge, fdir
@@ -205,7 +209,7 @@ CONTAINS
          CALL dbcsr_iterator_start(iter, matrix_s(1)%matrix)
          DO WHILE (dbcsr_iterator_blocks_left(iter))
             NULLIFY (ks_block, s_block, p_block)
-            CALL dbcsr_iterator_next_block(iter, irow, icol, s_block, blk)
+            CALL dbcsr_iterator_next_block(iter, irow, icol, s_block)
             ria = particle_set(irow)%r
             ria = pbc(ria, cell)
             rib = particle_set(icol)%r
@@ -278,15 +282,15 @@ CONTAINS
 
       COMPLEX(KIND=dp)                                   :: zdeta
       COMPLEX(KIND=dp), DIMENSION(3)                     :: zi(3)
-      INTEGER                                            :: atom_a, atom_b, blk, handle, ia, iac, &
-                                                            iatom, ic, icol, idir, ikind, irow, &
-                                                            is, ispin, jatom, jkind, natom, nimg, &
+      INTEGER                                            :: atom_a, atom_b, handle, ia, iac, iatom, &
+                                                            ic, icol, idir, ikind, irow, is, &
+                                                            ispin, jatom, jkind, natom, nimg, &
                                                             nkind, nspin
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       INTEGER, DIMENSION(3)                              :: cellind
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: found, use_virial
-      REAL(KIND=dp)                                      :: charge, dd, dr, fdir, fi
+      REAL(KIND=dp)                                      :: charge, dd, dr, fdir, fi, strength
       REAL(KIND=dp), DIMENSION(3)                        :: fieldpol, fij, forcea, fpolvec, kvec, &
                                                             qi, rab, ria, rib, rij
       REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
@@ -322,9 +326,16 @@ CONTAINS
       use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
       use_virial = use_virial .AND. calculate_forces
 
+      ! if an intensities list is given, select the value for the current step
+      strength = dft_control%period_efield%strength
+      IF (ALLOCATED(dft_control%period_efield%strength_list)) THEN
+         strength = dft_control%period_efield%strength_list(MOD(qs_env%sim_step &
+                                        - dft_control%period_efield%start_frame, SIZE(dft_control%period_efield%strength_list)) + 1)
+      END IF
+
       fieldpol = dft_control%period_efield%polarisation
       fieldpol = fieldpol/SQRT(DOT_PRODUCT(fieldpol, fieldpol))
-      fieldpol = -fieldpol*dft_control%period_efield%strength
+      fieldpol = -fieldpol*strength
       hmat = cell%hmat(:, :)/twopi
       DO idir = 1, 3
          fpolvec(idir) = fieldpol(1)*hmat(1, idir) + fieldpol(2)*hmat(2, idir) + fieldpol(3)*hmat(3, idir)
@@ -345,7 +356,7 @@ CONTAINS
          END DO
       END DO
       qi = AIMAG(LOG(zi))
-      energy%efield = -SUM(fpolvec(:)*qi(:))
+      energy%efield = SUM(fpolvec(:)*qi(:))
 
       IF (.NOT. just_energy) THEN
          CALL get_qs_env(qs_env=qs_env, matrix_s_kp=matrix_s)
@@ -364,7 +375,7 @@ CONTAINS
             CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind, kind_of=kind_of)
             IF (para_env%mepos == 0) THEN
                DO ia = 1, natom
-                  charge = -mcharge(ia)
+                  charge = mcharge(ia)
                   iatom = atom_of_kind(ia)
                   ikind = kind_of(ia)
                   force(ikind)%efield(:, iatom) = fieldpol(:)*charge
@@ -389,7 +400,7 @@ CONTAINS
             ! no k-points; all matrices have been transformed to periodic bsf
             CALL dbcsr_iterator_start(iter, matrix_s(1, 1)%matrix)
             DO WHILE (dbcsr_iterator_blocks_left(iter))
-               CALL dbcsr_iterator_next_block(iter, irow, icol, s_block, blk)
+               CALL dbcsr_iterator_next_block(iter, irow, icol, s_block)
 
                fdir = 0.0_dp
                ria = particle_set(irow)%r
@@ -409,9 +420,9 @@ CONTAINS
                   CALL dbcsr_get_block_p(matrix=ks_matrix(is, 1)%matrix, &
                                          row=irow, col=icol, block=ks_block, found=found)
                   CPASSERT(found)
-                  ks_block = ks_block + 0.5_dp*fdir*s_block
+                  ks_block = ks_block - 0.5_dp*fdir*s_block
                END DO
-               IF (calculate_forces) THEN
+               IF (calculate_forces .AND. irow /= icol) THEN
                   ikind = kind_of(irow)
                   jkind = kind_of(icol)
                   atom_a = atom_of_kind(irow)
@@ -425,7 +436,7 @@ CONTAINS
                         CALL dbcsr_get_block_p(matrix=matrix_s(idir + 1, 1)%matrix, &
                                                row=irow, col=icol, BLOCK=ds_block, found=found)
                         CPASSERT(found)
-                        fij(idir) = fij(idir) + SUM(p_block*ds_block)
+                        fij(idir) = fij(idir) - SUM(p_block*ds_block)
                      END DO
                   END DO
                   force(ikind)%efield(1:3, atom_a) = force(ikind)%efield(1:3, atom_a) + fdir*fij(1:3)
@@ -471,10 +482,10 @@ CONTAINS
                                  kvec(:) = twopi*cell%h_inv(idir, :)
                                  dd = SUM(kvec(:)*ria(:))
                                  zdeta = CMPLX(COS(dd), SIN(dd), KIND=dp)
-                                 fdir = fdir + fpolvec(idir)*AIMAG(LOG(zdeta))
+                                 fdir = fdir - fpolvec(idir)*AIMAG(LOG(zdeta))
                                  dd = SUM(kvec(:)*rib(:))
                                  zdeta = CMPLX(COS(dd), SIN(dd), KIND=dp)
-                                 fdir = fdir + fpolvec(idir)*AIMAG(LOG(zdeta))
+                                 fdir = fdir - fpolvec(idir)*AIMAG(LOG(zdeta))
                               END DO
                               fi = 1.0_dp
                               IF (iatom == jatom) fi = 0.5_dp
@@ -535,7 +546,7 @@ CONTAINS
                   CALL dbcsr_get_block_p(matrix=ks_matrix(is, ic)%matrix, &
                                          row=irow, col=icol, block=ks_block, found=found)
                   CPASSERT(found)
-                  ks_block = ks_block + 0.5_dp*fdir*s_block
+                  ks_block = ks_block - 0.5_dp*fdir*s_block
                END DO
                IF (calculate_forces) THEN
                   atom_a = atom_of_kind(iatom)
@@ -549,7 +560,7 @@ CONTAINS
                         CALL dbcsr_get_block_p(matrix=matrix_s(idir + 1, ic)%matrix, &
                                                row=irow, col=icol, BLOCK=ds_block, found=found)
                         CPASSERT(found)
-                        fij(idir) = fij(idir) + SUM(p_block*ds_block)
+                        fij(idir) = fij(idir) - SUM(p_block*ds_block)
                      END DO
                   END DO
                   IF (irow == iatom) fij = -fij
@@ -602,15 +613,15 @@ CONTAINS
 
       COMPLEX(KIND=dp)                                   :: zdeta
       COMPLEX(KIND=dp), DIMENSION(3)                     :: zi(3)
-      INTEGER                                            :: atom_a, atom_b, blk, handle, i, ia, &
-                                                            iatom, ic, icol, idir, ikind, irow, &
-                                                            is, ispin, jatom, jkind, natom, nimg, &
-                                                            nspin
+      INTEGER                                            :: atom_a, atom_b, handle, i, ia, iatom, &
+                                                            ic, icol, idir, ikind, irow, is, &
+                                                            ispin, jatom, jkind, natom, nimg, nspin
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       INTEGER, DIMENSION(3)                              :: cellind
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: found, use_virial
-      REAL(KIND=dp)                                      :: charge, dd, ener_field, fdir, omega
+      REAL(KIND=dp)                                      :: charge, dd, ener_field, fdir, omega, &
+                                                            strength
       REAL(KIND=dp), DIMENSION(3)                        :: ci, cqi, dfilter, di, fieldpol, fij, &
                                                             hdi, kvec, qi, rab, ria, rib
       REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat
@@ -655,9 +666,16 @@ CONTAINS
 
       dfilter(1:3) = dft_control%period_efield%d_filter(1:3)
 
+      ! if an intensities list is given, select the value for the current step
+      strength = dft_control%period_efield%strength
+      IF (ALLOCATED(dft_control%period_efield%strength_list)) THEN
+         strength = dft_control%period_efield%strength_list(MOD(qs_env%sim_step &
+                                        - dft_control%period_efield%start_frame, SIZE(dft_control%period_efield%strength_list)) + 1)
+      END IF
+
       fieldpol = dft_control%period_efield%polarisation
       fieldpol = fieldpol/SQRT(DOT_PRODUCT(fieldpol, fieldpol))
-      fieldpol = fieldpol*dft_control%period_efield%strength
+      fieldpol = fieldpol*strength
 
       omega = cell%deth
       hmat = cell%hmat(:, :)/twopi
@@ -750,7 +768,7 @@ CONTAINS
             ! no k-points; all matrices have been transformed to periodic bsf
             CALL dbcsr_iterator_start(iter, matrix_s(1, 1)%matrix)
             DO WHILE (dbcsr_iterator_blocks_left(iter))
-               CALL dbcsr_iterator_next_block(iter, irow, icol, s_block, blk)
+               CALL dbcsr_iterator_next_block(iter, irow, icol, s_block)
 
                DO idir = 1, 3
                   hdi(idir) = -SUM(di(1:3)*hmat(1:3, idir))

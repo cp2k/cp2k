@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -2980,6 +2980,7 @@ CONTAINS
       SELECT CASE (nel)
       CASE DEFAULT
          CPABORT("Unknown Core State")
+      CASE (0)
       CASE (2)
          potential%econf(0:3) = potential%econf(0:3) - ptable(2)%e_conv(0:3)
       CASE (10)

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -133,7 +133,8 @@ CONTAINS
       !
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_p_env_type)                                :: p_env
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: c0, Av
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: c0
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: Av
 
       INTEGER                                            :: ispin, ncol
       TYPE(dft_control_type), POINTER                    :: dft_control

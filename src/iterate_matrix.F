@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -11,17 +11,22 @@
 !> \author Joost VandeVondele
 ! **************************************************************************************************
 MODULE iterate_matrix
-   USE arnoldi_api,                     ONLY: arnoldi_data_type,&
+   USE arnoldi_api,                     ONLY: arnoldi_env_type,&
                                               arnoldi_extremal
    USE bibliography,                    ONLY: Richters2018,&
                                               cite_reference
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, &
-        dbcsr_distribution_get, dbcsr_distribution_type, dbcsr_filter, dbcsr_frobenius_norm, &
-        dbcsr_gershgorin_norm, dbcsr_get_diag, dbcsr_get_info, dbcsr_get_matrix_type, &
-        dbcsr_get_occupation, dbcsr_multiply, dbcsr_norm, dbcsr_norm_maxabsnorm, dbcsr_p_type, &
-        dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_set_diag, dbcsr_trace, dbcsr_transposed, &
-        dbcsr_type, dbcsr_type_no_symmetry
+        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, dbcsr_distribution_get, &
+        dbcsr_distribution_type, dbcsr_filter, dbcsr_get_info, dbcsr_get_matrix_type, &
+        dbcsr_get_occupation, dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_scale, dbcsr_set, &
+        dbcsr_transposed, dbcsr_type, dbcsr_type_no_symmetry
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_add_on_diag,&
+                                              dbcsr_frobenius_norm,&
+                                              dbcsr_gershgorin_norm,&
+                                              dbcsr_get_diag,&
+                                              dbcsr_maxabs,&
+                                              dbcsr_set_diag,&
+                                              dbcsr_trace
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
@@ -118,9 +123,7 @@ CONTAINS
       ! compute the product of the diagonal elements
       BLOCK
          TYPE(mp_comm_type) :: group
-         INTEGER :: group_handle
-         CALL dbcsr_get_info(matrix, nfullrows_total=nsize, group=group_handle)
-         CALL group%set_handle(group_handle)
+         CALL dbcsr_get_info(matrix, nfullrows_total=nsize, group=group)
          ALLOCATE (diagonal(nsize))
          CALL dbcsr_get_diag(matrix, diagonal)
          CALL group%sum(diagonal)
@@ -217,8 +220,7 @@ CONTAINS
             det = det*EXP(trace)
 
             occ_matrix = dbcsr_get_occupation(tmp1)
-            CALL dbcsr_norm(tmp1, &
-                            dbcsr_norm_maxabsnorm, norm_scalar=maxnorm)
+            maxnorm = dbcsr_maxabs(tmp1)
 
             t2 = m_walltime()
 
@@ -393,8 +395,7 @@ CONTAINS
          CALL dbcsr_desymmetrize(tmp3_sym, tmp1)
 
          ! for the convergence check
-         CALL dbcsr_norm(tmp3_sym, &
-                         dbcsr_norm_maxabsnorm, norm_scalar=maxnorm_matrix)
+         maxnorm_matrix = dbcsr_maxabs(tmp3_sym)
 
          t2 = m_walltime()
          occ_matrix = dbcsr_get_occupation(matrix_inverse)
@@ -420,7 +421,7 @@ CONTAINS
                           filter_eps=filter_eps)
       CALL dbcsr_add_on_diag(tmp1, -1.0_dp)
       !frob_matrix =  dbcsr_frobenius_norm(tmp1)
-      CALL dbcsr_norm(tmp1, dbcsr_norm_maxabsnorm, norm_scalar=maxnorm_matrix)
+      maxnorm_matrix = dbcsr_maxabs(tmp1)
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T6,A,E12.5)') "Final Taylor error", maxnorm_matrix
          WRITE (unit_nr, '()')
@@ -490,7 +491,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_type), TARGET                           :: tmp1, tmp2
 
-      !TYPE(arnoldi_data_type)                            :: my_arnoldi
+      !TYPE(arnoldi_env_type)                            :: arnoldi_env
       !TYPE(dbcsr_p_type), DIMENSION(1)                   :: mymat
 
       CALL timeset(routineN, handle)
@@ -567,12 +568,12 @@ CONTAINS
          CALL arnoldi_extremal(tmp1, max_eV, min_eV, threshold=my_eps_lanczos, &
                                max_iter=my_max_iter_lanczos, converged=arnoldi_converged)
          !mymat(1)%matrix => tmp1
-         !CALL setup_arnoldi_data(my_arnoldi, mymat, max_iter=30, threshold=1.0E-3_dp, selection_crit=1, &
+         !CALL setup_arnoldi_env(arnoldi_env, mymat, max_iter=30, threshold=1.0E-3_dp, selection_crit=1, &
          !                        nval_request=2, nrestarts=2, generalized_ev=.FALSE., iram=.TRUE.)
-         !CALL arnoldi_ev(mymat, my_arnoldi)
-         !max_eV = REAL(get_selected_ritz_val(my_arnoldi, 2), dp)
-         !min_eV = REAL(get_selected_ritz_val(my_arnoldi, 1), dp)
-         !CALL deallocate_arnoldi_data(my_arnoldi)
+         !CALL arnoldi_ev(mymat, arnoldi_env)
+         !max_eV = REAL(get_selected_ritz_val(arnoldi_env, 2), dp)
+         !min_eV = REAL(get_selected_ritz_val(arnoldi_env, 1), dp)
+         !CALL deallocate_arnoldi_env(arnoldi_env)
 
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, *)
@@ -597,8 +598,7 @@ CONTAINS
 
          ! for the convergence check
          CALL dbcsr_add_on_diag(tmp1, -1.0_dp)
-         CALL dbcsr_norm(tmp1, &
-                         dbcsr_norm_maxabsnorm, norm_scalar=maxnorm_matrix)
+         maxnorm_matrix = dbcsr_maxabs(tmp1)
          CALL dbcsr_add_on_diag(tmp1, +1.0_dp)
 
          ! tmp2 = S^-1 S S^-1
@@ -672,16 +672,17 @@ CONTAINS
 !> \param matrix ...
 !> \param threshold ...
 !> \param sign_order ...
+!> \param iounit ...
 !> \par History
 !>       2010.10 created [Joost VandeVondele]
 !>       2019.05 extended to order byxond 2 [Robert Schade]
 !> \author Joost VandeVondele, Robert Schade
 ! **************************************************************************************************
-   SUBROUTINE matrix_sign_Newton_Schulz(matrix_sign, matrix, threshold, sign_order)
+   SUBROUTINE matrix_sign_Newton_Schulz(matrix_sign, matrix, threshold, sign_order, iounit)
 
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_sign, matrix
       REAL(KIND=dp), INTENT(IN)                          :: threshold
-      INTEGER, INTENT(IN), OPTIONAL                      :: sign_order
+      INTEGER, INTENT(IN), OPTIONAL                      :: sign_order, iounit
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'matrix_sign_Newton_Schulz'
 
@@ -696,11 +697,15 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      logger => cp_get_default_logger()
-      IF (logger%para_env%is_source()) THEN
-         unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
+      IF (PRESENT(iounit)) THEN
+         unit_nr = iounit
       ELSE
-         unit_nr = -1
+         logger => cp_get_default_logger()
+         IF (logger%para_env%is_source()) THEN
+            unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
+         ELSE
+            unit_nr = -1
+         END IF
       END IF
 
       IF (PRESENT(sign_order)) THEN
@@ -1059,8 +1064,6 @@ CONTAINS
       symmetrize = .FALSE.
       CALL matrix_sqrt_proot(matrix_sqrt, matrix_sqrt_inv, matrix2, threshold, order, &
                              0.01_dp, 100, symmetrize, converged)
-!      call matrix_sqrt_Newton_Schulz(matrix_sqrt, matrix_sqrt_inv, matrix2, threshold, order, &
-!                                        0.01_dp,100, symmetrize,converged)
 
       CALL dbcsr_multiply("N", "N", 1.0_dp, matrix, matrix_sqrt_inv, 0.0_dp, matrix_sign, &
                           filter_eps=threshold, flop=flop1)
@@ -1367,8 +1370,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'matrix_sign_submatrix'
 
-      INTEGER                                            :: group, handle, i, myrank, nblkcols, &
-                                                            order, sm_size, unit_nr
+      INTEGER                                            :: handle, i, myrank, nblkcols, order, &
+                                                            sm_size, unit_nr
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: my_sms
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: sm, sm_sign
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -1387,7 +1390,7 @@ CONTAINS
          order = 2
       END IF
 
-      CALL dbcsr_get_info(matrix=matrix, nblkcols_total=nblkcols, distribution=dist, group=group)
+      CALL dbcsr_get_info(matrix=matrix, nblkcols_total=nblkcols, distribution=dist)
       CALL dbcsr_distribution_get(dist=dist, mynode=myrank)
 
       CALL dissection%init(matrix)
@@ -1446,9 +1449,9 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'matrix_sign_submatrix_mu_adjust'
       REAL(KIND=dp), PARAMETER                           :: initial_increment = 0.01_dp
 
-      INTEGER                                            :: group_handle, handle, i, j, myrank, &
-                                                            nblkcols, sm_firstcol, sm_lastcol, &
-                                                            sm_size, unit_nr
+      INTEGER                                            :: handle, i, j, myrank, nblkcols, &
+                                                            sm_firstcol, sm_lastcol, sm_size, &
+                                                            unit_nr
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: my_sms
       LOGICAL                                            :: has_mu_high, has_mu_low
       REAL(KIND=dp)                                      :: increment, mu_high, mu_low, new_mu, trace
@@ -1465,10 +1468,8 @@ CONTAINS
       logger => cp_get_default_logger()
       unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
 
-      CALL dbcsr_get_info(matrix=matrix, nblkcols_total=nblkcols, distribution=dist, group=group_handle)
+      CALL dbcsr_get_info(matrix=matrix, nblkcols_total=nblkcols, distribution=dist, group=group)
       CALL dbcsr_distribution_get(dist=dist, mynode=myrank)
-
-      CALL group%set_handle(group_handle)
 
       CALL dissection%init(matrix)
       CALL dissection%get_sm_ids_for_rank(myrank, my_sms)
@@ -1615,18 +1616,20 @@ CONTAINS
 !> \param max_iter_lanczos ...
 !> \param symmetrize ...
 !> \param converged ...
+!> \param iounit ...
 !> \par History
 !>       2010.10 created [Joost VandeVondele]
 !> \author Joost VandeVondele
 ! **************************************************************************************************
    SUBROUTINE matrix_sqrt_Newton_Schulz(matrix_sqrt, matrix_sqrt_inv, matrix, threshold, order, &
-                                        eps_lanczos, max_iter_lanczos, symmetrize, converged)
+                                        eps_lanczos, max_iter_lanczos, symmetrize, converged, iounit)
       TYPE(dbcsr_type), INTENT(INOUT)                    :: matrix_sqrt, matrix_sqrt_inv, matrix
       REAL(KIND=dp), INTENT(IN)                          :: threshold
       INTEGER, INTENT(IN)                                :: order
       REAL(KIND=dp), INTENT(IN)                          :: eps_lanczos
       INTEGER, INTENT(IN)                                :: max_iter_lanczos
       LOGICAL, OPTIONAL                                  :: symmetrize, converged
+      INTEGER, INTENT(IN), OPTIONAL                      :: iounit
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'matrix_sqrt_Newton_Schulz'
 
@@ -1642,11 +1645,15 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      logger => cp_get_default_logger()
-      IF (logger%para_env%is_source()) THEN
-         unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
+      IF (PRESENT(iounit)) THEN
+         unit_nr = iounit
       ELSE
-         unit_nr = -1
+         logger => cp_get_default_logger()
+         IF (logger%para_env%is_source()) THEN
+            unit_nr = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
+         ELSE
+            unit_nr = -1
+         END IF
       END IF
 
       IF (PRESENT(converged)) converged = .FALSE.
@@ -2140,14 +2147,14 @@ CONTAINS
 
       !   write(*,*)
       !   write(*,*)
-      !   CALL dbcsr_print(D, nodata=.FALSE., matlab_format=.TRUE., variable_name="D", unit_nr=6)
+      !   CALL dbcsr_print(D, variable_name="D")
 
       ! set the B matrix as B=Identity+D
       CALL dbcsr_create(B, template=matrix, matrix_type=dbcsr_type_no_symmetry)
       CALL dbcsr_copy(B, D)
-      CALL dbcsr_add_on_diag(B, alpha_scalar=one)
+      CALL dbcsr_add_on_diag(B, alpha=one)
 
-      !   CALL dbcsr_print(B, nodata=.FALSE., matlab_format=.TRUE., variable_name="B", unit_nr=6)
+      !   CALL dbcsr_print(B, variable_name="B")
 
       ! Calculate the norm of C and moltiply by toll to be used as a threshold
       norm_C = toll*dbcsr_frobenius_norm(matrix)

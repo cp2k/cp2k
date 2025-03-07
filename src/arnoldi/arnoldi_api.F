@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -9,18 +9,19 @@
 !> \brief arnoldi iteration using dbcsr
 !> \par History
 !>       2014.09 created [Florian Schiffmann]
+!>       2023.12 Removed support for single-precision [Ole Schuett]
+!>       2024.12 Removed support for complex input matrices [Ole Schuett]
 !> \author Florian Schiffmann
 ! **************************************************************************************************
-
 MODULE arnoldi_api
    USE arnoldi_data_methods,            ONLY: arnoldi_is_converged,&
-                                              deallocate_arnoldi_data,&
+                                              deallocate_arnoldi_env,&
                                               get_nrestart,&
                                               get_selected_ritz_val,&
                                               get_selected_ritz_vector,&
                                               select_evals,&
                                               set_arnoldi_initial_vector,&
-                                              setup_arnoldi_data
+                                              setup_arnoldi_env
    USE arnoldi_methods,                 ONLY: arnoldi_init,&
                                               arnoldi_iram,&
                                               build_subspace,&
@@ -29,17 +30,17 @@ MODULE arnoldi_api
                                               gev_build_subspace,&
                                               gev_update_data
    USE arnoldi_types,                   ONLY: arnoldi_control_type,&
-                                              arnoldi_data_type,&
+                                              arnoldi_env_type,&
                                               get_control,&
                                               m_x_v_vectors_type
+   USE arnoldi_vector,                  ONLY: create_col_vec_from_matrix,&
+                                              create_replicated_col_vec_from_matrix,&
+                                              create_replicated_row_vec_from_matrix,&
+                                              dbcsr_matrix_colvec_multiply
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_get_block_p, dbcsr_get_info, dbcsr_iterator_blocks_left, &
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
         dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type
-   USE dbcsr_vector,                    ONLY: create_col_vec_from_matrix,&
-                                              create_replicated_col_vec_from_matrix,&
-                                              create_replicated_row_vec_from_matrix,&
-                                              dbcsr_matrix_colvec_multiply
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_comm_type
 #include "../base/base_uses.f90"
@@ -51,7 +52,7 @@ MODULE arnoldi_api
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'arnoldi_api'
 
    PUBLIC :: arnoldi_ev, arnoldi_extremal, arnoldi_conjugate_gradient
-   PUBLIC :: arnoldi_data_type, setup_arnoldi_data, deallocate_arnoldi_data
+   PUBLIC :: arnoldi_env_type, setup_arnoldi_env, deallocate_arnoldi_env
    PUBLIC :: set_arnoldi_initial_vector
    PUBLIC :: get_selected_ritz_val, get_selected_ritz_vector
 
@@ -62,21 +63,20 @@ CONTAINS
 !>        the selection which one is to be taken is made beforehand in the
 !>        setup call passing the generalized_ev flag or not
 !> \param matrix ...
-!> \param arnoldi_data ...
+!> \param arnoldi_env ...
 ! **************************************************************************************************
-
-   SUBROUTINE arnoldi_ev(matrix, arnoldi_data)
+   SUBROUTINE arnoldi_ev(matrix, arnoldi_env)
       TYPE(dbcsr_p_type), DIMENSION(:)                   :: matrix
-      TYPE(arnoldi_data_type)                            :: arnoldi_data
+      TYPE(arnoldi_env_type)                             :: arnoldi_env
 
       TYPE(arnoldi_control_type), POINTER                :: control
 
-      control => get_control(arnoldi_data)
+      control => get_control(arnoldi_env)
 
       IF (control%generalized_ev) THEN
-         CALL arnoldi_generalized_ev(matrix, arnoldi_data)
+         CALL arnoldi_generalized_ev(matrix, arnoldi_env)
       ELSE
-         CALL arnoldi_normal_ev(matrix, arnoldi_data)
+         CALL arnoldi_normal_ev(matrix, arnoldi_env)
       END IF
 
    END SUBROUTINE arnoldi_ev
@@ -90,15 +90,15 @@ CONTAINS
 !>        the calculation. On output it contains all data
 !> \param matrix a pointer array to dbcsr_matrices. Multiplication order is as
 !>        described above
-!> \param arnoldi_data On input data_type contains all information to start/restart
+!> \param arnoldi_env On input data_type contains all information to start/restart
 !>                     an arnoldi iteration
 !>                     On output all data areas are filled to allow arbitrary post
 !>                     processing of the created subspace
-!>                     arnoldi_data has to be created with setup_arnoldi_data
+!>                     arnoldi_env has to be created with setup_arnoldi_env
 ! **************************************************************************************************
-   SUBROUTINE arnoldi_normal_ev(matrix, arnoldi_data)
+   SUBROUTINE arnoldi_normal_ev(matrix, arnoldi_env)
       TYPE(dbcsr_p_type), DIMENSION(:)                   :: matrix
-      TYPE(arnoldi_data_type)                            :: arnoldi_data
+      TYPE(arnoldi_env_type)                             :: arnoldi_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'arnoldi_normal_ev'
 
@@ -110,46 +110,46 @@ CONTAINS
       NULLIFY (restart_vec)
       CALL timeset(routineN, handle)
 
-!prepare the vector like matrives needed in the matrix vector products, they will be reused throughout the iterations
+      !prepare the vector like matrives needed in the matrix vector products, they will be reused throughout the iterations
       CALL create_col_vec_from_matrix(vectors%input_vec, matrix(1)%matrix, 1)
       CALL dbcsr_copy(vectors%result_vec, vectors%input_vec)
       CALL create_replicated_col_vec_from_matrix(vectors%rep_col_vec, matrix(1)%matrix, 1)
       CALL create_replicated_row_vec_from_matrix(vectors%rep_row_vec, matrix(1)%matrix, 1)
 
-! Tells whether we have local data available on the processor (usually all in pcol 0 but even there can be some without data)
-      control => get_control(arnoldi_data)
+      ! Tells whether we have local data available on the processor (usually all in pcol 0 but even there can be some without data)
+      control => get_control(arnoldi_env)
       CALL dbcsr_get_info(matrix=vectors%input_vec, nfullrows_local=nrow_local, nfullcols_local=ncol_local)
       control%local_comp = ncol_local > 0 .AND. nrow_local > 0
 
-      DO i_loop = 0, get_nrestart(arnoldi_data)
+      DO i_loop = 0, get_nrestart(arnoldi_env)
 
          IF (.NOT. control%iram .OR. i_loop == 0) THEN
-! perform the standard arnoldi, if restarts are requested use the first (only makes sense if 1ev is requested)
-            IF (ASSOCIATED(restart_vec)) CALL set_arnoldi_initial_vector(arnoldi_data, restart_vec)
-            CALL arnoldi_init(matrix, vectors, arnoldi_data)
+            ! perform the standard arnoldi, if restarts are requested use the first (only makes sense if 1ev is requested)
+            IF (ASSOCIATED(restart_vec)) CALL set_arnoldi_initial_vector(arnoldi_env, restart_vec)
+            CALL arnoldi_init(matrix, vectors, arnoldi_env)
          ELSE
-! perform an implicit restart
-            CALL arnoldi_iram(arnoldi_data)
+            ! perform an implicit restart
+            CALL arnoldi_iram(arnoldi_env)
          END IF
 
-! Generate the subspace
-         CALL build_subspace(matrix, vectors, arnoldi_data)
+         ! Generate the subspace
+         CALL build_subspace(matrix, vectors, arnoldi_env)
 
-! If we reached the maximum number of steps or the subspace converged we still need to get the eigenvalues
-         CALL compute_evals(arnoldi_data)
+         ! If we reached the maximum number of steps or the subspace converged we still need to get the eigenvalues
+         CALL compute_evals(arnoldi_env)
 
-! Select the evals according to user selection and keep them in arnoldi_data
-         CALL select_evals(arnoldi_data)
+         ! Select the evals according to user selection and keep them in arnoldi_env
+         CALL select_evals(arnoldi_env)
 
-! Prepare for a restart with the best eigenvector not needed in case of iram but who cares
+         ! Prepare for a restart with the best eigenvector not needed in case of iram but who cares
          IF (.NOT. ASSOCIATED(restart_vec)) ALLOCATE (restart_vec)
-         CALL get_selected_ritz_vector(arnoldi_data, 1, matrix(1)%matrix, restart_vec)
+         CALL get_selected_ritz_vector(arnoldi_env, 1, matrix(1)%matrix, restart_vec)
 
-! Check whether we can already go home
+         ! Check whether we can already go home
          IF (control%converged) EXIT
       END DO
 
-! Deallocated the work vectors
+      ! Deallocated the work vectors
       CALL dbcsr_release(vectors%input_vec)
       CALL dbcsr_release(vectors%result_vec)
       CALL dbcsr_release(vectors%rep_col_vec)
@@ -170,15 +170,15 @@ CONTAINS
 !>        (flag in dbcsr does not need to be set)
 !> \param matrix a pointer array to dbcsr_matrices. Multiplication order is as
 !>        described above
-!> \param arnoldi_data On input data_type contains all information to start/restart
+!> \param arnoldi_env On input data_type contains all information to start/restart
 !>                     an arnoldi iteration
 !>                     On output all data areas are filled to allow arbitrary post
 !>                     processing of the created subspace
-!>                     arnoldi_data has to be created with setup_arnoldi_data
+!>                     arnoldi_env has to be created with setup_arnoldi_env
 ! **************************************************************************************************
-   SUBROUTINE arnoldi_generalized_ev(matrix, arnoldi_data)
+   SUBROUTINE arnoldi_generalized_ev(matrix, arnoldi_env)
       TYPE(dbcsr_p_type), DIMENSION(:)                   :: matrix
-      TYPE(arnoldi_data_type)                            :: arnoldi_data
+      TYPE(arnoldi_env_type)                             :: arnoldi_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'arnoldi_generalized_ev'
 
@@ -194,40 +194,40 @@ CONTAINS
       matrix_arnoldi(1)%matrix => A_rho_B
       matrix_arnoldi(2)%matrix => matrix(2)%matrix
 
-!prepare the vector like matrives needed in the matrix vector products, they will be reused throughout the iterations
+      ! prepare the vector like matrives needed in the matrix vector products, they will be reused throughout the iterations
       CALL create_col_vec_from_matrix(vectors%input_vec, matrix(1)%matrix, 1)
       CALL dbcsr_copy(vectors%result_vec, vectors%input_vec)
       CALL create_replicated_col_vec_from_matrix(vectors%rep_col_vec, matrix(1)%matrix, 1)
       CALL create_replicated_row_vec_from_matrix(vectors%rep_row_vec, matrix(1)%matrix, 1)
 
-! Tells whether we have local data available on the processor (usually all in pcol 0 but even there can be some without data)
-      control => get_control(arnoldi_data)
+      ! Tells whether we have local data available on the processor (usually all in pcol 0 but even there can be some without data)
+      control => get_control(arnoldi_env)
       CALL dbcsr_get_info(matrix=vectors%input_vec, nfullrows_local=nrow_local, nfullcols_local=ncol_local)
       control%local_comp = ncol_local > 0 .AND. nrow_local > 0
 
-      DO i_loop = 0, get_nrestart(arnoldi_data)
+      DO i_loop = 0, get_nrestart(arnoldi_env)
          IF (i_loop == 0) THEN
-! perform the standard arnoldi initialization with a random vector
-            CALL gev_arnoldi_init(matrix, matrix_arnoldi, vectors, arnoldi_data)
+            ! perform the standard arnoldi initialization with a random vector
+            CALL gev_arnoldi_init(matrix, matrix_arnoldi, vectors, arnoldi_env)
          END IF
 
-! Generate the subspace
-         CALL gev_build_subspace(matrix_arnoldi, vectors, arnoldi_data)
+         ! Generate the subspace
+         CALL gev_build_subspace(matrix_arnoldi, vectors, arnoldi_env)
 
-! If we reached the maximum number of steps or the subspace converged we still need to get the eigenvalues
-         CALL compute_evals(arnoldi_data)
+         ! If we reached the maximum number of steps or the subspace converged we still need to get the eigenvalues
+         CALL compute_evals(arnoldi_env)
 
-! Select the evals according to user selection and keep them in arnoldi_data
-         CALL select_evals(arnoldi_data)
+         ! Select the evals according to user selection and keep them in arnoldi_env
+         CALL select_evals(arnoldi_env)
 
-! update the matrices and compute the convergence
-         CALL gev_update_data(matrix, matrix_arnoldi, vectors, arnoldi_data)
+         ! update the matrices and compute the convergence
+         CALL gev_update_data(matrix, matrix_arnoldi, vectors, arnoldi_env)
 
-! Check whether we can already go home
+         ! Check whether we can already go home
          IF (control%converged) EXIT
       END DO
 
-! Deallocated the work vectors
+      ! Deallocated the work vectors
       CALL dbcsr_release(vectors%input_vec)
       CALL dbcsr_release(vectors%result_vec)
       CALL dbcsr_release(vectors%rep_col_vec)
@@ -260,7 +260,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'arnoldi_extremal'
 
       INTEGER                                            :: handle, max_iter_internal, nrestarts
-      TYPE(arnoldi_data_type)                            :: my_arnoldi
+      TYPE(arnoldi_env_type)                             :: arnoldi_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: arnoldi_matrices
 
       CALL timeset(routineN, handle)
@@ -276,14 +276,14 @@ CONTAINS
 
       ALLOCATE (arnoldi_matrices(1))
       arnoldi_matrices(1)%matrix => matrix_a
-      CALL setup_arnoldi_data(my_arnoldi, arnoldi_matrices, max_iter=max_iter_internal, &
-                              threshold=threshold, selection_crit=1, nval_request=2, nrestarts=nrestarts, &
-                              generalized_ev=.FALSE., iram=.TRUE.)
-      CALL arnoldi_ev(arnoldi_matrices, my_arnoldi)
-      converged = arnoldi_is_converged(my_arnoldi)
-      max_eV = REAL(get_selected_ritz_val(my_arnoldi, 2), dp)
-      min_eV = REAL(get_selected_ritz_val(my_arnoldi, 1), dp)
-      CALL deallocate_arnoldi_data(my_arnoldi)
+      CALL setup_arnoldi_env(arnoldi_env, arnoldi_matrices, max_iter=max_iter_internal, &
+                             threshold=threshold, selection_crit=1, nval_request=2, nrestarts=nrestarts, &
+                             generalized_ev=.FALSE., iram=.TRUE.)
+      CALL arnoldi_ev(arnoldi_matrices, arnoldi_env)
+      converged = arnoldi_is_converged(arnoldi_env)
+      max_eV = REAL(get_selected_ritz_val(arnoldi_env, 2), dp)
+      min_eV = REAL(get_selected_ritz_val(arnoldi_env, 1), dp)
+      CALL deallocate_arnoldi_env(arnoldi_env)
       DEALLOCATE (arnoldi_matrices)
 
       CALL timestop(handle)
@@ -313,7 +313,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: rb_offset, rb_size
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xvec
       TYPE(arnoldi_control_type), POINTER                :: control
-      TYPE(arnoldi_data_type)                            :: my_arnoldi
+      TYPE(arnoldi_env_type)                             :: arnoldi_env
       TYPE(dbcsr_iterator_type)                          :: dbcsr_iter
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: arnoldi_matrices
       TYPE(dbcsr_type), TARGET                           :: x
@@ -350,13 +350,13 @@ CONTAINS
          NULLIFY (arnoldi_matrices(2)%matrix)
       END IF
       arnoldi_matrices(3)%matrix => x
-      CALL setup_arnoldi_data(my_arnoldi, arnoldi_matrices, max_iter=max_iter, &
-                              threshold=threshold, selection_crit=1, nval_request=1, nrestarts=0, &
-                              generalized_ev=.FALSE., iram=.FALSE.)
+      CALL setup_arnoldi_env(arnoldi_env, arnoldi_matrices, max_iter=max_iter, &
+                             threshold=threshold, selection_crit=1, nval_request=1, nrestarts=0, &
+                             generalized_ev=.FALSE., iram=.FALSE.)
 
-      CALL conjugate_gradient(my_arnoldi, arnoldi_matrices, vectors)
+      CALL conjugate_gradient(arnoldi_env, arnoldi_matrices, vectors)
 
-      converged = arnoldi_is_converged(my_arnoldi)
+      converged = arnoldi_is_converged(arnoldi_env)
 
       vec_x = 0.0_dp
       CALL dbcsr_iterator_start(dbcsr_iter, x)
@@ -367,7 +367,7 @@ CONTAINS
          vec_x(no:no + nb - 1) = xvec(1:nb, 1)
       END DO
       CALL dbcsr_iterator_stop(dbcsr_iter)
-      control => get_control(my_arnoldi)
+      control => get_control(arnoldi_env)
       CALL control%mp_group%sum(vec_x)
       ! Deallocated the work vectors
       CALL dbcsr_release(x)
@@ -376,7 +376,7 @@ CONTAINS
       CALL dbcsr_release(vectors%rep_col_vec)
       CALL dbcsr_release(vectors%rep_row_vec)
 
-      CALL deallocate_arnoldi_data(my_arnoldi)
+      CALL deallocate_arnoldi_env(arnoldi_env)
       DEALLOCATE (arnoldi_matrices)
 
       CALL timestop(handle)
@@ -385,12 +385,12 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param arnoldi_data ...
+!> \param arnoldi_env ...
 !> \param arnoldi_matrices ...
 !> \param vectors ...
 ! **************************************************************************************************
-   SUBROUTINE conjugate_gradient(arnoldi_data, arnoldi_matrices, vectors)
-      TYPE(arnoldi_data_type)                            :: arnoldi_data
+   SUBROUTINE conjugate_gradient(arnoldi_env, arnoldi_matrices, vectors)
+      TYPE(arnoldi_env_type)                             :: arnoldi_env
       TYPE(dbcsr_p_type), DIMENSION(:)                   :: arnoldi_matrices
       TYPE(m_x_v_vectors_type)                           :: vectors
 
@@ -401,7 +401,7 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: amat, pmat, xvec
       TYPE(mp_comm_type)                                 :: mpgrp, pcgrp
 
-      control => get_control(arnoldi_data)
+      control => get_control(arnoldi_env)
       control%converged = .FALSE.
       pcgrp = control%pcol_group
       mpgrp = control%mp_group

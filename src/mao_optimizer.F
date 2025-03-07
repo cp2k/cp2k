@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -14,9 +14,10 @@
 ! **************************************************************************************************
 MODULE mao_optimizer
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_distribution_type, dbcsr_get_info, dbcsr_norm, &
-        dbcsr_norm_maxabsnorm, dbcsr_p_type, dbcsr_release, dbcsr_reserve_diag_blocks, dbcsr_type, &
-        dbcsr_type_symmetric
+        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_distribution_type, dbcsr_get_info, &
+        dbcsr_p_type, dbcsr_release, dbcsr_type, dbcsr_type_symmetric
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_maxabs,&
+                                              dbcsr_reserve_diag_blocks
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
    USE kinds,                           ONLY: dp
@@ -116,7 +117,7 @@ CONTAINS
          DO ispin = 1, nspin
             CALL dbcsr_get_info(mao_coef(ispin)%matrix, col_blk_size=col_blk_sizes, distribution=dbcsr_dist)
             CALL dbcsr_create(binv, name="Binv", dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric, &
-                              row_blk_size=col_blk_sizes, col_blk_size=col_blk_sizes, nze=0)
+                              row_blk_size=col_blk_sizes, col_blk_size=col_blk_sizes)
             CALL mao_function(mao_coef(ispin)%matrix, fval, matrix_q(ispin)%matrix, &
                               matrix_smm(1)%matrix, binv, .FALSE.)
             IF (iw > 0) THEN
@@ -137,7 +138,7 @@ CONTAINS
          END DO
          CALL dbcsr_get_info(mao_coef(1)%matrix, col_blk_size=col_blk_sizes, distribution=dbcsr_dist)
          CALL dbcsr_create(binv, name="Binv", dist=dbcsr_dist, matrix_type=dbcsr_type_symmetric, &
-                           row_blk_size=col_blk_sizes, col_blk_size=col_blk_sizes, nze=0)
+                           row_blk_size=col_blk_sizes, col_blk_size=col_blk_sizes)
          CALL dbcsr_create(cgmat, template=mao_grad(1)%matrix)
          CALL dbcsr_create(amat, template=mao_coef(1)%matrix)
          DO ispin = 1, nspin
@@ -146,7 +147,7 @@ CONTAINS
             CALL mao_function_gradient(mao_coef(ispin)%matrix, fval, mao_grad(ispin)%matrix, &
                                        matrix_q(ispin)%matrix, matrix_smm(1)%matrix, binv, .FALSE.)
             CALL dbcsr_copy(cgmat, mao_grad(ispin)%matrix)
-            CALL dbcsr_norm(mao_grad(ispin)%matrix, dbcsr_norm_maxabsnorm, norm_scalar=grad_norm)
+            grad_norm = dbcsr_maxabs(mao_grad(ispin)%matrix)
             fnold = mao_scalar_product(mao_grad(ispin)%matrix, mao_grad(ispin)%matrix)
             IF (iw > 0) THEN
                WRITE (UNIT=iw, FMT="(/,T2,A,T73,A,I2)") "MAO OPTIMIZATION", "Spin =", ispin
@@ -160,7 +161,7 @@ CONTAINS
                CALL mao_orthogonalization(mao_coef(ispin)%matrix, matrix_smm(1)%matrix)
                CALL mao_function_gradient(mao_coef(ispin)%matrix, fval, mao_grad(ispin)%matrix, &
                                           matrix_q(ispin)%matrix, matrix_smm(1)%matrix, binv, .TRUE.)
-               CALL dbcsr_norm(mao_grad(ispin)%matrix, dbcsr_norm_maxabsnorm, norm_scalar=grad_norm)
+               grad_norm = dbcsr_maxabs(mao_grad(ispin)%matrix)
                IF (iw > 0) THEN
                   WRITE (UNIT=iw, FMT="(T2,A,i8,T24,A,F11.8,T48,A,F11.8,T69,A,F6.3)") &
                      "iter=", iter, "fval =", fval/electra(ispin), "grad =", grad_norm, "step =", alpha

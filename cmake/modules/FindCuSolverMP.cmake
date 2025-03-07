@@ -1,6 +1,6 @@
 #!-------------------------------------------------------------------------------------------------!
 #!   CP2K: A general program to perform molecular dynamics simulations                             !
-#!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                  !
+#!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                  !
 #!                                                                                                 !
 #!   SPDX-License-Identifier: GPL-2.0-or-later                                                     !
 #!-------------------------------------------------------------------------------------------------!
@@ -12,8 +12,11 @@
 include(FindPackageHandleStandardArgs)
 include(cp2k_utils)
 
-find_package(Cal Required)
+find_package(ucc REQUIRED)
+find_package(Cal REQUIRED)
+
 cp2k_set_default_paths(CUSOLVER_MP "CUSOLVER_MP")
+
 cp2k_find_libraries(CUSOLVER_MP "cusolverMp")
 cp2k_include_dirs(CUSOLVER_MP "cusolverMp.h")
 
@@ -25,11 +28,14 @@ if(CP2K_CUSOLVER_MP_FOUND AND NOT TARGET cp2k::CUSOLVER_MP::cusolver_mp)
   add_library(cp2k::CUSOLVER_MP::cusolver_mp INTERFACE IMPORTED)
   set_target_properties(
     cp2k::CUSOLVER_MP::cusolver_mp
-    PROPERTIES INTERFACE_LINK_LIBRARIES
-               "${CP2K_CUSOLVER_MP_LINK_LIBRARIES};cp2k::CAL::cal")
+    PROPERTIES
+      INTERFACE_LINK_LIBRARIES
+      "${CP2K_CUSOLVER_MP_LINK_LIBRARIES};cp2k::CAL::cal;cp2k::UCC::ucc")
   set_target_properties(
     cp2k::CUSOLVER_MP::cusolver_mp
     PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${CP2K_CUSOLVER_MP_INCLUDE_DIRS}")
+else()
+  message(FATAL_ERROR "CuSolverMP requested, but not found")
 endif()
 
 mark_as_advanced(CP2K_CUSOLVER_MP_LINK_LIBRARIES)

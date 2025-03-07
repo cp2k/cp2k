@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -20,8 +20,9 @@ MODULE qs_dftb_matrices
                                               dftb_control_type
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_convert_offsets_to_sizes, dbcsr_copy, dbcsr_create, &
-        dbcsr_distribution_type, dbcsr_dot, dbcsr_finalize, dbcsr_get_block_p, dbcsr_multiply, &
-        dbcsr_p_type, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_symmetric
+        dbcsr_distribution_type, dbcsr_finalize, dbcsr_get_block_p, dbcsr_multiply, dbcsr_p_type, &
+        dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_symmetric
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_dot
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set
    USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
@@ -108,8 +109,8 @@ CONTAINS
       INTEGER, DIMENSION(3)                              :: cell
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: defined, found, omit_headers, use_virial
-      REAL(KIND=dp)                                      :: ddr, dgrd, dr, erep, erepij, f0, f1, &
-                                                            foab, fow, s_cut, urep_cut
+      REAL(KIND=dp)                                      :: ddr, dgrd, dr, erep, erepij, f0, foab, &
+                                                            fow, s_cut, urep_cut
       REAL(KIND=dp), DIMENSION(0:3)                      :: eta_a, eta_b, skself
       REAL(KIND=dp), DIMENSION(10)                       :: urep
       REAL(KIND=dp), DIMENSION(2)                        :: surr
@@ -366,13 +367,6 @@ CONTAINS
                      IF (iatom == jatom) f0 = 0.5_dp*f0
                      CALL virial_pair_force(virial%pv_virial, -f0, force_ab, rij)
                      CALL virial_pair_force(virial%pv_virial, -f0, force_w, rij)
-                     IF (atprop%stress) THEN
-                        f1 = 0.5_dp*f0
-                        CALL virial_pair_force(atprop%atstress(:, :, iatom), -f1, force_ab, rij)
-                        CALL virial_pair_force(atprop%atstress(:, :, iatom), -f1, force_w, rij)
-                        CALL virial_pair_force(atprop%atstress(:, :, jatom), -f1, force_ab, rij)
-                        CALL virial_pair_force(atprop%atstress(:, :, jatom), -f1, force_w, rij)
-                     END IF
                   END IF
                   DEALLOCATE (dfblock, dsblock)
                END IF
@@ -412,10 +406,6 @@ CONTAINS
                   f0 = -1.0_dp
                   IF (iatom == jatom) f0 = -0.5_dp
                   CALL virial_pair_force(virial%pv_virial, f0, force_rr, rij)
-                  IF (atprop%stress) THEN
-                     CALL virial_pair_force(atprop%atstress(:, :, iatom), f0*0.5_dp, force_rr, rij)
-                     CALL virial_pair_force(atprop%atstress(:, :, jatom), f0*0.5_dp, force_rr, rij)
-                  END IF
                END IF
             END IF
          END IF
@@ -938,7 +928,7 @@ CONTAINS
                            name=TRIM(matnames), &
                            dist=dbcsr_dist, matrix_type=symmetry_type, &
                            row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-                           nze=0, mutable_work=.TRUE.)
+                           mutable_work=.TRUE.)
          CALL cp_dbcsr_alloc_block_from_nbl(matrices(i)%matrix, sab_nl)
       END DO
 
@@ -1026,7 +1016,7 @@ CONTAINS
                               name=TRIM(matnames), &
                               dist=dbcsr_dist, matrix_type=symmetry_type, &
                               row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
-                              nze=0, mutable_work=.TRUE.)
+                              mutable_work=.TRUE.)
             CALL cp_dbcsr_alloc_block_from_nbl(matrices(i, img)%matrix, sab_nl)
          END DO
       END DO

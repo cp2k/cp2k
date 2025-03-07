@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -1317,7 +1317,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE compute_kinetic_mat(qs_env, kinetic_mat)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_fm_type), INTENT(IN)                       :: kinetic_mat
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: kinetic_mat
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_kinetic_mat'
 

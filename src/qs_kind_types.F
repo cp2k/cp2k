@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -867,6 +867,7 @@ CONTAINS
 !> \param basis_rcut ...
 !> \param basis_type ...
 !> \param total_zeff_corr ... [SGh]
+!> \param npgf_seg total number of primitive GTOs in "segmented contraction format"
 ! **************************************************************************************************
    SUBROUTINE get_qs_kind_set(qs_kind_set, &
                               all_potential_present, tnadd_potential_present, gth_potential_present, &
@@ -875,7 +876,7 @@ CONTAINS
                               ncgf, npgf, nset, nsgf, nshell, maxpol, maxlppl, maxlppnl, maxppnl, &
                               nelectron, maxder, max_ngrid_rad, max_sph_harm, maxg_iso_not0, lmax_rho0, &
                               basis_rcut, &
-                              basis_type, total_zeff_corr)
+                              basis_type, total_zeff_corr, npgf_seg)
 
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       LOGICAL, INTENT(OUT), OPTIONAL :: all_potential_present, tnadd_potential_present, &
@@ -889,6 +890,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: basis_rcut
       CHARACTER(len=*), OPTIONAL                         :: basis_type
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: total_zeff_corr
+      INTEGER, INTENT(OUT), OPTIONAL                     :: npgf_seg
 
       CHARACTER(len=default_string_length)               :: my_basis_type
       INTEGER                                            :: ikind, imax, lmax_rho0_kind, &
@@ -944,6 +946,7 @@ CONTAINS
          IF (PRESENT(lmax_rho0)) lmax_rho0 = 0
          IF (PRESENT(basis_rcut)) basis_rcut = 0.0_dp
          IF (PRESENT(total_zeff_corr)) total_zeff_corr = 0.0_dp
+         IF (PRESENT(npgf_seg)) npgf_seg = 0
 
          nkind = SIZE(qs_kind_set)
          DO ikind = 1, nkind
@@ -1223,6 +1226,13 @@ CONTAINS
                lmax_rho0 = MAX(lmax_rho0, lmax_rho0_kind)
             END IF
 
+            IF (PRESENT(npgf_seg)) THEN
+               IF (ASSOCIATED(tmp_basis_set)) THEN
+                  CALL get_gto_basis_set(gto_basis_set=tmp_basis_set, npgf_seg_sum=n)
+                  npgf_seg = npgf_seg + n*qs_kind_set(ikind)%natom
+               END IF
+            END IF
+
          END DO
       ELSE
          CPABORT("The pointer qs_kind_set is not associated")
@@ -1493,12 +1503,14 @@ CONTAINS
 !> \param force_env_section ...
 !> \param no_fail ...
 !> \param method_id ...
+!> \param silent ...
 !> \par History
 !>      - Creation (09.02.2002,MK)
 !>      - 20.09.2002,gt: adapted for POL/KG use (elp_potential)
 !>      - 05.03.2010: split elp_potential into fist_potential and kg_potential
 ! **************************************************************************************************
-   SUBROUTINE read_qs_kind(qs_kind, kind_section, para_env, force_env_section, no_fail, method_id)
+   SUBROUTINE read_qs_kind(qs_kind, kind_section, para_env, force_env_section, &
+                           no_fail, method_id, silent)
 
       TYPE(qs_kind_type), INTENT(INOUT)                  :: qs_kind
       TYPE(section_vals_type), POINTER                   :: kind_section
@@ -1506,6 +1518,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: force_env_section
       LOGICAL, INTENT(IN)                                :: no_fail
       INTEGER, INTENT(IN)                                :: method_id
+      LOGICAL, INTENT(IN)                                :: silent
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'read_qs_kind'
       INTEGER, PARAMETER                                 :: maxbas = 20
@@ -2117,13 +2130,13 @@ CONTAINS
                              zeff=qs_kind%se_parameter%zeff, zeff_correction=zeff_correction)
          qs_kind%se_parameter%zeff = qs_kind%se_parameter%zeff - zeff_correction
 
-         check = ((potential_name /= '') .OR. explicit_potential)
+         check = ((potential_name /= '') .OR. explicit_potential) .AND. .NOT. silent
          IF (check) &
             CALL cp_warn(__LOCATION__, &
                          "Information provided in the input file regarding POTENTIAL for KIND <"// &
                          TRIM(qs_kind%name)//"> will be ignored!")
 
-         check = ((k_rep > 0) .OR. explicit_basis)
+         check = ((k_rep > 0) .OR. explicit_basis) .AND. .NOT. silent
          IF (check) &
             CALL cp_warn(__LOCATION__, &
                          "Information provided in the input file regarding BASIS for KIND <"// &
@@ -2150,13 +2163,13 @@ CONTAINS
                                zeff_correction=0.0_dp)
          END IF
 
-         check = ((potential_name /= '') .OR. explicit_potential)
+         check = ((potential_name /= '') .OR. explicit_potential) .AND. .NOT. silent
          IF (check) &
             CALL cp_warn(__LOCATION__, &
                          "Information provided in the input file regarding POTENTIAL for KIND <"// &
                          TRIM(qs_kind%name)//"> will be ignored!")
 
-         check = ((k_rep > 0) .OR. explicit_basis)
+         check = ((k_rep > 0) .OR. explicit_basis) .AND. .NOT. silent
          IF (check) &
             CALL cp_warn(__LOCATION__, &
                          "Information provided in the input file regarding BASIS for KIND <"// &
@@ -2183,13 +2196,13 @@ CONTAINS
                                zeff_correction=0.0_dp)
          END IF
 
-         check = ((potential_name /= '') .OR. explicit_potential)
+         check = ((potential_name /= '') .OR. explicit_potential) .AND. .NOT. silent
          IF (check) &
             CALL cp_warn(__LOCATION__, &
                          "Information provided in the input file regarding POTENTIAL for KIND <"// &
                          TRIM(qs_kind%name)//"> will be ignored!")
 
-         check = ((k_rep > 0) .OR. explicit_basis)
+         check = ((k_rep > 0) .OR. explicit_basis) .AND. .NOT. silent
          IF (check) &
             CALL cp_warn(__LOCATION__, &
                          "Information provided in the input file regarding BASIS for KIND <"// &
@@ -2387,7 +2400,7 @@ CONTAINS
                      CPABORT("ECPs are only well tested in their semi-local form")
                      CALL get_qs_kind(qs_kind, basis_set=orb_basis_set)
                      CALL sgp_construction(sgp_pot=sgppot, ecp_pot=ecppot, orb_basis=orb_basis_set, error=error)
-                     IF (iounit > 0) THEN
+                     IF (iounit > 0 .AND. .NOT. silent) THEN
                         WRITE (iounit, "(/,T2,'PP Transformation for ',A)") TRIM(ecppot%pname)
                         IF (sgppot%has_local) THEN
                            WRITE (iounit, "(T8,'Accuracy for local part:',T41,F10.3,'%',T61,F20.12)") error(4), error(1)
@@ -2447,7 +2460,7 @@ CONTAINS
                                      zeff=upfpot%zion, z=z, has_nlcc=upfpot%core_correction)
                   ! convert pp
                   CALL sgp_construction(sgp_pot=sgppot, upf_pot=upfpot, error=error)
-                  IF (iounit > 0) THEN
+                  IF (iounit > 0 .AND. .NOT. silent) THEN
                      WRITE (iounit, "(/,T2,'PP Transformation for ',A)") TRIM(upfpot%pname)
                      IF (sgppot%has_local) THEN
                         WRITE (iounit, "(T8,'Accuracy for local part:',T61,F20.12)") error(1)
@@ -2617,14 +2630,17 @@ CONTAINS
 !> \param kind_section ...
 !> \param para_env ...
 !> \param force_env_section ...
+!> \param silent ...
 ! **************************************************************************************************
-   SUBROUTINE create_qs_kind_set(qs_kind_set, atomic_kind_set, kind_section, para_env, force_env_section)
+   SUBROUTINE create_qs_kind_set(qs_kind_set, atomic_kind_set, kind_section, para_env, &
+                                 force_env_section, silent)
 
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(section_vals_type), POINTER                   :: kind_section
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(section_vals_type), POINTER                   :: force_env_section
+      LOGICAL, INTENT(IN)                                :: silent
 
       CHARACTER(len=*), PARAMETER :: routineN = 'create_qs_kind_set'
 
@@ -2664,7 +2680,8 @@ CONTAINS
          qs_kind_set(ikind)%name = atomic_kind_set(ikind)%name
          qs_kind_set(ikind)%element_symbol = atomic_kind_set(ikind)%element_symbol
          qs_kind_set(ikind)%natom = atomic_kind_set(ikind)%natom
-         CALL read_qs_kind(qs_kind_set(ikind), kind_section, para_env, force_env_section, no_fail, qs_method)
+         CALL read_qs_kind(qs_kind_set(ikind), kind_section, para_env, force_env_section, &
+                           no_fail, qs_method, silent)
       END DO
 
       CALL timestop(handle)
@@ -2684,6 +2701,7 @@ CONTAINS
       TYPE(dft_control_type), INTENT(IN)                 :: dft_control
       TYPE(section_vals_type), POINTER                   :: subsys_section
 
+      INTEGER                                            :: gfn_type
       LOGICAL                                            :: defined
       TYPE(qs_dftb_atom_type), POINTER                   :: dftb_parameter
       TYPE(semi_empirical_type), POINTER                 :: se_parameter
@@ -2704,7 +2722,8 @@ CONTAINS
       ELSE IF (dft_control%qs_control%xtb) THEN
          CALL get_qs_kind(qs_kind, xtb_parameter=xtb_parameter)
          CPASSERT(ASSOCIATED(xtb_parameter))
-         CALL write_xtb_atom_param(xtb_parameter, subsys_section)
+         gfn_type = dft_control%qs_control%xtb_control%gfn_type
+         CALL write_xtb_atom_param(xtb_parameter, gfn_type, subsys_section)
       END IF
 
    END SUBROUTINE check_qs_kind

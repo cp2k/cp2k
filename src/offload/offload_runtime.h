@@ -1,6 +1,6 @@
 /*----------------------------------------------------------------------------*/
 /*  CP2K: A general program to perform molecular dynamics simulations         */
-/*  Copyright 2000-2024 CP2K developers group <https://cp2k.org>              */
+/*  Copyright 2000-2025 CP2K developers group <https://cp2k.org>              */
 /*                                                                            */
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
@@ -22,10 +22,12 @@
 
 #if defined(__OFFLOAD_CUDA) || defined(__OFFLOAD_HIP) ||                       \
     defined(__OFFLOAD_OPENCL)
-#define __OFFLOAD
-
 #include <stdio.h>
 #include <stdlib.h>
+
+#if !defined(__OFFLOAD)
+#define __OFFLOAD
+#endif
 
 #if defined(__OFFLOAD_CUDA)
 #include <cuda_runtime.h>
@@ -34,7 +36,7 @@
 #include <hip/hip_version.h>
 #elif defined(__OFFLOAD_OPENCL)
 /* No relative path aka double-quote to avoid PACKAGE deps (-Iexts/dbcsr). */
-#include <src/acc/opencl/acc_opencl.h>
+#include <acc_opencl.h>
 #endif
 
 #ifdef __cplusplus
@@ -92,8 +94,12 @@ static inline const char *offloadGetErrorName(offloadError_t error) {
 #elif defined(__OFFLOAD_HIP)
   return hipGetErrorName(error);
 #elif defined(__OFFLOAD_OPENCL)
+#if defined(ACC_OPENCL_ERROR_NAME)
+  return ACC_OPENCL_ERROR_NAME(error);
+#else
   (void)error; /* mark used */
-  return "";   /* TODO */
+  return "";
+#endif
 #endif
 }
 
@@ -106,7 +112,11 @@ static inline offloadError_t offloadGetLastError(void) {
 #elif defined(__OFFLOAD_HIP)
   return hipGetLastError();
 #elif defined(__OFFLOAD_OPENCL)
-  return offloadSuccess; /* TODO */
+#if defined(ACC_OPENCL_ERROR)
+  return ACC_OPENCL_ERROR();
+#else
+  return offloadSuccess;
+#endif
 #endif
 }
 

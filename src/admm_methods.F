@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -19,14 +19,13 @@ MODULE admm_methods
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE bibliography,                    ONLY: Merlot2014,&
                                               cite_reference
-   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_cholesky_decompose,&
-                                              cp_cfm_cholesky_invert,&
-                                              cp_cfm_scale,&
+   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_scale,&
                                               cp_cfm_scale_and_add,&
                                               cp_cfm_scale_and_add_fm,&
-                                              cp_cfm_transpose
+                                              cp_cfm_uplo_to_full
+   USE cp_cfm_cholesky,                 ONLY: cp_cfm_cholesky_decompose,&
+                                              cp_cfm_cholesky_invert
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
-                                              cp_cfm_get_info,&
                                               cp_cfm_release,&
                                               cp_cfm_to_fm,&
                                               cp_cfm_type,&
@@ -34,10 +33,11 @@ MODULE admm_methods
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, &
-        dbcsr_dot, dbcsr_get_block_p, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
+        dbcsr_get_block_p, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, &
         dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, &
         dbcsr_type_no_symmetry, dbcsr_type_symmetric
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_dot
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
@@ -49,7 +49,7 @@ MODULE admm_methods
                                               cp_fm_scale,&
                                               cp_fm_scale_and_add,&
                                               cp_fm_schur_product,&
-                                              cp_fm_upper_to_full
+                                              cp_fm_uplo_to_full
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                               cp_fm_cholesky_invert,&
                                               cp_fm_cholesky_reduce,&
@@ -910,7 +910,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'fit_mo_coeffs'
 
-      INTEGER                                            :: blk, handle, iatom, jatom, nao_aux_fit, &
+      INTEGER                                            :: handle, iatom, jatom, nao_aux_fit, &
                                                             nao_orb
       REAL(dp), DIMENSION(:, :), POINTER                 :: sparse_block
       TYPE(dbcsr_iterator_type)                          :: iter
@@ -936,7 +936,7 @@ CONTAINS
 
          CALL dbcsr_iterator_start(iter, matrix_s_tilde)
          DO WHILE (dbcsr_iterator_blocks_left(iter))
-            CALL dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, blk)
+            CALL dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block)
             IF (admm_env%block_map(iatom, jatom) == 0) THEN
                sparse_block = 0.0_dp
             END IF
@@ -946,7 +946,7 @@ CONTAINS
          CALL dbcsr_deallocate_matrix(matrix_s_tilde)
       END IF
 
-      CALL cp_fm_upper_to_full(admm_env%S_inv, admm_env%work_aux_aux)
+      CALL cp_fm_uplo_to_full(admm_env%S_inv, admm_env%work_aux_aux)
       CALL cp_fm_to_fm(admm_env%S_inv, admm_env%S)
 
       CALL copy_dbcsr_to_fm(matrix_s_mixed(1)%matrix, admm_env%Q)
@@ -955,7 +955,7 @@ CONTAINS
       CALL cp_fm_cholesky_decompose(admm_env%S_inv)
       CALL cp_fm_cholesky_invert(admm_env%S_inv)
       !! Symmetrize the guy
-      CALL cp_fm_upper_to_full(admm_env%S_inv, admm_env%work_aux_aux)
+      CALL cp_fm_uplo_to_full(admm_env%S_inv, admm_env%work_aux_aux)
 
       !! Calculate A=S'^(-1)*Q
       IF (admm_env%block_fit) THEN
@@ -1022,7 +1022,7 @@ CONTAINS
          CALL cp_fm_cholesky_decompose(admm_env%work_nmo_nmo1(ispin))
          CALL cp_fm_cholesky_invert(admm_env%work_nmo_nmo1(ispin))
          !! Symmetrize the guy
-         CALL cp_fm_upper_to_full(admm_env%work_nmo_nmo1(ispin), admm_env%lambda_inv(ispin))
+         CALL cp_fm_uplo_to_full(admm_env%work_nmo_nmo1(ispin), admm_env%lambda_inv(ispin))
          CALL cp_fm_to_fm(admm_env%work_nmo_nmo1(ispin), admm_env%lambda_inv(ispin))
 
          !! ** C_hat = AC
@@ -1217,10 +1217,10 @@ CONTAINS
          pole = Heaviside(admm_env%eigvals_P_to_be_purified(ispin)%eigvals%data(i) - 0.5_dp)
          CALL cp_fm_set_element(admm_env%M_purify(ispin), i, i, pole)
       END DO
-      CALL cp_fm_upper_to_full(admm_env%M_purify(ispin), admm_env%work_aux_aux)
+      CALL cp_fm_uplo_to_full(admm_env%M_purify(ispin), admm_env%work_aux_aux)
 
       CALL copy_dbcsr_to_fm(density_matrix, admm_env%work_aux_aux3)
-      CALL cp_fm_upper_to_full(admm_env%work_aux_aux3, admm_env%work_aux_aux)
+      CALL cp_fm_uplo_to_full(admm_env%work_aux_aux3, admm_env%work_aux_aux)
 
       ! ** S^(-1)*R
       CALL parallel_gemm('N', 'N', nao_aux_fit, nao_aux_fit, nao_aux_fit, &
@@ -1254,7 +1254,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'merge_ks_matrix_cauchy'
 
-      INTEGER                                            :: blk, handle, i, iatom, ispin, j, jatom, &
+      INTEGER                                            :: handle, i, iatom, ispin, j, jatom, &
                                                             nao_aux_fit, nao_orb, nmo
       REAL(dp)                                           :: eig_diff, pole, tmp
       REAL(dp), DIMENSION(:, :), POINTER                 :: sparse_block
@@ -1334,10 +1334,10 @@ CONTAINS
                END IF
             END DO
          END DO
-         CALL cp_fm_upper_to_full(admm_env%M_purify(ispin), admm_env%work_aux_aux)
+         CALL cp_fm_uplo_to_full(admm_env%M_purify(ispin), admm_env%work_aux_aux)
 
          CALL copy_dbcsr_to_fm(matrix_ks_aux_fit(ispin)%matrix, admm_env%K(ispin))
-         CALL cp_fm_upper_to_full(admm_env%K(ispin), admm_env%work_aux_aux)
+         CALL cp_fm_uplo_to_full(admm_env%K(ispin), admm_env%work_aux_aux)
 
          !! S^(-1)*R
          CALL parallel_gemm('N', 'N', nao_aux_fit, nao_aux_fit, nao_aux_fit, &
@@ -1385,7 +1385,7 @@ CONTAINS
             ! ** now loop through the list and nullify blocks
             CALL dbcsr_iterator_start(iter, matrix_k_tilde)
             DO WHILE (dbcsr_iterator_blocks_left(iter))
-               CALL dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, blk)
+               CALL dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block)
                IF (admm_env%block_map(iatom, jatom) == 0) THEN
                   sparse_block = 0.0_dp
                END IF
@@ -1443,7 +1443,7 @@ CONTAINS
          CALL cp_fm_cholesky_decompose(admm_env%work_nmo_nmo1(ispin))
          CALL cp_fm_cholesky_invert(admm_env%work_nmo_nmo1(ispin))
          !! Symmetrize the guy
-         CALL cp_fm_upper_to_full(admm_env%work_nmo_nmo1(ispin), admm_env%lambda_inv2(ispin))
+         CALL cp_fm_uplo_to_full(admm_env%work_nmo_nmo1(ispin), admm_env%lambda_inv2(ispin))
          !! Take square
          CALL parallel_gemm('N', 'T', nmo, nmo, nmo, &
                             1.0_dp, admm_env%work_nmo_nmo1(ispin), admm_env%work_nmo_nmo1(ispin), 0.0_dp, &
@@ -1479,7 +1479,7 @@ CONTAINS
                             admm_env%work_aux_aux2)
 
          CALL copy_dbcsr_to_fm(matrix_ks_aux_fit(ispin)%matrix, admm_env%K(ispin))
-         CALL cp_fm_upper_to_full(admm_env%K(ispin), admm_env%work_aux_aux)
+         CALL cp_fm_uplo_to_full(admm_env%K(ispin), admm_env%work_aux_aux)
 
          !! ** S*C_hat*Lambda^{-2}*C_hat^T*H_tilde
          CALL parallel_gemm('N', 'N', nao_aux_fit, nao_aux_fit, nao_aux_fit, &
@@ -1580,7 +1580,7 @@ CONTAINS
       nmo = admm_env%nmo(ispin)
 
       CALL copy_dbcsr_to_fm(matrix_ks_aux_fit(ispin)%matrix, admm_env%K(ispin))
-      CALL cp_fm_upper_to_full(admm_env%K(ispin), admm_env%work_aux_aux)
+      CALL cp_fm_uplo_to_full(admm_env%K(ispin), admm_env%work_aux_aux)
 
       CALL parallel_gemm('N', 'N', nao_aux_fit, nmo, nao_aux_fit, &
                          1.0_dp, admm_env%K(ispin), mo_coeff_aux_fit, 0.0_dp, &
@@ -1626,7 +1626,7 @@ CONTAINS
             END IF
          END DO
       END DO
-      CALL cp_fm_upper_to_full(admm_env%M(ispin), admm_env%work_nmo_nmo1(ispin))
+      CALL cp_fm_uplo_to_full(admm_env%M(ispin), admm_env%work_nmo_nmo1(ispin))
 
       ! *** 2nd term to be added to fm_H
 
@@ -1702,7 +1702,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'merge_ks_matrix_none'
 
-      INTEGER                                            :: blk, handle, iatom, ispin, jatom, &
+      INTEGER                                            :: handle, iatom, ispin, jatom, &
                                                             nao_aux_fit, nao_orb, nmo
       REAL(dp), DIMENSION(:, :), POINTER                 :: sparse_block
       REAL(KIND=dp)                                      :: ener_k(2), ener_x(2), ener_x1(2), &
@@ -1745,7 +1745,7 @@ CONTAINS
          IF (admm_env%block_dm) THEN
             CALL dbcsr_iterator_start(iter, matrix_ks_aux_fit(ispin)%matrix)
             DO WHILE (dbcsr_iterator_blocks_left(iter))
-               CALL dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, blk)
+               CALL dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block)
                IF (admm_env%block_map(iatom, jatom) == 0) THEN
                   sparse_block = 0.0_dp
                END IF
@@ -1777,7 +1777,7 @@ CONTAINS
                CALL copy_dbcsr_to_fm(matrix_ks_aux_fit(ispin)%matrix, admm_env%K(ispin))
             END IF
 
-            CALL cp_fm_upper_to_full(admm_env%K(ispin), admm_env%work_aux_aux)
+            CALL cp_fm_uplo_to_full(admm_env%K(ispin), admm_env%work_aux_aux)
 
             !! K*A
             CALL parallel_gemm('N', 'N', nao_aux_fit, nao_orb, nao_aux_fit, &
@@ -1860,7 +1860,7 @@ CONTAINS
 
                !! T^T*s_aux*T in (27) Merlot (T=A), as calculating A^T*K*A few lines above
                CALL copy_dbcsr_to_fm(matrix_s_aux_fit(1)%matrix, admm_env%work_aux_aux4)
-               CALL cp_fm_upper_to_full(admm_env%work_aux_aux4, admm_env%work_aux_aux5)
+               CALL cp_fm_uplo_to_full(admm_env%work_aux_aux4, admm_env%work_aux_aux5)
 
                ! s_aux*T
                CALL parallel_gemm('N', 'N', nao_aux_fit, nao_orb, nao_aux_fit, &
@@ -2292,7 +2292,7 @@ CONTAINS
             ALLOCATE (matrix_k_tilde(ispin, img)%matrix)
             CALL dbcsr_create(matrix=matrix_k_tilde(ispin, img)%matrix, template=matrix_ks_kp(1, 1)%matrix, &
                               name='MATRIX K_tilde '//TRIM(ADJUSTL(cp_to_string(ispin)))//'_'//TRIM(ADJUSTL(cp_to_string(img))), &
-                              matrix_type=dbcsr_type_symmetric, nze=0)
+                              matrix_type=dbcsr_type_symmetric)
             CALL cp_dbcsr_alloc_block_from_nbl(matrix_k_tilde(ispin, img)%matrix, sab_kp)
             CALL dbcsr_set(matrix_k_tilde(ispin, img)%matrix, 0.0_dp)
          END DO
@@ -2614,7 +2614,7 @@ CONTAINS
       ELSE
          CALL copy_dbcsr_to_fm(matrix_ks_aux_fit(ispin)%matrix, admm_env%K(ispin))
       END IF
-      CALL cp_fm_upper_to_full(admm_env%K(ispin), admm_env%work_aux_aux)
+      CALL cp_fm_uplo_to_full(admm_env%K(ispin), admm_env%work_aux_aux)
 
       CALL parallel_gemm('N', 'N', nao_aux_fit, nmo, nao_aux_fit, &
                          1.0_dp, admm_env%K(ispin), mo_coeff_aux_fit, 0.0_dp, &
@@ -2660,7 +2660,7 @@ CONTAINS
       nmo = admm_env%nmo(ispin)
 
       CALL copy_dbcsr_to_fm(matrix_ks_aux_fit(ispin)%matrix, admm_env%K(ispin))
-      CALL cp_fm_upper_to_full(admm_env%K(ispin), admm_env%work_aux_aux)
+      CALL cp_fm_uplo_to_full(admm_env%K(ispin), admm_env%work_aux_aux)
 
       CALL get_mo_set(mo_set=mo_set, occupation_numbers=occupation_numbers)
       ALLOCATE (scaling_factor(SIZE(occupation_numbers)))
@@ -3020,7 +3020,7 @@ CONTAINS
                CALL cp_fm_cholesky_decompose(S_inv)
                CALL cp_fm_cholesky_invert(S_inv)
                !! Symmetrize the guy
-               CALL cp_fm_upper_to_full(S_inv, work_aux_aux3)
+               CALL cp_fm_uplo_to_full(S_inv, work_aux_aux3)
 
                !We need to calculate S^-1*K*A*P and S^-1*K*A*P*A^T
                CALL parallel_gemm('N', 'N', nao_aux_fit, nao_aux_fit, nao_aux_fit, 1.0_dp, S_inv, &
@@ -3056,7 +3056,7 @@ CONTAINS
                CALL cp_fm_to_cfm(kp%smat(1, 1), kp%smat(2, 1), cS_inv)
                CALL cp_cfm_cholesky_decompose(cS_inv)
                CALL cp_cfm_cholesky_invert(cS_inv)
-               CALL own_cfm_upper_to_full(cS_inv, cwork_aux_aux)
+               CALL cp_cfm_uplo_to_full(cS_inv, cwork_aux_aux)
 
                !Take the ORB density matrix from the kp_env
                CALL cp_fm_to_cfm(kpoints%kp_env(ikp)%kpoint_env%pmat(1, ispin), &
@@ -3738,7 +3738,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'blockify_density_matrix'
 
-      INTEGER                                            :: blk, handle, iatom, jatom
+      INTEGER                                            :: handle, iatom, jatom
       LOGICAL                                            :: found
       REAL(dp), DIMENSION(:, :), POINTER                 :: sparse_block, sparse_block_aux
       TYPE(dbcsr_iterator_type)                          :: iter
@@ -3751,10 +3751,10 @@ CONTAINS
       ! ** now loop through the list and copy corresponding blocks
       CALL dbcsr_iterator_start(iter, density_matrix)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
-         CALL dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block, blk)
+         CALL dbcsr_iterator_next_block(iter, iatom, jatom, sparse_block)
          IF (admm_env%block_map(iatom, jatom) == 1) THEN
             CALL dbcsr_get_block_p(density_matrix_aux, &
-                                   row=iatom, col=jatom, BLOCK=sparse_block_aux, found=found)
+                                   row=iatom, col=jatom, block=sparse_block_aux, found=found)
             IF (found) THEN
                sparse_block_aux = sparse_block
             END IF
@@ -3764,7 +3764,7 @@ CONTAINS
       CALL dbcsr_iterator_stop(iter)
 
       CALL copy_dbcsr_to_fm(density_matrix_aux, admm_env%P_to_be_purified(ispin))
-      CALL cp_fm_upper_to_full(admm_env%P_to_be_purified(ispin), admm_env%work_orb_orb2)
+      CALL cp_fm_uplo_to_full(admm_env%P_to_be_purified(ispin), admm_env%work_orb_orb2)
 
       IF (nspins == 1) THEN
          CALL cp_fm_scale(0.5_dp, admm_env%P_to_be_purified(ispin))
@@ -4060,7 +4060,7 @@ CONTAINS
             !Invert S_aux
             CALL cp_fm_cholesky_decompose(rmat_aux_fit)
             CALL cp_fm_cholesky_invert(rmat_aux_fit)
-            CALL cp_fm_upper_to_full(rmat_aux_fit, work_aux_fit)
+            CALL cp_fm_uplo_to_full(rmat_aux_fit, work_aux_fit)
 
             !A = S^-1 * Q
             CALL parallel_gemm('N', 'N', nao_aux_fit, nao_orb, nao_aux_fit, 1.0_dp, &
@@ -4071,7 +4071,7 @@ CONTAINS
             CALL cp_fm_to_cfm(rmat_aux_fit, imat_aux_fit, cmat_aux_fit)
             CALL cp_cfm_cholesky_decompose(cmat_aux_fit)
             CALL cp_cfm_cholesky_invert(cmat_aux_fit)
-            CALL own_cfm_upper_to_full(cmat_aux_fit, cwork_aux_fit)
+            CALL cp_cfm_uplo_to_full(cmat_aux_fit, cwork_aux_fit)
 
             !A = S^-1 * Q
             CALL cp_fm_to_cfm(rmat_aux_fit_vs_orb, imat_aux_fit_vs_orb, cmat_aux_fit_vs_orb)
@@ -4125,52 +4125,5 @@ CONTAINS
       CALL dbcsr_release(dbcsr_aux_fit_vs_orb(2))
 
    END SUBROUTINE kpoint_calc_admm_matrices
-
-! **************************************************************************************************
-!> \brief ...
-!> \param cfm_mat_Q ...
-!> \param cfm_mat_work ...
-! **************************************************************************************************
-   SUBROUTINE own_cfm_upper_to_full(cfm_mat_Q, cfm_mat_work)
-
-      TYPE(cp_cfm_type), INTENT(IN)                      :: cfm_mat_Q, cfm_mat_work
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'own_cfm_upper_to_full'
-
-      INTEGER                                            :: handle, i_global, iiB, j_global, jjB, &
-                                                            ncol_local, nrow_local
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-
-      CALL timeset(routineN, handle)
-
-      !TODO: routine cpoied from rpa_gw_kpoints_util.F => put it somewhere centralized?
-
-      ! get info of fm_mat_Q
-      CALL cp_cfm_get_info(matrix=cfm_mat_Q, &
-                           nrow_local=nrow_local, &
-                           ncol_local=ncol_local, &
-                           row_indices=row_indices, &
-                           col_indices=col_indices)
-
-      DO jjB = 1, ncol_local
-         j_global = col_indices(jjB)
-         DO iiB = 1, nrow_local
-            i_global = row_indices(iiB)
-            IF (j_global < i_global) THEN
-               cfm_mat_Q%local_data(iiB, jjB) = z_zero
-            END IF
-            IF (j_global == i_global) THEN
-               cfm_mat_Q%local_data(iiB, jjB) = cfm_mat_Q%local_data(iiB, jjB)/(2.0_dp, 0.0_dp)
-            END IF
-         END DO
-      END DO
-
-      CALL cp_cfm_transpose(cfm_mat_Q, 'C', cfm_mat_work)
-
-      CALL cp_cfm_scale_and_add(z_one, cfm_mat_Q, z_one, cfm_mat_work)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE
 
 END MODULE admm_methods

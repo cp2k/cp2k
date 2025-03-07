@@ -1,0 +1,74 @@
+&GLOBAL
+  PRINT_LEVEL low
+  PROJECT diamond
+&END GLOBAL
+
+&FORCE_EVAL
+  &DFT
+    BASIS_SET_FILE_NAME GTH_BASIS_SETS
+    POTENTIAL_FILE_NAME POTENTIAL
+    &KPOINTS
+      EPS_GEO 1.e-8
+      FULL_GRID on
+      PARALLEL_GROUP_SIZE 0
+      SCHEME monkhorst-pack 2 2 2
+      SYMMETRY off
+      VERBOSE f
+    &END KPOINTS
+    &MGRID
+      CUTOFF 120
+      REL_CUTOFF 30
+    &END MGRID
+    &PRINT
+      &TREXIO
+      &END TREXIO
+    &END PRINT
+    &QS
+      EPS_DEFAULT 1.0e-12
+      EXTRAPOLATION use_guess
+      METHOD gpw
+    &END QS
+    &SCF
+      EPS_SCF 1.0e-6
+      IGNORE_CONVERGENCE_FAILURE
+      MAX_SCF 5
+      SCF_GUESS atomic
+      &MIXING
+        ALPHA 0.70
+        METHOD direct_p_mixing
+      &END MIXING
+      &PRINT
+        &RESTART off
+        &END RESTART
+      &END PRINT
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL pade
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 3.56683 3.56683 3.56683
+      MULTIPLE_UNIT_CELL 1 1 1
+    &END CELL
+    &COORD
+      scaled
+      C     0.000000    0.000000    0.000000
+      C     0.500000    0.500000    0.000000
+      C     0.500000    0.000000    0.500000
+      C     0.000000    0.500000    0.500000
+      C     0.250000    0.250000    0.250000
+      C     0.250000    0.750000    0.750000
+      C     0.750000    0.250000    0.750000
+      C     0.750000    0.750000    0.250000
+    &END COORD
+    &KIND C
+      BASIS_SET dzvp-gth
+      POTENTIAL gth-pade-q4
+    &END KIND
+    &TOPOLOGY
+      MULTIPLE_UNIT_CELL 1 1 1
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL

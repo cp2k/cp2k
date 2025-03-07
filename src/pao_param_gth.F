@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -18,8 +18,9 @@ MODULE pao_param_gth
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_create, dbcsr_get_block_p, dbcsr_get_info, dbcsr_iterator_blocks_left, &
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
-        dbcsr_p_type, dbcsr_release, dbcsr_reserve_all_blocks, dbcsr_reserve_diag_blocks, &
-        dbcsr_set, dbcsr_type
+        dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_reserve_all_blocks,&
+                                              dbcsr_reserve_diag_blocks
    USE dm_ls_scf_types,                 ONLY: ls_scf_env_type
    USE iterate_matrix,                  ONLY: matrix_sqrt_Newton_Schulz
    USE kinds,                           ONLY: dp
@@ -157,9 +158,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pao_param_gth_preconditioner'
 
-      INTEGER                                            :: acol, arow, group_handle, handle, i, &
-                                                            iatom, ioffset, j, jatom, joffset, m, &
-                                                            n, natoms
+      INTEGER                                            :: acol, arow, handle, i, iatom, ioffset, &
+                                                            j, jatom, joffset, m, n, natoms
       LOGICAL                                            :: arnoldi_converged, converged, found
       REAL(dp)                                           :: eval_max, eval_min
       REAL(dp), DIMENSION(:, :), POINTER                 :: block, block_overlap, block_V_term
@@ -171,8 +171,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       CALL get_qs_env(qs_env, ls_scf_env=ls_scf_env)
-      CALL dbcsr_get_info(pao%matrix_V_terms, group=group_handle)
-      CALL group%set_handle(group_handle)
+      CALL dbcsr_get_info(pao%matrix_V_terms, group=group)
       natoms = SIZE(nterms)
 
       CALL dbcsr_create(matrix_gth_overlap, &
@@ -295,8 +294,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pao_calc_U_gth'
 
-      INTEGER                                            :: acol, arow, group_handle, handle, iatom, &
-                                                            idx, iterm, n, natoms
+      INTEGER                                            :: acol, arow, handle, iatom, idx, iterm, &
+                                                            n, natoms
       INTEGER, DIMENSION(:), POINTER                     :: nterms
       LOGICAL                                            :: found
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: gaps
@@ -309,8 +308,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL dbcsr_get_info(pao%matrix_X, row_blk_size=nterms, group=group_handle)
-      CALL group%set_handle(group_handle)
+      CALL dbcsr_get_info(pao%matrix_X, row_blk_size=nterms, group=group)
       natoms = SIZE(nterms)
       ALLOCATE (gaps(natoms))
       gaps(:) = HUGE(dp)

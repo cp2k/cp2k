@@ -21,7 +21,7 @@ cd "${BUILDDIR}"
 
 case "$with_gsl" in
   __INSTALL__)
-    echo "==================== Installing gsl ===================="
+    echo "==================== Installing GSL ===================="
     pkg_install_dir="${INSTALLDIR}/gsl-${gsl_ver}"
     install_lock_file="$pkg_install_dir/install_successful"
     if verify_checksums "${install_lock_file}"; then
@@ -51,7 +51,7 @@ case "$with_gsl" in
     GSL_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
     ;;
   __SYSTEM__)
-    echo "==================== Finding gsl from system paths ===================="
+    echo "==================== Finding GSL from system paths ===================="
     check_command pkg-config --modversion gsl
     add_include_from_paths GSL_CFLAGS "gsl.h" $INCLUDE_PATHS
     add_lib_from_paths GSL_LDFLAGS "libgsl.*" $LIB_PATHS
@@ -60,7 +60,7 @@ case "$with_gsl" in
     # Nothing to do
     ;;
   *)
-    echo "==================== Linking gsl to user paths ===================="
+    echo "==================== Linking GSL to user paths ===================="
     pkg_install_dir="$with_gsl"
     check_dir "$pkg_install_dir/lib"
     check_dir "$pkg_install_dir/include"

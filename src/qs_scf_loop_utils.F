@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -228,7 +228,7 @@ CONTAINS
                                  scf_control, scf_section, &
                                  diis_step)
          END IF
-         ! OT diagonlization
+         ! OT diagonalization
       CASE (ot_diag_method_nr)
          CALL do_ot_diag(scf_env, mos, matrix_ks, matrix_s, &
                          scf_control, scf_section, diis_step)

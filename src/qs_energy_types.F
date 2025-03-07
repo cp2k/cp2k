@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -30,6 +30,9 @@ MODULE qs_energy_types
                        repulsive = 0.0_dp, &
                        dispersion = 0.0_dp, &
                        gcp = 0.0_dp, &
+                       srb = 0.0_dp, &
+                       eeq = 0.0_dp, &
+                       ies = 0.0_dp, &
                        ex = 0.0_dp, &
                        exc = 0.0_dp, &
                        exc_aux_fit = 0.0_dp, &

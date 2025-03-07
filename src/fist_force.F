@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -130,7 +130,6 @@ CONTAINS
                                                             pv_g, pv_imptors, pv_nonbond, &
                                                             pv_opbend, pv_torsion, pv_urey_bradley
       REAL(KIND=dp), DIMENSION(:), POINTER               :: e_coulomb
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: pv_coulomb
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
       TYPE(atprop_type), POINTER                         :: atprop_env
@@ -174,7 +173,7 @@ CONTAINS
                fist_nonbond_env, mm_section, local_molecules, local_particles, &
                molecule_kind_set, molecule_set, particle_set, print_section, &
                shell, shell_particle_set, core_particle_set, thermo, multipoles, &
-               e_coulomb, pv_coulomb)
+               e_coulomb)
 
       mm_section => section_vals_get_subs_vals(force_env_section, "MM")
       iw = cp_print_key_unit_nr(logger, mm_section, "PRINT%DERIVATIVES", &
@@ -396,13 +395,9 @@ CONTAINS
                      IF (atprop_env%energy) THEN
                         ALLOCATE (e_coulomb(fg_coulomb_size))
                      END IF
-                     IF (atprop_env%stress) THEN
-                        ALLOCATE (pv_coulomb(3, 3, fg_coulomb_size))
-                     END IF
                      CALL ewald_evaluate(ewald_env, ewald_pw, cell, atomic_kind_set, particle_set, &
                                          local_particles, fg_coulomb, vg_coulomb, pv_g, use_virial=use_virial, &
-                                         charges=fist_nonbond_env%charges, e_coulomb=e_coulomb, &
-                                         pv_coulomb=pv_coulomb)
+                                         charges=fist_nonbond_env%charges, e_coulomb=e_coulomb)
                   END IF
                END IF
             CASE (do_ewald_pme)
@@ -659,16 +654,10 @@ CONTAINS
                IF (atprop_env%energy) THEN
                   atprop_env%atener(ii) = atprop_env%atener(ii) + e_coulomb(node)
                END IF
-               IF (atprop_env%stress) THEN
-                  atprop_env%atstress(:, :, ii) = atprop_env%atstress(:, :, ii) + pv_coulomb(:, :, node)
-               END IF
             END DO
          END DO
          IF (atprop_env%energy) THEN
             DEALLOCATE (e_coulomb)
-         END IF
-         IF (atprop_env%stress) THEN
-            DEALLOCATE (pv_coulomb)
          END IF
       END IF
 

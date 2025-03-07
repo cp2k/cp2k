@@ -1,0 +1,6 @@
+"H2O-xrd.inp"                           = [{matcher="M026", tol=1.0E-14, ref=-9.9999991403}]
+"H2O-rhotot-cube.inp"                   = [{matcher="M027", tol=1.0E-14, ref=-9.9999990366}]
+"NO2-rhotot-cube.inp"                   = [{matcher="M028", tol=1.0E-14, ref=-1.0000002244}]
+"H2O-rho_hard_approx-cube.inp"          = [{matcher="M027", tol=1.0E-14, ref=-10.0000390554}]
+"NO2-rho_hard_approx-cube.inp"          = [{matcher="M028", tol=1.0E-14, ref=-1.0000006762}]
+#EOF

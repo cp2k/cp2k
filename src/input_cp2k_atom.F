@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -338,20 +338,20 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="NUM_GTO_CORE", &
                           description="Number of Gaussian type functions for s, p, d, ... "// &
                           "for the main body of the basis", &
-                          usage="NUM_GTO 6 ", n_var=1, type_of_var=integer_t, &
+                          usage="NUM_GTO_CORE 6 ", n_var=1, type_of_var=integer_t, &
                           default_i_val=-1)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="NUM_GTO_EXTENDED", &
                           description="Number of Gaussian type functions for s, p, d, ... "// &
                           "for the extension set", &
-                          usage="NUM_GTO 4 ", n_var=1, type_of_var=integer_t, &
+                          usage="NUM_GTO_EXTENDED 4 ", n_var=1, type_of_var=integer_t, &
                           default_i_val=-1)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="NUM_GTO_POLARIZATION", &
                           description="Number of Gaussian type functions for the polarization set", &
-                          usage="NUM_GTO 4 ", n_var=1, type_of_var=integer_t, &
+                          usage="NUM_GTO_POLARIZATION 4 ", n_var=1, type_of_var=integer_t, &
                           default_i_val=-1)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
@@ -401,6 +401,11 @@ CONTAINS
       CALL cp_print_key_section_create(print_key, __LOCATION__, "ORBITALS", &
                                        description="Controls the printing of the optimized orbitals information", &
                                        print_level=high_print_level, filename="__STD_OUT__")
+      CALL keyword_create(keyword, __LOCATION__, name="XMGRACE", &
+                          description="Output Orbitals in Xmgrace Format to Files.", &
+                          usage="XMGRACE <logical>", type_of_var=logical_t, default_l_val=.FALSE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 

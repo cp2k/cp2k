@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -71,8 +71,8 @@ CONTAINS
                                                             jatom, jkind, mepos, natom, nkind, &
                                                             num_pe, za, zb
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, atomnumber, kind_of
-      LOGICAL                                            :: atenergy, atex, atstress, floating_a, &
-                                                            ghost_a, use_virial
+      LOGICAL                                            :: atenergy, atex, floating_a, ghost_a, &
+                                                            use_virial
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: dodisp, floating, ghost
       REAL(KIND=dp)                                      :: c6, dd, devdw, dfdmp, dr, er, fac, fdmp, &
                                                             rcc, rcut, s6, xp
@@ -80,7 +80,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3)                        :: fdij, rij
       REAL(KIND=dp), DIMENSION(3, 3)                     :: pv_virial_thread
       REAL(KIND=dp), DIMENSION(:), POINTER               :: atener
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: atstr
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atprop_type), POINTER                         :: atprop
       TYPE(cell_type), POINTER                           :: cell
@@ -108,8 +107,6 @@ CONTAINS
          CALL atprop_array_init(atprop%atevdw, natom)
          atener => atprop%atevdw
       END IF
-      atstress = atprop%stress
-      atstr => atprop%atstress
       ! external atomic energy
       atex = .FALSE.
       IF (PRESENT(atevdw)) THEN
@@ -174,10 +171,6 @@ CONTAINS
                   force(jkind)%dispersion(:, atom_b) = force(jkind)%dispersion(:, atom_b) + fdij(:)
                   IF (use_virial) THEN
                      CALL virial_pair_force(pv_virial_thread, -1._dp, fdij, rij)
-                  END IF
-                  IF (atstress) THEN
-                     CALL virial_pair_force(atstr(:, :, iatom), -0.5_dp, fdij, rij)
-                     CALL virial_pair_force(atstr(:, :, jatom), -0.5_dp, fdij, rij)
                   END IF
                END IF
                IF (atenergy) THEN

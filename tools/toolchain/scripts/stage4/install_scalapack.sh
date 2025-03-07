@@ -54,6 +54,7 @@ case "$with_scalapack" in
       CFLAGS=${cflags} FFLAGS=${fflags} cmake -DCMAKE_FIND_ROOT_PATH="$ROOTDIR" \
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
         -DCMAKE_INSTALL_LIBDIR="lib" \
+        -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
         -DCMAKE_VERBOSE_MAKEFILE=ON \
         -DBUILD_SHARED_LIBS=NO \
         -DCMAKE_BUILD_TYPE=Release .. \

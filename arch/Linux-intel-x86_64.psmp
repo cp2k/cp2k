@@ -187,7 +187,7 @@ endif
 ifneq ($(USE_DFTD4),)
    USE_DFTD4      := $(strip $(USE_DFTD4))
    DFTD4_INC      := $(INSTALL_PATH)/dftd4-$(USE_DFTD4)/include
-   DFTD4_LIB      := $(INSTALL_PATH)/dftd4-$(USE_DFTD4)/lib64
+   DFTD4_LIB      := $(INSTALL_PATH)/dftd4-$(USE_DFTD4)/lib
    CFLAGS         += -I$(shell ls -d $(DFTD4_INC)/dftd4/Intel*)
    DFLAGS         += -D__DFTD4
    ifeq ($(SHARED), yes)
@@ -202,11 +202,7 @@ endif
 
 ifneq ($(USE_LIBGRPP),)
    USE_LIBGRPP    := $(strip $(USE_LIBGRPP))
-   LIBGRPP_INC    := $(INSTALL_PATH)/libgrpp-main-$(USE_LIBGRPP)/include
-   LIBGRPP_LIB    := $(INSTALL_PATH)/libgrpp-main-$(USE_LIBGRPP)/lib
-   CFLAGS         += -I$(LIBGRPP_INC)
    DFLAGS         += -D__LIBGRPP
-   LIBS           += $(LIBGRPP_LIB)/liblibgrpp.a
 endif
 
 ifneq ($(USE_LIBINT),)

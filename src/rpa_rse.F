@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -158,7 +158,7 @@ CONTAINS
       DO ispin = 1, nspins
          ALLOCATE (mat_mu_nu(ispin)%matrix)
          CALL dbcsr_create(matrix=mat_mu_nu(ispin)%matrix, template=matrix_s(1)%matrix, name="T_mu_nu", &
-                           matrix_type=dbcsr_type_symmetric, nze=0)
+                           matrix_type=dbcsr_type_symmetric)
          CALL cp_dbcsr_alloc_block_from_nbl(mat_mu_nu(ispin)%matrix, sab_orb)
          CALL dbcsr_set(mat_mu_nu(ispin)%matrix, 0.0_dp)
       END DO
@@ -315,7 +315,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN), &
          POINTER                                         :: mat_mu_nu
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_P_mu_nu
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_X_ao
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_X_ao
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_X_mo
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_X_ao_mo
 
@@ -412,7 +412,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE xc_contribution(qs_env, fm_XC_ao, fm_XC_ao_mo, fm_XC_mo, mo_coeff, dimen)
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_XC_ao, fm_XC_ao_mo
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_XC_ao
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_XC_ao_mo
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_XC_mo, mo_coeff
       INTEGER, INTENT(IN)                                :: dimen
 

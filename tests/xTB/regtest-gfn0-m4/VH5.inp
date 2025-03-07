@@ -1,0 +1,46 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT VH5
+  RUN_TYPE ENERGY
+&END GLOBAL
+
+&FORCE_EVAL
+  &DFT
+    CHARGE 0
+    MULTIPLICITY 1
+    &QS
+      METHOD xTB
+      &XTB
+        DO_EWALD F
+        GFN_TYPE 0
+        VDW_POTENTIAL DFTD4
+      &END XTB
+    &END QS
+    &SCF
+      ADDED_MOS -1 -1
+      SCF_GUESS NONE
+      &SMEAR ON
+        ELECTRONIC_TEMPERATURE 300
+        METHOD Fermi_Dirac
+      &END SMEAR
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 15 15 15
+      PERIODIC NONE
+    &END CELL
+    &COORD
+      V       8.28834144       8.03692899       8.19278711
+      H       8.83231652       8.10347687       6.63169078
+      H       8.90444667       7.02652695       9.28471280
+      H       8.90854359       8.94597409       9.36830922
+      H       7.09810429       8.97347305       8.73749136
+      H       7.09145641       7.06448557       8.65405171
+    &END COORD
+    &TOPOLOGY
+      &CENTER_COORDINATES T
+      &END CENTER_COORDINATES
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL

@@ -1,0 +1,34 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT CH2O
+  RUN_TYPE ENERGY
+&END GLOBAL
+
+&FORCE_EVAL
+  &DFT
+    &QS
+      METHOD xTB
+      &XTB
+        GFN_TYPE 0
+        VDW_POTENTIAL DFTD3
+        &EEQ
+          EPS_DIIS 1.E-12
+        &END EEQ
+      &END XTB
+    &END QS
+    &SCF
+      SCF_GUESS NONE
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 10.0 10.0 10.0
+    &END CELL
+    &COORD
+      O     0.051368    0.000000    0.000000
+      C     1.278612    0.000000    0.000000
+      H     1.870460    0.939607    0.000000
+      H     1.870460   -0.939607    0.000000
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL

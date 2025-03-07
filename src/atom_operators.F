@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -28,7 +28,6 @@ MODULE atom_operators
         barrier_conf, do_dkh0_atom, do_dkh1_atom, do_dkh2_atom, do_dkh3_atom, do_nonrel_atom, &
         do_sczoramp_atom, do_zoramp_atom, poly_conf
    USE kinds,                           ONLY: dp
-   USE lapack,                          ONLY: lapack_sgesv
    USE mathconstants,                   ONLY: gamma1,&
                                               sqrt2
    USE mathlib,                         ONLY: jacobi
@@ -315,7 +314,7 @@ CONTAINS
                   DO i = 1, ii
                      integrals%uptrans(i, i, l) = 1._dp
                   END DO
-                  CALL lapack_sgesv(ii, ii, omat(1:ii, 1:ii), ii, ipiv, integrals%uptrans(1:ii, 1:ii, l), ii, info)
+                  CALL dgesv(ii, ii, omat(1:ii, 1:ii), ii, ipiv, integrals%uptrans(1:ii, 1:ii, l), ii, info)
                   CPASSERT(info == 0)
                END IF
             END IF

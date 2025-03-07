@@ -106,7 +106,7 @@ case "${with_openblas}" in
     fi
     ;;
   __SYSTEM__)
-    echo "==================== Finding LAPACK from system paths ===================="
+    echo "==================== Finding OpenBLAS from system paths ===================="
     # assume that system openblas is threaded
     check_lib -lopenblas "OpenBLAS"
     OPENBLAS_LIBS="-lopenblas"
@@ -119,7 +119,7 @@ case "${with_openblas}" in
   __DONTUSE__) ;;
 
   *)
-    echo "==================== Linking LAPACK to user paths ===================="
+    echo "==================== Linking OpenBLAS to user paths ===================="
     pkg_install_dir="$with_openblas"
     check_dir "${pkg_install_dir}/include"
     check_dir "${pkg_install_dir}/lib"

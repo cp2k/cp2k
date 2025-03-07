@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -16,11 +16,11 @@ MODULE qs_tddfpt2_stda_utils
    USE cp_control_types,                ONLY: stda_control_type,&
                                               tddfpt2_control_type
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_add_on_diag, dbcsr_create, dbcsr_distribution_type, dbcsr_filter, dbcsr_finalize, &
-        dbcsr_get_block_p, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, &
-        dbcsr_release, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, &
-        dbcsr_type_symmetric
+        dbcsr_create, dbcsr_distribution_type, dbcsr_filter, dbcsr_finalize, dbcsr_get_block_p, &
+        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
+        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, dbcsr_release, dbcsr_set, &
+        dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_type_symmetric
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_add_on_diag
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
@@ -207,11 +207,11 @@ CONTAINS
 
       CALL dbcsr_create(gamma_matrix(1)%matrix, name="gamma", dist=dbcsr_dist, &
                         matrix_type=dbcsr_type_symmetric, row_blk_size=row_blk_sizes, &
-                        col_blk_size=row_blk_sizes, nze=0)
+                        col_blk_size=row_blk_sizes)
       DO imat = 2, nmat
          CALL dbcsr_create(gamma_matrix(imat)%matrix, name="dgamma", dist=dbcsr_dist, &
                            matrix_type=dbcsr_type_antisymmetric, row_blk_size=row_blk_sizes, &
-                           col_blk_size=row_blk_sizes, nze=0)
+                           col_blk_size=row_blk_sizes)
       END DO
 
       DEALLOCATE (row_blk_sizes)
@@ -468,8 +468,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE get_lowdin_x(shalf, xvec, xt)
 
-      TYPE(dbcsr_type)                                   :: shalf
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: xvec, xt
+      TYPE(dbcsr_type), INTENT(IN)                       :: shalf
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: xvec
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: xt
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'get_lowdin_x'
 
@@ -512,13 +513,14 @@ CONTAINS
       TYPE(tddfpt_subgroup_env_type)                     :: sub_env
       TYPE(tddfpt_work_matrices)                         :: work
       LOGICAL, INTENT(IN)                                :: is_rks_triplets
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: X, res
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: X
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: res
 
       CHARACTER(len=*), PARAMETER :: routineN = 'stda_calculate_kernel'
 
-      INTEGER                                            :: blk, ewald_type, handle, ia, iatom, &
-                                                            ikind, is, ispin, jatom, jkind, jspin, &
-                                                            natom, nsgf, nspins
+      INTEGER                                            :: ewald_type, handle, ia, iatom, ikind, &
+                                                            is, ispin, jatom, jkind, jspin, natom, &
+                                                            nsgf, nspins
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf, kind_of, last_sgf
       INTEGER, DIMENSION(2)                              :: nactive, nlim
       LOGICAL                                            :: calculate_forces, do_coulomb, do_ewald, &
@@ -623,7 +625,7 @@ CONTAINS
             tempmat => work%gamma_exchange(1)%matrix
             CALL dbcsr_iterator_start(iter, tempmat)
             DO WHILE (dbcsr_iterator_blocks_left(iter))
-               CALL dbcsr_iterator_next_block(iter, iatom, jatom, gab, blk)
+               CALL dbcsr_iterator_next_block(iter, iatom, jatom, gab)
                gtcharge(iatom, 1) = gtcharge(iatom, 1) + gab(1, 1)*tcharge(jatom)
                IF (iatom /= jatom) THEN
                   gtcharge(jatom, 1) = gtcharge(jatom, 1) + gab(1, 1)*tcharge(iatom)
@@ -698,7 +700,7 @@ CONTAINS
             hfx = stda_env%hfx_fraction
             CALL dbcsr_iterator_start(iter, pdens)
             DO WHILE (dbcsr_iterator_blocks_left(iter))
-               CALL dbcsr_iterator_next_block(iter, iatom, jatom, pblock, blk)
+               CALL dbcsr_iterator_next_block(iter, iatom, jatom, pblock)
                rij = particle_set(iatom)%r - particle_set(jatom)%r
                rij = pbc(rij, cell)
                dr = SQRT(SUM(rij(:)**2))

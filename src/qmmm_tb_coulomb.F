@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -80,9 +80,9 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'build_tb_coulomb_qmqm'
 
-      INTEGER                                            :: atom_i, atom_j, blk, ewald_type, handle, &
-                                                            i, ia, iatom, ikind, jatom, jkind, &
-                                                            natom, nmat
+      INTEGER                                            :: atom_i, atom_j, ewald_type, handle, i, &
+                                                            ia, iatom, ikind, jatom, jkind, natom, &
+                                                            nmat
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       INTEGER, DIMENSION(3)                              :: periodic
       LOGICAL                                            :: found, use_virial
@@ -191,7 +191,7 @@ CONTAINS
          CPABORT("PME not implemented in DFTB")
       CASE (do_ewald_spme)
          CALL tb_spme_evaluate(ewald_env, ewald_pw, particle_set, mm_cell, &
-                               gmcharge, mcharge, calculate_forces, virial, use_virial, atprop)
+                               gmcharge, mcharge, calculate_forces, virial, use_virial)
       END SELECT
       !
       CALL para_env%sum(gmcharge(:, 1))
@@ -221,7 +221,7 @@ CONTAINS
 
          CALL dbcsr_iterator_start(iter, ks_matrix(1, 1)%matrix)
          DO WHILE (dbcsr_iterator_blocks_left(iter))
-            CALL dbcsr_iterator_next_block(iter, iatom, jatom, ksblock, blk)
+            CALL dbcsr_iterator_next_block(iter, iatom, jatom, ksblock)
             NULLIFY (sblock, ksblock_2)
             IF (SIZE(ks_matrix, 1) > 1) THEN
                CALL dbcsr_get_block_p(matrix=ks_matrix(2, 1)%matrix, &

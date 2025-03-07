@@ -1,0 +1,49 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT ZnMe2
+  RUN_TYPE ENERGY
+&END GLOBAL
+
+&FORCE_EVAL
+  &DFT
+    CHARGE 0
+    MULTIPLICITY 1
+    &QS
+      METHOD xTB
+      &XTB
+        DO_EWALD F
+        GFN_TYPE 0
+        VDW_POTENTIAL DFTD4
+      &END XTB
+    &END QS
+    &SCF
+      ADDED_MOS -1 -1
+      SCF_GUESS NONE
+      &SMEAR ON
+        ELECTRONIC_TEMPERATURE 300
+        METHOD Fermi_Dirac
+      &END SMEAR
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 15 15 15
+      PERIODIC NONE
+    &END CELL
+    &COORD
+      C      10.94916196       9.13823611       8.90228712
+      C       7.05071716       9.13833167       8.90229455
+      H      11.35416289       9.88374606       8.18576142
+      H      11.35431466       8.14520438       8.61450676
+      H      11.35488583       9.38586478       9.90577711
+      H       6.64589047       9.78345240       8.09422289
+      H       6.64511417       9.51418075       9.86527843
+      H       6.64559855       8.11625394       8.74646200
+      Zn       8.99994683       9.13858279       8.90273140
+    &END COORD
+    &TOPOLOGY
+      &CENTER_COORDINATES T
+      &END CENTER_COORDINATES
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL

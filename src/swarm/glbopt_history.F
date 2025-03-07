@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -135,10 +135,9 @@ CONTAINS
             matrix(j, i) = t
          END DO
       END DO
-      !TODO: call dsyv through cp2k wrappers
-      !TODO: do we need to store lower triangle of matrix?
       ALLOCATE (res(N))
-      CALL DSYEV('N', 'U', N, matrix, N, res, work, N**2, info)
+      ! matrix values are garbage on exit because of jobz='N'
+      CALL dsyev('N', 'U', N, matrix, N, res, work, N**2, info)
       IF (info /= 0) CPABORT("goedecker_fingerprint: DSYEV failed")
    END SUBROUTINE goedecker_fingerprint
 

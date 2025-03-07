@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -2346,7 +2346,7 @@ CONTAINS
          !
 
          CALL diagonalise(matrix=npt(:, :)%v, mysize=3, &
-                          storageform="UPPER", eigenvalues=tmp%e_val, eigenvectors=tmp%u)
+                          uplo="U", eigenvalues=tmp%e_val, eigenvectors=tmp%u)
 
          tmp%arg_r(:) = 0.5_dp*tmp%e_val(:)*dt* &
                         0.5_dp*tmp%e_val(:)*dt

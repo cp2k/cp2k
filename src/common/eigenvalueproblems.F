@@ -1,15 +1,12 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
 !> \brief Provides interfaces to LAPACK eigenvalue/SVD routines
-!> \note
-!>      We are using LAPACK interfaces, so please make sure in IBM/AIX you have
-!>      the lapack library before essl: "xlf90 ... -llapack -lessl" !!!
 !> \par History
 !>      JGH (26-5-2001): delay D/S C/Z problem to the lapack library call
 !> \author APSI
@@ -17,10 +14,6 @@
 MODULE eigenvalueproblems
 
    USE kinds,                           ONLY: dp
-   USE lapack,                          ONLY: lapack_cgesvd,&
-                                              lapack_chpev,&
-                                              lapack_sgesvd,&
-                                              lapack_ssyev
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -47,43 +40,30 @@ CONTAINS
 !> \brief ...
 !> \param matrix ...
 !> \param mysize ...
-!> \param storageform ...
+!> \param uplo ...
 !> \param eigenvalues ...
 !> \param eigenvectors ...
 ! **************************************************************************************************
-   SUBROUTINE diagonalise_ssyev(matrix, mysize, storageform, eigenvalues, &
+   SUBROUTINE diagonalise_ssyev(matrix, mysize, uplo, eigenvalues, &
                                 eigenvectors)
 
       REAL(KIND=dp), INTENT(IN)                          :: matrix(:, :)
       INTEGER, INTENT(IN)                                :: mysize
-      CHARACTER(LEN=*), INTENT(IN)                       :: storageform
+      CHARACTER(LEN=1), INTENT(IN)                       :: uplo
       REAL(KIND=dp), INTENT(OUT)                         :: eigenvalues(:), eigenvectors(:, :)
 
       CHARACTER, PARAMETER                               :: jobz = "V"
 
-      CHARACTER                                          :: uplo
       INTEGER                                            :: info, lda, lwork
       REAL(KIND=dp)                                      :: work(3*mysize - 1)
-
-      IF (storageform(1:5) == "Lower" .OR. &
-          storageform(1:5) == "LOWER" .OR. &
-          storageform(1:5) == "lower") THEN
-         uplo = "L"
-      ELSE IF (storageform(1:5) == "Upper" .OR. &
-               storageform(1:5) == "upper" .OR. &
-               storageform(1:5) == "UPPER") THEN
-         uplo = "U"
-      ELSE
-         CPABORT("Unknown form of storage")
-      END IF
 
       lda = SIZE(matrix, 1)
       lwork = 3*mysize - 1
 
       eigenvectors = matrix
 
-      CALL lapack_ssyev(jobz, uplo, mysize, eigenvectors, lda, eigenvalues, &
-                        work, lwork, info)
+      CALL dsyev(jobz, uplo, mysize, eigenvectors, lda, eigenvalues, &
+                 work, lwork, info)
       IF (info /= 0) THEN
          CPABORT("Error in diagonalisation")
       END IF
@@ -94,40 +74,27 @@ CONTAINS
 !> \brief ...
 !> \param matrix ...
 !> \param mysize ...
-!> \param storageform ...
+!> \param uplo ...
 !> \param eigenvalues ...
 !> \param eigenvectors ...
 ! **************************************************************************************************
-   SUBROUTINE diagonalise_chpev(matrix, mysize, storageform, eigenvalues, &
+   SUBROUTINE diagonalise_chpev(matrix, mysize, uplo, eigenvalues, &
                                 eigenvectors)
 
       COMPLEX(KIND=dp), INTENT(INOUT)                    :: matrix(:)
       INTEGER, INTENT(IN)                                :: mysize
-      CHARACTER(LEN=*), INTENT(IN)                       :: storageform
+      CHARACTER(LEN=1), INTENT(IN)                       :: uplo
       REAL(KIND=dp), INTENT(OUT)                         :: eigenvalues(:)
       COMPLEX(KIND=dp), INTENT(OUT)                      :: eigenvectors(:, :)
 
       CHARACTER, PARAMETER                               :: jobz = "V"
 
-      CHARACTER                                          :: uplo
       INTEGER                                            :: info
       COMPLEX(KIND=dp)                                   :: work(2*mysize - 1)
       REAL(KIND=dp)                                      :: rwork(3*mysize - 2)
 
-      IF (storageform(1:5) == "Lower" .OR. &
-          storageform(1:5) == "LOWER" .OR. &
-          storageform(1:5) == "lower") THEN
-         uplo = "L"
-      ELSE IF (storageform(1:5) == "Upper" .OR. &
-               storageform(1:5) == "upper" .OR. &
-               storageform(1:5) == "UPPER") THEN
-         uplo = "U"
-      ELSE
-         CPABORT("Unknown form of storage")
-      END IF
-
-      CALL lapack_chpev(jobz, uplo, mysize, matrix, eigenvalues, &
-                        eigenvectors, mysize, work, rwork, info)
+      CALL zhpev(jobz, uplo, mysize, matrix, eigenvalues, &
+                 eigenvectors, mysize, work, rwork, info)
       IF (info /= 0) THEN
          CPABORT("Error in diagonalisation")
       END IF
@@ -160,8 +127,8 @@ CONTAINS
       ldu = SIZE(uvec, 1)
       ldvt = SIZE(vtvec, 1)
 
-      CALL lapack_sgesvd(jobu, jobvt, mrow, ncol, matrix, lda, svalues, &
-                         uvec, ldu, vtvec, ldvt, work, lwork, info)
+      CALL dgesvd(jobu, jobvt, mrow, ncol, matrix, lda, svalues, &
+                  uvec, ldu, vtvec, ldvt, work, lwork, info)
       IF (info /= 0) THEN
          CPABORT("Error in singular value decomposition.")
       END IF
@@ -195,8 +162,8 @@ CONTAINS
       ldu = SIZE(uvec, 1)
       ldvt = SIZE(vtvec, 1)
 
-      CALL lapack_cgesvd(jobu, jobvt, mrow, ncol, matrix, lda, svalues, &
-                         uvec, ldu, vtvec, ldvt, work, lwork, rwork, info)
+      CALL zgesvd(jobu, jobvt, mrow, ncol, matrix, lda, svalues, &
+                  uvec, ldu, vtvec, ldvt, work, lwork, rwork, info)
       IF (info /= 0) THEN
          CPABORT("Error in singular value decomposition.")
       END IF

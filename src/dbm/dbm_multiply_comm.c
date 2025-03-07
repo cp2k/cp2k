@@ -1,6 +1,6 @@
 /*----------------------------------------------------------------------------*/
 /*  CP2K: A general program to perform molecular dynamics simulations         */
-/*  Copyright 2000-2024 CP2K developers group <https://cp2k.org>              */
+/*  Copyright 2000-2025 CP2K developers group <https://cp2k.org>              */
 /*                                                                            */
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
@@ -12,14 +12,7 @@
 #include <string.h>
 
 #include "dbm_hyperparams.h"
-#include "dbm_mempool.h"
 #include "dbm_mpi.h"
-
-/*******************************************************************************
- * \brief Returns the larger of two given integer (missing from the C standard)
- * \author Ole Schuett
- ******************************************************************************/
-static inline int imax(int x, int y) { return (x > y ? x : y); }
 
 /*******************************************************************************
  * \brief Private routine for computing greatest common divisor of two numbers.
@@ -210,13 +203,14 @@ static void fill_send_buffers(
       const dbm_shard_t *shard = &matrix->shards[ishard];
       const double *blk_data = &shard->data[blk->offset];
       const int row_size = plan->row_size, col_size = plan->col_size;
+      const int plan_size = row_size * col_size;
       const int irank = plan->rank;
 
       // The blk_send_data is ordered by rank, thread, and block.
       //   data_send_displ[irank]: Start of data for irank within blk_send_data.
       //   ndata_mythread[irank]: Current threads offset within data for irank.
       nblks_mythread[irank] -= 1;
-      ndata_mythread[irank] -= row_size * col_size;
+      ndata_mythread[irank] -= plan_size;
       const int offset = data_send_displ[irank] + ndata_mythread[irank];
       const int jblock = blks_send_displ[irank] + nblks_mythread[irank];
 
@@ -226,17 +220,17 @@ static void fill_send_buffers(
         for (int i = 0; i < row_size; i++) {
           for (int j = 0; j < col_size; j++) {
             const double element = blk_data[j * row_size + i];
-            norm += element * element;
             data_send[offset + i * col_size + j] = element;
+            norm += element * element;
           }
         }
         blks_send[jblock].free_index = plan->blk->col;
         blks_send[jblock].sum_index = plan->blk->row;
       } else {
-        for (int i = 0; i < row_size * col_size; i++) {
+        for (int i = 0; i < plan_size; i++) {
           const double element = blk_data[i];
-          norm += element * element;
           data_send[offset + i] = element;
+          norm += element * element;
         }
         blks_send[jblock].free_index = plan->blk->row;
         blks_send[jblock].sum_index = plan->blk->col;
@@ -365,7 +359,7 @@ static dbm_packed_matrix_t pack_matrix(const bool trans_matrix,
   }
   dbm_pack_block_t *blks_send =
       dbm_mpi_alloc_mem(nblks_send_max * sizeof(dbm_pack_block_t));
-  double *data_send = dbm_mempool_host_malloc(ndata_send_max * sizeof(double));
+  double *data_send = dbm_mpi_alloc_mem(ndata_send_max * sizeof(double));
 
   // Cannot parallelize over packs (there might be too few of them).
   for (int ipack = 0; ipack < nsend_packs; ipack++) {
@@ -408,7 +402,7 @@ static dbm_packed_matrix_t pack_matrix(const bool trans_matrix,
     const int ndata_recv = isum(nranks, data_recv_count);
 
     // 4th communication: Exchange data.
-    double *data_recv = dbm_mempool_host_malloc(ndata_recv * sizeof(double));
+    double *data_recv = dbm_mpi_alloc_mem(ndata_recv * sizeof(double));
     dbm_mpi_alltoallv_double(data_send, data_send_count, data_send_displ,
                              data_recv, data_recv_count, data_recv_displ,
                              dist->comm);
@@ -425,7 +419,7 @@ static dbm_packed_matrix_t pack_matrix(const bool trans_matrix,
 
   // Deallocate send buffers.
   dbm_mpi_free_mem(blks_send);
-  dbm_mempool_free(data_send);
+  dbm_mpi_free_mem(data_send);
 
   // Allocate pack_recv.
   int max_nblocks = 0, max_data_size = 0;
@@ -440,7 +434,7 @@ static dbm_packed_matrix_t pack_matrix(const bool trans_matrix,
   packed.recv_pack.blocks =
       dbm_mpi_alloc_mem(packed.max_nblocks * sizeof(dbm_pack_block_t));
   packed.recv_pack.data =
-      dbm_mempool_host_malloc(packed.max_data_size * sizeof(double));
+      dbm_mpi_alloc_mem(packed.max_data_size * sizeof(double));
 
   return packed; // Ownership of packed transfers to caller.
 }
@@ -508,10 +502,10 @@ static dbm_pack_t *sendrecv_pack(const int itick, const int nticks,
  ******************************************************************************/
 static void free_packed_matrix(dbm_packed_matrix_t *packed) {
   dbm_mpi_free_mem(packed->recv_pack.blocks);
-  dbm_mempool_free(packed->recv_pack.data);
+  dbm_mpi_free_mem(packed->recv_pack.data);
   for (int ipack = 0; ipack < packed->nsend_packs; ipack++) {
     dbm_mpi_free_mem(packed->send_packs[ipack].blocks);
-    dbm_mempool_free(packed->send_packs[ipack].data);
+    dbm_mpi_free_mem(packed->send_packs[ipack].data);
   }
   free(packed->send_packs);
 }

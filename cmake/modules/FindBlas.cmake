@@ -1,6 +1,6 @@
 #!-------------------------------------------------------------------------------------------------!
 #!   CP2K: A general program to perform molecular dynamics simulations                             !
-#!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                  !
+#!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                  !
 #!                                                                                                 !
 #!   SPDX-License-Identifier: GPL-2.0-or-later                                                     !
 #!-------------------------------------------------------------------------------------------------!
@@ -124,6 +124,9 @@ if(NOT CP2K_CONFIG_PACKAGE)
 else()
   set(CP2K_BLAS_FOUND ON)
 endif()
+
+# cleanup list (regularly contains empty items)
+list(FILTER CP2K_BLAS_LINK_LIBRARIES EXCLUDE REGEX "^$")
 
 # we exclude the CP2K_BLAS_INCLUDE_DIRS from the list of mandatory variables as
 # having the fortran interface is usually enough. C, C++ and others languages

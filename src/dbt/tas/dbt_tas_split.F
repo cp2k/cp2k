@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -677,7 +677,7 @@ CONTAINS
    SUBROUTINE group_to_mrowcol(info, rowcol_dist, igroup, rowcols)
       TYPE(dbt_tas_split_info), INTENT(IN)               :: info
 
-      CLASS(dbt_tas_distribution), INTENT(IN)                   :: rowcol_dist
+      CLASS(dbt_tas_distribution), INTENT(IN)                     :: rowcol_dist
       INTEGER, INTENT(IN)                                         :: igroup
       INTEGER(KIND=int_8), DIMENSION(:), ALLOCATABLE, INTENT(OUT) :: rowcols
       INTEGER, DIMENSION(0:info%pgrid_split_size - 1)             :: nrowcols_group

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -269,8 +269,9 @@ CONTAINS
                                                             periodic
       LOGICAL                                            :: do_gpw, do_kpoints_from_Gamma, do_svd, &
                                                             memory_info
-      REAL(KIND=dp) :: compression_factor, cutoff_old, eps_pgf_orb, eps_pgf_orb_old, mem_for_abK, &
-         mem_for_iaK, mem_for_ijK, memory_3c, occ, omega_pot, rc_ang, relative_cutoff_old
+      REAL(KIND=dp) :: compression_factor, cutoff_old, eps_pgf_orb, eps_pgf_orb_old, eps_svd, &
+         mem_for_abK, mem_for_iaK, mem_for_ijK, memory_3c, occ, omega_pot, rc_ang, &
+         relative_cutoff_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: e_cutoff_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: my_Lrows, my_Vrows
       TYPE(cp_eri_mme_param), POINTER                    :: eri_param
@@ -308,6 +309,7 @@ CONTAINS
       eri_method = qs_env%mp2_env%eri_method
       eri_param => qs_env%mp2_env%eri_mme_param
       do_svd = qs_env%mp2_env%do_svd
+      eps_svd = qs_env%mp2_env%eps_svd
       potential_type = qs_env%mp2_env%potential_parameter%potential_type
       ri_metric_type = ri_metric%potential_type
       omega_pot = qs_env%mp2_env%potential_parameter%omega
@@ -332,10 +334,19 @@ CONTAINS
       END IF
 
       IF (do_bse) THEN
-         CPASSERT(my_do_gw)
-         CPASSERT(.NOT. do_im_time)
+         IF (.NOT. my_do_gw) THEN
+            CALL cp_abort(__LOCATION__, "BSE calculations require prior GW calculations.")
+         END IF
+         IF (do_im_time) THEN
+            CALL cp_abort(__LOCATION__, "BSE calculations are not implemented for low-scaling GW.")
+         END IF
          ! GPW integrals have to be implemented later
-         CPASSERT(.NOT. (eri_method == do_eri_gpw))
+         IF (eri_method == do_eri_gpw) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "BSE calculations are not implemented for GPW integrals. "// &
+                          "This is probably caused by invoking a periodic calculation. "// &
+                          "Use PERIODIC NONE for BSE calculations.")
+         END IF
       END IF
 
       ngroup = para_env%num_pe/para_env_sub%num_pe
@@ -359,7 +370,7 @@ CONTAINS
       CALL get_2c_integrals(qs_env, eri_method, eri_param, para_env, para_env_sub, mp2_memory, &
                             my_Lrows, my_Vrows, fm_matrix_PQ, ngroup, color_sub, dimen_RI, dimen_RI_red, &
                             kpoints, my_group_L_size, my_group_L_start, my_group_L_end, &
-                            gd_array, calc_PQ_cond_num .AND. .NOT. do_svd, do_svd, &
+                            gd_array, calc_PQ_cond_num .AND. .NOT. do_svd, do_svd, eps_svd, &
                             qs_env%mp2_env%potential_parameter, ri_metric, &
                             fm_matrix_L_kpoints, fm_matrix_Minv_L_kpoints, fm_matrix_Minv, fm_matrix_Minv_Vtrunc_Minv, &
                             do_im_time, do_kpoints_from_Gamma .OR. do_kpoints_cubic_RPA, qs_env%mp2_env%mp2_gpw%eps_pgf_orb_S, &
@@ -531,6 +542,15 @@ CONTAINS
          IF (eri_method == do_eri_mme .AND. &
              (ri_metric%potential_type == do_potential_coulomb .OR. ri_metric%potential_type == do_potential_long) .OR. &
              eri_method == do_eri_os .AND. ri_metric%potential_type == do_potential_coulomb) THEN
+
+            ! Add a warning for automatically generated RI_AUX basis sets
+            ! Tend to be not sufficiently converged
+            IF (qs_env%mp2_env%ri_aux_auto_generated) THEN
+               CALL cp_warn(__LOCATION__, &
+                            "At least one RI_AUX basis set was not explicitly invoked in &KIND-section. "// &
+                            "Automatically RI-basis sets and ERI_METHOD OS tend to be not converged. "// &
+                            "Consider specifying BASIS_SET RI_AUX explicitly with a sufficiently large basis.")
+            END IF
 
             NULLIFY (mat_munu_local_L)
             ALLOCATE (mat_munu_local_L(my_group_L_size))

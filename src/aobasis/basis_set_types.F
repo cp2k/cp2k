@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -614,12 +614,13 @@ CONTAINS
 !> \param nshell_sum ...
 !> \param maxder ...
 !> \param short_kind_radius ...
+!> \param npgf_seg_sum number of primitives in "segmented contraction format"
 ! **************************************************************************************************
    SUBROUTINE get_gto_basis_set(gto_basis_set, name, aliases, norm_type, kind_radius, ncgf, &
                                 nset, nsgf, cgf_symbol, sgf_symbol, norm_cgf, set_radius, lmax, lmin, lx, ly, lz, &
                                 m, ncgf_set, npgf, nsgf_set, nshell, cphi, pgf_radius, sphi, scon, zet, first_cgf, first_sgf, l, &
                                 last_cgf, last_sgf, n, gcc, maxco, maxl, maxpgf, maxsgf_set, maxshell, maxso, nco_sum, &
-                                npgf_sum, nshell_sum, maxder, short_kind_radius)
+                                npgf_sum, nshell_sum, maxder, short_kind_radius, npgf_seg_sum)
 
       ! Get informations about a Gaussian-type orbital (GTO) basis set.
 
@@ -646,6 +647,7 @@ CONTAINS
                                                             nshell_sum
       INTEGER, INTENT(IN), OPTIONAL                      :: maxder
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: short_kind_radius
+      INTEGER, INTENT(OUT), OPTIONAL                     :: npgf_seg_sum
 
       INTEGER                                            :: iset, nder
 
@@ -736,6 +738,12 @@ CONTAINS
       END IF
       IF (PRESENT(npgf_sum)) npgf_sum = SUM(gto_basis_set%npgf)
       IF (PRESENT(nshell_sum)) nshell_sum = SUM(gto_basis_set%nshell)
+      IF (PRESENT(npgf_seg_sum)) THEN
+         npgf_seg_sum = 0
+         DO iset = 1, gto_basis_set%nset
+            npgf_seg_sum = npgf_seg_sum + gto_basis_set%npgf(iset)*gto_basis_set%nshell(iset)
+         END DO
+      END IF
 
    END SUBROUTINE get_gto_basis_set
 

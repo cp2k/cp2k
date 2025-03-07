@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -341,7 +341,7 @@ CONTAINS
                ALLOCATE (p_rmpv(jspin)%matrix)
                tmatrix => p_rmpv(jspin)%matrix
                CALL dbcsr_create(matrix=tmatrix, template=refmatrix, &
-                                 matrix_type=dbcsr_type_symmetric, nze=0)
+                                 matrix_type=dbcsr_type_symmetric)
                CALL cp_dbcsr_alloc_block_from_nbl(tmatrix, sab_orb)
                CALL dbcsr_set(tmatrix, 0.0_dp)
             END DO

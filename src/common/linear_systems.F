@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -8,9 +8,6 @@
 ! **************************************************************************************************
 !> \brief Provides interfaces to LAPACK routines for factorisation and
 !>      linear system solving
-!> \note
-!>      We are using LAPACK interfaces, so please make sure in IBM/AIX you have
-!>      the lapack library before essl: "xlf90 ... -llapack -lessl" !!!
 !> \par History
 !>      none
 !> \author JGH (30-5-2001)
@@ -18,7 +15,6 @@
 MODULE linear_systems
 
    USE kinds,                           ONLY: dp
-   USE lapack,                          ONLY: lapack_sgesv
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -49,8 +45,8 @@ CONTAINS
       ldb = SIZE(eigenvectors, 1)
       nrhs = SIZE(eigenvectors, 2)
 
-      CALL lapack_sgesv(mysize, nrhs, matrix, lda, ipiv, &
-                        eigenvectors, ldb, info)
+      CALL dgesv(mysize, nrhs, matrix, lda, ipiv, &
+                 eigenvectors, ldb, info)
       IF (info /= 0) THEN
          CPABORT("Error in inversion")
       END IF

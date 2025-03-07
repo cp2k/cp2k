@@ -1,0 +1,43 @@
+&GLOBAL
+  PROJECT deepmd_water
+  RUN_TYPE ENERGY_FORCE
+  &PRINT DEBUG
+  &END PRINT
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      &NONBONDED
+        &DEEPMD
+          ATOMS O H
+          ATOMS_DEEPMD_TYPE 0 1
+          ! Copied from https://github.com/deepmodeling/deepmd-kit/blob/r3.0/examples/water/dpa2/frozen_model.pth
+          POT_FILE_NAME DeePMD/water_dpa2.pth
+        &END DEEPMD
+      &END NONBONDED
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE none
+      &END EWALD
+    &END POISSON
+  &END MM
+  &PRINT
+    &FORCES
+    &END FORCES
+  &END PRINT
+  &SUBSYS
+    &CELL
+      ABC 10.0 10.0 10.0
+    &END CELL
+    &COORD
+      O    8.973310    7.488240    7.183015
+      H    8.017530    7.477070    7.328865
+      H    9.347810    7.444760    8.067115
+    &END COORD
+    &TOPOLOGY
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL

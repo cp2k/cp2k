@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -14,9 +14,11 @@
 MODULE dm_ls_chebyshev
    USE arnoldi_api,                     ONLY: arnoldi_extremal
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_add, dbcsr_add_on_diag, dbcsr_copy, dbcsr_create, dbcsr_frobenius_norm, &
-        dbcsr_get_info, dbcsr_get_occupation, dbcsr_multiply, dbcsr_release, dbcsr_scale, &
-        dbcsr_set, dbcsr_trace, dbcsr_type, dbcsr_type_no_symmetry
+        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_get_info, dbcsr_get_occupation, dbcsr_multiply, &
+        dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_add_on_diag,&
+                                              dbcsr_frobenius_norm,&
+                                              dbcsr_trace
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type

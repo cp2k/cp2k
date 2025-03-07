@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -11,10 +11,10 @@
 ! **************************************************************************************************
 MODULE pao_param
    USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
-                                              dbcsr_frobenius_norm,&
                                               dbcsr_multiply,&
                                               dbcsr_release,&
                                               dbcsr_type
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_frobenius_norm
    USE dm_ls_scf_types,                 ONLY: ls_scf_env_type
    USE kinds,                           ONLY: dp
    USE pao_input,                       ONLY: pao_equi_param,&

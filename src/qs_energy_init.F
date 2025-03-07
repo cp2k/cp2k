@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -191,7 +191,7 @@ CONTAINS
                                        subset_of_mol=kg_env%subset_of_mol, current_subset=isubset)
          END DO
       CASE (kg_tnadd_embed_ri)
-!deb should be deleted as soon as atomic grids work
+         ! should be deleted as soon as atomic grids work
          ! allocate the subset list
          IF (.NOT. ASSOCIATED(kg_env%subset_of_mol)) THEN
             ALLOCATE (kg_env%subset_of_mol(SIZE(molecule_set)))
@@ -204,7 +204,7 @@ CONTAINS
             CALL kg_build_neighborlist(qs_env, sab_orb=kg_env%subset(isubset)%sab_orb, molecular=.TRUE., &
                                        subset_of_mol=kg_env%subset_of_mol, current_subset=isubset)
          END DO
-!deb
+         !
          ! LRI neighborlist
          NULLIFY (soo_list)
          CALL kg_build_neighborlist(qs_env, sab_orb=soo_list, molecular=.TRUE.)
@@ -306,10 +306,7 @@ CONTAINS
                                         calculate_forces=.FALSE.)
          CALL qs_env_update_s_mstruct(qs_env)
       ELSEIF (dft_control%qs_control%xtb) THEN
-         CALL build_xtb_matrices(qs_env=qs_env, para_env=para_env, &
-                                 calculate_forces=.FALSE.)
-         CALL get_qs_env(qs_env=qs_env, dispersion_env=dispersion_env, energy=energy)
-         CALL calculate_dispersion_pairpot(qs_env, dispersion_env, energy%dispersion, calc_forces)
+         CALL build_xtb_matrices(qs_env=qs_env, calculate_forces=.FALSE.)
          CALL qs_env_update_s_mstruct(qs_env)
       ELSE
          CALL build_core_hamiltonian_matrix(qs_env=qs_env, calculate_forces=.FALSE.)

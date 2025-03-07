@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -91,6 +91,15 @@ CONTAINS
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(section_vals_type), POINTER                   :: input, mixing_section
+
+      NULLIFY (ls_scf_env)
+      CALL get_qs_env(qs_env, ls_scf_env=ls_scf_env)
+      ! we cannot rebuild ls_scf_env for each new optimization. It seems it holds some values
+      ! that need to be save between calls?
+      IF (ASSOCIATED(ls_scf_env)) RETURN
+!     IF(ASSOCIATED(ls_scf_env)) THEN
+!        CALL ls_scf_release(ls_scf_env)
+!     END IF
 
       CALL timeset(routineN, handle)
 

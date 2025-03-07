@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -799,14 +799,12 @@ CONTAINS
          CALL section_vals_get(frame_section, n_repetition=nr_frame)
 
          colvar%rmsd_param%nr_frames = nr_frame
-         ! Calculation is aborted if reference frame are less than 2
+         ! Calculation is aborted if reference frame are less than 1 and more than 2
          CPASSERT(nr_frame >= 1 .AND. nr_frame <= 2)
          CALL read_frames(frame_section, para_env, nr_frame, colvar%rmsd_param%r_ref, &
                           colvar%rmsd_param%n_atoms)
-
          ALLOCATE (colvar%rmsd_param%weights(colvar%rmsd_param%n_atoms))
          colvar%rmsd_param%weights = 0.0_dp
-
          CALL section_vals_val_get(rmsd_section, "SUBSET_TYPE", i_val=colvar%rmsd_param%subset)
          IF (colvar%rmsd_param%subset == rmsd_all) THEN
             ALLOCATE (colvar%rmsd_param%i_rmsd(colvar%rmsd_param%n_atoms))
@@ -871,6 +869,7 @@ CONTAINS
          END IF
 
          CALL section_vals_val_get(rmsd_section, "ALIGN_FRAMES", l_val=colvar%rmsd_param%align_frames)
+
       ELSE IF (my_subsection(17)) THEN
          ! Work on XYZ positions of atoms
          wrk_section => xyz_diag_section
@@ -4383,9 +4382,6 @@ CONTAINS
             nLcoord(i) = nLcoord(i) + num_n*inv_den_n
          END DO
          expnL(i) = EXP(lambda*nLcoord(i))
-!dbg
-! write(*,*) ii,nLcoord(i),expnL(i)
-!dbg
          den_Q = den_Q + expnL(i)
       END DO
       inv_den_Q = 1.0_dp/den_Q
@@ -4404,9 +4400,6 @@ CONTAINS
             rij = pbc(rpj, rpi, cell)
             r12 = SQRT(rij(1)*rij(1) + rij(2)*rij(2) + rij(3)*rij(3))
 
-!dbg
-! write(*,*) ii,jj,rpi(1:3),rpj(1:3),rij(1:3),r12
-!dbg
             num_Q = num_Q + r12*expnL(j)
 
             sum_rij(j) = sum_rij(j) + r12
@@ -4422,10 +4415,6 @@ CONTAINS
       qfunc = num_Q*inv_den_Q
       dqfunc_dr = dqfunc_dr*inv_den_Q
       colvar%ss = qfunc
-!dbg
-!      write(*,*) ' ss ',  colvar%ss
-! stop
-!dbg
 
       DO i = 1, n_coord_from
          dqfunc_dnL(i) = lambda*expnL(i)*inv_den_Q*(sum_rij(i) - num_Q*inv_den_Q)

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -58,7 +58,7 @@ MODULE gopt_f_methods
    USE md_energies, ONLY: sample_memory
    USE message_passing, ONLY: mp_para_env_type
    USE motion_utils, ONLY: write_simulation_cell, &
-                           write_stress_tensor, &
+                           write_stress_tensor_to_file, &
                            write_trajectory
    USE particle_list_types, ONLY: particle_list_type
    USE particle_methods, ONLY: write_structure_data
@@ -75,7 +75,7 @@ MODULE gopt_f_methods
    #:include "gopt_f77_methods.fypp"
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gopt_f_methods'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = "gopt_f_methods"
 
    PUBLIC :: gopt_f_create_x0, &
              print_geo_opt_header, print_geo_opt_nc, &
@@ -185,6 +185,7 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich - 03.2008
 ! **************************************************************************************************
    SUBROUTINE gopt_f_io_init(gopt_env, output_unit, opt_energy, wildcard, its, used_time)
+
       TYPE(gopt_f_type), POINTER                         :: gopt_env
       INTEGER, INTENT(IN)                                :: output_unit
       REAL(KIND=dp)                                      :: opt_energy
@@ -193,6 +194,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: used_time
 
       TYPE(mp_para_env_type), POINTER                    :: para_env
+      CHARACTER(LEN=default_string_length)               :: energy_unit, stress_unit
       REAL(KIND=dp)                                      :: pres_int
       INTEGER(KIND=int_8)                                :: max_memory
       LOGICAL                                            :: print_memory
@@ -205,24 +207,55 @@ CONTAINS
          max_memory = sample_memory(para_env)
       END IF
 
+      CALL section_vals_val_get(gopt_env%force_env%force_env_section, &
+                                "PRINT%PROGRAM_RUN_INFO%ENERGY_UNIT", &
+                                c_val=energy_unit)
+      CALL section_vals_val_get(gopt_env%force_env%force_env_section, &
+                                "PRINT%STRESS_TENSOR%STRESS_UNIT", &
+                                c_val=stress_unit)
+
       SELECT CASE (gopt_env%type_id)
       CASE (default_ts_method_id, default_minimization_method_id)
          ! Geometry Optimization (Minimization and Transition State Search)
          IF (.NOT. gopt_env%dimer_rotation) THEN
-            CALL write_cycle_infos(output_unit, it=its, etot=opt_energy, wildcard=wildcard, &
-                                   used_time=used_time, max_memory=max_memory)
+            CALL write_cycle_infos(output_unit, &
+                                   it=its, &
+                                   etot=opt_energy, &
+                                   wildcard=wildcard, &
+                                   used_time=used_time, &
+                                   max_memory=max_memory, &
+                                   energy_unit=energy_unit, &
+                                   stress_unit=stress_unit)
          ELSE
-            CALL write_rot_cycle_infos(output_unit, it=its, etot=opt_energy, dimer_env=gopt_env%dimer_env, &
-                                       wildcard=wildcard, used_time=used_time, max_memory=max_memory)
+            CALL write_rot_cycle_infos(output_unit, &
+                                       it=its, &
+                                       etot=opt_energy, &
+                                       dimer_env=gopt_env%dimer_env, &
+                                       wildcard=wildcard, &
+                                       used_time=used_time, &
+                                       max_memory=max_memory)
          END IF
       CASE (default_cell_method_id)
          ! Cell Optimization
          pres_int = gopt_env%cell_env%pres_int
-         CALL write_cycle_infos(output_unit, it=its, etot=opt_energy, pres_int=pres_int, &
-                                wildcard=wildcard, used_time=used_time, max_memory=max_memory)
+         CALL write_cycle_infos(output_unit, &
+                                it=its, &
+                                etot=opt_energy, &
+                                pres_int=pres_int, &
+                                wildcard=wildcard, &
+                                used_time=used_time, &
+                                max_memory=max_memory, &
+                                energy_unit=energy_unit, &
+                                stress_unit=stress_unit)
       CASE (default_shellcore_method_id)
-         CALL write_cycle_infos(output_unit, it=its, etot=opt_energy, wildcard=wildcard, &
-                                used_time=used_time, max_memory=max_memory)
+         CALL write_cycle_infos(output_unit, &
+                                it=its, &
+                                etot=opt_energy, &
+                                wildcard=wildcard, &
+                                used_time=used_time, &
+                                max_memory=max_memory, &
+                                energy_unit=energy_unit, &
+                                stress_unit=stress_unit)
       END SELECT
 
    END SUBROUTINE gopt_f_io_init
@@ -253,6 +286,7 @@ CONTAINS
    SUBROUTINE gopt_f_io(gopt_env, force_env, root_section, its, opt_energy, &
                         output_unit, eold, emin, wildcard, gopt_param, ndf, dx, xi, conv, pred, rat, &
                         step, rad, used_time)
+
       TYPE(gopt_f_type), POINTER                         :: gopt_env
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(section_vals_type), POINTER                   :: root_section
@@ -269,6 +303,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: pred, rat, step, rad
       REAL(KIND=dp)                                      :: used_time
 
+      CHARACTER(LEN=default_string_length)               :: energy_unit, stress_unit
       INTEGER(KIND=int_8)                                :: max_memory
       LOGICAL                                            :: print_memory
       REAL(KIND=dp)                                      :: pres_diff, pres_diff_constr, pres_int, &
@@ -283,21 +318,39 @@ CONTAINS
          max_memory = sample_memory(para_env)
       END IF
 
+      CALL section_vals_val_get(gopt_env%force_env%force_env_section, &
+                                "PRINT%PROGRAM_RUN_INFO%ENERGY_UNIT", &
+                                c_val=energy_unit)
+      CALL section_vals_val_get(gopt_env%force_env%force_env_section, &
+                                "PRINT%STRESS_TENSOR%STRESS_UNIT", &
+                                c_val=stress_unit)
+
       SELECT CASE (gopt_env%type_id)
       CASE (default_ts_method_id, default_minimization_method_id)
          ! Geometry Optimization (Minimization and Transition State Search)
          IF (.NOT. gopt_env%dimer_rotation) THEN
             CALL geo_opt_io(force_env=force_env, root_section=root_section, &
                             motion_section=gopt_env%motion_section, its=its, opt_energy=opt_energy)
-            CALL write_cycle_infos(output_unit, its, etot=opt_energy, ediff=opt_energy - eold, &
-                                   pred=pred, rat=rat, step=step, rad=rad, emin=emin, &
-                                   wildcard=wildcard, used_time=used_time, max_memory=max_memory)
+            CALL write_cycle_infos(output_unit, &
+                                   it=its, &
+                                   etot=opt_energy, &
+                                   ediff=(opt_energy - eold), &
+                                   pred=pred, &
+                                   rat=rat, &
+                                   step=step, &
+                                   rad=rad, &
+                                   emin=emin, &
+                                   wildcard=wildcard, &
+                                   used_time=used_time, &
+                                   max_memory=max_memory, &
+                                   energy_unit=energy_unit, &
+                                   stress_unit=stress_unit)
             ! Possibly check convergence
             IF (PRESENT(conv)) THEN
                CPASSERT(PRESENT(ndf))
                CPASSERT(PRESENT(dx))
                CPASSERT(PRESENT(xi))
-               CALL check_converg(ndf, dx, xi, output_unit, conv, gopt_param, max_memory)
+               CALL check_converg(ndf, dx, xi, output_unit, conv, gopt_param, max_memory, stress_unit)
             END IF
          ELSE
             CALL update_dimer_vec(gopt_env%dimer_env, gopt_env%motion_section)
@@ -317,32 +370,56 @@ CONTAINS
          pres_tol = gopt_env%cell_env%pres_tol
          CALL geo_opt_io(force_env=force_env, root_section=root_section, &
                          motion_section=gopt_env%motion_section, its=its, opt_energy=opt_energy)
-         CALL write_cycle_infos(output_unit, its, etot=opt_energy, ediff=opt_energy - eold, &
-                                pred=pred, rat=rat, step=step, rad=rad, emin=emin, pres_int=pres_int, &
-                                wildcard=wildcard, used_time=used_time, max_memory=max_memory)
+         CALL write_cycle_infos(output_unit, &
+                                it=its, &
+                                etot=opt_energy, &
+                                ediff=(opt_energy - eold), &
+                                pred=pred, &
+                                rat=rat, &
+                                step=step, &
+                                rad=rad, &
+                                emin=emin, &
+                                pres_int=pres_int, &
+                                wildcard=wildcard, &
+                                used_time=used_time, &
+                                max_memory=max_memory, &
+                                energy_unit=energy_unit, &
+                                stress_unit=stress_unit)
          ! Possibly check convergence
          IF (PRESENT(conv)) THEN
             CPASSERT(PRESENT(ndf))
             CPASSERT(PRESENT(dx))
             CPASSERT(PRESENT(xi))
             IF (gopt_env%cell_env%constraint_id == fix_none) THEN
-               CALL check_converg(ndf, dx, xi, output_unit, conv, gopt_param, max_memory, pres_diff, pres_tol)
+               CALL check_converg(ndf, dx, xi, output_unit, conv, gopt_param, max_memory, stress_unit, &
+                                  pres_diff, pres_tol)
             ELSE
                pres_diff_constr = gopt_env%cell_env%pres_constr - gopt_env%cell_env%pres_ext
-               CALL check_converg(ndf, dx, xi, output_unit, conv, gopt_param, max_memory, pres_diff, &
-                                  pres_tol, pres_diff_constr)
+               CALL check_converg(ndf, dx, xi, output_unit, conv, gopt_param, max_memory, stress_unit, &
+                                  pres_diff, pres_tol, pres_diff_constr)
             END IF
          END IF
       CASE (default_shellcore_method_id)
-         CALL write_cycle_infos(output_unit, its, etot=opt_energy, ediff=opt_energy - eold, &
-                                pred=pred, rat=rat, step=step, rad=rad, emin=emin, wildcard=wildcard, &
-                                used_time=used_time, max_memory=max_memory)
+         CALL write_cycle_infos(output_unit, &
+                                it=its, &
+                                etot=opt_energy, &
+                                ediff=(opt_energy - eold), &
+                                pred=pred, &
+                                rat=rat, &
+                                step=step, &
+                                rad=rad, &
+                                emin=emin, &
+                                wildcard=wildcard, &
+                                used_time=used_time, &
+                                max_memory=max_memory, &
+                                energy_unit=energy_unit, &
+                                stress_unit=stress_unit)
          ! Possibly check convergence
          IF (PRESENT(conv)) THEN
             CPASSERT(PRESENT(ndf))
             CPASSERT(PRESENT(dx))
             CPASSERT(PRESENT(xi))
-            CALL check_converg(ndf, dx, xi, output_unit, conv, gopt_param, max_memory)
+            CALL check_converg(ndf, dx, xi, output_unit, conv, gopt_param, max_memory, stress_unit)
          END IF
       END SELECT
 
@@ -400,7 +477,7 @@ CONTAINS
 !> \param used_time ...
 ! **************************************************************************************************
    SUBROUTINE write_cycle_infos(output_unit, it, etot, ediff, pred, rat, step, rad, emin, &
-                                pres_int, wildcard, used_time, max_memory)
+                                pres_int, wildcard, used_time, max_memory, energy_unit, stress_unit)
 
       INTEGER, INTENT(IN)                                :: output_unit, it
       REAL(KIND=dp), INTENT(IN)                          :: etot
@@ -409,9 +486,9 @@ CONTAINS
       CHARACTER(LEN=5), INTENT(IN)                       :: wildcard
       REAL(KIND=dp), INTENT(IN)                          :: used_time
       INTEGER(KIND=int_8), INTENT(IN)                    :: max_memory
+      CHARACTER(LEN=default_string_length), INTENT(IN)   :: energy_unit, stress_unit
 
       CHARACTER(LEN=5)                                   :: tag
-      REAL(KIND=dp)                                      :: tmp_r1
 
       IF (output_unit > 0) THEN
          tag = "OPT| "
@@ -421,19 +498,22 @@ CONTAINS
          WRITE (UNIT=output_unit, FMT="(T2,A,T55,1X,A25)") &
             tag//"Optimization method", wildcard
          WRITE (UNIT=output_unit, FMT="(T2,A,T55,1X,F25.10)") &
-            tag//"Total energy [hartree]", etot
+            tag//"Total energy ["//TRIM(ADJUSTL(energy_unit))//"]", &
+            cp_unit_from_cp2k(etot, TRIM(energy_unit))
          IF (PRESENT(pres_int)) THEN
-            tmp_r1 = cp_unit_from_cp2k(pres_int, "bar")
             WRITE (UNIT=output_unit, FMT="(T2,A,T55,1X,F25.10)") &
-               tag//"Internal pressure [bar]", tmp_r1
+               tag//"Internal pressure ["//TRIM(ADJUSTL(stress_unit))//"]", &
+               cp_unit_from_cp2k(pres_int, TRIM(stress_unit))
          END IF
          IF (PRESENT(ediff)) THEN
             WRITE (UNIT=output_unit, FMT="(T2,A,T55,1X,F25.10)") &
-               tag//"Effective energy change [hartree]", ediff
+               tag//"Effective energy change ["//TRIM(ADJUSTL(energy_unit))//"]", &
+               cp_unit_from_cp2k(ediff, TRIM(energy_unit))
          END IF
          IF (PRESENT(pred)) THEN
             WRITE (UNIT=output_unit, FMT="(T2,A,T55,1X,F25.10)") &
-               tag//"Predicted energy change [hartree]", pred
+               tag//"Predicted energy change ["//TRIM(ADJUSTL(energy_unit))//"]", &
+               cp_unit_from_cp2k(pred, TRIM(energy_unit))
          END IF
          IF (PRESENT(rat)) THEN
             WRITE (UNIT=output_unit, FMT="(T2,A,T55,1X,F25.10)") &
@@ -546,8 +626,8 @@ CONTAINS
 !> \param pres_tol ...
 !> \param pres_diff_constr ...
 ! **************************************************************************************************
-   SUBROUTINE check_converg(ndf, dr, g, output_unit, conv, gopt_param, max_memory, pres_diff, &
-                            pres_tol, pres_diff_constr)
+   SUBROUTINE check_converg(ndf, dr, g, output_unit, conv, gopt_param, max_memory, stress_unit, &
+                            pres_diff, pres_tol, pres_diff_constr)
 
       INTEGER, INTENT(IN)                                :: ndf
       REAL(KIND=dp), INTENT(IN)                          :: dr(ndf), g(ndf)
@@ -555,6 +635,7 @@ CONTAINS
       LOGICAL, INTENT(OUT)                               :: conv
       TYPE(gopt_param_type), POINTER                     :: gopt_param
       INTEGER(KIND=int_8), INTENT(IN)                    :: max_memory
+      CHARACTER(LEN=default_string_length), INTENT(IN)   :: stress_unit
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: pres_diff, pres_tol, pres_diff_constr
 
       CHARACTER(LEN=5)                                   :: tag
@@ -562,7 +643,7 @@ CONTAINS
       LOGICAL                                            :: conv_dx, conv_g, conv_p, conv_rdx, &
                                                             conv_rg
       REAL(KIND=dp)                                      :: dumm, dxcon, gcon, maxdum(4), rmsgcon, &
-                                                            rmsxcon, tmp_r1
+                                                            rmsxcon
 
       dxcon = gopt_param%max_dr
       gcon = gopt_param%max_force
@@ -657,21 +738,24 @@ CONTAINS
          END IF
 
          IF (PRESENT(pres_diff) .AND. PRESENT(pres_tol)) THEN
-            tmp_r1 = cp_unit_from_cp2k(pres_diff, "bar")
             WRITE (UNIT=output_unit, FMT="(T2,A)") TRIM(tag)
             IF (PRESENT(pres_diff_constr)) THEN
                WRITE (UNIT=output_unit, FMT="(T2,A,T55,1X,F25.10)") &
-                  tag//"Pressure deviation without constraint [bar]", tmp_r1
-               tmp_r1 = cp_unit_from_cp2k(pres_diff_constr, "bar")
+                  tag//"Pressure deviation without constraint ["// &
+                  TRIM(ADJUSTL(stress_unit))//"]", &
+                  cp_unit_from_cp2k(pres_diff, TRIM(stress_unit))
                WRITE (UNIT=output_unit, FMT="(T2,A,T55,1X,F25.10)") &
-                  tag//"Pressure deviation with constraint [bar]", tmp_r1
+                  tag//"Pressure deviation with constraint ["// &
+                  TRIM(ADJUSTL(stress_unit))//"]", &
+                  cp_unit_from_cp2k(pres_diff_constr, TRIM(stress_unit))
             ELSE
                WRITE (UNIT=output_unit, FMT="(T2,A,T55,1X,F25.10)") &
-                  tag//"Pressure deviation [bar]", tmp_r1
+                  tag//"Pressure deviation ["//TRIM(ADJUSTL(stress_unit))//"]", &
+                  cp_unit_from_cp2k(pres_diff, TRIM(stress_unit))
             END IF
-            tmp_r1 = cp_unit_from_cp2k(pres_tol, "bar")
             WRITE (UNIT=output_unit, FMT="(T2,A,T55,1X,F25.10)") &
-               tag//"Pressure tolerance [bar]", tmp_r1
+               tag//"Pressure tolerance ["//TRIM(ADJUSTL(stress_unit))//"]", &
+               cp_unit_from_cp2k(pres_tol, TRIM(stress_unit))
             IF (conv_p) THEN
                WRITE (UNIT=output_unit, FMT="(T2,A,T77,A4)") &
                   tag//"Pressure is converged", " YES"
@@ -971,7 +1055,7 @@ CONTAINS
       particle_set => particles%els
       CALL virial_evaluate(atomic_kind_set, particle_set, local_particles, &
                            virial, para_env)
-      CALL write_stress_tensor(virial, cell, motion_section, its, 0.0_dp)
+      CALL write_stress_tensor_to_file(virial, cell, motion_section, its, 0.0_dp)
 
       ! Write the cell
       CALL write_simulation_cell(cell, motion_section, its, 0.0_dp)

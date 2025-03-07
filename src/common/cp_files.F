@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -68,7 +68,7 @@ CONTAINS
       END IF
 
       IF (LEN_TRIM(file_name) == 0) THEN
-         CPABORT("No valid file name was specified")
+         CPABORT("No valid file name was specified.")
       END IF
 
       nc = SIZE(preconnected)
@@ -83,7 +83,7 @@ CONTAINS
                CALL print_preconnection_list()
                CALL cp_abort(__LOCATION__, &
                              "Attempt to connect the already connected file <"// &
-                             TRIM(file_name)//"> to another unit")
+                             TRIM(file_name)//"> to another unit.")
             END IF
          END IF
       END DO
@@ -99,7 +99,7 @@ CONTAINS
 
       IF (islot == -1) THEN
          CALL print_preconnection_list()
-         CPABORT("No free slot found in the list of preconnected units")
+         CPABORT("No free slot found in the list of preconnected units.")
       END IF
 
       preconnected(islot)%file_name = TRIM(file_name)
@@ -169,7 +169,7 @@ CONTAINS
          IF (istat /= 0) THEN
             WRITE (UNIT=message, FMT="(A,I0,A,I0,A)") &
                "An error occurred inquiring the unit with the number ", unit_number, &
-               " (IOSTAT = ", istat, ")"
+               " (IOSTAT = ", istat, ")."
             CPABORT(TRIM(message))
          END IF
          ! Manage preconnections
@@ -181,7 +181,7 @@ CONTAINS
             IF (istat /= 0) THEN
                WRITE (UNIT=message, FMT="(A,I0,A,I0,A)") &
                   "An error occurred closing the file with the logical unit number ", &
-                  unit_number, " (IOSTAT = ", istat, ")"
+                  unit_number, " (IOSTAT = ", istat, ")."
                CPABORT(TRIM(message))
             END IF
          END IF
@@ -218,7 +218,7 @@ CONTAINS
                CALL cp_abort(__LOCATION__, &
                              "Attempt to disconnect the file <"// &
                              TRIM(file_name)// &
-                             "> from an unlisted unit")
+                             "> from an unlisted unit.")
             END IF
          END IF
       END DO
@@ -345,7 +345,7 @@ CONTAINS
          pad_string = file_pad
          IF (form_string == "UNFORMATTED") THEN
             WRITE (UNIT=message, FMT="(A)") &
-               "The PAD specifier is not allowed for an UNFORMATTED file"
+               "The PAD specifier is not allowed for an UNFORMATTED file."
             CPABORT(TRIM(message))
          END IF
       ELSE
@@ -373,11 +373,18 @@ CONTAINS
       IF (file_name(1:1) == " ") THEN
          WRITE (UNIT=message, FMT="(A)") &
             "The file name <"//TRIM(file_name)//"> has leading blanks."
-         CPWARN(TRIM(message))
+         CPABORT(TRIM(message))
       END IF
 
-      real_file_name = ADJUSTL(file_name)
-      IF (status_string == "OLD") real_file_name = discover_file(file_name)
+      IF (status_string == "OLD") THEN
+         real_file_name = discover_file(file_name)
+      ELSE
+         ! Strip leading and trailing blanks from file name
+         real_file_name = TRIM(ADJUSTL(file_name))
+         IF (LEN_TRIM(real_file_name) == 0) THEN
+            CPABORT("A file name length of zero for a new file is invalid.")
+         END IF
+      END IF
 
       ! Check the specified input file name
       INQUIRE (FILE=TRIM(real_file_name), EXIST=exists, OPENED=is_open, IOSTAT=istat)
@@ -497,7 +504,8 @@ CONTAINS
       CHARACTER(LEN=default_path_length)                 :: real_file_name
 
       real_file_name = discover_file(file_name)
-      INQUIRE (FILE=TRIM(real_file_name), exist=exist)
+      INQUIRE (FILE=TRIM(real_file_name), EXIST=exist)
+
    END FUNCTION file_exists
 
 ! **************************************************************************************************
@@ -514,17 +522,22 @@ CONTAINS
       INTEGER                                            :: stat
       LOGICAL                                            :: exists
 
+      ! Strip leading and trailing blanks from file name
       real_file_name = TRIM(ADJUSTL(file_name))
 
-      ! first try file-name directly
-      INQUIRE (file=TRIM(real_file_name), exist=exists, iostat=stat)
+      IF (LEN_TRIM(real_file_name) == 0) THEN
+         CPABORT("A file name length of zero for an existing file is invalid.")
+      END IF
+
+      ! First try file name directly
+      INQUIRE (FILE=TRIM(real_file_name), EXIST=exists, IOSTAT=stat)
       IF (stat == 0 .AND. exists) RETURN
 
-      ! then try the data-dir
+      ! Then try the data directory
       data_dir = get_data_dir()
       IF (LEN_TRIM(data_dir) > 0) THEN
          candidate = join_paths(data_dir, real_file_name)
-         INQUIRE (file=TRIM(candidate), exist=exists, iostat=stat)
+         INQUIRE (FILE=TRIM(candidate), EXIST=exists, IOSTAT=stat)
          IF (stat == 0 .AND. exists) THEN
             real_file_name = candidate
             RETURN

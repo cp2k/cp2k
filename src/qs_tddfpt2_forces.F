@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -11,11 +11,14 @@ MODULE qs_tddfpt2_forces
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind,&
                                               get_atomic_kind_set
+   USE bibliography,                    ONLY: Sertcan2024,&
+                                              cite_reference
    USE cp_control_types,                ONLY: dft_control_type,&
                                               tddfpt2_control_type
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_add, dbcsr_complete_redistribute, dbcsr_copy, dbcsr_create, dbcsr_dot, dbcsr_p_type, &
+        dbcsr_add, dbcsr_complete_redistribute, dbcsr_copy, dbcsr_create, dbcsr_p_type, &
         dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_dot
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
@@ -172,6 +175,9 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       CALL get_qs_env(qs_env, dft_control=dft_control)
+
+      IF (dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc) CALL cite_reference(Sertcan2024)
+
       nspins = dft_control%nspins
       tddfpt_control => dft_control%tddfpt2_control
       ! rhs of linres equation
@@ -643,7 +649,7 @@ CONTAINS
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          POINTER                                         :: gs_mos
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_hz
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: cpmos
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: cpmos
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'tddfpt_resvec2'
 
@@ -1137,7 +1143,7 @@ CONTAINS
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          POINTER                                         :: gs_mos
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_hz
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: cpmos
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: cpmos
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_resvec2_xtb'
 

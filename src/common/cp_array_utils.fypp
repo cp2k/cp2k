@@ -1,6 +1,6 @@
 #!-------------------------------------------------------------------------------------------------!
 #!   CP2K: A general program to perform molecular dynamics simulations                             !
-#!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                  !
+#!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                  !
 #!                                                                                                 !
 #!   SPDX-License-Identifier: GPL-2.0-or-later                                                     !
 #!-------------------------------------------------------------------------------------------------!
@@ -31,7 +31,7 @@ REAL(${el1}$) < REAL(${el2}$) .OR. (ABS(REAL(${el1}$)-REAL(${el2}$)) < epsilon(M
 
    #:def uselist(list_in)
       #!    comma-separated list of unique entries of list_in
-      $:    ", ".join(list(set([_ for _ in list_in if _])))
+      $:    ", ".join(sorted(set(x for x in list_in if x)))
    #:enddef
 
 #:endmute

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -22,11 +22,12 @@ MODULE mao_methods
                                               write_gto_basis_set
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_create, dbcsr_desymmetrize, dbcsr_distribution_type, dbcsr_dot, dbcsr_get_block_p, &
+        dbcsr_create, dbcsr_desymmetrize, dbcsr_distribution_type, dbcsr_get_block_p, &
         dbcsr_get_info, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
-        dbcsr_p_type, dbcsr_release, dbcsr_reserve_diag_blocks, dbcsr_set, dbcsr_type, &
-        dbcsr_type_no_symmetry
+        dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_dot,&
+                                              dbcsr_reserve_diag_blocks
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               cp_dbcsr_plus_fm_fm_t,&
@@ -46,8 +47,6 @@ MODULE mao_methods
    USE kpoint_methods,                  ONLY: rskp_transform
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_type
-   USE lapack,                          ONLY: lapack_ssyev,&
-                                              lapack_ssygv
    USE message_passing,                 ONLY: mp_comm_type,&
                                               mp_para_env_type
    USE particle_types,                  ONLY: particle_type
@@ -92,8 +91,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: eps1
       INTEGER, INTENT(IN)                                :: iolevel, iw
 
-      INTEGER                                            :: group_handle, i, iatom, info, jatom, &
-                                                            lwork, m, n, nblk
+      INTEGER                                            :: i, iatom, info, jatom, lwork, m, n, nblk
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_sizes, mao_blk, row_blk, &
                                                             row_blk_sizes
       LOGICAL                                            :: found
@@ -127,7 +125,7 @@ CONTAINS
          amat(1:n, 1:n) = pblock(1:n, 1:n)
          bmat(1:n, 1:n) = sblock(1:n, 1:n)
          info = 0
-         CALL lapack_ssygv(1, "V", "U", n, amat, n, bmat, n, w, work, lwork, info)
+         CALL dsygv(1, "V", "U", n, amat, n, bmat, n, w, work, lwork, info)
          CPASSERT(info == 0)
          ALLOCATE (mbl(iatom)%mat(n, n), mbl(iatom)%eig(n))
          mbl(iatom)%n = n
@@ -142,8 +140,7 @@ CONTAINS
       CALL dbcsr_iterator_stop(dbcsr_iter)
 
       IF (eps1 < 10.0_dp) THEN
-         CALL dbcsr_get_info(mao_coef, row_blk_size=row_blk_sizes, group=group_handle)
-         CALL group%set_handle(group_handle)
+         CALL dbcsr_get_info(mao_coef, row_blk_size=row_blk_sizes, group=group)
          ALLOCATE (row_blk(nblk), mao_blk(nblk))
          mao_blk = 0
          row_blk = row_blk_sizes
@@ -164,8 +161,7 @@ CONTAINS
          CALL dbcsr_get_info(mao_coef, distribution=dbcsr_dist)
          CALL dbcsr_release(mao_coef)
          CALL dbcsr_create(mao_coef, name="MAO_COEF", dist=dbcsr_dist, &
-                           matrix_type=dbcsr_type_no_symmetry, row_blk_size=row_blk, &
-                           col_blk_size=mao_blk, nze=0)
+                           matrix_type=dbcsr_type_no_symmetry, row_blk_size=row_blk, col_blk_size=mao_blk)
          CALL dbcsr_reserve_diag_blocks(matrix=mao_coef)
          DEALLOCATE (mao_blk, row_blk)
          !
@@ -184,8 +180,7 @@ CONTAINS
 
       IF (iolevel > 2) THEN
          CALL dbcsr_get_info(mao_coef, col_blk_size=col_blk_sizes, &
-                             row_blk_size=row_blk_sizes, group=group_handle)
-         CALL group%set_handle(group_handle)
+                             row_blk_size=row_blk_sizes, group=group)
          DO iatom = 1, nblk
             n = row_blk_sizes(iatom)
             m = col_blk_sizes(iatom)
@@ -343,7 +338,7 @@ CONTAINS
          amat(1:n, 1:m) = MATMUL(sblock(1:n, 1:n), cblock(1:n, 1:m))
          bmat(1:m, 1:m) = MATMUL(TRANSPOSE(cblock(1:n, 1:m)), amat(1:n, 1:m))
          info = 0
-         CALL lapack_ssyev("V", "U", m, bmat, m, w, work, lwork, info)
+         CALL dsyev("V", "U", m, bmat, m, w, work, lwork, info)
          CPASSERT(info == 0)
          CPASSERT(ALL(w > 0.0_dp))
          w = 1.0_dp/SQRT(w)
@@ -404,7 +399,7 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: fmat1, fmat2
       REAL(KIND=dp)                                      :: spro
 
-      INTEGER                                            :: group_handle, iatom, jatom, m, n
+      INTEGER                                            :: iatom, jatom, m, n
       LOGICAL                                            :: found
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: ablock, bblock
       TYPE(dbcsr_iterator_type)                          :: dbcsr_iter
@@ -424,8 +419,7 @@ CONTAINS
       END DO
       CALL dbcsr_iterator_stop(dbcsr_iter)
 
-      CALL dbcsr_get_info(fmat1, group=group_handle)
-      CALL group%set_handle(group_handle)
+      CALL dbcsr_get_info(fmat1, group=group)
       CALL group%sum(spro)
 
    END FUNCTION mao_scalar_product

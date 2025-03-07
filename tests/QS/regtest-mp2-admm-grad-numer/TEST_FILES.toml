@@ -1,0 +1,3 @@
+"CH_grad_admm_default.inp"              = [{matcher="M011", tol=1e-08, ref=-5.868029410906624}]
+"H2O_grad_admm_default.inp"             = [{matcher="M011", tol=1e-08, ref=-17.004795340787830}]
+#EOF

@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -19,11 +19,14 @@ MODULE qs_initial_guess
                                               gto_basis_set_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_checksum, dbcsr_copy, dbcsr_dot, dbcsr_filter, dbcsr_get_diag, dbcsr_get_num_blocks, &
-        dbcsr_get_occupation, dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, &
-        dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, &
-        dbcsr_nfullrows_total, dbcsr_p_type, dbcsr_release, dbcsr_scale, dbcsr_set, &
-        dbcsr_set_diag, dbcsr_type, dbcsr_verify_matrix
+        dbcsr_copy, dbcsr_filter, dbcsr_get_info, dbcsr_get_num_blocks, dbcsr_get_occupation, &
+        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
+        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
+        dbcsr_scale, dbcsr_set, dbcsr_type, dbcsr_verify_matrix
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_checksum,&
+                                              dbcsr_dot,&
+                                              dbcsr_get_diag,&
+                                              dbcsr_set_diag
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
                                               cp_dbcsr_sm_fm_multiply,&
@@ -46,14 +49,9 @@ MODULE qs_initial_guess
                                               gth_potential_type,&
                                               sgp_potential_type
    USE hfx_types,                       ONLY: hfx_type
-   USE input_constants,                 ONLY: atomic_guess,&
-                                              core_guess,&
-                                              history_guess,&
-                                              mopac_guess,&
-                                              no_guess,&
-                                              random_guess,&
-                                              restart_guess,&
-                                              sparse_guess
+   USE input_constants,                 ONLY: &
+        atomic_guess, core_guess, eht_guess, history_guess, mopac_guess, no_guess, random_guess, &
+        restart_guess, sparse_guess
    USE input_cp2k_hfx,                  ONLY: ri_mo
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -68,6 +66,7 @@ MODULE qs_initial_guess
    USE qs_atomic_block,                 ONLY: calculate_atomic_block_dm
    USE qs_density_matrices,             ONLY: calculate_density_matrix
    USE qs_dftb_utils,                   ONLY: get_dftb_atom_param
+   USE qs_eht_guess,                    ONLY: calculate_eht_guess
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
@@ -138,7 +137,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_first_density_matrix'
 
       CHARACTER(LEN=default_path_length)                 :: file_name, filename
-      INTEGER :: atom_a, blk, density_guess, handle, homo, i, iatom, ic, icol, id_nr, ikind, irow, &
+      INTEGER :: atom_a, density_guess, handle, homo, i, iatom, ic, icol, id_nr, ikind, irow, &
          iseed(4), ispin, istart_col, istart_row, j, last_read, n, n_cols, n_rows, nao, natom, &
          natoms, natoms_tmp, nblocks, nelectron, nmo, nmo_tmp, not_read, nsgf, nspin, nvec, ounit, &
          safe_density_guess, size_atomic_kind_set, z
@@ -275,6 +274,7 @@ CONTAINS
                   (density_guess == atomic_guess) .OR. &
                   (density_guess == core_guess) .OR. &
                   (density_guess == mopac_guess) .OR. &
+                  (density_guess == eht_guess) .OR. &
                   (density_guess == sparse_guess) .OR. &
                   (((density_guess == restart_guess) .OR. &
                     (density_guess == history_guess)) .AND. &
@@ -815,7 +815,7 @@ CONTAINS
             !
             CALL dbcsr_iterator_start(iter, p_rmpv(ispin)%matrix)
             DO WHILE (dbcsr_iterator_blocks_left(iter))
-               CALL dbcsr_iterator_next_block(iter, irow, icol, pdata, blk)
+               CALL dbcsr_iterator_next_block(iter, irow, icol, pdata)
                ikind = kind_of(irow)
                IF (icol .EQ. irow) THEN
                   IF (ispin == 1) THEN
@@ -1032,7 +1032,8 @@ CONTAINS
       IF (density_guess == mopac_guess) THEN
 
          CALL calculate_mopac_dm(p_rmpv, s_sparse(1)%matrix, has_unit_metric, dft_control, &
-                                 particle_set, atomic_kind_set, qs_kind_set, nspin, nelectron_spin, para_env)
+                                 particle_set, atomic_kind_set, qs_kind_set, &
+                                 nspin, nelectron_spin, para_env)
 
          DO ispin = 1, nspin
             ! The orbital transformation method (OT) requires not only an
@@ -1075,7 +1076,16 @@ CONTAINS
 
          did_guess = .TRUE.
       END IF
-! switch_surf_dip [SGh]
+      !
+      ! EHT guess (gfn0-xTB)
+      IF (density_guess == eht_guess) THEN
+         CALL calculate_eht_guess(qs_env, mo_array)
+         DO ispin = 1, nspin
+            CALL calculate_density_matrix(mo_array(ispin), p_rmpv(ispin)%matrix)
+         END DO
+         did_guess = .TRUE.
+      END IF
+      ! switch_surf_dip [SGh]
       IF (dft_control%switch_surf_dip) THEN
          DO ispin = 1, nspin
             CALL reassign_allocated_mos(mos_last_converged(ispin), &
@@ -1216,7 +1226,7 @@ CONTAINS
       END DO
 
       natom = SIZE(particle_set)
-      nao = dbcsr_nfullrows_total(pmat(1)%matrix)
+      CALL dbcsr_get_info(pmat(1)%matrix, nfullrows_total=nao)
       IF (nspin == 1) THEN
          maxocc = 2.0_dp
       ELSE

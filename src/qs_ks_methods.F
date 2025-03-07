@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -133,7 +133,7 @@ MODULE qs_ks_methods
    USE smeagol_interface,               ONLY: smeagol_shift_v_hartree
    USE surface_dipole,                  ONLY: calc_dipsurf_potential
    USE virial_types,                    ONLY: virial_type
-   USE xtb_matrices,                    ONLY: build_xtb_ks_matrix
+   USE xtb_ks_matrix,                   ONLY: build_xtb_ks_matrix
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -1298,7 +1298,7 @@ CONTAINS
                END IF
                ALLOCATE (matrixkp_ks(ispin, ic)%matrix)
                CALL dbcsr_create(matrix=matrixkp_ks(ispin, ic)%matrix, template=refmatrix, &
-                                 name=TRIM(headline), matrix_type=dbcsr_type_symmetric, nze=0)
+                                 name=TRIM(headline), matrix_type=dbcsr_type_symmetric)
                CALL cp_dbcsr_alloc_block_from_nbl(matrixkp_ks(ispin, ic)%matrix, sab_orb)
                CALL dbcsr_set(matrixkp_ks(ispin, ic)%matrix, 0.0_dp)
             END DO
@@ -1325,7 +1325,7 @@ CONTAINS
                   ALLOCATE (matrixkp_im_ks(ispin, ic)%matrix)
                   refmatrix => matrixkp_ks(ispin, ic)%matrix  ! base on real part, but anti-symmetric
                   CALL dbcsr_create(matrix=matrixkp_im_ks(ispin, ic)%matrix, template=refmatrix, &
-                                    name=TRIM(headline), matrix_type=dbcsr_type_antisymmetric, nze=0)
+                                    name=TRIM(headline), matrix_type=dbcsr_type_antisymmetric)
                   CALL cp_dbcsr_alloc_block_from_nbl(matrixkp_im_ks(ispin, ic)%matrix, sab_orb)
                   CALL dbcsr_set(matrixkp_im_ks(ispin, ic)%matrix, 0.0_dp)
                END DO

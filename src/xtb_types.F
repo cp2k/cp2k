@@ -1,6 +1,6 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright 2000-2024 CP2K developers group <https://cp2k.org>                                   !
+!   Copyright 2000-2025 CP2K developers group <https://cp2k.org>                                   !
 !                                                                                                  !
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
@@ -69,6 +69,15 @@ MODULE xtb_types
       REAL(KIND=dp), DIMENSION(5)            :: kappa = -1.0_dp
       REAL(KIND=dp), DIMENSION(5)            :: hen = -1.0_dp
       REAL(KIND=dp), DIMENSION(5)            :: zeta = -1.0_dp
+      ! gfn0 params
+      REAL(KIND=dp)                          :: en = -1.0_dp
+      REAL(KIND=dp)                          :: kqat2 = -1.0_dp
+      REAL(KIND=dp), DIMENSION(5)            :: kq = -1.0_dp
+      REAL(KIND=dp), DIMENSION(5)            :: kcn = -1.0_dp
+      ! charge equilibration parameter gfn0
+      REAL(KIND=dp)                          :: xi = -1.0_dp
+      REAL(KIND=dp)                          :: kappa0 = -1.0_dp
+      REAL(KIND=dp)                          :: alpg = -1.0_dp
       ! AO to shell pointer
       INTEGER, DIMENSION(25)                 :: nao = -1, lao = -1
       ! Upper limit of Mulliken charge
@@ -119,6 +128,13 @@ CONTAINS
       xtb_parameter%kappa = 0.0_dp
       xtb_parameter%hen = 0.0_dp
       xtb_parameter%zeta = 0.0_dp
+      xtb_parameter%en = 0.0_dp
+      xtb_parameter%kqat2 = 0.0_dp
+      xtb_parameter%kq = 0.0_dp
+      xtb_parameter%kcn = 0.0_dp
+      xtb_parameter%xi = 0.0_dp
+      xtb_parameter%kappa0 = 0.0_dp
+      xtb_parameter%alpg = 0.0_dp
       xtb_parameter%nao = 0
       xtb_parameter%lao = 0
       xtb_parameter%chmax = 0.0_dp
@@ -165,13 +181,21 @@ CONTAINS
 !> \param kappa ...
 !> \param hen ...
 !> \param zeta ...
+!> \param xi ...
+!> \param kappa0 ...
+!> \param alpg ...
 !> \param occupation ...
 !> \param electronegativity ...
 !> \param chmax ...
+!> \param en ...
+!> \param kqat2 ...
+!> \param kcn ...
+!> \param kq ...
 ! **************************************************************************************************
    SUBROUTINE get_xtb_atom_param(xtb_parameter, symbol, aname, typ, defined, z, zeff, natorb, lmax, nao, lao, &
                                  rcut, rcov, kx, eta, xgamma, alpha, zneff, nshell, nval, lval, kpoly, kappa, &
-                                 hen, zeta, occupation, electronegativity, chmax)
+                                 hen, zeta, xi, kappa0, alpg, occupation, electronegativity, chmax, &
+                                 en, kqat2, kcn, kq)
 
       TYPE(xtb_atom_type), POINTER                       :: xtb_parameter
       CHARACTER(LEN=2), INTENT(OUT), OPTIONAL            :: symbol
@@ -186,8 +210,10 @@ CONTAINS
       INTEGER, INTENT(OUT), OPTIONAL                     :: nshell
       INTEGER, DIMENSION(5), INTENT(OUT), OPTIONAL       :: nval, lval
       REAL(KIND=dp), DIMENSION(5), INTENT(OUT), OPTIONAL :: kpoly, kappa, hen, zeta
+      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: xi, kappa0, alpg
       INTEGER, DIMENSION(5), INTENT(OUT), OPTIONAL       :: occupation
-      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: electronegativity, chmax
+      REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: electronegativity, chmax, en, kqat2
+      REAL(KIND=dp), DIMENSION(5), INTENT(OUT), OPTIONAL :: kcn, kq
 
       CPASSERT(ASSOCIATED(xtb_parameter))
 
@@ -219,6 +245,13 @@ CONTAINS
       IF (PRESENT(hen)) hen = xtb_parameter%hen
       IF (PRESENT(zeta)) zeta = xtb_parameter%zeta
       IF (PRESENT(chmax)) chmax = xtb_parameter%chmax
+      IF (PRESENT(xi)) xi = xtb_parameter%xi
+      IF (PRESENT(kappa0)) kappa0 = xtb_parameter%kappa0
+      IF (PRESENT(alpg)) alpg = xtb_parameter%alpg
+      IF (PRESENT(en)) en = xtb_parameter%en
+      IF (PRESENT(kqat2)) kqat2 = xtb_parameter%kqat2
+      IF (PRESENT(kcn)) kcn = xtb_parameter%kcn
+      IF (PRESENT(kq)) kq = xtb_parameter%kq
 
    END SUBROUTINE get_xtb_atom_param
 
@@ -248,13 +281,21 @@ CONTAINS
 !> \param kappa ...
 !> \param hen ...
 !> \param zeta ...
+!> \param xi ...
+!> \param kappa0 ...
+!> \param alpg ...
 !> \param electronegativity ...
 !> \param occupation ...
 !> \param chmax ...
+!> \param en ...
+!> \param kqat2 ...
+!> \param kcn ...
+!> \param kq ...
 ! **************************************************************************************************
    SUBROUTINE set_xtb_atom_param(xtb_parameter, aname, typ, defined, z, zeff, natorb, lmax, nao, lao, &
                                  rcut, rcov, kx, eta, xgamma, alpha, zneff, nshell, nval, lval, kpoly, kappa, &
-                                 hen, zeta, electronegativity, occupation, chmax)
+                                 hen, zeta, xi, kappa0, alpg, electronegativity, occupation, chmax, &
+                                 en, kqat2, kcn, kq)
 
       TYPE(xtb_atom_type), POINTER                       :: xtb_parameter
       CHARACTER(LEN=default_string_length), INTENT(IN), &
@@ -268,9 +309,10 @@ CONTAINS
       INTEGER, INTENT(IN), OPTIONAL                      :: nshell
       INTEGER, DIMENSION(5), INTENT(IN), OPTIONAL        :: nval, lval
       REAL(KIND=dp), DIMENSION(5), INTENT(IN), OPTIONAL  :: kpoly, kappa, hen, zeta
-      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: electronegativity
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: xi, kappa0, alpg, electronegativity
       INTEGER, DIMENSION(5), INTENT(IN), OPTIONAL        :: occupation
-      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: chmax
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: chmax, en, kqat2
+      REAL(KIND=dp), DIMENSION(5), INTENT(IN), OPTIONAL  :: kcn, kq
 
       CPASSERT(ASSOCIATED(xtb_parameter))
 
@@ -301,17 +343,27 @@ CONTAINS
       IF (PRESENT(hen)) xtb_parameter%hen = hen
       IF (PRESENT(zeta)) xtb_parameter%zeta = zeta
       IF (PRESENT(chmax)) xtb_parameter%chmax = chmax
+      !
+      IF (PRESENT(xi)) xtb_parameter%xi = xi
+      IF (PRESENT(kappa0)) xtb_parameter%kappa0 = kappa0
+      IF (PRESENT(alpg)) xtb_parameter%alpg = alpg
+      IF (PRESENT(en)) xtb_parameter%en = en
+      IF (PRESENT(kqat2)) xtb_parameter%kqat2 = kqat2
+      IF (PRESENT(kcn)) xtb_parameter%kcn = kcn
+      IF (PRESENT(kq)) xtb_parameter%kq = kq
 
    END SUBROUTINE set_xtb_atom_param
 
 ! **************************************************************************************************
 !> \brief ...
 !> \param xtb_parameter ...
+!> \param gfn_type ...
 !> \param subsys_section ...
 ! **************************************************************************************************
-   SUBROUTINE write_xtb_atom_param(xtb_parameter, subsys_section)
+   SUBROUTINE write_xtb_atom_param(xtb_parameter, gfn_type, subsys_section)
 
       TYPE(xtb_atom_type), POINTER                       :: xtb_parameter
+      INTEGER, INTENT(IN)                                :: gfn_type
       TYPE(section_vals_type), POINTER                   :: subsys_section
 
       CHARACTER(LEN=default_string_length)               :: aname, bb
@@ -333,31 +385,39 @@ CONTAINS
                                         extension=".Log")
 
          IF (io_unit > 0) THEN
-            CALL get_xtb_atom_param(xtb_parameter, aname=aname, defined=defined, zeff=zeff, natorb=natorb)
-            CALL get_xtb_atom_param(xtb_parameter, nshell=nshell, lval=lval, nval=nval, occupation=occupation)
-            CALL get_xtb_atom_param(xtb_parameter, kpoly=kpoly, kappa=kappa, hen=hen, zeta=zeta)
-            CALL get_xtb_atom_param(xtb_parameter, electronegativity=en, xgamma=xgamma, eta=eta, alpha=alpha, zneff=zneff)
+            SELECT CASE (gfn_type)
+            CASE (0)
+               CPABORT("gfn_type = 0 missing code")
+            CASE (1)
+               CALL get_xtb_atom_param(xtb_parameter, aname=aname, defined=defined, zeff=zeff, natorb=natorb)
+               CALL get_xtb_atom_param(xtb_parameter, nshell=nshell, lval=lval, nval=nval, occupation=occupation)
+               CALL get_xtb_atom_param(xtb_parameter, kpoly=kpoly, kappa=kappa, hen=hen, zeta=zeta)
+               CALL get_xtb_atom_param(xtb_parameter, electronegativity=en, xgamma=xgamma, eta=eta, alpha=alpha, zneff=zneff)
 
-            bb = "                                                "
-            WRITE (UNIT=io_unit, FMT="(/,A,T67,A14)") " xTB  parameters: ", TRIM(aname)
-            IF (defined) THEN
-               m = 5 - nshell
-               WRITE (UNIT=io_unit, FMT="(T16,A,T71,F10.2)") "Effective core charge:", zeff
-               WRITE (UNIT=io_unit, FMT="(T16,A,T71,I10)") "Number of orbitals:", natorb
-               WRITE (UNIT=io_unit, FMT="(T16,A,T41,A,5(A4,I1,I2,A1))") "Basis set [nl]", bb(1:8*m), &
-                  ("   [", nval(i), lval(i), "]", i=1, nshell)
-               WRITE (UNIT=io_unit, FMT="(T16,A,T41,A,5F8.3)") "Slater Exponent", bb(1:8*m), (zeta(i), i=1, nshell)
-               WRITE (UNIT=io_unit, FMT="(T16,A,T41,A,5I8)") "Ref. occupation", bb(1:8*m), (occupation(i), i=1, nshell)
-               WRITE (UNIT=io_unit, FMT="(T16,A,T41,A,5F8.3)") "Energy levels [au]", bb(1:8*m), (hen(i), i=1, nshell)
-               WRITE (UNIT=io_unit, FMT="(T16,A,T41,A,5F8.3)") "Kpoly", bb(1:8*m), (kpoly(i), i=1, nshell)
-               WRITE (UNIT=io_unit, FMT="(T16,A,T71,F10.3)") "Electronegativity", en
-               WRITE (UNIT=io_unit, FMT="(T16,A,T71,F10.3)") "Mataga-Nishimoto constant (eta)", eta
-               WRITE (UNIT=io_unit, FMT="(T16,A,T41,A,5F8.3)") "Mataga-Nishimoto scaling kappa", bb(1:8*m), (kappa(i), i=1, nshell)
-               WRITE (UNIT=io_unit, FMT="(T16,A,T71,F10.3)") "3rd Order constant", xgamma
-               WRITE (UNIT=io_unit, FMT="(T16,A,T61,2F10.3)") "Repulsion potential [Z,alpha]", zneff, alpha
-            ELSE
-               WRITE (UNIT=io_unit, FMT="(T55,A)") "Parameters are not defined"
-            END IF
+               bb = "                                                "
+               WRITE (UNIT=io_unit, FMT="(/,A,T67,A14)") " xTB  parameters: ", TRIM(aname)
+               IF (defined) THEN
+                  m = 5 - nshell
+                  WRITE (UNIT=io_unit, FMT="(T16,A,T71,F10.2)") "Effective core charge:", zeff
+                  WRITE (UNIT=io_unit, FMT="(T16,A,T71,I10)") "Number of orbitals:", natorb
+                  WRITE (UNIT=io_unit, FMT="(T16,A,T41,A,5(A4,I1,I2,A1))") "Basis set [nl]", bb(1:8*m), &
+                     ("   [", nval(i), lval(i), "]", i=1, nshell)
+                  WRITE (UNIT=io_unit, FMT="(T16,A,T41,A,5F8.3)") "Slater Exponent", bb(1:8*m), (zeta(i), i=1, nshell)
+                  WRITE (UNIT=io_unit, FMT="(T16,A,T41,A,5I8)") "Ref. occupation", bb(1:8*m), (occupation(i), i=1, nshell)
+                  WRITE (UNIT=io_unit, FMT="(T16,A,T41,A,5F8.3)") "Energy levels [au]", bb(1:8*m), (hen(i), i=1, nshell)
+                  WRITE (UNIT=io_unit, FMT="(T16,A,T41,A,5F8.3)") "Kpoly", bb(1:8*m), (kpoly(i), i=1, nshell)
+                  WRITE (UNIT=io_unit, FMT="(T16,A,T71,F10.3)") "Electronegativity", en
+                  WRITE (UNIT=io_unit, FMT="(T16,A,T71,F10.3)") "Mataga-Nishimoto constant (eta)", eta
+                  WRITE (UNIT=io_unit, FMT="(T16,A,T41,A,5F8.3)") "Mataga-Nishimoto scaling kappa", bb(1:8*m), &
+                     (kappa(i), i=1, nshell)
+                  WRITE (UNIT=io_unit, FMT="(T16,A,T71,F10.3)") "3rd Order constant", xgamma
+                  WRITE (UNIT=io_unit, FMT="(T16,A,T61,2F10.3)") "Repulsion potential [Z,alpha]", zneff, alpha
+               ELSE
+                  WRITE (UNIT=io_unit, FMT="(T55,A)") "Parameters are not defined"
+               END IF
+            CASE (2)
+               CPABORT("gfn_type = 2 not yet defined")
+            END SELECT
          END IF
          CALL cp_print_key_finished_output(io_unit, logger, subsys_section, "PRINT%KINDS")
       END IF
