@@ -198,6 +198,7 @@ MODULE cp_output_handling
    ! unit numbers may point to the same openPMD Series.
    TYPE(cp_openpmd_per_call_type), ALLOCATABLE :: cp_openpmd_per_call(:)
    INTEGER :: cp_num_openpmd_per_call = 0
+   INTEGER :: cp_capacity_openpmd_per_call = 0
 
    ! Map that associates callsites from which functions of this module may be invoked
    ! to their associated openPMD content.
@@ -206,6 +207,9 @@ MODULE cp_output_handling
    ! Iterations with flattened scalar Iteration indexes in the openPMD output).
    TYPE(cp_openpmd_per_callsite_type), ALLOCATABLE :: cp_openpmd_per_callsite(:)
    INTEGER :: cp_num_openpmd_per_callsite = 0
+   INTEGER :: cp_capacity_openpmd_per_callsite = 0
+
+   INTEGER, PARAMETER :: cp_allocation_size = 10
 
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    ! End data members for openPMD output. !
@@ -218,10 +222,11 @@ CONTAINS
    #:set value_types = ['cp_openpmd_per_call_value_type', 'cp_openpmd_per_callsite_value_type']
    #:set map_storages = ['cp_openpmd_per_call', 'cp_openpmd_per_callsite']
    #:set map_counters = ['cp_num_openpmd_per_call', 'cp_num_openpmd_per_callsite']
+   #:set map_capacities = ['cp_capacity_openpmd_per_call', 'cp_capacity_openpmd_per_callsite']
 
-   #:for name_suffix, key_type, value_type, map_storage, map_counter in zip(name_suffixes, key_types, value_types, map_storages, map_counters)
+   #:for name_suffix, key_type, value_type, map_storage, map_counter, map_capacity in zip(name_suffixes, key_types, value_types, map_storages, map_counters, map_capacities)
 
-      ! TODO Reallocation doesnt work like done in the below functions
+      ! TODO No reallocation support for now, change cp_allocation_size if larger sizes needed.
 
       ! **************************************************************************************************
       !> \brief ...
@@ -244,9 +249,16 @@ CONTAINS
             END IF
          END DO
 
-         ! If the key does not exist, add a new entry
+         IF (${map_capacity}$ == 0) THEN
+            ALLOCATE (${map_storage}$ (cp_allocation_size))
+            ${map_capacity}$ = cp_allocation_size
+         ENDIF
+
+         ! No idea how to do reallocations, so for now just assert that they're not needed
+         CPASSERT(${map_counter}$ < ${map_capacity}$)
+
+         ! Add a new entry
          ${map_counter}$ = ${map_counter}$+1
-         ALLOCATE (${map_storage}$ (${map_counter}$))
          ${map_storage}$ (${map_counter}$)%key = key
          ${map_storage}$ (${map_counter}$)%value = value
          index = ${map_counter}$
@@ -286,7 +298,6 @@ CONTAINS
 
          was_found = .FALSE.
 
-         ! Search for the key and remove the entry if found
          DO i = 1, ${map_counter}$
             IF (${map_storage}$ (i)%key == key) THEN
                was_found = .TRUE.
@@ -296,10 +307,9 @@ CONTAINS
                END IF
 
                ${map_counter}$ = ${map_counter}$-1
-               IF (${map_counter}$ > 0) THEN
-                  ALLOCATE (${map_storage}$ (${map_counter}$))
-               ELSE
+               IF (${map_counter}$ == 0) THEN
                   DEALLOCATE (${map_storage}$)
+                  ${map_capacity}$ = 0
                END IF
                RETURN
             END IF
