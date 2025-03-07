@@ -334,19 +334,21 @@ CONTAINS
       scf_section => section_vals_get_subs_vals(qs_env%input, "DFT%SCF")
 
       energy%repulsive = SUM(tb%e_rep)
+      energy%el_stat = SUM(tb%e_es)
       energy%dispersion = SUM(tb%e_disp)
+      energy%dispersion_sc = SUM(tb%e_scd)
       energy%xtb_xb_inter = SUM(tb%e_hal)
-      energy%hartree = SUM(tb%e_es)
-      energy%dftb3 = SUM(tb%e_scd)
 
-      WRITE (*, *) "+++++++  ehal: ", tb%e_hal
-      WRITE (*, *) "+++++++  erep: ", tb%e_rep
-      WRITE (*, *) "+++++++ edisp: ", tb%e_disp
-      WRITE (*, *) "+++++++  escd: ", tb%e_scd
-      WRITE (*, *) "+++++++   ees: ", tb%e_es
+      WRITE (*, *) "ttttttt get energies "
+      WRITE (*, *) "ttttttt  erep: ", tb%e_rep
+      WRITE (*, *) "ttttttt   ees: ", tb%e_es
+      WRITE (*, *) "ttttttt edisp: ", tb%e_disp
+      WRITE (*, *) "ttttttt  escd: ", tb%e_scd
+      WRITE (*, *) "ttttttt  ehal: ", tb%e_hal
 
-      energy%total = energy%core + energy%hartree + energy%efield + energy%qmmm_el + &
-                     energy%repulsive + energy%dispersion + energy%dftb3 + energy%kTS
+      energy%total = energy%core + energy%repulsive + energy%el_stat + energy%dispersion &
+                     + energy%dispersion_sc + energy%xtb_xb_inter + energy%kTS &
+                     + energy%efield + energy%qmmm_el
 
       iounit = cp_print_key_unit_nr(logger, scf_section, "PRINT%DETAILED_ENERGY", &
                                     extension=".scfLog")
@@ -354,20 +356,16 @@ CONTAINS
          WRITE (UNIT=iounit, FMT="(/,(T9,A,T60,F20.10))") &
             "Repulsive pair potential energy:               ", energy%repulsive, &
             "Zeroth order Hamiltonian energy:               ", energy%core, &
-            "Charge fluctuation energy:                     ", energy%hartree, &
-            "London dispersion energy:                      ", energy%dispersion
-         IF (dft_control%qs_control%xtb_control%xb_interaction) &
-            WRITE (UNIT=iounit, FMT="(T9,A,T60,F20.10)") &
+            "Electrostatic energy:                          ", energy%el_stat, &
+            "Non-self consistent dispersion energy:         ", energy%dispersion
+         WRITE (UNIT=iounit, FMT="(T9,A,T60,F20.10)") &
+            "Self-consistent dispersion energy:             ", energy%dispersion_sc
+         WRITE (UNIT=iounit, FMT="(T9,A,T60,F20.10)") &
             "Correction for halogen bonding:                ", energy%xtb_xb_inter
-         IF (dft_control%qs_control%xtb_control%do_nonbonded) &
-            WRITE (UNIT=iounit, FMT="(T9,A,T60,F20.10)") &
-            "Correction for nonbonded interactions:         ", energy%xtb_nonbonded
          IF (ABS(energy%efield) > 1.e-12_dp) THEN
             WRITE (UNIT=iounit, FMT="(T9,A,T60,F20.10)") &
                "Electric field interaction energy:             ", energy%efield
          END IF
-         WRITE (UNIT=iounit, FMT="(T9,A,T60,F20.10)") &
-            "DFTB3 3rd Order Energy Correction              ", energy%dftb3
          IF (qs_env%qmmm) THEN
             WRITE (UNIT=iounit, FMT="(T9,A,T60,F20.10)") &
                "QM/MM Electrostatic energy:                    ", energy%qmmm_el
