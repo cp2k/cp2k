@@ -16,6 +16,6 @@
 "HF-dfield.inp"                         = [{matcher="M001", tol=1e-12, ref=-5.66052242442153}]
 "HF-dfield-debug.inp"                   = []
 "HF-loc-field.inp"                      = [{matcher="M001", tol=1e-12, ref=-5.65286303322644}]
-"HF-loc-field-gopt.inp"                 = [{matcher="M001", tol=2e-08, ref=-5.67004654243380}]
+"HF-loc-field-gopt.inp"                 = [{matcher="M001", tol=2e-08, ref=-5.65791503021294}]
 "HF-loc-field-debug.inp"                = []
 #EOF

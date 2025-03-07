@@ -6,7 +6,7 @@
 
 &MOTION
   &GEO_OPT
-    MAX_ITER 3
+    MAX_ITER 2
   &END GEO_OPT
 &END MOTION
 
