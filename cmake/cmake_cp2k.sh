@@ -70,6 +70,7 @@ if [[ "${PROFILE}" == "spack" ]] && [[ "${VERSION}" == "psmp" ]]; then
     -Werror=dev \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
+
 elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "ssmp" ]]; then
   cmake \
     -GNinja \
@@ -96,6 +97,7 @@ elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "ssmp" ]]; then
     -Werror=dev \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
+
 elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "sdbg" ]]; then
   cmake \
     -GNinja \
@@ -116,6 +118,7 @@ elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "sdbg" ]]; then
     -Werror=dev \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
+
 elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "psmp" ]]; then
   cmake \
     -GNinja \
@@ -147,6 +150,7 @@ elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "psmp" ]]; then
     -Werror=dev \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
+
 elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "pdbg" ]]; then
   cmake \
     -GNinja \
@@ -167,6 +171,7 @@ elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "pdbg" ]]; then
     -Werror=dev \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
+
 elif [[ "${PROFILE}" == "ubuntu" ]] && [[ "${VERSION}" == "ssmp" ]]; then
   # TODO fix spglib https://github.com/cp2k/cp2k/issues/3414
   # NOTE: libxc 5.2.3 is provided, CP2K requires libxc 7
@@ -190,27 +195,7 @@ elif [[ "${PROFILE}" == "ubuntu" ]] && [[ "${VERSION}" == "ssmp" ]]; then
     -Werror=dev \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
-elif [[ "${PROFILE}" == "ubuntu_i386" ]] && [[ "${VERSION}" == "ssmp" ]]; then
-  # TODO fix spglib https://github.com/cp2k/cp2k/issues/3414
-  cmake \
-    -GNinja \
-    -DCMAKE_BUILD_TYPE="RelWithDebInfo" \
-    -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
-    -DCP2K_BLAS_VENDOR=OpenBLAS \
-    -DCP2K_USE_COSMA=OFF \
-    -DCP2K_USE_DLAF=OFF \
-    -DCP2K_USE_FFTW3=ON \
-    -DCP2K_USE_LIBINT2=ON \
-    -DCP2K_USE_LIBTORCH=OFF \
-    -DCP2K_USE_LIBXC=OFF \
-    -DCP2K_USE_LIBXSMM=OFF \
-    -DCP2K_USE_MPI=OFF \
-    -DCP2K_USE_MPI_F08=OFF \
-    -DCP2K_USE_SPGLIB=OFF \
-    -DCP2K_USE_VORI=OFF \
-    -Werror=dev \
-    .. |& tee ./cmake.log
-  CMAKE_EXIT_CODE=$?
+
 elif [[ "${PROFILE}" == "minimal" ]] && [[ "${VERSION}" == "ssmp" ]]; then
   cmake \
     -GNinja \
@@ -231,6 +216,7 @@ elif [[ "${PROFILE}" == "minimal" ]] && [[ "${VERSION}" == "ssmp" ]]; then
     -Werror=dev \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
+
 elif [[ "${PROFILE}" == "minimal" ]] && [[ "${VERSION}" == "psmp" ]]; then
   cmake \
     -GNinja \
@@ -262,6 +248,7 @@ elif [[ "${PROFILE}" == "minimal" ]] && [[ "${VERSION}" == "psmp" ]]; then
     -Werror=dev \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
+
 else
   echo "Unknown combination of PROFILE=\"${PROFILE}\" and VERSION=\"${VERSION}\""
   return 1

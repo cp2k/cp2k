@@ -74,12 +74,6 @@ def main() -> None:
                 # Skip some tests due to bug in LDA_C_PMGB06 functional in libxc <5.2.0.
                 f.write(regtest("ssmp", testopts="--skipdir=QS/regtest-rs-dhft"))
 
-    with OutputFile("Dockerfile.test_i386", args.check) as f:
-        base_img = "i386/debian:12.5"
-        f.write(install_deps_ubuntu(base_img, gcc_version=12, with_libxsmm=False))
-        f.write(install_dbcsr("ubuntu_i386", "ssmp"))
-        f.write(regtest_cmake("ubuntu_i386", "ssmp"))
-
     with OutputFile("Dockerfile.test_arm64-psmp", args.check) as f:
         base_img = "arm64v8/ubuntu:24.04"
         f.write(install_deps_toolchain(base_img, with_libtorch="no", with_deepmd="no"))
