@@ -44,6 +44,12 @@ namespace
         return 0;
     }
 
+    /*
+     * Use to static_cast<> from a C++ subclass From to its parent To.
+     * FromOpaque and ToOpaque are the corresponding opaque types from
+     * the C header, pointers need to be reinterpret_cast<>ed to/from the
+     * actual underlying C++ types.
+     */
     template <
         typename From,
         typename To,
@@ -108,13 +114,11 @@ extern "C"
 
     int openPMD_Series_write_Iteration(
         openPMD_Series series_param,
-        openPMD_Iteration_Index_t const *index,
+        openPMD_Iteration_Index_t index,
         openPMD_Iteration *iteration)
     {
         auto series = reinterpret_cast<openPMD::Series *>(series_param);
-        auto &res_iteration =
-            series->writeIterations()[openPMD::Iteration::IterationIndex_t(
-                *index)];
+        auto &res_iteration = series->writeIterations()[index];
         *reinterpret_cast<openPMD::Iteration **>(iteration) = &res_iteration;
         return 0;
     }

@@ -227,7 +227,7 @@ CONTAINS
       CHARACTER(len=*), INTENT(IN)                       :: path
       INTEGER(kind=C_INT), INTENT(IN)                    :: access
       CLASS(mp_comm_type), INTENT(in), OPTIONAL          :: mpi_comm
-      CHARACTER(len=*), INTENT(IN), OPTIONAL :: config
+      CHARACTER(len=*), INTENT(IN), OPTIONAL             :: config
       TYPE(openpmd_series_type)                          :: series
 
       TYPE(c_ptr)                                        :: comm_c = C_NULL_PTR
@@ -313,18 +313,20 @@ CONTAINS
       TYPE(openpmd_iteration_type)                       :: iteration
 
       INTEGER(kind=C_INT)                                :: status
+      INTEGER(8)                                         :: cast_index
       INTERFACE
    FUNCTION openpmd_c_series_write_iteration(series, index, iteration) RESULT(status) BIND(C, name="openPMD_Series_write_Iteration")
             IMPORT :: C_PTR, C_INT64_T, C_INT, C_SIZE_T
             TYPE(C_PTR), VALUE :: series
-            TYPE(C_PTR), VALUE :: index
+            INTEGER(kind=C_INT64_T), VALUE :: index
             TYPE(C_PTR) :: iteration
             INTEGER(KIND=C_INT) :: status
          END FUNCTION openpmd_c_series_write_iteration
       END INTERFACE
 
       CPASSERT(.NOT. C_ASSOCIATED(iteration%c_ptr))
-      status = openpmd_c_series_write_iteration(series%c_ptr, c_loc(index), iteration%c_ptr)
+      cast_index = index
+      status = openpmd_c_series_write_iteration(series%c_ptr, cast_index, iteration%c_ptr)
       CPASSERT(C_ASSOCIATED(iteration%c_ptr))
    END FUNCTION openpmd_series_write_iteration
 

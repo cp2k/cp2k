@@ -94,6 +94,7 @@ CONTAINS
          CPASSERT(my_stride(3) > 0)
       END IF
 
+      ! TODO implement
       IF (.TRUE.) THEN
          openpmd_data_index = cp_openpmd_get_unit_nr(unit_nr)
          CALL timestop(handle)
