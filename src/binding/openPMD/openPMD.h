@@ -27,7 +27,7 @@ typedef struct openPMD_Record_opaque *openPMD_Record;
 
 // Actually uint64_t, but ISO C bindings for Fortran only have that as a GNU
 // extension, so we use signed integers and convert
-typedef int openPMD_Iteration_Index_t;
+typedef uint64_t openPMD_Iteration_Index_t;
 
 /*******************
  * Series members. *
@@ -52,7 +52,7 @@ int openPMD_Series_close(
 
 int openPMD_Series_write_Iteration(
     // in
-    openPMD_Series series, openPMD_Iteration_Index_t const *index,
+    openPMD_Series series, openPMD_Iteration_Index_t index,
     // out
     openPMD_Iteration *iteration);
 

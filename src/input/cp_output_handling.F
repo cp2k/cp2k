@@ -199,19 +199,11 @@ MODULE cp_output_handling
    TYPE(cp_openpmd_per_call_type), ALLOCATABLE :: cp_openpmd_per_call(:)
    INTEGER :: cp_num_openpmd_per_call = 0
 
-   ! TODO The below members should be distinguished by their callsites, such that
-   !      logically different output is also physically independent from each
-   !      each other. Currently, only one openPMD Series is opened, named after
-   !      the project name and containing everything.
-   !      Similarly, the Iterations are currently still counted globally.
-
-   !! ! openPMD output Series.
-   !! TYPE(openpmd_series_type) :: cp_openpmd_output_series
-   !! ! Information on the last Iteration that was written to, including
-   !! ! CP2K'2 complex Iteration number and its associated contiguous scalar
-   !! ! openPMD Iteration number.
-   !! TYPE(cp_current_iteration_counter_type) :: cp_current_iteration_counter
-
+   ! Map that associates callsites from which functions of this module may be invoked
+   ! to their associated openPMD content.
+   ! This stores the actual output Series (which stays open across calls from the
+   ! same callsite) and the Iteration counter (which associates complex CP2k
+   ! Iterations with flattened scalar Iteration indexes in the openPMD output).
    TYPE(cp_openpmd_per_callsite_type), ALLOCATABLE :: cp_openpmd_per_callsite(:)
    INTEGER :: cp_num_openpmd_per_callsite = 0
 
@@ -988,7 +980,9 @@ CONTAINS
    END FUNCTION cp_print_key_generate_filename
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Simplified version of cp_print_key_generate_filename. Since an openPMD Series encompasses
+!         multiple datasets that would be separate outputs in e.g. .cube files, this needs not
+!         consider dataset names for creation of a filename.
 !> \param logger ...
 !> \param print_key ...
 !> \param openpmd_basename ...
@@ -1045,7 +1039,9 @@ CONTAINS
    END FUNCTION cp_print_key_generate_openpmd_filename
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief CP2K Iteration numbers are n-dimensional while openPMD Iteration numbers are scalars.
+!         This checks if the Iteration number has changed from the previous call (stored in
+!         openpmd_file%iteration_counter) and updates it if needed.
 !> \param logger ...
 !> \return ...
 ! **************************************************************************************************
@@ -1079,7 +1075,14 @@ CONTAINS
    END FUNCTION cp_advance_iteration_number
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief CP2K deals with output handles in terms of unit numbers.
+!         The openPMD output logic does not change this association.
+!         For this, we need to emulate unit numbers as (1) they are not native to openPMD and
+!         (2) a single openPMD Series might contain multiple datasets treated logically by CP2K
+!         as distinct outputs. As a result, a single unit number is resolved by the openPMD logic
+!         to the values represented by the cp_print_key_generate_openpmd_filename struct,
+!         containing the output Series and the referred datasets therein (Iteration number, mesh
+!         name, particle species name, ...).
 !> \param series ...
 !> \param middle_name ...
 !> \param logger ...
@@ -1119,10 +1122,15 @@ CONTAINS
       END IF
    END FUNCTION
 
-   FUNCTION cp_openpmd_get_openpmd_file_entry(openpmd_basename, filename, openpmd_config, logger) RESULT(file_index)
+! **************************************************************************************************
+!> \brief Check if there is already an output Series created for the callsite identified
+!         by openpmd_basename. If so, then return it (by index), otherwise open the Series now
+!         and return the index then.
+   FUNCTION cp_openpmd_get_openpmd_file_entry(openpmd_basename, filename, openpmd_config, logger, use_mpi) RESULT(file_index)
       CHARACTER(len=*), INTENT(IN)             :: openpmd_basename, filename, openpmd_config
-      TYPE(cp_logger_type), POINTER                      :: logger
-      INTEGER                                            :: file_index
+      TYPE(cp_logger_type), POINTER            :: logger
+      LOGICAL                                  :: use_mpi
+      INTEGER                                  :: file_index
 
       CHARACTER(len=default_string_length)     :: basename_copied = ' '
       TYPE(cp_openpmd_per_callsite_value_type) :: emplace_new
@@ -1132,13 +1140,18 @@ CONTAINS
       file_index = cp_openpmd_get_filedata(basename_copied)
       IF (file_index /= -1) RETURN
 
-      emplace_new%output_series = openpmd_series_create( &
+      IF (use_mpi) THEN
+         emplace_new%output_series = openpmd_series_create( &
                                   filename, openpmd_access_create, logger%para_env, openpmd_config)
+      ELSE
+         emplace_new%output_series = openpmd_series_create( &
+                                  filename, openpmd_access_create, config=openpmd_config)
+      ENDIF
       file_index = cp_openpmd_add_filedata(basename_copied, emplace_new)
    END FUNCTION
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Close all outputs.
 ! **************************************************************************************************
    SUBROUTINE cp_output_finalize()
       INTEGER :: i
@@ -1174,7 +1187,7 @@ CONTAINS
 !> \param fout   Name of the actual file where the output will be written. Needed mainly for MPI IO
 !>               because inquiring the filename from the MPI filehandle does not work across
 !>               all MPI libraries.
-!> \param openpmd_basename ...
+!> \param openpmd_basename Used to associate an identifier to each callsite of this module
 !> \param use_openpmd ...
 !> \return ...
 ! **************************************************************************************************
@@ -1272,11 +1285,6 @@ CONTAINS
             res = cp_logger_get_default_unit_nr(logger, local=my_local)
          ELSE
             IF (PRESENT(openpmd_basename) .AND. my_use_openpmd) THEN
-               ! filename = cp_print_key_generate_filename(logger, print_key, middle_name, extension, &
-               !                                           my_local)
-
-               ! CALL cp2k_log(filename)
-
                filename = cp_print_key_generate_openpmd_filename(logger, print_key, openpmd_basename, "."//openpmd_get_default_extension(), my_local)
             ELSE
                my_use_openpmd = .FALSE.
@@ -1361,18 +1369,9 @@ CONTAINS
             IF (my_use_openpmd) THEN
 
                openpmd_file_index = cp_openpmd_get_openpmd_file_entry( &
-                                    openpmd_basename, filename, openpmd_config, logger)
+                                    openpmd_basename, filename, openpmd_config, logger, my_mpi_io)
 
                OPEN (newunit=res, status='scratch', action='write')
-
-               ! IF (.NOT. openpmd_series_present(cp_openpmd_output_series)) THEN
-               !    IF (my_mpi_io) THEN
-               !    cp_openpmd_output_series = openpmd_series_create(filename, openpmd_access_create, logger%para_env, openpmd_config)
-               !    ELSE
-               !       cp_openpmd_output_series = openpmd_series_create(filename, openpmd_access_create, config=openpmd_config)
-               !    END IF
-               ! END IF
-
                openpmd_call_index = cp_openpmd_add_unit_nr( &
                                     res, &
                                     cp_openpmd_create_unit_nr_entry( &
