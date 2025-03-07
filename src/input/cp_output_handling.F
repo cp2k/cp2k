@@ -252,7 +252,7 @@ CONTAINS
          IF (${map_capacity}$ == 0) THEN
             ALLOCATE (${map_storage}$ (cp_allocation_size))
             ${map_capacity}$ = cp_allocation_size
-         ENDIF
+         END IF
 
          ! No idea how to do reallocations, so for now just assert that they're not needed
          CPASSERT(${map_counter}$ < ${map_capacity}$)
@@ -1152,11 +1152,11 @@ CONTAINS
 
       IF (use_mpi) THEN
          emplace_new%output_series = openpmd_series_create( &
-                                  filename, openpmd_access_create, logger%para_env, openpmd_config)
+                                     filename, openpmd_access_create, logger%para_env, openpmd_config)
       ELSE
          emplace_new%output_series = openpmd_series_create( &
-                                  filename, openpmd_access_create, config=openpmd_config)
-      ENDIF
+                                     filename, openpmd_access_create, config=openpmd_config)
+      END IF
       file_index = cp_openpmd_add_filedata(basename_copied, emplace_new)
    END FUNCTION
 
