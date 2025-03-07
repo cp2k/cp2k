@@ -92,7 +92,9 @@ CONTAINS
             CALL section_vals_val_get(pp_section, "SCALING", explicit=explicit)
             IF (.NOT. explicit) THEN
                CALL section_vals_val_get(pp_section, "REFERENCE_FUNCTIONAL", explicit=exfun)
-               CPASSERT(exfun)
+               IF (.NOT. exfun) THEN
+                  CPABORT("D2 vdW REFERENCE_FUNCTIONAL expected (example REFERENCE_FUNCTIONAL PBE). Go to https://www.chemie.uni-bonn.de/grimme/de/software/dft-d3/ for a full list of supported functionals")
+               END IF
                CALL qs_scaling_dftd2(dispersion_env%scaling, vdw_section)
             ELSE
                CALL section_vals_val_get(pp_section, "SCALING", r_val=dispersion_env%scaling)
@@ -121,7 +123,13 @@ CONTAINS
             END IF
             IF (.NOT. explicit) THEN
                CALL section_vals_val_get(pp_section, "REFERENCE_FUNCTIONAL", explicit=exfun)
-               CPASSERT(exfun)
+               IF (.NOT. exfun) THEN
+                  CPABORT("D3 vdW REFERENCE_FUNCTIONAL expected (example REFERENCE_FUNCTIONAL PBE). Go to https://www.chemie.uni-bonn.de/grimme/de/software/dft-d3/ for a full list of supported functionals")
+               ELSE
+                  CALL section_vals_val_get(vdw_section, &
+                                            "PAIR_POTENTIAL%REFERENCE_FUNCTIONAL", &
+                                            c_val=dispersion_env%ref_functional)
+               END IF
                IF (dispersion_env%pp_type == vdw_pairpot_dftd3) THEN
                   CALL qs_scaling_dftd3(dispersion_env%s6, dispersion_env%sr6, &
                                         dispersion_env%s8, vdw_section)
