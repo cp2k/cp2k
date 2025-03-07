@@ -312,8 +312,8 @@ CONTAINS
       INTEGER, TARGET                                    :: index
       TYPE(openpmd_iteration_type)                       :: iteration
 
-      INTEGER(kind=C_INT)                                :: status
       INTEGER(8)                                         :: cast_index
+      INTEGER(kind=C_INT)                                :: status
       INTERFACE
    FUNCTION openpmd_c_series_write_iteration(series, index, iteration) RESULT(status) BIND(C, name="openPMD_Series_write_Iteration")
             IMPORT :: C_PTR, C_INT64_T, C_INT, C_SIZE_T
