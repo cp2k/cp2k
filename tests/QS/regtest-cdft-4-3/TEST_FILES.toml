@@ -2,7 +2,7 @@
 # the second field tells which test should be run in order to compare with the last available output
 # see regtest/TEST_FILES
 #
-"HeH-noconstraint.inp"                  = [{matcher="M001", tol=2e-13, ref=-3.01067446615063}]
+"HeH-noconstraint.inp"                  = [{matcher="E_total", tol=2e-13, ref=-3.01067446615063}]
 # These tests use different optimizers for the CDFT constraint
 # Newton: test different finite different schemes
 "HeH-cdft-newton-fd1.inp"               = [{matcher="M011", tol=3e-07, ref=-2.432124875819301}]

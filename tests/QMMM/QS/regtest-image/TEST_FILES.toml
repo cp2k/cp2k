@@ -4,9 +4,9 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 # QM/MM
-"Cu-H2-qmmm-image-1.inp"                = [{matcher="M001", tol=4e-12, ref=-1.11673069976103}]
-"Cu-H2-qmmm-image-1-gpw.inp"            = [{matcher="M001", tol=4e-12, ref=-1.11673069976103}]
-"Cu-H2-qmmm-image-2.inp"                = [{matcher="M001", tol=4e-12, ref=-1.15440438005054}]
-"Cu-H2-qmmm-image-3.inp"                = [{matcher="M001", tol=4e-12, ref=-1.11673069976121}]
-"Cu-H2-qmmm-image-4.inp"                = [{matcher="M001", tol=2e-13, ref=-1.11520145054562}]
+"Cu-H2-qmmm-image-1.inp"                = [{matcher="E_total", tol=4e-12, ref=-1.11673069976103}]
+"Cu-H2-qmmm-image-1-gpw.inp"            = [{matcher="E_total", tol=4e-12, ref=-1.11673069976103}]
+"Cu-H2-qmmm-image-2.inp"                = [{matcher="E_total", tol=4e-12, ref=-1.15440438005054}]
+"Cu-H2-qmmm-image-3.inp"                = [{matcher="E_total", tol=4e-12, ref=-1.11673069976121}]
+"Cu-H2-qmmm-image-4.inp"                = [{matcher="E_total", tol=2e-13, ref=-1.11520145054562}]
 #EOF

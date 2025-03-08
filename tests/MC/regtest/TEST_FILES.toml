@@ -45,6 +45,6 @@
 "hmc.inp"                               = [{matcher="M006", tol=1.0E-14, ref=-2.49775342}]
 
 # Cluster moves
-"MC_QS_cluster.inp"                     = [{matcher="M001", tol=1.0E-10, ref=-123.507143733373496}]
+"MC_QS_cluster.inp"                     = [{matcher="E_total", tol=1.0E-10, ref=-123.507143733373496}]
 
 #EOF

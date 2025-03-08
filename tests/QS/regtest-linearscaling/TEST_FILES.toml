@@ -4,6 +4,6 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 "test-shrt.inp"                         = []
-"w3-filter.inp"                         = [{matcher="M001", tol=8.0E-13, ref=-51.14051793253244}]
-"w3-filter-2.inp"                       = [{matcher="M001", tol=7e-14, ref=-78.30555080313505}]
+"w3-filter.inp"                         = [{matcher="E_total", tol=8.0E-13, ref=-51.14051793253244}]
+"w3-filter-2.inp"                       = [{matcher="E_total", tol=7e-14, ref=-78.30555080313505}]
 #EOF

@@ -1,6 +1,6 @@
 # testing implicit (generalized) Poisson solver
-"H2O_periodic.inp"                      = [{matcher="M001", tol=1e-12, ref=-17.23756105673132}]
+"H2O_periodic.inp"                      = [{matcher="E_total", tol=1e-12, ref=-17.23756105673132}]
 "H2plus2_implicit_md.inp"               = [{matcher="M011", tol=1e-12, ref=-0.480570779548886}]
 "Hplus_dbl_cstr_md.inp"                 = [{matcher="M011", tol=2e-12, ref=-0.240556884153805}]
-"H2O_dbl_cstr_otcg.inp"                 = [{matcher="M001", tol=1e-12, ref=-17.219858377889120}]
+"H2O_dbl_cstr_otcg.inp"                 = [{matcher="E_total", tol=1e-12, ref=-17.219858377889120}]
 #EOF

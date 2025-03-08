@@ -2,7 +2,7 @@
 # the second field tells which test should be run in order to compare with the last available output
 # see regtest/TEST_FILES
 #
-"He2H-noconstraint.inp"                 = [{matcher="M001", tol=2e-13, ref=-5.88335521102478}]
+"He2H-noconstraint.inp"                 = [{matcher="E_total", tol=2e-13, ref=-5.88335521102478}]
 "He2H-cdft-state-1a.inp"                = [{matcher="M071", tol=2e-9, ref=1.594524947172}]
 "He2H-cdft-state-1b.inp"                = [{matcher="M071", tol=3e-9, ref=0.515235783150}]
 "He2H-cdft-state-2a.inp"                = [{matcher="M071", tol=2e-9, ref=1.994632273937}]

@@ -4,12 +4,12 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 # tests GAPW ext basis sets
-"H2S-e1.inp"                            = [{matcher="M001", tol=5e-13, ref=-11.30826768946058}]
-"H2S-e2.inp"                            = [{matcher="M001", tol=5e-13, ref=-11.30826685294312}]
-"H2S-e3.inp"                            = [{matcher="M001", tol=5e-13, ref=-11.30821433565813}]
-"H2S-e4.inp"                            = [{matcher="M001", tol=5e-13, ref=-11.30818159686934}]
-"H2O-e1.inp"                            = [{matcher="M001", tol=8e-13, ref=-17.16408671493325}]
-"H2O-e2.inp"                            = [{matcher="M001", tol=5e-13, ref=-17.16377543876715}]
-"H2O-e3.inp"                            = [{matcher="M001", tol=5e-13, ref=-17.16475812438971}]
+"H2S-e1.inp"                            = [{matcher="E_total", tol=5e-13, ref=-11.30826768946058}]
+"H2S-e2.inp"                            = [{matcher="E_total", tol=5e-13, ref=-11.30826685294312}]
+"H2S-e3.inp"                            = [{matcher="E_total", tol=5e-13, ref=-11.30821433565813}]
+"H2S-e4.inp"                            = [{matcher="E_total", tol=5e-13, ref=-11.30818159686934}]
+"H2O-e1.inp"                            = [{matcher="E_total", tol=8e-13, ref=-17.16408671493325}]
+"H2O-e2.inp"                            = [{matcher="E_total", tol=5e-13, ref=-17.16377543876715}]
+"H2O-e3.inp"                            = [{matcher="E_total", tol=5e-13, ref=-17.16475812438971}]
 #EOF
 

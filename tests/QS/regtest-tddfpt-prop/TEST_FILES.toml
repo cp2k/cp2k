@@ -5,7 +5,7 @@
 #      123 compares the checksum for exciton descriptors
 #      for details see cp2k/tools/do_regtest
 #
-"h2o_f01.inp"                           = [{matcher="M001", tol=1.0E-11, ref=-17.14073254422469}]
-"h2o_f02.inp"                           = [{matcher="M001", tol=1.0E-11, ref=-17.14073254422469}]
+"h2o_f01.inp"                           = [{matcher="E_total", tol=1.0E-11, ref=-17.14073254422469}]
+"h2o_f02.inp"                           = [{matcher="E_total", tol=1.0E-11, ref=-17.14073254422469}]
 "h2o_exciton_descriptors.inp"           = [{matcher="M123", tol=1.0E-04, ref=1.8936}]
 #EOF

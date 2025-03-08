@@ -2,7 +2,7 @@
 # the second field tells which test should be run in order to compare with the last available output
 # see regtest/TEST_FILES
 #
-"HeH-noconstraint.inp"                  = [{matcher="M001", tol=2e-13, ref=-3.01067446615063}]
+"HeH-noconstraint.inp"                  = [{matcher="E_total", tol=2e-13, ref=-3.01067446615063}]
 "HeH-cdft-state-1.inp"                  = [{matcher="M071", tol=5e-08, ref=0.048406446266}]
 "HeH-cdft-state-2.inp"                  = [{matcher="M071", tol=2e-10, ref=1.819391902439}]
 # These tests compute the electronic coupling and related quantities
