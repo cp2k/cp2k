@@ -988,7 +988,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="PARAMETER_FILE_NAME", &
                           description="Name of the parameter file, may include a path (not used for D4)", &
                           usage="PARAMETER_FILE_NAME <FILENAME>", &
-                          default_lc_val="DISPERSION_PARAMETERS")
+                          default_lc_val="dftd3.dat")
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="REFERENCE_FUNCTIONAL", &
