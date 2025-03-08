@@ -4,10 +4,10 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 #
-"h2_gpw_nostore_group2.inp"             = [{matcher="M001", tol=1e-12, ref=-1.12622646044780},
+"h2_gpw_nostore_group2.inp"             = [{matcher="E_total", tol=1e-12, ref=-1.12622646044780},
                                            {matcher="M092", tol=1e-8, ref=4.08481739}]
-"h2_gpw_ht_group2.inp"                  = [{matcher="M001", tol=1e-12, ref=-1.12622646044780},
+"h2_gpw_ht_group2.inp"                  = [{matcher="E_total", tol=1e-12, ref=-1.12622646044780},
                                            {matcher="M092", tol=1e-8, ref=4.08599253}]
-"h2_gpw_ht_nostore_group2.inp"          = [{matcher="M001", tol=1e-12, ref=-1.12622646044780},
+"h2_gpw_ht_nostore_group2.inp"          = [{matcher="E_total", tol=1e-12, ref=-1.12622646044780},
                                            {matcher="M092", tol=1e-8, ref=4.08599253}]
 #EOF

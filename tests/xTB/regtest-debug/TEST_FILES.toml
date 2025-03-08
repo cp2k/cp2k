@@ -11,7 +11,7 @@
 "ch2o_t06.inp"                          = [{matcher="M087", tol=1.0E-12, ref=0.229761888713E+02}]
 "ch2o_t07.inp"                          = [{matcher="M086", tol=1.0E-12, ref=0.954101834865E+00}]
 "ch2o_t08.inp"                          = [{matcher="M086", tol=1.0E-12, ref=0.963128388956E+00}]
-"ch3br_nonbond_2.inp"                   = [{matcher="M001", tol=1.0E-12, ref=-11.78062819229165}]
-"ch3br_nonbond.inp"                     = [{matcher="M001", tol=1.0E-12, ref=-11.78062802267188}]
-"ch3br_atprop_nonbond.inp"              = [{matcher="M001", tol=1.0E-10, ref=-11.78112909303997}]
+"ch3br_nonbond_2.inp"                   = [{matcher="E_total", tol=1.0E-12, ref=-11.78062819229165}]
+"ch3br_nonbond.inp"                     = [{matcher="E_total", tol=1.0E-12, ref=-11.78062802267188}]
+"ch3br_atprop_nonbond.inp"              = [{matcher="E_total", tol=1.0E-10, ref=-11.78112909303997}]
 #EOF

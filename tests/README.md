@@ -39,6 +39,13 @@ Each regtests can list zero, one, or more matchers:
                                            {matcher="M092", tol=1e-8,  ref=4.08763868}]
 ```
 
+Matchers can be easily renamed. For example, the following command renames matcher `M001` to
+`E_total`:
+
+```shell
+sed -i  s/\"M001\"/\"E_total\"/g  matchers.py */TEST_FILES.toml */*/TEST_FILES.toml */*/*/TEST_FILES.toml
+```
+
 Some regression testing directories contain:
 
 - `untested_inputs`: list of input files, which have a more meaningful setup compared to the

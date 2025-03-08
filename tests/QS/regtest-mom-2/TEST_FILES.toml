@@ -8,14 +8,14 @@
 # number of active electrons : 8
 # excitation              multiplicity  C2v_irreducible_representation
 # ground state              singlet     A1
-"h2o_pbe0_admm-none_gs.inp"             = [{matcher="M001", tol=1.0E-06, ref=-17.24968568154571}]
+"h2o_pbe0_admm-none_gs.inp"             = [{matcher="E_total", tol=1.0E-06, ref=-17.24968568154571}]
 # 4 (alpha) -> 5 (alpha)    singlet     B1
-"h2o_pbe0_admm-none_mom_s1.inp"         = [{matcher="M001", tol=1.0E-06, ref=-16.94939353581146}]
+"h2o_pbe0_admm-none_mom_s1.inp"         = [{matcher="E_total", tol=1.0E-06, ref=-16.94939353581146}]
 # 3 (alpha) -> 5 (alpha)    singlet     A1
-"h2o_pbe0_admm-none_mom_s2.inp"         = [{matcher="M001", tol=1.0E-06, ref=-16.86211842868142}]
+"h2o_pbe0_admm-none_mom_s2.inp"         = [{matcher="E_total", tol=1.0E-06, ref=-16.86211842868142}]
 # 4 (beta)  -> 5 (alpha)    triplet     B1
-"h2o_pbe0_admm-none_t1.inp"             = [{matcher="M001", tol=1.0E-06, ref=-16.96838171290687}]
+"h2o_pbe0_admm-none_t1.inp"             = [{matcher="E_total", tol=1.0E-06, ref=-16.96838171290687}]
 # 4 (beta)  -> 6 (alpha) =  4 (beta)  -> 5 (alpha) +
 # 5 (alpha) -> 6 (alpha)    triplet     A2
-"h2o_pbe0_admm-none_mom_t2.inp"         = [{matcher="M001", tol=1.0E-06, ref=-16.87134031959955}]
+"h2o_pbe0_admm-none_mom_t2.inp"         = [{matcher="E_total", tol=1.0E-06, ref=-16.87134031959955}]
 #EOF

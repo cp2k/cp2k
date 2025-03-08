@@ -5,8 +5,8 @@
 #      for details see cp2k/tools/do_regtest
 #
 # Delta pulse in the length representation, velocity gauge and magnetic delta pulse
-"H2O-delta-mag.inp"                     = [{matcher="M001", tol=1e-13, ref=-17.17816619814588}]
-"H2O-delta-lenrep.inp"                  = [{matcher="M001", tol=1e-13, ref=-17.17816511743962}]
-"H2O-vg.inp"                            = [{matcher="M001", tol=1e-13, ref=-17.17816522919518}]
-"H2O-delta-velrepr.inp"                 = [{matcher="M001", tol=1e-13, ref=-17.17816551662581}]
+"H2O-delta-mag.inp"                     = [{matcher="E_total", tol=1e-13, ref=-17.17816619814588}]
+"H2O-delta-lenrep.inp"                  = [{matcher="E_total", tol=1e-13, ref=-17.17816511743962}]
+"H2O-vg.inp"                            = [{matcher="E_total", tol=1e-13, ref=-17.17816522919518}]
+"H2O-delta-velrepr.inp"                 = [{matcher="E_total", tol=1e-13, ref=-17.17816551662581}]
 #EOF

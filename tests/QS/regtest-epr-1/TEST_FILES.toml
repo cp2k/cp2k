@@ -7,5 +7,5 @@
 "NO2-EPR-2.inp"                         = [{matcher="M020", tol=7e-01, ref=-0.0017388500000000000}]
 "NO2-EPR-3.inp"                         = [{matcher="M020", tol=1e+00, ref=-0.00140565}]
 "NO2-EPR-keys-1.inp"                    = [{matcher="M020", tol=2e-02, ref=-0.0013078100000000000}]
-"H2Om.inp"                              = [{matcher="M001", tol=1e-10, ref=-75.901123242692435}]
+"H2Om.inp"                              = [{matcher="E_total", tol=1e-10, ref=-75.901123242692435}]
 #EOF

@@ -1,13 +1,13 @@
 # runs are executed in the same order as in this file
 # the second field tells which test should be run in order to compare with the last available output
 # see regtest/TEST_FILES
-"CH3-HSE06.inp"                         = [{matcher="M001", tol=3e-13, ref=-7.36850964071318}]
-"CH3-PBE0.inp"                          = [{matcher="M001", tol=1e-13, ref=-7.36936246287967}]
-"CH3-PBE0_TC.inp"                       = [{matcher="M001", tol=1e-13, ref=-7.35880126707143}]
-"CH4-HSE06.inp"                         = [{matcher="M001", tol=2e-13, ref=-8.07752172778785}]
-"CH4-HSE06_2.inp"                       = [{matcher="M001", tol=2e-13, ref=-8.07752172778785}]
-"CH4-HSE06_TC_2.inp"                    = [{matcher="M001", tol=2e-13, ref=-8.07752172778785}]
-"CH4-rsLDA.inp"                         = [{matcher="M001", tol=6e-13, ref=-8.48091146595489}]
-"CH4-PBE0.inp"                          = [{matcher="M001", tol=2e-13, ref=-8.07859057522753}]
-"CH4-PBE0_TC.inp"                       = [{matcher="M001", tol=2e-13, ref=-8.06493647354302}]
+"CH3-HSE06.inp"                         = [{matcher="E_total", tol=3e-13, ref=-7.36850964071318}]
+"CH3-PBE0.inp"                          = [{matcher="E_total", tol=1e-13, ref=-7.36936246287967}]
+"CH3-PBE0_TC.inp"                       = [{matcher="E_total", tol=1e-13, ref=-7.35880126707143}]
+"CH4-HSE06.inp"                         = [{matcher="E_total", tol=2e-13, ref=-8.07752172778785}]
+"CH4-HSE06_2.inp"                       = [{matcher="E_total", tol=2e-13, ref=-8.07752172778785}]
+"CH4-HSE06_TC_2.inp"                    = [{matcher="E_total", tol=2e-13, ref=-8.07752172778785}]
+"CH4-rsLDA.inp"                         = [{matcher="E_total", tol=6e-13, ref=-8.48091146595489}]
+"CH4-PBE0.inp"                          = [{matcher="E_total", tol=2e-13, ref=-8.07859057522753}]
+"CH4-PBE0_TC.inp"                       = [{matcher="E_total", tol=2e-13, ref=-8.06493647354302}]
 #EOF

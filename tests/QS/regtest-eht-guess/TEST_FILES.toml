@@ -4,6 +4,6 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 #QS
-"h2o_1.inp"                             = [{matcher="M001", tol=1e-12, ref=-16.83566845657052}]
-"h2o_2.inp"                             = [{matcher="M001", tol=1e-12, ref=-16.41572764902628}]
+"h2o_1.inp"                             = [{matcher="E_total", tol=1e-12, ref=-16.83566845657052}]
+"h2o_2.inp"                             = [{matcher="E_total", tol=1e-12, ref=-16.41572764902628}]
 #EOF

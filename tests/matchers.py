@@ -68,8 +68,18 @@ class GenericMatcher(Matcher):
 
 
 # ======================================================================================
-registry = dict()
-registry["M001"] = GenericMatcher(r"Total energy:", col=3)
+class MatcherRegistry(dict[str, Matcher]):
+    def __setitem__(self, key: str, value: Matcher) -> None:
+        assert key not in self  # check for name collisions
+        super().__setitem__(key, value)
+
+
+# ======================================================================================
+registry = MatcherRegistry()
+
+# Total energy in Hartree
+registry["E_total"] = GenericMatcher(r"Total energy:", col=3)
+
 registry["M002"] = GenericMatcher(r"MD| Potential energy", col=5)
 registry["M003"] = GenericMatcher(r"Total energy [eV]:", col=4)
 registry["M004"] = GenericMatcher(r"Ideal and single determinant", col=8)
@@ -98,7 +108,11 @@ registry["M026"] = GenericMatcher(r"Total electronic charge (G-space):", col=6)
 registry["M027"] = GenericMatcher(r"Total electronic charge (R-space):", col=5)
 registry["M028"] = GenericMatcher(r"Total spin density (R-space)           :", col=6)
 registry["M029"] = GenericMatcher(r"Heat of formation [kcal/mol]:", col=5)
-registry["M030"] = GenericMatcher(r"HOMO - LUMO gap [eV]", col=7)
+
+# HOMO-LUMO gap / bandgap at Gamma-point of a DFT calculation
+registry["E_gap_DFT"] = GenericMatcher(r"HOMO - LUMO gap [eV]", col=7)
+registry["E_gap_DFT_2"] = GenericMatcher(r"Band gap:", col=4)  # TODO merge with prev.
+
 registry["M031"] = GenericMatcher(r"STRESS| 1/3 Trace", col=4)
 registry["M032"] = GenericMatcher(r"MD| Potential energy", col=6)
 registry["M033"] = GenericMatcher(r"Dispersion energy:", col=3)
@@ -120,7 +134,6 @@ registry["M048"] = GenericMatcher(r"E(Fermi):", col=3)
 registry["M049"] = GenericMatcher(r"Total Multiplication", col=9)
 registry["M050"] = GenericMatcher(r"Direct MP2 Canonical Energy =", col=6)
 registry["M051"] = GenericMatcher(r"RESP       1", col=4)
-registry["M052"] = GenericMatcher(r"Band gap:", col=4)
 registry["M053"] = GenericMatcher(r"Exchange-correlation energy:", col=3)
 registry["M054"] = GenericMatcher(r"FORCES| Grand total force", col=6)
 registry["M055"] = GenericMatcher(r"BASOPT| Total residuum value:", col=5)
@@ -146,9 +159,15 @@ registry["M074"] = GenericMatcher(r"Diabatic electronic coupling (wfn", col=7)
 registry["M075"] = GenericMatcher(r"Charge transfer energy", col=6)
 registry["M076"] = GenericMatcher(r"Diabatic electronic coupling (Lowdin", col=6)
 registry["M077"] = GenericMatcher(r"Ground state energy", col=4)
-registry["M078"] = GenericMatcher(r"G0W0 HOMO-LUMO gap (eV)", col=5)
-registry["M079"] = GenericMatcher(r"Beta GW HOMO-LUMO gap (eV)", col=6)
-registry["M080"] = GenericMatcher(r"IC HOMO-LUMO gap (eV)", col=5)
+
+# G0W0 HOMO-LUMO gap of molecule
+registry["E_G0W0_gap"] = GenericMatcher(r"G0W0 HOMO-LUMO gap (eV)", col=5)
+
+# G0W0 HOMO-LUMO gap of second spin channel of molecule
+registry["E_G0W0_gap_beta"] = GenericMatcher(r"Beta GW HOMO-LUMO gap (eV)", col=6)
+
+registry["IC_gap"] = GenericMatcher(r"IC HOMO-LUMO gap (eV)", col=5)
+
 registry["M081"] = GenericMatcher(r"HOMO SCF Cycle:     4", col=9)
 registry["M082"] = GenericMatcher(r"DEBUG| Sum of differences:", col=5)
 registry["M083"] = GenericMatcher(r"1[   1] - 2[   1]", col=7)
@@ -166,21 +185,49 @@ registry["M094"] = GenericMatcher(r"KS CSR write|", col=4)
 registry["M095"] = GenericMatcher(r"Fermi energy:", col=3)
 registry["M096"] = GenericMatcher(r"APT |   1  2", col=7)
 registry["M097"] = GenericMatcher(r"r(1)", col=3)
-registry["M098"] = GenericMatcher(r"GW bandgap (eV)", col=4)
+
+# G0W0 bandgap of solid (old low-scaling GW implementation)
+registry["E_G0W0_gap_old"] = GenericMatcher(r"GW bandgap (eV)", col=4)
+
+# G0W0 bandgap of majority spin channel of solid (old low-scaling GW implementation)
+registry["E_G0W0_alpha_gap_old"] = GenericMatcher(r"Alpha GW direct gap", col=9)
+
+# G0W0 bandgap of minority spin channel of solid (old low-scaling GW implementation)
+registry["E_G0W0_beta_gap_old"] = GenericMatcher(r"Beta GW direct gap", col=9)
+
+# G0W0 + perturbative SOC bandgap of solid (old low-scaling GW implementation)
+registry["E_G0W0_SOC_gap_old"] = GenericMatcher(r"GW+SOC bandgap (eV)", col=4)
+
 registry["M099"] = GenericMatcher(r"Total Spread (Berry) :", col=6)
 registry["M100"] = GenericMatcher(r"NVP |   1  2", col=8)
-registry["M101"] = GenericMatcher(r"Alpha GW direct gap", col=9)
-registry["M102"] = GenericMatcher(r"Beta GW direct gap", col=9)
-registry["M103"] = GenericMatcher(r"GW+SOC bandgap (eV)", col=4)
 registry["M104"] = GenericMatcher(r"Ground state stabilisation:", col=4)
 registry["M105"] = GenericMatcher(r"TDDFT+SOC", col=5)
-registry["M106"] = GenericMatcher(r"G0W0 direct band gap", col=6)
-registry["M107"] = GenericMatcher(r"SCF+SOC direct band gap", col=6)
-registry["M108"] = GenericMatcher(r"G0W0+SOC direct band gap", col=6)
-registry["M109"] = GenericMatcher(r"BSE|  1  Singlet  -TDA-", col=5)
-registry["M110"] = GenericMatcher(r"BSE|  1  Singlet  -ABBA-", col=5)
-registry["M111"] = GenericMatcher(r"HOMO-LUMO gap in evGW0 iteration  3 (eV)", col=8)
-registry["M112"] = GenericMatcher(r"HOMO-LUMO gap in evGW iteration  3 (eV)", col=8)
+
+# G0W0 bandgap of solid
+registry["E_G0W0_direct_gap"] = GenericMatcher(r"G0W0 direct band gap", col=6)
+
+# DFT + perturbative SOC bandgap of solid
+registry["E_SCF_SOC_gap"] = GenericMatcher(r"SCF+SOC direct band gap", col=6)
+
+# G0W0 + perturbative SOC bandgap of solid
+registry["E_G0W0_SOC_gap"] = GenericMatcher(r"G0W0+SOC direct band gap", col=6)
+
+# Lowest BSE excitation energy in Tamm-Dancoff approximation (TDA)
+registry["BSE_1st_excit_ener_TDA"] = GenericMatcher(r"BSE|  1  Singlet  -TDA-", col=5)
+
+# Lowest BSE excitation energy
+registry["BSE_1st_excit_ener"] = GenericMatcher(r"BSE|  1  Singlet  -ABBA-", col=5)
+
+# evGW0 HOMO-LUMO gap of molecule
+registry["E_evGW0_gap"] = GenericMatcher(
+    r"HOMO-LUMO gap in evGW0 iteration  3 (eV)", col=8
+)
+
+# evGW HOMO-LUMO gap of molecule
+registry["E_evGW_gap"] = GenericMatcher(
+    r"HOMO-LUMO gap in evGW iteration  3 (eV)", col=8
+)
+
 registry["M113"] = GenericMatcher(r"BSE|  1  -TDA-", col=7)
 registry["M114"] = GenericMatcher(r"BSE|  1  -ABBA-", col=7)
 registry["M115"] = GenericMatcher(r"MOMENTS_TRACE_RE|     0.10000000E+000", col=3)

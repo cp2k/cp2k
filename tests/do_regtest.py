@@ -6,7 +6,7 @@ from asyncio import Semaphore, Task
 from asyncio.subprocess import DEVNULL, PIPE, STDOUT, Process
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Coroutine, Dict, List, Optional, TextIO, Tuple, Union
+from typing import Any, Coroutine, Dict, List, Literal, Optional, TextIO, Tuple, Union
 from statistics import mean, stdev
 import argparse
 import asyncio
@@ -31,14 +31,10 @@ except ImportError:
         except ImportError:
             import toml as tomllib  # type: ignore
 
-try:
-    from typing import Literal  # not available before Python 3.8
-
-    TestStatus = Literal[
-        "OK", "WRONG RESULT", "RUNTIME FAIL", "TIMED OUT", "HUGE OUTPUT", "N/A"
-    ]
-except ImportError:
-    TestStatus = str  # type: ignore
+# Possible test outcomes.
+TestStatus = Literal[
+    "OK", "WRONG RESULT", "RUNTIME FAIL", "TIMED OUT", "HUGE OUTPUT", "N/A"
+]
 
 # Some tests do not work with --keepalive (which is generally considered a bug).
 KEEPALIVE_SKIP_DIRS = [

@@ -4,8 +4,8 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 #
-"h2o_a01.inp"                           = [{matcher="M001", tol=6.0E-11, ref=-17.24005769730987}]
-"h2o_a02.inp"                           = [{matcher="M001", tol=6.0E-11, ref=-17.13768748528992}]
-"h2o_a03.inp"                           = [{matcher="M001", tol=6.0E-11, ref=-17.20803956799362}]
-"h2o_a04.inp"                           = [{matcher="M001", tol=6.0E-10, ref=-17.08536848315594}]
+"h2o_a01.inp"                           = [{matcher="E_total", tol=6.0E-11, ref=-17.24005769730987}]
+"h2o_a02.inp"                           = [{matcher="E_total", tol=6.0E-11, ref=-17.13768748528992}]
+"h2o_a03.inp"                           = [{matcher="E_total", tol=6.0E-11, ref=-17.20803956799362}]
+"h2o_a04.inp"                           = [{matcher="E_total", tol=6.0E-10, ref=-17.08536848315594}]
 #EOF

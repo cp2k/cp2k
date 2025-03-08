@@ -7,17 +7,17 @@
 "hcn_ts_fix_y.inp"                      = [{matcher="M064", tol=1e-14, ref=-0.0003000000}]
 "hcn_ts_fix_z.inp"                      = [{matcher="M065", tol=1e-14, ref=0.0000000000}]
 # chain of two coordination numbers
-"hcn_md.inp"                            = [{matcher="M001", tol=6e-14, ref=-16.50121471895406}]
-"hcn_meta_coord.inp"                    = [{matcher="M001", tol=6e-14, ref=-16.65113632013810}]
-"hcn_meta_chaincoord.inp"               = [{matcher="M001", tol=2e-13, ref=-16.64019903493714}]
-"hcn_meta_chaincoord_kind.inp"          = [{matcher="M001", tol=2e-13, ref=-16.64019903493714}]
+"hcn_md.inp"                            = [{matcher="E_total", tol=6e-14, ref=-16.50121471895406}]
+"hcn_meta_coord.inp"                    = [{matcher="E_total", tol=6e-14, ref=-16.65113632013810}]
+"hcn_meta_chaincoord.inp"               = [{matcher="E_total", tol=2e-13, ref=-16.64019903493714}]
+"hcn_meta_chaincoord_kind.inp"          = [{matcher="E_total", tol=2e-13, ref=-16.64019903493714}]
 # Population colvar
-"H2O_meta_pop.inp"                      = [{matcher="M001", tol=5e-08, ref=-17.155197480118499}]
+"H2O_meta_pop.inp"                      = [{matcher="E_total", tol=5e-08, ref=-17.155197480118499}]
 # Metadynamics with langevin on COLVAR
-"H2O_meta_langevin.inp"                 = [{matcher="M001", tol=2e-07, ref=-17.16840571384963}]
+"H2O_meta_langevin.inp"                 = [{matcher="E_total", tol=2e-07, ref=-17.16840571384963}]
 #gyration radius
-"Au13ico_mtd.inp"                       = [{matcher="M001", tol=5e-13, ref=-433.32355790139007}]
+"Au13ico_mtd.inp"                       = [{matcher="E_total", tol=5e-13, ref=-433.32355790139007}]
 # rmsd AB
-"Au12_rmsd_AB_mtd.inp"                  = [{matcher="M001", tol=3e-11, ref=-397.79481882168199}]
-"Au12_rmsd_A_mtd.inp"                   = [{matcher="M001", tol=2e-11, ref=-397.77606999996829}]
+"Au12_rmsd_AB_mtd.inp"                  = [{matcher="E_total", tol=3e-11, ref=-397.79481882168199}]
+"Au12_rmsd_A_mtd.inp"                   = [{matcher="E_total", tol=2e-11, ref=-397.77606999996829}]
 #EOF

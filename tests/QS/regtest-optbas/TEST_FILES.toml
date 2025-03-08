@@ -1,6 +1,6 @@
 # test optimize basis
-"H2O-ref.inp"                           = [{matcher="M001", tol=9e-14, ref=-17.02896604845343}]
-"H2-ref.inp"                            = [{matcher="M001", tol=9e-14, ref=-1.11824989194243}]
+"H2O-ref.inp"                           = [{matcher="E_total", tol=9e-14, ref=-17.02896604845343}]
+"H2-ref.inp"                            = [{matcher="E_total", tol=9e-14, ref=-1.11824989194243}]
 "opt-1.inp"                             = [{matcher="M055", tol=1e-14, ref=-0.46916008E+03}]
 "opt-2.inp"                             = [{matcher="M055", tol=1e-14, ref=-0.55279835E+03}]
 #EOF

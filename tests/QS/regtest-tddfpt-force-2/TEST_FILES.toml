@@ -4,14 +4,14 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 #
-"h2o_f11.inp"                           = [{matcher="M001", tol=5.0E-11, ref=-17.08499356137981}]
-"h2o_f12.inp"                           = [{matcher="M001", tol=5.0E-11, ref=-17.23314438613115}]
-"h2o_f13.inp"                           = [{matcher="M001", tol=8.0E-10, ref=-17.21133582312158}]
-"h2o_f14.inp"                           = [{matcher="M001", tol=5.0E-11, ref=-17.07269324354837}]
-"h2o_f15.inp"                           = [{matcher="M001", tol=5.0E-11, ref=-17.18915026270191}]
-"h2o_f16.inp"                           = [{matcher="M001", tol=5.0E-11, ref=-17.18920549418680}]
-"h2o_f17.inp"                           = [{matcher="M001", tol=5.0E-11, ref=-17.20475909010159}]
-"h2o_f18.inp"                           = [{matcher="M001", tol=5.0E-11, ref=-16.70951393575121}]
-"h2o_f19.inp"                           = [{matcher="M001", tol=5.0E-11, ref=-17.21016952558250}]
-"h2o_f20.inp"                           = [{matcher="M001", tol=5.0E-11, ref=-17.18911876899797}]
+"h2o_f11.inp"                           = [{matcher="E_total", tol=5.0E-11, ref=-17.08499356137981}]
+"h2o_f12.inp"                           = [{matcher="E_total", tol=5.0E-11, ref=-17.23314438613115}]
+"h2o_f13.inp"                           = [{matcher="E_total", tol=8.0E-10, ref=-17.21133582312158}]
+"h2o_f14.inp"                           = [{matcher="E_total", tol=5.0E-11, ref=-17.07269324354837}]
+"h2o_f15.inp"                           = [{matcher="E_total", tol=5.0E-11, ref=-17.18915026270191}]
+"h2o_f16.inp"                           = [{matcher="E_total", tol=5.0E-11, ref=-17.18920549418680}]
+"h2o_f17.inp"                           = [{matcher="E_total", tol=5.0E-11, ref=-17.20475909010159}]
+"h2o_f18.inp"                           = [{matcher="E_total", tol=5.0E-11, ref=-16.70951393575121}]
+"h2o_f19.inp"                           = [{matcher="E_total", tol=5.0E-11, ref=-17.21016952558250}]
+"h2o_f20.inp"                           = [{matcher="E_total", tol=5.0E-11, ref=-17.18911876899797}]
 #EOF
