@@ -93,7 +93,10 @@ CONTAINS
             IF (.NOT. explicit) THEN
                CALL section_vals_val_get(pp_section, "REFERENCE_FUNCTIONAL", explicit=exfun)
                IF (.NOT. exfun) THEN
-                  CPABORT("D2 vdW REFERENCE_FUNCTIONAL expected (example REFERENCE_FUNCTIONAL PBE). Go to https://www.chemie.uni-bonn.de/grimme/de/software/dft-d3/ for a full list of supported functionals")
+                  CALL cp_abort(__LOCATION__, "D2 vdW REFERENCE_FUNCTIONAL expected a second parameter "// &
+                                "(example REFERENCE_FUNCTIONAL PBE). "// &
+                                "Go to https://www.chemie.uni-bonn.de/grimme/de/software/dft-d3/ "// &
+                                "for a full list of supported functionals")
                END IF
                CALL qs_scaling_dftd2(dispersion_env%scaling, vdw_section)
             ELSE
@@ -124,7 +127,10 @@ CONTAINS
             IF (.NOT. explicit) THEN
                CALL section_vals_val_get(pp_section, "REFERENCE_FUNCTIONAL", explicit=exfun)
                IF (.NOT. exfun) THEN
-                  CPABORT("D3 vdW REFERENCE_FUNCTIONAL expected (example REFERENCE_FUNCTIONAL PBE). Go to https://www.chemie.uni-bonn.de/grimme/de/software/dft-d3/ for a full list of supported functionals")
+                  CALL cp_abort(__LOCATION__, "D3 vdW REFERENCE_FUNCTIONAL expected a second parameter "// &
+                                "(example REFERENCE_FUNCTIONAL PBE). "// &
+                                "Go to https://www.chemie.uni-bonn.de/grimme/de/software/dft-d3/ for a full "// &
+                                "list of supported functionals")
                ELSE
                   CALL section_vals_val_get(vdw_section, &
                                             "PAIR_POTENTIAL%REFERENCE_FUNCTIONAL", &
