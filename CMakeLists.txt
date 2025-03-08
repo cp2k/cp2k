@@ -111,6 +111,7 @@ option(CP2K_USE_VORI "Enable libvori support" OFF)
 option(CP2K_USE_SPGLIB "Enable spglib support" OFF)
 option(CP2K_USE_LIBXC "Enable libxc support" OFF)
 option(CP2K_USE_LIBTORCH "Enable libtorch support" OFF)
+option(CP2K_USE_OPENPMD "Enable support for I/O via openPMD" OFF)
 option(CP2K_USE_STATIC_BLAS "Link against static version of BLAS/LAPACK" OFF)
 option(CP2K_USE_SPLA
        "Use SPLA offloading gemm feature to the GPU if it is beneficial. " OFF)
@@ -234,6 +235,7 @@ if(${cp2k_build_options_up} STREQUAL "FULL")
   set(CP2K_USE_HDF5 ON)
   set(CP2K_USE_LIBGRPP ON)
   set(CP2K_USE_TREXIO ON)
+  set(CP2K_USE_OPENPMD ON)
 endif()
 
 if(${cp2k_build_options_up} STREQUAL "SERIAL")
@@ -713,6 +715,10 @@ if(CP2K_USE_LIBTORCH)
   endif()
 endif()
 
+if(CP2K_USE_OPENPMD)
+  add_subdirectory(src/binding/openPMD)
+endif()
+
 if(CP2K_USE_MPI_F08 AND NOT MPI_Fortran_HAVE_F08_MODULE)
   message(
     FATAL_ERROR
@@ -846,6 +852,10 @@ if(CP2K_USE_HDF5)
     "    - version: ${HDF5_VERSION}\n"
     "    - include directories: ${HDF5_INCLUDE_DIRS}\n"
     "    - libraries: ${HDF5_LIBRARIES}\n\n")
+endif()
+
+if(CP2K_USE_OPENPMD)
+  message("  - openPMD\n" "    - libraries : ${openPMD_DIR}\n\n")
 endif()
 
 if(CP2K_USE_FFTW3)
@@ -1018,6 +1028,14 @@ endif()
 if(NOT CP2K_USE_LIBTORCH)
   message("   - libtorch")
 endif()
+
+if(NOT CP2K_USE_OPENPMD)
+  message("   - openPMD")
+endif()
+
+message("\n\n" "To run the regtests you need to run the following commands\n"
+        "\n\n cd ..\n" " export CP2K_DATA_DIR=${CMAKE_SOURCE_DIR}/data/\n"
+        " ./tests/do_regtest.py ${cp2k_BINARY_DIR}/bin ${__cp2k_ext}\n\n")
 
 if(NOT CP2K_USE_TREXIO)
   message("   - trexio")
