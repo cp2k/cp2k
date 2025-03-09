@@ -68,7 +68,7 @@ class GenericMatcher(Matcher):
 
 
 # ======================================================================================
-class MatcherRegistry(dict[str, Matcher]):
+class MatcherRegistry(Dict[str, Matcher]):
     def __setitem__(self, key: str, value: Matcher) -> None:
         assert key not in self  # check for name collisions
         super().__setitem__(key, value)
