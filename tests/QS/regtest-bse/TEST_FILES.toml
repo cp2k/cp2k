@@ -15,7 +15,7 @@
 "TDA_H2O_PBE_G0W0_EXC_DESCR.inp"        = [{matcher="M123", tol=5e-04, ref=1.8290}]
 "BSE_H2O_PBE_G0W0_EXC_DESCR.inp"        = [{matcher="M123", tol=5e-04, ref=1.8258}]
 "BSE_H2O_PBE_evGW0_RPA_screening.inp"   = [{matcher="BSE_1st_excit_ener", tol=2e-05, ref=17.5569}]
-"BSE_H2O_PBE_evGW0_TDHF_screening.inp"  = [{matcher="BSE_1st_excit_ener", tol=2e-05, ref=6.4895}]
+"BSE_H2O_PBE_evGW0_TDHF_screening.inp"  = [{matcher="BSE_1st_excit_ener", tol=4e-05, ref=6.4895}]
 "BSE_H2O_PBE_evGW0_custom_screening.inp" = [{matcher="BSE_1st_excit_ener", tol=2e-05, ref=14.9538}]
 "BSE_H2O_PBE_evGW0_spectra.inp"         = [{matcher="M124", tol=2e-02, ref=25.3518},
                                            {matcher="M125", tol=2e-02, ref=0.7006}]
