@@ -422,6 +422,7 @@ list(
   nnp_model.F
   local_gemm_api.F
   offload/offload_api.F
+  openPMD.F
   optbas_fenv_manipulation.F
   optbas_opt_utils.F
   optimize_basis.F
@@ -1632,6 +1633,10 @@ if(CP2K_USE_LIBTORCH)
               "${CP2K_SRCS};${CP2K_SRCS_C};${CP2K_SRCS_GPU};${CP2K_SRCS_CPP}")
 else()
   add_library(cp2k "${CP2K_SRCS};${CP2K_SRCS_C};${CP2K_SRCS_GPU}")
+endif()
+
+if(CP2K_USE_OPENPMD)
+  target_link_libraries(cp2k PRIVATE CP2K_OPENPMD_BINDINGS)
 endif()
 
 target_compile_features(cp2k PUBLIC cuda_std_11)
