@@ -191,76 +191,9 @@ if(NOT ${CP2K_SCALAPACK_VENDOR} IN_LIST CP2K_SCALAPACK_VENDOR_LIST)
   message(FATAL_ERROR "Invalid scalapack vendor backend")
 endif()
 
-set(CP2K_BUILD_OPTIONS_LIST "CUSTOM" "DEFAULT" "MINIMAL" "FULL" "SERIAL")
-
-set(CP2K_BUILD_OPTIONS
-    "CUSTOM"
-    CACHE
-      STRING
-      "Build cp2k with a predefined set of dependencies. The default setting is full user control"
-)
-set_property(CACHE CP2K_BUILD_OPTIONS PROPERTY STRINGS
-                                               ${CP2K_BUILD_OPTIONS_LIST})
-
 set(CP2K_DATA_DIR
     "default"
     CACHE STRING "Set the location for cp2k data")
-
-string(TOUPPER ${CP2K_BUILD_OPTIONS} cp2k_build_options_up)
-
-if(NOT ${cp2k_build_options_up} IN_LIST CP2K_BUILD_OPTIONS_LIST)
-  message(FATAL_ERROR "Invalid value for cp2k build options")
-endif()
-
-if(${cp2k_build_options_up} STREQUAL "MINIMAL")
-  set(CP2K_USE_FFTW3 ON)
-  set(CP2K_USE_MPI ON)
-endif()
-
-if(${cp2k_build_options_up} STREQUAL "FULL")
-  set(CP2K_USE_FFTW3 ON)
-  set(CP2K_USE_MPI ON)
-  set(CP2K_USE_DFTD4 ON)
-  set(CP2K_USE_SIRIUS ON)
-  set(CP2K_USE_LIBXSMM ON)
-  set(CP2K_USE_VORI ON)
-  set(CP2K_USE_COSMA ON)
-  set(CP2K_USE_SPLA ON)
-  set(CP2K_USE_LIBXC ON)
-  set(CP2K_USE_LIBINT2 ON)
-  set(CP2K_USE_ELPA ON)
-  set(CP2K_USE_SPGLIB ON)
-  set(CP2K_USE_LIBTORCH ON)
-  set(CP2K_USE_HDF5 ON)
-  set(CP2K_USE_LIBGRPP ON)
-  set(CP2K_USE_TREXIO ON)
-endif()
-
-if(${cp2k_build_options_up} STREQUAL "SERIAL")
-  set(CP2K_USE_FFTW3 ON)
-  set(CP2K_USE_MPI OFF)
-  set(CP2K_USE_SIRIUS ON)
-  set(CP2K_USE_LIBXSMM ON)
-  set(CP2K_USE_VORI ON)
-  set(CP2K_USE_COSMA ON)
-  set(CP2K_USE_SPLA ON)
-  set(CP2K_USE_LIBXC ON)
-  set(CP2K_USE_LIBINT2 ON)
-  set(CP2K_USE_ELPA ON)
-  set(CP2K_USE_SPGLIB ON)
-  set(CP2K_USE_LIBTORCH ON)
-endif()
-
-if(${cp2k_build_options_up} STREQUAL "DEFAULT")
-  set(CP2K_USE_FFTW3 ON)
-  set(CP2K_USE_MPI ON)
-  set(CP2K_USE_SIRIUS ON)
-  set(CP2K_USE_COSMA ON)
-  set(CP2K_USE_LIBXSMM ON)
-  set(CP2K_USE_LIBXC ON)
-  set(CP2K_USE_LIBINT2 ON)
-  set(CP2K_USE_SPGLIB ON)
-endif()
 
 # ##############################################################################
 # gpu related options
