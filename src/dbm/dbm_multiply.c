@@ -7,6 +7,7 @@
 
 #include <assert.h>
 #include <limits.h>
+#include <omp.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -26,19 +27,6 @@
 #if !defined(DBM_VALIDATE_AGAINST_LIBXSMM) && 0
 #define DBM_VALIDATE_AGAINST_LIBXSMM
 #endif
-
-/*******************************************************************************
- * \brief Updates the min/max of a range of values (initially {INT_MAX, 0}).
- * \author Hans Pabst
- ******************************************************************************/
-static inline void min_max(int result[2], int value) {
-  if (value < result[0]) {
-    result[0] = value;
-  }
-  if (result[1] < value) {
-    result[1] = value;
-  }
-}
 
 /*******************************************************************************
  * \brief Private routine for computing the max filter threshold for each row.
@@ -89,7 +77,7 @@ typedef struct {
 } backend_context_t;
 
 /*******************************************************************************
- * \brief Private routine for intializing the multiplication backend.
+ * \brief Private routine for initializing the multiplication backend.
  * \author Ole Schuett
  ******************************************************************************/
 static backend_context_t *backend_start(const dbm_matrix_t *matrix_c) {
@@ -127,14 +115,12 @@ static void backend_upload_packs(const dbm_pack_t *pack_a,
  * \author Ole Schuett
  ******************************************************************************/
 static void backend_process_batch(const int ntasks, dbm_task_t batch[ntasks],
-                                  const int mnk_range[3][2], const double alpha,
-                                  const dbm_pack_t *pack_a,
+                                  const double alpha, const dbm_pack_t *pack_a,
                                   const dbm_pack_t *pack_b, const int kshard,
                                   dbm_shard_t *shard_c,
                                   backend_context_t *ctx) {
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_DBM)
-  dbm_multiply_gpu_process_batch(ntasks, batch, mnk_range, alpha, kshard,
-                                 &ctx->gpu);
+  dbm_multiply_gpu_process_batch(ntasks, batch, alpha, kshard, &ctx->gpu);
 #if defined(DBM_VALIDATE_AGAINST_LIBXSMM) && defined(__LIBXSMM)
   dbm_shard_gpu_t *const shard_g = &ctx->gpu.shards_c_dev[kshard];
   dbm_shard_t shard_r;
@@ -162,10 +148,11 @@ static void backend_process_batch(const int ntasks, dbm_task_t batch[ntasks],
       libxsmm_matdiff_reduce(&diff, &d);
     }
   }
+  const char *const maxeps_env = getenv("DBM_MULTIPLY_MAXEPS");
+  const double maxeps = (NULL == maxeps_env ? 1E-13 : fabs(atof(maxeps_env)));
   const double epsilon = libxsmm_matdiff_epsilon(&diff);
-  if (1E-15 < epsilon) {
-    fprintf(stderr, "INFO ACC/LIBDBM: mnk=%ix%ix%i ntasks=%i diff=%g\n",
-            mnk_range[0][1], mnk_range[1][1], mnk_range[2][1], ntasks, epsilon);
+  if (maxeps < epsilon) {
+    fprintf(stderr, "INFO ACC/LIBDBM: diff=%g\n", epsilon);
   }
   dbm_shard_release(&shard_r);
 #else
@@ -174,7 +161,6 @@ static void backend_process_batch(const int ntasks, dbm_task_t batch[ntasks],
   (void)shard_c; // mark as used
 #endif
 #else
-  (void)mnk_range;
   (void)kshard;
   (void)ctx; // mark as used
   dbm_multiply_cpu_process_batch(ntasks, batch, alpha, pack_a, pack_b, shard_c);
@@ -221,9 +207,9 @@ static void multiply_packs(const bool transa, const bool transb,
 
   const int nshard_rows = matrix_c->dist->rows.nshards;
   const int nshard_cols = matrix_c->dist->cols.nshards;
-  int shard_row_start[nshard_rows], shard_col_start[nshard_cols];
-  memset(shard_row_start, 0, nshard_rows * sizeof(int));
-  memset(shard_col_start, 0, nshard_cols * sizeof(int));
+  int *shard_row_start = calloc(nshard_rows, sizeof(int));
+  int *shard_col_start = calloc(nshard_cols, sizeof(int));
+  assert(NULL != shard_row_start && NULL != shard_col_start);
 
   const int *sum_index_sizes_a =
       (transa) ? matrix_a->row_sizes : matrix_a->col_sizes;
@@ -236,6 +222,11 @@ static void multiply_packs(const bool transa, const bool transb,
 
 #pragma omp parallel reduction(+ : flop_sum)
   {
+    // Thread-private array covering given work in piece-wise fashion.
+    dbm_task_t *batch =
+        omp_alloc(sizeof(dbm_task_t) * DBM_MAX_BATCH_SIZE, omp_null_allocator);
+    assert(NULL != batch);
+
     // Blocks are ordered first by shard. Creating lookup tables of boundaries.
 #pragma omp for nowait
     for (int iblock = 1; iblock < pack_a->nblocks; iblock++) {
@@ -261,8 +252,6 @@ static void multiply_packs(const bool transa, const bool transb,
       for (int shard_col = 0; shard_col < nshard_cols; shard_col++) {
         const int ishard = shard_row * nshard_cols + shard_col;
         dbm_shard_t *shard_c = &matrix_c->shards[ishard];
-        dbm_task_t batch[DBM_MAX_BATCH_SIZE];
-        int mnk_range[][2] = {{INT_MAX, 0}, {INT_MAX, 0}, {INT_MAX, 0}};
         int ntasks = 0;
 
         // Use a merge-join to find pairs of blocks with matching sum indices.
@@ -329,27 +318,26 @@ static void multiply_packs(const bool transa, const bool transb,
             batch[ntasks].offset_a = blk_a->offset;
             batch[ntasks].offset_b = blk_b->offset;
             batch[ntasks].offset_c = blk_c->offset;
-            ntasks++;
-
-            // track MxN-shape covering an entire batch
-            min_max(mnk_range[0], m);
-            min_max(mnk_range[1], n);
-            min_max(mnk_range[2], k);
+            ++ntasks;
 
             if (ntasks == DBM_MAX_BATCH_SIZE) {
-              backend_process_batch(ntasks, batch, mnk_range, alpha, pack_a,
-                                    pack_b, ishard, shard_c, ctx);
-              mnk_range[0][0] = mnk_range[1][0] = mnk_range[2][0] = INT_MAX;
-              mnk_range[0][1] = mnk_range[1][1] = mnk_range[2][1] = 0;
+              backend_process_batch(ntasks, batch, alpha, pack_a, pack_b,
+                                    ishard, shard_c, ctx);
               ntasks = 0;
             }
           }
         }
-        backend_process_batch(ntasks, batch, mnk_range, alpha, pack_a, pack_b,
-                              ishard, shard_c, ctx);
+        backend_process_batch(ntasks, batch, alpha, pack_a, pack_b, ishard,
+                              shard_c, ctx);
       }
     }
+
+    omp_free(batch, omp_null_allocator);
   }
+
+  free(shard_row_start);
+  free(shard_col_start);
+
   *flop += flop_sum;
 }
 
@@ -407,10 +395,6 @@ void dbm_multiply(const bool transa, const bool transb, const double alpha,
   dbm_comm_iterator_stop(iter);
   free(rows_max_eps);
   backend_stop(ctx);
-
-  // Compute average flops per rank.
-  dbm_mpi_sum_int64(flop, 1, matrix_c->dist->comm);
-  *flop = (*flop + matrix_c->dist->nranks - 1) / matrix_c->dist->nranks;
 
   // Final filter pass.
   dbm_filter(matrix_c, filter_eps);
