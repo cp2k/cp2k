@@ -438,45 +438,6 @@ MODULE cp_control_types
    END TYPE sccs_control_type
 
 ! **************************************************************************************************
-! \brief Control parameters for a TIME-DEPENDENT PERTURBATION calculation
-! \par  ATTRIBUTES
-!   - n_ev       : number of eigenvalues to calculate
-!   - n_reortho  : how many time to reorthogonalize (in the lanczos algorithm)
-!   - do_kernel  : wether to evaluate the kernel (this is a debugging option)
-!   - res_etype : { SINGLET | TRIPLET } which excitations
-!                  to calculate
-!   - lumos_eigenvalues : holds the eigenvalues of the lumos (if calculated in QS)
-!
-! \par  NOTES
-!   The lumos are helpful in choosing a initial vector for the TDDFPT
-!   calculation, since they can be used to construct the solutions of the
-!   TDDFPT operator without the perturbation kernel.
-! **************************************************************************************************
-   TYPE tddfpt_control_type
-      TYPE(cp_fm_type), DIMENSION(:), &
-         POINTER                           :: lumos => NULL()
-      REAL(KIND=dp)                        :: tolerance = 0.0_dp
-      INTEGER                              :: n_ev = 0
-      INTEGER                              :: max_kv = 0
-      INTEGER                              :: n_restarts = 0
-      INTEGER                              :: n_reortho = 0
-      LOGICAL                              :: do_kernel = .FALSE.
-      LOGICAL                              :: lsd_singlets = .FALSE.
-      LOGICAL                              :: invert_S = .FALSE.
-      LOGICAL                              :: precond = .FALSE.
-      LOGICAL                              :: drho_by_collocation = .FALSE.
-      LOGICAL                              :: use_kinetic_energy_density = .FALSE.
-      INTEGER                              :: res_etype = 0
-      INTEGER                              :: diag_method = 0
-      INTEGER                              :: oe_corr = 0
-      INTEGER                              :: sic_method_id = 0
-      INTEGER                              :: sic_list_id = 0
-      REAL(KIND=dp)                        :: sic_scaling_a = 0.0_dp, sic_scaling_b = 0.0_dp
-      REAL(KIND=dp), DIMENSION(:, :), &
-         POINTER                           :: lumos_eigenvalues => NULL()
-   END TYPE tddfpt_control_type
-
-! **************************************************************************************************
 ! \brief Control parameters for simplified Tamm Dancoff approximation (sTDA)
 ! \par  ATTRIBUTES
 ! \par  NOTES
@@ -612,7 +573,6 @@ MODULE cp_control_types
       TYPE(qs_control_type), POINTER       :: qs_control => NULL()
       TYPE(rtp_control_type), POINTER      :: rtp_control => NULL()
       TYPE(sccs_control_type), POINTER     :: sccs_control => NULL()
-      TYPE(tddfpt_control_type), POINTER   :: tddfpt_control => NULL()
       TYPE(tddfpt2_control_type), POINTER  :: tddfpt2_control => NULL()
       TYPE(xas_control_type), POINTER      :: xas_control => NULL()
       TYPE(expot_control_type), POINTER    :: expot_control => NULL()
@@ -639,8 +599,7 @@ MODULE cp_control_types
                                               sic_scaling_a = 0.0_dp, &
                                               sic_scaling_b = 0.0_dp, &
                                               pos_dir_surf_dip = 0.0_dp
-      LOGICAL                              :: do_tddfpt_calculation = .FALSE., &
-                                              do_xas_calculation = .FALSE., &
+      LOGICAL                              :: do_xas_calculation = .FALSE., &
                                               do_xas_tdp_calculation = .FALSE., &
                                               drho_by_collocation = .FALSE., &
                                               use_kinetic_energy_density = .FALSE., &
@@ -680,7 +639,6 @@ MODULE cp_control_types
    PUBLIC :: dft_control_type, &
              qs_control_type, &
              gapw_control_type, &
-             tddfpt_control_type, &
              tddfpt2_control_type, &
              proj_mo_type, &
              efield_type, &
@@ -702,7 +660,6 @@ MODULE cp_control_types
 
    PUBLIC :: dft_control_release, &
              dft_control_create, &
-             tddfpt_control_create, &
              admm_control_create, &
              admm_control_release, &
              maxwell_control_create, &
@@ -820,7 +777,6 @@ CONTAINS
 
       NULLIFY (dft_control%xas_control)
       NULLIFY (dft_control%qs_control)
-      NULLIFY (dft_control%tddfpt_control)
       NULLIFY (dft_control%tddfpt2_control)
       NULLIFY (dft_control%efield_fields)
       NULLIFY (dft_control%period_efield)
@@ -849,7 +805,6 @@ CONTAINS
       TYPE(dft_control_type), INTENT(INOUT)              :: dft_control
 
       CALL qs_control_release(dft_control%qs_control)
-      CALL tddfpt_control_release(dft_control%tddfpt_control)
       CALL tddfpt2_control_release(dft_control%tddfpt2_control)
       IF (ASSOCIATED(dft_control%xas_control)) THEN
          CALL xas_control_release(dft_control%xas_control)
@@ -941,36 +896,6 @@ CONTAINS
          DEALLOCATE (qs_control)
       END IF
    END SUBROUTINE qs_control_release
-
-! **************************************************************************************************
-!> \brief ...
-!> \param tddfpt_control ...
-! **************************************************************************************************
-   SUBROUTINE tddfpt_control_create(tddfpt_control)
-      TYPE(tddfpt_control_type), POINTER                 :: tddfpt_control
-
-      CPASSERT(.NOT. ASSOCIATED(tddfpt_control))
-      ALLOCATE (tddfpt_control)
-      NULLIFY (tddfpt_control%lumos)
-      NULLIFY (tddfpt_control%lumos_eigenvalues)
-
-   END SUBROUTINE tddfpt_control_create
-
-! **************************************************************************************************
-!> \brief ...
-!> \param tddfpt_control ...
-! **************************************************************************************************
-   SUBROUTINE tddfpt_control_release(tddfpt_control)
-      TYPE(tddfpt_control_type), POINTER                 :: tddfpt_control
-
-      IF (ASSOCIATED(tddfpt_control)) THEN
-         CALL cp_fm_release(tddfpt_control%lumos)
-         IF (ASSOCIATED(tddfpt_control%lumos_eigenvalues)) THEN
-            DEALLOCATE (tddfpt_control%lumos_eigenvalues)
-         END IF
-         DEALLOCATE (tddfpt_control)
-      END IF
-   END SUBROUTINE tddfpt_control_release
 
 ! **************************************************************************************************
 !> \brief allocate control options for Time-Dependent Density Functional Theory calculation

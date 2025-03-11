@@ -8,8 +8,6 @@
 #QS
 "Ar-2.inp"                              = [{matcher="E_total", tol=3e-13, ref=-21.04944231395055}]
 "Ar-3.inp"                              = [{matcher="E_total", tol=1e-8, ref=-21.04610861679239}]
-"H2O_tddfpt.inp"                        = []
-"H2O-tddfpt-saop.inp"                   = [{matcher="E_total", tol=1e-13, ref=-17.10443966523756}]
 "Ar-4.inp"                              = [{matcher="E_total", tol=4e-13, ref=-21.02354170107187}]
 "Ar-5.inp"                              = [{matcher="E_total", tol=4e-13, ref=-20.99356122928001}]
 "pyridine.inp"                          = [{matcher="E_total", tol=2e-13, ref=-57.88808976772817}]

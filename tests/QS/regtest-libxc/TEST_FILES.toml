@@ -4,13 +4,9 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 "H2O-hybrid-b3lyp_libxc_uks.inp"        = [{matcher="E_total", tol=3e-14, ref=-76.41035426581175}]
-"H2O_pbe_libxc_tddfpt-s.inp"            = [{matcher="E_total", tol=6e-14, ref=-17.23116251470402}]
-"H2O_lda_libxc_tddfpt-s.inp"            = [{matcher="E_total", tol=2e-14, ref=-17.13289833455457}]
-"H2O_pbe_libxc_tddfpt-t_uks.inp"        = [{matcher="E_total", tol=2e-14, ref=-17.23116251474715}]
 "H2O-hybrid-b3lyp_libxc.inp"            = [{matcher="E_total", tol=3e-14, ref=-76.41035426581175}]
 "H2O-hybrid-wb97mv-libxc.inp"           = [{matcher="E_total", tol=2e-14, ref=-76.39611446074743}]
 "H2O-hybrid-cam-lda0.inp"               = [{matcher="E_total", tol=3e-14, ref=-76.47215215214956}]
-"H2O_lda_libxc_tddfpt-t_uks.inp"        = [{matcher="E_total", tol=1.0E-14, ref=-17.13289833455855}]
 "H2O-tpssx_libxc.inp"                   = [{matcher="E_total", tol=3e-13, ref=-33.88300963208589}]
 "diamond_br89_libxc_uks.inp"            = [{matcher="E_total", tol=7e-14, ref=-11.06630465114328}]
 "diamond_br89_libxc.inp"                = [{matcher="E_total", tol=7e-14, ref=-11.06581270880638}]

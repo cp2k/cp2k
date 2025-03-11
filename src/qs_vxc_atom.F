@@ -15,9 +15,7 @@ MODULE qs_vxc_atom
    USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                               gto_basis_set_type
    USE cp_control_types,                ONLY: dft_control_type
-   USE input_constants,                 ONLY: tddfpt_excitations,&
-                                              tddfpt_triplet,&
-                                              xc_none
+   USE input_constants,                 ONLY: xc_none
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
@@ -435,32 +433,30 @@ CONTAINS
 !> \param qs_env ...
 !> \param xc_section ...
 !> \param para_env ...
-!> \param do_tddft   Initial implementation of TDDFT. Control parameters are read directly from
-!>                   'DFT' input section
 !> \param do_tddfpt2 New implementation of TDDFT.
 !> \param do_triplet ...
 !> \param kind_set_external ...
 ! **************************************************************************************************
    SUBROUTINE calculate_xc_2nd_deriv_atom(rho_atom_set, rho1_atom_set, qs_env, xc_section, para_env, &
-                                          do_tddft, do_tddfpt2, do_triplet, kind_set_external)
+                                          do_tddfpt2, do_triplet, kind_set_external)
 
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom_set, rho1_atom_set
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(section_vals_type), POINTER                   :: xc_section
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
-      LOGICAL, INTENT(IN), OPTIONAL                      :: do_tddft, do_tddfpt2, do_triplet
+      LOGICAL, INTENT(IN), OPTIONAL                      :: do_tddfpt2, do_triplet
       TYPE(qs_kind_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: kind_set_external
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_xc_2nd_deriv_atom'
 
-      INTEGER                                            :: atom, excitations, handle, iatom, ikind, &
-                                                            ir, na, natom, nr, nspins, res_etype
+      INTEGER                                            :: atom, handle, iatom, ikind, ir, na, &
+                                                            natom, nr, nspins
       INTEGER, DIMENSION(2)                              :: local_loop_limit
       INTEGER, DIMENSION(2, 3)                           :: bounds
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
-      LOGICAL                                            :: gradient_functional, lsd, lsd_singlets, &
-                                                            my_tddft, paw_atom, scale_rho, tau_f
+      LOGICAL                                            :: gradient_functional, lsd, paw_atom, &
+                                                            scale_rho, tau_f
       REAL(KIND=dp)                                      :: density_cut, gradient_cut, rtot, tau_cut
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
          POINTER                                         :: vxc_h, vxc_s
@@ -507,8 +503,6 @@ CONTAINS
          my_kind_set => qs_kind_set
       END IF
 
-      my_tddft = .FALSE.
-      IF (PRESENT(do_tddft)) my_tddft = do_tddft
       CALL section_vals_val_get(input, "DFT%LSD", l_val=lsd)
       CALL section_vals_val_get(xc_section, "DENSITY_CUTOFF", &
                                 r_val=density_cut)
@@ -516,14 +510,6 @@ CONTAINS
                                 r_val=gradient_cut)
       CALL section_vals_val_get(xc_section, "TAU_CUTOFF", &
                                 r_val=tau_cut)
-      IF (my_tddft) THEN
-         CALL section_vals_val_get(input, "DFT%EXCITATIONS", &
-                                   i_val=excitations)
-         CALL section_vals_val_get(input, "DFT%TDDFPT%LSD_SINGLETS", &
-                                   l_val=lsd_singlets)
-         CALL section_vals_val_get(input, "DFT%TDDFPT%RES_ETYPE", &
-                                   i_val=res_etype)
-      END IF
 
       xc_fun_section => section_vals_get_subs_vals(xc_section, &
                                                    "XC_FUNCTIONAL")
@@ -534,13 +520,7 @@ CONTAINS
       END IF
 
       scale_rho = .FALSE.
-      IF (my_tddft) THEN
-         IF (excitations == tddfpt_excitations) THEN
-            IF (nspins == 1 .AND. (lsd_singlets .OR. res_etype == tddfpt_triplet)) THEN
-               lsd = .TRUE.
-            END IF
-         END IF
-      ELSEIF (PRESENT(do_tddfpt2) .AND. PRESENT(do_triplet)) THEN
+      IF (PRESENT(do_tddfpt2) .AND. PRESENT(do_triplet)) THEN
          IF (nspins == 1 .AND. do_triplet) THEN
             lsd = .TRUE.
             scale_rho = .TRUE.

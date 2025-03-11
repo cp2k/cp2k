@@ -76,9 +76,8 @@ MODULE cp2k_runs
         bsse_run, cell_opt_run, debug_run, do_atom, do_band, do_cp2k, do_embed, do_farming, &
         do_fist, do_ipi, do_mixed, do_nnp, do_opt_basis, do_optimize_input, do_qmmm, do_qs, &
         do_sirius, do_swarm, do_tamc, do_test, do_tree_mc, do_tree_mc_ana, driver_run, ehrenfest, &
-        electronic_spectra_run, energy_force_run, energy_run, geo_opt_run, linear_response_run, &
-        mol_dyn_run, mon_car_run, negf_run, none_run, pint_run, real_time_propagation, &
-        rtp_method_bse, tree_mc_run, vib_anal
+        energy_force_run, energy_run, geo_opt_run, linear_response_run, mol_dyn_run, mon_car_run, &
+        negf_run, none_run, pint_run, real_time_propagation, rtp_method_bse, tree_mc_run, vib_anal
    USE input_cp2k,                      ONLY: create_cp2k_root_section
    USE input_cp2k_check,                ONLY: check_cp2k_input
    USE input_cp2k_global,               ONLY: create_global_section
@@ -119,7 +118,6 @@ MODULE cp2k_runs
    USE pint_methods,                    ONLY: do_pint_run
    USE qs_environment_types,            ONLY: get_qs_env
    USE qs_linres_module,                ONLY: linres_calculation
-   USE qs_tddfpt_module,                ONLY: tddfpt_calculation
    USE reference_manager,               ONLY: export_references_as_xml
    USE rt_bse,                          ONLY: run_propagation_bse
    USE rt_propagation,                  ONLY: rt_prop_setup
@@ -341,11 +339,6 @@ CONTAINS
          CALL do_mon_car(force_env, globenv, input_declaration, input_file_name)
       CASE (do_tamc)
          CALL qs_tamc(force_env, globenv)
-      CASE (electronic_spectra_run)
-         IF (method_name_id /= do_qs) &
-            CPABORT("Electron spectra available only with Quickstep. ")
-         CALL force_env_calc_energy_force(force_env, calc_force=.FALSE.)
-         CALL tddfpt_calculation(force_env%qs_env)
       CASE (real_time_propagation)
          IF (method_name_id /= do_qs) &
             CPABORT("Real time propagation needs METHOD QS. ")

@@ -156,8 +156,8 @@ CONTAINS
          xc_section => section_vals_get_subs_vals(input, "DFT%XC")
       END IF
 
-      CALL calc_kpp1(p_env%rho1_xc, p_env%rho1, xc_section, .FALSE., &
-                     .FALSE., dft_control%qs_control%lrigpw, .TRUE., linres_control%lr_triplet, &
+      CALL calc_kpp1(p_env%rho1_xc, p_env%rho1, xc_section, &
+                     dft_control%qs_control%lrigpw, linres_control%lr_triplet, &
                      qs_env, p_env, calc_forces=my_calc_forces, calc_virial=my_calc_virial, virial=virial)
 
       ! hfx section

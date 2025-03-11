@@ -838,7 +838,7 @@ CONTAINS
             CALL get_qs_env(qs_env, rho_atom_set=rho_atom_set)
             rho1_atom_set => local_rho_set%rho_atom_set
             CALL calculate_xc_2nd_deriv_atom(rho_atom_set, rho1_atom_set, qs_env, xc_section, para_env, &
-                                             do_tddft=.TRUE., do_triplet=.FALSE.)
+                                             do_triplet=.FALSE.)
          END IF
       ELSE
          CPABORT("NYA 00006")

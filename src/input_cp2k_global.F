@@ -48,10 +48,10 @@ MODULE input_cp2k_global
         bsse_run, callgraph_all, callgraph_master, callgraph_none, cell_opt_run, debug_run, &
         do_atom, do_band, do_cosma, do_cp2k, do_dgemm_blas, do_dgemm_spla, do_farming, &
         do_fft_fftw3, do_fft_sg, do_opt_basis, do_optimize_input, do_scalapack, do_swarm, do_tamc, &
-        do_test, do_tree_mc, do_tree_mc_ana, driver_run, ehrenfest, electronic_spectra_run, &
-        energy_force_run, energy_run, fftw_plan_estimate, fftw_plan_exhaustive, fftw_plan_measure, &
-        fftw_plan_patient, gaussian, geo_opt_run, linear_response_run, mol_dyn_run, mon_car_run, &
-        negf_run, none_run, pint_run, real_time_propagation, tree_mc_run, vib_anal
+        do_test, do_tree_mc, do_tree_mc_ana, driver_run, ehrenfest, energy_force_run, energy_run, &
+        fftw_plan_estimate, fftw_plan_exhaustive, fftw_plan_measure, fftw_plan_patient, gaussian, &
+        geo_opt_run, linear_response_run, mol_dyn_run, mon_car_run, negf_run, none_run, pint_run, &
+        real_time_propagation, tree_mc_run, vib_anal
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
                                               keyword_type
@@ -365,24 +365,24 @@ CONTAINS
          default_i_val=energy_force_run, &
          citations=(/Ceriotti2014, Schonherr2014/), &
          enum_c_vals=s2a("NONE", "ENERGY", "ENERGY_FORCE", "MD", "GEO_OPT", &
-                         "MC", "SPECTRA", "DEBUG", "BSSE", "LR", "PINT", "VIBRATIONAL_ANALYSIS", &
+                         "MC", "DEBUG", "BSSE", "LR", "PINT", "VIBRATIONAL_ANALYSIS", &
                          "BAND", "CELL_OPT", "WFN_OPT", "WAVEFUNCTION_OPTIMIZATION", &
                          "MOLECULAR_DYNAMICS", "GEOMETRY_OPTIMIZATION", "MONTECARLO", &
-                         "ELECTRONIC_SPECTRA", "LINEAR_RESPONSE", "NORMAL_MODES", "RT_PROPAGATION", &
+                         "LINEAR_RESPONSE", "NORMAL_MODES", "RT_PROPAGATION", &
                          "EHRENFEST_DYN", "TAMC", "TMC", "DRIVER", "NEGF"), &
          enum_i_vals=(/none_run, energy_run, energy_force_run, mol_dyn_run, &
-                       geo_opt_run, mon_car_run, electronic_spectra_run, debug_run, &
+                       geo_opt_run, mon_car_run, debug_run, &
                        bsse_run, linear_response_run, pint_run, vib_anal, do_band, &
                        cell_opt_run, energy_run, energy_run, mol_dyn_run, geo_opt_run, &
-                       mon_car_run, electronic_spectra_run, linear_response_run, &
+                       mon_car_run, linear_response_run, &
                        vib_anal, real_time_propagation, ehrenfest, do_tamc, tree_mc_run, driver_run, negf_run/), &
          enum_desc=s2a("Perform no tasks", "Computes energy", "Computes energy and forces", &
-                       "Molecular Dynamics", "Geometry Optimization", "Monte Carlo", "Computes absorption Spectra", &
+                       "Molecular Dynamics", "Geometry Optimization", "Monte Carlo", &
                        "Performs a Debug analysis", "Basis set superposition error", "Linear Response", &
                        "Path integral", "Vibrational analysis", "Band methods", &
                        "Cell optimization. Both cell vectors and atomic positions are optimised.", &
                        "Alias for ENERGY", "Alias for ENERGY", "Alias for MD", "Alias for GEO_OPT", &
-                       "Alias for MC", "Alias for SPECTRA", "Alias for LR", "Alias for VIBRATIONAL_ANALYSIS", &
+                       "Alias for MC", "Alias for LR", "Alias for VIBRATIONAL_ANALYSIS", &
                        "Real Time propagation run (fixed ionic positions)", &
                        "Ehrenfest dynamics (using real time propagation of the wavefunction)", &
                        "Temperature Accelerated Monte Carlo (TAMC)", &
