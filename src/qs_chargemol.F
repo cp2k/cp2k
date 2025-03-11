@@ -145,7 +145,7 @@ CONTAINS
          CPABORT("OT is incompatible with .wfx output. Switch off OT.")
       END IF
 
-      IF (dft_control%do_tddfpt_calculation .OR. dft_control%roks) THEN
+      IF (dft_control%roks) THEN
          CALL cp_abort(__LOCATION__, "The output of chargemol .wfx files is currently "// &
                        "implemented only for (un)restricted HF and Kohn-Sham-like methods.")
       END IF

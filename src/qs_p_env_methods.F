@@ -32,8 +32,7 @@ MODULE qs_p_env_methods
                                               cp_dbcsr_plus_fm_fm_t,&
                                               cp_dbcsr_sm_fm_multiply,&
                                               dbcsr_allocate_matrix_set
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_symm,&
-                                              cp_fm_triangular_multiply
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_triangular_multiply
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
    USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                               cp_fm_pool_type,&
@@ -76,9 +75,7 @@ MODULE qs_p_env_methods
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: qs_kind_type
-   USE qs_kpp1_env_methods,             ONLY: kpp1_calc_k_p_p1,&
-                                              kpp1_calc_k_p_p1_fdiff,&
-                                              kpp1_create,&
+   USE qs_kpp1_env_methods,             ONLY: kpp1_create,&
                                               kpp1_did_change
    USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
    USE qs_ks_types,                     ONLY: qs_ks_did_change,&
@@ -110,7 +107,7 @@ MODULE qs_p_env_methods
 
    PRIVATE
    PUBLIC :: p_env_create, p_env_psi0_changed
-   PUBLIC :: p_op_l1, p_op_l2, p_preortho, p_postortho
+   PUBLIC :: p_preortho, p_postortho
    PUBLIC :: p_env_check_i_alloc, p_env_update_rho
    PUBLIC :: p_env_finish_kpp1
 
@@ -665,192 +662,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE p_env_psi0_changed
-
-! **************************************************************************************************
-!> \brief Evaluates Fv (S_mo)^-1 - Sv(epsilon) and stores it in res
-!> \param p_env perturbation calculation environment
-!> \param qs_env the qs_env that is perturbed by this p_env
-!> \param v the matrix to operate on
-!> \param res the result
-!> \par History
-!>      10.2002, TCH, extracted single spin calculation
-!> \author Thomas Chassaing
-! **************************************************************************************************
-   SUBROUTINE p_op_l1(p_env, qs_env, v, res)
-
-      ! argument
-      TYPE(qs_p_env_type)                                :: p_env
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(in)         :: v
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(inout)      :: res
-
-      INTEGER                                            :: n_spins, spin
-      TYPE(dft_control_type), POINTER                    :: dft_control
-
-      NULLIFY (dft_control)
-      CALL get_qs_env(qs_env, dft_control=dft_control)
-
-      n_spins = dft_control%nspins
-      DO spin = 1, n_spins
-         CALL p_op_l1_spin(p_env, qs_env, spin, v(spin), &
-                           res(spin))
-      END DO
-
-   END SUBROUTINE p_op_l1
-
-! **************************************************************************************************
-!> \brief Evaluates Fv (S_mo)^-1 - Sv(epsilon) and stores it in res
-!>      for a given spin
-!> \param p_env perturbation calculation environment
-!> \param qs_env the qs_env that is perturbed by this p_env
-!> \param spin the spin to calculate (1 or 2 normally)
-!> \param v the matrix to operate on
-!> \param res the result
-!> \par History
-!>      10.2002, TCH, created
-!> \author Thomas Chassaing
-!> \note
-!>      Same as p_op_l1 but takes a spin as additional argument.
-! **************************************************************************************************
-   SUBROUTINE p_op_l1_spin(p_env, qs_env, spin, v, res)
-
-      ! argument
-      TYPE(qs_p_env_type)                                :: p_env
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      INTEGER, INTENT(IN)                                :: spin
-      TYPE(cp_fm_type), INTENT(IN)                       :: v
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: res
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'p_op_l1_spin'
-
-      INTEGER                                            :: handle, ncol
-      TYPE(cp_fm_type)                                   :: tmp
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
-      TYPE(dbcsr_type), POINTER                          :: k_p
-      TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(mp_para_env_type), POINTER                    :: para_env
-
-      CALL timeset(routineN, handle)
-      NULLIFY (matrix_ks, matrix_s, dft_control)
-
-      CALL get_qs_env(qs_env, &
-                      para_env=para_env, &
-                      matrix_s=matrix_s, &
-                      matrix_ks=matrix_ks, &
-                      dft_control=dft_control)
-
-      CPASSERT(0 < spin)
-      CPASSERT(spin <= dft_control%nspins)
-
-      CALL cp_fm_create(tmp, v%matrix_struct)
-
-      k_p => matrix_ks(spin)%matrix
-      CALL cp_fm_get_info(v, ncol_global=ncol)
-
-      IF (p_env%orthogonal_orbitals) THEN
-         CALL cp_dbcsr_sm_fm_multiply(k_p, v, res, ncol)
-      ELSE
-         CALL cp_dbcsr_sm_fm_multiply(k_p, v, tmp, ncol)
-         CALL cp_fm_symm('R', 'U', p_env%n_ao(spin), p_env%n_mo(spin), 1.0_dp, &
-                         p_env%Smo_inv(spin), tmp, 0.0_dp, res)
-      END IF
-
-      CALL cp_fm_symm('R', 'U', p_env%n_ao(spin), p_env%n_mo(spin), 1.0_dp, &
-                      p_env%m_epsilon(spin), v, 0.0_dp, tmp)
-      CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, tmp, &
-                                   res, p_env%n_mo(spin), alpha=1.0_dp, beta=1.0_dp)
-
-      CALL cp_fm_release(tmp)
-      CALL timestop(handle)
-
-   END SUBROUTINE p_op_l1_spin
-
-! **************************************************************************************************
-!> \brief evaluates res = alpha kpp1(v)*psi0 + beta res
-!>      with kpp1 evaluated with p=qs_env%rho%rho_ao, p1=p1
-!> \param p_env the perturbation environment
-!> \param qs_env the qs_env that is perturbed by this p_env
-!> \param p1 direction in which evaluate the second derivative
-!> \param res place where to store the result
-!> \param alpha scale factor of the result (defaults to 1.0)
-!> \param beta scale factor of the old values (defaults to 0.0)
-!> \par History
-!>      02.09.2002 adapted for new qs_p_env_type (TC)
-!>      03.2003 extended for p1 not taken from v (TC)
-!> \author fawzi
-!> \note
-!>      qs_env%rho must be up to date
-!>      it would be better to pass rho1, not p1
-! **************************************************************************************************
-   SUBROUTINE p_op_l2(p_env, qs_env, p1, res, alpha, beta)
-
-      TYPE(qs_p_env_type)                                :: p_env
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: p1
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: res
-      REAL(KIND=dp), INTENT(in), OPTIONAL                :: alpha, beta
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'p_op_l2'
-      LOGICAL, PARAMETER                                 :: fdiff = .FALSE.
-
-      INTEGER                                            :: handle, ispin, n_spins
-      LOGICAL                                            :: gapw, gapw_xc
-      REAL(KIND=dp)                                      :: my_alpha, my_beta
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho1_ao
-      TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(qs_rho_type), POINTER                         :: rho
-
-      CALL timeset(routineN, handle)
-      NULLIFY (dft_control, rho, rho1_ao)
-
-      CALL get_qs_env(qs_env, dft_control=dft_control, rho=rho)
-
-      gapw = dft_control%qs_control%gapw
-      gapw_xc = dft_control%qs_control%gapw_xc
-      my_alpha = 1.0_dp
-      IF (PRESENT(alpha)) my_alpha = alpha
-      my_beta = 0.0_dp
-      IF (PRESENT(beta)) my_beta = beta
-
-      CALL p_env_check_i_alloc(p_env, qs_env=qs_env)
-      n_spins = dft_control%nspins
-
-      CALL qs_rho_get(p_env%rho1, rho_ao=rho1_ao)
-      DO ispin = 1, SIZE(p1)
-         ! hack to avoid crashes in ep regs
-         IF (.NOT. ASSOCIATED(rho1_ao(ispin)%matrix, p1(ispin)%matrix)) THEN
-            CALL dbcsr_copy(rho1_ao(ispin)%matrix, p1(ispin)%matrix)
-         END IF
-      END DO
-
-      IF (gapw) THEN
-         CALL qs_rho_update_rho(rho_struct=p_env%rho1, qs_env=qs_env, local_rho_set=p_env%local_rho_set)
-      ELSEIF (gapw_xc) THEN
-         CALL qs_rho_update_rho(rho_struct=p_env%rho1, qs_env=qs_env, rho_xc_external=p_env%rho1_xc, &
-                                local_rho_set=p_env%local_rho_set)
-      ELSE
-         CALL qs_rho_update_rho(rho_struct=p_env%rho1, qs_env=qs_env)
-      END IF
-
-      IF (fdiff) THEN
-         CPASSERT(.NOT. (gapw .OR. gapw_xc))
-         CALL kpp1_calc_k_p_p1_fdiff(qs_env=qs_env, &
-                                     k_p_p1=p_env%kpp1, rho=rho, rho1=p_env%rho1)
-      ELSE
-         CALL kpp1_calc_k_p_p1(p_env=p_env, qs_env=qs_env, &
-                               rho1=p_env%rho1, rho1_xc=p_env%rho1_xc)
-      END IF
-
-      DO ispin = 1, n_spins
-         CALL cp_dbcsr_sm_fm_multiply(p_env%kpp1(ispin)%matrix, &
-                                      p_env%psi0d(ispin), res(ispin), &
-                                      ncol=p_env%n_mo(ispin), &
-                                      alpha=my_alpha, beta=my_beta)
-      END DO
-
-      CALL timestop(handle)
-
-   END SUBROUTINE p_op_l2
 
 ! **************************************************************************************************
 !> \brief does a preorthogonalization of the given matrix:

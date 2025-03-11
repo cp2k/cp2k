@@ -16,7 +16,7 @@ MODULE input_cp2k_dft
                                               basis_sort_zet
    USE bibliography,                    ONLY: &
         Andermatt2016, Andreussi2012, Avezac2005, Bengtsson1999, Blochl1995, Brelaz1979, &
-        Fattebert2002, Guidon2010, Iannuzzi2005, Iannuzzi2006, Kunert2003, Merlot2014, Perdew1981, &
+        Fattebert2002, Guidon2010, Iannuzzi2006, Kunert2003, Merlot2014, Perdew1981, &
         VandeVondele2005b, Yin2017
    USE cp_output_handling,              ONLY: add_last_numeric,&
                                               cp_print_key_section_create,&
@@ -41,16 +41,15 @@ MODULE input_cp2k_dft
         do_admm_purify_none, do_admm_purify_none_dm, do_arnoldi, do_bch, do_cn, do_em, do_etrs, &
         do_exact, do_pade, do_taylor, ehrenfest, gaussian, kg_color_dsatur, kg_color_greedy, &
         kg_tnadd_atomic, kg_tnadd_embed, kg_tnadd_embed_ri, kg_tnadd_none, no_admm_type, &
-        no_excitations, numerical, oe_gllb, oe_lb, oe_none, oe_saop, oe_sic, plus_u_lowdin, &
-        plus_u_mulliken, plus_u_mulliken_charges, real_time_propagation, rel_dkh, rel_none, &
-        rel_pot_erfc, rel_pot_full, rel_sczora_mp, rel_trans_atom, rel_trans_full, &
-        rel_trans_molecule, rel_zora, rel_zora_full, rel_zora_mp, rtp_bse_ham_g0w0, &
-        rtp_bse_ham_ks, rtp_method_bse, rtp_method_tddft, sccs_andreussi, sccs_derivative_cd3, &
-        sccs_derivative_cd5, sccs_derivative_cd7, sccs_derivative_fft, sccs_fattebert_gygi, &
-        sic_ad, sic_eo, sic_list_all, sic_list_unpaired, sic_mauri_spz, sic_mauri_us, sic_none, &
-        slater, tddfpt_davidson, tddfpt_excitations, tddfpt_lanczos, tddfpt_singlet, &
-        tddfpt_triplet, use_mom_ref_coac, use_mom_ref_com, use_mom_ref_user, use_mom_ref_zero, &
-        use_restart_wfn, use_rt_restart, use_scf_wfn, weight_type_mass, weight_type_unit
+        numerical, plus_u_lowdin, plus_u_mulliken, plus_u_mulliken_charges, real_time_propagation, &
+        rel_dkh, rel_none, rel_pot_erfc, rel_pot_full, rel_sczora_mp, rel_trans_atom, &
+        rel_trans_full, rel_trans_molecule, rel_zora, rel_zora_full, rel_zora_mp, &
+        rtp_bse_ham_g0w0, rtp_bse_ham_ks, rtp_method_bse, rtp_method_tddft, sccs_andreussi, &
+        sccs_derivative_cd3, sccs_derivative_cd5, sccs_derivative_cd7, sccs_derivative_fft, &
+        sccs_fattebert_gygi, sic_ad, sic_eo, sic_list_all, sic_list_unpaired, sic_mauri_spz, &
+        sic_mauri_us, sic_none, slater, use_mom_ref_coac, use_mom_ref_com, use_mom_ref_user, &
+        use_mom_ref_zero, use_restart_wfn, use_rt_restart, use_scf_wfn, weight_type_mass, &
+        weight_type_unit
    USE input_cp2k_almo,                 ONLY: create_almo_scf_section
    USE input_cp2k_as,                   ONLY: create_active_space_section
    USE input_cp2k_ec,                   ONLY: create_ec_section
@@ -189,15 +188,6 @@ CONTAINS
                           description="The total charge of the system", &
                           usage="CHARGE -1", &
                           default_i_val=0)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-      CALL keyword_create(keyword, __LOCATION__, name="EXCITATIONS", &
-                          description="If excitations should be calculated", &
-                          usage="EXCITATIONS", &
-                          enum_c_vals=s2a("NONE", "TDLR", "TDDFPT"), &
-                          enum_i_vals=(/no_excitations, tddfpt_excitations, &
-                                        tddfpt_excitations/), &
-                          default_i_val=no_excitations)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -358,10 +348,6 @@ CONTAINS
       CALL section_release(subsection)
 
       CALL create_qs_section(subsection)
-      CALL section_add_subsection(section, subsection)
-      CALL section_release(subsection)
-
-      CALL create_tddfpt_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -794,155 +780,6 @@ CONTAINS
       CALL section_release(print_key)
 
    END SUBROUTINE create_density_fitting_section
-
-! **************************************************************************************************
-!> \brief creates the input section for the tddfpt part
-!> \param section the section to create
-!> \author teo
-! **************************************************************************************************
-   SUBROUTINE create_tddfpt_section(section)
-      TYPE(section_type), POINTER                        :: section
-
-      TYPE(keyword_type), POINTER                        :: keyword
-      TYPE(section_type), POINTER                        :: subsection
-
-      CPASSERT(.NOT. ASSOCIATED(section))
-      CALL section_create(section, __LOCATION__, name="tddfpt", &
-                          description="Old TDDFPT code. Use new version in CP2K_INPUT / FORCE_EVAL / PROPERTIES / TDDFPT", &
-                          n_keywords=5, n_subsections=1, repeats=.FALSE., &
-                          citations=(/Iannuzzi2005/))
-
-      NULLIFY (subsection, keyword)
-
-      ! Integer
-      CALL keyword_create(keyword, __LOCATION__, name="MAX_KV", &
-                          variants=s2a("MAX_VECTORS"), &
-                          description=" maximal number of Krylov space vectors", &
-                          usage="MAX_KV someInteger>0", &
-                          n_var=1, type_of_var=integer_t, &
-                          default_i_val=60)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="RESTARTS", &
-                          variants=s2a("N_RESTARTS"), &
-                          description=" maximal number subspace search restarts", &
-                          usage="RESTARTS someInteger>0", &
-                          n_var=1, type_of_var=integer_t, &
-                          default_i_val=5)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="NEV", &
-                          variants=s2a("N_EV", "EV"), &
-                          description=" number of excitations to calculate", &
-                          usage="NEV someInteger>0", &
-                          n_var=1, type_of_var=integer_t, &
-                          default_i_val=1)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="NLUMO", &
-                          description=" number of additional unoccupied orbitals ", &
-                          usage="NLUMO 10", &
-                          n_var=1, type_of_var=integer_t, &
-                          default_i_val=5)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="NREORTHO", &
-                          variants=s2a("N_REORTHO", "REORTHO", "REORTHOGONALITAZIONS"), &
-                          description=" number of reorthogonalization steps", &
-                          usage="NREORTHO someInteger>0", &
-                          n_var=1, type_of_var=integer_t, &
-                          default_i_val=2)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      ! Logical
-      CALL keyword_create(keyword, __LOCATION__, name="KERNEL", &
-                          variants=s2a("DO_KERNEL"), &
-                          description="compute the kernel (debug purpose only)", &
-                          usage="KERNEL logical_value", &
-                          default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="LSD_SINGLETS", &
-                          description="compute singlets using lsd vxc kernel", &
-                          usage="LSD_SINGLETS logical_value", &
-                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="INVERT_S", &
-                          variants=s2a("INVERT_OVERLAP"), &
-                          description="use the inverse of the overlap matrix", &
-                          usage="INVERT_S logical_value", &
-                          default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="PRECONDITIONER", &
-                          variants=s2a("PRECOND"), &
-                          description="use the preconditioner (only for Davidson)", &
-                          usage="PRECONDITIONER logical_value", &
-                          default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      ! Character
-      CALL keyword_create(keyword, __LOCATION__, name="RES_ETYPE", &
-                          variants=s2a("RESTRICTED_EXCITATIONS_TYPE", "RES_E_TYPE"), &
-                          description="(singlets/triplets) for restricted calculation", &
-                          usage="RES_ETYPE T", &
-                          enum_c_vals=s2a("S", "SINGLET", "SINGLETS", "T", "TRIPLET", "TRIPLETS"), &
-                          enum_i_vals=(/tddfpt_singlet, tddfpt_singlet, tddfpt_singlet, &
-                                        tddfpt_triplet, tddfpt_triplet, tddfpt_triplet/), &
-                          default_i_val=tddfpt_singlet)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="DIAG_METHOD", &
-                          variants=s2a("DIAGONALIZATION_METHOD", "METHOD"), &
-                          description="Diagonalization method used in tddfpt", &
-                          usage="DIAG_METHOD DAVIDSON", &
-                          enum_c_vals=s2a("DAVIDSON", "LANCZOS"), &
-                          enum_i_vals=(/tddfpt_davidson, tddfpt_lanczos/), &
-                          default_i_val=tddfpt_davidson)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="OE_CORR", &
-                          variants=s2a("ORBITAL_EIGENVALUES_CORRECTION"), &
-                          description="Which type of orbital eigenvalue correction to use "// &
-                          "(to yield better HOMO-LUMO energies)", &
-                          usage="OE_CORR SAOP", &
-                          enum_c_vals=s2a("NONE", "LB", "LB_ALPHA", "LB94", "GLLB", "GLB", "SAOP", "SIC"), &
-                          enum_i_vals=(/oe_none, oe_lb, oe_lb, oe_lb, oe_gllb, oe_gllb, oe_saop, oe_sic/), &
-                          default_i_val=oe_none)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      ! Real
-      CALL keyword_create(keyword, __LOCATION__, name="CONVERGENCE", &
-                          variants=s2a("CONV"), &
-                          description="The convergence of the eigenvalues", &
-                          usage="CONVERGENCE 1.0E-6 ", &
-                          n_var=1, type_of_var=real_t, &
-                          default_r_val=1.0e-5_dp)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL create_xc_section(subsection)
-      CALL section_add_subsection(section, subsection)
-      CALL section_release(subsection)
-
-      CALL create_sic_section(subsection)
-      CALL section_add_subsection(section, subsection)
-      CALL section_release(subsection)
-
-   END SUBROUTINE create_tddfpt_section
 
 ! **************************************************************************************************
 !> \brief creates the input section for the relativistic part

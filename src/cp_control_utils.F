@@ -18,8 +18,7 @@ MODULE cp_control_utils
    USE cp_control_types,                ONLY: &
         admm_control_create, admm_control_type, ddapc_control_create, ddapc_restraint_type, &
         dft_control_create, dft_control_type, efield_type, expot_control_create, &
-        maxwell_control_create, qs_control_type, tddfpt2_control_type, tddfpt_control_create, &
-        tddfpt_control_type, xtb_control_type
+        maxwell_control_create, qs_control_type, tddfpt2_control_type, xtb_control_type
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -51,8 +50,8 @@ MODULE cp_control_utils
         gaussian_env, no_admm_type, numerical, ramp_env, real_time_propagation, sccs_andreussi, &
         sccs_derivative_cd3, sccs_derivative_cd5, sccs_derivative_cd7, sccs_derivative_fft, &
         sccs_fattebert_gygi, sic_ad, sic_eo, sic_list_all, sic_list_unpaired, sic_mauri_spz, &
-        sic_mauri_us, sic_none, slater, tddfpt_dipole_length, tddfpt_excitations, &
-        tddfpt_kernel_stda, use_mom_ref_user, xtb_vdw_type_d3, xtb_vdw_type_d4, xtb_vdw_type_none
+        sic_mauri_us, sic_none, slater, tddfpt_dipole_length, tddfpt_kernel_stda, &
+        use_mom_ref_user, xtb_vdw_type_d3, xtb_vdw_type_d4, xtb_vdw_type_none
    USE input_cp2k_check,                ONLY: xc_functionals_expand
    USE input_cp2k_dft,                  ONLY: create_dft_section
    USE input_enumeration_types,         ONLY: enum_i2c,&
@@ -87,7 +86,6 @@ MODULE cp_control_utils
    PUBLIC :: read_dft_control, &
              read_mgrid_section, &
              read_qs_section, &
-             read_tddfpt_control, &
              read_tddfpt2_control, &
              write_dft_control, &
              write_qs_control, &
@@ -107,8 +105,8 @@ CONTAINS
       CHARACTER(len=default_path_length)                 :: basis_set_file_name, potential_file_name
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: tmpstringlist
-      INTEGER                                            :: admmtype, excitations, irep, isize, &
-                                                            method_id, nrep, xc_deriv_method_id
+      INTEGER                                            :: admmtype, irep, isize, method_id, nrep, &
+                                                            xc_deriv_method_id
       LOGICAL                                            :: do_hfx, do_ot, do_rpa_admm, do_rtp, &
                                                             exopt1, exopt2, exopt3, explicit, &
                                                             is_present, l_param, not_SE, &
@@ -443,13 +441,6 @@ CONTAINS
                                 r_val=dft_control%sic_scaling_a)
       CALL section_vals_val_get(tmp_section, "SIC_SCALING_B", &
                                 r_val=dft_control%sic_scaling_b)
-
-      ! Determine if this is a TDDFPT run
-      CALL section_vals_val_get(dft_section, "EXCITATIONS", i_val=excitations)
-      dft_control%do_tddfpt_calculation = (excitations == tddfpt_excitations)
-      IF (dft_control%do_tddfpt_calculation) THEN
-         CALL tddfpt_control_create(dft_control%tddfpt_control)
-      END IF
 
       do_rtp = .FALSE.
       tmp_section => section_vals_get_subs_vals(dft_section, "REAL_TIME_PROPAGATION")
@@ -1558,44 +1549,6 @@ CONTAINS
 
       CALL timestop(handle)
    END SUBROUTINE read_qs_section
-
-! **************************************************************************************************
-!> \brief ...
-!> \param t_control ...
-!> \param dft_section ...
-! **************************************************************************************************
-   SUBROUTINE read_tddfpt_control(t_control, dft_section)
-      TYPE(tddfpt_control_type)                          :: t_control
-      TYPE(section_vals_type), POINTER                   :: dft_section
-
-      LOGICAL                                            :: kenergy_den
-      TYPE(section_vals_type), POINTER                   :: sic_section, t_section
-
-      kenergy_den = .FALSE.
-      NULLIFY (sic_section, t_section)
-      t_section => section_vals_get_subs_vals(dft_section, "TDDFPT")
-
-      CALL section_vals_val_get(t_section, "CONVERGENCE", r_val=t_control%tolerance)
-      CALL section_vals_val_get(t_section, "NEV", i_val=t_control%n_ev)
-      CALL section_vals_val_get(t_section, "MAX_KV", i_val=t_control%max_kv)
-      CALL section_vals_val_get(t_section, "RESTARTS", i_val=t_control%n_restarts)
-      CALL section_vals_val_get(t_section, "NREORTHO", i_val=t_control%n_reortho)
-      CALL section_vals_val_get(t_section, "RES_ETYPE", i_val=t_control%res_etype)
-      CALL section_vals_val_get(t_section, "DIAG_METHOD", i_val=t_control%diag_method)
-      CALL section_vals_val_get(t_section, "KERNEL", l_val=t_control%do_kernel)
-      CALL section_vals_val_get(t_section, "LSD_SINGLETS", l_val=t_control%lsd_singlets)
-      CALL section_vals_val_get(t_section, "INVERT_S", l_val=t_control%invert_S)
-      CALL section_vals_val_get(t_section, "PRECOND", l_val=t_control%precond)
-      CALL section_vals_val_get(t_section, "OE_CORR", i_val=t_control%oe_corr)
-
-      t_control%use_kinetic_energy_density = .FALSE.
-      sic_section => section_vals_get_subs_vals(t_section, "SIC")
-      CALL section_vals_val_get(sic_section, "SIC_METHOD", i_val=t_control%sic_method_id)
-      CALL section_vals_val_get(sic_section, "ORBITAL_SET", i_val=t_control%sic_list_id)
-      CALL section_vals_val_get(sic_section, "SIC_SCALING_A", r_val=t_control%sic_scaling_a)
-      CALL section_vals_val_get(sic_section, "SIC_SCALING_B", r_val=t_control%sic_scaling_b)
-
-   END SUBROUTINE read_tddfpt_control
 
 ! **************************************************************************************************
 !> \brief Read TDDFPT-related input parameters.

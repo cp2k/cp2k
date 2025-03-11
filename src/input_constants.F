@@ -125,7 +125,6 @@ MODULE input_constants
                                                mol_dyn_run = 4, &
                                                geo_opt_run = 5, &
                                                mon_car_run = 6, &
-                                               electronic_spectra_run = 7, &
                                                debug_run = 8, &
                                                bsse_run = 9, &
                                                linear_response_run = 10, &

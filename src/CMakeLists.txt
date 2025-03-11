@@ -716,10 +716,6 @@ list(
   qs_tddfpt2_subgroups.F
   qs_tddfpt2_types.F
   qs_tddfpt2_utils.F
-  qs_tddfpt_eigensolver.F
-  qs_tddfpt_module.F
-  qs_tddfpt_types.F
-  qs_tddfpt_utils.F
   qs_tddfpt2_fprint.F
   qs_tensors.F
   qs_tensors_types.F

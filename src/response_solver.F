@@ -1714,7 +1714,7 @@ CONTAINS
             CALL calculate_xc_2nd_deriv_atom(local_rho_set_gs%rho_atom_set, &
                                              local_rho_set_f%rho_atom_set, &
                                              qs_env, xc_section, para_env, &
-                                             do_tddft=.FALSE., do_triplet=.FALSE.)
+                                             do_triplet=.FALSE.)
          END IF ! myfun
       END IF
 
@@ -2163,7 +2163,7 @@ CONTAINS
                !compute the potential due to atomic densities
                CALL calculate_xc_2nd_deriv_atom(admm_env%admm_gapw_env%local_rho_set%rho_atom_set, &
                                                 local_rhoz_set_admm%rho_atom_set, &
-                                                qs_env, xc_section, para_env, do_tddft=.FALSE., do_triplet=.FALSE., &
+                                                qs_env, xc_section, para_env, do_triplet=.FALSE., &
                                                 kind_set_external=admm_env%admm_gapw_env%admm_kind_set)
                !
                IF (debug_forces) fodeb(1:3) = force(1)%Vhxc_atom(1:3, 1)

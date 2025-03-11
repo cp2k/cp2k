@@ -1517,30 +1517,28 @@ CONTAINS
 !> \param xc_section XC section to calculate the derivatives from
 !> \param gapw whether to carry out GAPW (not possible with numerical derivatives)
 !> \param vxg GAPW potential
-!> \param lsd_singlets ...
 !> \param do_excitations ...
 !> \param do_triplet ...
-!> \param do_tddft ...
 !> \param compute_virial ...
 !> \param virial_xc virial terms will be collected here
 ! **************************************************************************************************
    SUBROUTINE xc_calc_2nd_deriv(v_xc, v_xc_tau, deriv_set, rho_set, rho1_r, rho1_g, tau1_r, &
                                 pw_pool, xc_section, gapw, vxg, &
-                                lsd_singlets, do_excitations, do_triplet, do_tddft, &
+                                do_excitations, do_triplet, &
                                 compute_virial, virial_xc)
 
-      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER             :: v_xc, v_xc_tau
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: v_xc, v_xc_tau
       TYPE(xc_derivative_set_type)                       :: deriv_set
       TYPE(xc_rho_set_type)                              :: rho_set
-      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER               :: rho1_r, tau1_r
-      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER :: rho1_g
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho1_r, tau1_r
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho1_g
       TYPE(pw_pool_type), INTENT(IN), POINTER            :: pw_pool
       TYPE(section_vals_type), INTENT(IN), POINTER       :: xc_section
       LOGICAL, INTENT(IN)                                :: gapw
       REAL(KIND=dp), DIMENSION(:, :, :, :), OPTIONAL, &
          POINTER                                         :: vxg
-      LOGICAL, INTENT(IN), OPTIONAL                      :: lsd_singlets, do_excitations, &
-                                                            do_triplet, do_tddft, compute_virial
+      LOGICAL, INTENT(IN), OPTIONAL                      :: do_excitations, &
+                                                            do_triplet, compute_virial
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT), &
          OPTIONAL                                        :: virial_xc
 
@@ -1549,8 +1547,8 @@ CONTAINS
       INTEGER                                            :: handle, ispin, nspins
       INTEGER, DIMENSION(2, 3)                           :: bo
       LOGICAL                                            :: lsd, my_compute_virial, &
-                                                            my_do_excitations, my_do_tddft, &
-                                                            my_do_triplet, my_lsd_singlets
+                                                            my_do_excitations, &
+                                                            my_do_triplet
       REAL(KIND=dp)                                      :: fac
       TYPE(section_vals_type), POINTER                   :: xc_fun_section
       TYPE(xc_rho_cflags_type)                           :: needs
@@ -1561,21 +1559,15 @@ CONTAINS
       my_compute_virial = .FALSE.
       IF (PRESENT(compute_virial)) my_compute_virial = compute_virial
 
-      my_do_tddft = .FALSE.
-      IF (PRESENT(do_tddft)) my_do_tddft = do_tddft
-
       my_do_excitations = .FALSE.
       IF (PRESENT(do_excitations)) my_do_excitations = do_excitations
-
-      my_lsd_singlets = .FALSE.
-      IF (PRESENT(lsd_singlets)) my_lsd_singlets = lsd_singlets
 
       my_do_triplet = .FALSE.
       IF (PRESENT(do_triplet)) my_do_triplet = do_triplet
 
       nspins = SIZE(rho1_r)
       lsd = (nspins == 2)
-      IF (nspins == 1 .AND. my_do_excitations .AND. (my_lsd_singlets .OR. my_do_triplet)) THEN
+      IF (nspins == 1 .AND. my_do_excitations .AND. my_do_triplet) THEN
          nspins = 2
          lsd = .TRUE.
       END IF
@@ -1600,7 +1592,7 @@ CONTAINS
          END DO
       END IF
 
-      IF (section_get_lval(xc_section, "2ND_DERIV_ANALYTICAL") .AND. .NOT. my_do_tddft) THEN
+      IF (section_get_lval(xc_section, "2ND_DERIV_ANALYTICAL")) THEN
          !------!
          ! rho1 !
          !------!
@@ -1619,7 +1611,6 @@ CONTAINS
 
          fac = 0._dp
          IF (nspins == 1 .AND. my_do_excitations) THEN
-            IF (my_lsd_singlets) fac = 1.0_dp
             IF (my_do_triplet) fac = -1.0_dp
          END IF
 
