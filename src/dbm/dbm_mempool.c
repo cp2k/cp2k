@@ -19,60 +19,13 @@
 #include "dbm_mpi.h"
 
 /*******************************************************************************
- * \brief Private routine for actually allocating system memory.
- * \author Ole Schuett
- ******************************************************************************/
-static void *actual_malloc(const size_t size, const bool on_device) {
-  (void)on_device; // mark used
-
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_DBM)
-  if (on_device) {
-    void *memory;
-    offload_activate_chosen_device();
-    offloadMalloc(&memory, size);
-    assert(memory != NULL);
-    return memory;
-  }
-#else
-  (void)on_device; // mark used
-#endif
-
-  void *memory = dbm_mpi_alloc_mem(size);
-  assert(memory != NULL);
-  return memory;
-}
-
-/*******************************************************************************
- * \brief Private routine for actually freeing system memory.
- * \author Ole Schuett
- ******************************************************************************/
-static void actual_free(void *memory, const bool on_device) {
-  if (memory == NULL) {
-    return;
-  }
-
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_DBM)
-  if (on_device) {
-    offload_activate_chosen_device();
-    offloadFree(memory);
-    return;
-  }
-#else
-  (void)on_device; // mark used
-#endif
-
-  dbm_mpi_free_mem(memory);
-}
-
-/*******************************************************************************
  * \brief Private struct for storing a chunk of memory.
  * \author Ole Schuett
  ******************************************************************************/
 typedef struct dbm_memchunk {
-  bool on_device;
-  size_t size;
-  void *mem;
+  void *mem; // first: allows to cast memchunk into memptr...
   struct dbm_memchunk *next;
+  size_t size;
 } dbm_memchunk_t;
 
 /*******************************************************************************
@@ -94,32 +47,30 @@ static dbm_memchunk_t *mempool_allocated_head = NULL;
 static dbm_memstats_t mempool_stats = {0};
 
 /*******************************************************************************
- * \brief Private routine for allocating host or device memory from the pool.
+ * \brief Internal routine for allocating device memory from the pool
  * \author Ole Schuett
  ******************************************************************************/
-static void *internal_mempool_malloc(const size_t size, const bool on_device) {
+void *dbm_mempool_device_malloc(const size_t size) {
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_DBM)
   if (size == 0) {
     return NULL;
   }
 
   dbm_memchunk_t *chunk = NULL;
-
 #pragma omp critical(dbm_mempool_modify)
   {
     // Find a suitable chunk in mempool_available.
     dbm_memchunk_t **indirect = &mempool_available_head;
     dbm_memchunk_t **hit = NULL, **fallback = NULL;
     for (; NULL != *indirect; indirect = &(*indirect)->next) {
-      if ((*indirect)->on_device == on_device) {
-        if ((*indirect)->size < size) {
-          if (NULL == fallback || (*fallback)->size < (*indirect)->size) {
-            fallback = indirect;
-          }
-        } else if (NULL == hit || (*indirect)->size < (*hit)->size) {
-          hit = indirect;
-          if (size == (*hit)->size) {
-            break;
-          }
+      if ((*indirect)->size < size) {
+        if (NULL == fallback || (*fallback)->size < (*indirect)->size) {
+          fallback = indirect;
+        }
+      } else if (NULL == hit || (*indirect)->size < (*hit)->size) {
+        hit = indirect;
+        if (size == (*hit)->size) {
+          break;
         }
       }
     }
@@ -131,12 +82,10 @@ static void *internal_mempool_malloc(const size_t size, const bool on_device) {
     if (NULL != hit) {
       chunk = *hit;
       *hit = chunk->next;
-      assert(chunk->on_device == on_device);
     } else { // Allocate a new chunk.
       assert(chunk == NULL);
       chunk = malloc(sizeof(dbm_memchunk_t));
       assert(chunk != NULL);
-      chunk->on_device = on_device;
       chunk->size = 0;
       chunk->mem = NULL;
     }
@@ -147,40 +96,25 @@ static void *internal_mempool_malloc(const size_t size, const bool on_device) {
 
     // Update statistics
     if (chunk->size < size) {
-      if (on_device) {
-        mempool_stats.device_size += size - chunk->size;
-        ++mempool_stats.device_mallocs;
-      } else {
-        mempool_stats.host_size += size - chunk->size;
-        ++mempool_stats.host_mallocs;
-      }
+      mempool_stats.size += size - chunk->size;
+      ++mempool_stats.nmallocs;
     }
   }
 
   // Resize chunk if needed (outside of critical section).
   if (chunk->size < size) {
-    actual_free(chunk->mem, chunk->on_device);
-    chunk->mem = actual_malloc(size, chunk->on_device);
+    offload_activate_chosen_device();
+    offloadFree(chunk->mem);
+    offloadMalloc(&chunk->mem, size);
+    assert(chunk->mem != NULL);
     chunk->size = size; // update
   }
 
   return chunk->mem;
-}
-
-/*******************************************************************************
- * \brief Internal routine for allocating host memory from the pool.
- * \author Ole Schuett
- ******************************************************************************/
-void *dbm_mempool_host_malloc(const size_t size) {
-  return internal_mempool_malloc(size, false);
-}
-
-/*******************************************************************************
- * \brief Internal routine for allocating device memory from the pool
- * \author Ole Schuett
- ******************************************************************************/
-void *dbm_mempool_device_malloc(const size_t size) {
-  return internal_mempool_malloc(size, true);
+#else
+  (void)size; // mark used
+  return NULL;
+#endif
 }
 
 /*******************************************************************************
@@ -218,22 +152,25 @@ void dbm_mempool_free(void *mem) {
 void dbm_mempool_clear(void) {
   assert(omp_get_num_threads() == 1);
   assert(mempool_allocated_head == NULL); // check for memory leak
-
-  // while (mempool_allocated_head != NULL) {
-  //  dbm_memchunk_t *chunk = mempool_allocated_head;
-  //  mempool_allocated_head = chunk->next;
-  //  printf("Found alloacted memory chunk of size: %lu\n", chunk->size);
-  //  actual_free(chunk->mem, chunk->on_device);
-  //  free(chunk);
-  //}
-
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_DBM)
+  offload_activate_chosen_device();
+#if 0
+  while (mempool_allocated_head != NULL) {
+    dbm_memchunk_t *chunk = mempool_allocated_head;
+    mempool_allocated_head = chunk->next;
+    printf("Found alloacted memory chunk of size: %lu\n", chunk->size);
+    offloadFree(chunk->mem);
+    free(chunk);
+  }
+#endif
   // Free chunks in mempool_available.
   while (mempool_available_head != NULL) {
     dbm_memchunk_t *chunk = mempool_available_head;
     mempool_available_head = chunk->next;
-    actual_free(chunk->mem, chunk->on_device);
+    offloadFree(chunk->mem);
     free(chunk);
   }
+#endif
 }
 
 /*******************************************************************************
