@@ -14,10 +14,6 @@ MODULE cp_cfm_cholesky
    USE cp_cfm_types, ONLY: cp_cfm_type
    USE kinds, ONLY: dp
 
-#if defined(__DLAF)
-   USE cp_cfm_dlaf_api, ONLY: cp_cfm_pzpotrf_dlaf
-#endif
-
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -45,6 +41,7 @@ CONTAINS
 !>      12.2002 updated, added n optional parm [fawzi]
 !>      09.2021 removed CPASSERT(info == 0) since there is already check of info [Jan Wilhelm]
 !>      12.2024 Added DLA-Future support [Rocco Meli]
+!>      03.2025 Moved DLA-Future support to cp_cfm_cholesky_decompose_dlaf [Rocco Meli]
 !> \author Joost
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_cholesky_decompose(matrix, n, info_out)
@@ -76,11 +73,7 @@ CONTAINS
 #if defined(__parallel)
       desca(:) = matrix%matrix_struct%descriptor(:)
 
-#if defined(__DLAF)
-      CALL cp_cfm_pzpotrf_dlaf('U', my_n, a, 1, 1, desca, info)
-#else
       CALL pzpotrf('U', my_n, a(1, 1), 1, 1, desca, info)
-#endif
 #else
       lda = SIZE(a, 1)
       CALL zpotrf('U', my_n, a(1, 1), lda, info)

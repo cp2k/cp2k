@@ -28,8 +28,6 @@ MODULE f77_interface
    USE cp2k_info,                       ONLY: get_runtime_info
    USE cp_dbcsr_api,                    ONLY: dbcsr_finalize_lib,&
                                               dbcsr_init_lib
-   USE cp_dlaf_utils_api,               ONLY: cp_dlaf_finalize,&
-                                              cp_dlaf_initialize
    USE cp_error_handling,               ONLY: cp_error_handling_setup
    USE cp_files,                        ONLY: init_preconnection_list,&
                                               open_file
@@ -292,7 +290,6 @@ CONTAINS
                              cp_abort_hook, cp_warn_hook, io_unit=unit_nr, &
                              accdrv_active_device_id=active_device_id)
          CALL cp_sirius_init() ! independent of method_name_id == do_sirius
-         CALL cp_dlaf_initialize()
          CALL pw_fpga_init()
          CALL pw_gpu_init()
          CALL grid_library_init()
@@ -336,7 +333,6 @@ CONTAINS
          CALL grid_library_finalize()
          CALL pw_gpu_finalize()
          CALL pw_fpga_finalize()
-         CALL cp_dlaf_finalize()
          CALL cp_sirius_finalize()
          ! Finalize the DBCSR library
          CALL dbcsr_finalize_lib()
