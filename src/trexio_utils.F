@@ -170,7 +170,8 @@ CONTAINS
       INTEGER, DIMENSION(0:10)                           :: npot
       INTEGER, DIMENSION(:), ALLOCATABLE                 :: nucleus_index, shell_ang_mom, r_power, &
                                                             shell_index, z_core, max_ang_mom_plus_1, &
-                                                            ang_mom, powers, ao_shell, mo_spin, mo_kpoint
+                                                            ang_mom, powers, ao_shell, mo_spin, mo_kpoint, &
+                                                            cp2k_to_trexio_ang_mom
       INTEGER, DIMENSION(:), POINTER                     :: nshell => Null(), npgf => Null()
       INTEGER, DIMENSION(:, :), POINTER                  :: l_shell_set => Null()
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: charge, shell_factor, exponents, coefficients, &
@@ -833,6 +834,21 @@ CONTAINS
          CALL para_env_inter_kp%sum(mo_occupation)
       END IF
 
+      ! AO order map from CP2K to TREXIO convention
+      ! from m = -l, -l+1, ..., 0, ..., l-1, l   of CP2K
+      ! to   m =  0, +1, -1, +2, -2, ..., +l, -l of TREXIO
+      ALLOCATE (cp2k_to_trexio_ang_mom(nsgf))
+      i = 0
+      DO ishell = 1, shell_num
+         l = shell_ang_mom(ishell)
+         DO k = 1, 2*l + 1
+            m = (-1)**k*FLOOR(REAL(k, KIND=dp)/2.0_dp)
+            cp2k_to_trexio_ang_mom(i + k) = i + l + 1 + m
+         END DO
+         i = i + 2*l + 1
+      END DO
+      CPASSERT(i == nsgf)
+
       ! second step: here we actually put everything in the local arrays for writing to trexio
       DO ispin = 1, nspins
          ! get number of MOs for this spin
@@ -856,19 +872,9 @@ CONTAINS
                   CALL spherical_to_cartesian_mo(mos_sgf, particle_set, kind_set, mo_coefficient(:, imo + 1:imo + nmo))
                ELSE
                   ! we have to reorder the MOs since CP2K and TREXIO have different conventions
-                  ! from m = -l, -l+1, ..., 0, ..., l-1, l   of CP2K
-                  ! to   m =  0, +1, -1, +2, -2, ..., +l, -l of TREXIO
-                  i = 0
-                  DO ishell = 1, shell_num
-                     l = shell_ang_mom(ishell)
-                     DO k = 1, 2*l + 1
-                        ! map from running index k: 1...2l+1 to magnetic quantum number m in TREXIO convention
-                        m = (-1)**k*FLOOR(REAL(k, KIND=dp)/2.0_dp)
-                        mo_coefficient(i + k, imo + 1:imo + nmo) = mos_sgf(i + l + m + 1, :)
-                     END DO
-                     i = i + 2*l + 1
+                  DO i = 1, nsgf
+                     mo_coefficient(cp2k_to_trexio_ang_mom(i), imo + 1:imo + nmo) = mos_sgf(i, :)
                   END DO
-                  CPASSERT(i == nsgf)
                END IF
 
                ! we have to do it for the imaginary part as well
@@ -878,19 +884,9 @@ CONTAINS
                      CALL spherical_to_cartesian_mo(mos_sgf, particle_set, kind_set, mo_coefficient_im(:, imo + 1:imo + nmo))
                   ELSE
                      ! we have to reorder the MOs since CP2K and TREXIO have different conventions
-                     ! from m = -l, -l+1, ..., 0, ..., l-1, l   of CP2K
-                     ! to   m =  0, +1, -1, +2, -2, ..., +l, -l of TREXIO
-                     i = 0
-                     DO ishell = 1, shell_num
-                        l = shell_ang_mom(ishell)
-                        DO k = 1, 2*l + 1
-                           ! map from running index k: 1...2l+1 to magnetic quantum number m in TREXIO convention
-                           m = (-1)**k*FLOOR(REAL(k, KIND=dp)/2.0_dp)
-                           mo_coefficient_im(i + k, imo + 1:imo + nmo) = mos_sgf(i + l + m + 1, :)
-                        END DO
-                        i = i + 2*l + 1
+                     DO i = 1, nsgf
+                        mo_coefficient_im(cp2k_to_trexio_ang_mom(i), imo + 1:imo + nmo) = mos_sgf(i, :)
                      END DO
-                     CPASSERT(i == nsgf)
                   END IF
                END IF
             END DO
@@ -914,19 +910,9 @@ CONTAINS
                CALL spherical_to_cartesian_mo(mos_sgf, particle_set, kind_set, mo_coefficient(:, imo + 1:imo + nmo))
             ELSE
                ! we have to reorder the MOs since CP2K and TREXIO have different conventions
-               ! from m = -l, -l+1, ..., 0, ..., l-1, l   of CP2K
-               ! to   m =  0, +1, -1, +2, -2, ..., +l, -l of TREXIO
-               i = 0
-               DO ishell = 1, shell_num
-                  l = shell_ang_mom(ishell)
-                  DO k = 1, 2*l + 1
-                     ! map from running index k: 1...2l+1 to magnetic quantum number m in TREXIO convention
-                     m = (-1)**k*FLOOR(REAL(k, KIND=dp)/2.0_dp)
-                     mo_coefficient(i + k, imo + 1:imo + nmo) = mos_sgf(i + l + m + 1, :)
-                  END DO
-                  i = i + 2*l + 1
+               DO i = 1, nsgf
+                  mo_coefficient(cp2k_to_trexio_ang_mom(i), imo + 1:imo + nmo) = mos_sgf(i, :)
                END DO
-               CPASSERT(i == nsgf)
             END IF
          END IF
 
@@ -961,7 +947,6 @@ CONTAINS
          END IF
       END IF
 
-      ! DEALLOCATE (shell_ang_mom)
       DEALLOCATE (mo_coefficient)
       DEALLOCATE (mo_energy)
       DEALLOCATE (mo_occupation)
@@ -1022,13 +1007,6 @@ CONTAINS
          ! print the dEdP matrix to a file
          IF (ionode) THEN
             WRITE (output_unit, "((T2,A,A))") 'TREXIO| Writing derivative file ', TRIM(filename_dE)
-            ALLOCATE (temp(nsgf, nsgf))
-            temp(:,:) = 0.0_dp
-            ! reorder matrix to trexio convention
-            CALL cp2k_to_trexio_ao_order(dEdP, temp, shell_num, shell_ang_mom)
-            ! now we need to do it along the second dimension
-            dEdP(:,:) = TRANSPOSE(temp)
-            CALL cp2k_to_trexio_ao_order(dEdP, temp, shell_num, shell_ang_mom)
 
             unit_dE = 10
             CALL open_file(file_name=filename_dE, &
@@ -1037,18 +1015,18 @@ CONTAINS
                            unit_number=unit_dE)
             WRITE (unit_dE, '(I0, 1X, I0)') nsgf, nsgf
             DO i = 1, nsgf
-               WRITE (unit_dE, '(*(1X, F15.8))') (temp(i, j), j = 1, nsgf)
+               WRITE (unit_dE, '(*(1X, F15.8))') (dEdP(cp2k_to_trexio_ang_mom(i), &
+               cp2k_to_trexio_ang_mom(j)), j = 1, nsgf)
             END DO
             CALL close_file(unit_number=unit_dE)
-
-            DEALLOCATE (temp)
          END IF
 
          DEALLOCATE (dEdP)
       END IF
 
-      ! finish the deallocate stuff
+      ! Ddeallocate arrays used throughout the subroutine
       DEALLOCATE (shell_ang_mom)
+      DEALLOCATE (cp2k_to_trexio_ang_mom)
 
       !========================================================================================!
       ! Close the TREXIO file
@@ -1419,7 +1397,9 @@ CONTAINS
          ! send data to all processes
          CALL para_env%bcast(dEdP, para_env%source)
 
-         ! AO order map from TREXIO to CP2K
+         ! AO order map from TREXIO to CP2K convention
+         ! from m =  0, +1, -1, +2, -2, ..., +l, -l of TREXIO
+         !   to m = -l, -l+1, ..., 0, ..., l-1, l   of CP2K
          ALLOCATE (trexio_to_cp2k_ang_mom(nsgf))
          i = 0
          DO ishell = 1, shell_num
@@ -1605,66 +1585,6 @@ CONTAINS
       END DO ! iatom
 
    END SUBROUTINE spherical_to_cartesian_mo
-
-
-! **************************************************************************************************
-!> \brief Reshuffle the elements of matrix between CP2K and TREXIO AO ordering conventions
-!> \param mat_cp2k Matrix in CP2K AO ordering convention (input or output)
-!> \param mat_trexio Matrix in TREXIO AO ordering convention (input or output)
-!> \param shell_num Number of shells
-!> \param shell_ang_mom Angular momentum of each shell
-!> \param reverse Flag to control direction of conversion:
-!>                .FALSE. = Convert from CP2K to TREXIO (default)
-!>                .TRUE.  = Convert from TREXIO to CP2K
-!> \note CP2K ordering: m = -l, -l+1, ..., 0, ..., l-1, l
-!>       TREXIO ordering: m = 0, +1, -1, +2, -2, ..., +l, -l
-!> **************************************************************************************************
-   SUBROUTINE cp2k_to_trexio_ao_order(mat_cp2k, mat_trexio, shell_num, shell_ang_mom, reverse)
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT) :: mat_cp2k
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT) :: mat_trexio
-      INTEGER, INTENT(IN) :: shell_num
-      INTEGER, DIMENSION(:), INTENT(IN) :: shell_ang_mom
-      LOGICAL, INTENT(IN), OPTIONAL :: reverse
-
-      INTEGER :: i, k, l, m, nmo, nao, ishell
-      LOGICAL :: do_reverse
-
-      ! Handle optional arguments
-      IF (PRESENT(reverse)) THEN
-         do_reverse = reverse
-      ELSE
-         do_reverse = .FALSE.
-      END IF
-
-      ! Get dimensions
-      nao = SIZE(mat_cp2k, 1)
-      nmo = SIZE(mat_cp2k, 2)
-
-      CPASSERT(SIZE(mat_trexio, 1) == nao)
-      CPASSERT(SIZE(mat_trexio, 2) == nmo)
-
-      i = 0
-      DO ishell = 1, shell_num
-         l = shell_ang_mom(ishell)
-         DO k = 1, 2*l + 1
-            ! Map from running index k: 1...2l+1 to magnetic quantum number m in TREXIO convention
-            m = (-1)**k*FLOOR(REAL(k, KIND=dp)/2.0_dp)
-
-            IF (do_reverse) THEN
-               ! TREXIO → CP2K: mat_trexio input, mat_cp2k output
-               mat_cp2k(i + l + m + 1, :) = mat_trexio(i + k, :)
-            ELSE
-               ! CP2K → TREXIO: mat_cp2k input, mat_trexio output
-               mat_trexio(i + k, :) = mat_cp2k(i + l + m + 1, :)
-            END IF
-         END DO
-         i = i + 2*l + 1
-      END DO
-
-      ! Verify that we processed all orbitals
-      CPASSERT(i == nao)
-
-   END SUBROUTINE cp2k_to_trexio_ao_order
 #endif
 
 END MODULE trexio_utils
