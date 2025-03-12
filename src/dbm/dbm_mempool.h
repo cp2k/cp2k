@@ -14,6 +14,12 @@ extern "C" {
 #include <stdint.h>
 
 /*******************************************************************************
+ * \brief Internal routine for allocating host memory from the pool.
+ * \author Ole Schuett
+ ******************************************************************************/
+void *dbm_mempool_host_malloc(const size_t size);
+
+/*******************************************************************************
  * \brief Internal routine for allocating device memory from the pool.
  * \author Ole Schuett
  ******************************************************************************/
@@ -37,9 +43,9 @@ void dbm_mempool_clear(void);
  ******************************************************************************/
 typedef struct dbm_memstats_t {
   // Memory consumption (maximum).
-  uint64_t size;
+  uint64_t host_size, device_size;
   // Number of allocations.
-  uint64_t nmallocs;
+  uint64_t host_mallocs, device_mallocs;
 } dbm_memstats_t;
 
 /*******************************************************************************
