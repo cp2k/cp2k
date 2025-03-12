@@ -2434,9 +2434,43 @@ CONTAINS
 
       END DO
 
+      ALLOCATE (bs_env%skip_DR_chi(n_tasks_local))
+      bs_env%skip_DR_chi(:) = .FALSE.
+      ALLOCATE (bs_env%skip_DR_Sigma(n_tasks_local))
+      bs_env%skip_DR_Sigma(:) = .FALSE.
+
+      CALL allocate_skip_3xR(bs_env%skip_DR_R12_S_Goccx3c_chi, bs_env)
+      CALL allocate_skip_3xR(bs_env%skip_DR_R12_S_Gvirx3c_chi, bs_env)
+      CALL allocate_skip_3xR(bs_env%skip_DR_R_R2_MxM_chi, bs_env)
+
+      CALL allocate_skip_3xR(bs_env%skip_DR_R1_S2_Gx3c_Sigma, bs_env)
+      CALL allocate_skip_3xR(bs_env%skip_DR_R1_R_MxM_Sigma, bs_env)
+
       CALL timestop(handle)
 
    END SUBROUTINE setup_parallelization_Delta_R
+
+! **************************************************************************************************
+!> \brief ...
+!> \param skip ...
+!> \param bs_env ...
+! **************************************************************************************************
+   SUBROUTINE allocate_skip_3xR(skip, bs_env)
+      LOGICAL, ALLOCATABLE, DIMENSION(:, :, :)           :: skip
+      TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'allocate_skip_3xR'
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
+      ALLOCATE (skip(bs_env%n_tasks_Delta_R_local, bs_env%nimages_3c, bs_env%nimages_scf_desymm))
+      skip(:, :, :) = .FALSE.
+
+      CALL timestop(handle)
+
+   END SUBROUTINE allocate_skip_3xR
 
 ! **************************************************************************************************
 !> \brief ...
