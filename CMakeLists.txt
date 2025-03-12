@@ -111,6 +111,7 @@ option(CP2K_USE_STATIC_BLAS "Link against static version of BLAS/LAPACK" OFF)
 option(CP2K_USE_GRPP "Enable libgrpp support" ON)
 option(CP2K_USE_TREXIO "Enable trexio support" ON)
 option(CP2K_USE_HDF5 "Enable HDF5 support" ON)
+option(CP2K_USE_GREENX "Enable GreenX support" OFF)
 option(BUILD_SHARED_LIBS "Build cp2k shared library" ON)
 option(
   CP2K_USE_FFTW3_WITH_MKL
@@ -643,6 +644,10 @@ if(CP2K_USE_TREXIO)
   find_package(TrexIO REQUIRED)
 endif()
 
+if(CP2K_USE_GREENX)
+  find_package(greenX REQUIRED)
+endif()
+
 # OPTION HANDLING
 
 # make sure that the default build type is RELEASE
@@ -855,6 +860,12 @@ if(CP2K_USE_TREXIO)
           "   - libraries: ${CP2K_TREXIO_LINK_LIBRARIES}\n\n")
 endif()
 
+if(CP2K_USE_GREENX)
+  message(" - GreenX\n"
+          "   - include directories: ${CP2K_GREENX_INCLUDE_DIRS}\n"
+          "   - libraries: ${CP2K_GREENX_LINK_LIBRARIES}\n\n")
+endif()
+
 message(
   "--------------------------------------------------------------------\n"
   "-                                                                  -\n"
@@ -940,6 +951,10 @@ endif()
 
 if(NOT CP2K_USE_TREXIO)
   message("   - trexio")
+endif()
+
+if(NOT CP2K_USE_GREENX)
+  message("   - greenx")
 endif()
 
 if(NOT CP2K_USE_GRPP)
