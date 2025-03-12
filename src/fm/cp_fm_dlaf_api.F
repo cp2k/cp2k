@@ -96,6 +96,7 @@ CONTAINS
       MARK_USED(a)
       MARK_USED(a_sp)
       MARK_USED(desca)
+      MARK_USED(blacs_context)
       CPABORT("CP2K compiled without the DLA-Future library.")
 #endif
       CALL timestop(handle)
@@ -288,6 +289,7 @@ CONTAINS
       MARK_USED(dlaf_handle)
       MARK_USED(dlaf_name)
       MARK_USED(message)
+      MARK_USED(blacs_context)
       CPABORT("CP2K compiled without DLA-Future-Fortran library.")
 #endif
 
@@ -405,6 +407,7 @@ CONTAINS
       MARK_USED(dlaf_handle)
       MARK_USED(dlaf_name)
       MARK_USED(message)
+      MARK_USED(blacs_context)
       CPABORT("CP2K compiled without DLA-Future-Fortran library.")
 #endif
 

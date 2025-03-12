@@ -126,7 +126,6 @@ CONTAINS
       MARK_USED(ja)
       MARK_USED(desca)
       MARK_USED(info)
-      MARK_USED(blacs_context)
       CPABORT("CP2K compiled without the DLA-Future library.")
 #endif
       CALL timestop(handle)
