@@ -45,7 +45,7 @@ MODULE trexio_utils
    USE kpoint_types, ONLY: kpoint_type, kpoint_env_p_type, &
                            get_kpoint_info, get_kpoint_env
    USE mathconstants, ONLY: fourpi, pi
-   USE mathlib,                         ONLY: symmetrize_matrix
+   USE mathlib, ONLY: symmetrize_matrix
    USE message_passing, ONLY: mp_para_env_type
    USE orbital_pointers, ONLY: nco, nso
    USE orbital_transformation_matrices, ONLY: orbtramat
@@ -117,6 +117,7 @@ CONTAINS
 !> \brief Write a trexio file
 !> \param qs_env the qs environment with all the info of the computation
 !> \param trexio_section the section with the trexio info
+!> \param energy_derivative ...
 ! **************************************************************************************************
    SUBROUTINE write_trexio(qs_env, trexio_section, energy_derivative)
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
@@ -1016,7 +1017,7 @@ CONTAINS
             WRITE (unit_dE, '(I0, 1X, I0)') nsgf, nsgf
             DO i = 1, nsgf
                WRITE (unit_dE, '(*(1X, F15.8))') (dEdP(cp2k_to_trexio_ang_mom(i), &
-               cp2k_to_trexio_ang_mom(j)), j = 1, nsgf)
+                                                       cp2k_to_trexio_ang_mom(j)), j=1, nsgf)
             END DO
             CALL close_file(unit_number=unit_dE)
          END IF
@@ -1043,7 +1044,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE write_trexio
-
 
 ! **************************************************************************************************
 !> \brief Read a trexio file
@@ -1493,7 +1493,6 @@ CONTAINS
 
    END SUBROUTINE trexio_error
 
-
 ! **************************************************************************************************
 !> \brief Computes the nuclear repulsion energy of a molecular system
 !> \param particle_set the set of particles in the system
@@ -1526,7 +1525,6 @@ CONTAINS
       END DO
 
    END SUBROUTINE nuclear_repulsion_energy
-
 
 ! **************************************************************************************************
 !> \brief Computes a spherical to cartesian MO transformation (solid harmonics in reality)
