@@ -224,7 +224,11 @@ static void multiply_packs(const bool transa, const bool transb,
   {
     // Thread-private array covering given work in piece-wise fashion.
     dbm_task_t *batch =
+#if (201811 /*v5.0*/ <= _OPENMP)
         omp_alloc(sizeof(dbm_task_t) * DBM_MAX_BATCH_SIZE, omp_null_allocator);
+#else
+        malloc(sizeof(dbm_task_t) * DBM_MAX_BATCH_SIZE);
+#endif
     assert(NULL != batch);
 
     // Blocks are ordered first by shard. Creating lookup tables of boundaries.
@@ -332,7 +336,11 @@ static void multiply_packs(const bool transa, const bool transb,
       }
     }
 
+#if (201811 /*v5.0*/ <= _OPENMP)
     omp_free(batch, omp_null_allocator);
+#else
+    free(batch);
+#endif
   }
 
   free(shard_row_start);
