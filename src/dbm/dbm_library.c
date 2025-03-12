@@ -188,19 +188,33 @@ void dbm_library_print_stats(const int fortran_comm,
 
   dbm_memstats_t memstats;
   dbm_mempool_statistics(&memstats);
-  dbm_mpi_max_uint64(&memstats.nmallocs, 1, comm);
+  dbm_mpi_max_uint64(&memstats.device_mallocs, 1, comm);
+  dbm_mpi_max_uint64(&memstats.host_mallocs, 1, comm);
 
-  if (0 != memstats.nmallocs) {
+  if (0 != memstats.device_mallocs || 0 != memstats.host_mallocs) {
     print_func(" Memory consumption                           "
                " Number of allocations  Size [MiB]\n",
                output_unit);
-    dbm_mpi_max_uint64(&memstats.size, 1, comm);
+  }
+  if (0 < memstats.device_mallocs) {
+    dbm_mpi_max_uint64(&memstats.device_size, 1, comm);
     snprintf(buffer, sizeof(buffer),
              " Device                                        "
              " %20" PRIuPTR "  %10" PRIuPTR "\n",
-             (uintptr_t)memstats.nmallocs,
-             (uintptr_t)((memstats.size + (512U << 10)) >> 20));
+             (uintptr_t)memstats.device_mallocs,
+             (uintptr_t)((memstats.device_size + (512U << 10)) >> 20));
     print_func(buffer, output_unit);
+  }
+  if (0 < memstats.host_mallocs) {
+    dbm_mpi_max_uint64(&memstats.host_size, 1, comm);
+    snprintf(buffer, sizeof(buffer),
+             " Host                                          "
+             " %20" PRIuPTR "  %10" PRIuPTR "\n",
+             (uintptr_t)memstats.host_mallocs,
+             (uintptr_t)((memstats.host_size + (512U << 10)) >> 20));
+    print_func(buffer, output_unit);
+  }
+  if (0 < memstats.device_mallocs || 0 < memstats.host_mallocs) {
     print_func(
         " ----------------------------------------------------------------"
         "---------------\n",
