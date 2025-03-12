@@ -645,7 +645,14 @@ if(CP2K_USE_TREXIO)
 endif()
 
 if(CP2K_USE_GREENX)
-  find_package(greenX REQUIRED)
+  find_package(greenX REQUIRED CONFIG)
+  get_target_property(CP2K_GREENX_INCLUDE_DIRS greenX::GXCommon
+                      INTERFACE_INCLUDE_DIRECTORIES)
+  get_target_property(CP2K_GREENX_LINK_LIBRARIES greenX::GXCommon LOCATION)
+  get_target_property(LIB_GXMiniMax greenX::LibGXMiniMax LOCATION)
+  list(APPEND CP2K_GREENX_LINK_LIBRARIES ${LIB_GXMiniMax})
+  get_target_property(LIB_GXAC greenX::LibGXAC LOCATION)
+  list(APPEND CP2K_GREENX_LINK_LIBRARIES ${LIB_GXAC})
 endif()
 
 # OPTION HANDLING

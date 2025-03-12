@@ -1697,7 +1697,9 @@ target_link_libraries(
     $<$<BOOL:${CP2K_USE_COSMA}>:cosma::cosma_prefixed_pxgemm>
     $<$<BOOL:${CP2K_USE_COSMA}>:cosma::cosma>
     $<$<BOOL:${CP2K_USE_DLAF}>:DLAF::Fortran>
-    $<$<BOOL:${CP2K_USE_GREENX}>:cp2k::greenx::greenx>
+    $<$<BOOL:${CP2K_USE_GREENX}>:greenX::GXCommon>
+    $<$<BOOL:${CP2K_USE_GREENX}>:greenX::LibGXAC>
+    $<$<BOOL:${CP2K_USE_GREENX}>:greenX::LibGXMiniMax>
     $<$<BOOL:${CP2K_USE_TREXIO}>:cp2k::trexio::trexio>
     $<$<BOOL:${CP2K_USE_HDF5}>:HDF5::HDF5
     hdf5::hdf5_fortran>
