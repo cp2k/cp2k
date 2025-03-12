@@ -32,8 +32,9 @@ MODULE trexio_utils
                               cp_logger_type
    USE cp_dbcsr_api, ONLY: dbcsr_p_type, dbcsr_iterator_type, dbcsr_iterator_start, &
                            dbcsr_iterator_stop, dbcsr_iterator_blocks_left, &
-                           dbcsr_iterator_next_block, &
-                           dbcsr_copy, dbcsr_set
+                           dbcsr_iterator_next_block, dbcsr_copy, dbcsr_set, &
+                           dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, &
+                           dbcsr_type_symmetric, dbcsr_get_matrix_type
    USE cp_dbcsr_contrib, ONLY: dbcsr_reserve_all_blocks
    USE cp_dbcsr_output, ONLY: cp_dbcsr_write_sparse_matrix
    USE cp_output_handling, ONLY: medium_print_level
@@ -44,6 +45,7 @@ MODULE trexio_utils
    USE kpoint_types, ONLY: kpoint_type, kpoint_env_p_type, &
                            get_kpoint_info, get_kpoint_env
    USE mathconstants, ONLY: fourpi, pi
+   USE mathlib,                         ONLY: symmetrize_matrix
    USE message_passing, ONLY: mp_para_env_type
    USE orbital_pointers, ONLY: nco, nso
    USE orbital_transformation_matrices, ONLY: orbtramat
@@ -116,9 +118,10 @@ CONTAINS
 !> \param qs_env the qs environment with all the info of the computation
 !> \param trexio_section the section with the trexio info
 ! **************************************************************************************************
-   SUBROUTINE write_trexio(qs_env, trexio_section)
+   SUBROUTINE write_trexio(qs_env, trexio_section, energy_derivative)
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       TYPE(section_vals_type), INTENT(IN), POINTER       :: trexio_section
+      TYPE(dbcsr_p_type), INTENT(IN), DIMENSION(:), POINTER, OPTIONAL  :: energy_derivative
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'write_trexio'
 
@@ -126,7 +129,7 @@ CONTAINS
 
 #ifdef __TREXIO
       INTEGER                                            :: output_unit, unit_trexio
-      CHARACTER(len=default_path_length)                 :: filename
+      CHARACTER(len=default_path_length)                 :: filename, filename_dE
       INTEGER(trexio_t)                                  :: f        ! The TREXIO file handle
       INTEGER(trexio_exit_code)                          :: rc       ! TREXIO return code
       LOGICAL                                            :: explicit, do_kpoints, ecp_semi_local, &
@@ -149,6 +152,7 @@ CONTAINS
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env => Null()
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct => Null()
       TYPE(cp_fm_type)                                   :: fm_mo_coeff, fm_dummy, fm_mo_coeff_im
+      TYPE(dbcsr_iterator_type)                          :: iter
 
       CHARACTER(LEN=2)                                   :: element_symbol
       CHARACTER(LEN=2), DIMENSION(:), ALLOCATABLE        :: label
@@ -158,7 +162,9 @@ CONTAINS
                                                             sl_lmax, ecp_num, nloc, nsemiloc, sl_l, iecp, &
                                                             igf, icgf, ncgf, ngf_shell, lshell, ao_num, nmo, &
                                                             mo_num, ispin, ikp, imo, ikp_loc, nsgf, &
-                                                            i, k, l, m
+                                                            i, j, k, l, m, unit_dE, &
+                                                            row, col, row_size, col_size, &
+                                                            row_offset, col_offset
       INTEGER, DIMENSION(2)                              :: nel_spin, kp_range, nmo_spin
       INTEGER, DIMENSION(3)                              :: nkp_grid
       INTEGER, DIMENSION(0:10)                           :: npot
@@ -172,8 +178,8 @@ CONTAINS
                                                             mo_occupation
       REAL(KIND=dp), DIMENSION(:), POINTER               :: wkp => Null(), norm_cgf => Null()
       REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE        :: coord, mo_coefficient, mo_coefficient_im, &
-                                                            mos_sgf, diag_nsgf, diag_ncgf, temp
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: zetas => Null()
+                                                            mos_sgf, diag_nsgf, diag_ncgf, temp, dEdP
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: zetas => Null(), data_block => Null()
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: gcc => Null()
 #endif
 
@@ -206,6 +212,7 @@ CONTAINS
          !========================================================================================!
          ! Open the TREXIO file
          !========================================================================================!
+         WRITE (output_unit, "((T2,A,A))") 'TREXIO| Writing trexio file ', TRIM(filename)
          f = trexio_open(filename, 'w', TREXIO_HDF5, rc)
          CALL trexio_error(rc)
 
@@ -954,7 +961,7 @@ CONTAINS
          END IF
       END IF
 
-      DEALLOCATE (shell_ang_mom)
+      ! DEALLOCATE (shell_ang_mom)
       DEALLOCATE (mo_coefficient)
       DEALLOCATE (mo_energy)
       DEALLOCATE (mo_occupation)
@@ -972,6 +979,78 @@ CONTAINS
       !TODO
 
       !========================================================================================!
+      ! Energy derivative group
+      !========================================================================================!
+      IF (PRESENT(energy_derivative)) THEN
+         filename_dE = TRIM(logger%iter_info%project_name)//'-TREXIO.dEdP.dat'
+
+         ALLOCATE (dEdP(nsgf, nsgf))
+         dEdP(:, :) = 0.0_dp
+
+         DO ispin = 1, nspins
+            CALL dbcsr_iterator_start(iter, energy_derivative(ispin)%matrix)
+            DO WHILE (dbcsr_iterator_blocks_left(iter))
+               ! the offsets tell me the global index of the matrix, not the index of the block
+               CALL dbcsr_iterator_next_block(iter, row, col, data_block, &
+                                              row_size=row_size, col_size=col_size, &
+                                              row_offset=row_offset, col_offset=col_offset)
+
+               ! Copy data from block to array
+               DO i = 1, row_size
+                  DO j = 1, col_size
+                     dEdP(row_offset + i - 1, col_offset + j - 1) = data_block(i, j)
+                  END DO
+               END DO
+            END DO
+            CALL dbcsr_iterator_stop(iter)
+
+            ! symmetrize the matrix if needed
+            SELECT CASE (dbcsr_get_matrix_type(energy_derivative(ispin)%matrix))
+            CASE (dbcsr_type_symmetric)
+               CALL symmetrize_matrix(dEdP, "upper_to_lower")
+            CASE (dbcsr_type_antisymmetric)
+               CALL symmetrize_matrix(dEdP, "anti_upper_to_lower")
+            CASE (dbcsr_type_no_symmetry)
+            CASE DEFAULT
+               CPABORT("Unknown matrix type for energy derivative")
+            END SELECT
+         END DO
+
+         ! reduce the dEdP matrix to the master node
+         CALL para_env%sum(dEdP)
+
+         ! print the dEdP matrix to a file
+         IF (ionode) THEN
+            WRITE (output_unit, "((T2,A,A))") 'TREXIO| Writing derivative file ', TRIM(filename_dE)
+            ALLOCATE (temp(nsgf, nsgf))
+            temp(:,:) = 0.0_dp
+            ! reorder matrix to trexio convention
+            CALL cp2k_to_trexio_ao_order(dEdP, temp, shell_num, shell_ang_mom)
+            ! now we need to do it along the second dimension
+            dEdP(:,:) = TRANSPOSE(temp)
+            CALL cp2k_to_trexio_ao_order(dEdP, temp, shell_num, shell_ang_mom)
+
+            unit_dE = 10
+            CALL open_file(file_name=filename_dE, &
+                           file_action="WRITE", &
+                           file_status="UNKNOWN", &
+                           unit_number=unit_dE)
+            WRITE (unit_dE, '(I0, 1X, I0)') nsgf, nsgf
+            DO i = 1, nsgf
+               WRITE (unit_dE, '(*(1X, F15.8))') (temp(i, j), j = 1, nsgf)
+            END DO
+            CALL close_file(unit_number=unit_dE)
+
+            DEALLOCATE (temp)
+         END IF
+
+         DEALLOCATE (dEdP)
+      END IF
+
+      ! finish the deallocate stuff
+      DEALLOCATE (shell_ang_mom)
+
+      !========================================================================================!
       ! Close the TREXIO file
       !========================================================================================!
       IF (ionode) THEN
@@ -986,6 +1065,7 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE write_trexio
+
 
 ! **************************************************************************************************
 !> \brief Read a trexio file
@@ -1027,7 +1107,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: zeff, maxocc
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: mo_energy, mo_occupation, charge
       REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE        :: mo_coefficient, mos_sgf, coord, dEdP, temp
-      REAL(KIND=dp), DIMENSION(:, :), POINTER             :: data_block
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: data_block
 
       TYPE(cp_logger_type), POINTER                      :: logger => Null()
       TYPE(cp_fm_type), POINTER                          :: mo_coeff_ref, mo_coeff_target
@@ -1374,12 +1454,6 @@ CONTAINS
                             name='Energy Derivative', keep_sparsity=.FALSE.)
             CALL dbcsr_set(energy_derivative(ispin)%matrix, 0.0_dp)
 
-            !!!! DEBUG
-            ! CALL cp_dbcsr_write_sparse_matrix(energy_derivative(ispin)%matrix, 4, 4, qs_env, para_env, &
-            !                                   output_unit=output_unit, omit_headers=.false.)
-            !!!!
-
-            ! CALL dbcsr_reserve_all_blocks(matrix)
             CALL dbcsr_iterator_start(iter, energy_derivative(ispin)%matrix)
             DO WHILE (dbcsr_iterator_blocks_left(iter))
                CALL dbcsr_iterator_next_block(iter, row, col, data_block, &
@@ -1394,10 +1468,6 @@ CONTAINS
                END DO
             END DO
             CALL dbcsr_iterator_stop(iter)
-            !!!! DEBUG
-            ! CALL cp_dbcsr_write_sparse_matrix(energy_derivative(ispin)%matrix, 4, 4, qs_env, para_env, &
-            !                                   output_unit=output_unit, omit_headers=.false.)
-            !!!!
          END DO
 
       END IF ! finished reading energy derivatives
@@ -1443,6 +1513,7 @@ CONTAINS
 
    END SUBROUTINE trexio_error
 
+
 ! **************************************************************************************************
 !> \brief Computes the nuclear repulsion energy of a molecular system
 !> \param particle_set the set of particles in the system
@@ -1475,6 +1546,7 @@ CONTAINS
       END DO
 
    END SUBROUTINE nuclear_repulsion_energy
+
 
 ! **************************************************************************************************
 !> \brief Computes a spherical to cartesian MO transformation (solid harmonics in reality)
@@ -1533,6 +1605,66 @@ CONTAINS
       END DO ! iatom
 
    END SUBROUTINE spherical_to_cartesian_mo
+
+
+! **************************************************************************************************
+!> \brief Reshuffle the elements of matrix between CP2K and TREXIO AO ordering conventions
+!> \param mat_cp2k Matrix in CP2K AO ordering convention (input or output)
+!> \param mat_trexio Matrix in TREXIO AO ordering convention (input or output)
+!> \param shell_num Number of shells
+!> \param shell_ang_mom Angular momentum of each shell
+!> \param reverse Flag to control direction of conversion:
+!>                .FALSE. = Convert from CP2K to TREXIO (default)
+!>                .TRUE.  = Convert from TREXIO to CP2K
+!> \note CP2K ordering: m = -l, -l+1, ..., 0, ..., l-1, l
+!>       TREXIO ordering: m = 0, +1, -1, +2, -2, ..., +l, -l
+!> **************************************************************************************************
+   SUBROUTINE cp2k_to_trexio_ao_order(mat_cp2k, mat_trexio, shell_num, shell_ang_mom, reverse)
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT) :: mat_cp2k
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT) :: mat_trexio
+      INTEGER, INTENT(IN) :: shell_num
+      INTEGER, DIMENSION(:), INTENT(IN) :: shell_ang_mom
+      LOGICAL, INTENT(IN), OPTIONAL :: reverse
+
+      INTEGER :: i, k, l, m, nmo, nao, ishell
+      LOGICAL :: do_reverse
+
+      ! Handle optional arguments
+      IF (PRESENT(reverse)) THEN
+         do_reverse = reverse
+      ELSE
+         do_reverse = .FALSE.
+      END IF
+
+      ! Get dimensions
+      nao = SIZE(mat_cp2k, 1)
+      nmo = SIZE(mat_cp2k, 2)
+
+      CPASSERT(SIZE(mat_trexio, 1) == nao)
+      CPASSERT(SIZE(mat_trexio, 2) == nmo)
+
+      i = 0
+      DO ishell = 1, shell_num
+         l = shell_ang_mom(ishell)
+         DO k = 1, 2*l + 1
+            ! Map from running index k: 1...2l+1 to magnetic quantum number m in TREXIO convention
+            m = (-1)**k*FLOOR(REAL(k, KIND=dp)/2.0_dp)
+
+            IF (do_reverse) THEN
+               ! TREXIO → CP2K: mat_trexio input, mat_cp2k output
+               mat_cp2k(i + l + m + 1, :) = mat_trexio(i + k, :)
+            ELSE
+               ! CP2K → TREXIO: mat_cp2k input, mat_trexio output
+               mat_trexio(i + k, :) = mat_cp2k(i + l + m + 1, :)
+            END IF
+         END DO
+         i = i + 2*l + 1
+      END DO
+
+      ! Verify that we processed all orbitals
+      CPASSERT(i == nao)
+
+   END SUBROUTINE cp2k_to_trexio_ao_order
 #endif
 
 END MODULE trexio_utils
