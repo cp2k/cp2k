@@ -109,8 +109,8 @@ endforeach()
 
 # =================================================================================================
 # OPTIONS
-option(BUILD_SHARED_LIBS "Build shared library" OFF)
 option(CMAKE_POSITION_INDEPENDENT_CODE "Enable position independent code" ON)
+
 option(CP2K_ENABLE_CONSISTENCY_CHECKS
        "Check that the list of compiled files and files contained in src match"
        OFF)
