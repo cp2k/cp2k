@@ -503,6 +503,14 @@ TREXIO - Open-source file format and library. Support for TREXIO can be enabled 
 - TREXIO library can be downloaded from <https://github.com/trex-coe/trexio>
 - For more information see <https://trex-coe.github.io/trexio/index.html>.
 
+### 2z-a. GREENX (optional, basically functionality for GreenX methods (RPA, GW, Laplace-MP2 etc.)
+
+greenX - Open-source file format and library. Support for greenX can be enabled via the flag
+`-D__GREENX`.
+
+- GREENX library can be downloaded from <https://github.com/nomad-coe/greenX>
+- For more information see <https://nomad-coe.github.io/greenX/>.
+
 ## 3. Compile
 
 ### 3a. ARCH files
@@ -599,6 +607,7 @@ libraries (see 2.)
 - `-D__HDF5` enables hdf5 support. This is a hard dependency for SIRIUS and TREXIO, but can also be
   used by itself to allow read/write functionalities of QCSchema files in the active space module
 - `-D__TREXIO` enables TREXIO I/O support
+- `-D__GREENX` enables GREENX support (minimax grids and analytic continuation component)
 
 Features useful to deal with legacy systems
 
