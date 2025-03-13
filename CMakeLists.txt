@@ -97,7 +97,7 @@ option(CMAKE_POSITION_INDEPENDENT_CODE "Enable position independent code" ON)
 option(CP2K_ENABLE_CONSISTENCY_CHECKS
        "Check that the list of compiled files and files contained in src match"
        OFF)
-option(CP2K_USE_DFTD4 "Enable dispersion coorections DFTD4" ON)
+option(CP2K_USE_DFTD4 "Enable dispersion corrections with DFTD4" ON)
 option(CP2K_USE_DEEPMD "Enable DeePMD" ON)
 option(CP2K_USE_FFTW3 "Use fftw3 for the calculating fast fourier transforms"
        ON)
@@ -117,6 +117,7 @@ option(
   "MKL has its own compatible implementation of the fftw library. This option, when ON, will use the separate and original fftw library."
   OFF)
 
+# MPI-enabled options
 cmake_dependent_option(CP2K_USE_COSMA "Enable COSMA support" ON "CP2K_USE_MPI"
                        OFF)
 cmake_dependent_option(CP2K_USE_DLAF "Enable DLA-Future support" ON
@@ -125,8 +126,6 @@ cmake_dependent_option(CP2K_USE_ELPA "Enable ELPA support" ON "CP2K_USE_MPI"
                        OFF)
 cmake_dependent_option(CP2K_USE_LIBSMEAGOL "Enable libSMEAGOL support" ON
                        "CP2K_USE_MPI" OFF)
-cmake_dependent_option(CP2K_USE_LIBXSMM "Enable libxsmm support" ON
-                       "NOT CP2K_USE_ACCEL MATCHES \"OPENCL\"" ON)
 cmake_dependent_option(CP2K_USE_MPI_F08 "Enable MPI Fortran 2008 interface" ON
                        "CP2K_USE_MPI" OFF)
 cmake_dependent_option(CP2K_USE_PLUMED "Enable PLUMED2 support" ON
@@ -136,6 +135,8 @@ cmake_dependent_option(CP2K_USE_SIRIUS "Enable SIRIUS support" ON
 cmake_dependent_option(CP2K_USE_SPLA "Enable SPLA support" ON "CP2K_USE_MPI"
                        OFF)
 
+cmake_dependent_option(CP2K_USE_LIBXSMM "Enable libxsmm support" ON
+                       "NOT CP2K_USE_ACCEL MATCHES \"OPENCL\"" ON)
 cmake_dependent_option(CP2K_USE_LIBVDWXC "Enable libvdwxc support with SIRIUS"
                        ON "CP2K_USE_SIRIUS" OFF)
 
