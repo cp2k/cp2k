@@ -1039,6 +1039,7 @@ CONTAINS
 #else
       MARK_USED(qs_env)
       MARK_USED(trexio_section)
+      MARK_USED(energy_derivative)
       CPWARN('TREXIO support has not been enabled in this build.')
 #endif
       CALL timestop(handle)
