@@ -1117,10 +1117,13 @@ CONTAINS
 
       COMPLEX(KIND=dp), ALLOCATABLE, &
          DIMENSION(:, :, :, :)                           :: vec_Sigma_c_gw
-      INTEGER :: count_ev_sc_GW, cut_memory, gi, group_size_P, gw_corr_lev_tot, handle, handle3, &
-         i, ierr, ikp_local, ispin, iter_evGW, iter_sc_GW0, j, jquad, min_bsize, mm_style, nkp, &
+      INTEGER :: count_ev_sc_GW, cut_memory, group_size_P, gw_corr_lev_tot, handle, handle3, &
+         i, ikp_local, ispin, iter_evGW, iter_sc_GW0, j, jquad, min_bsize, mm_style, nkp, &
          nkp_self_energy, nmo, nspins, num_3c_repl, num_cells_dm, num_fit_points, Pspin, Qspin, &
          size_P
+#if defined (__GREENX)
+      INTEGER                                            :: gi, ierr
+#endif
       INTEGER(int_8)                                     :: dbcsr_nflop
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: index_to_cell_3c
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: cell_to_index_3c
@@ -1130,10 +1133,13 @@ CONTAINS
          do_periodic, do_print, do_ri_Sigma_x, exit_ev_gw, first_cycle, &
          first_cycle_periodic_correction, my_open_shell, print_ic_values
       LOGICAL, ALLOCATABLE, DIMENSION(:, :, :, :, :)     :: has_mat_P_blocks
-      REAL(KIND=dp) :: a_scaling, alpha, cosft_duality_error_greenx, dbcsr_time, e_exchange, &
-         e_exchange_corr, Emax, Emin, eps_filter, eps_filter_im_time, ext_scaling, fermi_level_offset, &
-         fermi_level_offset_input, max_errors_greenx(3), my_flop_rate, omega, omega_max_fit, &
-         omega_old, tau, tau_old
+      REAL(KIND=dp) :: a_scaling, alpha,  dbcsr_time, e_exchange,  e_exchange_corr, &
+         eps_filter, eps_filter_im_time, ext_scaling, fermi_level_offset, fermi_level_offset_input, &
+         my_flop_rate, omega, omega_max_fit, omega_old, tau, tau_old
+#if defined (__GREENX)
+      REAL(KIND=dp)                                      :: cosft_duality_error_greenx, Emax, Emin, &
+                                                            max_errors_greenx(3) 
+#endif
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: delta_corr, e_fermi, tau_tj, tau_wj, tj, &
                                                             trace_Qomega, vec_omega_fit_gw, wj, &
                                                             wkp_W
