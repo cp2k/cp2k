@@ -42,16 +42,33 @@ project(
 
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/modules")
 
+# set language and standard.
+#
+# cmake does not provide any mechanism to set the fortran standard. Adding the
+# `std` option to compiler flags is the only way to control it. So leave them
+# be.
+#
+
 if(NOT DEFINED CMAKE_CUDA_STANDARD)
   set(CMAKE_CUDA_STANDARD 11)
   set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 endif()
 
-# set language and standard
-set(CMAKE_CXX_STANDARD 14)
-set(CMAKE_C_STANDARD 11)
-set(CMAKE_HIP_STANDARD 14)
-set(CMAKE_CUDA_STANDARD 14)
+if(NOT DEFINED CMAKE_CXX_STANDARD)
+  set(CMAKE_CXX_STANDARD 14)
+  set(CMAKE_CXX_STANDARD_REQUIRED ON)
+endif()
+
+if(NOT DEFINED CMAKE_C_STANDARD)
+  set(CMAKE_C_STANDARD 11)
+  set(CMAKE_C_STANDARD_REQUIRED ON)
+endif()
+
+if(NOT DEFINED CMAKE_HIP_STANDARD)
+  set(CMAKE_HIP_STANDARD 14)
+  set(CMAKE_HIP_STANDARD_REQUIRED ON)
+endif()
+
 # remove NDEBUG flag
 string(REPLACE "-DNDEBUG" "" CMAKE_C_FLAGS_RELEASE ${CMAKE_C_FLAGS_RELEASE})
 string(REPLACE "-DNDEBUG" "" CMAKE_CXX_FLAGS_RELEASE ${CMAKE_CXX_FLAGS_RELEASE})
@@ -92,7 +109,7 @@ endforeach()
 
 # =================================================================================================
 # OPTIONS
-
+option(BUILD_SHARED_LIBS "Build shared library" OFF)
 option(CMAKE_POSITION_INDEPENDENT_CODE "Enable position independent code" ON)
 option(CP2K_ENABLE_CONSISTENCY_CHECKS
        "Check that the list of compiled files and files contained in src match"
@@ -147,7 +164,7 @@ cmake_dependent_option(
   "CP2K_USE_ACCEL MATCHES \"HIP|CUDA\"" OFF)
 
 cmake_dependent_option(
-  CP2K_ENABLE_PW_GPU "Disable the ffts accelerated backend (mostly GPU)." OFF
+  CP2K_ENABLE_PW_GPU "Disable the ffts accelerated backend (mostly GPU)." ON
   "CP2K_USE_ACCEL MATCHES \"HIP|CUDA\"" OFF)
 
 cmake_dependent_option(
@@ -292,9 +309,9 @@ set(CP2K_SUPPORTED_HIP_ARCHITECTURES
     A40)
 
 set(CP2K_WITH_GPU
-    "P100"
+    "NONE"
     CACHE STRING
-          "Set the CUDA GPU architecture if HIP is enabled (default: P100)")
+          "Set the CUDA GPU architecture if HIP is enabled (default: NONE)")
 
 set_property(
   CACHE CP2K_WITH_GPU PROPERTY STRINGS ${CP2K_SUPPORTED_CUDA_ARCHITECTURES}
@@ -463,17 +480,70 @@ if((CP2K_USE_ACCEL MATCHES CUDA) OR (CP2K_USE_ACCEL MATCHES HIP))
   set(CP2K_GPU_ARCH_NUMBER_Mi200 gfx90a)
   set(CP2K_GPU_ARCH_NUMBER_Mi250 gfx90a)
   set(CP2K_GPU_ARCH_NUMBER_Mi300 gfx942)
+
+  # CMAKE_HIP_ARCHITECTURES and CMAKE_CUDA_ARCHITECTURES are the prefered
+  # mechanism to set the gpu architecture. We still offer the CP2K_WITH_GPU
+  # option to avoid breaking the ci/cd or any other scripts based on this
+  # option.
+
+  # check that CMAKE_{HIP|CUDA}_ARCHITECTURES or CP2K_WITH_GPU are given
+  if((NOT DEFINED CMAKE_HIP_ARCHITECTURES)
+     AND (NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
+     AND (CP2K_WITH_GPU MATCHES NONE))
+    message(
+      FATAL_ERROR
+        "----------------------------------------------------------------\n"
+        "                                                                \n"
+        "CMAKE_{HIP|CUDA}_ARCHITECTURES or CP2K_WITH_GPU should be given.\n"
+        "                                                                \n"
+        "----------------------------------------------------------------\n")
+  endif()
+
+  set(_ignore_with_gpu_option false)
+  if((DEFINED CMAKE_HIP_ARCHITECTURES) OR (DEFINED CMAKE_CUDA_ARCHITECTURES))
+    set(_ignore_with_gpu_option true)
+  endif()
+
+  if(NOT _ignore_with_gpu_option)
+    message(
+      STATUS
+        "\nCP2K_WITH_GPU is deprecated in favor of CMAKE_HIP_ARCHITECTURES or CMAKE_CUDA_ARCHITECTURES\n"
+    )
+    if(CP2K_USE_ACCEL MATCHES CUDA)
+      list(FIND CP2K_SUPPORTED_CUDA_ARCHITECTURES ${CP2K_WITH_GPU}
+           CP2K_GPU_SUPPORTED)
+
+      if(CP2K_GPU_SUPPORTED EQUAL -1)
+        message(
+          FATAL_ERROR
+            "GPU architecture (${CP2K_WITH_GPU}) is not supported. Please choose from: ${CP2K_SUPPORTED_CUDA_ARCHITECTURES}"
+        )
+      endif()
+      set(CMAKE_CUDA_ARCHITECTURES ${CP2K_GPU_ARCH_NUMBER_${CP2K_WITH_GPU}})
+    else(CP2K_USE_ACCEL MATCHES HIP)
+      set(_tmp_list
+          "${CP2K_SUPPORTED_CUDA_ARCHITECTURES};${CP2K_SUPPORTED_HIP_ARCHITECTURES}"
+      )
+      list(FIND _tmp_list ${CP2K_WITH_GPU} CP2K_GPU_SUPPORTED)
+      if(CP2K_GPU_SUPPORTED EQUAL -1)
+        message(
+          FATAL_ERROR
+            "GPU architecture (${CP2K_WITH_GPU}) is not supported. Please choose from: ${_tmp_list}"
+        )
+      endif()
+      unset(_tmp_list)
+      set(CMAKE_HIP_ARCHITECTURES "${CP2K_GPU_ARCH_NUMBER_${CP2K_WITH_GPU}}")
+    endif()
+  endif()
 endif()
 
 set(CP2K_USE_HIP OFF)
 set(CP2K_USE_CUDA OFF)
 set(CP2K_USE_OPENCL OFF)
 
-option(CP2K_USE_PW_GPU "Enable GPU in CUDA" OFF)
 if(CP2K_USE_ACCEL MATCHES "CUDA")
   option(CP2K_WITH_CUDA_PROFILING "Enable CUDA profiling" OFF)
   # P100 is the default target.
-  set(CMAKE_CUDA_ARCHITECTURES 60)
 
   # allow for unsupported compilers (gcc/cuda version mismatch)
   set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -allow-unsupported-compiler")
@@ -485,21 +555,12 @@ if(CP2K_USE_ACCEL MATCHES "CUDA")
     find_package(CUDAToolkit REQUIRED)
   endif()
 
-  list(FIND CP2K_SUPPORTED_CUDA_ARCHITECTURES ${CP2K_WITH_GPU}
-       CP2K_GPU_SUPPORTED)
+  message("\n-----------------------------------------------------------")
+  message("-                          CUDA                           -")
+  message("-----------------------------------------------------------\n")
 
-  if(CP2K_GPU_SUPPORTED EQUAL -1)
-    message(
-      FATAL_ERROR
-        "GPU architecture (${CP2K_WITH_GPU}) is not supported. Please choose from: ${CP2K_SUPPORTED_CUDA_ARCHITECTURES}"
-    )
-  endif()
-
-  set(CMAKE_CUDA_ARCHITECTURES ${CP2K_GPU_ARCH_NUMBER_${CP2K_WITH_GPU}})
-  message(STATUS "GPU target architecture: ${CP2K_WITH_GPU}\n"
-                 "GPU architecture number: ${CMAKE_CUDA_ARCHITECTURES}\n"
-                 "GPU profiling enabled: ${CP2K_WITH_CUDA_PROFILING}\n")
-  set(CP2K_ACC_ARCH_NUMBER ${CMAKE_CUDA_ARCHITECTURES})
+  message(STATUS "GPU architecture number: ${CMAKE_CUDA_ARCHITECTURES}")
+  message(STATUS "GPU profiling enabled: ${CP2K_WITH_CUDA_PROFILING}")
 
   if(WITH_CUDA_PROFILING)
     find_library(
@@ -511,23 +572,24 @@ if(CP2K_USE_ACCEL MATCHES "CUDA")
   endif()
 
   set(CP2K_USE_CUDA ON)
-  set(CP2K_USE_PW_GPU ON)
 
   if(CP2K_USE_CUSOLVER_MP)
     find_package(CuSolverMP REQUIRED)
   endif()
-  message(STATUS ``"-- CUDA compiler and libraries found")
+
+  message(STATUS "CUDA compiler and libraries found\n")
 
 elseif(CP2K_USE_ACCEL MATCHES "HIP")
+  message("\n------------------------------------------------------------")
+  message("-                          HIP                             -")
+  message("------------------------------------------------------------\n")
+  message(INFO "${CMAKE_HIP_ARCHITECTURES}")
   enable_language(HIP)
-  # Find hip
-
-  find_package(hipfft REQUIRED IMPORTED CONFIG)
-  find_package(hipblas REQUIRED IMPORTED CONFIG)
 
   if(CMAKE_HIP_PLATFORM MATCHES "nvidia")
     find_package(CUDAToolkit)
   endif()
+
   if(NOT CMAKE_BUILD_TYPE AND (CMAKE_HIP_PLATFORM MATCHES "amd"))
     set(CMAKE_HIP_FLAGS "-O3")
   elseif(${CMAKE_BUILD_TYPE} STREQUAL "RelWithDebInfo")
@@ -538,10 +600,11 @@ elseif(CP2K_USE_ACCEL MATCHES "HIP")
     set(CMAKE_HIP_FLAGS "-O0 -g")
   endif()
 
-  set(CMAKE_HIP_ARCHITECTURES "${CP2K_GPU_ARCH_NUMBER_${CP2K_WITH_GPU}}")
-  set(CP2K_ACC_ARCH_NUMBER ${CP2K_GPU_ARCH_NUMBER_${CP2K_WITH_GPU}})
+  # Find hip
+  find_package(hipfft REQUIRED IMPORTED CONFIG)
+  find_package(hipblas REQUIRED IMPORTED CONFIG)
+
   set(CP2K_USE_HIP ON)
-  set(CP2K_USE_PW_GPU ON)
 
   # use hardware atomic operations on Mi250X.
   if(NOT CMAKE_HIP_PLATFORM OR (CMAKE_HIP_PLATFORM MATCHES "amd"))
@@ -559,10 +622,13 @@ elseif(CP2K_USE_ACCEL MATCHES "HIP")
     endif()
   endif()
 elseif(CP2K_USE_ACCEL MATCHES "OPENCL")
-  enable_language(C)
   find_package(OpenCL REQUIRED)
   set(CP2K_USE_OPENCL ON)
 endif()
+
+message("\n------------------------------------------------------------")
+message("-                          OPENMP                          -")
+message("------------------------------------------------------------\n")
 
 # PACKAGE DISCOVERY (compiler configuration can impact package discovery)
 find_package(OpenMP REQUIRED COMPONENTS Fortran C CXX)
@@ -793,11 +859,9 @@ if((CP2K_USE_ACCEL MATCHES "CUDA") OR (CP2K_USE_ACCEL MATCHES "HIP"))
 
   message("  - Hardware Acceleration:\n")
   if(CP2K_USE_ACCEL MATCHES "CUDA")
-    message(
-      "   - CUDA:\n" # let below line separate
-      "     - GPU target architecture: ${CP2K_WITH_GPU}\n"
-      "     - GPU architecture number: ${CP2K_ACC_ARCH_NUMBER}\n"
-      "     - GPU profiling enabled: ${CP2K_WITH_CUDA_PROFILING}\n\n")
+    message("   - CUDA:\n" # let below line separate
+            "     - GPU architecture number: ${CMAKE_CUDA_ARCHITECTURES}\n"
+            "     - GPU profiling enabled: ${CP2K_WITH_CUDA_PROFILING}\n\n")
   endif()
 
   if(CP2K_USE_ACCEL MATCHES "HIP")
@@ -976,7 +1040,7 @@ if(NOT CP2K_USE_SPLA)
 endif()
 
 if(NOT CP2K_USE_HDF5)
-  message("   - HDF5\n")
+  message("   - HDF5")
 endif()
 
 if(${CP2K_USE_ACCEL} MATCHES "NONE")
