@@ -6,8 +6,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-dftd4_ver="3.6.0"
-dftd4_sha256="0e3e8d5f9e9e5414b9979967c074c953706053832e551d922c27599e7324bace"
+dftd4_ver="3.7.0"
+dftd4_sha256="2e0d3504038358b8a82fdd21912b7765d416a58ebedbdd44f2ca8d2e88339ad7"
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
@@ -47,7 +47,7 @@ case "$with_dftd4" in
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d dftd4-${dftd4_ver} ] && rm -rf dftd4-${dftd4_ver}
       tar -xzf dftd4-${dftd4_ver}.tar.gz
-      cd dftd4-${dftd4_ver}
+      cd dftd4-${dftd4_ver}/subprojects/dftd4
 
       rm -Rf build
       mkdir build
