@@ -15,6 +15,7 @@
 #include "dbm_hyperparams.h"
 #include "dbm_internal.h"
 #include "dbm_library.h"
+#include "dbm_mempool.h"
 #include "dbm_multiply.h"
 #include "dbm_multiply_comm.h"
 #include "dbm_multiply_cpu.h"
@@ -229,12 +230,7 @@ static void multiply_packs(const bool transa, const bool transb,
   {
     // Thread-private array covering given work in piece-wise fashion.
     dbm_task_t *batch =
-#if (201811 /*v5.0*/ <= _OPENMP)
-        omp_alloc(sizeof(dbm_task_t) * DBM_MAX_BATCH_SIZE, omp_null_allocator);
-#else
-        malloc(sizeof(dbm_task_t) * DBM_MAX_BATCH_SIZE);
-#endif
-    assert(NULL != batch);
+        dbm_mempool_host_malloc(sizeof(dbm_task_t) * DBM_MAX_BATCH_SIZE);
 
     // Blocks are ordered first by shard. Creating lookup tables of boundaries.
 #pragma omp for nowait
@@ -341,11 +337,7 @@ static void multiply_packs(const bool transa, const bool transb,
       }
     }
 
-#if (201811 /*v5.0*/ <= _OPENMP)
-    omp_free(batch, omp_null_allocator);
-#else
-    free(batch);
-#endif
+    dbm_mempool_host_free(batch);
   }
 
   free(shard_row_start);
