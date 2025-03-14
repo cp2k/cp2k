@@ -97,41 +97,47 @@ option(CMAKE_POSITION_INDEPENDENT_CODE "Enable position independent code" ON)
 option(CP2K_ENABLE_CONSISTENCY_CHECKS
        "Check that the list of compiled files and files contained in src match"
        OFF)
-option(CP2K_USE_DFTD4 "Enable dispersion coorections DFTD4" OFF)
-option(CP2K_USE_DEEPMD "Enable DeePMD" OFF)
-option(CP2K_USE_SIRIUS "Enable plane wave dft calculations with sirius" OFF)
+option(CP2K_USE_DFTD4 "Enable dispersion corrections with DFTD4" ON)
+option(CP2K_USE_DEEPMD "Enable DeePMD" ON)
 option(CP2K_USE_FFTW3 "Use fftw3 for the calculating fast fourier transforms"
        ON)
 option(CP2K_USE_MPI "Enable MPI support" ON)
-option(CP2K_USE_ELPA "Enable elpa support" OFF)
-option(CP2K_USE_COSMA "COSMA is a drop in replacement of scalapack dgemm" OFF)
-option(CP2K_USE_LIBINT2 "Enable libint2 support" OFF)
-option(CP2K_USE_PLUMED "Enable plumed2 support" OFF)
-option(CP2K_USE_VORI "Enable libvori support" OFF)
-option(CP2K_USE_SPGLIB "Enable spglib support" OFF)
-option(CP2K_USE_LIBXC "Enable libxc support" OFF)
-option(CP2K_USE_LIBTORCH "Enable libtorch support" OFF)
+option(CP2K_USE_LIBINT2 "Enable libint2 support" ON)
+option(CP2K_USE_VORI "Enable libvori support" ON)
+option(CP2K_USE_SPGLIB "Enable spglib support" ON)
+option(CP2K_USE_LIBXC "Enable libxc support" ON)
+option(CP2K_USE_LIBTORCH "Enable libtorch support" ON)
 option(CP2K_USE_STATIC_BLAS "Link against static version of BLAS/LAPACK" OFF)
-option(CP2K_USE_SPLA
-       "Use SPLA offloading gemm feature to the GPU if it is beneficial. " OFF)
-option(
-  CP2K_USE_DLAF
-  "Use DLA-Future for Cholesky decompositions and the solution of eigenvalue problems"
-  OFF)
-option(CP2K_USE_GRPP "Enable libgrpp support" OFF)
-option(CP2K_USE_TREXIO "Enable trexio support" OFF)
-option(CP2K_USE_HDF5 "Enable HDF5 support" OFF)
-option(CP2K_USE_LIBSMEAGOL "Enable libsmeagol support" OFF)
+option(CP2K_USE_GRPP "Enable libgrpp support" ON)
+option(CP2K_USE_TREXIO "Enable trexio support" ON)
+option(CP2K_USE_HDF5 "Enable HDF5 support" ON)
 option(BUILD_SHARED_LIBS "Build cp2k shared library" ON)
 option(
   CP2K_USE_FFTW3_WITH_MKL
   "MKL has its own compatible implementation of the fftw library. This option, when ON, will use the separate and original fftw library."
   OFF)
 
-cmake_dependent_option(CP2K_USE_LIBXSMM "Use libxsmm for small gemms" OFF
-                       "NOT CP2K_USE_ACCEL MATCHES \"OPENCL\"" ON)
+# MPI-enabled options
+cmake_dependent_option(CP2K_USE_COSMA "Enable COSMA support" ON "CP2K_USE_MPI"
+                       OFF)
+cmake_dependent_option(CP2K_USE_DLAF "Enable DLA-Future support" ON
+                       "CP2K_USE_MPI" OFF)
+cmake_dependent_option(CP2K_USE_ELPA "Enable ELPA support" ON "CP2K_USE_MPI"
+                       OFF)
+cmake_dependent_option(CP2K_USE_LIBSMEAGOL "Enable libSMEAGOL support" ON
+                       "CP2K_USE_MPI" OFF)
+cmake_dependent_option(CP2K_USE_MPI_F08 "Enable MPI Fortran 2008 interface" ON
+                       "CP2K_USE_MPI" OFF)
+cmake_dependent_option(CP2K_USE_PLUMED "Enable PLUMED2 support" ON
+                       "CP2K_USE_MPI" OFF)
+cmake_dependent_option(CP2K_USE_SIRIUS "Enable SIRIUS support" ON
+                       "CP2K_USE_MPI" OFF)
+cmake_dependent_option(CP2K_USE_SPLA "Enable SPLA support" ON "CP2K_USE_MPI"
+                       OFF)
 
-cmake_dependent_option(CP2K_USE_LIBVDWXC "Enable libvdwxc support WITH SIRIUS"
+cmake_dependent_option(CP2K_USE_LIBXSMM "Enable libxsmm support" ON
+                       "NOT CP2K_USE_ACCEL MATCHES \"OPENCL\"" ON)
+cmake_dependent_option(CP2K_USE_LIBVDWXC "Enable libvdwxc support with SIRIUS"
                        ON "CP2K_USE_SIRIUS" OFF)
 
 cmake_dependent_option(
@@ -155,13 +161,11 @@ cmake_dependent_option(
   "CP2K_USE_ACCEL MATCHES \"HIP\"" OFF)
 
 cmake_dependent_option(CP2K_ENABLE_ELPA_OPENMP_SUPPORT
-                       "Enable elpa openmp support" ON "CP2K_USE_ELPA" OFF)
+                       "Enable ELPA OpenMP support" ON "CP2K_USE_ELPA" OFF)
 cmake_dependent_option(CP2K_ENABLE_FFTW3_OPENMP_SUPPORT
-                       "Enable FFTW openmp support" ON "CP2K_USE_FFTW3" OFF)
+                       "Enable FFTW OpenMP support" ON "CP2K_USE_FFTW3" OFF)
 cmake_dependent_option(CP2K_ENABLE_FFTW3_THREADS_SUPPORT
-                       "Enable FFTW THREADS support" OFF "CP2K_USE_FFTW3" OFF)
-cmake_dependent_option(CP2K_USE_MPI_F08 "Enable MPI Fortran 2008 interface" OFF
-                       "CP2K_USE_MPI" OFF)
+                       "Enable FFTW threads support" OFF "CP2K_USE_FFTW3" OFF)
 
 cmake_dependent_option(
   CP2K_USE_CUSOLVER_MP
@@ -191,76 +195,9 @@ if(NOT ${CP2K_SCALAPACK_VENDOR} IN_LIST CP2K_SCALAPACK_VENDOR_LIST)
   message(FATAL_ERROR "Invalid scalapack vendor backend")
 endif()
 
-set(CP2K_BUILD_OPTIONS_LIST "CUSTOM" "DEFAULT" "MINIMAL" "FULL" "SERIAL")
-
-set(CP2K_BUILD_OPTIONS
-    "CUSTOM"
-    CACHE
-      STRING
-      "Build cp2k with a predefined set of dependencies. The default setting is full user control"
-)
-set_property(CACHE CP2K_BUILD_OPTIONS PROPERTY STRINGS
-                                               ${CP2K_BUILD_OPTIONS_LIST})
-
 set(CP2K_DATA_DIR
     "default"
     CACHE STRING "Set the location for cp2k data")
-
-string(TOUPPER ${CP2K_BUILD_OPTIONS} cp2k_build_options_up)
-
-if(NOT ${cp2k_build_options_up} IN_LIST CP2K_BUILD_OPTIONS_LIST)
-  message(FATAL_ERROR "Invalid value for cp2k build options")
-endif()
-
-if(${cp2k_build_options_up} STREQUAL "MINIMAL")
-  set(CP2K_USE_FFTW3 ON)
-  set(CP2K_USE_MPI ON)
-endif()
-
-if(${cp2k_build_options_up} STREQUAL "FULL")
-  set(CP2K_USE_FFTW3 ON)
-  set(CP2K_USE_MPI ON)
-  set(CP2K_USE_DFTD4 ON)
-  set(CP2K_USE_SIRIUS ON)
-  set(CP2K_USE_LIBXSMM ON)
-  set(CP2K_USE_VORI ON)
-  set(CP2K_USE_COSMA ON)
-  set(CP2K_USE_SPLA ON)
-  set(CP2K_USE_LIBXC ON)
-  set(CP2K_USE_LIBINT2 ON)
-  set(CP2K_USE_ELPA ON)
-  set(CP2K_USE_SPGLIB ON)
-  set(CP2K_USE_LIBTORCH ON)
-  set(CP2K_USE_HDF5 ON)
-  set(CP2K_USE_LIBGRPP ON)
-  set(CP2K_USE_TREXIO ON)
-endif()
-
-if(${cp2k_build_options_up} STREQUAL "SERIAL")
-  set(CP2K_USE_FFTW3 ON)
-  set(CP2K_USE_MPI OFF)
-  set(CP2K_USE_SIRIUS ON)
-  set(CP2K_USE_LIBXSMM ON)
-  set(CP2K_USE_VORI ON)
-  set(CP2K_USE_COSMA ON)
-  set(CP2K_USE_SPLA ON)
-  set(CP2K_USE_LIBXC ON)
-  set(CP2K_USE_LIBINT2 ON)
-  set(CP2K_USE_ELPA ON)
-  set(CP2K_USE_SPGLIB ON)
-  set(CP2K_USE_LIBTORCH ON)
-endif()
-
-if(${cp2k_build_options_up} STREQUAL "DEFAULT")
-  set(CP2K_USE_FFTW3 ON)
-  set(CP2K_USE_MPI ON)
-  set(CP2K_USE_SIRIUS ON)
-  set(CP2K_USE_COSMA ON)
-  set(CP2K_USE_LIBXSMM ON)
-  set(CP2K_USE_LIBXC ON)
-  set(CP2K_USE_LIBINT2 ON)
-  set(CP2K_USE_SPGLIB ON)
-endif()
 
 # ##############################################################################
 # gpu related options
@@ -411,24 +348,6 @@ Intel MPI compiler wrappers. Check the INSTALL.md for more information.")
         "RMA with ${MPI_Fortran_LIBRARY_VERSION_STRING} is not supported due to issues with its implementation."
         " Please use a newer version of OpenMPI or switch to MPICH if you plan on using MPI-RMA."
     )
-  endif()
-else()
-  if(CP2K_USE_SIRIUS
-     OR CP2K_USE_COSMA
-     OR CP2K_USE_SPLA
-     OR CP2K_USE_ELPA
-     OR CP2K_USE_PLUMED)
-    message(
-      WARNING
-        "SIRIUS, COSMA, SPLA, and ELPA require MPI support.\n"
-        "Either set -DCP2K_USE_MPI to ON or turn the following dependencies off\n\n"
-        "List of dependencies with mpi support\n")
-    foreach(__libs sirius COSMA SPLA ELPA PLUMED)
-      if(CP2K_USE_${__libs})
-        message(WARNING " - ${__libs}")
-      endif()
-    endforeach()
-    message(FATAL_ERROR " -- ")
   endif()
 endif()
 
