@@ -284,6 +284,10 @@ CONTAINS
       flags = TRIM(flags)//" libsmeagol"
 #endif
 
+#if defined(__GREENX)
+      flags = TRIM(flags)//" greenx"
+#endif
+
    END FUNCTION cp2k_flags
 
 ! **************************************************************************************************
