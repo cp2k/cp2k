@@ -1919,7 +1919,11 @@ CONTAINS
       do_sf = xas_tdp_control%do_spin_flip
 
 !  Get some info on the functionals
-      xc_functionals => section_vals_get_subs_vals(input, "DFT%XAS_TDP%KERNEL%XC_FUNCTIONAL")
+      IF (qs_env%do_rixs) THEN
+         xc_functionals => section_vals_get_subs_vals(input, "PROPERTIES%RIXS%XAS_TDP%KERNEL%XC_FUNCTIONAL")
+      ELSE 
+         xc_functionals => section_vals_get_subs_vals(input, "DFT%XAS_TDP%KERNEL%XC_FUNCTIONAL")
+      END IF
       ! ask for lsd in any case
       needs = xc_functionals_get_needs(xc_functionals, lsd=.TRUE., calc_potential=.TRUE.)
       do_gga = needs%drho_spin !because either LDA or GGA, and the former does not need gradient
@@ -2014,7 +2018,7 @@ CONTAINS
 
          !spin-conserving (LDA part)
          IF (do_sc) THEN
-            CALL integrate_sc_fxc(int_fxc, iatom, ikind, deriv_set, xas_atom_env, qs_env)
+            CALL integrate_sc_fxc(int_fxc, iatom, ikind, deriv_set, xas_atom_env, qs_env) ! integrate
          END IF
 
          !spin-flip (LDA part)
@@ -2896,7 +2900,7 @@ CONTAINS
       ! Get the second derivatives
       ALLOCATE (d2e(3))
       deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa, deriv_rhoa])
-      CALL xc_derivative_get(deriv, deriv_data=d2e(1)%array)
+      CALL xc_derivative_get(deriv, deriv_data=d2e(1)%array) ! deriv (pointer) not associated
       deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa, deriv_rhob])
       CALL xc_derivative_get(deriv, deriv_data=d2e(2)%array)
       deriv => xc_dset_get_derivative(deriv_set, [deriv_rhob, deriv_rhob])

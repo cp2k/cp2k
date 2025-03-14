@@ -181,7 +181,6 @@ CONTAINS
       END IF
 
       !Properties
-      ! TODO: initialisation should come before xas_tdp and tddfpt2
 
       IF (dft_control%do_xas_calculation) THEN
          CALL xas(qs_env, dft_control)
@@ -200,10 +199,8 @@ CONTAINS
          CALL tddfpt(qs_env, calc_forces)
       END IF
 
-      ! must come after xas_tdp and tddfpt2
-      IF (dft_control%do_rixs) THEN !! TODO: define qs_env%ks_env%dft_control%rixs_control
-         CALL rixs(qs_env)
-      END IF
+      ! stand-alone RIXS, does not depend on previous xas_tdp and/or tddfpt2 calculations
+      IF (qs_env%do_rixs) CALL rixs(qs_env)
 
       ! post-SCF bandstructure calculation from higher level methods
       NULLIFY (post_scf_bands_section)

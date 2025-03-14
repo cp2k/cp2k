@@ -169,14 +169,22 @@ CONTAINS
 
       CHARACTER(default_string_length)                   :: rst_filename
       INTEGER                                            :: handle, n_rep, output_unit
-      LOGICAL                                            :: do_restart
+      LOGICAL                                            :: do_restart, do_rixs
       TYPE(section_vals_type), POINTER                   :: xas_tdp_section
 
       CALL timeset(routineN, handle)
 
 !  Logger initialization and XAS TDP banner printing
       NULLIFY (xas_tdp_section)
-      xas_tdp_section => section_vals_get_subs_vals(qs_env%input, "DFT%XAS_TDP")
+
+      ! check if subroutine is called as part of rixs calculation
+      CALL get_qs_env(qs_env, do_rixs=do_rixs)
+      IF (do_rixs) THEN
+         WRITE(*,*) "do_rixs ", do_rixs
+         xas_tdp_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%RIXS%XAS_TDP")
+      ELSE
+         xas_tdp_section => section_vals_get_subs_vals(qs_env%input, "DFT%XAS_TDP")
+      END IF
       output_unit = cp_logger_get_default_io_unit()
 
       IF (output_unit > 0) THEN
@@ -334,7 +342,7 @@ CONTAINS
          do_os = xas_tdp_control%do_uks .OR. xas_tdp_control%do_roks
 
          IF (xas_tdp_control%do_xc .AND. (.NOT. xas_tdp_control%xps_only)) THEN
-            CALL integrate_fxc_atoms(xas_tdp_env%ri_fxc, xas_atom_env, xas_tdp_control, qs_env)
+            CALL integrate_fxc_atoms(xas_tdp_env%ri_fxc, xas_atom_env, xas_tdp_control, qs_env) !
          END IF
 
          IF (xas_tdp_control%do_soc .OR. xas_tdp_control%do_gw2x) THEN
@@ -455,7 +463,7 @@ CONTAINS
                      IF (xas_tdp_control%do_spin_cons) THEN
                         CALL solve_xas_tdp_prob(current_state, xas_tdp_control, xas_tdp_env, qs_env, &
                                                 ex_type=tddfpt_spin_cons)
-                        CALL compute_dipole_fosc(current_state, xas_tdp_control, xas_tdp_env) !!! calculate dipmat
+                        CALL compute_dipole_fosc(current_state, xas_tdp_control, xas_tdp_env) !!! calculate dipmat!
                         IF (xas_tdp_control%do_quad) CALL compute_quadrupole_fosc(current_state, &
                                                                                   xas_tdp_control, xas_tdp_env)
                         CALL xas_tdp_post(tddfpt_spin_cons, current_state, xas_tdp_env, &
@@ -570,7 +578,7 @@ CONTAINS
                                                             nex_kinds, nmatch, nspins
       INTEGER, DIMENSION(2)                              :: homo, n_mo, n_moloc
       INTEGER, DIMENSION(:), POINTER                     :: ind_of_kind
-      LOGICAL                                            :: do_os, do_uks, unique
+      LOGICAL                                            :: do_os, do_uks, unique, do_rixs
       REAL(dp)                                           :: fact
       REAL(dp), DIMENSION(:), POINTER                    :: mo_evals
       TYPE(admm_type), POINTER                           :: admm_env
@@ -594,9 +602,14 @@ CONTAINS
       NULLIFY (mo_coeff, matrix_ks, admm_env, dummy_section)
 
 !  XAS TDP control type initialization
-      xas_tdp_section => section_vals_get_subs_vals(qs_env%input, "DFT%XAS_TDP")
+      CALL get_qs_env(qs_env, dft_control=dft_control, do_rixs=do_rixs)
 
-      CALL get_qs_env(qs_env, dft_control=dft_control)
+      IF (do_rixs) THEN
+         xas_tdp_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%RIXS%XAS_TDP")
+      ELSE
+         xas_tdp_section => section_vals_get_subs_vals(qs_env%input, "DFT%XAS_TDP")
+      END IF
+
       CALL xas_tdp_control_create(xas_tdp_control)
       CALL read_xas_tdp_control(xas_tdp_control, xas_tdp_section)
 
@@ -3053,7 +3066,7 @@ CONTAINS
                   " Index     Excitation energy (eV)    fosc dipole (a.u.)"
                DO i = 1, SIZE(donor_state%sc_evals)
                   WRITE (xas_tdp_unit, FMT="(T3,I6,F27.6,F22.6)") &
-                     i, donor_state%sc_evals(i)*evolt, donor_state%osc_str(i, 4)
+                     i, donor_state%sc_evals(i)*evolt, donor_state%osc_str(i, 4) ! prints here
                END DO
             END IF
 

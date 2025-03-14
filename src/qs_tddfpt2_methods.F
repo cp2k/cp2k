@@ -17,7 +17,8 @@ MODULE qs_tddfpt2_methods
    USE cell_types,                      ONLY: cell_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type,&
-                                              tddfpt2_control_type
+                                              tddfpt2_control_type,&
+                                              rixs_control_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
    USE cp_fm_pool_types,                ONLY: fm_pool_create_fm
@@ -139,9 +140,12 @@ CONTAINS
 !>    * 03.2017 cleaned and refactored [Sergey Chulkov]
 !> \note Based on the subroutines tddfpt_env_init(), and tddfpt_env_deallocate().
 ! **************************************************************************************************
-   SUBROUTINE tddfpt(qs_env, calc_forces)
+   SUBROUTINE tddfpt(qs_env, calc_forces, rixs_control)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN)                                :: calc_forces
+
+      TYPE(rixs_control_type), OPTIONAL, &
+         POINTER, INTENT(IN)                             :: rixs_control
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'tddfpt'
 
@@ -151,7 +155,7 @@ CONTAINS
       INTEGER, DIMENSION(maxspins)                       :: nactive
       LOGICAL                                            :: do_admm, do_exck, do_hfx, do_hfxlr, &
                                                             do_hfxsr, do_soc, lmult_tmp, &
-                                                            state_change
+                                                            state_change, do_rixs
       REAL(kind=dp)                                      :: gsmin, gsval, xsval
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: evals, ostrength
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -191,7 +195,6 @@ CONTAINS
 
       ! input section print/xc
       NULLIFY (tddfpt_section)
-      tddfpt_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%TDDFPT")
 
       CALL tddfpt_input(qs_env, do_hfx, do_admm, do_exck, &
                         do_hfxsr, do_hfxlr, xc_section, tddfpt_print_section, &
@@ -207,8 +210,17 @@ CONTAINS
                       matrix_ks=matrix_ks, &
                       matrix_s=matrix_s, &
                       mos=mos, &
-                      scf_env=scf_env)
-      tddfpt_control => dft_control%tddfpt2_control
+                      scf_env=scf_env, &
+                      do_rixs=do_rixs)
+
+      IF (do_rixs) THEN
+         tddfpt_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%RIXS%TDDFPT")
+         tddfpt_control => rixs_control%tddfpt2_control
+      ELSE
+         tddfpt_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%TDDFPT")
+         tddfpt_control => dft_control%tddfpt2_control
+      END IF
+
       tddfpt_control%do_hfx = do_hfx
       tddfpt_control%do_admm = do_admm
       tddfpt_control%do_hfxsr = do_hfxsr
@@ -416,9 +428,9 @@ CONTAINS
       END IF
 
       ! if do_rixs true: share evects, evals and mo_coefs with rixs
-      IF (dft_control%do_rixs) THEN
+      IF (do_rixs) THEN
          ! do something
-         WRITE (*, *) "RIXS requested"
+         WRITE (*, *) "HERE RIXS copy should be requested"
       END IF
 
       !print forces for selected states

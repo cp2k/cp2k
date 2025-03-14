@@ -229,6 +229,7 @@ MODULE qs_environment_types
       LOGICAL :: given_embed_pot = .FALSE.
       LOGICAL :: energy_correction = .FALSE.
       LOGICAL :: harris_method = .FALSE.
+      LOGICAL :: do_rixs = .FALSE.
       REAL(KIND=dp)                                         :: sim_time = -1.0_dp
       REAL(KIND=dp) :: start_time = -1.0_dp, target_time = -1.0_dp
       REAL(KIND=dp), DIMENSION(:, :), POINTER               :: image_matrix => NULL()
@@ -514,7 +515,8 @@ CONTAINS
                          WannierCentres, atprop, ls_scf_env, do_transport, transport_env, v_hartree_rspace, &
                          s_mstruct_changed, rho_changed, potential_changed, forces_up_to_date, mscfg_env, almo_scf_env, &
                          gradient_history, variable_history, embed_pot, spin_embed_pot, polar_env, mos_last_converged, &
-                         eeq, rhs, tb_tblite)
+                         eeq, rhs, do_rixs, tb_tblite)
+
       TYPE(qs_environment_type), INTENT(IN)              :: qs_env
       TYPE(atomic_kind_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: atomic_kind_set
@@ -592,7 +594,7 @@ CONTAINS
       TYPE(pw_r3d_rs_type), OPTIONAL, POINTER            :: rho0_s_rs
       TYPE(pw_c1d_gs_type), OPTIONAL, POINTER            :: rho0_s_gs
       LOGICAL, OPTIONAL                                  :: do_kpoints, has_unit_metric, &
-                                                            requires_mo_derivs
+                                                            requires_mo_derivs, do_rixs
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: mo_derivs
       TYPE(cp_fm_type), DIMENSION(:), OPTIONAL, POINTER  :: mo_loc_history
@@ -707,6 +709,7 @@ CONTAINS
       IF (PRESENT(mscfg_env)) mscfg_env => qs_env%molecular_scf_guess_env
       IF (PRESENT(active_space)) active_space => qs_env%active_space
       IF (PRESENT(admm_env)) admm_env => qs_env%admm_env
+      IF (PRESENT(do_rixs)) do_rixs = qs_env%do_rixs
 
       ! Embedding potential
       IF (PRESENT(embed_pot)) embed_pot => qs_env%embed_pot
@@ -939,6 +942,7 @@ CONTAINS
       qs_env%calc_image_preconditioner = .TRUE.
       qs_env%do_transport = .FALSE.
       qs_env%given_embed_pot = .FALSE.
+      qs_env%do_rixs = .FALSE.
       IF (PRESENT(globenv)) THEN
          qs_env%target_time = globenv%cp2k_target_time
          qs_env%start_time = globenv%cp2k_start_time
@@ -1061,7 +1065,8 @@ CONTAINS
                          do_transport, transport_env, lri_env, lri_density, exstate_env, ec_env, dispersion_env, &
                          harris_env, gcp_env, mp2_env, bs_env, kg_env, force, &
                          kpoints, WannierCentres, almo_scf_env, gradient_history, variable_history, embed_pot, &
-                         spin_embed_pot, polar_env, mos_last_converged, eeq, rhs, tb_tblite)
+                         spin_embed_pot, polar_env, mos_last_converged, eeq, rhs, do_rixs, tb_tblite)
+
 
       TYPE(qs_environment_type), INTENT(INOUT)           :: qs_env
       TYPE(cell_type), OPTIONAL, POINTER                 :: super_cell
@@ -1114,7 +1119,7 @@ CONTAINS
       TYPE(fist_nonbond_env_type), OPTIONAL, POINTER     :: se_nonbond_env
       TYPE(admm_type), OPTIONAL, POINTER                 :: admm_env
       TYPE(ls_scf_env_type), OPTIONAL, POINTER           :: ls_scf_env
-      LOGICAL, OPTIONAL                                  :: do_transport
+      LOGICAL, OPTIONAL                                  :: do_transport, do_rixs
       TYPE(transport_env_type), OPTIONAL, POINTER        :: transport_env
       TYPE(lri_environment_type), OPTIONAL, POINTER      :: lri_env
       TYPE(lri_density_type), OPTIONAL, POINTER          :: lri_density
@@ -1174,13 +1179,14 @@ CONTAINS
       IF (PRESENT(rtp)) qs_env%rtp => rtp
       IF (PRESENT(efield)) qs_env%efield => efield
       IF (PRESENT(active_space)) qs_env%active_space => active_space
+      IF (PRESENT(do_rixs)) do_rixs = qs_env%do_rixs
 
       IF (PRESENT(ewald_env)) THEN ! accept also null pointers?
          IF (ASSOCIATED(qs_env%ewald_env)) THEN
-         IF (.NOT. ASSOCIATED(qs_env%ewald_env, ewald_env)) THEN
-            CALL ewald_env_release(qs_env%ewald_env)
-            DEALLOCATE (qs_env%ewald_env)
-         END IF
+            IF (.NOT. ASSOCIATED(qs_env%ewald_env, ewald_env)) THEN
+               CALL ewald_env_release(qs_env%ewald_env)
+               DEALLOCATE (qs_env%ewald_env)
+            END IF
          END IF
          qs_env%ewald_env => ewald_env
       END IF
@@ -1213,20 +1219,20 @@ CONTAINS
       END IF
       IF (PRESENT(linres_control)) THEN ! accept also null pointers?
          IF (ASSOCIATED(qs_env%linres_control)) THEN
-         IF (.NOT. ASSOCIATED(qs_env%linres_control, linres_control)) THEN
-            CALL linres_control_release(qs_env%linres_control)
-            DEALLOCATE (qs_env%linres_control)
-         END IF
+            IF (.NOT. ASSOCIATED(qs_env%linres_control, linres_control)) THEN
+               CALL linres_control_release(qs_env%linres_control)
+               DEALLOCATE (qs_env%linres_control)
+            END IF
          END IF
          qs_env%linres_control => linres_control
       END IF
       ! ZMP associating variables
       IF (PRESENT(rho_external)) THEN
          IF (ASSOCIATED(qs_env%rho_external)) THEN
-         IF (.NOT. ASSOCIATED(qs_env%rho_external, rho_external)) THEN
-            CALL qs_rho_release(qs_env%rho_external)
-            DEALLOCATE (qs_env%rho_external)
-         END IF
+            IF (.NOT. ASSOCIATED(qs_env%rho_external, rho_external)) THEN
+               CALL qs_rho_release(qs_env%rho_external)
+               DEALLOCATE (qs_env%rho_external)
+            END IF
          END IF
          qs_env%rho_external => rho_external
       END IF
@@ -1273,10 +1279,10 @@ CONTAINS
       END IF
       IF (PRESENT(scf_env)) THEN ! accept also null pointers ?
          IF (ASSOCIATED(qs_env%scf_env)) THEN
-         IF (.NOT. ASSOCIATED(qs_env%scf_env, scf_env)) THEN
-            CALL scf_env_release(qs_env%scf_env)
-            DEALLOCATE (qs_env%scf_env)
-         END IF
+            IF (.NOT. ASSOCIATED(qs_env%scf_env, scf_env)) THEN
+               CALL scf_env_release(qs_env%scf_env)
+               DEALLOCATE (qs_env%scf_env)
+            END IF
          END IF
          qs_env%scf_env => scf_env
       END IF
@@ -1344,10 +1350,10 @@ CONTAINS
       END IF
       IF (PRESENT(se_nonbond_env)) THEN
          IF (ASSOCIATED(qs_env%se_nonbond_env)) THEN
-         IF (.NOT. ASSOCIATED(qs_env%se_nonbond_env, se_nonbond_env)) THEN
-            CALL fist_nonbond_env_release(qs_env%se_nonbond_env)
-            DEALLOCATE (qs_env%se_nonbond_env)
-         END IF
+            IF (.NOT. ASSOCIATED(qs_env%se_nonbond_env, se_nonbond_env)) THEN
+               CALL fist_nonbond_env_release(qs_env%se_nonbond_env)
+               DEALLOCATE (qs_env%se_nonbond_env)
+            END IF
          END IF
          qs_env%se_nonbond_env => se_nonbond_env
       END IF

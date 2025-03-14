@@ -89,7 +89,8 @@ MODULE bibliography
                             Stein2022, Stein2024, Pracht2019, &
                             Blase2018, Blase2020, Bruneval2015, Golze2019, Gui2018, Jacquemin2017, Liu2020, &
                             Sander2015, Schreiber2008, vanSetten2015, Setyawan2010, Ahart2024, Knysh2024, &
-                            Schambeck2024, Mewes2018, Sertcan2024, Drautz2019, Lysogorskiy2021, Bochkarev2024
+                            Schambeck2024, Mewes2018, Sertcan2024, Drautz2019, Lysogorskiy2021, Bochkarev2024, &
+                            VazdaCruz2021
 
 CONTAINS
 
@@ -1952,6 +1953,12 @@ CONTAINS
                          title="Graph Atomic Cluster Expansion for semilocal interactions beyond equivariant message passing", &
                          source="Phys. Rev. X", volume="14", pages="021036", &
                          year=2024, doi="10.1103/PhysRevX.14.021036")
+      CALL add_reference(key=VazdaCruz2021, &
+                         authors=s2a("V. Vaz da Cruz", "S. Eckert", "A. Fohlisch"), &
+                         title="TD-DFT simulations of K-edge resonant inelastic X-ray scattering within "// &
+                         "the restricted subspace approximation", &
+                         source="Phys. Chem. Chem. Phys.", volume="23", pages="1835-1848", &
+                         year=2021, doi="10.1039/d0cp04726k")
 
    END SUBROUTINE add_all_references
 
