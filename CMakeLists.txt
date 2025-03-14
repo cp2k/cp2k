@@ -966,10 +966,6 @@ if(NOT CP2K_USE_OPENPMD)
   message("   - openPMD")
 endif()
 
-message("\n\n" "To run the regtests you need to run the following commands\n"
-        "\n\n cd ..\n" " export CP2K_DATA_DIR=${CMAKE_SOURCE_DIR}/data/\n"
-        " ./tests/do_regtest.py ${cp2k_BINARY_DIR}/bin ${__cp2k_ext}\n\n")
-
 # files needed for cmake
 
 write_basic_package_version_file(
