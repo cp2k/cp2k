@@ -35,6 +35,7 @@ template <typename T> class gpu_vector {
   size_t allocated_size_{0};
   size_t current_size_{0};
   bool allocated_outside_{false};
+  bool internal_allocation_ = {false};
   T *device_ptr_ = nullptr;
   T *host_ptr_ = nullptr;
 
@@ -49,7 +50,7 @@ public:
       allocated_size_ = (size__ / 16 + 1) * 16;
     }
     current_size_ = size__;
-
+    internal_allocation_ = true;
 #ifndef __OFFLOAD_UNIFIED_MEMORY
     offloadMalloc((void **)&device_ptr_, sizeof(T) * allocated_size_);
 #else
@@ -98,6 +99,15 @@ public:
 
   inline void associate(void *host_ptr__, void *device_ptr__,
                         const size_t size__) {
+
+    if (internal_allocation_) {
+      if (device_ptr_)
+        offloadFree(device_ptr_);
+      if (host_ptr_)
+        std::free(host_ptr_);
+      internal_allocation_ = false;
+    }
+
     allocated_outside_ = true;
     // size__ is the number of elements not the size of the memory block
     current_size_ = size__;
@@ -133,6 +143,7 @@ public:
         offloadFree(device_ptr_);
       allocated_size_ = (new_size_ / 16 + (new_size_ % 16 != 0)) * 16;
       offloadMalloc((void **)&device_ptr_, sizeof(T) * allocated_size_);
+      internal_allocation_ = true;
     }
     current_size_ = new_size_;
   }
@@ -142,16 +153,19 @@ public:
 
   // reset the class and free memory
   inline void reset() {
-    if (allocated_outside_) {
-      return;
-    }
+    if (!allocated_outside_) {
+      if (device_ptr_ != nullptr)
+        offloadFree(device_ptr_);
 
-    if (device_ptr_ != nullptr)
-      offloadFree(device_ptr_);
+      if (host_ptr_ != nullptr)
+        std::free(device_ptr_);
+    }
 
     allocated_size_ = 0;
     current_size_ = 0;
     device_ptr_ = nullptr;
+    host_ptr_ = nullptr;
+    internal_allocation_ = false;
   }
 
   inline T *data() { return device_ptr_; }
@@ -191,6 +205,10 @@ public:
 
   inline void reset() { grid_.reset(); }
 
+  /*
+   * We do not allocate memory as the buffer is always coming from the outside
+   * world. We only initialize the sizes, etc...
+   */
   inline void resize(const int *full_size__, const int *local_size__,
                      const int *const roffset__,
                      const int *const border_width__) {
@@ -307,8 +325,6 @@ private:
     border_width_[2] = border_width__[0];
     border_width_[1] = border_width__[1];
     border_width_[0] = border_width__[2];
-
-    grid_.resize(local_size_[0] * local_size_[1] * local_size_[2]);
   }
 };
 
