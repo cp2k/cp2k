@@ -166,6 +166,7 @@ else # macOS
 LIBS += -framework OpenCL
 endif
 
+dbm_miniapp.x: $(OPENCL_OFFLOAD)
 $(OPENCL_GENKRNL): $(OPENCL_GEN) $(OPENCL_SRC) $(OPENCL_CMN)
 	$(OPENCL_GEN) -b 6 -p "" $(OPENCL_SRC) $@
 
