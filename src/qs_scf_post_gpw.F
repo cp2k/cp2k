@@ -51,7 +51,7 @@ MODULE qs_scf_post_gpw
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
-   USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
+   USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube, cp_pw_to_openpmd
    USE dct,                             ONLY: pw_shrink
    USE ed_analysis,                     ONLY: edmf_analysis
    USE eeq_method,                      ONLY: eeq_print
@@ -1071,7 +1071,7 @@ CONTAINS
                                            middle_name=TRIM(filename), file_position=my_pos_cube, log_filename=.FALSE., &
                                            mpi_io=mpi_io, openpmd_basename="dft-mo-cubes", use_openpmd=.TRUE.)
             WRITE (title, *) "WAVEFUNCTION ", ivector, " spin ", ispin, " i.e. HOMO - ", ivector - homo
-            CALL cp_pw_to_cube(wf_r, unit_nr, title, particles=particles, &
+            CALL cp_pw_to_openpmd(wf_r, unit_nr, title, particles=particles, &
                                stride=section_get_ivals(dft_section, "PRINT%MO_CUBES%STRIDE"), mpi_io=mpi_io)
             CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%MO_CUBES", mpi_io=mpi_io, use_openpmd=.TRUE.)
          END DO
@@ -1158,7 +1158,7 @@ CONTAINS
                                            middle_name=TRIM(filename), file_position=my_pos_cube, log_filename=.FALSE., &
                                            mpi_io=mpi_io, openpmd_basename="dft-mo-cubes", use_openpmd=.TRUE.)
             WRITE (title, *) "WAVEFUNCTION ", index_mo, " spin ", ispin, " i.e. LUMO + ", ifirst + ivector - 2
-            CALL cp_pw_to_cube(wf_r, unit_nr, title, particles=particles, &
+            CALL cp_pw_to_openpmd(wf_r, unit_nr, title, particles=particles, &
                                stride=section_get_ivals(dft_section, "PRINT%MO_CUBES%STRIDE"), mpi_io=mpi_io)
             CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%MO_CUBES", mpi_io=mpi_io, use_openpmd=.TRUE.)
          END DO

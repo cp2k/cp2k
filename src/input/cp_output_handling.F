@@ -74,7 +74,7 @@ MODULE cp_output_handling
    PUBLIC :: cp_iter_string, cp_print_key_section_create
    PUBLIC :: cp_print_key_unit_nr, cp_print_key_finished_output
    PUBLIC :: cp_print_key_generate_filename, cp_printkey_is_on
-   PUBLIC :: cp_openpmd_get_unit_nr, cp_openpmd_per_call_value_type
+   PUBLIC :: cp_openpmd_get_value_unit_nr, cp_openpmd_per_call_value_type
    PUBLIC :: cp_output_finalize
 
    INTEGER, PARAMETER, PUBLIC               :: add_last_no = 0, &
@@ -269,7 +269,7 @@ CONTAINS
       !> \param key ...
       !> \return ...
       ! **************************************************************************************************
-      FUNCTION cp_openpmd_get_${name_suffix}$ (key) RESULT(index)
+      FUNCTION cp_openpmd_get_index_${name_suffix}$ (key) RESULT(index)
          ${key_type}$, INTENT(in)                           :: key
          INTEGER                                            :: index
 
@@ -283,7 +283,19 @@ CONTAINS
                RETURN
             END IF
          END DO
-      END FUNCTION cp_openpmd_get_${name_suffix}$
+      END FUNCTION cp_openpmd_get_index_${name_suffix}$
+
+      FUNCTION cp_openpmd_get_value_${name_suffix}$ (key) RESULT(value)
+         ${key_type}$, INTENT(in)                           :: key
+         TYPE(${value_type}$)                               :: value
+
+         INTEGER                                            :: i
+
+         i = cp_openpmd_get_index_${name_suffix}$(key)
+         IF (i == -1) RETURN
+
+         value = ${map_storage}$(i)%value
+      END FUNCTION cp_openpmd_get_value_${name_suffix}$
 
       ! **************************************************************************************************
       !> \brief ...
@@ -1147,7 +1159,7 @@ CONTAINS
 
       basename_copied(1:LEN_TRIM(openpmd_basename)) = TRIM(openpmd_basename)
 
-      file_index = cp_openpmd_get_filedata(basename_copied)
+      file_index = cp_openpmd_get_index_filedata(basename_copied)
       IF (file_index /= -1) RETURN
 
       IF (use_mpi) THEN
