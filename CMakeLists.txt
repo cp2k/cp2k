@@ -521,17 +521,14 @@ if((CP2K_USE_ACCEL MATCHES CUDA) OR (CP2K_USE_ACCEL MATCHES HIP))
       endif()
       set(CMAKE_CUDA_ARCHITECTURES ${CP2K_GPU_ARCH_NUMBER_${CP2K_WITH_GPU}})
     else(CP2K_USE_ACCEL MATCHES HIP)
-      set(_tmp_list
-          "${CP2K_SUPPORTED_CUDA_ARCHITECTURES};${CP2K_SUPPORTED_HIP_ARCHITECTURES}"
-      )
-      list(FIND _tmp_list ${CP2K_WITH_GPU} CP2K_GPU_SUPPORTED)
+      list(FIND CP2K_SUPPORTED_HIP_ARCHITECTURES ${CP2K_WITH_GPU}
+           CP2K_GPU_SUPPORTED)
       if(CP2K_GPU_SUPPORTED EQUAL -1)
         message(
           FATAL_ERROR
-            "GPU architecture (${CP2K_WITH_GPU}) is not supported. Please choose from: ${_tmp_list}"
+            "GPU architecture (${CP2K_WITH_GPU}) is not supported. Please choose from: ${CP2K_SUPPORTED_HIP_ARCHITECTURES}"
         )
       endif()
-      unset(_tmp_list)
       set(CMAKE_HIP_ARCHITECTURES "${CP2K_GPU_ARCH_NUMBER_${CP2K_WITH_GPU}}")
     endif()
   endif()
