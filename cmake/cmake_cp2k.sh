@@ -116,6 +116,9 @@ elif [[ "${PROFILE}" == "ubuntu" ]] && [[ "${VERSION}" == "ssmp" ]]; then
     -DCP2K_USE_MPI=OFF \
     -DCP2K_USE_SPGLIB=OFF \
     -DCP2K_USE_VORI=OFF \
+    -DCP2K_USE_DFTD4=OFF \
+    -DCP2K_USE_DEEPMD=OFF \
+    -DCP2K_USE_TREXIO=OFF \
     -Werror=dev \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
@@ -134,6 +137,9 @@ elif [[ "${PROFILE}" == "minimal" ]] && [[ "${VERSION}" == "ssmp" ]]; then
     -DCP2K_USE_MPI=OFF \
     -DCP2K_USE_SPGLIB=OFF \
     -DCP2K_USE_VORI=OFF \
+    -DCP2K_USE_DFTD4=OFF \
+    -DCP2K_USE_DEEPMD=OFF \
+    -DCP2K_USE_TREXIO=OFF \
     -Werror=dev \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
