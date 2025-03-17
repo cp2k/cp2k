@@ -20,14 +20,13 @@ MODULE realspace_grid_cube
         file_amode_rdonly, file_offset, mp_comm_type, mp_file_descriptor_type, mp_file_type, &
         mp_file_type_free, mp_file_type_hindexed_make_chv, mp_file_type_set_view_chv, &
         mpi_character_size
-   USE openpmd_api,                     ONLY: openpmd_iteration_get_particle_species,&
-                                              openpmd_particle_species_get_record,&
-                                              openpmd_particle_species_type,&
-                                              openpmd_record_component_make_constant_zero,&
-                                              openpmd_record_component_type,&
-                                              openpmd_record_get_component,&
-                                              openpmd_record_type,&
-                                              openpmd_type_int
+   USE openpmd_api,                     ONLY: &
+        openpmd_attributable_series_flush, openpmd_iteration_as_attributable, &
+        openpmd_iteration_get_particle_species, openpmd_particle_species_get_record, &
+        openpmd_particle_species_type, openpmd_record_component_make_constant_zero, &
+        openpmd_record_component_reset_dataset, openpmd_record_component_store_chunk_1d_double, &
+        openpmd_record_component_type, openpmd_record_get_component, openpmd_record_type, &
+        openpmd_type_double, openpmd_type_int
    USE pw_grid_types,                   ONLY: PW_MODE_LOCAL
    USE pw_types,                        ONLY: pw_r3d_rs_type
 #include "../base/base_uses.f90"
@@ -100,12 +99,15 @@ CONTAINS
 
       CHARACTER(len=3)                                   :: atom_type_as_string
       CHARACTER(len=default_string_length)               :: species_name
-      INTEGER, DIMENSION(1)                              :: extent
+      INTEGER                                            :: i, j
+      INTEGER, DIMENSION(1)                              :: extent, offset
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: position_x_buffer
       TYPE(openpmd_particle_species_type)                :: species
-      TYPE(openpmd_record_component_type)                :: position_offset_x
-      TYPE(openpmd_record_type)                          :: position_offset
+      TYPE(openpmd_record_component_type)                :: position_offset_x, position_x
+      TYPE(openpmd_record_type)                          :: position, position_offset
 
       extent(1) = atom_count
+      offset(1) = 0
 
       WRITE (atom_type_as_string, '(I3)') atom_type
       species_name = TRIM(openpmd_data%name_prefix)//"-"//ADJUSTL(atom_type_as_string)
@@ -115,6 +117,21 @@ CONTAINS
       position_offset = openpmd_particle_species_get_record(species, "positionOffset")
       position_offset_x = openpmd_record_get_component(position_offset, "x")
       CALL openpmd_record_component_make_constant_zero(position_offset_x, openpmd_type_int, extent)
+
+      position = openpmd_particle_species_get_record(species, "position")
+      position_x = openpmd_record_get_component(position, "x")
+      CALL openpmd_record_component_reset_dataset(position_x, openpmd_type_double, extent)
+
+      ALLOCATE (position_x_buffer(atom_count))
+      j = 1
+      DO i = 1, SIZE(particles_z)
+         IF (particles_z(i) /= atom_type) CONTINUE
+         position_x_buffer(j) = particles_r(1, i)
+         j = j + 1
+      END DO
+      CALL openpmd_record_component_store_chunk_1d_double(position_x, position_x_buffer, offset)
+      CALL openpmd_attributable_series_flush(openpmd_iteration_as_attributable(openpmd_data%iteration))
+      DEALLOCATE (position_x_buffer)
 
    END SUBROUTINE pw_write_particle_species
 

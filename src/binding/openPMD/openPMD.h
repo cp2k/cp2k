@@ -97,7 +97,7 @@ int openPMD_Series_write_Iteration(
     // out
     openPMD_Iteration *iteration);
 
-int openPMD_Series_upcast_to_attributable(
+int openPMD_Series_upcast_to_Attributable(
     // in
     openPMD_Series series,
     // out
@@ -115,11 +115,13 @@ int openPMD_attributable_set_attribute_vec_int(openPMD_Attributable attr,
                                                char const *attr_name,
                                                int const *begin, int length);
 
+int openPMD_Attributable_series_flush(openPMD_Attributable attr);
+
 /**********************
  * Iteration members. *
  **********************/
 
-int openPMD_Iteration_upcast_to_attributable(
+int openPMD_Iteration_upcast_to_Attributable(
     // in
     openPMD_Iteration iteration,
     // out
@@ -151,6 +153,12 @@ int openPMD_Mesh_upcast_to_RecordComponent(
  * RecordComponent members *
  ***************************/
 
+int openPMD_RecordComponent_upcast_to_Attributable(
+    // in
+    openPMD_RecordComponent rc,
+    // out
+    openPMD_Attributable *attr);
+
 int openPMD_RecordComponent_resetDataset(
     // in
     openPMD_RecordComponent rc, openPMD_Datatype, int dimensions,
@@ -164,6 +172,11 @@ int openPMD_RecordComponent_makeConstant(
     // in
     openPMD_RecordComponent rc, openPMD_Datatype, int dimensions,
     int const *extent, void const *value);
+
+int openPMD_RecordComponent_storeChunk(
+    // in
+    openPMD_RecordComponent rc, openPMD_Datatype, int dimensions,
+    int const *offset, int const *extent, void *data);
 
 /***************************
  * ParticleSpecies members *

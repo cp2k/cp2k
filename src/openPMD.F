@@ -5,10 +5,10 @@
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
 MODULE openPMD_api
-   USE ISO_C_BINDING,                   ONLY: &
-        C_ASSOCIATED, C_CHAR, C_INT, C_INT64_T, C_LOC, C_NULL_CHAR, C_NULL_PTR, C_PTR, C_SIZE_T
-   USE kinds,                           ONLY: default_string_length
-   USE message_passing,                 ONLY: mp_comm_type
+   USE ISO_C_BINDING, ONLY: &
+      C_ASSOCIATED, C_CHAR, C_INT, C_INT64_T, C_LOC, C_NULL_CHAR, C_NULL_PTR, C_PTR, C_SIZE_T
+   USE kinds, ONLY: default_string_length
+   USE message_passing, ONLY: mp_comm_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -22,6 +22,9 @@ MODULE openPMD_api
    ENUM, BIND(C)
       ENUMERATOR :: openpmd_type_char, openpmd_type_uchar, openpmd_type_schar, openpmd_type_short, openpmd_type_int, openpmd_type_long, openpmd_type_longlong, openpmd_type_ushort, openpmd_type_uint, openpmd_type_ulong, openpmd_type_ulonglong, openpmd_type_float, openpmd_type_double, openpmd_type_long_double, openpmd_type_cfloat, openpmd_type_cdouble, openpmd_type_clong_double, openpmd_type_string, openpmd_type_vec_char, openpmd_type_vec_short, openpmd_type_vec_int, openpmd_type_vec_long, openpmd_type_vec_longlong, openpmd_type_vec_uchar, openpmd_type_vec_ushort, openpmd_type_vec_uint, openpmd_type_vec_ulong, openpmd_type_vec_ulonglong, openpmd_type_vec_float, openpmd_type_vec_double, openpmd_type_vec_long_double, openpmd_type_vec_cfloat, openpmd_type_vec_cdouble, openpmd_type_vec_clong_double, openpmd_type_vec_schar, openpmd_type_vec_string, openpmd_type_arr_dbl_7, openpmd_type_bool
    END ENUM
+
+   #:set dataset_types_f = ['REAL(kind=dp)']
+   #:set dataset_types_enum = ['double']
 
    TYPE openpmd_attributable_type
       PRIVATE
@@ -76,11 +79,19 @@ MODULE openPMD_api
    PUBLIC :: openpmd_access_create, openpmd_access_read_only
    PUBLIC :: openpmd_type_char, openpmd_type_uchar, openpmd_type_schar, openpmd_type_short, openpmd_type_int, openpmd_type_long, openpmd_type_longlong, openpmd_type_ushort, openpmd_type_uint, openpmd_type_ulong, openpmd_type_ulonglong, openpmd_type_float, openpmd_type_double, openpmd_type_long_double, openpmd_type_cfloat, openpmd_type_cdouble, openpmd_type_clong_double, openpmd_type_string, openpmd_type_vec_char, openpmd_type_vec_short, openpmd_type_vec_int, openpmd_type_vec_long, openpmd_type_vec_longlong, openpmd_type_vec_uchar, openpmd_type_vec_ushort, openpmd_type_vec_uint, openpmd_type_vec_ulong, openpmd_type_vec_ulonglong, openpmd_type_vec_float, openpmd_type_vec_double, openpmd_type_vec_long_double, openpmd_type_vec_cfloat, openpmd_type_vec_cdouble, openpmd_type_vec_clong_double, openpmd_type_vec_schar, openpmd_type_vec_string, openpmd_type_arr_dbl_7, openpmd_type_bool
    PUBLIC :: openpmd_get_default_extension
-   PUBLIC :: openpmd_attributable_set_attribute_vec_int
-   PUBLIC :: openpmd_iteration_get_mesh, openpmd_iteration_get_particle_species
-   PUBLIC :: openpmd_record_component_make_empty, openpmd_record_component_make_constant_zero, openpmd_record_get_component
+   PUBLIC :: openpmd_attributable_set_attribute_vec_int, openpmd_attributable_series_flush
+   PUBLIC :: openpmd_iteration_get_mesh, openpmd_iteration_get_particle_species, openpmd_iteration_as_attributable
+   PUBLIC :: openpmd_record_component_make_empty, openpmd_record_component_make_constant_zero, openpmd_record_get_component, openpmd_record_component_as_attributable, openpmd_record_component_reset_dataset
+   #:for type_f, type_enum in zip(dataset_types_f, dataset_types_enum)
+      #:for dim in [1, 2, 3]
+         PUBLIC :: openpmd_record_component_store_chunk_${dim}$d_${type_enum}$
+      #:endfor
+   #:endfor
    PUBLIC :: openpmd_particle_species_get_record
    PUBLIC :: cp2k_log
+
+   INTEGER, PARAMETER :: sp = SELECTED_REAL_KIND(6, 30)
+   INTEGER, PARAMETER :: dp = SELECTED_REAL_KIND(14, 200)
 
 CONTAINS
 
@@ -96,25 +107,25 @@ CONTAINS
       res = this%c_ptr
    END FUNCTION as_pointer
 
-! **************************************************************************************************
-!> \brief ...
-!> \param this ...
-!> \return ...
-! **************************************************************************************************
-   FUNCTION openpmd_series_as_attributable(this) RESULT(res)
-      CLASS(openpmd_series_type), INTENT(IN) :: this
-      TYPE(openpmd_attributable_type) :: res
+   #:for child, parent in [("Series", "Attributable"), ("Iteration", "Attributable"), ("RecordComponent", "Attributable")]
+      #:set fortran_names = {"RecordComponent": "record_component"}
+      #:set child_f = fortran_names[child] if child in fortran_names else child
+      #:set parent_f = fortran_names[parent] if parent in fortran_names else parent
+      FUNCTION openpmd_${child_f}$_as_${parent_f}$ (this) RESULT(res)
+         CLASS(openpmd_${child_f}$_type), INTENT(IN) :: this
+         TYPE(openpmd_${parent_f}$_type) :: res
 
-      INTERFACE
-         SUBROUTINE openpmd_c_series_as_attributable(series, attributable) BIND(C, name="openPMD_Iteration_upcast_to_attributable")
-            IMPORT :: C_PTR
-            TYPE(C_PTR), VALUE :: series
-            TYPE(C_PTR) :: attributable
-         END SUBROUTINE
-      END INTERFACE
+         INTERFACE
+            SUBROUTINE openpmd_c_${child_f}$_as_${parent_f}$ (child, parent) BIND(C, name="openPMD_${child}$_upcast_to_${parent}$")
+               IMPORT :: C_PTR
+               TYPE(C_PTR), VALUE :: child
+               TYPE(C_PTR) :: parent
+            END SUBROUTINE
+         END INTERFACE
 
-      CALL openpmd_c_series_as_attributable(this%c_ptr, res%c_ptr)
-   END FUNCTION openpmd_series_as_attributable
+         CALL openpmd_c_${child_f}$_as_${parent_f}$ (this%c_ptr, res%c_ptr)
+      END FUNCTION openpmd_${child_f}$_as_${parent_f}$
+   #:endfor
 
 ! **************************************************************************************************
 !> \brief ...
@@ -182,26 +193,6 @@ CONTAINS
       res_internal = openpmd_c_series_present(series%c_ptr)
       res = res_internal /= 0
    END FUNCTION
-
-! **************************************************************************************************
-!> \brief ...
-!> \param this ...
-!> \return ...
-! **************************************************************************************************
-   FUNCTION openpmd_iteration_as_attributable(this) RESULT(res)
-      CLASS(openpmd_iteration_type), INTENT(IN) :: this
-      TYPE(openpmd_attributable_type) :: res
-
-      INTERFACE
-    SUBROUTINE openpmd_c_iteration_as_attributable(iteration, attributable) BIND(C, name="openPMD_Iteration_upcast_to_attributable")
-            IMPORT :: C_PTR
-            TYPE(C_PTR), VALUE :: iteration
-            TYPE(C_PTR) :: attributable
-         END SUBROUTINE
-      END INTERFACE
-
-      CALL openpmd_c_iteration_as_attributable(this%c_ptr, res%c_ptr)
-   END FUNCTION openpmd_iteration_as_attributable
 
 ! **************************************************************************************************
 !> \brief ...
@@ -405,6 +396,17 @@ CONTAINS
 
    END SUBROUTINE
 
+   SUBROUTINE openpmd_attributable_series_flush(attributable)
+      TYPE(openpmd_attributable_type)                    :: attributable
+      INTERFACE
+         SUBROUTINE openpmd_c_attributable_series_flush(attributable) BIND(C, NAME="openPMD_Attributable_series_flush")
+            IMPORT :: C_CHAR, C_SIZE_T, C_INT, C_PTR
+            TYPE(C_PTR), VALUE :: attributable
+         END SUBROUTINE
+      END INTERFACE
+      CALL openpmd_c_attributable_series_flush(attributable%c_ptr)
+   END SUBROUTINE openpmd_attributable_series_flush
+
 ! **************************************************************************************************
 !> \brief ...
 !> \param iteration ...
@@ -508,8 +510,67 @@ CONTAINS
          END FUNCTION openpmd_c_record_component_make_constant
       END INTERFACE
 
+      ! TODO: flip the extent?
+
       status = openpmd_c_record_component_make_constant(record_component%c_ptr, dtype, SIZE(extent), C_LOC(extent(1)), C_NULL_PTR)
    END SUBROUTINE openpmd_record_component_make_constant_zero
+
+   SUBROUTINE openpmd_record_component_reset_dataset(record_component, dtype, extent, cfg)
+      TYPE(openpmd_record_component_type)                :: record_component
+      INTEGER(kind=C_INT)                                :: dtype
+      INTEGER, DIMENSION(:), TARGET                      :: extent
+      CHARACTER(len=*), OPTIONAL :: cfg
+
+      CHARACTER(len=default_string_length) :: my_config = "{}"
+      INTEGER(kind=C_INT)                                :: status
+      INTERFACE
+         FUNCTION openpmd_c_record_component_reset_dataset(record_component, dtype, dimensions, extent, cfg) RESULT(status) BIND(C, name="openPMD_RecordComponent_resetDataset")
+            IMPORT :: C_PTR, C_INT64_T, C_INT, C_SIZE_T, C_CHAR
+            TYPE(C_PTR), VALUE :: record_component
+            INTEGER(KIND=C_INT), VALUE :: dtype
+            INTEGER(KIND=C_INT), VALUE :: dimensions
+            TYPE(C_PTR), VALUE :: extent
+            CHARACTER(kind=C_CHAR), DIMENSION(*) :: cfg
+            INTEGER(KIND=C_INT) :: status
+         END FUNCTION
+      END INTERFACE
+
+      IF (PRESENT(cfg)) my_config = cfg
+
+      ! TODO: flip the extent?
+      status = openpmd_c_record_component_reset_dataset(record_component%c_ptr, dtype, SIZE(extent), C_LOC(extent(1)), my_config//C_NULL_CHAR)
+   END SUBROUTINE openpmd_record_component_reset_dataset
+
+   #:for type_f, type_enum in zip(dataset_types_f, dataset_types_enum)
+      #:for dim in [1, 2, 3]
+         ! e.g. ':,:,:'
+         #:set dimensionality_wildcard = ','.join(':' for _ in range(dim))
+         SUBROUTINE openpmd_record_component_store_chunk_${dim}$d_${type_enum}$ (record_component, data_, offset)
+            TYPE(openpmd_record_component_type)                        :: record_component
+            ${type_f}$, DIMENSION(${dimensionality_wildcard}$), TARGET :: data_
+            INTEGER, DIMENSION(${dim}$), TARGET                        :: offset, extent
+
+            INTEGER(kind=C_INT)                                        :: status
+
+            INTERFACE
+            FUNCTION openpmd_c_record_component_store_chunk(record_component, dtype, dimensions, offset, extent, data_) RESULT(status) BIND(C, name="openPMD_RecordComponent_storeChunk")
+                  IMPORT :: C_PTR, C_INT64_T, C_INT, C_SIZE_T, C_CHAR
+                  TYPE(C_PTR), VALUE :: record_component
+                  INTEGER(KIND=C_INT), VALUE :: dtype
+                  INTEGER(KIND=C_INT), VALUE :: dimensions
+                  TYPE(C_PTR), VALUE :: offset, extent
+                  TYPE(C_PTR), VALUE :: data_
+                  INTEGER(KIND=C_INT) :: status
+               END FUNCTION openpmd_c_record_component_store_chunk
+            END INTERFACE
+
+            ! TODO flip extent, offset
+            extent = SIZE(data_)
+            status = openpmd_c_record_component_store_chunk(record_component%c_ptr, openpmd_type_${type_enum}$, ${dim}$, C_LOC(offset(1)), C_LOC(extent(1)), C_LOC(data_))
+
+         END SUBROUTINE openpmd_record_component_store_chunk_${dim}$d_${type_enum}$
+      #:endfor
+   #:endfor
 
 ! **************************************************************************************************
 !> \brief ...

@@ -168,6 +168,21 @@ namespace
         }
         static constexpr char const *errorMsg = "RecordComponent_makeConstant";
     };
+
+    struct RecordComponent_storeChunk
+    {
+        template <typename Type>
+        static int call(
+            openPMD::RecordComponent &rc,
+            openPMD::Offset const &o,
+            openPMD::Extent const &&e,
+            void *data)
+        {
+            rc.storeChunkRaw<Type>(static_cast<Type *>(data), o, e);
+            return 0;
+        }
+        static constexpr char const *errorMsg = "RecordComponent_storeChunk";
+    };
 } // namespace
 } // namespace implementation
 
@@ -228,7 +243,7 @@ extern "C"
         return 0;
     }
 
-    int openPMD_Series_upcast_to_attributable(
+    int openPMD_Series_upcast_to_Attributable(
         // in
         openPMD_Series series,
         // out
@@ -275,7 +290,14 @@ extern "C"
         return 0;
     }
 
-    int openPMD_Iteration_upcast_to_attributable(
+    int openPMD_Attributable_series_flush(openPMD_Attributable attr)
+    {
+        auto attributable = reinterpret_cast<openPMD::Attributable *>(attr);
+        attributable->seriesFlush();
+        return 0;
+    }
+
+    int openPMD_Iteration_upcast_to_Attributable(
         // in
         openPMD_Iteration iteration,
         // out
@@ -324,6 +346,17 @@ extern "C"
             do_upcast<openPMD::Mesh, openPMD::RecordComponent>(mesh_param, rc);
     }
 
+    int openPMD_RecordComponent_upcast_to_Attributable(
+        // in
+        openPMD_RecordComponent rc,
+        // out
+        openPMD_Attributable *attr)
+    {
+        return implementation::
+            do_upcast<openPMD::RecordComponent, openPMD::Attributable>(
+                rc, attr);
+    }
+
     int openPMD_RecordComponent_resetDataset(
         // in
         openPMD_RecordComponent rc_param,
@@ -370,6 +403,25 @@ extern "C"
         return 0;
     }
 
+    int openPMD_RecordComponent_storeChunk(
+        // in
+        openPMD_RecordComponent rc_param,
+        openPMD_Datatype dt,
+        int dimensions,
+        int const *offset,
+        int const *extent,
+        void *data)
+    {
+        auto rc = reinterpret_cast<openPMD::RecordComponent *>(rc_param);
+        openPMD::switchDatasetType<implementation::RecordComponent_storeChunk>(
+            implementation::datatype_c_to_cxx(dt),
+            *rc,
+            openPMD::Offset(offset, offset + dimensions),
+            openPMD::Extent(extent, extent + dimensions),
+            data);
+        return 0;
+    }
+
     int openPMD_ParticleSpecies_get_Record(
         // in
         openPMD_ParticleSpecies ps_param,
@@ -395,7 +447,8 @@ extern "C"
 
     int openPMD_Record_get_Component(
         // in
-        openPMD_Record record_param, char const *name,
+        openPMD_Record record_param,
+        char const *name,
         // out
         openPMD_RecordComponent *rc)
     {
