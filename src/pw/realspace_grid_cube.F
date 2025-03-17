@@ -21,7 +21,13 @@ MODULE realspace_grid_cube
         mp_file_type_free, mp_file_type_hindexed_make_chv, mp_file_type_set_view_chv, &
         mpi_character_size
    USE openpmd_api,                     ONLY: openpmd_iteration_get_particle_species,&
-                                              openpmd_particle_species_type
+                                              openpmd_particle_species_get_record,&
+                                              openpmd_particle_species_type,&
+                                              openpmd_record_component_make_constant_zero,&
+                                              openpmd_record_component_type,&
+                                              openpmd_record_get_component,&
+                                              openpmd_record_type,&
+                                              openpmd_type_int
    USE pw_grid_types,                   ONLY: PW_MODE_LOCAL
    USE pw_types,                        ONLY: pw_r3d_rs_type
 #include "../base/base_uses.f90"
@@ -94,12 +100,21 @@ CONTAINS
 
       CHARACTER(len=3)                                   :: atom_type_as_string
       CHARACTER(len=default_string_length)               :: species_name
+      INTEGER, DIMENSION(1)                              :: extent
       TYPE(openpmd_particle_species_type)                :: species
+      TYPE(openpmd_record_component_type)                :: position_offset_x
+      TYPE(openpmd_record_type)                          :: position_offset
+
+      extent(1) = atom_count
 
       WRITE (atom_type_as_string, '(I3)') atom_type
       species_name = TRIM(openpmd_data%name_prefix)//"-"//ADJUSTL(atom_type_as_string)
 
       species = openpmd_iteration_get_particle_species(openpmd_data%iteration, TRIM(species_name))
+
+      position_offset = openpmd_particle_species_get_record(species, "positionOffset")
+      position_offset_x = openpmd_record_get_component(position_offset, "x")
+      CALL openpmd_record_component_make_constant_zero(position_offset_x, openpmd_type_int, extent)
 
    END SUBROUTINE pw_write_particle_species
 

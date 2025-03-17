@@ -58,9 +58,9 @@ MODULE cp_output_handling
       openpmd_get_default_extension, openpmd_iteration_get_mesh, &
       openpmd_iteration_get_particle_species, openpmd_iteration_type, openpmd_mesh_type, &
       openpmd_particle_species_get_record, openpmd_particle_species_type, &
-      openpmd_record_component_make_empty_int, openpmd_record_type, openpmd_series_close, &
+      openpmd_record_component_make_empty, openpmd_record_type, openpmd_series_close, &
       openpmd_series_create, openpmd_series_present, openpmd_series_type, &
-      openpmd_series_write_iteration
+      openpmd_series_write_iteration, openpmd_type_int
    USE string_utilities, ONLY: compress, &
                                s2a
 #include "../base/base_uses.f90"
@@ -1129,7 +1129,7 @@ CONTAINS
                       ${opmd}$%output_series, ${opmd}$%iteration_counter%flat_iteration)
 
       res%mesh = openpmd_iteration_get_mesh(res%iteration, middle_name)
-      CALL openpmd_record_component_make_empty_int(res%mesh%openpmd_mesh_as_record_component(), 3)
+      CALL openpmd_record_component_make_empty(res%mesh%openpmd_mesh_as_record_component(), openpmd_type_int, 3)
       ! res%particle_species = openpmd_iteration_get_particle_species(res%iteration, middle_name)
       ! position = openpmd_particle_species_get_record(res%particle_species, "position")
       ! CALL openpmd_record_component_make_empty_int(position%openpmd_record_as_record_component(), 3)

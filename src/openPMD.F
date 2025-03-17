@@ -19,6 +19,10 @@ MODULE openPMD_api
       ENUMERATOR :: openpmd_access_create, openpmd_access_read_only
    END ENUM
 
+   ENUM, BIND(C)
+      ENUMERATOR :: openpmd_type_char, openpmd_type_uchar, openpmd_type_schar, openpmd_type_short, openpmd_type_int, openpmd_type_long, openpmd_type_longlong, openpmd_type_ushort, openpmd_type_uint, openpmd_type_ulong, openpmd_type_ulonglong, openpmd_type_float, openpmd_type_double, openpmd_type_long_double, openpmd_type_cfloat, openpmd_type_cdouble, openpmd_type_clong_double, openpmd_type_string, openpmd_type_vec_char, openpmd_type_vec_short, openpmd_type_vec_int, openpmd_type_vec_long, openpmd_type_vec_longlong, openpmd_type_vec_uchar, openpmd_type_vec_ushort, openpmd_type_vec_uint, openpmd_type_vec_ulong, openpmd_type_vec_ulonglong, openpmd_type_vec_float, openpmd_type_vec_double, openpmd_type_vec_long_double, openpmd_type_vec_cfloat, openpmd_type_vec_cdouble, openpmd_type_vec_clong_double, openpmd_type_vec_schar, openpmd_type_vec_string, openpmd_type_arr_dbl_7, openpmd_type_bool
+   END ENUM
+
    TYPE openpmd_attributable_type
       PRIVATE
       TYPE(C_PTR) :: c_ptr = C_NULL_PTR
@@ -70,10 +74,11 @@ MODULE openPMD_api
    PUBLIC :: openpmd_series_present
    PUBLIC :: openpmd_series_write_iteration
    PUBLIC :: openpmd_access_create, openpmd_access_read_only
+   PUBLIC :: openpmd_type_char, openpmd_type_uchar, openpmd_type_schar, openpmd_type_short, openpmd_type_int, openpmd_type_long, openpmd_type_longlong, openpmd_type_ushort, openpmd_type_uint, openpmd_type_ulong, openpmd_type_ulonglong, openpmd_type_float, openpmd_type_double, openpmd_type_long_double, openpmd_type_cfloat, openpmd_type_cdouble, openpmd_type_clong_double, openpmd_type_string, openpmd_type_vec_char, openpmd_type_vec_short, openpmd_type_vec_int, openpmd_type_vec_long, openpmd_type_vec_longlong, openpmd_type_vec_uchar, openpmd_type_vec_ushort, openpmd_type_vec_uint, openpmd_type_vec_ulong, openpmd_type_vec_ulonglong, openpmd_type_vec_float, openpmd_type_vec_double, openpmd_type_vec_long_double, openpmd_type_vec_cfloat, openpmd_type_vec_cdouble, openpmd_type_vec_clong_double, openpmd_type_vec_schar, openpmd_type_vec_string, openpmd_type_arr_dbl_7, openpmd_type_bool
    PUBLIC :: openpmd_get_default_extension
    PUBLIC :: openpmd_attributable_set_attribute_vec_int
    PUBLIC :: openpmd_iteration_get_mesh, openpmd_iteration_get_particle_species
-   PUBLIC :: openpmd_record_component_make_empty_int
+   PUBLIC :: openpmd_record_component_make_empty, openpmd_record_component_make_constant_zero, openpmd_record_get_component
    PUBLIC :: openpmd_particle_species_get_record
    PUBLIC :: cp2k_log
 
@@ -457,24 +462,54 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param record_component ...
+!> \param dtype ...
 !> \param dimensionality ...
 ! **************************************************************************************************
-   SUBROUTINE openpmd_record_component_make_empty_int(record_component, dimensionality)
+   SUBROUTINE openpmd_record_component_make_empty(record_component, dtype, dimensionality)
       TYPE(openpmd_record_component_type)                :: record_component
+      INTEGER(kind=C_INT)                                :: dtype
       INTEGER                                            :: dimensionality
 
       INTEGER(kind=C_INT)                                :: status
       INTERFACE
-         FUNCTION openpmd_c_record_component_make_empty_int(record_component, dimensionality) RESULT(status) BIND(C, name="openPMD_RecordComponent_makeEmpty_int")
+         FUNCTION openpmd_c_record_component_make_empty(record_component, dtype, dimensionality) RESULT(status) BIND(C, name="openPMD_RecordComponent_makeEmpty")
             IMPORT :: C_PTR, C_INT64_T, C_INT, C_SIZE_T, C_CHAR
             TYPE(C_PTR), VALUE :: record_component
+            INTEGER(KIND=C_INT), VALUE :: dtype
             INTEGER(KIND=C_INT), VALUE :: dimensionality
             INTEGER(KIND=C_INT) :: status
-         END FUNCTION openpmd_c_record_component_make_empty_int
+         END FUNCTION openpmd_c_record_component_make_empty
       END INTERFACE
 
-      status = openpmd_c_record_component_make_empty_int(record_component%c_ptr, dimensionality)
-   END SUBROUTINE openpmd_record_component_make_empty_int
+      status = openpmd_c_record_component_make_empty(record_component%c_ptr, dtype, dimensionality)
+   END SUBROUTINE openpmd_record_component_make_empty
+
+! **************************************************************************************************
+!> \brief ...
+!> \param record_component ...
+!> \param dtype ...
+!> \param extent ...
+! **************************************************************************************************
+   SUBROUTINE openpmd_record_component_make_constant_zero(record_component, dtype, extent)
+      TYPE(openpmd_record_component_type)                :: record_component
+      INTEGER(kind=C_INT)                                :: dtype
+      INTEGER, DIMENSION(:), TARGET                      :: extent
+
+      INTEGER(kind=C_INT)                                :: status
+      INTERFACE
+         FUNCTION openpmd_c_record_component_make_constant(record_component, dtype, dimensions, extent, value) RESULT(status) BIND(C, name="openPMD_RecordComponent_makeConstant")
+            IMPORT :: C_PTR, C_INT64_T, C_INT, C_SIZE_T, C_CHAR
+            TYPE(C_PTR), VALUE :: record_component
+            INTEGER(KIND=C_INT), VALUE :: dtype
+            INTEGER(KIND=C_INT), VALUE :: dimensions
+            TYPE(C_PTR), VALUE :: extent
+            TYPE(C_PTR), VALUE :: value
+            INTEGER(KIND=C_INT) :: status
+         END FUNCTION openpmd_c_record_component_make_constant
+      END INTERFACE
+
+      status = openpmd_c_record_component_make_constant(record_component%c_ptr, dtype, SIZE(extent), C_LOC(extent(1)), C_NULL_PTR)
+   END SUBROUTINE openpmd_record_component_make_constant_zero
 
 ! **************************************************************************************************
 !> \brief ...
@@ -502,5 +537,32 @@ CONTAINS
       status = openpmd_c_particle_species_get_record(particle_species%c_ptr, name//C_NULL_CHAR, record%c_ptr)
       CPASSERT(C_ASSOCIATED(record%c_ptr))
    END FUNCTION openpmd_particle_species_get_record
+
+! **************************************************************************************************
+!> \brief ...
+!> \param record ...
+!> \param name ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION openpmd_record_get_component(record, name) RESULT(record_component)
+      TYPE(openpmd_record_type)                          :: record
+      CHARACTER(len=*), INTENT(IN)                       :: name
+      TYPE(openpmd_record_component_type)                :: record_component
+
+      INTEGER(kind=C_INT)                                :: status
+      INTERFACE
+ FUNCTION openpmd_c_record_get_component(record, name, record_component) RESULT(status) BIND(C, name="openPMD_Record_get_Component")
+            IMPORT :: C_PTR, C_INT64_T, C_INT, C_SIZE_T, C_CHAR
+            TYPE(C_PTR), VALUE :: record
+            CHARACTER(kind=C_CHAR), DIMENSION(*) :: name
+            TYPE(C_PTR) :: record_component
+            INTEGER(KIND=C_INT) :: status
+         END FUNCTION openpmd_c_record_get_component
+      END INTERFACE
+
+      CPASSERT(.NOT. C_ASSOCIATED(record_component%c_ptr))
+      status = openpmd_c_record_get_component(record%c_ptr, name//C_NULL_CHAR, record_component%c_ptr)
+      CPASSERT(C_ASSOCIATED(record_component%c_ptr))
+   END FUNCTION openpmd_record_get_component
 
 END MODULE openPMD_api

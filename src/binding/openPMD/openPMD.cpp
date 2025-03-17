@@ -1,11 +1,97 @@
 #include "openPMD.h"
 
+#include <openPMD/Datatype.hpp>
+#include <openPMD/RecordComponent.hpp>
 #include <openPMD/openPMD.hpp>
 
 namespace implementation
 {
 namespace
 {
+    auto datatype_c_to_cxx(openPMD_Datatype dt) -> openPMD::Datatype
+    {
+        switch (dt)
+        {
+        case openPMD_Type_CHAR:
+            return openPMD::Datatype::CHAR;
+        case openPMD_Type_UCHAR:
+            return openPMD::Datatype::UCHAR;
+        case openPMD_Type_SCHAR:
+            return openPMD::Datatype::SCHAR;
+        case openPMD_Type_SHORT:
+            return openPMD::Datatype::SHORT;
+        case openPMD_Type_INT:
+            return openPMD::Datatype::INT;
+        case openPMD_Type_LONG:
+            return openPMD::Datatype::LONG;
+        case openPMD_Type_LONGLONG:
+            return openPMD::Datatype::LONGLONG;
+        case openPMD_Type_USHORT:
+            return openPMD::Datatype::USHORT;
+        case openPMD_Type_UINT:
+            return openPMD::Datatype::UINT;
+        case openPMD_Type_ULONG:
+            return openPMD::Datatype::ULONG;
+        case openPMD_Type_ULONGLONG:
+            return openPMD::Datatype::ULONGLONG;
+        case openPMD_Type_FLOAT:
+            return openPMD::Datatype::FLOAT;
+        case openPMD_Type_DOUBLE:
+            return openPMD::Datatype::DOUBLE;
+        case openPMD_Type_LONG_DOUBLE:
+            return openPMD::Datatype::LONG_DOUBLE;
+        case openPMD_Type_CFLOAT:
+            return openPMD::Datatype::CFLOAT;
+        case openPMD_Type_CDOUBLE:
+            return openPMD::Datatype::CDOUBLE;
+        case openPMD_Type_CLONG_DOUBLE:
+            return openPMD::Datatype::CLONG_DOUBLE;
+        case openPMD_Type_STRING:
+            return openPMD::Datatype::STRING;
+        case openPMD_Type_VEC_CHAR:
+            return openPMD::Datatype::VEC_CHAR;
+        case openPMD_Type_VEC_SHORT:
+            return openPMD::Datatype::VEC_SHORT;
+        case openPMD_Type_VEC_INT:
+            return openPMD::Datatype::VEC_INT;
+        case openPMD_Type_VEC_LONG:
+            return openPMD::Datatype::VEC_LONG;
+        case openPMD_Type_VEC_LONGLONG:
+            return openPMD::Datatype::VEC_LONGLONG;
+        case openPMD_Type_VEC_UCHAR:
+            return openPMD::Datatype::VEC_UCHAR;
+        case openPMD_Type_VEC_USHORT:
+            return openPMD::Datatype::VEC_USHORT;
+        case openPMD_Type_VEC_UINT:
+            return openPMD::Datatype::VEC_UINT;
+        case openPMD_Type_VEC_ULONG:
+            return openPMD::Datatype::VEC_ULONG;
+        case openPMD_Type_VEC_ULONGLONG:
+            return openPMD::Datatype::VEC_ULONGLONG;
+        case openPMD_Type_VEC_FLOAT:
+            return openPMD::Datatype::VEC_FLOAT;
+        case openPMD_Type_VEC_DOUBLE:
+            return openPMD::Datatype::VEC_DOUBLE;
+        case openPMD_Type_VEC_LONG_DOUBLE:
+            return openPMD::Datatype::VEC_LONG_DOUBLE;
+        case openPMD_Type_VEC_CFLOAT:
+            return openPMD::Datatype::VEC_CFLOAT;
+        case openPMD_Type_VEC_CDOUBLE:
+            return openPMD::Datatype::VEC_CDOUBLE;
+        case openPMD_Type_VEC_CLONG_DOUBLE:
+            return openPMD::Datatype::VEC_CLONG_DOUBLE;
+        case openPMD_Type_VEC_SCHAR:
+            return openPMD::Datatype::VEC_SCHAR;
+        case openPMD_Type_VEC_STRING:
+            return openPMD::Datatype::VEC_STRING;
+        case openPMD_Type_ARR_DBL_7:
+            return openPMD::Datatype::ARR_DBL_7;
+        case openPMD_Type_BOOL:
+            return openPMD::Datatype::BOOL;
+        }
+        return openPMD::Datatype::UNDEFINED;
+    }
+
     auto access_c_to_cxx(openPMD_Access access) -> openPMD::Access
     {
         switch (access)
@@ -63,6 +149,25 @@ namespace
         *to = from_upcasted;
         return 0;
     }
+
+    struct RecordComponent_makeConstant
+    {
+        template <typename Type>
+        static int call(openPMD::RecordComponent &rc, void const *value_in)
+        {
+            if (value_in)
+            {
+                auto value = static_cast<Type const *>(value_in);
+                rc.makeConstant(*value);
+            }
+            else
+            {
+                rc.makeConstant<Type>(Type{});
+            }
+            return 0;
+        }
+        static constexpr char const *errorMsg = "RecordComponent_makeConstant";
+    };
 } // namespace
 } // namespace implementation
 
@@ -219,13 +324,49 @@ extern "C"
             do_upcast<openPMD::Mesh, openPMD::RecordComponent>(mesh_param, rc);
     }
 
-    int openPMD_RecordComponent_makeEmpty_int(
+    int openPMD_RecordComponent_resetDataset(
         // in
         openPMD_RecordComponent rc_param,
+        openPMD_Datatype dtype,
+        int dimensions,
+        int const *extent,
+        char const *cfg)
+    {
+        auto rc = reinterpret_cast<openPMD::RecordComponent *>(rc_param);
+        openPMD::Dataset ds(
+            implementation::datatype_c_to_cxx(dtype),
+            openPMD::Extent(extent, extent + dimensions),
+            cfg ? cfg : "{}");
+        rc->resetDataset(std::move(ds));
+        return 0;
+    }
+
+    int openPMD_RecordComponent_makeEmpty(
+        // in
+        openPMD_RecordComponent rc_param,
+        openPMD_Datatype dtype,
         int dimensions)
     {
         auto rc = reinterpret_cast<openPMD::RecordComponent *>(rc_param);
-        rc->makeEmpty<int>(dimensions);
+        rc->makeEmpty(implementation::datatype_c_to_cxx(dtype), dimensions);
+        return 0;
+    }
+
+    int openPMD_RecordComponent_makeConstant(
+        // in
+        openPMD_RecordComponent rc_param,
+        openPMD_Datatype dt,
+        int dimensions,
+        int const *extent,
+        void const *value)
+    {
+        openPMD_RecordComponent_resetDataset(
+            rc_param, dt, dimensions, extent, NULL);
+        auto rc = reinterpret_cast<openPMD::RecordComponent *>(rc_param);
+
+        openPMD::switchType<implementation::RecordComponent_makeConstant>(
+            implementation::datatype_c_to_cxx(dt), *rc, value);
+
         return 0;
     }
 
@@ -250,5 +391,17 @@ extern "C"
     {
         return implementation::
             do_upcast<openPMD::Record, openPMD::RecordComponent>(record, rc);
+    }
+
+    int openPMD_Record_get_Component(
+        // in
+        openPMD_Record record_param, char const *name,
+        // out
+        openPMD_RecordComponent *rc)
+    {
+        auto record = reinterpret_cast<openPMD::Record *>(record_param);
+        auto &res = record->operator[](name);
+        *reinterpret_cast<openPMD::RecordComponent **>(rc) = &res;
+        return 0;
     }
 }

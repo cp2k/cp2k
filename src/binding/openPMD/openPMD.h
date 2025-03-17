@@ -11,6 +11,47 @@ extern "C" {
 
 typedef enum { openPMD_Access_create, openPMD_Access_read_only } openPMD_Access;
 
+typedef enum {
+  openPMD_Type_CHAR,
+  openPMD_Type_UCHAR,
+  openPMD_Type_SCHAR,
+  openPMD_Type_SHORT,
+  openPMD_Type_INT,
+  openPMD_Type_LONG,
+  openPMD_Type_LONGLONG,
+  openPMD_Type_USHORT,
+  openPMD_Type_UINT,
+  openPMD_Type_ULONG,
+  openPMD_Type_ULONGLONG,
+  openPMD_Type_FLOAT,
+  openPMD_Type_DOUBLE,
+  openPMD_Type_LONG_DOUBLE,
+  openPMD_Type_CFLOAT,
+  openPMD_Type_CDOUBLE,
+  openPMD_Type_CLONG_DOUBLE,
+  openPMD_Type_STRING,
+  openPMD_Type_VEC_CHAR,
+  openPMD_Type_VEC_SHORT,
+  openPMD_Type_VEC_INT,
+  openPMD_Type_VEC_LONG,
+  openPMD_Type_VEC_LONGLONG,
+  openPMD_Type_VEC_UCHAR,
+  openPMD_Type_VEC_USHORT,
+  openPMD_Type_VEC_UINT,
+  openPMD_Type_VEC_ULONG,
+  openPMD_Type_VEC_ULONGLONG,
+  openPMD_Type_VEC_FLOAT,
+  openPMD_Type_VEC_DOUBLE,
+  openPMD_Type_VEC_LONG_DOUBLE,
+  openPMD_Type_VEC_CFLOAT,
+  openPMD_Type_VEC_CDOUBLE,
+  openPMD_Type_VEC_CLONG_DOUBLE,
+  openPMD_Type_VEC_SCHAR,
+  openPMD_Type_VEC_STRING,
+  openPMD_Type_ARR_DBL_7,
+  openPMD_Type_BOOL
+} openPMD_Datatype;
+
 typedef struct openPMD_Attributable_opaque *openPMD_Attributable;
 
 typedef struct openPMD_Series_opaque *openPMD_Series;
@@ -110,9 +151,19 @@ int openPMD_Mesh_upcast_to_RecordComponent(
  * RecordComponent members *
  ***************************/
 
-int openPMD_RecordComponent_makeEmpty_int(
+int openPMD_RecordComponent_resetDataset(
     // in
-    openPMD_RecordComponent rc, int dimensions);
+    openPMD_RecordComponent rc, openPMD_Datatype, int dimensions,
+    int const *extent, char const *cfg);
+
+int openPMD_RecordComponent_makeEmpty(
+    // in
+    openPMD_RecordComponent rc, openPMD_Datatype, int dimensions);
+
+int openPMD_RecordComponent_makeConstant(
+    // in
+    openPMD_RecordComponent rc, openPMD_Datatype, int dimensions,
+    int const *extent, void const *value);
 
 /***************************
  * ParticleSpecies members *
@@ -133,6 +184,12 @@ int openPMD_Record_upcast_to_RecordComponent(
     openPMD_Record record,
     // out
     openPMD_RecordComponent rc);
+
+int openPMD_Record_get_Component(
+    // in
+    openPMD_Record record, char const *name,
+    // out
+    openPMD_RecordComponent *rc);
 
 #ifdef __cplusplus
 } // extern "C"
