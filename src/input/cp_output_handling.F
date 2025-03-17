@@ -161,7 +161,8 @@ MODULE cp_output_handling
       TYPE(openpmd_series_type) :: series
       TYPE(openpmd_iteration_type) :: iteration
       TYPE(openpmd_mesh_type) :: mesh
-      TYPE(openpmd_particle_species_type) :: particle_species
+      ! TYPE(openpmd_particle_species_type) :: particle_species
+      CHARACTER(len=default_string_length) :: name_prefix ! e.g. 'WFN_00008_1'
    END TYPE
 
    TYPE :: cp_openpmd_per_call_type
@@ -209,7 +210,7 @@ MODULE cp_output_handling
    INTEGER :: cp_num_openpmd_per_callsite = 0
    INTEGER :: cp_capacity_openpmd_per_callsite = 0
 
-   INTEGER, PARAMETER :: cp_allocation_size = 10
+   INTEGER, PARAMETER :: cp_allocation_size = 100
 
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    ! End data members for openPMD output. !
@@ -291,10 +292,10 @@ CONTAINS
 
          INTEGER                                            :: i
 
-         i = cp_openpmd_get_index_${name_suffix}$(key)
+         i = cp_openpmd_get_index_${name_suffix}$ (key)
          IF (i == -1) RETURN
 
-         value = ${map_storage}$(i)%value
+         value = ${map_storage}$ (i)%value
       END FUNCTION cp_openpmd_get_value_${name_suffix}$
 
       ! **************************************************************************************************
@@ -1117,7 +1118,6 @@ CONTAINS
       TYPE(cp_openpmd_per_call_value_type)               :: res
 
       LOGICAL                                            :: opened_new_iteration = .FALSE.
-      TYPE(openpmd_record_type)                          :: position, positionOffset
 
       #:set opmd = 'cp_openpmd_per_callsite(openpmd_file_index)%value'
 
@@ -1130,11 +1130,12 @@ CONTAINS
 
       res%mesh = openpmd_iteration_get_mesh(res%iteration, middle_name)
       CALL openpmd_record_component_make_empty_int(res%mesh%openpmd_mesh_as_record_component(), 3)
-      res%particle_species = openpmd_iteration_get_particle_species(res%iteration, middle_name)
-      position = openpmd_particle_species_get_record(res%particle_species, "position")
-      CALL openpmd_record_component_make_empty_int(position%openpmd_record_as_record_component(), 3)
-      positionOffset = openpmd_particle_species_get_record(res%particle_species, "positionOffset")
-      CALL openpmd_record_component_make_empty_int(positionOffset%openpmd_record_as_record_component(), 3)
+      ! res%particle_species = openpmd_iteration_get_particle_species(res%iteration, middle_name)
+      ! position = openpmd_particle_species_get_record(res%particle_species, "position")
+      ! CALL openpmd_record_component_make_empty_int(position%openpmd_record_as_record_component(), 3)
+      ! positionOffset = openpmd_particle_species_get_record(res%particle_species, "positionOffset")
+      ! CALL openpmd_record_component_make_empty_int(positionOffset%openpmd_record_as_record_component(), 3)
+      res%name_prefix = TRIM(middle_name)
 
       IF (opened_new_iteration) THEN
          CALL openpmd_attributable_set_attribute_vec_int( &

@@ -12,12 +12,16 @@ MODULE realspace_grid_cube
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
-   USE cp_output_handling,              ONLY: cp_openpmd_get_value_unit_nr, cp_openpmd_per_call_value_type
-   USE kinds,                           ONLY: dp
+   USE cp_output_handling,              ONLY: cp_openpmd_get_value_unit_nr,&
+                                              cp_openpmd_per_call_value_type
+   USE kinds,                           ONLY: default_string_length,&
+                                              dp
    USE message_passing,                 ONLY: &
         file_amode_rdonly, file_offset, mp_comm_type, mp_file_descriptor_type, mp_file_type, &
         mp_file_type_free, mp_file_type_hindexed_make_chv, mp_file_type_set_view_chv, &
         mpi_character_size
+   USE openpmd_api,                     ONLY: openpmd_iteration_get_particle_species,&
+                                              openpmd_particle_species_type
    USE pw_grid_types,                   ONLY: PW_MODE_LOCAL
    USE pw_types,                        ONLY: pw_r3d_rs_type
 #include "../base/base_uses.f90"
@@ -35,11 +39,110 @@ MODULE realspace_grid_cube
 
 CONTAINS
 
+! **************************************************************************************************
+!> \brief ...
+!> \param particles_z ...
+!> \param res_atom_types ...
+!> \param res_atom_counts ...
+!> \param res_len ...
+! **************************************************************************************************
+   SUBROUTINE pw_get_atom_types(particles_z, res_atom_types, res_atom_counts, res_len)
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: particles_z
+      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: res_atom_types, res_atom_counts
+      INTEGER, INTENT(OUT)                               :: res_len
+
+      INTEGER                                            :: current_atom_number, i, j
+      LOGICAL                                            :: already_present
+
+      res_len = 0
+
+      ALLOCATE (res_atom_types(MIN(118, SIZE(particles_z))))
+      ALLOCATE (res_atom_counts(MIN(118, SIZE(particles_z))))
+
+      DO i = 1, SIZE(particles_z)
+         current_atom_number = particles_z(i)
+         already_present = .FALSE.
+         DO j = 1, res_len
+            IF (res_atom_types(j) == current_atom_number) THEN
+               already_present = .TRUE.
+               res_atom_counts(j) = res_atom_counts(j) + 1
+               EXIT
+            END IF
+         END DO
+         IF (.NOT. already_present) THEN
+            res_len = res_len + 1
+            res_atom_types(res_len) = current_atom_number
+            res_atom_counts(res_len) = 1
+         END IF
+      END DO
+
+   END SUBROUTINE pw_get_atom_types
+
+! **************************************************************************************************
+!> \brief ...
+!> \param particles_z ...
+!> \param particles_r ...
+!> \param atom_type ...
+!> \param atom_count ...
+!> \param openpmd_data ...
+! **************************************************************************************************
+   SUBROUTINE pw_write_particle_species(particles_z, particles_r, atom_type, atom_count, openpmd_data)
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: particles_z
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: particles_r
+      INTEGER, INTENT(IN)                                :: atom_type, atom_count
+      TYPE(cp_openpmd_per_call_value_type)               :: openpmd_data
+
+      CHARACTER(len=3)                                   :: atom_type_as_string
+      CHARACTER(len=default_string_length)               :: species_name
+      TYPE(openpmd_particle_species_type)                :: species
+
+      WRITE (atom_type_as_string, '(I3)') atom_type
+      species_name = TRIM(openpmd_data%name_prefix)//"-"//ADJUSTL(atom_type_as_string)
+
+      species = openpmd_iteration_get_particle_species(openpmd_data%iteration, TRIM(species_name))
+
+   END SUBROUTINE pw_write_particle_species
+
+! **************************************************************************************************
+!> \brief ...
+!> \param particles_z ...
+!> \param particles_r ...
+!> \param atom_types ...
+!> \param atom_counts ...
+!> \param num_atom_types ...
+!> \param openpmd_data ...
+! **************************************************************************************************
+   SUBROUTINE pw_write_particles(particles_z, particles_r, atom_types, atom_counts, num_atom_types, openpmd_data)
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: particles_z
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: particles_r
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: atom_types, atom_counts
+      INTEGER, INTENT(IN)                                :: num_atom_types
+      TYPE(cp_openpmd_per_call_value_type)               :: openpmd_data
+
+      INTEGER                                            :: i
+
+      DO i = 1, num_atom_types
+         CALL pw_write_particle_species(particles_z, particles_r, atom_types(i), atom_counts(i), openpmd_data)
+      END DO
+   END SUBROUTINE pw_write_particles
+
 ! TODO move this to own module
-SUBROUTINE pw_to_openpmd(pw, unit_nr, title, particles_r, particles_z, stride, zero_tails, &
-                         silent, mpi_io)
+! **************************************************************************************************
+!> \brief ...
+!> \param pw ...
+!> \param unit_nr ...
+!> \param title ...
+!> \param particles_r ...
+!> \param particles_z ...
+!> \param stride ...
+!> \param zero_tails ...
+!> \param silent ...
+!> \param mpi_io ...
+! **************************************************************************************************
+   SUBROUTINE pw_to_openpmd(pw, unit_nr, title, particles_r, particles_z, stride, zero_tails, &
+                            silent, mpi_io)
       TYPE(pw_r3d_rs_type), INTENT(IN)                   :: pw
-      INTEGER, INTENT(IN)                                :: unit_nr
+      INTEGER                                            :: unit_nr
       CHARACTER(*), INTENT(IN), OPTIONAL                 :: title
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
          OPTIONAL                                        :: particles_r
@@ -51,11 +154,12 @@ SUBROUTINE pw_to_openpmd(pw, unit_nr, title, particles_r, particles_z, stride, z
       INTEGER, PARAMETER                                 :: entry_len = 13, num_entries_line = 6
 
       INTEGER :: checksum, dest, handle, i, I1, I2, I3, iat, ip, L1, L2, L3, msglen, my_rank, &
-         my_stride(3), np, num_linebreak, num_pe, rank(2), size_of_z, source, &
-         tag, U1, U2, U3
-      TYPE(cp_openpmd_per_call_value_type)               :: openpmd_data
+         my_stride(3), np, num_atom_types, num_linebreak, num_pe, rank(2), size_of_z, source, tag, &
+         U1, U2, U3
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_counts, atom_types
       LOGICAL                                            :: be_silent, my_zero_tails, parallel_write
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: buf
+      TYPE(cp_openpmd_per_call_value_type)               :: openpmd_data
       TYPE(mp_comm_type)                                 :: gid
       TYPE(mp_file_type)                                 :: mp_unit
 
@@ -87,45 +191,42 @@ SUBROUTINE pw_to_openpmd(pw, unit_nr, title, particles_r, particles_z, stride, z
       ! TODO implement
       IF (.TRUE.) THEN
          openpmd_data = cp_openpmd_get_value_unit_nr(unit_nr)
-         CALL timestop(handle)
-         RETURN
+         unit_nr = 6 ! stdout
+         ! CALL timestop(handle)
+         ! RETURN
       END IF
 
       IF (.NOT. parallel_write) THEN
          IF (unit_nr > 0) THEN
             ! this format seems to work for e.g. molekel and gOpenmol
             ! latest version of VMD can read non orthorhombic cells
-            WRITE (unit_nr, '(a11)') "-Quickstep-"
+            WRITE (*, '(a11)') "-Quickstep-"
             IF (PRESENT(title)) THEN
-               WRITE (unit_nr, *) TRIM(title)
+               WRITE (*, *) TRIM(title)
             ELSE
-               WRITE (unit_nr, *) "No Title"
+               WRITE (*, *) "No Title"
             END IF
 
             CPASSERT(PRESENT(particles_z) .EQV. PRESENT(particles_r))
             np = 0
             IF (PRESENT(particles_z)) THEN
+               CALL pw_get_atom_types(particles_z, atom_types, atom_counts, num_atom_types)
                CPASSERT(SIZE(particles_z) == SIZE(particles_r, dim=2))
-               ! cube files can only be written for 99999 particles due to a format limitation (I5)
-               ! so we limit the number of particles written.
-               np = MIN(99999, SIZE(particles_z))
+               np = SIZE(particles_z)
             END IF
 
-            WRITE (unit_nr, '(I5,3f12.6)') np, 0.0_dp, 0._dp, 0._dp !start of cube
+            WRITE (*, '(I5,3f12.6)') np, 0.0_dp, 0._dp, 0._dp !start of cube
 
-            WRITE (unit_nr, '(I5,3f12.6)') (pw%pw_grid%npts(1) + my_stride(1) - 1)/my_stride(1), &
-               pw%pw_grid%dh(1, 1)*REAL(my_stride(1), dp), pw%pw_grid%dh(2, 1)*REAL(my_stride(1), dp), &
-               pw%pw_grid%dh(3, 1)*REAL(my_stride(1), dp)
-            WRITE (unit_nr, '(I5,3f12.6)') (pw%pw_grid%npts(2) + my_stride(2) - 1)/my_stride(2), &
-               pw%pw_grid%dh(1, 2)*REAL(my_stride(2), dp), pw%pw_grid%dh(2, 2)*REAL(my_stride(2), dp), &
-               pw%pw_grid%dh(3, 2)*REAL(my_stride(2), dp)
-            WRITE (unit_nr, '(I5,3f12.6)') (pw%pw_grid%npts(3) + my_stride(3) - 1)/my_stride(3), &
-               pw%pw_grid%dh(1, 3)*REAL(my_stride(3), dp), pw%pw_grid%dh(2, 3)*REAL(my_stride(3), dp), &
-               pw%pw_grid%dh(3, 3)*REAL(my_stride(3), dp)
+            DO iat = 1, 3
+               WRITE (*, '(I5,3f12.6)') (pw%pw_grid%npts(iat) + my_stride(iat) - 1)/my_stride(iat), &
+                  pw%pw_grid%dh(1, iat)*REAL(my_stride(iat), dp), pw%pw_grid%dh(2, iat)*REAL(my_stride(iat), dp), &
+                  pw%pw_grid%dh(3, iat)*REAL(my_stride(iat), dp)
+            END DO
 
             IF (PRESENT(particles_z)) THEN
+               CALL pw_write_particles(particles_z, particles_r, atom_types, atom_counts, num_atom_types, openpmd_data)
                DO iat = 1, np
-                  WRITE (unit_nr, '(I5,4f12.6)') particles_z(iat), 0._dp, particles_r(:, iat)
+                  WRITE (*, '(I5,4f12.6)') particles_z(iat), 0._dp, particles_r(:, iat)
                END DO
             END IF
          END IF
@@ -192,7 +293,7 @@ SUBROUTINE pw_to_openpmd(pw, unit_nr, title, particles_r, particles_z, stride, z
                         IF (buf(I3) < 1.E-7_dp) buf(I3) = 0.0_dp
                      END DO
                   END IF
-                  WRITE (unit_nr, '(6E13.5)') (buf(I3), I3=L3, U3, my_stride(3))
+                  WRITE (*, '(6E13.5)') (buf(I3), I3=L3, U3, my_stride(3))
                END IF
 
                ! this double loop generates so many messages that it can overload
@@ -248,8 +349,7 @@ SUBROUTINE pw_to_openpmd(pw, unit_nr, title, particles_r, particles_z, stride, z
       INTEGER, PARAMETER                                 :: entry_len = 13, num_entries_line = 6
 
       INTEGER :: checksum, dest, handle, i, I1, I2, I3, iat, ip, L1, L2, L3, msglen, my_rank, &
-         my_stride(3), np, num_linebreak, num_pe, rank(2), size_of_z, source, &
-         tag, U1, U2, U3
+         my_stride(3), np, num_linebreak, num_pe, rank(2), size_of_z, source, tag, U1, U2, U3
       LOGICAL                                            :: be_silent, my_zero_tails, parallel_write
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: buf
       TYPE(mp_comm_type)                                 :: gid

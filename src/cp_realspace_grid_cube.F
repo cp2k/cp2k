@@ -16,8 +16,8 @@ MODULE cp_realspace_grid_cube
    USE particle_list_types,             ONLY: particle_list_type
    USE pw_types,                        ONLY: pw_r3d_rs_type
    USE realspace_grid_cube,             ONLY: cube_to_pw,&
-                                              pw_to_openpmd,&
                                               pw_to_cube,&
+                                              pw_to_openpmd,&
                                               pw_to_simple_volumetric
 #include "./base/base_uses.f90"
 
@@ -31,6 +31,17 @@ MODULE cp_realspace_grid_cube
 
 CONTAINS
 
+! **************************************************************************************************
+!> \brief ...
+!> \param pw ...
+!> \param unit_nr ...
+!> \param title ...
+!> \param particles ...
+!> \param stride ...
+!> \param zero_tails ...
+!> \param silent ...
+!> \param mpi_io ...
+! **************************************************************************************************
    SUBROUTINE cp_pw_to_openpmd(pw, unit_nr, title, particles, stride, zero_tails, silent, mpi_io)
       TYPE(pw_r3d_rs_type), INTENT(IN)                   :: pw
       INTEGER, INTENT(IN)                                :: unit_nr
@@ -56,13 +67,13 @@ CONTAINS
          END DO
 
          CALL pw_to_openpmd(pw=pw, unit_nr=unit_nr, title=title, &
-                         particles_z=particles_z, particles_r=particles_r, &
-                         stride=stride, zero_tails=zero_tails, &
-                         silent=silent, mpi_io=mpi_io)
+                            particles_z=particles_z, particles_r=particles_r, &
+                            stride=stride, zero_tails=zero_tails, &
+                            silent=silent, mpi_io=mpi_io)
       ELSE
          CALL pw_to_openpmd(pw=pw, unit_nr=unit_nr, title=title, &
-                         stride=stride, zero_tails=zero_tails, &
-                         silent=silent, mpi_io=mpi_io)
+                            stride=stride, zero_tails=zero_tails, &
+                            silent=silent, mpi_io=mpi_io)
       END IF
 
    END SUBROUTINE cp_pw_to_openpmd
