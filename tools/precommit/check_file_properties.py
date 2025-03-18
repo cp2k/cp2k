@@ -30,6 +30,7 @@ FLAG_EXCEPTIONS = (
     r"DBM_MEMPOOL_.+",
     r"OPENMP_TRACE_SYMBOL",
     r"OPENCL_DBM_.+",
+    r"OPEN_MPI",
     r"ACC_OPENCL_.+",
     r"FD_DEBUG",
     r"GRID_DO_COLLOCATE",
