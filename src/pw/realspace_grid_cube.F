@@ -21,11 +21,14 @@ MODULE realspace_grid_cube
         mp_file_type_free, mp_file_type_hindexed_make_chv, mp_file_type_set_view_chv, &
         mpi_character_size
    USE openpmd_api,                     ONLY: &
-        openpmd_dynamic_memory_view_resolve_1d_double, openpmd_dynamic_memory_view_type_1d, &
-        openpmd_iteration_get_particle_species, openpmd_particle_species_get_record, &
-        openpmd_particle_species_type, openpmd_record_component_make_constant_zero, &
-        openpmd_record_component_reset_dataset, &
-        openpmd_record_component_store_chunk_span_1d_double, openpmd_record_component_type, &
+        openpmd_dynamic_memory_view_resolve_1d_double, &
+        openpmd_dynamic_memory_view_resolve_3d_double, openpmd_dynamic_memory_view_type_1d, &
+        openpmd_dynamic_memory_view_type_3d, openpmd_iteration_get_mesh, &
+        openpmd_iteration_get_particle_species, openpmd_mesh_as_record_component, &
+        openpmd_mesh_type, openpmd_particle_species_get_record, openpmd_particle_species_type, &
+        openpmd_record_component_make_constant_zero, openpmd_record_component_reset_dataset, &
+        openpmd_record_component_store_chunk_span_1d_double, &
+        openpmd_record_component_store_chunk_span_3d_double, openpmd_record_component_type, &
         openpmd_record_get_component, openpmd_record_type, openpmd_type_double, openpmd_type_int
    USE pw_grid_types,                   ONLY: PW_MODE_LOCAL
    USE pw_types,                        ONLY: pw_r3d_rs_type
@@ -203,15 +206,20 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_to_openpmd'
       INTEGER, PARAMETER                                 :: entry_len = 13, num_entries_line = 6
 
-      INTEGER :: checksum, dest, handle, i, I1, I2, I3, iat, ip, L1, L2, L3, msglen, my_rank, &
-         my_stride(3), np, num_atom_types, num_linebreak, num_pe, rank(2), size_of_z, source, tag, &
-         U1, U2, U3
+      INTEGER :: checksum, count1, count2, dest, handle, i, I1, I2, I3, iat, ip, L1, L2, L3, &
+         msglen, my_rank, my_stride(3), np, num_atom_types, num_linebreak, num_pe, rank(2), &
+         size_of_z, source, tag, U1, U2, U3
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_counts, atom_types
+      INTEGER, DIMENSION(3)                              :: extent
       LOGICAL                                            :: be_silent, my_zero_tails, parallel_write
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: buf
+      REAL(KIND=dp), POINTER                             :: write_buffer(:, :, :)
       TYPE(cp_openpmd_per_call_value_type)               :: openpmd_data
       TYPE(mp_comm_type)                                 :: gid
       TYPE(mp_file_type)                                 :: mp_unit
+      TYPE(openpmd_dynamic_memory_view_type_3d)          :: unresolved_write_buffer
+      TYPE(openpmd_mesh_type)                            :: mesh
+      TYPE(openpmd_record_component_type)                :: scalar_mesh
 
       CALL timeset(routineN, handle)
 
@@ -281,6 +289,14 @@ CONTAINS
             END IF
          END IF
 
+         DO iat = 1, 3
+            extent(iat) = (pw%pw_grid%npts(iat) + my_stride(iat) - 1)/my_stride(iat)
+         END DO
+
+         mesh = openpmd_iteration_get_mesh(openpmd_data%iteration, TRIM(openpmd_data%name_prefix))
+         scalar_mesh = openpmd_mesh_as_record_component(mesh)
+         CALL openpmd_record_component_reset_dataset(scalar_mesh, openpmd_type_double, extent)
+
          ! shortcut
          L1 = pw%pw_grid%bounds(1, 1)
          L2 = pw%pw_grid%bounds(1, 2)
@@ -308,8 +324,19 @@ CONTAINS
          CPASSERT(rank(1) > 0)
 
          dest = rank(2)
+         count1 = 0
          DO I1 = L1, U1, my_stride(1)
+            count2 = 0
             DO I2 = L2, U2, my_stride(2)
+
+               ! maybe add an overload to provide `buf` here for HDF5, might have better performance
+               ! for intermittent flushing
+               ! or just call the buffer in the outer function if memory is no problem...
+
+               ! why do we do row-major accesses here?
+               unresolved_write_buffer = openpmd_record_component_store_chunk_span_3d_double( &
+                                         scalar_mesh, (/count1, count2, 0/), (/1, 1, extent(3)/))
+               write_buffer => openpmd_dynamic_memory_view_resolve_3d_double(unresolved_write_buffer, DEALLOCATE=.TRUE.)
 
                ! cycling through the CPUs, check if the current ray (I1,I2) is local to that CPU
                IF (pw%pw_grid%para%mode .NE. PW_MODE_LOCAL) THEN
@@ -326,14 +353,17 @@ CONTAINS
                IF (source == dest) THEN
                   IF (my_rank == source) THEN
                      buf(:) = pw%array(I1, I2, :)
+                     write_buffer(1, 1, :) = pw%array(I1, I2, :)
                   END IF
                ELSE
                   IF (my_rank == source) THEN
                      buf(:) = pw%array(I1, I2, :)
+                     write_buffer(1, 1, :) = pw%array(I1, I2, :)
                      CALL gid%send(buf, dest, tag)
+                     CALL gid%send(write_buffer, dest, tag)
                   END IF
                   IF (my_rank == dest) THEN
-                     CALL gid%recv(buf, source, tag)
+                     CALL gid%recv(write_buffer, source, tag)
                   END IF
                END IF
 
@@ -341,6 +371,7 @@ CONTAINS
                   IF (my_zero_tails) THEN
                      DO I3 = L3, U3
                         IF (buf(I3) < 1.E-7_dp) buf(I3) = 0.0_dp
+                        ! IF (write_buffer(1, 1, I3) < 1.E-7_dp) write_buffer(1, 1, I3) = 0.0_dp
                      END DO
                   END IF
                   WRITE (*, '(6E13.5)') (buf(I3), I3=L3, U3, my_stride(3))
@@ -354,7 +385,9 @@ CONTAINS
                ! more complicated rewrite
                CALL gid%sync()
 
+               count2 = count2 + 1
             END DO
+            count1 = count1 + 1
          END DO
 
          DEALLOCATE (buf)

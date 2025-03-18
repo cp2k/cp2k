@@ -2,8 +2,10 @@
 
 #include <any>
 #include <openPMD/Datatype.hpp>
+#include <openPMD/Mesh.hpp>
 #include <openPMD/RecordComponent.hpp>
 #include <openPMD/Span.hpp>
+#include <openPMD/backend/MeshRecordComponent.hpp>
 #include <openPMD/openPMD.hpp>
 
 namespace implementation
@@ -380,10 +382,31 @@ extern "C"
         // in
         openPMD_Mesh mesh_param,
         // out
-        openPMD_RecordComponent rc)
+        openPMD_RecordComponent *rc)
     {
         return implementation::
             do_upcast<openPMD::Mesh, openPMD::RecordComponent>(mesh_param, rc);
+    }
+
+    int openPMD_Mesh_upcast_to_MeshRecordComponent(
+        // in
+        openPMD_Mesh mesh,
+        // out
+        openPMD_MeshRecordComponent *mrc)
+    {
+        return implementation::
+            do_upcast<openPMD::Mesh, openPMD::MeshRecordComponent>(mesh, mrc);
+    }
+
+    int openPMD_MeshRecordComponent_upcast_to_RecordComponent(
+        // in
+        openPMD_MeshRecordComponent mrc,
+        // out
+        openPMD_RecordComponent *rc)
+    {
+        return implementation::
+            do_upcast<openPMD::MeshRecordComponent, openPMD::RecordComponent>(
+                mrc, rc);
     }
 
     int openPMD_RecordComponent_upcast_to_Attributable(
@@ -525,7 +548,7 @@ extern "C"
         // in
         openPMD_Record record,
         // out
-        openPMD_RecordComponent rc)
+        openPMD_RecordComponent *rc)
     {
         return implementation::
             do_upcast<openPMD::Record, openPMD::RecordComponent>(record, rc);

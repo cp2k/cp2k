@@ -160,7 +160,7 @@ MODULE cp_output_handling
    TYPE :: cp_openpmd_per_call_value_type
       TYPE(openpmd_series_type) :: series
       TYPE(openpmd_iteration_type) :: iteration
-      TYPE(openpmd_mesh_type) :: mesh
+      ! TYPE(openpmd_mesh_type) :: mesh
       ! TYPE(openpmd_particle_species_type) :: particle_species
       CHARACTER(len=default_string_length) :: name_prefix ! e.g. 'WFN_00008_1'
    END TYPE
@@ -1128,8 +1128,8 @@ CONTAINS
       res%iteration = openpmd_series_write_iteration( &
                       ${opmd}$%output_series, ${opmd}$%iteration_counter%flat_iteration)
 
-      res%mesh = openpmd_iteration_get_mesh(res%iteration, middle_name)
-      CALL openpmd_record_component_make_empty(res%mesh%openpmd_mesh_as_record_component(), openpmd_type_int, 3)
+      ! res%mesh = openpmd_iteration_get_mesh(res%iteration, middle_name)
+      ! CALL openpmd_record_component_make_empty(res%mesh%openpmd_mesh_as_record_component(), openpmd_type_int, 3)
       ! res%particle_species = openpmd_iteration_get_particle_species(res%iteration, middle_name)
       ! position = openpmd_particle_species_get_record(res%particle_species, "position")
       ! CALL openpmd_record_component_make_empty_int(position%openpmd_record_as_record_component(), 3)

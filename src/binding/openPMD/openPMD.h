@@ -62,6 +62,8 @@ typedef struct openPMD_Mesh_opaque *openPMD_Mesh;
 
 typedef struct openPMD_ParticleSpecies_opaque *openPMD_ParticleSpecies;
 
+typedef struct openPMD_RecordComponent_opaque *openPMD_MeshRecordComponent;
+
 typedef struct openPMD_RecordComponent_opaque *openPMD_RecordComponent;
 
 typedef struct openPMD_Record_opaque *openPMD_Record;
@@ -149,7 +151,13 @@ int openPMD_Mesh_upcast_to_RecordComponent(
     // in
     openPMD_Mesh mesh,
     // out
-    openPMD_RecordComponent rc);
+    openPMD_RecordComponent *rc);
+
+int openPMD_Mesh_upcast_to_MeshRecordComponent(
+    // in
+    openPMD_Mesh mesh,
+    // out
+    openPMD_MeshRecordComponent *mrc);
 
 /***************************
  * RecordComponent members *
@@ -193,6 +201,16 @@ int openPMD_DynamicMemoryView_resolve(
     // out
     void **write_buffer);
 
+/*******************************
+ * MeshRecordComponent members *
+ *******************************/
+
+int openPMD_MeshRecordComponent_upcast_to_RecordComponent(
+    // in
+    openPMD_MeshRecordComponent mrc,
+    // out
+    openPMD_RecordComponent *rc);
+
 /***************************
  * ParticleSpecies members *
  ***************************/
@@ -211,7 +229,7 @@ int openPMD_Record_upcast_to_RecordComponent(
     // in
     openPMD_Record record,
     // out
-    openPMD_RecordComponent rc);
+    openPMD_RecordComponent *rc);
 
 int openPMD_Record_get_Component(
     // in

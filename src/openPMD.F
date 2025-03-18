@@ -26,6 +26,8 @@ MODULE openPMD_api
    #:set dataset_types_f = ['REAL(kind=dp)']
    #:set dataset_types_enum = ['double']
    #:set dimensions = [1, 2, 3]
+   #:set upcasts = [("Series", "Attributable"), ("Iteration", "Attributable"), ("RecordComponent", "Attributable"), ("Mesh", "RecordComponent"), ("Record", "RecordComponent"), ("Mesh", "MeshRecordComponent"), ("MeshRecordComponent", "RecordComponent")]
+   #:set fortran_names = {"RecordComponent": "record_component", "MeshRecordComponent": "mesh_record_component"}
 
    TYPE openpmd_attributable_type
       PRIVATE
@@ -66,6 +68,11 @@ MODULE openPMD_api
       TYPE(C_PTR) :: c_ptr = C_NULL_PTR
    END TYPE openpmd_record_component_type
 
+   TYPE openpmd_mesh_record_component_type
+      PRIVATE
+      TYPE(C_PTR) :: c_ptr = C_NULL_PTR
+   END TYPE openpmd_mesh_record_component_type
+
    TYPE openpmd_record_type
       PRIVATE
       TYPE(C_PTR) :: c_ptr = C_NULL_PTR
@@ -87,10 +94,15 @@ MODULE openPMD_api
    PUBLIC :: openpmd_series_write_iteration
    PUBLIC :: openpmd_access_create, openpmd_access_read_only
    PUBLIC :: openpmd_type_char, openpmd_type_uchar, openpmd_type_schar, openpmd_type_short, openpmd_type_int, openpmd_type_long, openpmd_type_longlong, openpmd_type_ushort, openpmd_type_uint, openpmd_type_ulong, openpmd_type_ulonglong, openpmd_type_float, openpmd_type_double, openpmd_type_long_double, openpmd_type_cfloat, openpmd_type_cdouble, openpmd_type_clong_double, openpmd_type_string, openpmd_type_vec_char, openpmd_type_vec_short, openpmd_type_vec_int, openpmd_type_vec_long, openpmd_type_vec_longlong, openpmd_type_vec_uchar, openpmd_type_vec_ushort, openpmd_type_vec_uint, openpmd_type_vec_ulong, openpmd_type_vec_ulonglong, openpmd_type_vec_float, openpmd_type_vec_double, openpmd_type_vec_long_double, openpmd_type_vec_cfloat, openpmd_type_vec_cdouble, openpmd_type_vec_clong_double, openpmd_type_vec_schar, openpmd_type_vec_string, openpmd_type_arr_dbl_7, openpmd_type_bool
+   #:for child, parent in upcasts
+      #:set child_f = fortran_names[child] if child in fortran_names else child
+      #:set parent_f = fortran_names[parent] if parent in fortran_names else parent
+      PUBLIC :: openpmd_${child_f}$_as_${parent_f}$
+   #:endfor
    PUBLIC :: openpmd_get_default_extension
    PUBLIC :: openpmd_attributable_set_attribute_vec_int, openpmd_attributable_series_flush
-   PUBLIC :: openpmd_iteration_get_mesh, openpmd_iteration_get_particle_species, openpmd_iteration_as_attributable
-   PUBLIC :: openpmd_record_component_make_empty, openpmd_record_component_make_constant_zero, openpmd_record_get_component, openpmd_record_component_as_attributable, openpmd_record_component_reset_dataset
+   PUBLIC :: openpmd_iteration_get_mesh, openpmd_iteration_get_particle_species
+   PUBLIC :: openpmd_record_component_make_empty, openpmd_record_component_make_constant_zero, openpmd_record_get_component, openpmd_record_component_reset_dataset
    #:for type_f, type_enum in zip(dataset_types_f, dataset_types_enum)
       #:for dim in dimensions
          PUBLIC :: openpmd_record_component_store_chunk_${dim}$d_${type_enum}$, &
@@ -112,7 +124,14 @@ CONTAINS
    SUBROUTINE auxiliary_invert_vector(v)
       INTEGER, DIMENSION(:), INTENT(INOUT) :: v
 
-      v(1:SIZE(v)) = v(SIZE(v):-1:1)
+      INTEGER :: i, tmp
+
+      ! Invert the vector by swapping elements
+      DO i = 1, SIZE(v)/2
+         tmp = v(i)
+         v(i) = v(SIZE(v) - i + 1)
+         v(SIZE(v) - i + 1) = tmp
+      END DO
    END SUBROUTINE
 
 ! **************************************************************************************************
@@ -127,8 +146,7 @@ CONTAINS
       res = this%c_ptr
    END FUNCTION as_pointer
 
-   #:for child, parent in [("Series", "Attributable"), ("Iteration", "Attributable"), ("RecordComponent", "Attributable"), ("Mesh", "RecordComponent"), ("Record", "RecordComponent")]
-      #:set fortran_names = {"RecordComponent": "record_component"}
+   #:for child, parent in upcasts
       #:set child_f = fortran_names[child] if child in fortran_names else child
       #:set parent_f = fortran_names[parent] if parent in fortran_names else parent
       FUNCTION openpmd_${child_f}$_as_${parent_f}$ (this) RESULT(res)
