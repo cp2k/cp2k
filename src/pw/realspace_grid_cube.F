@@ -26,7 +26,8 @@ MODULE realspace_grid_cube
         openpmd_particle_species_type, openpmd_record_component_make_constant_zero, &
         openpmd_record_component_reset_dataset, openpmd_record_component_store_chunk_1d_double, &
         openpmd_record_component_type, openpmd_record_get_component, openpmd_record_type, &
-        openpmd_type_double, openpmd_type_int
+        openpmd_type_double, openpmd_type_int, openpmd_dynamic_memory_view_resolve_1d_double, &
+        openpmd_dynamic_memory_view_type_1d, openpmd_record_component_store_chunk_span_1d_double
    USE pw_grid_types,                   ONLY: PW_MODE_LOCAL
    USE pw_types,                        ONLY: pw_r3d_rs_type
 #include "../base/base_uses.f90"
@@ -41,6 +42,10 @@ MODULE realspace_grid_cube
    LOGICAL, PARAMETER, PRIVATE          :: debug_this_module = .FALSE.
    LOGICAL, PRIVATE                     :: parses_linebreaks = .FALSE., &
                                            parse_test = .TRUE.
+
+   TYPE cp_openpmd_write_buffer_1d
+      REAL(KIND=dp), POINTER :: buffer(:)
+   END TYPE
 
 CONTAINS
 
@@ -103,11 +108,12 @@ CONTAINS
       CHARACTER(len=default_string_length)               :: species_name
       INTEGER                                            :: i, j, k
       INTEGER, DIMENSION(1)                              :: extent, offset
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: position_buffer
       TYPE(openpmd_particle_species_type)                :: species
       TYPE(openpmd_record_component_type)                :: position_component, &
                                                             position_offset_component
       TYPE(openpmd_record_type)                          :: position, position_offset
+      TYPE(openpmd_dynamic_memory_view_type_1d), DIMENSION(3) :: unresolved_write_buffers
+      TYPE(cp_openpmd_write_buffer_1d), DIMENSION(3)     :: write_buffers
 
       extent(1) = atom_count
       offset(1) = 0
@@ -118,31 +124,33 @@ CONTAINS
       species = openpmd_iteration_get_particle_species(openpmd_data%iteration, TRIM(species_name))
 
       position_offset = openpmd_particle_species_get_record(species, "positionOffset")
+      position = openpmd_particle_species_get_record(species, "position")
       DO k = 1, SIZE(dims)
          position_offset_component = openpmd_record_get_component(position_offset, dims(k))
          CALL openpmd_record_component_make_constant_zero(position_offset_component, openpmd_type_int, extent)
+         position_component = openpmd_record_get_component(position, dims(k))
+         CALL openpmd_record_component_reset_dataset(position_component, openpmd_type_double, extent)
+         unresolved_write_buffers(k) = &
+            openpmd_record_component_store_chunk_span_1d_double(position_component, offset, extent)
+         write_buffers(k)%buffer => &
+            openpmd_dynamic_memory_view_resolve_1d_double(unresolved_write_buffers(k), deallocate=.FALSE.)
       END DO
 
-      ALLOCATE (position_buffer(atom_count, 3))
+      ! Resolve Spans for a second time to allow for internal reallocations in BP4 engine of ADIOS2
+      DO k = 1, SIZE(dims)
+         write_buffers(k)%buffer = &
+            openpmd_dynamic_memory_view_resolve_1d_double(unresolved_write_buffers(k), deallocate=.TRUE.)
+      END DO
+
       j = 1
       DO i = 1, SIZE(particles_z)
          IF (particles_z(i) == atom_type) THEN
             DO k = 1, 3
-               position_buffer(j, k) = particles_r(k, i)
+               write_buffers(k)%buffer(j) = particles_r(k, i)
             END DO
             j = j + 1
          END IF
       END DO
-
-      position = openpmd_particle_species_get_record(species, "position")
-      DO k = 1, SIZE(dims)
-         position_component = openpmd_record_get_component(position, dims(k))
-         CALL openpmd_record_component_reset_dataset(position_component, openpmd_type_double, extent)
-         CALL openpmd_record_component_store_chunk_1d_double(position_component, position_buffer(:, k), offset)
-      END DO
-      CALL openpmd_attributable_series_flush(openpmd_iteration_as_attributable(openpmd_data%iteration))
-      DEALLOCATE (position_buffer)
-
    END SUBROUTINE pw_write_particle_species
 
 ! **************************************************************************************************

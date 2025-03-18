@@ -93,8 +93,13 @@ MODULE openPMD_api
    PUBLIC :: openpmd_record_component_make_empty, openpmd_record_component_make_constant_zero, openpmd_record_get_component, openpmd_record_component_as_attributable, openpmd_record_component_reset_dataset
    #:for type_f, type_enum in zip(dataset_types_f, dataset_types_enum)
       #:for dim in dimensions
-         PUBLIC :: openpmd_record_component_store_chunk_${dim}$d_${type_enum}$
+         PUBLIC :: openpmd_record_component_store_chunk_${dim}$d_${type_enum}$,&
+                   openpmd_record_component_store_chunk_span_${dim}$d_${type_enum}$,&
+                   openpmd_dynamic_memory_view_resolve_${dim}$d_${type_enum}$
       #:endfor
+   #:endfor
+   #:for dim in dimensions
+      PUBLIC :: openpmd_dynamic_memory_view_type_${dim}$d
    #:endfor
    PUBLIC :: openpmd_particle_species_get_record
    PUBLIC :: cp2k_log
@@ -605,23 +610,31 @@ CONTAINS
 
          END FUNCTION openpmd_record_component_store_chunk_span_${dim}$d_${type_enum}$
 
-         FUNCTION openpmd_dynamic_memory_view_resolve_${dim}$d(memory_view) RESULT(buffer)
+         FUNCTION openpmd_dynamic_memory_view_resolve_${dim}$d_${type_enum}$(memory_view, deallocate) RESULT(buffer)
             TYPE(openpmd_dynamic_memory_view_type_${dim}$d)            :: memory_view
-            ${type_f}$, POINTER :: buffer(${dimensionality_wildcard}$)
+            LOGICAL                                                    :: deallocate
+            ${type_f}$, POINTER                                        :: buffer(${dimensionality_wildcard}$)
 
-            INTEGER(kind=C_INT)                                        :: status
+            INTEGER(kind=C_INT)                                        :: status, deallocate_c
             TYPE(C_PTR), TARGET                                        :: c_buffer
 
             INTERFACE
-               FUNCTION openpmd_c_dynamic_memory_view_resolve(memory_view, write_buffer) RESULT(status) BIND(C, name="openPMD_DynamicMemoryView_resolve")
+               FUNCTION openpmd_c_dynamic_memory_view_resolve(memory_view, deallocate, write_buffer) RESULT(status) BIND(C, name="openPMD_DynamicMemoryView_resolve")
                   IMPORT :: C_PTR, C_INT
                   TYPE(C_PTR), VALUE :: memory_view
+                  INTEGER(KIND=C_INT), VALUE :: deallocate
                   TYPE(C_PTR) :: write_buffer
                   INTEGER(KIND=C_INT) :: status
                END FUNCTION
             END INTERFACE
 
-            status = openpmd_c_dynamic_memory_view_resolve(memory_view%c_ptr, c_buffer)
+            IF (deallocate) THEN
+               deallocate_c = 1
+            ELSE
+               deallocate_c = 0
+            ENDIF
+
+            status = openpmd_c_dynamic_memory_view_resolve(memory_view%c_ptr, deallocate_c, c_buffer)
             CALL c_f_pointer(c_buffer, buffer, memory_view%chunk_extent)
          END FUNCTION
       #:endfor

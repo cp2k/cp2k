@@ -203,7 +203,7 @@ namespace
         {
             auto buffer = rc.storeChunk<Type>(o, e);
             memory_view = std::make_any<openPMD::DynamicMemoryView<Type>>(
-                    std::move(buffer));
+                std::move(buffer));
             return 0;
         }
         static constexpr char const *errorMsg =
@@ -216,7 +216,8 @@ namespace
         static void *call(DynamicMemoryView &memory_view)
         {
             auto &get_buffer =
-                std::any_cast<openPMD::DynamicMemoryView<Type> &>(memory_view.memory_view);
+                std::any_cast<openPMD::DynamicMemoryView<Type> &>(
+                    memory_view.memory_view);
             auto span = get_buffer.currentBuffer();
             return span.data();
         }
@@ -472,7 +473,9 @@ extern "C"
         openPMD_DynamicMemoryView *memory_view_param)
     {
         auto rc = reinterpret_cast<openPMD::RecordComponent *>(rc_param);
-        auto memory_view = reinterpret_cast<implementation::DynamicMemoryView**>(memory_view_param);
+        auto memory_view =
+            reinterpret_cast<implementation::DynamicMemoryView **>(
+                memory_view_param);
         *memory_view = new implementation::DynamicMemoryView();
         (*memory_view)->dtype = dt;
         return openPMD::switchDatasetType<
@@ -487,15 +490,21 @@ extern "C"
     int openPMD_DynamicMemoryView_resolve(
         // in
         openPMD_DynamicMemoryView memory_view_param,
+        int deallocate,
         // out
         void **write_buffer)
     {
-        auto memory_view = reinterpret_cast<implementation::DynamicMemoryView*>(memory_view_param);
+        auto memory_view =
+            reinterpret_cast<implementation::DynamicMemoryView *>(
+                memory_view_param);
         *write_buffer = openPMD::switchDatasetType<
             implementation::DynamicMemoryView_resolve>(
             implementation::datatype_c_to_cxx(memory_view->dtype),
             *memory_view);
-        delete memory_view;
+        if (deallocate)
+        {
+            delete memory_view;
+        }
         return 0;
     }
 

@@ -189,7 +189,7 @@ int openPMD_RecordComponent_storeChunkSpan(
 
 int openPMD_DynamicMemoryView_resolve(
     // in
-    openPMD_DynamicMemoryView,
+    openPMD_DynamicMemoryView, int deallocate,
     // out
     void **write_buffer);
 
