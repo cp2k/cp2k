@@ -97,13 +97,16 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: atom_type, atom_count
       TYPE(cp_openpmd_per_call_value_type)               :: openpmd_data
 
+      CHARACTER(len=1), DIMENSION(3), PARAMETER          :: dims = (/"x", "y", "z"/)
+
       CHARACTER(len=3)                                   :: atom_type_as_string
       CHARACTER(len=default_string_length)               :: species_name
-      INTEGER                                            :: i, j
+      INTEGER                                            :: i, j, k
       INTEGER, DIMENSION(1)                              :: extent, offset
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: position_x_buffer
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: position_buffer
       TYPE(openpmd_particle_species_type)                :: species
-      TYPE(openpmd_record_component_type)                :: position_offset_x, position_x
+      TYPE(openpmd_record_component_type)                :: position_component, &
+                                                            position_offset_component
       TYPE(openpmd_record_type)                          :: position, position_offset
 
       extent(1) = atom_count
@@ -115,23 +118,30 @@ CONTAINS
       species = openpmd_iteration_get_particle_species(openpmd_data%iteration, TRIM(species_name))
 
       position_offset = openpmd_particle_species_get_record(species, "positionOffset")
-      position_offset_x = openpmd_record_get_component(position_offset, "x")
-      CALL openpmd_record_component_make_constant_zero(position_offset_x, openpmd_type_int, extent)
+      DO k = 1, SIZE(dims)
+         position_offset_component = openpmd_record_get_component(position_offset, dims(k))
+         CALL openpmd_record_component_make_constant_zero(position_offset_component, openpmd_type_int, extent)
+      END DO
 
-      position = openpmd_particle_species_get_record(species, "position")
-      position_x = openpmd_record_get_component(position, "x")
-      CALL openpmd_record_component_reset_dataset(position_x, openpmd_type_double, extent)
-
-      ALLOCATE (position_x_buffer(atom_count))
+      ALLOCATE (position_buffer(atom_count, 3))
       j = 1
       DO i = 1, SIZE(particles_z)
-         IF (particles_z(i) /= atom_type) CONTINUE
-         position_x_buffer(j) = particles_r(1, i)
-         j = j + 1
+         IF (particles_z(i) == atom_type) THEN
+            DO k = 1, 3
+               position_buffer(j, k) = particles_r(k, i)
+            END DO
+            j = j + 1
+         END IF
       END DO
-      CALL openpmd_record_component_store_chunk_1d_double(position_x, position_x_buffer, offset)
+
+      position = openpmd_particle_species_get_record(species, "position")
+      DO k = 1, SIZE(dims)
+         position_component = openpmd_record_get_component(position, dims(k))
+         CALL openpmd_record_component_reset_dataset(position_component, openpmd_type_double, extent)
+         CALL openpmd_record_component_store_chunk_1d_double(position_component, position_buffer(:, k), offset)
+      END DO
       CALL openpmd_attributable_series_flush(openpmd_iteration_as_attributable(openpmd_data%iteration))
-      DEALLOCATE (position_x_buffer)
+      DEALLOCATE (position_buffer)
 
    END SUBROUTINE pw_write_particle_species
 
