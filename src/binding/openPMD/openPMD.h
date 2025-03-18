@@ -66,6 +66,8 @@ typedef struct openPMD_RecordComponent_opaque *openPMD_RecordComponent;
 
 typedef struct openPMD_Record_opaque *openPMD_Record;
 
+typedef struct openPMD_DynamicMemoryView_opaque *openPMD_DynamicMemoryView;
+
 // Actually uint64_t, but ISO C bindings for Fortran only have that as a GNU
 // extension, so we use signed integers and convert
 typedef uint64_t openPMD_Iteration_Index_t;
@@ -177,6 +179,19 @@ int openPMD_RecordComponent_storeChunk(
     // in
     openPMD_RecordComponent rc, openPMD_Datatype, int dimensions,
     int const *offset, int const *extent, void *data);
+
+int openPMD_RecordComponent_storeChunkSpan(
+    // in
+    openPMD_RecordComponent rc, openPMD_Datatype, int dimensions,
+    int const *offset, int const *extent,
+    // out
+    openPMD_DynamicMemoryView *);
+
+int openPMD_DynamicMemoryView_resolve(
+    // in
+    openPMD_DynamicMemoryView,
+    // out
+    void **write_buffer);
 
 /***************************
  * ParticleSpecies members *

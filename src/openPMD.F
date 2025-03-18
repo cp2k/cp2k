@@ -72,6 +72,11 @@ MODULE openPMD_api
       PROCEDURE, PUBLIC :: openpmd_record_as_record_component
    END TYPE openpmd_record_type
 
+   TYPE openpmd_dynamic_memory_view_type
+      PRIVATE
+      TYPE(C_PTR) :: c_ptr = C_NULL_PTR
+   END TYPE openpmd_dynamic_memory_view_type
+
    PUBLIC :: openpmd_series_type, openpmd_iteration_type, openpmd_mesh_type, openpmd_particle_species_type, openpmd_record_component_type, openpmd_record_type
    PUBLIC :: openpmd_series_create, openpmd_series_close
    PUBLIC :: openpmd_series_present

@@ -1,14 +1,22 @@
 #include "openPMD.h"
 
+#include <any>
 #include <openPMD/Datatype.hpp>
 #include <openPMD/RecordComponent.hpp>
+#include <openPMD/Span.hpp>
 #include <openPMD/openPMD.hpp>
 
 namespace implementation
 {
 namespace
 {
-    auto datatype_c_to_cxx(openPMD_Datatype dt) -> openPMD::Datatype
+    struct DynamicMemoryView
+    {
+        openPMD_Datatype dtype;
+        std::any memory_view;
+    };
+
+    constexpr auto datatype_c_to_cxx(openPMD_Datatype dt) -> openPMD::Datatype
     {
         switch (dt)
         {
@@ -92,7 +100,7 @@ namespace
         return openPMD::Datatype::UNDEFINED;
     }
 
-    auto access_c_to_cxx(openPMD_Access access) -> openPMD::Access
+    constexpr auto access_c_to_cxx(openPMD_Access access) -> openPMD::Access
     {
         switch (access)
         {
@@ -175,13 +183,44 @@ namespace
         static int call(
             openPMD::RecordComponent &rc,
             openPMD::Offset const &o,
-            openPMD::Extent const &&e,
+            openPMD::Extent const &e,
             void *data)
         {
             rc.storeChunkRaw<Type>(static_cast<Type *>(data), o, e);
             return 0;
         }
         static constexpr char const *errorMsg = "RecordComponent_storeChunk";
+    };
+
+    struct RecordComponent_storeChunkSpan
+    {
+        template <typename Type>
+        static int call(
+            openPMD::RecordComponent &rc,
+            openPMD::Offset const &o,
+            openPMD::Extent const &e,
+            std::any &memory_view)
+        {
+            auto buffer = rc.storeChunk<Type>(o, e);
+            memory_view = std::make_any<openPMD::DynamicMemoryView<Type>>(
+                    std::move(buffer));
+            return 0;
+        }
+        static constexpr char const *errorMsg =
+            "RecordComponent_storeChunkSpan";
+    };
+
+    struct DynamicMemoryView_resolve
+    {
+        template <typename Type>
+        static void *call(DynamicMemoryView &memory_view)
+        {
+            auto &get_buffer =
+                std::any_cast<openPMD::DynamicMemoryView<Type> &>(memory_view.memory_view);
+            auto span = get_buffer.currentBuffer();
+            return span.data();
+        }
+        static constexpr char const *errorMsg = "DynamicMemoryView_resolve";
     };
 } // namespace
 } // namespace implementation
@@ -413,12 +452,50 @@ extern "C"
         void *data)
     {
         auto rc = reinterpret_cast<openPMD::RecordComponent *>(rc_param);
-        openPMD::switchDatasetType<implementation::RecordComponent_storeChunk>(
+        return openPMD::switchDatasetType<
+            implementation::RecordComponent_storeChunk>(
             implementation::datatype_c_to_cxx(dt),
             *rc,
             openPMD::Offset(offset, offset + dimensions),
             openPMD::Extent(extent, extent + dimensions),
             data);
+    }
+
+    int openPMD_RecordComponent_storeChunkSpan(
+        // in
+        openPMD_RecordComponent rc_param,
+        openPMD_Datatype dt,
+        int dimensions,
+        int const *offset,
+        int const *extent,
+        // out
+        openPMD_DynamicMemoryView *memory_view_param)
+    {
+        auto rc = reinterpret_cast<openPMD::RecordComponent *>(rc_param);
+        auto memory_view = reinterpret_cast<implementation::DynamicMemoryView**>(memory_view_param);
+        *memory_view = new implementation::DynamicMemoryView();
+        (*memory_view)->dtype = dt;
+        return openPMD::switchDatasetType<
+            implementation::RecordComponent_storeChunkSpan>(
+            implementation::datatype_c_to_cxx(dt),
+            *rc,
+            openPMD::Offset(offset, offset + dimensions),
+            openPMD::Extent(extent, extent + dimensions),
+            (*memory_view)->memory_view);
+    }
+
+    int openPMD_DynamicMemoryView_resolve(
+        // in
+        openPMD_DynamicMemoryView memory_view_param,
+        // out
+        void **write_buffer)
+    {
+        auto memory_view = reinterpret_cast<implementation::DynamicMemoryView*>(memory_view_param);
+        *write_buffer = openPMD::switchDatasetType<
+            implementation::DynamicMemoryView_resolve>(
+            implementation::datatype_c_to_cxx(memory_view->dtype),
+            *memory_view);
+        delete memory_view;
         return 0;
     }
 
