@@ -21,13 +21,12 @@ MODULE realspace_grid_cube
         mp_file_type_free, mp_file_type_hindexed_make_chv, mp_file_type_set_view_chv, &
         mpi_character_size
    USE openpmd_api,                     ONLY: &
-        openpmd_attributable_series_flush, openpmd_iteration_as_attributable, &
+        openpmd_dynamic_memory_view_resolve_1d_double, openpmd_dynamic_memory_view_type_1d, &
         openpmd_iteration_get_particle_species, openpmd_particle_species_get_record, &
         openpmd_particle_species_type, openpmd_record_component_make_constant_zero, &
-        openpmd_record_component_reset_dataset, openpmd_record_component_store_chunk_1d_double, &
-        openpmd_record_component_type, openpmd_record_get_component, openpmd_record_type, &
-        openpmd_type_double, openpmd_type_int, openpmd_dynamic_memory_view_resolve_1d_double, &
-        openpmd_dynamic_memory_view_type_1d, openpmd_record_component_store_chunk_span_1d_double
+        openpmd_record_component_reset_dataset, &
+        openpmd_record_component_store_chunk_span_1d_double, openpmd_record_component_type, &
+        openpmd_record_get_component, openpmd_record_type, openpmd_type_double, openpmd_type_int
    USE pw_grid_types,                   ONLY: PW_MODE_LOCAL
    USE pw_types,                        ONLY: pw_r3d_rs_type
 #include "../base/base_uses.f90"
@@ -108,12 +107,13 @@ CONTAINS
       CHARACTER(len=default_string_length)               :: species_name
       INTEGER                                            :: i, j, k
       INTEGER, DIMENSION(1)                              :: extent, offset
+      TYPE(cp_openpmd_write_buffer_1d), DIMENSION(3)     :: write_buffers
+      TYPE(openpmd_dynamic_memory_view_type_1d), &
+         DIMENSION(3)                                    :: unresolved_write_buffers
       TYPE(openpmd_particle_species_type)                :: species
       TYPE(openpmd_record_component_type)                :: position_component, &
                                                             position_offset_component
       TYPE(openpmd_record_type)                          :: position, position_offset
-      TYPE(openpmd_dynamic_memory_view_type_1d), DIMENSION(3) :: unresolved_write_buffers
-      TYPE(cp_openpmd_write_buffer_1d), DIMENSION(3)     :: write_buffers
 
       extent(1) = atom_count
       offset(1) = 0
@@ -133,13 +133,13 @@ CONTAINS
          unresolved_write_buffers(k) = &
             openpmd_record_component_store_chunk_span_1d_double(position_component, offset, extent)
          write_buffers(k)%buffer => &
-            openpmd_dynamic_memory_view_resolve_1d_double(unresolved_write_buffers(k), deallocate=.FALSE.)
+            openpmd_dynamic_memory_view_resolve_1d_double(unresolved_write_buffers(k), DEALLOCATE=.FALSE.)
       END DO
 
       ! Resolve Spans for a second time to allow for internal reallocations in BP4 engine of ADIOS2
       DO k = 1, SIZE(dims)
          write_buffers(k)%buffer = &
-            openpmd_dynamic_memory_view_resolve_1d_double(unresolved_write_buffers(k), deallocate=.TRUE.)
+            openpmd_dynamic_memory_view_resolve_1d_double(unresolved_write_buffers(k), DEALLOCATE=.TRUE.)
       END DO
 
       j = 1

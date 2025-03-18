@@ -93,8 +93,8 @@ MODULE openPMD_api
    PUBLIC :: openpmd_record_component_make_empty, openpmd_record_component_make_constant_zero, openpmd_record_get_component, openpmd_record_component_as_attributable, openpmd_record_component_reset_dataset
    #:for type_f, type_enum in zip(dataset_types_f, dataset_types_enum)
       #:for dim in dimensions
-         PUBLIC :: openpmd_record_component_store_chunk_${dim}$d_${type_enum}$,&
-                   openpmd_record_component_store_chunk_span_${dim}$d_${type_enum}$,&
+         PUBLIC :: openpmd_record_component_store_chunk_${dim}$d_${type_enum}$, &
+                   openpmd_record_component_store_chunk_span_${dim}$d_${type_enum}$, &
                    openpmd_dynamic_memory_view_resolve_${dim}$d_${type_enum}$
       #:endfor
    #:endfor
@@ -610,7 +610,7 @@ CONTAINS
 
          END FUNCTION openpmd_record_component_store_chunk_span_${dim}$d_${type_enum}$
 
-         FUNCTION openpmd_dynamic_memory_view_resolve_${dim}$d_${type_enum}$(memory_view, deallocate) RESULT(buffer)
+         FUNCTION openpmd_dynamic_memory_view_resolve_${dim}$d_${type_enum}$ (memory_view, deallocate) RESULT(buffer)
             TYPE(openpmd_dynamic_memory_view_type_${dim}$d)            :: memory_view
             LOGICAL                                                    :: deallocate
             ${type_f}$, POINTER                                        :: buffer(${dimensionality_wildcard}$)
@@ -632,7 +632,7 @@ CONTAINS
                deallocate_c = 1
             ELSE
                deallocate_c = 0
-            ENDIF
+            END IF
 
             status = openpmd_c_dynamic_memory_view_resolve(memory_view%c_ptr, deallocate_c, c_buffer)
             CALL c_f_pointer(c_buffer, buffer, memory_view%chunk_extent)
