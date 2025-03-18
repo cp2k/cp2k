@@ -19,7 +19,7 @@
  ******************************************************************************/
 #define CHECK(status)                                                          \
   if (status != MPI_SUCCESS) {                                                 \
-    fprintf(stderr, "MPI error in %s:%i\n", __FILE__, __LINE__);               \
+    fprintf(stderr, "MPI error #%i in %s:%i\n", status, __FILE__, __LINE__);   \
     MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);                                   \
   }
 #endif
@@ -479,7 +479,7 @@ void dbm_mpi_alltoallv_double(const double *sendbuf, const int *sendcounts,
  ******************************************************************************/
 void *dbm_mpi_alloc_mem(size_t size) {
   void *result = NULL;
-#if defined(__parallel)
+#if defined(__parallel) && !defined(OPEN_MPI)
   CHECK(MPI_Alloc_mem((MPI_Aint)size, MPI_INFO_NULL, &result));
 #else
   result = malloc(size);
@@ -492,7 +492,7 @@ void *dbm_mpi_alloc_mem(size_t size) {
  * \author Hans Pabst
  ******************************************************************************/
 void dbm_mpi_free_mem(void *mem) {
-#if defined(__parallel)
+#if defined(__parallel) && !defined(OPEN_MPI)
   CHECK(MPI_Free_mem(mem));
 #else
   free(mem);
