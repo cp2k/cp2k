@@ -38,7 +38,7 @@ void dbm_mempool_host_free(const void *memory);
 void dbm_mempool_device_free(const void *memory);
 
 /*******************************************************************************
- * \brief Internal routine for freeing all memory in the pool (not thread-safe).
+ * \brief Internal routine for freeing all memory in the pool.
  * \author Ole Schuett
  ******************************************************************************/
 void dbm_mempool_clear(void);
@@ -48,14 +48,16 @@ void dbm_mempool_clear(void);
  * \author Hans Pabst
  ******************************************************************************/
 typedef struct dbm_memstats_t {
-  // Memory consumption (maximum).
+  // Memory used out of consumed.
+  uint64_t host_used, device_used;
+  // Memory consumption.
   uint64_t host_size, device_size;
   // Number of allocations.
   uint64_t host_mallocs, device_mallocs;
 } dbm_memstats_t;
 
 /*******************************************************************************
- * \brief Internal routine to query statistics (not thread-safe).
+ * \brief Internal routine to query statistics.
  * \author Hans Pabst
  ******************************************************************************/
 void dbm_mempool_statistics(dbm_memstats_t *memstats);

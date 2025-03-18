@@ -80,7 +80,7 @@ static void actual_free(const void *memory, const bool on_device) {
 typedef struct dbm_memchunk {
   void *mem; // first: allows to cast memchunk into mem-ptr...
   struct dbm_memchunk *next;
-  size_t size;
+  size_t size, used;
 } dbm_memchunk_t;
 
 /*******************************************************************************
@@ -117,46 +117,45 @@ static void *internal_mempool_malloc(dbm_memchunk_t **available_head,
 #pragma omp critical(dbm_mempool_modify)
   {
     // Find a suitable chunk in mempool_available.
-    dbm_memchunk_t **hit = NULL, **fallback = NULL;
+    dbm_memchunk_t **reuse = NULL, **reclaim = NULL;
     for (; NULL != *available_head; available_head = &(*available_head)->next) {
-      if ((*available_head)->size < size) {
-        if (NULL == fallback || (*fallback)->size < (*available_head)->size) {
-          fallback = available_head;
+      const size_t cur_size = (*available_head)->size;
+      if (cur_size < size) { // needs reallocation
+        if (NULL == reclaim || (*reclaim)->size < cur_size) {
+          reclaim = available_head;
         }
-      } else if (NULL == hit || (*available_head)->size < (*hit)->size) {
-        hit = available_head;
-        if (size == (*hit)->size) {
-          break;
+      } else if (NULL == reuse || cur_size < (*reuse)->size) {
+        reuse = available_head;
+        if (size == (*reuse)->size) {
+          break; // exact match
         }
       }
     }
-    if (NULL == hit) {
-      hit = fallback;
+    if (NULL == reuse) {
+      reuse = reclaim;
     }
 
     // If a chunck was found, remove it from mempool_available.
-    if (NULL != hit /*&& (*hit)->size <= (DBM_ALLOCATION_FACTOR * size)*/) {
-      chunk = *hit;
-      *hit = chunk->next;
+    if (NULL != reuse) {
+      chunk = *reuse;
+      *reuse = chunk->next;
     } else { // Allocate a new chunk.
-      assert(chunk == NULL);
-      chunk = malloc(sizeof(dbm_memchunk_t));
+      chunk = calloc(1, sizeof(dbm_memchunk_t));
       assert(chunk != NULL);
-      chunk->size = 0;
-      chunk->mem = NULL;
     }
 
     // Insert chunk into mempool_allocated.
     chunk->next = *allocated_head;
     *allocated_head = chunk;
-
-    // Resize chunk if needed
-    if (chunk->size < size) {
-      actual_free(chunk->mem, on_device);
-      chunk->mem = actual_malloc(size, on_device);
-      chunk->size = size; // update
-    }
   }
+
+  // Resize chunk if needed (not in critical section)
+  if (chunk->size < size) {
+    actual_free(chunk->mem, on_device);
+    chunk->mem = actual_malloc(size, on_device);
+    chunk->size = size; // update
+  }
+  chunk->used = size; // stats
 
   return chunk->mem;
 }
@@ -252,7 +251,7 @@ void dbm_mempool_device_free(const void *memory) {
 }
 
 /*******************************************************************************
- * \brief Internal routine for freeing all memory in the pool (not thread-safe).
+ * \brief Internal routine for freeing all memory in the pool.
  * \author Ole Schuett
  ******************************************************************************/
 void dbm_mempool_clear(void) {
@@ -278,23 +277,39 @@ void dbm_mempool_clear(void) {
 }
 
 /*******************************************************************************
- * \brief Internal routine to query statistics (not thread-safe).
+ * \brief Internal routine to query statistics.
  * \author Hans Pabst
  ******************************************************************************/
 void dbm_mempool_statistics(dbm_memstats_t *memstats) {
   dbm_memchunk_t *chunk;
   assert(NULL != memstats);
   memset(memstats, 0, sizeof(*memstats));
-
-  for (chunk = mempool_device_available_head; NULL != chunk;
-       chunk = chunk->next) {
-    memstats->device_size += chunk->size;
-    ++memstats->device_mallocs;
-  }
-  for (chunk = mempool_host_available_head; NULL != chunk;
-       chunk = chunk->next) {
-    memstats->host_size += chunk->size;
-    ++memstats->host_mallocs;
+#pragma omp critical(dbm_mempool_modify)
+  {
+    for (chunk = mempool_device_available_head; NULL != chunk;
+         chunk = chunk->next) {
+      memstats->device_used += chunk->used;
+      memstats->device_size += chunk->size;
+      ++memstats->device_mallocs;
+    }
+    for (chunk = mempool_device_allocated_head; NULL != chunk;
+         chunk = chunk->next) {
+      memstats->device_used += chunk->used;
+      memstats->device_size += chunk->size;
+      ++memstats->device_mallocs;
+    }
+    for (chunk = mempool_host_available_head; NULL != chunk;
+         chunk = chunk->next) {
+      memstats->host_used += chunk->used;
+      memstats->host_size += chunk->size;
+      ++memstats->host_mallocs;
+    }
+    for (chunk = mempool_host_allocated_head; NULL != chunk;
+         chunk = chunk->next) {
+      memstats->host_used += chunk->used;
+      memstats->host_size += chunk->size;
+      ++memstats->host_mallocs;
+    }
   }
 }
 
