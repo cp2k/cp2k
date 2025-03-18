@@ -6,7 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 MODULE openPMD_api
    USE ISO_C_BINDING, ONLY: &
-      C_ASSOCIATED, C_CHAR, C_INT, C_INT64_T, C_LOC, C_NULL_CHAR, C_NULL_PTR, C_PTR, C_SIZE_T
+      C_ASSOCIATED, C_CHAR, C_INT, C_INT64_T, C_LOC, C_NULL_CHAR, C_NULL_PTR, C_PTR, C_SIZE_T, C_F_POINTER
    USE kinds, ONLY: default_string_length
    USE message_passing, ONLY: mp_comm_type
 #include "./base/base_uses.f90"
@@ -25,6 +25,7 @@ MODULE openPMD_api
 
    #:set dataset_types_f = ['REAL(kind=dp)']
    #:set dataset_types_enum = ['double']
+   #:set dimensions = [1, 2, 3]
 
    TYPE openpmd_attributable_type
       PRIVATE
@@ -72,10 +73,13 @@ MODULE openPMD_api
       PROCEDURE, PUBLIC :: openpmd_record_as_record_component
    END TYPE openpmd_record_type
 
-   TYPE openpmd_dynamic_memory_view_type
-      PRIVATE
-      TYPE(C_PTR) :: c_ptr = C_NULL_PTR
-   END TYPE openpmd_dynamic_memory_view_type
+   #:for dim in dimensions
+      TYPE openpmd_dynamic_memory_view_type_${dim}$d
+         PRIVATE
+         INTEGER, DIMENSION(${dim}$) :: chunk_extent
+         TYPE(C_PTR) :: c_ptr = C_NULL_PTR
+      END TYPE openpmd_dynamic_memory_view_type_${dim}$d
+   #:endfor
 
    PUBLIC :: openpmd_series_type, openpmd_iteration_type, openpmd_mesh_type, openpmd_particle_species_type, openpmd_record_component_type, openpmd_record_type
    PUBLIC :: openpmd_series_create, openpmd_series_close
@@ -88,7 +92,7 @@ MODULE openPMD_api
    PUBLIC :: openpmd_iteration_get_mesh, openpmd_iteration_get_particle_species, openpmd_iteration_as_attributable
    PUBLIC :: openpmd_record_component_make_empty, openpmd_record_component_make_constant_zero, openpmd_record_get_component, openpmd_record_component_as_attributable, openpmd_record_component_reset_dataset
    #:for type_f, type_enum in zip(dataset_types_f, dataset_types_enum)
-      #:for dim in [1, 2, 3]
+      #:for dim in dimensions
          PUBLIC :: openpmd_record_component_store_chunk_${dim}$d_${type_enum}$
       #:endfor
    #:endfor
@@ -574,6 +578,52 @@ CONTAINS
             status = openpmd_c_record_component_store_chunk(record_component%c_ptr, openpmd_type_${type_enum}$, ${dim}$, C_LOC(offset(1)), C_LOC(extent(1)), C_LOC(data_))
 
          END SUBROUTINE openpmd_record_component_store_chunk_${dim}$d_${type_enum}$
+
+    FUNCTION openpmd_record_component_store_chunk_span_${dim}$d_${type_enum}$ (record_component, offset, extent) RESULT(memory_view)
+            TYPE(openpmd_record_component_type)                        :: record_component
+            INTEGER, DIMENSION(${dim}$), TARGET                        :: offset, extent
+
+            TYPE(openpmd_dynamic_memory_view_type_${dim}$d)            :: memory_view
+
+            INTEGER(kind=C_INT)                                        :: status
+
+            INTERFACE
+            FUNCTION openpmd_c_record_component_store_chunk_span(record_component, dtype, dimensions, offset, extent, memory_view) RESULT(status) BIND(C, name="openPMD_RecordComponent_storeChunkSpan")
+                  IMPORT :: C_PTR, C_INT64_T, C_INT, C_SIZE_T, C_CHAR
+                  TYPE(C_PTR), VALUE :: record_component
+                  INTEGER(KIND=C_INT), VALUE :: dtype
+                  INTEGER(KIND=C_INT), VALUE :: dimensions
+                  TYPE(C_PTR), VALUE :: offset, extent
+                  TYPE(C_PTR) :: memory_view
+                  INTEGER(KIND=C_INT) :: status
+               END FUNCTION openpmd_c_record_component_store_chunk_span
+            END INTERFACE
+
+            ! TODO flip extent, offset
+            memory_view%chunk_extent = extent
+            status = openpmd_c_record_component_store_chunk_span(record_component%c_ptr, openpmd_type_${type_enum}$, ${dim}$, C_LOC(offset(1)), C_LOC(extent(1)), memory_view%c_ptr)
+
+         END FUNCTION openpmd_record_component_store_chunk_span_${dim}$d_${type_enum}$
+
+         FUNCTION openpmd_dynamic_memory_view_resolve_${dim}$d(memory_view) RESULT(buffer)
+            TYPE(openpmd_dynamic_memory_view_type_${dim}$d)            :: memory_view
+            ${type_f}$, POINTER :: buffer(${dimensionality_wildcard}$)
+
+            INTEGER(kind=C_INT)                                        :: status
+            TYPE(C_PTR), TARGET                                        :: c_buffer
+
+            INTERFACE
+               FUNCTION openpmd_c_dynamic_memory_view_resolve(memory_view, write_buffer) RESULT(status) BIND(C, name="openPMD_DynamicMemoryView_resolve")
+                  IMPORT :: C_PTR, C_INT
+                  TYPE(C_PTR), VALUE :: memory_view
+                  TYPE(C_PTR) :: write_buffer
+                  INTEGER(KIND=C_INT) :: status
+               END FUNCTION
+            END INTERFACE
+
+            status = openpmd_c_dynamic_memory_view_resolve(memory_view%c_ptr, c_buffer)
+            CALL c_f_pointer(c_buffer, buffer, memory_view%chunk_extent)
+         END FUNCTION
       #:endfor
    #:endfor
 
