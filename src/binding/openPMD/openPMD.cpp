@@ -7,6 +7,7 @@
 #include <openPMD/Span.hpp>
 #include <openPMD/backend/MeshRecordComponent.hpp>
 #include <openPMD/openPMD.hpp>
+#include <string>
 
 namespace implementation
 {
@@ -332,6 +333,18 @@ extern "C"
         return 0;
     }
 
+    int openPMD_attributable_set_attribute_vec_string(
+        openPMD_Attributable attr,
+        char const *attr_name,
+        char const **begin,
+        int length)
+    {
+        auto attributable = reinterpret_cast<openPMD::Attributable *>(attr);
+        attributable->setAttribute(
+            attr_name, std::vector<std::string>{begin, begin + size_t(length)});
+        return 0;
+    }
+
     int openPMD_Attributable_series_flush(openPMD_Attributable attr)
     {
         auto attributable = reinterpret_cast<openPMD::Attributable *>(attr);
@@ -396,6 +409,54 @@ extern "C"
     {
         return implementation::
             do_upcast<openPMD::Mesh, openPMD::MeshRecordComponent>(mesh, mrc);
+    }
+
+    int openPMD_Mesh_set_axis_labels(
+        // in
+        openPMD_Mesh mesh_param,
+        char const **labels,
+        int len_labels)
+    {
+        auto mesh = reinterpret_cast<openPMD::Mesh *>(mesh_param);
+        mesh->setAxisLabels(
+            std::vector<std::string>(labels, labels + len_labels));
+        return 0;
+    }
+
+    int openPMD_Mesh_setGridGlobalOffset(
+        // in
+        openPMD_Mesh mesh_param,
+        double const *labels,
+        int len_labels)
+    {
+        auto mesh = reinterpret_cast<openPMD::Mesh *>(mesh_param);
+        mesh->setGridGlobalOffset(
+            std::vector<double>(labels, labels + len_labels));
+        return 0;
+    }
+
+    int openPMD_Mesh_setGridSpacing(
+        // in
+        openPMD_Mesh mesh_param,
+        double const *labels,
+        int len_labels)
+    {
+        auto mesh = reinterpret_cast<openPMD::Mesh *>(mesh_param);
+        mesh->setGridSpacing(
+            std::vector<double>(labels, labels + len_labels));
+        return 0;
+    }
+
+    int openPMD_Mesh_setPosition(
+        // in
+        openPMD_Mesh mesh_param,
+        double const *labels,
+        int len_labels)
+    {
+        auto mesh = reinterpret_cast<openPMD::Mesh *>(mesh_param);
+        mesh->setPosition(
+            std::vector<double>(labels, labels + len_labels));
+        return 0;
     }
 
     int openPMD_MeshRecordComponent_upcast_to_RecordComponent(

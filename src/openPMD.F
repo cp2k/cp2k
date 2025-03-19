@@ -6,7 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 MODULE openPMD_api
    USE ISO_C_BINDING, ONLY: &
-      C_ASSOCIATED, C_CHAR, C_INT, C_INT64_T, C_LOC, C_NULL_CHAR, C_NULL_PTR, C_PTR, C_SIZE_T, C_F_POINTER
+      C_ASSOCIATED, C_CHAR, C_INT, C_INT64_T, C_LOC, C_NULL_CHAR, C_NULL_PTR, C_PTR, C_SIZE_T, C_F_POINTER, C_DOUBLE
    USE kinds, ONLY: default_string_length
    USE message_passing, ONLY: mp_comm_type
 #include "./base/base_uses.f90"
@@ -113,6 +113,7 @@ MODULE openPMD_api
    #:for dim in dimensions
       PUBLIC :: openpmd_dynamic_memory_view_type_${dim}$d
    #:endfor
+   PUBLIC :: openpmd_mesh_set_axis_labels, openpmd_mesh_set_grid_global_offset, openpmd_mesh_set_grid_spacing, openpmd_mesh_set_position
    PUBLIC :: openpmd_particle_species_get_record
    PUBLIC :: cp2k_log
 
@@ -511,6 +512,63 @@ CONTAINS
       CALL auxiliary_invert_vector(extent)
       status = openpmd_c_record_component_make_constant(record_component%c_ptr, dtype, SIZE(extent), C_LOC(extent(1)), C_NULL_PTR)
    END SUBROUTINE openpmd_record_component_make_constant_zero
+
+   SUBROUTINE openpmd_mesh_set_axis_labels(mesh, labels)
+      TYPE(openpmd_mesh_type) :: mesh
+      CHARACTER(len=*), DIMENSION(:) :: labels
+
+      INTEGER :: i
+      CHARACTER(len=default_string_length), ALLOCATABLE, TARGET :: labels_as_null_terminated_strings(:)
+      TYPE(C_PTR), ALLOCATABLE, TARGET :: labels_as_c_strings(:)
+
+      INTERFACE
+         SUBROUTINE openpmd_c_mesh_set_axis_labels(mesh, labels, len_labels) BIND(C, NAME="openPMD_Mesh_set_axis_labels")
+            IMPORT :: C_CHAR, C_SIZE_T, C_INT, C_PTR
+            TYPE(C_PTR), VALUE :: mesh
+            TYPE(C_PTR), VALUE :: labels
+            INTEGER(kind=C_INT), VALUE :: len_labels
+         END SUBROUTINE
+      END INTERFACE
+
+      ALLOCATE (labels_as_null_terminated_strings(SIZE(labels)))
+      ALLOCATE (labels_as_c_strings(SIZE(labels)))
+
+      ! TODO: should we invert the vector?
+      DO i = 1, SIZE(labels)
+         labels_as_null_terminated_strings(i) = TRIM(labels(i))//C_NULL_CHAR
+         labels_as_c_strings(i) = C_LOC(labels_as_null_terminated_strings(i))
+      END DO
+
+      CALL openpmd_c_mesh_set_axis_labels(mesh%c_ptr, C_LOC(labels_as_c_strings(1)), SIZE(labels))
+
+      DEALLOCATE (labels_as_c_strings)
+      DEALLOCATE (labels_as_null_terminated_strings)
+   END SUBROUTINE
+
+   #:set f_routines = ["openpmd_mesh_set_grid_global_offset", "openpmd_mesh_set_grid_spacing", "openpmd_mesh_set_position"]
+   #:set c_functions = ["openPMD_Mesh_setGridGlobalOffset", "openPMD_Mesh_setGridSpacing", "openPMD_Mesh_setPosition"]
+   #:set f_vector_types = ["REAL(KIND=dp)" for _ in range(3)]
+
+   #:for f_routine, c_function, f_vector_type in zip(f_routines, c_functions, f_vector_types)
+      SUBROUTINE ${f_routine}$ (mesh, vec)
+      TYPE(openpmd_mesh_type)                    :: mesh
+      ${f_vector_type}$, DIMENSION(:), TARGET                      :: vec
+
+      INTEGER, TARGET                                    :: size_
+      INTERFACE
+         SUBROUTINE openpmd_c_set_vector_attribute(mesh, vec, length) BIND(C, NAME="${c_function}$")
+            IMPORT :: C_CHAR, C_SIZE_T, C_INT, C_PTR
+            TYPE(C_PTR), VALUE :: mesh
+            TYPE(C_PTR), VALUE :: vec
+            INTEGER(kind=C_INT), VALUE :: length
+         END SUBROUTINE
+      END INTERFACE
+
+      size_ = SIZE(vec)
+      CALL openpmd_c_set_vector_attribute(mesh%c_ptr, C_LOC(vec(1)), size_)
+
+      END SUBROUTINE
+   #:endfor
 
    SUBROUTINE openpmd_record_component_reset_dataset(record_component, dtype, extent, cfg)
       TYPE(openpmd_record_component_type)                :: record_component

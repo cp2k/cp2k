@@ -119,6 +119,11 @@ int openPMD_attributable_set_attribute_vec_int(openPMD_Attributable attr,
                                                char const *attr_name,
                                                int const *begin, int length);
 
+int openPMD_attributable_set_attribute_vec_string(openPMD_Attributable attr,
+                                                  char const *attr_name,
+                                                  char const **begin,
+                                                  int length);
+
 int openPMD_Attributable_series_flush(openPMD_Attributable attr);
 
 /**********************
@@ -158,6 +163,22 @@ int openPMD_Mesh_upcast_to_MeshRecordComponent(
     openPMD_Mesh mesh,
     // out
     openPMD_MeshRecordComponent *mrc);
+
+int openPMD_Mesh_set_axis_labels(
+    // in
+    openPMD_Mesh mesh, char const **labels, int len_labels);
+
+int openPMD_Mesh_setGridGlobalOffset(
+    // in
+    openPMD_Mesh mesh, double const *labels, int len_labels);
+
+int openPMD_Mesh_setGridSpacing(
+    // in
+    openPMD_Mesh mesh, double const *labels, int len_labels);
+
+int openPMD_Mesh_setPosition(
+    // in
+    openPMD_Mesh mesh, double const *labels, int len_labels);
 
 /***************************
  * RecordComponent members *

@@ -25,7 +25,9 @@ MODULE realspace_grid_cube
         openpmd_dynamic_memory_view_resolve_3d_double, openpmd_dynamic_memory_view_type_1d, &
         openpmd_dynamic_memory_view_type_3d, openpmd_iteration_get_mesh, &
         openpmd_iteration_get_particle_species, openpmd_mesh_as_record_component, &
-        openpmd_mesh_type, openpmd_particle_species_get_record, openpmd_particle_species_type, &
+        openpmd_mesh_set_axis_labels, openpmd_mesh_set_grid_global_offset, &
+        openpmd_mesh_set_grid_spacing, openpmd_mesh_set_position, openpmd_mesh_type, &
+        openpmd_particle_species_get_record, openpmd_particle_species_type, &
         openpmd_record_component_make_constant_zero, openpmd_record_component_reset_dataset, &
         openpmd_record_component_store_chunk_span_1d_double, &
         openpmd_record_component_store_chunk_span_3d_double, openpmd_record_component_type, &
@@ -294,6 +296,10 @@ CONTAINS
          END DO
 
          mesh = openpmd_iteration_get_mesh(openpmd_data%iteration, TRIM(openpmd_data%name_prefix))
+         CALL openpmd_mesh_set_axis_labels(mesh, (/"x", "y", "z"/))
+         CALL openpmd_mesh_set_position(mesh, (/0.5_dp, 0.5_dp, 0.5_dp/))
+         CALL openpmd_mesh_set_grid_global_offset(mesh, (/0._dp, 0._dp, 0._dp/))
+         CALL openpmd_mesh_set_grid_spacing(mesh, (/1._dp, 1._dp, 1._dp/))
          scalar_mesh = openpmd_mesh_as_record_component(mesh)
          CALL openpmd_record_component_reset_dataset(scalar_mesh, openpmd_type_double, extent)
 
