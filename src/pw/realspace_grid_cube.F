@@ -343,17 +343,18 @@ CONTAINS
          dest = rank(2)
          count1 = 0
          DO I1 = L1, U1, my_stride(1)
+            ! maybe add an overload to provide `buf` here for HDF5, might have better performance
+            ! for intermittent flushing
+            ! or just call the buffer in the outer function if memory is no problem...
+
+            ! why do we do row-major accesses here?
+            unresolved_write_buffer = openpmd_record_component_store_chunk_span_3d_double( &
+                                       scalar_mesh, (/count1, 0, 0/), (/1, extent(2), extent(3)/))
+            write_buffer => openpmd_dynamic_memory_view_resolve_3d_double(unresolved_write_buffer, DEALLOCATE=.TRUE.)
+
             count2 = 0
             DO I2 = L2, U2, my_stride(2)
 
-               ! maybe add an overload to provide `buf` here for HDF5, might have better performance
-               ! for intermittent flushing
-               ! or just call the buffer in the outer function if memory is no problem...
-
-               ! why do we do row-major accesses here?
-               unresolved_write_buffer = openpmd_record_component_store_chunk_span_3d_double( &
-                                         scalar_mesh, (/count1, count2, 0/), (/1, 1, extent(3)/))
-               write_buffer => openpmd_dynamic_memory_view_resolve_3d_double(unresolved_write_buffer, DEALLOCATE=.TRUE.)
 
                ! cycling through the CPUs, check if the current ray (I1,I2) is local to that CPU
                IF (pw%pw_grid%para%mode .NE. PW_MODE_LOCAL) THEN
@@ -370,12 +371,12 @@ CONTAINS
                IF (source == dest) THEN
                   IF (my_rank == source) THEN
                      buf(:) = pw%array(I1, I2, :)
-                     write_buffer(1, 1, :) = pw%array(I1, I2, :)
+                     write_buffer(1, count2 + 1, :) = pw%array(I1, I2, :)
                   END IF
                ELSE
                   IF (my_rank == source) THEN
                      buf(:) = pw%array(I1, I2, :)
-                     write_buffer(1, 1, :) = pw%array(I1, I2, :)
+                     write_buffer(1, count2 + 1, :) = pw%array(I1, I2, :)
                      CALL gid%send(buf, dest, tag)
                      CALL gid%send(write_buffer, dest, tag)
                   END IF
@@ -388,7 +389,7 @@ CONTAINS
                   IF (my_zero_tails) THEN
                      DO I3 = L3, U3
                         IF (buf(I3) < 1.E-7_dp) buf(I3) = 0.0_dp
-                        ! IF (write_buffer(1, 1, I3) < 1.E-7_dp) write_buffer(1, 1, I3) = 0.0_dp
+                        ! IF (write_buffer(1, count2 + 1, I3) < 1.E-7_dp) write_buffer(1, count2 + 1, I3) = 0.0_dp
                      END DO
                   END IF
                   WRITE (*, '(6E13.5)') (buf(I3), I3=L3, U3, my_stride(3))
