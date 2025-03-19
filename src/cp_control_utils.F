@@ -109,15 +109,16 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(section_vals_type), POINTER                   :: dft_section
 
-      CHARACTER(len=default_path_length)                 :: basis_set_file_name, potential_file_name, &
-                                                            intensities_file_name
+      CHARACTER(len=default_path_length)                 :: basis_set_file_name, &
+                                                            intensities_file_name, &
+                                                            potential_file_name
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: tmpstringlist
       INTEGER                                            :: admmtype, excitations, irep, isize, &
                                                             method_id, nrep, xc_deriv_method_id
-      LOGICAL                                            :: at_end, do_hfx, do_ot, do_rpa_admm, do_rtp, &
-                                                            exopt1, exopt2, exopt3, explicit, &
-                                                            is_present, l_param, not_SE, &
+      LOGICAL                                            :: at_end, do_hfx, do_ot, do_rpa_admm, &
+                                                            do_rtp, exopt1, exopt2, exopt3, &
+                                                            explicit, is_present, l_param, not_SE, &
                                                             was_present
       REAL(KIND=dp)                                      :: density_cut, gradient_cut, tau_cut
       REAL(KIND=dp), DIMENSION(:), POINTER               :: pol
@@ -526,10 +527,10 @@ CONTAINS
          CALL section_vals_val_get(tmp_section, "INTENSITIES_FILE_NAME", c_val=intensities_file_name)
 
          IF (SIZE(pol) > 1 .OR. pol(1) /= 0.0_dp) THEN
-            ! if INTENSITY_LIST is present, INTENSITY must not be present
+            ! if INTENSITY_LIST is present, INTENSITY and INTENSITIES_FILE_NAME must not be present
             IF (dft_control%period_efield%strength /= 0.0_dp .OR. intensities_file_name /= "") THEN
                CALL cp_abort(__LOCATION__, "[PERIODIC FIELD] Only one of INTENSITY, INTENSITY_LIST "// &
-                       "or INTENSITIES_FILE_NAME can be specified.")
+                             "or INTENSITIES_FILE_NAME can be specified.")
             END IF
 
             ALLOCATE (dft_control%period_efield%strength_list(SIZE(pol)))
@@ -540,35 +541,31 @@ CONTAINS
             ! if INTENSITIES_FILE_NAME is present, INTENSITY must not be present
             IF (dft_control%period_efield%strength /= 0.0_dp) THEN
                CALL cp_abort(__LOCATION__, "[PERIODIC FIELD] Only one of INTENSITY, INTENSITY_LIST "// &
-                       "or INTENSITIES_FILE_NAME can be specified.")
+                             "or INTENSITIES_FILE_NAME can be specified.")
             END IF
 
-               ! TODO: parser like in npp_environment:731
-               ! TODO: what about para_env?
-               ! TODO: should the file really read here?
+            CALL parser_create(parser, intensities_file_name)
 
-               CALL parser_create(parser, intensities_file_name)
-               
-               nrep = 0
-               DO WHILE (.TRUE.)
-                  CALL parser_read_line(parser, 1, at_end)
-                  IF (at_end) EXIT
-                  nrep = nrep + 1
-               END DO
+            nrep = 0
+            DO WHILE (.TRUE.)
+               CALL parser_read_line(parser, 1, at_end)
+               IF (at_end) EXIT
+               nrep = nrep + 1
+            END DO
 
-               IF (nrep == 0) THEN
-                  CPABORT("[PERIODIC FIELD] No intensities found in INTENSITIES_FILE_NAME")
-               END IF
+            IF (nrep == 0) THEN
+               CPABORT("[PERIODIC FIELD] No intensities found in INTENSITIES_FILE_NAME")
+            END IF
 
-               ALLOCATE (dft_control%period_efield%strength_list(nrep))
-               
-               CALL parser_reset(parser)
-               DO irep = 1, nrep
-                  CALL parser_read_line(parser, 1)
-                  READ (parser%input_line, *) dft_control%period_efield%strength_list(irep)
-               END DO
+            ALLOCATE (dft_control%period_efield%strength_list(nrep))
 
-               CALL parser_release(parser)
+            CALL parser_reset(parser)
+            DO irep = 1, nrep
+               CALL parser_read_line(parser, 1)
+               READ (parser%input_line, *) dft_control%period_efield%strength_list(irep)
+            END DO
+
+            CALL parser_release(parser)
          END IF
 
          CALL section_vals_val_get(tmp_section, "START_FRAME", &
