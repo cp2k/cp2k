@@ -208,7 +208,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_to_openpmd'
       INTEGER, PARAMETER                                 :: entry_len = 13, num_entries_line = 6
 
-      INTEGER :: checksum, count1, count2, dest, handle, i, I1, I2, I3, iat, ip, L1, L2, L3, &
+      INTEGER :: checksum, count1, count2, dest, handle, i, j, I1, I2, I3, iat, ip, L1, L2, L3, &
          msglen, my_rank, my_stride(3), np, num_atom_types, num_linebreak, num_pe, rank(2), &
          size_of_z, source, tag, U1, U2, U3
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_counts, atom_types
@@ -222,6 +222,7 @@ CONTAINS
       TYPE(openpmd_dynamic_memory_view_type_3d)          :: unresolved_write_buffer
       TYPE(openpmd_mesh_type)                            :: mesh
       TYPE(openpmd_record_component_type)                :: scalar_mesh
+      REAL(KIND=dp), DIMENSION(3)                        :: grid_spacing
 
       CALL timeset(routineN, handle)
 
@@ -277,6 +278,16 @@ CONTAINS
 
             WRITE (*, '(I5,3f12.6)') np, 0.0_dp, 0._dp, 0._dp !start of cube
 
+            DO i = 1, 3
+               DO j = 1, 3
+                  IF (i == j) THEN
+                     grid_spacing(i) = pw%pw_grid%dh(i, i)*REAL(my_stride(i), dp)
+                  ELSE
+                     CPASSERT(pw%pw_grid%dh(i, j) == 0)
+                  ENDIF
+               END DO
+            END DO
+
             DO iat = 1, 3
                WRITE (*, '(I5,3f12.6)') (pw%pw_grid%npts(iat) + my_stride(iat) - 1)/my_stride(iat), &
                   pw%pw_grid%dh(1, iat)*REAL(my_stride(iat), dp), pw%pw_grid%dh(2, iat)*REAL(my_stride(iat), dp), &
@@ -299,7 +310,7 @@ CONTAINS
          CALL openpmd_mesh_set_axis_labels(mesh, (/"x", "y", "z"/))
          CALL openpmd_mesh_set_position(mesh, (/0.5_dp, 0.5_dp, 0.5_dp/))
          CALL openpmd_mesh_set_grid_global_offset(mesh, (/0._dp, 0._dp, 0._dp/))
-         CALL openpmd_mesh_set_grid_spacing(mesh, (/1._dp, 1._dp, 1._dp/))
+         CALL openpmd_mesh_set_grid_spacing(mesh, grid_spacing)
          scalar_mesh = openpmd_mesh_as_record_component(mesh)
          CALL openpmd_record_component_reset_dataset(scalar_mesh, openpmd_type_double, extent)
 
