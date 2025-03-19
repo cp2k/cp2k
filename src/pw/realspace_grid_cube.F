@@ -208,13 +208,12 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_to_openpmd'
       INTEGER, PARAMETER                                 :: entry_len = 13, num_entries_line = 6
 
-      INTEGER :: checksum, count1, count2, dest, handle, i, j, I1, I2, I3, iat, ip, L1, L2, L3, &
+      INTEGER :: count1, count2, dest, handle, i, j, I1, I2, iat, ip, L1, L2, L3, &
          msglen, my_rank, my_stride(3), np, num_atom_types, num_linebreak, num_pe, rank(2), &
          size_of_z, source, tag, U1, U2, U3
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_counts, atom_types
       INTEGER, DIMENSION(3)                              :: extent
       LOGICAL                                            :: be_silent, my_zero_tails, parallel_write
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: buf
       REAL(KIND=dp), POINTER                             :: write_buffer(:, :, :)
       TYPE(cp_openpmd_per_call_value_type)               :: openpmd_data
       TYPE(mp_comm_type)                                 :: gid
@@ -249,57 +248,30 @@ CONTAINS
          CPASSERT(my_stride(3) > 0)
       END IF
 
-      ! TODO implement
-      IF (.TRUE.) THEN
-         openpmd_data = cp_openpmd_get_value_unit_nr(unit_nr)
-         unit_nr = 6 ! stdout
-         ! CALL timestop(handle)
-         ! RETURN
-      END IF
+      openpmd_data = cp_openpmd_get_value_unit_nr(unit_nr)
 
       IF (.NOT. parallel_write) THEN
-         IF (unit_nr > 0) THEN
-            ! this format seems to work for e.g. molekel and gOpenmol
-            ! latest version of VMD can read non orthorhombic cells
-            WRITE (*, '(a11)') "-Quickstep-"
-            IF (PRESENT(title)) THEN
-               WRITE (*, *) TRIM(title)
-            ELSE
-               WRITE (*, *) "No Title"
-            END IF
 
-            CPASSERT(PRESENT(particles_z) .EQV. PRESENT(particles_r))
-            np = 0
-            IF (PRESENT(particles_z)) THEN
-               CALL pw_get_atom_types(particles_z, atom_types, atom_counts, num_atom_types)
-               CPASSERT(SIZE(particles_z) == SIZE(particles_r, dim=2))
-               np = SIZE(particles_z)
-            END IF
+         CPASSERT(PRESENT(particles_z) .EQV. PRESENT(particles_r))
+         np = 0
+         IF (PRESENT(particles_z)) THEN
+            CALL pw_get_atom_types(particles_z, atom_types, atom_counts, num_atom_types)
+            CPASSERT(SIZE(particles_z) == SIZE(particles_r, dim=2))
+            np = SIZE(particles_z)
+         END IF
 
-            WRITE (*, '(I5,3f12.6)') np, 0.0_dp, 0._dp, 0._dp !start of cube
-
-            DO i = 1, 3
-               DO j = 1, 3
-                  IF (i == j) THEN
-                     grid_spacing(i) = pw%pw_grid%dh(i, i)*REAL(my_stride(i), dp)
-                  ELSE
-                     CPASSERT(pw%pw_grid%dh(i, j) == 0)
-                  ENDIF
-               END DO
+         DO i = 1, 3
+            DO j = 1, 3
+               IF (i == j) THEN
+                  grid_spacing(i) = pw%pw_grid%dh(i, i)*REAL(my_stride(i), dp)
+               ELSE
+                  CPASSERT(pw%pw_grid%dh(i, j) == 0)
+               ENDIF
             END DO
+         END DO
 
-            DO iat = 1, 3
-               WRITE (*, '(I5,3f12.6)') (pw%pw_grid%npts(iat) + my_stride(iat) - 1)/my_stride(iat), &
-                  pw%pw_grid%dh(1, iat)*REAL(my_stride(iat), dp), pw%pw_grid%dh(2, iat)*REAL(my_stride(iat), dp), &
-                  pw%pw_grid%dh(3, iat)*REAL(my_stride(iat), dp)
-            END DO
-
-            IF (PRESENT(particles_z)) THEN
-               CALL pw_write_particles(particles_z, particles_r, atom_types, atom_counts, num_atom_types, openpmd_data)
-               DO iat = 1, np
-                  WRITE (*, '(I5,4f12.6)') particles_z(iat), 0._dp, particles_r(:, iat)
-               END DO
-            END IF
+         IF (PRESENT(particles_z)) THEN
+            CALL pw_write_particles(particles_z, particles_r, atom_types, atom_counts, num_atom_types, openpmd_data)
          END IF
 
          DO iat = 1, 3
@@ -322,23 +294,9 @@ CONTAINS
          U2 = pw%pw_grid%bounds(2, 2)
          U3 = pw%pw_grid%bounds(2, 3)
 
-         ALLOCATE (buf(L3:U3))
-
          my_rank = pw%pw_grid%para%group%mepos
          gid = pw%pw_grid%para%group
          num_pe = pw%pw_grid%para%group%num_pe
-         tag = 1
-
-         rank (1) = unit_nr
-         rank (2) = my_rank
-         checksum = 0
-         IF (unit_nr > 0) checksum = 1
-
-         CALL gid%sum(checksum)
-         CPASSERT(checksum == 1)
-
-         CALL gid%maxloc(rank)
-         CPASSERT(rank(1) > 0)
 
          dest = rank(2)
          count1 = 0
@@ -370,14 +328,11 @@ CONTAINS
 
                IF (source == dest) THEN
                   IF (my_rank == source) THEN
-                     buf(:) = pw%array(I1, I2, :)
                      write_buffer(1, count2 + 1, :) = pw%array(I1, I2, :)
                   END IF
                ELSE
                   IF (my_rank == source) THEN
-                     buf(:) = pw%array(I1, I2, :)
                      write_buffer(1, count2 + 1, :) = pw%array(I1, I2, :)
-                     CALL gid%send(buf, dest, tag)
                      CALL gid%send(write_buffer, dest, tag)
                   END IF
                   IF (my_rank == dest) THEN
@@ -385,30 +340,10 @@ CONTAINS
                   END IF
                END IF
 
-               IF (unit_nr > 0) THEN
-                  IF (my_zero_tails) THEN
-                     DO I3 = L3, U3
-                        IF (buf(I3) < 1.E-7_dp) buf(I3) = 0.0_dp
-                        ! IF (write_buffer(1, count2 + 1, I3) < 1.E-7_dp) write_buffer(1, count2 + 1, I3) = 0.0_dp
-                     END DO
-                  END IF
-                  WRITE (*, '(6E13.5)') (buf(I3), I3=L3, U3, my_stride(3))
-               END IF
-
-               ! this double loop generates so many messages that it can overload
-               ! the message passing system, e.g. on XT3
-               ! we therefore put a barrier here that limits the amount of message
-               ! that flies around at any given time.
-               ! if ever this routine becomes a bottleneck, we should go for a
-               ! more complicated rewrite
-               CALL gid%sync()
-
                count2 = count2 + 1
             END DO
             count1 = count1 + 1
          END DO
-
-         DEALLOCATE (buf)
       ELSE
          size_of_z = CEILING(REAL(pw%pw_grid%bounds(2, 3) - pw%pw_grid%bounds(1, 3) + 1, dp)/REAL(my_stride(3), dp))
          num_linebreak = size_of_z/num_entries_line
