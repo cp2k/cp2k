@@ -9,6 +9,7 @@
 "H2O-field.inp"                         = [{matcher="E_total", tol=4e-13, ref=-15.90320150373305}]
 "H2O-field-lsd.inp"                     = [{matcher="E_total", tol=4e-14, ref=-15.92914916395207}]
 "H2O-field-list.inp"                    = [{matcher="M002", tol=1e-14, ref=-0.171095788220e+02}]
+"H2O-field-file.inp"                    = [{matcher="M002", tol=1e-14, ref=-0.171095788220e+02}]
 "HF-field.inp"                          = [{matcher="E_total", tol=1e-12, ref=-24.70767796237102}]
 "HF-field-gopt.inp"                     = [{matcher="E_total", tol=1e-12, ref=-24.70292863028889}]
 "HF-field-debug.inp"                    = []
