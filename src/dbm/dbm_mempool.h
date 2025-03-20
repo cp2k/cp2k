@@ -17,13 +17,13 @@ extern "C" {
  * \brief Internal routine for allocating host memory from the pool.
  * \author Ole Schuett
  ******************************************************************************/
-void *dbm_mempool_host_malloc(const size_t size);
+void *dbm_mempool_host_malloc(size_t size);
 
 /*******************************************************************************
  * \brief Internal routine for allocating device memory from the pool.
  * \author Ole Schuett
  ******************************************************************************/
-void *dbm_mempool_device_malloc(const size_t size);
+void *dbm_mempool_device_malloc(size_t size);
 
 /*******************************************************************************
  * \brief Internal routine for releasing memory back to the pool.

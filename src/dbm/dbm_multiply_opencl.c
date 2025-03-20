@@ -169,10 +169,8 @@ void dbm_multiply_gpu_launch_kernel(const offloadStream_t stream, double alpha,
           fprintf(stderr, "INFO ACC/LIBDBM: DBM-kernel failed to generate\n");
         }
       }
-      kernel = kernel_global;
-    } else {
-      kernel = clCloneKernel(kernel_global, &result);
     }
+    kernel = clCloneKernel(kernel_global, &result); /* always clone */
     ACC_OPENCL_RELEASE(config->lock_main);
   } else if (NULL == kernel) {
     kernel = clCloneKernel(kernel_global, &result);

@@ -479,7 +479,7 @@ void dbm_mpi_alltoallv_double(const double *sendbuf, const int *sendcounts,
  ******************************************************************************/
 void *dbm_mpi_alloc_mem(size_t size) {
   void *result = NULL;
-#if defined(__parallel) && !defined(OPEN_MPI)
+#if defined(__parallel)
   CHECK(MPI_Alloc_mem((MPI_Aint)size, MPI_INFO_NULL, &result));
 #else
   result = malloc(size);
@@ -492,7 +492,7 @@ void *dbm_mpi_alloc_mem(size_t size) {
  * \author Hans Pabst
  ******************************************************************************/
 void dbm_mpi_free_mem(void *mem) {
-#if defined(__parallel) && !defined(OPEN_MPI)
+#if defined(__parallel)
   CHECK(MPI_Free_mem(mem));
 #else
   free(mem);
