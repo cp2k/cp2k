@@ -45,6 +45,7 @@ MODULE f77_interface
                                               unpack_subsys_particles
    USE dbm_api,                         ONLY: dbm_library_finalize,&
                                               dbm_library_init
+   USE cp_dlaf_utils_api,               ONLY: cp_dlaf_finalize
    USE eip_environment,                 ONLY: eip_init
    USE eip_environment_types,           ONLY: eip_env_create,&
                                               eip_environment_type
@@ -336,9 +337,13 @@ CONTAINS
          CALL cp_sirius_finalize()
          ! Finalize the DBCSR library
          CALL dbcsr_finalize_lib()
+         
+         ! Finalize DLA-Future and pika runtime; if already finalized does nothing
+         CALL cp_dlaf_finalize()
 
          CALL mp_para_env_release(default_para_env)
          CALL cp_rm_default_logger()
+
 
          ! Deallocate the bibliography
          CALL remove_all_references()
