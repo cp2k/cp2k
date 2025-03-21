@@ -41,10 +41,11 @@ MODULE tblite_interface
    USE cp_blacs_env, ONLY: cp_blacs_env_type
    USE cp_control_types, ONLY: dft_control_type
    USE cp_dbcsr_api, ONLY: dbcsr_type, dbcsr_p_type, dbcsr_create, dbcsr_add, &
-                           dbcsr_print, dbcsr_get_block_p, dbcsr_finalize, &
+                           dbcsr_get_block_p, dbcsr_finalize, &
                            dbcsr_iterator_type, dbcsr_iterator_blocks_left, &
                            dbcsr_iterator_start, dbcsr_iterator_stop, &
                            dbcsr_iterator_next_block
+   USE cp_dbcsr_contrib, ONLY: dbcsr_print
    USE cp_dbcsr_cp2k_link, ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations, ONLY: dbcsr_allocate_matrix_set
    USE cp_log_handling, ONLY: cp_get_default_logger, &
@@ -958,7 +959,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                      :: calculate_forces
 
       INTEGER                                            :: ikind, jkind, iatom, jatom, icol, irow
-      INTEGER                                            :: ic, is, nimg, blk, ni, nj, i, j
+      INTEGER                                            :: ic, is, nimg, ni, nj, i, j
       INTEGER                                            :: la, lb, za, zb
       LOGICAL                                            :: found
       INTEGER, DIMENSION(3)                              :: cellind
@@ -1003,7 +1004,7 @@ CONTAINS
                                   kind_of=kind_of)
          CALL dbcsr_iterator_start(iter, matrix_s(1, 1)%matrix)
          DO WHILE (dbcsr_iterator_blocks_left(iter))
-            CALL dbcsr_iterator_next_block(iter, irow, icol, sblock, blk)
+            CALL dbcsr_iterator_next_block(iter, irow, icol, sblock)
 
             ikind = kind_of(irow)
             jkind = kind_of(icol)
