@@ -233,8 +233,9 @@ void dbm_multiply_gpu_launch_kernel(const offloadStream_t stream, double alpha,
         EXIT_SUCCESS == clGetEventProfilingInfo(*perf_event,
                                                 CL_PROFILING_COMMAND_END,
                                                 sizeof(cl_ulong), &end, NULL)) {
-      const double dkrnl = 1E-9 * LIBXSMM_DELTA(begin, end);
-      const double dtotl = 1E+3 * LIBXSMM_MAX(dkrnl, dhost);
+      const double dkrnl = LIBXSMM_DELTA(begin, end) * 1E-6;
+      const double dtotl =
+          LIBXSMM_MAX(dkrnl, dhost / c_dbcsr_acc_opencl_config.nthreads * 1E+3);
       int pure;
       if (1 < ndims) { /* DBM_MULTIPLY_GEN */
         dbm_multiply_gpu_launch_info(&info, tasks_host, ntasks);
@@ -242,9 +243,10 @@ void dbm_multiply_gpu_launch_kernel(const offloadStream_t stream, double alpha,
       pure = (100 * (ntasks - info.changes) + ntasks - 1) / ntasks;
       fprintf(stderr,
               "INFO ACC/LIBDBM: DBM-kernel mnk=%ix%ix%i pure=%i%% "
-              "ntasks=%i kernel_ms=%.2g total_ms=%.2g gflops=%.1f\n",
+              "ntasks=%i kernel_ms=%.1f total_ms=%.1f gflops=%.1f\n",
               info.avg_m, info.avg_n, info.avg_k, pure, ntasks, dkrnl, dtotl,
-              2E-6 * info.avg_m * info.avg_n * info.avg_k * ntasks / dtotl);
+              2E-6 * info.avg_m * info.avg_n * info.avg_k * ntasks *
+                  c_dbcsr_acc_opencl_config.nranks / dtotl);
     }
   }
   OFFLOAD_CHECK(result);

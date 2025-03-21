@@ -62,7 +62,7 @@ static void *actual_malloc(size_t size, bool on_device) {
       offload_activate_chosen_device();
       offloadMalloc(&memory, size);
     } else {
-#if (0 != DBM_OFFLOAD_ALLOC)
+#if DBM_ALLOC_OFFLOAD
       offloadMallocHost(&memory, size);
 #else
       memory = dbm_mpi_alloc_mem(size);
@@ -99,7 +99,7 @@ static void actual_free(const void *memory, bool on_device) {
       offload_activate_chosen_device();
       offloadFree(mem);
     } else {
-#if (0 != DBM_OFFLOAD_ALLOC)
+#if DBM_ALLOC_OFFLOAD
       offloadFreeHost(mem);
 #else
       dbm_mpi_free_mem(mem);
@@ -116,7 +116,7 @@ static void actual_free(const void *memory, bool on_device) {
  * \brief Private routine for allocating host or device memory from the pool.
  * \author Ole Schuett
  ******************************************************************************/
-#if (0 != DBM_MEMPOOL_DEVICE) || (0 != DBM_MEMPOOL_HOST)
+#if DBM_MEMPOOL_DEVICE || DBM_MEMPOOL_HOST
 static void *internal_mempool_malloc(dbm_memchunk_t **available_head,
                                      dbm_memchunk_t **allocated_head,
                                      size_t size) {
@@ -185,7 +185,7 @@ static void *internal_mempool_malloc(dbm_memchunk_t **available_head,
  * \author Ole Schuett
  ******************************************************************************/
 void *dbm_mempool_host_malloc(size_t size) {
-#if (0 != DBM_MEMPOOL_HOST)
+#if DBM_MEMPOOL_HOST
   return internal_mempool_malloc(&mempool_host_available_head,
                                  &mempool_host_allocated_head, size);
 #else
@@ -198,7 +198,7 @@ void *dbm_mempool_host_malloc(size_t size) {
  * \author Ole Schuett
  ******************************************************************************/
 void *dbm_mempool_device_malloc(size_t size) {
-#if (0 != DBM_MEMPOOL_DEVICE)
+#if DBM_MEMPOOL_DEVICE
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_DBM)
   return internal_mempool_malloc(&mempool_device_available_head,
                                  &mempool_device_allocated_head, size);
@@ -214,7 +214,7 @@ void *dbm_mempool_device_malloc(size_t size) {
  * \brief Private routine for releasing memory back to the pool.
  * \author Ole Schuett
  ******************************************************************************/
-#if (0 != DBM_MEMPOOL_DEVICE) || (0 != DBM_MEMPOOL_HOST)
+#if DBM_MEMPOOL_DEVICE || DBM_MEMPOOL_HOST
 static void internal_mempool_free(dbm_memchunk_t **available_head,
                                   dbm_memchunk_t **allocated_head,
                                   const void *mem) {
@@ -244,7 +244,7 @@ static void internal_mempool_free(dbm_memchunk_t **available_head,
  * \author Ole Schuett
  ******************************************************************************/
 void dbm_mempool_host_free(const void *memory) {
-#if (0 != DBM_MEMPOOL_HOST)
+#if DBM_MEMPOOL_HOST
   internal_mempool_free(&mempool_host_available_head,
                         &mempool_host_allocated_head, memory);
 #else
@@ -257,7 +257,7 @@ void dbm_mempool_host_free(const void *memory) {
  * \author Ole Schuett
  ******************************************************************************/
 void dbm_mempool_device_free(const void *memory) {
-#if (0 != DBM_MEMPOOL_DEVICE)
+#if DBM_MEMPOOL_DEVICE
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_DBM)
   internal_mempool_free(&mempool_device_available_head,
                         &mempool_device_allocated_head, memory);
