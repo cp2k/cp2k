@@ -9,7 +9,6 @@ stages:
 
 variables:
   REPOSITORY: cp2k_eiger
-  CP2K_BUILD_TYPE: minimal
   VERSION: psmp
   TAG: "spack_${VERSION}"
   UBUNTU_IMAGE_NAME: "ubuntu:24.04"
