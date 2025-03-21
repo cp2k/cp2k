@@ -40,7 +40,8 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     zstd
 
 # Retrieve the number of available CPU cores
-ARG NUM_PROCS=32
+ARG NUM_PROCS
+ENV NUM_PROCS=${NUM_PROCS:-32}
 
 # Install the latest Spack development version
 WORKDIR /root
@@ -54,13 +55,15 @@ RUN spack compiler find
 RUN spack external find --all --not-buildable
 
 # Enable Spack build cache from the latest development version
-ARG SPACK_BUILD_CACHE=develop
+ARG SPACK_BUILD_CACHE
+ENV SPACK_BUILD_CACHE="${SPACK_BUILD_CACHE:-develop}"
 RUN spack mirror add ${SPACK_BUILD_CACHE} https://binaries.spack.io/${SPACK_BUILD_CACHE} && \
     spack buildcache keys --install --trust --force && \
     spack mirror remove ${SPACK_BUILD_CACHE}
 
 # Install CP2K dependencies via Spack
-ARG CP2K_BUILD_TYPE="minimal"
+ARG CP2K_BUILD_TYPE
+ENV CP2K_BUILD_TYPE=${CP2K_BUILD_TYPE:-minimal}
 COPY ./ci/spack/cp2k_deps_${CP2K_BUILD_TYPE}.yaml .
 RUN spack env create myenv ./cp2k_deps_${CP2K_BUILD_TYPE}.yaml
 RUN spack -e myenv concretize -f

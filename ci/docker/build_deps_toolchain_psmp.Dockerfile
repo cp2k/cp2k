@@ -30,13 +30,16 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     zlib1g-dev
 
 # Retrieve the number of available CPU cores
-ARG NUM_PROCS=32
+ARG NUM_PROCS
+ENV NUM_PROCS=${NUM_PROCS:-32}
 
 # Retrieve the maximum number log file lines printed on error
-ARG LOG_LINES=100
+ARG LOG_LINES
+ENV LOG_LINES=${LOG_LINES:-100}
 
 # Install an MPI version ABI-compatible with the host MPI on Cray at CSCS
-ARG MPICH_VERSION=3.4.3
+ARG MPICH_VERSION
+ENV MPICH_VERSION=${MPICH_VERSION:-3.4.3}
 RUN /bin/bash -c -o pipefail " \
     wget -q https://www.mpich.org/static/downloads/${MPICH_VERSION}/mpich-${MPICH_VERSION}.tar.gz; \
     tar -xf mpich-${MPICH_VERSION}.tar.gz; \
@@ -52,7 +55,8 @@ RUN /bin/bash -c -o pipefail " \
     rm mpich-${MPICH_VERSION}.tar.gz"
 
 # Build CP2K toolchain
-ARG CP2K_BUILD_TYPE="minimal"
+ARG CP2K_BUILD_TYPE
+ENV CP2K_BUILD_TYPE=${CP2K_BUILD_TYPE:-minimal}
 COPY ./tools/toolchain /opt/cp2k/tools/toolchain
 WORKDIR /opt/cp2k/tools/toolchain
 RUN echo "\nCP2K build type: ${CP2K_BUILD_TYPE}\n" && \
