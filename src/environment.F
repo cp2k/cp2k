@@ -33,6 +33,9 @@ MODULE environment
                                               diag_finalize,&
                                               diag_init,&
                                               eps_check_diag_default
+   USE cp_fm_cholesky,                  ONLY: FM_CHOLESKY_TYPE_DLAF,&
+                                              FM_CHOLESKY_TYPE_SCALAPACK,&
+                                              cholesky_type
    USE cp_fm_diag_utils,                ONLY: cp_fm_redistribute_init
    USE cp_fm_struct,                    ONLY: cp_fm_struct_config
    USE cp_fm_types,                     ONLY: cp_fm_get_mm_type,&
@@ -514,7 +517,7 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: env_num, model_name, project_name
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: trace_routines
-      INTEGER :: cpuid, cpuid_static, i_dgemm, i_diag, i_fft, i_grid_backend, iforce_eval, &
+      INTEGER :: cpuid, cpuid_static, i_dgemm, i_diag, i_cholesky, i_fft, i_grid_backend, iforce_eval, &
          method_name_id, n_rep_val, nforce_eval, num_threads, output_unit, print_level, trace_max, &
          unit_nr
       INTEGER(kind=int_8) :: Buffers, Buffers_avr, Buffers_max, Buffers_min, Cached, Cached_avr, &
@@ -541,6 +544,7 @@ CONTAINS
       CALL section_vals_val_get(global_section, "BLACS_GRID", i_val=globenv%blacs_grid_layout)
       CALL section_vals_val_get(global_section, "BLACS_REPEATABLE", l_val=globenv%blacs_repeatable)
       CALL section_vals_val_get(global_section, "PREFERRED_DIAG_LIBRARY", i_val=i_diag)
+      CALL section_vals_val_get(global_section, "PREFERRED_CHOLESKY_LIBRARY", i_val=i_cholesky)
       CALL section_vals_val_get(global_section, "PREFERRED_DGEMM_LIBRARY", i_val=i_dgemm)
       CALL section_vals_val_get(global_section, "EPS_CHECK_DIAG", r_val=globenv%eps_check_diag)
       CALL section_vals_val_get(global_section, "ENABLE_MPI_IO", l_val=flag)
@@ -553,6 +557,7 @@ CONTAINS
       IF (unit_nr > 0) globenv%elpa_print = .TRUE.
       CALL cp_print_key_finished_output(unit_nr, logger, global_section, "PRINT_ELPA")
       CALL section_vals_val_get(global_section, "DLAF_NEIGVEC_MIN", i_val=globenv%dlaf_neigvec_min)
+      CALL section_vals_val_get(global_section, "DLAF_CHOLESKY_N_MIN", i_val=globenv%dlaf_cholesky_n_min)
       CALL section_vals_val_get(global_section, "PREFERRED_FFT_LIBRARY", i_val=i_fft)
       CALL section_vals_val_get(global_section, "PRINT_LEVEL", i_val=print_level)
       CALL section_vals_val_get(global_section, "PROGRAM_NAME", i_val=globenv%prog_name_id)
@@ -613,6 +618,18 @@ CONTAINS
          CALL cite_reference(Solca2024)
       CASE DEFAULT
          CPABORT("Unknown diagonalization library specified")
+      END SELECT
+      
+      SELECT CASE (i_cholesky)
+      CASE (FM_DIAG_TYPE_SCALAPACK)
+         globenv%cholesky_library = "ScaLAPACK"
+         cholesky_type = FM_CHOLESKY_TYPE_SCALAPACK
+      CASE (FM_DIAG_TYPE_DLAF)
+         globenv%cholesky_library = "DLAF"
+         cholesky_type = FM_CHOLESKY_TYPE_DLAF
+         CALL cite_reference(Solca2024)
+      CASE DEFAULT
+         CPABORT("Unknown Cholesky decomposition library specified")
       END SELECT
 
       SELECT CASE (i_fft)
@@ -792,6 +809,8 @@ CONTAINS
             ADJUSTR(globenv%default_fft_library(:40)), &
             start_section_label//"| Diagonalization library", &
             ADJUSTR(globenv%diag_library(:40)), &
+            start_section_label//"| Cholesky decomposition library", &
+            ADJUSTR(globenv%cholesky_library(:40)), &
             start_section_label//"| DGEMM library", &
             ADJUSTR(globenv%default_dgemm_library(:40))
 
@@ -805,6 +824,12 @@ CONTAINS
             WRITE (UNIT=output_unit, FMT="(T2,A,T71,I10)") &
                start_section_label//"| Minimum number of eigenvectors for DLAF usage", &
                globenv%dlaf_neigvec_min
+         END IF
+
+         IF (globenv%cholesky_library == "DLAF") THEN
+            WRITE (UNIT=output_unit, FMT="(T2,A,T71,I10)") &
+               start_section_label//"| Minimum matrix size for Cholesky decomposition with DLAF", &
+               globenv%dlaf_cholesky_n_min
          END IF
 
 #if defined(__CHECK_DIAG)

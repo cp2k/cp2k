@@ -15,6 +15,8 @@ MODULE cp_fm_cholesky
    USE cp_blacs_env, ONLY: cp_blacs_env_type
    USE cp_fm_types, ONLY: cp_fm_type
    USE cp_log_handling, ONLY: cp_to_string
+   USE cp_dlaf_utils_api, ONLY: cp_dlaf_initialize, cp_dlaf_create_grid
+   USE cp_fm_dlaf_api, ONLY: cp_pdpotrf_dlaf, cp_pspotrf_dlaf
    USE kinds, ONLY: dp, &
                     sp
 #include "../base/base_uses.f90"
@@ -27,6 +29,23 @@ MODULE cp_fm_cholesky
 
    PUBLIC :: cp_fm_cholesky_decompose, cp_fm_cholesky_invert, &
              cp_fm_cholesky_reduce, cp_fm_cholesky_restore
+
+   ! The following saved variables are Cholesky decomposition global
+   ! Stores the default library for Cholesky decomposition
+   INTEGER, SAVE, PUBLIC   :: cholesky_type = 0
+#if defined(__DLAF)
+   ! Minimum matrix size for the use of the DLAF Cholesky decomposition.
+   ! ScaLAPACK is used as fallback for all smaller cases.
+   INTEGER, SAVE, PUBLIC    :: dlaf_cholesky_n_min = 0
+#endif
+   ! Constants for the diag_type above
+   INTEGER, PARAMETER, PUBLIC  :: FM_CHOLESKY_TYPE_SCALAPACK = 101, &
+                                  FM_CHOLESKY_TYPE_DLAF = 104
+#if defined(__DLAF)
+   INTEGER, PARAMETER, PUBLIC :: FM_CHOLESKY_TYPE_DEFAULT = FM_CHOLESKY_TYPE_DLAF
+#else
+   INTEGER, PARAMETER, PUBLIC :: FM_CHOLESKY_TYPE_DEFAULT = FM_CHOLESKY_TYPE_SCALAPACK
+#endif
 
 !***
 CONTAINS
@@ -71,19 +90,37 @@ CONTAINS
 
 #if defined(__parallel)
       desca(:) = matrix%matrix_struct%descriptor(:)
-      IF (matrix%use_sp) THEN
-         CALL pspotrf('U', my_n, a_sp(1, 1), 1, 1, desca, info)
-      ELSE
-         CALL pdpotrf('U', my_n, a(1, 1), 1, 1, desca, info)
-      END IF
-#else
+#if defined(__DLAF)
+      WRITE(*,*) "DEBUG >>> cholesky_type = ", cholesky_type
+      WRITE(*,*) "DEBUG >>> N = ", matrix%matrix_struct%nrow_global
+      IF (cholesky_type == FM_CHOLESKY_TYPE_DLAF .AND. matrix%matrix_struct%nrow_global .GE. dlaf_cholesky_n_min) THEN
+         ! Initialize DLA-Future on-demand; if already initialized, does nothing
+         CALL cp_dlaf_initialize()
 
+         ! Create DLAF grid from BLACS context; if already present, does nothing
+         CALL cp_dlaf_create_grid(matrix%matrix_struct%context%get_handle())
+
+         IF (matrix%use_sp) THEN
+            CALL cp_pspotrf_dlaf('U', my_n, a_sp(:, :), 1, 1, desca, info)
+         ELSE
+            CALL cp_pdpotrf_dlaf('U', my_n, a(:, :), 1, 1, desca, info)
+         END IF
+      ELSE
+#endif
+         IF (matrix%use_sp) THEN
+            CALL pspotrf('U', my_n, a_sp(1, 1), 1, 1, desca, info)
+         ELSE
+            CALL pdpotrf('U', my_n, a(1, 1), 1, 1, desca, info)
+         END IF
+#if defined(__DLAF)
+      END IF
+#endif
+#else
       IF (matrix%use_sp) THEN
          CALL spotrf('U', my_n, a_sp(1, 1), SIZE(a_sp, 1), info)
       ELSE
          CALL dpotrf('U', my_n, a(1, 1), SIZE(a, 1), info)
       END IF
-
 #endif
 
       IF (PRESENT(info_out)) THEN
