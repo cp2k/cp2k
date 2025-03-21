@@ -33,11 +33,9 @@ MODULE cp_fm_cholesky
    ! The following saved variables are Cholesky decomposition global
    ! Stores the default library for Cholesky decomposition
    INTEGER, SAVE, PUBLIC   :: cholesky_type = 0
-#if defined(__DLAF)
    ! Minimum matrix size for the use of the DLAF Cholesky decomposition.
    ! ScaLAPACK is used as fallback for all smaller cases.
    INTEGER, SAVE, PUBLIC    :: dlaf_cholesky_n_min = 0
-#endif
    ! Constants for the diag_type above
    INTEGER, PARAMETER, PUBLIC  :: FM_CHOLESKY_TYPE_SCALAPACK = 101, &
                                   FM_CHOLESKY_TYPE_DLAF = 104
@@ -91,9 +89,9 @@ CONTAINS
 #if defined(__parallel)
       desca(:) = matrix%matrix_struct%descriptor(:)
 #if defined(__DLAF)
-      WRITE(*,*) "DEBUG >>> cholesky_type = ", cholesky_type
-      WRITE(*,*) "DEBUG >>> N = ", matrix%matrix_struct%nrow_global
-      IF (cholesky_type == FM_CHOLESKY_TYPE_DLAF .AND. matrix%matrix_struct%nrow_global .GE. dlaf_cholesky_n_min) THEN
+      WRITE(*,*) "DEBUG >>> dlaf_cholesky_n_min = ", dlaf_cholesky_n_min
+      IF (cholesky_type == FM_CHOLESKY_TYPE_DLAF .AND. matrix%matrix_struct%nrow_global >= dlaf_cholesky_n_min) THEN
+         WRITE(*,*) "DEBUG >>> CALLING DLA-F Cholesky | dlaf_cholesky_n_min = ", dlaf_cholesky_n_min
          ! Initialize DLA-Future on-demand; if already initialized, does nothing
          CALL cp_dlaf_initialize()
 

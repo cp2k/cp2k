@@ -35,7 +35,8 @@ MODULE environment
                                               eps_check_diag_default
    USE cp_fm_cholesky,                  ONLY: FM_CHOLESKY_TYPE_DLAF,&
                                               FM_CHOLESKY_TYPE_SCALAPACK,&
-                                              cholesky_type
+                                              cholesky_type,&
+                                              dlaf_cholesky_n_min
    USE cp_fm_diag_utils,                ONLY: cp_fm_redistribute_init
    USE cp_fm_struct,                    ONLY: cp_fm_struct_config
    USE cp_fm_types,                     ONLY: cp_fm_get_mm_type,&
@@ -627,6 +628,7 @@ CONTAINS
       CASE (FM_DIAG_TYPE_DLAF)
          globenv%cholesky_library = "DLAF"
          cholesky_type = FM_CHOLESKY_TYPE_DLAF
+         dlaf_cholesky_n_min = globenv%dlaf_cholesky_n_min
          CALL cite_reference(Solca2024)
       CASE DEFAULT
          CPABORT("Unknown Cholesky decomposition library specified")

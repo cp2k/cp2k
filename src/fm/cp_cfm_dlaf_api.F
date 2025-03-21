@@ -26,71 +26,8 @@ MODULE cp_cfm_dlaf_api
 
    PUBLIC :: cp_cfm_pzpotrf_dlaf
    PUBLIC :: cp_cfm_diag_dlaf, cp_cfm_diag_gen_dlaf
-   PUBLIC :: cp_cfm_cholesky_decompose_dlaf
 
 CONTAINS
-
-! **************************************************************************************************
-!> \brief Used to replace a symmetric positive definite matrix M with its Cholesky
-!>      decomposition U: M = U^T * U, with U upper triangular.
-!> \param matrix   the matrix to replace with its Cholesky decomposition
-!> \param n        the number of row (and columns) of the matrix &
-!>                 (defaults to the min(size(matrix)))
-!> \param info_out if present, outputs info from (p)zpotrf
-!> \author Rocco Meli
-! **************************************************************************************************
-   SUBROUTINE cp_cfm_cholesky_decompose_dlaf(matrix, n, info_out)
-      TYPE(cp_cfm_type), INTENT(IN)                      :: matrix
-      INTEGER, INTENT(in), OPTIONAL                      :: n
-      INTEGER, INTENT(out), OPTIONAL                     :: info_out
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_cholesky_decompose_dlaf'
-
-      COMPLEX(kind=dp), DIMENSION(:, :), POINTER         :: a
-      INTEGER                                            :: handle, info, my_n
-      INTEGER, DIMENSION(9)                              :: desca
-      INTEGER                                            :: blacs_context
-
-      CALL timeset(routineN, handle)
-
-#if defined(__DLAF)
-      my_n = MIN(matrix%matrix_struct%nrow_global, &
-                 matrix%matrix_struct%ncol_global)
-      IF (PRESENT(n)) THEN
-         CPASSERT(n <= my_n)
-         my_n = n
-      END IF
-
-      a => matrix%local_data
-
-      desca(:) = matrix%matrix_struct%descriptor(:)
-
-      blacs_context = matrix%matrix_struct%context%get_handle()
-      CALL cp_dlaf_create_grid(blacs_context)
-      CALL cp_cfm_pzpotrf_dlaf('U', my_n, a, 1, 1, desca, info)
-      CALL cp_dlaf_free_grid(blacs_context)
-
-      IF (PRESENT(info_out)) THEN
-         info_out = info
-      ELSE
-         IF (info /= 0) &
-            CALL cp_abort(__LOCATION__, &
-                          "Cholesky decompose failed: matrix is not positive definite or ill-conditioned")
-      END IF
-#else
-      MARK_USED(matrix)
-      MARK_USED(n)
-      MARK_USED(info_out)
-      MARK_USED(a)
-      MARK_USED(info)
-      MARK_USED(my_n)
-      MARK_USED(desca)
-      MARK_USED(blacs_context)
-#endif
-
-      CALL timestop(handle)
-
-   END SUBROUTINE cp_cfm_cholesky_decompose_dlaf
 
 !***************************************************************************************************
 !> \brief Cholesky factorization using DLA-Future
