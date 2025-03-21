@@ -1,0 +1,64 @@
+# Spack environment file for CP2K CI
+
+spack:
+  concretizer:
+    unify: true
+  config:
+    install_tree:
+      root: /opt/spack
+  packages:
+    all:
+      prefer:
+        - +mpi
+    # MPI, BLAS, LAPACK, ScaLAPACK
+    mpi:
+      require:
+        - mpich
+    mpich:
+      require:
+        - device=ch3
+        - netmod=tcp
+    blas:
+      require:
+        - openblas
+    lapack:
+      require:
+        - openblas
+    scalapack:
+      require:
+        - netlib-scalapack
+    openblas:
+      require:
+        - +fortran
+        - threads=openmp
+    # Dependencies for CP2K
+    dbcsr:
+      require:
+        - +openmp
+    fftw-api:
+      require:
+        - "@3"
+        - fftw
+    fftw:
+      require:
+        - +openmp
+    libxc:
+      require:
+        - +kxc
+        - build_system=cmake
+  specs:
+    - "dbcsr@2.8.0"
+    - "fftw@3.3.10"
+    - "libxc@7.0.0"
+    - "libxsmm@1.17"
+    - "mpich@3.4.3"
+    - "netlib-scalapack@2.2.2"
+    - "openblas@0.3.29"
+  view:
+    default:
+      root: ./spack-env/view
+      exclude:
+        # Exclude gcc-runtime to avoid adding a copy of libgomp.so to the view
+        - gcc-runtime
+ 
+# EOF

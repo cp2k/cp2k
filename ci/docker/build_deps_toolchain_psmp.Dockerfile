@@ -30,13 +30,16 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     zlib1g-dev
 
 # Retrieve the number of available CPU cores
-ARG NUM_PROCS=32
+ARG NUM_PROCS
+ENV NUM_PROCS=${NUM_PROCS:-32}
 
 # Retrieve the maximum number log file lines printed on error
-ARG LOG_LINES=100
+ARG LOG_LINES
+ENV LOG_LINES=${LOG_LINES:-100}
 
 # Install an MPI version ABI-compatible with the host MPI on Cray at CSCS
-ARG MPICH_VERSION=3.4.3
+ARG MPICH_VERSION
+ENV MPICH_VERSION=${MPICH_VERSION:-3.4.3}
 RUN /bin/bash -c -o pipefail " \
     wget -q https://www.mpich.org/static/downloads/${MPICH_VERSION}/mpich-${MPICH_VERSION}.tar.gz; \
     tar -xf mpich-${MPICH_VERSION}.tar.gz; \
@@ -52,12 +55,13 @@ RUN /bin/bash -c -o pipefail " \
     rm mpich-${MPICH_VERSION}.tar.gz"
 
 # Build CP2K toolchain
-ARG BUILD_TYPE="minimal"
+ARG CP2K_BUILD_TYPE
+ENV CP2K_BUILD_TYPE=${CP2K_BUILD_TYPE:-minimal}
 COPY ./tools/toolchain /opt/cp2k/tools/toolchain
 WORKDIR /opt/cp2k/tools/toolchain
-RUN echo "\nBuild type: ${BUILD_TYPE}\n" && \
-    if [ "${BUILD_TYPE}" = "minimal" ]; then \
-      ./install_cp2k_toolchain.sh -j ${NUM_PROCS} \
+RUN echo "\nCP2K build type: ${CP2K_BUILD_TYPE}\n" && \
+    if [ "${CP2K_BUILD_TYPE}" = "minimal" ]; then \
+      ./install_cp2k_toolchain.sh -j${NUM_PROCS} \
         --dry-run \
         --no-arch-files \
         --target-cpu=native \
@@ -73,8 +77,8 @@ RUN echo "\nBuild type: ${BUILD_TYPE}\n" && \
         --with-libxc=no \
         --with-sirius=no \
         --with-spglib=no; \
-    elif [ "${BUILD_TYPE}" = "toolchain" ]; then \
-      ./install_cp2k_toolchain.sh -j ${NUM_PROCS} \
+    elif [ "${CP2K_BUILD_TYPE}" = "all" ]; then \
+      ./install_cp2k_toolchain.sh -j${NUM_PROCS} \
         --dry-run \
         --install-all \
         --no-arch-files \
@@ -82,7 +86,7 @@ RUN echo "\nBuild type: ${BUILD_TYPE}\n" && \
         --with-gcc=system \
         --with-mpich=system; \
     else \
-      echo "ERROR: Unknown BUILD_TYPE ${BUILD_TYPE} was specified"; \
+      echo "ERROR: Unknown CP2K_BUILD_TYPE ${CP2K_BUILD_TYPE} was specified"; \
       exit 1; \
     fi
 
