@@ -22,9 +22,9 @@ VERSION=$2
 
 # Using Ninja because of https://gitlab.kitware.com/cmake/cmake/issues/18188
 
-if [[ "${PROFILE}" == "spack" ]]; then
+if [[ "${PROFILE}" =~ ^spack ]]; then
   eval "$(spack env activate myenv --sh)"
-elif [[ "${PROFILE}" =~ ^(minimal|toolchain)$ ]]; then
+elif [[ "${PROFILE}" =~ ^toolchain ]]; then
   # shellcheck disable=SC1091
   source "${TOOLCHAIN_DIR}/install/setup"
 fi
@@ -48,6 +48,37 @@ if [[ "${PROFILE}" == "spack" ]] && [[ "${VERSION}" == "psmp" ]]; then
     -DCP2K_BLAS_VENDOR="OpenBLAS" \
     -DCP2K_SCALAPACK_VENDOR="GENERIC" \
     -DCP2K_USE_DEEPMD=OFF \
+    -Werror=dev \
+    .. |& tee ./cmake.log
+  CMAKE_EXIT_CODE=$?
+
+elif [[ "${PROFILE}" == "spack_minimal" ]] && [[ "${VERSION}" == "psmp" ]]; then
+  cmake \
+    -GNinja \
+    -DCMAKE_BUILD_TYPE="Release" \
+    -DCMAKE_C_FLAGS="-fno-lto" \
+    -DCMAKE_Fortran_FLAGS="-fno-lto" \
+    -DCMAKE_INSTALL_LIBDIR=lib \
+    -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
+    -DCP2K_BLAS_VENDOR=OpenBLAS \
+    -DCP2K_SCALAPACK_VENDOR="GENERIC" \
+    -DCP2K_USE_COSMA=OFF \
+    -DCP2K_USE_DEEPMD=OFF \
+    -DCP2K_USE_DFTD4=OFF \
+    -DCP2K_USE_DLAF=OFF \
+    -DCP2K_USE_ELPA=OFF \
+    -DCP2K_USE_GRPP=OFF \
+    -DCP2K_USE_HDF5=OFF \
+    -DCP2K_USE_LIBINT2=OFF \
+    -DCP2K_USE_LIBSMEAGOL=OFF \
+    -DCP2K_USE_LIBTORCH=OFF \
+    -DCP2K_USE_LIBXC=OFF \
+    -DCP2K_USE_PLUMED=OFF \
+    -DCP2K_USE_SIRIUS=OFF \
+    -DCP2K_USE_SPGLIB=OFF \
+    -DCP2K_USE_SPLA=OFF \
+    -DCP2K_USE_TREXIO=OFF \
+    -DCP2K_USE_VORI=OFF \
     -Werror=dev \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
@@ -123,28 +154,19 @@ elif [[ "${PROFILE}" == "ubuntu" ]] && [[ "${VERSION}" == "ssmp" ]]; then
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
 
-elif [[ "${PROFILE}" == "minimal" ]] && [[ "${VERSION}" == "ssmp" ]]; then
+elif [[ "${PROFILE}" == "toolchain_all" ]] && [[ "${VERSION}" == "psmp" ]]; then
   cmake \
     -GNinja \
     -DCMAKE_BUILD_TYPE="Release" \
+    -DCMAKE_INSTALL_LIBDIR=lib \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
     -DCP2K_BLAS_VENDOR=OpenBLAS \
-    -DCP2K_USE_FFTW3=OFF \
-    -DCP2K_USE_LIBINT2=OFF \
-    -DCP2K_USE_LIBTORCH=OFF \
-    -DCP2K_USE_LIBXC=OFF \
-    -DCP2K_USE_LIBXSMM=OFF \
-    -DCP2K_USE_MPI=OFF \
-    -DCP2K_USE_SPGLIB=OFF \
-    -DCP2K_USE_VORI=OFF \
-    -DCP2K_USE_DFTD4=OFF \
-    -DCP2K_USE_DEEPMD=OFF \
-    -DCP2K_USE_TREXIO=OFF \
+    -DCP2K_USE_DLAF=OFF \
     -Werror=dev \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
 
-elif [[ "${PROFILE}" == "minimal" ]] && [[ "${VERSION}" == "psmp" ]]; then
+elif [[ "${PROFILE}" == "toolchain_minimal" ]] && [[ "${VERSION}" == "psmp" ]]; then
   cmake \
     -GNinja \
     -DCMAKE_BUILD_TYPE="Release" \
@@ -190,4 +212,4 @@ if grep -A5 'CMake Warning' ./cmake.log; then
   return 1
 fi
 
-#EOF
+# EOF

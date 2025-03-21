@@ -52,11 +52,11 @@ RUN /bin/bash -c -o pipefail " \
     rm mpich-${MPICH_VERSION}.tar.gz"
 
 # Build CP2K toolchain
-ARG BUILD_TYPE="minimal"
+ARG CP2K_BUILD_TYPE="minimal"
 COPY ./tools/toolchain /opt/cp2k/tools/toolchain
 WORKDIR /opt/cp2k/tools/toolchain
-RUN echo "\nBuild type: ${BUILD_TYPE}\n" && \
-    if [ "${BUILD_TYPE}" = "minimal" ]; then \
+RUN echo "\nCP2K build type: ${CP2K_BUILD_TYPE}\n" && \
+    if [ "${CP2K_BUILD_TYPE}" = "minimal" ]; then \
       ./install_cp2k_toolchain.sh -j ${NUM_PROCS} \
         --dry-run \
         --no-arch-files \
@@ -73,7 +73,7 @@ RUN echo "\nBuild type: ${BUILD_TYPE}\n" && \
         --with-libxc=no \
         --with-sirius=no \
         --with-spglib=no; \
-    elif [ "${BUILD_TYPE}" = "toolchain" ]; then \
+    elif [ "${CP2K_BUILD_TYPE}" = "all" ]; then \
       ./install_cp2k_toolchain.sh -j ${NUM_PROCS} \
         --dry-run \
         --install-all \
@@ -82,7 +82,7 @@ RUN echo "\nBuild type: ${BUILD_TYPE}\n" && \
         --with-gcc=system \
         --with-mpich=system; \
     else \
-      echo "ERROR: Unknown BUILD_TYPE ${BUILD_TYPE} was specified"; \
+      echo "ERROR: Unknown CP2K_BUILD_TYPE ${CP2K_BUILD_TYPE} was specified"; \
       exit 1; \
     fi
 
