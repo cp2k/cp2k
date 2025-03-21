@@ -858,32 +858,33 @@ CONTAINS
       END IF
 
       ! Build the neighbor lists for the vdW pair potential
-      IF (dispersion_env%type == xc_vdw_fun_pairpot .OR. &
-          (xtb .AND. (.NOT. dft_control%qs_control%xtb_control%do_tblite))) THEN
-         CALL get_qs_env(qs_env=qs_env, dispersion_env=dispersion_env)
-         sab_vdw => dispersion_env%sab_vdw
-         sab_cn => dispersion_env%sab_cn
-         IF (dispersion_env%pp_type == vdw_pairpot_dftd4) THEN
-            c_radius(:) = dispersion_env%rc_d4
-         ELSE
-            c_radius(:) = dispersion_env%rc_disp
-         END IF
-         default_present = .TRUE. !include all atoms in vdW (even without basis)
-         CALL pair_radius_setup(default_present, default_present, c_radius, c_radius, pair_radius)
-         CALL build_neighbor_lists(sab_vdw, particle_set, atom2d, cell, pair_radius, &
-                                   subcells=subcells, operator_type="PP", nlname="sab_vdw")
-         dispersion_env%sab_vdw => sab_vdw
+      IF (.NOT. dft_control%qs_control%xtb_control%do_tblite) THEN
+         IF (dispersion_env%type == xc_vdw_fun_pairpot .OR. xtb) THEN
+            CALL get_qs_env(qs_env=qs_env, dispersion_env=dispersion_env)
+            sab_vdw => dispersion_env%sab_vdw
+            sab_cn => dispersion_env%sab_cn
+            IF (dispersion_env%pp_type == vdw_pairpot_dftd4) THEN
+               c_radius(:) = dispersion_env%rc_d4
+            ELSE
+               c_radius(:) = dispersion_env%rc_disp
+            END IF
+            default_present = .TRUE. !include all atoms in vdW (even without basis)
+            CALL pair_radius_setup(default_present, default_present, c_radius, c_radius, pair_radius)
+            CALL build_neighbor_lists(sab_vdw, particle_set, atom2d, cell, pair_radius, &
+                                      subcells=subcells, operator_type="PP", nlname="sab_vdw")
+            dispersion_env%sab_vdw => sab_vdw
 
-         ! Build the neighbor lists for coordination numbers as needed by the DFT-D3/D4 method
-         ! This is also needed for the xTB Hamiltonian
-         DO ikind = 1, nkind
-            CALL get_atomic_kind(atomic_kind_set(ikind), z=zat)
-            c_radius(ikind) = 4._dp*ptable(zat)%covalent_radius*bohr
-         END DO
-         CALL pair_radius_setup(default_present, default_present, c_radius, c_radius, pair_radius)
-         CALL build_neighbor_lists(sab_cn, particle_set, atom2d, cell, pair_radius, &
-                                   subcells=subcells, operator_type="PP", nlname="sab_cn")
-         dispersion_env%sab_cn => sab_cn
+            ! Build the neighbor lists for coordination numbers as needed by the DFT-D3/D4 method
+            ! This is also needed for the xTB Hamiltonian
+            DO ikind = 1, nkind
+               CALL get_atomic_kind(atomic_kind_set(ikind), z=zat)
+               c_radius(ikind) = 4._dp*ptable(zat)%covalent_radius*bohr
+            END DO
+            CALL pair_radius_setup(default_present, default_present, c_radius, c_radius, pair_radius)
+            CALL build_neighbor_lists(sab_cn, particle_set, atom2d, cell, pair_radius, &
+                                      subcells=subcells, operator_type="PP", nlname="sab_cn")
+            dispersion_env%sab_cn => sab_cn
+         END IF
       END IF
 
       ! Build the neighbor lists for the gCP pair potential
