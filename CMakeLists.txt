@@ -680,12 +680,6 @@ endif()
 if(CP2K_USE_DFTD4)
   find_package(mctc-lib REQUIRED)
   find_package(dftd4 REQUIRED)
-  get_target_property(CP2K_DFTD4_LINK_LIBRARIES dftd4::dftd4
-                      INTERFACE_LINK_LIBRARIES)
-  get_target_property(CP2K_DFTD4_LIB_LINK_LIBRARIES dftd4::dftd4-lib
-                      INTERFACE_LINK_LIBRARIES)
-  get_target_property(CP2K_DFTD4_INCLUDE_DIR dftd4::dftd4-lib
-                      INTERFACE_INCLUDE_DIRECTORIES)
 endif()
 
 if(CP2K_USE_DEEPMD)
@@ -917,16 +911,8 @@ if(CP2K_USE_SPLA)
 endif()
 
 if(CP2K_USE_DFTD4)
-  message(
-    " - DFTD4\n"
-    "   - include directories: ${CP2K_DFTD4_INCLUDE_DIR}\n"
-    "   - libraries: ${CP2K_DFTD4_LINK_LIBRARIES};${CP2K_DFTD4_LIB_LINK_LIBRARIES}\n\n"
-    " - DFTD4 :\n" "   - version     :  ${DFTD4_VERSION}\n"
-    "   - include directories :  ${DFTD4_INCLUDE_DIRS}\n"
-    "   - libraries           :  ${DFTD4_LINK_LIBRARIES}\n"
-    "   - mctc include dir.   :  ${MCTC-LIB_INCLUDE_DIRS}\n"
-    "   - mctc libraries      :  ${MCTC-LIB_LINK_LIBRARIES}\n\n"
-  )
+  message(" - DFTD4\n" "   - include directories :  ${dftd4_INCLUDE_DIRS}\n"
+          "   - libraries           :  ${dftd4_LINK_LIBRARIES}\n\n")
 endif()
 
 if(CP2K_USE_DEEPMD)
@@ -946,15 +932,9 @@ if(CP2K_USE_LIBSMEAGOL)
 endif()
 
 if(CP2K_USE_TBLITE)
-  message(
-    " - TBLITE :\n"
-    "   - version             :  ${TBLITE_VERSION}\n"
-    "   - include directories :  ${TBLITE_INCLUDE_DIRS}\n"
-    "   - tblite libraries    :  ${TBLITE_LINK_LIBRARIES}\n"
-    "   - s-dftd3 include     :  ${S-DFTD3_INCLUDE_DIRS}\n"
-    "   - s- dftd3 libraries  :  ${S-DFTD3_LINK_LIBRARIES}\n"
-    "   - toml-f include      :  ${TOML-F_INCLUDE_DIRS}\n"
-    "   - toml-f libraries    :  ${TOML-F_LINK_LIBRARIES}\n\n")
+  message(" - TBLITE :\n"
+          "   - include directories :  ${tblite_INCLUDE_DIRS}\n"
+          "   - tblite libraries    :  ${tblite_LINK_LIBRARIES}\n\n")
 endif()
 
 if(CP2K_USE_SIRIUS)
