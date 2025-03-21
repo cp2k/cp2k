@@ -35,7 +35,7 @@ build deps eiger:
     ]'
     DOCKERFILE: ci/docker/build_${CI_JOB_STAGE}_${TAG}.Dockerfile
     BASE_IMAGE: ${UBUNTU_IMAGE_NAME}
-    CP2K_BUILD_TYPE: ${CP2K_BUILD_TYPE}
+    CP2K_BUILD_TYPE: minimal
     LOG_LINES: 200
 
 build cp2k eiger:
@@ -57,7 +57,7 @@ build cp2k eiger:
     ]'
     DOCKERFILE: ci/docker/build_${CI_JOB_STAGE}_${TAG}.Dockerfile
     BASE_IMAGE: ${UBUNTU_IMAGE_NAME}
-    CP2K_BUILD_TYPE: ${CP2K_BUILD_TYPE}
+    CP2K_BUILD_TYPE: minimal
     DEPS_IMAGE: ${DEPS_IMAGE_NAME}
     LOG_LINES: 200
     PERSIST_IMAGE_NAME: ${CSCS_IMAGE_NAME}

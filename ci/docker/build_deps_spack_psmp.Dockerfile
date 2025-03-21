@@ -64,7 +64,7 @@ RUN spack mirror add ${SPACK_BUILD_CACHE} https://binaries.spack.io/${SPACK_BUIL
 # Install CP2K dependencies via Spack
 ARG CP2K_BUILD_TYPE
 ENV CP2K_BUILD_TYPE=${CP2K_BUILD_TYPE:-minimal}
-COPY ./ci/spack/cp2k_deps_${CP2K_BUILD_TYPE}.yaml .
+COPY ci/spack/cp2k_deps_${CP2K_BUILD_TYPE}.yaml .
 RUN spack env create myenv ./cp2k_deps_${CP2K_BUILD_TYPE}.yaml
 RUN spack -e myenv concretize -f
 ENV SPACK_ENV_VIEW="/root/spack/var/spack/environments/myenv/spack-env/view"

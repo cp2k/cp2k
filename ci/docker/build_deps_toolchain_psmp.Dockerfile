@@ -61,7 +61,7 @@ COPY ./tools/toolchain /opt/cp2k/tools/toolchain
 WORKDIR /opt/cp2k/tools/toolchain
 RUN echo "\nCP2K build type: ${CP2K_BUILD_TYPE}\n" && \
     if [ "${CP2K_BUILD_TYPE}" = "minimal" ]; then \
-      ./install_cp2k_toolchain.sh -j ${NUM_PROCS} \
+      ./install_cp2k_toolchain.sh -j${NUM_PROCS} \
         --dry-run \
         --no-arch-files \
         --target-cpu=native \
@@ -78,7 +78,7 @@ RUN echo "\nCP2K build type: ${CP2K_BUILD_TYPE}\n" && \
         --with-sirius=no \
         --with-spglib=no; \
     elif [ "${CP2K_BUILD_TYPE}" = "all" ]; then \
-      ./install_cp2k_toolchain.sh -j ${NUM_PROCS} \
+      ./install_cp2k_toolchain.sh -j${NUM_PROCS} \
         --dry-run \
         --install-all \
         --no-arch-files \
