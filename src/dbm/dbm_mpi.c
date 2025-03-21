@@ -6,6 +6,7 @@
 /*----------------------------------------------------------------------------*/
 
 #include <assert.h>
+#include <omp.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -17,11 +18,13 @@
  * \brief Check given MPI status and upon failure abort with a nice message.
  * \author Ole Schuett
  ******************************************************************************/
-#define CHECK(status)                                                          \
-  if (status != MPI_SUCCESS) {                                                 \
-    fprintf(stderr, "MPI error #%i in %s:%i\n", status, __FILE__, __LINE__);   \
-    MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);                                   \
-  }
+#define CHECK(STATUS)                                                          \
+  do {                                                                         \
+    if (MPI_SUCCESS != (STATUS)) {                                             \
+      fprintf(stderr, "MPI error #%i in %s:%i\n", STATUS, __FILE__, __LINE__); \
+      MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);                                 \
+    }                                                                          \
+  } while (0)
 #endif
 
 /*******************************************************************************
@@ -370,7 +373,7 @@ int dbm_mpi_sendrecv_byte(const void *sendbuf, const int sendcount,
 #if defined(__parallel)
   MPI_Status status;
   CHECK(MPI_Sendrecv(sendbuf, sendcount, MPI_BYTE, dest, sendtag, recvbuf,
-                     recvcount, MPI_BYTE, source, recvtag, comm, &status))
+                     recvcount, MPI_BYTE, source, recvtag, comm, &status));
   int count_received;
   CHECK(MPI_Get_count(&status, MPI_BYTE, &count_received));
   return count_received;
@@ -400,7 +403,7 @@ int dbm_mpi_sendrecv_double(const double *sendbuf, const int sendcount,
 #if defined(__parallel)
   MPI_Status status;
   CHECK(MPI_Sendrecv(sendbuf, sendcount, MPI_DOUBLE, dest, sendtag, recvbuf,
-                     recvcount, MPI_DOUBLE, source, recvtag, comm, &status))
+                     recvcount, MPI_DOUBLE, source, recvtag, comm, &status));
   int count_received;
   CHECK(MPI_Get_count(&status, MPI_DOUBLE, &count_received));
   return count_received;
@@ -479,8 +482,10 @@ void dbm_mpi_alltoallv_double(const double *sendbuf, const int *sendcounts,
  ******************************************************************************/
 void *dbm_mpi_alloc_mem(size_t size) {
   void *result = NULL;
-#if defined(__parallel) && !defined(OPEN_MPI)
+#if DBM_ALLOC_MPI && defined(__parallel)
   CHECK(MPI_Alloc_mem((MPI_Aint)size, MPI_INFO_NULL, &result));
+#elif DBM_ALLOC_OPENMP && (201811 /*v5.0*/ <= _OPENMP)
+  result = omp_alloc(size, omp_null_allocator);
 #else
   result = malloc(size);
 #endif
@@ -492,8 +497,10 @@ void *dbm_mpi_alloc_mem(size_t size) {
  * \author Hans Pabst
  ******************************************************************************/
 void dbm_mpi_free_mem(void *mem) {
-#if defined(__parallel) && !defined(OPEN_MPI)
+#if DBM_ALLOC_MPI && defined(__parallel)
   CHECK(MPI_Free_mem(mem));
+#elif DBM_ALLOC_OPENMP && (201811 /*v5.0*/ <= _OPENMP)
+  omp_free(mem, omp_null_allocator);
 #else
   free(mem);
 #endif

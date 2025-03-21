@@ -9,9 +9,13 @@
 #define DBM_HYPERPARAMS_H
 
 #define DBM_OMP_SCHEDULE schedule(dynamic, 1)
-#define DBM_OFFLOAD_ALLOC 1
+
 #define DBM_MEMPOOL_DEVICE 1
 #define DBM_MEMPOOL_HOST 1
+
+#define DBM_ALLOC_OFFLOAD 1
+#define DBM_ALLOC_OPENMP 1
+#define DBM_ALLOC_MPI 0
 
 #define DBM_HASHTABLE_FACTOR 3.0
 #define DBM_ALLOCATION_FACTOR 1.5
