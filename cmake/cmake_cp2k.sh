@@ -161,6 +161,8 @@ elif [[ "${PROFILE}" == "minimal" ]] && [[ "${VERSION}" == "ssmp" ]]; then
     -DCMAKE_BUILD_TYPE="Release" \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
     -DCP2K_BLAS_VENDOR=OpenBLAS \
+    -DCP2K_USE_DEEPMD=OFF \
+    -DCP2K_USE_DFTD4=OFF \
     -DCP2K_USE_FFTW3=OFF \
     -DCP2K_USE_LIBINT2=OFF \
     -DCP2K_USE_LIBTORCH=OFF \
@@ -168,6 +170,7 @@ elif [[ "${PROFILE}" == "minimal" ]] && [[ "${VERSION}" == "ssmp" ]]; then
     -DCP2K_USE_LIBXSMM=OFF \
     -DCP2K_USE_MPI=OFF \
     -DCP2K_USE_SPGLIB=OFF \
+    -DCP2K_USE_TREXIO=OFF \
     -DCP2K_USE_VORI=OFF \
     -Werror=dev \
     .. |& tee ./cmake.log
