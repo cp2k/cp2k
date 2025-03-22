@@ -26,7 +26,7 @@ cd dbcsr-${DBCSR_ver}
 mkdir build
 cd build
 
-if [[ "${PROFILE}" == "toolchain" ]]; then
+if [[ "${PROFILE}" =~ ^toolchain ]]; then
   if [[ -f "${TOOLCHAIN_DIR}/install/setup" ]]; then
     # shellcheck disable=SC1091
     source "${TOOLCHAIN_DIR}/install/setup"

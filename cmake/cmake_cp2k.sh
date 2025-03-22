@@ -24,7 +24,7 @@ VERSION=$2
 
 if [[ "${PROFILE}" =~ ^spack ]]; then
   eval "$(spack env activate myenv --sh)"
-elif [[ "${PROFILE}" =~ ^toolchain ]]; then
+elif [[ "${PROFILE}" =~ ^(minimal|toolchain) ]]; then
   # shellcheck disable=SC1091
   source "${TOOLCHAIN_DIR}/install/setup"
 fi
@@ -73,6 +73,7 @@ elif [[ "${PROFILE}" == "spack_minimal" ]] && [[ "${VERSION}" == "psmp" ]]; then
     -DCP2K_USE_LIBSMEAGOL=OFF \
     -DCP2K_USE_LIBTORCH=OFF \
     -DCP2K_USE_LIBXC=OFF \
+    -DCP2K_USE_MPI=ON \
     -DCP2K_USE_PLUMED=OFF \
     -DCP2K_USE_SIRIUS=OFF \
     -DCP2K_USE_SPGLIB=OFF \
@@ -150,6 +151,24 @@ elif [[ "${PROFILE}" == "ubuntu" ]] && [[ "${VERSION}" == "ssmp" ]]; then
     -DCP2K_USE_DFTD4=OFF \
     -DCP2K_USE_DEEPMD=OFF \
     -DCP2K_USE_TREXIO=OFF \
+    -Werror=dev \
+    .. |& tee ./cmake.log
+  CMAKE_EXIT_CODE=$?
+
+elif [[ "${PROFILE}" == "minimal" ]] && [[ "${VERSION}" == "ssmp" ]]; then
+  cmake \
+    -GNinja \
+    -DCMAKE_BUILD_TYPE="Release" \
+    -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
+    -DCP2K_BLAS_VENDOR=OpenBLAS \
+    -DCP2K_USE_FFTW3=OFF \
+    -DCP2K_USE_LIBINT2=OFF \
+    -DCP2K_USE_LIBTORCH=OFF \
+    -DCP2K_USE_LIBXC=OFF \
+    -DCP2K_USE_LIBXSMM=OFF \
+    -DCP2K_USE_MPI=OFF \
+    -DCP2K_USE_SPGLIB=OFF \
+    -DCP2K_USE_VORI=OFF \
     -Werror=dev \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
