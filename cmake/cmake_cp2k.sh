@@ -24,7 +24,7 @@ VERSION=$2
 
 if [[ "${PROFILE}" =~ ^spack ]]; then
   eval "$(spack env activate myenv --sh)"
-elif [[ "${PROFILE}" =~ ^(minimal|toolchain) ]]; then
+elif [[ "${PROFILE}" =~ ^toolchain ]]; then
   # shellcheck disable=SC1091
   source "${TOOLCHAIN_DIR}/install/setup"
 fi
