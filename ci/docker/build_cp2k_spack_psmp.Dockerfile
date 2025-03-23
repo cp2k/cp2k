@@ -13,7 +13,8 @@ ARG DEPS_IMAGE=""
 FROM ${DEPS_IMAGE} AS build_cp2k
 
 # Retrieve the maximum number log file lines printed on error
-ARG LOG_LINES=100
+ARG LOG_LINES
+ENV LOG_LINES=${LOG_LINES:-100}
 
 # Build CP2K with CMake
 WORKDIR /opt/cp2k
@@ -26,7 +27,8 @@ COPY ./tests ./tests
 COPY ./tools/build_utils ./tools/build_utils
 
 # Run CMake
-ARG CP2K_BUILD_TYPE="minimal"
+ARG CP2K_BUILD_TYPE
+ENV CP2K_BUILD_TYPE=${CP2K_BUILD_TYPE:-minimal}
 RUN /bin/bash -c -o pipefail "source ./cmake/cmake_cp2k.sh spack_${CP2K_BUILD_TYPE} psmp"
 
 # Compile CP2K

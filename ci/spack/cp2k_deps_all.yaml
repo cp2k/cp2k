@@ -1,4 +1,4 @@
-# Spack environment file for a minimal CP2K CI installation
+# Spack environment file for a full CP2K CI installation
 
 spack:
   concretizer:
@@ -24,32 +24,73 @@ spack:
     lapack:
       require:
         - openblas
+    scalapack:
+      require:
+        - netlib-scalapack
     openblas:
       require:
         - +fortran
         - threads=openmp
-    scalapack:
-      require:
-        - netlib-scalapack
     # Dependencies for CP2K
+    cosma:
+      require:
+        - +scalapack
     dbcsr:
+      require:
+        - +openmp
+    dftd4:
+      require:
+        - build_system=cmake
+    elpa:
       require:
         - +openmp
     fftw:
       require:
         - +openmp
+    hdf5:
+      require:
+        - +fortran
+    libint:
+      require:
+        - +fortran
+        - tune=cp2k-lmax-5
     libxc:
       require:
         - +kxc
+        - build_system=cmake
+    sirius:
+      require:
+        - +fortran
+        - +pugixml
+        - ~apps
+        - +vdwxc
+    spla:
+      require:
+        - +fortran
+    trexio:
+      require:
+        - +hdf5
         - build_system=cmake
   specs:
     - "mpich@3.4.3"
     - "openblas@0.3.29"
     - "netlib-scalapack@2.2.2"
+    - "cosma@2.6.6"
     - "dbcsr@2.8.0"
+    - "dftd4@3.6.0"
+    - "elpa@2024.03.001"
     - "fftw@3.3.10"
+    - "hdf5@1.14"
+    - "libint@2.9.0"
+    - "libsmeagol@1.2"
+    - "libvori@220621"
     - "libxc@7.0.0"
     - "libxsmm@1.17"
+#   - "plumed@2.9.2"
+    - "sirius@7.6.1"
+    - "spglib@2.3.0"
+    - "spla@1.6.1"
+    - "trexio@2.5.0"
   view:
     default:
       root: ./spack-env/view
