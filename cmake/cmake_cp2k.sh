@@ -52,6 +52,24 @@ if [[ "${PROFILE}" == "spack" ]] && [[ "${VERSION}" == "psmp" ]]; then
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
 
+elif [[ "${PROFILE}" == "spack_all" ]] && [[ "${VERSION}" == "psmp" ]]; then
+  cmake \
+    -GNinja \
+    -DCMAKE_BUILD_TYPE="Release" \
+    -DCMAKE_C_FLAGS="-fno-lto" \
+    -DCMAKE_Fortran_FLAGS="-fno-lto" \
+    -DCMAKE_INSTALL_LIBDIR=lib \
+    -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
+    -DCP2K_BLAS_VENDOR="OpenBLAS" \
+    -DCP2K_SCALAPACK_VENDOR="GENERIC" \
+    -DCP2K_USE_DLAF=OFF \
+    -DCP2K_USE_LIBTORCH=OFF \
+    -DCP2K_USE_PLUMED=OFF \
+    -DCP2K_USE_DEEPMD=OFF \
+    -Werror=dev \
+    .. |& tee ./cmake.log
+  CMAKE_EXIT_CODE=$?
+
 elif [[ "${PROFILE}" == "spack_minimal" ]] && [[ "${VERSION}" == "psmp" ]]; then
   cmake \
     -GNinja \
