@@ -151,11 +151,11 @@ cmake_common_args=(
   "-DCP2K_USE_LIBINT2:BOOL=OFF"  # Detection is broken
   "-DCP2K_USE_LIBSMEAGOL:BOOL=OFF"
   "-DCP2K_USE_LIBTORCH:BOOL=OFF"
-  "-DCP2K_USE_LIBVORI:BOOL=OFF"
   "-DCP2K_USE_PLUMED:BOOL=OFF"
   "-DCP2K_USE_SIRIUS:BOOL=OFF"
   "-DCP2K_USE_SPGLIB:BOOL=ON"
   "-DCP2K_USE_TREXIO:BOOL=OFF"
+  "-DCP2K_USE_VORI:BOOL=OFF"
 )
 for mpi in '' mpich openmpi; do
   if [ -n "$mpi" ]; then
