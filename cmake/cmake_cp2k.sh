@@ -61,8 +61,8 @@ elif [[ "${PROFILE}" == "spack_all" ]] && [[ "${VERSION}" == "psmp" ]]; then
     -DCMAKE_Fortran_FLAGS="-fno-lto" \
     -DCMAKE_INSTALL_LIBDIR=lib \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
-    -DCP2K_BLAS_VENDOR="OpenBLAS" \
-    -DCP2K_SCALAPACK_VENDOR="GENERIC" \
+    -DCP2K_BLAS_VENDOR="auto" \
+    -DCP2K_SCALAPACK_VENDOR="auto" \
     -DCP2K_USE_DLAF=OFF \
     -DCP2K_USE_LIBTORCH=OFF \
     -DCP2K_USE_PLUMED=OFF \
@@ -181,7 +181,7 @@ elif [[ "${PROFILE}" == "minimal" ]] && [[ "${VERSION}" == "ssmp" ]]; then
     -GNinja \
     -DCMAKE_BUILD_TYPE="Release" \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
-    -DCP2K_BLAS_VENDOR=OpenBLAS \
+    -DCP2K_BLAS_VENDOR="auto" \
     -DCP2K_USE_DEEPMD=OFF \
     -DCP2K_USE_DFTD4=OFF \
     -DCP2K_USE_FFTW3=OFF \
