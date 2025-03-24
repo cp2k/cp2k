@@ -1595,6 +1595,10 @@ CONTAINS
                                 l_val=qs_control%xtb_control%do_tblite)
       CALL section_vals_val_get(xtb_tblite, "METHOD", &
                                 i_val=qs_control%xtb_control%tblite_method)
+      IF (qs_control%xtb_control%do_tblite) THEN
+         !Ewald sum included in tblite
+         qs_control%xtb_control%do_ewald = .FALSE.
+      END IF
 
       CALL timestop(handle)
    END SUBROUTINE read_qs_section
