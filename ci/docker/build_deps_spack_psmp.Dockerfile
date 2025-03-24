@@ -33,6 +33,7 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     patch \
     pkgconf \
     python3 \
+    python3-dev \
     unzip \
     wget \
     xxd \
