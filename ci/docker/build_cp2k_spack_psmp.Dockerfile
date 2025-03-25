@@ -93,7 +93,7 @@ RUN ln -sf cp2k.psmp cp2k && \
     ln -sf cp2k.psmp cp2k_shell
 
 # Update library search path
-RUN echo "/opt/cp2k/lib\n/opt/spack/lib\n/opt/spack/lib/python3.12/site-packages/torch/lib" >/etc/ld.so.conf.d/cp2k.conf && ldconfig
+RUN echo "/opt/cp2k/lib\n/opt/spack/lib\n$(dirname $(find /opt/spack/lib -name libtorch.so))" >/etc/ld.so.conf.d/cp2k.conf && ldconfig
 
 # Create entrypoint script file
 RUN printf "#!/bin/bash\n\
