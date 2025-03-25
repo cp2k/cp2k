@@ -39,13 +39,18 @@ case "$with_greenx" in
       mkdir build
       cd build
       # CP2K only uses the AC and Minimax components
-      # TODO : Include the gmp optional dependence
+      # TODO : Add the stdc++ to libs when libint not used?
+      if [ $with_gmp != "__DONTUSE__" ]; then
+	      gmp_flag=ON
+      else
+	      gmp_flag=OFF
+      fi
       cmake \
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
         -DCMAKE_INSTALL_LIBDIR=lib \
         -DAC_COMPONENT=ON \
         -DMINIMAX_COMPONENT=ON \
-        -DENABLE_GNU_GMP=OFF \
+        -DENABLE_GNU_GMP=$gmp_flag \
         -DENABLE_GREENX_CTEST=OFF \
         .. > configure.log 2>&1 || tail -n ${LOG_LINES} configure.log
       make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
