@@ -58,10 +58,10 @@ spack:
       require:
         - +kxc
         - build_system=cmake
-#    py-torch:
-#      require:
-#        - ~kineto
-#        - ~mkldnn
+    py-torch:
+      require:
+        - ~kineto
+        - ~mkldnn
     sirius:
       require:
         - +fortran
@@ -82,8 +82,8 @@ spack:
     - "cosma@2.6.6"
     - "dbcsr@2.8.0"
     - "dftd4@3.6.0"
-    - "dla-future@0.7.3"
-    - "dla-future-fortran@0.2.0"
+    - "dla-future@0.8.0"
+    - "dla-future-fortran@0.3.0"
     - "elpa@2024.03.001"
     - "fftw@3.3.10"
     - "hdf5@1.14"
@@ -93,7 +93,7 @@ spack:
     - "libxc@7.0.0"
     - "libxsmm@1.17"
     - "plumed@2.9.2"
-#    - "py-torch@2.5"
+    - "py-torch@2.6"
     - "sirius@7.6.1"
     - "spglib@2.3.0"
     - "spla@1.6.1"
