@@ -73,8 +73,6 @@ case "$with_greenx" in
     check_lib -lGXCommon "greenx"
     check_lib -lgx_ac "greenx"
     check_lib -lgx_minimax "greenx"
-    # add_include_from_paths LIBXC_CFLAGS "xc.h" $INCLUDE_PATHS
-    # add_lib_from_paths LIBXC_LDFLAGS "libxc.*" $LIB_PATHS
     ;;
   __DONTUSE__) ;;
 
@@ -87,8 +85,6 @@ case "$with_greenx" in
     GREENX_LDFLAGS="-L'${pkg_install_dir}/lib'"
     ;;
 esac
-# TODO : Solve the pkg-config - pkg-config files are not produced by GreenX, but CMake files are.
-# Will these get correctly propagated to the cmake build? Archfile build should be trivial.
 if [ "$with_greenx" != "__DONTUSE__" ]; then
   GREENX_LIBS=" -lGXCommon -lgx_ac -lgx_minimax"
   cat << EOF > "${BUILDDIR}/setup_greenx"
