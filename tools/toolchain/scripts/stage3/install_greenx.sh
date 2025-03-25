@@ -5,10 +5,16 @@ SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
 greenx_ver="2.1"
 greenx_sha256="2fc1fc2c93b0bab14babc33386f7932192336813cea6db11cd27dbc36b541e41"
+# TODO : Is there a better solution for shellcheck which enables searching of these scripts?
+# shellcheck source=/dev/null
 source "${SCRIPT_DIR}"/common_vars.sh
+# shellcheck source=/dev/null
 source "${SCRIPT_DIR}"/tool_kit.sh
+# shellcheck source=/dev/null
 source "${SCRIPT_DIR}"/signal_trap.sh
+# shellcheck source=/dev/null
 source "${INSTALLDIR}"/toolchain.conf
+# shellcheck source=/dev/null
 source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_greenx" ] && rm "${BUILDDIR}/setup_greenx"
@@ -18,7 +24,8 @@ GREENX_LDFLAGS=""
 GREENX_LIBS=""
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
-
+with_greenx=${with_greenx:"__DONTUSE__"}
+with_gmp=${with_greenx:"__DONTUSE__"}
 case "$with_greenx" in
   __INSTALL__)
     echo "==================== Installing GreenX ===================="
@@ -40,10 +47,10 @@ case "$with_greenx" in
       cd build
       # CP2K only uses the AC and Minimax components
       # TODO : Add the stdc++ to libs when libint not used?
-      if [ $with_gmp != "__DONTUSE__" ]; then
-	      gmp_flag=ON
+      if [ "$with_gmp" != "__DONTUSE__" ]; then
+        gmp_flag=ON
       else
-	      gmp_flag=OFF
+        gmp_flag=OFF
       fi
       cmake \
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
@@ -52,10 +59,10 @@ case "$with_greenx" in
         -DMINIMAX_COMPONENT=ON \
         -DENABLE_GNU_GMP=$gmp_flag \
         -DENABLE_GREENX_CTEST=OFF \
-        .. > configure.log 2>&1 || tail -n ${LOG_LINES} configure.log
-      make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
-      make install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
-      write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage3/$(basename ${SCRIPT_NAME})"
+        .. > configure.log 2>&1 || tail -n "${LOG_LINES}" configure.log
+      make -j "$(get_nprocs)" > make.log 2>&1 || tail -n "${LOG_LINES}" make.log
+      make install > install.log 2>&1 || tail -n "${LOG_LINES}" install.log
+      write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage3/$(basename "${SCRIPT_NAME}")"
       cd ..
     fi
     GREENX_CFLAGS="-I'${pkg_install_dir}/include/modules'"
@@ -106,7 +113,7 @@ export CP_LDFLAGS="\${CP_LDFLAGS} ${GREENX_LDFLAGS}"
 export CP_LIBS="${GREENX_LIBS} \${CP_LIBS}"
 export GREENX_ROOT="${pkg_install_dir}"
 EOF
-    cat "${BUILDDIR}/setup_greenx" >> $SETUPFILE
+  cat "${BUILDDIR}/setup_greenx" >> "$SETUPFILE"
 fi
 
 load "${BUILDDIR}/setup_greenx"

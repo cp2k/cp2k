@@ -5,10 +5,15 @@ SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
 gmp_ver="6.3.0"
 gmp_sha256="a3c2b80201b89e68616f4ad30bc66aee4927c3ce50e33929ca819d5c43538898"
+# shellcheck source=/dev/null
 source "${SCRIPT_DIR}"/common_vars.sh
+# shellcheck source=/dev/null
 source "${SCRIPT_DIR}"/tool_kit.sh
+# shellcheck source=/dev/null
 source "${SCRIPT_DIR}"/signal_trap.sh
+# shellcheck source=/dev/null
 source "${INSTALLDIR}"/toolchain.conf
+# shellcheck source=/dev/null
 source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_gmp" ] && rm "${BUILDDIR}/setup_gmp"
@@ -18,7 +23,7 @@ GMP_LDFLAGS=""
 GMP_LIBS=""
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
-
+with_gmp=${with_gmp:"__DONTUSE__"}
 case "$with_gmp" in
   __INSTALL__)
     echo "==================== Installing GMP ===================="
@@ -45,10 +50,10 @@ case "$with_gmp" in
         --libdir="${pkg_install_dir}/lib" \
         --enable-cxx=yes \
         --includedir="${pkg_install_dir}/include" \
-        > configure.log 2>&1 || tail -n ${LOG_LINES} configure.log
-      make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
-      make install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
-      write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage2/$(basename ${SCRIPT_NAME})"
+        > configure.log 2>&1 || tail -n "${LOG_LINES}" configure.log
+      make -j "$(get_nprocs)" > make.log 2>&1 || tail -n "${LOG_LINES}" make.log
+      make install > install.log 2>&1 || tail -n "${LOG_LINES}" install.log
+      write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage2/$(basename "${SCRIPT_NAME}")"
       cd ..
     fi
     GMP_CFLAGS="-I'${pkg_install_dir}/include'"
@@ -58,9 +63,9 @@ case "$with_gmp" in
     echo "==================== Finding GMP from system paths ===================="
     check_lib -lgmp "gmp"
     check_lib -lgmpxx "gmpxx"
-    add_include_from_paths GMP_CFLAGS "gmp.h" $INCLUDE_PATHS
-    add_lib_from_paths GSL_LDFLAGS "libgmp.*" $LIB_PATHS
-    add_lib_from_paths GSL_LDFLAGS "libgmpxx.*" $LIB_PATHS
+    add_include_from_paths GMP_CFLAGS "gmp.h" "$INCLUDE_PATHS"
+    add_lib_from_paths GSL_LDFLAGS "libgmp.*" "$LIB_PATHS"
+    add_lib_from_paths GSL_LDFLAGS "libgmpxx.*" "$LIB_PATHS"
     ;;
   __DONTUSE__) ;;
 
@@ -97,7 +102,7 @@ export CP_LDFLAGS="\${CP_LDFLAGS} ${GMP_LDFLAGS}"
 export CP_LIBS="${GMP_LIBS} \${CP_LIBS}"
 export GMP_ROOT="${pkg_install_dir}"
 EOF
-    cat "${BUILDDIR}/setup_gmp" >> $SETUPFILE
+  cat "${BUILDDIR}/setup_gmp" >> "$SETUPFILE"
 fi
 
 load "${BUILDDIR}/setup_gmp"
