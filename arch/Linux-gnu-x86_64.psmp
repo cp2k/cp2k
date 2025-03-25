@@ -29,13 +29,13 @@
       if [[ -n "${2}" ]]; then \
          module add ${2}; \
          module list; \
-         ./install_cp2k_toolchain.sh --install-all -j${maxtasks} --no-arch-files --target-cpu=${target_cpu} --with-gcc=system --with-${mpi_implementation}=system; \
+         ./install_cp2k_toolchain.sh --install-all -j${maxtasks} --no-arch-files --target-cpu=${target_cpu} --with-gcc=system --with-${mpi_implementation}=system --with-deepmd=no; \
       else \
          module list; \
-         ./install_cp2k_toolchain.sh --install-all -j${maxtasks} --no-arch-files --target-cpu=${target_cpu} --with-gcc=system --with-${mpi_implementation}; \
+         ./install_cp2k_toolchain.sh --install-all -j${maxtasks} --no-arch-files --target-cpu=${target_cpu} --with-gcc=system --with-${mpi_implementation} --with-deepmd=no; \
       fi; \
    else \
-      ./install_cp2k_toolchain.sh --install-all -j${maxtasks} --no-arch-files --target-cpu=${target_cpu} --with-gcc --with-${mpi_implementation}; \
+      ./install_cp2k_toolchain.sh --install-all -j${maxtasks} --no-arch-files --target-cpu=${target_cpu} --with-gcc --with-${mpi_implementation} --with-deepmd=no; \
    fi; \
    source ./install/setup; \
    cd ../..; \
@@ -65,7 +65,7 @@ TARGET_CPU     := native
 # Retrieve package versions
 GNU_VER        := $(shell gcc -dumpfullversion)
 USE_COSMA      := $(COSMA_VER)
-USE_DEEPMD     := $(DEEPMD_VER)
+#USE_DEEPMD     := $(DEEPMD_VER)
 USE_DFTD4      := $(DFTD4_VER)
 USE_ELPA       := $(ELPA_VER)
 USE_FFTW       := $(FFTW_VER)
