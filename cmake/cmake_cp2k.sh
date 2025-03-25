@@ -54,7 +54,8 @@ if [[ "${PROFILE}" == "spack" ]] && [[ "${VERSION}" == "psmp" ]]; then
   CMAKE_EXIT_CODE=$?
 
 elif [[ "${PROFILE}" == "spack_all" ]] && [[ "${VERSION}" == "psmp" ]]; then
-  export Torch_DIR="/opt/spack/lib/python3.12/site-packages/torch/share/cmake/Torch"
+  Torch_DIR="$(dirname "$(find /opt/spack/lib -name TorchConfig.cmake)")"
+  export Torch_DIR
   cmake \
     -GNinja \
     -DCMAKE_BUILD_TYPE="Release" \
