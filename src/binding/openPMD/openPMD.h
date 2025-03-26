@@ -193,7 +193,7 @@ int openPMD_RecordComponent_upcast_to_Attributable(
 int openPMD_RecordComponent_resetDataset(
     // in
     openPMD_RecordComponent rc, openPMD_Datatype, int dimensions,
-    int const *extent, char const *cfg);
+    int const *extent, int invert, char const *cfg);
 
 int openPMD_RecordComponent_makeEmpty(
     // in
@@ -202,7 +202,7 @@ int openPMD_RecordComponent_makeEmpty(
 int openPMD_RecordComponent_makeConstant(
     // in
     openPMD_RecordComponent rc, openPMD_Datatype, int dimensions,
-    int const *extent, void const *value);
+    int const *extent, int invert, void const *value);
 
 int openPMD_RecordComponent_storeChunk(
     // in

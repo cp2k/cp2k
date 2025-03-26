@@ -1,6 +1,7 @@
 #include "openPMD.h"
 
 #include <any>
+#include <iterator>
 #include <openPMD/Datatype.hpp>
 #include <openPMD/Mesh.hpp>
 #include <openPMD/RecordComponent.hpp>
@@ -159,6 +160,30 @@ namespace
         auto from_upcasted = static_cast<To *>(from);
         *to = from_upcasted;
         return 0;
+    }
+
+    template <typename res_t, typename T>
+    auto pointer_to_vector(T *ptr, size_t len, bool invert)
+    {
+        using resolved_type = std::conditional_t<
+            std::is_same_v<res_t, void>,
+            std::remove_cv_t<T>,
+            res_t>;
+        if (!invert)
+        {
+            return std::vector<resolved_type>{ptr, ptr + len};
+        }
+        else
+        {
+            return std::vector<resolved_type>{
+                std::reverse_iterator(ptr + len), std::reverse_iterator(ptr)};
+        }
+    }
+
+    template <typename res_t, typename T>
+    auto pointer_to_vector(T *ptr, size_t len, int invert)
+    {
+        return pointer_to_vector<res_t, T>(ptr, len, static_cast<bool>(invert));
     }
 
     struct RecordComponent_makeConstant
@@ -442,8 +467,7 @@ extern "C"
         int len_labels)
     {
         auto mesh = reinterpret_cast<openPMD::Mesh *>(mesh_param);
-        mesh->setGridSpacing(
-            std::vector<double>(labels, labels + len_labels));
+        mesh->setGridSpacing(std::vector<double>(labels, labels + len_labels));
         return 0;
     }
 
@@ -454,8 +478,7 @@ extern "C"
         int len_labels)
     {
         auto mesh = reinterpret_cast<openPMD::Mesh *>(mesh_param);
-        mesh->setPosition(
-            std::vector<double>(labels, labels + len_labels));
+        mesh->setPosition(std::vector<double>(labels, labels + len_labels));
         return 0;
     }
 
@@ -487,12 +510,14 @@ extern "C"
         openPMD_Datatype dtype,
         int dimensions,
         int const *extent,
+        int invert,
         char const *cfg)
     {
         auto rc = reinterpret_cast<openPMD::RecordComponent *>(rc_param);
         openPMD::Dataset ds(
             implementation::datatype_c_to_cxx(dtype),
-            openPMD::Extent(extent, extent + dimensions),
+            implementation::pointer_to_vector<openPMD::Extent::value_type>(
+                extent, dimensions, invert),
             cfg ? cfg : "{}");
         rc->resetDataset(std::move(ds));
         return 0;
@@ -515,10 +540,11 @@ extern "C"
         openPMD_Datatype dt,
         int dimensions,
         int const *extent,
+        int invert,
         void const *value)
     {
         openPMD_RecordComponent_resetDataset(
-            rc_param, dt, dimensions, extent, NULL);
+            rc_param, dt, dimensions, extent, invert, NULL);
         auto rc = reinterpret_cast<openPMD::RecordComponent *>(rc_param);
 
         openPMD::switchType<implementation::RecordComponent_makeConstant>(

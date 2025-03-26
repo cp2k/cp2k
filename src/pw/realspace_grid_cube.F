@@ -275,7 +275,7 @@ CONTAINS
          END IF
 
          DO iat = 1, 3
-            extent(iat) = (pw%pw_grid%npts(iat) + my_stride(iat) - 1)/my_stride(iat)
+            extent(4 - iat) = (pw%pw_grid%npts(iat) + my_stride(iat) - 1)/my_stride(iat)
          END DO
 
          mesh = openpmd_iteration_get_mesh(openpmd_data%iteration, TRIM(openpmd_data%name_prefix))
@@ -307,7 +307,7 @@ CONTAINS
 
             ! why do we do row-major accesses here?
             unresolved_write_buffer = openpmd_record_component_store_chunk_span_3d_double( &
-                                       scalar_mesh, (/count1, 0, 0/), (/1, extent(2), extent(3)/))
+                                       scalar_mesh, (/0, 0, count1/), (/extent(1), extent(2), 1/))
             write_buffer => openpmd_dynamic_memory_view_resolve_3d_double(unresolved_write_buffer, DEALLOCATE=.TRUE.)
 
             count2 = 0

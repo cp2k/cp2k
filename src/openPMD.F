@@ -498,11 +498,11 @@ CONTAINS
 
       INTEGER(kind=C_INT)                                :: status
       INTERFACE
-         FUNCTION openpmd_c_record_component_make_constant(record_component, dtype, dimensions, extent, value) RESULT(status) BIND(C, name="openPMD_RecordComponent_makeConstant")
+         FUNCTION openpmd_c_record_component_make_constant(record_component, dtype, dimensions, extent, invert, value) RESULT(status) BIND(C, name="openPMD_RecordComponent_makeConstant")
             IMPORT :: C_PTR, C_INT64_T, C_INT, C_SIZE_T, C_CHAR
             TYPE(C_PTR), VALUE :: record_component
             INTEGER(KIND=C_INT), VALUE :: dtype
-            INTEGER(KIND=C_INT), VALUE :: dimensions
+            INTEGER(KIND=C_INT), VALUE :: dimensions, invert
             TYPE(C_PTR), VALUE :: extent
             TYPE(C_PTR), VALUE :: value
             INTEGER(KIND=C_INT) :: status
@@ -510,7 +510,7 @@ CONTAINS
       END INTERFACE
 
       CALL auxiliary_invert_vector(extent)
-      status = openpmd_c_record_component_make_constant(record_component%c_ptr, dtype, SIZE(extent), C_LOC(extent(1)), C_NULL_PTR)
+      status = openpmd_c_record_component_make_constant(record_component%c_ptr, dtype, SIZE(extent), C_LOC(extent(1)), 1, C_NULL_PTR)
    END SUBROUTINE openpmd_record_component_make_constant_zero
 
    SUBROUTINE openpmd_mesh_set_axis_labels(mesh, labels)
@@ -579,11 +579,11 @@ CONTAINS
       CHARACTER(len=default_string_length) :: my_config = "{}"
       INTEGER(kind=C_INT)                                :: status
       INTERFACE
-         FUNCTION openpmd_c_record_component_reset_dataset(record_component, dtype, dimensions, extent, cfg) RESULT(status) BIND(C, name="openPMD_RecordComponent_resetDataset")
+         FUNCTION openpmd_c_record_component_reset_dataset(record_component, dtype, dimensions, extent, invert, cfg) RESULT(status) BIND(C, name="openPMD_RecordComponent_resetDataset")
             IMPORT :: C_PTR, C_INT64_T, C_INT, C_SIZE_T, C_CHAR
             TYPE(C_PTR), VALUE :: record_component
             INTEGER(KIND=C_INT), VALUE :: dtype
-            INTEGER(KIND=C_INT), VALUE :: dimensions
+            INTEGER(KIND=C_INT), VALUE :: dimensions, invert
             TYPE(C_PTR), VALUE :: extent
             CHARACTER(kind=C_CHAR), DIMENSION(*) :: cfg
             INTEGER(KIND=C_INT) :: status
@@ -592,8 +592,7 @@ CONTAINS
 
       IF (PRESENT(cfg)) my_config = cfg
 
-      CALL auxiliary_invert_vector(extent)
-      status = openpmd_c_record_component_reset_dataset(record_component%c_ptr, dtype, SIZE(extent), C_LOC(extent(1)), my_config//C_NULL_CHAR)
+      status = openpmd_c_record_component_reset_dataset(record_component%c_ptr, dtype, SIZE(extent), C_LOC(extent(1)), 1, my_config//C_NULL_CHAR)
    END SUBROUTINE openpmd_record_component_reset_dataset
 
    #:for type_f, type_enum in zip(dataset_types_f, dataset_types_enum)
