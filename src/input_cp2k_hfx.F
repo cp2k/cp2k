@@ -735,7 +735,18 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="MULTIPLY_BY_RI_2C_INTEGRALS", &
                           variants=s2a("MULT_BY_RI", "MULT_BY_S", "MULT_BY_RI_INTS"), &
                           description="Whether the RI density coefficients to be printed should "// &
-                          "be pre-multiplied by the RI_METRIC 2c-integrals: (r|s)*C_s.", &
+                          "be pre-multiplied by the RI_METRIC 2c-integrals: (r|s)*C_s. "// &
+                          "Not compatible with the SKIP_RI_METRIC keyword.", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="SKIP_RI_METRIC", &
+                          variants=s2a("SKIP_INVERSE", "SKIP_2C_INTS", "SKIP_2C_INTEGRALS"), &
+                          description="Skip the calculation, inversion, and contraction of the 2-center RI "// &
+                          "metric integrals. The printed coefficients are only the contraction of the "// &
+                          "density matrix with the 3-center integrals, i.e. c_r = sum_pq P_pq (pq|r) "// &
+                          "Allows for memory savings when printing the RI density coefficients.", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
