@@ -506,7 +506,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_tblite_matrices'
 
       INTEGER                                            :: handle, maxder, nderivatives, nimg, img, nkind, i, ic, iw, ia, ib
-    INTEGER                                            :: iatom, jatom, ikind, jkind, iset, jset, n1, n2, icol, irow, ishell, jshell
+      INTEGER                                            :: iatom, jatom, ikind, jkind, iset, jset, n1, n2, icol, irow, ishell, jshell
       INTEGER                                            :: sgfa, sgfb, atom_a, atom_b, ldsab, nseta, nsetb, natorb_a, natorb_b
       LOGICAL                                            :: found, norml1, norml2, use_arnoldi, use_virial
       REAL(KIND=dp)                                      :: dr, rr
@@ -726,8 +726,9 @@ CONTAINS
             END DO
             DO iset = 1, nseta
                sgfa = first_sgfa(1, iset)
+               hij = tb%selfenergy(n1 + iset)
                DO ia = sgfa, sgfa + nsgfa(iset) - 1
-                  hint(ia, ia, 1) = tb%selfenergy(n1 + iset)
+                  hint(ia, ia, 1) = hij
                END DO
             END DO
          ELSE
@@ -745,12 +746,13 @@ CONTAINS
                END DO
                DO jset = 1, nsetb
                   sgfb = first_sgfb(1, jset)
+                  shpoly = (1.0_dp + h0%shpoly(iset, ikind)*rr) &
+                                 *(1.0_dp + h0%shpoly(jset, jkind)*rr)
+                  hij = 0.5_dp*(tb%selfenergy(n1 + iset) + tb%selfenergy(n2 + jset)) &
+                              *h0%hscale(iset, jset, ikind, jkind)*shpoly
+                  
                   DO ia = sgfa, sgfa + nsgfa(iset) - 1
                      DO ib = sgfb, sgfb + nsgfb(jset) - 1
-                        shpoly = (1.0_dp + h0%shpoly(iset, iatom)*rr) &
-                                 *(1.0_dp + h0%shpoly(jset, jatom)*rr)
-                        hij = 0.5_dp*(tb%selfenergy(n1 + iset) + tb%selfenergy(n2 + jset)) &
-                              *h0%hscale(jset, iset, jatom, iatom)*shpoly
                         hint(ia, ib, 1) = hij*sint(ia, ib, 1)
                      END DO
                   END DO
@@ -774,6 +776,12 @@ CONTAINS
          DO img = 1, nimg
             CALL dbcsr_finalize(matrix_s(i, img)%matrix)
             CALL dbcsr_finalize(matrix_h(i, img)%matrix)
+         END DO
+      END DO
+      
+      DO i = 1, SIZE(matrix_s, 1)
+         DO img = 1, nimg
+            CALL dbcsr_print(matrix_h(i, img)%matrix)
          END DO
       END DO
 
@@ -858,13 +866,13 @@ CONTAINS
       aocg = 0.0_dp
       max_orb = 0
       max_shell = 0
+      DO ikind = 1, nkind
+         CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_kind)
+         CALL get_xtb_atom_param(xtb_kind, natorb=natorb)
+         max_orb = MAX(max_orb, natorb)
+      END DO
       DO is = 1, n_atom
          max_shell = MAX(max_shell, tb%calc%bas%nsh_at(is))
-         natorb = 0
-         DO ii = 1, tb%calc%bas%nsh_at(is)
-            natorb = natorb + (2*tb%calc%bas%cgto(ii, is)%ang + 1)
-         END DO
-         max_orb = MAX(max_orb, natorb)
       END DO
       ALLOCATE (ch_atom(n_atom, 1), ch_shell(n_atom, max_shell))
       ALLOCATE (ch_orb(max_orb, n_atom), ch_ref(max_orb, n_atom))
@@ -890,7 +898,7 @@ CONTAINS
             DO is = 1, natorb
                ns = lao(is) + 1
                norm = 2*lao(is) + 1
-               ch_ref(is, atom_a) = tb%calc%h0%refocc(nao(is), atom_a)/norm
+               ch_ref(is, atom_a) = tb%calc%h0%refocc(nao(is), ikind)/norm
                ch_orb(is, atom_a) = aocg(is, atom_a) - ch_ref(is, atom_a)
                ch_shell(atom_a, ns) = ch_orb(is, atom_a) + ch_shell(atom_a, ns)
             END DO
@@ -963,7 +971,7 @@ CONTAINS
       INTEGER                                            :: la, lb, za, zb
       LOGICAL                                            :: found
       INTEGER, DIMENSION(3)                              :: cellind
-      INTEGER, DIMENSION(25)                             :: laoa, laob
+      INTEGER, DIMENSION(25)                             :: naoa, naob
       REAL(KIND=dp), DIMENSION(3)                        :: rij
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of, sum_shell
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ashift, bshift
@@ -1012,14 +1020,14 @@ CONTAINS
             ! atomic parameters
             CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_atom_a)
             CALL get_qs_kind(qs_kind_set(jkind), xtb_parameter=xtb_atom_b)
-            CALL get_xtb_atom_param(xtb_atom_a, z=za, lao=laoa)
-            CALL get_xtb_atom_param(xtb_atom_b, z=zb, lao=laob)
+            CALL get_xtb_atom_param(xtb_atom_a, z=za, nao=naoa)
+            CALL get_xtb_atom_param(xtb_atom_b, z=zb, nao=naob)
 
             ni = SIZE(sblock, 1)
             ALLOCATE (ashift(ni, ni))
             ashift = 0.0_dp
             DO i = 1, ni
-               la = laoa(i) + 1 + sum_shell(irow)
+               la = naoa(i) + sum_shell(irow)
                ashift(i, i) = tb%pot%vsh(la, 1)
             END DO
 
@@ -1027,7 +1035,7 @@ CONTAINS
             ALLOCATE (bshift(nj, nj))
             bshift = 0.0_dp
             DO j = 1, nj
-               lb = laob(j) + 1 + sum_shell(icol)
+               lb = naob(j) + sum_shell(icol)
                bshift(j, j) = tb%pot%vsh(lb, 1)
             END DO
 
@@ -1070,14 +1078,14 @@ CONTAINS
             ! atomic parameters
             CALL get_qs_kind(qs_kind_set(ikind), xtb_parameter=xtb_atom_a)
             CALL get_qs_kind(qs_kind_set(jkind), xtb_parameter=xtb_atom_b)
-            CALL get_xtb_atom_param(xtb_atom_a, z=za, lao=laoa)
-            CALL get_xtb_atom_param(xtb_atom_b, z=zb, lao=laob)
+            CALL get_xtb_atom_param(xtb_atom_a, z=za, nao=naoa)
+            CALL get_xtb_atom_param(xtb_atom_b, z=zb, nao=naob)
 
             ni = SIZE(sblock, 1)
             ALLOCATE (ashift(ni, ni))
             ashift = 0.0_dp
             DO i = 1, ni
-               la = laoa(i) + 1 + sum_shell(irow)
+               la = naoa(i) + sum_shell(irow)
                ashift(i, i) = tb%pot%vsh(la, 1)
             END DO
 
@@ -1085,7 +1093,7 @@ CONTAINS
             ALLOCATE (bshift(nj, nj))
             bshift = 0.0_dp
             DO j = 1, nj
-               lb = laob(j) + 1 + sum_shell(icol)
+               lb = naob(j) + sum_shell(icol)
                bshift(j, j) = tb%pot%vsh(lb, 1)
             END DO
 
