@@ -3623,32 +3623,29 @@ CONTAINS
       TYPE(hfx_ri_type), INTENT(INOUT)                   :: ri_data
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      INTEGER                                            :: i_RI, ibasis, nkind, nspins, unit_nr
-      INTEGER, DIMENSION(:), POINTER                     :: col_bsize, row_bsize
-      LOGICAL                                            :: mult_by_S, print_density, print_ri_metric
+      INTEGER                                            :: i_RI, ibasis, ncols, nkind, nrows, &
+                                                            nspins, unit_nr
+      LOGICAL                                            :: mult_by_S, print_density, &
+                                                            print_ri_metric, skip_ri_metric
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: density_coeffs, density_coeffs_2
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type)                                   :: matrix_s_fm
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dbcsr_distribution_type)                      :: dbcsr_dist
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao
       TYPE(dbcsr_type), DIMENSION(1)                     :: matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(distribution_2d_type), POINTER                :: dist_2d
       TYPE(gto_basis_set_p_type), ALLOCATABLE, &
          DIMENSION(:), TARGET                            :: basis_set_AO, basis_set_RI
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis, ri_basis
       TYPE(mp_para_env_type), POINTER                    :: para_env
-      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: nl_2c
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(section_vals_type), POINTER                   :: input, print_section
 
-      NULLIFY (rho_ao, input, print_section, logger, rho, particle_set, qs_kind_set, ri_basis, nl_2c, &
-               dist_2d, col_bsize, row_bsize, para_env, blacs_env, fm_struct, orb_basis, dft_control)
+      NULLIFY (rho_ao, input, print_section, logger, rho, particle_set, qs_kind_set, ri_basis, &
+               para_env, blacs_env, fm_struct, orb_basis, dft_control)
 
       CALL get_qs_env(qs_env, input=input, dft_control=dft_control)
       logger => cp_get_default_logger()
@@ -3665,10 +3662,8 @@ CONTAINS
       !common stuff
       IF (print_density .OR. print_ri_metric) THEN
 
-         !Re-calculate the 2-center RI_metric integrals (because not stored and cheap)
-         !Recalculated the RI_metric 2c-integrals, as it is cheap, and not stored
-         CALL get_qs_env(qs_env, nkind=nkind, qs_kind_set=qs_kind_set, particle_set=particle_set, &
-                         distribution_2d=dist_2d, para_env=para_env, blacs_env=blacs_env)
+         !Set up basis sets and interaction radii
+         CALL get_qs_env(qs_env, nkind=nkind, qs_kind_set=qs_kind_set, particle_set=particle_set)
          ALLOCATE (basis_set_RI(nkind), basis_set_AO(nkind))
          CALL basis_set_list_setup(basis_set_RI, ri_data%ri_basis_type, qs_kind_set)
          CALL get_particle_set(particle_set, qs_kind_set, basis=basis_set_RI)
@@ -3681,22 +3676,6 @@ CONTAINS
             orb_basis => basis_set_AO(ibasis)%gto_basis_set
             CALL init_interaction_radii_orb_basis(orb_basis, ri_data%eps_pgf_orb)
          END DO
-
-         CALL cp_dbcsr_dist2d_to_dist(dist_2d, dbcsr_dist)
-         ALLOCATE (row_bsize(SIZE(ri_data%bsizes_RI)))
-         ALLOCATE (col_bsize(SIZE(ri_data%bsizes_RI)))
-         row_bsize(:) = ri_data%bsizes_RI
-         col_bsize(:) = ri_data%bsizes_RI
-
-         CALL dbcsr_create(matrix_s(1), "RI metric", dbcsr_dist, dbcsr_type_symmetric, row_bsize, col_bsize)
-
-         CALL build_2c_neighbor_lists(nl_2c, basis_set_RI, basis_set_RI, ri_data%ri_metric, &
-                                      "HFX_2c_nl_pot", qs_env, sym_ij=.TRUE., dist_2d=dist_2d)
-         CALL build_2c_integrals(matrix_s, ri_data%filter_eps_2c, qs_env, nl_2c, basis_set_RI, &
-                                 basis_set_RI, ri_data%ri_metric)
-
-         CALL release_neighbor_list_sets(nl_2c)
-         CALL dbcsr_distribution_release(dbcsr_dist)
       END IF
 
       IF (print_density) THEN
@@ -3705,12 +3684,17 @@ CONTAINS
          nspins = SIZE(rho_ao, 1)
 
          CALL section_vals_val_get(print_section, "RI_DENSITY_COEFFS%MULTIPLY_BY_RI_2C_INTEGRALS", l_val=mult_by_s)
+         CALL section_vals_val_get(print_section, "RI_DENSITY_COEFFS%SKIP_RI_METRIC", l_val=skip_ri_metric)
 
-         CALL get_RI_density_coeffs(density_coeffs, matrix_s(1), rho_ao, 1, basis_set_AO, basis_set_RI, &
-                                    mult_by_s, ri_data, qs_env)
+         IF (mult_by_s .AND. skip_ri_metric) THEN
+            CPABORT("MULTIPLY_BY_RI_2C_INTEGRALS and SKIP_RI_METRIC are mutually exclusive.")
+         END IF
+
+         CALL get_RI_density_coeffs(density_coeffs, rho_ao, 1, basis_set_AO, basis_set_RI, &
+                                    mult_by_s, skip_ri_metric, ri_data, qs_env)
          IF (nspins == 2) &
-            CALL get_RI_density_coeffs(density_coeffs_2, matrix_s(1), rho_ao, 2, basis_set_AO, &
-                                       basis_set_RI, mult_by_s, ri_data, qs_env)
+            CALL get_RI_density_coeffs(density_coeffs_2, rho_ao, 2, basis_set_AO, basis_set_RI, &
+                                       mult_by_s, skip_ri_metric, ri_data, qs_env)
 
          unit_nr = cp_print_key_unit_nr(logger, input, "DFT%XC%HF%RI%PRINT%RI_DENSITY_COEFFS", &
                                         extension=".dat", file_status="REPLACE", &
@@ -3738,13 +3722,18 @@ CONTAINS
       END IF
 
       IF (print_ri_metric) THEN
+         !Recalculated the RI_metric 2c-integrals, as it is cheap, and not stored
+         CALL calc_RI_2c_ints(matrix_s, basis_set_RI, ri_data, qs_env)
 
          !convert 2c integrals to fm for dumping
+         CALL get_qs_env(qs_env, para_env=para_env, blacs_env=blacs_env)
+         CALL dbcsr_get_info(matrix_s(1), nfullrows_total=nrows, nfullcols_total=ncols)
          CALL cp_fm_struct_create(fm_struct, context=blacs_env, para_env=para_env, &
-                                  nrow_global=SUM(row_bsize), ncol_global=SUM(col_bsize))
+                                  nrow_global=nrows, ncol_global=ncols)
          CALL cp_fm_create(matrix_s_fm, fm_struct)
 
          CALL copy_dbcsr_to_fm(matrix_s(1), matrix_s_fm)
+         CALL dbcsr_release(matrix_s(1))
 
          unit_nr = cp_print_key_unit_nr(logger, input, "DFT%XC%HF%RI%PRINT%RI_METRIC_2C_INTS", &
                                         extension=".fm", file_status="REPLACE", &
@@ -3765,34 +3754,72 @@ CONTAINS
             orb_basis => basis_set_AO(ibasis)%gto_basis_set
             CALL init_interaction_radii_orb_basis(orb_basis, dft_control%qs_control%eps_pgf_orb)
          END DO
-
-         CALL dbcsr_release(matrix_s(1))
-         DEALLOCATE (row_bsize, col_bsize)
       END IF
 
    END SUBROUTINE print_ri_hfx
 
 ! **************************************************************************************************
+!> \brief Calculate the RI metric 2-center integrals
+!> \param matrix_s ...
+!> \param basis_set_RI ...
+!> \param ri_data ...
+!> \param qs_env ...
+! **************************************************************************************************
+   SUBROUTINE calc_RI_2c_ints(matrix_s, basis_set_RI, ri_data, qs_env)
+
+      TYPE(dbcsr_type), DIMENSION(1)                     :: matrix_s
+      TYPE(gto_basis_set_p_type), DIMENSION(:)           :: basis_set_RI
+      TYPE(hfx_ri_type), INTENT(INOUT)                   :: ri_data
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+
+      INTEGER, DIMENSION(:), POINTER                     :: col_bsize, row_bsize
+      TYPE(dbcsr_distribution_type)                      :: dbcsr_dist
+      TYPE(distribution_2d_type), POINTER                :: dist_2d
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: nl_2c
+
+      NULLIFY (nl_2c, dist_2d, row_bsize, col_bsize)
+
+      CALL get_qs_env(qs_env, distribution_2d=dist_2d)
+      CALL cp_dbcsr_dist2d_to_dist(dist_2d, dbcsr_dist)
+      ALLOCATE (row_bsize(SIZE(ri_data%bsizes_RI)))
+      ALLOCATE (col_bsize(SIZE(ri_data%bsizes_RI)))
+      row_bsize(:) = ri_data%bsizes_RI
+      col_bsize(:) = ri_data%bsizes_RI
+
+      CALL dbcsr_create(matrix_s(1), "RI metric", dbcsr_dist, dbcsr_type_symmetric, row_bsize, col_bsize)
+
+      CALL build_2c_neighbor_lists(nl_2c, basis_set_RI, basis_set_RI, ri_data%ri_metric, &
+                                   "HFX_2c_nl_pot", qs_env, sym_ij=.TRUE., dist_2d=dist_2d)
+      CALL build_2c_integrals(matrix_s, ri_data%filter_eps_2c, qs_env, nl_2c, basis_set_RI, &
+                              basis_set_RI, ri_data%ri_metric)
+
+      CALL release_neighbor_list_sets(nl_2c)
+      CALL dbcsr_distribution_release(dbcsr_dist)
+      DEALLOCATE (row_bsize, col_bsize)
+
+   END SUBROUTINE calc_RI_2c_ints
+
+! **************************************************************************************************
 !> \brief Projects the density on the RI basis and return the array of the RI coefficients
 !> \param density_coeffs ...
-!> \param ri_2c_ints ...
 !> \param rho_ao ...
 !> \param ispin ...
 !> \param basis_set_AO ...
 !> \param basis_set_RI ...
 !> \param multiply_by_S ...
+!> \param skip_ri_metric ...
 !> \param ri_data ...
 !> \param qs_env ...
 ! **************************************************************************************************
-   SUBROUTINE get_RI_density_coeffs(density_coeffs, ri_2c_ints, rho_ao, ispin, basis_set_AO, &
-                                    basis_set_RI, multiply_by_S, ri_data, qs_env)
+   SUBROUTINE get_RI_density_coeffs(density_coeffs, rho_ao, ispin, basis_set_AO, basis_set_RI, &
+                                    multiply_by_S, skip_ri_metric, ri_data, qs_env)
 
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: density_coeffs
-      TYPE(dbcsr_type), INTENT(INOUT)                    :: ri_2c_ints
       TYPE(dbcsr_p_type), DIMENSION(:, :)                :: rho_ao
       INTEGER, INTENT(IN)                                :: ispin
       TYPE(gto_basis_set_p_type), DIMENSION(:)           :: basis_set_AO, basis_set_RI
-      LOGICAL, INTENT(IN)                                :: multiply_by_S
+      LOGICAL, INTENT(IN)                                :: multiply_by_S, skip_ri_metric
       TYPE(hfx_ri_type), INTENT(INOUT)                   :: ri_data
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
@@ -3814,6 +3841,7 @@ CONTAINS
       REAL(dp), ALLOCATABLE, DIMENSION(:, :, :)          :: blk_3d
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(dbcsr_type)                                   :: ri_2c_inv
+      TYPE(dbcsr_type), DIMENSION(1)                     :: ri_2c_ints
       TYPE(dbt_distribution_type)                        :: dist_2d, dist_3d
       TYPE(dbt_iterator_type)                            :: iter
       TYPE(dbt_pgrid_type)                               :: pgrid_2d, pgrid_3d
@@ -3846,40 +3874,44 @@ CONTAINS
       n_mem = ri_data%n_mem
       n_mem_RI = ri_data%n_mem_RI
 
-      ! The RI 2c int tensor and its inverse
-      CALL dbcsr_create(ri_2c_inv, template=ri_2c_ints, matrix_type=dbcsr_type_no_symmetry)
+      ! Calculate RI 2c int tensor and its inverse. Skip this if requested
+      IF (.NOT. skip_ri_metric) THEN
+         CALL calc_RI_2c_ints(ri_2c_ints, basis_set_RI, ri_data, qs_env)
+         CALL dbcsr_create(ri_2c_inv, template=ri_2c_ints(1), matrix_type=dbcsr_type_no_symmetry)
 
-      SELECT CASE (ri_data%t2c_method)
-      CASE (hfx_ri_do_2c_iter)
-         threshold = MAX(ri_data%filter_eps, 1.0e-12_dp)
-         CALL invert_hotelling(ri_2c_inv, ri_2c_ints, threshold=threshold, silent=.FALSE.)
-      CASE (hfx_ri_do_2c_cholesky)
-         CALL dbcsr_copy(ri_2c_inv, ri_2c_ints)
-         CALL cp_dbcsr_cholesky_decompose(ri_2c_inv, para_env=para_env, blacs_env=blacs_env)
-         CALL cp_dbcsr_cholesky_invert(ri_2c_inv, para_env=para_env, blacs_env=blacs_env, uplo_to_full=.TRUE.)
-      CASE (hfx_ri_do_2c_diag)
-         CALL dbcsr_copy(ri_2c_inv, ri_2c_ints)
-         CALL cp_dbcsr_power(ri_2c_inv, -1.0_dp, ri_data%eps_eigval, n_dependent, &
-                             para_env, blacs_env, verbose=ri_data%unit_nr_dbcsr > 0)
-      END SELECT
+         SELECT CASE (ri_data%t2c_method)
+         CASE (hfx_ri_do_2c_iter)
+            threshold = MAX(ri_data%filter_eps, 1.0e-12_dp)
+            CALL invert_hotelling(ri_2c_inv, ri_2c_ints(1), threshold=threshold, silent=.FALSE.)
+         CASE (hfx_ri_do_2c_cholesky)
+            CALL dbcsr_copy(ri_2c_inv, ri_2c_ints(1))
+            CALL cp_dbcsr_cholesky_decompose(ri_2c_inv, para_env=para_env, blacs_env=blacs_env)
+            CALL cp_dbcsr_cholesky_invert(ri_2c_inv, para_env=para_env, blacs_env=blacs_env, uplo_to_full=.TRUE.)
+         CASE (hfx_ri_do_2c_diag)
+            CALL dbcsr_copy(ri_2c_inv, ri_2c_ints(1))
+            CALL cp_dbcsr_power(ri_2c_inv, -1.0_dp, ri_data%eps_eigval, n_dependent, &
+                                para_env, blacs_env, verbose=ri_data%unit_nr_dbcsr > 0)
+         END SELECT
 
-      CALL dbt_create(ri_2c_ints, t2c_ri_tmp)
-      CALL create_2c_tensor(t2c_ri_ints, dist1, dist2, ri_data%pgrid_2d, &
-                            ri_data%bsizes_RI_split, ri_data%bsizes_RI_split, &
-                            name="(RI | RI)")
-      CALL dbt_create(t2c_ri_ints, t2c_ri_inv)
+         CALL dbt_create(ri_2c_ints(1), t2c_ri_tmp)
+         CALL create_2c_tensor(t2c_ri_ints, dist1, dist2, ri_data%pgrid_2d, &
+                               ri_data%bsizes_RI_split, ri_data%bsizes_RI_split, &
+                               name="(RI | RI)")
+         CALL dbt_create(t2c_ri_ints, t2c_ri_inv)
 
-      CALL dbt_copy_matrix_to_tensor(ri_2c_ints, t2c_ri_tmp)
-      CALL dbt_copy(t2c_ri_tmp, t2c_ri_ints, move_data=.TRUE.)
-      CALL dbt_filter(t2c_ri_ints, ri_data%filter_eps)
+         CALL dbt_copy_matrix_to_tensor(ri_2c_ints(1), t2c_ri_tmp)
+         CALL dbt_copy(t2c_ri_tmp, t2c_ri_ints, move_data=.TRUE.)
+         CALL dbt_filter(t2c_ri_ints, ri_data%filter_eps)
 
-      CALL dbt_copy_matrix_to_tensor(ri_2c_inv, t2c_ri_tmp)
-      CALL dbt_copy(t2c_ri_tmp, t2c_ri_inv, move_data=.TRUE.)
-      CALL dbt_filter(t2c_ri_inv, ri_data%filter_eps)
+         CALL dbt_copy_matrix_to_tensor(ri_2c_inv, t2c_ri_tmp)
+         CALL dbt_copy(t2c_ri_tmp, t2c_ri_inv, move_data=.TRUE.)
+         CALL dbt_filter(t2c_ri_inv, ri_data%filter_eps)
 
-      CALL dbcsr_release(ri_2c_inv)
-      CALL dbt_destroy(t2c_ri_tmp)
-      DEALLOCATE (dist1, dist2)
+         CALL dbcsr_release(ri_2c_ints(1))
+         CALL dbcsr_release(ri_2c_inv)
+         CALL dbt_destroy(t2c_ri_tmp)
+         DEALLOCATE (dist1, dist2)
+      END IF
 
       ! The AO density tensor
       CALL dbt_create(rho_ao(ispin, 1)%matrix, rho_ao_tmp)
@@ -4046,11 +4078,15 @@ CONTAINS
                            map_1=[1], map_2=[2], filter_eps=ri_data%filter_eps)
          CALL dbt_clear(ri_data%t_3c_int_ctr_3(1, 1))
 
-         !contract the above vector with the inverse metric
-         CALL dbt_contract(1.0_dp, t2c_ri_inv, density_tmp, 1.0_dp, density_coeffs_t, &
-                           contract_1=[2], notcontract_1=[1], &
-                           contract_2=[1], notcontract_2=[2], &
-                           map_1=[1], map_2=[2], filter_eps=ri_data%filter_eps)
+         IF (skip_ri_metric) THEN
+            CALL dbt_copy(density_tmp, density_coeffs_t, move_data=.TRUE.)
+         ELSE
+            !contract the above vector with the inverse metric
+            CALL dbt_contract(1.0_dp, t2c_ri_inv, density_tmp, 1.0_dp, density_coeffs_t, &
+                              contract_1=[2], notcontract_1=[1], &
+                              contract_2=[1], notcontract_2=[2], &
+                              map_1=[1], map_2=[2], filter_eps=ri_data%filter_eps)
+         END IF
 
       END DO
       CALL neighbor_list_3c_destroy(nl_3c)
@@ -4086,13 +4122,16 @@ CONTAINS
 !$OMP END PARALLEL
       CALL para_env%sum(density_coeffs)
 
-      CALL dbt_destroy(t2c_ri_ints)
-      CALL dbt_destroy(t2c_ri_inv)
       CALL dbt_destroy(density_tmp)
       CALL dbt_destroy(rho_ao_t)
       CALL dbt_destroy(rho_ao_t_3d)
       CALL dbt_destroy(density_coeffs_t)
       CALL dbt_destroy(t_3c_int_batched(1, 1))
+
+      IF (.NOT. skip_ri_metric) THEN
+         CALL dbt_destroy(t2c_ri_ints)
+         CALL dbt_destroy(t2c_ri_inv)
+      END IF
 
       CALL timestop(handle)
 
