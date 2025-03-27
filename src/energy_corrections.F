@@ -436,8 +436,8 @@ CONTAINS
 
          CASE (ec_functional_ext)
 
-            CALL ec_ext_energy(qs_env, ec_env, calculate_forces=.TRUE.)
             CALL init_response_deriv(qs_env, ec_env)
+            CALL ec_ext_energy(qs_env, ec_env, calculate_forces=.TRUE.)
 
          CASE DEFAULT
             CPABORT("unknown energy correction")
@@ -523,7 +523,7 @@ CONTAINS
       CALL section_vals_duplicate(section, trexio_section)
       CALL section_vals_val_set(trexio_section, "FILENAME", c_val=ec_env%exresp_fn)
       CALL section_vals_val_set(trexio_section, "CARTESIAN", l_val=.FALSE.)
-      CALL write_trexio(qs_env, trexio_section)
+      CALL write_trexio(qs_env, trexio_section, ec_env%matrix_hz)
 
    END SUBROUTINE write_response_interface
 
