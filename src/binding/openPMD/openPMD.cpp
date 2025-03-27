@@ -162,7 +162,7 @@ namespace
         return 0;
     }
 
-    template <typename res_t, typename T>
+    template <typename res_t = void, typename T>
     auto pointer_to_vector(T *ptr, size_t len, bool invert)
     {
         using resolved_type = std::conditional_t<
@@ -180,7 +180,7 @@ namespace
         }
     }
 
-    template <typename res_t, typename T>
+    template <typename res_t = void, typename T>
     auto pointer_to_vector(T *ptr, size_t len, int invert)
     {
         return pointer_to_vector<res_t, T>(ptr, len, static_cast<bool>(invert));
@@ -440,11 +440,12 @@ extern "C"
         // in
         openPMD_Mesh mesh_param,
         char const **labels,
-        int len_labels)
+        int len_labels,
+        int invert)
     {
         auto mesh = reinterpret_cast<openPMD::Mesh *>(mesh_param);
-        mesh->setAxisLabels(
-            std::vector<std::string>(labels, labels + len_labels));
+        mesh->setAxisLabels(implementation::pointer_to_vector<std::string>(
+            labels, len_labels, invert));
         return 0;
     }
 
@@ -452,11 +453,12 @@ extern "C"
         // in
         openPMD_Mesh mesh_param,
         double const *labels,
-        int len_labels)
+        int len_labels,
+        int invert)
     {
         auto mesh = reinterpret_cast<openPMD::Mesh *>(mesh_param);
         mesh->setGridGlobalOffset(
-            std::vector<double>(labels, labels + len_labels));
+            implementation::pointer_to_vector(labels, len_labels, invert));
         return 0;
     }
 
@@ -464,10 +466,12 @@ extern "C"
         // in
         openPMD_Mesh mesh_param,
         double const *labels,
-        int len_labels)
+        int len_labels,
+        int invert)
     {
         auto mesh = reinterpret_cast<openPMD::Mesh *>(mesh_param);
-        mesh->setGridSpacing(std::vector<double>(labels, labels + len_labels));
+        mesh->setGridSpacing(
+            implementation::pointer_to_vector(labels, len_labels, invert));
         return 0;
     }
 
@@ -475,10 +479,12 @@ extern "C"
         // in
         openPMD_Mesh mesh_param,
         double const *labels,
-        int len_labels)
+        int len_labels,
+        int invert)
     {
         auto mesh = reinterpret_cast<openPMD::Mesh *>(mesh_param);
-        mesh->setPosition(std::vector<double>(labels, labels + len_labels));
+        mesh->setPosition(
+            implementation::pointer_to_vector(labels, len_labels, invert));
         return 0;
     }
 
@@ -560,6 +566,7 @@ extern "C"
         int dimensions,
         int const *offset,
         int const *extent,
+        int invert,
         void *data)
     {
         auto rc = reinterpret_cast<openPMD::RecordComponent *>(rc_param);
@@ -567,8 +574,10 @@ extern "C"
             implementation::RecordComponent_storeChunk>(
             implementation::datatype_c_to_cxx(dt),
             *rc,
-            openPMD::Offset(offset, offset + dimensions),
-            openPMD::Extent(extent, extent + dimensions),
+            implementation::pointer_to_vector<openPMD::Offset::value_type>(
+                offset, dimensions, invert),
+            implementation::pointer_to_vector<openPMD::Extent::value_type>(
+                extent, dimensions, invert),
             data);
     }
 
@@ -579,6 +588,7 @@ extern "C"
         int dimensions,
         int const *offset,
         int const *extent,
+        int invert,
         // out
         openPMD_DynamicMemoryView *memory_view_param)
     {
@@ -592,8 +602,10 @@ extern "C"
             implementation::RecordComponent_storeChunkSpan>(
             implementation::datatype_c_to_cxx(dt),
             *rc,
-            openPMD::Offset(offset, offset + dimensions),
-            openPMD::Extent(extent, extent + dimensions),
+            implementation::pointer_to_vector<openPMD::Offset::value_type>(
+                offset, dimensions, invert),
+            implementation::pointer_to_vector<openPMD::Extent::value_type>(
+                extent, dimensions, invert),
             (*memory_view)->memory_view);
     }
 

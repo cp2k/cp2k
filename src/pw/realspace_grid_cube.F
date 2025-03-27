@@ -279,7 +279,7 @@ CONTAINS
          END DO
 
          mesh = openpmd_iteration_get_mesh(openpmd_data%iteration, TRIM(openpmd_data%name_prefix))
-         CALL openpmd_mesh_set_axis_labels(mesh, (/"x", "y", "z"/))
+         CALL openpmd_mesh_set_axis_labels(mesh, (/"z", "y", "x"/))
          CALL openpmd_mesh_set_position(mesh, (/0.5_dp, 0.5_dp, 0.5_dp/))
          CALL openpmd_mesh_set_grid_global_offset(mesh, (/0._dp, 0._dp, 0._dp/))
          CALL openpmd_mesh_set_grid_spacing(mesh, grid_spacing)

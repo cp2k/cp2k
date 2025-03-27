@@ -166,19 +166,19 @@ int openPMD_Mesh_upcast_to_MeshRecordComponent(
 
 int openPMD_Mesh_set_axis_labels(
     // in
-    openPMD_Mesh mesh, char const **labels, int len_labels);
+    openPMD_Mesh mesh, char const **labels, int len_labels, int invert);
 
 int openPMD_Mesh_setGridGlobalOffset(
     // in
-    openPMD_Mesh mesh, double const *labels, int len_labels);
+    openPMD_Mesh mesh, double const *labels, int len_labels, int invert);
 
 int openPMD_Mesh_setGridSpacing(
     // in
-    openPMD_Mesh mesh, double const *labels, int len_labels);
+    openPMD_Mesh mesh, double const *labels, int len_labels, int invert);
 
 int openPMD_Mesh_setPosition(
     // in
-    openPMD_Mesh mesh, double const *labels, int len_labels);
+    openPMD_Mesh mesh, double const *labels, int len_labels, int invert);
 
 /***************************
  * RecordComponent members *
@@ -207,12 +207,12 @@ int openPMD_RecordComponent_makeConstant(
 int openPMD_RecordComponent_storeChunk(
     // in
     openPMD_RecordComponent rc, openPMD_Datatype, int dimensions,
-    int const *offset, int const *extent, void *data);
+    int const *offset, int const *extent, int invert, void *data);
 
 int openPMD_RecordComponent_storeChunkSpan(
     // in
     openPMD_RecordComponent rc, openPMD_Datatype, int dimensions,
-    int const *offset, int const *extent,
+    int const *offset, int const *extent, int invert,
     // out
     openPMD_DynamicMemoryView *);
 

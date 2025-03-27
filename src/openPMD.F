@@ -122,19 +122,6 @@ MODULE openPMD_api
 
 CONTAINS
 
-   SUBROUTINE auxiliary_invert_vector(v)
-      INTEGER, DIMENSION(:), INTENT(INOUT) :: v
-
-      INTEGER :: i, tmp
-
-      ! Invert the vector by swapping elements
-      DO i = 1, SIZE(v)/2
-         tmp = v(i)
-         v(i) = v(SIZE(v) - i + 1)
-         v(SIZE(v) - i + 1) = tmp
-      END DO
-   END SUBROUTINE
-
 ! **************************************************************************************************
 !> \brief ...
 !> \param this ...
@@ -509,7 +496,6 @@ CONTAINS
          END FUNCTION openpmd_c_record_component_make_constant
       END INTERFACE
 
-      CALL auxiliary_invert_vector(extent)
       status = openpmd_c_record_component_make_constant(record_component%c_ptr, dtype, SIZE(extent), C_LOC(extent(1)), 1, C_NULL_PTR)
    END SUBROUTINE openpmd_record_component_make_constant_zero
 
@@ -551,21 +537,21 @@ CONTAINS
 
    #:for f_routine, c_function, f_vector_type in zip(f_routines, c_functions, f_vector_types)
       SUBROUTINE ${f_routine}$ (mesh, vec)
-      TYPE(openpmd_mesh_type)                    :: mesh
-      ${f_vector_type}$, DIMENSION(:), TARGET                      :: vec
+         TYPE(openpmd_mesh_type)                        :: mesh
+         ${f_vector_type}$, DIMENSION(:), TARGET        :: vec
 
-      INTEGER, TARGET                                    :: size_
-      INTERFACE
-         SUBROUTINE openpmd_c_set_vector_attribute(mesh, vec, length) BIND(C, NAME="${c_function}$")
-            IMPORT :: C_CHAR, C_SIZE_T, C_INT, C_PTR
-            TYPE(C_PTR), VALUE :: mesh
-            TYPE(C_PTR), VALUE :: vec
-            INTEGER(kind=C_INT), VALUE :: length
-         END SUBROUTINE
-      END INTERFACE
+         INTEGER, TARGET                                :: size_
+         INTERFACE
+            SUBROUTINE openpmd_c_set_vector_attribute(mesh, vec, length, invert) BIND(C, NAME="${c_function}$")
+               IMPORT :: C_CHAR, C_SIZE_T, C_INT, C_PTR
+               TYPE(C_PTR), VALUE :: mesh
+               TYPE(C_PTR), VALUE :: vec
+               INTEGER(kind=C_INT), VALUE :: length, invert
+            END SUBROUTINE
+         END INTERFACE
 
-      size_ = SIZE(vec)
-      CALL openpmd_c_set_vector_attribute(mesh%c_ptr, C_LOC(vec(1)), size_)
+         size_ = SIZE(vec)
+         CALL openpmd_c_set_vector_attribute(mesh%c_ptr, C_LOC(vec(1)), size_, 1)
 
       END SUBROUTINE
    #:endfor
@@ -607,11 +593,11 @@ CONTAINS
             INTEGER(kind=C_INT)                                        :: status
 
             INTERFACE
-            FUNCTION openpmd_c_record_component_store_chunk(record_component, dtype, dimensions, offset, extent, data_) RESULT(status) BIND(C, name="openPMD_RecordComponent_storeChunk")
+            FUNCTION openpmd_c_record_component_store_chunk(record_component, dtype, dimensions, offset, extent, invert, data_) RESULT(status) BIND(C, name="openPMD_RecordComponent_storeChunk")
                   IMPORT :: C_PTR, C_INT64_T, C_INT, C_SIZE_T, C_CHAR
                   TYPE(C_PTR), VALUE :: record_component
                   INTEGER(KIND=C_INT), VALUE :: dtype
-                  INTEGER(KIND=C_INT), VALUE :: dimensions
+                  INTEGER(KIND=C_INT), VALUE :: dimensions, invert
                   TYPE(C_PTR), VALUE :: offset, extent
                   TYPE(C_PTR), VALUE :: data_
                   INTEGER(KIND=C_INT) :: status
@@ -619,9 +605,7 @@ CONTAINS
             END INTERFACE
 
             extent = SIZE(data_)
-            CALL auxiliary_invert_vector(offset)
-            CALL auxiliary_invert_vector(extent)
-            status = openpmd_c_record_component_store_chunk(record_component%c_ptr, openpmd_type_${type_enum}$, ${dim}$, C_LOC(offset(1)), C_LOC(extent(1)), C_LOC(data_))
+            status = openpmd_c_record_component_store_chunk(record_component%c_ptr, openpmd_type_${type_enum}$, ${dim}$, C_LOC(offset(1)), C_LOC(extent(1)), 1, C_LOC(data_))
 
          END SUBROUTINE openpmd_record_component_store_chunk_${dim}$d_${type_enum}$
 
@@ -634,11 +618,11 @@ CONTAINS
             INTEGER(kind=C_INT)                                        :: status
 
             INTERFACE
-            FUNCTION openpmd_c_record_component_store_chunk_span(record_component, dtype, dimensions, offset, extent, memory_view) RESULT(status) BIND(C, name="openPMD_RecordComponent_storeChunkSpan")
+            FUNCTION openpmd_c_record_component_store_chunk_span(record_component, dtype, dimensions, offset, extent, invert, memory_view) RESULT(status) BIND(C, name="openPMD_RecordComponent_storeChunkSpan")
                   IMPORT :: C_PTR, C_INT64_T, C_INT, C_SIZE_T, C_CHAR
                   TYPE(C_PTR), VALUE :: record_component
                   INTEGER(KIND=C_INT), VALUE :: dtype
-                  INTEGER(KIND=C_INT), VALUE :: dimensions
+                  INTEGER(KIND=C_INT), VALUE :: dimensions, invert
                   TYPE(C_PTR), VALUE :: offset, extent
                   TYPE(C_PTR) :: memory_view
                   INTEGER(KIND=C_INT) :: status
@@ -646,9 +630,7 @@ CONTAINS
             END INTERFACE
 
             memory_view%chunk_extent = extent
-            CALL auxiliary_invert_vector(offset)
-            CALL auxiliary_invert_vector(extent)
-            status = openpmd_c_record_component_store_chunk_span(record_component%c_ptr, openpmd_type_${type_enum}$, ${dim}$, C_LOC(offset(1)), C_LOC(extent(1)), memory_view%c_ptr)
+            status = openpmd_c_record_component_store_chunk_span(record_component%c_ptr, openpmd_type_${type_enum}$, ${dim}$, C_LOC(offset(1)), C_LOC(extent(1)), 1, memory_view%c_ptr)
 
          END FUNCTION openpmd_record_component_store_chunk_span_${dim}$d_${type_enum}$
 
