@@ -208,12 +208,13 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_to_openpmd'
       INTEGER, PARAMETER                                 :: entry_len = 13, num_entries_line = 6
 
-      INTEGER :: count1, count2, dest, handle, i, j, I1, I2, iat, ip, L1, L2, L3, &
-         msglen, my_rank, my_stride(3), np, num_atom_types, num_linebreak, num_pe, rank(2), &
-         size_of_z, source, tag, U1, U2, U3
+      INTEGER :: count1, count2, dest, handle, i, I1, I2, iat, ip, j, L1, L2, L3, msglen, my_rank, &
+         my_stride(3), np, num_atom_types, num_linebreak, num_pe, rank(2), size_of_z, source, tag, &
+         U1, U2, U3
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_counts, atom_types
       INTEGER, DIMENSION(3)                              :: extent
       LOGICAL                                            :: be_silent, my_zero_tails, parallel_write
+      REAL(KIND=dp), DIMENSION(3)                        :: grid_spacing
       REAL(KIND=dp), POINTER                             :: write_buffer(:, :, :)
       TYPE(cp_openpmd_per_call_value_type)               :: openpmd_data
       TYPE(mp_comm_type)                                 :: gid
@@ -221,7 +222,6 @@ CONTAINS
       TYPE(openpmd_dynamic_memory_view_type_3d)          :: unresolved_write_buffer
       TYPE(openpmd_mesh_type)                            :: mesh
       TYPE(openpmd_record_component_type)                :: scalar_mesh
-      REAL(KIND=dp), DIMENSION(3)                        :: grid_spacing
 
       CALL timeset(routineN, handle)
 
@@ -266,7 +266,7 @@ CONTAINS
                   grid_spacing(i) = pw%pw_grid%dh(i, i)*REAL(my_stride(i), dp)
                ELSE
                   CPASSERT(pw%pw_grid%dh(i, j) == 0)
-               ENDIF
+               END IF
             END DO
          END DO
 
@@ -307,12 +307,11 @@ CONTAINS
 
             ! why do we do row-major accesses here?
             unresolved_write_buffer = openpmd_record_component_store_chunk_span_3d_double( &
-                                       scalar_mesh, (/0, 0, count1/), (/extent(1), extent(2), 1/))
+                                      scalar_mesh, (/0, 0, count1/), (/extent(1), extent(2), 1/))
             write_buffer => openpmd_dynamic_memory_view_resolve_3d_double(unresolved_write_buffer, DEALLOCATE=.TRUE.)
 
             count2 = 0
             DO I2 = L2, U2, my_stride(2)
-
 
                ! cycling through the CPUs, check if the current ray (I1,I2) is local to that CPU
                IF (pw%pw_grid%para%mode .NE. PW_MODE_LOCAL) THEN

@@ -496,7 +496,7 @@ CONTAINS
          END FUNCTION openpmd_c_record_component_make_constant
       END INTERFACE
 
-      status = openpmd_c_record_component_make_constant(record_component%c_ptr, dtype, SIZE(extent), C_LOC(extent(1)), 1, C_NULL_PTR)
+     status = openpmd_c_record_component_make_constant(record_component%c_ptr, dtype, SIZE(extent), C_LOC(extent(1)), 1, C_NULL_PTR)
    END SUBROUTINE openpmd_record_component_make_constant_zero
 
    SUBROUTINE openpmd_mesh_set_axis_labels(mesh, labels)
