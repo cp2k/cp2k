@@ -38,15 +38,20 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     wget \
     xxd \
     xz-utils \
-    zstd
+    zstd && rm -rf /var/lib/apt/lists/*
 
 # Retrieve the number of available CPU cores
 ARG NUM_PROCS
 ENV NUM_PROCS=${NUM_PROCS:-32}
 
-# Install the latest Spack development version
-WORKDIR /root
-RUN git clone -c feature.manyFiles=true --depth=2 https://github.com/spack/spack.git
+# Install a recent Spack version
+WORKDIR /root/spack
+ARG SPACK_VERSION
+ENV SPACK_VERSION=${SPACK_VERSION:-a3abc1c492f2431f477a63bbccb48aa3a2d34199}
+RUN git init --quiet && \
+    git remote add origin https://github.com/spack/spack.git && \
+    git fetch --quiet --depth 1 origin ${SPACK_VERSION} --no-tags && \
+    git checkout --quiet FETCH_HEAD
 ENV PATH="/root/spack/bin:${PATH}"
 
 # Find all compilers
@@ -65,8 +70,9 @@ RUN spack mirror add ${SPACK_BUILD_CACHE} https://binaries.spack.io/${SPACK_BUIL
 # Install CP2K dependencies via Spack
 ARG CP2K_BUILD_TYPE
 ENV CP2K_BUILD_TYPE=${CP2K_BUILD_TYPE:-minimal}
-COPY ./ci/spack/cp2k_deps_${CP2K_BUILD_TYPE}.yaml .
-RUN spack env create myenv ./cp2k_deps_${CP2K_BUILD_TYPE}.yaml
+COPY ./tools/spack/cp2k_deps_${CP2K_BUILD_TYPE}.yaml .
+RUN sed -i -e 's/mpich@4.2.3/mpich@3.4.3/' cp2k_deps_${CP2K_BUILD_TYPE}.yaml && \
+    spack env create myenv cp2k_deps_${CP2K_BUILD_TYPE}.yaml
 RUN spack -e myenv concretize -f
 ENV SPACK_ENV_VIEW="/root/spack/var/spack/environments/myenv/spack-env/view"
 RUN spack -e myenv env depfile -o spack_makefile && \

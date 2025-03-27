@@ -51,7 +51,7 @@ def main() -> None:
 
     with OutputFile(f"Dockerfile.test_spack", args.check) as f:
         f.write(install_deps_spack())
-        f.write(regtest_cmake("spack", "psmp"))
+        f.write(regtest_cmake("spack_all", "psmp"))
 
     for version in "ssmp", "psmp":
         with OutputFile(f"Dockerfile.test_asan-{version}", args.check) as f:
@@ -831,67 +831,68 @@ def install_deps_spack() -> str:
     return rf"""
 FROM ubuntu:24.04
 
-# Install common dependencies as pre-built Ubuntu packages.
+# Install packages required to build the CP2K dependencies with Spack
 RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
-    autoconf \
-    autogen \
-    automake \
-    autotools-dev \
     bzip2 \
     ca-certificates \
+    cmake \
     g++ \
     gcc \
     gfortran \
     git \
-    less \
+    gnupg \
+    hwloc \
+    libhwloc-dev \
+    libssh-dev \
+    libssl-dev \
     libtool \
     libtool-bin \
+    lsb-release \
     make \
-    nano \
     ninja-build \
     patch \
     pkgconf \
     python3 \
+    python3-dev \
     unzip \
     wget \
     xxd \
-    zlib1g-dev \
-    cmake \
-    gnupg \
-    m4 \
     xz-utils \
-    libssl-dev \
-    libssh-dev \
-    hwloc \
-    libhwloc-dev \
-   && rm -rf /var/lib/apt/lists/*
+    zstd && rm -rf /var/lib/apt/lists/*
 
-# Install a recent developer version of Spack.
-WORKDIR /opt/spack
-ARG SPACK_VERSION=40d40ccc525dfa821b5e2998c9e767f08e0065bd
+# Install a recent Spack version
+WORKDIR /root/spack
+ARG SPACK_VERSION
+ENV SPACK_VERSION=${{SPACK_VERSION:-a3abc1c492f2431f477a63bbccb48aa3a2d34199}}
 RUN git init --quiet && \
     git remote add origin https://github.com/spack/spack.git && \
     git fetch --quiet --depth 1 origin ${{SPACK_VERSION}} --no-tags && \
     git checkout --quiet FETCH_HEAD
-ENV PATH="/opt/spack/bin:${{PATH}}"
+ENV PATH="/root/spack/bin:${{PATH}}"
 
-# Find all external packages and compilers.
+# Find all compilers
 RUN spack compiler find
+
+# Find all external packages
 RUN spack external find --all --not-buildable
 
-# Enable Spack build cache
-ARG SPACK_BUILD_CACHE=develop-2025-02-02
+# Enable Spack build cache from the latest development version
+ARG SPACK_BUILD_CACHE
+ENV SPACK_BUILD_CACHE="${{SPACK_BUILD_CACHE:-develop}}"
 RUN spack mirror add ${{SPACK_BUILD_CACHE}} https://binaries.spack.io/${{SPACK_BUILD_CACHE}} && \
-    spack mirror add develop https://binaries.spack.io/develop && \
     spack buildcache keys --install --trust --force && \
-    spack mirror rm develop
+    spack mirror remove ${{SPACK_BUILD_CACHE}}
 
-# Install CP2K's dependencies via Spack.
-WORKDIR /
-COPY ./tools/spack/cp2k-dependencies.yaml .
-RUN spack env create myenv ./cp2k-dependencies.yaml
+# Install CP2K dependencies via Spack
+ARG CP2K_BUILD_TYPE
+ENV CP2K_BUILD_TYPE=${{CP2K_BUILD_TYPE:-all}}
+COPY ./tools/spack/cp2k_deps_${{CP2K_BUILD_TYPE}}.yaml .
+RUN spack env create myenv cp2k_deps_${{CP2K_BUILD_TYPE}}.yaml
 RUN spack -e myenv concretize -f
-RUN spack -e myenv env depfile -o spack-makefile && make -j32 --file=spack-makefile SPACK_COLOR=never --output-sync=recurse
+ENV SPACK_ENV_VIEW="/root/spack/var/spack/environments/myenv/spack-env/view"
+RUN spack -e myenv env depfile -o spack_makefile && \
+    make -j32 --file=spack_makefile SPACK_COLOR=never --output-sync=recurse && \
+    cp -ar ${{SPACK_ENV_VIEW}}/bin ${{SPACK_ENV_VIEW}}/include ${{SPACK_ENV_VIEW}}/lib /opt/spack
 """
 
 

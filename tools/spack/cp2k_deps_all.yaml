@@ -1,4 +1,4 @@
-# Spack environment file for a full CP2K CI installation
+# Spack environment file for a CP2K installation with all available dependencies
 
 spack:
   concretizer:
@@ -10,6 +10,8 @@ spack:
     all:
       prefer:
         - +mpi
+        - ~cuda
+        - ~rocm
     # MPI, BLAS, LAPACK, ScaLAPACK
     mpi:
       require:
@@ -41,6 +43,9 @@ spack:
     dftd4:
       require:
         - build_system=cmake
+    dla-future:
+      require:
+        - +scalapack
     elpa:
       require:
         - +openmp
@@ -60,8 +65,11 @@ spack:
         - build_system=cmake
     py-torch:
       require:
+        - ~cuda
+        - ~distributed
         - ~kineto
         - ~mkldnn
+        - ~rocm
     sirius:
       require:
         - +fortran
@@ -76,7 +84,7 @@ spack:
         - +hdf5
         - build_system=cmake
   specs:
-    - "mpich@3.4.3"
+    - "mpich@4.2.3"
     - "openblas@0.3.29"
     - "netlib-scalapack@2.2.2"
     - "cosma@2.6.6"
@@ -104,5 +112,5 @@ spack:
       exclude:
         # Exclude gcc-runtime to avoid adding a copy of libgomp.so to the view
         - gcc-runtime
- 
+
 # EOF

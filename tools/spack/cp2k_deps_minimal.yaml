@@ -1,4 +1,4 @@
-# Spack environment file for a minimal CP2K CI installation
+# Spack environment file for a minimal CP2K installation
 
 spack:
   concretizer:
@@ -43,7 +43,7 @@ spack:
         - +kxc
         - build_system=cmake
   specs:
-    - "mpich@3.4.3"
+    - "mpich@4.2.3"
     - "openblas@0.3.29"
     - "netlib-scalapack@2.2.2"
     - "dbcsr@2.8.0"
