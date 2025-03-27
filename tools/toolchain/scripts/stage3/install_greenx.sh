@@ -5,16 +5,15 @@ SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
 greenx_ver="2.1"
 greenx_sha256="2fc1fc2c93b0bab14babc33386f7932192336813cea6db11cd27dbc36b541e41"
-# TODO : Is there a better solution for shellcheck which enables searching of these scripts?
-# shellcheck source=/dev/null
+# shellcheck disable=SC1091
 source "${SCRIPT_DIR}"/common_vars.sh
-# shellcheck source=/dev/null
+# shellcheck disable=SC1091
 source "${SCRIPT_DIR}"/tool_kit.sh
-# shellcheck source=/dev/null
+# shellcheck disable=SC1091
 source "${SCRIPT_DIR}"/signal_trap.sh
-# shellcheck source=/dev/null
+# shellcheck disable=SC1091
 source "${INSTALLDIR}"/toolchain.conf
-# shellcheck source=/dev/null
+# shellcheck disable=SC1091
 source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_greenx" ] && rm "${BUILDDIR}/setup_greenx"

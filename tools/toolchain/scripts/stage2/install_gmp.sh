@@ -4,16 +4,16 @@
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
 gmp_ver="6.3.0"
-gmp_sha256="a3c2b80201b89e68616f4ad30bc66aee4927c3ce50e33929ca819d5c43538898"
-# shellcheck source=/dev/null
+gmp_sha256="e56fd59d76810932a0555aa15a14b61c16bed66110d3c75cc2ac49ddaa9ab24c"
+# shellcheck disable=SC1091
 source "${SCRIPT_DIR}"/common_vars.sh
-# shellcheck source=/dev/null
+# shellcheck disable=SC1091
 source "${SCRIPT_DIR}"/tool_kit.sh
-# shellcheck source=/dev/null
+# shellcheck disable=SC1091
 source "${SCRIPT_DIR}"/signal_trap.sh
-# shellcheck source=/dev/null
+# shellcheck disable=SC1091
 source "${INSTALLDIR}"/toolchain.conf
-# shellcheck source=/dev/null
+# shellcheck disable=SC1091
 source "${INSTALLDIR}"/toolchain.env
 
 [ -f "${BUILDDIR}/setup_gmp" ] && rm "${BUILDDIR}/setup_gmp"
@@ -32,16 +32,14 @@ case "$with_gmp" in
     if verify_checksums "${install_lock_file}"; then
       echo "gmp-${gmp_ver} is already installed, skipping it."
     else
-      if [ -f gmp-${gmp_ver}.tar.xz ]; then
-        echo "gmp-${gmp_ver}.tar.xz is found"
+      if [ -f gmp-${gmp_ver}.tar.gz ]; then
+        echo "gmp-${gmp_ver}.tar.gz is found"
       else
-        # TODO : Exchange once the gmp is present on the CP2K website
-        #download_pkg_from_cp2k_org "${gmp_sha256}" "gmp-${gmp_ver}.tar.xz"
-        download_pkg_from_urlpath "${gmp_sha256}" "gmp-${gmp_ver}.tar.xz" "https://gmplib.org/download/gmp"
+        download_pkg_from_cp2k_org "${gmp_sha256}" "gmp-${gmp_ver}.tar.gz"
       fi
       echo "Installing from scratch into ${pkg_install_dir}"
       [ -d gmp-${gmp_ver} ] && rm -rf gmp-${gmp_ver}
-      tar -xJf gmp-${gmp_ver}.tar.xz
+      tar -xzf gmp-${gmp_ver}.tar.gz
       cd gmp-${gmp_ver}
       mkdir build
       cd build

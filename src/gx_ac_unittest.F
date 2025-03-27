@@ -22,7 +22,6 @@ PROGRAM gx_ac_unittest
                     free_params, &
                     params
 
-
    ! Create the dataset containing the fitting data
    ! Two Lorentzian peaks with some overlap
    COMPLEX(kind=dp), PARAMETER        :: damp_one = (2, 0), &
@@ -42,20 +41,20 @@ PROGRAM gx_ac_unittest
    COMPLEX(kind=dp)                   :: d_source, &
                                          d_fit
    COMPLEX(kind=dp), DIMENSION(n_source) :: x_source, &
-                                         y_source
+                                            y_source
    COMPLEX(kind=dp), DIMENSION(n_fit)    :: x_fit, &
-                                         y_fit
+                                            y_fit
    TYPE(params)                       :: fit_params
 
-   d_source = (max_source - min_source) / CMPLX(n_source - 1, kind=dp)
-   d_fit = (max_fit - min_fit) / CMPLX(n_fit - 1, kind=dp)
+   d_source = (max_source - min_source)/CMPLX(n_source - 1, kind=dp)
+   d_fit = (max_fit - min_fit)/CMPLX(n_fit - 1, kind=dp)
 
    PRINT '(A12)', "#Source data"
 
    DO i = 1, n_source
-      x_source(i) = min_source + CMPLX(i-1, 0.0, kind=dp) * d_source
-      y_source(i) = amp_one / (damp_one * damp_one + (x_source(i) - center_one)*(x_source(i) - center_one))
-      y_source(i) = y_source(i) + amp_two/ (damp_two * damp_two + (x_source(i) - center_two) * (x_source(i) - center_two))
+      x_source(i) = min_source + CMPLX(i - 1, 0.0, kind=dp)*d_source
+      y_source(i) = amp_one/(damp_one*damp_one + (x_source(i) - center_one)*(x_source(i) - center_one))
+      y_source(i) = y_source(i) + amp_two/(damp_two*damp_two + (x_source(i) - center_two)*(x_source(i) - center_two))
       PRINT '(E20.8E3,E20.8E3)', REAL(x_source(i), kind=dp), REAL(y_source(i), kind=dp)
    END DO
 
@@ -67,12 +66,12 @@ PROGRAM gx_ac_unittest
 
    ! Create the evaluation grid
    DO i = 1, n_fit
-      x_fit(i) = min_fit + d_fit * CMPLX(i-1, 0, kind=dp)
+      x_fit(i) = min_fit + d_fit*CMPLX(i - 1, 0, kind=dp)
    END DO
 
    y_fit(1:n_fit) = evaluate_thiele_pade_at(fit_params, x_fit)
 
-   DO i=1, n_fit
+   DO i = 1, n_fit
       PRINT '(E20.8E3,E20.8E3)', REAL(x_fit(i), kind=dp), REAL(y_fit(i), kind=dp)
    END DO
 
