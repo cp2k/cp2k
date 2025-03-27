@@ -34,6 +34,7 @@ MODULE realspace_grid_cube
         openpmd_record_get_component, openpmd_record_type, openpmd_type_double, openpmd_type_int
    USE pw_grid_types,                   ONLY: PW_MODE_LOCAL
    USE pw_types,                        ONLY: pw_r3d_rs_type
+   USE util,                            ONLY: sort_unique
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -65,28 +66,26 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: res_atom_types, res_atom_counts
       INTEGER, INTENT(OUT)                               :: res_len
 
-      INTEGER                                            :: current_atom_number, i, j
-      LOGICAL                                            :: already_present
+      INTEGER                                            :: current_atom_number, i
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: particles_z_sorted
+      LOGICAL                                            :: unique
 
-      res_len = 0
+      ALLOCATE (particles_z_sorted(SIZE(particles_z)))
+      particles_z_sorted(:) = particles_z(:)
+      CALL sort_unique(particles_z_sorted, unique)
 
       ALLOCATE (res_atom_types(MIN(118, SIZE(particles_z))))
       ALLOCATE (res_atom_counts(MIN(118, SIZE(particles_z))))
-
-      DO i = 1, SIZE(particles_z)
-         current_atom_number = particles_z(i)
-         already_present = .FALSE.
-         DO j = 1, res_len
-            IF (res_atom_types(j) == current_atom_number) THEN
-               already_present = .TRUE.
-               res_atom_counts(j) = res_atom_counts(j) + 1
-               EXIT
-            END IF
-         END DO
-         IF (.NOT. already_present) THEN
+      current_atom_number = -1
+      res_len = 0
+      DO i = 1, SIZE(particles_z_sorted)
+         IF (particles_z_sorted(i) /= current_atom_number) THEN
             res_len = res_len + 1
+            current_atom_number = particles_z_sorted(i)
             res_atom_types(res_len) = current_atom_number
             res_atom_counts(res_len) = 1
+         ELSE
+            res_atom_counts(res_len) = res_atom_counts(res_len) + 1
          END IF
       END DO
 
