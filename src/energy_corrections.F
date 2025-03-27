@@ -436,8 +436,8 @@ CONTAINS
 
          CASE (ec_functional_ext)
 
-            CALL ec_ext_energy(qs_env, ec_env, calculate_forces=.TRUE.)
             CALL init_response_deriv(qs_env, ec_env)
+            CALL ec_ext_energy(qs_env, ec_env, calculate_forces=.TRUE.)
 
          CASE DEFAULT
             CPABORT("unknown energy correction")
