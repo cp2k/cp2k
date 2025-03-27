@@ -1485,7 +1485,8 @@ set(CP2K_PROGS_F
     metadyn_tools/graph.F
     motion/dumpdcd.F
     motion/xyz2dcd.F
-    nequip_unittest.F)
+    nequip_unittest.F
+    gx_ac_unittest.F)
 
 if(CP2K_USE_CUDA
    OR CP2K_USE_HIP
