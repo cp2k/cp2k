@@ -115,7 +115,8 @@ static void backend_upload_packs(const dbm_pack_t *pack_a,
  * \brief Private routine for sending a batch to the multiplication backend.
  * \author Ole Schuett
  ******************************************************************************/
-static void backend_process_batch(const int ntasks, dbm_task_t batch[ntasks],
+static void backend_process_batch(const int ntasks,
+                                  const dbm_task_t batch[ntasks],
                                   const double alpha, const dbm_pack_t *pack_a,
                                   const dbm_pack_t *pack_b, const int kshard,
                                   dbm_shard_t *shard_c,
