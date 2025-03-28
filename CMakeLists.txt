@@ -128,7 +128,7 @@ option(CP2K_USE_STATIC_BLAS "Link against static version of BLAS/LAPACK" OFF)
 option(CP2K_USE_GRPP "Enable libgrpp support" ON)
 option(CP2K_USE_TREXIO "Enable trexio support" ON)
 option(CP2K_USE_HDF5 "Enable HDF5 support" ON)
-option(CP2K_USE_GREENX "Enable GreenX support" OFF)
+option(CP2K_USE_GREENX "Enable GreenX support" ON)
 option(BUILD_SHARED_LIBS "Build cp2k shared library" ON)
 option(
   CP2K_USE_FFTW3_WITH_MKL
