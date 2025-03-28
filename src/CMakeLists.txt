@@ -1485,7 +1485,8 @@ set(CP2K_PROGS_F
     metadyn_tools/graph.F
     motion/dumpdcd.F
     motion/xyz2dcd.F
-    nequip_unittest.F)
+    nequip_unittest.F
+    gx_ac_unittest.F)
 
 if(CP2K_USE_CUDA
    OR CP2K_USE_HIP
@@ -1788,7 +1789,8 @@ list(
   "libcp2k_unittest"
   "nequip_unittest"
   "dbt_unittest"
-  "dbt_tas_unittest")
+  "dbt_tas_unittest"
+  "gx_ac_unittest")
 
 add_executable(cp2k-bin start/cp2k.F)
 # for linking
@@ -1802,6 +1804,7 @@ add_executable(libcp2k_unittest start/libcp2k_unittest.c)
 add_executable(nequip_unittest nequip_unittest.F)
 add_executable(dbt_unittest dbt/dbt_unittest.F)
 add_executable(dbt_tas_unittest dbt/tas/dbt_tas_unittest.F)
+add_executable(gx_ac_unittest gx_ac_unittest.F)
 
 set_target_properties(
   cp2k-bin
