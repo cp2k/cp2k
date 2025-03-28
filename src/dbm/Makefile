@@ -120,7 +120,7 @@ OPENCL_GEN := $(CP2KHOME)/exts/dbcsr/src/acc/opencl/acc_opencl.sh
 ALL_HEADERS += $(OPENCL_GENKRNL)
 
 ALL_OBJECTS += dbm_multiply_gpu.o dbm_multiply_opencl.o
-CFLAGS += -I$(CP2KHOME)/exts/dbcsr -I$(CP2KHOME)/exts/dbcsr/src/acc/opencl
+CFLAGS += -I$(CP2KHOME)/exts/dbcsr/src/acc/opencl -I$(CP2KHOME)/exts/dbcsr
 CFLAGS += -D__OFFLOAD_OPENCL -D__DBCSR_ACC
 LIBS += $(OPENCL_OFFLOAD) -lgfortran
 
