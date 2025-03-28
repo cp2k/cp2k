@@ -265,7 +265,7 @@ CONTAINS
          my_stride(3), np, num_atom_types, num_linebreak, num_pe, rank(2), size_of_z, source, tag, &
          U1, U2, U3
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_counts, atom_types
-      INTEGER, DIMENSION(3)                              :: extent
+      INTEGER, DIMENSION(3)                              :: global_extent, local_extent, offset
       LOGICAL                                            :: be_silent, my_zero_tails, parallel_write
       REAL(KIND=dp), DIMENSION(3)                        :: grid_spacing
       REAL(KIND=dp), POINTER                             :: write_buffer(:, :, :)
@@ -331,13 +331,15 @@ CONTAINS
             END IF
          END IF
 
-         IF (parallel_write) THEN
-            CALL timestop(handle)
-            RETURN
-         END IF
+         ! IF (parallel_write) THEN
+         !    CALL timestop(handle)
+         !    RETURN
+         ! END IF
 
          DO iat = 1, 3
-            extent(4 - iat) = (pw%pw_grid%npts(iat) + my_stride(iat) - 1)/my_stride(iat)
+            global_extent(4 - iat) = (pw%pw_grid%npts(iat) + my_stride(iat) - 1)/my_stride(iat)
+            local_extent(4 - iat) = (pw%pw_grid%npts_local(iat) + my_stride(iat) - 1)/my_stride(iat)
+            offset(4 - iat) = ((pw%pw_grid%bounds_local(1, iat) - pw%pw_grid%bounds(1, iat) + my_stride(iat) - 1)/my_stride(iat))
          END DO
 
          mesh = openpmd_iteration_get_mesh(openpmd_data%iteration, TRIM(openpmd_data%name_prefix))
@@ -346,15 +348,15 @@ CONTAINS
          CALL openpmd_mesh_set_grid_global_offset(mesh, (/0._dp, 0._dp, 0._dp/))
          CALL openpmd_mesh_set_grid_spacing(mesh, grid_spacing)
          scalar_mesh = openpmd_mesh_as_record_component(mesh)
-         CALL openpmd_record_component_reset_dataset(scalar_mesh, openpmd_type_double, extent)
+         CALL openpmd_record_component_reset_dataset(scalar_mesh, openpmd_type_double, global_extent)
 
          ! shortcut
-         L1 = pw%pw_grid%bounds(1, 1)
-         L2 = pw%pw_grid%bounds(1, 2)
-         L3 = pw%pw_grid%bounds(1, 3)
-         U1 = pw%pw_grid%bounds(2, 1)
-         U2 = pw%pw_grid%bounds(2, 2)
-         U3 = pw%pw_grid%bounds(2, 3)
+         L1 = pw%pw_grid%bounds_local(1, 1)
+         L2 = pw%pw_grid%bounds_local(1, 2)
+         L3 = pw%pw_grid%bounds_local(1, 3)
+         U1 = pw%pw_grid%bounds_local(2, 1)
+         U2 = pw%pw_grid%bounds_local(2, 2)
+         U3 = pw%pw_grid%bounds_local(2, 3)
 
          my_rank = pw%pw_grid%para%group%mepos
          num_pe = pw%pw_grid%para%group%num_pe
@@ -368,7 +370,9 @@ CONTAINS
 
             ! why do we do row-major accesses here?
             unresolved_write_buffer = openpmd_record_component_store_chunk_span_3d_double( &
-                                      scalar_mesh, (/0, 0, count1/), (/extent(1), extent(2), 1/))
+                                      scalar_mesh, &
+                                      (/offset(1), offset(2), offset(3) + count1/), &
+                                      (/local_extent(1), local_extent(2), 1/))
             write_buffer => openpmd_dynamic_memory_view_resolve_3d_double(unresolved_write_buffer, DEALLOCATE=.TRUE.)
 
             count2 = 0
