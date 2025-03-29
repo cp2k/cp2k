@@ -24,7 +24,7 @@ PROGRAM gx_ac_unittest
 
    ! Create the dataset containing the fitting data
    ! Two Lorentzian peaks with some overlap
-   COMPLEX(kind=dp), PARAMETER        :: damp_one = (2, 0), &
+   COMPLEX(kind=dp)                   :: damp_one = (2, 0), &
                                          damp_two = (4, 0), &
                                          center_one = (2, 0), &
                                          center_two = (8, 0), &
