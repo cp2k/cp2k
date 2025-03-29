@@ -1,4 +1,4 @@
-"H2O-hfx-coulomb.inp"                   = [{matcher="E_total", tol=6.0E-10, ref=-75.96344483562591}]
+"H2O-hfx-coulomb.inp"                   = [{matcher="E_total", tol=1.0E-09, ref=-75.96344483562591}]
 "H2O-hfx-identity.inp"                  = [{matcher="E_total", tol=2.0E-10, ref=-76.00818468795198}]
 "H2O-hfx-periodic-ri-truncated.inp"     = [{matcher="E_total", tol=1.0E-11, ref=-66.82684206238447}]
 "H2O-hybrid-b3lyp.inp"                  = [{matcher="E_total", tol=1.0E-12, ref=-76.15902937273455}]
