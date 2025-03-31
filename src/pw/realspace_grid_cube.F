@@ -20,6 +20,7 @@ MODULE realspace_grid_cube
       file_amode_rdonly, file_offset, mp_comm_type, mp_file_descriptor_type, mp_file_type, &
       mp_file_type_free, mp_file_type_hindexed_make_chv, mp_file_type_set_view_chv, &
       mpi_character_size
+! TODO deal properly with MPI
 #if defined(__parallel)
 #if defined(__MPI_F08)
    USE mpi_f08, ONLY: mpi_allreduce, mpi_integer, mpi_bxor, mpi_comm, mpi_allgather
@@ -331,15 +332,10 @@ CONTAINS
             END IF
          END IF
 
-         ! IF (parallel_write) THEN
-         !    CALL timestop(handle)
-         !    RETURN
-         ! END IF
-
          DO iat = 1, 3
-            global_extent(4 - iat) = (pw%pw_grid%npts(iat) + my_stride(iat) - 1)/my_stride(iat)
-            local_extent(4 - iat) = (pw%pw_grid%npts_local(iat) + my_stride(iat) - 1)/my_stride(iat)
-            offset(4 - iat) = ((pw%pw_grid%bounds_local(1, iat) - pw%pw_grid%bounds(1, iat) + my_stride(iat) - 1)/my_stride(iat))
+            global_extent(iat) = (pw%pw_grid%npts(iat) + my_stride(iat) - 1)/my_stride(iat)
+            local_extent(iat) = (pw%pw_grid%npts_local(iat) + my_stride(iat) - 1)/my_stride(iat)
+            offset(iat) = ((pw%pw_grid%bounds_local(1, iat) - pw%pw_grid%bounds(1, iat) + my_stride(iat) - 1)/my_stride(iat))
          END DO
 
          mesh = openpmd_iteration_get_mesh(openpmd_data%iteration, TRIM(openpmd_data%name_prefix))
@@ -371,12 +367,14 @@ CONTAINS
             ! why do we do row-major accesses here?
             unresolved_write_buffer = openpmd_record_component_store_chunk_span_3d_double( &
                                       scalar_mesh, &
-                                      (/offset(1), offset(2), offset(3) + count1/), &
-                                      (/local_extent(1), local_extent(2), 1/))
+                                      (/offset(1) + count1, offset(2), offset(3)/), &
+                                      (/1, local_extent(2), local_extent(3)/))
             write_buffer => openpmd_dynamic_memory_view_resolve_3d_double(unresolved_write_buffer, DEALLOCATE=.TRUE.)
 
             count2 = 0
             DO I2 = L2, U2, my_stride(2)
+               ! This loop deals with ray (count1, count2, :) of the local subspace
+               ! The write buffer itself has been allocated for slice (count1, :, :)
 
                ! cycling through the CPUs, check if the current ray (I1,I2) is local to that CPU
                IF (pw%pw_grid%para%mode .NE. PW_MODE_LOCAL) THEN
