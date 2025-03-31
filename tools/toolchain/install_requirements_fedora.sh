@@ -30,7 +30,8 @@ dnf -qy install \
   vim-common \
   wget \
   which \
-  zlib-devel
+  zlib-devel \
+  zlib-static
 
 dnf clean -q all
 
