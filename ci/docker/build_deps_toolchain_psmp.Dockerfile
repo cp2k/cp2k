@@ -13,6 +13,10 @@ FROM ${BASE_IMAGE} AS build_deps
 
 # Install packages required for the CP2K toolchain build
 RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
+    autoconf \
+    autogen \
+    automake \
+    autotools-dev \
     bzip2 \
     ca-certificates \
     g++ \
