@@ -262,7 +262,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_to_openpmd'
       INTEGER, PARAMETER                                 :: entry_len = 13, num_entries_line = 6
 
-      INTEGER :: count1, count2, handle, i, I1, I2, iat, j, L1, L2, L3, msglen, my_rank, &
+      INTEGER :: count1, count2, count3, handle, i, I1, I2, I3, iat, j, L1, L2, L3, msglen, my_rank, &
          my_stride(3), np, num_atom_types, num_linebreak, num_pe, size_of_z, U1, U2, U3
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_counts, atom_types
       INTEGER, DIMENSION(3)                              :: global_extent, local_extent, offset
@@ -356,27 +356,29 @@ CONTAINS
          my_rank = pw%pw_grid%para%group%mepos
          num_pe = pw%pw_grid%para%group%num_pe
 
-         count1 = 0
-         DO I1 = L1, U1, my_stride(1)
+         count3 = 0
+         DO I3 = L3, U3, my_stride(3)
             ! maybe add an overload to provide `buf` here for HDF5, might have better performance
             ! for intermittent flushing
             ! or just call the buffer in the outer function if memory is no problem...
-
-            ! why do we do row-major accesses here?
             unresolved_write_buffer = openpmd_record_component_store_chunk_span_3d_double( &
                                       scalar_mesh, &
-                                      (/offset(1) + count1, offset(2), offset(3)/), &
-                                      (/1, local_extent(2), local_extent(3)/))
+                                      (/offset(1), offset(2), offset(3) + count3/), &
+                                      (/local_extent(1), local_extent(2), 1/))
             write_buffer => openpmd_dynamic_memory_view_resolve_3d_double(unresolved_write_buffer, DEALLOCATE=.TRUE.)
 
             count2 = 0
             DO I2 = L2, U2, my_stride(2)
-               ! This loop deals with ray (count1, count2, :) of the local subspace
-               ! The write buffer itself has been allocated for slice (count1, :, :)
-               write_buffer(1, count2 + 1, :) = pw%array(I1, I2, :)
+               ! This loop deals with ray (:, count2, count3) of the local subspace
+               ! The write buffer itself has been allocated for slice (:, :, count3)
+               count1 = 0
+               DO I1 = L1, U1, my_stride(1)
+                  write_buffer(count1 + 1, count2 + 1, 1) = pw%array(I1, I2, I3)
+                  count1 = count1 + 1
+               END DO
                count2 = count2 + 1
             END DO
-            count1 = count1 + 1
+            count3 = count3 + 1
          END DO
       ELSE
          size_of_z = CEILING(REAL(pw%pw_grid%bounds(2, 3) - pw%pw_grid%bounds(1, 3) + 1, dp)/REAL(my_stride(3), dp))
