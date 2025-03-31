@@ -40,7 +40,7 @@ MODULE realspace_grid_cube
       openpmd_record_component_make_constant_zero, openpmd_record_component_reset_dataset, &
       openpmd_record_component_store_chunk_span_1d_double, &
       openpmd_record_component_store_chunk_span_3d_double, openpmd_record_component_type, &
-      openpmd_record_get_component, openpmd_record_type, openpmd_type_double, openpmd_type_int
+      openpmd_record_get_component, openpmd_record_type, openpmd_type_double, openpmd_type_int, openpmd_iteration_as_attributable, openpmd_attributable_series_flush
    USE pw_grid_types, ONLY: PW_MODE_LOCAL
    USE pw_types, ONLY: pw_r3d_rs_type
    USE util, ONLY: sort_unique
@@ -110,20 +110,20 @@ CONTAINS
 !> \param global_offset ...
 !> \param global_extent ...
 ! **************************************************************************************************
-   SUBROUTINE pw_write_particle_species(particles_z, particles_r, atom_type, atom_count, openpmd_data, global_offset, global_extent)
+   SUBROUTINE pw_write_particle_species(particles_z, particles_r, atom_type, atom_count, openpmd_data, do_write_data)
       INTEGER, DIMENSION(:), INTENT(IN)                  :: particles_z
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: particles_r
       INTEGER, INTENT(IN)                                :: atom_type, atom_count
       TYPE(cp_openpmd_per_call_value_type)               :: openpmd_data
-      INTEGER, OPTIONAL                                  :: global_offset, global_extent
+      LOGICAL :: do_write_data
 
       CHARACTER(len=1), DIMENSION(3), PARAMETER          :: dims = (/"x", "y", "z"/)
 
       CHARACTER(len=3)                                   :: atom_type_as_string
       CHARACTER(len=default_string_length)               :: species_name
       INTEGER                                            :: i, j, k
-      INTEGER, DIMENSION(1)                              :: local_extent, my_global_extent, &
-                                                            my_global_offset
+      INTEGER, DIMENSION(1)                              :: local_extent, global_extent, &
+                                                            global_offset
       TYPE(cp_openpmd_write_buffer_1d), DIMENSION(3)     :: write_buffers
       TYPE(openpmd_dynamic_memory_view_type_1d), &
          DIMENSION(3)                                    :: unresolved_write_buffers
@@ -132,17 +132,14 @@ CONTAINS
                                                             position_offset_component
       TYPE(openpmd_record_type)                          :: position, position_offset
 
-      local_extent(1) = atom_count
-      IF (PRESENT(global_extent)) THEN
-         my_global_extent(1) = global_extent
+      global_extent(1) = atom_count
+      IF (do_write_data) THEN
+         global_offset(1) = 0
+         local_extent(1) = atom_count
       ELSE
-         my_global_extent(1) = atom_count
-      END IF
-      IF (PRESENT(global_offset)) THEN
-         my_global_offset(1) = global_offset
-      ELSE
-         my_global_offset(1) = 0
-      END IF
+         global_offset(1) = 0
+         local_extent(1) = 0
+      ENDIF
 
       WRITE (atom_type_as_string, '(I3)') atom_type
       species_name = TRIM(openpmd_data%name_prefix)//"-"//ADJUSTL(atom_type_as_string)
@@ -153,30 +150,33 @@ CONTAINS
       position = openpmd_particle_species_get_record(species, "position")
       DO k = 1, SIZE(dims)
          position_offset_component = openpmd_record_get_component(position_offset, dims(k))
-         CALL openpmd_record_component_make_constant_zero(position_offset_component, openpmd_type_int, my_global_extent)
+         CALL openpmd_record_component_make_constant_zero(position_offset_component, openpmd_type_int, global_extent)
          position_component = openpmd_record_get_component(position, dims(k))
-         CALL openpmd_record_component_reset_dataset(position_component, openpmd_type_double, my_global_extent)
-         unresolved_write_buffers(k) = &
-            openpmd_record_component_store_chunk_span_1d_double(position_component, my_global_offset, local_extent)
-         write_buffers(k)%buffer => &
-            openpmd_dynamic_memory_view_resolve_1d_double(unresolved_write_buffers(k), DEALLOCATE=.FALSE.)
+         CALL openpmd_record_component_reset_dataset(position_component, openpmd_type_double, global_extent)
+            unresolved_write_buffers(k) = &
+               openpmd_record_component_store_chunk_span_1d_double(position_component, global_offset, local_extent)
+         IF (do_write_data) THEN
+            write_buffers(k)%buffer => &
+               openpmd_dynamic_memory_view_resolve_1d_double(unresolved_write_buffers(k), DEALLOCATE=.FALSE.)
+         ENDIF
       END DO
 
-      ! Resolve Spans for a second time to allow for internal reallocations in BP4 engine of ADIOS2
-      DO k = 1, SIZE(dims)
-         write_buffers(k)%buffer = &
-            openpmd_dynamic_memory_view_resolve_1d_double(unresolved_write_buffers(k), DEALLOCATE=.TRUE.)
-      END DO
-
-      j = 1
-      DO i = 1, SIZE(particles_z)
-         IF (particles_z(i) == atom_type) THEN
-            DO k = 1, 3
-               write_buffers(k)%buffer(j) = particles_r(k, i)
-            END DO
-            j = j + 1
-         END IF
-      END DO
+      IF (do_write_data) THEN
+         ! Resolve Spans for a second time to allow for internal reallocations in BP4 engine of ADIOS2
+         DO k = 1, SIZE(dims)
+            write_buffers(k)%buffer = &
+               openpmd_dynamic_memory_view_resolve_1d_double(unresolved_write_buffers(k), DEALLOCATE=.TRUE.)
+         END DO
+         j = 1
+         DO i = 1, SIZE(particles_z)
+            IF (particles_z(i) == atom_type) THEN
+               DO k = 1, 3
+                  write_buffers(k)%buffer(j) = particles_r(k, i)
+               END DO
+               j = j + 1
+            END IF
+         END DO
+      ENDIF
    END SUBROUTINE pw_write_particle_species
 
 ! **************************************************************************************************
@@ -197,42 +197,16 @@ CONTAINS
       TYPE(cp_openpmd_per_call_value_type)               :: openpmd_data
       TYPE(mp_comm_type), OPTIONAL                       :: gid
 
-      INTEGER                                            :: global_extent, global_offset, i, ierr, &
-                                                            j, mpi_rank, mpi_size
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_counts_all_ranks, vec_checksum
-      INTEGER, TARGET                                    :: checksum
+      INTEGER                                            :: i, mpi_rank
+      LOGICAL :: do_write_data
 
       IF (PRESENT(gid)) THEN
-         CALL gid%get_size(mpi_size)
          CALL gid%get_rank(mpi_rank)
-         CALL mpi_allreduce(num_atom_types, checksum, 1, MPI_INTEGER, MPI_BXOR, gid%get_handle(), ierr)
-         CPASSERT(checksum == 0)
-         ALLOCATE (vec_checksum(num_atom_types))
-         CALL mpi_allreduce(atom_types, vec_checksum, num_atom_types, MPI_INTEGER, MPI_BXOR, gid%get_handle(), ierr)
-         CPASSERT(ALL(vec_checksum(:) == 0))
-         DEALLOCATE (vec_checksum)
-
-         ALLOCATE (atom_counts_all_ranks(num_atom_types*mpi_size))
-         ! TODO figure out why the compiler refuses gid%allgather()
-         CALL mpi_allgather(atom_counts, num_atom_types, MPI_INTEGER, atom_counts_all_ranks, num_atom_types, MPI_INTEGER, gid%get_handle(), ierr)
-         ! CALL gid%allgather(atom_counts, atom_counts_all_ranks)
-
-         DO i = 1, num_atom_types ! atom type
-            global_offset = 0
-            global_extent = 0
-            DO j = 0, mpi_size - 1 ! rank
-               IF (j == mpi_rank) global_offset = global_extent
-               global_extent = global_extent + atom_counts_all_ranks(j*num_atom_types + i)
-            END DO
- CALL pw_write_particle_species(particles_z, particles_r, atom_types(i), atom_counts(i), openpmd_data, global_offset, global_extent)
-         END DO
-
-         DEALLOCATE (atom_counts_all_ranks)
-      ELSE
-         DO i = 1, num_atom_types
-            CALL pw_write_particle_species(particles_z, particles_r, atom_types(i), atom_counts(i), openpmd_data)
-         END DO
-      END IF
+         do_write_data = mpi_rank == 0
+      ENDIF
+      DO i = 1, num_atom_types
+         CALL pw_write_particle_species(particles_z, particles_r, atom_types(i), atom_counts(i), openpmd_data, do_write_data)
+      END DO
    END SUBROUTINE pw_write_particles
 
 ! TODO move this to own module
