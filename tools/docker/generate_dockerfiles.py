@@ -33,7 +33,7 @@ def main() -> None:
         f.write(regtest("psmp"))
 
     with OutputFile(f"Dockerfile.test_fedora-psmp", args.check) as f:
-        f.write(install_deps_toolchain(base_image="fedora:38"))
+        f.write(install_deps_toolchain(base_image="fedora:41"))
         f.write(regtest("psmp"))
 
     for version in "ssmp", "psmp":
