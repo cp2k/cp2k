@@ -262,8 +262,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_to_openpmd'
       INTEGER, PARAMETER                                 :: entry_len = 13, num_entries_line = 6
 
-      INTEGER :: count1, count2, dest, handle, i, I1, I2, iat, ip, j, L1, L2, L3, msglen, my_rank, &
-         my_stride(3), np, num_atom_types, num_linebreak, num_pe, rank(2), size_of_z, source, tag, &
+      INTEGER :: count1, count2, handle, i, I1, I2, iat, j, L1, L2, L3, msglen, my_rank, &
+         my_stride(3), np, num_atom_types, num_linebreak, num_pe, size_of_z, &
          U1, U2, U3
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_counts, atom_types
       INTEGER, DIMENSION(3)                              :: global_extent, local_extent, offset
@@ -357,7 +357,6 @@ CONTAINS
          my_rank = pw%pw_grid%para%group%mepos
          num_pe = pw%pw_grid%para%group%num_pe
 
-         dest = rank(2)
          count1 = 0
          DO I1 = L1, U1, my_stride(1)
             ! maybe add an overload to provide `buf` here for HDF5, might have better performance
@@ -375,33 +374,7 @@ CONTAINS
             DO I2 = L2, U2, my_stride(2)
                ! This loop deals with ray (count1, count2, :) of the local subspace
                ! The write buffer itself has been allocated for slice (count1, :, :)
-
-               ! cycling through the CPUs, check if the current ray (I1,I2) is local to that CPU
-               IF (pw%pw_grid%para%mode .NE. PW_MODE_LOCAL) THEN
-                  DO ip = 0, num_pe - 1
-                     IF (pw%pw_grid%para%bo(1, 1, ip, 1) <= I1 - L1 + 1 .AND. pw%pw_grid%para%bo(2, 1, ip, 1) >= I1 - L1 + 1 .AND. &
-                         pw%pw_grid%para%bo(1, 2, ip, 1) <= I2 - L2 + 1 .AND. pw%pw_grid%para%bo(2, 2, ip, 1) >= I2 - L2 + 1) THEN
-                        source = ip
-                     END IF
-                  END DO
-               ELSE
-                  source = dest
-               END IF
-
-               IF (source == dest) THEN
-                  IF (my_rank == source) THEN
-                     write_buffer(1, count2 + 1, :) = pw%array(I1, I2, :)
-                  END IF
-               ELSE
-                  IF (my_rank == source) THEN
-                     write_buffer(1, count2 + 1, :) = pw%array(I1, I2, :)
-                     CALL gid%send(write_buffer, dest, tag)
-                  END IF
-                  IF (my_rank == dest) THEN
-                     CALL gid%recv(write_buffer, source, tag)
-                  END IF
-               END IF
-
+               write_buffer(1, count2 + 1, :) = pw%array(I1, I2, :)
                count2 = count2 + 1
             END DO
             count1 = count1 + 1
