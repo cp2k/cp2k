@@ -39,25 +39,25 @@
       APPLY_DELTA_PULSE
       DELTA_PULSE_DIRECTION 1 0 0
       DELTA_PULSE_SCALE 0.001
-      &RTBSE
-        &PADE_FT
-          E_MIN [eV] 0.0
-          E_MAX [eV] 50.0
-          E_STEP [eV] 0.05
-        &END PADE_FT
-      &END RTBSE
       EPS_ITER 1.0E-7
       EXP_ACCURACY 1.0E-10
       INITIAL_WFN RT_RESTART
       MAT_EXP BCH
       &PRINT
+        &MOMENTS
+          FILENAME MOMENTS
+        &END MOMENTS
         &POLARIZABILITY
           FILENAME __STD_OUT__
         &END POLARIZABILITY
-	&MOMENTS
-	  FILENAME MOMENTS
-	&END MOMENTS
       &END PRINT
+      &RTBSE
+        &PADE_FT
+          E_MAX [eV] 50.0
+          E_MIN [eV] 0.0
+          E_STEP [eV] 0.05
+        &END PADE_FT
+      &END RTBSE
     &END REAL_TIME_PROPAGATION
     &SCF
       ADDED_MOS -1

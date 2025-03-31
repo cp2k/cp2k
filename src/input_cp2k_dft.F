@@ -88,7 +88,8 @@ MODULE input_cp2k_dft
                                               lchar_t,&
                                               real_t
    USE kinds,                           ONLY: dp
-   USE physcon,                         ONLY: femtoseconds
+   USE physcon,                         ONLY: evolt,&
+                                              femtoseconds
    USE pw_spline_utils,                 ONLY: no_precond,&
                                               precond_spl3_1,&
                                               precond_spl3_2,&
@@ -96,8 +97,6 @@ MODULE input_cp2k_dft
                                               precond_spl3_aint,&
                                               precond_spl3_aint2
    USE string_utilities,                ONLY: s2a
-   USE physcon,                         ONLY: femtoseconds, &
-                                              evolt
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -1924,7 +1923,7 @@ CONTAINS
 
       ! Padé FT refinement
       ! TODO : Link MOMENTS_FT in documentation.
-      CALL section_create(subsection, __LOCATION__, name="PADE_FT",&
+      CALL section_create(subsection, __LOCATION__, name="PADE_FT", &
                           description="Options for the Padé approximant refinement of the Fourier transform. Uses GreenX "// &
                           "library to perform the analytic continuation and interpolation of the Fourier transform of "// &
                           "dipole moments. The resulting moments are printed into the MOMENTS_FT file.", &

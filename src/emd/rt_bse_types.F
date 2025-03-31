@@ -472,7 +472,7 @@ CONTAINS
          NULLIFY (rtbse_env%pade_x_eval)
          ALLOCATE (rtbse_env%pade_x_eval(rtbse_env%pade_npoints))
          DO i = 1, rtbse_env%pade_npoints
-            rtbse_env%pade_x_eval(i) = CMPLX(rtbse_env%pade_e_step * REAL(i-1, kind=dp), 0.0, kind=dp)
+            rtbse_env%pade_x_eval(i) = CMPLX(rtbse_env%pade_e_step*REAL(i - 1, kind=dp), 0.0, kind=dp)
          END DO
 #else
          CPABORT("Padé refinement of FT requires linking GreenX - recompile CP2K with GreenX.")

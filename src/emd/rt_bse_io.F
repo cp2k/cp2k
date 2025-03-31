@@ -635,20 +635,20 @@ CONTAINS
 #if defined (__GREENX)
       IF (rtbse_env%pade_requested) THEN
          ! Report Padé refinement
-         IF (rtbse_env%unit_nr > 0) WRITE(rtbse_env%unit_nr, '(A10,A27,E23.8E3,E20.8E3)') &
-                 " PADE_FT| ", "Evaluation grid bounds [eV]", rtbse_env%pade_e_min, rtbse_env%pade_e_max
+         IF (rtbse_env%unit_nr > 0) WRITE (rtbse_env%unit_nr, '(A10,A27,E23.8E3,E20.8E3)') &
+            " PADE_FT| ", "Evaluation grid bounds [eV]", rtbse_env%pade_e_min, rtbse_env%pade_e_max
          ALLOCATE (omega_complex(n))
          ALLOCATE (moments_ft_complex(n))
-         ALLOCATE (moments_eval_complex(3,rtbse_env%pade_npoints))
+         ALLOCATE (moments_eval_complex(3, rtbse_env%pade_npoints))
          omega_complex(:) = CMPLX(omega_series(:), 0.0, kind=dp)
-         DO i=1,3
-            moments_ft_complex(:) = CMPLX(ft_full_series(2*i-1, :), &
+         DO i = 1, 3
+            moments_ft_complex(:) = CMPLX(ft_full_series(2*i - 1, :), &
                                           ft_full_series(2*i, :), &
                                           kind=dp)
             ! Copy the fitting parameters
             ! TODO : Optional direct setting of parameters?
             CALL refine_ft(rtbse_env%pade_fit_e_min, rtbse_env%pade_fit_e_max, &
-                    omega_complex, moments_ft_complex, rtbse_env%pade_x_eval, moments_eval_complex(i,:))
+                           omega_complex, moments_ft_complex, rtbse_env%pade_x_eval, moments_eval_complex(i, :))
          END DO
          ! Write into alternative file
          ft_unit = cp_print_key_unit_nr(logger, rtbse_env%ft_section, extension="_PADE.dat", &
@@ -662,9 +662,9 @@ CONTAINS
             END DO
          END IF
          CALL cp_print_key_finished_output(ft_unit, logger, rtbse_env%ft_section)
-         DEALLOCATE(omega_complex)
-         DEALLOCATE(moments_ft_complex)
-         DEALLOCATE(moments_eval_complex)
+         DEALLOCATE (omega_complex)
+         DEALLOCATE (moments_ft_complex)
+         DEALLOCATE (moments_eval_complex)
       END IF
 #endif
       DEALLOCATE (omega_series)
@@ -687,7 +687,7 @@ CONTAINS
                                                             y_eval
       INTEGER, OPTIONAL                                  :: n_pade_opt
 #if defined (__GREENX)
-      CHARACTER(len=*), PARAMETER                        :: routineN="refine_ft"
+      CHARACTER(len=*), PARAMETER                        :: routineN = "refine_ft"
       INTEGER                                            :: handle, &
                                                             fit_start, &
                                                             fit_end, &
@@ -710,9 +710,9 @@ CONTAINS
       ! the input
       ! Do not search when automatic request of highest energy is made
       IF (fit_e_max < 0) fit_end = max_fit
-      DO i=1,max_fit
+      DO i = 1, max_fit
          IF (fit_start == -1 .AND. REAL(x_fit(i)) >= fit_e_min) fit_start = i
-         IF (fit_end == -1 .AND. REAL(x_fit(i)) > fit_e_max) fit_end = i-1
+         IF (fit_end == -1 .AND. REAL(x_fit(i)) > fit_e_max) fit_end = i - 1
          IF (fit_start > 0 .AND. fit_end > 0) EXIT
       END DO
       IF (fit_start == -1) fit_start = 1
@@ -728,7 +728,7 @@ CONTAINS
       END IF
       ! TODO : Symmetry mode settable?
       ! Here, we assume that ft corresponds to transform of real trace
-      pade_params = create_thiele_pade(n_pade, x_fit(fit_start:fit_end), y_fit(fit_start:fit_end),&
+      pade_params = create_thiele_pade(n_pade, x_fit(fit_start:fit_end), y_fit(fit_start:fit_end), &
                                        enforce_symmetry="conjugate")
 
       ! Check whetner the splice is needed or not
@@ -834,8 +834,8 @@ CONTAINS
             ! Also GreenX has trouble fitting constant functions
             IF (rtbse_env%dft_control%rtp_control%apply_delta_pulse) THEN
                field_refined(:) = CMPLX( &
-                  rtbse_env%dft_control%rtp_control%delta_pulse_direction(rtbse_env%pol_elements(k,2)) * &
-                  rtbse_env%dft_control%rtp_control%delta_pulse_scale, 0.0, kind=dp)
+                                  rtbse_env%dft_control%rtp_control%delta_pulse_direction(rtbse_env%pol_elements(k, 2))* &
+                                  rtbse_env%dft_control%rtp_control%delta_pulse_scale, 0.0, kind=dp)
             ELSE
                CALL refine_ft(rtbse_env%pade_fit_e_min, rtbse_env%pade_fit_e_max, omega_complex, field_series, &
                               rtbse_env%pade_x_eval, field_refined)
@@ -925,7 +925,7 @@ CONTAINS
                WRITE (pol_unit, '(E20.8E3)', advance="no") REAL(rtbse_env%pade_x_eval(i), kind=dp)
             END IF
             ! Common values
-            WRITE (pol_unit, '(E20.8E3)', advance="no") REAL(rtbse_env%pade_x_eval(i), kind=dp) * evolt
+            WRITE (pol_unit, '(E20.8E3)', advance="no") REAL(rtbse_env%pade_x_eval(i), kind=dp)*evolt
             DO k = 1, n_elems - 1
                WRITE (pol_unit, '(E20.8E3,E20.8E3)', advance="no") &
                   REAL(polarizability_series(k, i)), AIMAG(polarizability_refined(k, i))
