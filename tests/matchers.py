@@ -245,5 +245,9 @@ registry["M124"] = GenericMatcher(
 registry["M125"] = GenericMatcher(
     r"BSE|DEBUG| Averaged photoabsorption cross section at 8.2 eV:", col=9
 )
+# Checking maximum polarizability reported by GX-AC@RTBSE
+registry["RTBSE_GXAC_H2_pol"] = GenericMatcher(
+    r"POLARIZABILITY_PADE|     0.30450000E+002", col=4
+)
 
 # EOF

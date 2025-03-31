@@ -297,6 +297,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                          :: input, bs_sec, md_sec
       INTEGER, DIMENSION(:), POINTER                            :: pol_tmp
       LOGICAL                                                   :: pol_elements_explicit, &
+                                                                   pade_fit_lim_explicit, &
                                                                    pol_vector_known
       REAL(kind=dp), DIMENSION(3)                               :: pol_vector
 
@@ -454,9 +455,16 @@ CONTAINS
       CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%PADE_FT%E_STEP", &
                                 r_val=rtbse_env%pade_e_step)
       CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%PADE_FT%FIT_E_MIN", &
-                                r_val=rtbse_env%pade_fit_e_min)
+                                r_val=rtbse_env%pade_fit_e_min, explicit=pade_fit_lim_explicit)
+      ! By default, use the pade_e_min keyword to set the fit limit as well
+      IF (.NOT. pade_fit_lim_explicit) THEN
+         rtbse_env%pade_fit_e_min = rtbse_env%pade_e_min
+      END IF
       CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%PADE_FT%FIT_E_MAX", &
-                                r_val=rtbse_env%pade_fit_e_max)
+                                r_val=rtbse_env%pade_fit_e_max, explicit=pade_fit_lim_explicit)
+      IF (.NOT. pade_fit_lim_explicit) THEN
+         rtbse_env%pade_fit_e_max = rtbse_env%pade_e_max
+      END IF
       rtbse_env%pade_npoints = INT((rtbse_env%pade_e_max - rtbse_env%pade_e_min)/rtbse_env%pade_e_step)
       ! Evaluate the evaluation grid
       IF (rtbse_env%pade_requested) THEN

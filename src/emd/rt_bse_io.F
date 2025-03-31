@@ -892,6 +892,51 @@ CONTAINS
          END DO
          CALL cp_print_key_finished_output(pol_unit, logger, rtbse_env%pol_section)
       END IF
+#if defined(__GREENX)
+      ! Print out the refined polarizability to a file
+      pol_unit = cp_print_key_unit_nr(logger, rtbse_env%pol_section, extension="_PADE.dat", &
+                                      file_form="FORMATTED", file_position="REWIND")
+      ! Printing for both the stdout and separate file
+      IF (pol_unit > 0 .AND. rtbse_env%pade_requested) THEN
+         IF (pol_unit == rtbse_env%unit_nr) THEN
+            ! Print the stdout preline
+            WRITE (pol_unit, '(A21)', advance="no") " POLARIZABILITY_PADE|"
+         ELSE
+            ! Print also the energy in atomic units
+            WRITE (pol_unit, '(A1,A19)', advance="no") "#", "omega [a.u.]"
+         END IF
+         ! Common - print the energy in eV
+         WRITE (pol_unit, '(A20)', advance="no") "Energy [eV]"
+         ! Print a header for each polarizability element
+         DO k = 1, n_elems - 1
+            WRITE (pol_unit, '(A16,I2,I2,A16,I2,I2)', advance="no") &
+               "Real pol.", rtbse_env%pol_elements(k, 1), rtbse_env%pol_elements(k, 2), &
+               "Imag pol.", rtbse_env%pol_elements(k, 1), rtbse_env%pol_elements(k, 2)
+         END DO
+         WRITE (pol_unit, '(A16,I2,I2,A16,I2,I2)') &
+            "Real pol.", rtbse_env%pol_elements(n_elems, 1), rtbse_env%pol_elements(n_elems, 2), &
+            "Imag pol.", rtbse_env%pol_elements(n_elems, 1), rtbse_env%pol_elements(n_elems, 2)
+         DO i = 1, SIZE(rtbse_env%pade_x_eval)
+            IF (pol_unit == rtbse_env%unit_nr) THEN
+               ! Print the stdout preline
+               WRITE (pol_unit, '(A21)', advance="no") " POLARIZABILITY_PADE|"
+            ELSE
+               ! omega in a.u.
+               WRITE (pol_unit, '(E20.8E3)', advance="no") REAL(rtbse_env%pade_x_eval(i), kind=dp)
+            END IF
+            ! Common values
+            WRITE (pol_unit, '(E20.8E3)', advance="no") REAL(rtbse_env%pade_x_eval(i), kind=dp) * evolt
+            DO k = 1, n_elems - 1
+               WRITE (pol_unit, '(E20.8E3,E20.8E3)', advance="no") &
+                  REAL(polarizability_series(k, i)), AIMAG(polarizability_refined(k, i))
+            END DO
+            ! Print the final value and advance
+            WRITE (pol_unit, '(E20.8E3,E20.8E3)') &
+               REAL(polarizability_series(n_elems, i)), AIMAG(polarizability_refined(n_elems, i))
+         END DO
+         CALL cp_print_key_finished_output(pol_unit, logger, rtbse_env%pol_section)
+      END IF
+#endif
 
       DEALLOCATE (value_series)
       DEALLOCATE (ft_real_series)
