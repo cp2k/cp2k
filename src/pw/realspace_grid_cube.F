@@ -263,8 +263,7 @@ CONTAINS
       INTEGER, PARAMETER                                 :: entry_len = 13, num_entries_line = 6
 
       INTEGER :: count1, count2, handle, i, I1, I2, iat, j, L1, L2, L3, msglen, my_rank, &
-         my_stride(3), np, num_atom_types, num_linebreak, num_pe, size_of_z, &
-         U1, U2, U3
+         my_stride(3), np, num_atom_types, num_linebreak, num_pe, size_of_z, U1, U2, U3
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_counts, atom_types
       INTEGER, DIMENSION(3)                              :: global_extent, local_extent, offset
       LOGICAL                                            :: be_silent, my_zero_tails, parallel_write
