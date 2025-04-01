@@ -198,7 +198,7 @@ MODULE rt_bse_types
                                                                    ft_damping = 0.0_dp, &
                                                                    ft_start = 0.0_dp
       ! Which element of polarizability to print out
-      INTEGER, DIMENSION(:, :), POINTER                          :: pol_elements => NULL()
+      INTEGER, DIMENSION(:, :), POINTER                         :: pol_elements => NULL()
       TYPE(dft_control_type), POINTER                           :: dft_control => NULL()
       ! DEBUG : Trying keeping the reference to previous environments inside this one
       TYPE(qs_environment_type), POINTER                        :: qs_env => NULL()
@@ -264,6 +264,15 @@ MODULE rt_bse_types
       INTEGER                                                   :: mat_exp_method = 4
       INTEGER                                                   :: unit_nr = -1
       REAL(kind=dp), DIMENSION(:, :, :), POINTER                :: int_3c_array => NULL()
+      ! Parameters for Padé refinement
+      REAL(kind=dp)                                             :: pade_e_min = 0.0_dp, &
+                                                                   pade_e_max = 100.0_dp, &
+                                                                   pade_e_step = 0.05_dp, &
+                                                                   pade_fit_e_min = 0.0_dp, &
+                                                                   pade_fit_e_max = -1.0_dp
+      INTEGER                                                   :: pade_npoints = 0
+      LOGICAL                                                   :: pade_requested = .FALSE.
+      COMPLEX(kind=dp), DIMENSION(:), POINTER                   :: pade_x_eval => NULL()
 
    END TYPE rtbse_env_type
 
@@ -288,6 +297,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                          :: input, bs_sec, md_sec
       INTEGER, DIMENSION(:), POINTER                            :: pol_tmp
       LOGICAL                                                   :: pol_elements_explicit, &
+                                                                   pade_fit_lim_explicit, &
                                                                    pol_vector_known
       REAL(kind=dp), DIMENSION(3)                               :: pol_vector
 
@@ -435,6 +445,39 @@ CONTAINS
       ! DEBUG : References to previous environments
       rtbse_env%qs_env => qs_env
       rtbse_env%bs_env => bs_env
+      ! Padé refinement
+      CALL section_vals_get(section_vals_get_subs_vals(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%PADE_FT"), &
+                            explicit=rtbse_env%pade_requested)
+      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%PADE_FT%E_MIN", &
+                                r_val=rtbse_env%pade_e_min)
+      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%PADE_FT%E_MAX", &
+                                r_val=rtbse_env%pade_e_max)
+      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%PADE_FT%E_STEP", &
+                                r_val=rtbse_env%pade_e_step)
+      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%PADE_FT%FIT_E_MIN", &
+                                r_val=rtbse_env%pade_fit_e_min, explicit=pade_fit_lim_explicit)
+      ! By default, use the pade_e_min keyword to set the fit limit as well
+      IF (.NOT. pade_fit_lim_explicit) THEN
+         rtbse_env%pade_fit_e_min = rtbse_env%pade_e_min
+      END IF
+      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%RTBSE%PADE_FT%FIT_E_MAX", &
+                                r_val=rtbse_env%pade_fit_e_max, explicit=pade_fit_lim_explicit)
+      IF (.NOT. pade_fit_lim_explicit) THEN
+         rtbse_env%pade_fit_e_max = rtbse_env%pade_e_max
+      END IF
+      rtbse_env%pade_npoints = INT((rtbse_env%pade_e_max - rtbse_env%pade_e_min)/rtbse_env%pade_e_step)
+      ! Evaluate the evaluation grid
+      IF (rtbse_env%pade_requested) THEN
+#if defined(__GREENX)
+         NULLIFY (rtbse_env%pade_x_eval)
+         ALLOCATE (rtbse_env%pade_x_eval(rtbse_env%pade_npoints))
+         DO i = 1, rtbse_env%pade_npoints
+            rtbse_env%pade_x_eval(i) = CMPLX(rtbse_env%pade_e_step*REAL(i - 1, kind=dp), 0.0, kind=dp)
+         END DO
+#else
+         CPABORT("Padé refinement of FT requires linking GreenX - recompile CP2K with GreenX.")
+#endif
+      END IF
 
       ! Allocate moments matrices
       NULLIFY (rtbse_env%moments)
@@ -625,6 +668,9 @@ CONTAINS
       DEALLOCATE (rtbse_env%time_trace%series)
 
       DEALLOCATE (rtbse_env%pol_elements)
+#if defined(__GREENX)
+      IF (rtbse_env%pade_requested) DEALLOCATE (rtbse_env%pade_x_eval)
+#endif
 
       ! Deallocate the neighbour list that is not deallocated in gw anymore
       IF (ASSOCIATED(rtbse_env%bs_env%nl_3c%ij_list)) CALL neighbor_list_3c_destroy(rtbse_env%bs_env%nl_3c)
