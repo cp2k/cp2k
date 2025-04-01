@@ -791,6 +791,11 @@ CONTAINS
          ALLOCATE (field_refined(rtbse_env%pade_npoints), source=CMPLX(0.0, 0.0, kind=dp))
          ALLOCATE (moment_refined(rtbse_env%pade_npoints), source=CMPLX(0.0, 0.0, kind=dp))
          ALLOCATE (polarizability_refined(n_elems, rtbse_env%pade_npoints), source=CMPLX(0.0, 0.0, kind=dp))
+      ELSE
+         ALLOCATE (omega_complex(0), source=CMPLX(0.0, 0.0, kind=dp))
+         ALLOCATE (field_refined(0), source=CMPLX(0.0, 0.0, kind=dp))
+         ALLOCATE (moment_refined(0), source=CMPLX(0.0, 0.0, kind=dp))
+         ALLOCATE (polarizability_refined(0, 0), source=CMPLX(0.0, 0.0, kind=dp))
       END IF
 
       DO k = 1, n_elems
@@ -928,11 +933,11 @@ CONTAINS
             WRITE (pol_unit, '(E20.8E3)', advance="no") REAL(rtbse_env%pade_x_eval(i), kind=dp)*evolt
             DO k = 1, n_elems - 1
                WRITE (pol_unit, '(E20.8E3,E20.8E3)', advance="no") &
-                  REAL(polarizability_series(k, i)), AIMAG(polarizability_refined(k, i))
+                  REAL(polarizability_refined(k, i)), AIMAG(polarizability_refined(k, i))
             END DO
             ! Print the final value and advance
             WRITE (pol_unit, '(E20.8E3,E20.8E3)') &
-               REAL(polarizability_series(n_elems, i)), AIMAG(polarizability_refined(n_elems, i))
+               REAL(polarizability_refined(n_elems, i)), AIMAG(polarizability_refined(n_elems, i))
          END DO
          CALL cp_print_key_finished_output(pol_unit, logger, rtbse_env%pol_section)
       END IF
@@ -948,11 +953,10 @@ CONTAINS
       DEALLOCATE (omega_series)
       DEALLOCATE (polarizability_series)
 
-      IF (rtbse_env%pade_requested) THEN
-         DEALLOCATE (field_refined)
-         DEALLOCATE (moment_refined)
-         DEALLOCATE (polarizability_refined)
-      END IF
+      DEALLOCATE (omega_complex)
+      DEALLOCATE (field_refined)
+      DEALLOCATE (moment_refined)
+      DEALLOCATE (polarizability_refined)
    END SUBROUTINE output_polarizability
 ! **************************************************************************************************
 !> \brief Naively calculates the Fourier transform - it is not the bottleneck of this calculation

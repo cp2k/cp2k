@@ -1955,7 +1955,8 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="FIT_E_MIN", &
                           description="Minimum energy to be used in the fitting of Padé approximants. "// &
-                          "Can be used to restrict the number of Padé parameters.", &
+                          "Can be used to restrict the number of Padé parameters. "// &
+                          "When not present, takes the value of E_MIN.", &
                           unit_str="eV", &
                           type_of_var=real_t, &
                           default_r_val=0.0_dp)
@@ -1965,7 +1966,8 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="FIT_E_MAX", &
                           description="Maximum energy to be used in the fitting of Padé approximants. "// &
                           "Can be used to restrict the number of Padé parameters. Negative energy is interpreted "// &
-                          "as default of maximum available energy from the original Fourier transform.", &
+                          "as maximum available energy from the original Fourier transform. "// &
+                          "When not present, takes the value of E_MAX.", &
                           unit_str="eV", &
                           type_of_var=real_t, &
                           default_r_val=-1.0_dp/evolt)
