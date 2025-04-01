@@ -41,7 +41,8 @@ MODULE qs_scf_wfn_mix
    USE qs_mo_methods,                   ONLY: calculate_orthonormality
    USE qs_mo_types,                     ONLY: deallocate_mo_set,&
                                               duplicate_mo_set,&
-                                              mo_set_type, get_mo_set
+                                              get_mo_set,&
+                                              mo_set_type
    USE qs_scf_types,                    ONLY: qs_scf_env_type,&
                                               special_diag_method_nr
 #include "./base/base_uses.f90"
@@ -89,8 +90,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'wfn_mix'
 
       CHARACTER(LEN=default_path_length)                 :: read_file_name
-      INTEGER :: handle, i_rep, ispin, mark_ind, mark_number, n_rep, orig_mo_index, &
-         orig_spin_index, orig_type, restart_unit, result_mo_index, result_spin_index, nmo, homo
+      INTEGER :: handle, homo, i_rep, ispin, mark_ind, mark_number, n_rep, nmo, orig_mo_index, &
+         orig_spin_index, orig_type, restart_unit, result_mo_index, result_spin_index
       LOGICAL                                            :: explicit, is_file, my_for_rtp, &
                                                             overwrite_mos, reverse_mo_index
       REAL(KIND=dp)                                      :: orig_scale, orthonormality, result_scale
@@ -174,7 +175,7 @@ CONTAINS
                   CALL cp_fm_to_fm(mos(orig_spin_index)%mo_coeff, matrix_x, 1, &
                                    mos(orig_spin_index)%nmo - orig_mo_index + 1, 1)
                END IF
-            ! Origin is an unoccupied MO
+               ! Origin is an unoccupied MO
             ELSE IF (orig_type == wfn_mix_orig_virtual) THEN
                CALL get_mo_set(mos(orig_spin_index), homo=homo, nmo=nmo)
                ! check whether the MO is already available in the original MO set
