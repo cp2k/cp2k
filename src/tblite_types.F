@@ -53,7 +53,8 @@ MODULE tblite_types
 #if defined(__TBLITE)
       TYPE(structure_type)                               :: mol
       TYPE(xtb_calculator)                               :: calc
-      TYPE(container_cache)                              :: dcache, cache
+      TYPE(container_cache)                              :: cache
+      TYPE(container_cache)                              :: dcache
       TYPE(wavefunction_type)                            :: wfn
       TYPE(potential_type)                               :: pot
 #endif

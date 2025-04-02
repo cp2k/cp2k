@@ -612,6 +612,7 @@ CONTAINS
       END DO
       CALL set_ks_env(ks_env, matrix_h_kp=matrix_h)
 
+
       ! loop over all atom pairs with a non-zero overlap (sab_orb)
       CALL neighbor_list_iterator_create(nl_iterator, sab_orb)
       DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
@@ -733,7 +734,7 @@ CONTAINS
             END DO
          ELSE
             !get off-diagonal F matrix
-            rr = SQRT(dr/(h0%rad(jatom) + h0%rad(iatom)))
+            rr = SQRT(dr/(h0%rad(jkind) + h0%rad(ikind)))
             n1 = 0
             DO ishell = 1, iatom - 1
                n1 = n1 + tb%calc%bas%nsh_at(ishell)
@@ -750,7 +751,7 @@ CONTAINS
                                  *(1.0_dp + h0%shpoly(jset, jkind)*rr)
                   hij = 0.5_dp*(tb%selfenergy(n1 + iset) + tb%selfenergy(n2 + jset)) &
                               *h0%hscale(iset, jset, ikind, jkind)*shpoly
-                  
+
                   DO ia = sgfa, sgfa + nsgfa(iset) - 1
                      DO ib = sgfb, sgfb + nsgfb(jset) - 1
                         hint(ia, ib, 1) = hij*sint(ia, ib, 1)
@@ -776,12 +777,6 @@ CONTAINS
          DO img = 1, nimg
             CALL dbcsr_finalize(matrix_s(i, img)%matrix)
             CALL dbcsr_finalize(matrix_h(i, img)%matrix)
-         END DO
-      END DO
-      
-      DO i = 1, SIZE(matrix_s, 1)
-         DO img = 1, nimg
-            CALL dbcsr_print(matrix_h(i, img)%matrix)
          END DO
       END DO
 
