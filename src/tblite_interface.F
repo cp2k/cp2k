@@ -247,7 +247,7 @@ CONTAINS
 
       tb%e_hal = 0.0_dp
       tb%e_rep = 0.0_dp
-      tb%e_hal = 0.0_dp
+      tb%e_disp = 0.0_dp
       IF (ALLOCATED(tb%grad)) THEN
          tb%grad = 0.0_dp
          tb%sigma = 0.0_dp
