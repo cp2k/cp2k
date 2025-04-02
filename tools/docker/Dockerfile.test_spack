@@ -37,9 +37,9 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
 # Install a recent Spack version
 WORKDIR /root/spack
 ARG SPACK_VERSION
-ENV SPACK_VERSION=${SPACK_VERSION:-a3abc1c492f2431f477a63bbccb48aa3a2d34199}
+ENV SPACK_VERSION=${SPACK_VERSION:-test_cp2k}
 RUN git init --quiet && \
-    git remote add origin https://github.com/spack/spack.git && \
+    git remote add origin https://github.com/mkrack/spack.git && \
     git fetch --quiet --depth 1 origin ${SPACK_VERSION} --no-tags && \
     git checkout --quiet FETCH_HEAD
 ENV PATH="/root/spack/bin:${PATH}"

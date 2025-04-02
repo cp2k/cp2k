@@ -49,7 +49,7 @@ spack:
     - "dbcsr@2.8.0"
     - "fftw@3.3.10"
     - "libxc@7.0.0"
-    - "libxsmm@1.17"
+    - "libxsmm@main-2024-09"
   view:
     default:
       root: ./spack-env/view

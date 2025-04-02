@@ -87,7 +87,8 @@ spack:
     - "mpich@4.2.3"
     - "openblas@0.3.29"
     - "netlib-scalapack@2.2.2"
-    - "cosma@2.6.6"
+#   - "cosma@2.6.6" Use master until a new release will be available
+    - "cosma@master"
     - "dbcsr@2.8.0"
     - "dftd4@3.6.0"
     - "dla-future@0.8.0"
@@ -99,7 +100,7 @@ spack:
     - "libsmeagol@1.2"
     - "libvori@220621"
     - "libxc@7.0.0"
-    - "libxsmm@1.17"
+    - "libxsmm@main-2024-09"
     - "plumed@2.9.2"
     - "py-torch@2.6"
     - "sirius@7.6.1"
