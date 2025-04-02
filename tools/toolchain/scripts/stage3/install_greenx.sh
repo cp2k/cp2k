@@ -23,8 +23,8 @@ GREENX_LDFLAGS=""
 GREENX_LIBS=""
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
-with_greenx=${with_greenx:"__DONTUSE__"}
-with_gmp=${with_greenx:"__DONTUSE__"}
+with_greenx=${with_greenx:__DONTUSE__}
+with_gmp=${with_greenx:__DONTUSE__}
 case "$with_greenx" in
   __INSTALL__)
     echo "==================== Installing GreenX ===================="

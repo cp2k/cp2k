@@ -23,7 +23,7 @@ GMP_LDFLAGS=""
 GMP_LIBS=""
 ! [ -d "${BUILDDIR}" ] && mkdir -p "${BUILDDIR}"
 cd "${BUILDDIR}"
-with_gmp=${with_gmp:"__DONTUSE__"}
+with_gmp=${with_gmp:__DONTUSE__}
 case "$with_gmp" in
   __INSTALL__)
     echo "==================== Installing GMP ===================="
