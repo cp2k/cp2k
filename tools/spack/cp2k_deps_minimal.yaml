@@ -38,17 +38,12 @@ spack:
     fftw:
       require:
         - +openmp
-    libxc:
-      require:
-        - +kxc
-        - build_system=cmake
   specs:
     - "mpich@4.2.3"
     - "openblas@0.3.29"
     - "netlib-scalapack@2.2.2"
     - "dbcsr@2.8.0"
     - "fftw@3.3.10"
-    - "libxc@7.0.0"
     - "libxsmm@main-2024-09"
   view:
     default:
