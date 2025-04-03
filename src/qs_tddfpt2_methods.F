@@ -1074,7 +1074,6 @@ CONTAINS
             IF ((conv <= tddfpt_control%conv) .OR. iter >= niters) EXIT
 
             ! ... otherwise restart Davidson iterations
-            evals = 0.0_dp
             IF (log_unit > 0) THEN
                WRITE (log_unit, '(1X,25("-"),1X,A,1X,25("-"))') "Restart Davidson iterations"
                CALL m_flush(log_unit)
