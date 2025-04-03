@@ -83,6 +83,8 @@ spack:
       require:
         - +hdf5
         - build_system=cmake
+  repos:
+    - $spack/cp2k
   specs:
     - "mpich@4.2.3"
     - "openblas@0.3.29"

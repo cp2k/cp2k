@@ -38,6 +38,8 @@ spack:
     fftw:
       require:
         - +openmp
+  repos:
+    - $spack/cp2k
   specs:
     - "mpich@4.2.3"
     - "openblas@0.3.29"
