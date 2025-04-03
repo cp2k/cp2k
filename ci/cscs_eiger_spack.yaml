@@ -30,12 +30,14 @@ build deps eiger:
     DOCKER_BUILD_ARGS: '[
       "BASE_IMAGE",
       "CP2K_BUILD_TYPE",
-      "LOG_LINES"
+      "LOG_LINES",
+      "MPICH_VERSION"
     ]'
     DOCKERFILE: ci/docker/build_${CI_JOB_STAGE}_${TAG}.Dockerfile
     BASE_IMAGE: ${UBUNTU_IMAGE_NAME}
     CP2K_BUILD_TYPE: all
     LOG_LINES: 200
+    MPICH_VERSION: 3.4.3
 
 build cp2k eiger:
   extends: .container-builder-cscs-zen2

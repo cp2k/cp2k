@@ -73,7 +73,9 @@ ENV CP2K_BUILD_TYPE=${CP2K_BUILD_TYPE:-minimal}
 COPY ./tools/spack/cp2k_deps_${CP2K_BUILD_TYPE}.yaml .
 # Sarus containers must be dynamically linked to an MPI implementation that is ABI-compatible
 # with the MPI on the compute nodes at CSCS like MPICH@3
-RUN sed -i -e 's/mpich@[0-9.]*/mpich@3.4.3/' cp2k_deps_${CP2K_BUILD_TYPE}.yaml && \
+ARG MPICH_VERSION
+ENV MPICH_VERSION=${MPICH_VERSION:-3.4.3}
+RUN sed -i -e "s/mpich@[0-9.]*/mpich@${MPICH_VERSION}/" cp2k_deps_${CP2K_BUILD_TYPE}.yaml && \
     spack env create myenv cp2k_deps_${CP2K_BUILD_TYPE}.yaml
 RUN spack -e myenv concretize -f
 ENV SPACK_ENV_VIEW="/root/spack/var/spack/environments/myenv/spack-env/view"
