@@ -1,0 +1,8 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+"ch2o_gfn1.inp"                          = [{matcher="E_total", tol=1.0E-8, ref=-7.8446058222}]
+"cobe_gfn1.inp"                          = [{matcher="E_total", tol=1.0E-8, ref=-7.4352458814}]
+#EOF
