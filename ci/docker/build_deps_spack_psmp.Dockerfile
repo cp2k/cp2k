@@ -47,9 +47,9 @@ ENV NUM_PROCS=${NUM_PROCS:-32}
 # Install a recent Spack version
 WORKDIR /root/spack
 ARG SPACK_VERSION
-ENV SPACK_VERSION=${SPACK_VERSION:-test_cp2k}
+ENV SPACK_VERSION=${SPACK_VERSION:-develop}
 RUN git init --quiet && \
-    git remote add origin https://github.com/mkrack/spack.git && \
+    git remote add origin https://github.com/spack/spack.git && \
     git fetch --quiet --depth 1 origin ${SPACK_VERSION} --no-tags && \
     git checkout --quiet FETCH_HEAD
 ENV PATH="/root/spack/bin:${PATH}"
@@ -67,16 +67,21 @@ RUN spack mirror add ${SPACK_BUILD_CACHE} https://binaries.spack.io/${SPACK_BUIL
     spack buildcache keys --install --trust --force && \
     spack mirror remove ${SPACK_BUILD_CACHE}
 
-# Install CP2K dependencies via Spack
+# Copy Spack configuration and build recipes
 ARG CP2K_BUILD_TYPE
 ENV CP2K_BUILD_TYPE=${CP2K_BUILD_TYPE:-minimal}
 COPY ./tools/spack/cp2k_deps_${CP2K_BUILD_TYPE}.yaml .
+COPY ./tools/spack/cp2k ./cp2k
+
 # Sarus containers must be dynamically linked to an MPI implementation that is ABI-compatible
 # with the MPI on the compute nodes at CSCS like MPICH@3
 ARG MPICH_VERSION
 ENV MPICH_VERSION=${MPICH_VERSION:-3.4.3}
 RUN sed -i -e "s/mpich@[0-9.]*/mpich@${MPICH_VERSION}/" cp2k_deps_${CP2K_BUILD_TYPE}.yaml && \
-    spack env create myenv cp2k_deps_${CP2K_BUILD_TYPE}.yaml
+    spack env create myenv cp2k_deps_${CP2K_BUILD_TYPE}.yaml && \
+    spack -e myenv repo list
+
+# Install CP2K dependencies via Spack
 RUN spack -e myenv concretize -f
 ENV SPACK_ENV_VIEW="/root/spack/var/spack/environments/myenv/spack-env/view"
 RUN spack -e myenv env depfile -o spack_makefile && \
