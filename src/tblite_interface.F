@@ -398,9 +398,9 @@ CONTAINS
       INTEGER, DIMENSION(5), INTENT(out)                 :: occ
 
       CHARACTER(LEN=default_string_length)               :: sng
-      INTEGER                                            :: ang, i_type, id_atom, iId, ind_ao, ipgf, &
-                                                            iSH, ishell, maxl, mprim, natorb, &
-                                                            nset, nshell
+      INTEGER                                            :: ang, i_type, id_atom, ikind, ind_ao, &
+                                                            ipgf, iSH, ishell, maxl, mprim, &
+                                                            natorb, nset, nshell
       LOGICAL                                            :: do_ortho
 
       CALL allocate_gto_basis_set(gto_basis_set)
@@ -415,13 +415,14 @@ CONTAINS
       param%z = i_type
       param%symbol = element_symbol
       param%defined = .TRUE.
+      ikind = tb%mol%id(id_atom)
 
       !getting size information
-      nset = tb%calc%bas%nsh_at(id_atom)
+      nset = tb%calc%bas%nsh_at(ikind)
       nshell = 1
       mprim = 0
       DO ishell = 1, nset
-         mprim = MAX(mprim, tb%calc%bas%cgto(ishell, id_atom)%nprim)
+         mprim = MAX(mprim, tb%calc%bas%cgto(ishell, ikind)%nprim)
       END DO
       param%nshell = nset
       natorb = 0
@@ -442,19 +443,19 @@ CONTAINS
       ind_ao = 0
       maxl = 0
       DO ishell = 1, nset
-         ang = tb%calc%bas%cgto(ishell, id_atom)%ang
+         ang = tb%calc%bas%cgto(ishell, ikind)%ang
          natorb = natorb + (2*ang + 1)
          param%lval(ishell) = ang
          maxl = MAX(ang, maxl)
          gto_basis_set%lmax(ishell) = ang
          gto_basis_set%lmin(ishell) = ang
-         gto_basis_set%npgf(ishell) = tb%calc%bas%cgto(ishell, id_atom)%nprim
+         gto_basis_set%npgf(ishell) = tb%calc%bas%cgto(ishell, ikind)%nprim
          gto_basis_set%nshell(ishell) = nshell
          gto_basis_set%n(1, ishell) = ang + 1
          gto_basis_set%l(1, ishell) = ang
          DO ipgf = 1, gto_basis_set%npgf(ishell)
-            gto_basis_set%gcc(ipgf, 1, ishell) = tb%calc%bas%cgto(ishell, id_atom)%coeff(ipgf)
-            gto_basis_set%zet(ipgf, ishell) = tb%calc%bas%cgto(ishell, id_atom)%alpha(ipgf)
+            gto_basis_set%gcc(ipgf, 1, ishell) = tb%calc%bas%cgto(ishell, ikind)%coeff(ipgf)
+            gto_basis_set%zet(ipgf, ishell) = tb%calc%bas%cgto(ishell, ikind)%alpha(ipgf)
          END DO
          DO ipgf = 1, (2*ang + 1)
             ind_ao = ind_ao + 1
@@ -473,9 +474,8 @@ CONTAINS
 
       !getting occupation
       occ = 0
-      iId = tb%mol%id(id_atom)
       DO iSh = 1, MIN(tb%calc%bas%nsh_at(id_atom), 5)
-         occ(iSh) = NINT(tb%calc%h0%refocc(iSh, iId))
+         occ(iSh) = NINT(tb%calc%h0%refocc(iSh, ikind))
          param%occupation(iSh) = occ(iSh)
       END DO
       param%zeff = SUM(occ) !effective core charge
@@ -505,9 +505,10 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_tblite_matrices'
 
-      INTEGER                                            :: handle, maxder, nderivatives, nimg, img, nkind, i, ic, iw, ia, ib
-      INTEGER                                            :: iatom, jatom, ikind, jkind, iset, jset, n1, n2, icol, irow, ishell, jshell
-      INTEGER                                            :: sgfa, sgfb, atom_a, atom_b, ldsab, nseta, nsetb, natorb_a, natorb_b
+      INTEGER                                            :: handle, maxder, nderivatives, nimg, img, nkind, i, ic, iw, &
+                                                            iatom, jatom, ikind, jkind, iset, jset, n1, n2, icol, irow, &
+                                                            ishell, jshell, ia, ib, sgfa, sgfb, atom_a, atom_b, &
+                                                            ldsab, nseta, nsetb, natorb_a, natorb_b
       LOGICAL                                            :: found, norml1, norml2, use_arnoldi, use_virial
       REAL(KIND=dp)                                      :: dr, rr
       INTEGER, DIMENSION(3)                              :: cell
@@ -611,7 +612,6 @@ CONTAINS
          CALL cp_dbcsr_alloc_block_from_nbl(matrix_h(1, img)%matrix, sab_orb)
       END DO
       CALL set_ks_env(ks_env, matrix_h_kp=matrix_h)
-
 
       ! loop over all atom pairs with a non-zero overlap (sab_orb)
       CALL neighbor_list_iterator_create(nl_iterator, sab_orb)
@@ -748,9 +748,9 @@ CONTAINS
                DO jset = 1, nsetb
                   sgfb = first_sgfb(1, jset)
                   shpoly = (1.0_dp + h0%shpoly(iset, ikind)*rr) &
-                                 *(1.0_dp + h0%shpoly(jset, jkind)*rr)
+                           *(1.0_dp + h0%shpoly(jset, jkind)*rr)
                   hij = 0.5_dp*(tb%selfenergy(n1 + iset) + tb%selfenergy(n2 + jset)) &
-                              *h0%hscale(iset, jset, ikind, jkind)*shpoly
+                        *h0%hscale(iset, jset, ikind, jkind)*shpoly
 
                   DO ia = sgfa, sgfa + nsgfa(iset) - 1
                      DO ib = sgfb, sgfb + nsgfb(jset) - 1
@@ -933,7 +933,6 @@ CONTAINS
       WRITE (*, *) '>>>>>>>>>>>>>>>>>  qat: ', tb%wfn%qat(:, 1)
       IF (ALLOCATED(tb%calc%coulomb)) THEN
          CALL tb%calc%coulomb%get_energy(tb%mol, tb%cache, tb%wfn, tb%e_es)
-         WRITE (*, *) '>>>>>>>>> ees: ', tb%e_es
       END IF
       IF (ALLOCATED(tb%calc%dispersion)) THEN
          CALL tb%calc%dispersion%get_energy(tb%mol, tb%dcache, tb%wfn, tb%e_scd)
