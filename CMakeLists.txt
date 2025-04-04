@@ -114,21 +114,26 @@ option(CMAKE_POSITION_INDEPENDENT_CODE "Enable position independent code" ON)
 option(CP2K_ENABLE_CONSISTENCY_CHECKS
        "Check that the list of compiled files and files contained in src match"
        OFF)
-option(CP2K_USE_DFTD4 "Enable dispersion corrections with DFTD4" ON)
-option(CP2K_USE_DEEPMD "Enable DeePMD" ON)
-option(CP2K_USE_FFTW3 "Use fftw3 for the calculating fast fourier transforms"
-       ON)
-option(CP2K_USE_MPI "Enable MPI support" ON)
-option(CP2K_USE_LIBINT2 "Enable libint2 support" ON)
-option(CP2K_USE_VORI "Enable libvori support" ON)
-option(CP2K_USE_SPGLIB "Enable spglib support" ON)
-option(CP2K_USE_LIBXC "Enable libxc support" ON)
-option(CP2K_USE_LIBTORCH "Enable libtorch support" ON)
+
+option(CP2K_USE_EVERYTHING
+       "Enable all dependencies. They can be individually turned off again."
+       OFF)
+
+option(CP2K_USE_DFTD4 "Enable DFTD4 support" ${CP2K_USE_EVERYTHING})
+option(CP2K_USE_DEEPMD "Enable DeePMD" ${CP2K_USE_EVERYTHING})
+option(CP2K_USE_FFTW3 "Enable fftw3 support" ${CP2K_USE_EVERYTHING})
+option(CP2K_USE_MPI "Enable MPI support" ${CP2K_USE_EVERYTHING})
+option(CP2K_USE_LIBINT2 "Enable libint2 support" ${CP2K_USE_EVERYTHING})
+option(CP2K_USE_VORI "Enable libvori support" ${CP2K_USE_EVERYTHING})
+option(CP2K_USE_SPGLIB "Enable spglib support" ${CP2K_USE_EVERYTHING})
+option(CP2K_USE_LIBXC "Enable libxc support" ${CP2K_USE_EVERYTHING})
+option(CP2K_USE_LIBTORCH "Enable libtorch support" ${CP2K_USE_EVERYTHING})
+option(CP2K_USE_GRPP "Enable libgrpp support" ${CP2K_USE_EVERYTHING})
+option(CP2K_USE_TREXIO "Enable trexio support" ${CP2K_USE_EVERYTHING})
+option(CP2K_USE_HDF5 "Enable HDF5 support" ${CP2K_USE_EVERYTHING})
+option(CP2K_USE_GREENX "Enable GreenX support" ${CP2K_USE_EVERYTHING})
+
 option(CP2K_USE_STATIC_BLAS "Link against static version of BLAS/LAPACK" OFF)
-option(CP2K_USE_GRPP "Enable libgrpp support" ON)
-option(CP2K_USE_TREXIO "Enable trexio support" ON)
-option(CP2K_USE_HDF5 "Enable HDF5 support" ON)
-option(CP2K_USE_GREENX "Enable GreenX support" ON)
 option(BUILD_SHARED_LIBS "Build cp2k shared library" ON)
 option(
   CP2K_USE_FFTW3_WITH_MKL
@@ -136,27 +141,28 @@ option(
   OFF)
 
 # MPI-enabled options
-cmake_dependent_option(CP2K_USE_COSMA "Enable COSMA support" ON "CP2K_USE_MPI"
-                       OFF)
-cmake_dependent_option(CP2K_USE_DLAF "Enable DLA-Future support" ON
-                       "CP2K_USE_MPI" OFF)
-cmake_dependent_option(CP2K_USE_ELPA "Enable ELPA support" ON "CP2K_USE_MPI"
-                       OFF)
-cmake_dependent_option(CP2K_USE_LIBSMEAGOL "Enable libSMEAGOL support" ON
-                       "CP2K_USE_MPI" OFF)
-cmake_dependent_option(CP2K_USE_MPI_F08 "Enable MPI Fortran 2008 interface" ON
-                       "CP2K_USE_MPI" OFF)
-cmake_dependent_option(CP2K_USE_PLUMED "Enable PLUMED2 support" ON
-                       "CP2K_USE_MPI" OFF)
-cmake_dependent_option(CP2K_USE_SIRIUS "Enable SIRIUS support" ON
-                       "CP2K_USE_MPI" OFF)
-cmake_dependent_option(CP2K_USE_SPLA "Enable SPLA support" ON "CP2K_USE_MPI"
-                       OFF)
+cmake_dependent_option(CP2K_USE_COSMA "Enable COSMA support"
+                       ${CP2K_USE_EVERYTHING} "CP2K_USE_MPI" OFF)
+cmake_dependent_option(CP2K_USE_DLAF "Enable DLA-Future support"
+                       ${CP2K_USE_EVERYTHING} "CP2K_USE_MPI" OFF)
+cmake_dependent_option(CP2K_USE_ELPA "Enable ELPA support"
+                       ${CP2K_USE_EVERYTHING} "CP2K_USE_MPI" OFF)
+cmake_dependent_option(CP2K_USE_LIBSMEAGOL "Enable libSMEAGOL support"
+                       ${CP2K_USE_EVERYTHING} "CP2K_USE_MPI" OFF)
+cmake_dependent_option(CP2K_USE_MPI_F08 "Enable MPI Fortran 2008 interface"
+                       ${CP2K_USE_EVERYTHING} "CP2K_USE_MPI" OFF)
+cmake_dependent_option(CP2K_USE_PLUMED "Enable PLUMED2 support"
+                       ${CP2K_USE_EVERYTHING} "CP2K_USE_MPI" OFF)
+cmake_dependent_option(CP2K_USE_SIRIUS "Enable SIRIUS support"
+                       ${CP2K_USE_EVERYTHING} "CP2K_USE_MPI" OFF)
+cmake_dependent_option(CP2K_USE_SPLA "Enable SPLA support"
+                       ${CP2K_USE_EVERYTHING} "CP2K_USE_MPI" OFF)
 
-cmake_dependent_option(CP2K_USE_LIBXSMM "Enable libxsmm support" ON
-                       "NOT CP2K_USE_ACCEL MATCHES \"OPENCL\"" ON)
+cmake_dependent_option(
+  CP2K_USE_LIBXSMM "Enable libxsmm support" ${CP2K_USE_EVERYTHING}
+  "NOT CP2K_USE_ACCEL MATCHES \"OPENCL\"" ON)
 cmake_dependent_option(CP2K_USE_LIBVDWXC "Enable libvdwxc support with SIRIUS"
-                       ON "CP2K_USE_SIRIUS" OFF)
+                       ${CP2K_USE_EVERYTHING} "CP2K_USE_SIRIUS" OFF)
 
 cmake_dependent_option(
   CP2K_DBCSR_USE_CPU_ONLY "Disable the DBCSR accelerated backend" OFF

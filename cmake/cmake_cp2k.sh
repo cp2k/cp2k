@@ -50,6 +50,7 @@ if [[ "${PROFILE}" == "spack_all" ]] && [[ "${VERSION}" == "psmp" ]]; then
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
     -DCP2K_BLAS_VENDOR="auto" \
     -DCP2K_SCALAPACK_VENDOR="auto" \
+    -DCP2K_USE_EVERYTHING=ON \
     -DCP2K_USE_DEEPMD=OFF \
     -DCP2K_USE_GREENX=OFF \
     -Werror=dev \
@@ -66,25 +67,7 @@ elif [[ "${PROFILE}" == "spack_minimal" ]] && [[ "${VERSION}" == "psmp" ]]; then
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
     -DCP2K_BLAS_VENDOR="auto" \
     -DCP2K_SCALAPACK_VENDOR="auto" \
-    -DCP2K_USE_COSMA=OFF \
-    -DCP2K_USE_DEEPMD=OFF \
-    -DCP2K_USE_DFTD4=OFF \
-    -DCP2K_USE_DLAF=OFF \
-    -DCP2K_USE_ELPA=OFF \
-    -DCP2K_USE_GRPP=OFF \
-    -DCP2K_USE_HDF5=OFF \
-    -DCP2K_USE_LIBINT2=OFF \
-    -DCP2K_USE_LIBSMEAGOL=OFF \
-    -DCP2K_USE_LIBTORCH=OFF \
-    -DCP2K_USE_LIBXC=OFF \
     -DCP2K_USE_MPI=ON \
-    -DCP2K_USE_PLUMED=OFF \
-    -DCP2K_USE_SIRIUS=OFF \
-    -DCP2K_USE_SPGLIB=OFF \
-    -DCP2K_USE_SPLA=OFF \
-    -DCP2K_USE_TREXIO=OFF \
-    -DCP2K_USE_VORI=OFF \
-    -DCP2K_USE_GREENX=OFF \
     -Werror=dev \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
@@ -96,6 +79,7 @@ elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "ssmp" ]]; then
     -DCMAKE_INSTALL_LIBDIR=lib \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
     -DCP2K_BLAS_VENDOR="auto" \
+    -DCP2K_USE_EVERYTHING=ON \
     -DCP2K_USE_MPI=OFF \
     -Werror=dev \
     .. |& tee ./cmake.log
@@ -108,6 +92,7 @@ elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "sdbg" ]]; then
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
     -DCP2K_BLAS_VENDOR="auto" \
     -DCP2K_DEBUG_MODE=ON \
+    -DCP2K_USE_EVERYTHING=ON \
     -DCP2K_USE_LIBTORCH=OFF \
     -DCP2K_USE_MPI=OFF \
     -Werror=dev \
@@ -122,6 +107,7 @@ elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "psmp" ]]; then
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
     -DCP2K_BLAS_VENDOR="auto" \
     -DCP2K_SCALAPACK_VENDOR="auto" \
+    -DCP2K_USE_EVERYTHING=ON \
     -DCP2K_USE_DLAF=OFF \
     -Werror=dev \
     .. |& tee ./cmake.log
@@ -135,6 +121,7 @@ elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "pdbg" ]]; then
     -DCP2K_BLAS_VENDOR="auto" \
     -DCP2K_SCALAPACK_VENDOR="auto" \
     -DCP2K_DEBUG_MODE=ON \
+    -DCP2K_USE_EVERYTHING=ON \
     -DCP2K_USE_COSMA=OFF \
     -DCP2K_USE_DLAF=OFF \
     -DCP2K_USE_LIBTORCH=OFF \
@@ -150,6 +137,7 @@ elif [[ "${PROFILE}" == "ubuntu" ]] && [[ "${VERSION}" == "ssmp" ]]; then
     -DCMAKE_BUILD_TYPE="RelWithDebInfo" \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
     -DCP2K_BLAS_VENDOR="auto" \
+    -DCP2K_USE_EVERYTHING=ON \
     -DCP2K_USE_LIBTORCH=OFF \
     -DCP2K_USE_LIBXC=OFF \
     -DCP2K_USE_MPI=OFF \
@@ -169,18 +157,6 @@ elif [[ "${PROFILE}" == "minimal" ]] && [[ "${VERSION}" == "ssmp" ]]; then
     -DCMAKE_BUILD_TYPE="Release" \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
     -DCP2K_BLAS_VENDOR="auto" \
-    -DCP2K_USE_DEEPMD=OFF \
-    -DCP2K_USE_DFTD4=OFF \
-    -DCP2K_USE_FFTW3=OFF \
-    -DCP2K_USE_LIBINT2=OFF \
-    -DCP2K_USE_LIBTORCH=OFF \
-    -DCP2K_USE_LIBXC=OFF \
-    -DCP2K_USE_LIBXSMM=OFF \
-    -DCP2K_USE_MPI=OFF \
-    -DCP2K_USE_SPGLIB=OFF \
-    -DCP2K_USE_TREXIO=OFF \
-    -DCP2K_USE_VORI=OFF \
-    -DCP2K_USE_GREENX=OFF \
     -Werror=dev \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
@@ -193,6 +169,7 @@ elif [[ "${PROFILE}" == "toolchain_all" ]] && [[ "${VERSION}" == "psmp" ]]; then
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
     -DCP2K_BLAS_VENDOR="auto" \
     -DCP2K_SCALAPACK_VENDOR="auto" \
+    -DCP2K_USE_EVERYTHING=ON \
     -DCP2K_USE_DLAF=OFF \
     -Werror=dev \
     .. |& tee ./cmake.log
@@ -206,24 +183,6 @@ elif [[ "${PROFILE}" == "toolchain_minimal" ]] && [[ "${VERSION}" == "psmp" ]]; 
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
     -DCP2K_BLAS_VENDOR="auto" \
     -DCP2K_SCALAPACK_VENDOR="auto" \
-    -DCP2K_USE_COSMA=OFF \
-    -DCP2K_USE_DEEPMD=OFF \
-    -DCP2K_USE_DFTD4=OFF \
-    -DCP2K_USE_DLAF=OFF \
-    -DCP2K_USE_ELPA=OFF \
-    -DCP2K_USE_GRPP=OFF \
-    -DCP2K_USE_HDF5=OFF \
-    -DCP2K_USE_LIBINT2=OFF \
-    -DCP2K_USE_LIBSMEAGOL=OFF \
-    -DCP2K_USE_LIBTORCH=OFF \
-    -DCP2K_USE_LIBXC=OFF \
-    -DCP2K_USE_PLUMED=OFF \
-    -DCP2K_USE_SIRIUS=OFF \
-    -DCP2K_USE_SPGLIB=OFF \
-    -DCP2K_USE_SPLA=OFF \
-    -DCP2K_USE_TREXIO=OFF \
-    -DCP2K_USE_VORI=OFF \
-    -DCP2K_USE_GREENX=OFF \
     -Werror=dev \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
