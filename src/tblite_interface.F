@@ -418,7 +418,7 @@ CONTAINS
       ikind = tb%mol%id(id_atom)
 
       !getting size information
-      nset = tb%calc%bas%nsh_at(ikind)
+      nset = tb%calc%bas%nsh_id(ikind)
       nshell = 1
       mprim = 0
       DO ishell = 1, nset
