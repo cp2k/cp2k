@@ -190,12 +190,6 @@ class Libxsmm(MakefilePackage):
         when="@1.17:",
         description="Max. JIT buffer size increased to 256 KiB",
     )
-    variant(
-        "wrap",
-        default="0",
-        description="Determines the kind of routines called for intercepted GEMMs",
-        values=lambda i: isinstance(i, int),
-    )
 
     depends_on("c", type="build")  # generated
     depends_on("cxx", type="build")  # generated
@@ -234,8 +228,7 @@ class Libxsmm(MakefilePackage):
         if spec.target.family == "aarch64":
             make_args += ["PLATFORM=1"]
         else:
-            make_args += ["PLATFORM=0"]
-            make_args += ["SYM=0"]
+            make_args += ["SYM=1"]
 
         # JIT (AVX and later) makes MNK, M, N, or K spec. superfluous
         # make_args += ['MNK=1 4 5 6 8 9 13 16 17 22 23 24 26 32']
@@ -254,8 +247,6 @@ class Libxsmm(MakefilePackage):
 
         if spec.satisfies("+shared"):
             make(*(make_args + ["STATIC=0"]))
-        else:
-            make(*(make_args + ["STATIC=1"]))
 
         # builds static libraries by default
         make(*make_args)
