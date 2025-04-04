@@ -6,4 +6,5 @@
 "CH2O_gfn1.inp"                          = [{matcher="E_total", tol=1.0E-8, ref=-7.8446058222}]
 "COBe_gfn1.inp"                          = [{matcher="E_total", tol=1.0E-8, ref=-7.4352458814}]
 "H2SO4_gfn1.inp"                         = [{matcher="E_total", tol=1.0E-8, ref=-23.441028742}]
+"Hg2Cl2_gfn1.inp"                        = [{matcher="E_total", tol=1.0E-8, ref=-10.354497267}]
 #EOF
