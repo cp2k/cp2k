@@ -34,7 +34,7 @@ build deps daint:
     ]'
     DOCKERFILE: ci/docker/build_${CI_JOB_STAGE}_${TAG}.Dockerfile
     BASE_IMAGE: ${UBUNTU_IMAGE_NAME}
-    CP2K_BUILD_TYPE: all
+    CP2K_BUILD_TYPE: minimal
     LOG_LINES: 200
     MPICH_VERSION: 4.2.3
 
@@ -57,7 +57,7 @@ build cp2k daint:
     ]'
     DOCKERFILE: ci/docker/build_${CI_JOB_STAGE}_${TAG}.Dockerfile
     BASE_IMAGE: ${UBUNTU_IMAGE_NAME}
-    CP2K_BUILD_TYPE: all
+    CP2K_BUILD_TYPE: minimal
     DEPS_IMAGE: ${DEPS_IMAGE_NAME}
     LOG_LINES: 200
     PERSIST_IMAGE_NAME: ${CSCS_IMAGE_NAME}
