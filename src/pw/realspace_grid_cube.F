@@ -203,6 +203,8 @@ CONTAINS
       IF (PRESENT(gid)) THEN
          CALL gid%get_rank(mpi_rank)
          do_write_data = mpi_rank == 0
+      ELSE
+         do_write_data = .TRUE.
       ENDIF
       DO i = 1, num_atom_types
          CALL pw_write_particle_species(particles_z, particles_r, atom_types(i), atom_counts(i), openpmd_data, do_write_data)
