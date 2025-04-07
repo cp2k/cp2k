@@ -46,7 +46,8 @@ spack:
     - "netlib-scalapack@2.2.2"
     - "dbcsr@2.8.0"
     - "fftw@3.3.10"
-    - "libxsmm@main-2024-09"
+#   - "libxsmm@main-2024-09" Use 1.17 with Spack as long as grid unit tests fail
+    - "libxsmm@1.17"
   view:
     default:
       root: ./spack-env/view
