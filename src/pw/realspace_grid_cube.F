@@ -317,7 +317,7 @@ CONTAINS
          mesh = openpmd_iteration_get_mesh(openpmd_data%iteration, TRIM(openpmd_data%name_prefix))
          CALL openpmd_mesh_set_axis_labels(mesh, (/"x", "y", "z"/))
          CALL openpmd_mesh_set_position(mesh, (/0.5_dp, 0.5_dp, 0.5_dp/))
-         CALL openpmd_mesh_set_grid_global_offset(mesh, (/0._dp, 0._dp, 0._dp/))
+         CALL openpmd_mesh_set_grid_global_offset(mesh, pw%pw_grid%bounds(1, :) * grid_spacing / my_stride)
          CALL openpmd_mesh_set_grid_spacing(mesh, grid_spacing)
          scalar_mesh = openpmd_mesh_as_record_component(mesh)
          CALL openpmd_record_component_reset_dataset(scalar_mesh, openpmd_type_double, global_extent)
