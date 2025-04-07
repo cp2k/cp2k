@@ -307,9 +307,12 @@ CONTAINS
 
          DO iat = 1, 3
             global_extent(iat) = (pw%pw_grid%npts(iat) + my_stride(iat) - 1)/my_stride(iat)
-            local_extent(iat) = (pw%pw_grid%npts_local(iat) + my_stride(iat) - 1)/my_stride(iat)
+            ! '+ 1' because upper end is inclusive, '- 1' for upper gaussian bracket
             offset(iat) = ((pw%pw_grid%bounds_local(1, iat) - pw%pw_grid%bounds(1, iat) + my_stride(iat) - 1)/my_stride(iat))
+            ! refer local_extent to the global offset first in order to have consistent rounding
+            local_extent(iat) = ((pw%pw_grid%bounds_local(2, iat) + 1 - pw%pw_grid%bounds(1, iat) + my_stride(iat) - 1)/my_stride(iat))
          END DO
+         local_extent = local_extent - offset
 
          mesh = openpmd_iteration_get_mesh(openpmd_data%iteration, TRIM(openpmd_data%name_prefix))
          CALL openpmd_mesh_set_axis_labels(mesh, (/"x", "y", "z"/))
