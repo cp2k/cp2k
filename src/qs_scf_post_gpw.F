@@ -53,8 +53,8 @@ MODULE qs_scf_post_gpw
                                               cp_print_key_unit_nr
    USE cp_output_handling_openpmd,      ONLY: cp_openpmd_print_key_finished_output,&
                                               cp_openpmd_print_key_unit_nr
-   USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube,&
-                                              cp_pw_to_openpmd
+   USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
+   USE cp_realspace_grid_openpmd,       ONLY: cp_pw_to_openpmd
    USE dct,                             ONLY: pw_shrink
    USE ed_analysis,                     ONLY: edmf_analysis
    USE eeq_method,                      ONLY: eeq_print

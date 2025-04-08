@@ -1615,7 +1615,8 @@ set(CP2K_GPU_DFLAGS
 # ##############################################################################
 
 if(CP2K_USE_OPENPMD)
-  list(APPEND CP2K_SRCS_F input/cp_output_handling_openpmd.F)
+  list(APPEND CP2K_SRCS_F input/cp_output_handling_openpmd.F
+       cp_realspace_grid_openpmd.F pw/realspace_grid_openpmd.F)
 endif()
 
 add_fypp_sources(CP2K_SRCS ${CP2K_SRCS_F})
