@@ -1633,6 +1633,7 @@ endif()
 
 if(CP2K_USE_OPENPMD)
   target_link_libraries(cp2k PRIVATE CP2K_OPENPMD_BINDINGS)
+  list(APPEND CP2K_SRCS_F input/cp_output_handling_openpmd.F)
 endif()
 
 target_compile_features(cp2k PUBLIC cuda_std_11)
