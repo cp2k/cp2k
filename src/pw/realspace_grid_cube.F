@@ -107,23 +107,22 @@ CONTAINS
 !> \param atom_type ...
 !> \param atom_count ...
 !> \param openpmd_data ...
-!> \param global_offset ...
-!> \param global_extent ...
+!> \param do_write_data ...
 ! **************************************************************************************************
    SUBROUTINE pw_write_particle_species(particles_z, particles_r, atom_type, atom_count, openpmd_data, do_write_data)
       INTEGER, DIMENSION(:), INTENT(IN)                  :: particles_z
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: particles_r
       INTEGER, INTENT(IN)                                :: atom_type, atom_count
       TYPE(cp_openpmd_per_call_value_type)               :: openpmd_data
-      LOGICAL :: do_write_data
+      LOGICAL                                            :: do_write_data
 
       CHARACTER(len=1), DIMENSION(3), PARAMETER          :: dims = (/"x", "y", "z"/)
 
       CHARACTER(len=3)                                   :: atom_type_as_string
       CHARACTER(len=default_string_length)               :: species_name
       INTEGER                                            :: i, j, k
-      INTEGER, DIMENSION(1)                              :: local_extent, global_extent, &
-                                                            global_offset
+      INTEGER, DIMENSION(1)                              :: global_extent, global_offset, &
+                                                            local_extent
       TYPE(cp_openpmd_write_buffer_1d), DIMENSION(3)     :: write_buffers
       TYPE(openpmd_dynamic_memory_view_type_1d), &
          DIMENSION(3)                                    :: unresolved_write_buffers
@@ -139,7 +138,7 @@ CONTAINS
       ELSE
          global_offset(1) = 0
          local_extent(1) = 0
-      ENDIF
+      END IF
 
       WRITE (atom_type_as_string, '(I3)') atom_type
       species_name = TRIM(openpmd_data%name_prefix)//"-"//ADJUSTL(atom_type_as_string)
@@ -153,12 +152,12 @@ CONTAINS
          CALL openpmd_record_component_make_constant_zero(position_offset_component, openpmd_type_int, global_extent)
          position_component = openpmd_record_get_component(position, dims(k))
          CALL openpmd_record_component_reset_dataset(position_component, openpmd_type_double, global_extent)
-            unresolved_write_buffers(k) = &
-               openpmd_record_component_store_chunk_span_1d_double(position_component, global_offset, local_extent)
+         unresolved_write_buffers(k) = &
+            openpmd_record_component_store_chunk_span_1d_double(position_component, global_offset, local_extent)
          IF (do_write_data) THEN
             write_buffers(k)%buffer => &
                openpmd_dynamic_memory_view_resolve_1d_double(unresolved_write_buffers(k), DEALLOCATE=.FALSE.)
-         ENDIF
+         END IF
       END DO
 
       IF (do_write_data) THEN
@@ -176,7 +175,7 @@ CONTAINS
                j = j + 1
             END IF
          END DO
-      ENDIF
+      END IF
    END SUBROUTINE pw_write_particle_species
 
 ! **************************************************************************************************
@@ -198,14 +197,14 @@ CONTAINS
       TYPE(mp_comm_type), OPTIONAL                       :: gid
 
       INTEGER                                            :: i, mpi_rank
-      LOGICAL :: do_write_data
+      LOGICAL                                            :: do_write_data
 
       IF (PRESENT(gid)) THEN
          CALL gid%get_rank(mpi_rank)
          do_write_data = mpi_rank == 0
       ELSE
          do_write_data = .TRUE.
-      ENDIF
+      END IF
       DO i = 1, num_atom_types
          CALL pw_write_particle_species(particles_z, particles_r, atom_types(i), atom_counts(i), openpmd_data, do_write_data)
       END DO
@@ -238,8 +237,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_to_openpmd'
       INTEGER, PARAMETER                                 :: entry_len = 13, num_entries_line = 6
 
-      INTEGER :: count1, count2, count3, handle, i, I1, I2, I3, iat, j, L1, L2, L3, msglen, my_rank, &
-         my_stride(3), np, num_atom_types, num_linebreak, num_pe, size_of_z, U1, U2, U3
+      INTEGER :: count1, count2, count3, handle, i, I1, I2, I3, iat, j, L1, L2, L3, msglen, &
+         my_rank, my_stride(3), np, num_atom_types, num_linebreak, num_pe, size_of_z, U1, U2, U3
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_counts, atom_types
       INTEGER, DIMENSION(3)                              :: global_extent, local_extent, offset
       LOGICAL                                            :: be_silent, my_zero_tails, parallel_write
@@ -312,14 +311,14 @@ CONTAINS
             ! '+ 1' because upper end is inclusive, '- 1' for upper gaussian bracket
             offset(iat) = ((pw%pw_grid%bounds_local(1, iat) - pw%pw_grid%bounds(1, iat) + my_stride(iat) - 1)/my_stride(iat))
             ! refer local_extent to the global offset first in order to have consistent rounding
-            local_extent(iat) = ((pw%pw_grid%bounds_local(2, iat) + 1 - pw%pw_grid%bounds(1, iat) + my_stride(iat) - 1)/my_stride(iat))
+         local_extent(iat) = ((pw%pw_grid%bounds_local(2, iat) + 1 - pw%pw_grid%bounds(1, iat) + my_stride(iat) - 1)/my_stride(iat))
          END DO
          local_extent = local_extent - offset
 
          mesh = openpmd_iteration_get_mesh(openpmd_data%iteration, TRIM(openpmd_data%name_prefix))
          CALL openpmd_mesh_set_axis_labels(mesh, (/"x", "y", "z"/))
          CALL openpmd_mesh_set_position(mesh, (/0.5_dp, 0.5_dp, 0.5_dp/))
-         CALL openpmd_mesh_set_grid_global_offset(mesh, pw%pw_grid%bounds(1, :) * grid_spacing / my_stride)
+         CALL openpmd_mesh_set_grid_global_offset(mesh, pw%pw_grid%bounds(1, :)*grid_spacing/my_stride)
          CALL openpmd_mesh_set_grid_spacing(mesh, grid_spacing)
          scalar_mesh = openpmd_mesh_as_record_component(mesh)
          CALL openpmd_record_component_reset_dataset(scalar_mesh, openpmd_type_double, global_extent)
