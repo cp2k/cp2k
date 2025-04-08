@@ -422,6 +422,7 @@ list(
   nnp_model.F
   local_gemm_api.F
   offload/offload_api.F
+  openPMD.F
   optbas_fenv_manipulation.F
   optbas_opt_utils.F
   optimize_basis.F
@@ -1613,6 +1614,11 @@ set(CP2K_GPU_DFLAGS
 # set properties for the cp2k target.
 # ##############################################################################
 
+if(CP2K_USE_OPENPMD)
+  list(APPEND CP2K_SRCS_F input/cp_output_handling_openpmd.F
+       cp_realspace_grid_openpmd.F pw/realspace_grid_openpmd.F)
+endif()
+
 add_fypp_sources(CP2K_SRCS ${CP2K_SRCS_F})
 
 # set the __SHORT_FILE__ per file for CP2K sources
@@ -1628,6 +1634,10 @@ if(CP2K_USE_LIBTORCH)
               "${CP2K_SRCS};${CP2K_SRCS_C};${CP2K_SRCS_GPU};${CP2K_SRCS_CPP}")
 else()
   add_library(cp2k "${CP2K_SRCS};${CP2K_SRCS_C};${CP2K_SRCS_GPU}")
+endif()
+
+if(CP2K_USE_OPENPMD)
+  target_link_libraries(cp2k PRIVATE CP2K_OPENPMD_BINDINGS)
 endif()
 
 target_compile_features(cp2k PUBLIC cuda_std_11)
