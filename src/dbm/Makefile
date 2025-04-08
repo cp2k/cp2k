@@ -45,8 +45,8 @@ CFLAGS += -fopenmp -Wno-vla-parameter
 CC := $(if $(filter-out 0,$(MPI)),mpicc,gcc)
 else
 MKL_FCRTL := intel
-LIBS += $(if $(OMPRT),-l$(OMPRT),-qopenmp)
-CFLAGS += -qopenmp
+LIBS += $(if $(OMPRT),-fopenmp -Wno-recommended-option,-qopenmp)
+CFLAGS += $(if $(OMPRT),-fopenmp -Wno-recommended-option,-qopenmp)
 CC := $(if $(filter-out 0,$(MPI)),mpiicx,icx)
 endif
 
@@ -206,6 +206,6 @@ endif
 	cd $(dir $<); $(CC) -c -std=c11 $(CFLAGS) $(notdir $<)
 
 dbm_miniapp.x: dbm_miniapp.o $(ALL_OBJECTS)
-	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
+	$(CC) -o $@ $^ $(LIBS)
 
 #EOF
