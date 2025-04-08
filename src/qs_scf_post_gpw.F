@@ -51,6 +51,8 @@ MODULE qs_scf_post_gpw
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
+   USE cp_output_handling_openpmd,      ONLY: cp_openpmd_print_key_finished_output,&
+                                              cp_openpmd_print_key_unit_nr
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube,&
                                               cp_pw_to_openpmd
    USE dct,                             ONLY: pw_shrink
@@ -1068,13 +1070,13 @@ CONTAINS
                                         cell, dft_control, particle_set, pw_env)
             WRITE (filename, '(a4,I5.5,a1,I1.1)') "WFN_", ivector, "_", ispin
             mpi_io = .TRUE.
-            unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%MO_CUBES", extension=".cube", &
-                                           middle_name=TRIM(filename), file_position=my_pos_cube, log_filename=.FALSE., &
-                                           mpi_io=mpi_io, openpmd_basename="dft-mo-cubes", use_openpmd=.TRUE.)
+            unit_nr = cp_openpmd_print_key_unit_nr(logger, input, "DFT%PRINT%MO_CUBES", &
+                                                   middle_name=TRIM(filename), file_position=my_pos_cube, log_filename=.FALSE., &
+                                                   mpi_io=mpi_io, openpmd_basename="dft-mo-cubes")
             WRITE (title, *) "WAVEFUNCTION ", ivector, " spin ", ispin, " i.e. HOMO - ", ivector - homo
             CALL cp_pw_to_openpmd(wf_r, unit_nr, title, particles=particles, &
                                   stride=section_get_ivals(dft_section, "PRINT%MO_CUBES%STRIDE"), mpi_io=mpi_io)
-            CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%MO_CUBES", mpi_io=mpi_io, use_openpmd=.TRUE.)
+            CALL cp_openpmd_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%MO_CUBES", mpi_io=mpi_io)
          END DO
          IF (ASSOCIATED(list_index)) DEALLOCATE (list_index)
       END IF
@@ -1155,13 +1157,13 @@ CONTAINS
             WRITE (filename, '(a4,I5.5,a1,I1.1)') "WFN_", index_mo, "_", ispin
             mpi_io = .TRUE.
 
-            unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%MO_CUBES", extension=".cube", &
-                                           middle_name=TRIM(filename), file_position=my_pos_cube, log_filename=.FALSE., &
-                                           mpi_io=mpi_io, openpmd_basename="dft-mo-cubes", use_openpmd=.TRUE.)
+            unit_nr = cp_openpmd_print_key_unit_nr(logger, input, "DFT%PRINT%MO_CUBES", &
+                                                   middle_name=TRIM(filename), file_position=my_pos_cube, log_filename=.FALSE., &
+                                                   mpi_io=mpi_io, openpmd_basename="dft-mo-cubes")
             WRITE (title, *) "WAVEFUNCTION ", index_mo, " spin ", ispin, " i.e. LUMO + ", ifirst + ivector - 2
             CALL cp_pw_to_openpmd(wf_r, unit_nr, title, particles=particles, &
                                   stride=section_get_ivals(dft_section, "PRINT%MO_CUBES%STRIDE"), mpi_io=mpi_io)
-            CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%MO_CUBES", mpi_io=mpi_io, use_openpmd=.TRUE.)
+            CALL cp_openpmd_print_key_finished_output(unit_nr, logger, input, "DFT%PRINT%MO_CUBES", mpi_io=mpi_io)
          END DO
       END IF
 

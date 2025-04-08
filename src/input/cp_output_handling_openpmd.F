@@ -72,10 +72,10 @@ MODULE cp_output_handling_openpmd
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_output_handling_openpmd'
    PUBLIC :: cp_print_key_should_output, cp_iterate, cp_get_iter_level_by_name, cp_get_iter_nr, cp_add_iter_level, cp_rm_iter_level
    PUBLIC :: cp_iter_string, cp_print_key_section_create
-   PUBLIC :: cp_print_key_unit_nr, cp_print_key_finished_output
+   PUBLIC :: cp_openpmd_print_key_unit_nr, cp_openpmd_print_key_finished_output
    PUBLIC :: cp_print_key_generate_filename, cp_printkey_is_on
    PUBLIC :: cp_openpmd_get_value_unit_nr, cp_openpmd_per_call_value_type
-   PUBLIC :: cp_output_finalize
+   PUBLIC :: cp_openpmd_output_finalize
 
    INTEGER, PARAMETER, PUBLIC               :: add_last_no = 0, &
                                                add_last_numeric = 1, &
@@ -1176,7 +1176,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Close all outputs.
 ! **************************************************************************************************
-   SUBROUTINE cp_output_finalize()
+   SUBROUTINE cp_openpmd_output_finalize()
       INTEGER :: i
       DO i = 1, cp_num_openpmd_per_callsite
          DEALLOCATE (cp_openpmd_per_callsite(i)%value%iteration_counter%complex_iteration)
@@ -1184,7 +1184,7 @@ CONTAINS
       END DO
       DEALLOCATE (cp_openpmd_per_callsite)
       cp_num_openpmd_per_callsite = 0
-   END SUBROUTINE cp_output_finalize
+   END SUBROUTINE cp_openpmd_output_finalize
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1214,14 +1214,13 @@ CONTAINS
 !> \param use_openpmd ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION cp_print_key_unit_nr(logger, basis_section, print_key_path, extension, &
-                                 middle_name, local, log_filename, ignore_should_output, file_form, file_position, &
-                                 file_action, file_status, on_file, mpi_io, &
-                                 fout, openpmd_basename) RESULT(res)
+   FUNCTION cp_openpmd_print_key_unit_nr(logger, basis_section, print_key_path, &
+                                         middle_name, local, log_filename, ignore_should_output, file_form, file_position, &
+                                         file_action, file_status, on_file, mpi_io, &
+                                         fout, openpmd_basename) RESULT(res)
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), INTENT(IN)                :: basis_section
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: print_key_path
-      CHARACTER(len=*)                                   :: extension
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: middle_name
       LOGICAL, INTENT(IN), OPTIONAL                      :: local, log_filename, ignore_should_output
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: file_form, file_position, file_action, &
@@ -1299,15 +1298,15 @@ CONTAINS
       ELSE
          res = -1
       END IF
-   END FUNCTION cp_print_key_unit_nr
+   END FUNCTION cp_openpmd_print_key_unit_nr
 
 ! **************************************************************************************************
 !> \brief should be called after you finish working with a unit obtained with
-!>      cp_print_key_unit_nr, so that the file that might have been opened
+!>      cp_openpmd_print_key_unit_nr, so that the file that might have been opened
 !>      can be closed.
 !>
 !>      the inputs should be exactly the same of the corresponding
-!>      cp_print_key_unit_nr
+!>      cp_openpmd_print_key_unit_nr
 !> \param unit_nr ...
 !> \param logger ...
 !> \param basis_section ...
@@ -1324,31 +1323,28 @@ CONTAINS
 !>      closes if the corresponding filename of the printkey is
 !>      not __STD_OUT__
 ! **************************************************************************************************
-   SUBROUTINE cp_print_key_finished_output(unit_nr, logger, basis_section, &
-                                           print_key_path, local, ignore_should_output, on_file, &
-                                           mpi_io, use_openpmd)
+   SUBROUTINE cp_openpmd_print_key_finished_output(unit_nr, logger, basis_section, &
+                                                   print_key_path, local, ignore_should_output, on_file, &
+                                                   mpi_io)
       INTEGER, INTENT(INOUT)                             :: unit_nr
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), INTENT(IN)                :: basis_section
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: print_key_path
       LOGICAL, INTENT(IN), OPTIONAL                      :: local, ignore_should_output, on_file, &
-                                                            mpi_io, use_openpmd
+                                                            mpi_io
 
       CHARACTER(len=default_string_length)               :: outPath
       LOGICAL                                            :: my_local, my_mpi_io, my_on_file, &
-                                                            my_should_output, my_use_openpmd
-      TYPE(mp_file_type)                                 :: mp_unit
+                                                            my_should_output
       TYPE(section_vals_type), POINTER                   :: print_key
 
       my_local = .FALSE.
       my_on_file = .FALSE.
       my_mpi_io = .FALSE.
-      my_use_openpmd = .FALSE.
       NULLIFY (print_key)
       IF (PRESENT(local)) my_local = local
       IF (PRESENT(on_file)) my_on_file = on_file
       IF (PRESENT(mpi_io)) my_mpi_io = mpi_io
-      IF (PRESENT(use_openpmd)) my_use_openpmd = use_openpmd
       CPASSERT(ASSOCIATED(logger))
       CPASSERT(basis_section%ref_count > 0)
       CPASSERT(logger%ref_count > 0)
@@ -1359,27 +1355,15 @@ CONTAINS
                                   logger%para_env%is_source() .OR. &
                                   my_mpi_io)) THEN
          CALL section_vals_val_get(print_key, "FILENAME", c_val=outPath)
-         IF (my_use_openpmd) THEN
-            IF (cp_openpmd_remove_unit_nr(unit_nr)) THEN
-               CLOSE (unit_nr)
-            END IF
-            unit_nr = -1
-         ELSE IF (my_on_file .OR. outPath .NE. '__STD_OUT__') THEN
-            CPASSERT(unit_nr > 0)
-            IF (.NOT. my_mpi_io) THEN
-               CALL close_file(unit_nr, "KEEP")
-            ELSE
-               CALL mp_unit%set_handle(unit_nr)
-               CALL mp_unit%close()
-            END IF
-            unit_nr = -1
-         ELSE
-            unit_nr = -1
+         IF (cp_openpmd_remove_unit_nr(unit_nr)) THEN
+            CLOSE (unit_nr)
          END IF
+
+         unit_nr = -1
       END IF
       CPASSERT(unit_nr == -1)
       unit_nr = -1
-   END SUBROUTINE cp_print_key_finished_output
+   END SUBROUTINE cp_openpmd_print_key_finished_output
 
 ! **************************************************************************************************
 !> \brief Sets flag which determines whether or not to use MPI I/O for I/O routines that

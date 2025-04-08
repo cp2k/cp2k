@@ -12,8 +12,8 @@ MODULE realspace_grid_cube
    USE cp_files, ONLY: close_file, &
                        open_file
    USE cp_log_handling, ONLY: cp_logger_get_default_io_unit
-   USE cp_output_handling, ONLY: cp_openpmd_get_value_unit_nr, &
-                                 cp_openpmd_per_call_value_type
+   USE cp_output_handling_openpmd, ONLY: cp_openpmd_get_value_unit_nr, &
+                                         cp_openpmd_per_call_value_type
    USE kinds, ONLY: default_string_length, &
                     dp
    USE message_passing, ONLY: &

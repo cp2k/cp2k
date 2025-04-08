@@ -37,8 +37,8 @@ MODULE f77_interface
         cp_add_default_logger, cp_default_logger_stack_size, cp_failure_level, &
         cp_get_default_logger, cp_logger_create, cp_logger_get_default_unit_nr, cp_logger_release, &
         cp_logger_retain, cp_logger_type, cp_rm_default_logger, cp_to_string
-   USE cp_output_handling,              ONLY: cp_iterate,&
-                                              cp_output_finalize
+   USE cp_output_handling,              ONLY: cp_iterate
+   USE cp_output_handling_openpmd,      ONLY: cp_openpmd_output_finalize
    USE cp_result_methods,               ONLY: get_results,&
                                               test_for_result
    USE cp_result_types,                 ONLY: cp_result_type
@@ -350,7 +350,7 @@ CONTAINS
          CALL rm_timer_env()
          CALL rm_mp_perf_env()
          CALL string_table_deallocate(0)
-         CALL cp_output_finalize()
+         CALL cp_openpmd_output_finalize()
          IF (finalize_mpi) THEN
             CALL mp_world_finalize()
          END IF
