@@ -383,3 +383,6 @@ Fist/regtest-quip                                           quip
 QS/regtest-eht-guess                                        libdftd4
 QS/regtest-trexio                                           trexio
 QS/regtest-trexio-2                                         trexio libgrpp
+HP-DFT/hp-dft_0eV.inp
+HP-DFT/hp-dft_1eV.inp
+HP-DFT/hp-dft_4eV.inp
