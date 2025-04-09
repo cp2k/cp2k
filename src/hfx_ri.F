@@ -15,10 +15,13 @@ MODULE hfx_ri
                                               omp_get_thread_num
    USE arnoldi_api,                     ONLY: arnoldi_extremal
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                              get_atomic_kind,&
                                               get_atomic_kind_set
-   USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
+   USE basis_set_types,                 ONLY: get_gto_basis_set,&
+                                              gto_basis_set_p_type,&
                                               gto_basis_set_type
-   USE cell_types,                      ONLY: cell_type
+   USE cell_types,                      ONLY: cell_type,&
+                                              get_cell
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: &
@@ -83,6 +86,7 @@ MODULE hfx_ri
    USE message_passing,                 ONLY: mp_cart_type,&
                                               mp_comm_type,&
                                               mp_para_env_type
+   USE orbital_pointers,                ONLY: nso
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -109,6 +113,7 @@ MODULE hfx_ri
                                               distribution_3d_type,&
                                               neighbor_list_3c_type,&
                                               split_block_sizes
+   USE string_utilities,                ONLY: uppercase
    USE util,                            ONLY: sort
    USE virial_types,                    ONLY: virial_type
 #include "./base/base_uses.f90"
@@ -3623,11 +3628,22 @@ CONTAINS
       TYPE(hfx_ri_type), INTENT(INOUT)                   :: ri_data
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
-      INTEGER                                            :: i_RI, ibasis, ncols, nkind, nrows, &
+      CHARACTER(Len=2)                                   :: symbol
+      CHARACTER(Len=8)                                   :: rifmt
+      INTEGER                                            :: atype, i_RI, ia, ib, ibasis, ikind, &
+                                                            iset, isgf, ishell, iso, l, m, natom, &
+                                                            ncols, nkind, nrows, nset, nsgf, &
                                                             nspins, unit_nr
+      INTEGER, DIMENSION(3)                              :: periodic
+      INTEGER, DIMENSION(:), POINTER                     :: npgf, nshell
+      INTEGER, DIMENSION(:, :), POINTER                  :: lshell
       LOGICAL                                            :: mult_by_S, print_density, &
                                                             print_ri_metric, skip_ri_metric
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: density_coeffs, density_coeffs_2
+      REAL(dp), DIMENSION(3, 3)                          :: hmat
+      REAL(dp), DIMENSION(:, :), POINTER                 :: zet
+      REAL(dp), DIMENSION(:, :, :), POINTER              :: gcc
+      TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(cp_fm_type)                                   :: matrix_s_fm
@@ -3700,22 +3716,96 @@ CONTAINS
                                         extension=".dat", file_status="REPLACE", &
                                         file_action="WRITE", file_form="FORMATTED")
 
+         CALL section_vals_val_get(print_section, "RI_DENSITY_COEFFS%FILE_FORMAT", c_val=rifmt)
+         CALL uppercase(rifmt)
+
          IF (unit_nr > 0) THEN
-            IF (nspins == 1) THEN
+            SELECT CASE (rifmt)
+            CASE DEFAULT
+               CPABORT("NA")
+            CASE ("BASIC")
+               IF (nspins == 1) THEN
+                  WRITE (unit_nr, FMT="(A,A,A)") &
+                     "# Coefficients of the electronic density projected on the RI_HFX basis for ", &
+                     TRIM(logger%iter_info%project_name), " project"
+                  DO i_RI = 1, SIZE(density_coeffs)
+                     WRITE (unit_nr, FMT="(F20.12)") density_coeffs(i_RI)
+                  END DO
+               ELSE
+                  WRITE (unit_nr, FMT="(A,A,A)") &
+                     "# Coefficients of the electronic density projected on the RI_HFX basis for ", &
+                     TRIM(logger%iter_info%project_name), " project. Spin up, spin down"
+                  DO i_RI = 1, SIZE(density_coeffs)
+                     WRITE (unit_nr, FMT="(F20.12,F20.12)") density_coeffs(i_RI), density_coeffs_2(i_RI)
+                  END DO
+               END IF
+            CASE ("EXTENDED")
                WRITE (unit_nr, FMT="(A,A,A)") &
                   "# Coefficients of the electronic density projected on the RI_HFX basis for ", &
                   TRIM(logger%iter_info%project_name), " project"
-               DO i_RI = 1, SIZE(density_coeffs)
-                  WRITE (unit_nr, FMT="(F20.12)") density_coeffs(i_RI)
+
+               CALL get_qs_env(qs_env, cell=cell, particle_set=particle_set)
+               CALL get_cell(cell, periodic=periodic, h=hmat)
+               natom = SIZE(particle_set)
+               ib = 0
+               DO ia = 1, natom
+                  CALL get_atomic_kind(particle_set(ia)%atomic_kind, kind_number=ikind)
+                  ri_basis => basis_set_RI(ikind)%gto_basis_set
+                  CALL get_gto_basis_set(gto_basis_set=ri_basis, nsgf=nsgf)
+                  DO ibasis = 1, nsgf
+                     ib = ib + 1
+                     IF (nspins == 1) THEN
+                        WRITE (unit_nr, FMT="(I10,3I7,F20.12)") ib, ia, ikind, ibasis, &
+                           density_coeffs(ib)
+                     ELSE
+                        WRITE (unit_nr, FMT="(I10,3I7,F20.12,F20.12)") ib, ia, ikind, ibasis, &
+                           density_coeffs(ib), density_coeffs_2(ib)
+                     END IF
+                  END DO
                END DO
-            ELSE
-               WRITE (unit_nr, FMT="(A,A,A)") &
-                  "# Coefficients of the electronic density projected on the RI_HFX basis for ", &
-                  TRIM(logger%iter_info%project_name), " project. Spin up, spin down"
-               DO i_RI = 1, SIZE(density_coeffs)
-                  WRITE (unit_nr, FMT="(F20.12,F20.12)") density_coeffs(i_RI), density_coeffs_2(i_RI)
+               WRITE (unit_nr, FMT="(A)") "# Cell Periodicity "
+               WRITE (unit_nr, FMT="(3I5)") periodic
+               WRITE (unit_nr, FMT="(A)") "# Cell Matrix [Bohr]"
+               WRITE (unit_nr, FMT="(3F20.12)") hmat(1, 1:3)
+               WRITE (unit_nr, FMT="(3F20.12)") hmat(2, 1:3)
+               WRITE (unit_nr, FMT="(3F20.12)") hmat(3, 1:3)
+               WRITE (unit_nr, FMT="(A)") "# El  Type   Number                        Coordinates [Bohr]"
+               DO ia = 1, natom
+                  CALL get_atomic_kind(atomic_kind=particle_set(ia)%atomic_kind, &
+                                       kind_number=atype, element_symbol=symbol)
+                  WRITE (unit_nr, FMT="(2X,A2,I5,I10,3F20.12)") symbol, atype, ia, particle_set(ia)%r(1:3)
                END DO
-            END IF
+               WRITE (unit_nr, FMT="(A)") "# Basis Set Information"
+               DO ibasis = 1, nkind
+                  ri_basis => basis_set_RI(ibasis)%gto_basis_set
+                  CALL get_gto_basis_set(gto_basis_set=ri_basis, nsgf=nsgf, npgf=npgf, &
+                                         zet=zet, gcc=gcc, &
+                                         nset=nset, nshell=nshell, l=lshell)
+                  WRITE (unit_nr, FMT="(A)") "# Basis      Functions"
+                  WRITE (unit_nr, FMT="(I7,I15)") ibasis, nsgf
+                  WRITE (unit_nr, FMT="(A)") "#  Nr.      l       m     set   shell "
+                  isgf = 0
+                  DO iset = 1, nset
+                     DO ishell = 1, nshell(iset)
+                        l = lshell(ishell, iset)
+                        DO iso = 1, nso(l)
+                           isgf = isgf + 1
+                           m = iso - 1 - l
+                           WRITE (unit_nr, FMT="(I6,I7,I8,2I8)") isgf, l, m, iset, ishell
+                        END DO
+                     END DO
+                  END DO
+                  WRITE (unit_nr, FMT="(A)") "#  Basis set exponents and contractions "
+                  DO iset = 1, nset
+                     WRITE (unit_nr, FMT="(I7)") iset
+                     WRITE (unit_nr, FMT="(A)") "#  Exponent    Shells ...  "
+                     DO m = 1, npgf(iset)
+                        WRITE (unit_nr, FMT="(E18.12,50F18.12)") zet(m, iset), gcc(m, 1:nshell(iset), iset)
+                     END DO
+                  END DO
+
+               END DO
+            END SELECT
          END IF
 
          CALL cp_print_key_finished_output(unit_nr, logger, input, "DFT%XC%HF%RI%PRINT%RI_DENSITY_COEFFS")

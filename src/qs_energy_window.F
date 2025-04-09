@@ -122,7 +122,7 @@ CONTAINS
       CALL qs_subsys_get(subsys, particles=particles)
       CALL qs_rho_get(rho_struct=rho, rho_ao=rho_ao)
       IF (SIZE(rho_ao) > 1) CALL cp_warn(__LOCATION__, &
-                                         "The printing of energy windows is currently only implemented for clsoe shell systems")
+                                         "The printing of energy windows is only implemented for closed shell systems")
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
 
       !reading the input

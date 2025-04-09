@@ -751,6 +751,13 @@ CONTAINS
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="FILE_FORMAT", &
+                          description="Format of file containing density fitting coefficients: "// &
+                          "BASIC(default)-original format; EXTENDED-format with basis set info.", &
+                          default_c_val="BASIC")
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
