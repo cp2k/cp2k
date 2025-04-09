@@ -71,4 +71,5 @@
 #Combine_colvar
 "H2O-meta-combine.inp"                  = [{matcher="M002", tol=3.5e-02, ref=0.00104137484729}]
 "lewis.inp"                             = [{matcher="M011", tol=7e-10, ref=-25.423499443424980}]
+"test_combine.inp"                      = [{matcher="M002", tol=3.5e-02, ref=0.000971980822777}]
 #EOF
