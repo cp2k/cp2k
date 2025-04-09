@@ -1,0 +1,100 @@
+&GLOBAL
+  PROJECT NH3
+  RUN_TYPE md
+&END GLOBAL
+
+&MOTION
+  &FREE_ENERGY
+    &METADYN
+      DO_HILLS F
+      ##      LAGRANGE
+      NT_HILLS 3
+      WW 1.0e-2
+      &METAVAR
+        COLVAR 1
+        LAMBDA 0.1
+        MASS 10.0
+        SCALE 0.02
+      &END METAVAR
+      &PRINT
+        &COLVAR
+          COMMON_ITERATION_LEVELS 3
+          &EACH
+            MD 1
+          &END EACH
+        &END COLVAR
+        &HILLS
+          COMMON_ITERATION_LEVELS 3
+          &EACH
+            MD 1
+          &END EACH
+        &END HILLS
+      &END PRINT
+    &END METADYN
+  &END FREE_ENERGY
+  &MD
+    ENSEMBLE NVE
+    STEPS 50
+    TEMPERATURE 300.0
+    TEMP_TOL 10.0
+    TIMESTEP 1.0
+  &END MD
+&END MOTION
+
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      PARMTYPE CHM
+      PARM_FILE_NAME ../sample_pot/nh3.pot
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        ALPHA .44
+        EWALD_TYPE spme
+        GMAX 30
+        O_SPLINE 6
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 10.0 10.0 10.0
+    &END CELL
+    &COLVAR
+      &COMBINE_COLVAR
+        FUNCTION (CV1+CV2)
+        VARIABLES CV1 CV2
+        &COLVAR
+          &COORDINATION
+            KINDS_FROM N3
+            KINDS_TO H
+            ND 12
+            NN 6
+            #            ATOMS_FROM  1
+            #            ATOMS_TO  2 3 4
+            R0 [angstrom] 1.0
+          &END COORDINATION
+        &END COLVAR
+        &COLVAR
+          #           &COORDINATION
+          #            KINDS_FROM H
+          #            KINDS_TO   N
+          #            R0 [angstrom] 1.0
+          #            NN  6
+          #            ND  12
+          #           &END
+          &DISTANCE
+            ATOMS 1 3
+          &END DISTANCE
+        &END COLVAR
+      &END COMBINE_COLVAR
+    &END COLVAR
+    &TOPOLOGY
+      CONNECTIVITY UPSF
+      CONN_FILE_NAME ../sample_psf/nh3.psf
+      COORDINATE pdb
+      COORD_FILE_NAME ../sample_pdb/nh3_1mol.pdb
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
