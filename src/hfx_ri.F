@@ -3632,11 +3632,13 @@ CONTAINS
       CHARACTER(Len=8)                                   :: rifmt
       INTEGER                                            :: atype, i_RI, ia, ib, ibasis, ikind, &
                                                             iset, isgf, ishell, iso, l, m, natom, &
-                                                            nkind, nset, nsgf, nspins, unit_nr
+                                                            nkind, nset, nsgf, nspins, unit_nr, &
+                                                            ncols, nrows
       INTEGER, DIMENSION(3)                              :: periodic
-      INTEGER, DIMENSION(:), POINTER                     :: col_bsize, npgf, nshell, row_bsize
+      INTEGER, DIMENSION(:), POINTER                     :: npgf, nshell
       INTEGER, DIMENSION(:, :), POINTER                  :: lshell
-      LOGICAL                                            :: mult_by_S, print_density, print_ri_metric
+      LOGICAL                                            :: mult_by_S, print_density, &
+                                                            print_ri_metric, skip_ri_metric
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: density_coeffs, density_coeffs_2
       REAL(dp), DIMENSION(3, 3)                          :: hmat
       REAL(dp), DIMENSION(:, :), POINTER                 :: zet
@@ -3738,7 +3740,6 @@ CONTAINS
                   END DO
                END IF
             CASE ("EXTENDED")
-!deb
                WRITE (unit_nr, FMT="(A,A,A)") &
                   "# Coefficients of the electronic density projected on the RI_HFX basis for ", &
                   TRIM(logger%iter_info%project_name), " project"
@@ -3804,7 +3805,6 @@ CONTAINS
                   END DO
 
                END DO
-!deb
             END SELECT
          END IF
 
