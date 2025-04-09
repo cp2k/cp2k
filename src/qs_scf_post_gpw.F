@@ -1817,7 +1817,7 @@ CONTAINS
          IF (output_unit > 0) WRITE (UNIT=output_unit, FMT='(/,(T3,A,T61,F20.10))') &
             "Integrated spin density: ", total_spin_dens
          total_abs_spin_dens = pw_integrate_function(wf_r, oprt="ABS")
-         IF (output_unit > 0) WRITE (UNIT=output_unit, FMT='(/,(T3,A,T61,F20.10))') &
+         IF (output_unit > 0) WRITE (UNIT=output_unit, FMT='((T3,A,T61,F20.10))') &
             "Integrated absolute spin density: ", total_abs_spin_dens
          CALL auxbas_pw_pool%give_back_pw(wf_r)
          !
