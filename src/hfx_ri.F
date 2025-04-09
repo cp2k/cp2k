@@ -3632,8 +3632,8 @@ CONTAINS
       CHARACTER(Len=8)                                   :: rifmt
       INTEGER                                            :: atype, i_RI, ia, ib, ibasis, ikind, &
                                                             iset, isgf, ishell, iso, l, m, natom, &
-                                                            nkind, nset, nsgf, nspins, unit_nr, &
-                                                            ncols, nrows
+                                                            ncols, nkind, nrows, nset, nsgf, &
+                                                            nspins, unit_nr
       INTEGER, DIMENSION(3)                              :: periodic
       INTEGER, DIMENSION(:), POINTER                     :: npgf, nshell
       INTEGER, DIMENSION(:, :), POINTER                  :: lshell
