@@ -1668,7 +1668,7 @@ CONTAINS
       INTEGER                                            :: handle, homo, ispin, nmo, output_unit
       LOGICAL                                            :: all_equal, do_kpoints, explicit
       REAL(KIND=dp)                                      :: maxocc, s_square, s_square_ideal, &
-                                                            total_abs_spin_dens
+                                                            total_abs_spin_dens, total_spin_dens
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues, occupation_numbers
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -1813,9 +1813,12 @@ CONTAINS
          CALL auxbas_pw_pool%create_pw(wf_r)
          CALL pw_copy(rho_r(1), wf_r)
          CALL pw_axpy(rho_r(2), wf_r, alpha=-1._dp)
+         total_spin_dens = pw_integrate_function(wf_r)
+         IF (output_unit > 0) WRITE (UNIT=output_unit, FMT='(/,(T3,A,T61,F20.10))') &
+            "Integrated spin density: ", total_spin_dens
          total_abs_spin_dens = pw_integrate_function(wf_r, oprt="ABS")
          IF (output_unit > 0) WRITE (UNIT=output_unit, FMT='(/,(T3,A,T61,F20.10))') &
-            "Integrated absolute spin density  : ", total_abs_spin_dens
+            "Integrated absolute spin density: ", total_abs_spin_dens
          CALL auxbas_pw_pool%give_back_pw(wf_r)
          !
          ! XXX Fix Me XXX
