@@ -215,8 +215,10 @@ set(CP2K_SCALAPACK_VENDOR
 set_property(CACHE CP2K_SCALAPACK_VENDOR PROPERTY STRINGS
                                                   ${CP2K_SCALAPACK_VENDOR_LIST})
 
-if(NOT ${CP2K_SCALAPACK_VENDOR} IN_LIST CP2K_SCALAPACK_VENDOR_LIST)
-  message(FATAL_ERROR "Invalid scalapack vendor backend")
+if(DEFINED CP2K_SCALAPACK_VENDOR)
+  if(NOT ${CP2K_SCALAPACK_VENDOR} IN_LIST CP2K_SCALAPACK_VENDOR_LIST)
+    message(FATAL_ERROR "An invalid ScaLAPACK vendor backend was specified")
+  endif()
 endif()
 
 set(CP2K_DATA_DIR
