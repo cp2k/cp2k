@@ -23,6 +23,7 @@
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
 MODULE cp_output_handling_openpmd
+   USE cp_output_handling, only: cp_print_key_should_output, cp_p_file
    USE cp_files, ONLY: close_file, &
                        open_file
    USE cp_iter_types, ONLY: cp_iteration_info_release, &
@@ -70,88 +71,9 @@ MODULE cp_output_handling_openpmd
 
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_output_handling_openpmd'
-   PUBLIC :: cp_print_key_should_output, cp_iterate, cp_get_iter_level_by_name, cp_get_iter_nr, cp_add_iter_level, cp_rm_iter_level
-   PUBLIC :: cp_iter_string, cp_print_key_section_create
    PUBLIC :: cp_openpmd_print_key_unit_nr, cp_openpmd_print_key_finished_output
-   PUBLIC :: cp_print_key_generate_filename, cp_printkey_is_on
    PUBLIC :: cp_openpmd_get_value_unit_nr, cp_openpmd_per_call_value_type
    PUBLIC :: cp_openpmd_output_finalize
-
-   INTEGER, PARAMETER, PUBLIC               :: add_last_no = 0, &
-                                               add_last_numeric = 1, &
-                                               add_last_symbolic = 2
-   INTEGER, PARAMETER, PUBLIC               :: silent_print_level = 0, &
-                                               low_print_level = 1, &
-                                               medium_print_level = 2, &
-                                               high_print_level = 3, &
-                                               debug_print_level = 4
-
-!! flags controlling the printing and storing of a property.
-!!
-!! cp_out_none: do not calculate the property
-!! cp_out_file_if  : if the printkey says it calculate and output the property
-!! cp_out_store_if : if the printkey says it calculate and store in memory
-!!                   the property
-!! cp_out_file_each: calculate and output the property with the same periodicity
-!!                   as said in the printkey (irrespective of the activation of
-!!                   the printkey)
-!! cp_out_store_each: calculate and store the property with the same periodicity
-!!                   as said in the printkey (irrespective of the activation of
-!!                   the printkey)
-!! cp_out_file: always calculate and output the property
-!! cp_out_store: always calculate and store in memory the property
-!! cp_out_calc: just calculate the value (independently from the fact that there
-!!              should be output)
-!! cp_out_default: the default value for property flags (cp_out_file_if)
-!!
-!! this flags can be ior-ed together:
-!! ior(cp_out_file_if,cp_out_store_if): if the printkey says it both print
-!!                                          and store the property
-!!
-!! there is no guarantee that a property is not stored if it is not necessary
-!! not all printkeys have a control flag
-   INTEGER, PUBLIC, PARAMETER :: cp_p_file_if = 3, cp_p_store_if = 4, &
-                                 cp_p_store = 2, cp_p_file = 1, cp_p_file_each = 5, cp_p_store_each = 6, cp_p_calc = 7
-   INTEGER, PUBLIC, PARAMETER :: cp_out_none = 0, cp_out_file_if = IBSET(0, cp_p_file_if), &
-                                 cp_out_store_if = IBSET(0, cp_p_store_if), cp_out_file = IBSET(0, cp_p_file), &
-                                 cp_out_store = IBSET(0, cp_p_store), cp_out_calc = IBSET(0, cp_p_calc), &
-                                 cp_out_file_each = IBSET(0, cp_p_file_each), &
-                                 cp_out_store_each = IBSET(0, cp_p_store_each), &
-                                 cp_out_default = cp_out_file_if
-
-
-! **************************************************************************************************
-!> \brief stores the flags_env controlling the output of properties
-!> \param ref_count reference count (see doc/ReferenceCounting.html)
-!> \param n_flags number of flags stored in this type
-!> \param names names of the stored flags
-!> \param control_val value of the flag
-!> \param input the input (with all the printkeys)
-!> \param logger logger and iteration information (to know if output is needed)
-!> \param strict if flags that were not stored can be read
-!> \param default_val default value of the flags that are not explicitly
-!>        stored
-!> \note
-!>      Two features of this object should be:
-!>        1) easy state storage, one should be able to store the state of the
-!>           flags, to some changes to them just for one (or few) force evaluations
-!>           and then reset the original state. The actual implementation is good
-!>           in this respect
-!>        2) work well with subsections. This is a problem at the moment, as
-!>           if you pass just a subsection of the input the control flags get lost.
-!>        A better implementation should be done storing the flags also in the
-!>        input itself to be transparent
-!> \author fawzi
-! **************************************************************************************************
-   TYPE cp_out_flags_type
-      INTEGER :: ref_count = 0, n_flags = 0
-      CHARACTER(default_string_length), DIMENSION(:), POINTER :: names => NULL()
-      INTEGER, DIMENSION(:), POINTER :: control_val => NULL()
-      TYPE(section_vals_type), POINTER :: input => NULL()
-      TYPE(cp_logger_type), POINTER :: logger => NULL()
-      LOGICAL :: strict = .FALSE.
-      INTEGER :: default_val = 0
-   END TYPE cp_out_flags_type
 
    TYPE :: cp_openpmd_per_call_value_type
       TYPE(openpmd_series_type) :: series
@@ -328,677 +250,6 @@ CONTAINS
    #:endfor
 
 ! **************************************************************************************************
-!> \brief creates a print_key section
-!> \param print_key_section the print key to create
-!> \param location from where in the source code cp_print_key_section_create() is called
-!> \param name the name of the print key
-!> \param description the description of the print key
-!> \param print_level print level starting at which the printing takes place
-!>        (defaults to debug_print_level)
-!> \param each_iter_names ...
-!> \param each_iter_values ...
-!> \param add_last ...
-!> \param filename ...
-!> \param common_iter_levels ...
-!> \param citations ...
-!> \param unit_str specifies an unit of measure for output quantity. If not
-!>        provided the control is totally left to how the output was coded
-!>        (i.e. USERS have no possibility to change it)
-!> \author fawzi
-! **************************************************************************************************
-   SUBROUTINE cp_print_key_section_create(print_key_section, location, name, description, &
-                                          print_level, each_iter_names, each_iter_values, add_last, filename, &
-                                          common_iter_levels, citations, unit_str)
-      TYPE(section_type), POINTER                        :: print_key_section
-      CHARACTER(len=*), INTENT(IN)                       :: location, name, description
-      INTEGER, INTENT(IN), OPTIONAL                      :: print_level
-      CHARACTER(LEN=*), DIMENSION(:), INTENT(IN), &
-         OPTIONAL                                        :: each_iter_names
-      INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: each_iter_values
-      INTEGER, INTENT(IN), OPTIONAL                      :: add_last
-      CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: filename
-      INTEGER, INTENT(IN), OPTIONAL                      :: common_iter_levels
-      INTEGER, DIMENSION(:), OPTIONAL                    :: citations
-      CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: unit_str
-
-      CHARACTER(len=default_path_length)                 :: my_filename
-      INTEGER                                            :: i_each, i_iter, my_add_last, &
-                                                            my_comm_iter_levels, my_print_level, &
-                                                            my_value
-      LOGICAL                                            :: check, ext_each
-      TYPE(keyword_type), POINTER                        :: keyword
-      TYPE(section_type), POINTER                        :: subsection
-
-      CPASSERT(.NOT. ASSOCIATED(print_key_section))
-      my_print_level = debug_print_level
-      IF (PRESENT(print_level)) my_print_level = print_level
-
-      CALL section_create(print_key_section, location=location, name=name, description=description, &
-                          n_keywords=2, n_subsections=0, repeats=.FALSE., &
-                          citations=citations)
-
-      NULLIFY (keyword, subsection)
-      CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
-                          description="Level starting at which this property is printed", &
-                          usage="silent", &
-                          default_i_val=my_print_level, lone_keyword_i_val=silent_print_level, &
-                          enum_c_vals=s2a("on", "off", "silent", "low", "medium", "high", "debug"), &
-                          enum_i_vals=(/silent_print_level - 1, debug_print_level + 1, &
-                                        silent_print_level, low_print_level, &
-                                        medium_print_level, high_print_level, debug_print_level/))
-      CALL section_add_keyword(print_key_section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="__CONTROL_VAL", &
-                          description=' hidden parameter that controls storage, printing,...'// &
-                          ' of the print_key', &
-                          default_i_val=cp_out_default)
-      CALL section_add_keyword(print_key_section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL section_create(subsection, __LOCATION__, name="EACH", &
-                          description="This section specifies how often this property is printed. "// &
-                          "Each keyword inside this section is mapping to a specific iteration level and "// &
-                          "the value of each of these keywords is matched with the iteration level during "// &
-                          "the calculation. How to handle the last iteration is treated "// &
-                          "separately in ADD_LAST (this mean that each iteration level (MD, GEO_OPT, etc..), "// &
-                          "though equal to 0, might print the last iteration). If an iteration level is specified "// &
-                          "that is not present in the flow of the calculation it is just ignored.", &
-                          n_keywords=2, n_subsections=0, repeats=.FALSE., &
-                          citations=citations)
-
-      ! Enforce the presence or absence of both.. or give an error
-      check = (PRESENT(each_iter_names)) .EQV. (PRESENT(each_iter_values))
-      CPASSERT(check)
-      ext_each = (PRESENT(each_iter_names)) .AND. (PRESENT(each_iter_values))
-
-      DO i_each = 1, SIZE(each_possible_labels)
-         my_value = 1
-         IF (ext_each) THEN
-            check = SUM(INDEX(each_iter_names, each_possible_labels(i_each))) <= 1
-            CPASSERT(check)
-            DO i_iter = 1, SIZE(each_iter_names)
-               IF (INDEX(TRIM(each_iter_names(i_iter)), TRIM(each_possible_labels(i_each))) /= 0) THEN
-                  my_value = each_iter_values(i_iter)
-               END IF
-            END DO
-         END IF
-         CALL keyword_create(keyword, __LOCATION__, name=TRIM(each_possible_labels(i_each)), &
-                             description=TRIM(each_desc_labels(i_each)), &
-                             usage=TRIM(each_possible_labels(i_each))//" <INTEGER>", &
-                             default_i_val=my_value)
-         CALL section_add_keyword(subsection, keyword)
-         CALL keyword_release(keyword)
-      END DO
-      CALL section_add_subsection(print_key_section, subsection)
-      CALL section_release(subsection)
-
-      my_add_last = add_last_no
-      IF (PRESENT(add_last)) THEN
-         my_add_last = add_last
-      END IF
-      CALL keyword_create(keyword, __LOCATION__, name="ADD_LAST", &
-                          description="If the last iteration should be added, and if it "// &
-                          "should be marked symbolically (with lowercase letter l) or with "// &
-                          "the iteration number. "// &
-                          "Not every iteration level is able to identify the last iteration "// &
-                          "early enough to be able to output. When this keyword is activated "// &
-                          "all iteration levels are checked for the last iteration step.", &
-                          usage="ADD_LAST (NO|NUMERIC|SYMBOLIC)", &
-                          enum_c_vals=s2a("no", "numeric", "symbolic"), &
-                          enum_i_vals=(/add_last_no, add_last_numeric, add_last_symbolic/), &
-                          enum_desc=s2a("Do not mark last iteration specifically", &
-                                        "Mark last iteration with its iteration number", &
-                                        "Mark last iteration with lowercase letter l"), &
-                          default_i_val=my_add_last)
-      CALL section_add_keyword(print_key_section, keyword)
-      CALL keyword_release(keyword)
-
-      my_comm_iter_levels = 0
-      IF (PRESENT(common_iter_levels)) my_comm_iter_levels = common_iter_levels
-      CALL keyword_create(keyword, __LOCATION__, name="COMMON_ITERATION_LEVELS", &
-                          description="How many iterations levels should be written"// &
-                          " in the same file (no extra information about the actual"// &
-                          " iteration level is written to the file)", &
-                          usage="COMMON_ITERATION_LEVELS <INTEGER>", &
-                          default_i_val=my_comm_iter_levels)
-      CALL section_add_keyword(print_key_section, keyword)
-      CALL keyword_release(keyword)
-
-      my_filename = ""
-      IF (PRESENT(filename)) my_filename = filename
-      CALL keyword_create(keyword, __LOCATION__, name="FILENAME", &
-                          description=' controls part of the filename for output. '// &
-                          ' use __STD_OUT__ (exactly as written here) for the screen or standard logger. '// &
-                          ' use filename to obtain projectname-filename. '// &
-                          ' use ./filename to get filename.'// &
-                          ' A middle name (if present), iteration numbers'// &
-                          ' and extension are always added to the filename.'// &
-                          ' if you want to avoid it use =filename, in this'// &
-                          ' case the filename is always exactly as typed.'// &
-                          ' Please note that this can lead to clashes of'// &
-                          ' filenames.', &
-                          usage="FILENAME ./filename ", &
-                          default_lc_val=my_filename)
-      CALL section_add_keyword(print_key_section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="LOG_PRINT_KEY", &
-                          description="This keywords enables the logger for the print_key (a message is printed on "// &
-                          "screen everytime data, controlled by this print_key, are written)", &
-                          usage="LOG_PRINT_KEY <LOGICAL>", default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(print_key_section, keyword)
-      CALL keyword_release(keyword)
-
-      IF (PRESENT(unit_str)) THEN
-         CALL keyword_create(keyword, __LOCATION__, name="UNIT", &
-                             description='Specify the unit of measurement for the quantity in output. '// &
-                             "All available CP2K units can be used.", &
-                             usage="UNIT angstrom", default_c_val=TRIM(unit_str))
-         CALL section_add_keyword(print_key_section, keyword)
-         CALL keyword_release(keyword)
-      END IF
-   END SUBROUTINE cp_print_key_section_create
-
-! **************************************************************************************************
-!> \brief returns what should be done with the given property
-!>      if btest(res,cp_p_store) then the property should be stored in memory
-!>      if btest(res,cp_p_file) then the property should be print ed to a file
-!>      if res==0 then nothing should be done
-!> \param iteration_info information about the actual iteration level
-!> \param basis_section section that contains the printkey
-!> \param print_key_path path to the printkey- "%" between sections, and
-!>        optionally a "/" and a logical flag to check). Might be empty.
-!> \param used_print_key here the print_key that was used is returned
-!> \param first_time if it ist the first time that an output is written
-!>        (not fully correct, but most of the time)
-!> \return ...
-!> \author fawzi
-!> \note
-!>      not all the propreties support can be stored
-! **************************************************************************************************
-   FUNCTION cp_print_key_should_output(iteration_info, basis_section, &
-                                       print_key_path, used_print_key, first_time) &
-      RESULT(res)
-      TYPE(cp_iteration_info_type), INTENT(IN)           :: iteration_info
-      TYPE(section_vals_type), INTENT(IN), TARGET        :: basis_section
-      CHARACTER(len=*), INTENT(IN), OPTIONAL             :: print_key_path
-      TYPE(section_vals_type), INTENT(INOUT), OPTIONAL, &
-         POINTER                                         :: used_print_key
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: first_time
-      INTEGER                                            :: res
-
-      INTEGER                                            :: end_str, my_control_val, to_path
-      LOGICAL                                            :: flags, is_iter, is_on
-      TYPE(section_vals_type), POINTER                   :: print_key
-
-      res = 0
-      IF (PRESENT(first_time)) first_time = .FALSE.
-      CPASSERT(basis_section%ref_count > 0)
-      IF (PRESENT(used_print_key)) NULLIFY (used_print_key)
-
-      IF (PRESENT(print_key_path)) THEN
-         end_str = LEN_TRIM(print_key_path)
-         to_path = INDEX(print_key_path, "/")
-         IF (to_path < 1) THEN
-            to_path = end_str + 1
-         END IF
-
-         IF (to_path > 1) THEN
-            print_key => section_vals_get_subs_vals(basis_section, &
-                                                    print_key_path(1:(to_path - 1)))
-         ELSE
-            print_key => basis_section
-         END IF
-         CPASSERT(ASSOCIATED(print_key))
-         CPASSERT(print_key%ref_count > 0)
-         IF (to_path + 1 < end_str) THEN
-            CALL section_vals_val_get(print_key, print_key_path((to_path + 1):end_str), &
-                                      l_val=flags)
-         ELSE
-            flags = .TRUE.
-         END IF
-      ELSE
-         print_key => basis_section
-         flags = .TRUE.
-      END IF
-      IF (PRESENT(used_print_key)) used_print_key => print_key
-
-      IF (.NOT. flags) RETURN
-
-      CALL section_vals_val_get(print_key, "__CONTROL_VAL", &
-                                i_val=my_control_val)
-      is_on = cp_printkey_is_on(iteration_info, print_key)
-
-      ! a shortcut for most common case
-      IF (my_control_val == cp_out_default .AND. .NOT. is_on) RETURN
-
-      is_iter = cp_printkey_is_iter(iteration_info, print_key, first_time=first_time)
-
-      IF (BTEST(my_control_val, cp_p_store)) THEN
-         res = IBSET(res, cp_p_store)
-      ELSE IF (BTEST(my_control_val, cp_p_store_if) .AND. is_iter .AND. is_on) THEN
-         res = IBSET(res, cp_p_store)
-      ELSE IF (BTEST(my_control_val, cp_p_store_each) .AND. is_iter) THEN
-         res = IBSET(res, cp_p_store)
-      END IF
-
-      IF (BTEST(my_control_val, cp_p_file)) THEN
-         res = IBSET(res, cp_p_file)
-      ELSE IF (BTEST(my_control_val, cp_p_file_if) .AND. is_iter .AND. is_on) THEN
-         res = IBSET(res, cp_p_file)
-      ELSE IF (BTEST(my_control_val, cp_p_file_each) .AND. is_iter) THEN
-         res = IBSET(res, cp_p_file)
-      END IF
-      IF (BTEST(my_control_val, cp_p_calc) .OR. res /= 0) THEN
-         res = IBSET(res, cp_p_calc)
-      END IF
-   END FUNCTION cp_print_key_should_output
-
-! **************************************************************************************************
-!> \brief returns true if the printlevel activates this printkey
-!>      does not look if this iteration it should be printed
-!> \param iteration_info information about the actual iteration level
-!> \param print_key the section values of the key to be printed
-!> \return ...
-!> \author fawzi
-! **************************************************************************************************
-   FUNCTION cp_printkey_is_on(iteration_info, print_key) RESULT(res)
-      TYPE(cp_iteration_info_type), INTENT(IN)           :: iteration_info
-      TYPE(section_vals_type), POINTER                   :: print_key
-      LOGICAL                                            :: res
-
-      INTEGER                                            :: print_level
-
-      CPASSERT(iteration_info%ref_count > 0)
-      IF (.NOT. ASSOCIATED(print_key)) THEN
-         res = (iteration_info%print_level > debug_print_level)
-      ELSE
-         CPASSERT(print_key%ref_count > 0)
-         CALL section_vals_val_get(print_key, "_SECTION_PARAMETERS_", i_val=print_level)
-         res = iteration_info%print_level >= print_level
-      END IF
-   END FUNCTION cp_printkey_is_on
-
-! **************************************************************************************************
-!> \brief returns if the actual iteration matches those selected by the
-!>      given printkey. Does not check it the prinkey is active (at the
-!>      actual print_level)
-!> \param iteration_info information about the actual iteration level
-!> \param print_key the section values of the key to be printed
-!> \param first_time returns if it is the first time that output is written
-!>        (not fully correct, but most of the time)
-!> \return ...
-!> \author fawzi
-! **************************************************************************************************
-   FUNCTION cp_printkey_is_iter(iteration_info, print_key, first_time) &
-      RESULT(res)
-      TYPE(cp_iteration_info_type), INTENT(IN)           :: iteration_info
-      TYPE(section_vals_type), POINTER                   :: print_key
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: first_time
-      LOGICAL                                            :: res
-
-      INTEGER                                            :: add_last, ilevel, iter_nr, ival
-      LOGICAL                                            :: first, level_passed
-
-      CPASSERT(iteration_info%ref_count > 0)
-      IF (.NOT. ASSOCIATED(print_key)) THEN
-         res = (iteration_info%print_level > debug_print_level)
-         first = ALL(iteration_info%iteration(1:iteration_info%n_rlevel) == 1)
-      ELSE
-         CPASSERT(print_key%ref_count > 0)
-         res = .FALSE.
-         first = .FALSE.
-         CALL section_vals_val_get(print_key, "ADD_LAST", i_val=add_last)
-         res = .TRUE.
-         first = .TRUE.
-         DO ilevel = 1, iteration_info%n_rlevel
-            level_passed = .FALSE.
-            CALL section_vals_val_get(print_key, "EACH%"//TRIM(iteration_info%level_name(ilevel)), &
-                                      i_val=ival)
-            IF (ival > 0) THEN
-               iter_nr = iteration_info%iteration(ilevel)
-               IF (iter_nr/ival > 1) first = .FALSE.
-               IF (MODULO(iter_nr, ival) == 0) THEN
-                  level_passed = .TRUE.
-               END IF
-            END IF
-            IF (add_last == add_last_numeric .OR. add_last == add_last_symbolic) THEN
-               IF (iteration_info%last_iter(ilevel)) THEN
-                  level_passed = .TRUE.
-               END IF
-            END IF
-            IF (.NOT. level_passed) res = .FALSE.
-         END DO
-      END IF
-      first = first .AND. res
-      IF (PRESENT(first_time)) first_time = first
-   END FUNCTION cp_printkey_is_iter
-
-! **************************************************************************************************
-!> \brief returns the iteration string, a string that is useful to create
-!>      unique filenames (once you trim it)
-!> \param iter_info the iteration info from where to take the iteration
-!>        number
-!> \param print_key the print key to optionally show the last iteration
-!>        symbolically
-!> \param for_file if the string is to be used for file generation
-!>        (and should consequently ignore some iteration levels depending
-!>        on COMMON_ITERATION_LEVELS).
-!>        Defaults to false.
-!> \return ...
-!> \author fawzi
-!> \note
-!>      If the root level is 1 removes it
-! **************************************************************************************************
-   FUNCTION cp_iter_string(iter_info, print_key, for_file) RESULT(res)
-      TYPE(cp_iteration_info_type), POINTER              :: iter_info
-      TYPE(section_vals_type), OPTIONAL, POINTER         :: print_key
-      LOGICAL, INTENT(IN), OPTIONAL                      :: for_file
-      CHARACTER(len=default_string_length)               :: res
-
-      INTEGER                                            :: add_last, c_i_level, ilevel, n_rlevel, &
-                                                            s_level
-      LOGICAL                                            :: my_for_file
-      TYPE(section_vals_type), POINTER                   :: my_print_key
-
-      res = ""
-      my_for_file = .FALSE.
-      IF (PRESENT(for_file)) my_for_file = for_file
-      CPASSERT(ASSOCIATED(iter_info))
-      CPASSERT(iter_info%ref_count > 0)
-      NULLIFY (my_print_key)
-      IF (PRESENT(print_key)) my_print_key => print_key
-      s_level = 1
-      IF (ASSOCIATED(my_print_key)) THEN
-         CALL section_vals_val_get(my_print_key, "ADD_LAST", i_val=add_last)
-         CALL section_vals_val_get(my_print_key, "COMMON_ITERATION_LEVELS", i_val=c_i_level)
-         n_rlevel = iter_info%n_rlevel
-         IF (my_for_file) n_rlevel = MIN(n_rlevel, MAX(0, n_rlevel - c_i_level))
-         DO ilevel = s_level, n_rlevel
-            IF (iter_info%last_iter(ilevel)) THEN
-               IF (add_last == add_last_symbolic) THEN
-                  WRITE (res(9*ilevel - 8:9*ilevel), "('l_')")
-               ELSE
-                  WRITE (res(9*ilevel - 8:9*ilevel), "(i8,'_')") iter_info%iteration(ilevel)
-               END IF
-            ELSE
-               WRITE (res(9*ilevel - 8:9*ilevel), "(i8,'_')") iter_info%iteration(ilevel)
-            END IF
-         END DO
-      ELSE
-         DO ilevel = s_level, iter_info%n_rlevel
-            WRITE (res(9*ilevel - 8:9*ilevel), "(i8,'_')") iter_info%iteration(ilevel)
-         END DO
-      END IF
-      CALL compress(res, .TRUE.)
-      IF (LEN_TRIM(res) > 0) THEN
-         res(LEN_TRIM(res):LEN_TRIM(res)) = " "
-      END IF
-   END FUNCTION cp_iter_string
-
-! **************************************************************************************************
-!> \brief adds one to the actual iteration
-!> \param iteration_info the iteration info to update
-!> \param last if this iteration is the last one (defaults to false)
-!> \param iter_nr ...
-!> \param increment ...
-!> \param iter_nr_out ...
-!> \author fawzi
-!> \note
-!>      this is supposed to be called at the beginning of each iteration
-! **************************************************************************************************
-   SUBROUTINE cp_iterate(iteration_info, last, iter_nr, increment, iter_nr_out)
-      TYPE(cp_iteration_info_type), POINTER              :: iteration_info
-      LOGICAL, INTENT(IN), OPTIONAL                      :: last
-      INTEGER, INTENT(IN), OPTIONAL                      :: iter_nr, increment
-      INTEGER, INTENT(OUT), OPTIONAL                     :: iter_nr_out
-
-      INTEGER                                            :: my_increment
-      LOGICAL                                            :: my_last
-
-      my_last = .FALSE.
-      my_increment = 1
-      IF (PRESENT(last)) my_last = last
-      IF (PRESENT(increment)) my_increment = increment
-      IF (PRESENT(iter_nr_out)) iter_nr_out = -1
-
-      CPASSERT(ASSOCIATED(iteration_info))
-      CPASSERT(iteration_info%ref_count > 0)
-      IF (PRESENT(iter_nr)) THEN
-         iteration_info%iteration(iteration_info%n_rlevel) = iter_nr
-      ELSE
-         iteration_info%iteration(iteration_info%n_rlevel) = &
-            iteration_info%iteration(iteration_info%n_rlevel) + my_increment
-      END IF
-      ! If requested provide the value of the iteration level
-      IF (PRESENT(iter_nr_out)) iter_nr_out = iteration_info%iteration(iteration_info%n_rlevel)
-
-      ! Possibly setup the LAST flag
-      iteration_info%last_iter(iteration_info%n_rlevel) = my_last
-   END SUBROUTINE cp_iterate
-
-! **************************************************************************************************
-!> \brief Return the index of an iteration level by its name.
-!> \param iteration_info the iteration info to query
-!> \param level_name     level name to query.
-!> \return iteration level index or 0 if there is no such level
-!> \author Sergey Chulkov
-! **************************************************************************************************
-   FUNCTION cp_get_iter_level_by_name(iteration_info, level_name) RESULT(rlevel)
-      TYPE(cp_iteration_info_type), INTENT(IN), POINTER  :: iteration_info
-      CHARACTER(LEN=*), INTENT(IN)                       :: level_name
-      INTEGER                                            :: rlevel
-
-      CPASSERT(ASSOCIATED(iteration_info))
-      CPASSERT(iteration_info%ref_count > 0)
-      DO rlevel = iteration_info%n_rlevel, 1, -1
-         IF (iteration_info%level_name(rlevel) == level_name) EXIT
-      END DO
-
-   END FUNCTION cp_get_iter_level_by_name
-
-! **************************************************************************************************
-!> \brief Return the current iteration number at a given level.
-!> \param iteration_info the iteration info to query
-!> \param rlevel         index of the iteration level. Use the level on top of the stack,
-!>                       if it is not given
-!> \param iter_nr        iteration number [out]
-!> \param last_iter      last iteration flag [out]
-!> \author Sergey Chulkov
-! **************************************************************************************************
-   SUBROUTINE cp_get_iter_nr(iteration_info, rlevel, iter_nr, last_iter)
-      TYPE(cp_iteration_info_type), INTENT(IN), POINTER  :: iteration_info
-      INTEGER, INTENT(IN), OPTIONAL                      :: rlevel
-      INTEGER, INTENT(OUT), OPTIONAL                     :: iter_nr
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: last_iter
-
-      INTEGER                                            :: ilevel
-
-      CPASSERT(ASSOCIATED(iteration_info))
-      CPASSERT(iteration_info%ref_count > 0)
-      IF (PRESENT(rlevel)) THEN
-         CPASSERT(rlevel > 0 .AND. rlevel <= iteration_info%n_rlevel)
-         ilevel = rlevel
-      ELSE
-         ilevel = iteration_info%n_rlevel
-      END IF
-
-      IF (PRESENT(iter_nr)) iter_nr = iteration_info%iteration(ilevel)
-      IF (PRESENT(last_iter)) last_iter = iteration_info%last_iter(ilevel)
-   END SUBROUTINE cp_get_iter_nr
-
-! **************************************************************************************************
-!> \brief Adds an iteration level
-!> \param iteration_info the iteration info to which an iteration level has
-!>        to be added
-!> \param level_name the name of this level, for pretty printing only, right now
-!> \param n_rlevel_new number of iteration levels after this call
-!> \author fawzi
-! **************************************************************************************************
-   SUBROUTINE cp_add_iter_level(iteration_info, level_name, n_rlevel_new)
-      TYPE(cp_iteration_info_type), POINTER              :: iteration_info
-      CHARACTER(LEN=*), INTENT(IN)                       :: level_name
-      INTEGER, INTENT(OUT), OPTIONAL                     :: n_rlevel_new
-
-      INTEGER                                            :: i
-      LOGICAL                                            :: found
-
-      CPASSERT(ASSOCIATED(iteration_info))
-      CPASSERT(iteration_info%ref_count > 0)
-      found = .FALSE.
-      DO i = 1, SIZE(each_possible_labels)
-         IF (TRIM(level_name) == TRIM(each_possible_labels(i))) THEN
-            found = .TRUE.
-            EXIT
-         END IF
-      END DO
-      IF (found) THEN
-         CALL cp_iteration_info_retain(iteration_info)
-         iteration_info%n_rlevel = iteration_info%n_rlevel + 1
-         CALL reallocate(iteration_info%iteration, 1, iteration_info%n_rlevel)
-         CALL reallocate(iteration_info%level_name, 1, iteration_info%n_rlevel)
-         CALL reallocate(iteration_info%last_iter, 1, iteration_info%n_rlevel)
-         iteration_info%iteration(iteration_info%n_rlevel) = 0
-         iteration_info%level_name(iteration_info%n_rlevel) = level_name
-         iteration_info%last_iter(iteration_info%n_rlevel) = .FALSE.
-         IF (PRESENT(n_rlevel_new)) n_rlevel_new = iteration_info%n_rlevel
-      ELSE
-         CALL cp_abort(__LOCATION__, &
-                       "Trying to create an iteration level ("//TRIM(level_name)//") not defined. "// &
-                       "Please update the module: cp_iter_types.")
-      END IF
-
-   END SUBROUTINE cp_add_iter_level
-
-! **************************************************************************************************
-!> \brief Removes an iteration level
-!> \param iteration_info the iteration info to which an iteration level has
-!>        to be removed
-!> \param level_name level_name to be destroyed (if does not match gives an error)
-!> \param n_rlevel_att iteration level before the call (to do some checks)
-!> \author fawzi
-! **************************************************************************************************
-   SUBROUTINE cp_rm_iter_level(iteration_info, level_name, n_rlevel_att)
-      TYPE(cp_iteration_info_type), POINTER              :: iteration_info
-      CHARACTER(LEN=*), INTENT(IN)                       :: level_name
-      INTEGER, INTENT(IN), OPTIONAL                      :: n_rlevel_att
-
-      LOGICAL                                            :: check
-
-      CPASSERT(ASSOCIATED(iteration_info))
-      CPASSERT(iteration_info%ref_count > 0)
-      IF (PRESENT(n_rlevel_att)) THEN
-         CPASSERT(n_rlevel_att == iteration_info%n_rlevel)
-      END IF
-      CALL cp_iteration_info_release(iteration_info)
-      ! This check that the iteration levels are consistently created and destroyed..
-      ! Never remove this check..
-      check = iteration_info%level_name(iteration_info%n_rlevel) == level_name
-      CPASSERT(check)
-      iteration_info%n_rlevel = iteration_info%n_rlevel - 1
-      CALL reallocate(iteration_info%iteration, 1, iteration_info%n_rlevel)
-      CALL reallocate(iteration_info%level_name, 1, iteration_info%n_rlevel)
-      CALL reallocate(iteration_info%last_iter, 1, iteration_info%n_rlevel)
-   END SUBROUTINE cp_rm_iter_level
-
-! **************************************************************************************************
-!> \brief Utility function that returns a unit number to write the print key.
-!>     Might open a file with a unique filename, generated from
-!>     the print_key name and iteration info.
-!>
-!>     Normally a valid unit (>0) is returned only if cp_print_key_should_output
-!>     says that the print_key should be printed, and if the unit is global
-!>     only the io node has a valid unit.
-!>     So in many cases you can decide if you should print just checking if
-!>     the returned units is bigger than 0.
-!>
-!>     IMPORTANT you should call cp_finished_output when an iteration output is
-!>     finished (to immediately close the file that might have been opened)
-!> \param logger the logger for the parallel environment, iteration info
-!>        and filename generation
-!> \param print_key ...
-!> \param middle_name name to be added to the generated filename, useful when
-!>        print_key activates different distinct outputs, to be able to
-!>        distinguish them
-!> \param extension extension to be applied to the filename (including the ".")
-!> \param my_local if the unit should be local to this task, or global to the
-!>        program (defaults to false).
-!> \return ...
-!> \author Fawzi Mohamed
-! **************************************************************************************************
-   FUNCTION cp_print_key_generate_filename(logger, print_key, middle_name, extension, &
-                                           my_local) RESULT(filename)
-      TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(section_vals_type), POINTER                   :: print_key
-      CHARACTER(len=*), INTENT(IN), OPTIONAL             :: middle_name
-      CHARACTER(len=*), INTENT(IN)                       :: extension
-      LOGICAL, INTENT(IN)                                :: my_local
-      CHARACTER(len=default_path_length)                 :: filename
-
-      CHARACTER(len=default_path_length)                 :: outPath, postfix, root
-      CHARACTER(len=default_string_length)               :: my_middle_name, outName
-      INTEGER                                            :: my_ind1, my_ind2
-      LOGICAL                                            :: has_root
-
-      CALL section_vals_val_get(print_key, "FILENAME", c_val=outPath)
-      IF (outPath(1:1) == '=') THEN
-         CPASSERT(LEN(outPath) - 1 <= LEN(filename))
-         filename = outPath(2:)
-         RETURN
-      END IF
-      IF (outPath == "__STD_OUT__") outPath = ""
-      outName = outPath
-      has_root = .FALSE.
-      my_ind1 = INDEX(outPath, "/")
-      my_ind2 = LEN_TRIM(outPath)
-      IF (my_ind1 /= 0) THEN
-         has_root = .TRUE.
-         DO WHILE (INDEX(outPath(my_ind1 + 1:my_ind2), "/") /= 0)
-            my_ind1 = INDEX(outPath(my_ind1 + 1:my_ind2), "/") + my_ind1
-         END DO
-         IF (my_ind1 == my_ind2) THEN
-            outName = ""
-         ELSE
-            outName = outPath(my_ind1 + 1:my_ind2)
-         END IF
-      END IF
-
-      IF (PRESENT(middle_name)) THEN
-         IF (outName /= "") THEN
-            my_middle_name = "-"//TRIM(outName)//"-"//middle_name
-         ELSE
-            my_middle_name = "-"//middle_name
-         END IF
-      ELSE
-         IF (outName /= "") THEN
-            my_middle_name = "-"//TRIM(outName)
-         ELSE
-            my_middle_name = ""
-         END IF
-      END IF
-
-      IF (.NOT. has_root) THEN
-         root = TRIM(logger%iter_info%project_name)//TRIM(my_middle_name)
-      ELSE IF (outName == "") THEN
-         root = outPath(1:my_ind1)//TRIM(logger%iter_info%project_name)//TRIM(my_middle_name)
-      ELSE
-         root = outPath(1:my_ind1)//my_middle_name(2:LEN_TRIM(my_middle_name))
-      END IF
-
-      ! use the cp_iter_string as a postfix
-      postfix = "-"//TRIM(cp_iter_string(logger%iter_info, print_key=print_key, for_file=.TRUE.))
-      IF (TRIM(postfix) == "-") postfix = ""
-
-      ! and add the extension
-      postfix = TRIM(postfix)//extension
-      ! and let the logger generate the filename
-      CALL cp_logger_generate_filename(logger, res=filename, &
-                                       root=root, postfix=postfix, local=my_local)
-
-   END FUNCTION cp_print_key_generate_filename
-
-! **************************************************************************************************
 !> \brief Simplified version of cp_print_key_generate_filename. Since an openPMD Series encompasses
 !         multiple datasets that would be separate outputs in e.g. .cube files, this needs not
 !         consider dataset names for creation of a filename.
@@ -1009,12 +260,10 @@ CONTAINS
 !> \param my_local ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION cp_print_key_generate_openpmd_filename(logger, print_key, openpmd_basename, extension, &
-                                                   my_local) RESULT(filename)
+   FUNCTION cp_print_key_generate_openpmd_filename(logger, print_key, openpmd_basename, extension) RESULT(filename)
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: print_key
       CHARACTER(len=*), INTENT(IN)                       :: openpmd_basename, extension
-      LOGICAL, INTENT(IN)                                :: my_local
       CHARACTER(len=default_path_length)                 :: filename
 
       CHARACTER(len=default_path_length)                 :: outPath, root
@@ -1211,14 +460,14 @@ CONTAINS
 !> \return ...
 ! **************************************************************************************************
    FUNCTION cp_openpmd_print_key_unit_nr(logger, basis_section, print_key_path, &
-                                         middle_name, local, log_filename, ignore_should_output, file_form, file_position, &
+                                         middle_name, log_filename, ignore_should_output, file_form, file_position, &
                                          file_action, file_status, on_file, mpi_io, &
                                          fout, openpmd_basename) RESULT(res)
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), INTENT(IN)                :: basis_section
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: print_key_path
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: middle_name
-      LOGICAL, INTENT(IN), OPTIONAL                      :: local, log_filename, ignore_should_output
+      LOGICAL, INTENT(IN), OPTIONAL                      :: log_filename, ignore_should_output
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: file_form, file_position, file_action, &
                                                             file_status
       LOGICAL, INTENT(IN), OPTIONAL                      :: on_file
@@ -1231,21 +480,19 @@ CONTAINS
       CHARACTER(len=default_path_length)                 :: filename
 
       CHARACTER(len=default_string_length) :: openpmd_config = 'iteration_encoding = "variable_based"', outPath
-      LOGICAL                                            :: do_log, found, my_local, &
+      LOGICAL                                            :: do_log, found, &
                                                             my_mpi_io, my_on_file, &
                                                             my_should_output, &
                                                             replace
       INTEGER                                            :: openpmd_file_index, openpmd_call_index
       TYPE(section_vals_type), POINTER                   :: print_key
 
-      my_local = .FALSE.
       my_mpi_io = .FALSE.
       replace = .FALSE.
       found = .FALSE.
       res = -1
       my_on_file = .FALSE.
       IF (PRESENT(on_file)) my_on_file = on_file
-      IF (PRESENT(local)) my_local = local
       IF (PRESENT(mpi_io)) THEN
 #if defined(__parallel)
          IF (logger%para_env%num_pe > 1 .AND. mpi_io) THEN
@@ -1267,12 +514,10 @@ CONTAINS
                                                           basis_section, print_key_path, used_print_key=print_key), cp_p_file)
       IF (PRESENT(ignore_should_output)) my_should_output = my_should_output .OR. ignore_should_output
       IF (.NOT. my_should_output) RETURN
-      IF (my_local .OR. &
-          logger%para_env%is_source() .OR. &
-          my_mpi_io) THEN
+      IF (logger%para_env%is_source() .OR. my_mpi_io) THEN
 
          CALL section_vals_val_get(print_key, "FILENAME", c_val=outPath)
-            filename = cp_print_key_generate_openpmd_filename(logger, print_key, openpmd_basename, "."//openpmd_get_default_extension(), my_local)
+        filename = cp_print_key_generate_openpmd_filename(logger, print_key, openpmd_basename, "."//openpmd_get_default_extension())
 
          ! Check is we have to log any operation performed on the file..
          do_log = .FALSE.
@@ -1360,6 +605,5 @@ CONTAINS
       CPASSERT(unit_nr == -1)
       unit_nr = -1
    END SUBROUTINE cp_openpmd_print_key_finished_output
-
 
 END MODULE cp_output_handling_openpmd
