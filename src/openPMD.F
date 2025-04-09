@@ -378,7 +378,7 @@ CONTAINS
       END INTERFACE
 
       size_ = SIZE(vec)
-      CALL openpmd_c_attributable_set_attribute_vec_int(attributable%c_ptr, name, C_LOC(vec(1)), size_)
+      CALL openpmd_c_attributable_set_attribute_vec_int(attributable%c_ptr, name//C_NULL_CHAR, C_LOC(vec(1)), size_)
 
    END SUBROUTINE
 
@@ -508,24 +508,23 @@ CONTAINS
       TYPE(C_PTR), ALLOCATABLE, TARGET :: labels_as_c_strings(:)
 
       INTERFACE
-         SUBROUTINE openpmd_c_mesh_set_axis_labels(mesh, labels, len_labels) BIND(C, NAME="openPMD_Mesh_set_axis_labels")
+         SUBROUTINE openpmd_c_mesh_set_axis_labels(mesh, labels, len_labels, invert) BIND(C, NAME="openPMD_Mesh_set_axis_labels")
             IMPORT :: C_CHAR, C_SIZE_T, C_INT, C_PTR
             TYPE(C_PTR), VALUE :: mesh
             TYPE(C_PTR), VALUE :: labels
-            INTEGER(kind=C_INT), VALUE :: len_labels
+            INTEGER(kind=C_INT), VALUE :: len_labels, invert
          END SUBROUTINE
       END INTERFACE
 
       ALLOCATE (labels_as_null_terminated_strings(SIZE(labels)))
       ALLOCATE (labels_as_c_strings(SIZE(labels)))
 
-      ! TODO: should we invert the vector?
       DO i = 1, SIZE(labels)
          labels_as_null_terminated_strings(i) = TRIM(labels(i))//C_NULL_CHAR
          labels_as_c_strings(i) = C_LOC(labels_as_null_terminated_strings(i))
       END DO
 
-      CALL openpmd_c_mesh_set_axis_labels(mesh%c_ptr, C_LOC(labels_as_c_strings(1)), SIZE(labels))
+      CALL openpmd_c_mesh_set_axis_labels(mesh%c_ptr, C_LOC(labels_as_c_strings(1)), SIZE(labels), invert=1)
 
       DEALLOCATE (labels_as_c_strings)
       DEALLOCATE (labels_as_null_terminated_strings)
