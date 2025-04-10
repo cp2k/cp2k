@@ -59,6 +59,7 @@ elif [[ "${PROFILE}" == "spack_all" ]] && [[ "${VERSION}" == "ssmp" ]]; then
     -DCP2K_USE_EVERYTHING=ON \
     -DCP2K_USE_DEEPMD=OFF \
     -DCP2K_USE_GREENX=OFF \
+    -DCP2K_USE_LIBTORCH=OFF \
     -DCP2K_USE_MPI=OFF \
     -Werror=dev \
     .. |& tee ./cmake.log
