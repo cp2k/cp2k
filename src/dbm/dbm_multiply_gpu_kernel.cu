@@ -43,14 +43,6 @@ __device__ static void atomicAddDouble(double *address, double val) {
 }
 
 /*******************************************************************************
- * \brief Returns the larger of two given integer (missing from the C standard)
- * \author Ole Schuett
- ******************************************************************************/
-__device__ constexpr static inline int imax(int x, int y) {
-  return (x > y ? x : y);
-}
-
-/*******************************************************************************
  * \brief Processes a task using tile dimensions give by template parameters.
  * \author Ole Schuett
  ******************************************************************************/
@@ -60,9 +52,10 @@ __device__ static void process_task(const int m, const int n, const int k,
                                     const double *block_b, double *block_c,
                                     double *shared_mem) {
 
-  constexpr int K = NUM_THREADS / imax(M, N);
+  constexpr int MAXEXTENT = (M > N ? M : N);
+  constexpr int K = NUM_THREADS / MAXEXTENT;
 
-  static_assert(K * imax(M, N) == NUM_THREADS, "Wasting threads.");
+  static_assert(K * MAXEXTENT == NUM_THREADS, "Wasting threads.");
   static_assert(M * N <= NUM_THREADS, "Not enough threads to cover tile.");
 
   double *tile_a = shared_mem;
@@ -199,16 +192,18 @@ __global__ static void process_batch_kernel(const double alpha,
  *        All arguments are assumed to be device pointers.
  * \author Ole Schuett
  ******************************************************************************/
-void dbm_multiply_gpu_launch_kernel(
-    const offloadStream_t stream, const int mnk_range[3][2], const double alpha,
-    const int ntasks, const dbm_task_t *batch, const double *pack_a_data,
-    const double *pack_b_data, double *shard_c_data) {
+void dbm_multiply_gpu_launch_kernel(offloadStream_t stream, double alpha,
+                                    int ntasks, const dbm_task_t *tasks_host,
+                                    const dbm_task_t *tasks,
+                                    const double *pack_a_data,
+                                    const double *pack_b_data,
+                                    double *shard_c_data) {
   const int nblocks = ntasks; // TODO tune launch parameters.
   const int threads_per_block = NUM_THREADS;
   const size_t smem_per_block = 0;
-  (void)mnk_range; // mark used
+  (void)tasks_host; // mark used
   process_batch_kernel<<<nblocks, threads_per_block, smem_per_block, stream>>>(
-      alpha, batch, pack_a_data, pack_b_data, shard_c_data);
+      alpha, tasks, pack_a_data, pack_b_data, shard_c_data);
 }
 
 #endif // defined(__OFFLOAD) && !defined(__NO_OFFLOAD_DBM)

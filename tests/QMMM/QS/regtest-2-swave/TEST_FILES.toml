@@ -1,0 +1,24 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+#GEEP library for S-WAVE expansion
+"H2O-qmmm-gauss-14-geep-2.inp"          = [{matcher="E_total", tol=2e-12, ref=-12.90734521130708}]
+"H2O-qmmm-gauss-14-geep-3.inp"          = [{matcher="E_total", tol=2e-12, ref=-12.912834083299121}]
+"H2O-qmmm-gauss-14-geep-4.inp"          = [{matcher="E_total", tol=2e-12, ref=-12.91058208430419}]
+"H2O-qmmm-gauss-14-geep-5.inp"          = [{matcher="E_total", tol=4e-13, ref=-12.94682754743678}]
+"H2O-qmmm-gauss-14-geep-6.inp"          = [{matcher="E_total", tol=1e-12, ref=-12.92452860733718}]
+"H2O-qmmm-gauss-14-geep-7.inp"          = [{matcher="E_total", tol=1e-12, ref=-12.92123918724425}]
+"H2O-qmmm-gauss-14-geep-8.inp"          = [{matcher="E_total", tol=2e-12, ref=-12.91960951301941}]
+"H2O-qmmm-gauss-14-geep-9.inp"          = [{matcher="E_total", tol=2e-12, ref=-12.91867786991166}]
+"H2O-qmmm-gauss-14-geep-10.inp"         = [{matcher="E_total", tol=1e-12, ref=-12.91834967974590}]
+"H2O-qmmm-gauss-14-geep-11.inp"         = [{matcher="E_total", tol=1e-12, ref=-12.91820135888607}]
+"H2O-qmmm-gauss-14-geep-12.inp"         = [{matcher="E_total", tol=1e-12, ref=-12.9184714476065}]
+"H2O-qmmm-gauss-14-geep-13.inp"         = [{matcher="E_total", tol=1e-12, ref=-12.91841635717047}]
+"H2O-qmmm-gauss-14-geep-14.inp"         = [{matcher="E_total", tol=1e-12, ref=-12.91812153532482}]
+"H2O-qmmm-gauss-14-geep-15.inp"         = [{matcher="E_total", tol=1e-12, ref=-12.91839103491836}]
+"H2O-qmmm-gauss-14-geep-16.inp"         = [{matcher="E_total", tol=1e-12, ref=-12.91855954617379}]
+"H2O-qmmm-gauss-14-geep-17.inp"         = [{matcher="E_total", tol=1e-12, ref=-12.91861259602525}]
+"H2O-qmmm-gauss-14-geep-18.inp"         = [{matcher="E_total", tol=1e-12, ref=-12.91839462799581}]
+#EOF

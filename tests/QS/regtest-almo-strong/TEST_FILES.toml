@@ -1,0 +1,5 @@
+"atomic-water.inp"                      = [{matcher="M011", tol=1e-08, ref=-33.939454719891792}]
+"bn.inp"                                = [{matcher="M011", tol=1e-10, ref=-50.599959228858097}]
+"BNH2-sheet.inp"                        = [{matcher="M011", tol=1e-08, ref=-13.641848381243719}]
+"FH-chain.strong.inp"                   = [{matcher="M011", tol=1e-08, ref=-98.638850796080803}]
+#EOF

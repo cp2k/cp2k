@@ -155,13 +155,12 @@ CONTAINS
          INTENT(IN)                                      :: weights_cos_tf_t_to_w
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(IN)                                      :: tj
-      INTEGER, INTENT(IN)                                :: num_integ_points, nmo
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: tau_tj
+      REAL(KIND=dp), INTENT(IN)                          :: e_fermi, eps_filter, alpha, &
+                                                            eps_filter_im_time
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
-      REAL(KIND=dp), INTENT(IN)                          :: eps_filter_im_time, alpha, eps_filter, &
-                                                            e_fermi
-      REAL(KIND=dp), DIMENSION(0:num_integ_points), &
-         INTENT(IN)                                      :: tau_tj
-      INTEGER, INTENT(IN)                                :: cut_memory, unit_nr
+      INTEGER, INTENT(IN)                                :: nmo, num_integ_points, cut_memory, &
+                                                            unit_nr
       TYPE(mp2_type)                                     :: mp2_env
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -665,10 +664,8 @@ CONTAINS
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_scaled_dm_occ_tau, &
                                                             fm_scaled_dm_virt_tau
-      INTEGER, INTENT(IN)                                :: num_integ_points
-      REAL(KIND=dp), DIMENSION(0:num_integ_points), &
-         INTENT(IN)                                      :: tau_tj
-      INTEGER, INTENT(IN)                                :: nmo
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: tau_tj
+      INTEGER, INTENT(IN)                                :: num_integ_points, nmo
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mo_coeff_occ, fm_mo_coeff_virt, &
                                                             fm_mo_coeff_occ_scaled, &
                                                             fm_mo_coeff_virt_scaled

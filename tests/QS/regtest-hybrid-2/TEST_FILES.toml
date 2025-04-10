@@ -1,0 +1,8 @@
+"H2O-hybrid-b3lyp-g03.inp"              = [{matcher="E_total", tol=3e-14, ref=-76.41035426581173}]
+"CH3-hybrid-b3lyp-lsd-g03.inp"          = [{matcher="E_total", tol=1e-13, ref=-39.83352464728438}]
+"CH3-hybrid-handh-lsd.inp"              = [{matcher="E_total", tol=1e-13, ref=-39.50416074421513}]
+"CH3-hybrid-handhlyp-lsd.inp"           = [{matcher="E_total", tol=1e-13, ref=-39.82374963535707}]
+"CH3-hybrid-pbe0-lsd.inp"               = [{matcher="E_total", tol=1e-13, ref=-39.78004291303353}]
+"NE-hybrid-HSE03-lda.inp"               = [{matcher="E_total", tol=9e-13, ref=-128.91384797313992}]
+"NE-hybrid-HSE06-lda.inp"               = [{matcher="E_total", tol=9e-13, ref=-128.80112152310457}]
+#EOF

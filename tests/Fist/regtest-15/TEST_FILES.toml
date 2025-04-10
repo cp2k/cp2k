@@ -1,0 +1,17 @@
+# metadyn
+"metadyn1.inp"                          = [{matcher="M002", tol=1.0E-14, ref=-0.465672945738E-02}]
+"metadyn2.inp"                          = [{matcher="M002", tol=1.0E-14, ref=-0.146726946152E-02}]
+"metadyn3.inp"                          = [{matcher="M002", tol=1e-14, ref=-0.465541396806E-02}]
+"metadyn4.inp"                          = [{matcher="M002", tol=1e-14, ref=-0.466434098306E-02}]
+"metadyn5.inp"                          = [{matcher="M002", tol=1.0E-14, ref=0.260815657919E-02}]
+"metadyn6.inp"                          = [{matcher="M002", tol=1e-11, ref=-0.000190599068492}]
+"metadyn7.inp"                          = [{matcher="M002", tol=1.0E-14, ref=-0.339349055640E-03}]
+"metadyn8.inp"                          = [{matcher="M002", tol=1.0E-14, ref=0.980940093151E-02}]
+"fixed_points.inp"                      = [{matcher="M011", tol=1.0E-14, ref=17.200199874623529}]
+# changing the hills shape
+"mtd_test0.inp"                         = [{matcher="M002", tol=2e-10, ref=-0.0075284445289499997}]
+"mtd_test0_hill.inp"                    = [{matcher="M002", tol=1E-11, ref=-0.827793953456E-02}]
+"mtd_test0_cuthill.inp"                 = [{matcher="M002", tol=8e-10, ref=-0.0087614863493099999}]
+"mtd_test0_hillslow.inp"                = [{matcher="M002", tol=1E-11, ref=-0.0097527193334199999}]
+"mtd_test0_cuthillslow.inp"             = [{matcher="M002", tol=1E-11, ref=-0.0098079474489199993}]
+#EOF

@@ -1,0 +1,34 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+# tests GAPW GTH and ALL
+#XAS
+"CO.inp"                                = [{matcher="E_total", tol=2e-14, ref=-111.98853660284664}]
+"CO_xastpxfh.inp"                       = [{matcher="E_total", tol=4e-09, ref=-92.340788080870666}]
+"CO_xastpxfh_locall.inp"                = [{matcher="E_total", tol=8e-12, ref=-92.76703520816123}]
+"CO_xastpxfh_150Ry.inp"                 = [{matcher="E_total", tol=4e-12, ref=-92.84739365620344}]
+"CO_xastpxfh_pdos.inp"                  = [{matcher="E_total", tol=2e-09, ref=-92.340788080870666}]
+#bug fix gpw_type
+"H2O_gpw.inp"                           = [{matcher="E_total", tol=2e-13, ref=-17.10774257571033}]
+#bug fix perdew_zunger
+"Ne-BP.inp"                             = [{matcher="E_total", tol=3.0E-14, ref=-128.04346037104085}]
+# mixed GPW/FULL_GAPW run
+"H2O_gpw_full_gapw.inp"                 = [{matcher="E_total", tol=2e-13, ref=-17.10774257571033}]
+"H2O_Onopaw.inp"                        = [{matcher="E_total", tol=2e-13, ref=-17.10774257571033}]
+"H2O_allnopaw.inp"                      = [{matcher="E_total", tol=2e-11, ref=-16.14000416634191}]
+"H2O_Hnopaw_pp.inp"                     = [{matcher="E_total", tol=3e-12, ref=-14.67461500144429}]
+"H_hf_gapw_forcepaw.inp"                = [{matcher="E_total", tol=4e-13, ref=-0.42427650604842998}]
+"H_hf_gapw_nopaw.inp"                   = [{matcher="E_total", tol=7e-13, ref=-0.42419312869532999}]
+"H_hf_gapw_nopaw_full.inp"              = [{matcher="E_total", tol=7e-13, ref=-0.42419312869532999}]
+# mixed GPW/GAPW run forces
+"H2O_Onopaw_gop.inp"                    = [{matcher="E_total", tol=1e-13, ref=-17.10699808931047}]
+# GAPW element with local basis > number of projectors
+"Fe.inp"                                = [{matcher="E_total", tol=6e-14, ref=-1169.32261586004188}]
+# GAPW with an external potential
+"H2O_constant_extpot_GAPW.inp"          = [{matcher="E_total", tol=2e-13, ref=-17.156932432160339}]
+"H2O_uniform_efield_GAPW.inp"           = [{matcher="E_total", tol=2e-13, ref=-17.15696477358598}]
+#XAS with for beta channel
+"O2_xas_beta_spin.inp"                  = [{matcher="M084", tol=2e-14, ref=-20.79715367779695}]
+#EOF

@@ -1,0 +1,17 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# see regtest/TEST_FILES
+#
+"HeH-noconstraint.inp"                  = [{matcher="E_total", tol=2e-13, ref=-3.01067446615063}]
+"HeH-cdft-state-1.inp"                  = [{matcher="M071", tol=1e-7, ref=0.161058337228}]
+"HeH-cdft-state-2.inp"                  = [{matcher="M071", tol=1e-7, ref=1.849710970513}]
+# These tests compute the electronic coupling and related quantities
+# Coupling via rotation
+"HeH-mixed-cdft-1.inp"                  = [{matcher="M073", tol=1e-7, ref=204.357138287654}]
+# Coupling via Lowdin orthogonalization
+"HeH-mixed-cdft-2.inp"                  = [{matcher="M076", tol=1e-7, ref=154.149819062673}]
+# CDFT-CI
+"HeH-mixed-cdft-3.inp"                  = [{matcher="M077", tol=1e-7, ref=-2.80477609770094}]
+# Rerun some tests using parallel mode (NGROUPS 2)
+# Electronic coupling and related
+"HeH-mixed-cdft-8.inp"                  = [{matcher="M073", tol=1e-7, ref=204.357138287651}]

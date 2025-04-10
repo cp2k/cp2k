@@ -1,0 +1,11 @@
+"Cubic_RPA_H2O_standard.inp"            = [{matcher="M011", tol=1e-08, ref=-17.160104846593992}]
+"Cubic_RPA_H2O_check_filtering.inp"     = [{matcher="M011", tol=1e-08, ref=-17.160104846593992}]
+"Cubic_RPA_2x_H2_check_filtering.inp"   = [{matcher="M011", tol=5e-08, ref=-2.119159936957426}]
+"Cubic_RPA_CH3.inp"                     = [{matcher="M011", tol=3e-07, ref=-7.414901056476346}]
+"Cubic_RPA_H2O_standard_svd.inp"        = [{matcher="M011", tol=1e-08, ref=-17.160104846594532}]
+"RPA_kpoints_H2O.inp"                   = [{matcher="M011", tol=5e-07, ref=-17.383890092101481}]
+"RPA_kpoints_H2O_batched.inp"           = [{matcher="M011", tol=5e-07, ref=-17.383890113270212}]
+"Cubic_RPA_H2O_admm.inp"                = [{matcher="M011", tol=1e-08, ref=-17.147065793237985}]
+"Cubic_RPA_CH3_ri-hfx.inp"              = [{matcher="M011", tol=2e-08, ref=-7.414775787676669}]
+"Cubic_RPA_H2O_ri-hfx.inp"              = [{matcher="M011", tol=1e-08, ref=-17.159865017693086}]
+#EOF

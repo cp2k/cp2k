@@ -7,7 +7,7 @@
 # Usage: Source this arch file and then run make as instructed.
 #        Replace or adapt the "module load" commands below if needed.
 #
-# Last update: 12.02.2024
+# Last update: 21.02.2024
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -28,7 +28,7 @@
    export CPATH=${CPATH}:${CRAY_PE_LIBSCI_PREFIX_DIR}/include; \
    export COSMA_SCALAPACK_LINK_LIBRARIES=${CRAY_PE_LIBSCI_PREFIX_DIR}; \
    [[ -z "${TARGET_CPU}" ]] && export TARGET_CPU="native"; \
-   ./install_cp2k_toolchain.sh -j32 --enable-cray --no-arch-files --target-cpu=${TARGET_CPU} --with-dftd4 --with-fftw --with-libtorch=no --with-libvdwxc --with-libxsmm --with-pexsi --with-plumed --with-quip; \
+   ./install_cp2k_toolchain.sh -j32 --enable-cray --no-arch-files --target-cpu=${TARGET_CPU} --with-dftd4 --with-fftw --with-libtorch=no --with-libvdwxc --with-libxsmm --with-plumed; \
    source ./install/setup; \
    cd ../..; \
    echo; \
@@ -58,9 +58,7 @@ USE_LIBINT     := $(LIBINT_VER)
 USE_LIBVORI    := $(LIBVORI_VER)
 USE_LIBXC      := $(LIBXC_VER)
 USE_LIBXSMM    := $(LIBXSMM_VER)
-USE_PEXSI      := $(PEXSI_VER)
 USE_PLUMED     := $(PLUMED_VER)
-USE_QUIP       := $(QUIP_VER)
 USE_SIRIUS     := $(SIRIUS_VER)
 USE_SPFFT      := $(SPFFT_VER)
 USE_SPGLIB     := $(SPGLIB_VER)
@@ -76,9 +74,9 @@ LMAX           := 5
 MAX_CONTR      := 4
 
 ifeq ($(TARGET_CPU), generic)
-   CFLAGS         := -O2 -fopenmp -fopenmp-simd -ftree-vectorize -funroll-loops -g -mtune=$(TARGET_CPU)
+   CFLAGS         := -O3 -fopenmp -g -mtune=$(TARGET_CPU)
 else
-   CFLAGS         := -O2 -fopenmp -fopenmp-simd -ftree-vectorize -funroll-loops -g -march=$(TARGET_CPU) -mtune=$(TARGET_CPU)
+   CFLAGS         := -O3 -fopenmp -g -march=$(TARGET_CPU) -mtune=$(TARGET_CPU)
 endif
 
 DFLAGS         := -D__parallel
@@ -127,39 +125,6 @@ ifneq ($(USE_ELPA),)
    endif
 endif
 
-ifneq ($(USE_QUIP),)
-   USE_QUIP       := $(strip $(USE_QUIP))
-   QUIP_INC       := $(INSTALL_PATH)/quip-$(USE_QUIP)/include
-   QUIP_LIB       := $(INSTALL_PATH)/quip-$(USE_QUIP)/lib
-   CFLAGS         += -I$(QUIP_INC)
-   DFLAGS         += -D__QUIP
-   LIBS           += $(QUIP_LIB)/libquip_core.a
-   LIBS           += $(QUIP_LIB)/libatoms.a
-   LIBS           += $(QUIP_LIB)/libFoX_sax.a
-   LIBS           += $(QUIP_LIB)/libFoX_common.a
-   LIBS           += $(QUIP_LIB)/libFoX_utils.a
-   LIBS           += $(QUIP_LIB)/libFoX_fsys.a
-endif
-
-ifneq ($(USE_PEXSI),)
-   USE_PEXSI      := $(strip $(USE_PEXSI))
-   PEXSI_INC      := $(INSTALL_PATH)/pexsi-$(USE_PEXSI)/include
-   PEXSI_LIB      := $(INSTALL_PATH)/pexsi-$(USE_PEXSI)/lib
-   SCOTCH_INC     := $(INSTALL_PATH)/scotch-$(SCOTCH_VER)/include
-   SCOTCH_LIB     := $(INSTALL_PATH)/scotch-$(SCOTCH_VER)/lib
-   SUPERLU_INC    := $(INSTALL_PATH)/superlu_dist-$(SUPERLU_VER)/include
-   SUPERLU_LIB    := $(INSTALL_PATH)/superlu_dist-$(SUPERLU_VER)/lib
-   CFLAGS         += -I$(PEXSI_INC) -I$(SCOTCH_INC) -I$(SUPERLU_INC)
-   DFLAGS         += -D__LIBPEXSI
-   LIBS           += $(PEXSI_LIB)/libpexsi.a
-   LIBS           += $(SUPERLU_LIB)/libsuperlu_dist.a
-   LIBS           += $(SCOTCH_LIB)/libptscotchparmetis.a
-   LIBS           += $(SCOTCH_LIB)/libptscotch.a
-   LIBS           += $(SCOTCH_LIB)/libptscotcherr.a
-   LIBS           += $(SCOTCH_LIB)/libscotchmetis.a
-   LIBS           += $(SCOTCH_LIB)/libscotch.a
-endif
-
 ifneq ($(USE_LIBVORI),)
    USE_LIBVORI    := $(strip $(USE_LIBVORI))
    LIBVORI_LIB    := $(INSTALL_PATH)/libvori-$(USE_LIBVORI)/lib
@@ -203,12 +168,7 @@ endif
 
 ifneq ($(USE_LIBGRPP),)
    USE_LIBGRPP    := $(strip $(USE_LIBGRPP))
-   LIBGRPP_INC    := $(INSTALL_PATH)/libgrpp-main-$(USE_LIBGRPP)/include
-   LIBGRPP_INC    += -I$(INSTALL_PATH)/libgrpp-main-$(USE_LIBGRPP)/include/libgrpp/GNU-$(GNU_VER)/fortran_modules
-   LIBGRPP_LIB    := $(INSTALL_PATH)/libgrpp-main-$(USE_LIBGRPP)/lib
-   CFLAGS         += -I$(LIBGRPP_INC)
    DFLAGS         += -D__LIBGRPP
-   LIBS           += $(LIBGRPP_LIB)/libgrpp.a
 endif
 
 ifneq ($(USE_LIBINT),)
@@ -368,7 +328,7 @@ endif
 FCFLAGS        += -fbacktrace
 FCFLAGS        += -ffree-form
 FCFLAGS        += -ffree-line-length-none
-FCFLAGS        += -fno-omit-frame-pointer
+#FCFLAGS        += -fno-omit-frame-pointer
 FCFLAGS        += -std=f2008
 
 LDFLAGS        += $(FCFLAGS)

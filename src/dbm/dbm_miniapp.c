@@ -32,18 +32,17 @@ static void print_func(char *message, int output_unit) {
 }
 
 /*******************************************************************************
- * \brief Returns the smaller of two given integer (missing from the C standard)
+ * \brief Returns the smaller of the two integers (missing from the C standard).
  * \author Ole Schuett
  ******************************************************************************/
 static inline int imin(int x, int y) { return (x < y ? x : y); }
 
 /*******************************************************************************
- * \brief Private routine for creating a distribution and an empty matrix.
+ * \brief Private routine for creating a distribution.
  * \author Ole Schuett
  ******************************************************************************/
-static dbm_matrix_t *create_some_matrix(const int nrows, const int ncols,
-                                        const int row_size, const int col_size,
-                                        const dbm_mpi_comm_t comm) {
+static dbm_distribution_t *create_dist(const int nrows, const int ncols,
+                                       const dbm_mpi_comm_t comm) {
   int cart_dims[2], cart_periods[2], cart_coords[2];
   dbm_mpi_cart_get(comm, 2, cart_dims, cart_periods, cart_coords);
 
@@ -62,16 +61,45 @@ static dbm_matrix_t *create_some_matrix(const int nrows, const int ncols,
   dbm_distribution_new(&dist, fortran_comm, nrows, ncols, row_dist, col_dist);
   free(row_dist);
   free(col_dist);
+  return dist;
+}
+
+/*******************************************************************************
+ * \brief Private routine for creating a distribution and an empty matrix.
+ * \author Ole Schuett
+ ******************************************************************************/
+static dbm_matrix_t *
+create_some_matrix(const int nrows, const int ncols, const int nrows_min,
+                   const int nrows_max, const int ncols_min,
+                   const int ncols_max, const dbm_mpi_comm_t comm) {
+  // Create distribution.
+  dbm_distribution_t *dist = create_dist(nrows, ncols, comm);
 
   // Create matrix.
   int *row_sizes = malloc(nrows * sizeof(int));
   int *col_sizes = malloc(ncols * sizeof(int));
   assert(row_sizes != NULL && col_sizes != NULL);
-  for (int i = 0; i < nrows; i++) {
-    row_sizes[i] = row_size;
+  assert(0 < nrows_min && nrows_min <= nrows_max);
+  assert(0 < ncols_min && ncols_min <= ncols_max);
+  if (nrows_min != nrows_max) {
+    const int row_size = nrows_max - nrows_min + 1;
+    for (int i = 0; i < nrows; i++) {
+      row_sizes[i] = rand() % row_size + 1;
+    }
+  } else {
+    for (int i = 0; i < nrows; i++) {
+      row_sizes[i] = nrows_max;
+    }
   }
-  for (int i = 0; i < ncols; i++) {
-    col_sizes[i] = col_size;
+  if (ncols_min != ncols_max) {
+    const int col_size = ncols_max - ncols_min + 1;
+    for (int i = 0; i < ncols; i++) {
+      col_sizes[i] = rand() % col_size + 1;
+    }
+  } else {
+    for (int i = 0; i < ncols; i++) {
+      col_sizes[i] = ncols_max;
+    }
   }
   dbm_matrix_t *matrix = NULL;
   dbm_create(&matrix, dist, "some name", nrows, ncols, row_sizes, col_sizes);
@@ -126,7 +154,7 @@ static void reserve_all_blocks(dbm_matrix_t *matrix) {
 }
 
 /*******************************************************************************
- * \brief Private routine for setting all blocks to 1.0.
+ * \brief Private routine for setting all blocks.
  * \author Ole Schuett
  ******************************************************************************/
 static void set_all_blocks(dbm_matrix_t *matrix) {
@@ -140,7 +168,11 @@ static void set_all_blocks(dbm_matrix_t *matrix) {
       dbm_iterator_next_block(iter, &row, &col, &block, &row_size, &col_size);
       const int block_size = row_size * col_size;
       for (int i = 0; i < block_size; i++) {
+#if defined(DBM_VALIDATE_AGAINST_LIBXSMM) && defined(__LIBXSMM)
+        block[i] = 1.0 / (i + 1);
+#else
         block[i] = 1.0;
+#endif
       }
     }
     dbm_iterator_stop(iter);
@@ -152,9 +184,19 @@ static void set_all_blocks(dbm_matrix_t *matrix) {
  ******************************************************************************/
 void benchmark_multiply(const int M, const int N, const int K, const int m,
                         const int n, const int k, const dbm_mpi_comm_t comm) {
-  dbm_matrix_t *matrix_a = create_some_matrix(M, K, m, k, comm);
-  dbm_matrix_t *matrix_b = create_some_matrix(K, N, k, n, comm);
-  dbm_matrix_t *matrix_c = create_some_matrix(M, N, m, n, comm);
+#if defined(DBM_VALIDATE_AGAINST_LIBXSMM) && defined(__LIBXSMM)
+  dbm_matrix_t *matrix_a = create_some_matrix(M, K, 1, m, k, k, comm);
+  dbm_matrix_t *matrix_b = create_some_matrix(K, N, k, k, 1, n, comm);
+#else
+  dbm_matrix_t *matrix_a = create_some_matrix(M, K, m, m, k, k, comm);
+  dbm_matrix_t *matrix_b = create_some_matrix(K, N, k, k, n, n, comm);
+#endif
+  dbm_distribution_t *dist_c = create_dist(M, N, comm);
+  dbm_matrix_t *matrix_c = NULL;
+  dbm_create(&matrix_c, dist_c, "result", M, N, matrix_a->row_sizes,
+             matrix_b->col_sizes);
+  dbm_distribution_release(dist_c);
+
   reserve_all_blocks(matrix_a);
   reserve_all_blocks(matrix_b);
   set_all_blocks(matrix_a);
@@ -168,9 +210,12 @@ void benchmark_multiply(const int M, const int N, const int K, const int m,
 
   // Validate checksum.
   // Since all matrix elements were set to 1.0 the checksum is an integer.
-  const double expected = (int64_t)M * (int64_t)m * (int64_t)N * (int64_t)n *
-                          (int64_t)K * (int64_t)K * (int64_t)k * (int64_t)k;
+#if defined(DBM_VALIDATE_AGAINST_LIBXSMM) && defined(__LIBXSMM)
+  const double expected = 0, checksum = 0;
+#else
+  const double expected = (uint64_t)M * m * N * n * K * K * k * k;
   const double checksum = dbm_checksum(matrix_c);
+#endif
 
   dbm_release(matrix_a);
   dbm_release(matrix_b);
@@ -199,6 +244,9 @@ void benchmark_multiply(const int M, const int N, const int K, const int m,
  ******************************************************************************/
 int main(int argc, char *argv[]) {
   int result = EXIT_SUCCESS;
+
+  srand(25071975); // seed rng
+
   dbm_mpi_init(&argc, &argv);
   dbm_library_init();
 
@@ -274,17 +322,19 @@ int main(int argc, char *argv[]) {
         continue;
       }
       if (0 < mnk[0]) { /* valid MxNxK? */
-        int nm = (NULL == arg ? 0 : atoi(arg)), nn, nk;
-        if (0 < nm) {
+        const int m = mnk[0];
+        const int n = (0 < mnk[1] ? mnk[1] : m);
+        const int k = (0 < mnk[2] ? mnk[2] : m);
+        int M = (NULL == arg ? 0 : atoi(arg)), N, K;
+        if (0 < M) {
           arg = strtok(NULL, delims);
-          nn = (NULL == arg ? 1 : atoi(arg));
+          N = (NULL == arg ? 1 : atoi(arg));
           arg = strtok(NULL, delims);
-          nk = (NULL == arg ? 1 : atoi(arg));
+          K = (NULL == arg ? 1 : atoi(arg));
         } else { /* default */
-          nm = nn = nk = 128;
+          M = N = K = 128;
         }
-        benchmark_multiply(nm, nn, nk, mnk[0], 0 < mnk[1] ? mnk[1] : mnk[0],
-                           0 < mnk[2] ? mnk[2] : mnk[0], comm);
+        benchmark_multiply(M, N, K, m, n, k, comm);
         mnk[0] = mnk[1] = mnk[2] = 0;
       } else {
         fprintf(stderr, "ERROR: invalid argument(s)\n");

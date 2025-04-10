@@ -1,0 +1,27 @@
+# bugs in berry phase dipole
+"bug_ai_moments.inp"                    = [{matcher="M039", tol=1.0E-08, ref=0.2839176}]
+#
+"si8_broy_stm.inp"                      = [{matcher="E_total", tol=2e-13, ref=-30.92831595126399}]
+"si8_broy_wc.inp"                       = [{matcher="M023", tol=2e-03, ref=1902.1967139926}]
+"si8_broy_wc_crazy.inp"                 = [{matcher="M023", tol=2e-06, ref=149.9751539129}]
+"si8_broy_wc_crazy_ene.inp"             = [{matcher="M023", tol=2e-06, ref=154.4040134571}]
+# block Davidson diagonalization
+"si8_broy_dav_t300.inp"                 = [{matcher="E_total", tol=6e-12, ref=-30.971242894115930}]
+"si8_broy_dav_t300_r.inp"               = [{matcher="E_total", tol=1e-13, ref=-31.065361047969130}]
+"si8_broy_dav_t5000_r.inp"              = [{matcher="E_total", tol=2e-10, ref=-31.158514641268031}]
+"si8_broy_dav_t300_lsd.inp"             = [{matcher="E_total", tol=1e-13, ref=-30.973002070972000}]
+"si8_broy_std_md.inp"                   = [{matcher="E_total", tol=6e-14, ref=-31.065487707035060}]
+"si8_broy_dav_md.inp"                   = [{matcher="E_total", tol=2e-13, ref=-31.072835506867970}]
+"si8_broy_davsparse_md.inp"             = [{matcher="E_total", tol=5e-14, ref=-31.066076032740830}]
+#
+"si8_broy_ch.inp"                       = [{matcher="E_total", tol=8e-14, ref=-30.959112743855130}]
+#
+"mao_1.inp"                             = [{matcher="E_total", tol=1e-10, ref=-34.301686017820316}]
+"mao_2.inp"                             = [{matcher="E_total", tol=1e-10, ref=-34.301686017820316}]
+"mao_3.inp"                             = [{matcher="E_total", tol=1e-10, ref=-34.301686017820316}]
+"mao_4.inp"                             = [{matcher="E_total", tol=1e-10, ref=-16.764831871997369}]
+"mao_5.inp"                             = [{matcher="E_total", tol=1e-10, ref=-17.154246373196706}]
+#
+"local_energy.inp"                      = [{matcher="E_total", tol=1e-10, ref=-34.301659959649530}]
+"local_stress.inp"                      = [{matcher="E_total", tol=1e-10, ref=-31.065602427106100}]
+#EOF

@@ -454,12 +454,10 @@ Calls to `offload_dgemm` also accept pointers on GPU or a combination of them.
 
 ### 2y. libgrpp (optional, enables calculations with ECPs)
 
-- libgrpp is a library for the calculation of integrals with GTOs and ECPs
-- The libgrpp library can be found under <https://github.com/aoleynichenko/libgrpp>
-- During the installation, the directories `$(LIBGRPP_DIR)/lib` and `$(LIBGRPP_DIR)/include` are
-  created.
-- Add `-D__LIBGRPP` to DFLAGS, `-I$(LIBGRPP_DIR)/include` to FCFLAGS and
-  `-L$(LIBGRPP_DIR)/lib -llibgrpp` to LIBS
+libgrpp is a library for the calculation of integrals with GTOs and ECPs. The source code of the
+library is part of cp2k.
+
+- Add `-D__LIBGRPP` to DFLAGS.
 
 <!---
 ### 2y. LibMaxwell (External Maxwell Solver)
@@ -504,6 +502,14 @@ TREXIO - Open-source file format and library. Support for TREXIO can be enabled 
 
 - TREXIO library can be downloaded from <https://github.com/trex-coe/trexio>
 - For more information see <https://trex-coe.github.io/trexio/index.html>.
+
+### 2z-a. GREENX (optional, basically functionality for GreenX methods (RPA, GW, Laplace-MP2 etc.)
+
+greenX - Open-source file format and library. Support for greenX can be enabled via the flag
+`-D__GREENX`.
+
+- GREENX library can be downloaded from <https://github.com/nomad-coe/greenX>
+- For more information see <https://nomad-coe.github.io/greenX/>.
 
 ## 3. Compile
 
@@ -601,6 +607,7 @@ libraries (see 2.)
 - `-D__HDF5` enables hdf5 support. This is a hard dependency for SIRIUS and TREXIO, but can also be
   used by itself to allow read/write functionalities of QCSchema files in the active space module
 - `-D__TREXIO` enables TREXIO I/O support
+- `-D__GREENX` enables GREENX support (minimax grids and analytic continuation component)
 
 Features useful to deal with legacy systems
 

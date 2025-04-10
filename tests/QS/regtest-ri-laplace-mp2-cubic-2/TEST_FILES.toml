@@ -1,0 +1,7 @@
+"H2O_md.inp"                            = [{matcher="M011", tol=5e-10, ref=-17.035040060195037}]
+"H2O_md_periodic.inp"                   = [{matcher="M011", tol=5e-10, ref=-17.072819528277421}]
+"H2O_dh_admm.inp"                       = [{matcher="M011", tol=1e-8, ref=-17.374161311241036}]
+"H2O_dh_meta.inp"                       = [{matcher="M011", tol=1e-8, ref=-17.098390876814651}]
+"H2O_dh_stress.inp"                     = [{matcher="M031", tol=1e-5, ref=-1.06026734706E+05}]
+"CH3_md.inp"                            = [{matcher="M011", tol=5e-10, ref=-7.305999531027744}]
+#EOF

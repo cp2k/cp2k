@@ -1,0 +1,12 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# see regtest/TEST_FILES
+#
+"HeH-noconstraint.inp"                  = [{matcher="E_total", tol=2e-13, ref=-3.01067446615063}]
+# These tests use different optimizers for the CDFT constraint
+"HeH-cdft-secant.inp"                   = [{matcher="E_total", tol=1e-09, ref=-2.43380161368197}]
+# Broyden optimizers
+"HeH-cdft-broyden-bt1.inp"              = [{matcher="E_total", tol=1e-09, ref=-2.43247404297694}]
+"HeH-cdft-broyden-bt2.inp"              = [{matcher="E_total", tol=1e-09, ref=-2.43226496742776}]
+"HeH-cdft-broyden-bt1explicit.inp"      = [{matcher="E_total", tol=5e-06, ref=-2.43270552319648}]
+#EOF

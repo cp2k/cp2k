@@ -1,0 +1,7 @@
+"H2O-32-dftb-ls-2_mult.inp"             = [{matcher="M011", tol=1e-12, ref=-32.574187281046811}]
+"H2O-32-dftb-ls-2.inp"                  = [{matcher="M011", tol=1e-12, ref=-32.574187281046811}]
+"H2O-OT-ASPC-1.inp"                     = [{matcher="E_total", tol=4e-14, ref=-17.13993294752105}]
+"H2-big-nimages.inp"                    = [{matcher="M011", tol=2e-13, ref=-27.808422055041138}]
+"H2O_grad_gpw.inp"                      = [{matcher="M011", tol=7e-08, ref=-16.990049367524865}]
+"H2O-6.inp"                             = [{matcher="E_total", tol=2e-14, ref=-17.14603641519601}]
+#EOF

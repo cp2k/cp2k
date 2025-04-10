@@ -288,6 +288,13 @@ MODULE post_scf_bandstructure_types
       INTEGER                                      :: n_tasks_Delta_R_local = -1
       INTEGER, DIMENSION(:), ALLOCATABLE           :: task_Delta_R
       INTEGER, DIMENSION(:, :), ALLOCATABLE        :: nblocks_3c
+      LOGICAL, DIMENSION(:), ALLOCATABLE           :: skip_DR_chi, &
+                                                      skip_DR_Sigma
+      LOGICAL, DIMENSION(:, :, :), ALLOCATABLE     :: skip_DR_R_R2_MxM_chi, &
+                                                      skip_DR_R1_R_MxM_Sigma, &
+                                                      skip_DR_R12_S_Goccx3c_chi, &
+                                                      skip_DR_R12_S_Gvirx3c_chi, &
+                                                      skip_DR_R1_S2_Gx3c_Sigma
 
       ! cfm for k-dep overl mat S_µν(k), KS mat h_µν(k,spin) and mo coeff C_μn(k,spin) from SCF
       TYPE(cp_cfm_type), DIMENSION(:), ALLOCATABLE      :: cfm_s_kp
@@ -362,6 +369,13 @@ CONTAINS
       IF (ASSOCIATED(bs_env%cell_to_index_Delta_R)) DEALLOCATE (bs_env%cell_to_index_Delta_R)
       IF (ALLOCATED(bs_env%task_Delta_R)) DEALLOCATE (bs_env%task_Delta_R)
       IF (ALLOCATED(bs_env%nblocks_3c)) DEALLOCATE (bs_env%nblocks_3c)
+      IF (ALLOCATED(bs_env%skip_DR_chi)) DEALLOCATE (bs_env%skip_DR_chi)
+      IF (ALLOCATED(bs_env%skip_DR_Sigma)) DEALLOCATE (bs_env%skip_DR_Sigma)
+      IF (ALLOCATED(bs_env%skip_DR_R_R2_MxM_chi)) DEALLOCATE (bs_env%skip_DR_R_R2_MxM_chi)
+      IF (ALLOCATED(bs_env%skip_DR_R1_R_MxM_Sigma)) DEALLOCATE (bs_env%skip_DR_R1_R_MxM_Sigma)
+      IF (ALLOCATED(bs_env%skip_DR_R12_S_Goccx3c_chi)) DEALLOCATE (bs_env%skip_DR_R12_S_Goccx3c_chi)
+      IF (ALLOCATED(bs_env%skip_DR_R12_S_Gvirx3c_chi)) DEALLOCATE (bs_env%skip_DR_R12_S_Gvirx3c_chi)
+      IF (ALLOCATED(bs_env%skip_DR_R1_S2_Gx3c_Sigma)) DEALLOCATE (bs_env%skip_DR_R1_S2_Gx3c_Sigma)
 
       CALL cp_fm_release(bs_env%fm_s_Gamma)
       CALL cp_fm_release(bs_env%fm_ks_Gamma(1))

@@ -17,14 +17,16 @@ MODULE iterate_matrix
                                               cite_reference
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, dbcsr_distribution_get, &
-        dbcsr_distribution_type, dbcsr_filter, dbcsr_get_diag, dbcsr_get_info, &
-        dbcsr_get_matrix_type, dbcsr_get_occupation, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
-        dbcsr_scale, dbcsr_set, dbcsr_set_diag, dbcsr_trace, dbcsr_transposed, dbcsr_type, &
-        dbcsr_type_no_symmetry
+        dbcsr_distribution_type, dbcsr_filter, dbcsr_get_info, dbcsr_get_matrix_type, &
+        dbcsr_get_occupation, dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_scale, dbcsr_set, &
+        dbcsr_transposed, dbcsr_type, dbcsr_type_no_symmetry
    USE cp_dbcsr_contrib,                ONLY: dbcsr_add_on_diag,&
                                               dbcsr_frobenius_norm,&
                                               dbcsr_gershgorin_norm,&
-                                              dbcsr_maxabs
+                                              dbcsr_get_diag,&
+                                              dbcsr_maxabs,&
+                                              dbcsr_set_diag,&
+                                              dbcsr_trace
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
@@ -2145,14 +2147,14 @@ CONTAINS
 
       !   write(*,*)
       !   write(*,*)
-      !   CALL dbcsr_print(D, nodata=.FALSE., matlab_format=.TRUE., variable_name="D", unit_nr=6)
+      !   CALL dbcsr_print(D, variable_name="D")
 
       ! set the B matrix as B=Identity+D
       CALL dbcsr_create(B, template=matrix, matrix_type=dbcsr_type_no_symmetry)
       CALL dbcsr_copy(B, D)
       CALL dbcsr_add_on_diag(B, alpha=one)
 
-      !   CALL dbcsr_print(B, nodata=.FALSE., matlab_format=.TRUE., variable_name="B", unit_nr=6)
+      !   CALL dbcsr_print(B, variable_name="B")
 
       ! Calculate the norm of C and moltiply by toll to be used as a threshold
       norm_C = toll*dbcsr_frobenius_norm(matrix)

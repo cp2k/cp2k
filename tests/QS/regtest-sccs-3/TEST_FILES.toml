@@ -1,0 +1,3 @@
+"H2O_sccs_td_cd5.inp"                   = [{matcher="E_total", tol=1.0E-12, ref=-17.22665380048718}]
+"H2O_sccs_td_cd5_geo_opt.inp"           = [{matcher="E_total", tol=1.0E-12, ref=-17.22667239110424}]
+#EOF

@@ -1,0 +1,16 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# see regtest/TEST_FILES
+"H2O-trunc-2.inp"                       = [{matcher="E_total", tol=5e-11, ref=-75.999435045011069}]
+"H2O-trunc-auto.inp"                    = [{matcher="E_total", tol=5e-11, ref=-75.999435045011097}]
+"H2O-coul-0.inp"                        = [{matcher="E_total", tol=1.0E-14, ref=-76.02314790926955}]
+"H2O-trunc-auto-md.inp"                 = [{matcher="M002", tol=3e-10, ref=-75.238597654700001}]
+"CH3-trunc-auto.inp"                    = [{matcher="E_total", tol=4e-10, ref=-39.130055305219678}]
+"CH3-trunc-1.inp"                       = [{matcher="E_total", tol=2e-10, ref=-39.361163097623439}]
+"CH3-trunc-auto-md.inp"                 = [{matcher="M002", tol=1e-09, ref=-38.726430190599999}]
+"CH3-coul-0.inp"                        = [{matcher="E_total", tol=9e-14, ref=-39.399102296891009}]
+"h2o-respa.inp"                         = [{matcher="E_total", tol=6e-13, ref=-76.023109187259081}]
+"h2o-respa_restart.inp"                 = [{matcher="E_total", tol=5e-12, ref=-76.022672170936700}]
+"H2O-id-auto.inp"                       = [{matcher="E_total", tol=1e-10, ref=-88.00800458674919}]
+"graphene_periodic_XY.inp"              = [{matcher="E_total", tol=4e-09, ref=-77.259924663247261}]
+#EOF

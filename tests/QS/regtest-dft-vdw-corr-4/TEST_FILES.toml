@@ -1,0 +1,14 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+"pbe_dftd4.inp"                         = [{matcher="M033", tol=1.0E-14, ref=-0.00283102230260}]
+"pbe_dftd4_force.inp"                   = [{matcher="M072", tol=8.0E-05, ref=4.37932362E-05}]
+"pbe_dftd4_stress.inp"                  = [{matcher="M031", tol=1.0E-07, ref=-2.03123914683E+02}]
+"pbe_dftd4_bsse.inp"                    = [{matcher="M005", tol=1.0E-10, ref=0.006697}]
+"ta1.inp"                               = []
+"ta2.inp"                               = []
+"ta3.inp"                               = []
+"ta4.inp"                               = [{matcher="M031", tol=1.0E-07, ref=2.83598724318E+04}]
+#EOF

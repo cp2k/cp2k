@@ -1,0 +1,12 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+#
+# Delta pulse in the length representation, velocity gauge and magnetic delta pulse
+"H2O-delta-mag.inp"                     = [{matcher="E_total", tol=1e-13, ref=-17.17816619814588}]
+"H2O-delta-lenrep.inp"                  = [{matcher="E_total", tol=1e-13, ref=-17.17816511743962}]
+"H2O-vg.inp"                            = [{matcher="E_total", tol=1e-13, ref=-17.17816522919518}]
+"H2O-delta-velrepr.inp"                 = [{matcher="E_total", tol=1e-13, ref=-17.17816551662581}]
+#EOF

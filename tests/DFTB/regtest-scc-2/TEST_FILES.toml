@@ -1,0 +1,10 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# see regtest/TEST_FILES
+"base1.inp"                             = [{matcher="E_total", tol=5e-12, ref=-4.08612338013299}]
+"base2.inp"                             = [{matcher="E_total", tol=5e-12, ref=-4.08612338013299}]
+"base3.inp"                             = [{matcher="E_total", tol=5e-12, ref=-4.08520460432732}]
+"str1.inp"                              = [{matcher="E_total", tol=5e-12, ref=-4.08612900850098}]
+"str2.inp"                              = [{matcher="E_total", tol=5e-12, ref=-32.67545045484238}]
+"str3.inp"                              = [{matcher="E_total", tol=5e-12, ref=-4.08521609759106}]
+#EOF

@@ -1,0 +1,18 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+"O2-UKS-NMR-1.inp"                      = [{matcher="M014", tol=2e-03, ref=681.255}]
+"O2-UKS-NMR-2.inp"                      = [{matcher="M014", tol=1e-03, ref=681.84900000000000}]
+"O2-UKS-NMR-3.inp"                      = [{matcher="M014", tol=3e-04, ref=681.173}]
+"O2-UKS-NMR-4.inp"                      = [{matcher="M014", tol=2e-03, ref=714.20500000000000}]
+"O2-UKS-NMR-5.inp"                      = [{matcher="M014", tol=1e-03, ref=681.84800000000000}]
+"O2-UKS-NMR-6.inp"                      = [{matcher="M014", tol=1e-03, ref=681.84800000000000}]
+"O2-UKS-NMR-7.inp"                      = [{matcher="M014", tol=8e-04, ref=681.23100000000000}]
+"O2-UKS-NMR-8.inp"                      = [{matcher="M014", tol=1e-03, ref=681.81100000000000}]
+"O2-UKS-NMR-9.inp"                      = [{matcher="M014", tol=2e-04, ref=681.33700000000000}]
+"O2-UKS-NMR-10.inp"                     = [{matcher="M014", tol=8e-04, ref=681.23100000000000}]
+"O2-UKS-NMR-11.inp"                     = [{matcher="M014", tol=1e-03, ref=681.82000000000000}]
+"O2-UKS-NMR-12.inp"                     = [{matcher="M014", tol=4e-03, ref=683.86200000000000}]
+#EOF

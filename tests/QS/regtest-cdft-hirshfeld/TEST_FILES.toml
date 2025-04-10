@@ -1,0 +1,12 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# see regtest/TEST_FILES
+#
+"HeH-noconstraint.inp"                  = [{matcher="E_total", tol=2e-13, ref=-3.01067446615060}]
+"He+-noconstraint.inp"                  = [{matcher="E_total", tol=2e-13, ref=-2.05007934458372}]
+"H-noconstraint.inp"                    = [{matcher="E_total", tol=4e-13, ref=-0.45734465780293}]
+# These tests use different constraint formalisms so their value differs (see outputted charges)
+"HeH-cdft-1.inp"                        = [{matcher="M071", tol=1e-7, ref=1.135281643193}]
+"HeH-cdft-2.inp"                        = [{matcher="M071", tol=1e-7, ref=1.681172869379}]
+"HeH-cdft-3.inp"                        = [{matcher="M071", tol=1e-7, ref=1.197176189824}]
+"HeH-cdft-4.inp"                        = [{matcher="M071", tol=1e-7, ref=1.567706385507}]

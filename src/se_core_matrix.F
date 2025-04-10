@@ -16,9 +16,9 @@ MODULE se_core_matrix
                                               get_atomic_kind_set
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_add, dbcsr_copy, dbcsr_deallocate_matrix, dbcsr_distribute, dbcsr_get_block_diag, &
-        dbcsr_get_block_p, dbcsr_p_type, dbcsr_replicate_all, dbcsr_set, dbcsr_sum_replicated, &
-        dbcsr_type
+        dbcsr_add, dbcsr_copy, dbcsr_deallocate_matrix, dbcsr_distribute, dbcsr_get_block_p, &
+        dbcsr_p_type, dbcsr_replicate_all, dbcsr_set, dbcsr_sum_replicated, dbcsr_type
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_get_block_diag
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set
    USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&

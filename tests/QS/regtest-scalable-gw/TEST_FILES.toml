@@ -1,0 +1,20 @@
+"01_G0W0_periodic_H2O.inp"              = [{matcher="E_G0W0_direct_gap", tol=1e-03, ref=9.861}]
+
+"02_G0W0_IH_SOC_LDOS.inp"               = [{matcher="E_G0W0_direct_gap", tol=1e-03, ref=17.826},
+                                           {matcher="E_SCF_SOC_gap", tol=1e-03, ref=11.344}]
+
+"03_G0W0_bandstructure_IH_chain.inp"    = [{matcher="E_G0W0_direct_gap", tol=5e-04, ref=21.962},
+                                           {matcher="E_G0W0_SOC_gap", tol=5e-04, ref=21.678}]
+
+"04_G0W0_SOC_TeH_chain_open_shell_kp_extrapol.inp" = [{matcher="E_G0W0_direct_gap", tol=1e-03, ref=5.174}]
+
+"05_G0W0_SOC_TeH_chain_open_shell.inp"  = [{matcher="E_G0W0_direct_gap", tol=5e-04, ref=5.178},
+                                           {matcher="E_SCF_SOC_gap", tol=5e-04, ref=0.306},
+                                           {matcher="E_G0W0_SOC_gap", tol=5e-04, ref=5.134}]
+
+"06_G0W0_periodic_H2O_Hedin_shift.inp"  = [{matcher="E_G0W0_direct_gap", tol=1e-03, ref=10.417}]
+
+"07_G0W0_periodic_H2Te_kp_sampling_SCF.inp" = [{matcher="E_G0W0_SOC_gap", tol=5e-04, ref=10.315}]
+
+"08_G0W0_periodic_H2Te_kp_sampling_SCF_FREQ_MAX_FIT_10_eV.inp" = [{matcher="E_G0W0_SOC_gap", tol=5e-04, ref=10.780}]
+#EOF

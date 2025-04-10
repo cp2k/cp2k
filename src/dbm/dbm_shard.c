@@ -12,6 +12,7 @@
 #include <string.h>
 
 #include "dbm_hyperparams.h"
+#include "dbm_mempool.h"
 #include "dbm_shard.h"
 
 /*******************************************************************************
@@ -50,8 +51,7 @@ static int next_prime(const int start) {
 static void hashtable_init(dbm_shard_t *shard) {
   // Choosing size as power of two allows to replace modulo with bitwise AND.
   shard->hashtable_size =
-      next_power2(HASHTABLE_FACTOR * shard->nblocks_allocated);
-  shard->hashtable_mask = shard->hashtable_size - 1;
+      next_power2(DBM_HASHTABLE_FACTOR * shard->nblocks_allocated);
   shard->hashtable_prime = next_prime(shard->hashtable_size);
   shard->hashtable = calloc(shard->hashtable_size, sizeof(int));
   assert(shard->hashtable != NULL);
@@ -94,12 +94,12 @@ void dbm_shard_copy(dbm_shard_t *shard_a, const dbm_shard_t *shard_b) {
     assert(shard_a->hashtable != NULL);
   }
   shard_a->hashtable_size = shard_b->hashtable_size;
-  shard_a->hashtable_mask = shard_b->hashtable_mask;
   shard_a->hashtable_prime = shard_b->hashtable_prime;
 
   if (shard_a->data_allocated < shard_b->data_size) {
-    free(shard_a->data);
-    shard_a->data = malloc(shard_b->data_size * sizeof(double));
+    dbm_mempool_host_free(shard_a->data);
+    shard_a->data =
+        dbm_mempool_host_malloc(shard_b->data_size * sizeof(double));
     shard_a->data_allocated = shard_b->data_size;
     assert(shard_a->data != NULL);
   }
@@ -125,7 +125,7 @@ void dbm_shard_copy(dbm_shard_t *shard_a, const dbm_shard_t *shard_b) {
 void dbm_shard_release(dbm_shard_t *shard) {
   free(shard->blocks);
   free(shard->hashtable);
-  free(shard->data);
+  dbm_mempool_host_free(shard->data);
   omp_destroy_lock(&shard->lock);
 }
 
@@ -142,21 +142,29 @@ static inline unsigned int hash(const unsigned int row,
 }
 
 /*******************************************************************************
+ * \brief Internal routine for masking a slot in the hash-table.
+ * \author Hans Pabst
+ ******************************************************************************/
+static inline int hashtable_mask(const dbm_shard_t *shard) {
+  return shard->hashtable_size - 1;
+}
+
+/*******************************************************************************
  * \brief Private routine for inserting a block into a shard's hashtable.
  * \author Ole Schuett
  ******************************************************************************/
 static void hashtable_insert(dbm_shard_t *shard, const int block_idx) {
   assert(0 <= block_idx && block_idx < shard->nblocks);
   const dbm_block_t *blk = &shard->blocks[block_idx];
-  const int row = blk->row, col = blk->col;
-  int slot = (shard->hashtable_prime * hash(row, col)) & shard->hashtable_mask;
-  while (true) {
-    if (shard->hashtable[slot] == 0) {
-      shard->hashtable[slot] = block_idx + 1; // 1-based because 0 means empty
-      return;
+  const unsigned int h = hash(blk->row, blk->col);
+  int slot = (shard->hashtable_prime * h) & hashtable_mask(shard);
+  for (;; slot = (slot + 1) & hashtable_mask(shard)) { // linear probing
+    for (int i = slot; i < shard->hashtable_size; ++i) {
+      if (shard->hashtable[i] == 0) {        // 0 means empty
+        shard->hashtable[i] = block_idx + 1; // 1-based
+        return;
+      }
     }
-    // linear probing
-    slot = (slot + 1) & shard->hashtable_mask;
   }
 }
 
@@ -166,19 +174,19 @@ static void hashtable_insert(dbm_shard_t *shard, const int block_idx) {
  ******************************************************************************/
 dbm_block_t *dbm_shard_lookup(const dbm_shard_t *shard, const int row,
                               const int col) {
-  int slot = (shard->hashtable_prime * hash(row, col)) & shard->hashtable_mask;
-  while (true) {
-    const int block_idx = shard->hashtable[slot] - 1; // 1-based, 0 means empty.
-    if (block_idx < 0) {
-      return NULL; // block not found
+  int slot = (shard->hashtable_prime * hash(row, col)) & hashtable_mask(shard);
+  for (;; slot = (slot + 1) & hashtable_mask(shard)) { // linear probing
+    for (int i = slot; i < shard->hashtable_size; ++i) {
+      const int block_idx = shard->hashtable[i];
+      if (block_idx == 0) { // 1-based, 0 means empty
+        return NULL;        // block not found
+      }
+      assert(0 < block_idx && block_idx <= shard->nblocks);
+      dbm_block_t *blk = &shard->blocks[block_idx - 1];
+      if (blk->row == row && blk->col == col) {
+        return blk;
+      }
     }
-    assert(0 <= block_idx && block_idx < shard->nblocks);
-    dbm_block_t *blk = &shard->blocks[block_idx];
-    if (blk->row == row && blk->col == col) {
-      return blk;
-    }
-    // linear probing
-    slot = (slot + 1) & shard->hashtable_mask;
   }
 }
 
@@ -190,7 +198,8 @@ dbm_block_t *dbm_shard_promise_new_block(dbm_shard_t *shard, const int row,
                                          const int col, const int block_size) {
   // Grow blocks array if necessary.
   if (shard->nblocks_allocated < shard->nblocks + 1) {
-    shard->nblocks_allocated = ALLOCATION_FACTOR * (shard->nblocks + 1);
+    shard->nblocks_allocated = DBM_OVERCOMMIT_HOST * (shard->nblocks + 1);
+    assert((shard->nblocks + 1) <= shard->nblocks_allocated);
     shard->blocks =
         realloc(shard->blocks, shard->nblocks_allocated * sizeof(dbm_block_t));
     assert(shard->blocks != NULL);
@@ -210,7 +219,7 @@ dbm_block_t *dbm_shard_promise_new_block(dbm_shard_t *shard, const int row,
   new_block->col = col;
   new_block->offset = shard->data_promised;
   shard->data_promised += block_size;
-  // The data_size will be increase after the memory is allocated and zeroed.
+  // The data_size will be increased after the memory is allocated and zeroed.
   hashtable_insert(shard, new_block_idx);
   return new_block;
 }
@@ -223,9 +232,14 @@ void dbm_shard_allocate_promised_blocks(dbm_shard_t *shard) {
 
   // Reallocate data array if necessary.
   if (shard->data_promised > shard->data_allocated) {
-    shard->data_allocated = ALLOCATION_FACTOR * shard->data_promised;
-    shard->data = realloc(shard->data, shard->data_allocated * sizeof(double));
+    const double *data = shard->data;
+    shard->data_allocated = DBM_OVERCOMMIT_HOST * shard->data_promised;
+    assert(shard->data_promised <= shard->data_allocated);
+    shard->data =
+        dbm_mempool_host_malloc(shard->data_allocated * sizeof(double));
     assert(shard->data != NULL);
+    memcpy(shard->data, data, shard->data_size * sizeof(double));
+    dbm_mempool_host_free(data);
   }
 
   // Zero new blocks.
@@ -233,7 +247,7 @@ void dbm_shard_allocate_promised_blocks(dbm_shard_t *shard) {
   // to frequent page faults. The executing thread determines the NUMA location
   if (shard->data_promised > shard->data_size) {
     const int tail = shard->data_promised - shard->data_size;
-    memset(&shard->data[shard->data_size], 0, tail * sizeof(double));
+    memset(shard->data + shard->data_size, 0, tail * sizeof(double));
     shard->data_size = shard->data_promised;
   }
 }

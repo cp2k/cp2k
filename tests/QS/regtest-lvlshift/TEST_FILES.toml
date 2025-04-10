@@ -1,0 +1,28 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+#
+# check that the level shifting technique has no influence on total energy and HOMO-LUMO gap
+# METHOD gpw  ; CHOLESKY inverse
+"c2h2-gpw-inverse.inp"                  = [{matcher="E_total", tol=1.0E-12, ref=-12.47387109223699},
+                                           {matcher="E_gap_DFT_2", tol=1.0E-8, ref=0.261219}]
+
+# METHOD gpw  ; CHOLESKY off
+"c2h2-gpw-off.inp"                      = [{matcher="E_total", tol=1.0E-12, ref=-12.47387109223699},
+                                           {matcher="E_gap_DFT_2", tol=1.0E-8, ref=0.261219}]
+
+# METHOD gpw  ; CHOLESKY off, EPS_EIGVAL 1.0E-1 to check reduction
+"c2h2-gpw-off_svd.inp"                  = [{matcher="E_total", tol=1.0E-12, ref=-12.36315070103809},
+                                           {matcher="E_gap_DFT_2", tol=1.0E-8, ref=0.299207}]
+
+# METHOD gpw  ; CHOLESKY reduce
+"c2h2-gpw-reduce.inp"                   = [{matcher="E_total", tol=1.0E-12, ref=-12.47387109223699},
+                                           {matcher="E_gap_DFT_2", tol=1.0E-8, ref=0.261219}]
+
+# METHOD gpw  ; CHOLESKY restore
+"c2h2-gpw-restore.inp"                  = [{matcher="E_total", tol=1.0E-12, ref=-12.47387109223699},
+                                           {matcher="E_gap_DFT_2", tol=1.0E-8, ref=0.261219}]
+
+#EOF

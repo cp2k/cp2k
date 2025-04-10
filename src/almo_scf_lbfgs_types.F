@@ -16,10 +16,10 @@ MODULE almo_scf_lbfgs_types
    USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
                                               dbcsr_copy,&
                                               dbcsr_create,&
-                                              dbcsr_dot,&
                                               dbcsr_release,&
                                               dbcsr_scale,&
                                               dbcsr_type
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_dot
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr
    !USE cp_log_handling,                 ONLY: cp_to_string

@@ -18,10 +18,12 @@
 MODULE qs_scf_block_davidson
 
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_get_diag, dbcsr_get_info, dbcsr_init_p, &
+        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_get_info, dbcsr_init_p, &
         dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
-        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_release_p, &
-        dbcsr_scale_by_vector, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric
+        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_multiply, dbcsr_release_p, dbcsr_type, &
+        dbcsr_type_no_symmetry, dbcsr_type_symmetric
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_get_diag,&
+                                              dbcsr_scale_by_vector
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
                                               cp_dbcsr_m_by_n_from_row_template,&

@@ -1,0 +1,7 @@
+"RPA_SIGMA_H2O_clenshaw.inp"            = [{matcher="M011", tol=1e-09, ref=-17.192268141449258}]
+"RPA_SIGMA_H2O_minimax.inp"             = [{matcher="M011", tol=1e-09, ref=-17.190139749033445}]
+"RPA_SIGMA_H_minimax.inp"               = [{matcher="M011", tol=1e-09, ref=-0.51521647108769}]
+"RPA_SIGMA_H_clenshaw.inp"              = [{matcher="M011", tol=1e-09, ref=-0.515090906944438}]
+"RPA_SIGMA_H2O_minimax_NUM_INTEG_GROUPS.inp" = [{matcher="M011", tol=1e-09, ref=-17.19013974903345}]
+#EOF
+

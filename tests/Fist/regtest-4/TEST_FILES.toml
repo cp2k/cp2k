@@ -1,0 +1,75 @@
+# test topology generate/dump feature
+"acn.inp"                               = [{matcher="M002", tol=1.0E-14, ref=-0.188181595734E+00}]
+#metadynamics distance_point_plane and angle
+"nh3-meta-1.inp"                        = [{matcher="M002", tol=1.0E-14, ref=0.110355972496E+00}]
+"nh3-meta-ref.inp"                      = []
+"nh3-meta-ref2.inp"                     = []
+"nh3-meta-2.inp"                        = [{matcher="M002", tol=1.0E-14, ref=0.103662033913E+00}]
+#collective constraint both for nve and npt
+"ethene_colv0.inp"                      = [{matcher="M002", tol=8e-10, ref=0.0064638931085700003}]
+"ethene_colv1.inp"                      = [{matcher="M002", tol=8e-10, ref=0.0064656266809200004}]
+"ethene_colv1_npt.inp"                  = [{matcher="M002", tol=4e-09, ref=0.00171895688846}]
+"ethene_colv2.inp"                      = [{matcher="M002", tol=3e-10, ref=0.017674386846599999}]
+"ethene_colv2_npt.inp"                  = [{matcher="M002", tol=3e-09, ref=0.0039278397253399997}]
+#
+# test restraints here
+# flexible partitioning
+"H2O-32_SPME_fp.inp"                    = [{matcher="M002", tol=1.0E-14, ref=-0.573500908078E+00}]
+# dist and bend
+"H2O-restraint.inp"                     = [{matcher="M002", tol=1.0E-14, ref=0.160734238008E-02}]
+# torsion
+"ethene-restraint.inp"                  = [{matcher="M002", tol=1e-10, ref=0.00081393113312400005}]
+"ethene-restraint2.inp"                 = [{matcher="M002", tol=1e-10, ref=0.813931133125E-03}]
+#next two are a double crossed check
+"ethene-no-restraint.inp"               = [{matcher="M002", tol=7e-12, ref=0.00080042617086399995}]
+"ethene-ck-restraint.inp"               = [{matcher="M002", tol=7e-12, ref=0.00080042617086399995}]
+#restraint 3x3
+"H2O-restraint_3x3.inp"                 = [{matcher="M002", tol=3e-12, ref=0.769155421056E-03}]
+#restraint 4x6
+"nh3-restraint4x6.inp"                  = [{matcher="M002", tol=1.0E-14, ref=0.503664372190E-02}]
+#restraint fixed_atoms
+"nh3-restraint-fixd.inp"                = [{matcher="M002", tol=1.0E-14, ref=0.276479131856E-02}]
+#
+# testing loops in topology
+"loop.inp"                              = [{matcher="M002", tol=1.0E-14, ref=-0.110975214201E+01}]
+"pentadiene.inp"                        = [{matcher="M002", tol=6e-12, ref=0.347129306924E-01}]
+"cyhex.inp"                             = [{matcher="M002", tol=1.0E-14, ref=0.334467445119E-01}]
+"cycbut.inp"                            = [{matcher="M002", tol=1.0E-14, ref=0.146699955633E+00}]
+# testing cp_units
+"H2O-1.inp"                             = [{matcher="M002", tol=1.0E-14, ref=-0.170754712777E-03}]
+# Testing multiple potential
+"H2O-2-mul0.inp"                        = [{matcher="M002", tol=1.0E-14, ref=-0.170754712777E-03}]
+"H2O-2-ovwr.inp"                        = [{matcher="M002", tol=1.0E-14, ref=-0.170754712777E-03}]
+"H2O-2-multi.inp"                       = [{matcher="M002", tol=1.0E-14, ref=-0.170754712777E-03}]
+"H2O-2-multi-pw.inp"                    = [{matcher="M002", tol=1.0E-14, ref=-0.170754712777E-03}]
+# AMBER tests comparing energies w.r.t. AMBER.. differences of the order of 10^-6-10^-7 Hartree
+# see the h2o2_amber.inp for comments
+"h2o2_amber.inp"                        = [{matcher="M002", tol=1.0E-14, ref=0.379102174525E-01}]
+"gly_amber.inp"                         = [{matcher="M002", tol=1e-11, ref=-0.734794690516E-02}]
+"mol_amber.inp"                         = [{matcher="M002", tol=1.0E-14, ref=-0.785339124023E-02}]
+#RESPA_TEST
+"acn_respa.inp"                         = [{matcher="M002", tol=1.0E-14, ref=-0.161228239673E+00}]
+#BFGS optimizer with restraints
+"nh3-restraint-fixd-2.inp"              = [{matcher="M007", tol=1.0E-14, ref=0.0010863072}]
+#Restart fixed on different molecules..
+"nh3_wat-restraint-fixd-3.inp"          = [{matcher="M007", tol=1.0E-14, ref=-0.0061030813}]
+"nh3_wat-restraint-fixd-4.inp"          = [{matcher="M007", tol=1.0E-14, ref=-0.0061030820}]
+#BFGS - Restart Hessian
+"nh3_bfgs.inp"                          = [{matcher="M007", tol=1.0E-14, ref=-0.0000637288}]
+"nh3_bfgs_r.inp"                        = [{matcher="M007", tol=1.0E-14, ref=-0.0000637306}]
+#Growth constraints
+"ethene_colv1_growth.inp"               = [{matcher="M002", tol=7e-10, ref=0.0124972876295}]
+"ethene_colv1_growth_lim.inp"           = [{matcher="M002", tol=8e-10, ref=0.0087716206527799993}]
+#combo restraint/constraint
+"H2O-restraint_2.inp"                   = [{matcher="M002", tol=1.0E-14, ref=0.200251478411E-03}]
+"H2O-restraint_2r.inp"                  = [{matcher="M002", tol=9e-12, ref=0.232271778520E-03}]
+#Multiple Walkers
+"nh3-meta-walks_1.inp"                  = [{matcher="M002", tol=1.0E-14, ref=0.709668226001E-03}]
+"nh3-meta-walks_2.inp"                  = [{matcher="M002", tol=1.0E-14, ref=0.116427166940E-01}]
+"nh3-meta-walks_1r.inp"                 = [{matcher="M002", tol=4e-12, ref=0.0095586840152099995}]
+"nh3-meta-walks_2r.inp"                 = [{matcher="M002", tol=7e-10, ref=0.014663352649999999}]
+#Combine_colvar
+"H2O-meta-combine.inp"                  = [{matcher="M002", tol=3.5e-02, ref=0.00104137484729}]
+"lewis.inp"                             = [{matcher="M011", tol=7e-10, ref=-25.423499443424980}]
+"test_combine.inp"                      = [{matcher="M002", tol=3.5e-02, ref=0.000971980822777}]
+#EOF

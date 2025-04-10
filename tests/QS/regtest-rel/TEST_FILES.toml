@@ -1,0 +1,10 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# see regtest/TEST_FILES
+"h2o-1.inp"                             = [{matcher="E_total", tol=1e-12, ref=-75.93975427735262}]
+"h2o-2.inp"                             = [{matcher="E_total", tol=1E-12, ref=-75.93978939364264}]
+"h2o-3.inp"                             = [{matcher="E_total", tol=7e-11, ref=-75.94409355435376}]
+"h2o-4.inp"                             = [{matcher="E_total", tol=6e-11, ref=-75.95928403905509}]
+"h2o-5.inp"                             = [{matcher="E_total", tol=1E-10, ref=-75.51398967168370}]
+"Hg_rel.inp"                            = [{matcher="E_total", tol=1e-10, ref=-19596.665356255707593}]
+#EOF

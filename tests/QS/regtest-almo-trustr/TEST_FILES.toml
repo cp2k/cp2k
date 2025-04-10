@@ -1,0 +1,5 @@
+"BN-cg.inp"                             = [{matcher="M011", tol=1e-08, ref=-101.701385613578893}]
+"FHchain-dogleg.inp"                    = [{matcher="M011", tol=1e-06, ref=-99.282984855903294}]
+"water-ionic-md-cauchy.inp"             = [{matcher="M011", tol=1e-07, ref=-33.942337065602487}]
+"ice-block-diag-trustr.inp"             = [{matcher="M011", tol=1e-07, ref=-137.557303714425842}]
+#EOF

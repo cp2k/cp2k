@@ -1,0 +1,14 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+# tests GAPW GTH and ALL
+#XAS
+"CO.inp"                                = [{matcher="E_total", tol=2e-12, ref=-113.27555193628908}]
+"CO_xastpxhh.inp"                       = [{matcher="E_total", tol=1e-10, ref=-103.60211898340968}]
+"CO_xastpval.inp"                       = [{matcher="E_total", tol=3e-11, ref=-113.27555193676139}]
+"CO_xastpxhh_loclist.inp"               = [{matcher="E_total", tol=2e-08, ref=-89.944402143822472}]
+"CO_xes_core1homo0.inp"                 = [{matcher="E_total", tol=3e-10, ref=-112.77416154443722}]
+"CO_xes_core0.5.inp"                    = [{matcher="E_total", tol=3e-10, ref=-103.51266887220301}]
+#EOF

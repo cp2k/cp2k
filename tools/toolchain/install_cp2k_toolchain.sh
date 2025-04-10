@@ -237,6 +237,11 @@ The --with-PKG options follow the rules:
                           Default = install
   --with-trexio           Enable the trexio library (read/write TREXIO files).
                           Default = no
+  --with-greenx           Enable GreenX library for Minimax grids and Padé analytic continuation in RT-BSE
+                          This package requires CMake, BLAS and LAPACK.
+                          Default = no
+  --with-gmp              Enable GMP library, optional dependency of GreenX
+                          Default = no
 
 FURTHER INSTRUCTIONS
 
@@ -274,7 +279,7 @@ mpi_list="mpich openmpi intelmpi"
 math_list="mkl acml openblas"
 lib_list="fftw libint libxc libgrpp libxsmm cosma scalapack elpa dbcsr
           cusolvermp plumed spfft spla gsl spglib hdf5 libvdwxc sirius
-          libvori libtorch deepmd dftd4 pugixml libsmeagol trexio"
+          libvori libtorch deepmd dftd4 pugixml libsmeagol trexio greenx gmp"
 package_list="${tool_list} ${mpi_list} ${math_list} ${lib_list}"
 # ------------------------------------------------------------------------
 
@@ -678,6 +683,12 @@ while [ $# -ge 1 ]; do
     --with-trexio*)
       with_trexio=$(read_with "${1}")
       ;;
+    --with-greenx*)
+      with_greenx=$(read_with "${1}")
+      ;;
+    --with-gmp*)
+      with_gmp=$(read_with "${1}")
+      ;;
     --with-dbcsr*)
       with_dbcsr=$(read_with $1)
       ;;
@@ -820,6 +831,7 @@ if [ "${with_spglib}" = "__INSTALL__" ] ||
   [ "${with_spfft}" = "__INSTALL__" ] ||
   [ "${with_spla}" = "__INSTALL__" ] ||
   [ "${with_ninja}" = "__INSTALL__" ] ||
+  [ "${with_greenx}" = "__INSTALL__" ] ||
   [ "${with_dftd4}" = "__INSTALL__" ]; then
   [ "${with_cmake}" = "__DONTUSE__" ] && with_cmake="__INSTALL__"
 fi

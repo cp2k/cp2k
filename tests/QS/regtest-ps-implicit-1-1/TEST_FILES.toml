@@ -1,0 +1,9 @@
+# testing implicit (generalized) Poisson solver
+"Ar_periodic.inp"                       = [{matcher="E_total", tol=2e-9, ref=-21.074667254237461}]
+"Ar_mixed_periodic_aa_planar.inp"       = [{matcher="E_total", tol=1e-12, ref=-21.074667262658934}]
+"Ar_mixed_cuboidal.inp"                 = [{matcher="E_total", tol=4e-12, ref=-21.074470225560631}]
+"Ar_mixed_cylindrical.inp"              = [{matcher="E_total", tol=5e-12, ref=-21.074471695486011}]
+"Ar_neumann_x_periodic_yz.inp"          = [{matcher="E_total", tol=1e-12, ref=-21.07468629467315}]
+"Ar_neumann_z_periodic_xy.inp"          = [{matcher="E_total", tol=1e-12, ref=-21.07468629467315}]
+"Ar_neumann_yz_periodic_x_dirichlet_xaacyl.inp" = [{matcher="E_total", tol=1e-12, ref=-21.07438829550814}]
+#EOF

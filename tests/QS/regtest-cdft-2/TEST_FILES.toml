@@ -1,0 +1,23 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# see regtest/TEST_FILES
+#
+"HeH-noconstraint.inp"                  = [{matcher="E_total", tol=2e-13, ref=-3.01067446615060}]
+"He+-noconstraint.inp"                  = [{matcher="E_total", tol=2e-13, ref=-2.05007934458372}]
+"H-noconstraint.inp"                    = [{matcher="E_total", tol=4e-13, ref=-0.45734465780293}]
+# These tests use different constraint formalisms so their value differs (see outputted charges)
+"HeH-cdft-1.inp"                        = [{matcher="M071", tol=3e-11, ref=1.200733561958}]
+"HeH-cdft-2.inp"                        = [{matcher="M071", tol=2e-11, ref=1.599542796623}]
+"HeH-cdft-3.inp"                        = [{matcher="M071", tol=3e-11, ref=1.415849431280}]
+"HeH-cdft-4.inp"                        = [{matcher="M071", tol=1e-11, ref=1.707100731284}]
+# Fragment based spin constraint (value is 0 because rho_alpha-rho_beta=0 in ground state)
+"HeH-cdft-9.inp"                        = [{matcher="M071", tol=2e-11, ref=0.000000000000}]
+# These tests give identical value of atomic forces (there is some numerical noise when the number of mpiranks is varied)
+"HeH-cdft-5.inp"                        = [{matcher="M072", tol=3e-09, ref=0.1451730892728}]
+"HeH-cdft-6.inp"                        = [{matcher="M072", tol=3e-09, ref=0.1451730892732}]
+"HeH-cdft-7.inp"                        = [{matcher="M072", tol=3e-09, ref=0.1451730892732}]
+# Two constraints: charge difference + spin constraint
+"HeH-cdft-8.inp"                        = [{matcher="M071", tol=3e-11, ref=1.415849431280}]
+# Two fragment based spin constraints
+"HeH-cdft-10.inp"                       = [{matcher="M071", tol=2e-11, ref=-0.000000000000}]
+#EOF

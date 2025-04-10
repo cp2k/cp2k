@@ -16,12 +16,6 @@
 #include "dbm_mpi.h"
 
 /*******************************************************************************
- * \brief Returns the larger of two given integer (missing from the C standard)
- * \author Ole Schuett
- ******************************************************************************/
-static inline int imax(int x, int y) { return (x > y ? x : y); }
-
-/*******************************************************************************
  * \brief Private routine for computing greatest common divisor of two numbers.
  * \author Ole Schuett
  ******************************************************************************/
@@ -366,7 +360,7 @@ static dbm_packed_matrix_t pack_matrix(const bool trans_matrix,
   }
   dbm_pack_block_t *blks_send =
       dbm_mpi_alloc_mem(nblks_send_max * sizeof(dbm_pack_block_t));
-  double *data_send = dbm_mempool_host_malloc(ndata_send_max * sizeof(double));
+  double *data_send = dbm_mpi_alloc_mem(ndata_send_max * sizeof(double));
 
   // Cannot parallelize over packs (there might be too few of them).
   for (int ipack = 0; ipack < nsend_packs; ipack++) {
@@ -426,7 +420,7 @@ static dbm_packed_matrix_t pack_matrix(const bool trans_matrix,
 
   // Deallocate send buffers.
   dbm_mpi_free_mem(blks_send);
-  dbm_mempool_free(data_send);
+  dbm_mpi_free_mem(data_send);
 
   // Allocate pack_recv.
   int max_nblocks = 0, max_data_size = 0;
@@ -466,12 +460,11 @@ static dbm_pack_t *sendrecv_pack(const int itick, const int nticks,
   const int recv_rank = itick % nranks;
   const int recv_ipack = itick / nranks;
 
+  dbm_pack_t *send_pack = &packed->send_packs[send_ipack];
   if (send_rank == my_rank) {
     assert(send_rank == recv_rank && send_ipack == recv_ipack);
-    return &packed->send_packs[send_ipack]; // Local pack, no mpi needed.
+    return send_pack; // Local pack, no mpi needed.
   } else {
-    const dbm_pack_t *send_pack = &packed->send_packs[send_ipack];
-
     // Exchange blocks.
     const int nblocks_in_bytes = dbm_mpi_sendrecv_byte(
         /*sendbuf=*/send_pack->blocks,
@@ -509,10 +502,10 @@ static dbm_pack_t *sendrecv_pack(const int itick, const int nticks,
  ******************************************************************************/
 static void free_packed_matrix(dbm_packed_matrix_t *packed) {
   dbm_mpi_free_mem(packed->recv_pack.blocks);
-  dbm_mempool_free(packed->recv_pack.data);
+  dbm_mempool_host_free(packed->recv_pack.data);
   for (int ipack = 0; ipack < packed->nsend_packs; ipack++) {
     dbm_mpi_free_mem(packed->send_packs[ipack].blocks);
-    dbm_mempool_free(packed->send_packs[ipack].data);
+    dbm_mempool_host_free(packed->send_packs[ipack].data);
   }
   free(packed->send_packs);
 }

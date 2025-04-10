@@ -26,9 +26,14 @@ OPTFLAG ?= -O$(patsubst O%,%,$(OPT))
 
 CFLAGS := -fPIC -g $(OPTFLAG) -march=native -Wall -Wextra -Wcast-qual
 
+VALIDATE ?= 0
+ifneq ($(VALIDATE),0)
+CFLAGS += -DDBM_VALIDATE_AGAINST_LIBXSMM
+endif
+
 # Intel Compiler
 ICX := $(shell which icx 2>/dev/null)
-INTEL ?= $(if $(ICX),1,0)
+INTEL ?= $(if $(ICX),$(if $(filter-out 0,$(GNU)),0,1),0)
 
 # Build with MPI when MPICC is given
 MPI ?= $(if $(MPICC),1,0)
@@ -40,8 +45,8 @@ CFLAGS += -fopenmp -Wno-vla-parameter
 CC := $(if $(filter-out 0,$(MPI)),mpicc,gcc)
 else
 MKL_FCRTL := intel
-LIBS += $(if $(OMPRT),-l$(OMPRT),-qopenmp)
-CFLAGS += -qopenmp
+LIBS += $(if $(OMPRT),-fopenmp -Wno-recommended-option,-qopenmp)
+CFLAGS += $(if $(OMPRT),-fopenmp -Wno-recommended-option,-qopenmp)
 CC := $(if $(filter-out 0,$(MPI)),mpiicx,icx)
 endif
 
@@ -115,7 +120,8 @@ OPENCL_GEN := $(CP2KHOME)/exts/dbcsr/src/acc/opencl/acc_opencl.sh
 ALL_HEADERS += $(OPENCL_GENKRNL)
 
 ALL_OBJECTS += dbm_multiply_gpu.o dbm_multiply_opencl.o
-CFLAGS += -I$(CP2KHOME)/exts/dbcsr -D__OFFLOAD_OPENCL -D__DBCSR_ACC
+CFLAGS += -I$(CP2KHOME)/exts/dbcsr/src/acc/opencl -I$(CP2KHOME)/exts/dbcsr
+CFLAGS += -D__OFFLOAD_OPENCL -D__DBCSR_ACC
 LIBS += $(OPENCL_OFFLOAD) -lgfortran
 
 ifneq (Darwin,$(shell uname))
@@ -160,6 +166,7 @@ else # macOS
 LIBS += -framework OpenCL
 endif
 
+dbm_miniapp.x: $(OPENCL_OFFLOAD)
 $(OPENCL_GENKRNL): $(OPENCL_GEN) $(OPENCL_SRC) $(OPENCL_CMN)
 	$(OPENCL_GEN) -b 6 -p "" $(OPENCL_SRC) $@
 
@@ -199,6 +206,6 @@ endif
 	cd $(dir $<); $(CC) -c -std=c11 $(CFLAGS) $(notdir $<)
 
 dbm_miniapp.x: dbm_miniapp.o $(ALL_OBJECTS)
-	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
+	$(CC) -o $@ $^ $(LIBS)
 
 #EOF

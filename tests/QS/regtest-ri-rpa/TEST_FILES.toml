@@ -1,0 +1,12 @@
+"RI_RPA_H2O.inp"                        = [{matcher="M011", tol=1e-09, ref=-17.145691221376179}]
+"RI_RPA_H2O_overlap_metric.inp"         = [{matcher="M011", tol=1e-09, ref=-17.145538849244058}]
+"RI_RPA_CH3.inp"                        = [{matcher="M011", tol=7e-12, ref=-7.415612316027350}]
+"RI_RPA_H2O_SYRK.inp"                   = [{matcher="M011", tol=7e-09, ref=-17.145691221376179}]
+"RI_RPA_minimax_H_atom.inp"             = [{matcher="M011", tol=1e-08, ref=-0.51012290148468298}]
+"RI_RPA_H2O_minimax.inp"                = [{matcher="M011", tol=1e-08, ref=-17.145691263471381}]
+"RI_RPA_H2O_PBE0.inp"                   = [{matcher="M011", tol=1e-08, ref=-17.122863632433685}]
+"RI_RPA_H2O_PBE0_ADMM1.inp"             = [{matcher="M011", tol=1e-08, ref=-17.125217824055699}]
+"RI_RPA_H2O_Obara_Saika.inp"            = [{matcher="M011", tol=1e-08, ref=-17.160204463746162}]
+"RI_RPA_H2O_svd.inp"                    = [{matcher="M011", tol=1e-09, ref=-17.145691221376168}]
+"RI_RPA_H2O_overlap_metric_svd.inp"     = [{matcher="M011", tol=1e-09, ref=-17.145530117968583}]
+#EOF

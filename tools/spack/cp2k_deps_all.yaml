@@ -1,0 +1,120 @@
+# Spack environment file for a CP2K installation with all available dependencies
+
+spack:
+  concretizer:
+    unify: true
+  config:
+    install_tree:
+      root: /opt/spack
+  packages:
+    all:
+      prefer:
+        - +mpi
+        - ~cuda
+        - ~rocm
+    # MPI, BLAS, LAPACK, ScaLAPACK
+    mpi:
+      require:
+        - mpich
+    mpich:
+      require:
+        - device=ch3
+        - netmod=tcp
+    blas:
+      require:
+        - openblas
+    lapack:
+      require:
+        - openblas
+    scalapack:
+      require:
+        - netlib-scalapack
+    openblas:
+      require:
+        - +fortran
+        - threads=openmp
+    # Dependencies for CP2K
+    cosma:
+      require:
+        - +scalapack
+    dbcsr:
+      require:
+        - +openmp
+    dftd4:
+      require:
+        - build_system=cmake
+    dla-future:
+      require:
+        - +scalapack
+    elpa:
+      require:
+        - +openmp
+    fftw:
+      require:
+        - +openmp
+    hdf5:
+      require:
+        - +fortran
+    libint:
+      require:
+        - +fortran
+        - tune=cp2k-lmax-5
+    libxc:
+      require:
+        - +kxc
+        - build_system=cmake
+    py-torch:
+      require:
+        - ~cuda
+        - ~distributed
+        - ~kineto
+        - ~mkldnn
+        - ~rocm
+    sirius:
+      require:
+        - +fortran
+        - +pugixml
+        - ~apps
+        - +vdwxc
+    spla:
+      require:
+        - +fortran
+    trexio:
+      require:
+        - +hdf5
+        - build_system=cmake
+  repos:
+    - $spack/cp2k
+  specs:
+    - "mpich@4.2.3"
+    - "openblas@0.3.29"
+    - "netlib-scalapack@2.2.2"
+#   - "cosma@2.6.6" Use master until a new release will be available
+    - "cosma@master"
+    - "dbcsr@2.8.0"
+    - "dftd4@3.6.0"
+    - "dla-future@0.8.0"
+    - "dla-future-fortran@0.3.0"
+    - "elpa@2024.03.001"
+    - "fftw@3.3.10"
+    - "hdf5@1.14"
+    - "libint@2.9.0"
+    - "libsmeagol@1.2"
+    - "libvori@220621"
+    - "libxc@7.0.0"
+#   - "libxsmm@main-2024-09" Use 1.17 with Spack as long as grid unit tests fail
+    - "libxsmm@1.17"
+    - "plumed@2.9.2"
+    - "py-torch@2.6"
+    - "sirius@7.6.1"
+    - "spglib@2.3.0"
+    - "spla@1.6.1"
+    - "trexio@2.5.0"
+  view:
+    default:
+      root: ./spack-env/view
+      exclude:
+        # Exclude gcc-runtime to avoid adding a copy of libgomp.so to the view
+        - gcc-runtime
+
+# EOF

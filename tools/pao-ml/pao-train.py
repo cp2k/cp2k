@@ -4,12 +4,11 @@
 
 import torch
 import argparse
-from typing import cast
 from pathlib import Path
 from torch.utils.data import DataLoader
 
 from pao.model import PaoModel
-from pao.dataset import PaoDataset, PaoRecord
+from pao.dataset import PaoDataset
 from pao.training import train_model
 
 

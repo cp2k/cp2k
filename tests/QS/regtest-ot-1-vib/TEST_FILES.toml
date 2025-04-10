@@ -1,0 +1,12 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+# Mode selectiv vibrational analysis and intensities
+"H2O-VIB-MS-INT-1.inp"                  = [{matcher="M021", tol=1.0E-14, ref=180.498851}]
+"H2O-VIB-MS-INT-2.inp"                  = [{matcher="M021", tol=1.0E-14, ref=180.498851}]
+"vib-mixed.inp"                         = [{matcher="M008", tol=1e-14, ref=2160.693948}]
+"dip-mixed.inp"                         = [{matcher="M011", tol=2e-14, ref=-17.248506334913024}]
+"vib-int-mixed.inp"                     = [{matcher="M008", tol=1e-14, ref=2284.489403}]
+#EOF

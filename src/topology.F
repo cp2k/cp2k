@@ -18,7 +18,9 @@ MODULE topology
                                               write_cell
    USE cell_types,                      ONLY: cell_retain,&
                                               cell_type
-   USE colvar_types,                    ONLY: colvar_p_type
+   USE colvar_types,                    ONLY: colvar_p_type,&
+                                              colvar_setup,&
+                                              combine_colvar_id
    USE colvar_utils,                    ONLY: post_process_colvar
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
@@ -611,11 +613,18 @@ CONTAINS
       TYPE(colvar_p_type), DIMENSION(:), POINTER         :: colvar_p
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
-      INTEGER                                            :: i
+      INTEGER                                            :: i, j
 
       IF (ASSOCIATED(colvar_p)) THEN
          DO i = 1, SIZE(colvar_p)
-            CALL post_process_colvar(colvar_p(i)%colvar, particle_set)
+            IF (colvar_p(i)%colvar%type_id == combine_colvar_id) THEN
+               DO j = 1, SIZE(colvar_p(i)%colvar%combine_cvs_param%colvar_p)
+                  CALL post_process_colvar(colvar_p(i)%colvar%combine_cvs_param%colvar_p(j)%colvar, particle_set)
+               END DO
+               CALL colvar_setup(colvar_p(i)%colvar)
+            ELSE
+               CALL post_process_colvar(colvar_p(i)%colvar, particle_set)
+            END IF
          END DO
       END IF
    END SUBROUTINE topology_post_proc_colvar

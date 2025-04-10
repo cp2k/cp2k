@@ -1,0 +1,18 @@
+"H2O-meta_kinds.inp"                    = [{matcher="E_total", tol=4e-14, ref=-17.16166674842984}]
+"H2O-meta.inp"                          = [{matcher="E_total", tol=2e-14, ref=-17.16168353866058}]
+"H2O-meta_res0.inp"                     = [{matcher="E_total", tol=4e-14, ref=-17.16173774136890}]
+"H2O-meta_res1.inp"                     = [{matcher="E_total", tol=3e-14, ref=-17.16200759021129}]
+"H2O-meta_res2.inp"                     = [{matcher="E_total", tol=1.0E-14, ref=-17.16019189141385}]
+"H2O-meta_res3.inp"                     = [{matcher="E_total", tol=3e-14, ref=-17.16211383662706}]
+# tpss
+"H2O-tpss.inp"                          = [{matcher="E_total", tol=2e-13, ref=-34.47564039700952}]
+# tpss new input
+"H2O-tpss_new.inp"                      = [{matcher="E_total", tol=2e-13, ref=-34.47564039700952}]
+# farming
+"farming.inp"                           = []
+#more checking on metadynamics RESTART
+"H2O-meta_coord.inp"                    = [{matcher="M002", tol=1.0E-14, ref=-0.171568202245E+02}]
+"H2O-meta_coord_1.inp"                  = [{matcher="M002", tol=1.0E-14, ref=-0.171612333222E+02}]
+"H2O-meta_coord_2.inp"                  = [{matcher="M002", tol=1.0E-14, ref=-0.171568200698E+02}]
+#dimer with nested IO iteration levels
+#EOF

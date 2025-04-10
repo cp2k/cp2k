@@ -16,8 +16,9 @@ MODULE qs_tddfpt2_forces
    USE cp_control_types,                ONLY: dft_control_type,&
                                               tddfpt2_control_type
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_add, dbcsr_complete_redistribute, dbcsr_copy, dbcsr_create, dbcsr_dot, dbcsr_p_type, &
+        dbcsr_add, dbcsr_complete_redistribute, dbcsr_copy, dbcsr_create, dbcsr_p_type, &
         dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_dot
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
@@ -837,7 +838,7 @@ CONTAINS
             CALL get_qs_env(qs_env, rho_atom_set=rho_atom_set)
             rho1_atom_set => local_rho_set%rho_atom_set
             CALL calculate_xc_2nd_deriv_atom(rho_atom_set, rho1_atom_set, qs_env, xc_section, para_env, &
-                                             do_tddft=.TRUE., do_triplet=.FALSE.)
+                                             do_triplet=.FALSE.)
          END IF
       ELSE
          CPABORT("NYA 00006")

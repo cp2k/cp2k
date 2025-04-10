@@ -1,0 +1,23 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+"NdF3.inp"                              = [{matcher="E_total", tol=1.0E-12, ref=-16.30904020314352}]
+"h2o_rtp.inp"                           = [{matcher="E_total", tol=1.0E-12, ref=-5.76539152285971}]
+"h2o_emd.inp"                           = [{matcher="E_total", tol=1.0E-12, ref=-5.76621483534992}]
+"si8_wan.inp"                           = [{matcher="E_total", tol=1.0E-12, ref=-14.36588818966667}]
+"si_kp.inp"                             = [{matcher="E_total", tol=1.0E-12, ref=-14.73033123294306}]
+"tmol.inp"                              = [{matcher="E_total", tol=1.0E-12, ref=-41.90845660778482}]
+"ch2o.inp"                              = [{matcher="E_total", tol=1.0E-12, ref=-7.84456570305608}]
+"ch2o_print.inp"                        = [{matcher="E_total", tol=1.0E-12, ref=-7.84456570305608}]
+"ch2o_cube.inp"                         = [{matcher="E_total", tol=1.0E-12, ref=-7.84456570305607}]
+"ch2o_dens.inp"                         = [{matcher="E_total", tol=1.0E-12, ref=-7.84456570305607}]
+"ch2o_loc.inp"                          = [{matcher="E_total", tol=1.0E-12, ref=-13.55045387785839}]
+"ch2o_mos.inp"                          = [{matcher="E_total", tol=1.0E-12, ref=-7.84456570305607}]
+"si_print.inp"                          = [{matcher="E_total", tol=1.0E-12, ref=-14.73033123294387}]
+"si_band.inp"                           = [{matcher="E_total", tol=1.0E-12, ref=-14.73033123294387}]
+"H2O-geo-pdos.inp"                      = [{matcher="E_total", tol=1.0E-12, ref=-5.76872484344198}]
+"graphite-stm.inp"                      = [{matcher="E_total", tol=1.0E-12, ref=-7.91403228336802}]
+"si_dos.inp"                            = [{matcher="E_total", tol=1.0E-12, ref=-14.73033123294387}]
+#EOF

@@ -1,0 +1,4 @@
+"H2O-6.inp"                             = [{matcher="E_total", tol=2e-14, ref=-17.14603641519601}]
+# Test from regtest-kp-1
+"c_2.inp"                               = [{matcher="E_total", tol=1.0E-14, ref=-45.68042106170509}]
+#EOF

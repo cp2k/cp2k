@@ -4,7 +4,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from .model import PaoModel
-from .dataset import PaoDataset, PaoRecord
+from .dataset import PaoRecord
 
 
 # ======================================================================================

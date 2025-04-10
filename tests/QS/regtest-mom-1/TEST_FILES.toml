@@ -1,0 +1,26 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+#
+# compute ground and some excited states of a water molecule at PBE / DZVP level of theory
+# number of active electrons : 8
+# excitation              multiplicity  C2v_irreducible_representation
+# ground state              singlet     A1
+"h2o_pbe_gs.inp"                        = [{matcher="E_total", tol=1.0E-07, ref=-17.22362524406253}]
+# 4 (alpha) -> 5 (alpha)    singlet     B1
+"h2o_pbe_mom_s1.inp"                    = [{matcher="E_total", tol=1.0E-07, ref=-16.95846444424902}]
+# 3 (alpha) -> 5 (alpha)    singlet     A1
+"h2o_pbe_mom_s2.inp"                    = [{matcher="E_total", tol=1.0E-07, ref=-16.85959056542186}]
+# 4 (alpha) -> 6 (alpha)    singlet     A2
+"h2o_pbe_mom_s3.inp"                    = [{matcher="E_total", tol=1.0E-07, ref=-16.81975343064439}]
+# 4 (beta)  -> 5 (alpha)    triplet     B1
+"h2o_pbe_t1.inp"                        = [{matcher="E_total", tol=1.0E-07, ref=-16.96729857609427}]
+# 3 (beta)  -> 5 (alpha) =  4 (beta)  -> 5 (alpha) +
+# 3 (beta)  -> 4 (beta)     triplet     A1
+"h2o_pbe_mom_t2.inp"                    = [{matcher="E_total", tol=1.0E-07, ref=-16.87080862223539}]
+# 4 (beta)  -> 6 (alpha) =  4 (beta)  -> 5 (alpha) +
+# 5 (alpha) -> 6 (alpha)    triplet     A2
+"h2o_pbe_mom_t3.inp"                    = [{matcher="E_total", tol=1.0E-07, ref=-16.82720533369756}]
+#EOF

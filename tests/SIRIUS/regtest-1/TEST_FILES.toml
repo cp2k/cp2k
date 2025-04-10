@@ -1,0 +1,20 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+#
+# Sirius will run in serial and parallel with or without cuda
+#
+# testing global tree creation using single exact potential, the deterministic random number generator
+#   with the standard move types, check i
+# fully test non colinear magnetism with spin orbit coupling
+"Au.inp"                                = [{matcher="M085", tol=1.0E-5, ref=-147.225566702788200}]
+"Fe.inp"                                = [{matcher="M085", tol=1.0E-5, ref=-253.637351928254105}]
+"Fe_dos.inp"                            = [{matcher="M085", tol=1.0E-5, ref=-253.637351928254105}]
+"He-full-potential.inp"                 = [{matcher="M085", tol=2.0E-5, ref=-2.835107805775919}]
+"SrVO.inp"                              = [{matcher="M085", tol=1.0E-5, ref=-156.376729575050433}]
+"LiF.inp"                               = [{matcher="M085", tol=1.0E-5, ref=-36.658529490345153}]
+"N2.inp"                                = [{matcher="M085", tol=1.0E-9, ref=-16.572137677057988}]
+"Fe-upf.inp"                            = [{matcher="M085", tol=1.0E-5, ref=-324.543162362195346}]
+#EOF

@@ -1,0 +1,18 @@
+"argon05.inp"                           = [{matcher="E_total", tol=4e-13, ref=-85.02754472902744}]
+"argon06.inp"                           = [{matcher="E_total", tol=4e-13, ref=-85.18920856557463}]
+"argon07.inp"                           = [{matcher="E_total", tol=5e-13, ref=-85.02497817793046}]
+"argon08.inp"                           = [{matcher="E_total", tol=4e-13, ref=-85.02306261370136}]
+"argon09.inp"                           = [{matcher="E_total", tol=4e-13, ref=-85.02787775596470}]
+"argon10.inp"                           = [{matcher="E_total", tol=3e-13, ref=-85.02786470427115}]
+"argon11.inp"                           = [{matcher="E_total", tol=3e-13, ref=-84.67837136853488}]
+"argon12.inp"                           = [{matcher="E_total", tol=1e-12, ref=-84.67843111943694}]
+"argon13.inp"                           = [{matcher="E_total", tol=1e-06, ref=-84.81673425573452}]
+"argon14.inp"                           = [{matcher="E_total", tol=1e-12, ref=-84.69943317947252}]
+# beef functional
+"argon-beef.inp"                        = [{matcher="E_total", tol=4e-13, ref=-42.46387625350550}]
+# BJ
+"dftd3bj_t1.inp"                        = [{matcher="M033", tol=1.0E-14, ref=-0.00355123783846}]
+"dftd3bj_t2.inp"                        = [{matcher="M033", tol=1.0E-14, ref=-0.05897356220363}]
+"dftd3bj_t3.inp"                        = [{matcher="M033", tol=1.0E-14, ref=-0.00112424003807}]
+"dftd3bj_t4.inp"                        = [{matcher="M007", tol=2.0E-12, ref=-84.2983390350}]
+#EOF

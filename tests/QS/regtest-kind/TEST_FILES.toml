@@ -1,0 +1,19 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+"ch2o_1.inp"                            = [{matcher="E_total", tol=3e-13, ref=-22.56644338703015}]
+"ch2o_2.inp"                            = [{matcher="E_total", tol=3e-13, ref=-22.56644338703015}]
+"ch2o_3.inp"                            = [{matcher="E_total", tol=3e-13, ref=-59.93603129436690}]
+"ch2o_4.inp"                            = [{matcher="E_total", tol=3e-13, ref=-59.93603129436690}]
+"ch2o_5.inp"                            = [{matcher="E_total", tol=3e-13, ref=-22.56644338703015}]
+"ch2o_6.inp"                            = [{matcher="E_total", tol=3e-13, ref=-59.93603129436690}]
+"ch2o_7.inp"                            = [{matcher="E_total", tol=3e-13, ref=-22.56644338703015}]
+"ch2o_8.inp"                            = [{matcher="E_total", tol=3e-13, ref=-22.56644338703015}]
+"ch2o_9.inp"                            = [{matcher="E_total", tol=3e-13, ref=-22.56644338703015}]
+# tests maybe unstable
+"H2_upf.inp"                            = [{matcher="E_total", tol=1e-06, ref=-1.13501864985782}]
+"H2O_upf.inp"                           = [{matcher="E_total", tol=5e-05, ref=-17.11484046900296}]
+"CH2O_upf.inp"                          = [{matcher="E_total", tol=5e-05, ref=-22.74205305294306}]
+#EOF

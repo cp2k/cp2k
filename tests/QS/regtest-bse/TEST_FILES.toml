@@ -1,0 +1,32 @@
+"TDA_H2O_PBE_G0W0.inp"                  = [{matcher="BSE_1st_excit_ener_TDA", tol=2e-05, ref=7.7697},
+                                           {matcher="M113", tol=7e-02, ref=0.014}]
+"TDA_H2O_PBE_evGW0.inp"                 = [{matcher="BSE_1st_excit_ener_TDA", tol=2e-05, ref=8.2300},
+                                           {matcher="M113", tol=7e-02, ref=0.015}]
+"TDA_H2O_PBE_evGW.inp"                  = [{matcher="BSE_1st_excit_ener_TDA", tol=3e-04, ref=8.7825},
+                                           {matcher="M113", tol=7e-02, ref=0.016}]
+"BSE_H2O_PBE_G0W0.inp"                  = [{matcher="BSE_1st_excit_ener", tol=2e-05, ref=7.7251},
+                                           {matcher="M114", tol=2e-05, ref=0.014}]
+"BSE_H2O_PBE_evGW0.inp"                 = [{matcher="BSE_1st_excit_ener", tol=2e-05, ref=8.1873},
+                                           {matcher="M114", tol=2e-05, ref=0.015}]
+"BSE_H2O_PBE_evGW.inp"                  = [{matcher="BSE_1st_excit_ener", tol=3e-04, ref=8.7417},
+                                           {matcher="M114", tol=2e-04, ref=0.016}]
+"TDA_H2O_PBE_G0W0_NTOs.inp"             = [{matcher="M121", tol=2e-03, ref=0.01983}]
+"BSE_H2O_PBE_G0W0_NTOs.inp"             = [{matcher="M122", tol=2e-03, ref=0.01164}]
+"TDA_H2O_PBE_G0W0_EXC_DESCR.inp"        = [{matcher="M123", tol=5e-04, ref=1.8290}]
+"BSE_H2O_PBE_G0W0_EXC_DESCR.inp"        = [{matcher="M123", tol=5e-04, ref=1.8258}]
+"BSE_H2O_PBE_evGW0_RPA_screening.inp"   = [{matcher="BSE_1st_excit_ener", tol=2e-05, ref=17.5569}]
+"BSE_H2O_PBE_evGW0_TDHF_screening.inp"  = [{matcher="BSE_1st_excit_ener", tol=4e-05, ref=6.4895}]
+"BSE_H2O_PBE_evGW0_custom_screening.inp" = [{matcher="BSE_1st_excit_ener", tol=2e-05, ref=14.9538}]
+"BSE_H2O_PBE_evGW0_spectra.inp"         = [{matcher="M124", tol=2e-02, ref=25.3518},
+                                           {matcher="M125", tol=2e-02, ref=0.7006}]
+"TDA_H2_PBE_G0W0_CHOLESKY_OFF.inp"             = [{matcher="BSE_1st_excit_ener_TDA", tol=2e-05 , ref=16.9750}]
+#EOF
+#Low convergence criteria for evGW make a higher threshold necessary for these tests
+#Logic: Absolute errors (for G0W0/evGW0) should be within 1e-4, i.e. relative errors are
+#       in the range of 2e-5 for energies.
+#       For oscillator strengths, they should be within 1e-3, so relative errors
+#       are in the range of 7e-2
+# First 6 check excitation energies, then 6 checking oscillator strengths, two check NTOs,
+# two checks for exciton descriptors in TDA and ABBA and custom screening for 
+# RPA, TDHF and ALPHA=0.25 is checked 
+# The two checks of spectra need coarse thresholds

@@ -33,9 +33,9 @@ MODULE energy_corrections
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_desymmetrize, dbcsr_distribution_type, &
-        dbcsr_dot, dbcsr_filter, dbcsr_get_info, dbcsr_init_p, dbcsr_multiply, dbcsr_p_type, &
-        dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry, &
-        dbcsr_type_symmetric
+        dbcsr_filter, dbcsr_get_info, dbcsr_init_p, dbcsr_multiply, dbcsr_p_type, dbcsr_release, &
+        dbcsr_scale, dbcsr_set, dbcsr_type, dbcsr_type_no_symmetry, dbcsr_type_symmetric
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_dot
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
@@ -436,8 +436,8 @@ CONTAINS
 
          CASE (ec_functional_ext)
 
-            CALL ec_ext_energy(qs_env, ec_env, calculate_forces=.TRUE.)
             CALL init_response_deriv(qs_env, ec_env)
+            CALL ec_ext_energy(qs_env, ec_env, calculate_forces=.TRUE.)
 
          CASE DEFAULT
             CPABORT("unknown energy correction")
@@ -523,7 +523,7 @@ CONTAINS
       CALL section_vals_duplicate(section, trexio_section)
       CALL section_vals_val_set(trexio_section, "FILENAME", c_val=ec_env%exresp_fn)
       CALL section_vals_val_set(trexio_section, "CARTESIAN", l_val=.FALSE.)
-      CALL write_trexio(qs_env, trexio_section)
+      CALL write_trexio(qs_env, trexio_section, ec_env%matrix_hz)
 
    END SUBROUTINE write_response_interface
 
@@ -608,7 +608,7 @@ CONTAINS
             WRITE (funit, *)
             WRITE (funit, *) "   CELL // RESPONSE PRESSURE // ERRORS  "
             DO ia = 1, 3
-               WRITE (funit, "(3F15.8,5x,3G15.8,5x,3G15.8)") cell%hmat(ia, 1:3), &
+               WRITE (funit, "(3F15.8,5x,3F15.8,5x,3F15.8)") cell%hmat(ia, 1:3), &
                   ec_env%rpv(ia, 1:3), ec_env%rpverror(ia, 1:3)
             END DO
 

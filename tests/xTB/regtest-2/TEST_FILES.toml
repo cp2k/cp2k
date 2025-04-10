@@ -1,0 +1,21 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+# test mulliken constraints
+"H2O-field-gopt.inp"                    = [{matcher="E_total", tol=3e-11, ref=-5.76970818700878}]
+"H2O-field-gopt-lsd.inp"                = [{matcher="E_total", tol=4e-12, ref=-5.76970797174834}]
+"H2O-field.inp"                         = []
+"H2O-field-lsd.inp"                     = [{matcher="E_total", tol=4e-14, ref=-5.76959233315201}]
+"HF-field.inp"                          = [{matcher="E_total", tol=1e-12, ref=-5.70162277773935}]
+"HF-field-gopt.inp"                     = [{matcher="E_total", tol=5e-09, ref=-5.65593182181073}]
+"HF-field-debug.inp"                    = []
+"HF-dfilter-debug.inp"                  = []
+"HF-dfield-gopt.inp"                    = [{matcher="E_total", tol=1e-09, ref=-5.66065888870620}]
+"HF-dfield.inp"                         = [{matcher="E_total", tol=1e-12, ref=-5.66052242442153}]
+"HF-dfield-debug.inp"                   = []
+"HF-loc-field.inp"                      = [{matcher="E_total", tol=1e-12, ref=-5.65286303322644}]
+"HF-loc-field-gopt.inp"                 = [{matcher="E_total", tol=2e-08, ref=-5.65791503021294}]
+"HF-loc-field-debug.inp"                = []
+#EOF

@@ -22,10 +22,12 @@
 
 #if defined(__OFFLOAD_CUDA) || defined(__OFFLOAD_HIP) ||                       \
     defined(__OFFLOAD_OPENCL)
-#define __OFFLOAD
-
 #include <stdio.h>
 #include <stdlib.h>
+
+#if !defined(__OFFLOAD)
+#define __OFFLOAD
+#endif
 
 #if defined(__OFFLOAD_CUDA)
 #include <cuda_runtime.h>
@@ -92,8 +94,12 @@ static inline const char *offloadGetErrorName(offloadError_t error) {
 #elif defined(__OFFLOAD_HIP)
   return hipGetErrorName(error);
 #elif defined(__OFFLOAD_OPENCL)
+#if defined(ACC_OPENCL_ERROR_NAME)
+  return ACC_OPENCL_ERROR_NAME(error);
+#else
   (void)error; /* mark used */
-  return "";   /* TODO */
+  return "";
+#endif
 #endif
 }
 
@@ -106,7 +112,11 @@ static inline offloadError_t offloadGetLastError(void) {
 #elif defined(__OFFLOAD_HIP)
   return hipGetLastError();
 #elif defined(__OFFLOAD_OPENCL)
-  return offloadSuccess; /* TODO */
+#if defined(ACC_OPENCL_ERROR)
+  return ACC_OPENCL_ERROR();
+#else
+  return offloadSuccess;
+#endif
 #endif
 }
 

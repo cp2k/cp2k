@@ -43,7 +43,8 @@ MODULE gw_small_cell_full_kp
                                               is_cell_in_index_to_cell,&
                                               power,&
                                               time_to_freq
-   USE kinds,                           ONLY: dp
+   USE kinds,                           ONLY: dp,&
+                                              int_8
    USE kpoint_coulomb_2c,               ONLY: build_2c_coulomb_matrix_kp_small_cell
    USE machine,                         ONLY: m_walltime
    USE mathconstants,                   ONLY: z_one,&
@@ -156,6 +157,8 @@ CONTAINS
             ! loop over ΔR = R_1 - R_2 which are local in the tensor subgroup
             DO i_task_Delta_R_local = 1, bs_env%n_tasks_Delta_R_local
 
+               IF (bs_env%skip_DR_chi(i_task_Delta_R_local)) CYCLE
+
                i_cell_Delta_R = bs_env%task_Delta_R(i_task_Delta_R_local)
 
                DO i_cell_R2 = 1, bs_env%nimages_3c
@@ -170,14 +173,16 @@ CONTAINS
                   ! 3-cells check because in M^vir_νR2,λR1,QR (step 3.): R2 is index on ν
                   IF (.NOT. cell_found) CYCLE
                   ! 2. M^occ/vir_λR1,νR2,P0 = sum_µS (λR1 µR2-S | P0) G^occ/vir_νµ^S(iτ)
-                  CALL G_times_3c(Gocc_S, t_Gocc, bs_env, i_cell_R1, i_cell_R2)
-                  CALL G_times_3c(Gvir_S, t_Gvir, bs_env, i_cell_R2, i_cell_R1)
+                  CALL G_times_3c(Gocc_S, t_Gocc, bs_env, i_cell_R1, i_cell_R2, &
+                                  i_task_Delta_R_local, bs_env%skip_DR_R12_S_Goccx3c_chi)
+                  CALL G_times_3c(Gvir_S, t_Gvir, bs_env, i_cell_R2, i_cell_R1, &
+                                  i_task_Delta_R_local, bs_env%skip_DR_R12_S_Gvirx3c_chi)
 
                END DO ! i_cell_R2
 
                ! 3. χ_PQ^R(iτ) = sum_λR1,νR2 M^occ_λR1,νR2,P0 M^vir_νR2,λR1,QR
-               CALL contract_M_occ_vir_to_chi(t_Gocc, t_Gvir, t_chi_R, &
-                                              bs_env, i_cell_Delta_R)
+               CALL contract_M_occ_vir_to_chi(t_Gocc, t_Gvir, t_chi_R, bs_env, &
+                                              i_task_Delta_R_local)
 
             END DO ! i_cell_Delta_R_local
 
@@ -270,16 +275,22 @@ CONTAINS
 !> \param bs_env ...
 !> \param i_cell_R1 ...
 !> \param i_cell_R2 ...
+!> \param i_task_Delta_R_local ...
+!> \param skip_DR_R1_S_Gx3c ...
 ! **************************************************************************************************
-   SUBROUTINE G_times_3c(t_G_S, t_M, bs_env, i_cell_R1, i_cell_R2)
+   SUBROUTINE G_times_3c(t_G_S, t_M, bs_env, i_cell_R1, i_cell_R2, i_task_Delta_R_local, &
+                         skip_DR_R1_S_Gx3c)
       TYPE(dbt_type), ALLOCATABLE, DIMENSION(:)          :: t_G_S
       TYPE(dbt_type), ALLOCATABLE, DIMENSION(:, :)       :: t_M
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      INTEGER                                            :: i_cell_R1, i_cell_R2
+      INTEGER                                            :: i_cell_R1, i_cell_R2, &
+                                                            i_task_Delta_R_local
+      LOGICAL, ALLOCATABLE, DIMENSION(:, :, :)           :: skip_DR_R1_S_Gx3c
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'G_times_3c'
 
       INTEGER                                            :: handle, i_cell_R1_p_S, i_cell_S
+      INTEGER(KIND=int_8)                                :: flop
       INTEGER, DIMENSION(3)                              :: cell_R1, cell_R1_plus_cell_S, cell_R2, &
                                                             cell_S
       LOGICAL                                            :: cell_found
@@ -293,6 +304,8 @@ CONTAINS
       cell_R2(1:3) = bs_env%index_to_cell_3c(i_cell_R2, 1:3)
 
       DO i_cell_S = 1, bs_env%nimages_scf_desymm
+
+         IF (skip_DR_R1_S_Gx3c(i_task_Delta_R_local, i_cell_R1, i_cell_S)) CYCLE
 
          cell_S(1:3) = bs_env%kpoints_scf_desymm%index_to_cell(i_cell_S, 1:3)
          cell_R1_plus_cell_S(1:3) = cell_R1(1:3) + cell_S(1:3)
@@ -315,7 +328,10 @@ CONTAINS
                            tensor_3=t_M(i_cell_R1, i_cell_R2), &
                            contract_1=[3], notcontract_1=[1, 2], map_1=[1, 2], &
                            contract_2=[2], notcontract_2=[1], map_2=[3], &
-                           filter_eps=bs_env%eps_filter)
+                           filter_eps=bs_env%eps_filter, flop=flop)
+
+         IF (flop == 0_int_8) skip_DR_R1_S_Gx3c(i_task_Delta_R_local, i_cell_R1, i_cell_S) = .TRUE.
+
       END DO
 
       CALL dbt_destroy(t_3c_int)
@@ -447,19 +463,20 @@ CONTAINS
 !> \param t_Gvir ...
 !> \param t_chi_R ...
 !> \param bs_env ...
-!> \param i_cell_Delta_R ...
+!> \param i_task_Delta_R_local ...
 ! **************************************************************************************************
-   SUBROUTINE contract_M_occ_vir_to_chi(t_Gocc, t_Gvir, t_chi_R, bs_env, i_cell_Delta_R)
+   SUBROUTINE contract_M_occ_vir_to_chi(t_Gocc, t_Gvir, t_chi_R, bs_env, i_task_Delta_R_local)
       TYPE(dbt_type), ALLOCATABLE, DIMENSION(:, :)       :: t_Gocc, t_Gvir
       TYPE(dbt_type), ALLOCATABLE, DIMENSION(:)          :: t_chi_R
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      INTEGER                                            :: i_cell_Delta_R
+      INTEGER                                            :: i_task_Delta_R_local
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'contract_M_occ_vir_to_chi'
 
-      INTEGER                                            :: handle, i_cell_R, i_cell_R1, &
-                                                            i_cell_R1_minus_R, i_cell_R2, &
-                                                            i_cell_R2_minus_R
+      INTEGER                                            :: handle, i_cell_Delta_R, i_cell_R, &
+                                                            i_cell_R1, i_cell_R1_minus_R, &
+                                                            i_cell_R2, i_cell_R2_minus_R
+      INTEGER(KIND=int_8)                                :: flop, flop_tmp
       INTEGER, DIMENSION(3)                              :: cell_DR, cell_R, cell_R1, &
                                                             cell_R1_minus_R, cell_R2, &
                                                             cell_R2_minus_R
@@ -471,10 +488,16 @@ CONTAINS
       CALL dbt_create(bs_env%t_RI__AO_AO, t_Gocc_2)
       CALL dbt_create(bs_env%t_RI__AO_AO, t_Gvir_2)
 
+      flop = 0_int_8
+
       ! χ_PQ^R(iτ) = sum_λR1,νR2 M^occ_λR1,νR2,P0 M^vir_νR2,λR1,QR
       DO i_cell_R = 1, bs_env%nimages_scf_desymm
 
          DO i_cell_R2 = 1, bs_env%nimages_3c
+
+            IF (bs_env%skip_DR_R_R2_MxM_chi(i_task_Delta_R_local, i_cell_R2, i_cell_R)) CYCLE
+
+            i_cell_Delta_R = bs_env%task_Delta_R(i_task_Delta_R_local)
 
             cell_R(1:3) = bs_env%kpoints_scf_desymm%index_to_cell(i_cell_R, 1:3)
             cell_R2(1:3) = bs_env%index_to_cell_3c(i_cell_R2, 1:3)
@@ -505,10 +528,18 @@ CONTAINS
                               beta=1.0_dp, tensor_3=t_chi_R(i_cell_R), &
                               contract_1=[2, 3], notcontract_1=[1], map_1=[1], &
                               contract_2=[2, 3], notcontract_2=[1], map_2=[2], &
-                              filter_eps=bs_env%eps_filter, move_data=.TRUE.)
+                              filter_eps=bs_env%eps_filter, move_data=.TRUE., flop=flop_tmp)
+
+            IF (flop_tmp == 0_int_8) bs_env%skip_DR_R_R2_MxM_chi(i_task_Delta_R_local, &
+                                                                 i_cell_R2, i_cell_R) = .TRUE.
+
+            flop = flop + flop_tmp
+
          END DO ! i_cell_R2
 
       END DO ! i_cell_R
+
+      IF (flop == 0_int_8) bs_env%skip_DR_chi(i_task_Delta_R_local) = .TRUE.
 
       ! remove all data from t_Gocc and t_Gvir to safe memory
       DO i_cell_R1 = 1, bs_env%nimages_3c
@@ -839,8 +870,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_Sigma_x'
 
-      INTEGER                                            :: handle, i_cell_Delta_R, &
-                                                            i_task_Delta_R_local, ispin
+      INTEGER                                            :: handle, i_task_Delta_R_local, ispin
       REAL(KIND=dp)                                      :: t1
       TYPE(dbt_type), ALLOCATABLE, DIMENSION(:)          :: D_S, Mi_Vtr_Mi_R, Sigma_x_R
       TYPE(dbt_type), ALLOCATABLE, DIMENSION(:, :)       :: t_V
@@ -870,16 +900,14 @@ CONTAINS
          ! loop over ΔR = S_1 - R_1 which are local in the tensor subgroup
          DO i_task_Delta_R_local = 1, bs_env%n_tasks_Delta_R_local
 
-            i_cell_Delta_R = bs_env%task_Delta_R(i_task_Delta_R_local)
-
             ! M^V_σ0,νS1,PR1 = sum_QR2 ( σ0 νS1 | QR1-R2 ) Ṽ^tr_QP^R2 for i_task_local
-            CALL contract_W(t_V, Mi_Vtr_Mi_R, bs_env, i_cell_Delta_R)
+            CALL contract_W(t_V, Mi_Vtr_Mi_R, bs_env, i_task_Delta_R_local)
 
             ! M^D_λ0,νS1,PR1 = sum_µS2 (λ0 µS1-S2 | PR1) D_µν^S2
             ! Σ^x_λσ^R = sum_PR1νS1 M^D_λ0,νS1,PR1 * M^V_σR,νS1,PR1 for i_task_local, where
             !                                        M^V_σR,νS1,PR1 = M^V_σ0,νS1-R,PR1-R
-            CALL contract_to_Sigma(Sigma_x_R, t_V, D_S, i_cell_Delta_R, bs_env, &
-                                   occ=.TRUE., vir=.FALSE., clear_t_W=.TRUE.)
+            CALL contract_to_Sigma(Sigma_x_R, t_V, D_S, i_task_Delta_R_local, bs_env, &
+                                   occ=.TRUE., vir=.FALSE., clear_t_W=.TRUE., fill_skip=.FALSE.)
 
          END DO ! i_cell_Delta_R_local
 
@@ -914,8 +942,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'compute_Sigma_c'
 
-      INTEGER                                            :: handle, i_cell_Delta_R, i_t, &
-                                                            i_task_Delta_R_local, ispin
+      INTEGER                                            :: handle, i_t, i_task_Delta_R_local, ispin
       REAL(KIND=dp)                                      :: t1, tau
       TYPE(dbt_type), ALLOCATABLE, DIMENSION(:)          :: Gocc_S, Gvir_S, Sigma_c_R_neg_tau, &
                                                             Sigma_c_R_pos_tau, W_R
@@ -952,22 +979,22 @@ CONTAINS
             ! loop over ΔR = S_1 - R_1 which are local in the tensor subgroup
             DO i_task_Delta_R_local = 1, bs_env%n_tasks_Delta_R_local
 
-               i_cell_Delta_R = bs_env%task_Delta_R(i_task_Delta_R_local)
+               IF (bs_env%skip_DR_Sigma(i_task_Delta_R_local)) CYCLE
 
                ! for i_task_local (i.e. fixed ΔR = S_1 - R_1) and for all τ (W(iτ) = W(-iτ)):
                ! M^W_σ0,νS1,PR1 = sum_QR2 ( σ0 νS1 | QR1-R2 ) W(iτ)_QP^R2
-               CALL contract_W(t_W, W_R, bs_env, i_cell_Delta_R)
+               CALL contract_W(t_W, W_R, bs_env, i_task_Delta_R_local)
 
                ! for τ < 0 and for i_task_local (i.e. fixed ΔR = S_1 - R_1):
                ! M^G_λ0,νS1,PR1 = sum_µS2 (λ0 µS1-S2 | PR1) G^occ(i|τ|)_µν^S2
                ! Σ^c_λσ^R(iτ) = sum_PR1νS1 M^G_λ0,νS1,PR1 * M^W_σR,νS1,PR1
                !                                      where M^W_σR,νS1,PR1 = M^W_σ0,νS1-R,PR1-R
-               CALL contract_to_Sigma(Sigma_c_R_neg_tau, t_W, Gocc_S, i_cell_Delta_R, bs_env, &
-                                      occ=.TRUE., vir=.FALSE., clear_t_W=.FALSE.)
+               CALL contract_to_Sigma(Sigma_c_R_neg_tau, t_W, Gocc_S, i_task_Delta_R_local, bs_env, &
+                                      occ=.TRUE., vir=.FALSE., clear_t_W=.FALSE., fill_skip=.FALSE.)
 
                ! for τ > 0: same as for τ < 0, but G^occ -> G^vir
-               CALL contract_to_Sigma(Sigma_c_R_pos_tau, t_W, Gvir_S, i_cell_Delta_R, bs_env, &
-                                      occ=.FALSE., vir=.TRUE., clear_t_W=.TRUE.)
+               CALL contract_to_Sigma(Sigma_c_R_pos_tau, t_W, Gvir_S, i_task_Delta_R_local, bs_env, &
+                                      occ=.FALSE., vir=.TRUE., clear_t_W=.TRUE., fill_skip=.TRUE.)
 
             END DO ! i_cell_Delta_R_local
 
@@ -1121,18 +1148,18 @@ CONTAINS
 !> \param t_W ...
 !> \param W_R ...
 !> \param bs_env ...
-!> \param i_cell_Delta_R ...
+!> \param i_task_Delta_R_local ...
 ! **************************************************************************************************
-   SUBROUTINE contract_W(t_W, W_R, bs_env, i_cell_Delta_R)
+   SUBROUTINE contract_W(t_W, W_R, bs_env, i_task_Delta_R_local)
       TYPE(dbt_type), ALLOCATABLE, DIMENSION(:, :)       :: t_W
       TYPE(dbt_type), ALLOCATABLE, DIMENSION(:)          :: W_R
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      INTEGER                                            :: i_cell_Delta_R
+      INTEGER                                            :: i_task_Delta_R_local
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'contract_W'
 
-      INTEGER                                            :: handle, i_cell_R1, i_cell_R2, &
-                                                            i_cell_R2_m_R1, i_cell_S1, &
+      INTEGER                                            :: handle, i_cell_Delta_R, i_cell_R1, &
+                                                            i_cell_R2, i_cell_R2_m_R1, i_cell_S1, &
                                                             i_cell_S1_m_R1_p_R2
       INTEGER, DIMENSION(3)                              :: cell_DR, cell_R1, cell_R2, cell_R2_m_R1, &
                                                             cell_S1, cell_S1_m_R2_p_R1
@@ -1143,6 +1170,8 @@ CONTAINS
 
       CALL dbt_create(bs_env%t_RI__AO_AO, t_W_tmp)
       CALL dbt_create(bs_env%t_RI_AO__AO, t_3c_int)
+
+      i_cell_Delta_R = bs_env%task_Delta_R(i_task_Delta_R_local)
 
       DO i_cell_R1 = 1, bs_env%nimages_3c
 
@@ -1202,24 +1231,27 @@ CONTAINS
 !> \param Sigma_R ...
 !> \param t_W ...
 !> \param G_S ...
-!> \param i_cell_Delta_R ...
+!> \param i_task_Delta_R_local ...
 !> \param bs_env ...
 !> \param occ ...
 !> \param vir ...
 !> \param clear_t_W ...
+!> \param fill_skip ...
 ! **************************************************************************************************
-   SUBROUTINE contract_to_Sigma(Sigma_R, t_W, G_S, i_cell_Delta_R, bs_env, occ, vir, clear_t_W)
+   SUBROUTINE contract_to_Sigma(Sigma_R, t_W, G_S, i_task_Delta_R_local, bs_env, occ, vir, &
+                                clear_t_W, fill_skip)
       TYPE(dbt_type), DIMENSION(:)                       :: Sigma_R
       TYPE(dbt_type), ALLOCATABLE, DIMENSION(:, :)       :: t_W
       TYPE(dbt_type), DIMENSION(:)                       :: G_S
-      INTEGER                                            :: i_cell_Delta_R
+      INTEGER                                            :: i_task_Delta_R_local
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      LOGICAL                                            :: occ, vir, clear_t_W
+      LOGICAL                                            :: occ, vir, clear_t_W, fill_skip
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'contract_to_Sigma'
 
-      INTEGER :: handle, handle2, i_cell_m_R1, i_cell_R, i_cell_R1, i_cell_R1_minus_R, i_cell_S1, &
-         i_cell_S1_minus_R, i_cell_S1_p_S2_m_R1, i_cell_S2
+      INTEGER :: handle, handle2, i_cell_Delta_R, i_cell_m_R1, i_cell_R, i_cell_R1, &
+         i_cell_R1_minus_R, i_cell_S1, i_cell_S1_minus_R, i_cell_S1_p_S2_m_R1, i_cell_S2
+      INTEGER(KIND=int_8)                                :: flop, flop_tmp
       INTEGER, DIMENSION(3)                              :: cell_DR, cell_m_R1, cell_R, cell_R1, &
                                                             cell_R1_minus_R, cell_S1, &
                                                             cell_S1_minus_R, cell_S1_p_S2_m_R1, &
@@ -1238,6 +1270,10 @@ CONTAINS
       CALL dbt_create(bs_env%t_RI_AO__AO, t_G_2)
       CALL dbt_create(bs_env%t_RI_AO__AO, t_3c_int)
 
+      i_cell_Delta_R = bs_env%task_Delta_R(i_task_Delta_R_local)
+
+      flop = 0_int_8
+
       DO i_cell_R1 = 1, bs_env%nimages_3c
 
          cell_R1(1:3) = bs_env%index_to_cell_3c(i_cell_R1, 1:3)
@@ -1249,6 +1285,8 @@ CONTAINS
          IF (.NOT. cell_found) CYCLE
 
          DO i_cell_S2 = 1, bs_env%nimages_scf_desymm
+
+            IF (bs_env%skip_DR_R1_S2_Gx3c_Sigma(i_task_Delta_R_local, i_cell_R1, i_cell_S2)) CYCLE
 
             cell_S2(1:3) = bs_env%kpoints_scf_desymm%index_to_cell(i_cell_S2, 1:3)
             cell_m_R1(1:3) = -cell_R1(1:3)
@@ -1279,7 +1317,11 @@ CONTAINS
                               tensor_3=t_G, &
                               contract_1=[2], notcontract_1=[1], map_1=[3], &
                               contract_2=[3], notcontract_2=[1, 2], map_2=[1, 2], &
-                              filter_eps=bs_env%eps_filter)
+                              filter_eps=bs_env%eps_filter, flop=flop_tmp)
+
+            IF (flop_tmp == 0_int_8 .AND. fill_skip) THEN
+               bs_env%skip_DR_R1_S2_Gx3c_Sigma(i_task_Delta_R_local, i_cell_R1, i_cell_S2) = .TRUE.
+            END IF
 
             CALL timestop(handle2)
 
@@ -1290,6 +1332,8 @@ CONTAINS
          CALL timeset(routineN//"_contract", handle2)
 
          DO i_cell_R = 1, bs_env%nimages_scf_desymm
+
+            IF (bs_env%skip_DR_R1_R_MxM_Sigma(i_task_Delta_R_local, i_cell_R1, i_cell_R)) CYCLE
 
             cell_R = bs_env%kpoints_scf_desymm%index_to_cell(i_cell_R, 1:3)
 
@@ -1313,7 +1357,13 @@ CONTAINS
                               tensor_3=Sigma_R(i_cell_R), &
                               contract_1=[1, 2], notcontract_1=[3], map_1=[1], &
                               contract_2=[1, 2], notcontract_2=[3], map_2=[2], &
-                              filter_eps=bs_env%eps_filter)
+                              filter_eps=bs_env%eps_filter, flop=flop_tmp)
+
+            flop = flop + flop_tmp
+
+            IF (flop_tmp == 0_int_8 .AND. fill_skip) THEN
+               bs_env%skip_DR_R1_R_MxM_Sigma(i_task_Delta_R_local, i_cell_R1, i_cell_R) = .TRUE.
+            END IF
 
          END DO ! i_cell_R
 
@@ -1322,6 +1372,8 @@ CONTAINS
          CALL timestop(handle2)
 
       END DO ! i_cell_R1
+
+      IF (vir .AND. flop == 0_int_8) bs_env%skip_DR_Sigma(i_task_Delta_R_local) = .TRUE.
 
       ! release memory
       IF (clear_t_W) THEN

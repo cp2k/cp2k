@@ -1,0 +1,13 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# see regtest/TEST_FILES
+#
+# Same as regtest-cdft-3
+"HeH-noconstraint.inp"                  = [{matcher="E_total", tol=2e-13, ref=-3.01067446615063}]
+"HeH-cdft-state-1.inp"                  = [{matcher="M071", tol=2e-07, ref=0.048406446266}]
+# Same as regtest-cdft-3 test 2, but constraint definition flipped
+"HeH-cdft-state-2-reversed.inp"         = [{matcher="M071", tol=3e-10, ref=-1.819391902440}]
+# Coupling via Lowdin orthogonalization
+# Same as regtest-cdft-3 test 11, but with nonidentical constraint definitions
+"HeH-mixed-cdft-reversed-1.inp"         = [{matcher="M076", tol=9e-10, ref=616.641603574904}]
+#EOF

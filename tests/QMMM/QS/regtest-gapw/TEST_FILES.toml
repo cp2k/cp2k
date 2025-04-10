@@ -1,0 +1,11 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+# QM/MM
+"C11H24-qmmmgapwall-gauss-0.inp"        = [{matcher="E_total", tol=2e-13, ref=-156.88271046728136}]
+"C11H24-qmmmgapw-gauss-0.inp"           = [{matcher="M007", tol=7e-12, ref=-28.042197352500001}]
+"H2O-qmmm-gapw-fdbg.inp"                = [{matcher="E_total", tol=1e-13, ref=-15.85173442489609}]
+"H2O-qmmm-hfx.inp"                      = [{matcher="M002", tol=1e-11, ref=-17.6043379384}]
+#EOF

@@ -1,0 +1,30 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+# mixing procedures nr. 1
+"si8_pmix.inp"                          = [{matcher="E_total", tol=7e-14, ref=-31.29234300650718}]
+"si8_kerker.inp"                        = [{matcher="E_total", tol=1e-13, ref=-31.15224294859119}]
+"si8_pulay.inp"                         = [{matcher="E_total", tol=2e-13, ref=-31.16058546019718}]
+"si8_broy.inp"                          = [{matcher="E_total", tol=7e-14, ref=-31.14863007620936}]
+"si8_pulay_md.inp"                      = [{matcher="E_total", tol=4e-11, ref=-31.16216174849309}]
+"si8_pulay_skip.inp"                    = [{matcher="E_total", tol=5e-14, ref=-31.16145405092692}]
+# cholesky methods
+"si8_pulay_reduce.inp"                  = [{matcher="E_total", tol=2e-13, ref=-31.16058546019707}]
+"si8_pulay_restore.inp"                 = [{matcher="E_total", tol=2e-13, ref=-31.16058546019718}]
+"si8_pulay_inverse.inp"                 = [{matcher="E_total", tol=2e-13, ref=-31.16058546019690}]
+"si8_pulay_inv_dbcsr.inp"               = [{matcher="E_total", tol=3e-13, ref=-31.16058546019509}]
+"si8_pulay_off.inp"                     = [{matcher="E_total", tol=7e-13, ref=-31.16058546128284}]
+#
+"si8_pmix_nosmear_mocubes.inp"          = [{matcher="E_total", tol=5e-13, ref=-31.18760296986724}]
+"si8_pulay_mocubes.inp"                 = [{matcher="E_total", tol=5e-13, ref=-31.16058546019718}]
+#
+"si7c_kerker_test4.inp"                 = [{matcher="E_total", tol=5e-13, ref=-32.89224024014218}]
+"si7c_kerker_test4_nopmix.inp"          = [{matcher="E_total", tol=5e-13, ref=-32.96309487122836}]
+"si7c_pulay_gapw.inp"                   = [{matcher="E_total", tol=5e-13, ref=-32.83223837803978}]
+"si7c_broy_gapw.inp"                    = [{matcher="E_total", tol=5e-13, ref=-32.75458171207599}]
+"si7c_broy_gapw_a04_atomic.inp"         = [{matcher="E_total", tol=5e-13, ref=-32.84004749683221}]
+"si7c_broy_gapw_a04_restart.inp"        = [{matcher="E_total", tol=5e-13, ref=-32.70494373739007}]
+"si7c_broy_gapw_a04_nopmix.inp"         = [{matcher="E_total", tol=5e-13, ref=-32.84202168873963}]
+#EOF

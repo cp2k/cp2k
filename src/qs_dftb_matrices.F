@@ -20,8 +20,9 @@ MODULE qs_dftb_matrices
                                               dftb_control_type
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_convert_offsets_to_sizes, dbcsr_copy, dbcsr_create, &
-        dbcsr_distribution_type, dbcsr_dot, dbcsr_finalize, dbcsr_get_block_p, dbcsr_multiply, &
-        dbcsr_p_type, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_symmetric
+        dbcsr_distribution_type, dbcsr_finalize, dbcsr_get_block_p, dbcsr_multiply, dbcsr_p_type, &
+        dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_symmetric
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_dot
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set
    USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix

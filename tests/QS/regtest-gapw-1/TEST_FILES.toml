@@ -1,0 +1,27 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+# tests GAPW GTH and ALL
+#XAS
+"CO.inp"                                = [{matcher="E_total", tol=8e-14, ref=-110.24233125201312}]
+"CO_xastphh.inp"                        = [{matcher="E_total", tol=1e-13, ref=-100.25171072116430}]
+"CO_xastphh_r.inp"                      = [{matcher="E_total", tol=1e-13, ref=-90.51322995242667}]
+"CO_xastpfh.inp"                        = [{matcher="E_total", tol=6e-14, ref=-79.09997117400218}]
+# multiple initial state
+"CH3SH_xastpfh_overlap.inp"             = [{matcher="E_total", tol=5e-7, ref=-430.51922534155161}]
+# choice of initial state from input
+"CH3SH_xastpfh_list.inp"                = [{matcher="E_total", tol=5e-7, ref=-430.51907934798288}]
+# density mixing
+"c8_pmix_gapw_all.inp"                  = [{matcher="E_total", tol=4e-04, ref=-302.63376760933824}]
+"c8_pmix_gapw_all_xashh.inp"            = [{matcher="E_total", tol=1e-04, ref=-297.77088288250752}]
+"c8_broy_gapw_all.inp"                  = [{matcher="E_total", tol=1e-13, ref=-303.71942702489218}]
+"c8_broy_gapw_all_xashh.inp"            = [{matcher="E_total", tol=2e-11, ref=-294.57321406651721}]
+# different scf_env
+"CO_xastpfh_gsot.inp"                   = [{matcher="E_total", tol=8e-14, ref=-79.09997113686542}]
+# XAS TP choice of core occ from input
+"CO_xastpflex.inp"                      = [{matcher="E_total", tol=1e-13, ref=-104.77564814878426}]
+"CO_xastpflex_c0.3l0.7.inp"             = [{matcher="E_total", tol=1e-05, ref=-96.350590808933305}]
+"CO_xastpflex_c0.3.inp"                 = [{matcher="E_total", tol=1e-13, ref=-96.243337525982160}]
+#EOF

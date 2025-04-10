@@ -1,0 +1,9 @@
+"si8_lsd_broy_wc_rst.inp"               = [{matcher="M023", tol=2e-09, ref=2111.2137083255}]
+"si8_lsd_broy_wc_list.inp"              = [{matcher="M023", tol=4e-10, ref=992.1693045962}]
+"si8_lsd_broy_wc_list_rst.inp"          = [{matcher="M023", tol=4e-10, ref=991.9475824044}]
+"si8_lsd_broy_fm0.2.inp"                = [{matcher="M048", tol=1.0E-14, ref=-0.050162}]
+#
+"c8_kerker.inp"                         = [{matcher="E_total", tol=1e-13, ref=-44.11857062837854}]
+"c8_pmix.inp"                           = [{matcher="E_total", tol=2e-13, ref=-43.56688833744322}]
+"c8_pmix_gapw.inp"                      = [{matcher="E_total", tol=5e-14, ref=-41.11266625407779}]
+#EOF

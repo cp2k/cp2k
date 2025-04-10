@@ -67,11 +67,9 @@ static inline unsigned int hash(const dbm_task_t task) {
  * \brief Internal routine for executing the tasks in given batch on the CPU.
  * \author Ole Schuett
  ******************************************************************************/
-void dbm_multiply_cpu_process_batch(const int ntasks, dbm_task_t batch[ntasks],
-                                    const double alpha,
-                                    const dbm_pack_t *pack_a,
-                                    const dbm_pack_t *pack_b,
-                                    dbm_shard_t *shard_c) {
+void dbm_multiply_cpu_process_batch(
+    const int ntasks, const dbm_task_t batch[ntasks], const double alpha,
+    const dbm_pack_t *pack_a, const dbm_pack_t *pack_b, dbm_shard_t *shard_c) {
 
   if (0 >= ntasks) { // nothing to do
     return;
@@ -81,19 +79,18 @@ void dbm_multiply_cpu_process_batch(const int ntasks, dbm_task_t batch[ntasks],
 #if defined(__LIBXSMM)
 
   // Sort tasks approximately by m,n,k via bucket sort.
-  int buckets[BATCH_NUM_BUCKETS];
-  memset(buckets, 0, BATCH_NUM_BUCKETS * sizeof(int));
+  int buckets[DBM_BATCH_NUM_BUCKETS] = {0};
   for (int itask = 0; itask < ntasks; ++itask) {
-    const int i = hash(batch[itask]) % BATCH_NUM_BUCKETS;
+    const int i = hash(batch[itask]) % DBM_BATCH_NUM_BUCKETS;
     ++buckets[i];
   }
-  for (int i = 1; i < BATCH_NUM_BUCKETS; ++i) {
+  for (int i = 1; i < DBM_BATCH_NUM_BUCKETS; ++i) {
     buckets[i] += buckets[i - 1];
   }
-  assert(buckets[BATCH_NUM_BUCKETS - 1] == ntasks);
+  assert(buckets[DBM_BATCH_NUM_BUCKETS - 1] == ntasks);
   int batch_order[ntasks];
   for (int itask = 0; itask < ntasks; ++itask) {
-    const int i = hash(batch[itask]) % BATCH_NUM_BUCKETS;
+    const int i = hash(batch[itask]) % DBM_BATCH_NUM_BUCKETS;
     --buckets[i];
     batch_order[buckets[i]] = itask;
   }

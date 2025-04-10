@@ -1,0 +1,6 @@
+"Ar_mixed_aa_planar.inp"                = [{matcher="E_total", tol=5e-12, ref=-21.074468020161298}]
+"Ar_mixed_planar.inp"                   = [{matcher="E_total", tol=4e-12, ref=-21.074467624675577}]
+"Ar_mixed_aa_planar-ns_cell.inp"        = [{matcher="E_total", tol=1e-12, ref=-31.31642933739782}]
+"Ar_spatial_dep_dielec.inp"             = [{matcher="E_total", tol=1e-12, ref=-33.088693607109207}]
+"Ar_mixed_aa_planar-osc-field.inp"      = [{matcher="E_total", tol=2e-12, ref=-21.07446805345539}]
+#EOF

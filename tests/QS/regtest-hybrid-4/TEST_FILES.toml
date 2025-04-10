@@ -1,0 +1,10 @@
+"H2_PW_HFX.inp"                         = [{matcher="M022", tol=1.0E-14, ref=-0.7221763379}]
+"CH4-PBE0_TC.inp"                       = [{matcher="E_total", tol=2e-13, ref=-7.94392207394980}]
+"CH3-PBE0_TC.inp"                       = [{matcher="E_total", tol=6e-14, ref=-7.34351803811805}]
+"CH3-PBE0_TC_LRC.inp"                   = [{matcher="E_total", tol=2e-14, ref=-7.35848767039026}]
+"CH4-PBE0_TC_LRC.inp"                   = [{matcher="E_total", tol=7e-14, ref=-7.96099821193431}]
+"farming-1.inp"                         = []
+"Ne_hybrid-rcam-b3lyp_tc.inp"           = [{matcher="E_total", tol=1e-09, ref=-128.87196715853946}]
+"Ne-periodic-shortrange.inp"            = [{matcher="E_total", tol=1.0E-14, ref=-772.98184640121008}]
+"wB97X-V.inp"                           = [{matcher="E_total", tol=3e-13, ref=-1.11098988553847}]
+#EOF

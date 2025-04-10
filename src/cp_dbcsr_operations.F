@@ -842,15 +842,15 @@ CONTAINS
                !   ENDDO
                !ENDDO
                !WRITE(*,*) 'mat_v'
-               !CALL dbcsr_print(mat_v,matlab_format=.TRUE.)
+               !CALL dbcsr_print(mat_v)
                !WRITE(*,*) 'mat_g'
-               !CALL dbcsr_print(mat_g,matlab_format=.TRUE.)
+               !CALL dbcsr_print(mat_g)
                !WRITE(*,*) 'sparse_matrix'
-               !CALL dbcsr_print(sparse_matrix,matlab_format=.TRUE.)
+               !CALL dbcsr_print(sparse_matrix)
                !WRITE(*,*) 'sparse_matrix2 (-sm + sparse(fm))'
-               !CALL dbcsr_print(sparse_matrix2,matlab_format=.TRUE.)
+               !CALL dbcsr_print(sparse_matrix2)
                !WRITE(*,*) 'sparse_matrix3 (copy of sm input)'
-               !CALL dbcsr_print(sparse_matrix3,matlab_format=.TRUE.)
+               !CALL dbcsr_print(sparse_matrix3)
                !stop
             END IF
             CALL dbcsr_release(sparse_matrix2)

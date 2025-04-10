@@ -1,0 +1,30 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+# QM/MM links
+"C4H10-qmmm-gauss-0.inp"                = [{matcher="E_total", tol=5e-14, ref=-27.99541166137045}]
+"C4H10-qmmm-gauss-1.inp"                = [{matcher="E_total", tol=5e-14, ref=-27.99615935897715}]
+"C4H10-qmmm-gauss-2.inp"                = [{matcher="M007", tol=1.0E-14, ref=-14.5644203760}]
+"C4H10-qmmm-gauss-3.inp"                = [{matcher="E_total", tol=2e-13, ref=-16.28646466174783}]
+"C4H10-qmmm-gauss-4.inp"                = [{matcher="E_total", tol=2e-13, ref=-14.20640099562936}]
+"C4H10-qmmm-gauss-5.inp"                = [{matcher="E_total", tol=2e-13, ref=-14.28544754084353}]
+"C4H10-qmmm-gauss-6.inp"                = [{matcher="E_total", tol=2E-13, ref=-14.31222248410887}]
+"C4H10-qmmm-gauss-7.inp"                = [{matcher="E_total", tol=2e-13, ref=-14.81644226181260}]
+"C4H10-qmmm-gauss-9.inp"                = [{matcher="M007", tol=1.0E-14, ref=-14.5593809076}]
+"C4H10-qmmm-gauss-10.inp"               = [{matcher="M007", tol=2e-12, ref=-58.7819435511}]
+"C4H10-qmmm-gauss-11.inp"               = [{matcher="M007", tol=1.0E-14, ref=-69.4186451942}]
+"C11H24-qmmm-gauss-0.inp"               = [{matcher="M007", tol=1.0E-14, ref=-27.4305594836}]
+"sio2-qmmm-gauss-1.inp"                 = [{matcher="E_total", tol=2e-13, ref=-487.25602648630161}]
+"sio2-qmmm-gauss-2.inp"                 = [{matcher="E_total", tol=3e-13, ref=-487.31898448582240}]
+"sio2-qmmm-gauss-3.inp"                 = [{matcher="E_total", tol=2e-13, ref=-488.02714102063817}]
+"constr.inp"                            = [{matcher="M007", tol=7e-12, ref=-28.231415141199999}]
+# different parallel scheme
+"C4H10-qmmm-gauss-12.inp"               = [{matcher="E_total", tol=2E-13, ref=-14.31222248410887}]
+# hbonds selective constraints on QM and MM subsystems
+"constr_hb_mm.inp"                      = [{matcher="E_total", tol=2e-13, ref=-30.72831524249530}]
+"constr_hb_qm.inp"                      = [{matcher="E_total", tol=2e-13, ref=-30.55019251858206}]
+#constraints
+"water_3_dist.inp"                      = [{matcher="M002", tol=1.0E-14, ref=-0.171314409828E+02}]
+#EOF

@@ -19,13 +19,15 @@ MODULE pao_methods
                                               cite_reference
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_add, dbcsr_binary_read, dbcsr_checksum, dbcsr_complete_redistribute, dbcsr_copy, &
-        dbcsr_create, dbcsr_desymmetrize, dbcsr_distribution_get, dbcsr_distribution_new, &
-        dbcsr_distribution_type, dbcsr_dot, dbcsr_filter, dbcsr_get_block_p, dbcsr_get_info, &
+        dbcsr_add, dbcsr_binary_read, dbcsr_complete_redistribute, dbcsr_copy, dbcsr_create, &
+        dbcsr_desymmetrize, dbcsr_distribution_get, dbcsr_distribution_new, &
+        dbcsr_distribution_type, dbcsr_filter, dbcsr_get_block_p, dbcsr_get_info, &
         dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
         dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, dbcsr_release, dbcsr_scale, &
         dbcsr_set, dbcsr_type
-   USE cp_dbcsr_contrib,                ONLY: dbcsr_reserve_diag_blocks
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_checksum,&
+                                              dbcsr_dot,&
+                                              dbcsr_reserve_diag_blocks
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type,&
                                               cp_to_string

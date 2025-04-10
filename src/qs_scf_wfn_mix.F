@@ -41,6 +41,7 @@ MODULE qs_scf_wfn_mix
    USE qs_mo_methods,                   ONLY: calculate_orthonormality
    USE qs_mo_types,                     ONLY: deallocate_mo_set,&
                                               duplicate_mo_set,&
+                                              get_mo_set,&
                                               mo_set_type
    USE qs_scf_types,                    ONLY: qs_scf_env_type,&
                                               special_diag_method_nr
@@ -89,7 +90,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'wfn_mix'
 
       CHARACTER(LEN=default_path_length)                 :: read_file_name
-      INTEGER :: handle, i_rep, ispin, mark_ind, mark_number, n_rep, orig_mo_index, &
+      INTEGER :: handle, homo, i_rep, ispin, mark_ind, mark_number, n_rep, nmo, orig_mo_index, &
          orig_spin_index, orig_type, restart_unit, result_mo_index, result_spin_index
       LOGICAL                                            :: explicit, is_file, my_for_rtp, &
                                                             overwrite_mos, reverse_mo_index
@@ -165,7 +166,7 @@ CONTAINS
             CALL section_vals_val_get(update_section, "REVERSE_MO_INDEX", i_rep_section=i_rep, l_val=reverse_mo_index)
 
             ! First get a copy of the proper orig
-            ! Origin is in the MO matrix
+            ! Origin is in an occupied MO
             IF (orig_type == wfn_mix_orig_occ) THEN
                IF (reverse_mo_index) THEN
                   CALL cp_fm_to_fm(mos(orig_spin_index)%mo_coeff, matrix_x, 1, &
@@ -174,13 +175,19 @@ CONTAINS
                   CALL cp_fm_to_fm(mos(orig_spin_index)%mo_coeff, matrix_x, 1, &
                                    mos(orig_spin_index)%nmo - orig_mo_index + 1, 1)
                END IF
-               ! Origin is in the virtual matrix
+               ! Origin is an unoccupied MO
             ELSE IF (orig_type == wfn_mix_orig_virtual) THEN
-               IF (.NOT. ASSOCIATED(unoccupied_orbs)) &
+               CALL get_mo_set(mos(orig_spin_index), homo=homo, nmo=nmo)
+               ! check whether the MO is already available in the original MO set
+               IF (orig_mo_index + homo <= nmo) THEN
+                  CALL cp_fm_to_fm(mos(orig_spin_index)%mo_coeff, matrix_x, 1, orig_mo_index + homo, 1)
+               ELSE IF (.NOT. ASSOCIATED(unoccupied_orbs)) THEN
                   CALL cp_abort(__LOCATION__, &
                                 "If ORIG_TYPE is set to VIRTUAL, the array unoccupied_orbs must be associated! "// &
                                 "For instance, ask in the SCF section to compute virtual orbitals after the GS optimization.")
-               CALL cp_fm_to_fm(unoccupied_orbs(orig_spin_index), matrix_x, 1, orig_mo_index, 1)
+               ELSE
+                  CALL cp_fm_to_fm(unoccupied_orbs(orig_spin_index), matrix_x, 1, orig_mo_index, 1)
+               END IF
 
                ! Origin is to be read from an external .wfn file
             ELSE IF (orig_type == wfn_mix_orig_external) THEN

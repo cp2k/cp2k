@@ -1,0 +1,14 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+"AdeThyvdW.inp"                         = [{matcher="E_total", tol=1.0E-12, ref=-58.89501835809043}]
+"ice.inp"                               = [{matcher="E_total", tol=1.0E-10, ref=-46.30708081122568}]
+"ice2.inp"                              = [{matcher="E_total", tol=1.0E-10, ref=-46.30708081091197}]
+"Ru_geo.inp"                            = [{matcher="E_total", tol=1.0E-10, ref=-7.01272555945159}]
+"ef_stress1.inp"                        = []
+"ef_stress2.inp"                        = []
+"ef_stress3.inp"                        = []
+"ef_stress4.inp"                        = []
+#EOF

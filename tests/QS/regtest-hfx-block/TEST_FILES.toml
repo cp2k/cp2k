@@ -1,0 +1,7 @@
+"H2-block-01.inp"                       = [{matcher="E_total", tol=1e-11, ref=-5.92585104414313}]
+"H2-block-02.inp"                       = [{matcher="E_total", tol=1e-11, ref=-5.92585104414313}]
+"H2-block-03.inp"                       = [{matcher="E_total", tol=1e-11, ref=-5.92585104414313}]
+"H2-block-04.inp"                       = [{matcher="E_total", tol=1e-11, ref=-5.92585104414313}]
+"H2-block-05.inp"                       = [{matcher="E_total", tol=1e-11, ref=-6.05772455347401}]
+"H2-block-06.inp"                       = [{matcher="E_total", tol=1e-11, ref=-5.79943194406136}]
+#EOF

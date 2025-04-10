@@ -1,0 +1,17 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# see regtest/TEST_FILES
+#
+"HeH-water-noconstraint.inp"            = [{matcher="E_total", tol=2e-11, ref=-2.95332848940723}]
+# The MM part seems to introduce noise that is difficult to account for
+# So just running the test successfully is sufficient
+"HeH-water-cdft-state-1.inp"            = []
+"HeH-water-cdft-state-2.inp"            = []
+# These tests compute the electronic coupling in parallel/serial modes
+# Tests the charge transfer energy which is not prone to noise
+"HeH-water-mixed-cdft-1.inp"            = [{matcher="M075", tol=5e-10, ref=0.318940758387}]
+"HeH-water-mixed-cdft-2.inp"            = [{matcher="M075", tol=5e-10, ref=0.318940758387}]
+# MD tests in parallel/serial modes
+"HeH-water-mixed-cdft-3.inp"            = [{matcher="M011", tol=1e-09, ref=-2.564762048904492}]
+"HeH-water-mixed-cdft-4.inp"            = [{matcher="M011", tol=2e-09, ref=-2.564762048791228}]
+#EOF

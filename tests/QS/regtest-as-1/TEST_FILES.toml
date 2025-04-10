@@ -1,0 +1,45 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+#
+"h2_gapw_2-2.inp"                       = [{matcher="E_total", tol=1e-12, ref=-1.12703481947359},
+                                           {matcher="M092", tol=1e-8, ref=4.08763868}]
+
+"h2_gapw_2-3.inp"                       = [{matcher="E_total", tol=1e-12, ref=-1.12703481947359},
+                                           {matcher="M092", tol=1e-8, ref=6.34131299}]
+
+"h2_gapw_2-4.inp"                       = [{matcher="E_total", tol=1e-12, ref=-1.12703481947359},
+                                           {matcher="M092", tol=1e-8, ref=10.57998079}]
+
+"h2_gapw_pp_2-2.inp"                    = [{matcher="E_total", tol=1e-12, ref=-1.12609343153655},
+                                           {matcher="M092", tol=1e-8, ref=4.08440577}]
+
+"h2_gapw_pp_2-3.inp"                    = [{matcher="E_total", tol=1e-12, ref=-1.12609343153655},
+                                           {matcher="M092", tol=1e-8, ref=6.33491633}]
+
+"h2_gapw_pp_2-4.inp"                    = [{matcher="E_total", tol=1e-12, ref=-1.12609343153655},
+                                           {matcher="M092", tol=1e-8, ref=10.58498318}]
+
+"h2_gpw_pp_2-2.inp"                     = [{matcher="E_total", tol=1e-12, ref=-1.12622646044780},
+                                           {matcher="M092", tol=1e-8, ref=4.08481739}]
+
+"h2_gpw_pp_2-3.inp"                     = [{matcher="E_total", tol=1e-12, ref=-1.12622646044780},
+                                           {matcher="M092", tol=1e-8, ref=6.33543946}]
+
+"h2_gpw_pp_2-4.inp"                     = [{matcher="E_total", tol=1e-12, ref=-1.12622646044780},
+                                           {matcher="M092", tol=1e-8, ref=10.58533205}]
+
+"h2o_gapw_2-2.inp"                      = [{matcher="E_total", tol=1e-12, ref=-76.011970410506123},
+                                           {matcher="M092", tol=1e-8, ref=77.48403318}]
+
+"ch2_gapw_2-3.inp"                      = [{matcher="E_total", tol=1e-12, ref=-38.91914381184247},
+                                           {matcher="M092", tol=1e-8, ref=50.38752368}]
+
+"ch2_gapw_pp_2-3.inp"                   = [{matcher="E_total", tol=1e-12, ref=-6.51646227467145},
+                                           {matcher="M092", tol=1e-8, ref=17.95445524}]
+
+"ch2_gpw_pp_2-3.inp"                    = [{matcher="E_total", tol=1e-12, ref=-6.51682932586237},
+                                           {matcher="M092", tol=1e-8, ref=17.95513292}]
+#EOF

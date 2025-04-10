@@ -1,0 +1,14 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# see regtest/TEST_FILES
+"CH_BeckeRoussel_R_0.0.inp"             = [{matcher="E_total", tol=8e-14, ref=-5.83598205931274}]
+"CH_BeckeRoussel_R_1.0.inp"             = [{matcher="E_total", tol=7e-13, ref=-5.19566047832476}]
+"H2O_BeckeRoussel_R_0.0.inp"            = [{matcher="E_total", tol=1.0E-14, ref=-16.82229710762995}]
+"H2O_BeckeRoussel_R_1.0.inp"            = [{matcher="E_total", tol=2e-14, ref=-13.79372850057247}]
+"H2O_LDA_HOLE_T_C_LR_1.0.inp"           = [{matcher="E_total", tol=3e-14, ref=-13.38058290241284}]
+"CH_LDA_HOLE_T_C_LR_1.0.inp"            = [{matcher="E_total", tol=7e-11, ref=-4.41421605729251}]
+"H2O_PBE_HOLE_T_C_LR_1.0.inp"           = [{matcher="E_total", tol=1.0E-14, ref=-13.36240854822981}]
+"CH_PBE_HOLE_T_C_LR_1.0.inp"            = [{matcher="E_total", tol=3e-11, ref=-4.53250307835148}]
+"CH_GV09_1.0.inp"                       = [{matcher="E_total", tol=7e-10, ref=-4.4330776072512998}]
+"H2O_GV09_1.0.inp"                      = [{matcher="E_total", tol=1e-13, ref=-13.36025091212545}]
+#EOF

@@ -16,18 +16,12 @@ def main() -> None:
 
     for version in "sdbg", "ssmp", "pdbg", "psmp":
         with OutputFile(f"Dockerfile.test_{version}", args.check) as f:
+            mpi_mode = "mpich" if version.startswith("p") else "no"
+            with_dbcsr = "" if version.endswith("smp") else "no"
+            f.write(install_deps_toolchain(mpi_mode=mpi_mode, with_dbcsr=with_dbcsr))
             if version in ("ssmp", "psmp"):
-                # Use ssmp/psmp as guinea pigs
-                if version == "ssmp":
-                    f.write(install_deps_toolchain(mpi_mode="no", with_dbcsr=""))
-                elif version == "psmp":
-                    f.write(install_deps_toolchain(mpi_mode="mpich", with_dbcsr=""))
                 f.write(regtest_cmake("toolchain", version))
             else:
-                if version == "sdbg":
-                    f.write(install_deps_toolchain(mpi_mode="no"))
-                elif version == "pdbg":
-                    f.write(install_deps_toolchain(mpi_mode="mpich"))
                 f.write(regtest(version))
 
         with OutputFile(f"Dockerfile.test_generic_{version}", args.check) as f:
@@ -39,7 +33,7 @@ def main() -> None:
         f.write(regtest("psmp"))
 
     with OutputFile(f"Dockerfile.test_fedora-psmp", args.check) as f:
-        f.write(install_deps_toolchain(base_image="fedora:38"))
+        f.write(install_deps_toolchain(base_image="fedora:41"))
         f.write(regtest("psmp"))
 
     for version in "ssmp", "psmp":
@@ -57,7 +51,7 @@ def main() -> None:
 
     with OutputFile(f"Dockerfile.test_spack", args.check) as f:
         f.write(install_deps_spack())
-        f.write(regtest_cmake("spack", "psmp"))
+        f.write(regtest_cmake("spack_all", "psmp"))
 
     for version in "ssmp", "psmp":
         with OutputFile(f"Dockerfile.test_asan-{version}", args.check) as f:
@@ -79,12 +73,6 @@ def main() -> None:
                 f.write(install_deps_ubuntu2004(gcc_version=gcc_version))
                 # Skip some tests due to bug in LDA_C_PMGB06 functional in libxc <5.2.0.
                 f.write(regtest("ssmp", testopts="--skipdir=QS/regtest-rs-dhft"))
-
-    with OutputFile("Dockerfile.test_i386", args.check) as f:
-        base_img = "i386/debian:12.5"
-        f.write(install_deps_ubuntu(base_img, gcc_version=12, with_libxsmm=False))
-        f.write(install_dbcsr("ubuntu_i386", "ssmp"))
-        f.write(regtest_cmake("ubuntu_i386", "ssmp"))
 
     with OutputFile("Dockerfile.test_arm64-psmp", args.check) as f:
         base_img = "arm64v8/ubuntu:24.04"
@@ -290,7 +278,7 @@ FROM ubuntu:24.04
 WORKDIR /opt/cp2k-precommit
 COPY ./tools/precommit/ /opt/cp2k-precommit/
 RUN ./install_requirements.sh
-ENV PATH="/opt/venv/bin:$PATH"
+ENV PATH="/opt/venv/bin:/opt/cp2k-precommit:$PATH"
 
 # Install sources.
 WORKDIR /opt/cp2k
@@ -843,67 +831,78 @@ def install_deps_spack() -> str:
     return rf"""
 FROM ubuntu:24.04
 
-# Install common dependencies as pre-built Ubuntu packages.
+# Install packages required to build the CP2K dependencies with Spack
 RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
-    autoconf \
-    autogen \
-    automake \
-    autotools-dev \
     bzip2 \
     ca-certificates \
+    cmake \
     g++ \
     gcc \
     gfortran \
     git \
-    less \
+    gnupg \
+    hwloc \
+    libhwloc-dev \
+    libssh-dev \
+    libssl-dev \
     libtool \
     libtool-bin \
+    lsb-release \
     make \
-    nano \
     ninja-build \
     patch \
     pkgconf \
     python3 \
+    python3-dev \
     unzip \
     wget \
     xxd \
-    zlib1g-dev \
-    cmake \
-    gnupg \
-    m4 \
     xz-utils \
-    libssl-dev \
-    libssh-dev \
-    hwloc \
-    libhwloc-dev \
-   && rm -rf /var/lib/apt/lists/*
+    zstd && rm -rf /var/lib/apt/lists/*
 
-# Install a recent developer version of Spack.
-WORKDIR /opt/spack
-ARG SPACK_VERSION=40d40ccc525dfa821b5e2998c9e767f08e0065bd
+# Install a recent Spack version
+WORKDIR /root/spack
+ARG SPACK_VERSION
+ENV SPACK_VERSION=${{SPACK_VERSION:-develop-2025-03-23}}
 RUN git init --quiet && \
     git remote add origin https://github.com/spack/spack.git && \
     git fetch --quiet --depth 1 origin ${{SPACK_VERSION}} --no-tags && \
     git checkout --quiet FETCH_HEAD
-ENV PATH="/opt/spack/bin:${{PATH}}"
+ENV PATH="/root/spack/bin:${{PATH}}"
 
-# Find all external packages and compilers.
+# Find all compilers
 RUN spack compiler find
+
+# Find all external packages
 RUN spack external find --all --not-buildable
 
-# Enable Spack build cache
-ARG SPACK_BUILD_CACHE=develop-2025-02-02
+# Enable Spack build cache from the latest development version
+ARG SPACK_BUILD_CACHE
+ENV SPACK_BUILD_CACHE="${{SPACK_BUILD_CACHE:-develop-2025-03-23}}"
 RUN spack mirror add ${{SPACK_BUILD_CACHE}} https://binaries.spack.io/${{SPACK_BUILD_CACHE}} && \
-    spack mirror add develop https://binaries.spack.io/develop && \
     spack buildcache keys --install --trust --force && \
-    spack mirror rm develop
+    spack mirror remove ${{SPACK_BUILD_CACHE}}
 
-# Install CP2K's dependencies via Spack.
-WORKDIR /
-COPY ./tools/spack/cp2k-dependencies.yaml .
-RUN spack env create myenv ./cp2k-dependencies.yaml
+# Copy Spack configuration and build recipes
+ARG CP2K_BUILD_TYPE
+ENV CP2K_BUILD_TYPE=${{CP2K_BUILD_TYPE:-all}}
+COPY ./tools/spack/cp2k_deps_${{CP2K_BUILD_TYPE}}.yaml .
+COPY ./tools/spack/cp2k ./cp2k
+
+# Sarus containers must be dynamically linked to an MPI implementation that is ABI-compatible
+# with the MPI on the compute nodes at CSCS like MPICH@3
+ARG MPICH_VERSION
+ENV MPICH_VERSION=${{MPICH_VERSION:-3.4.3}}
+RUN sed -i -e "s/mpich@[0-9.]*/mpich@${{MPICH_VERSION}}/" cp2k_deps_${{CP2K_BUILD_TYPE}}.yaml && \
+    spack env create myenv cp2k_deps_${{CP2K_BUILD_TYPE}}.yaml && \
+    spack -e myenv repo list
+
+# Install CP2K dependencies via Spack
 RUN spack -e myenv concretize -f
-RUN spack -e myenv env depfile -o spack-makefile && make -j32 --file=spack-makefile SPACK_COLOR=never --output-sync=recurse
+ENV SPACK_ENV_VIEW="/root/spack/var/spack/environments/myenv/spack-env/view"
+RUN spack -e myenv env depfile -o spack_makefile && \
+    make -j32 --file=spack_makefile SPACK_COLOR=never --output-sync=recurse && \
+    cp -ar ${{SPACK_ENV_VIEW}}/bin ${{SPACK_ENV_VIEW}}/include ${{SPACK_ENV_VIEW}}/lib /opt/spack
 """
 
 

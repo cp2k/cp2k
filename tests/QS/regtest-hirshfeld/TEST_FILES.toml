@@ -1,0 +1,25 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+#
+"htest_1.inp"                           = [{matcher="E_total", tol=2e-14, ref=-17.14603641519601}]
+"htest_2.inp"                           = [{matcher="E_total", tol=2e-14, ref=-17.14603641519601}]
+"htest_3.inp"                           = [{matcher="E_total", tol=3e-14, ref=-17.14603641519601}]
+"htest_4.inp"                           = [{matcher="E_total", tol=2e-14, ref=-17.14603641519601}]
+"htest_5.inp"                           = [{matcher="E_total", tol=3e-14, ref=-17.14603641519601}]
+"htest_6.inp"                           = [{matcher="E_total", tol=2e-14, ref=-17.14603641519601}]
+"htest_7.inp"                           = [{matcher="E_total", tol=3e-14, ref=-17.13771713041177}]
+"htest_8.inp"                           = [{matcher="E_total", tol=3e-14, ref=-17.13771713041177}]
+"htest_9.inp"                           = [{matcher="E_total", tol=3e-14, ref=-17.13771713041177}]
+"hlsd_1.inp"                            = [{matcher="E_total", tol=2e-14, ref=-16.81101156813314}]
+"hlsd_2.inp"                            = [{matcher="E_total", tol=2e-14, ref=-16.81101156813314}]
+"hlsd_3.inp"                            = [{matcher="E_total", tol=2e-14, ref=-16.81101156813314}]
+"hlsd_4.inp"                            = [{matcher="E_total", tol=2e-14, ref=-16.81101156813314}]
+"hlsd_5.inp"                            = [{matcher="E_total", tol=2e-14, ref=-16.81101156813314}]
+"hlsd_6.inp"                            = [{matcher="E_total", tol=4e-14, ref=-16.80070757658133}]
+"hlsd_7.inp"                            = [{matcher="E_total", tol=4e-14, ref=-16.80070757658133}]
+"hlsd_8.inp"                            = [{matcher="E_total", tol=4e-14, ref=-16.80070757658133}]
+"hlsd_9.inp"                            = [{matcher="E_total", tol=4e-14, ref=-16.80070757658133}]
+#EOF

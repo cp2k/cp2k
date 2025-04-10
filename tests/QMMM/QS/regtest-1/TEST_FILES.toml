@@ -1,0 +1,31 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+# QM/MM
+"Ar-qmmm.inp"                           = [{matcher="E_total", tol=3e-11, ref=-5.23877205327694}]
+"H2O-qmmm-gauss-1.inp"                  = [{matcher="E_total", tol=2e-13, ref=-16.55275159465312}]
+"H2O-qmmm-gauss-2.inp"                  = [{matcher="E_total", tol=2e-13, ref=-16.86188849951898}]
+"H2O-qmmm-gauss-3.inp"                  = [{matcher="E_total", tol=3e-13, ref=-16.83342020737120}]
+"H2O-qmmm-gauss-4.inp"                  = [{matcher="M007", tol=1.0E-14, ref=-16.8201504947}]
+"H2O-qmmm-gauss-5.inp"                  = [{matcher="E_total", tol=2e-13, ref=-16.86188849951898}]
+"H2O-qmmm-gauss-6.inp"                  = [{matcher="E_total", tol=3e-13, ref=-16.78375982393304}]
+"H2O-qmmm-gauss-7.inp"                  = [{matcher="E_total", tol=2e-13, ref=-16.89896479548539}]
+"H2O-qmmm-gauss-8.inp"                  = [{matcher="E_total", tol=2e-13, ref=-16.87501328403041}]
+"H2O-qmmm-gauss-9.inp"                  = [{matcher="E_total", tol=2e-13, ref=-16.69361998788292}]
+"H2O-qmmm-gauss-10.inp"                 = [{matcher="E_total", tol=2e-13, ref=-16.76034008277382}]
+"H2O-qmmm-gauss-11.inp"                 = [{matcher="M007", tol=1.0E-14, ref=-16.5977721447}]
+"H2O-qmmm-gauss-12.inp"                 = [{matcher="E_total", tol=3e-13, ref=-16.85836829399367}]
+"H2O-qmmm-gauss-13.inp"                 = [{matcher="E_total", tol=9e-13, ref=-16.67363982385439}]
+"H2O-qmmm-none-1.inp"                   = [{matcher="M007", tol=1.0E-14, ref=-16.8984814276}]
+"H2O-qmmm-gauss-14.inp"                 = [{matcher="M007", tol=1.0E-14, ref=-17.1808434448}]
+"H2O-qmmm-gauss-15.inp"                 = [{matcher="M007", tol=6e-12, ref=-17.1591059585}]
+"H2O-qmmm-gauss-16.inp"                 = [{matcher="M007", tol=1.0E-14, ref=-17.1808130385}]
+"H2O-qmmm-gauss-17.inp"                 = [{matcher="M007", tol=1.0E-14, ref=-17.1808263887}]
+"H2O-qmmm-gauss-18.inp"                 = [{matcher="M007", tol=6e-12, ref=-17.4328106395}]
+"H2O-qmmm-gauss-19.inp"                 = [{matcher="M007", tol=6e-12, ref=-17.4328106395}]
+"H2O-qmmm-none-force-mixing-1.inp"      = [{matcher="E_total", tol=6e-13, ref=-33.47241414134874}]
+"H2O-qmmm-gauss-force-mixing-1.inp"     = [{matcher="E_total", tol=7e-13, ref=-50.19552620361094}]
+"H2O-qmmm-noelectrostatics.inp"         = [{matcher="E_total", tol=2e-13, ref=-16.86180642492571}]
+#EOF

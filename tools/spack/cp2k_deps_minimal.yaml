@@ -1,0 +1,58 @@
+# Spack environment file for a minimal CP2K installation
+
+spack:
+  concretizer:
+    unify: true
+  config:
+    install_tree:
+      root: /opt/spack
+  packages:
+    all:
+      prefer:
+        - +mpi
+    # MPI, BLAS, LAPACK, ScaLAPACK
+    mpi:
+      require:
+        - mpich
+    mpich:
+      require:
+        - device=ch3
+        - netmod=tcp
+    blas:
+      require:
+        - openblas
+    lapack:
+      require:
+        - openblas
+    openblas:
+      require:
+        - +fortran
+        - threads=openmp
+    scalapack:
+      require:
+        - netlib-scalapack
+    # Dependencies for CP2K
+    dbcsr:
+      require:
+        - +openmp
+    fftw:
+      require:
+        - +openmp
+  repos:
+    - $spack/cp2k
+  specs:
+    - "mpich@4.2.3"
+    - "openblas@0.3.29"
+    - "netlib-scalapack@2.2.2"
+    - "dbcsr@2.8.0"
+    - "fftw@3.3.10"
+#   - "libxsmm@main-2024-09" Use 1.17 with Spack as long as grid unit tests fail
+    - "libxsmm@1.17"
+  view:
+    default:
+      root: ./spack-env/view
+      exclude:
+        # Exclude gcc-runtime to avoid adding a copy of libgomp.so to the view
+        - gcc-runtime
+ 
+# EOF

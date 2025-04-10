@@ -1,0 +1,10 @@
+"G0W0_kpoints_in_self_energy.inp"                                  = [{matcher="E_G0W0_gap_old", tol=1e-04, ref=12.4044}]
+"G0W0_kpoints_in_self_energy_at_HSE06.inp"                         = [{matcher="E_G0W0_gap_old", tol=1e-04, ref=13.1174}]
+"G0W0_kpoints_in_self_energy_RI_overlap.inp"                       = [{matcher="E_G0W0_gap_old", tol=1e-04, ref=12.1041}]
+"G0W0_kpoints_in_self_energy_Sigmax_from_four_center_HFX.inp"      = [{matcher="E_G0W0_gap_old", tol=1e-04, ref=15.6799}]
+"G0W0_kpoints_in_self_energy_Sigmax_from_four_center_HFX_ADMM.inp" = [{matcher="E_G0W0_gap_old", tol=1e-04, ref=15.7555}]
+"G0W0_kpoints_in_self_energy_gap_printing.inp"                     = [{matcher="E_G0W0_gap_old", tol=1e-03, ref=18.7767}]
+"G0W0_kpoints_in_self_energy_open_shell.inp"                       = [{matcher="E_G0W0_alpha_gap_old", tol=1e-04, ref=13.9024},
+                                                                      {matcher="E_G0W0_beta_gap_old", tol=1e-04, ref=27.5399}]
+"G0W0_IH_SOC.inp"                                                  = [{matcher="E_G0W0_SOC_gap_old", tol=1e-04, ref=17.2425}]
+#EOF

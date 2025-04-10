@@ -1,0 +1,13 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+"h2o_dipole.inp"                        = [{matcher="M086", tol=1e-05, ref=0.908927636669E+00}]
+"h2o_polar.inp"                         = [{matcher="M087", tol=1e-05, ref=0.166347691437E+02}]
+"h2o_pdip.inp"                          = [{matcher="M086", tol=1e-05, ref=0.961018561809E+00}]
+"h2o_periodic.inp"                      = [{matcher="M087", tol=1e-05, ref=0.139741440657E+02}]
+"h2o_gga.inp"                           = [{matcher="M087", tol=1e-05, ref=0.165143521103E+02}]
+"h2o_gapw.inp"                          = [{matcher="M087", tol=1e-05, ref=0.170608453409E+02}]
+"h2o_gapw_xc.inp"                       = [{matcher="M087", tol=1e-05, ref=0.170656058892E+02}]
+#EOF

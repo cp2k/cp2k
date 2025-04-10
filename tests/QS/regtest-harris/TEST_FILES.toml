@@ -1,0 +1,7 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# see regtest/TEST_FILES
+"2H2O_t01.inp"                          = [{matcher="M011", tol=1e-010, ref=-34.570515851298339}]
+"ft1.inp"                               = []
+"fl1.inp"                               = []
+#EOF

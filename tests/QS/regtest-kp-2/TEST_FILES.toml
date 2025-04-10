@@ -1,0 +1,22 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+"Ar_1.inp"                              = []
+"Ar_2.inp"                              = [{matcher="E_total", tol=1.0E-12, ref=-1055.79170847275986}]
+"Ar_3.inp"                              = [{matcher="E_total", tol=1.0E-12, ref=-1055.30526447136890}]
+"Al_1_4.inp"                            = [{matcher="E_total", tol=4.0E-12, ref=-8.27931596571888}]
+"H_sym.inp"                             = []
+"cc1.inp"                               = [{matcher="E_total", tol=1.0E-12, ref=-45.64761389790363}]
+"cc2.inp"                               = [{matcher="E_total", tol=1.0E-12, ref=-46.03625569798420}]
+"C_bs.inp"                              = [{matcher="E_total", tol=1.0E-12, ref=-11.26359819446578}]
+"C_band1.inp"                           = [{matcher="E_total", tol=1.0E-12, ref=-45.08915810850318}]
+"C_band2.inp"                           = [{matcher="E_total", tol=1.0E-12, ref=-45.08915810850318}]
+"C_band3.inp"                           = [{matcher="E_total", tol=1.0E-12, ref=-45.08903830920785}]
+"ccn1.inp"                              = [{matcher="M069", tol=1.0E-04, ref=12.8455}]
+"ccn2.inp"                              = [{matcher="M069", tol=1.0E-04, ref=12.8456}]
+"ccn3.inp"                              = [{matcher="M069", tol=1.0E-04, ref=3.7586}]
+"ccn4.inp"                              = [{matcher="M069", tol=1.0E-04, ref=3.7586}]
+"cc2_lri.inp"                           = [{matcher="E_total", tol=8.0E-10, ref=-55.63725190467995}]
+#EOF

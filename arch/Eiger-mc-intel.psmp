@@ -7,7 +7,7 @@
 # Usage: Source this arch file and then run make as instructed.
 #        Replace or adapt the "module load" commands below if needed.
 #
-# Last update: 12.02.2025
+# Last update: 21.02.2025
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -25,7 +25,7 @@
    module load cray-python; \
    module list; \
    [[ -z "${TARGET_CPU}" ]] && export TARGET_CPU="core-avx2"; \
-   ./install_cp2k_toolchain.sh -j32 --enable-cray --no-arch-files --target-cpu=${TARGET_CPU} --with-dftd4 --with-elpa --with-fftw --with-libtorch=no --with-libxsmm --with-intel --with-mkl --with-libtorch=no --with-libvdwxc --with-pexsi --with-plumed --with-quip=no; \
+   ./install_cp2k_toolchain.sh -j32 --enable-cray --no-arch-files --target-cpu=${TARGET_CPU} --with-dftd4 --with-elpa --with-fftw --with-libtorch=no --with-libxsmm --with-intel --with-mkl --with-libtorch=no --with-libvdwxc --with-plumed; \
    source ./install/setup; \
    cd ../..; \
    echo; \
@@ -55,7 +55,6 @@ USE_LIBINT     := $(LIBINT_VER)
 USE_LIBVORI    := $(LIBVORI_VER)
 USE_LIBXC      := $(LIBXC_VER)
 USE_LIBXSMM    := $(LIBXSMM_VER)
-USE_PEXSI      := $(PEXSI_VER)
 USE_PLUMED     := $(PLUMED_VER)
 USE_SIRIUS     := $(SIRIUS_VER)
 USE_SPFFT      := $(SPFFT_VER)
@@ -123,25 +122,6 @@ ifneq ($(USE_ELPA),)
    endif
 endif
 
-ifneq ($(USE_PEXSI),)
-   USE_PEXSI      := $(strip $(USE_PEXSI))
-   PEXSI_INC      := $(INSTALL_PATH)/pexsi-$(USE_PEXSI)/include
-   PEXSI_LIB      := $(INSTALL_PATH)/pexsi-$(USE_PEXSI)/lib
-   SCOTCH_INC     := $(INSTALL_PATH)/scotch-$(SCOTCH_VER)/include
-   SCOTCH_LIB     := $(INSTALL_PATH)/scotch-$(SCOTCH_VER)/lib
-   SUPERLU_INC    := $(INSTALL_PATH)/superlu_dist-$(SUPERLU_VER)/include
-   SUPERLU_LIB    := $(INSTALL_PATH)/superlu_dist-$(SUPERLU_VER)/lib
-   CFLAGS         += -I$(PEXSI_INC) -I$(SCOTCH_INC) -I$(SUPERLU_INC)
-   DFLAGS         += -D__LIBPEXSI
-   LIBS           += $(PEXSI_LIB)/libpexsi.a
-   LIBS           += $(SUPERLU_LIB)/libsuperlu_dist.a
-   LIBS           += $(SCOTCH_LIB)/libptscotchparmetis.a
-   LIBS           += $(SCOTCH_LIB)/libptscotch.a
-   LIBS           += $(SCOTCH_LIB)/libptscotcherr.a
-   LIBS           += $(SCOTCH_LIB)/libscotchmetis.a
-   LIBS           += $(SCOTCH_LIB)/libscotch.a
-endif
-
 ifneq ($(USE_LIBVORI),)
    USE_LIBVORI    := $(strip $(USE_LIBVORI))
    LIBVORI_LIB    := $(INSTALL_PATH)/libvori-$(USE_LIBVORI)/lib
@@ -185,12 +165,7 @@ endif
 
 ifneq ($(USE_LIBGRPP),)
    USE_LIBGRPP    := $(strip $(USE_LIBGRPP))
-   LIBGRPP_INC    := $(INSTALL_PATH)/libgrpp-main-$(USE_LIBGRPP)/include
-   LIBGRPP_INC    += -I$(INSTALL_PATH)/libgrpp-main-$(USE_LIBGRPP)/include/libgrpp/GNU-$(GNU_VER)/fortran_modules
-   LIBGRPP_LIB    := $(INSTALL_PATH)/libgrpp-main-$(USE_LIBGRPP)/lib
-   CFLAGS         += -I$(LIBGRPP_INC)
    DFLAGS         += -D__LIBGRPP
-   LIBS           += $(LIBGRPP_LIB)/libgrpp.a
 endif
 
 ifneq ($(USE_LIBINT),)

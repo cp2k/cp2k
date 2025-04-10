@@ -1,0 +1,50 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g.  #      35 compares the last total energy in the file
+# e.g.  #      46 compares final value of Powell optimization
+#      for details see cp2k/tools/do_regtest
+# tests ATOMIC code LSD version
+"H.inp"                                 = [{matcher="M035", tol=1e-12, ref=-0.499999999830}]
+"He_1.inp"                              = [{matcher="M035", tol=1e-12, ref=-1.399307796698}]
+"He_2.inp"                              = [{matcher="M035", tol=1e-12, ref=-1.336212351224}]
+"He_3.inp"                              = [{matcher="M035", tol=1e-12, ref=-1.416270865184}]
+"He_5.inp"                              = [{matcher="M035", tol=1e-11, ref=-1.408879880895}]
+"F_1.inp"                               = [{matcher="M035", tol=1e-12, ref=-24.171954774816}]
+"F_2.inp"                               = [{matcher="M035", tol=1e-12, ref=-24.171954774816}]
+"F_3.inp"                               = [{matcher="M035", tol=1e-12, ref=-24.171954774816}]
+"F_4.inp"                               = [{matcher="M035", tol=1e-12, ref=-23.517790822114}]
+"F_5.inp"                               = [{matcher="M035", tol=1e-12, ref=-23.437623684262}]
+"U.inp"                                 = [{matcher="M035", tol=1e-12, ref=-25598.253318868672}]
+"Ru.inp"                                = [{matcher="M046", tol=1e-12, ref=-15.9518066199}]
+"Ru_basis.inp"                          = [{matcher="M035", tol=1e-12, ref=-15.951806619855}]
+"Ru_conf.inp"                           = [{matcher="M046", tol=1e-12, ref=-15.9897774741}]
+#
+"atom_1.inp"                            = [{matcher="M035", tol=1e-12, ref=-0.462506882641}]
+"atom_2.inp"                            = [{matcher="M035", tol=1e-12, ref=-0.356859139125}]
+"atom_3.inp"                            = [{matcher="M035", tol=1e-12, ref=-0.462506882641}]
+"atom_4.inp"                            = [{matcher="M035", tol=1e-12, ref=-0.146531730136}]
+"atom_5.inp"                            = [{matcher="M035", tol=1e-12, ref=-0.462506882641}]
+"atom_c1.inp"                           = [{matcher="M035", tol=1e-12, ref=-0.460470116001}]
+"atom_c2.inp"                           = [{matcher="M035", tol=1e-12, ref=-0.348633649362}]
+"atom_c3.inp"                           = [{matcher="M035", tol=1e-12, ref=-0.460470116001}]
+"atom_c4.inp"                           = [{matcher="M035", tol=1e-12, ref=-0.038182392054}]
+"atom_c5.inp"                           = [{matcher="M035", tol=1e-12, ref=-0.460470116001}]
+#
+"slater_0.inp"                          = [{matcher="M035", tol=1e-12, ref=-2.847630187388}]
+"slater_1.inp"                          = [{matcher="M035", tol=1e-12, ref=-526.292493965897}]
+"slater_2.inp"                          = [{matcher="M035", tol=7e-13, ref=-24.243036046113001}]
+"slater_3.inp"                          = [{matcher="M035", tol=1e-12, ref=-2.838751324071}]
+"slater_4.inp"                          = [{matcher="M035", tol=1e-12, ref=8.063992740899}]
+"slater_5.inp"                          = [{matcher="M046", tol=1e-06, ref=109583.1142107928}]
+"slater_6.inp"                          = [{matcher="M046", tol=4e-04, ref=3762956.0625764877}]
+"slater_7.inp"                          = [{matcher="M046", tol=1e-12, ref=-2.8616551305}]
+"slater_8.inp"                          = [{matcher="M046", tol=1e-12, ref=-0.1875976021}]
+"slater_9.inp"                          = [{matcher="M046", tol=1e-12, ref=-525.7615443522}]
+"slater_10.inp"                         = [{matcher="M035", tol=1e-12, ref=-2.841058209720}]
+#
+"Hg.inp"                                = [{matcher="M035", tol=1e-12, ref=-19601.624766751498}]
+"C.inp"                                 = [{matcher="M035", tol=1e-12, ref=-37.799871796427}]
+"C_ADMM.inp"                            = [{matcher="M035", tol=1e-12, ref=-37.758721798835}]
+#
+"C_tpss.inp"                            = [{matcher="M035", tol=1e-12, ref=-37.801438870459}]
+#EOF

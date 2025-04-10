@@ -1,0 +1,15 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# see regtest/TEST_FILES
+#
+"HeH-noconstraint.inp"                  = [{matcher="E_total", tol=2e-13, ref=-3.01067446615063}]
+# These tests use different optimizers for the CDFT constraint
+# Newton: test different finite different schemes
+"HeH-cdft-newton-fd1.inp"               = [{matcher="M011", tol=3e-07, ref=-2.432124875819301}]
+# MD test cases
+"HeH-cdft-md-newton-1-1.inp"            = [{matcher="M011", tol=2e-08, ref=-2.438122042044888}]
+"HeH-cdft-md-broyden-5-1.inp"           = [{matcher="M011", tol=1e-09, ref=-2.438121661487591}]
+"HeH-cdft-md-broyden-5-5.inp"           = [{matcher="M011", tol=1e-09, ref=-2.438121661487591}]
+# Mixed CDFT: serial mode MD
+"HeH-mixed-cdft-md-newton-1-1.inp"      = [{matcher="M011", tol=2e-09, ref=-2.435138966299025}]
+#EOF

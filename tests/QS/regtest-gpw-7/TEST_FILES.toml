@@ -1,0 +1,11 @@
+# Krylov space refiniment
+"si8_pmix_otdiag.inp"                   = [{matcher="E_total", tol=7e-14, ref=-30.949792164003490}]
+"si8_broy_kry.inp"                      = [{matcher="E_total", tol=2e-10, ref=-31.065344498161199}]
+"si8_broy_kry_r.inp"                    = [{matcher="E_total", tol=4e-10, ref=-31.065371268044029}]
+#metadyn with min displacement
+"H2O-meta-mindisp.inp"                  = [{matcher="M002", tol=1.0E-14, ref=-0.171442928645E+02}]
+"H2O-meta-mindisp2.inp"                 = [{matcher="M002", tol=1.0E-14, ref=-0.171500041401E+02}]
+# smearing and g-space mixing with LSD
+"si8_broy_lsd.inp"                      = [{matcher="E_total", tol=7e-14, ref=-31.1486300767991900}]
+"md-01.inp"                             = [{matcher="M002", tol=1.0E-10, ref=-0.116386167908E+01}]
+#EOF

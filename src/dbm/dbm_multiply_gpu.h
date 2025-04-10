@@ -11,7 +11,7 @@
 #include "../offload/offload_runtime.h"
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_DBM)
 
-#include "dbm_multiply_internal.h"
+#include "dbm_internal.h"
 #include "dbm_shard.h"
 
 /*******************************************************************************
@@ -44,7 +44,7 @@ typedef struct {
 } dbm_multiply_gpu_context_t;
 
 /*******************************************************************************
- * \brief Internal routine for intializing the gpu backend.
+ * \brief Internal routine for initializing the gpu backend.
  * \author Ole Schuett
  ******************************************************************************/
 void dbm_multiply_gpu_start(const int max_batch_size, const int nshards,
@@ -64,7 +64,6 @@ void dbm_multiply_gpu_upload_packs(const dbm_pack_t *pack_a,
  * \author Ole Schuett
  ******************************************************************************/
 void dbm_multiply_gpu_process_batch(const int ntasks, const dbm_task_t *batch,
-                                    const int mnk_range[3][2],
                                     const double alpha, const int kshard,
                                     dbm_multiply_gpu_context_t *ctx);
 

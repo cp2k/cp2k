@@ -15,9 +15,9 @@ MODULE optimize_dmfet_potential
                                               dbcsr_multiply,&
                                               dbcsr_p_type,&
                                               dbcsr_release,&
-                                              dbcsr_trace,&
                                               dbcsr_type,&
                                               dbcsr_type_no_symmetry
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_trace
    USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&

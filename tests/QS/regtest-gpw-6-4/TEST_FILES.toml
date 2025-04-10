@@ -1,0 +1,13 @@
+"c8_kerker_gapw.inp"                    = [{matcher="E_total", tol=5e-14, ref=-42.05131513664231}]
+#
+"c8_broy.inp"                           = [{matcher="E_total", tol=2e-13, ref=-43.77621008751571}]
+"c8_broy_gop.inp"                       = [{matcher="E_total", tol=9e-07, ref=-44.221327896913358}]
+"c8_broy_gapw.inp"                      = [{matcher="E_total", tol=5e-14, ref=-41.31719460954863}]
+"c8_broy_gapw_gop.inp"                  = [{matcher="E_total", tol=1E-6, ref=-41.827392396518212}]
+# NLCC corrected pseudos with forces
+"Ne_nlcc_md.inp"                        = [{matcher="E_total", tol=2e-13, ref=-70.152540242702045}]
+# diagonalization library
+"c8_broy_elpa.inp"                      = [{matcher="E_total", tol=3e-12, ref=-43.77621008751571}]
+# NLCC corrected pseudos with forces for GAPW
+"Ne_GAPW_nlcc_md.inp"                   = [{matcher="E_total", tol=2e-13, ref=-70.170280255455950}]
+#EOF

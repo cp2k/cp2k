@@ -1,0 +1,24 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+#GEEP library
+"H2O-qmmm-gauss-14-geep-2.inp"          = [{matcher="E_total", tol=2e-12, ref=-12.90417644796692}]
+"H2O-qmmm-gauss-14-geep-3.inp"          = [{matcher="E_total", tol=2e-12, ref=-12.90712061196071}]
+"H2O-qmmm-gauss-14-geep-4.inp"          = [{matcher="E_total", tol=2e-12, ref=-12.90733560862245}]
+"H2O-qmmm-gauss-14-geep-5.inp"          = [{matcher="E_total", tol=8e-13, ref=-12.92642686633922}]
+"H2O-qmmm-gauss-14-geep-6.inp"          = [{matcher="E_total", tol=1e-12, ref=-12.922306022304049}]
+"H2O-qmmm-gauss-14-geep-7.inp"          = [{matcher="E_total", tol=1e-12, ref=-12.91849696653665}]
+"H2O-qmmm-gauss-14-geep-8.inp"          = [{matcher="E_total", tol=2e-12, ref=-12.91621682584684}]
+"H2O-qmmm-gauss-14-geep-9.inp"          = [{matcher="E_total", tol=2e-12, ref=-12.914371661785999}]
+"H2O-qmmm-gauss-14-geep-10.inp"         = [{matcher="E_total", tol=2e-12, ref=-12.91328069126081}]
+"H2O-qmmm-gauss-14-geep-11.inp"         = [{matcher="E_total", tol=2e-12, ref=-12.91297474165067}]
+"H2O-qmmm-gauss-14-geep-12.inp"         = [{matcher="E_total", tol=2e-12, ref=-12.91332340555361}]
+"H2O-qmmm-gauss-14-geep-13.inp"         = [{matcher="E_total", tol=2e-12, ref=-12.91325023093564}]
+"H2O-qmmm-gauss-14-geep-14.inp"         = [{matcher="E_total", tol=2e-12, ref=-12.91299456139047}]
+"H2O-qmmm-gauss-14-geep-15.inp"         = [{matcher="E_total", tol=2e-12, ref=-12.91325018773841}]
+"H2O-qmmm-gauss-14-geep-16.inp"         = [{matcher="E_total", tol=2e-12, ref=-12.91325925146546}]
+"H2O-qmmm-gauss-14-geep-17.inp"         = [{matcher="E_total", tol=2e-12, ref=-12.913367183821659}]
+"H2O-qmmm-gauss-14-geep-18.inp"         = [{matcher="E_total", tol=2e-12, ref=-12.9133675363151}]
+#EOF

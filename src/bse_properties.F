@@ -365,13 +365,17 @@ CONTAINS
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
          WRITE (unit_nr, '(T2,A4,T7,A,A)') &
-            'BSE|', "Printed optical absorption spectrum to local files, e.g. ", file_name_spectrum
+            'BSE|', "Printed optical absorption spectrum to local files, e.g. "
+         WRITE (unit_nr, '(T2,A4,T7,A)') &
+            'BSE|', file_name_spectrum
          WRITE (unit_nr, '(T2,A4,T7,A,A)') &
-            'BSE|', "as well as photoabsorption cross section to, e.g. ", file_name_crosssection
+            'BSE|', "as well as photoabsorption cross section to, e.g. "
+         WRITE (unit_nr, '(T2,A4,T7,A)') &
+            'BSE|', file_name_crosssection
          WRITE (unit_nr, '(T2,A4,T7,A52)') &
             'BSE|', "using the Eq. (7.51) from C. Ullrichs Book on TDDFT:"
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
-         WRITE (unit_nr, '(T2,A4,T10,A73)') &
+         WRITE (unit_nr, '(T2,A4,T10,A75)') &
             'BSE|', "Im{α_{avg}(ω)} = -Im{\sum_{n=1}^{N_exc} \frac{f_n}{(ω+iη)² - (Ω^n)²}}"
          WRITE (unit_nr, '(T2,A4)') 'BSE|'
          WRITE (unit_nr, '(T2,A4,T7,A)') &

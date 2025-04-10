@@ -1,0 +1,6 @@
+"Ar_mixed_periodic_planar.inp"          = [{matcher="E_total", tol=1e-12, ref=-21.074668777975461}]
+"Ar_mixed_periodic_cuboidal.inp"        = [{matcher="E_total", tol=1e-12, ref=-21.074670136724301}]
+"Ar_mixed_periodic_cylindrical.inp"     = [{matcher="E_total", tol=1e-12, ref=-21.074668222090018}]
+"Ar_mixed_periodic_cylindrical_yaa_zaa.inp" = [{matcher="E_total", tol=1e-12, ref=-21.074386262302514}]
+"Ar_neumann.inp"                        = [{matcher="E_total", tol=4e-12, ref=-21.074532520129981}]
+#EOF

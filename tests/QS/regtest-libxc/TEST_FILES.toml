@@ -1,0 +1,18 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+"H2O-hybrid-b3lyp_libxc_uks.inp"        = [{matcher="E_total", tol=3e-14, ref=-76.41035426581175}]
+"H2O-hybrid-b3lyp_libxc.inp"            = [{matcher="E_total", tol=3e-14, ref=-76.41035426581175}]
+"H2O-hybrid-wb97mv-libxc.inp"           = [{matcher="E_total", tol=2e-14, ref=-76.39611446074743}]
+"H2O-hybrid-cam-lda0.inp"               = [{matcher="E_total", tol=3e-14, ref=-76.47215215214956}]
+"H2O-tpssx_libxc.inp"                   = [{matcher="E_total", tol=3e-13, ref=-33.88300963208589}]
+"diamond_br89_libxc_uks.inp"            = [{matcher="E_total", tol=7e-14, ref=-11.06630465114328}]
+"diamond_br89_libxc.inp"                = [{matcher="E_total", tol=7e-14, ref=-11.06581270880638}]
+# tpss new input
+"H2O-tpss_lsd.inp"                      = [{matcher="E_total", tol=3e-13, ref=-34.34060245665712}]
+# wb97X2 functional parametrizations
+"H2O-hybrid-wb97x2lp-libxc.inp"         = [{matcher="E_total", tol=3e-8, ref=-16.89949370057707}]
+"H2O-hybrid-wb97x2tqz-libxc.inp"        = [{matcher="E_total", tol=4e-8, ref=-16.91942374633053}]
+#EOF

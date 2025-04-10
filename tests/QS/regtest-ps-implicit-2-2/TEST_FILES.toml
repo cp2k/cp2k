@@ -1,0 +1,4 @@
+"H2O_mixed_periodic_aa_planar.inp"      = [{matcher="E_total", tol=1e-12, ref=-17.23324626886945}]
+"H2O_mixed_periodic_planar.inp"         = [{matcher="E_total", tol=1e-12, ref=-17.23057683721551}]
+"H2O_spatial_rho_dep_dielec.inp"        = [{matcher="E_total", tol=1e-12, ref=-17.224464501922753}]
+#EOF

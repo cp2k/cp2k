@@ -1,0 +1,15 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+# tests GAPW GTH and ALL
+# High-spin restricted open Kohn-Sham
+"Li-ROKS.inp"                           = [{matcher="E_total", tol=3e-14, ref=-7.3389104099416302}]
+"NO2-ROKS.inp"                          = [{matcher="E_total", tol=1.0E-14, ref=-203.77833570926944}]
+# Level-shifting for ROKS
+"C-levelshift.inp"                      = [{matcher="E_total", tol=3e-13, ref=-37.446946584782182}]
+# Check restart for nmo = 0
+"H2-pbe-restart-run.inp"                = [{matcher="E_total", tol=6e-13, ref=-0.60698327541571}]
+"H2-pbe-restart-rerun.inp"              = [{matcher="E_total", tol=7e-13, ref=-0.60698327541577}]
+#EOF

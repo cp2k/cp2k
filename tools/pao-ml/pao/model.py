@@ -1,7 +1,8 @@
 # author: Ole Schuett
 
 import torch
-import e3nn  # type: ignore
+import e3nn.o3  # type: ignore
+import e3nn.nn  # type: ignore
 import warnings
 from typing import Any, Dict, List
 

@@ -406,12 +406,12 @@ CONTAINS
             WRITE (unit_nr, '(T2,A4,T7,A)') 'BSE|', &
                'Check for Thomas-Reiche-Kuhn sum rule'
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
-            WRITE (unit_nr, '(T2,A4,T35,A)') 'BSE|', &
+            WRITE (unit_nr, '(T2,A4,T35,A15)') 'BSE|', &
                'N_e = Σ_n f^n'
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
             WRITE (unit_nr, '(T2,A4,T7,A24,T65,I16)') 'BSE|', &
                'Number of electrons N_e:', homo_irred*2
-            WRITE (unit_nr, '(T2,A4,T7,A,T66,F16.3)') 'BSE|', &
+            WRITE (unit_nr, '(T2,A4,T7,A40,T66,F16.3)') 'BSE|', &
                'Sum over oscillator strengths Σ_n f^n :', SUM(oscill_str)
             WRITE (unit_nr, '(T2,A4)') 'BSE|'
             IF (mp2_env%bse%bse_cutoff_occ > 0 .OR. mp2_env%bse%bse_cutoff_empty > 0) THEN
@@ -619,7 +619,7 @@ CONTAINS
                prefix_output, i_exc, exc_descr(i_exc)%norm_XpY, &
                exc_descr(i_exc)%diff_r_abs*angstrom, &
                exc_descr(i_exc)%sigma_e*angstrom, exc_descr(i_exc)%sigma_h*angstrom, &
-               exc_descr(i_exc)%diff_r_sqr*angstrom, exc_descr(i_exc)%corr_e_h*angstrom
+               exc_descr(i_exc)%diff_r_sqr*angstrom, exc_descr(i_exc)%corr_e_h
          END DO
          WRITE (unit_nr, '(T2,A4)') prefix_output
          ! For debug runs, print first d_exc separately to allow the regtests to read in
@@ -765,8 +765,10 @@ CONTAINS
          DO i = 1, nrow_local
             DO j = 1, ncol_local
                IF (ABS(fm%local_data(i, j)) > thresh) THEN
-                  WRITE (unit_nr, "(A7,T10,I5,T20,I5,T30,F13.5)") header, row_indices(i), col_indices(j), &
-                     ABS(fm%local_data(i, j))
+                  IF (unit_nr > 0) THEN
+                     WRITE (unit_nr, "(A7,T10,I5,T20,I5,T30,F13.5)") header, row_indices(i), col_indices(j), &
+                        ABS(fm%local_data(i, j))
+                  END IF
                END IF
             END DO
          END DO
@@ -774,8 +776,10 @@ CONTAINS
          DO i = 1, nrow_local
             DO j = 1, ncol_local
                IF (ABS(fm%local_data(i, j)) > thresh) THEN
-                  WRITE (unit_nr, "(A7,T10,I5,T20,I5,T30,F13.5)") header, row_indices(i), col_indices(j), &
-                     fm%local_data(i, j)
+                  IF (unit_nr > 0) THEN
+                     WRITE (unit_nr, "(A7,T10,I5,T20,I5,T30,F13.5)") header, row_indices(i), col_indices(j), &
+                        fm%local_data(i, j)
+                  END IF
                END IF
             END DO
          END DO

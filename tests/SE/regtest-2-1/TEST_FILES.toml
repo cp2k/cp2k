@@ -1,0 +1,39 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+"H2O-MNDO.inp"                          = [{matcher="M003", tol=1.0E-14, ref=-351.41062851273358}]
+"c2h4.inp"                              = [{matcher="M003", tol=1.0E-14, ref=-311.78373390456750}]
+"ch2o.inp"                              = [{matcher="M003", tol=1.0E-14, ref=-475.58698781898636}]
+"ch4.inp"                               = [{matcher="M003", tol=1.0E-14, ref=-180.05471494670974}]
+"ch4-restart.inp"                       = [{matcher="M003", tol=1.0E-14, ref=-180.05471494670982}]
+"h2o.inp"                               = [{matcher="M003", tol=1.0E-14, ref=-348.56201315272006}]
+"h2o_lsd.inp"                           = [{matcher="M003", tol=1.0E-14, ref=-348.56201315083575}]
+"h2op.inp"                              = [{matcher="M003", tol=1.0E-14, ref=-325.35457974557710}]
+"hcn.inp"                               = [{matcher="M003", tol=1.0E-14, ref=-346.49686119222844}]
+"hf.inp"                                = [{matcher="M003", tol=1.0E-14, ref=-499.98506659307861}]
+"nh4.inp"                               = [{matcher="M003", tol=1.0E-14, ref=-256.98965446201572}]
+"st.inp"                                = [{matcher="M003", tol=1.0E-14, ref=-2068.33296097919174}]
+# test the initial adaptation to OT
+"ch4-ot.inp"                            = [{matcher="M003", tol=1.0E-14, ref=-180.05385433112914}]
+"h2o_lsd-ot.inp"                        = [{matcher="M003", tol=2e-14, ref=-348.56201309940252}]
+# tests for high-spin ROKS
+"O-ROKS.inp"                            = [{matcher="M003", tol=1.0E-14, ref=-316.09951999999998}]
+"O2-ROKS.inp"                           = [{matcher="M003", tol=1.0E-14, ref=-641.56947944509795}]
+"NO2-ROKS.inp"                          = [{matcher="M003", tol=1.0E-14, ref=-746.41195758854042}]
+"hf_z.inp"                              = [{matcher="M003", tol=1.0E-14, ref=-499.28113628477763}]
+"h2o_meta.inp"                          = [{matcher="M002", tol=1.0E-14, ref=-0.127588615393E+02}]
+# PDG
+"H2O-PDDG.inp"                          = [{matcher="M003", tol=1.0E-14, ref=-327.87747718063764}]
+# PM6
+"b2h6_pm6.inp"                          = [{matcher="M003", tol=1.0E-14, ref=-191.26932146375466}]
+"ch2o_pm6.inp"                          = [{matcher="M003", tol=1.0E-14, ref=-440.23051289700749}]
+"hcn_pm6.inp"                           = [{matcher="M003", tol=1e-09, ref=-314.52868313880822}]
+"md.inp"                                = [{matcher="M011", tol=1e-09, ref=-233.39676101751502}]
+# d-orbitals analytical der
+"O2-ROKS-PM6.inp"                       = [{matcher="M003", tol=1.0E-14, ref=-580.14588779285589}]
+"hcl.inp"                               = [{matcher="M003", tol=1.0E-14, ref=-279.22122951626676}]
+"hcl_ot.inp"                            = [{matcher="M003", tol=1E-12, ref=-279.22471953343342}]
+"hcl_z.inp"                             = [{matcher="M003", tol=1.0E-14, ref=-279.21403016786405}]
+#EOF

@@ -1,0 +1,5 @@
+"H2O-mp2-direct-lr.inp"                 = [{matcher="M011", tol=1e-8, ref=-76.049579373265885}]
+"H2O-mp2-gpw-lr.inp"                    = [{matcher="M011", tol=1e-8, ref=-16.964068900743456}]
+"H2O-ri-mp2-lr.inp"                     = [{matcher="M011", tol=1e-8, ref=-16.861821881785879}]
+"H2O-ri-mp2-lr-mme.inp"                 = [{matcher="M011", tol=8e-6, ref=-16.856287095033281}]
+#EOF

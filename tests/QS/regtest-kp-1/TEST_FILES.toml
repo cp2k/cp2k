@@ -1,0 +1,16 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+"c_1.inp"                               = [{matcher="E_total", tol=1.0E-14, ref=-45.10384660417728}]
+"c_2.inp"                               = [{matcher="E_total", tol=1.0E-14, ref=-45.68042106170509}]
+"c_3.inp"                               = [{matcher="E_total", tol=2e-14, ref=-45.66762356227670}]
+"c_4.inp"                               = [{matcher="E_total", tol=3e-14, ref=-45.66762356227670}]
+"c_5.inp"                               = [{matcher="E_total", tol=3e-14, ref=-46.02680478900018}]
+"c_6.inp"                               = [{matcher="E_total", tol=3e-14, ref=-45.65758013574263}]
+"c_gapw.inp"                            = [{matcher="E_total", tol=2e-13, ref=-302.06260708591526}]
+"c_gapwxc.inp"                          = [{matcher="E_total", tol=1e-12, ref=-45.66746891467081}]
+"cn_1.inp"                              = [{matcher="E_total", tol=6e-13, ref=-49.27303752713806}]
+"c_dos.inp"                             = [{matcher="E_total", tol=2e-14, ref=-45.65703654036614}]
+#EOF

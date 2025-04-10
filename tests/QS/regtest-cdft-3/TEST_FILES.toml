@@ -1,0 +1,35 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# see regtest/TEST_FILES
+#
+"HeH-noconstraint.inp"                  = [{matcher="E_total", tol=2e-13, ref=-3.01067446615063}]
+"HeH-cdft-state-1.inp"                  = [{matcher="M071", tol=5e-08, ref=0.048406446266}]
+"HeH-cdft-state-2.inp"                  = [{matcher="M071", tol=2e-10, ref=1.819391902439}]
+# These tests compute the electronic coupling and related quantities
+# Coupling via rotation
+"HeH-mixed-cdft-1.inp"                  = [{matcher="M073", tol=5e-10, ref=509.054275709901}]
+"HeH-mixed-cdft-2.inp"                  = [{matcher="M073", tol=5e-10, ref=509.054275709901}]
+# Coupling via wavefunction overlap method
+"HeH-mixed-cdft-3.inp"                  = [{matcher="M074", tol=5e-10, ref=544.950180211679}]
+# Coupling via Lowdin orthogonalization
+"HeH-mixed-cdft-11.inp"                 = [{matcher="M076", tol=5e-10, ref=616.641603575543}]
+# These tests give identical values of energies/atomic forces
+"HeH-mixed-cdft-4.inp"                  = [{matcher="M011", tol=3e-13, ref=-2.432588089626483}]
+"HeH-mixed-cdft-5.inp"                  = [{matcher="M011", tol=3e-13, ref=-2.432588089626483}]
+# MD tests
+"HeH-mixed-cdft-6.inp"                  = [{matcher="M011", tol=2e-11, ref=-2.438344396867783}]
+"HeH-mixed-cdft-7.inp"                  = [{matcher="M011", tol=2e-11, ref=-2.438344396867765}]
+# CDFT-CI
+"HeH-mixed-cdft-12.inp"                 = [{matcher="M077", tol=3e-12, ref=-2.84548287253409}]
+# Rerun some tests using serial mode (NGROUPS 1)
+# Electronic coupling and related
+"HeH-mixed-cdft-8.inp"                  = [{matcher="M073", tol=5e-10, ref=509.054275709926}]
+# Energy/Force
+"HeH-mixed-cdft-9.inp"                  = [{matcher="M011", tol=3e-13, ref=-2.432588089626460}]
+# MD
+"HeH-mixed-cdft-10.inp"                 = [{matcher="M011", tol=2e-12, ref=-2.438344396867396}]
+# CDFT-CI
+"HeH-mixed-cdft-13.inp"                 = [{matcher="M077", tol=3e-12, ref=-2.84548287253402}]
+# Calculation with 3 CDFT states (prints out a couple of warnings because the last two are identical)
+"HeH-mixed-cdft-14.inp"                 = [{matcher="M011", tol=3e-13, ref=-2.432588089626441}]
+#EOF

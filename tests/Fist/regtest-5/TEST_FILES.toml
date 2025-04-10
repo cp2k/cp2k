@@ -1,0 +1,32 @@
+#JAC
+"JAC.inp"                               = [{matcher="M002", tol=1.0E-14, ref=-123.353543684}]
+"JAC_us.inp"                            = [{matcher="M002", tol=2e-11, ref=-123.302841454}]
+#new linear scaling/fastest/more robust topology generator
+"JAC_gen.inp"                           = [{matcher="M002", tol=1.0E-14, ref=-125.33168188099999}]
+"arginine.inp"                          = [{matcher="M002", tol=4e-11, ref=0.10945072437}]
+"arginine0.inp"                         = [{matcher="M002", tol=3e-11, ref=0.115267385339E+00}]
+"arginine_crossC.inp"                   = [{matcher="M002", tol=3e-11, ref=0.115267385339E+00}]
+#new reordering algorithm
+"water_reord.inp"                       = [{matcher="M002", tol=1.0E-14, ref=0.183700943310E-02}]
+"phenobenz.inp"                         = [{matcher="M002", tol=1e-10, ref=0.21873884825500001}]
+"liquid.inp"                            = [{matcher="M002", tol=1.0E-14, ref=-0.857747949868E+02}]
+#PSF EXT CHARMM
+"wat125.inp"                            = [{matcher="M002", tol=1.0E-14, ref=-0.201482786158E+01}]
+#TEMPERATURE_ANNEALING
+"wat125_Tanneal.inp"                    = [{matcher="M070", tol=1E-2, ref=125.767}]
+"wat125_Tanneal_restart.inp"            = [{matcher="M070", tol=1E-2, ref=443.013}]
+#General potential
+"argon_GENPOT.inp"                      = [{matcher="M002", tol=1.0E-14, ref=-0.211229954170E+00}]
+"H2O-1-GENPOT.inp"                      = [{matcher="M002", tol=1.0E-14, ref=-0.170754712778E-03}]
+"H2O-1-GENPOT-2.inp"                    = [{matcher="M002", tol=1.0E-14, ref=-0.170754712778E-03}]
+#test colvar qparm
+"argon_GENPOT_fcc-ql.inp"               = [{matcher="M002", tol=1.0E-14, ref=0.737253314905E+00}]
+# mixing
+"H2OFe-5_75.inp"                        = [{matcher="M002", tol=1.0E-14, ref=-0.464085736111E+01}]
+# test energy_force runtime
+"acn-2.inp"                             = []
+"H2OFe-5_75-2.inp"                      = []
+"I3.inp"                                = [{matcher="M002", tol=1.0E-14, ref=0.130398739829E+02}]
+#TIP4P
+"water_tip4p.inp"                       = [{matcher="M002", tol=1.0E-14, ref=-0.111390529409E-01}]
+#EOF

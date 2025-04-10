@@ -18,14 +18,18 @@ MODULE cp_control_utils
    USE cp_control_types,                ONLY: &
         admm_control_create, admm_control_type, ddapc_control_create, ddapc_restraint_type, &
         dft_control_create, dft_control_type, efield_type, expot_control_create, &
-        maxwell_control_create, qs_control_type, tddfpt2_control_type, xtb_control_type, & 
-        hairy_probes_type 
+        maxwell_control_create, qs_control_type, tddfpt2_control_type, xtb_control_type, hairy_probes_type 
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
+   USE cp_parser_methods,               ONLY: parser_read_line
+   USE cp_parser_types,                 ONLY: cp_parser_type,&
+                                              parser_create,&
+                                              parser_release,&
+                                              parser_reset
    USE cp_units,                        ONLY: cp_unit_from_cp2k,&
                                               cp_unit_to_cp2k
    USE eeq_input,                       ONLY: read_eeq_param
@@ -51,8 +55,8 @@ MODULE cp_control_utils
         gaussian_env, no_admm_type, numerical, ramp_env, real_time_propagation, sccs_andreussi, &
         sccs_derivative_cd3, sccs_derivative_cd5, sccs_derivative_cd7, sccs_derivative_fft, &
         sccs_fattebert_gygi, sic_ad, sic_eo, sic_list_all, sic_list_unpaired, sic_mauri_spz, &
-        sic_mauri_us, sic_none, slater, tddfpt_dipole_length, tddfpt_excitations, &
-        tddfpt_kernel_stda, use_mom_ref_user, xtb_vdw_type_d3, xtb_vdw_type_d4, xtb_vdw_type_none
+        sic_mauri_us, sic_none, slater, tddfpt_dipole_length, tddfpt_kernel_stda, &
+        use_mom_ref_user, xtb_vdw_type_d3, xtb_vdw_type_d4, xtb_vdw_type_none
    USE input_cp2k_check,                ONLY: xc_functionals_expand
    USE input_cp2k_dft,                  ONLY: create_dft_section
    USE input_enumeration_types,         ONLY: enum_i2c,&
@@ -87,7 +91,6 @@ MODULE cp_control_utils
    PUBLIC :: read_dft_control, &
              read_mgrid_section, &
              read_qs_section, &
-             read_tddfpt_control, &
              read_tddfpt2_control, &
              write_dft_control, &
              write_qs_control, &
@@ -104,18 +107,21 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(section_vals_type), POINTER                   :: dft_section
 
-      CHARACTER(len=default_path_length)                 :: basis_set_file_name, potential_file_name
+      CHARACTER(len=default_path_length)                 :: basis_set_file_name, &
+                                                            intensities_file_name, &
+                                                            potential_file_name
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: tmpstringlist
-      INTEGER                                            :: admmtype, excitations, irep, isize, &
-                                                            method_id, nrep, xc_deriv_method_id
-      LOGICAL                                            :: do_hfx, do_ot, do_rpa_admm, do_rtp, &
-                                                            exopt1, exopt2, exopt3, explicit, &
-                                                            is_present, l_param, not_SE, &
+      INTEGER                                            :: admmtype, irep, isize, method_id, nrep, &
+                                                            xc_deriv_method_id
+      LOGICAL                                            :: at_end, do_hfx, do_ot, do_rpa_admm, &
+                                                            do_rtp, exopt1, exopt2, exopt3, &
+                                                            explicit, is_present, l_param, not_SE, &
                                                             was_present
       REAL(KIND=dp)                                      :: density_cut, gradient_cut, tau_cut
       REAL(KIND=dp), DIMENSION(:), POINTER               :: pol
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(cp_parser_type)                               :: parser
       TYPE(section_vals_type), POINTER                   :: hfx_section, maxwell_section, &
                                                             sccs_section, scf_section, &
                                                             tmp_section, xc_fun_section, xc_section, &
@@ -456,13 +462,6 @@ CONTAINS
       CALL section_vals_val_get(tmp_section, "SIC_SCALING_B", &
                                 r_val=dft_control%sic_scaling_b)
 
-      ! Determine if this is a TDDFPT run
-      CALL section_vals_val_get(dft_section, "EXCITATIONS", i_val=excitations)
-      dft_control%do_tddfpt_calculation = (excitations == tddfpt_excitations)
-      IF (dft_control%do_tddfpt_calculation) THEN
-         CALL tddfpt_control_create(dft_control%tddfpt_control)
-      END IF
-
       do_rtp = .FALSE.
       tmp_section => section_vals_get_subs_vals(dft_section, "REAL_TIME_PROPAGATION")
       CALL section_vals_get(tmp_section, explicit=is_present)
@@ -525,6 +524,73 @@ CONTAINS
          dft_control%period_efield%displacement_field = .FALSE.
          CALL section_vals_val_get(tmp_section, "DISPLACEMENT_FIELD", &
                                    l_val=dft_control%period_efield%displacement_field)
+
+         CALL section_vals_val_get(tmp_section, "INTENSITY_LIST", r_vals=pol)
+
+         CALL section_vals_val_get(tmp_section, "INTENSITIES_FILE_NAME", c_val=intensities_file_name)
+
+         IF (SIZE(pol) > 1 .OR. pol(1) /= 0.0_dp) THEN
+            ! if INTENSITY_LIST is present, INTENSITY and INTENSITIES_FILE_NAME must not be present
+            IF (dft_control%period_efield%strength /= 0.0_dp .OR. intensities_file_name /= "") THEN
+               CALL cp_abort(__LOCATION__, "[PERIODIC FIELD] Only one of INTENSITY, INTENSITY_LIST "// &
+                             "or INTENSITIES_FILE_NAME can be specified.")
+            END IF
+
+            ALLOCATE (dft_control%period_efield%strength_list(SIZE(pol)))
+            dft_control%period_efield%strength_list(1:SIZE(pol)) = pol(1:SIZE(pol))
+         END IF
+
+         IF (intensities_file_name /= "") THEN
+            ! if INTENSITIES_FILE_NAME is present, INTENSITY must not be present
+            IF (dft_control%period_efield%strength /= 0.0_dp) THEN
+               CALL cp_abort(__LOCATION__, "[PERIODIC FIELD] Only one of INTENSITY, INTENSITY_LIST "// &
+                             "or INTENSITIES_FILE_NAME can be specified.")
+            END IF
+
+            CALL parser_create(parser, intensities_file_name)
+
+            nrep = 0
+            DO WHILE (.TRUE.)
+               CALL parser_read_line(parser, 1, at_end)
+               IF (at_end) EXIT
+               nrep = nrep + 1
+            END DO
+
+            IF (nrep == 0) THEN
+               CPABORT("[PERIODIC FIELD] No intensities found in INTENSITIES_FILE_NAME")
+            END IF
+
+            ALLOCATE (dft_control%period_efield%strength_list(nrep))
+
+            CALL parser_reset(parser)
+            DO irep = 1, nrep
+               CALL parser_read_line(parser, 1)
+               READ (parser%input_line, *) dft_control%period_efield%strength_list(irep)
+            END DO
+
+            CALL parser_release(parser)
+         END IF
+
+         CALL section_vals_val_get(tmp_section, "START_FRAME", &
+                                   i_val=dft_control%period_efield%start_frame)
+         CALL section_vals_val_get(tmp_section, "END_FRAME", &
+                                   i_val=dft_control%period_efield%end_frame)
+
+         IF (dft_control%period_efield%end_frame /= -1) THEN
+            ! check if valid bounds are given
+            ! if an end frame is given, the number of active frames must be a
+            ! multiple of the number of intensities
+            IF (dft_control%period_efield%start_frame > dft_control%period_efield%end_frame) THEN
+               CPABORT("[PERIODIC FIELD] START_FRAME > END_FRAME")
+            ELSE IF (dft_control%period_efield%start_frame < 1) THEN
+               CPABORT("[PERIODIC FIELD] START_FRAME < 1")
+            ELSE IF (MOD(dft_control%period_efield%end_frame - &
+                         dft_control%period_efield%start_frame + 1, SIZE(pol)) /= 0) THEN
+               CALL cp_abort(__LOCATION__, &
+                             "[PERIODIC FIELD] Number of active frames must be a multiple of the number of intensities")
+            END IF
+         END IF
+
          ! periodic fields don't work with RTP
          CPASSERT(.NOT. do_rtp)
          IF (dft_control%period_efield%displacement_field) THEN
@@ -1539,44 +1605,6 @@ CONTAINS
    END SUBROUTINE read_qs_section
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param t_control ...
-!> \param dft_section ...
-! **************************************************************************************************
-   SUBROUTINE read_tddfpt_control(t_control, dft_section)
-      TYPE(tddfpt_control_type)                          :: t_control
-      TYPE(section_vals_type), POINTER                   :: dft_section
-
-      LOGICAL                                            :: kenergy_den
-      TYPE(section_vals_type), POINTER                   :: sic_section, t_section
-
-      kenergy_den = .FALSE.
-      NULLIFY (sic_section, t_section)
-      t_section => section_vals_get_subs_vals(dft_section, "TDDFPT")
-
-      CALL section_vals_val_get(t_section, "CONVERGENCE", r_val=t_control%tolerance)
-      CALL section_vals_val_get(t_section, "NEV", i_val=t_control%n_ev)
-      CALL section_vals_val_get(t_section, "MAX_KV", i_val=t_control%max_kv)
-      CALL section_vals_val_get(t_section, "RESTARTS", i_val=t_control%n_restarts)
-      CALL section_vals_val_get(t_section, "NREORTHO", i_val=t_control%n_reortho)
-      CALL section_vals_val_get(t_section, "RES_ETYPE", i_val=t_control%res_etype)
-      CALL section_vals_val_get(t_section, "DIAG_METHOD", i_val=t_control%diag_method)
-      CALL section_vals_val_get(t_section, "KERNEL", l_val=t_control%do_kernel)
-      CALL section_vals_val_get(t_section, "LSD_SINGLETS", l_val=t_control%lsd_singlets)
-      CALL section_vals_val_get(t_section, "INVERT_S", l_val=t_control%invert_S)
-      CALL section_vals_val_get(t_section, "PRECOND", l_val=t_control%precond)
-      CALL section_vals_val_get(t_section, "OE_CORR", i_val=t_control%oe_corr)
-
-      t_control%use_kinetic_energy_density = .FALSE.
-      sic_section => section_vals_get_subs_vals(t_section, "SIC")
-      CALL section_vals_val_get(sic_section, "SIC_METHOD", i_val=t_control%sic_method_id)
-      CALL section_vals_val_get(sic_section, "ORBITAL_SET", i_val=t_control%sic_list_id)
-      CALL section_vals_val_get(sic_section, "SIC_SCALING_A", r_val=t_control%sic_scaling_a)
-      CALL section_vals_val_get(sic_section, "SIC_SCALING_B", r_val=t_control%sic_scaling_b)
-
-   END SUBROUTINE read_tddfpt_control
-
-! **************************************************************************************************
 !> \brief Read TDDFPT-related input parameters.
 !> \param t_control  TDDFPT control parameters
 !> \param t_section  TDDFPT input section
@@ -1816,7 +1844,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'write_dft_control'
 
       CHARACTER(LEN=20)                                  :: tmpStr
-      INTEGER                                            :: handle, output_unit
+      INTEGER                                            :: handle, i, output_unit
       REAL(kind=dp)                                      :: density_cut, density_smooth_cut_range, &
                                                             gradient_cut, tau_cut
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -1952,9 +1980,32 @@ CONTAINS
                "PERIODIC_EFIELD|                            y", &
                dft_control%period_efield%polarisation(2), &
                "PERIODIC_EFIELD|                            z", &
-               dft_control%period_efield%polarisation(3), &
-               "PERIODIC_EFIELD| Intensity [a.u.]:", &
-               dft_control%period_efield%strength
+               dft_control%period_efield%polarisation(3)
+
+            WRITE (UNIT=output_unit, FMT="(T2,A,T66,1X,I14)") &
+               "PERIODIC_EFIELD| Start Frame:", &
+               dft_control%period_efield%start_frame, &
+               "PERIODIC_EFIELD| End Frame:", &
+               dft_control%period_efield%end_frame
+
+            IF (ALLOCATED(dft_control%period_efield%strength_list)) THEN
+               WRITE (UNIT=output_unit, FMT="(T2,A,T66,1X,I14)") &
+                  "PERIODIC_EFIELD| Number of Intensities:", &
+                  SIZE(dft_control%period_efield%strength_list)
+               WRITE (UNIT=output_unit, FMT="(T2,A,I10,T66,1X,ES14.6)") &
+                  "PERIODIC_EFIELD| Intensity List [a.u.] ", &
+                  1, dft_control%period_efield%strength_list(1)
+               DO i = 2, SIZE(dft_control%period_efield%strength_list)
+                  WRITE (UNIT=output_unit, FMT="(T2,A,I10,T66,1X,ES14.6)") &
+                     "PERIODIC_EFIELD|                       ", &
+                     i, dft_control%period_efield%strength_list(i)
+               END DO
+            ELSE
+               WRITE (UNIT=output_unit, FMT="(T2,A,T66,1X,ES14.6)") &
+                  "PERIODIC_EFIELD| Intensity [a.u.]:", &
+                  dft_control%period_efield%strength
+            END IF
+
             IF (SQRT(DOT_PRODUCT(dft_control%period_efield%polarisation, &
                                  dft_control%period_efield%polarisation)) < EPSILON(0.0_dp)) THEN
                CPABORT("Invalid (too small) polarisation vector specified for PERIODIC_EFIELD")

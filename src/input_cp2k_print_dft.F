@@ -2213,16 +2213,16 @@ CONTAINS
       NULLIFY (keyword)
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, "PDOS", &
-                                       description="Print out the DOS projected per kind and per angular momentum  ", &
+                                       description="Print out the DOS projected per kind and angular momentum  ", &
                                        print_level=debug_print_level, common_iter_levels=1, filename="")
       CALL keyword_create(keyword, __LOCATION__, name="COMPONENTS", &
-                          description="Print out pdos distinguishing all angular momentum components.", &
+                          description="Print out PDOS distinguishing all angular momentum components.", &
                           usage="COMPONENTS", default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
-                          description="Append the pdos obtained at different iterations to the pdos  output file. "// &
+                          description="Append the PDOS obtained at different iterations to the PDOS output file. "// &
                           "By default the file is overwritten", &
                           usage="APPEND", default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
@@ -2231,13 +2231,16 @@ CONTAINS
       CALL keyword_create( &
          keyword, __LOCATION__, name="NLUMO", &
          description="Number of virtual orbitals to be added to the MO set (-1=all)."//newline// &
-         "CAUTION: Setting this value to be higher than the number of states present may cause a Cholesky error.", &
+         "CAUTION: Setting this value to be higher than the "// &
+         "number of states present may cause a Cholesky error."//newline// &
+         "This keyword only applies to MO sets, not to XAS_TDP states.", &
          usage="NLUMO integer", default_i_val=0)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, __LOCATION__, name="OUT_EACH_MO", &
+      CALL keyword_create(keyword, __LOCATION__, name="OUT_EACH_STATE", &
+                          variants=(/"OUT_EACH_MO"/), &
                           description="Output on the status of the calculation every OUT_EACH_MO states. If -1 no output", &
-                          usage="OUT_EACH_MO integer", default_i_val=-1)
+                          usage="OUT_EACH_STATE integer", default_i_val=-1)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
@@ -2246,7 +2249,7 @@ CONTAINS
                           " of atoms given through lists", &
                           n_keywords=4, n_subsections=0, repeats=.TRUE.)
       CALL keyword_create(keyword, __LOCATION__, name="COMPONENTS", &
-                          description="Print out pdos distinguishing all angular momentum components.", &
+                          description="Print out PDOS distinguishing all angular momentum components.", &
                           usage="COMPONENTS", default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(subsection, keyword)
@@ -2294,7 +2297,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="ERANGE", &
-                          description="only project states with the eigenvalues in the given interval. "// &
+                          description="Only project states with the energy values in the given interval. "// &
                           "Default is all states.", &
                           usage="ERANGE -1.0 1.0", unit_str="hartree", n_var=2, type_of_var=real_t)
       CALL section_add_keyword(subsection, keyword)

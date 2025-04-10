@@ -1,4 +1,0 @@
-# Test of Allegro using libtorch https://pytorch.org/cppdocs/installing.html
-Si-dp.inp                                       11    1.0E-12        -305.905681109061788 
-water-bulk-sp.inp                               11    1.0E-6         -556.070399189654040
-#EOF

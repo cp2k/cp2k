@@ -1,0 +1,18 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# see regtest/TEST_FILES
+#
+"water-noconstraint.inp"                = [{matcher="E_total", tol=1e-13, ref=-17.09249024668712}]
+# These tests give identical value of constraint
+"water-cdft-1.inp"                      = [{matcher="M071", tol=1e-12, ref=7.980507208154}]
+"water-cdft-2.inp"                      = [{matcher="M071", tol=1e-12, ref=7.980507208154}]
+"water-cdft-3.inp"                      = [{matcher="M071", tol=1e-12, ref=7.980507208154}]
+"water-cdft-4.inp"                      = [{matcher="M071", tol=1e-12, ref=7.980507208154}]
+"water-cdft-5.inp"                      = [{matcher="M071", tol=1e-12, ref=7.980507208154}]
+"water-cdft-6.inp"                      = [{matcher="M071", tol=1e-12, ref=7.980507208154}]
+# GAPW
+"water-cdft-9.inp"                      = [{matcher="M071", tol=1e-12, ref=9.993315307081}]
+# The constraint value differs because the confinement is too tight
+"water-cdft-7.inp"                      = [{matcher="M071", tol=1e-12, ref=7.895327942825}]
+"water-cdft-8.inp"                      = [{matcher="M071", tol=1e-12, ref=7.980463707323}]
+#EOF
