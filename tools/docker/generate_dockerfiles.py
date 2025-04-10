@@ -50,7 +50,7 @@ def main() -> None:
         f.write(regtest_cmake("minimal", "ssmp"))
 
     with OutputFile(f"Dockerfile.test_spack", args.check) as f:
-        f.write(install_deps_spack())
+        f.write(install_deps_spack("psmp"))
         f.write(regtest_cmake("spack_all", "psmp"))
 
     for version in "ssmp", "psmp":
@@ -827,7 +827,7 @@ RUN ./scripts/generate_arch_files.sh && rm -rf ./build
 
 
 # ======================================================================================
-def install_deps_spack() -> str:
+def install_deps_spack(version: str) -> str:
     return rf"""
 FROM ubuntu:24.04
 
@@ -886,15 +886,15 @@ RUN spack mirror add ${{SPACK_BUILD_CACHE}} https://binaries.spack.io/${{SPACK_B
 # Copy Spack configuration and build recipes
 ARG CP2K_BUILD_TYPE
 ENV CP2K_BUILD_TYPE=${{CP2K_BUILD_TYPE:-all}}
-COPY ./tools/spack/cp2k_deps_${{CP2K_BUILD_TYPE}}.yaml .
+COPY ./tools/spack/cp2k_deps_${{CP2K_BUILD_TYPE}}_{version}.yaml .
 COPY ./tools/spack/cp2k ./cp2k
 
 # Sarus containers must be dynamically linked to an MPI implementation that is ABI-compatible
 # with the MPI on the compute nodes at CSCS like MPICH@3
 ARG MPICH_VERSION
 ENV MPICH_VERSION=${{MPICH_VERSION:-3.4.3}}
-RUN sed -i -e "s/mpich@[0-9.]*/mpich@${{MPICH_VERSION}}/" cp2k_deps_${{CP2K_BUILD_TYPE}}.yaml && \
-    spack env create myenv cp2k_deps_${{CP2K_BUILD_TYPE}}.yaml && \
+RUN sed -i -e "s/mpich@[0-9.]*/mpich@${{MPICH_VERSION}}/" cp2k_deps_${{CP2K_BUILD_TYPE}}_{version}.yaml && \
+    spack env create myenv cp2k_deps_${{CP2K_BUILD_TYPE}}_{version}.yaml && \
     spack -e myenv repo list
 
 # Install CP2K dependencies via Spack
