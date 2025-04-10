@@ -8,9 +8,9 @@ stages:
 
 variables:
   REPOSITORY: cp2k_daint
-  CP2K_BUILDER: toolchain
-  CP2K_VERSION: psmp
-  TAG: "${CP2K_BUILDER}_${CP2K_VERSION}"
+  BUILDER: toolchain
+  VERSION: psmp
+  TAG: "${BUILDER}_${VERSION}"
   UBUNTU_IMAGE_NAME: "ubuntu:24.04"
   CSCS_IMAGE_NAME: "${CSCS_REGISTRY_PATH}/${REPOSITORY}:${TAG}_${CI_COMMIT_SHORT_SHA}"
   DOCKERHUB_IMAGE_NAME: "docker.io/${DOCKERHUB_USERNAME}/${REPOSITORY}:${TAG}"
@@ -20,7 +20,7 @@ build deps daint:
   stage: deps
   timeout: 1h
   before_script:
-    - DEPS_IMAGE_TAG=`cat ci/cscs_daint_${TAG}.yaml ci/docker/build_${CI_JOB_STAGE}_${CP2K_BUILDER}.Dockerfile tools/toolchain/install_cp2k_toolchain.sh $(find tools/toolchain/scripts -type f) $(find cmake -type f) | sha256sum - | head -c 16`
+    - DEPS_IMAGE_TAG=`cat ci/cscs_daint_${TAG}.yaml ci/docker/build_${CI_JOB_STAGE}_${BUILDER}.Dockerfile tools/toolchain/install_cp2k_toolchain.sh $(find tools/toolchain/scripts -type f) $(find cmake -type f) | sha256sum - | head -c 16`
     - export PERSIST_IMAGE_NAME=${CSCS_REGISTRY_PATH}/base/${REPOSITORY}:${TAG}_${DEPS_IMAGE_TAG}
     - echo "DEPS_IMAGE_NAME=${PERSIST_IMAGE_NAME}" | tee build.env
   artifacts:
@@ -34,10 +34,10 @@ build deps daint:
       "LOG_LINES",
       "MPICH_VERSION"
     ]'
-    DOCKERFILE: ci/docker/build_${CI_JOB_STAGE}_${CP2K_BUILDER}.Dockerfile
+    DOCKERFILE: ci/docker/build_${CI_JOB_STAGE}_${BUILDER}.Dockerfile
     BASE_IMAGE: ${UBUNTU_IMAGE_NAME}
     CP2K_BUILD_TYPE: minimal
-    CP2K_VERSION: ${CP2K_VERSION}
+    CP2K_VERSION: ${VERSION}
     LOG_LINES: 200
     MPICH_VERSION: 4.2.3
 
@@ -56,7 +56,7 @@ build cp2k daint:
       "BASE_IMAGE",
       "DEPS_IMAGE"
     ]'
-    DOCKERFILE: ci/docker/build_${CI_JOB_STAGE}_${CP2K_BUILDER}.Dockerfile
+    DOCKERFILE: ci/docker/build_${CI_JOB_STAGE}_${BUILDER}.Dockerfile
     BASE_IMAGE: ${UBUNTU_IMAGE_NAME}
     DEPS_IMAGE: ${DEPS_IMAGE_NAME}
     PERSIST_IMAGE_NAME: ${CSCS_IMAGE_NAME}
