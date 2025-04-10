@@ -107,6 +107,10 @@ foreach(__var ROCM_ROOT CRAY_ROCM_ROOT ORNL_ROCM_ROOT CRAY_ROCM_PREFIX
   endif()
 endforeach()
 
+set(CMAKE_INSTALL_LIBDIR
+    "lib"
+    CACHE PATH "Default installation directory for libraries")
+
 # =================================================================================================
 # OPTIONS
 option(CMAKE_POSITION_INDEPENDENT_CODE "Enable position independent code" ON)
@@ -206,7 +210,7 @@ cmake_dependent_option(
 
 set(CP2K_BLAS_VENDOR
     "auto"
-    CACHE STRING "Blas library for computations on host")
+    CACHE STRING "BLAS library for computations on host")
 
 set(CP2K_SCALAPACK_VENDOR_LIST "MKL" "SCI" "GENERIC" "auto")
 set(CP2K_SCALAPACK_VENDOR
