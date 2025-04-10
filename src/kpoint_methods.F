@@ -961,7 +961,6 @@ CONTAINS
                CALL Fermikp(wocc(:, :, 1), mus(1), kTS, weig(:, :, 1), nel, wkp, &
                             smear%electronic_temperature, 2.0_dp)
             ELSE IF (smear%fixed_mag_mom > 0.0_dp) THEN
-               CPABORT("kpoints: Smearing with fixed magnetic moments not (yet) supported")
                nel = REAL(ne_a, KIND=dp)
                CALL Fermikp(wocc(:, :, 1), mus(1), kTS, weig(:, :, 1), nel, wkp, &
                             smear%electronic_temperature, 1.0_dp)

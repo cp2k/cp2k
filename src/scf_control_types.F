@@ -621,9 +621,8 @@ CONTAINS
                   WRITE (UNIT=output_unit, FMT="(T25,A,T71,ES10.2)") &
                      "Electronic temperature [a.u.]:", scf_control%smear%electronic_temperature, &
                      "Accuracy threshold:", scf_control%smear%eps_fermi_dirac
-                  IF (scf_control%smear%fixed_mag_mom > 0.0_dp) WRITE (UNIT=output_unit, FMT="(T25,A,F10.5)") &
-                     "Spin channel alpha and spin channel beta are smeared independently, keeping"// &
-                     " fixed difference in number of electrons equal to ", scf_control%smear%fixed_mag_mom
+                  IF (scf_control%smear%fixed_mag_mom > 0.0_dp) WRITE (UNIT=output_unit, FMT="(T25,A,T61,F20.1)") &
+                     "Fixed magnetic moment set to:", scf_control%smear%fixed_mag_mom
                CASE (smear_energy_window)
                   WRITE (UNIT=output_unit, FMT="(T25,A,T71,F10.6)") &
                      "Smear window [a.u.]:       ", scf_control%smear%window_size
