@@ -1,0 +1,74 @@
+# Spack environment file for a serial CP2K binary with all available dependencies
+
+spack:
+  concretizer:
+    unify: true
+  config:
+    install_tree:
+      root: /opt/spack
+  packages:
+    all:
+      prefer:
+        - ~cuda
+        - ~mpi
+        - +pic
+        - ~rocm
+    blas:
+      require:
+        - openblas
+    lapack:
+      require:
+        - openblas
+    openblas:
+      require:
+        - +fortran
+        - threads=openmp
+    # Dependencies for CP2K
+    dbcsr:
+      require:
+        - +openmp
+    dftd4:
+      require:
+        - build_system=cmake
+    fftw:
+      require:
+        - +openmp
+    hdf5:
+      require:
+        - +fortran
+    libint:
+      require:
+        - +fortran
+        - tune=cp2k-lmax-5
+    libxc:
+      require:
+        - +kxc
+        - build_system=cmake
+    trexio:
+      require:
+        - +hdf5
+        - build_system=cmake
+  repos:
+    - $spack/cp2k
+  specs:
+    - "openblas@0.3.29"
+    - "dbcsr@2.8.0"
+    - "dftd4@3.6.0"
+    - "fftw@3.3.10"
+    - "hdf5@1.14"
+    - "libint@2.9.0"
+    - "libsmeagol@1.2"
+    - "libvori@220621"
+    - "libxc@7.0.0"
+#   - "libxsmm@main-2024-09" Use 1.17 with Spack as long as grid unit tests fail
+    - "libxsmm@1.17"
+    - "spglib@2.3.0"
+    - "trexio@2.5.0"
+  view:
+    default:
+      root: ./spack-env/view
+      exclude:
+        # Exclude gcc-runtime to avoid adding a copy of libgomp.so to the view
+        - gcc-runtime
+
+# EOF

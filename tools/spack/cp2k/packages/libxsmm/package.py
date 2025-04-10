@@ -190,6 +190,17 @@ class Libxsmm(MakefilePackage):
         when="@1.17:",
         description="Max. JIT buffer size increased to 256 KiB",
     )
+    variant(
+        "openmp",
+        default="0",
+        description="Add OpenMP support",
+    )
+    variant(
+        "wrap",
+        default="0",
+        description="Determines the kind of routines called for intercepted GEMMs",
+        values=("0", "1", "2", "3", "4", "-1"),
+    )
 
     depends_on("c", type="build")  # generated
     depends_on("cxx", type="build")  # generated
@@ -247,6 +258,12 @@ class Libxsmm(MakefilePackage):
 
         if spec.satisfies("+shared"):
             make(*(make_args + ["STATIC=0"]))
+
+        if spec.satisfies("+openmp"):
+            make(*(make_args + ["OMP=1"]))
+
+        wrap_val = spec.variants["wrap"].value
+        make_args += ["WRAP={0}".format(wrap_val)]
 
         # builds static libraries by default
         make(*make_args)

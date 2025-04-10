@@ -1,11 +1,11 @@
-# Dockerfile for CP2K continous integration (CI) runs
+# Dockerfile for CP2K continuous integration (CI) runs
 #
 # A stand-alone docker build in this folder can be performed using the command:
-# docker build -f build_deps_toolchain_psmp.Dockerfile ../../
+# docker build -f build_deps_toolchain.Dockerfile ../../
 #
 # Author: Matthias Krack
 #
-# Stage 1a: Create a base image providing the dependencies for a CP2K toolchain_psmp build
+# Stage 1a: Create a base image providing the dependencies for building a CP2K binary
 
 ARG BASE_IMAGE="ubuntu:24.04"
 
@@ -41,10 +41,15 @@ ENV NUM_PROCS=${NUM_PROCS:-32}
 ARG LOG_LINES
 ENV LOG_LINES=${LOG_LINES:-100}
 
+ARG CP2K_VERSION
+ENV CP2K_VERSION=${CP2K_VERSION:-psmp}
+ARG CP2K_BUILD_TYPE
+ENV CP2K_BUILD_TYPE=${CP2K_BUILD_TYPE:-minimal}
+
 # Install an MPI version ABI-compatible with the host MPI on Cray at CSCS
 ARG MPICH_VERSION
 ENV MPICH_VERSION=${MPICH_VERSION:-3.4.3}
-RUN /bin/bash -c -o pipefail " \
+RUN /bin/bash -c -o pipefail "[[ "${CP2K_VERSION}" == "psmp" ]] && (\
     wget -q https://www.mpich.org/static/downloads/${MPICH_VERSION}/mpich-${MPICH_VERSION}.tar.gz; \
     tar -xf mpich-${MPICH_VERSION}.tar.gz; \
     cd mpich-${MPICH_VERSION}; \
@@ -56,39 +61,68 @@ RUN /bin/bash -c -o pipefail " \
     make install &>install.log || tail -n ${LOG_LINES} install.log; \
     ldconfig; cd ..; \
     rm -rf mpich-${MPICH_VERSION} \
-    rm mpich-${MPICH_VERSION}.tar.gz"
+    rm mpich-${MPICH_VERSION}.tar.gz) || true"
 
 # Build CP2K toolchain
-ARG CP2K_BUILD_TYPE
-ENV CP2K_BUILD_TYPE=${CP2K_BUILD_TYPE:-minimal}
 COPY ./tools/toolchain /opt/cp2k/tools/toolchain
 WORKDIR /opt/cp2k/tools/toolchain
 RUN echo "\nCP2K build type: ${CP2K_BUILD_TYPE}\n" && \
     if [ "${CP2K_BUILD_TYPE}" = "minimal" ]; then \
-      ./install_cp2k_toolchain.sh -j${NUM_PROCS} \
-        --dry-run \
-        --no-arch-files \
-        --target-cpu=native \
-        --with-gcc=system \
-        --with-mpich=system \
-        --with-ninja \
-        --with-cosma=no \
-        --with-dftd4=no \
-        --with-elpa=no \
-        --with-libgrpp=no \
-        --with-libint=no \
-        --with-libvori=no \
-        --with-libxc=no \
-        --with-sirius=no \
-        --with-spglib=no; \
+      if [ "${CP2K_VERSION}" = "psmp" ]; then \
+        ./install_cp2k_toolchain.sh -j${NUM_PROCS} \
+          --dry-run \
+          --no-arch-files \
+          --target-cpu=native \
+          --with-gcc=system \
+          --with-mpich=system \
+          --with-ninja \
+          --with-cosma=no \
+          --with-dftd4=no \
+          --with-elpa=no \
+          --with-fftw=no \
+          --with-libgrpp=no \
+          --with-libint=no \
+          --with-libvori=no \
+          --with-libxc=no \
+          --with-libxsmm=no \
+          --with-sirius=no \
+          --with-spglib=no; \
+      elif [ "${CP2K_VERSION}" = "ssmp" ]; then \
+        ./install_cp2k_toolchain.sh \
+          --dry-run \
+          --mpi-mode=no \
+          --no-arch-files \
+          --target-cpu=native \
+          --with-dbcsr \
+          --with-gcc=system \
+          --with-ninja \
+          --with-dftd4=no \
+          --with-fftw=no \
+          --with-libgrpp=no \
+          --with-libint=no \
+          --with-libvori=no \
+          --with-libxc=no \
+          --with-libxsmm=no \
+          --with-spglib=no; \
+      fi; \
     elif [ "${CP2K_BUILD_TYPE}" = "all" ]; then \
-      ./install_cp2k_toolchain.sh -j${NUM_PROCS} \
-        --dry-run \
-        --install-all \
-        --no-arch-files \
-        --target-cpu=native \
-        --with-gcc=system \
-        --with-mpich=system; \
+      if [ "${CP2K_VERSION}" = "psmp" ]; then \
+        ./install_cp2k_toolchain.sh -j${NUM_PROCS} \
+          --dry-run \
+          --install-all \
+          --no-arch-files \
+          --target-cpu=native \
+          --with-gcc=system \
+          --with-mpich=system; \
+      elif [ "${CP2K_VERSION}" = "ssmp" ]; then \
+        ./install_cp2k_toolchain.sh \
+          --dry-run \
+          --install-all \
+          --mpi-mode=no \
+          --no-arch-files \
+          --target-cpu=native \
+          --with-gcc=system; \
+      fi; \
     else \
       echo "ERROR: Unknown CP2K_BUILD_TYPE ${CP2K_BUILD_TYPE} was specified"; \
       exit 1; \
@@ -138,6 +172,11 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     pkg-config \
     python3 && rm -rf /var/lib/apt/lists/*
 
+ARG CP2K_VERSION
+ENV CP2K_VERSION=${CP2K_VERSION}
+ARG CP2K_BUILD_TYPE
+ENV CP2K_BUILD_TYPE=${CP2K_BUILD_TYPE}
+
 # Copy MPI installation
 COPY --from=build_deps /usr/local/bin /usr/local/bin
 COPY --from=build_deps /usr/local/include /usr/local/include
@@ -147,10 +186,5 @@ RUN ldconfig
 # Install CP2K dependencies (toolchain)
 COPY --from=build_deps /opt/cp2k/tools/toolchain/install /opt/cp2k/tools/toolchain/install
 COPY --from=build_deps /opt/cp2k/tools/toolchain/scripts /opt/cp2k/tools/toolchain/scripts
-
-# Label docker image
-LABEL author="CP2K Developers" \
-      cp2k_version="master" \
-      image_type="toolchain_psmp_base_image"
 
 # EOF

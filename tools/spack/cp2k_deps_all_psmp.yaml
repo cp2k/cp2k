@@ -1,4 +1,4 @@
-# Spack environment file for a CP2K installation with all available dependencies
+# Spack environment file for a MPI parallel CP2K binary with all available dependencies
 
 spack:
   concretizer:
@@ -9,10 +9,10 @@ spack:
   packages:
     all:
       prefer:
-        - +mpi
         - ~cuda
+        - +mpi
+        - +pic
         - ~rocm
-    # MPI, BLAS, LAPACK, ScaLAPACK
     mpi:
       require:
         - mpich
@@ -26,13 +26,13 @@ spack:
     lapack:
       require:
         - openblas
-    scalapack:
-      require:
-        - netlib-scalapack
     openblas:
       require:
         - +fortran
         - threads=openmp
+    scalapack:
+      require:
+        - netlib-scalapack
     # Dependencies for CP2K
     cosma:
       require:
