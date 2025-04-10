@@ -20,7 +20,7 @@ def main() -> None:
             with_dbcsr = "" if version.endswith("smp") else "no"
             f.write(install_deps_toolchain(mpi_mode=mpi_mode, with_dbcsr=with_dbcsr))
             if version in ("ssmp", "psmp"):
-                f.write(regtest_cmake("toolchain", version))
+                f.write(regtest_cmake("toolchain_all", version))
             else:
                 f.write(regtest(version))
 

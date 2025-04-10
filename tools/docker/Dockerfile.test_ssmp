@@ -78,7 +78,7 @@ ARG TESTOPTS=""
 COPY ./tools/docker/scripts/build_cp2k_cmake.sh ./tools/docker/scripts/test_regtest_cmake.sh ./
 RUN /bin/bash -o pipefail -c " \
     TESTOPTS='${TESTOPTS}' \
-    ./test_regtest_cmake.sh toolchain ssmp |& tee report.log && \
+    ./test_regtest_cmake.sh toolchain_all ssmp |& tee report.log && \
     rm -rf regtesting"
 
 # Output the report if the image is old and was therefore pulled from the build cache.

@@ -39,17 +39,12 @@ cd build || return 1
 if [[ "${PROFILE}" == "spack_all" ]] && [[ "${VERSION}" == "psmp" ]]; then
   # TODO: DeepMD-kit is not available in the Spack environment (yet)
   # PyTorch's TorchConfig.cmake is buried in the Python site-packages directory
+  # (only needed for the Dockerfiles in tools/docker)
   Torch_DIR="$(dirname "$(find /opt/spack/lib -name TorchConfig.cmake)")"
   export Torch_DIR
   cmake \
     -GNinja \
-    -DCMAKE_BUILD_TYPE="Release" \
-    -DCMAKE_C_FLAGS="-fno-lto" \
-    -DCMAKE_Fortran_FLAGS="-fno-lto" \
-    -DCMAKE_INSTALL_LIBDIR=lib \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
-    -DCP2K_BLAS_VENDOR="auto" \
-    -DCP2K_SCALAPACK_VENDOR="auto" \
     -DCP2K_USE_EVERYTHING=ON \
     -DCP2K_USE_DEEPMD=OFF \
     -DCP2K_USE_GREENX=OFF \
@@ -57,30 +52,85 @@ if [[ "${PROFILE}" == "spack_all" ]] && [[ "${VERSION}" == "psmp" ]]; then
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
 
+elif [[ "${PROFILE}" == "spack_all" ]] && [[ "${VERSION}" == "ssmp" ]]; then
+  cmake \
+    -GNinja \
+    -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
+    -DCP2K_USE_EVERYTHING=ON \
+    -DCP2K_USE_DEEPMD=OFF \
+    -DCP2K_USE_GREENX=OFF \
+    -DCP2K_USE_MPI=OFF \
+    -Werror=dev \
+    .. |& tee ./cmake.log
+  CMAKE_EXIT_CODE=$?
+
 elif [[ "${PROFILE}" == "spack_minimal" ]] && [[ "${VERSION}" == "psmp" ]]; then
   cmake \
     -GNinja \
-    -DCMAKE_BUILD_TYPE="Release" \
-    -DCMAKE_C_FLAGS="-fno-lto" \
-    -DCMAKE_Fortran_FLAGS="-fno-lto" \
-    -DCMAKE_INSTALL_LIBDIR=lib \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
-    -DCP2K_BLAS_VENDOR="auto" \
-    -DCP2K_SCALAPACK_VENDOR="auto" \
     -DCP2K_USE_MPI=ON \
     -Werror=dev \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
 
-elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "ssmp" ]]; then
+elif [[ "${PROFILE}" == "spack_minimal" ]] && [[ "${VERSION}" == "ssmp" ]]; then
   cmake \
     -GNinja \
-    -DCMAKE_BUILD_TYPE="Release" \
-    -DCMAKE_INSTALL_LIBDIR=lib \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
-    -DCP2K_BLAS_VENDOR="auto" \
+    -DCP2K_USE_MPI=OFF \
+    -Werror=dev \
+    .. |& tee ./cmake.log
+  CMAKE_EXIT_CODE=$?
+
+elif [[ "${PROFILE}" == "toolchain_all" ]] && [[ "${VERSION}" == "psmp" ]]; then
+  cmake \
+    -GNinja \
+    -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
+    -DCP2K_USE_EVERYTHING=ON \
+    -DCP2K_USE_DLAF=OFF \
+    -DCP2K_USE_MPI=ON \
+    -Werror=dev \
+    .. |& tee ./cmake.log
+  CMAKE_EXIT_CODE=$?
+
+elif [[ "${PROFILE}" == "toolchain_all" ]] && [[ "${VERSION}" == "ssmp" ]]; then
+  cmake \
+    -GNinja \
+    -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
     -DCP2K_USE_EVERYTHING=ON \
     -DCP2K_USE_MPI=OFF \
+    -Werror=dev \
+    .. |& tee ./cmake.log
+  CMAKE_EXIT_CODE=$?
+
+elif [[ "${PROFILE}" == "toolchain_minimal" ]] && [[ "${VERSION}" == "psmp" ]]; then
+  cmake \
+    -GNinja \
+    -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
+    -DCP2K_USE_MPI=ON \
+    -Werror=dev \
+    .. |& tee ./cmake.log
+  CMAKE_EXIT_CODE=$?
+
+elif [[ "${PROFILE}" == "toolchain_minimal" ]] && [[ "${VERSION}" == "ssmp" ]]; then
+  cmake \
+    -GNinja \
+    -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
+    -DCP2K_USE_MPI=OFF \
+    -Werror=dev \
+    .. |& tee ./cmake.log
+  CMAKE_EXIT_CODE=$?
+
+elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "pdbg" ]]; then
+  cmake \
+    -GNinja \
+    -DCMAKE_BUILD_TYPE="RelWithDebInfo" \
+    -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
+    -DCP2K_DEBUG_MODE=ON \
+    -DCP2K_USE_EVERYTHING=ON \
+    -DCP2K_USE_COSMA=OFF \
+    -DCP2K_USE_DLAF=OFF \
+    -DCP2K_USE_LIBTORCH=OFF \
     -Werror=dev \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
@@ -99,36 +149,6 @@ elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "sdbg" ]]; then
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
 
-elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "psmp" ]]; then
-  cmake \
-    -GNinja \
-    -DCMAKE_BUILD_TYPE="Release" \
-    -DCMAKE_INSTALL_LIBDIR=lib \
-    -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
-    -DCP2K_BLAS_VENDOR="auto" \
-    -DCP2K_SCALAPACK_VENDOR="auto" \
-    -DCP2K_USE_EVERYTHING=ON \
-    -DCP2K_USE_DLAF=OFF \
-    -Werror=dev \
-    .. |& tee ./cmake.log
-  CMAKE_EXIT_CODE=$?
-
-elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "pdbg" ]]; then
-  cmake \
-    -GNinja \
-    -DCMAKE_BUILD_TYPE="RelWithDebInfo" \
-    -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
-    -DCP2K_BLAS_VENDOR="auto" \
-    -DCP2K_SCALAPACK_VENDOR="auto" \
-    -DCP2K_DEBUG_MODE=ON \
-    -DCP2K_USE_EVERYTHING=ON \
-    -DCP2K_USE_COSMA=OFF \
-    -DCP2K_USE_DLAF=OFF \
-    -DCP2K_USE_LIBTORCH=OFF \
-    -Werror=dev \
-    .. |& tee ./cmake.log
-  CMAKE_EXIT_CODE=$?
-
 elif [[ "${PROFILE}" == "ubuntu" ]] && [[ "${VERSION}" == "ssmp" ]]; then
   # TODO fix spglib https://github.com/cp2k/cp2k/issues/3414
   # NOTE: libxc 5.2.3 is provided, CP2K requires libxc 7
@@ -136,7 +156,6 @@ elif [[ "${PROFILE}" == "ubuntu" ]] && [[ "${VERSION}" == "ssmp" ]]; then
     -GNinja \
     -DCMAKE_BUILD_TYPE="RelWithDebInfo" \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
-    -DCP2K_BLAS_VENDOR="auto" \
     -DCP2K_USE_EVERYTHING=ON \
     -DCP2K_USE_LIBTORCH=OFF \
     -DCP2K_USE_LIBXC=OFF \
@@ -154,35 +173,7 @@ elif [[ "${PROFILE}" == "ubuntu" ]] && [[ "${VERSION}" == "ssmp" ]]; then
 elif [[ "${PROFILE}" == "minimal" ]] && [[ "${VERSION}" == "ssmp" ]]; then
   cmake \
     -GNinja \
-    -DCMAKE_BUILD_TYPE="Release" \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
-    -DCP2K_BLAS_VENDOR="auto" \
-    -Werror=dev \
-    .. |& tee ./cmake.log
-  CMAKE_EXIT_CODE=$?
-
-elif [[ "${PROFILE}" == "toolchain_all" ]] && [[ "${VERSION}" == "psmp" ]]; then
-  cmake \
-    -GNinja \
-    -DCMAKE_BUILD_TYPE="Release" \
-    -DCMAKE_INSTALL_LIBDIR=lib \
-    -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
-    -DCP2K_BLAS_VENDOR="auto" \
-    -DCP2K_SCALAPACK_VENDOR="auto" \
-    -DCP2K_USE_EVERYTHING=ON \
-    -DCP2K_USE_DLAF=OFF \
-    -Werror=dev \
-    .. |& tee ./cmake.log
-  CMAKE_EXIT_CODE=$?
-
-elif [[ "${PROFILE}" == "toolchain_minimal" ]] && [[ "${VERSION}" == "psmp" ]]; then
-  cmake \
-    -GNinja \
-    -DCMAKE_BUILD_TYPE="Release" \
-    -DCMAKE_INSTALL_LIBDIR=lib \
-    -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
-    -DCP2K_BLAS_VENDOR="auto" \
-    -DCP2K_SCALAPACK_VENDOR="auto" \
     -Werror=dev \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
