@@ -9,9 +9,9 @@ stages:
 
 variables:
   REPOSITORY: cp2k_eiger
-  CP2K_BUILDER: spack
-  CP2K_VERSION: psmp
-  TAG: "${CP2K_BUILDER}_${CP2K_VERSION}"
+  BUILDER: spack
+  VERSION: psmp
+  TAG: "${BUILDER}_${VERSION}"
   UBUNTU_IMAGE_NAME: "ubuntu:24.04"
   CSCS_IMAGE_NAME: "${CSCS_REGISTRY_PATH}/${REPOSITORY}:${TAG}_${CI_COMMIT_SHORT_SHA}"
   DOCKERHUB_IMAGE_NAME: "docker.io/${DOCKERHUB_USERNAME}/${REPOSITORY}:${TAG}"
@@ -21,7 +21,7 @@ build deps eiger:
   stage: deps
   timeout: 1h
   before_script:
-    - DEPS_IMAGE_TAG=`cat ci/cscs_eiger_${TAG}.yaml ci/docker/build_${CI_JOB_STAGE}_${CP2K_BUILDER}.Dockerfile $(find tools/spack -type f) $(find cmake -type f) | sha256sum - | head -c 16`
+    - DEPS_IMAGE_TAG=`cat ci/cscs_eiger_${TAG}.yaml ci/docker/build_${CI_JOB_STAGE}_${BUILDER}.Dockerfile $(find tools/spack -type f) $(find cmake -type f) | sha256sum - | head -c 16`
     - export PERSIST_IMAGE_NAME=${CSCS_REGISTRY_PATH}/base/${REPOSITORY}:${TAG}_${DEPS_IMAGE_TAG}
     - echo "DEPS_IMAGE_NAME=${PERSIST_IMAGE_NAME}" | tee build.env
   artifacts:
@@ -35,10 +35,10 @@ build deps eiger:
       "LOG_LINES",
       "MPICH_VERSION"
     ]'
-    DOCKERFILE: ci/docker/build_${CI_JOB_STAGE}_${CP2K_BUILDER}.Dockerfile
+    DOCKERFILE: ci/docker/build_${CI_JOB_STAGE}_${BUILDER}.Dockerfile
     BASE_IMAGE: ${UBUNTU_IMAGE_NAME}
     CP2K_BUILD_TYPE: all
-    CP2K_VERSION: ${CP2K_VERSION}
+    CP2K_VERSION: ${VERSION}
     LOG_LINES: 200
     MPICH_VERSION: 3.4.3
 
@@ -57,7 +57,7 @@ build cp2k eiger:
       "BASE_IMAGE",
       "DEPS_IMAGE"
     ]'
-    DOCKERFILE: ci/docker/build_${CI_JOB_STAGE}_${CP2K_BUILDER}.Dockerfile
+    DOCKERFILE: ci/docker/build_${CI_JOB_STAGE}_${BUILDER}.Dockerfile
     BASE_IMAGE: ${UBUNTU_IMAGE_NAME}
     DEPS_IMAGE: ${DEPS_IMAGE_NAME}
     PERSIST_IMAGE_NAME: ${CSCS_IMAGE_NAME}
@@ -87,7 +87,7 @@ regression test cp2k eiger:
   needs: ["build cp2k eiger","test cp2k eiger"]
   timeout: 1h
   script:
-    - podman run --mount type=bind,src=${SCRATCH},target=${SCRATCH} --workdir=${SCRATCH} ${DOCKERHUB_IMAGE_NAME} /opt/cp2k/tests/do_regtest.py --maxtasks 128 /opt/cp2k/bin ${CP2K_VERSION}
+    - podman run --mount type=bind,src=${SCRATCH},target=${SCRATCH} --workdir=${SCRATCH} ${DOCKERHUB_IMAGE_NAME} /opt/cp2k/tests/do_regtest.py --maxtasks 128 /opt/cp2k/bin ${VERSION}
   variables:
     SLURM_CONSTRAINT: mc
     SLURM_DEBUG: 1
