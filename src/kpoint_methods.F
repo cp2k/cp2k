@@ -1094,8 +1094,9 @@ CONTAINS
             ! fixed occupations (2/1)
             IF (nspin == 1) THEN
                nel = REAL(nelectron, KIND=dp)
-               CALL Fermikp(wocc(:, :, 1), mus(1), kTS, weig(:, :, 1), nel, wkp, 0.0_dp, 2.0_dp)
-            ELSE
+               CALL Fermikp(wocc(:, :, 1), mus(1), kTS, weig(:, :, 1), nel, wkp, &
+                            smear%electronic_temperature, 2.0_dp)
+            ELSE IF (smear%fixed_mag_mom > 0.0_dp) THEN
                nel = REAL(ne_a, KIND=dp)
                CALL Fermikp(wocc(:, :, 1), mus(1), kTS, weig(:, :, 1), nel, wkp, 0.0_dp, 1.0_dp)
                nel = REAL(ne_b, KIND=dp)
