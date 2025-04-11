@@ -535,9 +535,8 @@ CONTAINS
       IF ((output_unit > 0) .AND. scf_env%print_iter_line) THEN
          IF (just_energy) THEN
             WRITE (UNIT=output_unit, &
-                   FMT="(T2,I5,1X,A,T20,E8.2,1X,F6.1,16X,F20.10)") &
-               scf_env%iter_count, TRIM(scf_env%iter_method), scf_env%iter_param, &
-               t2 - t1, energy%total
+                   FMT="(T2,A,1X,A,T20,E8.2,1X,F6.1,16X,F20.10)") &
+               "    -", TRIM(scf_env%iter_method), scf_env%iter_param, t2 - t1, energy%total
          ELSE
             IF ((ABS(scf_env%iter_delta) < 1.0E-8_dp) .OR. &
                 (ABS(scf_env%iter_delta) >= 1.0E5_dp)) THEN

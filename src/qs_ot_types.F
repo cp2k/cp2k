@@ -31,12 +31,12 @@ MODULE qs_ot_types
    USE cp_fm_struct,                    ONLY: cp_fm_struct_get,&
                                               cp_fm_struct_type
    USE input_constants,                 ONLY: &
-        cholesky_reduce, ls_2pnt, ls_3pnt, ls_gold, ls_none, ot_algo_irac, ot_algo_taylor_or_diag, &
-        ot_chol_irac, ot_lwdn_irac, ot_mini_broyden, ot_mini_cg, ot_mini_diis, ot_mini_sd, &
-        ot_poly_irac, ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
-        ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
-        ot_precond_solver_default, ot_precond_solver_direct, ot_precond_solver_inv_chol, &
-        ot_precond_solver_update
+        cholesky_reduce, ls_2pnt, ls_3pnt, ls_adapt, ls_gold, ls_none, ot_algo_irac, &
+        ot_algo_taylor_or_diag, ot_chol_irac, ot_lwdn_irac, ot_mini_broyden, ot_mini_cg, &
+        ot_mini_diis, ot_mini_sd, ot_poly_irac, ot_precond_full_all, ot_precond_full_kinetic, &
+        ot_precond_full_single, ot_precond_full_single_inverse, ot_precond_none, &
+        ot_precond_s_inverse, ot_precond_solver_default, ot_precond_solver_direct, &
+        ot_precond_solver_inv_chol, ot_precond_solver_update
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
@@ -69,28 +69,30 @@ MODULE qs_ot_types
       CHARACTER(LEN=20) :: preconditioner_name = ""
       INTEGER           :: preconditioner_type = -1
       INTEGER           :: cholesky_type = -1
+      INTEGER           :: ot_state = 0
       CHARACTER(LEN=20) :: precond_solver_name = ""
       INTEGER           :: precond_solver_type = -1
       LOGICAL           :: safer_diis = .FALSE.
-      REAL(KIND=dp)   :: ds_min = -1.0_dp
-      REAL(KIND=dp)   :: energy_gap = -1.0_dp
+      REAL(KIND=dp)     :: ds_min = -1.0_dp
+      REAL(KIND=dp)     :: energy_gap = -1.0_dp
       INTEGER           :: diis_m = -1
-      REAL(KIND=dp)   :: gold_target = -1.0_dp
-      REAL(KIND=dp)   :: eps_taylor = -1.0_dp ! minimum accuracy of the taylor expansion
-      INTEGER           :: max_taylor = -1 ! maximum order of the taylor expansion before switching to diagonalization
-      INTEGER           :: irac_degree = -1 ! this is used to control the refinement polynomial degree
-      INTEGER           :: max_irac = -1 ! maximum number of iteration for the refinement
-      REAL(KIND=dp)   :: eps_irac = -1.0_dp ! target accuracy for the refinement
-      REAL(KIND=dp)   :: eps_irac_quick_exit = -1.0_dp
-      REAL(KIND=dp)          :: eps_irac_filter_matrix = -1.0_dp
-      REAL(KIND=dp)   :: eps_irac_switch = -1.0_dp
+      INTEGER           :: max_scf_diis = 0
+      REAL(KIND=dp)     :: gold_target = -1.0_dp
+      REAL(KIND=dp)     :: eps_taylor = -1.0_dp ! minimum accuracy of Taylor expansion
+      INTEGER           :: max_taylor = -1 ! maximum order of Taylor expansion before switching to diagonalization
+      INTEGER           :: irac_degree = -1 ! used to control the refinement polynomial degree
+      INTEGER           :: max_irac = -1 ! maximum number of iteration for refinement
+      REAL(KIND=dp)     :: eps_irac = -1.0_dp ! target accuracy for refinement
+      REAL(KIND=dp)     :: eps_irac_quick_exit = -1.0_dp
+      REAL(KIND=dp)     :: eps_irac_filter_matrix = -1.0_dp
+      REAL(KIND=dp)     :: eps_irac_switch = -1.0_dp
       LOGICAL           :: on_the_fly_loc = .FALSE.
       CHARACTER(LEN=4)  :: ortho_irac = ""
       LOGICAL           :: occupation_preconditioner = .FALSE., add_nondiag_energy = .FALSE.
-      REAL(KIND=dp)   :: nondiag_energy_strength = -1.0_dp
-      REAL(KIND=dp)   :: broyden_beta = -1.0_dp, broyden_gamma = -1.0_dp, broyden_sigma = -1.0_dp
-      REAL(KIND=dp)   :: broyden_eta = -1.0_dp, broyden_omega = -1.0_dp, broyden_sigma_decrease = -1.0_dp
-      REAL(KIND=dp)   :: broyden_sigma_min = -1.0_dp
+      REAL(KIND=dp)     :: nondiag_energy_strength = -1.0_dp
+      REAL(KIND=dp)     :: broyden_beta = -1.0_dp, broyden_gamma = -1.0_dp, broyden_sigma = -1.0_dp
+      REAL(KIND=dp)     :: broyden_eta = -1.0_dp, broyden_omega = -1.0_dp, broyden_sigma_decrease = -1.0_dp
+      REAL(KIND=dp)     :: broyden_sigma_min = -1.0_dp
       LOGICAL           :: broyden_forget_history = .FALSE., broyden_adaptive_sigma = .FALSE.
       LOGICAL           :: broyden_enable_flip = .FALSE.
    END TYPE qs_ot_settings_type
@@ -140,7 +142,8 @@ MODULE qs_ot_types
       ! OT / IR
       TYPE(dbcsr_type), POINTER :: buf1_k_k_nosym => NULL(), buf2_k_k_nosym => NULL(), &
                                    buf3_k_k_nosym => NULL(), buf4_k_k_nosym => NULL(), &
-                                   buf1_k_k_sym => NULL(), buf2_k_k_sym => NULL(), buf3_k_k_sym => NULL(), buf4_k_k_sym => NULL(), &
+                                   buf1_k_k_sym => NULL(), buf2_k_k_sym => NULL(), &
+                                   buf3_k_k_sym => NULL(), buf4_k_k_sym => NULL(), &
                                    p_k_k_sym => NULL(), buf1_n_k => NULL(), buf1_n_k_dp => NULL()
 
       ! only here for the ease of programming. These will have to be supplied
@@ -159,21 +162,21 @@ MODULE qs_ot_types
       REAL(KIND=dp), DIMENSION(:), POINTER  :: energy_h => NULL()
       INTEGER, DIMENSION(:), POINTER         :: ipivot => NULL()
 
-      REAL(KIND=dp)  :: ot_pos(53) = -1.0_dp, ot_energy(53) = -1.0_dp, ot_grad(53) = -1.0_dp ! HARD LIMIT FOR THE LS
+      REAL(KIND=dp)    :: ot_pos(53) = -1.0_dp, ot_energy(53) = -1.0_dp, ot_grad(53) = -1.0_dp ! HARD LIMIT FOR THE LS
       INTEGER          :: line_search_left = -1, line_search_right = -1, line_search_mid = -1
       INTEGER          :: line_search_count = -1
       LOGICAL          :: line_search_might_be_done = .FALSE.
-      REAL(KIND=dp)  :: delta = -1.0_dp, gnorm = -1.0_dp, gnorm_old = -1.0_dp, etotal = -1.0_dp, gradient = -1.0_dp
+      REAL(KIND=dp)    :: delta = -1.0_dp, gnorm = -1.0_dp, gnorm_old = -1.0_dp, etotal = -1.0_dp, gradient = -1.0_dp
       LOGICAL          :: energy_only = .FALSE.
       INTEGER          :: diis_iter = -1
       CHARACTER(LEN=8) :: OT_METHOD_FULL = ""
       INTEGER          :: OT_count = -1
-      REAL(KIND=dp)  :: ds_min = -1.0_dp
-      REAL(KIND=dp)  :: broyden_adaptive_sigma = -1.0_dp
+      REAL(KIND=dp)    :: ds_min = -1.0_dp
+      REAL(KIND=dp)    :: broyden_adaptive_sigma = -1.0_dp
 
       LOGICAL          :: do_taylor = .FALSE.
       INTEGER          :: taylor_order = -1
-      REAL(KIND=dp)  :: largest_eval_upper_bound = -1.0_dp
+      REAL(KIND=dp)    :: largest_eval_upper_bound = -1.0_dp
 
       ! second part of the variables, if an explicit rotation is required as well
       TYPE(dbcsr_type), POINTER :: rot_mat_u => NULL() ! rotation matrix
@@ -232,6 +235,7 @@ CONTAINS
       settings%do_ener = .FALSE.
       settings%irac_degree = 4
       settings%max_irac = 50
+      settings%max_scf_diis = 0
       settings%eps_irac = 1.0E-10_dp
       settings%eps_irac_quick_exit = 1.0E-5_dp
       settings%eps_irac_switch = 1.0E-2
@@ -242,6 +246,7 @@ CONTAINS
       settings%occupation_preconditioner = .FALSE.
       settings%add_nondiag_energy = .FALSE.
       settings%nondiag_energy_strength = 0.0_dp
+
    END SUBROUTINE qs_ot_settings_init
 
 ! **************************************************************************************************
@@ -791,6 +796,10 @@ CONTAINS
       CALL section_vals_val_get(ot_section, "ON_THE_FLY_LOC", l_val=settings%on_the_fly_loc)
 
       CALL section_vals_val_get(ot_section, "MINIMIZER", i_val=ot_method)
+      ! overwrite input if ot_state is set
+      IF (settings%ot_state == 1) THEN
+         ot_method = ot_mini_diis
+      END IF
       ! compatibility
       SELECT CASE (ot_method)
       CASE (ot_mini_sd)
@@ -825,6 +834,8 @@ CONTAINS
          settings%line_search_method = "2PNT"
       CASE (ls_3pnt)
          settings%line_search_method = "3PNT"
+      CASE (ls_adapt)
+         settings%line_search_method = "ADPT"
       CASE (ls_gold)
          settings%line_search_method = "GOLD"
          CALL section_vals_val_get(ot_section, "GOLD_TARGET", r_val=settings%gold_target)
@@ -845,6 +856,8 @@ CONTAINS
       CASE DEFAULT
          CPABORT("READ OTSCF SOLVER: Value unknown")
       END SELECT
+
+      CALL section_vals_val_get(ot_section, "MAX_SCF_DIIS", i_val=settings%max_scf_diis)
 
       !If these values are negative we will set them "optimal" for a given precondtioner below
       CALL section_vals_val_get(ot_section, "STEPSIZE", r_val=settings%ds_min)

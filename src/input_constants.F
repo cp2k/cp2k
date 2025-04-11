@@ -510,7 +510,8 @@ MODULE input_constants
    INTEGER, PARAMETER, PUBLIC               :: ot_mini_sd = 1, ot_mini_cg = 2, ot_mini_diis = 3, ot_mini_broyden = 4
    INTEGER, PARAMETER, PUBLIC               :: ot_algo_taylor_or_diag = 1, ot_algo_irac = 2
    INTEGER, PARAMETER, PUBLIC               :: ot_chol_irac = 1, ot_poly_irac = 2, ot_lwdn_irac = 3
-   INTEGER, PARAMETER, PUBLIC               :: ls_none = 1, ls_2pnt = 2, ls_3pnt = 3, ls_gold = 4, ls_fit = 5
+   INTEGER, PARAMETER, PUBLIC               :: ls_none = 1, ls_2pnt = 2, ls_3pnt = 3, ls_gold = 4, ls_fit = 5, &
+                                               ls_adapt = 6
    INTEGER, PARAMETER, PUBLIC               :: ot_precond_none = 0, &
                                                ot_precond_full_single = 1, &
                                                ot_precond_full_kinetic = 2, &
