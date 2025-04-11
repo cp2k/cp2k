@@ -145,7 +145,7 @@ CONTAINS
                                                             magnetization, mass, pf, rl, zeff, alpha_u, beta_u, &
                                                             J0_u, J_u, U_u, occ_u, u_minus_J
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: beta, corden, ef, fe, locpot, rc, rp
-      REAL(KIND=dp), DIMENSION(3)                        :: vr, vs
+      REAL(KIND=dp), DIMENSION(3)                        :: vr, vs, j_t
       REAL(KIND=dp), DIMENSION(:), POINTER               :: density
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: wavefunction, wfninfo
       TYPE(atom_gthpot_type), POINTER                    :: gth_atompot
@@ -464,12 +464,14 @@ CONTAINS
                CPABORT("CP2K/SIRIUS (hubbard): the occupation number can not be negative.")
             END IF
 
+            j_t(:) = 0.0
             IF (ABS(u_minus_j) < 1e-8) THEN
+               j_t(1) = J_u
                CALL sirius_set_atom_type_hubbard(sctx, label, lu, nu, &
-                                                 occ_u, U_u, J_u, alpha_u, beta_u, J0_u)
+                                                 occ_u, U_u, j_t, alpha_u, beta_u, J0_u)
             ELSE
                CALL sirius_set_atom_type_hubbard(sctx, label, lu, nu, &
-                                                 occ_u, u_minus_j, 0.0_dp, alpha_u, beta_u, J0_u)
+                                                 occ_u, u_minus_j, j_t, alpha_u, beta_u, J0_u)
             END IF
          END IF
 

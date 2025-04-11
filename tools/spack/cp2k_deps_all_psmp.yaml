@@ -106,7 +106,7 @@ spack:
     - "libxsmm@1.17"
     - "plumed@2.9.2"
     - "py-torch@2.6"
-    - "sirius@7.6.1"
+    - "sirius@7.7.0"
     - "spglib@2.3.0"
     - "spla@1.6.1"
     - "trexio@2.5.0"

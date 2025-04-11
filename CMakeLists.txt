@@ -692,7 +692,7 @@ endif()
 
 # SIRIUS
 if(CP2K_USE_SIRIUS)
-  find_package(sirius REQUIRED)
+  find_package(sirius 7.7.0 REQUIRED)
 endif()
 
 if(CP2K_USE_PLUMED)
