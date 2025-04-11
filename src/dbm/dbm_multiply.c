@@ -272,10 +272,12 @@ static void multiply_packs(const bool transa, const bool transb,
           for (int jblock = jblock_start; jblock < pack_b->nblocks; jblock++) {
             const dbm_pack_block_t *blk_b = &pack_b->blocks[jblock];
             if (blk_b->free_index % nshard_cols != shard_col) {
-              break;
+              jblock = pack_b->nblocks; // break
+              continue;
             }
             if (blk_a->sum_index < blk_b->sum_index) {
-              break;
+              jblock = pack_b->nblocks; // break
+              continue;
             }
             if (blk_a->sum_index > blk_b->sum_index) {
               jblock_start++;
