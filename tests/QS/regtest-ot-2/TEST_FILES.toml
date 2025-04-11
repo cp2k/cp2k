@@ -48,4 +48,8 @@
 "H2O-broy.inp"                          = [{matcher="E_total", tol=5.0E-14, ref=-15.92280592863554}]
 #BASIC_SPATIAL_DISTRIBUTION test
 "H2O-dist-17.inp"                       = [{matcher="E_total", tol=9e-14, ref=-33.47012389900991}]
+#CG ADAPT/DIIS tests
+"CH4-1.inp"                             = [{matcher="E_total", tol=1e-13, ref=-33.47012389900991}]
+"CH4-2.inp"                             = [{matcher="E_total", tol=1e-13, ref=-33.47012389900991}]
+"CH4-3.inp"                             = [{matcher="E_total", tol=1e-13, ref=-33.47012389900991}]
 #EOF
