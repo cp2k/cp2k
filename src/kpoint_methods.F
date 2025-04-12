@@ -34,7 +34,8 @@ MODULE kpoint_methods
    USE cp_fm_struct,                    ONLY: cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
         copy_info_type, cp_fm_cleanup_copy_general, cp_fm_create, cp_fm_finish_copy_general, &
-        cp_fm_get_info, cp_fm_release, cp_fm_start_copy_general, cp_fm_to_fm, cp_fm_type
+        cp_fm_get_info, cp_fm_release, cp_fm_start_copy_general, cp_fm_to_fm, cp_fm_type, &
+        cp_fm_get_submatrix
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE cryssym,                         ONLY: crys_sym_gen,&
                                               csym_type,&
@@ -78,6 +79,8 @@ MODULE kpoint_methods
                                               neighbor_list_set_p_type
    USE scf_control_types,               ONLY: smear_type
    USE util,                            ONLY: get_limit
+   USE hairy_probes,                    ONLY: probe_occupancy_kp
+   USE cp_control_types,                ONLY: hairy_probes_type   
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -904,7 +907,7 @@ CONTAINS
 !> \param kpoint  Kpoint environment
 !> \param smear   Smearing information
 ! **************************************************************************************************
-   SUBROUTINE kpoint_set_mo_occupation(kpoint, smear)
+   SUBROUTINE kpoint_set_mo_occupation(kpoint, smear, probe)
 
       TYPE(kpoint_type), POINTER                         :: kpoint
       TYPE(smear_type), POINTER                          :: smear
@@ -919,6 +922,12 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues, occupation, wkp
       TYPE(kpoint_env_type), POINTER                     :: kp
       TYPE(mo_set_type), POINTER                         :: mo_set
+      INTEGER                                            :: nao, nrow_global, ncol_global
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:,:,:)     :: rcoeff, icoeff
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:)         :: smatrix
+      TYPE(hairy_probes_type), DIMENSION(:), &
+         OPTIONAL, POINTER                               :: probe
       TYPE(mp_para_env_type), POINTER                    :: para_env_inter_kp
 
       CALL timeset(routineN, handle)
@@ -928,7 +937,7 @@ CONTAINS
       kp => kpoint%kp_env(1)%kpoint_env
       nspin = SIZE(kp%mos, 2)
       mo_set => kp%mos(1, 1)
-      CALL get_mo_set(mo_set, nmo=nmo, nelectron=nelectron)
+      CALL get_mo_set(mo_set, nmo=nmo, nao=nao, nelectron=nelectron)
       ne_a = nelectron
       IF (nspin == 2) THEN
          CALL get_mo_set(kp%mos(1, 2), nmo=nb, nelectron=ne_b)
@@ -937,6 +946,11 @@ CONTAINS
       ALLOCATE (weig(nmo, nkp, nspin), wocc(nmo, nkp, nspin))
       weig = 0.0_dp
       wocc = 0.0_dp
+      IF (PRESENT(probe)) THEN
+         ALLOCATE (rcoeff(nao, nmo, nkp, nspin), icoeff(nao, nmo, nkp, nspin))
+         rcoeff = 0.0_dp !coeff, real part
+         icoeff = 0.0_dp !coeff, imaginary part
+      END IF
       CALL get_kpoint_info(kpoint, kp_range=kp_range)
       kplocal = kp_range(2) - kp_range(1) + 1
       DO ikpgr = 1, kplocal
@@ -946,63 +960,159 @@ CONTAINS
             mo_set => kp%mos(1, ispin)
             CALL get_mo_set(mo_set, eigenvalues=eigenvalues)
             weig(1:nmo, ik, ispin) = eigenvalues(1:nmo)
+            IF (PRESENT(probe)) THEN
+               CALL get_mo_set(mo_set, mo_coeff=mo_coeff)
+               CALL cp_fm_get_info(mo_coeff, &
+                          nrow_global=nrow_global, &
+                          ncol_global=ncol_global)
+               ALLOCATE (smatrix(nrow_global, ncol_global))
+               CALL cp_fm_get_submatrix(mo_coeff, smatrix)
+
+               rcoeff(1:nao, 1:nmo, ik, ispin) = smatrix(1:nrow_global, 1:ncol_global)
+
+               DEALLOCATE(smatrix)
+
+               mo_set => kp%mos(2, ispin)
+
+               CALL get_mo_set(mo_set, mo_coeff=mo_coeff)
+               CALL cp_fm_get_info(mo_coeff, &
+                          nrow_global=nrow_global, &
+                          ncol_global=ncol_global)
+               ALLOCATE (smatrix(nrow_global, ncol_global))
+               CALL cp_fm_get_submatrix(mo_coeff, smatrix)
+
+               icoeff(1:nao, 1:nmo, ik, ispin) = smatrix(1:nrow_global, 1:ncol_global)
+
+               mo_set => kp%mos(1, ispin)
+
+               DEALLOCATE(smatrix)
+            END IF            
          END DO
       END DO
       CALL get_kpoint_info(kpoint, para_env_inter_kp=para_env_inter_kp)
       CALL para_env_inter_kp%sum(weig)
 
+      IF (PRESENT(probe)) THEN
+         CALL para_env_inter_kp%sum(rcoeff)
+         CALL para_env_inter_kp%sum(icoeff)
+      END IF
+      
       CALL get_kpoint_info(kpoint, wkp=wkp)
-      IF (smear%do_smear) THEN
-         ! finite electronic temperature
-         SELECT CASE (smear%method)
-         CASE (smear_fermi_dirac)
-            IF (nspin == 1) THEN
-               nel = REAL(nelectron, KIND=dp)
-               CALL Fermikp(wocc(:, :, 1), mus(1), kTS, weig(:, :, 1), nel, wkp, &
-                            smear%electronic_temperature, 2.0_dp)
-            ELSE IF (smear%fixed_mag_mom > 0.0_dp) THEN
-               nel = REAL(ne_a, KIND=dp)
-               CALL Fermikp(wocc(:, :, 1), mus(1), kTS, weig(:, :, 1), nel, wkp, &
-                            smear%electronic_temperature, 1.0_dp)
-               nel = REAL(ne_b, KIND=dp)
-               CALL Fermikp(wocc(:, :, 2), mus(2), kTS, weig(:, :, 2), nel, wkp, &
-                            smear%electronic_temperature, 1.0_dp)
-            ELSE
-               nel = REAL(ne_a, KIND=dp) + REAL(ne_b, KIND=dp)
-               CALL Fermikp2(wocc(:, :, :), mu, kTS, weig(:, :, :), nel, wkp, &
-                             smear%electronic_temperature)
-               kTS = kTS/2._dp
-               mus(1:2) = mu
-            END IF
-         CASE DEFAULT
-            CPABORT("kpoints: Selected smearing not (yet) supported")
-         END SELECT
-      ELSE
-         ! fixed occupations (2/1)
+
+!calling of HP module HERE, before smear
+      IF (PRESENT(probe)) THEN
+         smear%do_smear = .false. !ensures smearing is switched off
+
          IF (nspin == 1) THEN
             nel = REAL(nelectron, KIND=dp)
-            CALL Fermikp(wocc(:, :, 1), mus(1), kTS, weig(:, :, 1), nel, wkp, 0.0_dp, 2.0_dp)
+            CALL probe_occupancy_kp(wocc(:,:,:), mus(1), kTS, weig(:,:,:), rcoeff(:,:,:,:), icoeff(:,:,:,:), 2.0d0, &
+                                   probe, nel, wkp)
          ELSE
-            nel = REAL(ne_a, KIND=dp)
-            CALL Fermikp(wocc(:, :, 1), mus(1), kTS, weig(:, :, 1), nel, wkp, 0.0_dp, 1.0_dp)
-            nel = REAL(ne_b, KIND=dp)
-            CALL Fermikp(wocc(:, :, 2), mus(2), kTS, weig(:, :, 2), nel, wkp, 0.0_dp, 1.0_dp)
+            nel = REAL(ne_a, KIND=dp) + REAL(ne_b, KIND=dp)
+            CALL probe_occupancy_kp(wocc(:,:,:), mu, kTS, weig(:,:,:), rcoeff(:,:,:,:), icoeff(:,:,:,:), 1.0d0, &
+                                   probe, nel, wkp)
+            kTS = kTS/2._dp
+            mus(1:2) = mu
          END IF
-      END IF
-      DO ikpgr = 1, kplocal
-         ik = kp_range(1) + ikpgr - 1
-         kp => kpoint%kp_env(ikpgr)%kpoint_env
-         DO ispin = 1, nspin
-            mo_set => kp%mos(1, ispin)
-            CALL get_mo_set(mo_set, eigenvalues=eigenvalues, occupation_numbers=occupation)
-            eigenvalues(1:nmo) = weig(1:nmo, ik, ispin)
-            occupation(1:nmo) = wocc(1:nmo, ik, ispin)
-            mo_set%kTS = kTS
-            mo_set%mu = mus(ispin)
-         END DO
-      END DO
 
-      DEALLOCATE (weig, wocc)
+         DO ikpgr = 1, kplocal
+            ik = kp_range(1) + ikpgr - 1
+            kp => kpoint%kp_env(ikpgr)%kpoint_env
+            DO ispin = 1, nspin
+               mo_set => kp%mos(1, ispin)
+               CALL get_mo_set(mo_set, eigenvalues=eigenvalues, occupation_numbers=occupation)
+               eigenvalues(1:nmo) = weig(1:nmo, ik, ispin)
+               occupation(1:nmo) = wocc(1:nmo, ik, ispin)
+               mo_set%kTS = kTS
+               mo_set%mu = mus(ispin)
+
+               CALL get_mo_set(mo_set, mo_coeff=mo_coeff)
+               !get smatrix for kpoint_env ikp
+               CALL cp_fm_get_info(mo_coeff, &
+                          nrow_global=nrow_global, &
+                          ncol_global=ncol_global)
+               ALLOCATE (smatrix(nrow_global, ncol_global))
+               CALL cp_fm_get_submatrix(mo_coeff, smatrix)
+
+               smatrix(1:nrow_global, 1:ncol_global) = rcoeff(1:nao, 1:nmo, ik, ispin)
+               DEALLOCATE(smatrix)
+
+               mo_set => kp%mos(2, ispin)
+
+               CALL get_mo_set(mo_set, mo_coeff=mo_coeff)
+               !get smatrix for kpoint_env ikp
+               CALL cp_fm_get_info(mo_coeff, &
+                          nrow_global=nrow_global, &
+                          ncol_global=ncol_global)
+               ALLOCATE (smatrix(nrow_global, ncol_global))
+               CALL cp_fm_get_submatrix(mo_coeff, smatrix)
+
+               smatrix(1:nrow_global, 1:ncol_global) = icoeff(1:nao, 1:nmo, ik, ispin)
+               DEALLOCATE(smatrix)
+
+               mo_set => kp%mos(1, ispin)
+
+            END DO
+         END DO
+
+         DEALLOCATE (weig, wocc, rcoeff, icoeff)
+
+      END IF
+
+      IF (PRESENT(probe) .eqv. .false. ) THEN
+         IF (smear%do_smear) THEN
+            ! finite electronic temperature
+            SELECT CASE (smear%method)
+            CASE (smear_fermi_dirac)
+               IF (nspin == 1) THEN
+                  nel = REAL(nelectron, KIND=dp)
+                  CALL Fermikp(wocc(:, :, 1), mus(1), kTS, weig(:, :, 1), nel, wkp, &
+                               smear%electronic_temperature, 2.0_dp)
+               ELSE IF (smear%fixed_mag_mom > 0.0_dp) THEN
+                  nel = REAL(ne_a, KIND=dp)
+                  CALL Fermikp(wocc(:, :, 1), mus(1), kTS, weig(:, :, 1), nel, wkp, &
+                               smear%electronic_temperature, 1.0_dp)
+                  nel = REAL(ne_b, KIND=dp)
+                  CALL Fermikp(wocc(:, :, 2), mus(2), kTS, weig(:, :, 2), nel, wkp, &
+                               smear%electronic_temperature, 1.0_dp)
+               ELSE
+                  nel = REAL(ne_a, KIND=dp) + REAL(ne_b, KIND=dp)
+                  CALL Fermikp2(wocc(:, :, :), mu, kTS, weig(:, :, :), nel, wkp, &
+                                smear%electronic_temperature)
+                  kTS = kTS/2._dp
+                  mus(1:2) = mu
+               END IF
+            CASE DEFAULT
+               CPABORT("kpoints: Selected smearing not (yet) supported")
+            END SELECT
+         ELSE
+            ! fixed occupations (2/1)
+            IF (nspin == 1) THEN
+               nel = REAL(nelectron, KIND=dp)
+               CALL Fermikp(wocc(:, :, 1), mus(1), kTS, weig(:, :, 1), nel, wkp, 0.0_dp, 2.0_dp)
+            ELSE
+               nel = REAL(ne_a, KIND=dp)
+               CALL Fermikp(wocc(:, :, 1), mus(1), kTS, weig(:, :, 1), nel, wkp, 0.0_dp, 1.0_dp)
+               nel = REAL(ne_b, KIND=dp)
+               CALL Fermikp(wocc(:, :, 2), mus(2), kTS, weig(:, :, 2), nel, wkp, 0.0_dp, 1.0_dp)
+            END IF
+         END IF
+         DO ikpgr = 1, kplocal
+            ik = kp_range(1) + ikpgr - 1
+            kp => kpoint%kp_env(ikpgr)%kpoint_env
+            DO ispin = 1, nspin
+               mo_set => kp%mos(1, ispin)
+               CALL get_mo_set(mo_set, eigenvalues=eigenvalues, occupation_numbers=occupation)
+               eigenvalues(1:nmo) = weig(1:nmo, ik, ispin)
+               occupation(1:nmo) = wocc(1:nmo, ik, ispin)
+               mo_set%kTS = kTS
+               mo_set%mu = mus(ispin)
+            END DO
+         END DO
+
+         DEALLOCATE (weig, wocc)
+
+      END IF 
 
       CALL timestop(handle)
 

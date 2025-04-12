@@ -18,7 +18,8 @@ MODULE cp_control_utils
    USE cp_control_types,                ONLY: &
         admm_control_create, admm_control_type, ddapc_control_create, ddapc_restraint_type, &
         dft_control_create, dft_control_type, efield_type, expot_control_create, &
-        maxwell_control_create, qs_control_type, tddfpt2_control_type, xtb_control_type
+        maxwell_control_create, qs_control_type, tddfpt2_control_type, xtb_control_type, &
+        hairy_probes_type
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -124,7 +125,8 @@ CONTAINS
       TYPE(cp_parser_type)                               :: parser
       TYPE(section_vals_type), POINTER                   :: hfx_section, maxwell_section, &
                                                             sccs_section, scf_section, &
-                                                            tmp_section, xc_fun_section, xc_section
+                                                            tmp_section, xc_fun_section, xc_section, &
+                                                            hairy_probes_section
 
       was_present = .FALSE.
 
@@ -395,6 +397,16 @@ CONTAINS
             CALL cp_abort(__LOCATION__, "The option RELAX_MULTIPLICITY is only valid for "// &
                           "unrestricted Kohn-Sham (UKS) calculations")
       END IF
+
+      !Read the HAIR PROBES input section if present
+      hairy_probes_section => section_vals_get_subs_vals(dft_section, "HAIRY_PROBES")
+      CALL section_vals_get(hairy_probes_section, n_repetition=nrep, explicit=is_present)
+
+      IF (is_present) THEN
+         dft_control%hairy_probes = .true.
+         ALLOCATE (dft_control%probe(nrep))
+         CALL read_hairy_probes_sections(dft_control, hairy_probes_section)
+      END IF      
 
       ! check for the presence of the low spin roks section
       tmp_section => section_vals_get_subs_vals(dft_section, "LOW_SPIN_ROKS")
@@ -1851,6 +1863,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: section
       TYPE(section_vals_type), POINTER                   :: xc_section
+      INTEGER                                            :: i, n_rep, i_rep
 
       IF (dft_control%qs_control%semi_empirical) RETURN
       IF (dft_control%qs_control%dftb) RETURN
@@ -2084,6 +2097,25 @@ CONTAINS
 
       END IF
 
+      IF (dft_control%hairy_probes .eqv. .true.) THEN
+         n_rep = SIZE(dft_control%probe)
+         IF (output_unit > 0) THEN
+            DO i_rep = 1, n_rep
+               WRITE (UNIT=output_unit, FMT="(T2,A,I5)") &
+                  "HP | hair probe set", i_rep
+               WRITE (UNIT=output_unit, FMT="(T2,A,T61,*(I5))") &
+                  "HP| atom indexes", &
+                  (dft_control%probe(i_rep)%atom_ids(i), i=1,dft_control%probe(i_rep)%natoms)
+               WRITE (UNIT=output_unit, FMT="(T2,A,T61,ES20.6)") &
+                  "HP| potential", dft_control%probe(i_rep)%mu
+                  WRITE (UNIT=output_unit, FMT="(T2,A,T61,F20.2)") &
+                  "HP| temperature", dft_control%probe(i_rep)%T
+               WRITE (UNIT=output_unit, FMT="(T2,A,T61,ES20.6)") &
+                  "HP| eps_hp", dft_control%probe(i_rep)%eps_hp
+            END DO
+         END IF
+      END IF
+      
       CALL cp_print_key_finished_output(output_unit, logger, dft_section, &
                                         "PRINT%DFT_CONTROL_PARAMETERS")
 
@@ -2815,5 +2847,53 @@ CONTAINS
       END DO
 
    END SUBROUTINE read_admm_block_list
+
+! **************************************************************************************************
+!> \brief
+!> \param
+!> \param
+! **************************************************************************************************
+   SUBROUTINE read_hairy_probes_sections(dft_control, hairy_probes_section)
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(section_vals_type), POINTER                   :: hairy_probes_section
+
+      INTEGER                                            :: i, j, jj, kk, n_rep
+      INTEGER, DIMENSION(:), POINTER                     :: tmplist
+
+      DO i = 1, SIZE(dft_control%probe)
+         NULLIFY (dft_control%probe(i)%atom_ids)
+
+         CALL section_vals_val_get(hairy_probes_section,"ATOM_IDS", i_rep_section=i, n_rep_val=n_rep)
+         jj = 0
+         DO kk = 1, n_rep
+            CALL section_vals_val_get(hairy_probes_section,"ATOM_IDS", i_rep_section=i, i_rep_val=kk, i_vals=tmplist)
+            jj = jj + SIZE(tmplist)
+         END DO
+
+         dft_control%probe(i)%natoms = jj
+         IF (dft_control%probe(i)%natoms < 1) &
+            CPABORT("Need at least 1 atom to use hair probes formalism")
+         ALLOCATE(dft_control%probe(i)%atom_ids(dft_control%probe(i)%natoms))
+
+         jj = 0
+         DO kk = 1, n_rep
+            CALL section_vals_val_get(hairy_probes_section,"ATOM_IDS", i_rep_section=i, i_rep_val=kk, i_vals=tmplist)
+            DO j = 1, SIZE(tmplist)
+               jj = jj + 1
+               dft_control%probe(i)%atom_ids(jj) = tmplist(j)
+            END DO
+         END DO
+
+         CALL section_vals_val_get(hairy_probes_section,"MU", i_rep_section=i, r_val=dft_control%probe(i)%mu)
+
+         CALL section_vals_val_get(hairy_probes_section,"T", i_rep_section=i, r_val=dft_control%probe(i)%T)
+
+         CALL section_vals_val_get(hairy_probes_section,"ALPHA", i_rep_section=i, r_val=dft_control%probe(i)%alpha)
+
+         CALL section_vals_val_get(hairy_probes_section,"eps_hp", i_rep_section=i, r_val=dft_control%probe(i)%eps_hp)
+      END DO
+
+   END SUBROUTINE read_hairy_probes_sections
+! **************************************************************************************************   
 
 END MODULE cp_control_utils
