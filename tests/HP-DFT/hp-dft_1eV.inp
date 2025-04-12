@@ -31,18 +31,18 @@
        EPS_DEFAULT 1.0E-14
      &END QS
 
-     &HAIR_PROBES 
+     &HAIRY_PROBES 
        T 300
        MU 0.50000
        ATOM_IDS 1..4  
        EPS_HP 1.0E-5
-     &END HAIR_PROBES
-     &HAIR_PROBES 
+     &END HAIRY_PROBES
+     &HAIRY_PROBES 
        T 300
        MU -0.50000     
        ATOM_IDS 21..24  
        EPS_HP 1.0E-5
-     &END HAIR_PROBES
+     &END HAIRY_PROBES
 
      &KPOINTS 
        SCHEME MONKHORST-PACK 8 8 1
