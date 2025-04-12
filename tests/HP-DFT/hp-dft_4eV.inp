@@ -1,0 +1,126 @@
+&GLOBAL
+   PRINT_LEVEL  medium
+   PROJECT_NAME Pt_capacitor
+   RUN_TYPE ENERGY
+&END GLOBAL
+
+&FORCE_EVAL
+   METHOD  QS
+   &DFT
+     BASIS_SET_FILE_NAME /rds/general/user/mb620/home/CP2K-OPENMPI/BASIS_MOLOPT_UCL
+     POTENTIAL_FILE_NAME /rds/general/user/mb620/home/CP2K-OPENMPI/GTH_POTENTIALS
+
+     &MGRID
+       NGRIDS 4
+       CUTOFF 250
+       REL_CUTOFF 50
+     &END MGRID
+
+     &POISSON
+       POISSON_SOLVER IMPLICIT 
+       &IMPLICIT 
+         BOUNDARY_CONDITIONS NEUMANN 
+         NEUMANN_DIRECTIONS Z
+        &DIELECTRIC 
+           DIELECTRIC_CONSTANT 1.0
+        &END DIELECTRIC 
+      &END IMPLICIT 
+     &END POISSON
+
+     &QS
+       EPS_DEFAULT 1.0E-14
+     &END QS
+
+     &HAIR_PROBES 
+       T 300
+       MU 2.00000
+       ATOM_IDS 1..4  
+       EPS_HP 1.0E-5
+     &END HAIR_PROBES
+     &HAIR_PROBES 
+       T 300
+       MU -2.00000     
+       ATOM_IDS 21..24  
+       EPS_HP 1.0E-5
+     &END HAIR_PROBES
+
+     &KPOINTS 
+       SCHEME MONKHORST-PACK 8 8 1
+     &END KPOINTS 
+
+     &SCF
+       SCF_GUESS ATOMIC 
+       EPS_SCF 1.0E-07
+       EPS_DIIS 1.0E-01
+       MAX_SCF 500
+       &OUTER_SCF
+         MAX_SCF 40
+         EPS_SCF 1.0E-07
+       &END OUTER_SCF
+
+       ADDED_MOS 1000
+       CHOLESKY INVERSE
+#      &SMEAR ON
+#        METHOD FERMI_DIRAC
+#        ELECTRONIC_TEMPERATURE 300
+#      &END SMEAR 
+       &DIAGONALIZATION
+	  ALGORITHM STANDARD 
+       &END DIAGONALIZATION    
+       &MIXING 
+         METHOD BROYDEN_MIXING
+         ALPHA 0.1
+	 BETA 0.5
+	 NBROYDEN 8
+       &END MIXING
+     &END SCF
+     &XC
+       &XC_FUNCTIONAL PBE
+       &END XC_FUNCTIONAL
+     &END XC
+     
+     &PRINT
+      &MULLIKEN
+      &END MULLIKEN 
+      &TOT_DENSITY_CUBE
+	STRIDE 1
+      &END 
+      &V_HARTREE_CUBE
+	STRIDE 1
+      &END V_HARTREE_CUBE
+      &E_DENSITY_CUBE
+	STRIDE 1
+      &END E_DENSITY_CUBE 
+      &DOS
+      &END
+     &END PRINT
+   &END DFT
+
+   &SUBSYS
+     &CELL
+       ABC 5.614427842621188 4.862237139424608 29.2   
+       PERIODIC XY
+     &END CELL
+     &TOPOLOGY 
+       NUMBER_OF_ATOMS 24
+       COORD_FILE_NAME ./Pt111_2x2.xyz
+       COORD_FILE_FORMAT XYZ
+     &END TOPOLOGY
+     &KIND Pt1
+       ELEMENT Pt
+       BASIS_SET TZVP-MOLOPT-SR-GTH-q18
+       POTENTIAL GTH-PBE-q18
+     &END KIND
+     &KIND Pt2
+       ELEMENT Pt
+       BASIS_SET TZVP-MOLOPT-SR-GTH-q18
+       POTENTIAL GTH-PBE-q18
+     &END KIND
+     &PRINT 
+       &ATOMIC_COORDINATES
+         FILENAME coord
+         ADD_LAST NO
+       &END ATOMIC_COORDINATES
+     &END PRINT 
+   &END SUBSYS
+ &END FORCE_EVAL
