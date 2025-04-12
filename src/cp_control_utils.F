@@ -1863,7 +1863,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: section
       TYPE(section_vals_type), POINTER                   :: xc_section
-      INTEGER                                            :: i, n_rep, i_rep
+      INTEGER                                            :: n_rep, i_rep
 
       IF (dft_control%qs_control%semi_empirical) RETURN
       IF (dft_control%qs_control%dftb) RETURN
