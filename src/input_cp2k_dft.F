@@ -459,10 +459,10 @@ CONTAINS
 
    SUBROUTINE create_hairy_probes_section(section)
       TYPE(section_type), POINTER                        :: section
-      TYPE(keyword_type), POINTER                        :: keyword
-      TYPE(section_type), POINTER                        :: print_key, subsection
 
-      NULLIFY (keyword, subsection, print_key)
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      NULLIFY (keyword)
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, &
                           name="HAIRY_PROBES", &
@@ -478,10 +478,8 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-
       CALL keyword_create(keyword, __LOCATION__, name="ATOM_IDS", &
-                          description="Indexes of the atoms to which the probes are attached;"// &
-                                      "expects a list of integers. ", &
+                          description="Indexes of the atoms to which the probes are attached.", &
                           usage="ATOM_IDS <INTEGER> .. <INTEGER>", &
                           type_of_var=integer_t, n_var=-1)
       CALL section_add_keyword(section, keyword)
@@ -512,13 +510,13 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="EPS_HP", &
                           description=" Tolerance for accuracy checks on occupation numbers "// &
-                                      "calculated using hair-probes. ", &
+                          "calculated using hair-probes. ", &
                           usage="EPS_HP <REAL>", &
-                          default_r_val=1.0E-5_dp )
+                          default_r_val=1.0E-5_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
    END SUBROUTINE create_hairy_probes_section
-!####################################################################################   
+!####################################################################################
 
 ! **************************************************************************************************
 !> \brief Implicit Solvation Model

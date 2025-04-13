@@ -46,8 +46,7 @@
 ! **************************************************************************************************
 MODULE qs_scf
    USE atomic_kind_types,               ONLY: atomic_kind_type
-   USE cp_control_types,                ONLY: dft_control_type, &
-                                              hairy_probes_type
+   USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
                                               dbcsr_deallocate_matrix,&
                                               dbcsr_get_info,&
@@ -502,18 +501,18 @@ CONTAINS
 
             IF (do_kpoints) THEN
                ! kpoints
-               IF (dft_control%hairy_probes .eqv. .true.) THEN
-                  scf_control%smear%do_smear = .false.
+               IF (dft_control%hairy_probes .EQV. .TRUE.) THEN
+                  scf_control%smear%do_smear = .FALSE.
                   CALL qs_scf_new_mos_kp(qs_env, scf_env, scf_control, diis_step, dft_control%probe)
                ELSE
                   CALL qs_scf_new_mos_kp(qs_env, scf_env, scf_control, diis_step)
-               END IF               
+               END IF
             ELSE
                ! Gamma points only
-               IF (dft_control%hairy_probes .eqv. .true.) THEN
-                  scf_control%smear%do_smear = .false.
+               IF (dft_control%hairy_probes .EQV. .TRUE.) THEN
+                  scf_control%smear%do_smear = .FALSE.
                   CALL qs_scf_new_mos(qs_env, scf_env, scf_control, scf_section, diis_step, energy_only, &
-                              dft_control%probe)
+                                      dft_control%probe)
                ELSE
                   CALL qs_scf_new_mos(qs_env, scf_env, scf_control, scf_section, diis_step, energy_only)
                END IF
@@ -714,14 +713,14 @@ CONTAINS
          IF (.NOT. scf_control%diagonalization%mom) THEN
             !if the hair probes section is present, this sends hairy_probes to set_mo_occupation subroutine
             !and switches off the standard smearing
-            IF (dft_control%hairy_probes .eqv. .true.) THEN
-               scf_control%smear%do_smear = .false.
+            IF (dft_control%hairy_probes .EQV. .TRUE.) THEN
+               scf_control%smear%do_smear = .FALSE.
                CALL set_mo_occupation(mo_set=mos(ispin), &
-                                    smear=scf_control%smear, &
-                                    probe=dft_control%probe)
+                                      smear=scf_control%smear, &
+                                      probe=dft_control%probe)
             ELSE
                CALL set_mo_occupation(mo_set=mos(ispin), &
-                                    smear=scf_control%smear)
+                                      smear=scf_control%smear)
             END IF
          END IF
       END DO

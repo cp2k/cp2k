@@ -14,9 +14,11 @@
 
 MODULE qs_mo_occupation
 
+   USE cp_control_types,                ONLY: hairy_probes_type
    USE cp_log_handling,                 ONLY: cp_to_string
    USE fermi_utils,                     ONLY: FermiFixed,&
                                               FermiFixedDeriv
+   USE hairy_probes,                    ONLY: probe_occupancy
    USE input_constants,                 ONLY: smear_energy_window,&
                                               smear_fermi_dirac,&
                                               smear_list
@@ -30,11 +32,6 @@ MODULE qs_mo_occupation
    USE util,                            ONLY: sort
    USE xas_env_types,                   ONLY: get_xas_env,&
                                               xas_environment_type
-   USE hairy_probes,                    ONLY: probe_occupancy
-   USE cp_control_types,                ONLY: hairy_probes_type,&
-                                              dft_control_type
-   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                              section_vals_type                                              
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -186,6 +183,7 @@ CONTAINS
 !> \param smear ...
 !> \param eval_deriv ...
 !> \param tot_zeff_corr ...
+!> \param probe ...
 !> \date    25.01.2010 (MK)
 !> \par   History
 !>        10.2019 Added functionality to adjust mo occupation if the core
@@ -202,8 +200,8 @@ CONTAINS
       TYPE(smear_type), POINTER                          :: smear
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: eval_deriv
       REAL(KIND=dp), OPTIONAL                            :: tot_zeff_corr
-      TYPE(hairy_probes_type), DIMENSION(:), &
-         OPTIONAL, POINTER                               :: probe
+      TYPE(hairy_probes_type), DIMENSION(:), OPTIONAL, &
+         POINTER                                         :: probe
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'set_mo_occupation_2'
 
@@ -218,7 +216,7 @@ CONTAINS
       ! Fall back for the case that we have only one MO set
       IF (SIZE(mo_array) == 1) THEN
          IF (PRESENT(probe)) THEN
-            CALL set_mo_occupation_1(mo_array(1), smear=smear, probe=probe )
+            CALL set_mo_occupation_1(mo_array(1), smear=smear, probe=probe)
          ELSE IF (PRESENT(eval_deriv)) THEN
 ! Change of MO occupancy to account for CORE_CORRECTION is not yet implemented
             CALL set_mo_occupation_1(mo_array(1), smear=smear, eval_deriv=eval_deriv)
@@ -234,8 +232,8 @@ CONTAINS
       END IF
 
       IF (PRESENT(probe)) THEN
-         CALL set_mo_occupation_1(mo_array(1), smear=smear, probe=probe )
-         CALL set_mo_occupation_1(mo_array(2), smear=smear, probe=probe )
+         CALL set_mo_occupation_1(mo_array(1), smear=smear, probe=probe)
+         CALL set_mo_occupation_1(mo_array(2), smear=smear, probe=probe)
       END IF
 
       IF (smear%do_smear) THEN
@@ -274,8 +272,8 @@ CONTAINS
       IF (.NOT. ((mo_array(1)%flexible_electron_count > 0.0_dp) .AND. &
                  (mo_array(2)%flexible_electron_count > 0.0_dp))) THEN
          IF (PRESENT(probe)) THEN
-            CALL set_mo_occupation_1(mo_array(1), smear=smear, probe=probe )
-            CALL set_mo_occupation_1(mo_array(2), smear=smear, probe=probe )
+            CALL set_mo_occupation_1(mo_array(1), smear=smear, probe=probe)
+            CALL set_mo_occupation_1(mo_array(2), smear=smear, probe=probe)
          ELSE IF (PRESENT(eval_deriv)) THEN
             CALL set_mo_occupation_1(mo_array(1), smear=smear, eval_deriv=eval_deriv)
             CALL set_mo_occupation_1(mo_array(2), smear=smear, eval_deriv=eval_deriv)
@@ -367,8 +365,8 @@ CONTAINS
                       TRIM(ADJUSTL(cp_to_string(multiplicity_new))))
 
       IF (PRESENT(probe)) THEN
-         CALL set_mo_occupation_1(mo_array(1), smear=smear, probe=probe )
-         CALL set_mo_occupation_1(mo_array(2), smear=smear, probe=probe )
+         CALL set_mo_occupation_1(mo_array(1), smear=smear, probe=probe)
+         CALL set_mo_occupation_1(mo_array(2), smear=smear, probe=probe)
       ELSE IF (PRESENT(eval_deriv)) THEN
          CALL set_mo_occupation_1(mo_array(1), smear=smear, eval_deriv=eval_deriv)
          CALL set_mo_occupation_1(mo_array(2), smear=smear, eval_deriv=eval_deriv)
@@ -394,6 +392,7 @@ CONTAINS
 !>                     on exit  the derivative of the full free energy (i.e. KS and entropy) wrt to the eigenvalue
 !> \param xas_env ...
 !> \param tot_zeff_corr ...
+!> \param probe ...
 !> \date    17.04.2002 (v1.0), 26.08.2008 (v1.1)
 !> \par   History
 !>        10.2019 Added functionality to adjust mo occupation if the core
@@ -411,8 +410,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: eval_deriv
       TYPE(xas_environment_type), OPTIONAL, POINTER      :: xas_env
       REAL(KIND=dp), OPTIONAL                            :: tot_zeff_corr
-      TYPE(hairy_probes_type), DIMENSION(:), &
-         OPTIONAL, POINTER                               :: probe      
+      TYPE(hairy_probes_type), DIMENSION(:), OPTIONAL, &
+         POINTER                                         :: probe
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'set_mo_occupation_1'
 
@@ -558,7 +557,7 @@ CONTAINS
          is_large = ABS(MAXVAL(mo_set%occupation_numbers) - mo_set%maxocc) > probe(1)%eps_hp
          ! this is not a real problem, but the temperature might be a bit large
          IF (is_large) &
-             CPWARN("Hair-probes occupancy distribution includes the first MO")
+            CPWARN("Hair-probes occupancy distribution includes the first MO")
 
          ! Find the highest (fractional) occupied MO which will be now the HOMO
          DO imo = nmo, mo_set%lfomo, -1

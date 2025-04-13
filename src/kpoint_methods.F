@@ -18,7 +18,8 @@ MODULE kpoint_methods
                                               real_to_scaled
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_type
-   USE cp_control_types,                ONLY: dft_control_type
+   USE cp_control_types,                ONLY: dft_control_type,&
+                                              hairy_probes_type
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_distribution_get, &
         dbcsr_distribution_type, dbcsr_get_block_p, dbcsr_get_info, dbcsr_iterator_blocks_left, &
@@ -34,8 +35,8 @@ MODULE kpoint_methods
    USE cp_fm_struct,                    ONLY: cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
         copy_info_type, cp_fm_cleanup_copy_general, cp_fm_create, cp_fm_finish_copy_general, &
-        cp_fm_get_info, cp_fm_release, cp_fm_start_copy_general, cp_fm_to_fm, cp_fm_type, &
-        cp_fm_get_submatrix
+        cp_fm_get_info, cp_fm_get_submatrix, cp_fm_release, cp_fm_start_copy_general, cp_fm_to_fm, &
+        cp_fm_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE cryssym,                         ONLY: crys_sym_gen,&
                                               csym_type,&
@@ -45,6 +46,7 @@ MODULE kpoint_methods
                                               release_csym_type
    USE fermi_utils,                     ONLY: fermikp,&
                                               fermikp2
+   USE hairy_probes,                    ONLY: probe_occupancy_kp
    USE input_constants,                 ONLY: smear_fermi_dirac
    USE kinds,                           ONLY: dp
    USE kpoint_types,                    ONLY: get_kpoint_info,&
@@ -79,8 +81,6 @@ MODULE kpoint_methods
                                               neighbor_list_set_p_type
    USE scf_control_types,               ONLY: smear_type
    USE util,                            ONLY: get_limit
-   USE hairy_probes,                    ONLY: probe_occupancy_kp
-   USE cp_control_types,                ONLY: hairy_probes_type   
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -906,28 +906,29 @@ CONTAINS
 !> \brief Given the eigenvalues of all kpoints, calculates the occupation numbers
 !> \param kpoint  Kpoint environment
 !> \param smear   Smearing information
+!> \param probe ...
 ! **************************************************************************************************
    SUBROUTINE kpoint_set_mo_occupation(kpoint, smear, probe)
 
       TYPE(kpoint_type), POINTER                         :: kpoint
       TYPE(smear_type), POINTER                          :: smear
+      TYPE(hairy_probes_type), DIMENSION(:), OPTIONAL, &
+         POINTER                                         :: probe
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'kpoint_set_mo_occupation'
 
-      INTEGER                                            :: handle, ik, ikpgr, ispin, kplocal, nb, &
-                                                            ne_a, ne_b, nelectron, nkp, nmo, nspin
+      INTEGER                                            :: handle, ik, ikpgr, ispin, kplocal, nao, &
+                                                            nb, ncol_global, ne_a, ne_b, &
+                                                            nelectron, nkp, nmo, nrow_global, nspin
       INTEGER, DIMENSION(2)                              :: kp_range
       REAL(KIND=dp)                                      :: kTS, mu, mus(2), nel
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: smatrix
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: weig, wocc
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :, :)  :: icoeff, rcoeff
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues, occupation, wkp
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(kpoint_env_type), POINTER                     :: kp
       TYPE(mo_set_type), POINTER                         :: mo_set
-      INTEGER                                            :: nao, nrow_global, ncol_global
-      TYPE(cp_fm_type), POINTER                          :: mo_coeff
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:,:,:)     :: rcoeff, icoeff
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:)         :: smatrix
-      TYPE(hairy_probes_type), DIMENSION(:), &
-         OPTIONAL, POINTER                               :: probe
       TYPE(mp_para_env_type), POINTER                    :: para_env_inter_kp
 
       CALL timeset(routineN, handle)
@@ -963,21 +964,21 @@ CONTAINS
             IF (PRESENT(probe)) THEN
                CALL get_mo_set(mo_set, mo_coeff=mo_coeff)
                CALL cp_fm_get_info(mo_coeff, &
-                          nrow_global=nrow_global, &
-                          ncol_global=ncol_global)
+                                   nrow_global=nrow_global, &
+                                   ncol_global=ncol_global)
                ALLOCATE (smatrix(nrow_global, ncol_global))
                CALL cp_fm_get_submatrix(mo_coeff, smatrix)
 
                rcoeff(1:nao, 1:nmo, ik, ispin) = smatrix(1:nrow_global, 1:ncol_global)
 
-               DEALLOCATE(smatrix)
+               DEALLOCATE (smatrix)
 
                mo_set => kp%mos(2, ispin)
 
                CALL get_mo_set(mo_set, mo_coeff=mo_coeff)
                CALL cp_fm_get_info(mo_coeff, &
-                          nrow_global=nrow_global, &
-                          ncol_global=ncol_global)
+                                   nrow_global=nrow_global, &
+                                   ncol_global=ncol_global)
                ALLOCATE (smatrix(nrow_global, ncol_global))
                CALL cp_fm_get_submatrix(mo_coeff, smatrix)
 
@@ -985,8 +986,8 @@ CONTAINS
 
                mo_set => kp%mos(1, ispin)
 
-               DEALLOCATE(smatrix)
-            END IF            
+               DEALLOCATE (smatrix)
+            END IF
          END DO
       END DO
       CALL get_kpoint_info(kpoint, para_env_inter_kp=para_env_inter_kp)
@@ -996,21 +997,21 @@ CONTAINS
          CALL para_env_inter_kp%sum(rcoeff)
          CALL para_env_inter_kp%sum(icoeff)
       END IF
-      
+
       CALL get_kpoint_info(kpoint, wkp=wkp)
 
 !calling of HP module HERE, before smear
       IF (PRESENT(probe)) THEN
-         smear%do_smear = .false. !ensures smearing is switched off
+         smear%do_smear = .FALSE. !ensures smearing is switched off
 
          IF (nspin == 1) THEN
             nel = REAL(nelectron, KIND=dp)
-            CALL probe_occupancy_kp(wocc(:,:,:), mus(1), kTS, weig(:,:,:), rcoeff(:,:,:,:), icoeff(:,:,:,:), 2.0d0, &
-                                   probe, nel, wkp)
+            CALL probe_occupancy_kp(wocc(:, :, :), mus(1), kTS, weig(:, :, :), rcoeff(:, :, :, :), icoeff(:, :, :, :), 2.0d0, &
+                                    probe, nel, wkp)
          ELSE
             nel = REAL(ne_a, KIND=dp) + REAL(ne_b, KIND=dp)
-            CALL probe_occupancy_kp(wocc(:,:,:), mu, kTS, weig(:,:,:), rcoeff(:,:,:,:), icoeff(:,:,:,:), 1.0d0, &
-                                   probe, nel, wkp)
+            CALL probe_occupancy_kp(wocc(:, :, :), mu, kTS, weig(:, :, :), rcoeff(:, :, :, :), icoeff(:, :, :, :), 1.0d0, &
+                                    probe, nel, wkp)
             kTS = kTS/2._dp
             mus(1:2) = mu
          END IF
@@ -1029,26 +1030,26 @@ CONTAINS
                CALL get_mo_set(mo_set, mo_coeff=mo_coeff)
                !get smatrix for kpoint_env ikp
                CALL cp_fm_get_info(mo_coeff, &
-                          nrow_global=nrow_global, &
-                          ncol_global=ncol_global)
+                                   nrow_global=nrow_global, &
+                                   ncol_global=ncol_global)
                ALLOCATE (smatrix(nrow_global, ncol_global))
                CALL cp_fm_get_submatrix(mo_coeff, smatrix)
 
                smatrix(1:nrow_global, 1:ncol_global) = rcoeff(1:nao, 1:nmo, ik, ispin)
-               DEALLOCATE(smatrix)
+               DEALLOCATE (smatrix)
 
                mo_set => kp%mos(2, ispin)
 
                CALL get_mo_set(mo_set, mo_coeff=mo_coeff)
                !get smatrix for kpoint_env ikp
                CALL cp_fm_get_info(mo_coeff, &
-                          nrow_global=nrow_global, &
-                          ncol_global=ncol_global)
+                                   nrow_global=nrow_global, &
+                                   ncol_global=ncol_global)
                ALLOCATE (smatrix(nrow_global, ncol_global))
                CALL cp_fm_get_submatrix(mo_coeff, smatrix)
 
                smatrix(1:nrow_global, 1:ncol_global) = icoeff(1:nao, 1:nmo, ik, ispin)
-               DEALLOCATE(smatrix)
+               DEALLOCATE (smatrix)
 
                mo_set => kp%mos(1, ispin)
 
@@ -1059,7 +1060,7 @@ CONTAINS
 
       END IF
 
-      IF (PRESENT(probe) .eqv. .false. ) THEN
+      IF (PRESENT(probe) .EQV. .FALSE.) THEN
          IF (smear%do_smear) THEN
             ! finite electronic temperature
             SELECT CASE (smear%method)
@@ -1112,7 +1113,7 @@ CONTAINS
 
          DEALLOCATE (weig, wocc)
 
-      END IF 
+      END IF
 
       CALL timestop(handle)
 

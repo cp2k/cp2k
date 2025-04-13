@@ -44,7 +44,7 @@ MODULE cp_control_types
       REAL(kind=dp)                        :: T              !temperature of electrons in reservoir
       REAL(kind=dp)                        :: eps_hp         !tolerance for accuracy checks on occupation numbers
       INTEGER                              :: natoms, last_ao, first_ao
-      INTEGER,DIMENSION(:),POINTER         :: atom_ids       !atom ids to which the probes are attached
+      INTEGER, DIMENSION(:), POINTER       :: atom_ids       !atom ids to which the probes are attached
    END TYPE hairy_probes_type
 
 ! **************************************************************************************************
@@ -595,7 +595,7 @@ MODULE cp_control_types
       TYPE(efield_p_type), POINTER, &
          DIMENSION(:)                      :: efield_fields => NULL()
       TYPE(hairy_probes_type), POINTER, &
-         DIMENSION(:)                      :: probe => NULL()      
+         DIMENSION(:)                      :: probe => NULL()
       INTEGER                              :: nspins = 0, &
                                               charge = 0, &
                                               multiplicity = 0, &
@@ -671,7 +671,7 @@ MODULE cp_control_types
              rtp_control_type, &
              sccs_control_type, &
              stda_control_type, &
-             smeared_type, & 
+             smeared_type, &
              hairy_probes_type
 
    ! Public subroutines
