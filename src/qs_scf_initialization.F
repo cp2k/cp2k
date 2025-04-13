@@ -9,6 +9,7 @@
 !> \brief Utility routines for qs_scf
 ! **************************************************************************************************
 MODULE qs_scf_initialization
+   USE atomic_kind_types,               ONLY: atomic_kind_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_create,&
                                               dbcsr_init_p,&
@@ -47,6 +48,7 @@ MODULE qs_scf_initialization
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
+   USE hairy_probes,                    ONLY: AO_boundaries
    USE input_constants,                 ONLY: &
         broy_mix, cholesky_dbcsr, cholesky_inverse, cholesky_off, diag_block_davidson, &
         diag_block_krylov, diag_filter_matrix, diag_ot, diag_standard, direct_p_mix, kerker_mix, &
@@ -60,6 +62,7 @@ MODULE qs_scf_initialization
    USE kpoint_types,                    ONLY: kpoint_type
    USE message_passing,                 ONLY: mp_para_env_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
+   USE particle_types,                  ONLY: particle_type
    USE pw_types,                        ONLY: pw_c1d_gs_type
    USE qmmm_image_charge,               ONLY: conditional_calc_image_matrix
    USE qs_block_davidson_types,         ONLY: block_davidson_allocate,&
@@ -119,10 +122,6 @@ MODULE qs_scf_initialization
    USE scf_control_types,               ONLY: scf_control_type
    USE xas_env_types,                   ONLY: xas_environment_type
    USE xas_restart,                     ONLY: xas_initialize_rho
-   USE cp_control_types,                ONLY: hairy_probes_type
-   USE atomic_kind_types,               ONLY: atomic_kind_type
-   USE particle_types,                  ONLY: particle_type
-   USE hairy_probes,                    ONLY: AO_boundaries   
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -149,25 +148,25 @@ CONTAINS
       TYPE(scf_control_type), OPTIONAL, POINTER          :: scf_control
       TYPE(section_vals_type), OPTIONAL, POINTER         :: scf_section
 
-      TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(scf_control_type), POINTER                    :: my_scf_control
-      TYPE(section_vals_type), POINTER                   :: dft_section, input, my_scf_section
-      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
+      INTEGER                                            :: ip, np
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind_set(:)
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(particle_type), POINTER                       :: particle_set(:)
       TYPE(qs_kind_type), POINTER                        :: qs_kind_set(:)
-      INTEGER                                            :: ip, np
+      TYPE(scf_control_type), POINTER                    :: my_scf_control
+      TYPE(section_vals_type), POINTER                   :: dft_section, input, my_scf_section
 
       CALL get_qs_env(qs_env, input=input, dft_control=dft_control)
 
       !Initialize Hairy Probe calculation
-      IF (dft_control%hairy_probes .eqv. .true.) THEN
+      IF (dft_control%hairy_probes .EQV. .TRUE.) THEN
          CALL get_qs_env(qs_env, mos=mos, &
-                atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, particle_set=particle_set)
+                         atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, particle_set=particle_set)
          np = SIZE(dft_control%probe)
          DO ip = 1, np
-            CALL AO_boundaries (probe=dft_control%probe(ip), atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, &
-                    particle_set=particle_set, nAO=mos(1)%nao ) !FIX THIS!
+            CALL AO_boundaries(probe=dft_control%probe(ip), atomic_kind_set=atomic_kind_set, qs_kind_set=qs_kind_set, &
+                               particle_set=particle_set, nAO=mos(1)%nao) !FIX THIS!
          END DO
       END IF
 
@@ -1222,13 +1221,13 @@ CONTAINS
             DO ispin = 1, SIZE(mos)
                CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff, nmo=nmo)
                CALL reorthogonalize_vectors(qs_env, v_matrix=mo_coeff, n_col=nmo)
-               IF (dft_control%hairy_probes .eqv. .true. ) THEN
-                  scf_control%smear%do_smear = .false.
+               IF (dft_control%hairy_probes .EQV. .TRUE.) THEN
+                  scf_control%smear%do_smear = .FALSE.
                   CALL set_mo_occupation(mo_set=mos(ispin), &
-                           smear=scf_control%smear, probe=dft_control%probe )
+                                         smear=scf_control%smear, probe=dft_control%probe)
                ELSE
                   CALL set_mo_occupation(mo_set=mos(ispin), &
-                                          smear=scf_control%smear)
+                                         smear=scf_control%smear)
                END IF
             END DO
          END IF
