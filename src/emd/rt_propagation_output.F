@@ -14,11 +14,15 @@ MODULE rt_propagation_output
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_add, dbcsr_binary_write, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, &
-        dbcsr_desymmetrize, dbcsr_filter, dbcsr_get_info, dbcsr_get_occupation, dbcsr_init_p, &
-        dbcsr_iterator_blocks_left, dbcsr_iterator_next_block, dbcsr_iterator_start, &
-        dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, dbcsr_scale, dbcsr_set, dbcsr_type
-   USE cp_dbcsr_contrib,                ONLY: dbcsr_checksum
+        dbcsr_add, dbcsr_binary_write, dbcsr_convert_offsets_to_sizes, dbcsr_copy, dbcsr_create, &
+        dbcsr_deallocate_matrix, dbcsr_desymmetrize, dbcsr_distribution_type, dbcsr_filter, &
+        dbcsr_get_info, dbcsr_get_occupation, dbcsr_init_p, dbcsr_iterator_blocks_left, &
+        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
+        dbcsr_multiply, dbcsr_p_type, dbcsr_scale, dbcsr_set, dbcsr_type, &
+        dbcsr_type_antisymmetric, dbcsr_type_no_symmetry
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_checksum,&
+                                              dbcsr_trace
+   USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply,&
                                               dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
@@ -35,7 +39,8 @@ MODULE rt_propagation_output
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_get_default_unit_nr,&
-                                              cp_logger_type
+                                              cp_logger_type,&
+                                              cp_to_string
    USE cp_output_handling,              ONLY: cp_iter_string,&
                                               cp_p_file,&
                                               cp_print_key_finished_output,&
@@ -55,6 +60,7 @@ MODULE rt_propagation_output
    USE message_passing,                 ONLY: mp_comm_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_list_types,             ONLY: particle_list_type
+   USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: femtoseconds
    USE pw_env_types,                    ONLY: pw_env_get,&
@@ -71,6 +77,8 @@ MODULE rt_propagation_output
    USE qs_linres_current,               ONLY: calculate_jrho_resp
    USE qs_linres_types,                 ONLY: current_env_type
    USE qs_mo_io,                        ONLY: write_rt_mos_to_restart
+   USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
+   USE qs_operators_ao,                 ONLY: build_lin_mom_matrix
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE qs_scf_post_gpw,                 ONLY: qs_scf_post_moments,&
@@ -83,8 +91,7 @@ MODULE rt_propagation_output
    USE rt_projection_mo_utils,          ONLY: compute_and_write_proj_mo
    USE rt_propagation_types,            ONLY: get_rtp,&
                                               rt_prop_type
-   USE rt_propagation_utils,            ONLY: calculate_P_imaginary,&
-                                              write_rtp_mo_cubes,&
+   USE rt_propagation_utils,            ONLY: write_rtp_mo_cubes,&
                                               write_rtp_mos_to_output_unit
 #include "../base/base_uses.f90"
 
@@ -113,15 +120,23 @@ CONTAINS
       INTEGER, INTENT(in)                                :: run_type
       REAL(dp), INTENT(in), OPTIONAL                     :: delta_iter, used_time
 
-      INTEGER                                            :: n_electrons, n_proj, nspin, output_unit, &
-                                                            spin
-      REAL(dp)                                           :: orthonormality, tot_rho_r
+      INTEGER                                            :: i, n_electrons, n_proj, natom, nspin, &
+                                                            output_unit, spin, unit_nr
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf, last_sgf
+      INTEGER, DIMENSION(:), POINTER                     :: row_blk_sizes
+      LOGICAL                                            :: new_file
+      REAL(dp)                                           :: orthonormality, strace, tot_rho_r, trace
       REAL(KIND=dp), DIMENSION(:), POINTER               :: qs_tot_rho_r
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: j_int
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: mos_new
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, P_im, rho_new
+      TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, P_im, p_xyz, rho_new
+      TYPE(dbcsr_type), POINTER                          :: tmp_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_all, sab_orb
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -139,7 +154,8 @@ CONTAINS
                       particle_set=particle_set, &
                       atomic_kind_set=atomic_kind_set, &
                       qs_kind_set=qs_kind_set, &
-                      dft_control=dft_control)
+                      dft_control=dft_control, sab_all=sab_all, sab_orb=sab_orb, &
+                      dbcsr_dist=dbcsr_dist)
 
       rtp_section => section_vals_get_subs_vals(input, "DFT%REAL_TIME_PROPAGATION")
 
@@ -210,6 +226,7 @@ CONTAINS
          IF (.NOT. dft_control%qs_control%dftb) THEN
             CALL write_available_results(qs_env=qs_env, rtp=rtp)
          END IF
+
          IF (rtp%linear_scaling) THEN
             CALL get_rtp(rtp=rtp, rho_new=rho_new)
             IF (BTEST(cp_print_key_should_output(logger%iter_info, &
@@ -231,22 +248,91 @@ CONTAINS
             END IF
          ELSE
             CALL get_rtp(rtp=rtp, mos_new=mos_new)
-            IF (.NOT. dft_control%qs_control%dftb) THEN
-               IF (BTEST(cp_print_key_should_output(logger%iter_info, &
-                                                    dft_section, "REAL_TIME_PROPAGATION%PRINT%CURRENT"), cp_p_file)) THEN
-                  NULLIFY (P_im)
+            IF (.NOT. dft_control%qs_control%dftb .AND. .NOT. dft_control%qs_control%xtb) THEN
+               IF (rtp%track_imag_density) THEN
+                  NULLIFY (P_im, p_xyz)
+                  CALL dbcsr_allocate_matrix_set(p_xyz, 3)
+
+! Linear momentum operator
+! prepare for allocation
+                  natom = SIZE(particle_set, 1)
+                  ALLOCATE (first_sgf(natom))
+                  ALLOCATE (last_sgf(natom))
+                  CALL get_particle_set(particle_set, qs_kind_set, &
+                                        first_sgf=first_sgf, &
+                                        last_sgf=last_sgf)
+                  ALLOCATE (row_blk_sizes(natom))
+                  CALL dbcsr_convert_offsets_to_sizes(first_sgf, row_blk_sizes, last_sgf)
+                  DEALLOCATE (first_sgf)
+                  DEALLOCATE (last_sgf)
+
+                  ALLOCATE (p_xyz(1)%matrix)
+                  CALL dbcsr_create(matrix=p_xyz(1)%matrix, &
+                                    name="p_xyz", &
+                                    dist=dbcsr_dist, matrix_type=dbcsr_type_antisymmetric, &
+                                    row_blk_size=row_blk_sizes, col_blk_size=row_blk_sizes, &
+                                    mutable_work=.TRUE.)
+                  CALL cp_dbcsr_alloc_block_from_nbl(p_xyz(1)%matrix, sab_orb)
+                  CALL dbcsr_set(p_xyz(1)%matrix, 0.0_dp)
+                  DO i = 2, 3
+                     ALLOCATE (p_xyz(i)%matrix)
+                     CALL dbcsr_copy(p_xyz(i)%matrix, p_xyz(1)%matrix, "p_xyz-"//TRIM(ADJUSTL(cp_to_string(i))))
+                     CALL dbcsr_set(p_xyz(i)%matrix, 0.0_dp)
+                  END DO
+                  CALL build_lin_mom_matrix(qs_env, p_xyz)
+                  DEALLOCATE (row_blk_sizes)
+
                   nspin = SIZE(mos_new)/2
-                  CALL dbcsr_allocate_matrix_set(P_im, nspin)
-                  DO spin = 1, nspin
-                     CALL dbcsr_init_p(P_im(spin)%matrix)
-                     CALL dbcsr_create(P_im(spin)%matrix, template=matrix_s(1)%matrix, matrix_type="N")
+                  CALL qs_rho_get(rho, rho_ao_im=P_im)
+                  ALLOCATE (j_int(nspin, 3))
+                  j_int = 0.0_dp
+
+                  NULLIFY (tmp_ao)
+                  CALL dbcsr_init_p(tmp_ao)
+                  CALL dbcsr_create(tmp_ao, template=matrix_s(1)%matrix, matrix_type=dbcsr_type_no_symmetry, name="tmp")
+                  CALL cp_dbcsr_alloc_block_from_nbl(tmp_ao, sab_all)
+                  CALL dbcsr_set(tmp_ao, 0.0_dp)
+
+                  DO i = 1, 3
+                     strace = 0.0_dp
+                     DO spin = 1, nspin
+                        CALL dbcsr_set(tmp_ao, 0.0_dp)
+                        CALL dbcsr_multiply("T", "N", 1.0_dp, P_im(spin)%matrix, p_xyz(i)%matrix, &
+                                            0.0_dp, tmp_ao)
+                        CALL dbcsr_trace(tmp_ao, trace)
+                        strace = strace + trace
+                        j_int(spin, i) = strace
+                     END DO
                   END DO
-                  CALL calculate_P_imaginary(qs_env, rtp, P_im)
-                  DO spin = 1, nspin
-                     CALL rt_current(qs_env, P_im(spin)%matrix, dft_section, spin, nspin)
-                  END DO
-                  CALL dbcsr_deallocate_matrix_set(P_im)
+!  The term -(1/V)\int{(1/2)\sum_n f_n [\psi_n^*(t)(A(t))\psi_n(t) +cc]} missing. Is it just A(t)*number of electrons?
+
+                  IF (BTEST(cp_print_key_should_output(logger%iter_info, &
+                                                       dft_section, "REAL_TIME_PROPAGATION%PRINT%CURRENT_INT"), cp_p_file)) THEN
+
+                     unit_nr = cp_print_key_unit_nr(logger, dft_section, &
+                                                  "REAL_TIME_PROPAGATION%PRINT%CURRENT_INT", extension=".dat", is_new_file=new_file)
+                     IF (nspin == 2) THEN
+                        WRITE (UNIT=unit_nr, FMT="(I10,F16.6,6(F16.8,1X))") qs_env%sim_step, qs_env%sim_time*femtoseconds, &
+                           j_int(1, 1:3), j_int(2, 1:3)
+                     ELSE
+                        WRITE (UNIT=unit_nr, FMT="(I10,F16.6,3(F16.8,1X))") qs_env%sim_step, qs_env%sim_time*femtoseconds, &
+                           j_int(1, 1:3)
+                     END IF
+                  END IF
+
+                  DEALLOCATE (j_int)
+
+                  IF (BTEST(cp_print_key_should_output(logger%iter_info, &
+                                                       dft_section, "REAL_TIME_PROPAGATION%PRINT%CURRENT"), cp_p_file)) THEN
+                     DO spin = 1, nspin
+                        CALL rt_current(qs_env, P_im(spin)%matrix, dft_section, spin, nspin)
+                     END DO
+                  END IF
+                  CALL dbcsr_deallocate_matrix(tmp_ao)
+                  CALL dbcsr_deallocate_matrix_set(p_xyz)
                END IF
+
+! projection of molecular orbitals
                IF (dft_control%rtp_control%is_proj_mo) THEN
                   DO n_proj = 1, SIZE(dft_control%rtp_control%proj_mo_list)
                      CALL compute_and_write_proj_mo(qs_env, mos_new, &
