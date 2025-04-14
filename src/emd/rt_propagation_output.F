@@ -280,6 +280,7 @@ CONTAINS
                      CALL dbcsr_set(p_xyz(i)%matrix, 0.0_dp)
                   END DO
                   CALL build_lin_mom_matrix(qs_env, p_xyz)
+                  DEALLOCATE (row_blk_sizes)
 
                   nspin = SIZE(mos_new)/2
                   CALL qs_rho_get(rho, rho_ao_im=P_im)
