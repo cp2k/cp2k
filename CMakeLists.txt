@@ -907,6 +907,10 @@ if(NOT CP2K_USE_HDF5)
   message("   - HDF5\n")
 endif()
 
+if(NOT CP2K_USE_OPENPMD)
+  message("   - openPMD\n")
+endif()
+
 if(${CP2K_USE_ACCEL} MATCHES "NONE")
   message("   - GPU acceleration is disabled")
 endif()

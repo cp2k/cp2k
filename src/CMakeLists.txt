@@ -422,7 +422,6 @@ list(
   nnp_model.F
   local_gemm_api.F
   offload/offload_api.F
-  openPMD.F
   optbas_fenv_manipulation.F
   optbas_opt_utils.F
   optimize_basis.F
@@ -1615,8 +1614,11 @@ set(CP2K_GPU_DFLAGS
 # ##############################################################################
 
 if(CP2K_USE_OPENPMD)
-  list(APPEND CP2K_SRCS_F input/cp_output_handling_openpmd.F
-       cp_realspace_grid_openpmd.F pw/realspace_grid_openpmd.F)
+  list(APPEND CP2K_SRCS_F
+    cp_realspace_grid_openpmd.F
+    openPMD.F
+    input/cp_output_handling_openpmd.F
+    pw/realspace_grid_openpmd.F)
 endif()
 
 add_fypp_sources(CP2K_SRCS ${CP2K_SRCS_F})
@@ -1751,6 +1753,7 @@ target_compile_definitions(
     $<$<BOOL:${CP2K_USE_DLAF}>:__DLAF>
     $<$<BOOL:${CP2K_USE_LIBXC}>:__LIBXC>
     $<$<BOOL:${CP2K_USE_HDF5}>:__HDF5>
+    $<$<BOOL:${CP2K_USE_OPENPMD}>:__OPENPMD>
     $<$<BOOL:${CP2K_USE_TREXIO}>:__TREXIO>
     $<$<BOOL:${CP2K_USE_GRPP}>:__LIBGRPP>
     $<$<OR:$<BOOL:${CP2K_USE_FFTW3_}>,$<BOOL:${CP2K_USE_FFTW3_MKL_}>>:__FFTW3>
