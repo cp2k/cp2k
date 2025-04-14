@@ -248,7 +248,7 @@ CONTAINS
             END IF
          ELSE
             CALL get_rtp(rtp=rtp, mos_new=mos_new)
-            IF (.NOT. dft_control%qs_control%dftb) THEN
+            IF (.NOT. dft_control%qs_control%dftb .AND. .NOT. dft_control%qs_control%xtb) THEN
                IF (rtp%track_imag_density) THEN
                   NULLIFY (P_im, p_xyz)
                   CALL dbcsr_allocate_matrix_set(p_xyz, 3)
