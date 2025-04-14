@@ -1750,6 +1750,16 @@ CONTAINS
       CALL section_add_subsection(print_section, print_key)
       CALL section_release(print_key)
 
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "CURRENT_INT", &
+                                       description="Print the integral of the current density (only if the"// &
+                                       " imaginary part of the density is NOT zero.", &
+                                       print_level=high_print_level, common_iter_levels=1, &
+                                       each_iter_names=s2a("MD"), &
+                                       each_iter_values=(/1/), &
+                                       filename="rtp_j_int")
+      CALL section_add_subsection(print_section, print_key)
+      CALL section_release(print_key)
+
       CALL cp_print_key_section_create(print_key, __LOCATION__, "CURRENT", &
                                        description="Print the current during an EMD simulation to cube files.", &
                                        print_level=high_print_level, common_iter_levels=0, &
