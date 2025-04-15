@@ -2166,7 +2166,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE create_dos_section(print_key)
 
-      TYPE(section_type), POINTER                        :: print_key
+      TYPE(section_type), POINTER                        :: print_key, subsection
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -2195,6 +2195,11 @@ CONTAINS
                           default_i_val=4)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
+
+      NULLIFY (subsection)
+      CALL create_kpoints_section(subsection)
+      CALL section_add_subsection(print_key, subsection)
+      CALL section_release(subsection)
 
    END SUBROUTINE create_dos_section
 

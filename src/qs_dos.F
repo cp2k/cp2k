@@ -21,15 +21,20 @@ MODULE qs_dos
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE input_section_types,             ONLY: section_vals_type,&
-                                              section_vals_val_get
+                                              section_vals_val_get, &
+                                              section_vals_get_subs_vals, &
+                                              section_vals_get
    USE kinds,                           ONLY: default_string_length,&
                                               dp
-   USE kpoint_types,                    ONLY: kpoint_type
+   USE kpoint_types,                    ONLY: kpoint_type, kpoint_release
+   USE qs_band_structure,               ONLY: calculate_kp_orbitals
    USE message_passing,                 ONLY: mp_para_env_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE cell_types,                      ONLY: cell_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_type
+   USE string_utilities,                ONLY: uppercase
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -38,7 +43,7 @@ MODULE qs_dos
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_dos'
 
-   PUBLIC :: calculate_dos, calculate_dos_kp
+   PUBLIC :: calculate_dos, calculate_dos_kp, calculate_dos_kp_explicit
 
 ! **************************************************************************************************
 
@@ -345,6 +350,70 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE calculate_dos_kp
+
+   ! at the moment this prints the dos twice
+   SUBROUTINE calculate_dos_kp_explicit(qs_env)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'calculate_dos_kp_explicit'
+
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(section_vals_type), POINTER                   :: dft_section, kpoints_section, input
+      TYPE(cp_logger_type), POINTER                      :: logger
+      INTEGER                                            :: iounit, handle, nval, i
+      LOGICAL                                            :: explicit
+      TYPE(cell_type), POINTER                           :: cell
+      CHARACTER(LEN=default_string_length), &
+         DIMENSION(:), POINTER                           :: tmpstringlist
+      CHARACTER(LEN=default_string_length)               :: kp_scheme
+      INTEGER, DIMENSION(3)                              :: nkp_grid
+
+      ! check whether there is a kpoint set section explicit
+      CALL get_qs_env(qs_env, input=input, cell=cell)
+      kpoints_section => section_vals_get_subs_vals(input, "DFT%PRINT%DOS%KPOINTS")
+      CALL section_vals_get(kpoints_section, explicit=explicit)
+      IF (.NOT. explicit) RETURN
+
+      NULLIFY (logger)
+      logger => cp_get_default_logger()
+      iounit = cp_logger_get_default_io_unit(logger)
+
+      CALL timeset(routineN, handle)
+
+      ! fetch the information from the kpoints subsection in PRINT%DOS
+      CALL section_vals_val_get(kpoints_section, "SCHEME", c_vals=tmpstringlist)
+      nval = SIZE(tmpstringlist)
+      CPASSERT(nval >= 1)
+      kp_scheme = tmpstringlist(1)
+      CALL uppercase(kp_scheme)
+
+      ! SCHEME [Monkhorst-Pack, MacDonald]
+      SELECT CASE (kp_scheme)
+      CASE ("MONKHORST-PACK")
+         CPASSERT(nval >= 4)
+         DO i = 2, 4
+            READ (tmpstringlist(i), *) nkp_grid(i - 1)
+         END DO
+      CASE DEFAULT
+         CPABORT("")
+      END SELECT
+
+      IF (iounit > 0) WRITE (UNIT=iounit, FMT='(/,(T3,A,A,T40,A,3I3,A))') &
+         " Calculate DOS with a ", TRIM(kp_scheme), "grid of ", nkp_grid(:), " kpoints"
+
+      ! calculate orbitals and energies
+      NULLIFY (kpoints)
+      CALL calculate_kp_orbitals(qs_env, kpoints, kp_scheme, 0, nkp_grid)
+
+      ! recompute the dos with the new kpoints set
+      dft_section => section_vals_get_subs_vals(input, "DFT")
+      CALL calculate_dos_kp(kpoints, qs_env, dft_section)
+
+      CALL kpoint_release(kpoints)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE calculate_dos_kp_explicit
 
 END MODULE qs_dos
 
