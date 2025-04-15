@@ -562,7 +562,7 @@ CONTAINS
          exit_inner_loop = .TRUE.
       ELSE IF (should_stop .OR. scf_env%iter_count >= scf_control%max_scf) THEN
          inner_loop_converged = .FALSE.
-         IF(just_energy) THEN
+         IF (just_energy) THEN
             exit_inner_loop = .FALSE.
          ELSE
             exit_inner_loop = .TRUE.
