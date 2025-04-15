@@ -10,7 +10,7 @@
 "H2+-BLOCKED-PURIFY-FULL.inp"           = [{matcher="E_total", tol=1e-12, ref=-0.54856281900786}]
 "H2O-ADMMP-OPTX.inp"                    = [{matcher="E_total", tol=1e-12, ref=-16.84585714177486}]
 "O2-triplet-ADMMS.inp"                  = [{matcher="E_total", tol=1e-10, ref=-31.31453544662221}]
-"MD-1.inp"                              = [{matcher="E_total", tol=5e-10, ref=-8.05212874932045}]
+"MD-1.inp"                              = [{matcher="E_total", tol=5e-10, ref=-8.042518859799019}]
 # these tests are only possible under GAPW since they involve ALL electron calculations
 "H2-geo-ALL.inp"                        = [{matcher="E_total", tol=5e-10, ref=-1.15560300475134}]
 "MD-2-ALL.inp"                          = [{matcher="E_total", tol=5e-10, ref=-8.05320711716567}]

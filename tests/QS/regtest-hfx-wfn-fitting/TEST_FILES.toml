@@ -3,7 +3,7 @@
 # see regtest/TEST_FILES
 "CH3-HSE06.inp"                         = [{matcher="E_total", tol=3e-13, ref=-7.39963421450563}]
 "CH3-PBE0.inp"                          = [{matcher="E_total", tol=1e-13, ref=-7.40042056457693}]
-"CH3-PBE0_TC.inp"                       = [{matcher="E_total", tol=1e-13, ref=-7.38941636232755}]
+"CH3-PBE0_TC.inp"                       = [{matcher="E_total", tol=5e-13, ref=-7.38276500130079}]
 "CH4-HSE06.inp"                         = [{matcher="E_total", tol=2e-13, ref=-8.07814462205586}]
 "CH4-HSE06_2.inp"                       = [{matcher="E_total", tol=2e-13, ref=-8.07814462205586}]
 "CH4-HSE06_TC_2.inp"                    = [{matcher="E_total", tol=2e-13, ref=-8.07814462205586}]

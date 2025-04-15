@@ -3,7 +3,7 @@
   PROJECT MD-1
   RUN_TYPE MD
   &TIMINGS
-    THRESHOLD 0.000000001
+    THRESHOLD 0.1
   &END TIMINGS
 &END GLOBAL
 
@@ -43,6 +43,7 @@
       MAX_SCF 10
       SCF_GUESS ATOMIC
       &OT ON
+        PRECONDITIONER FULL_SINGLE_INVERSE
       &END OT
     &END SCF
     &XC
@@ -71,7 +72,7 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC 8.0 8.0 8.0
+      ABC 6.0 6.0 6.0
       PERIODIC NONE
     &END CELL
     &COORD
