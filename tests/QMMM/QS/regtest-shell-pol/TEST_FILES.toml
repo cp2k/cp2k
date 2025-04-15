@@ -4,6 +4,6 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 # QM/MM with shell model
-"input_rigid.inp"                       = [{matcher="M011", tol=1e-11, ref=-178.836492429973987}]
-"input_shell.inp"                       = [{matcher="M011", tol=1e-11, ref=-178.836492433542986}]
+"input_rigid.inp"                       = [{matcher="M011", tol=1e-11, ref=-179.02115182469438}]
+"input_shell.inp"                       = [{matcher="M011", tol=1e-11, ref=-179.02115182823948}]
 #EOF

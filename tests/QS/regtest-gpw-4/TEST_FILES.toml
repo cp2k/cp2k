@@ -25,13 +25,13 @@
 "H2O-debug-7.inp"                       = [{matcher="E_total", tol=4e-12, ref=-34.01122049558151}]
 "H2O-debug-8.inp"                       = [{matcher="M086", tol=4e-10, ref=-0.482971230807}]
 # new colvar
-"C2H4-meta.inp"                         = [{matcher="E_total", tol=7e-14, ref=-14.34735860769572}]
+"C2H4-meta.inp"                         = [{matcher="E_total", tol=7e-14, ref=-14.34745108304332}]
 # improved atomic_kind
 "test-pdb.inp"                          = [{matcher="E_total", tol=4e-12, ref=-115.77996962516318}]
 # Spin density DDAP charges
 "H2O+SC.inp"                            = []
 # spin restraint
-"spin_restraint.inp"                    = [{matcher="E_total", tol=9e-11, ref=-4.6386880246752602}]
+"spin_restraint.inp"                    = [{matcher="E_total", tol=9e-11, ref=-4.63875114446213}]
 #New grouping colvar
 "H2O-meta_g.inp"                        = [{matcher="E_total", tol=2e-14, ref=-17.16168353866058}]
 #Colvar for hydronium
@@ -49,13 +49,13 @@
 # a system with a very small (1x1) KS matrix
 "H.inp"                                 = [{matcher="E_total", tol=2e-13, ref=-0.40345508311902}]
 # one (ghost) atom has no basis set associated
-"basis_none_1.inp"                      = [{matcher="E_total", tol=3e-12, ref=-17.10569678759877}]
-"basis_none_2.inp"                      = [{matcher="E_total", tol=2e-12, ref=-17.11076726695875}]
+"basis_none_1.inp"                      = [{matcher="E_total", tol=3e-12, ref=-17.10979009087199}]
+"basis_none_2.inp"                      = [{matcher="E_total", tol=2e-12, ref=-17.11098029934005}]
 # cell opt with a restart
 "cell-1.inp"                            = [{matcher="M007", tol=1.0E-14, ref=-21.0495583581}]
 "cell-2.inp"                            = [{matcher="M007", tol=1.0E-14, ref=-21.0496558677}]
 #multiple ddapc restraints
-"He3_multi_ddapc.inp"                   = [{matcher="E_total", tol=3e-09, ref=-7.33496694404064}]
+"He3_multi_ddapc.inp"                   = [{matcher="E_total", tol=3e-09, ref=-7.58374882585469}]
 #many added MOS with LSD
 "N.inp"                                 = [{matcher="E_total", tol=2e-13, ref=-9.66927782045851}]
 "N_notfixedMM.inp"                      = [{matcher="E_total", tol=2e-13, ref=-9.66080047890004}]

@@ -13,5 +13,5 @@
 "water_g3x3_excl_mm.inp"                = [{matcher="M002", tol=1.0E-14, ref=-0.128057061878E+02}]
 "water_g3x3_excl_qm.inp"                = [{matcher="M002", tol=1.0E-14, ref=-0.128090813557E+02}]
 # QMMM with manybody potential
-"Si_tersoff_qmmm.inp"                   = [{matcher="M003", tol=2e-13, ref=-3418.0680930896369}]
+"Si_tersoff_qmmm.inp"                   = [{matcher="M003", tol=2e-13, ref=-3418.0682442080492}]
 #EOF

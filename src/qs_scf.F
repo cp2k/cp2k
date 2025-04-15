@@ -520,8 +520,8 @@ CONTAINS
                CALL external_comm%send(energy%total, ext_master_id, scf_energy_message_tag)
             END IF
 
-            CALL qs_scf_check_inner_exit(qs_env, scf_env, scf_control, should_stop, exit_inner_loop, &
-                                         inner_loop_converged, output_unit)
+            CALL qs_scf_check_inner_exit(qs_env, scf_env, scf_control, should_stop, just_energy, &
+                                         exit_inner_loop, inner_loop_converged, output_unit)
 
             ! In case we decide to exit we perform few more check to see if this one
             ! is really the last SCF step

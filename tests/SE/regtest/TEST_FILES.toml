@@ -16,7 +16,7 @@
 "nh4.inp"                               = [{matcher="M003", tol=1.0E-14, ref=-256.98965446201606}]
 "st.inp"                                = [{matcher="M003", tol=6e-11, ref=-2068.3329609679545}]
 # test the initial adaptation to OT
-"ch4-ot.inp"                            = [{matcher="M003", tol=1.0E-14, ref=-180.05385433112914}]
+"ch4-ot.inp"                            = [{matcher="M003", tol=1.0E-14, ref=-180.05471494628554}]
 "h2o_lsd-ot.inp"                        = [{matcher="M003", tol=2e-14, ref=-348.56201309940241}]
 # tests for high-spin ROKS
 "O-ROKS.inp"                            = [{matcher="M003", tol=1.0E-14, ref=-316.09951999999998}]

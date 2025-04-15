@@ -7,7 +7,7 @@
 # LRIGPW
 "H2He_tz2p_lri.inp"                     = [{matcher="E_total", tol=6e-11, ref=-3.85505731292736}]
 "H2_tz2p_lri_diag.inp"                  = [{matcher="E_total", tol=4e-11, ref=-1.05776908391943}]
-"H2_tz2p_lri_ot.inp"                    = [{matcher="E_total", tol=4e-11, ref=-1.10263848158573}]
+"H2_tz2p_lri_ot.inp"                    = [{matcher="E_total", tol=4e-11, ref=-1.10894658811039}]
 "O2_opt_lribas.inp"                     = [{matcher="M046", tol=1.0E-14, ref=0.0001055025}]
 "O2_opt_lribas_contract.inp"            = [{matcher="M046", tol=1.0E-14, ref=0.0107132670}]
 "O2_debug_ints.inp"                     = []

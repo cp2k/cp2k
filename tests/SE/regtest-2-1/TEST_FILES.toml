@@ -16,7 +16,7 @@
 "nh4.inp"                               = [{matcher="M003", tol=1.0E-14, ref=-256.98965446201572}]
 "st.inp"                                = [{matcher="M003", tol=1.0E-14, ref=-2068.33296097919174}]
 # test the initial adaptation to OT
-"ch4-ot.inp"                            = [{matcher="M003", tol=1.0E-14, ref=-180.05385433112914}]
+"ch4-ot.inp"                            = [{matcher="M003", tol=1.0E-14, ref=-180.05471494628554}]
 "h2o_lsd-ot.inp"                        = [{matcher="M003", tol=2e-14, ref=-348.56201309940252}]
 # tests for high-spin ROKS
 "O-ROKS.inp"                            = [{matcher="M003", tol=1.0E-14, ref=-316.09951999999998}]
@@ -34,6 +34,6 @@
 # d-orbitals analytical der
 "O2-ROKS-PM6.inp"                       = [{matcher="M003", tol=1.0E-14, ref=-580.14588779285589}]
 "hcl.inp"                               = [{matcher="M003", tol=1.0E-14, ref=-279.22122951626676}]
-"hcl_ot.inp"                            = [{matcher="M003", tol=1E-12, ref=-279.22471953343342}]
+"hcl_ot.inp"                            = [{matcher="M003", tol=1E-12, ref=-279.2223810640977}]
 "hcl_z.inp"                             = [{matcher="M003", tol=1.0E-14, ref=-279.21403016786405}]
 #EOF

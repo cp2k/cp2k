@@ -39,6 +39,7 @@
       SCF_GUESS RESTART
       &OT ON
         LINESEARCH GOLD
+        GOLD_TARGET 0.2
       &END OT
     &END SCF
     &XC

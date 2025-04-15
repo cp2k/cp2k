@@ -1,11 +1,11 @@
 # runs are executed in the same order as in this file
 # the second field tells which test should be run in order to compare with the last available output
 # see regtest/TEST_FILES
-"CH3-BP-McWeeny.inp"                    = [{matcher="E_total", tol=2e-13, ref=-7.36936245523571}]
-"CH3-BP-NONE_DM.inp"                    = [{matcher="E_total", tol=5e-13, ref=-7.36784986947964}]
+"CH3-BP-McWeeny.inp"                    = [{matcher="E_total", tol=2e-13, ref=-7.40042056396486}]
+"CH3-BP-NONE_DM.inp"                    = [{matcher="E_total", tol=5e-13, ref=-7.39772202069834}]
 "CH3-BP-NONE_DM_OT_OFF.inp"             = [{matcher="E_total", tol=5.0E-14, ref=-7.39804787149080}]
-"CH4-BP-NONE_DM.inp"                    = [{matcher="E_total", tol=2e-13, ref=-8.07630758920456}]
+"CH4-BP-NONE_DM.inp"                    = [{matcher="E_total", tol=2e-13, ref=-8.07712026700795}]
 "CH4-BP-NONE_DM_OT_OFF.inp"             = [{matcher="E_total", tol=5e-14, ref=-8.07712135364825}]
-"2H2O-BLOCKED-NONE_DM.inp"              = [{matcher="E_total", tol=3e-13, ref=-34.07703448825141}]
+"2H2O-BLOCKED-NONE_DM.inp"              = [{matcher="E_total", tol=3e-13, ref=-34.07863705853961}]
 "H2+-BLOCKED-NONE_DM.inp"               = [{matcher="E_total", tol=2e-12, ref=-0.45795647554813002}]
 #EOF
