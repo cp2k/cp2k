@@ -21,7 +21,7 @@
       METHOD BLOCKED_PROJECTION_PURIFY_FULL
     &END AUXILIARY_DENSITY_MATRIX_METHOD
     &MGRID
-      CUTOFF 100
+      CUTOFF 150
       REL_CUTOFF 30
     &END MGRID
     &POISSON
@@ -37,6 +37,9 @@
       MAX_SCF 10
       SCF_GUESS ATOMIC
       &OT ON
+        LINESEARCH ADAPT
+        MINIMIZER CG
+        PRECONDITIONER FULL_ALL
       &END OT
     &END SCF
     &XC
@@ -64,12 +67,12 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC 8.0 8.0 8.0
+      ABC 6.0 6.0 6.0
       PERIODIC NONE
     &END CELL
     &COORD
       H       0.0   0.0   0.0
-      H       5.0   0.0   0.0
+      H       1.5   0.0   0.0
     &END COORD
     &KIND H
       BASIS_SET SZV-MOLOPT-GTH

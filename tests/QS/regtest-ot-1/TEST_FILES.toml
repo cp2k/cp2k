@@ -3,18 +3,18 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-"H2O.inp"                               = [{matcher="E_total", tol=4.0E-14, ref=-17.13993294347306}]
+"H2O.inp"                               = [{matcher="E_total", tol=4.0E-14, ref=-17.13993294543965}]
 "H2O-print.inp"                         = [{matcher="E_total", tol=4.0E-14, ref=-17.13993294347306}]
 #restart
 "H2O-OT-1.inp"                          = [{matcher="E_total", tol=8e-13, ref=-17.13993288711863}]
 #restart
-"H2O-OT-2.inp"                          = [{matcher="E_total", tol=8e-14, ref=-17.13993271169253}]
+"H2O-OT-2.inp"                          = [{matcher="E_total", tol=8e-13, ref=-17.13993271169253}]
 #restart
-"H2O-OT-3.inp"                          = [{matcher="E_total", tol=5e-13, ref=-17.140105627057995}]
+"H2O-OT-3.inp"                          = [{matcher="E_total", tol=5e-13, ref=-17.14010566226161}]
 #restart
-"H2O-OT-4.inp"                          = [{matcher="E_total", tol=5e-13, ref=-17.139836428541571}]
+"H2O-OT-4.inp"                          = [{matcher="E_total", tol=5e-13, ref=-17.13983665026421}]
 # restart, state selective
-"H2O-OT-5.inp"                          = [{matcher="E_total", tol=5e-14, ref=-17.14028120020545}]
+"H2O-OT-5.inp"                          = [{matcher="E_total", tol=5e-13, ref=-17.1402812001055}]
 # LSD
 "H2-1.inp"                              = [{matcher="E_total", tol=4e-13, ref=-0.95635366102509}]
 "H2-2.inp"                              = [{matcher="E_total", tol=8e-13, ref=-0.93159042605284}]

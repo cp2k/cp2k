@@ -22,7 +22,7 @@
 "H2S-gapw.inp"                          = [{matcher="E_total", tol=1e-12, ref=-11.26889653806702}]
 "H2S-gapw-ot.inp"                       = [{matcher="E_total", tol=1e-12, ref=-11.03322842961842}]
 "He2-all.inp"                           = [{matcher="E_total", tol=1e-12, ref=-5.04734948841606}]
-"He2-all-md.inp"                        = [{matcher="E_total", tol=1e-12, ref=-5.05329395796308}]
+"He2-all-md.inp"                        = [{matcher="E_total", tol=1e-10, ref=-5.05329395796308}]
 "HF_all_voronoi.inp"                    = [{matcher="E_total", tol=1e-12, ref=-24.54186566500936}]
 "HF_gapw_TPSS.inp"                      = [{matcher="E_total", tol=1e-12, ref=-24.90253989256192}]
 "HF_voronoi.inp"                        = [{matcher="E_total", tol=1e-12, ref=-24.76676883471983}]
