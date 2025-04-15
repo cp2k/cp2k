@@ -1,7 +1,7 @@
 # runs are executed in the same order as in this file
 # the second field tells which test should be run in order to compare with the last available output
 # see regtest/TEST_FILES
-"ch3-admm.inp"                          = [{matcher="M031", tol=2e-08, ref=-7.17220679382E+04}]
+"ch3-admm.inp"                          = [{matcher="M031", tol=2e-08, ref=-71722.0699231}]
 "ch3.inp"                               = [{matcher="M031", tol=7e-09, ref=2.83902801789E+05}]
 "ch4-admm.inp"                          = [{matcher="M031", tol=7e-06, ref=-7.10696315806E+04}]
 "h2o.inp"                               = [{matcher="M031", tol=2e-08, ref=1.26297506407E+05}]

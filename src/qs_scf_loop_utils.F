@@ -534,17 +534,18 @@ CONTAINS
 !> \param scf_env ...
 !> \param scf_control ...
 !> \param should_stop ...
+!> \param just_energy ...
 !> \param exit_inner_loop ...
 !> \param inner_loop_converged ...
 !> \param output_unit ...
 ! **************************************************************************************************
-   SUBROUTINE qs_scf_check_inner_exit(qs_env, scf_env, scf_control, should_stop, &
+   SUBROUTINE qs_scf_check_inner_exit(qs_env, scf_env, scf_control, should_stop, just_energy, &
                                       exit_inner_loop, inner_loop_converged, output_unit)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(scf_control_type), POINTER                    :: scf_control
-      LOGICAL                                            :: should_stop, exit_inner_loop, &
-                                                            inner_loop_converged
+      LOGICAL                                            :: should_stop, just_energy, &
+                                                            exit_inner_loop, inner_loop_converged
       INTEGER                                            :: output_unit
 
       inner_loop_converged = .FALSE.
@@ -561,10 +562,14 @@ CONTAINS
          exit_inner_loop = .TRUE.
       ELSE IF (should_stop .OR. scf_env%iter_count >= scf_control%max_scf) THEN
          inner_loop_converged = .FALSE.
-         exit_inner_loop = .TRUE.
-         IF (output_unit > 0) THEN
-            WRITE (UNIT=output_unit, FMT="(/,T3,A,I5,A/)") &
-               "Leaving inner SCF loop after reaching ", scf_env%iter_count, " steps."
+         IF (just_energy) THEN
+            exit_inner_loop = .FALSE.
+         ELSE
+            exit_inner_loop = .TRUE.
+            IF (output_unit > 0) THEN
+               WRITE (UNIT=output_unit, FMT="(/,T3,A,I5,A/)") &
+                  "Leaving inner SCF loop after reaching ", scf_env%iter_count, " steps."
+            END IF
          END IF
       END IF
 

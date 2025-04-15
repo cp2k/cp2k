@@ -3,20 +3,20 @@
 # see regtest/TEST_FILES
 # These tests are a representative set of the GPW ADMM tests, but run under GAPW. The results differ
 # because of the highly non-convreged nature of the calculations (but agree for converged parameters) 
-"CH3-BP-MO_DIAG.inp"                    = [{matcher="E_total", tol=1e-12, ref=-7.34857884918408}]
-"CH3-BP-MO_NO_DIAG.inp"                 = [{matcher="E_total", tol=1e-12, ref=-7.34857884918410}]
-"CH3-BP-CAUCHY.inp"                     = [{matcher="E_total", tol=1e-12, ref=-7.34857884918407}]
-"CH4-BP-CAUCHY_SUBSPACE.inp"            = [{matcher="E_total", tol=1e-12, ref=-8.05244367959413}]
-"H2+-BLOCKED-PURIFY-FULL.inp"           = [{matcher="E_total", tol=1e-12, ref=-0.50560527586196}]
+"CH3-BP-MO_DIAG.inp"                    = [{matcher="E_total", tol=1e-12, ref=-7.37962770836823}]
+"CH3-BP-MO_NO_DIAG.inp"                 = [{matcher="E_total", tol=1e-12, ref=-7.37962770836824}]
+"CH3-BP-CAUCHY.inp"                     = [{matcher="E_total", tol=1e-12, ref=-7.37962770836826}]
+"CH4-BP-CAUCHY_SUBSPACE.inp"            = [{matcher="E_total", tol=1e-12, ref=-8.05306368077473}]
+"H2+-BLOCKED-PURIFY-FULL.inp"           = [{matcher="E_total", tol=1e-12, ref=-0.54856281900786}]
 "H2O-ADMMP-OPTX.inp"                    = [{matcher="E_total", tol=1e-12, ref=-16.84585714177486}]
 "O2-triplet-ADMMS.inp"                  = [{matcher="E_total", tol=1e-10, ref=-31.31453544662221}]
-"MD-1.inp"                              = [{matcher="E_total", tol=5e-10, ref=-8.05212222523879}]
+"MD-1.inp"                              = [{matcher="E_total", tol=5e-10, ref=-8.042518859799019}]
 # these tests are only possible under GAPW since they involve ALL electron calculations
-"H2-geo-ALL.inp"                        = [{matcher="E_total", tol=5e-10, ref=-1.15560300364748}]
-"MD-2-ALL.inp"                          = [{matcher="E_total", tol=5e-10, ref=-8.05318571814679}]
+"H2-geo-ALL.inp"                        = [{matcher="E_total", tol=5e-10, ref=-1.15560300475134}]
+"MD-2-ALL.inp"                          = [{matcher="E_total", tol=5e-10, ref=-8.05320711716567}]
 # GAPW_XC tests
-"H2-geo-XC.inp"                         = [{matcher="E_total", tol=5e-10, ref=-1.15201574159787}]
+"H2-geo-XC.inp"                         = [{matcher="E_total", tol=5e-10, ref=-1.15201541750519}]
 "H2O-ADMMP-XC.inp"                      = [{matcher="E_total", tol=1e-12, ref=-16.85600729246631}]
 # GAPW ADMM with RTP
-"H2O-admm-emd.inp"                      = [{matcher="M002", tol=1e-10, ref=-0.167606735386E+02}]
+"H2O-admm-emd.inp"                      = [{matcher="M002", tol=1e-10, ref=-16.8535073307}]
 #EOF

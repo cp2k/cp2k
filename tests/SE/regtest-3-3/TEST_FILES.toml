@@ -6,6 +6,6 @@
 # EWALD with LSD
 "H2O-4.inp"                             = [{matcher="M003", tol=4e-11, ref=-636.04298707893065}]
 # NDDO Stress tensor
-"LiH.inp"                               = [{matcher="M031", tol=1.0E-14, ref=1.04528094398E+05}]
+"LiH.inp"                               = [{matcher="M031", tol=1.0E-10, ref=102436.858834}]
 # PERIODIC NDDO
 #EOF

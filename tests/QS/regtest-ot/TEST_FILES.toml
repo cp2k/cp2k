@@ -5,35 +5,35 @@
 #      for details see cp2k/tools/do_regtest
 # test mulliken constraints
 "C2H4-init.inp"                         = [{matcher="E_total", tol=2.0E-14, ref=-12.67942273926137}]
-"C2H4.inp"                              = [{matcher="E_total", tol=3e-14, ref=-13.40449179131761}]
+"C2H4.inp"                              = [{matcher="E_total", tol=3e-14, ref=-13.40496396611267}]
 # test ddapc constraints
-"He2_ddapc_constraint.inp"              = [{matcher="E_total", tol=2e-12, ref=-5.12409717641076}]
-"He2_ddapc_constraint-2.inp"            = [{matcher="E_total", tol=4e-05, ref=-45.939163153444291}]
-"He2_ddapc_constraint-3.inp"            = [{matcher="E_total", tol=4e-09, ref=-6.8373640812944796}]
+"He2_ddapc_constraint.inp"              = [{matcher="E_total", tol=2e-12, ref=-5.11323431572759}]
+"He2_ddapc_constraint-2.inp"            = [{matcher="E_total", tol=4e-05, ref=-5.1129697165992}]
+"He2_ddapc_constraint-3.inp"            = [{matcher="E_total", tol=4e-09, ref=-7.96470106064961}]
 # outer scf loop none
-"He2_none.inp"                          = [{matcher="E_total", tol=3e-13, ref=-5.14307655580282}]
-"He2_none_full_all.inp"                 = [{matcher="E_total", tol=7e-13, ref=-5.1463341944901098}]
-"He2_none_full_single.inp"              = [{matcher="E_total", tol=3e-13, ref=-5.14635296460525}]
+"He2_none.inp"                          = [{matcher="E_total", tol=3e-13, ref=-5.14307955352623}]
+"He2_none_full_all.inp"                 = [{matcher="E_total", tol=7e-13, ref=-5.14635319173946}]
+"He2_none_full_single.inp"              = [{matcher="E_total", tol=3e-13, ref=-5.14635321718498}]
 "He2_none_full_inverse.inp"             = [{matcher="E_total", tol=2e-09, ref=-5.1463532149369504}]
 "He2_lumos.inp"                         = []
 # check that ot / geo / mo / pdos can be used together
-"H2O-geo-ot-evals.inp"                  = [{matcher="E_total", tol=3e-13, ref=-16.79779859561386}]
-"H2O-geo-ot-mols.inp"                   = [{matcher="E_total", tol=3e-13, ref=-33.56384349082011}]
-"H2O-geo-ot-pdos.inp"                   = [{matcher="E_total", tol=3e-13, ref=-17.11010057083330}]
+"H2O-geo-ot-evals.inp"                  = [{matcher="E_total", tol=3e-13, ref=-17.05700904210535}]
+"H2O-geo-ot-mols.inp"                   = [{matcher="E_total", tol=3e-13, ref=-33.78611760353696}]
+"H2O-geo-ot-pdos.inp"                   = [{matcher="E_total", tol=3e-13, ref=-17.11088139705292}]
 "H2O-geo-pdos.inp"                      = [{matcher="E_total", tol=5e-14, ref=-17.11090886162136}]
 "H2O-geo-pdos_comp.inp"                 = [{matcher="E_total", tol=4e-14, ref=-17.11090886166302}]
-"H2O-geo-ot-pdos-lumo-comp.inp"         = [{matcher="E_total", tol=3e-13, ref=-17.11010057083329}]
+"H2O-geo-ot-pdos-lumo-comp.inp"         = [{matcher="E_total", tol=3e-13, ref=-17.11088139705278}]
 "H2O-geo-pdos_comp_list.inp"            = [{matcher="E_total", tol=4e-14, ref=-17.11090886166302}]
-"H2O-geo-ot-lumo-all.inp"               = [{matcher="E_total", tol=9e-14, ref=-17.08951226957496}]
+"H2O-geo-ot-lumo-all.inp"               = [{matcher="E_total", tol=9e-14, ref=-17.11058846146146}]
 # sic ddapc decoupled
-"sic_ddapc_rt.inp"                      = [{matcher="E_total", tol=2E-11, ref=-13.49756236388298}]
+"sic_ddapc_rt.inp"                      = [{matcher="E_total", tol=2E-11, ref=-13.49667030531348}]
 # introduce coeff
-"He2_ddapc_constraint-4.inp"            = [{matcher="E_total", tol=2e-12, ref=-5.1130698445832703}]
+"He2_ddapc_constraint-4.inp"            = [{matcher="E_total", tol=2e-12, ref=-5.11329135077368}]
 #test constraint on becke wight population
 "H2-BECKE-MD.inp"                       = [{matcher="E_total", tol=1e-03, ref=-1.2233386124261501}]
 "H2-diffBECKE-ET_coupling.inp"          = [{matcher="M011", tol=5e-08, ref=-1.24257949981589}]
 # just energy with sic
-"sic_energy.inp"                        = [{matcher="E_total", tol=6e-14, ref=-16.68885651353145}]
+"sic_energy.inp"                        = [{matcher="E_total", tol=6e-14, ref=-16.81972554793751}]
 # elf
 "C2H4-elf.inp"                          = [{matcher="E_total", tol=1.0E-14, ref=-13.40989428421623}]
 # analytic poisson solver

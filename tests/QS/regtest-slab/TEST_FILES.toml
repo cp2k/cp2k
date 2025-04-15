@@ -3,9 +3,9 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-"hbn3_1h2o_ff.inp"                      = [{matcher="M017", tol=1e-04, ref=7.74580826}]
-"hbn3_1h2o_ff_pyz.inp"                  = [{matcher="M017", tol=1e-04, ref=29.69556150}]
-"hbn3_1h2o_dipcor_ff.inp"               = [{matcher="M017", tol=1e-04, ref=13.98211673}]
-"hbn3_1h2o_dipcor_ff_pyz.inp"           = [{matcher="M017", tol=1e-04, ref=31.14758046}]
-"hbn3_1h2o_ff_pyz_2dps.inp"             = [{matcher="M017", tol=1e-04, ref=30.9500356}]
+"hbn3_1h2o_ff.inp"                      = [{matcher="M017", tol=1e-04, ref=5.2559721}]
+"hbn3_1h2o_ff_pyz.inp"                  = [{matcher="M017", tol=1e-04, ref=5.6687469}]
+"hbn3_1h2o_dipcor_ff.inp"               = [{matcher="M017", tol=1e-04, ref=6.4239006}]
+"hbn3_1h2o_dipcor_ff_pyz.inp"           = [{matcher="M017", tol=1e-04, ref=5.6273449}]
+"hbn3_1h2o_ff_pyz_2dps.inp"             = [{matcher="M017", tol=1e-04, ref=5.7047448}]
 #EOF

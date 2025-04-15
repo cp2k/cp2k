@@ -417,7 +417,7 @@ CONTAINS
       IF (output_unit > 0) WRITE (UNIT=output_unit, FMT="(/,/,T2,A)") &
          "SCF WAVEFUNCTION OPTIMIZATION"
 
-! when switch_surf_dip is switched on, indicate storing mos from the last converged step
+      ! when switch_surf_dip is switched on, indicate storing mos from the last converged step
       IF (dft_control%switch_surf_dip) THEN
          CALL get_qs_env(qs_env, mos_last_converged=mos_last_converged)
          DO ispin = 1, dft_control%nspins
@@ -466,7 +466,7 @@ CONTAINS
          CALL qs_scf_set_loop_flags(scf_env, diis_step, &
                                     energy_only, just_energy, exit_inner_loop)
 
-! decide whether to switch off dipole correction for convergence purposes
+         ! decide whether to switch off dipole correction for convergence purposes
          dft_control%surf_dip_correct_switch = dft_control%correct_surf_dip
          IF ((dft_control%correct_surf_dip) .AND. (scf_control%outer_scf%have_scf) .AND. &
              (scf_env%outer_scf%iter_count > FLOOR(scf_control%outer_scf%max_scf/2.0_dp))) THEN
@@ -476,11 +476,12 @@ CONTAINS
                   "SURFACE DIPOLE CORRECTION switched off"
             END IF
          END IF
+
          scf_loop: DO
 
             CALL timeset(routineN//"_inner_loop", handle2)
 
-            scf_env%iter_count = scf_env%iter_count + 1
+            IF (.NOT. just_energy) scf_env%iter_count = scf_env%iter_count + 1
             iter_count = iter_count + 1
             CALL cp_iterate(logger%iter_info, last=.FALSE., iter_nr=iter_count)
 
@@ -519,8 +520,8 @@ CONTAINS
                CALL external_comm%send(energy%total, ext_master_id, scf_energy_message_tag)
             END IF
 
-            CALL qs_scf_check_inner_exit(qs_env, scf_env, scf_control, should_stop, exit_inner_loop, &
-                                         inner_loop_converged, output_unit)
+            CALL qs_scf_check_inner_exit(qs_env, scf_env, scf_control, should_stop, just_energy, &
+                                         exit_inner_loop, inner_loop_converged, output_unit)
 
             ! In case we decide to exit we perform few more check to see if this one
             ! is really the last SCF step
@@ -793,7 +794,20 @@ CONTAINS
             ALLOCATE (scf_env%qs_ot_env(number_of_OT_envs))
 
             ! XXX Joost XXX should disentangle reading input from this part
+            IF (scf_env%outer_scf%iter_count > 0) THEN
+               IF (scf_env%iter_delta < scf_control%eps_diis) THEN
+                  scf_env%qs_ot_env(1)%settings%ot_state = 1
+               END IF
+            END IF
+            !
             CALL ot_scf_read_input(scf_env%qs_ot_env, scf_section)
+            !
+            IF (scf_env%outer_scf%iter_count > 0) THEN
+               IF (scf_env%qs_ot_env(1)%settings%ot_state == 1) THEN
+                  scf_control%max_scf = MAX(scf_env%qs_ot_env(1)%settings%max_scf_diis, &
+                                            scf_control%max_scf)
+               END IF
+            END IF
 
             ! keep a note that we are restricted
             IF (dft_control%restricted) THEN
