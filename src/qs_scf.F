@@ -714,10 +714,12 @@ CONTAINS
             !if the hair probes section is present, this sends hairy_probes to set_mo_occupation subroutine
             !and switches off the standard smearing
             IF (dft_control%hairy_probes .EQV. .TRUE.) THEN
-               scf_control%smear%do_smear = .FALSE.
-               CALL set_mo_occupation(mo_set=mos(ispin), &
-                                      smear=scf_control%smear, &
-                                      probe=dft_control%probe)
+               IF (scf_env%outer_scf%iter_count > 0) THEN
+                  scf_control%smear%do_smear = .FALSE.
+                  CALL set_mo_occupation(mo_set=mos(ispin), &
+                                         smear=scf_control%smear, &
+                                         probe=dft_control%probe)
+               END IF
             ELSE
                CALL set_mo_occupation(mo_set=mos(ispin), &
                                       smear=scf_control%smear)
