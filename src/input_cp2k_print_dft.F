@@ -118,8 +118,7 @@ MODULE input_cp2k_print_dft
                                   create_ext_vxc_section
    USE input_cp2k_field, ONLY: create_efield_section, &
                                create_per_efield_section
-   USE input_cp2k_kpoints, ONLY: create_kpoint_set_section, &
-                                 create_kpoints_section
+   USE input_cp2k_kpoints, ONLY: create_kpoint_set_section
    USE input_cp2k_loc, ONLY: create_localize_section, &
                              print_wanniers
    USE input_cp2k_ls, ONLY: create_ls_scf_section
@@ -2166,7 +2165,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE create_dos_section(print_key)
 
-      TYPE(section_type), POINTER                        :: print_key, subsection
+      TYPE(section_type), POINTER                        :: print_key
 
       TYPE(keyword_type), POINTER                        :: keyword
 
@@ -2196,10 +2195,13 @@ CONTAINS
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
-      NULLIFY (subsection)
-      CALL create_kpoints_section(subsection)
-      CALL section_add_subsection(print_key, subsection)
-      CALL section_release(subsection)
+      CALL keyword_create(keyword, __LOCATION__, name="MP_GRID", &
+                          description="Specify a Monkhorst-Pack grid with which to compute the density of states. "// &
+                          "Works only for a k-point calculation", &
+                          usage="MP_GRID {integer} {integer} {integer}", default_i_vals=(/-1/), &
+                          n_var=3, type_of_var=integer_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
 
    END SUBROUTINE create_dos_section
 

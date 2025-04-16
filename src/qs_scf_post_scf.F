@@ -17,7 +17,6 @@ MODULE qs_scf_post_scf
    USE localization_tb,                 ONLY: wfn_localization_tb
    USE lri_optimize_ri_basis,           ONLY: optimize_lri_basis
    USE qs_band_structure,               ONLY: calculate_band_structure
-   USE qs_dos,                          ONLY: calculate_dos_kp_explicit
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_scf_post_gpw,                 ONLY: scf_post_calculation_gpw
@@ -80,7 +79,6 @@ CONTAINS
          END IF
       END IF
 
-      CALL calculate_dos_kp_explicit(qs_env)
       CALL calculate_band_structure(qs_env)
 
       dft_section => section_vals_get_subs_vals(qs_env%input, "DFT")
