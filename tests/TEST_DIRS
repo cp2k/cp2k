@@ -3,6 +3,7 @@
 # Directories have been reordered according the execution time needed for a gfortran pdbg run using 2 MPI tasks
 # in case a new directory is added just add it at the top of the list..
 # the order will be regularly checked and modified...
+HP-DFT
 xTB/regtest-tblite-ipea1                                    tblite
 xTB/regtest-tblite-gfn2                                     tblite
 xTB/regtest-tblite-gfn1                                     tblite
@@ -389,4 +390,3 @@ QS/regtest-eht-guess                                        libdftd4
 QS/regtest-trexio                                           trexio
 QS/regtest-trexio-2                                         trexio libgrpp
 QS/regtest-rtbse-gxac                                       libint greenx
-HP-DFT
