@@ -388,16 +388,16 @@ CONTAINS
       REAL(KIND=dp), INTENT(OUT)                         :: occupancy(:), kTS
 
       INTEGER                                            :: iMO, ip, nMO, np
-      REAL(KIND=dp)                                      :: C, f, fermi_fun, fermi_fun_sol, mu, s, &
-                                                            sum_coeff, sum_coeff_sol, &
+      REAL(KIND=dp)                                      :: alpha, C, f, fermi_fun, fermi_fun_sol, &
+                                                            mu, s, sum_coeff, sum_coeff_sol, &
                                                             sum_fermi_fun, sum_fermi_fun_sol
 
 !squared coefficient matrix
 
       nMO = SIZE(matrix, 2)
       np = SIZE(probe)
-
       kTS = 0.0_dp
+      alpha = 1.0_dp
       ! kTS is the entropic contribution to the electronic energy
 
       mos2: DO iMO = 1, nMO
@@ -407,14 +407,15 @@ CONTAINS
 
          sum_fermi_fun_sol = 0.0_dp
          sum_coeff_sol = 0.0_dp
+         fermi_fun_sol = 0.0_dp
 
          probes2: DO ip = 1, np
             IF (probe(ip)%alpha .LT. 1.0_dp) THEN
+               alpha = probe(ip)%alpha
                !fermi distribution, solution probes
                CALL fermi_distribution(energies(iMO), fermi, probe(ip)%T, fermi_fun_sol)
                !sum of coefficients, solution probes
                sum_coeff_sol = sum_coeff_sol + SUM(matrix(probe(ip)%first_ao:probe(ip)%last_ao, iMO))
-
             ELSE
                C = SUM(matrix(probe(ip)%first_ao:probe(ip)%last_ao, iMO))
                !bias probes
@@ -428,8 +429,8 @@ CONTAINS
             END IF
          END DO probes2
 
-         sum_fermi_fun_sol = probe(np)%alpha*fermi_fun_sol*sum_coeff_sol
-         sum_coeff_sol = probe(np)%alpha*sum_coeff_sol
+         sum_fermi_fun_sol = alpha*fermi_fun_sol*sum_coeff_sol
+         sum_coeff_sol = alpha*sum_coeff_sol
          f = (sum_fermi_fun_sol + sum_fermi_fun)/(sum_coeff_sol + sum_coeff)
          occupancy(iMO) = f*maxocc
 
