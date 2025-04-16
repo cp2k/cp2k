@@ -824,6 +824,8 @@ CONTAINS
    SUBROUTINE dft_control_release(dft_control)
       TYPE(dft_control_type), INTENT(INOUT)              :: dft_control
 
+      INTEGER                                            :: i
+
       CALL qs_control_release(dft_control%qs_control)
       CALL tddfpt2_control_release(dft_control%tddfpt2_control)
       IF (ASSOCIATED(dft_control%xas_control)) THEN
@@ -835,6 +837,12 @@ CONTAINS
       CALL maxwell_control_release(dft_control%maxwell_control)
       CALL smeagol_control_release(dft_control%smeagol_control)
       CALL efield_fields_release(dft_control%efield_fields)
+      IF (ASSOCIATED(dft_control%probe)) THEN
+         DO i = 1, SIZE(dft_control%probe)
+            DEALLOCATE (dft_control%probe(i)%atom_ids)
+         END DO
+         DEALLOCATE (dft_control%probe)
+      END IF
       IF (ASSOCIATED(dft_control%sccs_control)) DEALLOCATE (dft_control%sccs_control)
       IF (ASSOCIATED(dft_control%period_efield)) THEN
          DEALLOCATE (dft_control%period_efield)
