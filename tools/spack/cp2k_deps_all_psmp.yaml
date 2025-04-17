@@ -86,16 +86,16 @@ spack:
   repos:
     - $spack/cp2k
   specs:
-    - "mpich@4.2.3"
+    - "mpich@4.3.0"
     - "openblas@0.3.29"
     - "netlib-scalapack@2.2.2"
 #   - "cosma@2.6.6" Use master until a new release will be available
     - "cosma@master"
     - "dbcsr@2.8.0"
-    - "dftd4@3.6.0"
+    - "dftd4@3.7.0"
     - "dla-future@0.8.0"
     - "dla-future-fortran@0.3.0"
-    - "elpa@2024.03.001"
+    - "elpa@2025.01.001"
     - "fftw@3.3.10"
     - "hdf5@1.14"
     - "libint@2.9.0"
@@ -107,7 +107,7 @@ spack:
     - "plumed@2.9.2"
     - "py-torch@2.6"
     - "sirius@7.7.0"
-    - "spglib@2.3.0"
+    - "spglib@2.5.0"
     - "spla@1.6.1"
     - "trexio@2.5.0"
   view:
