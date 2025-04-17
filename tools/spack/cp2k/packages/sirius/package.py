@@ -22,18 +22,54 @@ class Sirius(CMakePackage, CudaPackage, ROCmPackage):
     version("develop", branch="develop")
     version("master", branch="master")
 
-    version("7.7.0", sha256="be0bdc76db9eb8afdcb950f0ccaf7535b8e85d72a4232dc92246f54fa68d9d7b")
-    version("7.6.2", sha256="1ba92942aa39b49771677cc8bf1c94a0b4350eb45bf3009318a6c2350b46a276")
-    version("7.6.1", sha256="16a114dc17e28697750585820e69718a96e6929f88406d266c75cf9a7cdbdaaa")
-    version("7.6.0", sha256="e424206fecb35bb2082b5c87f0865a9536040e984b88b041e6f7d531f8a65b20")
-    version("7.5.2", sha256="9ae01935578532c84f1d0d673dbbcdd490e26be22efa6c4acf7129f9dc1a0c60")
-    version("7.5.1", sha256="aadfa7976e90a109aeb1677042454388a8d1a50d75834d59c86c8aef06bc12e4")
-    version("7.5.0", sha256="c583f88ffc02e9acac24e786bc35c7c32066882d2f70a1e0c14b5780b510365d")
-    version("7.4.3", sha256="015679a60a39fa750c5d1bd8fb1ce73945524bef561270d8a171ea2fd4687fec")
-    version("7.4.0", sha256="f9360a695a1e786d8cb9d6702c82dd95144a530c4fa7e8115791c7d1e92b020b")
-    version("7.3.2", sha256="a256508de6b344345c295ad8642dbb260c4753cd87cc3dd192605c33542955d7")
-    version("7.3.1", sha256="8bf9848b8ebf0b43797fd359adf8c84f00822de4eb677e3049f22baa72735e98")
-    version("7.3.0", sha256="69b5cf356adbe181be6c919032859c4e0160901ff42a885d7e7ea0f38cc772e2")
+    version(
+        "7.7.0",
+        sha256="be0bdc76db9eb8afdcb950f0ccaf7535b8e85d72a4232dc92246f54fa68d9d7b",
+    )
+    version(
+        "7.6.2",
+        sha256="1ba92942aa39b49771677cc8bf1c94a0b4350eb45bf3009318a6c2350b46a276",
+    )
+    version(
+        "7.6.1",
+        sha256="16a114dc17e28697750585820e69718a96e6929f88406d266c75cf9a7cdbdaaa",
+    )
+    version(
+        "7.6.0",
+        sha256="e424206fecb35bb2082b5c87f0865a9536040e984b88b041e6f7d531f8a65b20",
+    )
+    version(
+        "7.5.2",
+        sha256="9ae01935578532c84f1d0d673dbbcdd490e26be22efa6c4acf7129f9dc1a0c60",
+    )
+    version(
+        "7.5.1",
+        sha256="aadfa7976e90a109aeb1677042454388a8d1a50d75834d59c86c8aef06bc12e4",
+    )
+    version(
+        "7.5.0",
+        sha256="c583f88ffc02e9acac24e786bc35c7c32066882d2f70a1e0c14b5780b510365d",
+    )
+    version(
+        "7.4.3",
+        sha256="015679a60a39fa750c5d1bd8fb1ce73945524bef561270d8a171ea2fd4687fec",
+    )
+    version(
+        "7.4.0",
+        sha256="f9360a695a1e786d8cb9d6702c82dd95144a530c4fa7e8115791c7d1e92b020b",
+    )
+    version(
+        "7.3.2",
+        sha256="a256508de6b344345c295ad8642dbb260c4753cd87cc3dd192605c33542955d7",
+    )
+    version(
+        "7.3.1",
+        sha256="8bf9848b8ebf0b43797fd359adf8c84f00822de4eb677e3049f22baa72735e98",
+    )
+    version(
+        "7.3.0",
+        sha256="69b5cf356adbe181be6c919032859c4e0160901ff42a885d7e7ea0f38cc772e2",
+    )
 
     variant("shared", default=True, description="Build shared libraries")
     variant("openmp", default=True, description="Build with OpenMP support")
@@ -45,7 +81,9 @@ class Sirius(CMakePackage, CudaPackage, ROCmPackage):
     variant("vdwxc", default=False, description="Enable libvdwxc support")
     variant("scalapack", default=False, description="Enable scalapack support")
     variant("magma", default=False, description="Enable MAGMA support")
-    variant("nlcglib", default=False, description="Enable robust wave function optimization")
+    variant(
+        "nlcglib", default=False, description="Enable robust wave function optimization"
+    )
     variant("wannier90", default=False, description="Enable Wannier90 library")
     variant(
         "build_type",
@@ -55,9 +93,15 @@ class Sirius(CMakePackage, CudaPackage, ROCmPackage):
     )
     variant("apps", default=True, description="Build applications")
     variant("tests", default=False, description="Build tests")
-    variant("single_precision", default=False, description="Use single precision arithmetics")
     variant(
-        "profiler", default=True, description="Use internal profiler to measure execution time"
+        "single_precision",
+        default=False,
+        description="Use single precision arithmetics",
+    )
+    variant(
+        "profiler",
+        default=True,
+        description="Use internal profiler to measure execution time",
     )
     variant("nvtx", default=False, description="Use NVTX profiler")
 
@@ -151,7 +195,9 @@ class Sirius(CMakePackage, CudaPackage, ROCmPackage):
     conflicts("+scalapack", when="^cray-libsci")
 
     # Propagate openmp to blas
-    depends_on("openblas threads=openmp", when="+openmp ^[virtuals=blas,lapack] openblas")
+    depends_on(
+        "openblas threads=openmp", when="+openmp ^[virtuals=blas,lapack] openblas"
+    )
     depends_on("amdblis threads=openmp", when="+openmp ^[virtuals=blas] amdblis")
     depends_on("blis threads=openmp", when="+openmp ^[virtuals=blas] blis")
     depends_on(
@@ -230,10 +276,12 @@ class Sirius(CMakePackage, CudaPackage, ROCmPackage):
                 [
                     self.define(cm_label + "SCALAPACK_FOUND", "true"),
                     self.define(
-                        cm_label + "SCALAPACK_INCLUDE_DIRS", spec["scalapack"].prefix.include
+                        cm_label + "SCALAPACK_INCLUDE_DIRS",
+                        spec["scalapack"].prefix.include,
                     ),
                     self.define(
-                        cm_label + "SCALAPACK_LIBRARIES", spec["scalapack"].libs.joined(";")
+                        cm_label + "SCALAPACK_LIBRARIES",
+                        spec["scalapack"].libs.joined(";"),
                     ),
                 ]
             )
@@ -279,7 +327,10 @@ class Sirius(CMakePackage, CudaPackage, ROCmPackage):
                 if "+scalapack" in self.spec:
                     # options provided by `MKLConfig.cmake`
                     args.extend(
-                        [self.define("ENABLE_BLACS", "On"), self.define("ENABLE_SCALAPACK", "On")]
+                        [
+                            self.define("ENABLE_BLACS", "On"),
+                            self.define("ENABLE_SCALAPACK", "On"),
+                        ]
                     )
 
         if "+elpa" in spec:
@@ -293,7 +344,9 @@ class Sirius(CMakePackage, CudaPackage, ROCmPackage):
                 if "@:7.4.3" in spec:
                     args.append(self.define("CMAKE_CUDA_ARCH", ";".join(cuda_arch)))
                 else:
-                    args.append(self.define("CMAKE_CUDA_ARCHITECTURES", ";".join(cuda_arch)))
+                    args.append(
+                        self.define("CMAKE_CUDA_ARCHITECTURES", ";".join(cuda_arch))
+                    )
 
         if "+rocm" in spec:
             archs = ",".join(self.spec.variants["amdgpu_target"].value)
