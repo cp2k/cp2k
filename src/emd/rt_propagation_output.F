@@ -309,17 +309,21 @@ CONTAINS
                   IF (BTEST(cp_print_key_should_output(logger%iter_info, &
                                                        dft_section, "REAL_TIME_PROPAGATION%PRINT%CURRENT_INT"), cp_p_file)) THEN
 
+                     output_unit = cp_logger_get_default_io_unit(logger)
                      unit_nr = cp_print_key_unit_nr(logger, dft_section, &
                                                   "REAL_TIME_PROPAGATION%PRINT%CURRENT_INT", extension=".dat", is_new_file=new_file)
-                     IF (nspin == 2) THEN
-                        WRITE (UNIT=unit_nr, FMT="(I10,F16.6,6(F16.8,1X))") qs_env%sim_step, qs_env%sim_time*femtoseconds, &
-                           j_int(1, 1:3), j_int(2, 1:3)
-                     ELSE
-                        WRITE (UNIT=unit_nr, FMT="(I10,F16.6,3(F16.8,1X))") qs_env%sim_step, qs_env%sim_time*femtoseconds, &
-                           j_int(1, 1:3)
+                     IF (output_unit > 0) THEN
+                        IF (nspin == 2) THEN
+                           WRITE (UNIT=unit_nr, FMT="(I10,F16.6,6(F16.8,1X))") qs_env%sim_step, qs_env%sim_time*femtoseconds, &
+                              j_int(1, 1:3), j_int(2, 1:3)
+                        ELSE
+                           WRITE (UNIT=unit_nr, FMT="(I10,F16.6,3(F16.8,1X))") qs_env%sim_step, qs_env%sim_time*femtoseconds, &
+                              j_int(1, 1:3)
+                        END IF
                      END IF
+                     CALL cp_print_key_finished_output(unit_nr, logger, dft_section, &
+                                                       "REAL_TIME_PROPAGATION%PRINT%CURRENT_INT")
                   END IF
-
                   DEALLOCATE (j_int)
 
                   IF (BTEST(cp_print_key_should_output(logger%iter_info, &
