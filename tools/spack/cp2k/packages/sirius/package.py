@@ -30,46 +30,6 @@ class Sirius(CMakePackage, CudaPackage, ROCmPackage):
         "7.6.2",
         sha256="1ba92942aa39b49771677cc8bf1c94a0b4350eb45bf3009318a6c2350b46a276",
     )
-    version(
-        "7.6.1",
-        sha256="16a114dc17e28697750585820e69718a96e6929f88406d266c75cf9a7cdbdaaa",
-    )
-    version(
-        "7.6.0",
-        sha256="e424206fecb35bb2082b5c87f0865a9536040e984b88b041e6f7d531f8a65b20",
-    )
-    version(
-        "7.5.2",
-        sha256="9ae01935578532c84f1d0d673dbbcdd490e26be22efa6c4acf7129f9dc1a0c60",
-    )
-    version(
-        "7.5.1",
-        sha256="aadfa7976e90a109aeb1677042454388a8d1a50d75834d59c86c8aef06bc12e4",
-    )
-    version(
-        "7.5.0",
-        sha256="c583f88ffc02e9acac24e786bc35c7c32066882d2f70a1e0c14b5780b510365d",
-    )
-    version(
-        "7.4.3",
-        sha256="015679a60a39fa750c5d1bd8fb1ce73945524bef561270d8a171ea2fd4687fec",
-    )
-    version(
-        "7.4.0",
-        sha256="f9360a695a1e786d8cb9d6702c82dd95144a530c4fa7e8115791c7d1e92b020b",
-    )
-    version(
-        "7.3.2",
-        sha256="a256508de6b344345c295ad8642dbb260c4753cd87cc3dd192605c33542955d7",
-    )
-    version(
-        "7.3.1",
-        sha256="8bf9848b8ebf0b43797fd359adf8c84f00822de4eb677e3049f22baa72735e98",
-    )
-    version(
-        "7.3.0",
-        sha256="69b5cf356adbe181be6c919032859c4e0160901ff42a885d7e7ea0f38cc772e2",
-    )
 
     variant("shared", default=True, description="Build shared libraries")
     variant("openmp", default=True, description="Build with OpenMP support")
@@ -105,13 +65,13 @@ class Sirius(CMakePackage, CudaPackage, ROCmPackage):
     )
     variant("nvtx", default=False, description="Use NVTX profiler")
 
-    with when("@7.6:"):
-        variant(
-            "pugixml",
-            default=False,
-            description="Enable direct reading of UPF v2 pseudopotentials",
-        )
-        conflicts("+tests~pugixml")
+    variant(
+        "pugixml",
+        default=False,
+        description="Enable direct reading of UPF v2 pseudopotentials",
+    )
+
+    conflicts("+tests~pugixml")
     depends_on("pugixml", when="+pugixml")
 
     depends_on("cxx", type="build")
@@ -124,9 +84,7 @@ class Sirius(CMakePackage, CudaPackage, ROCmPackage):
     depends_on("blas")
     depends_on("lapack")
     depends_on("fftw-api@3")
-    depends_on("libxc@3.0.0:")
-    depends_on("libxc@4.0.0:", when="@7.2.0:")
-    depends_on("libxc@:7", when="@:7.5")
+    depends_on("libxc@4.0.0:")
     depends_on("spglib")
     depends_on("hdf5+hl")
     depends_on("pkgconfig", type="build")
@@ -145,27 +103,6 @@ class Sirius(CMakePackage, CudaPackage, ROCmPackage):
     extends("python", when="+python")
 
     depends_on("magma", when="+magma")
-
-    with when("@7.0.1:"):
-        depends_on("spfft@0.9.13:")
-        depends_on("spfft+single_precision", when="+single_precision")
-        depends_on("spfft+cuda", when="+cuda")
-        depends_on("spfft+rocm", when="+rocm")
-        depends_on("spfft+openmp", when="+openmp")
-
-    with when("@7.0.2:"):
-        depends_on("spla@1.1.0:")
-        depends_on("spla+cuda", when="+cuda")
-        depends_on("spla+rocm", when="+rocm")
-        # spla removed the openmp option in 1.6.0
-        conflicts("^spla@:1.5~openmp", when="+openmp")
-
-    patch("libxc7.patch", when="@7.6.0:7.6.1")
-    patch(
-        "https://github.com/electronic-structure/SIRIUS/commit/dd07010f7b49f31b7e3bb1b4e47f3d9ac3a0c0b4.patch?full_index=1",
-        sha256="dd680f8c47a0fc29097cae5cd1e72dfdbcf95f93089f73fb3f2fe9e750125d6f",
-        when="@7.6.0:7.6.1 +pugixml",
-    )
 
     depends_on("nlcglib", when="+nlcglib")
     depends_on("nlcglib+rocm", when="+nlcglib+rocm")
@@ -187,11 +124,8 @@ class Sirius(CMakePackage, CudaPackage, ROCmPackage):
     depends_on("rocblas", when="+rocm")
     depends_on("rocsolver", when="@7.5.0: +rocm")
 
-    # FindHIP cmake script only works for < 4.1, but HIP 4.1 is not provided by spack anymore
-    conflicts("+rocm", when="@:7.2.0")
-
     conflicts("^libxc@5.0.0")  # known to produce incorrect results
-    conflicts("+single_precision", when="@:7.2.4")
+    conflicts("+single_precision")
     conflicts("+scalapack", when="^cray-libsci")
 
     # Propagate openmp to blas
@@ -212,29 +146,27 @@ class Sirius(CMakePackage, CudaPackage, ROCmPackage):
     # MKLConfig.cmake introduced in 2021.3
     conflicts("intel-oneapi-mkl@:2021.2", when="^intel-oneapi-mkl")
 
-    depends_on("wannier90", when="@7.5.0: +wannier90")
-    depends_on("wannier90+shared", when="@7.5.0: +wannier90+shared")
+    depends_on("wannier90", when="+wannier90")
+    depends_on("wannier90+shared", when="+wannier90+shared")
 
     depends_on("elpa+openmp", when="+elpa+openmp")
     depends_on("elpa~openmp", when="+elpa~openmp")
 
-    depends_on("eigen@3.4.0:", when="@7.3.2: +tests")
+    depends_on("eigen@3.4.0:", when="+tests")
 
-    depends_on("costa+shared", when="@7.3.2:")
+    depends_on("costa+shared")
 
-    with when("@7.5: +memory_pool"):
+    with when("+memory_pool"):
         depends_on("umpire~cuda~rocm", when="~cuda~rocm")
         depends_on("umpire+cuda~device_alloc", when="+cuda")
         depends_on("umpire+rocm~device_alloc", when="+rocm")
 
-    patch("fj.patch", when="@7.3.2: %fj")
+    patch("fj.patch", when="@7.6.2: %fj")
 
     def cmake_args(self):
         spec = self.spec
 
-        cm_label = ""
-        if "@7.5:" in spec:
-            cm_label = "SIRIUS_"
+        cm_label = "SIRIUS_"
 
         args = [
             self.define_from_variant(cm_label + "USE_OPENMP", "openmp"),
@@ -340,13 +272,9 @@ class Sirius(CMakePackage, CudaPackage, ROCmPackage):
         if "+cuda" in spec:
             cuda_arch = spec.variants["cuda_arch"].value
             if cuda_arch[0] != "none":
-                # Make SIRIUS handle it
-                if "@:7.4.3" in spec:
-                    args.append(self.define("CMAKE_CUDA_ARCH", ";".join(cuda_arch)))
-                else:
-                    args.append(
-                        self.define("CMAKE_CUDA_ARCHITECTURES", ";".join(cuda_arch))
-                    )
+                args.append(
+                    self.define("CMAKE_CUDA_ARCHITECTURES", ";".join(cuda_arch))
+                )
 
         if "+rocm" in spec:
             archs = ",".join(self.spec.variants["amdgpu_target"].value)

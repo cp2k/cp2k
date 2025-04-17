@@ -64,6 +64,7 @@ FLAG_EXCEPTIONS = (
     r"__YUKAWA",
     r"__cplusplus",
     r"HIP_VERSION",
+    r"__NO_IPI_DRIVER",
     r"LIBXSMM_GEMM_PREFETCH_NONE",
     r"LIBXSMM_.*VERSION_MAJOR",
     r"LIBXSMM_.*VERSION_MINOR",
