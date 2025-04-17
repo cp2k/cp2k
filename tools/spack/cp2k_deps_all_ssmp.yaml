@@ -53,7 +53,7 @@ spack:
   specs:
     - "openblas@0.3.29"
     - "dbcsr@2.8.0"
-    - "dftd4@3.6.0"
+    - "dftd4@3.7.0"
     - "fftw@3.3.10"
     - "hdf5@1.14"
     - "libint@2.9.0"
@@ -61,7 +61,7 @@ spack:
     - "libxc@7.0.0"
 #   - "libxsmm@main-2024-09" Use 1.17 with Spack as long as grid unit tests fail
     - "libxsmm@1.17"
-    - "spglib@2.3.0"
+    - "spglib@2.5.0"
     - "trexio@2.5.0"
   view:
     default:

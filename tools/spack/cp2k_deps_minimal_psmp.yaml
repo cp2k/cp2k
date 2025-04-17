@@ -41,7 +41,7 @@ spack:
     - $spack/cp2k
   specs:
     - "dbcsr@2.8.0"
-    - "mpich@4.2.3"
+    - "mpich@4.3.0"
     - "netlib-scalapack@2.2.2"
     - "openblas@0.3.29"
   view:
