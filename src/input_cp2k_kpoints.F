@@ -78,9 +78,9 @@ CONTAINS
                           "- `MACDONALD`"//newline// &
                           "- `GENERAL`"//newline// &
                           newline// &
-                          "For `MONKHORST-PACK` and `MACDONALD` the number of k points in all "// &
-                          "3 dimensions has to be supplied along with the keyword. "// &
-                          "E.g. `MONKHORST-PACK 12 12 8`", &
+                          "For `MONKHORST-PACK` the number of k points in all 3 dimensions has to"// &
+                          " be supplied along with the keyword. For `MACDONALD` also the list of shifts."// &
+                          " E.g. `MONKHORST-PACK 12 12 8`, `MACDONALD 4 4 4 0.25 0.25 0.25`", &
                           usage="SCHEME {KPMETHOD} {integer} {integer} ..", &
                           citations=(/Monkhorst1976, MacDonald1978/), &
                           n_var=-1, type_of_var=char_t)

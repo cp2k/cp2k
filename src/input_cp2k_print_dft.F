@@ -118,8 +118,7 @@ MODULE input_cp2k_print_dft
                                   create_ext_vxc_section
    USE input_cp2k_field, ONLY: create_efield_section, &
                                create_per_efield_section
-   USE input_cp2k_kpoints, ONLY: create_kpoint_set_section, &
-                                 create_kpoints_section
+   USE input_cp2k_kpoints, ONLY: create_kpoint_set_section
    USE input_cp2k_loc, ONLY: create_localize_section, &
                              print_wanniers
    USE input_cp2k_ls, ONLY: create_ls_scf_section
@@ -2193,6 +2192,14 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="NDIGITS", &
                           description="Specify the number of digits used to print density and occupation", &
                           default_i_val=4)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="MP_GRID", &
+                          description="Specify a Monkhorst-Pack grid with which to compute the density of states. "// &
+                          "Works only for a k-point calculation", &
+                          usage="MP_GRID {integer} {integer} {integer}", default_i_vals=(/-1/), &
+                          n_var=3, type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
