@@ -575,6 +575,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ftot
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
+      TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(virial_type), POINTER                         :: virial
@@ -583,15 +584,17 @@ CONTAINS
          CALL get_qs_env(qs_env, natom=natom)
          ALLOCATE (ftot(3, natom))
          ftot = 0.0_dp
-         CALL get_qs_env(qs_env, force=force, virial=virial)
+         CALL get_qs_env(qs_env, force=force, virial=virial, para_env=para_env)
 
          CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set)
          CALL total_qs_force(ftot, force, atomic_kind_set)
          ec_env%rf(1:3, 1:natom) = ftot(1:3, 1:natom) - ec_env%rf(1:3, 1:natom)
+         CALL para_env%sum(ec_env%rf)
          DEALLOCATE (ftot)
 
          IF (virial%pv_availability .AND. (.NOT. virial%pv_numer)) THEN
             ec_env%rpv = virial%pv_virial - ec_env%rpv
+            CALL para_env%sum(ec_env%rpv)
          END IF
 
          CALL get_qs_env(qs_env, particle_set=particle_set, cell=cell)
