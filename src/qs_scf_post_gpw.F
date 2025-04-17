@@ -478,7 +478,14 @@ CONTAINS
                CALL get_qs_env(qs_env, admm_env=admm_env)
                CALL make_mo_eig(mos, nspins, ks_rmpv, scf_control, mo_derivs, admm_env=admm_env)
             ELSE
-               CALL make_mo_eig(mos, nspins, ks_rmpv, scf_control, mo_derivs)
+               IF (dft_control%hairy_probes) THEN
+                  scf_control%smear%do_smear = .FALSE.
+                  CALL make_mo_eig(mos, dft_control%nspins, ks_rmpv, scf_control, mo_derivs, &
+                                   hairy_probes=dft_control%hairy_probes, &
+                                   probe=dft_control%probe)
+               ELSE
+                  CALL make_mo_eig(mos, dft_control%nspins, ks_rmpv, scf_control, mo_derivs)
+               END IF
             END IF
             DO ispin = 1, dft_control%nspins
                CALL get_mo_set(mo_set=mos(ispin), eigenvalues=mo_eigenvalues, homo=homo)

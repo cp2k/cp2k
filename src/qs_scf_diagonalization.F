@@ -24,7 +24,8 @@ MODULE qs_scf_diagonalization
                                               cp_cfm_to_cfm,&
                                               cp_cfm_to_fm,&
                                               cp_cfm_type
-   USE cp_control_types,                ONLY: dft_control_type
+   USE cp_control_types,                ONLY: dft_control_type,&
+                                              hairy_probes_type
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, dbcsr_p_type, &
         dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, &
@@ -346,10 +347,11 @@ CONTAINS
 !> \param scf_control ...
 !> \param scf_section ...
 !> \param diis_step ...
+!> \param probe ...
 ! **************************************************************************************************
    SUBROUTINE do_general_diag(scf_env, mos, matrix_ks, &
                               matrix_s, scf_control, scf_section, &
-                              diis_step)
+                              diis_step, probe)
 
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(mo_set_type), DIMENSION(:), INTENT(INOUT)     :: mos
@@ -357,6 +359,8 @@ CONTAINS
       TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(section_vals_type), POINTER                   :: scf_section
       LOGICAL, INTENT(INOUT)                             :: diis_step
+      TYPE(hairy_probes_type), DIMENSION(:), OPTIONAL, &
+         POINTER                                         :: probe
 
       INTEGER                                            :: ispin, nspin
       REAL(KIND=dp)                                      :: total_zeff_corr
@@ -373,8 +377,15 @@ CONTAINS
          CALL set_mo_occupation(mo_array=mos, &
                                 smear=scf_control%smear, tot_zeff_corr=total_zeff_corr)
       ELSE
-         CALL set_mo_occupation(mo_array=mos, &
-                                smear=scf_control%smear)
+         IF (PRESENT(probe) .EQV. .TRUE.) THEN
+            scf_control%smear%do_smear = .FALSE.
+            CALL set_mo_occupation(mo_array=mos, &
+                                   smear=scf_control%smear, &
+                                   probe=probe)
+         ELSE
+            CALL set_mo_occupation(mo_array=mos, &
+                                   smear=scf_control%smear)
+         END IF
       END IF
 
       DO ispin = 1, nspin
@@ -399,11 +410,12 @@ CONTAINS
 !> \param diis_step ...
 !> \param diis_error ...
 !> \param qs_env ...
+!> \param probe ...
 !> \par History
 !>      08.2014 created [JGH]
 ! **************************************************************************************************
    SUBROUTINE do_general_diag_kp(matrix_ks, matrix_s, kpoints, scf_env, scf_control, update_p, &
-                                 diis_step, diis_error, qs_env)
+                                 diis_step, diis_error, qs_env, probe)
 
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks, matrix_s
       TYPE(kpoint_type), POINTER                         :: kpoints
@@ -413,6 +425,8 @@ CONTAINS
       LOGICAL, INTENT(INOUT)                             :: diis_step
       REAL(dp), INTENT(INOUT), OPTIONAL                  :: diis_error
       TYPE(qs_environment_type), OPTIONAL, POINTER       :: qs_env
+      TYPE(hairy_probes_type), DIMENSION(:), OPTIONAL, &
+         POINTER                                         :: probe
 
       CHARACTER(len=*), PARAMETER :: routineN = 'do_general_diag_kp'
       COMPLEX(KIND=dp), PARAMETER :: cone = CMPLX(1.0_dp, 0.0_dp, KIND=dp), &
@@ -711,8 +725,13 @@ CONTAINS
 
       IF (update_p) THEN
          ! MO occupations
-         CALL kpoint_set_mo_occupation(kpoints, scf_control%smear)
-
+         IF (PRESENT(probe) .EQV. .TRUE.) THEN
+            scf_control%smear%do_smear = .FALSE.
+            CALL kpoint_set_mo_occupation(kpoints, scf_control%smear, &
+                                          probe=probe)
+         ELSE
+            CALL kpoint_set_mo_occupation(kpoints, scf_control%smear)
+         END IF
          ! density matrices
          CALL kpoint_density_matrices(kpoints)
          ! density matrices in real space
