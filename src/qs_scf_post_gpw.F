@@ -217,6 +217,9 @@ MODULE qs_scf_post_gpw
 
    PUBLIC :: make_lumo_gpw
 
+   INTEGER, PARAMETER :: grid_output_cubes = 1, grid_output_openpmd = 2
+   CHARACTER(len=*), PARAMETER ::       str_mo_cubes = "PRINT%MO_CUBES", str_openpmd = "PRINT%OPENPMD"
+
 ! **************************************************************************************************
 
 CONTAINS
@@ -226,6 +229,17 @@ CONTAINS
       CHARACTER(len=32) :: res
 
       res = TRIM(base_section)//"%"//TRIM(key)
+   END FUNCTION
+
+   FUNCTION section_base(grid_output) RESULT(res)
+      INTEGER, INTENT(IN) :: grid_output
+      CHARACTER(len=32) :: res
+
+      IF (grid_output == grid_output_cubes) THEN
+         res = str_mo_cubes
+      ELSE IF (grid_output == grid_output_openpmd) THEN
+         res = str_openpmd
+      END IF
    END FUNCTION
 
 ! **************************************************************************************************
@@ -254,12 +268,10 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'scf_post_calculation_gpw'
 
-      CHARACTER(len=32), POINTER                         :: section_base
-      CHARACTER(len=32), TARGET                          :: str_mo_cubes, str_openpmd
       INTEGER                                            :: handle, homo, ispin, min_lumos, n_rep, &
                                                             nchk_nmoloc, nhomo, nlumo, nlumo_stm, &
                                                             nlumos, nmo, nspins, output_unit, &
-                                                            unit_nr
+                                                            unit_nr, grid_output
       INTEGER, DIMENSION(:, :, :), POINTER               :: marked_states
       LOGICAL :: check_write, compute_lumos, do_homo, do_kpoints, do_mixed, do_output, do_mo_cubes, &
                  do_openpmd, do_stm, do_wannier_cubes, has_homo, has_lumo, loc_explicit, &
@@ -306,10 +318,6 @@ CONTAINS
                                                             stm_section
 
       CALL timeset(routineN, handle)
-
-      ! Initialize static strings
-      str_mo_cubes = "PRINT%MO_CUBES"
-      str_openpmd = "PRINT%OPENPMD"
 
       logger => cp_get_default_logger()
       output_unit = cp_logger_get_default_io_unit(logger)
@@ -462,12 +470,12 @@ CONTAINS
       do_output = do_mo_cubes .OR. do_openpmd
 
       IF (do_openpmd) THEN
-         section_base => str_openpmd
+         grid_output = grid_output_openpmd
       ELSE
-         section_base => str_mo_cubes
+         grid_output = grid_output_cubes
       END IF
 
-      #:set section = lambda key: f"TRIM(section_entry(section_base, \"{key}\"))"
+      #:set section = lambda key: f"TRIM(section_entry(section_base(grid_output), \"{key}\"))"
 
       IF (loc_print_explicit) THEN
          do_wannier_cubes = BTEST(cp_print_key_should_output(logger%iter_info, loc_print_section, &
@@ -525,7 +533,7 @@ CONTAINS
                CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff, &
                                eigenvalues=mo_eigenvalues, homo=homo, nmo=nmo)
                CALL qs_scf_post_occ_cubes(input, dft_section, dft_control, logger, qs_env, &
-                                          mo_coeff, wf_g, wf_r, particles, homo, ispin, section_base)
+                                          mo_coeff, wf_g, wf_r, particles, homo, ispin, grid_output)
             END DO
          END IF
       END IF
@@ -619,7 +627,7 @@ CONTAINS
                   ! Prints the cube files of UNOCCUPIED ORBITALS
                   CALL get_mo_set(mo_set=mos(ispin), mo_coeff=mo_coeff)
                   CALL qs_scf_post_unocc_cubes(input, dft_section, dft_control, logger, qs_env, &
-                                      mo_coeff, wf_g, wf_r, particles, nlumo, homo, ispin, lumo=homo + 1, section_base=section_base)
+                                        mo_coeff, wf_g, wf_r, particles, nlumo, homo, ispin, lumo=homo + 1, grid_output=grid_output)
                END IF
             END DO
 
@@ -649,7 +657,7 @@ CONTAINS
                   IF (p_loc_lumo .AND. nlumo .NE. -1) nlumos = MIN(nlumo, nlumos)
                   ! Prints the cube files of UNOCCUPIED ORBITALS
                   CALL qs_scf_post_unocc_cubes(input, dft_section, dft_control, logger, qs_env, &
-                                      unoccupied_orbs(ispin), wf_g, wf_r, particles, nlumos, homo, ispin, section_base=section_base)
+                                        unoccupied_orbs(ispin), wf_g, wf_r, particles, nlumos, homo, ispin, grid_output=grid_output)
                END IF
             END DO
 
@@ -1030,7 +1038,7 @@ CONTAINS
 !> \param ispin ...
 ! **************************************************************************************************
    SUBROUTINE qs_scf_post_occ_cubes(input, dft_section, dft_control, logger, qs_env, &
-                                    mo_coeff, wf_g, wf_r, particles, homo, ispin, section_base)
+                                    mo_coeff, wf_g, wf_r, particles, homo, ispin, grid_output)
       TYPE(section_vals_type), POINTER                   :: input, dft_section
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -1040,7 +1048,7 @@ CONTAINS
       TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: wf_r
       TYPE(particle_list_type), POINTER                  :: particles
       INTEGER, INTENT(IN)                                :: homo, ispin
-      CHARACTER(len=*), POINTER :: section_base
+      INTEGER, INTENT(IN) :: grid_output
       CHARACTER(len=32) :: section_base_absolute
 
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_occ_cubes'
@@ -1056,14 +1064,14 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
-      #:set section = lambda key: f"TRIM(section_entry(section_base, \"{key}\"))"
-      section_base_absolute = "DFT%"//TRIM(section_base)
+      #:set section = lambda key: f"TRIM(section_entry(section_base(grid_output), \"{key}\"))"
+      section_base_absolute = "DFT%"//TRIM(section_base(grid_output))
 
       CALL timeset(routineN, handle)
 
       NULLIFY (list_index)
 
-      IF (BTEST(cp_print_key_should_output(logger%iter_info, dft_section, section_base) &
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, dft_section, section_base(grid_output)) &
                 , cp_p_file) .AND. section_get_lval(dft_section, ${section("WRITE_CUBE")}$)) THEN
          nhomo = section_get_ival(dft_section, ${section("NHOMO")}$)
          append_cube = section_get_lval(dft_section, ${section("APPEND")}$)
@@ -1107,22 +1115,26 @@ CONTAINS
                                         cell, dft_control, particle_set, pw_env)
             WRITE (filename, '(a4,I5.5,a1,I1.1)') "WFN_", ivector, "_", ispin
             mpi_io = .TRUE.
-#ifndef __OPENPMD
-            unit_nr = cp_print_key_unit_nr(logger, input, section_base_absolute, extension=".cube", &
-                                           middle_name=TRIM(filename), file_position=my_pos_cube, log_filename=.FALSE., &
-                                           mpi_io=mpi_io)
-            WRITE (title, *) "WAVEFUNCTION ", ivector, " spin ", ispin, " i.e. HOMO - ", ivector - homo
-            CALL cp_pw_to_cube(wf_r, unit_nr, title, particles=particles, &
-                               stride=section_get_ivals(dft_section, ${section("STRIDE")}$), mpi_io=mpi_io)
-            CALL cp_print_key_finished_output(unit_nr, logger, input, section_base_absolute, mpi_io=mpi_io)
-#else
-            unit_nr = cp_openpmd_print_key_unit_nr(logger, input, section_base_absolute, &
-                                                   middle_name=TRIM(filename), file_position=my_pos_cube, log_filename=.FALSE., &
-                                                   mpi_io=mpi_io, openpmd_basename="dft-mo-cubes")
-            WRITE (title, *) "WAVEFUNCTION ", ivector, " spin ", ispin, " i.e. HOMO - ", ivector - homo
-            CALL cp_pw_to_openpmd(wf_r, unit_nr, title, particles=particles, &
+#ifdef __OPENPMD
+            IF (grid_output == grid_output_cubes) THEN
+#endif
+               unit_nr = cp_print_key_unit_nr(logger, input, section_base_absolute, extension=".cube", &
+                                              middle_name=TRIM(filename), file_position=my_pos_cube, log_filename=.FALSE., &
+                                              mpi_io=mpi_io)
+               WRITE (title, *) "WAVEFUNCTION ", ivector, " spin ", ispin, " i.e. HOMO - ", ivector - homo
+               CALL cp_pw_to_cube(wf_r, unit_nr, title, particles=particles, &
                                   stride=section_get_ivals(dft_section, ${section("STRIDE")}$), mpi_io=mpi_io)
-            CALL cp_openpmd_print_key_finished_output(unit_nr, logger, input, section_base_absolute, mpi_io=mpi_io)
+               CALL cp_print_key_finished_output(unit_nr, logger, input, section_base_absolute, mpi_io=mpi_io)
+#ifdef __OPENPMD
+            ELSE
+               unit_nr = cp_openpmd_print_key_unit_nr(logger, input, section_base_absolute, &
+                                                      middle_name=TRIM(filename), file_position=my_pos_cube, log_filename=.FALSE., &
+                                                      mpi_io=mpi_io, openpmd_basename="dft-mo-cubes")
+               WRITE (title, *) "WAVEFUNCTION ", ivector, " spin ", ispin, " i.e. HOMO - ", ivector - homo
+               CALL cp_pw_to_openpmd(wf_r, unit_nr, title, particles=particles, &
+                                     stride=section_get_ivals(dft_section, ${section("STRIDE")}$), mpi_io=mpi_io)
+               CALL cp_openpmd_print_key_finished_output(unit_nr, logger, input, section_base_absolute, mpi_io=mpi_io)
+            END IF
 #endif
          END DO
          IF (ASSOCIATED(list_index)) DEALLOCATE (list_index)
@@ -1151,7 +1163,7 @@ CONTAINS
 !> \param lumo ...
 ! **************************************************************************************************
    SUBROUTINE qs_scf_post_unocc_cubes(input, dft_section, dft_control, logger, qs_env, &
-                                      unoccupied_orbs, wf_g, wf_r, particles, nlumos, homo, ispin, lumo, section_base)
+                                      unoccupied_orbs, wf_g, wf_r, particles, nlumos, homo, ispin, lumo, grid_output)
 
       TYPE(section_vals_type), POINTER                   :: input, dft_section
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -1163,7 +1175,7 @@ CONTAINS
       TYPE(particle_list_type), POINTER                  :: particles
       INTEGER, INTENT(IN)                                :: nlumos, homo, ispin
       INTEGER, INTENT(IN), OPTIONAL                      :: lumo
-      CHARACTER(len=*), POINTER :: section_base
+      INTEGER, INTENT(IN) :: grid_output
       CHARACTER(len=32) :: section_base_absolute
 
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_scf_post_unocc_cubes'
@@ -1178,12 +1190,12 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
-      #:set section = lambda key: f"TRIM(section_entry(section_base, \"{key}\"))"
-      section_base_absolute = "DFT%"//TRIM(section_base)
+      #:set section = lambda key: f"TRIM(section_entry(section_base(grid_output), \"{key}\"))"
+      section_base_absolute = "DFT%"//TRIM(section_base(grid_output))
 
       CALL timeset(routineN, handle)
 
-      IF (BTEST(cp_print_key_should_output(logger%iter_info, dft_section, section_base), cp_p_file) &
+      IF (BTEST(cp_print_key_should_output(logger%iter_info, dft_section, section_base(grid_output)), cp_p_file) &
           .AND. section_get_lval(dft_section, ${section("WRITE_CUBE")}$)) THEN
          NULLIFY (qs_kind_set, particle_set, pw_env, cell)
          append_cube = section_get_lval(dft_section, ${section("APPEND")}$)
@@ -1211,22 +1223,26 @@ CONTAINS
             WRITE (filename, '(a4,I5.5,a1,I1.1)') "WFN_", index_mo, "_", ispin
             mpi_io = .TRUE.
 
-#ifndef __OPENPMD
-            unit_nr = cp_print_key_unit_nr(logger, input, section_base_absolute, extension=".cube", &
-                                           middle_name=TRIM(filename), file_position=my_pos_cube, log_filename=.FALSE., &
-                                           mpi_io=mpi_io)
-            WRITE (title, *) "WAVEFUNCTION ", index_mo, " spin ", ispin, " i.e. LUMO + ", ifirst + ivector - 2
-            CALL cp_pw_to_cube(wf_r, unit_nr, title, particles=particles, &
-                               stride=section_get_ivals(dft_section, ${section("STRIDE")}$), mpi_io=mpi_io)
-            CALL cp_print_key_finished_output(unit_nr, logger, input, section_base_absolute, mpi_io=mpi_io)
-#else
-            unit_nr = cp_openpmd_print_key_unit_nr(logger, input, section_base_absolute, &
-                                                   middle_name=TRIM(filename), file_position=my_pos_cube, log_filename=.FALSE., &
-                                                   mpi_io=mpi_io, openpmd_basename="dft-mo-cubes")
-            WRITE (title, *) "WAVEFUNCTION ", index_mo, " spin ", ispin, " i.e. LUMO + ", ifirst + ivector - 2
-            CALL cp_pw_to_openpmd(wf_r, unit_nr, title, particles=particles, &
+#ifdef __OPENPMD
+            IF (grid_output == grid_output_cubes) THEN
+#endif
+               unit_nr = cp_print_key_unit_nr(logger, input, section_base_absolute, extension=".cube", &
+                                              middle_name=TRIM(filename), file_position=my_pos_cube, log_filename=.FALSE., &
+                                              mpi_io=mpi_io)
+               WRITE (title, *) "WAVEFUNCTION ", index_mo, " spin ", ispin, " i.e. LUMO + ", ifirst + ivector - 2
+               CALL cp_pw_to_cube(wf_r, unit_nr, title, particles=particles, &
                                   stride=section_get_ivals(dft_section, ${section("STRIDE")}$), mpi_io=mpi_io)
-            CALL cp_openpmd_print_key_finished_output(unit_nr, logger, input, section_base_absolute, mpi_io=mpi_io)
+               CALL cp_print_key_finished_output(unit_nr, logger, input, section_base_absolute, mpi_io=mpi_io)
+#ifdef __OPENPMD
+            ELSE
+               unit_nr = cp_openpmd_print_key_unit_nr(logger, input, section_base_absolute, &
+                                                      middle_name=TRIM(filename), file_position=my_pos_cube, log_filename=.FALSE., &
+                                                      mpi_io=mpi_io, openpmd_basename="dft-mo-cubes")
+               WRITE (title, *) "WAVEFUNCTION ", index_mo, " spin ", ispin, " i.e. LUMO + ", ifirst + ivector - 2
+               CALL cp_pw_to_openpmd(wf_r, unit_nr, title, particles=particles, &
+                                     stride=section_get_ivals(dft_section, ${section("STRIDE")}$), mpi_io=mpi_io)
+               CALL cp_openpmd_print_key_finished_output(unit_nr, logger, input, section_base_absolute, mpi_io=mpi_io)
+            END IF
 #endif
          END DO
       END IF

@@ -20,9 +20,9 @@
       CUTOFF 200
     &END MGRID
     &PRINT
-      &MO_CUBES
+      &OPENPMD
         NLUMO -1
-      &END MO_CUBES
+      &END OPENPMD
     &END PRINT
     &QS
       EPS_DEFAULT 1.0E-12

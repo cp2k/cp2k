@@ -427,7 +427,9 @@ CONTAINS
          DEALLOCATE (cp_openpmd_per_callsite(i)%value%iteration_counter%complex_iteration)
          CALL openpmd_series_close(cp_openpmd_per_callsite(i)%value%output_series)
       END DO
-      DEALLOCATE (cp_openpmd_per_callsite)
+      IF (ALLOCATED(cp_openpmd_per_callsite)) THEN
+         DEALLOCATE (cp_openpmd_per_callsite)
+      END IF
       cp_num_openpmd_per_callsite = 0
    END SUBROUTINE cp_openpmd_output_finalize
 
