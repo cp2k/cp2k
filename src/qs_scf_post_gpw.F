@@ -218,7 +218,7 @@ MODULE qs_scf_post_gpw
    PUBLIC :: make_lumo_gpw
 
    INTEGER, PARAMETER :: grid_output_cubes = 1, grid_output_openpmd = 2
-   CHARACTER(len=*), PARAMETER ::       str_mo_cubes = "PRINT%MO_CUBES", str_openpmd = "PRINT%OPENPMD"
+   CHARACTER(len=*), PARAMETER :: str_mo_cubes = "PRINT%MO_CUBES", str_openpmd = "PRINT%OPENPMD"
 
 ! **************************************************************************************************
 
@@ -285,9 +285,12 @@ CONTAINS
                                                             unit_nr, grid_output
       INTEGER, DIMENSION(:, :, :), POINTER               :: marked_states
       LOGICAL :: check_write, compute_lumos, do_homo, do_kpoints, do_mixed, do_output, do_mo_cubes, &
-                 do_openpmd, do_stm, do_wannier_cubes, has_homo, has_lumo, loc_explicit, &
+                  do_stm, do_wannier_cubes, has_homo, has_lumo, loc_explicit, &
                  loc_print_explicit, my_do_mp2, my_localized_wfn, p_loc, p_loc_homo, p_loc_lumo, &
                  p_loc_mixed
+#ifdef __OPENPMD
+      LOGICAL :: do_openpmd
+#endif
       REAL(dp)                                           :: e_kin
       REAL(KIND=dp)                                      :: gap, homo_lumo(2, 2), total_zeff_corr
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues
@@ -475,16 +478,20 @@ CONTAINS
       ! check for CUBES (MOs and WANNIERS)
       do_mo_cubes = BTEST(cp_print_key_should_output(logger%iter_info, dft_section, "PRINT%MO_CUBES") &
                           , cp_p_file)
+#ifdef __OPENPMD
       do_openpmd = BTEST(cp_print_key_should_output(logger%iter_info, dft_section, "PRINT%OPENPMD") &
                          , cp_p_file)
-      CPASSERT(.NOT. (do_mo_cubes .AND. do_openpmd))
       do_output = do_mo_cubes .OR. do_openpmd
-
       IF (do_openpmd) THEN
          grid_output = grid_output_openpmd
       ELSE
          grid_output = grid_output_cubes
       END IF
+      CPASSERT(.NOT. (do_mo_cubes .AND. do_openpmd))
+#else
+      do_output = do_mo_cubes
+      grid_output = grid_output_cubes
+#endif
 
       #:set section = lambda key: f"TRIM(section_entry(section_base(grid_output), \"{key}\"))"
 
@@ -519,7 +526,9 @@ CONTAINS
       ! Makes the MOs eigenstates, computes eigenvalues, write cubes
       IF (do_kpoints) THEN
          CPWARN_IF(do_mo_cubes, "Print MO cubes not implemented for k-point calculations")
+#ifdef __OPENPMD
          CPWARN_IF(do_openpmd, "Writing to openPMD not implemented for k-point calculations")
+#endif
       ELSE
          CALL get_qs_env(qs_env, &
                          mos=mos, &
@@ -1075,10 +1084,15 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
+      CALL timeset(routineN, handle)
+
+#ifndef __OPENPMD
+      ! Error should usually be caught earlier as PRINT%OPENPMD is not added to the input section
+      ! if openPMD is not activated
+      CPASSERT(grid_output /= grid_output_openpmd)
+#endif
       #:set section = lambda key, quot='"': f"TRIM(section_entry(section_base(grid_output), {quot}{key}{quot}))"
       section_base_absolute = "DFT%"//TRIM(section_base(grid_output))
-
-      CALL timeset(routineN, handle)
 
       NULLIFY (list_index)
 
@@ -1201,10 +1215,15 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
+      CALL timeset(routineN, handle)
+
+#ifndef __OPENPMD
+      ! Error should usually be caught earlier as PRINT%OPENPMD is not added to the input section
+      ! if openPMD is not activated
+      CPASSERT(grid_output /= grid_output_openpmd)
+#endif
       #:set section = lambda key, quot='"': f"TRIM(section_entry(section_base(grid_output), {quot}{key}{quot}))"
       section_base_absolute = "DFT%"//TRIM(section_base(grid_output))
-
-      CALL timeset(routineN, handle)
 
       IF (BTEST(cp_print_key_should_output(logger%iter_info, dft_section, section_base(grid_output)), cp_p_file) &
           .AND. section_get_lval(dft_section, ${section("section_key_do_write(grid_output)", "")}$)) THEN
