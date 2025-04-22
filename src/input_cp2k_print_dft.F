@@ -2186,7 +2186,7 @@ CONTAINS
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="write_openpmd", &
+      CALL keyword_create(keyword, __LOCATION__, name="write_cube", &
                           description="If the MO cube file should be written. If false, the eigenvalues are still computed."// &
                           " Can also be useful in combination with STM calculations", &
                           default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
