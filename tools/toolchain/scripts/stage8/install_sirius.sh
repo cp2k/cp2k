@@ -115,15 +115,6 @@ case "$with_sirius" in
       tar -xzf SIRIUS-${sirius_ver}.tar.gz
       cd SIRIUS-${sirius_ver}
 
-      # GCC 13 stopped including some common headers.
-      # https://github.com/electronic-structure/SIRIUS/issues/854
-      sed -i'' -e '1s/.*/#include <cstdint>\n&/' src/*.hpp
-
-      # Patch SIRIUS 7.6.1 for Libxc 7.0.0
-      patch -p1 src/potential/xc_functional_base.hpp < ${SCRIPT_DIR}/stage8/sirius_libxc7.patch
-      # Patch SIRIUS 7.6.1 for pugixml (CMake)
-      patch -p1 cmake/sirius_cxxConfig.cmake.in < ${SCRIPT_DIR}/stage8/sirius_1050.patch
-
       rm -Rf build
       mkdir build
       cd build
