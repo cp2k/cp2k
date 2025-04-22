@@ -571,7 +571,9 @@ CONTAINS
       TYPE(energy_correction_type), POINTER              :: ec_env
       INTEGER, INTENT(IN)                                :: unit_nr
 
+      CHARACTER(LEN=default_string_length)               :: unit_string
       INTEGER                                            :: funit, ia, natom
+      REAL(KIND=dp)                                      :: fconv
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ftot
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
@@ -598,21 +600,26 @@ CONTAINS
          END IF
 
          CALL get_qs_env(qs_env, particle_set=particle_set, cell=cell)
+         ! Conversion factor a.u. -> GPa
+         unit_string = "GPa"
+         fconv = cp_unit_from_cp2k(1.0_dp/cell%deth, TRIM(unit_string))
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(T2,A)') "Write EXTERNAL Response Derivative: "//TRIM(ec_env%exresult_fn)
 
             CALL open_file(ec_env%exresult_fn, file_status="REPLACE", file_form="FORMATTED", &
                            file_action="WRITE", unit_number=funit)
             WRITE (funit, *) "   COORDINATES // RESPONSE FORCES // ERRORS  "
+            WRITE (funit, *) "        [Bohr] //  [Hartree/Bohr] //         "
             DO ia = 1, natom
                WRITE (funit, "(3(3F15.8,5x))") particle_set(ia)%r(1:3), &
                   ec_env%rf(1:3, ia), ec_env%rferror(1:3, ia)
             END DO
             WRITE (funit, *)
             WRITE (funit, *) "   CELL // RESPONSE PRESSURE // ERRORS  "
+            WRITE (funit, *) " [Bohr] //             [GPa] //         "
             DO ia = 1, 3
                WRITE (funit, "(3F15.8,5x,3F15.8,5x,3F15.8)") cell%hmat(ia, 1:3), &
-                  ec_env%rpv(ia, 1:3), ec_env%rpverror(ia, 1:3)
+                  fconv*ec_env%rpv(ia, 1:3), ec_env%rpverror(ia, 1:3)
             END DO
 
             CALL close_file(funit)
