@@ -242,6 +242,17 @@ CONTAINS
       END IF
    END FUNCTION
 
+   FUNCTION section_key_do_write(grid_output) RESULT(res)
+      INTEGER, INTENT(IN) :: grid_output
+      CHARACTER(len=32) :: res
+
+      IF (grid_output == grid_output_cubes) THEN
+         res = "WRITE_CUBE"
+      ELSE IF (grid_output == grid_output_openpmd) THEN
+         res = "WRITE_OPENPMD"
+      END IF
+   END FUNCTION
+
 ! **************************************************************************************************
 !> \brief collects possible post - scf calculations and prints info / computes properties.
 !> \param qs_env the qs_env in which the qs_env lives
@@ -1064,7 +1075,7 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
-      #:set section = lambda key: f"TRIM(section_entry(section_base(grid_output), \"{key}\"))"
+      #:set section = lambda key, quot='"': f"TRIM(section_entry(section_base(grid_output), {quot}{key}{quot}))"
       section_base_absolute = "DFT%"//TRIM(section_base(grid_output))
 
       CALL timeset(routineN, handle)
@@ -1072,7 +1083,7 @@ CONTAINS
       NULLIFY (list_index)
 
       IF (BTEST(cp_print_key_should_output(logger%iter_info, dft_section, section_base(grid_output)) &
-                , cp_p_file) .AND. section_get_lval(dft_section, ${section("WRITE_CUBE")}$)) THEN
+                , cp_p_file) .AND. section_get_lval(dft_section, ${section("section_key_do_write(grid_output)", "")}$)) THEN
          nhomo = section_get_ival(dft_section, ${section("NHOMO")}$)
          append_cube = section_get_lval(dft_section, ${section("APPEND")}$)
          my_pos_cube = "REWIND"
@@ -1190,13 +1201,13 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
-      #:set section = lambda key: f"TRIM(section_entry(section_base(grid_output), \"{key}\"))"
+      #:set section = lambda key, quot='"': f"TRIM(section_entry(section_base(grid_output), {quot}{key}{quot}))"
       section_base_absolute = "DFT%"//TRIM(section_base(grid_output))
 
       CALL timeset(routineN, handle)
 
       IF (BTEST(cp_print_key_should_output(logger%iter_info, dft_section, section_base(grid_output)), cp_p_file) &
-          .AND. section_get_lval(dft_section, ${section("WRITE_CUBE")}$)) THEN
+          .AND. section_get_lval(dft_section, ${section("section_key_do_write(grid_output)", "")}$)) THEN
          NULLIFY (qs_kind_set, particle_set, pw_env, cell)
          append_cube = section_get_lval(dft_section, ${section("APPEND")}$)
          my_pos_cube = "REWIND"
