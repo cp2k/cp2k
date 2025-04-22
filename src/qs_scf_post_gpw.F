@@ -252,7 +252,7 @@ CONTAINS
                                                             nlumos, nmo, nspins, output_unit, &
                                                             unit_nr
       INTEGER, DIMENSION(:, :, :), POINTER               :: marked_states
-      LOGICAL :: check_write, compute_lumos, do_homo, do_kpoints, do_mixed, do_mo_cubes, do_stm, &
+      LOGICAL :: check_write, compute_lumos, do_homo, do_kpoints, do_mixed, do_mo_cubes, do_openpmd, do_stm, &
          do_wannier_cubes, has_homo, has_lumo, loc_explicit, loc_print_explicit, my_do_mp2, &
          my_localized_wfn, p_loc, p_loc_homo, p_loc_lumo, p_loc_mixed
       REAL(dp)                                           :: e_kin
@@ -442,6 +442,9 @@ CONTAINS
       ! check for CUBES (MOs and WANNIERS)
       do_mo_cubes = BTEST(cp_print_key_should_output(logger%iter_info, dft_section, "PRINT%MO_CUBES") &
                           , cp_p_file)
+      do_openpmd = BTEST(cp_print_key_should_output(logger%iter_info, dft_section, "PRINT%OPENPMD") &
+                          , cp_p_file)
+      CPASSERT(.NOT. (do_mo_cubes .AND. do_openpmd))
       IF (loc_print_explicit) THEN
          do_wannier_cubes = BTEST(cp_print_key_should_output(logger%iter_info, loc_print_section, &
                                                              "WANNIER_CUBES"), cp_p_file)
