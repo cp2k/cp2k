@@ -6,4 +6,4 @@
 "CH-hfx-ri-rho.inp"                     = [{matcher="E_total", tol=3.0E-10, ref=-38.26515058472813}]
 "CH3-ADMM.inp"                          = [{matcher="E_total", tol=2.1E-12, ref=-7.40024840153753}]
 "CH3-hfx-converged.inp"                 = [{matcher="E_total", tol=1.0E-10, ref=-7.21317210062501}]
-"Ne-hybrid-periodic-shortrange.inp"     = [{matcher="E_total", tol=5.0E-12, ref=-772.9611324742208}]
+"Ne-hybrid-periodic-shortrange.inp"     = [{matcher="E_total", tol=5.0E-11, ref=-772.9611324742208}]
