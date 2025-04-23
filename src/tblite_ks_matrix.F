@@ -31,7 +31,8 @@ MODULE tblite_ks_matrix
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE tblite_interface,                ONLY: tb_ham_add_coulomb,&
-                                              tb_update_charges
+                                              tb_update_charges, &
+                                              tb_get_multipole
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -118,6 +119,8 @@ CONTAINS
       END IF
 
       CALL tb_update_charges(qs_env, dft_control, qs_env%tb_tblite, calculate_forces, .TRUE.)
+
+      CALL tb_get_multipole(qs_env, qs_env%tb_tblite)
       CALL tb_ham_add_coulomb(qs_env, qs_env%tb_tblite, dft_control, .FALSE.)
 
       IF (qs_env%qmmm) THEN
