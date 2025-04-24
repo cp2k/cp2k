@@ -19,7 +19,7 @@ MODULE tblite_interface
    USE mctc_io_symbols, ONLY: symbol_to_number
    USE tblite_basis_type, ONLY: get_cutoff
    USE tblite_container, ONLY: container_cache
-   USE tblite_integral_multipole, only : multipole_cgto, multipole_grad_cgto, maxl, msao
+   USE tblite_integral_multipole, ONLY: multipole_cgto, multipole_grad_cgto, maxl, msao
    USE tblite_scf_info, ONLY: scf_info, atom_resolved, shell_resolved, &
                               orbital_resolved, not_used
    USE tblite_scf_potential, ONLY: potential_type, new_potential
@@ -90,8 +90,8 @@ MODULE tblite_interface
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'tblite_interface'
 
-   integer, parameter                                 :: dip_n = 3
-   integer, parameter                                 :: quad_n = 6
+   INTEGER, PARAMETER                                 :: dip_n = 3
+   INTEGER, PARAMETER                                 :: quad_n = 6
 
    PUBLIC :: tb_init_geometry, tb_init_ham, tb_init_wf
    PUBLIC :: tb_set_calculator, tb_get_basis, build_tblite_matrices
@@ -202,7 +202,6 @@ CONTAINS
          END IF
          ALLOCATE (tb%dsedcn(tb%calc%bas%nsh))
       END IF
-
 
 #else
       CPABORT("Build without TBLITE")
@@ -1117,18 +1116,16 @@ CONTAINS
 #endif
 
    END SUBROUTINE tb_ham_add_coulomb
-   
+
 ! **************************************************************************************************
 !> \brief ...
-!> \param qs_env ...
 !> \param tb ...
-!> \param dft_control ...
-!> \param calculate_forces ...
+!> \param tot_orb ...
 ! **************************************************************************************************
    SUBROUTINE tb_alloc_multipole(tb, tot_orb)
 
       TYPE(tblite_type), POINTER                               :: tb
-      Integer, intent(IN)                                      :: tot_orb
+      INTEGER, INTENT(IN)                                      :: tot_orb
 
 #if defined(__TBLITE)
 
@@ -1137,13 +1134,11 @@ CONTAINS
 #endif
 
    END SUBROUTINE tb_alloc_multipole
-   
+
 ! **************************************************************************************************
 !> \brief ...
 !> \param qs_env ...
 !> \param tb ...
-!> \param dft_control ...
-!> \param calculate_forces ...
 ! **************************************************************************************************
    SUBROUTINE tb_get_multipole(qs_env, tb)
 
@@ -1153,22 +1148,23 @@ CONTAINS
 #if defined(__TBLITE)
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tb_get_multipole'
-      
 
       INTEGER                                     :: ikind, jkind, iatom, jatom, icol, irow, iset, jset
-      INTEGER                                     :: nkind, natom, handle
+      INTEGER                                     :: nkind, natom, handle, nimg, i
       INTEGER                                     :: atom_a, atom_b, nseta, nsetb, ia, ib, sgfa, sgfb, ij
       INTEGER, DIMENSION(3)                       :: cell
-      real(dp)                                    :: r2
+      REAL(dp)                                    :: r2
       REAL(KIND=dp), DIMENSION(3)                 :: rij
       INTEGER, DIMENSION(:), POINTER              :: la_max, lb_max
       INTEGER, DIMENSION(:), POINTER              :: nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER           :: first_sgfa, first_sgfb
       INTEGER, ALLOCATABLE                        :: atom_of_kind(:)
-      real(dp), allocatable                       :: stmp(:)
-      real(dp), allocatable                       :: dtmp(:, :), qtmp(:, :)
-      
+      REAL(dp), ALLOCATABLE                       :: stmp(:)
+      REAL(dp), ALLOCATABLE                       :: dtmp(:, :), qtmp(:, :)
+
       TYPE(atomic_kind_type), DIMENSION(:), POINTER         :: atomic_kind_set
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER          :: matrix_s
+      TYPE(dft_control_type), POINTER                       :: dft_control
       TYPE(gto_basis_set_type), POINTER                     :: basis_set_a, basis_set_b
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER     :: basis_set_list
       TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb
@@ -1176,41 +1172,71 @@ CONTAINS
          DIMENSION(:), POINTER                              :: nl_iterator
       TYPE(particle_type), DIMENSION(:), POINTER            :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER             :: qs_kind_set
-      
+
       CALL timeset(routineN, handle)
 
       !get info from environment vaiarable
-      NULLIFY(atomic_kind_set, qs_kind_set, sab_orb, particle_set)
+      NULLIFY (atomic_kind_set, qs_kind_set, sab_orb, particle_set)
+      NULLIFY (dft_control, matrix_s)
       CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, &
-                                     qs_kind_set=qs_kind_set, &
-                                     sab_orb=sab_orb, &
-                                     particle_set=particle_set)
+                      qs_kind_set=qs_kind_set, &
+                      sab_orb=sab_orb, &
+                      particle_set=particle_set, &
+                      dft_control=dft_control, &
+                      matrix_s_kp=matrix_s)
       natom = SIZE(particle_set)
       nkind = SIZE(atomic_kind_set)
-      
+      nimg = dft_control%nimages
+
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, atom_of_kind=atom_of_kind)
-      
+
       !set up basis set lists
       ALLOCATE (basis_set_list(nkind))
       CALL basis_set_list_setup(basis_set_list, "ORB", qs_kind_set)
-      
-      allocate(stmp(msao(tb%calc%bas%maxl)**2))
-      allocate(dtmp(dip_n, msao(tb%calc%bas%maxl)**2))
-      allocate(qtmp(quad_n, msao(tb%calc%bas%maxl)**2))
-      
-      flush(6)
-      
+
+      ALLOCATE (stmp(msao(tb%calc%bas%maxl)**2))
+      ALLOCATE (dtmp(dip_n, msao(tb%calc%bas%maxl)**2))
+      ALLOCATE (qtmp(quad_n, msao(tb%calc%bas%maxl)**2))
+
+      ! allocate dipole/quadrupole moment matrix elemnts
+      CALL dbcsr_allocate_matrix_set(tb%dipbra, dip_n)
+      CALL dbcsr_allocate_matrix_set(tb%dipket, dip_n)
+      CALL dbcsr_allocate_matrix_set(tb%quadbra, quad_n)
+      CALL dbcsr_allocate_matrix_set(tb%quadket, quad_n)
+      DO i = 1, dip_n
+         WRITE (*, *) "dipole i", i
+         flush (6)
+         ALLOCATE (tb%dipbra(i)%matrix)
+         ALLOCATE (tb%dipket(i)%matrix)
+         CALL dbcsr_create(tb%dipbra(i)%matrix, template=matrix_s(1, 1)%matrix, &
+                           name="DIPOLE BRAMATRIX")
+         CALL dbcsr_create(tb%dipket(i)%matrix, template=matrix_s(1, 1)%matrix, &
+                           name="DIPOLE KETMATRIX")
+         CALL cp_dbcsr_alloc_block_from_nbl(tb%dipbra(i)%matrix, sab_orb)
+         CALL cp_dbcsr_alloc_block_from_nbl(tb%dipket(i)%matrix, sab_orb)
+      END DO
+      DO i = 1, quad_n
+         ALLOCATE (tb%quadbra(i)%matrix)
+         ALLOCATE (tb%quadket(i)%matrix)
+         CALL dbcsr_create(tb%quadbra(i)%matrix, template=matrix_s(1, 1)%matrix, &
+                           name="QUADRUPOLE BRAMATRIX")
+         CALL dbcsr_create(tb%quadket(i)%matrix, template=matrix_s(1, 1)%matrix, &
+                           name="QUADRUPOLE KETMATRIX")
+         CALL cp_dbcsr_alloc_block_from_nbl(tb%quadbra(i)%matrix, sab_orb)
+         CALL cp_dbcsr_alloc_block_from_nbl(tb%quadket(i)%matrix, sab_orb)
+      END DO
+
       !loop over all atom pairs with a non-zero overlap (sab_orb)
       CALL neighbor_list_iterator_create(nl_iterator, sab_orb)
       DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
          CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
                                 iatom=iatom, jatom=jatom, r=rij, cell=cell)
-                                
+
          r2 = SUM(rij(:)**2)
-         
+
          icol = MAX(iatom, jatom)
          irow = MIN(iatom, jatom)
-         
+
          !get basis information
          basis_set_a => basis_set_list(ikind)%gto_basis_set
          IF (.NOT. ASSOCIATED(basis_set_a)) CYCLE
@@ -1228,29 +1254,27 @@ CONTAINS
          lb_max => basis_set_b%lmax
          nsetb = basis_set_b%nset
          nsgfb => basis_set_b%nsgf_set
-         
+
          ! --------- Hamiltonian
 
          IF (iatom == jatom) THEN
 
             DO iset = 1, nseta
                DO jset = 1, nsetb
-               
-                dtmp=-777.0_dp
-                qtmp=-888.0_dp
-                call multipole_cgto(tb%calc%bas%cgto(jset, iatom), tb%calc%bas%cgto(iset, iatom), &
-                     & r2, rij, tb%calc%bas%intcut, stmp, dtmp, qtmp)
-                !write(*,*) 'jjjjjjjjjjjjjjjjjjjjj dipole'
-                !write(*,'(6F18.9)') dtmp
-                !write(*,*) 'jjjjjjjjjjjjjjjjjjj quadrupole'
-                !write(*,'(6F18.9)') qtmp 
-                
-                
-                     
-               !sgfa = first_sgfa(1, iset)
-               !DO ia = sgfa, sgfa + nsgfa(iset) - 1
-               !   hint(ia, ia, 1) = tb%selfenergy(n1 + iset)
-               !END DO
+
+                  dtmp = -777.0_dp
+                  qtmp = -888.0_dp
+                  CALL multipole_cgto(tb%calc%bas%cgto(jset, iatom), tb%calc%bas%cgto(iset, iatom), &
+                       & r2, rij, tb%calc%bas%intcut, stmp, dtmp, qtmp)
+                  !write(*,*) 'jjjjjjjjjjjjjjjjjjjjj dipole'
+                  !write(*,'(6F18.9)') dtmp
+                  !write(*,*) 'jjjjjjjjjjjjjjjjjjj quadrupole'
+                  !write(*,'(6F18.9)') qtmp
+
+                  !sgfa = first_sgfa(1, iset)
+                  !DO ia = sgfa, sgfa + nsgfa(iset) - 1
+                  !   hint(ia, ia, 1) = tb%selfenergy(n1 + iset)
+                  !END DO
                END DO
             END DO
          ELSE
@@ -1265,35 +1289,32 @@ CONTAINS
                !   n2 = n2 + tb%calc%bas%nsh_at(jshell)
                !END DO
                DO jset = 1, nsetb
-                 dtmp=-777.0_dp
-                 qtmp=-888.0_dp
-                 call multipole_cgto(tb%calc%bas%cgto(jset, jatom), tb%calc%bas%cgto(iset, iatom), &
-                     & r2, rij, tb%calc%bas%intcut, stmp, dtmp, qtmp)
-               
-                  
+                  dtmp = -777.0_dp
+                  qtmp = -888.0_dp
+                  CALL multipole_cgto(tb%calc%bas%cgto(jset, jatom), tb%calc%bas%cgto(iset, iatom), &
+                      & r2, rij, tb%calc%bas%intcut, stmp, dtmp, qtmp)
+
                   DO ia = 1, nsgfa(iset) - 1
                      sgfa = first_sgfa(1, iset) + ia
                      DO ib = 1, nsgfb(jset) - 1
-                         sgfb = first_sgfb(1, jset) + ib
-                         ij = ib + nsgfb(jset)*(ia-1)
-                          write(*,*) 'kkkkkkkkkk, i, j, dipole', ia, ib, ij, sgfa, sgfb
-                          write(*,'(6F18.9)') dtmp(:, ij)
-                         
-                  !      shpoly = (1.0_dp + h0%shpoly(iset, iatom)*rr) &
-                  !               *(1.0_dp + h0%shpoly(jset, jatom)*rr)
-                  !      hij = 0.5_dp*(tb%selfenergy(n1 + iset) + tb%selfenergy(n2 + jset)) &
-                  !            *h0%hscale(jset, iset, jatom, iatom)*shpoly
-                  !      hint(sgfa, sgfb, 1) = hij*sint(ia, ib, 1)
+                        sgfb = first_sgfb(1, jset) + ib
+                        ij = ib + nsgfb(jset)*(ia - 1)
+                        WRITE (*, *) 'kkkkkkkkkk, i, j, dipole', ia, ib, ij, sgfa, sgfb
+                        WRITE (*, '(6F18.9)') dtmp(:, ij)
+
+                        !      shpoly = (1.0_dp + h0%shpoly(iset, iatom)*rr) &
+                        !               *(1.0_dp + h0%shpoly(jset, jatom)*rr)
+                        !      hij = 0.5_dp*(tb%selfenergy(n1 + iset) + tb%selfenergy(n2 + jset)) &
+                        !            *h0%hscale(jset, iset, jatom, iatom)*shpoly
+                        !      hint(sgfa, sgfb, 1) = hij*sint(ia, ib, 1)
                      END DO
                   END DO
                END DO
             END DO
          END IF
-         
-         
-         
-      END DO   
-      
+
+      END DO
+
       CALL timestop(handle)
 
 #else
@@ -1301,7 +1322,6 @@ CONTAINS
 #endif
 
    END SUBROUTINE tb_get_multipole
-
 
 END MODULE tblite_interface
 

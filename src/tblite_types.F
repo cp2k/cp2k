@@ -21,6 +21,8 @@ MODULE tblite_types
    USE tblite_scf_potential, ONLY: potential_type
 #endif
 
+   USE cp_dbcsr_api, ONLY: dbcsr_p_type
+   USE cp_dbcsr_operations, ONLY: dbcsr_deallocate_matrix_set
    USE kinds, ONLY: dp
 
 #include "./base/base_uses.f90"
@@ -49,6 +51,11 @@ MODULE tblite_types
       REAL(KIND=dp), ALLOCATABLE                         :: dsedcn(:)
       REAL(KIND=dp), ALLOCATABLE                         :: dcndr(:, :, :)
       REAL(KIND=dp), ALLOCATABLE                         :: dcndL(:, :, :)
+
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dipbra => Null(), &
+                                                            dipket => Null()
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: quadbra => Null(), &
+                                                            quadket => Null()
 
 #if defined(__TBLITE)
       TYPE(structure_type)                               :: mol
@@ -100,6 +107,15 @@ CONTAINS
          IF (ALLOCATED(tb_tblite%dsedcn)) DEALLOCATE (tb_tblite%dsedcn)
          IF (ALLOCATED(tb_tblite%dcndr)) DEALLOCATE (tb_tblite%dcndr)
          IF (ALLOCATED(tb_tblite%dcndL)) DEALLOCATE (tb_tblite%dcndL)
+
+         IF (ASSOCIATED(tb_tblite%dipbra)) &
+            CALL dbcsr_deallocate_matrix_set(tb_tblite%dipbra)
+         IF (ASSOCIATED(tb_tblite%dipket)) &
+            CALL dbcsr_deallocate_matrix_set(tb_tblite%dipket)
+         IF (ASSOCIATED(tb_tblite%quadbra)) &
+            CALL dbcsr_deallocate_matrix_set(tb_tblite%quadbra)
+         IF (ASSOCIATED(tb_tblite%quadket)) &
+            CALL dbcsr_deallocate_matrix_set(tb_tblite%quadket)
 
          DEALLOCATE (tb_tblite)
       END IF
