@@ -30,9 +30,9 @@ MODULE tblite_ks_matrix
                                               mo_set_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
-   USE tblite_interface,                ONLY: tb_ham_add_coulomb,&
-                                              tb_update_charges, &
-                                              tb_get_multipole
+   USE tblite_interface,                ONLY: tb_get_multipole,&
+                                              tb_ham_add_coulomb,&
+                                              tb_update_charges
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
