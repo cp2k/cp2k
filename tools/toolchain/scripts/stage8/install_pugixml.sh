@@ -49,15 +49,14 @@ case "${with_pugixml}" in
       cd ..
       write_checksums "${install_lock_file}" "${SCRIPT_DIR}/stage8/$(basename ${SCRIPT_NAME})"
     fi
+    PUGIXML_CFLAGS="-I'${pkg_install_dir}/include'"
     PUGIXML_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
     ;;
   __SYSTEM__)
     echo "==================== Finding pugixml from system paths ===================="
     check_command pkg-config --modversion pugixml
     add_include_from_paths PUGIXML_CFLAGS "pugixml.hpp" ${INCLUDE_PATHS}
-    echo INCLUDE_PATHS=${INCLUDE_PATHS}
     add_lib_from_paths PUGIXML_LDFLAGS "libpugixml.*" ${LIB_PATHS}
-    echo LIB_PATHS=${LIB_PATHS}
     ;;
   __DONTUSE__)
     # Nothing to do
@@ -98,7 +97,7 @@ export CP_CFLAGS="\${CP_CFLAGS} ${PUGIXML_CFLAGS}"
 export CP_LDFLAGS="\${CP_LDFLAGS} ${PUGIXML_LDFLAGS}"
 export CP_LIBS="IF_MPI(${PUGIXML_LIBS}|) \${CP_LIBS}"
 EOF
-  cat "${BUILDDIR}/setup_pugixml" >> $SETUPFILE
+  cat "${BUILDDIR}/setup_pugixml" >> ${SETUPFILE}
 fi
 
 load "${BUILDDIR}/setup_pugixml"
