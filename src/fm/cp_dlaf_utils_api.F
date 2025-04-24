@@ -123,9 +123,6 @@ CONTAINS
       CALL timeset(routineN, handle)
 #if defined(__DLAF)
       CALL dlaf_free_all_grids()
-#else
-      MARK_USED(blacs_context)
-      CPABORT("CP2K compiled without the DLA-Future library.")
 #endif
       CALL timestop(handle)
    END SUBROUTINE cp_dlaf_free_all_grids
