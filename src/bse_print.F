@@ -423,7 +423,7 @@ CONTAINS
          ! Compute and print the absorption spectrum to external file
          IF (mp2_env%bse%bse_print_spectrum) THEN
             CALL compute_and_print_absorption_spectrum(oscill_str, polarizability_residues, Exc_ens, &
-                                             info_approximation, unit_nr, mp2_env)
+                                                       info_approximation, unit_nr, mp2_env)
          END IF
 
       ELSE

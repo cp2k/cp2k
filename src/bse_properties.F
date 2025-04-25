@@ -217,7 +217,7 @@ CONTAINS
 !> \param mp2_env ...
 ! **************************************************************************************************
    SUBROUTINE compute_and_print_absorption_spectrum(oscill_str, polarizability_residues, Exc_ens, &
-                                          info_approximation, unit_nr, mp2_env)
+                                                    info_approximation, unit_nr, mp2_env)
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(IN)                                      :: oscill_str
