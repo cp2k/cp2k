@@ -89,9 +89,7 @@ CONTAINS
 #if defined(__parallel)
       desca(:) = matrix%matrix_struct%descriptor(:)
 #if defined(__DLAF)
-      WRITE(*,*) "DEBUG >>> dlaf_cholesky_n_min = ", dlaf_cholesky_n_min
       IF (cholesky_type == FM_CHOLESKY_TYPE_DLAF .AND. matrix%matrix_struct%nrow_global >= dlaf_cholesky_n_min) THEN
-         WRITE(*,*) "DEBUG >>> CALLING DLA-F Cholesky | dlaf_cholesky_n_min = ", dlaf_cholesky_n_min
          ! Initialize DLA-Future on-demand; if already initialized, does nothing
          CALL cp_dlaf_initialize()
 
