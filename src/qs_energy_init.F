@@ -63,7 +63,8 @@ MODULE qs_energy_init
    USE ri_environment_methods,          ONLY: build_ri_matrices
    USE se_core_core,                    ONLY: se_core_core_interaction
    USE se_core_matrix,                  ONLY: build_se_core_matrix
-   USE tblite_interface,                ONLY: build_tblite_matrices
+   USE tblite_interface,                ONLY: build_tblite_matrices, &
+                                              tb_get_multipole
    USE xtb_matrices,                    ONLY: build_xtb_matrices
 #include "./base/base_uses.f90"
 
@@ -310,6 +311,7 @@ CONTAINS
          IF (dft_control%qs_control%xtb_control%do_tblite) THEN
             CALL build_tblite_matrices(qs_env=qs_env, para_env=para_env, &
                                        calculate_forces=.FALSE.)
+            CALL tb_get_multipole(qs_env, qs_env%tb_tblite)
          ELSE
             CALL build_xtb_matrices(qs_env=qs_env, calculate_forces=.FALSE.)
          END IF

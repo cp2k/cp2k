@@ -96,7 +96,7 @@ MODULE tblite_interface
    PUBLIC :: tb_init_geometry, tb_init_ham, tb_init_wf
    PUBLIC :: tb_set_calculator, tb_get_basis, build_tblite_matrices
    PUBLIC :: tb_get_energy, tb_update_charges, tb_ham_add_coulomb
-   PUBLIC :: tb_alloc_multipole, tb_get_multipole
+   PUBLIC :: tb_get_multipole
 
 CONTAINS
 
@@ -1119,24 +1119,6 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param tb ...
-!> \param tot_orb ...
-! **************************************************************************************************
-   SUBROUTINE tb_alloc_multipole(tb, tot_orb)
-
-      TYPE(tblite_type), POINTER                               :: tb
-      INTEGER, INTENT(IN)                                      :: tot_orb
-
-#if defined(__TBLITE)
-
-#else
-      CPABORT("Build without TBLITE")
-#endif
-
-   END SUBROUTINE tb_alloc_multipole
-
-! **************************************************************************************************
-!> \brief ...
 !> \param qs_env ...
 !> \param tb ...
 ! **************************************************************************************************
@@ -1153,6 +1135,7 @@ CONTAINS
       INTEGER                                     :: nkind, natom, handle, nimg, i
       INTEGER                                     :: atom_a, atom_b, nseta, nsetb, ia, ib, sgfa, sgfb, ij
       INTEGER, DIMENSION(3)                       :: cell
+      LOGICAL                                     :: found
       REAL(dp)                                    :: r2
       REAL(KIND=dp), DIMENSION(3)                 :: rij
       INTEGER, DIMENSION(:), POINTER              :: la_max, lb_max
@@ -1161,6 +1144,7 @@ CONTAINS
       INTEGER, ALLOCATABLE                        :: atom_of_kind(:)
       REAL(dp), ALLOCATABLE                       :: stmp(:)
       REAL(dp), ALLOCATABLE                       :: dtmp(:, :), qtmp(:, :)
+      REAL(KIND=dp), DIMENSION(:, :), POINTER     :: dk1_block, dk2_block, dk3_block
 
       TYPE(atomic_kind_type), DIMENSION(:), POINTER         :: atomic_kind_set
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER          :: matrix_s
@@ -1204,8 +1188,6 @@ CONTAINS
       CALL dbcsr_allocate_matrix_set(tb%quadbra, quad_n)
       CALL dbcsr_allocate_matrix_set(tb%quadket, quad_n)
       DO i = 1, dip_n
-         WRITE (*, *) "dipole i", i
-         flush (6)
          ALLOCATE (tb%dipbra(i)%matrix)
          ALLOCATE (tb%dipket(i)%matrix)
          CALL dbcsr_create(tb%dipbra(i)%matrix, template=matrix_s(1, 1)%matrix, &
@@ -1236,6 +1218,18 @@ CONTAINS
 
          icol = MAX(iatom, jatom)
          irow = MIN(iatom, jatom)
+         
+         NULLIFY (dk1_block, dk2_block, dk3_block)
+         CALL dbcsr_get_block_p(matrix=tb%dipket(1)%matrix, &
+                                row=irow, col=icol, BLOCK=dk1_block, found=found)
+         CPASSERT(found)
+         CALL dbcsr_get_block_p(matrix=tb%dipket(2)%matrix, &
+                                row=irow, col=icol, BLOCK=dk2_block, found=found)
+         CPASSERT(found)
+         CALL dbcsr_get_block_p(matrix=tb%dipket(3)%matrix, &
+                                row=irow, col=icol, BLOCK=dk3_block, found=found)
+         CPASSERT(found)
+
 
          !get basis information
          basis_set_a => basis_set_list(ikind)%gto_basis_set
@@ -1261,20 +1255,37 @@ CONTAINS
 
             DO iset = 1, nseta
                DO jset = 1, nsetb
-
+                  
                   dtmp = -777.0_dp
                   qtmp = -888.0_dp
                   CALL multipole_cgto(tb%calc%bas%cgto(jset, iatom), tb%calc%bas%cgto(iset, iatom), &
                        & r2, rij, tb%calc%bas%intcut, stmp, dtmp, qtmp)
-                  !write(*,*) 'jjjjjjjjjjjjjjjjjjjjj dipole'
-                  !write(*,'(6F18.9)') dtmp
-                  !write(*,*) 'jjjjjjjjjjjjjjjjjjj quadrupole'
-                  !write(*,'(6F18.9)') qtmp
+                  write(*,*) "iiiiii: at1, at2, sh1, sh2", iatom, jatom, iset, jset
+                  write(*,*) "iiiiii: bas1", tb%calc%bas%cgto(jset, iatom)
+                  write(*,*) "iiiiii: bas2", tb%calc%bas%cgto(iset, iatom)
+                  write(*,*) "iiiiii: r2, rij ", r2, rij
+                  write(*,*) "iiiiii: dtmp ", dtmp
+                  
+                       
+                  DO ia = 1, nsgfa(iset)
+                     sgfa = first_sgfa(1, iset) + ia
+                     DO ib = 1, nsgfb(jset)
+                        sgfb = first_sgfb(1, jset) + ib
+                        ij = ib + nsgfb(jset)*(ia - 1)
+                        write(*,*) 'jjjjj, i, j, dipole', ia, ib, ij, sgfa, sgfb
+                        write(*,'(6F18.9)') dtmp(:, ij)
+                        
+                        dk1_block(ia, ib)=dtmp(1, ij)
+                        dk2_block(ia, ib)=dtmp(2, ij)
+                        dk3_block(ia, ib)=dtmp(3, ij)
 
-                  !sgfa = first_sgfa(1, iset)
-                  !DO ia = sgfa, sgfa + nsgfa(iset) - 1
-                  !   hint(ia, ia, 1) = tb%selfenergy(n1 + iset)
-                  !END DO
+                        !      shpoly = (1.0_dp + h0%shpoly(iset, iatom)*rr) &
+                        !               *(1.0_dp + h0%shpoly(jset, jatom)*rr)
+                        !      hij = 0.5_dp*(tb%selfenergy(n1 + iset) + tb%selfenergy(n2 + jset)) &
+                        !            *h0%hscale(jset, iset, jatom, iatom)*shpoly
+                        !      hint(sgfa, sgfb, 1) = hij*sint(ia, ib, 1)
+                     END DO
+                  END DO
                END DO
             END DO
          ELSE
@@ -1299,8 +1310,8 @@ CONTAINS
                      DO ib = 1, nsgfb(jset) - 1
                         sgfb = first_sgfb(1, jset) + ib
                         ij = ib + nsgfb(jset)*(ia - 1)
-                        WRITE (*, *) 'kkkkkkkkkk, i, j, dipole', ia, ib, ij, sgfa, sgfb
-                        WRITE (*, '(6F18.9)') dtmp(:, ij)
+                        !WRITE (*, *) 'kkkkkkkkkk, i, j, dipole', ia, ib, ij, sgfa, sgfb
+                        !WRITE (*, '(6F18.9)') dtmp(:, ij)
 
                         !      shpoly = (1.0_dp + h0%shpoly(iset, iatom)*rr) &
                         !               *(1.0_dp + h0%shpoly(jset, jatom)*rr)
@@ -1313,6 +1324,16 @@ CONTAINS
             END DO
          END IF
 
+      END DO
+      
+      DO i = 1, dip_n
+        CALL dbcsr_finalize(tb%dipbra(i)%matrix)
+        CALL dbcsr_finalize(tb%dipket(i)%matrix)
+        CALL dbcsr_print(tb%dipket(i)%matrix)
+      END DO
+      DO i = 1, quad_n
+        CALL dbcsr_finalize(tb%quadbra(i)%matrix)
+        CALL dbcsr_finalize(tb%quadket(i)%matrix)
       END DO
 
       CALL timestop(handle)
