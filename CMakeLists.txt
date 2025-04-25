@@ -601,7 +601,7 @@ if(CP2K_USE_VORI)
 endif()
 
 if(CP2K_USE_DLAF)
-  find_package(DLAFFortran REQUIRED)
+  find_package(DLAFFortran 0.4.0 REQUIRED)
 
   get_target_property(CP2K_DLAF_INCLUDE_DIRS DLAF::DLAF
                       INTERFACE_INCLUDE_DIRECTORIES)
