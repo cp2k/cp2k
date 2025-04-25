@@ -281,6 +281,7 @@ CONTAINS
       CALL section_vals_val_get(gw_sec, "NUM_TIME_FREQ_POINTS", i_val=bs_env%num_time_freq_points)
       CALL section_vals_val_get(gw_sec, "EPS_FILTER", r_val=bs_env%eps_filter)
       CALL section_vals_val_get(gw_sec, "REGULARIZATION_RI", r_val=bs_env%input_regularization_RI)
+      CALL section_vals_val_get(gw_sec, "REGULARIZATION_MINIMAX", r_val=bs_env%input_regularization_minimax)
       CALL section_vals_val_get(gw_sec, "CUTOFF_RADIUS_RI", r_val=bs_env%ri_metric%cutoff_radius)
       CALL section_vals_val_get(gw_sec, "MEMORY_PER_PROC", r_val=bs_env%input_memory_per_proc_GB)
       CALL section_vals_val_get(gw_sec, "APPROX_KP_EXTRAPOL", l_val=bs_env%approx_kp_extrapol)
@@ -1509,13 +1510,17 @@ CONTAINS
       ! for generating numerically stable minimax Fourier integration weights
       bs_env%num_points_per_magnitude = 200
 
-      ! for periodic systems and for 20 minimax points, we use a regularized minimax mesh
-      ! (from experience: regularized minimax meshes converges faster for periodic systems
-      !  and for 20 pts)
-      IF (SUM(bs_env%periodic) .NE. 0 .OR. bs_env%num_time_freq_points >= 20) THEN
-         bs_env%regularization_minimax = 1.0E-6_dp
+      IF (bs_env%input_regularization_minimax > -1.0E-12_dp) THEN
+         bs_env%regularization_minimax = bs_env%input_regularization_minimax
       ELSE
-         bs_env%regularization_minimax = 0.0_dp
+         ! for periodic systems and for 20 minimax points, we use a regularized minimax mesh
+         ! (from experience: regularized minimax meshes converges faster for periodic systems
+         !  and for 20 pts)
+         IF (SUM(bs_env%periodic) .NE. 0 .OR. bs_env%num_time_freq_points >= 20) THEN
+            bs_env%regularization_minimax = 1.0E-6_dp
+         ELSE
+            bs_env%regularization_minimax = 0.0_dp
+         END IF
       END IF
 
       bs_env%stabilize_exp = 70.0_dp
@@ -1564,6 +1569,8 @@ CONTAINS
          WRITE (u, FMT="(T2,2A,F15.1,A)") "Cutoff radius for the truncated Coulomb ", &
             "operator in RI metric:", bs_env%ri_metric%cutoff_radius*angstrom, " Å"
          WRITE (u, FMT="(T2,A,ES48.1)") "Regularization parameter of RI ", bs_env%regularization_RI
+         WRITE (u, FMT="(T2,A,ES48.1)") "Regularization parameter of minimax grids", &
+            bs_env%regularization_minimax
          WRITE (u, FMT="(T2,A,I53)") "Lattice sum size for V(k):", bs_env%size_lattice_sum_V
       END IF
 
