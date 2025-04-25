@@ -78,6 +78,7 @@ static void *actual_malloc(size_t size, bool on_device) {
       offloadMalloc(&memory, size);
     } else {
 #if DBM_ALLOC_OFFLOAD
+      offload_activate_chosen_device();
       offloadMallocHost(&memory, size);
 #else
       memory = dbm_mpi_alloc_mem(size);
@@ -115,6 +116,7 @@ static void actual_free(const void *memory, bool on_device) {
       offloadFree(mem);
     } else {
 #if DBM_ALLOC_OFFLOAD
+      offload_activate_chosen_device();
       offloadFreeHost(mem);
 #else
       dbm_mpi_free_mem(mem);
