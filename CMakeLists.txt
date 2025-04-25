@@ -161,6 +161,8 @@ cmake_dependent_option(CP2K_USE_SIRIUS "Enable SIRIUS support"
                        ${CP2K_USE_EVERYTHING} "CP2K_USE_MPI" OFF)
 cmake_dependent_option(CP2K_USE_SPLA "Enable SPLA support"
                        ${CP2K_USE_EVERYTHING} "CP2K_USE_MPI" OFF)
+cmake_dependent_option(CP2K_USE_MIMIC "Enable MIMIC support"
+                       ${CP2K_USE_EVERYTHING} "CP2K_USE_MPI" OFF)
 
 cmake_dependent_option(
   CP2K_USE_LIBXSMM "Enable libxsmm support" ${CP2K_USE_EVERYTHING}
@@ -708,6 +710,10 @@ if(CP2K_USE_LIBTORCH)
   endif()
 endif()
 
+if(CP2K_USE_MIMIC)
+  find_package(Mimic REQUIRED)
+endif()
+
 if(CP2K_USE_MPI_F08 AND NOT MPI_Fortran_HAVE_F08_MODULE)
   message(
     FATAL_ERROR
@@ -879,6 +885,12 @@ if(CP2K_USE_SPLA)
           "   - libraries: ${SPLA_LIBRARIES}\n\n")
 endif()
 
+if(CP2K_USE_MIMIC)
+  message(" - MiMiC\n"
+          "   - include directories: ${CP2K_MIMIC_INCLUDE_DIRS}\n"
+          "   - libraries: ${CP2K_MIMIC_LINK_LIBRARIES}\n\n")
+endif()
+
 if(CP2K_USE_DFTD4)
   message(
     " - DFTD4\n"
@@ -984,6 +996,10 @@ endif()
 
 if(NOT CP2K_USE_SPLA)
   message("   - SPLA")
+endif()
+
+if(NOT CP2K_USE_MIMIC)
+  message("   - MiMiC")
 endif()
 
 if(NOT CP2K_USE_HDF5)

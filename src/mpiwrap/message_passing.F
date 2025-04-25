@@ -29,6 +29,9 @@ MODULE message_passing
    USE machine, ONLY: m_abort
    USE mp_perf_env, ONLY: add_perf, &
                           add_mp_perf_env, rm_mp_perf_env
+#if defined(__MIMIC)
+   USE mcl, ONLY: mcl_initialize
+#endif
 
 #include "../base/base_uses.f90"
 
@@ -185,6 +188,11 @@ MODULE message_passing
    PUBLIC :: mp_para_env_type, mp_para_env_p_type, mp_para_cart_type
    PUBLIC :: mp_para_env_create, mp_para_env_release, &
              mp_para_cart_create, mp_para_cart_release
+
+#if defined(__MIMIC)
+   ! Stores the split world communicator to finalize a MiMiC run
+   MPI_COMM_TYPE, PRIVATE, SAVE :: mimic_comm_world
+#endif
 
    TYPE mp_comm_type
       PRIVATE
@@ -1121,6 +1129,9 @@ CONTAINS
          INTEGER                                  :: ierr
 !$       INTEGER                                  :: provided_tsl
 !$       LOGICAL                                  :: no_threading_support
+#if defined(__MIMIC)
+         MPI_COMM_TYPE                            :: mimic_handle
+#endif
 
 #if defined(__NO_MPI_THREAD_SUPPORT_CHECK)
          ! Hack that does not request or check MPI thread support level.
@@ -1167,6 +1178,12 @@ CONTAINS
 #endif
          debug_comm_count = 1
          mp_comm = mp_comm_world
+#if defined(__MIMIC)
+         mimic_handle = mp_comm%get_handle()
+         CALL mcl_initialize(mimic_handle)
+         CALL mp_comm%set_handle(mimic_handle)
+         mimic_comm_world = mimic_handle
+#endif
          CALL mp_comm%init()
          CALL add_mp_perf_env()
       END SUBROUTINE mp_world_init
@@ -1232,7 +1249,11 @@ CONTAINS
          CHARACTER(LEN=default_string_length) :: debug_comm_count_char
 #if defined(__parallel)
          INTEGER                                  :: ierr
+#if defined(__MIMIC)
+         CALL mpi_barrier(mimic_comm_world, ierr)
+#else
          CALL mpi_barrier(MPI_COMM_WORLD, ierr) ! call mpi directly to avoid 0 stack pointer
+#endif
 #endif
          CALL rm_mp_perf_env()
 
