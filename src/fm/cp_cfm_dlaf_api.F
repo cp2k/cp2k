@@ -159,11 +159,9 @@ CONTAINS
 
       CHARACTER(LEN=100)                                 :: message
       COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: a, z
-      INTEGER                                            :: dlaf_handle, handle, n
+      INTEGER                                            :: blacs_context, dlaf_handle, handle, n
       INTEGER, DIMENSION(9)                              :: desca, descz
       INTEGER, TARGET                                    :: info
-
-      INTEGER                                            :: blacs_context
 
       CALL timeset(routineN, handle)
 
@@ -234,11 +232,9 @@ CONTAINS
 
       CHARACTER(LEN=100)                                 :: message
       COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: a, b, z
-      INTEGER                                            :: dlaf_handle, handle, n
+      INTEGER                                            :: blacs_context, dlaf_handle, handle, n
       INTEGER, DIMENSION(9)                              :: desca, descb, descz
       INTEGER, TARGET                                    :: info
-
-      INTEGER                                            :: blacs_context
 
       CALL timeset(routineN, handle)
 

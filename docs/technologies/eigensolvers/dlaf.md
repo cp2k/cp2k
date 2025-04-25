@@ -42,7 +42,6 @@ and might be slower than ScaLAPACK for small matrices or CPU matrices.
 [DLA-Future] can be also selected to perform Cholesky decompositon using the
 [PREFERRED_CHOLESKY_LIBRARY](#CP2K_INPUT.GLOBAL.PREFERRED_CHOLESKY_LIBRARY) keyword:
 
-
 ```
 &GLOBAL
   PREFERRED_CHOLESKY_LIBRARY DLAF
@@ -51,9 +50,9 @@ and might be slower than ScaLAPACK for small matrices or CPU matrices.
 &END GLOBAL
 ```
 
-The [DLAF_CHOLESKY_N_MIN](#CP2K_INPUT.GLOBAL.DLAF_CHOLESKY_N_MIN) indicates the minimum matrix size for
-which DLA-Future is used instead of ScaLAPACK. DLA-Future is optimized for large matrices on GPUs,
-and might be slower than ScaLAPACK for small matrices or CPU matrices.
+The [DLAF_CHOLESKY_N_MIN](#CP2K_INPUT.GLOBAL.DLAF_CHOLESKY_N_MIN) indicates the minimum matrix size
+for which DLA-Future is used instead of ScaLAPACK. DLA-Future is optimized for large matrices on
+GPUs, and might be slower than ScaLAPACK for small matrices or CPU matrices.
 
 ### Block Size
 

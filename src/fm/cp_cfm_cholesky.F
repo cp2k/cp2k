@@ -88,7 +88,7 @@ CONTAINS
          CALL cp_cfm_pzpotrf_dlaf('U', my_n, a(:, :), 1, 1, desca, info)
       ELSE
 #endif
-      CALL pzpotrf('U', my_n, a(1, 1), 1, 1, desca, info)
+         CALL pzpotrf('U', my_n, a(1, 1), 1, 1, desca, info)
 #if defined(__DLAF)
       END IF
 #endif

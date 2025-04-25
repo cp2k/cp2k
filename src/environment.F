@@ -26,6 +26,10 @@ MODULE environment
    USE cp_files,                        ONLY: close_file,&
                                               get_data_dir,&
                                               open_file
+   USE cp_fm_cholesky,                  ONLY: FM_CHOLESKY_TYPE_DLAF,&
+                                              FM_CHOLESKY_TYPE_SCALAPACK,&
+                                              cholesky_type,&
+                                              dlaf_cholesky_n_min
    USE cp_fm_diag,                      ONLY: FM_DIAG_TYPE_CUSOLVER,&
                                               FM_DIAG_TYPE_DLAF,&
                                               FM_DIAG_TYPE_ELPA,&
@@ -33,10 +37,6 @@ MODULE environment
                                               diag_finalize,&
                                               diag_init,&
                                               eps_check_diag_default
-   USE cp_fm_cholesky,                  ONLY: FM_CHOLESKY_TYPE_DLAF,&
-                                              FM_CHOLESKY_TYPE_SCALAPACK,&
-                                              cholesky_type,&
-                                              dlaf_cholesky_n_min
    USE cp_fm_diag_utils,                ONLY: cp_fm_redistribute_init
    USE cp_fm_struct,                    ONLY: cp_fm_struct_config
    USE cp_fm_types,                     ONLY: cp_fm_get_mm_type,&
@@ -518,9 +518,9 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: env_num, model_name, project_name
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: trace_routines
-      INTEGER :: cpuid, cpuid_static, i_dgemm, i_diag, i_cholesky, i_fft, i_grid_backend, iforce_eval, &
-         method_name_id, n_rep_val, nforce_eval, num_threads, output_unit, print_level, trace_max, &
-         unit_nr
+      INTEGER :: cpuid, cpuid_static, i_cholesky, i_dgemm, i_diag, i_fft, i_grid_backend, &
+         iforce_eval, method_name_id, n_rep_val, nforce_eval, num_threads, output_unit, &
+         print_level, trace_max, unit_nr
       INTEGER(kind=int_8) :: Buffers, Buffers_avr, Buffers_max, Buffers_min, Cached, Cached_avr, &
          Cached_max, Cached_min, MemFree, MemFree_avr, MemFree_max, MemFree_min, MemLikelyFree, &
          MemLikelyFree_avr, MemLikelyFree_max, MemLikelyFree_min, MemTotal, MemTotal_avr, &
@@ -620,7 +620,7 @@ CONTAINS
       CASE DEFAULT
          CPABORT("Unknown diagonalization library specified")
       END SELECT
-      
+
       SELECT CASE (i_cholesky)
       CASE (FM_DIAG_TYPE_SCALAPACK)
          globenv%cholesky_library = "ScaLAPACK"

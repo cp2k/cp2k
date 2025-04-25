@@ -191,7 +191,7 @@ CONTAINS
          CALL set_elpa_qr(elpa_qr, elpa_qr_unsafe)
          CALL set_elpa_print(elpa_print)
          initialized = .TRUE.
-      ENDIF
+      END IF
 #if defined(__DLAF)
       IF (.NOT. initialized .AND. diag_type == FM_DIAG_TYPE_DLAF) THEN
          CALL cp_dlaf_initialize()

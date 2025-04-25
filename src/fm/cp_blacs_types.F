@@ -17,8 +17,8 @@
 ! **************************************************************************************************
 MODULE cp_blacs_types
 
-   USE kinds, ONLY: dp
-   USE message_passing, ONLY: mp_comm_type
+   USE kinds,                           ONLY: dp
+   USE message_passing,                 ONLY: mp_comm_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE

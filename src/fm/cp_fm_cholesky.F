@@ -12,13 +12,15 @@
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
 MODULE cp_fm_cholesky
-   USE cp_blacs_env, ONLY: cp_blacs_env_type
-   USE cp_fm_types, ONLY: cp_fm_type
-   USE cp_log_handling, ONLY: cp_to_string
-   USE cp_dlaf_utils_api, ONLY: cp_dlaf_initialize, cp_dlaf_create_grid
-   USE cp_fm_dlaf_api, ONLY: cp_pdpotrf_dlaf, cp_pspotrf_dlaf
-   USE kinds, ONLY: dp, &
-                    sp
+   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
+   USE cp_dlaf_utils_api,               ONLY: cp_dlaf_create_grid,&
+                                              cp_dlaf_initialize
+   USE cp_fm_dlaf_api,                  ONLY: cp_pdpotrf_dlaf,&
+                                              cp_pspotrf_dlaf
+   USE cp_fm_types,                     ONLY: cp_fm_type
+   USE cp_log_handling,                 ONLY: cp_to_string
+   USE kinds,                           ONLY: dp,&
+                                              sp
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE

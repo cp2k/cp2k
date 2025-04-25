@@ -117,7 +117,8 @@ CONTAINS
 !> \author Rocco Meli
 ! **************************************************************************************************
    SUBROUTINE cp_dlaf_free_all_grids()
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_dlaf_free_all_grids'
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_dlaf_free_all_grids'
+
       INTEGER                                            :: handle
 
       CALL timeset(routineN, handle)
