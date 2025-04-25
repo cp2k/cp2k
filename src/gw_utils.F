@@ -1569,7 +1569,7 @@ CONTAINS
          WRITE (u, FMT="(T2,2A,F15.1,A)") "Cutoff radius for the truncated Coulomb ", &
             "operator in RI metric:", bs_env%ri_metric%cutoff_radius*angstrom, " Å"
          WRITE (u, FMT="(T2,A,ES48.1)") "Regularization parameter of RI ", bs_env%regularization_RI
-         WRITE (u, FMT="(T2,A,ES48.1)") "Regularization parameter of minimax grids", &
+         WRITE (u, FMT="(T2,A,ES38.1)") "Regularization parameter of minimax grids", &
             bs_env%regularization_minimax
          WRITE (u, FMT="(T2,A,I53)") "Lattice sum size for V(k):", bs_env%size_lattice_sum_V
       END IF
