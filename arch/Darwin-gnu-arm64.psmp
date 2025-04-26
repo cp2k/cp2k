@@ -48,7 +48,7 @@
       --with-elpa=no --with-fftw=$(brew --prefix fftw) --with-gcc=system --with-gsl=$(brew --prefix gsl) \
       --with-hdf5=$(brew --prefix hdf5) --with-libxc=$(brew --prefix libxc) --with-ninja=$(brew --prefix ninja) \
       --with-openblas=$(brew --prefix openblas) --with-${mpi_implementation} --with-gmp=$(brew --prefix gmp) \
-      --with-libsmeagol --with-libtorch=no --with-deepmd=no; \
+      --with-libgrpp --with-libsmeagol --with-libtorch=no --with-deepmd=no; \
    source ./install/setup; \
    cd ../..; \
    echo; \
