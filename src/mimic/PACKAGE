@@ -1,7 +1,7 @@
 {
     "description": "Wrapper for the MiMiC routines",
     "requires": [
-        "mimic_wrapper",
+        "mcl_wrapper",
         "../",
         "../base",
         "../common",

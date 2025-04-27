@@ -1,6 +1,0 @@
-{
-    "description": "Wrapper for the MiMiC routines",
-    "requires": [
-        "../../base",
-    ],
-}

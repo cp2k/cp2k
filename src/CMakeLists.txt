@@ -1064,9 +1064,8 @@ list(
   CP2K_SRCS_F
   mimic/mimic_communicator.F
   mimic/mimic_loop.F
-  mimic/mimic_utils.F
-  mimic/mimic_wrapper/mimic_send_recv.F
-  mimic/mimic_wrapper/mimic_wrapper.F)
+  mimic/mcl_wrapper/mcl_api.F
+  mimic/mcl_wrapper/mcl_requests.F)
 
 list(
   APPEND
