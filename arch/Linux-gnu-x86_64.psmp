@@ -2,14 +2,14 @@
 #
 # CP2K (GNU x86_64) arch file for Linux clusters
 #
-# Tested with: GNU 14.2.0, MPICH 4.2.3 and OpenMPI 5.0.6 on the Merlin cluster (PSI)
+# Tested with: GNU 14.2.0, MPICH 4.3.0 and OpenMPI 5.0.7 on the Merlin cluster (PSI)
 #
 # Usage: Source this arch file and then run make as instructed.
 #        A full toolchain installation is performed as default.
 #        Optionally, GNU compiler and MPI implementation can be specified as arguments.
 #        Replace or adapt the "module add" commands below if needed.
 #
-# Last update: 25.03.2025
+# Last update: 25.04.2025
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -69,6 +69,7 @@ USE_COSMA      := $(COSMA_VER)
 USE_DFTD4      := $(DFTD4_VER)
 USE_ELPA       := $(ELPA_VER)
 USE_FFTW       := $(FFTW_VER)
+USE_GREENX     := $(GREENX_VER)
 USE_HDF5       := $(HDF5_VER)
 USE_LIBGRPP    := $(LIBGRPP_VER)
 USE_LIBINT     := $(LIBINT_VER)
@@ -291,6 +292,15 @@ ifneq ($(USE_LIBXSMM),)
       LIBS           += $(LIBXSMM_LIB)/libxsmmext.a
       LIBS           += $(LIBXSMM_LIB)/libxsmm.a
    endif
+endif
+
+ifneq ($(USE_GREENX),)
+   USE_GREENX     := $(strip $(USE_GREENX))
+   GREENX_INC     := $(INSTALL_PATH)/greenX-$(USE_GREENX)/include/modules
+   GREENX_LIB     := $(INSTALL_PATH)/greenX-$(USE_GREENX)/lib
+   CFLAGS         += -I$(GREENX_INC)
+   DFLAGS         += -D__GREENX
+   LIBS           += -Wl,-rpath,$(GREENX_LIB) -L$(GREENX_LIB) -lGXCommon -lgx_ac -lgx_minimax
 endif
 
 ifneq ($(USE_SIRIUS),)
