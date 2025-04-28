@@ -1132,8 +1132,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tb_get_multipole'
 
       INTEGER                                     :: ikind, jkind, iatom, jatom, icol, irow, iset, jset
-      INTEGER                                     :: nkind, natom, handle, nimg, i
-      INTEGER                                     :: atom_a, atom_b, nseta, nsetb, ia, ib, sgfa, sgfb, ij
+      INTEGER                                     :: nkind, natom, handle, nimg, i, inda, indb
+      INTEGER                                     :: atom_a, atom_b, nseta, nsetb, ia, ib, ij, ji
       INTEGER, DIMENSION(3)                       :: cell
       LOGICAL                                     :: found
       REAL(dp)                                    :: r2
@@ -1143,8 +1143,13 @@ CONTAINS
       INTEGER, DIMENSION(:, :), POINTER           :: first_sgfa, first_sgfb
       INTEGER, ALLOCATABLE                        :: atom_of_kind(:)
       REAL(dp), ALLOCATABLE                       :: stmp(:)
-      REAL(dp), ALLOCATABLE                       :: dtmp(:, :), qtmp(:, :)
-      REAL(KIND=dp), DIMENSION(:, :), POINTER     :: dk1_block, dk2_block, dk3_block
+      REAL(dp), ALLOCATABLE                       :: dtmp(:, :), qtmp(:, :), dtmpj(:, :), qtmpj(:, :)
+      REAL(KIND=dp), DIMENSION(:, :), POINTER     :: dip_ket1, dip_ket2, dip_ket3, &
+                                                     dip_bra1, dip_bra2, dip_bra3
+      REAL(KIND=dp), DIMENSION(:, :), POINTER     :: quad_ket1, quad_ket2, quad_ket3, &
+                                                     quad_ket4, quad_ket5, quad_ket6, &
+                                                     quad_bra1, quad_bra2, quad_bra3, &
+                                                     quad_bra4, quad_bra5, quad_bra6
 
       TYPE(atomic_kind_type), DIMENSION(:), POINTER         :: atomic_kind_set
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER          :: matrix_s
@@ -1181,6 +1186,8 @@ CONTAINS
       ALLOCATE (stmp(msao(tb%calc%bas%maxl)**2))
       ALLOCATE (dtmp(dip_n, msao(tb%calc%bas%maxl)**2))
       ALLOCATE (qtmp(quad_n, msao(tb%calc%bas%maxl)**2))
+      ALLOCATE (dtmpj(dip_n, msao(tb%calc%bas%maxl)**2))
+      ALLOCATE (qtmpj(quad_n, msao(tb%calc%bas%maxl)**2))
 
       ! allocate dipole/quadrupole moment matrix elemnts
       CALL dbcsr_allocate_matrix_set(tb%dipbra, dip_n)
@@ -1219,15 +1226,66 @@ CONTAINS
          icol = MAX(iatom, jatom)
          irow = MIN(iatom, jatom)
          
-         NULLIFY (dk1_block, dk2_block, dk3_block)
+         NULLIFY (dip_bra1, dip_bra2, dip_bra3)
+         CALL dbcsr_get_block_p(matrix=tb%dipbra(1)%matrix, &
+                                row=irow, col=icol, BLOCK=dip_bra1, found=found)
+         CPASSERT(found)
+         CALL dbcsr_get_block_p(matrix=tb%dipbra(2)%matrix, &
+                                row=irow, col=icol, BLOCK=dip_bra2, found=found)
+         CPASSERT(found)
+         CALL dbcsr_get_block_p(matrix=tb%dipbra(3)%matrix, &
+                                row=irow, col=icol, BLOCK=dip_bra3, found=found)
+         CPASSERT(found)
+         
+         NULLIFY (dip_ket1, dip_ket2, dip_ket3)
          CALL dbcsr_get_block_p(matrix=tb%dipket(1)%matrix, &
-                                row=irow, col=icol, BLOCK=dk1_block, found=found)
+                                row=irow, col=icol, BLOCK=dip_ket1, found=found)
          CPASSERT(found)
          CALL dbcsr_get_block_p(matrix=tb%dipket(2)%matrix, &
-                                row=irow, col=icol, BLOCK=dk2_block, found=found)
+                                row=irow, col=icol, BLOCK=dip_ket2, found=found)
          CPASSERT(found)
          CALL dbcsr_get_block_p(matrix=tb%dipket(3)%matrix, &
-                                row=irow, col=icol, BLOCK=dk3_block, found=found)
+                                row=irow, col=icol, BLOCK=dip_ket3, found=found)
+         CPASSERT(found)
+         
+         NULLIFY (quad_bra1, quad_bra2, quad_bra3, quad_bra4, quad_bra5, quad_bra6)
+         CALL dbcsr_get_block_p(matrix=tb%quadbra(1)%matrix, &
+                                row=irow, col=icol, BLOCK=quad_bra1, found=found)
+         CPASSERT(found)
+         CALL dbcsr_get_block_p(matrix=tb%quadbra(2)%matrix, &
+                                row=irow, col=icol, BLOCK=quad_bra2, found=found)
+         CPASSERT(found)
+         CALL dbcsr_get_block_p(matrix=tb%quadbra(3)%matrix, &
+                                row=irow, col=icol, BLOCK=quad_bra3, found=found)
+         CPASSERT(found)
+         CALL dbcsr_get_block_p(matrix=tb%quadbra(4)%matrix, &
+                                row=irow, col=icol, BLOCK=quad_bra4, found=found)
+         CPASSERT(found)
+         CALL dbcsr_get_block_p(matrix=tb%quadbra(5)%matrix, &
+                                row=irow, col=icol, BLOCK=quad_bra5, found=found)
+         CPASSERT(found)
+         CALL dbcsr_get_block_p(matrix=tb%quadbra(6)%matrix, &
+                                row=irow, col=icol, BLOCK=quad_bra6, found=found)
+         CPASSERT(found)
+         
+         NULLIFY (quad_ket1, quad_ket2, quad_ket3)
+         CALL dbcsr_get_block_p(matrix=tb%quadket(1)%matrix, &
+                                row=irow, col=icol, BLOCK=quad_ket1, found=found)
+         CPASSERT(found)
+         CALL dbcsr_get_block_p(matrix=tb%quadket(2)%matrix, &
+                                row=irow, col=icol, BLOCK=quad_ket2, found=found)
+         CPASSERT(found)
+         CALL dbcsr_get_block_p(matrix=tb%quadket(3)%matrix, &
+                                row=irow, col=icol, BLOCK=quad_ket3, found=found)
+         CPASSERT(found)
+         CALL dbcsr_get_block_p(matrix=tb%quadket(4)%matrix, &
+                                row=irow, col=icol, BLOCK=quad_ket4, found=found)
+         CPASSERT(found)
+         CALL dbcsr_get_block_p(matrix=tb%quadket(5)%matrix, &
+                                row=irow, col=icol, BLOCK=quad_ket5, found=found)
+         CPASSERT(found)
+         CALL dbcsr_get_block_p(matrix=tb%quadket(6)%matrix, &
+                                row=irow, col=icol, BLOCK=quad_ket6, found=found)
          CPASSERT(found)
 
 
@@ -1250,80 +1308,102 @@ CONTAINS
          nsgfb => basis_set_b%nsgf_set
 
          ! --------- Hamiltonian
-
          IF (iatom == jatom) THEN
-
             DO iset = 1, nseta
                DO jset = 1, nsetb
                   
                   dtmp = -777.0_dp
                   qtmp = -888.0_dp
                   CALL multipole_cgto(tb%calc%bas%cgto(jset, iatom), tb%calc%bas%cgto(iset, iatom), &
-                       & r2, rij, tb%calc%bas%intcut, stmp, dtmp, qtmp)
+                       & r2, -rij, tb%calc%bas%intcut, stmp, dtmp, qtmp)
                   write(*,*) "iiiiii: at1, at2, sh1, sh2", iatom, jatom, iset, jset
                   write(*,*) "iiiiii: bas1", tb%calc%bas%cgto(jset, iatom)
                   write(*,*) "iiiiii: bas2", tb%calc%bas%cgto(iset, iatom)
                   write(*,*) "iiiiii: r2, rij ", r2, rij
                   write(*,*) "iiiiii: dtmp ", dtmp
-                  
+
                        
-                  DO ia = 1, nsgfa(iset)
-                     sgfa = first_sgfa(1, iset) + ia
-                     DO ib = 1, nsgfb(jset)
-                        sgfb = first_sgfb(1, jset) + ib
-                        ij = ib + nsgfb(jset)*(ia - 1)
-                        write(*,*) 'jjjjj, i, j, dipole', ia, ib, ij, sgfa, sgfb
+                  DO inda = 1, nsgfa(iset)
+                     ia = first_sgfa(1, iset) - first_sgfa(1, 1) + inda
+                     DO indb = 1, nsgfb(jset)
+                        ib = first_sgfb(1, jset) - first_sgfb(1, 1) + indb
+                        ij = indb + nsgfb(jset)*(inda - 1)
+                        write(*,*) 'jjjjjjjjj, i, j, dipole', inda, indb, ij
                         write(*,'(6F18.9)') dtmp(:, ij)
                         
-                        dk1_block(ia, ib)=dtmp(1, ij)
-                        dk2_block(ia, ib)=dtmp(2, ij)
-                        dk3_block(ia, ib)=dtmp(3, ij)
+                        dip_bra1(ia, ib)=dtmp(1, ij)
+                        dip_bra2(ia, ib)=dtmp(2, ij)
+                        dip_bra3(ia, ib)=dtmp(3, ij)
+                        
+                        dip_ket1(ia, ib)=dtmp(1, ij)
+                        dip_ket2(ia, ib)=dtmp(2, ij)
+                        dip_ket3(ia, ib)=dtmp(3, ij)
+                        
+                        quad_bra1(ia, ib)=qtmp(1, ij)
+                        quad_bra2(ia, ib)=qtmp(2, ij)
+                        quad_bra3(ia, ib)=qtmp(3, ij)
+                        quad_bra4(ia, ib)=qtmp(4, ij)
+                        quad_bra5(ia, ib)=qtmp(5, ij)
+                        quad_bra6(ia, ib)=qtmp(6, ij)
+                        
+                        quad_ket1(ia, ib)=qtmp(1, ij)
+                        quad_ket2(ia, ib)=qtmp(2, ij)
+                        quad_ket3(ia, ib)=qtmp(3, ij)
+                        quad_ket4(ia, ib)=qtmp(4, ij)
+                        quad_ket5(ia, ib)=qtmp(5, ij)
+                        quad_ket6(ia, ib)=qtmp(6, ij)
 
-                        !      shpoly = (1.0_dp + h0%shpoly(iset, iatom)*rr) &
-                        !               *(1.0_dp + h0%shpoly(jset, jatom)*rr)
-                        !      hij = 0.5_dp*(tb%selfenergy(n1 + iset) + tb%selfenergy(n2 + jset)) &
-                        !            *h0%hscale(jset, iset, jatom, iatom)*shpoly
-                        !      hint(sgfa, sgfb, 1) = hij*sint(ia, ib, 1)
                      END DO
                   END DO
                END DO
             END DO
          ELSE
-            !n1 = 0
-            !DO ishell = 1, iatom - 1
-            !   n1 = n1 + tb%calc%bas%nsh_at(ishell)
-            !END DO
             DO iset = 1, nseta
-               !sgfa = first_sgfa(1, iset)
-               !n2 = 0
-               !DO jshell = 1, jatom - 1
-               !   n2 = n2 + tb%calc%bas%nsh_at(jshell)
-               !END DO
                DO jset = 1, nsetb
                   dtmp = -777.0_dp
                   qtmp = -888.0_dp
                   CALL multipole_cgto(tb%calc%bas%cgto(jset, jatom), tb%calc%bas%cgto(iset, iatom), &
-                      & r2, rij, tb%calc%bas%intcut, stmp, dtmp, qtmp)
+                      & r2, -rij, tb%calc%bas%intcut, stmp, dtmp, qtmp)
+                  CALL multipole_cgto(tb%calc%bas%cgto(iset, iatom), tb%calc%bas%cgto(jset, jatom), &
+                      & r2, rij, tb%calc%bas%intcut, stmp, dtmpj, qtmpj)
 
-                  DO ia = 1, nsgfa(iset) - 1
-                     sgfa = first_sgfa(1, iset) + ia
-                     DO ib = 1, nsgfb(jset) - 1
-                        sgfb = first_sgfb(1, jset) + ib
-                        ij = ib + nsgfb(jset)*(ia - 1)
-                        !WRITE (*, *) 'kkkkkkkkkk, i, j, dipole', ia, ib, ij, sgfa, sgfb
-                        !WRITE (*, '(6F18.9)') dtmp(:, ij)
-
-                        !      shpoly = (1.0_dp + h0%shpoly(iset, iatom)*rr) &
-                        !               *(1.0_dp + h0%shpoly(jset, jatom)*rr)
-                        !      hij = 0.5_dp*(tb%selfenergy(n1 + iset) + tb%selfenergy(n2 + jset)) &
-                        !            *h0%hscale(jset, iset, jatom, iatom)*shpoly
-                        !      hint(sgfa, sgfb, 1) = hij*sint(ia, ib, 1)
+                  DO inda = 1, nsgfa(iset)
+                     ia = first_sgfa(1, iset) - first_sgfa(1, 1) + inda
+                     DO indb = 1, nsgfb(jset)
+                        ib = first_sgfb(1, jset) - first_sgfb(1, 1) + indb
+                        ij = indb + nsgfb(jset)*(inda - 1)
+                        ji = inda + nsgfa(iset)*(indb - 1)
+                        write(*,*) 'llllllll, i, j, dipole', inda, indb, ij
+                        write(*,'(6F18.9)') dtmpj(:, ji)
+                        write(*,'(6F18.9)') dtmp(:, ij)
+                        
+                        dip_bra1(ia, ib)=dtmp(1, ij)
+                        dip_bra2(ia, ib)=dtmp(2, ij)
+                        dip_bra3(ia, ib)=dtmp(3, ij)
+                        
+                        quad_bra1(ia, ib)=qtmp(1, ij)
+                        quad_bra2(ia, ib)=qtmp(2, ij)
+                        quad_bra3(ia, ib)=qtmp(3, ij)
+                        quad_bra4(ia, ib)=qtmp(4, ij)
+                        quad_bra5(ia, ib)=qtmp(5, ij)
+                        quad_bra6(ia, ib)=qtmp(6, ij)
+                        
+                        dip_ket1(ia, ib)=dtmp(1, ji)
+                        dip_ket2(ia, ib)=dtmp(2, ji)
+                        dip_ket3(ia, ib)=dtmp(3, ji)
+                        
+                        quad_ket1(ia, ib)=qtmp(1, ji)
+                        quad_ket2(ia, ib)=qtmp(2, ji)
+                        quad_ket3(ia, ib)=qtmp(3, ji)
+                        quad_ket4(ia, ib)=qtmp(4, ji)
+                        quad_ket5(ia, ib)=qtmp(5, ji)
+                        quad_ket6(ia, ib)=qtmp(6, ji)
+                        
                      END DO
                   END DO
                END DO
             END DO
          END IF
-
       END DO
       
       DO i = 1, dip_n
@@ -1343,6 +1423,8 @@ CONTAINS
 #endif
 
    END SUBROUTINE tb_get_multipole
+   
+   
 
 END MODULE tblite_interface
 
