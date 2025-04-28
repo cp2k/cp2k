@@ -11,6 +11,7 @@ spack:
       prefer:
         - ~cuda
         - +mpi
+        - +openmp
         - +pic
         - ~rocm
     mpi:
@@ -93,10 +94,11 @@ spack:
     - "cosma@master"
     - "dbcsr@2.8.0"
     - "dftd4@3.7.0"
-    - "dla-future@0.8.0"
-    - "dla-future-fortran@0.3.0"
+    - "dla-future@0.9.0"
+    - "dla-future-fortran@0.4.0"
     - "elpa@2025.01.001"
     - "fftw@3.3.10"
+    - "greenx@2.1"
     - "hdf5@1.14"
     - "libint@2.9.0"
     - "libsmeagol@1.2"
