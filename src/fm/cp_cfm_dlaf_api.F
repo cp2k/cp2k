@@ -10,7 +10,7 @@ MODULE cp_cfm_dlaf_api
    USE cp_cfm_basic_linalg, ONLY: cp_cfm_uplo_to_full
    USE cp_cfm_types, ONLY: cp_cfm_type
 #if defined(__DLAF)
-   USE cp_dlaf_utils_api, ONLY: cp_dlaf_create_grid, cp_dlaf_free_grid
+   USE cp_dlaf_utils_api, ONLY: cp_dlaf_create_grid
    USE dlaf_fortran, ONLY: dlaf_pzheevd, &
                            dlaf_pzhegvd, &
                            dlaf_pzpotrf
@@ -186,8 +186,6 @@ CONTAINS
       CALL dlaf_pzheevd(uplo, n, a, 1, 1, desca, eigenvalues, z, 1, 1, descz, info)
       CALL timestop(dlaf_handle)
 
-      CALL cp_dlaf_free_grid(blacs_context)
-
       IF (info /= 0) THEN
          WRITE (message, "(A,I0,A)") "ERROR in DLAF_PZHEEVD: Eigensolver failed (INFO = ", info, ")"
          CPABORT(TRIM(message))
@@ -261,8 +259,6 @@ CONTAINS
       CALL timeset(dlaf_name, dlaf_handle)
       CALL dlaf_pzhegvd(uplo, n, a, 1, 1, desca, b, 1, 1, descb, eigenvalues, z, 1, 1, descz, info)
       CALL timestop(dlaf_handle)
-
-      CALL cp_dlaf_free_grid(blacs_context)
 
       IF (info /= 0) THEN
          WRITE (message, "(A,I0,A)") "ERROR in DLAF_PZHEGVD: Eigensolver failed (INFO = ", info, ")"
