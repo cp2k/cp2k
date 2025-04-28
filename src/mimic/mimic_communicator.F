@@ -22,8 +22,7 @@ MODULE mimic_communicator
    USE cp_units,                        ONLY: cp_unit_from_cp2k
    USE force_env_types,                 ONLY: force_env_get, &
                                               force_env_type
-   USE kinds,                           ONLY: default_path_length, &
-                                              dp
+   USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
    USE mcl_api,                         ONLY: mcl_finalize, &
                                               mcl_get_program_id, &
@@ -35,8 +34,7 @@ MODULE mimic_communicator
    USE particle_list_types,             ONLY: particle_list_type
    USE pw_env_types,                    ONLY: pw_env_type, &
                                               pw_env_get
-   USE pw_pool_types,                   ONLY: pw_pool_create, &
-                                              pw_pool_type
+   USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: pw_r3d_rs_type
    USE qs_environment_types,            ONLY: qs_environment_type, &
                                               get_qs_env, &
@@ -86,7 +84,7 @@ MODULE mimic_communicator
                                                             n_spins = -1
          INTEGER, DIMENSION(:,:), ALLOCATABLE            :: npts_pproc
          !> beginning index of the local buffer in the global buffer diminished by 1 
-         INTEGER, DIMENSION(:), ALLOCATABLE              :: lbounds_pproc
+         INTEGER, DIMENSION(:), ALLOCATABLE              :: lb_pproc
 
       CONTAINS
 
@@ -94,11 +92,11 @@ MODULE mimic_communicator
          PROCEDURE :: finalize
          PROCEDURE :: receive_request
          PROCEDURE :: send_value
+         PROCEDURE :: send_client_info
+         PROCEDURE :: send_atom_info
+         PROCEDURE :: send_kind_info
          PROCEDURE :: send_box_info
          PROCEDURE :: send_grid_coordinates
-         PROCEDURE :: send_atom_kinds
-         PROCEDURE :: send_atom_ids
-         PROCEDURE :: send_kind_info
          PROCEDURE :: send_density
          PROCEDURE :: send_forces
          PROCEDURE :: send_positions
@@ -110,7 +108,7 @@ MODULE mimic_communicator
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief Initializes MiMiC communicator loading input and by saving pointers to relevant data
+!> \brief Initialize the communicator by loading data and saving pointers to relevant data
 !> \par History
 !>      05.2025 Created [AA]
 ! **************************************************************************************************
@@ -125,7 +123,6 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
-
       INTEGER                                            :: handle
       
       CALL timeset(routineN, handle)
@@ -143,15 +140,14 @@ CONTAINS
       
       this%is_ionode = this%para_env%is_source()
 
-
       ALLOCATE(this%npts_pproc(3,0:this%para_env%num_pe-1), source=0)
       this%npts_pproc(: ,this%para_env%mepos) = this%pw_info%pw_grid%npts_local
       CALL this%para_env%sum(this%npts_pproc)
 
-      ALLOCATE(this%lbounds_pproc(0:this%para_env%num_pe-1), source=0)
-      this%lbounds_pproc(this%para_env%mepos) = this%pw_info%pw_grid%bounds_local(1,1) &
+      ALLOCATE(this%lb_pproc(0:this%para_env%num_pe-1), source=0)
+      this%lb_pproc(this%para_env%mepos) = this%pw_info%pw_grid%bounds_local(1,1) &
                                                 - this%pw_info%pw_grid%bounds(1,1)
-      CALL this%para_env%sum(this%lbounds_pproc)
+      CALL this%para_env%sum(this%lb_pproc)
 
       this%n_spins = dft_control%nspins
 
@@ -179,7 +175,7 @@ CONTAINS
 
 
 ! **************************************************************************************************
-!> \brief Destroys the endpoint
+!> \brief Finalize the simulation by deallocating memory
 ! **************************************************************************************************
    SUBROUTINE finalize(this)
       CLASS(mimic_communicator_type), INTENT(INOUT)      :: this
@@ -189,6 +185,8 @@ CONTAINS
       INTEGER                                            :: handle
 
       CALL timeset(routineN, handle)
+
+      CALL this%para_env%sync()
 
       DEALLOCATE(grid_buffer)
       DEALLOCATE(grid_buffer_loc)
@@ -201,7 +199,7 @@ CONTAINS
 
 
 ! **************************************************************************************************
-!> \brief Receives a MiMiC request
+!> \brief Receive a request from the server
 ! **************************************************************************************************
    FUNCTION receive_request(this) RESULT(request)
       CLASS(mimic_communicator_type), INTENT(INOUT)      :: this
@@ -223,9 +221,9 @@ CONTAINS
 
 
 ! **************************************************************************************************
-!> \brief Sends one of the single value data to MiMiC server
+!> \brief Send the specified single value data to the server
 !> \param option word corresponding to available options 
-!> \note for now hardcoded num_frag = 1  =>  nAtInFrag = nAt
+!> \note Several values hardcoded for now
 ! **************************************************************************************************
    SUBROUTINE send_value(this, option)
       CLASS(mimic_communicator_type), INTENT(INOUT)      :: this
@@ -239,10 +237,6 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       SELECT CASE (option)
-         CASE ("client_id")
-            CALL mcl_send(this%client_id, 1, MCL_DATA, this%mcl_server)
-         CASE ("client_type")
-            CALL mcl_send(MCL_RUNTYPE_QM_PW, 1, MCL_DATA, this%mcl_server)
          CASE ("num_atoms", "num_atoms_in_fragments") 
             CALL mcl_send(this%n_atoms, 1, MCL_DATA, this%mcl_server)
          CASE ("num_kinds")
@@ -266,7 +260,114 @@ CONTAINS
 
 
 ! **************************************************************************************************
-!> \brief Sends the specified box information to MiMiC server
+!> \brief Send the specified information about the client to the server
+!> \param option word corresponding to available options 
+! **************************************************************************************************
+   SUBROUTINE send_client_info(this, option)
+      CLASS(mimic_communicator_type), INTENT(INOUT)      :: this
+      CHARACTER(LEN=*)                                   :: option
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = moduleN//':send_client_info'
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
+      SELECT CASE (option)
+         CASE ("id")
+            CALL mcl_send(this%client_id, 1, MCL_DATA, this%mcl_server)
+         CASE ("run_type")
+            CALL mcl_send(MCL_RUNTYPE_QM_PW, 1, MCL_DATA, this%mcl_server)
+         CASE DEFAULT
+            CPABORT("The value chosen in "//routineN//" is not implemented.")
+      END SELECT
+
+      CALL timestop(handle)
+
+   END SUBROUTINE send_client_info
+
+
+! **************************************************************************************************
+!> \brief Send the specified data for each atom to the server
+!> \param option word corresponding to available options 
+! **************************************************************************************************
+   SUBROUTINE send_atom_info(this, option)
+      CLASS(mimic_communicator_type), INTENT(INOUT)      :: this
+      CHARACTER(LEN=*)                                   :: option
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = moduleN//':send_atom_info'
+
+      INTEGER, DIMENSION(:), ALLOCATABLE                 :: buffer
+      INTEGER                                            :: handle, i
+
+      CALL timeset(routineN, handle)
+
+      ALLOCATE(buffer(this%n_atoms))
+      SELECT CASE (option)
+         CASE ("kinds") 
+            buffer = [(this%atoms%els(i)%atomic_kind%kind_number, i=1,this%n_atoms)]
+         CASE ("ids")
+            buffer = [(this%atoms%els(i)%atom_index, i=1,this%n_atoms)]
+         CASE DEFAULT
+            CPABORT("The value chosen in "//routineN//" is not implemented.")
+      END SELECT
+      CALL mcl_send(buffer, SIZE(buffer), MCL_DATA, this%mcl_server)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE send_atom_info
+
+
+! **************************************************************************************************
+!> \brief Send the specified data for each kind to the server
+!> \param option word corresponding to available options 
+! **************************************************************************************************
+   SUBROUTINE send_kind_info(this, option)
+      CLASS(mimic_communicator_type), INTENT(INOUT)      :: this
+      CHARACTER(LEN=*)                                   :: option
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = moduleN//':send_kind_info'
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kinds
+      REAL(dp), DIMENSION(:), ALLOCATABLE                :: buffer_dp
+      INTEGER, DIMENSION(:), ALLOCATABLE                 :: buffer_i
+      INTEGER                                            :: handle, i
+
+      CALL timeset(routineN, handle)
+
+      SELECT CASE (option)
+         CASE ("elements") 
+            ALLOCATE(buffer_i(this%n_kinds))
+            DO i = 1, this%n_kinds
+               CALL get_atomic_kind(this%kinds%els(i), z=buffer_i(i))
+            END DO
+            CALL mcl_send(buffer_i, SIZE(buffer_i), MCL_DATA, this%mcl_server)
+         CASE ("masses") 
+            ALLOCATE(buffer_dp(this%n_kinds))
+            buffer_dp = [(cp_unit_from_cp2k(this%kinds%els(i)%mass, "AMU"), i=1,this%n_kinds)]
+            CALL mcl_send(buffer_dp, SIZE(buffer_dp), MCL_DATA, this%mcl_server)
+         CASE ("nuclear_charges") 
+            NULLIFY(qs_env, qs_kinds)
+            CALL force_env_get(this%force_env, qs_env=qs_env)
+            CALL get_qs_env(qs_env, qs_kind_set=qs_kinds)
+            ALLOCATE(buffer_dp(this%n_kinds))
+            DO i = 1, this%n_kinds
+               CALL get_qs_kind(qs_kinds(i), zeff=buffer_dp(i))
+            END DO
+            CALL mcl_send(buffer_dp, SIZE(buffer_dp), MCL_DATA, this%mcl_server)
+         CASE DEFAULT
+            CPABORT("The value chosen in "//routineN//" is not implemented.")
+      END SELECT
+
+      CALL timestop(handle)
+
+   END SUBROUTINE send_kind_info
+
+
+! **************************************************************************************************
+!> \brief Send the specified box information to the server
+!> \param option word corresponding to available options 
 ! **************************************************************************************************
    SUBROUTINE send_box_info(this, option)
       CLASS(mimic_communicator_type), INTENT(INOUT)      :: this
@@ -274,24 +375,23 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = moduleN//':send_box_info'
 
-      INTEGER                                            :: i
-      INTEGER, DIMENSION(3)                              :: num_points
+      INTEGER, DIMENSION(3)                              :: npts_glob
       REAL(dp), DIMENSION(3)                             :: origin
       REAL(dp), DIMENSION(9)                             :: box_vectors
-      INTEGER                                            :: handle
+      INTEGER                                            :: handle, i
 
       CALL timeset(routineN, handle)
 
-      num_points = this%pw_info%pw_grid%npts
+      npts_glob = this%pw_info%pw_grid%npts
 
       SELECT CASE (option)
          CASE ("num_gridpoints") 
-            CALL mcl_send(num_points, 3, MCL_DATA, this%mcl_server)
+            CALL mcl_send(npts_glob, 3, MCL_DATA, this%mcl_server)
          CASE ("origin")
             origin = 0.0_dp
             CALL mcl_send(origin, 3, MCL_DATA, this%mcl_server)
          CASE ("box_vectors")
-            box_vectors = [(this%pw_info%pw_grid%dh(:,i) * REAL(num_points(i), dp), i=1,3)]
+            box_vectors = [(this%pw_info%pw_grid%dh(:,i) * REAL(npts_glob(i), dp), i=1,3)]
             CALL mcl_send(box_vectors, 9, MCL_DATA, this%mcl_server)
          CASE DEFAULT
             CPABORT("The value chosen in "//routineN//" is not implemented.")
@@ -303,40 +403,40 @@ CONTAINS
 
 
 ! **************************************************************************************************
-!> \brief Sends coordinates of ... grids information to MiMiC server
+!> \brief Send grid point coordinates to the server
 ! **************************************************************************************************
    SUBROUTINE send_grid_coordinates(this)
       CLASS(mimic_communicator_type), INTENT(INOUT)      :: this
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = moduleN//':send_grid_coordinates'
 
-      INTEGER                                            :: i, j, k, offset
-      INTEGER, DIMENSION(3)                              :: npts_glob, npts, lbounds_glob
-      INTEGER, DIMENSION(2,3)                            :: bounds
+      INTEGER, DIMENSION(3)                              :: npts_glob, npts, lb_glob, lb, ub
       REAL(dp), DIMENSION(3)                             :: origin
-      REAL(dp), DIMENSION(3,3)                           :: lattice
+      REAL(dp), DIMENSION(3,3)                           :: box_vectors
       REAL(dp), DIMENSION(:,:), ALLOCATABLE              :: coords
-      
-      INTEGER                                            :: handle
+      INTEGER                                            :: handle, i, j, k, offset
 
       CALL timeset(routineN, handle)
 
+      origin = 0.0_dp
+      box_vectors = this%pw_info%pw_grid%dh
+      ! number of grid points
       npts_glob = this%pw_info%pw_grid%npts
       npts = this%pw_info%pw_grid%npts_local
-      lbounds_glob = this%pw_info%pw_grid%bounds(1,:)
-      bounds = this%pw_info%pw_grid%bounds_local 
-      origin = 0.0_dp
-      lattice = this%pw_info%pw_grid%dh
+      ! bounds
+      lb_glob = this%pw_info%pw_grid%bounds(1,:)
+      lb = this%pw_info%pw_grid%bounds_local(1, :)
+      ub = this%pw_info%pw_grid%bounds_local(2, :)
      
       ALLOCATE(coords(3, PRODUCT(npts_glob)), source=0.0_dp)
-      offset = (bounds(1,1)-lbounds_glob(1)) * PRODUCT(npts(2:))
-      DO k = bounds(1,3), bounds(2,3)
-         DO j = bounds(1,2), bounds(2,2) 
-            DO i = bounds(1,1), bounds(2,1)
+      offset = (lb(1) - lb_glob(1)) * PRODUCT(npts(2:))
+      DO k = lb(3), ub(3)
+         DO j = lb(2), ub(2) 
+            DO i = lb(1), ub(1) 
               offset = offset + 1
-              coords(:, offset) = origin + lattice(:,1) * REAL(i-lbounds_glob(1), dp) &
-                                         + lattice(:,2) * REAL(j-lbounds_glob(2), dp) &
-                                         + lattice(:,3) * REAL(k-lbounds_glob(3), dp)
+              coords(:, offset) = origin + box_vectors(:,1) * REAL(i-lb_glob(1), dp) &
+                                         + box_vectors(:,2) * REAL(j-lb_glob(2), dp) &
+                                         + box_vectors(:,3) * REAL(k-lb_glob(3), dp)
             END DO
          END DO
       END DO
@@ -350,26 +450,24 @@ CONTAINS
 
 
 ! **************************************************************************************************
-!> \brief Receive external potential from the MiMiC server
+!> \brief Receive external potential from the server
 ! **************************************************************************************************
    SUBROUTINE receive_potential(this)
       CLASS(mimic_communicator_type), INTENT(INOUT)      :: this
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = moduleN//':receive_potential'
 
-      INTEGER                                            :: i, j, k, i_proc
-      INTEGER                                            :: offset, length, tag = 1
-      INTEGER, DIMENSION(3)                              :: npts
-      INTEGER, DIMENSION(2,3)                            :: bounds
+      INTEGER, DIMENSION(3)                              :: npts, lb, ub
       REAL(dp), DIMENSION(:), POINTER                    :: buffer
-      
-      INTEGER                                            :: handle
+      INTEGER                                            :: i, j, k, i_proc, offset
+      INTEGER                                            :: handle, length, tag = 1
 
       CALL timeset(routineN, handle)
 
       NULLIFY(buffer)
       npts = this%pw_info%pw_grid%npts_local
-      bounds = this%pw_info%pw_grid%bounds_local 
+      lb = this%pw_info%pw_grid%bounds_local(1, :)
+      ub = this%pw_info%pw_grid%bounds_local(2, :)
 
       IF (this%is_ionode) THEN
          ! receive potential at the IO process
@@ -377,7 +475,7 @@ CONTAINS
          ! distribute across processes
          DO i_proc = 0, this%para_env%num_pe-1
             length = PRODUCT(this%npts_pproc(:,i_proc))
-            offset = this%lbounds_pproc(i_proc) * PRODUCT(npts(2:)) + 1
+            offset = this%lb_pproc(i_proc) * PRODUCT(npts(2:)) + 1
             buffer => grid_buffer(offset:offset+length-1)
             IF (i_proc /= this%para_env%source) THEN
                i = i_proc
@@ -392,9 +490,9 @@ CONTAINS
 
       ! set the potential
       offset = 0
-      DO k = bounds(1,3), bounds(2,3)
-         DO j = bounds(1,2), bounds(2,2)
-            DO i = bounds(1,1), bounds(2,1)
+      DO k = lb(3), ub(3)
+         DO j = lb(2), ub(2) 
+            DO i = lb(1), ub(1) 
                offset = offset + 1
                this%potential%array(i,j,k) = -grid_buffer_loc(offset)
             END DO
@@ -407,36 +505,34 @@ CONTAINS
 
 
 ! **************************************************************************************************
-!> \brief Sends electron density to MiMiC server
+!> \brief Send electron density to the server
 ! **************************************************************************************************
    SUBROUTINE send_density(this)
       CLASS(mimic_communicator_type), INTENT(INOUT)      :: this
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = moduleN//':send_density'
 
-      INTEGER                                            :: i_spin, i_proc, i, j, k
-      INTEGER                                            :: offset, length, tag = 1
-      INTEGER, DIMENSION(3)                              :: npts
-      INTEGER, DIMENSION(2,3)                            :: bounds
+      INTEGER, DIMENSION(3)                              :: npts, lb, ub
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho
       REAL(dp), DIMENSION(:), POINTER                    :: buffer
-      
-      INTEGER                                            :: handle
+      INTEGER                                            :: i_spin, i_proc, i, j, k, offset
+      INTEGER                                            :: handle, length, tag = 1
 
       CALL timeset(routineN, handle)
 
       NULLIFY(rho, buffer)
       CALL qs_rho_get(this%density, rho_r=rho)
       npts = this%pw_info%pw_grid%npts_local
-      bounds = this%pw_info%pw_grid%bounds_local 
+      lb = this%pw_info%pw_grid%bounds_local(1, :)
+      ub = this%pw_info%pw_grid%bounds_local(2, :)
      
       ! gather density values
       grid_buffer_loc = 0.0_dp
       DO i_spin = 1, this%n_spins
          offset = 0
-         DO k = bounds(1,3), bounds(2,3)
-            DO j = bounds(1,2), bounds(2,2) 
-               DO i = bounds(1,1), bounds(2,1) 
+         DO k = lb(3), ub(3)
+            DO j = lb(2), ub(2) 
+               DO i = lb(1), ub(1) 
                   offset = offset + 1
                   grid_buffer_loc(offset) = grid_buffer_loc(offset) + rho(i_spin)%array(i,j,k)
                END DO
@@ -450,7 +546,7 @@ CONTAINS
          ! collect from the processes at the IO process
          DO i_proc = 0, this%para_env%num_pe-1
             length = PRODUCT(this%npts_pproc(:,i_proc))
-            offset = this%lbounds_pproc(i_proc) * PRODUCT(npts(2:)) + 1
+            offset = this%lb_pproc(i_proc) * PRODUCT(npts(2:)) + 1
             buffer => grid_buffer(offset:offset+length-1)
             IF (i_proc /= this%para_env%source) THEN
                i = i_proc
@@ -469,103 +565,6 @@ CONTAINS
 
 
 ! **************************************************************************************************
-!> \brief Send a list of kind ids for each atom to the server
-! **************************************************************************************************
-   SUBROUTINE send_atom_kinds(this)
-      CLASS(mimic_communicator_type), INTENT(INOUT)      :: this
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = moduleN//':send_atom_kinds'
-
-      INTEGER, DIMENSION(:), ALLOCATABLE                 :: buffer
-      INTEGER                                            :: handle, i
-
-      CALL timeset(routineN, handle)
-
-      ALLOCATE(buffer(this%n_atoms))
-      DO i=1,this%n_atoms
-         buffer(i) = this%atoms%els(i)%atomic_kind%kind_number
-      END DO
-      CALL mcl_send(buffer, SIZE(buffer), MCL_DATA, this%mcl_server)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE send_atom_kinds
-
-
-! **************************************************************************************************
-!> \brief Send the specified data for each kind to the server
-! **************************************************************************************************
-   SUBROUTINE send_kind_info(this, option)
-      CLASS(mimic_communicator_type), INTENT(INOUT)      :: this
-      CHARACTER(LEN=*)                                   :: option
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = moduleN//':send_kind_info'
-
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kinds
-      REAL(dp), DIMENSION(:), ALLOCATABLE                :: buffer_dp
-      INTEGER, DIMENSION(:), ALLOCATABLE                 :: buffer_i
-      INTEGER                                            :: handle, i
-
-      CALL timeset(routineN, handle)
-
-      
-      SELECT CASE (option)
-         CASE ("elements") 
-            ALLOCATE(buffer_i(this%n_kinds))
-            DO i=1,this%n_kinds
-               CALL get_atomic_kind(this%kinds%els(i), z=buffer_i(i))
-            END DO
-            CALL mcl_send(buffer_i, SIZE(buffer_i), MCL_DATA, this%mcl_server)
-         CASE ("masses") 
-            ALLOCATE(buffer_dp(this%n_kinds))
-            DO i=1,this%n_kinds
-               buffer_dp(i) = cp_unit_from_cp2k(this%kinds%els(i)%mass, "AMU")
-            END DO
-            CALL mcl_send(buffer_dp, SIZE(buffer_dp), MCL_DATA, this%mcl_server)
-         CASE ("nuclear_charges") 
-            NULLIFY(qs_env, qs_kinds)
-            CALL force_env_get(this%force_env, qs_env=qs_env)
-            CALL get_qs_env(qs_env, qs_kind_set=qs_kinds)
-            ALLOCATE(buffer_dp(this%n_kinds))
-            DO i=1,this%n_kinds
-               CALL get_qs_kind(qs_kinds(i), zeff=buffer_dp(i))
-            END DO
-            CALL mcl_send(buffer_dp, SIZE(buffer_dp), MCL_DATA, this%mcl_server)
-         CASE DEFAULT
-            CPABORT("The value chosen in "//routineN//" is not implemented.")
-      END SELECT
-
-      CALL timestop(handle)
-
-   END SUBROUTINE send_kind_info
-
-
-! **************************************************************************************************
-!> \brief Send a list of atom ids to the server
-! **************************************************************************************************
-   SUBROUTINE send_atom_ids(this)
-      CLASS(mimic_communicator_type), INTENT(INOUT)      :: this
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = moduleN//':send_atom_ids'
-
-      INTEGER, DIMENSION(:), ALLOCATABLE                 :: buffer
-      INTEGER                                            :: handle, i
-
-      CALL timeset(routineN, handle)
-
-      ALLOCATE(buffer(this%n_atoms))
-      DO i=1,this%n_atoms
-         buffer(i) = this%atoms%els(i)%atom_index
-      END DO
-      CALL mcl_send(buffer, SIZE(buffer), MCL_DATA, this%mcl_server)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE send_atom_ids
-
-
-! **************************************************************************************************
 !> \brief Send positions of all atoms to the server
 ! **************************************************************************************************
    SUBROUTINE send_positions(this)
@@ -573,12 +572,12 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = moduleN//':send_positions'
 
-      INTEGER                                            :: handle, i
+      INTEGER                                            :: handle, i_atom
 
       CALL timeset(routineN, handle)
 
-      DO i=1,this%n_atoms
-         coord_buffer(:,i) = this%atoms%els(i)%r
+      DO i_atom = 1, this%n_atoms
+         coord_buffer(:,i_atom) = this%atoms%els(i_atom)%r
       END DO
       CALL mcl_send(coord_buffer, SIZE(coord_buffer), MCL_DATA, this%mcl_server)
 
@@ -595,14 +594,14 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = moduleN//':receive_positions'
 
-      INTEGER                                            :: handle, i
+      INTEGER                                            :: handle, i_atom
 
       CALL timeset(routineN, handle)
 
       CALL mcl_receive(coord_buffer, SIZE(coord_buffer), MCL_DATA, this%mcl_server)
       CALL this%para_env%bcast(coord_buffer)
-      DO i=1,this%n_atoms
-         this%atoms%els(i)%r = coord_buffer(:,i)
+      DO i_atom = 1, this%n_atoms
+         this%atoms%els(i_atom)%r = coord_buffer(:,i_atom)
       END DO
 
       CALL timestop(handle)
@@ -618,12 +617,12 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = moduleN//':send_forces'
 
-      INTEGER                                            :: handle, i
+      INTEGER                                            :: handle, i_atom
 
       CALL timeset(routineN, handle)
 
-      DO i=1,this%n_atoms
-         coord_buffer(:,i) = this%atoms%els(i)%f
+      DO i_atom = 1, this%n_atoms
+         coord_buffer(:,i_atom) = this%atoms%els(i_atom)%f
       END DO
       CALL mcl_send(coord_buffer, SIZE(coord_buffer), MCL_DATA, this%mcl_server)
 
@@ -632,4 +631,3 @@ CONTAINS
    END SUBROUTINE send_forces
 
 END MODULE mimic_communicator
-

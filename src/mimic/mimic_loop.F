@@ -6,7 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Module containing the main loop for a MiMiC run 
+!> \brief Module containing the main loop for simulations with the MiMiC framework
 !> \par History
 !>      05.2025 Created [AA]
 !> \author Andrej Antalik
@@ -16,9 +16,7 @@ MODULE mimic_loop
 
    USE force_env_methods,               ONLY: force_env_calc_energy_force
    USE force_env_types,                 ONLY: force_env_type
-   USE kinds,                           ONLY: dp
    USE mcl_requests
-   USE message_passing,                 ONLY: mp_para_env_type
    USE mimic_communicator,              ONLY: mimic_communicator_type
 
 
@@ -44,7 +42,6 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'do_mimic_loop'
 
       TYPE(mimic_communicator_type)                      :: mimic_comm
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       INTEGER                                            :: request
       LOGICAL                                            :: is_last_step
       INTEGER                                            :: handle
@@ -53,10 +50,6 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(force_env))
       
-      NULLIFY (para_env)
-      
-      para_env => force_env%para_env
-
       CALL mimic_comm%initialize(force_env)
 
       is_last_step = .FALSE.
@@ -65,13 +58,15 @@ CONTAINS
 
          SELECT CASE (request)
             CASE (MCL_SEND_CLIENT_ID)
-               CALL mimic_comm%send_value("client_id")
+               CALL mimic_comm%send_client_info("id")
+            CASE (MCL_SEND_CLIENT_RUNTYPE)
+               CALL mimic_comm%send_client_info("run_type")
             CASE (MCL_SEND_NUM_PARTICLES)
                CALL mimic_comm%send_value("num_atoms")
             CASE (MCL_SEND_NUM_PARTICLE_SPECIES)
                CALL mimic_comm%send_value("num_kinds")
             CASE (MCL_SEND_PARTICLE_SPECIES_IDS)
-               CALL mimic_comm%send_atom_kinds()
+               CALL mimic_comm%send_atom_info("kinds")
             CASE (MCL_SEND_NUM_FRAGMENTS)
                CALL mimic_comm%send_value("num_fragments")
             CASE (MCL_SEND_NUM_PARTICLES_IN_FRAGMENTS)
@@ -83,7 +78,7 @@ CONTAINS
             CASE (MCL_SEND_SPECIES_MASSES)
                CALL mimic_comm%send_kind_info("masses")
             CASE (MCL_SEND_PARTICLE_IDS_IN_FRAGMENTS)
-               CALL mimic_comm%send_atom_ids()
+               CALL mimic_comm%send_atom_info("ids")
             CASE (MCL_SEND_SPECIES_ELEMENTS)
                CALL mimic_comm%send_kind_info("elements")
             CASE (MCL_SEND_PARTICLE_POSITIONS)
@@ -94,8 +89,6 @@ CONTAINS
                CALL mimic_comm%send_forces()
             CASE (MCL_SEND_ENERGY)
                CALL mimic_comm%send_value("energy")
-            CASE (MCL_SEND_CLIENT_RUNTYPE)
-               CALL mimic_comm%send_value("client_type")
             CASE (MCL_SEND_NUCLEAR_CHARGES)
                CALL mimic_comm%send_kind_info("nuclear_charges")
             CASE (MCL_SEND_BOX_NUM_GRIDPOINTS)
@@ -118,8 +111,6 @@ CONTAINS
                CPABORT("Unrecognized MiMiC request!")
          END SELECT
       END DO
-
-      CALL para_env%sync()
 
       CALL mimic_comm%finalize()
 
