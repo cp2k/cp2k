@@ -34,6 +34,9 @@ spack:
     fftw:
       require:
         - +openmp
+    greenx:
+      require:
+        - +gmp
     hdf5:
       require:
         - +fortran
