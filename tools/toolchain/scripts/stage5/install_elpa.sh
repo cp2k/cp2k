@@ -7,8 +7,8 @@
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
 # From https://elpa.mpcdf.mpg.de/software/tarball-archive/ELPA_TARBALL_ARCHIVE.html
-elpa_ver="2024.05.001"
-elpa_sha256="9caf41a3e600e2f6f4ce1931bd54185179dade9c171556d0c9b41bbc6940f2f6"
+elpa_ver="2025.01.001"
+elpa_sha256="3ef0c6aed9a3e05db6efafe6e14d66eb88b2a1354d61e765b7cde0d3d5f3951e"
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
