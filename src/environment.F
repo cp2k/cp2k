@@ -622,10 +622,10 @@ CONTAINS
       END SELECT
 
       SELECT CASE (i_cholesky)
-      CASE (FM_DIAG_TYPE_SCALAPACK)
+      CASE (FM_CHOLESKY_TYPE_SCALAPACK)
          globenv%cholesky_library = "ScaLAPACK"
          cholesky_type = FM_CHOLESKY_TYPE_SCALAPACK
-      CASE (FM_DIAG_TYPE_DLAF)
+      CASE (FM_CHOLESKY_TYPE_DLAF)
          globenv%cholesky_library = "DLAF"
          cholesky_type = FM_CHOLESKY_TYPE_DLAF
          dlaf_cholesky_n_min = globenv%dlaf_cholesky_n_min
