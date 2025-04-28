@@ -7,9 +7,11 @@
 #:mute
    #:set mcl_implemented_labels = [ &
       "MCL_DATA", &
+      "MCL_LENGTH", &
       "MCL_REQUEST", &
       "MCL_EXIT", &
       "MCL_SEND_CLIENT_ID", &
+      "MCL_SEND_CLIENT_NAME", &
       "MCL_SEND_CLIENT_RUNTYPE", &
       "MCL_RUNTYPE_QM_PW", &
       "MCL_SEND_NUM_PARTICLES", &

@@ -59,6 +59,8 @@ CONTAINS
          SELECT CASE (request)
             CASE (MCL_SEND_CLIENT_ID)
                CALL mimic_comm%send_client_info("id")
+            CASE (MCL_SEND_CLIENT_NAME)
+               CALL mimic_comm%send_client_info("name")
             CASE (MCL_SEND_CLIENT_RUNTYPE)
                CALL mimic_comm%send_client_info("run_type")
             CASE (MCL_SEND_NUM_PARTICLES)

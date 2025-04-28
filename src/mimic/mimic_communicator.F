@@ -29,6 +29,7 @@ MODULE mimic_communicator
                                               mcl_receive, &
                                               mcl_send
    USE mcl_requests,                    ONLY: MCL_DATA, &
+                                              MCL_LENGTH, &
                                               MCL_REQUEST, &
                                               MCL_RUNTYPE_QM_PW
    USE particle_list_types,             ONLY: particle_list_type
@@ -269,13 +270,18 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = moduleN//':send_client_info'
 
-      INTEGER                                            :: handle
+      CHARACTER(LEN=*), PARAMETER                        :: client_name = "CP2K"
+      INTEGER                                            :: handle, length
 
       CALL timeset(routineN, handle)
 
       SELECT CASE (option)
          CASE ("id")
             CALL mcl_send(this%client_id, 1, MCL_DATA, this%mcl_server)
+         CASE ("name")
+            length = len(client_name)
+            CALL mcl_send(length, 1, MCL_LENGTH, this%mcl_server)
+            CALL mcl_send(client_name, length, MCL_DATA, this%mcl_server)
          CASE ("run_type")
             CALL mcl_send(MCL_RUNTYPE_QM_PW, 1, MCL_DATA, this%mcl_server)
          CASE DEFAULT
