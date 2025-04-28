@@ -1316,11 +1316,6 @@ CONTAINS
                   qtmp = -888.0_dp
                   CALL multipole_cgto(tb%calc%bas%cgto(jset, iatom), tb%calc%bas%cgto(iset, iatom), &
                        & r2, -rij, tb%calc%bas%intcut, stmp, dtmp, qtmp)
-                  write(*,*) "iiiiii: at1, at2, sh1, sh2", iatom, jatom, iset, jset
-                  write(*,*) "iiiiii: bas1", tb%calc%bas%cgto(jset, iatom)
-                  write(*,*) "iiiiii: bas2", tb%calc%bas%cgto(iset, iatom)
-                  write(*,*) "iiiiii: r2, rij ", r2, rij
-                  write(*,*) "iiiiii: dtmp ", dtmp
 
                        
                   DO inda = 1, nsgfa(iset)
@@ -1328,8 +1323,6 @@ CONTAINS
                      DO indb = 1, nsgfb(jset)
                         ib = first_sgfb(1, jset) - first_sgfb(1, 1) + indb
                         ij = indb + nsgfb(jset)*(inda - 1)
-                        write(*,*) 'jjjjjjjjj, i, j, dipole', inda, indb, ij
-                        write(*,'(6F18.9)') dtmp(:, ij)
                         
                         dip_bra1(ia, ib)=dtmp(1, ij)
                         dip_bra2(ia, ib)=dtmp(2, ij)
@@ -1373,9 +1366,6 @@ CONTAINS
                         ib = first_sgfb(1, jset) - first_sgfb(1, 1) + indb
                         ij = indb + nsgfb(jset)*(inda - 1)
                         ji = inda + nsgfa(iset)*(indb - 1)
-                        write(*,*) 'llllllll, i, j, dipole', inda, indb, ij
-                        write(*,'(6F18.9)') dtmpj(:, ji)
-                        write(*,'(6F18.9)') dtmp(:, ij)
                         
                         dip_bra1(ia, ib)=dtmp(1, ij)
                         dip_bra2(ia, ib)=dtmp(2, ij)
