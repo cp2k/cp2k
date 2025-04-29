@@ -22,7 +22,8 @@ MODULE mimic_communicator
    USE cp_units,                        ONLY: cp_unit_from_cp2k
    USE force_env_types,                 ONLY: force_env_get, &
                                               force_env_type
-   USE kinds,                           ONLY: dp
+   USE kinds,                           ONLY: default_string_length, &
+                                              dp
    USE message_passing,                 ONLY: mp_para_env_type
    USE mcl_api,                         ONLY: mcl_finalize, &
                                               mcl_get_program_id, &
@@ -47,6 +48,9 @@ MODULE mimic_communicator
                                               set_ks_env
    USE qs_rho_types,                    ONLY: qs_rho_type, &
                                               qs_rho_get
+
+   USE cp_result_types,                 ONLY: cp_result_type
+   USE cp_result_methods,               ONLY: get_results
 
 #include "../base/base_uses.f90"
 
@@ -97,6 +101,7 @@ MODULE mimic_communicator
          PROCEDURE :: send_atom_info
          PROCEDURE :: send_kind_info
          PROCEDURE :: send_box_info
+         PROCEDURE :: send_result
          PROCEDURE :: send_grid_coordinates
          PROCEDURE :: send_density
          PROCEDURE :: send_forces
@@ -406,6 +411,43 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE send_box_info
+
+
+! **************************************************************************************************
+!> \brief Send the specified result to the server
+!> \param option word corresponding to available options 
+! **************************************************************************************************
+   SUBROUTINE send_result(this, option)
+      CLASS(mimic_communicator_type), INTENT(INOUT)      :: this
+      CHARACTER(LEN=*)                                   :: option
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = moduleN//':send_result'
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(cp_result_type), POINTER                      :: results
+      CHARACTER(LEN=default_string_length)               :: description
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: buffer
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (qs_env, results)
+      CALL force_env_get(this%force_env, qs_env=qs_env)
+      CALL get_qs_env(qs_env, results=results)
+
+      SELECT CASE (option)
+         CASE ("hirshfeld_charges") 
+            description = "[HIRSHFELD-CHARGES]"
+            ALLOCATE(buffer(this%n_atoms), source=0.0_dp)
+            CALL get_results(results, description, buffer)
+            CALL mcl_send(buffer, size(buffer), MCL_DATA, this%mcl_server)
+         CASE DEFAULT
+            CPABORT("The value chosen in "//routineN//" is not implemented.")
+      END SELECT
+
+      CALL timestop(handle)
+
+   END SUBROUTINE send_result
 
 
 ! **************************************************************************************************

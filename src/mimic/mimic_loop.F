@@ -19,7 +19,6 @@ MODULE mimic_loop
    USE mcl_requests
    USE mimic_communicator,              ONLY: mimic_communicator_type
 
-
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -105,6 +104,8 @@ CONTAINS
                CALL mimic_comm%send_density()
             CASE (MCL_RECV_POTENTIAL_ON_GRIDPOINTS)
                CALL mimic_comm%receive_potential()
+            CASE (MCL_SEND_REFERENCE_CHARGES)
+               CALL mimic_comm%send_result("hirshfeld_charges")
             CASE (MCL_COMPUTE_FORCES)
                CALL force_env_calc_energy_force(force_env, calc_force=.TRUE.)
             CASE (MCL_EXIT)

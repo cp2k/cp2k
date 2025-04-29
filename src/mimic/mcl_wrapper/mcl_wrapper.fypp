@@ -36,6 +36,7 @@
       "MCL_SEND_BOX_GRIDPOINT_COORDS", &
       "MCL_SEND_DENSITY", &
       "MCL_RECV_POTENTIAL_ON_GRIDPOINTS", &
+      "MCL_SEND_REFERENCE_CHARGES", &
       "MCL_COMPUTE_FORCES"]
 
    #:set mcl_direction = ["send", "receive"]
