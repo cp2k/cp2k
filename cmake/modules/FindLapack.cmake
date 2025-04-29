@@ -66,4 +66,4 @@ if(CP2K_LAPACK_INCLUDE_DIRS)
 endif()
 
 # prevent clutter in cache
-mark_as_advanced(CP2K_LAPACK_LIBRARIES CP2K_LAPACK_INCLUDE_DIRS)
+mark_as_advanced(CP2K_LAPACK_LINK_LIBRARIES CP2K_LAPACK_INCLUDE_DIRS)
