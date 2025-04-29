@@ -34,9 +34,6 @@ spack:
     fftw:
       require:
         - +openmp
-    greenx:
-      require:
-        - +gmp
     hdf5:
       require:
         - +fortran
@@ -59,7 +56,7 @@ spack:
     - "dbcsr@2.8.0"
     - "dftd4@3.7.0"
     - "fftw@3.3.10"
-    - "greenx@2.1"
+    - "greenx@2.2"
     - "hdf5@1.14"
     - "libint@2.9.0"
     - "libvori@220621"
