@@ -13,7 +13,7 @@
 MODULE bse_print
 
    USE atomic_kind_types,               ONLY: get_atomic_kind
-   USE bse_properties,                  ONLY: compute_absorption_spectrum,&
+   USE bse_properties,                  ONLY: compute_and_print_absorption_spectrum,&
                                               exciton_descr_type
    USE bse_util,                        ONLY: filter_eigvec_contrib
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&
@@ -422,8 +422,8 @@ CONTAINS
 
          ! Compute and print the absorption spectrum to external file
          IF (mp2_env%bse%bse_print_spectrum) THEN
-            CALL compute_absorption_spectrum(oscill_str, polarizability_residues, Exc_ens, &
-                                             info_approximation, unit_nr, mp2_env)
+            CALL compute_and_print_absorption_spectrum(oscill_str, polarizability_residues, Exc_ens, &
+                                                       info_approximation, unit_nr, mp2_env)
          END IF
 
       ELSE

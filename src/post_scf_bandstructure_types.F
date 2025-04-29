@@ -139,6 +139,7 @@ MODULE post_scf_bandstructure_types
       INTEGER                                         :: nparam_pade = -1, &
                                                          num_points_per_magnitude = -1
       REAL(KIND=dp)                                   :: freq_max_fit = -1.0_dp, &
+                                                         input_regularization_minimax = -1.0_dp, &
                                                          regularization_minimax = -1.0_dp, &
                                                          stabilize_exp = -1.0_dp
 
