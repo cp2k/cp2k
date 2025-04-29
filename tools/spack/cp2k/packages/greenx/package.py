@@ -27,7 +27,7 @@ class Greenx(CMakePackage):
     variant("ac", default=True, description="Enable Analytical Continuation component")
     variant(
         "gmp",
-        default=False,
+        default=True,
         description="Enable GMP library for multiple precision arithmetic",
     )
     variant(
