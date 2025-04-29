@@ -53,9 +53,6 @@ spack:
     fftw:
       require:
         - +openmp
-    greenx:
-      require:
-        - +gmp
     hdf5:
       require:
         - +fortran
@@ -101,7 +98,7 @@ spack:
     - "dla-future-fortran@0.4.0"
     - "elpa@2025.01.001"
     - "fftw@3.3.10"
-    - "greenx@2.1"
+    - "greenx@2.2"
     - "hdf5@1.14"
     - "libint@2.9.0"
     - "libsmeagol@1.2"
