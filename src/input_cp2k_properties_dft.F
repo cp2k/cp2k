@@ -2102,6 +2102,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="REGULARIZATION_MINIMAX", &
+                          description="Parameter to regularize the Fourier transformation with minimax grids. "// &
+                          "In case the parameter 0.0 is chosen, no regularization is performed.", &
+                          usage="REGULARIZATION_MINIMAX 1.0E-4", &
+                          default_r_val=-1.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="REGULARIZATION_RI", &
                           description="Parameter for RI regularization, setting a negative "// &
                           "value triggers the default value. Affects RI basis set convergence "// &

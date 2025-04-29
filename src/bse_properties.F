@@ -59,7 +59,7 @@ MODULE bse_properties
 
    PUBLIC :: exciton_descr_type
 
-   PUBLIC :: get_exciton_descriptors, get_oscillator_strengths, compute_absorption_spectrum, &
+   PUBLIC :: get_exciton_descriptors, get_oscillator_strengths, compute_and_print_absorption_spectrum, &
              calculate_NTOs
 
 ! TYPE definitions for exciton wavefunction descriptors
@@ -216,8 +216,8 @@ CONTAINS
 !> \param unit_nr ...
 !> \param mp2_env ...
 ! **************************************************************************************************
-   SUBROUTINE compute_absorption_spectrum(oscill_str, polarizability_residues, Exc_ens, &
-                                          info_approximation, unit_nr, mp2_env)
+   SUBROUTINE compute_and_print_absorption_spectrum(oscill_str, polarizability_residues, Exc_ens, &
+                                                    info_approximation, unit_nr, mp2_env)
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(IN)                                      :: oscill_str
@@ -229,7 +229,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: unit_nr
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_absorption_spectrum'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_and_print_absorption_spectrum'
 
       CHARACTER(LEN=10)                                  :: eta_str, width_eta_format_str
       CHARACTER(LEN=40)                                  :: file_name_crosssection, &
