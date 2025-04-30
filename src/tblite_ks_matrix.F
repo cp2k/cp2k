@@ -118,7 +118,7 @@ CONTAINS
       END IF
 
       CALL tb_update_charges(qs_env, dft_control, qs_env%tb_tblite, calculate_forces, .TRUE.)
-      
+
       CALL tb_ham_add_coulomb(qs_env, qs_env%tb_tblite, dft_control, .FALSE.)
 
       IF (qs_env%qmmm) THEN
