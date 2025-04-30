@@ -9,7 +9,7 @@
 #        Optionally, GNU compiler and MPI implementation can be specified as arguments.
 #        Replace or adapt the "module add" commands below if needed.
 #
-# Last update: 25.04.2025
+# Last update: 30.04.2025
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -29,13 +29,13 @@
       if [[ -n "${2}" ]]; then \
          module add ${2}; \
          module list; \
-         ./install_cp2k_toolchain.sh --install-all -j${maxtasks} --no-arch-files --target-cpu=${target_cpu} --with-gcc=system --with-${mpi_implementation}=system --with-deepmd=no; \
+         ./install_cp2k_toolchain.sh --install-all -j${maxtasks} --no-arch-files --target-cpu=${target_cpu} --with-gcc=system --with-${mpi_implementation}=system; \
       else \
          module list; \
-         ./install_cp2k_toolchain.sh --install-all -j${maxtasks} --no-arch-files --target-cpu=${target_cpu} --with-gcc=system --with-${mpi_implementation} --with-deepmd=no; \
+         ./install_cp2k_toolchain.sh --install-all -j${maxtasks} --no-arch-files --target-cpu=${target_cpu} --with-gcc=system --with-${mpi_implementation}; \
       fi; \
    else \
-      ./install_cp2k_toolchain.sh --install-all -j${maxtasks} --no-arch-files --target-cpu=${target_cpu} --with-gcc --with-${mpi_implementation} --with-deepmd=no; \
+      ./install_cp2k_toolchain.sh --install-all -j${maxtasks} --no-arch-files --target-cpu=${target_cpu} --with-gcc=system --with-${mpi_implementation}; \
    fi; \
    source ./install/setup; \
    cd ../..; \
@@ -65,13 +65,13 @@ TARGET_CPU     := native
 # Retrieve package versions
 GNU_VER        := $(shell gcc -dumpfullversion)
 USE_COSMA      := $(COSMA_VER)
-#USE_DEEPMD     := $(DEEPMD_VER)
+USE_DEEPMD     := $(DEEPMD_VER)
 USE_DFTD4      := $(DFTD4_VER)
 USE_ELPA       := $(ELPA_VER)
 USE_FFTW       := $(FFTW_VER)
 USE_GREENX     := $(GREENX_VER)
 USE_HDF5       := $(HDF5_VER)
-USE_LIBGRPP    := $(LIBGRPP_VER)
+USE_LIBGRPP    := install
 USE_LIBINT     := $(LIBINT_VER)
 USE_LIBSMEAGOL := $(LIBSMEAGOL_VER)
 USE_LIBTORCH   := $(LIBTORCH_VER)

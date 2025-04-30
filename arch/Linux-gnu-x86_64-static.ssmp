@@ -6,7 +6,7 @@
 #
 # Usage: Source this arch file and then run make as instructed.
 #
-# Last update: 12.02.2025
+# Last update: 30.04.2025
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -40,7 +40,7 @@ GNU_VER        := $(shell gcc -dumpfullversion)
 USE_DFTD4      := $(DFTD4_VER)
 USE_FFTW       := $(FFTW_VER)
 USE_HDF5       := $(HDF5_VER)
-USE_LIBGRPP    := $(LIBGRPP_VER)
+USE_LIBGRPP    := install
 USE_LIBINT     := $(LIBINT_VER)
 USE_LIBVORI    := $(LIBVORI_VER)
 USE_LIBXC      := $(LIBXC_VER)
