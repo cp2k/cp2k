@@ -39,9 +39,24 @@ The [DLAF_NEIGVEC_MIN](#CP2K_INPUT.GLOBAL.DLAF_NEIGVEC_MIN) indicates the minimu
 which DLA-Future is used instead of ScaLAPACK. DLA-Future is optimized for large matrices on GPUs,
 and might be slower than ScaLAPACK for small matrices or CPU matrices.
 
+[DLA-Future] can be also selected to perform Cholesky decompositon using the
+[PREFERRED_CHOLESKY_LIBRARY](#CP2K_INPUT.GLOBAL.PREFERRED_CHOLESKY_LIBRARY) keyword:
+
+```
+&GLOBAL
+  PREFERRED_CHOLESKY_LIBRARY DLAF
+  DLAF_CHOLESKY_N_MIN 1024
+  [...]
+&END GLOBAL
+```
+
+The [DLAF_CHOLESKY_N_MIN](#CP2K_INPUT.GLOBAL.DLAF_CHOLESKY_N_MIN) indicates the minimum matrix size
+for which DLA-Future is used instead of ScaLAPACK. DLA-Future is optimized for large matrices on
+GPUs, and might be slower than ScaLAPACK for small matrices or CPU matrices.
+
 ### Block Size
 
-The default block size of CP2K might be sub-optimal for DLA-Future. While DLA-Future benefits from
+The default block size of CP2K might be suboptimal for DLA-Future. While DLA-Future benefits from
 larger block sizes, the optimal block size depends on the CP2K calculation. The block size can be
 adjusted with the following keywords:
 

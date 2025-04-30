@@ -13,9 +13,10 @@
 MODULE cp_cfm_cholesky
    USE cp_cfm_types, ONLY: cp_cfm_type
    USE kinds, ONLY: dp
-
 #if defined(__DLAF)
    USE cp_cfm_dlaf_api, ONLY: cp_cfm_pzpotrf_dlaf
+   USE cp_dlaf_utils_api, ONLY: cp_dlaf_initialize, cp_dlaf_create_grid
+   USE cp_fm_cholesky, ONLY: cholesky_type, dlaf_cholesky_n_min, FM_CHOLESKY_TYPE_DLAF
 #endif
 
 #include "../base/base_uses.f90"
@@ -45,6 +46,7 @@ CONTAINS
 !>      12.2002 updated, added n optional parm [fawzi]
 !>      09.2021 removed CPASSERT(info == 0) since there is already check of info [Jan Wilhelm]
 !>      12.2024 Added DLA-Future support [Rocco Meli]
+!>      03.2025 Moved DLA-Future support to cp_cfm_cholesky_decompose_dlaf [Rocco Meli]
 !> \author Joost
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_cholesky_decompose(matrix, n, info_out)
@@ -75,12 +77,22 @@ CONTAINS
 
 #if defined(__parallel)
       desca(:) = matrix%matrix_struct%descriptor(:)
-
 #if defined(__DLAF)
-      CALL cp_cfm_pzpotrf_dlaf('U', my_n, a, 1, 1, desca, info)
-#else
-      CALL pzpotrf('U', my_n, a(1, 1), 1, 1, desca, info)
+      IF (cholesky_type == FM_CHOLESKY_TYPE_DLAF .AND. matrix%matrix_struct%nrow_global .GE. dlaf_cholesky_n_min) THEN
+         ! Initialize DLA-Future on-demand; if already initialized, does nothing
+         CALL cp_dlaf_initialize()
+
+         ! Create DLAF grid from BLACS context; if already present, does nothing
+         CALL cp_dlaf_create_grid(matrix%matrix_struct%context%get_handle())
+
+         CALL cp_cfm_pzpotrf_dlaf('U', my_n, a(:, :), 1, 1, desca, info)
+      ELSE
 #endif
+         CALL pzpotrf('U', my_n, a(1, 1), 1, 1, desca, info)
+#if defined(__DLAF)
+      END IF
+#endif
+
 #else
       lda = SIZE(a, 1)
       CALL zpotrf('U', my_n, a(1, 1), lda, info)

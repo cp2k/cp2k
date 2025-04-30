@@ -21,6 +21,9 @@ MODULE input_cp2k_global
                                               BLACS_GRID_ROW,&
                                               BLACS_GRID_SQUARE
    USE cp_dbcsr_cp2k_link,              ONLY: create_dbcsr_section
+   USE cp_fm_cholesky,                  ONLY: FM_CHOLESKY_TYPE_DEFAULT,&
+                                              FM_CHOLESKY_TYPE_DLAF,&
+                                              FM_CHOLESKY_TYPE_SCALAPACK
    USE cp_fm_diag,                      ONLY: FM_DIAG_TYPE_CUSOLVER,&
                                               FM_DIAG_TYPE_DEFAULT,&
                                               FM_DIAG_TYPE_DLAF,&
@@ -135,6 +138,21 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="PREFERRED_CHOLESKY_LIBRARY", &
+                          description="Specifies Cholesky decomposition library to be used. If not available, "// &
+                          "the ScaLAPACK library is used", &
+                          usage="PREFERRED_CHOLESKY_LIBRARY DLAF", &
+                          enum_i_vals=(/FM_CHOLESKY_TYPE_SCALAPACK, &
+                                        FM_CHOLESKY_TYPE_SCALAPACK, &
+                                        FM_CHOLESKY_TYPE_DLAF/), &
+                          enum_c_vals=s2a("ScaLAPACK", "SL", "DLAF"), &
+                          enum_desc=s2a("ScaLAPACK library", &
+                                        "ScaLAPACK library (shorthand)", &
+                                        "DLA-Future (CUDA/HIP GPU library)"), &
+                          default_i_val=FM_CHOLESKY_TYPE_DEFAULT)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
 #if defined(__SPLA) && defined(__OFFLOAD_GEMM)
       default_dgemm = do_dgemm_spla
 #else
@@ -216,6 +234,15 @@ CONTAINS
                           "the DLA-Future library. The eigensolver from the ScaLAPACK library is used as fallback "// &
                           "for all smaller cases", &
                           usage="DLAF_NEIGVEC_MIN 512", &
+                          default_i_val=1024)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="DLAF_CHOLESKY_N_MIN", &
+                          description="Minimum matrix size for the use of the Cholesky decomposition from "// &
+                          "the DLA-Future library. The Cholesky decomposition from the ScaLAPACK library is used as fallback "// &
+                          "for all smaller cases", &
+                          usage="DLAF_CHOLESKY_N_MIN 512", &
                           default_i_val=1024)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
