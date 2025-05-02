@@ -45,6 +45,13 @@ spack:
       require:
         - +kxc
         - build_system=cmake
+    py-torch:
+      require:
+        - ~cuda
+        - ~distributed
+        - ~kineto
+        - ~mkldnn
+        - ~rocm
     trexio:
       require:
         - +hdf5
@@ -63,6 +70,7 @@ spack:
     - "libxc@7.0.0"
 #   - "libxsmm@main-2024-09" Use 1.17 with Spack as long as grid unit tests fail
     - "libxsmm@1.17"
+    - "py-torch@2.6"
     - "spglib@2.5.0"
     - "trexio@2.5.0"
   view:
