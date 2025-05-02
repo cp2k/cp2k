@@ -39,7 +39,6 @@ cd build || return 1
 if [[ "${PROFILE}" == "spack_all" ]] && [[ "${VERSION}" == "psmp" ]]; then
   # TODO: DeepMD-kit is not available in the Spack environment (yet)
   # PyTorch's TorchConfig.cmake is buried in the Python site-packages directory
-  # (only needed for the Dockerfiles in tools/docker)
   Torch_DIR="$(dirname "$(find /opt/spack/lib -name TorchConfig.cmake)")"
   export Torch_DIR
   cmake \
@@ -52,12 +51,15 @@ if [[ "${PROFILE}" == "spack_all" ]] && [[ "${VERSION}" == "psmp" ]]; then
   CMAKE_EXIT_CODE=$?
 
 elif [[ "${PROFILE}" == "spack_all" ]] && [[ "${VERSION}" == "ssmp" ]]; then
+  # TODO: DeepMD-kit is not available in the Spack environment (yet)
+  # PyTorch's TorchConfig.cmake is buried in the Python site-packages directory
+  Torch_DIR="$(dirname "$(find /opt/spack/lib -name TorchConfig.cmake)")"
+  export Torch_DIR
   cmake \
     -GNinja \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
     -DCP2K_USE_EVERYTHING=ON \
     -DCP2K_USE_DEEPMD=OFF \
-    -DCP2K_USE_LIBTORCH=OFF \
     -DCP2K_USE_MPI=OFF \
     -Werror=dev \
     .. |& tee ./cmake.log
