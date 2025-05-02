@@ -62,7 +62,7 @@ CONTAINS
       INTEGER                                            :: atom_a, atom_b, counter, ilist, k, m, n, &
                                                             natom, nghost, num_update
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ghostidx, listidx
-      REAL(KIND=8), ALLOCATABLE                          :: atposunroll(:), forceunroll(:)
+      REAL(KIND=8), ALLOCATABLE                          :: forceunroll(:)
       REAL(kind=dp)                                      :: cell_v(3), dv(1:3), energy(1:ace_natom)
       TYPE(fist_neighbor_type), POINTER                  :: nonbonded
       TYPE(neighbor_kind_pairs_type), POINTER            :: neighbor_kind_pair
@@ -213,15 +213,11 @@ CONTAINS
          END DO
       END IF
 
-! -> atpos and force array
-      ALLOCATE (atposunroll(1:3*(natom + nghost)))
+! -> force array
       ALLOCATE (forceunroll(1:3*natom))
       forceunroll = 0.0
       pot_ace = 0.0
       ace_virial = 0.0
-      !which is faster? (efficient)? best not to copy at all
-      !atposunroll=RESHAPE(atpos,(/3*(natom+nghost)/))
-      atposunroll = PACK(ace_data%atpos, .TRUE.)
 
       CALL ace_model_compute( &
          natomc=natom, &
@@ -231,7 +227,7 @@ CONTAINS
          originc=ace_data%origin, &
          nlistc=ace_data%nlist, &
          attypec=ace_data%attype, &
-         atposc=atposunroll, &
+         atposc=RESHAPE(ace_data%atpos, (/3*(natom + nghost)/)), &
          forcec=forceunroll, &
          virialc=ace_virial, &
          energyc=energy, &
@@ -241,7 +237,6 @@ CONTAINS
       pot_ace = SUM(energy(1:natom))
 
       DEALLOCATE (forceunroll)
-      DEALLOCATE (atposunroll)
 
 #else
       MARK_USED(ace_natom)

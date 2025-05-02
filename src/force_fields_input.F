@@ -710,7 +710,6 @@ CONTAINS
       ALLOCATE (ace_atype_symbol(ace_ntype), rcutall(ace_ntype, ace_ntype))
       DO isec = 1, ace_ntype
          ace_atype_symbol(isec) = atm_names(isec) (1:2)
-         CALL uppercase(ace_atype_symbol(isec))
       END DO
       CALL section_vals_val_get(section, "POT_FILE_NAME", c_val=ace_file_name)
 
