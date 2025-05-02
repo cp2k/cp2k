@@ -33,7 +33,6 @@ MODULE manybody_ace
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: angstrom,&
                                               evolt
-   USE string_utilities,                ONLY: uppercase
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -94,7 +93,6 @@ CONTAINS
             ace_data%model = pot%set(i)%ace%model
             jkind = 0
             DO iat = 1, SIZE(ace_data%model%symbolc)
-               CALL uppercase(element_symbol)
                IF (element_symbol == ace_data%model%symbolc(iat)) THEN
                   jkind = iat
                   EXIT
