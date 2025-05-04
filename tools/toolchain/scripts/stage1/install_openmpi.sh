@@ -55,6 +55,10 @@ case "${with_openmpi}" in
           CFLAGS="${CFLAGS} -fgnu89-inline"
         fi
       fi
+
+      # Apply patch from PR13106
+      patch -p1 oshmem/mca/sshmem/base/sshmem_base_open.c < ${SCRIPT_DIR}/stage1/openmpi_PR13106.patch
+
       # We still require MPI-1.0-compatability for PTSCOTCH
       ./configure CFLAGS="${CFLAGS}" \
         --prefix=${pkg_install_dir} \

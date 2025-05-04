@@ -9,10 +9,11 @@ MODULE cp_fm_dlaf_api
 
    USE cp_fm_basic_linalg, ONLY: cp_fm_uplo_to_full
    USE cp_fm_types, ONLY: cp_fm_type
-   USE kinds, ONLY: dp
+   USE kinds, ONLY: sp, dp
 #include "../base/base_uses.f90"
 
 #if defined(__DLAF)
+   USE cp_dlaf_utils_api, ONLY: cp_dlaf_create_grid
    USE dlaf_fortran, ONLY: dlaf_pdpotrf, &
                            dlaf_pdsyevd, &
                            dlaf_pdsygvd, &
@@ -176,6 +177,9 @@ CONTAINS
       ! Use eigenvectors matrix as workspace
       CALL cp_fm_uplo_to_full(matrix, eigenvectors)
 
+      ! Create DLAF grid from BLACS context; if already present, does nothing
+      CALL cp_dlaf_create_grid(matrix%matrix_struct%context%get_handle())
+
       n = matrix%matrix_struct%nrow_global
 
       a => matrix%local_data
@@ -284,6 +288,9 @@ CONTAINS
       CALL cp_fm_uplo_to_full(a_matrix, eigenvectors)
       CALL cp_fm_uplo_to_full(b_matrix, eigenvectors)
 
+      ! Create DLAF grid from BLACS context; if already present, does nothing
+      CALL cp_dlaf_create_grid(a_matrix%matrix_struct%context%get_handle())
+
       n = a_matrix%matrix_struct%nrow_global
 
       a => a_matrix%local_data
@@ -296,9 +303,7 @@ CONTAINS
 
       info = -1
       CALL timeset(dlaf_name, dlaf_handle)
-
       CALL dlaf_pdsygvd(uplo, n, a, 1, 1, desca, b, 1, 1, descb, eigenvalues, z, 1, 1, descz, info)
-
       CALL timestop(dlaf_handle)
 
       IF (info /= 0) THEN
