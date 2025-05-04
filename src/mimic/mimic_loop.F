@@ -82,6 +82,8 @@ CONTAINS
                CALL mimic_comm%send_atom_info("ids")
             CASE (MCL_SEND_SPECIES_ELEMENTS)
                CALL mimic_comm%send_kind_info("elements")
+            CASE (MCL_SEND_SPECIES_LABELS)
+               CALL mimic_comm%send_kind_info("labels")
             CASE (MCL_SEND_PARTICLE_POSITIONS)
                CALL mimic_comm%send_positions()
             CASE (MCL_RECV_PARTICLE_POSITIONS)

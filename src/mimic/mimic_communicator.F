@@ -284,7 +284,7 @@ CONTAINS
          CASE ("id")
             CALL mcl_send(this%client_id, 1, MCL_DATA, this%mcl_server)
          CASE ("name")
-            length = len(client_name)
+            length = LEN(client_name)
             CALL mcl_send(length, 1, MCL_LENGTH, this%mcl_server)
             CALL mcl_send(client_name, length, MCL_DATA, this%mcl_server)
          CASE ("run_type")
@@ -343,11 +343,23 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kinds
       REAL(dp), DIMENSION(:), ALLOCATABLE                :: buffer_dp
       INTEGER, DIMENSION(:), ALLOCATABLE                 :: buffer_i
-      INTEGER                                            :: handle, i
+      CHARACTER(LEN=:), ALLOCATABLE                      :: labels
+      CHARACTER(LEN=default_string_length)               :: label
+      INTEGER                                            :: handle, length, i
 
       CALL timeset(routineN, handle)
 
       SELECT CASE (option)
+         CASE ("labels") 
+            ALLOCATE(CHARACTER(30*this%n_kinds) :: labels)
+            labels = ""
+            DO i = 1, this%n_kinds
+               CALL get_atomic_kind(this%kinds%els(i), name=label)
+               labels = TRIM(labels) // TRIM(label) // ","
+            END DO
+            length = LEN(TRIM(labels)) - 1
+            CALL mcl_send(length, 1, MCL_LENGTH, this%mcl_server)
+            CALL mcl_send(labels, length, MCL_DATA, this%mcl_server)
          CASE ("elements") 
             ALLOCATE(buffer_i(this%n_kinds))
             DO i = 1, this%n_kinds
