@@ -22,9 +22,6 @@
 #include "ace-evaluator/ace_version.h"
 #include "ace/ace_b_basis.h"
 
-// TODO: put into struct
-//  return struct to FORTRAN, it will take care of it
-
 struct ACEData {
   ACECTildeBasisSet *basis_set;
   ACERecursiveEvaluator *ace;
@@ -45,6 +42,8 @@ extern "C" void AcePotInitialize(int ntypec, const char *symbolsc, int nlen,
                                  const char *potential_file_name, double *rcutc,
                                  void **acedata_ptr) {
 
+// avoid mixing C++ I/O with Fortran I/O, TODO: return this data so it can
+// be printed on the Fortran side.
 #if 0
   printf("---PACE initialization----\n");
 
