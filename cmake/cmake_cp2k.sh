@@ -45,7 +45,6 @@ if [[ "${PROFILE}" == "spack_all" ]] && [[ "${VERSION}" == "psmp" ]]; then
     -GNinja \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
     -DCP2K_USE_EVERYTHING=ON \
-    -DCP2K_USE_DEEPMD=OFF \
     -Werror=dev \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
@@ -59,7 +58,6 @@ elif [[ "${PROFILE}" == "spack_all" ]] && [[ "${VERSION}" == "ssmp" ]]; then
     -GNinja \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
     -DCP2K_USE_EVERYTHING=ON \
-    -DCP2K_USE_DEEPMD=OFF \
     -DCP2K_USE_MPI=OFF \
     -Werror=dev \
     .. |& tee ./cmake.log
