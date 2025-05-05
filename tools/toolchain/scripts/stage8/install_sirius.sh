@@ -115,6 +115,9 @@ case "$with_sirius" in
       tar -xzf SIRIUS-${sirius_ver}.tar.gz
       cd SIRIUS-${sirius_ver}
 
+      # Workaround for https://github.com/electronic-structure/SIRIUS/issues/1073
+      patch -p1 < ${SCRIPT_DIR}/stage8/sirius_memory.patch
+
       rm -Rf build
       mkdir build
       cd build
@@ -146,7 +149,6 @@ case "$with_sirius" in
       CMAKE_PREFIX_PATH="${CMAKE_PREFIX_PATH}:${GSL_ROOT}:${SPGLIB_ROOT}:${LIBXC_ROOT}:${SpFFT_DIR}:${SpLA_DIR}:${COSTA_DIR}:${PUGIXML_ROOT}" cmake \
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
         -DCMAKE_INSTALL_LIBDIR="lib" \
-        -DCMAKE_BUILD_TYPE="RelWithDebInfo" \
         -DCMAKE_CXX_FLAGS_RELEASE="${SIRIUS_OPT}" \
         -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="${SIRIUS_DBG}" \
         -DCMAKE_CXX_COMPILER="${MPICXX}" \
@@ -174,7 +176,6 @@ case "$with_sirius" in
         CMAKE_PREFIX_PATH="${CMAKE_PREFIX_PATH}:${GSL_ROOT}:${SPGLIB_ROOT}:${LIBXC_ROOT}:${SpFFT_DIR}:${SpLA_DIR}:${COSTA_DIR}" cmake \
           -DCMAKE_INSTALL_PREFIX=${pkg_install_dir}/cuda \
           -DCMAKE_INSTALL_LIBDIR="lib" \
-          -DCMAKE_BUILD_TYPE="RelWithDebInfo" \
           -DCMAKE_CXX_FLAGS_RELEASE="${SIRIUS_OPT}" \
           -DCMAKE_CXX_FLAGS_RELWITHDEBINFO="${SIRIUS_DBG}" \
           -DCMAKE_CUDA_FLAGS="-std=c++14 -allow-unsupported-compiler" \
