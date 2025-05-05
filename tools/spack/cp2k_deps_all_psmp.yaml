@@ -41,6 +41,10 @@ spack:
     dbcsr:
       require:
         - +openmp
+    deepmdkit:
+      require:
+        - build_system=cmake
+        - +enable_pytorch
     dftd4:
       require:
         - build_system=cmake
@@ -71,6 +75,7 @@ spack:
         - ~kineto
         - ~mkldnn
         - ~rocm
+        - ~valgrind
     sirius:
       require:
         - +fortran
@@ -93,6 +98,7 @@ spack:
 #   - "cosma@2.6.6" Use master until a new release will be available
     - "cosma@master"
     - "dbcsr@2.8.0"
+    - "deepmdkit@3.0.2"
     - "dftd4@3.7.0"
     - "dla-future@0.9.0"
     - "dla-future-fortran@0.4.0"
