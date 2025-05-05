@@ -1626,6 +1626,11 @@ CONTAINS
       ! Resp charges
       IF (ASSOCIATED(qs_env%rhs)) DEALLOCATE (qs_env%rhs)
 
+      ! tblite
+      IF (ASSOCIATED(qs_env%tb_tblite)) THEN
+         CALL deallocate_tblite_type(qs_env%tb_tblite)
+      END IF
+
    END SUBROUTINE qs_env_release
 
 ! **************************************************************************************************
@@ -1845,6 +1850,7 @@ CONTAINS
       ! Resp charges
       IF (ASSOCIATED(qs_env%rhs)) DEALLOCATE (qs_env%rhs)
 
+      ! tblite
       IF (ASSOCIATED(qs_env%tb_tblite)) THEN
          CALL deallocate_tblite_type(qs_env%tb_tblite)
       END IF
