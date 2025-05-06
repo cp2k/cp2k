@@ -38,8 +38,10 @@ case "${with_ninja}" in
       mkdir -p ${pkg_install_dir}
       tar -xzf ninja-v${ninja_ver}.tar.gz
       cd ninja-${ninja_ver}
-      cmake -DCMAKE_INSTALL_PREFIX=${pkg_install_dir} \
+      cmake \
         -Bbuild-ninja \
+        -DBUILD_TESTING=OFF \
+        -DCMAKE_INSTALL_PREFIX=${pkg_install_dir} \
         > configure.log 2>&1 || tail -n ${LOG_LINES} configure.log
       cmake --build build-ninja -j $(get_nprocs) > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
       cmake --install build-ninja > install.log 2>&1 || tail -n ${LOG_LINES} install.log
