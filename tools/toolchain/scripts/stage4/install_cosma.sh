@@ -6,8 +6,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-cosma_ver="2.6.6"
-cosma_sha256="1604be101e77192fbcc5551236bc87888d336e402f5409bbdd9dea900401cc37"
+cosma_ver="2.7.0"
+cosma_sha256="f4775d18379539d7bb5053bff8acb4e13d6ed31a9677f498d9099a7500488789"
 costa_ver="2.2.2"
 costa_sha256="e87bc37aad14ac0c5922237be5d5390145c9ac6aef0350ed17d86cb2d994e67c"
 tiled_mm_ver="2.3.1"

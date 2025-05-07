@@ -95,8 +95,7 @@ spack:
     - "mpich@4.3.0"
     - "openblas@0.3.29"
     - "netlib-scalapack@2.2.2"
-#   - "cosma@2.6.6" Use recent master version until a new release will be available
-    - "cosma@master-20250402"
+    - "cosma@2.7.0"
     - "dbcsr@2.8.0"
     - "deepmdkit@3.0.2"
     - "dftd4@3.7.0"
