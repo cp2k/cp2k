@@ -396,9 +396,9 @@ CONTAINS
       INTEGER, DIMENSION(5), INTENT(out)                 :: occ
 
       CHARACTER(LEN=default_string_length)               :: sng
-      INTEGER                                            :: ang, i_type, id_atom, ikind, ind_ao, &
-                                                            ipgf, iSH, ishell, maxl, mprim, &
-                                                            natorb, nset, nshell
+      INTEGER                                            :: ang, i_type, id_atom, ind_ao, ipgf, iSH, &
+                                                            ishell, ityp, maxl, mprim, natorb, &
+                                                            nset, nshell
       LOGICAL                                            :: do_ortho
 
       CALL allocate_gto_basis_set(gto_basis_set)
@@ -413,14 +413,14 @@ CONTAINS
       param%z = i_type
       param%symbol = element_symbol
       param%defined = .TRUE.
-      ikind = tb%mol%id(id_atom)
+      ityp = tb%mol%id(id_atom)
 
       !getting size information
-      nset = tb%calc%bas%nsh_id(ikind)
+      nset = tb%calc%bas%nsh_id(ityp)
       nshell = 1
       mprim = 0
       DO ishell = 1, nset
-         mprim = MAX(mprim, tb%calc%bas%cgto(ishell, ikind)%nprim)
+         mprim = MAX(mprim, tb%calc%bas%cgto(ishell, ityp)%nprim)
       END DO
       param%nshell = nset
       natorb = 0
@@ -441,19 +441,19 @@ CONTAINS
       ind_ao = 0
       maxl = 0
       DO ishell = 1, nset
-         ang = tb%calc%bas%cgto(ishell, ikind)%ang
+         ang = tb%calc%bas%cgto(ishell, ityp)%ang
          natorb = natorb + (2*ang + 1)
          param%lval(ishell) = ang
          maxl = MAX(ang, maxl)
          gto_basis_set%lmax(ishell) = ang
          gto_basis_set%lmin(ishell) = ang
-         gto_basis_set%npgf(ishell) = tb%calc%bas%cgto(ishell, ikind)%nprim
+         gto_basis_set%npgf(ishell) = tb%calc%bas%cgto(ishell, ityp)%nprim
          gto_basis_set%nshell(ishell) = nshell
          gto_basis_set%n(1, ishell) = ang + 1
          gto_basis_set%l(1, ishell) = ang
          DO ipgf = 1, gto_basis_set%npgf(ishell)
-            gto_basis_set%gcc(ipgf, 1, ishell) = tb%calc%bas%cgto(ishell, ikind)%coeff(ipgf)
-            gto_basis_set%zet(ipgf, ishell) = tb%calc%bas%cgto(ishell, ikind)%alpha(ipgf)
+            gto_basis_set%gcc(ipgf, 1, ishell) = tb%calc%bas%cgto(ishell, ityp)%coeff(ipgf)
+            gto_basis_set%zet(ipgf, ishell) = tb%calc%bas%cgto(ishell, ityp)%alpha(ipgf)
          END DO
          DO ipgf = 1, (2*ang + 1)
             ind_ao = ind_ao + 1
@@ -473,7 +473,7 @@ CONTAINS
       !getting occupation
       occ = 0
       DO iSh = 1, MIN(tb%calc%bas%nsh_at(id_atom), 5)
-         occ(iSh) = NINT(tb%calc%h0%refocc(iSh, ikind))
+         occ(iSh) = NINT(tb%calc%h0%refocc(iSh, ityp))
          param%occupation(iSh) = occ(iSh)
       END DO
       param%zeff = SUM(occ) !effective core charge
@@ -1394,7 +1394,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tb_get_multipole'
 
-      INTEGER                                     :: ikind, jkind, iatom, jatom, icol, irow, iset, jset
+      INTEGER                                     :: ikind, jkind, iatom, jatom, icol, irow, iset, jset, ityp, jtyp
       INTEGER                                     :: nkind, natom, handle, nimg, i, inda, indb
       INTEGER                                     :: atom_a, atom_b, nseta, nsetb, ia, ib, ij
       INTEGER, DIMENSION(3)                       :: cell
@@ -1494,6 +1494,9 @@ CONTAINS
             bra2ket = .TRUE.
          END IF
 
+         ityp = tb%mol%id(iatom)
+         jtyp = tb%mol%id(jatom)
+
          NULLIFY (dip_bra1, dip_bra2, dip_bra3)
          CALL dbcsr_get_block_p(matrix=tb%dipbra(1)%matrix, &
                                 row=irow, col=icol, BLOCK=dip_bra1, found=found)
@@ -1581,7 +1584,7 @@ CONTAINS
 
                   dtmp = -777.0_dp
                   qtmp = -888.0_dp
-                  CALL multipole_cgto(tb%calc%bas%cgto(jset, iatom), tb%calc%bas%cgto(iset, iatom), &
+                  CALL multipole_cgto(tb%calc%bas%cgto(jset, ityp), tb%calc%bas%cgto(iset, ityp), &
                        & r2, -rij, tb%calc%bas%intcut, stmp, dtmp, qtmp)
 
                   DO inda = 1, nsgfa(iset)
@@ -1621,9 +1624,13 @@ CONTAINS
                DO jset = 1, nsetb
                   dtmp = -777.0_dp
                   qtmp = -888.0_dp
-                  CALL multipole_cgto(tb%calc%bas%cgto(jset, jatom), tb%calc%bas%cgto(iset, iatom), &
+                  WRITE (*, *) "info_cgto1a:", tb%calc%bas%intcut, iset, jset, iatom, jatom, ityp, jtyp
+                  flush (6)
+                  WRITE (*, *) "info_cgto1b:", tb%calc%bas%cgto(jset, jtyp)
+                  WRITE (*, *) "info_cgto1c:", tb%calc%bas%cgto(iset, ityp)
+                  CALL multipole_cgto(tb%calc%bas%cgto(jset, jtyp), tb%calc%bas%cgto(iset, ityp), &
                       & r2, -rij, tb%calc%bas%intcut, stmp, dtmp, qtmp)
-                  CALL multipole_cgto(tb%calc%bas%cgto(iset, iatom), tb%calc%bas%cgto(jset, jatom), &
+                  CALL multipole_cgto(tb%calc%bas%cgto(iset, ityp), tb%calc%bas%cgto(jset, jtyp), &
                       & r2, rij, tb%calc%bas%intcut, stmp, dtmpj, qtmpj)
 
                   IF (bra2ket) THEN
