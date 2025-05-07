@@ -109,6 +109,8 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(tblite_type), POINTER                         :: tb
+      
+#if defined(__TBLITE)
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tblite_init_geometry'
 
@@ -120,8 +122,6 @@ CONTAINS
       INTEGER                                            :: handle, ikind
       INTEGER, DIMENSION(3)                              :: periodic
       LOGICAL, DIMENSION(3)                              :: lperiod
-
-#if defined(__TBLITE)
 
       CALL timeset(routineN, handle)
 
@@ -171,11 +171,12 @@ CONTAINS
 
       TYPE(tblite_type), POINTER                         :: tb
       LOGICAL, INTENT(in)                                :: do_grad
+      
+#if defined(__TBLITE)
 
       REAL(KIND=dp), PARAMETER                           :: K2Eh = 3.16681156346E-06
       INTEGER                                            :: nSpin = 1 !number of spin channels
-
-#if defined(__TBLITE)
+      
       TYPE(scf_info)                                     :: info
 
       info = tb%calc%variable_info()
@@ -220,6 +221,7 @@ CONTAINS
       INTEGER                                            :: typ
 
 #if defined(__TBLITE)
+
       TYPE(error_type), ALLOCATABLE                      :: error
 
       SELECT CASE (typ)
@@ -248,6 +250,7 @@ CONTAINS
       TYPE(tblite_type), POINTER                         :: tb
 
 #if defined(__TBLITE)
+
       TYPE(container_cache)                              :: hcache, rcache
 
       tb%e_hal = 0.0_dp
@@ -327,11 +330,11 @@ CONTAINS
       TYPE(tblite_type), POINTER                         :: tb
       TYPE(qs_energy_type), POINTER                      :: energy
 
+#if defined(__TBLITE)
+
       INTEGER                                            :: iounit
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: scf_section
-
-#if defined(__TBLITE)
 
       NULLIFY (scf_section, logger)
 
@@ -395,6 +398,8 @@ CONTAINS
       TYPE(xtb_atom_type), POINTER                       :: param
       INTEGER, DIMENSION(5), INTENT(out)                 :: occ
 
+#if defined(__TBLITE)
+
       CHARACTER(LEN=default_string_length)               :: sng
       INTEGER                                            :: ang, i_type, id_atom, ind_ao, ipgf, iSH, &
                                                             ishell, ityp, maxl, mprim, natorb, &
@@ -402,8 +407,6 @@ CONTAINS
       LOGICAL                                            :: do_ortho
 
       CALL allocate_gto_basis_set(gto_basis_set)
-
-#if defined(__TBLITE)
 
       !identifying element in the bas data
       CALL symbol_to_number(i_type, element_symbol)
@@ -818,6 +821,8 @@ CONTAINS
       LOGICAL, INTENT(IN)                                                :: calculate_forces
       LOGICAL, INTENT(IN)                                                :: use_rho
 
+#if defined(__TBLITE)
+
       INTEGER                                            :: iatom, ikind, is, ns, atom_a, ii, im
       INTEGER                                            :: nimg, nkind, nsgf, natorb, na
       INTEGER                                            :: n_atom, max_orb, max_shell
@@ -839,8 +844,6 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(xtb_atom_type), POINTER                       :: xtb_kind
-
-#if defined(__TBLITE)
 
       ! also compute multipoles needed by GFN2
       dipole_do = .FALSE.
@@ -994,6 +997,8 @@ CONTAINS
       TYPE(tblite_type), POINTER                               :: tb
       TYPE(dft_control_type), POINTER                          :: dft_control
       LOGICAL, INTENT(IN)                                      :: calculate_forces
+      
+#if defined(__TBLITE)
 
       INTEGER                                            :: ikind, jkind, iatom, jatom, icol, irow
       INTEGER                                            :: ic, is, nimg, ni, nj, i, j
@@ -1024,8 +1029,6 @@ CONTAINS
          POINTER                                         :: n_list
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(xtb_atom_type), POINTER                       :: xtb_atom_a, xtb_atom_b
-
-#if defined(__TBLITE)
 
       nimg = dft_control%nimages
 
@@ -1624,10 +1627,6 @@ CONTAINS
                DO jset = 1, nsetb
                   dtmp = -777.0_dp
                   qtmp = -888.0_dp
-                  WRITE (*, *) "info_cgto1a:", tb%calc%bas%intcut, iset, jset, iatom, jatom, ityp, jtyp
-                  flush (6)
-                  WRITE (*, *) "info_cgto1b:", tb%calc%bas%cgto(jset, jtyp)
-                  WRITE (*, *) "info_cgto1c:", tb%calc%bas%cgto(iset, ityp)
                   CALL multipole_cgto(tb%calc%bas%cgto(jset, jtyp), tb%calc%bas%cgto(iset, ityp), &
                       & r2, -rij, tb%calc%bas%intcut, stmp, dtmp, qtmp)
                   CALL multipole_cgto(tb%calc%bas%cgto(iset, ityp), tb%calc%bas%cgto(jset, jtyp), &
