@@ -8,7 +8,7 @@
   METHOD QS
   &DFT
     &KPOINTS
-      SCHEME  NONE
+      SCHEME NONE
       #SCHEME GAMMA
       #SCHEME  MONKHORST-PACK  1 1 1
     &END KPOINTS
@@ -42,8 +42,8 @@
   &SUBSYS
     &CELL
       ABC 4.0 4.0 4.0
-      PERIODIC XYZ
       MULTIPLE_UNIT_CELL 1 1 1
+      PERIODIC XYZ
     &END CELL
     &COORD
       H     0.000000    0.000000    0.000000
@@ -56,4 +56,3 @@
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-
