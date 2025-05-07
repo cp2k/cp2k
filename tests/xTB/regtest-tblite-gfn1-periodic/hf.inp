@@ -8,21 +8,21 @@
   METHOD QS
   &DFT
     &KPOINTS
-      SCHEME  NONE
+      SCHEME NONE
       #SCHEME GAMMA
       #SCHEME  MONKHORST-PACK  1 1 1
     &END KPOINTS
     &QS
       METHOD xTB
       &XTB
-        &TBLITE
-          METHOD GFN1
-        &END TBLITE
         #HYDROGEN_STO_NG 4
         #STO_NG 6
         &PARAMETER
           DISPERSION_PARAMETER_FILE dftd3.dat
         &END PARAMETER
+        &TBLITE
+          METHOD GFN1
+        &END TBLITE
       &END XTB
     &END QS
     &SCF
@@ -38,8 +38,8 @@
   &SUBSYS
     &CELL
       ABC 4.0 4.0 4.0
-      PERIODIC XYZ
       MULTIPLE_UNIT_CELL 1 1 1
+      PERIODIC XYZ
     &END CELL
     &COORD
       H     0.000000    0.000000    0.000000
@@ -52,4 +52,3 @@
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL
-

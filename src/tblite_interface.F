@@ -821,7 +821,7 @@ CONTAINS
       INTEGER                                            :: iatom, ikind, is, ns, atom_a, ii, im
       INTEGER                                            :: nimg, nkind, nsgf, natorb, na
       INTEGER                                            :: n_atom, max_orb, max_shell
-      LOGICAL                                            :: multipole_do
+      LOGICAL                                            :: dipole_do, quadrupole_do
       REAL(KIND=dp)                                      :: norm
       INTEGER, DIMENSION(5)                              :: occ
       INTEGER, DIMENSION(25)                             :: lao
@@ -843,7 +843,8 @@ CONTAINS
 #if defined(__TBLITE)
 
       ! also compute multipoles needed by GFN2
-      multipole_do = .FALSE.
+      dipole_do = .FALSE.
+      quadrupole_do = .FALSE.
 
       ! compute mulliken charges required for charge update
       NULLIFY (particle_set, qs_kind_set, atomic_kind_set)
@@ -852,7 +853,8 @@ CONTAINS
       NULLIFY (matrix_p)
       IF (use_rho) THEN
          CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
-         multipole_do = .TRUE.
+         IF (ASSOCIATED(tb%dipbra)) dipole_do = .TRUE.
+         IF (ASSOCIATED(tb%quadbra)) quadrupole_do = .TRUE.
       ELSE
          matrix_p => scf_env%p_mix_new
       END IF
@@ -862,7 +864,8 @@ CONTAINS
       CALL get_qs_kind_set(qs_kind_set, maxsgf=nsgf)
       ALLOCATE (aocg(nsgf, n_atom))
       aocg = 0.0_dp
-      IF (multipole_do) ALLOCATE (ao_dip(n_atom, dip_n), ao_quad(n_atom, quad_n))
+      IF (dipole_do) ALLOCATE (ao_dip(n_atom, dip_n))
+      IF (quadrupole_do) ALLOCATE (ao_quad(n_atom, quad_n))
       max_orb = 0
       max_shell = 0
       DO ikind = 1, nkind
@@ -881,7 +884,7 @@ CONTAINS
       ch_ref = 0.0_dp
       IF (nimg > 1) THEN
          CALL ao_charges(matrix_p, matrix_s, aocg, para_env)
-         IF (multipole_do) THEN
+         IF (dipole_do .OR. quadrupole_do) THEN
             CPABORT("missing contraction with density matrix for multiple k-points")
          END IF
       ELSE
@@ -889,10 +892,12 @@ CONTAINS
          p_matrix => matrix_p(:, 1)
          s_matrix => matrix_s(1, 1)%matrix
          CALL ao_charges(p_matrix, s_matrix, aocg, para_env)
-         IF (multipole_do) THEN
+         IF (dipole_do) THEN
             DO im = 1, dip_n
                CALL contract_dens(p_matrix, tb%dipbra(im)%matrix, tb%dipket(im)%matrix, ao_dip(:, im), para_env)
             END DO
+         END IF
+         IF (quadrupole_do) THEN
             DO im = 1, quad_n
                CALL contract_dens(p_matrix, tb%quadbra(im)%matrix, tb%quadket(im)%matrix, ao_quad(:, im), para_env)
             END DO
@@ -937,17 +942,21 @@ CONTAINS
          tb%wfn%qat(iatom, 1) = -ch_atom(iatom, 1)
       END DO
 
-      IF (multipole_do) THEN
+      IF (dipole_do) THEN
          DO iatom = 1, n_atom
             DO im = 1, dip_n
                tb%wfn%dpat(im, iatom, 1) = -ao_dip(iatom, im)
             END DO
+         END DO
+         DEALLOCATE (ao_dip)
+      END IF
+      IF (quadrupole_do) THEN
+         DO iatom = 1, n_atom
             DO im = 1, quad_n
                tb%wfn%qpat(im, iatom, 1) = -ao_quad(iatom, im)
             END DO
          END DO
-
-         DEALLOCATE (ao_dip, ao_quad)
+         DEALLOCATE (ao_quad)
       END IF
 
       IF (ALLOCATED(tb%calc%coulomb)) THEN

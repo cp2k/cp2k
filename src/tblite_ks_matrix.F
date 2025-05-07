@@ -100,7 +100,6 @@ CONTAINS
       CPASSERT(ASSOCIATED(rho))
       CPASSERT(SIZE(ks_matrix) > 0)
 
-      !WRITE (*, *) "::::::::::::::::: building GFN1 matrix, ks_matrix, in:"
       DO ispin = 1, nspins
          DO img = 1, nimg
             ! copy the core matrix into the fock matrix
@@ -153,11 +152,6 @@ CONTAINS
             END DO
          END BLOCK
       END IF
-
-      !WRITE (*, *) "::::::::::::::::: built GFN1 matrix, ks_matrix, out:"
-      !DO ispin = 1, nspins
-      !   CALL dbcsr_print(ks_matrix(ispin, 1)%matrix)
-      !END DO
 
       CALL timestop(handle)
 
