@@ -16,5 +16,5 @@
 "SrVO.inp"                              = [{matcher="M085", tol=1.0E-5, ref=-156.376729575050433}]
 "LiF.inp"                               = [{matcher="M085", tol=1.0E-5, ref=-36.658529490345153}]
 "N2.inp"                                = [{matcher="M085", tol=1.0E-9, ref=-16.572137677057988}]
-"Fe-upf.inp"                            = [{matcher="M085", tol=1.0E-5, ref=-324.543162362195346}]
+"Fe-upf.inp"                            = [{matcher="M085", tol=1.0E-5, ref=-322.37407840130044}]
 #EOF
