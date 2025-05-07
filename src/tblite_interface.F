@@ -345,13 +345,6 @@ CONTAINS
       energy%dispersion_sc = SUM(tb%e_scd)
       energy%xtb_xb_inter = SUM(tb%e_hal)
 
-      WRITE (*, *) "ttttttt get energies "
-      WRITE (*, *) "ttttttt  erep: ", tb%e_rep
-      WRITE (*, *) "ttttttt   ees: ", tb%e_es
-      WRITE (*, *) "ttttttt edisp: ", tb%e_disp
-      WRITE (*, *) "ttttttt  escd: ", tb%e_scd
-      WRITE (*, *) "ttttttt  ehal: ", tb%e_hal
-
       energy%total = energy%core + energy%repulsive + energy%el_stat + energy%dispersion &
                      + energy%dispersion_sc + energy%xtb_xb_inter + energy%kTS &
                      + energy%efield + energy%qmmm_el
@@ -957,11 +950,6 @@ CONTAINS
          DEALLOCATE (ao_dip, ao_quad)
       END IF
 
-      WRITE (*, *) '>>>>>>>>>>>>>>>>>  qsh: ', tb%wfn%qsh(:, 1)
-      WRITE (*, *) '>>>>>>>>>>>>>>>>>  qat: ', tb%wfn%qat(:, 1)
-      WRITE (*, *) '>>>>>>>>>>>>>>>>>  dip: ', tb%wfn%dpat(:, :, 1)
-      WRITE (*, *) '>>>>>>>>>>>>>>>>>  quad:', tb%wfn%qpat(:, :, 1)
-
       IF (ALLOCATED(tb%calc%coulomb)) THEN
          CALL tb%calc%coulomb%get_potential(tb%mol, tb%cache, tb%wfn, tb%pot)
       END IF
@@ -1202,7 +1190,7 @@ CONTAINS
          END IF
 
       ELSE
-
+         CPABORT("GFN methods with k-points not tested")
          NULLIFY (kpoints)
          CALL get_qs_env(qs_env=qs_env, kpoints=kpoints)
          NULLIFY (cell_to_index)
@@ -1258,6 +1246,123 @@ CONTAINS
             END DO
          END DO
          CALL neighbor_list_iterator_release(nl_iterator)
+
+         IF (ASSOCIATED(tb%dipbra)) THEN
+            CALL neighbor_list_iterator_create(nl_iterator, n_list)
+            DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
+               CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
+                                      iatom=iatom, jatom=jatom, r=rij, cell=cellind)
+               icol = MAX(iatom, jatom)
+               irow = MIN(iatom, jatom)
+
+               NULLIFY (dip_bra1, dip_bra2, dip_bra3)
+               CALL dbcsr_get_block_p(matrix=tb%dipbra(1)%matrix, &
+                                      row=irow, col=icol, BLOCK=dip_bra1, found=found)
+               CPASSERT(found)
+               CALL dbcsr_get_block_p(matrix=tb%dipbra(2)%matrix, &
+                                      row=irow, col=icol, BLOCK=dip_bra2, found=found)
+               CPASSERT(found)
+               CALL dbcsr_get_block_p(matrix=tb%dipbra(3)%matrix, &
+                                      row=irow, col=icol, BLOCK=dip_bra3, found=found)
+               CPASSERT(found)
+               NULLIFY (dip_ket1, dip_ket2, dip_ket3)
+               CALL dbcsr_get_block_p(matrix=tb%dipket(1)%matrix, &
+                                      row=irow, col=icol, BLOCK=dip_ket1, found=found)
+               CPASSERT(found)
+               CALL dbcsr_get_block_p(matrix=tb%dipket(2)%matrix, &
+                                      row=irow, col=icol, BLOCK=dip_ket2, found=found)
+               CPASSERT(found)
+               CALL dbcsr_get_block_p(matrix=tb%dipket(3)%matrix, &
+                                      row=irow, col=icol, BLOCK=dip_ket3, found=found)
+               CPASSERT(found)
+
+               DO is = 1, SIZE(ks_matrix, 1)
+                  NULLIFY (ksblock)
+                  CALL dbcsr_get_block_p(matrix=ks_matrix(is, 1)%matrix, &
+                                         row=irow, col=icol, block=ksblock, found=found)
+                  CPASSERT(found)
+                  ksblock = ksblock - 0.5_dp*(dip_ket1*tb%pot%vdp(1, irow, 1) &
+                                              + dip_ket2*tb%pot%vdp(2, irow, 1) &
+                                              + dip_ket3*tb%pot%vdp(3, irow, 1) &
+                                              + dip_bra1*tb%pot%vdp(1, icol, 1) &
+                                              + dip_bra2*tb%pot%vdp(2, icol, 1) &
+                                              + dip_bra3*tb%pot%vdp(3, icol, 1))
+               END DO
+            END DO
+            CALL neighbor_list_iterator_release(nl_iterator)
+         END IF
+
+         IF (ASSOCIATED(tb%quadbra)) THEN
+            CALL neighbor_list_iterator_create(nl_iterator, n_list)
+            DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
+               CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
+                                      iatom=iatom, jatom=jatom, r=rij, cell=cellind)
+               icol = MAX(iatom, jatom)
+               irow = MIN(iatom, jatom)
+
+               NULLIFY (quad_bra1, quad_bra2, quad_bra3, quad_bra4, quad_bra5, quad_bra6)
+               CALL dbcsr_get_block_p(matrix=tb%quadbra(1)%matrix, &
+                                      row=irow, col=icol, BLOCK=quad_bra1, found=found)
+               CPASSERT(found)
+               CALL dbcsr_get_block_p(matrix=tb%quadbra(2)%matrix, &
+                                      row=irow, col=icol, BLOCK=quad_bra2, found=found)
+               CPASSERT(found)
+               CALL dbcsr_get_block_p(matrix=tb%quadbra(3)%matrix, &
+                                      row=irow, col=icol, BLOCK=quad_bra3, found=found)
+               CPASSERT(found)
+               CALL dbcsr_get_block_p(matrix=tb%quadbra(4)%matrix, &
+                                      row=irow, col=icol, BLOCK=quad_bra4, found=found)
+               CPASSERT(found)
+               CALL dbcsr_get_block_p(matrix=tb%quadbra(5)%matrix, &
+                                      row=irow, col=icol, BLOCK=quad_bra5, found=found)
+               CPASSERT(found)
+               CALL dbcsr_get_block_p(matrix=tb%quadbra(6)%matrix, &
+                                      row=irow, col=icol, BLOCK=quad_bra6, found=found)
+               CPASSERT(found)
+
+               NULLIFY (quad_ket1, quad_ket2, quad_ket3, quad_ket4, quad_ket5, quad_ket6)
+               CALL dbcsr_get_block_p(matrix=tb%quadket(1)%matrix, &
+                                      row=irow, col=icol, BLOCK=quad_ket1, found=found)
+               CPASSERT(found)
+               CALL dbcsr_get_block_p(matrix=tb%quadket(2)%matrix, &
+                                      row=irow, col=icol, BLOCK=quad_ket2, found=found)
+               CPASSERT(found)
+               CALL dbcsr_get_block_p(matrix=tb%quadket(3)%matrix, &
+                                      row=irow, col=icol, BLOCK=quad_ket3, found=found)
+               CPASSERT(found)
+               CALL dbcsr_get_block_p(matrix=tb%quadket(4)%matrix, &
+                                      row=irow, col=icol, BLOCK=quad_ket4, found=found)
+               CPASSERT(found)
+               CALL dbcsr_get_block_p(matrix=tb%quadket(5)%matrix, &
+                                      row=irow, col=icol, BLOCK=quad_ket5, found=found)
+               CPASSERT(found)
+               CALL dbcsr_get_block_p(matrix=tb%quadket(6)%matrix, &
+                                      row=irow, col=icol, BLOCK=quad_ket6, found=found)
+               CPASSERT(found)
+
+               DO is = 1, SIZE(ks_matrix, 1)
+                  NULLIFY (ksblock)
+                  CALL dbcsr_get_block_p(matrix=ks_matrix(is, 1)%matrix, &
+                                         row=irow, col=icol, block=ksblock, found=found)
+                  CPASSERT(found)
+
+                  ksblock = ksblock - 0.5_dp*(quad_ket1*tb%pot%vqp(1, irow, 1) &
+                                              + quad_ket2*tb%pot%vqp(2, irow, 1) &
+                                              + quad_ket3*tb%pot%vqp(3, irow, 1) &
+                                              + quad_ket4*tb%pot%vqp(4, irow, 1) &
+                                              + quad_ket5*tb%pot%vqp(5, irow, 1) &
+                                              + quad_ket6*tb%pot%vqp(6, irow, 1) &
+                                              + quad_bra1*tb%pot%vqp(1, icol, 1) &
+                                              + quad_bra2*tb%pot%vqp(2, icol, 1) &
+                                              + quad_bra3*tb%pot%vqp(3, icol, 1) &
+                                              + quad_bra4*tb%pot%vqp(4, icol, 1) &
+                                              + quad_bra5*tb%pot%vqp(5, icol, 1) &
+                                              + quad_bra6*tb%pot%vqp(6, icol, 1))
+               END DO
+            END DO
+            CALL neighbor_list_iterator_release(nl_iterator)
+         END IF
+
       END IF
 
 #else
