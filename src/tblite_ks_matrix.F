@@ -104,7 +104,6 @@ CONTAINS
          DO img = 1, nimg
             ! copy the core matrix into the fock matrix
             CALL dbcsr_copy(ks_matrix(ispin, img)%matrix, matrix_h(1, img)%matrix)
-            !CALL dbcsr_print(ks_matrix(ispin, img)%matrix)
          END DO
       END DO
 

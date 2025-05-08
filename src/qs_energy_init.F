@@ -19,8 +19,7 @@ MODULE qs_energy_init
                                               dbcsr_type
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set
    USE efield_utils,                    ONLY: calculate_ecore_efield
-   USE input_constants,                 ONLY: gfn2xtb,&
-                                              kg_tnadd_atomic,&
+   USE input_constants,                 ONLY: kg_tnadd_atomic,&
                                               kg_tnadd_embed,&
                                               kg_tnadd_embed_ri,&
                                               kg_tnadd_none
@@ -64,8 +63,7 @@ MODULE qs_energy_init
    USE ri_environment_methods,          ONLY: build_ri_matrices
    USE se_core_core,                    ONLY: se_core_core_interaction
    USE se_core_matrix,                  ONLY: build_se_core_matrix
-   USE tblite_interface,                ONLY: build_tblite_matrices,&
-                                              tb_get_multipole
+   USE tblite_interface,                ONLY: build_tblite_matrices
    USE xtb_matrices,                    ONLY: build_xtb_matrices
 #include "./base/base_uses.f90"
 
@@ -312,8 +310,6 @@ CONTAINS
          IF (dft_control%qs_control%xtb_control%do_tblite) THEN
             CALL build_tblite_matrices(qs_env=qs_env, para_env=para_env, &
                                        calculate_forces=.FALSE.)
-            IF (dft_control%qs_control%xtb_control%tblite_method == gfn2xtb) &
-               CALL tb_get_multipole(qs_env, qs_env%tb_tblite)
          ELSE
             CALL build_xtb_matrices(qs_env=qs_env, calculate_forces=.FALSE.)
          END IF
