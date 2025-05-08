@@ -62,7 +62,7 @@ spack:
         - +hdf5
         - build_system=cmake
   repos:
-    - $spack/cp2k
+    - $spack
   specs:
     - "openblas@0.3.29"
     - "dbcsr@2.8.0"
