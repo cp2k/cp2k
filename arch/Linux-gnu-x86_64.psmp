@@ -9,7 +9,7 @@
 #        Optionally, GNU compiler and MPI implementation can be specified as arguments.
 #        Replace or adapt the "module add" commands below if needed.
 #
-# Last update: 30.04.2025
+# Last update: 08.05.2025
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -64,6 +64,7 @@ TARGET_CPU     := native
 
 # Retrieve package versions
 GNU_VER        := $(shell gcc -dumpfullversion)
+USE_ACE        := $(ACE_VER)
 USE_COSMA      := $(COSMA_VER)
 USE_DEEPMD     := $(DEEPMD_VER)
 USE_DFTD4      := $(DFTD4_VER)
@@ -292,6 +293,17 @@ ifneq ($(USE_LIBXSMM),)
       LIBS           += $(LIBXSMM_LIB)/libxsmmext.a
       LIBS           += $(LIBXSMM_LIB)/libxsmm.a
    endif
+endif
+
+ifneq ($(USE_ACE),)
+   USE_ACE        := $(strip $(USE_ACE))
+   ACE_INC        := $(INSTALL_PATH)/lammps-user-pace-$(USE_ACE)/include
+   ACE_LIB        := $(INSTALL_PATH)/lammps-user-pace-$(USE_ACE)/lib
+   CFLAGS         += -I$(ACE_INC)
+   DFLAGS         += -D__ACE
+   LIBS           += $(ACE_LIB)/libpace.a
+   LIBS           += $(ACE_LIB)/libyaml-cpp-pace.a
+   LIBS           += $(ACE_LIB)/libcnpy.a
 endif
 
 ifneq ($(USE_GREENX),)
