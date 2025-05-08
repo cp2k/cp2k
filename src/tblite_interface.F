@@ -109,7 +109,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(tblite_type), POINTER                         :: tb
-      
+
 #if defined(__TBLITE)
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tblite_init_geometry'
@@ -157,7 +157,7 @@ CONTAINS
       CALL timestop(handle)
 
 #else
-      CPABORT("Build without TBLITE")
+      CPABORT("Built without TBLITE")
 #endif
 
    END SUBROUTINE tb_init_geometry
@@ -171,12 +171,12 @@ CONTAINS
 
       TYPE(tblite_type), POINTER                         :: tb
       LOGICAL, INTENT(in)                                :: do_grad
-      
+
 #if defined(__TBLITE)
 
       REAL(KIND=dp), PARAMETER                           :: K2Eh = 3.16681156346E-06
-      INTEGER                                            :: nSpin = 1 !number of spin channels
-      
+      INTEGER, PARAMETER                                 :: nSpin = 1 !number of spin channels
+
       TYPE(scf_info)                                     :: info
 
       info = tb%calc%variable_info()
@@ -205,7 +205,7 @@ CONTAINS
       END IF
 
 #else
-      CPABORT("Build without TBLITE")
+      CPABORT("Built without TBLITE")
 #endif
 
    END SUBROUTINE tb_init_wf
@@ -236,7 +236,7 @@ CONTAINS
       END SELECT
 
 #else
-      CPABORT("Build without TBLITE")
+      CPABORT("Built without TBLITE")
 #endif
 
    END SUBROUTINE tb_set_calculator
@@ -311,7 +311,7 @@ CONTAINS
       END IF
 
 #else
-      CPABORT("Build without TBLITE")
+      CPABORT("Built without TBLITE")
 #endif
 
    END SUBROUTINE tb_init_ham
@@ -377,7 +377,7 @@ CONTAINS
                                         "PRINT%DETAILED_ENERGY")
 
 #else
-      CPABORT("Build without TBLITE")
+      CPABORT("Built without TBLITE")
 #endif
 
    END SUBROUTINE tb_get_energy
@@ -485,7 +485,7 @@ CONTAINS
       gto_basis_set%norm_type = 3
 
 #else
-      CPABORT("Build without TBLITE")
+      CPABORT("Built without TBLITE")
 #endif
 
    END SUBROUTINE tb_get_basis
@@ -620,7 +620,7 @@ CONTAINS
          CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
                                 iatom=iatom, jatom=jatom, r=rij, cell=cell)
 
-         dr = SQRT(SUM(rij(:)**2))
+         dr = NORM2(rij(:))
 
          ic = 1
          icol = MAX(iatom, jatom)
@@ -781,6 +781,10 @@ CONTAINS
          END DO
       END DO
 
+      !compute multipole moments for gfn2
+      IF (dft_control%qs_control%xtb_control%tblite_method == gfn2xtb) &
+         CALL tb_get_multipole(qs_env, tb)
+
       ! output overlap information
       NULLIFY (logger)
       logger => cp_get_default_logger()
@@ -800,7 +804,7 @@ CONTAINS
       CALL timestop(handle)
 
 #else
-      CPABORT("Build without TBLITE")
+      CPABORT("Built without TBLITE")
 #endif
 
    END SUBROUTINE build_tblite_matrices
@@ -826,7 +830,7 @@ CONTAINS
       INTEGER                                            :: iatom, ikind, is, ns, atom_a, ii, im
       INTEGER                                            :: nimg, nkind, nsgf, natorb, na
       INTEGER                                            :: n_atom, max_orb, max_shell
-      LOGICAL                                            :: dipole_do, quadrupole_do
+      LOGICAL                                            :: do_dipole, do_quadrupole
       REAL(KIND=dp)                                      :: norm
       INTEGER, DIMENSION(5)                              :: occ
       INTEGER, DIMENSION(25)                             :: lao
@@ -846,8 +850,8 @@ CONTAINS
       TYPE(xtb_atom_type), POINTER                       :: xtb_kind
 
       ! also compute multipoles needed by GFN2
-      dipole_do = .FALSE.
-      quadrupole_do = .FALSE.
+      do_dipole = .FALSE.
+      do_quadrupole = .FALSE.
 
       ! compute mulliken charges required for charge update
       NULLIFY (particle_set, qs_kind_set, atomic_kind_set)
@@ -856,8 +860,8 @@ CONTAINS
       NULLIFY (matrix_p)
       IF (use_rho) THEN
          CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
-         IF (ASSOCIATED(tb%dipbra)) dipole_do = .TRUE.
-         IF (ASSOCIATED(tb%quadbra)) quadrupole_do = .TRUE.
+         IF (ASSOCIATED(tb%dipbra)) do_dipole = .TRUE.
+         IF (ASSOCIATED(tb%quadbra)) do_quadrupole = .TRUE.
       ELSE
          matrix_p => scf_env%p_mix_new
       END IF
@@ -867,8 +871,8 @@ CONTAINS
       CALL get_qs_kind_set(qs_kind_set, maxsgf=nsgf)
       ALLOCATE (aocg(nsgf, n_atom))
       aocg = 0.0_dp
-      IF (dipole_do) ALLOCATE (ao_dip(n_atom, dip_n))
-      IF (quadrupole_do) ALLOCATE (ao_quad(n_atom, quad_n))
+      IF (do_dipole) ALLOCATE (ao_dip(n_atom, dip_n))
+      IF (do_quadrupole) ALLOCATE (ao_quad(n_atom, quad_n))
       max_orb = 0
       max_shell = 0
       DO ikind = 1, nkind
@@ -887,7 +891,7 @@ CONTAINS
       ch_ref = 0.0_dp
       IF (nimg > 1) THEN
          CALL ao_charges(matrix_p, matrix_s, aocg, para_env)
-         IF (dipole_do .OR. quadrupole_do) THEN
+         IF (do_dipole .OR. do_quadrupole) THEN
             CPABORT("missing contraction with density matrix for multiple k-points")
          END IF
       ELSE
@@ -895,12 +899,12 @@ CONTAINS
          p_matrix => matrix_p(:, 1)
          s_matrix => matrix_s(1, 1)%matrix
          CALL ao_charges(p_matrix, s_matrix, aocg, para_env)
-         IF (dipole_do) THEN
+         IF (do_dipole) THEN
             DO im = 1, dip_n
                CALL contract_dens(p_matrix, tb%dipbra(im)%matrix, tb%dipket(im)%matrix, ao_dip(:, im), para_env)
             END DO
          END IF
-         IF (quadrupole_do) THEN
+         IF (do_quadrupole) THEN
             DO im = 1, quad_n
                CALL contract_dens(p_matrix, tb%quadbra(im)%matrix, tb%quadket(im)%matrix, ao_quad(:, im), para_env)
             END DO
@@ -945,7 +949,7 @@ CONTAINS
          tb%wfn%qat(iatom, 1) = -ch_atom(iatom, 1)
       END DO
 
-      IF (dipole_do) THEN
+      IF (do_dipole) THEN
          DO iatom = 1, n_atom
             DO im = 1, dip_n
                tb%wfn%dpat(im, iatom, 1) = -ao_dip(iatom, im)
@@ -953,7 +957,7 @@ CONTAINS
          END DO
          DEALLOCATE (ao_dip)
       END IF
-      IF (quadrupole_do) THEN
+      IF (do_quadrupole) THEN
          DO iatom = 1, n_atom
             DO im = 1, quad_n
                tb%wfn%qpat(im, iatom, 1) = -ao_quad(iatom, im)
@@ -979,7 +983,7 @@ CONTAINS
       DEALLOCATE (ch_atom, ch_shell, ch_orb, ch_ref)
 
 #else
-      CPABORT("Build without TBLITE")
+      CPABORT("Built without TBLITE")
 #endif
 
    END SUBROUTINE tb_update_charges
@@ -997,7 +1001,7 @@ CONTAINS
       TYPE(tblite_type), POINTER                               :: tb
       TYPE(dft_control_type), POINTER                          :: dft_control
       LOGICAL, INTENT(IN)                                      :: calculate_forces
-      
+
 #if defined(__TBLITE)
 
       INTEGER                                            :: ikind, jkind, iatom, jatom, icol, irow
@@ -1378,7 +1382,7 @@ CONTAINS
       END IF
 
 #else
-      CPABORT("Build without TBLITE")
+      CPABORT("Built without TBLITE")
 #endif
 
    END SUBROUTINE tb_ham_add_coulomb
@@ -1585,8 +1589,6 @@ CONTAINS
             DO iset = 1, nseta
                DO jset = 1, nsetb
 
-                  dtmp = -777.0_dp
-                  qtmp = -888.0_dp
                   CALL multipole_cgto(tb%calc%bas%cgto(jset, ityp), tb%calc%bas%cgto(iset, ityp), &
                        & r2, -rij, tb%calc%bas%intcut, stmp, dtmp, qtmp)
 
@@ -1625,8 +1627,6 @@ CONTAINS
          ELSE
             DO iset = 1, nseta
                DO jset = 1, nsetb
-                  dtmp = -777.0_dp
-                  qtmp = -888.0_dp
                   CALL multipole_cgto(tb%calc%bas%cgto(jset, jtyp), tb%calc%bas%cgto(iset, ityp), &
                       & r2, -rij, tb%calc%bas%intcut, stmp, dtmp, qtmp)
                   CALL multipole_cgto(tb%calc%bas%cgto(iset, ityp), tb%calc%bas%cgto(jset, jtyp), &
@@ -1716,7 +1716,7 @@ CONTAINS
       CALL timestop(handle)
 
 #else
-      CPABORT("Build without TBLITE")
+      CPABORT("Built without TBLITE")
 #endif
 
    END SUBROUTINE tb_get_multipole
@@ -1776,12 +1776,11 @@ CONTAINS
                   END DO
                END DO
             END IF
-            CALL para_env%sum(output)
-
          END DO
          CALL dbcsr_iterator_stop(iter)
       END DO
 
+      CALL para_env%sum(output)
       CALL timestop(handle)
 
    END SUBROUTINE contract_dens
