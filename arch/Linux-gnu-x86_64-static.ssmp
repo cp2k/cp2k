@@ -6,7 +6,7 @@
 #
 # Usage: Source this arch file and then run make as instructed.
 #
-# Last update: 30.04.2025
+# Last update: 08.05.2025
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -19,7 +19,7 @@
    rm -rf build; \
    [[ -z "${target_cpu}" ]] && target_cpu="native"; \
    echo "Found GCC $(gcc -dumpfullversion) compiler"; \
-   ./install_cp2k_toolchain.sh -j${maxtasks} --mpi-mode=no --no-arch-files --target-cpu=${target_cpu} --with-gcc --with-dftd4 --with-hdf5 --with-trexio; \
+   ./install_cp2k_toolchain.sh -j${maxtasks} --mpi-mode=no --no-arch-files --target-cpu=${target_cpu} --with-gcc --with-ace --with-dftd4 --with-hdf5 --with-trexio; \
    source ./install/setup; \
    cd ../..; \
    echo; \
@@ -37,6 +37,7 @@ TARGET_CPU     := native
 
 # Retrieve package versions
 GNU_VER        := $(shell gcc -dumpfullversion)
+USE_ACE        := $(ACE_VER)
 USE_DFTD4      := $(DFTD4_VER)
 USE_FFTW       := $(FFTW_VER)
 USE_HDF5       := $(HDF5_VER)
@@ -156,13 +157,20 @@ ifneq ($(USE_LIBXSMM),)
    LIBXSMM_LIB    := $(INSTALL_PATH)/libxsmm-$(USE_LIBXSMM)/lib
    CFLAGS         += -I$(LIBXSMM_INC)
    DFLAGS         += -D__LIBXSMM
-   ifeq ($(SHARED), yes)
-      LIBS           += -Wl,-rpath=$(LIBXSMM_LIB) -L$(LIBXSMM_LIB) -lxsmmf -lxsmmext -lxsmm
-   else
-      LIBS           += $(LIBXSMM_LIB)/libxsmmf.a
-      LIBS           += $(LIBXSMM_LIB)/libxsmmext.a
-      LIBS           += $(LIBXSMM_LIB)/libxsmm.a
-   endif
+   LIBS           += $(LIBXSMM_LIB)/libxsmmf.a
+   LIBS           += $(LIBXSMM_LIB)/libxsmmext.a
+   LIBS           += $(LIBXSMM_LIB)/libxsmm.a
+endif
+
+ifneq ($(USE_ACE),)
+   USE_ACE        := $(strip $(USE_ACE))
+   ACE_INC        := $(INSTALL_PATH)/lammps-user-pace-$(USE_ACE)/include
+   ACE_LIB        := $(INSTALL_PATH)/lammps-user-pace-$(USE_ACE)/lib
+   CFLAGS         += -I$(ACE_INC)
+   DFLAGS         += -D__ACE
+   LIBS           += $(ACE_LIB)/libpace.a
+   LIBS           += $(ACE_LIB)/libyaml-cpp-pace.a
+   LIBS           += $(ACE_LIB)/libcnpy.a
 endif
 
 ifneq ($(USE_FFTW),)
@@ -205,6 +213,8 @@ ifneq ($(USE_HDF5),)
 endif
 
 CFLAGS         += $(DFLAGS) $(CFLAGS_DEBUG)
+
+CXXFLAGS       := $(CFLAGS) --std=c++14
 
 FCFLAGS        := $(CFLAGS) $(FCFLAGS_DEBUG) $(WFLAGS)
 ifeq ($(shell [ $(shell gcc -dumpversion | cut -d. -f1) -gt 9 ] && echo yes), yes)
