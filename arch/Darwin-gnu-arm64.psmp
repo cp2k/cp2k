@@ -71,8 +71,10 @@ TARGET_CPU     := native
 
 # Retrieve package versions
 GNU_VER        := $(shell gcc -dumpfullversion)
+USE_ACE        := $(ACE_VER)
 USE_COSMA      := $(COSMA_VER)
 USE_DFTD4      := $(DFTD4_VER)
+USE_GREENX     := $(GREENX_VER)
 USE_LIBGRPP    := install
 USE_LIBINT     := $(LIBINT_VER)
 USE_LIBSMEAGOL := $(LIBSMEAGOL_VER)
@@ -162,6 +164,26 @@ endif
 ifneq ($(USE_LIBGRPP),)
    USE_LIBGRPP    := $(strip $(USE_LIBGRPP))
    DFLAGS         += -D__LIBGRPP
+endif
+
+ifneq ($(USE_ACE),)
+   USE_ACE        := $(strip $(USE_ACE))
+   ACE_INC        := $(INSTALL_PATH)/lammps-user-pace-$(USE_ACE)/include
+   ACE_LIB        := $(INSTALL_PATH)/lammps-user-pace-$(USE_ACE)/lib
+   CFLAGS         += -I$(ACE_INC)
+   DFLAGS         += -D__ACE
+   LIBS           += $(ACE_LIB)/libpace.a
+   LIBS           += $(ACE_LIB)/libyaml-cpp-pace.a
+   LIBS           += $(ACE_LIB)/libcnpy.a
+endif
+
+ifneq ($(USE_GREENX),)
+   USE_GREENX     := $(strip $(USE_GREENX))
+   GREENX_INC     := $(INSTALL_PATH)/greenX-$(USE_GREENX)/include/modules
+   GREENX_LIB     := $(INSTALL_PATH)/greenX-$(USE_GREENX)/lib
+   CFLAGS         += -I$(GREENX_INC)
+   DFLAGS         += -D__GREENX
+   LIBS           += -Wl,-rpath,$(GREENX_LIB) -L$(GREENX_LIB) -lGXCommon -lgx_ac -lgx_minimax
 endif
 
 ifneq ($(USE_LIBINT),)
@@ -294,6 +316,8 @@ ifneq ($(USE_TREXIO),)
 endif
 
 CFLAGS         += $(DFLAGS)
+
+CXXFLAGS       := $(CFLAGS) --std=c++14
 
 FCFLAGS        := $(CFLAGS) $(FCFLAGS_DEBUG) $(WFLAGS)
 FCFLAGS        += -fallow-argument-mismatch

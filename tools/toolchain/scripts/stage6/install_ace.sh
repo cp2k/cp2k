@@ -56,7 +56,7 @@ case "$with_ace" in
       mkdir -p ${pkg_install_dir}/lib
       cp -a libpace.a libcnpy.a build-yaml-cpp/libyaml-cpp-pace.a \
         ${pkg_install_dir}/lib
-      cp -ar ../yaml-cpp/include ${pkg_install_dir}
+      cp -a ../yaml-cpp/include ${pkg_install_dir}
       mkdir ${pkg_install_dir}/include/ace
       cp -a ../ML-PACE/ace/*.h ${pkg_install_dir}/include/ace
       mkdir ${pkg_install_dir}/include/ace-evaluator
