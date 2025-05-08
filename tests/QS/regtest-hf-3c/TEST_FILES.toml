@@ -1,0 +1,2 @@
+"h2o.inp"      = [{matcher="E_total", tol=1.0E-09, ref=-75.25508026988598}]
+"o2.inp"       = [{matcher="E_total", tol=1.0E-09, ref=-147.62476019079045}]

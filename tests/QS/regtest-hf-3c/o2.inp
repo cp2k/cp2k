@@ -23,6 +23,7 @@
     &END QS
     &SCF
       EPS_SCF 1.0e-6
+      IGNORE_CONVERGENCE_FAILURE
       MAX_SCF 1
       SCF_GUESS ATOMIC
     &END SCF
@@ -50,7 +51,7 @@
       &END GCP_POTENTIAL
       &HF
         &SCREENING
-          EPS_SCHWARZ 1.0E-10
+          EPS_SCHWARZ 1.0E-6
         &END SCREENING
       &END HF
       &VDW_POTENTIAL
