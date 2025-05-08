@@ -72,8 +72,8 @@ ARG CP2K_VERSION
 ENV CP2K_VERSION=${CP2K_VERSION:-ssmp}
 ARG CP2K_BUILD_TYPE
 ENV CP2K_BUILD_TYPE=${CP2K_BUILD_TYPE:-minimal}
-COPY ./tools/spack/cp2k_deps_${CP2K_BUILD_TYPE}_${CP2K_VERSION}.yaml .
-COPY ./tools/spack/cp2k ./cp2k
+COPY ./tools/spack/repo.yaml ./tools/spack/cp2k_deps_${CP2K_BUILD_TYPE}_${CP2K_VERSION}.yaml ./
+COPY ./tools/spack/packages ./packages
 
 # Sarus containers must be dynamically linked to an MPI implementation that is ABI-compatible
 # with the MPI on the compute nodes at CSCS like MPICH@3
