@@ -815,18 +815,18 @@ CONTAINS
       END IF
 
       ! set dispersion energy
-      IF (para_env%is_source()) THEN
-         evdw = evdw + (elrc6 + elrc8 + elrc9)
-      END IF
 
       CALL para_env%sum(e6tot)
       CALL para_env%sum(e8tot)
       CALL para_env%sum(e9tot)
+      CALL para_env%sum(evdw)
       CALL para_env%sum(nab)
       CALL para_env%sum(nabc)
       e6tot = e6tot + elrc6
       e8tot = e8tot + elrc8
       e9tot = e9tot + elrc9
+      ! For printing, we need all contributions
+      evdw = evdw + (elrc6 + elrc8 + elrc9)
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, "(A,F20.0)") "  E6 vdW terms              :", nab
          WRITE (unit_nr, *) " E6 vdW energy [au/kcal]   :", e6tot, e6tot*kcalmol
@@ -841,6 +841,8 @@ CONTAINS
             WRITE (unit_nr, *) " E LRC C9 [au/kcal]        :", elrc9, elrc9*kcalmol
          END IF
       END IF
+
+      evdw = evdw/para_env%num_pe
 
       DEALLOCATE (dodisp, exclude, atomnumber, rcpbc, radd2, c6d2)
 
