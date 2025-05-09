@@ -157,6 +157,8 @@ CONTAINS
       CALL timestop(handle)
 
 #else
+      MARK_USED(qs_env)
+      MARK_USED(tb)
       CPABORT("Built without TBLITE")
 #endif
 
@@ -205,6 +207,8 @@ CONTAINS
       END IF
 
 #else
+      MARK_USED(tb)
+      MARK_USED(do_grad)
       CPABORT("Built without TBLITE")
 #endif
 
@@ -236,6 +240,8 @@ CONTAINS
       END SELECT
 
 #else
+      MARK_USED(tb)
+      MARK_USED(typ)
       CPABORT("Built without TBLITE")
 #endif
 
@@ -311,6 +317,7 @@ CONTAINS
       END IF
 
 #else
+      MARK_USED(tb)
       CPABORT("Built without TBLITE")
 #endif
 
@@ -377,6 +384,10 @@ CONTAINS
                                         "PRINT%DETAILED_ENERGY")
 
 #else
+      MARK_USED(qs_env)
+      MARK_USED(dft_control)
+      MARK_USED(tb)
+      MARK_USED(energy)
       CPABORT("Built without TBLITE")
 #endif
 
@@ -485,6 +496,11 @@ CONTAINS
       gto_basis_set%norm_type = 3
 
 #else
+      MARK_USED(tb)
+      MARK_USED(gto_basis_set)
+      MARK_USED(element_symbol)
+      MARK_USED(param)
+      MARK_USED(occ)
       CPABORT("Built without TBLITE")
 #endif
 
@@ -804,6 +820,9 @@ CONTAINS
       CALL timestop(handle)
 
 #else
+      MARK_USED(qs_env)
+      MARK_USED(para_env)
+      MARK_USED(calculate_forces)
       CPABORT("Built without TBLITE")
 #endif
 
@@ -983,6 +1002,11 @@ CONTAINS
       DEALLOCATE (ch_atom, ch_shell, ch_orb, ch_ref)
 
 #else
+      MARK_USED(qs_env)
+      MARK_USED(tb)
+      MARK_USED(dft_control)
+      MARK_USED(calculate_forces)
+      MARK_USED(use_rho)
       CPABORT("Built without TBLITE")
 #endif
 
@@ -1382,6 +1406,10 @@ CONTAINS
       END IF
 
 #else
+      MARK_USED(qs_env)
+      MARK_USED(tb)
+      MARK_USED(dft_control)
+      MARK_USED(calculate_forces)
       CPABORT("Built without TBLITE")
 #endif
 
@@ -1716,6 +1744,8 @@ CONTAINS
       CALL timestop(handle)
 
 #else
+      MARK_USED(qs_env)
+      MARK_USED(tb)
       CPABORT("Built without TBLITE")
 #endif
 
