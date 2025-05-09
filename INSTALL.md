@@ -522,6 +522,12 @@ greenX - Open-source file format and library. Support for greenX can be enabled 
 - GREENX library can be downloaded from <https://github.com/nomad-coe/greenX>
 - For more information see <https://nomad-coe.github.io/greenX/>.
 
+### 2z-b. TBLITE (optional, semiempirical method)
+
+- tblite - Light-weight tight-binding framework
+- For more information see <https://github.com/tblite/tblite>
+- Add `-D__TBLITE` to DFLAGS
+
 ## 3. Compile
 
 ### 3a. ARCH files

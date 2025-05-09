@@ -136,7 +136,6 @@ option(CP2K_USE_GRPP "Enable GRPP support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_TREXIO "Enable TREXIO support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_HDF5 "Enable HDF5 support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_GREENX "Enable GreenX support" ${CP2K_USE_EVERYTHING})
-
 option(CP2K_USE_STATIC_BLAS "Link against static version of BLAS/LAPACK" OFF)
 option(BUILD_SHARED_LIBS "Build CP2K shared library" ON)
 option(
@@ -678,17 +677,20 @@ endif()
 
 if(CP2K_USE_DFTD4)
   find_package(dftd4 REQUIRED)
-
-  get_target_property(CP2K_DFTD4_LINK_LIBRARIES dftd4::dftd4
-                      INTERFACE_LINK_LIBRARIES)
-  get_target_property(CP2K_DFTD4_LIB_LINK_LIBRARIES dftd4::dftd4-lib
-                      INTERFACE_LINK_LIBRARIES)
-  get_target_property(CP2K_DFTD4_INCLUDE_DIR dftd4::dftd4-lib
-                      INTERFACE_INCLUDE_DIRECTORIES)
 endif()
 
 if(CP2K_USE_DEEPMD)
   find_package(DeePMD REQUIRED CONFIG)
+endif()
+
+if(CP2K_USE_TBLITE)
+  find_package(mctc-lib REQUIRED)
+  find_package(toml-f REQUIRED)
+  find_package(s-dftd3 REQUIRED)
+  find_package(tblite REQUIRED)
+  target_link_libraries(
+    tblite::tblite INTERFACE mctc-lib::mctc-lib dftd4::dftd4 toml-f::toml-f
+                             s-dftd3::s-dftd3)
 endif()
 
 # SIRIUS
@@ -894,11 +896,8 @@ if(CP2K_USE_SPLA)
 endif()
 
 if(CP2K_USE_DFTD4)
-  message(
-    " - DFTD4\n"
-    "   - include directories: ${CP2K_DFTD4_INCLUDE_DIR}\n"
-    "   - libraries: ${CP2K_DFTD4_LINK_LIBRARIES};${CP2K_DFTD4_LIB_LINK_LIBRARIES}\n\n"
-  )
+  message(" - DFTD4\n" "   - include directories :  ${dftd4_INCLUDE_DIRS}\n"
+          "   - libraries           :  ${dftd4_LINK_LIBRARIES}\n\n")
 endif()
 
 if(CP2K_USE_DEEPMD)
@@ -909,6 +908,12 @@ if(CP2K_USE_LIBSMEAGOL)
   message(" - LibSMEAGOL\n"
           "   - include directories: ${CP2K_LIBSMEAGOL_INCLUDE_DIRS}\n"
           "   - libraries: ${CP2K_LIBSMEAGOL_LINK_LIBRARIES}\n\n")
+endif()
+
+if(CP2K_USE_TBLITE)
+  message(" - TBLITE :\n"
+          "   - include directories :  ${tblite_INCLUDE_DIRS}\n"
+          "   - tblite libraries    :  ${tblite_LINK_LIBRARIES}\n\n")
 endif()
 
 if(CP2K_USE_SIRIUS)
@@ -978,6 +983,10 @@ endif()
 
 if(NOT CP2K_USE_DEEPMD)
   message("   - DeePMD")
+endif()
+
+if(NOT CP2K_USE_TBLITE)
+  message("   - TBLITE")
 endif()
 
 if(NOT CP2K_USE_SIRIUS)
