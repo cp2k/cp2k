@@ -6,7 +6,7 @@
 xTB/regtest-tblite-ipea1                                    tblite
 xTB/regtest-tblite-gfn2                                     tblite
 xTB/regtest-tblite-gfn1                                     tblite
-QS/regtest-hf-3c
+QS/regtest-hf-3c                                            libint
 Fist/regtest-ace                                            ace
 QS/regtest-double-hybrid-stress-laplace                     libint libxc
 QS/regtest-rpa-sigma                                        libint greenx

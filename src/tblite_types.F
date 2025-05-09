@@ -58,12 +58,12 @@ MODULE tblite_types
                                                             quadket => Null()
 
 #if defined(__TBLITE)
-      TYPE(structure_type)                               :: mol
-      TYPE(xtb_calculator)                               :: calc
-      TYPE(container_cache)                              :: cache
-      TYPE(container_cache)                              :: dcache
-      TYPE(wavefunction_type)                            :: wfn
-      TYPE(potential_type)                               :: pot
+      TYPE(structure_type)                               :: mol = structure_type()
+      TYPE(xtb_calculator)                               :: calc = xtb_calculator()
+      TYPE(container_cache)                              :: cache = container_cache()
+      TYPE(container_cache)                              :: dcache = container_cache()
+      TYPE(wavefunction_type)                            :: wfn = wavefunction_type()
+      TYPE(potential_type)                               :: pot = potential_type()
 #endif
 
    END TYPE tblite_type
