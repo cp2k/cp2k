@@ -676,7 +676,6 @@ if(CP2K_USE_SPLA)
 endif()
 
 if(CP2K_USE_DFTD4)
-  find_package(mctc-lib REQUIRED)
   find_package(dftd4 REQUIRED)
 endif()
 
@@ -685,6 +684,7 @@ if(CP2K_USE_DEEPMD)
 endif()
 
 if(CP2K_USE_TBLITE)
+  find_package(mctc-lib REQUIRED)
   find_package(toml-f REQUIRED)
   find_package(s-dftd3 REQUIRED)
   find_package(tblite REQUIRED)
