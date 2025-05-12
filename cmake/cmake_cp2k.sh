@@ -37,7 +37,6 @@ cd build || return 1
 # TODO: Reconcile PROFILE/VERSION with CP2K_BUILD_OPTIONS in CMakeLists.txt
 #
 if [[ "${PROFILE}" == "spack_all" ]] && [[ "${VERSION}" == "psmp" ]]; then
-  # TODO: DeepMD-kit is not available in the Spack environment (yet)
   # PyTorch's TorchConfig.cmake is buried in the Python site-packages directory
   Torch_DIR="$(dirname "$(find /opt/spack/lib -name TorchConfig.cmake)")"
   export Torch_DIR
@@ -50,7 +49,6 @@ if [[ "${PROFILE}" == "spack_all" ]] && [[ "${VERSION}" == "psmp" ]]; then
   CMAKE_EXIT_CODE=$?
 
 elif [[ "${PROFILE}" == "spack_all" ]] && [[ "${VERSION}" == "ssmp" ]]; then
-  # TODO: DeepMD-kit is not available in the Spack environment (yet)
   # PyTorch's TorchConfig.cmake is buried in the Python site-packages directory
   Torch_DIR="$(dirname "$(find /opt/spack/lib -name TorchConfig.cmake)")"
   export Torch_DIR
