@@ -31,6 +31,8 @@ RUN /bin/bash -c -o pipefail " \
     source ./cmake/cmake_cp2k.sh toolchain_${CP2K_BUILD_TYPE} ${CP2K_VERSION}"
 
 # Compile CP2K
+ARG LOG_LINES
+ENV LOG_LINES=${LOG_LINES:-200}
 WORKDIR /opt/cp2k/build
 RUN /bin/bash -c -o pipefail " \
     source /opt/cp2k/tools/toolchain/install/setup; \
@@ -44,11 +46,12 @@ RUN /bin/bash -c -o pipefail " \
         echo -e 'failed\n'; \
         tail -n ${LOG_LINES} install.log; \
       fi; \
+      cat cmake.log ninja.log install.log | gzip >build_cp2k.log.gz; \
     else \
       echo -e 'failed\n'; \
       tail -n ${LOG_LINES} ninja.log; \
-    fi; \
-    cat cmake.log ninja.log install.log | gzip >build_cp2k.log.gz"
+      cat cmake.log ninja.log | gzip >build_cp2k.log.gz; \
+    fi"
 
 # Update library search path
 RUN echo "/opt/cp2k/lib" >/etc/ld.so.conf.d/cp2k.conf && ldconfig
