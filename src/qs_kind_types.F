@@ -561,7 +561,6 @@ CONTAINS
       IF (PRESENT(se_parameter)) se_parameter => qs_kind%se_parameter
       IF (PRESENT(dftb_parameter)) dftb_parameter => qs_kind%dftb_parameter
       IF (PRESENT(xtb_parameter)) xtb_parameter => qs_kind%xtb_parameter
-
       IF (PRESENT(element_symbol)) element_symbol = qs_kind%element_symbol
       IF (PRESENT(name)) name = qs_kind%name
       IF (PRESENT(dftb3_param)) dftb3_param = qs_kind%dudq_dftb3
@@ -2720,10 +2719,12 @@ CONTAINS
          CPASSERT(defined)
          CALL write_dftb_atom_param(dftb_parameter, subsys_section)
       ELSE IF (dft_control%qs_control%xtb) THEN
-         CALL get_qs_kind(qs_kind, xtb_parameter=xtb_parameter)
-         CPASSERT(ASSOCIATED(xtb_parameter))
-         gfn_type = dft_control%qs_control%xtb_control%gfn_type
-         CALL write_xtb_atom_param(xtb_parameter, gfn_type, subsys_section)
+         IF (.NOT. (dft_control%qs_control%xtb_control%do_tblite)) THEN
+            CALL get_qs_kind(qs_kind, xtb_parameter=xtb_parameter)
+            CPASSERT(ASSOCIATED(xtb_parameter))
+            gfn_type = dft_control%qs_control%xtb_control%gfn_type
+            CALL write_xtb_atom_param(xtb_parameter, gfn_type, subsys_section)
+         END IF
       END IF
 
    END SUBROUTINE check_qs_kind

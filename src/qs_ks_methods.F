@@ -125,6 +125,7 @@ MODULE qs_ks_methods
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE qs_sccs,                         ONLY: sccs
+   USE qs_scf_types,                    ONLY: qs_scf_env_type
    USE qs_vxc,                          ONLY: qs_vxc_create
    USE qs_vxc_atom,                     ONLY: calculate_vxc_atom
    USE rtp_admm_methods,                ONLY: rtp_admm_calc_rho_aux,&
@@ -132,6 +133,7 @@ MODULE qs_ks_methods
    USE se_fock_matrix,                  ONLY: build_se_fock_matrix
    USE smeagol_interface,               ONLY: smeagol_shift_v_hartree
    USE surface_dipole,                  ONLY: calc_dipsurf_potential
+   USE tblite_ks_matrix,                ONLY: build_tblite_ks_matrix
    USE virial_types,                    ONLY: virial_type
    USE xtb_ks_matrix,                   ONLY: build_xtb_ks_matrix
 #include "./base/base_uses.f90"
@@ -144,7 +146,7 @@ MODULE qs_ks_methods
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ks_methods'
 
    PUBLIC :: calc_rho_tot_gspace, qs_ks_update_qs_env, qs_ks_build_kohn_sham_matrix, &
-             qs_ks_allocate_basics
+             qs_ks_allocate_basics, evaluate_core_matrix_p_mix_new
 
 CONTAINS
 
@@ -1190,6 +1192,51 @@ CONTAINS
    END SUBROUTINE evaluate_core_matrix_traces
 
 ! **************************************************************************************************
+!> \brief Calculates the traces of the core matrices and the density matrix.
+!> \param qs_env ...
+!> \author Johann Pototschnig
+! **************************************************************************************************
+   SUBROUTINE evaluate_core_matrix_p_mix_new(qs_env)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'evaluate_core_matrix_p_mix_new'
+
+      INTEGER                                            :: handle
+      REAL(KIND=dp)                                      :: energy_core_im
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrixkp_h, matrixkp_t
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(qs_energy_type), POINTER                      :: energy
+      TYPE(qs_scf_env_type), POINTER                     :: scf_env
+
+      CALL timeset(routineN, handle)
+      NULLIFY (energy, dft_control, matrixkp_t, matrixkp_h)
+
+      CALL get_qs_env(qs_env, &
+                      energy=energy, &
+                      dft_control=dft_control, &
+                      kinetic_kp=matrixkp_t, &
+                      matrix_h_kp=matrixkp_h, &
+                      scf_env=scf_env)
+
+      CALL calculate_ptrace(matrixkp_h, scf_env%p_mix_new, energy%core, dft_control%nspins)
+
+      ! Add the imaginary part in the RTP case
+      IF (qs_env%run_rtp) THEN
+         IF (dft_control%rtp_control%velocity_gauge) THEN
+            CALL get_qs_env(qs_env, matrix_h_im_kp=matrixkp_h)
+            CALL calculate_ptrace(matrixkp_h, scf_env%p_mix_new, energy_core_im, dft_control%nspins)
+            energy%core = energy%core - energy_core_im
+         END IF
+      END IF
+
+      ! kinetic energy
+      IF (ASSOCIATED(matrixkp_t)) &
+         CALL calculate_ptrace(matrixkp_t, scf_env%p_mix_new, energy%kinetic, dft_control%nspins)
+
+      CALL timestop(handle)
+   END SUBROUTINE evaluate_core_matrix_p_mix_new
+
+! **************************************************************************************************
 !> \brief Constructs a new Khon-Sham matrix
 !> \param qs_env ...
 !> \param calculate_forces ...
@@ -1223,10 +1270,15 @@ CONTAINS
                                    just_energy=just_energy)
 
       ELSEIF (dft_control%qs_control%xtb) THEN
-         CALL build_xtb_ks_matrix(qs_env, &
-                                  calculate_forces=calculate_forces, &
-                                  just_energy=just_energy)
-
+         IF (dft_control%qs_control%xtb_control%do_tblite) THEN
+            CALL build_tblite_ks_matrix(qs_env, &
+                                        calculate_forces=calculate_forces, &
+                                        just_energy=just_energy)
+         ELSE
+            CALL build_xtb_ks_matrix(qs_env, &
+                                     calculate_forces=calculate_forces, &
+                                     just_energy=just_energy)
+         END IF
       ELSE
          CALL qs_ks_build_kohn_sham_matrix(qs_env, &
                                            calculate_forces=calculate_forces, &

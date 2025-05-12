@@ -23,6 +23,9 @@ MODULE input_cp2k_tb
                                               dispersion_d3,&
                                               dispersion_d3bj,&
                                               dispersion_uff,&
+                                              gfn1xtb,&
+                                              gfn2xtb,&
+                                              ipea1xtb,&
                                               slater
    USE input_cp2k_mm,                   ONLY: create_GENPOT_section
    USE input_keyword_types,             ONLY: keyword_create,&
@@ -144,6 +147,10 @@ CONTAINS
       CALL section_release(subsection)
 
       CALL create_eeq_control_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      CALL create_xtb_tblite_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
@@ -539,5 +546,41 @@ CONTAINS
       CALL keyword_release(keyword)
 
    END SUBROUTINE create_xtb_nonbonded_section
+! **************************************************************************************************
+!> \brief Creates the &TBLITE section
+!> \param section the section to create
+!> \author JVP
+! **************************************************************************************************
+   SUBROUTINE create_xtb_tblite_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, __LOCATION__, name="TBLITE", &
+                          description="Section used to specify options for an xTB computation using tblite.", &
+                          n_keywords=1, n_subsections=0, repeats=.FALSE.)
+
+      NULLIFY (keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
+                          description="activates the execution via tblite", &
+                          lone_keyword_l_val=.TRUE., default_l_val=.FALSE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      NULLIFY (keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="METHOD", &
+                          description="Selection of the method used in tblite.", &
+                          usage="METHOD (GFN1|GFN2|IPEA1)", &
+                          enum_c_vals=s2a("GFN1", "GFN2", "IPEA1"), &
+                          enum_i_vals=(/gfn1xtb, gfn2xtb, ipea1xtb/), &
+                          enum_desc=s2a("Uses the GFN1-XTB method by Grimme.", &
+                                        "Uses the GFN2-XTB method by Grimme.", &
+                                        "Uses the IEPEA1 method by Grimme."), &
+                          default_i_val=gfn2xtb)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE create_xtb_tblite_section
 
 END MODULE input_cp2k_tb

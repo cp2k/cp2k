@@ -11,6 +11,7 @@
 MODULE qs_eht_guess
    USE basis_set_types,                 ONLY: gto_basis_set_p_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
+   USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_create,&
                                               dbcsr_desymmetrize,&
                                               dbcsr_get_info,&
@@ -55,6 +56,7 @@ MODULE qs_eht_guess
                                               mo_set_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
    USE qs_overlap,                      ONLY: build_overlap_matrix_simple
+   USE tblite_ks_matrix,                ONLY: build_tblite_ks_matrix
    USE xtb_ks_matrix,                   ONLY: build_xtb_ks_matrix
 #include "./base/base_uses.f90"
 
@@ -93,6 +95,7 @@ CONTAINS
       TYPE(cp_subsys_type), POINTER                      :: cp_subsys
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ksmat, matrix_s, matrix_t, smat
       TYPE(dbcsr_type)                                   :: tempmat, tmat
+      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list_a, basis_set_list_b
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -111,7 +114,9 @@ CONTAINS
                       ks_env=ks_env, &
                       para_env=para_env, &
                       input=force_env_section, &
-                      cp_subsys=cp_subsys)
+                      cp_subsys=cp_subsys, &
+                      dft_control=dft_control)
+
       NULLIFY (eht_force_env_section)
       CALL section_vals_duplicate(force_env_section, eht_force_env_section)
       dft_section => section_vals_get_subs_vals(eht_force_env_section, "DFT")
@@ -137,7 +142,11 @@ CONTAINS
       !
       CALL qs_env_rebuild_pw_env(eht_env)
       CALL qs_energies_init(eht_env, calc_forces=.FALSE.)
-      CALL build_xtb_ks_matrix(eht_env, .FALSE., .FALSE.)
+      IF (dft_control%qs_control%xtb_control%do_tblite) THEN
+         CALL build_tblite_ks_matrix(eht_env, .FALSE., .FALSE.)
+      ELSE
+         CALL build_xtb_ks_matrix(eht_env, .FALSE., .FALSE.)
+      END IF
       !
       CALL get_qs_env(eht_env, &
                       matrix_s=smat, matrix_ks=ksmat)

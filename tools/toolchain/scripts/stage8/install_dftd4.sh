@@ -106,18 +106,18 @@ EOF
     DFTD4_LOC=$(find ${pkg_install_dir}/include -name "dftd4.mod")
     DFTD4_DFTD4=${DFTD4_LOC%/*}
     # use the lib64 directory if present
-    DFTD4_LIBDIR="${pkg_install_dir}/lib"
-    [ -d "${pkg_install_dir}/lib64" ] && DFTD4_LIBDIR="${pkg_install_dir}/lib64"
+    DFTD4_LINK_LIBRARIES="${pkg_install_dir}/lib"
+    [ -d "${pkg_install_dir}/lib64" ] && DFTD4_LINK_LIBRARIES="${pkg_install_dir}/lib64"
 
     DFTD4_CFLAGS="-I'${pkg_install_dir}/include' -I'${DFTD4_DFTD4}' -I'${DFTD4_MCTC}'"
-    DFTD4_LDFLAGS="-L'${DFTD4_LIBDIR}' -Wl,-rpath,'${DFTD4_LIBDIR}'"
+    DFTD4_LDFLAGS="-L'${DFTD4_LINK_LIBRARIES}' -Wl,-rpath,'${DFTD4_LINK_LIBRARIES}'"
 
     cat << EOF >> "${BUILDDIR}/setup_dftd4"
-prepend_path LD_LIBRARY_PATH "${DFTD4_LIBDIR}"
-prepend_path LD_RUN_PATH "${DFTD4_LIBDIR}"
-prepend_path LIBRARY_PATH "${DFTD4_LIBDIR}"
+prepend_path LD_LIBRARY_PATH "${DFTD4_LINK_LIBRARIES}"
+prepend_path LD_RUN_PATH "${DFTD4_LINK_LIBRARIES}"
+prepend_path LIBRARY_PATH "${DFTD4_LINK_LIBRARIES}"
 prepend_path CPATH "$pkg_install_dir/include"
-prepend_path PKG_CONFIG_PATH "${DFTD4_LIBDIR}/pkgconfig"
+prepend_path PKG_CONFIG_PATH "${DFTD4_LINK_LIBRARIES}/pkgconfig"
 prepend_path CMAKE_PREFIX_PATH "${pkg_install_dir}"
 EOF
   fi
@@ -125,8 +125,8 @@ EOF
   cat << EOF >> "${BUILDDIR}/setup_dftd4"
 export DFTD4_DFTD4="${DFTD4_DFTD4}"
 export DFTD4_MCTC="${DFTD4_MCTC}"
-export DFTD4_LIBDIR="${DFTD4_LIBDIR}"
-export DFTD4_INCLUDE_DIR="$pkg_install_dir/include"
+export DFTD4_LINK_LIBRARIES="${DFTD4_LINK_LIBRARIES}"
+export DFTD4_INCLUDE_DIRS="$pkg_install_dir/include"
 export DFTD4_ROOT="${pkg_install_dir}"
 export DFTD4_DFLAGS="${DFTD4_DFLAGS}" 
 export DFTD4_CFLAGS="${DFTD4_CFLAGS}"

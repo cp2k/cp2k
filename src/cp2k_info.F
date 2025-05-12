@@ -218,6 +218,10 @@ CONTAINS
 #if defined(__DFTD4)
       flags = TRIM(flags)//" libdftd4"
 #endif
+#if defined(__TBLITE)
+      flags = TRIM(flags)//" mctc-lib"
+      flags = TRIM(flags)//" tblite"
+#endif
 #if defined(__SIRIUS)
       flags = TRIM(flags)//" sirius"
 #endif
