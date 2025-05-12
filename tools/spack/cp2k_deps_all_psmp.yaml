@@ -105,6 +105,7 @@ spack:
     - "fftw@3.3.10"
     - "greenx@2.2"
     - "hdf5@1.14"
+    - "lammps_user_pace@2023.11.25.fix2"
     - "libint@2.9.0"
     - "libsmeagol@1.2"
     - "libvori@220621"

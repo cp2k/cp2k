@@ -20,15 +20,13 @@ if(NOT CP2K_TREXIO_FOUND)
   cp2k_include_dirs(TREXIO "trexio.h")
 endif()
 
-find_package_handle_standard_args(
-  TrexIO DEFAULT_MSG CP2K_TREXIO_INCLUDE_DIRS CP2K_TREXIO_LINK_LIBRARIES
-  CP2K_TREXIO_LINK_LIBRARIES)
+find_package_handle_standard_args(TrexIO DEFAULT_MSG CP2K_TREXIO_INCLUDE_DIRS
+                                  CP2K_TREXIO_LINK_LIBRARIES)
 
 if(CP2K_TREXIO_FOUND)
   if(NOT TARGET cp2k::trexio::trexio)
     add_library(cp2k::trexio::trexio INTERFACE IMPORTED)
   endif()
-
   set_target_properties(
     cp2k::trexio::trexio PROPERTIES INTERFACE_INCLUDE_DIRECTORIES
                                     "${CP2K_TREXIO_INCLUDE_DIRS}")
@@ -36,5 +34,5 @@ if(CP2K_TREXIO_FOUND)
                         INTERFACE ${CP2K_TREXIO_LINK_LIBRARIES})
 endif()
 
-mark_as_advanced(CP2K_TREXIO_FOUND CP2K_TREXIO_LINK_LIBRARIES
-                 CP2K_TREXIO_INCLUDE_DIRS)
+mark_as_advanced(CP2K_TREXIO_FOUND CP2K_TREXIO_INCLUDE_DIRS
+                 CP2K_TREXIO_LINK_LIBRARIES)
