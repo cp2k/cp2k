@@ -109,7 +109,7 @@ EOF
     DFTD4_LINK_LIBRARIES="${pkg_install_dir}/lib"
     [ -d "${pkg_install_dir}/lib64" ] && DFTD4_LINK_LIBRARIES="${pkg_install_dir}/lib64"
 
-    DFTD4_CFLAGS="-I'${pkg_install_dir}/include' -I'${DFTD4_DFTD4}' -I'${MCTC-LIB_INCLUDE_DIRS}'"
+    DFTD4_CFLAGS="-I'${pkg_install_dir}/include' -I'${DFTD4_DFTD4}' -I'${DFTD4_MCTC}'"
     DFTD4_LDFLAGS="-L'${DFTD4_LINK_LIBRARIES}' -Wl,-rpath,'${DFTD4_LINK_LIBRARIES}'"
 
     cat << EOF >> "${BUILDDIR}/setup_dftd4"
