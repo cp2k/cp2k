@@ -524,7 +524,7 @@ CONTAINS
             IF (dft_control%qs_control%xtb_control%do_tblite) THEN
                CALL tb_update_charges(qs_env, dft_control, qs_env%tb_tblite, .FALSE., .FALSE.)
                CALL evaluate_core_matrix_p_mix_new(qs_env)
-               CALL tb_get_energy(qs_env, dft_control, qs_env%tb_tblite, energy)
+               CALL tb_get_energy(qs_env, qs_env%tb_tblite, energy)
             END IF
 
             CALL qs_scf_density_mixing(scf_env, rho, para_env, diis_step)

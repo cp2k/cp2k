@@ -161,6 +161,7 @@ elif [[ "${PROFILE}" == "ubuntu" ]] && [[ "${VERSION}" == "ssmp" ]]; then
     -DCP2K_USE_ACE=OFF \
     -DCP2K_USE_DEEPMD=OFF \
     -DCP2K_USE_DFTD4=OFF \
+    -DCP2K_USE_TBLITE=OFF \
     -DCP2K_USE_GREENX=OFF \
     -DCP2K_USE_LIBTORCH=OFF \
     -DCP2K_USE_LIBXC=OFF \
