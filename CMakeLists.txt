@@ -126,6 +126,7 @@ option(CP2K_USE_EVERYTHING
 option(CP2K_USE_ACE "Enable ACE support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_DEEPMD "Enable DeePMD support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_DFTD4 "Enable DFTD4 support" ${CP2K_USE_EVERYTHING})
+option(CP2K_USE_TBLITE "Enable TBLITE support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_FFTW3 "Enable FFTW3 support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_GREENX "Enable GreenX support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_GRPP "Enable GRPP support" ${CP2K_USE_EVERYTHING})

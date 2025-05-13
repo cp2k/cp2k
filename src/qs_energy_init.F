@@ -308,8 +308,7 @@ CONTAINS
          CALL qs_env_update_s_mstruct(qs_env)
       ELSEIF (dft_control%qs_control%xtb) THEN
          IF (dft_control%qs_control%xtb_control%do_tblite) THEN
-            CALL build_tblite_matrices(qs_env=qs_env, para_env=para_env, &
-                                       calculate_forces=.FALSE.)
+            CALL build_tblite_matrices(qs_env=qs_env, calculate_forces=.FALSE.)
          ELSE
             CALL build_xtb_matrices(qs_env=qs_env, calculate_forces=.FALSE.)
          END IF

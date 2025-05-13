@@ -184,7 +184,8 @@ CONTAINS
       info = tb%calc%variable_info()
       IF (info%charge > shell_resolved) CPABORT("tblite: no support for orbital resolved charge")
       IF (info%dipole > atom_resolved) CPABORT("tblite: no support for shell resolved dipole moment")
-      IF (info%quadrupole > atom_resolved) CPABORT("tblite: no support shell resolved quadrup[ole moment")
+      IF (info%quadrupole > atom_resolved) &
+         CPABORT("tblite: no support shell resolved quadrupole moment")
 
       CALL new_wavefunction(tb%wfn, tb%mol%nat, tb%calc%bas%nsh, tb%calc%bas%nao, nSpin, 0.0_dp*K2Eh)
 
@@ -326,14 +327,12 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param qs_env ...
-!> \param dft_control ...
 !> \param tb ...
 !> \param energy ...
 ! **************************************************************************************************
-   SUBROUTINE tb_get_energy(qs_env, dft_control, tb, energy)
+   SUBROUTINE tb_get_energy(qs_env, tb, energy)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(tblite_type), POINTER                         :: tb
       TYPE(qs_energy_type), POINTER                      :: energy
 
@@ -385,7 +384,6 @@ CONTAINS
 
 #else
       MARK_USED(qs_env)
-      MARK_USED(dft_control)
       MARK_USED(tb)
       MARK_USED(energy)
       CPABORT("Built without TBLITE")
@@ -509,13 +507,11 @@ CONTAINS
    ! **************************************************************************************************
 !> \brief ...
 !> \param qs_env ...
-!> \param para_env ...
 !> \param calculate_forces ...
 ! **************************************************************************************************
-   SUBROUTINE build_tblite_matrices(qs_env, para_env, calculate_forces)
+   SUBROUTINE build_tblite_matrices(qs_env, calculate_forces)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(mp_para_env_type), POINTER                    :: para_env
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
 #if defined(__TBLITE)
@@ -868,6 +864,8 @@ CONTAINS
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(xtb_atom_type), POINTER                       :: xtb_kind
 
+      IF (calculate_forces) CPABORT("tblite: forces not yet available")
+
       ! also compute multipoles needed by GFN2
       do_dipole = .FALSE.
       do_quadrupole = .FALSE.
@@ -1057,6 +1055,8 @@ CONTAINS
          POINTER                                         :: n_list
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(xtb_atom_type), POINTER                       :: xtb_atom_a, xtb_atom_b
+
+      IF (calculate_forces) CPABORT("tblite: forces not yet available")
 
       nimg = dft_control%nimages
 
