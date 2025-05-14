@@ -41,8 +41,7 @@ case "$with_tblite" in
       if [ -f tblite-${tblite_ver}.tar.gz ]; then
         echo " tblite-${tblite_ver}.tar.gz is found"
       else
-        #download_pkg_from_cp2k_org "${tblite_sha256}" "tblite-${tblite_ver}.tar.gz"
-        wget https://github.com/tblite/tblite/archive/refs/tags/v${tblite_ver}.tar.gz -O "tblite-${tblite_ver}.tar.gz"
+        download_pkg_from_cp2k_org "${tblite_sha256}" "tblite-${tblite_ver}.tar.gz"
       fi
 
       echo "Installing from scratch into ${pkg_install_dir}"
