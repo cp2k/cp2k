@@ -1692,6 +1692,7 @@ target_link_libraries(
     $<$<BOOL:${CP2K_USE_DFTD4}>:dftd4::dftd4>
     $<$<BOOL:${CP2K_USE_DEEPMD}>:DeePMD::deepmd
     DeePMD::deepmd_c>
+    $<$<BOOL:${CP2K_USE_PEXSI}>:PEXSI::PEXSI>
     $<$<BOOL:${CP2K_USE_ACE}>:ACE::pace>
     $<$<BOOL:${CP2K_USE_ACE}>:ACE::yaml-cpp-pace>
     $<$<BOOL:${CP2K_USE_ACE}>:ACE::cnpy>
@@ -1753,6 +1754,7 @@ target_compile_definitions(
     $<$<BOOL:${CP2K_USE_TBLITE}>:__TBLITE>
     $<$<BOOL:${CP2K_USE_DFTD4}>:__DFTD4>
     $<$<BOOL:${CP2K_USE_DEEPMD}>:__DEEPMD>
+    $<$<BOOL:${CP2K_USE_PEXSI}>:__PEXSI>
     $<$<BOOL:${CP2K_USE_ACE}>:__ACE>
     $<$<BOOL:${CP2K_USE_SIRIUS}>:__SIRIUS>
     $<$<BOOL:${CP2K_USE_LIBVDWXC}>:__LIBVDWXC>

@@ -14,7 +14,7 @@
 ! **************************************************************************************************
 MODULE pexsi_interface
 
-#if defined(__LIBPEXSI)
+#if defined(__PEXSI)
    USE f_ppexsi_interface, ONLY: f_ppexsi_dft_driver, &
                                  f_ppexsi_load_real_hs_matrix, &
                                  f_ppexsi_options, &
@@ -47,7 +47,7 @@ MODULE pexsi_interface
 
    TYPE cp_pexsi_options
       PRIVATE
-#if defined(__LIBPEXSI)
+#if defined(__PEXSI)
       TYPE(f_ppexsi_options) :: options
 #else
       INTEGER :: unused = -1
@@ -98,7 +98,7 @@ CONTAINS
                                                   ordering, rowOrdering, npSymbFact, &
                                                   verbosity
 
-#if defined(__LIBPEXSI)
+#if defined(__PEXSI)
       IF (PRESENT(temperature)) pexsi_options%options%temperature = temperature
       IF (PRESENT(gap)) pexsi_options%options%gap = gap
       IF (PRESENT(deltaE)) pexsi_options%options%deltaE = deltaE
@@ -195,7 +195,7 @@ CONTAINS
                                                   ordering, rowOrdering, npSymbFact, &
                                                   verbosity
 
-#if defined(__LIBPEXSI)
+#if defined(__PEXSI)
       IF (PRESENT(temperature)) temperature = pexsi_options%options%temperature
       IF (PRESENT(gap)) gap = pexsi_options%options%gap
       IF (PRESENT(deltaE)) deltaE = pexsi_options%options%deltaE
@@ -253,7 +253,7 @@ CONTAINS
    SUBROUTINE cp_pexsi_set_default_options(pexsi_options)
       TYPE(cp_pexsi_options), INTENT(OUT)      :: pexsi_options
 
-#if defined(__LIBPEXSI)
+#if defined(__PEXSI)
       CALL f_ppexsi_set_default_options(pexsi_options%options)
 #else
       CPABORT("Requires linking to the PEXSI library.")
@@ -274,7 +274,7 @@ CONTAINS
                                                   outputFileIndex
       INTEGER(KIND=C_INTPTR_T)                 :: cp_pexsi_plan_initialize
 
-#if defined(__LIBPEXSI)
+#if defined(__PEXSI)
       CHARACTER(LEN=*), PARAMETER              :: routineN = 'cp_pexsi_plan_initialize'
       INTEGER                                  :: info, handle
 
@@ -321,7 +321,7 @@ CONTAINS
       INTEGER, INTENT(IN)                      :: isSIdentity
       REAL(KIND=real_8), INTENT(IN)            :: SnzvalLocal(*)
 
-#if defined(__LIBPEXSI)
+#if defined(__PEXSI)
       CHARACTER(LEN=*), PARAMETER              :: routineN = 'cp_pexsi_load_real_symmetric_hs_matrix'
       INTEGER                                  :: handle, info
 
@@ -372,7 +372,7 @@ CONTAINS
       INTEGER, INTENT(out)                     :: numTotalInertiaIter, &
                                                   numTotalPEXSIIter
 
-#if defined(__LIBPEXSI)
+#if defined(__PEXSI)
       CHARACTER(LEN=*), PARAMETER              :: routineN = 'cp_pexsi_dft_driver'
       INTEGER                                  :: handle, info
 #if defined(__HAS_IEEE_EXCEPTIONS)
@@ -432,7 +432,7 @@ CONTAINS
                                                   FDMnzvalLocal(*), totalEnergyH, totalEnergyS, &
                                                   totalFreeEnergy
 
-#if defined(__LIBPEXSI)
+#if defined(__PEXSI)
       CHARACTER(LEN=*), PARAMETER              :: routineN = 'cp_pexsi_retrieve_real_symmetric_dft_matrix'
       INTEGER                                  :: handle, info
 
@@ -464,7 +464,7 @@ CONTAINS
    SUBROUTINE cp_pexsi_plan_finalize(plan)
       INTEGER(KIND=C_INTPTR_T), INTENT(IN)     :: plan
 
-#if defined(__LIBPEXSI)
+#if defined(__PEXSI)
       CHARACTER(LEN=*), PARAMETER              :: routineN = 'cp_pexsi_plan_finalize'
       INTEGER                                  :: info, handle
 
