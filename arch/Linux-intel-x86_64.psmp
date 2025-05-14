@@ -9,7 +9,7 @@
 #        Optionally, the Intel compiler version can be specified as argument.
 #        Replace or adapt the "module add" commands below if needed.
 #
-# Last update: 12.09.2024
+# Last update: 14.05.2025
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -64,7 +64,6 @@ USE_LIBTORCH   := $(LIBTORCH_VER)
 USE_LIBVORI    := $(LIBVORI_VER)
 USE_LIBXC      := $(LIBXC_VER)
 USE_LIBXSMM    := $(LIBXSMM_VER)
-USE_PEXSI      := $(PEXSI_VER)
 USE_PLUMED     := $(PLUMED_VER)
 USE_SIRIUS     := $(SIRIUS_VER)
 USE_SPFFT      := $(SPFFT_VER)
@@ -138,25 +137,6 @@ ifneq ($(USE_ELPA),)
    else
       LIBS           += $(ELPA_LIB)/libelpa_openmp.a
    endif
-endif
-
-ifneq ($(USE_PEXSI),)
-   USE_PEXSI      := $(strip $(USE_PEXSI))
-   PEXSI_INC      := $(INSTALL_PATH)/pexsi-$(USE_PEXSI)/include
-   PEXSI_LIB      := $(INSTALL_PATH)/pexsi-$(USE_PEXSI)/lib
-   SCOTCH_INC     := $(INSTALL_PATH)/scotch-$(SCOTCH_VER)/include
-   SCOTCH_LIB     := $(INSTALL_PATH)/scotch-$(SCOTCH_VER)/lib
-   SUPERLU_INC    := $(INSTALL_PATH)/superlu_dist-$(SUPERLU_VER)/include
-   SUPERLU_LIB    := $(INSTALL_PATH)/superlu_dist-$(SUPERLU_VER)/lib
-   CFLAGS         += -I$(PEXSI_INC) -I$(SCOTCH_INC) -I$(SUPERLU_INC)
-   DFLAGS         += -D__LIBPEXSI
-   LIBS           += $(PEXSI_LIB)/libpexsi.a
-   LIBS           += $(SUPERLU_LIB)/libsuperlu_dist.a
-   LIBS           += $(SCOTCH_LIB)/libptscotchparmetis.a
-   LIBS           += $(SCOTCH_LIB)/libptscotch.a
-   LIBS           += $(SCOTCH_LIB)/libptscotcherr.a
-   LIBS           += $(SCOTCH_LIB)/libscotchmetis.a
-   LIBS           += $(SCOTCH_LIB)/libscotch.a
 endif
 
 ifneq ($(USE_LIBVORI),)
