@@ -813,6 +813,8 @@ CONTAINS
          END IF
       END IF
 
+      DEALLOCATE(basis_set_list)
+
       CALL timestop(handle)
 
 #else
@@ -1731,6 +1733,7 @@ CONTAINS
             END DO
          END IF
       END DO
+      CALL neighbor_list_iterator_release(nl_iterator)
 
       DO i = 1, dip_n
          CALL dbcsr_finalize(tb%dipbra(i)%matrix)
@@ -1740,6 +1743,8 @@ CONTAINS
          CALL dbcsr_finalize(tb%quadbra(i)%matrix)
          CALL dbcsr_finalize(tb%quadket(i)%matrix)
       END DO
+      
+      DEALLOCATE(basis_set_list)
 
       CALL timestop(handle)
 
