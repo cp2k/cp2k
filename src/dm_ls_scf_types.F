@@ -158,7 +158,7 @@ MODULE dm_ls_scf_types
 
       LOGICAL :: calculate_forces = .FALSE.
 
-#if defined(__LIBPEXSI)
+#if defined(__PEXSI)
       TYPE(lib_pexsi_env) :: pexsi
 #else
       TYPE(lib_pexsi_env) :: pexsi = lib_pexsi_env()

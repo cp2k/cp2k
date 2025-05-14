@@ -267,20 +267,8 @@ DLA-Future.
 The Pole EXpansion and Selected Inversion (PEXSI) method requires the PEXSI library and two
 dependencies (ParMETIS or PT-Scotch and SuperLU_DIST).
 
-- Download PEXSI (www.pexsi.org) and install it and its dependencies by following its README.md.
-- PEXSI versions 0.10.x have been tested with CP2K. Older versions are not supported.
-- PEXSI needs to be built with `make finstall`.
-
-In the arch file of CP2K:
-
-- Add `-lpexsi_${SUFFIX} -llapack -lblas -lsuperlu_dist_3.3 -lparmetis -lmetis`, and their paths
-  (with `-L$(LIB_DIR)`) to LIBS.
-- It is important that a copy of LAPACK and BLAS is placed before and after these libraries (replace
-  `-llapack` and `-lblas` with the optimized versions as needed).
-- In order to link in PT-Scotch instead of ParMETIS replace `-lparmetis -lmetis` with:
-  `-lptscotchparmetis -lptscotch -lptscotcherr -lscotchmetis -lscotch -lscotcherr`
-- Add `-I$(PEXSI_DIR)/fortran/` to FCFLAGS.
-- Add `-D__LIBPEXSI` to DFLAGS.
+- PEXSI is only available via a Spack build of CP2K.
+- Add `-D__PEXSI` to DFLAGS.
 
 Below are some additional hints that may help in the compilation process:
 

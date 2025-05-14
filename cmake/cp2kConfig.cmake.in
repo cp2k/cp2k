@@ -111,6 +111,10 @@ if(NOT TARGET cp2k::cp2k)
     find_dependency(DeepMD REQUIRED)
   endif()
 
+  if(@CP2K_USE_PEXSI@)
+    find_dependency(PEXSI REQUIRED)
+  endif()
+
   if(@CP2K_USE_ACE@)
     find_dependency(ACE REQUIRED)
   endif()

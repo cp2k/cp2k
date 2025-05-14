@@ -107,7 +107,7 @@ CONTAINS
 #if defined(__LIBGRPP)
       flags = TRIM(flags)//" libgrpp"
 #endif
-#if defined(__LIBPEXSI)
+#if defined(__PEXSI)
       flags = TRIM(flags)//" pexsi"
 #endif
 #if defined(__ELPA)
