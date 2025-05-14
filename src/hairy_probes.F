@@ -22,8 +22,7 @@ MODULE hairy_probes
    USE particle_types,                  ONLY: particle_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               get_qs_kind_set,&
-                                              qs_kind_type
-   USE machine, ONLY: default_output_unit, m_flush                                             
+                                              qs_kind_type                                            
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -593,7 +592,7 @@ CONTAINS
       a = (y2 - 2.0_dp*y1 + y0)/(2.0_dp*h*h)
       b = (4.0_dp*y1 - 3.0_dp*y0 - y2)/(2.0_dp*h)
       c = y0
-      
+
       IF (ABS(a) .LT. 1.0e-15_dp) THEN
          delta = 0.0_dp
          RETURN
