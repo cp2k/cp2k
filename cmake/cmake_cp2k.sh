@@ -154,6 +154,7 @@ elif [[ "${PROFILE}" == "ubuntu" ]] && [[ "${VERSION}" == "ssmp" ]]; then
     -DCMAKE_BUILD_TYPE="RelWithDebInfo" \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
     -DCP2K_USE_EVERYTHING=ON \
+    -DCP2K_USE_ACE=OFF \
     -DCP2K_USE_LIBTORCH=OFF \
     -DCP2K_USE_LIBXC=OFF \
     -DCP2K_USE_MPI=OFF \
