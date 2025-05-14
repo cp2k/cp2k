@@ -813,7 +813,7 @@ CONTAINS
          END IF
       END IF
 
-      DEALLOCATE(basis_set_list)
+      DEALLOCATE (basis_set_list)
 
       CALL timestop(handle)
 
@@ -1743,8 +1743,8 @@ CONTAINS
          CALL dbcsr_finalize(tb%quadbra(i)%matrix)
          CALL dbcsr_finalize(tb%quadket(i)%matrix)
       END DO
-      
-      DEALLOCATE(basis_set_list)
+
+      DEALLOCATE (basis_set_list)
 
       CALL timestop(handle)
 
