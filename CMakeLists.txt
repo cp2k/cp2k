@@ -134,6 +134,7 @@ option(CP2K_USE_LIBINT2 "Enable Libint2 support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_LIBTORCH "Enable LibTorch support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_LIBXC "Enable LibXC support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_MPI "Enable MPI support" ${CP2K_USE_EVERYTHING})
+option(CP2K_USE_PEXSI "Enable PEXSI support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_SPGLIB "Enable Spglib support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_TREXIO "Enable TREXIO support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_VORI "Enable Libvori support" ${CP2K_USE_EVERYTHING})
@@ -685,6 +686,14 @@ if(CP2K_USE_DEEPMD)
   find_package(DeePMD REQUIRED CONFIG)
 endif()
 
+if(CP2K_USE_PEXSI)
+  find_package(PEXSI REQUIRED CONFIG)
+  get_target_property(CP2K_PEXSI_INCLUDE_DIRS PEXSI::PEXSI
+                      INTERFACE_INCLUDE_DIRECTORIES)
+  get_target_property(CP2K_PEXSI_LINK_LIBRARIES PEXSI::PEXSI
+                      INTERFACE_LINK_LIBRARIES)
+endif()
+
 if(CP2K_USE_ACE)
   find_package(ACE REQUIRED)
   get_target_property(CP2K_ACE_INCLUDE_DIRS ACE::pace
@@ -919,6 +928,12 @@ if(CP2K_USE_DEEPMD)
   message(" - DeePMD\n\n")
 endif()
 
+if(CP2K_USE_PEXSI)
+  message(" - PEXSI\n" # keep line break
+          "   - include directories: ${CP2K_PEXSI_INCLUDE_DIRS}\n"
+          "   - libraries: ${CP2K_PEXSI_LINK_LIBRARIES}\n\n")
+endif()
+
 if(CP2K_USE_ACE)
   message(" - ACE\n" # keep line break
           "   - include directories: ${CP2K_ACE_INCLUDE_DIRS}\n"
@@ -1004,6 +1019,10 @@ endif()
 
 if(NOT CP2K_USE_DEEPMD)
   message("   - DeePMD")
+endif()
+
+if(NOT CP2K_USE_PEXSI)
+  message("   - PEXSI")
 endif()
 
 if(NOT CP2K_USE_ACE)
