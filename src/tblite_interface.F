@@ -819,7 +819,6 @@ CONTAINS
 
 #else
       MARK_USED(qs_env)
-      MARK_USED(para_env)
       MARK_USED(calculate_forces)
       CPABORT("Built without TBLITE")
 #endif
