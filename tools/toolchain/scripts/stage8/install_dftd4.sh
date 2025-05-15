@@ -57,8 +57,6 @@ case "$with_dftd4" in
         -B . -G Ninja \
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
         -DCMAKE_INSTALL_LIBDIR=lib \
-        -DCMAKE_C_COMPILER="${MPICC}" \
-        -DCMAKE_Fortran_COMPILER="${MPIFC}" \
         -DCMAKE_VERBOSE_MAKEFILE=ON \
         .. \
         > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
