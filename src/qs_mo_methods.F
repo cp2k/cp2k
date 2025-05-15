@@ -16,6 +16,7 @@ MODULE qs_mo_methods
    USE admm_utils,                      ONLY: admm_correct_for_eigenvalues,&
                                               admm_uncorrect_for_eigenvalues
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
+   USE cp_control_types,                ONLY: hairy_probes_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
                                               dbcsr_get_info,&
                                               dbcsr_init_p,&
@@ -809,11 +810,14 @@ CONTAINS
 !> \param scf_control ...
 !> \param mo_derivs ...
 !> \param admm_env ...
+!> \param hairy_probes ...
+!> \param probe ...
 !> \par History
 !>         02.2013 moved from qs_scf_post_gpw
 !>
 ! **************************************************************************************************
-   SUBROUTINE make_mo_eig(mos, nspins, ks_rmpv, scf_control, mo_derivs, admm_env)
+   SUBROUTINE make_mo_eig(mos, nspins, ks_rmpv, scf_control, mo_derivs, admm_env, &
+                          hairy_probes, probe)
 
       TYPE(mo_set_type), DIMENSION(:), INTENT(INOUT)     :: mos
       INTEGER, INTENT(IN)                                :: nspins
@@ -821,6 +825,9 @@ CONTAINS
       TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mo_derivs
       TYPE(admm_type), OPTIONAL, POINTER                 :: admm_env
+      LOGICAL, OPTIONAL                                  :: hairy_probes
+      TYPE(hairy_probes_type), DIMENSION(:), OPTIONAL, &
+         POINTER                                         :: probe
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'make_mo_eig'
 
@@ -868,8 +875,16 @@ CONTAINS
          ELSE
             IF (output_unit > 0) WRITE (output_unit, '(4(1X,1F16.8))') mo_eigenvalues(1:homo)
          END IF
-         IF (.NOT. scf_control%diagonalization%mom) &
-            CALL set_mo_occupation(mo_set=mos(ispin), smear=scf_control%smear)
+         IF (.NOT. scf_control%diagonalization%mom) THEN
+            IF (PRESENT(hairy_probes) .EQV. .TRUE.) THEN
+               scf_control%smear%do_smear = .FALSE.
+               CALL set_mo_occupation(mo_set=mos(ispin), &
+                                      smear=scf_control%smear, &
+                                      probe=probe)
+            ELSE
+               CALL set_mo_occupation(mo_set=mos(ispin), smear=scf_control%smear)
+            END IF
+         END IF
          IF (output_unit > 0) WRITE (output_unit, '(T2,A,F12.6)') &
             "Fermi Energy [eV] :", mos(ispin)%mu*evolt
       END DO

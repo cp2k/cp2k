@@ -225,6 +225,7 @@ list(
   gw_utils.F
   gw_integrals.F
   gw_kp_to_real_space_and_back.F
+  hairy_probes.F
   hartree_local_methods.F
   hartree_local_types.F
   header.F

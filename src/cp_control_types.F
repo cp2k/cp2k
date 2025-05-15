@@ -35,6 +35,18 @@ MODULE cp_control_types
 
    PRIVATE
 
+!***************************************************************************************************
+!\brief Control parameters for hairy-probes DFT
+!***************************************************************************************************
+   TYPE hairy_probes_type
+      REAL(kind=dp)                        :: alpha          !solution probes parameter
+      REAL(kind=dp)                        :: mu             !chemical potenatial of electrons in reservoir
+      REAL(kind=dp)                        :: T              !temperature of electrons in reservoir
+      REAL(kind=dp)                        :: eps_hp         !tolerance for accuracy checks on occupation numbers
+      INTEGER                              :: natoms, last_ao, first_ao
+      INTEGER, DIMENSION(:), POINTER       :: atom_ids       !atom ids to which the probes are attached
+   END TYPE hairy_probes_type
+
 ! **************************************************************************************************
 ! \brief Control parameters for pw grids
 ! **************************************************************************************************
@@ -582,6 +594,8 @@ MODULE cp_control_types
       TYPE(smeagol_control_type), POINTER  :: smeagol_control => NULL()
       TYPE(efield_p_type), POINTER, &
          DIMENSION(:)                      :: efield_fields => NULL()
+      TYPE(hairy_probes_type), POINTER, &
+         DIMENSION(:)                      :: probe => NULL()
       INTEGER                              :: nspins = 0, &
                                               charge = 0, &
                                               multiplicity = 0, &
@@ -631,7 +645,8 @@ MODULE cp_control_types
                                               correct_el_density_dip = .FALSE., &
                                               do_sccs = .FALSE., &
                                               apply_embed_pot = .FALSE., &
-                                              apply_dmfet_pot = .FALSE.
+                                              apply_dmfet_pot = .FALSE., &
+                                              hairy_probes = .FALSE.
    END TYPE dft_control_type
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_control_types'
@@ -656,7 +671,8 @@ MODULE cp_control_types
              rtp_control_type, &
              sccs_control_type, &
              stda_control_type, &
-             smeared_type
+             smeared_type, &
+             hairy_probes_type
 
    ! Public subroutines
 
@@ -788,9 +804,11 @@ CONTAINS
       NULLIFY (dft_control%smeagol_control)
       NULLIFY (dft_control%rtp_control)
       NULLIFY (dft_control%sccs_control)
+      NULLIFY (dft_control%probe)
       dft_control%do_sccs = .FALSE.
       dft_control%apply_embed_pot = .FALSE.
       dft_control%apply_dmfet_pot = .FALSE.
+      dft_control%hairy_probes = .FALSE.
       CALL qs_control_create(dft_control%qs_control)
       CALL tddfpt2_control_create(dft_control%tddfpt2_control)
       CALL smeagol_control_create(dft_control%smeagol_control)
@@ -806,6 +824,8 @@ CONTAINS
    SUBROUTINE dft_control_release(dft_control)
       TYPE(dft_control_type), INTENT(INOUT)              :: dft_control
 
+      INTEGER                                            :: i
+
       CALL qs_control_release(dft_control%qs_control)
       CALL tddfpt2_control_release(dft_control%tddfpt2_control)
       IF (ASSOCIATED(dft_control%xas_control)) THEN
@@ -817,6 +837,12 @@ CONTAINS
       CALL maxwell_control_release(dft_control%maxwell_control)
       CALL smeagol_control_release(dft_control%smeagol_control)
       CALL efield_fields_release(dft_control%efield_fields)
+      IF (ASSOCIATED(dft_control%probe)) THEN
+         DO i = 1, SIZE(dft_control%probe)
+            DEALLOCATE (dft_control%probe(i)%atom_ids)
+         END DO
+         DEALLOCATE (dft_control%probe)
+      END IF
       IF (ASSOCIATED(dft_control%sccs_control)) DEALLOCATE (dft_control%sccs_control)
       IF (ASSOCIATED(dft_control%period_efield)) THEN
          DEALLOCATE (dft_control%period_efield)
