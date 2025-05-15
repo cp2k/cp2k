@@ -157,6 +157,8 @@ cmake_dependent_option(CP2K_USE_LIBSMEAGOL "Enable LibSMEAGOL support"
                        ${CP2K_USE_EVERYTHING} "CP2K_USE_MPI" OFF)
 cmake_dependent_option(CP2K_USE_MPI_F08 "Enable MPI Fortran 2008 interface"
                        ${CP2K_USE_EVERYTHING} "CP2K_USE_MPI" OFF)
+cmake_dependent_option(CP2K_USE_PEXSI "Enable PEXSI support"
+                       ${CP2K_USE_EVERYTHING} "CP2K_USE_MPI" OFF)
 cmake_dependent_option(CP2K_USE_PLUMED "Enable PLUMED2 support"
                        ${CP2K_USE_EVERYTHING} "CP2K_USE_MPI" OFF)
 cmake_dependent_option(CP2K_USE_SIRIUS "Enable SIRIUS support"
