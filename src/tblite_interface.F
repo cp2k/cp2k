@@ -632,11 +632,18 @@ CONTAINS
          CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
                                 iatom=iatom, jatom=jatom, r=rij, cell=cell)
 
+         icol = MAX(iatom, jatom)
+         irow = MIN(iatom, jatom)
+         IF (icol == jatom) THEN
+            rij = -rij
+            i = ikind
+            ikind = jkind
+            jkind = i
+         END IF
+
          dr = NORM2(rij(:))
 
          ic = 1
-         icol = MAX(iatom, jatom)
-         irow = MIN(iatom, jatom)
          NULLIFY (sblock)
          CALL dbcsr_get_block_p(matrix=matrix_s(1, ic)%matrix, &
                                 row=irow, col=icol, BLOCK=sblock, found=found)
@@ -652,9 +659,9 @@ CONTAINS
          IF (.NOT. ASSOCIATED(basis_set_a)) CYCLE
          basis_set_b => basis_set_list(jkind)%gto_basis_set
          IF (.NOT. ASSOCIATED(basis_set_b)) CYCLE
-         atom_a = atom_of_kind(iatom)
-         atom_b = atom_of_kind(jatom)
-         ! basis ikind
+         atom_a = atom_of_kind(icol)
+         atom_b = atom_of_kind(irow)
+         ! basis a
          first_sgfa => basis_set_a%first_sgf
          la_max => basis_set_a%lmax
          la_min => basis_set_a%lmin
@@ -665,7 +672,7 @@ CONTAINS
          set_radius_a => basis_set_a%set_radius
          scon_a => basis_set_a%scon
          zeta => basis_set_a%zet
-         ! basis jkind
+         ! basis b
          first_sgfb => basis_set_b%first_sgf
          lb_max => basis_set_b%lmax
          lb_min => basis_set_b%lmin
@@ -724,18 +731,17 @@ CONTAINS
          END DO
 
          ! update S matrix
-         IF (iatom <= jatom) THEN
+         IF (icol <= irow) THEN
             sblock(:, :) = sblock(:, :) + sint(:, :, 1)
          ELSE
             sblock(:, :) = sblock(:, :) + TRANSPOSE(sint(:, :, 1))
          END IF
 
          ! --------- Hamiltonian
-
-         IF (iatom == jatom) THEN
+         IF (icol == irow .AND. dr < 0.001_dp) THEN
             !get diagonal F matrix from selfenergy
             n1 = 0
-            DO ishell = 1, iatom - 1
+            DO ishell = 1, icol - 1
                n1 = n1 + tb%calc%bas%nsh_at(ishell)
             END DO
             DO iset = 1, nseta
@@ -749,13 +755,13 @@ CONTAINS
             !get off-diagonal F matrix
             rr = SQRT(dr/(h0%rad(jkind) + h0%rad(ikind)))
             n1 = 0
-            DO ishell = 1, iatom - 1
+            DO ishell = 1, icol - 1
                n1 = n1 + tb%calc%bas%nsh_at(ishell)
             END DO
             DO iset = 1, nseta
                sgfa = first_sgfa(1, iset)
                n2 = 0
-               DO jshell = 1, jatom - 1
+               DO jshell = 1, irow - 1
                   n2 = n2 + tb%calc%bas%nsh_at(jshell)
                END DO
                DO jset = 1, nsetb
@@ -764,7 +770,6 @@ CONTAINS
                            *(1.0_dp + h0%shpoly(jset, jkind)*rr)
                   hij = 0.5_dp*(tb%selfenergy(n1 + iset) + tb%selfenergy(n2 + jset)) &
                         *h0%hscale(iset, jset, ikind, jkind)*shpoly
-
                   DO ia = sgfa, sgfa + nsgfa(iset) - 1
                      DO ib = sgfb, sgfb + nsgfb(jset) - 1
                         hint(ia, ib, 1) = hij*sint(ia, ib, 1)
@@ -775,7 +780,7 @@ CONTAINS
          END IF
 
          ! update F matrix
-         IF (iatom <= jatom) THEN
+         IF (icol <= irow) THEN
             fblock(:, :) = fblock(:, :) + hint(:, :, 1)
          ELSE
             fblock(:, :) = fblock(:, :) + TRANSPOSE(hint(:, :, 1))
@@ -1245,6 +1250,13 @@ CONTAINS
             icol = MAX(iatom, jatom)
             irow = MIN(iatom, jatom)
 
+            IF (icol == jatom) THEN
+               rij = -rij
+               i = ikind
+               ikind = jkind
+               jkind = i
+            END IF
+
             ic = cell_to_index(cellind(1), cellind(2), cellind(3))
             CPASSERT(ic > 0)
 
@@ -1291,8 +1303,8 @@ CONTAINS
          IF (ASSOCIATED(tb%dipbra)) THEN
             CALL neighbor_list_iterator_create(nl_iterator, n_list)
             DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
-               CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
-                                      iatom=iatom, jatom=jatom, r=rij, cell=cellind)
+               CALL get_iterator_info(nl_iterator, &
+                                      iatom=iatom, jatom=jatom, cell=cellind)
                icol = MAX(iatom, jatom)
                irow = MIN(iatom, jatom)
 
@@ -1336,8 +1348,8 @@ CONTAINS
          IF (ASSOCIATED(tb%quadbra)) THEN
             CALL neighbor_list_iterator_create(nl_iterator, n_list)
             DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
-               CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
-                                      iatom=iatom, jatom=jatom, r=rij, cell=cellind)
+               CALL get_iterator_info(nl_iterator, &
+                                      iatom=iatom, jatom=jatom, cell=cellind)
                icol = MAX(iatom, jatom)
                irow = MIN(iatom, jatom)
 
@@ -1433,7 +1445,6 @@ CONTAINS
       INTEGER                                     :: ikind, jkind, iatom, jatom, icol, irow, iset, jset, ityp, jtyp
       INTEGER                                     :: nkind, natom, handle, nimg, i, inda, indb
       INTEGER                                     :: atom_a, atom_b, nseta, nsetb, ia, ib, ij
-      INTEGER, DIMENSION(3)                       :: cell
       LOGICAL                                     :: found, bra2ket
       REAL(KIND=dp)                               :: r2
       REAL(KIND=dp), DIMENSION(3)                 :: rij
@@ -1518,20 +1529,25 @@ CONTAINS
       CALL neighbor_list_iterator_create(nl_iterator, sab_orb)
       DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
          CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
-                                iatom=iatom, jatom=jatom, r=rij, cell=cell)
+                                iatom=iatom, jatom=jatom, r=rij)
 
-         r2 = SUM(rij(:)**2)
+         r2 = NORM2(rij(:))
 
          icol = MAX(iatom, jatom)
          irow = MIN(iatom, jatom)
-         IF (icol == iatom) THEN
-            bra2ket = .FALSE.
-         ELSE
+
+         IF (icol == jatom) THEN
+            rij = -rij
+            i = ikind
+            ikind = jkind
+            jkind = i
             bra2ket = .TRUE.
+         ELSE
+            bra2ket = .FALSE.
          END IF
 
-         ityp = tb%mol%id(iatom)
-         jtyp = tb%mol%id(jatom)
+         ityp = tb%mol%id(icol)
+         jtyp = tb%mol%id(irow)
 
          NULLIFY (dip_bra1, dip_bra2, dip_bra3)
          CALL dbcsr_get_block_p(matrix=tb%dipbra(1)%matrix, &
@@ -1600,21 +1616,21 @@ CONTAINS
          IF (.NOT. ASSOCIATED(basis_set_a)) CYCLE
          basis_set_b => basis_set_list(jkind)%gto_basis_set
          IF (.NOT. ASSOCIATED(basis_set_b)) CYCLE
-         atom_a = atom_of_kind(iatom)
-         atom_b = atom_of_kind(jatom)
-         ! basis ikind
+         atom_a = atom_of_kind(icol)
+         atom_b = atom_of_kind(irow)
+         ! basis a
          first_sgfa => basis_set_a%first_sgf
          la_max => basis_set_a%lmax
          nseta = basis_set_a%nset
          nsgfa => basis_set_a%nsgf_set
-         ! basis jkind
+         ! basis b
          first_sgfb => basis_set_b%first_sgf
          lb_max => basis_set_b%lmax
          nsetb = basis_set_b%nset
          nsgfb => basis_set_b%nsgf_set
 
          ! --------- Hamiltonian
-         IF (iatom == jatom) THEN
+         IF (icol == irow) THEN
             DO iset = 1, nseta
                DO jset = 1, nsetb
 
