@@ -36,10 +36,10 @@ case "$with_tblite" in
     install_lock_file="${pkg_install_dir}/install_successful"
 
     if verify_checksums "${install_lock_file}"; then
-      echo " tblite-${tblite_ver} is already installed, skipping it."
+      echo "tblite-${tblite_ver} is already installed, skipping it."
     else
       if [ -f tblite-${tblite_ver}.tar.gz ]; then
-        echo " tblite-${tblite_ver}.tar.gz is found"
+        echo "tblite-${tblite_ver}.tar.gz is found"
       else
         download_pkg_from_cp2k_org "${tblite_sha256}" "tblite-${tblite_ver}.tar.gz"
       fi
@@ -56,6 +56,7 @@ case "$with_tblite" in
       CMAKE_PREFIX_PATH="${CMAKE_PREFIX_PATH}:${OPENBLAS_ROOT}" cmake \
         -B . -G Ninja \
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
+        -DCMAKE_INSTALL_LIBDIR=lib \
         -DCMAKE_VERBOSE_MAKEFILE=ON \
         .. \
         > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
@@ -110,9 +111,7 @@ EOF
     TBLITE=${TEMP_LOC%/*}
 
     TBLITE_INCLUDE_DIRS="${pkg_install_dir}/include"
-    # use the lib64 directory if present
     TBLITE_LINK_LIBRARIES="${pkg_install_dir}/lib"
-    [ -d "${pkg_install_dir}/lib64" ] && TBLITE_LINK_LIBRARIES="${pkg_install_dir}/lib64"
     TBLITE_CFLAGS="-I'${TOMLF}' -I'${MCTC}' -I'${SDFTD3}' -I'${DFTD4}' -I'${TBLITE}'"
     TBLITE_LDFLAGS="-L'${TBLITE_LINK_LIBRARIES}' -Wl,-rpath,'${TBLITE_LINK_LIBRARIES}'"
 

@@ -6,7 +6,7 @@
 #
 # Usage: Source this arch file and then run make as instructed.
 #
-# Last update: 08.05.2025
+# Last update: 16.05.2025
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -48,6 +48,7 @@ USE_LIBXC      := $(LIBXC_VER)
 USE_LIBXSMM    := $(LIBXSMM_VER)
 USE_OPENBLAS   := $(OPENBLAS_VER)
 USE_SPGLIB     := $(SPGLIB_VER)
+USE_TBLITE     := $(TBLITE_VER)
 USE_TREXIO     := $(TREXIO_VER)
 
 LMAX           := 5
@@ -198,6 +199,25 @@ ifneq ($(USE_TREXIO),)
    CFLAGS         += -I$(TREXIO_INC)
    DFLAGS         += -D__TREXIO
    LIBS           += $(TREXIO_LIB)/libtrexio.a
+endif
+
+ifneq ($(USE_TBLITE),)
+   USE_TBLITE     := $(strip $(USE_TBLITE))
+   TBLITE_INC     := $(INSTALL_PATH)/tblite-$(USE_TBLITE)/include
+   TBLITE_LIB     := $(INSTALL_PATH)/tblite-$(USE_TBLITE)/lib
+   CFLAGS         += -I$(TBLITE_INC)/toml-f/modules
+   CFLAGS         += -I$(TBLITE_INC)/mctc-lib/modules
+   CFLAGS         += -I$(TBLITE_INC)/s-dftd3/GNU-$(GNU_VER)
+   CFLAGS         += -I$(TBLITE_INC)/dftd4/GNU-$(GNU_VER)
+   CFLAGS         += -I$(TBLITE_INC)/tblite/GNU-$(GNU_VER)
+   DFLAGS         += -D__TBLITE
+   DFLAGS         += -D__DFTD4
+   LIBS           += $(TBLITE_LIB)/libtblite.a
+   LIBS           += $(TBLITE_LIB)/libdftd4.a
+   LIBS           += $(TBLITE_LIB)/libs-dftd3.a
+   LIBS           += $(TBLITE_LIB)/libmulticharge.a
+   LIBS           += $(TBLITE_LIB)/libmctc-lib.a
+   LIBS           += $(TBLITE_LIB)/libtoml-f.a
 endif
 
 ifneq ($(USE_HDF5),)
