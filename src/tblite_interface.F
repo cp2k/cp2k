@@ -176,7 +176,6 @@ CONTAINS
 
 #if defined(__TBLITE)
 
-      REAL(KIND=dp), PARAMETER                           :: K2Eh = 3.16681156346E-06_dp
       INTEGER, PARAMETER                                 :: nSpin = 1 !number of spin channels
 
       TYPE(scf_info)                                     :: info
@@ -187,7 +186,7 @@ CONTAINS
       IF (info%quadrupole > atom_resolved) &
          CPABORT("tblite: no support shell resolved quadrupole moment")
 
-      CALL new_wavefunction(tb%wfn, tb%mol%nat, tb%calc%bas%nsh, tb%calc%bas%nao, nSpin, 0.0_dp*K2Eh)
+      CALL new_wavefunction(tb%wfn, tb%mol%nat, tb%calc%bas%nsh, tb%calc%bas%nao, nSpin, 0.0_dp)
 
       CALL new_potential(tb%pot, tb%mol, tb%calc%bas, tb%wfn%nspin)
 
@@ -1445,7 +1444,7 @@ CONTAINS
       INTEGER                                     :: ikind, jkind, iatom, jatom, icol, irow, iset, jset, ityp, jtyp
       INTEGER                                     :: nkind, natom, handle, nimg, i, inda, indb
       INTEGER                                     :: atom_a, atom_b, nseta, nsetb, ia, ib, ij
-      LOGICAL                                     :: found, bra2ket
+      LOGICAL                                     :: found
       REAL(KIND=dp)                               :: r2
       REAL(KIND=dp), DIMENSION(3)                 :: rij
       INTEGER, DIMENSION(:), POINTER              :: la_max, lb_max
@@ -1531,7 +1530,7 @@ CONTAINS
          CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
                                 iatom=iatom, jatom=jatom, r=rij)
 
-         r2 = NORM2(rij(:))
+         r2 = NORM2(rij(:))**2
 
          icol = MAX(iatom, jatom)
          irow = MIN(iatom, jatom)
@@ -1541,9 +1540,6 @@ CONTAINS
             i = ikind
             ikind = jkind
             jkind = i
-            bra2ket = .TRUE.
-         ELSE
-            bra2ket = .FALSE.
          END IF
 
          ityp = tb%mol%id(icol)
@@ -1633,7 +1629,6 @@ CONTAINS
          IF (icol == irow) THEN
             DO iset = 1, nseta
                DO jset = 1, nsetb
-
                   CALL multipole_cgto(tb%calc%bas%cgto(jset, ityp), tb%calc%bas%cgto(iset, ityp), &
                        & r2, -rij, tb%calc%bas%intcut, stmp, dtmp, qtmp)
 
@@ -1664,7 +1659,6 @@ CONTAINS
                         quad_bra4(ib, ia) = qtmp(4, ij)
                         quad_bra5(ib, ia) = qtmp(5, ij)
                         quad_bra6(ib, ia) = qtmp(6, ij)
-
                      END DO
                   END DO
                END DO
@@ -1677,73 +1671,38 @@ CONTAINS
                   CALL multipole_cgto(tb%calc%bas%cgto(iset, ityp), tb%calc%bas%cgto(jset, jtyp), &
                       & r2, rij, tb%calc%bas%intcut, stmp, dtmpj, qtmpj)
 
-                  IF (bra2ket) THEN
-                     DO inda = 1, nsgfa(iset)
-                        ia = first_sgfa(1, iset) - first_sgfa(1, 1) + inda
-                        DO indb = 1, nsgfb(jset)
-                           ib = first_sgfb(1, jset) - first_sgfb(1, 1) + indb
+                  DO inda = 1, nsgfa(iset)
+                     ia = first_sgfa(1, iset) - first_sgfa(1, 1) + inda
+                     DO indb = 1, nsgfb(jset)
+                        ib = first_sgfb(1, jset) - first_sgfb(1, 1) + indb
 
-                           ij = indb + nsgfb(jset)*(inda - 1)
+                        ij = indb + nsgfb(jset)*(inda - 1)
 
-                           dip_ket1(ia, ib) = dtmp(1, ij)
-                           dip_ket2(ia, ib) = dtmp(2, ij)
-                           dip_ket3(ia, ib) = dtmp(3, ij)
+                        dip_bra1(ib, ia) = dtmp(1, ij)
+                        dip_bra2(ib, ia) = dtmp(2, ij)
+                        dip_bra3(ib, ia) = dtmp(3, ij)
 
-                           quad_ket1(ia, ib) = qtmp(1, ij)
-                           quad_ket2(ia, ib) = qtmp(2, ij)
-                           quad_ket3(ia, ib) = qtmp(3, ij)
-                           quad_ket4(ia, ib) = qtmp(4, ij)
-                           quad_ket5(ia, ib) = qtmp(5, ij)
-                           quad_ket6(ia, ib) = qtmp(6, ij)
+                        quad_bra1(ib, ia) = qtmp(1, ij)
+                        quad_bra2(ib, ia) = qtmp(2, ij)
+                        quad_bra3(ib, ia) = qtmp(3, ij)
+                        quad_bra4(ib, ia) = qtmp(4, ij)
+                        quad_bra5(ib, ia) = qtmp(5, ij)
+                        quad_bra6(ib, ia) = qtmp(6, ij)
 
-                           ij = inda + nsgfa(iset)*(indb - 1)
+                        ij = inda + nsgfa(iset)*(indb - 1)
 
-                           dip_bra1(ia, ib) = dtmpj(1, ij)
-                           dip_bra2(ia, ib) = dtmpj(2, ij)
-                           dip_bra3(ia, ib) = dtmpj(3, ij)
+                        dip_ket1(ib, ia) = dtmpj(1, ij)
+                        dip_ket2(ib, ia) = dtmpj(2, ij)
+                        dip_ket3(ib, ia) = dtmpj(3, ij)
 
-                           quad_bra1(ia, ib) = qtmpj(1, ij)
-                           quad_bra2(ia, ib) = qtmpj(2, ij)
-                           quad_bra3(ia, ib) = qtmpj(3, ij)
-                           quad_bra4(ia, ib) = qtmpj(4, ij)
-                           quad_bra5(ia, ib) = qtmpj(5, ij)
-                           quad_bra6(ia, ib) = qtmpj(6, ij)
-                        END DO
+                        quad_ket1(ib, ia) = qtmpj(1, ij)
+                        quad_ket2(ib, ia) = qtmpj(2, ij)
+                        quad_ket3(ib, ia) = qtmpj(3, ij)
+                        quad_ket4(ib, ia) = qtmpj(4, ij)
+                        quad_ket5(ib, ia) = qtmpj(5, ij)
+                        quad_ket6(ib, ia) = qtmpj(6, ij)
                      END DO
-                  ELSE
-                     DO inda = 1, nsgfa(iset)
-                        ia = first_sgfa(1, iset) - first_sgfa(1, 1) + inda
-                        DO indb = 1, nsgfb(jset)
-                           ib = first_sgfb(1, jset) - first_sgfb(1, 1) + indb
-
-                           ij = indb + nsgfb(jset)*(inda - 1)
-
-                           dip_bra1(ib, ia) = dtmp(1, ij)
-                           dip_bra2(ib, ia) = dtmp(2, ij)
-                           dip_bra3(ib, ia) = dtmp(3, ij)
-
-                           quad_bra1(ib, ia) = qtmp(1, ij)
-                           quad_bra2(ib, ia) = qtmp(2, ij)
-                           quad_bra3(ib, ia) = qtmp(3, ij)
-                           quad_bra4(ib, ia) = qtmp(4, ij)
-                           quad_bra5(ib, ia) = qtmp(5, ij)
-                           quad_bra6(ib, ia) = qtmp(6, ij)
-
-                           ij = inda + nsgfa(iset)*(indb - 1)
-
-                           dip_ket1(ib, ia) = dtmpj(1, ij)
-                           dip_ket2(ib, ia) = dtmpj(2, ij)
-                           dip_ket3(ib, ia) = dtmpj(3, ij)
-
-                           quad_ket1(ib, ia) = qtmpj(1, ij)
-                           quad_ket2(ib, ia) = qtmpj(2, ij)
-                           quad_ket3(ib, ia) = qtmpj(3, ij)
-                           quad_ket4(ib, ia) = qtmpj(4, ij)
-                           quad_ket5(ib, ia) = qtmpj(5, ij)
-                           quad_ket6(ib, ia) = qtmpj(6, ij)
-                        END DO
-                     END DO
-                  END IF
+                  END DO
                END DO
             END DO
          END IF
