@@ -105,9 +105,7 @@ EOF
     DFTD4=${DFTD4_LOC%/*}
 
     DFTD4_INCLUDE_DIRS="$pkg_install_dir/include"
-    # use the lib64 directory if present
     DFTD4_LINK_LIBRARIES="${pkg_install_dir}/lib"
-    [ -d "${pkg_install_dir}/lib64" ] && DFTD4_LINK_LIBRARIES="${pkg_install_dir}/lib64"
 
     DFTD4_CFLAGS="-I'${MCHARGE}' -I'${MCTC}' -I'${DFTD4}'"
     DFTD4_LDFLAGS="-L'${DFTD4_LINK_LIBRARIES}' -Wl,-rpath,'${DFTD4_LINK_LIBRARIES}'"
