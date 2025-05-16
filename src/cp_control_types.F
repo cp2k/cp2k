@@ -39,12 +39,14 @@ MODULE cp_control_types
 !\brief Control parameters for hairy-probes DFT
 !***************************************************************************************************
    TYPE hairy_probes_type
-      REAL(kind=dp)                        :: alpha          !solution probes parameter
-      REAL(kind=dp)                        :: mu             !chemical potenatial of electrons in reservoir
-      REAL(kind=dp)                        :: T              !temperature of electrons in reservoir
-      REAL(kind=dp)                        :: eps_hp         !tolerance for accuracy checks on occupation numbers
-      INTEGER                              :: natoms, last_ao, first_ao
-      INTEGER, DIMENSION(:), POINTER       :: atom_ids       !atom ids to which the probes are attached
+      REAL(KIND=dp)                        :: alpha = 0.0_dp     ! solution probes parameter
+      REAL(KIND=dp)                        :: mu = 0.0_dp        ! chemical potenatial of electrons in reservoir
+      REAL(KIND=dp)                        :: T = 0.0_dp         ! temperature of electrons in reservoir
+      REAL(KIND=dp)                        :: eps_hp = 0.0_dp    ! tolerance for accuracy checks on occupation numbers
+      INTEGER                              :: natoms = 0, &
+                                              last_ao = 0, &
+                                              first_ao = 0
+      INTEGER, DIMENSION(:), POINTER       :: atom_ids => NULL() ! atom ids to which the probes are attached
    END TYPE hairy_probes_type
 
 ! **************************************************************************************************

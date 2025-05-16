@@ -176,7 +176,7 @@ CONTAINS
 
 #if defined(__TBLITE)
 
-      REAL(KIND=dp), PARAMETER                           :: K2Eh = 3.16681156346E-06
+      REAL(KIND=dp), PARAMETER                           :: K2Eh = 3.16681156346E-06_dp
       INTEGER, PARAMETER                                 :: nSpin = 1 !number of spin channels
 
       TYPE(scf_info)                                     :: info
@@ -1435,14 +1435,14 @@ CONTAINS
       INTEGER                                     :: atom_a, atom_b, nseta, nsetb, ia, ib, ij
       INTEGER, DIMENSION(3)                       :: cell
       LOGICAL                                     :: found, bra2ket
-      REAL(dp)                                    :: r2
+      REAL(KIND=dp)                               :: r2
       REAL(KIND=dp), DIMENSION(3)                 :: rij
       INTEGER, DIMENSION(:), POINTER              :: la_max, lb_max
       INTEGER, DIMENSION(:), POINTER              :: nsgfa, nsgfb
       INTEGER, DIMENSION(:, :), POINTER           :: first_sgfa, first_sgfb
       INTEGER, ALLOCATABLE                        :: atom_of_kind(:)
-      REAL(dp), ALLOCATABLE                       :: stmp(:)
-      REAL(dp), ALLOCATABLE                       :: dtmp(:, :), qtmp(:, :), dtmpj(:, :), qtmpj(:, :)
+      REAL(KIND=dp), ALLOCATABLE                  :: stmp(:)
+      REAL(KIND=dp), ALLOCATABLE                  :: dtmp(:, :), qtmp(:, :), dtmpj(:, :), qtmpj(:, :)
       REAL(KIND=dp), DIMENSION(:, :), POINTER     :: dip_ket1, dip_ket2, dip_ket3, &
                                                      dip_bra1, dip_bra2, dip_bra3
       REAL(KIND=dp), DIMENSION(:, :), POINTER     :: quad_ket1, quad_ket2, quad_ket3, &
