@@ -1,6 +1,6 @@
 &GLOBAL
   PRINT_LEVEL HIGH
-  PROJECT hf_periodic_tblite
+  PROJECT COBe
   RUN_TYPE ENERGY
 &END GLOBAL
 
@@ -9,44 +9,36 @@
   &DFT
     &KPOINTS
       SCHEME NONE
-      #SCHEME GAMMA
-      #SCHEME  MONKHORST-PACK  1 1 1
     &END KPOINTS
     &QS
       METHOD xTB
       &XTB
-        #HYDROGEN_STO_NG 4
-        #STO_NG 6
-        &PARAMETER
-          DISPERSION_PARAMETER_FILE dftd3.dat
-        &END PARAMETER
         &TBLITE
           METHOD GFN1
         &END TBLITE
       &END XTB
     &END QS
     &SCF
-      EPS_SCF 1.e-7
+      EPS_SCF 1.e-8
       MAX_SCF 100
       SCF_GUESS MOPAC
       &MIXING
-        ALPHA 0.30
+        ALPHA 0.2
         METHOD DIRECT_P_MIXING
       &END MIXING
     &END SCF
   &END DFT
   &SUBSYS
     &CELL
-      ABC 4.0 4.0 4.0
-      MULTIPLE_UNIT_CELL 1 1 1
+      ABC 6.0 6.0 6.0
       PERIODIC XYZ
     &END CELL
     &COORD
-      H     0.000000    0.000000    0.000000
-      F     0.980000    0.000000    0.000000
+      O    -0.564000    0.000000    0.000000
+      C     0.564000    0.000000    0.000000
+      Be    0.000000    4.000000    0.000000
     &END COORD
     &TOPOLOGY
-      MULTIPLE_UNIT_CELL 1 1 1
       &CENTER_COORDINATES
       &END CENTER_COORDINATES
     &END TOPOLOGY

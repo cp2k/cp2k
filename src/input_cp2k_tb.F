@@ -12,12 +12,9 @@
 !> \author fawzi
 ! **************************************************************************************************
 MODULE input_cp2k_tb
-   USE bibliography,                    ONLY: Elstner1998,&
-                                              Grimme2017,&
-                                              Hu2007,&
-                                              Porezag1995,&
-                                              Seifert1996,&
-                                              Zhechkov2005
+   USE bibliography,                    ONLY: &
+        Asgeirsson2017, Bannwarth2019, Caldeweyher2017, Caldeweyher2020, Elstner1998, Grimme2017, &
+        Hu2007, Porezag1995, Seifert1996, Zhechkov2005
    USE eeq_input,                       ONLY: create_eeq_control_section
    USE input_constants,                 ONLY: dispersion_d2,&
                                               dispersion_d3,&
@@ -559,7 +556,8 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="TBLITE", &
                           description="Section used to specify options for an xTB computation using tblite.", &
-                          n_keywords=1, n_subsections=0, repeats=.FALSE.)
+                          n_keywords=1, n_subsections=0, repeats=.FALSE., citations=(/Caldeweyher2017, Caldeweyher2020, &
+                                                                                      Asgeirsson2017, Grimme2017, Bannwarth2019/))
 
       NULLIFY (keyword)
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &

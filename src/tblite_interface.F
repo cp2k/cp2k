@@ -176,7 +176,6 @@ CONTAINS
 
 #if defined(__TBLITE)
 
-      REAL(KIND=dp), PARAMETER                           :: K2Eh = 3.16681156346E-06_dp
       INTEGER, PARAMETER                                 :: nSpin = 1 !number of spin channels
 
       TYPE(scf_info)                                     :: info
@@ -187,7 +186,7 @@ CONTAINS
       IF (info%quadrupole > atom_resolved) &
          CPABORT("tblite: no support shell resolved quadrupole moment")
 
-      CALL new_wavefunction(tb%wfn, tb%mol%nat, tb%calc%bas%nsh, tb%calc%bas%nao, nSpin, 0.0_dp*K2Eh)
+      CALL new_wavefunction(tb%wfn, tb%mol%nat, tb%calc%bas%nsh, tb%calc%bas%nao, nSpin, 0.0_dp)
 
       CALL new_potential(tb%pot, tb%mol, tb%calc%bas, tb%wfn%nspin)
 
@@ -632,11 +631,18 @@ CONTAINS
          CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
                                 iatom=iatom, jatom=jatom, r=rij, cell=cell)
 
+         icol = MAX(iatom, jatom)
+         irow = MIN(iatom, jatom)
+         IF (icol == jatom) THEN
+            rij = -rij
+            i = ikind
+            ikind = jkind
+            jkind = i
+         END IF
+
          dr = NORM2(rij(:))
 
          ic = 1
-         icol = MAX(iatom, jatom)
-         irow = MIN(iatom, jatom)
          NULLIFY (sblock)
          CALL dbcsr_get_block_p(matrix=matrix_s(1, ic)%matrix, &
                                 row=irow, col=icol, BLOCK=sblock, found=found)
@@ -652,9 +658,9 @@ CONTAINS
          IF (.NOT. ASSOCIATED(basis_set_a)) CYCLE
          basis_set_b => basis_set_list(jkind)%gto_basis_set
          IF (.NOT. ASSOCIATED(basis_set_b)) CYCLE
-         atom_a = atom_of_kind(iatom)
-         atom_b = atom_of_kind(jatom)
-         ! basis ikind
+         atom_a = atom_of_kind(icol)
+         atom_b = atom_of_kind(irow)
+         ! basis a
          first_sgfa => basis_set_a%first_sgf
          la_max => basis_set_a%lmax
          la_min => basis_set_a%lmin
@@ -665,7 +671,7 @@ CONTAINS
          set_radius_a => basis_set_a%set_radius
          scon_a => basis_set_a%scon
          zeta => basis_set_a%zet
-         ! basis jkind
+         ! basis b
          first_sgfb => basis_set_b%first_sgf
          lb_max => basis_set_b%lmax
          lb_min => basis_set_b%lmin
@@ -724,18 +730,17 @@ CONTAINS
          END DO
 
          ! update S matrix
-         IF (iatom <= jatom) THEN
+         IF (icol <= irow) THEN
             sblock(:, :) = sblock(:, :) + sint(:, :, 1)
          ELSE
             sblock(:, :) = sblock(:, :) + TRANSPOSE(sint(:, :, 1))
          END IF
 
          ! --------- Hamiltonian
-
-         IF (iatom == jatom) THEN
+         IF (icol == irow .AND. dr < 0.001_dp) THEN
             !get diagonal F matrix from selfenergy
             n1 = 0
-            DO ishell = 1, iatom - 1
+            DO ishell = 1, icol - 1
                n1 = n1 + tb%calc%bas%nsh_at(ishell)
             END DO
             DO iset = 1, nseta
@@ -749,13 +754,13 @@ CONTAINS
             !get off-diagonal F matrix
             rr = SQRT(dr/(h0%rad(jkind) + h0%rad(ikind)))
             n1 = 0
-            DO ishell = 1, iatom - 1
+            DO ishell = 1, icol - 1
                n1 = n1 + tb%calc%bas%nsh_at(ishell)
             END DO
             DO iset = 1, nseta
                sgfa = first_sgfa(1, iset)
                n2 = 0
-               DO jshell = 1, jatom - 1
+               DO jshell = 1, irow - 1
                   n2 = n2 + tb%calc%bas%nsh_at(jshell)
                END DO
                DO jset = 1, nsetb
@@ -764,7 +769,6 @@ CONTAINS
                            *(1.0_dp + h0%shpoly(jset, jkind)*rr)
                   hij = 0.5_dp*(tb%selfenergy(n1 + iset) + tb%selfenergy(n2 + jset)) &
                         *h0%hscale(iset, jset, ikind, jkind)*shpoly
-
                   DO ia = sgfa, sgfa + nsgfa(iset) - 1
                      DO ib = sgfb, sgfb + nsgfb(jset) - 1
                         hint(ia, ib, 1) = hij*sint(ia, ib, 1)
@@ -775,7 +779,7 @@ CONTAINS
          END IF
 
          ! update F matrix
-         IF (iatom <= jatom) THEN
+         IF (icol <= irow) THEN
             fblock(:, :) = fblock(:, :) + hint(:, :, 1)
          ELSE
             fblock(:, :) = fblock(:, :) + TRANSPOSE(hint(:, :, 1))
@@ -1245,6 +1249,13 @@ CONTAINS
             icol = MAX(iatom, jatom)
             irow = MIN(iatom, jatom)
 
+            IF (icol == jatom) THEN
+               rij = -rij
+               i = ikind
+               ikind = jkind
+               jkind = i
+            END IF
+
             ic = cell_to_index(cellind(1), cellind(2), cellind(3))
             CPASSERT(ic > 0)
 
@@ -1291,8 +1302,8 @@ CONTAINS
          IF (ASSOCIATED(tb%dipbra)) THEN
             CALL neighbor_list_iterator_create(nl_iterator, n_list)
             DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
-               CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
-                                      iatom=iatom, jatom=jatom, r=rij, cell=cellind)
+               CALL get_iterator_info(nl_iterator, &
+                                      iatom=iatom, jatom=jatom, cell=cellind)
                icol = MAX(iatom, jatom)
                irow = MIN(iatom, jatom)
 
@@ -1336,8 +1347,8 @@ CONTAINS
          IF (ASSOCIATED(tb%quadbra)) THEN
             CALL neighbor_list_iterator_create(nl_iterator, n_list)
             DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
-               CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
-                                      iatom=iatom, jatom=jatom, r=rij, cell=cellind)
+               CALL get_iterator_info(nl_iterator, &
+                                      iatom=iatom, jatom=jatom, cell=cellind)
                icol = MAX(iatom, jatom)
                irow = MIN(iatom, jatom)
 
@@ -1433,8 +1444,7 @@ CONTAINS
       INTEGER                                     :: ikind, jkind, iatom, jatom, icol, irow, iset, jset, ityp, jtyp
       INTEGER                                     :: nkind, natom, handle, nimg, i, inda, indb
       INTEGER                                     :: atom_a, atom_b, nseta, nsetb, ia, ib, ij
-      INTEGER, DIMENSION(3)                       :: cell
-      LOGICAL                                     :: found, bra2ket
+      LOGICAL                                     :: found
       REAL(KIND=dp)                               :: r2
       REAL(KIND=dp), DIMENSION(3)                 :: rij
       INTEGER, DIMENSION(:), POINTER              :: la_max, lb_max
@@ -1518,20 +1528,22 @@ CONTAINS
       CALL neighbor_list_iterator_create(nl_iterator, sab_orb)
       DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
          CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
-                                iatom=iatom, jatom=jatom, r=rij, cell=cell)
+                                iatom=iatom, jatom=jatom, r=rij)
 
-         r2 = SUM(rij(:)**2)
+         r2 = NORM2(rij(:))**2
 
          icol = MAX(iatom, jatom)
          irow = MIN(iatom, jatom)
-         IF (icol == iatom) THEN
-            bra2ket = .FALSE.
-         ELSE
-            bra2ket = .TRUE.
+
+         IF (icol == jatom) THEN
+            rij = -rij
+            i = ikind
+            ikind = jkind
+            jkind = i
          END IF
 
-         ityp = tb%mol%id(iatom)
-         jtyp = tb%mol%id(jatom)
+         ityp = tb%mol%id(icol)
+         jtyp = tb%mol%id(irow)
 
          NULLIFY (dip_bra1, dip_bra2, dip_bra3)
          CALL dbcsr_get_block_p(matrix=tb%dipbra(1)%matrix, &
@@ -1600,24 +1612,23 @@ CONTAINS
          IF (.NOT. ASSOCIATED(basis_set_a)) CYCLE
          basis_set_b => basis_set_list(jkind)%gto_basis_set
          IF (.NOT. ASSOCIATED(basis_set_b)) CYCLE
-         atom_a = atom_of_kind(iatom)
-         atom_b = atom_of_kind(jatom)
-         ! basis ikind
+         atom_a = atom_of_kind(icol)
+         atom_b = atom_of_kind(irow)
+         ! basis a
          first_sgfa => basis_set_a%first_sgf
          la_max => basis_set_a%lmax
          nseta = basis_set_a%nset
          nsgfa => basis_set_a%nsgf_set
-         ! basis jkind
+         ! basis b
          first_sgfb => basis_set_b%first_sgf
          lb_max => basis_set_b%lmax
          nsetb = basis_set_b%nset
          nsgfb => basis_set_b%nsgf_set
 
          ! --------- Hamiltonian
-         IF (iatom == jatom) THEN
+         IF (icol == irow) THEN
             DO iset = 1, nseta
                DO jset = 1, nsetb
-
                   CALL multipole_cgto(tb%calc%bas%cgto(jset, ityp), tb%calc%bas%cgto(iset, ityp), &
                        & r2, -rij, tb%calc%bas%intcut, stmp, dtmp, qtmp)
 
@@ -1648,7 +1659,6 @@ CONTAINS
                         quad_bra4(ib, ia) = qtmp(4, ij)
                         quad_bra5(ib, ia) = qtmp(5, ij)
                         quad_bra6(ib, ia) = qtmp(6, ij)
-
                      END DO
                   END DO
                END DO
@@ -1661,73 +1671,38 @@ CONTAINS
                   CALL multipole_cgto(tb%calc%bas%cgto(iset, ityp), tb%calc%bas%cgto(jset, jtyp), &
                       & r2, rij, tb%calc%bas%intcut, stmp, dtmpj, qtmpj)
 
-                  IF (bra2ket) THEN
-                     DO inda = 1, nsgfa(iset)
-                        ia = first_sgfa(1, iset) - first_sgfa(1, 1) + inda
-                        DO indb = 1, nsgfb(jset)
-                           ib = first_sgfb(1, jset) - first_sgfb(1, 1) + indb
+                  DO inda = 1, nsgfa(iset)
+                     ia = first_sgfa(1, iset) - first_sgfa(1, 1) + inda
+                     DO indb = 1, nsgfb(jset)
+                        ib = first_sgfb(1, jset) - first_sgfb(1, 1) + indb
 
-                           ij = indb + nsgfb(jset)*(inda - 1)
+                        ij = indb + nsgfb(jset)*(inda - 1)
 
-                           dip_ket1(ia, ib) = dtmp(1, ij)
-                           dip_ket2(ia, ib) = dtmp(2, ij)
-                           dip_ket3(ia, ib) = dtmp(3, ij)
+                        dip_bra1(ib, ia) = dtmp(1, ij)
+                        dip_bra2(ib, ia) = dtmp(2, ij)
+                        dip_bra3(ib, ia) = dtmp(3, ij)
 
-                           quad_ket1(ia, ib) = qtmp(1, ij)
-                           quad_ket2(ia, ib) = qtmp(2, ij)
-                           quad_ket3(ia, ib) = qtmp(3, ij)
-                           quad_ket4(ia, ib) = qtmp(4, ij)
-                           quad_ket5(ia, ib) = qtmp(5, ij)
-                           quad_ket6(ia, ib) = qtmp(6, ij)
+                        quad_bra1(ib, ia) = qtmp(1, ij)
+                        quad_bra2(ib, ia) = qtmp(2, ij)
+                        quad_bra3(ib, ia) = qtmp(3, ij)
+                        quad_bra4(ib, ia) = qtmp(4, ij)
+                        quad_bra5(ib, ia) = qtmp(5, ij)
+                        quad_bra6(ib, ia) = qtmp(6, ij)
 
-                           ij = inda + nsgfa(iset)*(indb - 1)
+                        ij = inda + nsgfa(iset)*(indb - 1)
 
-                           dip_bra1(ia, ib) = dtmpj(1, ij)
-                           dip_bra2(ia, ib) = dtmpj(2, ij)
-                           dip_bra3(ia, ib) = dtmpj(3, ij)
+                        dip_ket1(ib, ia) = dtmpj(1, ij)
+                        dip_ket2(ib, ia) = dtmpj(2, ij)
+                        dip_ket3(ib, ia) = dtmpj(3, ij)
 
-                           quad_bra1(ia, ib) = qtmpj(1, ij)
-                           quad_bra2(ia, ib) = qtmpj(2, ij)
-                           quad_bra3(ia, ib) = qtmpj(3, ij)
-                           quad_bra4(ia, ib) = qtmpj(4, ij)
-                           quad_bra5(ia, ib) = qtmpj(5, ij)
-                           quad_bra6(ia, ib) = qtmpj(6, ij)
-                        END DO
+                        quad_ket1(ib, ia) = qtmpj(1, ij)
+                        quad_ket2(ib, ia) = qtmpj(2, ij)
+                        quad_ket3(ib, ia) = qtmpj(3, ij)
+                        quad_ket4(ib, ia) = qtmpj(4, ij)
+                        quad_ket5(ib, ia) = qtmpj(5, ij)
+                        quad_ket6(ib, ia) = qtmpj(6, ij)
                      END DO
-                  ELSE
-                     DO inda = 1, nsgfa(iset)
-                        ia = first_sgfa(1, iset) - first_sgfa(1, 1) + inda
-                        DO indb = 1, nsgfb(jset)
-                           ib = first_sgfb(1, jset) - first_sgfb(1, 1) + indb
-
-                           ij = indb + nsgfb(jset)*(inda - 1)
-
-                           dip_bra1(ib, ia) = dtmp(1, ij)
-                           dip_bra2(ib, ia) = dtmp(2, ij)
-                           dip_bra3(ib, ia) = dtmp(3, ij)
-
-                           quad_bra1(ib, ia) = qtmp(1, ij)
-                           quad_bra2(ib, ia) = qtmp(2, ij)
-                           quad_bra3(ib, ia) = qtmp(3, ij)
-                           quad_bra4(ib, ia) = qtmp(4, ij)
-                           quad_bra5(ib, ia) = qtmp(5, ij)
-                           quad_bra6(ib, ia) = qtmp(6, ij)
-
-                           ij = inda + nsgfa(iset)*(indb - 1)
-
-                           dip_ket1(ib, ia) = dtmpj(1, ij)
-                           dip_ket2(ib, ia) = dtmpj(2, ij)
-                           dip_ket3(ib, ia) = dtmpj(3, ij)
-
-                           quad_ket1(ib, ia) = qtmpj(1, ij)
-                           quad_ket2(ib, ia) = qtmpj(2, ij)
-                           quad_ket3(ib, ia) = qtmpj(3, ij)
-                           quad_ket4(ib, ia) = qtmpj(4, ij)
-                           quad_ket5(ib, ia) = qtmpj(5, ij)
-                           quad_ket6(ib, ia) = qtmpj(6, ij)
-                        END DO
-                     END DO
-                  END IF
+                  END DO
                END DO
             END DO
          END IF

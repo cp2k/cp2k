@@ -4,6 +4,7 @@
 # in case a new directory is added just add it at the top of the list..
 # the order will be regularly checked and modified...
 HP-DFT
+xTB/regtest-tblite-gfn1-periodic                            tblite
 xTB/regtest-tblite-ipea1                                    tblite
 xTB/regtest-tblite-gfn2                                     tblite
 xTB/regtest-tblite-gfn1                                     tblite
