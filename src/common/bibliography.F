@@ -76,8 +76,8 @@ MODULE bibliography
                             Stoychev2016, Futera2017, Bailey2006, Papior2017, Lehtola2018, &
                             Brieuc2016, Barca2018, Scheiber2018, Huang2011, Heaton_Burgess2007, &
                             Schuett2018, Holmberg2018, Togo2018, Staub2019, Grimme2013, Grimme2016, &
-                            Grimme2017, Kondov2007, Clabaut2020, Clabaut2021, &
-                            Ren2011, Ren2013, Cohen2000, Rogers2002, Filippetti2000, &
+                            Grimme2017, Asgeirsson2017, Bannwarth2019, Kondov2007, Clabaut2020, &
+                            Clabaut2021, Ren2011, Ren2013, Cohen2000, Rogers2002, Filippetti2000, &
                             Limpanuparb2011, Martin2003, Yin2017, Goerigk2017, &
                             Wilhelm2016a, Wilhelm2016b, Wilhelm2017, Wilhelm2018, Wilhelm2021, Lass2018, &
                             cp2kqs2020, Behler2007, Behler2011, Schran2020a, Schran2020b, &
@@ -733,6 +733,21 @@ CONTAINS
                          "Large Molecular Systems Parametrized for All spd-Block Elements (Z = 1-86)", &
                          source="J. Chem. Theory Comput.", volume="13", pages="1989", &
                          year=2017, doi="10.1021/acs.jctc.7b00118")
+
+      CALL add_reference(key=Asgeirsson2017, &
+                         authors=s2a("V. Asgeirsson", "C. A. Bauer", "S. Grimme"), &
+                         title="Quantum chemical calculation of electron ionization mass spectra "// &
+                         "for general organic and inorganic molecules", &
+                         source="Chem. Sci.", volume="8", pages="4879-4895", &
+                         year=2017, doi="10.1039/C7SC00601B")
+
+      CALL add_reference(key=Bannwarth2019, &
+                         authors=s2a("C. Bannwarth", "S. Ehlert", "S. Grimme"), &
+                         title="GFN2-xTB--An Accurate and Broadly Parametrized Self-Consistent "// &
+                         "Tight-Binding Quantum Chemical Method with Multipole Electrostatics "// &
+                         "and Density-Dependent Dispersion Contributions", &
+                         source="J. Chem. Theory Comput.", volume="15", pages="1652-1671", &
+                         year=2019, doi="10.1021/acs.jctc.8b01176")
 
       CALL add_reference(key=Branduardi2007, &
                          authors=s2a("D. Branduardi", "F. L. Gervasio", "M. Parrinello"), &
