@@ -60,13 +60,6 @@ RUN spack compiler find
 # Find all external packages
 RUN spack external find --all --not-buildable
 
-# Enable Spack build cache
-ARG SPACK_BUILD_CACHE
-ENV SPACK_BUILD_CACHE="${SPACK_BUILD_CACHE:-develop-2025-05-18}"
-RUN spack mirror add ${SPACK_BUILD_CACHE} https://binaries.spack.io/${SPACK_BUILD_CACHE} && \
-    spack buildcache keys --install --trust --force && \
-    spack mirror remove ${SPACK_BUILD_CACHE}
-
 # Copy Spack configuration and build recipes
 ARG CP2K_VERSION
 ENV CP2K_VERSION=${CP2K_VERSION:-ssmp}
