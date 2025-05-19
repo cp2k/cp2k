@@ -878,8 +878,8 @@ if(CP2K_USE_LIBXC)
 endif()
 
 if(CP2K_USE_SPGLIB)
-  message(" - Spglib\n"
-          "   - include directories: ${CP2K_SPGLIB_INCLUDE_DIRS}\n\n")
+  message("  - Spglib\n"
+          "    - include directories: ${CP2K_SPGLIB_INCLUDE_DIRS}\n\n")
 endif()
 
 if(CP2K_USE_LIBTORCH)
