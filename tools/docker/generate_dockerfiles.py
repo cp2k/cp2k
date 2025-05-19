@@ -883,11 +883,6 @@ RUN spack compiler find
 # Find all external packages
 RUN spack external find --all --not-buildable
 
-# Add public Spack cache from https://cache.spack.io
-RUN spack mirror add ${{SPACK_VERSION}}-cache https://binaries.spack.io/${{SPACK_VERSION}} && \
-    spack buildcache keys --install --trust --force && \
-    spack mirror remove ${{SPACK_VERSION}}-cache
-
 # Add local Spack cache.
 ARG SPACK_CACHE
 ENV SPACK_CACHE=${{SPACK_CACHE:-"s3://spack-cache --s3-endpoint-url=http://localhost:9000"}}
