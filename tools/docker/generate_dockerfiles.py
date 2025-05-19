@@ -870,7 +870,7 @@ RUN pip3 install --quiet boto3==1.38.11 google-cloud-storage==3.1.0
 # Install a recent Spack version
 WORKDIR /root/spack
 ARG SPACK_VERSION
-ENV SPACK_VERSION=${{SPACK_VERSION:-develop-2025-04-27}}
+ENV SPACK_VERSION=${{SPACK_VERSION:-develop-2025-05-18}}
 RUN git init --quiet && \
     git remote add origin https://github.com/spack/spack.git && \
     git fetch --quiet --depth 1 origin ${{SPACK_VERSION}} --no-tags && \
