@@ -13,7 +13,8 @@ MODULE cp_cfm_dlaf_api
    USE cp_dlaf_utils_api, ONLY: cp_dlaf_create_grid
    USE dlaf_fortran, ONLY: dlaf_pzheevd, &
                            dlaf_pzhegvd, &
-                           dlaf_pzpotrf
+                           dlaf_pzpotrf, &
+                           dlaf_pzpotri
 #endif
    USE kinds, ONLY: dp
 #include "../base/base_uses.f90"
@@ -24,7 +25,7 @@ MODULE cp_cfm_dlaf_api
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_cfm_dlaf_api'
 
-   PUBLIC :: cp_cfm_pzpotrf_dlaf
+   PUBLIC :: cp_cfm_pzpotrf_dlaf, cp_cfm_pzpotri_dlaf
    PUBLIC :: cp_cfm_diag_dlaf, cp_cfm_diag_gen_dlaf
 
 CONTAINS
@@ -67,6 +68,45 @@ CONTAINS
 #endif
       CALL timestop(handle)
    END SUBROUTINE cp_cfm_pzpotrf_dlaf
+
+!***************************************************************************************************
+!> \brief Inverse from Cholesky factorization using DLA-Future
+!> \param uplo ...
+!> \param n Matrix size
+!> \param a Local matrix
+!> \param ia Row index of first row (has to be 1)
+!> \param ja Col index of first column (has to be 1)
+!> \param desca ScaLAPACK matrix descriptor
+!> \param info 0 if factorization completed normally
+!> \author Rocco Meli
+! **************************************************************************************************
+   SUBROUTINE cp_cfm_pzpotri_dlaf(uplo, n, a, ia, ja, desca, info)
+      CHARACTER, INTENT(IN)                              :: uplo
+      INTEGER, INTENT(IN)                                :: n
+      COMPLEX(KIND=dp), DIMENSION(:, :), TARGET          :: a
+      INTEGER, INTENT(IN)                                :: ia, ja
+      INTEGER, DIMENSION(9)                              :: desca
+      INTEGER, TARGET                                    :: info
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_pzpotri_dlaf'
+
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+#if defined(__DLAF)
+      CALL dlaf_pzpotri(uplo, n, a, ia, ja, desca, info)
+#else
+      MARK_USED(uplo)
+      MARK_USED(n)
+      MARK_USED(a)
+      MARK_USED(ia)
+      MARK_USED(ja)
+      MARK_USED(desca)
+      MARK_USED(info)
+      CPABORT("CP2K compiled without the DLA-Future library.")
+#endif
+      CALL timestop(handle)
+   END SUBROUTINE cp_cfm_pzpotri_dlaf
 
    ! **************************************************************************************************
 !> \brief DLA-Future eigensolver for complex Hermitian matrices
