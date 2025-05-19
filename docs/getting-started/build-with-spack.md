@@ -142,7 +142,7 @@ you can enable a [Spack cache] locally:
 This command starts a local [MinIO] server that can be used as cache for the Spack packages.
 The `spack_cache_stop.sh` script stops the server.
 
-You can then build the the Docker container (here the `test_spack` container, as an example)
+You can then build the Docker container (here the `test_spack` container, as an example)
 with the following command:
 
 ```bash
