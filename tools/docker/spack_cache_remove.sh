@@ -2,6 +2,6 @@
 
 # author: Ole Schuett
 
-docker rm spack-cache
+podman rm spack-cache
 
 #EOF

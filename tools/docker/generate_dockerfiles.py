@@ -788,7 +788,7 @@ RUN ./install_cp2k_toolchain.sh \
     --dry-run
 
 # Dry-run leaves behind config files for the followup install scripts.
-# This breaks up the lengthy installation into smaller docker build steps.
+# This breaks up the lengthy installation into smaller build steps.
 COPY ./tools/toolchain/scripts/stage0/ ./scripts/stage0/
 RUN  ./scripts/stage0/install_stage0.sh && rm -rf ./build
 
@@ -919,7 +919,7 @@ class OutputFile:
         self.content = io.StringIO()
         self.content.write(f"#\n")
         self.content.write(f"# This file was created by generate_dockerfiles.py.\n")
-        self.content.write(f"# Usage: docker build -f ./{filename} ../../\n")
+        self.content.write(f"# Usage: podman build -f ./{filename} ../../\n")
         self.content.write(f"#\n")
 
     def __enter__(self) -> io.StringIO:

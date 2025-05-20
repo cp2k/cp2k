@@ -2,6 +2,6 @@
 
 # author: Ole Schuett
 
-docker container stop spack-cache
+podman container stop spack-cache
 
 #EOF

@@ -1,6 +1,6 @@
 #
 # This file was created by generate_dockerfiles.py.
-# Usage: docker build -f ./Dockerfile.test_gcc14 ../../
+# Usage: podman build -f ./Dockerfile.test_gcc14 ../../
 #
 
 FROM ubuntu:24.04
