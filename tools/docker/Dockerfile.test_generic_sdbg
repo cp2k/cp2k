@@ -1,6 +1,6 @@
 #
 # This file was created by generate_dockerfiles.py.
-# Usage: docker build -f ./Dockerfile.test_generic_sdbg ../../
+# Usage: podman build -f ./Dockerfile.test_generic_sdbg ../../
 #
 
 FROM ubuntu:24.04
@@ -29,7 +29,7 @@ RUN ./install_cp2k_toolchain.sh \
     --dry-run
 
 # Dry-run leaves behind config files for the followup install scripts.
-# This breaks up the lengthy installation into smaller docker build steps.
+# This breaks up the lengthy installation into smaller build steps.
 COPY ./tools/toolchain/scripts/stage0/ ./scripts/stage0/
 RUN  ./scripts/stage0/install_stage0.sh && rm -rf ./build
 
