@@ -674,8 +674,8 @@ CONTAINS
                   "Core Hamiltonian energy:                       ", energy%core, &
                   "Repulsive potential energy:                    ", energy%repulsive, &
                   "Electrostatic energy:                          ", energy%el_stat, &
-                  "Non-self consistent dispersion energy:         ", energy%dispersion, &
                   "Self-consistent dispersion energy:             ", energy%dispersion_sc, &
+                  "Non-self consistent dispersion energy:         ", energy%dispersion, &
                   "Correction for halogen bonding:                ", energy%xtb_xb_inter
             ELSE
                IF (dft_control%qs_control%xtb_control%gfn_type == 0) THEN
