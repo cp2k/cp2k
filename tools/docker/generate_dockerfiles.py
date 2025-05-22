@@ -884,9 +884,9 @@ RUN spack compiler find
 RUN spack external find --all --not-buildable
 
 # Add local Spack cache.
-ARG SPACK_CACHE
-ENV SPACK_CACHE=${{SPACK_CACHE:-"s3://spack-cache --s3-endpoint-url=http://localhost:9000"}}
-RUN spack mirror add --autopush --unsigned local-cache ${{SPACK_CACHE}}
+ARG SPACK_CACHE="s3://spack-cache --s3-endpoint-url=http://localhost:9000"
+COPY ./tools/docker/scripts/setup_spack_cache.sh ./
+RUN ./setup_spack_cache.sh
 
 # Copy Spack configuration and build recipes
 ARG CP2K_BUILD_TYPE
