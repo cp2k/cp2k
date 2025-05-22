@@ -123,25 +123,28 @@ option(CP2K_USE_EVERYTHING
        "Enable all dependencies. They can be individually turned off again."
        OFF)
 
+option(CP2K_USE_ACE "Enable ACE support" ${CP2K_USE_EVERYTHING})
+option(CP2K_USE_DEEPMD "Enable DeePMD support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_DFTD4 "Enable DFTD4 support" ${CP2K_USE_EVERYTHING})
-option(CP2K_USE_DEEPMD "Enable DeePMD" ${CP2K_USE_EVERYTHING})
+option(CP2K_USE_TBLITE "Enable TBLITE support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_FFTW3 "Enable FFTW3 support" ${CP2K_USE_EVERYTHING})
-option(CP2K_USE_MPI "Enable MPI support" ${CP2K_USE_EVERYTHING})
-option(CP2K_USE_LIBINT2 "Enable Libint2 support" ${CP2K_USE_EVERYTHING})
-option(CP2K_USE_VORI "Enable Libvori support" ${CP2K_USE_EVERYTHING})
-option(CP2K_USE_SPGLIB "Enable Spglib support" ${CP2K_USE_EVERYTHING})
-option(CP2K_USE_LIBXC "Enable LibXC support" ${CP2K_USE_EVERYTHING})
-option(CP2K_USE_LIBTORCH "Enable LibTorch support" ${CP2K_USE_EVERYTHING})
-option(CP2K_USE_GRPP "Enable GRPP support" ${CP2K_USE_EVERYTHING})
-option(CP2K_USE_TREXIO "Enable TREXIO support" ${CP2K_USE_EVERYTHING})
-option(CP2K_USE_HDF5 "Enable HDF5 support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_GREENX "Enable GreenX support" ${CP2K_USE_EVERYTHING})
+option(CP2K_USE_GRPP "Enable GRPP support" ${CP2K_USE_EVERYTHING})
+option(CP2K_USE_HDF5 "Enable HDF5 support" ${CP2K_USE_EVERYTHING})
+option(CP2K_USE_LIBINT2 "Enable Libint2 support" ${CP2K_USE_EVERYTHING})
+option(CP2K_USE_LIBTORCH "Enable LibTorch support" ${CP2K_USE_EVERYTHING})
+option(CP2K_USE_LIBXC "Enable LibXC support" ${CP2K_USE_EVERYTHING})
+option(CP2K_USE_MPI "Enable MPI support" ${CP2K_USE_EVERYTHING})
+option(CP2K_USE_PEXSI "Enable PEXSI support" ${CP2K_USE_EVERYTHING})
+option(CP2K_USE_SPGLIB "Enable Spglib support" ${CP2K_USE_EVERYTHING})
+option(CP2K_USE_TREXIO "Enable TREXIO support" ${CP2K_USE_EVERYTHING})
+option(CP2K_USE_VORI "Enable Libvori support" ${CP2K_USE_EVERYTHING})
 
 option(CP2K_USE_STATIC_BLAS "Link against static version of BLAS/LAPACK" OFF)
 option(BUILD_SHARED_LIBS "Build CP2K shared library" ON)
 option(
   CP2K_USE_FFTW3_WITH_MKL
-  "MKL has its own compatible implementation of the fftw library. This option, when ON, will use the separate and original fftw library."
+  "MKL has its own compatible implementation of the FFTW3 library. This option, when ON, will use the separate and original FFTW3 library."
   OFF)
 
 # MPI-enabled options
@@ -154,6 +157,8 @@ cmake_dependent_option(CP2K_USE_ELPA "Enable ELPA support"
 cmake_dependent_option(CP2K_USE_LIBSMEAGOL "Enable LibSMEAGOL support"
                        ${CP2K_USE_EVERYTHING} "CP2K_USE_MPI" OFF)
 cmake_dependent_option(CP2K_USE_MPI_F08 "Enable MPI Fortran 2008 interface"
+                       ${CP2K_USE_EVERYTHING} "CP2K_USE_MPI" OFF)
+cmake_dependent_option(CP2K_USE_PEXSI "Enable PEXSI support"
                        ${CP2K_USE_EVERYTHING} "CP2K_USE_MPI" OFF)
 cmake_dependent_option(CP2K_USE_PLUMED "Enable PLUMED2 support"
                        ${CP2K_USE_EVERYTHING} "CP2K_USE_MPI" OFF)
@@ -614,7 +619,7 @@ endif()
 
 # FFTW3
 
-# we set this variable to ON when we want fftw3 support (with or without MKL).
+# we set this variable to ON when we want FFTW3 support (with or without MKL)
 set(CP2K_USE_FFTW3_ OFF)
 if(CP2K_USE_FFTW3)
   if(NOT CP2K_BLAS_VENDOR MATCHES "MKL" OR CP2K_USE_FFTW3_WITH_MKL)
@@ -622,14 +627,14 @@ if(CP2K_USE_FFTW3)
     if(CP2K_ENABLE_FFTW3_THREADS_SUPPORT AND CP2K_ENABLE_FFTW3_OPENMP_SUPPORT)
       message(
         FATAL_ERROR
-          "Fftw3 threads and openmp supports can not be used at the same time")
+          "FFTW3 threads and openmp supports can not be used at the same time")
     endif()
 
     if((CP2K_ENABLE_FFTW3_THREADS_SUPPORT) AND (NOT TARGET
                                                 cp2k::FFTW3::fftw3_threads))
       message(
         FATAL_ERROR
-          "fftw3 was compiled without multithreading support (--enable-threads option in the fftw build system)."
+          "FFTW3 was compiled without multithreading support (--enable-threads option in the FFTW3 build system)."
       )
     endif()
 
@@ -637,7 +642,7 @@ if(CP2K_USE_FFTW3)
                                               ))
       message(
         FATAL_ERROR
-          "fftw3 was compiled without openmp support  (--enable-openmp option in the fftw build system)."
+          "FFTW3 was compiled without openmp support  (--enable-openmp option in the FFTW3 build system)."
       )
     endif()
     set(CP2K_USE_FFTW3_ ON)
@@ -680,17 +685,40 @@ endif()
 
 if(CP2K_USE_DFTD4)
   find_package(dftd4 REQUIRED)
-
-  get_target_property(CP2K_DFTD4_LINK_LIBRARIES dftd4::dftd4
-                      INTERFACE_LINK_LIBRARIES)
-  get_target_property(CP2K_DFTD4_LIB_LINK_LIBRARIES dftd4::dftd4-lib
-                      INTERFACE_LINK_LIBRARIES)
-  get_target_property(CP2K_DFTD4_INCLUDE_DIR dftd4::dftd4-lib
-                      INTERFACE_INCLUDE_DIRECTORIES)
 endif()
 
 if(CP2K_USE_DEEPMD)
   find_package(DeePMD REQUIRED CONFIG)
+endif()
+
+if(CP2K_USE_PEXSI)
+  find_package(PEXSI REQUIRED CONFIG)
+  get_target_property(CP2K_PEXSI_INCLUDE_DIRS PEXSI::PEXSI
+                      INTERFACE_INCLUDE_DIRECTORIES)
+  get_target_property(CP2K_PEXSI_LINK_LIBRARIES PEXSI::PEXSI
+                      INTERFACE_LINK_LIBRARIES)
+endif()
+
+if(CP2K_USE_ACE)
+  find_package(ACE REQUIRED)
+  get_target_property(CP2K_ACE_INCLUDE_DIRS ACE::pace
+                      INTERFACE_INCLUDE_DIRECTORIES)
+  get_target_property(CP2K_ACE_LINK_LIBRARIES ACE::pace
+                      INTERFACE_LINK_LIBRARIES)
+  get_target_property(LIB_PATH ACE::yaml-cpp-pace INTERFACE_LINK_LIBRARIES)
+  list(APPEND CP2K_ACE_LINK_LIBRARIES ${LIB_PATH})
+  get_target_property(LIB_PATH ACE::cnpy INTERFACE_LINK_LIBRARIES)
+  list(APPEND CP2K_ACE_LINK_LIBRARIES ${LIB_PATH})
+endif()
+
+if(CP2K_USE_TBLITE)
+  find_package(mctc-lib REQUIRED)
+  find_package(toml-f REQUIRED)
+  find_package(s-dftd3 REQUIRED)
+  find_package(tblite REQUIRED)
+  target_link_libraries(
+    tblite::tblite INTERFACE mctc-lib::mctc-lib dftd4::dftd4 toml-f::toml-f
+                             s-dftd3::s-dftd3)
 endif()
 
 # SIRIUS
@@ -856,8 +884,8 @@ if(CP2K_USE_LIBXC)
 endif()
 
 if(CP2K_USE_SPGLIB)
-  message(" - Spglib\n"
-          "   - include directories: ${CP2K_SPGLIB_INCLUDE_DIRS}\n\n")
+  message("  - Spglib\n"
+          "    - include directories: ${CP2K_SPGLIB_INCLUDE_DIRS}\n\n")
 endif()
 
 if(CP2K_USE_LIBTORCH)
@@ -895,7 +923,8 @@ if(CP2K_USE_LIBXSMM)
 endif()
 
 if(CP2K_USE_SPLA)
-  message(" - SpLA\n" "   - include directories: ${CP2K_SPLA_INCLUDE_DIRS}\n"
+  message(" - SpLA\n" # keep line break
+          "   - include directories: ${CP2K_SPLA_INCLUDE_DIRS}\n"
           "   - libraries: ${CP2K_SPLA_LINK_LIBRARIES}\n\n")
 endif()
 
@@ -906,21 +935,36 @@ if(CP2K_USE_MIMIC)
 endif()
 
 if(CP2K_USE_DFTD4)
-  message(
-    " - DFTD4\n"
-    "   - include directories: ${CP2K_DFTD4_INCLUDE_DIR}\n"
-    "   - libraries: ${CP2K_DFTD4_LINK_LIBRARIES};${CP2K_DFTD4_LIB_LINK_LIBRARIES}\n\n"
-  )
+  message(" - DFTD4\n" "   - include directories :  ${dftd4_INCLUDE_DIRS}\n"
+          "   - libraries           :  ${dftd4_LINK_LIBRARIES}\n\n")
 endif()
 
 if(CP2K_USE_DEEPMD)
   message(" - DeePMD\n\n")
 endif()
 
+if(CP2K_USE_PEXSI)
+  message(" - PEXSI\n" # keep line break
+          "   - include directories: ${CP2K_PEXSI_INCLUDE_DIRS}\n"
+          "   - libraries: ${CP2K_PEXSI_LINK_LIBRARIES}\n\n")
+endif()
+
+if(CP2K_USE_ACE)
+  message(" - ACE\n" # keep line break
+          "   - include directories: ${CP2K_ACE_INCLUDE_DIRS}\n"
+          "   - libraries: ${CP2K_ACE_LINK_LIBRARIES}\n\n")
+endif()
+
 if(CP2K_USE_LIBSMEAGOL)
   message(" - LibSMEAGOL\n"
           "   - include directories: ${CP2K_LIBSMEAGOL_INCLUDE_DIRS}\n"
           "   - libraries: ${CP2K_LIBSMEAGOL_LINK_LIBRARIES}\n\n")
+endif()
+
+if(CP2K_USE_TBLITE)
+  message(" - TBLITE :\n"
+          "   - include directories :  ${tblite_INCLUDE_DIRS}\n"
+          "   - tblite libraries    :  ${tblite_LINK_LIBRARIES}\n\n")
 endif()
 
 if(CP2K_USE_SIRIUS)
@@ -990,6 +1034,18 @@ endif()
 
 if(NOT CP2K_USE_DEEPMD)
   message("   - DeePMD")
+endif()
+
+if(NOT CP2K_USE_PEXSI)
+  message("   - PEXSI")
+endif()
+
+if(NOT CP2K_USE_ACE)
+  message("   - ACE (libpace)")
+endif()
+
+if(NOT CP2K_USE_TBLITE)
+  message("   - TBLITE")
 endif()
 
 if(NOT CP2K_USE_SIRIUS)

@@ -76,8 +76,8 @@ MODULE bibliography
                             Stoychev2016, Futera2017, Bailey2006, Papior2017, Lehtola2018, &
                             Brieuc2016, Barca2018, Scheiber2018, Huang2011, Heaton_Burgess2007, &
                             Schuett2018, Holmberg2018, Togo2018, Staub2019, Grimme2013, Grimme2016, &
-                            Grimme2017, Kondov2007, Clabaut2020, Clabaut2021, &
-                            Ren2011, Ren2013, Cohen2000, Rogers2002, Filippetti2000, &
+                            Grimme2017, Asgeirsson2017, Bannwarth2019, Kondov2007, Clabaut2020, &
+                            Clabaut2021, Ren2011, Ren2013, Cohen2000, Rogers2002, Filippetti2000, &
                             Limpanuparb2011, Martin2003, Yin2017, Goerigk2017, &
                             Wilhelm2016a, Wilhelm2016b, Wilhelm2017, Wilhelm2018, Wilhelm2021, Lass2018, &
                             cp2kqs2020, Behler2007, Behler2011, Schran2020a, Schran2020b, &
@@ -89,7 +89,7 @@ MODULE bibliography
                             Stein2022, Stein2024, Pracht2019, &
                             Blase2018, Blase2020, Bruneval2015, Golze2019, Gui2018, Jacquemin2017, Liu2020, &
                             Sander2015, Schreiber2008, vanSetten2015, Setyawan2010, Ahart2024, Knysh2024, &
-                            Schambeck2024, Mewes2018, Sertcan2024
+                            Schambeck2024, Mewes2018, Sertcan2024, Drautz2019, Lysogorskiy2021, Bochkarev2024
 
 CONTAINS
 
@@ -733,6 +733,21 @@ CONTAINS
                          "Large Molecular Systems Parametrized for All spd-Block Elements (Z = 1-86)", &
                          source="J. Chem. Theory Comput.", volume="13", pages="1989", &
                          year=2017, doi="10.1021/acs.jctc.7b00118")
+
+      CALL add_reference(key=Asgeirsson2017, &
+                         authors=s2a("V. Asgeirsson", "C. A. Bauer", "S. Grimme"), &
+                         title="Quantum chemical calculation of electron ionization mass spectra "// &
+                         "for general organic and inorganic molecules", &
+                         source="Chem. Sci.", volume="8", pages="4879-4895", &
+                         year=2017, doi="10.1039/C7SC00601B")
+
+      CALL add_reference(key=Bannwarth2019, &
+                         authors=s2a("C. Bannwarth", "S. Ehlert", "S. Grimme"), &
+                         title="GFN2-xTB--An Accurate and Broadly Parametrized Self-Consistent "// &
+                         "Tight-Binding Quantum Chemical Method with Multipole Electrostatics "// &
+                         "and Density-Dependent Dispersion Contributions", &
+                         source="J. Chem. Theory Comput.", volume="15", pages="1652-1671", &
+                         year=2019, doi="10.1021/acs.jctc.8b01176")
 
       CALL add_reference(key=Branduardi2007, &
                          authors=s2a("D. Branduardi", "F. L. Gervasio", "M. Parrinello"), &
@@ -1917,6 +1932,26 @@ CONTAINS
                          "for the Tamm–Dancoff Approximation of Time-Dependent Density Functional Theory", &
                          source="J. Chem. Theory Comput.", volume="20", pages="8494-8504", &
                          year=2024, doi="10.1021/acs.jctc.4c00614")
+
+      CALL add_reference(key=Drautz2019, &
+                         authors=s2a("R. Drautz"), &
+                         title="Atomic cluster expansion for accurate and transferable interatomic potentials", &
+                         source="Phys. Rev. B", volume="99", pages="014104", &
+                         year=2019, doi="10.1103/PhysRevB.99.014104")
+
+      CALL add_reference(key=Lysogorskiy2021, &
+                         authors=s2a("Y. Lysogorskiy", "C. van der Ooord", "A. Bochkarev", "S. Menon", &
+                                     "M. Rinaldi", "T. Hammerschmidt", "M. Mrovec", "A. Thompson", "G. Csanyi", &
+                                     "C. Ortner", "R. Drautz"), &
+                   title="Performant implementation of the atomic cluster expansion (PACE) and application to copper and silicon", &
+                         source="npj Comput. Mater.", volume="7", pages="97", &
+                         year=2021, doi="10.1038/s41524-021-00559-9")
+
+      CALL add_reference(key=Bochkarev2024, &
+                         authors=s2a("A. Bochkarev", "Y. Lysogorskiy", "R. Drautz"), &
+                         title="Graph Atomic Cluster Expansion for semilocal interactions beyond equivariant message passing", &
+                         source="Phys. Rev. X", volume="14", pages="021036", &
+                         year=2024, doi="10.1103/PhysRevX.14.021036")
 
    END SUBROUTINE add_all_references
 

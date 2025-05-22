@@ -38,7 +38,7 @@ spack:
         - +openmp
         - smm=blas
   repos:
-    - $spack/cp2k
+    - $spack
   specs:
     - "dbcsr@2.8.0"
     - "mpich@4.3.0"

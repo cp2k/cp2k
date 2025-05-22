@@ -267,20 +267,8 @@ DLA-Future.
 The Pole EXpansion and Selected Inversion (PEXSI) method requires the PEXSI library and two
 dependencies (ParMETIS or PT-Scotch and SuperLU_DIST).
 
-- Download PEXSI (www.pexsi.org) and install it and its dependencies by following its README.md.
-- PEXSI versions 0.10.x have been tested with CP2K. Older versions are not supported.
-- PEXSI needs to be built with `make finstall`.
-
-In the arch file of CP2K:
-
-- Add `-lpexsi_${SUFFIX} -llapack -lblas -lsuperlu_dist_3.3 -lparmetis -lmetis`, and their paths
-  (with `-L$(LIB_DIR)`) to LIBS.
-- It is important that a copy of LAPACK and BLAS is placed before and after these libraries (replace
-  `-llapack` and `-lblas` with the optimized versions as needed).
-- In order to link in PT-Scotch instead of ParMETIS replace `-lparmetis -lmetis` with:
-  `-lptscotchparmetis -lptscotch -lptscotcherr -lscotchmetis -lscotch -lscotcherr`
-- Add `-I$(PEXSI_DIR)/fortran/` to FCFLAGS.
-- Add `-D__LIBPEXSI` to DFLAGS.
+- PEXSI is only available via a Spack build of CP2K.
+- Add `-D__PEXSI` to DFLAGS.
 
 Below are some additional hints that may help in the compilation process:
 
@@ -477,6 +465,17 @@ DeePMD-kit - Deep Potential Molecular Dynamics. Support for DeePMD-kit can be en
   <https://docs.deepmodeling.com/projects/deepmd/en/master/install/install-from-c-library.html>
 - For more information see <https://github.com/deepmodeling/deepmd-kit.git>.
 
+### 2y. ACE (optional, atomic cluster expansion ML potentials)
+
+Atomic cluster expansion for accurate and transferable interatomic potentials support can be enabled
+via the flag `-D__ACE`.
+
+- the library files can be downloaded from <https://github.com/ICAMS/lammps-user-pace>
+- use cmake/make to compile. There is no install, just ensure that the cp2k build process links in
+  all three libraries (libpace, libyaml-cpp-pace and libcnpy). Access to ML-PACE/ace
+  ML-PACE/ace-evaluator and yaml-cpp/include from the library is also needed (see toolchain for
+  example).
+
 ### 2z. DFTD4 (optional, dispersion correction)
 
 - dftd4 - Generally Applicable Atomic-Charge Dependent London Dispersion Correction.
@@ -510,6 +509,12 @@ greenX - Open-source file format and library. Support for greenX can be enabled 
 
 - GREENX library can be downloaded from <https://github.com/nomad-coe/greenX>
 - For more information see <https://nomad-coe.github.io/greenX/>.
+
+### 2z-b. TBLITE (optional, semiempirical method)
+
+- tblite - Light-weight tight-binding framework
+- For more information see <https://github.com/tblite/tblite>
+- Add `-D__TBLITE` to DFLAGS
 
 ## 3. Compile
 

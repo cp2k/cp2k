@@ -1,0 +1,10 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tests/do_regtest
+"hp-dft_0eV.inp"                        = [{matcher="M011", tol=5.0E-2, ref=-236.439459678130504},
+                                           {matcher="M126", tol=1.0E-6, ref=0.0}]
+"hp-dft_1eV.inp"                        = [{matcher="M011", tol=5.0E-2, ref=-238.228758936954392},
+                                           {matcher="M126", tol=1.0E-6, ref=0.0}]
+#EOF

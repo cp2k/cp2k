@@ -8,7 +8,7 @@
 # Usage: Source this arch file and then run make as instructed.
 #        Ensure the links in /opt/homebrew/bin to the gcc version.
 #
-# Last update: 12.02.2025
+# Last update: 16.05.2025
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -73,6 +73,7 @@ USE_LIBVORI    := $(LIBVORI_VER)
 USE_LIBXSMM    := $(LIBXSMM_VER)
 USE_OPENBLAS   := $(OPENBLAS_VER)
 USE_SPGLIB     := $(SPGLIB_VER)
+USE_TBLITE     := $(TBLITE_VER)
 USE_TREXIO     := $(TREXIO_VER)
 
 LMAX           := 5
@@ -191,6 +192,25 @@ LIBS           += $(HDF5_HOME)/lib/libhdf5_f90cstub.a
 LIBS           += $(HDF5_HOME)/lib/libhdf5.a
 LIBS           += $(shell brew --prefix zlib)/lib/libz.a
 LIBS           += $(shell brew --prefix libaec)/lib/libsz.a
+
+ifneq ($(USE_TBLITE),)
+   USE_TBLITE     := $(strip $(USE_TBLITE))
+   TBLITE_INC     := $(INSTALL_PATH)/tblite-$(USE_TBLITE)/include
+   TBLITE_LIB     := $(INSTALL_PATH)/tblite-$(USE_TBLITE)/lib
+   CFLAGS         += -I$(TBLITE_INC)/toml-f/modules
+   CFLAGS         += -I$(TBLITE_INC)/mctc-lib/modules
+   CFLAGS         += -I$(TBLITE_INC)/s-dftd3/GNU-$(GNU_VER)
+   CFLAGS         += -I$(TBLITE_INC)/dftd4/GNU-$(GNU_VER)
+   CFLAGS         += -I$(TBLITE_INC)/tblite/GNU-$(GNU_VER)
+   DFLAGS         += -D__TBLITE
+   DFLAGS         += -D__DFTD4
+   LIBS           += $(TBLITE_LIB)/libtblite.a
+   LIBS           += $(TBLITE_LIB)/libdftd4.a
+   LIBS           += $(TBLITE_LIB)/libs-dftd3.a
+   LIBS           += $(TBLITE_LIB)/libmulticharge.a
+   LIBS           += $(TBLITE_LIB)/libmctc-lib.a
+   LIBS           += $(TBLITE_LIB)/libtoml-f.a
+endif
 
 ifneq ($(USE_OPENBLAS),)
    OPENBLAS_HOME  := $(shell brew --prefix openblas)

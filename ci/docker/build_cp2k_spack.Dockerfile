@@ -29,6 +29,8 @@ COPY ./tools/build_utils ./tools/build_utils
 RUN /bin/bash -c -o pipefail "source ./cmake/cmake_cp2k.sh spack_${CP2K_BUILD_TYPE} ${CP2K_VERSION}"
 
 # Compile CP2K
+ARG LOG_LINES
+ENV LOG_LINES=${LOG_LINES:-200}
 WORKDIR /opt/cp2k/build
 RUN /bin/bash -c -o pipefail " \
     echo -e '\nCompiling CP2K ... \c'; \
@@ -41,11 +43,12 @@ RUN /bin/bash -c -o pipefail " \
         echo -e 'failed\n'; \
         tail -n ${LOG_LINES} install.log; \
       fi; \
+      cat cmake.log ninja.log install.log | gzip >build_cp2k.log.gz; \
     else \
       echo -e 'failed\n'; \
       tail -n ${LOG_LINES} ninja.log; \
-    fi; \
-    cat cmake.log ninja.log install.log | gzip >build_cp2k.log.gz"
+      cat cmake.log ninja.log | gzip >build_cp2k.log.gz; \
+    fi"
 
 # Stage 2b: Install CP2K
 FROM ${BASE_IMAGE} AS install_cp2k

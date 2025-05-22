@@ -28,6 +28,10 @@ spack:
     dbcsr:
       require:
         - +openmp
+    deepmdkit:
+      require:
+        - build_system=cmake
+        - +enable_pytorch
     dftd4:
       require:
         - build_system=cmake
@@ -52,19 +56,22 @@ spack:
         - ~kineto
         - ~mkldnn
         - ~rocm
+        - ~valgrind
     trexio:
       require:
         - +hdf5
         - build_system=cmake
   repos:
-    - $spack/cp2k
+    - $spack
   specs:
     - "openblas@0.3.29"
     - "dbcsr@2.8.0"
+    - "deepmdkit@3.0.2"
     - "dftd4@3.7.0"
     - "fftw@3.3.10"
     - "greenx@2.2"
     - "hdf5@1.14"
+    - "lammps_user_pace@2023.11.25.fix2"
     - "libint@2.9.0"
     - "libvori@220621"
     - "libxc@7.0.0"

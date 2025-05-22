@@ -235,12 +235,17 @@ The --with-PKG options follow the rules:
   --with-dftd4            Enable the DFTD4 package by Grimme.
                           This package requires CMake and Ninja.
                           Default = install
+  --with-tblite           Enable the tblite package by Grimme.
+                          This package requires CMake and Ninja.
+                          Default = no
   --with-trexio           Enable the trexio library (read/write TREXIO files).
                           Default = no
   --with-greenx           Enable GreenX library for Minimax grids and Padé analytic continuation in RT-BSE
                           This package requires CMake, BLAS and LAPACK.
                           Default = no
   --with-gmp              Enable GMP library, optional dependency of GreenX
+                          Default = no
+  --with-ace              Enable interface to ML-pace
                           Default = no
 
 FURTHER INSTRUCTIONS
@@ -279,7 +284,7 @@ mpi_list="mpich openmpi intelmpi"
 math_list="mkl acml openblas"
 lib_list="fftw libint libxc libgrpp libxsmm cosma scalapack elpa dbcsr
           cusolvermp plumed spfft spla gsl spglib hdf5 libvdwxc sirius
-          libvori libtorch deepmd dftd4 pugixml libsmeagol trexio greenx gmp"
+          libvori libtorch deepmd ace dftd4 tblite pugixml libsmeagol trexio greenx gmp"
 package_list="${tool_list} ${mpi_list} ${math_list} ${lib_list}"
 # ------------------------------------------------------------------------
 
@@ -332,6 +337,7 @@ with_libvori="__INSTALL__"
 with_libtorch="__DONTUSE__"
 with_ninja="__DONTUSE__"
 with_dftd4="__DONTUSE__"
+with_tblite="__DONTUSE__"
 with_libsmeagol="__DONTUSE__"
 
 # for MPI, we try to detect system MPI variant
@@ -638,6 +644,9 @@ while [ $# -ge 1 ]; do
     --with-deepmd*)
       with_deepmd=$(read_with $1)
       ;;
+    --with-ace*)
+      with_ace=$(read_with $1)
+      ;;
     --with-plumed*)
       with_plumed=$(read_with "${1}")
       ;;
@@ -676,6 +685,9 @@ while [ $# -ge 1 ]; do
       ;;
     --with-dftd4*)
       with_dftd4=$(read_with "${1}")
+      ;;
+    --with-tblite*)
+      with_tblite=$(read_with "${1}")
       ;;
     --with-libsmeagol*)
       with_libsmeagol=$(read_with "${1}")
@@ -816,9 +828,15 @@ if [ "${ENABLE_OPENCL}" = "__TRUE__" ]; then
   fi
 fi
 
-#dftd4 installation requires ninja
-if [ "${with_dftd4}" = "__INSTALL__" ]; then
+#dftd4 / tblite installation requires ninja
+if [ "${with_dftd4}" = "__INSTALL__" ] ||
+  [ "${with_tblite}" = "__INSTALL__" ]; then
   [ "${with_ninja}" = "__DONTUSE__" ] && with_ninja="__INSTALL__"
+fi
+
+#tblite includes dftd4 - deactivate it
+if [ "${with_tblite}" != "__DONTUSE__" ]; then
+  with_dftd4="__DONTUSE__"
 fi
 
 # several packages require cmake.
@@ -832,7 +850,8 @@ if [ "${with_spglib}" = "__INSTALL__" ] ||
   [ "${with_spla}" = "__INSTALL__" ] ||
   [ "${with_ninja}" = "__INSTALL__" ] ||
   [ "${with_greenx}" = "__INSTALL__" ] ||
-  [ "${with_dftd4}" = "__INSTALL__" ]; then
+  [ "${with_dftd4}" = "__INSTALL__" ] ||
+  [ "${with_tblite}" = "__INSTALL__" ]; then
   [ "${with_cmake}" = "__DONTUSE__" ] && with_cmake="__INSTALL__"
 fi
 

@@ -107,7 +107,7 @@ CONTAINS
 #if defined(__LIBGRPP)
       flags = TRIM(flags)//" libgrpp"
 #endif
-#if defined(__LIBPEXSI)
+#if defined(__PEXSI)
       flags = TRIM(flags)//" pexsi"
 #endif
 #if defined(__ELPA)
@@ -138,6 +138,10 @@ CONTAINS
 
 #if defined(__HAS_PATCHED_CUFFT_70)
       flags = TRIM(flags)//" patched_cufft_70"
+#endif
+
+#if defined(__ACE)
+      flags = TRIM(flags)//" ace"
 #endif
 
 #if defined(__DEEPMD)
@@ -213,6 +217,10 @@ CONTAINS
 #endif
 #if defined(__DFTD4)
       flags = TRIM(flags)//" libdftd4"
+#endif
+#if defined(__TBLITE)
+      flags = TRIM(flags)//" mctc-lib"
+      flags = TRIM(flags)//" tblite"
 #endif
 #if defined(__SIRIUS)
       flags = TRIM(flags)//" sirius"

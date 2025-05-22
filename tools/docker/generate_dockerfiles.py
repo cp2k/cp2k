@@ -788,7 +788,7 @@ RUN ./install_cp2k_toolchain.sh \
     --dry-run
 
 # Dry-run leaves behind config files for the followup install scripts.
-# This breaks up the lengthy installation into smaller docker build steps.
+# This breaks up the lengthy installation into smaller build steps.
 COPY ./tools/toolchain/scripts/stage0/ ./scripts/stage0/
 RUN  ./scripts/stage0/install_stage0.sh && rm -rf ./build
 
@@ -854,16 +854,23 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     pkgconf \
     python3 \
     python3-dev \
+    python3-pip \
+    python3-venv \
     unzip \
     wget \
     xxd \
     xz-utils \
     zstd && rm -rf /var/lib/apt/lists/*
 
+# Create and activate a virtual environment for Python packages.
+RUN python3 -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+RUN pip3 install --quiet boto3==1.38.11 google-cloud-storage==3.1.0
+
 # Install a recent Spack version
 WORKDIR /root/spack
 ARG SPACK_VERSION
-ENV SPACK_VERSION=${{SPACK_VERSION:-develop-2025-04-27}}
+ENV SPACK_VERSION=${{SPACK_VERSION:-develop-2025-05-18}}
 RUN git init --quiet && \
     git remote add origin https://github.com/spack/spack.git && \
     git fetch --quiet --depth 1 origin ${{SPACK_VERSION}} --no-tags && \
@@ -876,18 +883,16 @@ RUN spack compiler find
 # Find all external packages
 RUN spack external find --all --not-buildable
 
-# Enable Spack build cache from the latest development version
-ARG SPACK_BUILD_CACHE
-ENV SPACK_BUILD_CACHE="${{SPACK_BUILD_CACHE:-develop-2025-04-27}}"
-RUN spack mirror add ${{SPACK_BUILD_CACHE}} https://binaries.spack.io/${{SPACK_BUILD_CACHE}} && \
-    spack buildcache keys --install --trust --force && \
-    spack mirror remove ${{SPACK_BUILD_CACHE}}
+# Add local Spack cache.
+ARG SPACK_CACHE="s3://spack-cache --s3-endpoint-url=http://localhost:9000"
+COPY ./tools/docker/scripts/setup_spack_cache.sh ./
+RUN ./setup_spack_cache.sh
 
 # Copy Spack configuration and build recipes
 ARG CP2K_BUILD_TYPE
 ENV CP2K_BUILD_TYPE=${{CP2K_BUILD_TYPE:-all}}
-COPY ./tools/spack/cp2k_deps_${{CP2K_BUILD_TYPE}}_{version}.yaml .
-COPY ./tools/spack/cp2k ./cp2k
+COPY ./tools/spack/repo.yaml ./tools/spack/cp2k_deps_${{CP2K_BUILD_TYPE}}_{version}.yaml ./
+COPY ./tools/spack/packages ./packages
 
 # Sarus containers must be dynamically linked to an MPI implementation that is ABI-compatible
 # with the MPI on the compute nodes at CSCS like MPICH@3
@@ -914,7 +919,7 @@ class OutputFile:
         self.content = io.StringIO()
         self.content.write(f"#\n")
         self.content.write(f"# This file was created by generate_dockerfiles.py.\n")
-        self.content.write(f"# Usage: docker build -f ./{filename} ../../\n")
+        self.content.write(f"# Usage: podman build -f ./{filename} ../../\n")
         self.content.write(f"#\n")
 
     def __enter__(self) -> io.StringIO:

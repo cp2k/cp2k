@@ -9,11 +9,12 @@ This directory hosts docker files for testing cp2k. They are mostly used by the
 To run a test one simply has to build the image:
 
 ```shell
-docker build --shm-size=1g -f Dockerfile.test_sdbg -t cp2k_test_sdbg ../../
+./spack_cache_start.sh
+podman build --network=host --shm-size=1g -f Dockerfile.test_sdbg -t cp2k_test_sdbg ../../
 ```
 
 To retrieve the cached report of an old image simply run it:
 
 ```shell
-docker run cp2k_test_sdbg
+podman run cp2k_test_sdbg
 ```

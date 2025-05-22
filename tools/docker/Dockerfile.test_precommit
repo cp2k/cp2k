@@ -1,6 +1,6 @@
 #
 # This file was created by generate_dockerfiles.py.
-# Usage: docker build -f ./Dockerfile.test_precommit ../../
+# Usage: podman build -f ./Dockerfile.test_precommit ../../
 #
 
 FROM ubuntu:24.04

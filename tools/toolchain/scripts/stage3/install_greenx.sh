@@ -66,7 +66,7 @@ case "$with_greenx" in
       cd ..
     fi
     GREENX_CFLAGS="-I'${pkg_install_dir}/include/modules'"
-    GREENX_LDFLAGS="-L'${pkg_install_dir}/lib'"
+    GREENX_LDFLAGS="-L'${pkg_install_dir}/lib' -Wl,-rpath,'${pkg_install_dir}/lib'"
     ;;
   __SYSTEM__)
     echo "==================== Finding GreenX from system paths ===================="

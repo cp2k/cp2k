@@ -123,7 +123,8 @@ MODULE qs_scf
                                               set_qs_env
    USE qs_integrate_potential,          ONLY: integrate_v_rspace
    USE qs_kind_types,                   ONLY: qs_kind_type
-   USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
+   USE qs_ks_methods,                   ONLY: evaluate_core_matrix_p_mix_new,&
+                                              qs_ks_update_qs_env
    USE qs_ks_types,                     ONLY: qs_ks_did_change,&
                                               qs_ks_env_type
    USE qs_mo_io,                        ONLY: write_mo_set_to_restart
@@ -171,6 +172,8 @@ MODULE qs_scf
    USE scf_control_types,               ONLY: scf_control_type
    USE smeagol_interface,               ONLY: run_smeagol_bulktrans,&
                                               run_smeagol_emtrans
+   USE tblite_interface,                ONLY: tb_get_energy,&
+                                              tb_update_charges
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -498,14 +501,31 @@ CONTAINS
 
             IF (do_kpoints) THEN
                ! kpoints
-               CALL qs_scf_new_mos_kp(qs_env, scf_env, scf_control, diis_step)
+               IF (dft_control%hairy_probes .EQV. .TRUE.) THEN
+                  scf_control%smear%do_smear = .FALSE.
+                  CALL qs_scf_new_mos_kp(qs_env, scf_env, scf_control, diis_step, dft_control%probe)
+               ELSE
+                  CALL qs_scf_new_mos_kp(qs_env, scf_env, scf_control, diis_step)
+               END IF
             ELSE
                ! Gamma points only
-               CALL qs_scf_new_mos(qs_env, scf_env, scf_control, scf_section, diis_step, energy_only)
+               IF (dft_control%hairy_probes .EQV. .TRUE.) THEN
+                  scf_control%smear%do_smear = .FALSE.
+                  CALL qs_scf_new_mos(qs_env, scf_env, scf_control, scf_section, diis_step, energy_only, &
+                                      dft_control%probe)
+               ELSE
+                  CALL qs_scf_new_mos(qs_env, scf_env, scf_control, scf_section, diis_step, energy_only)
+               END IF
             END IF
 
             ! Print requested MO information (can be computationally expensive with OT)
             CALL qs_scf_write_mos(qs_env, scf_env, final_mos=.FALSE.)
+
+            IF (dft_control%qs_control%xtb_control%do_tblite) THEN
+               CALL tb_update_charges(qs_env, dft_control, qs_env%tb_tblite, .FALSE., .FALSE.)
+               CALL evaluate_core_matrix_p_mix_new(qs_env)
+               CALL tb_get_energy(qs_env, qs_env%tb_tblite, energy)
+            END IF
 
             CALL qs_scf_density_mixing(scf_env, rho, para_env, diis_step)
 
@@ -690,9 +710,21 @@ CONTAINS
       ! this just guarantees that all mo_occupations match the eigenvalues, if smear
       DO ispin = 1, dft_control%nspins
          ! do not reset mo_occupations if the maximum overlap method is in use
-         IF (.NOT. scf_control%diagonalization%mom) &
-            CALL set_mo_occupation(mo_set=mos(ispin), &
-                                   smear=scf_control%smear)
+         IF (.NOT. scf_control%diagonalization%mom) THEN
+            !if the hair probes section is present, this sends hairy_probes to set_mo_occupation subroutine
+            !and switches off the standard smearing
+            IF (dft_control%hairy_probes .EQV. .TRUE.) THEN
+               IF (scf_env%outer_scf%iter_count > 0) THEN
+                  scf_control%smear%do_smear = .FALSE.
+                  CALL set_mo_occupation(mo_set=mos(ispin), &
+                                         smear=scf_control%smear, &
+                                         probe=dft_control%probe)
+               END IF
+            ELSE
+               CALL set_mo_occupation(mo_set=mos(ispin), &
+                                      smear=scf_control%smear)
+            END IF
+         END IF
       END DO
 
       SELECT CASE (scf_env%method)

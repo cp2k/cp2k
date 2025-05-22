@@ -118,6 +118,12 @@ FPGA
 GAPW
     Gaussian Augmented-Plane Waves method [→ more](methods/dft/gapw)
 
+gCP
+    Geometrical CounterPoise [→ more](#Kruse2012)
+
+GCP
+    Google Cloud Platform [→ more](https://cloud.google.com)
+
 GEEP
     Gaussian Expansion of the Electrostatic Potential [→ more](methods/qm_mm/builtin)
 
