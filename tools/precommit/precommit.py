@@ -216,7 +216,10 @@ def process_file(fn: str, allow_modifications: bool) -> None:
 
     if re.match(r"(.*/PACKAGE)|(.*\.py)$", fn):
         ast.parse(orig_content, filename=fn)
-        run_remote_tool("black", fn)
+        if "tools/spack/packages" in fn:
+            run_remote_tool("spackformat", fn)
+        else:
+            run_remote_tool("black", fn)
 
     if re.match(r".*\.sh$", fn):
         run_remote_tool("shfmt", fn)

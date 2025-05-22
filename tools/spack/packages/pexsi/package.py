@@ -24,29 +24,15 @@ class Pexsi(MakefilePackage, CMakePackage):
     homepage = "https://math.berkeley.edu/~linlin/pexsi/index.html"
 
     build_system(
-        conditional("cmake", when="@1:"),
-        conditional("makefile", when="@0"),
-        default="cmake",
+        conditional("cmake", when="@1:"), conditional("makefile", when="@0"), default="cmake"
     )
 
     license("BSD-3-Clause-LBNL")
 
-    version(
-        "2.0.0",
-        sha256="c5c83c2931b2bd0c68a462a49eeec983e78b5aaa1f17dd0454de4e27b91ca11f",
-    )
-    version(
-        "1.2.0",
-        sha256="8bfad6ec6866c6a29e1cc87fb1c17a39809795e79ede98373c8ba9a3aaf820dd",
-    )
-    version(
-        "0.10.2",
-        sha256="8714c71b76542e096211b537a9cb1ffb2c28f53eea4f5a92f94cc1ca1e7b499f",
-    )
-    version(
-        "0.9.0",
-        sha256="e5efe0c129013392cdac3234e37f1f4fea641c139b1fbea47618b4b839d05029",
-    )
+    version("2.0.0", sha256="c5c83c2931b2bd0c68a462a49eeec983e78b5aaa1f17dd0454de4e27b91ca11f")
+    version("1.2.0", sha256="8bfad6ec6866c6a29e1cc87fb1c17a39809795e79ede98373c8ba9a3aaf820dd")
+    version("0.10.2", sha256="8714c71b76542e096211b537a9cb1ffb2c28f53eea4f5a92f94cc1ca1e7b499f")
+    version("0.9.0", sha256="e5efe0c129013392cdac3234e37f1f4fea641c139b1fbea47618b4b839d05029")
 
     patch("fujitsu-add-link-flags.patch", when="%fj")
 
@@ -63,9 +49,7 @@ class Pexsi(MakefilePackage, CMakePackage):
         depends_on("cmake@3.10:", type="build")
         depends_on("cmake@3.17:", type="build", when="@2:")
 
-    variant(
-        "openmp", default=False, description="Build with OpenMP support", when="@1.2"
-    )
+    variant("openmp", default=False, description="Build with OpenMP support", when="@1.2")
     variant("fortran", default=False, description="Builds the Fortran interface")
     variant("pic", default=True, description="Compile position independent code (PIC)")
 
@@ -73,9 +57,7 @@ class Pexsi(MakefilePackage, CMakePackage):
         if version == Version("0"):
             return f"https://math.berkeley.edu/~linlin/pexsi/download/pexsi_v{version}.tar.gz"
 
-        return (
-            f"https://bitbucket.org/berkeleylab/pexsi/downloads/pexsi_v{version}.tar.gz"
-        )
+        return f"https://bitbucket.org/berkeleylab/pexsi/downloads/pexsi_v{version}.tar.gz"
 
 
 class MakefileBuilder(spack.build_systems.makefile.MakefileBuilder):
@@ -134,8 +116,7 @@ class MakefileBuilder(spack.build_systems.makefile.MakefileBuilder):
         # fortran "interface"
         if "+fortran" in spec:
             install_tree(
-                join_path(pkg.stage.source_path, "fortran"),
-                join_path(pkg.prefix, "fortran"),
+                join_path(pkg.stage.source_path, "fortran"), join_path(pkg.prefix, "fortran")
             )
 
 
@@ -148,8 +129,6 @@ class CMakeBuilder(spack.build_systems.cmake.CMakeBuilder):
         ]
 
         if self.spec.satisfies("%fj"):
-            args.append(
-                self.define("BLAS_LIBRARIES", self.spec["blas"].libs.link_flags)
-            )
+            args.append(self.define("BLAS_LIBRARIES", self.spec["blas"].libs.link_flags))
 
         return args
