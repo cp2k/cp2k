@@ -740,7 +740,7 @@ if(CP2K_USE_LIBTORCH)
 endif()
 
 if(CP2K_USE_MIMIC)
-  find_package(Mimic REQUIRED)
+  find_package(MiMiC REQUIRED)
 endif()
 
 if(CP2K_USE_MPI_F08 AND NOT MPI_Fortran_HAVE_F08_MODULE)
