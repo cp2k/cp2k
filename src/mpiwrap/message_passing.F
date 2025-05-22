@@ -1130,7 +1130,7 @@ CONTAINS
 !$       INTEGER                                  :: provided_tsl
 !$       LOGICAL                                  :: no_threading_support
 #if defined(__MIMIC)
-         MPI_COMM_TYPE                            :: mimic_handle
+         INTEGER                                  :: mimic_handle
 #endif
 
 #if defined(__NO_MPI_THREAD_SUPPORT_CHECK)
@@ -1182,7 +1182,11 @@ CONTAINS
          mimic_handle = mp_comm%get_handle()
          CALL mcl_initialize(mimic_handle)
          CALL mp_comm%set_handle(mimic_handle)
+#if defined(__MPI_F08)
+         mimic_comm_world%mpi_val = mimic_handle
+#else
          mimic_comm_world = mimic_handle
+#endif
 #endif
          CALL mp_comm%init()
          CALL add_mp_perf_env()
