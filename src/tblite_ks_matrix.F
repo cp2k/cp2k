@@ -30,7 +30,8 @@ MODULE tblite_ks_matrix
                                               mo_set_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
-   USE tblite_interface,                ONLY: tb_ham_add_coulomb,&
+   USE tblite_interface,                ONLY: tb_derive_dE,&
+                                              tb_ham_add_coulomb,&
                                               tb_update_charges
 #include "./base/base_uses.f90"
 
@@ -62,6 +63,7 @@ CONTAINS
       INTEGER                                            :: handle, img, ispin, nimg, ns, nspins
       LOGICAL                                            :: do_efield
       REAL(KIND=dp)                                      :: pc_ener, qmmm_el
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dE
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_p1, mo_derivs
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_matrix, matrix_h
       TYPE(dbcsr_type), POINTER                          :: mo_coeff
@@ -117,7 +119,7 @@ CONTAINS
 
       CALL tb_update_charges(qs_env, dft_control, qs_env%tb_tblite, calculate_forces, .TRUE.)
 
-      CALL tb_ham_add_coulomb(qs_env, qs_env%tb_tblite, dft_control, .FALSE.)
+      CALL tb_ham_add_coulomb(qs_env, qs_env%tb_tblite, dft_control, calculate_forces)
 
       IF (qs_env%qmmm) THEN
          CPASSERT(SIZE(ks_matrix, 2) == 1)
@@ -133,6 +135,12 @@ CONTAINS
          END DO
          pc_ener = qs_env%ks_qmmm_env%pc_ener
          energy%qmmm_el = energy%qmmm_el + pc_ener
+      END IF
+
+      IF (calculate_forces) THEN
+         CALL tb_derive_dE(qs_env, dE, .TRUE.)
+         WRITE (*, *) dE
+         DEALLOCATE (dE)
       END IF
 
       ! here we compute dE/dC if needed. Assumes dE/dC is H_{ks}C

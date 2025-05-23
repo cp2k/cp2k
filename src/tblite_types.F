@@ -48,6 +48,7 @@ MODULE tblite_types
       REAL(KIND=dp), ALLOCATABLE                         :: cn(:)
 
       REAL(KIND=dp), ALLOCATABLE                         :: grad(:, :)
+      !derivatives w. r. t. coordiantion number
       REAL(KIND=dp), ALLOCATABLE                         :: dsedcn(:)
       REAL(KIND=dp), ALLOCATABLE                         :: dcndr(:, :, :)
       REAL(KIND=dp), ALLOCATABLE                         :: dcndL(:, :, :)

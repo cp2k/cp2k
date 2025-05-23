@@ -96,7 +96,7 @@ MODULE tblite_interface
    PUBLIC :: tb_init_geometry, tb_init_wf
    PUBLIC :: tb_set_calculator, tb_get_basis, build_tblite_matrices
    PUBLIC :: tb_get_energy, tb_update_charges, tb_ham_add_coulomb
-   PUBLIC :: tb_get_multipole
+   PUBLIC :: tb_get_multipole, tb_derive_dE
 
 CONTAINS
 
@@ -996,16 +996,27 @@ CONTAINS
 
       IF (ALLOCATED(tb%calc%coulomb)) THEN
          CALL tb%calc%coulomb%get_potential(tb%mol, tb%cache, tb%wfn, tb%pot)
-      END IF
-      IF (ALLOCATED(tb%calc%dispersion)) THEN
-         CALL tb%calc%dispersion%get_potential(tb%mol, tb%dcache, tb%wfn, tb%pot)
-      END IF
-
-      IF (ALLOCATED(tb%calc%coulomb)) THEN
          CALL tb%calc%coulomb%get_energy(tb%mol, tb%cache, tb%wfn, tb%e_es)
       END IF
       IF (ALLOCATED(tb%calc%dispersion)) THEN
+         CALL tb%calc%dispersion%get_potential(tb%mol, tb%dcache, tb%wfn, tb%pot)
          CALL tb%calc%dispersion%get_energy(tb%mol, tb%dcache, tb%wfn, tb%e_scd)
+      END IF
+
+      IF (calculate_forces) THEN
+         IF (ALLOCATED(tb%calc%coulomb)) THEN
+            tb%grad = 0.0_dp
+            tb%sigma = 0.0_dp
+            CALL tb%calc%coulomb%get_gradient(tb%mol, tb%cache, tb%wfn, tb%grad, tb%sigma)
+            CALL tb_grad2force(qs_env, tb, para_env, 3)
+         END IF
+
+         IF (ALLOCATED(tb%calc%dispersion)) THEN
+            tb%grad = 0.0_dp
+            tb%sigma = 0.0_dp
+            CALL tb%calc%dispersion%get_gradient(tb%mol, tb%dcache, tb%wfn, tb%grad, tb%sigma)
+            CALL tb_grad2force(qs_env, tb, para_env, 2)
+         END IF
       END IF
 
       DEALLOCATE (ch_atom, ch_shell, ch_orb, ch_ref)
@@ -1066,8 +1077,6 @@ CONTAINS
          POINTER                                         :: n_list
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(xtb_atom_type), POINTER                       :: xtb_atom_a, xtb_atom_b
-
-      IF (calculate_forces) CPABORT("tblite: forces not yet available")
 
       nimg = dft_control%nimages
 
@@ -1884,6 +1893,83 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE tb_grad2force
+
+! **************************************************************************************************
+!> \brief compute the derivative of the energy
+!> \param qs_env ...
+!> \param dE ...
+!> \param use_rho ...
+! **************************************************************************************************
+   SUBROUTINE tb_derive_dE(qs_env, dE, use_rho)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dE
+      LOGICAL, INTENT(IN)                                :: use_rho
+
+      INTEGER                                            :: i, iatom, ic, ikind, ind, is, ish, &
+                                                            jatom, jkind
+      INTEGER, DIMENSION(3)                              :: cellind
+      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
+      LOGICAL                                            :: found
+      REAL(dp)                                           :: temp
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pblock
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(neighbor_list_iterator_p_type), &
+         DIMENSION(:), POINTER                           :: nl_iterator
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_orb
+      TYPE(qs_rho_type), POINTER                         :: rho
+      TYPE(qs_scf_env_type), POINTER                     :: scf_env
+      TYPE(tblite_type), POINTER                         :: tb
+
+      ! compute mulliken charges required for charge update
+      NULLIFY (scf_env, rho, tb, sab_orb, para_env, kpoints)
+      CALL get_qs_env(qs_env=qs_env, scf_env=scf_env, rho=rho, tb_tblite=tb, &
+                      sab_orb=sab_orb, para_env=para_env, kpoints=kpoints)
+      NULLIFY (cell_to_index)
+      CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index)
+
+      NULLIFY (matrix_p)
+      IF (use_rho) THEN
+         CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
+      ELSE
+         matrix_p => scf_env%p_mix_new
+      END IF
+
+      ALLOCATE (dE(tb%mol%nat))
+
+      ! loop over all atom pairs with a non-zero overlap (sab_orb)
+      CALL neighbor_list_iterator_create(nl_iterator, sab_orb)
+      DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
+         CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
+                                iatom=iatom, jatom=jatom, cell=cellind)
+
+         IF (iatom /= jatom) CYCLE
+
+         is = tb%calc%bas%ish_at(iatom)
+
+         ic = cell_to_index(cellind(1), cellind(2), cellind(3))
+         CPASSERT(ic > 0)
+         CALL dbcsr_get_block_p(matrix=matrix_p(1, ic)%matrix, &
+                                row=iatom, col=jatom, BLOCK=pblock, found=found)
+
+         IF (.NOT. found) CPABORT("block not found")
+
+         ind = 0
+         temp = 0.0_dp
+         DO ish = 1, tb%calc%bas%nsh_id(ikind)
+            DO i = 1, msao(tb%calc%bas%cgto(ish, ikind)%ang)
+               ind = ind + 1
+               temp = temp + tb%dsedcn(is + ish)*pblock(ind, ind)
+            END DO
+         END DO
+         dE(iatom) = temp
+      END DO
+      CALL neighbor_list_iterator_release(nl_iterator)
+
+   END SUBROUTINE tb_derive_dE
 
 END MODULE tblite_interface
 
