@@ -1576,10 +1576,10 @@ CONTAINS
       output_unit = cp_logger_get_default_io_unit(logger)
 
       do_cubes = BTEST(cp_print_key_should_output(logger%iter_info, input, &
-                                           "DFT%PRINT%ELF_CUBE"), cp_p_file)
+                                                  "DFT%PRINT%ELF_CUBE"), cp_p_file)
 #ifdef __OPENPMD
       do_openpmd = BTEST(cp_print_key_should_output(logger%iter_info, input, &
-                                           "DFT%PRINT%ELF_OPENPMD"), cp_p_file)
+                                                    "DFT%PRINT%ELF_OPENPMD"), cp_p_file)
       do_output = do_cubes .OR. do_openpmd
       IF (do_openpmd) THEN
          grid_output = grid_output_openpmd
@@ -1633,8 +1633,8 @@ CONTAINS
                mpi_io = .TRUE.
                IF (grid_output == grid_output_cubes) THEN
                   unit_nr = cp_print_key_unit_nr(logger, input, elf_section_key, extension=".cube", &
-                                                middle_name=TRIM(filename), file_position=my_pos_cube, log_filename=.FALSE., &
-                                                mpi_io=mpi_io, fout=mpi_filename)
+                                                 middle_name=TRIM(filename), file_position=my_pos_cube, log_filename=.FALSE., &
+                                                 mpi_io=mpi_io, fout=mpi_filename)
                   IF (output_unit > 0) THEN
                      IF (.NOT. mpi_io) THEN
                         INQUIRE (UNIT=unit_nr, NAME=filename)
@@ -1647,12 +1647,12 @@ CONTAINS
                   END IF
 
                   CALL cp_pw_to_cube(elf_r(ispin), unit_nr, title, particles=particles, &
-                                    stride=section_get_ivals(elf_section, "STRIDE"), mpi_io=mpi_io)
+                                     stride=section_get_ivals(elf_section, "STRIDE"), mpi_io=mpi_io)
                   CALL cp_print_key_finished_output(unit_nr, logger, input, elf_section_key, mpi_io=mpi_io)
                ELSE
                   unit_nr = cp_openpmd_print_key_unit_nr(logger, input, elf_section_key, &
-                                                middle_name=TRIM(filename), file_position=my_pos_cube, log_filename=.FALSE., &
-                                                mpi_io=mpi_io, openpmd_basename="dft-elf", fout=filename)
+                                                      middle_name=TRIM(filename), file_position=my_pos_cube, log_filename=.FALSE., &
+                                                         mpi_io=mpi_io, openpmd_basename="dft-elf", fout=filename)
                   IF (output_unit > 0) THEN
                      WRITE (UNIT=output_unit, FMT="(/,T2,A,/,/,T2,A)") &
                         "ELF is written in openPMD file format to the file:", &
@@ -1660,7 +1660,7 @@ CONTAINS
                   END IF
 
                   CALL cp_pw_to_openpmd(elf_r(ispin), unit_nr, title, particles=particles, &
-                                    stride=section_get_ivals(elf_section, "STRIDE"), mpi_io=mpi_io)
+                                        stride=section_get_ivals(elf_section, "STRIDE"), mpi_io=mpi_io)
                   CALL cp_openpmd_print_key_finished_output(unit_nr, logger, input, elf_section_key, mpi_io=mpi_io)
                END IF
 

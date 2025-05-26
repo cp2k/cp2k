@@ -519,7 +519,7 @@ CONTAINS
       IF (logger%para_env%is_source() .OR. my_mpi_io) THEN
 
          CALL section_vals_val_get(print_key, "FILENAME", c_val=outPath)
-         filename = cp_print_key_generate_openpmd_filename(logger, print_key, openpmd_basename, "."//openpmd_get_default_extension())
+        filename = cp_print_key_generate_openpmd_filename(logger, print_key, openpmd_basename, "."//openpmd_get_default_extension())
 
          ! Check is we have to log any operation performed on the file..
          do_log = .FALSE.
