@@ -3,13 +3,13 @@
 # CP2K Darwin arch file for a parallel arm64 binary
 # (https://www.cp2k.org/howto:compile_on_macos)
 #
-# Tested with: GNU 14.2.0 and OpenMPI 5.0.7 on an Apple M1 (macOS 15.4.1 Sequoia)
+# Tested with: GNU 14.2.0 and OpenMPI 5.0.7 on an Apple M1 (macOS 15.5 Sequoia)
 #
 # Usage: Source this arch file and then run make as instructed.
 #        Ensure the links in /opt/homebrew/bin to the gcc version
 #        and "brew unlink openmpi" (or mpich) if installed.
 #
-# Last update: 16.06.2025
+# Last update: 26.06.2025
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -26,7 +26,7 @@
       brew install coreutils; \
       brew install fftw; \
       brew install gawk; \
-      brew install gcc; \
+      brew install gcc@14; \
       brew install gmp; \
       brew install gsed; \
       brew install gsl; \
