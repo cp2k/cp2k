@@ -1784,16 +1784,14 @@ CONTAINS
                omega2 = eri_env%operator_parameter**2
                DO ig = grid%first_gne0, grid%ngpts_cut_local
                   g2 = grid%gsq(ig)
-                  ! ga = -0.25_dp*g2/omega2
-                  gf%array(ig) = fourpi/g2*EXP(-g2/(4.0*omega2))
+                  gf%array(ig) = fourpi/g2*EXP(-0.25_dp*g2/omega2)
                END DO
                IF (grid%have_g0) gf%array(1) = 0.0_dp
             CASE (eri_operator_erfc)
                omega2 = eri_env%operator_parameter**2
                DO ig = grid%first_gne0, grid%ngpts_cut_local
                   g2 = grid%gsq(ig)
-                  ! ga = -0.25_dp*g2/a
-                  gf%array(ig) = fourpi/g2*(1.0_dp - EXP(-g2/(4.0*omega2)))
+                  gf%array(ig) = fourpi/g2*(1.0_dp - EXP(-0.25_dp*g2/omega2))
                END DO
                IF (grid%have_g0) gf%array(1) = 0.25_dp*fourpi/omega2
             CASE (eri_operator_trunc)
@@ -1827,7 +1825,12 @@ CONTAINS
                DO ig = grid%first_gne0, grid%ngpts_cut_local
                   g2 = grid%gsq(ig)
                   g = SQRT(g2)
-                  gf%array(ig) = fourpi/g2*(1.0_dp - COS(g*Rc))
+                  ! Taylor expansion around zero
+                  IF (g*Rc >= 0.005_dp) THEN
+                     gf%array(ig) = fourpi/g2*(1.0_dp - COS(g*Rc))
+                  ELSE
+                     gf%array(ig) = fourpi/g2*(g*Rc)**2/2.0_dp*(1.0_dp - (g*Rc)**2/12.0_dp)
+                  END IF
                END DO
                IF (grid%have_g0) gf%array(1) = 0.5_dp*fourpi*Rc**2
             ! Not tested
@@ -1850,6 +1853,7 @@ CONTAINS
                   g2 = grid%gsq(ig)
                   g = SQRT(g2)
                   ga = -0.25_dp*g2/omega2
+                  ! twopi / g2 * EXP(ga) * ( erf(omega) )
                   gf%array(ig) = fourpi/g2*EXP(ga)*(1.0_dp - COS(g*Rc))
                END DO
                ! TODO: is this correct?
