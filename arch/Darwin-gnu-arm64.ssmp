@@ -3,12 +3,12 @@
 # CP2K Darwin arch file for a serial arm64 binary
 # (https://www.cp2k.org/howto:compile_on_macos)
 #
-# Tested with: GNU 14.2.0 on an Apple M1 (macOS 15.2 Sequoia)
+# Tested with: GNU 14.2.0 on an Apple M1 (macOS 15.5 Sequoia)
 #
 # Usage: Source this arch file and then run make as instructed.
 #        Ensure the links in /opt/homebrew/bin to the gcc version.
 #
-# Last update: 16.05.2025
+# Last update: 26.05.2025
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -25,7 +25,7 @@
       brew install coreutils; \
       brew install fftw; \
       brew install gawk; \
-      brew install gcc; \
+      brew install gcc@14; \
       brew install hdf5; \
       brew install libaec; \
       brew install libxc; \
