@@ -119,10 +119,9 @@ CONTAINS
 
       IF (PRESENT(info_out)) THEN
          info_out = info
-      ELSE
-         IF (info /= 0) &
-            CALL cp_abort(__LOCATION__, &
-                          "Cholesky decompose failed: the matrix is not positive definite or ill-conditioned.")
+      ELSE IF (info /= 0) THEN
+         CALL cp_abort(__LOCATION__, &
+                       "Cholesky decompose failed: the matrix is not positive definite or ill-conditioned.")
       END IF
 
       CALL timestop(handle)
