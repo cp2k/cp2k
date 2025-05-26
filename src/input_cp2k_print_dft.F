@@ -980,6 +980,38 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "ELF_OPENPMD", &
+                                       description="Controls printing of openPMD files with"// &
+                                       " the electron localization function (ELF). Note that"// &
+                                       " the value of ELF is defined between 0 and 1: Pauli kinetic energy density normalized"// &
+                                       " by the kinetic energy density of a uniform el. gas of same density.", &
+                                       print_level=high_print_level, filename="")
+      CALL keyword_create(keyword, __LOCATION__, name="stride", &
+                          description="The stride (X,Y,Z) used to write the cube file "// &
+                          "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
+                          " 1 number valid for all components.", &
+                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
+                          description="append the cube files when they already exist", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="density_cutoff", &
+                          description=" ", &
+                          usage="density_cutoff 0.0001", &
+                          repeats=.FALSE., &
+                          n_var=1, &
+                          type_of_var=real_t, &
+                          default_r_val=1.0e-10_dp)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
+
       CALL cp_print_key_section_create(print_key, __LOCATION__, "LOCAL_ENERGY_CUBE", &
                                        description="Controls the printing of cube files with the local"// &
                                        " energy. It is valid only for QS with GPW/GAPW formalism."// &
