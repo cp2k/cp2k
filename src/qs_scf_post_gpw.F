@@ -218,7 +218,7 @@ MODULE qs_scf_post_gpw
    PUBLIC :: make_lumo_gpw
 
    INTEGER, PARAMETER :: grid_output_cubes = 1, grid_output_openpmd = 2
-   CHARACTER(len=*), PARAMETER :: str_mo_cubes = "PRINT%MO_CUBES", str_openpmd = "PRINT%OPENPMD"
+   CHARACTER(len=*), PARAMETER :: str_mo_cubes = "PRINT%MO_CUBES", str_openpmd = "PRINT%MO_OPENPMD"
 
 ! **************************************************************************************************
 
@@ -479,7 +479,7 @@ CONTAINS
       do_mo_cubes = BTEST(cp_print_key_should_output(logger%iter_info, dft_section, "PRINT%MO_CUBES") &
                           , cp_p_file)
 #ifdef __OPENPMD
-      do_openpmd = BTEST(cp_print_key_should_output(logger%iter_info, dft_section, "PRINT%OPENPMD") &
+      do_openpmd = BTEST(cp_print_key_should_output(logger%iter_info, dft_section, "PRINT%MO_OPENPMD") &
                          , cp_p_file)
       do_output = do_mo_cubes .OR. do_openpmd
       IF (do_openpmd) THEN
@@ -1087,7 +1087,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
 #ifndef __OPENPMD
-      ! Error should usually be caught earlier as PRINT%OPENPMD is not added to the input section
+      ! Error should usually be caught earlier as PRINT%MO_OPENPMD is not added to the input section
       ! if openPMD is not activated
       CPASSERT(grid_output /= grid_output_openpmd)
 #endif
@@ -1218,7 +1218,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
 #ifndef __OPENPMD
-      ! Error should usually be caught earlier as PRINT%OPENPMD is not added to the input section
+      ! Error should usually be caught earlier as PRINT%MO_OPENPMD is not added to the input section
       ! if openPMD is not activated
       CPASSERT(grid_output /= grid_output_openpmd)
 #endif

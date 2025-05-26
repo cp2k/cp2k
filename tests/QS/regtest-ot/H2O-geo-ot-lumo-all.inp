@@ -20,9 +20,9 @@
       CUTOFF 200
     &END MGRID
     &PRINT
-      &OPENPMD
+      &MO_OPENPMD
         NLUMO -1
-      &END OPENPMD
+      &END MO_OPENPMD
     &END PRINT
     &QS
       EPS_DEFAULT 1.0E-12
