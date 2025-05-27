@@ -320,7 +320,7 @@ CONTAINS
       CHARACTER(len=default_string_length)               :: extension
 
       CHARACTER(kind=C_CHAR), POINTER                    :: c_extension
-      INTEGER(C_SIZE_T)                                  :: length_of_c_string
+      INTEGER(C_SIZE_T)                                  :: length_of_c_string, i
       INTERFACE
          FUNCTION openpmd_c_get_default_extension() RESULT(extension) BIND(c, name="openPMD_get_default_extension")
             IMPORT :: C_CHAR
@@ -351,7 +351,11 @@ CONTAINS
       END IF
 
       ! Copy the contents from c_extension to extension
-      extension = TRIM(ADJUSTL(TRANSFER(c_extension(1:length_of_c_string + 1), extension)))
+      extension = TRIM(ADJUSTL(TRANSFER(c_extension(1:length_of_c_string), extension)))
+
+      DO i = length_of_c_string + 1, LEN(extension)
+         extension(i:i) = ' '
+      END DO
 
    END FUNCTION
 
