@@ -133,7 +133,7 @@ From here, you can iterate CP2K development using the native build system as Spa
 Some CP2K Docker containers install all the necessary dependencies with Spack.
 Building with Spack can be time-consuming, because all dependencies are built from source.
 In order to speed-up development and testing with the Spack-based Docker containers,
-you can enable a [Spack cache] locally:
+you should enable a [Spack cache] locally:
 
 ```bash
 ./tools/docker/spack_cache_start.sh
@@ -150,6 +150,13 @@ docker build -f tools/docker/Dockerfile.test_spack -t cp2k_test_spack --shm-size
 ```
 
 The first build after enabling the cache will be as slow as usual, but all subsequent builds will be much faster.
+
+The cache is expected, as it dramatically improves build times.
+Should you need to build without using the Spack cache, you can set it to an empty string as follows:
+
+```bash
+docker build -f tools/docker/Dockerfile.test_spack -t cp2k_test_spack --shm-size=1Gb --build-arg SPACK_CACHE="" .
+```
 
 [cp2k spack package]: https://packages.spack.io/package.html?name=cp2k
 [dbcsr]: https://cp2k.github.io/dbcsr/develop/
