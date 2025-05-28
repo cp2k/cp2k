@@ -1,6 +1,6 @@
 #
 # This file was created by generate_dockerfiles.py.
-# Usage: podman build -f ./Dockerfile.test_gcc8 ../../
+# Usage: podman build --shm-size=1g -f ./Dockerfile.test_gcc8 ../../
 #
 
 FROM ubuntu:20.04
