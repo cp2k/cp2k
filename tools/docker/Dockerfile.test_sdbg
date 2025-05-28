@@ -1,6 +1,6 @@
 #
 # This file was created by generate_dockerfiles.py.
-# Usage: podman build -f ./Dockerfile.test_sdbg ../../
+# Usage: podman build --shm-size=1g -f ./Dockerfile.test_sdbg ../../
 #
 
 FROM ubuntu:24.04

@@ -38,7 +38,22 @@ def main() -> None:
 
     for version in "ssmp", "psmp":
         with OutputFile(f"Dockerfile.test_intel-{version}", args.check) as f:
-            f.write(install_deps_toolchain_intel())
+            f.write(
+                install_deps_toolchain_intel(
+                    base_image="intel/hpckit:2024.2.1-0-devel-ubuntu22.04",
+                    with_ifx="no",
+                )
+            )
+            f.write(regtest(version, intel=True, testopts="--mpiexec mpiexec"))
+        with OutputFile(
+            f"Dockerfile.test_intel-oneapi-hpckit-{version}", args.check
+        ) as f:
+            f.write(
+                install_deps_toolchain_intel(
+                    base_image="intel/oneapi-hpckit:2025.1.3-0-devel-ubuntu24.04",
+                    with_ifx="yes",
+                )
+            )
             f.write(regtest(version, intel=True, testopts="--mpiexec mpiexec"))
 
     with OutputFile(f"Dockerfile.test_nvhpc", args.check) as f:
@@ -523,14 +538,18 @@ RUN ln -sf /usr/bin/gcc-{gcc_version}      /usr/local/bin/gcc  && \
 
 
 # ======================================================================================
-def install_deps_toolchain_intel() -> str:
+def install_deps_toolchain_intel(
+    base_image: str = "intel/hpckit:2024.2.1-0-devel-ubuntu22.04",
+    with_ifx: str = "no",
+) -> str:
     return rf"""
-FROM intel/hpckit:2024.2.1-0-devel-ubuntu22.04
+FROM {base_image}
 
 """ + install_toolchain(
         base_image="ubuntu",
         install_all="",
         with_dbcsr="no",
+        with_ifx=with_ifx,
         with_intelmpi="",
         with_mkl="",
         with_libsmeagol="",
@@ -919,7 +938,9 @@ class OutputFile:
         self.content = io.StringIO()
         self.content.write(f"#\n")
         self.content.write(f"# This file was created by generate_dockerfiles.py.\n")
-        self.content.write(f"# Usage: podman build -f ./{filename} ../../\n")
+        self.content.write(
+            f"# Usage: podman build --shm-size=1g -f ./{filename} ../../\n"
+        )
         self.content.write(f"#\n")
 
     def __enter__(self) -> io.StringIO:

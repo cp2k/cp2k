@@ -1,6 +1,6 @@
 #
 # This file was created by generate_dockerfiles.py.
-# Usage: podman build -f ./Dockerfile.test_intel-psmp ../../
+# Usage: podman build --shm-size=1g -f ./Dockerfile.test_intel-psmp ../../
 #
 
 FROM intel/hpckit:2024.2.1-0-devel-ubuntu22.04
@@ -23,6 +23,7 @@ COPY ./tools/toolchain/install_cp2k_toolchain.sh .
 RUN ./install_cp2k_toolchain.sh \
     --install-all \
     --with-dbcsr=no \
+    --with-ifx=no \
     --with-intelmpi \
     --with-mkl \
     --with-libsmeagol \
