@@ -1,6 +1,6 @@
 #
 # This file was created by generate_dockerfiles.py.
-# Usage: podman build -f ./Dockerfile.test_hip_cuda_V100 ../../
+# Usage: podman build --shm-size=1g -f ./Dockerfile.test_hip_cuda_V100 ../../
 #
 
 FROM nvidia/cuda:11.8.0-devel-ubuntu22.04
