@@ -741,9 +741,11 @@ CONTAINS
          END IF
 
          basis_set_a => basis_set_list_a(ikind)%gto_basis_set
-         IF (.NOT. ASSOCIATED(basis_set_a)) CYCLE
+         ! When RI_AUX NONE is invoked, the pointers to basis_set_a and basis_set_b are created,
+         ! but not filled. Therefore, we check for the association and the number of entries.
+         IF (.NOT. ASSOCIATED(basis_set_a) .OR. SUM(basis_set_a%nsgf_set) <= 0) CYCLE
          basis_set_b => basis_set_list_b(jkind)%gto_basis_set
-         IF (.NOT. ASSOCIATED(basis_set_b)) CYCLE
+         IF (.NOT. ASSOCIATED(basis_set_b) .OR. SUM(basis_set_b%nsgf_set) <= 0) CYCLE
          atom_a = atom_of_kind(iatom)
          atom_b = atom_of_kind(jatom)
 
