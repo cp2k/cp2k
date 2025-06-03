@@ -1847,6 +1847,8 @@ CONTAINS
                IF (grid%have_g0) gf%array(1) = fourpi/(omega**2)*(1.0_dp - ea*(1.0_dp + omega*Rc))
             ! Long-range Coulomb
             CASE (eri_operator_erf)
+               CALL cp_warn(__LOCATION__, &
+               "Long-range Coulomb operator may be incorrect with ANALYTIC0D Poisson solver")
                Rc = green%radius
                omega2 = eri_env%operator_parameter**2
                DO ig = grid%first_gne0, grid%ngpts_cut_local
@@ -1860,6 +1862,8 @@ CONTAINS
                IF (grid%have_g0) gf%array(1) = 0.5_dp*fourpi*Rc**2
             ! Short-range Coulomb
             CASE (eri_operator_erfc)
+               CALL cp_warn(__LOCATION__, &
+               "Short-range Coulomb operator may be incorrect with ANALYTIC0D Poisson solver")
                Rc = green%radius
                omega2 = eri_env%operator_parameter**2
                DO ig = grid%first_gne0, grid%ngpts_cut_local
