@@ -9,7 +9,7 @@
 #        Ensure the links in /opt/homebrew/bin to the gcc version
 #        and "brew unlink openmpi" (or mpich) if installed.
 #
-# Last update: 26.06.2025
+# Last update: 26.05.2025
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
