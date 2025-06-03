@@ -192,9 +192,8 @@ __global__ static void process_batch_kernel(const double alpha,
  *        All arguments are assumed to be device pointers.
  * \author Ole Schuett
  ******************************************************************************/
-void dbm_multiply_gpu_launch_kernel(const offloadStream_t stream,
-                                    const double alpha, const int ntasks,
-                                    const dbm_task_t *tasks_host,
+void dbm_multiply_gpu_launch_kernel(offloadStream_t stream, double alpha,
+                                    int ntasks, const dbm_task_t *tasks_host,
                                     const dbm_task_t *tasks,
                                     const double *pack_a_data,
                                     const double *pack_b_data,

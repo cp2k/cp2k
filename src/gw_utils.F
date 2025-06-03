@@ -18,7 +18,8 @@ MODULE gw_utils
    USE bibliography,                    ONLY: Graml2024,&
                                               cite_reference
    USE cell_types,                      ONLY: cell_type,&
-                                              pbc
+                                              pbc,&
+                                              scaled_to_real
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
@@ -280,6 +281,7 @@ CONTAINS
       CALL section_vals_val_get(gw_sec, "NUM_TIME_FREQ_POINTS", i_val=bs_env%num_time_freq_points)
       CALL section_vals_val_get(gw_sec, "EPS_FILTER", r_val=bs_env%eps_filter)
       CALL section_vals_val_get(gw_sec, "REGULARIZATION_RI", r_val=bs_env%input_regularization_RI)
+      CALL section_vals_val_get(gw_sec, "REGULARIZATION_MINIMAX", r_val=bs_env%input_regularization_minimax)
       CALL section_vals_val_get(gw_sec, "CUTOFF_RADIUS_RI", r_val=bs_env%ri_metric%cutoff_radius)
       CALL section_vals_val_get(gw_sec, "MEMORY_PER_PROC", r_val=bs_env%input_memory_per_proc_GB)
       CALL section_vals_val_get(gw_sec, "APPROX_KP_EXTRAPOL", l_val=bs_env%approx_kp_extrapol)
@@ -1283,6 +1285,20 @@ CONTAINS
          bs_env%Sigma_x_exists = bs_env%Sigma_x_exists .AND. Sigma_x_spin_exists
       END DO
 
+      ! If any restart files are read, check if the SCF converged in 1 step.
+      ! This is important because a re-iterated SCF can lead to spurious GW results
+      IF (ANY(bs_env%read_chi(:)) &
+          .OR. ANY(bs_env%Sigma_c_exists) &
+          .OR. bs_env%all_W_exist &
+          .OR. bs_env%Sigma_x_exists &
+          ) THEN
+
+         IF (qs_env%scf_env%iter_count /= 1) THEN
+            CALL cp_warn(__LOCATION__, "SCF needed more than 1 step, "// &
+                         "which might lead to spurious GW results when using GW restart files. ")
+         END IF
+      END IF
+
       CALL timestop(handle)
 
    END SUBROUTINE check_for_restart_files
@@ -1508,13 +1524,17 @@ CONTAINS
       ! for generating numerically stable minimax Fourier integration weights
       bs_env%num_points_per_magnitude = 200
 
-      ! for periodic systems and for 20 minimax points, we use a regularized minimax mesh
-      ! (from experience: regularized minimax meshes converges faster for periodic systems
-      !  and for 20 pts)
-      IF (SUM(bs_env%periodic) .NE. 0 .OR. bs_env%num_time_freq_points >= 20) THEN
-         bs_env%regularization_minimax = 1.0E-6_dp
+      IF (bs_env%input_regularization_minimax > -1.0E-12_dp) THEN
+         bs_env%regularization_minimax = bs_env%input_regularization_minimax
       ELSE
-         bs_env%regularization_minimax = 0.0_dp
+         ! for periodic systems and for 20 minimax points, we use a regularized minimax mesh
+         ! (from experience: regularized minimax meshes converges faster for periodic systems
+         !  and for 20 pts)
+         IF (SUM(bs_env%periodic) .NE. 0 .OR. bs_env%num_time_freq_points >= 20) THEN
+            bs_env%regularization_minimax = 1.0E-6_dp
+         ELSE
+            bs_env%regularization_minimax = 0.0_dp
+         END IF
       END IF
 
       bs_env%stabilize_exp = 70.0_dp
@@ -1563,6 +1583,8 @@ CONTAINS
          WRITE (u, FMT="(T2,2A,F15.1,A)") "Cutoff radius for the truncated Coulomb ", &
             "operator in RI metric:", bs_env%ri_metric%cutoff_radius*angstrom, " Å"
          WRITE (u, FMT="(T2,A,ES48.1)") "Regularization parameter of RI ", bs_env%regularization_RI
+         WRITE (u, FMT="(T2,A,ES38.1)") "Regularization parameter of minimax grids", &
+            bs_env%regularization_minimax
          WRITE (u, FMT="(T2,A,I53)") "Lattice sum size for V(k):", bs_env%size_lattice_sum_V
       END IF
 
@@ -1899,26 +1921,40 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'setup_cells_3c'
 
-      INTEGER :: atom_i, atom_j, atom_k, cell_pair_count, handle, i, i_cell_x, i_cell_x_max, &
+      INTEGER :: atom_i, atom_j, atom_k, block_count, handle, i, i_cell_x, i_cell_x_max, &
          i_cell_x_min, i_size, ikind, img, j, j_cell, j_cell_max, j_cell_y, j_cell_y_max, &
          j_cell_y_min, j_size, k_cell, k_cell_max, k_cell_z, k_cell_z_max, k_cell_z_min, k_size, &
          nimage_pairs_3c, nimages_3c, nimages_3c_max, nkind, u
       INTEGER(KIND=int_8)                                :: mem_occ_per_proc
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: n_other_3c_images_max
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of, n_other_3c_images_max
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: index_to_cell_3c_max, nblocks_3c_max
       INTEGER, DIMENSION(3)                              :: cell_index, n_max
-      REAL(KIND=dp) :: avail_mem_per_proc_GB, cell_dist, cell_radius_3c, eps, exp_min_ao, &
-         exp_min_RI, frobenius_norm, mem_3c_GB, mem_occ_per_proc_GB, radius_ao, radius_ao_product, &
-         radius_RI
+      REAL(KIND=dp) :: avail_mem_per_proc_GB, cell_dist, cell_radius_3c, dij, dik, djk, eps, &
+         exp_min_ao, exp_min_RI, frobenius_norm, mem_3c_GB, mem_occ_per_proc_GB, radius_ao, &
+         radius_ao_product, radius_RI
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: exp_ao_kind, exp_RI_kind, &
+                                                            radius_ao_kind, &
+                                                            radius_ao_product_kind, radius_RI_kind
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: int_3c
+      REAL(KIND=dp), DIMENSION(3)                        :: rij, rik, rjk, vec_cell_j, vec_cell_k
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: exp_ao, exp_RI
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
 
       CALL timeset(routineN, handle)
 
-      CALL get_qs_env(qs_env, nkind=nkind)
+      CALL get_qs_env(qs_env, nkind=nkind, atomic_kind_set=atomic_kind_set, particle_set=particle_set, cell=cell)
+
+      ALLOCATE (exp_ao_kind(nkind), exp_RI_kind(nkind), radius_ao_kind(nkind), &
+                radius_ao_product_kind(nkind), radius_RI_kind(nkind))
 
       exp_min_RI = 10.0_dp
       exp_min_ao = 10.0_dp
+      exp_RI_kind = 10.0_dp
+      exp_AO_kind = 10.0_dp
+
+      eps = bs_env%eps_filter*bs_env%heuristic_filter_factor
 
       DO ikind = 1, nkind
 
@@ -1930,21 +1966,27 @@ CONTAINS
          DO i = 1, SIZE(exp_RI, 1)
             DO j = 1, SIZE(exp_RI, 2)
                IF (exp_RI(i, j) < exp_min_RI .AND. exp_RI(i, j) > 1E-3_dp) exp_min_RI = exp_RI(i, j)
+               IF (exp_RI(i, j) < exp_RI_kind(ikind) .AND. exp_RI(i, j) > 1E-3_dp) &
+                  exp_RI_kind(ikind) = exp_RI(i, j)
             END DO
          END DO
          DO i = 1, SIZE(exp_ao, 1)
             DO j = 1, SIZE(exp_ao, 2)
                IF (exp_ao(i, j) < exp_min_ao .AND. exp_ao(i, j) > 1E-3_dp) exp_min_ao = exp_ao(i, j)
+               IF (exp_ao(i, j) < exp_ao_kind(ikind) .AND. exp_ao(i, j) > 1E-3_dp) &
+                  exp_ao_kind(ikind) = exp_ao(i, j)
             END DO
          END DO
-
+         radius_ao_kind(ikind) = SQRT(-LOG(eps)/exp_ao_kind(ikind))
+         radius_ao_product_kind(ikind) = SQRT(-LOG(eps)/(2.0_dp*exp_ao_kind(ikind)))
+         radius_RI_kind(ikind) = SQRT(-LOG(eps)/exp_RI_kind(ikind))
       END DO
-
-      eps = bs_env%eps_filter*bs_env%heuristic_filter_factor
 
       radius_ao = SQRT(-LOG(eps)/exp_min_ao)
       radius_ao_product = SQRT(-LOG(eps)/(2.0_dp*exp_min_ao))
       radius_RI = SQRT(-LOG(eps)/exp_min_RI)
+
+      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, kind_of=kind_of)
 
       ! For a 3c integral (μR υS | P0) we have that cell R and cell S need to be within radius_3c
       cell_radius_3c = radius_ao_product + radius_RI + bs_env%ri_metric%cutoff_radius
@@ -2008,18 +2050,32 @@ CONTAINS
       ALLOCATE (nblocks_3c_max(nimages_3c_max, nimages_3c_max))
       nblocks_3c_max(:, :) = 0
 
-      cell_pair_count = 0
+      block_count = 0
       DO j_cell = 1, nimages_3c_max
          DO k_cell = 1, nimages_3c_max
-
-            cell_pair_count = cell_pair_count + 1
-
-            ! trivial parallelization over cell pairs
-            IF (MODULO(cell_pair_count, bs_env%para_env%num_pe) .NE. bs_env%para_env%mepos) CYCLE
 
             DO atom_j = 1, bs_env%n_atom
             DO atom_k = 1, bs_env%n_atom
             DO atom_i = 1, bs_env%n_atom
+
+               block_count = block_count + 1
+               IF (MODULO(block_count, bs_env%para_env%num_pe) .NE. bs_env%para_env%mepos) CYCLE
+
+               CALL scaled_to_real(vec_cell_j, REAL(index_to_cell_3c_max(j_cell, 1:3), kind=dp), cell)
+               CALL scaled_to_real(vec_cell_k, REAL(index_to_cell_3c_max(k_cell, 1:3), kind=dp), cell)
+
+               rij = pbc(particle_set(atom_j)%r(:), cell) - pbc(particle_set(atom_i)%r(:), cell) + vec_cell_j(:)
+               rjk = pbc(particle_set(atom_k)%r(:), cell) - pbc(particle_set(atom_j)%r(:), cell) &
+                     + vec_cell_k(:) - vec_cell_j(:)
+               rik(:) = rij(:) + rjk(:)
+               dij = NORM2(rij)
+               dik = NORM2(rik)
+               djk = NORM2(rjk)
+               IF (djk > radius_ao_kind(kind_of(atom_j)) + radius_ao_kind(kind_of(atom_k))) CYCLE
+               IF (dij > radius_ao_kind(kind_of(atom_j)) + radius_RI_kind(kind_of(atom_i)) &
+                   + bs_env%ri_metric%cutoff_radius) CYCLE
+               IF (dik > radius_RI_kind(kind_of(atom_i)) + radius_ao_kind(kind_of(atom_k)) &
+                   + bs_env%ri_metric%cutoff_radius) CYCLE
 
                j_size = bs_env%i_ao_end_from_atom(atom_j) - bs_env%i_ao_start_from_atom(atom_j) + 1
                k_size = bs_env%i_ao_end_from_atom(atom_k) - bs_env%i_ao_start_from_atom(atom_k) + 1

@@ -106,8 +106,8 @@ CONTAINS
 !> \date    01.2020
 !> \author  Fabian Belleflamme
 ! **************************************************************************************************
-   SUBROUTINE preconditioner(qs_env, matrix_ks, matrix_p, matrix_rhs, &
-                             matrix_cg_z, eps_filter, iounit)
+   SUBROUTINE ec_preconditioner(qs_env, matrix_ks, matrix_p, matrix_rhs, &
+                                matrix_cg_z, eps_filter, iounit)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN), &
@@ -117,7 +117,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
       INTEGER, INTENT(IN)                                :: iounit
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'preconditioner'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'ec_preconditioner'
 
       INTEGER                                            :: handle, i, ispin, max_iter, nao, nspins
       LOGICAL                                            :: converged
@@ -336,7 +336,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE preconditioner
+   END SUBROUTINE ec_preconditioner
 
 ! **************************************************************************************************
 !> \brief AO-based conjugate gradient linear response solver.
@@ -558,13 +558,13 @@ CONTAINS
       IF (linres_control%preconditioner_type == precond_mlp) THEN
          ! M * z_0 = r_0
          ! Conjugate gradient returns z_0
-         CALL preconditioner(qs_env=qs_env, &
-                             matrix_ks=matrix_ks, &
-                             matrix_p=matrix_p, &
-                             matrix_rhs=matrix_res, &
-                             matrix_cg_z=matrix_z0, &
-                             eps_filter=eps_filter, &
-                             iounit=iounit)
+         CALL ec_preconditioner(qs_env=qs_env, &
+                                matrix_ks=matrix_ks, &
+                                matrix_p=matrix_p, &
+                                matrix_rhs=matrix_res, &
+                                matrix_cg_z=matrix_z0, &
+                                eps_filter=eps_filter, &
+                                iounit=iounit)
          linres_control%flag = "PCG-AO"
       ELSE
          ! z_0 = r_0
@@ -757,13 +757,13 @@ CONTAINS
          IF (linres_control%preconditioner_type == precond_mlp) THEN
             ! M * z_j+1 = r_j+1
             ! Conjugate gradient returns z_j+1
-            CALL preconditioner(qs_env=qs_env, &
-                                matrix_ks=matrix_ks, &
-                                matrix_p=matrix_p, &
-                                matrix_rhs=matrix_res, &
-                                matrix_cg_z=matrix_z0, &
-                                eps_filter=eps_filter, &
-                                iounit=iounit)
+            CALL ec_preconditioner(qs_env=qs_env, &
+                                   matrix_ks=matrix_ks, &
+                                   matrix_p=matrix_p, &
+                                   matrix_rhs=matrix_res, &
+                                   matrix_cg_z=matrix_z0, &
+                                   eps_filter=eps_filter, &
+                                   iounit=iounit)
             linres_control%flag = "PCG-AO"
          ELSE
             DO ispin = 1, nspins

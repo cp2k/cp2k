@@ -88,7 +88,8 @@ MODULE input_cp2k_dft
                                               lchar_t,&
                                               real_t
    USE kinds,                           ONLY: dp
-   USE physcon,                         ONLY: femtoseconds
+   USE physcon,                         ONLY: evolt,&
+                                              femtoseconds
    USE pw_spline_utils,                 ONLY: no_precond,&
                                               precond_spl3_1,&
                                               precond_spl3_2,&
@@ -444,7 +445,78 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
+      CALL create_hairy_probes_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
    END SUBROUTINE create_dft_section
+
+! **************************************************************************************************
+!> \brief Hairy Probe DFT Model
+!> \param section ...
+!> \author Margherita Buraschi
+! **************************************************************************************************
+
+   SUBROUTINE create_hairy_probes_section(section)
+      TYPE(section_type), POINTER                        :: section
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      NULLIFY (keyword)
+      CPASSERT(.NOT. ASSOCIATED(section))
+      CALL section_create(section, __LOCATION__, &
+                          name="HAIRY_PROBES", &
+                          description="Sets up a Hairy Probe calculation. ", &
+                          n_keywords=0, n_subsections=0, repeats=.TRUE.)
+
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="_SECTION_PARAMETERS_", &
+                          description="Controls the activation of hairy probe", &
+                          usage="&HAIRY_PROBES ON", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="ATOM_IDS", &
+                          description="Indexes of the atoms to which the probes are attached.", &
+                          usage="ATOM_IDS <INTEGER> .. <INTEGER>", &
+                          type_of_var=integer_t, n_var=-1)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="T", &
+                          description="Electronic temperature [K]", &
+                          usage="T <REAL>", &
+                          default_r_val=cp_unit_to_cp2k(value=300.0_dp, unit_str="K"), &
+                          unit_str="K")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="MU", &
+                          description="Chemical potential of the electrons in the probes [eV] ", &
+                          usage="MU <REAL>", &
+                          default_r_val=cp_unit_to_cp2k(value=0.0_dp, unit_str="eV"), &
+                          unit_str="eV")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="ALPHA", &
+                          description="Parameter for solution probes ", &
+                          usage="ALPHA <REAL>", &
+                          default_r_val=1.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_HP", &
+                          description=" Tolerance for accuracy checks on occupation numbers "// &
+                          "calculated using hair-probes. ", &
+                          usage="EPS_HP <REAL>", &
+                          default_r_val=1.0E-5_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+   END SUBROUTINE create_hairy_probes_section
+!####################################################################################
 
 ! **************************************************************************************************
 !> \brief Implicit Solvation Model
@@ -1749,6 +1821,16 @@ CONTAINS
       CALL section_add_subsection(print_section, print_key)
       CALL section_release(print_key)
 
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "CURRENT_INT", &
+                                       description="Print the integral of the current density (only if the"// &
+                                       " imaginary part of the density is NOT zero.", &
+                                       print_level=high_print_level, common_iter_levels=1, &
+                                       each_iter_names=s2a("MD"), &
+                                       each_iter_values=(/1/), &
+                                       filename="rtp_j_int")
+      CALL section_add_subsection(print_section, print_key)
+      CALL section_release(print_key)
+
       CALL cp_print_key_section_create(print_key, __LOCATION__, "CURRENT", &
                                        description="Print the current during an EMD simulation to cube files.", &
                                        print_level=high_print_level, common_iter_levels=0, &
@@ -1852,8 +1934,10 @@ CONTAINS
       TYPE(section_type), POINTER                        :: section
 
       TYPE(keyword_type), POINTER                        :: keyword
+      TYPE(section_type), POINTER                        :: subsection
 
       NULLIFY (keyword)
+      NULLIFY (subsection)
       CPASSERT(.NOT. ASSOCIATED(section))
 
       CALL section_create(section, __LOCATION__, name="RTBSE", &
@@ -1900,7 +1984,8 @@ CONTAINS
                           "(Fourier transform is used for calculation of MOMENTS_FT and POLARIZABILITY). "// &
                           "For negative values (the default), calculates the damping at the run time so that the last point "// &
                           "in the time trace is reduced by factor e^(-4). When set manually, determines the time in which "// &
-                          "the moments trace is reduced by factor of e^(-1).", &
+                          "the moments trace is reduced by factor of e^(-1), except when set to zero, in which case "// &
+                          "the damping is not applied.", &
                           type_of_var=real_t, &
                           unit_str="fs", &
                           default_r_val=-1.0_dp/femtoseconds)
@@ -1916,6 +2001,62 @@ CONTAINS
                           default_r_val=0.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
+
+      ! Padé FT refinement
+      ! TODO : Link MOMENTS_FT in documentation.
+      CALL section_create(subsection, __LOCATION__, name="PADE_FT", &
+                          description="Options for the Padé approximant refinement of the Fourier transform. Uses GreenX "// &
+                          "library to perform the analytic continuation and interpolation of the Fourier transform of "// &
+                          "dipole moments. The resulting moments are printed into the MOMENTS_FT file.", &
+                          repeats=.FALSE.)
+
+      CALL keyword_create(keyword, __LOCATION__, name="E_MIN", &
+                          description="Minimal energy of the interpolated values.", &
+                          unit_str="eV", &
+                          type_of_var=real_t, &
+                          default_r_val=0.0_dp)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="E_MAX", &
+                          description="Maximal energy of the interpolated values.", &
+                          unit_str="eV", &
+                          type_of_var=real_t, &
+                          default_r_val=100.0_dp/evolt)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="E_STEP", &
+                          description="Energy resolution of the interpolated values.", &
+                          unit_str="eV", &
+                          type_of_var=real_t, &
+                          default_r_val=0.02_dp/evolt)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="FIT_E_MIN", &
+                          description="Minimum energy to be used in the fitting of Padé approximants. "// &
+                          "Can be used to restrict the number of Padé parameters. "// &
+                          "When not present, takes the value of E_MIN.", &
+                          unit_str="eV", &
+                          type_of_var=real_t, &
+                          default_r_val=0.0_dp)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="FIT_E_MAX", &
+                          description="Maximum energy to be used in the fitting of Padé approximants. "// &
+                          "Can be used to restrict the number of Padé parameters. Negative energy is interpreted "// &
+                          "as maximum available energy from the original Fourier transform. "// &
+                          "When not present, takes the value of E_MAX.", &
+                          unit_str="eV", &
+                          type_of_var=real_t, &
+                          default_r_val=-1.0_dp/evolt)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
 
    END SUBROUTINE create_rtbse_section
 

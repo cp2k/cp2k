@@ -42,16 +42,33 @@ project(
 
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/modules")
 
+# set language and standard.
+#
+# cmake does not provide any mechanism to set the fortran standard. Adding the
+# `std` option to compiler flags is the only way to control it. So leave them
+# be.
+#
+
 if(NOT DEFINED CMAKE_CUDA_STANDARD)
   set(CMAKE_CUDA_STANDARD 11)
   set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 endif()
 
-# set language and standard
-set(CMAKE_CXX_STANDARD 14)
-set(CMAKE_C_STANDARD 11)
-set(CMAKE_HIP_STANDARD 14)
-set(CMAKE_CUDA_STANDARD 14)
+if(NOT DEFINED CMAKE_CXX_STANDARD)
+  set(CMAKE_CXX_STANDARD 14)
+  set(CMAKE_CXX_STANDARD_REQUIRED ON)
+endif()
+
+if(NOT DEFINED CMAKE_C_STANDARD)
+  set(CMAKE_C_STANDARD 11)
+  set(CMAKE_C_STANDARD_REQUIRED ON)
+endif()
+
+if(NOT DEFINED CMAKE_HIP_STANDARD)
+  set(CMAKE_HIP_STANDARD 14)
+  set(CMAKE_HIP_STANDARD_REQUIRED ON)
+endif()
+
 # remove NDEBUG flag
 string(REPLACE "-DNDEBUG" "" CMAKE_C_FLAGS_RELEASE ${CMAKE_C_FLAGS_RELEASE})
 string(REPLACE "-DNDEBUG" "" CMAKE_CXX_FLAGS_RELEASE ${CMAKE_CXX_FLAGS_RELEASE})
@@ -90,56 +107,72 @@ foreach(__var ROCM_ROOT CRAY_ROCM_ROOT ORNL_ROCM_ROOT CRAY_ROCM_PREFIX
   endif()
 endforeach()
 
+set(CMAKE_INSTALL_LIBDIR
+    "lib"
+    CACHE PATH "Default installation directory for libraries")
+
 # =================================================================================================
 # OPTIONS
-
 option(CMAKE_POSITION_INDEPENDENT_CODE "Enable position independent code" ON)
+
 option(CP2K_ENABLE_CONSISTENCY_CHECKS
        "Check that the list of compiled files and files contained in src match"
        OFF)
-option(CP2K_USE_DFTD4 "Enable dispersion corrections with DFTD4" ON)
-option(CP2K_USE_DEEPMD "Enable DeePMD" ON)
-option(CP2K_USE_FFTW3 "Use fftw3 for the calculating fast fourier transforms"
-       ON)
-option(CP2K_USE_MPI "Enable MPI support" ON)
-option(CP2K_USE_LIBINT2 "Enable libint2 support" ON)
-option(CP2K_USE_VORI "Enable libvori support" ON)
-option(CP2K_USE_SPGLIB "Enable spglib support" ON)
-option(CP2K_USE_LIBXC "Enable libxc support" ON)
-option(CP2K_USE_LIBTORCH "Enable libtorch support" ON)
+
+option(CP2K_USE_EVERYTHING
+       "Enable all dependencies. They can be individually turned off again."
+       OFF)
+
+option(CP2K_USE_ACE "Enable ACE support" ${CP2K_USE_EVERYTHING})
+option(CP2K_USE_DEEPMD "Enable DeePMD support" ${CP2K_USE_EVERYTHING})
+option(CP2K_USE_DFTD4 "Enable DFTD4 support" ${CP2K_USE_EVERYTHING})
+option(CP2K_USE_TBLITE "Enable TBLITE support" ${CP2K_USE_EVERYTHING})
+option(CP2K_USE_FFTW3 "Enable FFTW3 support" ${CP2K_USE_EVERYTHING})
+option(CP2K_USE_GREENX "Enable GreenX support" ${CP2K_USE_EVERYTHING})
+option(CP2K_USE_GRPP "Enable GRPP support" ${CP2K_USE_EVERYTHING})
+option(CP2K_USE_HDF5 "Enable HDF5 support" ${CP2K_USE_EVERYTHING})
+option(CP2K_USE_LIBINT2 "Enable Libint2 support" ${CP2K_USE_EVERYTHING})
+option(CP2K_USE_LIBTORCH "Enable LibTorch support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_OPENPMD "Enable support for I/O via openPMD" OFF)
+option(CP2K_USE_LIBXC "Enable LibXC support" ${CP2K_USE_EVERYTHING})
+option(CP2K_USE_MPI "Enable MPI support" ${CP2K_USE_EVERYTHING})
+option(CP2K_USE_PEXSI "Enable PEXSI support" ${CP2K_USE_EVERYTHING})
+option(CP2K_USE_SPGLIB "Enable Spglib support" ${CP2K_USE_EVERYTHING})
+option(CP2K_USE_TREXIO "Enable TREXIO support" ${CP2K_USE_EVERYTHING})
+option(CP2K_USE_VORI "Enable Libvori support" ${CP2K_USE_EVERYTHING})
+
 option(CP2K_USE_STATIC_BLAS "Link against static version of BLAS/LAPACK" OFF)
-option(CP2K_USE_GRPP "Enable libgrpp support" ON)
-option(CP2K_USE_TREXIO "Enable trexio support" ON)
-option(CP2K_USE_HDF5 "Enable HDF5 support" ON)
-option(BUILD_SHARED_LIBS "Build cp2k shared library" ON)
+option(BUILD_SHARED_LIBS "Build CP2K shared library" ON)
 option(
   CP2K_USE_FFTW3_WITH_MKL
-  "MKL has its own compatible implementation of the fftw library. This option, when ON, will use the separate and original fftw library."
+  "MKL has its own compatible implementation of the FFTW3 library. This option, when ON, will use the separate and original FFTW3 library."
   OFF)
 
 # MPI-enabled options
-cmake_dependent_option(CP2K_USE_COSMA "Enable COSMA support" ON "CP2K_USE_MPI"
-                       OFF)
-cmake_dependent_option(CP2K_USE_DLAF "Enable DLA-Future support" ON
-                       "CP2K_USE_MPI" OFF)
-cmake_dependent_option(CP2K_USE_ELPA "Enable ELPA support" ON "CP2K_USE_MPI"
-                       OFF)
-cmake_dependent_option(CP2K_USE_LIBSMEAGOL "Enable libSMEAGOL support" ON
-                       "CP2K_USE_MPI" OFF)
-cmake_dependent_option(CP2K_USE_MPI_F08 "Enable MPI Fortran 2008 interface" ON
-                       "CP2K_USE_MPI" OFF)
-cmake_dependent_option(CP2K_USE_PLUMED "Enable PLUMED2 support" ON
-                       "CP2K_USE_MPI" OFF)
-cmake_dependent_option(CP2K_USE_SIRIUS "Enable SIRIUS support" ON
-                       "CP2K_USE_MPI" OFF)
-cmake_dependent_option(CP2K_USE_SPLA "Enable SPLA support" ON "CP2K_USE_MPI"
-                       OFF)
+cmake_dependent_option(CP2K_USE_COSMA "Enable COSMA support"
+                       ${CP2K_USE_EVERYTHING} "CP2K_USE_MPI" OFF)
+cmake_dependent_option(CP2K_USE_DLAF "Enable DLA-Future support"
+                       ${CP2K_USE_EVERYTHING} "CP2K_USE_MPI" OFF)
+cmake_dependent_option(CP2K_USE_ELPA "Enable ELPA support"
+                       ${CP2K_USE_EVERYTHING} "CP2K_USE_MPI" OFF)
+cmake_dependent_option(CP2K_USE_LIBSMEAGOL "Enable LibSMEAGOL support"
+                       ${CP2K_USE_EVERYTHING} "CP2K_USE_MPI" OFF)
+cmake_dependent_option(CP2K_USE_MPI_F08 "Enable MPI Fortran 2008 interface"
+                       ${CP2K_USE_EVERYTHING} "CP2K_USE_MPI" OFF)
+cmake_dependent_option(CP2K_USE_PEXSI "Enable PEXSI support"
+                       ${CP2K_USE_EVERYTHING} "CP2K_USE_MPI" OFF)
+cmake_dependent_option(CP2K_USE_PLUMED "Enable PLUMED2 support"
+                       ${CP2K_USE_EVERYTHING} "CP2K_USE_MPI" OFF)
+cmake_dependent_option(CP2K_USE_SIRIUS "Enable SIRIUS support"
+                       ${CP2K_USE_EVERYTHING} "CP2K_USE_MPI" OFF)
+cmake_dependent_option(CP2K_USE_SPLA "Enable SpLA support"
+                       ${CP2K_USE_EVERYTHING} "CP2K_USE_MPI" OFF)
 
-cmake_dependent_option(CP2K_USE_LIBXSMM "Enable libxsmm support" ON
-                       "NOT CP2K_USE_ACCEL MATCHES \"OPENCL\"" ON)
+cmake_dependent_option(
+  CP2K_USE_LIBXSMM "Enable libxsmm support" ${CP2K_USE_EVERYTHING}
+  "NOT CP2K_USE_ACCEL MATCHES \"OPENCL\"" ON)
 cmake_dependent_option(CP2K_USE_LIBVDWXC "Enable libvdwxc support with SIRIUS"
-                       ON "CP2K_USE_SIRIUS" OFF)
+                       ${CP2K_USE_EVERYTHING} "CP2K_USE_SIRIUS" OFF)
 
 cmake_dependent_option(
   CP2K_DBCSR_USE_CPU_ONLY "Disable the DBCSR accelerated backend" OFF
@@ -154,7 +187,7 @@ cmake_dependent_option(
   "CP2K_USE_ACCEL MATCHES \"HIP|CUDA\"" OFF)
 
 cmake_dependent_option(
-  CP2K_ENABLE_PW_GPU "Disable the ffts accelerated backend (mostly GPU)." OFF
+  CP2K_ENABLE_PW_GPU "Disable the ffts accelerated backend (mostly GPU)." ON
   "CP2K_USE_ACCEL MATCHES \"HIP|CUDA\"" OFF)
 
 cmake_dependent_option(
@@ -164,13 +197,13 @@ cmake_dependent_option(
 cmake_dependent_option(CP2K_ENABLE_ELPA_OPENMP_SUPPORT
                        "Enable ELPA OpenMP support" ON "CP2K_USE_ELPA" OFF)
 cmake_dependent_option(CP2K_ENABLE_FFTW3_OPENMP_SUPPORT
-                       "Enable FFTW OpenMP support" ON "CP2K_USE_FFTW3" OFF)
+                       "Enable FFTW3 OpenMP support" ON "CP2K_USE_FFTW3" OFF)
 cmake_dependent_option(CP2K_ENABLE_FFTW3_THREADS_SUPPORT
-                       "Enable FFTW threads support" OFF "CP2K_USE_FFTW3" OFF)
+                       "Enable FFTW3 threads support" OFF "CP2K_USE_FFTW3" OFF)
 
 cmake_dependent_option(
   CP2K_USE_CUSOLVER_MP
-  "Use Nvidia gpu accelerated eigensolver. Only active when CUDA is ON" OFF
+  "Use Nvidia GPU accelerated eigensolver. Only active when CUDA is ON" OFF
   "CP2K_USE_ACCEL MATCHES \"CUDA\"" OFF)
 
 cmake_dependent_option(CP2K_USE_NVHPC OFF "Enable Nvidia NVHPC kit"
@@ -178,30 +211,32 @@ cmake_dependent_option(CP2K_USE_NVHPC OFF "Enable Nvidia NVHPC kit"
 
 cmake_dependent_option(
   CP2K_USE_SPLA_GEMM_OFFLOADING ON
-  "Enable SPLA dgemm offloading (only valid with gpu support on)"
+  "Enable SpLA dgemm offloading (only valid with GPU support on)"
   "(NOT CP2K_USE_ACCEL MATCHES \"NONE\") AND (CP2K_USE_SPLA)" OFF)
 
 set(CP2K_BLAS_VENDOR
     "auto"
-    CACHE STRING "Blas library for computations on host")
+    CACHE STRING "BLAS library for computations on host")
 
 set(CP2K_SCALAPACK_VENDOR_LIST "MKL" "SCI" "GENERIC" "auto")
 set(CP2K_SCALAPACK_VENDOR
     "auto"
-    CACHE STRING "scalapack vendor/generic backend")
+    CACHE STRING "ScaLAPACK vendor/generic backend")
 set_property(CACHE CP2K_SCALAPACK_VENDOR PROPERTY STRINGS
                                                   ${CP2K_SCALAPACK_VENDOR_LIST})
 
-if(NOT ${CP2K_SCALAPACK_VENDOR} IN_LIST CP2K_SCALAPACK_VENDOR_LIST)
-  message(FATAL_ERROR "Invalid scalapack vendor backend")
+if(DEFINED CP2K_SCALAPACK_VENDOR)
+  if(NOT ${CP2K_SCALAPACK_VENDOR} IN_LIST CP2K_SCALAPACK_VENDOR_LIST)
+    message(FATAL_ERROR "An invalid ScaLAPACK vendor backend was specified")
+  endif()
 endif()
 
 set(CP2K_DATA_DIR
     "default"
-    CACHE STRING "Set the location for cp2k data")
+    CACHE STRING "Set the location for CP2K data")
 
 # ##############################################################################
-# gpu related options
+# GPU related options
 # ##############################################################################
 
 set(CP2K_SUPPORTED_ACCELERATION_TARGETS CUDA HIP OPENCL NONE)
@@ -230,9 +265,9 @@ set(CP2K_SUPPORTED_HIP_ARCHITECTURES
     A40)
 
 set(CP2K_WITH_GPU
-    "P100"
+    "NONE"
     CACHE STRING
-          "Set the CUDA GPU architecture if HIP is enabled (default: P100)")
+          "Set the CUDA GPU architecture if HIP is enabled (default: NONE)")
 
 set_property(
   CACHE CP2K_WITH_GPU PROPERTY STRINGS ${CP2K_SUPPORTED_CUDA_ARCHITECTURES}
@@ -333,7 +368,8 @@ if(CP2K_USE_MPI)
     MPI
     COMPONENTS ${REQUIRED_MPI_COMPONENTS}
     REQUIRED)
-
+  get_target_property(MPI_INCLUDE_DIRS MPI::MPI_Fortran
+                      INTERFACE_INCLUDE_DIRECTORIES)
   if(NOT MPI_Fortran_HAVE_F90_MODULE)
     message(
       FATAL_ERROR
@@ -358,7 +394,7 @@ find_package(Lapack REQUIRED) # also calls find_package(BLAS)
 # SMM (Small Matrix-Matrix multiplication)
 if(CP2K_USE_LIBXSMM)
   find_package(LibXSMM REQUIRED)
-  message(STATUS "Using LibXSMM for Small Matrix Multiplication")
+  message(STATUS "Using LIBXSMM for Small Matrix Multiplication")
 endif()
 
 # in practice it is always for any decent configuration. But I add a flags to
@@ -383,17 +419,67 @@ if((CP2K_USE_ACCEL MATCHES CUDA) OR (CP2K_USE_ACCEL MATCHES HIP))
   set(CP2K_GPU_ARCH_NUMBER_Mi200 gfx90a)
   set(CP2K_GPU_ARCH_NUMBER_Mi250 gfx90a)
   set(CP2K_GPU_ARCH_NUMBER_Mi300 gfx942)
+
+  # CMAKE_HIP_ARCHITECTURES and CMAKE_CUDA_ARCHITECTURES are the prefered
+  # mechanism to set the GPU architecture. We still offer the CP2K_WITH_GPU
+  # option to avoid breaking the ci/cd or any other scripts based on this
+  # option.
+
+  # check that CMAKE_{HIP|CUDA}_ARCHITECTURES or CP2K_WITH_GPU are given
+  if((NOT DEFINED CMAKE_HIP_ARCHITECTURES)
+     AND (NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
+     AND (CP2K_WITH_GPU MATCHES NONE))
+    message(
+      FATAL_ERROR
+        "----------------------------------------------------------------\n"
+        "                                                                \n"
+        "CMAKE_{HIP|CUDA}_ARCHITECTURES or CP2K_WITH_GPU should be given.\n"
+        "                                                                \n"
+        "----------------------------------------------------------------\n")
+  endif()
+
+  set(_ignore_with_gpu_option false)
+  if((DEFINED CMAKE_HIP_ARCHITECTURES) OR (DEFINED CMAKE_CUDA_ARCHITECTURES))
+    set(_ignore_with_gpu_option true)
+  endif()
+
+  if(NOT _ignore_with_gpu_option)
+    message(
+      STATUS
+        "\nCP2K_WITH_GPU is deprecated in favor of CMAKE_HIP_ARCHITECTURES or CMAKE_CUDA_ARCHITECTURES\n"
+    )
+    if(CP2K_USE_ACCEL MATCHES CUDA)
+      list(FIND CP2K_SUPPORTED_CUDA_ARCHITECTURES ${CP2K_WITH_GPU}
+           CP2K_GPU_SUPPORTED)
+
+      if(CP2K_GPU_SUPPORTED EQUAL -1)
+        message(
+          FATAL_ERROR
+            "GPU architecture (${CP2K_WITH_GPU}) is not supported. Please choose from: ${CP2K_SUPPORTED_CUDA_ARCHITECTURES}"
+        )
+      endif()
+      set(CMAKE_CUDA_ARCHITECTURES ${CP2K_GPU_ARCH_NUMBER_${CP2K_WITH_GPU}})
+    else(CP2K_USE_ACCEL MATCHES HIP)
+      list(FIND CP2K_SUPPORTED_HIP_ARCHITECTURES ${CP2K_WITH_GPU}
+           CP2K_GPU_SUPPORTED)
+      if(CP2K_GPU_SUPPORTED EQUAL -1)
+        message(
+          FATAL_ERROR
+            "GPU architecture (${CP2K_WITH_GPU}) is not supported. Please choose from: ${CP2K_SUPPORTED_HIP_ARCHITECTURES}"
+        )
+      endif()
+      set(CMAKE_HIP_ARCHITECTURES "${CP2K_GPU_ARCH_NUMBER_${CP2K_WITH_GPU}}")
+    endif()
+  endif()
 endif()
 
 set(CP2K_USE_HIP OFF)
 set(CP2K_USE_CUDA OFF)
 set(CP2K_USE_OPENCL OFF)
 
-option(CP2K_USE_PW_GPU "Enable GPU in CUDA" OFF)
 if(CP2K_USE_ACCEL MATCHES "CUDA")
   option(CP2K_WITH_CUDA_PROFILING "Enable CUDA profiling" OFF)
   # P100 is the default target.
-  set(CMAKE_CUDA_ARCHITECTURES 60)
 
   # allow for unsupported compilers (gcc/cuda version mismatch)
   set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -allow-unsupported-compiler")
@@ -405,21 +491,12 @@ if(CP2K_USE_ACCEL MATCHES "CUDA")
     find_package(CUDAToolkit REQUIRED)
   endif()
 
-  list(FIND CP2K_SUPPORTED_CUDA_ARCHITECTURES ${CP2K_WITH_GPU}
-       CP2K_GPU_SUPPORTED)
+  message("\n-----------------------------------------------------------")
+  message("-                          CUDA                           -")
+  message("-----------------------------------------------------------\n")
 
-  if(CP2K_GPU_SUPPORTED EQUAL -1)
-    message(
-      FATAL_ERROR
-        "GPU architecture (${CP2K_WITH_GPU}) is not supported. Please choose from: ${CP2K_SUPPORTED_CUDA_ARCHITECTURES}"
-    )
-  endif()
-
-  set(CMAKE_CUDA_ARCHITECTURES ${CP2K_GPU_ARCH_NUMBER_${CP2K_WITH_GPU}})
-  message(STATUS "GPU target architecture: ${CP2K_WITH_GPU}\n"
-                 "GPU architecture number: ${CMAKE_CUDA_ARCHITECTURES}\n"
-                 "GPU profiling enabled: ${CP2K_WITH_CUDA_PROFILING}\n")
-  set(CP2K_ACC_ARCH_NUMBER ${CMAKE_CUDA_ARCHITECTURES})
+  message(STATUS "GPU architecture number: ${CMAKE_CUDA_ARCHITECTURES}")
+  message(STATUS "GPU profiling enabled: ${CP2K_WITH_CUDA_PROFILING}")
 
   if(WITH_CUDA_PROFILING)
     find_library(
@@ -431,37 +508,39 @@ if(CP2K_USE_ACCEL MATCHES "CUDA")
   endif()
 
   set(CP2K_USE_CUDA ON)
-  set(CP2K_USE_PW_GPU ON)
 
   if(CP2K_USE_CUSOLVER_MP)
     find_package(CuSolverMP REQUIRED)
   endif()
-  message(STATUS ``"-- CUDA compiler and libraries found")
+
+  message(STATUS "CUDA compiler and libraries found\n")
 
 elseif(CP2K_USE_ACCEL MATCHES "HIP")
+  message("\n------------------------------------------------------------")
+  message("-                          HIP                             -")
+  message("------------------------------------------------------------\n")
+  message(INFO "${CMAKE_HIP_ARCHITECTURES}")
   enable_language(HIP)
-  # Find hip
-
-  find_package(hipfft REQUIRED IMPORTED CONFIG)
-  find_package(hipblas REQUIRED IMPORTED CONFIG)
 
   if(CMAKE_HIP_PLATFORM MATCHES "nvidia")
     find_package(CUDAToolkit)
   endif()
+
   if(NOT CMAKE_BUILD_TYPE AND (CMAKE_HIP_PLATFORM MATCHES "amd"))
     set(CMAKE_HIP_FLAGS "-O3")
-  elseif(${CMAKE_BUILD_TYPE} STREQUAL "RelWithDebInfo")
+  elseif(CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
     set(CMAKE_HIP_FLAGS "-O2 -g")
-  elseif(${CMAKE_BUILD_TYPE} STREQUAL "Release")
+  elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
     set(CMAKE_HIP_FLAGS "-O3")
-  elseif(${CMAKE_BUILD_TYPE} STREQUAL "Debug")
+  elseif(CMAKE_BUILD_TYPE STREQUAL "Debug")
     set(CMAKE_HIP_FLAGS "-O0 -g")
   endif()
 
-  set(CMAKE_HIP_ARCHITECTURES "${CP2K_GPU_ARCH_NUMBER_${CP2K_WITH_GPU}}")
-  set(CP2K_ACC_ARCH_NUMBER ${CP2K_GPU_ARCH_NUMBER_${CP2K_WITH_GPU}})
+  # Find HIP
+  find_package(hipfft REQUIRED IMPORTED CONFIG)
+  find_package(hipblas REQUIRED IMPORTED CONFIG)
+
   set(CP2K_USE_HIP ON)
-  set(CP2K_USE_PW_GPU ON)
 
   # use hardware atomic operations on Mi250X.
   if(NOT CMAKE_HIP_PLATFORM OR (CMAKE_HIP_PLATFORM MATCHES "amd"))
@@ -479,10 +558,13 @@ elseif(CP2K_USE_ACCEL MATCHES "HIP")
     endif()
   endif()
 elseif(CP2K_USE_ACCEL MATCHES "OPENCL")
-  enable_language(C)
   find_package(OpenCL REQUIRED)
   set(CP2K_USE_OPENCL ON)
 endif()
+
+message("\n------------------------------------------------------------")
+message("-                          OPENMP                          -")
+message("------------------------------------------------------------\n")
 
 # PACKAGE DISCOVERY (compiler configuration can impact package discovery)
 find_package(OpenMP REQUIRED COMPONENTS Fortran C CXX)
@@ -525,7 +607,7 @@ if(CP2K_USE_VORI)
 endif()
 
 if(CP2K_USE_DLAF)
-  find_package(DLAFFortran REQUIRED)
+  find_package(DLAFFortran 0.4.0 REQUIRED)
 
   get_target_property(CP2K_DLAF_INCLUDE_DIRS DLAF::DLAF
                       INTERFACE_INCLUDE_DIRECTORIES)
@@ -536,7 +618,7 @@ endif()
 
 # FFTW3
 
-# we set this variable to ON when we want fftw3 support (with or without MKL).
+# we set this variable to ON when we want FFTW3 support (with or without MKL)
 set(CP2K_USE_FFTW3_ OFF)
 if(CP2K_USE_FFTW3)
   if(NOT CP2K_BLAS_VENDOR MATCHES "MKL" OR CP2K_USE_FFTW3_WITH_MKL)
@@ -544,14 +626,14 @@ if(CP2K_USE_FFTW3)
     if(CP2K_ENABLE_FFTW3_THREADS_SUPPORT AND CP2K_ENABLE_FFTW3_OPENMP_SUPPORT)
       message(
         FATAL_ERROR
-          "Fftw3 threads and openmp supports can not be used at the same time")
+          "FFTW3 threads and openmp supports can not be used at the same time")
     endif()
 
     if((CP2K_ENABLE_FFTW3_THREADS_SUPPORT) AND (NOT TARGET
                                                 cp2k::FFTW3::fftw3_threads))
       message(
         FATAL_ERROR
-          "fftw3 was compiled without multithreading support (--enable-threads option in the fftw build system)."
+          "FFTW3 was compiled without multithreading support (--enable-threads option in the FFTW3 build system)."
       )
     endif()
 
@@ -559,7 +641,7 @@ if(CP2K_USE_FFTW3)
                                               ))
       message(
         FATAL_ERROR
-          "fftw3 was compiled without openmp support  (--enable-openmp option in the fftw build system)."
+          "FFTW3 was compiled without openmp support  (--enable-openmp option in the FFTW3 build system)."
       )
     endif()
     set(CP2K_USE_FFTW3_ ON)
@@ -569,14 +651,16 @@ if(CP2K_USE_FFTW3)
   endif()
 endif()
 
-# libint
+# Libint
 if(CP2K_USE_LIBINT2)
   find_package(Libint2 REQUIRED)
 endif()
 
-# spglib
+# Spglib
 if(CP2K_USE_SPGLIB)
-  find_package(Spglib CONFIG REQUIRED)
+  find_package(Spglib REQUIRED CONFIG)
+  get_target_property(CP2K_SPGLIB_INCLUDE_DIRS Spglib::symspg
+                      INTERFACE_INCLUDE_DIRECTORIES)
 endif()
 
 if(CP2K_USE_LIBSMEAGOL)
@@ -584,40 +668,61 @@ if(CP2K_USE_LIBSMEAGOL)
 endif()
 
 if(CP2K_USE_SPLA)
-  find_package(SPLA REQUIRED)
-  get_target_property(SPLA_INCLUDE_DIRS SPLA::spla
+  find_package(SPLA REQUIRED CONFIG)
+  get_target_property(CP2K_SPLA_INCLUDE_DIRS SPLA::spla
                       INTERFACE_INCLUDE_DIRECTORIES)
-  if(NOT SPLA_INCLUDE_DIRS)
-    set(SPLA_INCLUDE_DIRS "/usr/include;/usr/include/spla")
-  endif()
-
+  get_target_property(CP2K_SPLA_LINK_LIBRARIES SPLA::spla
+                      INTERFACE_LINK_LIBRARIES)
   if(NOT SPLA_GPU_BACKEND AND CP2K_USE_GEMM_OFFLOADING)
     set(CP2K_USE_GEMM_OFFLOADING OFF)
     message(
       FATAL_ERROR
-        "SPLA should be compiled with GPU support if the gemm offloading is requested. Use -DCP2K_USE_GEMM_OFFLOADING=OFF otherwise"
+        "SpLA should be compiled with GPU support if the gemm offloading is requested. Use -DCP2K_USE_GEMM_OFFLOADING=OFF otherwise"
     )
   endif()
 endif()
 
 if(CP2K_USE_DFTD4)
   find_package(dftd4 REQUIRED)
-
-  get_target_property(CP2K_DFTD4_LINK_LIBRARIES dftd4::dftd4
-                      INTERFACE_LINK_LIBRARIES)
-  get_target_property(CP2K_DFTD4_LIB_LINK_LIBRARIES dftd4::dftd4-lib
-                      INTERFACE_LINK_LIBRARIES)
-  get_target_property(CP2K_DFTD4_INCLUDE_DIR dftd4::dftd4-lib
-                      INTERFACE_INCLUDE_DIRECTORIES)
 endif()
 
 if(CP2K_USE_DEEPMD)
   find_package(DeePMD REQUIRED CONFIG)
 endif()
 
+if(CP2K_USE_PEXSI)
+  find_package(PEXSI REQUIRED CONFIG)
+  get_target_property(CP2K_PEXSI_INCLUDE_DIRS PEXSI::PEXSI
+                      INTERFACE_INCLUDE_DIRECTORIES)
+  get_target_property(CP2K_PEXSI_LINK_LIBRARIES PEXSI::PEXSI
+                      INTERFACE_LINK_LIBRARIES)
+endif()
+
+if(CP2K_USE_ACE)
+  find_package(ACE REQUIRED)
+  get_target_property(CP2K_ACE_INCLUDE_DIRS ACE::pace
+                      INTERFACE_INCLUDE_DIRECTORIES)
+  get_target_property(CP2K_ACE_LINK_LIBRARIES ACE::pace
+                      INTERFACE_LINK_LIBRARIES)
+  get_target_property(LIB_PATH ACE::yaml-cpp-pace INTERFACE_LINK_LIBRARIES)
+  list(APPEND CP2K_ACE_LINK_LIBRARIES ${LIB_PATH})
+  get_target_property(LIB_PATH ACE::cnpy INTERFACE_LINK_LIBRARIES)
+  list(APPEND CP2K_ACE_LINK_LIBRARIES ${LIB_PATH})
+endif()
+
+if(CP2K_USE_TBLITE)
+  find_package(mctc-lib REQUIRED)
+  find_package(toml-f REQUIRED)
+  find_package(s-dftd3 REQUIRED)
+  find_package(tblite REQUIRED)
+  target_link_libraries(
+    tblite::tblite INTERFACE mctc-lib::mctc-lib dftd4::dftd4 toml-f::toml-f
+                             s-dftd3::s-dftd3)
+endif()
+
 # SIRIUS
 if(CP2K_USE_SIRIUS)
-  find_package(sirius REQUIRED)
+  find_package(sirius 7.7.0 REQUIRED)
 endif()
 
 if(CP2K_USE_PLUMED)
@@ -646,6 +751,23 @@ endif()
 
 if(CP2K_USE_TREXIO)
   find_package(TrexIO REQUIRED)
+endif()
+
+if(CP2K_USE_GREENX)
+  find_package(greenX REQUIRED CONFIG)
+  get_target_property(CP2K_GREENX_INCLUDE_DIRS greenX::GXCommon
+                      INTERFACE_INCLUDE_DIRECTORIES)
+  get_target_property(CP2K_GREENX_LINK_LIBRARIES greenX::GXCommon LOCATION)
+  get_target_property(LIB_GXMiniMax greenX::LibGXMiniMax LOCATION)
+  list(APPEND CP2K_GREENX_LINK_LIBRARIES ${LIB_GXMiniMax})
+  get_target_property(LIB_GXAC greenX::LibGXAC LOCATION)
+  list(APPEND CP2K_GREENX_LINK_LIBRARIES ${LIB_GXAC})
+  # GreenX with AC requires GMP library
+  find_library(GMP_LIBRARY NAMES gmp REQUIRED)
+  get_filename_component(GMP_LIBRARY_PATH ${GMP_LIBRARY} DIRECTORY)
+  set(CMAKE_EXE_LINKER_FLAGS ${CMAKE_EXE_LINKER_FLAGS} "-L${GMP_LIBRARY_PATH}")
+  set(CMAKE_SHARED_LINKER_FLAGS ${CMAKE_SHARED_LINKER_FLAGS}
+                                "-L${GMP_LIBRARY_PATH}")
 endif()
 
 # OPTION HANDLING
@@ -688,40 +810,41 @@ message(
   "--------------------------------------------------------------------\n\n")
 
 message(
-  "  - BLAS AND LAPACK\n"
+  "  - BLAS\n" # keep line break
   "    - vendor: ${CP2K_BLAS_VENDOR}\n"
-  "    - include directories: ${CP2K_BLAS_INCLUDE_DIR} ${LAPACK_INCLUDE_DIR}\n"
-  "    - libraries: ${CP2K_BLAS_LINK_LIBRARIES} ${CP2K_LAPACK_LINK_LIBRARIES}\n\n"
-)
+  "    - include directories: ${CP2K_BLAS_INCLUDE_DIRS}\n"
+  "    - libraries: ${CP2K_BLAS_LINK_LIBRARIES}\n\n")
+
+message("  - LAPACK\n" # keep line break
+        "    - include directories: ${CP2K_LAPACK_INCLUDE_DIRS}\n"
+        "    - libraries: ${CP2K_LAPACK_LINK_LIBRARIES}\n\n")
 
 if(CP2K_USE_MPI)
-  message("  - MPI\n" # let below line separate
-          "    - include directories:  ${MPI_INCLUDE_DIRS}\n"
+  message("  - MPI\n" # keep line break
+          "    - include directories: ${MPI_INCLUDE_DIRS}\n"
           "    - libraries: ${MPI_LIBRARIES}\n\n")
-
   if(CP2K_USE_MPI_F08)
-    message("   - MPI_08:              ON\n")
+    message("  - MPI_F08: ON\n")
   endif()
-
   if(MPI_Fortran_HAVE_F08_MODULE AND NOT CP2K_USE_MPI_F08)
     message(
-      "  - MPI_08 is supposed by MPI but turned off by default.\n"
+      "  - MPI_F08 is supposed by MPI but turned off by default.\n"
       "    To use it add -DCP2K_USE_MPI_F08=ON to the cmake command line\n\n")
   endif()
-
-  message("  - SCALAPACK:\n"
-          "    - libraries: ${CP2K_SCALAPACK_LINK_LIBRARIES}\n\n")
+  message(
+    "  - ScaLAPACK\n" # keep line break
+    "    - vendor: ${CP2K_SCALAPACK_VENDOR}\n"
+    "    - include directories: ${CP2K_SCALAPACK_INCLUDE_DIRS}\n"
+    "    - libraries: ${CP2K_SCALAPACK_LINK_LIBRARIES}\n\n")
 endif()
 
 if((CP2K_USE_ACCEL MATCHES "CUDA") OR (CP2K_USE_ACCEL MATCHES "HIP"))
 
   message("  - Hardware Acceleration:\n")
   if(CP2K_USE_ACCEL MATCHES "CUDA")
-    message(
-      "   - CUDA:\n" # let below line separate
-      "     - GPU target architecture: ${CP2K_WITH_GPU}\n"
-      "     - GPU architecture number: ${CP2K_ACC_ARCH_NUMBER}\n"
-      "     - GPU profiling enabled: ${CP2K_WITH_CUDA_PROFILING}\n\n")
+    message("   - CUDA:\n" # let below line separate
+            "     - GPU architecture number: ${CMAKE_CUDA_ARCHITECTURES}\n"
+            "     - GPU profiling enabled: ${CP2K_WITH_CUDA_PROFILING}\n\n")
   endif()
 
   if(CP2K_USE_ACCEL MATCHES "HIP")
@@ -759,9 +882,15 @@ if(CP2K_USE_LIBXC)
     "    - libraries: ${Libxc_LIBRARIES}\n\n")
 endif()
 
+if(CP2K_USE_SPGLIB)
+  message("  - Spglib\n"
+          "    - include directories: ${CP2K_SPGLIB_INCLUDE_DIRS}\n\n")
+endif()
+
 if(CP2K_USE_LIBTORCH)
-  message("  - LIBTORCH\n" # let below line separate
-          "    - libraries: ${CP2K_LIBTORCH_LIBRARIES}\n\n")
+  message("  - LibTorch\n" "    - extra CXX flags: ${TORCH_CXX_FLAGS}\n"
+          "    - include directories: ${TORCH_INCLUDE_DIRS}\n"
+          "    - libraries: ${TORCH_LIBRARY}\n")
 endif()
 
 if(CP2K_USE_HDF5)
@@ -797,53 +926,68 @@ if(CP2K_USE_LIBXSMM)
 endif()
 
 if(CP2K_USE_SPLA)
-  message(" - SPLA\n" # let below line separate
-          "   - include directories: ${SPLA_INCLUDE_DIRS}\n"
-          "   - libraries: ${SPLA_LIBRARIES}\n\n")
+  message(" - SpLA\n" # keep line break
+          "   - include directories: ${CP2K_SPLA_INCLUDE_DIRS}\n"
+          "   - libraries: ${CP2K_SPLA_LINK_LIBRARIES}\n\n")
 endif()
 
 if(CP2K_USE_DFTD4)
-  message(
-    " - DFTD4\n"
-    "   - include directories: ${CP2K_DFTD4_INCLUDE_DIR}\n"
-    "   - libraries: ${CP2K_DFTD4_LINK_LIBRARIES};${CP2K_DFTD4_LIB_LINK_LIBRARIES}\n\n"
-  )
+  message(" - DFTD4\n" "   - include directories :  ${dftd4_INCLUDE_DIRS}\n"
+          "   - libraries           :  ${dftd4_LINK_LIBRARIES}\n\n")
 endif()
 
 if(CP2K_USE_DEEPMD)
   message(" - DeePMD\n\n")
 endif()
 
+if(CP2K_USE_PEXSI)
+  message(" - PEXSI\n" # keep line break
+          "   - include directories: ${CP2K_PEXSI_INCLUDE_DIRS}\n"
+          "   - libraries: ${CP2K_PEXSI_LINK_LIBRARIES}\n\n")
+endif()
+
+if(CP2K_USE_ACE)
+  message(" - ACE\n" # keep line break
+          "   - include directories: ${CP2K_ACE_INCLUDE_DIRS}\n"
+          "   - libraries: ${CP2K_ACE_LINK_LIBRARIES}\n\n")
+endif()
+
 if(CP2K_USE_LIBSMEAGOL)
-  message(" - LIBSMEAGOL\n"
+  message(" - LibSMEAGOL\n"
           "   - include directories: ${CP2K_LIBSMEAGOL_INCLUDE_DIRS}\n"
           "   - libraries: ${CP2K_LIBSMEAGOL_LINK_LIBRARIES}\n\n")
 endif()
 
+if(CP2K_USE_TBLITE)
+  message(" - TBLITE :\n"
+          "   - include directories :  ${tblite_INCLUDE_DIRS}\n"
+          "   - tblite libraries    :  ${tblite_LINK_LIBRARIES}\n\n")
+endif()
+
 if(CP2K_USE_SIRIUS)
-  message(" - SIRIUS")
+  message(" - SIRIUS\n"
+          "   - include directories: ${CP2K_SIRIUS_INCLUDE_DIRS}\n"
+          "   - libraries: ${CP2K_SIRIUS_LINK_LIBRARIES}\n\n")
 endif()
 
 if(CP2K_USE_COSMA)
-  message(" - COSMA\n" # let below line separate
+  message(" - COSMA\n" # keep line break
           "   - include directories: ${CP2K_COSMA_INCLUDE_DIRS}\n"
           "   - libraries: ${CP2K_COSMA_LINK_LIBRARIES}\n\n")
 endif()
 
 if(CP2K_USE_LIBINT2)
-  message(" - libint2\n"
+  message(" - Libint2\n"
           "   - include directories: ${CP2K_LIBINT2_INCLUDE_DIRS}\n"
           "   - libraries: ${CP2K_LIBINT2_LINK_LIBRARIES}\n\n")
 endif()
 
 if(CP2K_USE_VORI)
-  message(" - libvori\n"
-          "   - include directories: ${CP2K_LIBVORI_INCLUDE_DIRS}\n"
-          "   - libraries: ${CP2K_LIBVORI_LINK_LIBRARIES}\n\n")
+  message(" - Libvori\n" "   - libraries: ${CP2K_LIBVORI_LINK_LIBRARIES}\n\n")
 endif()
 
 if(CP2K_USE_ELPA)
-  message(" - ELPA\n" # let below line separate
+  message(" - ELPA\n" # keep line break
           "   - include directories: ${CP2K_ELPA_INCLUDE_DIRS}\n"
           "   - libraries: ${CP2K_ELPA_LINK_LIBRARIES}\n\n")
 endif()
@@ -855,13 +999,19 @@ if(CP2K_USE_DLAF)
 endif()
 
 if(CP2K_USE_GRPP)
-  message(" - grpp\n")
+  message(" - GRPP\n")
 endif()
 
 if(CP2K_USE_TREXIO)
-  message(" - trexio\n"
+  message(" - TREXIO\n"
           "   - include directories: ${CP2K_TREXIO_INCLUDE_DIRS}\n"
           "   - libraries: ${CP2K_TREXIO_LINK_LIBRARIES}\n\n")
+endif()
+
+if(CP2K_USE_GREENX)
+  message(" - GreenX\n"
+          "   - include directories: ${CP2K_GREENX_INCLUDE_DIRS}\n"
+          "   - libraries: ${CP2K_GREENX_LINK_LIBRARIES}\n\n")
 endif()
 
 message(
@@ -883,16 +1033,28 @@ if(NOT CP2K_USE_DEEPMD)
   message("   - DeePMD")
 endif()
 
+if(NOT CP2K_USE_PEXSI)
+  message("   - PEXSI")
+endif()
+
+if(NOT CP2K_USE_ACE)
+  message("   - ACE (libpace)")
+endif()
+
+if(NOT CP2K_USE_TBLITE)
+  message("   - TBLITE")
+endif()
+
 if(NOT CP2K_USE_SIRIUS)
   message("   - SIRIUS")
 endif()
 
 if(NOT CP2K_USE_SPGLIB)
-  message("   - SPGLIB")
+  message("   - Spglib")
 endif()
 
 if(NOT CP2K_USE_LIBSMEAGOL)
-  message("   - libSMEAGOL")
+  message("   - LibSMEAGOL")
 endif()
 
 if(NOT CP2K_USE_COSMA)
@@ -900,11 +1062,11 @@ if(NOT CP2K_USE_COSMA)
 endif()
 
 if(NOT CP2K_USE_SPLA)
-  message("   - SPLA")
+  message("   - SpLA")
 endif()
 
 if(NOT CP2K_USE_HDF5)
-  message("   - HDF5\n")
+  message("   - HDF5")
 endif()
 
 if(NOT CP2K_USE_OPENPMD)
@@ -932,15 +1094,15 @@ if(NOT CP2K_USE_LIBXSMM)
 endif()
 
 if(NOT CP2K_USE_LIBINT2)
-  message("   - LIBINT2")
+  message("   - Libint2")
 endif()
 
 if(NOT CP2K_USE_LIBXC)
-  message("   - LIBXC")
+  message("   - LibXC")
 endif()
 
 if(NOT CP2K_USE_VORI)
-  message("   - LIBVORI")
+  message("   - Libvori")
 endif()
 
 if(NOT CP2K_USE_FFTW3)
@@ -948,15 +1110,19 @@ if(NOT CP2K_USE_FFTW3)
 endif()
 
 if(NOT CP2K_USE_LIBTORCH)
-  message("   - libtorch")
+  message("   - LibTorch")
 endif()
 
 if(NOT CP2K_USE_TREXIO)
-  message("   - trexio")
+  message("   - TREXIO")
+endif()
+
+if(NOT CP2K_USE_GREENX)
+  message("   - GreenX")
 endif()
 
 if(NOT CP2K_USE_GRPP)
-  message("   - grpp")
+  message("   - GRPP")
 endif()
 
 message(

@@ -1,7 +1,7 @@
 &GLOBAL
   PRINT_LEVEL LOW
   PROJECT h2o
-  RUN_TYPE ENERGY
+  RUN_TYPE ENERGY_FORCE
 &END GLOBAL
 
 &FORCE_EVAL
@@ -22,6 +22,7 @@
     &END QS
     &SCF
       EPS_SCF 1.0e-6
+      IGNORE_CONVERGENCE_FAILURE
       MAX_SCF 1
       SCF_GUESS ATOMIC
     &END SCF
@@ -46,11 +47,8 @@
         #          se   0.36731   32      br   0.38201   32      kr   0.39971   32
       &END GCP_POTENTIAL
       &HF
-        &MEMORY
-          MAX_MEMORY 10
-        &END MEMORY
         &SCREENING
-          EPS_SCHWARZ 1.0E-10
+          EPS_SCHWARZ 1.0E-6
         &END SCREENING
       &END HF
       &VDW_POTENTIAL

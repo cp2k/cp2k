@@ -6,8 +6,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")" && pwd -P)"
 
-openblas_ver="0.3.28" # Keep in sync with install_openblas.sh
-openblas_sha256="f1003466ad074e9b0c8d421a204121100b0751c96fc6fcf3d1456bd12f8a00a1"
+openblas_ver="0.3.29" # Keep in sync with install_openblas.sh
+openblas_sha256="38240eee1b29e2bde47ebb5d61160207dc68668a54cac62c076bb5032013b1eb"
 openblas_pkg="OpenBLAS-${openblas_ver}.tar.gz"
 
 source "${SCRIPT_DIR}"/common_vars.sh

@@ -1,8 +1,8 @@
 "H2+-BLOCKED-PURIFY-BLOCKED.inp"        = [{matcher="E_total", tol=2e-12, ref=-0.49553675525916002}]
-"2H2O-BLOCKED-PURIFY-OFF.inp"           = [{matcher="E_total", tol=3e-13, ref=-34.07703448825141}]
-"2H2O-BLOCKED-PURIFY-FULL.inp"          = [{matcher="E_total", tol=3e-13, ref=-34.07711205541384}]
-"2H2O-BLOCKED-PURIFY-BLOCKED.inp"       = [{matcher="E_total", tol=3e-13, ref=-34.07703448825141}]
-"MD-1.inp"                              = [{matcher="E_total", tol=2e-10, ref=-8.0907001008828097}]
-"MD-2_OT.inp"                           = [{matcher="E_total", tol=1E-10, ref=-8.0881569069021495}]
+"2H2O-BLOCKED-PURIFY-OFF.inp"           = [{matcher="E_total", tol=3e-13, ref=-34.07863705853963}]
+"2H2O-BLOCKED-PURIFY-FULL.inp"          = [{matcher="E_total", tol=3e-13, ref=-34.07863652618566}]
+"2H2O-BLOCKED-PURIFY-BLOCKED.inp"       = [{matcher="E_total", tol=3e-13, ref=-34.07863705853961}]
+"MD-1.inp"                              = [{matcher="E_total", tol=2e-10, ref=-8.09070543002518}]
+"MD-2_OT.inp"                           = [{matcher="E_total", tol=1E-10, ref=-8.08817663309657}]
 "MD-2_no_OT.inp"                        = [{matcher="E_total", tol=2e-11, ref=-8.0881759470416394}]
 #EOF

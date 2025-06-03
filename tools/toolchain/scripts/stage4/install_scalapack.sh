@@ -6,9 +6,9 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-scalapack_ver="2.2.1"
-scalapack_sha256="4aede775fdb28fa44b331875730bcd5bab130caaec225fadeccf424c8fcb55aa"
-scalapack_pkg="scalapack-${scalapack_ver}.tgz"
+scalapack_ver="2.2.2"
+scalapack_sha256="a2f0c9180a210bf7ffe126c9cb81099cf337da1a7120ddb4cbe4894eb7b7d022"
+scalapack_pkg="scalapack-${scalapack_ver}.tar.gz"
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh

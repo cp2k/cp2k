@@ -107,6 +107,17 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="INTENSITIES_FILE_NAME", &
+                          description="File containting a list of intensities, "// &
+                          "one per line, in a.u. "// &
+                          "They are applied sequentially, one per frame. "// &
+                          "If the number of frames exceeds the number of values, "// &
+                          "the list is cyclically repeated. Attention: not implemented for eeq.", &
+                          usage="INTENSITIES_FILE_NAME filename", &
+                          default_lc_val="")
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="START_FRAME", &
                           description="First frame the field is applied. "// &
                           "(0: first frame) "// &

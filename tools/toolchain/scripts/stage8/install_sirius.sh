@@ -6,8 +6,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-sirius_ver="7.6.1"
-sirius_sha256="16a114dc17e28697750585820e69718a96e6929f88406d266c75cf9a7cdbdaaa"
+sirius_ver="7.7.0"
+sirius_sha256="be0bdc76db9eb8afdcb950f0ccaf7535b8e85d72a4232dc92246f54fa68d9d7b"
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
@@ -115,14 +115,8 @@ case "$with_sirius" in
       tar -xzf SIRIUS-${sirius_ver}.tar.gz
       cd SIRIUS-${sirius_ver}
 
-      # GCC 13 stopped including some common headers.
-      # https://github.com/electronic-structure/SIRIUS/issues/854
-      sed -i'' -e '1s/.*/#include <cstdint>\n&/' src/*.hpp
-
-      # Patch SIRIUS 7.6.1 for Libxc 7.0.0
-      patch -p1 src/potential/xc_functional_base.hpp < ${SCRIPT_DIR}/stage8/sirius_libxc7.patch
-      # Patch SIRIUS 7.6.1 for pugixml (CMake)
-      patch -p1 cmake/sirius_cxxConfig.cmake.in < ${SCRIPT_DIR}/stage8/sirius_1050.patch
+      # Workaround for https://github.com/electronic-structure/SIRIUS/issues/1073
+      patch -p1 < ${SCRIPT_DIR}/stage8/sirius_memory.patch
 
       rm -Rf build
       mkdir build

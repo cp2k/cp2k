@@ -51,7 +51,7 @@
           DO_SVD
         &END RI
         &RI_RPA
-          RPA_NUM_QUAD_POINTS 20
+          RPA_NUM_QUAD_POINTS 26
           &GW
             ANALYTIC_CONTINUATION TWO_POLE
             CORR_MOS_OCC 10

@@ -44,6 +44,8 @@
             MD 1
           &END EACH
         &END CURRENT
+        &CURRENT_INT
+        &END CURRENT_INT
       &END PRINT
     &END REAL_TIME_PROPAGATION
     &SCF

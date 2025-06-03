@@ -5,11 +5,9 @@
 import argparse
 import torch
 
-from e3nn import o3  # type: ignore
 from pathlib import Path
 from torch.utils.data import DataLoader
 
-from pao.model import PaoModel
 from pao.dataset import PaoDataset
 from pao.training import train_model
 

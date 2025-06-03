@@ -40,7 +40,7 @@
     &PARAMETERS
       ELECTRONIC_STRUCTURE_METHOD pseudopotential
       ENERGY_TOL 1e-7
-      GK_CUTOFF 6.0
+      GK_CUTOFF 4.0
       NGRIDK 2 2 2
       NUM_DFT_ITER 100
       NUM_MAG_DIMS 1

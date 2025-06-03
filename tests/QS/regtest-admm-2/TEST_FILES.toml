@@ -1,8 +1,8 @@
-"CH3-BP-CAUCHY_SUBSPACE.inp"            = [{matcher="E_total", tol=6e-14, ref=-7.36936246287966}]
+"CH3-BP-CAUCHY_SUBSPACE.inp"            = [{matcher="E_total", tol=6e-14, ref=-7.40042056457694}]
 "CH3-BP-CAUCHY_SUBSPACE_OT_OFF.inp"     = [{matcher="E_total", tol=6e-14, ref=-7.40082080371464}]
-"CH3-BP-CAUCHY.inp"                     = [{matcher="E_total", tol=1e-13, ref=-7.36936246287966}]
+"CH3-BP-CAUCHY.inp"                     = [{matcher="E_total", tol=1e-13, ref=-7.40042056457693}]
 "CH3-BP-CAUCHY_OT_OFF.inp"              = [{matcher="E_total", tol=6e-14, ref=-7.40082080371464}]
-"CH4-BP-MO_DIAG.inp"                    = [{matcher="E_total", tol=2e-13, ref=-8.07859057522753}]
-"CH4-BP-MO_NO_DIAG.inp"                 = [{matcher="E_total", tol=2e-13, ref=-8.07859057522753}]
-"CH4-BP-NONE.inp"                       = [{matcher="E_total", tol=2e-13, ref=-8.07630758920436}]
+"CH4-BP-MO_DIAG.inp"                    = [{matcher="E_total", tol=2e-13, ref=-8.07921108516316}]
+"CH4-BP-MO_NO_DIAG.inp"                 = [{matcher="E_total", tol=2e-13, ref=-8.07921108516316}]
+"CH4-BP-NONE.inp"                       = [{matcher="E_total", tol=2e-13, ref=-8.07712026700776}]
 #EOF

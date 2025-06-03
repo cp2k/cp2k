@@ -253,7 +253,7 @@ CONTAINS
          IF (nspins == 1) focc = 4.0_dp
          DO ispin = 1, nspins
             CALL get_mo_set(mo_set=mos_trexio(ispin), mo_coeff=mo_coeff, homo=nmos)
-            CALL cp_dbcsr_sm_fm_multiply(energy_derivative(ispin)%matrix, mo_occ(ispin), &
+            CALL cp_dbcsr_sm_fm_multiply(energy_derivative(ispin)%matrix, mo_coeff, &
                                          cpmos(ispin), ncol=nmos, alpha=focc, beta=0.0_dp)
          END DO
          !

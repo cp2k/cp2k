@@ -10,7 +10,7 @@
 # none calculation + periodic -> switch off periodic
 "crys_per_qmmm_none.inp"                = [{matcher="E_total", tol=7e-12, ref=-0.08375440741161}]
 # check zero of the potential for charged QM systems
-"acn-qmmm-re.inp"                       = [{matcher="E_total", tol=1e-12, ref=-14.78512402427952}]
+"acn-qmmm-re.inp"                       = [{matcher="E_total", tol=1e-12, ref=-14.78831974755122}]
 # check a qm/mm nasty topology
 "acn-conn-1.inp"                        = [{matcher="E_total", tol=4e-09, ref=-291.88277947852032}]
 "wat_nacl.inp"                          = [{matcher="M011", tol=2e-13, ref=-16.691503876246994}]

@@ -535,9 +535,8 @@ CONTAINS
       IF ((output_unit > 0) .AND. scf_env%print_iter_line) THEN
          IF (just_energy) THEN
             WRITE (UNIT=output_unit, &
-                   FMT="(T2,I5,1X,A,T20,E8.2,1X,F6.1,16X,F20.10)") &
-               scf_env%iter_count, TRIM(scf_env%iter_method), scf_env%iter_param, &
-               t2 - t1, energy%total
+                   FMT="(T2,A,1X,A,T20,E8.2,1X,F6.1,16X,F20.10)") &
+               "    -", TRIM(scf_env%iter_method), scf_env%iter_param, t2 - t1, energy%total
          ELSE
             IF ((ABS(scf_env%iter_delta) < 1.0E-8_dp) .OR. &
                 (ABS(scf_env%iter_delta) >= 1.0E5_dp)) THEN
@@ -670,27 +669,37 @@ CONTAINS
                WRITE (UNIT=output_unit, FMT="(T3,A,T56,F25.14)") &
                "Electric field interaction energy:          ", energy%efield
          ELSEIF (dft_control%qs_control%xtb) THEN
-            IF (dft_control%qs_control%xtb_control%gfn_type == 0) THEN
+            IF (dft_control%qs_control%xtb_control%do_tblite) THEN
                WRITE (UNIT=output_unit, FMT="(/,(T3,A,T56,F25.14))") &
                   "Core Hamiltonian energy:                       ", energy%core, &
                   "Repulsive potential energy:                    ", energy%repulsive, &
-                  "SRB Correction energy:                         ", energy%srb, &
-                  "Charge equilibration energy:                   ", energy%eeq, &
-                  "Dispersion energy:                             ", energy%dispersion
-            ELSEIF (dft_control%qs_control%xtb_control%gfn_type == 1) THEN
-               WRITE (UNIT=output_unit, FMT="(/,(T3,A,T56,F25.14))") &
-                  "Core Hamiltonian energy:                       ", energy%core, &
-                  "Repulsive potential energy:                    ", energy%repulsive, &
-                  "Electronic energy:                             ", energy%hartree, &
-                  "DFTB3 3rd order energy:                        ", energy%dftb3, &
-                  "Dispersion energy:                             ", energy%dispersion
-               IF (dft_control%qs_control%xtb_control%xb_interaction) &
-                  WRITE (UNIT=output_unit, FMT="(T3,A,T56,F25.14)") &
+                  "Electrostatic energy:                          ", energy%el_stat, &
+                  "Non-self consistent dispersion energy:         ", energy%dispersion, &
+                  "Self-consistent dispersion energy:             ", energy%dispersion_sc, &
                   "Correction for halogen bonding:                ", energy%xtb_xb_inter
-            ELSEIF (dft_control%qs_control%xtb_control%gfn_type == 2) THEN
-               CPABORT("gfn_typ 2 NYA")
             ELSE
-               CPABORT("invalid gfn_typ")
+               IF (dft_control%qs_control%xtb_control%gfn_type == 0) THEN
+                  WRITE (UNIT=output_unit, FMT="(/,(T3,A,T56,F25.14))") &
+                     "Core Hamiltonian energy:                       ", energy%core, &
+                     "Repulsive potential energy:                    ", energy%repulsive, &
+                     "SRB Correction energy:                         ", energy%srb, &
+                     "Charge equilibration energy:                   ", energy%eeq, &
+                     "Dispersion energy:                             ", energy%dispersion
+               ELSEIF (dft_control%qs_control%xtb_control%gfn_type == 1) THEN
+                  WRITE (UNIT=output_unit, FMT="(/,(T3,A,T56,F25.14))") &
+                     "Core Hamiltonian energy:                       ", energy%core, &
+                     "Repulsive potential energy:                    ", energy%repulsive, &
+                     "Electronic energy:                             ", energy%hartree, &
+                     "DFTB3 3rd order energy:                        ", energy%dftb3, &
+                     "Dispersion energy:                             ", energy%dispersion
+                  IF (dft_control%qs_control%xtb_control%xb_interaction) &
+                     WRITE (UNIT=output_unit, FMT="(T3,A,T56,F25.14)") &
+                     "Correction for halogen bonding:                ", energy%xtb_xb_inter
+               ELSEIF (dft_control%qs_control%xtb_control%gfn_type == 2) THEN
+                  CPABORT("gfn_typ 2 NYA")
+               ELSE
+                  CPABORT("invalid gfn_typ")
+               END IF
             END IF
             IF (dft_control%qs_control%xtb_control%do_nonbonded) &
                WRITE (UNIT=output_unit, FMT="(T3,A,T56,F25.14)") &
@@ -760,6 +769,12 @@ CONTAINS
                WRITE (UNIT=output_unit, FMT="(/,(T3,A,T56,F25.14))") &
                   "GAPW_XC| Exc from hard and soft atomic rho1:      ", exc1_energy
             END IF
+         END IF
+         IF (dft_control%hairy_probes .EQV. .TRUE.) THEN
+            WRITE (UNIT=output_unit, FMT="((T3,A,T56,F25.14))") &
+               "Electronic entropic energy:", energy%kTS
+            WRITE (UNIT=output_unit, FMT="((T3,A,T56,F25.14))") &
+               "Fermi energy:", energy%efermi
          END IF
          IF (dft_control%smear) THEN
             WRITE (UNIT=output_unit, FMT="((T3,A,T56,F25.14))") &

@@ -6,9 +6,9 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-deepmd_ver="3.0.1"
+deepmd_ver="3.0.2"
+deepmd_sha256="b828d3a44730ea852505abbdb24ea5b556f2bf8b16de5a9c76018ed1ced7121b"
 deepmd_pkg="deepmd-kit-${deepmd_ver}.tar.gz"
-deepmd_sha256="e842edbc2714bc948ce708c411e5fed751e67c88d5c493c2978f11c849027dca"
 
 # shellcheck source=/dev/null
 source "${SCRIPT_DIR}"/common_vars.sh
@@ -43,11 +43,6 @@ case "$with_deepmd" in
       echo "Installing from scratch into ${pkg_install_dir}"
       tar -xzf ${deepmd_pkg}
       cd deepmd-kit-${deepmd_ver}/source
-      # Workaround for https://github.com/deepmodeling/deepmd-kit/issues/4569
-      sed -i /CXX_STANDARD/d CMakeLists.txt
-
-      # PR 4577: https://github.com/deepmodeling/deepmd-kit/pull/4577
-      patch -p2 CMakeLists.txt < ${SCRIPT_DIR}/stage6/deepmd-kit_4577.patch
 
       mkdir build
       cd build

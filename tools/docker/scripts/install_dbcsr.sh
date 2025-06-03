@@ -26,7 +26,7 @@ cd dbcsr-${DBCSR_ver}
 mkdir build
 cd build
 
-if [[ "${PROFILE}" == "toolchain" ]]; then
+if [[ "${PROFILE}" =~ ^toolchain ]]; then
   if [[ -f "${TOOLCHAIN_DIR}/install/setup" ]]; then
     # shellcheck disable=SC1091
     source "${TOOLCHAIN_DIR}/install/setup"
@@ -45,7 +45,7 @@ else
   exit 1
 fi
 
-if ! cmake -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" -DCMAKE_INSTALL_LIBDIR=lib -DUSE_MPI=${USE_MPI} -DUSE_OPENMP=ON -DUSE_SMM=blas .. &> cmake.log; then
+if ! cmake -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" -DCMAKE_INSTALL_LIBDIR=lib -DUSE_MPI=${USE_MPI} -DUSE_OPENMP=ON .. &> cmake.log; then
   cat cmake.log
   exit 1
 fi

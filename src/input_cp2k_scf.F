@@ -35,20 +35,20 @@ MODULE input_cp2k_scf
         cholesky_reduce, cholesky_restore, core_guess, diag_block_davidson, diag_block_krylov, &
         diag_filter_matrix, diag_ot, diag_standard, eht_guess, gaussian, general_roks, &
         high_spin_roks, history_guess, jacobian_fd1, jacobian_fd1_backward, jacobian_fd1_central, &
-        jacobian_fd2, jacobian_fd2_backward, ls_2pnt, ls_3pnt, ls_gold, ls_none, mopac_guess, &
-        no_guess, numerical, ot_algo_irac, ot_algo_taylor_or_diag, ot_chol_irac, ot_lwdn_irac, &
-        ot_mini_broyden, ot_mini_cg, ot_mini_diis, ot_mini_sd, ot_poly_irac, ot_precond_full_all, &
-        ot_precond_full_kinetic, ot_precond_full_single, ot_precond_full_single_inverse, &
-        ot_precond_none, ot_precond_s_inverse, ot_precond_solver_default, &
-        ot_precond_solver_direct, ot_precond_solver_inv_chol, ot_precond_solver_update, &
-        outer_scf_basis_center_opt, outer_scf_becke_constraint, outer_scf_cdft_constraint, &
-        outer_scf_ddapc_constraint, outer_scf_hirshfeld_constraint, outer_scf_none, &
-        outer_scf_optimizer_bisect, outer_scf_optimizer_broyden, outer_scf_optimizer_diis, &
-        outer_scf_optimizer_newton, outer_scf_optimizer_newton_ls, outer_scf_optimizer_none, &
-        outer_scf_optimizer_sd, outer_scf_optimizer_secant, outer_scf_s2_constraint, &
-        radius_covalent, radius_default, radius_single, radius_user, radius_vdw, random_guess, &
-        restart_guess, shape_function_density, shape_function_gaussian, smear_energy_window, &
-        smear_fermi_dirac, smear_list, sparse_guess
+        jacobian_fd2, jacobian_fd2_backward, ls_2pnt, ls_3pnt, ls_adapt, ls_gold, ls_none, &
+        mopac_guess, no_guess, numerical, ot_algo_irac, ot_algo_taylor_or_diag, ot_chol_irac, &
+        ot_lwdn_irac, ot_mini_broyden, ot_mini_cg, ot_mini_diis, ot_mini_sd, ot_poly_irac, &
+        ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
+        ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
+        ot_precond_solver_default, ot_precond_solver_direct, ot_precond_solver_inv_chol, &
+        ot_precond_solver_update, outer_scf_basis_center_opt, outer_scf_becke_constraint, &
+        outer_scf_cdft_constraint, outer_scf_ddapc_constraint, outer_scf_hirshfeld_constraint, &
+        outer_scf_none, outer_scf_optimizer_bisect, outer_scf_optimizer_broyden, &
+        outer_scf_optimizer_diis, outer_scf_optimizer_newton, outer_scf_optimizer_newton_ls, &
+        outer_scf_optimizer_none, outer_scf_optimizer_sd, outer_scf_optimizer_secant, &
+        outer_scf_s2_constraint, radius_covalent, radius_default, radius_single, radius_user, &
+        radius_vdw, random_guess, restart_guess, shape_function_density, shape_function_gaussian, &
+        smear_energy_window, smear_fermi_dirac, smear_list, sparse_guess
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
                                               keyword_type
@@ -197,7 +197,8 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="EPS_DIIS", &
-                          description="Threshold on the convergence to start using DIAG/DIIS", &
+                          description="Threshold on the convergence to start using DIAG/DIIS or OT/DIIS."// &
+                          " Default for OT/DIIS is never to switch.", &
                           usage="EPS_DIIS 5.0e-2", default_r_val=0.1_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -674,6 +675,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_SCF_DIIS", &
+                          description="Maximum DIIS SCF inner loop cycles. This can be used to extend"// &
+                          " SCF cycles after a switch to DIIS (see eps_diis).", &
+                          usage="MAX_SCF_DIIS 20", &
+                          default_i_val=0)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="N_HISTORY_VEC", &
                           variants=s2a("NDIIS", "N_DIIS", "N_BROYDEN"), &
                           description="Number of history vectors to be used with DIIS or BROYDEN", &
@@ -761,10 +770,14 @@ CONTAINS
                           " in which successive OT CG steps do not decrease the total energy.", &
                           usage="LINESEARCH GOLD", &
                           default_i_val=ls_2pnt, &
-                          enum_c_vals=s2a("NONE", "2PNT", "3PNT", "GOLD"), &
-                          enum_desc=s2a("take fixed length steps", "extrapolate based on 2 points", &
-                                        "... or on 3 points", "perform 1D golden section search of the minimum (very expensive)"), &
-                          enum_i_vals=(/ls_none, ls_2pnt, ls_3pnt, ls_gold/))
+                          enum_c_vals=s2a("ADAPT", "NONE", "2PNT", "3PNT", "GOLD"), &
+                          enum_desc=s2a("extrapolates usually based on 3 points,"// &
+                                        " uses additional points on demand, very robust.", &
+                                        "always take steps of fixed length", &
+                                        "extrapolate based on 3 points", &
+                                        "extrapolate based on 2 points", &
+                                        "perform 1D golden section search of the minimum (very expensive)"), &
+                          enum_i_vals=(/ls_adapt, ls_none, ls_2pnt, ls_3pnt, ls_gold/))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

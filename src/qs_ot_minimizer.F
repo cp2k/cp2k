@@ -211,6 +211,8 @@ CONTAINS
          CALL do_line_search_3pnt(qs_ot_env)
       CASE ("2PNT")
          CALL do_line_search_2pnt(qs_ot_env)
+      CASE ("ADPT")
+         CALL do_line_search_adapt(qs_ot_env)
       CASE ("NONE")
          CALL do_line_search_none(qs_ot_env)
       CASE DEFAULT
@@ -511,6 +513,124 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE do_line_search_2pnt
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_ot_env ...
+! **************************************************************************************************
+   SUBROUTINE do_line_search_adapt(qs_ot_env)
+
+      TYPE(qs_ot_type), DIMENSION(:), POINTER            :: qs_ot_env
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'do_line_search_adapt'
+      REAL(KIND=dp), PARAMETER                           :: grow_factor = 2.0_dp, &
+                                                            shrink_factor = 0.5_dp
+
+      INTEGER                                            :: count, handle, il, im, ir
+      REAL(KIND=dp)                                      :: a, b, c, denom, ds, el, em, er, &
+                                                            step_size, xl, xm, xr
+
+      CALL timeset(routineN, handle)
+
+      qs_ot_env(1)%line_search_count = qs_ot_env(1)%line_search_count + 1
+      count = qs_ot_env(1)%line_search_count
+      qs_ot_env(1)%line_search_might_be_done = .FALSE.
+      qs_ot_env(1)%energy_only = .TRUE.
+
+      IF (count + 1 > SIZE(qs_ot_env(1)%OT_pos)) THEN
+         ! should not happen, we pass with a warning first
+         ! you can increase the size of OT_pos and the like in qs_ot_env
+         CPABORT("MAX ITER EXCEEDED : FATAL")
+      END IF
+
+      ! Perform an adaptive linesearch
+      IF (qs_ot_env(1)%line_search_count == 1) THEN
+         qs_ot_env(1)%line_search_left = 1
+         qs_ot_env(1)%line_search_right = 0
+         qs_ot_env(1)%line_search_mid = 1
+         qs_ot_env(1)%ot_Pos(1) = 0.0_dp
+         qs_ot_env(1)%ot_energy(1) = qs_ot_env(1)%etotal
+         qs_ot_env(1)%ot_Pos(2) = qs_ot_env(1)%ds_min*grow_factor
+      ELSE
+         qs_ot_env(1)%ot_energy(count) = qs_ot_env(1)%etotal
+         ! it's essentially a book keeping game.
+         ! keep left on the left, keep (bring) right on the right
+         ! and mid in between these two
+         IF (qs_ot_env(1)%line_search_right == 0) THEN ! we do not yet have the right bracket
+            IF (qs_ot_env(1)%ot_energy(count - 1) < qs_ot_env(1)%ot_energy(count)) THEN
+               qs_ot_env(1)%line_search_right = count
+               qs_ot_env(1)%ot_Pos(count + 1) = qs_ot_env(1)%ot_Pos(qs_ot_env(1)%line_search_mid) + &
+                                                (qs_ot_env(1)%ot_Pos(qs_ot_env(1)%line_search_right) - &
+                                                 qs_ot_env(1)%ot_Pos(qs_ot_env(1)%line_search_mid))*shrink_factor
+            ELSE
+               ! expand further
+               qs_ot_env(1)%line_search_left = qs_ot_env(1)%line_search_mid
+               qs_ot_env(1)%line_search_mid = count
+               qs_ot_env(1)%ot_Pos(count + 1) = qs_ot_env(1)%ot_Pos(count)*grow_factor
+            END IF
+         ELSE
+            ! first determine where we are and construct the new triplet
+            IF (qs_ot_env(1)%ot_pos(count) < qs_ot_env(1)%ot_pos(qs_ot_env(1)%line_search_mid)) THEN
+               IF (qs_ot_env(1)%ot_energy(count) < qs_ot_env(1)%ot_energy(qs_ot_env(1)%line_search_mid)) THEN
+                  qs_ot_env(1)%line_search_right = qs_ot_env(1)%line_search_mid
+                  qs_ot_env(1)%line_search_mid = count
+               ELSE
+                  qs_ot_env(1)%line_search_left = count
+               END IF
+            ELSE
+               IF (qs_ot_env(1)%ot_energy(count) < qs_ot_env(1)%ot_energy(qs_ot_env(1)%line_search_mid)) THEN
+                  qs_ot_env(1)%line_search_left = qs_ot_env(1)%line_search_mid
+                  qs_ot_env(1)%line_search_mid = count
+               ELSE
+                  qs_ot_env(1)%line_search_right = count
+               END IF
+            END IF
+            il = qs_ot_env(1)%line_search_left
+            im = qs_ot_env(1)%line_search_mid
+            ir = qs_ot_env(1)%line_search_right
+            xl = qs_ot_env(1)%OT_pos(il)
+            xm = qs_ot_env(1)%OT_pos(im)
+            xr = qs_ot_env(1)%OT_pos(ir)
+            el = qs_ot_env(1)%ot_energy(il)
+            em = qs_ot_env(1)%ot_energy(im)
+            er = qs_ot_env(1)%ot_energy(ir)
+            IF (em < el) THEN
+               IF (er < em) THEN
+                  !extend search
+                  qs_ot_env(1)%ot_Pos(count + 1) = qs_ot_env(1)%ot_Pos(ir)*grow_factor
+               ELSE
+                  ! Cramer's rule
+                  denom = (xl - xm)*(xl - xr)*(xm - xr)
+                  a = (xr*(em - el) + xm*(el - er) + xl*(er - em))/denom
+                  b = (xr**2*(el - em) + xm**2*(er - el) + xl**2*(em - er))/denom
+                  c = (xm*xr*(xm - xr)*el + xr*xl*(xr - xl)*em + xr*xm*(xr - xm)*er)/denom
+
+                  IF (ABS(a) /= 0.0_dp) THEN
+                     step_size = -b/(2.0_dp*a)
+                  ELSE
+                     step_size = 0.0_dp
+                  END IF
+                  CPASSERT(step_size >= 0.0_dp)
+                  qs_ot_env(1)%ot_Pos(count + 1) = step_size
+                  qs_ot_env(1)%line_search_might_be_done = .TRUE.
+                  qs_ot_env(1)%energy_only = .FALSE.
+               END IF
+            ELSE
+               ! contract search
+               qs_ot_env(1)%ot_Pos(count + 1) = qs_ot_env(1)%ot_Pos(im) + &
+                                                (qs_ot_env(1)%ot_Pos(ir) - qs_ot_env(1)%ot_Pos(im))*shrink_factor
+            END IF
+
+         END IF
+      END IF
+      ds = qs_ot_env(1)%OT_pos(count + 1) - qs_ot_env(1)%OT_pos(count)
+      qs_ot_env(1)%ds_min = qs_ot_env(1)%OT_pos(count + 1)
+
+      CALL take_step(ds, qs_ot_env)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE do_line_search_adapt
 
 ! **************************************************************************************************
 !> \brief ...

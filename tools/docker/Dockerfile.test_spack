@@ -1,71 +1,87 @@
 #
 # This file was created by generate_dockerfiles.py.
-# Usage: docker build -f ./Dockerfile.test_spack ../../
+# Usage: podman build --shm-size=1g -f ./Dockerfile.test_spack ../../
 #
 
 FROM ubuntu:24.04
 
-# Install common dependencies as pre-built Ubuntu packages.
+# Install packages required to build the CP2K dependencies with Spack
 RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
-    autoconf \
-    autogen \
-    automake \
-    autotools-dev \
     bzip2 \
     ca-certificates \
+    cmake \
     g++ \
     gcc \
     gfortran \
     git \
-    less \
+    gnupg \
+    hwloc \
+    libhwloc-dev \
+    libssh-dev \
+    libssl-dev \
     libtool \
     libtool-bin \
+    lsb-release \
     make \
-    nano \
     ninja-build \
     patch \
     pkgconf \
     python3 \
+    python3-dev \
+    python3-pip \
+    python3-venv \
     unzip \
     wget \
     xxd \
-    zlib1g-dev \
-    cmake \
-    gnupg \
-    m4 \
     xz-utils \
-    libssl-dev \
-    libssh-dev \
-    hwloc \
-    libhwloc-dev \
-   && rm -rf /var/lib/apt/lists/*
+    zstd && rm -rf /var/lib/apt/lists/*
 
-# Install a recent developer version of Spack.
-WORKDIR /opt/spack
-ARG SPACK_VERSION=40d40ccc525dfa821b5e2998c9e767f08e0065bd
+# Create and activate a virtual environment for Python packages.
+RUN python3 -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+RUN pip3 install --quiet boto3==1.38.11 google-cloud-storage==3.1.0
+
+# Install a recent Spack version
+WORKDIR /root/spack
+ARG SPACK_VERSION
+ENV SPACK_VERSION=${SPACK_VERSION:-develop-2025-05-18}
 RUN git init --quiet && \
     git remote add origin https://github.com/spack/spack.git && \
     git fetch --quiet --depth 1 origin ${SPACK_VERSION} --no-tags && \
     git checkout --quiet FETCH_HEAD
-ENV PATH="/opt/spack/bin:${PATH}"
+ENV PATH="/root/spack/bin:${PATH}"
 
-# Find all external packages and compilers.
+# Find all compilers
 RUN spack compiler find
+
+# Find all external packages
 RUN spack external find --all --not-buildable
 
-# Enable Spack build cache
-ARG SPACK_BUILD_CACHE=develop-2025-02-02
-RUN spack mirror add ${SPACK_BUILD_CACHE} https://binaries.spack.io/${SPACK_BUILD_CACHE} && \
-    spack mirror add develop https://binaries.spack.io/develop && \
-    spack buildcache keys --install --trust --force && \
-    spack mirror rm develop
+# Add local Spack cache.
+ARG SPACK_CACHE="s3://spack-cache --s3-endpoint-url=http://localhost:9000"
+COPY ./tools/docker/scripts/setup_spack_cache.sh ./
+RUN ./setup_spack_cache.sh
 
-# Install CP2K's dependencies via Spack.
-WORKDIR /
-COPY ./tools/spack/cp2k-dependencies.yaml .
-RUN spack env create myenv ./cp2k-dependencies.yaml
+# Copy Spack configuration and build recipes
+ARG CP2K_BUILD_TYPE
+ENV CP2K_BUILD_TYPE=${CP2K_BUILD_TYPE:-all}
+COPY ./tools/spack/repo.yaml ./tools/spack/cp2k_deps_${CP2K_BUILD_TYPE}_psmp.yaml ./
+COPY ./tools/spack/packages ./packages
+
+# Sarus containers must be dynamically linked to an MPI implementation that is ABI-compatible
+# with the MPI on the compute nodes at CSCS like MPICH@3
+ARG MPICH_VERSION
+ENV MPICH_VERSION=${MPICH_VERSION:-4.3.0}
+RUN sed -i -e "s/mpich@[0-9.]*/mpich@${MPICH_VERSION}/" cp2k_deps_${CP2K_BUILD_TYPE}_psmp.yaml && \
+    spack env create myenv cp2k_deps_${CP2K_BUILD_TYPE}_psmp.yaml && \
+    spack -e myenv repo list
+
+# Install CP2K dependencies via Spack
 RUN spack -e myenv concretize -f
-RUN spack -e myenv env depfile -o spack-makefile && make -j32 --file=spack-makefile SPACK_COLOR=never --output-sync=recurse
+ENV SPACK_ENV_VIEW="/root/spack/var/spack/environments/myenv/spack-env/view"
+RUN spack -e myenv env depfile -o spack_makefile && \
+    make -j32 --file=spack_makefile SPACK_COLOR=never --output-sync=recurse && \
+    cp -ar ${SPACK_ENV_VIEW}/bin ${SPACK_ENV_VIEW}/include ${SPACK_ENV_VIEW}/lib /opt/spack
 
 # Install CP2K sources.
 WORKDIR /opt/cp2k
@@ -81,7 +97,7 @@ ARG TESTOPTS=""
 COPY ./tools/docker/scripts/build_cp2k_cmake.sh ./tools/docker/scripts/test_regtest_cmake.sh ./
 RUN /bin/bash -o pipefail -c " \
     TESTOPTS='${TESTOPTS}' \
-    ./test_regtest_cmake.sh spack psmp |& tee report.log && \
+    ./test_regtest_cmake.sh spack_all psmp |& tee report.log && \
     rm -rf regtesting"
 
 # Output the report if the image is old and was therefore pulled from the build cache.

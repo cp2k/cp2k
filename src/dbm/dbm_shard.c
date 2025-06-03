@@ -12,6 +12,7 @@
 #include <string.h>
 
 #include "dbm_hyperparams.h"
+#include "dbm_mempool.h"
 #include "dbm_shard.h"
 
 /*******************************************************************************
@@ -96,8 +97,9 @@ void dbm_shard_copy(dbm_shard_t *shard_a, const dbm_shard_t *shard_b) {
   shard_a->hashtable_prime = shard_b->hashtable_prime;
 
   if (shard_a->data_allocated < shard_b->data_size) {
-    free(shard_a->data);
-    shard_a->data = malloc(shard_b->data_size * sizeof(double));
+    dbm_mempool_host_free(shard_a->data);
+    shard_a->data =
+        dbm_mempool_host_malloc(shard_b->data_size * sizeof(double));
     shard_a->data_allocated = shard_b->data_size;
     assert(shard_a->data != NULL);
   }
@@ -123,7 +125,7 @@ void dbm_shard_copy(dbm_shard_t *shard_a, const dbm_shard_t *shard_b) {
 void dbm_shard_release(dbm_shard_t *shard) {
   free(shard->blocks);
   free(shard->hashtable);
-  free(shard->data);
+  dbm_mempool_host_free(shard->data);
   omp_destroy_lock(&shard->lock);
 }
 
@@ -196,7 +198,8 @@ dbm_block_t *dbm_shard_promise_new_block(dbm_shard_t *shard, const int row,
                                          const int col, const int block_size) {
   // Grow blocks array if necessary.
   if (shard->nblocks_allocated < shard->nblocks + 1) {
-    shard->nblocks_allocated = DBM_ALLOCATION_FACTOR * (shard->nblocks + 1);
+    shard->nblocks_allocated = DBM_OVERCOMMIT_HOST * (shard->nblocks + 1);
+    assert((shard->nblocks + 1) <= shard->nblocks_allocated);
     shard->blocks =
         realloc(shard->blocks, shard->nblocks_allocated * sizeof(dbm_block_t));
     assert(shard->blocks != NULL);
@@ -229,9 +232,14 @@ void dbm_shard_allocate_promised_blocks(dbm_shard_t *shard) {
 
   // Reallocate data array if necessary.
   if (shard->data_promised > shard->data_allocated) {
-    shard->data_allocated = DBM_ALLOCATION_FACTOR * shard->data_promised;
-    shard->data = realloc(shard->data, shard->data_allocated * sizeof(double));
+    const double *data = shard->data;
+    shard->data_allocated = DBM_OVERCOMMIT_HOST * shard->data_promised;
+    assert(shard->data_promised <= shard->data_allocated);
+    shard->data =
+        dbm_mempool_host_malloc(shard->data_allocated * sizeof(double));
     assert(shard->data != NULL);
+    memcpy(shard->data, data, shard->data_size * sizeof(double));
+    dbm_mempool_host_free(data);
   }
 
   // Zero new blocks.
@@ -239,7 +247,7 @@ void dbm_shard_allocate_promised_blocks(dbm_shard_t *shard) {
   // to frequent page faults. The executing thread determines the NUMA location
   if (shard->data_promised > shard->data_size) {
     const int tail = shard->data_promised - shard->data_size;
-    memset(&shard->data[shard->data_size], 0, tail * sizeof(double));
+    memset(shard->data + shard->data_size, 0, tail * sizeof(double));
     shard->data_size = shard->data_promised;
   }
 }

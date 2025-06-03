@@ -4,5 +4,6 @@
 # shellcheck disable=all
 
 ./scripts/stage2/install_mathlibs.sh
+./scripts/stage2/install_gmp.sh
 
 #EOF

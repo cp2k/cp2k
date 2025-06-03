@@ -18,7 +18,7 @@
 "water_3_NOwalls.inp"                   = [{matcher="M002", tol=1.0E-14, ref=-0.127907027267E+02}]
 "water_3_walls.inp"                     = [{matcher="M002", tol=1.0E-14, ref=-0.127764135533E+02}]
 "water_3_walls_q.inp"                   = [{matcher="M002", tol=1.0E-14, ref=-0.127866977452E+02}]
-"zwitt.inp"                             = [{matcher="M002", tol=6e-12, ref=-0.336338875788E+02}]
+"zwitt.inp"                             = [{matcher="M002", tol=6e-12, ref=-33.6338875783}]
 #QMMM thermostat regions
 "mol_CSVR_gen1.inp"                     = [{matcher="M002", tol=1.0E-14, ref=-0.376904929147E+02}]
 "mol_CSVR_gen2.inp"                     = [{matcher="M002", tol=1.0E-14, ref=-0.376750907406E+02}]

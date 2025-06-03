@@ -1,0 +1,38 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT triclinic
+  RUN_TYPE ENERGY_FORCE
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      &NONBONDED
+        &ACE
+          ATOMS O H
+          POT_FILE_NAME ./water_nore_PACE_1k.yaml
+        &END ACE
+      &END NONBONDED
+    &END FORCEFIELD
+    &POISSON
+      PERIODIC NONE
+      &EWALD
+        EWALD_TYPE NONE
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      A 5.0 0.0 0.0
+      B 0.0 5.0 0.0
+      C 2.5 2.5 2.5
+      PERIODIC XYZ
+    &END CELL
+    &COORD
+      O    2.520000000    1.840000000    3.830000000
+      H    2.990000000    1.380000000    4.630000000
+      H    1.650000000    1.400000000    3.540000000
+    &END COORD
+  &END SUBSYS
+&END FORCE_EVAL

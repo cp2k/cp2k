@@ -58,12 +58,13 @@
           &END RI_METRIC
         &END RI
         &RI_RPA
-          RPA_NUM_QUAD_POINTS 10
+          RPA_NUM_QUAD_POINTS 26
           &GW
             CORR_MOS_OCC 10
             CORR_MOS_VIRT 10
             EV_GW_ITER 5
             FERMI_LEVEL_OFFSET 20.0
+            REGULARIZATION_MINIMAX 1.0E-4
             RI_SIGMA_X FALSE
             UPDATE_XC_ENERGY
           &END GW

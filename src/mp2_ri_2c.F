@@ -452,8 +452,8 @@ CONTAINS
       nkp = kpoints%nkp
 
       ALLOCATE (fm_matrix_L_kpoints(nkp, 2))
-      DO ikp = 1, nkp
-         DO i_real_imag = 1, 2
+      DO i_real_imag = 1, 2
+         DO ikp = 1, nkp
             CALL cp_fm_create(fm_matrix_L_kpoints(ikp, i_real_imag), &
                               fm_matrix_Minv_L_kpoints(1, i_real_imag)%matrix_struct)
             CALL cp_fm_set_all(fm_matrix_L_kpoints(ikp, i_real_imag), 0.0_dp)
@@ -695,8 +695,8 @@ CONTAINS
       IF (PRESENT(ikp_ext)) nkp = 1
 
       ALLOCATE (fm_matrix_Minv_L_kpoints(nkp, n_real_imag))
-      DO i_size = 1, nkp
-         DO i_real_imag = 1, n_real_imag
+      DO i_real_imag = 1, n_real_imag
+         DO i_size = 1, nkp
             CALL cp_fm_create(fm_matrix_Minv_L_kpoints(i_size, i_real_imag), fm_matrix_L%matrix_struct)
             CALL cp_fm_set_all(fm_matrix_Minv_L_kpoints(i_size, i_real_imag), 0.0_dp)
          END DO
@@ -1224,8 +1224,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'fill_fm_L_from_L_loc_non_blocking'
 
-      INTEGER :: dummy_proc, handle, handle2, i_entry_rec, i_row, i_row_global, iproc, j_col, &
-         j_col_global, LLL, MMM, ncol_local, nrow_local, proc_send, send_pcol, send_prow
+      INTEGER :: dummy_proc, handle, handle2, i_entry_rec, i_row, iproc, j_col, LLL, MMM, &
+         ncol_local, nrow_local, proc_send, send_pcol, send_prow
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: entry_counter, num_entries_rec, &
                                                             num_entries_send
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
@@ -1333,13 +1333,13 @@ CONTAINS
 
       ! get the process, where the elements from L_local_col have to be sent and
       ! write the data and the info to buffer_send
-      DO LLL = 1, dimen_RI
+      DO MMM = my_group_L_start, my_group_L_end
 
-         send_prow = fm_matrix_L%matrix_struct%g2p_row(LLL)
+         send_pcol = fm_matrix_L%matrix_struct%g2p_col(MMM)
 
-         DO MMM = my_group_L_start, my_group_L_end
+         DO LLL = 1, dimen_RI
 
-            send_pcol = fm_matrix_L%matrix_struct%g2p_col(MMM)
+            send_prow = fm_matrix_L%matrix_struct%g2p_row(LLL)
 
             proc_send = fm_matrix_L%matrix_struct%context%blacs2mpi(send_prow, send_pcol)
 
@@ -1373,30 +1373,17 @@ CONTAINS
 
       ! fill fm_matrix_L with the entries from buffer_rec
       DO iproc = 0, para_env%num_pe - 1
-
          DO i_entry_rec = 1, num_entries_rec(iproc)
-
-            DO i_row = 1, nrow_local
-
-               i_row_global = row_indices(i_row)
-
-               DO j_col = 1, ncol_local
-
-                  j_col_global = col_indices(j_col)
-
-                  IF (i_row_global == buffer_rec(iproc)%indx(i_entry_rec, 1) .AND. &
-                      j_col_global == buffer_rec(iproc)%indx(i_entry_rec, 2)) THEN
-
-                     fm_matrix_L%local_data(i_row, j_col) = buffer_rec(iproc)%msg(i_entry_rec)
-
-                  END IF
-
-               END DO
-
+            DO j_col = 1, ncol_local
+               IF (col_indices(j_col) == buffer_rec(iproc)%indx(i_entry_rec, 2)) THEN
+                  DO i_row = 1, nrow_local
+                     IF (row_indices(i_row) == buffer_rec(iproc)%indx(i_entry_rec, 1)) THEN
+                        fm_matrix_L%local_data(i_row, j_col) = buffer_rec(iproc)%msg(i_entry_rec)
+                     END IF
+                  END DO
+               END IF
             END DO
-
          END DO
-
       END DO
 
       CALL timestop(handle2)
@@ -1452,10 +1439,10 @@ CONTAINS
                              ncol_local=ncol_local, &
                              row_indices=row_indices, &
                              col_indices=col_indices)
-         DO iiB = 1, nrow_local
-            i_global = row_indices(iiB)
-            DO jjB = 1, ncol_local
-               j_global = col_indices(jjB)
+         DO jjB = 1, ncol_local
+            j_global = col_indices(jjB)
+            DO iiB = 1, nrow_local
+               i_global = row_indices(iiB)
                IF (j_global < i_global) fm_matrix_L%local_data(iiB, jjB) = 0.0_dp
             END DO
          END DO

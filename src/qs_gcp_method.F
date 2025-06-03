@@ -70,8 +70,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_gcp_pairpot'
 
       INTEGER                                            :: atom_a, atom_b, handle, i, iatom, ikind, &
-                                                            jatom, jkind, mepos, natom, nkind, &
-                                                            nsto, unit_nr
+                                                            jatom, jkind, natom, nkind, nsto, &
+                                                            unit_nr
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of, ngcpat
       LOGICAL                                            :: atenergy, atex, use_virial, verbose
       REAL(KIND=dp)                                      :: eama, eamb, egcp, expab, fac, fda, fdb, &
@@ -147,7 +147,6 @@ CONTAINS
       IF (calculate_forces) THEN
          NULLIFY (force)
          CALL get_qs_env(qs_env=qs_env, force=force)
-         ALLOCATE (atom_of_kind(natom), kind_of(natom))
          CALL get_atomic_kind_set(atomic_kind_set, atom_of_kind=atom_of_kind, kind_of=kind_of)
          use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
          IF (use_virial) dvirial = virial%pv_virial
@@ -172,7 +171,7 @@ CONTAINS
       CALL neighbor_list_iterator_create(nl_iterator, sab_gcp)
       DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
 
-         CALL get_iterator_info(nl_iterator, mepos=mepos, ikind=ikind, jkind=jkind, iatom=iatom, jatom=jatom, r=rij)
+         CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, iatom=iatom, jatom=jatom, r=rij)
 
          rcc = SQRT(rij(1)*rij(1) + rij(2)*rij(2) + rij(3)*rij(3))
          IF (rcc > 1.e-6_dp) THEN

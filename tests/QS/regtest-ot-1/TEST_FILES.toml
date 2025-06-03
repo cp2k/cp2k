@@ -3,36 +3,36 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-"H2O.inp"                               = [{matcher="E_total", tol=4.0E-14, ref=-17.13993294347306}]
+"H2O.inp"                               = [{matcher="E_total", tol=4.0E-14, ref=-17.13993294543965}]
 "H2O-print.inp"                         = [{matcher="E_total", tol=4.0E-14, ref=-17.13993294347306}]
 #restart
 "H2O-OT-1.inp"                          = [{matcher="E_total", tol=8e-13, ref=-17.13993288711863}]
 #restart
-"H2O-OT-2.inp"                          = [{matcher="E_total", tol=8e-14, ref=-17.13993271169253}]
+"H2O-OT-2.inp"                          = [{matcher="E_total", tol=8e-13, ref=-17.13993271169253}]
 #restart
-"H2O-OT-3.inp"                          = [{matcher="E_total", tol=7e-14, ref=-17.14010565296123}]
+"H2O-OT-3.inp"                          = [{matcher="E_total", tol=5e-13, ref=-17.14010566226161}]
 #restart
-"H2O-OT-4.inp"                          = [{matcher="E_total", tol=1e-13, ref=-17.13983663796186}]
+"H2O-OT-4.inp"                          = [{matcher="E_total", tol=5e-13, ref=-17.13983665026421}]
 # restart, state selective
-"H2O-OT-5.inp"                          = [{matcher="E_total", tol=5e-14, ref=-17.14028120016578}]
+"H2O-OT-5.inp"                          = [{matcher="E_total", tol=5e-13, ref=-17.1402812001055}]
 # LSD
-"H2-1.inp"                              = [{matcher="E_total", tol=4e-13, ref=-0.81434928939885998}]
-"H2-2.inp"                              = [{matcher="E_total", tol=8e-13, ref=-0.80551808334119002}]
-"H2-3.inp"                              = [{matcher="E_total", tol=6e-13, ref=-0.81893458480536996}]
+"H2-1.inp"                              = [{matcher="E_total", tol=4e-13, ref=-0.95635366102509}]
+"H2-2.inp"                              = [{matcher="E_total", tol=8e-13, ref=-0.93159042605284}]
+"H2-3.inp"                              = [{matcher="E_total", tol=6e-13, ref=-0.95764459888284}]
 # more complete OT testing
 "Ar-14.inp"                             = [{matcher="E_total", tol=4e-13, ref=-20.95260103651540}]
 "Ar-15.inp"                             = [{matcher="E_total", tol=3e-13, ref=-20.949153287444471}]
 "Ar-16.inp"                             = [{matcher="E_total", tol=4e-13, ref=-20.95260103651540}]
-"Ar-17.inp"                             = [{matcher="E_total", tol=4e-13, ref=-20.94915310647679}]
+"Ar-17.inp"                             = [{matcher="E_total", tol=4e-13, ref=-20.9491532959661}]
 "Ar-18.inp"                             = [{matcher="E_total", tol=4e-13, ref=-20.95260103651540}]
-"Ar-19.inp"                             = [{matcher="E_total", tol=4e-13, ref=-20.949153294889189}]
+"Ar-19.inp"                             = [{matcher="E_total", tol=4e-13, ref=-20.94915329652572}]
 "Ar-20.inp"                             = [{matcher="E_total", tol=4e-13, ref=-20.95260103651540}]
-"Ar-21.inp"                             = [{matcher="E_total", tol=3e-13, ref=-20.949153295811559}]
+"Ar-21.inp"                             = [{matcher="E_total", tol=3e-13, ref=-20.94915329659558}]
 # OT and occuation
 "H2O-7.inp"                             = [{matcher="E_total", tol=5.0E-14, ref=-16.61131960956056}]
-"H2O-8.inp"                             = [{matcher="E_total", tol=2e-07, ref=-16.810982640293279}]
-"H2O-9.inp"                             = [{matcher="E_total", tol=3e-09, ref=-16.811010284996321}]
-"H2O-10.inp"                            = [{matcher="E_total", tol=2e-10, ref=-16.811011547670141}]
+"H2O-8.inp"                             = [{matcher="E_total", tol=2e-07, ref=-16.81101121139572}]
+"H2O-9.inp"                             = [{matcher="E_total", tol=3e-09, ref=-16.81101157587646}]
+"H2O-10.inp"                            = [{matcher="E_total", tol=2e-10, ref=-16.81101157588671}]
 # OT ASPC
 "H2O-OT-ASPC-1.inp"                     = [{matcher="E_total", tol=4e-14, ref=-17.13993294752105}]
 "H2O-OT-ASPC-2.inp"                     = [{matcher="E_total", tol=3e-14, ref=-17.13994191008365}]

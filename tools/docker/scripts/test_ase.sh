@@ -3,7 +3,7 @@
 # author: Ole Schuett
 
 # Compile CP2K.
-./build_cp2k_cmake.sh "toolchain" "ssmp" || exit 0
+./build_cp2k_cmake.sh "toolchain_all" "ssmp" || exit 0
 
 # Fake installation of data files.
 mkdir -p ./share/cp2k

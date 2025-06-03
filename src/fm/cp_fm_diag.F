@@ -38,6 +38,7 @@ MODULE cp_fm_diag
                                  cp_fm_general_cusolver
 #if defined(__DLAF)
    USE cp_fm_dlaf_api, ONLY: cp_fm_diag_dlaf, cp_fm_diag_gen_dlaf
+   USE cp_dlaf_utils_api, ONLY: cp_dlaf_initialize, cp_dlaf_finalize
 #endif
    USE cp_fm_types, ONLY: cp_fm_get_info, &
                           cp_fm_set_element, &
@@ -191,13 +192,17 @@ CONTAINS
          CALL set_elpa_print(elpa_print)
          initialized = .TRUE.
       END IF
-
-      elpa_neigvec_min = elpa_neigvec_min_input
 #if defined(__DLAF)
+      IF (.NOT. initialized .AND. diag_type == FM_DIAG_TYPE_DLAF) THEN
+         CALL cp_dlaf_initialize()
+         initialized = .TRUE.
+      END IF
       dlaf_neigvec_min = dlaf_neigvec_min_input
 #else
       MARK_USED(dlaf_neigvec_min_input)
 #endif
+
+      elpa_neigvec_min = elpa_neigvec_min_input
       eps_check_diag = eps_check_diag_input
 
    END SUBROUTINE diag_init
@@ -209,6 +214,10 @@ CONTAINS
 #if defined (__ELPA)
       IF (diag_type == FM_DIAG_TYPE_ELPA) &
          CALL finalize_elpa_library()
+#endif
+#if defined (__DLAF)
+      IF (diag_type == FM_DIAG_TYPE_DLAF) &
+         CALL cp_dlaf_finalize()
 #endif
    END SUBROUTINE diag_finalize
 

@@ -5,37 +5,37 @@
 #      for details see cp2k/tools/do_regtest
 # some tests of restricted
 "N3-1.inp"                              = [{matcher="E_total", tol=1e-13, ref=-29.598211761677990}]
-"N3-2.inp"                              = [{matcher="E_total", tol=1e-11, ref=-29.659321253359352}]
+"N3-2.inp"                              = [{matcher="E_total", tol=1e-11, ref=-29.65939373138649}]
 # some tests of SIC needs restarting from N3-1 for stability
 # teo: no need anymore due to the new way of handling the restart
 #      file. it's not overwritten anymore..
-"N3-3.inp"                              = [{matcher="E_total", tol=3e-10, ref=-29.491040406465800}]
-"N3-4.inp"                              = [{matcher="E_total", tol=3e-11, ref=-29.213932668608030}]
-"N3-5.inp"                              = [{matcher="E_total", tol=5e-11, ref=-29.506368574290280}]
-"N3-6.inp"                              = [{matcher="E_total", tol=2e-10, ref=-29.471559007370779}]
-"N3-7.inp"                              = [{matcher="E_total", tol=4e-11, ref=-29.342459964811640}]
-"N3-8.inp"                              = [{matcher="E_total", tol=2e-11, ref=-27.495888805583650}]
+"N3-3.inp"                              = [{matcher="E_total", tol=3e-10, ref=-29.49122674036549}]
+"N3-4.inp"                              = [{matcher="E_total", tol=3e-11, ref=-29.21535560440269}]
+"N3-5.inp"                              = [{matcher="E_total", tol=5e-11, ref=-29.50709985381931}]
+"N3-6.inp"                              = [{matcher="E_total", tol=2e-10, ref=-29.47190049770736}]
+"N3-7.inp"                              = [{matcher="E_total", tol=4e-11, ref=-29.35328159461529}]
+"N3-8.inp"                              = [{matcher="E_total", tol=2e-11, ref=-27.52917558728047}]
 "N3-9.inp"                              = [{matcher="E_total", tol=8e-07, ref=-29.518552099878299}]
 "N3-10.inp"                             = [{matcher="E_total", tol=2e-12, ref=-29.768854965665940}]
 # further sics
 "H2O-sic-ad-1.inp"                      = [{matcher="E_total", tol=6e-14, ref=-16.09479367271414}]
-"H2O-sic-ad-2.inp"                      = [{matcher="E_total", tol=4e-14, ref=-16.19211475613392}]
+"H2O-sic-ad-2.inp"                      = [{matcher="E_total", tol=4e-14, ref=-16.19214132901788}]
 # running H LSD
-"H-1.inp"                               = [{matcher="E_total", tol=1e-13, ref=-0.4874782292714}]
+"H-1.inp"                               = [{matcher="E_total", tol=1e-13, ref=-0.48748052127266}]
 "H-2.inp"                               = [{matcher="E_total", tol=8e-14, ref=-0.48747588716604001}]
 # elec_conf
 "H2O-1.inp"                             = [{matcher="E_total", tol=5e-14, ref=-15.42239209735920}]
 # outer scf with FULL_ALL
-"H2O.inp"                               = [{matcher="E_total", tol=4e-13, ref=-17.16150637179184}]
+"H2O.inp"                               = [{matcher="E_total", tol=4e-13, ref=-17.1615063648948}]
 # different parallel distributions
 "H2O-dist-1.inp"                        = [{matcher="E_total", tol=8e-14, ref=-34.28553811389267}]
 "H2O-dist-2.inp"                        = [{matcher="E_total", tol=8e-14, ref=-34.28553811389267}]
 "H2O-dist-3.inp"                        = [{matcher="E_total", tol=8e-14, ref=-34.28553811389267}]
 "H2O-dist-4.inp"                        = [{matcher="E_total", tol=8e-14, ref=-34.28553811389267}]
 "H2O-dist-8.inp"                        = [{matcher="E_total", tol=9e-14, ref=-33.47012389900991}]
-"H2_trip.inp"                           = [{matcher="E_total", tol=2e-12, ref=-0.71619563505473}]
-"C-sic-1.inp"                           = [{matcher="E_total", tol=5e-13, ref=-5.25260234791279}]
-"C-sic-2.inp"                           = [{matcher="E_total", tol=1e-13, ref=-5.28420620593518}]
+"H2_trip.inp"                           = [{matcher="E_total", tol=2e-12, ref=-0.71740623265306}]
+"C-sic-1.inp"                           = [{matcher="E_total", tol=5e-13, ref=-5.30145304131208}]
+"C-sic-2.inp"                           = [{matcher="E_total", tol=1e-13, ref=-5.32760575352303}]
 # ot with fractional occupations
 "C_ot.inp"                              = [{matcher="E_total", tol=1e-13, ref=-5.33746454516253}]
 # use of the fermi distribution
@@ -48,4 +48,8 @@
 "H2O-broy.inp"                          = [{matcher="E_total", tol=5.0E-14, ref=-15.92280592863554}]
 #BASIC_SPATIAL_DISTRIBUTION test
 "H2O-dist-17.inp"                       = [{matcher="E_total", tol=9e-14, ref=-33.47012389900991}]
+#CG ADAPT/DIIS tests
+"CH4-1.inp"                             = [{matcher="E_total", tol=1e-13, ref=-7.94506870641918}]
+"CH4-2.inp"                             = [{matcher="E_total", tol=1e-13, ref=-7.94506870642183}]
+"CH4-3.inp"                             = [{matcher="E_total", tol=1e-13, ref=-7.94506870642185}]
 #EOF

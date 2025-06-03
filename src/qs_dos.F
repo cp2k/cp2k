@@ -24,8 +24,10 @@ MODULE qs_dos
                                               section_vals_val_get
    USE kinds,                           ONLY: default_string_length,&
                                               dp
-   USE kpoint_types,                    ONLY: kpoint_type
+   USE kpoint_types,                    ONLY: kpoint_release,&
+                                              kpoint_type
    USE message_passing,                 ONLY: mp_para_env_type
+   USE qs_band_structure,               ONLY: calculate_kp_orbitals
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_mo_types,                     ONLY: get_mo_set,&
@@ -193,7 +195,6 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Compute and write density of states (kpoints)
-!> \param kpoints ...
 !> \param qs_env ...
 !> \param dft_section ...
 !> \date    26.02.2008
@@ -201,9 +202,8 @@ CONTAINS
 !> \author  JGH
 !> \version 1.0
 ! **************************************************************************************************
-   SUBROUTINE calculate_dos_kp(kpoints, qs_env, dft_section)
+   SUBROUTINE calculate_dos_kp(qs_env, dft_section)
 
-      TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(section_vals_type), POINTER                   :: dft_section
 
@@ -214,17 +214,19 @@ CONTAINS
       INTEGER                                            :: handle, i, ik, iounit, ispin, iterstep, &
                                                             iv, iw, ndigits, nhist, nmo(2), &
                                                             nmo_kp, nspins
-      LOGICAL                                            :: append, ionode, should_output
+      INTEGER, DIMENSION(:), POINTER                     :: nkp_grid
+      LOGICAL                                            :: append, explicit, ionode, should_output
       REAL(KIND=dp)                                      :: de, e1, e2, emax, emin, eval, wkp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ehist, hist, occval
       REAL(KIND=dp), DIMENSION(:), POINTER               :: eigenvalues, occupation_numbers
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mo_set_type), DIMENSION(:, :), POINTER        :: mos
       TYPE(mo_set_type), POINTER                         :: mo_set
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
-      NULLIFY (logger)
+      NULLIFY (logger, kpoints)
       logger => cp_get_default_logger()
       ionode = logger%para_env%is_source()
       should_output = BTEST(cp_print_key_should_output(logger%iter_info, dft_section, &
@@ -235,8 +237,29 @@ CONTAINS
       CALL timeset(routineN, handle)
       iterstep = logger%iter_info%iteration(logger%iter_info%n_rlevel)
 
+      ! check whether the user requested a different MP grid for the DOS
+      CALL section_vals_val_get(dft_section, "PRINT%DOS%MP_GRID", i_vals=nkp_grid, explicit=explicit)
+
+      IF (explicit) THEN
+         ! make sure is a valid grid
+         DO i = 1, 3
+            IF (nkp_grid(i) < 1) THEN
+               WRITE (UNIT=iounit, FMT='(T4,A,I3,A,I1)') &
+                  "Invalid kpoint grid for DOS ", nkp_grid(i), " in dimension ", i
+               CPABORT("")
+            END IF
+         END DO
+         ! calculate orbitals and energies
+         CALL calculate_kp_orbitals(qs_env, kpoints, "MONKHORST-PACK", 0, nkp_grid)
+      ELSE
+         ! use the kpoints from the environment
+         CALL get_qs_env(qs_env, kpoints=kpoints)
+      END IF
+
       IF (iounit > 0) WRITE (UNIT=iounit, FMT='(/,(T3,A,T61,I10))') &
          " Calculate DOS at iteration step ", iterstep
+      IF (iounit > 0) WRITE (UNIT=iounit, FMT='((T3,A,3I3,A))') &
+         " Using a", kpoints%nkp_grid(:), ' '//TRIM(kpoints%kp_scheme)//' grid'
 
       CALL section_vals_val_get(dft_section, "PRINT%DOS%DELTA_E", r_val=de)
       CALL section_vals_val_get(dft_section, "PRINT%DOS%APPEND", l_val=append)
@@ -341,6 +364,11 @@ CONTAINS
       END IF
       CALL cp_print_key_finished_output(iw, logger, dft_section, "PRINT%DOS")
       DEALLOCATE (hist, occval)
+
+      ! destroy the extra k-point set if it was created
+      IF (explicit) THEN
+         CALL kpoint_release(kpoints)
+      END IF
 
       CALL timestop(handle)
 

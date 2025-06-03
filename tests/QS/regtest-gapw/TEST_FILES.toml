@@ -19,7 +19,7 @@
 # keep special case alive
 "H-gapw-all.inp"                        = [{matcher="E_total", tol=2e-13, ref=-0.49303180665610002}]
 # test the full_all with LSD and GAPW
-"He2-all.inp"                           = [{matcher="E_total", tol=3e-13, ref=-5.00398521082516}]
+"He2-all.inp"                           = [{matcher="E_total", tol=3e-13, ref=-5.00429522513132}]
 "He2-all-md.inp"                        = [{matcher="E_total", tol=7e-10, ref=-5.02915069972336}]
 # new option : stride_xyz
 "H2O-gapw-gth-pvh.inp"                  = [{matcher="E_total", tol=3e-14, ref=-17.16034506414043}]

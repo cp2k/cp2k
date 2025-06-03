@@ -314,8 +314,9 @@ else
     CFLAGS += -I$(OPENCL_ROOT)/include
   else
     OPENCL_ROOT := $(abspath $(dir $(shell which icx 2>/dev/null))/..)
-    ifneq (,$(wildcard $(OPENCL_ROOT)/include/sycl/CL/cl.h))
-      CFLAGS += -I$(OPENCL_ROOT)/include/sycl
+    CLINC := $(wildcard $(OPENCL_ROOT)/include/sycl/CL/cl.h $(OPENCL_ROOT)/include/CL/cl.h)
+    ifneq (,$(CLINC))
+      CFLAGS += -I$(abspath $(dir $(firstword $(CLINC)))/..)
     endif
   endif
 endif

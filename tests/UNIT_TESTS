@@ -8,5 +8,6 @@ libcp2k_unittest
 memory_utilities_unittest
 nequip_unittest                                          libtorch
 parallel_rng_types_unittest
+gx_ac_unittest                                           greenx
 
 #EOF

@@ -20,7 +20,7 @@ def main() -> None:
             with_dbcsr = "" if version.endswith("smp") else "no"
             f.write(install_deps_toolchain(mpi_mode=mpi_mode, with_dbcsr=with_dbcsr))
             if version in ("ssmp", "psmp"):
-                f.write(regtest_cmake("toolchain", version))
+                f.write(regtest_cmake("toolchain_all", version))
             else:
                 f.write(regtest(version))
 
@@ -33,12 +33,27 @@ def main() -> None:
         f.write(regtest("psmp"))
 
     with OutputFile(f"Dockerfile.test_fedora-psmp", args.check) as f:
-        f.write(install_deps_toolchain(base_image="fedora:38"))
+        f.write(install_deps_toolchain(base_image="fedora:41"))
         f.write(regtest("psmp"))
 
     for version in "ssmp", "psmp":
         with OutputFile(f"Dockerfile.test_intel-{version}", args.check) as f:
-            f.write(install_deps_toolchain_intel())
+            f.write(
+                install_deps_toolchain_intel(
+                    base_image="intel/hpckit:2024.2.1-0-devel-ubuntu22.04",
+                    with_ifx="no",
+                )
+            )
+            f.write(regtest(version, intel=True, testopts="--mpiexec mpiexec"))
+        with OutputFile(
+            f"Dockerfile.test_intel-oneapi-hpckit-{version}", args.check
+        ) as f:
+            f.write(
+                install_deps_toolchain_intel(
+                    base_image="intel/oneapi-hpckit:2025.1.3-0-devel-ubuntu24.04",
+                    with_ifx="yes",
+                )
+            )
             f.write(regtest(version, intel=True, testopts="--mpiexec mpiexec"))
 
     with OutputFile(f"Dockerfile.test_nvhpc", args.check) as f:
@@ -50,8 +65,8 @@ def main() -> None:
         f.write(regtest_cmake("minimal", "ssmp"))
 
     with OutputFile(f"Dockerfile.test_spack", args.check) as f:
-        f.write(install_deps_spack())
-        f.write(regtest_cmake("spack", "psmp"))
+        f.write(install_deps_spack("psmp"))
+        f.write(regtest_cmake("spack_all", "psmp"))
 
     for version in "ssmp", "psmp":
         with OutputFile(f"Dockerfile.test_asan-{version}", args.check) as f:
@@ -523,14 +538,18 @@ RUN ln -sf /usr/bin/gcc-{gcc_version}      /usr/local/bin/gcc  && \
 
 
 # ======================================================================================
-def install_deps_toolchain_intel() -> str:
+def install_deps_toolchain_intel(
+    base_image: str = "intel/hpckit:2024.2.1-0-devel-ubuntu22.04",
+    with_ifx: str = "no",
+) -> str:
     return rf"""
-FROM intel/hpckit:2024.2.1-0-devel-ubuntu22.04
+FROM {base_image}
 
 """ + install_toolchain(
         base_image="ubuntu",
         install_all="",
         with_dbcsr="no",
+        with_ifx=with_ifx,
         with_intelmpi="",
         with_mkl="",
         with_libsmeagol="",
@@ -788,7 +807,7 @@ RUN ./install_cp2k_toolchain.sh \
     --dry-run
 
 # Dry-run leaves behind config files for the followup install scripts.
-# This breaks up the lengthy installation into smaller docker build steps.
+# This breaks up the lengthy installation into smaller build steps.
 COPY ./tools/toolchain/scripts/stage0/ ./scripts/stage0/
 RUN  ./scripts/stage0/install_stage0.sh && rm -rf ./build
 
@@ -827,71 +846,87 @@ RUN ./scripts/generate_arch_files.sh && rm -rf ./build
 
 
 # ======================================================================================
-def install_deps_spack() -> str:
+def install_deps_spack(version: str) -> str:
     return rf"""
 FROM ubuntu:24.04
 
-# Install common dependencies as pre-built Ubuntu packages.
+# Install packages required to build the CP2K dependencies with Spack
 RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
-    autoconf \
-    autogen \
-    automake \
-    autotools-dev \
     bzip2 \
     ca-certificates \
+    cmake \
     g++ \
     gcc \
     gfortran \
     git \
-    less \
+    gnupg \
+    hwloc \
+    libhwloc-dev \
+    libssh-dev \
+    libssl-dev \
     libtool \
     libtool-bin \
+    lsb-release \
     make \
-    nano \
     ninja-build \
     patch \
     pkgconf \
     python3 \
+    python3-dev \
+    python3-pip \
+    python3-venv \
     unzip \
     wget \
     xxd \
-    zlib1g-dev \
-    cmake \
-    gnupg \
-    m4 \
     xz-utils \
-    libssl-dev \
-    libssh-dev \
-    hwloc \
-    libhwloc-dev \
-   && rm -rf /var/lib/apt/lists/*
+    zstd && rm -rf /var/lib/apt/lists/*
 
-# Install a recent developer version of Spack.
-WORKDIR /opt/spack
-ARG SPACK_VERSION=40d40ccc525dfa821b5e2998c9e767f08e0065bd
+# Create and activate a virtual environment for Python packages.
+RUN python3 -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+RUN pip3 install --quiet boto3==1.38.11 google-cloud-storage==3.1.0
+
+# Install a recent Spack version
+WORKDIR /root/spack
+ARG SPACK_VERSION
+ENV SPACK_VERSION=${{SPACK_VERSION:-develop-2025-05-18}}
 RUN git init --quiet && \
     git remote add origin https://github.com/spack/spack.git && \
     git fetch --quiet --depth 1 origin ${{SPACK_VERSION}} --no-tags && \
     git checkout --quiet FETCH_HEAD
-ENV PATH="/opt/spack/bin:${{PATH}}"
+ENV PATH="/root/spack/bin:${{PATH}}"
 
-# Find all external packages and compilers.
+# Find all compilers
 RUN spack compiler find
+
+# Find all external packages
 RUN spack external find --all --not-buildable
 
-# Enable Spack build cache
-ARG SPACK_BUILD_CACHE=develop-2025-02-02
-RUN spack mirror add ${{SPACK_BUILD_CACHE}} https://binaries.spack.io/${{SPACK_BUILD_CACHE}} && \
-    spack mirror add develop https://binaries.spack.io/develop && \
-    spack buildcache keys --install --trust --force && \
-    spack mirror rm develop
+# Add local Spack cache.
+ARG SPACK_CACHE="s3://spack-cache --s3-endpoint-url=http://localhost:9000"
+COPY ./tools/docker/scripts/setup_spack_cache.sh ./
+RUN ./setup_spack_cache.sh
 
-# Install CP2K's dependencies via Spack.
-WORKDIR /
-COPY ./tools/spack/cp2k-dependencies.yaml .
-RUN spack env create myenv ./cp2k-dependencies.yaml
+# Copy Spack configuration and build recipes
+ARG CP2K_BUILD_TYPE
+ENV CP2K_BUILD_TYPE=${{CP2K_BUILD_TYPE:-all}}
+COPY ./tools/spack/repo.yaml ./tools/spack/cp2k_deps_${{CP2K_BUILD_TYPE}}_{version}.yaml ./
+COPY ./tools/spack/packages ./packages
+
+# Sarus containers must be dynamically linked to an MPI implementation that is ABI-compatible
+# with the MPI on the compute nodes at CSCS like MPICH@3
+ARG MPICH_VERSION
+ENV MPICH_VERSION=${{MPICH_VERSION:-4.3.0}}
+RUN sed -i -e "s/mpich@[0-9.]*/mpich@${{MPICH_VERSION}}/" cp2k_deps_${{CP2K_BUILD_TYPE}}_{version}.yaml && \
+    spack env create myenv cp2k_deps_${{CP2K_BUILD_TYPE}}_{version}.yaml && \
+    spack -e myenv repo list
+
+# Install CP2K dependencies via Spack
 RUN spack -e myenv concretize -f
-RUN spack -e myenv env depfile -o spack-makefile && make -j32 --file=spack-makefile SPACK_COLOR=never --output-sync=recurse
+ENV SPACK_ENV_VIEW="/root/spack/var/spack/environments/myenv/spack-env/view"
+RUN spack -e myenv env depfile -o spack_makefile && \
+    make -j32 --file=spack_makefile SPACK_COLOR=never --output-sync=recurse && \
+    cp -ar ${{SPACK_ENV_VIEW}}/bin ${{SPACK_ENV_VIEW}}/include ${{SPACK_ENV_VIEW}}/lib /opt/spack
 """
 
 
@@ -903,7 +938,9 @@ class OutputFile:
         self.content = io.StringIO()
         self.content.write(f"#\n")
         self.content.write(f"# This file was created by generate_dockerfiles.py.\n")
-        self.content.write(f"# Usage: docker build -f ./{filename} ../../\n")
+        self.content.write(
+            f"# Usage: podman build --shm-size=1g -f ./{filename} ../../\n"
+        )
         self.content.write(f"#\n")
 
     def __enter__(self) -> io.StringIO:

@@ -10,6 +10,7 @@ MODULE cp_cfm_dlaf_api
    USE cp_cfm_basic_linalg, ONLY: cp_cfm_uplo_to_full
    USE cp_cfm_types, ONLY: cp_cfm_type
 #if defined(__DLAF)
+   USE cp_dlaf_utils_api, ONLY: cp_dlaf_create_grid
    USE dlaf_fortran, ONLY: dlaf_pzheevd, &
                            dlaf_pzhegvd, &
                            dlaf_pzpotrf
@@ -158,7 +159,7 @@ CONTAINS
 
       CHARACTER(LEN=100)                                 :: message
       COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: a, z
-      INTEGER                                            :: dlaf_handle, handle, n
+      INTEGER                                            :: blacs_context, dlaf_handle, handle, n
       INTEGER, DIMENSION(9)                              :: desca, descz
       INTEGER, TARGET                                    :: info
 
@@ -168,6 +169,9 @@ CONTAINS
       ! DLAF needs the lower triangular part
       ! Use eigenvectors matrix as workspace
       CALL cp_cfm_uplo_to_full(matrix, eigenvectors)
+
+      blacs_context = matrix%matrix_struct%context%get_handle()
+      CALL cp_dlaf_create_grid(blacs_context)
 
       n = matrix%matrix_struct%nrow_global
 
@@ -179,9 +183,7 @@ CONTAINS
 
       info = -1
       CALL timeset(dlaf_name, dlaf_handle)
-
       CALL dlaf_pzheevd(uplo, n, a, 1, 1, desca, eigenvalues, z, 1, 1, descz, info)
-
       CALL timestop(dlaf_handle)
 
       IF (info /= 0) THEN
@@ -202,6 +204,7 @@ CONTAINS
       MARK_USED(dlaf_handle)
       MARK_USED(dlaf_name)
       MARK_USED(message)
+      MARK_USED(blacs_context)
       CPABORT("CP2K compiled without DLAF library.")
 #endif
 
@@ -227,7 +230,7 @@ CONTAINS
 
       CHARACTER(LEN=100)                                 :: message
       COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: a, b, z
-      INTEGER                                            :: dlaf_handle, handle, n
+      INTEGER                                            :: blacs_context, dlaf_handle, handle, n
       INTEGER, DIMENSION(9)                              :: desca, descb, descz
       INTEGER, TARGET                                    :: info
 
@@ -238,6 +241,9 @@ CONTAINS
       ! Use eigenvectors matrix as workspace
       CALL cp_cfm_uplo_to_full(amatrix, eigenvectors)
       CALL cp_cfm_uplo_to_full(bmatrix, eigenvectors)
+
+      blacs_context = amatrix%matrix_struct%context%get_handle()
+      CALL cp_dlaf_create_grid(blacs_context)
 
       n = amatrix%matrix_struct%nrow_global
 
@@ -251,9 +257,7 @@ CONTAINS
 
       info = -1
       CALL timeset(dlaf_name, dlaf_handle)
-
       CALL dlaf_pzhegvd(uplo, n, a, 1, 1, desca, b, 1, 1, descb, eigenvalues, z, 1, 1, descz, info)
-
       CALL timestop(dlaf_handle)
 
       IF (info /= 0) THEN
@@ -277,6 +281,7 @@ CONTAINS
       MARK_USED(dlaf_handle)
       MARK_USED(dlaf_name)
       MARK_USED(message)
+      MARK_USED(blacs_context)
       CPABORT("CP2K compiled without DLAF library.")
 #endif
 

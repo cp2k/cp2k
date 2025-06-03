@@ -8,7 +8,8 @@
 !> \brief Utility routines for qs_scf
 ! **************************************************************************************************
 MODULE qs_scf_loop_utils
-   USE cp_control_types,                ONLY: dft_control_type
+   USE cp_control_types,                ONLY: dft_control_type,&
+                                              hairy_probes_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
                                               dbcsr_get_info,&
                                               dbcsr_p_type,&
@@ -114,14 +115,17 @@ CONTAINS
 !> \param scf_section ...
 !> \param diis_step ...
 !> \param energy_only ...
+!> \param probe ...
 ! **************************************************************************************************
    SUBROUTINE qs_scf_new_mos(qs_env, scf_env, scf_control, scf_section, diis_step, &
-                             energy_only)
+                             energy_only, probe)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(section_vals_type), POINTER                   :: scf_section
       LOGICAL                                            :: diis_step, energy_only
+      TYPE(hairy_probes_type), DIMENSION(:), OPTIONAL, &
+         POINTER                                         :: probe
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'qs_scf_new_mos'
 
@@ -204,9 +208,16 @@ CONTAINS
                                 matrix_s, scf_control, scf_section, &
                                 diis_step)
             ELSE
-               CALL do_general_diag(scf_env, mos, matrix_ks, &
-                                    matrix_s, scf_control, scf_section, &
-                                    diis_step)
+               IF (dft_control%hairy_probes .EQV. .TRUE.) THEN
+                  CALL do_general_diag(scf_env, mos, matrix_ks, &
+                                       matrix_s, scf_control, scf_section, &
+                                       diis_step, &
+                                       probe)
+               ELSE
+                  CALL do_general_diag(scf_env, mos, matrix_ks, &
+                                       matrix_s, scf_control, scf_section, &
+                                       diis_step)
+               END IF
             END IF
             IF (scf_control%do_diag_sub) THEN
                skip_diag_sub = (scf_env%subspace_env%eps_diag_sub > 0.0_dp) .AND. &
@@ -285,12 +296,15 @@ CONTAINS
 !> \param scf_env ...
 !> \param scf_control ...
 !> \param diis_step ...
+!> \param probe ...
 ! **************************************************************************************************
-   SUBROUTINE qs_scf_new_mos_kp(qs_env, scf_env, scf_control, diis_step)
+   SUBROUTINE qs_scf_new_mos_kp(qs_env, scf_env, scf_control, diis_step, probe)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(scf_control_type), POINTER                    :: scf_control
       LOGICAL                                            :: diis_step
+      TYPE(hairy_probes_type), DIMENSION(:), OPTIONAL, &
+         POINTER                                         :: probe
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'qs_scf_new_mos_kp'
 
@@ -321,8 +335,14 @@ CONTAINS
       CASE (general_diag_method_nr)
          ! Diagonlization in non orthonormal case
          CALL get_qs_env(qs_env, matrix_ks_kp=matrix_ks, matrix_s_kp=matrix_s)
-         CALL do_general_diag_kp(matrix_ks, matrix_s, kpoints, scf_env, scf_control, .TRUE., &
-                                 diis_step, diis_error, qs_env)
+         IF (dft_control%hairy_probes .EQV. .TRUE.) THEN
+            scf_control%smear%do_smear = .FALSE.
+            CALL do_general_diag_kp(matrix_ks, matrix_s, kpoints, scf_env, scf_control, .TRUE., &
+                                    diis_step, diis_error, qs_env, probe)
+         ELSE
+            CALL do_general_diag_kp(matrix_ks, matrix_s, kpoints, scf_env, scf_control, .TRUE., &
+                                    diis_step, diis_error, qs_env)
+         END IF
          IF (diis_step) THEN
             scf_env%iter_param = diis_error
             scf_env%iter_method = "DIIS/Diag."
@@ -534,17 +554,18 @@ CONTAINS
 !> \param scf_env ...
 !> \param scf_control ...
 !> \param should_stop ...
+!> \param just_energy ...
 !> \param exit_inner_loop ...
 !> \param inner_loop_converged ...
 !> \param output_unit ...
 ! **************************************************************************************************
-   SUBROUTINE qs_scf_check_inner_exit(qs_env, scf_env, scf_control, should_stop, &
+   SUBROUTINE qs_scf_check_inner_exit(qs_env, scf_env, scf_control, should_stop, just_energy, &
                                       exit_inner_loop, inner_loop_converged, output_unit)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(scf_control_type), POINTER                    :: scf_control
-      LOGICAL                                            :: should_stop, exit_inner_loop, &
-                                                            inner_loop_converged
+      LOGICAL                                            :: should_stop, just_energy, &
+                                                            exit_inner_loop, inner_loop_converged
       INTEGER                                            :: output_unit
 
       inner_loop_converged = .FALSE.
@@ -561,10 +582,14 @@ CONTAINS
          exit_inner_loop = .TRUE.
       ELSE IF (should_stop .OR. scf_env%iter_count >= scf_control%max_scf) THEN
          inner_loop_converged = .FALSE.
-         exit_inner_loop = .TRUE.
-         IF (output_unit > 0) THEN
-            WRITE (UNIT=output_unit, FMT="(/,T3,A,I5,A/)") &
-               "Leaving inner SCF loop after reaching ", scf_env%iter_count, " steps."
+         IF (just_energy) THEN
+            exit_inner_loop = .FALSE.
+         ELSE
+            exit_inner_loop = .TRUE.
+            IF (output_unit > 0) THEN
+               WRITE (UNIT=output_unit, FMT="(/,T3,A,I5,A/)") &
+                  "Leaving inner SCF loop after reaching ", scf_env%iter_count, " steps."
+            END IF
          END IF
       END IF
 

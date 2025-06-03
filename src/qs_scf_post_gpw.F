@@ -550,7 +550,14 @@ CONTAINS
                CALL get_qs_env(qs_env, admm_env=admm_env)
                CALL make_mo_eig(mos, nspins, ks_rmpv, scf_control, mo_derivs, admm_env=admm_env)
             ELSE
-               CALL make_mo_eig(mos, nspins, ks_rmpv, scf_control, mo_derivs)
+               IF (dft_control%hairy_probes) THEN
+                  scf_control%smear%do_smear = .FALSE.
+                  CALL make_mo_eig(mos, dft_control%nspins, ks_rmpv, scf_control, mo_derivs, &
+                                   hairy_probes=dft_control%hairy_probes, &
+                                   probe=dft_control%probe)
+               ELSE
+                  CALL make_mo_eig(mos, dft_control%nspins, ks_rmpv, scf_control, mo_derivs)
+               END IF
             END IF
             DO ispin = 1, dft_control%nspins
                CALL get_mo_set(mo_set=mos(ispin), eigenvalues=mo_eigenvalues, homo=homo)
@@ -1829,7 +1836,7 @@ CONTAINS
       INTEGER                                            :: handle, homo, ispin, nmo, output_unit
       LOGICAL                                            :: all_equal, do_kpoints, explicit
       REAL(KIND=dp)                                      :: maxocc, s_square, s_square_ideal, &
-                                                            total_abs_spin_dens
+                                                            total_abs_spin_dens, total_spin_dens
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues, occupation_numbers
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -1839,7 +1846,6 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_rmpv, matrix_s
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_deriv
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(molecule_type), POINTER                       :: molecule_set(:)
       TYPE(particle_list_type), POINTER                  :: particles
@@ -1856,6 +1862,8 @@ CONTAINS
       TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(section_vals_type), POINTER                   :: dft_section, input, sprint_section, &
                                                             trexio_section
+
+! TYPE(kpoint_type), POINTER                         :: kpoints
 
       CALL timeset(routineN, handle)
 
@@ -1912,8 +1920,7 @@ CONTAINS
          IF (BTEST(cp_print_key_should_output(logger%iter_info, dft_section, "PRINT%DOS") &
                    , cp_p_file)) THEN
             IF (do_kpoints) THEN
-               CALL get_qs_env(qs_env=qs_env, kpoints=kpoints)
-               CALL calculate_dos_kp(kpoints, qs_env, dft_section)
+               CALL calculate_dos_kp(qs_env, dft_section)
             ELSE
                CALL get_qs_env(qs_env, mos=mos)
                CALL calculate_dos(mos, dft_section)
@@ -1974,9 +1981,12 @@ CONTAINS
          CALL auxbas_pw_pool%create_pw(wf_r)
          CALL pw_copy(rho_r(1), wf_r)
          CALL pw_axpy(rho_r(2), wf_r, alpha=-1._dp)
-         total_abs_spin_dens = pw_integrate_function(wf_r, oprt="ABS")
+         total_spin_dens = pw_integrate_function(wf_r)
          IF (output_unit > 0) WRITE (UNIT=output_unit, FMT='(/,(T3,A,T61,F20.10))') &
-            "Integrated absolute spin density  : ", total_abs_spin_dens
+            "Integrated spin density: ", total_spin_dens
+         total_abs_spin_dens = pw_integrate_function(wf_r, oprt="ABS")
+         IF (output_unit > 0) WRITE (UNIT=output_unit, FMT='((T3,A,T61,F20.10))') &
+            "Integrated absolute spin density: ", total_abs_spin_dens
          CALL auxbas_pw_pool%give_back_pw(wf_r)
          !
          ! XXX Fix Me XXX

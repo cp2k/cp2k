@@ -1,0 +1,6 @@
+# Test of ACE
+"H2O-64_ACE_MD.inp"                     = [{matcher="M011", tol=1.0E-13, ref=-0.583468254943591}]
+"triclinic.inp"                         = [{matcher="M011", tol=1.0E-12, ref=0.002806873949688}]
+"stress_tensor.inp"                     = [{matcher="M011", tol=1.0E-14, ref=6.761480380312991},
+                                           {matcher="M031", tol=1.0E-10, ref=6.20057464368E+05}]
+#EOF

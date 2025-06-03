@@ -1,5 +1,5 @@
-"O2.inp"                                = [{matcher="E_total", tol=1e-12, ref=-31.38777641185785}]
-"O2_pbe0.inp"                           = [{matcher="E_total", tol=1e-12, ref=-31.93896892726076}]
+"O2.inp"                                = [{matcher="E_total", tol=1e-12, ref=-31.53474098645334}]
+"O2_pbe0.inp"                           = [{matcher="E_total", tol=1e-12, ref=-31.94953055181348}]
 #O2_loc_wan_jac.inp                                    99      1e-10              13.2816505274
 #mO2_mo_cubes.inp                                       11      1e-12             -31.387776411857825
 "ch2o_rs.inp"                           = [{matcher="E_total", tol=2e-08, ref=-22.5843713873}]

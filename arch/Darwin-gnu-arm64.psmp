@@ -3,13 +3,13 @@
 # CP2K Darwin arch file for a parallel arm64 binary
 # (https://www.cp2k.org/howto:compile_on_macos)
 #
-# Tested with: GNU 14.2.0 and OpenMPI 5.0.6 on an Apple M1 (macOS 15.3 Sequoia)
+# Tested with: GNU 14.2.0 and OpenMPI 5.0.7 on an Apple M1 (macOS 15.5 Sequoia)
 #
 # Usage: Source this arch file and then run make as instructed.
 #        Ensure the links in /opt/homebrew/bin to the gcc version
 #        and "brew unlink openmpi" (or mpich) if installed.
 #
-# Last update: 12.02.2025
+# Last update: 26.05.2025
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -23,11 +23,11 @@
    [[ -z "${mpi_implementation}" ]] && mpi_implementation="openmpi"; \
    [[ -z "${target_cpu}" ]] && target_cpu="native"; \
    if $(command -v brew >/dev/null 2>&1); then \
-      brew install cmake; \
       brew install coreutils; \
       brew install fftw; \
       brew install gawk; \
-      brew install gcc; \
+      brew install gcc@14; \
+      brew install gmp; \
       brew install gsed; \
       brew install gsl; \
       brew install hdf5; \
@@ -45,10 +45,10 @@
       return 1; \
    fi; \
    ./install_cp2k_toolchain.sh --install-all -j${maxtasks} --no-arch-files --target-cpu=${target_cpu} \
-      --with-cmake=$(brew --prefix cmake) --with-elpa=no --with-fftw=$(brew --prefix fftw) --with-gcc=system \
-      --with-gsl=$(brew --prefix gsl) --with-hdf5=$(brew --prefix hdf5) --with-libxc=$(brew --prefix libxc) \
-      --with-ninja=$(brew --prefix ninja) --with-openblas=$(brew --prefix openblas) --with-${mpi_implementation} \
-      --with-libsmeagol --with-libtorch=no --with-deepmd=no; \
+      --with-elpa=no --with-fftw=$(brew --prefix fftw) --with-gcc=system --with-gsl=$(brew --prefix gsl) \
+      --with-hdf5=$(brew --prefix hdf5) --with-libxc=$(brew --prefix libxc) --with-ninja=$(brew --prefix ninja) \
+      --with-openblas=$(brew --prefix openblas) --with-${mpi_implementation} --with-gmp=$(brew --prefix gmp) \
+      --with-libgrpp --with-libsmeagol --with-libtorch=no --with-deepmd=no; \
    source ./install/setup; \
    cd ../..; \
    echo; \
@@ -71,9 +71,11 @@ TARGET_CPU     := native
 
 # Retrieve package versions
 GNU_VER        := $(shell gcc -dumpfullversion)
+USE_ACE        := $(ACE_VER)
 USE_COSMA      := $(COSMA_VER)
 USE_DFTD4      := $(DFTD4_VER)
-USE_LIBGRPP    := $(LIBGRPP_VER)
+USE_GREENX     := $(GREENX_VER)
+USE_LIBGRPP    := install
 USE_LIBINT     := $(LIBINT_VER)
 USE_LIBSMEAGOL := $(LIBSMEAGOL_VER)
 USE_LIBVORI    := $(LIBVORI_VER)
@@ -85,6 +87,7 @@ USE_SIRIUS     := $(SIRIUS_VER)
 USE_SPFFT      := $(SPFFT_VER)
 USE_SPGLIB     := $(SPGLIB_VER)
 USE_SPLA       := $(SPLA_VER)
+USE_TBLITE     := $(TBLITE_VER)
 USE_TREXIO     := $(TREXIO_VER)
 
 LMAX           := 5
@@ -164,6 +167,26 @@ ifneq ($(USE_LIBGRPP),)
    DFLAGS         += -D__LIBGRPP
 endif
 
+ifneq ($(USE_ACE),)
+   USE_ACE        := $(strip $(USE_ACE))
+   ACE_INC        := $(INSTALL_PATH)/lammps-user-pace-$(USE_ACE)/include
+   ACE_LIB        := $(INSTALL_PATH)/lammps-user-pace-$(USE_ACE)/lib
+   CFLAGS         += -I$(ACE_INC)
+   DFLAGS         += -D__ACE
+   LIBS           += $(ACE_LIB)/libpace.a
+   LIBS           += $(ACE_LIB)/libyaml-cpp-pace.a
+   LIBS           += $(ACE_LIB)/libcnpy.a
+endif
+
+ifneq ($(USE_GREENX),)
+   USE_GREENX     := $(strip $(USE_GREENX))
+   GREENX_INC     := $(INSTALL_PATH)/greenX-$(USE_GREENX)/include/modules
+   GREENX_LIB     := $(INSTALL_PATH)/greenX-$(USE_GREENX)/lib
+   CFLAGS         += -I$(GREENX_INC)
+   DFLAGS         += -D__GREENX
+   LIBS           += -Wl,-rpath,$(GREENX_LIB) -L$(GREENX_LIB) -lGXCommon -lgx_ac -lgx_minimax
+endif
+
 ifneq ($(USE_LIBINT),)
    USE_LIBINT     := $(strip $(USE_LIBINT))
    LMAX           := $(strip $(LMAX))
@@ -196,7 +219,6 @@ endif
 
 ifneq ($(USE_SIRIUS),)
    USE_SIRIUS     := $(strip $(USE_SIRIUS))
-   USE_GSL        := ${GSL_VER}
    LIBVDWXC_INC   := $(INSTALL_PATH)/libvdwxc-$(LIBVDWXC_VER)/include
    LIBVDWXC_LIB   := $(INSTALL_PATH)/libvdwxc-$(LIBVDWXC_VER)/lib
    PUGIXML_LIB    := $(INSTALL_PATH)/pugixml-$(PUGIXML_VER)/lib
@@ -274,6 +296,25 @@ CFLAGS         += -I$(GSL_HOME)/include
 DFLAGS         += -D__GSL
 LIBS           += $(GSL_HOME)/lib/libgsl.a
 
+ifneq ($(USE_TBLITE),)
+   USE_TBLITE     := $(strip $(USE_TBLITE))
+   TBLITE_INC     := $(INSTALL_PATH)/tblite-$(USE_TBLITE)/include
+   TBLITE_LIB     := $(INSTALL_PATH)/tblite-$(USE_TBLITE)/lib
+   CFLAGS         += -I$(TBLITE_INC)/toml-f/modules
+   CFLAGS         += -I$(TBLITE_INC)/mctc-lib/modules
+   CFLAGS         += -I$(TBLITE_INC)/s-dftd3/GNU-$(GNU_VER)
+   CFLAGS         += -I$(TBLITE_INC)/dftd4/GNU-$(GNU_VER)
+   CFLAGS         += -I$(TBLITE_INC)/tblite/GNU-$(GNU_VER)
+   DFLAGS         += -D__TBLITE
+   DFLAGS         += -D__DFTD4
+   LIBS           += $(TBLITE_LIB)/libtblite.a
+   LIBS           += $(TBLITE_LIB)/libdftd4.a
+   LIBS           += $(TBLITE_LIB)/libs-dftd3.a
+   LIBS           += $(TBLITE_LIB)/libmulticharge.a
+   LIBS           += $(TBLITE_LIB)/libmctc-lib.a
+   LIBS           += $(TBLITE_LIB)/libtoml-f.a
+endif
+
 ifneq ($(USE_OPENBLAS),)
    OPENBLAS_HOME  := $(shell brew --prefix openblas)
    CFLAGS         += -I$(OPENBLAS_HOME)/include
@@ -295,6 +336,8 @@ ifneq ($(USE_TREXIO),)
 endif
 
 CFLAGS         += $(DFLAGS)
+
+CXXFLAGS       := $(CFLAGS) --std=c++14
 
 FCFLAGS        := $(CFLAGS) $(FCFLAGS_DEBUG) $(WFLAGS)
 FCFLAGS        += -fallow-argument-mismatch

@@ -41,6 +41,7 @@
       EPS_SCF 1.0E-4
       SCF_GUESS RESTART
       &OT ON
+        PRECONDITIONER FULL_SINGLE_INVERSE
       &END OT
     &END SCF
     &XC

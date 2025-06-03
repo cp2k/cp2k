@@ -9,11 +9,11 @@
 "H2O-rks-diag-lowdin.inp"               = [{matcher="M024", tol=1E-12, ref=0.07674874415138}]
 "H2O-rks-otcg-lowdin.inp"               = [{matcher="M024", tol=1E-12, ref=0.07674870925125}]
 "H2O-uks-diag-lowdin.inp"               = [{matcher="M024", tol=1E-12, ref=0.08364867485442}]
-"H2O-uks-otcg-lowdin.inp"               = [{matcher="M024", tol=1e-08, ref=0.08365011953223}]
+"H2O-uks-otcg-lowdin.inp"               = [{matcher="M024", tol=1e-08, ref=0.08364906016063}]
 # U ramping
-"H2O-rks-u_ramping.inp"                 = [{matcher="M024", tol=1e-06, ref=0.0401615789381200020}]
-"H2O-uks-u_ramping.inp"                 = [{matcher="M024", tol=3e-07, ref=0.0401667259122000030}]
+"H2O-rks-u_ramping.inp"                 = [{matcher="M024", tol=1e-06, ref=0.04016322995855}]
+"H2O-uks-u_ramping.inp"                 = [{matcher="M024", tol=3e-07, ref=0.04016727343286}]
 # U ramping with reset
-"H2O-rks-u_ramping_reset.inp"           = [{matcher="M024", tol=1e-06, ref=0.0401603036212100010}]
-"H2O-uks-u_ramping_reset.inp"           = [{matcher="M024", tol=3e-07, ref=0.0401651853272299990}]
+"H2O-rks-u_ramping_reset.inp"           = [{matcher="M024", tol=1e-06, ref=0.04016218151147}]
+"H2O-uks-u_ramping_reset.inp"           = [{matcher="M024", tol=3e-07, ref=0.04016674741074}]
 #EOF
