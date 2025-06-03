@@ -1285,6 +1285,20 @@ CONTAINS
          bs_env%Sigma_x_exists = bs_env%Sigma_x_exists .AND. Sigma_x_spin_exists
       END DO
 
+      ! If any restart files are read, check if the SCF converged in 1 step.
+      ! This is important because a re-iterated SCF can lead to spurious GW results
+      IF (ANY(bs_env%read_chi(:)) &
+          .OR. ANY(bs_env%Sigma_c_exists) &
+          .OR. bs_env%all_W_exist &
+          .OR. bs_env%Sigma_x_exists &
+          ) THEN
+
+         IF (qs_env%scf_env%iter_count /= 1) THEN
+            CALL cp_warn(__LOCATION__, "SCF needed more than 1 step, "// &
+                         "which might lead to spurious GW results when using GW restart files. ")
+         END IF
+      END IF
+
       CALL timestop(handle)
 
    END SUBROUTINE check_for_restart_files
