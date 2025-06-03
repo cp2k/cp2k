@@ -14,61 +14,61 @@
 !> \author fawzi
 ! **************************************************************************************************
 MODULE input_cp2k_global
-   USE bibliography,                    ONLY: Ceriotti2014,&
-                                              Frigo2005,&
-                                              Schonherr2014
-   USE cp_blacs_env,                    ONLY: BLACS_GRID_COL,&
-                                              BLACS_GRID_ROW,&
-                                              BLACS_GRID_SQUARE
-   USE cp_dbcsr_cp2k_link,              ONLY: create_dbcsr_section
-   USE cp_fm_cholesky,                  ONLY: FM_CHOLESKY_TYPE_DEFAULT,&
-                                              FM_CHOLESKY_TYPE_DLAF,&
-                                              FM_CHOLESKY_TYPE_SCALAPACK
-   USE cp_fm_diag,                      ONLY: FM_DIAG_TYPE_CUSOLVER,&
-                                              FM_DIAG_TYPE_DEFAULT,&
-                                              FM_DIAG_TYPE_DLAF,&
-                                              FM_DIAG_TYPE_ELPA,&
-                                              FM_DIAG_TYPE_SCALAPACK
-   USE cp_fm_elpa,                      ONLY: elpa_kernel_descriptions,&
-                                              elpa_kernel_ids,&
-                                              elpa_kernel_names
-   USE cp_fm_struct,                    ONLY: cp_fm_struct_get_ncol_block,&
-                                              cp_fm_struct_get_nrow_block
-   USE cp_output_handling,              ONLY: add_last_numeric,&
-                                              cp_print_key_section_create,&
-                                              debug_print_level,&
-                                              high_print_level,&
-                                              low_print_level,&
-                                              medium_print_level,&
-                                              silent_print_level
-   USE grid_api,                        ONLY: GRID_BACKEND_AUTO,&
-                                              GRID_BACKEND_CPU,&
-                                              GRID_BACKEND_DGEMM,&
-                                              GRID_BACKEND_GPU,&
-                                              GRID_BACKEND_HIP,&
-                                              GRID_BACKEND_REF
-   USE input_constants,                 ONLY: &
-        bsse_run, callgraph_all, callgraph_master, callgraph_none, cell_opt_run, debug_run, &
-        do_atom, do_band, do_cosma, do_cp2k, do_dgemm_blas, do_dgemm_spla, do_farming, &
-        do_fft_fftw3, do_fft_sg, do_opt_basis, do_optimize_input, do_scalapack, do_swarm, do_tamc, &
-        do_test, do_tree_mc, do_tree_mc_ana, driver_run, ehrenfest, energy_force_run, energy_run, &
-        fftw_plan_estimate, fftw_plan_exhaustive, fftw_plan_measure, fftw_plan_patient, gaussian, &
-        geo_opt_run, linear_response_run, mol_dyn_run, mon_car_run, negf_run, none_run, pint_run, &
-        real_time_propagation, tree_mc_run, vib_anal
-   USE input_keyword_types,             ONLY: keyword_create,&
-                                              keyword_release,&
-                                              keyword_type
-   USE input_section_types,             ONLY: section_add_keyword,&
-                                              section_add_subsection,&
-                                              section_create,&
-                                              section_release,&
-                                              section_type
-   USE input_val_types,                 ONLY: char_t,&
-                                              integer_t,&
-                                              logical_t
-   USE kinds,                           ONLY: dp
-   USE string_utilities,                ONLY: s2a
-   USE timings,                         ONLY: default_timings_level
+   USE bibliography, ONLY: Ceriotti2014, &
+                           Frigo2005, &
+                           Schonherr2014
+   USE cp_blacs_env, ONLY: BLACS_GRID_COL, &
+                           BLACS_GRID_ROW, &
+                           BLACS_GRID_SQUARE
+   USE cp_dbcsr_cp2k_link, ONLY: create_dbcsr_section
+   USE cp_fm_cholesky, ONLY: FM_CHOLESKY_TYPE_DEFAULT, &
+                             FM_CHOLESKY_TYPE_DLAF, &
+                             FM_CHOLESKY_TYPE_SCALAPACK
+   USE cp_fm_diag, ONLY: FM_DIAG_TYPE_CUSOLVER, &
+                         FM_DIAG_TYPE_DEFAULT, &
+                         FM_DIAG_TYPE_DLAF, &
+                         FM_DIAG_TYPE_ELPA, &
+                         FM_DIAG_TYPE_SCALAPACK
+   USE cp_fm_elpa, ONLY: elpa_kernel_descriptions, &
+                         elpa_kernel_ids, &
+                         elpa_kernel_names
+   USE cp_fm_struct, ONLY: cp_fm_struct_get_ncol_block, &
+                           cp_fm_struct_get_nrow_block
+   USE cp_output_handling, ONLY: add_last_numeric, &
+                                 cp_print_key_section_create, &
+                                 debug_print_level, &
+                                 high_print_level, &
+                                 low_print_level, &
+                                 medium_print_level, &
+                                 silent_print_level
+   USE grid_api, ONLY: GRID_BACKEND_AUTO, &
+                       GRID_BACKEND_CPU, &
+                       GRID_BACKEND_DGEMM, &
+                       GRID_BACKEND_GPU, &
+                       GRID_BACKEND_HIP, &
+                       GRID_BACKEND_REF
+   USE input_constants, ONLY: &
+      bsse_run, callgraph_all, callgraph_master, callgraph_none, cell_opt_run, debug_run, &
+      do_atom, do_band, do_cosma, do_cp2k, do_dgemm_blas, do_dgemm_spla, do_farming, &
+      do_fft_fftw3, do_fft_sg, do_opt_basis, do_optimize_input, do_scalapack, do_swarm, do_tamc, &
+      do_test, do_tree_mc, do_tree_mc_ana, driver_run, ehrenfest, energy_force_run, energy_run, &
+      fftw_plan_estimate, fftw_plan_exhaustive, fftw_plan_measure, fftw_plan_patient, gaussian, &
+      geo_opt_run, linear_response_run, mol_dyn_run, mon_car_run, negf_run, none_run, pint_run, &
+      real_time_propagation, tree_mc_run, vib_anal
+   USE input_keyword_types, ONLY: keyword_create, &
+                                  keyword_release, &
+                                  keyword_type
+   USE input_section_types, ONLY: section_add_keyword, &
+                                  section_add_subsection, &
+                                  section_create, &
+                                  section_release, &
+                                  section_type
+   USE input_val_types, ONLY: char_t, &
+                              integer_t, &
+                              logical_t
+   USE kinds, ONLY: dp
+   USE string_utilities, ONLY: s2a
+   USE timings, ONLY: default_timings_level
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -402,7 +402,8 @@ CONTAINS
                        bsse_run, linear_response_run, pint_run, vib_anal, do_band, &
                        cell_opt_run, energy_run, energy_run, mol_dyn_run, geo_opt_run, &
                        mon_car_run, linear_response_run, &
-                       vib_anal, real_time_propagation, ehrenfest, do_tamc, tree_mc_run, driver_run, negf_run/), &
+                       vib_anal, real_time_propagation, ehrenfest, do_tamc, &
+                       tree_mc_run, driver_run, negf_run, born_run/), &
          enum_desc=s2a("Perform no tasks", "Computes energy", "Computes energy and forces", &
                        "Molecular Dynamics", "Geometry Optimization", "Monte Carlo", &
                        "Performs a Debug analysis", "Basis set superposition error", "Linear Response", &
@@ -415,7 +416,8 @@ CONTAINS
                        "Temperature Accelerated Monte Carlo (TAMC)", &
                        "Tree Monte Carlo (TMC), a pre-sampling MC algorithm", &
                        "i-PI driver mode", &
-                       "Non-equilibrium Green's function method"))
+                       "Non-equilibrium Green's function method", &
+                       "Calculate Born charges"))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
