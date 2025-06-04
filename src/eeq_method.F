@@ -771,7 +771,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'eeq_solver'
 
       INTEGER                                            :: handle, ierror, iunit, natom, nkind, ns
-      LOGICAL                                            :: do_direct, do_ewald, do_sparse
+      LOGICAL                                            :: do_direct, do_displ, do_ewald, do_sparse
       REAL(KIND=dp)                                      :: alpha, deth, ftime, qtot
       TYPE(cp_fm_struct_type), POINTER                   :: mat_struct
       TYPE(cp_fm_type)                                   :: eeq_mat
@@ -791,6 +791,11 @@ CONTAINS
       do_direct = eeq_sparam%direct
       do_sparse = eeq_sparam%sparse
 
+      do_displ = .FALSE.
+      IF (dft_control%apply_period_efield .AND. ASSOCIATED(dft_control%period_efield)) THEN
+         do_displ = dft_control%period_efield%displacement_field
+      END IF
+
       ! sparse option NYA
       IF (do_sparse) THEN
          CALL cp_abort(__LOCATION__, "EEQ: Sparse option not yet available")
@@ -808,7 +813,7 @@ CONTAINS
          CPASSERT(PRESENT(ewald_env))
          CPASSERT(PRESENT(ewald_pw))
          IF (do_direct) THEN
-            IF (dft_control%apply_period_efield .AND. dft_control%period_efield%displacement_field) THEN
+            IF (do_displ) THEN
                CPABORT("NYA")
             ELSE
                CALL fpbc_solver(charges, lambda, eeq_energy, eeq_mat, particle_set, &
@@ -816,7 +821,7 @@ CONTAINS
                                 ewald_env, ewald_pw, iounit)
             END IF
          ELSE
-            IF (dft_control%apply_period_efield .AND. dft_control%period_efield%displacement_field) THEN
+            IF (do_displ) THEN
                CPABORT("NYA")
             ELSE
                ierror = 0
