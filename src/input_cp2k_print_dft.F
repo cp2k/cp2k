@@ -163,6 +163,11 @@ MODULE input_cp2k_print_dft
    USE qs_mom_types, ONLY: create_mom_section
    USE string_utilities, ONLY: newline, &
                                s2a
+
+#ifdef __OPENPMD
+   USE openPMD_api, ONLY: openpmd_get_default_extension
+#endif
+
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -979,6 +984,8 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
+#ifdef __OPENPMD
+
       CALL cp_print_key_section_create(print_key, __LOCATION__, "ELF_OPENPMD", &
                                        description="Controls printing of openPMD files with"// &
                                        " the electron localization function (ELF). Note that"// &
@@ -1009,7 +1016,12 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL section_add_subsection(section, print_key)
+
+      CALL add_generic_openpmd_arguments(print_key, keyword)
+
       CALL section_release(print_key)
+
+#endif
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, "LOCAL_ENERGY_CUBE", &
                                        description="Controls the printing of cube files with the local"// &
@@ -2198,6 +2210,25 @@ CONTAINS
    END SUBROUTINE create_mo_cubes_section
 
 #ifdef __OPENPMD
+
+   SUBROUTINE add_generic_openpmd_arguments(print_key, keyword)
+      TYPE(section_type), POINTER                        :: print_key
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      CALL keyword_create(keyword, __LOCATION__, name="OPENPMD_EXTENSION", &
+      description="Filename extension for openPMD files, including the dot and (for optionally activating file encoding) a file expansion pattern.", default_c_val="_%06T." // openpmd_get_default_extension(), &
+                          type_of_var=char_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="OPENPMD_CFG", &
+      description="Runtime config for openPMD output. May be specified as inline JSON / TOML values or as paths to JSON / TOML files prepended with an @ sign. Note that inline specifications may not include double quotation marks due to restrictions in the input file format, making this option useful only for very simple use cases.", default_c_val="{}", &
+                          type_of_var=char_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE
+
    !! TODO update descriptions, trim unneeded bits, add needed bits
    SUBROUTINE create_openpmd_section(print_key)
       TYPE(section_type), POINTER                        :: print_key
@@ -2255,6 +2286,8 @@ CONTAINS
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
+
+      CALL add_generic_openpmd_arguments(print_key, keyword)
 
    END SUBROUTINE create_openpmd_section
 #endif

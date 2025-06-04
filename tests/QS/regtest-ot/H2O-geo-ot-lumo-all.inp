@@ -21,9 +21,12 @@
     &END MGRID
     &PRINT
       &ELF_OPENPMD
+        OPENPMD_EXTENSION _%06T.bp5
       &END ELF_OPENPMD
       &MO_OPENPMD
         NLUMO -1
+        OPENPMD_EXTENSION .bp5
+        OPENPMD_CFG "iteration_encoding = 'variable_based'"
       &END MO_OPENPMD
     &END PRINT
     &QS

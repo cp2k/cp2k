@@ -56,7 +56,7 @@ MODULE cp_output_handling_openpmd
                               mp_file_type
    USE openpmd_api, ONLY: &
       openpmd_access_create, openpmd_attributable_set_attribute_vec_int, &
-      openpmd_get_default_extension, openpmd_iteration_get_mesh, &
+      openpmd_iteration_get_mesh, &
       openpmd_iteration_get_particle_species, openpmd_iteration_type, openpmd_mesh_type, &
       openpmd_particle_species_get_record, openpmd_particle_species_type, &
       openpmd_record_component_make_empty, openpmd_record_type, openpmd_series_close, &
@@ -481,7 +481,7 @@ CONTAINS
 
       CHARACTER(len=default_path_length)                 :: filename
 
-      CHARACTER(len=default_string_length) :: openpmd_config = 'iteration_encoding = "variable_based"', outPath
+      CHARACTER(len=default_string_length)               :: openpmd_config, outPath, file_extension
       LOGICAL                                            :: do_log, found, &
                                                             my_mpi_io, my_on_file, &
                                                             my_should_output, &
@@ -519,7 +519,9 @@ CONTAINS
       IF (logger%para_env%is_source() .OR. my_mpi_io) THEN
 
          CALL section_vals_val_get(print_key, "FILENAME", c_val=outPath)
-        filename = cp_print_key_generate_openpmd_filename(logger, print_key, openpmd_basename, "."//openpmd_get_default_extension())
+         CALL section_vals_val_get(print_key, "OPENPMD_EXTENSION", c_val=file_extension)
+         CALL section_vals_val_get(print_key, "OPENPMD_CFG", c_val=openpmd_config)
+         filename = cp_print_key_generate_openpmd_filename(logger, print_key, openpmd_basename, file_extension)
 
          ! Check is we have to log any operation performed on the file..
          do_log = .FALSE.
