@@ -1263,14 +1263,15 @@ CONTAINS
       COMPLEX(KIND=dp)                         :: sn_cmplx
 
 #if defined(__parallel)
-      INTEGER                                  :: info, lwork, nloc
+      INTEGER                                  :: info, lwork
       INTEGER, DIMENSION(9)                    :: desc
       REAL(dp), DIMENSION(:), ALLOCATABLE      :: work
-
+#endif
       CALL timeset(routineN, handle)
-      CALL cp_cfm_get_info(matrix, ncol_global=ncol, ncol_local=nloc)
+      CALL cp_cfm_get_info(matrix, ncol_global=ncol)
       sn_cmplx = CMPLX(sn, 0.0_dp, dp)
-      IF (ncol /= nloc) THEN
+#if defined(__parallel)
+      IF (1 /= matrix%matrix_struct%context%n_pid) THEN
          lwork = 2*ncol + 1
          ALLOCATE (work(lwork))
          desc(:) = matrix%matrix_struct%descriptor(:)
@@ -1281,15 +1282,11 @@ CONTAINS
          CPASSERT(info == 0)
          DEALLOCATE (work)
       ELSE
-         CALL zrot(ncol, matrix%local_data(irow, 1), ncol, matrix%local_data(jrow, 1), ncol, cs, sn_cmplx)
-      END IF
-#else
-      CALL timeset(routineN, handle)
-      CALL cp_cfm_get_info(matrix, ncol_global=ncol)
-      sn_cmplx = CMPLX(sn, 0.0_dp, dp)
-      CALL zrot(ncol, matrix%local_data(irow, 1), ncol, matrix%local_data(jrow, 1), ncol, cs, sn_cmplx)
 #endif
-
+         CALL zrot(ncol, matrix%local_data(irow, 1), ncol, matrix%local_data(jrow, 1), ncol, cs, sn_cmplx)
+#if defined(__parallel)
+      END IF
+#endif
       CALL timestop(handle)
    END SUBROUTINE cp_cfm_rot_rows
 
@@ -1312,14 +1309,15 @@ CONTAINS
       COMPLEX(KIND=dp)                         :: sn_cmplx
 
 #if defined(__parallel)
-      INTEGER                                  :: info, lwork, nloc
+      INTEGER                                  :: info, lwork
       INTEGER, DIMENSION(9)                    :: desc
       REAL(dp), DIMENSION(:), ALLOCATABLE      :: work
-
+#endif
       CALL timeset(routineN, handle)
-      CALL cp_cfm_get_info(matrix, nrow_global=nrow, nrow_local=nloc)
+      CALL cp_cfm_get_info(matrix, nrow_global=nrow)
       sn_cmplx = CMPLX(sn, 0.0_dp, dp)
-      IF (nrow /= nloc) THEN
+#if defined(__parallel)
+      IF (1 /= matrix%matrix_struct%context%n_pid) THEN
          lwork = 2*nrow + 1
          ALLOCATE (work(lwork))
          desc(:) = matrix%matrix_struct%descriptor(:)
@@ -1330,15 +1328,11 @@ CONTAINS
          CPASSERT(info == 0)
          DEALLOCATE (work)
       ELSE
-         CALL zrot(nrow, matrix%local_data(1, icol), 1, matrix%local_data(1, jcol), 1, cs, sn_cmplx)
-      END IF
-#else
-      CALL timeset(routineN, handle)
-      CALL cp_cfm_get_info(matrix, nrow_global=nrow)
-      sn_cmplx = CMPLX(sn, 0.0_dp, dp)
-      CALL zrot(nrow, matrix%local_data(1, icol), 1, matrix%local_data(1, jcol), 1, cs, sn_cmplx)
 #endif
-
+         CALL zrot(nrow, matrix%local_data(1, icol), 1, matrix%local_data(1, jcol), 1, cs, sn_cmplx)
+#if defined(__parallel)
+      END IF
+#endif
       CALL timestop(handle)
    END SUBROUTINE cp_cfm_rot_cols
 

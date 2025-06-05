@@ -2417,13 +2417,14 @@ CONTAINS
       INTEGER                                  :: handle, ncol
 
 #if defined(__parallel)
-      INTEGER                                  :: info, lwork, nloc
+      INTEGER                                  :: info, lwork
       INTEGER, DIMENSION(9)                    :: desc
       REAL(dp), DIMENSION(:), ALLOCATABLE      :: work
-
+#endif
       CALL timeset(routineN, handle)
-      CALL cp_fm_get_info(matrix, ncol_global=ncol, ncol_local=nloc)
-      IF (ncol /= nloc) THEN
+      CALL cp_fm_get_info(matrix, ncol_global=ncol)
+#if defined(__parallel)
+      IF (1 /= matrix%matrix_struct%context%n_pid) THEN
          lwork = 2*ncol + 1
          ALLOCATE (work(lwork))
          desc(:) = matrix%matrix_struct%descriptor(:)
@@ -2434,14 +2435,11 @@ CONTAINS
          CPASSERT(info == 0)
          DEALLOCATE (work)
       ELSE
-         CALL drot(ncol, matrix%local_data(irow, 1), ncol, matrix%local_data(jrow, 1), ncol, cs, sn)
-      END IF
-#else
-      CALL timeset(routineN, handle)
-      CALL cp_fm_get_info(matrix, ncol_global=ncol)
-      CALL drot(ncol, matrix%local_data(irow, 1), ncol, matrix%local_data(jrow, 1), ncol, cs, sn)
 #endif
-
+         CALL drot(ncol, matrix%local_data(irow, 1), ncol, matrix%local_data(jrow, 1), ncol, cs, sn)
+#if defined(__parallel)
+      END IF
+#endif
       CALL timestop(handle)
    END SUBROUTINE cp_fm_rot_rows
 
@@ -2463,13 +2461,14 @@ CONTAINS
       INTEGER                                  :: handle, nrow
 
 #if defined(__parallel)
-      INTEGER                                  :: info, lwork, nloc
+      INTEGER                                  :: info, lwork
       INTEGER, DIMENSION(9)                    :: desc
       REAL(dp), DIMENSION(:), ALLOCATABLE      :: work
-
+#endif
       CALL timeset(routineN, handle)
-      CALL cp_fm_get_info(matrix, nrow_global=nrow, nrow_local=nloc)
-      IF (nrow /= nloc) THEN
+      CALL cp_fm_get_info(matrix, nrow_global=nrow)
+#if defined(__parallel)
+      IF (1 /= matrix%matrix_struct%context%n_pid) THEN
          lwork = 2*nrow + 1
          ALLOCATE (work(lwork))
          desc(:) = matrix%matrix_struct%descriptor(:)
@@ -2480,14 +2479,11 @@ CONTAINS
          CPASSERT(info == 0)
          DEALLOCATE (work)
       ELSE
-         CALL drot(nrow, matrix%local_data(1, icol), 1, matrix%local_data(1, jcol), 1, cs, sn)
-      END IF
-#else
-      CALL timeset(routineN, handle)
-      CALL cp_fm_get_info(matrix, nrow_global=nrow)
-      CALL drot(nrow, matrix%local_data(1, icol), 1, matrix%local_data(1, jcol), 1, cs, sn)
 #endif
-
+         CALL drot(nrow, matrix%local_data(1, icol), 1, matrix%local_data(1, jcol), 1, cs, sn)
+#if defined(__parallel)
+      END IF
+#endif
       CALL timestop(handle)
    END SUBROUTINE cp_fm_rot_cols
 
