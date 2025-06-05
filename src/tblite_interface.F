@@ -93,10 +93,11 @@ MODULE tblite_interface
    INTEGER, PARAMETER                                 :: dip_n = 3
    INTEGER, PARAMETER                                 :: quad_n = 6
 
-   PUBLIC :: tb_init_geometry, tb_init_wf
-   PUBLIC :: tb_set_calculator, tb_get_basis, build_tblite_matrices
+   PUBLIC :: tb_set_calculator, tb_init_geometry, tb_init_wf
+   PUBLIC :: tb_get_basis, build_tblite_matrices
    PUBLIC :: tb_get_energy, tb_update_charges, tb_ham_add_coulomb
-   PUBLIC :: tb_get_multipole, tb_derive_dE
+   PUBLIC :: tb_get_multipole
+   PUBLIC :: tb_derive_dH_diag, tb_derive_dH_off
 
 CONTAINS
 
@@ -498,7 +499,7 @@ CONTAINS
 
    END SUBROUTINE tb_get_basis
 
-   ! **************************************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param qs_env ...
 !> \param calculate_forces ...
@@ -515,7 +516,7 @@ CONTAINS
       INTEGER                                            :: handle, maxder, nderivatives, nimg, img, nkind, i, ic, iw, &
                                                             iatom, jatom, ikind, jkind, iset, jset, n1, n2, icol, irow, &
                                                             ishell, jshell, ia, ib, sgfa, sgfb, atom_a, atom_b, &
-                                                            ldsab, nseta, nsetb, natorb_a, natorb_b
+                                                            ldsab, nseta, nsetb, natorb_a, natorb_b, sgfa0
       LOGICAL                                            :: found, norml1, norml2, use_arnoldi, use_virial
       REAL(KIND=dp)                                      :: dr, rr
       INTEGER, DIMENSION(3)                              :: cell
@@ -763,8 +764,10 @@ CONTAINS
             DO ishell = 1, icol - 1
                n1 = n1 + tb%calc%bas%nsh_at(ishell)
             END DO
+            sgfa0 = 1
             DO iset = 1, nseta
                sgfa = first_sgfa(1, iset)
+               sgfa0 = sgfa0 + tb%calc%bas%cgto(iset, tb%mol%id(icol))%nprim
                n2 = 0
                DO jshell = 1, irow - 1
                   n2 = n2 + tb%calc%bas%nsh_at(jshell)
@@ -837,7 +840,7 @@ CONTAINS
 
    END SUBROUTINE build_tblite_matrices
 
-   ! **************************************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param qs_env ...
 !> \param dft_control ...
@@ -1032,7 +1035,7 @@ CONTAINS
 
    END SUBROUTINE tb_update_charges
 
-   ! **************************************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param qs_env ...
 !> \param tb ...
@@ -1897,21 +1900,20 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief compute the derivative of the energy
 !> \param qs_env ...
-!> \param dE ...
 !> \param use_rho ...
 ! **************************************************************************************************
-   SUBROUTINE tb_derive_dE(qs_env, dE, use_rho)
+   SUBROUTINE tb_derive_dH_diag(qs_env, use_rho)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dE
       LOGICAL, INTENT(IN)                                :: use_rho
 
+#if defined(__TBLITE)
       INTEGER                                            :: i, iatom, ic, ikind, ind, is, ish, &
                                                             jatom, jkind
       INTEGER, DIMENSION(3)                              :: cellind
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: found
-      REAL(dp)                                           :: temp
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dE
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pblock
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p
       TYPE(kpoint_type), POINTER                         :: kpoints
@@ -1940,6 +1942,7 @@ CONTAINS
 
       ALLOCATE (dE(tb%mol%nat))
 
+      dE = 0.0_dp
       ! loop over all atom pairs with a non-zero overlap (sab_orb)
       CALL neighbor_list_iterator_create(nl_iterator, sab_orb)
       DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
@@ -1958,18 +1961,264 @@ CONTAINS
          IF (.NOT. found) CPABORT("block not found")
 
          ind = 0
-         temp = 0.0_dp
          DO ish = 1, tb%calc%bas%nsh_id(ikind)
             DO i = 1, msao(tb%calc%bas%cgto(ish, ikind)%ang)
                ind = ind + 1
-               temp = temp + tb%dsedcn(is + ish)*pblock(ind, ind)
+               dE(iatom) = dE(iatom) + tb%dsedcn(is + ish)*pblock(ind, ind)
             END DO
          END DO
-         dE(iatom) = temp
       END DO
       CALL neighbor_list_iterator_release(nl_iterator)
 
-   END SUBROUTINE tb_derive_dE
+      tb%grad = 0.0_dp
+      tb%sigma = 0.0_dp
+      CALL tb_add_grad(tb%grad, tb%dcndr, dE, tb%mol%nat)
+      CALL tb_grad2force(qs_env, tb, para_env, 4)
+
+      DEALLOCATE (dE)
+
+#else
+      MARK_USED(qs_env)
+      MARK_USED(use_rho)
+      CPABORT("Built without TBLITE")
+#endif
+
+   END SUBROUTINE tb_derive_dH_diag
+
+! **************************************************************************************************
+!> \brief compute the derivative of the energy
+!> \param qs_env ...
+!> \param use_rho ...
+! **************************************************************************************************
+   SUBROUTINE tb_derive_dH_off(qs_env, use_rho)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      LOGICAL, INTENT(IN)                                :: use_rho
+
+#if defined(__TBLITE)
+      INTEGER                                            :: i, ij, iatom, ic, icol, ikind, ni, nj, nkind, nel, &
+                                                            sgfi, sgfj, ityp, jatom, jkind, jrow, jtyp, iset, jset, &
+                                                            nseti, nsetj, ia, ib, inda, indb
+      INTEGER, DIMENSION(3)                              :: cellind
+      INTEGER, DIMENSION(:), POINTER                     :: nsgfa, nsgfb
+      INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
+      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
+      LOGICAL                                            :: found
+      REAL(KIND=dp)                                      :: r2, itemp, jtemp, rr, hij, shpoly, dshpoly, idHdc, jdHdc, &
+                                                            scal, hp, i_a_shift, j_a_shift, ishift, jshift
+      REAL(KIND=dp), DIMENSION(3)                        :: rij, dgrad
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dE, t_ov
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: t_dip, t_quad, t_d_ov
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: t_i_dip, t_i_quad, t_j_dip, t_j_quad
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pblock, wblock
+
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p, matrix_w
+      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
+      TYPE(gto_basis_set_type), POINTER            :: basis_set_a, basis_set_b
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(neighbor_list_iterator_p_type), &
+         DIMENSION(:), POINTER                           :: nl_iterator
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_orb
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(qs_rho_type), POINTER                         :: rho
+      TYPE(qs_scf_env_type), POINTER                     :: scf_env
+      TYPE(tb_hamiltonian), POINTER                      :: h0
+      TYPE(tblite_type), POINTER                         :: tb
+
+      ! compute mulliken charges required for charge update
+      NULLIFY (scf_env, rho, tb, sab_orb, para_env, kpoints, matrix_w)
+      CALL get_qs_env(qs_env=qs_env, &
+                      atomic_kind_set=atomic_kind_set, &
+                      scf_env=scf_env, &
+                      rho=rho, &
+                      tb_tblite=tb, &
+                      sab_orb=sab_orb, &
+                      para_env=para_env, &
+                      qs_kind_set=qs_kind_set, &
+                      kpoints=kpoints, &
+                      matrix_w_kp=matrix_w)
+      NULLIFY (cell_to_index)
+      CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index)
+
+      h0 => tb%calc%h0
+
+      NULLIFY (matrix_p)
+      IF (use_rho) THEN
+         CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
+      ELSE
+         matrix_p => scf_env%p_mix_new
+      END IF
+
+      ! set up basis set lists
+      nkind = SIZE(atomic_kind_set)
+      ALLOCATE (basis_set_list(nkind))
+      CALL basis_set_list_setup(basis_set_list, "ORB", qs_kind_set)
+
+      ALLOCATE (dE(tb%mol%nat))
+
+      nel = msao(tb%calc%bas%maxl)**2
+      ALLOCATE (t_ov(nel))
+      ALLOCATE (t_d_ov(3, nel))
+      ALLOCATE (t_dip(dip_n, nel))
+      ALLOCATE (t_i_dip(3, dip_n, nel), t_j_dip(3, dip_n, nel))
+      ALLOCATE (t_quad(quad_n, nel))
+      ALLOCATE (t_i_quad(3, quad_n, nel), t_j_quad(3, quad_n, nel))
+
+      dE = 0.0_dp
+      tb%grad = 0.0_dp
+      ! loop over all atom pairs with a non-zero overlap (sab_orb)
+      CALL neighbor_list_iterator_create(nl_iterator, sab_orb)
+      DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
+         CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
+                                iatom=iatom, jatom=jatom, r=rij, cell=cellind)
+
+         IF (iatom == jatom) CYCLE
+
+         icol = MAX(iatom, jatom)
+         jrow = MIN(iatom, jatom)
+
+         IF (icol == jatom) THEN
+            rij = -rij
+            i = ikind
+            ikind = jkind
+            jkind = i
+         END IF
+
+         ityp = tb%mol%id(icol)
+         jtyp = tb%mol%id(jrow)
+
+         r2 = NORM2(rij(:))
+         rr = SQRT(r2/(h0%rad(ikind) + h0%rad(jkind)))
+         r2 = r2**2
+
+         !get basis information
+         basis_set_a => basis_set_list(ikind)%gto_basis_set
+         IF (.NOT. ASSOCIATED(basis_set_a)) CYCLE
+         first_sgfa => basis_set_a%first_sgf
+         nsgfa => basis_set_a%nsgf_set
+         nseti = basis_set_a%nset
+         basis_set_b => basis_set_list(jkind)%gto_basis_set
+         IF (.NOT. ASSOCIATED(basis_set_b)) CYCLE
+         first_sgfb => basis_set_b%first_sgf
+         nsgfb => basis_set_b%nsgf_set
+         nsetj = basis_set_b%nset
+
+         ic = cell_to_index(cellind(1), cellind(2), cellind(3))
+         CPASSERT(ic > 0)
+         NULLIFY (pblock)
+         CALL dbcsr_get_block_p(matrix=matrix_p(1, ic)%matrix, &
+                                row=jrow, col=icol, BLOCK=pblock, found=found)
+         IF (.NOT. found) CPABORT("pblock not found")
+
+         NULLIFY (wblock)
+         CALL dbcsr_get_block_p(matrix=matrix_w(1, ic)%matrix, &
+                                row=jrow, col=icol, block=wblock, found=found)
+         CPASSERT(found)
+
+         i_a_shift = tb%pot%vat(icol, 1)
+         j_a_shift = tb%pot%vat(jrow, 1)
+
+         ni = tb%calc%bas%ish_at(icol)
+         DO iset = 1, nseti
+            sgfi = first_sgfa(1, iset)
+            ishift = i_a_shift + tb%pot%vsh(ni + iset, 1)
+            nj = tb%calc%bas%ish_at(jrow)
+            DO jset = 1, nsetj
+               sgfj = first_sgfb(1, jset)
+               jshift = j_a_shift + tb%pot%vsh(nj + jset, 1)
+
+               !get integrals and derivatives
+               CALL multipole_grad_cgto(tb%calc%bas%cgto(iset, ityp), tb%calc%bas%cgto(jset, jtyp), &
+                  & r2, rij, tb%calc%bas%intcut, t_ov, t_dip, t_quad, t_d_ov, t_j_dip, t_j_quad, &
+                  & t_i_dip, t_i_quad)
+
+               shpoly = (1.0_dp + h0%shpoly(iset, ikind)*rr) &
+                        *(1.0_dp + h0%shpoly(jset, jkind)*rr)
+               dshpoly = ((1.0_dp + h0%shpoly(iset, ikind)*rr)*h0%shpoly(jset, jkind)*rr &
+                          + (1.0_dp + h0%shpoly(jset, jkind)*rr)*h0%shpoly(iset, ikind)*rr) &
+                         *0.5_dp/r2
+               scal = h0%hscale(iset, jset, ikind, jkind)
+               hij = 0.5_dp*(tb%selfenergy(ni + iset) + tb%selfenergy(nj + jset))*scal
+
+               idHdc = tb%dsedcn(ni + iset)*shpoly*scal
+               jdHdc = tb%dsedcn(nj + jset)*shpoly*scal
+
+               itemp = 0.0_dp
+               jtemp = 0.0_dp
+               dgrad = 0.0_dp
+               DO inda = 1, nsgfa(iset)
+                  ia = first_sgfa(1, iset) - first_sgfa(1, 1) + inda
+                  DO indb = 1, nsgfb(jset)
+                     ib = first_sgfb(1, jset) - first_sgfb(1, 1) + indb
+
+                     ij = inda + nsgfa(iset)*(indb - 1)
+
+                     itemp = itemp + idHdc*pblock(ib, ia)*t_ov(ij)
+                     jtemp = jtemp + jdHdc*pblock(ib, ia)*t_ov(ij)
+
+                     hp = 2*hij*pblock(ib, ia)
+                     dgrad(:) = dgrad(:) &
+                                - (ishift + jshift)*pblock(ib, ia)*t_d_ov(:, ij) &
+                                - 2*wblock(ib, ia)*t_d_ov(:, ij) &
+                                + hp*shpoly*t_d_ov(:, ij) &
+                                + hp*dshpoly*t_ov(ij)*rij
+                  END DO
+               END DO
+               dE(icol) = dE(icol) + itemp
+               dE(jrow) = dE(jrow) + jtemp
+               tb%grad(:, icol) = tb%grad(:, icol) - dgrad
+               tb%grad(:, jrow) = tb%grad(:, jrow) + dgrad
+            END DO
+         END DO
+
+      END DO
+      CALL neighbor_list_iterator_release(nl_iterator)
+
+      tb%sigma = 0.0_dp
+      CALL tb_add_grad(tb%grad, tb%dcndr, dE, tb%mol%nat)
+      CALL tb_grad2force(qs_env, tb, para_env, 4)
+
+      DEALLOCATE (dE)
+      DEALLOCATE (basis_set_list)
+
+      DEALLOCATE (t_ov, t_d_ov)
+      DEALLOCATE (t_dip, t_i_dip, t_j_dip)
+      DEALLOCATE (t_quad, t_i_quad, t_j_quad)
+
+#else
+      MARK_USED(qs_env)
+      MARK_USED(use_rho)
+      CPABORT("Built without TBLITE")
+#endif
+
+   END SUBROUTINE tb_derive_dH_off
+
+! **************************************************************************************************
+!> \brief add contrib. to gradient
+!> \param grad ...
+!> \param deriv ...
+!> \param dE ...
+!> \param natom ...
+! **************************************************************************************************
+   SUBROUTINE tb_add_grad(grad, deriv, dE, natom)
+
+      REAL(KIND=dp), DIMENSION(:, :)                     :: grad
+      REAL(KIND=dp), DIMENSION(:, :, :)                  :: deriv
+      REAL(KIND=dp), DIMENSION(:)                        :: dE
+      INTEGER                                            :: natom
+
+      INTEGER                                            :: i, j
+
+      DO i = 1, natom
+         DO j = 1, natom
+            grad(:, i) = grad(:, i) + deriv(:, i, j)*dE(j)
+         END DO
+      END DO
+
+   END SUBROUTINE tb_add_grad
 
 END MODULE tblite_interface
 
