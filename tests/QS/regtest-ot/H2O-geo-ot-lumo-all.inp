@@ -20,9 +20,14 @@
       CUTOFF 200
     &END MGRID
     &PRINT
-      &MO_CUBES
+      &ELF_OPENPMD
+        OPENPMD_EXTENSION _%06T.bp5
+      &END ELF_OPENPMD
+      &MO_OPENPMD
         NLUMO -1
-      &END MO_CUBES
+        OPENPMD_EXTENSION .bp5
+        OPENPMD_CFG "iteration_encoding = 'variable_based'"
+      &END MO_OPENPMD
     &END PRINT
     &QS
       EPS_DEFAULT 1.0E-12
@@ -45,6 +50,7 @@
   &SUBSYS
     &CELL
       ABC 6.0 6.0 6.0
+      MULTIPLE_UNIT_CELL 2 2 1
     &END CELL
     &COORD
       O   0.000000    0.000000   -0.065587
@@ -61,6 +67,7 @@
     &END KIND
     &TOPOLOGY
       CONNECTIVITY GENERATE
+      MULTIPLE_UNIT_CELL 2 2 1
     &END TOPOLOGY
   &END SUBSYS
 &END FORCE_EVAL

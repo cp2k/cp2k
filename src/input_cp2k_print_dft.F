@@ -163,6 +163,11 @@ MODULE input_cp2k_print_dft
    USE qs_mom_types, ONLY: create_mom_section
    USE string_utilities, ONLY: newline, &
                                s2a
+
+#ifdef __OPENPMD
+   USE openPMD_api, ONLY: openpmd_get_default_extension
+#endif
+
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -608,6 +613,12 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
+#ifdef __OPENPMD
+      CALL create_openpmd_section(print_key)
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
+#endif
+
       CALL create_stm_section(print_key)
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
@@ -972,6 +983,45 @@ CONTAINS
 
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
+
+#ifdef __OPENPMD
+
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "ELF_OPENPMD", &
+                                       description="Controls printing of openPMD files with"// &
+                                       " the electron localization function (ELF). Note that"// &
+                                       " the value of ELF is defined between 0 and 1: Pauli kinetic energy density normalized"// &
+                                       " by the kinetic energy density of a uniform el. gas of same density.", &
+                                       print_level=high_print_level, filename="")
+      CALL keyword_create(keyword, __LOCATION__, name="stride", &
+                          description="The stride (X,Y,Z) used to write the cube file "// &
+                          "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
+                          " 1 number valid for all components.", &
+                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
+                          description="append the cube files when they already exist", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="density_cutoff", &
+                          description=" ", &
+                          usage="density_cutoff 0.0001", &
+                          repeats=.FALSE., &
+                          n_var=1, &
+                          type_of_var=real_t, &
+                          default_r_val=1.0e-10_dp)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL section_add_subsection(section, print_key)
+
+      CALL add_generic_openpmd_arguments(print_key, keyword)
+
+      CALL section_release(print_key)
+
+#endif
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, "LOCAL_ENERGY_CUBE", &
                                        description="Controls the printing of cube files with the local"// &
@@ -2158,6 +2208,95 @@ CONTAINS
       CALL keyword_release(keyword)
 
    END SUBROUTINE create_mo_cubes_section
+
+#ifdef __OPENPMD
+
+   SUBROUTINE add_generic_openpmd_arguments(print_key, keyword)
+      TYPE(section_type), POINTER                        :: print_key
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      CALL keyword_create(keyword, __LOCATION__, name="OPENPMD_EXTENSION", &
+      description="Filename extension for openPMD files, including the dot and (for optionally activating file encoding) a file expansion pattern.", default_c_val="_%06T." // openpmd_get_default_extension(), &
+                          type_of_var=char_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="OPENPMD_CFG", &
+      description="Inline runtime config for openPMD output. Note that inline specifications are subject to restrictions imposed by the input file format, making this option useful only for very simple use cases. Refer to OPENPMD_CFG_FILE for anything else.", default_c_val="{}", &
+                          type_of_var=char_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="OPENPMD_CFG_FILE", &
+      description="Runtime config file for openPMD output. This parameter takes precedence over OPENPMD_CFG.", default_c_val="", &
+                          type_of_var=char_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE
+
+   !! TODO update descriptions, trim unneeded bits, add needed bits
+   SUBROUTINE create_openpmd_section(print_key)
+      TYPE(section_type), POINTER                        :: print_key
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      NULLIFY (keyword)
+
+      CALL cp_print_key_section_create(print_key, __LOCATION__, "MO_OPENPMD", &
+                                       description="Controls the printing of the molecular orbitals (MOs) as cube files."// &
+                                       " It can be used during a Real Time calculation to print the MOs."// &
+                                       " In this case, the density corresponding to the time dependent MO is printed"// &
+                                       " instead of the wave-function.", &
+                                       print_level=high_print_level, filename="")
+      CALL keyword_create(keyword, __LOCATION__, name="stride", &
+                          description="The stride (X,Y,Z) used to write the cube file "// &
+                          "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
+                          " 1 number valid for all components.", &
+                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="write_openpmd", &
+                          description="If the MO cube file should be written. If false, the eigenvalues are still computed."// &
+                          " Can also be useful in combination with STM calculations", &
+                          default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="nlumo", &
+                          description="If the printkey is activated controls the number of lumos"// &
+                          " that are printed and dumped as a cube (-1=all)", &
+                          default_i_val=0)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+      CALL keyword_create( &
+         keyword, __LOCATION__, name="nhomo", &
+         description="If the printkey is activated controls the number of homos that dumped as a cube (-1=all),"// &
+         " eigenvalues are always all dumped", &
+         default_i_val=1)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
+         keyword, __LOCATION__, name="homo_list", &
+         description="If the printkey is activated controls the index of homos dumped as a cube,"// &
+         " eigenvalues are always all dumped. It overrides nhomo.", &
+         usage="HOMO_LIST {integer}  {integer} ..  {integer} ", type_of_var=integer_t, &
+         n_var=-1, repeats=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
+                          description="append the cube files when they already exist", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL add_generic_openpmd_arguments(print_key, keyword)
+
+   END SUBROUTINE create_openpmd_section
+#endif
 
 ! **************************************************************************************************
 !> \brief ...
