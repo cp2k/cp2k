@@ -2007,7 +2007,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: r2, itemp, jtemp, rr, hij, shpoly, dshpoly, idHdc, jdHdc, &
                                                             scal, hp, i_a_shift, j_a_shift, ishift, jshift
       REAL(KIND=dp), DIMENSION(3)                        :: rij, dgrad
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dE, t_ov
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dE, t_ov, idip, jdip, iquad, jquad
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: t_dip, t_quad, t_d_ov
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: t_i_dip, t_i_quad, t_j_dip, t_j_quad
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pblock, wblock
@@ -2066,6 +2066,9 @@ CONTAINS
       ALLOCATE (t_i_dip(3, dip_n, nel), t_j_dip(3, dip_n, nel))
       ALLOCATE (t_quad(quad_n, nel))
       ALLOCATE (t_i_quad(3, quad_n, nel), t_j_quad(3, quad_n, nel))
+      
+      ALLOCATE (idip(dip_n), jdip(dip_n))
+      ALLOCATE (iquad(quad_n), jquad(quad_n))
 
       dE = 0.0_dp
       tb%grad = 0.0_dp
@@ -2120,7 +2123,11 @@ CONTAINS
 
          i_a_shift = tb%pot%vat(icol, 1)
          j_a_shift = tb%pot%vat(jrow, 1)
-
+         idip=tb%pot%vdp(:, icol, 1)
+         jdip=tb%pot%vdp(:, jrow, 1)
+         iquad=tb%pot%vqp(:, icol, 1)
+         jquad=tb%pot%vqp(:, jrow, 1)
+         
          ni = tb%calc%bas%ish_at(icol)
          DO iset = 1, nseti
             sgfi = first_sgfa(1, iset)
@@ -2132,8 +2139,8 @@ CONTAINS
 
                !get integrals and derivatives
                CALL multipole_grad_cgto(tb%calc%bas%cgto(iset, ityp), tb%calc%bas%cgto(jset, jtyp), &
-                  & r2, rij, tb%calc%bas%intcut, t_ov, t_dip, t_quad, t_d_ov, t_j_dip, t_j_quad, &
-                  & t_i_dip, t_i_quad)
+                  & r2, rij, tb%calc%bas%intcut, t_ov, t_dip, t_quad, t_d_ov, t_i_dip, t_i_quad, &
+                  & t_j_dip, t_j_quad)
 
                shpoly = (1.0_dp + h0%shpoly(iset, ikind)*rr) &
                         *(1.0_dp + h0%shpoly(jset, jkind)*rr)
@@ -2164,7 +2171,13 @@ CONTAINS
                                 - (ishift + jshift)*pblock(ib, ia)*t_d_ov(:, ij) &
                                 - 2*wblock(ib, ia)*t_d_ov(:, ij) &
                                 + hp*shpoly*t_d_ov(:, ij) &
-                                + hp*dshpoly*t_ov(ij)*rij
+                                + hp*dshpoly*t_ov(ij)*rij &
+                                - pblock(ib, ia)*( &
+                                matmul(t_i_dip(:,:,ij), idip) &
+                                + matmul(t_j_dip(:,:,ij), jdip) &
+                                + matmul(t_i_quad(:,:,ij), iquad) &
+                                + matmul(t_j_quad(:,:,ij), jquad))
+                    
                   END DO
                END DO
                dE(icol) = dE(icol) + itemp
@@ -2187,6 +2200,8 @@ CONTAINS
       DEALLOCATE (t_ov, t_d_ov)
       DEALLOCATE (t_dip, t_i_dip, t_j_dip)
       DEALLOCATE (t_quad, t_i_quad, t_j_quad)
+      DEALLOCATE (idip, jdip, iquad, jquad)
+
 
 #else
       MARK_USED(qs_env)
