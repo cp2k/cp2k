@@ -2222,7 +2222,13 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="OPENPMD_CFG", &
-      description="Runtime config for openPMD output. May be specified as inline JSON / TOML values or as paths to JSON / TOML files prepended with an @ sign. Note that inline specifications may not include double quotation marks due to restrictions in the input file format, making this option useful only for very simple use cases.", default_c_val="{}", &
+      description="Inline runtime config for openPMD output. Note that inline specifications are subject to restrictions imposed by the input file format, making this option useful only for very simple use cases. Refer to OPENPMD_CFG_FILE for anything else.", default_c_val="{}", &
+                          type_of_var=char_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="OPENPMD_CFG_FILE", &
+      description="Runtime config file for openPMD output. This parameter takes precedence over OPENPMD_CFG.", default_c_val="", &
                           type_of_var=char_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)

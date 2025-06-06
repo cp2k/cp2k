@@ -520,7 +520,12 @@ CONTAINS
 
          CALL section_vals_val_get(print_key, "FILENAME", c_val=outPath)
          CALL section_vals_val_get(print_key, "OPENPMD_EXTENSION", c_val=file_extension)
-         CALL section_vals_val_get(print_key, "OPENPMD_CFG", c_val=openpmd_config)
+         CALL section_vals_val_get(print_key, "OPENPMD_CFG_FILE", c_val=openpmd_config)
+         IF (LEN_TRIM(openpmd_config) == 0) THEN
+            CALL section_vals_val_get(print_key, "OPENPMD_CFG", c_val=openpmd_config)
+         ELSE
+            openpmd_config = "@" // openpmd_config
+         END IF
          filename = cp_print_key_generate_openpmd_filename(logger, print_key, openpmd_basename, file_extension)
 
          ! Check is we have to log any operation performed on the file..
