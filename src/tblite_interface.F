@@ -254,12 +254,12 @@ CONTAINS
       tb%e_hal = 0.0_dp
       tb%e_rep = 0.0_dp
       tb%e_disp = 0.0_dp
+      tb%sigma = 0.0_dp
 
       IF (ALLOCATED(tb%calc%halogen)) THEN
          CALL tb%calc%halogen%update(tb%mol, hcache)
          IF (ALLOCATED(tb%grad)) THEN
             tb%grad = 0.0_dp
-            tb%sigma = 0.0_dp
             CALL tb%calc%halogen%get_engrad(tb%mol, hcache, tb%e_hal, &
             & tb%grad, tb%sigma)
             CALL tb_grad2force(qs_env, tb, para_env, 0)
@@ -272,7 +272,6 @@ CONTAINS
          CALL tb%calc%repulsion%update(tb%mol, rcache)
          IF (ALLOCATED(tb%grad)) THEN
             tb%grad = 0.0_dp
-            tb%sigma = 0.0_dp
             CALL tb%calc%repulsion%get_engrad(tb%mol, rcache, tb%e_rep, &
             & tb%grad, tb%sigma)
             CALL tb_grad2force(qs_env, tb, para_env, 1)
@@ -285,7 +284,6 @@ CONTAINS
          CALL tb%calc%dispersion%update(tb%mol, tb%dcache)
          IF (ALLOCATED(tb%grad)) THEN
             tb%grad = 0.0_dp
-            tb%sigma = 0.0_dp
             CALL tb%calc%dispersion%get_engrad(tb%mol, tb%dcache, tb%e_disp, &
             & tb%grad, tb%sigma)
             CALL tb_grad2force(qs_env, tb, para_env, 2)
@@ -515,7 +513,7 @@ CONTAINS
 
       INTEGER                                            :: handle, maxder, nderivatives, nimg, img, nkind, i, ic, iw, &
                                                             iatom, jatom, ikind, jkind, iset, jset, n1, n2, icol, irow, &
-                                                            ishell, jshell, ia, ib, sgfa, sgfb, atom_a, atom_b, &
+                                                            ia, ib, sgfa, sgfb, atom_a, atom_b, &
                                                             ldsab, nseta, nsetb, natorb_a, natorb_b, sgfa0
       LOGICAL                                            :: found, norml1, norml2, use_arnoldi, use_virial
       REAL(KIND=dp)                                      :: dr, rr
@@ -746,10 +744,7 @@ CONTAINS
          ! --------- Hamiltonian
          IF (icol == irow .AND. dr < 0.001_dp) THEN
             !get diagonal F matrix from selfenergy
-            n1 = 0
-            DO ishell = 1, icol - 1
-               n1 = n1 + tb%calc%bas%nsh_at(ishell)
-            END DO
+            n1 = tb%calc%bas%ish_at(icol)
             DO iset = 1, nseta
                sgfa = first_sgfa(1, iset)
                hij = tb%selfenergy(n1 + iset)
@@ -760,18 +755,12 @@ CONTAINS
          ELSE
             !get off-diagonal F matrix
             rr = SQRT(dr/(h0%rad(jkind) + h0%rad(ikind)))
-            n1 = 0
-            DO ishell = 1, icol - 1
-               n1 = n1 + tb%calc%bas%nsh_at(ishell)
-            END DO
+            n1 = tb%calc%bas%ish_at(icol)
             sgfa0 = 1
             DO iset = 1, nseta
                sgfa = first_sgfa(1, iset)
                sgfa0 = sgfa0 + tb%calc%bas%cgto(iset, tb%mol%id(icol))%nprim
-               n2 = 0
-               DO jshell = 1, irow - 1
-                  n2 = n2 + tb%calc%bas%nsh_at(jshell)
-               END DO
+               n2 = tb%calc%bas%ish_at(irow)
                DO jset = 1, nsetb
                   sgfb = first_sgfb(1, jset)
                   shpoly = (1.0_dp + h0%shpoly(iset, ikind)*rr) &
@@ -1009,14 +998,12 @@ CONTAINS
       IF (calculate_forces) THEN
          IF (ALLOCATED(tb%calc%coulomb)) THEN
             tb%grad = 0.0_dp
-            tb%sigma = 0.0_dp
             CALL tb%calc%coulomb%get_gradient(tb%mol, tb%cache, tb%wfn, tb%grad, tb%sigma)
             CALL tb_grad2force(qs_env, tb, para_env, 3)
          END IF
 
          IF (ALLOCATED(tb%calc%dispersion)) THEN
             tb%grad = 0.0_dp
-            tb%sigma = 0.0_dp
             CALL tb%calc%dispersion%get_gradient(tb%mol, tb%dcache, tb%wfn, tb%grad, tb%sigma)
             CALL tb_grad2force(qs_env, tb, para_env, 2)
          END IF
@@ -1971,10 +1958,9 @@ CONTAINS
       CALL neighbor_list_iterator_release(nl_iterator)
 
       tb%grad = 0.0_dp
-      tb%sigma = 0.0_dp
       CALL tb_add_grad(tb%grad, tb%dcndr, dE, tb%mol%nat)
+      CALL tb_add_sig(tb%sigma, tb%dcndL, dE, tb%mol%nat)
       CALL tb_grad2force(qs_env, tb, para_env, 4)
-
       DEALLOCATE (dE)
 
 #else
@@ -2007,6 +1993,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: r2, itemp, jtemp, rr, hij, shpoly, dshpoly, idHdc, jdHdc, &
                                                             scal, hp, i_a_shift, j_a_shift, ishift, jshift
       REAL(KIND=dp), DIMENSION(3)                        :: rij, dgrad
+      REAL(KIND=dp), DIMENSION(3, 3)                      :: hsigma
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dE, t_ov, idip, jdip, iquad, jquad
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: t_dip, t_quad, t_d_ov
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: t_i_dip, t_i_quad, t_j_dip, t_j_quad
@@ -2066,12 +2053,13 @@ CONTAINS
       ALLOCATE (t_i_dip(3, dip_n, nel), t_j_dip(3, dip_n, nel))
       ALLOCATE (t_quad(quad_n, nel))
       ALLOCATE (t_i_quad(3, quad_n, nel), t_j_quad(3, quad_n, nel))
-      
+
       ALLOCATE (idip(dip_n), jdip(dip_n))
       ALLOCATE (iquad(quad_n), jquad(quad_n))
 
       dE = 0.0_dp
       tb%grad = 0.0_dp
+      hsigma = 0.0_dp
       ! loop over all atom pairs with a non-zero overlap (sab_orb)
       CALL neighbor_list_iterator_create(nl_iterator, sab_orb)
       DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
@@ -2123,11 +2111,11 @@ CONTAINS
 
          i_a_shift = tb%pot%vat(icol, 1)
          j_a_shift = tb%pot%vat(jrow, 1)
-         idip=tb%pot%vdp(:, icol, 1)
-         jdip=tb%pot%vdp(:, jrow, 1)
-         iquad=tb%pot%vqp(:, icol, 1)
-         jquad=tb%pot%vqp(:, jrow, 1)
-         
+         idip = tb%pot%vdp(:, icol, 1)
+         jdip = tb%pot%vdp(:, jrow, 1)
+         iquad = tb%pot%vqp(:, icol, 1)
+         jquad = tb%pot%vqp(:, jrow, 1)
+
          ni = tb%calc%bas%ish_at(icol)
          DO iset = 1, nseti
             sgfi = first_sgfa(1, iset)
@@ -2173,25 +2161,38 @@ CONTAINS
                                 + hp*shpoly*t_d_ov(:, ij) &
                                 + hp*dshpoly*t_ov(ij)*rij &
                                 - pblock(ib, ia)*( &
-                                matmul(t_i_dip(:,:,ij), idip) &
-                                + matmul(t_j_dip(:,:,ij), jdip) &
-                                + matmul(t_i_quad(:,:,ij), iquad) &
-                                + matmul(t_j_quad(:,:,ij), jquad))
-                    
+                                MATMUL(t_i_dip(:, :, ij), idip) &
+                                + MATMUL(t_j_dip(:, :, ij), jdip) &
+                                + MATMUL(t_i_quad(:, :, ij), iquad) &
+                                + MATMUL(t_j_quad(:, :, ij), jquad))
+
                   END DO
                END DO
                dE(icol) = dE(icol) + itemp
                dE(jrow) = dE(jrow) + jtemp
                tb%grad(:, icol) = tb%grad(:, icol) - dgrad
                tb%grad(:, jrow) = tb%grad(:, jrow) + dgrad
+               IF (icol == jrow) THEN
+                  DO ia = 1, 3
+                     DO ib = 1, 3
+                        hsigma(ia, ib) = hsigma(ia, ib) + 0.25_dp*(rij(ia)*dgrad(ib) + rij(ib)*dgrad(ia))
+                     END DO
+                  END DO
+               ELSE
+                  DO ia = 1, 3
+                     DO ib = 1, 3
+                        hsigma(ia, ib) = hsigma(ia, ib) + 0.50_dp*(rij(ia)*dgrad(ib) + rij(ib)*dgrad(ia))
+                     END DO
+                  END DO
+               END IF
             END DO
          END DO
-
       END DO
       CALL neighbor_list_iterator_release(nl_iterator)
+      tb%sigma = tb%sigma + hsigma
 
-      tb%sigma = 0.0_dp
       CALL tb_add_grad(tb%grad, tb%dcndr, dE, tb%mol%nat)
+      CALL tb_add_sig(tb%sigma, tb%dcndL, dE, tb%mol%nat)
       CALL tb_grad2force(qs_env, tb, para_env, 4)
 
       DEALLOCATE (dE)
@@ -2201,7 +2202,6 @@ CONTAINS
       DEALLOCATE (t_dip, t_i_dip, t_j_dip)
       DEALLOCATE (t_quad, t_i_quad, t_j_quad)
       DEALLOCATE (idip, jdip, iquad, jquad)
-
 
 #else
       MARK_USED(qs_env)
@@ -2234,6 +2234,30 @@ CONTAINS
       END DO
 
    END SUBROUTINE tb_add_grad
+
+! **************************************************************************************************
+!> \brief add contrib. to sigma
+!> \param sig ...
+!> \param deriv ...
+!> \param dE ...
+!> \param natom ...
+! **************************************************************************************************
+   SUBROUTINE tb_add_sig(sig, deriv, dE, natom)
+
+      REAL(KIND=dp), DIMENSION(:, :)                     :: sig
+      REAL(KIND=dp), DIMENSION(:, :, :)                  :: deriv
+      REAL(KIND=dp), DIMENSION(:)                        :: dE
+      INTEGER                                            :: natom
+
+      INTEGER                                            :: i, j
+
+      DO i = 1, 3
+         DO j = 1, natom
+            sig(:, i) = sig(:, i) + deriv(:, i, j)*dE(j)
+         END DO
+      END DO
+
+   END SUBROUTINE tb_add_sig
 
 END MODULE tblite_interface
 
