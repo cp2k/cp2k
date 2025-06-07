@@ -50,7 +50,7 @@ list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/modules")
 #
 
 if(NOT DEFINED CMAKE_CUDA_STANDARD)
-  set(CMAKE_CUDA_STANDARD 11)
+  set(CMAKE_CUDA_STANDARD 14)
   set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 endif()
 
@@ -212,6 +212,11 @@ cmake_dependent_option(
   CP2K_USE_SPLA_GEMM_OFFLOADING ON
   "Enable SpLA dgemm offloading (only valid with GPU support on)"
   "(NOT CP2K_USE_ACCEL MATCHES \"NONE\") AND (CP2K_USE_SPLA)" OFF)
+
+cmake_dependent_option(
+  CP2K_USE_LIBVDWXC OFF
+  "Compile CP2K with libvdwxc support when SIRIUS is compiled with it"
+  "CP2K_USE_SIRIUS" OFF)
 
 set(CP2K_BLAS_VENDOR
     "auto"
