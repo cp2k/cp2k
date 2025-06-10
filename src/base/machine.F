@@ -28,11 +28,6 @@ MODULE machine
                     dp, &
                     int_8
 #if defined(__LIBXSMM)
-#include "libxsmm_version.h"
-#if !defined(__LIBXSMM2) && (1 < __LIBXSMM || (1170000 < \
-   (LIBXSMM_CONFIG_VERSION_MAJOR*1000000 + LIBXSMM_CONFIG_VERSION_MINOR*10000 + LIBXSMM_CONFIG_VERSION_UPDATE*100 + LIBXSMM_CONFIG_VERSION_PATCH)))
-#define __LIBXSMM2
-#endif
    USE libxsmm, ONLY: libxsmm_timer_tick, libxsmm_timer_duration, libxsmm_get_target_archid, &
                       LIBXSMM_TARGET_ARCH_GENERIC, LIBXSMM_X86_SSE4, LIBXSMM_X86_AVX, LIBXSMM_X86_AVX2, &
 #if defined(__LIBXSMM2)
