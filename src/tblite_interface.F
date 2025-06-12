@@ -562,7 +562,7 @@ CONTAINS
                                                             iatom, jatom, ikind, jkind, iset, jset, n1, n2, icol, irow, &
                                                             ia, ib, sgfa, sgfb, atom_a, atom_b, &
                                                             ldsab, nseta, nsetb, natorb_a, natorb_b, sgfa0
-      LOGICAL                                            :: found, norml1, norml2, use_arnoldi, use_virial
+      LOGICAL                                            :: found, norml1, norml2, use_arnoldi
       REAL(KIND=dp)                                      :: dr, rr
       INTEGER, DIMENSION(3)                              :: cell
       REAL(KIND=dp)                                      :: hij, shpoly
@@ -625,10 +625,15 @@ CONTAINS
       nderivatives = 0
       IF (calculate_forces) THEN
          nderivatives = 1
+         IF (ALLOCATED(tb%grad)) DEALLOCATE (tb%grad)
          ALLOCATE (tb%grad(3, tb%mol%nat))
+         IF (ALLOCATED(tb%dsedcn)) DEALLOCATE (tb%dsedcn)
          ALLOCATE (tb%dsedcn(tb%calc%bas%nsh))
          IF (ALLOCATED(tb%calc%ncoord)) THEN
-            ALLOCATE (tb%dcndr(3, tb%mol%nat, tb%mol%nat), tb%dcndL(3, 3, tb%mol%nat))
+            IF (ALLOCATED(tb%dcndr)) DEALLOCATE (tb%dcndr)
+            ALLOCATE (tb%dcndr(3, tb%mol%nat, tb%mol%nat))
+            IF (ALLOCATED(tb%dcndL)) DEALLOCATE (tb%dcndL)
+            ALLOCATE (tb%dcndL(3, 3, tb%mol%nat))
          END IF
       END IF
       maxder = ncoset(nderivatives)
@@ -642,7 +647,7 @@ CONTAINS
 
       ! set up matrices for force calculations
       IF (calculate_forces) THEN
-         NULLIFY (force, matrix_w)
+         NULLIFY (force, matrix_w, virial)
          CALL get_qs_env(qs_env=qs_env, &
                          matrix_w_kp=matrix_w, &
                          virial=virial, force=force)
@@ -655,7 +660,7 @@ CONTAINS
                               alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
             END DO
          END IF
-         use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
+         tb%use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
       END IF
 
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, atom_of_kind=atom_of_kind)
@@ -1879,10 +1884,6 @@ CONTAINS
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
                                atom_of_kind=atom_of_kind, kind_of=kind_of)
 
-      !IF (use_virial) THEN
-      !  virial%pv_virial = virial%pv_virial - stress/para_env%num_pe
-      !END IF
-
       SELECT CASE (ityp)
       CASE DEFAULT
          CPABORT("unknown force type")
@@ -2007,10 +2008,9 @@ CONTAINS
       END DO
       CALL neighbor_list_iterator_release(nl_iterator)
 
-      WRITE (*, *) "ssssssA sigma:", tb%sigma
       tb%grad = 0.0_dp
       CALL tb_add_grad(tb%grad, tb%dcndr, dE, tb%mol%nat)
-      CALL tb_add_sig(tb%sigma, tb%dcndL, dE, tb%mol%nat)
+      IF (tb%use_virial) CALL tb_add_sig(tb%sigma, tb%dcndL, dE, tb%mol%nat)
       CALL tb_grad2force(qs_env, tb, para_env, 4)
       DEALLOCATE (dE)
 
@@ -2223,7 +2223,7 @@ CONTAINS
                dE(jrow) = dE(jrow) + jtemp
                tb%grad(:, icol) = tb%grad(:, icol) - dgrad
                tb%grad(:, jrow) = tb%grad(:, jrow) + dgrad
-               IF (icol == jrow) THEN
+               IF ((tb%use_virial) .AND. (icol == jrow)) THEN
                   DO ia = 1, 3
                      DO ib = 1, 3
                         hsigma(ia, ib) = hsigma(ia, ib) + 0.25_dp*(rij(ia)*dgrad(ib) + rij(ib)*dgrad(ia))
@@ -2241,12 +2241,10 @@ CONTAINS
       END DO
       CALL neighbor_list_iterator_release(nl_iterator)
       tb%sigma = tb%sigma + hsigma
-      WRITE (*, *) "ssssssC sigma:", tb%sigma
 
       CALL tb_add_grad(tb%grad, tb%dcndr, dE, tb%mol%nat)
-      CALL tb_add_sig(tb%sigma, tb%dcndL, dE, tb%mol%nat)
+      IF (tb%use_virial) CALL tb_add_sig(tb%sigma, tb%dcndL, dE, tb%mol%nat)
       CALL tb_grad2force(qs_env, tb, para_env, 4)
-      WRITE (*, *) "ssssssE sigma:", tb%sigma
 
       DEALLOCATE (dE)
       DEALLOCATE (basis_set_list)
@@ -2256,6 +2254,8 @@ CONTAINS
       DEALLOCATE (t_quad, t_i_quad, t_j_quad)
       DEALLOCATE (idip, jdip, iquad, jquad)
 
+      IF (tb%use_virial) CALL tb_add_stress(qs_env, tb)
+
 #else
       MARK_USED(qs_env)
       MARK_USED(use_rho)
@@ -2263,6 +2263,25 @@ CONTAINS
 #endif
 
    END SUBROUTINE tb_derive_dH_off
+
+! **************************************************************************************************
+!> \brief save stress tensor
+!> \param qs_env ...
+!> \param tb ...
+! **************************************************************************************************
+   SUBROUTINE tb_add_stress(qs_env, tb)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(tblite_type), POINTER                         :: tb
+
+      TYPE(virial_type), POINTER                         :: virial
+
+      NULLIFY (virial)
+      CALL get_qs_env(qs_env=qs_env, virial=virial)
+
+      virial%pv_virial = virial%pv_virial - tb%sigma
+
+   END SUBROUTINE tb_add_stress
 
 ! **************************************************************************************************
 !> \brief add contrib. to gradient

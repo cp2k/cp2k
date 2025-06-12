@@ -36,6 +36,7 @@ MODULE tblite_types
 
    TYPE tblite_type
 
+      LOGICAL                                            :: use_virial = .FALSE.
       INTEGER, ALLOCATABLE                               :: el_num(:)
 
       REAL(KIND=dp), DIMENSION(3, 3)                     :: sigma = -1.0_dp
