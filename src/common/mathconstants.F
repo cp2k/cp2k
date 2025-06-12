@@ -21,7 +21,7 @@ MODULE mathconstants
 
    PRIVATE
 
-   PUBLIC :: maxfac, pi, twopi, fourpi, rootpi, oorootpi, zero, one, &
+   PUBLIC :: maxfac, pi, pio2, twopi, fourpi, rootpi, oorootpi, zero, one, &
              degree, radians, gaussi, fac, ifac, dfac, gamma0, gamma1, euler, &
              sqrthalf, sqrt2, sqrt3, sqrt5, sqrt7, sqrt15, sqrt21, sqrt35, &
              sqrt105, z_mone, z_one, z_zero
