@@ -805,7 +805,7 @@ CONTAINS
 
       eps_conv = mp2_env%ri_grad%cphf_eps_conv
 
-      IF (SQRT(accurate_dot_product_spin(L_jb, L_jb)) >= eps_conv) THEN
+      IF (accurate_dot_product_spin(L_jb, L_jb) >= (eps_conv*eps_conv)) THEN
 
          max_num_iter = mp2_env%ri_grad%cphf_max_num_iter
          scale_cphf = mp2_env%ri_grad%scale_step_size
