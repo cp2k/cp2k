@@ -102,7 +102,7 @@ MODULE tblite_interface
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief intialize geometry objects ...
 !> \param qs_env ...
 !> \param tb ...
 ! **************************************************************************************************
@@ -165,8 +165,52 @@ CONTAINS
 
    END SUBROUTINE tb_init_geometry
 
-   ! **************************************************************************************************
-!> \brief ...
+! **************************************************************************************************
+!> \brief updating coordinates...
+!> \param qs_env ...
+!> \param tb ...
+! **************************************************************************************************
+   SUBROUTINE tb_update_geometry(qs_env, tb)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(tblite_type), POINTER                         :: tb
+
+#if defined(__TBLITE)
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'tblite_update_geometry'
+
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      INTEGER                                            :: iatom, natom
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: xyz
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
+      !get info from environment vaiarable
+      CALL get_qs_env(qs_env=qs_env, particle_set=particle_set)
+
+      !get information about particles
+      natom = SIZE(particle_set)
+      ALLOCATE (xyz(3, natom))
+      DO iatom = 1, natom
+         xyz(:, iatom) = particle_set(iatom)%r(:)
+      END DO
+      tb%mol%xyz(:, :) = xyz
+
+      DEALLOCATE (xyz)
+
+      CALL timestop(handle)
+
+#else
+      MARK_USED(qs_env)
+      MARK_USED(tb)
+      CPABORT("Built without TBLITE")
+#endif
+
+   END SUBROUTINE tb_update_geometry
+
+! **************************************************************************************************
+!> \brief initialize wavefunction ...
 !> \param tb ...
 ! **************************************************************************************************
    SUBROUTINE tb_init_wf(tb)
@@ -254,6 +298,9 @@ CONTAINS
       tb%e_hal = 0.0_dp
       tb%e_rep = 0.0_dp
       tb%e_disp = 0.0_dp
+      IF (ALLOCATED(tb%grad)) THEN
+         tb%grad = 0.0_dp
+      END IF
       tb%sigma = 0.0_dp
 
       IF (ALLOCATED(tb%calc%halogen)) THEN
@@ -570,6 +617,9 @@ CONTAINS
                       sab_orb=sab_orb, &
                       rho=rho, tb_tblite=tb)
       h0 => tb%calc%h0
+
+      !update geometry (required for debug / geometry optimization)
+      CALL tb_update_geometry(qs_env, tb)
 
       nkind = SIZE(atomic_kind_set)
       nderivatives = 0
@@ -1957,6 +2007,7 @@ CONTAINS
       END DO
       CALL neighbor_list_iterator_release(nl_iterator)
 
+      WRITE (*, *) "ssssssA sigma:", tb%sigma
       tb%grad = 0.0_dp
       CALL tb_add_grad(tb%grad, tb%dcndr, dE, tb%mol%nat)
       CALL tb_add_sig(tb%sigma, tb%dcndL, dE, tb%mol%nat)
@@ -2190,10 +2241,12 @@ CONTAINS
       END DO
       CALL neighbor_list_iterator_release(nl_iterator)
       tb%sigma = tb%sigma + hsigma
+      WRITE (*, *) "ssssssC sigma:", tb%sigma
 
       CALL tb_add_grad(tb%grad, tb%dcndr, dE, tb%mol%nat)
       CALL tb_add_sig(tb%sigma, tb%dcndL, dE, tb%mol%nat)
       CALL tb_grad2force(qs_env, tb, para_env, 4)
+      WRITE (*, *) "ssssssE sigma:", tb%sigma
 
       DEALLOCATE (dE)
       DEALLOCATE (basis_set_list)
