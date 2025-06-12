@@ -172,8 +172,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE tb_update_geometry(qs_env, tb)
 
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(tblite_type), POINTER                         :: tb
+      TYPE(qs_environment_type)                          :: qs_env
+      TYPE(tblite_type)                                  :: tb
 
 #if defined(__TBLITE)
 
@@ -287,9 +287,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE tb_init_ham(qs_env, tb, para_env)
 
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(tblite_type), POINTER                         :: tb
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(qs_environment_type)                          :: qs_env
+      TYPE(tblite_type)                                  :: tb
+      TYPE(mp_para_env_type)                             :: para_env
 
 #if defined(__TBLITE)
 
@@ -1083,14 +1083,12 @@ CONTAINS
 !> \param qs_env ...
 !> \param tb ...
 !> \param dft_control ...
-!> \param calculate_forces ...
 ! **************************************************************************************************
-   SUBROUTINE tb_ham_add_coulomb(qs_env, tb, dft_control, calculate_forces)
+   SUBROUTINE tb_ham_add_coulomb(qs_env, tb, dft_control)
 
       TYPE(qs_environment_type), POINTER                       :: qs_env
       TYPE(tblite_type), POINTER                               :: tb
       TYPE(dft_control_type), POINTER                          :: dft_control
-      LOGICAL, INTENT(IN)                                      :: calculate_forces
 
 #if defined(__TBLITE)
 
@@ -1482,7 +1480,6 @@ CONTAINS
       MARK_USED(qs_env)
       MARK_USED(tb)
       MARK_USED(dft_control)
-      MARK_USED(calculate_forces)
       CPABORT("Built without TBLITE")
 #endif
 
@@ -1865,9 +1862,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE tb_grad2force(qs_env, tb, para_env, ityp)
 
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(tblite_type), POINTER                         :: tb
-      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(qs_environment_type)                          :: qs_env
+      TYPE(tblite_type)                                  :: tb
+      TYPE(mp_para_env_type)                             :: para_env
       INTEGER                                            :: ityp
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'tb_grad2force'
@@ -1944,8 +1941,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE tb_zero_force(qs_env, tb)
 
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(tblite_type), POINTER                         :: tb
+      TYPE(qs_environment_type)                          :: qs_env
+      TYPE(tblite_type)                                  :: tb
 
       INTEGER                                            :: iatom, ikind
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
@@ -2198,10 +2195,10 @@ CONTAINS
 
          i_a_shift = tb%pot%vat(icol, 1)
          j_a_shift = tb%pot%vat(jrow, 1)
-         idip = tb%pot%vdp(:, icol, 1)
-         jdip = tb%pot%vdp(:, jrow, 1)
-         iquad = tb%pot%vqp(:, icol, 1)
-         jquad = tb%pot%vqp(:, jrow, 1)
+         idip = tb%pot%vdp(1:dip_n, icol, 1)
+         jdip = tb%pot%vdp(1:dip_n, jrow, 1)
+         iquad = tb%pot%vqp(1:quad_n, icol, 1)
+         jquad = tb%pot%vqp(1:quad_n, jrow, 1)
 
          ni = tb%calc%bas%ish_at(icol)
          DO iset = 1, nseti
@@ -2312,7 +2309,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE tb_add_stress(qs_env, tb, para_env)
 
-      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(qs_environment_type)                          :: qs_env
       TYPE(tblite_type)                                  :: tb
       TYPE(mp_para_env_type)                             :: para_env
 

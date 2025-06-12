@@ -119,7 +119,7 @@ CONTAINS
 
       CALL tb_update_charges(qs_env, dft_control, qs_env%tb_tblite, calculate_forces, .TRUE.)
 
-      CALL tb_ham_add_coulomb(qs_env, qs_env%tb_tblite, dft_control, calculate_forces)
+      CALL tb_ham_add_coulomb(qs_env, qs_env%tb_tblite, dft_control)
 
       IF (qs_env%qmmm) THEN
          CPASSERT(SIZE(ks_matrix, 2) == 1)
