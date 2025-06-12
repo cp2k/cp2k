@@ -3,13 +3,13 @@
 # CP2K Darwin arch file for a parallel arm64 binary
 # (https://www.cp2k.org/howto:compile_on_macos)
 #
-# Tested with: GNU 14.2.0 and OpenMPI 5.0.7 on an Apple M1 (macOS 15.5 Sequoia)
+# Tested with: GNU 14.3.0 and OpenMPI 5.0.7 on an Apple M1 (macOS 15.5 Sequoia)
 #
 # Usage: Source this arch file and then run make as instructed.
 #        Ensure the links in /opt/homebrew/bin to the gcc version
 #        and "brew unlink openmpi" (or mpich) if installed.
 #
-# Last update: 26.05.2025
+# Last update: 12.06.2025
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -151,15 +151,17 @@ endif
 LIBXC_HOME     := $(shell brew --prefix libxc)
 CFLAGS         += -I$(LIBXC_HOME)/include
 DFLAGS         += -D__LIBXC
-LIBS           += -Wl,-rpath,$(LIBXC_HOME)/lib -L$(LIBXC_HOME)/lib -lxcf03 -lxc
+LIBS           += -L$(LIBXC_HOME)/lib -lxcf03 -lxc
 
-ifneq ($(USE_DFTD4),)
-   USE_DFTD4      := $(strip $(USE_DFTD4))
-   DFTD4_INC      := $(INSTALL_PATH)/dftd4-$(USE_DFTD4)/include
-   DFTD4_LIB      := $(INSTALL_PATH)/dftd4-$(USE_DFTD4)/lib
-   CFLAGS         += -I$(DFTD4_INC)/dftd4/GNU-$(GNU_VER)
-   DFLAGS         += -D__DFTD4
-   LIBS           += -L$(DFTD4_LIB) -ldftd4 -lmstore -lmulticharge -lmctc-lib
+ifeq ($(USE_TBLITE),)
+   ifneq ($(USE_DFTD4),)
+      USE_DFTD4      := $(strip $(USE_DFTD4))
+      DFTD4_INC      := $(INSTALL_PATH)/dftd4-$(USE_DFTD4)/include
+      DFTD4_LIB      := $(INSTALL_PATH)/dftd4-$(USE_DFTD4)/lib
+      CFLAGS         += -I$(DFTD4_INC)/dftd4/GNU-$(GNU_VER)
+      DFLAGS         += -D__DFTD4
+      LIBS           += -L$(DFTD4_LIB) -ldftd4 -lmstore -lmulticharge -lmctc-lib
+   endif
 endif
 
 ifneq ($(USE_LIBGRPP),)
@@ -184,7 +186,7 @@ ifneq ($(USE_GREENX),)
    GREENX_LIB     := $(INSTALL_PATH)/greenX-$(USE_GREENX)/lib
    CFLAGS         += -I$(GREENX_INC)
    DFLAGS         += -D__GREENX
-   LIBS           += -Wl,-rpath,$(GREENX_LIB) -L$(GREENX_LIB) -lGXCommon -lgx_ac -lgx_minimax
+   LIBS           += -L$(GREENX_LIB) -lGXCommon -lgx_ac -lgx_minimax
 endif
 
 ifneq ($(USE_LIBINT),)
@@ -337,7 +339,7 @@ endif
 
 CFLAGS         += $(DFLAGS)
 
-CXXFLAGS       := $(CFLAGS) --std=c++14
+CXXFLAGS       := $(CFLAGS)
 
 FCFLAGS        := $(CFLAGS) $(FCFLAGS_DEBUG) $(WFLAGS)
 FCFLAGS        += -fallow-argument-mismatch
@@ -346,6 +348,9 @@ FCFLAGS        += -ffree-form
 FCFLAGS        += -ffree-line-length-none
 FCFLAGS        += -fno-omit-frame-pointer
 FCFLAGS        += -std=f2008
+
+CFLAGS         += -std=c17
+CXXFLAGS       += -std=c++17
 
 LDFLAGS        += $(FCFLAGS)
 
