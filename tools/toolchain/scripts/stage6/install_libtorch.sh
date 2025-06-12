@@ -8,8 +8,8 @@
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
 # From https://pytorch.org/get-started/locally/
-libtorch_ver="1.12.1"
-libtorch_sha256="82c7be80860f2aa7963f8700004a40af8205e1d721298f2e09b700e766a9d283"
+libtorch_ver="2.7.1"
+libtorch_sha256="63d572598c8d532128a335018913e795c1bbb32602ce378896dc8cfbb5590976"
 
 # shellcheck source=/dev/null
 source "${SCRIPT_DIR}"/common_vars.sh
