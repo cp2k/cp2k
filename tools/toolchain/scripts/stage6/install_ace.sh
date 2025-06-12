@@ -45,10 +45,14 @@ case "$with_ace" in
       tar -xzf ${ace_pkg}
       cd ${ace_dir}
 
+      # Fix for GCC 15
+      sed -i '1i #include <cstdint>' yaml-cpp/src/emitterutils.cpp
+
       mkdir build
       cd build
+
       cmake \
-        -DCMAKE_CXX_STANDARD=11 \
+        -DCMAKE_CXX_STANDARD=17 \
         .. > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
       make -j > make.log 2>&1 || tail -n ${LOG_LINES} make.log
       # no make install.

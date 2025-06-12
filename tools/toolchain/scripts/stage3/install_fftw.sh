@@ -54,7 +54,10 @@ case "$with_fftw" in
           grep '\bavx512f\b' /proc/cpuinfo 1> /dev/null && FFTW_FLAGS="${FFTW_FLAGS} --enable-avx512"
         fi
       fi
-      ./configure --prefix=${pkg_install_dir} --libdir="${pkg_install_dir}/lib" ${FFTW_FLAGS} \
+      ./configure CFLAGS="${CFLAGS} -std=c17" \
+        --prefix=${pkg_install_dir} \
+        --libdir="${pkg_install_dir}/lib" \
+        ${FFTW_FLAGS} \
         > configure.log 2>&1 || tail -n ${LOG_LINES} configure.log
       make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
       make install > install.log 2>&1 || tail -n ${LOG_LINES} install.log

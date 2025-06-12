@@ -47,10 +47,10 @@ case "$with_deepmd" in
       mkdir build
       cd build
       cmake \
-        -DENABLE_PYTORCH=TRUE \
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
-        -DCMAKE_CXX_STANDARD=17 \
+        -DCMAKE_CXX_STANDARD=11 \
         -DCMAKE_CXX_STANDARD_REQUIRED=TRUE \
+        -DENABLE_PYTORCH=TRUE \
         .. > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
       make -j deepmd_c > make.log 2>&1 || tail -n ${LOG_LINES} make.log
       make install > install.log 2>&1 || tail -n ${LOG_LINES} install.log

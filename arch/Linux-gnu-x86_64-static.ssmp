@@ -6,7 +6,7 @@
 #
 # Usage: Source this arch file and then run make as instructed.
 #
-# Last update: 16.05.2025
+# Last update: 12.06.2025
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -19,7 +19,8 @@
    rm -rf build; \
    [[ -z "${target_cpu}" ]] && target_cpu="native"; \
    echo "Found GCC $(gcc -dumpfullversion) compiler"; \
-   ./install_cp2k_toolchain.sh -j${maxtasks} --mpi-mode=no --no-arch-files --target-cpu=${target_cpu} --with-gcc --with-ace --with-dftd4 --with-hdf5 --with-trexio; \
+   ./install_cp2k_toolchain.sh -j${maxtasks} --mpi-mode=no --no-arch-files --target-cpu=${target_cpu} --with-gcc \
+                                             --with-ace --with-dftd4 --with-hdf5 --with-tblite --with-trexio; \
    source ./install/setup; \
    cd ../..; \
    echo; \
@@ -234,7 +235,7 @@ endif
 
 CFLAGS         += $(DFLAGS) $(CFLAGS_DEBUG)
 
-CXXFLAGS       := $(CFLAGS) --std=c++14
+CXXFLAGS       := $(CFLAGS)
 
 FCFLAGS        := $(CFLAGS) $(FCFLAGS_DEBUG) $(WFLAGS)
 ifeq ($(shell [ $(shell gcc -dumpversion | cut -d. -f1) -gt 9 ] && echo yes), yes)
@@ -245,6 +246,9 @@ FCFLAGS        += -ffree-form
 FCFLAGS        += -ffree-line-length-none
 FCFLAGS        += -fno-omit-frame-pointer
 FCFLAGS        += -std=f2008
+
+CFLAGS         += -std=c17
+CXXFLAGS       += -std=c++17
 
 # The LeakSanitizer does not work with static linking
 ifeq ($(DO_CHECKS), yes)
