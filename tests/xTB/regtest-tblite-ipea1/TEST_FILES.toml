@@ -6,4 +6,6 @@
 "CH2O_ipea1.inp"                          = [{matcher="E_total", tol=1.0E-8, ref=-8.2017620439}]
 "COBe_ipea1.inp"                          = [{matcher="E_total", tol=1.0E-8, ref=-7.7108203369}]
 "H2SO4_ipea1.inp"                         = [{matcher="E_total", tol=1.0E-8, ref=-23.686361850}]
+"CH2O_ipea1_force.inp"                    = [{matcher="M082", tol=1.0E-6, ref=0.0000000}]
+"COBe_ipea1_force.inp"                    = [{matcher="M082", tol=1.0E-6, ref=0.0000000}]
 #EOF

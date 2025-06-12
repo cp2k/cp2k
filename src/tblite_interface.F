@@ -300,10 +300,9 @@ CONTAINS
       tb%e_disp = 0.0_dp
       IF (ALLOCATED(tb%grad)) THEN
          tb%grad = 0.0_dp
+         CALL tb_zero_force(qs_env, tb)
       END IF
       tb%sigma = 0.0_dp
-
-      CALL tb_zero_force(qs_env, tb)
 
       IF (ALLOCATED(tb%calc%halogen)) THEN
          CALL tb%calc%halogen%update(tb%mol, hcache)
@@ -2043,6 +2042,7 @@ CONTAINS
          END DO
       END DO
       CALL neighbor_list_iterator_release(nl_iterator)
+      CALL para_env%sum(dE)
 
       tb%grad = 0.0_dp
       CALL tb_add_grad(tb%grad, tb%dcndr, dE, tb%mol%nat)
@@ -2276,8 +2276,12 @@ CONTAINS
          END DO
       END DO
       CALL neighbor_list_iterator_release(nl_iterator)
+
+      CALL para_env%sum(hsigma)
       tb%sigma = tb%sigma + hsigma
 
+      CALL para_env%sum(dE)
+      CALL para_env%sum(tb%grad)
       CALL tb_add_grad(tb%grad, tb%dcndr, dE, tb%mol%nat)
       IF (tb%use_virial) CALL tb_add_sig(tb%sigma, tb%dcndL, dE, tb%mol%nat)
       CALL tb_grad2force(qs_env, tb, para_env, 4)
@@ -2290,7 +2294,7 @@ CONTAINS
       DEALLOCATE (t_quad, t_i_quad, t_j_quad)
       DEALLOCATE (idip, jdip, iquad, jquad)
 
-      IF (tb%use_virial) CALL tb_add_stress(qs_env, tb)
+      IF (tb%use_virial) CALL tb_add_stress(qs_env, tb, para_env)
 
 #else
       MARK_USED(qs_env)
@@ -2304,18 +2308,20 @@ CONTAINS
 !> \brief save stress tensor
 !> \param qs_env ...
 !> \param tb ...
+!> \param para_env ...
 ! **************************************************************************************************
-   SUBROUTINE tb_add_stress(qs_env, tb)
+   SUBROUTINE tb_add_stress(qs_env, tb, para_env)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(tblite_type), POINTER                         :: tb
+      TYPE(tblite_type)                                  :: tb
+      TYPE(mp_para_env_type)                             :: para_env
 
       TYPE(virial_type), POINTER                         :: virial
 
       NULLIFY (virial)
       CALL get_qs_env(qs_env=qs_env, virial=virial)
 
-      virial%pv_virial = virial%pv_virial - tb%sigma
+      virial%pv_virial = virial%pv_virial - tb%sigma/para_env%num_pe
 
    END SUBROUTINE tb_add_stress
 
