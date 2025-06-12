@@ -198,20 +198,22 @@ ifneq ($(USE_LIBXC),)
    endif
 endif
 
-ifneq ($(USE_DFTD4),)
-   USE_DFTD4      := $(strip $(USE_DFTD4))
-   DFTD4_INC      := $(INSTALL_PATH)/dftd4-$(USE_DFTD4)/include
-   DFTD4_LIB      := $(INSTALL_PATH)/dftd4-$(USE_DFTD4)/lib
-   CFLAGS         += -I$(DFTD4_INC)/dftd4/GNU-$(GNU_VER)
-   DFLAGS         += -D__DFTD4
-   ifeq ($(SHARED), yes)
-      LIBS           += -Wl,-rpath=$(DFTD4_LIB) -L$(DFTD4_LIB) -ldftd4 -lmstore -lmulticharge -lmctc-lib
-   else
-      LIBS           += $(DFTD4_LIB)/libdftd4.a
-      LIBS           += $(DFTD4_LIB)/libmstore.a
-      LIBS           += $(DFTD4_LIB)/libmulticharge.a
-      LIBS           += $(DFTD4_LIB)/libmctc-lib.a
-   endif
+ifeq ($(USE_TBLITE),)
+  ifneq ($(USE_DFTD4),)
+     USE_DFTD4      := $(strip $(USE_DFTD4))
+     DFTD4_INC      := $(INSTALL_PATH)/dftd4-$(USE_DFTD4)/include
+     DFTD4_LIB      := $(INSTALL_PATH)/dftd4-$(USE_DFTD4)/lib
+     CFLAGS         += -I$(DFTD4_INC)/dftd4/GNU-$(GNU_VER)
+     DFLAGS         += -D__DFTD4
+     ifeq ($(SHARED), yes)
+        LIBS           += -Wl,-rpath=$(DFTD4_LIB) -L$(DFTD4_LIB) -ldftd4 -lmstore -lmulticharge -lmctc-lib
+     else
+        LIBS           += $(DFTD4_LIB)/libdftd4.a
+        LIBS           += $(DFTD4_LIB)/libmstore.a
+        LIBS           += $(DFTD4_LIB)/libmulticharge.a
+        LIBS           += $(DFTD4_LIB)/libmctc-lib.a
+     endif
+  endif
 endif
 
 ifneq ($(USE_LIBGRPP),)
