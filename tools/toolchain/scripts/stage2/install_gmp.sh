@@ -44,7 +44,8 @@ case "$with_gmp" in
       mkdir build
       cd build
       # autotools setup, out-of-source build
-      ../configure --prefix="${pkg_install_dir}" \
+      ../configure CFLAGS="${CFLAGS} -std=c17" \
+        --prefix="${pkg_install_dir}" \
         --libdir="${pkg_install_dir}/lib" \
         --enable-cxx=yes \
         --includedir="${pkg_install_dir}/include" \

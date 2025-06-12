@@ -48,16 +48,19 @@ case "$with_scalapack" in
       cflags=""
       fflags=""
       if ("${FC}" --version | grep -q 'GNU'); then
-        cflags="-fpermissive"
+        cflags="-fpermissive -std=c17"
         fflags=$(allowed_gfortran_flags "-fallow-argument-mismatch")
       fi
-      CFLAGS=${cflags} FFLAGS=${fflags} cmake -DCMAKE_FIND_ROOT_PATH="$ROOTDIR" \
+      cmake \
+        -DCMAKE_BUILD_TYPE=Release .. \
+        -DCMAKE_C_FLAGS="${cflags}" \
+        -DCMAKE_Fortran_FLAGS="${fflags}" \
+        -DCMAKE_FIND_ROOT_PATH="${ROOTDIR}" \
         -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
         -DCMAKE_INSTALL_LIBDIR="lib" \
         -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
         -DCMAKE_VERBOSE_MAKEFILE=ON \
         -DBUILD_SHARED_LIBS=NO \
-        -DCMAKE_BUILD_TYPE=Release .. \
         -DBUILD_TESTING=NO \
         -DSCALAPACK_BUILD_TESTS=NO \
         > configure.log 2>&1 || tail -n ${LOG_LINES} configure.log
