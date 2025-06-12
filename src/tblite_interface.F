@@ -303,6 +303,8 @@ CONTAINS
       END IF
       tb%sigma = 0.0_dp
 
+      CALL tb_zero_force(qs_env, tb)
+
       IF (ALLOCATED(tb%calc%halogen)) THEN
          CALL tb%calc%halogen%update(tb%mol, hcache)
          IF (ALLOCATED(tb%grad)) THEN
@@ -1934,6 +1936,40 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE tb_grad2force
+
+! **************************************************************************************************
+!> \brief set gradient to zero
+!> \param qs_env ...
+!> \param tb ...
+!> \note
+! **************************************************************************************************
+   SUBROUTINE tb_zero_force(qs_env, tb)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(tblite_type), POINTER                         :: tb
+
+      INTEGER                                            :: iatom, ikind
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
+
+      NULLIFY (force, atomic_kind_set)
+      CALL get_qs_env(qs_env=qs_env, force=force, &
+                      atomic_kind_set=atomic_kind_set)
+      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
+                               kind_of=kind_of)
+
+      DO iatom = 1, tb%mol%nat
+         ikind = kind_of(iatom)
+         force(ikind)%all_potential = 0.0_dp
+         force(ikind)%repulsive = 0.0_dp
+         force(ikind)%dispersion = 0.0_dp
+         force(ikind)%rho_elec = 0.0_dp
+         force(ikind)%overlap = 0.0_dp
+         force(ikind)%efield = 0.0_dp
+      END DO
+
+   END SUBROUTINE tb_zero_force
 
 ! **************************************************************************************************
 !> \brief compute the derivative of the energy
