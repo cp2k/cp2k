@@ -300,7 +300,7 @@ CONTAINS
       tb%e_disp = 0.0_dp
       IF (ALLOCATED(tb%grad)) THEN
          tb%grad = 0.0_dp
-         CALL tb_zero_force(qs_env, tb)
+         CALL tb_zero_force(qs_env)
       END IF
       tb%sigma = 0.0_dp
 
