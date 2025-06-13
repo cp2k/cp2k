@@ -238,8 +238,10 @@ void dbm_shard_allocate_promised_blocks(dbm_shard_t *shard) {
     shard->data =
         dbm_mempool_host_malloc(shard->data_allocated * sizeof(double));
     assert(shard->data != NULL);
-    memcpy(shard->data, data, shard->data_size * sizeof(double));
-    dbm_mempool_host_free(data);
+    if (data != NULL) {
+      memcpy(shard->data, data, shard->data_size * sizeof(double));
+      dbm_mempool_host_free(data);
+    }
   }
 
   // Zero new blocks.

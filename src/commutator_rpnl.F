@@ -582,7 +582,7 @@ CONTAINS
 !$OMP          matrix_r_rxvr, matrix_rxvr_r, my_r_rxvr, my_rxvr_r, &
 !$OMP          pseudoatom, do_symmetric) &
 !$OMP PRIVATE (ikind, jkind, iatom, jatom, cell_b, rab, &
-!$OMP          iab, irow, icol, &
+!$OMP          iab, irow, icol, lock_num, &
 !$OMP          blocks_rv, blocks_rxrv, blocks_rrv, blocks_rvr, blocks_rrv_vrr, &
 !$OMP          blocks_r_rxvr, blocks_rxvr_r, blocks_r_doublecom, &
 !$OMP          found, iac, ibc, alist_ac, alist_bc, &
@@ -1619,7 +1619,7 @@ CONTAINS
 !$OMP DEFAULT (NONE) &
 !$OMP SHARED  (basis_set, matrix_mag_nl, sap_int, natom, nkind, eps_ppnl, locks, sab_all, &
 !$OMP          particle_set, my_ref, refpoint) &
-!$OMP PRIVATE (ikind, jkind, iatom, jatom, cell_b, rab, &
+!$OMP PRIVATE (ikind, jkind, iatom, jatom, cell_b, rab, lock_num, &
 !$OMP          iab, irow, icol, blocks_mag, r_ps, r_b, go, hash, &
 !$OMP          found, iac, ibc, alist_ac, alist_bc, acint, bcint, &
 !$OMP          achint, bchint, na, np, nb, kkind, kac, kbc)
@@ -1870,7 +1870,7 @@ CONTAINS
 !$OMP PRIVATE (ikind, jkind, iatom, jatom, cell_b, rab, &
 !$OMP          iab, irow, icol, blocks_rv, &
 !$OMP          found, iac, ibc, alist_ac, alist_bc, &
-!$OMP          na, np, nb, kkind, kac, kbc, i, &
+!$OMP          na, np, nb, kkind, kac, kbc, i, lock_num, &
 !$OMP          hash, natom, delta, gamma, achint, bchint, acint, bcint)
 
 !$OMP SINGLE

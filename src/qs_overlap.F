@@ -305,7 +305,7 @@ CONTAINS
 !$OMP         matrix_s, matrix_p,basis_set_list_a, basis_set_list_b, cell_to_index, &
 !$OMP         matrixkp_s, matrixkp_p, locks, natom)  &
 !$OMP PRIVATE (oint, owork, pmat, sint, ikind, jkind, iatom, jatom, rab, cell, &
-!$OMP          basis_set_a, basis_set_b, &
+!$OMP          basis_set_a, basis_set_b, lock_num, &
 !$OMP          first_sgfa, la_max, la_min, npgfa, nsgfa, nseta, rpgfa, set_radius_a, ncoa, ncob, force_a, &
 !$OMP          zeta, first_sgfb, lb_max, lb_min, npgfb, nsetb, rpgfb, set_radius_b, nsgfb, p_block, dab, f,  &
 !$OMP          zetb, scon_a, scon_b, ic, irow, icol, f0, ff, found, trans, rab2, n1, n2, sgfa, sgfb, iset, jset, &

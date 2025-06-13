@@ -390,7 +390,9 @@ void dbm_zero(dbm_matrix_t *matrix) {
 #pragma omp parallel for DBM_OMP_SCHEDULE
   for (int ishard = 0; ishard < dbm_get_num_shards(matrix); ishard++) {
     dbm_shard_t *shard = &matrix->shards[ishard];
-    memset(shard->data, 0, shard->data_size * sizeof(double));
+    if (shard->data != NULL) {
+      memset(shard->data, 0, shard->data_size * sizeof(double));
+    }
   }
 }
 

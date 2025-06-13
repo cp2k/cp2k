@@ -258,7 +258,7 @@ CONTAINS
 !$OMP PRIVATE (ikind, jkind, iatom, jatom, cell_b, &
 !$OMP          iab, irow, icol, blocks_rv, &
 !$OMP          found, iac, ibc, alist_ac, alist_bc, &
-!$OMP          na, np, nb, kkind, kac, kbc, i, &
+!$OMP          na, np, nb, kkind, kac, kbc, i, lock_num, &
 !$OMP          hash, natom, acint, bcint, achint, bchint)
 
 !$OMP SINGLE
@@ -453,7 +453,7 @@ CONTAINS
 !$OMP PRIVATE (kx_block,ky_block,kz_block,kab,qab,tab,ikind,jkind,iatom,jatom,rab,rac,rbc,cell, &
 !$OMP          basis_set_a, basis_set_b, nseta, ncoa, ncob, ltab, nsetb, tkab, &
 !$OMP          irow, icol, found, trans, sgfa, sgfb, iset, jset, &
-!$OMP          hash, hash1, hash2, iatom8, slot) &
+!$OMP          hash, hash1, hash2, iatom8, slot, lock_num) &
 !$OMP PRIVATE (first_sgfa, la_max, la_min, npgfa, nsgfa, rpgfa, set_radius_a, zeta, scon_a) &
 !$OMP PRIVATE (first_sgfb, lb_max, lb_min, npgfb, nsgfb, rpgfb, set_radius_b, zetb, scon_b) &
 !$OMP SHARED(particle_set, direction_or) &
@@ -1624,7 +1624,7 @@ CONTAINS
 !$OMP SHARED  (basis_set, matrix_rv, direction_Or, &
 !$OMP          sap_int, nkind, eps_ppnl, locks, sab_all) &
 !$OMP PRIVATE (ikind, jkind, iatom, jatom, cell_b, rab, &
-!$OMP          iab, irow, icol, blocks_rvr, &
+!$OMP          iab, irow, icol, blocks_rvr, lock_num, &
 !$OMP          found, iac, ibc, alist_ac, alist_bc, &
 !$OMP          na, np, nb, kkind, kac, kbc, i, j, &
 !$OMP          hash, natom, acint, bcint, achint, bchint)
@@ -1922,7 +1922,7 @@ CONTAINS
 !$OMP SHARED  (basis_set, matrix_rv, &
 !$OMP          sap_int, nkind, eps_ppnl, locks, sab_orb) &
 !$OMP PRIVATE (ikind, jkind, iatom, jatom, cell_b, rab, &
-!$OMP          iab, irow, icol, blocks_rv, &
+!$OMP          iab, irow, icol, blocks_rv, lock_num, &
 !$OMP          found, iac, ibc, alist_ac, alist_bc, &
 !$OMP          na, np, nb, kkind, kac, kbc, i, j, &
 !$OMP          hash, natom, acint, bcint, achint, bchint)
@@ -2336,7 +2336,7 @@ CONTAINS
 !$OMP SHARED  (basis_set, matrix_rv, &
 !$OMP          sap_int, nkind, eps_ppnl, locks, sab_all) &
 !$OMP PRIVATE (ikind, jkind, iatom, jatom, cell_b, rab, &
-!$OMP          iab, irow, icol, blocks_rv, &
+!$OMP          iab, irow, icol, blocks_rv, lock_num, &
 !$OMP          found, iac, ibc, alist_ac, alist_bc, &
 !$OMP          na, np, nb, kkind, kac, kbc, i, &
 !$OMP          hash, natom, acint, bcint, achint, bchint)
