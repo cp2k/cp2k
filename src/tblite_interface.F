@@ -1939,13 +1939,11 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief set gradient to zero
 !> \param qs_env ...
-!> \param tb ...
 !> \note
 ! **************************************************************************************************
-   SUBROUTINE tb_zero_force(qs_env, tb)
+   SUBROUTINE tb_zero_force(qs_env)
 
       TYPE(qs_environment_type)                          :: qs_env
-      TYPE(tblite_type)                                  :: tb
 
       INTEGER                                            :: iatom, ikind, natom
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
