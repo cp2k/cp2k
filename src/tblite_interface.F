@@ -300,7 +300,7 @@ CONTAINS
       tb%e_disp = 0.0_dp
       IF (ALLOCATED(tb%grad)) THEN
          tb%grad = 0.0_dp
-         CALL tb_zero_force(qs_env, tb)
+         CALL tb_zero_force(qs_env)
       END IF
       tb%sigma = 0.0_dp
 
@@ -1869,59 +1869,62 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'tb_grad2force'
 
-      INTEGER                                            :: atoma, handle, iatom, ikind
+      INTEGER                                            :: atoma, handle, iatom, ikind, natom
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
 
       CALL timeset(routineN, handle)
 
       NULLIFY (force, atomic_kind_set)
-      CALL get_qs_env(qs_env=qs_env, force=force, &
+      CALL get_qs_env(qs_env=qs_env, force=force, particle_set=particle_set, &
                       atomic_kind_set=atomic_kind_set)
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
                                atom_of_kind=atom_of_kind, kind_of=kind_of)
+
+      natom = SIZE(particle_set)
 
       SELECT CASE (ityp)
       CASE DEFAULT
          CPABORT("unknown force type")
       CASE (0)
-         DO iatom = 1, tb%mol%nat
+         DO iatom = 1, natom
             ikind = kind_of(iatom)
             atoma = atom_of_kind(iatom)
             force(ikind)%all_potential(:, atoma) = &
                force(ikind)%all_potential(:, atoma) + tb%grad(:, iatom)/para_env%num_pe
          END DO
       CASE (1)
-         DO iatom = 1, tb%mol%nat
+         DO iatom = 1, natom
             ikind = kind_of(iatom)
             atoma = atom_of_kind(iatom)
             force(ikind)%repulsive(:, atoma) = &
                force(ikind)%repulsive(:, atoma) + tb%grad(:, iatom)/para_env%num_pe
          END DO
       CASE (2)
-         DO iatom = 1, tb%mol%nat
+         DO iatom = 1, natom
             ikind = kind_of(iatom)
             atoma = atom_of_kind(iatom)
             force(ikind)%dispersion(:, atoma) = &
                force(ikind)%dispersion(:, atoma) + tb%grad(:, iatom)/para_env%num_pe
          END DO
       CASE (3)
-         DO iatom = 1, tb%mol%nat
+         DO iatom = 1, natom
             ikind = kind_of(iatom)
             atoma = atom_of_kind(iatom)
             force(ikind)%rho_elec(:, atoma) = &
                force(ikind)%rho_elec(:, atoma) + tb%grad(:, iatom)/para_env%num_pe
          END DO
       CASE (4)
-         DO iatom = 1, tb%mol%nat
+         DO iatom = 1, natom
             ikind = kind_of(iatom)
             atoma = atom_of_kind(iatom)
             force(ikind)%overlap(:, atoma) = &
                force(ikind)%overlap(:, atoma) + tb%grad(:, iatom)/para_env%num_pe
          END DO
       CASE (5)
-         DO iatom = 1, tb%mol%nat
+         DO iatom = 1, natom
             ikind = kind_of(iatom)
             atoma = atom_of_kind(iatom)
             force(ikind)%efield(:, atoma) = &
@@ -1936,26 +1939,27 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief set gradient to zero
 !> \param qs_env ...
-!> \param tb ...
 !> \note
 ! **************************************************************************************************
-   SUBROUTINE tb_zero_force(qs_env, tb)
+   SUBROUTINE tb_zero_force(qs_env)
 
       TYPE(qs_environment_type)                          :: qs_env
-      TYPE(tblite_type)                                  :: tb
 
-      INTEGER                                            :: iatom, ikind
+      INTEGER                                            :: iatom, ikind, natom
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
 
       NULLIFY (force, atomic_kind_set)
-      CALL get_qs_env(qs_env=qs_env, force=force, &
+      CALL get_qs_env(qs_env=qs_env, force=force, particle_set=particle_set, &
                       atomic_kind_set=atomic_kind_set)
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
                                kind_of=kind_of)
 
-      DO iatom = 1, tb%mol%nat
+      natom = SIZE(particle_set)
+
+      DO iatom = 1, natom
          ikind = kind_of(iatom)
          force(ikind)%all_potential = 0.0_dp
          force(ikind)%repulsive = 0.0_dp
