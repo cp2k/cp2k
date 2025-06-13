@@ -2195,10 +2195,10 @@ CONTAINS
 
          i_a_shift = tb%pot%vat(icol, 1)
          j_a_shift = tb%pot%vat(jrow, 1)
-         idip = tb%pot%vdp(1:dip_n, icol, 1)
-         jdip = tb%pot%vdp(1:dip_n, jrow, 1)
-         iquad = tb%pot%vqp(1:quad_n, icol, 1)
-         jquad = tb%pot%vqp(1:quad_n, jrow, 1)
+         idip(:) = tb%pot%vdp(:, icol, 1)
+         jdip(:) = tb%pot%vdp(:, jrow, 1)
+         iquad(:) = tb%pot%vqp(:, icol, 1)
+         jquad(:) = tb%pot%vqp(:, jrow, 1)
 
          ni = tb%calc%bas%ish_at(icol)
          DO iset = 1, nseti
