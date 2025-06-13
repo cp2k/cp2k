@@ -93,15 +93,16 @@ MODULE tblite_interface
    INTEGER, PARAMETER                                 :: dip_n = 3
    INTEGER, PARAMETER                                 :: quad_n = 6
 
-   PUBLIC :: tb_init_geometry, tb_init_ham, tb_init_wf
-   PUBLIC :: tb_set_calculator, tb_get_basis, build_tblite_matrices
+   PUBLIC :: tb_set_calculator, tb_init_geometry, tb_init_wf
+   PUBLIC :: tb_get_basis, build_tblite_matrices
    PUBLIC :: tb_get_energy, tb_update_charges, tb_ham_add_coulomb
    PUBLIC :: tb_get_multipole
+   PUBLIC :: tb_derive_dH_diag, tb_derive_dH_off
 
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief intialize geometry objects ...
 !> \param qs_env ...
 !> \param tb ...
 ! **************************************************************************************************
@@ -164,15 +165,57 @@ CONTAINS
 
    END SUBROUTINE tb_init_geometry
 
-   ! **************************************************************************************************
-!> \brief ...
-!> \param tb ...
-!> \param do_grad ...
 ! **************************************************************************************************
-   SUBROUTINE tb_init_wf(tb, do_grad)
+!> \brief updating coordinates...
+!> \param qs_env ...
+!> \param tb ...
+! **************************************************************************************************
+   SUBROUTINE tb_update_geometry(qs_env, tb)
+
+      TYPE(qs_environment_type)                          :: qs_env
+      TYPE(tblite_type)                                  :: tb
+
+#if defined(__TBLITE)
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'tblite_update_geometry'
+
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      INTEGER                                            :: iatom, natom
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: xyz
+      INTEGER                                            :: handle
+
+      CALL timeset(routineN, handle)
+
+      !get info from environment vaiarable
+      CALL get_qs_env(qs_env=qs_env, particle_set=particle_set)
+
+      !get information about particles
+      natom = SIZE(particle_set)
+      ALLOCATE (xyz(3, natom))
+      DO iatom = 1, natom
+         xyz(:, iatom) = particle_set(iatom)%r(:)
+      END DO
+      tb%mol%xyz(:, :) = xyz
+
+      DEALLOCATE (xyz)
+
+      CALL timestop(handle)
+
+#else
+      MARK_USED(qs_env)
+      MARK_USED(tb)
+      CPABORT("Built without TBLITE")
+#endif
+
+   END SUBROUTINE tb_update_geometry
+
+! **************************************************************************************************
+!> \brief initialize wavefunction ...
+!> \param tb ...
+! **************************************************************************************************
+   SUBROUTINE tb_init_wf(tb)
 
       TYPE(tblite_type), POINTER                         :: tb
-      LOGICAL, INTENT(in)                                :: do_grad
 
 #if defined(__TBLITE)
 
@@ -194,21 +237,10 @@ CONTAINS
       ALLOCATE (tb%e_hal(tb%mol%nat), tb%e_rep(tb%mol%nat), tb%e_disp(tb%mol%nat))
       ALLOCATE (tb%e_scd(tb%mol%nat), tb%e_es(tb%mol%nat))
       ALLOCATE (tb%selfenergy(tb%calc%bas%nsh))
-
       IF (ALLOCATED(tb%calc%ncoord)) ALLOCATE (tb%cn(tb%mol%nat))
-
-      IF (do_grad) ALLOCATE (tb%grad(3, tb%mol%nat))
-
-      IF (ALLOCATED(tb%grad)) THEN
-         IF (ALLOCATED(tb%calc%ncoord)) THEN
-            ALLOCATE (tb%dcndr(3, tb%mol%nat, tb%mol%nat), tb%dcndL(3, 3, tb%mol%nat))
-         END IF
-         ALLOCATE (tb%dsedcn(tb%calc%bas%nsh))
-      END IF
 
 #else
       MARK_USED(tb)
-      MARK_USED(do_grad)
       CPABORT("Built without TBLITE")
 #endif
 
@@ -249,11 +281,15 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param qs_env ...
 !> \param tb ...
+!> \param para_env ...
 ! **************************************************************************************************
-   SUBROUTINE tb_init_ham(tb)
+   SUBROUTINE tb_init_ham(qs_env, tb, para_env)
 
-      TYPE(tblite_type), POINTER                         :: tb
+      TYPE(qs_environment_type)                          :: qs_env
+      TYPE(tblite_type)                                  :: tb
+      TYPE(mp_para_env_type)                             :: para_env
 
 #if defined(__TBLITE)
 
@@ -264,14 +300,17 @@ CONTAINS
       tb%e_disp = 0.0_dp
       IF (ALLOCATED(tb%grad)) THEN
          tb%grad = 0.0_dp
-         tb%sigma = 0.0_dp
+         CALL tb_zero_force(qs_env, tb)
       END IF
+      tb%sigma = 0.0_dp
 
       IF (ALLOCATED(tb%calc%halogen)) THEN
          CALL tb%calc%halogen%update(tb%mol, hcache)
          IF (ALLOCATED(tb%grad)) THEN
+            tb%grad = 0.0_dp
             CALL tb%calc%halogen%get_engrad(tb%mol, hcache, tb%e_hal, &
             & tb%grad, tb%sigma)
+            CALL tb_grad2force(qs_env, tb, para_env, 0)
          ELSE
             CALL tb%calc%halogen%get_engrad(tb%mol, hcache, tb%e_hal)
          END IF
@@ -280,8 +319,10 @@ CONTAINS
       IF (ALLOCATED(tb%calc%repulsion)) THEN
          CALL tb%calc%repulsion%update(tb%mol, rcache)
          IF (ALLOCATED(tb%grad)) THEN
+            tb%grad = 0.0_dp
             CALL tb%calc%repulsion%get_engrad(tb%mol, rcache, tb%e_rep, &
             & tb%grad, tb%sigma)
+            CALL tb_grad2force(qs_env, tb, para_env, 1)
          ELSE
             CALL tb%calc%repulsion%get_engrad(tb%mol, rcache, tb%e_rep)
          END IF
@@ -290,8 +331,10 @@ CONTAINS
       IF (ALLOCATED(tb%calc%dispersion)) THEN
          CALL tb%calc%dispersion%update(tb%mol, tb%dcache)
          IF (ALLOCATED(tb%grad)) THEN
+            tb%grad = 0.0_dp
             CALL tb%calc%dispersion%get_engrad(tb%mol, tb%dcache, tb%e_disp, &
             & tb%grad, tb%sigma)
+            CALL tb_grad2force(qs_env, tb, para_env, 2)
          ELSE
             CALL tb%calc%dispersion%get_engrad(tb%mol, tb%dcache, tb%e_disp)
          END IF
@@ -364,9 +407,8 @@ CONTAINS
             "Repulsive pair potential energy:               ", energy%repulsive, &
             "Zeroth order Hamiltonian energy:               ", energy%core, &
             "Electrostatic energy:                          ", energy%el_stat, &
+            "Self-consistent dispersion energy:             ", energy%dispersion_sc, &
             "Non-self consistent dispersion energy:         ", energy%dispersion
-         WRITE (UNIT=iounit, FMT="(T9,A,T60,F20.10)") &
-            "Self-consistent dispersion energy:             ", energy%dispersion_sc
          WRITE (UNIT=iounit, FMT="(T9,A,T60,F20.10)") &
             "Correction for halogen bonding:                ", energy%xtb_xb_inter
          IF (ABS(energy%efield) > 1.e-12_dp) THEN
@@ -503,7 +545,7 @@ CONTAINS
 
    END SUBROUTINE tb_get_basis
 
-   ! **************************************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param qs_env ...
 !> \param calculate_forces ...
@@ -519,9 +561,9 @@ CONTAINS
 
       INTEGER                                            :: handle, maxder, nderivatives, nimg, img, nkind, i, ic, iw, &
                                                             iatom, jatom, ikind, jkind, iset, jset, n1, n2, icol, irow, &
-                                                            ishell, jshell, ia, ib, sgfa, sgfb, atom_a, atom_b, &
-                                                            ldsab, nseta, nsetb, natorb_a, natorb_b
-      LOGICAL                                            :: found, norml1, norml2, use_arnoldi, use_virial
+                                                            ia, ib, sgfa, sgfb, atom_a, atom_b, &
+                                                            ldsab, nseta, nsetb, natorb_a, natorb_b, sgfa0
+      LOGICAL                                            :: found, norml1, norml2, use_arnoldi
       REAL(KIND=dp)                                      :: dr, rr
       INTEGER, DIMENSION(3)                              :: cell
       REAL(KIND=dp)                                      :: hij, shpoly
@@ -549,6 +591,7 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                              :: nl_iterator
+      TYPE(mp_para_env_type), POINTER                       :: para_env
       TYPE(qs_energy_type), POINTER                         :: energy
       TYPE(qs_ks_env_type), POINTER                         :: ks_env
       TYPE(qs_kind_type), DIMENSION(:), POINTER             :: qs_kind_set
@@ -564,7 +607,7 @@ CONTAINS
       NULLIFY (sab_orb, rho, tb)
 
       CALL get_qs_env(qs_env=qs_env, &
-                      ks_env=ks_env, &
+                      ks_env=ks_env, para_env=para_env, &
                       energy=energy, &
                       atomic_kind_set=atomic_kind_set, &
                       qs_kind_set=qs_kind_set, &
@@ -576,18 +619,36 @@ CONTAINS
                       rho=rho, tb_tblite=tb)
       h0 => tb%calc%h0
 
+      !update geometry (required for debug / geometry optimization)
+      CALL tb_update_geometry(qs_env, tb)
+
       nkind = SIZE(atomic_kind_set)
       nderivatives = 0
-      IF (calculate_forces) nderivatives = 1
+      IF (calculate_forces) THEN
+         nderivatives = 1
+         IF (ALLOCATED(tb%grad)) DEALLOCATE (tb%grad)
+         ALLOCATE (tb%grad(3, tb%mol%nat))
+         IF (ALLOCATED(tb%dsedcn)) DEALLOCATE (tb%dsedcn)
+         ALLOCATE (tb%dsedcn(tb%calc%bas%nsh))
+         IF (ALLOCATED(tb%calc%ncoord)) THEN
+            IF (ALLOCATED(tb%dcndr)) DEALLOCATE (tb%dcndr)
+            ALLOCATE (tb%dcndr(3, tb%mol%nat, tb%mol%nat))
+            IF (ALLOCATED(tb%dcndL)) DEALLOCATE (tb%dcndL)
+            ALLOCATE (tb%dcndL(3, 3, tb%mol%nat))
+         END IF
+      END IF
       maxder = ncoset(nderivatives)
       nimg = dft_control%nimages
+
+      !intialise hamiltonian
+      CALL tb_init_ham(qs_env, tb, para_env)
 
       ! get density matrtix
       CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
 
       ! set up matrices for force calculations
       IF (calculate_forces) THEN
-         NULLIFY (force, matrix_w)
+         NULLIFY (force, matrix_w, virial)
          CALL get_qs_env(qs_env=qs_env, &
                          matrix_w_kp=matrix_w, &
                          virial=virial, force=force)
@@ -600,7 +661,7 @@ CONTAINS
                               alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
             END DO
          END IF
-         use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
+         tb%use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
       END IF
 
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, atom_of_kind=atom_of_kind)
@@ -739,10 +800,7 @@ CONTAINS
          ! --------- Hamiltonian
          IF (icol == irow .AND. dr < 0.001_dp) THEN
             !get diagonal F matrix from selfenergy
-            n1 = 0
-            DO ishell = 1, icol - 1
-               n1 = n1 + tb%calc%bas%nsh_at(ishell)
-            END DO
+            n1 = tb%calc%bas%ish_at(icol)
             DO iset = 1, nseta
                sgfa = first_sgfa(1, iset)
                hij = tb%selfenergy(n1 + iset)
@@ -753,16 +811,12 @@ CONTAINS
          ELSE
             !get off-diagonal F matrix
             rr = SQRT(dr/(h0%rad(jkind) + h0%rad(ikind)))
-            n1 = 0
-            DO ishell = 1, icol - 1
-               n1 = n1 + tb%calc%bas%nsh_at(ishell)
-            END DO
+            n1 = tb%calc%bas%ish_at(icol)
+            sgfa0 = 1
             DO iset = 1, nseta
                sgfa = first_sgfa(1, iset)
-               n2 = 0
-               DO jshell = 1, irow - 1
-                  n2 = n2 + tb%calc%bas%nsh_at(jshell)
-               END DO
+               sgfa0 = sgfa0 + tb%calc%bas%cgto(iset, tb%mol%id(icol))%nprim
+               n2 = tb%calc%bas%ish_at(irow)
                DO jset = 1, nsetb
                   sgfb = first_sgfb(1, jset)
                   shpoly = (1.0_dp + h0%shpoly(iset, ikind)*rr) &
@@ -790,9 +844,11 @@ CONTAINS
       END DO
       CALL neighbor_list_iterator_release(nl_iterator)
 
-      DO i = 1, SIZE(matrix_s, 1)
-         DO img = 1, nimg
+      DO img = 1, nimg
+         DO i = 1, SIZE(matrix_s, 1)
             CALL dbcsr_finalize(matrix_s(i, img)%matrix)
+         END DO
+         DO i = 1, SIZE(matrix_h, 1)
             CALL dbcsr_finalize(matrix_h(i, img)%matrix)
          END DO
       END DO
@@ -829,7 +885,7 @@ CONTAINS
 
    END SUBROUTINE build_tblite_matrices
 
-   ! **************************************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param qs_env ...
 !> \param dft_control ...
@@ -868,8 +924,6 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(xtb_atom_type), POINTER                       :: xtb_kind
-
-      IF (calculate_forces) CPABORT("tblite: forces not yet available")
 
       ! also compute multipoles needed by GFN2
       do_dipole = .FALSE.
@@ -990,16 +1044,25 @@ CONTAINS
 
       IF (ALLOCATED(tb%calc%coulomb)) THEN
          CALL tb%calc%coulomb%get_potential(tb%mol, tb%cache, tb%wfn, tb%pot)
-      END IF
-      IF (ALLOCATED(tb%calc%dispersion)) THEN
-         CALL tb%calc%dispersion%get_potential(tb%mol, tb%dcache, tb%wfn, tb%pot)
-      END IF
-
-      IF (ALLOCATED(tb%calc%coulomb)) THEN
          CALL tb%calc%coulomb%get_energy(tb%mol, tb%cache, tb%wfn, tb%e_es)
       END IF
       IF (ALLOCATED(tb%calc%dispersion)) THEN
+         CALL tb%calc%dispersion%get_potential(tb%mol, tb%dcache, tb%wfn, tb%pot)
          CALL tb%calc%dispersion%get_energy(tb%mol, tb%dcache, tb%wfn, tb%e_scd)
+      END IF
+
+      IF (calculate_forces) THEN
+         IF (ALLOCATED(tb%calc%coulomb)) THEN
+            tb%grad = 0.0_dp
+            CALL tb%calc%coulomb%get_gradient(tb%mol, tb%cache, tb%wfn, tb%grad, tb%sigma)
+            CALL tb_grad2force(qs_env, tb, para_env, 3)
+         END IF
+
+         IF (ALLOCATED(tb%calc%dispersion)) THEN
+            tb%grad = 0.0_dp
+            CALL tb%calc%dispersion%get_gradient(tb%mol, tb%dcache, tb%wfn, tb%grad, tb%sigma)
+            CALL tb_grad2force(qs_env, tb, para_env, 2)
+         END IF
       END IF
 
       DEALLOCATE (ch_atom, ch_shell, ch_orb, ch_ref)
@@ -1015,19 +1078,17 @@ CONTAINS
 
    END SUBROUTINE tb_update_charges
 
-   ! **************************************************************************************************
+! **************************************************************************************************
 !> \brief ...
 !> \param qs_env ...
 !> \param tb ...
 !> \param dft_control ...
-!> \param calculate_forces ...
 ! **************************************************************************************************
-   SUBROUTINE tb_ham_add_coulomb(qs_env, tb, dft_control, calculate_forces)
+   SUBROUTINE tb_ham_add_coulomb(qs_env, tb, dft_control)
 
       TYPE(qs_environment_type), POINTER                       :: qs_env
       TYPE(tblite_type), POINTER                               :: tb
       TYPE(dft_control_type), POINTER                          :: dft_control
-      LOGICAL, INTENT(IN)                                      :: calculate_forces
 
 #if defined(__TBLITE)
 
@@ -1060,8 +1121,6 @@ CONTAINS
          POINTER                                         :: n_list
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(xtb_atom_type), POINTER                       :: xtb_atom_a, xtb_atom_b
-
-      IF (calculate_forces) CPABORT("tblite: forces not yet available")
 
       nimg = dft_control%nimages
 
@@ -1421,7 +1480,6 @@ CONTAINS
       MARK_USED(qs_env)
       MARK_USED(tb)
       MARK_USED(dft_control)
-      MARK_USED(calculate_forces)
       CPABORT("Built without TBLITE")
 #endif
 
@@ -1793,6 +1851,524 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE contract_dens
+
+! **************************************************************************************************
+!> \brief save gradient to force
+!> \param qs_env ...
+!> \param tb ...
+!> \param para_env ...
+!> \param ityp ...
+!> \note
+! **************************************************************************************************
+   SUBROUTINE tb_grad2force(qs_env, tb, para_env, ityp)
+
+      TYPE(qs_environment_type)                          :: qs_env
+      TYPE(tblite_type)                                  :: tb
+      TYPE(mp_para_env_type)                             :: para_env
+      INTEGER                                            :: ityp
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'tb_grad2force'
+
+      INTEGER                                            :: atoma, handle, iatom, ikind
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (force, atomic_kind_set)
+      CALL get_qs_env(qs_env=qs_env, force=force, &
+                      atomic_kind_set=atomic_kind_set)
+      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
+                               atom_of_kind=atom_of_kind, kind_of=kind_of)
+
+      SELECT CASE (ityp)
+      CASE DEFAULT
+         CPABORT("unknown force type")
+      CASE (0)
+         DO iatom = 1, tb%mol%nat
+            ikind = kind_of(iatom)
+            atoma = atom_of_kind(iatom)
+            force(ikind)%all_potential(:, atoma) = &
+               force(ikind)%all_potential(:, atoma) + tb%grad(:, iatom)/para_env%num_pe
+         END DO
+      CASE (1)
+         DO iatom = 1, tb%mol%nat
+            ikind = kind_of(iatom)
+            atoma = atom_of_kind(iatom)
+            force(ikind)%repulsive(:, atoma) = &
+               force(ikind)%repulsive(:, atoma) + tb%grad(:, iatom)/para_env%num_pe
+         END DO
+      CASE (2)
+         DO iatom = 1, tb%mol%nat
+            ikind = kind_of(iatom)
+            atoma = atom_of_kind(iatom)
+            force(ikind)%dispersion(:, atoma) = &
+               force(ikind)%dispersion(:, atoma) + tb%grad(:, iatom)/para_env%num_pe
+         END DO
+      CASE (3)
+         DO iatom = 1, tb%mol%nat
+            ikind = kind_of(iatom)
+            atoma = atom_of_kind(iatom)
+            force(ikind)%rho_elec(:, atoma) = &
+               force(ikind)%rho_elec(:, atoma) + tb%grad(:, iatom)/para_env%num_pe
+         END DO
+      CASE (4)
+         DO iatom = 1, tb%mol%nat
+            ikind = kind_of(iatom)
+            atoma = atom_of_kind(iatom)
+            force(ikind)%overlap(:, atoma) = &
+               force(ikind)%overlap(:, atoma) + tb%grad(:, iatom)/para_env%num_pe
+         END DO
+      CASE (5)
+         DO iatom = 1, tb%mol%nat
+            ikind = kind_of(iatom)
+            atoma = atom_of_kind(iatom)
+            force(ikind)%efield(:, atoma) = &
+               force(ikind)%efield(:, atoma) + tb%grad(:, iatom)/para_env%num_pe
+         END DO
+      END SELECT
+
+      CALL timestop(handle)
+
+   END SUBROUTINE tb_grad2force
+
+! **************************************************************************************************
+!> \brief set gradient to zero
+!> \param qs_env ...
+!> \param tb ...
+!> \note
+! **************************************************************************************************
+   SUBROUTINE tb_zero_force(qs_env, tb)
+
+      TYPE(qs_environment_type)                          :: qs_env
+      TYPE(tblite_type)                                  :: tb
+
+      INTEGER                                            :: iatom, ikind
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
+
+      NULLIFY (force, atomic_kind_set)
+      CALL get_qs_env(qs_env=qs_env, force=force, &
+                      atomic_kind_set=atomic_kind_set)
+      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, &
+                               kind_of=kind_of)
+
+      DO iatom = 1, tb%mol%nat
+         ikind = kind_of(iatom)
+         force(ikind)%all_potential = 0.0_dp
+         force(ikind)%repulsive = 0.0_dp
+         force(ikind)%dispersion = 0.0_dp
+         force(ikind)%rho_elec = 0.0_dp
+         force(ikind)%overlap = 0.0_dp
+         force(ikind)%efield = 0.0_dp
+      END DO
+
+   END SUBROUTINE tb_zero_force
+
+! **************************************************************************************************
+!> \brief compute the derivative of the energy
+!> \param qs_env ...
+!> \param use_rho ...
+! **************************************************************************************************
+   SUBROUTINE tb_derive_dH_diag(qs_env, use_rho)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      LOGICAL, INTENT(IN)                                :: use_rho
+
+#if defined(__TBLITE)
+      INTEGER                                            :: i, iatom, ic, ikind, ind, is, ish, &
+                                                            jatom, jkind
+      INTEGER, DIMENSION(3)                              :: cellind
+      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
+      LOGICAL                                            :: found
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dE
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pblock
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(neighbor_list_iterator_p_type), &
+         DIMENSION(:), POINTER                           :: nl_iterator
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_orb
+      TYPE(qs_rho_type), POINTER                         :: rho
+      TYPE(qs_scf_env_type), POINTER                     :: scf_env
+      TYPE(tblite_type), POINTER                         :: tb
+
+      ! compute mulliken charges required for charge update
+      NULLIFY (scf_env, rho, tb, sab_orb, para_env, kpoints)
+      CALL get_qs_env(qs_env=qs_env, scf_env=scf_env, rho=rho, tb_tblite=tb, &
+                      sab_orb=sab_orb, para_env=para_env, kpoints=kpoints)
+      NULLIFY (cell_to_index)
+      CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index)
+
+      NULLIFY (matrix_p)
+      IF (use_rho) THEN
+         CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
+      ELSE
+         matrix_p => scf_env%p_mix_new
+      END IF
+
+      ALLOCATE (dE(tb%mol%nat))
+
+      dE = 0.0_dp
+      ! loop over all atom pairs with a non-zero overlap (sab_orb)
+      CALL neighbor_list_iterator_create(nl_iterator, sab_orb)
+      DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
+         CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
+                                iatom=iatom, jatom=jatom, cell=cellind)
+
+         IF (iatom /= jatom) CYCLE
+
+         is = tb%calc%bas%ish_at(iatom)
+
+         ic = cell_to_index(cellind(1), cellind(2), cellind(3))
+         CPASSERT(ic > 0)
+         CALL dbcsr_get_block_p(matrix=matrix_p(1, ic)%matrix, &
+                                row=iatom, col=jatom, BLOCK=pblock, found=found)
+
+         IF (.NOT. found) CPABORT("block not found")
+
+         ind = 0
+         DO ish = 1, tb%calc%bas%nsh_id(ikind)
+            DO i = 1, msao(tb%calc%bas%cgto(ish, ikind)%ang)
+               ind = ind + 1
+               dE(iatom) = dE(iatom) + tb%dsedcn(is + ish)*pblock(ind, ind)
+            END DO
+         END DO
+      END DO
+      CALL neighbor_list_iterator_release(nl_iterator)
+      CALL para_env%sum(dE)
+
+      tb%grad = 0.0_dp
+      CALL tb_add_grad(tb%grad, tb%dcndr, dE, tb%mol%nat)
+      IF (tb%use_virial) CALL tb_add_sig(tb%sigma, tb%dcndL, dE, tb%mol%nat)
+      CALL tb_grad2force(qs_env, tb, para_env, 4)
+      DEALLOCATE (dE)
+
+#else
+      MARK_USED(qs_env)
+      MARK_USED(use_rho)
+      CPABORT("Built without TBLITE")
+#endif
+
+   END SUBROUTINE tb_derive_dH_diag
+
+! **************************************************************************************************
+!> \brief compute the derivative of the energy
+!> \param qs_env ...
+!> \param use_rho ...
+! **************************************************************************************************
+   SUBROUTINE tb_derive_dH_off(qs_env, use_rho)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      LOGICAL, INTENT(IN)                                :: use_rho
+
+#if defined(__TBLITE)
+      INTEGER                                            :: i, ij, iatom, ic, icol, ikind, ni, nj, nkind, nel, &
+                                                            sgfi, sgfj, ityp, jatom, jkind, jrow, jtyp, iset, jset, &
+                                                            nseti, nsetj, ia, ib, inda, indb
+      INTEGER, DIMENSION(3)                              :: cellind
+      INTEGER, DIMENSION(:), POINTER                     :: nsgfa, nsgfb
+      INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
+      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
+      LOGICAL                                            :: found
+      REAL(KIND=dp)                                      :: r2, itemp, jtemp, rr, hij, shpoly, dshpoly, idHdc, jdHdc, &
+                                                            scal, hp, i_a_shift, j_a_shift, ishift, jshift
+      REAL(KIND=dp), DIMENSION(3)                        :: rij, dgrad
+      REAL(KIND=dp), DIMENSION(3, 3)                      :: hsigma
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dE, t_ov, idip, jdip, iquad, jquad
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: t_dip, t_quad, t_d_ov
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: t_i_dip, t_i_quad, t_j_dip, t_j_quad
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pblock, wblock
+
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p, matrix_w
+      TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
+      TYPE(gto_basis_set_type), POINTER            :: basis_set_a, basis_set_b
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(neighbor_list_iterator_p_type), &
+         DIMENSION(:), POINTER                           :: nl_iterator
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_orb
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(qs_rho_type), POINTER                         :: rho
+      TYPE(qs_scf_env_type), POINTER                     :: scf_env
+      TYPE(tb_hamiltonian), POINTER                      :: h0
+      TYPE(tblite_type), POINTER                         :: tb
+
+      ! compute mulliken charges required for charge update
+      NULLIFY (scf_env, rho, tb, sab_orb, para_env, kpoints, matrix_w)
+      CALL get_qs_env(qs_env=qs_env, &
+                      atomic_kind_set=atomic_kind_set, &
+                      scf_env=scf_env, &
+                      rho=rho, &
+                      tb_tblite=tb, &
+                      sab_orb=sab_orb, &
+                      para_env=para_env, &
+                      qs_kind_set=qs_kind_set, &
+                      kpoints=kpoints, &
+                      matrix_w_kp=matrix_w)
+      NULLIFY (cell_to_index)
+      CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index)
+
+      h0 => tb%calc%h0
+
+      NULLIFY (matrix_p)
+      IF (use_rho) THEN
+         CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
+      ELSE
+         matrix_p => scf_env%p_mix_new
+      END IF
+
+      ! set up basis set lists
+      nkind = SIZE(atomic_kind_set)
+      ALLOCATE (basis_set_list(nkind))
+      CALL basis_set_list_setup(basis_set_list, "ORB", qs_kind_set)
+
+      ALLOCATE (dE(tb%mol%nat))
+
+      nel = msao(tb%calc%bas%maxl)**2
+      ALLOCATE (t_ov(nel))
+      ALLOCATE (t_d_ov(3, nel))
+      ALLOCATE (t_dip(dip_n, nel))
+      ALLOCATE (t_i_dip(3, dip_n, nel), t_j_dip(3, dip_n, nel))
+      ALLOCATE (t_quad(quad_n, nel))
+      ALLOCATE (t_i_quad(3, quad_n, nel), t_j_quad(3, quad_n, nel))
+
+      ALLOCATE (idip(dip_n), jdip(dip_n))
+      ALLOCATE (iquad(quad_n), jquad(quad_n))
+
+      dE = 0.0_dp
+      tb%grad = 0.0_dp
+      hsigma = 0.0_dp
+      ! loop over all atom pairs with a non-zero overlap (sab_orb)
+      CALL neighbor_list_iterator_create(nl_iterator, sab_orb)
+      DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
+         CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
+                                iatom=iatom, jatom=jatom, r=rij, cell=cellind)
+
+         IF (iatom == jatom) CYCLE
+
+         icol = MAX(iatom, jatom)
+         jrow = MIN(iatom, jatom)
+
+         IF (icol == jatom) THEN
+            rij = -rij
+            i = ikind
+            ikind = jkind
+            jkind = i
+         END IF
+
+         ityp = tb%mol%id(icol)
+         jtyp = tb%mol%id(jrow)
+
+         r2 = NORM2(rij(:))
+         rr = SQRT(r2/(h0%rad(ikind) + h0%rad(jkind)))
+         r2 = r2**2
+
+         !get basis information
+         basis_set_a => basis_set_list(ikind)%gto_basis_set
+         IF (.NOT. ASSOCIATED(basis_set_a)) CYCLE
+         first_sgfa => basis_set_a%first_sgf
+         nsgfa => basis_set_a%nsgf_set
+         nseti = basis_set_a%nset
+         basis_set_b => basis_set_list(jkind)%gto_basis_set
+         IF (.NOT. ASSOCIATED(basis_set_b)) CYCLE
+         first_sgfb => basis_set_b%first_sgf
+         nsgfb => basis_set_b%nsgf_set
+         nsetj = basis_set_b%nset
+
+         ic = cell_to_index(cellind(1), cellind(2), cellind(3))
+         CPASSERT(ic > 0)
+         NULLIFY (pblock)
+         CALL dbcsr_get_block_p(matrix=matrix_p(1, ic)%matrix, &
+                                row=jrow, col=icol, BLOCK=pblock, found=found)
+         IF (.NOT. found) CPABORT("pblock not found")
+
+         NULLIFY (wblock)
+         CALL dbcsr_get_block_p(matrix=matrix_w(1, ic)%matrix, &
+                                row=jrow, col=icol, block=wblock, found=found)
+         CPASSERT(found)
+
+         i_a_shift = tb%pot%vat(icol, 1)
+         j_a_shift = tb%pot%vat(jrow, 1)
+         idip(:) = tb%pot%vdp(:, icol, 1)
+         jdip(:) = tb%pot%vdp(:, jrow, 1)
+         iquad(:) = tb%pot%vqp(:, icol, 1)
+         jquad(:) = tb%pot%vqp(:, jrow, 1)
+
+         ni = tb%calc%bas%ish_at(icol)
+         DO iset = 1, nseti
+            sgfi = first_sgfa(1, iset)
+            ishift = i_a_shift + tb%pot%vsh(ni + iset, 1)
+            nj = tb%calc%bas%ish_at(jrow)
+            DO jset = 1, nsetj
+               sgfj = first_sgfb(1, jset)
+               jshift = j_a_shift + tb%pot%vsh(nj + jset, 1)
+
+               !get integrals and derivatives
+               CALL multipole_grad_cgto(tb%calc%bas%cgto(iset, ityp), tb%calc%bas%cgto(jset, jtyp), &
+                  & r2, rij, tb%calc%bas%intcut, t_ov, t_dip, t_quad, t_d_ov, t_i_dip, t_i_quad, &
+                  & t_j_dip, t_j_quad)
+
+               shpoly = (1.0_dp + h0%shpoly(iset, ikind)*rr) &
+                        *(1.0_dp + h0%shpoly(jset, jkind)*rr)
+               dshpoly = ((1.0_dp + h0%shpoly(iset, ikind)*rr)*h0%shpoly(jset, jkind)*rr &
+                          + (1.0_dp + h0%shpoly(jset, jkind)*rr)*h0%shpoly(iset, ikind)*rr) &
+                         *0.5_dp/r2
+               scal = h0%hscale(iset, jset, ikind, jkind)
+               hij = 0.5_dp*(tb%selfenergy(ni + iset) + tb%selfenergy(nj + jset))*scal
+
+               idHdc = tb%dsedcn(ni + iset)*shpoly*scal
+               jdHdc = tb%dsedcn(nj + jset)*shpoly*scal
+
+               itemp = 0.0_dp
+               jtemp = 0.0_dp
+               dgrad = 0.0_dp
+               DO inda = 1, nsgfa(iset)
+                  ia = first_sgfa(1, iset) - first_sgfa(1, 1) + inda
+                  DO indb = 1, nsgfb(jset)
+                     ib = first_sgfb(1, jset) - first_sgfb(1, 1) + indb
+
+                     ij = inda + nsgfa(iset)*(indb - 1)
+
+                     itemp = itemp + idHdc*pblock(ib, ia)*t_ov(ij)
+                     jtemp = jtemp + jdHdc*pblock(ib, ia)*t_ov(ij)
+
+                     hp = 2*hij*pblock(ib, ia)
+                     dgrad(:) = dgrad(:) &
+                                - (ishift + jshift)*pblock(ib, ia)*t_d_ov(:, ij) &
+                                - 2*wblock(ib, ia)*t_d_ov(:, ij) &
+                                + hp*shpoly*t_d_ov(:, ij) &
+                                + hp*dshpoly*t_ov(ij)*rij &
+                                - pblock(ib, ia)*( &
+                                MATMUL(t_i_dip(:, :, ij), idip) &
+                                + MATMUL(t_j_dip(:, :, ij), jdip) &
+                                + MATMUL(t_i_quad(:, :, ij), iquad) &
+                                + MATMUL(t_j_quad(:, :, ij), jquad))
+
+                  END DO
+               END DO
+               dE(icol) = dE(icol) + itemp
+               dE(jrow) = dE(jrow) + jtemp
+               tb%grad(:, icol) = tb%grad(:, icol) - dgrad
+               tb%grad(:, jrow) = tb%grad(:, jrow) + dgrad
+               IF ((tb%use_virial) .AND. (icol == jrow)) THEN
+                  DO ia = 1, 3
+                     DO ib = 1, 3
+                        hsigma(ia, ib) = hsigma(ia, ib) + 0.25_dp*(rij(ia)*dgrad(ib) + rij(ib)*dgrad(ia))
+                     END DO
+                  END DO
+               ELSE
+                  DO ia = 1, 3
+                     DO ib = 1, 3
+                        hsigma(ia, ib) = hsigma(ia, ib) + 0.50_dp*(rij(ia)*dgrad(ib) + rij(ib)*dgrad(ia))
+                     END DO
+                  END DO
+               END IF
+            END DO
+         END DO
+      END DO
+      CALL neighbor_list_iterator_release(nl_iterator)
+
+      CALL para_env%sum(hsigma)
+      tb%sigma = tb%sigma + hsigma
+
+      CALL para_env%sum(dE)
+      CALL para_env%sum(tb%grad)
+      CALL tb_add_grad(tb%grad, tb%dcndr, dE, tb%mol%nat)
+      IF (tb%use_virial) CALL tb_add_sig(tb%sigma, tb%dcndL, dE, tb%mol%nat)
+      CALL tb_grad2force(qs_env, tb, para_env, 4)
+
+      DEALLOCATE (dE)
+      DEALLOCATE (basis_set_list)
+
+      DEALLOCATE (t_ov, t_d_ov)
+      DEALLOCATE (t_dip, t_i_dip, t_j_dip)
+      DEALLOCATE (t_quad, t_i_quad, t_j_quad)
+      DEALLOCATE (idip, jdip, iquad, jquad)
+
+      IF (tb%use_virial) CALL tb_add_stress(qs_env, tb, para_env)
+
+#else
+      MARK_USED(qs_env)
+      MARK_USED(use_rho)
+      CPABORT("Built without TBLITE")
+#endif
+
+   END SUBROUTINE tb_derive_dH_off
+
+! **************************************************************************************************
+!> \brief save stress tensor
+!> \param qs_env ...
+!> \param tb ...
+!> \param para_env ...
+! **************************************************************************************************
+   SUBROUTINE tb_add_stress(qs_env, tb, para_env)
+
+      TYPE(qs_environment_type)                          :: qs_env
+      TYPE(tblite_type)                                  :: tb
+      TYPE(mp_para_env_type)                             :: para_env
+
+      TYPE(virial_type), POINTER                         :: virial
+
+      NULLIFY (virial)
+      CALL get_qs_env(qs_env=qs_env, virial=virial)
+
+      virial%pv_virial = virial%pv_virial - tb%sigma/para_env%num_pe
+
+   END SUBROUTINE tb_add_stress
+
+! **************************************************************************************************
+!> \brief add contrib. to gradient
+!> \param grad ...
+!> \param deriv ...
+!> \param dE ...
+!> \param natom ...
+! **************************************************************************************************
+   SUBROUTINE tb_add_grad(grad, deriv, dE, natom)
+
+      REAL(KIND=dp), DIMENSION(:, :)                     :: grad
+      REAL(KIND=dp), DIMENSION(:, :, :)                  :: deriv
+      REAL(KIND=dp), DIMENSION(:)                        :: dE
+      INTEGER                                            :: natom
+
+      INTEGER                                            :: i, j
+
+      DO i = 1, natom
+         DO j = 1, natom
+            grad(:, i) = grad(:, i) + deriv(:, i, j)*dE(j)
+         END DO
+      END DO
+
+   END SUBROUTINE tb_add_grad
+
+! **************************************************************************************************
+!> \brief add contrib. to sigma
+!> \param sig ...
+!> \param deriv ...
+!> \param dE ...
+!> \param natom ...
+! **************************************************************************************************
+   SUBROUTINE tb_add_sig(sig, deriv, dE, natom)
+
+      REAL(KIND=dp), DIMENSION(:, :)                     :: sig
+      REAL(KIND=dp), DIMENSION(:, :, :)                  :: deriv
+      REAL(KIND=dp), DIMENSION(:)                        :: dE
+      INTEGER                                            :: natom
+
+      INTEGER                                            :: i, j
+
+      DO i = 1, 3
+         DO j = 1, natom
+            sig(:, i) = sig(:, i) + deriv(:, i, j)*dE(j)
+         END DO
+      END DO
+
+   END SUBROUTINE tb_add_sig
 
 END MODULE tblite_interface
 
