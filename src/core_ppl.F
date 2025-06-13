@@ -241,7 +241,7 @@ CONTAINS
 !$OMP PRIVATE (ikind, jkind, iatom, jatom, rab, basis_set_a, basis_set_b, &
 !$OMP          first_sgfa, la_max, la_min, npgfa, nsgfa, sphi_a, &
 !$OMP          zeta, first_sgfb, lb_max, lb_min, npgfb, nsetb, rpgfb, set_radius_b, sphi_b, &
-!$OMP          zetb, dab, irow, icol, h_block, found, iset, ncoa, &
+!$OMP          zetb, dab, irow, icol, h_block, found, iset, ncoa, lock_num, &
 !$OMP          sgfa, jset, ncob, sgfb, nsgfb, p_block, work, pab, hab, hab2, hab2_w, &
 !$OMP          atk0, atk1, h1_1block, h1_2block, h1_3block, kkind, nseta, &
 !$OMP          gth_potential, sgp_potential, alpha, cexp_ppl, lpotextended, &
@@ -856,7 +856,7 @@ CONTAINS
 !$OMP SHARED  (maxco,maxsgf,basis_set_list,calculate_forces,lri_ppl_coef,qs_kind_set,&
 !$OMP          locks,natom,use_virial,virial,ncoset,atom_of_kind,sac_ppl) &
 !$OMP PRIVATE (ikind,kkind,iatom,katom,atom_a,rac,va,dva,dvas,basis_set,slot,&
-!$OMP          first_sgfa,la_max,la_min,npgfa,nseta,nsgfa,rpgfa,set_radius_a,&
+!$OMP          first_sgfa,la_max,la_min,npgfa,nseta,nsgfa,rpgfa,set_radius_a,lock_num,&
 !$OMP          sphi_a,zeta,gth_potential,sgp_potential,alpha,cexp_ppl,lpotextended,ppl_radius,&
 !$OMP          nexp_ppl,alpha_ppl,nct_ppl,cval_ppl,nloc,n_local,nrloc,a_local,aloc,bloc,c_local,nfun,work,&
 !$OMP          hash,dac,force_a,iset,sgfa,sgfb,ncoa,bcon,cval_lpot,nct_lpot,alpha_lpot,nexp_lpot,&

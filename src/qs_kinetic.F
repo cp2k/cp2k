@@ -278,7 +278,7 @@ CONTAINS
 !$OMP          first_sgfa, la_max, la_min, npgfa, nsgfa, nseta, rpgfa, set_radius_a, ncoa, ncob, force_a, &
 !$OMP          zeta, first_sgfb, lb_max, lb_min, npgfb, nsetb, rpgfb, set_radius_b, nsgfb, p_block, dab, tab, &
 !$OMP          slot, zetb, scon_a, scon_b, i, ic, irow, icol, f0, ff, found, trans, rab2, sgfa, sgfb, iset, jset, &
-!$OMP          hash, hash1, hash2, iatom8) &
+!$OMP          hash, hash1, hash2, iatom8, lock_num) &
 !$OMP REDUCTION (+ : pv_thread, force_thread )
 
 !$OMP SINGLE

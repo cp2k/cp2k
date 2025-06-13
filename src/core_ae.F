@@ -195,7 +195,7 @@ CONTAINS
 !$OMP          sab_orb, sac_ae, nthread, ncoset, nkind, cell_to_index, &
 !$OMP          slot, ldsab,  maxnset, ldai, nder, maxl, maxco, dokp, doat, locks, natom) &
 !$OMP PRIVATE (ikind, jkind, iatom, jatom, rab, basis_set_a, basis_set_b, &
-!$OMP          first_sgfa, la_max, la_min, npgfa, nsgfa, sphi_a, &
+!$OMP          first_sgfa, la_max, la_min, npgfa, nsgfa, sphi_a, lock_num, &
 !$OMP          zeta, first_sgfb, lb_max, lb_min, npgfb, nsetb, rpgfb, set_radius_b, sphi_b, &
 !$OMP          zetb, zeta_c, alpha_c, core_charge, dab, irow, icol, h_block, found, iset, ncoa, &
 !$OMP          sgfa, jset, ncob, sgfb, nsgfb, p_block, work, pab, hab, kkind, nseta, &
@@ -700,7 +700,7 @@ CONTAINS
 !$OMP          sab_orb, sac_ae, nthread, ncoset, nkind, calpha, ccore, eps_core_charge, &
 !$OMP          slot, ldsab,  maxnset, ldai, maxl, maxco, doat, locks, natom) &
 !$OMP PRIVATE (ikind, jkind, iatom, jatom, rab, basis_set_a, basis_set_b, &
-!$OMP          first_sgfa, la_max, la_min, npgfa, nsgfa, sphi_a, &
+!$OMP          first_sgfa, la_max, la_min, npgfa, nsgfa, sphi_a, lock_num, &
 !$OMP          zeta, first_sgfb, lb_max, lb_min, npgfb, nsetb, rpgfb, set_radius_b, sphi_b, &
 !$OMP          zetb, zeta_c, alpha_c, core_charge, dab, irow, icol, h_block, found, iset, ncoa, &
 !$OMP          sgfa, jset, ncob, sgfb, nsgfb, p_block, work, pab, hab, kkind, nseta, &
