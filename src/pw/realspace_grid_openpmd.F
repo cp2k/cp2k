@@ -23,9 +23,9 @@ MODULE realspace_grid_openpmd
 ! TODO deal properly with MPI
 #if defined(__parallel)
 #if defined(__MPI_F08)
-   USE mpi_f08, ONLY: mpi_allreduce, mpi_integer, mpi_bxor, mpi_comm, mpi_allgather
+   USE mpi_f08, ONLY: mpi_allreduce, mpi_integer, mpi_bxor, mpi_allgather
 #else
-   USE mpi, ONLY: mpi_allreduce, mpi_integer, mpi_bxor, mpi_comm, mpi_allgather
+   USE mpi, ONLY: mpi_allreduce, mpi_integer, mpi_bxor, mpi_allgather
 #endif
 #endif
 
