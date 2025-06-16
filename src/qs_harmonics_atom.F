@@ -216,8 +216,6 @@ CONTAINS
 !$OMP PRIVATE(is1,l1,m1,is2,l2,m2,is,n,y)
 
       ALLOCATE (y(na))
-      ALLOCATE (dc(nco(llmax), 3))
-
 !$OMP DO
       DO iso = 1, max_s_harm
          l = indso(1, iso)
@@ -230,6 +228,7 @@ CONTAINS
          END DO ! ia
       END DO ! iso
 !$OMP END DO
+      DEALLOCATE (y)
 
 !$OMP DO
       DO ia = 1, na
@@ -243,6 +242,7 @@ CONTAINS
       ! terms x^n1 y^n2 z^n3 transformed by spherical harmonics expansion coefficients
       !
 
+      ALLOCATE (dc(nco(llmax), 3))
 !$OMP DO
       DO ia = 1, na
          DO l = 0, indso(1, max_s_harm)
@@ -296,6 +296,7 @@ CONTAINS
          END DO ! l
       END DO !ia
 !$OMP END DO
+      DEALLOCATE (dc)
 
       ! Expansion coefficients of the cartesian derivatives
       ! of the product of two harmonics :
@@ -304,7 +305,6 @@ CONTAINS
 !$OMP DO COLLAPSE(3)
       DO iso1 = 1, maxs
          DO iso2 = 1, maxs
-
             DO iso = 1, max_s_harm
                rx = 0.0_dp
                ry = 0.0_dp
@@ -320,9 +320,7 @@ CONTAINS
                END DO
 
                harmonics%my_CG_dxyz(1, iso1, iso2, iso) = rx
-
                harmonics%my_CG_dxyz(2, iso1, iso2, iso) = ry
-
                harmonics%my_CG_dxyz(3, iso1, iso2, iso) = rz
 
             END DO
@@ -356,9 +354,7 @@ CONTAINS
                END DO
 
                harmonics%my_CG_dxyz_asym(1, iso1, iso2, iso) = drx
-
                harmonics%my_CG_dxyz_asym(2, iso1, iso2, iso) = dry
-
                harmonics%my_CG_dxyz_asym(3, iso1, iso2, iso) = drz
 
             END DO ! iso
@@ -384,8 +380,6 @@ CONTAINS
 
       ! expansion coefficients of product of polar angle derivatives (dslm(1...)) in
       ! spherical harmonics (used for tau functionals)
-
-      DEALLOCATE (y, dc)
 !$OMP END PARALLEL
 
       CALL timestop(handle)

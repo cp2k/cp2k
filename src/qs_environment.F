@@ -207,7 +207,6 @@ MODULE qs_environment
    USE semi_empirical_utils,            ONLY: se_cutoff_compatible
    USE tblite_interface,                ONLY: tb_get_basis,&
                                               tb_init_geometry,&
-                                              tb_init_ham,&
                                               tb_init_wf,&
                                               tb_set_calculator
    USE transport,                       ONLY: transport_env_create
@@ -792,9 +791,7 @@ CONTAINS
             ! select tblite method
             CALL tb_set_calculator(qs_env%tb_tblite, xtb_control%tblite_method)
             !set up wave function
-            CALL tb_init_wf(qs_env%tb_tblite, .FALSE.)
-            ! intitalisation for hamiltonian
-            CALL tb_init_ham(qs_env%tb_tblite)
+            CALL tb_init_wf(qs_env%tb_tblite)
             !get basis set
             DO ikind = 1, nkind
                qs_kind => qs_kind_set(ikind)

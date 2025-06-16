@@ -124,7 +124,7 @@ CONTAINS
                   CALL real_to_scaled(coords_scaled, coords, cell_contact)
                   coords_error = coords_scaled - REAL(NINT(coords_scaled), kind=dp)
 
-                  IF (SQRT(DOT_PRODUCT(coords_error, coords_error)) < eps_geometry) THEN
+                  IF (DOT_PRODUCT(coords_error, coords_error) < (eps_geometry*eps_geometry)) THEN
                      atom_map(iatom)%iatom = kind_groups_contact(ikind_contact)%atom_list(iatom_kind)
                      atom_map(iatom)%cell = NINT(coords_scaled)
                      EXIT iterate_kind

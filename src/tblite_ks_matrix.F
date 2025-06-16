@@ -30,7 +30,9 @@ MODULE tblite_ks_matrix
                                               mo_set_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
-   USE tblite_interface,                ONLY: tb_ham_add_coulomb,&
+   USE tblite_interface,                ONLY: tb_derive_dH_diag,&
+                                              tb_derive_dH_off,&
+                                              tb_ham_add_coulomb,&
                                               tb_update_charges
 #include "./base/base_uses.f90"
 
@@ -117,7 +119,7 @@ CONTAINS
 
       CALL tb_update_charges(qs_env, dft_control, qs_env%tb_tblite, calculate_forces, .TRUE.)
 
-      CALL tb_ham_add_coulomb(qs_env, qs_env%tb_tblite, dft_control, .FALSE.)
+      CALL tb_ham_add_coulomb(qs_env, qs_env%tb_tblite, dft_control)
 
       IF (qs_env%qmmm) THEN
          CPASSERT(SIZE(ks_matrix, 2) == 1)
@@ -133,6 +135,11 @@ CONTAINS
          END DO
          pc_ener = qs_env%ks_qmmm_env%pc_ener
          energy%qmmm_el = energy%qmmm_el + pc_ener
+      END IF
+
+      IF (calculate_forces) THEN
+         CALL tb_derive_dH_diag(qs_env, .TRUE.)
+         CALL tb_derive_dH_off(qs_env, .TRUE.)
       END IF
 
       ! here we compute dE/dC if needed. Assumes dE/dC is H_{ks}C

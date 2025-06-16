@@ -9,7 +9,7 @@
 #        Optionally, GNU compiler and MPI implementation can be specified as arguments.
 #        Replace or adapt the "module add" commands below if needed.
 #
-# Last update: 16.05.2025
+# Last update: 12.06.2025
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -198,20 +198,22 @@ ifneq ($(USE_LIBXC),)
    endif
 endif
 
-ifneq ($(USE_DFTD4),)
-   USE_DFTD4      := $(strip $(USE_DFTD4))
-   DFTD4_INC      := $(INSTALL_PATH)/dftd4-$(USE_DFTD4)/include
-   DFTD4_LIB      := $(INSTALL_PATH)/dftd4-$(USE_DFTD4)/lib
-   CFLAGS         += -I$(DFTD4_INC)/dftd4/GNU-$(GNU_VER)
-   DFLAGS         += -D__DFTD4
-   ifeq ($(SHARED), yes)
-      LIBS           += -Wl,-rpath=$(DFTD4_LIB) -L$(DFTD4_LIB) -ldftd4 -lmstore -lmulticharge -lmctc-lib
-   else
-      LIBS           += $(DFTD4_LIB)/libdftd4.a
-      LIBS           += $(DFTD4_LIB)/libmstore.a
-      LIBS           += $(DFTD4_LIB)/libmulticharge.a
-      LIBS           += $(DFTD4_LIB)/libmctc-lib.a
-   endif
+ifeq ($(USE_TBLITE),)
+  ifneq ($(USE_DFTD4),)
+     USE_DFTD4      := $(strip $(USE_DFTD4))
+     DFTD4_INC      := $(INSTALL_PATH)/dftd4-$(USE_DFTD4)/include
+     DFTD4_LIB      := $(INSTALL_PATH)/dftd4-$(USE_DFTD4)/lib
+     CFLAGS         += -I$(DFTD4_INC)/dftd4/GNU-$(GNU_VER)
+     DFLAGS         += -D__DFTD4
+     ifeq ($(SHARED), yes)
+        LIBS           += -Wl,-rpath=$(DFTD4_LIB) -L$(DFTD4_LIB) -ldftd4 -lmstore -lmulticharge -lmctc-lib
+     else
+        LIBS           += $(DFTD4_LIB)/libdftd4.a
+        LIBS           += $(DFTD4_LIB)/libmstore.a
+        LIBS           += $(DFTD4_LIB)/libmulticharge.a
+        LIBS           += $(DFTD4_LIB)/libmctc-lib.a
+     endif
+  endif
 endif
 
 ifneq ($(USE_LIBGRPP),)
@@ -478,7 +480,7 @@ endif
 
 CFLAGS         += $(DFLAGS) $(CFLAGS_DEBUG)
 
-CXXFLAGS       := $(CFLAGS) --std=c++14
+CXXFLAGS       := $(CFLAGS)
 
 FCFLAGS        := $(CFLAGS) $(FCFLAGS_DEBUG) $(WFLAGS)
 ifeq ($(shell [ $(shell gcc -dumpversion | cut -d. -f1) -gt 9 ] && echo yes), yes)
@@ -489,6 +491,9 @@ FCFLAGS        += -ffree-form
 FCFLAGS        += -ffree-line-length-none
 FCFLAGS        += -fno-omit-frame-pointer
 FCFLAGS        += -std=f2008
+
+CFLAGS         += -std=c17
+CXXFLAGS       += -std=c++17
 
 LDFLAGS        += $(FCFLAGS)
 

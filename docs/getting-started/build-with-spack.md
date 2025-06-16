@@ -128,11 +128,44 @@ spack build-env CP2K_SPEC -- bash
 
 From here, you can iterate CP2K development using the native build system as Spack would use it.
 
+### Spack and CP2K Docker Containers
+
+Some CP2K Docker containers install all the necessary dependencies with Spack. Building with Spack
+can be time-consuming, because all dependencies are built from source. In order to speed-up
+development and testing with the Spack-based Docker containers, you should enable a [Spack cache]
+locally:
+
+```bash
+./tools/docker/spack_cache_start.sh
+```
+
+This command starts a local [MinIO] server that can be used as cache for the Spack packages. The
+`spack_cache_stop.sh` script stops the server.
+
+You can then build the Docker container (here the `test_spack` container, as an example) with the
+following command:
+
+```bash
+docker build -f tools/docker/Dockerfile.test_spack -t cp2k_test_spack --shm-size=1Gb --network=host . 
+```
+
+The first build after enabling the cache will be as slow as usual, but all subsequent builds will be
+much faster.
+
+The cache is expected, as it dramatically improves build times. Should you need to build without
+using the Spack cache, you can set it to an empty string as follows:
+
+```bash
+docker build -f tools/docker/Dockerfile.test_spack -t cp2k_test_spack --shm-size=1Gb --build-arg SPACK_CACHE="" .
+```
+
 [cp2k spack package]: https://packages.spack.io/package.html?name=cp2k
 [dbcsr]: https://cp2k.github.io/dbcsr/develop/
 [install spack]: https://spack.readthedocs.io/en/latest/getting_started.html#installation
 [intel oneapi spack package]: https://packages.spack.io/package.html?name=intel-oneapi-mkl
+[minio]: https://min.io/
 [spack]: https://spack.readthedocs.io/en/latest/
+[spack cache]: https://spack-tutorial.readthedocs.io/en/latest/tutorial_binary_cache.html
 [spack package variants]: https://spack.readthedocs.io/en/latest/basic_usage.html#variants
 [spec]: https://spack.readthedocs.io/en/latest/basic_usage.html#specs-dependencies
 [using installed spack packages]: https://spack.readthedocs.io/en/latest/basic_usage.html#using-installed-packages

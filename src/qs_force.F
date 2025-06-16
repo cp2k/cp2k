@@ -77,6 +77,7 @@ MODULE qs_force
                                               velocity_gauge_nl_force
    USE se_core_core,                    ONLY: se_core_core_interaction
    USE se_core_matrix,                  ONLY: build_se_core_matrix
+   USE tblite_interface,                ONLY: build_tblite_matrices
    USE virial_types,                    ONLY: symmetrize_virial,&
                                               virial_type
    USE xtb_matrices,                    ONLY: build_xtb_matrices
@@ -287,7 +288,11 @@ CONTAINS
          CALL calculate_dftb_dispersion(qs_env=qs_env, para_env=para_env, &
                                         calculate_forces=.TRUE.)
       ELSEIF (dft_control%qs_control%xtb) THEN
-         CALL build_xtb_matrices(qs_env=qs_env, calculate_forces=.TRUE.)
+         IF (dft_control%qs_control%xtb_control%do_tblite) THEN
+            CALL build_tblite_matrices(qs_env=qs_env, calculate_forces=.TRUE.)
+         ELSE
+            CALL build_xtb_matrices(qs_env=qs_env, calculate_forces=.TRUE.)
+         END IF
       ELSEIF (perform_ec) THEN
          ! Calculates core and grid based forces
          CALL energy_correction(qs_env, ec_init=.FALSE., calculate_forces=.TRUE.)

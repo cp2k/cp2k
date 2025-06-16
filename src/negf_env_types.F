@@ -611,7 +611,7 @@ CONTAINS
          r2_origin_cell(icell) = DOT_PRODUCT(direction_vector, direction_vector)
       END DO
 
-      IF (SQRT(ABS(r2_origin_cell(1) - r2_origin_cell(2))) < eps_geometry) THEN
+      IF (ABS(r2_origin_cell(1) - r2_origin_cell(2)) < (eps_geometry*eps_geometry)) THEN
          ! primary and secondary bulk unit cells should not overlap;
          ! currently we check that they are different by at least one atom that is, indeed, not sufficient.
          CALL cp_abort(__LOCATION__, &

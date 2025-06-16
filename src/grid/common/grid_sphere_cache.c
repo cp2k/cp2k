@@ -134,8 +134,10 @@ void grid_sphere_cache_lookup(const double radius, const double dh[3][3],
     const size_t entry_size = sizeof(grid_sphere_cache_entry);
     cache->entries = malloc(cache->size * entry_size);
     assert(cache->entries != NULL);
-    memcpy(cache->entries, old_entries, (cache->size - 1) * entry_size);
-    free(old_entries);
+    if (old_entries != NULL) {
+      memcpy(cache->entries, old_entries, (cache->size - 1) * entry_size);
+      free(old_entries);
+    }
     cache->prev_match = cache->size - 1;
     entry = &cache->entries[cache->size - 1];
     // Initialize new cache entry

@@ -6,7 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief basic linear algebra operations for full matrices
+!> \brief Basic linear algebra operations for full matrices.
 !> \par History
 !>      08.2002 split out of qs_blacs [fawzi]
 !> \author Fawzi Mohamed
@@ -2401,10 +2401,11 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Applies a planar rotation defined by cs and sn to the i'th and j'th rows.
-!> \param cs cosine of the rotation angle
-!> \param sn sinus of the rotation angle
+!> \param matrix ...
 !> \param irow ...
 !> \param jrow ...
+!> \param cs cosine of the rotation angle
+!> \param sn sinus of the rotation angle
 !> \author Ole Schuett
 ! **************************************************************************************************
    SUBROUTINE cp_fm_rot_rows(matrix, irow, jrow, cs, sn)
@@ -2413,40 +2414,42 @@ CONTAINS
       REAL(dp), INTENT(IN)                     :: cs, sn
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_rot_rows'
-      INTEGER                                  :: handle, nrow, ncol
+      INTEGER                                  :: handle, ncol
 
 #if defined(__parallel)
       INTEGER                                  :: info, lwork
       INTEGER, DIMENSION(9)                    :: desc
       REAL(dp), DIMENSION(:), ALLOCATABLE      :: work
 #endif
-
       CALL timeset(routineN, handle)
-      CALL cp_fm_get_info(matrix, nrow_global=nrow, ncol_global=ncol)
-
+      CALL cp_fm_get_info(matrix, ncol_global=ncol)
 #if defined(__parallel)
-      lwork = 2*ncol + 1
-      ALLOCATE (work(lwork))
-      desc(:) = matrix%matrix_struct%descriptor(:)
-      CALL pdrot(ncol, &
-                 matrix%local_data(1, 1), irow, 1, desc, ncol, &
-                 matrix%local_data(1, 1), jrow, 1, desc, ncol, &
-                 cs, sn, work, lwork, info)
-      CPASSERT(info == 0)
-      DEALLOCATE (work)
-#else
-      CALL drot(ncol, matrix%local_data(irow, 1), ncol, matrix%local_data(jrow, 1), ncol, cs, sn)
+      IF (1 /= matrix%matrix_struct%context%n_pid) THEN
+         lwork = 2*ncol + 1
+         ALLOCATE (work(lwork))
+         desc(:) = matrix%matrix_struct%descriptor(:)
+         CALL pdrot(ncol, &
+                    matrix%local_data(1, 1), irow, 1, desc, ncol, &
+                    matrix%local_data(1, 1), jrow, 1, desc, ncol, &
+                    cs, sn, work, lwork, info)
+         CPASSERT(info == 0)
+         DEALLOCATE (work)
+      ELSE
 #endif
-
+         CALL drot(ncol, matrix%local_data(irow, 1), ncol, matrix%local_data(jrow, 1), ncol, cs, sn)
+#if defined(__parallel)
+      END IF
+#endif
       CALL timestop(handle)
    END SUBROUTINE cp_fm_rot_rows
 
 ! **************************************************************************************************
 !> \brief Applies a planar rotation defined by cs and sn to the i'th and j'th columnns.
-!> \param cs cosine of the rotation angle
-!> \param sn sinus of the rotation angle
+!> \param matrix ...
 !> \param icol ...
 !> \param jcol ...
+!> \param cs cosine of the rotation angle
+!> \param sn sinus of the rotation angle
 !> \author Ole Schuett
 ! **************************************************************************************************
    SUBROUTINE cp_fm_rot_cols(matrix, icol, jcol, cs, sn)
@@ -2455,31 +2458,32 @@ CONTAINS
       REAL(dp), INTENT(IN)                     :: cs, sn
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_rot_cols'
-      INTEGER                                  :: handle, nrow, ncol
+      INTEGER                                  :: handle, nrow
 
 #if defined(__parallel)
       INTEGER                                  :: info, lwork
       INTEGER, DIMENSION(9)                    :: desc
       REAL(dp), DIMENSION(:), ALLOCATABLE      :: work
 #endif
-
       CALL timeset(routineN, handle)
-      CALL cp_fm_get_info(matrix, nrow_global=nrow, ncol_global=ncol)
-
+      CALL cp_fm_get_info(matrix, nrow_global=nrow)
 #if defined(__parallel)
-      lwork = 2*nrow + 1
-      ALLOCATE (work(lwork))
-      desc(:) = matrix%matrix_struct%descriptor(:)
-      CALL pdrot(nrow, &
-                 matrix%local_data(1, 1), 1, icol, desc, 1, &
-                 matrix%local_data(1, 1), 1, jcol, desc, 1, &
-                 cs, sn, work, lwork, info)
-      CPASSERT(info == 0)
-      DEALLOCATE (work)
-#else
-      CALL drot(nrow, matrix%local_data(1, icol), 1, matrix%local_data(1, jcol), 1, cs, sn)
+      IF (1 /= matrix%matrix_struct%context%n_pid) THEN
+         lwork = 2*nrow + 1
+         ALLOCATE (work(lwork))
+         desc(:) = matrix%matrix_struct%descriptor(:)
+         CALL pdrot(nrow, &
+                    matrix%local_data(1, 1), 1, icol, desc, 1, &
+                    matrix%local_data(1, 1), 1, jcol, desc, 1, &
+                    cs, sn, work, lwork, info)
+         CPASSERT(info == 0)
+         DEALLOCATE (work)
+      ELSE
 #endif
-
+         CALL drot(nrow, matrix%local_data(1, icol), 1, matrix%local_data(1, jcol), 1, cs, sn)
+#if defined(__parallel)
+      END IF
+#endif
       CALL timestop(handle)
    END SUBROUTINE cp_fm_rot_cols
 

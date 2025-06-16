@@ -412,8 +412,8 @@ CONTAINS
       CALL cp_fm_to_fm(mo_coeff, fm_mo_coeff_occ)
 
       ! set all virtual MO coeffs to zero
-      DO irow_global = 1, nmo
-         DO icol_global = homo + 1, nmo
+      DO icol_global = homo + 1, nmo
+         DO irow_global = 1, nmo
             CALL cp_fm_set_element(fm_mo_coeff_occ, irow_global, icol_global, 0.0_dp)
          END DO
       END DO
@@ -423,8 +423,8 @@ CONTAINS
       CALL cp_fm_to_fm(mo_coeff, fm_mo_coeff_virt)
 
       ! set all occupied MO coeffs to zero
-      DO irow_global = 1, nmo
-         DO icol_global = 1, homo
+      DO icol_global = 1, homo
+         DO irow_global = 1, nmo
             CALL cp_fm_set_element(fm_mo_coeff_virt, irow_global, icol_global, 0.0_dp)
          END DO
       END DO
@@ -520,8 +520,8 @@ CONTAINS
 
       ! Start to allocate the new full matrix
       ALLOCATE (fm_mat_L(SIZE(fm_matrix_Minv_L_kpoints, 1), SIZE(fm_matrix_Minv_L_kpoints, 2)))
-      DO ikp = 1, SIZE(fm_matrix_Minv_L_kpoints, 1)
-         DO j_size = 1, SIZE(fm_matrix_Minv_L_kpoints, 2)
+      DO j_size = 1, SIZE(fm_matrix_Minv_L_kpoints, 2)
+         DO ikp = 1, SIZE(fm_matrix_Minv_L_kpoints, 1)
             IF (do_kpoints) THEN
                IF (ikp == first_ikp_local .OR. ikp_local == -1) THEN
                   CALL cp_fm_create(fm_mat_L(ikp, j_size), fm_struct_sub_kp)
@@ -557,8 +557,8 @@ CONTAINS
       ! For k-points copy matrices of your group
       ! Without kpoints, transpose matrix
       ! without kpoints, the size of fm_mat_L is 1x1. with kpoints, the size is N_kpoints x 2 (2 for real/complex)
-      DO ikp = 1, SIZE(fm_matrix_Minv_L_kpoints, 1)
       DO j_size = 1, SIZE(fm_matrix_Minv_L_kpoints, 2)
+      DO ikp = 1, SIZE(fm_matrix_Minv_L_kpoints, 1)
          IF (do_kpoints) THEN
             IF (ikp_local == ikp .OR. ikp_local == -1) THEN
                CALL cp_fm_copy_general(fm_matrix_Minv_L_kpoints(ikp, j_size), fm_mat_L_transposed, para_env)
@@ -1207,8 +1207,8 @@ CONTAINS
          DEALLOCATE (mat_P_omega)
       END IF
 
-      DO i_size = 1, SIZE(t_3c_O, 1)
-         DO j_size = 1, SIZE(t_3c_O, 2)
+      DO j_size = 1, SIZE(t_3c_O, 2)
+         DO i_size = 1, SIZE(t_3c_O, 1)
             CALL dbt_destroy(t_3c_O(i_size, j_size))
          END DO
       END DO
@@ -1228,9 +1228,9 @@ CONTAINS
       cut_memory = SIZE(t_3c_O_compressed, 3)
 
       DEALLOCATE (t_3c_O_ind)
-      DO i_size = 1, SIZE(t_3c_O_compressed, 1)
+      DO i_mem = 1, cut_memory
          DO j_size = 1, SIZE(t_3c_O_compressed, 2)
-            DO i_mem = 1, cut_memory
+            DO i_size = 1, SIZE(t_3c_O_compressed, 1)
                CALL dealloc_containers(t_3c_O_compressed(i_size, j_size, i_mem), unused)
             END DO
          END DO

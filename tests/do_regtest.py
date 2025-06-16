@@ -213,7 +213,7 @@ async def main() -> None:
         for t in await asyncio.gather(*rerun_tasks):
             rerun_times.update({r.fullname: r.duration for r in t.results})
         stats = {r.fullname: [r.duration, rerun_times[r.fullname]] for r in maybe_slow}
-        slow_tests = {k: v for k, v in stats.items() if mean(v) > threshold}
+        slow_tests = {k: v for k, v in stats.items() if mean(v) - stdev(v) > threshold}
         print(f"Duration threshold (2x 95th %ile): {threshold:.2f} sec")
         print(f"Found {len(slow_tests)} slow tests ({num_suppressed} suppressed):")
         for k, v in slow_tests.items():

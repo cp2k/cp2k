@@ -495,7 +495,7 @@ CONTAINS
 !$OMP          locks, virial, use_virial, calculate_forces, do_soc, natom) &
 !$OMP PRIVATE (ikind, jkind, iatom, jatom, cell_b, rab, &
 !$OMP          slot, iab, atom_a, f0, irow, icol, h_block, &
-!$OMP          l_block_x, l_block_y, l_block_z, &
+!$OMP          l_block_x, l_block_y, l_block_z, lock_num, &
 !$OMP          r_2block, r_3block, atk, &
 !$OMP          found,p_block, iac, ibc, alist_ac, alist_bc, acint, bcint, &
 !$OMP          achint, bchint, alkint, blkint, &

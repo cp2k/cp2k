@@ -118,6 +118,9 @@ case "$with_sirius" in
       # Workaround for https://github.com/electronic-structure/SIRIUS/issues/1073
       patch -p1 < ${SCRIPT_DIR}/stage8/sirius_memory.patch
 
+      # Fix for GCC 15
+      sed -i '1i #include <cstdint>' src/core/memory.hpp
+
       rm -Rf build
       mkdir build
       cd build

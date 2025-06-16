@@ -42,7 +42,7 @@ static torch_c_tensor_t *tensor_from_array(const torch::Dtype dtype,
 static void *get_data_ptr(const torch_c_tensor_t *tensor,
                           const torch::Dtype dtype, const int ndims,
                           int64_t sizes[]) {
-  assert(tensor->type().scalarType() == dtype);
+  assert(tensor->scalar_type() == dtype);
   assert(tensor->ndimension() == ndims);
   for (int i = 0; i < ndims; i++) {
     sizes[i] = tensor->size(i);

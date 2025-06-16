@@ -385,7 +385,7 @@ CONTAINS
 !$OMP PRIVATE (real_block, imag_block, acint_cos, achint_cos, bcint_cos, bchint_cos, acint_sin,&
 !$OMP          achint_sin, bcint_sin, bchint_sin, slot, ikind, jkind, iatom, jatom, cell_b, rab, irow, icol,&
 !$OMP          found, kkind, iac, ibc, alist_cos_ac, alist_cos_bc, alist_sin_ac, alist_sin_bc, kac, kbc, &
-!$OMP          na, np, nb, iatom8, hash)
+!$OMP          na, np, nb, iatom8, hash, lock_num)
 
 !$OMP SINGLE
 !$       ALLOCATE (locks(nlock))

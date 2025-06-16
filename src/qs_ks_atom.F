@@ -317,7 +317,7 @@ CONTAINS
 !$OMP                 , ikind, jkind, iatom, jatom, cell_b           &
 !$OMP                 , basis_set_a, basis_set_b, img                &
 !$OMP                 , found, next_task                             &
-!$OMP                 , kkind, paw_atom                              &
+!$OMP                 , kkind, paw_atom, lock_num                    &
 !$OMP                 , iac, alist_ac, kac, n_cont_a, list_a         &
 !$OMP                 , ibc, alist_bc, kbc, n_cont_b, list_b         &
 !$OMP                 , katom, rho_at, nsoctot                       &

@@ -36,6 +36,7 @@ MODULE tblite_types
 
    TYPE tblite_type
 
+      LOGICAL                                            :: use_virial = .FALSE.
       INTEGER, ALLOCATABLE                               :: el_num(:)
 
       REAL(KIND=dp), DIMENSION(3, 3)                     :: sigma = -1.0_dp
@@ -48,6 +49,7 @@ MODULE tblite_types
       REAL(KIND=dp), ALLOCATABLE                         :: cn(:)
 
       REAL(KIND=dp), ALLOCATABLE                         :: grad(:, :)
+      !derivatives w. r. t. coordination number
       REAL(KIND=dp), ALLOCATABLE                         :: dsedcn(:)
       REAL(KIND=dp), ALLOCATABLE                         :: dcndr(:, :, :)
       REAL(KIND=dp), ALLOCATABLE                         :: dcndL(:, :, :)

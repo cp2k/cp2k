@@ -1,6 +1,6 @@
 #
 # This file was created by generate_dockerfiles.py.
-# Usage: podman build -f ./Dockerfile.test_arm64-psmp ../../
+# Usage: podman build --shm-size=1g -f ./Dockerfile.test_arm64-psmp ../../
 #
 
 FROM arm64v8/ubuntu:24.04

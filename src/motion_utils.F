@@ -210,12 +210,12 @@ CONTAINS
          ! Normalize Rotations and count the number of degree of freedom
          lrot = 1
          DO i = 1, 3
-            norm = SQRT(DOT_PRODUCT(Rot(:, i), Rot(:, i)))
-            IF (norm <= SQRT(thrs_motion)) THEN
+            norm = DOT_PRODUCT(Rot(:, i), Rot(:, i))
+            IF (norm <= thrs_motion) THEN
                lrot(i) = 0
                CYCLE
             END IF
-            Rot(:, i) = Rot(:, i)/norm
+            Rot(:, i) = Rot(:, i)/SQRT(norm)
             ! Clean Rotational modes for spurious/numerical contamination
             IF (i < 3) THEN
                DO j = 1, i
