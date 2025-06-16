@@ -360,7 +360,9 @@ CONTAINS
       END IF
 
 #else
+      MARK_USED(qs_env)
       MARK_USED(tb)
+      MARK_USED(para_env)
       CPABORT("Built without TBLITE")
 #endif
 
