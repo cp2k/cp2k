@@ -38,6 +38,8 @@ MODULE cp2k_runs
    USE cp_parser_types, ONLY: cp_parser_type, &
                               parser_create, &
                               parser_release
+   USE cp_subsys_methods, ONLY: virial_set
+   USE cp_subsys_types, ONLY: cp_subsys_get
    USE cp_units, ONLY: cp_unit_set_create, &
                        cp_unit_set_release, &
                        cp_unit_set_type, &
@@ -117,7 +119,9 @@ MODULE cp2k_runs
    USE optimize_input, ONLY: run_optimize_input
    USE pint_methods, ONLY: do_pint_run
    USE qs_environment_types, ONLY: get_qs_env
+   USE qs_force_types, ONLY: qs_force_type
    USE qs_linres_module, ONLY: linres_calculation
+   USE qs_subsys_types, ONLY: qs_subsys_type
    USE reference_manager, ONLY: export_references_as_xml
    USE rt_bse, ONLY: run_propagation_bse
    USE rt_propagation, ONLY: rt_prop_setup
@@ -126,6 +130,7 @@ MODULE cp2k_runs
    USE tmc_setup, ONLY: do_analyze_files, &
                         do_tmc
    USE vibrational_analysis, ONLY: vb_anal
+   USE virial_types,                    ONLY: virial_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -185,6 +190,9 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(f_env_type), POINTER                          :: f_env
       TYPE(force_env_type), POINTER                      :: force_env
+      TYPE(qs_force_type), DIMENSION(:), POINTER :: force ! TODO: move to file
+      TYPE(qs_subsys_type), POINTER                      :: subsys
+      TYPE(virial_type), POINTER                 :: virial => Null()
       TYPE(global_environment_type), POINTER             :: globenv
       TYPE(section_vals_type), POINTER                   :: glob_section, input_file, root_section
 
@@ -402,23 +410,65 @@ CONTAINS
          !IF (do_mol_loop(force_env=force_env)) &
          !   CALL loop_over_molecules(globenv, force_env)
 
+         IF (method_name_id /= do_qs) &
+            CPABORT("BORN charges calculation needs METHOD QS ")
+         CALL get_qs_env(force_env%qs_env, subsys=subsys, dft_control=dft_control)
+
          ! TODO: other criteria?
          IF (dft_control%apply_period_efield) THEN
             CPABORT("Born charges calculation not available with predefined periodic electric field")
          END IF
 
          dft_control%apply_period_efield = .TRUE.
-         ALLOCATE (dft_control%periodic_efield)
-         dft_control%periodic_efield%d_filter(1:3) = (1.0_dp, 1.0_dp, 1.0_dp)
-         dft_control%periodic_efield%displacement_field = .FALSE.
+         ALLOCATE (dft_control%period_efield)
+         dft_control%period_efield%d_filter(1:3) = (/1.0_dp, 1.0_dp, 1.0_dp/)
+         dft_control%period_efield%displacement_field = .FALSE.
 
-         dft_control%periodic_efield%INTENSITY = 0.001_dp
+         dft_control%period_efield%strength = 0.001_dp
+
+         ! activate stress tensor only for no-force calculation
+
+         cp_subsys_get(subsys, virial=virial)
+
+         CALL virial_set(virial=virial, &
+                      pv_availability=.FALSE., & ! this to true for calc
+                      pv_numer=.FALSE., &
+                      pv_diagonal=.FALSE.)
 
          DO i = 1, 3
-            dft_control%periodic_efield%polarisation(1:3) = (0.0_dp, 0.0_dp, 0.0_dp)
-            dft_control%periodic_efield%polarisation(i) = 1.0_dp
+            dft_control%period_efield%polarisation(1:3) = (/0.0_dp, 0.0_dp, 0.0_dp/)
+            dft_control%period_efield%polarisation(i) = 1.0_dp
+
+            CPWARN("BORN charges, start force calulation")
 
             CALL force_env_calc_energy_force(force_env, calc_force=.TRUE.)
+
+
+
+            NULLIFY (force)
+            CALL get_qs_env(qs_env=force_env%qs_env, force=force)
+            WRITE (output_unit, '(A, F20.10)') "force 0.0: ", force(0)%total(1, 0)
+            WRITE (output_unit, '(A, F20.10)') "force 0.1: ", force(0)%total(2, 0)
+            WRITE (output_unit, '(A, F20.10)') "force 0.2 ", force(0)%total(3, 0)
+            
+
+            !DO iatom = 1, natom
+            !   ikind = kind_of(iatom)
+            !   i = atom_of_kind(iatom)
+            !   ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+            !   ! the force is - dE/dR, what is called force is actually the gradient
+            !   ! Things should have the right name
+            !   ! The minus sign below is a hack
+            !   ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+            !   force(ikind)%other(1:3, i) = -particle_set(iatom)%f(1:3) + force(ikind)%ch_pulay(1:3, i)
+            !   force(ikind)%total(1:3, i) = force(ikind)%total(1:3, i) + force(ikind)%other(1:3, i)
+            !   particle_set(iatom)%f = -force(ikind)%total(1:3, i)
+            !END DO
+            
+            !WRIE (output_unit, '(T2,A, I5)') "number of particles: ", &
+            !   force_env%qs_env%mos
+            !WRITE (output_unit, '(number of particels: (I0)')
+         !force_env%
             ! TODO: extract forces
 
          END DO
