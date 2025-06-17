@@ -590,7 +590,7 @@ CONTAINS
          #:set dimensionality_wildcard = ','.join(':' for _ in range(dim))
          SUBROUTINE openpmd_record_component_store_chunk_${dim}$d_${type_enum}$ (record_component, data_, offset)
             TYPE(openpmd_record_component_type)                        :: record_component
-            ${type_f}$, DIMENSION(${dimensionality_wildcard}$), TARGET :: data_
+            ${type_f}$, TARGET                                         :: data_(${dimensionality_wildcard}$)
             INTEGER, DIMENSION(${dim}$), TARGET                        :: offset, extent
 
             INTEGER(kind=C_INT)                                        :: status
@@ -607,7 +607,7 @@ CONTAINS
                END FUNCTION openpmd_c_record_component_store_chunk
             END INTERFACE
 
-            extent = SIZE(data_)
+            extent = SHAPE(data_)
             status = openpmd_c_record_component_store_chunk(record_component%c_ptr, openpmd_type_${type_enum}$, ${dim}$, C_LOC(offset(1)), C_LOC(extent(1)), 1, C_LOC(data_))
 
          END SUBROUTINE openpmd_record_component_store_chunk_${dim}$d_${type_enum}$
