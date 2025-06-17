@@ -83,7 +83,8 @@ regression test cp2k eiger:
   needs: ["build cp2k eiger","test cp2k eiger"]
   timeout: 1h
   script:
-    - podman run --mount type=bind,src=${SCRATCH},target=${SCRATCH} --workdir=${SCRATCH} ${DOCKERHUB_IMAGE_NAME} /opt/cp2k/tests/do_regtest.py --maxtasks 128 /opt/cp2k/bin ${VERSION}
+    - podman run --mount type=bind,src=${SCRATCH},target=${SCRATCH} --workdir=${SCRATCH} ${DOCKERHUB_IMAGE_NAME} /opt/cp2k/tests/do_regtest.py --maxtasks 128 /opt/cp2k/bin ${VERSION} 2>&1 | tee ${REPOSITORY}_${TAG}.log
+    - rsync --chmod=644 --perms ${REPOSITORY}_${TAG}.log ${CP2KORG}/cscs/
   variables:
     SLURM_CONSTRAINT: mc
     SLURM_DEBUG: 1
