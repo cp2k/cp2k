@@ -1,7 +1,7 @@
 # Dockerfile for CP2K continuous integration (CI) runs
 #
-# A stand-alone docker build in this folder can be performed using the command:
-# docker build -f build_cp2k_spack.Dockerfile ../../
+# A stand-alone build in this folder can be performed with:
+# podman build --build-arg DEPS_IMAGE=<image id> --build-arg GIT_COMMIT_SHA="$(git rev-parse HEAD)" --shm-size=1g -f build_cp2k_spack.Dockerfile ../../
 #
 # Author: Matthias Krack
 #
@@ -14,6 +14,9 @@ FROM ${DEPS_IMAGE} AS build_cp2k
 
 # Store build arguments from base image needed in next stage
 RUN echo "${CP2K_VERSION}" >/CP2K_VERSION
+ARG GIT_COMMIT_SHA
+ENV GIT_COMMIT_SHA=${GIT_COMMIT_SHA:-"Unknown"}
+RUN echo "${GIT_COMMIT_SHA}" >/GIT_COMMIT_SHA
 
 # Build CP2K with CMake
 WORKDIR /opt/cp2k
@@ -63,7 +66,7 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     python3 && rm -rf /var/lib/apt/lists/*
 
 # Import build arguments from base image
-COPY --from=build_cp2k /CP2K_VERSION /
+COPY --from=build_cp2k /CP2K_VERSION /GIT_COMMIT_SHA /
 
 # Install CP2K dependencies built with Spack
 WORKDIR /opt
