@@ -52,11 +52,13 @@ build cp2k eiger:
   variables:
     DOCKER_BUILD_ARGS: '[
       "BASE_IMAGE",
-      "DEPS_IMAGE"
+      "DEPS_IMAGE",
+      "GIT_COMMIT_SHA"
     ]'
     DOCKERFILE: ci/docker/build_${CI_JOB_STAGE}_${BUILDER}.Dockerfile
     BASE_IMAGE: ${UBUNTU_IMAGE_NAME}
     DEPS_IMAGE: ${DEPS_IMAGE_NAME}
+    GIT_COMMIT_SHA: `git rev-parse HEAD`
     PERSIST_IMAGE_NAME: ${CSCS_IMAGE_NAME}
 
 test cp2k eiger:
@@ -83,7 +85,8 @@ regression test cp2k eiger:
   needs: ["build cp2k eiger","test cp2k eiger"]
   timeout: 1h
   script:
-    - podman run --mount type=bind,src=${SCRATCH},target=${SCRATCH} --workdir=${SCRATCH} ${DOCKERHUB_IMAGE_NAME} /opt/cp2k/tests/do_regtest.py --maxtasks 128 /opt/cp2k/bin ${VERSION} 2>&1 | tee ${REPOSITORY}_${TAG}.log
+    - podman run --mount type=bind,src=${SCRATCH},target=${SCRATCH} --workdir=${SCRATCH} ${DOCKERHUB_IMAGE_NAME} cat /GIT_COMMIT_SHA >${REPOSITORY}_${TAG}.log
+    - podman run --mount type=bind,src=${SCRATCH},target=${SCRATCH} --workdir=${SCRATCH} ${DOCKERHUB_IMAGE_NAME} /opt/cp2k/tests/do_regtest.py --maxtasks 128 /opt/cp2k/bin ${VERSION} 2>&1 | tee -a ${REPOSITORY}_${TAG}.log
     - rsync --chmod=644 --perms ${REPOSITORY}_${TAG}.log ${CP2KORG}/cscs/
   variables:
     SLURM_CONSTRAINT: mc

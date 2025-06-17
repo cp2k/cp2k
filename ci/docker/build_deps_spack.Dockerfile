@@ -1,7 +1,7 @@
 # Dockerfile for CP2K continuous integration (CI) runs
 #
-# A stand-alone docker build in this folder can be performed using the command:
-# docker build -f build_deps_spack.Dockerfile ../../
+# A stand-alone build in this folder can be performed with:
+# podman build --shm-size=1g -f build_deps_spack.Dockerfile ../../
 #
 # Author: Matthias Krack
 #
