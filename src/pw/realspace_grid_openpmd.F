@@ -237,8 +237,10 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_to_openpmd'
       INTEGER, PARAMETER                                 :: entry_len = 13, num_entries_line = 6
 
-      INTEGER :: count1, count2, count3, handle, i, I1, I2, I3, iat, j, L1, L2, L3, msglen, &
-         my_rank, my_stride(3), np, num_atom_types, num_linebreak, num_pe, size_of_z, U1, U2, U3
+      INTEGER                                            :: count1, count2, count3, handle, i, I1, &
+                                                            I2, I3, iat, j, L1, L2, L3, my_rank, &
+                                                            my_stride(3), np, num_atom_types, &
+                                                            num_pe, U1, U2, U3
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_counts, atom_types
       INTEGER, DIMENSION(3)                              :: global_extent, local_extent, offset
       LOGICAL                                            :: be_silent, my_zero_tails, parallel_write
@@ -278,95 +280,84 @@ CONTAINS
 
       openpmd_data = cp_openpmd_get_value_unit_nr(unit_nr)
 
-      IF (.NOT. parallel_write .OR. parallel_write) THEN
-
-         CPASSERT(PRESENT(particles_z) .EQV. PRESENT(particles_r))
-         np = 0
-         IF (PRESENT(particles_z)) THEN
-            CALL pw_get_atom_types(particles_z, atom_types, atom_counts, num_atom_types)
-            CPASSERT(SIZE(particles_z) == SIZE(particles_r, dim=2))
-            np = SIZE(particles_z)
-         END IF
-
-         DO i = 1, 3
-            DO j = 1, 3
-               IF (i == j) THEN
-                  grid_spacing(i) = pw%pw_grid%dh(i, i)*REAL(my_stride(i), dp)
-               ELSE
-                  CPASSERT(pw%pw_grid%dh(i, j) == 0)
-               END IF
-            END DO
-         END DO
-
-         IF (PRESENT(particles_z)) THEN
-            IF (parallel_write) THEN
-               CALL pw_write_particles(particles_z, particles_r, atom_types, atom_counts, num_atom_types, openpmd_data, gid)
-            ELSE
-               CALL pw_write_particles(particles_z, particles_r, atom_types, atom_counts, num_atom_types, openpmd_data)
-            END IF
-         END IF
-
-         DO iat = 1, 3
-            global_extent(iat) = (pw%pw_grid%npts(iat) + my_stride(iat) - 1)/my_stride(iat)
-            ! '+ 1' because upper end is inclusive, '- 1' for upper gaussian bracket
-            offset(iat) = ((pw%pw_grid%bounds_local(1, iat) - pw%pw_grid%bounds(1, iat) + my_stride(iat) - 1)/my_stride(iat))
-            ! refer local_extent to the global offset first in order to have consistent rounding
-         local_extent(iat) = ((pw%pw_grid%bounds_local(2, iat) + 1 - pw%pw_grid%bounds(1, iat) + my_stride(iat) - 1)/my_stride(iat))
-         END DO
-         local_extent = local_extent - offset
-
-         mesh = openpmd_iteration_get_mesh(openpmd_data%iteration, TRIM(openpmd_data%name_prefix))
-         CALL openpmd_mesh_set_axis_labels(mesh, (/"x", "y", "z"/))
-         CALL openpmd_mesh_set_position(mesh, (/0.5_dp, 0.5_dp, 0.5_dp/))
-         CALL openpmd_mesh_set_grid_global_offset(mesh, (/0._dp, 0._dp, 0._dp/))
-         CALL openpmd_mesh_set_grid_spacing(mesh, grid_spacing)
-         scalar_mesh = openpmd_mesh_as_record_component(mesh)
-         CALL openpmd_record_component_reset_dataset(scalar_mesh, openpmd_type_double, global_extent)
-
-         ! shortcut
-         L1 = pw%pw_grid%bounds_local(1, 1)
-         L2 = pw%pw_grid%bounds_local(1, 2)
-         L3 = pw%pw_grid%bounds_local(1, 3)
-         U1 = pw%pw_grid%bounds_local(2, 1)
-         U2 = pw%pw_grid%bounds_local(2, 2)
-         U3 = pw%pw_grid%bounds_local(2, 3)
-
-         my_rank = pw%pw_grid%para%group%mepos
-         num_pe = pw%pw_grid%para%group%num_pe
-
-         count3 = 0
-         DO I3 = L3, U3, my_stride(3)
-            ! maybe add an overload to provide `buf` here for HDF5, might have better performance
-            ! for intermittent flushing
-            ! or just call the buffer in the outer function if memory is no problem...
-            unresolved_write_buffer = openpmd_record_component_store_chunk_span_3d_double( &
-                                      scalar_mesh, &
-                                      (/offset(1), offset(2), offset(3) + count3/), &
-                                      (/local_extent(1), local_extent(2), 1/))
-            write_buffer => openpmd_dynamic_memory_view_resolve_3d_double(unresolved_write_buffer, DEALLOCATE=.TRUE.)
-
-            count2 = 0
-            DO I2 = L2, U2, my_stride(2)
-               ! This loop deals with ray (:, count2, count3) of the local subspace
-               ! The write buffer itself has been allocated for slice (:, :, count3)
-               count1 = 0
-               DO I1 = L1, U1, my_stride(1)
-                  write_buffer(count1 + 1, count2 + 1, 1) = pw%array(I1, I2, I3)
-                  count1 = count1 + 1
-               END DO
-               count2 = count2 + 1
-            END DO
-            count3 = count3 + 1
-         END DO
-      ELSE
-         size_of_z = CEILING(REAL(pw%pw_grid%bounds(2, 3) - pw%pw_grid%bounds(1, 3) + 1, dp)/REAL(my_stride(3), dp))
-         num_linebreak = size_of_z/num_entries_line
-         IF (MODULO(size_of_z, num_entries_line) /= 0) &
-            num_linebreak = num_linebreak + 1
-         msglen = (size_of_z*entry_len + num_linebreak)*mpi_character_size
-         ! CALL mp_unit%set_handle(unit_nr)
-         ! CALL pw_to_cube_parallel(pw, mp_unit, title, particles_r, particles_z, my_stride, my_zero_tails, msglen)
+      CPASSERT(PRESENT(particles_z) .EQV. PRESENT(particles_r))
+      np = 0
+      IF (PRESENT(particles_z)) THEN
+         CALL pw_get_atom_types(particles_z, atom_types, atom_counts, num_atom_types)
+         CPASSERT(SIZE(particles_z) == SIZE(particles_r, dim=2))
+         np = SIZE(particles_z)
       END IF
+
+      DO i = 1, 3
+         DO j = 1, 3
+            IF (i == j) THEN
+               grid_spacing(i) = pw%pw_grid%dh(i, i)*REAL(my_stride(i), dp)
+            ELSE
+               CPASSERT(pw%pw_grid%dh(i, j) == 0)
+            END IF
+         END DO
+      END DO
+
+      IF (PRESENT(particles_z)) THEN
+         IF (parallel_write) THEN
+            CALL pw_write_particles(particles_z, particles_r, atom_types, atom_counts, num_atom_types, openpmd_data, gid)
+         ELSE
+            CALL pw_write_particles(particles_z, particles_r, atom_types, atom_counts, num_atom_types, openpmd_data)
+         END IF
+      END IF
+
+      DO iat = 1, 3
+         global_extent(iat) = (pw%pw_grid%npts(iat) + my_stride(iat) - 1)/my_stride(iat)
+         ! '+ 1' because upper end is inclusive, '- 1' for upper gaussian bracket
+         offset(iat) = ((pw%pw_grid%bounds_local(1, iat) - pw%pw_grid%bounds(1, iat) + my_stride(iat) - 1)/my_stride(iat))
+         ! refer local_extent to the global offset first in order to have consistent rounding
+         local_extent(iat) = ((pw%pw_grid%bounds_local(2, iat) + 1 - pw%pw_grid%bounds(1, iat) + my_stride(iat) - 1)/my_stride(iat))
+      END DO
+      local_extent = local_extent - offset
+
+      mesh = openpmd_iteration_get_mesh(openpmd_data%iteration, TRIM(openpmd_data%name_prefix))
+      CALL openpmd_mesh_set_axis_labels(mesh, (/"x", "y", "z"/))
+      CALL openpmd_mesh_set_position(mesh, (/0.5_dp, 0.5_dp, 0.5_dp/))
+      CALL openpmd_mesh_set_grid_global_offset(mesh, (/0._dp, 0._dp, 0._dp/))
+      CALL openpmd_mesh_set_grid_spacing(mesh, grid_spacing)
+      scalar_mesh = openpmd_mesh_as_record_component(mesh)
+      CALL openpmd_record_component_reset_dataset(scalar_mesh, openpmd_type_double, global_extent)
+
+      ! shortcut
+      L1 = pw%pw_grid%bounds_local(1, 1)
+      L2 = pw%pw_grid%bounds_local(1, 2)
+      L3 = pw%pw_grid%bounds_local(1, 3)
+      U1 = pw%pw_grid%bounds_local(2, 1)
+      U2 = pw%pw_grid%bounds_local(2, 2)
+      U3 = pw%pw_grid%bounds_local(2, 3)
+
+      my_rank = pw%pw_grid%para%group%mepos
+      num_pe = pw%pw_grid%para%group%num_pe
+
+      count3 = 0
+      DO I3 = L3, U3, my_stride(3)
+         ! maybe add an overload to provide `buf` here for HDF5, might have better performance
+         ! for intermittent flushing
+         ! or just call the buffer in the outer function if memory is no problem...
+         unresolved_write_buffer = openpmd_record_component_store_chunk_span_3d_double( &
+                                   scalar_mesh, &
+                                   (/offset(1), offset(2), offset(3) + count3/), &
+                                   (/local_extent(1), local_extent(2), 1/))
+         write_buffer => openpmd_dynamic_memory_view_resolve_3d_double(unresolved_write_buffer, DEALLOCATE=.TRUE.)
+
+         count2 = 0
+         DO I2 = L2, U2, my_stride(2)
+            ! This loop deals with ray (:, count2, count3) of the local subspace
+            ! The write buffer itself has been allocated for slice (:, :, count3)
+            count1 = 0
+            DO I1 = L1, U1, my_stride(1)
+               write_buffer(count1 + 1, count2 + 1, 1) = pw%array(I1, I2, I3)
+               count1 = count1 + 1
+            END DO
+            count2 = count2 + 1
+         END DO
+         count3 = count3 + 1
+      END DO
 
       CALL timestop(handle)
 
