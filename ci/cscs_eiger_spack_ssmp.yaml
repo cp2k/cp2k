@@ -46,6 +46,7 @@ build cp2k eiger:
   timeout: 1h
   before_script:
     - echo ${DOCKERHUB_TOKEN} | podman login docker.io --username ${DOCKERHUB_USERNAME} --password-stdin
+    - GIT_COMMIT_SHA=`git rev-parse HEAD`
   after_script:
     - podman images
     - podman push ${PERSIST_IMAGE_NAME} ${DOCKERHUB_IMAGE_NAME}
@@ -58,7 +59,7 @@ build cp2k eiger:
     DOCKERFILE: ci/docker/build_${CI_JOB_STAGE}_${BUILDER}.Dockerfile
     BASE_IMAGE: ${UBUNTU_IMAGE_NAME}
     DEPS_IMAGE: ${DEPS_IMAGE_NAME}
-    GIT_COMMIT_SHA: `git rev-parse HEAD`
+    GIT_COMMIT_SHA: ${GIT_COMMIT_SHA}
     PERSIST_IMAGE_NAME: ${CSCS_IMAGE_NAME}
 
 test cp2k eiger:
