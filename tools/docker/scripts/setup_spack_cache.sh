@@ -7,7 +7,7 @@ if [[ -n "${SPACK_CACHE}" ]]; then
     if ! wget -q --tries=1 "http://localhost:9000/spack-cache"; then
       echo ""
       echo "ERROR: Could not connect to local Spack cache."
-      echo "       Start the cache by running ./start_spack_cache.sh and then pass --network=host to podman."
+      echo "       Start the cache by running ./spack_cache_start.sh and then pass --network=host to podman."
       echo "       Alternatively, disable the cache by passing --build-arg SPACK_CACHE=\"\" to podman."
       echo "       See also: https://manual.cp2k.org/trunk/getting-started/build-with-spack.html"
       echo ""
