@@ -10,7 +10,8 @@ MODULE cp2k_runs
    USE atom, ONLY: atom_code
    USE bibliography, ONLY: Hutter2014, &
                            cite_reference
-   USE born_methods, ONLY: do_born, get_forces
+   USE born_methods, ONLY: do_born
+   USE born_types, ONLY: born_sample_type, born_samples_type, from_force_env
    USE bsse, ONLY: do_bsse_calculation
    USE cell_opt, ONLY: cp_cell_opt
    USE cp2k_debug, ONLY: cp2k_debug_energy_and_forces
@@ -177,7 +178,7 @@ CONTAINS
          DIMENSION(:, :), INTENT(IN)                     :: initial_variables
 
       INTEGER                                            :: f_env_handle, grid_backend, i, ierr, &
-                                                            iter_level, method_name_id, &
+                                                            iter_level, j, method_name_id, &
                                                             new_env_id, prog_name_id, run_type_id
 #if defined(__DBCSR_ACC)
       INTEGER, TARGET                                    :: offload_chosen_device
@@ -420,44 +421,69 @@ CONTAINS
             CPABORT("Born charges calculation not available with predefined periodic electric field")
          END IF
 
-         dft_control%apply_period_efield = .TRUE.
-         ALLOCATE (dft_control%period_efield)
-         dft_control%period_efield%d_filter(1:3) = (/1.0_dp, 1.0_dp, 1.0_dp/)
-         dft_control%period_efield%displacement_field = .FALSE.
-
-         dft_control%period_efield%strength = 0.003_dp
-
          BLOCK
-            REAL(kind=dp) :: e_pot
-            REAL(kind=dp), DIMENSION(1:3) :: dipole
-            REAL(kind=dp), DIMENSION(:,:), ALLOCATABLE           :: forces
+            TYPE(born_samples_type), POINTER :: born_samples
+
+            REAL(kind=dp), DIMENSION(:, :, :), ALLOCATABLE :: born_tensor
+
+            INTEGER :: n
+            
+         
+            ALLOCATE(born_samples)
+            born_samples%field_strength = 0.003_dp ! TODO: make this variable (per axis?)
+
+            CPWARN("BORN charges calculation started, no field")
+            ! no field
+            CALL force_env_calc_energy_force(force_env, calc_force=.TRUE.)
+            CALL from_force_env(force_env, born_samples%sample_no_field)
+
+         
+
+            dft_control%apply_period_efield = .TRUE.
+            ALLOCATE (dft_control%period_efield)
+            dft_control%period_efield%d_filter(1:3) = (/1.0_dp, 1.0_dp, 1.0_dp/)
+            dft_control%period_efield%displacement_field = .FALSE.
+
+
 
             DO i = 1, 3
                dft_control%period_efield%polarisation(1:3) = (/0.0_dp, 0.0_dp, 0.0_dp/)
                dft_control%period_efield%polarisation(i) = 1.0_dp
 
-               CPWARN("BORN charges, start force calulation")
+               DO j = 1, 2 ! 1 -> positive, 2 -> negative
+                  dft_control%period_efield%strength = -born_samples%field_strength * (2 * j - 3)
+
+                  CPWARN("BORN charges, start force calulation")
+                  ! TODO: disable all the output from each calculation?
+
+                  ! set the field strength
+                  CALL force_env_calc_energy_force(force_env, calc_force=.TRUE.)
+                  CALL from_force_env(force_env, born_samples%samples_field(i, j))
 
 
+                  WRITE(output_unit, '(A, F20.10)') "BORN: potential energy: ", born_samples%samples_field(i,j)%e_pot
 
-               CALL force_env_calc_energy_force(force_env, calc_force=.TRUE.)
+                  WRITE (output_unit, '(A, F20.10)') "BORN: dipole.1: ", born_samples%samples_field(i,j)%dipole(1)
+                  WRITE (output_unit, '(A, F20.10)') "BORN: dipole.2: ",            born_samples%samples_field(i,j)%dipole(2)
+                  WRITE (output_unit, '(A, F20.10)') "BORN: dipole.3: ",            born_samples%samples_field(i,j)%dipole(3)
 
-               CALL force_env_get(force_env, potential_energy=e_pot)
-               CALL get_forces(force_env, dipole, forces)
-
-
-               WRITE(output_unit, '(A, F20.10)') "BORN: potential energy: ", e_pot
-               
-               WRITE (output_unit, '(A, F20.10)') "BORN: dipole.1: ", dipole(1)
-               WRITE (output_unit, '(A, F20.10)') "BORN: dipole.2: ", dipole(2)
-               WRITE (output_unit, '(A, F20.10)') "BORN: dipole.3: ", dipole(3)
-            
-               WRITE (output_unit, '(A, F20.10)') "BORN: force 1.1: ", forces(1, 1)
-               WRITE (output_unit, '(A, F20.10)') "BORN: force 2.2: ", forces(1, 2)
-               WRITE (output_unit, '(A, F20.10)') "BORN: force 3.3: ", forces(1, 3)
-
-
+                  WRITE (output_unit, '(A, F20.10)') "BORN: force 1.1: ",            born_samples%samples_field(i,j)%forces(1, 1)
+                  WRITE (output_unit, '(A, F20.10)') "BORN: force 1.2: ",            born_samples%samples_field(i,j)%forces(1, 2)
+                  WRITE (output_unit, '(A, F20.10)') "BORN: force 1.3: ",            born_samples%samples_field(i,j)%forces(1, 3)
+               END DO
             END DO
+
+            CALL do_born(born_samples, born_tensor)
+
+            DO n=1, SIZE(born_samples%sample_no_field%forces, 1)
+            DO j=1,3
+               DO i=1,3
+                  WRITE (output_unit, '(A,I3, I2,I2,A,F20.10)') &
+                     "BORN: Born tensor ", n, i, j, ": ", born_tensor(n, i, j)
+               END DO
+            END DO
+            END DO
+
          END BLOCK
 
          ! CALL calculate_born_charges
