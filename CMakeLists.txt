@@ -133,6 +133,7 @@ option(CP2K_USE_GRPP "Enable GRPP support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_HDF5 "Enable HDF5 support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_LIBINT2 "Enable Libint2 support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_LIBTORCH "Enable LibTorch support" ${CP2K_USE_EVERYTHING})
+option(CP2K_USE_OPENPMD "Enable support for I/O via openPMD" OFF)
 option(CP2K_USE_LIBXC "Enable LibXC support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_MPI "Enable MPI support" ${CP2K_USE_EVERYTHING})
 option(CP2K_USE_PEXSI "Enable PEXSI support" ${CP2K_USE_EVERYTHING})
@@ -742,6 +743,10 @@ if(CP2K_USE_LIBTORCH)
   endif()
 endif()
 
+if(CP2K_USE_OPENPMD)
+  add_subdirectory(src/binding/openPMD)
+endif()
+
 if(CP2K_USE_MPI_F08 AND NOT MPI_Fortran_HAVE_F08_MODULE)
   message(
     FATAL_ERROR
@@ -899,6 +904,10 @@ if(CP2K_USE_HDF5)
     "    - version: ${HDF5_VERSION}\n"
     "    - include directories: ${HDF5_INCLUDE_DIRS}\n"
     "    - libraries: ${HDF5_LIBRARIES}\n\n")
+endif()
+
+if(CP2K_USE_OPENPMD)
+  message("  - openPMD\n" "    - libraries : ${openPMD_DIR}\n\n")
 endif()
 
 if(CP2K_USE_FFTW3)
@@ -1065,6 +1074,10 @@ if(NOT CP2K_USE_HDF5)
   message("   - HDF5")
 endif()
 
+if(NOT CP2K_USE_OPENPMD)
+  message("   - openPMD\n")
+endif()
+
 if(${CP2K_USE_ACCEL} MATCHES "NONE")
   message("   - GPU acceleration is disabled")
 endif()
@@ -1123,6 +1136,10 @@ message(
   "\n\n cd ..\n" # let below line separate
   " export CP2K_DATA_DIR=${CMAKE_SOURCE_DIR}/data/\n"
   " ./tests/do_regtest.py ${cp2k_BINARY_DIR}/bin ${__cp2k_ext}\n\n")
+
+if(NOT CP2K_USE_OPENPMD)
+  message("   - openPMD")
+endif()
 
 # files needed for cmake
 
