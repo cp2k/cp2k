@@ -22,17 +22,36 @@ class Deepmdkit(CMakePackage):
 
     maintainers("mkrack")
 
-    version("3.0.2", sha256="b828d3a44730ea852505abbdb24ea5b556f2bf8b16de5a9c76018ed1ced7121b")
+    version(
+        "3.0.2",
+        sha256="b828d3a44730ea852505abbdb24ea5b556f2bf8b16de5a9c76018ed1ced7121b",
+    )
 
     variant("cxx_standard", default="17", description="Required CXX standard")
-    variant("cxx_standard_required", default=True, description="Require a specific CXX standard")
+    variant(
+        "cxx_standard_required",
+        default=True,
+        description="Require a specific CXX standard",
+    )
 
-    variant("enable_tensorflow", default=False, description="Enable TensorFlow interface")
+    variant(
+        "enable_tensorflow", default=False, description="Enable TensorFlow interface"
+    )
     variant("enable_pytorch", default=False, description="Enable PyTorch interface")
     variant("enable_jax", default=False, description="Enable JAX interface")
-    variant("build_testing", default=False, description="Build test and enable coverage")
-    variant("enable_native_optimization", default=False, description="Enable native optimization")
-    variant("dp_using_c_api", default=True, description="Build third-party interface with C API")
+    variant(
+        "build_testing", default=False, description="Build test and enable coverage"
+    )
+    variant(
+        "enable_native_optimization",
+        default=False,
+        description="Enable native optimization",
+    )
+    variant(
+        "dp_using_c_api",
+        default=True,
+        description="Build third-party interface with C API",
+    )
 
     depends_on("c", type="build")
     depends_on("cxx", type="build")
@@ -51,7 +70,9 @@ class Deepmdkit(CMakePackage):
             self.define_from_variant("ENABLE_PYTORCH", "enable_pytorch"),
             self.define_from_variant("ENABLE_JAX", "enable_jax"),
             self.define_from_variant("BUILD_TESTING", "build_testing"),
-            self.define_from_variant("ENABLE_NATIVE_OPTIMIZATION", "enable_native_optimization"),
+            self.define_from_variant(
+                "ENABLE_NATIVE_OPTIMIZATION", "enable_native_optimization"
+            ),
             self.define_from_variant("EDP_USING_C_AP", "dp_using_c_api"),
         ]
         return args
