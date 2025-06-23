@@ -461,6 +461,7 @@ CONTAINS
                   CALL from_force_env(force_env, born_samples%samples_field(i, j))
 
 
+      IF (output_unit > 0) THEN
                   WRITE(output_unit, '(A, F20.10)') "BORN: potential energy: ", born_samples%samples_field(i,j)%e_pot
 
                   WRITE (output_unit, '(A, F20.10)') "BORN: dipole.1: ", born_samples%samples_field(i,j)%dipole(1)
@@ -470,11 +471,13 @@ CONTAINS
                   WRITE (output_unit, '(A, F20.10)') "BORN: force 1.1: ",            born_samples%samples_field(i,j)%forces(1, 1)
                   WRITE (output_unit, '(A, F20.10)') "BORN: force 1.2: ",            born_samples%samples_field(i,j)%forces(1, 2)
                   WRITE (output_unit, '(A, F20.10)') "BORN: force 1.3: ",            born_samples%samples_field(i,j)%forces(1, 3)
+               END IF
                END DO
             END DO
 
             CALL do_born(born_samples, born_tensor)
 
+      IF (output_unit > 0) THEN
             DO n=1, SIZE(born_samples%sample_no_field%forces, 1)
             DO j=1,3
                DO i=1,3
@@ -483,6 +486,7 @@ CONTAINS
                END DO
             END DO
             END DO
+         END IF
 
          END BLOCK
 
