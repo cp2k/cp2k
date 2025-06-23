@@ -39,7 +39,7 @@ build deps daint:
     CP2K_BUILD_TYPE: minimal
     CP2K_VERSION: ${VERSION}
     LOG_LINES: 200
-    MPICH_VERSION: 4.2.3
+    MPICH_VERSION: 4.3.0
 
 build cp2k daint:
   extends: .container-builder-cscs-gh200
@@ -86,7 +86,9 @@ regression test cp2k daint:
   needs: ["build cp2k daint","test cp2k daint"]
   timeout: 1h
   script:
+    - git --no-pager log -1 --pretty="%nCommitSHA:%x20%H%nCommitTime:%x20%ci%nCommitAuthor:%x20%an%nCommitSubject:%x20%s%n" | tee ${REPOSITORY}_${TAG}.log
     - podman run --mount type=bind,src=${SCRATCH},target=${SCRATCH} --workdir=${SCRATCH} ${DOCKERHUB_IMAGE_NAME} /opt/cp2k/tests/do_regtest.py --maxtasks 288 /opt/cp2k/bin ${VERSION}
+    - cp ${REPOSITORY}_${TAG}.log ${SCRATCH}/ci/${REPOSITORY}_${TAG}_$(git rev-parse HEAD).log
   variables:
     SLURM_CONSTRAINT: gpu
     SLURM_DEBUG: 1
