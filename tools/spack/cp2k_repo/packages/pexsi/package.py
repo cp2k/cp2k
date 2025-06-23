@@ -2,12 +2,11 @@
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
-import spack.build_systems.cmake
-import spack.build_systems.makefile
 from spack.package import *
+from spack_repo.builtin.build_systems import cmake, makefile
 
 
-class Pexsi(MakefilePackage, CMakePackage):
+class Pexsi(makefile.MakefilePackage, cmake.CMakePackage):
     """The PEXSI library is written in C++, and uses message passing interface
     (MPI) to parallelize the computation on distributed memory computing
     systems and achieve scalability on more than 10,000 processors.
@@ -60,7 +59,7 @@ class Pexsi(MakefilePackage, CMakePackage):
         return f"https://bitbucket.org/berkeleylab/pexsi/downloads/pexsi_v{version}.tar.gz"
 
 
-class MakefileBuilder(spack.build_systems.makefile.MakefileBuilder):
+class MakefileBuilder(makefile.MakefileBuilder):
     parallel = False
 
     def edit(self, pkg, spec, prefix):
@@ -120,7 +119,7 @@ class MakefileBuilder(spack.build_systems.makefile.MakefileBuilder):
             )
 
 
-class CMakeBuilder(spack.build_systems.cmake.CMakeBuilder):
+class CMakeBuilder(cmake.CMakeBuilder):
     def cmake_args(self):
         args = [
             self.define_from_variant("PEXSI_ENABLE_FORTRAN", "fortran"),
