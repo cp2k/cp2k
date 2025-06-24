@@ -15,7 +15,8 @@ if [[ -n "${SPACK_CACHE}" ]]; then
     fi
   fi
   echo "Adding Spack cache: ${SPACK_CACHE}"
-  spack mirror add --autopush --unsigned local-cache "${SPACK_CACHE}"
+  # shellcheck disable=SC2086
+  spack mirror add --autopush --unsigned local-cache ${SPACK_CACHE}
 else
   echo "No Spack cache provided."
 fi
