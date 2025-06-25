@@ -17,25 +17,15 @@ class Greenx(CMakePackage):
 
     license("Apache-2.0", checked_by="RMeli")
 
-    version(
-        "2.2", sha256="cf0abb77cc84a3381a690a6ac7ca839da0007bb9e6120f3f25e47de50e29431f"
-    )
-    version(
-        "2.1", sha256="2fc1fc2c93b0bab14babc33386f7932192336813cea6db11cd27dbc36b541e41"
-    )
+    version("2.2", sha256="cf0abb77cc84a3381a690a6ac7ca839da0007bb9e6120f3f25e47de50e29431f")
+    version("2.1", sha256="2fc1fc2c93b0bab14babc33386f7932192336813cea6db11cd27dbc36b541e41")
 
     variant("shared", default=True, description="Build shared libraries")
     variant("ac", default=True, description="Enable Analytical Continuation component")
     variant(
-        "gmp",
-        default=True,
-        description="Enable GMP library for multiple precision arithmetic",
+        "gmp", default=True, description="Enable GMP library for multiple precision arithmetic"
     )
-    variant(
-        "minmax",
-        default=True,
-        description="Enable minmax time-frequency grids component",
-    )
+    variant("minmax", default=True, description="Enable minmax time-frequency grids component")
     variant("lbasis", default=False, description="Enable localized basis component")
     variant("paw", default=False, description="Enable PAW component")
 
