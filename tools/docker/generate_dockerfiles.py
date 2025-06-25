@@ -924,8 +924,8 @@ RUN ./setup_spack_cache.sh
 ARG CP2K_BUILD_TYPE
 ENV CP2K_BUILD_TYPE=${{CP2K_BUILD_TYPE:-all}}
 COPY ./tools/spack/cp2k_deps_${{CP2K_BUILD_TYPE}}_{version}.yaml ./
-COPY ./tools/spack/cp2k_repo $SPACK_PACKAGES_ROOT/repos/spack_repo/cp2k_repo/
-RUN spack repo add --scope site $SPACK_PACKAGES_ROOT/repos/spack_repo/cp2k_repo/
+COPY ./tools/spack/cp2k_dev_repo $SPACK_PACKAGES_ROOT/repos/spack_repo/cp2k_dev_repo/
+RUN spack repo add --scope site $SPACK_PACKAGES_ROOT/repos/spack_repo/cp2k_dev_repo/
 
 # Sarus containers must be dynamically linked to an MPI implementation that is ABI-compatible
 # with the MPI on the compute nodes at CSCS like MPICH@3
