@@ -67,7 +67,7 @@ test cp2k daint:
   needs: ["build cp2k daint"]
   timeout: 1h
   script:
-    - podman run -v \${PWD}:/mnt ${DOCKERHUB_IMAGE_NAME} mpirun -bind-to socket -genv OMP_NUM_THREADS=\$((SLURM_CPUS_PER_TASK)) -n \${SLURM_NTASKS} cp2k /opt/cp2k/benchmarks/CI/H2O-32_md.inp
+    - podman run --shm-size=1g -v ${PWD}:/mnt ${DOCKERHUB_IMAGE_NAME} mpiexec -bind-to socket -genv OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK} -n ${SLURM_NTASKS} cp2k /opt/cp2k/benchmarks/CI/H2O-32_md.inp
   variables:
     SLURM_CPUS_PER_TASK: 4
     SLURM_DEBUG: 1
@@ -85,7 +85,7 @@ regression test cp2k daint:
   timeout: 1h
   script:
     - git --no-pager log -1 --pretty="%nCommitSHA:%x20%H%nCommitTime:%x20%ci%nCommitAuthor:%x20%an%nCommitSubject:%x20%s%n" | tee ${REPOSITORY}_${TAG}.log
-    - podman run --shm-size=1g -v \${PWD}:/mnt ${DOCKERHUB_IMAGE_NAME} /opt/cp2k/tests/do_regtest.py --maxtasks 288 --mpiexec "mpiexec -bind-to none" --keepalive /opt/cp2k/bin ${VERSION} 2>&1 | tee -a ${REPOSITORY}_${TAG}.log
+    - podman run --shm-size=1g -v ${PWD}:/mnt ${DOCKERHUB_IMAGE_NAME} /opt/cp2k/tests/do_regtest.py --maxtasks ${SLURM_NTASKS} --mpiexec "mpiexec -bind-to none" --keepalive /opt/cp2k/bin ${VERSION} 2>&1 | tee -a ${REPOSITORY}_${TAG}.log
     - cp ${REPOSITORY}_${TAG}.log ${SCRATCH}/ci/${REPOSITORY}_${TAG}_$(git rev-parse HEAD).log
   variables:
     SLURM_DEBUG: 1
