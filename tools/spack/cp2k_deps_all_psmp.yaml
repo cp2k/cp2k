@@ -40,7 +40,9 @@ spack:
         - +scalapack
     dbcsr:
       require:
+        - ~examples
         - +openmp
+        - smm=blas
     deepmdkit:
       require:
         - build_system=cmake
@@ -111,7 +113,6 @@ spack:
     - "libsmeagol@1.2"
     - "libvori@220621"
     - "libxc@7.0.0"
-#   - "libxsmm@main-2024-09" Use 1.17 with Spack as long as grid unit tests fail
 #   - "libxsmm@1.17"
     - "pexsi@2.0.0"
     - "plumed@2.9.2"
