@@ -543,11 +543,9 @@ CONTAINS
       TYPE(virial_type), POINTER                         :: virial
 
       CALL get_qs_env(qs_env, natom=natom)
-      ALLOCATE (ec_env%rf(3, natom), ec_env%rferror(3, natom))
+      ALLOCATE (ec_env%rf(3, natom))
       ec_env%rf = 0.0_dp
-      ec_env%rferror = 0.0_dp
       ec_env%rpv = 0.0_dp
-      ec_env%rpverror = 0.0_dp
       CALL get_qs_env(qs_env, force=force, virial=virial)
 
       CALL get_qs_env(qs_env, atomic_kind_set=atomic_kind_set)
@@ -608,18 +606,14 @@ CONTAINS
 
             CALL open_file(ec_env%exresult_fn, file_status="REPLACE", file_form="FORMATTED", &
                            file_action="WRITE", unit_number=funit)
-            WRITE (funit, *) "   COORDINATES // RESPONSE FORCES // ERRORS  "
-            WRITE (funit, *) "        [Bohr] //  [Hartree/Bohr] //         "
+            WRITE (funit, "(T8,A,T58,A)") "COORDINATES [Bohr]", "RESPONSE FORCES [Hartree/Bohr]"
             DO ia = 1, natom
-               WRITE (funit, "(3(3F15.8,5x))") particle_set(ia)%r(1:3), &
-                  ec_env%rf(1:3, ia), ec_env%rferror(1:3, ia)
+               WRITE (funit, "(2(3F15.8,5x))") particle_set(ia)%r(1:3), ec_env%rf(1:3, ia)
             END DO
             WRITE (funit, *)
-            WRITE (funit, *) "   CELL // RESPONSE PRESSURE // ERRORS  "
-            WRITE (funit, *) " [Bohr] //             [GPa] //         "
+            WRITE (funit, "(T8,A,T58,A)") "CELL [Bohr]", "RESPONSE PRESSURE [GPa]"
             DO ia = 1, 3
-               WRITE (funit, "(3F15.8,5x,3F15.8,5x,3F15.8)") cell%hmat(ia, 1:3), &
-                  fconv*ec_env%rpv(ia, 1:3), ec_env%rpverror(ia, 1:3)
+               WRITE (funit, "(3F15.8,5x,3F15.8)") cell%hmat(ia, 1:3), fconv*ec_env%rpv(ia, 1:3)
             END DO
 
             CALL close_file(funit)
