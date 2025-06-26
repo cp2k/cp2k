@@ -39,7 +39,7 @@ ENV NUM_PROCS=${NUM_PROCS:-32}
 
 # Retrieve the maximum number log file lines printed on error
 ARG LOG_LINES
-ENV LOG_LINES=${LOG_LINES:-100}
+ENV LOG_LINES=${LOG_LINES:-200}
 
 ARG CP2K_VERSION
 ENV CP2K_VERSION=${CP2K_VERSION:-psmp}
