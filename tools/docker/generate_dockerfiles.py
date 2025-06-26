@@ -855,6 +855,7 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     bzip2 \
     ca-certificates \
     cmake \
+    curl \
     g++ \
     gcc \
     gfortran \
@@ -886,15 +887,27 @@ RUN python3 -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 RUN pip3 install --quiet boto3==1.38.11 google-cloud-storage==3.1.0
 
-# Install a recent Spack version
+# Install Spack and Spack packages
 WORKDIR /root/spack
 ARG SPACK_VERSION
-ENV SPACK_VERSION=${{SPACK_VERSION:-develop-2025-05-18}}
-RUN git init --quiet && \
-    git remote add origin https://github.com/spack/spack.git && \
-    git fetch --quiet --depth 1 origin ${{SPACK_VERSION}} --no-tags && \
-    git checkout --quiet FETCH_HEAD
-ENV PATH="/root/spack/bin:${{PATH}}"
+ENV SPACK_VERSION=${{SPACK_VERSION:-2e7168b4cfe9222a94becf0c2c5b401f513181ec}}
+ARG SPACK_PACKAGES_VERSION
+ENV SPACK_PACKAGES_VERSION=${{SPACK_PACKAGES_VERSION:-c63151a5baffcd96978966cd5ed83a6b8328e026}}
+ARG SPACK_REPO=https://github.com/spack/spack
+ENV SPACK_ROOT=/opt/spack-$SPACK_VERSION
+ARG SPACK_PACKAGES_REPO=https://github.com/spack/spack-packages
+ENV SPACK_PACKAGES_ROOT=/opt/spack-packages-$SPACK_PACKAGES_VERSION
+RUN mkdir -p $SPACK_ROOT \
+    && curl -OL $SPACK_REPO/archive/$SPACK_VERSION.tar.gz \
+    && tar -xzf $SPACK_VERSION.tar.gz -C /opt && rm -f $SPACK_VERSION.tar.gz \
+    && mkdir -p $SPACK_PACKAGES_ROOT \
+    && curl -OL $SPACK_PACKAGES_REPO/archive/$SPACK_PACKAGES_VERSION.tar.gz \
+    && tar -xzf $SPACK_PACKAGES_VERSION.tar.gz -C /opt && rm -f $SPACK_PACKAGES_VERSION.tar.gz
+
+ENV PATH="$SPACK_ROOT/bin:${{PATH}}"
+
+# Add Spack packages builtin repository
+RUN spack repo add --scope site $SPACK_PACKAGES_ROOT/repos/spack_repo/builtin
 
 # Find all compilers
 RUN spack compiler find
@@ -910,8 +923,9 @@ RUN ./setup_spack_cache.sh
 # Copy Spack configuration and build recipes
 ARG CP2K_BUILD_TYPE
 ENV CP2K_BUILD_TYPE=${{CP2K_BUILD_TYPE:-all}}
-COPY ./tools/spack/repo.yaml ./tools/spack/cp2k_deps_${{CP2K_BUILD_TYPE}}_{version}.yaml ./
-COPY ./tools/spack/packages ./packages
+COPY ./tools/spack/cp2k_deps_${{CP2K_BUILD_TYPE}}_{version}.yaml ./
+COPY ./tools/spack/cp2k_dev_repo $SPACK_PACKAGES_ROOT/repos/spack_repo/cp2k_dev_repo/
+RUN spack repo add --scope site $SPACK_PACKAGES_ROOT/repos/spack_repo/cp2k_dev_repo/
 
 # Sarus containers must be dynamically linked to an MPI implementation that is ABI-compatible
 # with the MPI on the compute nodes at CSCS like MPICH@3
@@ -923,7 +937,7 @@ RUN sed -i -e "s/mpich@[0-9.]*/mpich@${{MPICH_VERSION}}/" cp2k_deps_${{CP2K_BUIL
 
 # Install CP2K dependencies via Spack
 RUN spack -e myenv concretize -f
-ENV SPACK_ENV_VIEW="/root/spack/var/spack/environments/myenv/spack-env/view"
+ENV SPACK_ENV_VIEW="$SPACK_ROOT/var/spack/environments/myenv/spack-env/view"
 RUN spack -e myenv env depfile -o spack_makefile && \
     make -j32 --file=spack_makefile SPACK_COLOR=never --output-sync=recurse && \
     cp -ar ${{SPACK_ENV_VIEW}}/bin ${{SPACK_ENV_VIEW}}/include ${{SPACK_ENV_VIEW}}/lib /opt/spack

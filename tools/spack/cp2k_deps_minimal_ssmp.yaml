@@ -27,8 +27,6 @@ spack:
         - ~examples
         - +openmp
         - smm=blas
-  repos:
-    - $spack
   specs:
     - "dbcsr@2.8.0"
     - "openblas@0.3.29"
