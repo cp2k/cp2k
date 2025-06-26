@@ -132,9 +132,8 @@ MODULE ec_env_types
       CHARACTER(len=40)                                :: exresp_fn = ""
       CHARACTER(len=40)                                :: exresult_fn = ""
       LOGICAL                                          :: do_error = .FALSE.
-      REAL(KIND=dp), DIMENSION(3, 3)                   :: rpv = 0.0_dp, rpverror = 0.0_dp
-      REAL(KIND=dp), DIMENSION(:, :), POINTER          :: rf => NULL(), &
-                                                          rferror => NULL()
+      REAL(KIND=dp), DIMENSION(3, 3)                   :: rpv = 0.0_dp
+      REAL(KIND=dp), DIMENSION(:, :), POINTER          :: rf => NULL()
    END TYPE energy_correction_type
 
 CONTAINS
@@ -227,9 +226,6 @@ CONTAINS
 
          IF (ASSOCIATED(ec_env%rf)) THEN
             DEALLOCATE (ec_env%rf)
-         END IF
-         IF (ASSOCIATED(ec_env%rferror)) THEN
-            DEALLOCATE (ec_env%rferror)
          END IF
 
          DEALLOCATE (ec_env)
