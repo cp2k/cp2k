@@ -112,10 +112,10 @@ spack:
     - "libvori@220621"
     - "libxc@7.0.0"
 #   - "libxsmm@main-2024-09" Use 1.17 with Spack as long as grid unit tests fail
-    - "libxsmm@1.17"
+#   - "libxsmm@1.17"
     - "pexsi@2.0.0"
     - "plumed@2.9.2"
-    - "py-torch@2.6"
+    - "py-torch@2.7"
     - "sirius@7.7.0"
     - "spglib@2.5.0"
     - "spla@1.6.1"
