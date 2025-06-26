@@ -27,7 +27,9 @@ spack:
     # Dependencies for CP2K
     dbcsr:
       require:
+        - ~examples
         - +openmp
+        - smm=blas
     deepmdkit:
       require:
         - build_system=cmake
@@ -73,7 +75,6 @@ spack:
     - "libint@2.9.0"
     - "libvori@220621"
     - "libxc@7.0.0"
-#   - "libxsmm@main-2024-09" Use 1.17 with Spack as long as grid unit tests fail
 #   - "libxsmm@1.17"
     - "py-torch@2.6"
     - "spglib@2.5.0"
