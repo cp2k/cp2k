@@ -1,0 +1,193 @@
+&GLOBAL
+  PRINT_LEVEL SILENT
+  PROJECT_NAME "droplet_h3o+_8He_1K"
+  RUN_TYPE PINT
+&END GLOBAL
+
+&MOTION
+  &PINT
+    DT 0.1
+    HARM_INT EXACT
+    NRESPA 1
+    # NUM_STEPS 1000000
+    NUM_STEPS 1000
+    P 160
+    PROPAGATOR RPMD
+    TEMP 1.0000000000000000E+000
+    TRANSFORMATION NORMAL
+    &HELIUM T
+      CELL_SHAPE OCTAHEDRON
+      CELL_SIZE 1.9115700000000000E+001
+      DROPLET_RADIUS 15.0
+      GET_FORCES LAST
+      NATOMS 8  #  8 helium atoms
+      NBEADS 80
+      NUM_ENV 1
+      N_OUTER 1000
+      PERIODIC F
+      POTENTIAL_FILE_NAME ./helium_aziz95_80k.potx
+      PRESAMPLE T
+      RNG_SEED 92404581
+      SAMPLING_METHOD WORM
+      SOLUTE_INTERACTION NNP
+      &NNP
+        NNP_INPUT_FILE_NAME NNP/protH2OHelium-interaction-nnp/input.nn
+        SCALE_FILE_NAME NNP/protH2OHelium-interaction-nnp/scaling.data
+        &MODEL
+          WEIGHTS NNP/protH2OHelium-interaction-nnp/weights
+        &END MODEL
+        &SR_CUTOFF
+          ELEMENT "H"
+          RADIUS 1.25
+        &END SR_CUTOFF
+        &SR_CUTOFF
+          ELEMENT "He"
+          RADIUS 0.0000000000000000E+000
+        &END SR_CUTOFF
+        &SR_CUTOFF
+          ELEMENT "O"
+          RADIUS 2.05
+        &END SR_CUTOFF
+      &END NNP
+      &PRINT
+        &COORDINATES ON
+          &EACH
+            PINT 100
+          &END EACH
+        &END COORDINATES
+        &ENERGY SILENT
+          &EACH
+            PINT 100
+          &END EACH
+        &END ENERGY
+        &MOMENT_OF_INERTIA ON
+          &EACH
+            PINT 1
+          &END EACH
+        &END MOMENT_OF_INERTIA
+        &MOMENT_OF_INERTIA_AVG ON
+          &EACH
+            PINT 100
+          &END EACH
+        &END MOMENT_OF_INERTIA_AVG
+        &PERM ON
+          &EACH
+            PINT 100
+          &END EACH
+        &END PERM
+        &PLENGTH OFF
+        &END PLENGTH
+        &PROJECTED_AREA ON
+          &EACH
+            PINT 1
+          &END EACH
+        &END PROJECTED_AREA
+        &PROJECTED_AREA_2_AVG ON
+          &EACH
+            PINT 100
+          &END EACH
+        &END PROJECTED_AREA_2_AVG
+        &RDF ON
+          &EACH
+            PINT 100
+          &END EACH
+        &END RDF
+        &WINDING_NUMBER OFF
+        &END WINDING_NUMBER
+        &WINDING_NUMBER_2_AVG OFF
+        &END WINDING_NUMBER_2_AVG
+      &END PRINT
+      &RDF T
+        HE_HE T
+        MAXR 30.0
+        NBIN 1000
+        SOLUTE_HE T
+      &END RDF
+      &WORM
+        ALLOW_OPEN T
+        CENTROID_DRMAX 0.25
+        MAX_OPEN_CYCLES 100
+        OPEN_CLOSE_SCALE 5.0000000000000000E+001
+        SHOW_STATISTICS T
+        STAGING_L 6
+      &END WORM
+    &END HELIUM
+    &INIT
+      CENTROID_SPEED F
+      RANDOMIZE_POS F
+      THERMOSTAT_SEED 40
+    &END INIT
+    &PILE
+      LAMBDA 0.5
+      TAU 200
+    &END PILE
+    &PRINT
+      &ACTION OFF
+      &END ACTION
+      &CENTROID_GYR OFF
+      &END CENTROID_GYR
+      &CENTROID_POS SILENT
+        &EACH
+          PINT 100
+        &END EACH
+      &END CENTROID_POS
+      &CENTROID_VEL SILENT
+        &EACH
+          PINT 100
+        &END EACH
+      &END CENTROID_VEL
+      &ENERGY SILENT
+        &EACH
+          PINT 100
+        &END EACH
+      &END ENERGY
+    &END PRINT
+  &END PINT
+  &PRINT
+    &RESTART SILENT
+      BACKUP_COPIES 1
+      &EACH
+        PINT 1000
+      &END EACH
+    &END RESTART
+    &RESTART_HISTORY OFF
+    &END RESTART_HISTORY
+    &TRAJECTORY OFF
+    &END TRAJECTORY
+    &VELOCITIES OFF
+    &END VELOCITIES
+  &END PRINT
+&END MOTION
+
+&FORCE_EVAL
+  METHOD NNP
+  &NNP
+    # Reference: [J. Chem. Theo. Comput. 16 88-99 (2020)](https://pubs.acs.org/doi/abs/10.1021/acs.jctc.9b00805)
+    NNP_INPUT_FILE_NAME NNP/protH2Ocluster-jctc2020-nnp/input.nn
+    SCALE_FILE_NAME NNP/protH2Ocluster-jctc2020-nnp/scaling.data
+    &MODEL
+      WEIGHTS NNP/protH2Ocluster-jctc2020-nnp/weights
+    &END MODEL
+  &END NNP
+  &SUBSYS
+    &CELL
+      ABC 8.5000000000000053E+000 8.5000000000000053E+000 8.5000000000000053E+000
+      PERIODIC NONE
+    &END CELL
+    &COORD
+      O         0.0000000000        0.0000000000        0.0000000000
+      H         1.0503793728        0.0000000000        0.0000000000
+      H        -0.4976819981        0.7788636207        0.0000000000
+      H        -0.5579356431       -0.5112027017       -0.4870267348
+    &END COORD
+    &TOPOLOGY
+      NUMBER_OF_ATOMS 4
+    &END TOPOLOGY
+    &VELOCITY
+      0.0000000000000000E+000  0.0000000000000000E+000  0.0000000000000000E+000
+      0.0000000000000000E+000  0.0000000000000000E+000  0.0000000000000000E+000
+      0.0000000000000000E+000  0.0000000000000000E+000  0.0000000000000000E+000
+      0.0000000000000000E+000  0.0000000000000000E+000  0.0000000000000000E+000
+    &END VELOCITY
+  &END SUBSYS
+&END FORCE_EVAL

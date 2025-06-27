@@ -31,10 +31,10 @@
       SAMPLING_METHOD WORM
       SOLUTE_INTERACTION NNP
       &NNP
-        NNP_INPUT_FILE_NAME ./input.nn
-        SCALE_FILE_NAME ./scaling.data
+        NNP_INPUT_FILE_NAME NNP/protH2OHelium-interaction-nnp/input.nn
+        SCALE_FILE_NAME NNP/protH2OHelium-interaction-nnp/scaling.data
         &MODEL
-          WEIGHTS ./weights
+          WEIGHTS NNP/protH2OHelium-interaction-nnp/weights
         &END MODEL
         &SR_CUTOFF
           ELEMENT H
