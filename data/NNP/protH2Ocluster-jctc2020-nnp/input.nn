@@ -1,0 +1,304 @@
+## #############################################################
+### This is the input file for RuNNer (version 0_44 and upwards)
+### #############################################################
+### General remarks: 
+### - commands can be switched off by using the # character at the BEGINNING of the line
+### - the input file can be structured by blank lines and comment lines
+### - the order of the keywords is arbitrary
+### - if keywords are missing, default values will be used and written to runner.out
+### - if mandatory keywords or keyword options are missing, RuNNer will stop with an error message 
+
+element_decoupled_kalman
+########################################################################################################################
+### general keywords
+########################################################################################################################
+nn_type_short 1                                 # 1=Behler-Parrinello, 2=Pair NN
+runner_mode 2                            # 1=calculate symmetry functions, 2=fitting mode, 3=predicition mode (mode)
+number_of_elements 2                      # number of elements                                   (nelem)                       MODE1+2+3+4
+elements O H                             # specification of elements                            (element)                     MODE1+2+3+4
+random_seed 22                         # seed for initial random weight parameters and train/test splitting (iseed)         MODE1+2
+random_number_type 1                      # 1=ran0, 2=ran1, 3=ran2, 4=ran3
+remove_atom_energies                      # remove atomic energies before fitting                (lremoveatomenergies)         MODE1+2+3+4
+atom_energy O -74.94518524                # free atom reference energy (atomic zora)
+atom_energy H  -0.45890771                # free atom reference energy (atomic zora)
+#energy_threshold 100.0d0                  # energythreshold for fitting data in Ha per atom      (fitethres)                   MODE1
+#bond_threshold 0.4d0                      # threshold for the shortest bond in structure         (rmin)                        MODE1+2+3
+
+########################################################################################################################
+### NN structure of the short-range NN
+########################################################################################################################
+use_short_nn                              # use NN for short range interactions                  (lshort) 
+global_hidden_layers_short 2              # number of hidden layers                              (num_layersshort-1)
+global_nodes_short 30 30                  # number of nodes in hidden layers                     (nodes_short)
+global_activation_short t t l             # activation functions                                 (actfunc_short)
+
+########################################################################################################################
+### symmetry function generation ( mode 1): 
+########################################################################################################################
+#use_atom_energies                        # use atomic energies for fitting (not implemented)    (luseatomenergies)                     MODE1+2+3+4
+use_atom_charges                          # use atomic charges for fitting(set always true!)     (luseatomcharges)                      MODE1+2+3+4
+test_fraction 0.1                         # threshold for splitting between fitting and test set (splitthres)                           MODE1
+#CAUTION: don't forget use_short_forces below (if you want to generate the training files for the forces)
+
+########################################################################################################################
+### symmetry function definitions (all modes): 
+########################################################################################################################
+# INFO: not yet implemented in this file
+# INFO: symfunction format: reference atom, type, neighbor element 1 (and neighbor element 2), symfunction parameters 
+#
+# GLOBAL SYMMETRY FUNCTIONS FOR SHORT RANGE NN
+# SAMPLE TYPE 1: global_symfunction_short 1 2.0                           ! type funccutoff 
+# SAMPLE TYPE 2: global_symfunction_short 2 7.14214 0.0 11.338            ! type eta rshift funccutoff
+# SAMPLE TYPE 3: global_symfunction_short 3 0.03571 -1.0 16.0  7.55891    ! type eta lambda zeta funccutoff
+# SAMPLE TYPE 4: global_symfunction_short 4 7.14214 11.338                ! type eta funccutoff
+# SAMPLE TYPE 5: global_symfunction_short O 5 1.000                       ! central_atom type eta                         ! CARTESIAN COORDINATES 
+# SAMPLE TYPE 6: global_symfunction_short O 6 11.338                      ! central_atom type funccutoff                  ! BOND LENGTH
+#
+# ELEMENT-SPECIFIC SYMMETRY FUNCTIONS FOR SHORT RANGE NN
+# SAMPLE TYPE 1: element_symfunction_short O 1 2.0                        ! central_atom type funccutoff 
+# SAMPLE TYPE 2: element_symfunction_short O 2 7.14214 0.0 11.338         ! central_atom type eta rshift funccutoff
+# SAMPLE TYPE 3: element_symfunction_short O 3 0.03571 -1.0 16.0  7.55891 ! central_atom type eta lambda zeta funccutoff
+# SAMPLE TYPE 4: element_symfunction_short O 4 7.14214 11.338             ! central_atom type eta funccutoff
+# SAMPLE TYPE 5: element_symfunction_short O 5 1.000                      ! central_atom type eta                         ! CARTESIAN COORDINATES 
+# SAMPLE TYPE 6: element_symfunction_short O 6 11.338                     ! central_atom type funccutoff                  ! BOND LENGTH
+#
+# CUSTOMIZED SYMMETRY FUNCTIONS FOR SHORT RANGE NN
+# SAMPLE TYPE 1: symfunction_short O 1  O 2.0                             ! central_atom type neighbor_atom funccutoff 
+# SAMPLE TYPE 2: symfunction_short O 2  O 7.14214 0.0 11.338              ! central_atom type neighbor_atom eta rshift funccutoff
+# SAMPLE TYPE 3: symfunction_short O 3 Zn Zn 0.03571 -1.0 16.0  7.55891   ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+# SAMPLE TYPE 4: symfunction_short O 4  O 7.14214 11.338                  ! central_atom type neighbor_atom eta funccutoff
+# SAMPLE TYPE 5: symfunction_short O 5 1.000                              ! central_atom type eta                         ! CARTESIAN COORDIATES 
+# SAMPLE TYPE 6: symfunction_short O 6  O 11.338                          ! central_atom type neighbor_atom funccutoff    ! BOND LENGTH
+
+cutoff_type 1
+
+
+symfunction_short H 2 O 0.00100 0.0  4.000  ! eta rshift funccutoff
+symfunction_short H 2 O 0.01000 0.0  4.000  ! eta rshift funccutoff
+symfunction_short H 2 O 0.03000 0.0  4.000  ! eta rshift funccutoff
+symfunction_short H 2 O 0.06000 0.0  4.000  ! eta rshift funccutoff
+symfunction_short H 2 O 0.15000 0.0  4.000  ! eta rshift funccutoff
+symfunction_short H 2 O 0.15000 1.5  4.000  ! eta rshift funccutoff
+symfunction_short H 2 O 0.30000 1.5  4.000  ! eta rshift funccutoff
+symfunction_short H 2 O 0.60000 1.5  4.000  ! eta rshift funccutoff
+
+symfunction_short H 2 H 0.00100 0.0  6.000  ! eta rshift funccutoff
+symfunction_short H 2 H 0.01000 0.0  6.000  ! eta rshift funccutoff
+symfunction_short H 2 H 0.03000 0.0  6.000  ! eta rshift funccutoff
+symfunction_short H 2 H 0.06000 0.0  6.000  ! eta rshift funccutoff
+symfunction_short H 2 H 0.15000 0.0  6.000  ! eta rshift funccutoff
+symfunction_short H 2 H 0.15000 1.5  6.000  ! eta rshift funccutoff
+symfunction_short H 2 H 0.30000 1.5  6.000  ! eta rshift funccutoff
+
+symfunction_short H 2 H 0.00100 0.0 12.000  ! eta rshift funccutoff
+symfunction_short H 2 O 0.00100 0.0 12.000  ! eta rshift funccutoff
+symfunction_short H 2 H 0.01000 0.0 12.000  ! eta rshift funccutoff
+symfunction_short H 2 O 0.01000 0.0 12.000  ! eta rshift funccutoff
+symfunction_short H 2 H 0.03000 0.0 12.000  ! eta rshift funccutoff
+symfunction_short H 2 O 0.03000 0.0 12.000  ! eta rshift funccutoff
+symfunction_short H 2 H 0.06000 0.0 12.000  ! eta rshift funccutoff
+symfunction_short H 2 O 0.06000 0.0 12.000  ! eta rshift funccutoff
+symfunction_short H 2 H 0.15000 0.0 12.000  ! eta rshift funccutoff
+symfunction_short H 2 O 0.15000 0.0 12.000  ! eta rshift funccutoff
+symfunction_short H 2 H 0.15000 1.5 12.000  ! eta rshift funccutoff
+symfunction_short H 2 O 0.15000 1.5 12.000  ! eta rshift funccutoff
+symfunction_short H 2 H 0.30000 1.5 12.000  ! eta rshift funccutoff
+symfunction_short H 2 O 0.30000 1.5 12.000  ! eta rshift funccutoff
+symfunction_short H 2 O 0.60000 1.5 12.000  ! eta rshift funccutoff
+
+symfunction_short H 3 H O 0.010 -1.0 1.0    6.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+symfunction_short H 3 H O 0.010  1.0 1.0    6.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+symfunction_short H 3 H O 0.010 -1.0 2.0    6.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+symfunction_short H 3 H O 0.010  1.0 2.0    6.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+symfunction_short H 3 H O 0.010  1.0 3.0    6.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+
+symfunction_short H 3 H O 0.010 -1.0 1.0    8.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+symfunction_short H 3 H O 0.010  1.0 1.0    8.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+symfunction_short H 3 H O 0.010 -1.0 2.0    8.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+symfunction_short H 3 H O 0.010  1.0 2.0    8.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+symfunction_short H 3 H O 0.010  1.0 3.0    8.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+
+symfunction_short H 3 O O 0.001 -1.0 4.0   12.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+symfunction_short H 3 O O 0.001  1.0 4.0   12.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+
+symfunction_short H 3 H O 0.010 -1.0 4.0   12.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+symfunction_short H 3 H O 0.010  1.0 4.0   12.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+
+symfunction_short H 3 H O 0.030 -1.0 1.0   12.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+symfunction_short H 3 O O 0.030 -1.0 1.0   12.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+symfunction_short H 3 H O 0.030  1.0 1.0   12.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+symfunction_short H 3 O O 0.030  1.0 1.0   12.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+
+symfunction_short H 3 H O 0.070 -1.0 1.0   12.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+symfunction_short H 3 H O 0.070  1.0 1.0   12.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+symfunction_short H 3 H O 0.200  1.0 1.0   12.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+
+# O:
+symfunction_short O 2 H 0.00100 0.0  4.000  ! eta rshift funccutoff
+symfunction_short O 2 H 0.01000 0.0  4.000  ! eta rshift funccutoff
+symfunction_short O 2 H 0.03000 0.0  4.000  ! eta rshift funccutoff
+symfunction_short O 2 H 0.06000 0.0  4.000  ! eta rshift funccutoff
+symfunction_short O 2 H 0.15000 0.0  4.000  ! eta rshift funccutoff
+symfunction_short O 2 H 0.15000 1.5  4.000  ! eta rshift funccutoff
+symfunction_short O 2 H 0.30000 1.5  4.000  ! eta rshift funccutoff
+symfunction_short O 2 H 0.60000 1.5  4.000  ! eta rshift funccutoff
+
+symfunction_short O 2 H 0.00100 0.0 12.000  ! eta rshift funccutoff
+symfunction_short O 2 O 0.00100 0.0 12.000  ! eta rshift funccutoff
+symfunction_short O 2 H 0.01000 0.0 12.000  ! eta rshift funccutoff
+symfunction_short O 2 O 0.01000 0.0 12.000  ! eta rshift funccutoff
+
+symfunction_short O 2 H 0.03000 1.5 12.000  ! eta rshift funccutoff
+symfunction_short O 2 O 0.03000 0.0 12.000  ! eta rshift funccutoff
+symfunction_short O 2 O 0.06000 1.5 12.000  ! eta rshift funccutoff
+symfunction_short O 2 H 0.06000 0.0 12.000  ! eta rshift funccutoff
+symfunction_short O 2 O 0.06000 0.0 12.000  ! eta rshift funccutoff
+symfunction_short O 2 O 0.09000 0.0 12.000  ! eta rshift funccutoff
+symfunction_short O 2 O 0.15000 0.0 12.000  ! eta rshift funccutoff
+symfunction_short O 2 H 0.15000 0.0 12.000  ! eta rshift funccutoff
+symfunction_short O 2 H 0.30000 0.0 12.000  ! eta rshift funccutoff
+symfunction_short O 2 H 0.60000 0.0 12.000  ! eta rshift funccutoff
+
+symfunction_short O 3 H H 0.010 -1.0 1.0    6.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+symfunction_short O 3 H H 0.010  1.0 1.0    6.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+symfunction_short O 3 H H 0.010 -1.0 2.0    6.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+symfunction_short O 3 H H 0.010  1.0 2.0    6.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+symfunction_short O 3 H H 0.010 -1.0 3.0    6.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+
+symfunction_short O 3 H H 0.010 -1.0 1.0    8.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+symfunction_short O 3 H H 0.010  1.0 1.0    8.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+symfunction_short O 3 H H 0.010 -1.0 2.0    8.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+symfunction_short O 3 H H 0.010  1.0 2.0    8.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+symfunction_short O 3 H H 0.010 -1.0 3.0    8.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+
+symfunction_short O 3 H O 0.001 -1.0 4.0    12.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+symfunction_short O 3 O O 0.001 -1.0 4.0    12.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+symfunction_short O 3 H O 0.001  1.0 4.0    12.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+symfunction_short O 3 O O 0.001  1.0 4.0    12.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+
+symfunction_short O 3 H H 0.010 -1.0 4.0    12.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+symfunction_short O 3 H H 0.010  1.0 4.0    12.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+symfunction_short O 3 H H 0.030 -1.0 1.0    12.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+symfunction_short O 3 H O 0.030 -1.0 1.0    12.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+symfunction_short O 3 O O 0.030 -1.0 1.0    12.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+symfunction_short O 3 H H 0.030  1.0 1.0    12.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+symfunction_short O 3 H O 0.030  1.0 1.0    12.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+symfunction_short O 3 O O 0.030  1.0 1.0    12.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+symfunction_short O 3 H H 0.070 -1.0 1.0    12.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+symfunction_short O 3 H H 0.070  1.0 1.0    12.00000     ! central_atom type neighbor_atom1 neighbor_atom2 eta lambda zeta funccutoff
+
+
+#
+# SYMMETRY FUNCTIONS FOR ELECTROSTATIC NN HAVE THE SAME FORMAT, BUT REPLACE "short" by "electrostatic"
+
+########################################################################################################################
+### fitting (mode 2):general inputs for short range AND electrostatic part:
+########################################################################################################################
+epochs 80                               # number of epochs                                     (nepochs)                              MODE2
+points_in_memory 2000                      # max number of structures in memory                   (nblock)                               MODE2
+mix_all_points                          # training with random order of points                 (lrandomtrain)                         MODE2
+scale_symmetry_functions                  # scale symmetry functions                             (lscalesym)                            MODE2+3+4
+center_symmetry_functions                 # remove center of mass of structure function values   (lcentersym)                           MODE2+3+4
+#fix_weights                               # fix some weights                                     (lfixweights)                          MODE2
+#growth_mode 11 6                          # growth mode                                          (lgrowth,ngrowth,growthstep)           MODE2
+#use_damping 0.00001d0                     # use weight decay                                     (ldampw,dampw)                         MODE2
+#pdate_single_element 8                  # do weight update just for one element                (lupdatebyelement,elemupdate)          MODE2
+fitting_unit  eV                           # unit for error output in mode 2 (eV or Ha)
+#joint_energy_force_update                  # for each atom do one update for energy and averaged forces together (not yet working well) 
+
+########################################################################################################################
+### fitting options ( mode 2): short range part only:
+########################################################################################################################
+print_mad
+optmode_short_energy 1                     # optimization mode short range energies(optmodee, 1=Kalman filter, 2=conjugate gradient, 3=steepest descent) 
+optmode_short_force 1                      # optimization mode short range forces  (optmodef, 1=Kalman filter, 2=conjugate gradient, 3=steepest descent) 
+short_energy_error_threshold 0.8           # threshold of adaptive Kalman filter short E          (kalmanthreshold)                      MODE2
+short_force_error_threshold 1.0            # threshold of adaptive Kalman filter short F          (kalmanthresholdf)                     MODE2
+kalman_lambda_short 0.98000                # Kalman parameter short E/F                           (kalmanlambda)                         MODE2
+kalman_nue_short 0.99870                   # Kalman parameter short E/F                           (kalmannue)                            MODE2
+#steepest_descent_step_energy_short 0.01d0 # step size for steepest descent energy                (steepeststepe)                        MODE2
+#steepest_descent_step_force_short 0.01d0  # step size for steepest descent force                 (steepeststepf)                        MODE2
+#use_old_weights_short                     # restart fitting with old weight parameters for short (luseoldweightsshort)                  MODE2
+#update_worst_short_energies 0.1d0         # percentage of the worst energies used for update     (worste)                               MODE2
+#update_worst_short_forces 0.1d0           # percentage of the worst forces used for update       (worstf)                               MODE2
+#force_update_scaling -1.0d0               # scaling factor for the force update (negative value means automatic scaling) (scalefactorf) MODE2
+#short_energy_group 1                      # group energies for update                            (nenergygroup)                         MODE2
+#short_energy_fraction 1.00                # percentage of energies used for fitting 100%=1.0     (energyrnd)                            MODE2
+#short_force_group 1                       # group forces for update                              (nforcegroup)                          MODE2
+#short_force_fraction 0.05                  # percentage of forces used for fitting 100%=1.0       (forcernd)                             MODE2 
+#use_short_forces                           # use forces for fitting                               (luseforces)                           MODE2
+#weight_constraint H all fixed             # "all" switch
+#weight_constraint O interlayer 1 2 free   # "interlayer" layer1 layer2 switch
+#weight_constraint Zn bias 1 2 free        # "bias layer" node switch
+#weight_constraint Zn weight 1 3 2 3 free  # "weight" layer1 node1 layer2 node2 switch
+#weight_constraint Zn node 1 1 free        # "node" layer node switch
+weights_min -1.0                          # minimum value for initial random short range weights
+weights_max 1.0                           # maximum value for initial random short range weights
+precondition_weights                      # precondition initial weights (lprecond)
+#normalize_nodes                           # normalize input of nodes
+repeated_energy_update                       # calculate error of
+nguyen_widrow_weights_short              # initialize short
+
+
+########################################################################################################################
+### fitting ( mode 2): electrostatic part only:
+########################################################################################################################
+#optmode_charge 1                          # optimization mode atomic charges      (optmodeq, 1=Kalman filter, 2=conjugate gradient, 3=steepest descent)
+#charge_error_threshold 1.0          # threshold of adaptive Kalman filter charge           (kalmanthresholde)                     MODE2
+#kalman_lambda_charge 0.98000              # Kalman parameter charge                              (kalmanlambdae)                        MODE2
+#kalman_nue_charge 0.99870                 # Kalman parameter charge                              (kalmannuee)                           MODE2
+#steepest_descent_step_charge 0.01d0       # step size for steepest descent charge                (steepeststepq)                        MODE2
+#use_old_weights_charge                    # restart fitting with old weight parameters for charge(luseoldweightscharge)                 MODE2
+#update_worst_charges 0.1d0                # percentage of the worst charges used for update      (worstq)                               MODE2
+#charge_group 20                            # group charges for update                             (nchargegroup)                         MODE2
+#charge_fraction 1.00                      # percentage of charges used for fitting 100%=1.0      (chargernd)                            MODE2
+#weighte_constraint O all fixed              # "all" switch
+#weighte_constraint O interlayer 1 2 free    # "interlayer" layer1 layer2 switch
+#weighte_constraint Zn bias 1 2 free          # "bias layer" node switch
+#weighte_constraint Zn weight 1 3 2 3 free    # "weight" layer1 node1 layer2 node2 switch
+#weighte_constraint Zn node 2 1 free          # "node" layer node switch
+#precondition_weights                      # precondition initial weights (lprecond)
+#nguyen_widrow_weights_ewald              # initialize short
+#weightse_min -1.0                          # minimum value for initial random charge weights
+#weightse_max 1.0                           # maximum value for initial random charge weights
+
+########################################################################################################################
+### options for charge constraint in mode 2 (not tested! not parallel!)
+########################################################################################################################
+#use_charge_constraint                     # use total charge constraint                          (lchargeconstraint)                    MODE2
+#total_charge_error_threshold 0.0000001    # threshold of adaptive Kalman filter charge constraint(kalmanthresholdc)                     MODE2
+#kalman_lambda_charge_constraint 0.98000   # Kalman parameter charge constraint                   (kalmanlambdac)                        MODE2
+#kalman_nue_charge_constraint 0.99870      # Kalman parameter charge constraint                   (kalmannuec)                           MODE2
+
+########################################################################################################################
+### output options for mode 2 (fitting):  
+########################################################################################################################
+#write_weights_epoch 1                     # write set of weight parameters every ith epoch       (iwriteweight)                         MODE2
+#write_temporary_weights                   # write temporary weights each data block              (lwritetmpweights)                     MODE2
+#write_trainpoints                         # write trainpoints.out and testpoints.out files       (lwritetrainpoints)                    MODE2
+#write_traincharges                        # write traincharges.out and testcharges.out files     (lwritetraincharges)                   MODE2
+#write_trainforces                         # write trainforces.out and testforces.out files       (lwritetrainforces)                    MODE2
+
+########################################################################################################################
+### output options for mode 3 (prediction):  
+########################################################################################################################
+calculate_forces                          # calculate forces                                     (ldoforces)                            MODE3
+#calculate_stress                          # calculate stress                                     (ldostress)(not fully implemented)     MODE3
+#write_pdb                                 # write predicted structure in pdb format              (lwritepdb)                            MODE3
+#write_xyz                                 # write predicted structure in xyz format              (lwritexyz)                            MODE3
+#write_pov                                 # write predicted structure in pov format              (lwritepov)                            MODE3
+#write_pwscf                               # write predicted structure in pwscf format            (lwritepw)                             MODE3
+
+########################################################################################################################
+### output options for debug.out file  
+########################################################################################################################
+#print_all_short_weights
+#print_all_electrostatic_weights
+
+########################################################################################################################
+### options for mode 4 (not yet working)
+########################################################################################################################
+#symfunction_check_threshold 0.001d0       # threshold for symmetry function check                (symthres)                             MODE4
+#charge_check_threshold 0.0002d0           # threshold for atomic charge check                    (chargethres)                          MODE4
+#force_check_threshold 0.0003d0            # threshold for atomic force check                     (forcethres)                           MODE4
+#energy_check_threshold 0.0004d0           # threshold for atomic energy check                    (energythres)(not yet implemented)     MODE4

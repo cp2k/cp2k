@@ -1,0 +1,95 @@
+&GLOBAL
+  PRINT_LEVEL low
+  PROJECT_NAME he32_only_worm_p50
+  RUN_TYPE PINT
+&END GLOBAL
+
+&MOTION
+  &PINT
+    # NUM_STEPS 400000
+    NUM_STEPS 1000
+    &HELIUM
+      CELL_SHAPE OCTAHEDRON
+      DENSITY 0.0218457
+      HELIUM_ONLY
+      NATOMS 32
+      NBEADS 50
+      N_OUTER 10000
+      PERIODIC T
+      POTENTIAL_FILE_NAME helium_aziz95_80k.potx
+      PRESAMPLE T
+      SAMPLING_METHOD WORM
+      &PRINT
+        &MOMENT_OF_INERTIA OFF
+        &END MOMENT_OF_INERTIA
+        &PROJECTED_AREA_2_AVG OFF
+        &END PROJECTED_AREA_2_AVG
+        &RDF ON
+          &EACH
+            PINT 1000
+          &END EACH
+        &END RDF
+        &WINDING_NUMBER ON
+          &EACH
+            PINT 1
+          &END EACH
+        &END WINDING_NUMBER
+      &END PRINT
+      &RDF T
+        HE_HE T
+        MAXR 15.0
+        NBIN 300
+        SOLUTE_HE F
+      &END RDF
+    &END HELIUM
+  &END PINT
+  &PRINT
+    &RESTART
+      &EACH
+        PINT 1000
+      &END EACH
+    &END RESTART
+    &RESTART_HISTORY OFF
+    &END RESTART_HISTORY
+  &END PRINT
+&END MOTION
+
+#dummy force_eval
+#will be ignore due to MOTION&PINT&HELIUM&HELIUM_ONLY
+#but some valid force_eval is needed.
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      &CHARGE
+        ATOM Ar
+        CHARGE 0.0
+      &END CHARGE
+      &NONBONDED
+        &LENNARD-JONES
+          ATOMS Ar Ar
+          EPSILON 119.8
+          RCUT 8.4
+          SIGMA 3.405
+        &END LENNARD-JONES
+      &END NONBONDED
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE none
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 8.0 8.0 8.0
+      PERIODIC NONE
+    &END CELL
+    &COORD
+      Ar 0.0 0.0 0.0
+      Ar 4.0 4.0 4.0
+    &END COORD
+    &TOPOLOGY
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
