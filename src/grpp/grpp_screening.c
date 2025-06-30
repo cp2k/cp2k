@@ -139,20 +139,32 @@ static int screening_radial_type1_integral_primitive(
 }
 
 /**
+ * ratio of two modified scaled Bessel functions guarded against divide by zero
+ */
+static double modified_bessel_scaled_ratio(int n, double x) {
+  double numerator, denominator;
+  if (n == 0) {
+    numerator = libgrpp_modified_bessel_scaled(1, x);
+    denominator = libgrpp_modified_bessel_scaled(0, x);
+  } else {
+    numerator = libgrpp_modified_bessel_scaled(n - 1, x);
+    denominator = libgrpp_modified_bessel_scaled(n, x);
+  }
+  if (denominator == 0.0) {
+    return (2 * n + 1) / x; // asymptote for x->0
+  } else {
+    return numerator / denominator;
+  }
+}
+
+/**
  * transcendental equation for finding maximum of the type 1 integrand
  */
 static double screening_type1_equation_for_maximum(double r, int n, int lambda,
                                                    double p, double k) {
-  double K_ratio = 0.0;
-  if (lambda == 0) {
-    K_ratio = libgrpp_modified_bessel_scaled(1, k * r) /
-              libgrpp_modified_bessel_scaled(0, k * r);
-  } else {
-    K_ratio = libgrpp_modified_bessel_scaled(lambda - 1, k * r) /
-              libgrpp_modified_bessel_scaled(lambda, k * r);
-  }
-
-  double a = n + K_ratio * k * r;
+  double k_r = k * r;
+  double K_ratio = modified_bessel_scaled_ratio(lambda, k_r);
+  double a = n + K_ratio * k_r;
   if (lambda > 0) {
     a = a - lambda - 1;
   }
@@ -302,25 +314,11 @@ static int screening_radial_type2_integral_primitive(
 static double screening_type2_equation_for_maximum(double r, int n, int lambda1,
                                                    int lambda2, double p,
                                                    double k1, double k2) {
-  double K1_ratio = 0.0;
   double k1_r = k1 * r;
-  if (lambda1 == 0) {
-    K1_ratio = libgrpp_modified_bessel_scaled(1, k1_r) /
-               libgrpp_modified_bessel_scaled(0, k1_r);
-  } else {
-    K1_ratio = libgrpp_modified_bessel_scaled(lambda1 - 1, k1_r) /
-               libgrpp_modified_bessel_scaled(lambda1, k1_r);
-  }
+  double K1_ratio = modified_bessel_scaled_ratio(lambda1, k1_r);
 
-  double K2_ratio = 0.0;
   double k2_r = k2 * r;
-  if (lambda2 == 0) {
-    K2_ratio = libgrpp_modified_bessel_scaled(1, k2_r) /
-               libgrpp_modified_bessel_scaled(0, k2_r);
-  } else {
-    K2_ratio = libgrpp_modified_bessel_scaled(lambda2 - 1, k2_r) /
-               libgrpp_modified_bessel_scaled(lambda2, k2_r);
-  }
+  double K2_ratio = modified_bessel_scaled_ratio(lambda2, k2_r);
 
   double a = K1_ratio * k1_r + K2_ratio * k2_r + n;
 
