@@ -16,9 +16,9 @@ MODULE cp_fm_cholesky
    USE cp_dlaf_utils_api,               ONLY: cp_dlaf_create_grid,&
                                               cp_dlaf_initialize
    USE cp_fm_dlaf_api,                  ONLY: cp_pdpotrf_dlaf,&
+                                              cp_pdpotri_dlaf,&
                                               cp_pspotrf_dlaf,&
-                                              cp_pspotri_dlaf,&
-                                              cp_pdpotri_dlaf
+                                              cp_pspotri_dlaf
    USE cp_fm_types,                     ONLY: cp_fm_type
    USE cp_log_handling,                 ONLY: cp_to_string
    USE kinds,                           ONLY: dp,&
