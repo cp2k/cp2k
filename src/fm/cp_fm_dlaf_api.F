@@ -175,7 +175,7 @@ CONTAINS
       INTEGER, DIMENSION(9)                              :: desca
       INTEGER, TARGET                                    :: info
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_pspotrf_dlaf'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_pspotri_dlaf'
 
       INTEGER                                            :: handle
 
