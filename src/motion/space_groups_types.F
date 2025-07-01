@@ -26,6 +26,7 @@ MODULE space_groups_types
 
    TYPE spgr_type
       LOGICAL                                     :: keep_space_group = .FALSE.
+      LOGICAL                                     :: show_space_group = .FALSE.
       LOGICAL                                     :: symlib = .FALSE.
       LOGICAL                                     :: print_atoms = .FALSE.
       INTEGER                                     :: iunit = -1
