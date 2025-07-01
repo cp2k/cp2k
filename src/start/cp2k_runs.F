@@ -430,7 +430,7 @@ CONTAINS
             
          
             ALLOCATE(born_samples)
-            born_samples%field_strength = 0.003_dp ! TODO: make this variable (per axis?)
+            born_samples%field_strength = 0.0003_dp ! TODO: make this variable (per axis?)
 
             CPWARN("BORN charges calculation started, no field")
             ! no field
@@ -479,12 +479,21 @@ CONTAINS
 
       IF (output_unit > 0) THEN
             DO n=1, SIZE(born_samples%sample_no_field%forces, 1)
-            DO j=1,3
-               DO i=1,3
-                  WRITE (output_unit, '(A,I3, I2,I2,A,F20.10)') &
-                     "BORN: Born tensor ", n, i, j, ": ", born_tensor(n, i, j)
-               END DO
-            END DO
+            !DO j=1,3
+            !   DO i=1,3
+                  WRITE (output_unit,'(A,I3,A,F20.10,A,F20.10,A,F20.10,A,F20.10,A,F20.10,A,F20.10,A,F20.10,A,F20.10,A,F20.10)') &
+                     "BORN: Born tensor ", n, ": ", &
+                        born_tensor(n, 1, 1), ", ", &
+                        born_tensor(n, 1, 2), ", ", &
+                        born_tensor(n, 1, 3), ", ", &
+                        born_tensor(n, 2, 1), ", ", &
+                        born_tensor(n, 2, 2), ", ", &
+                        born_tensor(n, 2, 3), ", ", &
+                        born_tensor(n, 3, 1), ", ", &
+                        born_tensor(n, 3, 2), ", ", &
+                        born_tensor(n, 3, 3)
+            !   END DO
+            !END DO
             END DO
          END IF
 

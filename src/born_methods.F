@@ -43,7 +43,7 @@ CONTAINS
                born_tensor(n, i, j) = ( &
                   born_samples%samples_field(i, 1)%forces(n, j) - &
                   born_samples%samples_field(i, 2)%forces(n, j) &
-               ) / 2 * born_samples%field_strength
+               ) / (2 * born_samples%field_strength)
             END DO
          END DO
       END DO
