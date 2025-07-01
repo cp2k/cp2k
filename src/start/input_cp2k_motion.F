@@ -878,6 +878,17 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      ! collects keywords related to Space Group Symmetry analysis
+      CALL keyword_create( &
+         keyword, __LOCATION__, name="SHOW_SPACE_GROUP", &
+         description="Detect and show space group of the system after optimization. "// &
+         "It works for supercell. It does not affect/reduce computational cost. "// &
+         "Use EPS_SYMMETRY to adjust the detection threshold.", &
+         usage="SHOW_SPACE_GROUP .TRUE.", &
+         default_l_val=.FALSE., lone_keyword_l_val=.TRUE., repeats=.FALSE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       ! collects keywords related to precision for finding the space group
       CALL keyword_create( &
          keyword, __LOCATION__, name="EPS_SYMMETRY", &

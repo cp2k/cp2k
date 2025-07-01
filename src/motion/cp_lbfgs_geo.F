@@ -150,6 +150,14 @@ CONTAINS
          CALL print_geo_opt_nc(gopt_env, output_unit)
       END IF
 
+      ! show space_group
+      CALL section_vals_val_get(geo_section, "SHOW_SPACE_GROUP", l_val=spgr%show_space_group)
+      IF (spgr%show_space_group) THEN
+         CALL identify_space_group(subsys, geo_section, gopt_env, output_unit)
+         CALL print_spgr(spgr)
+      END IF
+
+
       ! Write final output information, if converged
       CALL cp_iterate(logger%iter_info, last=.TRUE., increment=0)
       CALL gopt_f_io_finalize(gopt_env, force_env, optimizer%x, converged, its, root_section, &
