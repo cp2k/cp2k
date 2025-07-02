@@ -157,7 +157,6 @@ CONTAINS
          CALL print_spgr(spgr)
       END IF
 
-
       ! Write final output information, if converged
       CALL cp_iterate(logger%iter_info, last=.TRUE., increment=0)
       CALL gopt_f_io_finalize(gopt_env, force_env, optimizer%x, converged, its, root_section, &
