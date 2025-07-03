@@ -63,13 +63,12 @@ build cp2k eiger:
     PERSIST_IMAGE_NAME: ${CSCS_IMAGE_NAME}
 
 test cp2k eiger:
-  extends: .container-runner-eiger-zen2
+  extends: .baremetal-runner-eiger-zen2
   stage: test
   needs: ["build cp2k eiger"]
   timeout: 1h
-  image: ${CSCS_IMAGE_NAME}
   script:
-    - cp2k /opt/cp2k/benchmarks/CI/H2O-32_md.inp
+    - podman run --shm-size=1g -v ${PWD}:/mnt ${DOCKERHUB_IMAGE_NAME} mpiexec -n ${SLURM_NTASKS} -genv OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK} cp2k /opt/cp2k/benchmarks/CI/H2O-32_md.inp
   variables:
     SLURM_CONSTRAINT: mc
     SLURM_CPUS_PER_TASK: 4
