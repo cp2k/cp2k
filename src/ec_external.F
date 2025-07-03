@@ -14,6 +14,7 @@
 MODULE ec_external
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE cell_types,                      ONLY: cell_type
+   USE core_ae,                         ONLY: build_core_ae
    USE core_ppl,                        ONLY: build_core_ppl
    USE core_ppnl,                       ONLY: build_core_ppnl
    USE cp_control_types,                ONLY: dft_control_type
@@ -119,6 +120,11 @@ CONTAINS
       ELSE
          unit_nr = -1
       END IF
+
+      ec_env%etotal = 0.0_dp
+      ec_env%ex = 0.0_dp
+      ec_env%exc = 0.0_dp
+      ec_env%ehartree = 0.0_dp
 
       CALL get_qs_env(qs_env, mos=mos)
       ALLOCATE (cpmos(nspins), mo_ref(nspins), mo_occ(nspins))
@@ -367,7 +373,7 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_orb, sac_ppl, sap_ppnl
+         POINTER                                         :: sab_orb, sac_ae, sac_ppl, sap_ppnl
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -410,9 +416,10 @@ CONTAINS
       END IF
 
       ! get neighbor lists
-      NULLIFY (sab_orb, sac_ppl, sap_ppnl)
+      NULLIFY (sab_orb, sac_ae, sac_ppl, sap_ppnl)
       CALL get_qs_env(qs_env=qs_env, &
-                      sab_orb=sab_orb, sac_ppl=sac_ppl, sap_ppnl=sap_ppnl)
+                      sab_orb=sab_orb, sac_ae=sac_ae, &
+                      sac_ppl=sac_ppl, sap_ppnl=sap_ppnl)
 
       ! initialize src matrix
       NULLIFY (scrm)
@@ -455,6 +462,26 @@ CONTAINS
       NULLIFY (atomic_kind_set, particle_set, qs_kind_set)
       CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set, particle_set=particle_set, &
                       atomic_kind_set=atomic_kind_set)
+
+      IF (ASSOCIATED(sac_ae)) THEN
+         IF (calculate_forces .AND. debug_forces) fodeb(1:3) = force(1)%all_potential(1:3, 1)
+         IF (debug_stress .AND. use_virial) stdeb = virial%pv_ppl
+         CALL build_core_ae(scrm, matrix_p, force, &
+                            virial, calculate_forces, use_virial, nder, &
+                            qs_kind_set, atomic_kind_set, particle_set, sab_orb, sac_ae, &
+                            nimages, cell_to_index, "ORB")
+         IF (calculate_forces .AND. debug_forces) THEN
+            fodeb(1:3) = force(1)%all_potential(1:3, 1) - fodeb(1:3)
+            CALL para_env%sum(fodeb)
+            IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pout*dH_AE  ", fodeb
+         END IF
+         IF (debug_stress .AND. use_virial) THEN
+            stdeb = fconv*(virial%pv_ppl - stdeb)
+            CALL para_env%sum(stdeb)
+            IF (iounit > 0) WRITE (UNIT=iounit, FMT="(T2,A,T41,2(1X,ES19.11))") &
+               'STRESS| Pout*dH_AE ', one_third_sum_diag(stdeb), det_3x3(stdeb)
+         END IF
+      END IF
 
       IF (ASSOCIATED(sac_ppl)) THEN
          IF (calculate_forces .AND. debug_forces) fodeb(1:3) = force(1)%gth_ppl(1:3, 1)

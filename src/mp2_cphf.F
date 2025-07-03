@@ -1452,7 +1452,7 @@ CONTAINS
          CALL build_core_ae(scrm_kp, rho_ao_kp, force, &
                             virial, .TRUE., use_virial, 1, &
                             qs_kind_set, atomic_kind_set, particle_set, sab_orb, sac_ae, &
-                            nimages, cell_to_index)
+                            nimages, cell_to_index, basis_type="ORB")
          IF (debug_forces) THEN
             deb(1:3) = force(1)%all_potential(1:3, 1) - deb(1:3)
             CALL para_env%sum(deb)

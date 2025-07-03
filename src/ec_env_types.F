@@ -88,7 +88,8 @@ MODULE ec_env_types
       TYPE(qs_force_type), DIMENSION(:), POINTER       :: force => Null()
       ! full neighbor lists and corresponding task list
       TYPE(neighbor_list_set_p_type), &
-         DIMENSION(:), POINTER                         :: sab_orb => Null(), sac_ppl => Null(), sap_ppnl => Null()
+         DIMENSION(:), POINTER                         :: sab_orb => Null(), sac_ppl => Null(), &
+                                                          sac_ae => Null(), sap_ppnl => Null()
       TYPE(task_list_type), POINTER                    :: task_list => Null()
       ! the XC function to be used for the correction, dispersion info
       TYPE(section_vals_type), POINTER                 :: xc_section => Null()
@@ -155,6 +156,7 @@ CONTAINS
          ! neighbor lists
          CALL release_neighbor_list_sets(ec_env%sab_orb)
          CALL release_neighbor_list_sets(ec_env%sac_ppl)
+         CALL release_neighbor_list_sets(ec_env%sac_ae)
          CALL release_neighbor_list_sets(ec_env%sap_ppnl)
          ! forces
          IF (ASSOCIATED(ec_env%force)) CALL deallocate_qs_force(ec_env%force)

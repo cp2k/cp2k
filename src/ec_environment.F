@@ -133,7 +133,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       NULLIFY (atomic_kind_set, dispersion_env, ec_env%ls_env, para_env)
-      NULLIFY (ec_env%sab_orb, ec_env%sac_ppl, ec_env%sap_ppnl)
+      NULLIFY (ec_env%sab_orb, ec_env%sac_ae, ec_env%sac_ppl, ec_env%sap_ppnl)
       NULLIFY (ec_env%matrix_ks, ec_env%matrix_h, ec_env%matrix_s)
       NULLIFY (ec_env%matrix_t, ec_env%matrix_p, ec_env%matrix_w)
       NULLIFY (ec_env%task_list)

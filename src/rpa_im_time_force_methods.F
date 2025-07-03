@@ -3233,7 +3233,7 @@ CONTAINS
          CALL build_core_ae(dbcsr_work_h, dbcsr_work_p, force, &
                             virial, .TRUE., use_virial, nder, &
                             qs_kind_set, atomic_kind_set, particle_set, &
-                            sab_orb, sac_ae, nimages, cell_to_index)
+                            sab_orb, sac_ae, nimages, cell_to_index, "ORB")
       END IF
 
       IF (ASSOCIATED(sac_ppl)) THEN
