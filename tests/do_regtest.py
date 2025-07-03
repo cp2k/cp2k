@@ -54,8 +54,8 @@ KEEPALIVE_SKIP_DIRS = [
     "QS/regtest-gpw-1",
     "QS/regtest-mp2-grad-1",
     "QS/regtest-mp2-grad-2",
-    "QS/regtest-dlaf", # FIXME
-    "QS/regtest-dlaf-2", # FIXME
+    "QS/regtest-dlaf",  # FIXME
+    "QS/regtest-dlaf-2",  # FIXME
 ]
 
 
