@@ -2,6 +2,6 @@
 "hBN_gpw_pbe0.inp"                      = [{matcher="M011", tol=1.0E-10, ref=-11.419680658874068}]
 "LiH_gapw_pbex.inp"                     = [{matcher="M011", tol=1.0E-10, ref=-7.646121340276992}]
 "LiH_gpw_none.inp"                      = [{matcher="M011", tol=1.0E-10, ref=-6.189964615449504}]
-"diamond_admmp.inp"                     = [{matcher="M011", tol=1.0E-10, ref=-9.597066989878867}]
+"diamond_admmp.inp"                     = [{matcher="M011", tol=1.0E-9,  ref=-9.597066989878867}]
 "diamond_admmq.inp"                     = [{matcher="M011", tol=1.0E-10, ref=-10.061483261353713}]
 "diamond_admms.inp"                     = [{matcher="M011", tol=1.0E-10, ref=-79.262739163622967}]

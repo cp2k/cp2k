@@ -1,6 +1,7 @@
 "H2O-hfx-coulomb.inp"                   = [{matcher="E_total", tol=1.0E-09, ref=-75.96344483562591}]
 "H2O-hfx-identity.inp"                  = [{matcher="E_total", tol=2.0E-10, ref=-76.00818468795198}]
 "H2O-hfx-periodic-ri-truncated.inp"     = [{matcher="E_total", tol=1.0E-11, ref=-67.51965939381094}]
+"H2O-hfx-periodic-ri-mix_cl_trunc.inp"  = [{matcher="E_total", tol=1.0E-11, ref=-65.80781719886053}]
 "H2O-hybrid-b3lyp.inp"                  = [{matcher="E_total", tol=1.0E-12, ref=-76.29352168308112}]
 "CH-hfx-ri-mo.inp"                      = [{matcher="E_total", tol=1.0E-12, ref=-38.20089451245833}]
 "CH-hfx-ri-rho.inp"                     = [{matcher="E_total", tol=3.0E-10, ref=-38.26515058472813}]
