@@ -524,7 +524,7 @@ CONTAINS
          IF (LEN_TRIM(openpmd_config) == 0) THEN
             CALL section_vals_val_get(print_key, "OPENPMD_CFG", c_val=openpmd_config)
          ELSE
-            openpmd_config = "@" // openpmd_config
+            openpmd_config = "@"//openpmd_config
          END IF
          filename = cp_print_key_generate_openpmd_filename(logger, print_key, openpmd_basename, file_extension)
 

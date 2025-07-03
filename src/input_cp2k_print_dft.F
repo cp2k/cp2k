@@ -2228,7 +2228,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="OPENPMD_CFG_FILE", &
-      description="Runtime config file for openPMD output. This parameter takes precedence over OPENPMD_CFG.", default_c_val="", &
+        description="Runtime config file for openPMD output. This parameter takes precedence over OPENPMD_CFG.", default_c_val="", &
                           type_of_var=char_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
