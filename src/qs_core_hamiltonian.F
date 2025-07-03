@@ -490,7 +490,7 @@ CONTAINS
       IF (all_present) THEN
          CALL build_core_ae(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder, &
                             qs_kind_set, atomic_kind_set, particle_set, sab_orb, sac_ae, &
-                            nimages, cell_to_index, atcore=atcore)
+                            nimages, cell_to_index, "ORB", atcore=atcore)
       END IF
 
       ! *** compute the ppl contribution to the core hamiltonian ***

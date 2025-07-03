@@ -460,7 +460,7 @@ CONTAINS
                             use_virial=use_virial, nder=nder, qs_kind_set=qs_kind_set, &
                             atomic_kind_set=atomic_kind_set, particle_set=particle_set, &
                             sab_orb=sab_orb, sac_ae=sac_ae, nimages=1, &
-                            cell_to_index=cell_to_index)
+                            basis_type=my_basis_type, cell_to_index=cell_to_index)
       END IF
       ! *** compute the ppl contribution to the core hamiltonian ***
       ppl_present = ASSOCIATED(sac_ppl)

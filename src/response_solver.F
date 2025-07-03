@@ -831,7 +831,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'response_force'
 
-      CHARACTER(LEN=default_string_length)               :: basis_type
+      CHARACTER(LEN=default_string_length)               :: basis_type, unitstr
       INTEGER                                            :: handle, iounit, ispin, mspin, myfun, &
                                                             n_rep_hf, nao, nao_aux, natom, nder, &
                                                             nimages, nocc, nspins
@@ -1033,7 +1033,7 @@ CONTAINS
          IF (debug_stress .AND. use_virial) stdeb = virial%pv_ppl
          CALL build_core_ae(matrix_h, matrix_p, force, virial, .TRUE., use_virial, nder, &
                             qs_kind_set, atomic_kind_set, particle_set, sab_orb, sac_ae, &
-                            nimages, cell_to_index)
+                            nimages, cell_to_index, "ORB")
          IF (debug_forces) THEN
             fodeb(1:3) = force(1)%all_potential(1:3, 1) - fodeb(1:3)
             CALL para_env%sum(fodeb)
@@ -2503,6 +2503,13 @@ CONTAINS
          CALL para_env%sum(stdeb)
          IF (iounit > 0) WRITE (UNIT=iounit, FMT="(T2,A,T41,2(1X,ES19.11))") &
             'STRESS| Stress Response    ', one_third_sum_diag(stdeb), det_3x3(stdeb)
+         stdeb = fconv*(virial%pv_virial)
+         CALL para_env%sum(stdeb)
+         IF (iounit > 0) WRITE (UNIT=iounit, FMT="(T2,A,T41,2(1X,ES19.11))") &
+            'STRESS| Total Stress       ', one_third_sum_diag(stdeb), det_3x3(stdeb)
+         IF (iounit > 0) WRITE (UNIT=iounit, FMT="(T2,3(1X,ES19.11))") &
+            stdeb(1, 1), stdeb(2, 2), stdeb(3, 3)
+         unitstr = "bar"
       END IF
 
       IF (do_ex) THEN
