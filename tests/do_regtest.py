@@ -2,12 +2,6 @@
 
 # author: Ole Schuett
 
-from asyncio import Semaphore, Task
-from asyncio.subprocess import DEVNULL, PIPE, STDOUT, Process
-from datetime import datetime
-from pathlib import Path
-from typing import Any, Coroutine, Dict, List, Literal, Optional, TextIO, Tuple, Union
-from statistics import mean, stdev
 import argparse
 import asyncio
 import math
@@ -17,6 +11,13 @@ import shutil
 import subprocess
 import sys
 import time
+from asyncio import Semaphore, Task
+from asyncio.subprocess import DEVNULL, PIPE, STDOUT, Process
+from datetime import datetime
+from pathlib import Path
+from statistics import mean, stdev
+from typing import Any, Coroutine, Dict, List, Literal, Optional, TextIO, Tuple, Union
+
 from matchers import run_matcher
 
 # Try importing toml from various places.

@@ -25,6 +25,7 @@ MODULE cp_cfm_diag
 #if defined(__DLAF)
    USE cp_cfm_dlaf_api, ONLY: cp_cfm_diag_gen_dlaf, &
                               cp_cfm_diag_dlaf
+   USE cp_dlaf_utils_api, ONLY: cp_dlaf_initialize, cp_dlaf_create_grid
    USE cp_fm_diag, ONLY: diag_type, dlaf_neigvec_min, FM_DIAG_TYPE_DLAF
 #endif
    USE kinds, ONLY: dp
@@ -67,6 +68,12 @@ CONTAINS
 
 #if defined(__DLAF)
       IF (diag_type == FM_DIAG_TYPE_DLAF .AND. matrix%matrix_struct%nrow_global >= dlaf_neigvec_min) THEN
+         ! Initialize DLA-Future on-demand; if already initialized, does nothing
+         CALL cp_dlaf_initialize()
+
+         ! Create DLAF grid from BLACS context; if already present, does nothing
+         CALL cp_dlaf_create_grid(matrix%matrix_struct%context%get_handle())
+
          CALL cp_cfm_diag_dlaf(matrix, eigenvectors, eigenvalues)
       ELSE
 #endif
@@ -202,6 +209,14 @@ CONTAINS
 
 #if defined(__DLAF)
       IF (diag_type == FM_DIAG_TYPE_DLAF .AND. amatrix%matrix_struct%nrow_global >= dlaf_neigvec_min) THEN
+         ! Initialize DLA-Future on-demand; if already initialized, does nothing
+         CALL cp_dlaf_initialize()
+
+         ! Create DLAF grid from BLACS context; if already present, does nothing
+         CALL cp_dlaf_create_grid(amatrix%matrix_struct%context%get_handle())
+         CALL cp_dlaf_create_grid(bmatrix%matrix_struct%context%get_handle())
+         CALL cp_dlaf_create_grid(eigenvectors%matrix_struct%context%get_handle())
+
          ! Use DLA-Future generalized eigenvalue solver for large matrices
          CALL cp_cfm_diag_gen_dlaf(amatrix, bmatrix, work, evals)
       ELSE
