@@ -309,6 +309,9 @@ SIRIUS is a domain specific library for electronic structure calculations.
 - For building CP2K with SIRIUS add `-D__SIRIUS` to DFLAGS.
 - Add `-D__LIBVDWXC` if support is activated in SIRIUS.
 - See <https://electronic-structure.github.io/SIRIUS-doc/> for more information.
+- Add `-D__SIRIUS_DFTD4` when sirius is compiled with dftd3 and dftd4 support.
+- Add `-D__SIRIUS_NLCG` when sirius is compiled with nlcg support.
+- Add `-D__SIRIUS_VCSQNM` when sirius is compiled with variable cell relaxation support.
 
 ### 2s. FPGA (optional, plane wave FFT calculations)
 

@@ -123,10 +123,27 @@ CONTAINS
       !
       ! uncomment these lines when nlcg is officialy supported in cp2k
       !
+#if defined(__SIRIUS_NLCG)
+      CALL create_sirius_section(subsection, 'nlcg')
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+#endif
 
-      !      CALL create_sirius_section(subsection, 'nlcg')
-      !      CALL section_add_subsection(section, subsection)
-      !      CALL section_release(subsection)
+#if defined(__SIRIUS_VCSQNM)
+      CALL create_sirius_section(subsection, 'vcsqnm')
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+#endif
+
+#if defined(__SIRIUS_DFTD4)
+      CALL create_sirius_section(subsection, "dftd4")
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      CALL create_sirius_section(subsection, "dftd3")
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+#endif
 
       CALL create_print_section(subsection)
       CALL section_add_subsection(section, subsection)

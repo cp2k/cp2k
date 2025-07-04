@@ -167,12 +167,22 @@ cmake_dependent_option(CP2K_USE_SIRIUS "Enable SIRIUS support"
                        ${CP2K_USE_EVERYTHING} "CP2K_USE_MPI" OFF)
 cmake_dependent_option(CP2K_USE_SPLA "Enable SpLA support"
                        ${CP2K_USE_EVERYTHING} "CP2K_USE_MPI" OFF)
-
 cmake_dependent_option(
   CP2K_USE_LIBXSMM "Enable libxsmm support" ${CP2K_USE_EVERYTHING}
   "NOT CP2K_USE_ACCEL MATCHES \"OPENCL\"" ON)
 cmake_dependent_option(CP2K_USE_LIBVDWXC "Enable libvdwxc support with SIRIUS"
                        ${CP2K_USE_EVERYTHING} "CP2K_USE_SIRIUS" OFF)
+
+# do not turn it on if sirius is built with the toolchain
+cmake_dependent_option(
+  CP2K_USE_SIRIUS_DFTD4 "Enable dftd3 and dftd4 sirius support" OFF
+  "CP2K_USE_SIRIUS" OFF)
+cmake_dependent_option(
+  CP2K_USE_SIRIUS_VCSQNM "Enable variable cell shape relaxation in SIRIUS" OFF
+  "CP2K_USE_SIRIUS" OFF)
+
+cmake_dependent_option(CP2K_USE_SIRIUS_NLCG "Enable nlcg method in SIRIUS" OFF
+                       "CP2K_USE_SIRIUS" OFF)
 
 cmake_dependent_option(
   CP2K_DBCSR_USE_CPU_ONLY "Disable the DBCSR accelerated backend" OFF
