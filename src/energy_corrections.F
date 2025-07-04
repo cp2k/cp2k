@@ -644,7 +644,7 @@ CONTAINS
             WRITE (funit, *)
             WRITE (funit, "(T8,A,T58,A)") "CELL [Bohr]", "RESPONSE PRESSURE [GPa]"
             DO ia = 1, 3
-               WRITE (funit, "(3F15.8,5x,3F15.8)") cell%hmat(ia, 1:3), fconv*ec_env%rpv(ia, 1:3)
+               WRITE (funit, "(3F15.8,5x,3F15.8)") cell%hmat(ia, 1:3), -fconv*ec_env%rpv(ia, 1:3)
             END DO
 
             CALL close_file(funit)
