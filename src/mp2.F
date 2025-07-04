@@ -367,7 +367,7 @@ CONTAINS
          nmo = nao - ndep
 
          CALL get_mo_set(mo_set=mos(1), nelectron=nelec(1))
-         IF (MAXVAL(nelec) > nmo) THEN
+         IF (MAXVAL(nelec)/(3-nspins) > nmo) THEN
             ! Should not happen as the following MO calculation is the same as during the SCF steps
             CPABORT("Not enough MOs found!")
          END IF
