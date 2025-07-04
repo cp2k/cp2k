@@ -1699,6 +1699,8 @@ target_link_libraries(
     $<$<BOOL:${CP2K_USE_ACE}>:ACE::cnpy>
     $<$<BOOL:${CP2K_USE_TBLITE}>:toml-f::toml-f>
     $<$<BOOL:${CP2K_USE_TBLITE}>:s-dftd3::s-dftd3>
+    $<$<BOOL:${CP2K_USE_TBLITE}>:mctc-lib::mctc-lib>
+    $<$<BOOL:${CP2K_USE_TBLITE}>:dftd4::dftd4>
     $<$<BOOL:${CP2K_USE_TBLITE}>:tblite::tblite>
     $<$<BOOL:${CP2K_USE_SIRIUS}>:sirius::sirius>
     $<$<BOOL:${CP2K_USE_VORI}>:cp2k::VORI::vori>
@@ -1753,6 +1755,7 @@ target_compile_definitions(
     $<$<BOOL:${CP2K_USE_SPGLIB}>:__SPGLIB>
     $<$<BOOL:${CP2K_USE_LIBSMEAGOL}>:__SMEAGOL>
     $<$<BOOL:${CP2K_USE_TBLITE}>:__TBLITE>
+    $<$<BOOL:${CP2K_USE_TBLITE}>:__DFTD4>
     $<$<BOOL:${CP2K_USE_DFTD4}>:__DFTD4>
     $<$<BOOL:${CP2K_USE_DEEPMD}>:__DEEPMD>
     $<$<BOOL:${CP2K_USE_PEXSI}>:__PEXSI>
