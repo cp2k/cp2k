@@ -254,15 +254,36 @@ CONTAINS
          CALL cp_sirius_fill_in_section(sctx, pwdft_sub_section, "iterative_solver")
       END IF
 
+#if defined(__SIRIUS_DFTD4)
+      ! import dftd3 and dftd4 section
+      pwdft_sub_section => section_vals_get_subs_vals(pwdft_section, "dftd4")
+      IF (ASSOCIATED(pwdft_sub_section)) THEN
+         CALL cp_sirius_fill_in_section(sctx, pwdft_sub_section, "dftd4")
+      END IF
+
+      pwdft_sub_section => section_vals_get_subs_vals(pwdft_section, "dftd3")
+      IF (ASSOCIATED(pwdft_sub_section)) THEN
+         CALL cp_sirius_fill_in_section(sctx, pwdft_sub_section, "dftd3")
+      END IF
+#endif
+
       !
       ! uncomment these lines when nlcg is officially supported
       !
-
+#if defined(__SIRIUS_NLCG)
       !     import nlcg section
-      !      pwdft_sub_section => section_vals_get_subs_vals(pwdft_section, "nlcg")
-      !      IF (ASSOCIATED(pwdft_sub_section)) THEN
-      !         CALL cp_sirius_fill_in_section(sctx, pwdft_sub_section, "nlcg")
-      !      ENDIF
+      pwdft_sub_section => section_vals_get_subs_vals(pwdft_section, "nlcg")
+      IF (ASSOCIATED(pwdft_sub_section)) THEN
+         CALL cp_sirius_fill_in_section(sctx, pwdft_sub_section, "nlcg")
+      END IF
+#endif
+
+#if defined(__SIRIUS_VCSQNM)
+      pwdft_sub_section => section_vals_get_subs_vals(pwdft_section, "vcsqnm")
+      IF (ASSOCIATED(pwdft_sub_section)) THEN
+         CALL cp_sirius_fill_in_section(sctx, pwdft_sub_section, "vcsqnm")
+      END IF
+#endif
 
       !CALL sirius_dump_runtime_setup(sctx, "runtime.json")
       CALL sirius_import_parameters(sctx, '{}')
