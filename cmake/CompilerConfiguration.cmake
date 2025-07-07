@@ -5,8 +5,8 @@
 #!   SPDX-License-Identifier: GPL-2.0-or-later                                                     !
 #!-------------------------------------------------------------------------------------------------!
 
-set(CP2K_C_COMPILER_LIST "GNU;Intel;NAG;Cray;PGI;Clang;AppleClang")
-set(CP2K_Fortran_COMPILER_LIST "GNU;Intel;NAG;Cray;PGI")
+set(CP2K_C_COMPILER_LIST "GNU;Intel;IntelLLVM;NAG;Cray;PGI;Clang;AppleClang")
+set(CP2K_Fortran_COMPILER_LIST "GNU;Intel;IntelLLVM;NAG;Cray;PGI")
 
 if(NOT CMAKE_C_COMPILER_ID IN_LIST CP2K_C_COMPILER_LIST)
   message(
@@ -36,9 +36,10 @@ endif()
 # (similar to -h system_alloc)
 add_compile_options(
   "$<$<COMPILE_LANG_AND_ID:C,GNU>:-march=native;-mtune=native>"
-  "$<$<COMPILE_LANG_AND_ID:Fortran,GNU>:-march=native;-mtune=native;-fbacktrace;-ffree-line-length-none;-ffree-form;-std=f2008;-fimplicit-none;-Werror=aliasing;-Werror=ampersand;-Werror=c-binding-type;-Werror=conversion;-Werror=intrinsic-shadow;-Werror=intrinsics-std;-Werror=line-truncation;-Werror=tabs;-Werror=target-lifetime;-Werror=underflow;-Werror=unused-but-set-variable;-Werror=unused-variable>"
+  "$<$<COMPILE_LANG_AND_ID:Fortran,GNU>:-march=native;-mtune=native;-fbacktrace;-ffree-line-length-none;-ffree-form;-std=f2008;-fimplicit-none;-Werror=aliasing;-Werror=ampersand;-Werror=c-binding-type;-Werror=conversion;-Werror=intrinsic-shadow;-Werror=intrinsics-std;-Werror=line-truncation;-Werror=tabs;-Werror=target-lifetime;-Werror=underflow;-Werror=unused-but-set-variable;-Werror=unused-variable;-D__MAX_CONTR=4>"
   "$<$<AND:$<COMPILE_LANG_AND_ID:Fortran,GNU>,$<VERSION_GREATER_EQUAL:${CMAKE_Fortran_COMPILER_VERSION},11>>:-fallow-argument-mismatch>"
-  "$<$<COMPILE_LANG_AND_ID:Fortran,Intel>:-free;-stand=f18;-fpp;-heap-arrays>"
+  "$<$<COMPILE_LANG_AND_ID:Fortran,Intel>:-free;-stand f18;-fpp;-heap-arrays;-D__MAX_CONTR=4>"
+  "$<$<COMPILE_LANG_AND_ID:Fortran,IntelLLVM>:-free;-fpp;-D__MAX_CONTR=4>"
   "$<$<COMPILE_LANG_AND_ID:Fortran,PGI>:-Mfreeform;-Mextend;-Mallocatable=03>"
   "$<$<COMPILE_LANG_AND_ID:Fortran,NAG>:-f2008;-free;-Warn=reallocation;-Warn=subnormal>"
   "$<$<COMPILE_LANG_AND_ID:C,Cray>:-hnoacc;-h;nomessage=1234>"
@@ -46,14 +47,16 @@ add_compile_options(
 )
 
 add_compile_options(
-  "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:Fortran,GNU>>:-g;-funroll-loops>"
+  "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:Fortran,GNU>>:-g;-funroll-loops;-D__HAS_IEEE_EXCEPTIONS>"
   "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:Fortran,PGI>>:-fast>"
-  "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:Fortran,Intel>>:-O3;-g>"
+  "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:Fortran,Intel>>:-O3;-g;-D__HAS_IEEE_EXCEPTIONS>"
+  "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:Fortran,IntelLLVM>>:-O3;-g;-D__HAS_IEEE_EXCEPTIONS>"
   "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:Fortran,Cray>>:-O2;-G2>"
   "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:Fortran,NAG>>:-gline>"
   "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:C,GNU>>:-g;-funroll-loops;-Wall>"
   "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:C,PGI>>:-fast>"
   "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:C,Intel>>:-O3;-g>"
+  "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:C,IntelLLVM>>:-O3;-g>"
   "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:C,Cray>>:-O3>"
   "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:C,NAG>>:-gline>"
   "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:C,Clang>>:-O3;-funroll-loops>"
@@ -65,10 +68,12 @@ add_compile_options(
   "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:Fortran,GNU>>:-fbacktrace;-ffree-form;-fimplicit-none;-std=f2008;-fsanitize=leak;-fcheck=all,no-array-temps;-ffpe-trap=invalid,zero,overflow;-finit-derived;-finit-real=snan;-finit-integer=-42;-Werror=realloc-lhs;-finline-matmul-limit=0>"
   "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:Fortran,PGI>>:-g>"
   "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:Fortran,Intel>>:-O2;-debug>"
+  "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:Fortran,IntelLLVM>>:-O2;-debug>"
   "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:Fortran,Cray>>:-G2>"
   "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:C,GNU>>:-O2;-ggdb;-Wall;-fsanitize=undefined;-fsanitize=address;-fsanitize-recover=all;-Wall;-Wextra;-Werror;-Wno-vla-parameter;-Wno-deprecated-declarations>"
   "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:C,PGI>>:-fast>"
   "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:C,Intel>>:-O3;-g>"
+  "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:C,IntelLLVM>>:-O3;-g>"
   "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:C,Cray>>:-G2>"
   "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:C,NAG>>:-g;-C>"
   "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:C,Clang>>:-O1;-g;-fno-omit-frame-pointer>"
