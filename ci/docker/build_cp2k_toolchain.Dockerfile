@@ -127,7 +127,7 @@ ulimit -c 0 -s unlimited\n\
 export OMP_STACKSIZE=64M\n\
 export PATH=/opt/cp2k/bin:\${PATH}\n\
 source /opt/cp2k/tools/toolchain/install/setup\n\
-\"\$@\"" \
+exec \"\$@\"" \
 >/opt/cp2k/bin/entrypoint.sh && chmod 755 /opt/cp2k/bin/entrypoint.sh
 
 # Create shortcut for regression test
