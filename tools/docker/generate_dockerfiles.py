@@ -855,7 +855,6 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     bzip2 \
     ca-certificates \
     cmake \
-    curl \
     g++ \
     gcc \
     gfortran \
@@ -898,10 +897,10 @@ ENV SPACK_ROOT=/opt/spack-$SPACK_VERSION
 ARG SPACK_PACKAGES_REPO=https://github.com/spack/spack-packages
 ENV SPACK_PACKAGES_ROOT=/opt/spack-packages-$SPACK_PACKAGES_VERSION
 RUN mkdir -p $SPACK_ROOT \
-    && curl -OL $SPACK_REPO/archive/$SPACK_VERSION.tar.gz \
+    && wget -q $SPACK_REPO/archive/$SPACK_VERSION.tar.gz \
     && tar -xzf $SPACK_VERSION.tar.gz -C /opt && rm -f $SPACK_VERSION.tar.gz \
     && mkdir -p $SPACK_PACKAGES_ROOT \
-    && curl -OL $SPACK_PACKAGES_REPO/archive/$SPACK_PACKAGES_VERSION.tar.gz \
+    && wget -q $SPACK_PACKAGES_REPO/archive/$SPACK_PACKAGES_VERSION.tar.gz \
     && tar -xzf $SPACK_PACKAGES_VERSION.tar.gz -C /opt && rm -f $SPACK_PACKAGES_VERSION.tar.gz
 
 ENV PATH="$SPACK_ROOT/bin:${{PATH}}"
