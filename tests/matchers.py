@@ -1,7 +1,13 @@
 import re
+import sys
 import traceback
 from dataclasses import dataclass
-from typing import Any, Dict, Tuple, Optional, Protocol, Literal
+from typing import Any, Dict, Tuple, Optional
+
+if sys.version_info >= (3, 8):
+    from typing import Literal, Protocol
+else:
+    from typing_extensions import Literal, Protocol
 
 
 # ======================================================================================

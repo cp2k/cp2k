@@ -6,7 +6,7 @@ from asyncio import Semaphore, Task
 from asyncio.subprocess import DEVNULL, PIPE, STDOUT, Process
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Coroutine, Dict, List, Literal, Optional, TextIO, Tuple, Union
+from typing import Any, Coroutine, Dict, List, Optional, TextIO, Tuple, Union
 from statistics import mean, stdev
 import argparse
 import asyncio
@@ -18,6 +18,11 @@ import subprocess
 import sys
 import time
 from matchers import run_matcher
+
+if sys.version_info >= (3, 8):
+    from typing import Literal
+else:
+    from typing_extensions import Literal
 
 # Try importing toml from various places.
 try:
