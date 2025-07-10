@@ -47,6 +47,7 @@ static dbm_distribution_t *create_dist(const int nrows, const int ncols,
   dbm_mpi_cart_get(comm, 2, cart_dims, cart_periods, cart_coords);
 
   // Create distribution.
+  assert(0 < nrows && 0 < ncols);
   int *row_dist = malloc(nrows * sizeof(int));
   int *col_dist = malloc(ncols * sizeof(int));
   assert(row_dist != NULL && col_dist != NULL);
@@ -76,6 +77,7 @@ create_some_matrix(const int nrows, const int ncols, const int nrows_min,
   dbm_distribution_t *dist = create_dist(nrows, ncols, comm);
 
   // Create matrix.
+  assert(0 < nrows && 0 < ncols);
   int *row_sizes = malloc(nrows * sizeof(int));
   int *col_sizes = malloc(ncols * sizeof(int));
   assert(row_sizes != NULL && col_sizes != NULL);
@@ -131,6 +133,7 @@ static void reserve_all_blocks(dbm_matrix_t *matrix) {
         }
       }
     }
+    assert(0 < nblocks);
     int *reserve_row = malloc(nblocks * sizeof(int));
     int *reserve_col = malloc(nblocks * sizeof(int));
     assert(reserve_row != NULL && reserve_col != NULL);

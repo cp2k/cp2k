@@ -30,8 +30,10 @@ static void dbm_dist_1d_new(dbm_dist_1d_t *dist, const int length,
   dist->nranks = dbm_mpi_comm_size(comm);
   dist->length = length;
   dist->index2coord = malloc(length * sizeof(int));
-  assert(dist->index2coord != NULL);
-  memcpy(dist->index2coord, coords, length * sizeof(int));
+  assert(dist->index2coord != NULL || length == 0);
+  if (length != 0) {
+    memcpy(dist->index2coord, coords, length * sizeof(int));
+  }
 
   // Check that cart coordinates and ranks are equivalent.
   int cart_dims[1], cart_periods[1], cart_coords[1];
@@ -49,7 +51,7 @@ static void dbm_dist_1d_new(dbm_dist_1d_t *dist, const int length,
 
   // Store local rows/columns.
   dist->local_indicies = malloc(dist->nlocals * sizeof(int));
-  assert(dist->local_indicies != NULL);
+  assert(dist->local_indicies != NULL || dist->nlocals == 0);
   int j = 0;
   for (int i = 0; i < length; i++) {
     if (coords[i] == dist->my_rank) {

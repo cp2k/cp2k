@@ -207,6 +207,8 @@ CONTAINS
       INTEGER                                            :: end_idx, increment_counter, start_idx, &
                                                             stat, tmp_elements, tmp_nints
 
+      CPASSERT(ASSOCIATED(container%current))
+
       start_idx = container%element_counter
       increment_counter = (nbits*CACHE_SIZE + 63)/64
       end_idx = start_idx + increment_counter - 1

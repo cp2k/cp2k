@@ -34,28 +34,36 @@ void grid_create_basis_set(const int nset, const int nsgf, const int maxco,
 
   size_t size = nset * sizeof(int);
   basis_set->lmin = malloc(size);
-  assert(basis_set->lmin != NULL);
-  memcpy(basis_set->lmin, lmin, size);
+  assert(basis_set->lmin != NULL || size == 0);
   basis_set->lmax = malloc(size);
-  assert(basis_set->lmax != NULL);
-  memcpy(basis_set->lmax, lmax, size);
+  assert(basis_set->lmax != NULL || size == 0);
   basis_set->npgf = malloc(size);
-  assert(basis_set->npgf != NULL);
-  memcpy(basis_set->npgf, npgf, size);
+  assert(basis_set->npgf != NULL || size == 0);
   basis_set->nsgf_set = malloc(size);
-  assert(basis_set->nsgf_set != NULL);
-  memcpy(basis_set->nsgf_set, nsgf_set, size);
+  assert(basis_set->nsgf_set != NULL || size == 0);
   basis_set->first_sgf = malloc(size);
-  assert(basis_set->first_sgf != NULL);
-  memcpy(basis_set->first_sgf, first_sgf, size);
+  assert(basis_set->first_sgf != NULL || size == 0);
+  if (size != 0) {
+    memcpy(basis_set->lmin, lmin, size);
+    memcpy(basis_set->lmax, lmax, size);
+    memcpy(basis_set->npgf, npgf, size);
+    memcpy(basis_set->nsgf_set, nsgf_set, size);
+    memcpy(basis_set->first_sgf, first_sgf, size);
+  }
+
   size = nsgf * maxco * sizeof(double);
   basis_set->sphi = malloc(size);
-  assert(basis_set->sphi != NULL);
-  memcpy(basis_set->sphi, sphi, size);
+  assert(basis_set->sphi != NULL || size == 0);
+  if (size != 0) {
+    memcpy(basis_set->sphi, sphi, size);
+  }
+
   size = nset * maxpgf * sizeof(double);
   basis_set->zet = malloc(size);
-  assert(basis_set->zet != NULL);
-  memcpy(basis_set->zet, zet, size);
+  assert(basis_set->zet != NULL || size == 0);
+  if (size != 0) {
+    memcpy(basis_set->zet, zet, size);
+  }
 
   *basis_set_out = basis_set;
 }

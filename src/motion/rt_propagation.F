@@ -496,6 +496,7 @@ CONTAINS
 
       NULLIFY (matrix_s, dft_control)
       CALL get_qs_env(qs_env, dft_control=dft_control)
+      CPASSERT(ASSOCIATED(qs_env))
 
       SELECT CASE (rtp_control%initial_wfn)
       CASE (use_scf_wfn)
@@ -536,6 +537,7 @@ CONTAINS
          CALL rt_prop_create(qs_env%rtp, qs_env%mos, qs_env%mpools, dft_control, matrix_s(1)%matrix, &
                              rtp_control%linear_scaling, qs_env%admm_env%mos_aux_fit)
          CALL get_restart_wfn(qs_env)
+         CPASSERT(ASSOCIATED(qs_env))
 
          qs_env%run_rtp = .TRUE.
       END SELECT
