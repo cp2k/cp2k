@@ -71,7 +71,7 @@ static void rebuild_cache_entry(const int max_imr, const double drmin,
 
   // Compute required storage size.
   entry->offsets = malloc(max_imr * sizeof(int));
-  assert(entry->offsets != NULL);
+  assert(entry->offsets != NULL || max_imr == 0);
   int nbounds_total = 0;
   for (int imr = 1; imr <= max_imr; imr++) {
     const double radius = imr * drmin;
@@ -82,7 +82,7 @@ static void rebuild_cache_entry(const int max_imr, const double drmin,
 
   // Allocate and fill storage.
   entry->storage = malloc(nbounds_total * sizeof(int));
-  assert(entry->storage != NULL);
+  assert(entry->storage != NULL || nbounds_total == 0);
   for (int imr = 1; imr <= max_imr; imr++) {
     const double radius = imr * drmin;
     const int offset = entry->offsets[imr - 1];
