@@ -315,12 +315,16 @@ CONTAINS
       END IF
 
       ! In case requested, compute the APT numerically
-      CALL section_vals_val_get(force_env%qs_env%input, "PROPERTIES%LINRES%DCDR%APT_FD", l_val=do_apt_FD)
-      IF (do_apt_FD) THEN
-         print_key => section_vals_get_subs_vals(force_env%qs_env%input, &
-                                                 subsection_name="PROPERTIES%LINRES%DCDR%PRINT%APT")
-         IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
-            CALL apt_fdiff(force_env)
+      do_apt_FD = .FALSE.
+      !CALL section_vals_val_get(root_section, "FORCE_EVAL%METHOD", i_val=method_name_id)
+      IF (force_env%in_use == use_qs_force) THEN
+         CALL section_vals_val_get(force_env%qs_env%input, "PROPERTIES%LINRES%DCDR%APT_FD", l_val=do_apt_FD)
+         IF (do_apt_FD) THEN
+            print_key => section_vals_get_subs_vals(force_env%qs_env%input, &
+                                                    subsection_name="PROPERTIES%LINRES%DCDR%PRINT%APT")
+            IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
+               CALL apt_fdiff(force_env)
+            END IF
          END IF
       END IF
 
