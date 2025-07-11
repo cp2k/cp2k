@@ -359,7 +359,7 @@ CONTAINS
       INTEGER                                            :: every_n_step, handle, iounit
       LOGICAL                                            :: dcdr_present, epr_present, issc_present, &
                                                             lr_calculation, nmr_present, &
-                                                            polar_present, vcd_present
+                                                            polar_present, vcd_present, do_apt_fd
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(linres_control_type), POINTER                 :: linres_control
@@ -374,12 +374,19 @@ CONTAINS
       issc_present = .FALSE.
       polar_present = .FALSE.
       dcdr_present = .FALSE.
+      do_apt_fd = .FALSE.
 
       NULLIFY (dft_control, linres_control, logger, prop_section, lr_section)
       logger => cp_get_default_logger()
 
       lr_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%LINRES")
       CALL section_vals_get(lr_section, explicit=lr_calculation)
+
+      CALL section_vals_val_get(lr_section, "DCDR%APT_FD", l_val=do_apt_fd)
+      if (do_apt_fd) then
+         CALL timestop(handle)
+         RETURN
+      end if
 
       CALL section_vals_val_get(lr_section, "EVERY_N_STEP", i_val=every_n_step)
 
@@ -422,6 +429,7 @@ CONTAINS
          ! Nuclear Position Perturbation
          prop_section => section_vals_get_subs_vals(lr_section, "dcdr")
          CALL section_vals_get(prop_section, explicit=dcdr_present)
+         CALL section_vals_val_get(prop_section, "APT_FD", l_val=do_apt_fd)
 
          IF (dcdr_present) THEN
             CALL dcdr_linres(qs_env, p_env)

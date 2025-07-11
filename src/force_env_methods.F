@@ -41,7 +41,9 @@ MODULE force_env_methods
                                               cp_to_string
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr,&
-                                              low_print_level
+                                              low_print_level,&
+                                              cp_p_file,&
+                                              cp_print_key_should_output
    USE cp_result_methods,               ONLY: cp_results_erase,&
                                               cp_results_mp_bcast,&
                                               get_results,&
@@ -143,6 +145,7 @@ MODULE force_env_methods
    USE qmmm_util,                       ONLY: apply_qmmm_translate
    USE qmmmx_force,                     ONLY: qmmmx_calc_energy_force
    USE qmmmx_types,                     ONLY: qmmmx_env_type
+   USE qs_apt_fdiff_methods,            ONLY: apt_fdiff   
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
@@ -206,7 +209,7 @@ CONTAINS
                                                             output_unit, print_forces, print_grrm, &
                                                             print_scine
       LOGICAL :: calculate_forces, calculate_stress_tensor, energy_consistency, eval_ef, &
-         linres_run, my_skip, print_components
+         linres_run, my_skip, print_components, do_apt_fd
       REAL(KIND=dp)                                      :: checksum, e_entropy, e_gap, e_pot, &
                                                             fconv, sum_energy
       REAL(KIND=dp), DIMENSION(3)                        :: grand_total_force, total_force
@@ -220,6 +223,7 @@ CONTAINS
       TYPE(particle_list_type), POINTER                  :: core_particles, particles, &
                                                             shell_particles
       TYPE(virial_type), POINTER                         :: virial
+      TYPE(section_vals_type), POINTER                   :: print_key
 
       NULLIFY (logger, virial, subsys, atprop_env, cell)
       logger => cp_get_default_logger()
@@ -307,6 +311,16 @@ CONTAINS
                                "requires the calculation of the forces")
                END IF
             END IF
+         END IF
+      END IF
+
+      ! In case requested, compute the APT numerically
+      CALL section_vals_val_get(force_env%qs_env%input, "PROPERTIES%LINRES%DCDR%APT_FD", l_val=do_apt_FD)
+      IF (do_apt_FD) THEN
+         print_key => section_vals_get_subs_vals(force_env%qs_env%input, &
+              subsection_name="PROPERTIES%LINRES%DCDR%PRINT%APT")
+         IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
+            CALL apt_fdiff(force_env)
          END IF
       END IF
 

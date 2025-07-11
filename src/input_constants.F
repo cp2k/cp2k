@@ -16,7 +16,7 @@
 ! **************************************************************************************************
 MODULE input_constants
 
-   USE kinds, ONLY: dp
+   USE kinds,                           ONLY: dp
 
    IMPLICIT NONE
 
@@ -137,8 +137,7 @@ MODULE input_constants
                                                do_tamc = 17, &
                                                tree_mc_run = 18, &
                                                driver_run = 19, &
-                                               negf_run = 20, &
-                                               born_run = 21
+                                               negf_run = 20
 
    ! Run Types of Atom Code
    INTEGER, PARAMETER, PUBLIC               :: atom_no_run = 1, &
