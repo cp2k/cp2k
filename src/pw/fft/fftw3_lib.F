@@ -38,11 +38,7 @@ MODULE fftw3_lib
    PUBLIC :: fftw_alloc, fftw_dealloc
 
 #if defined ( __FFTW3 )
-#if defined ( __FFTW3_MKL )
-#include "fftw/fftw3.f03"
-#else
 #include "fftw3.f03"
-#endif
 #endif
 
    INTERFACE fftw_alloc
@@ -193,31 +189,6 @@ CONTAINS
       INTEGER(KIND=C_INT)                      :: isuccess
       LOGICAL :: file_exists
 
-#if defined(__MKL)
-!$    LOGICAL                                  :: mkl_is_safe
-#endif
-
-! If using the Intel compiler then we need to declare
-! a C interface to a global variable in MKL that sets
-! the number of threads which can concurrently execute
-! an FFT
-! We need __INTEL_COMPILER so we can be sure that the compiler
-! understands the !DEC$ version definitions
-#if defined (__INTEL_COMPILER) && defined (__MKL)
-!$    include "mkl.fi"
-!DEC$ IF DEFINED (INTEL_MKL_VERSION)
-!DEC$ IF INTEL_MKL_VERSION .EQ. 110100
-!DIR$ ATTRIBUTES ALIGN : 8 :: fftw3_mkl
-!$    COMMON/fftw3_mkl/ignore(4), mkl_dft_number_of_user_threads, ignore2(7)
-!$    INTEGER*4 :: ignore, mkl_dft_number_of_user_threads, ignore2
-!$    BIND(c) :: /fftw3_mkl/
-!DEC$ ENDIF
-!DEC$ ENDIF
-#elif defined (__MKL)
-! Preprocessing is enabled by default, and below header is not language specific
-#include <mkl_version.h>
-#endif
-
       isuccess = fftw_init_threads()
       IF (isuccess == 0) &
          CPABORT("Error initializing FFTW with threads")
@@ -246,37 +217,6 @@ CONTAINS
                             "CP2K continues without importing wisdom.")
          END IF
       END IF
-
-#if defined (__MKL)
-      ! Now check if we have a real FFTW3 library, or are using MKL wrappers
-
-!$    IF (fftw3_is_mkl_wrapper() .and. omp_get_max_threads() .gt. 1) THEN
-! If we are not using the Intel compiler, there is no way to tell which
-! MKL version is in use, so fail safe...
-!$       mkl_is_safe = .FALSE.
-#if defined(INTEL_MKL_VERSION) && (110100 < INTEL_MKL_VERSION)
-!$       mkl_is_safe = .TRUE.
-#elif defined (__INTEL_COMPILER)
-! If we have an Intel compiler (__INTEL_COMPILER is defined) then check the
-! MKL version and make the appropriate action
-!DEC$ IF DEFINED (INTEL_MKL_VERSION)
-!DEC$ IF INTEL_MKL_VERSION .EQ. 110100
-!$       mkl_dft_number_of_user_threads = omp_get_max_threads()
-!DEC$ ENDIF
-!DEC$ IF INTEL_MKL_VERSION .GE. 110100
-!$       mkl_is_safe = .TRUE.
-!DEC$ ENDIF
-!DEC$ ENDIF
-#endif
-!$       IF (.NOT. mkl_is_safe) THEN
-!$          CALL cp_abort(__LOCATION__, "Intel's FFTW3 interface to MKL is not "// &
-!$                        "thread-safe prior to MKL 11.1.0!  Please "// &
-!$                        "rebuild CP2K, linking against FFTW 3 from "// &
-!$                        "www.fftw.org or a newer version of MKL. "// &
-!$                        "Now exiting...")
-!$       END IF
-!$    END IF
-#endif
 #else
       MARK_USED(wisdom_file)
 #endif
@@ -477,7 +417,7 @@ CONTAINS
          INDEX(l) = INDEX(j)
          INDEX(j) = ib
          jstack = jstack + 2
-         IF (jstack > nstack) CPABORT(" Nstack too small in sortr")
+         IF (jstack > nstack) CPABORT("Nstack too small in sortint")
          IF (ir - i + 1 >= j - l) THEN
             istack(jstack) = ir
             istack(jstack - 1) = i
@@ -566,24 +506,22 @@ CONTAINS
 ! **************************************************************************************************
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Attempt to create a plan with the guru interface for a 2d sub-space.
+!>        If this fails, fall back to the FFTW3 threaded 3D transform instead
+!>        of the hand-optimised version.
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION fftw3_is_mkl_wrapper() RESULT(is_mkl)
+   FUNCTION fftw3_is_guru_supported() RESULT(guru_supported)
 
       IMPLICIT NONE
 
-      LOGICAL :: is_mkl
-#if defined ( __FFTW3 )
       LOGICAL :: guru_supported
+#if defined ( __FFTW3 )
       INTEGER :: dim_n(2), dim_istride(2), dim_ostride(2), &
                  howmany_n(2), howmany_istride(2), howmany_ostride(2)
       TYPE(C_PTR)                          :: test_plan
       COMPLEX(KIND=dp), DIMENSION(1, 1, 1) :: zin
 
-      ! Attempt to create a plan with the guru interface for a 2d sub-space
-      ! If this fails (e.g. for MKL's FFTW3 interface), fall back to the
-      ! FFTW3 threaded 3D transform instead of the hand-optimised version
       dim_n(1) = 1
       dim_n(2) = 1
       dim_istride(1) = 1
@@ -604,13 +542,10 @@ CONTAINS
                                   FFTW_FORWARD, FFTW_ESTIMATE, guru_supported)
       IF (guru_supported) THEN
          CALL fftw_destroy_plan(test_plan)
-         is_mkl = .FALSE.
-      ELSE
-         is_mkl = .TRUE.
       END IF
 
 #else
-      is_mkl = .FALSE.
+      guru_supported = .FALSE.
 #endif
 
    END FUNCTION
@@ -771,7 +706,7 @@ CONTAINS
 !$OMP END MASTER
 !$OMP END PARALLEL
 
-      IF ((fftw3_is_mkl_wrapper()) .OR. &
+      IF ((.NOT. fftw3_is_guru_supported()) .OR. &
           (.NOT. plan_style == 1) .OR. &
           (n1 < 256 .AND. n2 < 256 .AND. n3 < 256 .AND. nt == 1)) THEN
          ! If the plan type is MEASURE, PATIENT and EXHAUSTIVE or

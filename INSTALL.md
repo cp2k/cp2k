@@ -148,10 +148,10 @@ FFTW is also provided by MKL. Use `-D__FFTW3_MKL` to use the correct import path
 :warning: Note that FFTW must know the Fortran compiler you will use in order to install properly
 (e.g., `export F77=gfortran` before configure if you intend to use gfortran).
 
-:warning: Note that on machines and compilers which support SSE you can configure FFTW3 with
-`--enable-sse2`. Compilers/systems that do not align memory (NAG f95, Intel IA32/gfortran) should
-either not use `--enable-sse2` or otherwise set the define `-D__FFTW3_UNALIGNED` in the arch file.
-Since CP2K is OpenMP parallelized, the FFTW3 threading library libfftw3_threads (or libfftw3_omp) is
+:warning: Note that FFTW configured for SIMD vectorization, requires buffers aligned to SIMD width.
+If this cannot be ensured for the compiler used (e.g., NAG f95, Intel IA32/gfortran), one should
+either configure FFTW without SIMD support or otherwise set the define `-D__FFTW3_UNALIGNED`. Since
+CP2K is OpenMP parallelized, the FFTW3 threading library libfftw3_threads (or libfftw3_omp) is
 required.
 
 ### 2g. LIBINT (optional, enables methods including HF exchange)
