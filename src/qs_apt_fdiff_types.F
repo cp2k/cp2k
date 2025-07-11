@@ -14,17 +14,16 @@ MODULE qs_apt_fdiff_types
 
    USE kinds,                           ONLY: dp
    !USE physcon, ONLY: debye
-
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
    PRIVATE
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'apt_fdiff_types'
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_apt_fdiff_types'
    LOGICAL, PARAMETER, PRIVATE :: debug_this_module = .FALSE.
    PUBLIC :: apt_fdiff_point_type, apt_fdiff_points_type
 
    TYPE apt_fdiff_point_type
-      REAL(kind=dp), DIMENSION(:,:), ALLOCATABLE :: forces
+      REAL(kind=dp), DIMENSION(:, :), ALLOCATABLE :: forces
    END TYPE apt_fdiff_point_type
 
    TYPE apt_fdiff_points_type

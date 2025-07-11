@@ -415,8 +415,8 @@ CONTAINS
          CALL keyword_release(keyword)
 
          CALL keyword_create(keyword, __LOCATION__, name="APT_FD", &
-                             description="Use numerical differentiation to compute the APT, " // &
-                             "switches off the calculation of dcdr analytical derivatives." // &
+                             description="Use numerical differentiation to compute the APT, "// &
+                             "switches off the calculation of dcdr analytical derivatives. "// &
                              "Requires RUN_TYPE = ENERGY_FORCE or MD.", &
                              usage="APT_FD T", &
                              default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)

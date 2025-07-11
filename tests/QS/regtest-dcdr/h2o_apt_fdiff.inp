@@ -24,8 +24,8 @@
     &END QS
     &SCF
       EPS_SCF 1.0E-3
-      SCF_GUESS ATOMIC
       MAX_SCF 50
+      SCF_GUESS ATOMIC
       &OT
         PRECONDITIONER FULL_SINGLE_INVERSE
       &END OT
@@ -38,16 +38,16 @@
   &PROPERTIES
     &LINRES
       &DCDR
-	APT_FD
-	# &PRINT
-	#   &APT
-	#     &EACH
-	#       MD 5
-	#     &END EACH
-	#   &END APT
-	# &END PRINT
+        APT_FD
+        # &PRINT
+        #   &APT
+        #     &EACH
+        #       MD 5
+        #     &END EACH
+        #   &END APT
+        # &END PRINT
       &END DCDR
-     &END LINRES
+    &END LINRES
   &END PROPERTIES
   &SUBSYS
     &CELL
@@ -75,7 +75,7 @@
 #     TIMESTEP 0.5
 #     &THERMOSTAT
 #       &CSVR
-# 	TIMECON 5 
+#         TIMECON 5
 #       &END CSVR
 #     &END
 #   &END MD

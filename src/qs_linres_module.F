@@ -357,9 +357,9 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_calculation_low'
 
       INTEGER                                            :: every_n_step, handle, iounit
-      LOGICAL                                            :: dcdr_present, epr_present, issc_present, &
-                                                            lr_calculation, nmr_present, &
-                                                            polar_present, vcd_present, do_apt_fd
+      LOGICAL                                            :: dcdr_present, do_apt_fd, epr_present, &
+                                                            issc_present, lr_calculation, &
+                                                            nmr_present, polar_present, vcd_present
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(linres_control_type), POINTER                 :: linres_control
@@ -383,10 +383,10 @@ CONTAINS
       CALL section_vals_get(lr_section, explicit=lr_calculation)
 
       CALL section_vals_val_get(lr_section, "DCDR%APT_FD", l_val=do_apt_fd)
-      if (do_apt_fd) then
+      IF (do_apt_fd) THEN
          CALL timestop(handle)
          RETURN
-      end if
+      END IF
 
       CALL section_vals_val_get(lr_section, "EVERY_N_STEP", i_val=every_n_step)
 
