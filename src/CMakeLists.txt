@@ -1773,7 +1773,6 @@ target_compile_definitions(
     $<$<BOOL:${CP2K_USE_GREENX}>:__GREENX>
     $<$<BOOL:${CP2K_USE_GRPP}>:__LIBGRPP>
     $<$<OR:$<BOOL:${CP2K_USE_FFTW3_}>,$<BOOL:${CP2K_USE_FFTW3_MKL_}>>:__FFTW3>
-    $<$<BOOL:${CP2K_USE_FFTW3_MKL_}>:__FFTW3_MKL>
     $<$<BOOL:${CP2K_USE_LIBINT2}>:__LIBINT>
     $<$<BOOL:${CP2K_USE_LIBTORCH}>:__LIBTORCH>
     $<$<BOOL:${CP2K_USE_COSMA}>:__COSMA>
