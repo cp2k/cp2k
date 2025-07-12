@@ -414,6 +414,39 @@ CONTAINS
          CALL section_add_keyword(section, keyword)
          CALL keyword_release(keyword)
 
+         CALL keyword_create(keyword, __LOCATION__, name="APT_FD", &
+                             description="Use numerical differentiation to compute the APT, "// &
+                             "switches off the calculation of dcdr analytical derivatives. "// &
+                             "Requires RUN_TYPE = ENERGY_FORCE or MD.", &
+                             usage="APT_FD T", &
+                             default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+         CALL section_add_keyword(section, keyword)
+         CALL keyword_release(keyword)
+
+         CALL keyword_create(keyword, __LOCATION__, name="APT_FD_DE", &
+                             description="Electric field strength (atomic units) to use for finite differences", &
+                             repeats=.FALSE., &
+                             n_var=1, &
+                             type_of_var=real_t, &
+                             default_r_val=0.0003_dp, &
+                             usage="APT_FD_DE 1.0E-4")
+         CALL section_add_keyword(section, keyword)
+         CALL keyword_release(keyword)
+
+         CALL keyword_create(keyword, __LOCATION__, name="APT_FD_METHOD", &
+                             description="Numerical differentiation method", &
+                             usage="APT_FD_METHOD FD", &
+                             default_i_val=1, &
+                             !enum_c_vals=s2a("FD", "2PNT"), &
+                             enum_c_vals=s2a("2PNT"), &
+                             !enum_desc=s2a("Forward differences.", &
+                             !              "Symmetric two-point differences."), &
+                             enum_desc=s2a("Symmetric two-point differences."), &
+                             !enum_i_vals=(/0, 1/))
+                             enum_i_vals=(/1/))
+         CALL section_add_keyword(section, keyword)
+         CALL keyword_release(keyword)
+
          NULLIFY (subsection)
          CALL section_create(subsection, __LOCATION__, name="PRINT", &
                              description="print results of the magnetic dipole moment calculation", &

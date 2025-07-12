@@ -12,4 +12,5 @@
 "h2o_apt_pbc.inp"                       = [{matcher="M096", tol=1e-06, ref=-0.938707}]
 "h2o_apt_pbc_loc.inp"                   = [{matcher="M096", tol=1e-06, ref=-0.938770}]
 "h2o_aat.inp"                           = [{matcher="M100", tol=1e-06, ref=-0.857427}]
+"h2o_apt_fdiff.inp"                     = [{matcher="M127", tol=1e-04, ref=0.0034319}]
 #EOF
