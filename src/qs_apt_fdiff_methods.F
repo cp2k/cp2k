@@ -16,6 +16,7 @@ MODULE qs_apt_fdiff_methods
                                               cp_get_default_logger,&
                                               cp_logger_create,&
                                               cp_logger_get_default_io_unit,&
+                                              cp_logger_release,&
                                               cp_logger_set,&
                                               cp_logger_type,&
                                               cp_rm_default_logger
@@ -223,6 +224,19 @@ CONTAINS
          END DO
       END DO
 
+      IF (output_fdiff_scf > 0) THEN
+         WRITE (output_fdiff_scf, '(/,T2,A)') &
+            '!----------------------------------------------------------------------------!'
+         WRITE (output_fdiff_scf, '(/,T2,A)') "Finite differences done!"
+         WRITE (output_fdiff_scf, '(/,T2,A)') &
+            '!----------------------------------------------------------------------------!'
+      END IF
+
+      CALL cp_print_key_finished_output(output_fdiff_scf, logger_apt, dcdr_section, "PRINT%APT")
+      CALL cp_logger_release(logger_apt)
+      CALL cp_rm_default_logger()
+      
+      
       ALLOCATE (ap_tensor(natoms, 3, 3))
       CALL fdiff_2pnt(apt_fdiff_points, ap_tensor, natoms)
 
@@ -259,18 +273,6 @@ CONTAINS
          WRITE (log_unit, '(/,T2,A)') &
             '!----------------------------------------------------------------------------!'
       END IF
-
-      IF (output_fdiff_scf > 0) THEN
-         WRITE (output_fdiff_scf, '(/,T2,A)') &
-            '!----------------------------------------------------------------------------!'
-         WRITE (output_fdiff_scf, '(/,T2,A)') "Finite differences done!"
-         WRITE (output_fdiff_scf, '(/,T2,A)') &
-            '!----------------------------------------------------------------------------!'
-      END IF
-
-      CALL cp_print_key_finished_output(output_fdiff_scf, logger_apt, dcdr_section, "PRINT%APT")
-
-      CALL cp_rm_default_logger()
 
       CALL timestop(handle)
 
