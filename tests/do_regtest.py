@@ -17,6 +17,7 @@ import shutil
 import subprocess
 import sys
 import time
+
 from matchers import run_matcher
 
 if sys.version_info >= (3, 8):
@@ -54,8 +55,6 @@ KEEPALIVE_SKIP_DIRS = [
     "QS/regtest-gpw-1",
     "QS/regtest-mp2-grad-1",
     "QS/regtest-mp2-grad-2",
-    "QS/regtest-dlaf",  # FIXME
-    "QS/regtest-dlaf-2",  # FIXME
 ]
 
 

@@ -264,7 +264,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_geeig_canon'
       COMPLEX(KIND=dp), PARAMETER :: cone = CMPLX(1.0_dp, 0.0_dp, KIND=dp), &
-                                     czero = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+         czero = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: cevals
       INTEGER                                            :: handle, i, icol, irow, nao, nc, ncol, &

@@ -265,7 +265,7 @@ CONTAINS
       REAL(kind=dp), DIMENSION(:), INTENT(OUT), TARGET   :: eigenvalues
 
       CHARACTER(len=*), PARAMETER :: dlaf_name = 'pzhegvd_dlaf', &
-                                     routineN = 'cp_cfm_diag_gen_dlaf_base'
+         routineN = 'cp_cfm_diag_gen_dlaf_base'
       CHARACTER, PARAMETER                               :: uplo = 'L'
 
       CHARACTER(LEN=100)                                 :: message
