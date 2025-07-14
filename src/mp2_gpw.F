@@ -651,7 +651,7 @@ CONTAINS
       ! finally solve the z-vector equation if forces are required
       IF (calc_forces .AND. .NOT. do_im_time) THEN
          CALL solve_z_vector_eq(qs_env, mp2_env, para_env, dft_control, &
-                                mo_coeff, nmo, homo, Eigenval, unit_nr)
+                                mo_coeff, homo, Eigenval, unit_nr)
       END IF
 
       DEALLOCATE (Eigenval, mo_coeff)
