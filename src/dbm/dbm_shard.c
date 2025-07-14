@@ -105,15 +105,18 @@ void dbm_shard_copy(dbm_shard_t *shard_a, const dbm_shard_t *shard_b) {
   }
   shard_a->data_size = shard_b->data_size;
 
-  if (shard_a->blocks != NULL) {
+  if (shard_b->nblocks != 0) {
+    assert(shard_a->blocks != NULL && shard_b->blocks != NULL);
     memcpy(shard_a->blocks, shard_b->blocks,
            shard_b->nblocks * sizeof(dbm_block_t));
   }
-  if (shard_a->hashtable != NULL) {
+  if (shard_b->hashtable_size != 0) {
+    assert(shard_a->hashtable != NULL && shard_b->hashtable != NULL);
     memcpy(shard_a->hashtable, shard_b->hashtable,
            shard_b->hashtable_size * sizeof(int));
   }
-  if (shard_a->data != NULL) {
+  if (shard_b->data_size != 0) {
+    assert(shard_a->data != NULL && shard_b->data != NULL);
     memcpy(shard_a->data, shard_b->data, shard_b->data_size * sizeof(double));
   }
 }

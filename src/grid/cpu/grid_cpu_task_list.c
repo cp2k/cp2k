@@ -498,8 +498,8 @@ static void integrate_one_grid_level(
     bool old_transpose = false;
 
     // Matrix pab and hab are re-used across tasks.
-    double pab[task_list->maxco * task_list->maxco];
-    double hab[task_list->maxco * task_list->maxco];
+    double pab[imax(task_list->maxco * task_list->maxco, 1)];
+    double hab[imax(task_list->maxco * task_list->maxco, 1)];
 
     // Parallelize over blocks to avoid concurred access to hab_blocks.
     const int nthreads = omp_get_num_threads();
