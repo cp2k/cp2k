@@ -476,9 +476,13 @@ CONTAINS
 
       ! start the timing
       CALL timeset(routineN, handle)
-      IF (ASSOCIATED(ana_env%last_elem) .AND. &
-          (ana_env%last_elem%nr .LT. elem%nr)) THEN
+
+      weight_act = 0
+      IF (ASSOCIATED(ana_env%last_elem)) THEN
          weight_act = elem%nr - ana_env%last_elem%nr
+      END IF
+
+      IF (weight_act .GT. 0) THEN
          ! calculates the 3 dimensional distributed density
          IF (ASSOCIATED(ana_env%density_3d)) &
             CALL calc_density_3d(elem=ana_env%last_elem, &
@@ -566,8 +570,9 @@ CONTAINS
          END IF
 
          ! calculates the cell displacement from last cell
-         IF (ASSOCIATED(ana_env%displace) .AND. weight_act .GT. 0) &
+         IF (ASSOCIATED(ana_env%displace)) THEN
             CALL calc_displacement(elem=elem, ana_env=ana_env)
+         END IF
       END IF
       ! swap elem with last elem, to delete original last element and store the actual one
       elem_tmp => ana_env%last_elem
