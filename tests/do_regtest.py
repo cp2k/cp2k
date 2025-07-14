@@ -17,7 +17,6 @@ import shutil
 import subprocess
 import sys
 import time
-
 from matchers import run_matcher
 
 if sys.version_info >= (3, 8):
