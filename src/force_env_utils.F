@@ -16,6 +16,7 @@ MODULE force_env_utils
    USE constraint,                      ONLY: rattle_control,&
                                               shake_control
    USE constraint_util,                 ONLY: getold
+   USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE cp_subsys_types,                 ONLY: cp_subsys_get,&
                                               cp_subsys_type
    USE cp_units,                        ONLY: cp_unit_from_cp2k
@@ -34,7 +35,8 @@ MODULE force_env_utils
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_types,                  ONLY: update_particle_set
    USE physcon,                         ONLY: angstrom
-   USE string_utilities,                ONLY: lowercase
+   USE string_utilities,                ONLY: lowercase,&
+                                              uppercase
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -402,7 +404,41 @@ CONTAINS
    END SUBROUTINE rescale_forces
 
 ! **************************************************************************************************
-!> \brief Write forces
+!> \brief Write forces either to the screen or to a file.
+!> \param particles ...
+!> \param iw ...
+!> \param label ...
+!> \param ndigits ...
+!> \param unit_string ...
+!> \param total_force ...
+!> \param grand_total_force ...
+!> \param zero_force_core_shell_atom ...
+!> \author Ole Schuett
+! **************************************************************************************************
+   SUBROUTINE write_forces(particles, iw, label, ndigits, unit_string, total_force, &
+                           grand_total_force, zero_force_core_shell_atom)
+
+      TYPE(particle_list_type), POINTER                  :: particles
+      INTEGER, INTENT(IN)                                :: iw
+      CHARACTER(LEN=*), INTENT(IN)                       :: label
+      INTEGER, INTENT(IN)                                :: ndigits
+      CHARACTER(LEN=default_string_length), INTENT(IN)   :: unit_string
+      REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: total_force
+      REAL(KIND=dp), DIMENSION(3), INTENT(INOUT), &
+         OPTIONAL                                        :: grand_total_force
+      LOGICAL, INTENT(IN), OPTIONAL                      :: zero_force_core_shell_atom
+
+      IF (iw == cp_logger_get_default_io_unit()) THEN
+         CALL write_forces_to_screen(particles, iw, label, ndigits, unit_string, total_force, &
+                                     grand_total_force, zero_force_core_shell_atom)
+      ELSE
+         CALL write_forces_to_file(particles, iw, label, ndigits, total_force, &
+                                   grand_total_force, zero_force_core_shell_atom)
+      END IF
+   END SUBROUTINE write_forces
+
+! **************************************************************************************************
+!> \brief Write forces to the screen.
 !>
 !> \param particles ...
 !> \param iw ...
@@ -414,8 +450,8 @@ CONTAINS
 !> \param zero_force_core_shell_atom ...
 !> \author MK (06.09.2010)
 ! **************************************************************************************************
-   SUBROUTINE write_forces(particles, iw, label, ndigits, unit_string, total_force, &
-                           grand_total_force, zero_force_core_shell_atom)
+   SUBROUTINE write_forces_to_screen(particles, iw, label, ndigits, unit_string, total_force, &
+                                     grand_total_force, zero_force_core_shell_atom)
 
       TYPE(particle_list_type), POINTER                  :: particles
       INTEGER, INTENT(IN)                                :: iw
@@ -499,7 +535,89 @@ CONTAINS
             SQRT(SUM(grand_total_force(1:3)**2))
       END IF
 
-   END SUBROUTINE write_forces
+   END SUBROUTINE write_forces_to_screen
+
+! **************************************************************************************************
+!> \brief Write forces to a file using our stable legacy format. Please don't change the format.
+!>
+!> \param particles ...
+!> \param iw ...
+!> \param label ...
+!> \param ndigits ...
+!> \param total_force ...
+!> \param grand_total_force ...
+!> \param zero_force_core_shell_atom ...
+!> \author MK (06.09.2010)
+! **************************************************************************************************
+   SUBROUTINE write_forces_to_file(particles, iw, label, ndigits, total_force, &
+                                   grand_total_force, zero_force_core_shell_atom)
+
+      TYPE(particle_list_type), POINTER                  :: particles
+      INTEGER, INTENT(IN)                                :: iw
+      CHARACTER(LEN=*), INTENT(IN)                       :: label
+      INTEGER, INTENT(IN)                                :: ndigits
+      REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: total_force
+      REAL(KIND=dp), DIMENSION(3), INTENT(INOUT), &
+         OPTIONAL                                        :: grand_total_force
+      LOGICAL, INTENT(IN), OPTIONAL                      :: zero_force_core_shell_atom
+
+      CHARACTER(LEN=23)                                  :: fmtstr3
+      CHARACTER(LEN=36)                                  :: fmtstr2
+      CHARACTER(LEN=46)                                  :: fmtstr1
+      CHARACTER(LEN=LEN_TRIM(label))                     :: uc_label
+      INTEGER                                            :: i, ikind, iparticle, n
+      LOGICAL                                            :: zero_force
+      REAL(KIND=dp), DIMENSION(3)                        :: f
+
+      IF (iw > 0) THEN
+         CPASSERT(ASSOCIATED(particles))
+         n = MIN(MAX(1, ndigits), 20)
+         fmtstr1 = "(/,T2,A,/,/,T2,A,T11,A,T18,A,T35,A1,2(  X,A1))"
+         WRITE (UNIT=fmtstr1(39:40), FMT="(I2)") n + 6
+         fmtstr2 = "(T2,I6,1X,I6,T21,A,T28,3(1X,F  .  ))"
+         WRITE (UNIT=fmtstr2(33:34), FMT="(I2)") n
+         WRITE (UNIT=fmtstr2(30:31), FMT="(I2)") n + 6
+         fmtstr3 = "(T2,A,T28,4(1X,F  .  ))"
+         WRITE (UNIT=fmtstr3(20:21), FMT="(I2)") n
+         WRITE (UNIT=fmtstr3(17:18), FMT="(I2)") n + 6
+         IF (PRESENT(zero_force_core_shell_atom)) THEN
+            zero_force = zero_force_core_shell_atom
+         ELSE
+            zero_force = .FALSE.
+         END IF
+         uc_label = TRIM(label)
+         CALL uppercase(uc_label)
+         WRITE (UNIT=iw, FMT=fmtstr1) &
+            uc_label//" FORCES in [a.u.]", "# Atom", "Kind", "Element", "X", "Y", "Z"
+         total_force(1:3) = 0.0_dp
+         DO iparticle = 1, particles%n_els
+            ikind = particles%els(iparticle)%atomic_kind%kind_number
+            IF (particles%els(iparticle)%atom_index /= 0) THEN
+               i = particles%els(iparticle)%atom_index
+            ELSE
+               i = iparticle
+            END IF
+            IF (zero_force .AND. (particles%els(iparticle)%shell_index /= 0)) THEN
+               f(1:3) = 0.0_dp
+            ELSE
+               f(1:3) = particles%els(iparticle)%f(1:3)
+            END IF
+            WRITE (UNIT=iw, FMT=fmtstr2) &
+               i, ikind, particles%els(iparticle)%atomic_kind%element_symbol, f(1:3)
+            total_force(1:3) = total_force(1:3) + f(1:3)
+         END DO
+         WRITE (UNIT=iw, FMT=fmtstr3) &
+            "SUM OF "//uc_label//" FORCES", total_force(1:3), SQRT(SUM(total_force(:)**2))
+      END IF
+
+      IF (PRESENT(grand_total_force)) THEN
+         grand_total_force(1:3) = grand_total_force(1:3) + total_force(1:3)
+         WRITE (UNIT=iw, FMT="(A)") ""
+         WRITE (UNIT=iw, FMT=fmtstr3) &
+            "GRAND TOTAL FORCE", grand_total_force(1:3), SQRT(SUM(grand_total_force(:)**2))
+      END IF
+
+   END SUBROUTINE write_forces_to_file
 
 ! **************************************************************************************************
 !> \brief Write the atomic coordinates, types, and energies
