@@ -99,8 +99,8 @@ OPTIONS:
                           or --with-openblas options will switch --math-mode to the
                           respective modes.
 --gpu-ver                 Selects the GPU architecture for which to compile. Available
-                          options are: K20X, K40, K80, P100, V100, Mi50, Mi100, Mi250,
-                          and no.
+                          options are: K20X, K40, K80, P100, V100, A100, H100, A40,
+                          Mi50, Mi100, Mi250, and no.
                           This setting determines the value of nvcc's '-arch' flag.
                           Default = no
 --libint-lmax             Maximum supported angular momentum by libint.
