@@ -83,26 +83,24 @@ CONTAINS
 !> \param para_env ...
 !> \param dft_control ...
 !> \param mo_coeff ...
-!> \param nmo ...
 !> \param homo ...
 !> \param Eigenval ...
 !> \author Vladimir Rybkin, 08/2019
 ! **************************************************************************************************
    SUBROUTINE rse_energy(qs_env, mp2_env, para_env, dft_control, &
-                         mo_coeff, nmo, homo, Eigenval)
+                         mo_coeff, homo, Eigenval)
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
       TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env
       TYPE(dft_control_type), INTENT(IN), POINTER        :: dft_control
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff
-      INTEGER, INTENT(IN)                                :: nmo
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rse_energy'
 
-      INTEGER                                            :: dimen, handle, i_global, iiB, ispin, &
-                                                            j_global, jjB, n_rep_hf, ncol_local, &
+      INTEGER                                            :: handle, i_global, iiB, ispin, j_global, &
+                                                            jjB, n_rep_hf, nao, ncol_local, nmo, &
                                                             nrow_local, nspins
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       LOGICAL                                            :: do_hfx, hfx_treat_lsd_in_core
@@ -128,10 +126,11 @@ CONTAINS
                           nrow_local=nrow_local, &
                           ncol_local=ncol_local, &
                           row_indices=row_indices, &
-                          col_indices=col_indices)
+                          col_indices=col_indices, &
+                          nrow_global=nao, &
+                          ncol_global=nmo)
 
       ! start collecting stuff
-      dimen = nmo
       NULLIFY (input, matrix_s, blacs_env, rho, energy, sab_orb)
       CALL get_qs_env(qs_env, &
                       input=input, &
@@ -167,16 +166,19 @@ CONTAINS
       ALLOCATE (fm_P_mu_nu(nspins))
       NULLIFY (fm_struct_tmp)
       CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &
-                               nrow_global=dimen, ncol_global=dimen)
+                               nrow_global=nao, ncol_global=nao)
       DO ispin = 1, nspins
          CALL cp_fm_create(fm_P_mu_nu(ispin), fm_struct_tmp, name="P_mu_nu")
          CALL cp_fm_set_all(fm_P_mu_nu(ispin), 0.0_dp)
       END DO
+      CALL cp_fm_create(fm_ao, fm_struct_tmp, name="f_ao")
+      CALL cp_fm_struct_release(fm_struct_tmp)
+      CALL cp_fm_set_all(fm_ao, 0.0_dp)
       CALL cp_fm_struct_release(fm_struct_tmp)
 
       NULLIFY (fm_struct_tmp)
       CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &
-                               nrow_global=dimen, ncol_global=dimen)
+                               nrow_global=nmo, ncol_global=nmo)
       ALLOCATE (fm_X_mo(nspins), fm_XC_mo(nspins))
       DO ispin = 1, nspins
          CALL cp_fm_create(fm_X_mo(ispin), fm_struct_tmp, name="f_X_mo")
@@ -187,12 +189,7 @@ CONTAINS
       CALL cp_fm_struct_release(fm_struct_tmp)
 
       CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &
-                               nrow_global=dimen, ncol_global=dimen)
-      CALL cp_fm_create(fm_ao, fm_struct_tmp, name="f_ao")
-      CALL cp_fm_struct_release(fm_struct_tmp)
-      CALL cp_fm_set_all(fm_ao, 0.0_dp)
-      CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &
-                               nrow_global=dimen, ncol_global=dimen)
+                               nrow_global=nmo, ncol_global=nao)
       CALL cp_fm_create(fm_ao_mo, fm_struct_tmp, name="f_ao_mo")
       CALL cp_fm_struct_release(fm_struct_tmp)
       CALL cp_fm_set_all(fm_ao_mo, 0.0_dp)
@@ -206,21 +203,21 @@ CONTAINS
       coeff = 1.0_dp
       IF (nspins == 1) coeff = 2.0_dp
       DO ispin = 1, nspins
-         CALL parallel_gemm(transa='N', transb='T', m=dimen, n=dimen, k=homo(ispin), alpha=coeff, &
+         CALL parallel_gemm(transa='N', transb='T', m=nao, n=nao, k=homo(ispin), alpha=coeff, &
                             matrix_a=mo_coeff(ispin), matrix_b=mo_coeff(ispin), &
                             beta=0.0_dp, matrix_c=fm_P_mu_nu(ispin))
       END DO
 
       ! Calculate exact exchange contribution
-      CALL exchange_contribution(qs_env, para_env, dimen, mo_coeff, &
+      CALL exchange_contribution(qs_env, para_env, mo_coeff, &
                                  hfx_sections, n_rep_hf, &
                                  rho, mat_mu_nu, fm_P_mu_nu, &
                                  fm_ao, fm_X_mo, fm_ao_mo)
 
       ! Calculate DFT exchange-correlation contribution
-      CALL xc_contribution(qs_env, fm_ao, fm_ao_mo, fm_XC_mo, mo_coeff, dimen)
+      CALL xc_contribution(qs_env, fm_ao, fm_ao_mo, fm_XC_mo, mo_coeff)
 
-      ALLOCATE (diag_diff(dimen))
+      ALLOCATE (diag_diff(nmo))
       rse_corr = 0.0_dp
 
       DO ispin = 1, nspins
@@ -263,7 +260,7 @@ CONTAINS
 
       mp2_env%ri_rpa%rse_corr_diag = rse_corr
 
-      CALL non_diag_rse(fm_X_mo, eigenval, dimen, homo, para_env, blacs_env, rse_corr)
+      CALL non_diag_rse(fm_X_mo, eigenval, homo, para_env, blacs_env, rse_corr)
 
       IF (nspins == 1) rse_corr = rse_corr*2.0_dp
 
@@ -290,7 +287,6 @@ CONTAINS
 !> \brief HF exchange occupied-virtual matrix
 !> \param qs_env ...
 !> \param para_env ...
-!> \param dimen ...
 !> \param mo_coeff ...
 !> \param hfx_sections ...
 !> \param n_rep_hf ...
@@ -301,13 +297,12 @@ CONTAINS
 !> \param fm_X_mo ...
 !> \param fm_X_ao_mo ...
 ! **************************************************************************************************
-   SUBROUTINE exchange_contribution(qs_env, para_env, dimen, mo_coeff, &
+   SUBROUTINE exchange_contribution(qs_env, para_env, mo_coeff, &
                                     hfx_sections, n_rep_hf, &
                                     rho_work, mat_mu_nu, fm_P_mu_nu, &
                                     fm_X_ao, fm_X_mo, fm_X_ao_mo)
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env
-      INTEGER, INTENT(IN)                                :: dimen
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff
       TYPE(section_vals_type), INTENT(IN), POINTER       :: hfx_sections
       INTEGER, INTENT(IN)                                :: n_rep_hf
@@ -321,13 +316,15 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'exchange_contribution'
 
-      INTEGER                                            :: handle, irep, is, ns
+      INTEGER                                            :: handle, irep, is, nao, nmo, ns
       LOGICAL                                            :: my_recalc_hfx_integrals
       REAL(KIND=dp)                                      :: ehfx
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: P_mu_nu, rho_work_ao
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_2d, rho_ao_2d
 
       CALL timeset(routineN, handle)
+
+      CALL cp_fm_get_info(mo_coeff(1), nrow_global=nao, ncol_global=nmo)
 
       CALL qs_rho_get(rho_work, rho_ao=rho_work_ao)
       ns = SIZE(rho_work_ao)
@@ -380,11 +377,11 @@ CONTAINS
          CALL cp_fm_set_all(fm_X_mo(is), 0.0_dp)
 
          ! First index
-         CALL parallel_gemm('T', 'N', dimen, dimen, dimen, 1.0_dp, &
+         CALL parallel_gemm('T', 'N', nmo, nao, nmo, 1.0_dp, &
                             mo_coeff(is), fm_X_ao, 0.0_dp, fm_X_ao_mo)
 
          ! Second index
-         CALL parallel_gemm('N', 'N', dimen, dimen, dimen, 1.0_dp, &
+         CALL parallel_gemm('N', 'N', nmo, nmo, nao, 1.0_dp, &
                             fm_X_ao_mo, mo_coeff(is), 1.0_dp, fm_X_mo(is))
 
       END DO
@@ -408,18 +405,16 @@ CONTAINS
 !> \param fm_XC_ao_mo ...
 !> \param fm_XC_mo ...
 !> \param mo_coeff ...
-!> \param dimen ...
 ! **************************************************************************************************
-   SUBROUTINE xc_contribution(qs_env, fm_XC_ao, fm_XC_ao_mo, fm_XC_mo, mo_coeff, dimen)
+   SUBROUTINE xc_contribution(qs_env, fm_XC_ao, fm_XC_ao_mo, fm_XC_mo, mo_coeff)
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_XC_ao
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_XC_ao_mo
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_XC_mo, mo_coeff
-      INTEGER, INTENT(IN)                                :: dimen
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'xc_contribution'
 
-      INTEGER                                            :: handle, i
+      INTEGER                                            :: handle, i, nao, nmo
       REAL(KIND=dp)                                      :: exc
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_vxc
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: tau_rspace, v_rspace
@@ -446,17 +441,19 @@ CONTAINS
          END DO
          DEALLOCATE (v_rspace)
 
+         CALL cp_fm_get_info(mo_coeff(1), nrow_global=nao, ncol_global=nmo)
+
          DO i = 1, SIZE(matrix_vxc)
             CALL cp_fm_set_all(fm_XC_ao, 0.0_dp)
             CALL copy_dbcsr_to_fm(matrix=matrix_vxc(i)%matrix, fm=fm_XC_ao)
             CALL cp_fm_set_all(fm_XC_mo(i), 0.0_dp)
 
             ! First index
-            CALL parallel_gemm('T', 'N', dimen, dimen, dimen, 1.0_dp, &
+            CALL parallel_gemm('T', 'N', nmo, nao, nao, 1.0_dp, &
                                mo_coeff(i), fm_XC_ao, 0.0_dp, fm_XC_ao_mo)
 
             ! Second index
-            CALL parallel_gemm('N', 'N', dimen, dimen, dimen, 1.0_dp, &
+            CALL parallel_gemm('N', 'N', nmo, nmo, nao, 1.0_dp, &
                                fm_XC_ao_mo, mo_coeff(i), 1.0_dp, fm_XC_mo(i))
 
          END DO
@@ -476,17 +473,15 @@ CONTAINS
 !> \brief ...
 !> \param fm_F_mo ...
 !> \param eigenval ...
-!> \param dimen ...
 !> \param homo ...
 !> \param para_env ...
 !> \param blacs_env ...
 !> \param rse_corr ...
 ! **************************************************************************************************
-   SUBROUTINE non_diag_rse(fm_F_mo, eigenval, dimen, homo, para_env, &
+   SUBROUTINE non_diag_rse(fm_F_mo, eigenval, homo, para_env, &
                            blacs_env, rse_corr)
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_F_mo
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
-      INTEGER, INTENT(IN)                                :: dimen
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo
       TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env
       TYPE(cp_blacs_env_type), INTENT(IN), POINTER       :: blacs_env
@@ -495,8 +490,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'non_diag_rse'
 
       INTEGER                                            :: handle, i_global, iiB, ispin, j_global, &
-                                                            jjB, ncol_local, nrow_local, nspins, &
-                                                            virtual
+                                                            jjB, ncol_local, nmo, nrow_local, &
+                                                            nspins, virtual
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       REAL(KIND=dp)                                      :: corr
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eig_o, eig_semi_can, eig_v
@@ -506,6 +501,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+      nmo = SIZE(Eigenval, 1)
       nspins = SIZE(fm_f_mo)
 
       DO ispin = 1, nspins
@@ -532,7 +528,7 @@ CONTAINS
       rse_corr = 0.0_dp
 
       DO ispin = 1, nspins
-         IF (homo(ispin) <= 0 .OR. homo(ispin) >= dimen) CYCLE
+         IF (homo(ispin) <= 0 .OR. homo(ispin) >= nmo) CYCLE
          ! Create the occupied-occupied and virtual-virtual blocks, eigenvectors
          NULLIFY (fm_struct_tmp)
          CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &
@@ -547,7 +543,7 @@ CONTAINS
                                  nrow=homo(ispin), ncol=homo(ispin), &
                                  s_firstrow=1, s_firstcol=1, &
                                  t_firstrow=1, t_firstcol=1)
-         virtual = dimen - homo(ispin)
+         virtual = nmo - homo(ispin)
          NULLIFY (fm_struct_tmp)
          CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &
                                   nrow_global=virtual, ncol_global=virtual)
@@ -571,10 +567,10 @@ CONTAINS
          CALL choose_eigv_solver(fm_F_vv, fm_U, eig_v)
 
          ! Collect the eigenvalues to one array
-         ALLOCATE (eig_semi_can(dimen))
+         ALLOCATE (eig_semi_can(nmo))
          eig_semi_can = 0.0_dp
          eig_semi_can(1:homo(ispin)) = eig_o(:)
-         eig_semi_can(homo(ispin) + 1:dimen) = eig_v(:)
+         eig_semi_can(homo(ispin) + 1:nmo) = eig_v(:)
 
          ! Create occupied-virtual block
          NULLIFY (fm_struct_tmp)

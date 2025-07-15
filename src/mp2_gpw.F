@@ -560,7 +560,7 @@ CONTAINS
                                 starts_array_mc_block, ends_array_mc_block, calc_forces)
 
          IF (mp2_env%ri_rpa%do_rse) &
-            CALL rse_energy(qs_env, mp2_env, para_env, dft_control, mo_coeff, nmo, homo, Eigenval)
+            CALL rse_energy(qs_env, mp2_env, para_env, dft_control, mo_coeff, homo, Eigenval)
 
          IF (do_im_time) THEN
             IF (ASSOCIATED(mat_P_global%matrix)) THEN
@@ -603,7 +603,7 @@ CONTAINS
 
          CALL calc_ri_mp2_nonsep(qs_env, mp2_env, para_env, para_env_sub, cell, &
                                  particle_set, atomic_kind_set, qs_kind_set, &
-                                 mo_coeff, nmo, homo, dimen_RI, Eigenval, &
+                                 mo_coeff, dimen_RI, Eigenval, &
                                  my_group_L_start, my_group_L_end, my_group_L_size, &
                                  sab_orb_sub, mat_munu, blacs_env_sub)
 
