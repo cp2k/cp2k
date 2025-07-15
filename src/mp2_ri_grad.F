@@ -134,7 +134,7 @@ CONTAINS
       INTEGER                                            :: eri_method, handle, handle2, i, ikind, &
                                                             ispin, itmp(2), L_counter, LLL, &
                                                             my_P_end, my_P_size, my_P_start, nao, &
-                                                            nmo, nspins
+                                                            nspins
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, homo, kind_of, &
                                                             natom_of_kind, virtual
       LOGICAL                                            :: alpha_beta, use_virial
@@ -175,7 +175,6 @@ CONTAINS
       nspins = SIZE(Eigenval, 2)
       alpha_beta = (nspins == 2)
 
-      nmo = SIZE(Eigenval, 1)
       ALLOCATE (virtual(nspins), homo(nspins))
       eps_filter = mp2_env%mp2_gpw%eps_filter
       ALLOCATE (mo_coeff_o(nspins), mo_coeff_v(nspins), G_P_ia(nspins, my_group_L_size))
@@ -1299,7 +1298,7 @@ CONTAINS
       CALL cp_fm_struct_release(fm_struct_tmp)
 
       ! all block
-      CALL parallel_gemm('T', 'N', nmo, nao, nmo, 2.0_dp*factor, &
+      CALL parallel_gemm('T', 'N', nmo, nmo, nao, 2.0_dp*factor, &
                          L_mu_q, mo_coeff, 0.0_dp, mp2_env%ri_grad%W_mo(kspin), &
                          a_first_col=1, &
                          a_first_row=1, &

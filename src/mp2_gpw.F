@@ -373,7 +373,7 @@ CONTAINS
          ! output the two part of the C matrix (virtual, occupied)
          DO ispin = 1, nspins
 
-            CALL replicate_mat_to_subgroup(para_env, para_env_sub, mo_coeff(ispin), nmo, homo(ispin), mat_munu%matrix, &
+            CALL replicate_mat_to_subgroup(para_env, para_env_sub, mo_coeff(ispin), homo(ispin), mat_munu%matrix, &
                                            mo_coeff_o(ispin)%matrix, mo_coeff_v(ispin)%matrix, &
                                            mo_coeff_all(ispin)%matrix, mo_coeff_gw(ispin)%matrix, &
                                            my_do_gw, gw_corr_lev_occ(ispin), gw_corr_lev_virt(ispin), do_bse, &
@@ -665,7 +665,6 @@ CONTAINS
 !> \param para_env ...
 !> \param para_env_sub ...
 !> \param mo_coeff ...
-!> \param dimen ...
 !> \param homo ...
 !> \param mat_munu ...
 !> \param mo_coeff_o ...
@@ -681,13 +680,13 @@ CONTAINS
 !> \param mo_coeff_v_bse ...
 !> \param eps_filter ...
 ! **************************************************************************************************
-   SUBROUTINE replicate_mat_to_subgroup(para_env, para_env_sub, mo_coeff, dimen, homo, mat_munu, &
+   SUBROUTINE replicate_mat_to_subgroup(para_env, para_env_sub, mo_coeff, homo, mat_munu, &
                                         mo_coeff_o, mo_coeff_v, mo_coeff_all, mo_coeff_gw, my_do_gw, &
                                         gw_corr_lev_occ, gw_corr_lev_virt, my_do_bse, &
                                         bse_lev_virt, mo_coeff_o_bse, mo_coeff_v_bse, eps_filter)
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env, para_env_sub
       TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff
-      INTEGER, INTENT(IN)                                :: dimen, homo
+      INTEGER, INTENT(IN)                                :: homo
       TYPE(dbcsr_type), INTENT(INOUT)                    :: mat_munu
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_o, mo_coeff_v, mo_coeff_all, &
                                                             mo_coeff_gw
@@ -714,7 +713,7 @@ CONTAINS
                                  mat_munu, gd_array, eps_filter)
 
       ALLOCATE (mo_coeff_v)
-      CALL build_dbcsr_from_rows(para_env_sub, mo_coeff_v, C(:, homo + 1:dimen), &
+      CALL build_dbcsr_from_rows(para_env_sub, mo_coeff_v, C(:, homo + 1:), &
                                  mat_munu, gd_array, eps_filter)
 
       IF (my_do_gw) THEN
