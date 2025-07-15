@@ -37,7 +37,7 @@ MODULE fftw3_lib
    PUBLIC :: fftw3_destroy_plan, fftw3_create_plan_1dm, fftw3_create_plan_3d
    PUBLIC :: fftw_alloc, fftw_dealloc
 
-#if defined ( __FFTW3 )
+#if defined(__FFTW3)
 #include "fftw3.f03"
 #endif
 
@@ -88,7 +88,7 @@ CONTAINS
       END SUBROUTINE fftw_dealloc_complex_${dim}$d
    #:endfor
 
-#if defined ( __FFTW3 )
+#if defined(__FFTW3)
 ! **************************************************************************************************
 !> \brief A workaround that allows us to compile with -Werror=unused-parameter
 ! **************************************************************************************************
@@ -142,7 +142,7 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)             :: wisdom_file
       LOGICAL                                  :: ionode
 
-#if defined ( __FFTW3 )
+#if defined(__FFTW3)
       CHARACTER(LEN=1, KIND=C_CHAR), DIMENSION(:), ALLOCATABLE :: wisdom_file_name_c
       INTEGER                                  :: file_name_length, i, iunit, istat
       INTEGER(KIND=C_INT)                      :: isuccess
@@ -183,7 +183,7 @@ CONTAINS
 
       CHARACTER(LEN=*), INTENT(IN)             :: wisdom_file
 
-#if defined ( __FFTW3 )
+#if defined(__FFTW3)
       CHARACTER(LEN=1, KIND=C_CHAR), DIMENSION(:), ALLOCATABLE :: wisdom_file_name_c
       INTEGER                                  :: file_name_length, i, istat, iunit
       INTEGER(KIND=C_INT)                      :: isuccess
@@ -467,7 +467,7 @@ CONTAINS
                              fft_direction, fftw_plan_type, hm_rank
       LOGICAL, INTENT(OUT)                               :: valid
 
-#if defined (__FFTW3)
+#if defined(__FFTW3)
       TYPE(fftw_iodim) :: dim(2), hm(2)
       INTEGER :: i
 
@@ -516,7 +516,7 @@ CONTAINS
       IMPLICIT NONE
 
       LOGICAL :: guru_supported
-#if defined ( __FFTW3 )
+#if defined(__FFTW3)
       INTEGER :: dim_n(2), dim_istride(2), dim_ostride(2), &
                  howmany_n(2), howmany_istride(2), howmany_ostride(2)
       TYPE(C_PTR)                          :: test_plan
@@ -658,7 +658,7 @@ CONTAINS
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zin
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zout
       INTEGER                                            :: plan_style
-#if defined ( __FFTW3 )
+#if defined(__FFTW3)
       INTEGER                                            :: n1, n2, n3
       INTEGER                                            :: nt
       INTEGER                                            :: rows_per_th
@@ -685,7 +685,7 @@ CONTAINS
          CPABORT("fftw3_create_plan_3d")
       END SELECT
 
-#if defined (__FFTW3_UNALIGNED)
+#if defined(__FFTW3_UNALIGNED)
       fftw_plan_type = fftw_plan_type + FFTW_UNALIGNED
 #endif
 
@@ -843,7 +843,7 @@ CONTAINS
       INTEGER, INTENT(IN)                           :: istride, ostride
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT) :: input, output
       TYPE(C_PTR)                                   :: plan, plan_r
-#if defined (__FFTW3)
+#if defined(__FFTW3)
       INTEGER                                     :: i_off, o_off
       INTEGER                                     :: th_planA, th_planB
       INTEGER :: rows_per_thread, rows_per_thread_r
@@ -910,7 +910,7 @@ CONTAINS
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT), TARGET:: zin
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT), TARGET:: zout
       INTEGER, INTENT(OUT)                                 :: stat
-#if defined ( __FFTW3 )
+#if defined(__FFTW3)
       COMPLEX(KIND=dp), POINTER                            :: xout(:)
       COMPLEX(KIND=dp), ALLOCATABLE                        :: tmp1(:)
       INTEGER                                              :: n1, n2, n3
@@ -1002,7 +1002,7 @@ CONTAINS
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(IN)         :: zin
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(IN)         :: zout
       INTEGER, INTENT(IN)                                :: plan_style
-#if defined ( __FFTW3 )
+#if defined(__FFTW3)
       INTEGER                                            :: ii, di, io, DO, num_threads, num_rows
 
       INTEGER :: fftw_plan_type
@@ -1019,7 +1019,7 @@ CONTAINS
          CPABORT("fftw3_create_plan_1dm")
       END SELECT
 
-#if defined (__FFTW3_UNALIGNED)
+#if defined(__FFTW3_UNALIGNED)
       fftw_plan_type = fftw_plan_type + FFTW_UNALIGNED
 #endif
       num_threads = 1
@@ -1094,7 +1094,7 @@ CONTAINS
 
       TYPE(fft_plan_type), INTENT(INOUT)   :: plan
 
-#if defined ( __FFTW3 )
+#if defined(__FFTW3)
 !$    IF (plan%need_alt_plan) THEN
 !$       CALL fftw_destroy_plan(plan%alt_fftw_plan)
 !$    END IF
@@ -1172,7 +1172,7 @@ CONTAINS
 !$          num_rows = plan%num_rows
 !$       END IF
 
-#if defined ( __FFTW3 )
+#if defined(__FFTW3)
 !$OMP MASTER
          stat = 1
 !$OMP END MASTER

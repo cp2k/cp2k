@@ -656,12 +656,18 @@ if(CP2K_USE_FFTW3)
                                               ))
       message(
         FATAL_ERROR
-          "FFTW3 was compiled without openmp support  (--enable-openmp option in the FFTW3 build system)."
+          "FFTW3 was compiled without openmp support (--enable-openmp option in the FFTW3 build system)."
       )
     endif()
     set(CP2K_USE_FFTW3_ ON)
   else()
     message("-- Using the MKL implementation of FFTW3.")
+    foreach(DIR ${CP2K_BLAS_INCLUDE_DIRS})
+      if(EXISTS ${DIR}/fftw)
+        list(APPEND CP2K_FFTW3_INCLUDE_DIRS ${DIR}/fftw)
+        include_directories(${DIR}/fftw)
+      endif()
+    endforeach()
     set(CP2K_USE_FFTW3_MKL_ ON)
   endif()
 endif()
