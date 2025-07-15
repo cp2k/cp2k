@@ -177,7 +177,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: focc
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
-      TYPE(cp_fm_type)                                   :: fm_back, fm_G_mu_nu
+      TYPE(cp_fm_type)                                   :: fm_back, fm_G_mu_nu, fm_mo_mo
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: L_jb, mo_coeff_o, mo_coeff_v, P_ia, &
                                                             P_mo, W_Mo
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_p_mp2, &
@@ -406,6 +406,8 @@ CONTAINS
       CALL cp_fm_release(mo_coeff_o)
       CALL cp_fm_release(mo_coeff_v)
 
+      CALL cp_fm_create(fm_mo_mo, P_mo(1)%matrix_struct)
+
       DO ispin = 1, nspins
          ! update the MP2-MO density matrix with the occ-virt block
          CALL cp_fm_to_fm_submat(msource=P_ia(ispin), mtarget=P_mo(ispin), &
@@ -413,11 +415,12 @@ CONTAINS
                                  s_firstrow=1, s_firstcol=1, &
                                  t_firstrow=1, t_firstcol=homo(ispin) + 1)
          ! transpose P_MO matrix (easy way to symmetrize)
-         CALL cp_fm_set_all(fm_back, 0.0_dp)
+         CALL cp_fm_set_all(fm_mo_mo, 0.0_dp)
          ! P_mo now is ready
-         CALL cp_fm_uplo_to_full(matrix=P_mo(ispin), work=fm_back)
+         CALL cp_fm_uplo_to_full(matrix=P_mo(ispin), work=fm_mo_mo)
       END DO
       CALL cp_fm_release(P_ia)
+      CALL cp_fm_release(fm_mo_mo)
 
       ! do the final update to the energy weighted matrix W_MO
       DO ispin = 1, nspins
