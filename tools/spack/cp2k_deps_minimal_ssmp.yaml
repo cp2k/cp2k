@@ -8,9 +8,13 @@ spack:
       root: /opt/spack
   packages:
     all:
+      buildable: true
       prefer:
+        - ~cuda
         - ~mpi
+        - +openmp
         - +pic
+        - ~rocm
     blas:
       require:
         - openblas

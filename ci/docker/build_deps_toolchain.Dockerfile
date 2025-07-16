@@ -46,14 +46,41 @@ ENV CP2K_VERSION=${CP2K_VERSION:-psmp}
 ARG CP2K_BUILD_TYPE
 ENV CP2K_BUILD_TYPE=${CP2K_BUILD_TYPE:-minimal}
 
+# Create dummy xpmem library for the MPICH build. At runtime the
+# container engine will inject the xpmem library from the host system
+RUN git clone https://github.com/hpc/xpmem \
+    && cd xpmem/lib \
+    && gcc -I../include -shared -o libxpmem.so.1 libxpmem.c \
+    && ln -s libxpmem.so.1 libxpmem.so \
+    && mkdir -p /opt/spack/lib /opt/spack/include \
+    && mv libxpmem.so* /opt/spack/lib \
+    && cp ../include/xpmem.h /opt/spack/include/ \
+    && ldconfig /opt/spack/lib \
+    && cd ../../ \
+    && rm -rf xpmem
+
+# Install libfabric version currently used by the host system
+ARG LIBFABRIC_VERSION
+ENV LIBFABRIC_VERSION=${LIBFABRIC_VERSION:-1.22.0}
+RUN wget -q https://github.com/ofiwg/libfabric/archive/v${LIBFABRIC_VERSION}.tar.gz \
+    && tar -xf v${LIBFABRIC_VERSION}.tar.gz \
+    && cd libfabric-${LIBFABRIC_VERSION} \
+    && ./autogen.sh \
+    && ./configure --prefix=/opt/spack \
+    && make -j ${NUM_PROCS} \
+    && make install \
+    && ldconfig \
+    && cd .. \
+    && rm -rf v${LIBFABRIC_VERSION}.tar.gz libfabric-${LIBFABRIC_VERSION}
+
 # Install an MPI version ABI-compatible with the host MPI on Cray at CSCS
 ARG MPICH_VERSION
-ENV MPICH_VERSION=${MPICH_VERSION:-3.4.3}
+ENV MPICH_VERSION=${MPICH_VERSION:-4.3.0}
 RUN /bin/bash -c -o pipefail "[[ "${CP2K_VERSION}" == "psmp" ]] && (\
     wget -q https://www.mpich.org/static/downloads/${MPICH_VERSION}/mpich-${MPICH_VERSION}.tar.gz; \
     tar -xf mpich-${MPICH_VERSION}.tar.gz; \
     cd mpich-${MPICH_VERSION}; \
-    ./configure --prefix='/usr/local' --enable-fast=all,O3 --with-device=ch3 \
+    ./configure --prefix='/usr/local' --enable-fast=all,O3 --with-device=ch4:ofi --with-libfabric=/opt/spack --with-xpmem=/opt/spack \
       FFLAGS='${FFLAGS} -fallow-argument-mismatch' \
       FCFLAGS='${FCFLAGS} -fallow-argument-mismatch' \
       &>configure.log || tail -n ${LOG_LINES} configure.log; \
