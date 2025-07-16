@@ -700,21 +700,22 @@ CONTAINS
 !>      use cp_fm_set_all to zero (avoids problems with nan)
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_zscale(alpha, matrix_a)
-      COMPLEX(kind=dp), INTENT(in)                       :: alpha
+      COMPLEX(kind=dp), INTENT(IN)                       :: alpha
       TYPE(cp_cfm_type), INTENT(IN)                      :: matrix_a
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_cfm_zscale'
 
       COMPLEX(kind=dp), DIMENSION(:, :), POINTER         :: a
-      INTEGER                                            :: handle
+      INTEGER                                            :: handle, size_a
 
       CALL timeset(routineN, handle)
 
       NULLIFY (a)
 
       a => matrix_a%local_data
+      size_a = SIZE(a, 1)*SIZE(a, 2)
 
-      CALL zscal(SIZE(a), alpha, a(1, 1), 1)
+      CALL zscal(size_a, alpha, a(1, 1), 1)
 
       CALL timestop(handle)
    END SUBROUTINE cp_cfm_zscale
