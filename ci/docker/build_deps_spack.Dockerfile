@@ -91,6 +91,7 @@ ENV CP2K_VERSION=${CP2K_VERSION:-ssmp}
 ARG CP2K_BUILD_TYPE
 ENV CP2K_BUILD_TYPE=${CP2K_BUILD_TYPE:-minimal}
 COPY ./tools/spack/cp2k_deps_${CP2K_BUILD_TYPE}_${CP2K_VERSION}.yaml ./
+RUN sed -e "s/~xpmem/+xpmem/" cp2k_deps_${CP2K_BUILD_TYPE}_${CP2K_VERSION}.yaml
 COPY ./tools/spack/cp2k_dev_repo ${SPACK_PACKAGES_ROOT}/repos/spack_repo/cp2k_dev_repo/
 RUN spack repo add --scope site ${SPACK_PACKAGES_ROOT}/repos/spack_repo/cp2k_dev_repo/
 RUN spack env create myenv cp2k_deps_${CP2K_BUILD_TYPE}_${CP2K_VERSION}.yaml && \

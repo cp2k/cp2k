@@ -20,7 +20,7 @@ spack:
         - mpich
     mpich:
       require:
-        - +xpmem
+        - ~xpmem
     xpmem:
       buildable: false
       externals:
