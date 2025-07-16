@@ -1,5 +1,6 @@
 "H2O_grad_mme.inp"                      = [{matcher="M011", tol=7e-09, ref=-16.766973117914596}]
 "H2O_grad_gpw.inp"                      = [{matcher="M011", tol=7e-08, ref=-16.990049367524886}]
+"H2O_grad_gpw_chol_off.inp"             = [{matcher="M011", tol=7e-08, ref=-16.980584170136297}]
 "H2O_grad_gpw_single_group.inp"         = [{matcher="M011", tol=7e-08, ref=-16.990049367524886}]
 "HF_dipole.inp"                         = [{matcher="M011", tol=7e-08, ref=-24.660454660161033}]
 "H2_H2_no_freeHFX.inp"                  = [{matcher="M011", tol=2e-13, ref=-2.307432149680968}]

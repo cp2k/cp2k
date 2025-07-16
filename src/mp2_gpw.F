@@ -373,7 +373,7 @@ CONTAINS
          ! output the two part of the C matrix (virtual, occupied)
          DO ispin = 1, nspins
 
-            CALL replicate_mat_to_subgroup(para_env, para_env_sub, mo_coeff(ispin), nmo, homo(ispin), mat_munu%matrix, &
+            CALL replicate_mat_to_subgroup(para_env, para_env_sub, mo_coeff(ispin), homo(ispin), mat_munu%matrix, &
                                            mo_coeff_o(ispin)%matrix, mo_coeff_v(ispin)%matrix, &
                                            mo_coeff_all(ispin)%matrix, mo_coeff_gw(ispin)%matrix, &
                                            my_do_gw, gw_corr_lev_occ(ispin), gw_corr_lev_virt(ispin), do_bse, &
@@ -560,7 +560,7 @@ CONTAINS
                                 starts_array_mc_block, ends_array_mc_block, calc_forces)
 
          IF (mp2_env%ri_rpa%do_rse) &
-            CALL rse_energy(qs_env, mp2_env, para_env, dft_control, mo_coeff, nmo, homo, Eigenval)
+            CALL rse_energy(qs_env, mp2_env, para_env, dft_control, mo_coeff, homo, Eigenval)
 
          IF (do_im_time) THEN
             IF (ASSOCIATED(mat_P_global%matrix)) THEN
@@ -603,7 +603,7 @@ CONTAINS
 
          CALL calc_ri_mp2_nonsep(qs_env, mp2_env, para_env, para_env_sub, cell, &
                                  particle_set, atomic_kind_set, qs_kind_set, &
-                                 mo_coeff, nmo, homo, dimen_RI, Eigenval, &
+                                 mo_coeff, dimen_RI, Eigenval, &
                                  my_group_L_start, my_group_L_end, my_group_L_size, &
                                  sab_orb_sub, mat_munu, blacs_env_sub)
 
@@ -651,7 +651,7 @@ CONTAINS
       ! finally solve the z-vector equation if forces are required
       IF (calc_forces .AND. .NOT. do_im_time) THEN
          CALL solve_z_vector_eq(qs_env, mp2_env, para_env, dft_control, &
-                                mo_coeff, nmo, homo, Eigenval, unit_nr)
+                                mo_coeff, homo, Eigenval, unit_nr)
       END IF
 
       DEALLOCATE (Eigenval, mo_coeff)
@@ -665,7 +665,6 @@ CONTAINS
 !> \param para_env ...
 !> \param para_env_sub ...
 !> \param mo_coeff ...
-!> \param dimen ...
 !> \param homo ...
 !> \param mat_munu ...
 !> \param mo_coeff_o ...
@@ -681,13 +680,13 @@ CONTAINS
 !> \param mo_coeff_v_bse ...
 !> \param eps_filter ...
 ! **************************************************************************************************
-   SUBROUTINE replicate_mat_to_subgroup(para_env, para_env_sub, mo_coeff, dimen, homo, mat_munu, &
+   SUBROUTINE replicate_mat_to_subgroup(para_env, para_env_sub, mo_coeff, homo, mat_munu, &
                                         mo_coeff_o, mo_coeff_v, mo_coeff_all, mo_coeff_gw, my_do_gw, &
                                         gw_corr_lev_occ, gw_corr_lev_virt, my_do_bse, &
                                         bse_lev_virt, mo_coeff_o_bse, mo_coeff_v_bse, eps_filter)
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env, para_env_sub
       TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff
-      INTEGER, INTENT(IN)                                :: dimen, homo
+      INTEGER, INTENT(IN)                                :: homo
       TYPE(dbcsr_type), INTENT(INOUT)                    :: mat_munu
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_o, mo_coeff_v, mo_coeff_all, &
                                                             mo_coeff_gw
@@ -714,7 +713,7 @@ CONTAINS
                                  mat_munu, gd_array, eps_filter)
 
       ALLOCATE (mo_coeff_v)
-      CALL build_dbcsr_from_rows(para_env_sub, mo_coeff_v, C(:, homo + 1:dimen), &
+      CALL build_dbcsr_from_rows(para_env_sub, mo_coeff_v, C(:, homo + 1:), &
                                  mat_munu, gd_array, eps_filter)
 
       IF (my_do_gw) THEN

@@ -1,3 +1,4 @@
 "RI_RPA_RSE_H2_minus.inp"               = [{matcher="M011", tol=1e-09, ref=-0.985759720085668}]
+"RI_RPA_RSE_H2_minus_chol_off.inp"      = [{matcher="M011", tol=1e-07, ref=-0.704841076981913}]
 "Cubic_RPA_RSE_H2.inp"                  = [{matcher="M011", tol=2e-09, ref=-1.169521790614493}]
 #EOF
