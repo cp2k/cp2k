@@ -8,16 +8,24 @@ spack:
       root: /opt/spack
   packages:
     all:
+      buildable: true
       prefer:
+        - ~cuda
         - +mpi
+        - +openmp
         - +pic
+        - ~rocm
     mpi:
       require:
         - mpich
     mpich:
       require:
-        - device=ch3
-        - netmod=tcp
+        - +xpmem
+    xpmem:
+      buildable: false
+      externals:
+        - spec: xpmem@master
+          prefix: /opt/spack
     blas:
       require:
         - openblas
@@ -39,6 +47,7 @@ spack:
         - smm=blas
   specs:
     - "dbcsr@2.8.0"
+    - "libfabric@1.22.0"
     - "mpich@4.3.0"
     - "netlib-scalapack@2.2.2"
     - "openblas@0.3.29"

@@ -32,15 +32,13 @@ build deps eiger:
       "BASE_IMAGE",
       "CP2K_BUILD_TYPE",
       "CP2K_VERSION",
-      "LOG_LINES",
-      "MPICH_VERSION"
+      "LOG_LINES"
     ]'
     DOCKERFILE: ci/docker/build_${CI_JOB_STAGE}_${BUILDER}.Dockerfile
     BASE_IMAGE: ${UBUNTU_IMAGE_NAME}
     CP2K_BUILD_TYPE: all
     CP2K_VERSION: ${VERSION}
     LOG_LINES: 200
-    MPICH_VERSION: 3.4.3
 
 build cp2k eiger:
   extends: .container-builder-cscs-zen2
@@ -103,9 +101,9 @@ benchmark cp2k 1 eiger node:
   stage: benchmark
   needs: ["build cp2k eiger","test cp2k eiger","regression test cp2k eiger"]
   timeout: 1h
+  image: ${CSCS_IMAGE_NAME}
   before_script:
     - export CP2K_DATA_DIR=/opt/cp2k/share/cp2k/data
-  image: ${CSCS_IMAGE_NAME}
   script:
     - cp2k /opt/cp2k/benchmarks/CI/H2O-128_md.inp
   variables:
@@ -114,6 +112,7 @@ benchmark cp2k 1 eiger node:
     SLURM_DEBUG: 1
     SLURM_HINT: nomultithread
     SLURM_JOB_NUM_NODES: 1
+    SLURM_MPI_TYPE: pmi2
     SLURM_NTASKS: 128
     SLURM_NTASKS_PER_NODE: 128
     SLURM_TIMELIMIT: 30
@@ -127,8 +126,6 @@ benchmark cp2k 2 eiger nodes:
   image: ${CSCS_IMAGE_NAME}
   before_script:
     - export CP2K_DATA_DIR=/opt/cp2k/share/cp2k/data
-    # This setting is currently needed to allow for multi-node runs, but it degrades the performance by a factor of two or more
-    - export MPICH_NOLOCAL=1
   script:
     - cp2k /opt/cp2k/benchmarks/CI/H2O-512_md.inp
   variables:
@@ -137,6 +134,7 @@ benchmark cp2k 2 eiger nodes:
     SLURM_DEBUG: 1
     SLURM_HINT: nomultithread
     SLURM_JOB_NUM_NODES: 2
+    SLURM_MPI_TYPE: pmi2
     SLURM_NTASKS: 256
     SLURM_NTASKS_PER_NODE: 128
     SLURM_TIMELIMIT: 30

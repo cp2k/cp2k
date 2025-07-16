@@ -8,6 +8,7 @@ spack:
       root: /opt/spack
   packages:
     all:
+      buildable: true
       prefer:
         - ~cuda
         - ~mpi
@@ -64,8 +65,10 @@ spack:
         - +hdf5
         - build_system=cmake
   specs:
-    - "openblas@0.3.29"
+    # Minimal
     - "dbcsr@2.8.0"
+    - "openblas@0.3.29"
+    # All
     - "deepmdkit@3.0.2"
     - "dftd4@3.7.0"
     - "fftw@3.3.10"

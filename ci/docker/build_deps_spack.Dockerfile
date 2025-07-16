@@ -40,6 +40,19 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     xz-utils \
     zstd && rm -rf /var/lib/apt/lists/*
 
+# Create dummy xpmem library for the MPICH build. At runtime the
+# container engine will inject the xpmem library from the host system
+RUN git clone https://github.com/hpc/xpmem \
+    && cd xpmem/lib \
+    && gcc -I../include -shared -o libxpmem.so.1 libxpmem.c \
+    && ln -s libxpmem.so.1 libxpmem.so \
+    && mkdir -p /opt/spack/lib /opt/spack/include \
+    && mv libxpmem.so* /opt/spack/lib \
+    && cp ../include/xpmem.h /opt/spack/include/ \
+    && ldconfig /opt/spack/lib \
+    && cd ../../ \
+    && rm -rf xpmem
+
 # Retrieve the number of available CPU cores
 ARG NUM_PROCS
 ENV NUM_PROCS=${NUM_PROCS:-32}
@@ -80,12 +93,6 @@ ENV CP2K_BUILD_TYPE=${CP2K_BUILD_TYPE:-minimal}
 COPY ./tools/spack/cp2k_deps_${CP2K_BUILD_TYPE}_${CP2K_VERSION}.yaml ./
 COPY ./tools/spack/cp2k_dev_repo ${SPACK_PACKAGES_ROOT}/repos/spack_repo/cp2k_dev_repo/
 RUN spack repo add --scope site ${SPACK_PACKAGES_ROOT}/repos/spack_repo/cp2k_dev_repo/
-
-# Sarus containers must be dynamically linked to an MPI implementation that is ABI-compatible
-# with the MPI on the compute nodes at CSCS like MPICH@3
-ARG MPICH_VERSION
-ENV MPICH_VERSION=${MPICH_VERSION:-3.4.3}
-RUN sed -i -e "s/mpich@[0-9.]*/mpich@${MPICH_VERSION}/" cp2k_deps_${CP2K_BUILD_TYPE}_${CP2K_VERSION}.yaml
 RUN spack env create myenv cp2k_deps_${CP2K_BUILD_TYPE}_${CP2K_VERSION}.yaml && \
     spack -e myenv repo list
 

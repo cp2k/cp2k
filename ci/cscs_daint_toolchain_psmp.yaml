@@ -31,6 +31,7 @@ build deps daint:
       "BASE_IMAGE",
       "CP2K_BUILD_TYPE",
       "CP2K_VERSION",
+      "LIBFABRIC_VERSION",
       "LOG_LINES",
       "MPICH_VERSION"
     ]'
@@ -38,6 +39,7 @@ build deps daint:
     BASE_IMAGE: ${UBUNTU_IMAGE_NAME}
     CP2K_BUILD_TYPE: minimal
     CP2K_VERSION: ${VERSION}
+    LIBFABRIC_VERSION: 1.22.0
     LOG_LINES: 200
     MPICH_VERSION: 4.3.0
 

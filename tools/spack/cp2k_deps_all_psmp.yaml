@@ -8,6 +8,7 @@ spack:
       root: /opt/spack
   packages:
     all:
+      buildable: true
       prefer:
         - ~cuda
         - +mpi
@@ -19,8 +20,12 @@ spack:
         - mpich
     mpich:
       require:
-        - device=ch3
-        - netmod=tcp
+        - +xpmem
+    xpmem:
+      buildable: false
+      externals:
+        - spec: xpmem@master
+          prefix: /opt/spack
     blas:
       require:
         - openblas
@@ -95,11 +100,14 @@ spack:
         - +hdf5
         - build_system=cmake
   specs:
-    - "mpich@4.3.0"
-    - "openblas@0.3.29"
-    - "netlib-scalapack@2.2.2"
-    - "cosma@2.7.0"
+    # Minimal
     - "dbcsr@2.8.0"
+    - "libfabric@1.22.0"
+    - "mpich@4.3.0"
+    - "netlib-scalapack@2.2.2"
+    - "openblas@0.3.29"
+    # All
+    - "cosma@2.7.0"
     - "deepmdkit@3.0.2"
     - "dftd4@3.7.0"
     - "dla-future@0.10.0"
