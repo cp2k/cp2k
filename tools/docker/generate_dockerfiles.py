@@ -29,32 +29,22 @@ def main() -> None:
             f.write(regtest(version))
 
     with OutputFile(f"Dockerfile.test_openmpi-psmp", args.check) as f:
-        f.write(install_deps_toolchain(mpi_mode="openmpi"))
-        f.write(regtest("psmp"))
+        f.write(install_deps_toolchain(mpi_mode="openmpi", with_dbcsr=""))
+        f.write(regtest_cmake("toolchain_all", "psmp"))
 
     with OutputFile(f"Dockerfile.test_fedora-psmp", args.check) as f:
-        f.write(install_deps_toolchain(base_image="fedora:41"))
-        f.write(regtest("psmp"))
+        f.write(install_deps_toolchain(base_image="fedora:41", with_dbcsr=""))
+        f.write(regtest_cmake("toolchain_all", "psmp"))
 
-    for version in "ssmp", "psmp":
-        with OutputFile(f"Dockerfile.test_intel-{version}", args.check) as f:
-            f.write(
-                install_deps_toolchain_intel(
-                    base_image="intel/hpckit:2024.2.1-0-devel-ubuntu22.04",
-                    with_ifx="no",
-                )
-            )
-            f.write(regtest(version, intel=True, testopts="--mpiexec mpiexec"))
-        with OutputFile(
-            f"Dockerfile.test_intel-oneapi-hpckit-{version}", args.check
-        ) as f:
-            f.write(
-                install_deps_toolchain_intel(
-                    base_image="intel/oneapi-hpckit:2025.1.3-0-devel-ubuntu24.04",
-                    with_ifx="yes",
-                )
-            )
-            f.write(regtest(version, intel=True, testopts="--mpiexec mpiexec"))
+    for ver in "ssmp", "psmp":
+        with OutputFile(f"Dockerfile.test_intel-{ver}", args.check) as f:
+            base_image = "intel/hpckit:2024.2.1-0-devel-ubuntu22.04"
+            f.write(install_deps_toolchain_intel(base_image=base_image, with_ifx="no"))
+            f.write(regtest(ver, intel=True, testopts="--mpiexec mpiexec"))
+        with OutputFile(f"Dockerfile.test_intel-oneapi-hpckit-{ver}", args.check) as f:
+            base_image = "intel/oneapi-hpckit:2025.1.3-0-devel-ubuntu24.04"
+            f.write(install_deps_toolchain_intel(base_image=base_image, with_ifx="yes"))
+            f.write(regtest(ver, intel=True, testopts="--mpiexec mpiexec"))
 
     with OutputFile(f"Dockerfile.test_nvhpc", args.check) as f:
         f.write(install_deps_toolchain_nvhpc())
@@ -86,6 +76,7 @@ def main() -> None:
                 f.write(regtest_cmake("ubuntu", "ssmp"))
             else:
                 f.write(install_deps_ubuntu2004(gcc_version=gcc_version))
+                # Have to use Makefile because Ubuntu:20.04 ships with CMake 3.16.3.
                 # Skip some tests due to bug in LDA_C_PMGB06 functional in libxc <5.2.0.
                 f.write(regtest("ssmp", testopts="--skipdir=QS/regtest-rs-dhft"))
 

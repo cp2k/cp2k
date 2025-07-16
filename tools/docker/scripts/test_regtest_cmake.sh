@@ -33,6 +33,11 @@ export OMP_STACKSIZE=64m
 # Improve code coverage on COSMA.
 export COSMA_DIM_THRESHOLD=0
 
+# Make OpenMPI happy.
+export OMPI_MCA_plm_rsh_agent=/bin/false
+export OMPI_ALLOW_RUN_AS_ROOT=1
+export OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1
+
 # Load Spack or Toolchain environment.
 if [[ "${PROFILE}" =~ ^spack ]]; then
   eval "$(spack env activate myenv --sh)"
