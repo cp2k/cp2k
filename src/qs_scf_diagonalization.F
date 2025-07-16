@@ -14,13 +14,13 @@
 ! **************************************************************************************************
 MODULE qs_scf_diagonalization
    USE cp_array_utils,                  ONLY: cp_1d_r_p_type
-   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_scale,&
-                                              cp_cfm_scale_and_add,&
+   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_scale_and_add,&
                                               cp_cfm_scale_and_add_fm
    USE cp_cfm_diag,                     ONLY: cp_cfm_geeig,&
                                               cp_cfm_geeig_canon
    USE cp_cfm_types,                    ONLY: cp_cfm_create,&
                                               cp_cfm_release,&
+                                              cp_cfm_set_all,&
                                               cp_cfm_to_cfm,&
                                               cp_cfm_to_fm,&
                                               cp_cfm_type
@@ -622,7 +622,7 @@ CONTAINS
                kp => kpoints%kp_env(ikp)%kpoint_env
                CALL cp_cfm_to_cfm(kpoints%scf_diis_buffer%smat(ikp), csmat)
 
-               CALL cp_cfm_scale(czero, cksmat)
+               CALL cp_cfm_set_all(cksmat, czero)
                DO jb = 1, nb
                   CALL cp_cfm_scale_and_add(cone, cksmat, coeffs(jb), kpoints%scf_diis_buffer%param(jb, ispin, ikp))
                END DO
