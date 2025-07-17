@@ -717,12 +717,10 @@ CONTAINS
          TYPE(section_vals_type), POINTER             :: rixs_section, td_section, xas_section
 
          td_section => section_vals_get_subs_vals(rixs_section, "TDDFPT")
-         WRITE(*,*) "Reading TDDFPT"
          CALL read_tddfpt2_control(rixs_control%tddfpt2_control, td_section, qs_control)
-         !! TODO: check qs_control params with explicit!!!
+         !! TODO_beliz: check qs_control params with explicit!!!
 
          xas_section => section_vals_get_subs_vals(rixs_section, "XAS_TDP")
-         WRITE(*,*) "Reading XAS_TDP"
          CALL read_xas_tdp_control(rixs_control%xas_tdp_control, xas_section)
 
     END SUBROUTINE read_rixs_control

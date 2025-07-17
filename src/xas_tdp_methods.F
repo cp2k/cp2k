@@ -144,6 +144,7 @@ MODULE xas_tdp_methods
                                               setup_xas_tdp_prob,&
                                               solve_xas_tdp_prob
    USE xc_write_output,                 ONLY: xc_write
+   USE rixs_types,                      ONLY: rixs_env_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -161,9 +162,10 @@ CONTAINS
 !> \author AB
 !> \note Empty for now...
 ! **************************************************************************************************
-   SUBROUTINE xas_tdp(qs_env)
+   SUBROUTINE xas_tdp(qs_env, rixs_env)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(rixs_env_type), POINTER, OPTIONAL             :: rixs_env
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'xas_tdp'
 
@@ -180,7 +182,6 @@ CONTAINS
       ! check if subroutine is called as part of rixs calculation
       CALL get_qs_env(qs_env, do_rixs=do_rixs)
       IF (do_rixs) THEN
-         WRITE(*,*) "do_rixs ", do_rixs
          xas_tdp_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%RIXS%XAS_TDP")
       ELSE
          xas_tdp_section => section_vals_get_subs_vals(qs_env%input, "DFT%XAS_TDP")
@@ -219,7 +220,11 @@ CONTAINS
 
 !  or run the core XAS_TDP routine if not
       ELSE
-         CALL xas_tdp_core(xas_tdp_section, qs_env)
+         IF (PRESENT(rixs_env)) THEN
+            CALL xas_tdp_core(xas_tdp_section, qs_env, rixs_env)
+         ELSE
+            CALL xas_tdp_core(xas_tdp_section, qs_env)
+         END IF
       END IF
 
       IF (output_unit > 0) THEN
@@ -238,17 +243,18 @@ CONTAINS
 !> \param xas_tdp_section the input values for XAS_TDP
 !> \param qs_env ...
 ! **************************************************************************************************
-   SUBROUTINE xas_tdp_core(xas_tdp_section, qs_env)
+   SUBROUTINE xas_tdp_core(xas_tdp_section, qs_env, rixs_env)
 
       TYPE(section_vals_type), POINTER                   :: xas_tdp_section
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(rixs_env_type), POINTER, OPTIONAL             :: rixs_env
 
       CHARACTER(LEN=default_string_length)               :: kind_name
       INTEGER :: batch_size, bo(2), current_state_index, iat, iatom, ibatch, ikind, ispin, istate, &
          nbatch, nex_atom, output_unit, tmp_index
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: batch_atoms, ex_atoms_of_kind
       INTEGER, DIMENSION(:), POINTER                     :: atoms_of_kind
-      LOGICAL                                            :: do_os, end_of_batch, unique
+      LOGICAL                                            :: do_os, end_of_batch, unique, do_rixs
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks
@@ -270,8 +276,12 @@ CONTAINS
          WRITE (UNIT=output_unit, FMT="(/,T3,A)") &
             "# Create and initialize the XAS_TDP environment"
       END IF
-      CALL get_qs_env(qs_env, dft_control=dft_control)
-      CALL xas_tdp_init(xas_tdp_env, xas_tdp_control, qs_env)
+      CALL get_qs_env(qs_env, dft_control=dft_control, do_rixs=do_rixs)
+      IF (PRESENT(rixs_env)) THEN
+         CALL xas_tdp_init(xas_tdp_env, xas_tdp_control, qs_env, rixs_env)
+      ELSE
+         CALL xas_tdp_init(xas_tdp_env, xas_tdp_control, qs_env)
+      END IF
       CALL print_info(output_unit, xas_tdp_control, qs_env)
 
       IF (output_unit > 0) THEN
@@ -510,18 +520,13 @@ CONTAINS
                         END IF
                      END IF
 
-                     ! Save the current_state details for rixs, %dipmat, sg_evlas, gs_coeffs
-                     ! before moving on to next state
-                     !!!!! 
-
 !                    Print the requested properties
                      CALL print_xas_tdp_to_file(current_state, xas_tdp_env, xas_tdp_control, xas_tdp_section)
                   END IF !xps_only
                   IF (xas_tdp_control%do_gw2x) CALL print_xps(current_state, xas_tdp_env, xas_tdp_control, qs_env)
 
 !                 Free some unneeded attributes of current_state
-                  CALL free_ds_memory(current_state) !!! donor-state cleaned here
-
+                  IF (.NOT. do_rixs) CALL free_ds_memory(current_state) ! donor-state will be cleaned in rixs
                   current_state_index = current_state_index + 1
                   NULLIFY (current_state)
 
@@ -554,7 +559,7 @@ CONTAINS
       END IF
 
 !  Clean-up
-      CALL xas_tdp_env_release(xas_tdp_env)
+      IF (.NOT. do_rixs) CALL xas_tdp_env_release(xas_tdp_env) ! is released at the end of rixs
       CALL xas_tdp_control_release(xas_tdp_control)
 
    END SUBROUTINE xas_tdp_core
@@ -565,11 +570,12 @@ CONTAINS
 !> \param xas_tdp_control the control type to initialize
 !> \param qs_env the inherited qs environement type
 ! **************************************************************************************************
-   SUBROUTINE xas_tdp_init(xas_tdp_env, xas_tdp_control, qs_env)
+   SUBROUTINE xas_tdp_init(xas_tdp_env, xas_tdp_control, qs_env, rixs_env)
 
       TYPE(xas_tdp_env_type), POINTER                    :: xas_tdp_env
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(rixs_env_type), POINTER, OPTIONAL             :: rixs_env
 
       CHARACTER(LEN=default_string_length)               :: kind_name
       INTEGER                                            :: at_ind, i, ispin, j, k, kind_ind, &
@@ -620,7 +626,11 @@ CONTAINS
       do_os = do_uks .OR. xas_tdp_control%do_roks
 
 !  XAS TDP environment type initialization
-      CALL xas_tdp_env_create(xas_tdp_env)
+      IF (PRESENT(rixs_env)) THEN
+         xas_tdp_env => rixs_env%core_state
+      ELSE
+         CALL xas_tdp_env_create(xas_tdp_env)
+      END IF
 
 !  Retrieving the excited atoms indices and correspondig state types
       IF (xas_tdp_control%define_excited == xas_tdp_by_index) THEN
@@ -1503,6 +1513,7 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER                   :: eval_mat_struct, gs_struct
       TYPE(cp_fm_type)                                   :: eval_mat, work_mat
       TYPE(cp_fm_type), POINTER                          :: gs_coeffs, mo_coeff
+      TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks
       TYPE(gto_basis_set_type), POINTER                  :: kind_basis_set, sto_to_gto_basis_set
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
@@ -1667,8 +1678,14 @@ CONTAINS
          ALLOCATE (donor_state%gs_coeffs)
          CALL cp_fm_create(donor_state%gs_coeffs, gs_struct)
 
+         ALLOCATE(xas_tdp_env%mo_coeff(nspins))
          DO ispin = 1, nspins
             CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff)
+            ! copy mo_coeff, required for rixs
+            CALL cp_fm_get_info(matrix=mo_coeff, &
+                                 matrix_struct=matrix_struct)
+            CALL cp_fm_create(xas_tdp_env%mo_coeff(ispin), matrix_struct)
+            CALL cp_fm_to_fm(mo_coeff, xas_tdp_env%mo_coeff(ispin))
             DO i = 1, n_states
                CALL cp_fm_to_fm_submat(msource=mo_coeff, mtarget=donor_state%gs_coeffs, nrow=nao, &
                                        ncol=1, s_firstrow=1, s_firstcol=my_mos(i, ispin), &

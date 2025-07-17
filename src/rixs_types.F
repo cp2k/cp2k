@@ -13,7 +13,6 @@
 MODULE rixs_types
     USE cp_fm_types,                           ONLY: cp_fm_type, cp_fm_release 
     USE kinds,                                 ONLY: dp
-    USE qs_tddfpt2_types,                      ONLY: tddfpt_ground_state_mos
     USE xas_tdp_types,                         ONLY: xas_tdp_env_type, &
                                                      xas_tdp_env_create, &
                                                      xas_tdp_env_release
@@ -30,28 +29,29 @@ MODULE rixs_types
 ! **************************************************************************************************
     TYPE rixs_env_type
 
-        TYPE(xas_tdp_env_type), POINTER         :: core_state => NULL()
+        TYPE(xas_tdp_env_type), POINTER            :: core_state => NULL()
         TYPE(tddfpt2_valence_type), &
-            POINTER                             :: valence_state => NULL()
+            POINTER                                :: valence_state => NULL()
+        REAL(dp), DIMENSION(:, :, :), POINTER      :: mu => NULL()
 
     END TYPE rixs_env_type
-
 
 ! **************************************************************************************************
 !> \brief Valence state coming from the qs_tddfpt2 routine
 ! **************************************************************************************************
     TYPE tddfpt2_valence_type
     
-        TYPE(cp_fm_type), POINTER                        :: evects => NULL() ! eigenvectors
-        REAL(dp), DIMENSION(:), POINTER                  :: evals => NULL()  ! energies
+        INTEGER                                          :: nstates = 0
+        TYPE(cp_fm_type), DIMENSION(:, :), &
+            POINTER                                      :: evects => NULL() ! eigenvectors
+        REAL(dp), DIMENSION(:), ALLOCATABLE              :: evals  ! energies
 
-        TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
-           POINTER                                       :: gs_mos
-
-        ! stuff below coming from tddfpt_ground_state_mos type
-        TYPE(cp_fm_type), POINTER                        :: mos_occ => NULL()
-        TYPE(cp_fm_type), POINTER                        :: mos_virt => NULL()
-        TYPE(cp_fm_type), POINTER                        :: evals_occ_matrix => NULL()
+        ! entities below are coming from tddfpt_ground_state_mos type
+        TYPE(cp_fm_type), DIMENSION(:), &
+            POINTER                                      :: mos_occ => NULL()
+        TYPE(cp_fm_type), DIMENSION(:), &
+            POINTER                                      :: mos_virt => NULL()
+        TYPE(cp_fm_type), POINTER                        :: evals_occ_matrix => NULL() ! remove
         REAL(dp), DIMENSION(:), ALLOCATABLE              :: evals_occ
         REAL(dp), DIMENSION(:), ALLOCATABLE              :: evals_virt
 
@@ -59,7 +59,7 @@ MODULE rixs_types
 
     CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rixs_types'
 
-    PUBLIC :: rixs_env_type, tddfpt2_valence_type
+    PUBLIC :: rixs_env_type, tddfpt2_valence_type, tddfpt2_valence_state_create
 
     PUBLIC :: rixs_env_create, rixs_env_release 
 
@@ -72,14 +72,12 @@ CONTAINS
     SUBROUTINE rixs_env_create(rixs_env)
         TYPE(rixs_env_type), POINTER                        :: rixs_env
 
-        CPASSERT(.NOT. ASSOCIATED(rixs_env))
-
         ALLOCATE(rixs_env)
-
         NULLIFY(rixs_env%core_state)
         CALL xas_tdp_env_create(rixs_env%core_state)
         NULLIFY(rixs_env%valence_state)
-        CALL tddfpt_sub_env_init(rixs_env%valence_state)
+        CALL tddfpt2_valence_state_create(rixs_env%valence_state)
+        NULLIFY(rixs_env%mu)
 
     END SUBROUTINE rixs_env_create
 
@@ -95,9 +93,14 @@ CONTAINS
                 CALL xas_tdp_env_release(rixs_env%core_state)
             END IF
             IF (ASSOCIATED(rixs_env%valence_state)) THEN
-                CALL tddfpt_sub_env_release(rixs_env%valence_state)
+                CALL tddfpt2_valence_state_release(rixs_env%valence_state)
+            END IF
+            IF (ASSOCIATED(rixs_env%mu)) THEN
+                DEALLOCATE(rixs_env%mu)
             END IF
         END IF
+        
+        DEALLOCATE(rixs_env)
 
     END SUBROUTINE rixs_env_release
 
@@ -105,23 +108,15 @@ CONTAINS
 !> \brief Creates the valence state type
 ! **************************************************************************************************
     SUBROUTINE tddfpt2_valence_state_create(valence_state)
-        TYPE(tddfpt2_valence_type), POINTER               :: valence_state
+        TYPE(tddfpt2_valence_type), POINTER          :: valence_state
+        ALLOCATE(valence_state)
 
         NULLIFY(valence_state%evects)
-        NULLIFY(valence_state%evals)
-        ! NULLIFY(valence_state%gs_mos)
         
-        ! stuff below coming from tddfpt_ground_state_mos type
-        NULLIFY(valence_state%gs_mos)
+        ! entities below are coming from tddfpt_ground_state_mos type
         NULLIFY(valence_state%mos_occ)
         NULLIFY(valence_state%mos_virt)
         NULLIFY(valence_state%evals_occ_matrix)
-        IF (ALLOCATED(valence_state%evals_occ)) THEN
-            DEALLOCATE(valence_state%evals_occ)
-        END IF
-        IF (ALLOCATED(valence_state%evals_virt)) THEN
-            DEALLOCATE(valence_state%evals_virt)
-        END IF
 
     END SUBROUTINE tddfpt2_valence_state_create
 
@@ -130,24 +125,16 @@ CONTAINS
 ! **************************************************************************************************
     SUBROUTINE tddfpt2_valence_state_release(valence_state)
         TYPE(tddfpt2_valence_type), POINTER               :: valence_state
-        INTEGER                                           :: i
 
         IF (ASSOCIATED(valence_state)) THEN
             IF (ASSOCIATED(valence_state%evects)) THEN
                 CALL cp_fm_release(valence_state%evects)
-                DEALLOCATE(valence_state%evects)
             END IF
-            IF (ASSOCIATED(valence_state%evals)) THEN
+            IF (ALLOCATED(valence_state%evals)) THEN
                 DEALLOCATE(valence_state%evals)
             END IF
-            IF (ASSOCIATED(valence_state%gs_mos)) THEN
-                DO i = 1, SIZE(valence_state%gs_mos)
-                    CALL tddfpt_release_ground_state_mos(valence_state%gs_mos(i))
-                END DO
-                DEALLOCATE(valence_state%gs_mos)
-            END IF
             IF (ASSOCIATED(valence_state%mos_occ)) THEN
-                DEALLOCATE(valence_state%mos_occ)
+                CALL cp_fm_release(valence_state%mos_occ)
             END IF
             IF (ASSOCIATED(valence_state%mos_virt)) THEN
                 DEALLOCATE(valence_state%mos_virt)
@@ -155,13 +142,9 @@ CONTAINS
             IF (ASSOCIATED(valence_state%evals_occ_matrix)) THEN
                 DEALLOCATE(valence_state%evals_occ_matrix)
             END IF
-            IF (ALLOCATED(valence_state%evals_occ)) THEN
-                DEALLOCATE(valence_state%evals_occ)
-            END IF
-            IF (ALLOCATED(valence_state%evals_virt)) THEN
-                DEALLOCATE(valence_state%evals_virt)
-            END IF
         END IF
+
+        DEALLOCATE(valence_state)
 
     END SUBROUTINE tddfpt2_valence_state_release
 

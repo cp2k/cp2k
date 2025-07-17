@@ -604,7 +604,7 @@ MODULE cp_control_types
       TYPE(rtp_control_type), POINTER      :: rtp_control => NULL()
       TYPE(sccs_control_type), POINTER     :: sccs_control => NULL()
       TYPE(tddfpt2_control_type), POINTER  :: tddfpt2_control => NULL()
-      TYPE(rixs_control_type), POINTER          :: rixs_control => NULL()
+      TYPE(rixs_control_type), POINTER     :: rixs_control => NULL()
       TYPE(xas_control_type), POINTER      :: xas_control => NULL()
       TYPE(expot_control_type), POINTER    :: expot_control => NULL()
       TYPE(maxwell_control_type), POINTER  :: maxwell_control => NULL()

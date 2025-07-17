@@ -152,33 +152,37 @@ CONTAINS
 
    SUBROUTINE create_rixs_section(section)
       TYPE(section_type), POINTER                        :: section
-      TYPE(section_type), POINTER                        :: subsection
+      TYPE(section_type), POINTER                        :: subsection, print_key
       TYPE(keyword_type), POINTER                        :: keyword
-
-      REAL(KIND=DP)                                      :: def_dum
 
       CPASSERT(.NOT. ASSOCIATED(section))
 
-      NULLIFY(keyword, subsection)
-
-      def_dum = 1.e-6_dp
+      NULLIFY(keyword, subsection, print_key)
 
       CALL section_create(section, __LOCATION__, name="RIXS", &
-                     description="Resonant Inelastic Xray Scattering ...", &
-                     n_keywords=2, n_subsections=2, repeats=.FALSE., &
+                     description="Resonant Inelastic Xray Scattering using XAS_TDP and TDDFPT.", &
+                     n_keywords=1, n_subsections=3, repeats=.FALSE., &
                      citations=(/VazdaCruz2021/))
-
-      CALL keyword_create(keyword, __LOCATION__, name="DUMMY", &
-                          description="some dummy parameter", &
-                          usage="DUMMY 1.e-6", default_r_val=def_dum)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
 
       CALL create_tddfpt2_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
       CALL create_xas_tdp_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+   
+      CALL section_create(subsection, __LOCATION__, "PRINT", "Controls the printing of information "// &
+                          "during RIXS calculations", repeats=.FALSE.)
+
+      CALL cp_print_key_section_create(print_key, __LOCATION__, name="SPECTRUM", &
+                                       description="Controles the printing of the RIXS spectrum "// &
+                                       "in output files", &
+                                       print_level=low_print_level, filename="", &
+                                       common_iter_levels=3)
+      CALL section_add_subsection(subsection, print_key)
+      CALL section_release(print_key)
+
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 

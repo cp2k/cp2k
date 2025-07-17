@@ -762,13 +762,11 @@ CONTAINS
       ! reimplemented TDDFPT
       CALL read_tddfpt2_control(dft_control%tddfpt2_control, tddfpt_section, dft_control%qs_control)
 
-      WRITE(*,*) "qs_environment qs_env%do_rixs ", qs_env%do_rixs
       ! rixs
       CALL section_vals_get(rixs_section, explicit=qs_env%do_rixs)
       IF (qs_env%do_rixs) THEN
          CALL read_rixs_control(dft_control%rixs_control, rixs_section, dft_control%qs_control)
       END IF
-      WRITE(*,*) "qs_environment after read_rixs_control qs_env%do_rixs ", qs_env%do_rixs
 
       !   Create relativistic control section
       BLOCK
@@ -1077,7 +1075,6 @@ CONTAINS
 
       END IF
 
-      WRITE(*,*) "qs_env%do_rixs", qs_env%do_rixs
       IF (dft_control%do_xas_tdp_calculation .OR. qs_env%do_rixs) THEN ! or do_rixs
          ! Check if RI_XAS basis is given, auto-generate if not
          CALL get_qs_env(qs_env, nkind=nkind)
