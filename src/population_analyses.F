@@ -426,15 +426,18 @@ CONTAINS
    END SUBROUTINE mulliken_population_analysis
 
 ! **************************************************************************************************
-!> \brief Save the Mulliken charges in results
+!> \brief Save the Mulliken atomic orbital populations and charges in results
 !>
 !> \param orbpop ...
 !> \param atomic_kind_set ...
 !> \param qs_kind_set ...
 !> \param particle_set ...
 !> \param qs_env ...
-!> \date    27.05.2022
+!> \par History
+!>       27.05.2022 BT
+!>       16.07.2025 RK
 !> \author  Bo Thomsen (BT)
+!>          Rangsiman Ketkaew (RK)
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE save_mulliken_charges(orbpop, atomic_kind_set, qs_kind_set, particle_set, qs_env)
@@ -451,7 +454,7 @@ CONTAINS
       INTEGER, DIMENSION(:, :), POINTER                  :: lshell
       REAL(KIND=dp)                                      :: zeff
       REAL(KIND=dp), DIMENSION(3)                        :: sumorbpop
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: charges_save
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: all_sumorbpop, charges_save
       TYPE(cp_result_type), POINTER                      :: results
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
 
@@ -470,6 +473,7 @@ CONTAINS
       CALL get_atomic_kind_set(atomic_kind_set, natom=natom)
       NULLIFY (results)
       CALL get_qs_env(qs_env, results=results)
+      ALLOCATE (all_sumorbpop(natom))
       ALLOCATE (charges_save(natom))
 
       iao = 1
@@ -502,11 +506,25 @@ CONTAINS
             END DO
             IF (nspin == 1) THEN
                charges_save(iatom) = zeff - sumorbpop(1)
+               all_sumorbpop(iatom) = sumorbpop(1)
             ELSE
                charges_save(iatom) = zeff - sumorbpop(1) - sumorbpop(2)
+               all_sumorbpop(iatom) = sumorbpop(1) + sumorbpop(2)
             END IF
          END IF ! atom has an orbital basis
       END DO ! next atom iatom
+
+      ! Store atomic orbital populations in results
+      description = "[MULLIKEN-ORBPOP]"
+      CALL cp_results_erase(results=results, description=description)
+      CALL put_results(results=results, description=description, &
+                       values=orbpop)
+
+      ! Store sum orbital population in results
+      description = "[MULLIKEN-SUMORBPOP]"
+      CALL cp_results_erase(results=results, description=description)
+      CALL put_results(results=results, description=description, &
+                       values=all_sumorbpop)
 
       ! Store charges in results
       description = "[MULLIKEN-CHARGES]"
@@ -514,6 +532,7 @@ CONTAINS
       CALL put_results(results=results, description=description, &
                        values=charges_save)
 
+      DEALLOCATE (all_sumorbpop)
       DEALLOCATE (charges_save)
 
    END SUBROUTINE save_mulliken_charges
