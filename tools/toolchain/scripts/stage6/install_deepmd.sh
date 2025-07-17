@@ -6,8 +6,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-deepmd_ver="3.0.2"
-deepmd_sha256="b828d3a44730ea852505abbdb24ea5b556f2bf8b16de5a9c76018ed1ced7121b"
+deepmd_ver="3.1.0"
+deepmd_sha256="45f13df9ed011438d139a7f61416b8d7940f63c47fcde53180bfccd60c9d22ee"
 deepmd_pkg="deepmd-kit-${deepmd_ver}.tar.gz"
 
 # shellcheck source=/dev/null
