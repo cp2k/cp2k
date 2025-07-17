@@ -82,9 +82,8 @@ regression test cp2k eiger:
   needs: ["build cp2k eiger","test cp2k eiger"]
   timeout: 1h
   script:
-    - git --no-pager log -1 --pretty="%nCommitSHA:%x20%H%nCommitTime:%x20%ci%nCommitAuthor:%x20%an%nCommitSubject:%x20%s%n" | tee ${REPOSITORY}_${TAG}.log
-    - podman run --shm-size=1g -v ${PWD}:/mnt ${DOCKERHUB_IMAGE_NAME} /opt/cp2k/tests/do_regtest.py --maxtasks ${SLURM_NTASKS} --mpiexec "mpiexec -bind-to none" --keepalive /opt/cp2k/bin ${VERSION} 2>&1 | tee -a ${REPOSITORY}_${TAG}.log || true
-    - cp ${REPOSITORY}_${TAG}.log ${SCRATCH}/ci/${REPOSITORY}_${TAG}_$(git rev-parse HEAD).log
+    - git --no-pager log -1 --pretty="%nCommitSHA:%x20%H%nCommitTime:%x20%ci%nCommitAuthor:%x20%an%nCommitSubject:%x20%s%n"
+    - podman run --shm-size=1g -v ${PWD}:/mnt ${DOCKERHUB_IMAGE_NAME} /opt/cp2k/tests/do_regtest.py --maxtasks ${SLURM_NTASKS} --mpiexec "mpiexec -bind-to none" --keepalive /opt/cp2k/bin ${VERSION} 2>&1 || true
   variables:
     SLURM_CONSTRAINT: mc
     SLURM_DEBUG: 1
