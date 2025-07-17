@@ -6,8 +6,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-pugixml_ver="1.14"
-pugixml_sha256="2f10e276870c64b1db6809050a75e11a897a8d7456c4be5c6b2e35a11168a015"
+pugixml_ver="1.15"
+pugixml_sha256="655ade57fa703fb421c2eb9a0113b5064bddb145d415dd1f88c79353d90d511a"
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
 source "${SCRIPT_DIR}"/signal_trap.sh
