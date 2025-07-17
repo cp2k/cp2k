@@ -20,8 +20,8 @@ cd "${BUILDDIR}"
 case "${with_ninja}" in
   __INSTALL__)
     echo "==================== Installing Ninja  ===================="
-    ninja_ver="1.12.1"
-    ninja_sha256="821bdff48a3f683bc4bb3b6f0b5fe7b2d647cf65d52aeb63328c91a6c6df285a"
+    ninja_ver="1.13.1"
+    ninja_sha256="f0055ad0369bf2e372955ba55128d000cfcc21777057806015b45e4accbebf23"
 
     pkg_install_dir="${INSTALLDIR}/ninja-v${ninja_ver}"
     install_lock_file="$pkg_install_dir/install_successful"
