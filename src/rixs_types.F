@@ -32,7 +32,6 @@ MODULE rixs_types
         TYPE(xas_tdp_env_type), POINTER            :: core_state => NULL()
         TYPE(tddfpt2_valence_type), &
             POINTER                                :: valence_state => NULL()
-        REAL(dp), DIMENSION(:, :, :), POINTER      :: mu => NULL()
 
     END TYPE rixs_env_type
 
@@ -77,7 +76,6 @@ CONTAINS
         CALL xas_tdp_env_create(rixs_env%core_state)
         NULLIFY(rixs_env%valence_state)
         CALL tddfpt2_valence_state_create(rixs_env%valence_state)
-        NULLIFY(rixs_env%mu)
 
     END SUBROUTINE rixs_env_create
 
@@ -95,9 +93,6 @@ CONTAINS
             IF (ASSOCIATED(rixs_env%valence_state)) THEN
                 CALL tddfpt2_valence_state_release(rixs_env%valence_state)
             END IF
-            IF (ASSOCIATED(rixs_env%mu)) THEN
-                DEALLOCATE(rixs_env%mu)
-            END IF
         END IF
         
         DEALLOCATE(rixs_env)
@@ -113,10 +108,8 @@ CONTAINS
 
         NULLIFY(valence_state%evects)
         
-        ! entities below are coming from tddfpt_ground_state_mos type
+        ! entities below come from tddfpt_ground_state_mos type
         NULLIFY(valence_state%mos_occ)
-        NULLIFY(valence_state%mos_virt)
-        NULLIFY(valence_state%evals_occ_matrix)
 
     END SUBROUTINE tddfpt2_valence_state_create
 
@@ -135,12 +128,6 @@ CONTAINS
             END IF
             IF (ASSOCIATED(valence_state%mos_occ)) THEN
                 CALL cp_fm_release(valence_state%mos_occ)
-            END IF
-            IF (ASSOCIATED(valence_state%mos_virt)) THEN
-                DEALLOCATE(valence_state%mos_virt)
-            END IF
-            IF (ASSOCIATED(valence_state%evals_occ_matrix)) THEN
-                DEALLOCATE(valence_state%evals_occ_matrix)
             END IF
         END IF
 

@@ -521,10 +521,6 @@ CONTAINS
          valence_state%nstates = nstates
          ALLOCATE(valence_state%evals(SIZE(evals)))
          valence_state%evals(:) = evals(:)
-         ALLOCATE(valence_state%evals_occ(SIZE(gs_mos(1)%evals_occ)))
-         valence_state%evals_occ(:) = gs_mos(1)%evals_occ(:)
-         ALLOCATE(valence_state%evals_virt(SIZE(gs_mos(1)%evals_virt)))
-         valence_state%evals_virt(:) = gs_mos(1)%evals_virt(:)
 
          ALLOCATE(valence_state%evects(nspins, nstates))
          ALLOCATE(valence_state%mos_occ(nspins))
