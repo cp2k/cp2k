@@ -110,6 +110,12 @@ MODULE input_constants
                                                rmsd_list = 1, &
                                                rmsd_weightlist = 2
 
+   ! Atomic charge colvar
+   INTEGER, PARAMETER, PUBLIC               :: mulliken_pop = 0, &
+                                               apt_pop = 1, &
+                                               func_diff = 0, &
+                                               func_sum = 0
+
    INTEGER, PARAMETER, PUBLIC               :: do_rep_interleaved = 0, &
                                                do_rep_blocked = 1
 

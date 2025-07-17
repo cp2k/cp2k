@@ -20,8 +20,11 @@ MODULE qs_linres_module
                                               Ditler2022,&
                                               Weber2009,&
                                               cite_reference
+   USE colvar_elec_utils,               ONLY: charge_cv_linres_init
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
+   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
+   USE cp_fm_types,                     ONLY: cp_fm_to_fm
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -42,7 +45,8 @@ MODULE qs_linres_module
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
-   USE kinds,                           ONLY: dp
+   USE kinds,                           ONLY: default_string_length,&
+                                              dp
    USE qs_dcdr,                         ONLY: apt_dR,&
                                               apt_dR_localization,&
                                               dcdr_build_op_dR,&
@@ -226,45 +230,41 @@ CONTAINS
 !>        and calculates the sum rules for the APT elements.
 !> \param qs_env ...
 !> \param p_env ...
+!> \par History
+!>      11.2021 created [ED]
+!>      09.2024 stored wavefunctions for MolDyn/MetaDyn [RK]
+!> \author Edward Ditler [ED], Rangsiman Ketkaew [RK]
 ! **************************************************************************************************
    SUBROUTINE dcdr_linres(qs_env, p_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_p_env_type)                                :: p_env
 
-      INTEGER                                            :: beta, latom
+      CHARACTER(LEN=default_string_length)               :: population
+      INTEGER                                            :: beta, ispin, latom, nspins
+      LOGICAL                                            :: do_charge_colvar
       TYPE(dcdr_env_type)                                :: dcdr_env
+      TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(polar_env_type), POINTER                      :: polar_env
+      TYPE(section_vals_type), POINTER                   :: charge_colvar_sections
+
+      CALL get_qs_env(qs_env=qs_env, &
+                      dft_control=dft_control)
 
       CALL cite_reference(Ditler2021)
       CALL dcdr_env_init(dcdr_env, qs_env)
 
-      IF (.NOT. dcdr_env%z_matrix_method) THEN
+      charge_colvar_sections => section_vals_get_subs_vals(qs_env%input, "SUBSYS%COLVAR%CHARGE")
+      CALL section_vals_get(charge_colvar_sections, explicit=do_charge_colvar)
+      CALL section_vals_val_get(charge_colvar_sections, "POPULATION", c_val=population)
 
-         DO latom = 1, SIZE(dcdr_env%list_of_atoms)
-            dcdr_env%lambda = dcdr_env%list_of_atoms(latom)
-            CALL prepare_per_atom(dcdr_env, qs_env)
+      nspins = dft_control%nspins
 
-            DO beta = 1, 3                   ! in every direction
-               dcdr_env%beta = beta
-               dcdr_env%deltaR(dcdr_env%beta, dcdr_env%lambda) = 1._dp
+      IF (do_charge_colvar) THEN
+         ! Prepare the linres storages
+         CALL charge_cv_linres_init(qs_env, dcdr_env)
+      END IF
 
-               CALL dcdr_build_op_dR(dcdr_env, qs_env)
-               CALL dcdr_response_dR(dcdr_env, p_env, qs_env)
-
-               IF (.NOT. dcdr_env%localized_psi0) THEN
-                  CALL apt_dR(qs_env, dcdr_env)
-               ELSE IF (dcdr_env%localized_psi0) THEN
-                  CALL apt_dR_localization(qs_env, dcdr_env)
-               END IF
-
-            END DO !beta
-
-            dcdr_env%apt_total_dcdr(:, :, dcdr_env%lambda) = &
-               dcdr_env%apt_el_dcdr(:, :, dcdr_env%lambda) + dcdr_env%apt_nuc_dcdr(:, :, dcdr_env%lambda)
-         END DO !lambda
-
-      ELSE
-
+      IF (dcdr_env%z_matrix_method) THEN
          CALL polar_env_init(qs_env)
          CALL get_qs_env(qs_env=qs_env, polar_env=polar_env)
          CALL get_polar_env(polar_env=polar_env)
@@ -277,27 +277,49 @@ CONTAINS
 
          polar_env%do_periodic = .FALSE.
          CALL polar_response(p_env, qs_env)
+      END IF
 
-         DO latom = 1, SIZE(dcdr_env%list_of_atoms)
-            dcdr_env%lambda = dcdr_env%list_of_atoms(latom)
-            CALL prepare_per_atom(dcdr_env, qs_env)
+      DO latom = 1, SIZE(dcdr_env%list_of_atoms)
+         dcdr_env%lambda = dcdr_env%list_of_atoms(latom)
+         CALL prepare_per_atom(dcdr_env, qs_env)
 
-            DO beta = 1, 3                   ! in every direction
-               dcdr_env%beta = beta
-               dcdr_env%deltaR(dcdr_env%beta, dcdr_env%lambda) = 1._dp
+         DO beta = 1, 3                   ! in every direction
+            dcdr_env%beta = beta
+            dcdr_env%deltaR(dcdr_env%beta, dcdr_env%lambda) = 1._dp
 
-               CALL dcdr_build_op_dR(dcdr_env, qs_env)
-               IF (.NOT. dcdr_env%localized_psi0) THEN
-                  CALL apt_dR(qs_env, dcdr_env)
-               ELSE
-                  CALL apt_dR_localization(qs_env, dcdr_env)
-               END IF
-            END DO !beta
+            CALL dcdr_build_op_dR(dcdr_env, qs_env)
+            ! If Z-matrix is not requested, then we have to solve linear response for each atom
+            IF (.NOT. dcdr_env%z_matrix_method) THEN
+               CALL dcdr_response_dR(dcdr_env, p_env, qs_env)
+            END IF
 
-            dcdr_env%apt_total_dcdr(:, :, dcdr_env%lambda) = &
-               dcdr_env%apt_el_dcdr(:, :, dcdr_env%lambda) + dcdr_env%apt_nuc_dcdr(:, :, dcdr_env%lambda)
-         END DO !lambda
+            IF (.NOT. dcdr_env%localized_psi0) THEN
+               CALL apt_dR(qs_env, dcdr_env)
+            ELSE IF (dcdr_env%localized_psi0) THEN
+               CALL apt_dR_localization(qs_env, dcdr_env)
+            END IF
 
+            IF (do_charge_colvar) THEN
+               ! Store dCdR
+               DO ispin = 1, nspins
+                  CALL cp_fm_to_fm(dcdr_env%dCR(ispin), qs_env%linres_control%dcdr(latom, beta, ispin))
+               END DO
+               ! Store dSdR
+               CALL copy_dbcsr_to_fm(dcdr_env%matrix_s1(1 + beta)%matrix, qs_env%linres_control%matrix_s1(latom, beta))
+            END IF
+
+         END DO !beta
+
+         dcdr_env%apt_total_dcdr(:, :, dcdr_env%lambda) = &
+            dcdr_env%apt_el_dcdr(:, :, dcdr_env%lambda) + dcdr_env%apt_nuc_dcdr(:, :, dcdr_env%lambda)
+      END DO !lambda
+
+      IF (do_charge_colvar) THEN
+         ! Store APT
+         IF (population == "APT") THEN
+            ALLOCATE (qs_env%linres_control%gapt_charge(3, 3, UBOUND(dcdr_env%apt_total_dcdr, DIM=3)))
+            qs_env%linres_control%gapt_charge = dcdr_env%apt_total_dcdr
+         END IF
       END IF
 
       CALL dcdr_print(dcdr_env, qs_env)

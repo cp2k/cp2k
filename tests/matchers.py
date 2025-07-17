@@ -691,6 +691,8 @@ registry["M126"] = GenericMatcher(r" # Total charge ", col=5)
 
 registry["M127"] = GenericMatcher(r"Checksum (Acoustic Sum Rule):", col=5)
 
+registry["M128"] = GenericMatcher(r"COLVARS| CHARGE  >>> CV =", col=6)
+
 # Dipole moment calculated at a specific k-point (-0.375,-0.375, 0.00)
 registry["Dipole_at_kp_1"] = GenericMatcher(r"  1   1   2", col=4, abs_value=True)
 

@@ -1,0 +1,154 @@
+###################################
+@SET RUN_TYPE MD
+@SET CUTOFF 200
+@SET FUNCTIONAL LDA
+@SET PRINT_LEVEL LOW
+@SET BASIS_SET_FILE_NAME GTH_BASIS_SETS
+@SET BASIS_SET SZV-GTH
+@SET EPS_SCF 1.08E-5
+@SET EPS_LINRES 5.0E-5
+@SET PROJECT_NAME dump-h2o-mtd-charge-dist
+###################################
+&GLOBAL
+  PRINT_LEVEL $PRINT_LEVEL
+  PROJECT ${PROJECT_NAME}
+  RUN_TYPE $RUN_TYPE
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME $BASIS_SET_FILE_NAME
+    CHARGE 0
+    MULTIPLICITY 1
+    POTENTIAL_FILE_NAME POTENTIAL
+    &MGRID
+      CUTOFF $CUTOFF
+      NGRIDS 4
+    &END MGRID
+    &POISSON
+      PERIODIC NONE
+      POISSON_SOLVER ANALYTIC
+    &END POISSON
+    &PRINT
+      &MOMENTS
+        PERIODIC FALSE
+      &END MOMENTS
+      &MULLIKEN
+       FILENAME mulliken
+       COMMON_ITERATION_LEVELS 1
+       &EACH
+        MD 1
+       &END EACH
+      &END MULLIKEN
+    &END PRINT
+    &QS
+      EXTRAPOLATION ASPC
+      EXTRAPOLATION_ORDER 3
+      METHOD GPW
+    &END QS
+    &SCF
+      EPS_SCF $EPS_SCF
+      SCF_GUESS ATOMIC
+      &OT
+        PRECONDITIONER FULL_SINGLE_INVERSE
+      &END OT
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL $FUNCTIONAL
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &PROPERTIES
+    &LINRES
+      EPS $EPS_LINRES
+      MAX_ITER 1000
+      PRECONDITIONER FULL_SINGLE_INVERSE
+      &DCDR
+        LIST_OF_ATOMS 1 2
+        &PRINT
+          &APT OFF
+          &END APT
+        &END PRINT
+      &END DCDR
+    &END LINRES
+  &END PROPERTIES
+  &SUBSYS
+    &CELL
+      ABC [angstrom] 5.0 5.0 5.0
+      PERIODIC NONE
+    &END CELL
+    &COLVAR
+      &CHARGE
+        GROUP_1 1
+        GROUP_2 2
+        FUNCTION DIFF
+        POPULATION MULLIKEN
+      &END CHARGE
+    &END COLVAR
+    &COLVAR
+      &DISTANCE
+        ATOMS 1 2
+      &END DISTANCE
+    &END COLVAR
+    &COORD
+      O   0.000000    0.000000    0.000000
+      H   0.000000    0.769665   -0.591648
+      H   0.000000   -0.769665   -0.591648
+    &END COORD
+    &KIND DEFAULT
+      BASIS_SET $BASIS_SET
+      POTENTIAL GTH-$FUNCTIONAL
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+
+&MOTION
+  &FREE_ENERGY
+    &METADYN
+      DELTA_T 300
+      DO_HILLS T
+      NT_HILLS 2
+      WTGAMMA 10
+      WW 1.0e-3
+      &METAVAR
+        COLVAR 1
+        SCALE 0.02
+      &END METAVAR
+      &METAVAR
+        COLVAR 2
+        SCALE 0.2
+      &END METAVAR
+      &PRINT
+        &COLVAR
+          COMMON_ITERATION_LEVELS 100000
+          FILENAME ./${PROJECT_NAME}-colvar
+          &EACH
+            METADYNAMICS 2
+          &END EACH
+        &END COLVAR
+        &HILLS
+          COMMON_ITERATION_LEVELS 100000
+          FILENAME ./${PROJECT_NAME}-hills
+          &EACH
+            METADYNAMICS 2
+          &END EACH
+        &END HILLS
+      &END PRINT
+    &END METADYN
+  &END FREE_ENERGY
+  &MD
+    ENSEMBLE NVT
+    STEPS 6
+    TEMPERATURE 300.0
+    TIMESTEP 1.0
+    &THERMOSTAT
+      &NOSE
+        LENGTH 3
+        MTS 2
+        TIMECON 100.0
+        YOSHIDA 3
+      &END NOSE
+    &END THERMOSTAT
+  &END MD
+&END MOTION

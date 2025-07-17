@@ -65,6 +65,9 @@ MODULE qs_linres_types
       REAL(KIND=dp)                             :: eps_filter = TINY(0.0_dp)
       TYPE(qs_loc_env_type), POINTER            :: qs_loc_env => NULL()
       CHARACTER(LEN=8)                          :: flag = ""
+      REAL(dp), DIMENSION(:, :, :), POINTER     :: gapt_charge => NULL()
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER       :: matrix_s1 => NULL()
+      TYPE(cp_fm_type), DIMENSION(:, :, :), POINTER    :: dcdr => NULL()
    END TYPE linres_control_type
 
 ! **************************************************************************************************
@@ -251,6 +254,7 @@ MODULE qs_linres_types
       INTEGER                                          :: lambda = -1
       INTEGER                                          :: output_unit = -1
       INTEGER                                          :: nspins = -1
+      INTEGER                                          :: nsgf = -1
       INTEGER, DIMENSION(:), ALLOCATABLE               :: nmo
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER        :: matrix_hc => NULL()
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER        :: matrix_s1 => NULL()
@@ -292,6 +296,7 @@ MODULE qs_linres_types
       LOGICAL                                          :: z_matrix_method = .FALSE.
       TYPE(cp_fm_struct_type), POINTER                 :: aoao_fm_struct => NULL()
       TYPE(cp_fm_struct_type), POINTER                 :: homohomo_fm_struct => NULL()
+      TYPE(cp_fm_struct_type), POINTER                 :: nsgf_fm_struct => NULL()
       TYPE(cp_fm_struct_p_type), DIMENSION(:), POINTER :: momo_fm_struct => NULL()
       TYPE(cp_fm_struct_p_type), DIMENSION(:), POINTER :: likemos_fm_struct => NULL()
       REAL(dp), DIMENSION(:, :, :), POINTER            :: apt_el_dcdr => NULL()

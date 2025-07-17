@@ -80,7 +80,8 @@ MODULE colvar_types
                                  acid_hyd_dist_colvar_id = 24, &
                                  acid_hyd_shell_colvar_id = 25, &
                                  hydronium_dist_colvar_id = 26, &
-                                 voronoiipz_colvar_id = 27
+                                 voronoiipz_colvar_id = 27, &
+                                 charge_colvar_id = 28
 
 ! **************************************************************************************************
 !> \brief parameters for the distance collective variable
@@ -349,6 +350,20 @@ MODULE colvar_types
    END TYPE mindist_colvar_type
 
 ! **************************************************************************************************
+   TYPE charge_colvar_type
+      ! Define variables number of atoms in group 1 and 2, and print level
+      INTEGER                                       :: n_atoms_group_1, &
+                                                       n_atoms_group_2, &
+                                                       print_level
+      ! Lists of atomic indices of group 1 and 2, defined by users
+      INTEGER, DIMENSION(:), POINTER                :: group_1, &
+                                                       group_2
+      ! Population metion method and math function to operate between two charges
+      CHARACTER(LEN=default_string_length)          :: pop_method, &
+                                                       func
+   END TYPE charge_colvar_type
+
+! **************************************************************************************************
 !> \brief parameters for a collective variable
 !> \author alessandro laio and fawzi mohamed
 ! **************************************************************************************************
@@ -387,6 +402,7 @@ MODULE colvar_types
       TYPE(ring_puckering_colvar_type), POINTER    :: ring_puckering_param => NULL()
       TYPE(mindist_colvar_type), POINTER           :: mindist_param => NULL()
       TYPE(voronoiipz_colvar_type), POINTER        :: voronoiipz_params => NULL()
+      TYPE(charge_colvar_type), POINTER            :: charge_param => NULL()
    END TYPE colvar_type
 
 ! **************************************************************************************************
@@ -498,10 +514,12 @@ CONTAINS
          ALLOCATE (colvar%mindist_param)
       CASE (voronoiipz_colvar_id)
          ALLOCATE (colvar%voronoiipz_params)
+      CASE (charge_colvar_id)
+         ALLOCATE (colvar%charge_param)
       CASE (no_colvar_id)
          ! Do nothing
       CASE DEFAULT
-         CPABORT("Unknown colvar type")
+         CPABORT("Collective Variable ID does not match.")
       END SELECT
 
    END SUBROUTINE colvar_create
@@ -977,6 +995,50 @@ CONTAINS
          list(1:SIZE(colvar%voronoiipz_params%group_a)) = colvar%voronoiipz_params%group_a(:)
          list(SIZE(colvar%voronoiipz_params%group_a) + 1:SIZE(list)) = colvar%voronoiipz_params%group_b(:)
          colvar%n_atom_s = SIZE(list)
+      CASE (charge_colvar_id)
+         ! Size of list of points
+         np = colvar%charge_param%n_atoms_group_1 + colvar%charge_param%n_atoms_group_2
+         ! Make sure that atom indices are specified in the input CHARGE section
+         ! if np is equal to zero this means that this is not a collective variable.
+         IF (np == 0) &
+            CALL cp_abort(__LOCATION__, &
+                          "CHARGE Colvar defined using two groups of atoms. "// &
+                          "At least one atom has to be defined for each group!")
+
+         ! Number of real atoms involved in the colvar
+         colvar%n_atom_s = 0
+         ! Count number of atoms in group 1
+         DO ii = 1, colvar%charge_param%n_atoms_group_1
+            i = colvar%charge_param%group_1(ii)
+            IF (i <= 0) THEN
+               CALL cp_abort(__LOCATION__, "Atomic index must be greater than 0! "// &
+                             "Check GROUP_1 again.")
+            ELSE
+               colvar%n_atom_s = colvar%n_atom_s + COLV_SIZE(colvar, i)
+            END IF
+         END DO
+         ! Count number of atoms in group 2
+         DO ii = 1, colvar%charge_param%n_atoms_group_2
+            i = colvar%charge_param%group_2(ii)
+            IF (i <= 0) THEN
+               CALL cp_abort(__LOCATION__, "Atomic index must be greater than 0! "// &
+                             "Check GROUP_2 again.")
+            ELSE
+               colvar%n_atom_s = colvar%n_atom_s + COLV_SIZE(colvar, i)
+            END IF
+         END DO
+
+         ! Create a List of points...
+         ALLOCATE (list(np))
+         DO ii = 1, colvar%charge_param%n_atoms_group_1
+            list(ii) = colvar%charge_param%group_1(ii)
+         END DO
+         istart = colvar%charge_param%n_atoms_group_1
+         DO ii = 1, colvar%charge_param%n_atoms_group_2
+            list(istart + ii) = colvar%charge_param%group_2(ii)
+         END DO
+         CPASSERT(SIZE(list) == np)
+
       END SELECT
 
       IF (ASSOCIATED(colvar%dsdr)) THEN
@@ -1362,11 +1424,18 @@ CONTAINS
             DEALLOCATE (colvar%mindist_param%k_coord_to)
          END IF
          DEALLOCATE (colvar%mindist_param)
-
       CASE (voronoiipz_colvar_id)
          DEALLOCATE (colvar%voronoiipz_params%group_a)
          DEALLOCATE (colvar%voronoiipz_params%group_b)
          DEALLOCATE (colvar%voronoiipz_params)
+      CASE (charge_colvar_id)
+         IF (ASSOCIATED(colvar%charge_param%group_1)) THEN
+            DEALLOCATE (colvar%charge_param%group_1)
+         END IF
+         IF (ASSOCIATED(colvar%charge_param%group_2)) THEN
+            DEALLOCATE (colvar%charge_param%group_2)
+         END IF
+         DEALLOCATE (colvar%charge_param)
       CASE (no_colvar_id)
          ! Do nothing
       CASE default
@@ -1780,6 +1849,14 @@ CONTAINS
             ALLOCATE (colvar_out%mindist_param%i_coord_to(ndim))
             colvar_out%mindist_param%i_coord_to = colvar_in%mindist_param%i_coord_to + my_offset
          END IF
+      CASE (charge_colvar_id)
+         colvar_out%charge_param%n_atoms_group_1 = colvar_in%charge_param%n_atoms_group_1
+         colvar_out%charge_param%n_atoms_group_2 = colvar_in%charge_param%n_atoms_group_2
+         colvar_out%charge_param%group_1 = colvar_in%charge_param%group_1
+         colvar_out%charge_param%group_2 = colvar_in%charge_param%group_2
+         colvar_out%charge_param%pop_method = colvar_in%charge_param%pop_method
+         colvar_out%charge_param%func = colvar_in%charge_param%func
+         colvar_out%charge_param%print_level = colvar_in%charge_param%print_level
 
       END SELECT
       CALL colvar_setup(colvar_out)
