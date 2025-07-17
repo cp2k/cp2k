@@ -15,110 +15,105 @@
 !>      03.2019 Refactoring [Frederick Stein]
 ! **************************************************************************************************
 MODULE rpa_main
-   USE bibliography, ONLY: &
-      Bates2013, DelBen2013, DelBen2015, Freeman1977, Gruneis2009, Ren2011, Ren2013, &
-      Wilhelm2016a, Wilhelm2016b, Wilhelm2017, Wilhelm2018, cite_reference
-   USE bse_main, ONLY: start_bse_calculation
-   USE cp_blacs_env, ONLY: cp_blacs_env_create, &
-                           cp_blacs_env_release, &
-                           cp_blacs_env_type
-   USE cp_cfm_types, ONLY: cp_cfm_type
-   USE cp_dbcsr_api, ONLY: dbcsr_add, &
-                           dbcsr_clear, &
-                           dbcsr_get_info, &
-                           dbcsr_p_type, &
-                           dbcsr_type
-   USE cp_fm_basic_linalg, ONLY: cp_fm_scale_and_add
-   USE cp_fm_struct, ONLY: cp_fm_struct_create, &
-                           cp_fm_struct_release, &
-                           cp_fm_struct_type
-   USE cp_fm_types, ONLY: cp_fm_create, &
-                          cp_fm_release, &
-                          cp_fm_set_all, &
-                          cp_fm_to_fm, &
-                          cp_fm_type
-   USE dbt_api, ONLY: dbt_type
-   USE dgemm_counter_types, ONLY: dgemm_counter_init, &
-                                  dgemm_counter_type, &
-                                  dgemm_counter_write
-   USE group_dist_types, ONLY: create_group_dist, &
-                               get_group_dist, &
-                               group_dist_d1_type, &
-                               maxsize, &
-                               release_group_dist
-   USE hfx_types, ONLY: block_ind_type, &
-                        hfx_compression_type
-   USE input_constants, ONLY: rpa_exchange_axk, &
-                              rpa_exchange_none, &
-                              rpa_exchange_sosex, &
-                              sigma_none, &
-                              wfc_mm_style_gemm
-   USE kinds, ONLY: dp, &
-                    int_8
-   USE kpoint_types, ONLY: kpoint_type
-   USE machine, ONLY: m_flush, &
-                      m_memory
-   USE mathconstants, ONLY: pi, &
-                            z_zero
-   USE message_passing, ONLY: mp_comm_type, &
-                              mp_para_env_release, &
-                              mp_para_env_type
-   USE minimax_exp, ONLY: check_exp_minimax_range
-   USE mp2_grids, ONLY: get_clenshaw_grid, &
-                        get_minimax_grid, &
-                        init_greenx_grids
-   USE mp2_laplace, ONLY: SOS_MP2_postprocessing
-   USE mp2_ri_grad_util, ONLY: array2fm
-   USE mp2_types, ONLY: mp2_type, &
-                        three_dim_real_array, &
-                        two_dim_int_array, &
-                        two_dim_real_array
-   USE qs_environment_types, ONLY: get_qs_env, &
-                                   qs_environment_type
-   USE rpa_exchange, ONLY: rpa_exchange_needed_mem, &
-                           rpa_exchange_work_type
-   USE rpa_grad, ONLY: rpa_grad_copy_Q, &
-                       rpa_grad_create, &
-                       rpa_grad_finalize, &
-                       rpa_grad_matrix_operations, &
-                       rpa_grad_needed_mem, &
-                       rpa_grad_type
-   USE rpa_gw, ONLY: allocate_matrices_gw, &
-                     allocate_matrices_gw_im_time, &
-                     compute_GW_self_energy, &
-                     compute_QP_energies, &
-                     compute_W_cubic_GW, &
-                     deallocate_matrices_gw, &
-                     deallocate_matrices_gw_im_time, &
-                     get_fermi_level_offset
-   USE rpa_gw_ic, ONLY: calculate_ic_correction
-   USE rpa_gw_kpoints_util, ONLY: get_bandstruc_and_k_dependent_MOs, &
-                                  invert_eps_compute_W_and_Erpa_kp
-   USE rpa_im_time, ONLY: compute_mat_P_omega, &
-                          zero_mat_P_omega
-   USE rpa_im_time_force_methods, ONLY: calc_laplace_loop_forces, &
-                                        calc_post_loop_forces, &
-                                        calc_rpa_loop_forces, &
-                                        init_im_time_forces, &
-                                        keep_initial_quad
-   USE rpa_im_time_force_types, ONLY: im_time_force_release, &
-                                      im_time_force_type
-   USE rpa_sigma_functional, ONLY: finalize_rpa_sigma, &
-                                   rpa_sigma_create, &
-                                   rpa_sigma_matrix_spectral, &
-                                   rpa_sigma_type
-   USE rpa_util, ONLY: Q_trace_and_add_unit_matrix, &
-                       alloc_im_time, &
-                       calc_mat_Q, &
-                       compute_Erpa_by_freq_int, &
-                       contract_P_omega_with_mat_L, &
-                       dealloc_im_time, &
-                       remove_scaling_factor_rpa
-   USE util, ONLY: get_limit
-#if defined (__GREENX)
-   USE gx_minimax, ONLY: gx_minimax_grid
-#endif
-
+   USE bibliography,                    ONLY: &
+        Bates2013, DelBen2013, DelBen2015, Freeman1977, Gruneis2009, Ren2011, Ren2013, &
+        Wilhelm2016a, Wilhelm2016b, Wilhelm2017, Wilhelm2018, cite_reference
+   USE bse_main,                        ONLY: start_bse_calculation
+   USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
+                                              cp_blacs_env_release,&
+                                              cp_blacs_env_type
+   USE cp_cfm_types,                    ONLY: cp_cfm_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
+                                              dbcsr_clear,&
+                                              dbcsr_get_info,&
+                                              dbcsr_p_type,&
+                                              dbcsr_type
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
+   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                              cp_fm_struct_release,&
+                                              cp_fm_struct_type
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_release,&
+                                              cp_fm_set_all,&
+                                              cp_fm_to_fm,&
+                                              cp_fm_type
+   USE dbt_api,                         ONLY: dbt_type
+   USE dgemm_counter_types,             ONLY: dgemm_counter_init,&
+                                              dgemm_counter_type,&
+                                              dgemm_counter_write
+   USE group_dist_types,                ONLY: create_group_dist,&
+                                              get_group_dist,&
+                                              group_dist_d1_type,&
+                                              maxsize,&
+                                              release_group_dist
+   USE hfx_types,                       ONLY: block_ind_type,&
+                                              hfx_compression_type
+   USE input_constants,                 ONLY: rpa_exchange_axk,&
+                                              rpa_exchange_none,&
+                                              rpa_exchange_sosex,&
+                                              sigma_none,&
+                                              wfc_mm_style_gemm
+   USE kinds,                           ONLY: dp,&
+                                              int_8
+   USE kpoint_types,                    ONLY: kpoint_type
+   USE machine,                         ONLY: m_flush,&
+                                              m_memory
+   USE mathconstants,                   ONLY: pi,&
+                                              z_zero
+   USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_para_env_release,&
+                                              mp_para_env_type
+   USE minimax_exp,                     ONLY: check_exp_minimax_range
+   USE mp2_grids,                       ONLY: get_clenshaw_grid,&
+                                              get_minimax_grid
+   USE mp2_laplace,                     ONLY: SOS_MP2_postprocessing
+   USE mp2_ri_grad_util,                ONLY: array2fm
+   USE mp2_types,                       ONLY: mp2_type,&
+                                              three_dim_real_array,&
+                                              two_dim_int_array,&
+                                              two_dim_real_array
+   USE qs_environment_types,            ONLY: get_qs_env,&
+                                              qs_environment_type
+   USE rpa_exchange,                    ONLY: rpa_exchange_needed_mem,&
+                                              rpa_exchange_work_type
+   USE rpa_grad,                        ONLY: rpa_grad_copy_Q,&
+                                              rpa_grad_create,&
+                                              rpa_grad_finalize,&
+                                              rpa_grad_matrix_operations,&
+                                              rpa_grad_needed_mem,&
+                                              rpa_grad_type
+   USE rpa_gw,                          ONLY: allocate_matrices_gw,&
+                                              allocate_matrices_gw_im_time,&
+                                              compute_GW_self_energy,&
+                                              compute_QP_energies,&
+                                              compute_W_cubic_GW,&
+                                              deallocate_matrices_gw,&
+                                              deallocate_matrices_gw_im_time,&
+                                              get_fermi_level_offset
+   USE rpa_gw_ic,                       ONLY: calculate_ic_correction
+   USE rpa_gw_kpoints_util,             ONLY: get_bandstruc_and_k_dependent_MOs,&
+                                              invert_eps_compute_W_and_Erpa_kp
+   USE rpa_im_time,                     ONLY: compute_mat_P_omega,&
+                                              zero_mat_P_omega
+   USE rpa_im_time_force_methods,       ONLY: calc_laplace_loop_forces,&
+                                              calc_post_loop_forces,&
+                                              calc_rpa_loop_forces,&
+                                              init_im_time_forces,&
+                                              keep_initial_quad
+   USE rpa_im_time_force_types,         ONLY: im_time_force_release,&
+                                              im_time_force_type
+   USE rpa_sigma_functional,            ONLY: finalize_rpa_sigma,&
+                                              rpa_sigma_create,&
+                                              rpa_sigma_matrix_spectral,&
+                                              rpa_sigma_type
+   USE rpa_util,                        ONLY: Q_trace_and_add_unit_matrix,&
+                                              alloc_im_time,&
+                                              calc_mat_Q,&
+                                              compute_Erpa_by_freq_int,&
+                                              contract_P_omega_with_mat_L,&
+                                              dealloc_im_time,&
+                                              remove_scaling_factor_rpa
+   USE util,                            ONLY: get_limit
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -1117,29 +1112,22 @@ CONTAINS
 
       COMPLEX(KIND=dp), ALLOCATABLE, &
          DIMENSION(:, :, :, :)                           :: vec_Sigma_c_gw
-      INTEGER :: count_ev_sc_GW, cut_memory, group_size_P, gw_corr_lev_tot, handle, handle3, &
-                 i, ikp_local, ispin, iter_evGW, iter_sc_GW0, j, jquad, min_bsize, mm_style, nkp, &
-                 nkp_self_energy, nmo, nspins, num_3c_repl, num_cells_dm, num_fit_points, Pspin, Qspin, &
-                 size_P
-#if defined (__GREENX)
-      INTEGER                                            :: gi, ierr
-#endif
+      INTEGER :: count_ev_sc_GW, cut_memory, group_size_P, gw_corr_lev_tot, handle, handle3, i, &
+         ikp_local, ispin, iter_evGW, iter_sc_GW0, j, jquad, min_bsize, mm_style, nkp, &
+         nkp_self_energy, nmo, nspins, num_3c_repl, num_cells_dm, num_fit_points, Pspin, Qspin, &
+         size_P
       INTEGER(int_8)                                     :: dbcsr_nflop
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: index_to_cell_3c
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: cell_to_index_3c
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, prim_blk_sizes, &
                                                             RI_blk_sizes
       LOGICAL :: do_apply_ic_corr_to_gw, do_gw_im_time, do_ic_model, do_kpoints_cubic_RPA, &
-                 do_periodic, do_print, do_ri_Sigma_x, exit_ev_gw, first_cycle, &
-                 first_cycle_periodic_correction, my_open_shell, print_ic_values
+         do_periodic, do_print, do_ri_Sigma_x, exit_ev_gw, first_cycle, &
+         first_cycle_periodic_correction, my_open_shell, print_ic_values
       LOGICAL, ALLOCATABLE, DIMENSION(:, :, :, :, :)     :: has_mat_P_blocks
-      REAL(KIND=dp) :: a_scaling, alpha, dbcsr_time, e_exchange, e_exchange_corr, &
-                       eps_filter, eps_filter_im_time, ext_scaling, fermi_level_offset, fermi_level_offset_input, &
-                       my_flop_rate, omega, omega_max_fit, omega_old, tau, tau_old
-#if defined (__GREENX)
-      REAL(KIND=dp)                                      :: cosft_duality_error_greenx, Emax, Emin, &
-                                                            max_errors_greenx(3)
-#endif
+      REAL(KIND=dp) :: a_scaling, alpha, dbcsr_time, e_exchange, e_exchange_corr, eps_filter, &
+         eps_filter_im_time, ext_scaling, fermi_level_offset, fermi_level_offset_input, &
+         my_flop_rate, omega, omega_max_fit, omega_old, tau, tau_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: delta_corr, e_fermi, tau_tj, tau_wj, tj, &
                                                             trace_Qomega, vec_omega_fit_gw, wj, &
                                                             wkp_W
@@ -1150,8 +1138,8 @@ CONTAINS
                                                             vec_Sigma_x_gw
       TYPE(cp_cfm_type)                                  :: cfm_mat_Q
       TYPE(cp_fm_type) :: fm_mat_Q_static_bse_gemm, fm_mat_RI_global_work, fm_mat_S_ia_bse, &
-                          fm_mat_work, fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, fm_scaled_dm_occ_tau, &
-                          fm_scaled_dm_virt_tau
+         fm_mat_work, fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled, fm_scaled_dm_occ_tau, &
+         fm_scaled_dm_virt_tau
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_mat_S_gw_work, fm_mat_W, &
                                                             fm_mo_coeff_occ, fm_mo_coeff_virt
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_mat_L_kpoints, fm_mat_Minv_L_kpoints
@@ -1288,80 +1276,12 @@ CONTAINS
       ALLOCATE (e_fermi(nspins))
       IF (do_minimax_quad .OR. do_ri_sos_laplace_mp2) THEN
          do_print = .NOT. do_ic_model
-#if defined (__GREENX)
-         CALL init_greenx_grids(qs_env, para_env, homo, Eigenval, do_ri_sos_laplace_mp2, &
-                                do_kpoints_cubic_RPA, Emin, Emax, e_fermi(1))
-         CALL gx_minimax_grid(num_integ_points, Emin, Emax, tau_tj, tau_wj, tj, wj, &
-                              weights_cos_tf_t_to_w, weights_cos_tf_w_to_t, weights_sin_tf_t_to_w, &
-                              max_errors_greenx, cosft_duality_error_greenx, ierr, &
-                              bare_cos_sin_weights=.TRUE., &
-                              regularization=qs_env%mp2_env%ri_g0w0%regularization_minimax)
-         ! Factor 4 is hard-coded in the RPA weights in the internal CP2K minimax routines
-         wj(:) = wj(:)*4.0_dp
-         IF (ierr == 0) THEN
-            IF (unit_nr > 0) THEN
-               WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
-                  "GREENX MINIMAX_INFO| Number of integration points:", num_integ_points
-               WRITE (UNIT=unit_nr, FMT="(T3,A,T61,3F20.7)") &
-                  "GREENX MINIMAX_INFO| Gap (Emin):", Emin
-               WRITE (UNIT=unit_nr, FMT="(T3,A,T61,3F20.7)") &
-                  "GREENX MINIMAX_INFO| Maximum eigenvalue difference (Emax):", Emax
-               WRITE (UNIT=unit_nr, FMT="(T3,A,T61,3F20.4)") &
-                  "GREENX MINIMAX_INFO| Energy range (Emax/Emin):", Emax/Emin
-               WRITE (UNIT=unit_nr, FMT="(T3,A,T54,A,T72,A)") &
-                  "GREENX MINIMAX_INFO| Frequency grid (scaled):", "Weights", "Abscissas"
-               DO gi = 1, num_integ_points
-                  WRITE (UNIT=unit_nr, FMT="(T41,F20.10,F20.10)") wj(gi), tj(gi)
-               END DO
-               WRITE (UNIT=unit_nr, FMT="(T3,A,T54,A,T72,A)") &
-                  "GREENX MINIMAX_INFO| Time grid (scaled):", "Weights", "Abscissas"
-               DO gi = 1, num_integ_points
-                  WRITE (UNIT=unit_nr, FMT="(T41,F20.10,F20.10)") tau_wj(gi), tau_tj(gi)
-               END DO
-               CALL m_flush(unit_nr)
-            END IF
-         ELSE
-            IF (unit_nr > 0) THEN
-               WRITE (UNIT=unit_nr, FMT="(T3,A,T75)") &
-                  "GREENX MINIMAX_INFO| Grid not available, use internal CP2K grids"
-               CALL m_flush(unit_nr)
-            END IF
-            IF (ALLOCATED(tau_tj)) THEN
-               DEALLOCATE (tau_tj)
-            END IF
-            IF (ALLOCATED(tau_wj)) THEN
-               DEALLOCATE (tau_wj)
-            END IF
-            IF (ALLOCATED(tj)) THEN
-               DEALLOCATE (tj)
-            END IF
-            IF (ALLOCATED(wj)) THEN
-               DEALLOCATE (wj)
-            END IF
-            IF (ALLOCATED(weights_cos_tf_t_to_w)) THEN
-               DEALLOCATE (weights_cos_tf_t_to_w)
-            END IF
-            IF (ALLOCATED(weights_cos_tf_w_to_t)) THEN
-               DEALLOCATE (weights_cos_tf_w_to_t)
-            END IF
-            IF (ALLOCATED(weights_sin_tf_t_to_w)) THEN
-               DEALLOCATE (weights_sin_tf_t_to_w)
-            END IF
-            CALL get_minimax_grid(para_env, unit_nr, homo, Eigenval, num_integ_points, do_im_time, &
-                                  do_ri_sos_laplace_mp2, do_print, &
-                                  tau_tj, tau_wj, qs_env, do_gw_im_time, &
-                                  do_kpoints_cubic_RPA, e_fermi(1), tj, wj, &
-                                  weights_cos_tf_t_to_w, weights_cos_tf_w_to_t, weights_sin_tf_t_to_w, &
-                                  qs_env%mp2_env%ri_g0w0%regularization_minimax)
-         END IF
-#else
          CALL get_minimax_grid(para_env, unit_nr, homo, Eigenval, num_integ_points, do_im_time, &
                                do_ri_sos_laplace_mp2, do_print, &
                                tau_tj, tau_wj, qs_env, do_gw_im_time, &
                                do_kpoints_cubic_RPA, e_fermi(1), tj, wj, &
                                weights_cos_tf_t_to_w, weights_cos_tf_w_to_t, weights_sin_tf_t_to_w, &
                                qs_env%mp2_env%ri_g0w0%regularization_minimax)
-#endif
 
          !For sos_laplace_mp2 and low-scaling RPA, potentially need to store/retrieve the initial weights
          IF (qs_env%mp2_env%ri_rpa_im_time%keep_quad) THEN
@@ -1414,7 +1334,6 @@ CONTAINS
       IF (calc_forces .AND. .NOT. do_im_time) CALL rpa_grad_create(rpa_grad, fm_mat_Q(1), &
                                                                    fm_mat_S, homo, virtual, mp2_env, Eigenval(:, 1, :), &
                                                                    unit_nr, do_ri_sos_laplace_mp2)
-!doubtful
       IF (.NOT. do_im_time .AND. .NOT. do_ri_sos_laplace_mp2) &
          CALL exchange_work%create(qs_env, para_env_sub, mat_munu, dimen_RI_red, &
                                    fm_mat_S, fm_mat_Q(1), fm_mat_Q_gemm(1), homo, virtual)

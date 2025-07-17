@@ -50,12 +50,7 @@ MODULE rt_bse_io
    USE physcon, ONLY: femtoseconds, &
                       evolt
    USE mathconstants, ONLY: twopi
-#if defined (__GREENX)
-   USE gx_ac, ONLY: create_thiele_pade, &
-                    evaluate_thiele_pade_at, &
-                    free_params, &
-                    params
-#endif
+   USE greenx_interface, ONLY: greenx_refine_pade, greenx_output_polarizability, greenx_refine_ft
 
 #include "../base/base_uses.f90"
 
@@ -584,11 +579,6 @@ CONTAINS
       !  - first dimension is 6 - 1 - real part along x, 2 - imag part along x, 3 - real part along y, ...
       REAL(kind=dp), DIMENSION(:, :), ALLOCATABLE         :: ft_full_series
       INTEGER                                             :: i, n, ft_unit
-#if defined (__GREENX)
-      COMPLEX(kind=dp), DIMENSION(:), ALLOCATABLE         :: omega_complex, &
-                                                             moments_ft_complex
-      COMPLEX(kind=dp), DIMENSION(:, :), ALLOCATABLE      :: moments_eval_complex
-#endif
 
       logger => cp_get_default_logger()
 
@@ -632,123 +622,15 @@ CONTAINS
       CALL cp_print_key_finished_output(ft_unit, logger, rtbse_env%ft_section)
       DEALLOCATE (ft_real_series)
       DEALLOCATE (ft_imag_series)
-#if defined (__GREENX)
       IF (rtbse_env%pade_requested) THEN
-         ! Report Padé refinement
-         IF (rtbse_env%unit_nr > 0) WRITE (rtbse_env%unit_nr, '(A10,A27,E23.8E3,E20.8E3)') &
-            " PADE_FT| ", "Evaluation grid bounds [eV]", rtbse_env%pade_e_min, rtbse_env%pade_e_max
-         ALLOCATE (omega_complex(n))
-         ALLOCATE (moments_ft_complex(n))
-         ALLOCATE (moments_eval_complex(3, rtbse_env%pade_npoints))
-         omega_complex(:) = CMPLX(omega_series(:), 0.0, kind=dp)
-         DO i = 1, 3
-            moments_ft_complex(:) = CMPLX(ft_full_series(2*i - 1, :), &
-                                          ft_full_series(2*i, :), &
-                                          kind=dp)
-            ! Copy the fitting parameters
-            ! TODO : Optional direct setting of parameters?
-            CALL refine_ft(rtbse_env%pade_fit_e_min, rtbse_env%pade_fit_e_max, &
-                           omega_complex, moments_ft_complex, rtbse_env%pade_x_eval, moments_eval_complex(i, :))
-         END DO
-         ! Write into alternative file
-         ft_unit = cp_print_key_unit_nr(logger, rtbse_env%ft_section, extension="_PADE.dat", &
-                                        file_form="FORMATTED", file_position="REWIND")
-         IF (ft_unit > 0) THEN
-            DO i = 1, rtbse_env%pade_npoints
-               WRITE (ft_unit, '(E20.8E3,E20.8E3,E20.8E3,E20.8E3,E20.8E3,E20.8E3,E20.8E3)') &
-                  REAL(rtbse_env%pade_x_eval(i)), REAL(moments_eval_complex(1, i)), AIMAG(moments_eval_complex(1, i)), &
-                  REAL(moments_eval_complex(2, i)), AIMAG(moments_eval_complex(2, i)), &
-                  REAL(moments_eval_complex(3, i)), AIMAG(moments_eval_complex(3, i))
-            END DO
-         END IF
-         CALL cp_print_key_finished_output(ft_unit, logger, rtbse_env%ft_section)
-         DEALLOCATE (omega_complex)
-         DEALLOCATE (moments_ft_complex)
-         DEALLOCATE (moments_eval_complex)
+         CALL greenx_refine_pade(rtbse_env%pade_e_min, rtbse_env%pade_e_max, rtbse_env%pade_x_eval, &
+                                 n, rtbse_env%pade_npoints, logger, rtbse_env%ft_section, &
+                                 rtbse_env%unit_nr, omega_series, ft_full_series)
       END IF
-#endif
       DEALLOCATE (omega_series)
       DEALLOCATE (ft_full_series)
       ! Perform control with gx_ac
    END SUBROUTINE output_moments_ft
-! **************************************************************************************************
-!> \brief Refines the FT grid using Padé approximants
-!> \param x_fit Input x-variables
-!> \param y_fit Input y-variables
-!> \param x_eval Refined x-variables
-!> \param y_eval Refined y-variables
-! **************************************************************************************************
-   SUBROUTINE refine_ft(fit_e_min, fit_e_max, x_fit, y_fit, x_eval, y_eval, n_pade_opt)
-      REAL(kind=dp)                                      :: fit_e_min, &
-                                                            fit_e_max
-      COMPLEX(kind=dp), DIMENSION(:)                     :: x_fit, &
-                                                            y_fit, &
-                                                            x_eval, &
-                                                            y_eval
-      INTEGER, OPTIONAL                                  :: n_pade_opt
-#if defined (__GREENX)
-      CHARACTER(len=*), PARAMETER                        :: routineN = "refine_ft"
-      INTEGER                                            :: handle, &
-                                                            fit_start, &
-                                                            fit_end, &
-                                                            max_fit, &
-                                                            n_fit, &
-                                                            n_pade, &
-                                                            n_eval, &
-                                                            i
-      TYPE(params)                                       :: pade_params
-      CALL timeset(routineN, handle)
-
-      ! Get the sizes from arrays
-      max_fit = SIZE(x_fit)
-      n_eval = SIZE(x_eval)
-
-      ! Search for the fit start and end indices
-      fit_start = -1
-      fit_end = -1
-      ! Search for the subset of FT points which is within energy limits given by
-      ! the input
-      ! Do not search when automatic request of highest energy is made
-      IF (fit_e_max < 0) fit_end = max_fit
-      DO i = 1, max_fit
-         IF (fit_start == -1 .AND. REAL(x_fit(i)) >= fit_e_min) fit_start = i
-         IF (fit_end == -1 .AND. REAL(x_fit(i)) > fit_e_max) fit_end = i - 1
-         IF (fit_start > 0 .AND. fit_end > 0) EXIT
-      END DO
-      IF (fit_start == -1) fit_start = 1
-      IF (fit_end == -1) fit_end = max_fit
-      n_fit = fit_end - fit_start + 1
-
-      n_pade = n_fit/2
-      IF (PRESENT(n_pade_opt)) n_pade = n_pade_opt
-
-      ! Warn about a large number of Padé parameters
-      IF (n_pade > 1000) THEN
-         CPWARN("More then 1000 Padé parameters requested - may reduce with FIT_E_MIN/FIT_E_MAX.")
-      END IF
-      ! TODO : Symmetry mode settable?
-      ! Here, we assume that ft corresponds to transform of real trace
-      pade_params = create_thiele_pade(n_pade, x_fit(fit_start:fit_end), y_fit(fit_start:fit_end), &
-                                       enforce_symmetry="conjugate")
-
-      ! Check whetner the splice is needed or not
-      y_eval(1:n_eval) = evaluate_thiele_pade_at(pade_params, x_eval)
-
-      CALL free_params(pade_params)
-
-      CALL timestop(handle)
-#else
-      ! Mark used
-      MARK_USED(fit_e_min)
-      MARK_USED(fit_e_max)
-      MARK_USED(x_fit)
-      MARK_USED(y_fit)
-      MARK_USED(x_eval)
-      MARK_USED(y_eval)
-      MARK_USED(n_pade_opt)
-      CPABORT("refine_ft called but CP2K compiled without GreenX - GreenX needed.")
-#endif
-   END SUBROUTINE refine_ft
 ! **************************************************************************************************
 !> \brief Outputs the isotropic polarizability tensor element alpha _ ij = mu_i(omega)/E_j(omega),
 !>        where i and j are provided by the configuration. The tensor element is energy dependent and
@@ -842,11 +724,11 @@ CONTAINS
                                   rtbse_env%dft_control%rtp_control%delta_pulse_direction(rtbse_env%pol_elements(k, 2))* &
                                   rtbse_env%dft_control%rtp_control%delta_pulse_scale, 0.0, kind=dp)
             ELSE
-               CALL refine_ft(rtbse_env%pade_fit_e_min, rtbse_env%pade_fit_e_max, omega_complex, field_series, &
-                              rtbse_env%pade_x_eval, field_refined)
+               CALL greenx_refine_ft(rtbse_env%pade_fit_e_min, rtbse_env%pade_fit_e_max, omega_complex, field_series, &
+                                     rtbse_env%pade_x_eval, field_refined)
             END IF
-            CALL refine_ft(rtbse_env%pade_fit_e_min, rtbse_env%pade_fit_e_max, omega_complex, moment_series, &
-                           rtbse_env%pade_x_eval, moment_refined)
+            CALL greenx_refine_ft(rtbse_env%pade_fit_e_min, rtbse_env%pade_fit_e_max, omega_complex, moment_series, &
+                                  rtbse_env%pade_x_eval, moment_refined)
             polarizability_refined(k, :) = moment_refined(:)/field_refined(:)
          END IF
       END DO
@@ -897,51 +779,11 @@ CONTAINS
          END DO
          CALL cp_print_key_finished_output(pol_unit, logger, rtbse_env%pol_section)
       END IF
-#if defined(__GREENX)
-      ! Print out the refined polarizability to a file
-      pol_unit = cp_print_key_unit_nr(logger, rtbse_env%pol_section, extension="_PADE.dat", &
-                                      file_form="FORMATTED", file_position="REWIND")
-      ! Printing for both the stdout and separate file
-      IF (pol_unit > 0 .AND. rtbse_env%pade_requested) THEN
-         IF (pol_unit == rtbse_env%unit_nr) THEN
-            ! Print the stdout preline
-            WRITE (pol_unit, '(A21)', advance="no") " POLARIZABILITY_PADE|"
-         ELSE
-            ! Print also the energy in atomic units
-            WRITE (pol_unit, '(A1,A19)', advance="no") "#", "omega [a.u.]"
-         END IF
-         ! Common - print the energy in eV
-         WRITE (pol_unit, '(A20)', advance="no") "Energy [eV]"
-         ! Print a header for each polarizability element
-         DO k = 1, n_elems - 1
-            WRITE (pol_unit, '(A16,I2,I2,A16,I2,I2)', advance="no") &
-               "Real pol.", rtbse_env%pol_elements(k, 1), rtbse_env%pol_elements(k, 2), &
-               "Imag pol.", rtbse_env%pol_elements(k, 1), rtbse_env%pol_elements(k, 2)
-         END DO
-         WRITE (pol_unit, '(A16,I2,I2,A16,I2,I2)') &
-            "Real pol.", rtbse_env%pol_elements(n_elems, 1), rtbse_env%pol_elements(n_elems, 2), &
-            "Imag pol.", rtbse_env%pol_elements(n_elems, 1), rtbse_env%pol_elements(n_elems, 2)
-         DO i = 1, SIZE(rtbse_env%pade_x_eval)
-            IF (pol_unit == rtbse_env%unit_nr) THEN
-               ! Print the stdout preline
-               WRITE (pol_unit, '(A21)', advance="no") " POLARIZABILITY_PADE|"
-            ELSE
-               ! omega in a.u.
-               WRITE (pol_unit, '(E20.8E3)', advance="no") REAL(rtbse_env%pade_x_eval(i), kind=dp)
-            END IF
-            ! Common values
-            WRITE (pol_unit, '(E20.8E3)', advance="no") REAL(rtbse_env%pade_x_eval(i), kind=dp)*evolt
-            DO k = 1, n_elems - 1
-               WRITE (pol_unit, '(E20.8E3,E20.8E3)', advance="no") &
-                  REAL(polarizability_refined(k, i)), AIMAG(polarizability_refined(k, i))
-            END DO
-            ! Print the final value and advance
-            WRITE (pol_unit, '(E20.8E3,E20.8E3)') &
-               REAL(polarizability_refined(n_elems, i)), AIMAG(polarizability_refined(n_elems, i))
-         END DO
-         CALL cp_print_key_finished_output(pol_unit, logger, rtbse_env%pol_section)
+
+      IF (rtbse_env%pade_requested) THEN
+         CALL greenx_output_polarizability(logger, rtbse_env%pol_section, rtbse_env%unit_nr, &
+                                           rtbse_env%pol_elements, rtbse_env%pade_x_eval, polarizability_refined)
       END IF
-#endif
 
       DEALLOCATE (value_series)
       DEALLOCATE (ft_real_series)
