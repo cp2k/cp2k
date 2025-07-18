@@ -69,11 +69,11 @@ spack:
     - "dbcsr@2.8.0"
     - "openblas@0.3.29"
     # All
-    - "deepmdkit@3.0.2"
+    - "deepmdkit@3.1.0"
     - "dftd4@3.7.0"
     - "fftw@3.3.10"
     - "greenx@2.2"
-    - "hdf5@1.14"
+    - "hdf5@1.14.6"
     - "lammps-user-pace@2023.11.25.fix2"
     - "libint@2.9.0"
     - "libvori@220621"

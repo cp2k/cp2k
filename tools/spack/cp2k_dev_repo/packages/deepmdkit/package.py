@@ -22,6 +22,7 @@ class Deepmdkit(CMakePackage):
 
     maintainers("mkrack")
 
+    version("3.1.0", sha256="45f13df9ed011438d139a7f61416b8d7940f63c47fcde53180bfccd60c9d22ee")
     version("3.0.2", sha256="b828d3a44730ea852505abbdb24ea5b556f2bf8b16de5a9c76018ed1ced7121b")
 
     variant("cxx_standard", default="17", description="Required CXX standard")
