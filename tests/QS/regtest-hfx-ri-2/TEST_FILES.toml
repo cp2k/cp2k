@@ -6,4 +6,5 @@
 "CH3-b3lyp-ADMM.inp"                    = [{matcher="M011", tol=1.0E-9, ref=-7.330092855579063}]
 "H2O-pbe0-stress-truncated.inp"         = [{matcher="M031", tol=1.0E-8, ref=1.10578148678E+04}]
 "H2O-hfx-stress-identity.inp"           = [{matcher="M031", tol=1.0E-8, ref=7.89429744040E+03}]
+"He_debug.inp"                          = []
 #EOF

@@ -47,8 +47,9 @@ MODULE qs_neighbor_lists
                                               gth_potential_type,&
                                               sgp_potential_type
    USE input_constants,                 ONLY: &
-        dispersion_uff, do_method_lrigpw, do_method_rigpw, do_potential_id, do_potential_short, &
-        do_potential_truncated, do_se_IS_slater, vdw_pairpot_dftd4, xc_vdw_fun_pairpot
+        dispersion_uff, do_method_lrigpw, do_method_rigpw, do_potential_id, &
+        do_potential_mix_cl_trunc, do_potential_short, do_potential_truncated, do_se_IS_slater, &
+        vdw_pairpot_dftd4, xc_vdw_fun_pairpot
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -622,6 +623,8 @@ CONTAINS
             CASE (do_potential_id)
                roperator = 0.0_dp
             CASE (do_potential_truncated)
+               CALL section_vals_val_get(hfx_sections, "INTERACTION_POTENTIAL%CUTOFF_RADIUS", r_val=roperator)
+            CASE (do_potential_mix_cl_trunc)
                CALL section_vals_val_get(hfx_sections, "INTERACTION_POTENTIAL%CUTOFF_RADIUS", r_val=roperator)
             CASE (do_potential_short)
                CALL section_vals_val_get(hfx_sections, "INTERACTION_POTENTIAL%OMEGA", r_val=omega)

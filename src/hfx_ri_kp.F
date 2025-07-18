@@ -65,12 +65,14 @@ MODULE hfx_ri_kp
                                               section_vals_val_get,&
                                               section_vals_val_set
    USE iterate_matrix,                  ONLY: invert_hotelling
-   USE kinds,                           ONLY: dp,&
+   USE kinds,                           ONLY: default_string_length,&
+                                              dp,&
                                               int_8
    USE kpoint_types,                    ONLY: get_kpoint_info,&
                                               kpoint_type
    USE libint_2c_3c,                    ONLY: cutoff_screen_factor
    USE machine,                         ONLY: m_flush,&
+                                              m_memory,&
                                               m_walltime
    USE mathlib,                         ONLY: erfc_cutoff
    USE message_passing,                 ONLY: mp_cart_type,&
@@ -120,13 +122,6 @@ MODULE hfx_ri_kp
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'hfx_ri_kp'
 CONTAINS
-
-! NOTES: for a start, we do not seek performance, but accuracy. So in this first implementation,
-!        we give little consideration to batching, load balance and such.
-!        We also put everything here, even if there is some code replication with the original RI_HFX
-!        We will only work in the RHO flavor
-!        For now, we will also always assume that there is a single para_env, and that there is no
-!        K-point subgroup. This might change in the future
 
 ! **************************************************************************************************
 !> \brief I_1nitialize the ri_data for K-point. For now, we take the normal, usual existing ri_data
@@ -299,12 +294,12 @@ CONTAINS
          CALL dbcsr_release(t_2c_op_pot(i_img))
       END DO
 
+      !reorder the 3c integrals such that empty images are bunched up together
+      CALL reorder_3c_ints(t_3c_int(1, :), ri_data)
+
       !Pre-contract all 3c integrals with the bumped inverse RI metric (P^0|Q^0)^-1,
       !and store in ri_data%t_3c_int_ctr_1
       CALL precontract_3c_ints(t_3c_int, ri_data, qs_env)
-
-      !reorder the 3c integrals such that empty images are bunched up together
-      CALL reorder_3c_ints(ri_data%t_3c_int_ctr_1(1, :), ri_data)
 
       CALL timestop(handle)
 
@@ -408,6 +403,43 @@ CONTAINS
    END SUBROUTINE cleanup_kp
 
 ! **************************************************************************************************
+!> \brief Prints a progress bar for the k-point RI-HFX triple loop
+!> \param b_img ...
+!> \param nimg ...
+!> \param iprint ...
+!> \param ri_data ...
+! **************************************************************************************************
+   SUBROUTINE print_progress_bar(b_img, nimg, iprint, ri_data)
+      INTEGER, INTENT(IN)                                :: b_img, nimg
+      INTEGER, INTENT(INOUT)                             :: iprint
+      TYPE(hfx_ri_type), INTENT(INOUT)                   :: ri_data
+
+      CHARACTER(LEN=default_string_length)               :: bar
+      INTEGER                                            :: rep
+
+      IF (ri_data%unit_nr > 0) THEN
+         IF (b_img == 1) THEN
+            WRITE (ri_data%unit_nr, '(/T6,A)', advance="no") '[-'
+            CALL m_flush(ri_data%unit_nr)
+         END IF
+         IF (b_img > iprint*nimg/71) THEN
+            rep = MAX(1, 71/nimg)
+            bar = REPEAT("-", rep)
+            WRITE (ri_data%unit_nr, '(A)', advance="no") TRIM(bar)
+            CALL m_flush(ri_data%unit_nr)
+            iprint = iprint + 1
+         END IF
+         IF (b_img == nimg) THEN
+            rep = MAX(0, 1 + 71 - iprint*rep)
+            bar = REPEAT("-", rep)
+            WRITE (ri_data%unit_nr, '(A,A)') TRIM(bar), '-]'
+            CALL m_flush(ri_data%unit_nr)
+         END IF
+      END IF
+
+   END SUBROUTINE print_progress_bar
+
+! **************************************************************************************************
 !> \brief Update the KS matrices for each real-space image
 !> \param qs_env ...
 !> \param ri_data ...
@@ -433,13 +465,13 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'hfx_ri_update_ks_kp'
 
       INTEGER :: b_img, batch_size, group_size, handle, handle2, i_batch, i_img, i_spin, iatom, &
-         iblk, igroup, jatom, mb_img, n_batch_nze, natom, ngroups, nimg, nimg_nze
-      INTEGER(int_8)                                     :: nflop, nze
+         iblk, igroup, iprint, jatom, mb_img, n_batch_nze, n_nze, natom, ngroups, nimg, nimg_nze
+      INTEGER(int_8)                                     :: mem, nflop, nze
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: batch_ranges_at, batch_ranges_nze, &
                                                             idx_to_at_AO
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: iapc_pairs
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: sparsity_pattern
-      LOGICAL                                            :: use_delta_p
+      LOGICAL                                            :: estimate_mem, print_progress, use_delta_p
       REAL(dp)                                           :: etmp, fac, occ, pfac, pref, t1, t2, t3, &
                                                             t4
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_sub
@@ -450,9 +482,9 @@ CONTAINS
                                                             t_3c_int, t_3c_work_2, t_3c_work_3
       TYPE(dbt_type), ALLOCATABLE, DIMENSION(:, :)       :: ks_t, ks_t_sub, t_3c_apc, t_3c_apc_sub
       TYPE(mp_para_env_type), POINTER                    :: para_env, para_env_sub
-      TYPE(section_vals_type), POINTER                   :: hfx_section
+      TYPE(section_vals_type), POINTER                   :: hfx_section, print_section
 
-      NULLIFY (para_env, para_env_sub, blacs_env_sub, hfx_section, dbcsr_template)
+      NULLIFY (para_env, para_env_sub, blacs_env_sub, hfx_section, dbcsr_template, print_section)
 
       CALL cite_reference(Bussy2024)
 
@@ -465,6 +497,13 @@ CONTAINS
       ELSE
          fac = 1.0_dp*hf_fraction
       END IF
+
+      hfx_section => section_vals_get_subs_vals(qs_env%input, "DFT%XC%HF%RI")
+      CALL section_vals_val_get(hfx_section, "KP_NGROUPS", i_val=ngroups)
+      CALL section_vals_val_get(hfx_section, "KP_STACK_SIZE", i_val=batch_size)
+      CALL section_vals_val_get(hfx_section, "KP_USE_DELTA_P", l_val=use_delta_p)
+      ri_data%kp_stack_size = batch_size
+      ri_data%kp_ngroups = ngroups
 
       IF (geometry_did_change) THEN
          CALL hfx_ri_pre_scf_kp(ks_matrix(1, 1)%matrix, ri_data, qs_env)
@@ -491,13 +530,23 @@ CONTAINS
       !Note that the 3-center integrals are pre-contracted with the RI metric, and that the same tensor can be used
       !(mu^0, sigma^a| P^0) (P^0|R^0)  <===> (S^b|Q^b)^-1 (Q^b| nu^b lambda^a+c) by relabelling the images
 
-      hfx_section => section_vals_get_subs_vals(qs_env%input, "DFT%XC%HF%RI")
-      CALL section_vals_val_get(hfx_section, "KP_USE_DELTA_P", l_val=use_delta_p)
-
       !By default, build the density tensor based on the difference of this SCF P and that of the prev. SCF
       pfac = -1.0_dp
       IF (.NOT. use_delta_p) pfac = 0.0_dp
       CALL get_pmat_images(ri_data%rho_ao_t, rho_ao, pfac, ri_data, qs_env)
+
+      n_nze = 0
+      DO i_img = 1, nimg
+         DO i_spin = 1, nspins
+            CALL get_tensor_occupancy(ri_data%rho_ao_t(i_spin, i_img), nze, occ)
+            IF (nze > 0) THEN
+               n_nze = n_nze + 1
+            END IF
+         END DO
+      END DO
+      IF (n_nze == nspins) THEN
+         CPWARN("It is highly recommended to restart from a converged GGA K-point calculations.")
+      END IF
 
       ALLOCATE (ks_t(nspins, nimg))
       DO i_img = 1, nimg
@@ -522,11 +571,6 @@ CONTAINS
          END DO
       END DO
       CALL contract_pmat_3c(t_3c_apc, ri_data%rho_ao_t, ri_data, qs_env)
-
-      hfx_section => section_vals_get_subs_vals(qs_env%input, "DFT%XC%HF%RI")
-      CALL section_vals_val_get(hfx_section, "KP_NGROUPS", i_val=ngroups)
-      CALL section_vals_val_get(hfx_section, "KP_STACK_SIZE", i_val=batch_size)
-      ri_data%kp_stack_size = batch_size
 
       IF (MOD(para_env%num_pe, ngroups) .NE. 0) THEN
          CPWARN("KP_NGROUPS must be an integer divisor of the total number of MPI ranks. It was set to 1.")
@@ -579,15 +623,54 @@ CONTAINS
       END DO
       batch_ranges_nze(n_batch_nze + 1) = nimg_nze + 1
 
+      print_section => section_vals_get_subs_vals(qs_env%input, "DFT%XC%HF%RI%PRINT")
+      CALL section_vals_val_get(print_section, "KP_RI_PROGRESS_BAR", l_val=print_progress)
+      CALL section_vals_val_get(print_section, "KP_RI_MEMORY_ESTIMATE", l_val=estimate_mem)
+
+      ALLOCATE (iapc_pairs(nimg, 2))
+      IF (estimate_mem .AND. geometry_did_change) THEN
+         !Populate work tensors to simulate maximum usage
+         CALL get_iapc_pairs(iapc_pairs, 1, ri_data, qs_env)
+         CALL fill_3c_stack(t_3c_work_3(1), t_3c_int, iapc_pairs(:, 1), 3, ri_data, &
+                            filter_at=1, filter_dim=2, idx_to_at=idx_to_at_AO, &
+                            img_bounds=[batch_ranges_nze(1), batch_ranges_nze(2)])
+         CALL fill_3c_stack(t_3c_work_3(2), t_3c_int, iapc_pairs(:, 1), 3, ri_data, &
+                            filter_at=1, filter_dim=2, idx_to_at=idx_to_at_AO, &
+                            img_bounds=[batch_ranges_nze(1), batch_ranges_nze(2)])
+         CALL fill_3c_stack(t_3c_work_2(1), t_3c_apc_sub(1, :), iapc_pairs(:, 2), 3, &
+                            ri_data, filter_at=1, filter_dim=1, idx_to_at=idx_to_at_AO, &
+                            img_bounds=[batch_ranges_nze(1), batch_ranges_nze(2)])
+         CALL fill_3c_stack(t_3c_work_2(2), t_3c_apc_sub(1, :), iapc_pairs(:, 2), 3, &
+                            ri_data, filter_at=1, filter_dim=1, idx_to_at=idx_to_at_AO, &
+                            img_bounds=[batch_ranges_nze(1), batch_ranges_nze(2)])
+         CALL get_ext_2c_int(t_2c_work(1), mat_2c_pot, 1, 1, 1, ri_data, qs_env, &
+                             blacs_env_ext=blacs_env_sub, para_env_ext=para_env_sub, &
+                             dbcsr_template=dbcsr_template)
+         CALL m_memory(mem)
+         CALL para_env%max(mem)
+         CALL dbt_clear(t_3c_work_2(1))
+         CALL dbt_clear(t_3c_work_2(2))
+         CALL dbt_clear(t_3c_work_3(1))
+         CALL dbt_clear(t_3c_work_3(2))
+         CALL dbt_clear(t_2c_work(1))
+
+         IF (ri_data%unit_nr > 0) THEN
+            WRITE (ri_data%unit_nr, FMT="(T3,A,I14)") &
+               "KP-HFX_RI_INFO| Estimated peak memory usage per MPI rank (MiB):", mem/(1024*1024)
+            CALL m_flush(ri_data%unit_nr)
+         END IF
+      END IF
+
       CALL dbt_batched_contract_init(t_3c_work_3(1), batch_range_2=batch_ranges_at)
       CALL dbt_batched_contract_init(t_3c_work_3(2), batch_range_2=batch_ranges_at)
       CALL dbt_batched_contract_init(t_3c_work_2(1), batch_range_1=batch_ranges_at)
       CALL dbt_batched_contract_init(t_3c_work_2(2), batch_range_1=batch_ranges_at)
 
+      iprint = 1
       t1 = m_walltime()
       ri_data%kp_cost(:, :, :) = 0.0_dp
-      ALLOCATE (iapc_pairs(nimg, 2))
       DO b_img = 1, nimg
+         IF (print_progress) CALL print_progress_bar(b_img, nimg, iprint, ri_data)
          CALL dbt_batched_contract_init(ks_t_split(1))
          CALL dbt_batched_contract_init(ks_t_split(2))
          DO jatom = 1, natom
@@ -635,6 +718,7 @@ CONTAINS
                                         ri_data, filter_at=iatom, filter_dim=1, idx_to_at=idx_to_at_AO, &
                                         img_bounds=[batch_ranges_nze(i_batch), batch_ranges_nze(i_batch + 1)])
                      CALL get_tensor_occupancy(t_3c_work_2(3), nze, occ)
+
                      IF (nze == 0) CYCLE
                      CALL dbt_copy(t_3c_work_2(3), t_3c_work_2(1), move_data=.TRUE.)
                      CALL dbt_contract(-pref*fac, t_3c_work_2(1), t_3c_work_2(2), &
@@ -2324,13 +2408,14 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'contract_pmat_3c'
 
-      INTEGER                                            :: apc_img, batch_size, handle, i_batch, &
-                                                            i_img, i_spin, j_batch, n_batch_img, &
-                                                            n_batch_nze, nimg, nimg_nze, nspins
+      INTEGER                                            :: apc_img, b_img, batch_size, handle, &
+                                                            i_batch, i_img, i_spin, idx, j_batch, &
+                                                            n_batch_img, n_batch_nze, nimg, &
+                                                            nimg_nze, nspins
       INTEGER(int_8)                                     :: nflop, nze
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: batch_ranges_img, batch_ranges_nze, &
-                                                            int_indices
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: ac_pairs
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: apc_filter, batch_ranges_img, &
+                                                            batch_ranges_nze, int_indices
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: ac_pairs, iapc_pairs
       REAL(dp)                                           :: occ, t1, t2
       TYPE(dbt_type)                                     :: t_3c_tmp
       TYPE(dbt_type), ALLOCATABLE, DIMENSION(:)          :: ints_stack, res_stack, rho_stack
@@ -2346,7 +2431,18 @@ CONTAINS
 
       CALL dbt_create(t_3c_apc(1, 1), t_3c_tmp)
 
-      batch_size = nimg/ri_data%n_mem
+      batch_size = ri_data%kp_stack_size
+
+      ALLOCATE (apc_filter(nimg), iapc_pairs(nimg, 2))
+      apc_filter = 0
+      DO b_img = 1, nimg
+         CALL get_iapc_pairs(iapc_pairs, b_img, ri_data, qs_env)
+         DO i_img = 1, nimg_nze
+            idx = iapc_pairs(i_img, 2)
+            IF (idx < 1 .OR. idx > nimg) CYCLE
+            apc_filter(idx) = 1
+         END DO
+      END DO
 
       !batching over all images
       n_batch_img = nimg/batch_size
@@ -2387,6 +2483,7 @@ CONTAINS
             DO i_batch = 1, n_batch_img
                !Second batch is over the P matrix. Here we fill the stacked rho tensors col by col
                DO apc_img = batch_ranges_img(i_batch), batch_ranges_img(i_batch + 1) - 1
+                  IF (apc_filter(apc_img) == 0) CYCLE
                   CALL get_ac_pairs(ac_pairs, apc_img, ri_data, qs_env)
                   CALL fill_2c_stack(rho_stack(1), rho_ao_t(i_spin, :), ac_pairs(:, 2), 1, ri_data, &
                                      img_bounds=[batch_ranges_nze(j_batch), batch_ranges_nze(j_batch + 1)], &
@@ -2410,6 +2507,7 @@ CONTAINS
 
                DO apc_img = batch_ranges_img(i_batch), batch_ranges_img(i_batch + 1) - 1
                   !Destack the resulting tensor and put it in t_3c_apc with correct apc_img
+                  IF (apc_filter(apc_img) == 0) CYCLE
                   CALL unstack_t_3c_apc(t_3c_tmp, res_stack(1), apc_img - batch_ranges_img(i_batch) + 1)
                   CALL dbt_copy(t_3c_tmp, t_3c_apc(i_spin, apc_img), summation=.TRUE., move_data=.TRUE.)
                END DO
@@ -2486,7 +2584,7 @@ CONTAINS
       DEALLOCATE (dist1, dist2)
 
       !For more efficiency, we stack multiple images of the 3-center integrals into a single tensor
-      batch_size = nimg/ri_data%n_mem
+      batch_size = ri_data%kp_stack_size
       n_batch = nimg/batch_size
       IF (MODULO(nimg, batch_size) .NE. 0) n_batch = n_batch + 1
       ALLOCATE (batch_ranges(n_batch + 1))
@@ -2736,33 +2834,76 @@ CONTAINS
    END SUBROUTINE copy_2c_to_subgroup
 
 ! **************************************************************************************************
-!> \brief Copy the data of a 3D tensor living in the main MPI group to a sub-group, given the proc
-!>        mapping from one to the other (e.g. for a proc idx in the subgroup, we get the idx in the main)
+!> \brief Pre-compute the destination of the block of a 3D tensor in various subgroups
+!> \param subgroup_dest ...
 !> \param t3c_sub ...
 !> \param t3c_main ...
 !> \param group_size ...
 !> \param ngroups ...
 !> \param para_env ...
+! **************************************************************************************************
+   SUBROUTINE get_3c_subgroup_dest(subgroup_dest, t3c_sub, t3c_main, group_size, ngroups, para_env)
+      INTEGER, ALLOCATABLE, DIMENSION(:, :, :, :), &
+         INTENT(INOUT)                                   :: subgroup_dest
+      TYPE(dbt_type), INTENT(INOUT)                      :: t3c_sub, t3c_main
+      INTEGER, INTENT(IN)                                :: group_size, ngroups
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+
+      INTEGER                                            :: iblk, igroup, iproc, jblk, kblk
+      INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: block_dest
+      INTEGER, DIMENSION(3)                              :: nblks
+
+      CALL dbt_get_info(t3c_main, nblks_total=nblks)
+
+      !Loop over the sub tensor, get the block destination
+      igroup = para_env%mepos/group_size
+      ALLOCATE (block_dest(nblks(1), nblks(2), nblks(3)))
+      DO kblk = 1, nblks(3)
+         DO jblk = 1, nblks(2)
+            DO iblk = 1, nblks(1)
+               CALL dbt_get_stored_coordinates(t3c_sub, [iblk, jblk, kblk], iproc)
+               block_dest(iblk, jblk, kblk) = igroup*group_size + iproc !mapping of iproc in subgroup to main group idx
+            END DO
+         END DO
+      END DO
+
+      ALLOCATE (subgroup_dest(nblks(1), nblks(2), nblks(3), ngroups))
+      DO igroup = 0, ngroups - 1
+         !for a given subgroup, need to make the destination available to everyone in the main group
+         subgroup_dest(:, :, :, igroup + 1) = block_dest(:, :, :)
+         CALL para_env%bcast(subgroup_dest(:, :, :, igroup + 1), source=igroup*group_size) !bcast from first proc in subgroup
+      END DO
+
+   END SUBROUTINE get_3c_subgroup_dest
+
+! **************************************************************************************************
+!> \brief Copy the data of a 3D tensor living in the main MPI group to a sub-group, given the proc
+!>        mapping from one to the other (e.g. for a proc idx in the subgroup, we get the idx in the main)
+!> \param t3c_sub ...
+!> \param t3c_main ...
+!> \param ngroups ...
+!> \param para_env ...
+!> \param subgroup_dest ...
 !> \param iatom_to_subgroup ...
 !> \param dim_at ...
 !> \param idx_to_at ...
 ! **************************************************************************************************
-   SUBROUTINE copy_3c_to_subgroup(t3c_sub, t3c_main, group_size, ngroups, para_env, iatom_to_subgroup, &
-                                  dim_at, idx_to_at)
+   SUBROUTINE copy_3c_to_subgroup(t3c_sub, t3c_main, ngroups, para_env, subgroup_dest, &
+                                  iatom_to_subgroup, dim_at, idx_to_at)
       TYPE(dbt_type), INTENT(INOUT)                      :: t3c_sub, t3c_main
-      INTEGER, INTENT(IN)                                :: group_size, ngroups
+      INTEGER, INTENT(IN)                                :: ngroups
       TYPE(mp_para_env_type), POINTER                    :: para_env
+      INTEGER, DIMENSION(:, :, :, :), INTENT(IN)         :: subgroup_dest
       TYPE(cp_1d_logical_p_type), DIMENSION(:), &
          INTENT(INOUT), OPTIONAL                         :: iatom_to_subgroup
       INTEGER, INTENT(IN), OPTIONAL                      :: dim_at
       INTEGER, DIMENSION(:), OPTIONAL                    :: idx_to_at
 
       INTEGER                                            :: batch_size, i, i_batch, i_msg, iatom, &
-                                                            iblk, igroup, iproc, ir, is, jblk, &
+                                                            iblk, igroup, ir, is, isbuff, jblk, &
                                                             kblk, n_batch, nocc, tag
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: bsizes1, bsizes2, bsizes3
-      INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: block_dest, block_source
-      INTEGER, ALLOCATABLE, DIMENSION(:, :, :, :)        :: current_dest
+      INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: block_source
       INTEGER, DIMENSION(3)                              :: ind, nblks
       LOGICAL                                            :: filter_at, found
       REAL(dp), ALLOCATABLE, DIMENSION(:, :, :)          :: blk
@@ -2807,30 +2948,8 @@ CONTAINS
       block_source = block_source + para_env%num_pe - 1
       IF (nocc == 0) RETURN
 
-      !Loop over the sub tensor, get the block destination
-      igroup = para_env%mepos/group_size
-      ALLOCATE (block_dest(nblks(1), nblks(2), nblks(3)))
-      block_dest = -1
-      DO kblk = 1, nblks(3)
-         DO jblk = 1, nblks(2)
-            DO iblk = 1, nblks(1)
-               IF (block_source(iblk, jblk, kblk) == -1) CYCLE
-
-               CALL dbt_get_stored_coordinates(t3c_sub, [iblk, jblk, kblk], iproc)
-               block_dest(iblk, jblk, kblk) = igroup*group_size + iproc !mapping of iproc in subgroup to main group idx
-            END DO
-         END DO
-      END DO
-
       ALLOCATE (bsizes1(nblks(1)), bsizes2(nblks(2)), bsizes3(nblks(3)))
       CALL dbt_get_info(t3c_main, blk_size_1=bsizes1, blk_size_2=bsizes2, blk_size_3=bsizes3)
-
-      ALLOCATE (current_dest(nblks(1), nblks(2), nblks(3), 0:ngroups - 1))
-      DO igroup = 0, ngroups - 1
-         !for a given subgroup, need to make the destination available to everyone in the main group
-         current_dest(:, :, :, igroup) = block_dest(:, :, :)
-         CALL para_env%bcast(current_dest(:, :, :, igroup), source=igroup*group_size) !bcast from first proc in subgroup
-      END DO
 
       !We go by batches, which cannot be larger than the maximum MPI tag value
       batch_size = MIN(para_env%get_tag_ub(), 128000, nocc*ngroups)
@@ -2844,11 +2963,22 @@ CONTAINS
          ir = 0
          is = 0
          i_msg = 0
+         isbuff = 0
          DO kblk = 1, nblks(3)
             DO jblk = 1, nblks(2)
                DO iblk = 1, nblks(1)
+                  IF (block_source(iblk, jblk, kblk) == -1) CYCLE
+
+                  found = .FALSE.
+                  IF (para_env%mepos == block_source(iblk, jblk, kblk)) THEN
+                     CALL dbt_get_block(t3c_main, [iblk, jblk, kblk], blk, found)
+                     IF (found) THEN
+                        isbuff = isbuff + 1
+                        ALLOCATE (send_buff(isbuff)%array(bsizes1(iblk), bsizes2(jblk), bsizes3(kblk)))
+                     END IF
+                  END IF
+
                   DO igroup = 0, ngroups - 1
-                     IF (block_source(iblk, jblk, kblk) == -1) CYCLE
 
                      i_msg = i_msg + 1
                      IF (i_msg < (i_batch - 1)*batch_size + 1 .OR. i_msg > i_batch*batch_size) CYCLE
@@ -2862,47 +2992,35 @@ CONTAINS
                         IF (.NOT. iatom_to_subgroup(iatom)%array(igroup + 1)) CYCLE
                      END IF
 
-                     found = .FALSE.
-                     IF (para_env%mepos == block_source(iblk, jblk, kblk)) THEN
-                        CALL dbt_get_block(t3c_main, [iblk, jblk, kblk], blk, found)
-                     END IF
-
                      !If blocks live on same proc, simply copy. Else MPI send/recv
-                     IF (block_source(iblk, jblk, kblk) == current_dest(iblk, jblk, kblk, igroup)) THEN
+                     IF (block_source(iblk, jblk, kblk) == subgroup_dest(iblk, jblk, kblk, igroup + 1)) THEN
                         IF (found) CALL dbt_put_block(t3c_sub, [iblk, jblk, kblk], SHAPE(blk), blk)
                      ELSE
                         IF (para_env%mepos == block_source(iblk, jblk, kblk) .AND. found) THEN
-                           ALLOCATE (send_buff(tag)%array(bsizes1(iblk), bsizes2(jblk), bsizes3(kblk)))
-                           send_buff(tag)%array(:, :, :) = blk(:, :, :)
+                           send_buff(isbuff)%array(:, :, :) = blk(:, :, :)
                            is = is + 1
-                           CALL para_env%isend(msgin=send_buff(tag)%array, &
-                                               dest=current_dest(iblk, jblk, kblk, igroup), &
+                           CALL para_env%isend(msgin=send_buff(isbuff)%array, &
+                                               dest=subgroup_dest(iblk, jblk, kblk, igroup + 1), &
                                                request=send_req(is), tag=tag)
                         END IF
 
-                        IF (para_env%mepos == current_dest(iblk, jblk, kblk, igroup)) THEN
+                        IF (para_env%mepos == subgroup_dest(iblk, jblk, kblk, igroup + 1)) THEN
                            ALLOCATE (recv_buff(tag)%array(bsizes1(iblk), bsizes2(jblk), bsizes3(kblk)))
                            ir = ir + 1
                            CALL para_env%irecv(msgout=recv_buff(tag)%array, source=block_source(iblk, jblk, kblk), &
                                                request=recv_req(ir), tag=tag)
                         END IF
                      END IF
+                  END DO !igroup
 
-                     IF (found) DEALLOCATE (blk)
-                  END DO
+                  IF (found) DEALLOCATE (blk)
                END DO
             END DO
          END DO
 
-         CALL mp_waitall(send_req(1:is))
-         CALL mp_waitall(recv_req(1:ir))
-         !clean-up
-         DO i = 1, batch_size
-            IF (ASSOCIATED(send_buff(i)%array)) DEALLOCATE (send_buff(i)%array)
-         END DO
-
          !Finally copy the data from the buffer to the sub-tensor
          i_msg = 0
+         ir = 0
          DO kblk = 1, nblks(3)
             DO jblk = 1, nblks(2)
                DO iblk = 1, nblks(1)
@@ -2921,13 +3039,12 @@ CONTAINS
                         IF (.NOT. iatom_to_subgroup(iatom)%array(igroup + 1)) CYCLE
                      END IF
 
-                     IF (para_env%mepos == current_dest(iblk, jblk, kblk, igroup) .AND. &
-                         block_source(iblk, jblk, kblk) .NE. current_dest(iblk, jblk, kblk, igroup)) THEN
+                     IF (para_env%mepos == subgroup_dest(iblk, jblk, kblk, igroup + 1) .AND. &
+                         block_source(iblk, jblk, kblk) .NE. subgroup_dest(iblk, jblk, kblk, igroup + 1)) THEN
 
-                        ALLOCATE (blk(bsizes1(iblk), bsizes2(jblk), bsizes3(kblk)))
-                        blk(:, :, :) = recv_buff(tag)%array(:, :, :)
-                        CALL dbt_put_block(t3c_sub, [iblk, jblk, kblk], SHAPE(blk), blk)
-                        DEALLOCATE (blk)
+                        ir = ir + 1
+                        CALL mp_waitall(recv_req(ir:ir))
+                        CALL dbt_put_block(t3c_sub, [iblk, jblk, kblk], SHAPE(recv_buff(tag)%array), recv_buff(tag)%array)
                      END IF
                   END DO
                END DO
@@ -2935,8 +3052,10 @@ CONTAINS
          END DO
 
          !clean-up
+         CALL mp_waitall(send_req(1:is))
          DO i = 1, batch_size
             IF (ASSOCIATED(recv_buff(i)%array)) DEALLOCATE (recv_buff(i)%array)
+            IF (ASSOCIATED(send_buff(i)%array)) DEALLOCATE (send_buff(i)%array)
          END DO
          DEALLOCATE (send_buff, recv_buff, send_req, recv_req)
       END DO !i_batch
@@ -3225,14 +3344,14 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_subgroup_3c_tensors'
 
-      INTEGER                                            :: batch_size, bfac, bo(2), handle, &
-                                                            handle2, i_blk, i_img, i_RI, i_spin, &
-                                                            ib, natom, nblks_AO, nblks_RI, nimg, &
-                                                            nspins
+      INTEGER                                            :: batch_size, bo(2), handle, handle2, &
+                                                            i_blk, i_img, i_RI, i_spin, ib, natom, &
+                                                            nblks_AO, nblks_RI, nimg, nspins
       INTEGER(int_8)                                     :: nze
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: bsizes_RI_ext, bsizes_RI_ext_split, &
                                                             bsizes_stack, bsizes_tmp, dist1, &
                                                             dist2, dist3, dist_stack, idx_to_at
+      INTEGER, ALLOCATABLE, DIMENSION(:, :, :, :)        :: subgroup_dest
       INTEGER, DIMENSION(3)                              :: pdims
       REAL(dp)                                           :: occ
       TYPE(dbt_distribution_type)                        :: t_dist
@@ -3248,10 +3367,8 @@ CONTAINS
       END DO
 
       !Preparing larger block sizes for efficient communication (less, bigger messages)
-      !we put 2 atoms per RI block
-      bfac = 2
       natom = SIZE(ri_data%bsizes_RI)
-      nblks_RI = MAX(1, natom/bfac)
+      nblks_RI = natom
       ALLOCATE (bsizes_tmp(nblks_RI))
       DO i_blk = 1, nblks_RI
          bo = get_limit(natom, nblks_RI, i_blk - 1)
@@ -3309,6 +3426,9 @@ CONTAINS
                             ri_data%bsizes_AO, [1], [2, 3], name="(RI | AO AO)")
       DEALLOCATE (dist1, dist2, dist3)
 
+      CALL get_3c_subgroup_dest(subgroup_dest, work_atom_block_sub, work_atom_block, &
+                                group_size, ngroups, para_env)
+
       !Finally copy the integrals into the subgroups (if not there already)
       CALL timeset(routineN//"_ints", handle2)
       IF (ALLOCATED(ri_data%kp_t_3c_int)) THEN
@@ -3322,14 +3442,17 @@ CONTAINS
             CALL get_tensor_occupancy(ri_data%t_3c_int_ctr_1(1, i_img), nze, occ)
             IF (nze == 0) CYCLE
             CALL dbt_copy(ri_data%t_3c_int_ctr_1(1, i_img), work_atom_block, order=[2, 1, 3])
-            CALL copy_3c_to_subgroup(work_atom_block_sub, work_atom_block, group_size, ngroups, para_env)
+            CALL copy_3c_to_subgroup(work_atom_block_sub, work_atom_block, &
+                                     ngroups, para_env, subgroup_dest)
             CALL dbt_copy(work_atom_block_sub, t_3c_int(i_img), move_data=.TRUE.)
+            CALL dbt_filter(t_3c_int(i_img), ri_data%filter_eps)
          END DO
       END IF
       CALL timestop(handle2)
       CALL dbt_pgrid_destroy(pgrid)
       CALL dbt_destroy(work_atom_block)
       CALL dbt_destroy(work_atom_block_sub)
+      DEALLOCATE (subgroup_dest)
 
       !Do the same for the t_3c_ctr_2 configuration
       pdims = 0
@@ -3346,6 +3469,9 @@ CONTAINS
                             ri_data%pgrid_1, ri_data%bsizes_AO, bsizes_RI_ext, &
                             ri_data%bsizes_AO, [1], [2, 3], name="(AO RI | AO)")
       DEALLOCATE (dist1, dist2, dist3)
+
+      CALL get_3c_subgroup_dest(subgroup_dest, work_atom_block_sub, work_atom_block, &
+                                group_size, ngroups, para_env)
 
       !template for t_3c_apc_sub
       CALL create_3c_tensor(tmp, dist1, dist2, dist3, &
@@ -3377,9 +3503,10 @@ CONTAINS
             CALL get_tensor_occupancy(t_3c_apc(i_spin, i_img), nze, occ)
             IF (nze == 0) CYCLE
             CALL dbt_copy(t_3c_apc(i_spin, i_img), work_atom_block, move_data=.TRUE.)
-            CALL copy_3c_to_subgroup(work_atom_block_sub, work_atom_block, group_size, &
-                                     ngroups, para_env, ri_data%iatom_to_subgroup, 1, idx_to_at)
+            CALL copy_3c_to_subgroup(work_atom_block_sub, work_atom_block, ngroups, para_env, &
+                                     subgroup_dest, ri_data%iatom_to_subgroup, 1, idx_to_at)
             CALL dbt_copy(work_atom_block_sub, t_3c_apc_sub(i_spin, i_img), move_data=.TRUE.)
+            CALL dbt_filter(t_3c_apc_sub(i_spin, i_img), ri_data%filter_eps)
          END DO
          DO i_spin = 1, nspins
             CALL dbt_destroy(t_3c_apc(i_spin, i_img))
@@ -3625,6 +3752,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: bsizes_RI_ext, bsizes_RI_ext_split, &
                                                             bsizes_stack, dist1, dist2, dist3, &
                                                             dist_stack, idx_to_at
+      INTEGER, ALLOCATABLE, DIMENSION(:, :, :, :)        :: subgroup_dest
       REAL(dp)                                           :: occ
       TYPE(dbt_distribution_type)                        :: t_dist
       TYPE(dbt_pgrid_type)                               :: pgrid
@@ -3653,6 +3781,9 @@ CONTAINS
       DEALLOCATE (dist1, dist2, dist3)
       CALL dbt_pgrid_destroy(pgrid)
 
+      CALL get_3c_subgroup_dest(subgroup_dest, work_atom_block_sub, work_atom_block, &
+                                group_size, ngroups, para_env)
+
       !We use the 3c integrals on the subgroup as template for the derivatives
       nimg = ri_data%nimg
       DO i_xyz = 1, 3
@@ -3663,8 +3794,9 @@ CONTAINS
 
             CALL dbt_copy(t_3c_der_AO(i_img, i_xyz), work_atom_block, move_data=.TRUE.)
             CALL copy_3c_to_subgroup(work_atom_block_sub, work_atom_block, &
-                                     group_size, ngroups, para_env)
+                                     ngroups, para_env, subgroup_dest)
             CALL dbt_copy(work_atom_block_sub, t_3c_der_AO_sub(i_img, i_xyz), move_data=.TRUE.)
+            CALL dbt_filter(t_3c_der_AO_sub(i_img, i_xyz), ri_data%filter_eps)
          END DO
 
          DO i_img = 1, nimg
@@ -3674,8 +3806,9 @@ CONTAINS
 
             CALL dbt_copy(t_3c_der_RI(i_img, i_xyz), work_atom_block, move_data=.TRUE.)
             CALL copy_3c_to_subgroup(work_atom_block_sub, work_atom_block, &
-                                     group_size, ngroups, para_env)
+                                     ngroups, para_env, subgroup_dest)
             CALL dbt_copy(work_atom_block_sub, t_3c_der_RI_sub(i_img, i_xyz), move_data=.TRUE.)
+            CALL dbt_filter(t_3c_der_RI_sub(i_img, i_xyz), ri_data%filter_eps)
          END DO
 
          DO i_img = 1, nimg
@@ -3685,6 +3818,7 @@ CONTAINS
       END DO
       CALL dbt_destroy(work_atom_block_sub)
       CALL dbt_destroy(work_atom_block)
+      DEALLOCATE (subgroup_dest)
 
       !Deal with t_3c_apc
       nblks_RI = SIZE(ri_data%bsizes_RI_split)
@@ -3712,6 +3846,9 @@ CONTAINS
                             ri_data%bsizes_AO_split, [1], [2, 3], name="(AO RI | AO)")
       DEALLOCATE (dist1, dist2, dist3)
 
+      CALL get_3c_subgroup_dest(subgroup_dest, work_atom_block_sub, work_atom_block, &
+                                group_size, ngroups, para_env)
+
       ALLOCATE (idx_to_at(SIZE(ri_data%bsizes_AO)))
       CALL get_idx_to_atom(idx_to_at, ri_data%bsizes_AO, ri_data%bsizes_AO)
       nspins = SIZE(t_3c_apc, 1)
@@ -3721,9 +3858,10 @@ CONTAINS
             CALL get_tensor_occupancy(t_3c_apc(i_spin, i_img), nze, occ)
             IF (nze == 0) CYCLE
             CALL dbt_copy(t_3c_apc(i_spin, i_img), work_atom_block, move_data=.TRUE.)
-            CALL copy_3c_to_subgroup(work_atom_block_sub, work_atom_block, group_size, &
-                                     ngroups, para_env, ri_data%iatom_to_subgroup, 1, idx_to_at)
+            CALL copy_3c_to_subgroup(work_atom_block_sub, work_atom_block, ngroups, para_env, &
+                                     subgroup_dest, ri_data%iatom_to_subgroup, 1, idx_to_at)
             CALL dbt_copy(work_atom_block_sub, t_3c_apc_sub(i_spin, i_img), move_data=.TRUE.)
+            CALL dbt_filter(t_3c_apc_sub(i_spin, i_img), ri_data%filter_eps)
          END DO
          DO i_spin = 1, nspins
             CALL dbt_destroy(t_3c_apc(i_spin, i_img))
@@ -4154,6 +4292,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_kp_and_ri_images'
 
+      CHARACTER(LEN=512)                                 :: warning_msg
       INTEGER :: cell_j(3), cell_k(3), handle, i_img, iatom, ikind, j_img, jatom, jcell, katom, &
          kcell, kp_index_lbounds(3), kp_index_ubounds(3), natom, ngroups, nimg, nkind, pcoord(3), &
          pdims(3)
@@ -4205,6 +4344,11 @@ CONTAINS
       !code, and use EPS_SCHWARZ to determine the range (rather than eps_filter_2c in normal RI-HFX)
       IF (ri_data%hfx_pot%potential_type == do_potential_short) THEN
          CALL erfc_cutoff(ri_data%eps_schwarz, ri_data%hfx_pot%omega, ri_data%hfx_pot%cutoff_radius)
+         WRITE (warning_msg, '(A)') &
+            "The SHORTANGE HFX potential typically extends over many periodic images, "// &
+            "possibly slowing down the calculation. Consider using the TRUNCATED "// &
+            "potential for better computational performance."
+         CPWARN(warning_msg)
       END IF
 
       !Determine the range for contributing periodic images, and for the RI basis extension
@@ -4335,6 +4479,8 @@ CONTAINS
       IF (ri_data%unit_nr > 0) THEN
          WRITE (ri_data%unit_nr, FMT="(/T3,A,I29)") &
             "KP-HFX_RI_INFO| Number of RI-KP parallel groups:", ngroups
+         WRITE (ri_data%unit_nr, FMT="(T3,A,I29)") &
+            "KP-HFX_RI_INFO| Tensor stack size:              ", ri_data%kp_stack_size
          WRITE (ri_data%unit_nr, FMT="(T3,A,F31.3,A)") &
             "KP-HFX_RI_INFO| RI basis extension radius:", ri_data%kp_RI_range*angstrom, " Ang"
          WRITE (ri_data%unit_nr, FMT="(T3,A,F12.3,A, F6.3, A)") &

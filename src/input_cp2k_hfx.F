@@ -543,6 +543,22 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="SCALE_COULOMB", &
+                          description="Scales Hartree-Fock contribution arising from a coulomb potential. "// &
+                          "Only valid when doing a mixed potential calculation. "// &
+                          "Default is SCALE_COULOMB from INTERACTION_POTENTIAL", &
+                          usage="SCALE_COULOMB 1.0", default_r_val=1.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="SCALE_LONGRANGE", &
+                          description="Scales Hartree-Fock contribution arising from a longrange potential. "// &
+                          "Only valid when doing a mixed potential calculation. "// &
+                          "Default if SCALE_LONGRANGE from INTERACTION_POTENTIAL", &
+                          usage="SCALE_LONGRANGE 1.0", default_r_val=1.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="KP_NGROUPS", &
                           description="The number of MPI subgroup that work in parallel during the SCF. "// &
                           "The default value is 1. Using N subgroups should speed up the "// &
@@ -579,7 +595,7 @@ CONTAINS
                           variants=(/"STACK_SIZE"/), &
                           usage="KP_STACK_SIZE {int}", &
                           repeats=.FALSE., &
-                          default_i_val=32)
+                          default_i_val=16)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -718,6 +734,33 @@ CONTAINS
       CALL section_create(subsection, __LOCATION__, name="PRINT", &
                           description="Section of possible print options in the RI-HFX code.", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
+
+      CALL keyword_create(keyword, __LOCATION__, name="KP_RI_PROGRESS_BAR", &
+                          variants=s2a("PROGRESS_BAR", "PROGRESS", "KP_PROGRESS", "KP_PROGRESS_BAR"), &
+                          description="Whether a progress bar for individual SCF steps should be printed. "// &
+                          "In RI-HFXk, an expensive triple loop runs over periodic images and "// &
+                          "atomic pairs. This printing option tracks the progress of this loop "// &
+                          "in real time. Note that some work also takes place before the loop "// &
+                          "starts, and the time spent doing it depends on the value of "// &
+                          "KP_STACK_SIZE (larger = faster, but more memory used).", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
+
+      !TODO: add a incentive to restart from GGA calculation? Test that it improves things
+      CALL keyword_create(keyword, __LOCATION__, name="KP_RI_MEMORY_ESTIMATE", &
+                          variants=s2a("MEMORY_ESTIMATE"), &
+                          description="Calculate and print a rough upper bound estimate of the memory "// &
+                          "required to run a RI-HFXk ENERGY calculation. Note that a fair "// &
+                          "amount of computing must take place before this estimate can be "// &
+                          "produced. If the calculation runs out of memory beforehand, "// &
+                          "use more resources, or change the value of memory related keywords "// &
+                          "(e.g. KP_NGROUPS, interaction potential parameters, KP_STACK_SIZE). "// &
+                          "The estimate is more accurate when restarting from a (GGA) wavefunction. "// &
+                          "Calculations involving forces will require more memory than this estimate.", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(subsection, keyword)
+      CALL keyword_release(keyword)
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, "RI_INFO", &
                                        description="Controls the printing of DBCSR tensor log in RI HFX.", &

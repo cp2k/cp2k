@@ -59,7 +59,8 @@ MODULE hfx_types
                                               default_string_length,&
                                               dp,&
                                               int_8
-   USE libint_2c_3c,                    ONLY: libint_potential_type
+   USE libint_2c_3c,                    ONLY: compare_potential_types,&
+                                              libint_potential_type
    USE libint_wrapper,                  ONLY: &
         cp_libint_cleanup_eri, cp_libint_cleanup_eri1, cp_libint_init_eri, cp_libint_init_eri1, &
         cp_libint_set_contrdepth, cp_libint_static_cleanup, cp_libint_static_init, cp_libint_t, &
@@ -375,7 +376,7 @@ MODULE hfx_types
                        kp_image_range = 0.0_dp, kp_bump_rad = 0.0_dp
       INTEGER :: t2c_sqrt_order = 0, max_iter_lanczos = 0, flavor = 0, unit_nr_dbcsr = -1, unit_nr = -1, &
                  min_bsize = 0, max_bsize_MO = 0, t2c_method = 0, nelectron_total = 0, input_flavor = 0, &
-                 ncell_RI = 0, nimg = 0, kp_stack_size = 0, nimg_nze = 0
+                 ncell_RI = 0, nimg = 0, kp_stack_size = 0, nimg_nze = 0, kp_ngroups = 1
       LOGICAL :: check_2c_inv = .FALSE., calc_condnum = .FALSE.
 
       TYPE(libint_potential_type) :: ri_metric = libint_potential_type()
@@ -1052,6 +1053,8 @@ CONTAINS
          hfx_pot%potential_type = x_data%potential_parameter%potential_type
          hfx_pot%omega = x_data%potential_parameter%omega
          hfx_pot%cutoff_radius = x_data%potential_parameter%cutoff_radius
+         hfx_pot%scale_coulomb = x_data%potential_parameter%scale_coulomb
+         hfx_pot%scale_longrange = x_data%potential_parameter%scale_longrange
       END ASSOCIATE
       ri_data%ri_section => ri_section
       ri_data%hfx_section => hfx_section
@@ -1147,6 +1150,16 @@ CONTAINS
             ri_metric%cutoff_radius = hfx_pot%cutoff_radius
          END IF
 
+         CALL section_vals_val_get(ri_section, "SCALE_COULOMB", r_val=ri_metric%scale_coulomb, explicit=explicit)
+         IF (.NOT. explicit) THEN
+            ri_metric%scale_coulomb = hfx_pot%scale_coulomb
+         END IF
+
+         CALL section_vals_val_get(ri_section, "SCALE_LONGRANGE", r_val=ri_metric%scale_longrange, explicit=explicit)
+         IF (.NOT. explicit) THEN
+            ri_metric%scale_longrange = hfx_pot%scale_longrange
+         END IF
+
          IF (ri_metric%potential_type == do_potential_short) &
             CALL erfc_cutoff(ri_data%eps_schwarz, ri_metric%omega, ri_metric%cutoff_radius)
          IF (ri_metric%potential_type == do_potential_id) ri_metric%cutoff_radius = 0.0_dp
@@ -1239,15 +1252,7 @@ CONTAINS
             CALL erfc_cutoff(ri_data%filter_eps_2c, hfx_pot%omega, hfx_pot%cutoff_radius)
          END IF
          ! determine whether RI metric is same operator as used in HFX
-         same_op = ri_metric%potential_type == hfx_pot%potential_type
-
-         IF (same_op .AND. hfx_pot%potential_type == do_potential_truncated) THEN
-            same_op = ABS(ri_metric%cutoff_radius - hfx_pot%cutoff_radius) < 1.0E-16_dp
-         END IF
-
-         IF (same_op .AND. hfx_pot%potential_type == do_potential_short) THEN
-            same_op = ABS(ri_metric%omega - hfx_pot%omega) < 1.0E-16_dp
-         END IF
+         same_op = compare_potential_types(ri_metric, hfx_pot)
       END ASSOCIATE
 
       ri_data%same_op = same_op

@@ -2,4 +2,5 @@
 "diamond_gpw_extRI.inp"                 = [{matcher="M011", tol=1.0E-10, ref=-8.128239211260716}]
 "hBN_gapw_ovlp.inp"                     = [{matcher="M011", tol=1.0E-10, ref=-86.213599739489808}]
 "hBN_gapw_tc.inp"                       = [{matcher="M011", tol=1.0E-10, ref=-77.588144157636464}]
+"hBN_gapw_mix_cl_tc.inp"                = [{matcher="M011", tol=1.0E-10, ref=-81.58088407995704}]
 "hBN_gpw_pbe0.inp"                      = [{matcher="M011", tol=1.0E-10, ref=-11.615352808149828}]
