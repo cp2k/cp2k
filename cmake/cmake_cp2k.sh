@@ -44,6 +44,7 @@ if [[ "${PROFILE}" == "spack_all" ]] && [[ "${VERSION}" == "psmp" ]]; then
     -GNinja \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
     -DCP2K_USE_EVERYTHING=ON \
+    -DCP2K_USE_DLAF=OFF \
     -DCP2K_USE_LIBXSMM=OFF \
     -DCP2K_USE_TBLITE=OFF \
     -Werror=dev \
