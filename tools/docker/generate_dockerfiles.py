@@ -17,12 +17,8 @@ def main() -> None:
     for version in "sdbg", "ssmp", "pdbg", "psmp":
         with OutputFile(f"Dockerfile.test_{version}", args.check) as f:
             mpi_mode = "mpich" if version.startswith("p") else "no"
-            with_dbcsr = "" if version.endswith("smp") else "no"
-            f.write(install_deps_toolchain(mpi_mode=mpi_mode, with_dbcsr=with_dbcsr))
-            if version in ("ssmp", "psmp"):
-                f.write(regtest_cmake("toolchain_all", version))
-            else:
-                f.write(regtest(version))
+            f.write(install_deps_toolchain(mpi_mode=mpi_mode, with_dbcsr=""))
+            f.write(regtest_cmake("toolchain_all", version))
 
         with OutputFile(f"Dockerfile.test_generic_{version}", args.check) as f:
             f.write(install_deps_toolchain(target_cpu="generic"))

@@ -84,6 +84,33 @@ elif [[ "${PROFILE}" == "spack_minimal" ]] && [[ "${VERSION}" == "ssmp" ]]; then
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
 
+elif [[ "${PROFILE}" == "toolchain_all" ]] && [[ "${VERSION}" == "pdbg" ]]; then
+  cmake \
+    -GNinja \
+    -DCMAKE_BUILD_TYPE="Debug" \
+    -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
+    -DCP2K_USE_EVERYTHING=ON \
+    -DCP2K_USE_DLAF=OFF \
+    -DCP2K_USE_LIBXSMM=OFF \
+    -DCP2K_USE_MPI=ON \
+    -DCP2K_USE_PEXSI=OFF \
+    -Werror=dev \
+    .. |& tee ./cmake.log
+  CMAKE_EXIT_CODE=$?
+
+elif [[ "${PROFILE}" == "toolchain_all" ]] && [[ "${VERSION}" == "sdbg" ]]; then
+  cmake \
+    -GNinja \
+    -DCMAKE_BUILD_TYPE="Debug" \
+    -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
+    -DCP2K_USE_EVERYTHING=ON \
+    -DCP2K_USE_LIBXSMM=OFF \
+    -DCP2K_USE_MPI=OFF \
+    -DCP2K_USE_PEXSI=OFF \
+    -Werror=dev \
+    .. |& tee ./cmake.log
+  CMAKE_EXIT_CODE=$?
+
 elif [[ "${PROFILE}" == "toolchain_all" ]] && [[ "${VERSION}" == "psmp" ]]; then
   cmake \
     -GNinja \
@@ -123,36 +150,6 @@ elif [[ "${PROFILE}" == "toolchain_minimal" ]] && [[ "${VERSION}" == "ssmp" ]]; 
     -GNinja \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
     -DCP2K_USE_MPI=OFF \
-    -Werror=dev \
-    .. |& tee ./cmake.log
-  CMAKE_EXIT_CODE=$?
-
-elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "pdbg" ]]; then
-  cmake \
-    -GNinja \
-    -DCMAKE_BUILD_TYPE="RelWithDebInfo" \
-    -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
-    -DCP2K_DEBUG_MODE=ON \
-    -DCP2K_USE_EVERYTHING=ON \
-    -DCP2K_USE_COSMA=OFF \
-    -DCP2K_USE_DLAF=OFF \
-    -DCP2K_USE_LIBTORCH=OFF \
-    -DCP2K_USE_PEXSI=OFF \
-    -Werror=dev \
-    .. |& tee ./cmake.log
-  CMAKE_EXIT_CODE=$?
-
-elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "sdbg" ]]; then
-  cmake \
-    -GNinja \
-    -DCMAKE_BUILD_TYPE="RelWithDebInfo" \
-    -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
-    -DCP2K_BLAS_VENDOR="auto" \
-    -DCP2K_DEBUG_MODE=ON \
-    -DCP2K_USE_EVERYTHING=ON \
-    -DCP2K_USE_LIBTORCH=OFF \
-    -DCP2K_USE_MPI=OFF \
-    -DCP2K_USE_PEXSI=OFF \
     -Werror=dev \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
