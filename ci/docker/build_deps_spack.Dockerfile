@@ -57,12 +57,12 @@ RUN git clone https://github.com/hpc/xpmem \
 ARG NUM_PROCS
 ENV NUM_PROCS=${NUM_PROCS:-32}
 
-# Install Spack and Spack packages
+# Install Spack and Spack packages from July 17, 2025
 WORKDIR /root/spack
 ARG SPACK_VERSION
-ENV SPACK_VERSION=${SPACK_VERSION:-2e7168b4cfe9222a94becf0c2c5b401f513181ec}
+ENV SPACK_VERSION=${SPACK_VERSION:-a572692b6da3ae74633b53b236023862f7284ad4}
 ARG SPACK_PACKAGES_VERSION
-ENV SPACK_PACKAGES_VERSION=${SPACK_PACKAGES_VERSION:-c63151a5baffcd96978966cd5ed83a6b8328e026}
+ENV SPACK_PACKAGES_VERSION=${SPACK_PACKAGES_VERSION:-97d47813671327ab07a5c840fa549d130baacbb2}
 ARG SPACK_REPO=https://github.com/spack/spack
 ENV SPACK_ROOT=/opt/spack-${SPACK_VERSION}
 ARG SPACK_PACKAGES_REPO=https://github.com/spack/spack-packages
@@ -87,9 +87,9 @@ RUN spack external find --all --not-buildable
 
 # Copy Spack configuration and build recipes
 ARG CP2K_VERSION
-ENV CP2K_VERSION=${CP2K_VERSION:-ssmp}
+ENV CP2K_VERSION=${CP2K_VERSION:-psmp}
 ARG CP2K_BUILD_TYPE
-ENV CP2K_BUILD_TYPE=${CP2K_BUILD_TYPE:-minimal}
+ENV CP2K_BUILD_TYPE=${CP2K_BUILD_TYPE:-all}
 COPY ./tools/spack/cp2k_deps_${CP2K_BUILD_TYPE}_${CP2K_VERSION}.yaml ./
 RUN sed -e "s/~xpmem/+xpmem/" cp2k_deps_${CP2K_BUILD_TYPE}_${CP2K_VERSION}.yaml
 COPY ./tools/spack/cp2k_dev_repo ${SPACK_PACKAGES_ROOT}/repos/spack_repo/cp2k_dev_repo/
