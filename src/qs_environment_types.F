@@ -484,8 +484,8 @@ CONTAINS
 !> \param mos_last_converged ... [SGh]
 !> \param eeq ...
 !> \param rhs ...
-!> \param tb_tblite ...
 !> \param do_rixs ...
+!> \param tb_tblite ...
 !> \date    23.01.2002
 !> \author  MK
 !> \version 1.0
@@ -651,8 +651,8 @@ CONTAINS
       TYPE(polar_env_type), OPTIONAL, POINTER            :: polar_env
       TYPE(mo_set_type), DIMENSION(:), OPTIONAL, POINTER :: mos_last_converged
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: eeq, rhs
-      TYPE(tblite_type), OPTIONAL, POINTER               :: tb_tblite
       LOGICAL, OPTIONAL                                  :: do_rixs
+      TYPE(tblite_type), OPTIONAL, POINTER               :: tb_tblite
 
       TYPE(rho0_mpole_type), POINTER                     :: rho0_m
 
@@ -1047,8 +1047,8 @@ CONTAINS
 !> \param mos_last_converged ... [SGh]
 !> \param eeq ...
 !> \param rhs ...
-!> \param tb_tblite ...
 !> \param do_rixs ...
+!> \param tb_tblite ...
 !> \date    23.01.2002
 !> \author  MK
 !> \version 1.0
@@ -1069,7 +1069,6 @@ CONTAINS
                          harris_env, gcp_env, mp2_env, bs_env, kg_env, force, &
                          kpoints, WannierCentres, almo_scf_env, gradient_history, variable_history, embed_pot, &
                          spin_embed_pot, polar_env, mos_last_converged, eeq, rhs, do_rixs, tb_tblite)
-
 
       TYPE(qs_environment_type), INTENT(INOUT)           :: qs_env
       TYPE(cell_type), OPTIONAL, POINTER                 :: super_cell
@@ -1146,8 +1145,9 @@ CONTAINS
       TYPE(polar_env_type), OPTIONAL, POINTER            :: polar_env
       TYPE(mo_set_type), DIMENSION(:), OPTIONAL, POINTER :: mos_last_converged
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: eeq, rhs
-      TYPE(tblite_type), OPTIONAL, POINTER               :: tb_tblite
       LOGICAL, OPTIONAL                                  :: do_rixs
+      TYPE(tblite_type), OPTIONAL, POINTER               :: tb_tblite
+
       TYPE(qs_subsys_type), POINTER                      :: subsys
 
       IF (PRESENT(mp2_env)) qs_env%mp2_env => mp2_env

@@ -43,8 +43,8 @@ MODULE qs_environment
                                               xtb_control_type
    USE cp_control_utils,                ONLY: &
         read_ddapc_section, read_dft_control, read_mgrid_section, read_qs_section, &
-        read_rixs_control, read_tddfpt2_control, read_tddfpt_control, write_admm_control, &
-        write_dft_control, write_qs_control
+        read_rixs_control, read_tddfpt2_control, write_admm_control, write_dft_control, &
+        write_qs_control
    USE cp_ddapc_types,                  ONLY: cp_ddapc_ewald_create
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
@@ -213,7 +213,6 @@ MODULE qs_environment
    USE xtb_types,                       ONLY: allocate_xtb_atom_param,&
                                               set_xtb_atom_param
    !USE rixs_types,                      ONLY: read_rixs_control
-
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE

@@ -106,10 +106,10 @@ CONTAINS
       CALL rixs_core(rixs_section, qs_env)
 
       IF (output_unit > 0) THEN
-          WRITE (UNIT=output_unit, FMT="(/,(T2,A79)),/") &
-          "*******************************************************************************", &
-          "!    Normal termination of Resonant Inelastic X-RAY Scattering calculation    !", &
-          "*******************************************************************************"
+         WRITE (UNIT=output_unit, FMT="(/,(T2,A79)),/") &
+            "*******************************************************************************", &
+            "!    Normal termination of Resonant Inelastic X-RAY Scattering calculation    !", &
+            "*******************************************************************************"
       END IF
 
       CALL timestop(handle)
@@ -123,126 +123,126 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE rixs_core(rixs_section, qs_env)
 
-    TYPE(section_vals_type), POINTER                   :: rixs_section
-    TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(section_vals_type), POINTER                   :: rixs_section
+      TYPE(qs_environment_type), POINTER                 :: qs_env
 
-    CHARACTER(len=*), PARAMETER                        :: routineN = 'rixs_core'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'rixs_core'
 
-    INTEGER                                            :: ax, current_state_index, fstate, handle, &
-                                                        iatom, istate, nao, nex_atoms, nocc, &
-                                                        nstates, nvirt, output_unit, td_state
-    REAL(dp)                                           :: osc_xyz
-    REAL(dp), ALLOCATABLE, DIMENSION(:)                :: w_i0, w_if
-    REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: dip_block, mu_i0
-    REAL(dp), ALLOCATABLE, DIMENSION(:, :, :)          :: mu_if
-    TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-    TYPE(cp_fm_struct_type), POINTER                   :: dip_0_struct, dip_f_struct, &
-                                                        i_dip_0_struct, i_dip_f_struct
-    TYPE(cp_fm_type)                                   :: dip_0, dip_f, i_dip_0, i_dip_f
-    TYPE(cp_fm_type), DIMENSION(:, :), POINTER         :: valence_evects
-    TYPE(cp_fm_type), POINTER                          :: core_evects, local_gs_coeffs, mo_coeffs
-    TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dipmat, matrix_s
-    TYPE(dft_control_type), POINTER                    :: dft_control
-    TYPE(donor_state_type), POINTER                    :: current_state
-    TYPE(mp_para_env_type), POINTER                    :: para_env
-    TYPE(rixs_control_type), POINTER                   :: rixs_control
-    TYPE(rixs_env_type), POINTER                       :: rixs_env
-    TYPE(tddfpt2_valence_type), POINTER                :: valence_state
-    TYPE(xas_tdp_env_type), POINTER                    :: core_state
+      INTEGER                                            :: ax, current_state_index, fstate, handle, &
+                                                            iatom, istate, nao, nex_atoms, nocc, &
+                                                            nstates, nvirt, output_unit, td_state
+      REAL(dp)                                           :: osc_xyz
+      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: w_i0, w_if
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: dip_block, mu_i0
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :, :)          :: mu_if
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(cp_fm_struct_type), POINTER                   :: dip_0_struct, dip_f_struct, &
+                                                            i_dip_0_struct, i_dip_f_struct
+      TYPE(cp_fm_type)                                   :: dip_0, dip_f, i_dip_0, i_dip_f
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER         :: valence_evects
+      TYPE(cp_fm_type), POINTER                          :: core_evects, local_gs_coeffs, mo_coeffs
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dipmat, matrix_s
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(donor_state_type), POINTER                    :: current_state
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(rixs_control_type), POINTER                   :: rixs_control
+      TYPE(rixs_env_type), POINTER                       :: rixs_env
+      TYPE(tddfpt2_valence_type), POINTER                :: valence_state
+      TYPE(xas_tdp_env_type), POINTER                    :: core_state
 
-    NULLIFY (rixs_control, dft_control, rixs_env)
-    NULLIFY (valence_state, core_state)
-    NULLIFY (para_env, blacs_env)
-    NULLIFY (local_gs_coeffs, mo_coeffs, valence_evects)
-    NULLIFY (dipmat, dip_0_struct, i_dip_0_struct, dip_f_struct, i_dip_f_struct)
+      NULLIFY (rixs_control, dft_control, rixs_env)
+      NULLIFY (valence_state, core_state)
+      NULLIFY (para_env, blacs_env)
+      NULLIFY (local_gs_coeffs, mo_coeffs, valence_evects)
+      NULLIFY (dipmat, dip_0_struct, i_dip_0_struct, dip_f_struct, i_dip_f_struct)
 
-    output_unit = cp_logger_get_default_io_unit()
+      output_unit = cp_logger_get_default_io_unit()
 
-    CALL get_qs_env(qs_env, &
-                    dft_control=dft_control, &
-                    matrix_s=matrix_s, &
-                    para_env=para_env, &
-                    blacs_env=blacs_env)
-    CALL rixs_control_create(rixs_control)
-    CALL read_rixs_control(rixs_control, rixs_section, dft_control%qs_control)
+      CALL get_qs_env(qs_env, &
+                      dft_control=dft_control, &
+                      matrix_s=matrix_s, &
+                      para_env=para_env, &
+                      blacs_env=blacs_env)
+      CALL rixs_control_create(rixs_control)
+      CALL read_rixs_control(rixs_control, rixs_section, dft_control%qs_control)
 
-    ! create rixs_env
-    CALL rixs_env_create(rixs_env)
+      ! create rixs_env
+      CALL rixs_env_create(rixs_env)
 
-    ! first, xas_tdp calculation
-    CALL xas_tdp(qs_env, rixs_env)
+      ! first, xas_tdp calculation
+      CALL xas_tdp(qs_env, rixs_env)
 
-    IF (rixs_control%xas_tdp_control%check_only) THEN
-        CPWARN("CHECK_ONLY run for XAS_TDP requested, RIXS will not be performed.")
-    ELSE
+      IF (rixs_control%xas_tdp_control%check_only) THEN
+         CPWARN("CHECK_ONLY run for XAS_TDP requested, RIXS will not be performed.")
+      ELSE
 
          ! then, tddfpt2 calculation
          CALL tddfpt(qs_env, calc_forces=.FALSE., rixs_env=rixs_env)
 
-        IF (output_unit > 0) THEN
+         IF (output_unit > 0) THEN
             CALL rixs_header(output_unit)
-        END IF
+         END IF
 
-        ! timings for rixs only, excluding xas_tdp and tddft calls
-        CALL timeset(routineN, handle)
+         ! timings for rixs only, excluding xas_tdp and tddft calls
+         CALL timeset(routineN, handle)
 
-        core_state => rixs_env%core_state
-        valence_state => rixs_env%valence_state
+         core_state => rixs_env%core_state
+         valence_state => rixs_env%valence_state
 
-        ! gs coefficients from tddfpt
-        mo_coeffs => valence_state%mos_occ(1)
-        ! localised gs coefficients from xas_tdp
-        local_gs_coeffs => core_state%mo_coeff(1) ! TODO (1)=ispin
-        valence_evects => valence_state%evects
+         ! gs coefficients from tddfpt
+         mo_coeffs => valence_state%mos_occ(1)
+         ! localised gs coefficients from xas_tdp
+         local_gs_coeffs => core_state%mo_coeff(1) ! TODO (1)=ispin
+         valence_evects => valence_state%evects
 
-        IF (rixs_control%xas_tdp_control%do_loc) THEN
-        IF (output_unit > 0) THEN
+         IF (rixs_control%xas_tdp_control%do_loc) THEN
+         IF (output_unit > 0) THEN
             WRITE (UNIT=output_unit, FMT="(T2,A)") &
-                "RIXS| Found localised XAS_TDP orbitals"
+               "RIXS| Found localised XAS_TDP orbitals"
             WRITE (UNIT=output_unit, FMT="(T2,A)") &
-                "RIXS| Rotating TDDFPT vectors..."
-        END IF
-        CALL rotate_vectors(valence_evects, local_gs_coeffs, mo_coeffs, matrix_s(1)%matrix, output_unit)
-        END IF
+               "RIXS| Rotating TDDFPT vectors..."
+         END IF
+         CALL rotate_vectors(valence_evects, local_gs_coeffs, mo_coeffs, matrix_s(1)%matrix, output_unit)
+         END IF
 
-        CALL cp_fm_get_info(matrix=valence_evects(1, 1), nrow_global=nao, ncol_global=nocc) ! TODO evects
+         CALL cp_fm_get_info(matrix=valence_evects(1, 1), nrow_global=nao, ncol_global=nocc) ! TODO evects
 
-        nex_atoms = core_state%nex_atoms
-        nstates = valence_state%nstates
+         nex_atoms = core_state%nex_atoms
+         nstates = valence_state%nstates
 
-        dipmat => core_state%dipmat
+         dipmat => core_state%dipmat
 
-        nvirt = core_state%nvirt
-        ALLOCATE (dip_block(1, 1))
+         nvirt = core_state%nvirt
+         ALLOCATE (dip_block(1, 1))
 
-        ALLOCATE (mu_i0(4, nvirt))
-        mu_i0 = 0.0_dp
+         ALLOCATE (mu_i0(4, nvirt))
+         mu_i0 = 0.0_dp
 
-        ALLOCATE (mu_if(4, nvirt, nstates)) ! mu per (donor state -> nstate) per (x,y,z) ! experimental
-        mu_if = 0.0_dp
+         ALLOCATE (mu_if(4, nvirt, nstates)) ! mu per (donor state -> nstate) per (x,y,z) ! experimental
+         mu_if = 0.0_dp
 
-        ALLOCATE (w_i0(nvirt), w_if(nstates))
-        w_if(:) = valence_state%evals(:)*evolt
+         ALLOCATE (w_i0(nvirt), w_if(nstates))
+         w_if(:) = valence_state%evals(:)*evolt
 
-        ! initialise matrices for i->0
-        CALL cp_fm_struct_create(dip_0_struct, para_env=para_env, context=blacs_env, &
-                                nrow_global=nao, ncol_global=1)
-        CALL cp_fm_create(dip_0, dip_0_struct)
-        CALL cp_fm_struct_create(i_dip_0_struct, para_env=para_env, context=blacs_env, &
-                                nrow_global=nvirt, ncol_global=1)
-        CALL cp_fm_create(i_dip_0, i_dip_0_struct)
+         ! initialise matrices for i->0
+         CALL cp_fm_struct_create(dip_0_struct, para_env=para_env, context=blacs_env, &
+                                  nrow_global=nao, ncol_global=1)
+         CALL cp_fm_create(dip_0, dip_0_struct)
+         CALL cp_fm_struct_create(i_dip_0_struct, para_env=para_env, context=blacs_env, &
+                                  nrow_global=nvirt, ncol_global=1)
+         CALL cp_fm_create(i_dip_0, i_dip_0_struct)
 
-        ! initialise matrices for i->f
-        CALL cp_fm_struct_create(dip_f_struct, para_env=para_env, context=blacs_env, &
-                                nrow_global=nao, ncol_global=nocc)
-        CALL cp_fm_create(dip_f, dip_f_struct)
-        CALL cp_fm_struct_create(i_dip_f_struct, para_env=para_env, context=blacs_env, &
-                                nrow_global=nvirt, ncol_global=nocc)
-        CALL cp_fm_create(i_dip_f, i_dip_f_struct)
+         ! initialise matrices for i->f
+         CALL cp_fm_struct_create(dip_f_struct, para_env=para_env, context=blacs_env, &
+                                  nrow_global=nao, ncol_global=nocc)
+         CALL cp_fm_create(dip_f, dip_f_struct)
+         CALL cp_fm_struct_create(i_dip_f_struct, para_env=para_env, context=blacs_env, &
+                                  nrow_global=nvirt, ncol_global=nocc)
+         CALL cp_fm_create(i_dip_f, i_dip_f_struct)
 
-        ! looping over ex_atoms and ex_kinds is enough as excited atoms have to be unique
-        current_state_index = 1
-        DO iatom = 1, nex_atoms
+         ! looping over ex_atoms and ex_kinds is enough as excited atoms have to be unique
+         current_state_index = 1
+         DO iatom = 1, nex_atoms
             current_state => core_state%donor_states(current_state_index)
             IF (output_unit > 0) THEN
                WRITE (UNIT=output_unit, FMT="(T2,A,A,A,A)") &
@@ -309,28 +309,28 @@ CONTAINS
             CALL print_rixs_to_file(current_state, mu_i0, mu_if, w_i0, w_if, rixs_env, rixs_section)
 
             current_state_index = current_state_index + 1
-        END DO ! iatom
+         END DO ! iatom
 
-        NULLIFY (current_state)
+         NULLIFY (current_state)
 
-        ! cleanup
-        CALL cp_fm_struct_release(i_dip_0_struct)
-        CALL cp_fm_struct_release(dip_0_struct)
-        CALL cp_fm_release(dip_0)
-        CALL cp_fm_release(i_dip_0)
-        CALL cp_fm_struct_release(i_dip_f_struct)
-        CALL cp_fm_struct_release(dip_f_struct)
-        CALL cp_fm_release(dip_f)
-        CALL cp_fm_release(i_dip_f)
-    END IF
+         ! cleanup
+         CALL cp_fm_struct_release(i_dip_0_struct)
+         CALL cp_fm_struct_release(dip_0_struct)
+         CALL cp_fm_release(dip_0)
+         CALL cp_fm_release(i_dip_0)
+         CALL cp_fm_struct_release(i_dip_f_struct)
+         CALL cp_fm_struct_release(dip_f_struct)
+         CALL cp_fm_release(dip_f)
+         CALL cp_fm_release(i_dip_f)
+      END IF
 
-    ! nullify rixs_control, rixs_env
-    CALL rixs_control_release(rixs_control)
-    CALL rixs_env_release(rixs_env)
+      ! nullify rixs_control, rixs_env
+      CALL rixs_control_release(rixs_control)
+      CALL rixs_env_release(rixs_env)
 
-    NULLIFY (valence_state, core_state)
+      NULLIFY (valence_state, core_state)
 
-    CALL timestop(handle)
+      CALL timestop(handle)
 
    END SUBROUTINE rixs_core
 
