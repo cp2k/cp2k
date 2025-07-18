@@ -1921,7 +1921,7 @@ CONTAINS
 !  Get some info on the functionals
       IF (qs_env%do_rixs) THEN
          xc_functionals => section_vals_get_subs_vals(input, "PROPERTIES%RIXS%XAS_TDP%KERNEL%XC_FUNCTIONAL")
-      ELSE 
+      ELSE
          xc_functionals => section_vals_get_subs_vals(input, "DFT%XAS_TDP%KERNEL%XC_FUNCTIONAL")
       END IF
       ! ask for lsd in any case

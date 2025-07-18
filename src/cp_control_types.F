@@ -29,9 +29,9 @@ MODULE cp_control_types
                                               smeagol_control_type
    USE xas_control,                     ONLY: xas_control_release,&
                                               xas_control_type
-   USE xas_tdp_types,                   ONLY: xas_tdp_control_type, &
-                                              xas_tdp_control_release, &
-                                              xas_tdp_control_create
+   USE xas_tdp_types,                   ONLY: xas_tdp_control_create,&
+                                              xas_tdp_control_release,&
+                                              xas_tdp_control_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -584,13 +584,12 @@ MODULE cp_control_types
 ! **************************************************************************************************
 !> \brief
 ! **************************************************************************************************
-    TYPE rixs_control_type
+   TYPE rixs_control_type
 
-        TYPE(tddfpt2_control_type), POINTER     :: tddfpt2_control => NULL()
-        TYPE(xas_tdp_control_type), POINTER     :: xas_tdp_control => NULL()
+      TYPE(tddfpt2_control_type), POINTER     :: tddfpt2_control => NULL()
+      TYPE(xas_tdp_control_type), POINTER     :: xas_tdp_control => NULL()
 
-
-    END TYPE rixs_control_type
+   END TYPE rixs_control_type
 
 ! **************************************************************************************************
 ! \brief Control parameters for a DFT calculation
@@ -997,30 +996,31 @@ CONTAINS
 !> \param rixs_control the type to initialize
 ! **************************************************************************************************
    SUBROUTINE rixs_control_create(rixs_control)
-        TYPE(rixs_control_type), POINTER :: rixs_control
+      TYPE(rixs_control_type), POINTER                   :: rixs_control
 
-        CPASSERT(.NOT. ASSOCIATED(rixs_control))
-        ALLOCATE(rixs_control)
+      CPASSERT(.NOT. ASSOCIATED(rixs_control))
+      ALLOCATE (rixs_control)
 
-        NULLIFY(rixs_control%tddfpt2_control)
-        CALL tddfpt2_control_create(rixs_control%tddfpt2_control)
-        NULLIFY(rixs_control%xas_tdp_control)
-        CALL xas_tdp_control_create(rixs_control%xas_tdp_control)
-        
+      NULLIFY (rixs_control%tddfpt2_control)
+      CALL tddfpt2_control_create(rixs_control%tddfpt2_control)
+      NULLIFY (rixs_control%xas_tdp_control)
+      CALL xas_tdp_control_create(rixs_control%xas_tdp_control)
+
    END SUBROUTINE rixs_control_create
 
 ! **************************************************************************************************
 !> \brief Releases the rixs_control_type
+!> \param rixs_control ...
 ! **************************************************************************************************
    SUBROUTINE rixs_control_release(rixs_control)
-        TYPE(rixs_control_type), POINTER :: rixs_control
+      TYPE(rixs_control_type), POINTER                   :: rixs_control
 
-        IF (ASSOCIATED(rixs_control)) THEN
-            CALL tddfpt2_control_release(rixs_control%tddfpt2_control)
-            CALL xas_tdp_control_release(rixs_control%xas_tdp_control)
+      IF (ASSOCIATED(rixs_control)) THEN
+         CALL tddfpt2_control_release(rixs_control%tddfpt2_control)
+         CALL xas_tdp_control_release(rixs_control%xas_tdp_control)
 
-            DEALLOCATE(rixs_control)
-        END IF
+         DEALLOCATE (rixs_control)
+      END IF
 
    END SUBROUTINE rixs_control_release
 

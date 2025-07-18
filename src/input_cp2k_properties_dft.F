@@ -62,7 +62,7 @@ MODULE input_cp2k_properties_dft
                               lchar_t, &
                               logical_t, &
                               real_t
-   USE input_cp2k_xas,                  ONLY: create_xas_tdp_section
+   USE input_cp2k_xas, ONLY: create_xas_tdp_section
    USE kinds, ONLY: dp
    USE string_utilities, ONLY: s2a
 #include "./base/base_uses.f90"
@@ -157,12 +157,12 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(section))
 
-      NULLIFY(keyword, subsection, print_key)
+      NULLIFY (keyword, subsection, print_key)
 
       CALL section_create(section, __LOCATION__, name="RIXS", &
-                     description="Resonant Inelastic Xray Scattering using XAS_TDP and TDDFPT.", &
-                     n_keywords=1, n_subsections=3, repeats=.FALSE., &
-                     citations=(/VazdaCruz2021/))
+                          description="Resonant Inelastic Xray Scattering using XAS_TDP and TDDFPT.", &
+                          n_keywords=1, n_subsections=3, repeats=.FALSE., &
+                          citations=(/VazdaCruz2021/))
 
       CALL create_tddfpt2_section(subsection)
       CALL section_add_subsection(section, subsection)
@@ -171,7 +171,7 @@ CONTAINS
       CALL create_xas_tdp_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
-   
+
       CALL section_create(subsection, __LOCATION__, "PRINT", "Controls the printing of information "// &
                           "during RIXS calculations", repeats=.FALSE.)
 

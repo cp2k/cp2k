@@ -62,12 +62,12 @@ MODULE qs_energy_utils
    USE qs_tddfpt2_methods,              ONLY: tddfpt
    USE qs_vxc,                          ONLY: qs_xc_density
    USE qs_vxc_atom,                     ONLY: calculate_vxc_atom
+   USE rixs_methods,                    ONLY: rixs
    USE tip_scan_methods,                ONLY: tip_scanning
    USE xas_methods,                     ONLY: xas
    USE xas_tdp_methods,                 ONLY: xas_tdp
    USE xc_derivatives,                  ONLY: xc_functionals_get_needs
    USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
-   USE rixs_methods,                    ONLY: rixs
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE

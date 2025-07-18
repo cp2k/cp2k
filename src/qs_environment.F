@@ -41,21 +41,10 @@ MODULE qs_environment
                                               qs_control_type,&
                                               semi_empirical_control_type,&
                                               xtb_control_type
-<<<<<<< HEAD
-   USE cp_control_utils,                ONLY: read_ddapc_section,&
-                                              read_dft_control,&
-                                              read_mgrid_section,&
-                                              read_qs_section,&
-                                              read_tddfpt2_control,&
-                                              write_admm_control,&
-                                              write_dft_control,&
-                                              write_qs_control
-=======
    USE cp_control_utils,                ONLY: &
         read_ddapc_section, read_dft_control, read_mgrid_section, read_qs_section, &
-        read_tddfpt2_control, read_tddfpt_control, write_admm_control, write_dft_control, &
-        write_qs_control, read_rixs_control
->>>>>>> 400d7b17b9 (actually initialised rixs)
+        read_rixs_control, read_tddfpt2_control, read_tddfpt_control, write_admm_control, &
+        write_dft_control, write_qs_control
    USE cp_ddapc_types,                  ONLY: cp_ddapc_ewald_create
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
@@ -224,7 +213,6 @@ MODULE qs_environment
    USE xtb_types,                       ONLY: allocate_xtb_atom_param,&
                                               set_xtb_atom_param
    !USE rixs_types,                      ONLY: read_rixs_control
-
 
 #include "./base/base_uses.f90"
 
@@ -662,7 +650,8 @@ CONTAINS
       TYPE(se_taper_type), POINTER                       :: se_taper
       TYPE(section_vals_type), POINTER :: dft_section, et_coupling_section, et_ddapc_section, &
          ewald_section, harris_section, lri_section, mp2_section, nl_section, poisson_section, &
-         pp_section, print_section, qs_section, se_section, tddfpt_section, xc_section, rixs_section
+         pp_section, print_section, qs_section, rixs_section, se_section, tddfpt_section, &
+         xc_section
       TYPE(semi_empirical_control_type), POINTER         :: se_control
       TYPE(semi_empirical_si_type), POINTER              :: se_store_int_env
       TYPE(xtb_control_type), POINTER                    :: xtb_control

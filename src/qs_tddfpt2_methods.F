@@ -17,8 +17,8 @@ MODULE qs_tddfpt2_methods
    USE cell_types,                      ONLY: cell_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type,&
-                                              tddfpt2_control_type,&
-                                              rixs_control_type
+                                              rixs_control_type,&
+                                              tddfpt2_control_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
    USE cp_fm_pool_types,                ONLY: fm_pool_create_fm
@@ -109,10 +109,10 @@ MODULE qs_tddfpt2_methods
                                               tddfpt_init_mos,&
                                               tddfpt_oecorr,&
                                               tddfpt_release_ground_state_mos
+   USE rixs_types,                      ONLY: rixs_env_type,&
+                                              tddfpt2_valence_type
    USE string_utilities,                ONLY: integer_to_string
    USE xc_write_output,                 ONLY: xc_write
-   USE rixs_types,                      ONLY: rixs_env_type, &
-                                              tddfpt2_valence_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -136,6 +136,7 @@ CONTAINS
 !> \brief Perform TDDFPT calculation.
 !> \param qs_env  Quickstep environment
 !> \param calc_forces ...
+!> \param rixs_env ...
 !> \par History
 !>    * 05.2016 created [Sergey Chulkov]
 !>    * 06.2016 refactored to be used with Davidson eigensolver [Sergey Chulkov]
@@ -145,8 +146,7 @@ CONTAINS
    SUBROUTINE tddfpt(qs_env, calc_forces, rixs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN)                                :: calc_forces
-
-      TYPE(rixs_env_type), POINTER, OPTIONAL             :: rixs_env
+      TYPE(rixs_env_type), OPTIONAL, POINTER             :: rixs_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'tddfpt'
 
@@ -155,8 +155,8 @@ CONTAINS
                                                             nstate_max, nstates, nvirt, old_state
       INTEGER, DIMENSION(maxspins)                       :: nactive
       LOGICAL                                            :: do_admm, do_exck, do_hfx, do_hfxlr, &
-                                                            do_hfxsr, do_soc, lmult_tmp, &
-                                                            state_change, do_rixs
+                                                            do_hfxsr, do_rixs, do_soc, lmult_tmp, &
+                                                            state_change
       REAL(kind=dp)                                      :: gsmin, gsval, xsval
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: evals, ostrength
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -178,18 +178,18 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
+      TYPE(rixs_control_type), POINTER                   :: rixs_control
       TYPE(section_vals_type), POINTER                   :: hfxsr_section, kernel_section, &
                                                             lri_section, soc_section, &
                                                             tddfpt_print_section, tddfpt_section, &
                                                             xc_section
       TYPE(stda_env_type), TARGET                        :: stda_kernel
       TYPE(tddfpt2_control_type), POINTER                :: tddfpt_control
+      TYPE(tddfpt2_valence_type), POINTER                :: valence_state
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          POINTER                                         :: gs_mos
       TYPE(tddfpt_subgroup_env_type)                     :: sub_env
       TYPE(tddfpt_work_matrices)                         :: work_matrices
-      TYPE(rixs_control_type), POINTER                   :: rixs_control
-      TYPE(tddfpt2_valence_type), POINTER                :: valence_state
 
       CALL timeset(routineN, handle)
 
@@ -218,7 +218,7 @@ CONTAINS
 
       IF (do_rixs) THEN
          tddfpt_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%RIXS%TDDFPT")
-         NULLIFY(rixs_control, valence_state)
+         NULLIFY (rixs_control, valence_state)
          rixs_control => dft_control%rixs_control
          tddfpt_control => rixs_control%tddfpt2_control
          valence_state => rixs_env%valence_state
@@ -517,11 +517,11 @@ CONTAINS
       IF (do_rixs) THEN
          ! copy evals
          valence_state%nstates = nstates
-         ALLOCATE(valence_state%evals(SIZE(evals)))
+         ALLOCATE (valence_state%evals(SIZE(evals)))
          valence_state%evals(:) = evals(:)
 
-         ALLOCATE(valence_state%evects(nspins, nstates))
-         ALLOCATE(valence_state%mos_occ(nspins))
+         ALLOCATE (valence_state%evects(nspins, nstates))
+         ALLOCATE (valence_state%mos_occ(nspins))
          DO ispin = 1, nspins
             ! copy evects
             DO istate = 1, nstates
@@ -532,7 +532,7 @@ CONTAINS
             END DO
             ! copy mos_occ
             CALL cp_fm_get_info(matrix=gs_mos(ispin)%mos_occ, &
-                     matrix_struct=matrix_struct)
+                                matrix_struct=matrix_struct)
             CALL cp_fm_create(valence_state%mos_occ(ispin), matrix_struct)
             CALL cp_fm_to_fm(gs_mos(ispin)%mos_occ, valence_state%mos_occ(ispin))
          END DO

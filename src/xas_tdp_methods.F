@@ -121,6 +121,7 @@ MODULE xas_tdp_methods
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE qs_scf_types,                    ONLY: ot_method_nr
+   USE rixs_types,                      ONLY: rixs_env_type
    USE util,                            ONLY: get_limit,&
                                               locate,&
                                               sort_unique
@@ -144,7 +145,6 @@ MODULE xas_tdp_methods
                                               setup_xas_tdp_prob,&
                                               solve_xas_tdp_prob
    USE xc_write_output,                 ONLY: xc_write
-   USE rixs_types,                      ONLY: rixs_env_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -159,13 +159,14 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Driver for XAS TDDFT calculations.
 !> \param qs_env the inherited qs_environment
+!> \param rixs_env ...
 !> \author AB
 !> \note Empty for now...
 ! **************************************************************************************************
    SUBROUTINE xas_tdp(qs_env, rixs_env)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(rixs_env_type), POINTER, OPTIONAL             :: rixs_env
+      TYPE(rixs_env_type), OPTIONAL, POINTER             :: rixs_env
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'xas_tdp'
 
@@ -242,19 +243,20 @@ CONTAINS
 !> \brief The core workflow of the XAS_TDP method
 !> \param xas_tdp_section the input values for XAS_TDP
 !> \param qs_env ...
+!> \param rixs_env ...
 ! **************************************************************************************************
    SUBROUTINE xas_tdp_core(xas_tdp_section, qs_env, rixs_env)
 
       TYPE(section_vals_type), POINTER                   :: xas_tdp_section
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(rixs_env_type), POINTER, OPTIONAL             :: rixs_env
+      TYPE(rixs_env_type), OPTIONAL, POINTER             :: rixs_env
 
       CHARACTER(LEN=default_string_length)               :: kind_name
       INTEGER :: batch_size, bo(2), current_state_index, iat, iatom, ibatch, ikind, ispin, istate, &
          nbatch, nex_atom, output_unit, tmp_index
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: batch_atoms, ex_atoms_of_kind
       INTEGER, DIMENSION(:), POINTER                     :: atoms_of_kind
-      LOGICAL                                            :: do_os, end_of_batch, unique, do_rixs
+      LOGICAL                                            :: do_os, do_rixs, end_of_batch, unique
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks
@@ -569,13 +571,14 @@ CONTAINS
 !> \param xas_tdp_env the environment type to initialize
 !> \param xas_tdp_control the control type to initialize
 !> \param qs_env the inherited qs environement type
+!> \param rixs_env ...
 ! **************************************************************************************************
    SUBROUTINE xas_tdp_init(xas_tdp_env, xas_tdp_control, qs_env, rixs_env)
 
       TYPE(xas_tdp_env_type), POINTER                    :: xas_tdp_env
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(rixs_env_type), POINTER, OPTIONAL             :: rixs_env
+      TYPE(rixs_env_type), OPTIONAL, POINTER             :: rixs_env
 
       CHARACTER(LEN=default_string_length)               :: kind_name
       INTEGER                                            :: at_ind, i, ispin, j, k, kind_ind, &
@@ -584,7 +587,7 @@ CONTAINS
                                                             nex_kinds, nmatch, nspins
       INTEGER, DIMENSION(2)                              :: homo, n_mo, n_moloc
       INTEGER, DIMENSION(:), POINTER                     :: ind_of_kind
-      LOGICAL                                            :: do_os, do_uks, unique, do_rixs
+      LOGICAL                                            :: do_os, do_rixs, do_uks, unique
       REAL(dp)                                           :: fact
       REAL(dp), DIMENSION(:), POINTER                    :: mo_evals
       TYPE(admm_type), POINTER                           :: admm_env
@@ -1510,10 +1513,9 @@ CONTAINS
       REAL(dp), DIMENSION(:), POINTER                    :: mo_evals, zeta
       REAL(dp), DIMENSION(:, :), POINTER                 :: overlap_matrix, tmp_coeff
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_fm_struct_type), POINTER                   :: eval_mat_struct, gs_struct
+      TYPE(cp_fm_struct_type), POINTER                   :: eval_mat_struct, gs_struct, matrix_struct
       TYPE(cp_fm_type)                                   :: eval_mat, work_mat
       TYPE(cp_fm_type), POINTER                          :: gs_coeffs, mo_coeff
-      TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks
       TYPE(gto_basis_set_type), POINTER                  :: kind_basis_set, sto_to_gto_basis_set
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
@@ -1678,12 +1680,12 @@ CONTAINS
          ALLOCATE (donor_state%gs_coeffs)
          CALL cp_fm_create(donor_state%gs_coeffs, gs_struct)
 
-         ALLOCATE(xas_tdp_env%mo_coeff(nspins))
+         ALLOCATE (xas_tdp_env%mo_coeff(nspins))
          DO ispin = 1, nspins
             CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff)
             ! copy mo_coeff, required for rixs
             CALL cp_fm_get_info(matrix=mo_coeff, &
-                                 matrix_struct=matrix_struct)
+                                matrix_struct=matrix_struct)
             CALL cp_fm_create(xas_tdp_env%mo_coeff(ispin), matrix_struct)
             CALL cp_fm_to_fm(mo_coeff, xas_tdp_env%mo_coeff(ispin))
             DO i = 1, n_states

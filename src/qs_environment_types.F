@@ -485,6 +485,7 @@ CONTAINS
 !> \param eeq ...
 !> \param rhs ...
 !> \param tb_tblite ...
+!> \param do_rixs ...
 !> \date    23.01.2002
 !> \author  MK
 !> \version 1.0
@@ -594,7 +595,7 @@ CONTAINS
       TYPE(pw_r3d_rs_type), OPTIONAL, POINTER            :: rho0_s_rs
       TYPE(pw_c1d_gs_type), OPTIONAL, POINTER            :: rho0_s_gs
       LOGICAL, OPTIONAL                                  :: do_kpoints, has_unit_metric, &
-                                                            requires_mo_derivs, do_rixs
+                                                            requires_mo_derivs
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: mo_derivs
       TYPE(cp_fm_type), DIMENSION(:), OPTIONAL, POINTER  :: mo_loc_history
@@ -651,6 +652,7 @@ CONTAINS
       TYPE(mo_set_type), DIMENSION(:), OPTIONAL, POINTER :: mos_last_converged
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: eeq, rhs
       TYPE(tblite_type), OPTIONAL, POINTER               :: tb_tblite
+      LOGICAL, OPTIONAL                                  :: do_rixs
 
       TYPE(rho0_mpole_type), POINTER                     :: rho0_m
 
@@ -1046,6 +1048,7 @@ CONTAINS
 !> \param eeq ...
 !> \param rhs ...
 !> \param tb_tblite ...
+!> \param do_rixs ...
 !> \date    23.01.2002
 !> \author  MK
 !> \version 1.0
@@ -1119,7 +1122,7 @@ CONTAINS
       TYPE(fist_nonbond_env_type), OPTIONAL, POINTER     :: se_nonbond_env
       TYPE(admm_type), OPTIONAL, POINTER                 :: admm_env
       TYPE(ls_scf_env_type), OPTIONAL, POINTER           :: ls_scf_env
-      LOGICAL, OPTIONAL                                  :: do_transport, do_rixs
+      LOGICAL, OPTIONAL                                  :: do_transport
       TYPE(transport_env_type), OPTIONAL, POINTER        :: transport_env
       TYPE(lri_environment_type), OPTIONAL, POINTER      :: lri_env
       TYPE(lri_density_type), OPTIONAL, POINTER          :: lri_density
@@ -1144,7 +1147,7 @@ CONTAINS
       TYPE(mo_set_type), DIMENSION(:), OPTIONAL, POINTER :: mos_last_converged
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: eeq, rhs
       TYPE(tblite_type), OPTIONAL, POINTER               :: tb_tblite
-
+      LOGICAL, OPTIONAL                                  :: do_rixs
       TYPE(qs_subsys_type), POINTER                      :: subsys
 
       IF (PRESENT(mp2_env)) qs_env%mp2_env => mp2_env
