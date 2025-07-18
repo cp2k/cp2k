@@ -1623,6 +1623,8 @@ set(CP2K_GPU_DFLAGS
 
 add_fypp_sources(CP2K_SRCS ${CP2K_SRCS_F})
 
+# TODO Add __SHORT_FILE__ also to program files, e.g. metadyn_tools/graph.F
+
 # set the __SHORT_FILE__ per file for CP2K sources
 foreach(cp2k_src ${CP2K_SRCS})
   # add_fypp_sources returns a path in the current binary dir
