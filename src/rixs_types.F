@@ -41,17 +41,12 @@ MODULE rixs_types
 
       INTEGER                                          :: nstates = 0
       TYPE(cp_fm_type), DIMENSION(:, :), &
-         POINTER                                      :: evects => NULL() ! eigenvectors
+         POINTER                                       :: evects => NULL() ! eigenvectors
       REAL(dp), DIMENSION(:), ALLOCATABLE              :: evals  ! energies
 
       ! entities below are coming from tddfpt_ground_state_mos type
       TYPE(cp_fm_type), DIMENSION(:), &
-         POINTER                                      :: mos_occ => NULL()
-      TYPE(cp_fm_type), DIMENSION(:), &
-         POINTER                                      :: mos_virt => NULL()
-      TYPE(cp_fm_type), POINTER                        :: evals_occ_matrix => NULL() ! remove
-      REAL(dp), DIMENSION(:), ALLOCATABLE              :: evals_occ
-      REAL(dp), DIMENSION(:), ALLOCATABLE              :: evals_virt
+         POINTER                                       :: mos_occ => NULL()
 
    END TYPE tddfpt2_valence_type
 
