@@ -14,6 +14,7 @@
 MODULE mp2_grids
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                               cp_fm_type
+   USE greenx_interface,                ONLY: greenx_get_minimax_grid
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_set
    USE kinds,                           ONLY: dp
@@ -41,7 +42,7 @@ MODULE mp2_grids
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_grids'
 
    PUBLIC :: get_minimax_grid, get_clenshaw_grid, test_least_square_ft, get_l_sq_wghts_cos_tf_t_to_w, &
-             get_l_sq_wghts_cos_tf_w_to_t, get_l_sq_wghts_sin_tf_t_to_w, init_greenx_grids
+             get_l_sq_wghts_cos_tf_w_to_t, get_l_sq_wghts_sin_tf_t_to_w
 
 CONTAINS
 
@@ -86,7 +87,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: do_gw_im_time, do_kpoints_cubic_RPA
       REAL(KIND=dp), INTENT(OUT)                         :: e_fermi
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
-         INTENT(INOUT)                                   :: tj, wj
+         INTENT(OUT)                                     :: tj, wj
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(OUT)                                     :: weights_cos_tf_t_to_w, &
                                                             weights_cos_tf_w_to_t, &
@@ -96,18 +97,30 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_minimax_grid'
       INTEGER, PARAMETER                                 :: num_points_per_magnitude = 200
 
-      INTEGER                                            :: handle, ierr, ispin, jquad, nspins
-      LOGICAL                                            :: my_do_kpoints, my_open_shell
-      REAL(KIND=dp)                                      :: Emax, Emin, max_error_min, my_E_Range, &
+      INTEGER                                            :: handle, ierr, jquad, nspins
+      LOGICAL                                            :: my_do_kpoints
+      REAL(KIND=dp)                                      :: E_Range, Emax, Emin, max_error_min, &
                                                             my_regularization, scaling
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: x_tw
-      TYPE(section_vals_type), POINTER                   :: input
 
       CALL timeset(routineN, handle)
 
+      CALL determine_energy_range(qs_env, para_env, homo, Eigenval, do_ri_sos_laplace_mp2, &
+                                  do_kpoints_cubic_RPA, Emin, Emax, e_range, e_fermi)
+
+      CALL greenx_get_minimax_grid(unit_nr, num_integ_points, emin, emax, &
+                                   tau_tj, tau_wj, qs_env%mp2_env%ri_g0w0%regularization_minimax, &
+                                   tj, wj, weights_cos_tf_t_to_w, &
+                                   weights_cos_tf_w_to_t, weights_sin_tf_t_to_w, ierr)
+
+! Shortcut if Greenx was available and successful
+      IF (ierr == 0) THEN
+         CALL timestop(handle)
+         RETURN
+      END IF
+
       ! Test for spin unrestricted
       nspins = SIZE(homo)
-      my_open_shell = (nspins == 2)
 
       ! Test whether all necessary variables are available
       my_do_kpoints = .FALSE.
@@ -118,177 +131,145 @@ CONTAINS
       my_regularization = 0.0_dp
       IF (PRESENT(regularization)) THEN
          my_regularization = regularization
-      END IF
 
-      IF (my_do_kpoints) THEN
-         CALL gap_and_max_eig_diff_kpoints(qs_env, para_env, Emin, Emax, e_fermi)
-         my_E_Range = Emax/Emin
-      ELSE
-         IF (qs_env%mp2_env%E_range <= 1.0_dp .OR. qs_env%mp2_env%E_gap <= 0.0_dp) THEN
-            Emin = HUGE(dp)
-            Emax = 0.0_dp
-            DO ispin = 1, nspins
-               IF (homo(ispin) > 0) THEN
-                  Emin = MIN(Emin, Eigenval(homo(ispin) + 1, 1, ispin) - Eigenval(homo(ispin), 1, ispin))
-                  Emax = MAX(Emax, MAXVAL(Eigenval(:, :, ispin)) - MINVAL(Eigenval(:, :, ispin)))
-               END IF
-            END DO
-            my_E_Range = Emax/Emin
-            qs_env%mp2_env%e_range = my_e_range
-            qs_env%mp2_env%e_gap = Emin
-
-            CALL get_qs_env(qs_env, input=input)
-            CALL section_vals_val_set(input, "DFT%XC%WF_CORRELATION%E_RANGE", r_val=my_e_range)
-            CALL section_vals_val_set(input, "DFT%XC%WF_CORRELATION%E_GAP", r_val=emin)
-         ELSE
-            my_E_range = qs_env%mp2_env%E_range
-            Emin = qs_env%mp2_env%E_gap
-            Emax = Emin*my_E_range
+         IF (num_integ_points > 20 .AND. e_range < 100.0_dp) THEN
+            IF (unit_nr > 0) &
+               CALL cp_warn(__LOCATION__, &
+                            "You requested a large minimax grid (> 20 points) for a small minimax range R (R < 100). "// &
+                            "That may lead to numerical "// &
+                            "instabilities when computing minimax grid weights. You can prevent small ranges by choosing "// &
+                            "a larger basis set with higher angular momenta or alternatively using all-electron calculations.")
          END IF
-      END IF
-
-      IF (num_integ_points > 20 .AND. my_E_Range < 100.0_dp) THEN
-         IF (unit_nr > 0) &
-            CALL cp_warn(__LOCATION__, &
-                         "You requested a large minimax grid (> 20 points) for a small minimax range R (R < 100). "// &
-                         "That may lead to numerical "// &
-                         "instabilities when computing minimax grid weights. You can prevent small ranges by choosing "// &
-                         "a larger basis set with higher angular momenta or alternatively using all-electron calculations.")
-      END IF
-
-      IF (.NOT. do_ri_sos_laplace_mp2) THEN
-         ALLOCATE (x_tw(2*num_integ_points))
-         x_tw = 0.0_dp
-         ierr = 0
-         IF (num_integ_points .LE. 20) THEN
-            CALL get_rpa_minimax_coeff(num_integ_points, my_E_Range, x_tw, ierr)
-         ELSE
-            CALL get_rpa_minimax_coeff_larger_grid(num_integ_points, my_E_Range, x_tw)
-         END IF
-
-         ALLOCATE (tj(num_integ_points))
-         tj = 0.0_dp
-
-         ALLOCATE (wj(num_integ_points))
-         wj = 0.0_dp
-
-         DO jquad = 1, num_integ_points
-            tj(jquad) = x_tw(jquad)
-            wj(jquad) = x_tw(jquad + num_integ_points)
-         END DO
-
-         ! for the smaller grids, the factor of 4 is included in get_rpa_minimax_coeff for wj
-         IF (num_integ_points >= 26) THEN
-            wj(:) = wj(:)*4.0_dp
-         END IF
-
-         DEALLOCATE (x_tw)
-
-         IF (unit_nr > 0 .AND. do_print) THEN
-            WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
-               "MINIMAX_INFO| Number of integration points:", num_integ_points
-            WRITE (UNIT=unit_nr, FMT="(T3,A,T66,F15.4)") &
-               "MINIMAX_INFO| Gap for the minimax approximation:", Emin
-            WRITE (UNIT=unit_nr, FMT="(T3,A,T66,F15.4)") &
-               "MINIMAX_INFO| Range for the minimax approximation:", my_E_Range
-            WRITE (UNIT=unit_nr, FMT="(T3,A,T54,A,T72,A)") "MINIMAX_INFO| Minimax parameters:", "Weights", "Abscissas"
-            DO jquad = 1, num_integ_points
-               WRITE (UNIT=unit_nr, FMT="(T41,F20.10,F20.10)") wj(jquad), tj(jquad)
-            END DO
-            CALL m_flush(unit_nr)
-         END IF
-
-         ! scale the minimax parameters
-         tj(:) = tj(:)*Emin
-         wj(:) = wj(:)*Emin
-      ELSE
-         ! When we perform SOS-MP2, we need an additional factor of 2 for the energies (compare with mp2_laplace.F)
-         ! We do not need weights etc. for the cosine transform
-         ! We do not scale Emax because it is not needed for SOS-MP2
-         Emin = Emin*2.0_dp
-      END IF
-
-      ! set up the minimax time grid
-      IF (do_im_time .OR. do_ri_sos_laplace_mp2) THEN
-
-         ALLOCATE (x_tw(2*num_integ_points))
-         x_tw = 0.0_dp
-
-         IF (num_integ_points .LE. 20) THEN
-            CALL get_exp_minimax_coeff(num_integ_points, my_E_Range, x_tw)
-         ELSE
-            CALL get_exp_minimax_coeff_gw(num_integ_points, my_E_Range, x_tw)
-         END IF
-
-         ! For RPA we include already a factor of two (see later steps)
-         scaling = 2.0_dp
-         IF (do_ri_sos_laplace_mp2) scaling = 1.0_dp
-
-         ALLOCATE (tau_tj(num_integ_points))
-         tau_tj = 0.0_dp
-
-         ALLOCATE (tau_wj(num_integ_points))
-         tau_wj = 0.0_dp
-
-         DO jquad = 1, num_integ_points
-            tau_tj(jquad) = x_tw(jquad)/scaling
-            tau_wj(jquad) = x_tw(jquad + num_integ_points)/scaling
-         END DO
-
-         DEALLOCATE (x_tw)
-
-         IF (unit_nr > 0 .AND. do_print) THEN
-            WRITE (UNIT=unit_nr, FMT="(T3,A,T66,F15.4)") &
-               "MINIMAX_INFO| Range for the minimax approximation:", my_E_Range
-            ! For testing the gap
-            WRITE (UNIT=unit_nr, FMT="(T3,A,T66,F15.4)") &
-               "MINIMAX_INFO| Gap:", Emin
-            WRITE (UNIT=unit_nr, FMT="(T3,A,T54,A,T72,A)") &
-               "MINIMAX_INFO| Minimax parameters of the time grid:", "Weights", "Abscissas"
-            DO jquad = 1, num_integ_points
-               WRITE (UNIT=unit_nr, FMT="(T41,F20.10,F20.10)") tau_wj(jquad), tau_tj(jquad)
-            END DO
-            CALL m_flush(unit_nr)
-         END IF
-
-         ! scale grid from [1,R] to [Emin,Emax]
-         tau_tj(:) = tau_tj(:)/Emin
-         tau_wj(:) = tau_wj(:)/Emin
 
          IF (.NOT. do_ri_sos_laplace_mp2) THEN
-            ALLOCATE (weights_cos_tf_t_to_w(num_integ_points, num_integ_points))
-            weights_cos_tf_t_to_w = 0.0_dp
+            ALLOCATE (x_tw(2*num_integ_points))
+            x_tw = 0.0_dp
+            ierr = 0
+            IF (num_integ_points .LE. 20) THEN
+               CALL get_rpa_minimax_coeff(num_integ_points, e_range, x_tw, ierr)
+            ELSE
+               CALL get_rpa_minimax_coeff_larger_grid(num_integ_points, e_range, x_tw)
+            END IF
 
-            CALL get_l_sq_wghts_cos_tf_t_to_w(num_integ_points, tau_tj, weights_cos_tf_t_to_w, tj, &
-                                              Emin, Emax, max_error_min, num_points_per_magnitude, &
-                                              my_regularization)
+            ALLOCATE (tj(num_integ_points))
+            tj = 0.0_dp
 
-            ! get the weights for the cosine transform W^c(iw) -> W^c(it)
-            ALLOCATE (weights_cos_tf_w_to_t(num_integ_points, num_integ_points))
-            weights_cos_tf_w_to_t = 0.0_dp
+            ALLOCATE (wj(num_integ_points))
+            wj = 0.0_dp
 
-            CALL get_l_sq_wghts_cos_tf_w_to_t(num_integ_points, tau_tj, weights_cos_tf_w_to_t, tj, &
-                                              Emin, Emax, max_error_min, num_points_per_magnitude, &
-                                              my_regularization)
+            DO jquad = 1, num_integ_points
+               tj(jquad) = x_tw(jquad)
+               wj(jquad) = x_tw(jquad + num_integ_points)
+            END DO
 
-            IF (do_gw_im_time) THEN
+            ! for the smaller grids, the factor of 4 is included in get_rpa_minimax_coeff for wj
+            IF (num_integ_points >= 26) THEN
+               wj(:) = wj(:)*4.0_dp
+            END IF
 
-               ! get the weights for the sine transform Sigma^sin(it) -> Sigma^sin(iw) (PRB 94, 165109 (2016), Eq. 71)
-               ALLOCATE (weights_sin_tf_t_to_w(num_integ_points, num_integ_points))
-               weights_sin_tf_t_to_w = 0.0_dp
+            DEALLOCATE (x_tw)
 
-               CALL get_l_sq_wghts_sin_tf_t_to_w(num_integ_points, tau_tj, weights_sin_tf_t_to_w, tj, &
+            IF (unit_nr > 0 .AND. do_print) THEN
+               WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
+                  "MINIMAX_INFO| Number of integration points:", num_integ_points
+               WRITE (UNIT=unit_nr, FMT="(T3,A,T66,F15.4)") &
+                  "MINIMAX_INFO| Gap for the minimax approximation:", Emin
+               WRITE (UNIT=unit_nr, FMT="(T3,A,T66,F15.4)") &
+                  "MINIMAX_INFO| Range for the minimax approximation:", e_range
+               WRITE (UNIT=unit_nr, FMT="(T3,A,T54,A,T72,A)") "MINIMAX_INFO| Minimax parameters:", "Weights", "Abscissas"
+               DO jquad = 1, num_integ_points
+                  WRITE (UNIT=unit_nr, FMT="(T41,F20.10,F20.10)") wj(jquad), tj(jquad)
+               END DO
+               CALL m_flush(unit_nr)
+            END IF
+
+            ! scale the minimax parameters
+            tj(:) = tj(:)*Emin
+            wj(:) = wj(:)*Emin
+         END IF
+
+         ! set up the minimax time grid
+         IF (do_im_time .OR. do_ri_sos_laplace_mp2) THEN
+
+            ALLOCATE (x_tw(2*num_integ_points))
+            x_tw = 0.0_dp
+
+            IF (num_integ_points .LE. 20) THEN
+               CALL get_exp_minimax_coeff(num_integ_points, e_range, x_tw)
+            ELSE
+               CALL get_exp_minimax_coeff_gw(num_integ_points, e_range, x_tw)
+            END IF
+
+            ! For RPA we include already a factor of two (see later steps)
+            scaling = 2.0_dp
+            IF (do_ri_sos_laplace_mp2) scaling = 1.0_dp
+
+            ALLOCATE (tau_tj(num_integ_points))
+            tau_tj = 0.0_dp
+
+            ALLOCATE (tau_wj(num_integ_points))
+            tau_wj = 0.0_dp
+
+            DO jquad = 1, num_integ_points
+               tau_tj(jquad) = x_tw(jquad)/scaling
+               tau_wj(jquad) = x_tw(jquad + num_integ_points)/scaling
+            END DO
+
+            DEALLOCATE (x_tw)
+
+            IF (unit_nr > 0 .AND. do_print) THEN
+               WRITE (UNIT=unit_nr, FMT="(T3,A,T66,F15.4)") &
+                  "MINIMAX_INFO| Range for the minimax approximation:", e_range
+               ! For testing the gap
+               WRITE (UNIT=unit_nr, FMT="(T3,A,T66,F15.4)") &
+                  "MINIMAX_INFO| Gap:", Emin
+               WRITE (UNIT=unit_nr, FMT="(T3,A,T54,A,T72,A)") &
+                  "MINIMAX_INFO| Minimax parameters of the time grid:", "Weights", "Abscissas"
+               DO jquad = 1, num_integ_points
+                  WRITE (UNIT=unit_nr, FMT="(T41,F20.10,F20.10)") tau_wj(jquad), tau_tj(jquad)
+               END DO
+               CALL m_flush(unit_nr)
+            END IF
+
+            ! scale grid from [1,R] to [Emin,Emax]
+            tau_tj(:) = tau_tj(:)/Emin
+            tau_wj(:) = tau_wj(:)/Emin
+
+            IF (.NOT. do_ri_sos_laplace_mp2) THEN
+               ALLOCATE (weights_cos_tf_t_to_w(num_integ_points, num_integ_points))
+               weights_cos_tf_t_to_w = 0.0_dp
+
+               CALL get_l_sq_wghts_cos_tf_t_to_w(num_integ_points, tau_tj, weights_cos_tf_t_to_w, tj, &
                                                  Emin, Emax, max_error_min, num_points_per_magnitude, &
                                                  my_regularization)
 
-               IF (unit_nr > 0) THEN
-                  WRITE (UNIT=unit_nr, FMT="(T3,A,T66,ES15.2)") &
-                     "MINIMAX_INFO| Maximum deviation of the imag. time fit:", max_error_min
+               ! get the weights for the cosine transform W^c(iw) -> W^c(it)
+               ALLOCATE (weights_cos_tf_w_to_t(num_integ_points, num_integ_points))
+               weights_cos_tf_w_to_t = 0.0_dp
+
+               CALL get_l_sq_wghts_cos_tf_w_to_t(num_integ_points, tau_tj, weights_cos_tf_w_to_t, tj, &
+                                                 Emin, Emax, max_error_min, num_points_per_magnitude, &
+                                                 my_regularization)
+
+               IF (do_gw_im_time) THEN
+
+                  ! get the weights for the sine transform Sigma^sin(it) -> Sigma^sin(iw) (PRB 94, 165109 (2016), Eq. 71)
+                  ALLOCATE (weights_sin_tf_t_to_w(num_integ_points, num_integ_points))
+                  weights_sin_tf_t_to_w = 0.0_dp
+
+                  CALL get_l_sq_wghts_sin_tf_t_to_w(num_integ_points, tau_tj, weights_sin_tf_t_to_w, tj, &
+                                                    Emin, Emax, max_error_min, num_points_per_magnitude, &
+                                                    my_regularization)
+
+                  IF (unit_nr > 0) THEN
+                     WRITE (UNIT=unit_nr, FMT="(T3,A,T66,ES15.2)") &
+                        "MINIMAX_INFO| Maximum deviation of the imag. time fit:", max_error_min
+                  END IF
                END IF
+
             END IF
 
          END IF
-
       END IF
 
       CALL timestop(handle)
@@ -1538,10 +1519,11 @@ CONTAINS
 !> \param do_kpoints_cubic_RPA flag for cubic-scaling RPA with k-points
 !> \param Emin minimal eigenvalue difference (gap of the system)
 !> \param Emax maximal eigenvalue difference
+!> \param e_range ...
 !> \param e_fermi Fermi level
 ! **************************************************************************************************
-   SUBROUTINE init_greenx_grids(qs_env, para_env, homo, Eigenval, do_ri_sos_laplace_mp2, &
-                                do_kpoints_cubic_RPA, Emin, Emax, e_fermi)
+   SUBROUTINE determine_energy_range(qs_env, para_env, homo, Eigenval, do_ri_sos_laplace_mp2, &
+                                     do_kpoints_cubic_RPA, Emin, Emax, e_range, e_fermi)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
@@ -1549,19 +1531,17 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: Eigenval
       LOGICAL, INTENT(IN)                                :: do_ri_sos_laplace_mp2, &
                                                             do_kpoints_cubic_RPA
-      REAL(KIND=dp), INTENT(OUT)                         :: Emin, Emax, e_fermi
+      REAL(KIND=dp), INTENT(OUT)                         :: Emin, Emax, e_range, e_fermi
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'init_greenx_grids'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'determine_energy_range'
 
       INTEGER                                            :: handle, ispin, nspins
-      LOGICAL                                            :: my_do_kpoints, my_open_shell
-      REAL(KIND=dp)                                      :: my_E_Range
+      LOGICAL                                            :: my_do_kpoints
       TYPE(section_vals_type), POINTER                   :: input
 
       CALL timeset(routineN, handle)
       ! Test for spin unrestricted
       nspins = SIZE(homo)
-      my_open_shell = (nspins == 2)
 
       ! Test whether all necessary variables are available
       my_do_kpoints = .FALSE.
@@ -1571,7 +1551,7 @@ CONTAINS
 
       IF (my_do_kpoints) THEN
          CALL gap_and_max_eig_diff_kpoints(qs_env, para_env, Emin, Emax, e_fermi)
-         my_E_Range = Emax/Emin
+         E_Range = Emax/Emin
       ELSE
          IF (qs_env%mp2_env%E_range <= 1.0_dp .OR. qs_env%mp2_env%E_gap <= 0.0_dp) THEN
             Emin = HUGE(dp)
@@ -1582,17 +1562,17 @@ CONTAINS
                   Emax = MAX(Emax, MAXVAL(Eigenval(:, :, ispin)) - MINVAL(Eigenval(:, :, ispin)))
                END IF
             END DO
-            my_E_Range = Emax/Emin
-            qs_env%mp2_env%e_range = my_e_range
+            E_Range = Emax/Emin
+            qs_env%mp2_env%e_range = e_range
             qs_env%mp2_env%e_gap = Emin
 
             CALL get_qs_env(qs_env, input=input)
-            CALL section_vals_val_set(input, "DFT%XC%WF_CORRELATION%E_RANGE", r_val=my_e_range)
+            CALL section_vals_val_set(input, "DFT%XC%WF_CORRELATION%E_RANGE", r_val=e_range)
             CALL section_vals_val_set(input, "DFT%XC%WF_CORRELATION%E_GAP", r_val=emin)
          ELSE
-            my_E_range = qs_env%mp2_env%E_range
+            E_range = qs_env%mp2_env%E_range
             Emin = qs_env%mp2_env%E_gap
-            Emax = Emin*my_E_range
+            Emax = Emin*E_range
          END IF
       END IF
 
@@ -1601,6 +1581,7 @@ CONTAINS
       ! We do not scale Emax because it is not needed for SOS-MP2
       IF (do_ri_sos_laplace_mp2) THEN
          Emin = Emin*2.0_dp
+         Emax = Emax*2.0_dp
       END IF
 
       CALL timestop(handle)

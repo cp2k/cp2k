@@ -90,6 +90,7 @@ list(
   constraint_fxd.F
   constraint_util.F
   constraint_vsite.F
+  greenx_interface.F
   core_ae.F
   core_ppl.F
   core_ppnl.F

@@ -468,15 +468,11 @@ CONTAINS
       rtbse_env%pade_npoints = INT((rtbse_env%pade_e_max - rtbse_env%pade_e_min)/rtbse_env%pade_e_step)
       ! Evaluate the evaluation grid
       IF (rtbse_env%pade_requested) THEN
-#if defined(__GREENX)
          NULLIFY (rtbse_env%pade_x_eval)
          ALLOCATE (rtbse_env%pade_x_eval(rtbse_env%pade_npoints))
          DO i = 1, rtbse_env%pade_npoints
             rtbse_env%pade_x_eval(i) = CMPLX(rtbse_env%pade_e_step*REAL(i - 1, kind=dp), 0.0, kind=dp)
          END DO
-#else
-         CPABORT("Padé refinement of FT requires linking GreenX - recompile CP2K with GreenX.")
-#endif
       END IF
 
       ! Allocate moments matrices
@@ -668,9 +664,7 @@ CONTAINS
       DEALLOCATE (rtbse_env%time_trace%series)
 
       DEALLOCATE (rtbse_env%pol_elements)
-#if defined(__GREENX)
-      IF (rtbse_env%pade_requested) DEALLOCATE (rtbse_env%pade_x_eval)
-#endif
+      IF (ASSOCIATED(rtbse_env%pade_x_eval)) DEALLOCATE (rtbse_env%pade_x_eval)
 
       ! Deallocate the neighbour list that is not deallocated in gw anymore
       IF (ASSOCIATED(rtbse_env%bs_env%nl_3c%ij_list)) CALL neighbor_list_3c_destroy(rtbse_env%bs_env%nl_3c)
