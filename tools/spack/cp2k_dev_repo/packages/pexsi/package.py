@@ -2,11 +2,14 @@
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
-from spack.package import *
 from spack_repo.builtin.build_systems import cmake, makefile
+from spack_repo.builtin.build_systems.cmake import CMakePackage
+from spack_repo.builtin.build_systems.makefile import MakefilePackage
+
+from spack.package import *
 
 
-class Pexsi(makefile.MakefilePackage, cmake.CMakePackage):
+class Pexsi(MakefilePackage, CMakePackage):
     """The PEXSI library is written in C++, and uses message passing interface
     (MPI) to parallelize the computation on distributed memory computing
     systems and achieve scalability on more than 10,000 processors.
