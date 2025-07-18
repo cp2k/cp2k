@@ -62,6 +62,7 @@ MODULE qs_energy_utils
    USE qs_tddfpt2_methods,              ONLY: tddfpt
    USE qs_vxc,                          ONLY: qs_xc_density
    USE qs_vxc_atom,                     ONLY: calculate_vxc_atom
+   USE rixs_methods,                    ONLY: rixs
    USE tip_scan_methods,                ONLY: tip_scanning
    USE xas_methods,                     ONLY: xas
    USE xas_tdp_methods,                 ONLY: xas_tdp
@@ -180,6 +181,7 @@ CONTAINS
       END IF
 
       !Properties
+
       IF (dft_control%do_xas_calculation) THEN
          CALL xas(qs_env, dft_control)
       END IF
@@ -196,6 +198,9 @@ CONTAINS
       IF (dft_control%tddfpt2_control%enabled) THEN
          CALL tddfpt(qs_env, calc_forces)
       END IF
+
+      ! stand-alone RIXS, does not depend on previous xas_tdp and/or tddfpt2 calculations
+      IF (qs_env%do_rixs) CALL rixs(qs_env)
 
       ! post-SCF bandstructure calculation from higher level methods
       NULLIFY (post_scf_bands_section)

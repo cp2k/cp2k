@@ -19,7 +19,8 @@ MODULE input_cp2k_properties_dft
                            Putrino2000, &
                            Putrino2002, &
                            Sebastiani2001, &
-                           Weber2009
+                           Weber2009, &
+                           VazdaCruz2021
    USE cp_output_handling, ONLY: add_last_numeric, &
                                  cp_print_key_section_create, &
                                  debug_print_level, &
@@ -61,6 +62,7 @@ MODULE input_cp2k_properties_dft
                               lchar_t, &
                               logical_t, &
                               real_t
+   USE input_cp2k_xas, ONLY: create_xas_tdp_section
    USE kinds, ONLY: dp
    USE string_utilities, ONLY: s2a
 #include "./base/base_uses.f90"
@@ -129,6 +131,10 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
+      CALL create_rixs_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
       CALL create_bandstructure_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
@@ -138,6 +144,49 @@ CONTAINS
       CALL section_release(subsection)
 
    END SUBROUTINE create_properties_section
+
+! **************************************************************************************************
+!> \brief creates the input structure used to activate
+!>      a resonant inelastic xray scattering (RIXS) calculation
+! **************************************************************************************************
+
+   SUBROUTINE create_rixs_section(section)
+      TYPE(section_type), POINTER                        :: section
+      TYPE(section_type), POINTER                        :: subsection, print_key
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      CPASSERT(.NOT. ASSOCIATED(section))
+
+      NULLIFY (keyword, subsection, print_key)
+
+      CALL section_create(section, __LOCATION__, name="RIXS", &
+                          description="Resonant Inelastic Xray Scattering using XAS_TDP and TDDFPT.", &
+                          n_keywords=1, n_subsections=3, repeats=.FALSE., &
+                          citations=(/VazdaCruz2021/))
+
+      CALL create_tddfpt2_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      CALL create_xas_tdp_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      CALL section_create(subsection, __LOCATION__, "PRINT", "Controls the printing of information "// &
+                          "during RIXS calculations", repeats=.FALSE.)
+
+      CALL cp_print_key_section_create(print_key, __LOCATION__, name="SPECTRUM", &
+                                       description="Controles the printing of the RIXS spectrum "// &
+                                       "in output files", &
+                                       print_level=low_print_level, filename="", &
+                                       common_iter_levels=3)
+      CALL section_add_subsection(subsection, print_key)
+      CALL section_release(print_key)
+
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+   END SUBROUTINE create_rixs_section
 
 ! **************************************************************************************************
 !> \brief creates the input structure used to activate
