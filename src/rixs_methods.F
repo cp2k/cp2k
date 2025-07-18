@@ -110,9 +110,6 @@ CONTAINS
         CALL get_qs_env(qs_env, dft_control=dft_control)
         IF (dft_control%uks .OR. dft_control%roks) CPABORT("RIXS not implemented for LSD/ROKS")
 
-        ! TODO: is it possible to restart?
-
-        ! check if tddfp2 and xas_tdp are "explicit"ly defined in this section,
         xas_tdp_section => section_vals_get_subs_vals(rixs_section, "XAS_TDP")
         tddfp2_section => section_vals_get_subs_vals(rixs_section, "TDDFPT")
 
@@ -212,17 +209,7 @@ CONTAINS
             ! gs coefficients from tddfpt
             mo_coeffs => valence_state%mos_occ(1) 
             ! localised gs coefficients from xas_tdp
-            local_gs_coeffs => core_state%mo_coeff(1) ! TODO (1)
-            WRITE(*,*) local_gs_coeffs%local_data
-
-    !!!!!!!!!
-            ! dimensions for water
-            ! nao = nrow = 36
-            ! nocc = ncol = 5
-            ! local_gs_coeffs dim = nrow x nocc ! 36 x 5
-            ! mo_coeffs dim = nocc x nocc ! 5 x 5
-    !!!!!!!!!
-
+            local_gs_coeffs => core_state%mo_coeff(1) ! TODO (1)=ispin
             valence_evects => valence_state%evects
 
             IF (rixs_control%xas_tdp_control%do_loc) THEN
@@ -254,8 +241,6 @@ CONTAINS
             ALLOCATE(w_i0(nvirt), w_if(nstates))
             w_if(:) = valence_state%evals(:)*evolt
 
-            ! WRITE(*,*) "valence evects", SHAPE(valence_evects(1,1)%local_data) ! for spin 1
-
             ! initialise matrices for i->0
             CALL cp_fm_struct_create(dip_0_struct, para_env=para_env, context=blacs_env, &
                                     nrow_global=nao, ncol_global=1)
@@ -281,10 +266,8 @@ CONTAINS
                         "RIXS| Calculating dipole moment from core-excited state ", & 
                         core_state%state_type_char(current_state%state_type), " of ", current_state%at_symbol
                 END IF
-                ! WRITE(*,*) "state type ", core_state%state_type_char(current_state%state_type), " of ", current_state%at_symbol
 
                 core_evects => current_state%sg_coeffs
-                ! WRITE(*,*) "current_state evects", SHAPE(core_evects%local_data)
 
                 w_i0(:) = current_state%sg_evals(:)*evolt
 
@@ -391,9 +374,6 @@ CONTAINS
                             para_env=para_env, context=blacs_env)
         CALL cp_fm_create(smo, mo_occ%matrix_struct)
 
-        ! WRITE(*,*) "shape of mo_occ", SHAPE(mo_occ%local_data) ! 36 x 5
-        ! WRITE(*,*) "shape of mo_ref", SHAPE(mo_ref%local_data) ! 36 x 5
-
         ! rotate mo_occ
         ! smo = matrix_s x mo_occ
         CALL cp_dbcsr_sm_fm_multiply(overlap_matrix, mo_occ, smo, ncol, alpha=1.0_dp, beta=0.0_dp)
@@ -474,8 +454,6 @@ CONTAINS
         WRITE(rixs_unit, FMT="(T3,A)") &
             "w_0i (eV)            mu^x_0i (a.u.)  mu^y_0i (a.u.)  mu^z_0i (a.u.)  mu^2_0i (a.u.)"
         DO i = 1,SIZE(mu_i0, DIM=2)
-            ! WRITE(rixs_unit, FMT="(T2,I5,I5,T14,F16.6,T34,E14.5,T52,E14.5,T70,E14.5)") &
-            !       0, i, w_i0(i), mu_i0(1,i), mu_i0(2,i), mu_i0(3,i)
             WRITE(rixs_unit, FMT="(T2,F10.4,T26,E12.5,T42,E12.5,T58,E12.5,T74,E12.5)") &
                 w_i0(i), mu_i0(1,i), mu_i0(2,i), mu_i0(3,i), mu_i0(4,i)
         END DO
@@ -488,13 +466,8 @@ CONTAINS
         WRITE(rixs_unit, FMT="(T3,A)") &
             "w_0i (eV) w_if (eV)  mu^x_if (a.u.)  mu^y_if (a.u.)  mu^z_if (a.u.)  mu^2_if (a.u.)"
 
-        ! WRITE(*,*) "shape of mu_if", SIZE(mu_if, DIM=2), SIZE(mu_if, DIM=3)
         DO i = 1,SIZE(mu_if, DIM=2)
             DO f = 1,SIZE(mu_if, DIM=3)
-                ! WRITE(rixs_unit, FMT="(T2,I5,I5,T14,F16.6,T34,E14.5,T52,E14.5,T70,E14.5)") &
-                !       i, f, w_if(f), mu_if(1,i,f), mu_if(2,i,f), mu_if(3,i,f)
-                ! WRITE(rixs_unit, FMT="(T2,T14,F16.6,T34,E14.5,T52,E14.5,T70,E14.5)") &
-                !       w_if(f), mu_if(1,i,f), mu_if(2,i,f), mu_if(3,i,f)
                 WRITE(rixs_unit, FMT="(T2,F10.4,T14,F8.4,T26,E12.5,T42,E12.5,T58,E12.5,T74,E12.5)") &
                     w_i0(i), w_if(f), mu_if(1,i,f), mu_if(2,i,f), mu_if(3,i,f), mu_if(4,i,f)
             END DO

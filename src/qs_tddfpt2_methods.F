@@ -297,8 +297,6 @@ CONTAINS
             mult = 1
          END IF
       END IF
-      ! WRITE(*,*) gs_mos(1)%evals_occ
-      ! WRITE(*,*) gs_mos(1)%evals_virt
 
       ! split mpi communicator
       ALLOCATE (my_mos(nspins))
