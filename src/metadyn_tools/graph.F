@@ -359,7 +359,8 @@ PROGRAM graph
 
       END DO
       IF (ANY(mep_input_data%minima == HUGE(0.0_dp))) &
-         CPABORT("-find-path requires the specification of -point-a and -point-b !")
+         CALL cp_abort(__LOCATION__, &
+                       "-find-path requires the specification of -point-a and -point-b !")
    ELSE
       ALLOCATE (mep_input_data%minima(0, 0))
    END IF

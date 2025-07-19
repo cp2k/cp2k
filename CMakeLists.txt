@@ -303,9 +303,17 @@ set_property(CACHE CP2K_USE_ACCEL
 set(__cp2k_ext "")
 
 if(CP2K_USE_MPI)
-  set(__cp2k_ext "psmp")
+  if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    set(__cp2k_ext "pdbg")
+  else()
+    set(__cp2k_ext "psmp")
+  endif()
 else()
-  set(__cp2k_ext "ssmp")
+  if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    set(__cp2k_ext "sdbg")
+  else()
+    set(__cp2k_ext "ssmp")
+  endif()
 endif()
 
 # we can run the src consistency checks without actually searching for any

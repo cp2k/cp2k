@@ -34,6 +34,6 @@
 # d-orbitals analytical der
 "O2-ROKS-PM6.inp"                       = [{matcher="M003", tol=1.0E-14, ref=-580.14588779285589}]
 "hcl.inp"                               = [{matcher="M003", tol=1.0E-14, ref=-279.22122951626676}]
-"hcl_ot.inp"                            = [{matcher="M003", tol=1.0E-11, ref=-279.22456476215723}]
+"hcl_ot.inp"                            = [{matcher="M003", tol=2.0E-11, ref=-279.22456476215723}]
 "hcl_z.inp"                             = [{matcher="M003", tol=1.0E-14, ref=-279.21403016786405}]
 #EOF

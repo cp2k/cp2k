@@ -213,7 +213,10 @@ PROGRAM nequip_unittest
    DO iatom = 1, natoms
       WRITE (*, *) forces(:, iatom)*angstrom/evolt
    END DO
-   CPASSERT(ABS(-14985.4443_dp - REAL(total_energy(1, 1), kind=dp)) < 2e-3_dp)
+
+   IF (ABS(-14985.4443_dp - REAL(total_energy(1, 1), kind=dp)) > 2e-3_dp) THEN
+      CPABORT("NequIP unittest failed :-(")
+   END IF
 
    CALL torch_tensor_release(total_energy_tensor)
    CALL torch_tensor_release(atomic_energy_tensor)

@@ -31,29 +31,89 @@ if(NOT CMAKE_Fortran_COMPILER_ID IN_LIST CP2K_Fortran_COMPILER_LIST)
           "-- CMAKE_Fortran_COMPILER full path: ${CMAKE_Fortran_COMPILER}\n")
 endif()
 
-# OpenACC support with CCE is EOL: causes
-# https://github.com/cp2k/dbcsr/issues/261 eventually check compiler version
-# (similar to -h system_alloc)
+# ================================ GNU Compilers ===============================
+
+# Baseline
 add_compile_options(
-  "$<$<COMPILE_LANG_AND_ID:C,GNU>:-march=native;-mtune=native>"
-  "$<$<COMPILE_LANG_AND_ID:Fortran,GNU>:-march=native;-mtune=native;-fbacktrace;-ffree-line-length-none;-ffree-form;-std=f2008;-fimplicit-none;-Werror=aliasing;-Werror=ampersand;-Werror=c-binding-type;-Werror=conversion;-Werror=intrinsic-shadow;-Werror=intrinsics-std;-Werror=line-truncation;-Werror=tabs;-Werror=target-lifetime;-Werror=underflow;-Werror=unused-but-set-variable;-Werror=unused-variable;-D__MAX_CONTR=4>"
-  "$<$<AND:$<COMPILE_LANG_AND_ID:Fortran,GNU>,$<VERSION_GREATER_EQUAL:${CMAKE_Fortran_COMPILER_VERSION},11>>:-fallow-argument-mismatch>"
+  "$<$<COMPILE_LANG_AND_ID:Fortran,GNU>:-std=f2008;-fopenmp;-ffree-form;-fimplicit-none>"
+  "$<$<COMPILE_LANG_AND_ID:Fortran,GNU>:-g;-fno-omit-frame-pointer;-fbacktrace>"
+  "$<$<COMPILE_LANG_AND_ID:Fortran,GNU>:$<$<VERSION_GREATER_EQUAL:${CMAKE_Fortran_COMPILER_VERSION},11>:-fallow-argument-mismatch>>"
+  "$<$<COMPILE_LANG_AND_ID:Fortran,GNU>:-Wno-deprecated-declarations;-Wno-maybe-uninitialized;-Wuninitialized;-Wuse-without-only>"
+  "$<$<COMPILE_LANG_AND_ID:Fortran,GNU>:-Werror=aliasing;-Werror=ampersand;-Werror=c-binding-type;-Werror=intrinsic-shadow>"
+  "$<$<COMPILE_LANG_AND_ID:Fortran,GNU>:-Werror=intrinsics-std;-Werror=line-truncation;-Werror=tabs;-Werror=target-lifetime>"
+  "$<$<COMPILE_LANG_AND_ID:Fortran,GNU>:-Werror=underflow;-Werror=unused-but-set-variable;-Werror=unused-variable>"
+  "$<$<COMPILE_LANG_AND_ID:Fortran,GNU>:-Werror=unused-dummy-argument;-Werror=unused-parameter>"
+  "$<$<COMPILE_LANG_AND_ID:Fortran,GNU>:-Werror=unused-label;-Werror=conversion;-Werror=zerotrip>"
+)
+add_compile_options(
+  "$<$<COMPILE_LANG_AND_ID:CXX,GNU>:--std=c++17;-fopenmp>"
+  "$<$<COMPILE_LANG_AND_ID:CXX,GNU>:-g;-fno-omit-frame-pointer>"
+  "$<$<COMPILE_LANG_AND_ID:CXX,GNU>:-Wno-deprecated-declarations;-Wno-vla-parameter>"
+)
+add_compile_options(
+  "$<$<COMPILE_LANG_AND_ID:C,GNU>:-std=c11;-fopenmp>"
+  "$<$<COMPILE_LANG_AND_ID:C,GNU>:-g;-fno-omit-frame-pointer>"
+  "$<$<COMPILE_LANG_AND_ID:C,GNU>:-Wno-deprecated-declarations;-Wno-vla-parameter>"
+)
+
+# Release
+add_compile_options(
+  "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:Fortran,GNU>>:-O3;-march=native;-mtune=native;-funroll-loops>"
+  "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:CXX,GNU>>:-O3;-march=native;-mtune=native;-funroll-loops>"
+  "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:C,GNU>>:-O3;-march=native;-mtune=native;-funroll-loops>"
+)
+
+# Generic
+add_compile_options(
+  "$<$<AND:$<CONFIG:GENERIC>,$<COMPILE_LANG_AND_ID:Fortran,GNU>>:-O3;-march=generic;-mtune=generic;-funroll-loops>"
+  "$<$<AND:$<CONFIG:GENERIC>,$<COMPILE_LANG_AND_ID:CXX,GNU>>:-O3;-march=generic;-mtune=generic;-funroll-loops>"
+  "$<$<AND:$<CONFIG:GENERIC>,$<COMPILE_LANG_AND_ID:C,GNU>>:-O3;-march=generic;-mtune=generic;-funroll-loops>"
+)
+
+# Debug
+add_compile_options(
+  "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:Fortran,GNU>>:-O1;-march=native;-mtune=native>"
+  "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:CXX,GNU>>:-O1;-march=native;-mtune=native>"
+  "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:C,GNU>>:-O1;-march=native;-mtune=native>"
+)
+add_compile_options(
+  "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:Fortran,GNU>>:-fsanitize=leak;-Werror=realloc-lhs;-D__CHECK_DIAG>"
+  "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:Fortran,GNU>>:-fcheck=all,no-array-temps;-finline-matmul-limit=0>"
+  "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:Fortran,GNU>>:-D__HAS_IEEE_EXCEPTIONS;-ffpe-trap=invalid,zero,overflow>"
+  "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:Fortran,GNU>>:-finit-derived;-finit-real=snan;-finit-integer=-42>"
+)
+
+# TODO Prevent CMake from wrongly adding -fbacktrace and
+# -fallow-argument-mismatch to CFLAGS. add_compile_options(
+# "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:CXX,GNU>>:-Wall;-Wextra;-Werror>"
+# "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:C,GNU>>:-Wall;-Wextra;-Werror>"
+# )
+
+# Coverage
+add_compile_options(
+  "$<$<CONFIG:COVERAGE>:-coverage;-fkeep-static-functions;-D__NO_ABORT>")
+
+# =============================== Other Compilers ==============================
+
+# Baseline
+add_compile_options(
   "$<$<COMPILE_LANG_AND_ID:Fortran,Intel>:-free;-stand f18;-fpp;-heap-arrays;-D__MAX_CONTR=4>"
   "$<$<COMPILE_LANG_AND_ID:Fortran,IntelLLVM>:-free;-fpp;-D__MAX_CONTR=4>"
   "$<$<COMPILE_LANG_AND_ID:Fortran,PGI>:-Mfreeform;-Mextend;-Mallocatable=03>"
   "$<$<COMPILE_LANG_AND_ID:Fortran,NAG>:-f2008;-free;-Warn=reallocation;-Warn=subnormal>"
-  "$<$<COMPILE_LANG_AND_ID:C,Cray>:-hnoacc;-h;nomessage=1234>"
   "$<$<COMPILE_LANG_AND_ID:Fortran,Cray>:-f;free;-M3105;-ME7212;-hnoacc;-M1234>"
 )
-
 add_compile_options(
-  "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:Fortran,GNU>>:-g;-funroll-loops;-D__HAS_IEEE_EXCEPTIONS>"
+  "$<$<COMPILE_LANG_AND_ID:C,Cray>:-hnoacc;-h;nomessage=1234>")
+
+# Release
+add_compile_options(
   "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:Fortran,PGI>>:-fast>"
   "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:Fortran,Intel>>:-O3;-g;-D__HAS_IEEE_EXCEPTIONS>"
   "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:Fortran,IntelLLVM>>:-O3;-g;-D__HAS_IEEE_EXCEPTIONS>"
   "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:Fortran,Cray>>:-O2;-G2>"
-  "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:Fortran,NAG>>:-gline>"
-  "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:C,GNU>>:-g;-funroll-loops;-Wall>"
+  "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:Fortran,NAG>>:-gline>")
+add_compile_options(
   "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:C,PGI>>:-fast>"
   "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:C,Intel>>:-O3;-g>"
   "$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:C,IntelLLVM>>:-O3;-g>"
@@ -64,13 +124,13 @@ add_compile_options(
   "$<$<NOT:$<BOOL:OpenMP_FOUND>>:$<$<AND:$<CONFIG:RELEASE>,$<COMPILE_LANG_AND_ID:Fortran,NAG>>:-gline>>"
 )
 
+# Debug
 add_compile_options(
-  "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:Fortran,GNU>>:-fbacktrace;-ffree-form;-fimplicit-none;-std=f2008;-fsanitize=leak;-fcheck=all,no-array-temps;-ffpe-trap=invalid,zero,overflow;-finit-derived;-finit-real=snan;-finit-integer=-42;-Werror=realloc-lhs;-finline-matmul-limit=0>"
   "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:Fortran,PGI>>:-g>"
   "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:Fortran,Intel>>:-O2;-debug>"
   "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:Fortran,IntelLLVM>>:-O2;-debug>"
-  "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:Fortran,Cray>>:-G2>"
-  "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:C,GNU>>:-O2;-ggdb;-Wall;-fsanitize=undefined;-fsanitize=address;-fsanitize-recover=all;-Wall;-Wextra;-Werror;-Wno-vla-parameter;-Wno-deprecated-declarations>"
+  "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:Fortran,Cray>>:-G2>")
+add_compile_options(
   "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:C,PGI>>:-fast>"
   "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:C,Intel>>:-O3;-g>"
   "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:C,IntelLLVM>>:-O3;-g>"
@@ -80,19 +140,7 @@ add_compile_options(
   "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:C,AppleClang>>:-O0;-g>"
   "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:Fortran,NAG>>:-C=all>")
 
-add_compile_options(
-  "$<$<AND:$<CONFIG:COVERAGE>,$<COMPILE_LANG_AND_ID:Fortran,GNU>>:-O0;-g;--coverage;-fno-omit-frame-pointer;-fcheck=all;-ffpe-trap=invalid,zero,overflow;-fbacktrace;-finit-real=snan;-finit-integer=-42;-finit-derived;-Werror=realloc-lhs;-finline-matmul-limit=0>"
-  "$<$<AND:$<CONFIG:COVERAGE>,$<COMPILE_LANG_AND_ID:C,GNU>>:-O0;-g;--coverage;-Wall>"
-)
-
-if(NOT CP2K_USE_MPI OR NOT "${MPI_Fortran_LIBRARY_VERSION_STRING}" MATCHES
-                       "Open MPI")
-  add_compile_options(
-    "$<$<AND:$<CONFIG:COVERAGE>,$<COMPILE_LANG_AND_ID:Fortran,GNU>>:-fsanitize=leak>"
-    "$<$<AND:$<CONFIG:COVERAGE>,$<COMPILE_LANG_AND_ID:C,GNU>>:-O0;-g;--coverage;-Wall>"
-  )
-endif()
-
+# Tweaks
 if(CMAKE_C_COMPILER_ID STREQUAL "AppleClang")
   set(CMAKE_Fortran_MODOUT_FLAG "-ef") # override to get lower-case module file
                                        # names

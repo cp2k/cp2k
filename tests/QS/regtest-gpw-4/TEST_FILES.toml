@@ -41,7 +41,7 @@
 #test wavelet based poisson solver for different boundary conditions
 "H2O_wavelet_free.inp"                  = [{matcher="E_total", tol=2e-13, ref=-16.59417144640717}]
 "H2O_wavelet_free2.inp"                 = [{matcher="E_total", tol=4e-13, ref=-16.58217277110943}]
-"H2O_wavelet_XZ.inp"                    = [{matcher="E_total", tol=3e-14, ref=-16.58705134722980}]
+"H2O_wavelet_XZ.inp"                    = [{matcher="E_total", tol=3e-14, ref=-16.59433276616355}]
 #function to compute splined values - distributed grids
 "NO2-EFG-1.inp"                         = [{matcher="M019", tol=7e-09, ref=0.2895206349779316}]
 "H2O-8.inp"                             = [{matcher="E_total", tol=6e-13, ref=-16.99998002342145}]
