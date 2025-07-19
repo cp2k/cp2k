@@ -5,6 +5,7 @@ stages:
   - deps
   - cp2k
   - test
+  - benchmark
 
 variables:
   REPOSITORY: cp2k_daint
