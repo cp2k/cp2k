@@ -104,7 +104,7 @@ benchmark cp2k 1 daint node:
   script:
     - cp2k /opt/cp2k/benchmarks/CI/H2O-512_md.inp
   variables:
-    SLURM_CPU_BIND: socket
+    SLURM_CPU_BIND: cores
     SLURM_CPUS_PER_TASK: 1
     SLURM_DEBUG: 1
     SLURM_HINT: nomultithread
