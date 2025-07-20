@@ -65,9 +65,9 @@ add_compile_options(
 
 # Generic
 add_compile_options(
-  "$<$<AND:$<CONFIG:GENERIC>,$<COMPILE_LANG_AND_ID:Fortran,GNU>>:-O3;-march=generic;-mtune=generic;-funroll-loops>"
-  "$<$<AND:$<CONFIG:GENERIC>,$<COMPILE_LANG_AND_ID:CXX,GNU>>:-O3;-march=generic;-mtune=generic;-funroll-loops>"
-  "$<$<AND:$<CONFIG:GENERIC>,$<COMPILE_LANG_AND_ID:C,GNU>>:-O3;-march=generic;-mtune=generic;-funroll-loops>"
+  "$<$<AND:$<CONFIG:GENERIC>,$<COMPILE_LANG_AND_ID:Fortran,GNU>>:-O3;-mtune=generic;-funroll-loops>"
+  "$<$<AND:$<CONFIG:GENERIC>,$<COMPILE_LANG_AND_ID:CXX,GNU>>:-O3;-mtune=generic;-funroll-loops>"
+  "$<$<AND:$<CONFIG:GENERIC>,$<COMPILE_LANG_AND_ID:C,GNU>>:-O3;-mtune=generic;-funroll-loops>"
 )
 
 # Debug
