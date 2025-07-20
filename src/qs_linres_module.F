@@ -130,7 +130,7 @@ CONTAINS
 !> \param qs_env ...
 !> \param p_env ...
 !> \author Edward Ditler
-! *****************************************************************************
+! **************************************************************************************************
    SUBROUTINE vcd_linres(qs_env, p_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_p_env_type)                                :: p_env
