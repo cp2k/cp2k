@@ -136,6 +136,18 @@ elif [[ "${PROFILE}" == "toolchain_all" ]] && [[ "${VERSION}" == "ssmp" ]]; then
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
 
+elif [[ "${PROFILE}" == "toolchain_generic" ]] && [[ "${VERSION}" == "psmp" ]]; then
+  cmake \
+    -GNinja \
+    -DCMAKE_BUILD_TYPE="Generic" \
+    -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
+    -DCP2K_USE_EVERYTHING=ON \
+    -DCP2K_USE_DLAF=OFF \
+    -DCP2K_USE_PEXSI=OFF \
+    -Werror=dev \
+    .. |& tee ./cmake.log
+  CMAKE_EXIT_CODE=$?
+
 elif [[ "${PROFILE}" == "toolchain_minimal" ]] && [[ "${VERSION}" == "psmp" ]]; then
   cmake \
     -GNinja \

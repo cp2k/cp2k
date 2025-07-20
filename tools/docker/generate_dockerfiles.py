@@ -20,9 +20,9 @@ def main() -> None:
             f.write(install_deps_toolchain(mpi_mode=mpi_mode, with_dbcsr=""))
             f.write(regtest_cmake("toolchain_all", version))
 
-        with OutputFile(f"Dockerfile.test_generic_{version}", args.check) as f:
-            f.write(install_deps_toolchain(target_cpu="generic"))
-            f.write(regtest(version))
+    with OutputFile(f"Dockerfile.test_generic_psmp", args.check) as f:
+        f.write(install_deps_toolchain(target_cpu="generic", with_dbcsr=""))
+        f.write(regtest_cmake("toolchain_generic", "psmp"))
 
     with OutputFile(f"Dockerfile.test_openmpi-psmp", args.check) as f:
         f.write(install_deps_toolchain(mpi_mode="openmpi", with_dbcsr=""))
