@@ -377,17 +377,18 @@ CONTAINS
       do_apt_fd = .FALSE.
 
       NULLIFY (dft_control, linres_control, logger, prop_section, lr_section)
-      logger => cp_get_default_logger()
 
       lr_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%LINRES")
       CALL section_vals_get(lr_section, explicit=lr_calculation)
 
-      CALL section_vals_val_get(lr_section, "DCDR%APT_FD", l_val=do_apt_fd)
+      CALL section_vals_val_get(lr_section, "DCDR%APT_FD", explicit=do_apt_fd)
       IF (do_apt_fd) THEN
          CALL timestop(handle)
          RETURN
       END IF
 
+      logger => cp_get_default_logger()
+      
       CALL section_vals_val_get(lr_section, "EVERY_N_STEP", i_val=every_n_step)
 
       IF (lr_calculation .AND. MODULO(qs_env%sim_step, every_n_step) == 0) THEN
@@ -429,7 +430,6 @@ CONTAINS
          ! Nuclear Position Perturbation
          prop_section => section_vals_get_subs_vals(lr_section, "dcdr")
          CALL section_vals_get(prop_section, explicit=dcdr_present)
-         CALL section_vals_val_get(prop_section, "APT_FD", l_val=do_apt_fd)
 
          IF (dcdr_present) THEN
             CALL dcdr_linres(qs_env, p_env)
