@@ -93,6 +93,12 @@ add_compile_options(
 add_compile_options(
   "$<$<CONFIG:COVERAGE>:-coverage;-fkeep-static-functions;-D__NO_ABORT>")
 
+# Address Sanitizer
+add_compile_options(
+  "$<$<CONFIG:ASAN>:-fsanitize=address;-no-pie;-O3;-march=native;-mtune=native;-funroll-loops>"
+)
+add_link_options("$<$<CONFIG:ASAN>:-fsanitize=address>")
+
 # =============================== Other Compilers ==============================
 
 # Baseline

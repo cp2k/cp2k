@@ -54,10 +54,9 @@ def main() -> None:
         f.write(install_deps_spack("psmp"))
         f.write(regtest_cmake("spack_all", "psmp"))
 
-    for version in "ssmp", "psmp":
-        with OutputFile(f"Dockerfile.test_asan-{version}", args.check) as f:
-            f.write(install_deps_toolchain())
-            f.write(regtest(version, "local_asan"))
+    with OutputFile(f"Dockerfile.test_asan-psmp", args.check) as f:
+        f.write(install_deps_toolchain(with_dbcsr=""))
+        f.write(regtest_cmake("toolchain_asan", "psmp"))
 
     for version in "sdbg", "pdbg":
         with OutputFile(f"Dockerfile.test_coverage-{version}", args.check) as f:
