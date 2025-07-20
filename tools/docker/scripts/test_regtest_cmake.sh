@@ -26,9 +26,11 @@ fi
 mkdir -p ./share/cp2k
 ln -s ../../data ./share/cp2k/data
 
-# Increase stack size.
-ulimit -s unlimited
-export OMP_STACKSIZE=64m
+# Extend stack size only for Intel compilers.
+if "./build/bin/cp2k.${VERSION}" --version | grep -q "compiler: Intel"; then
+  ulimit -s unlimited # breaks address sanitizer
+  export OMP_STACKSIZE=64m
+fi
 
 # Improve code coverage on COSMA.
 export COSMA_DIM_THRESHOLD=0
