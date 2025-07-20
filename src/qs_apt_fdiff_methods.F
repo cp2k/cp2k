@@ -53,14 +53,8 @@ CONTAINS
    !> \return ap_tensor ...
    !> \author Leo Decking
    ! **************************************************************************************************
-! **************************************************************************************************
-!> \brief ...
-!> \param apt_fdiff_points ...
-!> \param ap_tensor ...
-!> \param natoms ...
-! **************************************************************************************************
    SUBROUTINE fdiff_2pnt(apt_fdiff_points, ap_tensor, natoms)
-      TYPE(apt_fdiff_points_type), POINTER               :: apt_fdiff_points
+      TYPE(apt_fdiff_points_type)                        :: apt_fdiff_points
       REAL(kind=dp), DIMENSION(:, :, :)                  :: ap_tensor
       INTEGER, INTENT(IN)                                :: natoms
 
@@ -84,11 +78,6 @@ CONTAINS
    !> \param apt_fdiff_point ...
    !> \author Leo Decking
    ! **************************************************************************************************
-! **************************************************************************************************
-!> \brief ...
-!> \param apt_fdiff_point ...
-!> \param particles ...
-! **************************************************************************************************
    SUBROUTINE get_forces(apt_fdiff_point, particles)
       TYPE(apt_fdiff_point_type)                         :: apt_fdiff_point
       TYPE(particle_list_type), POINTER                  :: particles
@@ -107,10 +96,6 @@ CONTAINS
    !> \brief Calculate Atomic Polarization Tensors by dF/d(E-field) finite differences
    !> \author Leo Decking, Hossam Elgabarty
    ! **************************************************************************************************
-! **************************************************************************************************
-!> \brief ...
-!> \param force_env ...
-! **************************************************************************************************
    SUBROUTINE apt_fdiff(force_env)
 
       TYPE(force_env_type), POINTER                      :: force_env
@@ -121,7 +106,7 @@ CONTAINS
                                                             log_unit, n, natoms, output_fdiff_scf
       REAL(kind=dp)                                      :: born_sum
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: ap_tensor
-      TYPE(apt_fdiff_points_type), POINTER               :: apt_fdiff_points
+      TYPE(apt_fdiff_points_type)                        :: apt_fdiff_points
       TYPE(cp_logger_type), POINTER                      :: logger, logger_apt
       TYPE(cp_subsys_type), POINTER                      :: cp_subsys
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -140,7 +125,6 @@ CONTAINS
 
       CALL force_env_get(force_env, subsys=cp_subsys, qs_env=qs_env, para_env=para_env)
 
-      !CALL qs_subsys_get(subsys, particles=particles)
       CALL cp_subsys_get(cp_subsys, particles=particles)
       CPASSERT(ASSOCIATED(particles))
       CALL get_qs_env(qs_env=qs_env, dft_control=dft_control)!, para_env=para_env)
@@ -187,7 +171,6 @@ CONTAINS
          WRITE (log_unit, '(T2,A)') "  "
       END IF
 
-      ALLOCATE (apt_fdiff_points)
       CALL section_vals_val_get(dcdr_section, "APT_FD_DE", r_val=apt_fdiff_points%field_strength)
       CALL section_vals_val_get(dcdr_section, "APT_FD_METHOD", i_val=fd_method)
 
@@ -195,10 +178,6 @@ CONTAINS
       ALLOCATE (dft_control%period_efield)
       dft_control%period_efield%displacement_field = .FALSE.
 
-      !SELECT CASE (fd_method)
-      !CASE("FD")
-      !check if forces available, if not compute them
-      !CASE("2PNT")
       DO i = 1, 3
          dft_control%period_efield%polarisation(1:3) = (/0.0_dp, 0.0_dp, 0.0_dp/)
          dft_control%period_efield%polarisation(i) = 1.0_dp
@@ -212,7 +191,6 @@ CONTAINS
             IF (j == 1) THEN
                dft_control%period_efield%strength = apt_fdiff_points%field_strength
             ELSE
-               !if FD skip this ...
                dft_control%period_efield%strength = -1.0*apt_fdiff_points%field_strength
             END IF
 
@@ -258,7 +236,6 @@ CONTAINS
          WRITE (log_unit, '(/,A30, F20.10)') "Checksum (Acoustic Sum Rule):", born_sum
       END IF
       DEALLOCATE (ap_tensor)
-      DEALLOCATE (apt_fdiff_points)
       DEALLOCATE (dft_control%period_efield)
 
       CALL cp_print_key_finished_output(apt_log, logger, dcdr_section, "PRINT%APT")
