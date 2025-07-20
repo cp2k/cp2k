@@ -47,12 +47,14 @@ MODULE qs_apt_fdiff_methods
    PUBLIC :: apt_fdiff
 
 CONTAINS
-   ! **************************************************************************************************
-   !> \brief Perform the 2PNT symmetric difference
-   !> \param apt_fdiff_points ...
-   !> \return ap_tensor ...
-   !> \author Leo Decking
-   ! **************************************************************************************************
+
+! **************************************************************************************************
+!> \brief Perform the 2PNT symmetric difference
+!> \param apt_fdiff_points ...
+!> \param ap_tensor ...
+!> \param natoms ...
+!> \author Leo Decking
+! **************************************************************************************************
    SUBROUTINE fdiff_2pnt(apt_fdiff_points, ap_tensor, natoms)
       TYPE(apt_fdiff_points_type)                        :: apt_fdiff_points
       REAL(kind=dp), DIMENSION(:, :, :)                  :: ap_tensor
@@ -72,12 +74,12 @@ CONTAINS
 
    END SUBROUTINE fdiff_2pnt
 
-   ! **************************************************************************************************
-   !> \brief ...
-   !> \param force_env ...
-   !> \param apt_fdiff_point ...
-   !> \author Leo Decking
-   ! **************************************************************************************************
+! **************************************************************************************************
+!> \brief ...
+!> \param apt_fdiff_point ...
+!> \param particles ...
+!> \author Leo Decking
+! **************************************************************************************************
    SUBROUTINE get_forces(apt_fdiff_point, particles)
       TYPE(apt_fdiff_point_type)                         :: apt_fdiff_point
       TYPE(particle_list_type), POINTER                  :: particles
@@ -92,10 +94,11 @@ CONTAINS
 
    END SUBROUTINE get_forces
 
-   ! **************************************************************************************************
-   !> \brief Calculate Atomic Polarization Tensors by dF/d(E-field) finite differences
-   !> \author Leo Decking, Hossam Elgabarty
-   ! **************************************************************************************************
+! **************************************************************************************************
+!> \brief Calculate Atomic Polarization Tensors by dF/d(E-field) finite differences
+!> \param force_env ...
+!> \author Leo Decking, Hossam Elgabarty
+! **************************************************************************************************
    SUBROUTINE apt_fdiff(force_env)
 
       TYPE(force_env_type), POINTER                      :: force_env
@@ -213,8 +216,7 @@ CONTAINS
       CALL cp_print_key_finished_output(output_fdiff_scf, logger_apt, dcdr_section, "PRINT%APT")
       CALL cp_logger_release(logger_apt)
       CALL cp_rm_default_logger()
-      
-      
+
       ALLOCATE (ap_tensor(natoms, 3, 3))
       CALL fdiff_2pnt(apt_fdiff_points, ap_tensor, natoms)
 

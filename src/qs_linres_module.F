@@ -130,7 +130,7 @@ CONTAINS
 !> \param qs_env ...
 !> \param p_env ...
 !> \author Edward Ditler
-! **************************************************************************************************
+! *****************************************************************************
    SUBROUTINE vcd_linres(qs_env, p_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qs_p_env_type)                                :: p_env
@@ -388,7 +388,7 @@ CONTAINS
       END IF
 
       logger => cp_get_default_logger()
-      
+
       CALL section_vals_val_get(lr_section, "EVERY_N_STEP", i_val=every_n_step)
 
       IF (lr_calculation .AND. MODULO(qs_env%sim_step, every_n_step) == 0) THEN
