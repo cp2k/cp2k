@@ -1,0 +1,82 @@
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT wat-dim-apt-fdiff
+  RUN_TYPE ENERGY
+  #RUN_TYPE MD
+&END GLOBAL
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME GTH_BASIS_SETS
+    CHARGE 0
+    POTENTIAL_FILE_NAME POTENTIAL
+    &MGRID
+      CUTOFF 200
+      NGRIDS 2
+    &END MGRID
+    &POISSON
+      PERIODIC XYZ
+      POISSON_SOLVER PERIODIC
+    &END POISSON
+    &QS
+      METHOD GPW
+    &END QS
+    &SCF
+      EPS_SCF 1.0E-3
+      MAX_SCF 50
+      SCF_GUESS ATOMIC
+      &OT
+        PRECONDITIONER FULL_SINGLE_INVERSE
+      &END OT
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL LDA
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &PROPERTIES
+    &LINRES
+      &DCDR
+        APT_FD
+        # &PRINT
+        #   &APT
+        #     &EACH
+        #       MD 5
+        #     &END EACH
+        #   &END APT
+        # &END PRINT
+      &END DCDR
+    &END LINRES
+  &END PROPERTIES
+  &SUBSYS
+    &CELL
+      ABC [angstrom] 8.0 5.0 5.0
+      PERIODIC XYZ
+    &END CELL
+    &COORD
+      O     7.0414782577      8.1944693132     4.7203167161
+      O     6.4136423281      6.9680225843     7.2942345321
+      H     7.0024272528      9.1522284981     4.7945554450
+      H     6.3623068415      7.9578974691     4.0821913660
+      H     7.1357809996      6.4074215266     7.5863285535
+      H     6.7003933205      7.3362896088     6.4455943873
+    &END COORD
+    &KIND DEFAULT
+      BASIS_SET SZV-GTH
+      POTENTIAL GTH-LDA
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+
+# &MOTION
+#   &MD
+#     STEPS 20
+#     TIMESTEP 0.5
+#     &THERMOSTAT
+#       &CSVR
+#         TIMECON 5
+#       &END CSVR
+#     &END
+#   &END MD
+# &END MOTION

@@ -13,6 +13,9 @@ AM1
 AMBER
     Assisted Model Building and Energy Refinement
 
+APT
+    Atomic Polarization Tensor
+
 ASE
     Atomic Simulation Environment
 

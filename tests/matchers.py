@@ -257,4 +257,6 @@ registry["RTBSE_GXAC_H2_pol"] = GenericMatcher(
 )
 
 registry["M126"] = GenericMatcher(r" # Total charge ", col=5)
+
+registry["M127"] = GenericMatcher(r"Checksum (Acoustic Sum Rule):", col=5)
 # EOF

@@ -511,6 +511,8 @@ list(
   qcschema.F
   hdf5_wrapper.F
   sockets_interface.F
+  qs_apt_fdiff_methods.F
+  qs_apt_fdiff_types.F
   qs_atomic_block.F
   qs_band_structure.F
   qs_basis_gradient.F
