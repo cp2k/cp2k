@@ -39,11 +39,6 @@ add_compile_options(
   "$<$<COMPILE_LANG_AND_ID:Fortran,GNU>:-g;-fno-omit-frame-pointer;-fbacktrace>"
   "$<$<COMPILE_LANG_AND_ID:Fortran,GNU>:$<$<VERSION_GREATER_EQUAL:${CMAKE_Fortran_COMPILER_VERSION},11>:-fallow-argument-mismatch>>"
   "$<$<COMPILE_LANG_AND_ID:Fortran,GNU>:-Wno-deprecated-declarations;-Wno-maybe-uninitialized;-Wuninitialized;-Wuse-without-only>"
-  "$<$<COMPILE_LANG_AND_ID:Fortran,GNU>:-Werror=aliasing;-Werror=ampersand;-Werror=c-binding-type;-Werror=intrinsic-shadow>"
-  "$<$<COMPILE_LANG_AND_ID:Fortran,GNU>:-Werror=intrinsics-std;-Werror=line-truncation;-Werror=tabs;-Werror=target-lifetime>"
-  "$<$<COMPILE_LANG_AND_ID:Fortran,GNU>:-Werror=underflow;-Werror=unused-but-set-variable;-Werror=unused-variable>"
-  "$<$<COMPILE_LANG_AND_ID:Fortran,GNU>:-Werror=unused-dummy-argument;-Werror=unused-parameter>"
-  "$<$<COMPILE_LANG_AND_ID:Fortran,GNU>:-Werror=unused-label;-Werror=conversion;-Werror=zerotrip>"
 )
 add_compile_options(
   "$<$<COMPILE_LANG_AND_ID:CXX,GNU>:--std=c++17;-fopenmp>"
@@ -81,6 +76,11 @@ add_compile_options(
   "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:Fortran,GNU>>:-fcheck=all,no-array-temps;-finline-matmul-limit=0>"
   "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:Fortran,GNU>>:-ffpe-trap=invalid,zero,overflow>"
   "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:Fortran,GNU>>:-finit-derived;-finit-real=snan;-finit-integer=-42>"
+  "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:Fortran,GNU>>:-Werror=aliasing;-Werror=ampersand;-Werror=c-binding-type;-Werror=intrinsic-shadow>"
+  "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:Fortran,GNU>>:-Werror=intrinsics-std;-Werror=line-truncation;-Werror=tabs;-Werror=target-lifetime>"
+  "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:Fortran,GNU>>:-Werror=underflow;-Werror=unused-but-set-variable;-Werror=unused-variable>"
+  "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:Fortran,GNU>>:-Werror=unused-dummy-argument;-Werror=unused-parameter>"
+  "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:Fortran,GNU>>:-Werror=unused-label;-Werror=conversion;-Werror=zerotrip>"
 )
 add_compile_definitions("$<$<CONFIG:DEBUG>:__HAS_IEEE_EXCEPTIONS;__CHECK_DIAG>")
 add_link_options(
