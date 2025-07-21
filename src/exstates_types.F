@@ -75,6 +75,9 @@ MODULE exstates_types
       TYPE(local_rho_type), POINTER                      :: local_rho_set => NULL()
       TYPE(local_rho_type), POINTER                      :: local_rho_set_admm => NULL()
       TYPE(wfn_history_type)                             :: wfn_history = wfn_history_type()
+      TYPE(cp_fm_type), POINTER, DIMENSION(:, :)         :: bse_w_matrix_MO => NULL()
+      REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: gw_eigen
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks => NULL()
    END TYPE excited_energy_type
 
 CONTAINS
@@ -91,12 +94,17 @@ CONTAINS
          CALL cp_fm_release(ex_env%evect)
          CALL cp_fm_release(ex_env%cpmos)
          !
+         CALL cp_fm_release(ex_env%bse_w_matrix_MO)
+         !
          CALL exstate_matrix_release(ex_env)
          !
          CALL exstate_potential_release(ex_env)
          !
          CALL cp_fm_release(ex_env%wfn_history%evect)
          CALL cp_fm_release(ex_env%wfn_history%cpmos)
+
+         IF (ALLOCATED(ex_env%gw_eigen)) &
+            DEALLOCATE (ex_env%gw_eigen)
 
          DEALLOCATE (ex_env)
 
@@ -112,6 +120,8 @@ CONTAINS
       TYPE(excited_energy_type), POINTER                 :: ex_env
 
       IF (ASSOCIATED(ex_env)) THEN
+         IF (ASSOCIATED(ex_env%matrix_ks)) CALL dbcsr_deallocate_matrix_set(ex_env%matrix_ks)
+         NULLIFY (ex_env%matrix_ks)
          IF (ASSOCIATED(ex_env%matrix_pe)) CALL dbcsr_deallocate_matrix_set(ex_env%matrix_pe)
          NULLIFY (ex_env%matrix_pe)
          IF (ASSOCIATED(ex_env%matrix_hz)) CALL dbcsr_deallocate_matrix_set(ex_env%matrix_hz)
@@ -196,6 +206,8 @@ CONTAINS
       ALLOCATE (ex_env)
       ex_env%evalue = 0.0_dp
       NULLIFY (ex_env%evect)
+      NULLIFY (ex_env%cpmos)
+      NULLIFY (ex_env%bse_w_matrix_MO)
       IF (excited_state) THEN
          CALL section_vals_val_get(dft_section, "EXCITED_STATES%STATE", i_val=ex_env%state)
          CALL section_vals_val_get(dft_section, "EXCITED_STATES%XC_KERNEL_METHOD", &

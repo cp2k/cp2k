@@ -23,6 +23,7 @@ QS/regtest-dlaf-2                                           dlaf libint !ifx
 QS/regtest-pao-2
 QS/regtest-tddfpt-force-gapw                                libint libxc !ifx
 QS/regtest-tddfpt-4                                         libint libxc !ifx
+QS/regtest-tddfpt-bse                                       libint libxc 
 QS/regtest-tddfpt-force-3                                   libint !ifx
 QS/regtest-debug-5                                          libint !ifx
 QS/regtest-gpw-4
