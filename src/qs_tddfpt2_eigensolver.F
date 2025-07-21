@@ -45,6 +45,8 @@ MODULE qs_tddfpt2_eigensolver
    USE qs_kernel_types,                 ONLY: full_kernel_env_type,&
                                               kernel_env_type
    USE qs_scf_methods,                  ONLY: eigensolver
+   USE qs_tddfpt2_bse_utils,            ONLY: tddfpt_apply_bse,&
+                                              zeroth_order_gw
    USE qs_tddfpt2_fhxc,                 ONLY: fhxc_kernel,&
                                               stda_kernel
    USE qs_tddfpt2_operators,            ONLY: tddfpt_apply_energy_diff,&
@@ -373,8 +375,9 @@ CONTAINS
 
       INTEGER                                            :: handle, ispin, ivect, nspins, nvects
       INTEGER, DIMENSION(maxspins)                       :: nmo_occ
-      LOGICAL                                            :: do_admm, do_hfx, do_lri_response, &
-                                                            is_rks_triplets, re_int
+      LOGICAL                                            :: do_admm, do_bse, do_hfx, &
+                                                            do_lri_response, is_rks_triplets, &
+                                                            re_int
       REAL(KIND=dp)                                      :: rcut, scale
       TYPE(cp_fm_type)                                   :: fm_dummy
       TYPE(full_kernel_env_type), POINTER                :: kernel_env_admm_aux
@@ -393,6 +396,8 @@ CONTAINS
       END IF
       is_rks_triplets = tddfpt_control%rks_triplets
       do_lri_response = tddfpt_control%do_lrigpw
+      do_bse = tddfpt_control%do_bse
+      IF (do_bse) do_hfx = .FALSE.
 
       IF (debug_this_module) THEN
          CPASSERT(nspins > 0)
@@ -413,17 +418,17 @@ CONTAINS
             DO ivect = 1, nvects
                DO ispin = 1, SIZE(evects, 1)
                   ASSOCIATE (evect => evects(ispin, ivect), work_matrix => work_matrices%evects_sub(ispin, ivect))
-                     IF (ASSOCIATED(evect%matrix_struct)) THEN
-                        IF (ASSOCIATED(work_matrix%matrix_struct)) THEN
-                           CALL cp_fm_copy_general(evect, work_matrix, para_env)
-                        ELSE
-                           CALL cp_fm_copy_general(evect, fm_dummy, para_env)
-                        END IF
-                     ELSE IF (ASSOCIATED(work_matrix%matrix_struct)) THEN
-                        CALL cp_fm_copy_general(fm_dummy, work_matrix, para_env)
-                     ELSE
-                        CALL cp_fm_copy_general(fm_dummy, fm_dummy, para_env)
-                     END IF
+                  IF (ASSOCIATED(evect%matrix_struct)) THEN
+                  IF (ASSOCIATED(work_matrix%matrix_struct)) THEN
+                     CALL cp_fm_copy_general(evect, work_matrix, para_env)
+                  ELSE
+                     CALL cp_fm_copy_general(evect, fm_dummy, para_env)
+                  END IF
+                  ELSE IF (ASSOCIATED(work_matrix%matrix_struct)) THEN
+                  CALL cp_fm_copy_general(fm_dummy, work_matrix, para_env)
+                  ELSE
+                  CALL cp_fm_copy_general(fm_dummy, fm_dummy, para_env)
+                  END IF
                   END ASSOCIATE
                END DO
             END DO
@@ -455,25 +460,30 @@ CONTAINS
                DO ispin = 1, SIZE(evects, 1)
                   ASSOCIATE (Aop_evect => Aop_evects(ispin, ivect), &
                              work_matrix => work_matrices%Aop_evects_sub(ispin, ivect))
-                     IF (ASSOCIATED(Aop_evect%matrix_struct)) THEN
-                        IF (ASSOCIATED(work_matrix%matrix_struct)) THEN
-                           CALL cp_fm_copy_general(work_matrix, Aop_evect, para_env)
-                        ELSE
-                           CALL cp_fm_copy_general(fm_dummy, Aop_evect, para_env)
-                        END IF
-                     ELSE IF (ASSOCIATED(work_matrix%matrix_struct)) THEN
-                        CALL cp_fm_copy_general(work_matrix, fm_dummy, para_env)
-                     ELSE
-                        CALL cp_fm_copy_general(fm_dummy, fm_dummy, para_env)
-                     END IF
+                  IF (ASSOCIATED(Aop_evect%matrix_struct)) THEN
+                  IF (ASSOCIATED(work_matrix%matrix_struct)) THEN
+                     CALL cp_fm_copy_general(work_matrix, Aop_evect, para_env)
+                  ELSE
+                     CALL cp_fm_copy_general(fm_dummy, Aop_evect, para_env)
+                  END IF
+                  ELSE IF (ASSOCIATED(work_matrix%matrix_struct)) THEN
+                  CALL cp_fm_copy_general(work_matrix, fm_dummy, para_env)
+                  ELSE
+                  CALL cp_fm_copy_general(fm_dummy, fm_dummy, para_env)
+                  END IF
                   END ASSOCIATE
                END DO
             END DO
          END IF
 
          ! orbital energy difference term
-         CALL tddfpt_apply_energy_diff(Aop_evects=Aop_evects, evects=evects, S_evects=S_evects, &
-                                       gs_mos=gs_mos, matrix_ks=matrix_ks, tddfpt_control=tddfpt_control)
+         IF (.NOT. do_bse) THEN
+            CALL tddfpt_apply_energy_diff(Aop_evects=Aop_evects, evects=evects, S_evects=S_evects, &
+                                          gs_mos=gs_mos, matrix_ks=matrix_ks, tddfpt_control=tddfpt_control)
+         ELSE
+            CALL zeroth_order_gw(qs_env=qs_env, Aop_evects=Aop_evects, evects=evects, S_evects=S_evects, &
+                                 gs_mos=gs_mos, matrix_s=matrix_s, matrix_ks=matrix_ks)
+         END IF
 
          ! if smeared occupation, then add aCCSX here
          IF (tddfpt_control%do_smearing) THEN
@@ -546,6 +556,10 @@ CONTAINS
                   END IF
                END DO
             END IF
+         END IF
+         IF (do_bse) THEN
+            ! add dynamical screening
+            CALL tddfpt_apply_bse(Aop_evects=Aop_evects, evects=evects, gs_mos=gs_mos, qs_env=qs_env)
          END IF
 
       END IF

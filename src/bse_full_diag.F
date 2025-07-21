@@ -29,6 +29,8 @@ MODULE bse_full_diag
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
+   USE cp_control_types,                ONLY: dft_control_type,&
+                                              tddfpt2_control_type
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
    USE cp_fm_diag,                      ONLY: choose_eigv_solver,&
                                               cp_fm_power
@@ -41,6 +43,7 @@ MODULE bse_full_diag
                                               cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
+   USE exstates_types,                  ONLY: excited_energy_type
    USE input_constants,                 ONLY: bse_screening_alpha,&
                                               bse_screening_rpa,&
                                               bse_singlet,&
@@ -49,7 +52,8 @@ MODULE bse_full_diag
    USE message_passing,                 ONLY: mp_para_env_type
    USE mp2_types,                       ONLY: mp2_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
-   USE qs_environment_types,            ONLY: qs_environment_type
+   USE qs_environment_types,            ONLY: get_qs_env,&
+                                              qs_environment_type
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -81,11 +85,12 @@ CONTAINS
 !> \param dimen_RI ...
 !> \param mp2_env ...
 !> \param para_env ...
+!> \param qs_env ...
 ! **************************************************************************************************
    SUBROUTINE create_A(fm_mat_S_ia_bse, fm_mat_S_bar_ij_bse, fm_mat_S_ab_bse, &
                        fm_A, Eigenval, unit_nr, &
                        homo, virtual, dimen_RI, mp2_env, &
-                       para_env)
+                       para_env, qs_env)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S_ia_bse, fm_mat_S_bar_ij_bse, &
                                                             fm_mat_S_ab_bse
@@ -94,20 +99,28 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: unit_nr, homo, virtual, dimen_RI
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
       TYPE(mp_para_env_type), INTENT(INOUT)              :: para_env
+      TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'create_A'
 
       INTEGER                                            :: a_virt_row, handle, i_occ_row, &
                                                             i_row_global, ii, j_col_global, jj, &
-                                                            ncol_local_A, nrow_local_A
+                                                            ncol_local_A, nrow_local_A, sizeeigen
       INTEGER, DIMENSION(4)                              :: reordering
       INTEGER, DIMENSION(:), POINTER                     :: col_indices_A, row_indices_A
       REAL(KIND=dp)                                      :: alpha, alpha_screening, eigen_diff
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_A, fm_struct_W
       TYPE(cp_fm_type)                                   :: fm_W
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(excited_energy_type), POINTER                 :: ex_env
+      TYPE(tddfpt2_control_type), POINTER                :: tddfpt_control
 
       CALL timeset(routineN, handle)
+
+      NULLIFY (dft_control, tddfpt_control)
+      CALL get_qs_env(qs_env, dft_control=dft_control)
+      tddfpt_control => dft_control%tddfpt2_control
 
       IF (unit_nr > 0 .AND. mp2_env%bse%bse_debug_print) THEN
          WRITE (unit_nr, '(T2,A10,T13,A10)') 'BSE|DEBUG|', 'Creating A'
@@ -186,6 +199,13 @@ CONTAINS
                                  virtual, virtual, unit_nr, reordering, mp2_env)
       END IF
       !full matrix W is not needed anymore, release it to save memory
+      IF (tddfpt_control%do_bse) THEN
+         NULLIFY (ex_env)
+         CALL get_qs_env(qs_env, exstate_env=ex_env)
+         ALLOCATE (ex_env%bse_w_matrix_MO(1, 1)) ! for now only closed-shell
+         CALL cp_fm_create(ex_env%bse_w_matrix_MO(1, 1), fm_struct_W)
+         CALL cp_fm_to_fm(fm_W, ex_env%bse_w_matrix_MO(1, 1))
+      END IF
       CALL cp_fm_release(fm_W)
 
       !Now add the energy differences (ε_a-ε_i) on the diagonal (i.e. δ_ij δ_ab) of A_ia,jb
@@ -206,6 +226,12 @@ CONTAINS
             END IF
          END DO
       END DO
+
+      IF (tddfpt_control%do_bse) THEN
+         sizeeigen = SIZE(Eigenval)
+         ALLOCATE (ex_env%gw_eigen(sizeeigen)) ! for now only closed-shell
+         ex_env%gw_eigen(:) = Eigenval(:)
+      END IF
 
       CALL cp_fm_struct_release(fm_struct_A)
       CALL cp_fm_struct_release(fm_struct_W)

@@ -242,50 +242,52 @@ CONTAINS
          ! Skip kernel if collinear xc-kernel for spin-flip is requested
          IF (spinflip /= tddfpt_sf_col) THEN
 
-            ! C_x d^{2}E_{x}^{DFT}[\rho] / d\rho^2
-            ! + C_{HF} d^{2}E_{x, ADMM}^{DFT}[\rho] / d\rho^2 in case of ADMM calculation
-            IF (gapw_xc) THEN
-               IF (kernel_env%do_exck) THEN
-                  CPABORT("NYA")
+            IF (.NOT. dft_control%tddfpt2_control%do_bse) THEN
+               ! C_x d^{2}E_{x}^{DFT}[\rho] / d\rho^2
+               ! + C_{HF} d^{2}E_{x, ADMM}^{DFT}[\rho] / d\rho^2 in case of ADMM calculation
+               IF (gapw_xc) THEN
+                  IF (kernel_env%do_exck) THEN
+                     CPABORT("NYA")
+                  ELSE
+                     CALL tddfpt_apply_xc(A_ia_rspace=work_matrices%A_ia_rspace_sub, kernel_env=kernel_env, &
+                                          rho_ia_struct=work_matrices%rho_xc_struct_sub, &
+                                          is_rks_triplets=is_rks_triplets, pw_env=sub_env%pw_env, &
+                                          work_v_xc=work_matrices%wpw_rspace_sub, &
+                                          work_v_xc_tau=work_matrices%wpw_tau_rspace_sub, &
+                                          spinflip=spinflip)
+                  END IF
+                  DO ispin = 1, nspins
+                     CALL pw_scale(work_matrices%A_ia_rspace_sub(ispin), &
+                                   work_matrices%A_ia_rspace_sub(ispin)%pw_grid%dvol)
+                     CALL integrate_v_rspace(v_rspace=work_matrices%A_ia_rspace_sub(ispin), &
+                                             hmat=work_matrices%A_ia_munu_sub(ispin), &
+                                             qs_env=qs_env, calculate_forces=.FALSE., gapw=gapw_xc, &
+                                             pw_env_external=sub_env%pw_env, &
+                                             task_list_external=sub_env%task_list_orb_soft)
+                     CALL pw_zero(work_matrices%A_ia_rspace_sub(ispin))
+                  END DO
                ELSE
-                  CALL tddfpt_apply_xc(A_ia_rspace=work_matrices%A_ia_rspace_sub, kernel_env=kernel_env, &
-                                       rho_ia_struct=work_matrices%rho_xc_struct_sub, &
-                                       is_rks_triplets=is_rks_triplets, pw_env=sub_env%pw_env, &
-                                       work_v_xc=work_matrices%wpw_rspace_sub, &
-                                       work_v_xc_tau=work_matrices%wpw_tau_rspace_sub, &
-                                       spinflip=spinflip)
+                  IF (kernel_env%do_exck) THEN
+                     CALL tddfpt_apply_xc_potential(work_matrices%A_ia_rspace_sub, work_matrices%fxc_rspace_sub, &
+                                                    work_matrices%rho_orb_struct_sub, is_rks_triplets)
+                  ELSE
+                     CALL tddfpt_apply_xc(A_ia_rspace=work_matrices%A_ia_rspace_sub, kernel_env=kernel_env, &
+                                          rho_ia_struct=work_matrices%rho_orb_struct_sub, &
+                                          is_rks_triplets=is_rks_triplets, pw_env=sub_env%pw_env, &
+                                          work_v_xc=work_matrices%wpw_rspace_sub, &
+                                          work_v_xc_tau=work_matrices%wpw_tau_rspace_sub, &
+                                          spinflip=spinflip)
+                  END IF
                END IF
-               DO ispin = 1, nspins
-                  CALL pw_scale(work_matrices%A_ia_rspace_sub(ispin), &
-                                work_matrices%A_ia_rspace_sub(ispin)%pw_grid%dvol)
-                  CALL integrate_v_rspace(v_rspace=work_matrices%A_ia_rspace_sub(ispin), &
-                                          hmat=work_matrices%A_ia_munu_sub(ispin), &
-                                          qs_env=qs_env, calculate_forces=.FALSE., gapw=gapw_xc, &
-                                          pw_env_external=sub_env%pw_env, &
-                                          task_list_external=sub_env%task_list_orb_soft)
-                  CALL pw_zero(work_matrices%A_ia_rspace_sub(ispin))
-               END DO
-            ELSE
-               IF (kernel_env%do_exck) THEN
-                  CALL tddfpt_apply_xc_potential(work_matrices%A_ia_rspace_sub, work_matrices%fxc_rspace_sub, &
-                                                 work_matrices%rho_orb_struct_sub, is_rks_triplets)
-               ELSE
-                  CALL tddfpt_apply_xc(A_ia_rspace=work_matrices%A_ia_rspace_sub, kernel_env=kernel_env, &
-                                       rho_ia_struct=work_matrices%rho_orb_struct_sub, &
-                                       is_rks_triplets=is_rks_triplets, pw_env=sub_env%pw_env, &
-                                       work_v_xc=work_matrices%wpw_rspace_sub, &
-                                       work_v_xc_tau=work_matrices%wpw_tau_rspace_sub, &
-                                       spinflip=spinflip)
+               IF (gapw .OR. gapw_xc) THEN
+                  rho_atom_set => sub_env%local_rho_set%rho_atom_set
+                  rho1_atom_set => work_matrices%local_rho_set%rho_atom_set
+                  CALL calculate_xc_2nd_deriv_atom(rho_atom_set, rho1_atom_set, qs_env, kernel_env%xc_section, &
+                                                   sub_env%para_env, do_tddfpt2=.TRUE., do_triplet=is_rks_triplets, &
+                                                   do_sf=do_noncol)
                END IF
-            END IF
-            IF (gapw .OR. gapw_xc) THEN
-               rho_atom_set => sub_env%local_rho_set%rho_atom_set
-               rho1_atom_set => work_matrices%local_rho_set%rho_atom_set
-               CALL calculate_xc_2nd_deriv_atom(rho_atom_set, rho1_atom_set, qs_env, kernel_env%xc_section, &
-                                                sub_env%para_env, do_tddfpt2=.TRUE., do_triplet=is_rks_triplets, &
-                                                do_sf=do_noncol)
-            END IF
 
+            END IF  ! do_bse
          END IF ! spin-flip
 
          ! ADMM correction
