@@ -45,22 +45,22 @@ RUN pip3 install --quiet boto3==1.38.11 google-cloud-storage==3.1.0
 ARG NUM_PROCS
 ENV NUM_PROCS=${NUM_PROCS:-32}
 
-# Install Spack and Spack packages from July 17, 2025
+# Install Spack and Spack packages
 WORKDIR /root/spack
 ARG SPACK_VERSION
-ENV SPACK_VERSION=${SPACK_VERSION:-a572692b6da3ae74633b53b236023862f7284ad4}
+ENV SPACK_VERSION=${SPACK_VERSION:-1.0.0}
 ARG SPACK_PACKAGES_VERSION
-ENV SPACK_PACKAGES_VERSION=${SPACK_PACKAGES_VERSION:-97d47813671327ab07a5c840fa549d130baacbb2}
+ENV SPACK_PACKAGES_VERSION=${SPACK_PACKAGES_VERSION:-2025.07.0}
 ARG SPACK_REPO=https://github.com/spack/spack
 ENV SPACK_ROOT=/opt/spack-${SPACK_VERSION}
 ARG SPACK_PACKAGES_REPO=https://github.com/spack/spack-packages
 ENV SPACK_PACKAGES_ROOT=/opt/spack-packages-${SPACK_PACKAGES_VERSION}
 RUN mkdir -p ${SPACK_ROOT} \
-    && wget -q ${SPACK_REPO}/archive/${SPACK_VERSION}.tar.gz \
-    && tar -xzf ${SPACK_VERSION}.tar.gz -C /opt && rm -f ${SPACK_VERSION}.tar.gz \
+    && wget -q ${SPACK_REPO}/archive/v${SPACK_VERSION}.tar.gz \
+    && tar -xzf v${SPACK_VERSION}.tar.gz -C /opt && rm -f v${SPACK_VERSION}.tar.gz \
     && mkdir -p ${SPACK_PACKAGES_ROOT} \
-    && wget -q ${SPACK_PACKAGES_REPO}/archive/${SPACK_PACKAGES_VERSION}.tar.gz \
-    && tar -xzf ${SPACK_PACKAGES_VERSION}.tar.gz -C /opt && rm -f ${SPACK_PACKAGES_VERSION}.tar.gz
+    && wget -q ${SPACK_PACKAGES_REPO}/archive/v${SPACK_PACKAGES_VERSION}.tar.gz \
+    && tar -xzf v${SPACK_PACKAGES_VERSION}.tar.gz -C /opt && rm -f v${SPACK_PACKAGES_VERSION}.tar.gz
 
 ENV PATH="${SPACK_ROOT}/bin:${PATH}"
 
