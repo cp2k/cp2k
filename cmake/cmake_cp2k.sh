@@ -79,20 +79,12 @@ elif [[ "${PROFILE}" == "toolchain_all" ]] && [[ "${VERSION}" == "pdbg" ]]; then
   CMAKE_EXIT_CODE=$?
 
 elif [[ "${PROFILE}" == "toolchain_all" ]] && [[ "${VERSION}" == "sdbg" ]]; then
-  # TODO Re-enable LIBTORCH and ACE. For some reason they currently lead to a
-  # floating-point exception in `fit_and_continuation_2pole()` at rpa_gw.F:3979.
-  #
-  # TODO Re-enable GREENX. It currently leads to a floating-point exception
-  # in `greenx_get_minimax_grid()` at greenx_interface.F:314.
   cmake \
     -GNinja \
     -DCMAKE_BUILD_TYPE="Debug" \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
     -DCP2K_USE_EVERYTHING=ON \
     -DCP2K_USE_MPI=OFF \
-    -DCP2K_USE_LIBTORCH=OFF \
-    -DCP2K_USE_ACE=OFF \
-    -DCP2K_USE_GREENX=OFF \
     -Werror=dev \
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?

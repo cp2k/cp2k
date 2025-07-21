@@ -1717,7 +1717,6 @@ target_link_libraries(
     $<$<AND:$<BOOL:${CP2K_USE_FFTW3_}>,$<BOOL:${CP2K_ENABLE_FFTW3_OPENMP_SUPPORT}>>:cp2k::FFTW3::fftw3_omp>
     $<$<BOOL:${CP2K_USE_SPLA}>:SPLA::spla>
     $<$<BOOL:${CP2K_USE_LIBINT2}>:cp2k::Libint2::int2>
-    $<$<BOOL:${CP2K_USE_LIBTORCH}>:${TORCH_LIBRARIES}>
     $<$<BOOL:${CP2K_USE_COSMA}>:cosma::cosma_prefixed_pxgemm>
     $<$<BOOL:${CP2K_USE_COSMA}>:cosma::cosma>
     $<$<BOOL:${CP2K_USE_DLAF}>:DLAF::Fortran>
@@ -1730,6 +1729,8 @@ target_link_libraries(
     DBCSR::dbcsr
     $<$<BOOL:${CP2K_USE_MPI}>:cp2k::SCALAPACK::scalapack>
     cp2k_linalg_libs
+    # Torch includes some LAPACK routines, but with floating-point exceptions.
+    $<$<BOOL:${CP2K_USE_LIBTORCH}>:${TORCH_LIBRARIES}>
     $<$<AND:$<CONFIG:COVERAGE>,$<Fortran_COMPILER_ID:GNU>>:gcov>)
 
 string(TIMESTAMP CP2K_TIMESTAMP "%Y-%m-%d %H:%M:%S")
