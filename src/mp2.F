@@ -26,9 +26,12 @@ MODULE mp2
                                               cite_reference
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_api,                    ONLY: dbcsr_get_info,&
+   USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
+                                              dbcsr_create,&
+                                              dbcsr_get_info,&
                                               dbcsr_p_type
-   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
+   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                              dbcsr_allocate_matrix_set
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                               cp_fm_syrk,&
                                               cp_fm_triangular_invert,&
@@ -48,6 +51,7 @@ MODULE mp2
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
+   USE exstates_types,                  ONLY: excited_energy_type
    USE hfx_exx,                         ONLY: calculate_exx
    USE hfx_types,                       ONLY: &
         alloc_containers, dealloc_containers, hfx_basis_info_type, hfx_basis_type, &
@@ -152,6 +156,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_transl, matrix_s_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(excited_energy_type), POINTER                 :: ex_env
       TYPE(hfx_basis_info_type)                          :: basis_info
       TYPE(hfx_basis_type), DIMENSION(:), POINTER        :: basis_parameter
       TYPE(hfx_container_type), DIMENSION(:), POINTER    :: integral_containers
@@ -228,6 +233,17 @@ CONTAINS
                          admm_env=admm_env)
 
       END IF
+
+      ! IF DO_BSE In TDDFT, SAVE ks_matrix to ex_env
+      NULLIFY (ex_env)
+      CALL get_qs_env(qs_env, exstate_env=ex_env)
+      nspins = 1 ! for now only open-shell
+      CALL dbcsr_allocate_matrix_set(ex_env%matrix_ks, nspins)
+      DO ispin = 1, nspins
+         ALLOCATE (ex_env%matrix_ks(ispin)%matrix)
+         CALL dbcsr_create(ex_env%matrix_ks(ispin)%matrix, template=matrix_s(1)%matrix)
+         CALL dbcsr_copy(ex_env%matrix_ks(ispin)%matrix, matrix_ks(ispin)%matrix)
+      END DO
 
       unit_nr = cp_print_key_unit_nr(logger, input, "DFT%XC%WF_CORRELATION%PRINT", &
                                      extension=".mp2Log")

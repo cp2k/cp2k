@@ -1190,8 +1190,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'check_for_restart_files'
 
       CHARACTER(LEN=9)                                   :: frmt
-      CHARACTER(LEN=default_path_length)                 :: project_name
-      CHARACTER(LEN=default_string_length)               :: f_chi, f_S_n, f_S_p, f_S_x, f_W_t, prefix
+      CHARACTER(len=default_path_length)                 :: project_name
+      CHARACTER(len=default_string_length)               :: f_chi, f_s_n, f_s_p, f_s_x, f_w_t, prefix
       INTEGER                                            :: handle, i_spin, i_t_or_w, ind, n_spin, &
                                                             num_time_freq_points
       LOGICAL                                            :: chi_exists, Sigma_neg_time_exists, &

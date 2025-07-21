@@ -723,6 +723,7 @@ list(
   qs_tddfpt2_soc_types.F
   qs_tddfpt2_stda_types.F
   qs_tddfpt2_stda_utils.F
+  qs_tddfpt2_bse_utils.F
   qs_tddfpt2_smearing_methods.F
   qs_tddfpt2_subgroups.F
   qs_tddfpt2_types.F

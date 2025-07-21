@@ -1087,8 +1087,9 @@ CONTAINS
       ! according to their excitation energies
       log_unit = cp_print_key_unit_nr(logger, tddfpt_print_section, &
                                       "GUESS_VECTORS", extension=".tddfptLog")
-      CALL tddfpt_guess_vectors(tddfpt_control, nspins, evects=evects, evals=evals, &
-                                gs_mos=gs_mos, log_unit=log_unit)
+      CALL tddfpt_guess_vectors(evects=evects, evals=evals, &
+                                gs_mos=gs_mos, log_unit=log_unit, tddfpt_control=tddfpt_control, &
+                                qs_env=qs_env, nspins=nspins)
       CALL cp_print_key_finished_output(log_unit, logger, &
                                         tddfpt_print_section, "GUESS_VECTORS")
 
