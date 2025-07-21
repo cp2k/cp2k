@@ -37,6 +37,7 @@ MODULE qs_tddfpt2_utils
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
+   USE exstates_types,                  ONLY: excited_energy_type
    USE input_constants,                 ONLY: &
         cholesky_dbcsr, cholesky_inverse, cholesky_off, cholesky_restore, oe_gllb, oe_lb, oe_none, &
         oe_saop, oe_shift
@@ -913,6 +914,8 @@ CONTAINS
 !> \param evals    guessed transition energies (initialised on exit)
 !> \param gs_mos   occupied and virtual molecular orbitals optimised for the ground state
 !> \param log_unit output unit
+!> \param tddfpt_control ...
+!> \param qs_env ...
 !> \par History
 !>    * 05.2016 created as tddfpt_guess() [Sergey Chulkov]
 !>    * 06.2016 renamed, altered prototype, supports spin-polarised density [Sergey Chulkov]
@@ -927,12 +930,14 @@ CONTAINS
 !>       a restart file).
 !>       \endparblock
 ! **************************************************************************************************
-   SUBROUTINE tddfpt_guess_vectors(evects, evals, gs_mos, log_unit)
+   SUBROUTINE tddfpt_guess_vectors(evects, evals, gs_mos, log_unit, tddfpt_control, qs_env)
       TYPE(cp_fm_type), DIMENSION(:, :), INTENT(inout)   :: evects
       REAL(kind=dp), DIMENSION(:), INTENT(inout)         :: evals
       TYPE(tddfpt_ground_state_mos), &
          DIMENSION(SIZE(evects, 1)), INTENT(in)          :: gs_mos
       INTEGER, INTENT(in)                                :: log_unit
+      TYPE(tddfpt2_control_type), INTENT(in), POINTER    :: tddfpt_control
+      TYPE(qs_environment_type), INTENT(in), POINTER     :: qs_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_guess_vectors'
 
@@ -940,13 +945,14 @@ CONTAINS
       INTEGER                                            :: handle, imo_occ, imo_virt, ind, ispin, &
                                                             istate, jspin, nspins, nstates, &
                                                             nstates_occ_virt_alpha, &
-                                                            nstates_selected
+                                                            nstates_selected, total
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: inds
       INTEGER, DIMENSION(maxspins)                       :: nmo_occ_avail, nmo_occ_selected, &
                                                             nmo_virt_selected
       REAL(kind=dp)                                      :: e_occ
-      REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: e_virt_minus_occ
+      REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: e_virt_minus_occ, gw_occ, gw_virt
       TYPE(cp_fm_struct_p_type), DIMENSION(maxspins)     :: fm_struct_evects
+      TYPE(excited_energy_type), POINTER                 :: ex_env
 
       CALL timeset(routineN, handle)
 
@@ -957,6 +963,9 @@ CONTAINS
          CPASSERT(nstates > 0)
          CPASSERT(nspins == 1 .OR. nspins == 2)
       END IF
+
+      NULLIFY (ex_env)
+      CALL get_qs_env(qs_env, exstate_env=ex_env)
 
       DO ispin = 1, nspins
          ! number of occupied orbitals for each spin component
@@ -978,15 +987,34 @@ CONTAINS
 
       istate = 0
       DO ispin = 1, nspins
+         ! if do_bse and do_gw, take gw zeroth order
+         IF (tddfpt_control%do_bse) THEN
+            ALLOCATE (gw_virt(nmo_virt_selected(ispin)), gw_occ(nmo_occ_selected(ispin)))
+            total = nmo_virt_selected(ispin) + nmo_occ_selected(ispin)
+            gw_virt(1:nmo_virt_selected(ispin)) = ex_env%gw_eigen((nmo_occ_selected(ispin) + 1):total)
+            gw_occ(1:nmo_occ_selected(ispin)) = ex_env%gw_eigen(1:nmo_occ_selected(ispin))
+         END IF
+
          DO imo_occ = 1, nmo_occ_selected(ispin)
             ! Here imo_occ enumerate Occupied orbitals in inverse order (from the last to the first element)
-            e_occ = gs_mos(ispin)%evals_occ(nmo_occ_avail(ispin) - imo_occ + 1)
+            IF (.NOT. tddfpt_control%do_bse) THEN
+               e_occ = gs_mos(ispin)%evals_occ(nmo_occ_avail(ispin) - imo_occ + 1)
+            ELSE
+               e_occ = gw_occ(nmo_occ_avail(ispin) - imo_occ + 1)
+            END IF
 
             DO imo_virt = 1, nmo_virt_selected(ispin)
                istate = istate + 1
-               e_virt_minus_occ(istate) = gs_mos(ispin)%evals_virt(imo_virt) - e_occ
+               IF (.NOT. tddfpt_control%do_bse) THEN
+                  e_virt_minus_occ(istate) = gs_mos(ispin)%evals_virt(imo_virt) - e_occ
+               ELSE
+                  e_virt_minus_occ(istate) = gw_virt(imo_virt) - e_occ
+               END IF
             END DO
          END DO
+         IF (tddfpt_control%do_bse) THEN
+            DEALLOCATE (gw_virt, gw_occ)
+         END IF
       END DO
 
       IF (debug_this_module) THEN

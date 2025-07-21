@@ -375,7 +375,6 @@ void dbm_multiply(const bool transa, const bool transb, const double alpha,
 
   // Wait for all other MPI ranks to complete, then release ressources.
   dbm_comm_iterator_stop(iter);
-  backend_stop(ctx);
 
   if (NULL != matrix_d) {
     iter =
@@ -384,6 +383,7 @@ void dbm_multiply(const bool transa, const bool transb, const double alpha,
       multiply_packs(transa, transb, alpha, pack_a, pack_b, matrix_a, matrix_b,
                      matrix_d, rows_max_eps, retain_sparsity, true, NULL, ctx);
     }
+    backend_stop(ctx);
     dbm_comm_iterator_stop(iter);
     const double epsilon = dbm_maxeps(matrix_d, matrix_c);
     if (maxeps < epsilon) {
