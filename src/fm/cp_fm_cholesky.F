@@ -16,7 +16,9 @@ MODULE cp_fm_cholesky
    USE cp_dlaf_utils_api,               ONLY: cp_dlaf_create_grid,&
                                               cp_dlaf_initialize
    USE cp_fm_dlaf_api,                  ONLY: cp_pdpotrf_dlaf,&
-                                              cp_pspotrf_dlaf
+                                              cp_pdpotri_dlaf,&
+                                              cp_pspotrf_dlaf,&
+                                              cp_pspotri_dlaf
    USE cp_fm_types,                     ONLY: cp_fm_type
    USE cp_log_handling,                 ONLY: cp_to_string
    USE kinds,                           ONLY: dp,&
@@ -167,11 +169,29 @@ CONTAINS
 
       desca(:) = matrix%matrix_struct%descriptor(:)
 
-      IF (matrix%use_sp) THEN
-         CALL pspotri('U', my_n, a_sp(1, 1), 1, 1, desca, info)
+#if defined(__DLAF)
+      IF (cholesky_type == FM_CHOLESKY_TYPE_DLAF .AND. matrix%matrix_struct%nrow_global >= dlaf_cholesky_n_min) THEN
+         ! Initialize DLA-Future on-demand; if already initialized, does nothing
+         CALL cp_dlaf_initialize()
+
+         ! Create DLAF grid from BLACS context; if already present, does nothing
+         CALL cp_dlaf_create_grid(matrix%matrix_struct%context%get_handle())
+
+         IF (matrix%use_sp) THEN
+            CALL cp_pspotri_dlaf('U', my_n, a_sp(:, :), 1, 1, desca, info)
+         ELSE
+            CALL cp_pdpotri_dlaf('U', my_n, a(:, :), 1, 1, desca, info)
+         END IF
       ELSE
-         CALL pdpotri('U', my_n, a(1, 1), 1, 1, desca, info)
+#endif
+         IF (matrix%use_sp) THEN
+            CALL pspotri('U', my_n, a_sp(1, 1), 1, 1, desca, info)
+         ELSE
+            CALL pdpotri('U', my_n, a(1, 1), 1, 1, desca, info)
+         END IF
+#if defined(__DLAF)
       END IF
+#endif
 
 #else
 

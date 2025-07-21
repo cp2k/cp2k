@@ -14,7 +14,7 @@ MODULE cp_cfm_cholesky
    USE cp_cfm_types, ONLY: cp_cfm_type
    USE kinds, ONLY: dp
 #if defined(__DLAF)
-   USE cp_cfm_dlaf_api, ONLY: cp_cfm_pzpotrf_dlaf
+   USE cp_cfm_dlaf_api, ONLY: cp_cfm_pzpotrf_dlaf, cp_cfm_pzpotri_dlaf
    USE cp_dlaf_utils_api, ONLY: cp_dlaf_initialize, cp_dlaf_create_grid
    USE cp_fm_cholesky, ONLY: cholesky_type, dlaf_cholesky_n_min, FM_CHOLESKY_TYPE_DLAF
 #endif
@@ -146,7 +146,21 @@ CONTAINS
 
 #if defined(__parallel)
       desca = matrix%matrix_struct%descriptor
-      CALL pzpotri('U', my_n, aa(1, 1), 1, 1, desca, info)
+#if defined(__DLAF)
+      IF (cholesky_type == FM_CHOLESKY_TYPE_DLAF .AND. matrix%matrix_struct%nrow_global .GE. dlaf_cholesky_n_min) THEN
+         ! Initialize DLA-Future on-demand; if already initialized, does nothing
+         CALL cp_dlaf_initialize()
+
+         ! Create DLAF grid from BLACS context; if already present, does nothing
+         CALL cp_dlaf_create_grid(matrix%matrix_struct%context%get_handle())
+
+         CALL cp_cfm_pzpotri_dlaf('U', my_n, aa(:, :), 1, 1, desca, info)
+      ELSE
+#endif
+         CALL pzpotri('U', my_n, aa(1, 1), 1, 1, desca, info)
+#if defined(__DLAF)
+      END IF
+#endif
 #else
       CALL zpotri('U', my_n, aa(1, 1), SIZE(aa, 1), info)
 #endif
