@@ -45,12 +45,10 @@ add_compile_options(
 )
 
 add_compile_options(
-  "$<$<COMPILE_LANG_AND_ID:CXX,GNU>:--std=c++17>"
   "$<$<COMPILE_LANG_AND_ID:CXX,GNU>:-g;-fno-omit-frame-pointer>"
   "$<$<COMPILE_LANG_AND_ID:CXX,GNU>:-Wno-deprecated-declarations;-Wno-vla-parameter>"
 )
 add_compile_options(
-  "$<$<COMPILE_LANG_AND_ID:C,GNU>:-std=c11>"
   "$<$<COMPILE_LANG_AND_ID:C,GNU>:-g;-fno-omit-frame-pointer>"
   "$<$<COMPILE_LANG_AND_ID:C,GNU>:-Wno-deprecated-declarations;-Wno-vla-parameter>"
 )
