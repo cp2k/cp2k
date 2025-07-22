@@ -2018,7 +2018,7 @@ CONTAINS
 
          !spin-conserving (LDA part)
          IF (do_sc) THEN
-            CALL integrate_sc_fxc(int_fxc, iatom, ikind, deriv_set, xas_atom_env, qs_env) ! integrate
+            CALL integrate_sc_fxc(int_fxc, iatom, ikind, deriv_set, xas_atom_env, qs_env)
          END IF
 
          !spin-flip (LDA part)
@@ -2900,7 +2900,7 @@ CONTAINS
       ! Get the second derivatives
       ALLOCATE (d2e(3))
       deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa, deriv_rhoa])
-      CALL xc_derivative_get(deriv, deriv_data=d2e(1)%array) ! deriv (pointer) not associated
+      CALL xc_derivative_get(deriv, deriv_data=d2e(1)%array)
       deriv => xc_dset_get_derivative(deriv_set, [deriv_rhoa, deriv_rhob])
       CALL xc_derivative_get(deriv, deriv_data=d2e(2)%array)
       deriv => xc_dset_get_derivative(deriv_set, [deriv_rhob, deriv_rhob])

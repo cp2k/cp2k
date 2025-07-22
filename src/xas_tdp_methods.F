@@ -354,7 +354,7 @@ CONTAINS
          do_os = xas_tdp_control%do_uks .OR. xas_tdp_control%do_roks
 
          IF (xas_tdp_control%do_xc .AND. (.NOT. xas_tdp_control%xps_only)) THEN
-            CALL integrate_fxc_atoms(xas_tdp_env%ri_fxc, xas_atom_env, xas_tdp_control, qs_env) !
+            CALL integrate_fxc_atoms(xas_tdp_env%ri_fxc, xas_atom_env, xas_tdp_control, qs_env)
          END IF
 
          IF (xas_tdp_control%do_soc .OR. xas_tdp_control%do_gw2x) THEN
@@ -475,7 +475,7 @@ CONTAINS
                      IF (xas_tdp_control%do_spin_cons) THEN
                         CALL solve_xas_tdp_prob(current_state, xas_tdp_control, xas_tdp_env, qs_env, &
                                                 ex_type=tddfpt_spin_cons)
-                        CALL compute_dipole_fosc(current_state, xas_tdp_control, xas_tdp_env) !!! calculate dipmat!
+                        CALL compute_dipole_fosc(current_state, xas_tdp_control, xas_tdp_env)
                         IF (xas_tdp_control%do_quad) CALL compute_quadrupole_fosc(current_state, &
                                                                                   xas_tdp_control, xas_tdp_env)
                         CALL xas_tdp_post(tddfpt_spin_cons, current_state, xas_tdp_env, &
@@ -3085,7 +3085,7 @@ CONTAINS
                   " Index     Excitation energy (eV)    fosc dipole (a.u.)"
                DO i = 1, SIZE(donor_state%sc_evals)
                   WRITE (xas_tdp_unit, FMT="(T3,I6,F27.6,F22.6)") &
-                     i, donor_state%sc_evals(i)*evolt, donor_state%osc_str(i, 4) ! prints here
+                     i, donor_state%sc_evals(i)*evolt, donor_state%osc_str(i, 4)
                END DO
             END IF
 

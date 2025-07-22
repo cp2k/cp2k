@@ -204,7 +204,7 @@ MODULE xas_tdp_types
          POINTER   :: donor_states => NULL()
       INTEGER, DIMENSION(:, :, :), POINTER     :: mos_of_ex_atoms => NULL()
       TYPE(cp_fm_type), DIMENSION(:), &
-         POINTER                               :: mo_coeff => NULL() ! TODO: DIMENSION(:)
+         POINTER                               :: mo_coeff => NULL()
       TYPE(qs_loc_env_type), POINTER       :: qs_loc_env => NULL()
       REAL(dp), DIMENSION(:, :), POINTER       :: ri_inv_coul => NULL()
       REAL(dp), DIMENSION(:, :), POINTER       :: ri_inv_ex => NULL()
