@@ -32,18 +32,24 @@ if(NOT CMAKE_Fortran_COMPILER_ID IN_LIST CP2K_Fortran_COMPILER_LIST)
 endif()
 
 # ================================ GNU Compilers ===============================
+if(CMAKE_Fortran_COMPILER_VERSION VERSION_GREATER_EQUAL 11)
+  add_compile_options(
+    "$<$<COMPILE_LANG_AND_ID:Fortran,GNU>:-fallow-argument-mismatch>")
+endif()
 
 # Baseline
 add_compile_options(
   "$<$<COMPILE_LANG_AND_ID:Fortran,GNU>:-std=f2008;-ffree-form;-ffree-line-length-none;-fimplicit-none>"
   "$<$<COMPILE_LANG_AND_ID:Fortran,GNU>:-g;-fno-omit-frame-pointer;-fbacktrace>"
-  "$<$<COMPILE_LANG_AND_ID:Fortran,GNU>:$<$<VERSION_GREATER_EQUAL:${CMAKE_Fortran_COMPILER_VERSION},11>:-fallow-argument-mismatch>>"
   "$<$<COMPILE_LANG_AND_ID:Fortran,GNU>:-Wno-deprecated-declarations;-Wno-maybe-uninitialized;-Wuninitialized;-Wuse-without-only>"
 )
+
 add_compile_options(
   "$<$<COMPILE_LANG_AND_ID:CXX,GNU>:--std=c++17>"
   "$<$<COMPILE_LANG_AND_ID:CXX,GNU>:-g;-fno-omit-frame-pointer>"
   "$<$<COMPILE_LANG_AND_ID:CXX,GNU>:-Wno-deprecated-declarations;-Wno-vla-parameter>"
+  "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:CXX,GNU>>:-Wall;-Wextra;-Werror>"
+  "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:C,GNU>>:-Wall;-Wextra;-Werror>"
 )
 add_compile_options(
   "$<$<COMPILE_LANG_AND_ID:C,GNU>:-std=c11>"
@@ -87,12 +93,6 @@ add_link_options(
   "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:Fortran,GNU>>:-fsanitize=leak>"
   "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:CXX,GNU>>:-fsanitize=leak>"
   "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:C,GNU>>:-fsanitize=leak>")
-
-# TODO Prevent CMake from wrongly adding -fbacktrace and
-# -fallow-argument-mismatch to CFLAGS. add_compile_options(
-# "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:CXX,GNU>>:-Wall;-Wextra;-Werror>"
-# "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:C,GNU>>:-Wall;-Wextra;-Werror>"
-# )
 
 # Coverage
 add_compile_options(
