@@ -106,7 +106,7 @@ CONTAINS
       CALL rixs_core(rixs_section, qs_env)
 
       IF (output_unit > 0) THEN
-         WRITE (UNIT=output_unit, FMT="(/,(T2,A79)),/") &
+         WRITE (UNIT=output_unit, FMT="(/,(T2,A79))") &
             "*******************************************************************************", &
             "!    Normal termination of Resonant Inelastic X-RAY Scattering calculation    !", &
             "*******************************************************************************"
