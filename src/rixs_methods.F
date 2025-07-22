@@ -304,7 +304,7 @@ CONTAINS
             END DO ! td_state
 
             IF (output_unit > 0) THEN
-               WRITE (UNIT=output_unit, FMT="(/,T2,A)") "RIXS| Printing spectrum to file"
+               WRITE (UNIT=output_unit, FMT="(/,T2,A,/)") "RIXS| Printing spectrum to file"
             END IF
             CALL print_rixs_to_file(current_state, mu_i0, mu_if, w_i0, w_if, rixs_env, rixs_section)
 

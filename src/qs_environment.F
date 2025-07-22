@@ -212,7 +212,6 @@ MODULE qs_environment
    USE xtb_potentials,                  ONLY: xtb_pp_radius
    USE xtb_types,                       ONLY: allocate_xtb_atom_param,&
                                               set_xtb_atom_param
-   !USE rixs_types,                      ONLY: read_rixs_control
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
