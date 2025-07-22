@@ -10,10 +10,6 @@
 
 #define DBM_OMP_SCHEDULE schedule(dynamic, 1)
 
-#define DBM_MEMPOOL_DEVICE 1
-#define DBM_MEMPOOL_HOST 1
-
-#define DBM_ALLOC_OFFLOAD 1
 #define DBM_ALLOC_OPENMP 1
 #define DBM_ALLOC_MPI 0
 
