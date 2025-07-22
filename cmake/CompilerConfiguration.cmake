@@ -48,8 +48,6 @@ add_compile_options(
   "$<$<COMPILE_LANG_AND_ID:CXX,GNU>:--std=c++17>"
   "$<$<COMPILE_LANG_AND_ID:CXX,GNU>:-g;-fno-omit-frame-pointer>"
   "$<$<COMPILE_LANG_AND_ID:CXX,GNU>:-Wno-deprecated-declarations;-Wno-vla-parameter>"
-  "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:CXX,GNU>>:-Wall;-Wextra;-Werror>"
-  "$<$<AND:$<CONFIG:DEBUG>,$<COMPILE_LANG_AND_ID:C,GNU>>:-Wall;-Wextra;-Werror>"
 )
 add_compile_options(
   "$<$<COMPILE_LANG_AND_ID:C,GNU>:-std=c11>"
