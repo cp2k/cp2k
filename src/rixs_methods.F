@@ -344,7 +344,7 @@ CONTAINS
 ! **************************************************************************************************
 
    SUBROUTINE rotate_vectors(evects, mo_ref, mo_occ, overlap_matrix, unit_nr)
-      TYPE(cp_fm_type), DIMENSION(:, :)         :: evects
+      TYPE(cp_fm_type), DIMENSION(:, :)                  :: evects
       TYPE(cp_fm_type)                                   :: mo_ref, mo_occ
       TYPE(dbcsr_type), POINTER                          :: overlap_matrix
       INTEGER                                            :: unit_nr
@@ -384,7 +384,7 @@ CONTAINS
 
       nstates = SIZE(evects, DIM=2)
       DO istate = 1, nstates
-         ASSOCIATE(current_evect => evects(1, istate))
+         ASSOCIATE (current_evect => evects(1, istate))
             CALL parallel_gemm('N', 'N', nrow, ncol, ncol, 1.0_dp, current_evect, emat, 0.0_dp, smo)
             diff = MAXVAL(ABS(smo%local_data - current_evect%local_data))
             CALL cp_fm_to_fm(smo, current_evect)
