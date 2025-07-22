@@ -55,6 +55,7 @@ SIRIUS/regtest-1                                            sirius
 Fist/regtest-7-2
 QS/regtest-gapw_xc                                          libint
 QS/regtest-xastdp                                           libint libxc
+QS/regtest-rixs                                             libint libxc
 QS/regtest-pao-1
 QS/regtest-dcdft-force                                      libint libxc
 QS/regtest-admm-gapw                                        libint
