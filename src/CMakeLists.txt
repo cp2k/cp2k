@@ -1483,6 +1483,21 @@ set(CP2K_DBM_SRCS_OPENCL dbm/dbm_multiply_opencl.cl)
 
 set(CP2K_PW_SRCS_GPU pw/gpu/pw_gpu_kernels.cu)
 
+set(CP2K_PROGS_C
+    grid/grid_miniapp.c;grid/grid_unittest.c;dbm/dbm_miniapp.c;start/libcp2k_unittest.c
+)
+set(CP2K_PROGS_F
+    dbt/dbt_unittest.F
+    dbt/tas/dbt_tas_unittest.F
+    start/cp2k.F
+    common/memory_utilities_unittest.F
+    common/parallel_rng_types_unittest.F
+    metadyn_tools/graph.F
+    motion/dumpdcd.F
+    motion/xyz2dcd.F
+    nequip_unittest.F
+    gx_ac_unittest.F)
+
 if(CP2K_USE_CUDA
    OR CP2K_USE_HIP
    OR CP2K_USE_OPENCL)
