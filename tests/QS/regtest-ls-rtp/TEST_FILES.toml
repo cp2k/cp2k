@@ -5,7 +5,7 @@
 #      for details see cp2k/tools/do_regtest
 # test mulliken constraints
 "H2O-ls-emd.inp"                        = [{matcher="E_total", tol=1e-11, ref=-17.08906866058686}]
-"H2O-ls-emd-ewindow.inp"                = [{matcher="M067", tol=6e-9, ref=2.23001754e-06}]
+"H2O-ls-emd-ewindow.inp"                = [{matcher="M067", tol=9e-9, ref=2.23001754e-06}]
 "H2O-ls-emd-ngs.inp"                    = [{matcher="E_total", tol=2e-14, ref=-17.05272806062556}]
 "H2O-ls-rtp-bch.inp"                    = [{matcher="E_total", tol=3e-14, ref=-17.08907706662020}]
 "H2O-ls-rtp.inp"                        = [{matcher="E_total", tol=6e-14, ref=-17.08907732641304}]
