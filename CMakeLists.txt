@@ -233,6 +233,20 @@ set(CP2K_BLAS_VENDOR
     "auto"
     CACHE STRING "BLAS library for computations on host")
 
+set_property(
+  CACHE CP2K_BLAS_VENDOR
+  PROPERTY STRINGS
+           "auto"
+           "MKL"
+           "OpenBLAS"
+           "SCI"
+           "GenericBLAS"
+           "Armpl"
+           "FlexiBLAS"
+           "Atlas"
+           "NVHPCBlas"
+           "CUSTOM")
+
 set(CP2K_SCALAPACK_VENDOR_LIST "MKL" "SCI" "GENERIC" "auto")
 set(CP2K_SCALAPACK_VENDOR
     "auto"
