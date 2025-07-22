@@ -1041,6 +1041,14 @@ CONTAINS
                DEALLOCATE (donor_state_set(i)%soc_evals)
             END IF
 
+            IF (ASSOCIATED(donor_state_set(i)%alpha_osc)) THEN
+               DEALLOCATE (donor_state_set(i)%alpha_osc)
+            END IF
+
+            IF (ASSOCIATED(donor_state_set(i)%beta_osc)) THEN
+               DEALLOCATE (donor_state_set(i)%beta_osc)
+            END IF
+
             IF (ASSOCIATED(donor_state_set(i)%osc_str)) THEN
                DEALLOCATE (donor_state_set(i)%osc_str)
             END IF
