@@ -496,6 +496,16 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="SPIN_DIPOLE", &
+                          variants=s2a("DIPOLE_SPIN"), &
+                          description="Whether the detailed contributions of the dipole oscillator "// &
+                          "strengths for alpha and beta spins should be printed.", &
+                          usage="SPIN_DIPOLE {logical}", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
 !  the GW2X correction subsection
       CALL section_create(subsection, __LOCATION__, name="GW2X", &
                           description="Specifications for the GW2X calculation of core "// &
