@@ -28,8 +28,8 @@ MODULE qs_apt_fdiff_types
 
    TYPE apt_fdiff_points_type
       !TYPE(apt_fdiff_point_type) :: point_no_field ! Only for forward differences
-      TYPE(apt_fdiff_point_type), DIMENSION(1:3, 1:2) :: point_field
-      REAL(kind=dp) :: field_strength
+      TYPE(apt_fdiff_point_type), DIMENSION(1:3, 1:2) :: point_field = apt_fdiff_point_type()
+      REAL(kind=dp)                                   :: field_strength = 0.0_dp
    END TYPE apt_fdiff_points_type
 
 END MODULE qs_apt_fdiff_types
