@@ -1,0 +1,64 @@
+&GLOBAL
+  PRINT_LEVEL low
+  PROJECT Ne-LDA-e_range
+  RUN_TYPE ENERGY
+&END GLOBAL
+
+&FORCE_EVAL
+  &DFT
+    AUTO_BASIS RI_XAS MEDIUM
+    BASIS_SET_FILE_NAME EMSL_BASIS_SETS
+    POTENTIAL_FILE_NAME POTENTIAL
+    &POISSON
+      PERIODIC NONE
+      POISSON_SOLVER MT
+    &END POISSON
+    &QS
+      METHOD GAPW
+    &END QS
+    &XC
+      &XC_FUNCTIONAL PADE
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &PROPERTIES
+    &RIXS
+      &TDDFPT
+        KERNEL FULL
+        MAX_ITER 5
+        NSTATES 3
+      &END TDDFPT
+      &XAS_TDP
+        ENERGY_RANGE 40.0
+        GRID Ne 150 250
+        TDA T
+        &DONOR_STATES
+          ATOM_LIST 1
+          DEFINE_EXCITED BY_INDEX
+          N_SEARCH 1
+          STATE_TYPES 1s
+        &END DONOR_STATES
+        &KERNEL
+          RI_REGION 2
+          &XC_FUNCTIONAL
+            &LDA_XC_TETER93
+            &END LDA_XC_TETER93
+          &END XC_FUNCTIONAL
+        &END KERNEL
+      &END XAS_TDP
+    &END RIXS
+  &END PROPERTIES
+  &SUBSYS
+    &CELL
+      ABC 5.0 5.0 5.0
+      PERIODIC NONE
+    &END CELL
+    &COORD
+      Ne 2.5 2.5 2.5
+    &END COORD
+    &KIND Ne
+      BASIS_SET aug-cc-pVDZ
+      POTENTIAL ALL
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
