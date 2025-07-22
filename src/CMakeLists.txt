@@ -1700,8 +1700,8 @@ target_link_libraries(
   INTERFACE
     $<$<BOOL:${CP2K_USE_DFTD4}>:dftd4::dftd4
     mctc-lib::mctc-lib>
-    $<$<BOOL:${CP2K_USE_DEEPMD}>:DeePMD::deepmd
-    DeePMD::deepmd_c>
+    $<$<BOOL:${CP2K_USE_DEEPMD}>:DeePMD::deepmd>
+    $<$<BOOL:${CP2K_USE_DEEPMD}>:DeePMD::deepmd_c>
     $<$<BOOL:${CP2K_USE_PEXSI}>:PEXSI::PEXSI>
     $<$<BOOL:${CP2K_USE_ACE}>:ACE::pace
     ACE::yaml-cpp-pace
