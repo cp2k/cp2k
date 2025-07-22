@@ -196,13 +196,13 @@ CONTAINS
          valence_evects => valence_state%evects
 
          IF (rixs_control%xas_tdp_control%do_loc) THEN
-         IF (output_unit > 0) THEN
-            WRITE (UNIT=output_unit, FMT="(T2,A)") &
-               "RIXS| Found localised XAS_TDP orbitals"
-            WRITE (UNIT=output_unit, FMT="(T2,A)") &
-               "RIXS| Rotating TDDFPT vectors..."
-         END IF
-         CALL rotate_vectors(valence_evects, local_gs_coeffs, mo_coeffs, matrix_s(1)%matrix, output_unit)
+            IF (output_unit > 0) THEN
+               WRITE (UNIT=output_unit, FMT="(T2,A)") &
+                  "RIXS| Found localised XAS_TDP orbitals"
+               WRITE (UNIT=output_unit, FMT="(T2,A)") &
+                  "RIXS| Rotating TDDFPT vectors..."
+            END IF
+            CALL rotate_vectors(valence_evects, local_gs_coeffs, mo_coeffs, matrix_s(1)%matrix, output_unit)
          END IF
 
          CALL cp_fm_get_info(matrix=valence_evects(1, 1), nrow_global=nao, ncol_global=nocc) ! TODO evects

@@ -796,7 +796,10 @@ CONTAINS
             DEALLOCATE (xas_tdp_env%mos_of_ex_atoms)
          END IF
          IF (ASSOCIATED(xas_tdp_env%mo_coeff)) THEN
-            CALL cp_fm_release(xas_tdp_env%mo_coeff)
+            DO i = 1, SIZE(xas_tdp_env%mo_coeff)
+               CALL cp_fm_release(xas_tdp_env%mo_coeff(i))
+            END DO
+            DEALLOCATE (xas_tdp_env%mo_coeff)
          END IF
          IF (ASSOCIATED(xas_tdp_env%ri_inv_coul)) THEN
             DEALLOCATE (xas_tdp_env%ri_inv_coul)

@@ -1680,14 +1680,21 @@ CONTAINS
          ALLOCATE (donor_state%gs_coeffs)
          CALL cp_fm_create(donor_state%gs_coeffs, gs_struct)
 
-         ALLOCATE (xas_tdp_env%mo_coeff(nspins))
+         IF (.NOT. ASSOCIATED(xas_tdp_env%mo_coeff)) THEN
+            ALLOCATE (xas_tdp_env%mo_coeff(nspins))
+         END IF
+
          DO ispin = 1, nspins
             CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff)
-            ! copy mo_coeff, required for rixs
-            CALL cp_fm_get_info(matrix=mo_coeff, &
-                                matrix_struct=matrix_struct)
-            CALL cp_fm_create(xas_tdp_env%mo_coeff(ispin), matrix_struct)
-            CALL cp_fm_to_fm(mo_coeff, xas_tdp_env%mo_coeff(ispin))
+            ! check if mo_coeff is copied before for another donor_state
+            IF (.NOT. ASSOCIATED(xas_tdp_env%mo_coeff(ispin)%local_data)) THEN
+               ! copy mo_coeff
+               CALL cp_fm_get_info(matrix=mo_coeff, &
+                                   matrix_struct=matrix_struct)
+               CALL cp_fm_create(xas_tdp_env%mo_coeff(ispin), matrix_struct)
+               CALL cp_fm_to_fm(mo_coeff, xas_tdp_env%mo_coeff(ispin))
+            END IF
+
             DO i = 1, n_states
                CALL cp_fm_to_fm_submat(msource=mo_coeff, mtarget=donor_state%gs_coeffs, nrow=nao, &
                                        ncol=1, s_firstrow=1, s_firstcol=my_mos(i, ispin), &
