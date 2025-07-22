@@ -2089,11 +2089,11 @@ CONTAINS
       INTEGER                                            :: handle, iosc, j, nao, ndo_mo, ndo_so, &
                                                             ngs, nosc, nspins
       LOGICAL                                            :: do_sc, do_sg
-      REAL(dp)                                           :: osc_xyz, pref
-      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: tot_contr
+      REAL(dp)                                           :: alpha_xyz, beta_xyz, osc_xyz, pref
+      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: alpha_contr, beta_contr, tot_contr
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: dip_block
       REAL(dp), DIMENSION(:), POINTER                    :: lr_evals
-      REAL(dp), DIMENSION(:, :), POINTER                 :: osc_str
+      REAL(dp), DIMENSION(:, :), POINTER                 :: alpha_osc, beta_osc, osc_str
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: col_struct, mat_struct
       TYPE(cp_fm_type)                                   :: col_work, mat_work
@@ -2102,7 +2102,7 @@ CONTAINS
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
       NULLIFY (dipmat, col_struct, mat_struct, para_env, blacs_env, lr_coeffs)
-      NULLIFY (lr_evals, osc_str)
+      NULLIFY (lr_evals, osc_str, alpha_osc, beta_osc)
 
       CALL timeset(routineN, handle)
 
@@ -2124,9 +2124,13 @@ CONTAINS
       ndo_so = ndo_mo*nspins
       ngs = ndo_so; IF (xas_tdp_control%do_roks) ngs = ndo_mo !in ROKS, same gs coeffs
       nosc = SIZE(lr_evals)
-      ALLOCATE (donor_state%osc_str(nosc, 4))
+      ALLOCATE (donor_state%osc_str(nosc, 4), donor_state%alpha_osc(nosc, 4), donor_state%beta_osc(nosc, 4))
       osc_str => donor_state%osc_str
+      alpha_osc => donor_state%alpha_osc
+      beta_osc => donor_state%beta_osc
       osc_str = 0.0_dp
+      alpha_osc = 0.0_dp
+      beta_osc = 0.0_dp
       dipmat => xas_tdp_env%dipmat
 
       ! do some work matrix initialization
@@ -2137,7 +2141,7 @@ CONTAINS
       CALL cp_fm_create(mat_work, mat_struct)
       CALL cp_fm_create(col_work, col_struct)
 
-      ALLOCATE (tot_contr(ndo_mo), dip_block(ndo_so, ngs))
+      ALLOCATE (tot_contr(ndo_mo), dip_block(ndo_so, ngs), alpha_contr(ndo_mo), beta_contr(ndo_mo))
       pref = 2.0_dp; IF (do_sc) pref = 1.0_dp !because of singlet definition u = 1/sqrt(2)(c_a+c_b)
 
 !  Looping over cartesian coord
@@ -2157,15 +2161,26 @@ CONTAINS
             IF (do_sg) THEN
                tot_contr(:) = get_diag(dip_block)
             ELSE IF (do_sc .AND. xas_tdp_control%do_uks) THEN
-               tot_contr(:) = get_diag(dip_block(1:ndo_mo, 1:ndo_mo)) !alpha
-               tot_contr(:) = tot_contr(:) + get_diag(dip_block(ndo_mo + 1:ndo_so, ndo_mo + 1:ndo_so)) !beta
+               alpha_contr(:) = get_diag(dip_block(1:ndo_mo, 1:ndo_mo))
+               beta_contr(:) = get_diag(dip_block(ndo_mo + 1:ndo_so, ndo_mo + 1:ndo_so))
+               tot_contr(:) = alpha_contr(:) + beta_contr(:)
             ELSE
                !roks
-               tot_contr(:) = get_diag(dip_block(1:ndo_mo, :)) !alpha
-               tot_contr(:) = tot_contr(:) + get_diag(dip_block(ndo_mo + 1:ndo_so, :)) !beta
+               alpha_contr(:) = get_diag(dip_block(1:ndo_mo, :))
+               beta_contr(:) = get_diag(dip_block(ndo_mo + 1:ndo_so, :))
+               tot_contr(:) = alpha_contr(:) + beta_contr(:)
             END IF
 
             osc_xyz = SUM(tot_contr)**2
+            alpha_xyz = SUM(alpha_contr)**2
+            beta_xyz = SUM(beta_contr)**2
+
+            alpha_osc(iosc, 4) = alpha_osc(iosc, 4) + alpha_xyz
+            alpha_osc(iosc, j) = alpha_xyz
+
+            beta_osc(iosc, 4) = beta_osc(iosc, 4) + beta_xyz
+            beta_osc(iosc, j) = beta_xyz
+
             osc_str(iosc, 4) = osc_str(iosc, 4) + osc_xyz
             osc_str(iosc, j) = osc_xyz
 
@@ -2176,8 +2191,12 @@ CONTAINS
       DO j = 1, 4
          IF (xas_tdp_control%dipole_form == xas_dip_len) THEN
             osc_str(:, j) = pref*2.0_dp/3.0_dp*lr_evals(:)*osc_str(:, j)
+            alpha_osc(:, j) = pref*2.0_dp/3.0_dp*lr_evals(:)*alpha_osc(:, j)
+            beta_osc(:, j) = pref*2.0_dp/3.0_dp*lr_evals(:)*beta_osc(:, j)
          ELSE
             osc_str(:, j) = pref*2.0_dp/3.0_dp/lr_evals(:)*osc_str(:, j)
+            alpha_osc(:, j) = pref*2.0_dp/3.0_dp/lr_evals(:)*alpha_osc(:, j)
+            beta_osc(:, j) = pref*2.0_dp/3.0_dp/lr_evals(:)*beta_osc(:, j)
          END IF
       END DO
 
@@ -3087,6 +3106,14 @@ CONTAINS
                      i, donor_state%sc_evals(i)*evolt, donor_state%osc_str(i, 4), &
                      donor_state%osc_str(i, 1), donor_state%osc_str(i, 2), donor_state%osc_str(i, 3)
                END DO
+            ELSE IF (xas_tdp_control%spin_dip) THEN
+               WRITE (xas_tdp_unit, FMT="(T3,A)") &
+                  " Index     Excitation energy (eV)    fosc dipole (a.u.)    alpha-comp     beta-comp"
+               DO i = 1, SIZE(donor_state%sc_evals)
+                  WRITE (xas_tdp_unit, FMT="(T3,I6,F27.6,F22.6,F14.6,F14.6)") &
+                     i, donor_state%sc_evals(i)*evolt, donor_state%osc_str(i, 4), &
+                     donor_state%alpha_osc(i, 4), donor_state%beta_osc(i, 4)
+               END DO
             ELSE
                WRITE (xas_tdp_unit, FMT="(T3,A)") &
                   " Index     Excitation energy (eV)    fosc dipole (a.u.)"
@@ -3133,6 +3160,13 @@ CONTAINS
                DO i = 1, SIZE(donor_state%sf_evals)
                   WRITE (xas_tdp_unit, FMT="(T3,I6,F27.6,F22.6,F14.6,F14.6,F14.6)") &
                      i, donor_state%sf_evals(i)*evolt, 0.0_dp, 0.0_dp, 0.0_dp, 0.0_dp
+               END DO
+            ELSE IF (xas_tdp_control%spin_dip) THEN
+               WRITE (xas_tdp_unit, FMT="(T3,A)") &
+                  " Index     Excitation energy (eV)    fosc dipole (a.u.)    alpha-comp     beta-comp"
+               DO i = 1, SIZE(donor_state%sf_evals)
+                  WRITE (xas_tdp_unit, FMT="(T3,I6,F27.6,F22.6,F14.6,F14.6)") &
+                     i, donor_state%sf_evals(i)*evolt, 0.0_dp, 0.0_dp, 0.0_dp
                END DO
             ELSE
                WRITE (xas_tdp_unit, FMT="(T3,A)") &
@@ -3227,6 +3261,13 @@ CONTAINS
                DO i = 1, SIZE(donor_state%tp_evals)
                   WRITE (xas_tdp_unit, FMT="(T3,I6,F27.6,F22.6,F14.6,F14.6,F14.6)") &
                      i, donor_state%tp_evals(i)*evolt, 0.0_dp, 0.0_dp, 0.0_dp, 0.0_dp
+               END DO
+            ELSE IF (xas_tdp_control%spin_dip) THEN
+               WRITE (xas_tdp_unit, FMT="(T3,A)") &
+                  " Index     Excitation energy (eV)    fosc dipole (a.u.)    alpha-comp     beta-comp"
+               DO i = 1, SIZE(donor_state%tp_evals)
+                  WRITE (xas_tdp_unit, FMT="(T3,I6,F27.6,F22.6,F14.6,F14.6)") &
+                     i, donor_state%tp_evals(i)*evolt, 0.0_dp, 0.0_dp, 0.0_dp
                END DO
             ELSE
                WRITE (xas_tdp_unit, FMT="(T3,A)") &
