@@ -233,7 +233,7 @@ if [ "${ENABLE_HIP}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
       HIP_FLAGS+="-fPIE -D__HIP_PLATFORM_AMD__ -g --offload-arch=gfx906 -O3 --std=c++11 -Wall -Wextra \$(DFLAGS)"
       LIBS+=" IF_HIP(-lamdhip64 -lhipfft -lhipblas -lrocblas IF_DEBUG(-lroctx64 -lroctracer64|)|)"
       DFLAGS+=" IF_HIP(-D__HIP_PLATFORM_AMD__ -D__OFFLOAD_HIP IF_DEBUG(-D__OFFLOAD_PROFILING|)|)  -D__DBCSR_ACC"
-      CXXFLAGS+=" -fopenmp -Wall -Wextra"
+      CXXFLAGS+=" -std=c++14 -fopenmp -Wall -Wextra"
       ;;
     Mi100)
       check_lib -lamdhip64 "hip"
@@ -249,7 +249,7 @@ if [ "${ENABLE_HIP}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
       HIP_FLAGS+="-fPIE -D__HIP_PLATFORM_AMD__ -g --offload-arch=gfx908 -O3 --std=c++11 -Wall -Wextra \$(DFLAGS)"
       LIBS+=" IF_HIP(-lamdhip64 -lhipfft -lhipblas -lrocblas IF_DEBUG(-lroctx64 -lroctracer64|)|)"
       DFLAGS+=" IF_HIP(-D__HIP_PLATFORM_AMD__ -D__OFFLOAD_HIP IF_DEBUG(-D__OFFLOAD_PROFILING|)|) -D__DBCSR_ACC"
-      CXXFLAGS+=" -fopenmp -Wall -Wextra"
+      CXXFLAGS+=" -std=c++14 -fopenmp -Wall -Wextra"
       ;;
     Mi250)
       check_lib -lamdhip64 "hip"
@@ -265,7 +265,7 @@ if [ "${ENABLE_HIP}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
       HIP_FLAGS+="-fPIE -D__HIP_PLATFORM_AMD__ -g --offload-arch=gfx90a -munsafe-fp-atomics -O3 --std=c++11 -Wall -Wextra \$(DFLAGS)"
       LIBS+=" IF_HIP(-lamdhip64 -lhipfft -lhipblas -lrocblas IF_DEBUG(-lroctx64 -lroctracer64|)|)"
       DFLAGS+=" IF_HIP(-D__HIP_PLATFORM_AMD__ -D__OFFLOAD_HIP IF_DEBUG(-D__OFFLOAD_PROFILING|)|) -D__DBCSR_ACC"
-      CXXFLAGS+=" -fopenmp -Wall -Wextra"
+      CXXFLAGS+=" -std=c++14 -fopenmp -Wall -Wextra"
       ;;
     *)
       check_command nvcc "cuda"
@@ -280,7 +280,7 @@ if [ "${ENABLE_HIP}" = __TRUE__ ] && [ "${GPUVER}" != no ]; then
       HIP_INCLUDES+=" -I${CUDA_PATH:-${CUDA_HOME:-/CUDA_HOME-notset}}/include"
       # GCC issues lots of warnings for hip/nvidia_detail/hip_runtime_api.h
       CFLAGS+=" -Wno-error ${CUDA_CFLAGS}"
-      CXXFLAGS+=" -Wno-error ${CUDA_CFLAGS}"
+      CXXFLAGS+=" -std=c++14 -Wno-error ${CUDA_CFLAGS}"
       # Set LD-flags
       # Multiple definition because of hip/include/hip/nvidia_detail/nvidia_hiprtc.h
       LDFLAGS+=" -Wl,--allow-multiple-definition"
