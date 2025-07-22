@@ -344,7 +344,7 @@ CONTAINS
 ! **************************************************************************************************
 
    SUBROUTINE rotate_vectors(evects, mo_ref, mo_occ, overlap_matrix, unit_nr)
-      TYPE(cp_fm_type), DIMENSION(:, :), POINTER         :: evects
+      TYPE(cp_fm_type), DIMENSION(:, :)         :: evects
       TYPE(cp_fm_type)                                   :: mo_ref, mo_occ
       TYPE(dbcsr_type), POINTER                          :: overlap_matrix
       INTEGER                                            :: unit_nr
@@ -384,10 +384,11 @@ CONTAINS
 
       nstates = SIZE(evects, DIM=2)
       DO istate = 1, nstates
-         current_evect => evects(1, istate)
-         CALL parallel_gemm('N', 'N', nrow, ncol, ncol, 1.0_dp, current_evect, emat, 0.0_dp, smo)
-         diff = MAXVAL(ABS(smo%local_data - current_evect%local_data))
-         CALL cp_fm_to_fm(smo, current_evect)
+         ASSOCIATE(current_evect => evects(1, istate))
+            CALL parallel_gemm('N', 'N', nrow, ncol, ncol, 1.0_dp, current_evect, emat, 0.0_dp, smo)
+            diff = MAXVAL(ABS(smo%local_data - current_evect%local_data))
+            CALL cp_fm_to_fm(smo, current_evect)
+         END ASSOCIATE
       END DO
 
       CALL cp_fm_struct_release(emat_struct)
@@ -411,9 +412,9 @@ CONTAINS
                                  rixs_env, rixs_section)
 
       TYPE(donor_state_type), POINTER                    :: donor_state
-      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: mu_i0
-      REAL(dp), ALLOCATABLE, DIMENSION(:, :, :)          :: mu_if
-      REAL(dp), ALLOCATABLE, DIMENSION(:)                :: w_i0, w_if
+      REAL(dp), DIMENSION(:, :)                          :: mu_i0
+      REAL(dp), DIMENSION(:, :, :)                       :: mu_if
+      REAL(dp), DIMENSION(:)                             :: w_i0, w_if
       TYPE(rixs_env_type), POINTER                       :: rixs_env
       TYPE(section_vals_type), POINTER                   :: rixs_section
 
