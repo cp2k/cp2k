@@ -18,7 +18,8 @@ MODULE cp_control_utils
    USE cp_control_types,                ONLY: &
         admm_control_create, admm_control_type, ddapc_control_create, ddapc_restraint_type, &
         dft_control_create, dft_control_type, efield_type, expot_control_create, &
-        maxwell_control_create, qs_control_type, tddfpt2_control_type, xtb_control_type
+        maxwell_control_create, qs_control_type, rixs_control_type, tddfpt2_control_type, &
+        xtb_control_type
    USE cp_files,                        ONLY: close_file,&
                                               open_file
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -76,6 +77,7 @@ MODULE cp_control_utils
    USE smeagol_control_types,           ONLY: read_smeagol_control
    USE string_utilities,                ONLY: uppercase
    USE util,                            ONLY: sort
+   USE xas_tdp_types,                   ONLY: read_xas_tdp_control
    USE xc,                              ONLY: xc_uses_kinetic_energy_density,&
                                               xc_uses_norm_drho
    USE xc_input_constants,              ONLY: xc_deriv_collocate
@@ -89,6 +91,7 @@ MODULE cp_control_utils
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_control_utils'
 
    PUBLIC :: read_dft_control, &
+             read_rixs_control, &
              read_mgrid_section, &
              read_qs_section, &
              read_tddfpt2_control, &
@@ -704,6 +707,27 @@ CONTAINS
       CALL read_smeagol_control(dft_control%smeagol_control, tmp_section)
 
    END SUBROUTINE read_dft_control
+
+! **************************************************************************************************
+!> \brief Reads the input and stores in the rixs_control_type
+!> \param rixs_control ...
+!> \param rixs_section ...
+!> \param qs_control ...
+! **************************************************************************************************
+   SUBROUTINE read_rixs_control(rixs_control, rixs_section, qs_control)
+      TYPE(rixs_control_type), POINTER                   :: rixs_control
+      TYPE(section_vals_type), POINTER                   :: rixs_section
+      TYPE(qs_control_type), POINTER                     :: qs_control
+
+      TYPE(section_vals_type), POINTER                   :: td_section, xas_section
+
+      td_section => section_vals_get_subs_vals(rixs_section, "TDDFPT")
+      CALL read_tddfpt2_control(rixs_control%tddfpt2_control, td_section, qs_control)
+
+      xas_section => section_vals_get_subs_vals(rixs_section, "XAS_TDP")
+      CALL read_xas_tdp_control(rixs_control%xas_tdp_control, xas_section)
+
+   END SUBROUTINE read_rixs_control
 
 ! **************************************************************************************************
 !> \brief ...

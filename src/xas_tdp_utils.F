@@ -670,6 +670,7 @@ CONTAINS
 
       END IF
 
+      xas_tdp_env%nvirt = nevals
       ALLOCATE (lr_evals(nevals))
       lr_evals(:) = tmp_evals(first_ex:first_ex + nevals - 1)
 

@@ -17,6 +17,7 @@ MODULE qs_tddfpt2_methods
    USE cell_types,                      ONLY: cell_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type,&
+                                              rixs_control_type,&
                                               tddfpt2_control_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
    USE cp_dbcsr_operations,             ONLY: dbcsr_deallocate_matrix_set
@@ -108,6 +109,8 @@ MODULE qs_tddfpt2_methods
                                               tddfpt_init_mos,&
                                               tddfpt_oecorr,&
                                               tddfpt_release_ground_state_mos
+   USE rixs_types,                      ONLY: rixs_env_type,&
+                                              tddfpt2_valence_type
    USE string_utilities,                ONLY: integer_to_string
    USE xc_write_output,                 ONLY: xc_write
 #include "./base/base_uses.f90"
@@ -133,15 +136,17 @@ CONTAINS
 !> \brief Perform TDDFPT calculation.
 !> \param qs_env  Quickstep environment
 !> \param calc_forces ...
+!> \param rixs_env ...
 !> \par History
 !>    * 05.2016 created [Sergey Chulkov]
 !>    * 06.2016 refactored to be used with Davidson eigensolver [Sergey Chulkov]
 !>    * 03.2017 cleaned and refactored [Sergey Chulkov]
 !> \note Based on the subroutines tddfpt_env_init(), and tddfpt_env_deallocate().
 ! **************************************************************************************************
-   SUBROUTINE tddfpt(qs_env, calc_forces)
+   SUBROUTINE tddfpt(qs_env, calc_forces, rixs_env)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN)                                :: calc_forces
+      TYPE(rixs_env_type), OPTIONAL, POINTER             :: rixs_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'tddfpt'
 
@@ -150,7 +155,7 @@ CONTAINS
                                                             nstate_max, nstates, nvirt, old_state
       INTEGER, DIMENSION(maxspins)                       :: nactive
       LOGICAL                                            :: do_admm, do_exck, do_hfx, do_hfxlr, &
-                                                            do_hfxsr, do_soc, lmult_tmp, &
+                                                            do_hfxsr, do_rixs, do_soc, lmult_tmp, &
                                                             state_change
       REAL(kind=dp)                                      :: gsmin, gsval, xsval
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: evals, ostrength
@@ -173,12 +178,14 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
+      TYPE(rixs_control_type), POINTER                   :: rixs_control
       TYPE(section_vals_type), POINTER                   :: hfxsr_section, kernel_section, &
                                                             lri_section, soc_section, &
                                                             tddfpt_print_section, tddfpt_section, &
                                                             xc_section
       TYPE(stda_env_type), TARGET                        :: stda_kernel
       TYPE(tddfpt2_control_type), POINTER                :: tddfpt_control
+      TYPE(tddfpt2_valence_type), POINTER                :: valence_state
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          POINTER                                         :: gs_mos
       TYPE(tddfpt_subgroup_env_type)                     :: sub_env
@@ -190,8 +197,7 @@ CONTAINS
       logger => cp_get_default_logger()
 
       ! input section print/xc
-      NULLIFY (tddfpt_section)
-      tddfpt_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%TDDFPT")
+      NULLIFY (tddfpt_section, tddfpt_control)
 
       CALL tddfpt_input(qs_env, do_hfx, do_admm, do_exck, &
                         do_hfxsr, do_hfxlr, xc_section, tddfpt_print_section, &
@@ -207,8 +213,20 @@ CONTAINS
                       matrix_ks=matrix_ks, &
                       matrix_s=matrix_s, &
                       mos=mos, &
-                      scf_env=scf_env)
-      tddfpt_control => dft_control%tddfpt2_control
+                      scf_env=scf_env, &
+                      do_rixs=do_rixs)
+
+      IF (do_rixs) THEN
+         tddfpt_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%RIXS%TDDFPT")
+         NULLIFY (rixs_control, valence_state)
+         rixs_control => dft_control%rixs_control
+         tddfpt_control => rixs_control%tddfpt2_control
+         valence_state => rixs_env%valence_state
+      ELSE
+         tddfpt_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%TDDFPT")
+         tddfpt_control => dft_control%tddfpt2_control
+      END IF
+
       tddfpt_control%do_hfx = do_hfx
       tddfpt_control%do_admm = do_admm
       tddfpt_control%do_hfxsr = do_hfxsr
@@ -493,6 +511,31 @@ CONTAINS
             CALL tddfpt_forces_main(qs_env, gs_mos, ex_env, kernel_env, &
                                     sub_env, work_matrices)
          END IF
+      END IF
+
+      ! share evals, evects and mo_coefs with rixs
+      IF (do_rixs) THEN
+         ! copy evals
+         valence_state%nstates = nstates
+         ALLOCATE (valence_state%evals(SIZE(evals)))
+         valence_state%evals(:) = evals(:)
+
+         ALLOCATE (valence_state%evects(nspins, nstates))
+         ALLOCATE (valence_state%mos_occ(nspins))
+         DO ispin = 1, nspins
+            ! copy evects
+            DO istate = 1, nstates
+               CALL cp_fm_get_info(matrix=evects(ispin, istate), &
+                                   matrix_struct=matrix_struct)
+               CALL cp_fm_create(valence_state%evects(ispin, istate), matrix_struct)
+               CALL cp_fm_to_fm(evects(ispin, istate), valence_state%evects(ispin, istate))
+            END DO
+            ! copy mos_occ
+            CALL cp_fm_get_info(matrix=gs_mos(ispin)%mos_occ, &
+                                matrix_struct=matrix_struct)
+            CALL cp_fm_create(valence_state%mos_occ(ispin), matrix_struct)
+            CALL cp_fm_to_fm(gs_mos(ispin)%mos_occ, valence_state%mos_occ(ispin))
+         END DO
       END IF
 
       ! clean up

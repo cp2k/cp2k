@@ -121,6 +121,7 @@ MODULE xas_tdp_methods
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE qs_scf_types,                    ONLY: ot_method_nr
+   USE rixs_types,                      ONLY: rixs_env_type
    USE util,                            ONLY: get_limit,&
                                               locate,&
                                               sort_unique
@@ -158,25 +159,34 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Driver for XAS TDDFT calculations.
 !> \param qs_env the inherited qs_environment
+!> \param rixs_env ...
 !> \author AB
 !> \note Empty for now...
 ! **************************************************************************************************
-   SUBROUTINE xas_tdp(qs_env)
+   SUBROUTINE xas_tdp(qs_env, rixs_env)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(rixs_env_type), OPTIONAL, POINTER             :: rixs_env
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'xas_tdp'
 
       CHARACTER(default_string_length)                   :: rst_filename
       INTEGER                                            :: handle, n_rep, output_unit
-      LOGICAL                                            :: do_restart
+      LOGICAL                                            :: do_restart, do_rixs
       TYPE(section_vals_type), POINTER                   :: xas_tdp_section
 
       CALL timeset(routineN, handle)
 
 !  Logger initialization and XAS TDP banner printing
       NULLIFY (xas_tdp_section)
-      xas_tdp_section => section_vals_get_subs_vals(qs_env%input, "DFT%XAS_TDP")
+
+      ! check if subroutine is called as part of rixs calculation
+      CALL get_qs_env(qs_env, do_rixs=do_rixs)
+      IF (do_rixs) THEN
+         xas_tdp_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%RIXS%XAS_TDP")
+      ELSE
+         xas_tdp_section => section_vals_get_subs_vals(qs_env%input, "DFT%XAS_TDP")
+      END IF
       output_unit = cp_logger_get_default_io_unit()
 
       IF (output_unit > 0) THEN
@@ -211,7 +221,11 @@ CONTAINS
 
 !  or run the core XAS_TDP routine if not
       ELSE
-         CALL xas_tdp_core(xas_tdp_section, qs_env)
+         IF (PRESENT(rixs_env)) THEN
+            CALL xas_tdp_core(xas_tdp_section, qs_env, rixs_env)
+         ELSE
+            CALL xas_tdp_core(xas_tdp_section, qs_env)
+         END IF
       END IF
 
       IF (output_unit > 0) THEN
@@ -229,18 +243,20 @@ CONTAINS
 !> \brief The core workflow of the XAS_TDP method
 !> \param xas_tdp_section the input values for XAS_TDP
 !> \param qs_env ...
+!> \param rixs_env ...
 ! **************************************************************************************************
-   SUBROUTINE xas_tdp_core(xas_tdp_section, qs_env)
+   SUBROUTINE xas_tdp_core(xas_tdp_section, qs_env, rixs_env)
 
       TYPE(section_vals_type), POINTER                   :: xas_tdp_section
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(rixs_env_type), OPTIONAL, POINTER             :: rixs_env
 
       CHARACTER(LEN=default_string_length)               :: kind_name
       INTEGER :: batch_size, bo(2), current_state_index, iat, iatom, ibatch, ikind, ispin, istate, &
          nbatch, nex_atom, output_unit, tmp_index
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: batch_atoms, ex_atoms_of_kind
       INTEGER, DIMENSION(:), POINTER                     :: atoms_of_kind
-      LOGICAL                                            :: do_os, end_of_batch, unique
+      LOGICAL                                            :: do_os, do_rixs, end_of_batch, unique
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks
@@ -262,8 +278,12 @@ CONTAINS
          WRITE (UNIT=output_unit, FMT="(/,T3,A)") &
             "# Create and initialize the XAS_TDP environment"
       END IF
-      CALL get_qs_env(qs_env, dft_control=dft_control)
-      CALL xas_tdp_init(xas_tdp_env, xas_tdp_control, qs_env)
+      CALL get_qs_env(qs_env, dft_control=dft_control, do_rixs=do_rixs)
+      IF (PRESENT(rixs_env)) THEN
+         CALL xas_tdp_init(xas_tdp_env, xas_tdp_control, qs_env, rixs_env)
+      ELSE
+         CALL xas_tdp_init(xas_tdp_env, xas_tdp_control, qs_env)
+      END IF
       CALL print_info(output_unit, xas_tdp_control, qs_env)
 
       IF (output_unit > 0) THEN
@@ -508,8 +528,7 @@ CONTAINS
                   IF (xas_tdp_control%do_gw2x) CALL print_xps(current_state, xas_tdp_env, xas_tdp_control, qs_env)
 
 !                 Free some unneeded attributes of current_state
-                  CALL free_ds_memory(current_state)
-
+                  IF (.NOT. do_rixs) CALL free_ds_memory(current_state) ! donor-state will be cleaned in rixs
                   current_state_index = current_state_index + 1
                   NULLIFY (current_state)
 
@@ -542,7 +561,7 @@ CONTAINS
       END IF
 
 !  Clean-up
-      CALL xas_tdp_env_release(xas_tdp_env)
+      IF (.NOT. do_rixs) CALL xas_tdp_env_release(xas_tdp_env) ! is released at the end of rixs
       CALL xas_tdp_control_release(xas_tdp_control)
 
    END SUBROUTINE xas_tdp_core
@@ -552,12 +571,14 @@ CONTAINS
 !> \param xas_tdp_env the environment type to initialize
 !> \param xas_tdp_control the control type to initialize
 !> \param qs_env the inherited qs environement type
+!> \param rixs_env ...
 ! **************************************************************************************************
-   SUBROUTINE xas_tdp_init(xas_tdp_env, xas_tdp_control, qs_env)
+   SUBROUTINE xas_tdp_init(xas_tdp_env, xas_tdp_control, qs_env, rixs_env)
 
       TYPE(xas_tdp_env_type), POINTER                    :: xas_tdp_env
       TYPE(xas_tdp_control_type), POINTER                :: xas_tdp_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(rixs_env_type), OPTIONAL, POINTER             :: rixs_env
 
       CHARACTER(LEN=default_string_length)               :: kind_name
       INTEGER                                            :: at_ind, i, ispin, j, k, kind_ind, &
@@ -566,7 +587,7 @@ CONTAINS
                                                             nex_kinds, nmatch, nspins
       INTEGER, DIMENSION(2)                              :: homo, n_mo, n_moloc
       INTEGER, DIMENSION(:), POINTER                     :: ind_of_kind
-      LOGICAL                                            :: do_os, do_uks, unique
+      LOGICAL                                            :: do_os, do_rixs, do_uks, unique
       REAL(dp)                                           :: fact
       REAL(dp), DIMENSION(:), POINTER                    :: mo_evals
       TYPE(admm_type), POINTER                           :: admm_env
@@ -590,9 +611,14 @@ CONTAINS
       NULLIFY (mo_coeff, matrix_ks, admm_env, dummy_section)
 
 !  XAS TDP control type initialization
-      xas_tdp_section => section_vals_get_subs_vals(qs_env%input, "DFT%XAS_TDP")
+      CALL get_qs_env(qs_env, dft_control=dft_control, do_rixs=do_rixs)
 
-      CALL get_qs_env(qs_env, dft_control=dft_control)
+      IF (do_rixs) THEN
+         xas_tdp_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%RIXS%XAS_TDP")
+      ELSE
+         xas_tdp_section => section_vals_get_subs_vals(qs_env%input, "DFT%XAS_TDP")
+      END IF
+
       CALL xas_tdp_control_create(xas_tdp_control)
       CALL read_xas_tdp_control(xas_tdp_control, xas_tdp_section)
 
@@ -603,7 +629,11 @@ CONTAINS
       do_os = do_uks .OR. xas_tdp_control%do_roks
 
 !  XAS TDP environment type initialization
-      CALL xas_tdp_env_create(xas_tdp_env)
+      IF (PRESENT(rixs_env)) THEN
+         xas_tdp_env => rixs_env%core_state
+      ELSE
+         CALL xas_tdp_env_create(xas_tdp_env)
+      END IF
 
 !  Retrieving the excited atoms indices and correspondig state types
       IF (xas_tdp_control%define_excited == xas_tdp_by_index) THEN
@@ -1483,7 +1513,7 @@ CONTAINS
       REAL(dp), DIMENSION(:), POINTER                    :: mo_evals, zeta
       REAL(dp), DIMENSION(:, :), POINTER                 :: overlap_matrix, tmp_coeff
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_fm_struct_type), POINTER                   :: eval_mat_struct, gs_struct
+      TYPE(cp_fm_struct_type), POINTER                   :: eval_mat_struct, gs_struct, matrix_struct
       TYPE(cp_fm_type)                                   :: eval_mat, work_mat
       TYPE(cp_fm_type), POINTER                          :: gs_coeffs, mo_coeff
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks
@@ -1650,8 +1680,21 @@ CONTAINS
          ALLOCATE (donor_state%gs_coeffs)
          CALL cp_fm_create(donor_state%gs_coeffs, gs_struct)
 
+         IF (.NOT. ASSOCIATED(xas_tdp_env%mo_coeff)) THEN
+            ALLOCATE (xas_tdp_env%mo_coeff(nspins))
+         END IF
+
          DO ispin = 1, nspins
             CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff)
+            ! check if mo_coeff is copied before for another donor_state
+            IF (.NOT. ASSOCIATED(xas_tdp_env%mo_coeff(ispin)%local_data)) THEN
+               ! copy mo_coeff
+               CALL cp_fm_get_info(matrix=mo_coeff, &
+                                   matrix_struct=matrix_struct)
+               CALL cp_fm_create(xas_tdp_env%mo_coeff(ispin), matrix_struct)
+               CALL cp_fm_to_fm(mo_coeff, xas_tdp_env%mo_coeff(ispin))
+            END IF
+
             DO i = 1, n_states
                CALL cp_fm_to_fm_submat(msource=mo_coeff, mtarget=donor_state%gs_coeffs, nrow=nao, &
                                        ncol=1, s_firstrow=1, s_firstcol=my_mos(i, ispin), &

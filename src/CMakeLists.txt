@@ -741,6 +741,8 @@ list(
   response_solver.F
   restraint.F
   ri_environment_methods.F
+  rixs_methods.F
+  rixs_types.F
   rmsd.F
   rpa_exchange.F
   rpa_communication.F

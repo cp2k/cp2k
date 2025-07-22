@@ -23,7 +23,7 @@ MODULE header
 
    PRIVATE
    PUBLIC :: cp2k_header, cp2k_footer, vib_header
-   PUBLIC :: fist_header, se_header, dftb_header, qs_header, tddfpt_header
+   PUBLIC :: fist_header, se_header, dftb_header, qs_header, tddfpt_header, rixs_header
    PUBLIC :: qmmm_header, atom_header, atom_footer, band_header, xtb_header, tblite_header
    PUBLIC :: tmc_header, tmc_ana_header
    PUBLIC :: sirius_header
@@ -508,5 +508,24 @@ CONTAINS
          "*******************************************************************************", &
          "*******************************************************************************"
    END SUBROUTINE tmc_ana_header
+! **************************************************************************************************
+!> \brief ...
+!> \param iw ...
+! **************************************************************************************************
+   SUBROUTINE rixs_header(iw)
+      INTEGER, INTENT(IN)                                :: iw
+
+      IF (iw < 0) RETURN
+      WRITE (iw, "(/,(T2,A79))") &
+         "*******************************************************************************", &
+         "**                   ########   ####  ##     ##   ######                     **", &
+         "**                   ##     ##   ##    ##   ##   ##                          **", &
+         "**                   ########    ##      ###      ######                     **", &
+         "**                   ##   ##     ##     ## ##          ##                    **", &
+         "**                   ##     ##  ####  ##     ##   ######                     **", &
+         "**              Resonant Inelastic X-RAY Scattering calculations             **", &
+         "*******************************************************************************"
+
+   END SUBROUTINE rixs_header
 END MODULE header
 

@@ -1,0 +1,7 @@
+#Testing the RIXS method and the keyword combinations it involves
+"CO-PBE0.inp"                                  = [{matcher="M088", tol=1e-07, ref=519.422017}]
+"H2O-PBE0.inp"                                 = [{matcher="M088", tol=1e-07, ref=519.371583}]
+"He-LDA_RIbas.inp"                             = [{matcher="M088", tol=1e-07, ref=25.875010}]
+"Ne-LDA-e_range.inp"                           = [{matcher="M088", tol=1e-08, ref=829.640319}]
+"SiH4-PBE0-admm-pseudo.inp"                    = [{matcher="M088", tol=1e-08, ref=1802.938610}]
+#EOF

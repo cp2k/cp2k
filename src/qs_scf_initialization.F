@@ -660,6 +660,8 @@ CONTAINS
          END IF
          IF (dft_control%do_xas_calculation) &
             CPABORT("No XAS implemented with kpoints")
+         IF (qs_env%do_rixs) &
+            CPABORT("RIXS not implemented with kpoints")
          DO ik = 1, SIZE(kpoints%kp_env)
             CALL mpools_get(kpoints%mpools, ao_mo_fm_pools=ao_mo_fm_pools)
             mos_k => kpoints%kp_env(ik)%kpoint_env%mos

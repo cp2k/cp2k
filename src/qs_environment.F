@@ -41,14 +41,10 @@ MODULE qs_environment
                                               qs_control_type,&
                                               semi_empirical_control_type,&
                                               xtb_control_type
-   USE cp_control_utils,                ONLY: read_ddapc_section,&
-                                              read_dft_control,&
-                                              read_mgrid_section,&
-                                              read_qs_section,&
-                                              read_tddfpt2_control,&
-                                              write_admm_control,&
-                                              write_dft_control,&
-                                              write_qs_control
+   USE cp_control_utils,                ONLY: &
+        read_ddapc_section, read_dft_control, read_mgrid_section, read_qs_section, &
+        read_rixs_control, read_tddfpt2_control, write_admm_control, write_dft_control, &
+        write_qs_control
    USE cp_ddapc_types,                  ONLY: cp_ddapc_ewald_create
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
@@ -652,7 +648,8 @@ CONTAINS
       TYPE(se_taper_type), POINTER                       :: se_taper
       TYPE(section_vals_type), POINTER :: dft_section, et_coupling_section, et_ddapc_section, &
          ewald_section, harris_section, lri_section, mp2_section, nl_section, poisson_section, &
-         pp_section, print_section, qs_section, se_section, tddfpt_section, xc_section
+         pp_section, print_section, qs_section, rixs_section, se_section, tddfpt_section, &
+         xc_section
       TYPE(semi_empirical_control_type), POINTER         :: se_control
       TYPE(semi_empirical_si_type), POINTER              :: se_store_int_env
       TYPE(xtb_control_type), POINTER                    :: xtb_control
@@ -684,6 +681,7 @@ CONTAINS
       et_coupling_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%ET_COUPLING")
       ! reimplemented TDDFPT
       tddfpt_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%TDDFPT")
+      rixs_section => section_vals_get_subs_vals(qs_env%input, "PROPERTIES%RIXS")
 
       CALL qs_subsys_get(subsys, particle_set=particle_set, &
                          qs_kind_set=qs_kind_set, &
@@ -750,6 +748,12 @@ CONTAINS
 
       ! reimplemented TDDFPT
       CALL read_tddfpt2_control(dft_control%tddfpt2_control, tddfpt_section, dft_control%qs_control)
+
+      ! rixs
+      CALL section_vals_get(rixs_section, explicit=qs_env%do_rixs)
+      IF (qs_env%do_rixs) THEN
+         CALL read_rixs_control(dft_control%rixs_control, rixs_section, dft_control%qs_control)
+      END IF
 
       !   Create relativistic control section
       BLOCK
@@ -1058,7 +1062,7 @@ CONTAINS
 
       END IF
 
-      IF (dft_control%do_xas_tdp_calculation) THEN
+      IF (dft_control%do_xas_tdp_calculation .OR. qs_env%do_rixs) THEN
          ! Check if RI_XAS basis is given, auto-generate if not
          CALL get_qs_env(qs_env, nkind=nkind)
          DO ikind = 1, nkind
@@ -1090,7 +1094,7 @@ CONTAINS
          CALL get_qs_kind_set(qs_kind_set, maxlgto=maxlgto_lri, basis_type="RI_HXC")
          maxlgto = MAX(maxlgto, maxlgto_lri)
       END IF
-      IF (dft_control%do_xas_tdp_calculation) THEN
+      IF (dft_control%do_xas_tdp_calculation .OR. qs_env%do_rixs) THEN
          !done as a precaution
          CALL get_qs_kind_set(qs_kind_set, maxlgto=maxlgto_lri, basis_type="RI_XAS")
          maxlgto = MAX(maxlgto, maxlgto_lri)

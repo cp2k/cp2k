@@ -203,6 +203,8 @@ MODULE xas_tdp_types
       TYPE(donor_state_type), DIMENSION(:), &
          POINTER   :: donor_states => NULL()
       INTEGER, DIMENSION(:, :, :), POINTER     :: mos_of_ex_atoms => NULL()
+      TYPE(cp_fm_type), DIMENSION(:), &
+         POINTER                               :: mo_coeff => NULL()
       TYPE(qs_loc_env_type), POINTER       :: qs_loc_env => NULL()
       REAL(dp), DIMENSION(:, :), POINTER       :: ri_inv_coul => NULL()
       REAL(dp), DIMENSION(:, :), POINTER       :: ri_inv_ex => NULL()
@@ -230,6 +232,7 @@ MODULE xas_tdp_types
       TYPE(dbcsr_p_type), DIMENSION(:), &
          POINTER                              :: fock_matrix => NULL()
       TYPE(cp_fm_type), POINTER               :: lumo_coeffs => NULL()
+      INTEGER                                 :: nvirt = 0
    END TYPE xas_tdp_env_type
 
 !> *************************************************************************************************
@@ -735,6 +738,7 @@ CONTAINS
       NULLIFY (xas_tdp_env%donor_states)
       NULLIFY (xas_tdp_env%qs_loc_env)
       NULLIFY (xas_tdp_env%mos_of_ex_atoms)
+      NULLIFY (xas_tdp_env%mo_coeff)
       NULLIFY (xas_tdp_env%ri_inv_coul)
       NULLIFY (xas_tdp_env%ri_inv_ex)
       NULLIFY (xas_tdp_env%opt_dist2d_coul)
@@ -790,6 +794,12 @@ CONTAINS
          END IF
          IF (ASSOCIATED(xas_tdp_env%mos_of_ex_atoms)) THEN
             DEALLOCATE (xas_tdp_env%mos_of_ex_atoms)
+         END IF
+         IF (ASSOCIATED(xas_tdp_env%mo_coeff)) THEN
+            DO i = 1, SIZE(xas_tdp_env%mo_coeff)
+               CALL cp_fm_release(xas_tdp_env%mo_coeff(i))
+            END DO
+            DEALLOCATE (xas_tdp_env%mo_coeff)
          END IF
          IF (ASSOCIATED(xas_tdp_env%ri_inv_coul)) THEN
             DEALLOCATE (xas_tdp_env%ri_inv_coul)
