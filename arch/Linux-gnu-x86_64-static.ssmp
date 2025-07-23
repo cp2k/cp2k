@@ -2,11 +2,11 @@
 #
 # CP2K (GNU) arch file for a serial static x86_64 binary
 #
-# Tested with: GNU 14.2.0
+# Tested with: GNU 14.3.0
 #
 # Usage: Source this arch file and then run make as instructed.
 #
-# Last update: 12.06.2025
+# Last update: 23.07.2025
 #
 # \
    if [[ "${0}" == "${BASH_SOURCE}" ]]; then \
@@ -187,14 +187,6 @@ ifneq ($(USE_FFTW),)
    LIBS           += $(FFTW_LIB)/libfftw3.a
 endif
 
-ifneq ($(USE_OPENBLAS),)
-   USE_OPENBLAS   := $(strip $(USE_OPENBLAS))
-   OPENBLAS_INC   := $(INSTALL_PATH)/openblas-$(USE_OPENBLAS)/include
-   OPENBLAS_LIB   := $(INSTALL_PATH)/openblas-$(USE_OPENBLAS)/lib
-   CFLAGS         += -I$(OPENBLAS_INC)
-   LIBS           += $(OPENBLAS_LIB)/libopenblas.a
-endif
-
 ifneq ($(USE_TREXIO),)
    USE_TREXIO     := $(strip $(USE_TREXIO))
    TREXIO_INC     := $(INSTALL_PATH)/trexio-$(USE_TREXIO)/include
@@ -233,6 +225,14 @@ ifneq ($(USE_HDF5),)
    LIBS           += $(HDF5_LIB)/libhdf5_f90cstub.a
    LIBS           += $(HDF5_LIB)/libhdf5.a
    LIBS           += -lz
+endif
+
+ifneq ($(USE_OPENBLAS),)
+   USE_OPENBLAS   := $(strip $(USE_OPENBLAS))
+   OPENBLAS_INC   := $(INSTALL_PATH)/openblas-$(USE_OPENBLAS)/include
+   OPENBLAS_LIB   := $(INSTALL_PATH)/openblas-$(USE_OPENBLAS)/lib
+   CFLAGS         += -I$(OPENBLAS_INC)
+   LIBS           += $(OPENBLAS_LIB)/libopenblas.a
 endif
 
 CFLAGS         += $(DFLAGS) $(CFLAGS_DEBUG)
