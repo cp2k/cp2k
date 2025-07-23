@@ -22,10 +22,6 @@ fi
 # Compile CP2K.
 ./build_cp2k_cmake.sh "${PROFILE}" "${VERSION}" || exit 0
 
-# Fake installation of data files.
-mkdir -p ./share/cp2k
-ln -s ../../data ./share/cp2k/data
-
 # Extend stack size only for Intel compilers.
 if "./build/bin/cp2k.${VERSION}" --version | grep -q "compiler: Intel"; then
   ulimit -s unlimited # breaks address sanitizer

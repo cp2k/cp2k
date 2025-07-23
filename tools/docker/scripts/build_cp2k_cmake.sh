@@ -3,16 +3,19 @@
 # authors: Ole Schuett, Matthias Krack
 
 if (($# != 2)); then
-  echo "ERROR: Script ${BASH_SOURCE##*/} expects exactly two arguments"
-  echo "Usage: ${BASH_SOURCE##*/} <PROFILE> <VERSION>"
+  echo "ERROR: Script build_cp2k_cmake.sh expects exactly two arguments"
+  echo "Usage: build_cp2k_cmake.sh <PROFILE> <VERSION>"
   exit 1
 fi
 
 PROFILE=$1
 VERSION=$2
 
-echo "==================== Building CP2K ===================="
+if [ -n "${GIT_COMMIT_SHA}" ]; then
+  echo "git:${GIT_COMMIT_SHA::7}" > REVISION
+fi
 
+echo "==================== Building CP2K ===================="
 # shellcheck disable=SC1091
 source ./cmake/cmake_cp2k.sh "${PROFILE}" "${VERSION}"
 
@@ -29,5 +32,10 @@ else
   echo -e "Status: FAILED\n"
   exit 1
 fi
+
+# Fake installation of data files.
+cd ..
+mkdir -p ./share/cp2k
+ln -s ../../data ./share/cp2k/data
 
 #EOF

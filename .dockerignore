@@ -1,6 +1,7 @@
 exe
 lib
 obj
+build
 regtesting
 tools/toolchain/install
 tools/toolchain/build
