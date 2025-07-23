@@ -1632,7 +1632,7 @@ add_fypp_sources(CP2K_SRCS ${CP2K_SRCS_F})
 # set the __SHORT_FILE__ per file for CP2K sources
 foreach(cp2k_src ${CP2K_SRCS})
   # add_fypp_sources returns a path in the current binary dir
-  get_filename_component(short_file "${cp2k_src}" NAME)
+  file(RELATIVE_PATH short_file "${CMAKE_BINARY_DIR}/src" "${cp2k_src}")
   set_source_files_properties(
     ${cp2k_src} PROPERTIES COMPILE_DEFINITIONS __SHORT_FILE__="${short_file}")
 endforeach()

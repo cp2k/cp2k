@@ -5,21 +5,6 @@
 # shellcheck disable=SC1091
 source /opt/cp2k-toolchain/install/setup
 
-echo -e "\n========== Compiling CP2K =========="
-cd /opt/cp2k
-echo -n "Compiling cp2k... "
-if make -j VERSION=psmp &> make.out; then
-  echo "done."
-else
-  echo -e "failed.\n\n"
-  tail -n 100 make.out
-  mkdir -p /workspace/artifacts/
-  cp make.out /workspace/artifacts/
-  echo -e "\nSummary: Compilation failed."
-  echo -e "Status: FAILED\n"
-  exit 0
-fi
-
 echo -e "\n========== Installing Dependencies =========="
 apt-get update -qq
 apt-get install -qq --no-install-recommends \
@@ -42,8 +27,8 @@ echo -e "\n========== Generating Manual =========="
 mkdir -p /workspace/artifacts/manual
 cd /workspace/artifacts/manual
 
-/opt/cp2k/exe/local/cp2k.psmp --version
-/opt/cp2k/exe/local/cp2k.psmp --xml
+/opt/cp2k/build/bin/cp2k.psmp --version
+/opt/cp2k/build/bin/cp2k.psmp --xml
 
 set +e # disable error trapping for remainder of script
 (

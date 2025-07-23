@@ -112,7 +112,7 @@ def main() -> None:
         f.write(conventions())
 
     with OutputFile(f"Dockerfile.test_manual", args.check) as f:
-        f.write(install_deps_toolchain())
+        f.write(install_deps_toolchain(with_dbcsr=""))
         f.write(manual())
 
     with OutputFile(f"Dockerfile.test_precommit", args.check) as f:
@@ -255,7 +255,7 @@ RUN /bin/bash -ec " \
 # ======================================================================================
 def manual() -> str:
     return (
-        install_cp2k(version="psmp", arch="local", revision=True)
+        install_cp2k_cmake(profile="toolchain_all", version="psmp", revision=True)
         + rf"""
 # Generate manual.
 COPY ./docs ./docs
