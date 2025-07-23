@@ -1819,6 +1819,7 @@ list(
   "xyz2dcd"
   "libcp2k_unittest"
   "dbt_unittest"
+  "nequip_unittest"
   "dbt_tas_unittest")
 
 add_executable(cp2k-bin start/cp2k.F)
@@ -1832,11 +1833,7 @@ add_executable(xyz2dcd motion/xyz2dcd.F)
 add_executable(libcp2k_unittest start/libcp2k_unittest.c)
 add_executable(dbt_unittest dbt/dbt_unittest.F)
 add_executable(dbt_tas_unittest dbt/tas/dbt_tas_unittest.F)
-
-if(CP2K_USE_NEQUIP)
-  list(APPEND __CP2K_APPS "nequip_unittest")
-  add_executable(nequip_unittest nequip_unittest.F)
-endif()
+add_executable(nequip_unittest nequip_unittest.F)
 
 if(CP2K_USE_GREENX)
   list(APPEND __CP2K_APPS "gx_ac_unittest")
@@ -1851,7 +1848,6 @@ set_target_properties(
              OUTPUT_NAME "cp2k.${__cp2k_ext}")
 
 target_link_libraries(cp2k-bin PUBLIC cp2k)
-
 foreach(_app ${__CP2K_APPS})
   set_target_properties(
     ${_app}
