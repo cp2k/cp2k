@@ -1,6 +1,6 @@
 #
 # This file was created by generate_dockerfiles.py.
-# Usage: podman build --shm-size=1g -f ./Dockerfile.test_coverage-pdbg ../../
+# Usage: podman build --shm-size=1g -f ./Dockerfile.test_coverage ../../
 #
 
 FROM ubuntu:24.04
@@ -23,7 +23,7 @@ COPY ./tools/toolchain/install_cp2k_toolchain.sh .
 RUN ./install_cp2k_toolchain.sh \
     --install-all \
     --mpi-mode=mpich \
-    --with-dbcsr=no \
+    --with-dbcsr \
     --with-gcc=system \
     --dry-run
 
@@ -64,24 +64,25 @@ COPY ./tools/toolchain/scripts/arch_base.tmpl \
      ./scripts/
 RUN ./scripts/generate_arch_files.sh && rm -rf ./build
 
-# Install CP2K using local_coverage.pdbg.
-WORKDIR /opt/cp2k
 ARG GIT_COMMIT_SHA
-COPY ./Makefile .
+ENV GIT_COMMIT_SHA=${GIT_COMMIT_SHA}
+
+# Install CP2K sources.
+WORKDIR /opt/cp2k
 COPY ./src ./src
-COPY ./exts ./exts
-COPY ./tools/build_utils ./tools/build_utils
-RUN /bin/bash -c " \
-    if [ -n "${GIT_COMMIT_SHA}" ] ; then echo "git:\${GIT_COMMIT_SHA::7}" > REVISION; fi && \
-    mkdir -p arch && \
-    ln -vs /opt/cp2k-toolchain/install/arch/local_coverage.pdbg ./arch/"
 COPY ./data ./data
 COPY ./tests ./tests
-COPY ./tools/regtesting ./tools/regtesting
+COPY ./tools/build_utils ./tools/build_utils
+COPY ./cmake ./cmake
+COPY ./CMakeLists.txt .
 
-# Run coverage test for pdbg.
+# Compile CP2K.
+COPY ./tools/docker/scripts/build_cp2k_cmake.sh .
+RUN ./build_cp2k_cmake.sh toolchain_coverage psmp
+
+# Run coverage test.
 COPY ./tools/docker/scripts/test_coverage.sh .
-RUN ./test_coverage.sh "pdbg" 2>&1 | tee report.log
+RUN ./test_coverage.sh 2>&1 | tee report.log
 
 # Output the report if the image is old and was therefore pulled from the build cache.
 CMD cat $(find ./report.log -mmin +10) | sed '/^Summary:/ s/$/ (cached)/'

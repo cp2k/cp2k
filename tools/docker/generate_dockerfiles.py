@@ -58,10 +58,9 @@ def main() -> None:
         f.write(install_deps_toolchain(with_dbcsr=""))
         f.write(regtest_cmake("toolchain_asan", "psmp"))
 
-    for version in "sdbg", "pdbg":
-        with OutputFile(f"Dockerfile.test_coverage-{version}", args.check) as f:
-            f.write(install_deps_toolchain())
-            f.write(coverage(version))
+    with OutputFile(f"Dockerfile.test_coverage", args.check) as f:
+        f.write(install_deps_toolchain(with_dbcsr=""))
+        f.write(coverage())
 
     for gcc_version in 8, 9, 10, 11, 12, 13, 14:
         with OutputFile(f"Dockerfile.test_gcc{gcc_version}", args.check) as f:
@@ -219,13 +218,13 @@ RUN ./test_performance.sh "{arch}" 2>&1 | tee report.log
 
 
 # ======================================================================================
-def coverage(version: str) -> str:
+def coverage() -> str:
     return (
-        install_cp2k(version=version, arch="local_coverage", revision=True)
+        install_cp2k_cmake(profile="toolchain_coverage", version="psmp", revision=True)
         + rf"""
-# Run coverage test for {version}.
+# Run coverage test.
 COPY ./tools/docker/scripts/test_coverage.sh .
-RUN ./test_coverage.sh "{version}" 2>&1 | tee report.log
+RUN ./test_coverage.sh 2>&1 | tee report.log
 """
         + print_cached_report()
     )
@@ -400,6 +399,31 @@ COPY ./data ./data
 COPY ./tests ./tests
 COPY ./tools/regtesting ./tools/regtesting
 """
+
+
+# ======================================================================================
+def install_cp2k_cmake(profile: str, version: str, revision: bool = False) -> str:
+    output = ""
+    if revision:
+        output += "\n"
+        output += "ARG GIT_COMMIT_SHA\n"
+        output += "ENV GIT_COMMIT_SHA=${GIT_COMMIT_SHA}\n"
+
+    output += rf"""
+# Install CP2K sources.
+WORKDIR /opt/cp2k
+COPY ./src ./src
+COPY ./data ./data
+COPY ./tests ./tests
+COPY ./tools/build_utils ./tools/build_utils
+COPY ./cmake ./cmake
+COPY ./CMakeLists.txt .
+
+# Compile CP2K.
+COPY ./tools/docker/scripts/build_cp2k_cmake.sh .
+RUN ./build_cp2k_cmake.sh {profile} {version}
+"""
+    return output
 
 
 # ======================================================================================
