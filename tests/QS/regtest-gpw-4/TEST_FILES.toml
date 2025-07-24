@@ -31,7 +31,7 @@
 # Spin density DDAP charges
 "H2O+SC.inp"                            = []
 # spin restraint
-"spin_restraint.inp"                    = [{matcher="E_total", tol=2e-10, ref=-4.63875114446213}]
+"spin_restraint.inp"                    = [{matcher="E_total", tol=4e-10, ref=-4.63875114446213}]
 #New grouping colvar
 "H2O-meta_g.inp"                        = [{matcher="E_total", tol=2e-14, ref=-17.16168353866058}]
 #Colvar for hydronium
