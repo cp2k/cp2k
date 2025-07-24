@@ -370,10 +370,11 @@ extern "C"
         return 0;
     }
 
-    int openPMD_Attributable_series_flush(openPMD_Attributable attr)
+    int openPMD_Attributable_series_flush(
+        openPMD_Attributable attr, char const *config)
     {
         auto attributable = reinterpret_cast<openPMD::Attributable *>(attr);
-        attributable->seriesFlush();
+        attributable->seriesFlush(config ? config : "");
         return 0;
     }
 

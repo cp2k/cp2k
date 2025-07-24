@@ -176,6 +176,7 @@ CONTAINS
             END IF
          END DO
       END IF
+      CALL openpmd_attributable_series_flush(openpmd_iteration_as_attributable(openpmd_data%iteration), "hdf5.independent_stores = true")
    END SUBROUTINE pw_write_particle_species
 
 ! **************************************************************************************************
@@ -336,8 +337,8 @@ CONTAINS
 
       IF (ALL(my_stride == 1)) THEN
          CALL openpmd_record_component_store_chunk_3d_double(scalar_mesh, pw%array(L1:U1, L2:U2, L3:U3), offset)
-         ! Are the some conditions under which we can skip this flush?
-         CALL openpmd_attributable_series_flush(openpmd_iteration_as_attributable(openpmd_data%iteration))
+         ! Are there some conditions under which we can skip this flush?
+         CALL openpmd_attributable_series_flush(openpmd_iteration_as_attributable(openpmd_data%iteration), "hdf5.independent_stores = false")
       ELSE
          count3 = 0
          DO I3 = L3, U3, my_stride(3)

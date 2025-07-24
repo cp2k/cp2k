@@ -124,7 +124,7 @@ int openPMD_attributable_set_attribute_vec_string(openPMD_Attributable attr,
                                                   char const **begin,
                                                   int length);
 
-int openPMD_Attributable_series_flush(openPMD_Attributable attr);
+int openPMD_Attributable_series_flush(openPMD_Attributable attr, char const *);
 
 /**********************
  * Iteration members. *

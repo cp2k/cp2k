@@ -386,15 +386,21 @@ CONTAINS
 
    END SUBROUTINE
 
-   SUBROUTINE openpmd_attributable_series_flush(attributable)
+   SUBROUTINE openpmd_attributable_series_flush(attributable, backendconfig)
       TYPE(openpmd_attributable_type)                    :: attributable
+      CHARACTER(len=*), INTENT(IN), OPTIONAL             :: backendconfig
+      CHARACTER(len=default_string_length)               :: my_backendconfig = ""
+
       INTERFACE
-         SUBROUTINE openpmd_c_attributable_series_flush(attributable) BIND(C, NAME="openPMD_Attributable_series_flush")
+         SUBROUTINE openpmd_c_attributable_series_flush(attributable, config) BIND(C, NAME="openPMD_Attributable_series_flush")
             IMPORT :: C_CHAR, C_SIZE_T, C_INT, C_PTR
             TYPE(C_PTR), VALUE :: attributable
+            CHARACTER(kind=C_CHAR), DIMENSION(*) :: config
          END SUBROUTINE
       END INTERFACE
-      CALL openpmd_c_attributable_series_flush(attributable%c_ptr)
+
+      IF (PRESENT(backendconfig)) my_backendconfig = backendconfig
+      CALL openpmd_c_attributable_series_flush(attributable%c_ptr, my_backendconfig // C_NULL_CHAR)
    END SUBROUTINE openpmd_attributable_series_flush
 
 ! **************************************************************************************************
