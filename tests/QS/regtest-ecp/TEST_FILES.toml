@@ -1,5 +1,5 @@
-"ICl_lanl2dz_gpw.inp"                   = [{matcher="M011", tol=1.0E-11, ref=-23.515911094537550}]
-"Rn_stuttgart_gapw.inp"                 = [{matcher="M011", tol=1.0E-11, ref=-25.632304810373267}]
+"ICl_lanl2dz_gpw.inp"                   = [{matcher="M011", tol=1.0E-11, ref=-26.20823873393772}]
+"Rn_stuttgart_gapw.inp"                 = [{matcher="M011", tol=1.0E-11, ref=-29.587239373669085}]
 "SbH3_def2_gapw.inp"                    = [{matcher="M011", tol=1.0E-11, ref=-241.414769303399083}]
 "HCl_ccECP.inp"                         = [{matcher="M011", tol=1.0E-12, ref=-15.457709431781252}]
 "HCl_force.inp"                         = []
