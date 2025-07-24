@@ -5,13 +5,6 @@
 # shellcheck disable=SC1091
 source /opt/cp2k-toolchain/install/setup
 
-# Compile CP2K.
-./build_cp2k_cmake.sh "toolchain_all" "ssmp" || exit 0
-
-# Fake installation of data files.
-mkdir -p ./share/cp2k
-ln -s ../../data ./share/cp2k/data
-
 echo -e "\n========== Installing Dependencies =========="
 apt-get update -qq
 apt-get install -qq --no-install-recommends \

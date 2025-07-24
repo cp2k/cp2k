@@ -17,19 +17,19 @@ def main() -> None:
     for version in "sdbg", "ssmp", "pdbg", "psmp":
         with OutputFile(f"Dockerfile.test_{version}", args.check) as f:
             mpi_mode = "mpich" if version.startswith("p") else "no"
-            f.write(install_deps_toolchain(mpi_mode=mpi_mode, with_dbcsr=""))
+            f.write(install_deps_toolchain(mpi_mode=mpi_mode))
             f.write(regtest_cmake("toolchain_all", version))
 
     with OutputFile(f"Dockerfile.test_generic_psmp", args.check) as f:
-        f.write(install_deps_toolchain(target_cpu="generic", with_dbcsr=""))
+        f.write(install_deps_toolchain(target_cpu="generic"))
         f.write(regtest_cmake("toolchain_generic", "psmp"))
 
     with OutputFile(f"Dockerfile.test_openmpi-psmp", args.check) as f:
-        f.write(install_deps_toolchain(mpi_mode="openmpi", with_dbcsr=""))
+        f.write(install_deps_toolchain(mpi_mode="openmpi"))
         f.write(regtest_cmake("toolchain_all", "psmp"))
 
     with OutputFile(f"Dockerfile.test_fedora-psmp", args.check) as f:
-        f.write(install_deps_toolchain(base_image="fedora:41", with_dbcsr=""))
+        f.write(install_deps_toolchain(base_image="fedora:41"))
         f.write(regtest_cmake("toolchain_all", "psmp"))
 
     for ver in "ssmp", "psmp":
@@ -47,7 +47,6 @@ def main() -> None:
 
     with OutputFile(f"Dockerfile.test_minimal", args.check) as f:
         f.write(install_deps_ubuntu())
-        f.write(install_dbcsr("minimal", "ssmp"))
         f.write(regtest_cmake("minimal", "ssmp"))
 
     with OutputFile(f"Dockerfile.test_spack", args.check) as f:
@@ -55,18 +54,17 @@ def main() -> None:
         f.write(regtest_cmake("spack_all", "psmp"))
 
     with OutputFile(f"Dockerfile.test_asan-psmp", args.check) as f:
-        f.write(install_deps_toolchain(with_dbcsr=""))
+        f.write(install_deps_toolchain())
         f.write(regtest_cmake("toolchain_asan", "psmp"))
 
     with OutputFile(f"Dockerfile.test_coverage", args.check) as f:
-        f.write(install_deps_toolchain(with_dbcsr=""))
+        f.write(install_deps_toolchain())
         f.write(coverage())
 
     for gcc_version in 8, 9, 10, 11, 12, 13, 14:
         with OutputFile(f"Dockerfile.test_gcc{gcc_version}", args.check) as f:
             if gcc_version > 8:
                 f.write(install_deps_ubuntu(gcc_version=gcc_version))
-                f.write(install_dbcsr("ubuntu", "ssmp"))
                 f.write(regtest_cmake("ubuntu", "ssmp"))
             else:
                 f.write(install_deps_ubuntu2004(gcc_version=gcc_version))
@@ -76,11 +74,15 @@ def main() -> None:
 
     with OutputFile("Dockerfile.test_arm64-psmp", args.check) as f:
         base_img = "arm64v8/ubuntu:24.04"
-        f.write(install_deps_toolchain(base_img, with_libtorch="no", with_deepmd="no"))
+        f.write(
+            install_deps_toolchain(
+                base_img, with_libtorch="no", with_deepmd="no", with_dbcsr="no"
+            )
+        )
         f.write(regtest("psmp"))
 
     with OutputFile(f"Dockerfile.test_performance", args.check) as f:
-        f.write(install_deps_toolchain())
+        f.write(install_deps_toolchain(with_dbcsr="no"))
         f.write(performance())
 
     for gpu_ver in "P100", "V100", "A100":
@@ -108,11 +110,11 @@ def main() -> None:
             f.write(build("psmp", "local_hip"))
 
     with OutputFile(f"Dockerfile.test_conventions", args.check) as f:
-        f.write(install_deps_toolchain())
+        f.write(install_deps_toolchain(with_dbcsr="no"))
         f.write(conventions())
 
     with OutputFile(f"Dockerfile.test_manual", args.check) as f:
-        f.write(install_deps_toolchain(with_dbcsr=""))
+        f.write(install_deps_toolchain())
         f.write(manual())
 
     with OutputFile(f"Dockerfile.test_precommit", args.check) as f:
@@ -120,7 +122,7 @@ def main() -> None:
 
     for name in "ase", "aiida", "i-pi", "phonopy", "gromacs":
         with OutputFile(f"Dockerfile.test_{name}", args.check) as f:
-            f.write(install_deps_toolchain(mpi_mode="no", with_dbcsr=""))
+            f.write(install_deps_toolchain(mpi_mode="no"))
             f.write(test_3rd_party(name))
 
     for name in "misc", "doxygen":
@@ -150,19 +152,11 @@ RUN /bin/bash -o pipefail -c " \
 # ======================================================================================
 def regtest_cmake(profile: str, version: str, testopts: str = "") -> str:
     return (
-        rf"""
-# Install CP2K sources.
-WORKDIR /opt/cp2k
-COPY ./src ./src
-COPY ./data ./data
-COPY ./tests ./tests
-COPY ./tools/build_utils ./tools/build_utils
-COPY ./cmake ./cmake
-COPY ./CMakeLists.txt .
-
-# Build CP2K with CMake and run regression tests.
+        install_cp2k_cmake(profile=profile, version=version)
+        + rf"""
+# Run regression tests.
 ARG TESTOPTS="{testopts}"
-COPY ./tools/docker/scripts/build_cp2k_cmake.sh ./tools/docker/scripts/test_regtest_cmake.sh ./
+COPY ./tools/docker/scripts/test_regtest_cmake.sh ./
 RUN /bin/bash -o pipefail -c " \
     TESTOPTS='${{TESTOPTS}}' \
     ./test_regtest_cmake.sh {profile} {version} |& tee report.log && \
@@ -294,18 +288,10 @@ RUN ./tools/docker/scripts/test_precommit.sh 2>&1 | tee report.log
 # ======================================================================================
 def test_3rd_party(name: str) -> str:
     return (
-        rf"""
-# Install CP2K sources.
-WORKDIR /opt/cp2k
-COPY ./src ./src
-COPY ./data ./data
-COPY ./tests ./tests
-COPY ./tools/build_utils ./tools/build_utils
-COPY ./cmake ./cmake
-COPY ./CMakeLists.txt .
-
+        install_cp2k_cmake(profile="toolchain_all", version="ssmp")
+        + rf"""
 # Run test for {name}.
-COPY ./tools/docker/scripts/build_cp2k_cmake.sh ./tools/docker/scripts/test_{name}.sh ./
+COPY ./tools/docker/scripts/test_{name}.sh ./
 RUN ./test_{name}.sh 2>&1 | tee report.log
 """
         + print_cached_report()
@@ -427,19 +413,10 @@ RUN ./build_cp2k_cmake.sh {profile} {version}
 
 
 # ======================================================================================
-def install_dbcsr(profile: str, version: str) -> str:
-    return rf"""
-# Install DBCSR
-COPY ./tools/docker/scripts/install_dbcsr.sh ./
-RUN ./install_dbcsr.sh {profile} {version}
-"""
-
-
-# ======================================================================================
 def install_deps_toolchain(
     base_image: str = "ubuntu:24.04",
     mpi_mode: str = "mpich",
-    with_dbcsr: str = "no",
+    with_dbcsr: str = "",  # enabled by default
     with_gcc: str = "system",
     **kwargs: str,
 ) -> str:
@@ -499,6 +476,10 @@ RUN export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true && \
 RUN ln -sf /usr/bin/gcc-{gcc_version}      /usr/local/bin/gcc  && \
     ln -sf /usr/bin/g++-{gcc_version}      /usr/local/bin/g++  && \
     ln -sf /usr/bin/gfortran-{gcc_version} /usr/local/bin/gfortran
+
+# Install DBCSR
+COPY ./tools/docker/scripts/install_dbcsr.sh ./
+RUN ./install_dbcsr.sh ssmp
 """
     return output
 

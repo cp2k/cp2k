@@ -73,8 +73,12 @@ COPY ./tools/build_utils ./tools/build_utils
 COPY ./cmake ./cmake
 COPY ./CMakeLists.txt .
 
+# Compile CP2K.
+COPY ./tools/docker/scripts/build_cp2k_cmake.sh .
+RUN ./build_cp2k_cmake.sh toolchain_all ssmp
+
 # Run test for aiida.
-COPY ./tools/docker/scripts/build_cp2k_cmake.sh ./tools/docker/scripts/test_aiida.sh ./
+COPY ./tools/docker/scripts/test_aiida.sh ./
 RUN ./test_aiida.sh 2>&1 | tee report.log
 
 # Output the report if the image is old and was therefore pulled from the build cache.

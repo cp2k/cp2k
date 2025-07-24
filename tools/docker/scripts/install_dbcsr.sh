@@ -1,18 +1,16 @@
 #!/bin/bash -e
 
-if (($# != 2)); then
-  echo "ERROR: Script ${BASH_SOURCE##*/} expects exactly two arguments"
-  echo "Usage: ${BASH_SOURCE##*/} <PROFILE> <VERSION>"
+if (($# != 1)); then
+  echo "ERROR: Script install_dbcsr.sh expects exactly one argument"
+  echo "Usage: install_dbcsr.sh <VERSION>"
   exit 1
 fi
 
-PROFILE=$1
-VERSION=$2
+VERSION=$1
 
 DBCSR_ver="2.8.0"
 DBCSR_sha256="d55e4f052f28d1ed0faeaa07557241439243287a184d1fd27f875c8b9ca6bd96"
 
-[[ -z "${TOOLCHAIN_DIR}" ]] && TOOLCHAIN_DIR="/opt/cp2k-toolchain"
 [[ -z "${INSTALL_PREFIX}" ]] && INSTALL_PREFIX="/opt/cp2k"
 
 echo "==================== Installing DBCSR ===================="
@@ -25,16 +23,6 @@ cd dbcsr-${DBCSR_ver}
 
 mkdir build
 cd build
-
-if [[ "${PROFILE}" =~ ^toolchain ]]; then
-  if [[ -f "${TOOLCHAIN_DIR}/install/setup" ]]; then
-    # shellcheck disable=SC1091
-    source "${TOOLCHAIN_DIR}/install/setup"
-  else
-    echo "ERROR: Toolchain setup file not found"
-    exit 1
-  fi
-fi
 
 if [[ "${VERSION}" == "ssmp" ]]; then
   USE_MPI="OFF"
