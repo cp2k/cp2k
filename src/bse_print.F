@@ -691,8 +691,13 @@ CONTAINS
          WRITE (unit_nr, '(T2,A4,T15,A7,F10.4,A2,F10.4,A2,F10.4,A1)') prefix_output, &
             'r_0 = (', ref_point_multipole(1)*angstrom, ', ', ref_point_multipole(2)*angstrom, ', ', &
             ref_point_multipole(3)*angstrom, ')'
-         WRITE (unit_nr, '(T2,A4,T7,A,A,A)') prefix_output, &
-            'we further obtain r_e and r_h from solving the ', method_name, ' within the TDA'
+         IF (exc_descr(1)%flag_TDA) THEN
+            WRITE (unit_nr, '(T2,A4,T7,A,A,A)') prefix_output, &
+               'we further obtain r_e and r_h from solving the ', method_name, ' within the TDA'
+         ELSE
+            WRITE (unit_nr, '(T2,A4,T7,A,A,A)') prefix_output, &
+               'we further obtain r_e and r_h from solving the ', method_name, ' without the TDA'
+         END IF
          WRITE (unit_nr, '(T2,A4)') prefix_output
          WRITE (unit_nr, '(T2,A4,T8,A12,1X,13X,A9,13X,A9,13X,A9)') prefix_output, &
             'Excitation n', 'x_e [Å]', 'y_e [Å]', 'z_e [Å]'
