@@ -600,7 +600,16 @@ CONTAINS
          ! add ecp_pseudo using numerical representation of basis
          IF (potential%ppot_type == ecp_pseudo) THEN
             ! scale 1/r potential
-            integrals%core = -potential%ecp_pot%zion*integrals%core
+            IF (ANY(potential%ecp_pot%nrloc(1:potential%ecp_pot%nloc) == 1)) THEN
+               alpha = 0.0_dp
+               DO k = 1, potential%ecp_pot%nloc
+                  n = potential%ecp_pot%nrloc(k)
+                  IF (n == 1) alpha = alpha + potential%ecp_pot%aloc(k)
+               END DO
+               integrals%core = (alpha - potential%ecp_pot%zion)*integrals%core
+            ELSE
+               integrals%core = -potential%ecp_pot%zion*integrals%core
+            END IF
             ! local potential
             m = basis%grid%nr
             rad => basis%grid%rad
@@ -609,7 +618,11 @@ CONTAINS
             DO k = 1, potential%ecp_pot%nloc
                n = potential%ecp_pot%nrloc(k)
                alpha = potential%ecp_pot%bloc(k)
-               cpot(:) = cpot + potential%ecp_pot%aloc(k)*rad**(n - 2)*EXP(-alpha*rad**2)
+               IF (n == 1) THEN
+                  cpot(:) = cpot + potential%ecp_pot%aloc(k)/rad*(EXP(-alpha*rad**2) - 1.0_dp)
+               ELSE
+                  cpot(:) = cpot + potential%ecp_pot%aloc(k)*rad**(n - 2)*EXP(-alpha*rad**2)
+               END IF
             END DO
             CALL numpot_matrix(integrals%core, cpot, basis, 0)
             ! non local pseudopotential

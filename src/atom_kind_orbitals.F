@@ -1282,7 +1282,7 @@ CONTAINS
                          elec_conf=ppeconf)
       ecp_atompot%zion = zeff
       ecp_atompot%econf(0:3) = ppeconf(0:3)
-      CALL get_potential(sgp_potential, lmax=ecp_atompot%lmax)
+      CALL get_potential(sgp_potential, sl_lmax=ecp_atompot%lmax)
       ! local
       CALL get_potential(sgp_potential, nloc=ecp_atompot%nloc, nrloc=ecp_atompot%nrloc, &
                          aloc=ecp_atompot%aloc, bloc=ecp_atompot%bloc)
