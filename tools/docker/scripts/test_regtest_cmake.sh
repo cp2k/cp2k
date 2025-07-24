@@ -19,9 +19,6 @@ if ((SHM_AVAIL < 1024)); then
   exit 1
 fi
 
-# Compile CP2K.
-./build_cp2k_cmake.sh "${PROFILE}" "${VERSION}" || exit 0
-
 # Extend stack size only for Intel compilers.
 if "./build/bin/cp2k.${VERSION}" --version | grep -q "compiler: Intel"; then
   ulimit -s unlimited # breaks address sanitizer
