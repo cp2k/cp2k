@@ -2,9 +2,6 @@
 
 # author: Ole Schuett
 
-# Compile CP2K.
-./build_cp2k_cmake.sh "toolchain_all" "ssmp" || exit 0
-
 echo -e "\n========== Installing Dependencies =========="
 apt-get update -qq
 export DEBIAN_FRONTEND=noninteractive

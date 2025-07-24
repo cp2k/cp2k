@@ -5,8 +5,6 @@
 # shellcheck disable=SC1091
 source /opt/cp2k-toolchain/install/setup
 
-# Compile and install CP2K.
-./build_cp2k_cmake.sh "toolchain_all" "ssmp" || exit 0
 cd build
 ninja install &> install.log
 

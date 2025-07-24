@@ -73,9 +73,13 @@ COPY ./tools/build_utils ./tools/build_utils
 COPY ./cmake ./cmake
 COPY ./CMakeLists.txt .
 
-# Build CP2K with CMake and run regression tests.
+# Compile CP2K.
+COPY ./tools/docker/scripts/build_cp2k_cmake.sh .
+RUN ./build_cp2k_cmake.sh toolchain_asan psmp
+
+# Run regression tests.
 ARG TESTOPTS=""
-COPY ./tools/docker/scripts/build_cp2k_cmake.sh ./tools/docker/scripts/test_regtest_cmake.sh ./
+COPY ./tools/docker/scripts/test_regtest_cmake.sh ./
 RUN /bin/bash -o pipefail -c " \
     TESTOPTS='${TESTOPTS}' \
     ./test_regtest_cmake.sh toolchain_asan psmp |& tee report.log && \
