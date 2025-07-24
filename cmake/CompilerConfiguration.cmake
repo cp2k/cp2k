@@ -96,7 +96,9 @@ add_link_options(
 
 # Coverage
 add_compile_options(
-  "$<$<CONFIG:COVERAGE>:-coverage;-fkeep-static-functions;-D__NO_ABORT>")
+  "$<$<CONFIG:COVERAGE>:-coverage;-fkeep-static-functions;-O1;-march=native;-mtune=native>"
+)
+add_compile_definitions("$<$<CONFIG:COVERAGE>:__NO_ABORT>")
 
 # Address Sanitizer
 add_compile_options(
