@@ -74,12 +74,8 @@ def main() -> None:
 
     with OutputFile("Dockerfile.test_arm64-psmp", args.check) as f:
         base_img = "arm64v8/ubuntu:24.04"
-        f.write(
-            install_deps_toolchain(
-                base_img, with_libtorch="no", with_deepmd="no", with_dbcsr="no"
-            )
-        )
-        f.write(regtest("psmp"))
+        f.write(install_deps_toolchain(base_img, with_libtorch="no", with_deepmd="no"))
+        f.write(regtest_cmake("toolchain_arm64", "psmp"))
 
     with OutputFile(f"Dockerfile.test_performance", args.check) as f:
         f.write(install_deps_toolchain(with_dbcsr="no"))
