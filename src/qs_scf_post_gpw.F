@@ -278,17 +278,6 @@ CONTAINS
       END IF
    END FUNCTION
 
-   FUNCTION section_base_e_density(grid_output) RESULT(res)
-      INTEGER, INTENT(IN) :: grid_output
-      CHARACTER(len=32) :: res
-
-      IF (grid_output == grid_output_cubes) THEN
-         res = str_e_density_cubes
-      ELSE IF (grid_output == grid_output_openpmd) THEN
-         res = str_e_density_openpmd
-      END IF
-   END FUNCTION
-
    FUNCTION section_key_do_write(grid_output) RESULT(res)
       INTEGER, INTENT(IN) :: grid_output
       CHARACTER(len=32) :: res
@@ -1602,7 +1591,7 @@ CONTAINS
 
       CHARACTER(LEN=default_path_length)                 :: filename, mpi_filename, my_pos_cube, &
                                                             title
-      INTEGER                                            :: handle, ispin, output_unit, unit_nr, grid_output
+      INTEGER                                            :: handle, ispin, output_unit, unit_nr
       LOGICAL                                            :: append_cube, gapw, mpi_io
       REAL(dp)                                           :: rho_cutoff
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -1613,7 +1602,7 @@ CONTAINS
       TYPE(pw_r3d_rs_type), ALLOCATABLE, DIMENSION(:)    :: elf_r
       TYPE(qs_subsys_type), POINTER                      :: subsys
       TYPE(section_vals_type), POINTER                   :: elf_section
-      TYPE(cp_section_key) :: elf_section_key
+      TYPE(cp_section_key)                               :: elf_section_key
 
       CALL timeset(routineN, handle)
       output_unit = cp_logger_get_default_io_unit(logger)
@@ -1621,8 +1610,7 @@ CONTAINS
       elf_section_key = cube_or_openpmd(input, str_elf_cubes, str_elf_openpmd, logger)
 
       elf_section => section_vals_get_subs_vals(input, elf_section_key%section_key)
-      IF (BTEST(cp_print_key_should_output(logger%iter_info, input, &
-                                           elf_section_key%section_key), cp_p_file)) THEN
+      IF (elf_section_key%do_output) THEN
 
          NULLIFY (dft_control, pw_env, auxbas_pw_pool, pw_pools, particles, subsys)
          CALL get_qs_env(qs_env, dft_control=dft_control, pw_env=pw_env, subsys=subsys)
@@ -1657,7 +1645,7 @@ CONTAINS
                WRITE (filename, '(a5,I1.1)') "ELF_S", ispin
                WRITE (title, *) "ELF spin ", ispin
                mpi_io = .TRUE.
-               IF (grid_output == grid_output_cubes) THEN
+               IF (elf_section_key%grid_output == grid_output_cubes) THEN
                   unit_nr = cp_print_key_unit_nr(logger, input, elf_section_key%section_key, extension=".cube", &
                                                  middle_name=TRIM(filename), file_position=my_pos_cube, log_filename=.FALSE., &
                                                  mpi_io=mpi_io, fout=mpi_filename)
@@ -2062,7 +2050,7 @@ CONTAINS
       CHARACTER(LEN=2)                                   :: element_symbol
       CHARACTER(LEN=default_path_length)                 :: filename, mpi_filename, my_pos_cube, &
                                                             my_pos_voro
-      CHARACTER(LEN=default_string_length)               :: name, print_density
+      CHARACTER(LEN=default_string_length)               :: name, print_density, key_without_dft_prefix
       INTEGER :: after, handle, i, iat, id, ikind, img, iso, ispin, iw, l, n_rep_hf, natom, nd(3), &
                  ngto, niso, nkind, np, nr, output_unit, print_level, should_print_bqb, should_print_voro, &
                  unit_nr, unit_nr_voro
@@ -2105,6 +2093,8 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: dft_section, hfx_section, input, &
                                                             print_key, print_key_bqb, &
                                                             print_key_voro, xc_section
+      TYPE(cp_section_key) :: e_density_section
+
 
       CALL timeset(routineN, handle)
       NULLIFY (cell, dft_control, pw_env, auxbas_pw_pool, pw_pools, hfx_section, &
@@ -2174,30 +2164,32 @@ CONTAINS
          CALL auxbas_pw_pool%give_back_pw(wf_r)
       END IF
 
+      e_density_section = cube_or_openpmd(input, str_e_density_cubes, str_e_density_openpmd, logger)
+
       ! Write cube file with electron density
-      IF (BTEST(cp_print_key_should_output(logger%iter_info, input, &
-                                           "DFT%PRINT%E_DENSITY_CUBE"), cp_p_file)) THEN
+      IF (e_density_section%do_output) THEN
+         key_without_dft_prefix = TRIM(ADJUSTL(e_density_section%section_key(5:LEN(e_density_section%section_key))))
          CALL section_vals_val_get(dft_section, &
-                                   keyword_name="PRINT%E_DENSITY_CUBE%DENSITY_INCLUDE", &
+                                   keyword_name=key_without_dft_prefix // "%DENSITY_INCLUDE", &
                                    c_val=print_density)
          print_density = TRIM(print_density)
-         append_cube = section_get_lval(input, "DFT%PRINT%E_DENSITY_CUBE%APPEND")
+         append_cube = section_get_lval(input, e_density_section%section_key // "%APPEND")
          my_pos_cube = "REWIND"
          IF (append_cube) THEN
             my_pos_cube = "APPEND"
          END IF
          ! Write the info on core densities for the interface between cp2k and the XRD code
          ! together with the valence density they are used to compute the form factor (Fourier transform)
-         xrd_interface = section_get_lval(input, "DFT%PRINT%E_DENSITY_CUBE%XRD_INTERFACE")
+         xrd_interface = section_get_lval(input, e_density_section%section_key // "%XRD_INTERFACE")
          IF (xrd_interface) THEN
             !cube file only contains soft density (GAPW)
             IF (dft_control%qs_control%gapw) print_density = "SOFT_DENSITY"
 
             filename = "ELECTRON_DENSITY"
-            unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%E_DENSITY_CUBE", &
+            unit_nr = cp_print_key_unit_nr(logger, input, e_density_section%section_key, &
                                            extension=".xrd", middle_name=TRIM(filename), &
                                            file_position=my_pos_cube, log_filename=.FALSE.)
-            ngto = section_get_ival(input, "DFT%PRINT%E_DENSITY_CUBE%NGAUSS")
+            ngto = section_get_ival(input, e_density_section%section_key // "%NGAUSS")
             IF (output_unit > 0) THEN
                INQUIRE (UNIT=unit_nr, NAME=filename)
                WRITE (UNIT=output_unit, FMT="(/,T2,A,/,/,T2,A)") &
@@ -2300,7 +2292,7 @@ CONTAINS
             DEALLOCATE (ppdens, aedens, ccdens)
 
             CALL cp_print_key_finished_output(unit_nr, logger, input, &
-                                              "DFT%PRINT%E_DENSITY_CUBE")
+                                              e_density_section%section_key)
 
          END IF
          IF (dft_control%qs_control%gapw .AND. print_density == "TOTAL_DENSITY") THEN
@@ -2337,7 +2329,7 @@ CONTAINS
             rho_total_rspace = pw_integrate_function(rho_elec_rspace, isign=-1)
             filename = "TOTAL_ELECTRON_DENSITY"
             mpi_io = .TRUE.
-            unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%E_DENSITY_CUBE", &
+            unit_nr = cp_print_key_unit_nr(logger, input, e_density_section%section_key, &
                                            extension=".cube", middle_name=TRIM(filename), &
                                            file_position=my_pos_cube, log_filename=.FALSE., mpi_io=mpi_io, &
                                            fout=mpi_filename)
@@ -2359,9 +2351,9 @@ CONTAINS
             END IF
             CALL cp_pw_to_cube(rho_elec_rspace, unit_nr, "TOTAL ELECTRON DENSITY", &
                                particles=particles, &
-                               stride=section_get_ivals(dft_section, "PRINT%E_DENSITY_CUBE%STRIDE"), mpi_io=mpi_io)
+                               stride=section_get_ivals(dft_section, key_without_dft_prefix // "%STRIDE"), mpi_io=mpi_io)
             CALL cp_print_key_finished_output(unit_nr, logger, input, &
-                                              "DFT%PRINT%E_DENSITY_CUBE", mpi_io=mpi_io)
+                                              e_density_section%section_key, mpi_io=mpi_io)
             ! Print total spin density for spin-polarized systems
             IF (dft_control%nspins > 1) THEN
                CALL pw_zero(rho_elec_gspace)
@@ -2383,7 +2375,7 @@ CONTAINS
                rho_total_rspace = pw_integrate_function(rho_elec_rspace, isign=-1)
                filename = "TOTAL_SPIN_DENSITY"
                mpi_io = .TRUE.
-               unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%E_DENSITY_CUBE", &
+               unit_nr = cp_print_key_unit_nr(logger, input, e_density_section%section_key, &
                                               extension=".cube", middle_name=TRIM(filename), &
                                               file_position=my_pos_cube, log_filename=.FALSE., mpi_io=mpi_io, &
                                               fout=mpi_filename)
@@ -2405,9 +2397,9 @@ CONTAINS
                END IF
                CALL cp_pw_to_cube(rho_elec_rspace, unit_nr, "TOTAL SPIN DENSITY", &
                                   particles=particles, &
-                                  stride=section_get_ivals(dft_section, "PRINT%E_DENSITY_CUBE%STRIDE"), mpi_io=mpi_io)
+                                  stride=section_get_ivals(dft_section, key_without_dft_prefix // "%STRIDE"), mpi_io=mpi_io)
                CALL cp_print_key_finished_output(unit_nr, logger, input, &
-                                                 "DFT%PRINT%E_DENSITY_CUBE", mpi_io=mpi_io)
+                                                 e_density_section%section_key, mpi_io=mpi_io)
             END IF
             CALL auxbas_pw_pool%give_back_pw(rho_elec_gspace)
             CALL auxbas_pw_pool%give_back_pw(rho_elec_rspace)
@@ -2424,7 +2416,7 @@ CONTAINS
                CALL pw_axpy(rho_r(2), rho_elec_rspace)
                filename = "ELECTRON_DENSITY"
                mpi_io = .TRUE.
-               unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%E_DENSITY_CUBE", &
+               unit_nr = cp_print_key_unit_nr(logger, input, e_density_section%section_key, &
                                               extension=".cube", middle_name=TRIM(filename), &
                                               file_position=my_pos_cube, log_filename=.FALSE., mpi_io=mpi_io, &
                                               fout=mpi_filename)
@@ -2439,15 +2431,15 @@ CONTAINS
                      TRIM(filename)
                END IF
                CALL cp_pw_to_cube(rho_elec_rspace, unit_nr, "SUM OF ALPHA AND BETA DENSITY", &
-                                  particles=particles, stride=section_get_ivals(dft_section, "PRINT%E_DENSITY_CUBE%STRIDE"), &
+                                  particles=particles, stride=section_get_ivals(dft_section, key_without_dft_prefix // "%STRIDE"), &
                                   mpi_io=mpi_io)
                CALL cp_print_key_finished_output(unit_nr, logger, input, &
-                                                 "DFT%PRINT%E_DENSITY_CUBE", mpi_io=mpi_io)
+                                                 e_density_section%section_key, mpi_io=mpi_io)
                CALL pw_copy(rho_r(1), rho_elec_rspace)
                CALL pw_axpy(rho_r(2), rho_elec_rspace, alpha=-1.0_dp)
                filename = "SPIN_DENSITY"
                mpi_io = .TRUE.
-               unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%E_DENSITY_CUBE", &
+               unit_nr = cp_print_key_unit_nr(logger, input, e_density_section%section_key, &
                                               extension=".cube", middle_name=TRIM(filename), &
                                               file_position=my_pos_cube, log_filename=.FALSE., mpi_io=mpi_io, &
                                               fout=mpi_filename)
@@ -2463,14 +2455,14 @@ CONTAINS
                END IF
                CALL cp_pw_to_cube(rho_elec_rspace, unit_nr, "SPIN DENSITY", &
                                   particles=particles, &
-                                  stride=section_get_ivals(dft_section, "PRINT%E_DENSITY_CUBE%STRIDE"), mpi_io=mpi_io)
+                                  stride=section_get_ivals(dft_section, key_without_dft_prefix // "%STRIDE"), mpi_io=mpi_io)
                CALL cp_print_key_finished_output(unit_nr, logger, input, &
-                                                 "DFT%PRINT%E_DENSITY_CUBE", mpi_io=mpi_io)
+                                                 e_density_section%section_key, mpi_io=mpi_io)
                CALL auxbas_pw_pool%give_back_pw(rho_elec_rspace)
             ELSE
                filename = "ELECTRON_DENSITY"
                mpi_io = .TRUE.
-               unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%E_DENSITY_CUBE", &
+               unit_nr = cp_print_key_unit_nr(logger, input, e_density_section%section_key, &
                                               extension=".cube", middle_name=TRIM(filename), &
                                               file_position=my_pos_cube, log_filename=.FALSE., mpi_io=mpi_io, &
                                               fout=mpi_filename)
@@ -2486,9 +2478,9 @@ CONTAINS
                END IF
                CALL cp_pw_to_cube(rho_r(1), unit_nr, "ELECTRON DENSITY", &
                                   particles=particles, &
-                                  stride=section_get_ivals(dft_section, "PRINT%E_DENSITY_CUBE%STRIDE"), mpi_io=mpi_io)
+                                  stride=section_get_ivals(dft_section, key_without_dft_prefix // "%STRIDE"), mpi_io=mpi_io)
                CALL cp_print_key_finished_output(unit_nr, logger, input, &
-                                                 "DFT%PRINT%E_DENSITY_CUBE", mpi_io=mpi_io)
+                                                 e_density_section%section_key, mpi_io=mpi_io)
             END IF ! nspins
 
          ELSE IF (dft_control%qs_control%gapw .AND. print_density == "TOTAL_HARD_APPROX") THEN
@@ -2522,7 +2514,7 @@ CONTAINS
 
             filename = "ELECTRON_DENSITY"
             mpi_io = .TRUE.
-            unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%E_DENSITY_CUBE", &
+            unit_nr = cp_print_key_unit_nr(logger, input, e_density_section%section_key, &
                                            extension=".cube", middle_name=TRIM(filename), &
                                            file_position=my_pos_cube, log_filename=.FALSE., mpi_io=mpi_io, &
                                            fout=mpi_filename)
@@ -2541,10 +2533,10 @@ CONTAINS
                   "Total electronic charge (R-space):", rho_total_rspace
             END IF
             CALL cp_pw_to_cube(rho_elec_rspace, unit_nr, "ELECTRON DENSITY", &
-                               particles=particles, stride=section_get_ivals(dft_section, "PRINT%E_DENSITY_CUBE%STRIDE"), &
+                               particles=particles, stride=section_get_ivals(dft_section, key_without_dft_prefix // "%STRIDE"), &
                                mpi_io=mpi_io)
             CALL cp_print_key_finished_output(unit_nr, logger, input, &
-                                              "DFT%PRINT%E_DENSITY_CUBE", mpi_io=mpi_io)
+                                              e_density_section%section_key, mpi_io=mpi_io)
 
             !------------
             IF (dft_control%nspins > 1) THEN
@@ -2564,7 +2556,7 @@ CONTAINS
 
             filename = "SPIN_DENSITY"
             mpi_io = .TRUE.
-            unit_nr = cp_print_key_unit_nr(logger, input, "DFT%PRINT%E_DENSITY_CUBE", &
+            unit_nr = cp_print_key_unit_nr(logger, input, e_density_section%section_key, &
                                            extension=".cube", middle_name=TRIM(filename), &
                                            file_position=my_pos_cube, log_filename=.FALSE., mpi_io=mpi_io, &
                                            fout=mpi_filename)
@@ -2584,9 +2576,9 @@ CONTAINS
             END IF
             CALL cp_pw_to_cube(rho_elec_rspace, unit_nr, "SPIN DENSITY", &
                                particles=particles, &
-                               stride=section_get_ivals(dft_section, "PRINT%E_DENSITY_CUBE%STRIDE"), mpi_io=mpi_io)
+                               stride=section_get_ivals(dft_section, key_without_dft_prefix // "%STRIDE"), mpi_io=mpi_io)
             CALL cp_print_key_finished_output(unit_nr, logger, input, &
-                                              "DFT%PRINT%E_DENSITY_CUBE", mpi_io=mpi_io)
+                                              e_density_section%section_key, mpi_io=mpi_io)
             END IF ! nspins
             CALL auxbas_pw_pool%give_back_pw(rho_elec_rspace)
             DEALLOCATE (my_Q0)
