@@ -666,4 +666,13 @@ extern "C"
         *reinterpret_cast<openPMD::RecordComponent **>(rc) = &res;
         return 0;
     }
+
+    char *openPMD_json_merge(char const *into, char const *from)
+    {
+        auto const res = openPMD::json::merge(into, from);
+        char *c_res =
+            static_cast<char *>(malloc(sizeof(char) * (res.size() + 1)));
+        std::copy_n(res.c_str(), res.size() + 1, c_res);
+        return c_res;
+    }
 }

@@ -115,6 +115,7 @@ MODULE openPMD_api
    #:endfor
    PUBLIC :: openpmd_mesh_set_axis_labels, openpmd_mesh_set_grid_global_offset, openpmd_mesh_set_grid_spacing, openpmd_mesh_set_position
    PUBLIC :: openpmd_particle_species_get_record
+   PUBLIC :: openpmd_json_merge
    PUBLIC :: cp2k_log
 
    INTEGER, PARAMETER :: sp = SELECTED_REAL_KIND(6, 30)
@@ -402,6 +403,40 @@ CONTAINS
       IF (PRESENT(backendconfig)) my_backendconfig = backendconfig
       CALL openpmd_c_attributable_series_flush(attributable%c_ptr, my_backendconfig // C_NULL_CHAR)
    END SUBROUTINE openpmd_attributable_series_flush
+
+   FUNCTION openpmd_json_merge(into, from) RESULT(merged)
+      CHARACTER(len=*), INTENT(IN)                       :: into, from
+      CHARACTER(:), ALLOCATABLE                          :: merged
+      CHARACTER(kind=C_CHAR), POINTER                    :: c_merged
+      INTEGER(C_SIZE_T)                                  :: length_of_c_string
+
+      INTERFACE
+         FUNCTION openpmd_c_json_merge(into, from) RESULT(merged) BIND(C, NAME="openPMD_json_merge")
+            IMPORT :: C_CHAR, C_INT
+            CHARACTER(kind=C_CHAR), DIMENSION(*) :: into, from
+            CHARACTER(kind=C_CHAR), POINTER      :: merged
+         END FUNCTION
+      END INTERFACE
+      INTERFACE
+         FUNCTION get_strlen(c_string) RESULT(strlen) BIND(C, NAME="CP2K_strlen")
+            IMPORT :: C_CHAR, C_SIZE_T
+            CHARACTER(kind=C_CHAR), DIMENSION(*), INTENT(IN) :: c_string
+            INTEGER(C_SIZE_T) :: strlen
+         END FUNCTION get_strlen
+      END INTERFACE
+      INTERFACE
+         SUBROUTINE free(c_string) BIND(C, NAME="CP2K_free")
+            IMPORT :: C_CHAR
+            CHARACTER(kind=C_CHAR), DIMENSION(*) :: c_string
+         END SUBROUTINE
+      END INTERFACE
+
+      c_merged => openpmd_c_json_merge(into//C_NULL_CHAR, from//C_NULL_CHAR)
+      length_of_c_string = get_strlen(c_merged)
+      ALLOCATE(character(length_of_c_string) :: merged)
+      merged = TRIM(ADJUSTL(TRANSFER(c_merged(1:length_of_c_string), MERGED)))
+      CALL free(c_merged)
+   END FUNCTION
 
 ! **************************************************************************************************
 !> \brief ...

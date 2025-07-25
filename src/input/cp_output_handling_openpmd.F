@@ -61,7 +61,7 @@ MODULE cp_output_handling_openpmd
       openpmd_particle_species_get_record, openpmd_particle_species_type, &
       openpmd_record_component_make_empty, openpmd_record_type, openpmd_series_close, &
       openpmd_series_create, openpmd_series_present, openpmd_series_type, &
-      openpmd_series_write_iteration, openpmd_type_int
+      openpmd_series_write_iteration, openpmd_type_int, openpmd_json_merge
    USE string_utilities, ONLY: compress, &
                                s2a
 #include "../base/base_uses.f90"
@@ -129,6 +129,15 @@ MODULE cp_output_handling_openpmd
    INTEGER :: cp_capacity_openpmd_per_callsite = 0
 
    INTEGER, PARAMETER :: cp_allocation_size = 100
+   CHARACTER(len=*), PARAMETER :: cp_default_backend_config = &
+         "[hdf5]" // new_line('a') // &
+         "# will be overridden by particle flushes" // new_line('a') // &
+         "independent_stores = false" // new_line('a') // &
+         "dont_warn_unused_keys = ['independent_stores']" // new_line('a') // &
+         "" // new_line('a') // &
+         "[adios2]" // new_line('a') // &
+         "# discard any attributes written on ranks other than 0" // new_line('a') // &
+         "attribute_writing_ranks = 0" // new_line('a')
 
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    ! End data members for openPMD output. !
@@ -399,6 +408,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER            :: logger
       LOGICAL                                  :: use_mpi
       INTEGER                                  :: file_index
+      CHARACTER(:), ALLOCATABLE                :: merged_config
 
       CHARACTER(len=default_string_length)     :: basename_copied = ' '
       TYPE(cp_openpmd_per_callsite_value_type) :: emplace_new
@@ -408,6 +418,8 @@ CONTAINS
       file_index = cp_openpmd_get_index_filedata(basename_copied)
       IF (file_index /= -1) RETURN
 
+      merged_config = openpmd_json_merge(cp_default_backend_config, openpmd_config)
+
       IF (use_mpi) THEN
          emplace_new%output_series = openpmd_series_create( &
                                      filename, openpmd_access_create, logger%para_env, openpmd_config)
@@ -415,6 +427,7 @@ CONTAINS
          emplace_new%output_series = openpmd_series_create( &
                                      filename, openpmd_access_create, config=openpmd_config)
       END IF
+      DEALLOCATE(merged_config)
       file_index = cp_openpmd_add_filedata(basename_copied, emplace_new)
    END FUNCTION
 

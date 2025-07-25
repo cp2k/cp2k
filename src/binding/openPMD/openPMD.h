@@ -258,6 +258,12 @@ int openPMD_Record_get_Component(
     // out
     openPMD_RecordComponent *rc);
 
+/***********
+ * Helpers *
+ ***********/
+
+char *openPMD_json_merge(char const *into, char const *from);
+
 #ifdef __cplusplus
 } // extern "C"
 #endif // defined(__cplusplus)
