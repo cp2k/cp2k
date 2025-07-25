@@ -2,6 +2,15 @@
 
 # author: Ole Schuett
 
+ulimit -c 0 # Disable core dumps as they can take a very long time to write.
+
+# Check available shared memory - needed for MPI inter-process communication.
+SHM_AVAIL=$(df --output=avail -m /dev/shm | tail -1)
+if ((SHM_AVAIL < 1024)); then
+  echo "ERROR: Not enough shared memory. If you're running docker use --shm-size=1g."
+  exit 1
+fi
+
 # shellcheck disable=SC1091
 source /opt/cp2k-toolchain/install/setup
 
@@ -9,32 +18,14 @@ source /opt/cp2k-toolchain/install/setup
 cd /opt/cp2k || exit 1
 CP2K_REVISION=$(./tools/build_utils/get_revision_number ./src)
 
-echo -e "\n========== Installing Dependencies =========="
-lcov_version="2.3.1"
-lcov_sha256="b3017679472d5fcca727254493d0eb44253c564c2c8384f86965ba9c90116704"
-
-# LCOV dependencies
+echo -e "\n========== Installing lcov =========="
 apt-get update -qq
-apt-get install -qq --no-install-recommends \
-  libperlio-gzip-perl \
-  libcapture-tiny-perl \
-  libdatetime-perl \
-  libtimedate-perl \
-  libjson-xs-perl
+apt-get install -qq --no-install-recommends lcov libjson-xs-perl
 rm -rf /var/lib/apt/lists/*
-
-cd /tmp || exit 1
-wget -q "https://www.cp2k.org/static/downloads/lcov-${lcov_version}.tar.gz"
-echo "${lcov_sha256} lcov-${lcov_version}.tar.gz" | sha256sum --check
-tar -xzf "lcov-${lcov_version}.tar.gz"
-cd "lcov-${lcov_version}" || exit 1
-make install > make.log 2>&1
-cd .. || exit 1
-rm -rf "lcov-${lcov_version}.tar.gz" "lcov-${lcov_version}"
 
 echo -e "\n========== Running Regtests =========="
 cd /opt/cp2k || exit 1
-./tests/do_regtest.py ./build/bin/ psmp
+./tests/do_regtest.py --ompthreads=1 ./build/bin/ psmp
 
 # gcov gets stuck on some files...
 # Maybe related: https://bugs.launchpad.net/gcc-arm-embedded/+bug/1694644
@@ -54,18 +45,18 @@ cd /workspace/artifacts/coverage || exit 1
 # collect coverage stats
 lcov --directory "/opt/cp2k/build/src" \
   --exclude "/opt/cp2k-toolchain/*" \
-  --ignore-errors inconsistent \
   --capture \
-  --output-file coverage.info > lcov.log
+  --keep-going \
+  --output-file coverage.info &> lcov.log
 
 # print summary
 lcov --summary coverage.info
 
 # generate html report
 genhtml \
-  --ignore-errors range \
+  --keep-going \
   --title "CP2K Regtests (${CP2K_REVISION})" \
-  coverage.info > genhtml.log
+  coverage.info &> genhtml.log
 
 # plot
 LINE_COV=$(lcov --summary coverage.info | grep lines | awk '{print substr($2, 1, length($2)-1)}')
