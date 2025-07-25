@@ -401,7 +401,7 @@ CONTAINS
       END INTERFACE
 
       IF (PRESENT(backendconfig)) my_backendconfig = backendconfig
-      CALL openpmd_c_attributable_series_flush(attributable%c_ptr, my_backendconfig // C_NULL_CHAR)
+      CALL openpmd_c_attributable_series_flush(attributable%c_ptr, my_backendconfig//C_NULL_CHAR)
    END SUBROUTINE openpmd_attributable_series_flush
 
    FUNCTION openpmd_json_merge(into, from) RESULT(merged)
@@ -433,7 +433,7 @@ CONTAINS
 
       c_merged => openpmd_c_json_merge(into//C_NULL_CHAR, from//C_NULL_CHAR)
       length_of_c_string = get_strlen(c_merged)
-      ALLOCATE(character(length_of_c_string) :: merged)
+      ALLOCATE (character(length_of_c_string) :: merged)
       merged = TRIM(ADJUSTL(TRANSFER(c_merged(1:length_of_c_string), MERGED)))
       CALL free(c_merged)
    END FUNCTION

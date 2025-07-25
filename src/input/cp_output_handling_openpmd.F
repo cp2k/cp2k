@@ -130,14 +130,14 @@ MODULE cp_output_handling_openpmd
 
    INTEGER, PARAMETER :: cp_allocation_size = 100
    CHARACTER(len=*), PARAMETER :: cp_default_backend_config = &
-         "[hdf5]" // new_line('a') // &
-         "# will be overridden by particle flushes" // new_line('a') // &
-         "independent_stores = false" // new_line('a') // &
-         "dont_warn_unused_keys = ['independent_stores']" // new_line('a') // &
-         "" // new_line('a') // &
-         "[adios2]" // new_line('a') // &
-         "# discard any attributes written on ranks other than 0" // new_line('a') // &
-         "attribute_writing_ranks = 0" // new_line('a')
+                                  "[hdf5]"//new_line('a')// &
+                                  "# will be overridden by particle flushes"//new_line('a')// &
+                                  "independent_stores = false"//new_line('a')// &
+                                  "dont_warn_unused_keys = ['independent_stores']"//new_line('a')// &
+                                  ""//new_line('a')// &
+                                  "[adios2]"//new_line('a')// &
+                                  "# discard any attributes written on ranks other than 0"//new_line('a')// &
+                                  "attribute_writing_ranks = 0"//new_line('a')
 
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    ! End data members for openPMD output. !
@@ -427,7 +427,7 @@ CONTAINS
          emplace_new%output_series = openpmd_series_create( &
                                      filename, openpmd_access_create, config=openpmd_config)
       END IF
-      DEALLOCATE(merged_config)
+      DEALLOCATE (merged_config)
       file_index = cp_openpmd_add_filedata(basename_copied, emplace_new)
    END FUNCTION
 
