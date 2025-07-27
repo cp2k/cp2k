@@ -53,14 +53,18 @@ RUN /bin/bash -c -o pipefail " \
 # Stage 2b: Install CP2K
 FROM ${BASE_IMAGE} AS install_cp2k
 
+# keep cache files
+RUN rm -f /etc/apt/apt.conf.d/docker-clean
 # Install required packages
-RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update -qq && apt-get install -qq --no-install-recommends \
     g++ \
     gcc \
     gfortran \
     hwloc \
     libhwloc-dev \
-    python3 && rm -rf /var/lib/apt/lists/*
+    python3
 
 # Import build arguments from base image
 COPY --from=build_cp2k /CP2K_VERSION /

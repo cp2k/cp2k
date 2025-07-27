@@ -11,8 +11,12 @@ ARG BASE_IMAGE="ubuntu:24.04"
 
 FROM ${BASE_IMAGE} AS build_deps
 
+# keep cache files
+RUN rm -f /etc/apt/apt.conf.d/docker-clean
 # Install packages required to build the CP2K dependencies with Spack
-RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update -qq && apt-get install -qq --no-install-recommends \
     bzip2 \
     ca-certificates \
     cmake \
@@ -38,7 +42,7 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     wget \
     xxd \
     xz-utils \
-    zstd && rm -rf /var/lib/apt/lists/*
+    zstd
 
 # Create dummy xpmem library for the MPICH build. At runtime the
 # container engine will inject the xpmem library from the host system

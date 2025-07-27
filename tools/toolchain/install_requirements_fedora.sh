@@ -33,6 +33,4 @@ dnf -qy install \
   zlib-devel \
   zlib-static
 
-dnf clean -q all
-
 #EOF

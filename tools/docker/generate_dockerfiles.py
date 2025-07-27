@@ -435,18 +435,26 @@ def install_deps_ubuntu(
     assert gcc_version > 8
     output = rf"""
 FROM {base_image}
+
+# keep cache files
+RUN rm -f /etc/apt/apt.conf.d/docker-clean
 """
 
     if gcc_version > 13:
         output += rf"""
 # Add Ubuntu universe repository.
-RUN apt-get update -qq && apt-get install -qq --no-install-recommends software-properties-common
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update -qq && \
+    apt-get install -qq --no-install-recommends software-properties-common
 RUN add-apt-repository universe
 """
 
     output += rf"""
 # Install Ubuntu packages.
-RUN export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true && \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true && \
     apt-get update -qq && apt-get install -qq --no-install-recommends \
     cmake \
     less \
@@ -465,8 +473,7 @@ RUN export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true && \
     libxc-dev \
     libhdf5-dev \
     {"libxsmm-dev" if with_libxsmm else ""} \
-    libspglib-f08-dev \
-   && rm -rf /var/lib/apt/lists/*
+    libspglib-f08-dev
 
 # Create links in /usr/local/bin to overrule links in /usr/bin.
 RUN ln -sf /usr/bin/gcc-{gcc_version}      /usr/local/bin/gcc  && \
@@ -485,8 +492,12 @@ def install_deps_ubuntu2004(gcc_version: int = 8) -> str:
     output = rf"""
 FROM ubuntu:20.04
 
+# keep cache files
+RUN rm -f /etc/apt/apt.conf.d/docker-clean
 # Install Ubuntu packages.
-RUN export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true && \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true && \
     apt-get update -qq && apt-get install -qq --no-install-recommends \
     cmake \
     gcc-{gcc_version} \
@@ -495,8 +506,7 @@ RUN export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true && \
     libfftw3-dev \
     libopenblas-dev \
     libgsl-dev \
-    libhdf5-dev \
-   && rm -rf /var/lib/apt/lists/*
+    libhdf5-dev
 
 # Create links in /usr/local/bin to overrule links in /usr/bin.
 RUN ln -sf /usr/bin/gcc-{gcc_version}      /usr/local/bin/gcc  && \
@@ -550,8 +560,12 @@ def install_deps_toolchain_nvhpc() -> str:
     return rf"""
 FROM ubuntu:22.04
 
+# keep cache files
+RUN rm -f /etc/apt/apt.conf.d/docker-clean
 # Install Ubuntu packages.
-RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update -qq && apt-get install -qq --no-install-recommends \
     apt-transport-https \
     ca-certificates \
     dirmngr \
@@ -560,16 +574,16 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     make \
     nano \
     python3 \
-    wget \
-   && rm -rf /var/lib/apt/lists/*
+    wget
 
 RUN apt-key adv --fetch-keys https://developer.download.nvidia.com/hpc-sdk/ubuntu/DEB-GPG-KEY-NVIDIA-HPC-SDK
 RUN echo 'deb https://developer.download.nvidia.com/hpc-sdk/ubuntu/amd64 /' > /etc/apt/sources.list.d/nvhpc.list
 
 # Install NVIDIA's HPC SDK but only keep the compilers to reduce Docker image size.
-RUN apt-get update -qq && \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update -qq && \
     apt-get install -qq --no-install-recommends nvhpc-22-11 && \
-    rm -rf /var/lib/apt/lists/* && \
     rm -rf /opt/nvidia/hpc_sdk/Linux_x86_64/22.11/math_libs && \
     rm -rf /opt/nvidia/hpc_sdk/Linux_x86_64/22.11/comm_libs && \
     rm -rf /opt/nvidia/hpc_sdk/Linux_x86_64/22.11/profilers && \
@@ -606,12 +620,15 @@ ENV LD_LIBRARY_PATH /usr/local/cuda/lib64
 # See also https://github.com/cp2k/cp2k/pull/2337
 ENV CUDA_CACHE_DISABLE 1
 
+# keep cache files
+RUN rm -f /etc/apt/apt.conf.d/docker-clean
 # Install Ubuntu packages.
-RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update -qq && apt-get install -qq --no-install-recommends \
     gfortran                                                          \
     mpich                                                             \
-    libmpich-dev                                                      \
-   && rm -rf /var/lib/apt/lists/*
+    libmpich-dev
 
 """ + install_toolchain(
         base_image="ubuntu",
@@ -639,7 +656,11 @@ ENV HIPAMD_DIR /opt/hipamd-rocm-4.5.2
 # See also https://github.com/cp2k/cp2k/pull/2337
 ENV CUDA_CACHE_DISABLE 1
 
-RUN export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true \
+# keep cache files
+RUN rm -f /etc/apt/apt.conf.d/docker-clean
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true \
     && apt-get update -qq && apt-get install -qq --no-install-recommends \
     ca-certificates \
     build-essential \
@@ -649,8 +670,7 @@ RUN export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true \
     mpich \
     libmpich-dev \
     wget \
-    libssl-dev \
-    && rm -rf /var/lib/apt/lists/*
+    libssl-dev
 
 # Install HIP from source because the hip-nvcc package drags in 10GB of unnecessary dependencies.
 WORKDIR /opt
@@ -738,13 +758,16 @@ def install_deps_toolchain_hip_rocm(gpu_ver: str) -> str:
     return rf"""
 FROM rocm/dev-ubuntu-22.04:5.3.2-complete
 
+# keep cache files
+RUN rm -f /etc/apt/apt.conf.d/docker-clean
 # Install some Ubuntu packages.
-RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update -qq && apt-get install -qq --no-install-recommends \
     hipblas                                                           \
     gfortran                                                          \
     mpich                                                             \
-    libmpich-dev                                                      \
-   && rm -rf /var/lib/apt/lists/*
+    libmpich-dev
 
 # Setup HIP environment.
 ENV ROCM_PATH /opt/rocm
@@ -777,7 +800,13 @@ def install_toolchain(base_image: str, **kwargs: str) -> str:
 # Install requirements for the toolchain.
 WORKDIR /opt/cp2k-toolchain
 COPY ./tools/toolchain/install_requirements*.sh ./
-RUN ./install_requirements.sh {base_image}
+# keep cache files
+RUN rm -f /etc/apt/apt.conf.d/docker-clean
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    --mount=type=cache,target=/var/cache/libdnf5,sharing=locked \
+    --mount=type=cache,target=/var/lib/dnf,sharing=locked \
+    ./install_requirements.sh {base_image}
 
 # Install the toolchain.
 RUN mkdir scripts
@@ -838,7 +867,9 @@ def install_deps_spack(version: str) -> str:
 FROM ubuntu:24.04
 
 # Install packages required to build the CP2K dependencies with Spack
-RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update -qq && apt-get install -qq --no-install-recommends \
     bzip2 \
     ca-certificates \
     cmake \
@@ -866,7 +897,7 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     wget \
     xxd \
     xz-utils \
-    zstd && rm -rf /var/lib/apt/lists/*
+    zstd
 
 # Create and activate a virtual environment for Python packages
 RUN python3 -m venv /opt/venv

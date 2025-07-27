@@ -38,6 +38,4 @@ apt-get install -qq --no-install-recommends \
   xxd \
   zlib1g-dev
 
-rm -rf /var/lib/apt/lists/*
-
 #EOF
