@@ -13,17 +13,26 @@ ENV LD_LIBRARY_PATH /usr/local/cuda/lib64
 # See also https://github.com/cp2k/cp2k/pull/2337
 ENV CUDA_CACHE_DISABLE 1
 
+# keep cache files
+RUN rm -f /etc/apt/apt.conf.d/docker-clean
 # Install Ubuntu packages.
-RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update -qq && apt-get install -qq --no-install-recommends \
     gfortran                                                          \
     mpich                                                             \
-    libmpich-dev                                                      \
-   && rm -rf /var/lib/apt/lists/*
+    libmpich-dev
 
 # Install requirements for the toolchain.
 WORKDIR /opt/cp2k-toolchain
 COPY ./tools/toolchain/install_requirements*.sh ./
-RUN ./install_requirements.sh ubuntu
+# keep cache files
+RUN rm -f /etc/apt/apt.conf.d/docker-clean
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    --mount=type=cache,target=/var/cache/libdnf5,sharing=locked \
+    --mount=type=cache,target=/var/lib/dnf,sharing=locked \
+    ./install_requirements.sh ubuntu
 
 # Install the toolchain.
 RUN mkdir scripts
