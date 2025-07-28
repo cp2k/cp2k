@@ -98,7 +98,7 @@ MODULE cp_output_handling_openpmd
       ! openPMD output Series.
       TYPE(openpmd_series_type) :: output_series
       ! Information on the last Iteration that was written to, including
-      ! CP2K'2 complex Iteration number and its associated contiguous scalar
+      ! CP2Ks complex Iteration number and its associated contiguous scalar
       ! openPMD Iteration number.
       TYPE(cp_current_iteration_counter_type) :: iteration_counter
    END TYPE cp_openpmd_per_callsite_value_type
@@ -443,12 +443,7 @@ CONTAINS
 !> \param local ...
 !> \param log_filename ...
 !> \param ignore_should_output ...
-!> \param file_form ...
-!> \param file_position ...
-!> \param file_action ...
-!> \param file_status ...
 !> \param do_backup ...
-!> \param on_file ...
 !> \param is_new_file true if this rank created a new (or rewound) file, false otherwise
 !> \param mpi_io True if the file should be opened in parallel on all processors belonging to
 !>               the communicator group. Automatically disabled if the file form or access mode
@@ -462,17 +457,14 @@ CONTAINS
 !> \return ...
 ! **************************************************************************************************
    FUNCTION cp_openpmd_print_key_unit_nr(logger, basis_section, print_key_path, &
-                                         middle_name, log_filename, ignore_should_output, file_form, file_position, &
-                                         file_action, file_status, on_file, mpi_io, &
+                                         middle_name, log_filename, ignore_should_output, &
+                                         mpi_io, &
                                          fout, openpmd_basename) RESULT(res)
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), INTENT(IN)                :: basis_section
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: print_key_path
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: middle_name
       LOGICAL, INTENT(IN), OPTIONAL                      :: log_filename, ignore_should_output
-      CHARACTER(len=*), INTENT(IN), OPTIONAL             :: file_form, file_position, file_action, &
-                                                            file_status
-      LOGICAL, INTENT(IN), OPTIONAL                      :: on_file
       LOGICAL, INTENT(INOUT), OPTIONAL                   :: mpi_io
       CHARACTER(len=default_path_length), INTENT(OUT), &
          OPTIONAL                                        :: fout
@@ -483,7 +475,7 @@ CONTAINS
 
       CHARACTER(len=default_string_length)               :: openpmd_config, outPath, file_extension
       LOGICAL                                            :: do_log, found, &
-                                                            my_mpi_io, my_on_file, &
+                                                            my_mpi_io, &
                                                             my_should_output, &
                                                             replace
       INTEGER                                            :: openpmd_file_index, openpmd_call_index
@@ -493,8 +485,6 @@ CONTAINS
       replace = .FALSE.
       found = .FALSE.
       res = -1
-      my_on_file = .FALSE.
-      IF (PRESENT(on_file)) my_on_file = on_file
       IF (PRESENT(mpi_io)) THEN
 #if defined(__parallel)
          IF (logger%para_env%num_pe > 1 .AND. mpi_io) THEN
@@ -567,7 +557,6 @@ CONTAINS
 !> \param print_key_path ...
 !> \param local ...
 !> \param ignore_should_output ...
-!> \param on_file ...
 !> \param mpi_io True if file was opened in parallel with MPI
 !> \param use_openpmd ...
 !> \par History
@@ -578,26 +567,24 @@ CONTAINS
 !>      not __STD_OUT__
 ! **************************************************************************************************
    SUBROUTINE cp_openpmd_print_key_finished_output(unit_nr, logger, basis_section, &
-                                                   print_key_path, local, ignore_should_output, on_file, &
+                                                   print_key_path, local, ignore_should_output, &
                                                    mpi_io)
       INTEGER, INTENT(INOUT)                             :: unit_nr
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), INTENT(IN)                :: basis_section
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: print_key_path
-      LOGICAL, INTENT(IN), OPTIONAL                      :: local, ignore_should_output, on_file, &
+      LOGICAL, INTENT(IN), OPTIONAL                      :: local, ignore_should_output, &
                                                             mpi_io
 
       CHARACTER(len=default_string_length)               :: outPath
-      LOGICAL                                            :: my_local, my_mpi_io, my_on_file, &
+      LOGICAL                                            :: my_local, my_mpi_io, &
                                                             my_should_output
       TYPE(section_vals_type), POINTER                   :: print_key
 
       my_local = .FALSE.
-      my_on_file = .FALSE.
       my_mpi_io = .FALSE.
       NULLIFY (print_key)
       IF (PRESENT(local)) my_local = local
-      IF (PRESENT(on_file)) my_on_file = on_file
       IF (PRESENT(mpi_io)) my_mpi_io = mpi_io
       CPASSERT(ASSOCIATED(logger))
       CPASSERT(basis_section%ref_count > 0)

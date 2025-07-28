@@ -614,7 +614,7 @@ CONTAINS
       CALL section_release(print_key)
 
 #ifdef __OPENPMD
-      CALL create_openpmd_section(print_key)
+      CALL create_mo_openpmd_section(print_key)
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 #endif
@@ -699,6 +699,12 @@ CONTAINS
       CALL keyword_release(keyword)
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
+
+#ifdef __OPENPMD
+      CALL create_e_density_openpmd_section(print_key)
+      CALL section_add_subsection(section, print_key)
+      CALL section_release(print_key)
+#endif
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, name="E_DENSITY_CUBE", &
                                        description="Controls the printing of cube files with "// &
@@ -2236,7 +2242,7 @@ CONTAINS
    END SUBROUTINE
 
    !! TODO update descriptions, trim unneeded bits, add needed bits
-   SUBROUTINE create_openpmd_section(print_key)
+   SUBROUTINE create_mo_openpmd_section(print_key)
       TYPE(section_type), POINTER                        :: print_key
 
       TYPE(keyword_type), POINTER                        :: keyword
@@ -2295,7 +2301,55 @@ CONTAINS
 
       CALL add_generic_openpmd_arguments(print_key, keyword)
 
-   END SUBROUTINE create_openpmd_section
+   END SUBROUTINE create_mo_openpmd_section
+
+   SUBROUTINE create_e_density_openpmd_section(print_key)
+      TYPE(section_type), POINTER                        :: print_key
+
+      TYPE(keyword_type), POINTER                        :: keyword
+
+      NULLIFY (keyword)
+
+      CALL cp_print_key_section_create(print_key, __LOCATION__, name="E_DENSITY_OPENPMD", &
+                                       description="Controls the printing of cube files with "// &
+                                       "the electronic density and, for LSD calculations, the spin density.", &
+                                       print_level=high_print_level, filename="")
+      CALL keyword_create(keyword, __LOCATION__, name="stride", &
+                          description="The stride (X,Y,Z) used to write the cube file "// &
+                          "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
+                          " 1 number valid for all components.", &
+                          usage="STRIDE 1 1 1", n_var=-1, default_i_vals=(/1, 1, 1/), type_of_var=integer_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="DENSITY_INCLUDE", &
+                          description="Which parts of the density to include. In GAPW the electronic density "// &
+                          "is divided into a hard and a soft component, and the default (TOTAL_HARD_APPROX) "// &
+                          "is to approximate the hard density as a spherical gaussian and to print the smooth "// &
+                          "density accurately. This avoids potential artefacts originating from the hard density. "// &
+                          "If the TOTAL_DENSITY keyword is used the hard density will be computed more accurately "// &
+                          "but may introduce non-physical features. The SOFT_DENSITY keyword will lead to only the "// &
+                          "soft density being printed. In GPW these options have no effect and the cube file will "// &
+                          "only contain the valence electron density.", &
+                          usage="DENSITY_INCLUDE TOTAL_HARD_APPROX", &
+                          enum_c_vals=s2a("TOTAL_HARD_APPROX", "TOTAL_DENSITY", "SOFT_DENSITY"), &
+                          enum_desc=s2a("Print (hard+soft) density where the hard components shape is approximated", &
+                                        "Print (hard+soft) density. Only has an effect "// &
+                                        "if PAW atoms are present. NOTE: The total "// &
+                                        "in real space might exhibit unphysical features "// &
+                                        "like spikes due to the finite and thus "// &
+                                        "truncated g vector", &
+                                        "Print only the soft density"), &
+                          enum_i_vals=(/e_dens_total_hard_approx, &
+                                        e_dens_total_density, &
+                                        e_dens_soft_density/), &
+                          default_i_val=e_dens_total_hard_approx)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL add_generic_openpmd_arguments(print_key, keyword)
+
+   END SUBROUTINE
 #endif
 
 ! **************************************************************************************************
