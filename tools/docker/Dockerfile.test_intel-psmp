@@ -8,7 +8,13 @@ FROM intel/hpckit:2024.2.1-0-devel-ubuntu22.04
 # Install requirements for the toolchain.
 WORKDIR /opt/cp2k-toolchain
 COPY ./tools/toolchain/install_requirements*.sh ./
-RUN ./install_requirements.sh ubuntu
+# keep cache files
+RUN rm -f /etc/apt/apt.conf.d/docker-clean
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    --mount=type=cache,target=/var/cache/libdnf5,sharing=locked \
+    --mount=type=cache,target=/var/lib/dnf,sharing=locked \
+    ./install_requirements.sh ubuntu
 
 # Install the toolchain.
 RUN mkdir scripts

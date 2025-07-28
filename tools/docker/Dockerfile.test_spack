@@ -6,7 +6,9 @@
 FROM ubuntu:24.04
 
 # Install packages required to build the CP2K dependencies with Spack
-RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update -qq && apt-get install -qq --no-install-recommends \
     bzip2 \
     ca-certificates \
     cmake \
@@ -34,7 +36,7 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     wget \
     xxd \
     xz-utils \
-    zstd && rm -rf /var/lib/apt/lists/*
+    zstd
 
 # Create and activate a virtual environment for Python packages
 RUN python3 -m venv /opt/venv

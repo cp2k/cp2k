@@ -17,7 +17,11 @@ ENV HIPAMD_DIR /opt/hipamd-rocm-4.5.2
 # See also https://github.com/cp2k/cp2k/pull/2337
 ENV CUDA_CACHE_DISABLE 1
 
-RUN export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true \
+# keep cache files
+RUN rm -f /etc/apt/apt.conf.d/docker-clean
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true \
     && apt-get update -qq && apt-get install -qq --no-install-recommends \
     ca-certificates \
     build-essential \
@@ -27,8 +31,7 @@ RUN export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true \
     mpich \
     libmpich-dev \
     wget \
-    libssl-dev \
-    && rm -rf /var/lib/apt/lists/*
+    libssl-dev
 
 # Install HIP from source because the hip-nvcc package drags in 10GB of unnecessary dependencies.
 WORKDIR /opt
@@ -105,7 +108,13 @@ RUN hipconfig
 # Install requirements for the toolchain.
 WORKDIR /opt/cp2k-toolchain
 COPY ./tools/toolchain/install_requirements*.sh ./
-RUN ./install_requirements.sh ubuntu
+# keep cache files
+RUN rm -f /etc/apt/apt.conf.d/docker-clean
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    --mount=type=cache,target=/var/cache/libdnf5,sharing=locked \
+    --mount=type=cache,target=/var/lib/dnf,sharing=locked \
+    ./install_requirements.sh ubuntu
 
 # Install the toolchain.
 RUN mkdir scripts

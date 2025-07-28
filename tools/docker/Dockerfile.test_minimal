@@ -5,8 +5,13 @@
 
 FROM ubuntu:24.04
 
+# keep cache files
+RUN rm -f /etc/apt/apt.conf.d/docker-clean
+
 # Install Ubuntu packages.
-RUN export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true && \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true && \
     apt-get update -qq && apt-get install -qq --no-install-recommends \
     cmake \
     less \
@@ -25,8 +30,7 @@ RUN export DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true && \
     libxc-dev \
     libhdf5-dev \
     libxsmm-dev \
-    libspglib-f08-dev \
-   && rm -rf /var/lib/apt/lists/*
+    libspglib-f08-dev
 
 # Create links in /usr/local/bin to overrule links in /usr/bin.
 RUN ln -sf /usr/bin/gcc-13      /usr/local/bin/gcc  && \

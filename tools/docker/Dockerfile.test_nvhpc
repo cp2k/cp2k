@@ -5,8 +5,12 @@
 
 FROM ubuntu:22.04
 
+# keep cache files
+RUN rm -f /etc/apt/apt.conf.d/docker-clean
 # Install Ubuntu packages.
-RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update -qq && apt-get install -qq --no-install-recommends \
     apt-transport-https \
     ca-certificates \
     dirmngr \
@@ -15,16 +19,16 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     make \
     nano \
     python3 \
-    wget \
-   && rm -rf /var/lib/apt/lists/*
+    wget
 
 RUN apt-key adv --fetch-keys https://developer.download.nvidia.com/hpc-sdk/ubuntu/DEB-GPG-KEY-NVIDIA-HPC-SDK
 RUN echo 'deb https://developer.download.nvidia.com/hpc-sdk/ubuntu/amd64 /' > /etc/apt/sources.list.d/nvhpc.list
 
 # Install NVIDIA's HPC SDK but only keep the compilers to reduce Docker image size.
-RUN apt-get update -qq && \
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update -qq && \
     apt-get install -qq --no-install-recommends nvhpc-22-11 && \
-    rm -rf /var/lib/apt/lists/* && \
     rm -rf /opt/nvidia/hpc_sdk/Linux_x86_64/22.11/math_libs && \
     rm -rf /opt/nvidia/hpc_sdk/Linux_x86_64/22.11/comm_libs && \
     rm -rf /opt/nvidia/hpc_sdk/Linux_x86_64/22.11/profilers && \
