@@ -488,7 +488,6 @@ CONTAINS
                ! get the eigenvalues
                CALL calculate_subspace_eigenvalues(mo_virtual, ks_matrix(ispin)%matrix, evals_virtual)
 
-               ! TODO: double check that we really need this.
                ! we need to send the copy of MOs to preserve the sign
                CALL cp_fm_create(fm_dummy, mo_ref%matrix_struct)
                CALL cp_fm_to_fm(mo_ref, fm_dummy)
@@ -1342,14 +1341,14 @@ CONTAINS
          END IF
          poisson_env%parameters%periodic = eri_env%periodicity
 
-         ! Rebuilds the poisson green (influience) function according
+         ! Rebuilds the poisson green (influence) function according
          ! to the poisson solver and parameters set so far.
          ! Also sets the variable poisson_env%rebuild to .FALSE.
          CALL pw_poisson_rebuild(poisson_env)
 
          ! A bit of an abuse: we change on the fly the cutoff radius
-         ! to that spcified in the input file and then overwrite the
-         ! green function with the new one in `pw_eri_green_create`
+         ! to that specified in the input file and then overwrite the
+         ! Greens function with the new one in `pw_eri_green_create`
          IF (eri_env%cutoff_radius > 0.0_dp) THEN
             poisson_env%green_fft%radius = eri_env%cutoff_radius
          ELSE
@@ -3093,7 +3092,6 @@ CONTAINS
       iw = cp_logger_get_default_io_unit(logger)
       ionode = para_env%is_source()
 
-      ! TODO: do we really need to allocate the arrays on every process?
       ALLOCATE (eri_aa(active_space_env%nmo_active**4))
       CALL eri_to_array(active_space_env%eri, eri_aa, active_space_env%active_orbitals, 1, 1)
       IF (active_space_env%nspins == 2) THEN
