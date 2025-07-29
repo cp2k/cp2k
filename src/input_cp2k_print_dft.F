@@ -1005,11 +1005,6 @@ CONTAINS
                           usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
-                          description="append the cube files when they already exist", &
-                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="density_cutoff", &
                           description=" ", &
@@ -2290,12 +2285,6 @@ CONTAINS
          " eigenvalues are always all dumped. It overrides nhomo.", &
          usage="HOMO_LIST {integer}  {integer} ..  {integer} ", type_of_var=integer_t, &
          n_var=-1, repeats=.TRUE.)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
-                          description="append the cube files when they already exist", &
-                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
