@@ -1075,7 +1075,6 @@ CONTAINS
 
       INTEGER                                            :: handle, is, nmo, nspins
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_vxc
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: h_matrix, ks_matrix
 
       CALL timeset(routineN, handle)
@@ -1093,20 +1092,6 @@ CONTAINS
          CALL get_mo_set(mo_set=mos(is), mo_coeff=mo_coeff, nmo=nmo)
          CALL subspace_operator(mo_coeff, nmo, ks_matrix(is, 1)%matrix, active_space_env%ks_sub(is))
       END DO
-
-      ! Vxc matrix
-      CALL cp_fm_release(active_space_env%vxc_sub)
-
-      ! TODO: this is actually never computed!!!! (And never used in the embedding algorithm)
-      NULLIFY (matrix_vxc)
-      CALL get_qs_env(qs_env, matrix_vxc=matrix_vxc)
-      IF (ASSOCIATED(matrix_vxc)) THEN
-         ALLOCATE (active_space_env%vxc_sub(nspins))
-         DO is = 1, nspins
-            CALL get_mo_set(mo_set=mos(is), mo_coeff=mo_coeff, nmo=nmo)
-            CALL subspace_operator(mo_coeff, nmo, matrix_vxc(is)%matrix, active_space_env%vxc_sub(is))
-         END DO
-      END IF
 
       ! Core Hamiltonian
       CALL cp_fm_release(active_space_env%h_sub)
@@ -2922,8 +2907,6 @@ CONTAINS
          energy_new = active_space_env%energy_total
          energy_corr = energy_new - energy_scf
          delta_E = energy_new - energy_old
-
-         ! CALL get_qs_env(qs_env, matrix_vxc=matrix_vxc, matrix_ks=matrix_ks)
 
          ! get timer
          t2 = t1
