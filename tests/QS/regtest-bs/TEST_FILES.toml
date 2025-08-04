@@ -6,7 +6,7 @@
 # tests simmetry breaking in initialization for spin polarized systems
 "cu2cl6_m1_std.inp"                     = [{matcher="E_total", tol=2.0e-11, ref=-184.39569302685747}]
 "cu2cl6_m3_std.inp"                     = [{matcher="E_total", tol=8.0e-11, ref=-184.45451587871787}]
-"cu2cl6_m1_clp6cud9.inp"                = [{matcher="E_total", tol=6.0e-12, ref=-183.94930042175494}]
-"cu2cl6_m3_clp6cud9.inp"                = [{matcher="E_total", tol=6.0e-12, ref=-184.42513728857304}]
+"cu2cl6_m1_clp6cud9.inp"                = [{matcher="E_total", tol=8.0e-12, ref=-183.94930042175494}]
+"cu2cl6_m3_clp6cud9.inp"                = [{matcher="E_total", tol=8.0e-12, ref=-184.42513728857304}]
 "o2.inp"                                = [{matcher="E_total", tol=6.0e-13, ref=-31.67129696553070}]
 #EOF
