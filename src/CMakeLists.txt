@@ -1593,14 +1593,14 @@ add_library(cp2k_linalg_libs INTERFACE)
 target_link_libraries(
   cp2k_linalg_libs
   INTERFACE cp2k::LAPACK::lapack
-            $<$<BOOL:${CP2K_USE_LIBXSMM}>:cp2k::LibXSMM::libxsmmf>
-            $<$<BOOL:${CP2K_USE_LIBXSMM}>:cp2k::LibXSMM::libxsmmext>
+            $<$<BOOL:${CP2K_USE_LIBXSMM}>:cp2k::LibXSMM::libxsmmf
+            cp2k::LibXSMM::libxsmmext>
             cp2k::BLAS::blas
             $<$<BOOL:${CP2K_USE_CUDA}>:cp2k_cuda_libs>
             $<$<BOOL:${CP2K_USE_HIP}>:cp2k_hip_libs>
-            $<$<BOOL:${CP2K_USE_MPI}>:MPI::MPI_Fortran>
-            $<$<BOOL:${CP2K_USE_MPI}>:MPI::MPI_C>
-            $<$<BOOL:${CP2K_USE_MPI}>:MPI::MPI_CXX>
+            $<$<BOOL:${CP2K_USE_MPI}>:MPI::MPI_Fortran
+            MPI::MPI_C
+            MPI::MPI_CXX>
             OpenMP::OpenMP_Fortran
             OpenMP::OpenMP_C
             OpenMP::OpenMP_CXX)
@@ -1627,10 +1627,10 @@ set(CP2K_GPU_DFLAGS
 
 add_fypp_sources(CP2K_SRCS ${CP2K_SRCS_F})
 
-# TODO Add __SHORT_FILE__ also to program files, e.g. metadyn_tools/graph.F
+add_fypp_sources(CP2K_PROG_F_SRCS ${CP2K_PROGS_F})
 
 # set the __SHORT_FILE__ per file for CP2K sources
-foreach(cp2k_src ${CP2K_SRCS})
+foreach(cp2k_src ${CP2K_SRCS} ${CP2K_PROGS_F_SRCS})
   # add_fypp_sources returns a path in the current binary dir
   file(RELATIVE_PATH short_file "${CMAKE_BINARY_DIR}/src" "${cp2k_src}")
   set_source_files_properties(
@@ -1683,6 +1683,10 @@ include_directories(
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/dbm>
   $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/mod_files>)
 
+if(DEFINED CP2K_LAPACK_INCLUDE_DIRS)
+  include_directories(${CP2K_LAPACK_INCLUDE_DIRS})
+endif()
+
 # include CPATH paths to the list of directories to include. gfortran does not
 # support CPATH at all
 if(DEFINED ENV{CPATH})
@@ -1696,19 +1700,19 @@ add_library(cp2k_link_libs INTERFACE)
 target_link_libraries(
   cp2k_link_libs
   INTERFACE
-    $<$<BOOL:${CP2K_USE_DFTD4}>:mctc-lib::mctc-lib>
-    $<$<BOOL:${CP2K_USE_DFTD4}>:dftd4::dftd4>
+    $<$<BOOL:${CP2K_USE_DFTD4}>:dftd4::dftd4
+    mctc-lib::mctc-lib>
     $<$<BOOL:${CP2K_USE_DEEPMD}>:DeePMD::deepmd
     DeePMD::deepmd_c>
     $<$<BOOL:${CP2K_USE_PEXSI}>:PEXSI::PEXSI>
-    $<$<BOOL:${CP2K_USE_ACE}>:ACE::pace>
-    $<$<BOOL:${CP2K_USE_ACE}>:ACE::yaml-cpp-pace>
-    $<$<BOOL:${CP2K_USE_ACE}>:ACE::cnpy>
-    $<$<BOOL:${CP2K_USE_TBLITE}>:toml-f::toml-f>
-    $<$<BOOL:${CP2K_USE_TBLITE}>:s-dftd3::s-dftd3>
-    $<$<BOOL:${CP2K_USE_TBLITE}>:mctc-lib::mctc-lib>
-    $<$<BOOL:${CP2K_USE_TBLITE}>:dftd4::dftd4>
-    $<$<BOOL:${CP2K_USE_TBLITE}>:tblite::tblite>
+    $<$<BOOL:${CP2K_USE_ACE}>:ACE::pace
+    ACE::yaml-cpp-pace
+    ACE::cnpy>
+    $<$<BOOL:${CP2K_USE_TBLITE}>:tblite::tblite
+    toml-f::toml-f
+    s-dftd3::s-dftd3
+    dftd4::dftd4
+    mctc-lib::mctc-lib>
     $<$<BOOL:${CP2K_USE_SIRIUS}>:sirius::sirius>
     $<$<BOOL:${CP2K_USE_VORI}>:cp2k::VORI::vori>
     $<$<BOOL:${CP2K_USE_SPGLIB}>:Spglib::symspg>
@@ -1721,12 +1725,12 @@ target_link_libraries(
     $<$<AND:$<BOOL:${CP2K_USE_FFTW3_}>,$<BOOL:${CP2K_ENABLE_FFTW3_OPENMP_SUPPORT}>>:cp2k::FFTW3::fftw3_omp>
     $<$<BOOL:${CP2K_USE_SPLA}>:SPLA::spla>
     $<$<BOOL:${CP2K_USE_LIBINT2}>:cp2k::Libint2::int2>
-    $<$<BOOL:${CP2K_USE_COSMA}>:cosma::cosma_prefixed_pxgemm>
-    $<$<BOOL:${CP2K_USE_COSMA}>:cosma::cosma>
+    $<$<BOOL:${CP2K_USE_COSMA}>:cosma::cosma_prefixed_pxgemm
+    cosma::cosma>
     $<$<BOOL:${CP2K_USE_DLAF}>:DLAF::Fortran>
-    $<$<BOOL:${CP2K_USE_GREENX}>:greenX::GXCommon>
-    $<$<BOOL:${CP2K_USE_GREENX}>:greenX::LibGXAC>
-    $<$<BOOL:${CP2K_USE_GREENX}>:greenX::LibGXMiniMax>
+    $<$<BOOL:${CP2K_USE_GREENX}>:greenX::GXCommon
+    greenX::LibGXAC
+    greenX::LibGXMiniMax>
     $<$<BOOL:${CP2K_USE_TREXIO}>:cp2k::trexio::trexio>
     $<$<BOOL:${CP2K_USE_HDF5}>:HDF5::HDF5
     hdf5::hdf5_fortran>
@@ -1759,8 +1763,8 @@ target_compile_definitions(
     $<$<BOOL:${CP2K_USE_VORI}>:__LIBVORI>
     $<$<BOOL:${CP2K_USE_SPGLIB}>:__SPGLIB>
     $<$<BOOL:${CP2K_USE_LIBSMEAGOL}>:__SMEAGOL>
-    $<$<BOOL:${CP2K_USE_TBLITE}>:__TBLITE>
-    $<$<BOOL:${CP2K_USE_TBLITE}>:__DFTD4>
+    $<$<BOOL:${CP2K_USE_TBLITE}>:__TBLITE
+    __DFTD4>
     $<$<BOOL:${CP2K_USE_DFTD4}>:__DFTD4>
     $<$<BOOL:${CP2K_USE_DEEPMD}>:__DEEPMD>
     $<$<BOOL:${CP2K_USE_PEXSI}>:__PEXSI>
@@ -1819,10 +1823,9 @@ list(
   "dumpdcd"
   "xyz2dcd"
   "libcp2k_unittest"
-  "nequip_unittest"
   "dbt_unittest"
-  "dbt_tas_unittest"
-  "gx_ac_unittest")
+  "nequip_unittest"
+  "dbt_tas_unittest")
 
 add_executable(cp2k-bin start/cp2k.F)
 # for linking
@@ -1833,10 +1836,14 @@ add_executable(graph metadyn_tools/graph.F)
 add_executable(dumpdcd motion/dumpdcd.F)
 add_executable(xyz2dcd motion/xyz2dcd.F)
 add_executable(libcp2k_unittest start/libcp2k_unittest.c)
-add_executable(nequip_unittest nequip_unittest.F)
 add_executable(dbt_unittest dbt/dbt_unittest.F)
 add_executable(dbt_tas_unittest dbt/tas/dbt_tas_unittest.F)
-add_executable(gx_ac_unittest gx_ac_unittest.F)
+add_executable(nequip_unittest nequip_unittest.F)
+
+if(CP2K_USE_GREENX)
+  list(APPEND __CP2K_APPS "gx_ac_unittest")
+  add_executable(gx_ac_unittest gx_ac_unittest.F)
+endif()
 
 set_target_properties(
   cp2k-bin
@@ -1846,7 +1853,6 @@ set_target_properties(
              OUTPUT_NAME "cp2k.${__cp2k_ext}")
 
 target_link_libraries(cp2k-bin PUBLIC cp2k)
-
 foreach(_app ${__CP2K_APPS})
   set_target_properties(
     ${_app}
@@ -1860,7 +1866,8 @@ foreach(_app ${__CP2K_APPS})
                                          ${CMAKE_HIP_ARCHITECTURES})
   endif()
 
-  target_link_libraries(${_app} PUBLIC cp2k)
+  target_link_libraries(${_app} PUBLIC cp2k OpenMP::OpenMP_Fortran
+                                       OpenMP::OpenMP_C OpenMP::OpenMP_CXX)
 endforeach()
 
 # ##############################################################################
