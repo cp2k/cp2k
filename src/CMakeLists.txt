@@ -1647,6 +1647,8 @@ if(CP2K_USE_OPENPMD)
   list(APPEND CP2K_SRCS_F
     openPMD.F
     input/cp_output_handling_openpmd.F
+    cp_realspace_grid_openpmd.F
+    pw/realspace_grid_openpmd.F
   )
 endif()
 
