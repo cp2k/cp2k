@@ -1641,6 +1641,10 @@ set(CP2K_GPU_DFLAGS
 # set properties for the cp2k target.
 # ##############################################################################
 
+if(CP2K_USE_OPENPMD)
+  list(APPEND CP2K_SRCS_F openPMD.F)
+endif()
+
 add_fypp_sources(CP2K_SRCS ${CP2K_SRCS_F})
 
 # set the __SHORT_FILE__ per file for CP2K sources
