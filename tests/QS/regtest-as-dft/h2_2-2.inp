@@ -14,7 +14,7 @@
       &ERI
         EPS_INTEGRAL 1E-10
         METHOD FULL_GPW
-        OPERATOR <ERF(A*R)/R>
+        OPERATOR LONGRANGE
         OPERATOR_PARAMETER 1.0
         PERIODICITY 0 0 0
       &END ERI

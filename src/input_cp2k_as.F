@@ -21,9 +21,9 @@ MODULE input_cp2k_as
                                               silent_print_level
    USE input_constants,                 ONLY: &
         casci_canonical, eri_method_full_gpw, eri_method_gpw_ht, eri_operator_coulomb, &
-        eri_operator_erf, eri_operator_erfc, eri_operator_gaussian, eri_operator_trunc, &
-        eri_operator_yukawa, gaussian, manual_selection, mao_projection, no_solver, &
-        qiskit_solver, wannier_projection
+        eri_operator_erf, eri_operator_erfc, eri_operator_gaussian, eri_operator_lr_trunc, &
+        eri_operator_trunc, eri_operator_yukawa, gaussian, manual_selection, mao_projection, &
+        no_solver, qiskit_solver, wannier_projection
    USE input_cp2k_loc,                  ONLY: create_localize_section
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
@@ -321,17 +321,19 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="OPERATOR", &
                           description="Operator used in ERI calculation.", &
-                          usage="OPERATOR <1/R>", &
-                          enum_c_vals=s2a("<1/R>", "<EXP(-A*R)/R>", "<ERF(A*R)/R>", &
-                                          "<ERFC(A*R)/R>", "<EXP(-A*R2)/R>", "<H(A-R)/R>"), &
+                          usage="OPERATOR LONGRANGE", &
+                          enum_c_vals=s2a("COULOMB", "YUKAWA", "LONGRANGE", &
+                                          "SHORTRANGE", "GAUSSIAN", "TRUNCATED", "LR_TRUNC"), &
                           enum_i_vals=(/eri_operator_coulomb, eri_operator_yukawa, &
-                                        eri_operator_erf, eri_operator_erfc, eri_operator_gaussian, eri_operator_trunc/), &
-                          enum_desc=s2a("Coulomb operator", &
-                                        "Yukawa potential operator", &
-                                        "Error function potential operator", &
-                                        "Complementary error function potential operator", &
-                                        "Gaussian potential operator", &
-                                        "Truncated Coulomb potential"), &
+                                        eri_operator_erf, eri_operator_erfc, eri_operator_gaussian, &
+                                        eri_operator_trunc, eri_operator_lr_trunc/), &
+                          enum_desc=s2a("Coulomb operator: 1/r", &
+                                        "Yukawa operator: exp(-omega*R)/R", &
+                                        "Longrange operator: erf(omega*R)/R", &
+                                        "Shortrange operator: erfc(omega*R)/R", &
+                                        "Gaussian operator: exp(-omega*R2)/R", &
+                                        "Truncated Coulomb operator: if (R < R_c) 1/R else 0)", &
+                                        "Truncated longrange operator: if (R < R_c) erf(omega*R)/R else 0"), &
                           default_i_val=eri_operator_coulomb)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -351,9 +353,25 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="CUTOFF_RADIUS", &
-                          description="Radius (in Angstrom) of operator interactions in non-periodic cases.", &
-                          usage="CUTOFF_RADIUS 20", type_of_var=real_t, &
-                          default_r_val=-1.0_dp)
+                          description="Determines cutoff radius (in Angstroms) for the truncated 1/r and "// &
+                          "longrange potentials. "// &
+                          "Only valid when doing truncated calculations.", &
+                          usage="CUTOFF_RADIUS 10.0", type_of_var=real_t, &
+                          unit_str="angstrom", default_r_val=0.0_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      ! CALL keyword_create(keyword, __LOCATION__, name="CUTOFF_RADIUS", &
+      !                     description="Radius (in Angstrom) of operator interactions in non-periodic cases.", &
+      !                     usage="CUTOFF_RADIUS 20", type_of_var=real_t, &
+      !                     default_r_val=-1.0_dp)
+      ! CALL section_add_keyword(section, keyword)
+      ! CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="OMEGA", &
+                          description="Parameter for short/longrange interaction", &
+                          usage="OMEGA 0.5", &
+                          default_r_val=0.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

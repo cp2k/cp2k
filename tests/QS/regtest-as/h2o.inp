@@ -13,7 +13,7 @@
       ORBITAL_SELECTION CANONICAL
       &ERI
         METHOD FULL_GPW
-        OPERATOR <1/R>
+        OPERATOR COULOMB
       &END ERI
       &ERI_GPW
         PRINT_LEVEL MEDIUM

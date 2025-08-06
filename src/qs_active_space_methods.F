@@ -12,8 +12,8 @@
 !> \author JGH
 ! **************************************************************************************************
 MODULE qs_active_space_methods
-   USE admm_types,                      ONLY: admm_type,&
-                                              get_admm_env
+   USE admm_types, ONLY: admm_type, &
+                         get_admm_env
    USE atomic_kind_types, ONLY: atomic_kind_type
    USE basis_set_types, ONLY: allocate_sto_basis_set, &
                               create_gto_from_sto_basis, &
@@ -58,7 +58,8 @@ MODULE qs_active_space_methods
    USE group_dist_types, ONLY: get_group_dist, release_group_dist, group_dist_d1_type
    USE input_constants, ONLY: &
       casci_canonical, eri_method_full_gpw, eri_method_gpw_ht, eri_operator_coulomb, &
-      eri_operator_erf, eri_operator_erfc, eri_operator_gaussian, eri_operator_yukawa, eri_operator_trunc, &
+      eri_operator_erf, eri_operator_erfc, eri_operator_gaussian, eri_operator_yukawa, &
+      eri_operator_trunc, eri_operator_lr_trunc, &
       manual_selection, mao_projection, no_solver, qiskit_solver, wannier_projection, &
       eri_poisson_analytic, eri_poisson_periodic, eri_poisson_mt
    USE input_section_types, ONLY: section_vals_get, section_vals_get_subs_vals, &
@@ -216,10 +217,10 @@ CONTAINS
          nmo_inactive_remaining, nmo_occ, nmo_virtual, nn1, nn2, nrow_global, nspins
       INTEGER, DIMENSION(5)                              :: nshell
       INTEGER, DIMENSION(:), POINTER                     :: invals
-      LOGICAL                                            :: do_kpoints, ex_operator, ex_perd, &
-                                                            explicit, stop_after_print, &
-                                                            store_wfn
-      REAL(KIND=dp) :: eri_eps_filter, eri_eps_grid, eri_eps_int, eri_gpw_cutoff, eri_op_param, &
+      LOGICAL                                            :: do_kpoints, ex_omega, ex_operator, &
+                                                            ex_perd, ex_rcut, explicit, &
+                                                            stop_after_print, store_wfn
+      REAL(KIND=dp) :: eri_eps_filter, eri_eps_grid, eri_eps_int, eri_gpw_cutoff, eri_op_omega, &
          eri_rcut, eri_rel_cutoff, fel, focc, maxocc, nze_percentage
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: eigenvalues
       REAL(KIND=dp), DIMENSION(:), POINTER               :: evals_virtual
@@ -799,9 +800,9 @@ CONTAINS
       active_space_env%eri%method = eri_method
       CALL section_vals_val_get(as_input, "ERI%OPERATOR", i_val=eri_operator, explicit=ex_operator)
       active_space_env%eri%operator = eri_operator
-      CALL section_vals_val_get(as_input, "ERI%OPERATOR_PARAMETER", r_val=eri_op_param)
-      active_space_env%eri%operator_parameter = eri_op_param
-      CALL section_vals_val_get(as_input, "ERI%CUTOFF_RADIUS", r_val=eri_rcut)
+      CALL section_vals_val_get(as_input, "ERI%OPERATOR_PARAMETER", r_val=eri_op_omega, explicit=ex_omega)
+      active_space_env%eri%omega = eri_op_omega
+      CALL section_vals_val_get(as_input, "ERI%CUTOFF_RADIUS", r_val=eri_rcut, explicit=ex_rcut)
       active_space_env%eri%cutoff_radius = eri_rcut*bohr  ! convert to bohr before storing
       CALL section_vals_val_get(as_input, "ERI%PERIODICITY", i_vals=invals, explicit=ex_perd)
       CALL section_vals_val_get(as_input, "ERI%EPS_INTEGRAL", r_val=eri_eps_int)
@@ -819,6 +820,7 @@ CONTAINS
       END IF
       IF (iw > 0) THEN
          WRITE (iw, '(/,T3,A)') "Calculation of Electron Repulsion Integrals"
+
          SELECT CASE (eri_method)
          CASE (eri_method_full_gpw)
             WRITE (iw, '(T3,A,T50,A)') "Integration method", "GPW Fourier transform over MOs"
@@ -827,31 +829,53 @@ CONTAINS
          CASE DEFAULT
             CPABORT("Unknown ERI method")
          END SELECT
+
          SELECT CASE (eri_operator)
          CASE (eri_operator_coulomb)
-            WRITE (iw, '(T3,A,T66,A)') "ERI operator", "Coulomb <1/R>"
+            WRITE (iw, '(T3,A,T66,A)') "ERI operator", "Coulomb <1/r>"
+
          CASE (eri_operator_yukawa)
-            WRITE (iw, '(T3,A,T59,A)') "ERI operator", "Yukawa <EXP(-a*R)/R>"
-            WRITE (iw, '(T3,A,T66,F14.3)') "ERI operator parameter", eri_op_param
+            WRITE (iw, '(T3,A,T59,A)') "ERI operator", "Yukawa <exp(-ω*r)/r>"
+            IF (.NOT. ex_omega) CPABORT("Yukawa operator requires OMEGA to be explicitly set")
+            WRITE (iw, '(T3,A,T66,F14.3)') "ERI operator parameter OMEGA", eri_op_omega
+
          CASE (eri_operator_erf)
-            WRITE (iw, '(T3,A,T53,A)') "ERI operator", "Error function <ERF(a*R)/R>"
-            WRITE (iw, '(T3,A,T66,F14.3)') "ERI operator parameter", eri_op_param
+            WRITE (iw, '(T3,A,T53,A)') "ERI operator", "Error function <erf(ω*r)/r>"
+            IF (.NOT. ex_omega) CPABORT("Longrange operator requires OMEGA to be explicitly set")
+            WRITE (iw, '(T3,A,T66,F14.3)') "ERI operator parameter OMEGA", eri_op_omega
+
          CASE (eri_operator_erfc)
-            WRITE (iw, '(T3,A,T45,A)') "ERI operator", "Compl. error function <ERFC(a*R)/R>"
-            WRITE (iw, '(T3,A,T66,F14.3)') "ERI operator parameter", eri_op_param
+            WRITE (iw, '(T3,A,T45,A)') "ERI operator", "Compl. error function <erfc(ω*r)/r>"
+            IF (.NOT. ex_omega) THEN
+               CPABORT("Shortrange operator requires OMEGA to be explicitly set")
+            END IF
+            WRITE (iw, '(T3,A,T66,F14.3)') "ERI operator parameter OMEGA", eri_op_omega
+
          CASE (eri_operator_trunc)
-            WRITE (iw, '(T3,A,T53,A)') "ERI operator", "Truncated Coulomb <H(a-R)/R>"
-            WRITE (iw, '(T3,A,T66,F14.3)') "ERI operator parameter", eri_op_param
+            WRITE (iw, '(T3,A,T53,A)') "ERI operator", "Truncated Coulomb <H(R_c-r)/r>"
+            IF (.NOT. ex_rcut) CPABORT("Cutoff radius not specified for trunc. Coulomb operator")
+            WRITE (iw, '(T3,A,T66,F14.3)') "ERI operator cutoff radius (Å)", eri_rcut
+
+         CASE (eri_operator_lr_trunc)
+            WRITE (iw, '(T3,A,T53,A)') "ERI operator", "Longrange truncated Coulomb <H(R_c-r)*erf(ω*r)/r>"
+            IF (.NOT. ex_rcut) THEN
+               CPABORT("Cutoff radius not specified for trunc. longrange operator")
+            END IF
+            WRITE (iw, '(T3,A,T66,F14.3)') "ERI operator cutoff radius", eri_rcut
+            IF (.NOT. ex_omega) THEN
+               CPABORT("Longrange truncated operator requires OMEGA to be explicitly set")
+            END IF
+            WRITE (iw, '(T3,A,T66,F14.3)') "ERI operator parameter OMEGA", eri_op_omega
+
          CASE DEFAULT
             CPABORT("Unknown ERI operator")
+
          END SELECT
-         WRITE (iw, '(T3,A,T68,E12.4)') "Accuracy of ERI", eri_eps_int
+
+         WRITE (iw, '(T3,A,T68,E12.4)') "Accuracy of ERIs", eri_eps_int
          WRITE (iw, '(T3,A,T71,3I3)') "Periodicity", active_space_env%eri%periodicity(1:3)
-         ! to deprecate
-         IF (PRODUCT(active_space_env%eri%periodicity(1:3)) == 0) THEN
-            IF (eri_rcut > 0.0_dp) WRITE (iw, '(T3,A,T66,F14.6)') "User-specified cutoff", eri_rcut
-         END IF
-         !!!
+
+         ! TODO: should be moved after ERI calculation, as it depends on screening
          IF (nspins < 2) THEN
             WRITE (iw, '(T3,A,T68,I12)') "Total Number of ERI", (nmo_active**4)/8
          ELSE
@@ -1055,7 +1079,6 @@ CONTAINS
 
    END SUBROUTINE calculate_spin_pol_overlap
 
-
 ! **************************************************************************************************
 !> \brief computes the one-electron operators in the subspace of the provided orbital set
 !> \param mos the molecular orbital set within the active subspace
@@ -1116,16 +1139,17 @@ CONTAINS
 !> \param nmo the number of orbitals
 !> \param op_matrix operator matrix in AO basis
 !> \param op_sub operator in orbital basis
+!> \param orbitals_b ...
 !> \par History
 !>      04.2016 created [JGH]
 ! **************************************************************************************************
    SUBROUTINE subspace_operator(orbitals, nmo, op_matrix, op_sub, orbitals_b)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: orbitals
-      TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: orbitals_b
       INTEGER, INTENT(IN)                                :: nmo
       TYPE(dbcsr_type), POINTER                          :: op_matrix
       TYPE(cp_fm_type), INTENT(INOUT)                    :: op_sub
+      TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: orbitals_b
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'subspace_operator'
 
@@ -1215,8 +1239,7 @@ CONTAINS
       LOGICAL                                            :: print1, print2, &
                                                             skip_load_balance_distributed
       REAL(KIND=dp)                                      :: dvol, erint, pair_int, &
-                                                            progression_factor, rc, t1, t2, &
-                                                            rsize
+                                                            progression_factor, rc, rsize, t1, t2
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eri
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
@@ -1346,19 +1369,15 @@ CONTAINS
          ! Also sets the variable poisson_env%rebuild to .FALSE.
          CALL pw_poisson_rebuild(poisson_env)
 
-         ! A bit of an abuse: we change on the fly the cutoff radius
-         ! to that specified in the input file and then overwrite the
-         ! Greens function with the new one in `pw_eri_green_create`
-         IF (eri_env%cutoff_radius > 0.0_dp) THEN
-            poisson_env%green_fft%radius = eri_env%cutoff_radius
-         ELSE
-            CALL get_qs_env(qs_env, cell=cell)
-            rc = cell%hmat(1, 1)
-            DO iwa1 = 1, 3
-               rc = MIN(rc, 0.5_dp*cell%hmat(iwa1, iwa1))
-            END DO
-            poisson_env%green_fft%radius = rc
-         END IF
+         ! set the cutoff radius for the Greens function in case we use ANALYTIC Poisson solver
+         CALL get_qs_env(qs_env, cell=cell)
+         rc = cell%hmat(1, 1)
+         DO iwa1 = 1, 3
+            ! TODO: I think this is not the largest possible radius inscribed in the cell
+            rc = MIN(rc, 0.5_dp*cell%hmat(iwa1, iwa1))
+         END DO
+         poisson_env%green_fft%radius = rc
+
          ! Overwrite the Greens function with the one we want
          CALL pw_eri_green_create(poisson_env%green_fft, eri_env)
 
@@ -1722,7 +1741,7 @@ CONTAINS
       ! print out progress
       IF (iw > 0) THEN
          t2 = m_walltime()
-         WRITE (iw, '(/,T2,A,T66,F14.2)') "ERI_GPW| ERI calculation took (sec)", t2-t1
+         WRITE (iw, '(/,T2,A,T66,F14.2)') "ERI_GPW| ERI calculation took (sec)", t2 - t1
          CALL m_flush(iw)
       END IF
 
@@ -1743,7 +1762,7 @@ CONTAINS
       TYPE(eri_type)                                     :: eri_env
 
       INTEGER                                            :: ig
-      REAL(KIND=dp)                                      :: omega, omega2, Rc, ea, g2, g3d, ga, g
+      REAL(KIND=dp)                                      :: ea, g, g2, g3d, ga, omega, omega2, Rc
 
       ! initialize influence function
       ASSOCIATE (gf => green%influence_fn, grid => green%influence_fn%pw_grid)
@@ -1758,31 +1777,31 @@ CONTAINS
                END DO
                IF (grid%have_g0) gf%array(1) = 0.0_dp
             CASE (eri_operator_yukawa)
-               omega2 = eri_env%operator_parameter**2
+               omega2 = eri_env%omega**2
                DO ig = grid%first_gne0, grid%ngpts_cut_local
                   g2 = grid%gsq(ig)
                   gf%array(ig) = fourpi/(omega2 + g2)
                END DO
                IF (grid%have_g0) gf%array(1) = fourpi/omega2
             CASE (eri_operator_erf)
-               omega2 = eri_env%operator_parameter**2
+               omega2 = eri_env%omega**2
                DO ig = grid%first_gne0, grid%ngpts_cut_local
                   g2 = grid%gsq(ig)
                   gf%array(ig) = fourpi/g2*EXP(-0.25_dp*g2/omega2)
                END DO
                IF (grid%have_g0) gf%array(1) = 0.0_dp
             CASE (eri_operator_erfc)
-               omega2 = eri_env%operator_parameter**2
+               omega2 = eri_env%omega**2
                DO ig = grid%first_gne0, grid%ngpts_cut_local
                   g2 = grid%gsq(ig)
                   gf%array(ig) = fourpi/g2*(1.0_dp - EXP(-0.25_dp*g2/omega2))
                END DO
                IF (grid%have_g0) gf%array(1) = 0.25_dp*fourpi/omega2
             CASE (eri_operator_trunc)
-               Rc = eri_env%operator_parameter
+               Rc = eri_env%cutoff_radius
                DO ig = grid%first_gne0, grid%ngpts_cut_local
                   g2 = grid%gsq(ig)
-                  g  = SQRT(g2)
+                  g = SQRT(g2)
                   ! Taylor expansion around zero
                   IF (g*Rc >= 0.005_dp) THEN
                      gf%array(ig) = fourpi/g2*(1.0_dp - COS(g*Rc))
@@ -1791,19 +1810,21 @@ CONTAINS
                   END IF
                END DO
                IF (grid%have_g0) gf%array(1) = 0.5_dp*fourpi*Rc**2
+            CASE (eri_operator_lr_trunc)
+               ! TODO: implement this
             CASE DEFAULT
-               CPABORT("Unsupported operator")
+               CPABORT("Please specify a valid operator for the periodic Poisson solver")
             END SELECT
 
-         ! The analytic Poisson solver simply limits the domain of integration
-         ! of the Fourier transform to a sphere of radius Rc, rather than integrating
-         ! over all space (-∞,∞)
+            ! The analytic Poisson solver simply limits the domain of integration
+            ! of the Fourier transform to a sphere of radius Rc, rather than integrating
+            ! over all space (-∞,∞)
          CASE (ANALYTIC0D)
 
             SELECT CASE (eri_env%operator)
-            ! This is identical to the truncated Coulomb operator integrated
-            ! over all space, when the truncation radius is equal to the radius of
-            ! the Poisson solver
+               ! This is identical to the truncated Coulomb operator integrated
+               ! over all space, when the truncation radius is equal to the radius of
+               ! the Poisson solver
             CASE (eri_operator_coulomb)
                Rc = green%radius
                DO ig = grid%first_gne0, grid%ngpts_cut_local
@@ -1817,10 +1838,10 @@ CONTAINS
                   END IF
                END DO
                IF (grid%have_g0) gf%array(1) = 0.5_dp*fourpi*Rc**2
-            ! Not tested
+               ! Not tested
             CASE (eri_operator_yukawa)
                Rc = green%radius
-               omega = eri_env%operator_parameter
+               omega = eri_env%omega
                ea = EXP(-omega*Rc)
                DO ig = grid%first_gne0, grid%ngpts_cut_local
                   g2 = grid%gsq(ig)
@@ -1829,12 +1850,12 @@ CONTAINS
                   gf%array(ig) = g3d*(1.0_dp - ea*(COS(g*Rc) + omega/g*SIN(g*Rc)))
                END DO
                IF (grid%have_g0) gf%array(1) = fourpi/(omega**2)*(1.0_dp - ea*(1.0_dp + omega*Rc))
-            ! Long-range Coulomb
+               ! Long-range Coulomb
             CASE (eri_operator_erf)
                CALL cp_warn(__LOCATION__, &
-               "Long-range Coulomb operator may be incorrect with ANALYTIC0D Poisson solver")
+                            "Long-range Coulomb operator may be incorrect with ANALYTIC0D Poisson solver")
                Rc = green%radius
-               omega2 = eri_env%operator_parameter**2
+               omega2 = eri_env%omega**2
                DO ig = grid%first_gne0, grid%ngpts_cut_local
                   g2 = grid%gsq(ig)
                   g = SQRT(g2)
@@ -1844,17 +1865,17 @@ CONTAINS
                END DO
                ! TODO: is this correct?
                IF (grid%have_g0) gf%array(1) = 0.5_dp*fourpi*Rc**2
-            ! Short-range Coulomb
+               ! Short-range Coulomb
             CASE (eri_operator_erfc)
                CALL cp_warn(__LOCATION__, &
-               "Short-range Coulomb operator may be incorrect with ANALYTIC0D Poisson solver")
+                            "Short-range Coulomb operator may be incorrect with ANALYTIC0D Poisson solver")
                Rc = green%radius
-               omega2 = eri_env%operator_parameter**2
+               omega2 = eri_env%omega**2
                DO ig = grid%first_gne0, grid%ngpts_cut_local
                   g2 = grid%gsq(ig)
-                  g  = SQRT(g2)
+                  g = SQRT(g2)
                   ga = -0.25_dp*g2/omega2
-                    gf%array(ig) = fourpi/g2*(1.0_dp - EXP(ga))*(1.0_dp - COS(g*Rc))
+                  gf%array(ig) = fourpi/g2*(1.0_dp - EXP(ga))*(1.0_dp - COS(g*Rc))
                END DO
                ! TODO: is this correct?
                IF (grid%have_g0) gf%array(1) = 0.0_dp
@@ -2723,7 +2744,7 @@ CONTAINS
       INTEGER                                            :: ispin
 
       INTEGER                                            :: i1, i2, m1, m2, nmo_active
-      REAL(KIND=dp)                                      :: pij_new, pij_old, alpha
+      REAL(KIND=dp)                                      :: alpha, pij_new, pij_old
       TYPE(cp_fm_type), POINTER                          :: p_active
 
       p_active => active_space_env%p_active(ispin)
@@ -2753,20 +2774,20 @@ CONTAINS
       TYPE(active_space_type), POINTER                   :: active_space_env
       INTEGER                                            :: iw
 
-      REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE         :: noon, pmat
-      INTEGER                                            :: ispin, nspins, i1, i2, m1, m2, jm, &
-                                                            ii, nmo_active
+      INTEGER                                            :: i1, i2, ii, ispin, jm, m1, m2, &
+                                                            nmo_active, nspins
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: noon, pmat
       TYPE(cp_fm_type), POINTER                          :: p_active
 
       nspins = active_space_env%nspins
       nmo_active = active_space_env%nmo_active
 
-      ALLOCATE(noon(nmo_active, nspins))
-      ALLOCATE(pmat(nmo_active, nmo_active))
+      ALLOCATE (noon(nmo_active, nspins))
+      ALLOCATE (pmat(nmo_active, nmo_active))
 
-      DO ispin = 1,nspins
+      DO ispin = 1, nspins
          p_active => active_space_env%p_active(ispin)
-         noon(:,ispin) = 0.0_dp
+         noon(:, ispin) = 0.0_dp
          pmat = 0.0_dp
 
          DO i1 = 1, nmo_active
@@ -2801,8 +2822,8 @@ CONTAINS
 
       END DO
 
-      DEALLOCATE(noon)
-      DEALLOCATE(pmat)
+      DEALLOCATE (noon)
+      DEALLOCATE (pmat)
 
    END SUBROUTINE print_pmat_noon
 

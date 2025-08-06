@@ -55,7 +55,7 @@ MODULE qs_active_space_types
       INTEGER                       :: method = 0
       INTEGER                       :: operator = 0
       LOGICAL                       :: enlarge_cell = .FALSE.
-      REAL(KIND=dp)                 :: operator_parameter = 0.0_dp
+      REAL(KIND=dp)                 :: omega = 0.0_dp
       INTEGER, DIMENSION(3)         :: periodicity = 0
       REAL(KIND=dp), DIMENSION(3)   :: eri_cell = 0
       REAL(KIND=dp), DIMENSION(3)   :: eri_cell_angles = 0
