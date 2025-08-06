@@ -1664,6 +1664,10 @@ else()
   endif()
 endif()
 
+if(CP2K_USE_OPENPMD)
+  target_link_libraries(cp2k PRIVATE CP2K_OPENPMD_BINDINGS)
+endif()
+
 target_compile_features(cp2k PUBLIC cuda_std_11)
 target_include_directories(cp2k PUBLIC $<INSTALL_INTERFACE:include/cp2k>)
 
@@ -1791,6 +1795,7 @@ target_compile_definitions(
     $<$<BOOL:${CP2K_USE_DLAF}>:__DLAF>
     $<$<BOOL:${CP2K_USE_LIBXC}>:__LIBXC>
     $<$<BOOL:${CP2K_USE_HDF5}>:__HDF5>
+    $<$<BOOL:${CP2K_USE_OPENPMD}>:__OPENPMD>
     $<$<BOOL:${CP2K_USE_TREXIO}>:__TREXIO>
     $<$<BOOL:${CP2K_USE_GREENX}>:__GREENX>
     $<$<BOOL:${CP2K_USE_GRPP}>:__LIBGRPP>
