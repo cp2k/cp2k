@@ -1077,6 +1077,10 @@ CONTAINS
 #if defined(__parallel)
          INTEGER                                  :: ierr
 !$       INTEGER                                  :: provided_tsl
+!$       INTEGER                                  :: required_threading_level, required_threading_level_from_env_var
+!$       CHARACTER(len=default_string_length)     :: required_threading_level_env_var_value
+!$       CHARACTER(len=*), PARAMETER              :: required_threading_level_env_var_key = "CP2K_USE_THREADED_MPI"
+!$       INTEGER                                  :: env_var_status
 !$       LOGICAL                                  :: no_threading_support
 
 #if defined(__NO_MPI_THREAD_SUPPORT_CHECK)
@@ -1103,10 +1107,33 @@ CONTAINS
 #if defined(__DLAF)
             ! DLA-Future requires that the MPI library supports
             ! THREAD_MULTIPLE mode
-!$          CALL mpi_init_thread(MPI_THREAD_MULTIPLE, provided_tsl, ierr)
+!$          required_threading_level = MPI_THREAD_MULTIPLE
 #else
-!$          CALL mpi_init_thread(MPI_THREAD_SERIALIZED, provided_tsl, ierr)
+!$          required_threading_level = MPI_THREAD_SERIALIZED
 #endif
+            ! Allow users to raise the MPI threading level if needed
+            ! Introduced because some (but not all) IO routines in openPMD require threaded MPI
+            ! (AsyncWrite in ADIOS2/BP5, MPI data plane in ADIOS2/SST, subfiling in HDF5)
+!$          CALL get_environment_variable( &
+!$             required_threading_level_env_var_key, required_threading_level_env_var_value, status=env_var_status)
+!$          IF (env_var_status == 0) THEN
+!$             IF (TRIM(required_threading_level_env_var_value) == "MPI_THREAD_SINGLE") THEN
+!$                required_threading_level_from_env_var = MPI_THREAD_SINGLE
+!$             ELSE IF (TRIM(required_threading_level_env_var_value) == "MPI_THREAD_FUNNELED") THEN
+!$                required_threading_level_from_env_var = MPI_THREAD_FUNNELED
+!$             ELSE IF (TRIM(required_threading_level_env_var_value) == "MPI_THREAD_SERIALIZED") THEN
+!$                required_threading_level_from_env_var = MPI_THREAD_SERIALIZED
+!$             ELSE IF (TRIM(required_threading_level_env_var_value) == "MPI_THREAD_MULTIPLE") THEN
+!$                required_threading_level_from_env_var = MPI_THREAD_MULTIPLE
+!$             ELSE
+!$                CALL cp_abort(__LOCATION__, "Illegal value for environment variable CP2K_USE_THREADED_MPI. Will ignore.")
+!$             END IF
+!$
+!$             IF (required_threading_level_from_env_var .GT. required_threading_level) THEN
+!$                required_threading_level = required_threading_level_from_env_var
+!$             END IF
+!$          END IF
+!$          CALL mpi_init_thread(required_threading_level, provided_tsl, ierr)
 !$          IF (ierr /= 0) CALL mp_stop(ierr, "mpi_init_thread @ mp_world_init")
 #if defined(__DLAF)
 !$          IF (provided_tsl < MPI_THREAD_MULTIPLE) THEN
