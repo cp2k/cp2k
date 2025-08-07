@@ -36,7 +36,7 @@ cd build || return 1
 
 # TODO: Reconcile PROFILE/VERSION with CP2K_BUILD_OPTIONS in CMakeLists.txt
 #
-if [[ "${PROFILE}" == "spack_all" ]] && [[ "${VERSION}" == "psmp" ]]; then
+if [[ "${PROFILE}" == "spack" ]] && [[ "${VERSION}" == "psmp" ]]; then
   # PyTorch's TorchConfig.cmake is buried in the Python site-packages directory
   Torch_DIR="$(dirname "$(find /opt/spack/lib -name TorchConfig.cmake)")"
   export Torch_DIR
@@ -51,7 +51,7 @@ if [[ "${PROFILE}" == "spack_all" ]] && [[ "${VERSION}" == "psmp" ]]; then
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
 
-elif [[ "${PROFILE}" == "spack_all" ]] && [[ "${VERSION}" == "ssmp" ]]; then
+elif [[ "${PROFILE}" == "spack" ]] && [[ "${VERSION}" == "ssmp" ]]; then
   # PyTorch's TorchConfig.cmake is buried in the Python site-packages directory
   Torch_DIR="$(dirname "$(find /opt/spack/lib -name TorchConfig.cmake)")"
   export Torch_DIR
@@ -66,7 +66,7 @@ elif [[ "${PROFILE}" == "spack_all" ]] && [[ "${VERSION}" == "ssmp" ]]; then
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
 
-elif [[ "${PROFILE}" == "toolchain_all" ]] && [[ "${VERSION}" == "pdbg" ]]; then
+elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "pdbg" ]]; then
   cmake \
     -GNinja \
     -DCMAKE_BUILD_TYPE="Debug" \
@@ -78,7 +78,7 @@ elif [[ "${PROFILE}" == "toolchain_all" ]] && [[ "${VERSION}" == "pdbg" ]]; then
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
 
-elif [[ "${PROFILE}" == "toolchain_all" ]] && [[ "${VERSION}" == "sdbg" ]]; then
+elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "sdbg" ]]; then
   cmake \
     -GNinja \
     -DCMAKE_BUILD_TYPE="Debug" \
@@ -89,7 +89,7 @@ elif [[ "${PROFILE}" == "toolchain_all" ]] && [[ "${VERSION}" == "sdbg" ]]; then
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
 
-elif [[ "${PROFILE}" == "toolchain_all" ]] && [[ "${VERSION}" == "psmp" ]]; then
+elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "psmp" ]]; then
   cmake \
     -GNinja \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
@@ -100,7 +100,7 @@ elif [[ "${PROFILE}" == "toolchain_all" ]] && [[ "${VERSION}" == "psmp" ]]; then
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
 
-elif [[ "${PROFILE}" == "toolchain_all" ]] && [[ "${VERSION}" == "ssmp" ]]; then
+elif [[ "${PROFILE}" == "toolchain" ]] && [[ "${VERSION}" == "ssmp" ]]; then
   cmake \
     -GNinja \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \

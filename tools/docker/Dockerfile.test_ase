@@ -75,7 +75,7 @@ COPY ./CMakeLists.txt .
 
 # Compile CP2K.
 COPY ./tools/docker/scripts/build_cp2k_cmake.sh .
-RUN ./build_cp2k_cmake.sh toolchain_all ssmp
+RUN ./build_cp2k_cmake.sh toolchain ssmp
 
 # Run test for ase.
 COPY ./tools/docker/scripts/test_ase.sh ./

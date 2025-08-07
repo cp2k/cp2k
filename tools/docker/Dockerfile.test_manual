@@ -78,7 +78,7 @@ COPY ./CMakeLists.txt .
 
 # Compile CP2K.
 COPY ./tools/docker/scripts/build_cp2k_cmake.sh .
-RUN ./build_cp2k_cmake.sh toolchain_all psmp
+RUN ./build_cp2k_cmake.sh toolchain psmp
 
 # Generate manual.
 COPY ./docs ./docs

@@ -15,12 +15,16 @@ spack:
         - +openmp
         - +pic
         - ~rocm
+      require: target=""
     mpi:
       require:
         - mpich
     mpich:
       require:
         - ~xpmem
+    openmpi:
+      require:
+        - +internal-hwloc
     xpmem:
       buildable: false
       externals:
@@ -106,6 +110,7 @@ spack:
     - "mpich@4.3.0"
     - "netlib-scalapack@2.2.2"
     - "openblas@0.3.29"
+#   - "openmpi@5.0.8"
     # All
     - "cosma@2.7.0"
     - "deepmdkit@3.1.0"

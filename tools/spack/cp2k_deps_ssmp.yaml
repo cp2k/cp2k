@@ -15,6 +15,7 @@ spack:
         - +openmp
         - +pic
         - ~rocm
+      require: target=""
     blas:
       require:
         - openblas
