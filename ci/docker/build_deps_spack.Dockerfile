@@ -88,13 +88,11 @@ RUN spack external find --all --not-buildable
 # Copy Spack configuration and build recipes
 ARG CP2K_VERSION
 ENV CP2K_VERSION=${CP2K_VERSION:-psmp}
-ARG CP2K_BUILD_TYPE
-ENV CP2K_BUILD_TYPE=${CP2K_BUILD_TYPE:-all}
-COPY ./tools/spack/cp2k_deps_${CP2K_BUILD_TYPE}_${CP2K_VERSION}.yaml ./
-RUN sed -e "s/~xpmem/+xpmem/" cp2k_deps_${CP2K_BUILD_TYPE}_${CP2K_VERSION}.yaml
+COPY ./tools/spack/cp2k_deps_${CP2K_VERSION}.yaml ./
+RUN sed -e "s/~xpmem/+xpmem/" cp2k_deps_${CP2K_VERSION}.yaml
 COPY ./tools/spack/cp2k_dev_repo ${SPACK_PACKAGES_ROOT}/repos/spack_repo/cp2k_dev_repo/
 RUN spack repo add --scope site ${SPACK_PACKAGES_ROOT}/repos/spack_repo/cp2k_dev_repo/
-RUN spack env create myenv cp2k_deps_${CP2K_BUILD_TYPE}_${CP2K_VERSION}.yaml && \
+RUN spack env create myenv cp2k_deps_${CP2K_VERSION}.yaml && \
     spack -e myenv repo list
 
 # Install CP2K dependencies via Spack

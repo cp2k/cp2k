@@ -26,7 +26,7 @@ COPY ./tests ./tests
 COPY ./tools/build_utils ./tools/build_utils
 
 # Run CMake
-RUN /bin/bash -c -o pipefail "source ./cmake/cmake_cp2k.sh spack_${CP2K_BUILD_TYPE} ${CP2K_VERSION}"
+RUN /bin/bash -c -o pipefail "source ./cmake/cmake_cp2k.sh spack ${CP2K_VERSION}"
 
 # Compile CP2K
 ARG LOG_LINES

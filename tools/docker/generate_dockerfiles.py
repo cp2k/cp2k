@@ -18,7 +18,7 @@ def main() -> None:
         with OutputFile(f"Dockerfile.test_{version}", args.check) as f:
             mpi_mode = "mpich" if version.startswith("p") else "no"
             f.write(install_deps_toolchain(mpi_mode=mpi_mode))
-            f.write(regtest_cmake("toolchain_all", version))
+            f.write(regtest_cmake("toolchain", version))
 
     with OutputFile(f"Dockerfile.test_generic_psmp", args.check) as f:
         f.write(install_deps_toolchain(target_cpu="generic"))
@@ -26,11 +26,11 @@ def main() -> None:
 
     with OutputFile(f"Dockerfile.test_openmpi-psmp", args.check) as f:
         f.write(install_deps_toolchain(mpi_mode="openmpi"))
-        f.write(regtest_cmake("toolchain_all", "psmp"))
+        f.write(regtest_cmake("toolchain", "psmp"))
 
     with OutputFile(f"Dockerfile.test_fedora-psmp", args.check) as f:
         f.write(install_deps_toolchain(base_image="fedora:41"))
-        f.write(regtest_cmake("toolchain_all", "psmp"))
+        f.write(regtest_cmake("toolchain", "psmp"))
 
     for ver in "ssmp", "psmp":
         with OutputFile(f"Dockerfile.test_intel-{ver}", args.check) as f:
@@ -51,7 +51,7 @@ def main() -> None:
 
     with OutputFile(f"Dockerfile.test_spack", args.check) as f:
         f.write(install_deps_spack("psmp"))
-        f.write(regtest_cmake("spack_all", "psmp"))
+        f.write(regtest_cmake("spack", "psmp"))
 
     with OutputFile(f"Dockerfile.test_asan-psmp", args.check) as f:
         f.write(install_deps_toolchain())
@@ -245,7 +245,7 @@ RUN /bin/bash -ec " \
 # ======================================================================================
 def manual() -> str:
     return (
-        install_cp2k_cmake(profile="toolchain_all", version="psmp", revision=True)
+        install_cp2k_cmake(profile="toolchain", version="psmp", revision=True)
         + rf"""
 # Generate manual.
 COPY ./docs ./docs
@@ -284,7 +284,7 @@ RUN ./tools/docker/scripts/test_precommit.sh 2>&1 | tee report.log
 # ======================================================================================
 def test_3rd_party(name: str) -> str:
     return (
-        install_cp2k_cmake(profile="toolchain_all", version="ssmp")
+        install_cp2k_cmake(profile="toolchain", version="ssmp")
         + rf"""
 # Run test for {name}.
 COPY ./tools/docker/scripts/test_{name}.sh ./
@@ -913,12 +913,10 @@ RUN ./setup_spack_cache.sh
 # Copy Spack configuration and build recipes
 ARG CP2K_VERSION
 ENV CP2K_VERSION=${{CP2K_VERSION:-{version}}}
-ARG CP2K_BUILD_TYPE
-ENV CP2K_BUILD_TYPE=${{CP2K_BUILD_TYPE:-all}}
-COPY ./tools/spack/cp2k_deps_${{CP2K_BUILD_TYPE}}_${{CP2K_VERSION}}.yaml ./
+COPY ./tools/spack/cp2k_deps_${{CP2K_VERSION}}.yaml ./
 COPY ./tools/spack/cp2k_dev_repo ${{SPACK_PACKAGES_ROOT}}/repos/spack_repo/cp2k_dev_repo/
 RUN spack repo add --scope site ${{SPACK_PACKAGES_ROOT}}/repos/spack_repo/cp2k_dev_repo/
-RUN spack env create myenv cp2k_deps_${{CP2K_BUILD_TYPE}}_${{CP2K_VERSION}}.yaml && \
+RUN spack env create myenv cp2k_deps_${{CP2K_VERSION}}.yaml && \
     spack -e myenv repo list
 
 # Install CP2K dependencies via Spack
