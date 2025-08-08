@@ -19,10 +19,9 @@ spack:
     mpi:
       require:
         - mpich
-    # MPICH
     mpich:
       require:
-        - ~xpmem
+        - +xpmem
     libfabric:
       # Specify libfabric version to match the system version
       require: '@1.22.0'
