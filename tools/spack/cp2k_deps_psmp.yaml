@@ -74,6 +74,9 @@ spack:
     elpa:
       require:
         - +openmp
+    fft-api:
+      require:
+        - fftw
     fftw:
       require:
         - +openmp

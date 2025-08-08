@@ -106,11 +106,13 @@ RUN spack env create myenv cp2k_deps_${CP2K_VERSION}.yaml && \
 
 # Use Cray-MPICH if the ALPS Spack repository is used and add supported dependencies
 # NOTE: This is a workaround for ALPS until the CE provides full MPI replacement
+# FIXME: SIRIUS with libvdwxc
 RUN if [ "${USE_ALPS_SPACK_REPO}" -ne 0 ]; then \
     spack -e myenv config remove "packages:mpi" && \
     spack -e myenv config add "packages:mpi:require:cray-mpich" && \
     spack -e myenv remove "mpich"; \
-    spack -e myenv remove "libvdwxc"; \ 
+    spack -e myenv config remove "packages:sirius" && \
+    spack -e myenv config add "packages:sirius:require:+fortran+pugixml~apps~vdwxc" && \
     spack -e myenv add "cray-mpich"; \
     spack -e myenv add "dla-future-fortran"; \
     fi
