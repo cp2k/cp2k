@@ -101,12 +101,6 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="ISOLATED_SYSTEM", &
-                          description="System is treated without any periodic boundary conditions.", &
-                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
       CALL cp_print_key_section_create(print_key, __LOCATION__, "FCIDUMP", &
                                        description="Controls the writing of a file in FCIDUMP format.", &
                                        print_level=high_print_level, filename="")
