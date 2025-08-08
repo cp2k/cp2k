@@ -86,7 +86,7 @@ RUN if [ "${USE_ALPS_SPACK_REPO}" -ne 0 ]; then \
     mkdir -p /root/alps-cluster-config && \
     wget -qO- "https://api.github.com/repos/eth-cscs/alps-cluster-config/tarball/$ALPS_SPACK_REPO_SHA" | \
     tar --strip-components=1 -xz -C /root/alps-cluster-config && \
-    spack repo add --scope site /root/alps-cluster-config/site/spack_repo/alps \
+    spack repo add --scope site /root/alps-cluster-config/site/spack_repo/alps; \
     fi
 
 # Find all compilers
@@ -111,7 +111,7 @@ RUN if [ "$USE_ALPS_SPACK_REPO}" -ne 0 ]; then \
     # sed -e 's/- "mpich@[^"]*"/- "cray-mpich"/' cp2k_deps_${CP2K_VERSION}.yaml && \
     spack -e myenv remove mpich && \
     spack -e myenv add cray-mpich && \
-    spack -e myenv add dla-future-fortran \
+    spack -e myenv add dla-future-fortran; \
     fi
 
 # Install CP2K dependencies via Spack
