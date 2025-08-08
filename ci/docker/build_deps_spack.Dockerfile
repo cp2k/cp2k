@@ -115,6 +115,7 @@ RUN if [ "${USE_ALPS_SPACK_REPO}" -ne 0 ]; then \
     spack -e myenv config add "packages:sirius:require:+fortran+pugixml~apps~vdwxc" && \
     spack -e myenv add "cray-mpich"; \
     spack -e myenv add "dla-future-fortran"; \
+    spack -e myenv remove "elpa"; \
     fi
 
 # Install CP2K dependencies via Spack
