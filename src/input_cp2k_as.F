@@ -173,6 +173,13 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="ALPHA", &
+                          description="Fraction of new density to be mixed with previous one in SCF embedding.", &
+                          usage="ALPHA 0.25", type_of_var=real_t, &
+                          default_r_val=0.4_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="MAX_ITER", &
                           description="Max number of iterations for the DFT embedding scheme.", &
                           usage="MAX_ITER 50", type_of_var=integer_t, &
@@ -338,13 +345,6 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="OPERATOR_PARAMETER", &
-                          description="Range parameter for ERI operator.", &
-                          usage="OPERATOR_PARAMETER 4.0", type_of_var=real_t, &
-                          default_r_val=0.5_dp)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
       CALL keyword_create(keyword, __LOCATION__, name="PERIODICITY", &
                           description="Periodicity used for operators in ERI calclulation.", &
                           usage="PERIODICITY 1 1 1", n_var=-1, default_i_vals=(/0, 0, 0/), &
@@ -352,26 +352,19 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="OMEGA", &
+                          description="Range-separation parameter for ERI operator.", &
+                          usage="OMEGA 0.25", type_of_var=real_t, &
+                          default_r_val=0.4_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL keyword_create(keyword, __LOCATION__, name="CUTOFF_RADIUS", &
-                          description="Determines cutoff radius (in Angstroms) for the truncated 1/r and "// &
+                          description="Cutoff radius (in Angstroms) for the truncated 1/r and "// &
                           "longrange potentials. "// &
                           "Only valid when doing truncated calculations.", &
                           usage="CUTOFF_RADIUS 10.0", type_of_var=real_t, &
                           unit_str="angstrom", default_r_val=0.0_dp)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      ! CALL keyword_create(keyword, __LOCATION__, name="CUTOFF_RADIUS", &
-      !                     description="Radius (in Angstrom) of operator interactions in non-periodic cases.", &
-      !                     usage="CUTOFF_RADIUS 20", type_of_var=real_t, &
-      !                     default_r_val=-1.0_dp)
-      ! CALL section_add_keyword(section, keyword)
-      ! CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="OMEGA", &
-                          description="Parameter for short/longrange interaction", &
-                          usage="OMEGA 0.5", &
-                          default_r_val=0.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

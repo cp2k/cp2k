@@ -8,8 +8,6 @@
   METHOD QS
   &DFT
     &ACTIVE_SPACE
-      !READ_P_ACTIVE .TRUE.
-      !P_ACTIVE_FILE_NAME h2_iterative_density.bin
       ACTIVE_ELECTRONS 2
       ACTIVE_ORBITALS 2
       ISOLATED_SYSTEM TRUE
@@ -17,7 +15,7 @@
         EPS_INTEGRAL 1E-10
         METHOD FULL_GPW
         OPERATOR LONGRANGE
-        OPERATOR_PARAMETER 1.0
+        OMEGA 1.0
         PERIODICITY 0 0 0
       &END ERI
       &ERI_GPW
