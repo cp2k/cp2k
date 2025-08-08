@@ -110,6 +110,7 @@ RUN if [ "${USE_ALPS_SPACK_REPO}" -ne 0 ]; then \
     spack -e myenv config remove "packages:mpi" && \
     spack -e myenv config add "packages:mpi:require:cray-mpich" && \
     spack -e myenv remove "mpich"; \
+    spack -e myenv remove "libvdwxc"; \ 
     spack -e myenv add "cray-mpich"; \
     spack -e myenv add "dla-future-fortran"; \
     fi
