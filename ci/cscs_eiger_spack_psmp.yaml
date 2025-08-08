@@ -49,7 +49,7 @@ build cp2k eiger:
     - echo ${DOCKERHUB_TOKEN} | podman login docker.io --username ${DOCKERHUB_USERNAME} --password-stdin
   after_script:
     - podman images
-    - podman push ${PERSIST_IMAGE_NAME} ${DOCKERHUB_IMAGE_NAME}
+#    - podman push ${PERSIST_IMAGE_NAME} ${DOCKERHUB_IMAGE_NAME}
   variables:
     DOCKER_BUILD_ARGS: '[
       "BASE_IMAGE",
