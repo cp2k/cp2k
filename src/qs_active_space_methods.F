@@ -55,6 +55,7 @@ MODULE qs_active_space_methods
       dbcsr_type_no_symmetry, dbcsr_create, dbcsr_set, dbcsr_multiply, dbcsr_iterator_next_block, &
       dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_blocks_left, &
       dbcsr_iterator_type, dbcsr_type_symmetric, dbcsr_get_occupation, dbcsr_get_info
+   USE errfun, ONLY: erf_pop
    USE group_dist_types, ONLY: get_group_dist, release_group_dist, group_dist_d1_type
    USE input_constants, ONLY: &
       casci_canonical, eri_method_full_gpw, eri_method_gpw_ht, eri_operator_coulomb, &
@@ -73,7 +74,7 @@ MODULE qs_active_space_methods
                     int_8
    USE machine, ONLY: m_walltime, m_flush
    USE mathlib, ONLY: diamat_all
-   USE mathconstants, ONLY: fourpi
+   USE mathconstants, ONLY: fourpi, twopi, pi, rootpi
    USE memory_utilities, ONLY: reallocate
    USE message_passing, ONLY: mp_comm_type, &
                               mp_para_env_type, &
@@ -800,7 +801,7 @@ CONTAINS
       active_space_env%eri%method = eri_method
       CALL section_vals_val_get(as_input, "ERI%OPERATOR", i_val=eri_operator, explicit=ex_operator)
       active_space_env%eri%operator = eri_operator
-      CALL section_vals_val_get(as_input, "ERI%OPERATOR_PARAMETER", r_val=eri_op_omega, explicit=ex_omega)
+      CALL section_vals_val_get(as_input, "ERI%OMEGA", r_val=eri_op_omega, explicit=ex_omega)
       active_space_env%eri%omega = eri_op_omega
       CALL section_vals_val_get(as_input, "ERI%CUTOFF_RADIUS", r_val=eri_rcut, explicit=ex_rcut)
       active_space_env%eri%cutoff_radius = eri_rcut*bohr  ! convert to bohr before storing
@@ -863,9 +864,12 @@ CONTAINS
             END IF
             WRITE (iw, '(T3,A,T66,F14.3)') "ERI operator cutoff radius", eri_rcut
             IF (.NOT. ex_omega) THEN
-               CPABORT("Longrange truncated operator requires OMEGA to be explicitly set")
+               CPABORT("LR truncated operator requires OMEGA to be explicitly set")
             END IF
             WRITE (iw, '(T3,A,T66,F14.3)') "ERI operator parameter OMEGA", eri_op_omega
+            IF (eri_op_omega < 0.01_dp) THEN
+               CPABORT("LR truncated operator requires OMEGA >= 0.01 to be stable")
+            END IF
 
          CASE DEFAULT
             CPABORT("Unknown ERI operator")
@@ -1755,14 +1759,18 @@ CONTAINS
 !> \param eri_env ...
 !> \par History
 !>      04.2016 created [JGH]
+!>      08.2025 added support for the LR truncation [SB]
 ! **************************************************************************************************
    SUBROUTINE pw_eri_green_create(green, eri_env)
 
       TYPE(greens_fn_type), INTENT(INOUT)                :: green
       TYPE(eri_type)                                     :: eri_env
 
+      COMPLEX(KIND=dp)                                   :: erf_fac_p, z_p
       INTEGER                                            :: ig
-      REAL(KIND=dp)                                      :: ea, g, g2, g3d, ga, omega, omega2, Rc
+      REAL(KIND=dp)                                      :: cossin_fac, ea, erfcos_fac, exp_prefac, &
+                                                            g, G0, g2, g3d, ga, Ginf, omega, &
+                                                            omega2, Rc, Rc2
 
       ! initialize influence function
       ASSOCIATE (gf => green%influence_fn, grid => green%influence_fn%pw_grid)
@@ -1776,13 +1784,16 @@ CONTAINS
                   gf%array(ig) = fourpi/g2
                END DO
                IF (grid%have_g0) gf%array(1) = 0.0_dp
+
             CASE (eri_operator_yukawa)
+               CALL cp_warn(__LOCATION__, "Yukawa operator has not been tested")
                omega2 = eri_env%omega**2
                DO ig = grid%first_gne0, grid%ngpts_cut_local
                   g2 = grid%gsq(ig)
                   gf%array(ig) = fourpi/(omega2 + g2)
                END DO
                IF (grid%have_g0) gf%array(1) = fourpi/omega2
+
             CASE (eri_operator_erf)
                omega2 = eri_env%omega**2
                DO ig = grid%first_gne0, grid%ngpts_cut_local
@@ -1790,13 +1801,15 @@ CONTAINS
                   gf%array(ig) = fourpi/g2*EXP(-0.25_dp*g2/omega2)
                END DO
                IF (grid%have_g0) gf%array(1) = 0.0_dp
+
             CASE (eri_operator_erfc)
                omega2 = eri_env%omega**2
                DO ig = grid%first_gne0, grid%ngpts_cut_local
                   g2 = grid%gsq(ig)
                   gf%array(ig) = fourpi/g2*(1.0_dp - EXP(-0.25_dp*g2/omega2))
                END DO
-               IF (grid%have_g0) gf%array(1) = 0.25_dp*fourpi/omega2
+               IF (grid%have_g0) gf%array(1) = pi/omega2
+
             CASE (eri_operator_trunc)
                Rc = eri_env%cutoff_radius
                DO ig = grid%first_gne0, grid%ngpts_cut_local
@@ -1809,9 +1822,50 @@ CONTAINS
                      gf%array(ig) = fourpi/g2*(g*Rc)**2/2.0_dp*(1.0_dp - (g*Rc)**2/12.0_dp)
                   END IF
                END DO
-               IF (grid%have_g0) gf%array(1) = 0.5_dp*fourpi*Rc**2
+               IF (grid%have_g0) gf%array(1) = twopi*Rc**2
+
             CASE (eri_operator_lr_trunc)
-               ! TODO: implement this
+               omega = eri_env%omega
+               omega2 = omega**2
+               Rc = eri_env%cutoff_radius
+               Rc2 = Rc**2
+               G0 = 0.001_dp ! threshold for the G=0 case
+               Ginf = 20.0_dp  ! threshold for the Taylor exapnsion arounf G=∞
+               DO ig = grid%first_gne0, grid%ngpts_cut_local
+                  g2 = grid%gsq(ig)
+                  g = SQRT(g2)
+                  IF (g <= 2.0_dp*G0) THEN
+                     gf%array(ig) = -pi/omega2*erf(omega*Rc) &
+                                    + twopi*Rc2*erf(omega*Rc) &
+                                    + 2*rootpi*Rc*EXP(-omega2*Rc2)/omega
+                  ELSE IF (g >= 2.0_dp*Ginf*omega) THEN
+                     ! exponential prefactor
+                     exp_prefac = EXP(-omega2*Rc2)/(rootpi*(omega2*Rc2 + 0.25_dp*g2/omega2))
+                     ! cos sin factor
+                     cossin_fac = omega*Rc*COS(g*Rc) - 0.5_dp*g/omega*SIN(g*Rc)
+                     ! real erf term with cosine
+                     erfcos_fac = ERF(omega*Rc)*COS(g*Rc)
+                     ! Combine terms
+                     gf%array(ig) = fourpi/g2*(-exp_prefac*cossin_fac - erfcos_fac)
+                  ELSE
+                     ! exponential prefactor
+                     exp_prefac = twopi/g2*EXP(-0.25_dp*g2/omega2)
+                     ! Compute complex arguments for erf
+                     z_p = CMPLX(omega*Rc, 0.5_dp*g/omega, kind=dp)
+                     ! Evaluate complex error functions
+                     erf_fac_p = 2.0_dp*REAL(erf_pop(z_p))
+                     ! Real erf term with cosine
+                     erfcos_fac = fourpi/g2*ERF(omega*Rc)*COS(g*Rc)
+                     ! Combine terms
+                     gf%array(ig) = exp_prefac*erf_fac_p - erfcos_fac
+                  END IF
+               END DO
+               IF (grid%have_g0) THEN
+                  gf%array(1) = -pi/omega2*ERF(omega*Rc) &
+                                + twopi*Rc2*ERF(omega*Rc) &
+                                + 2*rootpi*Rc*EXP(-omega2*Rc2)/omega
+               END IF
+
             CASE DEFAULT
                CPABORT("Please specify a valid operator for the periodic Poisson solver")
             END SELECT
@@ -1837,9 +1891,11 @@ CONTAINS
                      gf%array(ig) = fourpi/g2*(g*Rc)**2/2.0_dp*(1.0_dp - (g*Rc)**2/12.0_dp)
                   END IF
                END DO
-               IF (grid%have_g0) gf%array(1) = 0.5_dp*fourpi*Rc**2
+               IF (grid%have_g0) gf%array(1) = twopi*Rc**2
+
                ! Not tested
             CASE (eri_operator_yukawa)
+               CALL cp_warn(__LOCATION__, "Yukawa operator has not been tested")
                Rc = green%radius
                omega = eri_env%omega
                ea = EXP(-omega*Rc)
@@ -1850,22 +1906,22 @@ CONTAINS
                   gf%array(ig) = g3d*(1.0_dp - ea*(COS(g*Rc) + omega/g*SIN(g*Rc)))
                END DO
                IF (grid%have_g0) gf%array(1) = fourpi/(omega**2)*(1.0_dp - ea*(1.0_dp + omega*Rc))
+
                ! Long-range Coulomb
+               ! TODO: this should be equivalent to LR truncated Coulomb from above!
             CASE (eri_operator_erf)
-               CALL cp_warn(__LOCATION__, &
-                            "Long-range Coulomb operator may be incorrect with ANALYTIC0D Poisson solver")
                Rc = green%radius
                omega2 = eri_env%omega**2
                DO ig = grid%first_gne0, grid%ngpts_cut_local
                   g2 = grid%gsq(ig)
                   g = SQRT(g2)
                   ga = -0.25_dp*g2/omega2
-                  ! twopi / g2 * EXP(ga) * ( erf(omega) )
                   gf%array(ig) = fourpi/g2*EXP(ga)*(1.0_dp - COS(g*Rc))
                END DO
-               ! TODO: is this correct?
-               IF (grid%have_g0) gf%array(1) = 0.5_dp*fourpi*Rc**2
+               IF (grid%have_g0) gf%array(1) = twopi*Rc**2
+
                ! Short-range Coulomb
+               ! TODO: this should actually be properly derived and see whether it is correct
             CASE (eri_operator_erfc)
                CALL cp_warn(__LOCATION__, &
                             "Short-range Coulomb operator may be incorrect with ANALYTIC0D Poisson solver")
@@ -1877,10 +1933,12 @@ CONTAINS
                   ga = -0.25_dp*g2/omega2
                   gf%array(ig) = fourpi/g2*(1.0_dp - EXP(ga))*(1.0_dp - COS(g*Rc))
                END DO
-               ! TODO: is this correct?
-               IF (grid%have_g0) gf%array(1) = 0.0_dp
+               IF (grid%have_g0) gf%array(1) = pi/omega2
+
             CASE (eri_operator_trunc)
-               CPABORT("Truncated Coulomb and ANALYTIC0D is equivalent to normal Coulomb")
+               CPABORT("Truncated Coulomb with ANALYTIC0D is equivalent to normal Coulomb")
+            CASE (eri_operator_lr_trunc)
+               CPABORT("LR truncated Coulomb with ANALYTIC0D is equivalent to normal longrange")
             CASE DEFAULT
                CPABORT("Unsupported operator")
             END SELECT
@@ -2757,7 +2815,7 @@ CONTAINS
             m2 = active_space_env%active_orbitals(i2, ispin)
             CALL cp_fm_get_element(p_active, m1, m2, pij_old)
             pij_new = p_act_mo(i2 + (i1 - 1)*nmo_active)
-            pij_new = (1.0_dp - alpha)*pij_new + alpha*pij_old
+            pij_new = alpha*pij_new + (1.0_dp - alpha)*pij_old
             CALL cp_fm_set_element(p_active, m1, m2, pij_new)
          END DO
       END DO
@@ -2878,8 +2936,8 @@ CONTAINS
       IF (max_iter < 0) CPABORT("Specify a non-negative number of max iterations.")
       CALL section_vals_val_get(as_input, "EPS_ITER", r_val=eps_iter)
       IF (eps_iter < 0.0) CPABORT("Specify a non-negative convergence threshold.")
-      !CALL section_vals_val_get(as_input, "ALPHA", r_val=alpha)
-      alpha = 0.0
+      CALL section_vals_val_get(as_input, "ALPHA", r_val=alpha)
+      ! alpha = 0.0
       IF (alpha < 0.0 .OR. alpha > 1.0) CPABORT("Specify a damping factor between 0 and 1.")
       active_space_env%alpha = alpha
 

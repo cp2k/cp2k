@@ -65,9 +65,6 @@ MODULE qs_active_space_types
       TYPE(dbcsr_csr_p_type), &
          DIMENSION(:), POINTER      :: eri => NULL()
       INTEGER                       :: norb = 0
-      INTEGER                       :: poisson_solver = 0
-      REAL(KIND=dp)                 :: mt_alpha = 0.0_dp
-      REAL(KIND=dp)                 :: mt_rel_cutoff = 0.0_dp
 
    CONTAINS
       PROCEDURE :: eri_foreach => eri_type_eri_foreach
