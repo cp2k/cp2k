@@ -108,7 +108,7 @@ RUN spack env create myenv cp2k_deps_${CP2K_VERSION}.yaml && \
 # NOTE: This is a workaround for ALPS until the CE provides full MPI replacement
 RUN if [ "${USE_ALPS_SPACK_REPO}" -ne 0 ]; then \
     spack -e myenv config change "packages:mpi:require:cray-mpich" && \
-    spack -e myenv config add "packages:dla-future-fortran"; \
+    spack -e myenv add "dla-future-fortran"; \
     fi
 
 # Install CP2K dependencies via Spack
