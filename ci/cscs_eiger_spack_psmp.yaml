@@ -102,7 +102,7 @@ build cp2k eiger:
 benchmark cp2k 1 eiger node:
   extends: .container-runner-eiger-zen2
   stage: benchmark
-  needs: ["build cp2k eiger","test cp2k eiger","regression test cp2k eiger"]
+  #needs: ["build cp2k eiger","test cp2k eiger","regression test cp2k eiger"]
   timeout: 1h
   image: ${CSCS_IMAGE_NAME}
   before_script:
@@ -124,7 +124,7 @@ benchmark cp2k 1 eiger node:
 benchmark cp2k 2 eiger nodes:
   extends: .container-runner-eiger-zen2
   stage: benchmark
-  needs: ["build cp2k eiger","test cp2k eiger","regression test cp2k eiger"]
+  #needs: ["build cp2k eiger","test cp2k eiger","regression test cp2k eiger"]
   timeout: 1h
   image: ${CSCS_IMAGE_NAME}
   before_script:
