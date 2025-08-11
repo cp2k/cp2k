@@ -142,5 +142,6 @@ benchmark cp2k 2 eiger nodes:
     SLURM_NTASKS_PER_NODE: 128
     SLURM_TIMELIMIT: 30
     USE_MPI: YES
+    MPICH_NOLOCAL: 1
 
 # EOF
