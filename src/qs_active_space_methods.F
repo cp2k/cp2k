@@ -838,34 +838,34 @@ CONTAINS
          CASE (eri_operator_yukawa)
             WRITE (iw, '(T3,A,T74,A)') "ERI operator", "Yukawa"
             IF (.NOT. ex_omega) CALL cp_abort(__LOCATION__, &
-               "Yukawa operator requires OMEGA to be explicitly set")
+                                              "Yukawa operator requires OMEGA to be explicitly set")
             WRITE (iw, '(T3,A,T66,F14.3)') "ERI operator parameter OMEGA", eri_op_omega
 
          CASE (eri_operator_erf)
             WRITE (iw, '(T3,A,T63,A)') "ERI operator", "Longrange Coulomb"
             IF (.NOT. ex_omega) CALL cp_abort(__LOCATION__, &
-               "Longrange operator requires OMEGA to be explicitly set")
+                                              "Longrange operator requires OMEGA to be explicitly set")
             WRITE (iw, '(T3,A,T66,F14.3)') "ERI operator parameter OMEGA", eri_op_omega
 
          CASE (eri_operator_erfc)
             WRITE (iw, '(T3,A,T62,A)') "ERI operator", "Shortrange Coulomb"
             IF (.NOT. ex_omega) CALL cp_abort(__LOCATION__, &
-               "Shortrange operator requires OMEGA to be explicitly set")
+                                              "Shortrange operator requires OMEGA to be explicitly set")
             WRITE (iw, '(T3,A,T66,F14.3)') "ERI operator parameter OMEGA", eri_op_omega
 
          CASE (eri_operator_trunc)
             WRITE (iw, '(T3,A,T63,A)') "ERI operator", "Truncated Coulomb"
             IF (.NOT. ex_rcut) CALL cp_abort(__LOCATION__, &
-               "Cutoff radius not specified for trunc. Coulomb operator")
+                                             "Cutoff radius not specified for trunc. Coulomb operator")
             WRITE (iw, '(T3,A,T66,F14.3)') "ERI operator cutoff radius (au)", eri_rcut
 
          CASE (eri_operator_lr_trunc)
             WRITE (iw, '(T3,A,T53,A)') "ERI operator", "Longrange truncated Coulomb"
             IF (.NOT. ex_rcut) CALL cp_abort(__LOCATION__, &
-               "Cutoff radius not specified for trunc. longrange operator")
+                                             "Cutoff radius not specified for trunc. longrange operator")
             WRITE (iw, '(T3,A,T66,F14.3)') "ERI operator cutoff radius (au)", eri_rcut
             IF (.NOT. ex_omega) CALL cp_abort(__LOCATION__, &
-               "LR truncated operator requires OMEGA to be explicitly set")
+                                              "LR truncated operator requires OMEGA to be explicitly set")
             WRITE (iw, '(T3,A,T66,F14.3)') "ERI operator parameter OMEGA", eri_op_omega
             IF (eri_op_omega < 0.01_dp) THEN
                CPABORT("LR truncated operator requires OMEGA >= 0.01 to be stable")

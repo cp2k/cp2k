@@ -13,8 +13,8 @@
       &ERI
         EPS_INTEGRAL 1E-10
         METHOD FULL_GPW
-        OPERATOR LONGRANGE
         OMEGA 1.0
+        OPERATOR LONGRANGE
         PERIODICITY 0 0 0
       &END ERI
       &ERI_GPW
