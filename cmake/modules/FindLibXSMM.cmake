@@ -15,12 +15,34 @@ set(CP2K_LIBXSMMF_ROOT "${CP2K_LIBXSMM_PREFIX}")
 set(CP2K_LIBXSMMNOBLAS_ROOT "${CP2K_LIBXSMM_PREFIX}")
 
 if(PKG_CONFIG_FOUND)
-  foreach(__lib libxsmm libxsmmf libxsmmext libxsmmnoblas)
-    string(TOUPPER "${__lib}" __lib_search_up)
-    pkg_check_modules(CP2K_${__lib_search_up} IMPORTED_TARGET GLOBAL ${__lib})
-    # need to do it twice because of dbcsr build option
-    pkg_check_modules(${__lib_search_up} QUIET IMPORTED_TARGET GLOBAL ${__lib})
-  endforeach()
+  if(BUILD_SHARED_LIBS)
+    foreach(__lib libxsmm libxsmmf libxsmmext libxsmmnoblas)
+      string(TOUPPER "${__lib}" __lib_search_up)
+      pkg_check_modules(CP2K_${__lib_search_up} IMPORTED_TARGET GLOBAL
+                        ${__lib}-shared)
+      # need to do it twice because of dbcsr build option
+      pkg_check_modules(${__lib_search_up} QUIET IMPORTED_TARGET GLOBAL
+                        ${__lib}-shared)
+    endforeach()
+  else()
+    foreach(__lib libxsmm libxsmmf libxsmmext libxsmmnoblas)
+      string(TOUPPER "${__lib}" __lib_search_up)
+      pkg_check_modules(CP2K_${__lib_search_up} IMPORTED_TARGET GLOBAL
+                        ${__lib}-static)
+      # need to do it twice because of dbcsr build option
+      pkg_check_modules(${__lib_search_up} QUIET IMPORTED_TARGET GLOBAL
+                        ${__lib}-static)
+    endforeach()
+  endif()
+  if(NOT CP2K_LIBXSMM_FOUND)
+    foreach(__lib libxsmm libxsmmf libxsmmext libxsmmnoblas)
+      string(TOUPPER "${__lib}" __lib_search_up)
+      pkg_check_modules(CP2K_${__lib_search_up} IMPORTED_TARGET GLOBAL ${__lib})
+      # need to do it twice because of dbcsr build option
+      pkg_check_modules(${__lib_search_up} QUIET IMPORTED_TARGET GLOBAL
+                        ${__lib})
+    endforeach()
+  endif()
 endif()
 
 if(NOT CP2K_LIBXSMM_FOUND)
