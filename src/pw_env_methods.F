@@ -940,7 +940,7 @@ CONTAINS
 !> \param spherical ...
 !> \param cell_ref ...
 !> \param para_env ...
-!> \param input ...
+!> \param poisson_section ...
 !> \param my_ncommensurate ...
 !> \param uf_grid ...
 !> \param print_section ...
@@ -958,7 +958,7 @@ CONTAINS
       LOGICAL, INTENT(in)                                :: spherical
       TYPE(cell_type), POINTER                           :: cell_ref
       TYPE(mp_para_env_type), POINTER                    :: para_env
-      ! TYPE(section_vals_type), POINTER                   :: input
+      TYPE(section_vals_type), POINTER                   :: poisson_section
       INTEGER, INTENT(IN)                                :: my_ncommensurate
       LOGICAL, INTENT(in)                                :: uf_grid
       TYPE(section_vals_type), POINTER                   :: print_section
@@ -967,13 +967,10 @@ CONTAINS
       LOGICAL                                            :: mt_s_grid
       REAL(KIND=dp)                                      :: mt_rel_cutoff, my_cutilev
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(section_vals_type), POINTER                   :: poisson_section
 
-      ! NULLIFY (poisson_section)
       CPASSERT(.NOT. ASSOCIATED(mt_super_ref_pw_grid))
       CPASSERT(.NOT. ASSOCIATED(xc_super_ref_pw_grid))
       CPASSERT(.NOT. ASSOCIATED(super_ref_pw_grid))
-      ! poisson_section => section_vals_get_subs_vals(input, "DFT%POISSON")
       CALL section_vals_val_get(poisson_section, "POISSON_SOLVER", i_val=my_val)
       !
       ! Check if grids will be the same... In this case we don't use a super-reference grid
