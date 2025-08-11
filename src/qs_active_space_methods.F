@@ -804,7 +804,7 @@ CONTAINS
       CALL section_vals_val_get(as_input, "ERI%OMEGA", r_val=eri_op_omega, explicit=ex_omega)
       active_space_env%eri%omega = eri_op_omega
       CALL section_vals_val_get(as_input, "ERI%CUTOFF_RADIUS", r_val=eri_rcut, explicit=ex_rcut)
-      active_space_env%eri%cutoff_radius = eri_rcut*bohr  ! convert to bohr before storing
+      active_space_env%eri%cutoff_radius = eri_rcut  ! this is already converted to bohr!
       CALL section_vals_val_get(as_input, "ERI%PERIODICITY", i_vals=invals, explicit=ex_perd)
       CALL section_vals_val_get(as_input, "ERI%EPS_INTEGRAL", r_val=eri_eps_int)
       active_space_env%eri%eps_integral = eri_eps_int
@@ -833,39 +833,39 @@ CONTAINS
 
          SELECT CASE (eri_operator)
          CASE (eri_operator_coulomb)
-            WRITE (iw, '(T3,A,T66,A)') "ERI operator", "Coulomb <1/r>"
+            WRITE (iw, '(T3,A,T73,A)') "ERI operator", "Coulomb"
 
          CASE (eri_operator_yukawa)
-            WRITE (iw, '(T3,A,T59,A)') "ERI operator", "Yukawa <exp(-ω*r)/r>"
-            IF (.NOT. ex_omega) CPABORT("Yukawa operator requires OMEGA to be explicitly set")
+            WRITE (iw, '(T3,A,T74,A)') "ERI operator", "Yukawa"
+            IF (.NOT. ex_omega) CALL cp_abort(__LOCATION__, &
+               "Yukawa operator requires OMEGA to be explicitly set")
             WRITE (iw, '(T3,A,T66,F14.3)') "ERI operator parameter OMEGA", eri_op_omega
 
          CASE (eri_operator_erf)
-            WRITE (iw, '(T3,A,T53,A)') "ERI operator", "Error function <erf(ω*r)/r>"
-            IF (.NOT. ex_omega) CPABORT("Longrange operator requires OMEGA to be explicitly set")
+            WRITE (iw, '(T3,A,T63,A)') "ERI operator", "Longrange Coulomb"
+            IF (.NOT. ex_omega) CALL cp_abort(__LOCATION__, &
+               "Longrange operator requires OMEGA to be explicitly set")
             WRITE (iw, '(T3,A,T66,F14.3)') "ERI operator parameter OMEGA", eri_op_omega
 
          CASE (eri_operator_erfc)
-            WRITE (iw, '(T3,A,T45,A)') "ERI operator", "Compl. error function <erfc(ω*r)/r>"
-            IF (.NOT. ex_omega) THEN
-               CPABORT("Shortrange operator requires OMEGA to be explicitly set")
-            END IF
+            WRITE (iw, '(T3,A,T62,A)') "ERI operator", "Shortrange Coulomb"
+            IF (.NOT. ex_omega) CALL cp_abort(__LOCATION__, &
+               "Shortrange operator requires OMEGA to be explicitly set")
             WRITE (iw, '(T3,A,T66,F14.3)') "ERI operator parameter OMEGA", eri_op_omega
 
          CASE (eri_operator_trunc)
-            WRITE (iw, '(T3,A,T53,A)') "ERI operator", "Truncated Coulomb <H(R_c-r)/r>"
-            IF (.NOT. ex_rcut) CPABORT("Cutoff radius not specified for trunc. Coulomb operator")
-            WRITE (iw, '(T3,A,T66,F14.3)') "ERI operator cutoff radius (Å)", eri_rcut
+            WRITE (iw, '(T3,A,T63,A)') "ERI operator", "Truncated Coulomb"
+            IF (.NOT. ex_rcut) CALL cp_abort(__LOCATION__, &
+               "Cutoff radius not specified for trunc. Coulomb operator")
+            WRITE (iw, '(T3,A,T66,F14.3)') "ERI operator cutoff radius (au)", eri_rcut
 
          CASE (eri_operator_lr_trunc)
-            WRITE (iw, '(T3,A,T53,A)') "ERI operator", "Longrange truncated Coulomb <H(R_c-r)*erf(ω*r)/r>"
-            IF (.NOT. ex_rcut) THEN
-               CPABORT("Cutoff radius not specified for trunc. longrange operator")
-            END IF
-            WRITE (iw, '(T3,A,T66,F14.3)') "ERI operator cutoff radius", eri_rcut
-            IF (.NOT. ex_omega) THEN
-               CPABORT("LR truncated operator requires OMEGA to be explicitly set")
-            END IF
+            WRITE (iw, '(T3,A,T53,A)') "ERI operator", "Longrange truncated Coulomb"
+            IF (.NOT. ex_rcut) CALL cp_abort(__LOCATION__, &
+               "Cutoff radius not specified for trunc. longrange operator")
+            WRITE (iw, '(T3,A,T66,F14.3)') "ERI operator cutoff radius (au)", eri_rcut
+            IF (.NOT. ex_omega) CALL cp_abort(__LOCATION__, &
+               "LR truncated operator requires OMEGA to be explicitly set")
             WRITE (iw, '(T3,A,T66,F14.3)') "ERI operator parameter OMEGA", eri_op_omega
             IF (eri_op_omega < 0.01_dp) THEN
                CPABORT("LR truncated operator requires OMEGA >= 0.01 to be stable")
