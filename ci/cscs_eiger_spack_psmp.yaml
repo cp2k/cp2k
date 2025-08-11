@@ -21,7 +21,11 @@ build deps eiger:
   stage: deps
   timeout: 1h
   before_script:
-    - DEPS_IMAGE_TAG=`cat ci/cscs_eiger_${TAG}.yaml ci/docker/build_${CI_JOB_STAGE}_${BUILDER}.Dockerfile $(find tools/spack -type f) $(find cmake -type f ! -name 'cmake_cp2k.sh') | sha256sum - | head -c 16`
+    - TAG_BASEIMG=`echo ${BASE_IMAGE##*/} | sed 's/[:]//g'`
+    - TAG_DOCKER=`sha256sum ci/docker/build_${CI_JOB_STAGE}_${BUILDER}.Dockerfile | head -c 16`
+    - TAG_SPACK=`cat $(find tools/spack -type f) | sha256sum - | head -c 16`
+    - TAG_ALPS=`if [ ${USE_ALPS_SPACK_REPO} -eq 1 ]; then echo "alps"; else echo ""; fi`
+    - DEPS_IMAGE_TAG=${TAG_BASEIMG}-${TAG_DOCKER}-${TAG_SPACK}${TAG_ALPS}
     - export PERSIST_IMAGE_NAME=${CSCS_REGISTRY_PATH}/base/${REPOSITORY}:${TAG}_${DEPS_IMAGE_TAG}
     - echo "DEPS_IMAGE_NAME=${PERSIST_IMAGE_NAME}" | tee build.env
   artifacts:
