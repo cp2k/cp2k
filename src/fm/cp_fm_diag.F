@@ -297,7 +297,7 @@ CONTAINS
 
       CHARACTER(LEN=default_string_length)               :: diag_type_name
       REAL(KIND=dp)                                      :: eps, eps_abort, eps_warning, gold, test
-      INTEGER                                            :: handle, i, j, ncol, nrow
+      INTEGER                                            :: handle, i, j, ncol, nrow, output_unit
       LOGICAL                                            :: check_eigenvectors
 #if defined(__parallel)
       TYPE(cp_blacs_env_type), POINTER                   :: context
@@ -308,6 +308,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+      output_unit = default_output_unit
       eps_warning = eps_check_diag_default
 #if defined(__CHECK_DIAG)
       check_eigenvectors = .TRUE.
@@ -378,7 +379,7 @@ CONTAINS
             ELSE
                CPABORT("Unknown diag_type")
             END IF
-            WRITE (UNIT=default_output_unit, FMT="(/,T2,A,/,T2,A,I0,A,I0,A,F0.15,/,T2,A,F0.0,A,ES10.3)") &
+            WRITE (UNIT=output_unit, FMT="(/,T2,A,/,T2,A,I0,A,I0,A,F0.15,/,T2,A,F0.0,A,ES10.3)") &
                "The eigenvectors returned by "//TRIM(diag_type_name)//" are not orthonormal", &
                "Matrix element (", i, ", ", j, ") = ", test, &
                "The deviation from the expected value ", gold, " is", eps
