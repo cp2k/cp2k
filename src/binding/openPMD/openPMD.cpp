@@ -554,7 +554,8 @@ extern "C"
             rc_param, dt, dimensions, extent, invert, NULL);
         auto rc = reinterpret_cast<openPMD::RecordComponent *>(rc_param);
 
-        openPMD::switchType<implementation::RecordComponent_makeConstant>(
+        openPMD::switchNonVectorType<
+            implementation::RecordComponent_makeConstant>(
             implementation::datatype_c_to_cxx(dt), *rc, value);
 
         return 0;
