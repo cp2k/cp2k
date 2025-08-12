@@ -42,16 +42,16 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
 
 # Create dummy xpmem library for the MPICH build. At runtime the
 # container engine will inject the xpmem library from the host system
-# RUN git clone https://github.com/hpc/xpmem \
-#     && cd xpmem/lib \
-#     && gcc -I../include -shared -o libxpmem.so.1 libxpmem.c \
-#     && ln -s libxpmem.so.1 libxpmem.so \
-#     && mkdir -p /opt/spack/lib /opt/spack/include \
-#     && mv libxpmem.so* /opt/spack/lib \
-#     && cp ../include/xpmem.h /opt/spack/include/ \
-#     && ldconfig /opt/spack/lib \
-#     && cd ../../ \
-#     && rm -rf xpmem
+RUN git clone https://github.com/hpc/xpmem \
+    && cd xpmem/lib \
+    && gcc -I../include -shared -o libxpmem.so.1 libxpmem.c \
+    && ln -s libxpmem.so.1 libxpmem.so \
+    && mkdir -p /opt/spack/lib /opt/spack/include \
+    && mv libxpmem.so* /opt/spack/lib \
+    && cp ../include/xpmem.h /opt/spack/include/ \
+    && ldconfig /opt/spack/lib \
+    && cd ../../ \
+    && rm -rf xpmem
 
 # Retrieve the number of available CPU cores
 ARG NUM_PROCS
@@ -116,6 +116,8 @@ RUN if [ "${USE_ALPS_SPACK_REPO}" -ne 0 ]; then \
     spack -e myenv add "cray-mpich"; \
     spack -e myenv add "dla-future-fortran"; \
     spack -e myenv remove "elpa"; \
+    else \
+        spack -e myenv config change "packages:mpich:+xpmem"; \
     fi
 
 # Install CP2K dependencies via Spack
