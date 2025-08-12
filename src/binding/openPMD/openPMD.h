@@ -262,7 +262,8 @@ int openPMD_Record_get_Component(
  * Helpers *
  ***********/
 
-char *openPMD_json_merge(char const *into, char const *from);
+char *openPMD_json_merge(char const *into, char const *from,
+                         MPI_Comm maybe_comm);
 
 #ifdef __cplusplus
 } // extern "C"
