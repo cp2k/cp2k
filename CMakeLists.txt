@@ -584,7 +584,20 @@ elseif(CP2K_USE_ACCEL MATCHES "HIP")
   endif()
 elseif(CP2K_USE_ACCEL MATCHES "OPENCL")
   find_package(OpenCL REQUIRED)
-  set(CP2K_USE_OPENCL ON)
+
+  set(CP2K_OPENCL_TOOLDIR ${CMAKE_CURRENT_SOURCE_DIR}/exts/dbcsr/src/acc/opencl)
+  set(CP2K_OPENCL_SCRIPT ${CP2K_OPENCL_TOOLDIR}/acc_opencl.sh)
+
+  if(EXISTS ${CP2K_OPENCL_SCRIPT})
+    # common header files used by OpenCL kernels
+    set(CP2K_OPENCL_COMMON common/opencl_atomics.h common/opencl_common.h)
+    list(TRANSFORM CP2K_OPENCL_COMMON PREPEND ${CP2K_OPENCL_TOOLDIR}/)
+    set(CP2K_USE_OPENCL ON)
+  else()
+    message(
+      FATAL_ERROR
+        "OpenCL backend: cannot find tool directory (${CP2K_OPENCL_TOOLDIR})")
+  endif()
 endif()
 
 message("\n------------------------------------------------------------")
