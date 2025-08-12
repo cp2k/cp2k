@@ -216,17 +216,17 @@ CONTAINS
                  (-cos_2yx*exp_x_sqr*sigma1 + half*(sigma2 + sigma3))
          mumu: IF (y .LE. 5.0_dp .AND. two_yx .GT. rmin) THEN
             faddeyeva_accurate = v_old + aux13 + cmplxj*xsign &
-                   *(sin_2yx*exp_x_sqr*(l_old + two_a_pi*y*sigma1) &
-                     + two_a_pi*half_a*sigma4_5)
+                                 *(sin_2yx*exp_x_sqr*(l_old + two_a_pi*y*sigma1) &
+                                   + two_a_pi*half_a*sigma4_5)
          ELSE IF (y .LE. 5.0_dp .AND. two_yx .LE. rmin) THEN
             faddeyeva_accurate = v_old + aux13 + cmplxj*xsign &
-                   *(two*y*exp_x_sqr*(x*l_old + x*two_a_pi*y &
-                                      *sigma1) + two_a_pi*half_a*sigma4_5)
+                                 *(two*y*exp_x_sqr*(x*l_old + x*two_a_pi*y &
+                                                    *sigma1) + two_a_pi*half_a*sigma4_5)
          ELSE
             faddeyeva_accurate = v_old + aux13 + cmplxj*xsign &
-                   *(sin_2yx*exp_x_sqr*MIN(zero, ABS(l_old &
-                                                     + (two_a_pi*y*sigma1))) + two_a_pi*half_a &
-                     *sigma4_5)
+                                 *(sin_2yx*exp_x_sqr*MIN(zero, ABS(l_old &
+                                                                   + (two_a_pi*y*sigma1))) + two_a_pi*half_a &
+                                   *sigma4_5)
          END IF mumu
 
       ELSE IF (x .GE. sqrt_log_rmin .AND. x .LT. 1.0e15_dp) THEN
@@ -261,7 +261,7 @@ CONTAINS
          END DO loop2
 
          faddeyeva_accurate = v_old + y*a_pi*sigma3 + cmplxj*xsign*(sin_2yx &
-                                                      *exp_x_sqr*l_old + two_a_pi*half_a*sigma5)
+                                                                    *exp_x_sqr*l_old + two_a_pi*half_a*sigma5)
 
       ELSE
          faddeyeva_accurate = one_sqrt_pi*((y + cmplxj*xsign*x)/(x_sqr + y_sqr))
@@ -270,7 +270,7 @@ CONTAINS
       IF (ysign .LT. zero) THEN
          two_exp_x_sqr_ysqr = two*EXP(-x_sqr + y_sqr)
          faddeyeva_accurate = two_exp_x_sqr_ysqr*cos_2yx - REAL(faddeyeva_accurate) - cmplxj &
-                *(-xsign*two_exp_x_sqr_ysqr*sin_2yx - AIMAG(faddeyeva_accurate))
+                              *(-xsign*two_exp_x_sqr_ysqr*sin_2yx - AIMAG(faddeyeva_accurate))
       END IF
 
    END FUNCTION faddeyeva_accurate
