@@ -21,7 +21,7 @@ spack:
         - mpich
     mpich:
       require:
-        - +xpmem
+        - ~xpmem
     libfabric:
       # Specify libfabric version to match the system version
       require: '@1.22.0'
@@ -37,8 +37,10 @@ spack:
       require:
         - +internal-hwloc
     xpmem:
-      require:
-        - ~kernel-module
+      buildable: false
+      externals:
+        - spec: xpmem@master
+          prefix: /opt/spack
     blas:
       require:
         - openblas
