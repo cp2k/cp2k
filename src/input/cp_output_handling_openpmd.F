@@ -418,14 +418,14 @@ CONTAINS
       file_index = cp_openpmd_get_index_filedata(basename_copied)
       IF (file_index /= -1) RETURN
 
-      merged_config = openpmd_json_merge(cp_default_backend_config, openpmd_config)
-
       IF (use_mpi) THEN
+         merged_config = openpmd_json_merge(cp_default_backend_config, openpmd_config, logger%para_env)
          emplace_new%output_series = openpmd_series_create( &
-                                     filename, openpmd_access_create, logger%para_env, openpmd_config)
+                                     filename, openpmd_access_create, logger%para_env, merged_config)
       ELSE
+         merged_config = openpmd_json_merge(cp_default_backend_config, openpmd_config)
          emplace_new%output_series = openpmd_series_create( &
-                                     filename, openpmd_access_create, config=openpmd_config)
+                                     filename, openpmd_access_create, config=merged_config)
       END IF
       DEALLOCATE (merged_config)
       file_index = cp_openpmd_add_filedata(basename_copied, emplace_new)
