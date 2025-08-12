@@ -210,11 +210,12 @@ CONTAINS
       CHARACTER(len=*), INTENT(IN)                       :: path
       INTEGER(kind=C_INT), INTENT(IN)                    :: access
       CLASS(mp_comm_type), INTENT(in), OPTIONAL          :: mpi_comm
-      CHARACTER(len=*), INTENT(IN), OPTIONAL             :: config
+      CHARACTER(len=*), INTENT(IN), OPTIONAL, TARGET     :: config
       TYPE(openpmd_series_type)                          :: series
 
       TYPE(c_ptr)                                        :: comm_c = C_NULL_PTR
-      CHARACTER(len=default_string_length) :: my_config = "{}"
+      CHARACTER(len=default_string_length), TARGET       :: default_config = "{}"
+      CHARACTER(:), POINTER                              :: my_config
       INTERFACE
 ! **************************************************************************************************
 !> \brief ...
@@ -249,7 +250,11 @@ CONTAINS
          END SUBROUTINE
       END INTERFACE
 
-      IF (PRESENT(config)) my_config = config
+      IF (PRESENT(config)) THEN
+         my_config => config
+      ELSE
+         my_config => default_config
+      END IF
 
       CPASSERT(.NOT. C_ASSOCIATED(series%c_ptr))
       IF (PRESENT(mpi_comm)) THEN
@@ -404,16 +409,33 @@ CONTAINS
       CALL openpmd_c_attributable_series_flush(attributable%c_ptr, my_backendconfig//C_NULL_CHAR)
    END SUBROUTINE openpmd_attributable_series_flush
 
-   FUNCTION openpmd_json_merge(into, from) RESULT(merged)
+   FUNCTION openpmd_json_merge(into, from, mpi_comm) RESULT(merged)
       CHARACTER(len=*), INTENT(IN)                       :: into, from
+      CLASS(mp_comm_type), INTENT(in), OPTIONAL          :: mpi_comm
       CHARACTER(:), ALLOCATABLE                          :: merged
       CHARACTER(kind=C_CHAR), POINTER                    :: c_merged
       INTEGER(C_SIZE_T)                                  :: length_of_c_string
+      TYPE(c_ptr)                                        :: comm_c = C_NULL_PTR
 
       INTERFACE
-         FUNCTION openpmd_c_json_merge(into, from) RESULT(merged) BIND(C, NAME="openPMD_json_merge")
-            IMPORT :: C_CHAR, C_INT
+! **************************************************************************************************
+!> \brief ...
+!> \param comm_f ...
+!> \param comm_c ...
+!> \param C ...
+!> \param name="CP2K_MPI_Comm_f2c" ...
+! **************************************************************************************************
+         SUBROUTINE cp2k_c_mpi_comm_f2c(comm_f, comm_c) bind(C, name="CP2K_MPI_Comm_f2c")
+            import :: c_ptr, mp_comm_type, c_int
+            INTEGER(kind=C_INT), VALUE :: comm_f
+            TYPE(c_ptr) :: comm_c
+         END SUBROUTINE
+      END INTERFACE
+      INTERFACE
+         FUNCTION openpmd_c_json_merge(into, from, mpi_comm) RESULT(merged) BIND(C, NAME="openPMD_json_merge")
+            IMPORT :: C_CHAR, C_INT, C_PTR
             CHARACTER(kind=C_CHAR), DIMENSION(*) :: into, from
+            TYPE(C_PTR), value                   :: mpi_comm
             CHARACTER(kind=C_CHAR), POINTER      :: merged
          END FUNCTION
       END INTERFACE
@@ -431,7 +453,10 @@ CONTAINS
          END SUBROUTINE
       END INTERFACE
 
-      c_merged => openpmd_c_json_merge(into//C_NULL_CHAR, from//C_NULL_CHAR)
+      IF (PRESENT(mpi_comm)) THEN
+         CALL cp2k_c_mpi_comm_f2c(mpi_comm%get_handle(), comm_c)
+      END IF
+      c_merged => openpmd_c_json_merge(into//C_NULL_CHAR, from//C_NULL_CHAR, comm_c)
       length_of_c_string = get_strlen(c_merged)
       ALLOCATE (character(length_of_c_string) :: merged)
       merged = TRIM(ADJUSTL(TRANSFER(c_merged(1:length_of_c_string), MERGED)))
