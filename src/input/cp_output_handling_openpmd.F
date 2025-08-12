@@ -137,7 +137,22 @@ MODULE cp_output_handling_openpmd
                                   ""//new_line('a')// &
                                   "[adios2]"//new_line('a')// &
                                   "# discard any attributes written on ranks other than 0"//new_line('a')// &
-                                  "attribute_writing_ranks = 0"//new_line('a')
+                                  "attribute_writing_ranks = 0"//new_line('a')// &
+                                  "[adios2.engine]"//new_line('a')// &
+                                  "# CP2K generally has many small IO operations, "//new_line('a')// &
+                                  "# so stage IO memory to the buffer first and then "//new_line('a')// &
+                                  "# run it all at once, instead of writing to disk directly."//new_line('a')// &
+                                  "# Save memory by specifying 'disk' here instead."//new_line('a')// &
+                                  "# TODO: In future, maybe implement some input variable"//new_line('a')// &
+                                  "#       to specify intervals at which to flush to disk."//new_line('a')// &
+                                  "preferred_flush_target = 'buffer'"//new_line('a')// &
+#ifndef _WIN32
+                                  "# Raise the BufferChunkSize to the maximum (2GB), since large operations"//new_line('a')// &
+                                  "# improve IO performance and the allocation overhead only cuts into"//new_line('a')// &
+                                  "# virtual memory (except on Windows, hence do not do that there)"//new_line('a')// &
+                                  "[adios2.engine.parameters]"//new_line('a')// &
+                                  "BufferChunkSize = 2147381248"//new_line('a')
+#endif
 
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    ! End data members for openPMD output. !
