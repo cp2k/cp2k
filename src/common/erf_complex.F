@@ -31,8 +31,8 @@
 ! SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 !
 ! Module with error function and related functions.
-! Two algorithms are implemented: Poppe and Wijers (wpop, erf_pop)
-! and Zaghloul and Ali (wzag, erf_zag). The second algorithm is
+! Two algorithms are implemented: Poppe and Wijers (faddeyeva_fast, erfz_fast)
+! and Zaghloul and Ali (faddeyeva_accurate, erfz_accurate). The second algorithm is
 ! supposed to be more accurate for some values. However, the first
 ! algorithm can be over an order of magnitude faster.
 !
@@ -47,7 +47,7 @@
 !>      08.2025 Adapted to use CP2K intrinsics and constants
 !> \author Stefano Battaglia
 ! **************************************************************************************************
-MODULE errfun
+MODULE erf_complex
 
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi
@@ -63,17 +63,17 @@ MODULE errfun
       cmplx0 = CMPLX(zero, zero, kind=dp)
 
    PRIVATE
-   PUBLIC :: wpop, wzag, erf_pop, erf_zag
+   PUBLIC :: faddeyeva_fast, faddeyeva_accurate, erfz_fast, erfz_accurate
 
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief Computes the Faddeyeva function w(z) = exp(-z**2) * erfc(-i*z) based on erf_zag
+!> \brief Computes the Faddeyeva function w(z) = exp(-z**2) * erfc(-i*z)
 !> \param z complex argument
 !> \param err desired accuracy (positive)
 !> \return Faddeyeva function w(z)
 ! **************************************************************************************************
-   elemental COMPLEX(kind=dp) FUNCTION wzag(z, err)
+   elemental COMPLEX(kind=dp) FUNCTION faddeyeva_accurate(z, err)
 
       ! This is the Faddeyeva or the plasma dispersion function,
       ! w(z) = exp(-z**2) * erfc(-i*z). erfc(z) is the complex complementary
@@ -115,7 +115,7 @@ CONTAINS
       ! the error function, erfc_scaled (F2008 and beyond).
       ! Return immediately.
       IF (ABS(x) .EQ. zero) THEN
-         wzag = erfc_scaled(y)
+         faddeyeva_accurate = erfc_scaled(y)
          RETURN
       END IF
 
@@ -215,15 +215,15 @@ CONTAINS
          aux13 = y*two_a_pi* &
                  (-cos_2yx*exp_x_sqr*sigma1 + half*(sigma2 + sigma3))
          mumu: IF (y .LE. 5.0_dp .AND. two_yx .GT. rmin) THEN
-            wzag = v_old + aux13 + cmplxj*xsign &
+            faddeyeva_accurate = v_old + aux13 + cmplxj*xsign &
                    *(sin_2yx*exp_x_sqr*(l_old + two_a_pi*y*sigma1) &
                      + two_a_pi*half_a*sigma4_5)
          ELSE IF (y .LE. 5.0_dp .AND. two_yx .LE. rmin) THEN
-            wzag = v_old + aux13 + cmplxj*xsign &
+            faddeyeva_accurate = v_old + aux13 + cmplxj*xsign &
                    *(two*y*exp_x_sqr*(x*l_old + x*two_a_pi*y &
                                       *sigma1) + two_a_pi*half_a*sigma4_5)
          ELSE
-            wzag = v_old + aux13 + cmplxj*xsign &
+            faddeyeva_accurate = v_old + aux13 + cmplxj*xsign &
                    *(sin_2yx*exp_x_sqr*MIN(zero, ABS(l_old &
                                                      + (two_a_pi*y*sigma1))) + two_a_pi*half_a &
                      *sigma4_5)
@@ -260,20 +260,20 @@ CONTAINS
 
          END DO loop2
 
-         wzag = v_old + y*a_pi*sigma3 + cmplxj*xsign*(sin_2yx &
+         faddeyeva_accurate = v_old + y*a_pi*sigma3 + cmplxj*xsign*(sin_2yx &
                                                       *exp_x_sqr*l_old + two_a_pi*half_a*sigma5)
 
       ELSE
-         wzag = one_sqrt_pi*((y + cmplxj*xsign*x)/(x_sqr + y_sqr))
+         faddeyeva_accurate = one_sqrt_pi*((y + cmplxj*xsign*x)/(x_sqr + y_sqr))
       END IF outer
 
       IF (ysign .LT. zero) THEN
          two_exp_x_sqr_ysqr = two*EXP(-x_sqr + y_sqr)
-         wzag = two_exp_x_sqr_ysqr*cos_2yx - REAL(wzag) - cmplxj &
-                *(-xsign*two_exp_x_sqr_ysqr*sin_2yx - AIMAG(wzag))
+         faddeyeva_accurate = two_exp_x_sqr_ysqr*cos_2yx - REAL(faddeyeva_accurate) - cmplxj &
+                *(-xsign*two_exp_x_sqr_ysqr*sin_2yx - AIMAG(faddeyeva_accurate))
       END IF
 
-   END FUNCTION wzag
+   END FUNCTION faddeyeva_accurate
 
 ! **************************************************************************************************
 !> \brief Computes the error function of a complex argument using the Zaghloul and Ali algorithm
@@ -281,23 +281,23 @@ CONTAINS
 !> \param err desired accuracy (positive)
 !> \return error function of z
 ! **************************************************************************************************
-   elemental COMPLEX(kind=dp) FUNCTION erf_zag(z, err)
+   elemental COMPLEX(kind=dp) FUNCTION erfz_accurate(z, err)
 
-      ! This is an error function of a complex argument, which uses wzag(z).
+      ! This is an error function of a complex argument, which uses faddeyeva_accurate(z).
 
       COMPLEX(kind=dp), INTENT(in)                       :: z
       REAL(kind=dp), INTENT(in)                          :: err
 
-      erf_zag = one - wzag(cmplxj*z, err)*EXP(-z**2)
+      erfz_accurate = one - faddeyeva_accurate(cmplxj*z, err)*EXP(-z**2)
 
-   END FUNCTION erf_zag
+   END FUNCTION erfz_accurate
 
 ! **************************************************************************************************
-!> \brief Computes the Faddeyeva function w(z) = exp(-z**2) * erfc(-i*z) based on erf_pop
+!> \brief Computes the Faddeyeva function w(z) = exp(-z**2) * erfc(-i*z)
 !> \param z complex argument
 !> \return Faddeyeva function w(z)
 ! **************************************************************************************************
-   elemental COMPLEX(kind=dp) FUNCTION wpop(z)
+   elemental COMPLEX(kind=dp) FUNCTION faddeyeva_fast(z)
 
       ! A modified version of algorithm 680, rewritten in Fortran 2008.
       ! G.P.M. Poppe, C.M.J. Wijers, More efficient computation of
@@ -462,24 +462,24 @@ CONTAINS
          IF (xi .LT. zero) v = -v
       END IF
 
-      wpop = CMPLX(u, v, kind=dp)
+      faddeyeva_fast = CMPLX(u, v, kind=dp)
 
-   END FUNCTION wpop
+   END FUNCTION faddeyeva_fast
 
 ! **************************************************************************************************
 !> \brief Computes the error function of a complex argument using the Poppe and Wijers algorithm
 !> \param z complex argument
 !> \return error function of z
 ! **************************************************************************************************
-   elemental COMPLEX(kind=dp) FUNCTION erf_pop(z)
+   elemental COMPLEX(kind=dp) FUNCTION erfz_fast(z)
 
-      ! This is an error function of a complex argument, which uses wpop(z).
+      ! This is an error function of a complex argument, which uses faddeyeva_fast(z).
 
       COMPLEX(kind=dp), INTENT(in)                       :: z
 
-      erf_pop = one - wpop(cmplxj*z)*EXP(-z**2)
+      erfz_fast = one - faddeyeva_fast(cmplxj*z)*EXP(-z**2)
 
-   END FUNCTION erf_pop
+   END FUNCTION erfz_fast
 
    !*********************************************************************
-END MODULE errfun
+END MODULE erf_complex

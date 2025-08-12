@@ -975,6 +975,7 @@ list(
   common/t_sh_p_s_c.F
   common/util.F
   common/xmgrace.F
+  common/erf_complex.F
   common/whittaker.F)
 
 list(APPEND CP2K_SRCS_F dbm/dbm_api.F dbm/dbm_tests.F)

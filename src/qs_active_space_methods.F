@@ -55,7 +55,7 @@ MODULE qs_active_space_methods
       dbcsr_type_no_symmetry, dbcsr_create, dbcsr_set, dbcsr_multiply, dbcsr_iterator_next_block, &
       dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_blocks_left, &
       dbcsr_iterator_type, dbcsr_type_symmetric, dbcsr_get_occupation, dbcsr_get_info
-   USE errfun, ONLY: erf_pop
+   USE erf_complex, ONLY: erfz_fast
    USE group_dist_types, ONLY: get_group_dist, release_group_dist, group_dist_d1_type
    USE input_constants, ONLY: &
       casci_canonical, eri_method_full_gpw, eri_method_gpw_ht, eri_operator_coulomb, &
@@ -1853,7 +1853,7 @@ CONTAINS
                      ! Compute complex arguments for erf
                      z_p = CMPLX(omega*Rc, 0.5_dp*g/omega, kind=dp)
                      ! Evaluate complex error functions
-                     erf_fac_p = 2.0_dp*REAL(erf_pop(z_p))
+                     erf_fac_p = 2.0_dp*REAL(erfz_fast(z_p))
                      ! Real erf term with cosine
                      erfcos_fac = fourpi/g2*ERF(omega*Rc)*COS(g*Rc)
                      ! Combine terms
