@@ -339,10 +339,12 @@ CONTAINS
                END DO
             END IF
 ! add new atom type
+! Mathieu
             CALL sirius_add_atom_type(sctx, label, &
                                       zn=NINT(zeff + 0.001d0), &
                                       symbol=element_symbol, &
                                       mass=REAL(mass/massunit, KIND=C_DOUBLE), &
+!!!!!?                                spin_orbit=gth_potential%soc)
                                       spin_orbit=.FALSE.)
 !
             ALLOCATE (gth_atompot)
@@ -351,6 +353,8 @@ CONTAINS
             fun(1:nmesh) = rp(1:nmesh)
             CALL sirius_set_atom_type_radial_grid(sctx, label, nmesh, fun(1))
 ! set beta-projectors
+! Mathieu
+! GTH SOC uses the same projectors, what about sirius?
             ALLOCATE (ef(nmesh), beta(nmesh))
             ibeta = 0
             DO l = 0, 3
@@ -383,6 +387,11 @@ CONTAINS
             END DO
             CALL sirius_set_atom_type_dion(sctx, label, nbeta, dion(1, 1))
             DEALLOCATE (dion)
+! nonlocal PP matrix elements for SOC
+! Mathieu
+            IF (gth_atompot%soc) THEN
+               ! same as nonlocal PP but knl instead of hnl
+            END IF
 
 ! set non-linear core correction
             IF (gth_atompot%nlcc) THEN
