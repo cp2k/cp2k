@@ -12,6 +12,8 @@
 !> \author JGH
 ! **************************************************************************************************
 MODULE qs_active_space_methods
+   USE admm_types, ONLY: admm_type, &
+                         get_admm_env
    USE atomic_kind_types, ONLY: atomic_kind_type
    USE basis_set_types, ONLY: allocate_sto_basis_set, &
                               create_gto_from_sto_basis, &
@@ -21,22 +23,25 @@ MODULE qs_active_space_methods
                               set_sto_basis_set, &
                               srules, &
                               sto_basis_set_type
-   USE cell_types, ONLY: cell_type
+   USE cell_types, ONLY: cell_type, use_perd_none, use_perd_xyz
+   USE cell_methods, ONLY: init_cell, set_cell_param, write_cell_low
    USE cp_blacs_env, ONLY: cp_blacs_env_type, cp_blacs_env_create, cp_blacs_env_release, BLACS_GRID_SQUARE
    USE cp_control_types, ONLY: dft_control_type, qs_control_type
    USE cp_dbcsr_operations, ONLY: cp_dbcsr_plus_fm_fm_t, &
                                   cp_dbcsr_sm_fm_multiply, &
                                   dbcsr_allocate_matrix_set, &
                                   cp_dbcsr_m_by_n_from_template, copy_dbcsr_to_fm
+   USE cp_dbcsr_output, ONLY: cp_dbcsr_write_sparse_matrix
    USE cp_files, ONLY: close_file, &
                        file_exists, &
                        open_file
+   USE cp_fm_basic_linalg, ONLY: cp_fm_column_scale
    USE cp_fm_struct, ONLY: cp_fm_struct_create, &
                            cp_fm_struct_release, &
                            cp_fm_struct_type
    USE cp_fm_types, ONLY: &
       cp_fm_create, cp_fm_get_element, cp_fm_get_info, cp_fm_init_random, cp_fm_release, &
-      cp_fm_set_all, cp_fm_set_element, cp_fm_to_fm, cp_fm_type
+      cp_fm_set_all, cp_fm_set_element, cp_fm_to_fm, cp_fm_type, cp_fm_write_formatted
    USE cp_log_handling, ONLY: cp_get_default_logger, &
                               cp_logger_get_default_io_unit, &
                               cp_logger_type
@@ -50,31 +55,37 @@ MODULE qs_active_space_methods
       dbcsr_type_no_symmetry, dbcsr_create, dbcsr_set, dbcsr_multiply, dbcsr_iterator_next_block, &
       dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_blocks_left, &
       dbcsr_iterator_type, dbcsr_type_symmetric, dbcsr_get_occupation, dbcsr_get_info
+   USE erf_complex, ONLY: erfz_fast
    USE group_dist_types, ONLY: get_group_dist, release_group_dist, group_dist_d1_type
    USE input_constants, ONLY: &
-      casci_canonical, dmft_model, eri_method_full_gpw, eri_method_gpw_ht, eri_operator_coulomb, &
-      eri_operator_trunc, eri_operator_erf, eri_operator_erfc, eri_operator_gaussian, eri_operator_yukawa, hf_model, &
-      manual_selection, mao_projection, no_solver, qiskit_solver, rsdft_model, wannier_projection
-   USE input_section_types, ONLY: section_vals_get, &
-                                  section_vals_get_subs_vals, &
-                                  section_vals_type, &
-                                  section_vals_val_get
+      casci_canonical, eri_method_full_gpw, eri_method_gpw_ht, eri_operator_coulomb, &
+      eri_operator_erf, eri_operator_erfc, eri_operator_gaussian, eri_operator_yukawa, &
+      eri_operator_trunc, eri_operator_lr_trunc, &
+      manual_selection, mao_projection, no_solver, qiskit_solver, wannier_projection, &
+      eri_poisson_analytic, eri_poisson_periodic, eri_poisson_mt
+   USE input_section_types, ONLY: section_vals_get, section_vals_get_subs_vals, &
+                                  section_vals_set_subs_vals, section_vals_type, &
+                                  section_vals_val_get, &
+                                  section_vals_val_set
    USE ISO_C_BINDING, ONLY: c_null_char
    USE kinds, ONLY: default_path_length, &
                     default_string_length, &
                     dp, &
                     int_8
-   USE machine, ONLY: m_walltime
-   USE mathconstants, ONLY: fourpi
+   USE machine, ONLY: m_walltime, m_flush
+   USE mathlib, ONLY: diamat_all
+   USE mathconstants, ONLY: fourpi, twopi, pi, rootpi
    USE memory_utilities, ONLY: reallocate
    USE message_passing, ONLY: mp_comm_type, &
                               mp_para_env_type, &
                               mp_para_env_release
    USE mp2_gpw, ONLY: create_mat_munu, grep_rows_in_subgroups, build_dbcsr_from_rows
+   USE mt_util, ONLY: MT0D
    USE parallel_gemm_api, ONLY: parallel_gemm
    USE particle_list_types, ONLY: particle_list_type
    USE particle_types, ONLY: particle_type
    USE periodic_table, ONLY: ptable
+   USE physcon, ONLY: angstrom, bohr
    USE preconditioner_types, ONLY: preconditioner_type
    USE pw_env_methods, ONLY: pw_env_create, &
                              pw_env_rebuild
@@ -85,7 +96,8 @@ MODULE qs_active_space_methods
                          pw_multiply, &
                          pw_multiply_with, &
                          pw_transfer, &
-                         pw_zero, pw_integral_ab, pw_scale
+                         pw_zero, pw_integral_ab, pw_scale, &
+                         pw_gauss_damp, pw_compl_gauss_damp
    USE pw_poisson_methods, ONLY: pw_poisson_rebuild, &
                                  pw_poisson_solve
    USE pw_poisson_types, ONLY: ANALYTIC0D, &
@@ -206,10 +218,10 @@ CONTAINS
          nmo_inactive_remaining, nmo_occ, nmo_virtual, nn1, nn2, nrow_global, nspins
       INTEGER, DIMENSION(5)                              :: nshell
       INTEGER, DIMENSION(:), POINTER                     :: invals
-      LOGICAL                                            :: do_kpoints, ex_operator, ex_perd, &
-                                                            explicit, isolated, stop_after_print, &
-                                                            store_wfn
-      REAL(KIND=dp) :: eri_eps_filter, eri_eps_grid, eri_eps_int, eri_gpw_cutoff, eri_op_param, &
+      LOGICAL                                            :: do_kpoints, ex_omega, ex_operator, &
+                                                            ex_perd, ex_rcut, explicit, &
+                                                            stop_after_print, store_wfn
+      REAL(KIND=dp) :: eri_eps_filter, eri_eps_grid, eri_eps_int, eri_gpw_cutoff, eri_op_omega, &
          eri_rcut, eri_rel_cutoff, fel, focc, maxocc, nze_percentage
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: eigenvalues
       REAL(KIND=dp), DIMENSION(:), POINTER               :: evals_virtual
@@ -259,7 +271,7 @@ CONTAINS
       ! k-points?
       CALL get_qs_env(qs_env, do_kpoints=do_kpoints)
       IF (do_kpoints) THEN
-         CALL cp_abort(__LOCATION__, "K-points not allowd for Active Space Interface")
+         CALL cp_abort(__LOCATION__, "k-points not supported in active space interface")
       END IF
 
       NULLIFY (active_space_env)
@@ -282,33 +294,7 @@ CONTAINS
          active_space_env%qcschema_filename = qcschema_filename
       END IF
 
-      ! model
-      CALL section_vals_val_get(as_input, "MODEL", i_val=active_space_env%model)
-      IF (iw > 0) THEN
-         SELECT CASE (active_space_env%model)
-         CASE (hf_model)
-            WRITE (iw, '(T3,A)') "Hartree-Fock model for interaction Hamiltonian"
-         CASE (rsdft_model)
-            WRITE (iw, '(T3,A)') "Range-separated DFT model for interaction Hamiltonian"
-         CASE (dmft_model)
-            WRITE (iw, '(T3,A)') "DMFT model for interaction Hamiltonian"
-         CASE DEFAULT
-            CPABORT("Unknown Model")
-         END SELECT
-      END IF
-
-      ! isolated (molecular) system?
-      CALL section_vals_val_get(as_input, "ISOLATED_SYSTEM", l_val=isolated)
-      active_space_env%molecule = isolated
-      IF (iw > 0) THEN
-         IF (active_space_env%molecule) THEN
-            WRITE (iw, '(T3,A)') "System is treated without periodicity"
-         END IF
-      END IF
-
       CALL section_vals_val_get(as_input, "ACTIVE_ELECTRONS", i_val=nelec_active)
-      ! actually nelec_spin tells me the number of electrons per spin channel from qs_env
-      ! CALL get_qs_env(qs_env, nelectron_total=nelec_total, nelectron_spin=nelec_spin)
       CALL get_qs_env(qs_env, nelectron_total=nelec_total)
 
       IF (nelec_active <= 0) CPABORT("Specify a positive number of active electrons.")
@@ -319,13 +305,14 @@ CONTAINS
          CPABORT("The remaining number of inactive electrons has to be even.")
       END IF
 
-      CALL get_qs_env(qs_env, dft_control=dft_control)
-      nspins = dft_control%nspins
       IF (iw > 0) THEN
          WRITE (iw, '(T3,A,T70,I10)') "Total number of electrons", nelec_total
          WRITE (iw, '(T3,A,T70,I10)') "Number of inactive electrons", nelec_inactive
          WRITE (iw, '(T3,A,T70,I10)') "Number of active electrons", nelec_active
       END IF
+
+      CALL get_qs_env(qs_env, dft_control=dft_control)
+      nspins = dft_control%nspins
 
       active_space_env%nelec_active = nelec_active
       active_space_env%nelec_inactive = nelec_inactive
@@ -455,7 +442,9 @@ CONTAINS
             CPABORT("Unclear how we define MOs in the restricted case ... stopping")
          ELSE
             IF (dft_control%do_admm) THEN
-               CPABORT("ADMM currently not possible for canonical orbital options")
+               IF (dft_control%do_admm_mo) THEN
+                  CPABORT("ADMM currently possible only with purification none_dm")
+               END IF
             END IF
 
             ALLOCATE (eigenvalues(nmo_occ, nspins))
@@ -501,7 +490,6 @@ CONTAINS
                ! get the eigenvalues
                CALL calculate_subspace_eigenvalues(mo_virtual, ks_matrix(ispin)%matrix, evals_virtual)
 
-               ! TODO: double check that we really need this.
                ! we need to send the copy of MOs to preserve the sign
                CALL cp_fm_create(fm_dummy, mo_ref%matrix_struct)
                CALL cp_fm_to_fm(mo_ref, fm_dummy)
@@ -583,7 +571,13 @@ CONTAINS
             CPABORT("Unclear how we define MOs in the restricted case ... stopping")
          ELSE
             IF (dft_control%do_admm) THEN
-               CPABORT("ADMM currently not possible for manual orbitals selection")
+               ! For admm_mo, the auxiliary density is computed from the MOs, which never change
+               ! in the rs-dft embedding, therefore the energy is wrong as the LR HFX never changes
+               ! For admm_dm, the auxiliary density is computed from the density matrix, which is
+               ! updated at each iteration and therefore works!
+               IF (dft_control%do_admm_mo) THEN
+                  CPABORT("ADMM currently possible only with purification none_dm")
+               END IF
             END IF
 
             CALL section_vals_val_get(as_input, "ACTIVE_ORBITAL_INDICES", explicit=explicit, i_vals=invals)
@@ -802,33 +796,20 @@ CONTAINS
          active_space_env%pmat_inactive(ispin)%matrix => denmat
       END DO
 
-      ! generate integrals
-      ! make sure that defaults are set correctly (from basic calculation)
-      ! make sure that periodicity is consistent
+      ! read in ERI parameters
       CALL section_vals_val_get(as_input, "ERI%METHOD", i_val=eri_method)
       active_space_env%eri%method = eri_method
       CALL section_vals_val_get(as_input, "ERI%OPERATOR", i_val=eri_operator, explicit=ex_operator)
       active_space_env%eri%operator = eri_operator
-      CALL section_vals_val_get(as_input, "ERI%OPERATOR_PARAMETER", r_val=eri_op_param)
-      active_space_env%eri%operator_parameter = eri_op_param
-      CALL section_vals_val_get(as_input, "ERI%CUTOFF_RADIUS", r_val=eri_rcut)
-      active_space_env%eri%cutoff_radius = eri_rcut
+      CALL section_vals_val_get(as_input, "ERI%OMEGA", r_val=eri_op_omega, explicit=ex_omega)
+      active_space_env%eri%omega = eri_op_omega
+      CALL section_vals_val_get(as_input, "ERI%CUTOFF_RADIUS", r_val=eri_rcut, explicit=ex_rcut)
+      active_space_env%eri%cutoff_radius = eri_rcut  ! this is already converted to bohr!
       CALL section_vals_val_get(as_input, "ERI%PERIODICITY", i_vals=invals, explicit=ex_perd)
       CALL section_vals_val_get(as_input, "ERI%EPS_INTEGRAL", r_val=eri_eps_int)
       active_space_env%eri%eps_integral = eri_eps_int
-      IF (active_space_env%molecule) THEN
-         ! check that we are in a non-periodic setting
-         CALL get_qs_env(qs_env, cell=cell)
-         IF (SUM(cell%perd) /= 0) THEN
-            CPABORT("Active space option ISOLATED_SYSTEM requires non-periodic setting")
-         END IF
-         IF (ex_perd) THEN
-            IF (SUM(invals) /= 0) THEN
-               CPABORT("Active space option ISOLATED_SYSTEM requires non-periodic setting")
-            END IF
-         END IF
-         active_space_env%eri%periodicity(1:3) = 0
-      ELSE IF (ex_perd) THEN
+      ! if eri periodicity is explicitly set, we use it, otherwise we use the cell periodicity
+      IF (ex_perd) THEN
          IF (SIZE(invals) == 1) THEN
             active_space_env%eri%periodicity(1:3) = invals(1)
          ELSE
@@ -840,6 +821,7 @@ CONTAINS
       END IF
       IF (iw > 0) THEN
          WRITE (iw, '(/,T3,A)') "Calculation of Electron Repulsion Integrals"
+
          SELECT CASE (eri_method)
          CASE (eri_method_full_gpw)
             WRITE (iw, '(T3,A,T50,A)') "Integration method", "GPW Fourier transform over MOs"
@@ -848,32 +830,56 @@ CONTAINS
          CASE DEFAULT
             CPABORT("Unknown ERI method")
          END SELECT
+
          SELECT CASE (eri_operator)
          CASE (eri_operator_coulomb)
-            WRITE (iw, '(T3,A,T66,A)') "ERI operator", "Coulomb <1/R>"
+            WRITE (iw, '(T3,A,T73,A)') "ERI operator", "Coulomb"
+
          CASE (eri_operator_yukawa)
-            WRITE (iw, '(T3,A,T59,A)') "ERI operator", "Yukawa <EXP(-a*R)/R>"
-            WRITE (iw, '(T3,A,T66,F14.3)') "ERI operator parameter", eri_op_param
+            WRITE (iw, '(T3,A,T74,A)') "ERI operator", "Yukawa"
+            IF (.NOT. ex_omega) CALL cp_abort(__LOCATION__, &
+                                              "Yukawa operator requires OMEGA to be explicitly set")
+            WRITE (iw, '(T3,A,T66,F14.3)') "ERI operator parameter OMEGA", eri_op_omega
+
          CASE (eri_operator_erf)
-            WRITE (iw, '(T3,A,T53,A)') "ERI operator", "Error function <ERF(a*R)/R>"
-            WRITE (iw, '(T3,A,T66,F14.3)') "ERI operator parameter", eri_op_param
+            WRITE (iw, '(T3,A,T63,A)') "ERI operator", "Longrange Coulomb"
+            IF (.NOT. ex_omega) CALL cp_abort(__LOCATION__, &
+                                              "Longrange operator requires OMEGA to be explicitly set")
+            WRITE (iw, '(T3,A,T66,F14.3)') "ERI operator parameter OMEGA", eri_op_omega
+
          CASE (eri_operator_erfc)
-            WRITE (iw, '(T3,A,T45,A)') "ERI operator", "Compl. error function <ERFC(a*R)/R>"
-            WRITE (iw, '(T3,A,T66,F14.3)') "ERI operator parameter", eri_op_param
-         CASE (eri_operator_gaussian)
-            WRITE (iw, '(T3,A,T41,A)') "ERI operator", "Gaussian attenuated <EXP(-a*R^2)/R>"
-            WRITE (iw, '(T3,A,T66,F14.3)') "ERI operator parameter", eri_op_param
+            WRITE (iw, '(T3,A,T62,A)') "ERI operator", "Shortrange Coulomb"
+            IF (.NOT. ex_omega) CALL cp_abort(__LOCATION__, &
+                                              "Shortrange operator requires OMEGA to be explicitly set")
+            WRITE (iw, '(T3,A,T66,F14.3)') "ERI operator parameter OMEGA", eri_op_omega
+
          CASE (eri_operator_trunc)
-            WRITE (iw, '(T3,A,T53,A)') "ERI operator", "Truncated Coulomb <H(a-R)/R>"
-            WRITE (iw, '(T3,A,T66,F14.3)') "ERI operator parameter", eri_op_param
+            WRITE (iw, '(T3,A,T63,A)') "ERI operator", "Truncated Coulomb"
+            IF (.NOT. ex_rcut) CALL cp_abort(__LOCATION__, &
+                                             "Cutoff radius not specified for trunc. Coulomb operator")
+            WRITE (iw, '(T3,A,T66,F14.3)') "ERI operator cutoff radius (au)", eri_rcut
+
+         CASE (eri_operator_lr_trunc)
+            WRITE (iw, '(T3,A,T53,A)') "ERI operator", "Longrange truncated Coulomb"
+            IF (.NOT. ex_rcut) CALL cp_abort(__LOCATION__, &
+                                             "Cutoff radius not specified for trunc. longrange operator")
+            WRITE (iw, '(T3,A,T66,F14.3)') "ERI operator cutoff radius (au)", eri_rcut
+            IF (.NOT. ex_omega) CALL cp_abort(__LOCATION__, &
+                                              "LR truncated operator requires OMEGA to be explicitly set")
+            WRITE (iw, '(T3,A,T66,F14.3)') "ERI operator parameter OMEGA", eri_op_omega
+            IF (eri_op_omega < 0.01_dp) THEN
+               CPABORT("LR truncated operator requires OMEGA >= 0.01 to be stable")
+            END IF
+
          CASE DEFAULT
             CPABORT("Unknown ERI operator")
+
          END SELECT
-         WRITE (iw, '(T3,A,T68,E12.4)') "Accuracy of ERI", eri_eps_int
+
+         WRITE (iw, '(T3,A,T68,E12.4)') "Accuracy of ERIs", eri_eps_int
          WRITE (iw, '(T3,A,T71,3I3)') "Periodicity", active_space_env%eri%periodicity(1:3)
-         IF (PRODUCT(active_space_env%eri%periodicity(1:3)) == 0) THEN
-            IF (eri_rcut > 0.0_dp) WRITE (iw, '(T3,A,T65,F14.6)') "Periodicity (Cutoff)", eri_rcut
-         END IF
+
+         ! TODO: should be moved after ERI calculation, as it depends on screening
          IF (nspins < 2) THEN
             WRITE (iw, '(T3,A,T68,I12)') "Total Number of ERI", (nmo_active**4)/8
          ELSE
@@ -994,6 +1000,8 @@ CONTAINS
          CPABORT("NOT IMPLEMENTED")
       END SELECT
 
+      ! compute alpha-beta overlap matrix in case of spin-polarized calculation
+      CALL calculate_spin_pol_overlap(active_space_env%mos_active, qs_env, active_space_env)
       ! transform KS/Fock, Vxc and Hcore to AS MO basis
       CALL calculate_operators(active_space_env%mos_active, qs_env, active_space_env)
       ! set the reference energy in the active space
@@ -1045,6 +1053,44 @@ CONTAINS
 !> \par History
 !>      04.2016 created [JGH]
 ! **************************************************************************************************
+   SUBROUTINE calculate_spin_pol_overlap(mos, qs_env, active_space_env)
+
+      TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(active_space_type), POINTER                   :: active_space_env
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'calculate_spin_pol_overlap'
+
+      INTEGER                                            :: handle, nmo, nspins
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff_a, mo_coeff_b
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: s_matrix
+
+      CALL timeset(routineN, handle)
+
+      nspins = active_space_env%nspins
+
+      ! overlap in AO
+      IF (nspins > 1) THEN
+         CALL get_qs_env(qs_env, matrix_s=s_matrix)
+         ALLOCATE (active_space_env%sab_sub(1))
+
+         CALL get_mo_set(mo_set=mos(1), mo_coeff=mo_coeff_a, nmo=nmo)
+         CALL get_mo_set(mo_set=mos(2), mo_coeff=mo_coeff_b, nmo=nmo)
+         CALL subspace_operator(mo_coeff_a, nmo, s_matrix(1)%matrix, active_space_env%sab_sub(1), mo_coeff_b)
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE calculate_spin_pol_overlap
+
+! **************************************************************************************************
+!> \brief computes the one-electron operators in the subspace of the provided orbital set
+!> \param mos the molecular orbital set within the active subspace
+!> \param qs_env ...
+!> \param active_space_env ...
+!> \par History
+!>      04.2016 created [JGH]
+! **************************************************************************************************
    SUBROUTINE calculate_operators(mos, qs_env, active_space_env)
 
       TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos
@@ -1055,7 +1101,6 @@ CONTAINS
 
       INTEGER                                            :: handle, is, nmo, nspins
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_vxc
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: h_matrix, ks_matrix
 
       CALL timeset(routineN, handle)
@@ -1073,19 +1118,6 @@ CONTAINS
          CALL get_mo_set(mo_set=mos(is), mo_coeff=mo_coeff, nmo=nmo)
          CALL subspace_operator(mo_coeff, nmo, ks_matrix(is, 1)%matrix, active_space_env%ks_sub(is))
       END DO
-
-      ! Vxc matrix
-      CALL cp_fm_release(active_space_env%vxc_sub)
-
-      NULLIFY (matrix_vxc)
-      CALL get_qs_env(qs_env, matrix_vxc=matrix_vxc)
-      IF (ASSOCIATED(matrix_vxc)) THEN
-         ALLOCATE (active_space_env%vxc_sub(nspins))
-         DO is = 1, nspins
-            CALL get_mo_set(mo_set=mos(is), mo_coeff=mo_coeff, nmo=nmo)
-            CALL subspace_operator(mo_coeff, nmo, matrix_vxc(is)%matrix, active_space_env%vxc_sub(is))
-         END DO
-      END IF
 
       ! Core Hamiltonian
       CALL cp_fm_release(active_space_env%h_sub)
@@ -1111,15 +1143,17 @@ CONTAINS
 !> \param nmo the number of orbitals
 !> \param op_matrix operator matrix in AO basis
 !> \param op_sub operator in orbital basis
+!> \param orbitals_b ...
 !> \par History
 !>      04.2016 created [JGH]
 ! **************************************************************************************************
-   SUBROUTINE subspace_operator(orbitals, nmo, op_matrix, op_sub)
+   SUBROUTINE subspace_operator(orbitals, nmo, op_matrix, op_sub, orbitals_b)
 
       TYPE(cp_fm_type), INTENT(IN)                       :: orbitals
       INTEGER, INTENT(IN)                                :: nmo
       TYPE(dbcsr_type), POINTER                          :: op_matrix
       TYPE(cp_fm_type), INTENT(INOUT)                    :: op_sub
+      TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: orbitals_b
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'subspace_operator'
 
@@ -1132,17 +1166,19 @@ CONTAINS
       CPASSERT(nmo <= ncol)
 
       IF (nmo > 0) THEN
-
          CALL cp_fm_create(vectors, orbitals%matrix_struct, "vectors")
-
          CALL create_subspace_matrix(orbitals, op_sub, nmo)
 
-         CALL cp_dbcsr_sm_fm_multiply(op_matrix, orbitals, vectors, nmo)
+         IF (PRESENT(orbitals_b)) THEN
+            ! if beta orbitals are present, compute the cross alpha_beta term
+            CALL cp_dbcsr_sm_fm_multiply(op_matrix, orbitals_b, vectors, nmo)
+         ELSE
+            ! otherwise the same spin, whatever that is
+            CALL cp_dbcsr_sm_fm_multiply(op_matrix, orbitals, vectors, nmo)
+         END IF
 
          CALL parallel_gemm('T', 'N', nmo, nmo, nrow, 1.0_dp, orbitals, vectors, 0.0_dp, op_sub)
-
          CALL cp_fm_release(vectors)
-
       END IF
 
       CALL timestop(handle)
@@ -1179,7 +1215,7 @@ CONTAINS
    END SUBROUTINE create_subspace_matrix
 
 ! **************************************************************************************************
-!> \brief computes a electron repulsion integrals using GPW technology
+!> \brief computes the electron repulsion integrals using the GPW technology
 !> \param mos the molecular orbital set within the active subspace
 !> \param orbitals ...
 !> \param eri_env ...
@@ -1207,7 +1243,7 @@ CONTAINS
       LOGICAL                                            :: print1, print2, &
                                                             skip_load_balance_distributed
       REAL(KIND=dp)                                      :: dvol, erint, pair_int, &
-                                                            progression_factor, rc, rsize
+                                                            progression_factor, rc, rsize, t1, t2
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eri
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
@@ -1239,6 +1275,8 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+      IF (iw > 0) t1 = m_walltime()
+
       ! print levels
       SELECT CASE (eri_env%eri_gpw%print_level)
       CASE (silent_print_level)
@@ -1260,7 +1298,7 @@ CONTAINS
          ! do nothing
       END SELECT
 
-      ! Check the inpuz group
+      ! Check the input group
       CALL get_qs_env(qs_env, para_env=para_env, blacs_env=blacs_env)
       IF (eri_env%eri_gpw%group_size <= 1) eri_env%eri_gpw%group_size = para_env%num_pe
       IF (MOD(para_env%num_pe, eri_env%eri_gpw%group_size) /= 0) &
@@ -1314,12 +1352,13 @@ CONTAINS
          CALL dbcsr_set(mat_munu%matrix, 0.0_dp)
       END IF
 
-      ! Generate the appropriate  pw_env
+      ! Generate the appropriate pw_env
       NULLIFY (pw_env_sub)
       CALL pw_env_create(pw_env_sub)
       CALL pw_env_rebuild(pw_env_sub, qs_env, external_para_env=para_env_sub)
-      CALL pw_env_get(pw_env_sub, auxbas_pw_pool=auxbas_pw_pool, &
-                      poisson_env=poisson_env)
+      CALL pw_env_get(pw_env_sub, auxbas_pw_pool=auxbas_pw_pool, poisson_env=poisson_env)
+
+      ! TODO: maybe we can let `pw_env_rebuild` do what we manually overwrite here?
       IF (eri_env%eri_gpw%redo_poisson) THEN
          ! We need to rebuild the Poisson solver on the fly
          IF (SUM(eri_env%periodicity) /= 0) THEN
@@ -1328,18 +1367,22 @@ CONTAINS
             poisson_env%parameters%solver = pw_poisson_analytic
          END IF
          poisson_env%parameters%periodic = eri_env%periodicity
-         CALL pw_poisson_rebuild(poisson_env)
-         IF (eri_env%cutoff_radius > 0.0_dp) THEN
-            poisson_env%green_fft%radius = eri_env%cutoff_radius
-         ELSE
-            CALL get_qs_env(qs_env, cell=cell)
-            rc = cell%hmat(1, 1)
-            DO iwa1 = 1, 3
-               rc = MIN(rc, 0.5_dp*cell%hmat(iwa1, iwa1))
-            END DO
-            poisson_env%green_fft%radius = rc
-         END IF
 
+         ! Rebuilds the poisson green (influence) function according
+         ! to the poisson solver and parameters set so far.
+         ! Also sets the variable poisson_env%rebuild to .FALSE.
+         CALL pw_poisson_rebuild(poisson_env)
+
+         ! set the cutoff radius for the Greens function in case we use ANALYTIC Poisson solver
+         CALL get_qs_env(qs_env, cell=cell)
+         rc = cell%hmat(1, 1)
+         DO iwa1 = 1, 3
+            ! TODO: I think this is not the largest possible radius inscribed in the cell
+            rc = MIN(rc, 0.5_dp*cell%hmat(iwa1, iwa1))
+         END DO
+         poisson_env%green_fft%radius = rc
+
+         ! Overwrite the Greens function with the one we want
          CALL pw_eri_green_create(poisson_env%green_fft, eri_env)
 
          IF (iw > 0) THEN
@@ -1361,6 +1404,8 @@ CONTAINS
             CASE (ANALYTIC0D)
                WRITE (UNIT=iw, FMT="(T2,A,T51,A30)") &
                   "ERI_GPW| Poisson Greens function", "ANALYTIC"
+               WRITE (UNIT=iw, FMT="(T2,A,T71,F10.4)") "ERI_GPW| Poisson cutoff radius", &
+                  poisson_env%green_fft%radius*angstrom
             CASE DEFAULT
                CPABORT("Wrong Greens function setup")
             END SELECT
@@ -1426,6 +1471,8 @@ CONTAINS
       CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set, cell=cell, &
                       particle_set=particle_set, atomic_kind_set=atomic_kind_set)
 
+      ! pre-calculate wavefunctions on reals space grid
+      nspins = SIZE(mos)
       IF (eri_env%eri_gpw%store_wfn) THEN
          ! pre-calculate wavefunctions on reals space grid
          rsize = 0.0_dp
@@ -1474,6 +1521,9 @@ CONTAINS
       dvol = rho_r%pw_grid%dvol
       CALL mp_group%set_handle(eri_env%eri(1)%csr_mat%mp_group%get_handle())
 
+      IF (iw > 0) THEN
+         CALL m_flush(iw)
+      END IF
       ! calculate the integrals
       stored_integrals = 0
       DO isp1 = 1, nspins
@@ -1512,15 +1562,9 @@ CONTAINS
                ! calculate charge distribution and potential
                CALL pw_zero(rho_r)
                CALL pw_multiply(rho_r, wfn1, wfn2)
-               IF (print2) THEN
-                  erint = pw_integrate_function(rho_r)/dvol
-                  IF (iw > 0) THEN
-                     WRITE (iw, "(T4,'ERI_GPW| Integral rho_ab ',T32,2I4,' [',I1,']',T58,G20.14)") &
-                        iwa1, iwa2, isp1, erint
-                  END IF
-               END IF
                CALL pw_transfer(rho_r, rho_g)
                CALL pw_poisson_solve(poisson_env, rho_g, pair_int, pot_g)
+
                ! screening using pair_int
                IF (pair_int < eri_env%eps_integral) CYCLE
                CALL pw_transfer(pot_g, rho_r)
@@ -1698,24 +1742,35 @@ CONTAINS
       DEALLOCATE (qs_control%e_cutoff)
       DEALLOCATE (qs_control)
 
+      ! print out progress
+      IF (iw > 0) THEN
+         t2 = m_walltime()
+         WRITE (iw, '(/,T2,A,T66,F14.2)') "ERI_GPW| ERI calculation took (sec)", t2 - t1
+         CALL m_flush(iw)
+      END IF
+
       CALL timestop(handle)
 
    END SUBROUTINE calculate_eri_gpw
 
 ! **************************************************************************************************
-!> \brief Sets the Green's function
+!> \brief Sets the Green's function for the ERI calculation. Here we deal with the G=0 case!
 !> \param green ...
 !> \param eri_env ...
 !> \par History
 !>      04.2016 created [JGH]
+!>      08.2025 added support for the LR truncation [SB]
 ! **************************************************************************************************
    SUBROUTINE pw_eri_green_create(green, eri_env)
 
       TYPE(greens_fn_type), INTENT(INOUT)                :: green
       TYPE(eri_type)                                     :: eri_env
 
+      COMPLEX(KIND=dp)                                   :: erf_fac_p, z_p
       INTEGER                                            :: ig
-      REAL(KIND=dp)                                      :: a, ea, g2, g3d, ga, gg, rg, rlength
+      REAL(KIND=dp)                                      :: cossin_fac, ea, erfcos_fac, exp_prefac, &
+                                                            g, G0, g2, g3d, ga, Ginf, omega, &
+                                                            omega2, Rc, Rc2
 
       ! initialize influence function
       ASSOCIATE (gf => green%influence_fn, grid => green%influence_fn%pw_grid)
@@ -1729,111 +1784,167 @@ CONTAINS
                   gf%array(ig) = fourpi/g2
                END DO
                IF (grid%have_g0) gf%array(1) = 0.0_dp
+
             CASE (eri_operator_yukawa)
-               a = eri_env%operator_parameter**2
+               CALL cp_warn(__LOCATION__, "Yukawa operator has not been tested")
+               omega2 = eri_env%omega**2
                DO ig = grid%first_gne0, grid%ngpts_cut_local
                   g2 = grid%gsq(ig)
-                  gf%array(ig) = fourpi/(a + g2)
+                  gf%array(ig) = fourpi/(omega2 + g2)
                END DO
-               IF (grid%have_g0) gf%array(1) = fourpi/a
+               IF (grid%have_g0) gf%array(1) = fourpi/omega2
+
             CASE (eri_operator_erf)
-               a = eri_env%operator_parameter**2
+               omega2 = eri_env%omega**2
                DO ig = grid%first_gne0, grid%ngpts_cut_local
                   g2 = grid%gsq(ig)
-                  ga = -0.25_dp*g2/a
-                  gf%array(ig) = fourpi/g2*EXP(ga)
+                  gf%array(ig) = fourpi/g2*EXP(-0.25_dp*g2/omega2)
                END DO
                IF (grid%have_g0) gf%array(1) = 0.0_dp
+
             CASE (eri_operator_erfc)
-               a = eri_env%operator_parameter**2
+               omega2 = eri_env%omega**2
                DO ig = grid%first_gne0, grid%ngpts_cut_local
                   g2 = grid%gsq(ig)
-                  ga = -0.25_dp*g2/a
-                  gf%array(ig) = fourpi/g2*(1._dp - EXP(ga))
+                  gf%array(ig) = fourpi/g2*(1.0_dp - EXP(-0.25_dp*g2/omega2))
                END DO
-               IF (grid%have_g0) gf%array(1) = 0.25_dp*fourpi/a
+               IF (grid%have_g0) gf%array(1) = pi/omega2
+
             CASE (eri_operator_trunc)
-               a = eri_env%operator_parameter
+               Rc = eri_env%cutoff_radius
                DO ig = grid%first_gne0, grid%ngpts_cut_local
                   g2 = grid%gsq(ig)
-                  ga = SQRT(g2)*a
-                  IF (ga >= 0.005_dp) THEN
-                     gf%array(ig) = fourpi/g2*(1.0_dp - COS(ga))
+                  g = SQRT(g2)
+                  ! Taylor expansion around zero
+                  IF (g*Rc >= 0.005_dp) THEN
+                     gf%array(ig) = fourpi/g2*(1.0_dp - COS(g*Rc))
                   ELSE
-                     gf%array(ig) = fourpi/g2*ga**2/2.0_dp*(1.0_dp - ga**2/12.0_dp)
+                     gf%array(ig) = fourpi/g2*(g*Rc)**2/2.0_dp*(1.0_dp - (g*Rc)**2/12.0_dp)
                   END IF
                END DO
-               IF (grid%have_g0) gf%array(1) = 0.0_dp
-            CASE (eri_operator_gaussian)
-               CPABORT("")
+               IF (grid%have_g0) gf%array(1) = twopi*Rc**2
+
+            CASE (eri_operator_lr_trunc)
+               omega = eri_env%omega
+               omega2 = omega**2
+               Rc = eri_env%cutoff_radius
+               Rc2 = Rc**2
+               G0 = 0.001_dp ! threshold for the G=0 case
+               Ginf = 20.0_dp  ! threshold for the Taylor exapnsion arounf G=∞
+               DO ig = grid%first_gne0, grid%ngpts_cut_local
+                  g2 = grid%gsq(ig)
+                  g = SQRT(g2)
+                  IF (g <= 2.0_dp*G0) THEN
+                     gf%array(ig) = -pi/omega2*erf(omega*Rc) &
+                                    + twopi*Rc2*erf(omega*Rc) &
+                                    + 2*rootpi*Rc*EXP(-omega2*Rc2)/omega
+                  ELSE IF (g >= 2.0_dp*Ginf*omega) THEN
+                     ! exponential prefactor
+                     exp_prefac = EXP(-omega2*Rc2)/(rootpi*(omega2*Rc2 + 0.25_dp*g2/omega2))
+                     ! cos sin factor
+                     cossin_fac = omega*Rc*COS(g*Rc) - 0.5_dp*g/omega*SIN(g*Rc)
+                     ! real erf term with cosine
+                     erfcos_fac = ERF(omega*Rc)*COS(g*Rc)
+                     ! Combine terms
+                     gf%array(ig) = fourpi/g2*(-exp_prefac*cossin_fac - erfcos_fac)
+                  ELSE
+                     ! exponential prefactor
+                     exp_prefac = twopi/g2*EXP(-0.25_dp*g2/omega2)
+                     ! Compute complex arguments for erf
+                     z_p = CMPLX(omega*Rc, 0.5_dp*g/omega, kind=dp)
+                     ! Evaluate complex error functions
+                     erf_fac_p = 2.0_dp*REAL(erfz_fast(z_p))
+                     ! Real erf term with cosine
+                     erfcos_fac = fourpi/g2*ERF(omega*Rc)*COS(g*Rc)
+                     ! Combine terms
+                     gf%array(ig) = exp_prefac*erf_fac_p - erfcos_fac
+                  END IF
+               END DO
+               IF (grid%have_g0) THEN
+                  gf%array(1) = -pi/omega2*ERF(omega*Rc) &
+                                + twopi*Rc2*ERF(omega*Rc) &
+                                + 2*rootpi*Rc*EXP(-omega2*Rc2)/omega
+               END IF
+
             CASE DEFAULT
-               CPABORT("")
+               CPABORT("Please specify a valid operator for the periodic Poisson solver")
             END SELECT
 
+            ! The analytic Poisson solver simply limits the domain of integration
+            ! of the Fourier transform to a sphere of radius Rc, rather than integrating
+            ! over all space (-∞,∞)
          CASE (ANALYTIC0D)
 
             SELECT CASE (eri_env%operator)
+               ! This is identical to the truncated Coulomb operator integrated
+               ! over all space, when the truncation radius is equal to the radius of
+               ! the Poisson solver
             CASE (eri_operator_coulomb)
-               rlength = green%radius
+               Rc = green%radius
                DO ig = grid%first_gne0, grid%ngpts_cut_local
                   g2 = grid%gsq(ig)
-                  gg = SQRT(g2)
-                  g3d = fourpi/g2
-                  gf%array(ig) = g3d*(1.0_dp - COS(rlength*gg))
-               END DO
-               IF (grid%have_g0) gf%array(1) = 0.5_dp*fourpi*rlength*rlength
-            CASE (eri_operator_yukawa)
-               rlength = green%radius
-               a = eri_env%operator_parameter
-               ea = EXP(-a*rlength)
-               DO ig = grid%first_gne0, grid%ngpts_cut_local
-                  g2 = grid%gsq(ig)
-                  gg = SQRT(g2)
-                  g3d = fourpi/(a*a + g2)
-                  rg = rlength*gg
-                  gf%array(ig) = g3d*(1.0_dp - ea*(COS(rg) + a/gg*SIN(rg)))
-               END DO
-               IF (grid%have_g0) gf%array(1) = fourpi/(a*a)*(1.0_dp - ea*(1._dp + a*rlength))
-            CASE (eri_operator_erf)
-               rlength = green%radius
-               a = eri_env%operator_parameter**2
-               DO ig = grid%first_gne0, grid%ngpts_cut_local
-                  g2 = grid%gsq(ig)
-                  gg = SQRT(g2)
-                  ga = -0.25_dp*g2/a
-                  gf%array(ig) = fourpi/g2*EXP(ga)*(1.0_dp - COS(rlength*gg))
-               END DO
-               IF (grid%have_g0) gf%array(1) = 0.5_dp*fourpi*rlength*rlength
-            CASE (eri_operator_erfc)
-               rlength = green%radius
-               a = eri_env%operator_parameter**2
-               DO ig = grid%first_gne0, grid%ngpts_cut_local
-                  g2 = grid%gsq(ig)
-                  gg = SQRT(g2)
-                  ga = -0.25_dp*g2/a
-                  gf%array(ig) = fourpi/g2*(1._dp - EXP(ga))*(1.0_dp - COS(rlength*gg))
-               END DO
-               IF (grid%have_g0) gf%array(1) = 0._dp
-            CASE (eri_operator_trunc)
-               a = eri_env%operator_parameter
-               DO ig = grid%first_gne0, grid%ngpts_cut_local
-                  g2 = grid%gsq(ig)
-                  ga = SQRT(g2)*a
-                  IF (ga >= 0.005_dp) THEN
-                     gf%array(ig) = fourpi/g2*(1.0_dp - COS(ga))
+                  g = SQRT(g2)
+                  ! Taylor expansion around zero
+                  IF (g*Rc >= 0.005_dp) THEN
+                     gf%array(ig) = fourpi/g2*(1.0_dp - COS(g*Rc))
                   ELSE
-                     gf%array(ig) = fourpi/g2*ga**2/2.0_dp*(1.0_dp - ga**2/12.0_dp)
+                     gf%array(ig) = fourpi/g2*(g*Rc)**2/2.0_dp*(1.0_dp - (g*Rc)**2/12.0_dp)
                   END IF
                END DO
-               IF (grid%have_g0) gf%array(1) = 0.0_dp
-            CASE (eri_operator_gaussian)
-               CPABORT("")
+               IF (grid%have_g0) gf%array(1) = twopi*Rc**2
+
+               ! Not tested
+            CASE (eri_operator_yukawa)
+               CALL cp_warn(__LOCATION__, "Yukawa operator has not been tested")
+               Rc = green%radius
+               omega = eri_env%omega
+               ea = EXP(-omega*Rc)
+               DO ig = grid%first_gne0, grid%ngpts_cut_local
+                  g2 = grid%gsq(ig)
+                  g = SQRT(g2)
+                  g3d = fourpi/(omega**2 + g2)
+                  gf%array(ig) = g3d*(1.0_dp - ea*(COS(g*Rc) + omega/g*SIN(g*Rc)))
+               END DO
+               IF (grid%have_g0) gf%array(1) = fourpi/(omega**2)*(1.0_dp - ea*(1.0_dp + omega*Rc))
+
+               ! Long-range Coulomb
+               ! TODO: this should be equivalent to LR truncated Coulomb from above!
+            CASE (eri_operator_erf)
+               Rc = green%radius
+               omega2 = eri_env%omega**2
+               DO ig = grid%first_gne0, grid%ngpts_cut_local
+                  g2 = grid%gsq(ig)
+                  g = SQRT(g2)
+                  ga = -0.25_dp*g2/omega2
+                  gf%array(ig) = fourpi/g2*EXP(ga)*(1.0_dp - COS(g*Rc))
+               END DO
+               IF (grid%have_g0) gf%array(1) = twopi*Rc**2
+
+               ! Short-range Coulomb
+               ! TODO: this should actually be properly derived and see whether it is correct
+            CASE (eri_operator_erfc)
+               CALL cp_warn(__LOCATION__, &
+                            "Short-range Coulomb operator may be incorrect with ANALYTIC0D Poisson solver")
+               Rc = green%radius
+               omega2 = eri_env%omega**2
+               DO ig = grid%first_gne0, grid%ngpts_cut_local
+                  g2 = grid%gsq(ig)
+                  g = SQRT(g2)
+                  ga = -0.25_dp*g2/omega2
+                  gf%array(ig) = fourpi/g2*(1.0_dp - EXP(ga))*(1.0_dp - COS(g*Rc))
+               END DO
+               IF (grid%have_g0) gf%array(1) = pi/omega2
+
+            CASE (eri_operator_trunc)
+               CPABORT("Truncated Coulomb with ANALYTIC0D is equivalent to normal Coulomb")
+            CASE (eri_operator_lr_trunc)
+               CPABORT("LR truncated Coulomb with ANALYTIC0D is equivalent to normal longrange")
             CASE DEFAULT
-               CPABORT("")
+               CPABORT("Unsupported operator")
             END SELECT
 
          CASE DEFAULT
-            CPABORT("")
+            CPABORT("Unsupported Poisson solver")
          END SELECT
       END ASSOCIATE
 
@@ -2691,22 +2802,88 @@ CONTAINS
       INTEGER                                            :: ispin
 
       INTEGER                                            :: i1, i2, m1, m2, nmo_active
-      REAL(KIND=dp)                                      :: mval
+      REAL(KIND=dp)                                      :: alpha, pij_new, pij_old
       TYPE(cp_fm_type), POINTER                          :: p_active
 
       p_active => active_space_env%p_active(ispin)
       nmo_active = active_space_env%nmo_active
+      alpha = active_space_env%alpha
 
       DO i1 = 1, nmo_active
          m1 = active_space_env%active_orbitals(i1, ispin)
          DO i2 = 1, nmo_active
             m2 = active_space_env%active_orbitals(i2, ispin)
-            mval = p_act_mo(i2 + (i1 - 1)*nmo_active)
-            CALL cp_fm_set_element(p_active, m1, m2, mval)
+            CALL cp_fm_get_element(p_active, m1, m2, pij_old)
+            pij_new = p_act_mo(i2 + (i1 - 1)*nmo_active)
+            pij_new = alpha*pij_new + (1.0_dp - alpha)*pij_old
+            CALL cp_fm_set_element(p_active, m1, m2, pij_new)
          END DO
       END DO
 
    END SUBROUTINE update_active_density
+
+! **************************************************************************************************
+!> \brief Compute and print the AS rdm and the natural orbitals occupation numbers
+!> \param active_space_env active space environment
+!> \param iw output unit
+!> \author Stefano Battaglia
+! **************************************************************************************************
+   SUBROUTINE print_pmat_noon(active_space_env, iw)
+      TYPE(active_space_type), POINTER                   :: active_space_env
+      INTEGER                                            :: iw
+
+      INTEGER                                            :: i1, i2, ii, ispin, jm, m1, m2, &
+                                                            nmo_active, nspins
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: noon, pmat
+      TYPE(cp_fm_type), POINTER                          :: p_active
+
+      nspins = active_space_env%nspins
+      nmo_active = active_space_env%nmo_active
+
+      ALLOCATE (noon(nmo_active, nspins))
+      ALLOCATE (pmat(nmo_active, nmo_active))
+
+      DO ispin = 1, nspins
+         p_active => active_space_env%p_active(ispin)
+         noon(:, ispin) = 0.0_dp
+         pmat = 0.0_dp
+
+         DO i1 = 1, nmo_active
+            m1 = active_space_env%active_orbitals(i1, ispin)
+            DO i2 = 1, nmo_active
+               m2 = active_space_env%active_orbitals(i2, ispin)
+               CALL cp_fm_get_element(p_active, m1, m2, pmat(i1, i2))
+            END DO
+         END DO
+
+         IF (iw > 0) THEN
+            WRITE (iw, '(/,T3,A,I2,A)') "Active space density matrix for spin ", ispin
+            DO i1 = 1, nmo_active
+               DO ii = 1, nmo_active, 8
+                  jm = MIN(7, nmo_active - ii)
+                  WRITE (iw, '(T3,6(F9.4))') (pmat(i1, ii + i2), i2=0, jm)
+               END DO
+            END DO
+         END IF
+
+         ! diagonalize the density matrix
+         CALL diamat_all(pmat, noon(:, ispin))
+
+         IF (iw > 0) THEN
+            WRITE (iw, '(T3,A,I2,A)') "Natural orbitals occupation numbers for spin ", ispin
+            DO i1 = 1, nmo_active, 8
+               jm = MIN(7, nmo_active - i1)
+               ! noons are stored in ascending order, so reverse-print them
+               WRITE (iw, '(T3,6(F9.4))') (noon(nmo_active - i1 - i2 + 1, ispin), i2=0, jm)
+            END DO
+         END IF
+
+      END DO
+
+      DEALLOCATE (noon)
+      DEALLOCATE (pmat)
+
+   END SUBROUTINE print_pmat_noon
 
 ! **************************************************************************************************
 !> \brief ...
@@ -2733,14 +2910,14 @@ CONTAINS
       INTEGER                                            :: iw, client_fd, socket_fd, iter, max_iter
       LOGICAL                                            :: converged, do_scf_embedding, ionode
       REAL(KIND=dp)                                      :: alpha, delta_E, energy_corr, energy_new, &
-                                                            energy_old, energy_scf, eps_iter, t1, &
-                                                            t2
+                                                            energy_old, energy_scf, eps_iter, t1, t2
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos_active
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_rho_type), POINTER                         :: rho
+      TYPE(dft_control_type), POINTER                    :: dft_control
 
       CALL timeset(routineN, handle)
 
@@ -2756,8 +2933,13 @@ CONTAINS
       CALL section_vals_val_get(as_input, "SCF_EMBEDDING", l_val=do_scf_embedding)
       active_space_env%do_scf_embedding = do_scf_embedding
       CALL section_vals_val_get(as_input, "MAX_ITER", i_val=max_iter)
+      IF (max_iter < 0) CPABORT("Specify a non-negative number of max iterations.")
       CALL section_vals_val_get(as_input, "EPS_ITER", r_val=eps_iter)
-      alpha = 0.0
+      IF (eps_iter < 0.0) CPABORT("Specify a non-negative convergence threshold.")
+      CALL section_vals_val_get(as_input, "ALPHA", r_val=alpha)
+      ! alpha = 0.0
+      IF (alpha < 0.0 .OR. alpha > 1.0) CPABORT("Specify a damping factor between 0 and 1.")
+      active_space_env%alpha = alpha
 
       ! create the socket and wait for the client to connect
       CALL initialize_socket(socket_fd, client_fd, as_input, ionode)
@@ -2767,10 +2949,16 @@ CONTAINS
       CALL send_eri_to_client(client_fd, active_space_env, para_env)
 
       ! get pointer to density in ao basis
-      CALL get_qs_env(qs_env, rho=rho, energy=energy)
+      CALL get_qs_env(qs_env, rho=rho, energy=energy, dft_control=dft_control)
       CALL qs_rho_get(rho, rho_ao=rho_ao)
 
-      IF ((iw > 0)) THEN
+      IF (iw > 0) THEN
+         WRITE (UNIT=iw, FMT="(/,T2,A,/)") "RS-DFT SELF-CONSISTENT OPTIMIZATION"
+
+         WRITE (iw, '(T3,A,T68,I12)') "Max. iterations", max_iter
+         WRITE (iw, '(T3,A,T68,E12.4)') "Conv. threshold", eps_iter
+         WRITE (iw, '(T3,A,T66,F14.2)') "Density damping", alpha
+
          WRITE (UNIT=iw, FMT="(/,T3,A,T11,A,T21,A,T34,A,T55,A,T75,A,/,T3,A)") &
             "Iter", "Update", "Time", "Corr. energy", "Total energy", "Change", REPEAT("-", 78)
       END IF
@@ -2799,12 +2987,14 @@ CONTAINS
          delta_E = energy_new - energy_old
 
          ! get timer
-         t2 = m_walltime()
+         t2 = t1
+         t1 = m_walltime()
          ! print out progress
          IF ((iw > 0)) THEN
             WRITE (UNIT=iw, &
-                   FMT="(T3,I4,T11,A,T21,F4.2,T28,F18.10,T49,F18.10,T70,ES11.2)") &
-               iter, 'P_Mix', t2 - t1, energy_corr, energy_new, delta_E
+                   FMT="(T3,I4,T11,A,T19,F6.1,T28,F18.10,T49,F18.10,T70,ES11.2)") &
+               iter, 'P_Mix', t1 - t2, energy_corr, energy_new, delta_E
+            CALL m_flush(iw)
          END IF
 
          ! update total density in AO basis with the AS contribution
@@ -2812,7 +3002,7 @@ CONTAINS
 
          ! calculate F_ks in AO basis (which contains Vxc) with the new density
          qs_env%requires_matrix_vxc = .TRUE.
-         CALL qs_rho_update_rho(rho, qs_env) ! updates rho_r and rho_g using rho_ao
+         CALL qs_rho_update_rho(rho, qs_env=qs_env) ! updates rho_r and rho_g using rho_ao
          CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE.) ! set flags about the change
          CALL qs_ks_update_qs_env(qs_env) ! this call actually calculates F_ks
 
@@ -2828,7 +3018,7 @@ CONTAINS
          ! check if it is a one-shot correction
          IF (.NOT. active_space_env%do_scf_embedding) THEN
             IF (iw > 0) THEN
-               WRITE (UNIT=iw, FMT="(/,T3,A,I5,A/)") &
+               WRITE (UNIT=iw, FMT="(/,T3,A,I5,A)") &
                   "*** one-shot embedding correction finished ***"
             END IF
             converged = .TRUE.
@@ -2836,25 +3026,26 @@ CONTAINS
             ! check for convergence
          ELSEIF (ABS(delta_E) <= eps_iter) THEN
             IF (iw > 0) THEN
-               WRITE (UNIT=iw, FMT="(/,T3,A,I5,A/)") &
-                  "*** rsDFT embedding run converged in ", iter, " iteration(s) ***"
+               WRITE (UNIT=iw, FMT="(/,T3,A,I5,A)") &
+                  "*** rs-DFT embedding run converged in ", iter, " iteration(s) ***"
             END IF
             converged = .TRUE.
             EXIT
          END IF
-
-         t1 = m_walltime()
       END DO
 
       IF (.NOT. converged) THEN
          IF (iw > 0) THEN
-            WRITE (UNIT=iw, FMT="(/,T3,A,I5,A/)") &
-               "*** rsDFT embedding did not converged after ", iter, " iteration(s) ***"
+            WRITE (UNIT=iw, FMT="(/,T3,A,I5,A)") &
+               "*** rs-DFT embedding did not converged after ", iter, " iteration(s) ***"
          END IF
       END IF
 
-      ! update qs total energy to the final embedding energy
+      ! update qs total energy to the final rs-DFT energy
       energy%total = active_space_env%energy_total
+
+      ! print the AS rdm and the natural orbital occupation numbers
+      CALL print_pmat_noon(active_space_env, iw)
 
       CALL finalize_socket(socket_fd, client_fd, as_input, ionode)
       CALL para_env%sync()
@@ -2902,13 +3093,13 @@ CONTAINS
 
       IF (ionode) THEN
          CALL open_bind_socket(socket_fd, protocol, port, TRIM(hostname)//C_NULL_CHAR)
-         WRITE (iw, '(/,T3,A,A)') "@SERVER: Created socket with address ", TRIM(hostname)
+         WRITE (iw, '(/,T2,A,A)') "@SERVER: Created socket with address ", TRIM(hostname)
          CALL listen_socket(socket_fd, backlog)
 
          ! wait until a connetion request arrives
-         WRITE (iw, '(T3,A)') "@SERVER: Waiting for requests..."
+         WRITE (iw, '(T2,A)') "@SERVER: Waiting for requests..."
          CALL accept_socket(socket_fd, client_fd)
-         WRITE (iw, '(T3,A,I2)') "@SERVER: Accepted socket with fd ", client_fd
+         WRITE (iw, '(T2,A,I2)') "@SERVER: Accepted socket with fd ", client_fd
       END IF
 
       CALL timestop(handle)
@@ -2971,7 +3162,7 @@ CONTAINS
       CHARACTER(len=default_string_length)               :: header
       INTEGER                                            :: handle, iw
       LOGICAL                                            :: ionode
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eri_aa, eri_ab, eri_bb
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eri_aa, eri_ab, eri_bb, s_ab
       TYPE(cp_logger_type), POINTER                      :: logger
 
       CALL timeset(routineN, handle)
@@ -2980,7 +3171,6 @@ CONTAINS
       iw = cp_logger_get_default_io_unit(logger)
       ionode = para_env%is_source()
 
-      ! TODO: do we really need to allocate the arrays on every process?
       ALLOCATE (eri_aa(active_space_env%nmo_active**4))
       CALL eri_to_array(active_space_env%eri, eri_aa, active_space_env%active_orbitals, 1, 1)
       IF (active_space_env%nspins == 2) THEN
@@ -2988,6 +3178,12 @@ CONTAINS
          CALL eri_to_array(active_space_env%eri, eri_ab, active_space_env%active_orbitals, 1, 2)
          ALLOCATE (eri_bb(active_space_env%nmo_active**4))
          CALL eri_to_array(active_space_env%eri, eri_bb, active_space_env%active_orbitals, 2, 2)
+         ! get the overlap_ab matrix into Fortran array
+         ALLOCATE (s_ab(active_space_env%nmo_active**2))
+         ASSOCIATE (act_indices_a => active_space_env%active_orbitals(:, 1), &
+                    act_indices_b => active_space_env%active_orbitals(:, 2))
+            CALL subspace_matrix_to_array(active_space_env%sab_sub(1), s_ab, act_indices_a, act_indices_b)
+         END ASSOCIATE
       END IF
 
       ! ask the status of the client
@@ -3018,6 +3214,7 @@ CONTAINS
                IF (active_space_env%nspins == 2) THEN
                   CALL writebuffer(client_fd, eri_ab, SIZE(eri_ab))
                   CALL writebuffer(client_fd, eri_bb, SIZE(eri_bb))
+                  CALL writebuffer(client_fd, s_ab, SIZE(s_ab))
                END IF
             END IF
          ELSE IF (TRIM(header) == "RECEIVED") THEN
@@ -3029,6 +3226,7 @@ CONTAINS
       IF (active_space_env%nspins == 2) THEN
          DEALLOCATE (eri_ab)
          DEALLOCATE (eri_bb)
+         DEALLOCATE (s_ab)
       END IF
 
       CALL para_env%sync()

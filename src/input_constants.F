@@ -1132,11 +1132,6 @@ MODULE input_constants
                                                do_lri_opt_coeff = 1, &
                                                do_lri_opt_exps = 2
 
-   ! Active space model parameters
-   INTEGER, PARAMETER, PUBLIC               :: hf_model = 100, &
-                                               rsdft_model = 101, &
-                                               dmft_model = 102
-
    ! Active space external solvers
    INTEGER, PARAMETER, PUBLIC               :: no_solver = 200, &
                                                qiskit_solver = 201
@@ -1250,7 +1245,12 @@ MODULE input_constants
                                                eri_operator_erf = 3, &
                                                eri_operator_erfc = 4, &
                                                eri_operator_gaussian = 5, &
-                                               eri_operator_trunc = 6
+                                               eri_operator_trunc = 6, &
+                                               eri_operator_lr_trunc = 7
+
+   INTEGER, PARAMETER, PUBLIC               :: eri_poisson_analytic = 1, &
+                                               eri_poisson_periodic = 2, &
+                                               eri_poisson_mt = 3
 
    INTEGER, PARAMETER, PUBLIC               :: do_eri_gpw = 0, &
                                                do_eri_mme = 1, &

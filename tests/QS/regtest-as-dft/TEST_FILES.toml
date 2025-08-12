@@ -27,4 +27,5 @@
 #h2_manual_UKS_1+2.inp                                1      1e-12              -1.15195791735218
 #h2_manual_UKS_1+2.inp                               92      1e-8                8.52511231
 "h2_manual_UKS_1+2.inp"                 = [{matcher="M092", tol=1e-8, ref=8.52386602}]
+"h2_lr_trunc.inp"                       = [{matcher="M092", tol=1e-8, ref=6.67878293}]
 #EOF
