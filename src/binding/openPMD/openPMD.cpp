@@ -668,9 +668,12 @@ extern "C"
         return 0;
     }
 
-    char *openPMD_json_merge(char const *into, char const *from)
+    char *
+    openPMD_json_merge(char const *into, char const *from, MPI_Comm maybe_comm)
     {
-        auto const res = openPMD::json::merge(into, from);
+        auto const res = maybe_comm
+            ? openPMD::json::merge(into, from, maybe_comm)
+            : openPMD::json::merge(into, from);
         char *c_res =
             static_cast<char *>(malloc(sizeof(char) * (res.size() + 1)));
         std::copy_n(res.c_str(), res.size() + 1, c_res);
