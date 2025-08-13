@@ -75,15 +75,13 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'parallel_gemm_fm'
 
-      INTEGER                                            :: handle, handle1, my_multi
-
-      CALL timeset(routineN, handle)
+      INTEGER                                            :: handle, my_multi
 
       my_multi = cp_fm_get_mm_type()
 
       SELECT CASE (my_multi)
       CASE (do_scalapack)
-         CALL timeset(routineN//"_gemm", handle1)
+         CALL timeset(routineN//"_gemm", handle)
          CALL cp_fm_gemm(transa, transb, m, n, k, alpha, matrix_a, matrix_b, beta, matrix_c, &
                          a_first_col=a_first_col, &
                          a_first_row=a_first_row, &
@@ -91,10 +89,9 @@ CONTAINS
                          b_first_row=b_first_row, &
                          c_first_col=c_first_col, &
                          c_first_row=c_first_row)
-         CALL timestop(handle1)
       CASE (do_cosma)
 #if defined(__COSMA)
-         CALL timeset(routineN//"_cosma", handle1)
+         CALL timeset(routineN//"_cosma", handle)
          CALL offload_activate_chosen_device()
          CALL cosma_pdgemm(transa=transa, transb=transb, m=m, n=n, k=k, alpha=alpha, &
                            matrix_a=matrix_a, matrix_b=matrix_b, beta=beta, matrix_c=matrix_c, &
@@ -104,7 +101,6 @@ CONTAINS
                            b_first_row=b_first_row, &
                            c_first_col=c_first_col, &
                            c_first_row=c_first_row)
-         CALL timestop(handle1)
 #else
          CPABORT("CP2K compiled without the COSMA library.")
 #endif
