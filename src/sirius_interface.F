@@ -339,13 +339,11 @@ CONTAINS
                END DO
             END IF
 ! add new atom type
-! Mathieu
             CALL sirius_add_atom_type(sctx, label, &
                                       zn=NINT(zeff + 0.001d0), &
                                       symbol=element_symbol, &
                                       mass=REAL(mass/massunit, KIND=C_DOUBLE), &
-!!!!!?                                spin_orbit=gth_potential%soc)
-                                      spin_orbit=.FALSE.)
+                                      spin_orbit=gth_potential%soc)
 !
             ALLOCATE (gth_atompot)
             CALL gth_potential_conversion(gth_potential, gth_atompot)
@@ -353,8 +351,7 @@ CONTAINS
             fun(1:nmesh) = rp(1:nmesh)
             CALL sirius_set_atom_type_radial_grid(sctx, label, nmesh, fun(1))
 ! set beta-projectors
-! Mathieu
-! GTH SOC uses the same projectors, what about sirius?
+! GTH SOC uses the same projectors, SIRIUS can use the same or different projectors for l+1/2, l-1/2 (l > 0 l+1/2 l < 0 l-/2 )
             ALLOCATE (ef(nmesh), beta(nmesh))
             ibeta = 0
             DO l = 0, 3
@@ -371,13 +368,22 @@ CONTAINS
                   fun(1:nmesh) = beta(1:nmesh)*rp(1:nmesh)
                   CALL sirius_add_atom_type_radial_function(sctx, label, &
                                                             "beta", fun(1), nmesh, l=l)
+                  ! we double the number of beta projectors for SO
+                  IF (gth_atompot%soc) THEN
+                     CALL sirius_add_atom_type_radial_function(sctx, label, &
+                                                               "beta", fun(1), nmesh, l=-l)
+                  END IF
                END DO
             END DO
             DEALLOCATE (ef, beta)
             nbeta = ibeta
 
 ! nonlocal PP matrix elements
-            ALLOCATE (dion(nbeta, nbeta))
+            IF (gth_atompot%soc) THEN
+               ALLOCATE (dion(2*nbeta, 2*nbeta))
+            ELSE
+               ALLOCATE (dion(nbeta, nbeta))
+            END IF
             dion = 0.0_dp
             DO l = 0, 3
                IF (gth_atompot%nl(l) == 0) CYCLE
@@ -385,13 +391,24 @@ CONTAINS
                i = ibeta + gth_atompot%nl(l) - 1
                dion(ibeta:i, ibeta:i) = gth_atompot%hnl(1:gth_atompot%nl(l), 1:gth_atompot%nl(l), l)
             END DO
-            CALL sirius_set_atom_type_dion(sctx, label, nbeta, dion(1, 1))
-            DEALLOCATE (dion)
+
 ! nonlocal PP matrix elements for SOC
-! Mathieu
             IF (gth_atompot%soc) THEN
                ! same as nonlocal PP but knl instead of hnl
+               ! Dion = {[hnl 0]
+               !          [0, knl])
+               DO l = 0, 3
+                  IF (gth_atompot%nl(l) == 0) CYCLE
+                  ibeta = SUM(gth_atompot%nl(0:l - 1)) + 1 + nbeta
+                  i = ibeta + gth_atompot%nl(l) - 1
+                  dion(ibeta:i, ibeta:i) = gth_atompot%knl(1:gth_atompot%nl(l), 1:gth_atompot%nl(l), l)
+               END DO
+               CALL sirius_set_atom_type_dion(sctx, label, 2*nbeta, dion(1, 1))
+            ELSE
+               CALL sirius_set_atom_type_dion(sctx, label, nbeta, dion(1, 1))
             END IF
+
+            DEALLOCATE (dion)
 
 ! set non-linear core correction
             IF (gth_atompot%nlcc) THEN

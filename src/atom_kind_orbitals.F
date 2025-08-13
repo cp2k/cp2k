@@ -1191,8 +1191,9 @@ CONTAINS
 
       ! SOC
       CALL get_potential(gth_potential, soc_present=soc_present)
+      gth_atompot%soc = soc_present
       gth_atompot%knl = 0.0_dp
-      IF(soc_present) THEN
+      IF (soc_present) THEN
          DO l = 1, lm
             n = nppnl(l)
             gth_atompot%knl(1:n, 1:n, l) = kp(1:n, 1:n, l)
