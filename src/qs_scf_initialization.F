@@ -596,7 +596,7 @@ CONTAINS
       nmo_mat = dft_control%nspins
       IF (dft_control%restricted) nmo_mat = 1 ! right now, there might be more mos than needed derivs
 
-!   *** finish initialization of the MOs ***
+      ! Finish initialization of the MOs
       CPASSERT(ASSOCIATED(mos))
       DO ispin = 1, SIZE(mos)
          CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff, mo_coeff_b=mo_coeff_b)
@@ -612,7 +612,7 @@ CONTAINS
                                                    sym=dbcsr_type_no_symmetry)
          END IF
       END DO
-!   *** get the mo_derivs OK if needed ***
+      ! Get the mo_derivs OK if needed
       IF (qs_env%requires_mo_derivs) THEN
          CALL get_qs_env(qs_env, mo_derivs=mo_derivs)
          IF (.NOT. ASSOCIATED(mo_derivs)) THEN
@@ -631,12 +631,12 @@ CONTAINS
          ! nothing should be done
       END IF
 
-!   *** finish initialization of the MOs for ADMM and derivs if needed ***
+      ! Finish initialization of the MOs for ADMM and derivs if needed ***
       IF (dft_control%do_admm) THEN
          IF (dft_control%restricted) CPABORT("ROKS with ADMM is not implemented")
       END IF
 
-! *** finish initialization of mos_last_converged *** [SGh]
+      ! Finish initialization of mos_last_converged [SGh]
       IF (dft_control%switch_surf_dip) THEN
          CPASSERT(ASSOCIATED(mos_last_converged))
          DO ispin = 1, SIZE(mos_last_converged)
@@ -945,13 +945,7 @@ CONTAINS
                       para_env=para_env, &
                       xas_env=xas_env)
 
-      output_unit = cp_print_key_unit_nr(logger, scf_section, "PRINT%PROGRAM_RUN_INFO", &
-                                         extension=".scfLog")
-      CALL qs_scf_initial_info(output_unit, mos, dft_control)
-      CALL cp_print_key_finished_output(output_unit, logger, scf_section, &
-                                        "PRINT%PROGRAM_RUN_INFO")
-
-      ! calc ortho matrix
+      ! Calculate ortho matrix
       ndep = 0
       IF (scf_env%needs_ortho) THEN
          CALL get_qs_env(qs_env, matrix_s=matrix_s)
@@ -1029,7 +1023,7 @@ CONTAINS
 
             CALL cp_fm_column_scale(scf_env%ortho_red, evals(ndep + 1:))
 
-            ! Copy the linear dependent columns to the mo sets and set their orbital energies
+            ! Copy the linear dependent columns to the MO sets and set their orbital energies
             ! to a very large value to reduce the probability of occupying them
             DO ispin = 1, SIZE(mos)
                CALL get_mo_set(mos(ispin), nmo=nmo, mo_coeff=mo_coeff, homo=homo, eigenvalues=eigenvalues)
@@ -1042,8 +1036,8 @@ CONTAINS
                   END IF
                   CALL cp_warn(__LOCATION__, &
                                "The numerical rank of the overlap matrix is lower than the number of requested MOs! "// &
-                             "Reduce the number of MOs to the number of available MOs. If necessary, request a lower number of "// &
-                               "MOs or increase EPS_DEFAULT or EPS_PGF_ORB.")
+                               "Reduce the number of MOs to the number of available MOs. If necessary, "// &
+                               "request a lower number of MOs or increase EPS_DEFAULT or EPS_PGF_ORB.")
                   CALL set_mo_set(mos(ispin), nmo=needed_evals)
                END IF
                ! Copy the last columns to mo_coeff if the container is large enough
@@ -1114,15 +1108,6 @@ CONTAINS
          END DO
       END IF
 
-      output_unit = cp_print_key_unit_nr(logger, scf_section, "PRINT%PROGRAM_RUN_INFO", &
-                                         extension=".scfLog")
-      IF (output_unit > 0) THEN
-         WRITE (UNIT=output_unit, FMT="(T2,A,T71,I10)") &
-            "Number of independent orbital functions:", nao - ndep
-      END IF
-      CALL cp_print_key_finished_output(output_unit, logger, scf_section, &
-                                        "PRINT%PROGRAM_RUN_INFO")
-
       ! extrapolate outer loop variables
       IF (scf_control%outer_scf%have_scf) THEN
          CALL outer_loop_extrapolate(qs_env)
@@ -1161,6 +1146,12 @@ CONTAINS
                                                qmmm_env=qs_env%qmmm_env_qm)
          END IF
       END IF
+
+      output_unit = cp_print_key_unit_nr(logger, scf_section, "PRINT%PROGRAM_RUN_INFO", &
+                                         extension=".scfLog")
+      CALL qs_scf_initial_info(output_unit, mos, dft_control, ndep)
+      CALL cp_print_key_finished_output(output_unit, logger, scf_section, &
+                                        "PRINT%PROGRAM_RUN_INFO")
 
       CALL timestop(handle)
 

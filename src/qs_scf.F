@@ -125,7 +125,8 @@ MODULE qs_scf
    USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_ks_methods,                   ONLY: evaluate_core_matrix_p_mix_new,&
                                               qs_ks_update_qs_env
-   USE qs_ks_types,                     ONLY: qs_ks_did_change,&
+   USE qs_ks_types,                     ONLY: get_ks_env,&
+                                              qs_ks_did_change,&
                                               qs_ks_env_type
    USE qs_mo_io,                        ONLY: write_mo_set_to_restart
    USE qs_mo_methods,                   ONLY: make_basis_simple,&
@@ -363,6 +364,7 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_result_type), POINTER                      :: results
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(energy_correction_type), POINTER              :: ec_env
@@ -560,8 +562,16 @@ CONTAINS
             IF (do_kpoints) THEN
                CALL write_kpoints_restart(rho_ao_kp, kpoints, scf_env, dft_section, particle_set, qs_kind_set)
             ELSE
-               ! Write Wavefunction restart file
-               CALL write_mo_set_to_restart(mos, particle_set, dft_section=dft_section, qs_kind_set=qs_kind_set)
+               ! Write wavefunction restart file
+               IF (scf_env%method == ot_method_nr) THEN
+                  ! With OT: provide the Kohn-Sham matrix for the calculation of the MO eigenvalues
+                  CALL get_ks_env(ks_env=ks_env, matrix_ks=matrix_ks)
+                  CALL write_mo_set_to_restart(mos, particle_set, dft_section=dft_section, qs_kind_set=qs_kind_set, &
+                                               matrix_ks=matrix_ks)
+               ELSE
+                  CALL write_mo_set_to_restart(mos, particle_set, dft_section=dft_section, qs_kind_set=qs_kind_set)
+               END IF
+
             END IF
 
             ! Exit if we have finished with the SCF inner loop
@@ -597,7 +607,7 @@ CONTAINS
          CALL qs_scf_outer_loop_info(output_unit, scf_control, scf_env, &
                                      energy, total_steps, should_stop, outer_loop_converged)
 
-!  save mos to converged mos if outer_loop_converged and surf_dip_correct_switch is true
+         ! Save MOs to converged MOs if outer_loop_converged and surf_dip_correct_switch is true
          IF (exit_outer_loop) THEN
             IF ((dft_control%switch_surf_dip) .AND. (outer_loop_converged) .AND. &
                 (dft_control%surf_dip_correct_switch)) THEN

@@ -902,7 +902,7 @@ CONTAINS
             END IF
          END IF
 
-         ! ** If we do ADMM, we add have to modify the kohn-sham matrix
+         ! If we do ADMM, we add have to modify the Kohn-Sham matrix
          IF (dft_control%do_admm) THEN
             CALL admm_correct_for_eigenvalues(ispin, admm_env, ks_rmpv(ispin)%matrix)
          END IF
@@ -919,7 +919,7 @@ CONTAINS
                                              unoccupied_evals(ispin)%array, scr=output_unit, &
                                              ionode=output_unit > 0)
 
-         ! ** If we do ADMM, we restore the original kohn-sham matrix
+         ! If we do ADMM, we restore the original Kohn-Sham matrix
          IF (dft_control%do_admm) THEN
             CALL admm_uncorrect_for_eigenvalues(ispin, admm_env, ks_rmpv(ispin)%matrix)
          END IF

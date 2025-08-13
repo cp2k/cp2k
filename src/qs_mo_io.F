@@ -73,6 +73,7 @@ MODULE qs_mo_io
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               get_qs_kind_set,&
                                               qs_kind_type
+   USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues
    USE qs_mo_occupation,                ONLY: set_mo_occupation
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               mo_set_type
@@ -102,13 +103,16 @@ CONTAINS
 !> \param particle_set ...
 !> \param dft_section ...
 !> \param qs_kind_set ...
+!> \param matrix_ks ...
 ! **************************************************************************************************
-   SUBROUTINE write_mo_set_to_restart(mo_array, particle_set, dft_section, qs_kind_set)
+   SUBROUTINE write_mo_set_to_restart(mo_array, particle_set, dft_section, qs_kind_set, matrix_ks)
 
       TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mo_array
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(section_vals_type), POINTER                   :: dft_section
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
+         POINTER                                         :: matrix_ks
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'write_mo_set_to_restart'
       CHARACTER(LEN=30), DIMENSION(2), PARAMETER :: &
@@ -118,6 +122,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
 
       CALL timeset(routineN, handle)
+
       logger => cp_get_default_logger()
 
       IF (BTEST(cp_print_key_should_output(logger%iter_info, &
@@ -138,17 +143,18 @@ CONTAINS
          END IF
 
          DO ikey = 1, SIZE(keys)
-
             IF (BTEST(cp_print_key_should_output(logger%iter_info, &
                                                  dft_section, keys(ikey)), cp_p_file)) THEN
-
                ires = cp_print_key_unit_nr(logger, dft_section, keys(ikey), &
                                            extension=".wfn", file_status="REPLACE", file_action="WRITE", &
                                            do_backup=.TRUE., file_form="UNFORMATTED")
-
-               CALL write_mo_set_low(mo_array, particle_set=particle_set, &
-                                     qs_kind_set=qs_kind_set, ires=ires)
-
+               IF (PRESENT(matrix_ks)) THEN
+                  CALL write_mo_set_low(mo_array, particle_set=particle_set, qs_kind_set=qs_kind_set, &
+                                        ires=ires, matrix_ks=matrix_ks)
+               ELSE
+                  CALL write_mo_set_low(mo_array, particle_set=particle_set, qs_kind_set=qs_kind_set, &
+                                        ires=ires)
+               END IF
                CALL cp_print_key_finished_output(ires, logger, dft_section, TRIM(keys(ikey)))
             END IF
          END DO
@@ -228,8 +234,7 @@ CONTAINS
 !> \param dft_section ...
 !> \param qs_kind_set ...
 ! **************************************************************************************************
-   SUBROUTINE write_rt_mos_to_restart(mo_array, rt_mos, particle_set, dft_section, &
-                                      qs_kind_set)
+   SUBROUTINE write_rt_mos_to_restart(mo_array, rt_mos, particle_set, dft_section, qs_kind_set)
 
       TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mo_array
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: rt_mos
@@ -257,13 +262,11 @@ CONTAINS
 
             IF (BTEST(cp_print_key_should_output(logger%iter_info, &
                                                  dft_section, keys(ikey)), cp_p_file)) THEN
-
                ires = cp_print_key_unit_nr(logger, dft_section, keys(ikey), &
                                            extension=".rtpwfn", file_status="REPLACE", file_action="WRITE", &
                                            do_backup=.TRUE., file_form="UNFORMATTED")
-
-               CALL write_mo_set_low(mo_array, rt_mos=rt_mos, qs_kind_set=qs_kind_set, &
-                                     particle_set=particle_set, ires=ires)
+               CALL write_mo_set_low(mo_array, qs_kind_set=qs_kind_set, particle_set=particle_set, &
+                                     ires=ires, rt_mos=rt_mos)
                CALL cp_print_key_finished_output(ires, logger, dft_section, TRIM(keys(ikey)))
             END IF
          END DO
@@ -280,8 +283,9 @@ CONTAINS
 !> \param particle_set ...
 !> \param ires ...
 !> \param rt_mos ...
+!> \param matrix_ks ...
 ! **************************************************************************************************
-   SUBROUTINE write_mo_set_low(mo_array, qs_kind_set, particle_set, ires, rt_mos)
+   SUBROUTINE write_mo_set_low(mo_array, qs_kind_set, particle_set, ires, rt_mos, matrix_ks)
 
       TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mo_array
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -289,6 +293,8 @@ CONTAINS
       INTEGER                                            :: ires
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN), &
          OPTIONAL                                        :: rt_mos
+      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
+         POINTER                                         :: matrix_ks
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'write_mo_set_low'
 
@@ -299,15 +305,22 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: nset_info, nshell
       INTEGER, DIMENSION(:, :), POINTER                  :: l, nshell_info
       INTEGER, DIMENSION(:, :, :), POINTER               :: nso_info
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues, mo_occupation_numbers
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
       TYPE(qs_dftb_atom_type), POINTER                   :: dftb_parameter
 
       CALL timeset(routineN, handle)
+
+      NULLIFY (mo_coeff)
+      NULLIFY (mo_eigenvalues)
+      NULLIFY (mo_occupation_numbers)
+
       nspin = SIZE(mo_array)
       nao = mo_array(1)%nao
 
       IF (ires > 0) THEN
-         !     *** create some info about the basis set first ***
+         ! Create some info about the basis set first
          natom = SIZE(particle_set, 1)
          nset_max = 0
          nshell_max = 0
@@ -316,7 +329,8 @@ CONTAINS
             NULLIFY (orb_basis_set, dftb_parameter)
             CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
             CALL get_qs_kind(qs_kind_set(ikind), &
-                             basis_set=orb_basis_set, dftb_parameter=dftb_parameter)
+                             basis_set=orb_basis_set, &
+                             dftb_parameter=dftb_parameter)
             IF (ASSOCIATED(orb_basis_set)) THEN
                CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
                                       nset=nset, &
@@ -389,24 +403,34 @@ CONTAINS
          DEALLOCATE (nso_info)
       END IF
 
-      ! use the scalapack block size as a default for buffering columns
+      ! Use the ScaLAPACK block size as a default for buffering columns
       CALL cp_fm_get_info(mo_array(1)%mo_coeff, ncol_block=max_block)
       DO ispin = 1, nspin
+         mo_coeff => mo_array(ispin)%mo_coeff
          nmo = mo_array(ispin)%nmo
-         IF ((ires > 0) .AND. (nmo > 0)) THEN
-            WRITE (ires) nmo, &
-               mo_array(ispin)%homo, &
-               mo_array(ispin)%lfomo, &
-               mo_array(ispin)%nelectron
-            WRITE (ires) mo_array(ispin)%eigenvalues(1:nmo), &
-               mo_array(ispin)%occupation_numbers(1:nmo)
+         IF (nmo > 0) THEN
+            mo_eigenvalues => mo_array(ispin)%eigenvalues
+            mo_occupation_numbers => mo_array(ispin)%occupation_numbers
+            IF (PRESENT(matrix_ks)) THEN
+               ! With OT: use the Kohn-Sham matrix for the update of the MO eigenvalues
+               CALL calculate_subspace_eigenvalues(orbitals=mo_coeff, &
+                                                   ks_matrix=matrix_ks(ispin)%matrix, &
+                                                   evals_arg=mo_eigenvalues)
+            END IF
+            IF (ires > 0) THEN
+               WRITE (ires) nmo, &
+                  mo_array(ispin)%homo, &
+                  mo_array(ispin)%lfomo, &
+                  mo_array(ispin)%nelectron
+               WRITE (ires) mo_eigenvalues(1:nmo), mo_occupation_numbers(1:nmo)
+            END IF
          END IF
          IF (PRESENT(rt_mos)) THEN
             DO imat = 2*ispin - 1, 2*ispin
                CALL cp_fm_write_unformatted(rt_mos(imat), ires)
             END DO
          ELSE
-            CALL cp_fm_write_unformatted(mo_array(ispin)%mo_coeff, ires)
+            CALL cp_fm_write_unformatted(mo_coeff, ires)
          END IF
       END DO
 

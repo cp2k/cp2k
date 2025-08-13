@@ -137,13 +137,20 @@ CONTAINS
 !> \param output_unit ...
 !> \param mos ...
 !> \param dft_control ...
+!> \param ndep ...
 ! **************************************************************************************************
-   SUBROUTINE qs_scf_initial_info(output_unit, mos, dft_control)
+   SUBROUTINE qs_scf_initial_info(output_unit, mos, dft_control, ndep)
       INTEGER                                            :: output_unit
       TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos
       TYPE(dft_control_type), POINTER                    :: dft_control
+      INTEGER, INTENT(IN)                                :: ndep
 
-      INTEGER                                            :: homo, ispin, nao, nelectron_spin, nmo
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_initial_info'
+
+      INTEGER                                            :: handle, homo, ispin, nao, &
+                                                            nelectron_spin, nmo
+
+      CALL timeset(routineN, handle)
 
       IF (output_unit > 0) THEN
          DO ispin = 1, dft_control%nspins
@@ -160,9 +167,12 @@ CONTAINS
                "Number of occupied orbitals:", homo, &
                "Number of molecular orbitals:", nmo
          END DO
-         WRITE (UNIT=output_unit, FMT="(/,T2,A,T71,I10)") &
-            "Number of orbital functions:", nao
+         WRITE (UNIT=output_unit, FMT="(/,(T2,A,T71,I10))") &
+            "Number of orbital functions:", nao, &
+            "Number of independent orbital functions:", nao - ndep
       END IF
+
+      CALL timestop(handle)
 
    END SUBROUTINE qs_scf_initial_info
 
@@ -190,7 +200,7 @@ CONTAINS
                                                             nao, nelectron, nkp, nmo, nspin, numo
       INTEGER, DIMENSION(2)                              :: nmos_occ
       INTEGER, DIMENSION(:), POINTER                     :: mo_index_range
-      LOGICAL                                            :: do_kpoints, print_eigvals, &
+      LOGICAL                                            :: do_kpoints, do_printout, print_eigvals, &
                                                             print_eigvecs, print_mo_info, &
                                                             print_occup, print_occup_stats
       REAL(KIND=dp)                                      :: flexible_electron_count, maxocc, n_el_f, &
@@ -264,6 +274,7 @@ CONTAINS
       NULLIFY (umo_eigenvalues)
       NULLIFY (umo_set)
 
+      do_printout = .TRUE.
       nspin = dft_control%nspins
       nmos_occ = 0
 
@@ -278,7 +289,7 @@ CONTAINS
          nkp = 1
       END IF
 
-      DO ikp = 1, nkp
+      kp_loop: DO ikp = 1, nkp
 
          IF (do_kpoints) THEN
             mos => kpoints%kp_env(ikp)%kpoint_env%mos(1, :)
@@ -301,69 +312,62 @@ CONTAINS
                   CPABORT("The OT method is not implemented for k points")
                END IF
 
-               matrix_ks => ks(ispin)%matrix
-               matrix_s => s(1)%matrix
+               IF (final_mos) THEN
 
-               ! With ADMM, we have to modify the Kohn-Sham matrix
-               IF (dft_control%do_admm) THEN
-                  CALL get_qs_env(qs_env, admm_env=admm_env)
-                  CALL admm_correct_for_eigenvalues(ispin, admm_env, matrix_ks)
-               END IF
+                  matrix_ks => ks(ispin)%matrix
+                  matrix_s => s(1)%matrix
 
-               mo_set => mos(ispin)
-               CALL get_mo_set(mo_set=mo_set, &
-                               mo_coeff=mo_coeff, &
-                               eigenvalues=mo_eigenvalues, &
-                               homo=homo, &
-                               maxocc=maxocc, &
-                               nelectron=nelectron, &
-                               n_el_f=n_el_f, &
-                               nao=nao, &
-                               nmo=nmo, &
-                               flexible_electron_count=flexible_electron_count)
+                  ! With ADMM, we have to modify the Kohn-Sham matrix
+                  IF (dft_control%do_admm) THEN
+                     CALL get_qs_env(qs_env, admm_env=admm_env)
+                     CALL admm_correct_for_eigenvalues(ispin, admm_env, matrix_ks)
+                  END IF
 
-               ! Retrieve the index of the last MO for which a printout is requested
-               mo_index_range => section_get_ivals(dft_section, "PRINT%MO%MO_INDEX_RANGE")
-               CPASSERT(ASSOCIATED(mo_index_range))
-               numo = MIN(mo_index_range(2) - homo, nao - homo)
+                  mo_set => mos(ispin)
+                  CALL get_mo_set(mo_set=mo_set, &
+                                  mo_coeff=mo_coeff, &
+                                  eigenvalues=mo_eigenvalues, &
+                                  homo=homo, &
+                                  maxocc=maxocc, &
+                                  nelectron=nelectron, &
+                                  n_el_f=n_el_f, &
+                                  nao=nao, &
+                                  nmo=nmo, &
+                                  flexible_electron_count=flexible_electron_count)
 
-               IF (.NOT. final_mos) THEN
-                  numo = 0
-                  message = "The MO information for unoccupied MOs is only calculated after "// &
-                            "SCF convergence is achieved when the orbital transformation (OT) "// &
-                            "method is used"
-                  CPWARN(TRIM(message))
-               END IF
+                  ! Retrieve the index of the last MO for which a printout is requested
+                  mo_index_range => section_get_ivals(dft_section, "PRINT%MO%MO_INDEX_RANGE")
+                  CPASSERT(ASSOCIATED(mo_index_range))
+                  numo = MIN(mo_index_range(2) - homo, nao - homo)
 
-               ! Calculate the unoccupied MO set (umo_set) with OT if needed
-               IF (numo > 0) THEN
+                  ! Calculate the unoccupied MO set (umo_set) with OT if needed
+                  IF (numo > 0) THEN
 
-                  ! Create temporary virtual MO set for printout
-                  CALL cp_fm_struct_create(fm_struct_tmp, &
-                                           context=blacs_env, &
-                                           para_env=para_env, &
-                                           nrow_global=nao, &
-                                           ncol_global=numo)
-                  ALLOCATE (umo_set)
-                  CALL allocate_mo_set(mo_set=umo_set, &
-                                       nao=nao, &
-                                       nmo=numo, &
-                                       nelectron=0, &
-                                       n_el_f=n_el_f, &
-                                       maxocc=maxocc, &
-                                       flexible_electron_count=flexible_electron_count)
-                  CALL init_mo_set(mo_set=umo_set, &
-                                   fm_struct=fm_struct_tmp, &
-                                   name="Temporary MO set (unoccupied MOs only)for printout")
-                  CALL cp_fm_struct_release(fm_struct_tmp)
-                  CALL get_mo_set(mo_set=umo_set, &
-                                  mo_coeff=umo_coeff, &
-                                  eigenvalues=umo_eigenvalues)
+                     ! Create temporary virtual MO set for printout
+                     CALL cp_fm_struct_create(fm_struct_tmp, &
+                                              context=blacs_env, &
+                                              para_env=para_env, &
+                                              nrow_global=nao, &
+                                              ncol_global=numo)
+                     ALLOCATE (umo_set)
+                     CALL allocate_mo_set(mo_set=umo_set, &
+                                          nao=nao, &
+                                          nmo=numo, &
+                                          nelectron=0, &
+                                          n_el_f=n_el_f, &
+                                          maxocc=maxocc, &
+                                          flexible_electron_count=flexible_electron_count)
+                     CALL init_mo_set(mo_set=umo_set, &
+                                      fm_struct=fm_struct_tmp, &
+                                      name="Temporary MO set (unoccupied MOs only) for printout")
+                     CALL cp_fm_struct_release(fm_struct_tmp)
+                     CALL get_mo_set(mo_set=umo_set, &
+                                     mo_coeff=umo_coeff, &
+                                     eigenvalues=umo_eigenvalues)
 
-                  ! Calculate the MO information for the request MO index range
-                  IF (final_mos) THEN
                      ! Prepare printout of the additional unoccupied MOs when OT is being employed
                      CALL cp_fm_init_random(umo_coeff)
+
                      ! The FULL_ALL preconditioner makes not much sense for the unoccupied orbitals
                      NULLIFY (local_preconditioner)
                      IF (ASSOCIATED(scf_env%ot_preconditioner)) THEN
@@ -372,6 +376,8 @@ CONTAINS
                            NULLIFY (local_preconditioner)
                         END IF
                      END IF
+
+                     ! Calculate the MO information for the request MO index range
                      CALL ot_eigensolver(matrix_h=matrix_ks, &
                                          matrix_s=matrix_s, &
                                          matrix_c_fm=umo_coeff, &
@@ -380,24 +386,29 @@ CONTAINS
                                          preconditioner=local_preconditioner, &
                                          iter_max=scf_control%max_iter_lumos, &
                                          size_ortho_space=nmo)
-                  END IF
 
-                  CALL calculate_subspace_eigenvalues(orbitals=umo_coeff, &
-                                                      ks_matrix=matrix_ks, &
-                                                      evals_arg=umo_eigenvalues, &
-                                                      do_rotation=.TRUE.)
-                  CALL set_mo_occupation(mo_set=umo_set)
+                     CALL calculate_subspace_eigenvalues(orbitals=umo_coeff, &
+                                                         ks_matrix=matrix_ks, &
+                                                         evals_arg=umo_eigenvalues, &
+                                                         do_rotation=.TRUE.)
+                     CALL set_mo_occupation(mo_set=umo_set)
 
-                  ! With ADMM, we have to undo the modification of the Kohn-Sham matrix
-                  IF (dft_control%do_admm) THEN
-                     CALL admm_uncorrect_for_eigenvalues(ispin, admm_env, matrix_ks)
-                  END IF
+                     ! With ADMM, we have to undo the modification of the Kohn-Sham matrix
+                     IF (dft_control%do_admm) THEN
+                        CALL admm_uncorrect_for_eigenvalues(ispin, admm_env, matrix_ks)
+                     END IF
+
+                  END IF ! numo > 0
 
                ELSE
 
-                  NULLIFY (umo_set)
+                  message = "The MO information is only calculated after SCF convergence "// &
+                            "is achieved when the orbital transformation (OT) method is used"
+                  CPWARN(TRIM(message))
+                  do_printout = .FALSE.
+                  EXIT kp_loop
 
-               END IF ! numo > 0
+               END IF ! final MOs
 
             ELSE
 
@@ -453,9 +464,9 @@ CONTAINS
 
          END DO ! ispin
 
-      END DO ! k point loop
+      END DO kp_loop
 
-      IF (print_mo_info .AND. print_occup_stats) THEN
+      IF (do_printout .AND. print_mo_info .AND. print_occup_stats) THEN
          iw = cp_print_key_unit_nr(logger, dft_section, "PRINT%MO", &
                                    ignore_should_output=print_mo_info, &
                                    extension=".MOLog")
