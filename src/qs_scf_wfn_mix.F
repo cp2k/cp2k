@@ -274,14 +274,12 @@ CONTAINS
             END IF
 
             IF (output_unit > 0) THEN
-               WRITE (output_unit, '()')
-               WRITE (output_unit, '(T2,A,T61,E20.4)') &
+               WRITE (UNIT=output_unit, FMT="(/,T2,A,T61,E20.4)") &
                   "Maximum deviation from MO S-orthonormality", orthonormality
-               WRITE (output_unit, '(T2,A)') "Writing new MOs to file"
+               WRITE (UNIT=output_unit, FMT="(T2,A)") "Writing new MOs to file"
             END IF
 
-            ! *** Write WaveFunction restart file ***
-
+            ! Write wavefunction restart file
             DO ispin = 1, SIZE(mos_new)
                IF (overwrite_mos) THEN
                   CALL cp_fm_to_fm(mos_new(ispin)%mo_coeff, mos(ispin)%mo_coeff)
@@ -291,7 +289,8 @@ CONTAINS
                IF (mos(1)%use_mo_coeff_b) &
                   CALL copy_fm_to_dbcsr(mos_new(ispin)%mo_coeff, mos(ispin)%mo_coeff_b)
             END DO
-            CALL write_mo_set_to_restart(mos_new, particle_set, dft_section=dft_section, qs_kind_set=qs_kind_set)
+            CALL write_mo_set_to_restart(mos_new, particle_set, dft_section=dft_section, &
+                                         qs_kind_set=qs_kind_set)
          END IF
 
          DO ispin = 1, SIZE(mos_new)

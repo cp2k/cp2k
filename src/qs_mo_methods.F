@@ -859,7 +859,7 @@ CONTAINS
                mo_coeff_deriv => NULL()
             END IF
 
-            ! ** If we do ADMM, we add have to modify the kohn-sham matrix
+            ! If we do ADMM, we add have to modify the Kohn-Sham matrix
             IF (PRESENT(admm_env)) THEN
                CALL admm_correct_for_eigenvalues(ispin, admm_env, ks_rmpv(ispin)%matrix)
             END IF
@@ -868,7 +868,7 @@ CONTAINS
                                                 scr=output_unit, ionode=output_unit > 0, do_rotation=.TRUE., &
                                                 co_rotate_dbcsr=mo_coeff_deriv)
 
-            ! ** If we do ADMM, we restore the original kohn-sham matrix
+            ! If we do ADMM, we restore the original Kohn-Sham matrix
             IF (PRESENT(admm_env)) THEN
                CALL admm_uncorrect_for_eigenvalues(ispin, admm_env, ks_rmpv(ispin)%matrix)
             END IF
