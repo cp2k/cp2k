@@ -12,6 +12,14 @@
 
 #define SINT short
 
+#if defined(PRECISION) && (1 == PRECISION)
+#define CVT(A) convert_float(A)
+#define TYPE float
+#else
+#define TYPE double
+#define CVT(A) A
+#endif
+
 #if !defined(CLINEAR)
 #define XM(T) T[0]
 #define XN(T) T[1]
@@ -40,9 +48,9 @@
     UNROLL(BK) for (SINT k = 0; k < XK(SHAPE); ++k) {                          \
       const int ik = IDX(k, N0, XK(SHAPE), XN(SHAPE));                         \
       const int ia = IDT(M, k, XM(SHAPE), XK(SHAPE));                          \
-      const double ak = (A)[XA(SHIFT, IBASE) + ia];                            \
+      const TYPE ak = CVT((A)[XA(SHIFT, IBASE) + ia]);                         \
       UNROLL_AUTO for (SINT n = 0; n < (BN); ++n) {                            \
-        (CVEC)[n] = MAD(ak, (B)[ik + n], (CVEC)[n]);                           \
+        (CVEC)[n] = MAD(ak, CVT((B)[ik + n]), (CVEC)[n]);                      \
       }                                                                        \
     }                                                                          \
   } while (0)
@@ -50,11 +58,11 @@
 #define DBM_MULTIPLY(ALPHA, IBASE, SHIFT, SHAPE, A, B, C, CVEC, M, BN, BK)     \
   do { /* DBM_MULTIPLY_KERNEL specialized over N */                            \
     SINT n0 = 0, n1 = XN(SHAPE) - (BN);                                        \
-    UNROLL_FORCE(BN) for (SINT n = 0; n < (BN); ++n) { (CVEC)[n] = ZERO; }     \
+    UNROLL_FORCE(BN) for (SINT n = 0; n < (BN); ++n) { (CVEC)[n] = 0; }        \
     UNROLL_OUTER(1) for (; n0 <= n1; n0 += (BN)) {                             \
       DBM_MULTIPLY_KERNEL(IBASE, SHIFT, SHAPE, A, B, CVEC, M, n0, BN, BK);     \
       DBM_MULTIPLY_STORE(ALPHA, IBASE, SHIFT, SHAPE, C, CVEC, M, n0, BN);      \
-      UNROLL_FORCE(BN) for (SINT n = 0; n < (BN); ++n) { (CVEC)[n] = ZERO; }   \
+      UNROLL_FORCE(BN) for (SINT n = 0; n < (BN); ++n) { (CVEC)[n] = 0; }      \
     }                                                                          \
     n1 = XN(SHAPE) - n0;                                                       \
     DBM_MULTIPLY_KERNEL(IBASE, SHIFT, SHAPE, A, B, CVEC, M, n0, n1, BK);       \
@@ -78,9 +86,9 @@ dbm_multiply(double alpha, int itask, int ntasks, int size, int param_format,
              global double *restrict c) {
   const int i = (int)get_global_id(0);
 #if defined(SM) && (0 < SM)
-  local double tls[WG][BN + SM - 1], *const cvec = &tls[get_local_id(0)];
+  local TYPE tls[WG][BN + SM - 1], *const cvec = &tls[get_local_id(0)];
 #else
-  double cvec[BN];
+  TYPE cvec[BN];
 #endif
 #if defined(WG) && (0 < WG)
   if (i < size)
