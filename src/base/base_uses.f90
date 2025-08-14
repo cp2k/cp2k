@@ -76,3 +76,10 @@
 #else
 #define OMP_DEFAULT_NONE_WITH_OOP NONE
 #endif
+
+#if defined (__MKL)
+! Preprocessing is enabled by default, and below header is not language specific
+! Defines __INTEL_MKL__ (2025), __INTEL_MKL_MINOR__ (0), __INTEL_MKL_UPDATE__ (2),
+! and __INTEL_MKL_PATCH__ (0) as well INTEL_MKL_VERSION, e.g., 20250200.
+#include <mkl_version.h>
+#endif

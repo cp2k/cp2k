@@ -20,10 +20,10 @@ MODULE cp_dbcsr_cholesky
                                               dbcsr_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_cholesky_restore,&
-                                              cp_fm_potrf,&
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_potrf,&
                                               cp_fm_potri,&
                                               cp_fm_uplo_to_full
+   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_restore
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
