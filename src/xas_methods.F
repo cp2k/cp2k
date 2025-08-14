@@ -509,13 +509,13 @@ CONTAINS
 
                ! Write last wavefunction to screen
                IF (SIZE(mos) > 1) THEN
-                  CALL write_mo_set_to_output_unit(mos(1), atomic_kind_set, qs_kind_set, particle_set, &
-                                                   dft_section, 4, 0, final_mos=.FALSE., spin="XAS ALPHA")
-                  CALL write_mo_set_to_output_unit(mos(2), atomic_kind_set, qs_kind_set, particle_set, &
-                                                   dft_section, 4, 0, final_mos=.FALSE., spin="XAS BETA")
+                  CALL write_mo_set_to_output_unit(mos(1), qs_kind_set, particle_set, dft_section, &
+                                                   4, 0, final_mos=.FALSE., spin="XAS ALPHA")
+                  CALL write_mo_set_to_output_unit(mos(2), qs_kind_set, particle_set, dft_section, &
+                                                   4, 0, final_mos=.FALSE., spin="XAS BETA")
                ELSE
-                  CALL write_mo_set_to_output_unit(mos(1), atomic_kind_set, qs_kind_set, particle_set, &
-                                                   dft_section, 4, 0, final_mos=.FALSE., spin="XAS")
+                  CALL write_mo_set_to_output_unit(mos(1), qs_kind_set, particle_set, dft_section, &
+                                                   4, 0, final_mos=.FALSE., spin="XAS")
                END IF
 
             ELSE

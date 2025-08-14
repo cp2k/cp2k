@@ -186,8 +186,9 @@ CONTAINS
          END IF
       END DO
 
-      CALL read_mo_set_from_restart(mos, atomic_kind_set, qs_kind_set, particle_set, para_env, &
-                                    id_nr=0, multiplicity=dft_control%multiplicity, dft_section=dft_section, &
+      CALL read_mo_set_from_restart(mos, qs_kind_set, particle_set, para_env, id_nr=0, &
+                                    multiplicity=dft_control%multiplicity, &
+                                    dft_section=dft_section, &
                                     natom_mismatch=natom_mismatch)
 
    END SUBROUTINE allocate_mo_sets

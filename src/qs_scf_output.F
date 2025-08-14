@@ -9,7 +9,6 @@ MODULE qs_scf_output
    USE admm_types,                      ONLY: admm_type
    USE admm_utils,                      ONLY: admm_correct_for_eigenvalues,&
                                               admm_uncorrect_for_eigenvalues
-   USE atomic_kind_types,               ONLY: atomic_kind_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_p_type,&
@@ -207,7 +206,6 @@ CONTAINS
                                                             occup_stats_occ_threshold
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues, umo_eigenvalues
       TYPE(admm_type), POINTER                           :: admm_env
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
       TYPE(cp_fm_type), POINTER                          :: mo_coeff, umo_coeff
@@ -231,7 +229,6 @@ CONTAINS
 
       ! Retrieve the required information for the requested print output
       CALL get_qs_env(qs_env, &
-                      atomic_kind_set=atomic_kind_set, &
                       blacs_env=blacs_env, &
                       dft_control=dft_control, &
                       do_kpoints=do_kpoints, &
@@ -433,23 +430,21 @@ CONTAINS
                   CPABORT("Invalid spin")
                END SELECT
                IF (ASSOCIATED(umo_set)) THEN
-                  CALL write_mo_set_to_output_unit(mo_set, atomic_kind_set, qs_kind_set, particle_set, &
-                                                   dft_section, 4, kpoint, final_mos=final_mos, spin=TRIM(spin), &
-                                                   solver_method=solver_method, umo_set=umo_set)
+                  CALL write_mo_set_to_output_unit(mo_set, qs_kind_set, particle_set, dft_section, 4, kpoint, &
+                                                   final_mos=final_mos, spin=TRIM(spin), solver_method=solver_method, &
+                                                   umo_set=umo_set)
                ELSE
-                  CALL write_mo_set_to_output_unit(mo_set, atomic_kind_set, qs_kind_set, particle_set, &
-                                                   dft_section, 4, kpoint, final_mos=final_mos, spin=TRIM(spin), &
-                                                   solver_method=solver_method)
+                  CALL write_mo_set_to_output_unit(mo_set, qs_kind_set, particle_set, dft_section, 4, kpoint, &
+                                                   final_mos=final_mos, spin=TRIM(spin), solver_method=solver_method)
                END IF
             ELSE
                IF (ASSOCIATED(umo_set)) THEN
-                  CALL write_mo_set_to_output_unit(mo_set, atomic_kind_set, qs_kind_set, particle_set, &
-                                                   dft_section, 4, kpoint, final_mos=final_mos, &
-                                                   solver_method=solver_method, umo_set=umo_set)
+                  CALL write_mo_set_to_output_unit(mo_set, qs_kind_set, particle_set, dft_section, 4, kpoint, &
+                                                   final_mos=final_mos, solver_method=solver_method, &
+                                                   umo_set=umo_set)
                ELSE
-                  CALL write_mo_set_to_output_unit(mo_set, atomic_kind_set, qs_kind_set, particle_set, &
-                                                   dft_section, 4, kpoint, final_mos=final_mos, &
-                                                   solver_method=solver_method)
+                  CALL write_mo_set_to_output_unit(mo_set, qs_kind_set, particle_set, dft_section, 4, kpoint, &
+                                                   final_mos=final_mos, solver_method=solver_method)
                END IF
             END IF
 

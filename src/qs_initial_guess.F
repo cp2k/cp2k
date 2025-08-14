@@ -395,9 +395,11 @@ CONTAINS
                                       natoms, para_env, id_nr, dft_section, natom_mismatch)
             IF (natom_mismatch) density_guess = safe_density_guess
          ELSE
-            CALL read_mo_set_from_restart(mo_array, atomic_kind_set, qs_kind_set, particle_set, para_env, &
-                                          id_nr=id_nr, multiplicity=dft_control%multiplicity, dft_section=dft_section, &
-                                          natom_mismatch=natom_mismatch, out_unit=ounit)
+            CALL read_mo_set_from_restart(mo_array, qs_kind_set, particle_set, para_env, &
+                                          id_nr=id_nr, multiplicity=dft_control%multiplicity, &
+                                          dft_section=dft_section, &
+                                          natom_mismatch=natom_mismatch, &
+                                          out_unit=ounit)
 
             IF (natom_mismatch) THEN
                density_guess = safe_density_guess
@@ -469,7 +471,7 @@ CONTAINS
             END IF
             DO i = 1, last_read
                j = last_read - i
-               CALL read_mo_set_from_restart(mo_array, atomic_kind_set, qs_kind_set, particle_set, para_env, &
+               CALL read_mo_set_from_restart(mo_array, qs_kind_set, particle_set, para_env, &
                                              id_nr=j, multiplicity=dft_control%multiplicity, &
                                              dft_section=dft_section, out_unit=ounit)
 
