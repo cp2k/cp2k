@@ -2064,16 +2064,16 @@ CONTAINS
          IF (SIZE(mos) > 1) THEN
             SELECT CASE (isp)
             CASE (1)
-               CALL write_mo_set_to_output_unit(mos(isp), atomic_kind_set, qs_kind_set, particle_set, &
+               CALL write_mo_set_to_output_unit(mos(isp), qs_kind_set, particle_set, &
                                                 dft_section, 4, 0, final_mos=.TRUE., spin="ALPHA")
             CASE (2)
-               CALL write_mo_set_to_output_unit(mos(isp), atomic_kind_set, qs_kind_set, particle_set, &
+               CALL write_mo_set_to_output_unit(mos(isp), qs_kind_set, particle_set, &
                                                 dft_section, 4, 0, final_mos=.TRUE., spin="BETA")
             CASE DEFAULT
                CPABORT("Invalid spin")
             END SELECT
          ELSE
-            CALL write_mo_set_to_output_unit(mos(isp), atomic_kind_set, qs_kind_set, particle_set, &
+            CALL write_mo_set_to_output_unit(mos(isp), qs_kind_set, particle_set, &
                                              dft_section, 4, 0, final_mos=.TRUE.)
          END IF
 

@@ -20,9 +20,7 @@
 ! **************************************************************************************************
 MODULE qs_mo_io
 
-   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                              get_atomic_kind,&
-                                              get_atomic_kind_set
+   USE atomic_kind_types,               ONLY: get_atomic_kind
    USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                               gto_basis_set_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_binary_write,&
@@ -502,7 +500,6 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param mo_array ...
-!> \param atomic_kind_set ...
 !> \param qs_kind_set ...
 !> \param particle_set ...
 !> \param para_env ...
@@ -513,12 +510,11 @@ CONTAINS
 !> \param cdft ...
 !> \param out_unit ...
 ! **************************************************************************************************
-   SUBROUTINE read_mo_set_from_restart(mo_array, atomic_kind_set, qs_kind_set, particle_set, &
+   SUBROUTINE read_mo_set_from_restart(mo_array, qs_kind_set, particle_set, &
                                        para_env, id_nr, multiplicity, dft_section, natom_mismatch, &
                                        cdft, out_unit)
 
       TYPE(mo_set_type), DIMENSION(:), INTENT(INOUT)     :: mo_array
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(mp_para_env_type), POINTER                    :: para_env
@@ -589,8 +585,8 @@ CONTAINS
       ! CDFT has no real dft_section and does not need to print
       IF (.NOT. my_cdft) THEN
          DO ispin = 1, nspin
-            CALL write_mo_set_to_output_unit(mo_array(ispin), atomic_kind_set, qs_kind_set, &
-                                             particle_set, dft_section, 4, 0, final_mos=.FALSE.)
+            CALL write_mo_set_to_output_unit(mo_array(ispin), qs_kind_set, particle_set, &
+                                             dft_section, 4, 0, final_mos=.FALSE.)
          END DO
       END IF
 
@@ -602,7 +598,6 @@ CONTAINS
 !> \brief ...
 !> \param mo_array ...
 !> \param rt_mos ...
-!> \param atomic_kind_set ...
 !> \param qs_kind_set ...
 !> \param particle_set ...
 !> \param para_env ...
@@ -610,12 +605,10 @@ CONTAINS
 !> \param multiplicity ...
 !> \param dft_section ...
 ! **************************************************************************************************
-   SUBROUTINE read_rt_mos_from_restart(mo_array, rt_mos, atomic_kind_set, qs_kind_set, &
-                                       particle_set, para_env, id_nr, multiplicity, dft_section)
+   SUBROUTINE read_rt_mos_from_restart(mo_array, rt_mos, qs_kind_set, particle_set, para_env, id_nr, multiplicity, dft_section)
 
       TYPE(mo_set_type), DIMENSION(:), INTENT(INOUT)     :: mo_array
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: rt_mos
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(mp_para_env_type), POINTER                    :: para_env
@@ -666,8 +659,8 @@ CONTAINS
       IF (para_env%is_source()) CALL close_file(unit_number=restart_unit)
 
       DO ispin = 1, nspin
-         CALL write_mo_set_to_output_unit(mo_array(ispin), atomic_kind_set, qs_kind_set, &
-                                          particle_set, dft_section, 4, 0, final_mos=.FALSE.)
+         CALL write_mo_set_to_output_unit(mo_array(ispin), qs_kind_set, particle_set, &
+                                          dft_section, 4, 0, final_mos=.FALSE.)
       END DO
 
       CALL timestop(handle)
@@ -990,7 +983,6 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Write MO information to output file (eigenvalues, occupation numbers, coefficients)
 !> \param mo_set ...
-!> \param atomic_kind_set ...
 !> \param qs_kind_set ...
 !> \param particle_set ...
 !> \param dft_section ...
@@ -1013,12 +1005,11 @@ CONTAINS
 !> \author  Matthias Krack (MK)
 !> \version 1.1
 ! **************************************************************************************************
-   SUBROUTINE write_mo_set_to_output_unit(mo_set, atomic_kind_set, qs_kind_set, particle_set, &
+   SUBROUTINE write_mo_set_to_output_unit(mo_set, qs_kind_set, particle_set, &
                                           dft_section, before, kpoint, final_mos, spin, &
                                           solver_method, rtp, cpart, sim_step, umo_set)
 
       TYPE(mo_set_type), INTENT(IN)                      :: mo_set
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(section_vals_type), POINTER                   :: dft_section
@@ -1176,7 +1167,7 @@ CONTAINS
 
       IF (iw > 0) THEN
 
-         CALL get_atomic_kind_set(atomic_kind_set, natom=natom)
+         natom = SIZE(particle_set)
          CALL get_qs_kind_set(qs_kind_set, ncgf=ncgf, nsgf=nsgf)
 
          ! Definition of the variable formats

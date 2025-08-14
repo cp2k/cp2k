@@ -2103,8 +2103,7 @@ CONTAINS
                        TRIM(file_name)//". This file does not exist. Please check the existence of"// &
                        " the file or change properly the value of the keyword WFN_RESTART_FILE_NAME in"// &
                        " section FORCE_EVAL\MIXED\MIXED_CDFT.")
-      CALL read_mo_set_from_restart(mo_array=mo_set, atomic_kind_set=atomic_kind_set, &
-                                    qs_kind_set=mixed_cdft%qs_kind_set, particle_set=particle_set, &
+      CALL read_mo_set_from_restart(mo_array=mo_set, qs_kind_set=mixed_cdft%qs_kind_set, particle_set=particle_set, &
                                     para_env=force_env%para_env, id_nr=0, multiplicity=mixed_cdft%multiplicity, &
                                     dft_section=mixed_cdft_section, natom_mismatch=natom_mismatch, &
                                     cdft=.TRUE.)

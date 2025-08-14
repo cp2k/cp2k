@@ -305,8 +305,9 @@ CONTAINS
       dft_section => section_vals_get_subs_vals(input, "DFT")
       SELECT CASE (dft_control%rtp_control%initial_wfn)
       CASE (use_restart_wfn)
-         CALL read_mo_set_from_restart(mo_array, atomic_kind_set, qs_kind_set, particle_set, para_env, &
-                                       id_nr=id_nr, multiplicity=dft_control%multiplicity, dft_section=dft_section)
+         CALL read_mo_set_from_restart(mo_array, qs_kind_set, particle_set, para_env, &
+                                       id_nr=id_nr, multiplicity=dft_control%multiplicity, &
+                                       dft_section=dft_section)
          CALL set_uniform_occupation_mo_array(mo_array, nspin)
 
          IF (dft_control%rtp_control%apply_wfn_mix_init_restart) &
@@ -382,7 +383,7 @@ CONTAINS
             CALL calc_update_rho_sparse(qs_env)
          ELSE
             CALL get_rtp(rtp=rtp, mos_old=mos_old)
-            CALL read_rt_mos_from_restart(mo_array, mos_old, atomic_kind_set, qs_kind_set, particle_set, para_env, &
+            CALL read_rt_mos_from_restart(mo_array, mos_old, qs_kind_set, particle_set, para_env, &
                                           id_nr, dft_control%multiplicity, dft_section)
             CALL set_uniform_occupation_mo_array(mo_array, nspin)
             DO ispin = 1, nspin
@@ -701,8 +702,9 @@ CONTAINS
          !loop for real (odd) and imaginary (even) parts
          DO i = 1, 0, -1
             CALL cp_fm_to_fm(mos_new(2*ispin - i), mo_set_rtp%mo_coeff)
-            CALL write_mo_set_to_output_unit(mo_set_rtp, atomic_kind_set, qs_kind_set, particle_set, &
-                                          dft_section, 4, 0, rtp=.TRUE., spin=TRIM(spin), cpart=MOD(i, 2), sim_step=qs_env%sim_step)
+            CALL write_mo_set_to_output_unit(mo_set_rtp, qs_kind_set, particle_set, &
+                                             dft_section, 4, 0, rtp=.TRUE., spin=TRIM(spin), &
+                                             cpart=MOD(i, 2), sim_step=qs_env%sim_step)
          END DO
 
          CALL deallocate_mo_set(mo_set_rtp)
