@@ -17,4 +17,6 @@
 "LiF.inp"                               = [{matcher="M085", tol=1.0E-5, ref=-36.658529490345153}]
 "N2.inp"                                = [{matcher="M085", tol=1.0E-9, ref=-16.572137677057988}]
 "Fe-upf.inp"                            = [{matcher="M085", tol=1.0E-5, ref=-322.37407840130044}]
+"Au_GTH.inp"                            = [{matcher="M085", tol=1.0E-5, ref=-33.157343398225969}]
+"Au_GTH_SOC.inp"                        = [{matcher="M085", tol=1.0E-5, ref=-135.58863815223782}]
 #EOF

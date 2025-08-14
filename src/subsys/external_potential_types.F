@@ -682,6 +682,7 @@ CONTAINS
 !> \param zeff_correction ...
 !> \param ppl_present ...
 !> \param ppnl_present ...
+!> \param soc_present ...
 !> \param alpha_ppnl ...
 !> \param cexp_ppl ...
 !> \param elec_conf ...
@@ -716,7 +717,7 @@ CONTAINS
                                 core_charge_radius, ppl_radius, ppnl_radius, &
                                 lppnl, lprj_ppnl_max, nexp_ppl, nppnl, &
                                 nprj_ppnl_max, z, zeff, zeff_correction, &
-                                ppl_present, ppnl_present, &
+                                ppl_present, ppnl_present, soc_present, &
                                 alpha_ppnl, cexp_ppl, elec_conf, nprj_ppnl, cprj, &
                                 cprj_ppnl, vprj_ppnl, wprj_ppnl, hprj_ppnl, kprj_ppnl, &
                                 lpot_present, nexp_lpot, alpha_lpot, nct_lpot, cval_lpot, &
@@ -733,7 +734,7 @@ CONTAINS
       INTEGER, INTENT(OUT), OPTIONAL                     :: lppnl, lprj_ppnl_max, nexp_ppl, nppnl, &
                                                             nprj_ppnl_max, z
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: zeff, zeff_correction
-      LOGICAL, INTENT(OUT), OPTIONAL                     :: ppl_present, ppnl_present
+      LOGICAL, INTENT(OUT), OPTIONAL                     :: ppl_present, ppnl_present, soc_present
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: alpha_ppnl, cexp_ppl
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: elec_conf, nprj_ppnl
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: cprj, cprj_ppnl, vprj_ppnl, wprj_ppnl
@@ -766,6 +767,7 @@ CONTAINS
          core_charge_radius = potential%core_charge_radius
       IF (PRESENT(ppl_radius)) ppl_radius = potential%ppl_radius
       IF (PRESENT(ppnl_radius)) ppnl_radius = potential%ppnl_radius
+      IF (PRESENT(soc_present)) soc_present = potential%soc
       IF (PRESENT(lppnl)) lppnl = potential%lppnl
       IF (PRESENT(lprj_ppnl_max)) lprj_ppnl_max = potential%lprj_ppnl_max
       IF (PRESENT(nexp_ppl)) nexp_ppl = potential%nexp_ppl

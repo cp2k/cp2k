@@ -1104,11 +1104,12 @@ CONTAINS
                                                             nexp_nlcc
       INTEGER, DIMENSION(:), POINTER                     :: nct_lpot, nct_lsd, nct_nlcc, nppnl, &
                                                             ppeconf
-      LOGICAL                                            :: lpot_present, lsd_present, nlcc_present
+      LOGICAL                                            :: lpot_present, lsd_present, nlcc_present, &
+                                                            soc_present
       REAL(KIND=dp)                                      :: ac, zeff
       REAL(KIND=dp), DIMENSION(:), POINTER               :: alpha_lpot, alpha_lsd, alpha_nlcc, ap, ce
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: cval_lpot, cval_lsd, cval_nlcc
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: hp
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: hp, kp
 
       CALL get_potential(gth_potential, &
                          zeff=zeff, &
@@ -1119,6 +1120,7 @@ CONTAINS
                          lppnl=lm, &
                          nprj_ppnl=nppnl, &
                          alpha_ppnl=ap, &
+                         kprj_ppnl=kp, &
                          hprj_ppnl=hp)
 
       gth_atompot%zion = zeff
@@ -1186,6 +1188,17 @@ CONTAINS
          gth_atompot%rcnl(l) = SQRT(0.5_dp/ap(l))
          gth_atompot%hnl(1:n, 1:n, l) = hp(1:n, 1:n, l)
       END DO
+
+      ! SOC
+      CALL get_potential(gth_potential, soc_present=soc_present)
+      gth_atompot%soc = soc_present
+      gth_atompot%knl = 0.0_dp
+      IF (soc_present) THEN
+         DO l = 1, lm
+            n = nppnl(l)
+            gth_atompot%knl(1:n, 1:n, l) = kp(1:n, 1:n, l)
+         END DO
+      END IF
 
       IF (nlcc_present) THEN
          CALL get_potential(gth_potential, &

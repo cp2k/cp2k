@@ -688,6 +688,22 @@ CONTAINS
                END DO
             END IF
          END DO
+         IF (potential%gth_pot%soc) THEN
+            WRITE (iw, '(T10,A)') " Spin-orbit coupling parameters "
+            DO l = 1, lmat
+               IF (potential%gth_pot%nl(l) > 0) THEN
+                  WRITE (iw, '(T10,A,T76,I5)') " Angular momentum ", l
+                  WRITE (iw, '(T10,A,T66,F15.6)') " Rcnl ", potential%gth_pot%rcnl(l)
+                  WRITE (iw, '(T10,A,T76,I5)') " Nl ", potential%gth_pot%nl(l)
+                  WRITE (pline, '(5F12.6)') (potential%gth_pot%knl(1, j, l), j=1, potential%gth_pot%nl(l))
+                  WRITE (iw, '(T10,A,T21,A60)') " Hnl ", ADJUSTR(pline)
+                  DO i = 2, potential%gth_pot%nl(l)
+                     WRITE (pline, '(T21,5F12.6)') (potential%gth_pot%knl(i, j, l), j=i, potential%gth_pot%nl(l))
+                     WRITE (iw, '(T21,A60)') ADJUSTR(pline)
+                  END DO
+               END IF
+            END DO
+         END IF
       CASE (upf_pseudo)
          WRITE (iw, '(/," ",29("*"),A,29("*"))') " UPF Pseudopotential "
          DO k = 1, potential%upf_pot%maxinfo
@@ -803,6 +819,22 @@ CONTAINS
             END DO
          END SELECT
       END DO
+      IF (gthpot%soc) THEN
+         DO i = 1, n - 1
+            WRITE (iw, '(T29,5F20.14)') (gthpot%hnl(1, k, i), k=1, gthpot%nl(i))
+            SELECT CASE (gthpot%nl(i))
+            CASE (2)
+               WRITE (iw, '(T49,F20.14)') gthpot%knl(2, 2, i)
+            CASE (3)
+               WRITE (iw, '(T49,2F20.14)') gthpot%knl(2, 2, i), gthpot%knl(2, 3, i)
+               WRITE (iw, '(T69,F20.14)') gthpot%knl(3, 3, i)
+            CASE DEFAULT
+               DO j = 2, gthpot%nl(i)
+                  WRITE (iw, '(T29,5F20.14)') (gthpot%knl(j, k, i), k=j, gthpot%nl(i))
+               END DO
+            END SELECT
+         END DO
+      END IF
       IF (.NOT. PRESENT(iunit)) CALL close_file(unit_number=iw)
 
    END SUBROUTINE atom_write_pseudo_param

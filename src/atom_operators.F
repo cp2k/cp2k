@@ -376,6 +376,9 @@ CONTAINS
                   CALL sg_nuclear(integrals%core(1:n, 1:n, l), l, basis%am(1:n, l), basis%am(1:n, l))
                END DO
             CASE (gth_pseudo)
+               IF (potential%gth_pot%soc) THEN
+                  CPWARN("Atom code: GTH SOC is ignored")
+               END IF
                alpha = 1._dp/potential%gth_pot%rc/SQRT(2._dp)
                DO l = 0, lmat
                   n = integrals%n(l)
