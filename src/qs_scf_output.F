@@ -259,7 +259,7 @@ CONTAINS
          READ (tmpstringlist(2), *) occup_stats_occ_threshold
 
       logger => cp_get_default_logger()
-      print_mo_info = (cp_print_key_should_output(logger%iter_info, dft_section, "PRINT%MO") /= 0) .OR. final_mos
+      print_mo_info = (cp_print_key_should_output(logger%iter_info, dft_section, "PRINT%MO") /= 0)
 
       IF ((.NOT. print_mo_info) .OR. (.NOT. (print_eigvals .OR. print_eigvecs .OR. print_occup .OR. print_occup_stats))) THEN
          CALL timestop(handle)
@@ -338,7 +338,11 @@ CONTAINS
                   ! Retrieve the index of the last MO for which a printout is requested
                   mo_index_range => section_get_ivals(dft_section, "PRINT%MO%MO_INDEX_RANGE")
                   CPASSERT(ASSOCIATED(mo_index_range))
-                  numo = MIN(mo_index_range(2) - homo, nao - homo)
+                  IF (mo_index_range(2) == -1) THEN
+                     numo = nao - homo
+                  ELSE
+                     numo = MIN(mo_index_range(2) - homo, nao - homo)
+                  END IF
 
                   ! Calculate the unoccupied MO set (umo_set) with OT if needed
                   IF (numo > 0) THEN

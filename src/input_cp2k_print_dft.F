@@ -571,7 +571,8 @@ CONTAINS
                           name="MO_INDEX_RANGE", &
                           variants=s2a("MO_RANGE", "RANGE"), &
                           description="Print only the requested subset of MOs. The indices of the first and "// &
-                          "the last MO have to be specified to define the range.", &
+                          "the last MO have to be specified to define the range. -1 as the last MO index "// &
+                          "prints all available orbitals with diagonalisation (ADDED_MOS) and all orbitals with OT.", &
                           repeats=.FALSE., &
                           n_var=2, &
                           type_of_var=integer_t, &

@@ -1307,6 +1307,9 @@ CONTAINS
              (mo_index_range(2) >= mo_index_range(1))) THEN
             first_mo = MAX(1, mo_index_range(1))
             last_mo = MIN(nmo, mo_index_range(2))
+            IF (first_mo > nmo) THEN
+               CPWARN("The first MO index is larger than the number of MOs.")
+            END IF
          ELSE
             first_mo = 1
             last_mo = nmo
