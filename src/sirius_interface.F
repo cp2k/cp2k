@@ -130,8 +130,8 @@ CONTAINS
 
       CHARACTER(len=2)                                   :: element_symbol
       CHARACTER(len=default_string_length)               :: label
-      INTEGER                                            :: i, iatom, ibeta, ifun, ikind, iwf, j, l, &
-                                                            n, natom, nbeta, nkind, nmesh, &
+      INTEGER                                            :: i, ii, jj, iatom, ibeta, ifun, ikind, iwf, j, l, &
+                                                            n, ns, natom, nbeta, nbs, nkind, nmesh, &
                                                             num_mag_dims, sirius_mpi_comm, vdw_func, nu, lu, output_unit
       INTEGER, DIMENSION(:), POINTER                     :: mpi_grid_dims
       INTEGER(KIND=C_INT), DIMENSION(3)                  :: k_grid, k_shift
@@ -143,7 +143,7 @@ CONTAINS
       REAL(KIND=C_DOUBLE), DIMENSION(3)                  :: a1, a2, a3, v1, v2
       REAL(KIND=dp)                                      :: al, angle1, angle2, cval, focc, &
                                                             magnetization, mass, pf, rl, zeff, alpha_u, beta_u, &
-                                                            J0_u, J_u, U_u, occ_u, u_minus_J
+                                                            J0_u, J_u, U_u, occ_u, u_minus_J, vnlp, vnlm
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: beta, corden, ef, fe, locpot, rc, rp
       REAL(KIND=dp), DIMENSION(3)                        :: vr, vs, j_t
       REAL(KIND=dp), DIMENSION(:), POINTER               :: density
@@ -368,8 +368,8 @@ CONTAINS
                   fun(1:nmesh) = beta(1:nmesh)*rp(1:nmesh)
                   CALL sirius_add_atom_type_radial_function(sctx, label, &
                                                             "beta", fun(1), nmesh, l=l)
-                  ! we double the number of beta projectors for SO
-                  IF (gth_atompot%soc) THEN
+                  ! we double the number of beta projectors for SO and l>0
+                  IF (gth_atompot%soc .AND. l /= 0) THEN
                      CALL sirius_add_atom_type_radial_function(sctx, label, &
                                                                "beta", fun(1), nmesh, l=-l)
                   END IF
@@ -380,31 +380,40 @@ CONTAINS
 
 ! nonlocal PP matrix elements
             IF (gth_atompot%soc) THEN
-               ALLOCATE (dion(2*nbeta, 2*nbeta))
+               nbs = 2*nbeta - gth_atompot%nl(0)
+               ALLOCATE (dion(nbs, nbs))
             ELSE
                ALLOCATE (dion(nbeta, nbeta))
             END IF
             dion = 0.0_dp
-            DO l = 0, 3
-               IF (gth_atompot%nl(l) == 0) CYCLE
-               ibeta = SUM(gth_atompot%nl(0:l - 1)) + 1
-               i = ibeta + gth_atompot%nl(l) - 1
-               dion(ibeta:i, ibeta:i) = gth_atompot%hnl(1:gth_atompot%nl(l), 1:gth_atompot%nl(l), l)
-            END DO
-
-! nonlocal PP matrix elements for SOC
             IF (gth_atompot%soc) THEN
-               ! same as nonlocal PP but knl instead of hnl
-               ! Dion = {[hnl 0]
-               !          [0, knl])
+               ns = gth_atompot%nl(0)
+               IF (ns /= 0) THEN
+                  dion(1:ns, 1:ns) = gth_atompot%hnl(1:ns, 1:ns, 0)
+               END IF
+               DO l = 1, 3
+                  IF (gth_atompot%nl(l) == 0) CYCLE
+                  DO i = 1, gth_atompot%nl(l)
+                     ii = ns + 2*SUM(gth_atompot%nl(1:l - 1))
+                     ii = ii + 2*(i - 1) + 1
+                     DO j = 1, gth_atompot%nl(l)
+                        jj = ns + 2*SUM(gth_atompot%nl(1:l - 1))
+                        jj = jj + 2*(j - 1) + 1
+                        vnlp = gth_atompot%hnl(i, j, l) + 0.5_dp*l*gth_atompot%knl(i, j, l)
+                        vnlm = gth_atompot%hnl(i, j, l) - 0.5_dp*(l + 1)*gth_atompot%knl(i, j, l)
+                        dion(ii, jj) = vnlp
+                        dion(ii + 1, jj + 1) = vnlm
+                     END DO
+                  END DO
+               END DO
+               CALL sirius_set_atom_type_dion(sctx, label, nbs, dion(1, 1))
+            ELSE
                DO l = 0, 3
                   IF (gth_atompot%nl(l) == 0) CYCLE
-                  ibeta = SUM(gth_atompot%nl(0:l - 1)) + 1 + nbeta
+                  ibeta = SUM(gth_atompot%nl(0:l - 1)) + 1
                   i = ibeta + gth_atompot%nl(l) - 1
-                  dion(ibeta:i, ibeta:i) = gth_atompot%knl(1:gth_atompot%nl(l), 1:gth_atompot%nl(l), l)
+                  dion(ibeta:i, ibeta:i) = gth_atompot%hnl(1:gth_atompot%nl(l), 1:gth_atompot%nl(l), l)
                END DO
-               CALL sirius_set_atom_type_dion(sctx, label, 2*nbeta, dion(1, 1))
-            ELSE
                CALL sirius_set_atom_type_dion(sctx, label, nbeta, dion(1, 1))
             END IF
 

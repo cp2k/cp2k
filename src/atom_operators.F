@@ -377,7 +377,7 @@ CONTAINS
                END DO
             CASE (gth_pseudo)
                IF (potential%gth_pot%soc) THEN
-                  CPWARN("GTH SOC ignored")
+                  CPWARN("Atom code: GTH SOC is ignored")
                END IF
                alpha = 1._dp/potential%gth_pot%rc/SQRT(2._dp)
                DO l = 0, lmat
