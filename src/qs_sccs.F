@@ -129,9 +129,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'sccs'
       REAL(KIND=dp), PARAMETER                           :: epstol = 1.0E-8_dp
 
-      CHARACTER(LEN=4*default_string_length)             :: message
-      CHARACTER(LEN=default_path_length)                 :: mpi_filename
-      CHARACTER(LEN=default_string_length)               :: cube_path, filename, my_pos_cube, &
+      CHARACTER(LEN=4*default_string_length)             :: message, my_pos_cube
+      CHARACTER(LEN=default_path_length)                 :: cube_path, filename, mpi_filename, &
                                                             print_path
       INTEGER                                            :: cube_unit, handle, i, ispin, iter, j, k, &
                                                             nspin, output_unit, print_level

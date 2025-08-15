@@ -432,7 +432,7 @@ CONTAINS
       lp = LEN_TRIM(replica_proj_name)
       CALL section_vals_val_set(root_section, "GLOBAL%PROJECT_NAME", &
                                 c_val=TRIM(replica_proj_name))
-      logger%iter_info%project_name = replica_proj_name
+      logger%iter_info%project_name = TRIM(replica_proj_name)
 
       ! We change the file on which is pointing the global logger and error
       output_file_path = replica_proj_name(1:lp)//".out"

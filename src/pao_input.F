@@ -214,7 +214,7 @@ CONTAINS
 ! **************************************************************************************************
    FUNCTION id2str(id) RESULT(s)
       INTEGER                                            :: id
-      CHARACTER(LEN=11)                                  :: s
+      CHARACTER(LEN=20)                                  :: s
 
       SELECT CASE (id)
       CASE (pao_gth_param)

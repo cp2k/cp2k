@@ -626,7 +626,7 @@ CONTAINS
       CALL timeset(TRIM(routineN)//"_1", handle2)
       DO iatom = 1, natom
          list(iatom) = iatom
-         upper_sym_1 = id2str(atom_info%id_element(iatom))
+         upper_sym_1 = TRIM(id2str(atom_info%id_element(iatom)))
          IF (topology%bondparm_type == do_bondparm_covalent) THEN
             CALL get_ptable_info(symbol=upper_sym_1, covalent_radius=radius(iatom))
          ELSE IF (topology%bondparm_type == do_bondparm_vdw) THEN
@@ -1893,7 +1893,7 @@ CONTAINS
                ! Problematic cases::
                ! Nitrogen
                accept_impr = .TRUE.
-               atm_symbol = id2str(atom_info%id_element(i))
+               atm_symbol = TRIM(id2str(atom_info%id_element(i)))
                CALL uppercase(atm_symbol)
                IF (atm_symbol == "N ") THEN
                   accept_impr = .FALSE.

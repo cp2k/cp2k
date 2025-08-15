@@ -2128,7 +2128,7 @@ CONTAINS
          DO iatom = 1, bs_env%n_atom
             CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind, &
                                  kind_number=i_kind, name=atom_name)
-            elements(i_kind) = atom_name
+            elements(i_kind) = atom_name(1:3)
          END DO
 
          WRITE (output_string, "(A,I1,A)") "(", n_A, "A)"

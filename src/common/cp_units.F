@@ -30,8 +30,7 @@
 MODULE cp_units
 
    USE cp_log_handling,                 ONLY: cp_to_string
-   USE kinds,                           ONLY: default_string_length,&
-                                              dp
+   USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: radians,&
                                               twopi
    USE physcon,                         ONLY: &
@@ -163,8 +162,8 @@ CONTAINS
       TYPE(cp_unit_type), INTENT(OUT)                    :: unit
       CHARACTER(len=*), INTENT(in)                       :: string
 
-      CHARACTER(default_string_length)                   :: desc
       CHARACTER(LEN=40)                                  :: formatstr
+      CHARACTER(LEN=cp_unit_desc_length)                 :: desc
       CHARACTER(LEN=LEN(string))                         :: unit_string
       INTEGER                                            :: i_high, i_low, i_unit, len_string, &
                                                             next_power
@@ -1228,7 +1227,7 @@ CONTAINS
       TYPE(cp_unit_set_type), INTENT(OUT)                :: unit_set
       CHARACTER(len=*), INTENT(in)                       :: name
 
-      CHARACTER(len=default_string_length)               :: my_name
+      CHARACTER(len=cp_unit_desc_length)                 :: my_name
       INTEGER                                            :: i
 
       my_name = name

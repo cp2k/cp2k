@@ -70,7 +70,8 @@ MODULE gw_utils
                                               section_vals_type,&
                                               section_vals_val_get,&
                                               section_vals_val_set
-   USE kinds,                           ONLY: default_string_length,&
+   USE kinds,                           ONLY: default_path_length,&
+                                              default_string_length,&
                                               dp,&
                                               int_8
    USE kpoint_methods,                  ONLY: kpoint_init_cell_index
@@ -1189,8 +1190,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'check_for_restart_files'
 
       CHARACTER(LEN=9)                                   :: frmt
-      CHARACTER(LEN=default_string_length)               :: f_chi, f_S_n, f_S_p, f_S_x, f_W_t, &
-                                                            prefix, project_name
+      CHARACTER(LEN=default_path_length)                 :: project_name
+      CHARACTER(LEN=default_string_length)               :: f_chi, f_S_n, f_S_p, f_S_x, f_W_t, prefix
       INTEGER                                            :: handle, i_spin, i_t_or_w, ind, n_spin, &
                                                             num_time_freq_points
       LOGICAL                                            :: chi_exists, Sigma_neg_time_exists, &

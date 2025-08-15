@@ -23,7 +23,7 @@ MODULE string_utilities
 
    PRIVATE
 
-   CHARACTER(LEN=1), PARAMETER :: backslash = '\\'
+   CHARACTER(LEN=1), PARAMETER :: backslash = ACHAR(92)
    CHARACTER(LEN=1), PARAMETER :: star = '*'
    CHARACTER(LEN=1), PARAMETER :: question = '?'
    CHARACTER(LEN=1), PARAMETER :: newline = ACHAR(10)

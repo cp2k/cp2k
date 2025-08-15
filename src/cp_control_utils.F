@@ -2365,12 +2365,12 @@ CONTAINS
       NULLIFY (enum, keyword)
       keyword => section_get_keyword(qs_section, "METHOD")
       CALL keyword_get(keyword, enum=enum)
-      method = enum_i2c(enum, qs_control%method_id)
+      method = TRIM(enum_i2c(enum, qs_control%method_id))
 
       NULLIFY (enum, keyword)
       keyword => section_get_keyword(qs_section, "QUADRATURE")
       CALL keyword_get(keyword, enum=enum)
-      quadrature = enum_i2c(enum, qs_control%gapw_control%quadrature)
+      quadrature = TRIM(enum_i2c(enum, qs_control%gapw_control%quadrature))
 
       output_unit = cp_print_key_unit_nr(logger, print_section_vals, &
                                          "DFT_CONTROL_PARAMETERS", extension=".Log")

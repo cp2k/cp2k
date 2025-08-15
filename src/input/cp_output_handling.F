@@ -758,8 +758,8 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: my_local
       CHARACTER(len=default_path_length)                 :: filename
 
-      CHARACTER(len=default_path_length)                 :: outPath, postfix, root
-      CHARACTER(len=default_string_length)               :: my_middle_name, outName
+      CHARACTER(len=default_path_length)                 :: outName, outPath, postfix, root
+      CHARACTER(len=default_string_length)               :: my_middle_name
       INTEGER                                            :: my_ind1, my_ind2
       LOGICAL                                            :: has_root
 

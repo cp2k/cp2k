@@ -656,9 +656,9 @@ PROGRAM graph
          ncount = ncount + 1
          WRITE (iw, '("FES|",T7,a13,i5," |-| Gaussians from ",i6," to",i6)') "Done frame ::", ncount, nh, nf
          IF (l_fes_int) THEN
-            out3 = out2//"."
+            out3 = TRIM(out2)//"."
          ELSE
-            out3 = out1//"."
+            out3 = TRIM(out1)//"."
          END IF
 
          IF (ncount < 10) THEN

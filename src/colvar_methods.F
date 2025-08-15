@@ -1273,7 +1273,7 @@ CONTAINS
             CALL create_colvar_xyz_d_section(section)
             keyword => section_get_keyword(section, "COMPONENT")
             CALL keyword_get(keyword, enum=enum)
-            tag_comp = enum_i2c(enum, colvar%xyz_diag_param%component)
+            tag_comp = TRIM(enum_i2c(enum, colvar%xyz_diag_param%component))
             CALL section_release(section)
 
             WRITE (iw, '( A,T57,3I8)') ' COLVARS| POSITION ('//TRIM(tag_comp) &
@@ -1283,10 +1283,10 @@ CONTAINS
             CALL create_colvar_xyz_od_section(section)
             keyword => section_get_keyword(section, "COMPONENT_A")
             CALL keyword_get(keyword, enum=enum)
-            tag_comp1 = enum_i2c(enum, colvar%xyz_outerdiag_param%components(1))
+            tag_comp1 = TRIM(enum_i2c(enum, colvar%xyz_outerdiag_param%components(1)))
             keyword => section_get_keyword(section, "COMPONENT_B")
             CALL keyword_get(keyword, enum=enum)
-            tag_comp2 = enum_i2c(enum, colvar%xyz_outerdiag_param%components(2))
+            tag_comp2 = TRIM(enum_i2c(enum, colvar%xyz_outerdiag_param%components(2)))
             CALL section_release(section)
 
             WRITE (iw, '( A,T57,3I8)') ' COLVARS| CROSS TERM POSITION ('//TRIM(tag_comp1) &
