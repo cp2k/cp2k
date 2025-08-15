@@ -13,7 +13,8 @@ MODULE qs_dispersion_types
 
    USE eeq_input,                       ONLY: eeq_solver_type
    USE input_section_types,             ONLY: section_vals_type
-   USE kinds,                           ONLY: default_string_length,&
+   USE kinds,                           ONLY: default_path_length,&
+                                              default_string_length,&
                                               dp
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type,&
                                               release_neighbor_list_sets
@@ -42,8 +43,8 @@ MODULE qs_dispersion_types
       REAL(KIND=dp)                          :: exp_pre = -1.0_dp
       TYPE(section_vals_type), POINTER       :: dftd_section => NULL()
       LOGICAL                                :: verbose = .FALSE. !extended output
-      CHARACTER(LEN=default_string_length)   :: parameter_file_name = ""
-      CHARACTER(LEN=default_string_length)   :: kernel_file_name = ""
+      CHARACTER(LEN=default_path_length)     :: parameter_file_name = ""
+      CHARACTER(LEN=default_path_length)     :: kernel_file_name = ""
       !charges
       LOGICAL                                :: ext_charges = .FALSE.
       REAL(KIND=dp), DIMENSION(:), POINTER   :: charges => NULL() !charges for D4

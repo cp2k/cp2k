@@ -14,6 +14,7 @@
 MODULE input_keyword_types
    USE cp_units,                        ONLY: cp_unit_create,&
                                               cp_unit_desc,&
+                                              cp_unit_desc_length,&
                                               cp_unit_release,&
                                               cp_unit_type
    USE input_enumeration_types,         ONLY: enum_create,&
@@ -514,7 +515,7 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
       INTEGER, INTENT(in)                                :: unit_nr, level
 
-      CHARACTER(len=default_string_length)               :: c_string
+      CHARACTER(len=cp_unit_desc_length)                 :: c_string
       INTEGER                                            :: i, l
 
       CPASSERT(ASSOCIATED(keyword))

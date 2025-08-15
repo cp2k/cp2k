@@ -974,7 +974,7 @@ CONTAINS
          END DO
          ! If name didn't match let's try with the element
          IF (.NOT. user_defined) THEN
-            upper_sym_1 = id2str(atom_info%id_element(iatom))
+            upper_sym_1 = TRIM(id2str(atom_info%id_element(iatom)))
             CALL get_ptable_info(symbol=upper_sym_1, ielement=ielem_found, amass=atom_info%atm_mass(iatom))
          END IF
          IF (iw > 0) WRITE (iw, '(7X,A,A5,A,F12.5)') "In topology_set_atm_mass :: element = ", &

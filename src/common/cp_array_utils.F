@@ -190,7 +190,7 @@ CONTAINS
          INTEGER :: iostat, i
          CHARACTER(len=*), PARAMETER :: defaultFormat = ${defaultFormatType1}$
          CHARACTER(len=200) :: fmtstr
-         CHARACTER(len=10) :: nRiga
+         CHARACTER(len=25) :: nRiga
 
          nRiga = cp_to_string(SIZE(array, 2))
          DO i = 1, SIZE(array, 1)

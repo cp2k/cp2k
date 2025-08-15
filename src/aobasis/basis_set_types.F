@@ -339,7 +339,10 @@ CONTAINS
          lm = MIN(lm, lmax)
       END IF
 
-      pbasis%name = basis_set%name//"_primitive"
+      IF (LEN_TRIM(basis_set%name) + 10 > default_string_length) THEN
+         CPWARN("The name of the primitive basis set will be truncated.")
+      END IF
+      pbasis%name = TRIM(basis_set%name)//"_primitive"
       pbasis%kind_radius = basis_set%kind_radius
       pbasis%short_kind_radius = basis_set%short_kind_radius
       pbasis%norm_type = basis_set%norm_type
@@ -467,7 +470,10 @@ CONTAINS
                                                             maxshell, nc, ncgf, ncgfn, ncgfo, ns, &
                                                             nset, nsetn, nseto, nsgf, nsgfn, nsgfo
 
-      basis_set%name = basis_set%name//basis_set_add%name
+      IF (LEN_TRIM(basis_set%name) + LEN_TRIM(basis_set_add%name) > default_string_length) THEN
+         CPWARN("The name of the combined GTO basis set will be truncated.")
+      END IF
+      basis_set%name = TRIM(basis_set%name)//TRIM(basis_set_add%name)
       basis_set%nset = basis_set%nset + basis_set_add%nset
       basis_set%ncgf = basis_set%ncgf + basis_set_add%ncgf
       basis_set%nsgf = basis_set%nsgf + basis_set_add%nsgf

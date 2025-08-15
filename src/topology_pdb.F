@@ -286,8 +286,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'write_coordinate_pdb'
 
       CHARACTER(LEN=120)                                 :: line
-      CHARACTER(LEN=default_string_length)               :: my_tag1, my_tag2, my_tag3, my_tag4, &
-                                                            record
+      CHARACTER(LEN=default_path_length)                 :: record
+      CHARACTER(LEN=default_string_length)               :: my_tag1, my_tag2, my_tag3, my_tag4
       INTEGER                                            :: handle, i, id1, id2, idres, iw, natom
       LOGICAL                                            :: charge_beta, charge_extended, &
                                                             charge_occup, ldum

@@ -74,6 +74,7 @@ MODULE mixed_cdft_utils
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: default_path_length,&
+                                              default_string_length,&
                                               dp
    USE message_passing,                 ONLY: mp_request_type,&
                                               mp_waitall
@@ -112,7 +113,7 @@ MODULE mixed_cdft_utils
    IMPLICIT NONE
    PRIVATE
 
-! *** Public subroutines ***
+   ! Public subroutines
 
    PUBLIC :: mixed_cdft_parse_settings, mixed_cdft_transfer_settings, &
              mixed_cdft_init_structures, mixed_cdft_redistribute_arrays, &
@@ -972,7 +973,10 @@ CONTAINS
                CALL cp_logger_set(mixed_cdft%sub_logger(i)%p, &
                                   local_filename=TRIM(c_val)//"_localLog")
             END IF
-            mixed_cdft%sub_logger(i)%p%iter_info%project_name = c_val
+            IF (LEN_TRIM(c_val) > default_string_length) THEN
+               CPWARN("The mixed CDFT project name will be truncated.")
+            END IF
+            mixed_cdft%sub_logger(i)%p%iter_info%project_name = TRIM(c_val)
             CALL section_vals_val_get(root_section, "GLOBAL%PRINT_LEVEL", &
                                       i_val=mixed_cdft%sub_logger(i)%p%iter_info%print_level)
          END DO

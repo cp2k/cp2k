@@ -34,7 +34,7 @@ MODULE qs_chargemol
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
-   USE kinds,                           ONLY: default_string_length,&
+   USE kinds,                           ONLY: default_path_length,&
                                               dp
    USE kpoint_types,                    ONLY: kpoint_type
    USE machine,                         ONLY: m_datum
@@ -86,7 +86,7 @@ CONTAINS
       CHARACTER(len=20), ALLOCATABLE, DIMENSION(:)       :: atom_symbols
       CHARACTER(LEN=256)                                 :: datx
       CHARACTER(LEN=6), DIMENSION(:), POINTER            :: bsgf_symbol
-      CHARACTER(len=default_string_length)               :: filename
+      CHARACTER(LEN=default_path_length)                 :: filename
       INTEGER :: handle, i, iatom, icgf, ico, ikind, iloop, imo, ipgf, irow, iset, isgf, ishell, &
          ispin, iwfx, lshell, max_l, ncgf, ncol_global, nelec_alpha, nelec_beta, nkpoint, noccup, &
          nrow_global, nset, nsgf, nspins, num_atoms, output_unit, roks_high, roks_low, tot_npgf

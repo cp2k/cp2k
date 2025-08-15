@@ -44,7 +44,8 @@ MODULE qs_dispersion_pairpot
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
-   USE kinds,                           ONLY: default_string_length,&
+   USE kinds,                           ONLY: default_path_length,&
+                                              default_string_length,&
                                               dp
    USE message_passing,                 ONLY: mp_para_env_type
    USE physcon,                         ONLY: bohr,&
@@ -104,7 +105,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_dispersion_pairpot_init'
 
       CHARACTER(LEN=2)                                   :: symbol
-      CHARACTER(LEN=default_string_length)               :: aname, filename
+      CHARACTER(LEN=default_path_length)                 :: filename
+      CHARACTER(LEN=default_string_length)               :: aname
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: tmpstringlist
       INTEGER                                            :: elem, handle, i, ikind, j, max_elem, &

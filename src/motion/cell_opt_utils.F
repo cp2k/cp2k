@@ -122,7 +122,7 @@ CONTAINS
       IF (c_val /= "") THEN
          CALL cp_logger_set(new_logger, local_filename=TRIM(c_val)//"_localLog")
       END IF
-      new_logger%iter_info%project_name = c_val
+      new_logger%iter_info%project_name = TRIM(c_val)
       CALL section_vals_val_get(root_section, "GLOBAL%PRINT_LEVEL", &
                                 i_val=new_logger%iter_info%print_level)
 

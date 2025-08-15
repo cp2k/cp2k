@@ -97,7 +97,7 @@ CONTAINS
       IF (do_tip_scan) THEN
          iounit = cp_logger_get_default_io_unit(logger)
          cname = logger%iter_info%project_name
-         logger%iter_info%project_name = logger%iter_info%project_name//"+TIP_SCAN"
+         logger%iter_info%project_name = TRIM(logger%iter_info%project_name)//"+TIP_SCAN"
          plevel = logger%iter_info%print_level
          logger%iter_info%print_level = silent_print_level
 

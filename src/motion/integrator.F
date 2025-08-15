@@ -1581,7 +1581,7 @@ CONTAINS
             element_symbol, particle_set(i)%r
          CALL uppercase(element_symbol)
          element_symbol_ref0 = particle_set(i)%atomic_kind%element_symbol
-         element_kind_ref0 = particle_set(i)%atomic_kind%name
+         element_kind_ref0 = particle_set(i)%atomic_kind%name(1:2)
          CALL uppercase(element_symbol_ref0)
          CALL uppercase(element_kind_ref0)
          IF (element_symbol /= element_symbol_ref0) THEN
@@ -1603,7 +1603,7 @@ CONTAINS
       READ (UNIT=reftraj_env%info%traj_parser%input_line, FMT=*) element_symbol, particle_set(i)%r
       CALL uppercase(element_symbol)
       element_symbol_ref0 = particle_set(i)%atomic_kind%element_symbol
-      element_kind_ref0 = particle_set(i)%atomic_kind%name
+      element_kind_ref0 = particle_set(i)%atomic_kind%name(1:2)
       CALL uppercase(element_symbol_ref0)
       CALL uppercase(element_kind_ref0)
       IF (element_symbol /= element_symbol_ref0) THEN

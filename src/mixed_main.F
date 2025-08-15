@@ -19,7 +19,8 @@ MODULE mixed_main
    USE cp_output_handling,              ONLY: cp_print_key_unit_nr
    USE input_section_types,             ONLY: section_vals_type,&
                                               section_vals_val_get
-   USE kinds,                           ONLY: default_path_length
+   USE kinds,                           ONLY: default_path_length,&
+                                              default_string_length
    USE message_passing,                 ONLY: mp_para_env_type
    USE mixed_environment,               ONLY: mixed_init
    USE mixed_environment_types,         ONLY: mixed_env_create,&
@@ -30,7 +31,7 @@ MODULE mixed_main
 
    PRIVATE
 
-! *** Global parameters ***
+   ! Global parameters
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mixed_main'
 
    PUBLIC :: mixed_create_force_env
@@ -155,11 +156,14 @@ CONTAINS
          CALL cp_logger_set(mixed_env%sub_logger(i)%p, &
                             local_filename=TRIM(c_val)//"_localLog")
       END IF
-      mixed_env%sub_logger(i)%p%iter_info%project_name = c_val
+      IF (LEN_TRIM(c_val) > default_string_length) THEN
+         CPWARN("The project name will be truncated.")
+      END IF
+      mixed_env%sub_logger(i)%p%iter_info%project_name = TRIM(c_val)
       CALL section_vals_val_get(root_section, "GLOBAL%PRINT_LEVEL", &
                                 i_val=mixed_env%sub_logger(i)%p%iter_info%print_level)
 
-      ! *** initializations for the setup of the MIXED environment ***
+      ! Initializations for the setup of the MIXED environment
       CALL mixed_init(mixed_env, root_section, para_env, force_env_section, &
                       use_motion_section)
       CALL timestop(handle)

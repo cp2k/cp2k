@@ -289,11 +289,12 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'write_trajectory'
 
+      CHARACTER(LEN=2*default_string_length)             :: remark1
       CHARACTER(LEN=4)                                   :: id_dcd
       CHARACTER(LEN=default_string_length)               :: id_label, id_wpc, my_act, my_ext, &
                                                             my_form, my_middle, my_pk_name, &
-                                                            my_pos, remark1, remark2, section_ref, &
-                                                            title, unit_str
+                                                            my_pos, remark2, section_ref, title, &
+                                                            unit_str
       INTEGER                                            :: handle, i, ii, iskip, nat, outformat, &
                                                             traj_unit
       INTEGER, POINTER                                   :: force_mixing_indices(:), &

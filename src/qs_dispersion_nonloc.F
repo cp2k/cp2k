@@ -27,7 +27,7 @@ MODULE qs_dispersion_nonloc
                                               vdw_nl_LMKLL,&
                                               vdw_nl_RVV10,&
                                               xc_vdw_fun_nonloc
-   USE kinds,                           ONLY: default_string_length,&
+   USE kinds,                           ONLY: default_path_length,&
                                               dp
    USE mathconstants,                   ONLY: pi,&
                                               rootpi
@@ -69,7 +69,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_dispersion_nonloc_init'
 
-      CHARACTER(LEN=default_string_length)               :: filename
+      CHARACTER(LEN=default_path_length)                 :: filename
       INTEGER                                            :: funit, handle, nqs, nr_points, q1_i, &
                                                             q2_i, vdw_type
 

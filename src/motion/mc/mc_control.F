@@ -176,10 +176,10 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'read_mc_restart'
 
-      CHARACTER(5), ALLOCATABLE, DIMENSION(:)            :: atom_symbols
       CHARACTER(default_string_length), &
          DIMENSION(:, :), POINTER                        :: atom_names
       CHARACTER(LEN=20)                                  :: ensemble, mc_ensemble
+      CHARACTER(LEN=5), ALLOCATABLE, DIMENSION(:)        :: atom_symbols
       CHARACTER(LEN=default_path_length)                 :: dat_file, restart_file_name
       INTEGER                                            :: handle, i, ipart, iunit, nmol_types, &
                                                             nstart, nunits_tot, print_level, &
@@ -287,7 +287,10 @@ CONTAINS
 
          DO iunit = 1, nunits(1)
             r(1:3, iunit) = (/REAL(iunit, dp), REAL(iunit, dp), REAL(iunit, dp)/)
-            atom_symbols(iunit) = atom_names(iunit, 1)
+            IF (LEN_TRIM(atom_names(iunit, 1)) > LEN(atom_symbols(iunit))) THEN
+               CPWARN("The atom symbol will be truncated.")
+            END IF
+            atom_symbols(iunit) = TRIM(atom_names(iunit, 1))
          END DO
 
          IF (ionode) THEN

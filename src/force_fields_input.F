@@ -1592,8 +1592,11 @@ CONTAINS
          CALL uppercase(nonbonded%pot(start + isec)%pot%at2)
 
          CALL section_vals_val_get(section, "METALS", i_rep_section=isec, c_vals=atm_names)
-         nonbonded%pot(start + isec)%pot%set(1)%gal%met1 = atm_names(1)
-         nonbonded%pot(start + isec)%pot%set(1)%gal%met2 = atm_names(2)
+         IF (ANY(LEN_TRIM(atm_names(:)) > 2)) THEN
+            CPWARN("The atom name will be truncated.")
+         END IF
+         nonbonded%pot(start + isec)%pot%set(1)%gal%met1 = TRIM(atm_names(1))
+         nonbonded%pot(start + isec)%pot%set(1)%gal%met2 = TRIM(atm_names(2))
 
          CALL section_vals_val_get(gal_section, "epsilon", i_rep_section=isec, &
                                    r_val=nonbonded%pot(start + isec)%pot%set(1)%gal%epsilon)
@@ -1682,8 +1685,11 @@ CONTAINS
          CALL uppercase(nonbonded%pot(start + isec)%pot%at2)
 
          CALL section_vals_val_get(section, "METALS", i_rep_section=isec, c_vals=atm_names)
-         nonbonded%pot(start + isec)%pot%set(1)%gal21%met1 = atm_names(1)
-         nonbonded%pot(start + isec)%pot%set(1)%gal21%met2 = atm_names(2)
+         IF (ANY(LEN_TRIM(atm_names(:)) > 2)) THEN
+            CPWARN("The atom name will be truncated.")
+         END IF
+         nonbonded%pot(start + isec)%pot%set(1)%gal21%met1 = TRIM(atm_names(1))
+         nonbonded%pot(start + isec)%pot%set(1)%gal21%met2 = TRIM(atm_names(2))
 
          CALL section_vals_val_get(gal21_section, "epsilon", i_rep_section=isec, r_vals=rvalues)
          nonbonded%pot(start + isec)%pot%set(1)%gal21%epsilon1 = rvalues(1)
@@ -2518,7 +2524,7 @@ CONTAINS
    SUBROUTINE read_nequip_data(nequip)
       TYPE(nequip_pot_type)                              :: nequip
 
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'read_nequip_data'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'read_nequip_data'
       CHARACTER(LEN=1), PARAMETER                        :: delimiter = ' '
 
       CHARACTER(LEN=100), ALLOCATABLE, DIMENSION(:)      :: tokenized_string
