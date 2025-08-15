@@ -1504,16 +1504,16 @@ if(CP2K_USE_CUDA
 
   if(CP2K_ENABLE_DBM_GPU)
     if(CP2K_USE_OPENCL)
-      # DBM-kernel: OpenCL code is packaged into string-literal (include file)
-      add_custom_target(
-        CP2K_DBM_OPENCL_TARGET ALL
+      add_custom_command(
         COMMAND
-          ${CP2K_OPENCL_TOOLDIR}/acc_opencl.sh -b 6 -p \"\"
+          # generate header file with OpenCL code as string-literal
+          ${CP2K_OPENCL_SCRIPT} -b 6 -p \"\"
           ${CMAKE_CURRENT_SOURCE_DIR}/${CP2K_DBM_SRCS_OPENCL}
           ${CMAKE_CURRENT_SOURCE_DIR}/${CP2K_DBM_SRCS_OPENCL}.h
-        DEPENDS ${CP2K_OPENCL_TOOLDIR}/acc_opencl.sh ${CP2K_OPENCL_COMMON}
+        DEPENDS ${CP2K_OPENCL_SCRIPT} ${CP2K_OPENCL_COMMON}
                 ${CMAKE_CURRENT_SOURCE_DIR}/${CP2K_DBM_SRCS_OPENCL}
-        BYPRODUCTS ${CMAKE_CURRENT_SOURCE_DIR}/${CP2K_DBM_SRCS_OPENCL}.h)
+        OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/${CP2K_DBM_SRCS_OPENCL}.h
+        COMMENT "Generating OpenCL kernel for DBM")
     endif()
     list(APPEND CP2K_DBM_SRCS_C ${CP2K_DBM_SRCS_GPU_C})
     list(APPEND CP2K_SRCS_GPU ${CP2K_DBM_SRCS_GPU})
@@ -1660,7 +1660,8 @@ elseif(CP2K_USE_ACCEL MATCHES "HIP")
   set_property(TARGET cp2k PROPERTY HIP_ARCHITECTURES
                                     ${CMAKE_HIP_ARCHITECTURES})
 elseif(CP2K_USE_ACCEL MATCHES "OPENCL")
-  include_directories(${CP2K_OPENCL_TOOLDIR})
+  include_directories(${CP2K_OPENCL_BACKEND})
+  include_directories(${OpenCL_INCLUDE_DIR})
 endif()
 
 # mix the target and variables pointing to the include directories.
