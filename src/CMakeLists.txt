@@ -354,7 +354,6 @@ list(
   mao_basis.F
   mao_methods.F
   mao_optimizer.F
-  mao_types.F
   mao_wfn_analysis.F
   matrix_exp.F
   maxwell_solver_interface.F
