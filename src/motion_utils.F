@@ -385,8 +385,11 @@ CONTAINS
                   1, 0, 0, 0, 0, 0, 0, 0, 0, 24
                remark1 = "REMARK "//id_dcd//" DCD file created by "//TRIM(cp2k_version)// &
                          " (revision "//TRIM(compile_revision)//")"
+               IF (LEN_TRIM(remark1) > 80) THEN
+                  CPWARN("First DCD REMARK line will be truncated to 80 characters")
+               END IF
                remark2 = "REMARK "//TRIM(r_user_name)//"@"//TRIM(r_host_name)
-               WRITE (UNIT=traj_unit) 2, remark1, remark2
+               WRITE (UNIT=traj_unit) 2, remark1(:80), remark2
                WRITE (UNIT=traj_unit) nat
                CALL m_flush(traj_unit)
             END IF
