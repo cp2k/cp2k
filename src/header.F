@@ -12,9 +12,9 @@
 ! **************************************************************************************************
 MODULE header
    USE cp2k_info,                       ONLY: r_cwd,&
-                                              r_datx,&
                                               r_host_name,&
                                               r_pid,&
+                                              r_timestamp,&
                                               r_user_name
    USE kinds,                           ONLY: default_path_length
 #include "./base/base_uses.f90"
@@ -48,7 +48,7 @@ CONTAINS
       IF (PRESENT(wdir)) cwd = wdir
       WRITE (UNIT=iw, &
              FMT="(/,A,T55,A26,/,A,T51,A30,/,A,T51,A30,/,A,T71,I10)") &
-         "  **** **** ******  **  PROGRAM STARTED AT ", ADJUSTR(r_datx), &
+         "  **** **** ******  **  PROGRAM STARTED AT ", ADJUSTR(r_timestamp), &
          " ***** ** ***  *** **   PROGRAM STARTED ON ", ADJUSTR(r_host_name(1:30)), &
          " **    ****   ******    PROGRAM STARTED BY ", ADJUSTR(r_user_name(1:30)), &
          " ***** **    ** ** **   PROGRAM PROCESS ID ", r_pid
@@ -77,9 +77,9 @@ CONTAINS
       IF (PRESENT(wdir)) cwd = wdir
       WRITE (UNIT=iw, &
              FMT="(A,T55,A26,/,A,T51,A30,/,A,T51,A30,/,A,T71,I10)") &
-         "  **** **** ******  **  PROGRAM ENDED AT   ", ADJUSTR(r_datx), &
-         " ***** ** ***  *** **   PROGRAM RAN ON     ", ADJUSTR(r_host_name(1:30)), &
-         " **    ****   ******    PROGRAM RAN BY     ", ADJUSTR(r_user_name(1:30)), &
+         "  **** **** ******  **  PROGRAM ENDED AT   ", ADJUSTR(r_timestamp), &
+         " ***** ** ***  *** **   PROGRAM RAN ON     ", ADJUSTR(r_host_name(:30)), &
+         " **    ****   ******    PROGRAM RAN BY     ", ADJUSTR(r_user_name(:30)), &
          " ***** **    ** ** **   PROGRAM PROCESS ID ", r_pid
       WRITE (UNIT=iw, FMT="(A,T44,A37)") &
          "  **** **  *******  **  PROGRAM STOPPED IN ", ADJUSTR(cwd(1:37))

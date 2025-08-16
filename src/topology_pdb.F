@@ -49,7 +49,6 @@ MODULE topology_pdb
    USE cell_types,                      ONLY: get_cell
    USE cp2k_info,                       ONLY: compile_revision,&
                                               cp2k_version,&
-                                              r_datx,&
                                               r_host_name,&
                                               r_user_name
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -70,6 +69,8 @@ MODULE topology_pdb
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
+   USE machine,                         ONLY: m_timestamp,&
+                                              timestamp_length
    USE memory_utilities,                ONLY: reallocate
    USE message_passing,                 ONLY: mp_para_env_type
    USE physcon,                         ONLY: angstrom
@@ -288,6 +289,7 @@ CONTAINS
       CHARACTER(LEN=120)                                 :: line
       CHARACTER(LEN=default_path_length)                 :: record
       CHARACTER(LEN=default_string_length)               :: my_tag1, my_tag2, my_tag3, my_tag4
+      CHARACTER(LEN=timestamp_length)                    :: timestamp
       INTEGER                                            :: handle, i, id1, id2, idres, iw, natom
       LOGICAL                                            :: charge_beta, charge_extended, &
                                                             charge_occup, ldum
@@ -319,9 +321,10 @@ CONTAINS
       IF (iw > 0) WRITE (UNIT=iw, FMT=*) "    Writing out PDB file ", TRIM(record)
 
       ! Write file header
+      CALL m_timestamp(timestamp)
       WRITE (UNIT=file_unit, FMT="(A6,T11,A)") &
          "TITLE ", "PDB file created by "//TRIM(cp2k_version)//" (revision "//TRIM(compile_revision)//")", &
-         "AUTHOR", TRIM(r_user_name)//"@"//TRIM(r_host_name)//" "//r_datx(1:19)
+         "AUTHOR", TRIM(r_user_name)//"@"//TRIM(r_host_name)//" "//timestamp(:19)
       ! Write cell information
       CALL get_cell(cell=topology%cell, alpha=angle_alpha, beta=angle_beta, gamma=angle_gamma, abc=abc)
       WRITE (UNIT=file_unit, FMT="(A6,3F9.3,3F7.2)") &

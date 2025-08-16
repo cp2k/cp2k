@@ -14,7 +14,8 @@
 MODULE xmgrace
 
    USE kinds,                           ONLY: dp
-   USE machine,                         ONLY: m_datum
+   USE machine,                         ONLY: m_timestamp,&
+                                              timestamp_length
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -35,7 +36,7 @@ CONTAINS
    SUBROUTINE xm_write_defaults(iw)
       INTEGER, INTENT(IN)                                :: iw
 
-      CHARACTER(len=20)                                  :: date
+      CHARACTER(len=timestamp_length)                    :: timestamp
 
       IF (iw > 0) THEN
          WRITE (iw, '(A)') '# CP2K Grace file', '#', '@version 50125', '@page size 792, 612', &
@@ -77,9 +78,9 @@ CONTAINS
             '@default sformat "%.8g"', '@background color 0', '@page background fill on'
          WRITE (iw, '(A)') '@timestamp off', '@timestamp 0.03, 0.03', '@timestamp color 1', &
             '@timestamp rot 0', '@timestamp font 0', '@timestamp char size 1.000000'
-         CALL m_datum(date)
+         CALL m_timestamp(timestamp)
 
-         WRITE (iw, '(A)') '@timestamp def '//TRIM(date)
+         WRITE (iw, '(A)') '@timestamp def '//timestamp(:19)
 
       END IF
 
