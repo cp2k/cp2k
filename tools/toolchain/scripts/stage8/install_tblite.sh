@@ -49,6 +49,9 @@ case "$with_tblite" in
       tar -xzf tblite-${tblite_ver}.tar.gz
       cd tblite-${tblite_ver}
 
+      # Workaround for https://github.com/cp2k/cp2k/issues/4362
+      patch -p1 < ${SCRIPT_DIR}/stage8/tblite_d4.patch 
+
       rm -Rf build
       mkdir build
       cd build
