@@ -51,7 +51,8 @@ MODULE machine
    ! default_input_unit should never be used
    ! but we need to know what it is, as we should not try to open it for output
    INTEGER, PUBLIC, PARAMETER                   :: default_output_unit = output_unit, &
-                                                   default_input_unit = input_unit
+                                                   default_input_unit = input_unit, &
+                                                   timestamp_length = 23
 
 #include "machine_cpuid.h"
    ! Enumerates the target architectures or instruction set extensions.
@@ -80,7 +81,7 @@ MODULE machine
 
    PRIVATE
 
-   PUBLIC :: m_walltime, m_datum, m_hostnm, m_flush, &
+   PUBLIC :: m_walltime, m_timestamp, m_hostnm, m_flush, &
              m_getcwd, m_getlog, m_getpid, m_procrun, m_abort, &
              m_chdir, m_mov, m_memory, m_memory_details, m_energy, &
              m_cpuinfo, m_cpuid_static, m_cpuid, m_cpuid_name, &
@@ -369,21 +370,23 @@ CONTAINS
 #endif
 
 ! **************************************************************************************************
-!> \brief returns a datum in human readable format using a standard Fortran routine
-!> \param cal_date ...
+!> \brief Returns a human readable timestamp
+!> \param timestamp Timestamp string
 !> \par History
 !>      10.2009 created [Joost VandeVondele]
+!>      08.2025 modified [Matthias Krack]
 ! **************************************************************************************************
-   SUBROUTINE m_datum(cal_date)
-      CHARACTER(len=*), INTENT(OUT)                      :: cal_date
+   SUBROUTINE m_timestamp(timestamp)
+      CHARACTER(len=timestamp_length), INTENT(OUT)       :: timestamp
 
       CHARACTER(len=10)                                  :: time
       CHARACTER(len=8)                                   :: date
 
       CALL DATE_AND_TIME(date=date, time=time)
-      cal_date = date(1:4)//"-"//date(5:6)//"-"//date(7:8)//" "//time(1:2)//":"//time(3:4)//":"//time(5:10)
+      timestamp = date(1:4)//"-"//date(5:6)//"-"//date(7:8)//" "// &
+                  time(1:2)//":"//time(3:4)//":"//time(5:10)
 
-   END SUBROUTINE m_datum
+   END SUBROUTINE m_timestamp
 
 ! **************************************************************************************************
 !> \brief Can be used to get a nice core

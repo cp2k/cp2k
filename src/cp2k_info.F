@@ -10,7 +10,7 @@
 !> \par History
 !>      - created (2007-09, Joost VandeVondele)
 !>      - moved into this module information related to runtime:pid, user_name,
-!>        host_name, cwd, datx  (2009-06, Teodoro Laino)
+!>        host_name, cwd, timestamp (2009-06, Teodoro Laino, 2025-08 MK)
 !> \author Joost VandeVondele
 ! **************************************************************************************************
 MODULE cp2k_info
@@ -18,11 +18,12 @@ MODULE cp2k_info
    USE iso_fortran_env,                 ONLY: compiler_options
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length
-   USE machine,                         ONLY: m_datum,&
-                                              m_getcwd,&
+   USE machine,                         ONLY: m_getcwd,&
                                               m_getlog,&
                                               m_getpid,&
-                                              m_hostnm
+                                              m_hostnm,&
+                                              m_timestamp,&
+                                              timestamp_length
    USE string_utilities,                ONLY: integer_to_string
 
    IMPLICIT NONE
@@ -63,9 +64,9 @@ MODULE cp2k_info
 #endif
 
    ! Local runtime informations
-   CHARACTER(LEN=26), PUBLIC                        :: r_datx
    CHARACTER(LEN=default_path_length), PUBLIC       :: r_cwd
    CHARACTER(LEN=default_string_length), PUBLIC     :: r_host_name, r_user_name
+   CHARACTER(LEN=timestamp_length), PUBLIC          :: r_timestamp
    INTEGER, PUBLIC                                  :: r_pid
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp2k_info'
@@ -340,16 +341,16 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE get_runtime_info()
 
-      r_datx = ""
       r_cwd = ""
       r_host_name = ""
+      r_timestamp = ""
       r_user_name = ""
       r_pid = -1
 
       CALL m_getpid(r_pid)
       CALL m_getlog(r_user_name)
       CALL m_hostnm(r_host_name)
-      CALL m_datum(r_datx)
+      CALL m_timestamp(r_timestamp)
       CALL m_getcwd(r_cwd)
 
    END SUBROUTINE
@@ -364,13 +365,14 @@ CONTAINS
    SUBROUTINE write_restart_header(iunit)
       INTEGER, INTENT(IN)                                :: iunit
 
-      CHARACTER(LEN=256)                                 :: cwd, datx
+      CHARACTER(LEN=256)                                 :: cwd
+      CHARACTER(LEN=timestamp_length)                    :: timestamp
 
-      CALL m_datum(datx)
+      CALL m_timestamp(timestamp)
       CALL m_getcwd(cwd)
 
       WRITE (UNIT=iunit, FMT="(T2,A)") "# Version information for this restart file "
-      WRITE (UNIT=iunit, FMT="(T2,A)") "# current date "//TRIM(datx)
+      WRITE (UNIT=iunit, FMT="(T2,A)") "# current date "//timestamp
       WRITE (UNIT=iunit, FMT="(T2,A)") "# current working dir "//TRIM(cwd)
 
       WRITE (UNIT=iunit, FMT="(T2,A,T31,A50)") &

@@ -15,8 +15,8 @@ MODULE basis_set_output
                                               gto_basis_set_type
    USE cp2k_info,                       ONLY: compile_revision,&
                                               cp2k_version,&
-                                              r_datx,&
                                               r_host_name,&
+                                              r_timestamp,&
                                               r_user_name
    USE cp_files,                        ONLY: close_file,&
                                               open_file
@@ -79,7 +79,7 @@ CONTAINS
          CALL open_file(filename, unit_number=iunit, file_status="UNKNOWN", file_action="WRITE")
          WRITE (UNIT=iunit, FMT="(A8,T11,A)") &
             "# TITLE ", "Basis set file created by "//TRIM(cp2k_version)//" (revision "//TRIM(compile_revision)//")", &
-            "# AUTHOR", TRIM(r_user_name)//"@"//TRIM(r_host_name)//" "//r_datx(1:19)
+            "# AUTHOR", TRIM(r_user_name)//"@"//TRIM(r_host_name)//" "//r_timestamp(:19)
 
       END IF
 
