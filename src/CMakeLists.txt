@@ -1504,7 +1504,8 @@ if(CP2K_USE_CUDA
 
   if(CP2K_ENABLE_DBM_GPU)
     if(CP2K_USE_OPENCL)
-      add_custom_command(
+      add_custom_target(
+        CP2K_DBM_OPENCL_TARGET ALL
         COMMAND
           # generate header file with OpenCL code as string-literal
           ${CP2K_OPENCL_SCRIPT} -b 6 -p \"\"
@@ -1512,12 +1513,8 @@ if(CP2K_USE_CUDA
           ${CMAKE_CURRENT_SOURCE_DIR}/${CP2K_DBM_SRCS_OPENCL}.h
         DEPENDS ${CP2K_OPENCL_SCRIPT} ${CP2K_OPENCL_COMMON}
                 ${CMAKE_CURRENT_SOURCE_DIR}/${CP2K_DBM_SRCS_OPENCL}
-        OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/${CP2K_DBM_SRCS_OPENCL}.h
+        BYPRODUCTS ${CMAKE_CURRENT_SOURCE_DIR}/${CP2K_DBM_SRCS_OPENCL}.h
         COMMENT "Generating OpenCL kernel for DBM")
-      add_custom_target(
-        dbm_multiply_opencl
-        DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${CP2K_DBM_SRCS_OPENCL}.h)
-      add_dependencies(${CP2K_LIBS} dbm_multiply_opencl)
       list(APPEND CP2K_DBM_SRCS_C ${CP2K_DBM_SRCS_GPU_C})
     else()
       list(APPEND CP2K_SRCS_GPU ${CP2K_DBM_SRCS_GPU})
