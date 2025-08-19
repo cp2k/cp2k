@@ -173,8 +173,9 @@ for mpi in '' mpich openmpi; do
     )
   else
     cmake_mpi_args=(
-      "-DCP2K_USE_MPI:BOOL=OFF"
       "-DCMAKE_INSTALL_Fortran_MODULES:PATH=%{_fmoddir}/cp2k"
+      "-DCMAKE_INSTALL_LIBDIR:PATH=lib"
+      "-DCP2K_USE_MPI:BOOL=OFF"
     )
   fi
 
