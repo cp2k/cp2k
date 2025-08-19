@@ -615,7 +615,7 @@ CONTAINS
       INTEGER                                            :: i, ibeta, ii, j, k, kk, l, lmax, n0, &
                                                             nbeta, nr, nwfc, nwfn
       LOGICAL                                            :: soc, up
-      REAL(KIND=dp)                                      :: pf, rl, rlp, rmax, vnlm, vnlp
+      REAL(KIND=dp)                                      :: occa, occb, pf, rl, rlp, rmax, vnlm, vnlp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: beta, corden, dens, ef, locpot, rp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dij
       TYPE(atom_gthpot_type), POINTER                    :: pot
@@ -855,12 +855,18 @@ CONTAINS
       DO l = 0, lmat
          DO i = 1, 10
             IF (ABS(atom%state%occupation(l, i)) == 0._dp) CYCLE
+            occa = atom%state%occupation(l, i)
+            occb = 0.0_dp
+            IF (soc .AND. l /= 0) THEN
+               occb = FLOOR(occa/2)
+               occa = occa - occb
+            END IF
             nwfn = nwfn + 1
             CALL compose(string, "<PP_CHI", counter=nwfn)
             WRITE (iw, '(T8,A)') TRIM(string)
             CALL compose(string, "l", ival=l)
             WRITE (iw, '(T12,A)') TRIM(string)
-            CALL compose(string, "occupation", rval=atom%state%occupation(l, i))
+            CALL compose(string, "occupation", rval=occa)
             WRITE (iw, '(T12,A)') TRIM(string)
             CALL compose(string, "pseudo_energy", rval=2._dp*atom%orbitals%ener(i, l))
             WRITE (iw, '(T12,A)') TRIM(string)
@@ -877,6 +883,30 @@ CONTAINS
             END IF
             CALL compose(string, "</PP_CHI", counter=nwfn, isfinal=.TRUE.)
             WRITE (iw, '(T8,A)') TRIM(string)
+            IF (soc .AND. l /= 0) THEN
+               nwfn = nwfn + 1
+               CALL compose(string, "<PP_CHI", counter=nwfn)
+               WRITE (iw, '(T8,A)') TRIM(string)
+               CALL compose(string, "l", ival=l)
+               WRITE (iw, '(T12,A)') TRIM(string)
+               CALL compose(string, "occupation", rval=occb)
+               WRITE (iw, '(T12,A)') TRIM(string)
+               CALL compose(string, "pseudo_energy", rval=2._dp*atom%orbitals%ener(i, l))
+               WRITE (iw, '(T12,A)') TRIM(string)
+               WRITE (iw, '(T12,A)') 'columns="4">'
+               beta = 0._dp
+               DO k = 1, atom%basis%nbas(l)
+                  beta(:) = beta(:) + atom%orbitals%wfn(k, i, l)*atom%basis%bf(:, k, l)
+               END DO
+               beta(:) = beta*atom%basis%grid%rad
+               IF (up) THEN
+                  WRITE (iw, '(T12,4ES25.12E3)') (beta(j)*atom%basis%grid%rad(j), j=1, nr)
+               ELSE
+                  WRITE (iw, '(T12,4ES25.12E3)') (beta(j)*atom%basis%grid%rad(j), j=nr, 1, -1)
+               END IF
+               CALL compose(string, "</PP_CHI", counter=nwfn, isfinal=.TRUE.)
+               WRITE (iw, '(T8,A)') TRIM(string)
+            END IF
          END DO
       END DO
       WRITE (iw, '(T4,A)') '</PP_PSWFC>'
@@ -901,8 +931,59 @@ CONTAINS
       ! PP SOC information
       IF (soc) THEN
          WRITE (iw, '(T4,A)') '<PP_SPIN_ORB>'
-!        RELWFC not available
 !        <PP_RELWFC.1 index="1" els="6S" nn="1" lchi="0" jchi="5.000000000000e-1" oc="1.000000000000e0"/>
+         nwfn = 0
+         DO l = 0, lmat
+            DO i = 1, 10
+               IF (ABS(atom%state%occupation(l, i)) == 0._dp) CYCLE
+               occa = atom%state%occupation(l, i)
+               occb = 0.0_dp
+               IF (l /= 0) THEN
+                  occb = FLOOR(occa/2)
+                  occa = occa - occb
+               END IF
+               nwfn = nwfn + 1
+               CALL compose(string, "<PP_RELWFC", counter=nwfn)
+               WRITE (iw, '(T8,A)') TRIM(string)
+               CALL compose(string, "index", ival=nwfn)
+               WRITE (iw, '(T12,A)') TRIM(string)
+               !!CALL compose(string, "els", cval=xxxx)
+               !!WRITE (iw, '(T12,A)') TRIM(string)
+               CALL compose(string, "nn", ival=nwfn)
+               WRITE (iw, '(T12,A)') TRIM(string)
+               CALL compose(string, "lchi", ival=l)
+               WRITE (iw, '(T12,A)') TRIM(string)
+               IF (l == 0) THEN
+                  rlp = 0.5_dp
+               ELSE
+                  rlp = l - 0.5_dp
+               END IF
+               CALL compose(string, "jchi", rval=rlp)
+               WRITE (iw, '(T12,A)') TRIM(string)
+               CALL compose(string, "oc", rval=occa)
+               WRITE (iw, '(T12,A)') TRIM(string)
+               WRITE (iw, '(T12,A)') '/>'
+               IF (l /= 0) THEN
+                  nwfn = nwfn + 1
+                  CALL compose(string, "<PP_RELWFC", counter=nwfn)
+                  WRITE (iw, '(T8,A)') TRIM(string)
+                  CALL compose(string, "index", ival=nwfn)
+                  WRITE (iw, '(T12,A)') TRIM(string)
+                  !!CALL compose(string, "els", cval=xxxx)
+                  !!WRITE (iw, '(T12,A)') TRIM(string)
+                  CALL compose(string, "nn", ival=nwfn)
+                  WRITE (iw, '(T12,A)') TRIM(string)
+                  CALL compose(string, "lchi", ival=l)
+                  WRITE (iw, '(T12,A)') TRIM(string)
+                  rlp = l + 0.5_dp
+                  CALL compose(string, "jchi", rval=rlp)
+                  WRITE (iw, '(T12,A)') TRIM(string)
+                  CALL compose(string, "oc", rval=occa)
+                  WRITE (iw, '(T12,A)') TRIM(string)
+                  WRITE (iw, '(T12,A)') '/>'
+               END IF
+            END DO
+         END DO
          ibeta = 0
          DO l = 0, lmat
             IF (pot%nl(l) == 0) CYCLE
