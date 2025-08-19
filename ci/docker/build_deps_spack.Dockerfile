@@ -76,6 +76,18 @@ RUN if [ "${USE_ALPS_SPACK_REPO}" -ne 0 ]; then \
     spack repo add --scope site /root/alps-cluster-config/site/spack_repo/alps; \
     fi
 
+# Install external xpmem
+RUN git clone https://github.com/hpc/xpmem \
+    && cd xpmem/lib \
+    && gcc -I../include -shared -o libxpmem.so.1 libxpmem.c \
+    && ln -s libxpmem.so.1 libxpmem.so \
+    && mkdir -p ${SPACK_ROOT}/lib /${SPACK_ROOT}/include \
+    && mv libxpmem.so* ${SPACK_ROOT}/lib \
+    && cp ../include/xpmem.h ${SPACK_ROOT}/include/ \
+    && ldconfig ${SPACK_ROOT}/lib \
+    && cd ../../ \
+    && rm -rf xpmem
+
 # Find all compilers
 RUN spack compiler find
 

@@ -5,7 +5,7 @@ spack:
     unify: true
   config:
     install_tree:
-      root: /opt/spack
+      root: $spack
   packages:
     all:
       buildable: true
