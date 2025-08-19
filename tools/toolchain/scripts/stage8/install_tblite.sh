@@ -6,8 +6,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-tblite_ver="0.4.0"
-tblite_sha256="c4a67dfbe04827095fd7598183e076fa3017a5a475c4f90fd28e78992dc19ea7"
+tblite_ver="0.5.0"
+tblite_sha256="65ede0d66ad38f7748cb1c93367db3bd9b67f6439d8e45539bcf55182489c287"
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
