@@ -39,10 +39,8 @@ spack:
     xpmem:
       buildable: false
       externals:
-        - spec: 'xpmem@master'
-          prefix: $spack
-      require:
-        - ~kernel-module
+        - spec: xpmem@master
+          prefix: /opt/spack
     blas:
       require:
         - openblas
