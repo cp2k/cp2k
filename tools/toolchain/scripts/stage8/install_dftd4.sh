@@ -96,13 +96,13 @@ EOF
 
   if [ "$with_dftd4" != "__SYSTEM__" ]; then
     TEMP_LOC=$(find ${pkg_install_dir}/include -name "multicharge.mod")
-    MCHARGE=${DFTD4_LOC%/*}
+    MCHARGE=${TEMP_LOC%/*}
     TEMP_LOC=$(find ${pkg_install_dir}/include -name "mstore.mod")
-    MSTORE=${DFTD4_LOC%/*}
+    MSTORE=${TEMP_LOC%/*}
     TEMP_LOC=$(find ${pkg_install_dir}/include -name "mctc_io.mod")
-    MCTC=${DFTD4_LOC%/*}
+    MCTC=${TEMP_LOC%/*}
     TEMP_LOC=$(find ${pkg_install_dir}/include -name "dftd4.mod")
-    DFTD4=${DFTD4_LOC%/*}
+    DFTD4=${TEMP_LOC%/*}
 
     DFTD4_INCLUDE_DIRS="$pkg_install_dir/include"
     DFTD4_LINK_LIBRARIES="${pkg_install_dir}/lib"
