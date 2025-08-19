@@ -168,6 +168,7 @@ for mpi in '' mpich openmpi; do
       "-DCMAKE_INSTALL_LIBDIR:PATH=lib"
       "-DCP2K_CMAKE_SUFFIX:STRING=${MPI_SUFFIX}"
       "-DCP2K_DATA_DIR:PATH=%{_datadir}/cp2k/data"
+      "-DCP2K_USE_MPI:BOOL=ON"
       "-DCP2K_USE_MPI_F08:BOOL=ON"
     )
   else
