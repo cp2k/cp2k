@@ -81,10 +81,10 @@ RUN git clone https://github.com/hpc/xpmem \
     && cd xpmem/lib \
     && gcc -I../include -shared -o libxpmem.so.1 libxpmem.c \
     && ln -s libxpmem.so.1 libxpmem.so \
-    && mkdir -p ${SPACK_ROOT}/lib /${SPACK_ROOT}/include \
-    && mv libxpmem.so* ${SPACK_ROOT}/lib \
-    && cp ../include/xpmem.h ${SPACK_ROOT}/include/ \
-    && ldconfig ${SPACK_ROOT}/lib \
+    && mkdir -p /opt/spack/lib /opt/spack/include \
+    && mv libxpmem.so* /opt/spack/lib \
+    && cp ../include/xpmem.h /opt/spack/include/ \
+    && ldconfig /opt/spack/lib \
     && cd ../../ \
     && rm -rf xpmem
 
