@@ -202,25 +202,28 @@ rm -f %{_buildrootdir}/**/%{_libdir}/mpich/bin/*_unittest.*
 export CP2K_DATA_DIR=%{buildroot}%{_datadir}/cp2k/data
 # See %%_openmpi_load
 export PRTE_MCA_rmaps_default_mapping_policy=:oversubscribe
-test_common_args=(
-  "--skip_regtests"
-  "--ompthreads 2"
-)
 for mpi in '' mpich openmpi ; do
   if [ -n "$mpi" ]; then
     # Another module load is done inside the do_regtest.sh. will use that instead
     module load mpi/${mpi}-%{_arch}
     bindir=${MPI_BIN}
     libdir=${MPI_LIB}
+    test_common_args=(
+      "--skip_regtests"
+      "--ompthreads 2"
+      "--mpiranks 2")
     # Note, final position arguments are also here
-    test_mpi_args=(
-      "--mpiranks 2"
+    final_args=(
       "psmp"
     )
   else
     bindir=%{_bindir}
     libdir=%{_libdir}
-    test_mpi_args=(
+    test_common_args=(
+      "--skip_regtests"
+      "--ompthreads 2"
+    )
+    final_args=(
       "ssmp"
     )
   fi
@@ -229,7 +232,7 @@ for mpi in '' mpich openmpi ; do
   # so the binary folder should point to the build directory
   env PATH=%{buildroot}${bindir}:${PATH} \
     LD_LIBRARY_PATH=%{buildroot}${libdir} \
-    tests/do_regtest.py ${test_common_args[@]} %{_vpath_builddir}/bin ${test_mpi_args[@]}
+    tests/do_regtest.py ${test_common_args[@]} %{_vpath_builddir}/bin ${final_args[@]}
   [ -n "$mpi" ] && module unload mpi/${mpi}-%{_arch}
 done
 
