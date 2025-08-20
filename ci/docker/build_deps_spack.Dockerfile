@@ -118,6 +118,7 @@ RUN if [ "${USE_ALPS_SPACK_REPO}" -ne 0 ]; then \
     spack -e myenv config add "packages:xpmem:require:~kernel-module"; \
     spack -e myenv add "dla-future-fortran"; \
     spack -e myenv remove "elpa"; \
+    spack -e myenv add "osu-micro-benchmarks"; \
     else \
     spack -e myenv config change "packages:mpich:+xpmem"; \
     fi
