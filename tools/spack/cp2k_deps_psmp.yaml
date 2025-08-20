@@ -22,9 +22,6 @@ spack:
     mpich:
       require:
         - ~xpmem
-    libfabric:
-      # Specify libfabric version to match the system version
-      require: '@1.22.0'
     cray-gtl:
       buildable: True
     cray-mpich:
