@@ -55,7 +55,7 @@ if(NOT DEFINED CMAKE_CUDA_STANDARD)
 endif()
 
 if(NOT DEFINED CMAKE_CXX_STANDARD)
-  set(CMAKE_CXX_STANDARD 14)
+  set(CMAKE_CXX_STANDARD 17)
   set(CMAKE_CXX_STANDARD_REQUIRED ON)
 endif()
 
@@ -231,6 +231,20 @@ cmake_dependent_option(
 set(CP2K_BLAS_VENDOR
     "auto"
     CACHE STRING "BLAS library for computations on host")
+
+set_property(
+  CACHE CP2K_BLAS_VENDOR
+  PROPERTY STRINGS
+           "auto"
+           "MKL"
+           "OpenBLAS"
+           "SCI"
+           "GenericBLAS"
+           "Armpl"
+           "FlexiBLAS"
+           "Atlas"
+           "NVHPCBlas"
+           "CUSTOM")
 
 set(CP2K_SCALAPACK_VENDOR_LIST "MKL" "SCI" "GENERIC" "auto")
 set(CP2K_SCALAPACK_VENDOR
