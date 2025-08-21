@@ -217,7 +217,15 @@ CONTAINS
                           "of alpha and beta MOs due to the initially "// &
                           "defined multiplicity, but rather follow the Aufbau principle. "// &
                           "A value greater than zero activates this option. "// &
-                          "Larger tolerance values increase the probability for a spin flip. "// &
+                          "If alpha/beta MOs differ in energy less than this tolerance, "// &
+                          "then alpha-MO occupation is preferred even if it is higher "// &
+                          "in energy (within the tolerance). "// &
+                          "Such spin-symmetry broken (spin-polarized) occupation is used "// &
+                          "as SCF input, which (is assumed to) bias the SCF "// &
+                          "towards a spin-polarized solution. "// &
+                          "Thus, larger tolerance increases chances of ending up "// &
+                          "with spin-polarization. "// &
+                          "More details in a GitHub `thread <https://github.com/cp2k/cp2k/issues/4389>`. "// &
                           "This option is only valid for unrestricted (i.e. spin polarised) "// &
                           "Kohn-Sham (UKS) calculations.", &
                           usage="RELAX_MULTIPLICITY 0.00001", &
