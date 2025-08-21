@@ -4,6 +4,7 @@
   RUN_TYPE ENERGY
 &END GLOBAL
 
+
 &FORCE_EVAL
   &DFT
     &KPOINTS
@@ -16,11 +17,11 @@
           METHOD GFN1
         &END TBLITE
       &END XTB
+      EPS_DEFAULT 1.00E-12
     &END QS
     &SCF
       EPS_SCF 1.e-8
       MAX_SCF 100
-      SCF_GUESS MOPAC
       &MIXING
         ALPHA 0.2
         METHOD DIRECT_P_MIXING
