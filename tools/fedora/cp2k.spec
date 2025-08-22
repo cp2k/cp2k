@@ -231,7 +231,7 @@ done
 %{_bindir}/graph.ssmp
 %{_bindir}/grid_miniapp.ssmp
 %{_bindir}/xyz2dcd.ssmp
-%{_libdir}/libcp2k.so*
+%{_libdir}/libcp2k.so.*
 
 %files devel
 %{_fmoddir}/cp2k/
@@ -247,14 +247,14 @@ done
 %{_libdir}/openmpi/bin/graph.psmp
 %{_libdir}/openmpi/bin/grid_miniapp.psmp
 %{_libdir}/openmpi/bin/xyz2dcd.psmp
-%{_libdir}/openmpi/%{_lib}/libcp2k.so*
+%{_libdir}/openmpi/lib/libcp2k.so.*
 
 %files openmpi-devel
 %{_fmoddir}/openmpi/cp2k/
 %{_libdir}/openmpi/include/cp2k/
-%{_libdir}/openmpi/%{_lib}/cmake/cp2k/
-%{_libdir}/openmpi/%{_lib}/libcp2k.so
-%{_libdir}/openmpi/%{_lib}/pkgconfig/libcp2k.pc
+%{_libdir}/openmpi/lib/cmake/cp2k/
+%{_libdir}/openmpi/lib/libcp2k.so
+%{_libdir}/openmpi/lib/pkgconfig/libcp2k.pc
 
 %files mpich
 %{_libdir}/mpich/bin/cp2k.psmp
@@ -263,14 +263,14 @@ done
 %{_libdir}/mpich/bin/graph.psmp
 %{_libdir}/mpich/bin/grid_miniapp.psmp
 %{_libdir}/mpich/bin/xyz2dcd.psmp
-%{_libdir}/mpich/%{_lib}/libcp2k.so*
+%{_libdir}/mpich/lib/libcp2k.so.*
 
 %files mpich-devel
 %{_fmoddir}/mpich/cp2k/
 %{_libdir}/mpich/include/cp2k/
-%{_libdir}/mpich/%{_lib}/cmake/cp2k/
-%{_libdir}/mpich/%{_lib}/libcp2k.so
-%{_libdir}/mpich/%{_lib}/pkgconfig/libcp2k.pc
+%{_libdir}/mpich/lib/cmake/cp2k/
+%{_libdir}/mpich/lib/libcp2k.so
+%{_libdir}/mpich/lib/pkgconfig/libcp2k.pc
 
 %changelog
 %autochangelog
