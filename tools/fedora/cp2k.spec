@@ -135,30 +135,14 @@ rm -r exts/dbcsr
 cmake_common_args=(
   "-G Ninja"
   "-DCMAKE_BUILD_TYPE:STRING=Generic"
-  "-DCP2K_DEBUG_MODE:BOOL=OFF"
   "-DCP2K_BLAS_VENDOR:STRING=FlexiBLAS"
+  "-DCP2K_USE_EVERYTHING:BOOL=OFF"
   "-DCP2K_USE_STATIC_BLAS:BOOL=OFF"
   # Dependencies equivalent with Default
-  "-DCP2K_USE_COSMA:BOOL=OFF"  # Not packaged
-  "-DCP2K_USE_DEEPMD:BOOL=OFF"
-  "-DCP2K_USE_DFTD4:BOOL=OFF"
-  "-DCP2K_USE_DLAF:BOOL=OFF"
-  "-DCP2K_USE_ELPA:BOOL=OFF"
   "-DCP2K_USE_FFTW3:BOOL=ON"
-  "-DCP2K_USE_GREENX:BOOL=OFF"
-  "-DCP2K_USE_GRPP:BOOL=OFF"
-  "-DCP2K_USE_HDF5:BOOL=OFF"
-  "-DCP2K_USE_LIBINT2:BOOL=OFF"  # Detection is broken
-  "-DCP2K_USE_LIBSMEAGOL:BOOL=OFF"
-  "-DCP2K_USE_LIBTORCH:BOOL=OFF"
+  "-DCP2K_USE_LIBINT2:BOOL=OFF" # Package has no Fortran interface
   "-DCP2K_USE_LIBXC:BOOL=ON"
-  "-DCP2K_USE_LIBXSMM:BOOL=%{?with_libxsmm:ON}%{?without_libxsmm:OFF}"
-  "-DCP2K_USE_PLUMED:BOOL=OFF"
-  "-DCP2K_USE_SIRIUS:BOOL=OFF"
   "-DCP2K_USE_SPGLIB:BOOL=ON"
-  "-DCP2K_USE_SPLA:BOOL=OFF"
-  "-DCP2K_USE_TREXIO:BOOL=OFF"
-  "-DCP2K_USE_VORI:BOOL=OFF"
 )
 for mpi in '' mpich openmpi; do
   if [ -n "$mpi" ]; then
@@ -166,10 +150,8 @@ for mpi in '' mpich openmpi; do
     cmake_mpi_args=(
       "-DCMAKE_INSTALL_PREFIX:PATH=${MPI_HOME}"
       "-DCMAKE_INSTALL_Fortran_MODULES:PATH=${MPI_FORTRAN_MOD_DIR}/cp2k"
-      "-DCP2K_CMAKE_SUFFIX:STRING=${MPI_SUFFIX}"
       "-DCP2K_DATA_DIR:PATH=%{_datadir}/cp2k/data"
       "-DCP2K_USE_MPI:BOOL=ON"
-      "-DCP2K_USE_MPI_F08:BOOL=ON"
     )
   else
     cmake_mpi_args=(
