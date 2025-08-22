@@ -1302,7 +1302,7 @@ CONTAINS
          CALL get_qs_env(qs_env=qs_env, kpoints=kpoints)
          NULLIFY (cell_to_index)
          CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index)
-         
+
          NULLIFY (nl_iterator)
          CALL neighbor_list_iterator_create(nl_iterator, n_list)
          DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
@@ -1982,6 +1982,7 @@ CONTAINS
 !> \brief compute the derivative of the energy
 !> \param qs_env ...
 !> \param use_rho ...
+!> \param nimg ...
 ! **************************************************************************************************
    SUBROUTINE tb_derive_dH_diag(qs_env, use_rho, nimg)
 
@@ -2012,7 +2013,7 @@ CONTAINS
       NULLIFY (scf_env, rho, tb, sab_orb, para_env, kpoints)
       CALL get_qs_env(qs_env=qs_env, scf_env=scf_env, rho=rho, tb_tblite=tb, &
                       sab_orb=sab_orb, para_env=para_env, kpoints=kpoints)
-                      
+
       NULLIFY (cell_to_index)
       IF (nimg > 1) THEN
          CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index)
@@ -2037,6 +2038,8 @@ CONTAINS
 
          IF (iatom /= jatom) CYCLE
 
+         IF (ikind /= jkind) CPABORT("Type wrong")
+
          is = tb%calc%bas%ish_at(iatom)
 
          IF (nimg == 1) THEN
@@ -2045,7 +2048,11 @@ CONTAINS
             ic = cell_to_index(cellind(1), cellind(2), cellind(3))
             CPASSERT(ic > 0)
          END IF
-         
+
+         IF (cellind(1) /= 0) CYCLE
+         IF (cellind(2) /= 0) CYCLE
+         IF (cellind(3) /= 0) CYCLE
+
          CALL dbcsr_get_block_p(matrix=matrix_p(1, ic)%matrix, &
                                 row=iatom, col=jatom, BLOCK=pblock, found=found)
 
@@ -2080,6 +2087,7 @@ CONTAINS
 !> \brief compute the derivative of the energy
 !> \param qs_env ...
 !> \param use_rho ...
+!> \param nimg ...
 ! **************************************************************************************************
    SUBROUTINE tb_derive_dH_off(qs_env, use_rho, nimg)
 
@@ -2133,7 +2141,7 @@ CONTAINS
                       qs_kind_set=qs_kind_set, &
                       kpoints=kpoints, &
                       matrix_w_kp=matrix_w)
-                      
+
       NULLIFY (cell_to_index)
       IF (nimg > 1) THEN
          CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index)
@@ -2213,7 +2221,7 @@ CONTAINS
             ic = cell_to_index(cellind(1), cellind(2), cellind(3))
             CPASSERT(ic > 0)
          END IF
-         
+
          NULLIFY (pblock)
          CALL dbcsr_get_block_p(matrix=matrix_p(1, ic)%matrix, &
                                 row=jrow, col=icol, BLOCK=pblock, found=found)
