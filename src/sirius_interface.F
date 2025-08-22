@@ -239,7 +239,7 @@ CONTAINS
          CASE (SIRIUS_FUNC_VDWDF2)
             CALL sirius_add_xc_functional(sctx, "XC_FUNC_VDWDF2")
          CASE (SIRIUS_FUNC_VDWDFCX)
-            CALL sirius_add_xc_functional(sctx, "XC_FUNC_VDWDF2")
+            CALL sirius_add_xc_functional(sctx, "XC_FUNC_VDWDFCX")
          CASE default
          END SELECT
 #endif
