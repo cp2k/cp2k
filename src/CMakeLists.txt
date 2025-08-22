@@ -530,6 +530,7 @@ list(
   qs_condnum.F
   qs_core_energies.F
   qs_core_hamiltonian.F
+  qs_core_matrices.F
   qs_dcdr_ao.F
   qs_dcdr.F
   qs_dcdr_utils.F

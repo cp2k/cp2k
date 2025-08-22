@@ -72,7 +72,7 @@ MODULE ed_analysis
    USE qs_core_energies,                ONLY: calculate_ecore_alpha,&
                                               calculate_ecore_overlap,&
                                               calculate_ecore_self
-   USE qs_core_hamiltonian,             ONLY: core_matrices
+   USE qs_core_matrices,                ONLY: core_matrices
    USE qs_dispersion_pairpot,           ONLY: calculate_dispersion_pairpot
    USE qs_dispersion_types,             ONLY: qs_dispersion_type
    USE qs_energy_types,                 ONLY: qs_energy_type

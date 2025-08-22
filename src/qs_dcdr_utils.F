@@ -64,9 +64,9 @@ MODULE qs_dcdr_utils
    USE moments_utils,                   ONLY: get_reference_point
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE particle_types,                  ONLY: particle_type
+   USE qs_core_matrices,                ONLY: kinetic_energy_matrix
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
-   USE qs_kinetic,                      ONLY: build_kinetic_matrix
    USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_linres_types,                 ONLY: dcdr_env_type,&
                                               linres_control_type
@@ -666,6 +666,7 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
@@ -723,11 +724,20 @@ CONTAINS
                                 sab_nl=sab_orb)
 
       NULLIFY (dcdr_env%matrix_t)
-      CALL build_kinetic_matrix(ks_env, matrix_t=dcdr_env%matrix_t, &
-                                matrix_name="KINETIC ENERGY MATRIX", &
-                                basis_type="ORB", &
-                                sab_nl=sab_orb, nderivative=1, &
-                                eps_filter=dft_control%qs_control%eps_filter_matrix)
+      NULLIFY (matrix_p)
+      CALL kinetic_energy_matrix(qs_env, matrix_t=dcdr_env%matrix_t, matrix_p=matrix_p, &
+                                 matrix_name="KINETIC ENERGY MATRIX", &
+                                 calculate_forces=.FALSE., &
+                                 basis_type="ORB", &
+                                 sab_orb=sab_orb, &
+                                 nderivative=1, &
+                                 eps_filter=dft_control%qs_control%eps_filter_matrix)
+
+!     CALL build_kinetic_matrix(ks_env, matrix_t=dcdr_env%matrix_t, &
+!                               matrix_name="KINETIC ENERGY MATRIX", &
+!                               basis_type="ORB", &
+!                               sab_nl=sab_orb, nderivative=1, &
+!                               eps_filter=dft_control%qs_control%eps_filter_matrix)
 
       ! Get inputs
       CALL section_vals_val_get(dcdr_section, "DISTRIBUTED_ORIGIN", l_val=dcdr_env%distributed_origin)

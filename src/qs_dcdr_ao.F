@@ -12,12 +12,8 @@
 
 MODULE qs_dcdr_ao
 
-   USE atomic_kind_types,               ONLY: atomic_kind_type
    USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
                                               gto_basis_set_type
-   USE core_ae,                         ONLY: build_core_ae
-   USE core_ppl,                        ONLY: build_core_ppl
-   USE core_ppnl,                       ONLY: build_core_ppnl
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
                                               dbcsr_get_block_p,&
@@ -31,14 +27,12 @@ MODULE qs_dcdr_ao
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
-   USE input_constants,                 ONLY: do_ppl_analytic
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE orbital_pointers,                ONLY: ncoset
    USE parallel_gemm_api,               ONLY: parallel_gemm
-   USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_axpy,&
@@ -54,10 +48,10 @@ MODULE qs_dcdr_ao
                                               pw_r3d_rs_type
    USE qs_collocate_density,            ONLY: calculate_drho_core,&
                                               calculate_drho_elec_dR
+   USE qs_core_matrices,                ONLY: core_matrices
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
-   USE qs_force_types,                  ONLY: qs_force_type
    USE qs_integral_utils,               ONLY: basis_set_list_setup,&
                                               get_memory_usage
    USE qs_integrate_potential,          ONLY: integrate_v_dbasis,&
@@ -80,7 +74,6 @@ MODULE qs_dcdr_ao
                                               qs_rho_release,&
                                               qs_rho_type
    USE qs_vxc,                          ONLY: qs_vxc_create
-   USE virial_types,                    ONLY: virial_type
    USE xc,                              ONLY: xc_calc_2nd_deriv,&
                                               xc_prep_2nd_deriv
    USE xc_derivative_set_types,         ONLY: xc_derivative_set_type,&
@@ -403,95 +396,30 @@ CONTAINS
 
       CHARACTER(LEN=default_string_length)               :: my_basis_type
       INTEGER                                            :: handle, nder
-      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: calculate_forces, failure, ppl_present, &
-                                                            ppnl_present, use_virial
-      REAL(KIND=dp)                                      :: eps_ppnl
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: deltaR
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      LOGICAL                                            :: calculate_forces
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_hc_pass, matrix_p_pass, &
-                                                            matrix_ppnl_1_pass
-      TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_orb, sac_ae, sac_ppl, sap_ppnl
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_h, matrix_p_pass
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho
-      TYPE(virial_type), POINTER                         :: virial
 
       CALL timeset(routineN, handle)
 
-      failure = .FALSE.
-
-      NULLIFY (atomic_kind_set, qs_kind_set, ks_env, dft_control, particle_set, &
-               sab_orb, sac_ae, sac_ppl, sap_ppnl, virial, rho, rho_ao)
-
-      CALL get_qs_env(qs_env=qs_env, &
-                      atomic_kind_set=atomic_kind_set, &
-                      qs_kind_set=qs_kind_set, &
-                      ks_env=ks_env, &
-                      dft_control=dft_control, &
-                      particle_set=particle_set, &
-                      sab_orb=sab_orb, &
-                      sac_ae=sac_ae, &
-                      sac_ppl=sac_ppl, &
-                      sap_ppnl=sap_ppnl, &
-                      virial=virial)
+      CALL get_qs_env(qs_env=qs_env, ks_env=ks_env)
       CALL get_ks_env(ks_env=ks_env, rho=rho)
       CALL qs_rho_get(rho, rho_ao=rho_ao)
-      deltaR => dcdr_env%delta_basis_function
 
       nder = 1
       calculate_forces = .FALSE.
 
       my_basis_type = "ORB"
 
-      ! ECP/AE contribution to the core hamiltonian
-      IF (ASSOCIATED(sac_ae)) THEN
-         CPABORT("ECP/AE functionality in qs_dcdr_ao missing")
-         ! Missing feature: deltaR weighting factors of the derivatives wrt. nuclear positions
-         matrix_hc_pass(1:3, 1:1) => dcdr_env%matrix_hc(1:3)
-         matrix_p_pass(1:1, 1:1) => rho_ao(1:1)
-         CALL build_core_ae(matrix_h=matrix_hc_pass, matrix_p=matrix_p_pass, &
-                            force=force, virial=virial, calculate_forces=calculate_forces, &
-                            use_virial=use_virial, nder=nder, qs_kind_set=qs_kind_set, &
-                            atomic_kind_set=atomic_kind_set, particle_set=particle_set, &
-                            sab_orb=sab_orb, sac_ae=sac_ae, nimages=1, &
-                            basis_type=my_basis_type, cell_to_index=cell_to_index)
-      END IF
-      ! *** compute the ppl contribution to the core hamiltonian ***
-      ppl_present = ASSOCIATED(sac_ppl)
-      IF (ppl_present) THEN
-         IF (dft_control%qs_control%do_ppl_method == do_ppl_analytic) THEN
-            matrix_hc_pass(1:3, 1:1) => dcdr_env%matrix_hc(1:3)
-            matrix_p_pass(1:1, 1:1) => rho_ao(1:1)
-            CALL build_core_ppl(matrix_h=matrix_hc_pass, matrix_p=matrix_p_pass, &
-                                force=force, virial=virial, calculate_forces=calculate_forces, &
-                                use_virial=use_virial, nder=nder, qs_kind_set=qs_kind_set, &
-                                atomic_kind_set=atomic_kind_set, particle_set=particle_set, &
-                                sab_orb=sab_orb, sac_ppl=sac_ppl, basis_type=my_basis_type, &
-                                nimages=1, cell_to_index=cell_to_index, deltaR=deltaR)
-
-         END IF ! ppl_analytic
-      END IF ! ppl_present
-
-      ! *** compute the ppnl contribution to the core hamiltonian ***
-      eps_ppnl = dft_control%qs_control%eps_ppnl
-      ppnl_present = ASSOCIATED(sap_ppnl)
-      IF (ppnl_present) THEN
-         matrix_ppnl_1_pass(1:3, 1:1) => dcdr_env%matrix_ppnl_1(1:3)
-         CALL build_core_ppnl(matrix_h=matrix_ppnl_1_pass, matrix_p=matrix_p_pass, force=force, virial=virial, &
-                              calculate_forces=calculate_forces, use_virial=use_virial, nder=nder, &
-                              qs_kind_set=qs_kind_set, atomic_kind_set=atomic_kind_set, &
-                              particle_set=particle_set, sab_orb=sab_orb, sap_ppnl=sap_ppnl, &
-                              eps_ppnl=eps_ppnl, nimages=1, cell_to_index=cell_to_index, &
-                              basis_type=my_basis_type, deltaR=deltaR)
-      END IF
+      NULLIFY (matrix_h)
+      matrix_p_pass(1:1, 1:1) => rho_ao(1:1)
+      CALL core_matrices(qs_env, matrix_h, matrix_p_pass, calculate_forces, nder, &
+                         dcdr_env=dcdr_env)
 
       CALL timestop(handle)
+
    END SUBROUTINE core_dR
 
 ! **************************************************************************************************

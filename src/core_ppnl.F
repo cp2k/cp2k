@@ -162,6 +162,9 @@ CONTAINS
       IF (PRESENT(deltaR)) do_dR = .TRUE.
       doat = .FALSE.
       IF (PRESENT(atcore)) doat = .TRUE.
+      IF ((calculate_forces .OR. doat) .AND. do_dR) THEN
+         CPABORT("core_ppl: incompatible options")
+      END IF
 
       IF (calculate_forces) THEN
          CALL timeset(routineN//"_forces", handle)

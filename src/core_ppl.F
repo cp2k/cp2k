@@ -168,6 +168,10 @@ CONTAINS
 
       do_dR = PRESENT(deltaR)
       doat = PRESENT(atcore)
+      IF ((calculate_forces .OR. doat) .AND. do_dR) THEN
+         CPABORT("core_ppl: incompatible options")
+      END IF
+
       MARK_USED(int_8)
 
       ! Use internal integral routine for local ECP terms or use libgrrp

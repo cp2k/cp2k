@@ -15,11 +15,7 @@ MODULE mp2_cphf
    USE admm_methods,                    ONLY: admm_projection_derivative
    USE admm_types,                      ONLY: admm_type,&
                                               get_admm_env
-   USE atomic_kind_types,               ONLY: atomic_kind_type
    USE cell_types,                      ONLY: cell_type
-   USE core_ae,                         ONLY: build_core_ae
-   USE core_ppl,                        ONLY: build_core_ppl
-   USE core_ppnl,                       ONLY: build_core_ppnl
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
@@ -74,7 +70,6 @@ MODULE mp2_cphf
    USE mp2_types,                       ONLY: mp2_type,&
                                               ri_rpa_method_gpw
    USE parallel_gemm_api,               ONLY: parallel_gemm
-   USE particle_types,                  ONLY: particle_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_axpy,&
@@ -90,6 +85,8 @@ MODULE mp2_cphf
    USE pw_types,                        ONLY: pw_c1d_gs_type,&
                                               pw_r3d_rs_type
    USE qs_2nd_kernel_ao,                ONLY: apply_2nd_order_kernel
+   USE qs_core_matrices,                ONLY: core_matrices,&
+                                              kinetic_energy_matrix
    USE qs_density_matrices,             ONLY: calculate_whz_matrix
    USE qs_dispersion_pairpot,           ONLY: calculate_dispersion_pairpot
    USE qs_dispersion_types,             ONLY: qs_dispersion_type
@@ -103,8 +100,6 @@ MODULE mp2_cphf
                                               zero_qs_force
    USE qs_integrate_potential,          ONLY: integrate_v_core_rspace,&
                                               integrate_v_rspace
-   USE qs_kind_types,                   ONLY: qs_kind_type
-   USE qs_kinetic,                      ONLY: build_kinetic_matrix
    USE qs_ks_reference,                 ONLY: ks_ref_potential
    USE qs_ks_types,                     ONLY: qs_ks_env_type,&
                                               set_ks_env
@@ -1291,13 +1286,11 @@ CONTAINS
       INTEGER                                            :: alpha, beta, handle, idir, iounit, &
                                                             ispin, nimages, nocc, nspins
       INTEGER, DIMENSION(3)                              :: comp
-      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: do_exx, do_hfx, use_virial
       REAL(KIND=dp)                                      :: e_dummy, e_hartree, e_xc, ehartree, exc
       REAL(KIND=dp), DIMENSION(3)                        :: deb
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_stress, pv_virial
       TYPE(admm_type), POINTER                           :: admm_env
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), ALLOCATABLE, DIMENSION(:), &
@@ -1305,15 +1298,14 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_p_mp2, &
                                                             matrix_p_mp2_admm, matrix_s, rho1, &
                                                             rho_ao, rho_ao_aux, scrm
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp, scrm_kp
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p, rho_ao_kp, scrm_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
       TYPE(linres_control_type), POINTER                 :: linres_control
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_orb, sac_ae, sac_ppl, sap_ppnl
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+         POINTER                                         :: sab_orb
       TYPE(pw_c1d_gs_type)                               :: pot_g, rho_tot_g, temp_pw_g
       TYPE(pw_c1d_gs_type), ALLOCATABLE, DIMENSION(:)    :: dvg
       TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g, rho_mp2_g
@@ -1328,7 +1320,6 @@ CONTAINS
       TYPE(qs_dispersion_type), POINTER                  :: dispersion_env
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_p_env_type), POINTER                       :: p_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho_aux
@@ -1373,7 +1364,6 @@ CONTAINS
 
       nimages = dft_control%nimages
       CPASSERT(nimages == 1)
-      NULLIFY (cell_to_index)
 
       p_env => qs_env%mp2_env%ri_grad%p_env
 
@@ -1391,101 +1381,17 @@ CONTAINS
          CALL dbcsr_add(rho_ao(ispin)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp, 1.0_dp)
       END DO
 
-      IF (nspins == 2) THEN
-         CALL dbcsr_add(rho_ao(1)%matrix, rho_ao(2)%matrix, 1.0_dp, 1.0_dp)
-      END IF
+      ! kinetic energy
+      NULLIFY (scrm_kp)
+      matrix_p(1:nspins, 1:1) => rho_ao(1:nspins)
+      CALL kinetic_energy_matrix(qs_env, matrixkp_t=scrm_kp, matrix_p=matrix_p, &
+                                 calculate_forces=.TRUE., &
+                                 debug_forces=debug_forces, debug_stress=debug_forces)
+      CALL dbcsr_deallocate_matrix_set(scrm_kp)
 
-      ! Kinetic energy matrix
-      NULLIFY (scrm)
-      IF (debug_forces) THEN
-         deb(1:3) = force(1)%kinetic(1:3, 1)
-         IF (use_virial) e_dummy = third_tr(virial%pv_virial)
-      END IF
-      CALL build_kinetic_matrix(ks_env, matrix_t=scrm, &
-                                matrix_name="KINETIC ENERGY MATRIX", &
-                                basis_type="ORB", &
-                                sab_nl=sab_orb, calculate_forces=.TRUE., &
-                                matrix_p=rho_ao(1)%matrix)
-      IF (debug_forces) THEN
-         deb(1:3) = force(1)%kinetic(1:3, 1) - deb(1:3)
-         CALL para_env%sum(deb)
-         IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: P*dT       ", deb
-         IF (use_virial) THEN
-            e_dummy = third_tr(virial%pv_virial) - e_dummy
-            CALL para_env%sum(e_dummy)
-            IF (iounit > 0) WRITE (iounit, "(T3,A,T33,F16.8)") "DEBUG VIRIAL:: T          ", e_dummy
-         END IF
-      END IF
-      CALL dbcsr_deallocate_matrix_set(scrm)
-
-      IF (nspins == 2) THEN
-         CALL dbcsr_add(rho_ao(1)%matrix, rho_ao(2)%matrix, 1.0_dp, -1.0_dp)
-      END IF
-
-      ! Add pseudo potential terms
       scrm_kp(1:nspins, 1:1) => matrix_ks(1:nspins)
-      CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set, particle_set=particle_set, &
-                      atomic_kind_set=atomic_kind_set, sac_ae=sac_ae, sac_ppl=sac_ppl, sap_ppnl=sap_ppnl)
-      IF (ASSOCIATED(sac_ae)) THEN
-         IF (debug_forces) THEN
-            deb(1:3) = force(1)%all_potential(1:3, 1)
-            IF (use_virial) e_dummy = third_tr(virial%pv_virial)
-         END IF
-         CALL build_core_ae(scrm_kp, rho_ao_kp, force, &
-                            virial, .TRUE., use_virial, 1, &
-                            qs_kind_set, atomic_kind_set, particle_set, sab_orb, sac_ae, &
-                            nimages, cell_to_index, basis_type="ORB")
-         IF (debug_forces) THEN
-            deb(1:3) = force(1)%all_potential(1:3, 1) - deb(1:3)
-            CALL para_env%sum(deb)
-            IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: P*dHae     ", deb
-            IF (use_virial) THEN
-               e_dummy = third_tr(virial%pv_virial) - e_dummy
-               CALL para_env%sum(e_dummy)
-               IF (iounit > 0) WRITE (iounit, "(T3,A,T33,F16.8)") "DEBUG VIRIAL:: Hae        ", e_dummy
-            END IF
-         END IF
-      END IF
-      IF (ASSOCIATED(sac_ppl)) THEN
-         IF (debug_forces) THEN
-            deb(1:3) = force(1)%gth_ppl(1:3, 1)
-            IF (use_virial) e_dummy = third_tr(virial%pv_virial)
-         END IF
-         CALL build_core_ppl(scrm_kp, rho_ao_kp, force, &
-                             virial, .TRUE., use_virial, 1, &
-                             qs_kind_set, atomic_kind_set, particle_set, sab_orb, sac_ppl, &
-                             nimages=1, basis_type="ORB")
-         IF (debug_forces) THEN
-            deb(1:3) = force(1)%gth_ppl(1:3, 1) - deb(1:3)
-            CALL para_env%sum(deb)
-            IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: P*dHppl    ", deb
-            IF (use_virial) THEN
-               e_dummy = third_tr(virial%pv_virial) - e_dummy
-               CALL para_env%sum(e_dummy)
-               IF (iounit > 0) WRITE (iounit, "(T3,A,T33,F16.8)") "DEBUG VIRIAL:: Hppl       ", e_dummy
-            END IF
-         END IF
-      END IF
-      IF (ASSOCIATED(sap_ppnl)) THEN
-         IF (debug_forces) THEN
-            deb(1:3) = force(1)%gth_ppnl(1:3, 1)
-            IF (use_virial) e_dummy = third_tr(virial%pv_virial)
-         END IF
-         CALL build_core_ppnl(scrm_kp, rho_ao_kp, force, &
-                              virial, .TRUE., use_virial, 1, &
-                              qs_kind_set, atomic_kind_set, particle_set, sab_orb, sap_ppnl, dft_control%qs_control%eps_ppnl, &
-                              nimages=1, basis_type="ORB")
-         IF (debug_forces) THEN
-            deb(1:3) = force(1)%gth_ppnl(1:3, 1) - deb(1:3)
-            CALL para_env%sum(deb)
-            IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: P*dHppnl   ", deb
-            IF (use_virial) THEN
-               e_dummy = third_tr(virial%pv_virial) - e_dummy
-               CALL para_env%sum(e_dummy)
-               IF (iounit > 0) WRITE (iounit, "(T3,A,T33,F16.8)") "DEBUG VIRIAL:: Hppnl      ", e_dummy
-            END IF
-         END IF
-      END IF
+      CALL core_matrices(qs_env, scrm_kp, rho_ao_kp, .TRUE., 1, &
+                         debug_forces=debug_forces, debug_stress=debug_forces)
 
       ! Get the different components of the KS potential
       NULLIFY (vxc_rspace, vtau_rspace, vadmm_rspace)
