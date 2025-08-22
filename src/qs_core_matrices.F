@@ -67,18 +67,28 @@
 !> \author Matthias Krack (14.09.2000,21.03.02)
 ! **************************************************************************************************
 MODULE qs_core_matrices
-   USE atomic_kind_types,               ONLY: atomic_kind_type
+   USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                              get_atomic_kind_set
    USE cell_types,                      ONLY: cell_type
    USE core_ae,                         ONLY: build_core_ae
    USE core_ppl,                        ONLY: build_core_ppl
    USE core_ppnl,                       ONLY: build_core_ppnl
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
+                                              dbcsr_iterator_blocks_left,&
+                                              dbcsr_iterator_next_block,&
+                                              dbcsr_iterator_start,&
+                                              dbcsr_iterator_stop,&
+                                              dbcsr_iterator_type,&
+                                              dbcsr_p_type,&
+                                              dbcsr_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
    USE ec_env_types,                    ONLY: energy_correction_type
-   USE input_constants,                 ONLY: do_ppl_analytic
+   USE input_constants,                 ONLY: do_ppl_analytic,&
+                                              rel_none,&
+                                              rel_trans_atom
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE kpoint_types,                    ONLY: get_kpoint_info,&
@@ -91,7 +101,9 @@ MODULE qs_core_matrices
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_force_types,                  ONLY: qs_force_type
-   USE qs_kind_types,                   ONLY: qs_kind_type
+   USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                              qs_kind_type
+   USE qs_kinetic,                      ONLY: build_kinetic_matrix
    USE qs_ks_types,                     ONLY: get_ks_env,&
                                               qs_ks_env_type
    USE qs_linres_types,                 ONLY: dcdr_env_type
@@ -106,7 +118,7 @@ MODULE qs_core_matrices
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_core_matrices'
 
-   PUBLIC :: core_matrices
+   PUBLIC :: core_matrices, kinetic_energy_matrix
 
 CONTAINS
 
@@ -135,7 +147,7 @@ CONTAINS
       TYPE(energy_correction_type), OPTIONAL, POINTER    :: ec_env
       TYPE(dcdr_env_type), OPTIONAL                      :: dcdr_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: ec_env_matrices
-      CHARACTER(LEN=default_string_length), OPTIONAL     :: basis_type
+      CHARACTER(LEN=*), OPTIONAL                         :: basis_type
       LOGICAL, INTENT(IN), OPTIONAL                      :: debug_forces, debug_stress
       REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: atcore
 
@@ -275,9 +287,6 @@ CONTAINS
          IF (PRESENT(dcdr_env)) THEN
             CPABORT("ECP/AE functionality for dcdr missing")
          END IF
-!        CALL build_core_ae(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder, &
-!                           qs_kind_set, atomic_kind_set, particle_set, sab_orb, sac_ae, &
-!                           nimages, cell_to_index, "ORB", atcore=atcore)
          IF (debfor) fodeb(1:3) = force(1)%all_potential(1:3, 1)
          IF (debstr) stdeb = virial%pv_ppl
          CALL build_core_ae(matrix_hloc, matrix_ploc, force, virial, calculate_forces, use_virial, nder, &
@@ -306,9 +315,6 @@ CONTAINS
                   CPABORT("not implemented")
                END IF
             ELSE
-!           CALL build_core_ppl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder, &
-!                               qs_kind_set, atomic_kind_set, particle_set, sab_orb, sac_ppl, &
-!                               nimages, cell_to_index, "ORB", atcore=atcore)
                IF (debfor) fodeb(1:3) = force(1)%gth_ppl(1:3, 1)
                IF (debstr) stdeb = virial%pv_ppl
                CALL build_core_ppl(matrix_hloc, matrix_ploc, force, &
@@ -339,9 +345,6 @@ CONTAINS
             matrix_hloc(1:3, 1:1) => dcdr_env%matrix_ppnl_1(1:3)
          END IF
          IF (.NOT. my_gt_nl) THEN
-!           CALL build_core_ppnl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder, &
-!                                qs_kind_set, atomic_kind_set, particle_set, sab_orb, sap_ppnl, eps_ppnl, &
-!                                nimages, cell_to_index, "ORB", atcore=atcore)
             IF (debfor) fodeb(1:3) = force(1)%gth_ppnl(1:3, 1)
             IF (debstr) stdeb = virial%pv_ppnl
             CALL build_core_ppnl(matrix_hloc, matrix_ploc, force, &
@@ -364,5 +367,211 @@ CONTAINS
       END IF
 
    END SUBROUTINE core_matrices
+
+! **************************************************************************************************
+!> \brief Calculate kinetic energy matrix and possible relativistic correction
+!> \param qs_env ...
+!> \param matrixkp_t ...
+!> \param matrix_t ...
+!> \param matrix_p ...
+!> \param matrix_name ...
+!> \param calculate_forces ...
+!> \param nderivative ...
+!> \param sab_orb ...
+!> \param eps_filter ...
+!> \param basis_type ...
+!> \param debug_forces ...
+!> \param debug_stress ...
+!> \author Creation (21.08.2025,JGH)
+! **************************************************************************************************
+   SUBROUTINE kinetic_energy_matrix(qs_env, matrixkp_t, matrix_t, matrix_p, &
+                                    matrix_name, calculate_forces, nderivative, &
+                                    sab_orb, eps_filter, basis_type, debug_forces, debug_stress)
+
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
+         POINTER                                         :: matrixkp_t
+      TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
+         POINTER                                         :: matrix_t
+      TYPE(dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
+         POINTER                                         :: matrix_p
+      CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: matrix_name
+      LOGICAL, INTENT(IN)                                :: calculate_forces
+      INTEGER, INTENT(IN), OPTIONAL                      :: nderivative
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         OPTIONAL, POINTER                               :: sab_orb
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: eps_filter
+      CHARACTER(LEN=*), OPTIONAL                         :: basis_type
+      LOGICAL, INTENT(IN), OPTIONAL                      :: debug_forces, debug_stress
+
+      CHARACTER(LEN=default_string_length)               :: my_basis_type
+      INTEGER                                            :: ic, img, iounit, nimages
+      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
+      LOGICAL                                            :: debfor, debstr, use_virial
+      REAL(KIND=dp)                                      :: fconv
+      REAL(KIND=dp), DIMENSION(3)                        :: fodeb
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: stdeb
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(kpoint_type), POINTER                         :: kpoints
+      TYPE(mp_para_env_type), POINTER                    :: para_env
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_nl
+      TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(qs_ks_env_type), POINTER                      :: ks_env
+      TYPE(virial_type), POINTER                         :: virial
+
+      logger => cp_get_default_logger()
+      IF (logger%para_env%is_source()) THEN
+         iounit = cp_logger_get_default_unit_nr(logger, local=.TRUE.)
+      ELSE
+         iounit = -1
+      END IF
+
+      CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, para_env=para_env)
+      ! is this a orbital-free method calculation
+      IF (dft_control%qs_control%ofgpw) RETURN
+
+      ! Matrix images (kp)
+      nimages = dft_control%nimages
+
+      ! basis type
+      IF (PRESENT(basis_type)) THEN
+         my_basis_type = basis_type
+      ELSE
+         my_basis_type = "ORB"
+      END IF
+
+      debfor = .FALSE.
+      IF (PRESENT(debug_forces)) debfor = debug_forces
+      debfor = debfor .AND. calculate_forces
+
+      CALL get_qs_env(qs_env=qs_env, virial=virial)
+      use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
+
+      debstr = .FALSE.
+      IF (PRESENT(debug_stress)) debstr = debug_stress
+      debstr = debstr .AND. use_virial
+      IF (debstr) THEN
+         CALL get_qs_env(qs_env=qs_env, cell=cell)
+         fconv = 1.0E-9_dp*pascal/cell%deth
+      END IF
+
+      NULLIFY (ks_env)
+      CALL get_qs_env(qs_env=qs_env, ks_env=ks_env)
+      NULLIFY (sab_nl)
+      IF (PRESENT(sab_orb)) THEN
+         sab_nl => sab_orb
+      ELSE
+         CALL get_qs_env(qs_env=qs_env, sab_orb=sab_nl)
+      END IF
+
+      IF (calculate_forces) THEN
+         IF (SIZE(matrix_p, 1) == 2) THEN
+            DO img = 1, nimages
+               CALL dbcsr_add(matrix_p(1, img)%matrix, matrix_p(2, img)%matrix, &
+                              alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
+            END DO
+         END IF
+      END IF
+
+      IF (debfor) THEN
+         CALL get_qs_env(qs_env=qs_env, force=force)
+         fodeb(1:3) = force(1)%kinetic(1:3, 1)
+      END IF
+      IF (debstr) THEN
+         stdeb = virial%pv_ekinetic
+      END IF
+
+      ! T matrix
+      CALL build_kinetic_matrix(ks_env, matrixkp_t=matrixkp_t, matrix_t=matrix_t, &
+                                matrix_name=matrix_name, &
+                                basis_type=my_basis_type, &
+                                sab_nl=sab_nl, &
+                                calculate_forces=calculate_forces, &
+                                matrixkp_p=matrix_p, &
+                                nderivative=nderivative, &
+                                eps_filter=eps_filter)
+
+      IF (debfor) THEN
+         fodeb(1:3) = force(1)%kinetic(1:3, 1) - fodeb(1:3)
+         CALL para_env%sum(fodeb)
+         IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: P*dT    ", fodeb
+      END IF
+      IF (debstr) THEN
+         stdeb = fconv*(virial%pv_ekinetic - stdeb)
+         CALL para_env%sum(stdeb)
+         IF (iounit > 0) WRITE (UNIT=iounit, FMT="(T2,A,T41,2(1X,ES19.11))") &
+            'STRESS| P*dT', one_third_sum_diag(stdeb), det_3x3(stdeb)
+      END IF
+
+      IF (calculate_forces) THEN
+         IF (SIZE(matrix_p, 1) == 2) THEN
+            DO img = 1, nimages
+               CALL dbcsr_add(matrix_p(1, img)%matrix, matrix_p(2, img)%matrix, &
+                              alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
+            END DO
+         END IF
+      END IF
+
+      ! relativistic atomic correction to kinetic energy
+      IF (qs_env%rel_control%rel_method /= rel_none) THEN
+         IF (qs_env%rel_control%rel_transformation == rel_trans_atom) THEN
+            CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set, atomic_kind_set=atomic_kind_set)
+            IF (nimages == 1) THEN
+               ic = 1
+            ELSE
+               CALL get_ks_env(ks_env=ks_env, kpoints=kpoints)
+               CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index)
+               ic = cell_to_index(0, 0, 0)
+            END IF
+            IF (my_basis_type /= "ORB") THEN
+               CPABORT("Basis mismatch for relativistic correction")
+            END IF
+            IF (PRESENT(matrixkp_t)) THEN
+               CALL build_atomic_relmat(matrixkp_t(1, ic)%matrix, atomic_kind_set, qs_kind_set)
+            ELSEIF (PRESENT(matrix_t)) THEN
+               CALL build_atomic_relmat(matrix_t(1)%matrix, atomic_kind_set, qs_kind_set)
+            END IF
+         ELSE
+            CPABORT("Relativistic corrections of this type are currently not implemented")
+         END IF
+      END IF
+
+   END SUBROUTINE kinetic_energy_matrix
+
+! **************************************************************************************************
+!> \brief Adds atomic blocks of relativistic correction for the kinetic energy
+!> \param matrix_t ...
+!> \param atomic_kind_set ...
+!> \param qs_kind_set ...
+! **************************************************************************************************
+   SUBROUTINE build_atomic_relmat(matrix_t, atomic_kind_set, qs_kind_set)
+      TYPE(dbcsr_type), POINTER                          :: matrix_t
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+
+      INTEGER                                            :: iatom, ikind, jatom
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: reltmat, tblock
+      TYPE(dbcsr_iterator_type)                          :: iter
+
+      CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of)
+
+      CALL dbcsr_iterator_start(iter, matrix_t)
+      DO WHILE (dbcsr_iterator_blocks_left(iter))
+         CALL dbcsr_iterator_next_block(iter, iatom, jatom, tblock)
+         IF (iatom == jatom) THEN
+            ikind = kind_of(iatom)
+            CALL get_qs_kind(qs_kind_set(ikind), reltmat=reltmat)
+            IF (ASSOCIATED(reltmat)) tblock = tblock + reltmat
+         END IF
+      END DO
+      CALL dbcsr_iterator_stop(iter)
+
+   END SUBROUTINE build_atomic_relmat
 
 END MODULE qs_core_matrices

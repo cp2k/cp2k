@@ -139,7 +139,8 @@ MODULE energy_corrections
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
                                               calculate_ptrace
-   USE qs_core_matrices,                ONLY: core_matrices
+   USE qs_core_matrices,                ONLY: core_matrices,&
+                                              kinetic_energy_matrix
    USE qs_density_matrices,             ONLY: calculate_density_matrix,&
                                               calculate_w_matrix
    USE qs_dispersion_pairpot,           ONLY: calculate_dispersion_pairpot
@@ -1712,8 +1713,6 @@ CONTAINS
 
       nder = 1
       IF (SIZE(matrix_p, 1) == 2) THEN
-         CALL dbcsr_add(matrix_p(1, 1)%matrix, matrix_p(2, 1)%matrix, &
-                        alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
          CALL dbcsr_add(matrix_w(1, 1)%matrix, matrix_w(2, 1)%matrix, &
                         alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
       END IF
@@ -1732,35 +1731,19 @@ CONTAINS
          fodeb(1:3) = force(1)%overlap(1:3, 1) - fodeb(1:3)
          CALL para_env%sum(fodeb)
          IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Wout*dS    ", fodeb
-         fodeb(1:3) = force(1)%kinetic(1:3, 1)
       END IF
       IF (debug_stress .AND. use_virial) THEN
          stdeb = fconv*(virial%pv_overlap - stdeb)
          CALL para_env%sum(stdeb)
          IF (iounit > 0) WRITE (UNIT=iounit, FMT="(T2,A,T41,2(1X,ES19.11))") &
             'STRESS| Wout*dS', one_third_sum_diag(stdeb), det_3x3(stdeb)
-         stdeb = virial%pv_ekinetic
       END IF
-      CALL build_kinetic_matrix(ks_env, matrixkp_t=scrm, &
-                                matrix_name="KINETIC ENERGY MATRIX", &
-                                basis_type=basis_type, &
-                                sab_nl=sab_orb, calculate_forces=.TRUE., &
-                                matrixkp_p=matrix_p)
-      IF (debug_forces) THEN
-         fodeb(1:3) = force(1)%kinetic(1:3, 1) - fodeb(1:3)
-         CALL para_env%sum(fodeb)
-         IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pout*dT    ", fodeb
-      END IF
-      IF (debug_stress .AND. use_virial) THEN
-         stdeb = fconv*(virial%pv_ekinetic - stdeb)
-         CALL para_env%sum(stdeb)
-         IF (iounit > 0) WRITE (UNIT=iounit, FMT="(T2,A,T41,2(1X,ES19.11))") &
-            'STRESS| Pout*dT', one_third_sum_diag(stdeb), det_3x3(stdeb)
-      END IF
-      IF (SIZE(matrix_p, 1) == 2) THEN
-         CALL dbcsr_add(matrix_p(1, 1)%matrix, matrix_p(2, 1)%matrix, &
-                        alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
-      END IF
+
+      CALL kinetic_energy_matrix(qs_env, matrixkp_t=scrm, matrix_p=matrix_p, &
+                                 calculate_forces=.TRUE., &
+                                 sab_orb=sab_orb, &
+                                 basis_type=basis_type, &
+                                 debug_forces=debug_forces, debug_stress=debug_stress)
 
       CALL core_matrices(qs_env, scrm, matrix_p, calculate_forces, nder, &
                          ec_env=ec_env, ec_env_matrices=.FALSE., basis_type=basis_type, &

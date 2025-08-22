@@ -95,7 +95,8 @@ MODULE response_solver
                                               pw_r3d_rs_type
    USE qs_2nd_kernel_ao,                ONLY: build_dm_response
    USE qs_collocate_density,            ONLY: calculate_rho_elec
-   USE qs_core_matrices,                ONLY: core_matrices
+   USE qs_core_matrices,                ONLY: core_matrices,&
+                                              kinetic_energy_matrix
    USE qs_density_matrices,             ONLY: calculate_whz_matrix,&
                                               calculate_wz_matrix
    USE qs_energy_types,                 ONLY: qs_energy_type
@@ -110,7 +111,6 @@ MODULE response_solver
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               get_qs_kind_set,&
                                               qs_kind_type
-   USE qs_kinetic,                      ONLY: build_kinetic_matrix
    USE qs_ks_atom,                      ONLY: update_ks_atom
    USE qs_ks_methods,                   ONLY: calc_rho_tot_gspace
    USE qs_ks_types,                     ONLY: qs_ks_env_type
@@ -832,7 +832,7 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: basis_type, unitstr
       INTEGER                                            :: handle, iounit, ispin, mspin, myfun, &
                                                             n_rep_hf, nao, nao_aux, natom, nder, &
-                                                            nimages, nocc, nspins
+                                                            nocc, nspins
       LOGICAL :: debug_forces, debug_stress, distribute_fock_matrix, do_ex, do_hfx, gapw, gapw_xc, &
          hfx_treat_lsd_in_core, resp_only, s_mstruct_changed, use_virial
       REAL(KIND=dp)                                      :: eh1, ehartree, ekin_mol, eps_filter, &
@@ -850,7 +850,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ht, matrix_pd, matrix_pza, &
                                                             matrix_s, mpa, scrm
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_h, matrix_p, mhd, mhx, mhy, mhz, &
-                                                            mpd, mpz
+                                                            mpa2, mpd, mpz, scrm2
       TYPE(dbcsr_type), POINTER                          :: dbwork
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(hartree_local_type), POINTER                  :: hartree_local_gs, hartree_local_t
@@ -862,8 +862,7 @@ CONTAINS
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_aux_fit, sab_orb, sac_ae, sac_ppl, &
-                                                            sap_ppnl
+         POINTER                                         :: sab_aux_fit, sab_orb
       TYPE(oce_matrix_type), POINTER                     :: oce
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_c1d_gs_type) :: rho_tot_gspace, rho_tot_gspace_gs, rho_tot_gspace_t, &
@@ -910,7 +909,7 @@ CONTAINS
          CPASSERT(PRESENT(p_env))
       END IF
 
-      NULLIFY (ks_env, sab_orb, sac_ae, sac_ppl, sap_ppnl, virial)
+      NULLIFY (ks_env, sab_orb, virial)
       CALL get_qs_env(qs_env=qs_env, &
                       cell=cell, &
                       force=force, &
@@ -918,9 +917,6 @@ CONTAINS
                       dft_control=dft_control, &
                       para_env=para_env, &
                       sab_orb=sab_orb, &
-                      sac_ae=sac_ae, &
-                      sac_ppl=sac_ppl, &
-                      sap_ppnl=sap_ppnl, &
                       virial=virial)
       nspins = dft_control%nspins
       gapw = dft_control%qs_control%gapw
@@ -971,39 +967,20 @@ CONTAINS
       !
       ! START OF Tr(P+Z)Hcore
       !
-      IF (nspins == 2) THEN
-         CALL dbcsr_add(mpa(1)%matrix, mpa(2)%matrix, 1.0_dp, 1.0_dp)
-      END IF
-      nimages = 1
 
       ! Kinetic energy matrix
-      NULLIFY (scrm)
-      IF (debug_forces) fodeb(1:3) = force(1)%kinetic(1:3, 1)
-      IF (debug_stress .AND. use_virial) stdeb = virial%pv_ekinetic
-      CALL build_kinetic_matrix(ks_env, matrix_t=scrm, &
-                                matrix_name="KINETIC ENERGY MATRIX", &
-                                basis_type="ORB", &
-                                sab_nl=sab_orb, calculate_forces=.TRUE., &
-                                matrix_p=mpa(1)%matrix)
-      IF (debug_forces) THEN
-         fodeb(1:3) = force(1)%kinetic(1:3, 1) - fodeb(1:3)
-         CALL para_env%sum(fodeb)
-         IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pz*dT      ", fodeb
-      END IF
-      IF (debug_stress .AND. use_virial) THEN
-         stdeb = fconv*(virial%pv_ekinetic - stdeb)
-         CALL para_env%sum(stdeb)
-         IF (iounit > 0) WRITE (UNIT=iounit, FMT="(T2,A,T41,2(1X,ES19.11))") &
-            'STRESS| Kinetic energy', one_third_sum_diag(stdeb), det_3x3(stdeb)
-      END IF
-
-      IF (nspins == 2) THEN
-         CALL dbcsr_add(mpa(1)%matrix, mpa(2)%matrix, 1.0_dp, -1.0_dp)
-      END IF
-      CALL dbcsr_deallocate_matrix_set(scrm)
+      NULLIFY (scrm2)
+      mpa2(1:nspins, 1:1) => mpa(1:nspins)
+      CALL kinetic_energy_matrix(qs_env, matrixkp_t=scrm2, matrix_p=mpa2, &
+                                 matrix_name="KINETIC ENERGY MATRIX", &
+                                 basis_type="ORB", &
+                                 sab_orb=sab_orb, calculate_forces=.TRUE., &
+                                 debug_forces=debug_forces, debug_stress=debug_stress)
+      CALL dbcsr_deallocate_matrix_set(scrm2)
 
       ! Initialize a matrix scrm, later used for scratch purposes
       CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s)
+      NULLIFY (scrm)
       CALL dbcsr_allocate_matrix_set(scrm, nspins)
       DO ispin = 1, nspins
          ALLOCATE (scrm(ispin)%matrix)

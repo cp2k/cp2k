@@ -85,7 +85,8 @@ MODULE mp2_cphf
    USE pw_types,                        ONLY: pw_c1d_gs_type,&
                                               pw_r3d_rs_type
    USE qs_2nd_kernel_ao,                ONLY: apply_2nd_order_kernel
-   USE qs_core_matrices,                ONLY: core_matrices
+   USE qs_core_matrices,                ONLY: core_matrices,&
+                                              kinetic_energy_matrix
    USE qs_density_matrices,             ONLY: calculate_whz_matrix
    USE qs_dispersion_pairpot,           ONLY: calculate_dispersion_pairpot
    USE qs_dispersion_types,             ONLY: qs_dispersion_type
@@ -99,7 +100,6 @@ MODULE mp2_cphf
                                               zero_qs_force
    USE qs_integrate_potential,          ONLY: integrate_v_core_rspace,&
                                               integrate_v_rspace
-   USE qs_kinetic,                      ONLY: build_kinetic_matrix
    USE qs_ks_reference,                 ONLY: ks_ref_potential
    USE qs_ks_types,                     ONLY: qs_ks_env_type,&
                                               set_ks_env
@@ -1298,7 +1298,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_p_mp2, &
                                                             matrix_p_mp2_admm, matrix_s, rho1, &
                                                             rho_ao, rho_ao_aux, scrm
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao_kp, scrm_kp
+      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p, rho_ao_kp, scrm_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
       TYPE(linres_control_type), POINTER                 :: linres_control
@@ -1381,36 +1381,13 @@ CONTAINS
          CALL dbcsr_add(rho_ao(ispin)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp, 1.0_dp)
       END DO
 
-      IF (nspins == 2) THEN
-         CALL dbcsr_add(rho_ao(1)%matrix, rho_ao(2)%matrix, 1.0_dp, 1.0_dp)
-      END IF
-
-      ! Kinetic energy matrix
-      NULLIFY (scrm)
-      IF (debug_forces) THEN
-         deb(1:3) = force(1)%kinetic(1:3, 1)
-         IF (use_virial) e_dummy = third_tr(virial%pv_virial)
-      END IF
-      CALL build_kinetic_matrix(ks_env, matrix_t=scrm, &
-                                matrix_name="KINETIC ENERGY MATRIX", &
-                                basis_type="ORB", &
-                                sab_nl=sab_orb, calculate_forces=.TRUE., &
-                                matrix_p=rho_ao(1)%matrix)
-      IF (debug_forces) THEN
-         deb(1:3) = force(1)%kinetic(1:3, 1) - deb(1:3)
-         CALL para_env%sum(deb)
-         IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: P*dT       ", deb
-         IF (use_virial) THEN
-            e_dummy = third_tr(virial%pv_virial) - e_dummy
-            CALL para_env%sum(e_dummy)
-            IF (iounit > 0) WRITE (iounit, "(T3,A,T33,F16.8)") "DEBUG VIRIAL:: T          ", e_dummy
-         END IF
-      END IF
-      CALL dbcsr_deallocate_matrix_set(scrm)
-
-      IF (nspins == 2) THEN
-         CALL dbcsr_add(rho_ao(1)%matrix, rho_ao(2)%matrix, 1.0_dp, -1.0_dp)
-      END IF
+      ! kinetic energy
+      NULLIFY (scrm_kp)
+      matrix_p(1:nspins, 1:1) => rho_ao(1:nspins)
+      CALL kinetic_energy_matrix(qs_env, matrixkp_t=scrm_kp, matrix_p=matrix_p, &
+                                 calculate_forces=.TRUE., &
+                                 debug_forces=debug_forces, debug_stress=debug_forces)
+      CALL dbcsr_deallocate_matrix_set(scrm_kp)
 
       scrm_kp(1:nspins, 1:1) => matrix_ks(1:nspins)
       CALL core_matrices(qs_env, scrm_kp, rho_ao_kp, .TRUE., 1, &
