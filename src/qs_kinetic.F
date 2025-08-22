@@ -261,10 +261,10 @@ CONTAINS
          IF (dokp) THEN
             CPASSERT(PRESENT(matrixkp_p))
          ELSE
-            IF(PRESENT(matrix_p)) THEN
+            IF (PRESENT(matrix_p)) THEN
                matp => matrix_p
-            ELSEIF(PRESENT(matrixkp_p)) THEN
-               matp => matrixkp_p(1,1)%matrix
+            ELSEIF (PRESENT(matrixkp_p)) THEN
+               matp => matrixkp_p(1, 1)%matrix
             ELSE
                CPABORT("Missing density matrix")
             END IF
