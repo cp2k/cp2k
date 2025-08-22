@@ -79,6 +79,16 @@ ENV PATH="${SPACK_ROOT}/bin:${PATH}"
 # Add Spack packages builtin repository
 RUN spack repo add --scope site ${SPACK_PACKAGES_ROOT}/repos/spack_repo/builtin
 
+ARG USE_ALPS_SPACK_REPO
+ENV USE_ALPS_SPACK_REPO=${USE_ALPS_SPACK_REPO:-0}
+ENV ALPS_SPACK_REPO_SHA="57d5c2f39e4f0cf6acc8779dcaedc1e90264d639"
+RUN if [ "${USE_ALPS_SPACK_REPO}" -ne 0 ]; then \
+    mkdir -p /root/alps-cluster-config && \
+    wget -qO- "https://api.github.com/repos/eth-cscs/alps-cluster-config/tarball/$ALPS_SPACK_REPO_SHA" | \
+    tar --strip-components=1 -xz -C /root/alps-cluster-config && \
+    spack repo add --scope site /root/alps-cluster-config/site/spack_repo/alps; \
+    fi
+
 # Find all compilers
 RUN spack compiler find
 
@@ -89,13 +99,32 @@ RUN spack external find --all --not-buildable
 ARG CP2K_VERSION
 ENV CP2K_VERSION=${CP2K_VERSION:-psmp}
 COPY ./tools/spack/cp2k_deps_${CP2K_VERSION}.yaml ./
-RUN sed -e "s/~xpmem/+xpmem/" cp2k_deps_${CP2K_VERSION}.yaml
 COPY ./tools/spack/cp2k_dev_repo ${SPACK_PACKAGES_ROOT}/repos/spack_repo/cp2k_dev_repo/
 RUN spack repo add --scope site ${SPACK_PACKAGES_ROOT}/repos/spack_repo/cp2k_dev_repo/
 RUN spack env create myenv cp2k_deps_${CP2K_VERSION}.yaml && \
     spack -e myenv repo list
 
+# Use Cray-MPICH if the ALPS Spack repository is used and add supported dependencies
+# NOTE: This is a workaround for ALPS until the CE provides full MPI replacement
+# FIXME: SIRIUS with libvdwxc
+RUN if [ "${USE_ALPS_SPACK_REPO}" -ne 0 ]; then \
+    spack -e myenv config remove "packages:mpi" && \
+    spack -e myenv config add "packages:mpi:require:cray-mpich" && \
+    spack -e myenv remove "mpich"; \
+    spack -e myenv config remove "packages:sirius" && \
+    spack -e myenv config add "packages:sirius:require:+fortran+pugixml~apps~vdwxc" && \
+    spack -e myenv add "cray-mpich"; \
+    spack -e myenv add "xpmem"; \
+    spack -e myenv config add "packages:xpmem:require:~kernel-module"; \
+    spack -e myenv add "dla-future-fortran"; \
+    spack -e myenv remove "elpa"; \
+    spack -e myenv add "osu-micro-benchmarks"; \
+    else \
+    spack -e myenv config change "packages:mpich:+xpmem"; \
+    fi
+
 # Install CP2K dependencies via Spack
+RUN spack -e myenv config get
 RUN spack -e myenv concretize -f
 ENV SPACK_ENV_VIEW="${SPACK_ROOT}/var/spack/environments/myenv/spack-env/view"
 RUN spack -e myenv env depfile -o spack_makefile && \
