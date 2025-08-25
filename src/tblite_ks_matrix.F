@@ -138,8 +138,8 @@ CONTAINS
       END IF
 
       IF (calculate_forces) THEN
-         CALL tb_derive_dH_diag(qs_env, .TRUE.)
-         CALL tb_derive_dH_off(qs_env, .TRUE.)
+         CALL tb_derive_dH_diag(qs_env, .TRUE., nimg)
+         CALL tb_derive_dH_off(qs_env, .TRUE., nimg)
       END IF
 
       ! here we compute dE/dC if needed. Assumes dE/dC is H_{ks}C

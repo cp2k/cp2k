@@ -689,6 +689,7 @@ CONTAINS
       CALL set_ks_env(ks_env, matrix_h_kp=matrix_h)
 
       ! loop over all atom pairs with a non-zero overlap (sab_orb)
+      NULLIFY (nl_iterator)
       CALL neighbor_list_iterator_create(nl_iterator, sab_orb)
       DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
          CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
@@ -1302,6 +1303,7 @@ CONTAINS
          NULLIFY (cell_to_index)
          CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index)
 
+         NULLIFY (nl_iterator)
          CALL neighbor_list_iterator_create(nl_iterator, n_list)
          DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
             CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
@@ -1361,6 +1363,7 @@ CONTAINS
          CALL neighbor_list_iterator_release(nl_iterator)
 
          IF (ASSOCIATED(tb%dipbra)) THEN
+            NULLIFY (nl_iterator)
             CALL neighbor_list_iterator_create(nl_iterator, n_list)
             DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
                CALL get_iterator_info(nl_iterator, &
@@ -1406,6 +1409,7 @@ CONTAINS
          END IF
 
          IF (ASSOCIATED(tb%quadbra)) THEN
+            NULLIFY (nl_iterator)
             CALL neighbor_list_iterator_create(nl_iterator, n_list)
             DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
                CALL get_iterator_info(nl_iterator, &
@@ -1585,6 +1589,7 @@ CONTAINS
       END DO
 
       !loop over all atom pairs with a non-zero overlap (sab_orb)
+      NULLIFY (nl_iterator)
       CALL neighbor_list_iterator_create(nl_iterator, sab_orb)
       DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
          CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
@@ -1977,11 +1982,13 @@ CONTAINS
 !> \brief compute the derivative of the energy
 !> \param qs_env ...
 !> \param use_rho ...
+!> \param nimg ...
 ! **************************************************************************************************
-   SUBROUTINE tb_derive_dH_diag(qs_env, use_rho)
+   SUBROUTINE tb_derive_dH_diag(qs_env, use_rho, nimg)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN)                                :: use_rho
+      INTEGER, INTENT(IN)                                :: nimg
 
 #if defined(__TBLITE)
       INTEGER                                            :: i, iatom, ic, ikind, ind, is, ish, &
@@ -2006,8 +2013,11 @@ CONTAINS
       NULLIFY (scf_env, rho, tb, sab_orb, para_env, kpoints)
       CALL get_qs_env(qs_env=qs_env, scf_env=scf_env, rho=rho, tb_tblite=tb, &
                       sab_orb=sab_orb, para_env=para_env, kpoints=kpoints)
+
       NULLIFY (cell_to_index)
-      CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index)
+      IF (nimg > 1) THEN
+         CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index)
+      END IF
 
       NULLIFY (matrix_p)
       IF (use_rho) THEN
@@ -2020,6 +2030,7 @@ CONTAINS
 
       dE = 0.0_dp
       ! loop over all atom pairs with a non-zero overlap (sab_orb)
+      NULLIFY (nl_iterator)
       CALL neighbor_list_iterator_create(nl_iterator, sab_orb)
       DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
          CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
@@ -2027,10 +2038,21 @@ CONTAINS
 
          IF (iatom /= jatom) CYCLE
 
+         IF (ikind /= jkind) CPABORT("Type wrong")
+
          is = tb%calc%bas%ish_at(iatom)
 
-         ic = cell_to_index(cellind(1), cellind(2), cellind(3))
-         CPASSERT(ic > 0)
+         IF (nimg == 1) THEN
+            ic = 1
+         ELSE
+            ic = cell_to_index(cellind(1), cellind(2), cellind(3))
+            CPASSERT(ic > 0)
+         END IF
+
+         IF (cellind(1) /= 0) CYCLE
+         IF (cellind(2) /= 0) CYCLE
+         IF (cellind(3) /= 0) CYCLE
+
          CALL dbcsr_get_block_p(matrix=matrix_p(1, ic)%matrix, &
                                 row=iatom, col=jatom, BLOCK=pblock, found=found)
 
@@ -2065,11 +2087,13 @@ CONTAINS
 !> \brief compute the derivative of the energy
 !> \param qs_env ...
 !> \param use_rho ...
+!> \param nimg ...
 ! **************************************************************************************************
-   SUBROUTINE tb_derive_dH_off(qs_env, use_rho)
+   SUBROUTINE tb_derive_dH_off(qs_env, use_rho, nimg)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN)                                :: use_rho
+      INTEGER, INTENT(IN)                                :: nimg
 
 #if defined(__TBLITE)
       INTEGER                                            :: i, ij, iatom, ic, icol, ikind, ni, nj, nkind, nel, &
@@ -2117,8 +2141,11 @@ CONTAINS
                       qs_kind_set=qs_kind_set, &
                       kpoints=kpoints, &
                       matrix_w_kp=matrix_w)
+
       NULLIFY (cell_to_index)
-      CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index)
+      IF (nimg > 1) THEN
+         CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index)
+      END IF
 
       h0 => tb%calc%h0
 
@@ -2151,6 +2178,7 @@ CONTAINS
       tb%grad = 0.0_dp
       hsigma = 0.0_dp
       ! loop over all atom pairs with a non-zero overlap (sab_orb)
+      NULLIFY (nl_iterator)
       CALL neighbor_list_iterator_create(nl_iterator, sab_orb)
       DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
          CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
@@ -2187,8 +2215,13 @@ CONTAINS
          nsgfb => basis_set_b%nsgf_set
          nsetj = basis_set_b%nset
 
-         ic = cell_to_index(cellind(1), cellind(2), cellind(3))
-         CPASSERT(ic > 0)
+         IF (nimg == 1) THEN
+            ic = 1
+         ELSE
+            ic = cell_to_index(cellind(1), cellind(2), cellind(3))
+            CPASSERT(ic > 0)
+         END IF
+
          NULLIFY (pblock)
          CALL dbcsr_get_block_p(matrix=matrix_p(1, ic)%matrix, &
                                 row=jrow, col=icol, BLOCK=pblock, found=found)
