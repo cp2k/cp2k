@@ -230,7 +230,7 @@ CONTAINS
                           "FORCE_EVAL/DFT/.../ADDED_MOS to actually affect the calculations, "// &
                           "which is why it is not expected to work with FORCE_EVAL/DFT/SCF/OT "// &
                           "and may raise errors when used with OT."// &
-                          "More details in a thread `<https://github.com/cp2k/cp2k/issues/4389>`.", &
+                          "For more details see [this discussion](https://github.com/cp2k/cp2k/issues/4389).", &
                           usage="RELAX_MULTIPLICITY 0.00001", &
                           repeats=.FALSE., &
                           default_r_val=0.0_dp)
