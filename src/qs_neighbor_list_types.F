@@ -350,7 +350,7 @@ CONTAINS
    FUNCTION neighbor_list_iterate(iterator_set, mepos) RESULT(istat)
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: iterator_set
-      INTEGER, OPTIONAL                                  :: mepos
+      INTEGER, INTENT(IN), OPTIONAL                      :: mepos
       INTEGER                                            :: istat
 
       INTEGER                                            :: iab, last, me
@@ -548,17 +548,19 @@ CONTAINS
                                 ikind, jkind, nkind, ilist, nlist, inode, nnode, iatom, jatom, r, cell)
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: iterator_set
-      INTEGER, OPTIONAL                                  :: mepos, ikind, jkind, nkind, ilist, &
-                                                            nlist, inode, nnode, iatom, jatom
+      INTEGER, INTENT(IN), OPTIONAL                      :: mepos
+      INTEGER, OPTIONAL                                  :: ikind, jkind, nkind, ilist, nlist, &
+                                                            inode, nnode, iatom, jatom
       REAL(dp), DIMENSION(3), OPTIONAL                   :: r
       INTEGER, DIMENSION(3), OPTIONAL                    :: cell
 
       INTEGER                                            :: me
       TYPE(neighbor_list_iterator_type), POINTER         :: iterator
 
-      IF (SIZE(iterator_set) .NE. 1 .AND. .NOT. PRESENT(mepos)) &
+      CPASSERT(ASSOCIATED(iterator_set))
+      IF ((SIZE(iterator_set) .NE. 1) .AND. (.NOT. PRESENT(mepos))) THEN
          CPABORT("Parallel iterator calls must include 'mepos'")
-
+      END IF
       IF (PRESENT(mepos)) THEN
          me = mepos
       ELSE
@@ -594,7 +596,7 @@ CONTAINS
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: iterator_set
       TYPE(neighbor_list_task_type), INTENT(OUT)         :: task
-      INTEGER, OPTIONAL                                  :: mepos
+      INTEGER, INTENT(IN), OPTIONAL                      :: mepos
 
       IF (PRESENT(mepos)) THEN
          CALL get_iterator_info(iterator_set, mepos=mepos, ikind=task%ikind, jkind=task%jkind, &
@@ -1041,15 +1043,11 @@ CONTAINS
       REAL(dp), DIMENSION(3), INTENT(OUT), OPTIONAL      :: r
 
       IF (ASSOCIATED(neighbor_node)) THEN
-
          IF (PRESENT(neighbor)) neighbor = neighbor_node%neighbor
          IF (PRESENT(r)) r(:) = neighbor_node%r(:)
          IF (PRESENT(cell)) cell(:) = neighbor_node%cell(:)
-
       ELSE
-
          CPABORT("The requested neighbor node is not associated")
-
       END IF
 
    END SUBROUTINE get_neighbor_node
