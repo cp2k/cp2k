@@ -111,10 +111,7 @@ dbm_multiply(double alpha, int itask, int ntasks, int size, int param_format,
       params += (itask + tid) * 3;
       ibase = 1;
     }
-#if !defined(NDEBUG)
-    if (m < XM(shape))
-#endif
-    { /* valid slice (subtask) */
+    if (m < XM(shape)) { /* valid slice (subtask) */
       b += XB(params, ibase);
       if (16 <= XK(shape)) {
         DBM_MULTIPLY(alpha, ibase, params, shape, a, b, c, cvec, m, BN, 16);
