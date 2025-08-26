@@ -12,11 +12,7 @@
 !> \author JGH
 ! **************************************************************************************************
 MODULE ec_external
-   USE atomic_kind_types,               ONLY: atomic_kind_type
    USE cell_types,                      ONLY: cell_type
-   USE core_ae,                         ONLY: build_core_ae
-   USE core_ppl,                        ONLY: build_core_ppl
-   USE core_ppnl,                       ONLY: build_core_ppnl
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
                                               dbcsr_copy,&
@@ -50,14 +46,13 @@ MODULE ec_external
    USE mathlib,                         ONLY: det_3x3
    USE message_passing,                 ONLY: mp_para_env_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
-   USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: pascal
    USE qs_core_energies,                ONLY: calculate_ptrace
+   USE qs_core_matrices,                ONLY: core_matrices,&
+                                              kinetic_energy_matrix
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_force_types,                  ONLY: qs_force_type
-   USE qs_kind_types,                   ONLY: qs_kind_type
-   USE qs_kinetic,                      ONLY: build_kinetic_matrix
    USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_mo_types,                     ONLY: deallocate_mo_set,&
                                               get_mo_set,&
@@ -361,23 +356,16 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ec_debug_force'
 
       INTEGER                                            :: handle, iounit, nder, nimages
-      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: calculate_forces, debug_forces, &
                                                             debug_stress, use_virial
-      REAL(KIND=dp)                                      :: eps_ppnl, fconv
-      REAL(KIND=dp), DIMENSION(3)                        :: fodeb
+      REAL(KIND=dp)                                      :: fconv
       REAL(KIND=dp), DIMENSION(3, 3)                     :: stdeb, sttot
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: scrm
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_orb, sac_ae, sac_ppl, sap_ppnl
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(qs_ks_env_type), POINTER                      :: ks_env
+         POINTER                                         :: sab_orb
       TYPE(virial_type), POINTER                         :: virial
 
       CALL timeset(routineN, handle)
@@ -389,12 +377,9 @@ CONTAINS
       calculate_forces = .TRUE.
 
       ! no k-points possible
-      NULLIFY (cell, dft_control, force, ks_env, para_env, virial)
       CALL get_qs_env(qs_env=qs_env, &
                       cell=cell, &
                       dft_control=dft_control, &
-                      force=force, &
-                      ks_env=ks_env, &
                       para_env=para_env, &
                       virial=virial)
       nimages = dft_control%nimages
@@ -415,116 +400,22 @@ CONTAINS
          CPABORT("GAPW not implemented")
       END IF
 
-      ! get neighbor lists
-      NULLIFY (sab_orb, sac_ae, sac_ppl, sap_ppnl)
-      CALL get_qs_env(qs_env=qs_env, &
-                      sab_orb=sab_orb, sac_ae=sac_ae, &
-                      sac_ppl=sac_ppl, sap_ppnl=sap_ppnl)
-
       ! initialize src matrix
       NULLIFY (scrm)
       CALL dbcsr_allocate_matrix_set(scrm, 1, 1)
       ALLOCATE (scrm(1, 1)%matrix)
       CALL dbcsr_create(scrm(1, 1)%matrix, template=matrix_p(1, 1)%matrix)
+      CALL get_qs_env(qs_env=qs_env, sab_orb=sab_orb)
       CALL cp_dbcsr_alloc_block_from_nbl(scrm(1, 1)%matrix, sab_orb)
 
-      nder = 1
-      IF (SIZE(matrix_p, 1) == 2) THEN
-         CALL dbcsr_add(matrix_p(1, 1)%matrix, matrix_p(2, 1)%matrix, &
-                        alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
-      END IF
-
       ! kinetic energy
-      IF (debug_forces) fodeb(1:3) = force(1)%kinetic(1:3, 1)
-      IF (debug_stress .AND. use_virial) stdeb = virial%pv_ekinetic
-      CALL build_kinetic_matrix(ks_env, matrixkp_t=scrm, &
-                                matrix_name="KINETIC ENERGY MATRIX", &
-                                basis_type="ORB", &
-                                sab_nl=sab_orb, calculate_forces=.TRUE., &
-                                matrixkp_p=matrix_p)
-      IF (debug_forces) THEN
-         fodeb(1:3) = force(1)%kinetic(1:3, 1) - fodeb(1:3)
-         CALL para_env%sum(fodeb)
-         IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pout*dT    ", fodeb
-      END IF
-      IF (debug_stress .AND. use_virial) THEN
-         stdeb = fconv*(virial%pv_ekinetic - stdeb)
-         CALL para_env%sum(stdeb)
-         IF (iounit > 0) WRITE (UNIT=iounit, FMT="(T2,A,T41,2(1X,ES19.11))") &
-            'STRESS| Pout*dT', one_third_sum_diag(stdeb), det_3x3(stdeb)
-      END IF
-      IF (SIZE(matrix_p, 1) == 2) THEN
-         CALL dbcsr_add(matrix_p(1, 1)%matrix, matrix_p(2, 1)%matrix, &
-                        alpha_scalar=1.0_dp, beta_scalar=-1.0_dp)
-      END IF
+      CALL kinetic_energy_matrix(qs_env, matrixkp_t=scrm, matrix_p=matrix_p, &
+                                 calculate_forces=calculate_forces, &
+                                 debug_forces=debug_forces, debug_stress=debug_stress)
 
-      ! compute the ppl contribution to the core hamiltonian
-      NULLIFY (atomic_kind_set, particle_set, qs_kind_set)
-      CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set, particle_set=particle_set, &
-                      atomic_kind_set=atomic_kind_set)
-
-      IF (ASSOCIATED(sac_ae)) THEN
-         IF (calculate_forces .AND. debug_forces) fodeb(1:3) = force(1)%all_potential(1:3, 1)
-         IF (debug_stress .AND. use_virial) stdeb = virial%pv_ppl
-         CALL build_core_ae(scrm, matrix_p, force, &
-                            virial, calculate_forces, use_virial, nder, &
-                            qs_kind_set, atomic_kind_set, particle_set, sab_orb, sac_ae, &
-                            nimages, cell_to_index, "ORB")
-         IF (calculate_forces .AND. debug_forces) THEN
-            fodeb(1:3) = force(1)%all_potential(1:3, 1) - fodeb(1:3)
-            CALL para_env%sum(fodeb)
-            IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pout*dH_AE  ", fodeb
-         END IF
-         IF (debug_stress .AND. use_virial) THEN
-            stdeb = fconv*(virial%pv_ppl - stdeb)
-            CALL para_env%sum(stdeb)
-            IF (iounit > 0) WRITE (UNIT=iounit, FMT="(T2,A,T41,2(1X,ES19.11))") &
-               'STRESS| Pout*dH_AE ', one_third_sum_diag(stdeb), det_3x3(stdeb)
-         END IF
-      END IF
-
-      IF (ASSOCIATED(sac_ppl)) THEN
-         IF (calculate_forces .AND. debug_forces) fodeb(1:3) = force(1)%gth_ppl(1:3, 1)
-         IF (debug_stress .AND. use_virial) stdeb = virial%pv_ppl
-         CALL build_core_ppl(scrm, matrix_p, force, &
-                             virial, calculate_forces, use_virial, nder, &
-                             qs_kind_set, atomic_kind_set, particle_set, sab_orb, sac_ppl, &
-                             nimages, cell_to_index, "ORB")
-         IF (calculate_forces .AND. debug_forces) THEN
-            fodeb(1:3) = force(1)%gth_ppl(1:3, 1) - fodeb(1:3)
-            CALL para_env%sum(fodeb)
-            IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pout*dH_PPL ", fodeb
-         END IF
-         IF (debug_stress .AND. use_virial) THEN
-            stdeb = fconv*(virial%pv_ppl - stdeb)
-            CALL para_env%sum(stdeb)
-            IF (iounit > 0) WRITE (UNIT=iounit, FMT="(T2,A,T41,2(1X,ES19.11))") &
-               'STRESS| Pout*dH_PPL', one_third_sum_diag(stdeb), det_3x3(stdeb)
-         END IF
-      END IF
-
-      ! compute the ppnl contribution to the core hamiltonian ***
-      eps_ppnl = dft_control%qs_control%eps_ppnl
-      IF (ASSOCIATED(sap_ppnl)) THEN
-         IF (calculate_forces .AND. debug_forces) fodeb(1:3) = force(1)%gth_ppnl(1:3, 1)
-         IF (debug_stress .AND. use_virial) stdeb = virial%pv_ppnl
-         CALL build_core_ppnl(scrm, matrix_p, force, &
-                              virial, calculate_forces, use_virial, nder, &
-                              qs_kind_set, atomic_kind_set, particle_set, &
-                              sab_orb, sap_ppnl, eps_ppnl, &
-                              nimages, cell_to_index, "ORB")
-         IF (calculate_forces .AND. debug_forces) THEN
-            fodeb(1:3) = force(1)%gth_ppnl(1:3, 1) - fodeb(1:3)
-            CALL para_env%sum(fodeb)
-            IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pout*dH_PPNL", fodeb
-         END IF
-         IF (debug_stress .AND. use_virial) THEN
-            stdeb = fconv*(virial%pv_ppnl - stdeb)
-            CALL para_env%sum(stdeb)
-            IF (iounit > 0) WRITE (UNIT=iounit, FMT="(T2,A,T41,2(1X,ES19.11))") &
-               'STRESS| Pout*dH_PPNL', one_third_sum_diag(stdeb), det_3x3(stdeb)
-         END IF
-      END IF
+      nder = 1
+      CALL core_matrices(qs_env, scrm, matrix_p, calculate_forces, nder, &
+                         debug_forces=debug_forces, debug_stress=debug_stress)
 
       IF (debug_stress .AND. use_virial) THEN
          stdeb = fconv*(virial%pv_virial - sttot)

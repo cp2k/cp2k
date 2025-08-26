@@ -75,17 +75,17 @@
 !> \author Matthias Krack (14.09.2000,21.03.02)
 ! **************************************************************************************************
 MODULE qs_core_hamiltonian
-   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                              get_atomic_kind_set
-   USE core_ae,                         ONLY: build_core_ae
-   USE core_ppl,                        ONLY: build_core_ppl
-   USE core_ppnl,                       ONLY: build_core_ppnl
+   USE atomic_kind_types,               ONLY: atomic_kind_type
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_distribution_type, dbcsr_iterator_blocks_left, &
-        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
-        dbcsr_p_type, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric
+   USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
+                                              dbcsr_copy,&
+                                              dbcsr_create,&
+                                              dbcsr_distribution_type,&
+                                              dbcsr_p_type,&
+                                              dbcsr_set,&
+                                              dbcsr_type,&
+                                              dbcsr_type_antisymmetric
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
@@ -98,28 +98,22 @@ MODULE qs_core_hamiltonian
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE input_constants,                 ONLY: do_admm_purify_none,&
-                                              do_ppl_analytic,&
-                                              kg_tnadd_atomic,&
-                                              rel_none,&
-                                              rel_trans_atom
+                                              kg_tnadd_atomic
    USE input_section_types,             ONLY: section_vals_val_get
    USE kg_environment_types,            ONLY: kg_environment_type
    USE kg_tnadd_mat,                    ONLY: build_tnadd_mat
    USE kinds,                           ONLY: default_string_length,&
                                               dp
-   USE kpoint_types,                    ONLY: get_kpoint_info,&
-                                              kpoint_type
-   USE lri_environment_types,           ONLY: lri_environment_type
    USE message_passing,                 ONLY: mp_para_env_type
    USE particle_types,                  ONLY: particle_type
    USE qs_condnum,                      ONLY: overlap_condnum
+   USE qs_core_matrices,                ONLY: core_matrices,&
+                                              kinetic_energy_matrix
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type,&
                                               set_qs_env
    USE qs_force_types,                  ONLY: qs_force_type
-   USE qs_kind_types,                   ONLY: get_qs_kind,&
-                                              qs_kind_type
-   USE qs_kinetic,                      ONLY: build_kinetic_matrix
+   USE qs_kind_types,                   ONLY: qs_kind_type
    USE qs_ks_types,                     ONLY: get_ks_env,&
                                               qs_ks_env_type,&
                                               set_ks_env
@@ -140,7 +134,7 @@ MODULE qs_core_hamiltonian
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_core_hamiltonian'
 
-   PUBLIC :: build_core_hamiltonian_matrix, core_matrices
+   PUBLIC :: build_core_hamiltonian_matrix
    PUBLIC :: dump_info_core_hamiltonian, qs_matrix_h_allocate_imag_from_real
 
 CONTAINS
@@ -160,9 +154,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'build_core_hamiltonian_matrix'
 
-      INTEGER                                            :: handle, ic, img, iw, nder, nders, &
-                                                            nimages, nkind
-      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
+      INTEGER                                            :: handle, img, iw, nder, nders, nimages, &
+                                                            nkind
       LOGICAL                                            :: h_is_complex, norml1, norml2, ofdft, &
                                                             use_arnoldi, use_virial
       REAL(KIND=dp)                                      :: eps_filter, eps_fit
@@ -175,7 +168,6 @@ CONTAINS
                                                             matrix_w
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kg_environment_type), POINTER                 :: kg_env
-      TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb, sap_oce
       TYPE(oce_matrix_type), POINTER                     :: oce
@@ -273,21 +265,19 @@ CONTAINS
                               alpha_scalar=1.0_dp, beta_scalar=1.0_dp)
             END DO
          END IF
-         ! S matrix
-         CALL build_overlap_matrix(ks_env, nderivative=nders, matrixkp_s=matrix_s, &
-                                   matrix_name="OVERLAP MATRIX", &
-                                   basis_type_a="ORB", &
-                                   basis_type_b="ORB", &
-                                   sab_nl=sab_orb, calculate_forces=.TRUE., &
-                                   matrixkp_p=matrix_w)
-         ! T matrix
-         IF (.NOT. ofdft) &
-            CALL build_kinetic_matrix(ks_env, matrixkp_t=matrix_t, &
-                                      matrix_name="KINETIC ENERGY MATRIX", &
-                                      basis_type="ORB", &
-                                      sab_nl=sab_orb, calculate_forces=.TRUE., &
-                                      matrixkp_p=matrix_p, &
-                                      eps_filter=eps_filter)
+      ELSE
+         NULLIFY (matrix_p, matrix_w)
+      END IF
+
+      ! S matrix
+      CALL build_overlap_matrix(ks_env, nderivative=nders, matrixkp_s=matrix_s, &
+                                matrix_name="OVERLAP MATRIX", &
+                                basis_type_a="ORB", &
+                                basis_type_b="ORB", &
+                                sab_nl=sab_orb, calculate_forces=calculate_forces, &
+                                matrixkp_p=matrix_w)
+
+      IF (calculate_forces) THEN
          ! *** If LSD, then recover alpha density and beta density     ***
          ! *** from the total density (1) and the spin density (2)     ***
          ! *** The W matrix is neglected, since it will be destroyed   ***
@@ -300,21 +290,16 @@ CONTAINS
                               alpha_scalar=-1.0_dp, beta_scalar=1.0_dp)
             END DO
          END IF
-      ELSE
-         ! S matrix
-         CALL build_overlap_matrix(ks_env, nderivative=nders, matrixkp_s=matrix_s, &
-                                   matrix_name="OVERLAP MATRIX", &
-                                   basis_type_a="ORB", &
-                                   basis_type_b="ORB", &
-                                   sab_nl=sab_orb)
-         ! T matrix
-         IF (.NOT. ofdft) &
-            CALL build_kinetic_matrix(ks_env, matrixkp_t=matrix_t, &
-                                      matrix_name="KINETIC ENERGY MATRIX", &
-                                      basis_type="ORB", &
-                                      sab_nl=sab_orb, &
-                                      eps_filter=eps_filter)
       END IF
+
+      ! T matrix
+      CALL kinetic_energy_matrix(qs_env, matrixkp_t=matrix_t, &
+                                 matrix_p=matrix_p, &
+                                 matrix_name="KINETIC ENERGY MATRIX", &
+                                 basis_type="ORB", &
+                                 sab_orb=sab_orb, &
+                                 calculate_forces=calculate_forces, &
+                                 eps_filter=eps_filter)
 
       ! (Re-)allocate H matrix based on overlap matrix
       CALL get_ks_env(ks_env, complex_ks=h_is_complex)
@@ -333,24 +318,6 @@ CONTAINS
       NULLIFY (qs_kind_set, atomic_kind_set, particle_set)
       CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set, atomic_kind_set=atomic_kind_set, &
                       particle_set=particle_set)
-
-      IF (.NOT. ofdft) THEN
-         ! relativistic atomic correction to kinetic energy
-         IF (qs_env%rel_control%rel_method /= rel_none) THEN
-            IF (qs_env%rel_control%rel_transformation == rel_trans_atom) THEN
-               IF (nimages == 1) THEN
-                  ic = 1
-               ELSE
-                  CALL get_ks_env(ks_env=ks_env, kpoints=kpoints)
-                  CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index)
-                  ic = cell_to_index(0, 0, 0)
-               END IF
-               CALL build_atomic_relmat(matrix_h(1, 1)%matrix, atomic_kind_set, qs_kind_set)
-            ELSE
-               CPABORT("Relativistic corrections of this type are currently not implemented")
-            END IF
-         END IF
-      END IF
 
       ! *** core and pseudopotentials
       CALL core_matrices(qs_env, matrix_h, matrix_p, calculate_forces, nder)
@@ -404,161 +371,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE build_core_hamiltonian_matrix
-
-! **************************************************************************************************
-!> \brief ...
-!> \param qs_env ...
-!> \param matrix_h ...
-!> \param matrix_p ...
-!> \param calculate_forces ...
-!> \param nder ...
-!> \param atcore ...
-! **************************************************************************************************
-   SUBROUTINE core_matrices(qs_env, matrix_h, matrix_p, calculate_forces, nder, atcore)
-
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_h, matrix_p
-      LOGICAL, INTENT(IN)                                :: calculate_forces
-      INTEGER, INTENT(IN)                                :: nder
-      REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: atcore
-
-      INTEGER                                            :: natom, nimages
-      INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: all_present, my_gt_nl, ppl_present, &
-                                                            ppnl_present, use_virial
-      REAL(KIND=dp)                                      :: eps_ppnl
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(kpoint_type), POINTER                         :: kpoints
-      TYPE(lri_environment_type), POINTER                :: lri_env
-      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
-         POINTER                                         :: sab_orb, sac_ae, sac_ppl, sap_ppnl
-      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
-      TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(qs_ks_env_type), POINTER                      :: ks_env
-      TYPE(virial_type), POINTER                         :: virial
-
-      NULLIFY (dft_control)
-      CALL get_qs_env(qs_env=qs_env, ks_env=ks_env, dft_control=dft_control, natom=natom)
-      nimages = dft_control%nimages
-      IF (PRESENT(atcore)) THEN
-         CPASSERT(SIZE(atcore) >= natom)
-      END IF
-
-      ! check whether a gauge transformed version of the non-local potential part has to be used
-      my_gt_nl = .FALSE.
-      IF (qs_env%run_rtp) THEN
-         CPASSERT(ASSOCIATED(dft_control%rtp_control))
-         IF (dft_control%rtp_control%velocity_gauge) THEN
-            my_gt_nl = dft_control%rtp_control%nl_gauge_transform
-         END IF
-      END IF
-
-      ! prepare for k-points
-      NULLIFY (cell_to_index)
-      IF (nimages > 1) THEN
-         CALL get_ks_env(ks_env=ks_env, kpoints=kpoints)
-         CALL get_kpoint_info(kpoint=kpoints, cell_to_index=cell_to_index)
-         dft_control%qs_control%do_ppl_method = do_ppl_analytic
-      END IF
-      ! force analytic ppl calculation for GAPW methods
-      IF (dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc) THEN
-         dft_control%qs_control%do_ppl_method = do_ppl_analytic
-      END IF
-
-      ! force
-      NULLIFY (force)
-      IF (calculate_forces) CALL get_qs_env(qs_env=qs_env, force=force)
-      ! virial
-      CALL get_qs_env(qs_env=qs_env, virial=virial)
-      use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
-
-      NULLIFY (qs_kind_set, atomic_kind_set, particle_set)
-      CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set, atomic_kind_set=atomic_kind_set, &
-                      particle_set=particle_set)
-
-      NULLIFY (sab_orb, sac_ae, sac_ppl, sap_ppnl)
-      CALL get_qs_env(qs_env=qs_env, &
-                      sab_orb=sab_orb, &
-                      sac_ae=sac_ae, &
-                      sac_ppl=sac_ppl, &
-                      sap_ppnl=sap_ppnl)
-
-      ! *** compute the nuclear attraction contribution to the core hamiltonian ***
-      all_present = ASSOCIATED(sac_ae)
-      IF (all_present) THEN
-         CALL build_core_ae(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder, &
-                            qs_kind_set, atomic_kind_set, particle_set, sab_orb, sac_ae, &
-                            nimages, cell_to_index, "ORB", atcore=atcore)
-      END IF
-
-      ! *** compute the ppl contribution to the core hamiltonian ***
-      ppl_present = ASSOCIATED(sac_ppl)
-      IF (ppl_present) THEN
-         IF (dft_control%qs_control%do_ppl_method == do_ppl_analytic) THEN
-            IF (dft_control%qs_control%lrigpw) THEN
-               CALL get_qs_env(qs_env, lri_env=lri_env)
-               IF (lri_env%ppl_ri) THEN
-                  IF (lri_env%exact_1c_terms) THEN
-                     CPABORT("not implemented")
-                  END IF
-               ELSE
-                  CALL build_core_ppl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder, &
-                                      qs_kind_set, atomic_kind_set, particle_set, sab_orb, sac_ppl, &
-                                      nimages, cell_to_index, "ORB", atcore=atcore)
-               END IF
-            ELSE
-               CALL build_core_ppl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder, &
-                                   qs_kind_set, atomic_kind_set, particle_set, sab_orb, sac_ppl, &
-                                   nimages, cell_to_index, "ORB", atcore=atcore)
-            END IF
-         END IF
-      END IF
-
-      ! *** compute the ppnl contribution to the core hamiltonian ***
-      eps_ppnl = dft_control%qs_control%eps_ppnl
-      ppnl_present = ASSOCIATED(sap_ppnl)
-      IF (ppnl_present) THEN
-         IF (.NOT. my_gt_nl) THEN
-            CALL build_core_ppnl(matrix_h, matrix_p, force, virial, calculate_forces, use_virial, nder, &
-                                 qs_kind_set, atomic_kind_set, particle_set, sab_orb, sap_ppnl, eps_ppnl, &
-                                 nimages, cell_to_index, "ORB", atcore=atcore)
-         END IF
-      END IF
-
-   END SUBROUTINE core_matrices
-
-! **************************************************************************************************
-!> \brief Adds atomic blocks of relativistic correction for the kinetic energy
-!> \param matrix_h ...
-!> \param atomic_kind_set ...
-!> \param qs_kind_set ...
-! **************************************************************************************************
-   SUBROUTINE build_atomic_relmat(matrix_h, atomic_kind_set, qs_kind_set)
-      TYPE(dbcsr_type), POINTER                          :: matrix_h
-      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-
-      INTEGER                                            :: iatom, ikind, jatom
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: kind_of
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: hblock, reltmat
-      TYPE(dbcsr_iterator_type)                          :: iter
-
-      CALL get_atomic_kind_set(atomic_kind_set, kind_of=kind_of)
-
-      CALL dbcsr_iterator_start(iter, matrix_h)
-      DO WHILE (dbcsr_iterator_blocks_left(iter))
-         CALL dbcsr_iterator_next_block(iter, iatom, jatom, hblock)
-         IF (iatom == jatom) THEN
-            ikind = kind_of(iatom)
-            CALL get_qs_kind(qs_kind_set(ikind), reltmat=reltmat)
-            IF (ASSOCIATED(reltmat)) hblock = hblock + reltmat
-         END IF
-      END DO
-      CALL dbcsr_iterator_stop(iter)
-
-   END SUBROUTINE build_atomic_relmat
 
 ! **************************************************************************************************
 !> \brief Possibly prints matrices after the construction of the Core

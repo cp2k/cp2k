@@ -186,6 +186,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: dab
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(block_p_type), ALLOCATABLE, DIMENSION(:)      :: k_block
+      TYPE(dbcsr_type), POINTER                          :: matp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_list
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_a, basis_set_b
@@ -260,7 +261,13 @@ CONTAINS
          IF (dokp) THEN
             CPASSERT(PRESENT(matrixkp_p))
          ELSE
-            CPASSERT(PRESENT(matrix_p))
+            IF (PRESENT(matrix_p)) THEN
+               matp => matrix_p
+            ELSEIF (PRESENT(matrixkp_p)) THEN
+               matp => matrixkp_p(1, 1)%matrix
+            ELSE
+               CPABORT("Missing density matrix")
+            END IF
          END IF
       END IF
 
@@ -273,7 +280,7 @@ CONTAINS
 !$OMP PARALLEL DEFAULT(NONE) &
 !$OMP SHARED (do_forces, ldsab, use_cell_mapping, do_symmetric, dokp,&
 !$OMP         sab_nl, ncoset, maxder, nder, ndod, use_virial, matrix_t, matrixkp_t,&
-!$OMP         matrix_p, basis_set_list, atom_of_kind, cell_to_index, matrixkp_p, locks, natom)  &
+!$OMP         matp, matrix_p, basis_set_list, atom_of_kind, cell_to_index, matrixkp_p, locks, natom)  &
 !$OMP PRIVATE (k_block, kab, qab, pab, ikind, jkind, iatom, jatom, rab, cell, basis_set_a, basis_set_b, f, &
 !$OMP          first_sgfa, la_max, la_min, npgfa, nsgfa, nseta, rpgfa, set_radius_a, ncoa, ncob, force_a, &
 !$OMP          zeta, first_sgfb, lb_max, lb_min, npgfb, nsetb, rpgfb, set_radius_b, nsgfb, p_block, dab, tab, &
@@ -386,7 +393,9 @@ CONTAINS
                                       row=irow, col=icol, block=p_block, found=found)
                CPASSERT(found)
             ELSE
-               CALL dbcsr_get_block_p(matrix=matrix_p, row=irow, col=icol, &
+!deb           CALL dbcsr_get_block_p(matrix=matrix_p, row=irow, col=icol, &
+!deb                                  block=p_block, found=found)
+               CALL dbcsr_get_block_p(matrix=matp, row=irow, col=icol, &
                                       block=p_block, found=found)
                CPASSERT(found)
             END IF
