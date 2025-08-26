@@ -3,7 +3,7 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-"COBe_gfn1_fd.inp"                       = [{matcher="E_total", tol=1.0E-8, ref=-7.4283186205}]
-"CH2O_gfn1.inp"                          = [{matcher="E_total", tol=1.0E-8, ref=-7.8503584297}]
-"Si_gfn1_fd.inp"                         = [{matcher="E_total", tol=1.0E-8, ref=-14.452117500}]
+"CH2O_gfn1_force.inp"                          = [{matcher="M082", tol=1.0E-5, ref=0.0000000}]
+"COBe_gfn1_fd_force.inp"                       = [{matcher="M082", tol=1.0E-5, ref=0.0000000}]
+"Si_gfn1_fd_force.inp"                         = [{matcher="M082", tol=2.0E-4, ref=0.0000000}]
 #EOF
