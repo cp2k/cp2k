@@ -681,6 +681,12 @@ CONTAINS
                                      4096, &
                                      usage, &
                                      4096)
+
+         ! ignore the keyword parametes for sections dftd3 and dftd4.
+         IF (((section_name == 'dftd3') .OR. (section_name == 'dftd4')) .AND. (option_name == 'parameters')) THEN
+            CYCLE
+         END IF
+
          IF ((option_name /= 'memory_usage') .AND. (option_name /= 'xc_functionals') .AND. (option_name /= 'vk')) THEN
             CALL section_vals_val_get(section, option_name, explicit=found)
             IF (found) THEN
