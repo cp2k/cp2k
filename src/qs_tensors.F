@@ -494,8 +494,8 @@ CONTAINS
             iter_stat = neighbor_list_3c_iterate(iterator)
             RETURN
          END IF
-
       END IF
+
       iter_stat = nl_sub_iterate(iterator%iter_jk, iterator%iter_ij)
       IF (iter_stat /= 0) THEN
          iterator%iter_level = 0
