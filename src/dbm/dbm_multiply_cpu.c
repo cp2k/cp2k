@@ -54,53 +54,55 @@ static inline void dbm_dgemm(const char transa, const char transb, const int m,
  *        http://szudzik.com/ElegantPairing.pdf
  * \author Ole Schuett
  ******************************************************************************/
-#if defined(__LIBXSMM)
 static inline unsigned int hash(const dbm_task_t task) {
   const unsigned int m = task.m, n = task.n, k = task.k;
   const unsigned int mn = (m >= n) ? m * m + m + n : m + n * n;
   const unsigned int mnk = (mn >= k) ? mn * mn + mn + k : mn + k * k;
   return mnk;
 }
-#endif
 
 /*******************************************************************************
  * \brief Internal routine for executing the tasks in given batch on the CPU.
  * \author Ole Schuett
  ******************************************************************************/
-void dbm_multiply_cpu_process_batch(
-    const int ntasks, const dbm_task_t batch[ntasks], const double alpha,
-    const dbm_pack_t *pack_a, const dbm_pack_t *pack_b, dbm_shard_t *shard_c) {
+void dbm_multiply_cpu_process_batch(int ntasks, const dbm_task_t batch[ntasks],
+                                    double alpha, const dbm_pack_t *pack_a,
+                                    const dbm_pack_t *pack_b,
+                                    dbm_shard_t *shard_c, int options) {
 
   if (0 >= ntasks) { // nothing to do
     return;
   }
   dbm_shard_allocate_promised_blocks(shard_c);
 
-#if defined(__LIBXSMM)
-
-  // Sort tasks approximately by m,n,k via bucket sort.
-  int buckets[DBM_BATCH_NUM_BUCKETS] = {0};
-  for (int itask = 0; itask < ntasks; ++itask) {
-    const int i = hash(batch[itask]) % DBM_BATCH_NUM_BUCKETS;
-    ++buckets[i];
-  }
-  for (int i = 1; i < DBM_BATCH_NUM_BUCKETS; ++i) {
-    buckets[i] += buckets[i - 1];
-  }
-  assert(buckets[DBM_BATCH_NUM_BUCKETS - 1] == ntasks);
   int batch_order[ntasks];
-  for (int itask = 0; itask < ntasks; ++itask) {
-    const int i = hash(batch[itask]) % DBM_BATCH_NUM_BUCKETS;
-    --buckets[i];
-    batch_order[buckets[i]] = itask;
+  if (DBM_MULTIPLY_TASK_REORDER & options) {
+    // Sort tasks approximately by m,n,k via bucket sort.
+    int buckets[DBM_BATCH_NUM_BUCKETS] = {0};
+    for (int itask = 0; itask < ntasks; ++itask) {
+      const int i = hash(batch[itask]) % DBM_BATCH_NUM_BUCKETS;
+      ++buckets[i];
+    }
+    for (int i = 1; i < DBM_BATCH_NUM_BUCKETS; ++i) {
+      buckets[i] += buckets[i - 1];
+    }
+    assert(buckets[DBM_BATCH_NUM_BUCKETS - 1] == ntasks);
+    for (int itask = 0; itask < ntasks; ++itask) {
+      const int i = hash(batch[itask]) % DBM_BATCH_NUM_BUCKETS;
+      --buckets[i];
+      batch_order[buckets[i]] = itask;
+    }
+  } else {
+    for (int itask = 0; itask < ntasks; ++itask) {
+      batch_order[itask] = itask;
+    }
   }
 
+#if defined(__LIBXSMM)
   // Prepare arguments for libxsmm's kernel-dispatch.
   const int flags = LIBXSMM_GEMM_FLAG_TRANS_B; // transa = "N", transb = "T"
   const int prefetch = DBM_LIBXSMM_PREFETCH;
   int kernel_m = 0, kernel_n = 0, kernel_k = 0;
-  dbm_task_t task_next = batch[batch_order[0]];
-
 #if (LIBXSMM_GEMM_PREFETCH_NONE != DBM_LIBXSMM_PREFETCH)
   double *data_a_next = NULL, *data_b_next = NULL, *data_c_next = NULL;
 #endif
@@ -110,13 +112,17 @@ void dbm_multiply_cpu_process_batch(
   libxsmm_dmmfunction kernel_func = NULL;
   const double beta = 1.0;
 #endif
+#endif
 
   // Loop over tasks.
+  dbm_task_t task_next = batch[batch_order[0]];
   for (int itask = 0; itask < ntasks; ++itask) {
     const dbm_task_t task = task_next;
     task_next = batch[batch_order[(itask + 1) < ntasks ? (itask + 1) : itask]];
 
-    if (task.m != kernel_m || task.n != kernel_n || task.k != kernel_k) {
+#if defined(__LIBXSMM)
+    if (0 == (DBM_MULTIPLY_BLAS_LIBRARY & options) &&
+        (task.m != kernel_m || task.n != kernel_n || task.k != kernel_k)) {
       if (LIBXSMM_SMM(task.m, task.n, task.m, 1 /*assume in-$, no RFO*/,
                       sizeof(double))) {
 #if LIBXSMM_VERSION2(1, 17) < LIBXSMM_VERSION_NUMBER
@@ -142,12 +148,13 @@ void dbm_multiply_cpu_process_batch(
       kernel_n = task.n;
       kernel_k = task.k;
     }
-
+#endif
     // gemm_param wants non-const data even for A and B
     double *const data_a = pack_a->data + task.offset_a;
     double *const data_b = pack_b->data + task.offset_b;
     double *const data_c = shard_c->data + task.offset_c;
 
+#if defined(__LIBXSMM)
     if (kernel_func != NULL) {
 #if LIBXSMM_VERSION2(1, 17) < LIBXSMM_VERSION_NUMBER
       libxsmm_gemm_param gemm_param;
@@ -167,22 +174,13 @@ void dbm_multiply_cpu_process_batch(
 #else
       kernel_func(data_a, data_b, data_c);
 #endif
-    } else {
+    } else
+#endif
+    { // Fallback to BLAS when libxsmm is not available.
       dbm_dgemm('N', 'T', task.m, task.n, task.k, alpha, data_a, task.m, data_b,
                 task.n, 1.0, data_c, task.m);
     }
   }
-#else
-  // Fallback to BLAS when libxsmm is not available.
-  for (int itask = 0; itask < ntasks; ++itask) {
-    const dbm_task_t task = batch[itask];
-    const double *data_a = &pack_a->data[task.offset_a];
-    const double *data_b = &pack_b->data[task.offset_b];
-    double *data_c = &shard_c->data[task.offset_c];
-    dbm_dgemm('N', 'T', task.m, task.n, task.k, alpha, data_a, task.m, data_b,
-              task.n, 1.0, data_c, task.m);
-  }
-#endif
 }
 
 // EOF
