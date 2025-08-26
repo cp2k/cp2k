@@ -167,6 +167,12 @@ double dbm_checksum(const dbm_matrix_t *matrix);
 double dbm_maxabs(const dbm_matrix_t *matrix);
 
 /*******************************************************************************
+ * \brief Calculates maximum relative difference between matrix_a and matrix_b.
+ * \author Hans Pabst
+ ******************************************************************************/
+double dbm_maxeps(const dbm_matrix_t *matrix_a, const dbm_matrix_t *matrix_b);
+
+/*******************************************************************************
  * \brief Returns the name of the matrix of the given matrix.
  * \author Ole Schuett
  ******************************************************************************/

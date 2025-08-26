@@ -416,7 +416,6 @@ void dbm_add(dbm_matrix_t *matrix_a, const dbm_matrix_t *matrix_b) {
     const dbm_shard_t *shard_b = &matrix_b->shards[ishard];
     for (int iblock = 0; iblock < shard_b->nblocks; iblock++) {
       const dbm_block_t blk_b = shard_b->blocks[iblock];
-
       const int row_size = matrix_b->row_sizes[blk_b.row];
       const int col_size = matrix_b->col_sizes[blk_b.col];
       assert(row_size == matrix_a->row_sizes[blk_b.row]);
@@ -559,6 +558,48 @@ double dbm_maxabs(const dbm_matrix_t *matrix) {
   }
   dbm_mpi_max_double(&maxabs, 1, matrix->dist->comm);
   return maxabs;
+}
+
+/*******************************************************************************
+ * \brief Calculates maximum relative difference between matrix_a and matrix_b.
+ * \author Hans Pabst
+ ******************************************************************************/
+double dbm_maxeps(const dbm_matrix_t *matrix_a, const dbm_matrix_t *matrix_b) {
+  const int num_shards = dbm_get_num_shards(matrix_a);
+  double epsilon = 0;
+
+  assert(omp_get_num_threads() == 1);
+  assert(matrix_a->dist == matrix_b->dist);
+  assert(num_shards == dbm_get_num_shards(matrix_b));
+
+#pragma omp parallel for DBM_OMP_SCHEDULE
+  for (int ishard = 0; ishard < num_shards; ++ishard) {
+    const dbm_shard_t *const shard_a = &matrix_a->shards[ishard];
+    const dbm_shard_t *const shard_b = &matrix_b->shards[ishard];
+    assert(shard_a->nblocks == shard_b->nblocks);
+    for (int iblock = 0; iblock < shard_a->nblocks; ++iblock) {
+      const dbm_block_t *const blk_a = &shard_a->blocks[iblock];
+      const dbm_block_t *const blk_b =
+          dbm_shard_lookup(shard_b, blk_a->row, blk_a->col);
+      const int row_size = matrix_a->row_sizes[blk_a->row];
+      const int col_size = matrix_a->col_sizes[blk_a->col];
+      assert(row_size == matrix_b->row_sizes[blk_b->row]);
+      assert(col_size == matrix_b->col_sizes[blk_b->col]);
+      const double *const data_a = &shard_a->data[blk_a->offset];
+      const double *const data_b = &shard_b->data[blk_b->offset];
+      const int block_size = row_size * col_size;
+      for (int i = 0; i < block_size; ++i) {
+        const double d = data_a[i] - data_b[i];
+        const double e = fabs(0 != data_a[i] ? (d / data_a[i]) : d);
+        if (epsilon < e) {
+          epsilon = e;
+        }
+      }
+    }
+  }
+
+  dbm_mpi_max_double(&epsilon, 1, matrix_a->dist->comm);
+  return epsilon;
 }
 
 /*******************************************************************************
