@@ -225,9 +225,12 @@ CONTAINS
                           "towards a spin-polarized solution. "// &
                           "Thus, larger tolerance increases chances of ending up "// &
                           "with spin-polarization. "// &
-                          "More details in a GitHub `thread <https://github.com/cp2k/cp2k/issues/4389>`. "// &
                           "This option is only valid for unrestricted (i.e. spin polarised) "// &
-                          "Kohn-Sham (UKS) calculations.", &
+                          "Kohn-Sham (UKS) calculations. It also needs non-zero "// &
+                          "[ADDED_MOS](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.ADDED_MOS) to actually affect the calculations, "// &
+                          "which is why it is not expected to work with [OT](#CP2K_INPUT.FORCE_EVAL.DFT.SCF.OT) "// &
+                          "and may raise errors when used with OT. "// &
+                          "For more details see [this discussion](https://github.com/cp2k/cp2k/issues/4389).", &
                           usage="RELAX_MULTIPLICITY 0.00001", &
                           repeats=.FALSE., &
                           default_r_val=0.0_dp)
