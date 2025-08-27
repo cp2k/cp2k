@@ -92,6 +92,7 @@ MODULE tblite_interface
 
    INTEGER, PARAMETER                                 :: dip_n = 3
    INTEGER, PARAMETER                                 :: quad_n = 6
+   REAL, PARAMETER                                    :: same_atom = 0.00001_dp
 
    PUBLIC :: tb_set_calculator, tb_init_geometry, tb_init_wf
    PUBLIC :: tb_get_basis, build_tblite_matrices
@@ -801,7 +802,7 @@ CONTAINS
          END IF
 
          ! --------- Hamiltonian
-         IF (icol == irow .AND. dr < 0.001_dp) THEN
+         IF (icol == irow .AND. dr < same_atom) THEN
             !get diagonal F matrix from selfenergy
             n1 = tb%calc%bas%ish_at(icol)
             DO iset = 1, nseta
@@ -2105,7 +2106,7 @@ CONTAINS
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: found
-      REAL(KIND=dp)                                      :: r2, itemp, jtemp, rr, hij, shpoly, dshpoly, idHdc, jdHdc, &
+      REAL(KIND=dp)                                      :: r2, dr, itemp, jtemp, rr, hij, shpoly, dshpoly, idHdc, jdHdc, &
                                                             scal, hp, i_a_shift, j_a_shift, ishift, jshift
       REAL(KIND=dp), DIMENSION(3)                        :: rij, dgrad
       REAL(KIND=dp), DIMENSION(3, 3)                     :: hsigma
@@ -2198,10 +2199,10 @@ CONTAINS
          ityp = tb%mol%id(icol)
          jtyp = tb%mol%id(jrow)
 
-         r2 = NORM2(rij(:))
-         IF (r2 < 1.0E-6) CYCLE
-         rr = SQRT(r2/(h0%rad(ikind) + h0%rad(jkind)))
-         r2 = r2**2
+         r2 = DOT_PRODUCT(rij, rij)
+         dr = SQRT(r2)
+         IF (icol == jrow .AND. dr < same_atom) CYCLE
+         rr = SQRT(dr/(h0%rad(ikind) + h0%rad(jkind)))
 
          !get basis information
          basis_set_a => basis_set_list(ikind)%gto_basis_set
@@ -2332,7 +2333,7 @@ CONTAINS
       DEALLOCATE (t_quad, t_i_quad, t_j_quad)
       DEALLOCATE (idip, jdip, iquad, jquad)
 
-      IF (tb%use_virial) CALL tb_add_stress(qs_env, tb)
+      IF (tb%use_virial) CALL tb_add_stress(qs_env, tb, para_env)
 
 #else
       MARK_USED(qs_env)
@@ -2347,21 +2348,21 @@ CONTAINS
 !> \brief save stress tensor
 !> \param qs_env ...
 !> \param tb ...
+!> \param para_env ...
 ! **************************************************************************************************
-   SUBROUTINE tb_add_stress(qs_env, tb)
+   SUBROUTINE tb_add_stress(qs_env, tb, para_env)
 
       TYPE(qs_environment_type)                          :: qs_env
       TYPE(tblite_type)                                  :: tb
+      TYPE(mp_para_env_type)                             :: para_env
 
-      REAL(KIND=dp)                                      :: deth
       TYPE(cell_type), POINTER                           :: cell
       TYPE(virial_type), POINTER                         :: virial
 
-      NULLIFY (virial)
+      NULLIFY (virial, cell)
       CALL get_qs_env(qs_env=qs_env, virial=virial, cell=cell)
-      CALL get_cell(cell=cell, deth=deth)
 
-      virial%pv_virial = virial%pv_virial - tb%sigma/deth
+      virial%pv_virial = virial%pv_virial - tb%sigma/para_env%num_pe
 
    END SUBROUTINE tb_add_stress
 
