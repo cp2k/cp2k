@@ -2078,6 +2078,7 @@ CONTAINS
 #else
       MARK_USED(qs_env)
       MARK_USED(use_rho)
+      MARK_USED(nimg)
       CPABORT("Built without TBLITE")
 #endif
 
@@ -2336,6 +2337,7 @@ CONTAINS
 #else
       MARK_USED(qs_env)
       MARK_USED(use_rho)
+      MARK_USED(nimg)
       CPABORT("Built without TBLITE")
 #endif
 
