@@ -6,7 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief module that contains the algorithms to perform an itrative
+!> \brief module that contains the algorithms to perform an iterative
 !>         diagonalization by the block-Davidson approach
 !>         P. Blaha, et al J. Comp. Physics, 229, (2010), 453-460
 !>         \Iterative diagonalization in augmented plane wave based

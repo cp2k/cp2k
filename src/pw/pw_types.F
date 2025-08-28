@@ -10,7 +10,7 @@
 !>      If parallel mode is distributed certain combination of
 !>      "in_use" and "in_space" can not be used.
 !>      For performance reasons it would be better to have the loops
-!>      over g-vectros in the gather/scatter routines in new subprograms
+!>      over g-vectors in the gather/scatter routines in new subprograms
 !>      with the actual arrays (also the addressing) in the parameter list
 !> \par History
 !>      JGH (29-Dec-2000) : Changes for parallel use

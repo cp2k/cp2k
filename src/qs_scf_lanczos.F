@@ -6,7 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief module that contains the algorithms to perform an itrative
+!> \brief module that contains the algorithms to perform an iterative
 !>         diagonalization by the block-Lanczos approach
 !> \par History
 !>      05.2009 created [MI]
@@ -52,7 +52,7 @@ CONTAINS
 ! **************************************************************************************************
 
 ! **************************************************************************************************
-!> \brief  allocates matrices and vectros used in the construction of
+!> \brief  allocates matrices and vectors used in the construction of
 !>        the krylov space and for the lanczos refinement
 !> \param krylov_space ...
 !> \param scf_control ...
@@ -125,7 +125,7 @@ CONTAINS
          CALL cp_fm_struct_release(fm_struct_tmp)
 
          ! NOTE: the following matrices are small and could be defined
-!           as standard array rather than istributed fm
+!           as standard array rather than distributed fm
          NULLIFY (fm_struct_tmp)
          CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=nblock, ncol_global=nblock, &
                                   para_env=mo_coeff%matrix_struct%para_env, &
@@ -164,7 +164,7 @@ CONTAINS
    END SUBROUTINE krylov_space_allocate
 
 ! **************************************************************************************************
-!> \brief lanczos refinement by blocks of not-converged MOs
+!> \brief lanczos refinement by blocks of non-converged MOs
 !> \param krylov_space ...
 !> \param ks ...
 !> \param c0 ...
