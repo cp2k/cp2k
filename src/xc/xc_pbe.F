@@ -107,7 +107,7 @@ CONTAINS
          CALL cite_reference(Zhang1998)
          IF (sx == 1._dp .AND. sc == 1._dp) THEN
             IF (PRESENT(reference)) THEN
-               reference = "revPBE, Yingkay Zhang and Weitao Yang,"// &
+               reference = "revPBE, Yingkai Zhang and Weitao Yang,"// &
                            " Phys. Rev. Letter, vol 80,n 4, p. 890, (1998) {spin unpolarized}"
             END IF
             IF (PRESENT(shortform)) THEN
@@ -116,7 +116,7 @@ CONTAINS
          ELSE
             IF (PRESENT(reference)) THEN
                WRITE (reference, "(a,a,'sx=',f5.3,'sc=',f5.3,a)") &
-                  "revPBE, Yingkay Zhang and Weitao Yang,", &
+                  "revPBE, Yingkai Zhang and Weitao Yang,", &
                   " Phys. Rev. Letter, vol 80,n 4, p. 890, (1998)", &
                   sx, sc, "{spin unpolarized}"
             END IF
@@ -211,7 +211,7 @@ CONTAINS
          CALL cite_reference(Zhang1998)
          IF (sx == 1._dp .AND. sc == 1._dp) THEN
             IF (PRESENT(reference)) THEN
-               reference = "revPBE, Yingkay Zhang and Weitao Yang,"// &
+               reference = "revPBE, Yingkai Zhang and Weitao Yang,"// &
                            " Phys. Rev. Letter, vol 80,n 4, p. 890, (1998) {spin polarized}"
             END IF
             IF (PRESENT(shortform)) THEN
@@ -220,7 +220,7 @@ CONTAINS
          ELSE
             IF (PRESENT(reference)) THEN
                WRITE (reference, "(a,a,'sx=',f5.3,'sc=',f5.3,a)") &
-                  "revPBE, Yingkay Zhang and Weitao Yang,", &
+                  "revPBE, Yingkai Zhang and Weitao Yang,", &
                   " Phys. Rev. Letter, vol 80,n 4, p. 890, (1998)", &
                   sx, sc, "{spin polarized}"
             END IF
