@@ -75,10 +75,10 @@ static void *actual_malloc(const size_t size, const bool on_device) {
   // Update statistics.
   if (on_device) {
 #pragma omp atomic
-    device_malloc_counter++;
+    ++device_malloc_counter;
   } else {
 #pragma omp atomic
-    host_malloc_counter++;
+    ++host_malloc_counter;
   }
 
   assert(memory != NULL);
@@ -122,7 +122,7 @@ static void *internal_mempool_malloc(dbm_mempool_t *pool, const size_t size,
 
 #pragma omp critical(dbm_mempool_modify)
   {
-    // Find a possible chucks to reuse or reclaim in available list.
+    // Find a possible chunk to reuse or reclaim in available list.
     dbm_memchunk_t **reuse = NULL, **reclaim = NULL; // ** for easy list removal
     dbm_memchunk_t **indirect = &pool->available_head;
     while (*indirect != NULL) {
@@ -140,11 +140,11 @@ static void *internal_mempool_malloc(dbm_mempool_t *pool, const size_t size,
 
     // Select an existing chunk or allocate a new one.
     if (reuse != NULL) {
-      // Reusing an exising chunk that's already large enought.
+      // Reusing an exising chunk that's already large enough.
       chunk = *reuse;
       *reuse = chunk->next; // remove chunk from available list.
     } else if (reclaim != NULL) {
-      // Reclaiming an existing chunk (resize will happen outside crit. region).
+      // Reclaiming an existing chunk.
       chunk = *reclaim;
       *reclaim = chunk->next; // remove chunk from available list.
     } else {
@@ -156,14 +156,15 @@ static void *internal_mempool_malloc(dbm_mempool_t *pool, const size_t size,
     // Insert chunk into allocated list.
     chunk->next = pool->allocated_head;
     pool->allocated_head = chunk;
+
+    // Resize chunk.
+    if (chunk->size < size) {
+      actual_free(chunk->mem, on_device);
+      chunk->mem = actual_malloc(size, on_device);
+      chunk->size = size;
+    }
   }
 
-  // Resize chunk (not in critical section).
-  if (chunk->size < size) {
-    actual_free(chunk->mem, on_device);
-    chunk->mem = actual_malloc(size, on_device);
-    chunk->size = size;
-  }
   chunk->used = size; // for statistics
 
   return chunk->mem;
@@ -196,7 +197,7 @@ static void internal_mempool_free(dbm_mempool_t *pool, const void *mem) {
 
 #pragma omp critical(dbm_mempool_modify)
   {
-    // Find chuck in allocated list.
+    // Find chunk in allocated list.
     dbm_memchunk_t **indirect = &pool->allocated_head;
     while (*indirect != NULL && (*indirect)->mem != mem) {
       indirect = &(*indirect)->next;
@@ -204,10 +205,10 @@ static void internal_mempool_free(dbm_mempool_t *pool, const void *mem) {
     dbm_memchunk_t *chunk = *indirect;
     assert(chunk != NULL && chunk->mem == mem);
 
-    // Remove chuck from allocated list.
+    // Remove chunk from allocated list.
     *indirect = chunk->next;
 
-    // Add chuck to available list.
+    // Add chunk to available list.
     chunk->next = pool->available_head;
     pool->available_head = chunk;
   }
