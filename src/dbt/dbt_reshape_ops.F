@@ -275,12 +275,12 @@ CONTAINS
 !$OMP END MASTER
 
       ELSE
-!$OMP DO SCHEDULE(static, 512)
+!$OMP DO SCHEDULE(static)
          DO i = 1, SIZE(buffer_send(0)%blocks, 1)
             buffer_recv(0)%blocks(i, :) = buffer_send(0)%blocks(i, :)
          END DO
 !$OMP END DO
-!$OMP DO SCHEDULE(static, 512)
+!$OMP DO SCHEDULE(static)
          DO i = 1, SIZE(buffer_send(0)%data)
             buffer_recv(0)%data(i) = buffer_send(0)%data(i)
          END DO
