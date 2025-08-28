@@ -117,8 +117,8 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pool
+      TYPE(pw_r3d_rs_type)                               :: rho_tot_r, rho_tot_r2
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r
-      TYPE(pw_r3d_rs_type), POINTER                      :: rho_tot_r, rho_tot_r2
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_ks_qmmm_env_type), POINTER                 :: ks_qmmm_env_loc
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -129,7 +129,7 @@ CONTAINS
       need_f = .TRUE.
       periodic = qmmm_env%periodic
       IF (PRESENT(calc_force)) need_f = calc_force
-      NULLIFY (dft_control, ks_qmmm_env_loc, rho, pw_env, rho_tot_r, energy, Forces, &
+      NULLIFY (dft_control, ks_qmmm_env_loc, rho, pw_env, energy, Forces, &
                Forces_added_charges, input_section, rho0_s_gs, rho_r)
       CALL get_qs_env(qs_env=qs_env, &
                       rho=rho, &
@@ -203,21 +203,16 @@ CONTAINS
          CALL pw_env_get(pw_env=pw_env, &
                          pw_pools=pw_pools, &
                          auxbas_pw_pool=auxbas_pool)
-         NULLIFY (rho_tot_r)
-         ALLOCATE (rho_tot_r)
          CALL auxbas_pool%create_pw(rho_tot_r)
          ! IF GAPW the core charge is replaced by the compensation charge
          IF (gapw) THEN
             IF (dft_control%qs_control%gapw_control%nopaw_as_gpw) THEN
                CALL pw_transfer(rho_core, rho_tot_r)
                energy%qmmm_nu = pw_integral_ab(rho_tot_r, ks_qmmm_env_loc%v_qmmm_rspace)
-               NULLIFY (rho_tot_r2)
-               ALLOCATE (rho_tot_r2)
                CALL auxbas_pool%create_pw(rho_tot_r2)
                CALL pw_transfer(rho0_s_gs, rho_tot_r2)
                CALL pw_axpy(rho_tot_r2, rho_tot_r)
                CALL auxbas_pool%give_back_pw(rho_tot_r2)
-               DEALLOCATE (rho_tot_r2)
             ELSE
                CALL pw_transfer(rho0_s_gs, rho_tot_r)
                !
@@ -311,7 +306,6 @@ CONTAINS
       IF ((.NOT. dft_control%qs_control%semi_empirical) .AND. &
           (.NOT. dft_control%qs_control%dftb) .AND. (.NOT. dft_control%qs_control%xtb)) THEN
          CALL auxbas_pool%give_back_pw(rho_tot_r)
-         DEALLOCATE (rho_tot_r)
       END IF
       IF (iw > 0) THEN
          IF (.NOT. gapw) WRITE (iw, '(T2,"QMMM|",1X,A,T66,F15.9)') &
@@ -397,7 +391,7 @@ CONTAINS
                                         aug_pools, auxbas_grid, coarser_grid, cube_info, para_env, &
                                         eps_mm_rspace, pw_pools, Forces, Forces_added_charges, Forces_added_shells, &
                                         interp_section, iw, mm_cell)
-      TYPE(pw_r3d_rs_type), POINTER                      :: rho
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: rho
       TYPE(qmmm_env_qm_type), POINTER                    :: qmmm_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: mm_particles
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: aug_pools
@@ -415,7 +409,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'qmmm_forces_with_gaussian'
 
       INTEGER                                            :: handle, i, igrid, j, k, kind_interp, me, &
-                                                            ngrids, stat
+                                                            ngrids
       INTEGER, DIMENSION(3)                              :: glb, gub, lb, ub
       INTEGER, DIMENSION(:), POINTER                     :: pos_of_x
       LOGICAL                                            :: shells
@@ -476,18 +470,14 @@ CONTAINS
          grids(auxbas_grid)%array(ub(1) + 1, ub(2) + 1, ub(3) + 1) = rho%array(lb(1), lb(2), lb(3))
       ELSE IF (pos_of_x(glb(1)) .EQ. me) THEN
          ALLOCATE (tmp(rho%pw_grid%bounds_local(1, 2):rho%pw_grid%bounds_local(2, 2), &
-                       rho%pw_grid%bounds_local(1, 3):rho%pw_grid%bounds_local(2, 3)), &
-                   stat=stat)
-         CPASSERT(stat == 0)
+                       rho%pw_grid%bounds_local(1, 3):rho%pw_grid%bounds_local(2, 3)))
          tmp = rho%array(lb(1), :, :)
          CALL group%isend(msgin=tmp, dest=pos_of_x(rho%pw_grid%bounds(2, 1)), &
                           request=request, tag=112)
          CALL request%wait()
       ELSE IF (pos_of_x(gub(1)) .EQ. me) THEN
          ALLOCATE (tmp(rho%pw_grid%bounds_local(1, 2):rho%pw_grid%bounds_local(2, 2), &
-                       rho%pw_grid%bounds_local(1, 3):rho%pw_grid%bounds_local(2, 3)), &
-                   stat=stat)
-         CPASSERT(stat == 0)
+                       rho%pw_grid%bounds_local(1, 3):rho%pw_grid%bounds_local(2, 3)))
          CALL group%irecv(msgout=tmp, source=pos_of_x(rho%pw_grid%bounds(1, 1)), &
                           request=request, tag=112)
          CALL request%wait()
@@ -1324,7 +1314,7 @@ CONTAINS
    SUBROUTINE qmmm_debug_forces(rho, qs_env, qmmm_env, Analytical_Forces, &
                                 mm_particles, mm_atom_index, num_mm_atoms, &
                                 interp_section, mm_cell)
-      TYPE(pw_r3d_rs_type), POINTER                      :: rho
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: rho
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(qmmm_env_qm_type), POINTER                    :: qmmm_env
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: Analytical_Forces
