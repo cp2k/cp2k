@@ -27,6 +27,7 @@ MODULE qs_energy_types
                        core_overlap = 0.0_dp, &
                        core_overlap0 = 0.0_dp, &
                        core_self = 0.0_dp, &
+                       core_cneo = 0.0_dp, & ! quantum nuclear kinetic + v_core
                        repulsive = 0.0_dp, &
                        dispersion = 0.0_dp, &
                        dispersion_sc = 0.0_dp, &
@@ -160,6 +161,7 @@ CONTAINS
          qs_energy%core_overlap = 0.0_dp
          qs_energy%core_overlap0 = 0.0_dp
          qs_energy%core_self = 0.0_dp
+         qs_energy%core_cneo = 0.0_dp
          qs_energy%repulsive = 0.0_dp
          qs_energy%dispersion = 0.0_dp
          qs_energy%gcp = 0.0_dp

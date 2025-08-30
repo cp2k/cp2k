@@ -394,3 +394,4 @@ QS/regtest-eht-guess                                        libdftd4
 QS/regtest-trexio                                           trexio
 QS/regtest-trexio-2                                         trexio libgrpp
 QS/regtest-rtbse-gxac                                       libint greenx
+QS/regtest-cneo

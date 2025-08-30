@@ -61,6 +61,17 @@ MODULE qs_rho0_types
       INTEGER                                     :: lmax_0 = -1, igrid_zet0_s = -1
       TYPE(pw_r3d_rs_type), POINTER                    :: rho0_s_rs => NULL()
       TYPE(pw_c1d_gs_type), POINTER ::              rho0_s_gs => NULL()
+
+      ! CNEO nuclear charge density related stuff.
+      ! These are put here because it is preferred that function rho0_s_grid_create
+      ! can initialize PW for both rho0 and nuclear rho1s. This is akin to the behavior
+      ! that init_rho0 also initializes data structures for CNEO nuclear charge densities,
+      ! such that code modifications are mimimal for places where init_rho0 and
+      ! rho0_s_grid_create are called.
+      LOGICAL    :: do_cneo = .FALSE.              ! if CNEO potential is used
+      REAL(dp)   :: tot_rhoz_cneo_s = 0.0_dp       ! soft nuclear charge on the local grid
+      TYPE(pw_r3d_rs_type), POINTER :: rhoz_cneo_s_rs => Null() ! soft nuclear charge density, r-space
+      TYPE(pw_c1d_gs_type), POINTER :: rhoz_cneo_s_gs => Null() ! soft nuclear charge density, g-space
    END TYPE rho0_mpole_type
 
 ! **************************************************************************************************
@@ -383,8 +394,18 @@ CONTAINS
          IF (ASSOCIATED(rho0%rho0_s_gs)) THEN
             CALL rho0%rho0_s_gs%release()
             DEALLOCATE (rho0%rho0_s_gs)
-
          END IF
+
+         IF (ASSOCIATED(rho0%rhoz_cneo_s_rs)) THEN
+            CALL rho0%rhoz_cneo_s_rs%release()
+            DEALLOCATE (rho0%rhoz_cneo_s_rs)
+         END IF
+
+         IF (ASSOCIATED(rho0%rhoz_cneo_s_gs)) THEN
+            CALL rho0%rhoz_cneo_s_gs%release()
+            DEALLOCATE (rho0%rhoz_cneo_s_gs)
+         END IF
+
          DEALLOCATE (rho0)
       ELSE
          CALL cp_abort(__LOCATION__, &
@@ -416,12 +437,15 @@ CONTAINS
 !> \param max_rpgf0_s ...
 !> \param rho0_s_rs ...
 !> \param rho0_s_gs ...
+!> \param rhoz_cneo_s_rs ...
+!> \param rhoz_cneo_s_gs ...
 ! **************************************************************************************************
    SUBROUTINE get_rho0_mpole(rho0_mpole, g0_h, vg0_h, iat, ikind, lmax_0, l0_ikind, &
                              mp_gau_ikind, mp_rho, norm_g0l_h, &
                              Qlm_gg, Qlm_car, Qlm_tot, &
                              zet0_h, igrid_zet0_s, rpgf0_h, rpgf0_s, &
-                             max_rpgf0_s, rho0_s_rs, rho0_s_gs)
+                             max_rpgf0_s, rho0_s_rs, rho0_s_gs, &
+                             rhoz_cneo_s_rs, rhoz_cneo_s_gs)
 
       TYPE(rho0_mpole_type), POINTER                     :: rho0_mpole
       REAL(dp), DIMENSION(:, :), OPTIONAL, POINTER       :: g0_h, vg0_h
@@ -438,6 +462,8 @@ CONTAINS
       REAL(dp), INTENT(OUT), OPTIONAL                    :: rpgf0_h, rpgf0_s, max_rpgf0_s
       TYPE(pw_r3d_rs_type), OPTIONAL, POINTER            :: rho0_s_rs
       TYPE(pw_c1d_gs_type), OPTIONAL, POINTER            :: rho0_s_gs
+      TYPE(pw_r3d_rs_type), OPTIONAL, POINTER            :: rhoz_cneo_s_rs
+      TYPE(pw_c1d_gs_type), OPTIONAL, POINTER            :: rhoz_cneo_s_gs
 
       IF (ASSOCIATED(rho0_mpole)) THEN
 
@@ -449,6 +475,8 @@ CONTAINS
          IF (PRESENT(max_rpgf0_s)) max_rpgf0_s = rho0_mpole%max_rpgf0_s
          IF (PRESENT(rho0_s_rs)) rho0_s_rs => rho0_mpole%rho0_s_rs
          IF (PRESENT(rho0_s_gs)) rho0_s_gs => rho0_mpole%rho0_s_gs
+         IF (PRESENT(rhoz_cneo_s_rs)) rhoz_cneo_s_rs => rho0_mpole%rhoz_cneo_s_rs
+         IF (PRESENT(rhoz_cneo_s_gs)) rhoz_cneo_s_gs => rho0_mpole%rhoz_cneo_s_gs
 
          IF (PRESENT(ikind)) THEN
             IF (PRESENT(l0_ikind)) l0_ikind = rho0_mpole%lmax0_kind(ikind)

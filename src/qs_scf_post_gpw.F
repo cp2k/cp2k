@@ -1908,7 +1908,7 @@ CONTAINS
       TYPE(particle_list_type), POINTER                  :: particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_c1d_gs_type)                               :: aux_g, rho_elec_gspace
-      TYPE(pw_c1d_gs_type), POINTER                      :: rho0_s_gs, rho_core
+      TYPE(pw_c1d_gs_type), POINTER                      :: rho0_s_gs, rho_core, rhoz_cneo_s_gs
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
@@ -1955,7 +1955,7 @@ CONTAINS
       ! Print the total density (electronic + core charge)
       IF (BTEST(cp_print_key_should_output(logger%iter_info, input, &
                                            "DFT%PRINT%TOT_DENSITY_CUBE"), cp_p_file)) THEN
-         NULLIFY (rho_core, rho0_s_gs)
+         NULLIFY (rho_core, rho0_s_gs, rhoz_cneo_s_gs)
          append_cube = section_get_lval(input, "DFT%PRINT%TOT_DENSITY_CUBE%APPEND")
          my_pos_cube = "REWIND"
          IF (append_cube) THEN
@@ -1963,17 +1963,29 @@ CONTAINS
          END IF
 
          CALL get_qs_env(qs_env=qs_env, pw_env=pw_env, rho_core=rho_core, &
-                         rho0_s_gs=rho0_s_gs)
+                         rho0_s_gs=rho0_s_gs, rhoz_cneo_s_gs=rhoz_cneo_s_gs)
          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                          pw_pools=pw_pools)
          CALL auxbas_pw_pool%create_pw(wf_r)
          IF (dft_control%qs_control%gapw) THEN
             IF (dft_control%qs_control%gapw_control%nopaw_as_gpw) THEN
                CALL pw_axpy(rho_core, rho0_s_gs)
+               IF (ASSOCIATED(rhoz_cneo_s_gs)) THEN
+                  CALL pw_axpy(rhoz_cneo_s_gs, rho0_s_gs)
+               END IF
                CALL pw_transfer(rho0_s_gs, wf_r)
                CALL pw_axpy(rho_core, rho0_s_gs, -1.0_dp)
+               IF (ASSOCIATED(rhoz_cneo_s_gs)) THEN
+                  CALL pw_axpy(rhoz_cneo_s_gs, rho0_s_gs, -1.0_dp)
+               END IF
             ELSE
+               IF (ASSOCIATED(rhoz_cneo_s_gs)) THEN
+                  CALL pw_axpy(rhoz_cneo_s_gs, rho0_s_gs)
+               END IF
                CALL pw_transfer(rho0_s_gs, wf_r)
+               IF (ASSOCIATED(rhoz_cneo_s_gs)) THEN
+                  CALL pw_axpy(rhoz_cneo_s_gs, rho0_s_gs, -1.0_dp)
+               END IF
             END IF
          ELSE
             CALL pw_transfer(rho_core, wf_r)

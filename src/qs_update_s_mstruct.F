@@ -85,6 +85,9 @@ CONTAINS
       CALL get_qs_env(qs_env, rho_core=rho_core)
       IF (dft_control%qs_control%gapw) THEN
          qs_env%qs_charges%total_rho_core_rspace = qs_env%local_rho_set%rhoz_tot
+         ! Initial CNEO quantum nuclear charge density is a simple Zeff sum.
+         ! Later it will be calculated from numerical integration during SCF.
+         qs_env%qs_charges%total_rho1_hard_nuc = qs_env%local_rho_set%rhoz_cneo_tot
          IF (dft_control%qs_control%gapw_control%nopaw_as_gpw) THEN
             CPASSERT(ASSOCIATED(rho_core))
             CALL calculate_rho_core(rho_core, &

@@ -90,6 +90,7 @@ MODULE qs_environment_types
                                               release_active_space_type
    USE qs_charges_types,                ONLY: qs_charges_release,&
                                               qs_charges_type
+   USE qs_cneo_types,                   ONLY: rhoz_cneo_type
    USE qs_dftb_types,                   ONLY: qs_dftb_pairpot_release,&
                                               qs_dftb_pairpot_type
    USE qs_dispersion_types,             ONLY: qs_dispersion_release,&
@@ -358,6 +359,7 @@ CONTAINS
 !> \param sab_almo ...
 !> \param sab_kp ...
 !> \param sab_kp_nosym ...
+!> \param sab_cneo ...
 !> \param particle_set ...
 !> \param energy ...
 !> \param force ...
@@ -420,9 +422,12 @@ CONTAINS
 !> \param rho0_atom_set ...
 !> \param rho0_mpole ...
 !> \param rhoz_set ...
+!> \param rhoz_cneo_set ...
 !> \param ecoul_1c ...
 !> \param rho0_s_rs ...
 !> \param rho0_s_gs ...
+!> \param rhoz_cneo_s_rs ...
+!> \param rhoz_cneo_s_gs ...
 !> \param do_kpoints ...
 !> \param has_unit_metric ...
 !> \param requires_mo_derivs ...
@@ -494,7 +499,7 @@ CONTAINS
                          dft_control, mos, sab_orb, sab_all, qmmm, qmmm_periodic, sac_ae, sac_ppl, sac_lri, &
                          sap_ppnl, sab_vdw, sab_scp, sap_oce, sab_lrc, sab_se, sab_xtbe, sab_tbe, sab_core, &
                          sab_xb, sab_xtb_pp, sab_xtb_nonbond, sab_almo, &
-                         sab_kp, sab_kp_nosym, particle_set, energy, force, &
+                         sab_kp, sab_kp_nosym, sab_cneo, particle_set, energy, force, &
                          matrix_h, matrix_h_im, matrix_ks, matrix_ks_im, matrix_vxc, run_rtp, rtp, &
                          matrix_h_kp, matrix_h_im_kp, matrix_ks_kp, matrix_ks_im_kp, matrix_vxc_kp, kinetic_kp, matrix_s_kp, &
                          matrix_w_kp, matrix_s_RI_aux_kp, matrix_s, matrix_s_RI_aux, matrix_w, &
@@ -505,8 +510,9 @@ CONTAINS
                          local_molecules, distribution_2d, dbcsr_dist, molecule_kind_set, &
                          molecule_set, subsys, cp_subsys, oce, local_rho_set, rho_atom_set, &
                          task_list, task_list_soft, &
-                         rho0_atom_set, rho0_mpole, rhoz_set, ecoul_1c, &
-                         rho0_s_rs, rho0_s_gs, do_kpoints, has_unit_metric, requires_mo_derivs, mo_derivs, &
+                         rho0_atom_set, rho0_mpole, rhoz_set, rhoz_cneo_set, ecoul_1c, &
+                         rho0_s_rs, rho0_s_gs, rhoz_cneo_s_rs, rhoz_cneo_s_gs, &
+                         do_kpoints, has_unit_metric, requires_mo_derivs, mo_derivs, &
                          mo_loc_history, nkind, natom, nelectron_total, nelectron_spin, efield, &
                          neighbor_list_id, linres_control, xas_env, virial, cp_ddapc_env, cp_ddapc_ewald, &
                          outer_scf_history, outer_scf_ihistory, x_data, et_coupling, dftb_potential, results, &
@@ -533,7 +539,7 @@ CONTAINS
       LOGICAL, OPTIONAL                                  :: qmmm, qmmm_periodic
       TYPE(neighbor_list_set_p_type), DIMENSION(:), OPTIONAL, POINTER :: sac_ae, sac_ppl, sac_lri, &
          sap_ppnl, sab_vdw, sab_scp, sap_oce, sab_lrc, sab_se, sab_xtbe, sab_tbe, sab_core, &
-         sab_xb, sab_xtb_pp, sab_xtb_nonbond, sab_almo, sab_kp, sab_kp_nosym
+         sab_xb, sab_xtb_pp, sab_xtb_nonbond, sab_almo, sab_kp, sab_kp_nosym, sab_cneo
       TYPE(particle_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: particle_set
       TYPE(qs_energy_type), OPTIONAL, POINTER            :: energy
@@ -590,10 +596,14 @@ CONTAINS
          POINTER                                         :: rho0_atom_set
       TYPE(rho0_mpole_type), OPTIONAL, POINTER           :: rho0_mpole
       TYPE(rhoz_type), DIMENSION(:), OPTIONAL, POINTER   :: rhoz_set
+      TYPE(rhoz_cneo_type), DIMENSION(:), OPTIONAL, &
+         POINTER                                         :: rhoz_cneo_set
       TYPE(ecoul_1center_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: ecoul_1c
       TYPE(pw_r3d_rs_type), OPTIONAL, POINTER            :: rho0_s_rs
       TYPE(pw_c1d_gs_type), OPTIONAL, POINTER            :: rho0_s_gs
+      TYPE(pw_r3d_rs_type), OPTIONAL, POINTER            :: rhoz_cneo_s_rs
+      TYPE(pw_c1d_gs_type), OPTIONAL, POINTER            :: rhoz_cneo_s_gs
       LOGICAL, OPTIONAL                                  :: do_kpoints, has_unit_metric, &
                                                             requires_mo_derivs
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
@@ -736,6 +746,8 @@ CONTAINS
          CALL get_local_rho(qs_env%local_rho_set, rho0_mpole=rho0_mpole)
       IF (PRESENT(rhoz_set)) &
          CALL get_local_rho(qs_env%local_rho_set, rhoz_set=rhoz_set)
+      IF (PRESENT(rhoz_cneo_set)) &
+         CALL get_local_rho(qs_env%local_rho_set, rhoz_cneo_set=rhoz_cneo_set)
       IF (PRESENT(ecoul_1c)) &
          CALL get_hartree_local(qs_env%hartree_local, ecoul_1c=ecoul_1c)
       IF (PRESENT(rho0_s_rs)) THEN
@@ -748,6 +760,18 @@ CONTAINS
          CALL get_local_rho(qs_env%local_rho_set, rho0_mpole=rho0_m)
          IF (ASSOCIATED(rho0_m)) THEN
             rho0_s_gs => rho0_m%rho0_s_gs
+         END IF
+      END IF
+      IF (PRESENT(rhoz_cneo_s_rs)) THEN
+         CALL get_local_rho(qs_env%local_rho_set, rho0_mpole=rho0_m)
+         IF (ASSOCIATED(rho0_m)) THEN
+            rhoz_cneo_s_rs => rho0_m%rhoz_cneo_s_rs
+         END IF
+      END IF
+      IF (PRESENT(rhoz_cneo_s_gs)) THEN
+         CALL get_local_rho(qs_env%local_rho_set, rho0_mpole=rho0_m)
+         IF (ASSOCIATED(rho0_m)) THEN
+            rhoz_cneo_s_gs => rho0_m%rhoz_cneo_s_gs
          END IF
       END IF
 
@@ -815,6 +839,7 @@ CONTAINS
                       sab_almo=sab_almo, &
                       sab_kp=sab_kp, &
                       sab_kp_nosym=sab_kp_nosym, &
+                      sab_cneo=sab_cneo, &
                       task_list=task_list, &
                       task_list_soft=task_list_soft, &
                       kpoints=kpoints, &
@@ -1008,6 +1033,7 @@ CONTAINS
 !> \param mo_derivs ...
 !> \param mo_loc_history ...
 !> \param efield ...
+!> \param rhoz_cneo_set ...
 !> \param linres_control ...
 !> \param xas_env ...
 !> \param cp_ddapc_env ...
@@ -1061,7 +1087,7 @@ CONTAINS
                          ks_qmmm_env, wf_history, scf_env, active_space, &
                          input, oce, rho_atom_set, rho0_atom_set, rho0_mpole, run_rtp, rtp, &
                          rhoz_set, rhoz_tot, ecoul_1c, has_unit_metric, requires_mo_derivs, mo_derivs, &
-                         mo_loc_history, efield, &
+                         mo_loc_history, efield, rhoz_cneo_set, &
                          linres_control, xas_env, cp_ddapc_env, cp_ddapc_ewald, &
                          outer_scf_history, outer_scf_ihistory, x_data, et_coupling, dftb_potential, &
                          se_taper, se_store_int_env, se_nddo_mpole, se_nonbond_env, admm_env, ls_scf_env, &
@@ -1105,6 +1131,8 @@ CONTAINS
          POINTER                                         :: mo_derivs
       TYPE(cp_fm_type), DIMENSION(:), OPTIONAL, POINTER  :: mo_loc_history
       TYPE(efield_berry_type), OPTIONAL, POINTER         :: efield
+      TYPE(rhoz_cneo_type), DIMENSION(:), OPTIONAL, &
+         POINTER                                         :: rhoz_cneo_set
       TYPE(linres_control_type), OPTIONAL, POINTER       :: linres_control
       TYPE(xas_environment_type), OPTIONAL, POINTER      :: xas_env
       TYPE(cp_ddapc_type), OPTIONAL, POINTER             :: cp_ddapc_env
@@ -1314,6 +1342,9 @@ CONTAINS
       END IF
       IF (PRESENT(rhoz_set)) THEN
          CALL set_local_rho(qs_env%local_rho_set, rhoz_set=rhoz_set)
+      END IF
+      IF (PRESENT(rhoz_cneo_set)) THEN
+         CALL set_local_rho(qs_env%local_rho_set, rhoz_cneo_set=rhoz_cneo_set)
       END IF
       IF (PRESENT(rhoz_tot)) qs_env%local_rho_set%rhoz_tot = rhoz_tot
       IF (PRESENT(ecoul_1c)) THEN

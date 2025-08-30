@@ -931,7 +931,9 @@ CONTAINS
             REAL(n_electrons, dp), &
             "Core density on regular grids:", &
             qs_charges%total_rho_core_rspace, &
-            qs_charges%total_rho_core_rspace - REAL(n_electrons + dft_control%charge, dp)
+            qs_charges%total_rho_core_rspace + &
+            qs_charges%total_rho1_hard_nuc - &
+            REAL(n_electrons + dft_control%charge, dp)
       END IF
       IF (dft_control%qs_control%gapw) THEN
          tot1_h = qs_charges%total_rho1_hard(1)
@@ -949,12 +951,28 @@ CONTAINS
                tot_rho_r + tot1_h - tot1_s, &
                "Total charge density (r-space):      ", &
                tot_rho_r + tot1_h - tot1_s &
-               + qs_charges%total_rho_core_rspace, &
-               "Total Rho_soft + Rho0_soft (g-space):", &
-               qs_charges%total_rho_gspace
+               + qs_charges%total_rho_core_rspace &
+               + qs_charges%total_rho1_hard_nuc
+            IF (qs_charges%total_rho1_hard_nuc /= 0.0_dp) THEN
+               WRITE (UNIT=output_unit, FMT="(T3,A,T41,F20.10)") &
+                  "Total CNEO nuc. char. den. (Lebedev): ", &
+                  qs_charges%total_rho1_hard_nuc, &
+                  "Total CNEO soft char. den. (Lebedev): ", &
+                  qs_charges%total_rho1_soft_nuc_lebedev, &
+                  "Total CNEO soft char. den. (r-space): ", &
+                  qs_charges%total_rho1_soft_nuc_rspace, &
+                  "Total soft Rho_e+n+0 (g-space):", &
+                  qs_charges%total_rho_gspace
+            ELSE
+               WRITE (UNIT=output_unit, FMT="(T3,A,T41,F20.10)") &
+                  "Total Rho_soft + Rho0_soft (g-space):", &
+                  qs_charges%total_rho_gspace
+            END IF
          END IF
          qs_charges%background = tot_rho_r + tot1_h - tot1_s + &
-                                 qs_charges%total_rho_core_rspace
+                                 qs_charges%total_rho_core_rspace + &
+                                 qs_charges%total_rho1_hard_nuc
+         ! only add total_rho1_hard_nuc for gapw as cneo requires gapw
       ELSE IF (dft_control%qs_control%gapw_xc) THEN
          tot1_h = qs_charges%total_rho1_hard(1)
          tot1_s = qs_charges%total_rho1_soft(1)
@@ -1152,6 +1170,10 @@ CONTAINS
             s2_order_p = dft_control%qs_control%s2_restraint_control%s2_order_p
             WRITE (UNIT=output_unit, FMT="(T3,A,T41,2F20.10)") &
                "S2 restraint (order_p,energy) : ", s2_order_p, energy%s2_restraint
+         END IF
+         IF (energy%core_cneo /= 0.0_dp) THEN
+            WRITE (UNIT=output_unit, FMT="(T3,A,T61,F20.10)") &
+               "CNEO| quantum nuclear core energy: ", energy%core_cneo
          END IF
 
       END IF ! output_unit
