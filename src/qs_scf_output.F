@@ -620,7 +620,9 @@ CONTAINS
                accurate_sum(tot_rho_r) + nelectron_total, &
                "Core density on regular grids:", &
                qs_charges%total_rho_core_rspace, &
-               qs_charges%total_rho_core_rspace - REAL(nelectron_total + dft_control%charge, dp)
+               qs_charges%total_rho_core_rspace + &
+               qs_charges%total_rho1_hard_nuc - &
+               REAL(nelectron_total + dft_control%charge, dp)
 
             IF (dft_control%correct_surf_dip) THEN
                WRITE (UNIT=output_unit, FMT="((T3,A,/,T3,A,T41,F20.10))") &
@@ -644,9 +646,24 @@ CONTAINS
                   accurate_sum(tot_rho_r) + tot1_h - tot1_s, &
                   "Total charge density (r-space):      ", &
                   accurate_sum(tot_rho_r) + tot1_h - tot1_s &
-                  + qs_charges%total_rho_core_rspace, &
-                  "Total Rho_soft + Rho0_soft (g-space):", &
-                  qs_charges%total_rho_gspace
+                  + qs_charges%total_rho_core_rspace &
+                  + qs_charges%total_rho1_hard_nuc
+               IF (qs_charges%total_rho1_hard_nuc /= 0.0_dp) THEN
+                  WRITE (UNIT=output_unit, FMT="(T3,A,T41,F20.10)") &
+                     "Total CNEO nuc. char. den. (Lebedev): ", &
+                     qs_charges%total_rho1_hard_nuc, &
+                     "Total CNEO soft char. den. (Lebedev): ", &
+                     qs_charges%total_rho1_soft_nuc_lebedev, &
+                     "Total CNEO soft char. den. (r-space): ", &
+                     qs_charges%total_rho1_soft_nuc_rspace, &
+                     "Total soft Rho_e+n+0 (g-space):", &
+                     qs_charges%total_rho_gspace
+               ELSE
+                  WRITE (UNIT=output_unit, FMT="(T3,A,T41,F20.10)") &
+                     "Total Rho_soft + Rho0_soft (g-space):", &
+                     qs_charges%total_rho_gspace
+               END IF
+               ! only add total_rho1_hard_nuc for gapw as cneo requires gapw
             ELSE
                WRITE (UNIT=output_unit, FMT="(T3,A,T41,F20.10)") &
                   "Total charge density on r-space grids:     ", &
@@ -778,6 +795,10 @@ CONTAINS
             IF (gapw_xc) THEN
                WRITE (UNIT=output_unit, FMT="(/,(T3,A,T56,F25.14))") &
                   "GAPW_XC| Exc from hard and soft atomic rho1:      ", exc1_energy
+            END IF
+            IF (energy%core_cneo /= 0.0_dp) THEN
+               WRITE (UNIT=output_unit, FMT="(T3,A,T56,F25.14)") &
+                  "CNEO| quantum nuclear core energy: ", energy%core_cneo
             END IF
          END IF
          IF (dft_control%hairy_probes .EQV. .TRUE.) THEN

@@ -598,10 +598,12 @@ CONTAINS
                   iatom, ikind, "      gth_nlcc", qs_force(ikind)%gth_nlcc(1:3, i), &
                   iatom, ikind, "      gth_ppnl", qs_force(ikind)%gth_ppnl(1:3, i), &
                   iatom, ikind, " all_potential", qs_force(ikind)%all_potential(1:3, i), &
+                  iatom, ikind, "cneo_potential", qs_force(ikind)%cneo_potential(1:3, i), &
                   iatom, ikind, "  core_overlap", qs_force(ikind)%core_overlap(1:3, i), &
                   iatom, ikind, "      rho_core", qs_force(ikind)%rho_core(1:3, i), &
                   iatom, ikind, "      rho_elec", qs_force(ikind)%rho_elec(1:3, i), &
                   iatom, ikind, "  rho_lri_elec", qs_force(ikind)%rho_lri_elec(1:3, i), &
+                  iatom, ikind, "  rho_cneo_nuc", qs_force(ikind)%rho_cneo_nuc(1:3, i), &
                   iatom, ikind, "     vhxc_atom", qs_force(ikind)%vhxc_atom(1:3, i), &
                   iatom, ikind, "   g0s_Vh_elec", qs_force(ikind)%g0s_Vh_elec(1:3, i), &
                   iatom, ikind, "      ch_pulay", qs_force(ikind)%ch_pulay(1:3, i), &

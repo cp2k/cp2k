@@ -41,6 +41,7 @@ MODULE qs_interactions
    USE paw_proj_set_types,              ONLY: get_paw_proj_set,&
                                               paw_proj_set_type,&
                                               set_paw_proj_set
+   USE qs_cneo_types,                   ONLY: cneo_potential_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
                                               qs_kind_type
    USE string_utilities,                ONLY: uppercase
@@ -98,20 +99,22 @@ CONTAINS
                                                             zet
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: c_nonlocal
       TYPE(all_potential_type), POINTER                  :: all_potential
+      TYPE(cneo_potential_type), POINTER                 :: cneo_potential
       TYPE(gth_potential_type), POINTER                  :: gth_potential
       TYPE(gto_basis_set_type), POINTER :: aux_basis_set, aux_fit_basis_set, aux_gw_basis, &
          aux_opt_basis_set, gapw_1c_basis, harris_basis, lri_basis, mao_basis, min_basis_set, &
-         orb_basis_set, p_lri_basis, rhoin_basis, ri_aux_basis_set, ri_basis, ri_xas_basis, &
-         soft_basis, tda_k_basis
+         nuc_basis_set, orb_basis_set, p_lri_basis, rhoin_basis, ri_aux_basis_set, ri_basis, &
+         ri_xas_basis, soft_basis, tda_k_basis
       TYPE(paw_proj_set_type), POINTER                   :: paw_proj_set
       TYPE(sgp_potential_type), POINTER                  :: sgp_potential
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (all_potential, gth_potential, sgp_potential)
+      NULLIFY (all_potential, gth_potential, sgp_potential, cneo_potential)
       NULLIFY (aux_basis_set, aux_fit_basis_set, aux_gw_basis, tda_k_basis, &
                harris_basis, lri_basis, mao_basis, orb_basis_set, p_lri_basis, ri_aux_basis_set, &
-               ri_basis, ri_xas_basis, soft_basis, gapw_1c_basis, aux_opt_basis_set, min_basis_set)
+               ri_basis, ri_xas_basis, soft_basis, gapw_1c_basis, aux_opt_basis_set, min_basis_set, &
+               nuc_basis_set)
       NULLIFY (nprj_ppnl, nprj)
       NULLIFY (alpha_ppnl, cexp_ppl, cprj_ppnl, zet)
 
@@ -137,12 +140,14 @@ CONTAINS
          CALL get_qs_kind(qs_kind_set(ikind), basis_set=gapw_1c_basis, basis_type="GAPW_1C")
          CALL get_qs_kind(qs_kind_set(ikind), basis_set=tda_k_basis, basis_type="TDA_HFX")
          CALL get_qs_kind(qs_kind_set(ikind), basis_set=rhoin_basis, basis_type="RHOIN")
+         CALL get_qs_kind(qs_kind_set(ikind), basis_set=nuc_basis_set, basis_type="NUC")
          CALL get_qs_kind(qs_kind_set(ikind), &
                           paw_proj_set=paw_proj_set, &
                           paw_atom=paw_atom, &
                           all_potential=all_potential, &
                           gth_potential=gth_potential, &
-                          sgp_potential=sgp_potential)
+                          sgp_potential=sgp_potential, &
+                          cneo_potential=cneo_potential)
 
          ! Calculate the orbital basis function radii ***
          ! For ALL electron this has to come before the calculation of the
@@ -310,6 +315,14 @@ CONTAINS
                                core_charge_radius=core_charge_radius, &
                                ppl_radius=ppl_radius, &
                                ppnl_radius=ppnl_radius)
+
+         ELSE IF (ASSOCIATED(cneo_potential)) THEN
+
+            IF (ASSOCIATED(nuc_basis_set)) THEN
+               CALL init_interaction_radii_orb_basis(nuc_basis_set, qs_control%eps_pgf_orb/ &
+                                                     SQRT(cneo_potential%zeff))
+            END IF
+
          END IF
 
          ! Calculate the aux fit orbital basis function radii
@@ -671,11 +684,11 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: pgf_radius
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(gto_basis_set_type), POINTER                  :: aux_basis_set, lri_basis_set, &
-                                                            orb_basis_set
+                                                            nuc_basis_set, orb_basis_set
 
       NULLIFY (logger)
       logger => cp_get_default_logger()
-      NULLIFY (aux_basis_set, orb_basis_set, lri_basis_set)
+      NULLIFY (aux_basis_set, orb_basis_set, lri_basis_set, nuc_basis_set)
       bas = " "
       bas(1:3) = basis(1:3)
       CALL uppercase(bas)
@@ -685,6 +698,8 @@ CONTAINS
          bas = "AUXILLIARY"
       ELSE IF (bas(1:3) == "LRI") THEN
          bas = "LOCAL RI"
+      ELSE IF (bas(1:3) == "NUC") THEN
+         bas = "NUCLEAR   "
       ELSE
          CPABORT("Undefined basis set type")
       END IF
@@ -721,10 +736,18 @@ CONTAINS
                   CALL get_gto_basis_set(gto_basis_set=lri_basis_set, &
                                          kind_radius=kind_radius)
                END IF
+            ELSE IF (bas(1:3) == "NUC") THEN
+               CALL get_qs_kind(qs_kind_set(ikind), basis_set=nuc_basis_set, basis_type="NUC")
+               IF (ASSOCIATED(nuc_basis_set)) THEN
+                  CALL get_gto_basis_set(gto_basis_set=nuc_basis_set, &
+                                         kind_radius=kind_radius, &
+                                         short_kind_radius=short_kind_radius)
+               END IF
             ELSE
                CPABORT("Undefined basis set type")
             END IF
-            IF (ASSOCIATED(aux_basis_set) .OR. ASSOCIATED(orb_basis_set)) THEN
+            IF (ASSOCIATED(aux_basis_set) .OR. ASSOCIATED(orb_basis_set) .OR. &
+                ASSOCIATED(nuc_basis_set)) THEN
                WRITE (UNIT=output_unit, FMT="(T45,I5,T53,A5,T57,F12.6,T69,F12.6)") &
                   ikind, name, kind_radius*conv, short_kind_radius*conv
             ELSE
@@ -766,10 +789,18 @@ CONTAINS
                                          nset=nset, &
                                          set_radius=set_radius)
                END IF
+            ELSE IF (bas(1:3) == "NUC") THEN
+               CALL get_qs_kind(qs_kind_set(ikind), basis_set=nuc_basis_set, basis_type="NUC")
+               IF (ASSOCIATED(nuc_basis_set)) THEN
+                  CALL get_gto_basis_set(gto_basis_set=nuc_basis_set, &
+                                         nset=nset, &
+                                         set_radius=set_radius)
+               END IF
             ELSE
                CPABORT("Undefined basis set type")
             END IF
-            IF (ASSOCIATED(aux_basis_set) .OR. ASSOCIATED(orb_basis_set)) THEN
+            IF (ASSOCIATED(aux_basis_set) .OR. ASSOCIATED(orb_basis_set) .OR. &
+                ASSOCIATED(nuc_basis_set)) THEN
                WRITE (UNIT=output_unit, FMT="(T50,I5,T57,A5,(T63,I5,T69,F12.6))") &
                   ikind, name, (iset, set_radius(iset)*conv, iset=1, nset)
             ELSE
@@ -813,11 +844,19 @@ CONTAINS
                                          npgf=npgf, &
                                          pgf_radius=pgf_radius)
                END IF
+            ELSE IF (bas(1:3) == "NUC") THEN
+               CALL get_qs_kind(qs_kind_set(ikind), basis_set=nuc_basis_set, basis_type="NUC")
+               IF (ASSOCIATED(nuc_basis_set)) THEN
+                  CALL get_gto_basis_set(gto_basis_set=nuc_basis_set, &
+                                         nset=nset, &
+                                         npgf=npgf, &
+                                         pgf_radius=pgf_radius)
+               END IF
             ELSE
                CPABORT("Undefined basis type")
             END IF
             IF (ASSOCIATED(aux_basis_set) .OR. ASSOCIATED(orb_basis_set) .OR. &
-                ASSOCIATED(lri_basis_set)) THEN
+                ASSOCIATED(lri_basis_set) .OR. ASSOCIATED(nuc_basis_set)) THEN
                DO iset = 1, nset
                   WRITE (UNIT=output_unit, FMT="(T50,I5,T57,A5,T63,I5,(T69,F12.6))") &
                      ikind, name, iset, &

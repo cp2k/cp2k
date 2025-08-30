@@ -113,11 +113,11 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mp_para_env_type), POINTER                    :: para_env
-      TYPE(pw_c1d_gs_type), POINTER                      :: rho0_s_gs, rho_core
+      TYPE(pw_c1d_gs_type), POINTER                      :: rho0_s_gs, rho_core, rhoz_cneo_s_gs
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pool
-      TYPE(pw_r3d_rs_type)                               :: rho_tot_r, rho_tot_r2
+      TYPE(pw_r3d_rs_type)                               :: rho_tot_r, rho_tot_r2, rho_tot_r3
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_ks_qmmm_env_type), POINTER                 :: ks_qmmm_env_loc
@@ -130,7 +130,7 @@ CONTAINS
       periodic = qmmm_env%periodic
       IF (PRESENT(calc_force)) need_f = calc_force
       NULLIFY (dft_control, ks_qmmm_env_loc, rho, pw_env, energy, Forces, &
-               Forces_added_charges, input_section, rho0_s_gs, rho_r)
+               Forces_added_charges, input_section, rho0_s_gs, rhoz_cneo_s_gs, rho_r)
       CALL get_qs_env(qs_env=qs_env, &
                       rho=rho, &
                       rho_core=rho_core, &
@@ -139,6 +139,7 @@ CONTAINS
                       para_env=para_env, &
                       input=input_section, &
                       rho0_s_gs=rho0_s_gs, &
+                      rhoz_cneo_s_gs=rhoz_cneo_s_gs, &
                       dft_control=dft_control)
 
       CALL qs_rho_get(rho, rho_r=rho_r)
@@ -212,9 +213,21 @@ CONTAINS
                CALL auxbas_pool%create_pw(rho_tot_r2)
                CALL pw_transfer(rho0_s_gs, rho_tot_r2)
                CALL pw_axpy(rho_tot_r2, rho_tot_r)
+               IF (ASSOCIATED(rhoz_cneo_s_gs)) THEN
+                  CALL auxbas_pool%create_pw(rho_tot_r3)
+                  CALL pw_transfer(rhoz_cneo_s_gs, rho_tot_r3)
+                  CALL pw_axpy(rho_tot_r3, rho_tot_r)
+                  CALL auxbas_pool%give_back_pw(rho_tot_r3)
+               END IF
                CALL auxbas_pool%give_back_pw(rho_tot_r2)
             ELSE
                CALL pw_transfer(rho0_s_gs, rho_tot_r)
+               IF (ASSOCIATED(rhoz_cneo_s_gs)) THEN
+                  CALL auxbas_pool%create_pw(rho_tot_r3)
+                  CALL pw_transfer(rhoz_cneo_s_gs, rho_tot_r3)
+                  CALL pw_axpy(rho_tot_r3, rho_tot_r)
+                  CALL auxbas_pool%give_back_pw(rho_tot_r3)
+               END IF
                !
                ! QM/MM Nuclear Electrostatic Potential already included through rho0
                !

@@ -215,9 +215,8 @@ CONTAINS
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r, v_rspace_embed, v_rspace_new, &
                                                             v_rspace_new_aux_fit, v_tau_rspace, &
                                                             v_tau_rspace_aux_fit
-      TYPE(pw_r3d_rs_type), POINTER                      :: rho0_s_rs, rho_nlcc, v_hartree_rspace, &
-                                                            v_sccs_rspace, v_sic_rspace, &
-                                                            v_spin_ddapc_rest_r, vee, vppl_rspace
+      TYPE(pw_r3d_rs_type), POINTER :: rho0_s_rs, rho_nlcc, rhoz_cneo_s_rs, v_hartree_rspace, &
+         v_sccs_rspace, v_sic_rspace, v_spin_ddapc_rest_r, vee, vppl_rspace
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho_struct, rho_xc
@@ -431,12 +430,6 @@ CONTAINS
       CALL calc_v_sic_rspace(v_sic_rspace, energy, qs_env, dft_control, rho, poisson_env, &
                              just_energy, calculate_forces, auxbas_pw_pool)
 
-      IF (gapw) THEN
-         CALL get_qs_env(qs_env, ecoul_1c=ecoul_1c, local_rho_set=local_rho_set)
-         CALL Vh_1c_gg_integrals(qs_env, energy%hartree_1c, ecoul_1c, local_rho_set, para_env, tddft=.FALSE., &
-                                 core_2nd=.FALSE.)
-      END IF
-
       ! Check if CDFT constraint is needed
       CALL qs_ks_cdft_constraint(qs_env, auxbas_pw_pool, calculate_forces, cdft_control)
 
@@ -450,9 +443,16 @@ CONTAINS
          IF (.NOT. just_energy) THEN
             IF (gapw) THEN
                CALL get_qs_env(qs_env=qs_env, &
-                               rho0_s_rs=rho0_s_rs)
+                               rho0_s_rs=rho0_s_rs, &
+                               rhoz_cneo_s_rs=rhoz_cneo_s_rs)
                CPASSERT(ASSOCIATED(rho0_s_rs))
+               IF (ASSOCIATED(rhoz_cneo_s_rs)) THEN
+                  CALL pw_axpy(rhoz_cneo_s_rs, rho0_s_rs)
+               END IF
                ee_ener = ee_ener + pw_integral_ab(rho0_s_rs, vee)
+               IF (ASSOCIATED(rhoz_cneo_s_rs)) THEN
+                  CALL pw_axpy(rhoz_cneo_s_rs, rho0_s_rs, -1.0_dp)
+               END IF
             END IF
          END IF
          ! the sign accounts for the charge of the electrons
@@ -798,6 +798,18 @@ CONTAINS
                                          v_qmmm=vee, scale=-1.0_dp)
          END IF
          CALL integrate_vhg0_rspace(qs_env, v_hartree_rspace, para_env, calculate_forces)
+         ! Place Vh_1c_gg_integrals after integrate_vhg0_rspace for CNEO calculations
+         ! because vhg0 integral is needed to build the complete nuclear equation
+         CALL get_qs_env(qs_env, ecoul_1c=ecoul_1c, local_rho_set=local_rho_set)
+         CALL Vh_1c_gg_integrals(qs_env, energy%hartree_1c, ecoul_1c, local_rho_set, para_env, tddft=.FALSE., &
+                                 core_2nd=.FALSE.)
+         ! CNEO quantum nuclear core energy (kinetic + Z*erfc(r)/r potential from classical nuclei)
+         energy%core_cneo = 0.0_dp
+         IF (ASSOCIATED(local_rho_set%rhoz_cneo_set)) THEN
+            DO iatom = 1, SIZE(local_rho_set%rhoz_cneo_set)
+               energy%core_cneo = energy%core_cneo + local_rho_set%rhoz_cneo_set(iatom)%e_core
+            END DO
+         END IF
       END IF
 
       IF (gapw .OR. gapw_xc) THEN
@@ -907,8 +919,8 @@ CONTAINS
       END IF
 
       ! Sum all energy terms to obtain the total energy
-      energy%total = energy%core_overlap + energy%core_self + energy%core + energy%hartree + &
-                     energy%hartree_1c + energy%exc + energy%exc1 + energy%ex + &
+      energy%total = energy%core_overlap + energy%core_self + energy%core_cneo + energy%core + &
+                     energy%hartree + energy%hartree_1c + energy%exc + energy%exc1 + energy%ex + &
                      energy%dispersion + energy%gcp + energy%qmmm_el + energy%mulliken + &
                      SUM(energy%ddapc_restraint) + energy%s2_restraint + &
                      energy%dft_plus_u + energy%kTS + &
@@ -947,7 +959,7 @@ CONTAINS
       LOGICAL                                            :: my_skip
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g
-      TYPE(pw_c1d_gs_type), POINTER                      :: rho0_s_gs, rho_core
+      TYPE(pw_c1d_gs_type), POINTER                      :: rho0_s_gs, rho_core, rhoz_cneo_s_gs
       TYPE(qs_charges_type), POINTER                     :: qs_charges
 
       my_skip = .FALSE.
@@ -960,10 +972,13 @@ CONTAINS
          NULLIFY (rho_core)
          CALL get_qs_env(qs_env=qs_env, rho_core=rho_core)
          IF (dft_control%qs_control%gapw) THEN
-            NULLIFY (rho0_s_gs)
-            CALL get_qs_env(qs_env=qs_env, rho0_s_gs=rho0_s_gs)
+            NULLIFY (rho0_s_gs, rhoz_cneo_s_gs)
+            CALL get_qs_env(qs_env=qs_env, rho0_s_gs=rho0_s_gs, rhoz_cneo_s_gs=rhoz_cneo_s_gs)
             CPASSERT(ASSOCIATED(rho0_s_gs))
             CALL pw_copy(rho0_s_gs, rho_tot_gspace)
+            IF (ASSOCIATED(rhoz_cneo_s_gs)) THEN
+               CALL pw_axpy(rhoz_cneo_s_gs, rho_tot_gspace)
+            END IF
             IF (dft_control%qs_control%gapw_control%nopaw_as_gpw) THEN
                CALL pw_axpy(rho_core, rho_tot_gspace)
             END IF

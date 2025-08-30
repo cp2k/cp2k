@@ -18,6 +18,8 @@ MODULE qs_gapw_densities
                                               pw_env_type
    USE pw_pool_types,                   ONLY: pw_pool_p_type
    USE qs_charges_types,                ONLY: qs_charges_type
+   USE qs_cneo_ggrid,                   ONLY: put_rhoz_cneo_s_on_grid
+   USE qs_cneo_types,                   ONLY: rhoz_cneo_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
@@ -81,6 +83,7 @@ CONTAINS
       TYPE(rho0_atom_type), DIMENSION(:), POINTER        :: rho0_atom_set
       TYPE(rho0_mpole_type), POINTER                     :: rho0_mpole
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom_set
+      TYPE(rhoz_cneo_type), DIMENSION(:), POINTER        :: rhoz_cneo_set
 
       CALL timeset(routineN, handle)
 
@@ -108,13 +111,15 @@ CONTAINS
                       atomic_kind_set=atomic_kind_set, &
                       rho0_mpole=rho0_mpole, &
                       rho_atom_set=rho_atom_set, &
-                      rho0_atom_set=rho0_atom_set)
+                      rho0_atom_set=rho0_atom_set, &
+                      rhoz_cneo_set=rhoz_cneo_set)
 
       gapw_control => dft_control%qs_control%gapw_control
 
       ! If TDDFPT%MGRID is defined, overwrite QS grid info accordingly
       IF (PRESENT(local_rho_set)) THEN
          rho_atom_set => local_rho_set%rho_atom_set
+         rhoz_cneo_set => local_rho_set%rhoz_cneo_set
          IF (my_do_rho0) THEN
             rho0_mpole => local_rho_set%rho0_mpole
             rho0_atom_set => local_rho_set%rho0_atom_set
@@ -147,8 +152,9 @@ CONTAINS
 
          !Calculate rho0_h and rho0_s on the radial grids centered on the atomic position
          IF (my_do_rho0) &
-            CALL calculate_rho0_atom(gapw_control, rho_atom_set, rho0_atom_set, rho0_mpole, &
-                                     atom_list, natom, ikind, my_kind_set(ikind), rho0_h_tot)
+            CALL calculate_rho0_atom(gapw_control, rho_atom_set, rhoz_cneo_set, rho0_atom_set, &
+                                     rho0_mpole, atom_list, natom, ikind, my_kind_set(ikind), &
+                                     rho0_h_tot)
 
       END DO
 
@@ -193,6 +199,28 @@ CONTAINS
             END IF
             qs_charges%total_rho0_soft_rspace = tot_rs_int
             qs_charges%total_rho0_hard_lebedev = rho0_h_tot
+            IF (rho0_mpole%do_cneo) THEN
+               ! put soft tails of quantum nuclear charge densities on the global grid
+               CALL put_rhoz_cneo_s_on_grid(qs_env, rho0_mpole, rhoz_cneo_set, tot_rs_int)
+               IF (ABS(rho0_mpole%tot_rhoz_cneo_s) .GE. 1.0E-5_dp) THEN
+                  IF (ABS(1.0_dp - ABS(tot_rs_int/rho0_mpole%tot_rhoz_cneo_s)) .GT. 1.0E-3_dp) THEN
+                     IF (output_unit > 0) THEN
+                        WRITE (output_unit, '(/,72("*"))')
+                        WRITE (output_unit, '(T2,A,T66,1E20.8)') &
+                           "WARNING: rhoz_cneo_s calculated on the local grid is  :", &
+                           rho0_mpole%tot_rhoz_cneo_s, &
+                           "         rhoz_cneo_s calculated on the global grid is :", tot_rs_int
+                        WRITE (output_unit, '(T2,A)') &
+                           "         bad integration"
+                        WRITE (output_unit, '(72("*"),/)')
+                     END IF
+                  END IF
+               END IF
+               qs_charges%total_rho1_soft_nuc_rspace = tot_rs_int
+               qs_charges%total_rho1_soft_nuc_lebedev = rho0_mpole%tot_rhoz_cneo_s
+            ELSE
+               qs_charges%total_rho1_soft_nuc_rspace = 0.0_dp
+            END IF
          ELSE
             qs_charges%total_rho0_hard_lebedev = 0.0_dp
          END IF

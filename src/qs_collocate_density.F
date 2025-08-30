@@ -852,8 +852,10 @@ CONTAINS
                alpha = calpha(ikind)
                pab(1, 1) = ccore(ikind)
             ELSE
-               CALL get_qs_kind(qs_kind_set(ikind), paw_atom=paw_atom, &
-                                alpha_core_charge=alpha, ccore_charge=pab(1, 1))
+               CALL get_qs_kind(qs_kind_set(ikind), paw_atom=paw_atom)
+               IF (my_only_nopaw .AND. paw_atom) CYCLE
+               CALL get_qs_kind(qs_kind_set(ikind), alpha_core_charge=alpha, &
+                                ccore_charge=pab(1, 1))
             END IF
 
             IF (my_only_nopaw .AND. paw_atom) CYCLE

@@ -209,8 +209,12 @@ CONTAINS
       DO ispin = 2, nspins
          CALL pw_axpy(rho1_g(ispin), rho1_tot_gspace)
       END DO
-      IF (gapw) &
+      IF (gapw) THEN
          CALL pw_axpy(p_env%local_rho_set%rho0_mpole%rho0_s_gs, rho1_tot_gspace)
+         IF (ASSOCIATED(p_env%local_rho_set%rho0_mpole%rhoz_cneo_s_gs)) THEN
+            CALL pw_axpy(p_env%local_rho_set%rho0_mpole%rhoz_cneo_s_gs, rho1_tot_gspace)
+         END IF
+      END IF
 
       scf_section => section_vals_get_subs_vals(input, "DFT%SCF")
       IF (cp_print_key_should_output(logger%iter_info, scf_section, "PRINT%TOTAL_DENSITIES") &

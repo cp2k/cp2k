@@ -52,6 +52,7 @@ MODULE qs_linres_epr_nablavks
    USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: pw_c1d_gs_type,&
                                               pw_r3d_rs_type
+   USE qs_cneo_types,                   ONLY: cneo_potential_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_gapw_densities,               ONLY: prepare_gapw_den
@@ -125,6 +126,7 @@ CONTAINS
       TYPE(all_potential_type), POINTER                  :: all_potential
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
+      TYPE(cneo_potential_type), POINTER                 :: cneo_potential
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: rho_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -472,6 +474,7 @@ CONTAINS
                           gth_potential=gth_potential, &
                           sgp_potential=sgp_potential, &
                           all_potential=all_potential, &
+                          cneo_potential=cneo_potential, &
                           paw_atom=paw_atom)
 
          IF (ASSOCIATED(gth_potential)) THEN
@@ -774,6 +777,10 @@ CONTAINS
          ELSE IF (ASSOCIATED(sgp_potential)) THEN
 
             CPABORT("EPR with SGP potentials is not implemented")
+
+         ELSE IF (ASSOCIATED(cneo_potential)) THEN
+
+            CPABORT("EPR with CNEO potentials is not implemented")
 
          ELSE IF (ASSOCIATED(all_potential)) THEN
 

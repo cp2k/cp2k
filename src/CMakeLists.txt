@@ -525,6 +525,10 @@ list(
   qs_charge_mixing.F
   qs_chargemol.F
   qs_charges_types.F
+  qs_cneo_ggrid.F
+  qs_cneo_methods.F
+  qs_cneo_types.F
+  qs_cneo_utils.F
   qs_collocate_density.F
   qs_commutators.F
   qs_condnum.F
