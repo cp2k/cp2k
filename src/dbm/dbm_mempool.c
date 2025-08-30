@@ -144,7 +144,7 @@ static void *internal_mempool_malloc(dbm_mempool_t *pool, const size_t size,
       chunk = *reuse;
       *reuse = chunk->next; // remove chunk from available list.
     } else if (reclaim != NULL) {
-      // Reclaiming an existing chunk.
+      // Reclaiming an existing chunk (resize will happen outside crit. region).
       chunk = *reclaim;
       *reclaim = chunk->next; // remove chunk from available list.
     } else {
@@ -152,20 +152,23 @@ static void *internal_mempool_malloc(dbm_mempool_t *pool, const size_t size,
       chunk = calloc(1, sizeof(dbm_memchunk_t));
       assert(chunk != NULL);
     }
+  }
 
-    // Insert chunk into allocated list.
-    chunk->next = pool->allocated_head;
-    pool->allocated_head = chunk;
-
-    // Resize chunk.
-    if (chunk->size < size) {
-      actual_free(chunk->mem, on_device);
-      chunk->mem = actual_malloc(size, on_device);
-      chunk->size = size;
-    }
+  // Resize chunk outside of critical region before adding it to allocated list.
+  if (chunk->size < size) {
+    actual_free(chunk->mem, on_device);
+    chunk->mem = actual_malloc(size, on_device);
+    chunk->size = size;
   }
 
   chunk->used = size; // for statistics
+
+  // Insert chunk into allocated list.
+#pragma omp critical(dbm_mempool_modify)
+  {
+    chunk->next = pool->allocated_head;
+    pool->allocated_head = chunk;
+  }
 
   return chunk->mem;
 }
