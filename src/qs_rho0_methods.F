@@ -447,9 +447,6 @@ CONTAINS
 
          CALL set_qs_kind(qs_kind_set(ikind), lmax_rho0=rho0_mpole%lmax0_kind(ikind))
 
-         IF (gapw_control%lrho1_eq_lrho0) harmonics%max_iso_not0 = &
-            nsoset(rho0_mpole%lmax0_kind(ikind))
-
          rho0_mpole%lmax_0 = MAX(rho0_mpole%lmax_0, rho0_mpole%lmax0_kind(ikind))
          rc_min = MIN(rc_min, rc_orb)
 
