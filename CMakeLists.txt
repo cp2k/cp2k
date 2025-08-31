@@ -188,15 +188,15 @@ cmake_dependent_option(
   "NOT CP2K_USE_ACCEL MATCHES \"OPENCL\"" OFF)
 
 cmake_dependent_option(
-  CP2K_ENABLE_DBM_GPU "Disable the dbm accelerated backend (mostly GPU)." ON
+  CP2K_ENABLE_DBM_GPU "Enable the dbm accelerated backend (mostly GPU)." ON
   "CP2K_USE_ACCEL" OFF)
 
 cmake_dependent_option(
-  CP2K_ENABLE_GRID_GPU "Disable acceleration for grid related functions." ON
+  CP2K_ENABLE_GRID_GPU "Enable acceleration for grid related functions." ON
   "CP2K_USE_ACCEL MATCHES \"HIP|CUDA\"" OFF)
 
 cmake_dependent_option(
-  CP2K_ENABLE_PW_GPU "Disable the ffts accelerated backend (mostly GPU)." ON
+  CP2K_ENABLE_PW_GPU "Enable the ffts accelerated backend (mostly GPU)." ON
   "CP2K_USE_ACCEL MATCHES \"HIP|CUDA\"" OFF)
 
 cmake_dependent_option(

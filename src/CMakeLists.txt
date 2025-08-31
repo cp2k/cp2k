@@ -1492,8 +1492,8 @@ set(CP2K_GRID_SRCS_HIP
     grid/hip/grid_hip_collocate.cu grid/hip/grid_hip_integrate.cu
     grid/hip/grid_hip_context.cu)
 
-set(CP2K_DBM_SRCS_GPU dbm/dbm_multiply_gpu_kernel.cu)
-set(CP2K_DBM_SRCS_GPU_C dbm/dbm_multiply_opencl.c dbm/dbm_multiply_gpu.c)
+set(CP2K_DBM_SRCS_GPU dbm/dbm_multiply_gpu_kernel.cu dbm/dbm_multiply_gpu.c)
+set(CP2K_DBM_SRCS_OPENCL dbm/dbm_multiply_opencl.cl)
 
 set(CP2K_PW_SRCS_GPU pw/gpu/pw_gpu_kernels.cu)
 
@@ -1610,14 +1610,14 @@ add_library(cp2k_linalg_libs INTERFACE)
 target_link_libraries(
   cp2k_linalg_libs
   INTERFACE cp2k::LAPACK::lapack
-            $<$<BOOL:${CP2K_USE_LIBXSMM}>:cp2k::LibXSMM::libxsmmf>
-            $<$<BOOL:${CP2K_USE_LIBXSMM}>:cp2k::LibXSMM::libxsmmext>
+            $<$<BOOL:${CP2K_USE_LIBXSMM}>:cp2k::LibXSMM::libxsmmf
+            cp2k::LibXSMM::libxsmmext>
             cp2k::BLAS::blas
             $<$<BOOL:${CP2K_USE_CUDA}>:cp2k_cuda_libs>
             $<$<BOOL:${CP2K_USE_HIP}>:cp2k_hip_libs>
-            $<$<BOOL:${CP2K_USE_MPI}>:MPI::MPI_Fortran>
-            $<$<BOOL:${CP2K_USE_MPI}>:MPI::MPI_C>
-            $<$<BOOL:${CP2K_USE_MPI}>:MPI::MPI_CXX>
+            $<$<BOOL:${CP2K_USE_MPI}>:MPI::MPI_Fortran
+            MPI::MPI_C
+            MPI::MPI_CXX>
             OpenMP::OpenMP_Fortran
             OpenMP::OpenMP_C
             OpenMP::OpenMP_CXX)
@@ -1716,18 +1716,14 @@ add_library(cp2k_link_libs INTERFACE)
 target_link_libraries(
   cp2k_link_libs
   INTERFACE
-    $<$<BOOL:${CP2K_USE_DFTD4}>:mctc-lib::mctc-lib>
-    $<$<BOOL:${CP2K_USE_DFTD4}>:dftd4::dftd4>
+    $<$<BOOL:${CP2K_USE_DFTD4}>:mctc-lib::mctc-lib
+    dftd4::dftd4>
     $<$<BOOL:${CP2K_USE_DEEPMD}>:DeePMD::deepmd
     DeePMD::deepmd_c>
     $<$<BOOL:${CP2K_USE_PEXSI}>:PEXSI::PEXSI>
-    $<$<BOOL:${CP2K_USE_ACE}>:ACE::pace>
-    $<$<BOOL:${CP2K_USE_ACE}>:ACE::yaml-cpp-pace>
-    $<$<BOOL:${CP2K_USE_ACE}>:ACE::cnpy>
-    $<$<BOOL:${CP2K_USE_TBLITE}>:toml-f::toml-f>
-    $<$<BOOL:${CP2K_USE_TBLITE}>:s-dftd3::s-dftd3>
-    $<$<BOOL:${CP2K_USE_TBLITE}>:mctc-lib::mctc-lib>
-    $<$<BOOL:${CP2K_USE_TBLITE}>:dftd4::dftd4>
+    $<$<BOOL:${CP2K_USE_ACE}>:ACE::pace
+    ACE::yaml-cpp-pace
+    ACE::cnpy>
     $<$<BOOL:${CP2K_USE_TBLITE}>:tblite::tblite>
     $<$<BOOL:${CP2K_USE_SIRIUS}>:sirius::sirius>
     $<$<BOOL:${CP2K_USE_VORI}>:cp2k::VORI::vori>
@@ -1741,13 +1737,13 @@ target_link_libraries(
     $<$<AND:$<BOOL:${CP2K_USE_FFTW3_}>,$<BOOL:${CP2K_ENABLE_FFTW3_OPENMP_SUPPORT}>>:cp2k::FFTW3::fftw3_omp>
     $<$<BOOL:${CP2K_USE_SPLA}>:SPLA::spla>
     $<$<BOOL:${CP2K_USE_LIBINT2}>:cp2k::Libint2::int2>
-    $<$<BOOL:${CP2K_USE_COSMA}>:cosma::cosma_prefixed_pxgemm>
-    $<$<BOOL:${CP2K_USE_COSMA}>:cosma::cosma>
+    $<$<BOOL:${CP2K_USE_COSMA}>:cosma::cosma_prefixed_pxgemm
+    cosma::cosma>
     $<$<BOOL:${CP2K_USE_DLAF}>:DLAF::Fortran>
-    $<$<BOOL:${CP2K_USE_GREENX}>:greenX::GXCommon>
-    $<$<BOOL:${CP2K_USE_GREENX}>:greenX::LibGXAC>
-    $<$<BOOL:${CP2K_USE_GREENX}>:greenX::LibGXMiniMax>
-    $<$<BOOL:${CP2K_USE_TREXIO}>:cp2k::trexio::trexio>
+    $<$<BOOL:${CP2K_USE_GREENX}>:greenX::GXCommon
+    greenX::LibGXAC
+    greenX::LibGXMiniMax
+    cp2k::trexio::trexio>
     $<$<BOOL:${CP2K_USE_HDF5}>:HDF5::HDF5
     hdf5::hdf5_fortran>
     DBCSR::dbcsr
@@ -1893,15 +1889,12 @@ endforeach()
 add_executable(
   dbm_miniapp dbm/dbm_miniapp.c ${CP2K_DBM_SRCS_C} ${CP2K_MPIWRAP_SRCS_C}
               ${CP2K_DBM_SRCS_GPU} ${CP2K_OFFLOAD_SRCS_C})
-target_compile_definitions(
-  dbm_miniapp PRIVATE $<$<BOOL:${CP2K_USE_LIBXSMM}>:__LIBXSMM>
-                      $<$<STREQUAL:"${CP2K_BLAS_VENDOR}","MKL">:__MKL>)
 
-if(CP2K_DISABLE_DBM_GPU)
-  target_compile_definitions(dbm_miniapp PRIVATE __NO_OFFLOAD_DBM)
-else()
-  target_compile_definitions(dbm_miniapp PRIVATE ${CP2K_GPU_DFLAGS})
-endif()
+target_compile_definitions(
+  dbm_miniapp
+  PRIVATE $<$<BOOL:${CP2K_USE_LIBXSMM}>:__LIBXSMM>
+          $<$<STREQUAL:"${CP2K_BLAS_VENDOR}","MKL">:__MKL>
+          $<$<BOOL:${CP2K_ENABLE_DBM_GPU}>:${CP2K_GPU_DFLAGS}>)
 
 foreach(__app grid_miniapp grid_unittest)
   add_executable(
@@ -1913,14 +1906,10 @@ foreach(__app grid_miniapp grid_unittest)
     ${CP2K_MPIWRAP_SRCS_C}
     ${CP2K_OFFLOAD_SRCS_C})
   target_compile_definitions(
-    ${__app} PRIVATE $<$<BOOL:${CP2K_USE_LIBXSMM}>:__LIBXSMM>
-                     $<$<STREQUAL:"${CP2K_BLAS_VENDOR}","MKL">:__MKL>)
-
-  if(CP2K_DISABLE_GRID_GPU)
-    target_compile_definitions(${__app} PUBLIC __NO_OFFLOAD_GRID)
-  else()
-    target_compile_definitions(${__app} PUBLIC ${CP2K_GPU_DFLAGS})
-  endif()
+    ${__app}
+    PRIVATE $<$<BOOL:${CP2K_USE_LIBXSMM}>:__LIBXSMM>
+            $<$<STREQUAL:"${CP2K_BLAS_VENDOR}","MKL">:__MKL>
+            $<$<BOOL:${CP2K_ENABLE_GRID_GPU}>:${CP2K_GPU_DFLAGS}>)
 endforeach()
 
 # ##############################################################################
