@@ -58,7 +58,7 @@ MODULE core_ae
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'core_ae'
 
-   PUBLIC :: build_core_ae, build_erfc
+   PUBLIC :: build_core_ae, build_erfc, verfc_force
 
 CONTAINS
 

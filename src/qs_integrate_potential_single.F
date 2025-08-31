@@ -555,11 +555,12 @@ CONTAINS
          DO ikind = 1, SIZE(atomic_kind_set)
 
             CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom_of_kind, atom_list=atom_list)
-            CALL get_qs_kind(qs_kind_set(ikind), paw_atom=paw_atom, &
-                             alpha_core_charge=alpha_core_charge, &
-                             ccore_charge=ccore_charge)
+            CALL get_qs_kind(qs_kind_set(ikind), paw_atom=paw_atom)
 
             IF (dft_control%qs_control%gapw .AND. paw_atom) CYCLE
+
+            CALL get_qs_kind(qs_kind_set(ikind), alpha_core_charge=alpha_core_charge, &
+                             ccore_charge=ccore_charge)
 
             pab(1, 1) = -ccore_charge
             IF (alpha_core_charge == 0.0_dp .OR. pab(1, 1) == 0.0_dp) CYCLE

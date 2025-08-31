@@ -84,6 +84,12 @@ MODULE qs_kind_types
    USE physcon,                         ONLY: angstrom,&
                                               bohr,&
                                               evolt
+   USE qs_cneo_types,                   ONLY: allocate_cneo_potential,&
+                                              cneo_potential_type,&
+                                              deallocate_cneo_potential,&
+                                              get_cneo_potential,&
+                                              set_cneo_potential,&
+                                              write_cneo_potential
    USE qs_dftb_types,                   ONLY: qs_dftb_atom_type
    USE qs_dftb_utils,                   ONLY: deallocate_dftb_atom_param,&
                                               get_dftb_atom_param,&
@@ -181,6 +187,7 @@ MODULE qs_kind_types
       TYPE(xtb_atom_type), POINTER           :: xtb_parameter => Null()
       !
       TYPE(atom_upfpot_type), POINTER        :: upf_potential => Null()
+      TYPE(cneo_potential_type), POINTER     :: cneo_potential => Null()
       !
       TYPE(basis_set_container_type), &
          DIMENSION(20)                       :: basis_sets = basis_set_container_type()
@@ -246,7 +253,8 @@ MODULE qs_kind_types
              set_qs_kind, &
              write_qs_kind_set, &
              write_gto_basis_sets, &
-             init_atom_electronic_state, set_pseudo_state
+             init_atom_electronic_state, set_pseudo_state, &
+             init_cneo_basis_set
 
    ! Public data types
    PUBLIC :: qs_kind_type, pao_potential_type, pao_descriptor_type
@@ -286,6 +294,9 @@ CONTAINS
             IF (ASSOCIATED(qs_kind_set(ikind)%upf_potential)) THEN
                CALL atom_release_upf(qs_kind_set(ikind)%upf_potential)
                DEALLOCATE (qs_kind_set(ikind)%upf_potential)
+            END IF
+            IF (ASSOCIATED(qs_kind_set(ikind)%cneo_potential)) THEN
+               CALL deallocate_cneo_potential(qs_kind_set(ikind)%cneo_potential)
             END IF
             IF (ASSOCIATED(qs_kind_set(ikind)%se_parameter)) THEN
                CALL semi_empirical_release(qs_kind_set(ikind)%se_parameter)
@@ -370,6 +381,7 @@ CONTAINS
 !> \param gth_potential ...
 !> \param sgp_potential ...
 !> \param upf_potential ...
+!> \param cneo_potential ...
 !> \param se_parameter ...
 !> \param dftb_parameter ...
 !> \param xtb_parameter ...
@@ -437,7 +449,7 @@ CONTAINS
    SUBROUTINE get_qs_kind(qs_kind, &
                           basis_set, basis_type, ncgf, nsgf, &
                           all_potential, tnadd_potential, gth_potential, sgp_potential, upf_potential, &
-                          se_parameter, dftb_parameter, xtb_parameter, &
+                          cneo_potential, se_parameter, dftb_parameter, xtb_parameter, &
                           dftb3_param, zatom, zeff, elec_conf, mao, lmax_dftb, &
                           alpha_core_charge, ccore_charge, core_charge, core_charge_radius, &
                           paw_proj_set, paw_atom, hard_radius, hard0_radius, max_rad_local, &
@@ -461,6 +473,7 @@ CONTAINS
       TYPE(gth_potential_type), OPTIONAL, POINTER        :: gth_potential
       TYPE(sgp_potential_type), OPTIONAL, POINTER        :: sgp_potential
       TYPE(atom_upfpot_type), OPTIONAL, POINTER          :: upf_potential
+      TYPE(cneo_potential_type), OPTIONAL, POINTER       :: cneo_potential
       TYPE(semi_empirical_type), OPTIONAL, POINTER       :: se_parameter
       TYPE(qs_dftb_atom_type), OPTIONAL, POINTER         :: dftb_parameter
       TYPE(xtb_atom_type), OPTIONAL, POINTER             :: xtb_parameter
@@ -558,6 +571,7 @@ CONTAINS
       IF (PRESENT(gth_potential)) gth_potential => qs_kind%gth_potential
       IF (PRESENT(sgp_potential)) sgp_potential => qs_kind%sgp_potential
       IF (PRESENT(upf_potential)) upf_potential => qs_kind%upf_potential
+      IF (PRESENT(cneo_potential)) cneo_potential => qs_kind%cneo_potential
       IF (PRESENT(se_parameter)) se_parameter => qs_kind%se_parameter
       IF (PRESENT(dftb_parameter)) dftb_parameter => qs_kind%dftb_parameter
       IF (PRESENT(xtb_parameter)) xtb_parameter => qs_kind%xtb_parameter
@@ -575,6 +589,8 @@ CONTAINS
          ELSE IF (ASSOCIATED(qs_kind%sgp_potential)) THEN
             CALL get_potential(potential=qs_kind%sgp_potential, &
                                alpha_core_charge=alpha_core_charge)
+         ELSE IF (ASSOCIATED(qs_kind%cneo_potential)) THEN
+            CPABORT("CNEO ALPHA CORE CHARGE NOT AVAILABLE")
          ELSE
             alpha_core_charge = 1.0_dp
          END IF
@@ -590,7 +606,9 @@ CONTAINS
             CALL get_potential(potential=qs_kind%sgp_potential, &
                                ccore_charge=ccore_charge)
          ELSE IF (ASSOCIATED(qs_kind%upf_potential)) THEN
-            CPABORT("UPF CCORE CHARGE RADIUS NOT AVAILABLE")
+            CPABORT("UPF CCORE CHARGE NOT AVAILABLE")
+         ELSE IF (ASSOCIATED(qs_kind%cneo_potential)) THEN
+            CPABORT("CNEO CCORE CHARGE NOT AVAILABLE")
          ELSE
             ccore_charge = 0.0_dp
          END IF
@@ -607,6 +625,8 @@ CONTAINS
                                core_charge_radius=core_charge_radius)
          ELSE IF (ASSOCIATED(qs_kind%upf_potential)) THEN
             CPABORT("UPF CORE CHARGE RADIUS NOT AVAILABLE")
+         ELSE IF (ASSOCIATED(qs_kind%cneo_potential)) THEN
+            CPABORT("CNEO CORE CHARGE RADIUS NOT AVAILABLE")
          ELSE
             core_charge_radius = 0.0_dp
          END IF
@@ -623,6 +643,9 @@ CONTAINS
                                zeff=core_charge)
          ELSE IF (ASSOCIATED(qs_kind%upf_potential)) THEN
             CPABORT("UPF CORE CHARGE NOT AVAILABLE")
+         ELSE IF (ASSOCIATED(qs_kind%cneo_potential)) THEN
+            CALL get_cneo_potential(potential=qs_kind%cneo_potential, &
+                                    zeff=core_charge)
          ELSE
             core_charge = 0.0_dp
          END IF
@@ -643,6 +666,8 @@ CONTAINS
             CALL get_potential(potential=qs_kind%sgp_potential, zeff=zeff)
          ELSE IF (ASSOCIATED(qs_kind%upf_potential)) THEN
             zeff = qs_kind%upf_potential%zion
+         ELSE IF (ASSOCIATED(qs_kind%cneo_potential)) THEN
+            CALL get_cneo_potential(potential=qs_kind%cneo_potential, zeff=zeff)
          ELSE
             zeff = 0.0_dp
          END IF
@@ -867,6 +892,9 @@ CONTAINS
 !> \param basis_type ...
 !> \param total_zeff_corr ... [SGh]
 !> \param npgf_seg total number of primitive GTOs in "segmented contraction format"
+!> \param cneo_potential_present ...
+!> \param nkind_q ...
+!> \param natom_q ...
 ! **************************************************************************************************
    SUBROUTINE get_qs_kind_set(qs_kind_set, &
                               all_potential_present, tnadd_potential_present, gth_potential_present, &
@@ -875,7 +903,8 @@ CONTAINS
                               ncgf, npgf, nset, nsgf, nshell, maxpol, maxlppl, maxlppnl, maxppnl, &
                               nelectron, maxder, max_ngrid_rad, max_sph_harm, maxg_iso_not0, lmax_rho0, &
                               basis_rcut, &
-                              basis_type, total_zeff_corr, npgf_seg)
+                              basis_type, total_zeff_corr, npgf_seg, &
+                              cneo_potential_present, nkind_q, natom_q)
 
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       LOGICAL, INTENT(OUT), OPTIONAL :: all_potential_present, tnadd_potential_present, &
@@ -890,6 +919,8 @@ CONTAINS
       CHARACTER(len=*), OPTIONAL                         :: basis_type
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: total_zeff_corr
       INTEGER, INTENT(OUT), OPTIONAL                     :: npgf_seg
+      LOGICAL, INTENT(OUT), OPTIONAL                     :: cneo_potential_present
+      INTEGER, INTENT(OUT), OPTIONAL                     :: nkind_q, natom_q
 
       CHARACTER(len=default_string_length)               :: my_basis_type
       INTEGER                                            :: ikind, imax, lmax_rho0_kind, &
@@ -899,6 +930,7 @@ CONTAINS
       LOGICAL                                            :: dft_plus_u_atom, ecp_semi_local, paw_atom
       REAL(KIND=dp)                                      :: brcut, zeff, zeff_correction
       TYPE(all_potential_type), POINTER                  :: all_potential
+      TYPE(cneo_potential_type), POINTER                 :: cneo_potential
       TYPE(gth_potential_type), POINTER                  :: gth_potential
       TYPE(gto_basis_set_type), POINTER                  :: tmp_basis_set
       TYPE(local_potential_type), POINTER                :: tnadd_potential
@@ -939,6 +971,9 @@ CONTAINS
          IF (PRESENT(tnadd_potential_present)) tnadd_potential_present = .FALSE.
          IF (PRESENT(gth_potential_present)) gth_potential_present = .FALSE.
          IF (PRESENT(sgp_potential_present)) sgp_potential_present = .FALSE.
+         IF (PRESENT(cneo_potential_present)) cneo_potential_present = .FALSE.
+         IF (PRESENT(nkind_q)) nkind_q = 0
+         IF (PRESENT(natom_q)) natom_q = 0
          IF (PRESENT(paw_atom_present)) paw_atom_present = .FALSE.
          IF (PRESENT(max_ngrid_rad)) max_ngrid_rad = 0
          IF (PRESENT(max_sph_harm)) max_sph_harm = 0
@@ -955,6 +990,7 @@ CONTAINS
                              tnadd_potential=tnadd_potential, &
                              gth_potential=gth_potential, &
                              sgp_potential=sgp_potential, &
+                             cneo_potential=cneo_potential, &
                              paw_proj_set=paw_proj_set, &
                              dftb_parameter=dftb_parameter, &
                              ngrid_rad=ngrid_rad, &
@@ -1010,8 +1046,12 @@ CONTAINS
                maxppnl = MAX(maxppnl, imax)
             END IF
 
-            CALL get_basis_from_container(qs_kind%basis_sets, basis_set=tmp_basis_set, &
-                                          basis_type=my_basis_type)
+            IF (my_basis_type(1:3) == "NUC" .AND. .NOT. ASSOCIATED(cneo_potential)) THEN
+               NULLIFY (tmp_basis_set)
+            ELSE
+               CALL get_basis_from_container(qs_kind%basis_sets, basis_set=tmp_basis_set, &
+                                             basis_type=my_basis_type)
+            END IF
 
             IF (PRESENT(maxcgf)) THEN
                IF (ASSOCIATED(tmp_basis_set)) THEN
@@ -1139,6 +1179,10 @@ CONTAINS
                ELSE IF (ASSOCIATED(qs_kind%sgp_potential)) THEN
                   CALL get_potential(potential=qs_kind%sgp_potential, &
                                      zeff=zeff, zeff_correction=zeff_correction)
+               ELSE IF (ASSOCIATED(qs_kind%cneo_potential)) THEN
+                  CALL get_cneo_potential(potential=qs_kind%cneo_potential, &
+                                          zeff=zeff)
+                  zeff_correction = 0.0_dp
                ELSE
                   zeff = 0.0_dp
                   zeff_correction = 0.0_dp
@@ -1194,6 +1238,24 @@ CONTAINS
             IF (PRESENT(sgp_potential_present)) THEN
                IF (ASSOCIATED(sgp_potential)) THEN
                   sgp_potential_present = .TRUE.
+               END IF
+            END IF
+
+            IF (PRESENT(cneo_potential_present)) THEN
+               IF (ASSOCIATED(cneo_potential)) THEN
+                  cneo_potential_present = .TRUE.
+               END IF
+            END IF
+
+            IF (PRESENT(nkind_q)) THEN
+               IF (ASSOCIATED(cneo_potential)) THEN
+                  nkind_q = nkind_q + 1
+               END IF
+            END IF
+
+            IF (PRESENT(natom_q)) THEN
+               IF (ASSOCIATED(cneo_potential)) THEN
+                  natom_q = natom_q + qs_kind_set(ikind)%natom
                END IF
             END IF
 
@@ -1354,9 +1416,13 @@ CONTAINS
 
             NULLIFY (soft_basis)
             CALL allocate_gto_basis_set(soft_basis)
+            ! Quantum nuclear wave functions are very localized. Even if soft
+            ! electronic basis is used, the atomic kind needs PAW treatment
+            ! because the local Hartree potential is needed.
             CALL create_soft_basis(orb_basis, soft_basis, &
                                    qs_control%gapw_control%eps_fit, rc, paw_atom, &
-                                   qs_control%gapw_control%force_paw, gpw)
+                                   (qs_control%gapw_control%force_paw .OR. &
+                                    ASSOCIATED(qs_kind%cneo_potential)), gpw)
             CALL add_basis_set_to_container(qs_kind%basis_sets, soft_basis, "ORB_SOFT")
             CALL set_qs_kind(qs_kind=qs_kind, paw_atom=paw_atom)
 
@@ -1495,6 +1561,51 @@ CONTAINS
    END SUBROUTINE init_gapw_nlcc
 
 ! **************************************************************************************************
+!> \brief ...
+!> \param qs_kind_set ...
+!> \param qs_control ...
+! **************************************************************************************************
+   SUBROUTINE init_cneo_basis_set(qs_kind_set, qs_control)
+
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(qs_control_type), POINTER                     :: qs_control
+
+      INTEGER                                            :: ikind, nkind
+      LOGICAL                                            :: paw_atom
+      REAL(dp)                                           :: rc
+      TYPE(gto_basis_set_type), POINTER                  :: orb_basis, soft_basis
+      TYPE(qs_kind_type), POINTER                        :: qs_kind
+
+      IF (ASSOCIATED(qs_kind_set)) THEN
+
+         nkind = SIZE(qs_kind_set)
+
+         DO ikind = 1, nkind
+
+            qs_kind => qs_kind_set(ikind)
+
+            IF (ASSOCIATED(qs_kind%cneo_potential)) THEN
+               CALL get_qs_kind(qs_kind=qs_kind, basis_set=orb_basis, basis_type="NUC", &
+                                hard_radius=rc)
+
+               NULLIFY (soft_basis)
+               CALL allocate_gto_basis_set(soft_basis)
+               CALL create_soft_basis(orb_basis, soft_basis, &
+                                      qs_control%gapw_control%eps_fit/ &
+                                      SQRT(qs_kind%cneo_potential%zeff), &
+                                      rc, paw_atom, .TRUE., .FALSE.)
+               CALL add_basis_set_to_container(qs_kind%basis_sets, soft_basis, "NUC_SOFT")
+            END IF
+
+         END DO
+
+      ELSE
+         CPABORT("The pointer qs_kind_set is not associated")
+      END IF
+
+   END SUBROUTINE init_cneo_basis_set
+
+! **************************************************************************************************
 !> \brief Read an atomic kind data set from the input file.
 !> \param qs_kind ...
 !> \param kind_section ...
@@ -1538,9 +1649,10 @@ CONTAINS
          nb_rep, nexp, ngauss, nlcc, nloc, nnl, norbitals, npaodesc, npaopot, nppnl, nspin, nu, z
       INTEGER, DIMENSION(:), POINTER                     :: add_el, elec_conf, orbitals
       LOGICAL :: check, ecp_semi_local, explicit, explicit_basis, explicit_J, explicit_kgpot, &
-         explicit_potential, explicit_U, explicit_u_m_j, nobasis, section_enabled, &
+         explicit_potential, explicit_U, explicit_u_m_j, nobasis, nobasis_nuc, section_enabled, &
          subsection_enabled, update_input
-      REAL(KIND=dp)                                      :: alpha, ccore, r, rc, zeff_correction
+      REAL(KIND=dp)                                      :: alpha, ccore, mass, r, rc, &
+                                                            zeff_correction
       REAL(KIND=dp), DIMENSION(6)                        :: error
       REAL(KIND=dp), DIMENSION(:), POINTER               :: a_nl, aloc, anlcc, cloc, cnlcc, nelec
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: h_nl
@@ -2212,7 +2324,7 @@ CONTAINS
          ! Allocate and initialise the potential data set structure
          IF (potential_name /= '') THEN
             SELECT CASE (TRIM(potential_type))
-            CASE ("ALL", "ECP")
+            CASE ("ALL", "ECP", "CNEO")
                CALL cp_abort(__LOCATION__, &
                              "PW DFT calculations only with potential type UPF or GTH possible."// &
                              " <"//TRIM(potential_type)//"> was specified "// &
@@ -2518,6 +2630,43 @@ CONTAINS
                   CALL set_potential(qs_kind%sgp_potential, elec_conf=elec_conf)
                   CALL atom_release_upf(upfpot)
                   CALL atom_sgp_release(sgppot)
+               CASE ("CNEO")
+                  IF (zeff_correction /= 0.0_dp) &
+                     CPABORT("CORE_CORRECTION is not compatible with CNEO")
+                  CALL allocate_cneo_potential(qs_kind%cneo_potential)
+                  CALL set_cneo_potential(qs_kind%cneo_potential, z=z)
+                  mass = 0.0_dp
+                  ! Input mass is the mass of the neutral atom, not the nucleus.
+                  ! The mass of electrons will get subtracted later.
+                  ! In principle, the most abundant pure isotope mass should be used.
+                  IF (k_rep > 0) THEN
+                     CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
+                                               keyword_name="MASS", n_rep_val=i)
+                     IF (i > 0) CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
+                                                          keyword_name="MASS", r_val=mass)
+                  END IF
+                  ! Remove electron mass from atomic mass to get nuclear mass
+                  IF (mass - REAL(z, dp)*0.000548579909_dp > 0.0_dp) THEN
+                     mass = mass - REAL(z, dp)*0.000548579909_dp
+                     CALL set_cneo_potential(qs_kind%cneo_potential, mass=mass)
+                  END IF
+                  ! In case the mass is not set by user, get the default mass from z
+                  CALL get_cneo_potential(qs_kind%cneo_potential, mass=mass)
+                  ! Warn if the mass is from ptable
+                  IF (ABS(mass + REAL(z, dp)*0.000548579909_dp - ptable(z)%amass) < 1.e-4_dp) THEN
+                     CALL cp_warn(__LOCATION__, &
+                                  "Atomic mass of the atomic kind <"//TRIM(qs_kind%name)// &
+                                  "> is very close to its average mass. Is it a pure isotope? "// &
+                                  "Pure isotopes are preferable for CNEO. "// &
+                                  "(e.g., mass of 1H is 1.007825, not 1.00794)")
+                  END IF
+                  CALL get_qs_kind(qs_kind, elec_conf=elec_conf)
+                  IF (.NOT. ASSOCIATED(elec_conf)) THEN
+                     CALL get_cneo_potential(potential=qs_kind%cneo_potential, elec_conf=elec_conf)
+                     CALL set_qs_kind(qs_kind, elec_conf=elec_conf)
+                  ELSE
+                     CALL set_cneo_potential(potential=qs_kind%cneo_potential, elec_conf=elec_conf)
+                  END IF
                CASE DEFAULT
                   CALL cp_abort(__LOCATION__, &
                                 "An invalid potential type <"// &
@@ -2565,6 +2714,28 @@ CONTAINS
                                 TRIM(qs_kind%name))
                END SELECT
             END IF
+         END IF
+
+         ! check that we have a nuclear orbital basis set if CNEO is requested
+         nobasis_nuc = ASSOCIATED(qs_kind%cneo_potential)
+         DO i = 1, SIZE(qs_kind%basis_sets)
+            NULLIFY (tmp_basis_set)
+            CALL get_basis_from_container(qs_kind%basis_sets, basis_set=tmp_basis_set, &
+                                          inumbas=i, basis_type=basis_type)
+            IF (basis_type == "NUC") THEN
+               nobasis_nuc = .FALSE.
+               IF (.NOT. ASSOCIATED(qs_kind%cneo_potential)) THEN
+                  CALL cp_warn(__LOCATION__, &
+                               "POTENTIAL is not set to CNEO, NUC type basis set for KIND <"// &
+                               TRIM(qs_kind%name)//"> will be ignored!")
+               END IF
+            END IF
+         END DO
+         IF (nobasis_nuc) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "No NUC type basis set was defined for the "// &
+                          "atomic kind <"//TRIM(qs_kind%name)//">, which is required by "// &
+                          "POTENTIAL CNEO.")
          END IF
       END SELECT
 
@@ -2876,6 +3047,8 @@ CONTAINS
             CALL set_potential(potential=qs_kind%gth_potential, zeff=zeff)
          ELSE IF (ASSOCIATED(qs_kind%sgp_potential)) THEN
             CALL set_potential(potential=qs_kind%sgp_potential, zeff=zeff)
+         ELSE IF (ASSOCIATED(qs_kind%cneo_potential)) THEN
+            CPABORT("CNEO potential ZEFF should not be manually set")
          END IF
       END IF
       IF (PRESENT(ghost)) qs_kind%ghost = ghost
@@ -2954,6 +3127,12 @@ CONTAINS
                   bstring = "RI XAS Basis Set"
                CASE ("RI_HFX")
                   bstring = "RI HFX Basis Set"
+               CASE ("NUC")
+                  bstring = "Nuclear Basis Set"
+                  do_print = .FALSE.
+               CASE ("NUC_SOFT")
+                  bstring = "Nuclear Soft Basis Set"
+                  do_print = .FALSE.
                END SELECT
 
                IF (do_print) THEN
@@ -3045,6 +3224,19 @@ CONTAINS
                         "A smearing of the orbital occupations will be performed"
                   END IF
                END IF
+            END IF
+            IF (ASSOCIATED(qs_kind%cneo_potential)) THEN
+               WRITE (UNIT=output_unit, FMT="(/,T6,A)") &
+                  "The nuclei of this atomic kind are quantum mechanical (CNEO)"
+               CALL write_cneo_potential(qs_kind%cneo_potential, output_unit)
+               NULLIFY (tmp_basis)
+               CALL get_basis_from_container(qs_kind%basis_sets, basis_set=tmp_basis, &
+                                             basis_type="NUC")
+               CALL write_orb_basis_set(tmp_basis, output_unit, "Nuclear Basis Set")
+               NULLIFY (tmp_basis)
+               CALL get_basis_from_container(qs_kind%basis_sets, basis_set=tmp_basis, &
+                                             basis_type="NUC_SOFT")
+               CALL write_orb_basis_set(tmp_basis, output_unit, "Nuclear Soft Basis Set")
             END IF
          ELSE
             CPABORT("")
@@ -3162,6 +3354,12 @@ CONTAINS
                      bstring = "LRI Basis Set for TDDFPT"
                   CASE ("RI_HFX")
                      bstring = "RI HFX Basis Set"
+                  CASE ("NUC")
+                     bstring = "Nuclear Basis Set"
+                     IF (.NOT. ASSOCIATED(qs_kind%cneo_potential)) NULLIFY (tmp_basis)
+                  CASE ("NUC_SOFT")
+                     bstring = "Nuclear Soft Basis Set"
+                     IF (.NOT. ASSOCIATED(qs_kind%cneo_potential)) NULLIFY (tmp_basis)
                   END SELECT
 
                   IF (ASSOCIATED(tmp_basis)) CALL write_gto_basis_set(tmp_basis, output_unit, bstring)

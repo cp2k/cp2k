@@ -118,6 +118,7 @@ MODULE qs_ks_types
 !> \param sab_almo: neighbor lists to create ALMO delocalization template
 !> \param sab_kp: neighbor lists to create kp image cell lists
 !> \param sab_kp_nosym: neighbor lists to create kp image cell lists, non-symmetric
+!> \param sab_cneo: neighbor lists for the calculation of the quantum nuclear core Hamiltonian matrix
 !>
 !> \param kpoints information on the kpoints used
 !> \param subsys the particles, molecules,... of this environment
@@ -189,7 +190,8 @@ MODULE qs_ks_types
                                                                sab_lrc => Null(), &
                                                                sab_almo => Null(), &
                                                                sab_kp => Null(), &
-                                                               sab_kp_nosym => Null()
+                                                               sab_kp_nosym => Null(), &
+                                                               sab_cneo => Null()
 
       TYPE(task_list_type), POINTER                         :: task_list => Null()
       TYPE(task_list_type), POINTER                         :: task_list_soft => Null()
@@ -277,6 +279,7 @@ CONTAINS
 !> \param sab_almo ...
 !> \param sab_kp ...
 !> \param sab_kp_nosym ...
+!> \param sab_cneo ...
 !> \param task_list ...
 !> \param task_list_soft ...
 !> \param kpoints ...
@@ -322,7 +325,7 @@ CONTAINS
                          neighbor_list_id, &
                          sab_orb, sab_all, sac_ae, sac_ppl, sac_lri, sap_ppnl, sap_oce, sab_lrc, &
                          sab_se, sab_xtbe, sab_tbe, sab_core, sab_xb, sab_xtb_pp, sab_xtb_nonbond, &
-                         sab_vdw, sab_scp, sab_almo, sab_kp, sab_kp_nosym, &
+                         sab_vdw, sab_scp, sab_almo, sab_kp, sab_kp_nosym, sab_cneo, &
                          task_list, task_list_soft, &
                          kpoints, do_kpoints, &
                          atomic_kind_set, qs_kind_set, cell, cell_ref, use_ref_cell, &
@@ -351,7 +354,8 @@ CONTAINS
       INTEGER, OPTIONAL                                  :: neighbor_list_id
       TYPE(neighbor_list_set_p_type), DIMENSION(:), OPTIONAL, POINTER :: sab_orb, sab_all, sac_ae, &
          sac_ppl, sac_lri, sap_ppnl, sap_oce, sab_lrc, sab_se, sab_xtbe, sab_tbe, sab_core, &
-         sab_xb, sab_xtb_pp, sab_xtb_nonbond, sab_vdw, sab_scp, sab_almo, sab_kp, sab_kp_nosym
+         sab_xb, sab_xtb_pp, sab_xtb_nonbond, sab_vdw, sab_scp, sab_almo, sab_kp, sab_kp_nosym, &
+         sab_cneo
       TYPE(task_list_type), OPTIONAL, POINTER            :: task_list, task_list_soft
       TYPE(kpoint_type), OPTIONAL, POINTER               :: kpoints
       LOGICAL, OPTIONAL                                  :: do_kpoints
@@ -446,6 +450,7 @@ CONTAINS
       IF (PRESENT(sab_almo)) sab_almo => ks_env%sab_almo
       IF (PRESENT(sab_kp)) sab_kp => ks_env%sab_kp
       IF (PRESENT(sab_kp_nosym)) sab_kp_nosym => ks_env%sab_kp_nosym
+      IF (PRESENT(sab_cneo)) sab_cneo => ks_env%sab_cneo
       IF (PRESENT(dft_control)) dft_control => ks_env%dft_control
       IF (PRESENT(dbcsr_dist)) dbcsr_dist => ks_env%dbcsr_dist
       IF (PRESENT(distribution_2d)) distribution_2d => ks_env%distribution_2d
@@ -542,6 +547,7 @@ CONTAINS
 !> \param sab_almo ...
 !> \param sab_kp ...
 !> \param sab_kp_nosym ...
+!> \param sab_cneo ...
 !> \param task_list ...
 !> \param task_list_soft ...
 !> \param subsys ...
@@ -565,7 +571,7 @@ CONTAINS
                          kpoints, &
                          sab_orb, sab_all, sac_ae, sac_ppl, sac_lri, sap_ppnl, sap_oce, sab_lrc, &
                          sab_se, sab_xtbe, sab_tbe, sab_core, sab_xb, sab_xtb_pp, sab_xtb_nonbond, &
-                         sab_vdw, sab_scp, sab_almo, sab_kp, sab_kp_nosym, &
+                         sab_vdw, sab_scp, sab_almo, sab_kp, sab_kp_nosym, sab_cneo, &
                          task_list, task_list_soft, &
                          subsys, dft_control, dbcsr_dist, distribution_2d, pw_env, &
                          para_env, blacs_env)
@@ -590,7 +596,8 @@ CONTAINS
       TYPE(kpoint_type), OPTIONAL, POINTER               :: kpoints
       TYPE(neighbor_list_set_p_type), DIMENSION(:), OPTIONAL, POINTER :: sab_orb, sab_all, sac_ae, &
          sac_ppl, sac_lri, sap_ppnl, sap_oce, sab_lrc, sab_se, sab_xtbe, sab_tbe, sab_core, &
-         sab_xb, sab_xtb_pp, sab_xtb_nonbond, sab_vdw, sab_scp, sab_almo, sab_kp, sab_kp_nosym
+         sab_xb, sab_xtb_pp, sab_xtb_nonbond, sab_vdw, sab_scp, sab_almo, sab_kp, sab_kp_nosym, &
+         sab_cneo
       TYPE(task_list_type), OPTIONAL, POINTER            :: task_list, task_list_soft
       TYPE(qs_subsys_type), OPTIONAL, POINTER            :: subsys
       TYPE(dft_control_type), OPTIONAL, POINTER          :: dft_control
@@ -666,6 +673,7 @@ CONTAINS
       IF (PRESENT(sab_almo)) ks_env%sab_almo => sab_almo
       IF (PRESENT(sab_kp)) ks_env%sab_kp => sab_kp
       IF (PRESENT(sab_kp_nosym)) ks_env%sab_kp_nosym => sab_kp_nosym
+      IF (PRESENT(sab_cneo)) ks_env%sab_cneo => sab_cneo
 
       IF (PRESENT(task_list)) ks_env%task_list => task_list
       IF (PRESENT(task_list_soft)) ks_env%task_list_soft => task_list_soft
@@ -808,6 +816,7 @@ CONTAINS
       CALL release_neighbor_list_sets(ks_env%sab_almo)
       CALL release_neighbor_list_sets(ks_env%sab_kp)
       CALL release_neighbor_list_sets(ks_env%sab_kp_nosym)
+      CALL release_neighbor_list_sets(ks_env%sab_cneo)
       IF (ASSOCIATED(ks_env%dft_control)) THEN
          CALL dft_control_release(ks_env%dft_control)
          DEALLOCATE (ks_env%dft_control)
@@ -902,6 +911,7 @@ CONTAINS
       CALL release_neighbor_list_sets(ks_env%sab_almo)
       CALL release_neighbor_list_sets(ks_env%sab_kp)
       CALL release_neighbor_list_sets(ks_env%sab_kp_nosym)
+      CALL release_neighbor_list_sets(ks_env%sab_cneo)
       CALL kpoint_release(ks_env%kpoints)
       CALL pw_env_release(ks_env%pw_env, ks_env%para_env)
    END SUBROUTINE qs_ks_part_release

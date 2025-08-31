@@ -1,0 +1,8 @@
+# Hydrogen atom
+"H-cneo.inp"                            = [{matcher="E_total", tol=1e-12, ref=-0.46201823434196}]
+# test water with O ALL and GTH
+"H2O-cneo-all.inp"                      = [{matcher="E_total", tol=1e-12, ref=-75.79965995506093}]
+"H2O-cneo-gth.inp"                      = [{matcher="E_total", tol=1e-12, ref=-17.07942644605168}]
+# test with presence of soft Muonium and S
+"Mu2S-cneo.inp"                         = [{matcher="E_total", tol=1e-12, ref=-11.07849418175051}]
+#EOF

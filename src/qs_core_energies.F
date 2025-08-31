@@ -29,6 +29,7 @@ MODULE qs_core_energies
    USE message_passing,                 ONLY: mp_comm_type,&
                                               mp_para_env_type
    USE particle_types,                  ONLY: particle_type
+   USE qs_cneo_types,                   ONLY: cneo_potential_type
    USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -216,6 +217,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3)                     :: pv_loc
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atprop_type), POINTER                         :: atprop
+      TYPE(cneo_potential_type), POINTER                 :: cneo_potential
       TYPE(mp_comm_type)                                 :: group
       TYPE(neighbor_list_iterator_p_type), &
          DIMENSION(:), POINTER                           :: nl_iterator
@@ -275,10 +277,19 @@ CONTAINS
       END IF
 
       DO ikind = 1, nkind
-         CALL get_qs_kind(qs_kind_set(ikind), &
-                          alpha_core_charge=alpha(ikind), &
-                          core_charge_radius=radius(ikind), &
-                          zeff=zeff(ikind))
+         ! cneo quantum nuclei have their core energies calculated elsewhere
+         NULLIFY (cneo_potential)
+         CALL get_qs_kind(qs_kind_set(ikind), cneo_potential=cneo_potential)
+         IF (ASSOCIATED(cneo_potential)) THEN
+            alpha(ikind) = 1.0_dp
+            radius(ikind) = 1.0_dp
+            zeff(ikind) = 0.0_dp
+         ELSE
+            CALL get_qs_kind(qs_kind_set(ikind), &
+                             alpha_core_charge=alpha(ikind), &
+                             core_charge_radius=radius(ikind), &
+                             zeff=zeff(ikind))
+         END IF
       END DO
 
       ecore_overlap = 0.0_dp
@@ -365,6 +376,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: alpha_core_charge, ecore_self, es, zeff
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atprop_type), POINTER                         :: atprop
+      TYPE(cneo_potential_type), POINTER                 :: cneo_potential
       TYPE(distribution_1d_type), POINTER                :: local_particles
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_energy_type), POINTER                      :: energy
@@ -381,6 +393,10 @@ CONTAINS
       ecore_self = 0.0_dp
 
       DO ikind = 1, SIZE(atomic_kind_set)
+         ! nuclear density self-interaction is already removed in CNEO
+         NULLIFY (cneo_potential)
+         CALL get_qs_kind(qs_kind_set(ikind), cneo_potential=cneo_potential)
+         IF (ASSOCIATED(cneo_potential)) CYCLE
          CALL get_atomic_kind(atomic_kind_set(ikind), natom=natom)
          CALL get_qs_kind(qs_kind_set(ikind), zeff=zeff, alpha_core_charge=alpha_core_charge)
          ecore_self = ecore_self - REAL(natom, dp)*zeff**2*SQRT(alpha_core_charge)
@@ -400,6 +416,10 @@ CONTAINS
             CALL atprop_array_init(atprop%ateself, natom)
 
             DO ikind = 1, SIZE(atomic_kind_set)
+               ! nuclear density self-interaction is already removed in CNEO
+               NULLIFY (cneo_potential)
+               CALL get_qs_kind(qs_kind_set(ikind), cneo_potential=cneo_potential)
+               IF (ASSOCIATED(cneo_potential)) CYCLE
                nparticle_local = local_particles%n_el(ikind)
                CALL get_qs_kind(qs_kind_set(ikind), zeff=zeff, alpha_core_charge=alpha_core_charge)
                es = zeff**2*SQRT(alpha_core_charge)/SQRT(twopi)

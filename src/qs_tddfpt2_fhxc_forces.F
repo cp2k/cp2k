@@ -432,6 +432,9 @@ CONTAINS
          ! calculate associated hartree potential
          IF (gapw) THEN
             CALL pw_axpy(local_rho_set%rho0_mpole%rho0_s_gs, rhox_tot_gspace)
+            IF (ASSOCIATED(local_rho_set%rho0_mpole%rhoz_cneo_s_gs)) THEN
+               CALL pw_axpy(local_rho_set%rho0_mpole%rhoz_cneo_s_gs, rhox_tot_gspace)
+            END IF
          END IF
          CALL pw_poisson_solve(poisson_env, rhox_tot_gspace, xehartree, &
                                xv_hartree_gspace)

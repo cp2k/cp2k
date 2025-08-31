@@ -90,7 +90,7 @@ MODULE bibliography
                             Blase2018, Blase2020, Bruneval2015, Golze2019, Gui2018, Jacquemin2017, Liu2020, &
                             Sander2015, Schreiber2008, vanSetten2015, Setyawan2010, Ahart2024, Knysh2024, &
                             Schambeck2024, Mewes2018, Sertcan2024, Drautz2019, Lysogorskiy2021, Bochkarev2024, &
-                            VazdaCruz2021
+                            VazdaCruz2021, Chen2025
 
 CONTAINS
 
@@ -1953,12 +1953,20 @@ CONTAINS
                          title="Graph Atomic Cluster Expansion for semilocal interactions beyond equivariant message passing", &
                          source="Phys. Rev. X", volume="14", pages="021036", &
                          year=2024, doi="10.1103/PhysRevX.14.021036")
+
       CALL add_reference(key=VazdaCruz2021, &
                          authors=s2a("V. Vaz da Cruz", "S. Eckert", "A. Fohlisch"), &
                          title="TD-DFT simulations of K-edge resonant inelastic X-ray scattering within "// &
                          "the restricted subspace approximation", &
                          source="Phys. Chem. Chem. Phys.", volume="23", pages="1835-1848", &
                          year=2021, doi="10.1039/d0cp04726k")
+
+      CALL add_reference(key=Chen2025, &
+                         authors=s2a("Z. Chen", "Y. Yang"), &
+                         title="Periodic Constrained Nuclear-Electronic Orbital Density Functional Theory for "// &
+                         "Nuclear Quantum Effects: Method Development and Application to Hydrogen Adsorption on Pt(111)", &
+                         source="J. Chem. Theory Comput.", volume="21", pages="7865-7877", &
+                         year=2025, doi="10.1021/acs.jctc.5c00837")
 
    END SUBROUTINE add_all_references
 

@@ -106,6 +106,7 @@ MODULE qs_core_hamiltonian
                                               dp
    USE message_passing,                 ONLY: mp_para_env_type
    USE particle_types,                  ONLY: particle_type
+   USE qs_cneo_methods,                 ONLY: cneo_core_matrices
    USE qs_condnum,                      ONLY: overlap_condnum
    USE qs_core_matrices,                ONLY: core_matrices,&
                                               kinetic_energy_matrix
@@ -321,6 +322,9 @@ CONTAINS
 
       ! *** core and pseudopotentials
       CALL core_matrices(qs_env, matrix_h, matrix_p, calculate_forces, nder)
+
+      ! *** CNEO nuclear V_core
+      CALL cneo_core_matrices(qs_env, calculate_forces, nder)
 
       ! *** GAPW one-center-expansion (oce) matrices
       NULLIFY (sap_oce)

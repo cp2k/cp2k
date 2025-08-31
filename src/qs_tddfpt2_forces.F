@@ -784,6 +784,9 @@ CONTAINS
          CALL get_rho0_mpole(local_rho_set%rho0_mpole, Qlm_tot=Qlm_tot)
          rhotot = rhotot + local_rho_set%rho0_mpole%total_rho0_h
          CALL pw_axpy(local_rho_set%rho0_mpole%rho0_s_gs, rho_tot_gspace)
+         IF (ASSOCIATED(local_rho_set%rho0_mpole%rhoz_cneo_s_gs)) THEN
+            CALL pw_axpy(local_rho_set%rho0_mpole%rhoz_cneo_s_gs, rho_tot_gspace)
+         END IF
       END IF
 
       IF (ABS(rhotot) > 1.e-05_dp) THEN

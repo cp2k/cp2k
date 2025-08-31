@@ -218,6 +218,9 @@ CONTAINS
       IF (gapw) THEN
          CPASSERT(ASSOCIATED(local_rho_set))
          CALL pw_axpy(local_rho_set%rho0_mpole%rho0_s_gs, rho_ia_g)
+         IF (ASSOCIATED(local_rho_set%rho0_mpole%rhoz_cneo_s_gs)) THEN
+            CALL pw_axpy(local_rho_set%rho0_mpole%rhoz_cneo_s_gs, rho_ia_g)
+         END IF
       END IF
 
       CALL pw_poisson_solve(poisson_env, rho_ia_g, pair_energy, work_v_gspace)

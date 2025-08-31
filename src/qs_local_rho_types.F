@@ -11,6 +11,8 @@ MODULE qs_local_rho_types
    USE mathconstants,                   ONLY: fourpi,&
                                               pi
    USE memory_utilities,                ONLY: reallocate
+   USE qs_cneo_types,                   ONLY: deallocate_rhoz_cneo_set,&
+                                              rhoz_cneo_type
    USE qs_grid_atom,                    ONLY: grid_atom_type
    USE qs_harmonics_atom,               ONLY: harmonics_atom_type
    USE qs_rho0_types,                   ONLY: deallocate_rho0_atom,&
@@ -45,7 +47,9 @@ MODULE qs_local_rho_types
       TYPE(rho0_mpole_type), POINTER                        :: rho0_mpole => NULL()
       TYPE(rho0_atom_type), DIMENSION(:), POINTER           :: rho0_atom_set => NULL()
       TYPE(rhoz_type), DIMENSION(:), POINTER                :: rhoz_set => NULL()
-      REAL(dp)                                              :: rhoz_tot = -1.0_dp
+      TYPE(rhoz_cneo_type), DIMENSION(:), POINTER           :: rhoz_cneo_set => NULL()
+      REAL(dp)                                              :: rhoz_tot = -1.0_dp, &
+                                                               rhoz_cneo_tot = -1.0_dp
    END TYPE local_rho_type
 
 ! Public Types
@@ -152,9 +156,12 @@ CONTAINS
       nkind = SIZE(rhoz_set)
 
       DO ikind = 1, nkind
-         DEALLOCATE (rhoz_set(ikind)%r_coef)
-         DEALLOCATE (rhoz_set(ikind)%dr_coef)
-         DEALLOCATE (rhoz_set(ikind)%vr_coef)
+         IF (ASSOCIATED(rhoz_set(ikind)%r_coef)) &
+            DEALLOCATE (rhoz_set(ikind)%r_coef)
+         IF (ASSOCIATED(rhoz_set(ikind)%dr_coef)) &
+            DEALLOCATE (rhoz_set(ikind)%dr_coef)
+         IF (ASSOCIATED(rhoz_set(ikind)%vr_coef)) &
+            DEALLOCATE (rhoz_set(ikind)%vr_coef)
       END DO
 
       DEALLOCATE (rhoz_set)
@@ -168,8 +175,10 @@ CONTAINS
 !> \param rho0_atom_set ...
 !> \param rho0_mpole ...
 !> \param rhoz_set ...
+!> \param rhoz_cneo_set ...
 ! **************************************************************************************************
-   SUBROUTINE get_local_rho(local_rho_set, rho_atom_set, rho0_atom_set, rho0_mpole, rhoz_set)
+   SUBROUTINE get_local_rho(local_rho_set, rho_atom_set, rho0_atom_set, rho0_mpole, rhoz_set, &
+                            rhoz_cneo_set)
 
       TYPE(local_rho_type), POINTER                      :: local_rho_set
       TYPE(rho_atom_type), DIMENSION(:), OPTIONAL, &
@@ -178,11 +187,14 @@ CONTAINS
          POINTER                                         :: rho0_atom_set
       TYPE(rho0_mpole_type), OPTIONAL, POINTER           :: rho0_mpole
       TYPE(rhoz_type), DIMENSION(:), OPTIONAL, POINTER   :: rhoz_set
+      TYPE(rhoz_cneo_type), DIMENSION(:), OPTIONAL, &
+         POINTER                                         :: rhoz_cneo_set
 
       IF (PRESENT(rho_atom_set)) rho_atom_set => local_rho_set%rho_atom_set
       IF (PRESENT(rho0_atom_set)) rho0_atom_set => local_rho_set%rho0_atom_set
       IF (PRESENT(rho0_mpole)) rho0_mpole => local_rho_set%rho0_mpole
       IF (PRESENT(rhoz_set)) rhoz_set => local_rho_set%rhoz_set
+      IF (PRESENT(rhoz_cneo_set)) rhoz_cneo_set => local_rho_set%rhoz_cneo_set
 
    END SUBROUTINE get_local_rho
 
@@ -200,8 +212,10 @@ CONTAINS
       NULLIFY (local_rho_set%rho0_atom_set)
       NULLIFY (local_rho_set%rho0_mpole)
       NULLIFY (local_rho_set%rhoz_set)
+      NULLIFY (local_rho_set%rhoz_cneo_set)
 
       local_rho_set%rhoz_tot = 0.0_dp
+      local_rho_set%rhoz_cneo_tot = 0.0_dp
 
    END SUBROUTINE local_rho_set_create
 
@@ -230,6 +244,10 @@ CONTAINS
             CALL deallocate_rhoz(local_rho_set%rhoz_set)
          END IF
 
+         IF (ASSOCIATED(local_rho_set%rhoz_cneo_set)) THEN
+            CALL deallocate_rhoz_cneo_set(local_rho_set%rhoz_cneo_set)
+         END IF
+
          DEALLOCATE (local_rho_set)
       END IF
 
@@ -242,9 +260,10 @@ CONTAINS
 !> \param rho0_atom_set ...
 !> \param rho0_mpole ...
 !> \param rhoz_set ...
+!> \param rhoz_cneo_set ...
 ! **************************************************************************************************
    SUBROUTINE set_local_rho(local_rho_set, rho_atom_set, rho0_atom_set, rho0_mpole, &
-                            rhoz_set)
+                            rhoz_set, rhoz_cneo_set)
 
       TYPE(local_rho_type), POINTER                      :: local_rho_set
       TYPE(rho_atom_type), DIMENSION(:), OPTIONAL, &
@@ -253,6 +272,8 @@ CONTAINS
          POINTER                                         :: rho0_atom_set
       TYPE(rho0_mpole_type), OPTIONAL, POINTER           :: rho0_mpole
       TYPE(rhoz_type), DIMENSION(:), OPTIONAL, POINTER   :: rhoz_set
+      TYPE(rhoz_cneo_type), DIMENSION(:), OPTIONAL, &
+         POINTER                                         :: rhoz_cneo_set
 
       IF (PRESENT(rho_atom_set)) THEN
          IF (ASSOCIATED(local_rho_set%rho_atom_set)) THEN
@@ -282,7 +303,13 @@ CONTAINS
          local_rho_set%rhoz_set => rhoz_set
       END IF
 
+      IF (PRESENT(rhoz_cneo_set)) THEN
+         IF (ASSOCIATED(local_rho_set%rhoz_cneo_set)) THEN
+            CALL deallocate_rhoz_cneo_set(local_rho_set%rhoz_cneo_set)
+         END IF
+         local_rho_set%rhoz_cneo_set => rhoz_cneo_set
+      END IF
+
    END SUBROUTINE set_local_rho
 
 END MODULE qs_local_rho_types
-

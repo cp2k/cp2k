@@ -164,8 +164,9 @@ MODULE qs_environment
                                               write_ppl_radii,&
                                               write_ppnl_radii
    USE qs_kind_types,                   ONLY: &
-        check_qs_kind_set, get_qs_kind, get_qs_kind_set, init_gapw_basis_set, init_gapw_nlcc, &
-        init_qs_kind_set, qs_kind_type, set_qs_kind, write_gto_basis_sets, write_qs_kind_set
+        check_qs_kind_set, get_qs_kind, get_qs_kind_set, init_cneo_basis_set, init_gapw_basis_set, &
+        init_gapw_nlcc, init_qs_kind_set, qs_kind_type, set_qs_kind, write_gto_basis_sets, &
+        write_qs_kind_set
    USE qs_ks_types,                     ONLY: qs_ks_env_create,&
                                               qs_ks_env_type,&
                                               set_ks_env
@@ -598,13 +599,13 @@ CONTAINS
 
       CHARACTER(len=2)                                   :: element_symbol
       INTEGER :: gfn_type, handle, ikind, ispin, iw, lmax_sphere, maxl, maxlgto, maxlgto_lri, &
-         maxlppl, maxlppnl, method_id, multiplicity, my_ival, n_ao, n_mo_add, natom, nelectron, &
-         ngauss, nkind, output_unit, sort_basis, tnadd_method
+         maxlgto_nuc, maxlppl, maxlppnl, method_id, multiplicity, my_ival, n_ao, n_mo_add, natom, &
+         nelectron, ngauss, nkind, output_unit, sort_basis, tnadd_method
       INTEGER, DIMENSION(2)                              :: n_mo, nelectron_spin
       INTEGER, DIMENSION(5)                              :: occ
-      LOGICAL :: all_potential_present, be_silent, do_kpoints, do_ri_hfx, do_ri_mp2, do_ri_rpa, &
-         do_ri_sos_mp2, do_rpa_ri_exx, do_wfc_im_time, e1terms, has_unit_metric, lribas, &
-         mp2_present, orb_gradient
+      LOGICAL :: all_potential_present, be_silent, cneo_potential_present, do_kpoints, do_ri_hfx, &
+         do_ri_mp2, do_ri_rpa, do_ri_sos_mp2, do_rpa_ri_exx, do_wfc_im_time, e1terms, &
+         has_unit_metric, lribas, mp2_present, orb_gradient
       REAL(KIND=dp)                                      :: alpha, ccore, ewald_rcut, fxx, maxocc, &
                                                             rcut, total_zeff_corr, verlet_skin, &
                                                             zeff_correction
@@ -907,6 +908,13 @@ CONTAINS
          END IF
       END IF
 
+      !   *** Check that no cneo potential is present if not GAPW
+      CALL get_qs_kind_set(qs_kind_set, cneo_potential_present=cneo_potential_present)
+      IF (cneo_potential_present .AND. &
+          dft_control%qs_control%method_id /= do_method_gapw) THEN
+         CPABORT("CNEO calculations require GAPW method")
+      END IF
+
       ! DFT+U
       CALL get_qs_kind_set(qs_kind_set, dft_plus_u_atom_present=dft_control%dft_plus_u)
 
@@ -1081,6 +1089,11 @@ CONTAINS
       !   *** the orbital transformation matrices    ***
       CALL get_qs_kind_set(qs_kind_set, maxlgto=maxlgto, maxlppl=maxlppl, maxlppnl=maxlppnl)
 
+      ! CNEO nuclear basis contributes to GAPW rho0
+      IF (cneo_potential_present) THEN
+         CALL get_qs_kind_set(qs_kind_set, maxlgto=maxlgto_nuc, basis_type="NUC")
+         maxlgto = MAX(maxlgto, maxlgto_nuc)
+      END IF
       lmax_sphere = dft_control%qs_control%gapw_control%lmax_sphere
       IF (lmax_sphere .LT. 0) THEN
          lmax_sphere = 2*maxlgto
@@ -1115,6 +1128,11 @@ CONTAINS
          CALL init_gapw_basis_set(qs_kind_set, qs_control, qs_env%input)
       END IF
 
+      !   *** Initialise CNEO nuclear soft basis
+      IF (cneo_potential_present) THEN
+         CALL init_cneo_basis_set(qs_kind_set, qs_control)
+      END IF
+
       !   *** Initialize the pretabulation for the calculation of the   ***
       !   *** incomplete Gamma function F_n(t) after McMurchie-Davidson ***
       CALL get_qs_kind_set(qs_kind_set, maxlgto=maxlgto)
@@ -1147,6 +1165,7 @@ CONTAINS
          CALL write_pgf_orb_radii("orb", atomic_kind_set, qs_kind_set, subsys_section)
          CALL write_pgf_orb_radii("aux", atomic_kind_set, qs_kind_set, subsys_section)
          CALL write_pgf_orb_radii("lri", atomic_kind_set, qs_kind_set, subsys_section)
+         CALL write_pgf_orb_radii("nuc", atomic_kind_set, qs_kind_set, subsys_section)
          CALL write_core_charge_radii(atomic_kind_set, qs_kind_set, subsys_section)
          CALL write_ppl_radii(atomic_kind_set, qs_kind_set, subsys_section)
          CALL write_ppnl_radii(atomic_kind_set, qs_kind_set, subsys_section)
@@ -1867,9 +1886,9 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(section_vals_type), POINTER                   :: force_env_section
 
-      INTEGER                                            :: maxlgto, maxlppl, maxlppnl, natom, ncgf, &
-                                                            nkind, npgf, nset, nsgf, nshell, &
-                                                            output_unit
+      INTEGER                                            :: maxlgto, maxlppl, maxlppnl, natom, &
+                                                            natom_q, ncgf, nkind, nkind_q, npgf, &
+                                                            nset, nsgf, nshell, output_unit
       TYPE(cp_logger_type), POINTER                      :: logger
 
       NULLIFY (logger)
@@ -1991,6 +2010,32 @@ CONTAINS
             WRITE (UNIT=output_unit, FMT="(/,T3,A,/,T3,A,(T30,A,T71,I10))") &
                "AUX_FIT ADMM-Basis: ", &
                "Total number of", &
+               "- Shell sets:                    ", nset, &
+               "- Shells:                        ", nshell, &
+               "- Primitive Cartesian functions: ", npgf, &
+               "- Cartesian basis functions:     ", ncgf, &
+               "- Spherical basis functions:     ", nsgf
+            WRITE (UNIT=output_unit, FMT="(T30,A,T75,I6)") &
+               "  Maximum angular momentum ", maxlgto
+         END IF
+
+         ! NUCLEAR BASIS
+         CALL get_qs_kind_set(qs_kind_set, &
+                              nkind_q=nkind_q, &
+                              natom_q=natom_q, &
+                              maxlgto=maxlgto, &
+                              ncgf=ncgf, &
+                              npgf=npgf, &
+                              nset=nset, &
+                              nsgf=nsgf, &
+                              nshell=nshell, &
+                              basis_type="NUC")
+         IF (nset + npgf + ncgf > 0) THEN
+            WRITE (UNIT=output_unit, FMT="(/,T3,A,/,T3,A,(T30,A,T71,I10))") &
+               "Nuclear Basis: ", &
+               "Total number of", &
+               "- Quantum atomic kinds:          ", nkind_q, &
+               "- Quantum atoms:                 ", natom_q, &
                "- Shell sets:                    ", nset, &
                "- Shells:                        ", nshell, &
                "- Primitive Cartesian functions: ", npgf, &

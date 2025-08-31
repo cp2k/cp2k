@@ -27,6 +27,10 @@ MODULE hartree_local_methods
    USE pw_poisson_types,                ONLY: pw_poisson_periodic,&
                                               pw_poisson_type
    USE qs_charges_types,                ONLY: qs_charges_type
+   USE qs_cneo_methods,                 ONLY: Vh_1c_nuc_integrals,&
+                                              calculate_rhoz_cneo
+   USE qs_cneo_types,                   ONLY: cneo_potential_type,&
+                                              rhoz_cneo_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_grid_atom,                    ONLY: grid_atom_type
@@ -221,26 +225,31 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'Vh_1c_gg_integrals'
 
-      INTEGER :: bo(2), handle, iat, iatom, ikind, ipgf1, is1, iset1, iso, l_ang, llmax, lmax0, &
-         lmax0_2nd, lmax_0, m1, max_iso, max_iso_not0, max_s_harm, maxl, maxso, mepos, n1, nat, &
-         nchan_0, nkind, nr, nset, nsotot, nspins, num_pe
+      INTEGER :: bo(2), handle, iat, iatom, ikind, ipgf1, is1, iset1, iso, l_ang, llmax, &
+         llmax_nuc, lmax0, lmax0_2nd, lmax_0, m1, max_iso, max_iso_not0, max_iso_not0_nuc, &
+         max_s_harm, max_s_harm_nuc, maxl, maxl_nuc, maxso, maxso_nuc, mepos, n1, nat, nchan_0, &
+         nkind, nr, nset, nset_nuc, nsotot, nsotot_nuc, nspins, num_pe
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: cg_n_list
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: cg_list
-      INTEGER, DIMENSION(:), POINTER                     :: atom_list, lmax, lmin, npgf
-      LOGICAL                                            :: core_charge, l_2nd_local_rho, &
+      INTEGER, DIMENSION(:), POINTER                     :: atom_list, lmax, lmax_nuc, lmin, &
+                                                            lmin_nuc, npgf, npgf_nuc
+      LOGICAL                                            :: cneo, core_charge, l_2nd_local_rho, &
                                                             my_core_2nd, my_periodic, paw_atom
-      REAL(dp)                                           :: back_ch, factor
+      REAL(dp)                                           :: back_ch, ecoul_1_z_cneo, factor
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: gexp, sqrtwr
-      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: aVh1b_00, aVh1b_hh, aVh1b_ss, g0_h_w
+      REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: aVh1b_00, aVh1b_00_nuc, aVh1b_hh, &
+                                                            aVh1b_hh_nuc, aVh1b_ss, aVh1b_ss_nuc, &
+                                                            g0_h_w
       REAL(dp), DIMENSION(:), POINTER                    :: rrad_z, vrrad_z
-      REAL(dp), DIMENSION(:, :), POINTER                 :: g0_h, g0_h_2nd, gsph, rrad_0, Vh1_h, &
-                                                            Vh1_s, vrrad_0, zet
+      REAL(dp), DIMENSION(:, :), POINTER                 :: g0_h, g0_h_2nd, gsph, gsph_nuc, rrad_0, &
+                                                            Vh1_h, Vh1_s, vrrad_0, zet, zet_nuc
       REAL(dp), DIMENSION(:, :, :), POINTER              :: my_CG, Qlm_gg, Qlm_gg_2nd
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
+      TYPE(cneo_potential_type), POINTER                 :: cneo_potential
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(grid_atom_type), POINTER                      :: grid_atom
-      TYPE(gto_basis_set_type), POINTER                  :: basis_1c
+      TYPE(gto_basis_set_type), POINTER                  :: basis_1c, nuc_basis
       TYPE(harmonics_atom_type), POINTER                 :: harmonics
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
@@ -250,6 +259,8 @@ CONTAINS
       TYPE(rho0_mpole_type), POINTER                     :: rho0_mpole, rho0_mpole_2nd
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom_set, rho_atom_set_2nd
       TYPE(rho_atom_type), POINTER                       :: rho_atom
+      TYPE(rhoz_cneo_type), DIMENSION(:), POINTER        :: rhoz_cneo_set
+      TYPE(rhoz_cneo_type), POINTER                      :: rhoz_cneo
       TYPE(rhoz_type), DIMENSION(:), POINTER             :: rhoz_set, rhoz_set_2nd
 
       CALL timeset(routineN, handle)
@@ -260,6 +271,7 @@ CONTAINS
       NULLIFY (atom_list, grid_atom, harmonics)
       NULLIFY (basis_1c, lmin, lmax, npgf, zet)
       NULLIFY (gsph)
+      NULLIFY (rhoz_cneo, rhoz_cneo_set)
 
       CALL get_qs_env(qs_env=qs_env, &
                       cell=cell, dft_control=dft_control, &
@@ -273,7 +285,8 @@ CONTAINS
       back_ch = qs_charges%background*cell%deth
 
       ! rhoz_set is not accessed in TDDFT
-      CALL get_local_rho(local_rho_set, rho_atom_set, rho0_atom_set, rho0_mpole, rhoz_set) ! for integral space
+      CALL get_local_rho(local_rho_set, rho_atom_set, rho0_atom_set, rho0_mpole, rhoz_set, &
+                         rhoz_cneo_set) ! for integral space
 
       ! for forces we need a second local_rho_set
       l_2nd_local_rho = .FALSE.
@@ -304,17 +317,35 @@ CONTAINS
 
       !   Put to 0 the local hartree energy contribution from 1 center integrals
       energy_hartree_1c = 0.0_dp
+      !   Restore total quantum nuclear density to zero
+      qs_charges%total_rho1_hard_nuc = 0.0_dp
+      rho0_mpole%tot_rhoz_cneo_s = 0.0_dp
 
       !   Here starts the loop over all the atoms
       DO ikind = 1, nkind
 
          CALL get_atomic_kind(atomic_kind_set(ikind), atom_list=atom_list, natom=nat)
+         NULLIFY (cneo_potential)
          CALL get_qs_kind(qs_kind_set(ikind), &
                           grid_atom=grid_atom, &
                           harmonics=harmonics, ngrid_rad=nr, &
-                          max_iso_not0=max_iso_not0, paw_atom=paw_atom)
+                          max_iso_not0=max_iso_not0, paw_atom=paw_atom, &
+                          cneo_potential=cneo_potential)
          CALL get_qs_kind(qs_kind_set(ikind), &
                           basis_set=basis_1c, basis_type="GAPW_1C")
+
+         cneo = ASSOCIATED(cneo_potential)
+         IF (cneo .AND. tddft) &
+            CPABORT("Electronic TDDFT with CNEO quantum nuclei is not implemented.")
+
+         NULLIFY (nuc_basis)
+         max_iso_not0_nuc = 0
+         IF (cneo) THEN
+            CPASSERT(paw_atom)
+            CALL get_qs_kind(qs_kind_set(ikind), &
+                             basis_set=nuc_basis, basis_type="NUC")
+            max_iso_not0_nuc = cneo_potential%harmonics%max_iso_not0
+         END IF
 
          IF (paw_atom) THEN
 !===========    PAW   ===============
@@ -330,14 +361,9 @@ CONTAINS
             ALLOCATE (gexp(nr))
             ALLOCATE (sqrtwr(nr), g0_h_w(nr, 0:lmax_0))
 
-            NULLIFY (Vh1_h, Vh1_s)
-            ALLOCATE (Vh1_h(nr, max_iso_not0))
-            ALLOCATE (Vh1_s(nr, max_iso_not0))
-
             ALLOCATE (aVh1b_hh(nsotot, nsotot))
             ALLOCATE (aVh1b_ss(nsotot, nsotot))
             ALLOCATE (aVh1b_00(nsotot, nsotot))
-            ALLOCATE (cg_list(2, nsoset(maxl)**2, max_s_harm), cg_n_list(max_s_harm))
 
             NULLIFY (Qlm_gg, g0_h)
             CALL get_rho0_mpole(rho0_mpole=rho0_mpole, ikind=ikind, &
@@ -352,7 +378,38 @@ CONTAINS
             END IF
             nchan_0 = nsoset(lmax0)
 
-            IF (nchan_0 > max_iso_not0) CPABORT("channels for rho0 > # max of spherical harmonics")
+            IF (nchan_0 > MAX(max_iso_not0, max_iso_not0_nuc)) &
+               CPABORT("channels for rho0 > # max of spherical harmonics")
+
+            NULLIFY (Vh1_h, Vh1_s)
+            ALLOCATE (Vh1_h(nr, max_iso_not0))
+            ALLOCATE (Vh1_s(nr, MAX(max_iso_not0, max_iso_not0_nuc, nchan_0)))
+
+            NULLIFY (lmax_nuc, lmin_nuc, npgf_nuc, zet_nuc, gsph_nuc)
+            maxso_nuc = 0
+            maxl_nuc = -1
+            nset_nuc = 0
+            max_s_harm_nuc = 0
+            llmax_nuc = -1
+            nsotot_nuc = 0
+            IF (cneo) THEN
+               CALL get_gto_basis_set(gto_basis_set=nuc_basis, lmax=lmax_nuc, &
+                                      lmin=lmin_nuc, maxso=maxso_nuc, npgf=npgf_nuc, &
+                                      maxl=maxl_nuc, nset=nset_nuc, zet=zet_nuc)
+
+               max_s_harm_nuc = cneo_potential%harmonics%max_s_harm
+               llmax_nuc = cneo_potential%harmonics%llmax
+               nsotot_nuc = maxso_nuc*nset_nuc
+               ALLOCATE (gsph_nuc(nr, nsotot_nuc))
+               gsph_nuc = 0.0_dp
+               ALLOCATE (aVh1b_hh_nuc(nsotot_nuc, nsotot_nuc))
+               ALLOCATE (aVh1b_ss_nuc(nsotot_nuc, nsotot_nuc))
+               ALLOCATE (aVh1b_00_nuc(nsotot_nuc, nsotot_nuc))
+            END IF
+
+            ALLOCATE (cg_list(2, nsoset(MAX(maxl, maxl_nuc))**2, &
+                              MAX(max_s_harm, max_s_harm_nuc)), &
+                      cg_n_list(MAX(max_s_harm, max_s_harm_nuc)))
 
             NULLIFY (rrad_z, my_CG)
             my_CG => harmonics%my_CG
@@ -382,6 +439,33 @@ CONTAINS
                m1 = m1 + maxso
             END DO ! iset1
 
+            IF (cneo) THEN
+               ! initialize nuclear pmat, cpc and e_core to zero
+               DO iat = 1, nat
+                  iatom = atom_list(iat)
+                  rhoz_cneo_set(iatom)%pmat = 0.0_dp
+                  rhoz_cneo_set(iatom)%cpc_h = 0.0_dp
+                  rhoz_cneo_set(iatom)%cpc_s = 0.0_dp
+                  rhoz_cneo_set(iatom)%e_core = 0.0_dp
+                  rhoz_cneo_set(iatom)%ready = .FALSE.
+               END DO
+
+               ! calculate nuclear gsph
+               m1 = 0
+               DO iset1 = 1, nset_nuc
+                  n1 = nsoset(lmax_nuc(iset1))
+                  DO ipgf1 = 1, npgf_nuc(iset1)
+                     gexp(1:nr) = EXP(-zet_nuc(ipgf1, iset1)*grid_atom%rad2(1:nr))*sqrtwr(1:nr)
+                     DO is1 = nsoset(lmin_nuc(iset1) - 1) + 1, nsoset(lmax_nuc(iset1))
+                        iso = is1 + (ipgf1 - 1)*n1 + m1
+                        l_ang = indso(1, is1)
+                        gsph_nuc(1:nr, iso) = cneo_potential%rad2l(1:nr, l_ang)*gexp(1:nr)
+                     END DO ! is1
+                  END DO ! ipgf1
+                  m1 = m1 + maxso_nuc
+               END DO ! iset1
+            END IF
+
             !     Distribute the atoms of this kind
             num_pe = para_env%num_pe
             mepos = para_env%mepos
@@ -392,10 +476,10 @@ CONTAINS
                rho_atom => rho_atom_set(iatom)
 
                NULLIFY (rrad_z, vrrad_z, rrad_0, vrrad_0)
-               IF (core_charge) THEN
+               IF (core_charge .AND. .NOT. cneo) THEN
                   rrad_z => rhoz_set(ikind)%r_coef ! for density
                END IF
-               IF (my_core_2nd) THEN
+               IF (my_core_2nd .AND. .NOT. cneo) THEN
                   IF (l_2nd_local_rho) THEN
                      vrrad_z => rhoz_set_2nd(ikind)%vr_coef ! for potential
                   ELSE
@@ -415,16 +499,76 @@ CONTAINS
                END IF
 
                CALL Vh_1c_atom_potential(rho_atom, vrrad_0, &
-                                         grid_atom, my_core_2nd, vrrad_z, Vh1_h, Vh1_s, & ! core charge for potential (2nd)
+                                         grid_atom, my_core_2nd .AND. .NOT. cneo, & ! core charge for potential (2nd)
+                                         vrrad_z, Vh1_h, Vh1_s, &
                                          nchan_0, nspins, max_iso_not0, factor)
 
                IF (l_2nd_local_rho) rho_atom => rho_atom_set(iatom) ! rho_atom for density
 
+               ecoul_1_z_cneo = 0.0_dp
+               IF (cneo) THEN
+                  rhoz_cneo => rhoz_cneo_set(iatom)
+                  ! Add the soft tail of nuclear Hartree potential to total Vh1_s first.
+                  ! vrho already contains the -zeff factor.
+                  DO iso = 1, max_iso_not0_nuc
+                     Vh1_s(:, iso) = Vh1_s(:, iso) + rhoz_cneo%vrho_rad_s(:, iso)
+                  END DO
+
+                  ! Build nuclear 1c integrals according to Vh1_h from electronic density only
+                  ! and Vh1_s from electron density and last step (or initial guess) nuclear density
+                  ! Vh1_h_nuc = -Z*Vh1_h, Vh1_s_nuc = -Z*Vh1_s
+                  CALL Vh_1c_nuc_integrals(rhoz_cneo, cneo_potential%zeff, &
+                                           aVh1b_hh_nuc, aVh1b_ss_nuc, aVh1b_00_nuc, Vh1_h, Vh1_s, &
+                                           max_iso_not0, max_iso_not0_nuc, &
+                                           max_s_harm_nuc, llmax_nuc, cg_list, cg_n_list, &
+                                           nset_nuc, npgf_nuc, lmin_nuc, lmax_nuc, nsotot_nuc, maxso_nuc, &
+                                           nchan_0, gsph_nuc, g0_h_w, cneo_potential%harmonics%my_CG, &
+                                           cneo_potential%Qlm_gg)
+
+                  ! Solve the nuclear 1c problem
+                  CALL calculate_rhoz_cneo(rhoz_cneo, cneo_potential, cg_list, cg_n_list, nset_nuc, &
+                                           npgf_nuc, lmin_nuc, lmax_nuc, maxl_nuc, maxso_nuc)
+                  ! slm_int(iso=1) = sqrt(4*Pi), slm_int(iso>1) = 0, without using Lebedev grid
+                  ! when printing, nuclear density is positive, thus needing the minus sign
+                  qs_charges%total_rho1_hard_nuc = qs_charges%total_rho1_hard_nuc - SQRT(fourpi) &
+                                                   *SUM(rhoz_cneo%rho_rad_h(:, 1)*grid_atom%wr(:))
+                  rho0_mpole%tot_rhoz_cneo_s = rho0_mpole%tot_rhoz_cneo_s - SQRT(fourpi) &
+                                               *SUM(rhoz_cneo%rho_rad_s(:, 1)*grid_atom%wr(:))
+
+                  ! Calculate the contributions to Ecoul coming from Vh1_h*rhoz_cneo_h and Vh1_s*rhoz_cneo_s.
+                  ! Self-interaction of the quantum nucleus is already removed in ecoul_1_z_cneo.
+                  ! rho already contains the -zeff factor.
+                  DO iso = 1, MIN(max_iso_not0, max_iso_not0_nuc)
+                     ecoul_1_z_cneo = ecoul_1_z_cneo + 0.5_dp* &
+                                      (SUM(Vh1_h(:, iso)*rhoz_cneo%rho_rad_h(:, iso)*grid_atom%wr(:)) &
+                                       - SUM(Vh1_s(:, iso)*rhoz_cneo%rho_rad_s(:, iso)*grid_atom%wr(:)))
+                  END DO
+                  DO iso = max_iso_not0 + 1, max_iso_not0_nuc
+                     ecoul_1_z_cneo = ecoul_1_z_cneo - 0.5_dp* &
+                                      SUM(Vh1_s(:, iso)*rhoz_cneo%rho_rad_s(:, iso)*grid_atom%wr(:))
+                  END DO
+
+                  ! Add nuclear Hartree potential to total Vh1_h after solving the nuclear 1c problem
+                  ! to avoid nuclear self-interaction.
+                  ! vrho already contains the -zeff factor.
+                  ! Here the min of two max_iso_not0's is chosen, because even when the nuclear one
+                  ! is larger, it is meaningless to let Vh1_h have higher angular momentum components
+                  ! as Vh1_h now is only used for the electronic part.
+                  DO iso = 1, MIN(max_iso_not0, max_iso_not0_nuc)
+                     Vh1_h(:, iso) = Vh1_h(:, iso) + rhoz_cneo%vrho_rad_h(:, iso)
+                  END DO
+               END IF
+
                CALL Vh_1c_atom_energy(energy_hartree_1c, ecoul_1c, rho_atom, rrad_0, &
-                                      grid_atom, iatom, core_charge, rrad_z, Vh1_h, Vh1_s, & ! core charge for density
-                                      nchan_0, nspins, max_iso_not0)
+                                      grid_atom, iatom, core_charge .AND. .NOT. cneo, & ! core charge for density
+                                      rrad_z, Vh1_h, Vh1_s, nchan_0, nspins, max_iso_not0)
 
                IF (l_2nd_local_rho) rho_atom => rho_atom_set_2nd(iatom) ! rho_atom for potential (2nd)
+
+               IF (cneo) THEN
+                  CALL set_ecoul_1c(ecoul_1c, iatom, ecoul_1_z=ecoul_1c(iatom)%ecoul_1_z + ecoul_1_z_cneo)
+                  energy_hartree_1c = energy_hartree_1c + ecoul_1_z_cneo
+               END IF
 
                CALL Vh_1c_atom_integrals(rho_atom, &  ! results (int_local_h and int_local_s) written on rho_atom_2nd
                                          ! int_local_h and int_local_s are used in update_ks_atom
@@ -439,12 +583,27 @@ CONTAINS
             DEALLOCATE (aVh1b_hh)
             DEALLOCATE (aVh1b_ss)
             DEALLOCATE (aVh1b_00)
+            IF (ALLOCATED(aVh1b_hh_nuc)) DEALLOCATE (aVh1b_hh_nuc)
+            IF (ALLOCATED(aVh1b_ss_nuc)) DEALLOCATE (aVh1b_ss_nuc)
+            IF (ALLOCATED(aVh1b_00_nuc)) DEALLOCATE (aVh1b_00_nuc)
             DEALLOCATE (Vh1_h, Vh1_s)
             DEALLOCATE (cg_list, cg_n_list)
             DEALLOCATE (gsph)
+            IF (ASSOCIATED(gsph_nuc)) DEALLOCATE (gsph_nuc)
             DEALLOCATE (gexp)
             DEALLOCATE (sqrtwr, g0_h_w)
 
+            IF (cneo) THEN
+               ! broadcast nuclear pmat, cpc and e_core
+               DO iat = 1, nat
+                  iatom = atom_list(iat)
+                  CALL para_env%sum(rhoz_cneo_set(iatom)%pmat)
+                  CALL para_env%sum(rhoz_cneo_set(iatom)%cpc_h)
+                  CALL para_env%sum(rhoz_cneo_set(iatom)%cpc_s)
+                  CALL para_env%sum(rhoz_cneo_set(iatom)%e_core)
+                  rhoz_cneo_set(iatom)%ready = .TRUE.
+               END DO
+            END IF
          ELSE
 !===========   NO  PAW   ===============
 !  This term is taken care of using the core density as in GPW
@@ -453,6 +612,8 @@ CONTAINS
       END DO ! ikind
 
       CALL para_env%sum(energy_hartree_1c)
+      CALL para_env%sum(qs_charges%total_rho1_hard_nuc)
+      CALL para_env%sum(rho0_mpole%tot_rhoz_cneo_s)
 
       CALL timestop(handle)
 
@@ -670,7 +831,7 @@ CONTAINS
                n2 = nsoset(lmax(iset2))
                DO ipgf2 = 1, npgf(iset2)
                   !               with contributions to  V1_s*rho0
-                  DO iso = 1, nchan_0
+                  DO iso = 1, MIN(nchan_0, max_iso_not0)
                      l_ang = indso(1, iso)
                      gVg_0 = SUM(Vh1_s(:, iso)*g0_h_w(:, l_ang))
                      DO icg = 1, cg_n_list(iso)
@@ -732,4 +893,3 @@ CONTAINS
 !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 END MODULE hartree_local_methods
-

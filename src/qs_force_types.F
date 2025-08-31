@@ -27,6 +27,7 @@ MODULE qs_force_types
 
    TYPE qs_force_type
       REAL(KIND=dp), DIMENSION(:, :), POINTER :: all_potential => NULL(), &
+                                                 cneo_potential => NULL(), &
                                                  core_overlap => NULL(), &
                                                  gth_ppl => NULL(), &
                                                  gth_nlcc => NULL(), &
@@ -37,6 +38,7 @@ MODULE qs_force_types
                                                  rho_core => NULL(), &
                                                  rho_elec => NULL(), &
                                                  rho_lri_elec => NULL(), &
+                                                 rho_cneo_nuc => NULL(), &
                                                  vhxc_atom => NULL(), &
                                                  g0s_Vh_elec => NULL(), &
                                                  repulsive => NULL(), &
@@ -91,6 +93,7 @@ CONTAINS
       DO ikind = 1, nkind
          n = natom_of_kind(ikind)
          ALLOCATE (qs_force(ikind)%all_potential(3, n))
+         ALLOCATE (qs_force(ikind)%cneo_potential(3, n))
          ALLOCATE (qs_force(ikind)%core_overlap(3, n))
          ALLOCATE (qs_force(ikind)%gth_ppl(3, n))
          ALLOCATE (qs_force(ikind)%gth_nlcc(3, n))
@@ -101,6 +104,7 @@ CONTAINS
          ALLOCATE (qs_force(ikind)%rho_core(3, n))
          ALLOCATE (qs_force(ikind)%rho_elec(3, n))
          ALLOCATE (qs_force(ikind)%rho_lri_elec(3, n))
+         ALLOCATE (qs_force(ikind)%rho_cneo_nuc(3, n))
          ALLOCATE (qs_force(ikind)%vhxc_atom(3, n))
          ALLOCATE (qs_force(ikind)%g0s_Vh_elec(3, n))
          ALLOCATE (qs_force(ikind)%repulsive(3, n))
@@ -143,6 +147,10 @@ CONTAINS
             DEALLOCATE (qs_force(ikind)%all_potential)
          END IF
 
+         IF (ASSOCIATED(qs_force(ikind)%cneo_potential)) THEN
+            DEALLOCATE (qs_force(ikind)%cneo_potential)
+         END IF
+
          IF (ASSOCIATED(qs_force(ikind)%core_overlap)) THEN
             DEALLOCATE (qs_force(ikind)%core_overlap)
          END IF
@@ -180,6 +188,10 @@ CONTAINS
          END IF
          IF (ASSOCIATED(qs_force(ikind)%rho_lri_elec)) THEN
             DEALLOCATE (qs_force(ikind)%rho_lri_elec)
+         END IF
+
+         IF (ASSOCIATED(qs_force(ikind)%rho_cneo_nuc)) THEN
+            DEALLOCATE (qs_force(ikind)%rho_cneo_nuc)
          END IF
 
          IF (ASSOCIATED(qs_force(ikind)%vhxc_atom)) THEN
@@ -256,6 +268,7 @@ CONTAINS
 
       DO ikind = 1, SIZE(qs_force)
          qs_force(ikind)%all_potential(:, :) = 0.0_dp
+         qs_force(ikind)%cneo_potential(:, :) = 0.0_dp
          qs_force(ikind)%core_overlap(:, :) = 0.0_dp
          qs_force(ikind)%gth_ppl(:, :) = 0.0_dp
          qs_force(ikind)%gth_nlcc(:, :) = 0.0_dp
@@ -266,6 +279,7 @@ CONTAINS
          qs_force(ikind)%rho_core(:, :) = 0.0_dp
          qs_force(ikind)%rho_elec(:, :) = 0.0_dp
          qs_force(ikind)%rho_lri_elec(:, :) = 0.0_dp
+         qs_force(ikind)%rho_cneo_nuc(:, :) = 0.0_dp
          qs_force(ikind)%vhxc_atom(:, :) = 0.0_dp
          qs_force(ikind)%g0s_Vh_elec(:, :) = 0.0_dp
          qs_force(ikind)%repulsive(:, :) = 0.0_dp
@@ -300,6 +314,8 @@ CONTAINS
       DO ikind = 1, SIZE(qs_force_out)
          qs_force_out(ikind)%all_potential(:, :) = qs_force_out(ikind)%all_potential(:, :) + &
                                                    qs_force_in(ikind)%all_potential(:, :)
+         qs_force_out(ikind)%cneo_potential(:, :) = qs_force_out(ikind)%cneo_potential(:, :) + &
+                                                    qs_force_in(ikind)%cneo_potential(:, :)
          qs_force_out(ikind)%core_overlap(:, :) = qs_force_out(ikind)%core_overlap(:, :) + &
                                                   qs_force_in(ikind)%core_overlap(:, :)
          qs_force_out(ikind)%gth_ppl(:, :) = qs_force_out(ikind)%gth_ppl(:, :) + &
@@ -320,6 +336,8 @@ CONTAINS
                                               qs_force_in(ikind)%rho_elec(:, :)
          qs_force_out(ikind)%rho_lri_elec(:, :) = qs_force_out(ikind)%rho_lri_elec(:, :) + &
                                                   qs_force_in(ikind)%rho_lri_elec(:, :)
+         qs_force_out(ikind)%rho_cneo_nuc(:, :) = qs_force_out(ikind)%rho_cneo_nuc(:, :) + &
+                                                  qs_force_in(ikind)%rho_cneo_nuc(:, :)
          qs_force_out(ikind)%vhxc_atom(:, :) = qs_force_out(ikind)%vhxc_atom(:, :) + &
                                                qs_force_in(ikind)%vhxc_atom(:, :)
          qs_force_out(ikind)%g0s_Vh_elec(:, :) = qs_force_out(ikind)%g0s_Vh_elec(:, :) + &
@@ -372,10 +390,12 @@ CONTAINS
          CALL para_env%sum(qs_force(ikind)%gth_nlcc)
          CALL para_env%sum(qs_force(ikind)%gth_ppnl)
          CALL para_env%sum(qs_force(ikind)%all_potential)
+         CALL para_env%sum(qs_force(ikind)%cneo_potential)
          CALL para_env%sum(qs_force(ikind)%core_overlap)
          CALL para_env%sum(qs_force(ikind)%rho_core)
          CALL para_env%sum(qs_force(ikind)%rho_elec)
          CALL para_env%sum(qs_force(ikind)%rho_lri_elec)
+         CALL para_env%sum(qs_force(ikind)%rho_cneo_nuc)
          CALL para_env%sum(qs_force(ikind)%vhxc_atom)
          CALL para_env%sum(qs_force(ikind)%g0s_Vh_elec)
          CALL para_env%sum(qs_force(ikind)%fock_4c)
@@ -391,12 +411,14 @@ CONTAINS
                                        qs_force(ikind)%gth_nlcc(:, :) + &
                                        qs_force(ikind)%gth_ppnl(:, :) + &
                                        qs_force(ikind)%all_potential(:, :) + &
+                                       qs_force(ikind)%cneo_potential(:, :) + &
                                        qs_force(ikind)%kinetic(:, :) + &
                                        qs_force(ikind)%overlap(:, :) + &
                                        qs_force(ikind)%overlap_admm(:, :) + &
                                        qs_force(ikind)%rho_core(:, :) + &
                                        qs_force(ikind)%rho_elec(:, :) + &
                                        qs_force(ikind)%rho_lri_elec(:, :) + &
+                                       qs_force(ikind)%rho_cneo_nuc(:, :) + &
                                        qs_force(ikind)%vhxc_atom(:, :) + &
                                        qs_force(ikind)%g0s_Vh_elec(:, :) + &
                                        qs_force(ikind)%fock_4c(:, :) + &
@@ -558,12 +580,14 @@ CONTAINS
                               qs_force(ikind)%gth_nlcc(:, ia) + &
                               qs_force(ikind)%gth_ppnl(:, ia) + &
                               qs_force(ikind)%all_potential(:, ia) + &
+                              qs_force(ikind)%cneo_potential(:, ia) + &
                               qs_force(ikind)%kinetic(:, ia) + &
                               qs_force(ikind)%overlap(:, ia) + &
                               qs_force(ikind)%overlap_admm(:, ia) + &
                               qs_force(ikind)%rho_core(:, ia) + &
                               qs_force(ikind)%rho_elec(:, ia) + &
                               qs_force(ikind)%rho_lri_elec(:, ia) + &
+                              qs_force(ikind)%rho_cneo_nuc(:, ia) + &
                               qs_force(ikind)%vhxc_atom(:, ia) + &
                               qs_force(ikind)%g0s_Vh_elec(:, ia) + &
                               qs_force(ikind)%fock_4c(:, ia) + &
