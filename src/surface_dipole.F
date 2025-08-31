@@ -72,7 +72,7 @@ CONTAINS
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: rhoavsurf
       TYPE(cell_type), POINTER                           :: cell
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(pw_c1d_gs_type), POINTER                      :: rho0_s_gs, rho_core
+      TYPE(pw_c1d_gs_type), POINTER                      :: rho0_s_gs, rho_core, rhoz_cneo_s_gs
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_p_type), DIMENSION(:), POINTER        :: pw_pools
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
@@ -84,13 +84,14 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       NULLIFY (cell, dft_control, rho, pw_env, auxbas_pw_pool, &
-               pw_pools, subsys, v_hartree_rspace, rho_r)
+               pw_pools, subsys, v_hartree_rspace, rho_r, rhoz_cneo_s_gs)
 
       CALL get_qs_env(qs_env, &
                       dft_control=dft_control, &
                       rho=rho, &
                       rho_core=rho_core, &
                       rho0_s_gs=rho0_s_gs, &
+                      rhoz_cneo_s_gs=rhoz_cneo_s_gs, &
                       cell=cell, &
                       pw_env=pw_env, &
                       subsys=subsys, &
@@ -104,10 +105,22 @@ CONTAINS
       IF (dft_control%qs_control%gapw) THEN
          IF (dft_control%qs_control%gapw_control%nopaw_as_gpw) THEN
             CALL pw_axpy(rho_core, rho0_s_gs)
+            IF (ASSOCIATED(rhoz_cneo_s_gs)) THEN
+               CALL pw_axpy(rhoz_cneo_s_gs, rho0_s_gs)
+            END IF
             CALL pw_transfer(rho0_s_gs, wf_r)
             CALL pw_axpy(rho_core, rho0_s_gs, -1.0_dp)
+            IF (ASSOCIATED(rhoz_cneo_s_gs)) THEN
+               CALL pw_axpy(rhoz_cneo_s_gs, rho0_s_gs, -1.0_dp)
+            END IF
          ELSE
+            IF (ASSOCIATED(rhoz_cneo_s_gs)) THEN
+               CALL pw_axpy(rhoz_cneo_s_gs, rho0_s_gs)
+            END IF
             CALL pw_transfer(rho0_s_gs, wf_r)
+            IF (ASSOCIATED(rhoz_cneo_s_gs)) THEN
+               CALL pw_axpy(rhoz_cneo_s_gs, rho0_s_gs, -1.0_dp)
+            END IF
          END IF
       ELSE
          CALL pw_transfer(rho_core, wf_r)

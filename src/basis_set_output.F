@@ -59,7 +59,7 @@ CONTAINS
       INTEGER                                            :: ikind, iunit, nkind, ounit
       INTEGER, SAVE                                      :: ncalls = 0
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(gto_basis_set_type), POINTER :: aux_fit_basis, lri_aux_basis, orb_basis, &
+      TYPE(gto_basis_set_type), POINTER :: aux_fit_basis, lri_aux_basis, nuclear_basis, orb_basis, &
          p_lri_aux_basis, ri_aux_basis, ri_hfx_basis, ri_hxc_basis, ri_xas_basis, tda_hfx_basis
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_kind_type), POINTER                        :: qs_kind
@@ -97,6 +97,7 @@ CONTAINS
          CALL get_qs_kind(qs_kind, basis_set=aux_fit_basis, basis_type="AUX_FIT")
          CALL get_qs_kind(qs_kind, basis_set=ri_xas_basis, basis_type="RI_XAS")
          CALL get_qs_kind(qs_kind, basis_set=tda_hfx_basis, basis_type="TDA_HFX")
+         CALL get_qs_kind(qs_kind, basis_set=nuclear_basis, basis_type="NUC")
          IF (ounit > 0) THEN
             IF (ASSOCIATED(orb_basis)) THEN
                bname = "local_orbital"
@@ -133,6 +134,10 @@ CONTAINS
             IF (ASSOCIATED(tda_hfx_basis)) THEN
                bname = "local_tda_hfx"
                CALL basis_out(tda_hfx_basis, element_symbol, bname, iunit)
+            END IF
+            IF (ASSOCIATED(nuclear_basis)) THEN
+               bname = "local_nuc"
+               CALL basis_out(nuclear_basis, element_symbol, bname, iunit)
             END IF
          END IF
       END DO

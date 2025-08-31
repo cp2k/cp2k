@@ -35,12 +35,18 @@ MODULE qs_rho0_methods
                                               nso,&
                                               nsoset
    USE orbital_transformation_matrices, ONLY: orbtramat
+   USE qs_cneo_methods,                 ONLY: allocate_rhoz_cneo_internals,&
+                                              init_cneo_potential_internals
+   USE qs_cneo_types,                   ONLY: cneo_potential_type,&
+                                              rhoz_cneo_type
+   USE qs_cneo_utils,                   ONLY: cneo_scatter
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_grid_atom,                    ONLY: grid_atom_type
    USE qs_harmonics_atom,               ONLY: get_none0_cg_list,&
                                               harmonics_atom_type
    USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                              get_qs_kind_set,&
                                               qs_kind_type,&
                                               set_qs_kind
    USE qs_local_rho_types,              ONLY: allocate_rhoz,&
@@ -74,15 +80,15 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param mp_gau ...
+!> \param Qlm_gg ...
 !> \param basis_1c ...
 !> \param harmonics ...
 !> \param nchannels ...
 !> \param nsotot ...
 ! **************************************************************************************************
-   SUBROUTINE calculate_mpole_gau(mp_gau, basis_1c, harmonics, nchannels, nsotot)
+   SUBROUTINE calculate_mpole_gau(Qlm_gg, basis_1c, harmonics, nchannels, nsotot)
 
-      TYPE(mpole_gau_overlap)                            :: mp_gau
+      REAL(dp), DIMENSION(:, :, :), POINTER              :: Qlm_gg
       TYPE(gto_basis_set_type), POINTER                  :: basis_1c
       TYPE(harmonics_atom_type), POINTER                 :: harmonics
       INTEGER, INTENT(IN)                                :: nchannels, nsotot
@@ -102,7 +108,8 @@ CONTAINS
 
       NULLIFY (lmax, lmin, npgf, my_CG, zet)
 
-      CALL reallocate(mp_gau%Qlm_gg, 1, nsotot, 1, nsotot, 1, nchannels)
+      CALL reallocate(Qlm_gg, 1, nsotot, 1, nsotot, 1, &
+                      MIN(nchannels, harmonics%max_iso_not0))
 
       CALL get_gto_basis_set(gto_basis_set=basis_1c, &
                              lmax=lmax, lmin=lmin, maxso=maxso, &
@@ -142,8 +149,8 @@ CONTAINS
                         ig1 = iso1 + n1*(ipgf1 - 1) + m1
                         ig2 = iso2 + n2*(ipgf2 - 1) + m2
 
-                        mp_gau%Qlm_gg(ig1, ig2, iso) = fourpi/(2._dp*l + 1._dp)* &
-                                                       my_CG(iso1, iso2, iso)*gaussint_sph(zet1 + zet2, l + l1 + l2)
+                        Qlm_gg(ig1, ig2, iso) = fourpi/(2._dp*l + 1._dp)* &
+                                                my_CG(iso1, iso2, iso)*gaussint_sph(zet1 + zet2, l + l1 + l2)
                      END DO ! icg
                   END DO ! iso
 
@@ -163,6 +170,7 @@ CONTAINS
 !> \brief ...
 !> \param gapw_control ...
 !> \param rho_atom_set ...
+!> \param rhoz_cneo_set ...
 !> \param rho0_atom_set ...
 !> \param rho0_mp ...
 !> \param a_list ...
@@ -171,11 +179,12 @@ CONTAINS
 !> \param qs_kind ...
 !> \param rho0_h_tot ...
 ! **************************************************************************************************
-   SUBROUTINE calculate_rho0_atom(gapw_control, rho_atom_set, rho0_atom_set, &
+   SUBROUTINE calculate_rho0_atom(gapw_control, rho_atom_set, rhoz_cneo_set, rho0_atom_set, &
                                   rho0_mp, a_list, natom, ikind, qs_kind, rho0_h_tot)
 
       TYPE(gapw_control_type), POINTER                   :: gapw_control
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom_set
+      TYPE(rhoz_cneo_type), DIMENSION(:), POINTER        :: rhoz_cneo_set
       TYPE(rho0_atom_type), DIMENSION(:), POINTER        :: rho0_atom_set
       TYPE(rho0_mpole_type), POINTER                     :: rho0_mp
       INTEGER, DIMENSION(:), INTENT(IN)                  :: a_list
@@ -187,12 +196,14 @@ CONTAINS
 
       INTEGER                                            :: handle, iat, iatom, ic, ico, ir, is, &
                                                             iso, ispin, l, lmax0, lshell, lx, ly, &
-                                                            lz, nr, nsotot, nspins
+                                                            lz, nr, nsotot, nsotot_nuc, nspins
       LOGICAL                                            :: paw_atom
       REAL(KIND=dp)                                      :: sum1
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: cpc_h_nuc, cpc_s_nuc
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: cpc_ah, cpc_as
       REAL(KIND=dp), DIMENSION(:), POINTER               :: norm_g0l_h
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: g0_h, vg0_h
+      TYPE(cneo_potential_type), POINTER                 :: cneo_potential
       TYPE(grid_atom_type), POINTER                      :: g_atom
       TYPE(harmonics_atom_type), POINTER                 :: harmonics
       TYPE(mpole_gau_overlap), POINTER                   :: mpole_gau
@@ -206,6 +217,7 @@ CONTAINS
       NULLIFY (mpole_rho)
       NULLIFY (g0_h, vg0_h, g_atom)
       NULLIFY (norm_g0l_h, harmonics)
+      NULLIFY (cneo_potential)
 
       CALL get_rho0_mpole(rho0_mpole=rho0_mp, ikind=ikind, &
                           l0_ikind=lmax0, mp_gau_ikind=mpole_gau, &
@@ -213,7 +225,8 @@ CONTAINS
                           vg0_h=vg0_h, &
                           norm_g0l_h=norm_g0l_h)
 
-      CALL get_qs_kind(qs_kind, harmonics=harmonics, paw_atom=paw_atom, grid_atom=g_atom)
+      CALL get_qs_kind(qs_kind, harmonics=harmonics, paw_atom=paw_atom, grid_atom=g_atom, &
+                       cneo_potential=cneo_potential)
 
       nr = g_atom%nr
 
@@ -222,7 +235,14 @@ CONTAINS
          iatom = a_list(iat)
          rho0_atom_set(iatom)%rho0_rad_h%r_coef = 0.0_dp
          rho0_mp%mp_rho(iatom)%Qlm_tot = 0.0_dp
-         rho0_mp%mp_rho(iatom)%Qlm_tot(1) = rho0_mp%mp_rho(iatom)%Qlm_z
+         ! When no nuclear density matrix is available, use spherical zeff
+         IF (.NOT. ASSOCIATED(cneo_potential)) THEN
+            rho0_mp%mp_rho(iatom)%Qlm_tot(1) = rho0_mp%mp_rho(iatom)%Qlm_z
+         ELSE
+            IF (.NOT. rhoz_cneo_set(iatom)%ready) THEN
+               rho0_mp%mp_rho(iatom)%Qlm_tot(1) = rho0_mp%mp_rho(iatom)%Qlm_z
+            END IF
+         END IF
          rho0_mp%mp_rho(iatom)%Q0 = 0.0_dp
          rho0_mp%mp_rho(iatom)%Qlm_car = 0.0_dp
       END DO
@@ -246,52 +266,86 @@ CONTAINS
                   CALL prj_scatter(cpc_h(ispin)%r_coef, cpc_ah(:, :, ispin), qs_kind)
                   CALL prj_scatter(cpc_s(ispin)%r_coef, cpc_as(:, :, ispin), qs_kind)
                END DO
-            END IF
-
-            ! Total charge (hard-soft) at atom
-            IF (paw_atom) THEN
-               DO ispin = 1, nspins
-                  mpole_rho%Q0(ispin) = (trace_r_AxB(mpole_gau%Qlm_gg(:, :, 1), nsotot, &
-                                                     cpc_ah(:, :, ispin), nsotot, nsotot, nsotot) &
-                                         - trace_r_AxB(mpole_gau%Qlm_gg(:, :, 1), nsotot, &
-                                                       cpc_as(:, :, ispin), nsotot, nsotot, nsotot))/SQRT(fourpi)
-               END DO
-            END IF
-            ! Multipoles of local charge distribution
-            DO iso = 1, nsoset(lmax0)
-               l = indso(1, iso)
-               IF (paw_atom) THEN
-                  mpole_rho%Qlm_h(iso) = 0.0_dp
-                  mpole_rho%Qlm_s(iso) = 0.0_dp
-
-                  DO ispin = 1, nspins
-                     mpole_rho%Qlm_h(iso) = mpole_rho%Qlm_h(iso) + &
-                                            trace_r_AxB(mpole_gau%Qlm_gg(:, :, iso), nsotot, &
-                                                        cpc_ah(:, :, ispin), nsotot, nsotot, nsotot)
-                     mpole_rho%Qlm_s(iso) = mpole_rho%Qlm_s(iso) + &
-                                            trace_r_AxB(mpole_gau%Qlm_gg(:, :, iso), nsotot, &
-                                                        cpc_as(:, :, ispin), nsotot, nsotot, nsotot)
-                  END DO ! ispin
-
-                  mpole_rho%Qlm_tot(iso) = mpole_rho%Qlm_tot(iso) + &
-                                           mpole_rho%Qlm_h(iso) - mpole_rho%Qlm_s(iso)
+               nsotot_nuc = 0
+               IF (ASSOCIATED(cneo_potential)) THEN
+                  IF (rhoz_cneo_set(iatom)%ready) THEN
+                     nsotot_nuc = SIZE(cneo_potential%Qlm_gg, 1)
+                     ALLOCATE (cpc_h_nuc(nsotot_nuc, nsotot_nuc), cpc_s_nuc(nsotot_nuc, nsotot_nuc))
+                     cpc_h_nuc = 0._dp
+                     cpc_s_nuc = 0._dp
+                     CALL cneo_scatter(rhoz_cneo_set(iatom)%cpc_h, cpc_h_nuc, cneo_potential%npsgf, &
+                                       cneo_potential%n2oindex)
+                     CALL cneo_scatter(rhoz_cneo_set(iatom)%cpc_s, cpc_s_nuc, cneo_potential%npsgf, &
+                                       cneo_potential%n2oindex)
+                  END IF
                END IF
 
+               ! Total charge (hard-soft) at atom
+               IF (paw_atom) THEN
+                  DO ispin = 1, nspins
+                     mpole_rho%Q0(ispin) = (trace_r_AxB(mpole_gau%Qlm_gg(:, :, 1), nsotot, &
+                                                        cpc_ah(:, :, ispin), nsotot, nsotot, nsotot) &
+                                            - trace_r_AxB(mpole_gau%Qlm_gg(:, :, 1), nsotot, &
+                                                          cpc_as(:, :, ispin), nsotot, nsotot, nsotot))/SQRT(fourpi)
+                  END DO
+               END IF
+               ! Multipoles of local charge distribution
+               DO iso = 1, MIN(nsoset(lmax0), harmonics%max_iso_not0)
+                  IF (paw_atom) THEN
+                     mpole_rho%Qlm_h(iso) = 0.0_dp
+                     mpole_rho%Qlm_s(iso) = 0.0_dp
+
+                     DO ispin = 1, nspins
+                        mpole_rho%Qlm_h(iso) = mpole_rho%Qlm_h(iso) + &
+                                               trace_r_AxB(mpole_gau%Qlm_gg(:, :, iso), nsotot, &
+                                                           cpc_ah(:, :, ispin), nsotot, nsotot, nsotot)
+                        mpole_rho%Qlm_s(iso) = mpole_rho%Qlm_s(iso) + &
+                                               trace_r_AxB(mpole_gau%Qlm_gg(:, :, iso), nsotot, &
+                                                           cpc_as(:, :, ispin), nsotot, nsotot, nsotot)
+                     END DO ! ispin
+
+                     mpole_rho%Qlm_tot(iso) = mpole_rho%Qlm_tot(iso) + &
+                                              mpole_rho%Qlm_h(iso) - mpole_rho%Qlm_s(iso)
+                  END IF
+               END DO ! iso
+
+               ! Multipoles of CNEO quantum nuclear charge distribuition
+               IF (ASSOCIATED(cneo_potential)) THEN
+                  IF (rhoz_cneo_set(iatom)%ready) THEN
+                     DO iso = 1, MIN(nsoset(lmax0), cneo_potential%harmonics%max_iso_not0)
+                        mpole_rho%Qlm_tot(iso) = mpole_rho%Qlm_tot(iso) - cneo_potential%zeff* &
+                                                 trace_r_AxB(cneo_potential%Qlm_gg(:, :, iso), nsotot_nuc, &
+                                                             cpc_h_nuc - cpc_s_nuc, nsotot_nuc, &
+                                                             nsotot_nuc, nsotot_nuc)
+                     END DO ! iso
+                  END IF
+               END IF
+
+               DEALLOCATE (cpc_ah, cpc_as)
+               IF (ALLOCATED(cpc_h_nuc)) DEALLOCATE (cpc_h_nuc)
+               IF (ALLOCATED(cpc_s_nuc)) DEALLOCATE (cpc_s_nuc)
+            END IF
+
+            DO iso = 1, nsoset(lmax0)
+               l = indso(1, iso)
                rho0_atom_set(iatom)%rho0_rad_h%r_coef(1:nr, iso) = &
                   g0_h(1:nr, l)*mpole_rho%Qlm_tot(iso)
                rho0_atom_set(iatom)%vrho0_rad_h%r_coef(1:nr, iso) = &
                   vg0_h(1:nr, l)*mpole_rho%Qlm_tot(iso)
 
-               sum1 = 0.0_dp
-               DO ir = 1, nr
-                  sum1 = sum1 + g_atom%wr(ir)* &
-                         rho0_atom_set(iatom)%rho0_rad_h%r_coef(ir, iso)
-               END DO
-               rho0_h_tot = rho0_h_tot + sum1*harmonics%slm_int(iso)
+               ! When CNEO is enabled, it is possible for rho0 to have a higher angualr momentum
+               ! than that of the electronic density. In that case, the nuclear density must have
+               ! a higher angular momentum, but cneo_potential%harmonics%slm_int is not initialized.
+               ! For higher angular momenta, simply use the fact that slm_int(iso>1)=0
+               IF (iso <= harmonics%max_iso_not0) THEN
+                  sum1 = 0.0_dp
+                  DO ir = 1, nr
+                     sum1 = sum1 + g_atom%wr(ir)* &
+                            rho0_atom_set(iatom)%rho0_rad_h%r_coef(ir, iso)
+                  END DO
+                  rho0_h_tot = rho0_h_tot + sum1*harmonics%slm_int(iso)
+               END IF
             END DO ! iso
-            IF (paw_atom) THEN
-               DEALLOCATE (cpc_ah, cpc_as)
-            END IF
          END DO ! iat
       END IF
 
@@ -354,21 +408,23 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'init_rho0'
 
       CHARACTER(LEN=default_string_length)               :: unit_str
-      INTEGER :: handle, iat, iatom, ikind, l, l_rho1_max, laddg, lmaxg, maxl, maxnset, maxso, &
-         nat, natom, nchan_c, nchan_s, nkind, nr, nset, nsotot, output_unit
+      INTEGER :: handle, iat, iatom, ikind, l, l_rho1_max, l_rho1_max_nuc, laddg, lmaxg, maxl, &
+         maxl_nuc, maxnset, maxso, maxso_nuc, nat, natom, nchan_c, nchan_s, nkind, nr, nset, &
+         nset_nuc, nsotot, nsotot_nuc, output_unit
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
-      LOGICAL                                            :: paw_atom
-      REAL(KIND=dp)                                      :: alpha_core, eps_Vrho0, max_rpgf0_s, &
-                                                            radius, rc_min, rc_orb, &
-                                                            total_rho_core_rspace, zeff
+      LOGICAL                                            :: cneo_potential_present, paw_atom
+      REAL(KIND=dp) :: alpha_core, eps_Vrho0, max_rpgf0_s, radius, rc_min, rc_orb, &
+         total_rho_core_rspace, total_rho_nuc_cneo_rspace, zeff
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(cneo_potential_type), POINTER                 :: cneo_potential
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(grid_atom_type), POINTER                      :: grid_atom
-      TYPE(gto_basis_set_type), POINTER                  :: basis_1c
+      TYPE(gto_basis_set_type), POINTER                  :: basis_1c, nuc_basis, nuc_soft_basis
       TYPE(harmonics_atom_type), POINTER                 :: harmonics
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(rho0_atom_type), DIMENSION(:), POINTER        :: rho0_atom_set
       TYPE(rho0_mpole_type), POINTER                     :: rho0_mpole
+      TYPE(rhoz_cneo_type), DIMENSION(:), POINTER        :: rhoz_cneo_set
       TYPE(rhoz_type), DIMENSION(:), POINTER             :: rhoz_set
       TYPE(section_vals_type), POINTER                   :: dft_section
 
@@ -384,6 +440,10 @@ CONTAINS
       NULLIFY (rho0_mpole)
       NULLIFY (rho0_atom_set)
       NULLIFY (rhoz_set)
+      NULLIFY (cneo_potential)
+      NULLIFY (nuc_basis)
+      NULLIFY (nuc_soft_basis)
+      NULLIFY (rhoz_cneo_set)
 
       CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set, &
                       atomic_kind_set=atomic_kind_set)
@@ -394,6 +454,7 @@ CONTAINS
       ! Initialize rhoz total to zero
       ! in gapw rhoz is calculated on local the lebedev grids
       total_rho_core_rspace = 0.0_dp
+      total_rho_nuc_cneo_rspace = 0.0_dp
 
       CALL get_atomic_kind_set(atomic_kind_set, natom=natom)
 
@@ -425,9 +486,23 @@ CONTAINS
                           paw_atom=paw_atom, &
                           hard0_radius=rc_orb, &
                           zeff=zeff, &
-                          alpha_core_charge=alpha_core)
+                          cneo_potential=cneo_potential)
          CALL get_qs_kind(qs_kind_set(ikind), &
                           basis_set=basis_1c, basis_type="GAPW_1C")
+
+         IF (ASSOCIATED(cneo_potential)) THEN
+            IF (PRESENT(zcore) .AND. zcore == 0.0_dp) &
+               CPABORT("Electronic TDDFT with CNEO quantum nuclei is not implemented.")
+            CPASSERT(paw_atom)
+            NULLIFY (nuc_basis, nuc_soft_basis)
+            CALL get_qs_kind(qs_kind_set(ikind), &
+                             basis_set=nuc_basis, basis_type="NUC")
+            CALL get_qs_kind(qs_kind_set(ikind), &
+                             basis_set=nuc_soft_basis, basis_type="NUC_SOFT")
+            alpha_core = 1.0_dp
+         ELSE
+            CALL get_qs_kind(qs_kind_set(ikind), alpha_core_charge=alpha_core)
+         END IF
 
          ! Set charge distribution of ionic cores to zero when computing the response-density
          IF (PRESENT(zcore)) zeff = zcore
@@ -439,8 +514,25 @@ CONTAINS
          maxnset = MAX(maxnset, nset)
 
          l_rho1_max = indso(1, harmonics%max_iso_not0)
+
+         maxl_nuc = -1
+         maxso_nuc = 0
+         nset_nuc = 0
+         l_rho1_max_nuc = -1
+         IF (ASSOCIATED(cneo_potential)) THEN
+            CALL get_gto_basis_set(gto_basis_set=nuc_basis, &
+                                   maxl=maxl_nuc, &
+                                   maxso=maxso_nuc, nset=nset_nuc)
+            ! Initialize CNEO potential internals
+            CALL init_cneo_potential_internals(cneo_potential, nuc_basis, nuc_soft_basis, &
+                                               gapw_control, grid_atom)
+            l_rho1_max_nuc = indso(1, cneo_potential%harmonics%max_iso_not0)
+         END IF
+
          IF (paw_atom) THEN
-            rho0_mpole%lmax0_kind(ikind) = MIN(2*maxl, l_rho1_max, maxl + laddg, lmaxg)
+            rho0_mpole%lmax0_kind(ikind) = MIN(2*MAX(maxl, maxl_nuc), &
+                                               MAX(l_rho1_max, l_rho1_max_nuc), &
+                                               MAX(maxl, maxl_nuc) + laddg, lmaxg)
          ELSE
             rho0_mpole%lmax0_kind(ikind) = 0
          END IF
@@ -453,6 +545,7 @@ CONTAINS
          nchan_s = nsoset(rho0_mpole%lmax0_kind(ikind))
          nchan_c = ncoset(rho0_mpole%lmax0_kind(ikind))
          nsotot = maxso*nset
+         nsotot_nuc = maxso_nuc*nset_nuc
 
          DO iat = 1, nat
             iatom = atom_list(iat)
@@ -465,18 +558,36 @@ CONTAINS
 
          IF (paw_atom) THEN
             ! Calculate multipoles given by the product of 2 primitives Qlm_gg
-            CALL calculate_mpole_gau(rho0_mpole%mp_gau(ikind), &
+            CALL calculate_mpole_gau(rho0_mpole%mp_gau(ikind)%Qlm_gg, &
                                      basis_1c, harmonics, nchan_s, nsotot)
          END IF
 
-         ! Calculate the core density rhoz
-         ! exp(-alpha_c**2 r**2)Z(alpha_c**2/pi)**(3/2)
-         ! on the logarithmic radial grid
-         ! WARNING: alpha_core_charge = alpha_c**2
-         CALL calculate_rhoz(rhoz_set(ikind), grid_atom, alpha_core, zeff, &
-                             nat, total_rho_core_rspace, harmonics)
+         IF (ASSOCIATED(cneo_potential)) THEN
+            rho0_mpole%do_cneo = .TRUE.
+            ! Calculate multipoles given by the product of two nuclear primitives Qlm_gg
+            CALL calculate_mpole_gau(cneo_potential%Qlm_gg, nuc_basis, &
+                                     cneo_potential%harmonics, nchan_s, nsotot_nuc)
+            ! initial CNEO quantum nuclear charge density is a simple Zeff sum,
+            ! but it will be calculated from numerical integration during SCF
+            total_rho_nuc_cneo_rspace = total_rho_nuc_cneo_rspace - zeff*nat
+         ELSE
+            ! Calculate the core density rhoz
+            ! exp(-alpha_c**2 r**2)Z(alpha_c**2/pi)**(3/2)
+            ! on the logarithmic radial grid
+            ! WARNING: alpha_core_charge = alpha_c**2
+            CALL calculate_rhoz(rhoz_set(ikind), grid_atom, alpha_core, zeff, &
+                                nat, total_rho_core_rspace, harmonics)
+         END IF
       END DO ! ikind
       total_rho_core_rspace = -total_rho_core_rspace
+      total_rho_nuc_cneo_rspace = -total_rho_nuc_cneo_rspace
+
+      ! Allocate internals for quantum nuclear densities, if requested
+      CALL get_qs_kind_set(qs_kind_set, cneo_potential_present=cneo_potential_present)
+      IF (cneo_potential_present) THEN
+         CALL allocate_rhoz_cneo_internals(rhoz_cneo_set, atomic_kind_set, &
+                                           qs_kind_set, qs_env)
+      END IF
 
       IF (gapw_control%alpha0_hard_from_input) THEN
          ! The exponent for the compensation charge rho0_hard is read from input
@@ -509,8 +620,10 @@ CONTAINS
       END DO
       rho0_mpole%max_rpgf0_s = max_rpgf0_s
 
-      CALL set_local_rho(local_rho_set, rho0_atom_set=rho0_atom_set, rho0_mpole=rho0_mpole, rhoz_set=rhoz_set)
+      CALL set_local_rho(local_rho_set, rho0_atom_set=rho0_atom_set, rho0_mpole=rho0_mpole, &
+                         rhoz_set=rhoz_set, rhoz_cneo_set=rhoz_cneo_set)
       local_rho_set%rhoz_tot = total_rho_core_rspace
+      local_rho_set%rhoz_cneo_tot = total_rho_nuc_cneo_rspace
 
       dft_section => section_vals_get_subs_vals(qs_env%input, "DFT")
       output_unit = cp_print_key_unit_nr(logger, dft_section, "PRINT%GAPW%RHO0_INFORMATION", &

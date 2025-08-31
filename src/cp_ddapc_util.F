@@ -232,7 +232,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(pw_c1d_gs_type)                               :: rho_tot_g
       TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g
-      TYPE(pw_c1d_gs_type), POINTER                      :: rho0_s_gs, rho_core
+      TYPE(pw_c1d_gs_type), POINTER                      :: rho0_s_gs, rho_core, rhoz_cneo_s_gs
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pool
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r
@@ -250,13 +250,14 @@ CONTAINS
       need_f = .FALSE.
       IF (PRESENT(calc_force)) need_f = calc_force
       logger => cp_get_default_logger()
-      NULLIFY (dft_control, rho, rho_core, rho0_s_gs, pw_env, rho_g, rho_r, &
+      NULLIFY (dft_control, rho, rho_core, rho0_s_gs, rhoz_cneo_s_gs, pw_env, rho_g, rho_r, &
                radii, inp_radii, particle_set, qs_kind_set, qs_charges, cp_ddapc_env)
       CALL get_qs_env(qs_env=qs_env, &
                       dft_control=dft_control, &
                       rho=rho, &
                       rho_core=rho_core, &
                       rho0_s_gs=rho0_s_gs, &
+                      rhoz_cneo_s_gs=rhoz_cneo_s_gs, &
                       pw_env=pw_env, &
                       qs_charges=qs_charges, &
                       particle_set=particle_set, &
@@ -290,7 +291,13 @@ CONTAINS
          CASE (do_full_density)
             ! Otherwise build the total QS density (electron+nuclei) in G-space
             IF (dft_control%qs_control%gapw) THEN
+               IF (ASSOCIATED(rhoz_cneo_s_gs)) THEN
+                  CALL pw_axpy(rhoz_cneo_s_gs, rho0_s_gs)
+               END IF
                CALL pw_transfer(rho0_s_gs, rho_tot_g)
+               IF (ASSOCIATED(rhoz_cneo_s_gs)) THEN
+                  CALL pw_axpy(rhoz_cneo_s_gs, rho0_s_gs, -1.0_dp)
+               END IF
             ELSE
                CALL pw_transfer(rho_core, rho_tot_g)
             END IF

@@ -91,6 +91,7 @@ MODULE pw_env_methods
                                               pw_pool_p_type,&
                                               pw_pool_release,&
                                               pw_pools_dealloc
+   USE qs_cneo_types,                   ONLY: cneo_potential_type
    USE qs_dispersion_types,             ONLY: qs_dispersion_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
@@ -779,10 +780,10 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'compute_max_radius'
-      CHARACTER(LEN=8), DIMENSION(4), PARAMETER :: &
-         pbas = (/"ORB     ", "AUX_FIT ", "MAO     ", "HARRIS  "/)
-      CHARACTER(LEN=8), DIMENSION(9), PARAMETER :: sbas = (/"ORB     ", "AUX     ", "RI_AUX  ", &
-         "MAO     ", "HARRIS  ", "RI_HXC  ", "RI_K    ", "LRI_AUX ", "RHOIN   "/)
+      CHARACTER(LEN=8), DIMENSION(10), PARAMETER :: sbas = (/"ORB     ", "AUX     ", "RI_AUX  ", &
+         "MAO     ", "HARRIS  ", "RI_HXC  ", "RI_K    ", "LRI_AUX ", "RHOIN   ", "NUC     "/)
+      CHARACTER(LEN=8), DIMENSION(5), PARAMETER :: &
+         pbas = (/"ORB     ", "AUX_FIT ", "MAO     ", "HARRIS  ", "NUC     "/)
       REAL(KIND=dp), PARAMETER                           :: safety_factor = 1.015_dp
 
       INTEGER :: handle, ibasis_set_type, igrid_level, igrid_zet0_s, ikind, ipgf, iset, ishell, &
@@ -792,6 +793,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: alpha, core_charge, eps_gvg, eps_rho, &
                                                             max_rpgf0_s, maxradius, zet0_h, zetp
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: zeta, zetb
+      TYPE(cneo_potential_type), POINTER                 :: cneo_potential
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -839,6 +841,9 @@ CONTAINS
          ! this should, at a give point be changed
          ! so that also for the core a multigrid is used
          DO ikind = 1, nkind
+            NULLIFY (cneo_potential)
+            CALL get_qs_kind(qs_kind_set(ikind), cneo_potential=cneo_potential)
+            IF (ASSOCIATED(cneo_potential)) CYCLE
             CALL get_qs_kind(qs_kind_set(ikind), &
                              alpha_core_charge=alpha, ccore_charge=core_charge)
             IF (alpha > 0.0_dp .AND. core_charge .NE. 0.0_dp) THEN
@@ -1068,4 +1073,3 @@ CONTAINS
    END SUBROUTINE setup_diel_rs_grid
 
 END MODULE pw_env_methods
-

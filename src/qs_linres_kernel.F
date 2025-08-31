@@ -288,8 +288,12 @@ CONTAINS
       DO ispin = 2, nspins
          CALL pw_axpy(rho1_g(ispin), rho1_tot_gspace)
       END DO
-      IF (gapw) &
+      IF (gapw) THEN
          CALL pw_axpy(p_env%local_rho_set%rho0_mpole%rho0_s_gs, rho1_tot_gspace)
+         IF (ASSOCIATED(p_env%local_rho_set%rho0_mpole%rhoz_cneo_s_gs)) THEN
+            CALL pw_axpy(p_env%local_rho_set%rho0_mpole%rhoz_cneo_s_gs, rho1_tot_gspace)
+         END IF
+      END IF
 
       IF (.NOT. (nspins == 1 .AND. lr_triplet)) THEN
          CALL pw_poisson_solve(poisson_env, rho1_tot_gspace, &
