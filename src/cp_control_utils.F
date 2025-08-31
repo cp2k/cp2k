@@ -942,7 +942,6 @@ CONTAINS
       CALL section_vals_val_get(qs_section, "EPSSVD", r_val=qs_control%gapw_control%eps_svd)
       CALL section_vals_val_get(qs_section, "EPSRHO0", r_val=qs_control%gapw_control%eps_Vrho0)
       CALL section_vals_val_get(qs_section, "ALPHA0_HARD", r_val=qs_control%gapw_control%alpha0_hard)
-      qs_control%gapw_control%lrho1_eq_lrho0 = .FALSE.
       qs_control%gapw_control%alpha0_hard_from_input = .FALSE.
       IF (qs_control%gapw_control%alpha0_hard /= 0.0_dp) qs_control%gapw_control%alpha0_hard_from_input = .TRUE.
       CALL section_vals_val_get(qs_section, "FORCE_PAW", l_val=qs_control%gapw_control%force_paw)

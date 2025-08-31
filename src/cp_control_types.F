@@ -253,7 +253,6 @@ MODULE cp_control_types
                                               lmax_rho0 = 0, &
                                               lmax_sphere = 0, &
                                               quadrature = 0
-      LOGICAL                              :: lrho1_eq_lrho0 = .FALSE.
       LOGICAL                              :: alpha0_hard_from_input = .FALSE., &
                                               force_paw = .FALSE., &
                                               non_paw_atoms = .FALSE., &
