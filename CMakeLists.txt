@@ -23,7 +23,6 @@ endif()
 # =================================================================================================
 # PROJECT AND VERSION
 include(CMakeDependentOption)
-include(GitSubmodule)
 include(CustomTargets)
 
 cmake_policy(SET CMP0048 NEW)
@@ -55,7 +54,7 @@ if(NOT DEFINED CMAKE_CUDA_STANDARD)
 endif()
 
 if(NOT DEFINED CMAKE_CXX_STANDARD)
-  set(CMAKE_CXX_STANDARD 14)
+  set(CMAKE_CXX_STANDARD 17)
   set(CMAKE_CXX_STANDARD_REQUIRED ON)
 endif()
 
@@ -185,7 +184,7 @@ cmake_dependent_option(CP2K_USE_SIRIUS_NLCG "Enable nlcg method in SIRIUS" OFF
 
 cmake_dependent_option(
   CP2K_DBCSR_USE_CPU_ONLY "Disable the DBCSR accelerated backend" OFF
-  "NOT CP2K_USE_ACCEL MATCHES \"OPENCL\"" OFF)
+  "NOT CP2K_USE_ACCEL MATCHES \"OPENCL|HIP|CUDA\"" OFF)
 
 cmake_dependent_option(
   CP2K_ENABLE_DBM_GPU "Enable the dbm accelerated backend (mostly GPU)." ON
@@ -228,9 +227,19 @@ cmake_dependent_option(
   "Compile CP2K with libvdwxc support when SIRIUS is compiled with it"
   "CP2K_USE_SIRIUS" OFF)
 
-set(CP2K_BLAS_VENDOR
-    "auto"
-    CACHE STRING "BLAS library for computations on host")
+set_property(
+  CACHE CP2K_BLAS_VENDOR
+  PROPERTY STRINGS
+           "auto"
+           "MKL"
+           "OpenBLAS"
+           "SCI"
+           "GenericBLAS"
+           "Armpl"
+           "FlexiBLAS"
+           "Atlas"
+           "NVHPCBlas"
+           "CUSTOM")
 
 set(CP2K_SCALAPACK_VENDOR_LIST "MKL" "SCI" "GENERIC" "auto")
 set(CP2K_SCALAPACK_VENDOR
@@ -761,14 +770,10 @@ endif()
 
 if(CP2K_USE_ACE)
   find_package(ACE REQUIRED)
-  get_target_property(CP2K_ACE_INCLUDE_DIRS ACE::pace
+  get_target_property(CP2K_ACE_INCLUDE_DIRS cp2k::ACE
                       INTERFACE_INCLUDE_DIRECTORIES)
-  get_target_property(CP2K_ACE_LINK_LIBRARIES ACE::pace
+  get_target_property(CP2K_ACE_LINK_LIBRARIES cp2k::ACE
                       INTERFACE_LINK_LIBRARIES)
-  get_target_property(LIB_PATH ACE::yaml-cpp-pace INTERFACE_LINK_LIBRARIES)
-  list(APPEND CP2K_ACE_LINK_LIBRARIES ${LIB_PATH})
-  get_target_property(LIB_PATH ACE::cnpy INTERFACE_LINK_LIBRARIES)
-  list(APPEND CP2K_ACE_LINK_LIBRARIES ${LIB_PATH})
 endif()
 
 if(CP2K_USE_TBLITE)
@@ -776,9 +781,10 @@ if(CP2K_USE_TBLITE)
   find_package(toml-f REQUIRED)
   find_package(s-dftd3 REQUIRED)
   find_package(tblite REQUIRED)
+  add_library(cp2k::tblite INTERFACE IMPORTED)
   target_link_libraries(
-    tblite::tblite INTERFACE mctc-lib::mctc-lib dftd4::dftd4 toml-f::toml-f
-                             s-dftd3::s-dftd3)
+    cp2k_tblite INTERFACE tblite::tblite mctc-lib::mctc-lib dftd4::dftd4
+                          toml-f::toml-f s-dftd3::s-dftd3)
 endif()
 
 # SIRIUS
@@ -825,6 +831,9 @@ if(CP2K_USE_GREENX)
   set(CMAKE_EXE_LINKER_FLAGS ${CMAKE_EXE_LINKER_FLAGS} "-L${GMP_LIBRARY_PATH}")
   set(CMAKE_SHARED_LINKER_FLAGS ${CMAKE_SHARED_LINKER_FLAGS}
                                 "-L${GMP_LIBRARY_PATH}")
+
+  add_library(cp2k::greenx INTERFACE greenX::GXCommon greenX::LibGXAC
+              greenX::LibGXMiniMax cp2k::trexio::trexio)
 endif()
 
 # OPTION HANDLING
