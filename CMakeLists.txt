@@ -227,6 +227,10 @@ cmake_dependent_option(
   "Compile CP2K with libvdwxc support when SIRIUS is compiled with it"
   "CP2K_USE_SIRIUS" OFF)
 
+set(CP2K_BLAS_VENDOR
+    "auto"
+    CACHE STRING "blas vendor/generic libraries")
+
 set_property(
   CACHE CP2K_BLAS_VENDOR
   PROPERTY STRINGS
@@ -783,8 +787,8 @@ if(CP2K_USE_TBLITE)
   find_package(tblite REQUIRED)
   add_library(cp2k::tblite INTERFACE IMPORTED)
   target_link_libraries(
-    cp2k_tblite INTERFACE tblite::tblite mctc-lib::mctc-lib dftd4::dftd4
-                          toml-f::toml-f s-dftd3::s-dftd3)
+    cp2k::tblite INTERFACE tblite::tblite mctc-lib::mctc-lib dftd4::dftd4
+                           toml-f::toml-f s-dftd3::s-dftd3)
 endif()
 
 # SIRIUS
