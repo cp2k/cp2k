@@ -1478,8 +1478,13 @@ set(CP2K_GRID_SRCS_HIP
     grid/hip/grid_hip_collocate.cu grid/hip/grid_hip_integrate.cu
     grid/hip/grid_hip_context.cu)
 
-set(CP2K_DBM_SRCS_GPU dbm/dbm_multiply_gpu_kernel.cu dbm/dbm_multiply_gpu.c)
+set(CP2K_DBM_SRCS_GPU dbm/dbm_multiply_gpu_kernel.cu)
+set(CP2K_DBM_SRCS_GPU_C dbm/dbm_multiply_gpu.c)
+
+# opencl iles should be decoupled so that we include them in the compilation
+# process only when needed.
 set(CP2K_DBM_SRCS_OPENCL dbm/dbm_multiply_opencl.cl)
+set(CP2K_DBM_SRCS_OPENCL_C dbm/dbm_multiply_opencl.c)
 
 set(CP2K_PW_SRCS_GPU pw/gpu/pw_gpu_kernels.cu)
 
@@ -1498,6 +1503,30 @@ set(CP2K_PROGS_F
     nequip_unittest.F
     gx_ac_unittest.F)
 
+# ##############################################################################
+# check that the files registered in CMakeLists.txt are all present and return
+# an error otherwise. cmake only runs this test nothing else below
+# ##############################################################################
+
+if(CP2K_ENABLE_CONSISTENCY_CHECKS)
+  cp2k_compare_src_with_list(
+    "${CP2K_SRCS_C};${CP2K_FPGA_SRC_C};${CP2K_GRPP_SRCS_C};${CP2K_OFFLOAD_SRCS_C};${CP2K_DBM_SRCS_C};${CP2K_GRID_SRCS_C};${CP2K_PW_SRCS_C};${CP2K_DBM_SRCS_GPU_C};${CP2K_PROGS_C};${CP2K_DBM_SRCS_OPENCL_C}"
+    "*.c"
+    "${CP2K_EXCLUDED_SRCS_C}")
+  cp2k_compare_src_with_list(
+    "${CP2K_GRPP_SRCS_F};${CP2K_SRCS_F};${CP2K_OFFLOAD_SRCS_F};${CP2K_PROGS_F}"
+    "*.F" "${CP2K_EXCLUDED_SRCS_F}")
+  cp2k_compare_src_with_list(
+    "${CP2K_GRID_SRCS_GPU};${CP2K_GRID_SRCS_HIP};${CP2K_DBM_SRCS_GPU};${CP2K_PW_SRCS_GPU}"
+    "*.cu"
+    "")
+  cp2k_compare_src_with_list("${CP2K_SRCS_CPP}" "*.cpp" "")
+  return()
+endif()
+
+# ##############################################################################
+# Set all necessary CUDA/HIP/OpenCL source files before compilation.
+# ##############################################################################
 if(CP2K_USE_CUDA
    OR CP2K_USE_HIP
    OR CP2K_USE_OPENCL)
@@ -1508,7 +1537,7 @@ if(CP2K_USE_CUDA
   endif()
 
   if(CP2K_ENABLE_DBM_GPU)
-    list(APPEND CP2K_DBM_SRCS_C dbm/dbm_multiply_gpu.c)
+    list(APPEND CP2K_DBM_SRCS_C ${CP2K_DBM_SRCS_GPU_C})
     if(CP2K_USE_OPENCL)
       set(CP2K_DBM_OPENCL_KERNEL dbm/dbm_multiply_opencl.cl)
       add_custom_command(
@@ -1521,7 +1550,7 @@ if(CP2K_USE_CUDA
                 ${CMAKE_CURRENT_SOURCE_DIR}/${CP2K_DBM_OPENCL_KERNEL}
         OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/${CP2K_DBM_OPENCL_KERNEL}.h
         COMMENT "Generating OpenCL kernel for DBM")
-      list(APPEND CP2K_DBM_SRCS_C dbm/dbm_multiply_opencl.c
+      list(APPEND CP2K_DBM_SRCS_C ${CP2K_DBM_SRCS_OPENCL_C}
            ${CP2K_DBM_OPENCL_KERNEL}.h)
     else()
       list(APPEND CP2K_SRCS_GPU ${CP2K_DBM_SRCS_GPU})
@@ -1546,25 +1575,33 @@ if(CP2K_USE_GRPP)
   list(APPEND CP2K_SRCS_C ${CP2K_GRPP_SRCS_C})
   list(APPEND CP2K_SRCS_F ${CP2K_GRPP_SRCS_F})
 endif()
+
 # ##############################################################################
-# check that the files registered in CMakeLists.txt are all present and return
-# an error otherwise. cmake only runs this test nothing else below
+# set properties for the cp2k target.
 # ##############################################################################
 
-if(CP2K_ENABLE_CONSISTENCY_CHECKS)
-  cp2k_compare_src_with_list(
-    "${CP2K_FPGA_SRC_C};${CP2K_SRCS_C};${CP2K_OFFLOAD_SRCS_C};${CP2K_DBM_SRCS_C};${CP2K_GRID_SRCS_C};${CP2K_PW_SRCS_C};${CP2K_DBM_SRCS_GPU_C};${CP2K_PROGS_C};${CP2K_GRPP_SRCS_C}"
-    "*.c"
-    "${CP2K_EXCLUDED_SRCS_C}")
-  cp2k_compare_src_with_list(
-    "${CP2K_GRPP_SRCS_F};${CP2K_SRCS_F};${CP2K_OFFLOAD_SRCS_F};${CP2K_PROGS_F}"
-    "*.F" "${CP2K_EXCLUDED_SRCS_F}")
-  cp2k_compare_src_with_list(
-    "${CP2K_GRID_SRCS_GPU};${CP2K_GRID_SRCS_HIP};${CP2K_DBM_SRCS_GPU};${CP2K_PW_SRCS_GPU}"
-    "*.cu"
-    "")
-  cp2k_compare_src_with_list("${CP2K_SRCS_CPP}" "*.cpp" "")
-  return()
+add_fypp_sources(CP2K_SRCS ${CP2K_SRCS_F})
+add_fypp_sources(CP2K_PROGS_F_FYPP ${CP2K_PROGS_F})
+
+# set the __SHORT_FILE__ per file for CP2K sources
+foreach(cp2k_src ${CP2K_SRCS} ${CP2K_PROGS_F_FYPP})
+  # add_fypp_sources returns a path in the current binary dir
+  file(RELATIVE_PATH short_file "${CMAKE_BINARY_DIR}/src" "${cp2k_src}")
+  set_source_files_properties(
+    ${cp2k_src} PROPERTIES COMPILE_DEFINITIONS __SHORT_FILE__="${short_file}")
+endforeach()
+
+set(CP2K_FULL_SRCS "${CP2K_SRCS};${CP2K_SRCS_C}")
+
+if(CP2K_USE_HIP
+   OR CP2K_USE_CUDA
+   OR CP2K_USE_OPENCL
+   OR CP2K_USE_LIBTORCH)
+  list(APPEND CP2K_FULL_SRCS ${CP2K_SRCS_GPU})
+endif()
+
+if(CP2K_USE_LIBTORCH)
+  list(APPEND CP2K_FULL_SRCS "${CP2K_SRCS_CPP}")
 endif()
 
 # ##############################################################################
@@ -1633,34 +1670,6 @@ if(DEFINED CP2K_LAPACK_INCLUDE_DIRS)
   include_directories(${CP2K_LAPACK_INCLUDE_DIRS})
 endif()
 
-# ##############################################################################
-# set properties for the cp2k target.
-# ##############################################################################
-
-add_fypp_sources(CP2K_SRCS ${CP2K_SRCS_F})
-add_fypp_sources(CP2K_PROGS_F_FYPP ${CP2K_PROGS_F})
-
-# set the __SHORT_FILE__ per file for CP2K sources
-foreach(cp2k_src ${CP2K_SRCS} ${CP2K_PROGS_F_FYPP})
-  # add_fypp_sources returns a path in the current binary dir
-  file(RELATIVE_PATH short_file "${CMAKE_BINARY_DIR}/src" "${cp2k_src}")
-  set_source_files_properties(
-    ${cp2k_src} PROPERTIES COMPILE_DEFINITIONS __SHORT_FILE__="${short_file}")
-endforeach()
-
-set(CP2K_FULL_SRCS "${CP2K_SRCS};${CP2K_SRCS_C}")
-
-if(CP2K_USE_HIP
-   OR CP2K_USE_CUDA
-   OR CP2K_USE_OPENCL
-   OR CP2K_USE_LIBTORCH)
-  list(APPEND CP2K_FULL_SRCS ${CP2K_SRCS_GPU})
-endif()
-
-if(CP2K_USE_LIBTORCH)
-  list(APPEND CP2K_FULL_SRCS "${CP2K_SRCS_CPP}")
-endif()
-
 add_library(cp2k "${CP2K_FULL_SRCS}")
 
 target_include_directories(cp2k PUBLIC $<INSTALL_INTERFACE:include/cp2k>)
@@ -1717,7 +1726,7 @@ target_link_libraries(
     DeePMD::deepmd_c>
     $<$<BOOL:${CP2K_USE_PEXSI}>:PEXSI::PEXSI>
     $<$<BOOL:${CP2K_USE_ACE}>:cp2k::ACE>
-    $<$<BOOL:${CP2K_USE_TBLITE}>:tblite::tblite>
+    $<$<BOOL:${CP2K_USE_TBLITE}>:cp2k::tblite>
     $<$<BOOL:${CP2K_USE_SIRIUS}>:sirius::sirius>
     $<$<BOOL:${CP2K_USE_VORI}>:cp2k::VORI::vori>
     $<$<BOOL:${CP2K_USE_SPGLIB}>:Spglib::symspg>
@@ -1766,9 +1775,8 @@ target_compile_definitions(
     $<$<BOOL:${CP2K_USE_VORI}>:__LIBVORI>
     $<$<BOOL:${CP2K_USE_SPGLIB}>:__SPGLIB>
     $<$<BOOL:${CP2K_USE_LIBSMEAGOL}>:__SMEAGOL>
-    $<$<BOOL:${CP2K_USE_TBLITE}>:__TBLITE
-    __DFTD4>
-    $<$<BOOL:${CP2K_USE_DFTD4}>:__DFTD4>
+    $<$<BOOL:${CP2K_USE_TBLITE}>:__TBLITE>
+    $<$<OR:$<BOOL:${CP2K_USE_DFTD4}>,$<BOOL:${CP2K_USE_TBLITE}>>:__DFTD4>
     $<$<BOOL:${CP2K_USE_DEEPMD}>:__DEEPMD>
     $<$<BOOL:${CP2K_USE_PEXSI}>:__PEXSI>
     $<$<BOOL:${CP2K_USE_ACE}>:__ACE>
@@ -1866,7 +1874,8 @@ endforeach()
 add_executable(
   dbm_miniapp
   dbm/dbm_miniapp.c ${CP2K_DBM_SRCS_C}
-  $<$<BOOL:${CP2K_ENABLE_DBM_GPU}>:${CP2K_DBM_SRCS_GPU}> ${CP2K_OFFLOAD_SRCS_C})
+  $<$<BOOL:${CP2K_ENABLE_DBM_GPU}>:${CP2K_DBM_SRCS_GPU_C} ${CP2K_DBM_SRCS_GPU}>
+  ${CP2K_OFFLOAD_SRCS_C})
 
 target_compile_definitions(
   dbm_miniapp
@@ -1952,14 +1961,6 @@ endif()
 
 if(CP2K_USE_HIP)
   list(APPEND cp2k_export_libs cp2k_hip_libs)
-endif()
-
-if(CP2K_USE_ACE)
-  list(APPEND cp2k_export_libs cp2k::ACE)
-endif()
-
-if(CP2K_USE_GREENX)
-  list(APPEND cp2k_export_libs cp2k::greenx)
 endif()
 
 install(
