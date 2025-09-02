@@ -431,13 +431,12 @@ static inline void offloadFreeHost(void *ptr) {
  * \brief Wrapper around cudaStreamWaitEvent.
  ******************************************************************************/
 static inline void offloadStreamWaitEvent(offloadStream_t stream,
-                                          offloadEvent_t event, const int val) {
+                                          offloadEvent_t event) {
 #if defined(__OFFLOAD_CUDA)
-  OFFLOAD_CHECK(cudaStreamWaitEvent(stream, event, val));
+  OFFLOAD_CHECK(cudaStreamWaitEvent(stream, event, 0 /*flags*/));
 #elif defined(__OFFLOAD_HIP)
-  OFFLOAD_CHECK(hipStreamWaitEvent(stream, event, val));
+  OFFLOAD_CHECK(hipStreamWaitEvent(stream, event, 0 /*flags*/));
 #elif defined(__OFFLOAD_OPENCL)
-  assert(0 == val); /* TODO */
   OFFLOAD_CHECK(c_dbcsr_acc_stream_wait_event(stream, event));
 #endif
 }

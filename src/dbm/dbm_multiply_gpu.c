@@ -82,7 +82,7 @@ void dbm_multiply_gpu_upload_packs(const dbm_pack_t *pack_a,
   offloadEventCreate(&event);
   for (int i = 0; i < ctx->nshards; i++) {
     offloadEventRecord(event, ctx->shards_c_dev[i].stream);
-    offloadStreamWaitEvent(ctx->main_stream, event, 0);
+    offloadStreamWaitEvent(ctx->main_stream, event);
   }
 
   upload_pack(pack_a, &ctx->pack_a_dev, ctx->main_stream);
@@ -91,7 +91,7 @@ void dbm_multiply_gpu_upload_packs(const dbm_pack_t *pack_a,
   // Have all c-streams wait until new packs are uploaded.
   offloadEventRecord(event, ctx->main_stream);
   for (int i = 0; i < ctx->nshards; i++) {
-    offloadStreamWaitEvent(ctx->shards_c_dev[i].stream, event, 0);
+    offloadStreamWaitEvent(ctx->shards_c_dev[i].stream, event);
   }
   offloadEventDestroy(event);
 }

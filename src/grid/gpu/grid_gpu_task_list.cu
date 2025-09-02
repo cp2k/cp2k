@@ -394,7 +394,7 @@ void grid_gpu_collocate_task_list(const grid_gpu_task_list *task_list,
     offloadMemsetAsync(grid->device_buffer, 0, grid->size, level_stream);
 
     // launch kernel, but only after blocks have arrived
-    offloadStreamWaitEvent(level_stream, input_ready_event, 0);
+    offloadStreamWaitEvent(level_stream, input_ready_event);
     grid_gpu_collocate_one_grid_level(
         task_list, first_task, last_task, func, layout, level_stream,
         pab_blocks->device_buffer, grid->device_buffer, &lp_diff);
@@ -489,7 +489,7 @@ void grid_gpu_integrate_task_list(const grid_gpu_task_list *task_list,
                            level_stream);
 
     // launch kernel, but only after hab, pab, virial, etc are ready
-    offloadStreamWaitEvent(level_stream, input_ready_event, 0);
+    offloadStreamWaitEvent(level_stream, input_ready_event);
     grid_gpu_integrate_one_grid_level(
         task_list, first_task, last_task, compute_tau, layout, level_stream,
         pab_blocks_dev, grid->device_buffer, hab_blocks->device_buffer,
@@ -499,7 +499,7 @@ void grid_gpu_integrate_task_list(const grid_gpu_task_list *task_list,
     offloadEvent_t level_done_event;
     offloadEventCreate(&level_done_event);
     offloadEventRecord(level_done_event, level_stream);
-    offloadStreamWaitEvent(task_list->main_stream, level_done_event, 0);
+    offloadStreamWaitEvent(task_list->main_stream, level_done_event);
     offloadEventDestroy(level_done_event);
 
     first_task = last_task + 1;
