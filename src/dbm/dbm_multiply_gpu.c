@@ -76,9 +76,7 @@ static void upload_pack(const dbm_pack_t *pack_host, dbm_pack_t *pack_dev,
 void dbm_multiply_gpu_upload_packs(const dbm_pack_t *pack_a,
                                    const dbm_pack_t *pack_b,
                                    dbm_multiply_gpu_context_t *ctx) {
-  // Select GPU device.
-  offload_activate_chosen_device();
-
+  // Assume GPU device was activated earlier.
   // Wait for all c-streams to complete before overwriting old packs.
   offloadEvent_t event;
   offloadEventCreate(&event);
@@ -109,9 +107,7 @@ void dbm_multiply_gpu_process_batch(const int ntasks, const dbm_task_t *batch,
     return; // Nothing to do.
   }
 
-  // Select GPU device.
-  offload_activate_chosen_device();
-
+  // Assume GPU device was activated earlier.
   const dbm_shard_t *shard_c_host = &ctx->shards_c_host[kshard];
   dbm_shard_gpu_t *shard_c_dev = &ctx->shards_c_dev[kshard];
   assert(NULL != shard_c_host && NULL != shard_c_dev);
@@ -171,9 +167,7 @@ void dbm_multiply_gpu_process_batch(const int ntasks, const dbm_task_t *batch,
  * \author Ole Schuett
  ******************************************************************************/
 void dbm_multiply_gpu_download_results(dbm_multiply_gpu_context_t *ctx) {
-  // Select GPU device.
-  offload_activate_chosen_device();
-
+  // Assume GPU device was activated earlier.
 #pragma omp parallel for DBM_OMP_SCHEDULE
   for (int i = 0; i < ctx->nshards; i++) {
     // Grow host buffer if necessary.
@@ -194,9 +188,7 @@ void dbm_multiply_gpu_download_results(dbm_multiply_gpu_context_t *ctx) {
  * \author Ole Schuett
  ******************************************************************************/
 void dbm_multiply_gpu_stop(dbm_multiply_gpu_context_t *ctx) {
-  // Select GPU device.
-  offload_activate_chosen_device();
-
+  // Assume GPU device was activated earlier.
   // Wait for completion, then free gpu ressources.
 #pragma omp parallel for DBM_OMP_SCHEDULE
   for (int i = 0; i < ctx->nshards; i++) {
