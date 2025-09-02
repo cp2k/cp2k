@@ -155,7 +155,8 @@ CONTAINS
       INTEGER                                            :: iounit, natom, nimages
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: all_present, debfor, debstr, my_gt_nl, &
-                                                            ppl_present, ppnl_present, use_virial
+                                                            ppl_present, ppnl_present, use_lrigpw, &
+                                                            use_virial
       REAL(KIND=dp)                                      :: eps_ppnl, fconv
       REAL(KIND=dp), DIMENSION(3)                        :: fodeb
       REAL(KIND=dp), DIMENSION(3, 3)                     :: stdeb
@@ -243,6 +244,8 @@ CONTAINS
       ! virial
       CALL get_qs_env(qs_env=qs_env, virial=virial)
       use_virial = virial%pv_availability .AND. (.NOT. virial%pv_numer)
+      ! lri/gpw
+      use_lrigpw = .FALSE.
 
       !debug
       debfor = .FALSE.
@@ -310,7 +313,10 @@ CONTAINS
       IF (ppl_present) THEN
          IF (dft_control%qs_control%do_ppl_method == do_ppl_analytic) THEN
             CALL get_qs_env(qs_env, lri_env=lri_env)
-            IF (dft_control%qs_control%lrigpw .AND. lri_env%ppl_ri) THEN
+            IF (ASSOCIATED(lri_env)) THEN
+               use_lrigpw = (dft_control%qs_control%lrigpw .AND. lri_env%ppl_ri)
+            END IF
+            IF (use_lrigpw) THEN
                IF (lri_env%exact_1c_terms) THEN
                   CPABORT("not implemented")
                END IF
