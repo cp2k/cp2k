@@ -30,6 +30,7 @@ MODULE realspace_grid_openpmd
 #endif
 
    USE openpmd_api, ONLY: &
+      openpmd_attributable_type, &
       openpmd_dynamic_memory_view_resolve_1d_double, &
       openpmd_dynamic_memory_view_resolve_3d_double, openpmd_dynamic_memory_view_type_1d, &
       openpmd_dynamic_memory_view_type_3d, openpmd_iteration_get_mesh, &
@@ -40,7 +41,7 @@ MODULE realspace_grid_openpmd
       openpmd_record_component_make_constant_zero, openpmd_record_component_reset_dataset, &
       openpmd_record_component_store_chunk_span_1d_double, &
       openpmd_record_component_store_chunk_span_3d_double, openpmd_record_component_type, &
-      openpmd_record_get_component, openpmd_record_type, openpmd_type_double, openpmd_type_int, openpmd_iteration_as_attributable, openpmd_attributable_series_flush, openpmd_record_component_store_chunk_3d_double
+      openpmd_record_get_component, openpmd_record_type, openpmd_type_double, openpmd_type_int, openpmd_iteration_as_attributable, openpmd_record_component_store_chunk_3d_double
    USE pw_grid_types, ONLY: PW_MODE_LOCAL
    USE pw_types, ONLY: pw_r3d_rs_type
    USE util, ONLY: sort_unique
@@ -130,6 +131,7 @@ CONTAINS
       TYPE(openpmd_record_component_type)                :: position_component, &
                                                             position_offset_component
       TYPE(openpmd_record_type)                          :: position, position_offset
+      TYPE(openpmd_attributable_type)                    :: attr
 
       global_extent(1) = atom_count
       IF (do_write_data) THEN
@@ -176,7 +178,8 @@ CONTAINS
             END IF
          END DO
       END IF
-      CALL openpmd_attributable_series_flush(openpmd_iteration_as_attributable(openpmd_data%iteration), "hdf5.independent_stores = true")
+      attr = openpmd_data%iteration%as_attributable()
+      CALL attr%series_flush("hdf5.independent_stores = true")
    END SUBROUTINE pw_write_particle_species
 
 ! **************************************************************************************************
@@ -252,6 +255,7 @@ CONTAINS
       TYPE(openpmd_dynamic_memory_view_type_3d)          :: unresolved_write_buffer
       TYPE(openpmd_mesh_type)                            :: mesh
       TYPE(openpmd_record_component_type)                :: scalar_mesh
+      TYPE(openpmd_attributable_type)                    :: attr
 
       CALL timeset(routineN, handle)
 
@@ -338,7 +342,8 @@ CONTAINS
       IF (ALL(my_stride == 1)) THEN
          CALL openpmd_record_component_store_chunk_3d_double(scalar_mesh, pw%array(L1:U1, L2:U2, L3:U3), offset)
          ! Are there some conditions under which we can skip this flush?
-         CALL openpmd_attributable_series_flush(openpmd_iteration_as_attributable(openpmd_data%iteration), "hdf5.independent_stores = false")
+         attr = openpmd_data%iteration%as_attributable()
+         CALL attr%series_flush("hdf5.independent_stores = false")
       ELSE
          count3 = 0
          DO I3 = L3, U3, my_stride(3)
