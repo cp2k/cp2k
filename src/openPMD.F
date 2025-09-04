@@ -44,6 +44,8 @@ MODULE openPMD_api
       PROCEDURE, PUBLIC :: as_pointer
       PROCEDURE, PUBLIC :: as_attributable => openpmd_series_as_attributable
       PROCEDURE, PUBLIC :: close => openpmd_series_close
+      PROCEDURE, PUBLIC :: present => openpmd_series_present
+      PROCEDURE, PUBLIC :: write_iteration => openpmd_series_write_iteration
    END TYPE openpmd_series_type
 
    TYPE openpmd_iteration_type
@@ -51,23 +53,35 @@ MODULE openPMD_api
       TYPE(C_PTR) :: c_ptr = C_NULL_PTR
    CONTAINS
       PROCEDURE, PUBLIC :: as_attributable => openpmd_iteration_as_attributable
+      PROCEDURE, PUBLIC :: get_mesh => openpmd_iteration_get_mesh
+      PROCEDURE, PUBLIC :: get_particle_species => openpmd_iteration_get_particle_species
    END TYPE openpmd_iteration_type
 
    TYPE openpmd_mesh_type
       PRIVATE
       TYPE(C_PTR) :: c_ptr = C_NULL_PTR
    CONTAINS
-      PROCEDURE, PUBLIC:: openpmd_mesh_as_record_component
+      PROCEDURE, PUBLIC :: as_record_component => openpmd_mesh_as_record_component
+      PROCEDURE, PUBLIC :: set_axis_labels => openpmd_mesh_set_axis_labels
+      PROCEDURE, PUBLIC :: set_grid_global_offset => openpmd_mesh_set_grid_global_offset
+      PROCEDURE, PUBLIC :: set_grid_spacing => openpmd_mesh_set_grid_spacing
+      PROCEDURE, PUBLIC :: set_position => openpmd_mesh_set_position
    END TYPE openpmd_mesh_type
 
    TYPE openpmd_particle_species_type
       PRIVATE
       TYPE(C_PTR) :: c_ptr = C_NULL_PTR
+   CONTAINS
+      PROCEDURE, PUBLIC :: get_record => openpmd_particle_species_get_record
    END TYPE openpmd_particle_species_type
 
    TYPE openpmd_record_component_type
       PRIVATE
       TYPE(C_PTR) :: c_ptr = C_NULL_PTR
+   CONTAINS
+      PROCEDURE, PUBLIC :: make_empty => openpmd_record_component_make_empty
+      PROCEDURE, PUBLIC :: make_constant_zero => openpmd_record_component_make_constant_zero
+      PROCEDURE, PUBLIC :: reset_dataset => openpmd_record_component_reset_dataset
    END TYPE openpmd_record_component_type
 
    TYPE openpmd_mesh_record_component_type
@@ -80,6 +94,7 @@ MODULE openPMD_api
       TYPE(C_PTR) :: c_ptr = C_NULL_PTR
    CONTAINS
       PROCEDURE, PUBLIC :: openpmd_record_as_record_component
+      PROCEDURE, PUBLIC :: get_component => openpmd_record_get_component
    END TYPE openpmd_record_type
 
    #:for dim in dimensions
@@ -92,8 +107,6 @@ MODULE openPMD_api
 
    PUBLIC :: openpmd_series_type, openpmd_attributable_type, openpmd_iteration_type, openpmd_mesh_type, openpmd_particle_species_type, openpmd_record_component_type, openpmd_record_type
    PUBLIC :: openpmd_series_create
-   PUBLIC :: openpmd_series_present
-   PUBLIC :: openpmd_series_write_iteration
    PUBLIC :: openpmd_access_create, openpmd_access_read_only
    PUBLIC :: openpmd_type_char, openpmd_type_uchar, openpmd_type_schar, openpmd_type_short, openpmd_type_int, openpmd_type_long, openpmd_type_longlong, openpmd_type_ushort, openpmd_type_uint, openpmd_type_ulong, openpmd_type_ulonglong, openpmd_type_float, openpmd_type_double, openpmd_type_long_double, openpmd_type_cfloat, openpmd_type_cdouble, openpmd_type_clong_double, openpmd_type_string, openpmd_type_vec_char, openpmd_type_vec_short, openpmd_type_vec_int, openpmd_type_vec_long, openpmd_type_vec_longlong, openpmd_type_vec_uchar, openpmd_type_vec_ushort, openpmd_type_vec_uint, openpmd_type_vec_ulong, openpmd_type_vec_ulonglong, openpmd_type_vec_float, openpmd_type_vec_double, openpmd_type_vec_long_double, openpmd_type_vec_cfloat, openpmd_type_vec_cdouble, openpmd_type_vec_clong_double, openpmd_type_vec_schar, openpmd_type_vec_string, openpmd_type_arr_dbl_7, openpmd_type_bool
    #:for child, parent in upcasts
@@ -102,8 +115,6 @@ MODULE openPMD_api
       PUBLIC :: openpmd_${child_f}$_as_${parent_f}$
    #:endfor
    PUBLIC :: openpmd_get_default_extension
-   PUBLIC :: openpmd_iteration_get_mesh, openpmd_iteration_get_particle_species
-   PUBLIC :: openpmd_record_component_make_empty, openpmd_record_component_make_constant_zero, openpmd_record_get_component, openpmd_record_component_reset_dataset
    #:for type_f, type_enum in zip(dataset_types_f, dataset_types_enum)
       #:for dim in dimensions
          PUBLIC :: openpmd_record_component_store_chunk_${dim}$d_${type_enum}$, &
@@ -114,8 +125,6 @@ MODULE openPMD_api
    #:for dim in dimensions
       PUBLIC :: openpmd_dynamic_memory_view_type_${dim}$d
    #:endfor
-   PUBLIC :: openpmd_mesh_set_axis_labels, openpmd_mesh_set_grid_global_offset, openpmd_mesh_set_grid_spacing, openpmd_mesh_set_position
-   PUBLIC :: openpmd_particle_species_get_record
    PUBLIC :: openpmd_json_merge
    PUBLIC :: cp2k_log
 
@@ -160,8 +169,8 @@ CONTAINS
 !> \param series ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION openpmd_series_present(series) RESULT(res)
-      CLASS(openpmd_series_type), INTENT(IN) :: series
+   FUNCTION openpmd_series_present(this) RESULT(res)
+      CLASS(openpmd_series_type), INTENT(IN) :: this
       LOGICAL :: res
       INTEGER :: res_internal
 
@@ -173,12 +182,12 @@ CONTAINS
          END FUNCTION openpmd_c_series_present
       END INTERFACE
 
-      IF (.NOT. C_ASSOCIATED(series%c_ptr)) THEN
+      IF (.NOT. C_ASSOCIATED(this%c_ptr)) THEN
          res = .FALSE.
          RETURN
       END IF
 
-      res_internal = openpmd_c_series_present(series%c_ptr)
+      res_internal = openpmd_c_series_present(this%c_ptr)
       res = res_internal /= 0
    END FUNCTION
 
@@ -296,8 +305,8 @@ CONTAINS
 !> \param index ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION openpmd_series_write_iteration(series, index) RESULT(iteration)
-      TYPE(openpmd_series_type)                          :: series
+   FUNCTION openpmd_series_write_iteration(this, index) RESULT(iteration)
+      CLASS(openpmd_series_type)                          :: this
       INTEGER, TARGET                                    :: index
       TYPE(openpmd_iteration_type)                       :: iteration
 
@@ -315,7 +324,7 @@ CONTAINS
 
       CPASSERT(.NOT. C_ASSOCIATED(iteration%c_ptr))
       cast_index = index
-      status = openpmd_c_series_write_iteration(series%c_ptr, cast_index, iteration%c_ptr)
+   status = openpmd_c_series_write_iteration(this%c_ptr, cast_index, iteration%c_ptr)
       CPASSERT(C_ASSOCIATED(iteration%c_ptr))
    END FUNCTION openpmd_series_write_iteration
 
@@ -470,8 +479,8 @@ CONTAINS
 !> \param name ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION openpmd_iteration_get_mesh(iteration, name) RESULT(mesh)
-      TYPE(openpmd_iteration_type)                       :: iteration
+   FUNCTION openpmd_iteration_get_mesh(this, name) RESULT(mesh)
+      CLASS(openpmd_iteration_type)                       :: this
       CHARACTER(len=*), INTENT(IN)                       :: name
       TYPE(openpmd_mesh_type)                            :: mesh
 
@@ -487,7 +496,7 @@ CONTAINS
       END INTERFACE
 
       CPASSERT(.NOT. C_ASSOCIATED(mesh%c_ptr))
-      status = openpmd_c_iteration_get_mesh(iteration%c_ptr, name//C_NULL_CHAR, mesh%c_ptr)
+   status = openpmd_c_iteration_get_mesh(this%c_ptr, name//C_NULL_CHAR, mesh%c_ptr)
       CPASSERT(C_ASSOCIATED(mesh%c_ptr))
    END FUNCTION openpmd_iteration_get_mesh
 
@@ -497,8 +506,8 @@ CONTAINS
 !> \param name ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION openpmd_iteration_get_particle_species(iteration, name) RESULT(particle_species)
-      TYPE(openpmd_iteration_type)                       :: iteration
+   FUNCTION openpmd_iteration_get_particle_species(this, name) RESULT(particle_species)
+      CLASS(openpmd_iteration_type)                       :: this
       CHARACTER(len=*), INTENT(IN)                       :: name
       TYPE(openpmd_particle_species_type)                :: particle_species
 
@@ -514,7 +523,7 @@ CONTAINS
       END INTERFACE
 
       CPASSERT(.NOT. C_ASSOCIATED(particle_species%c_ptr))
-      status = openpmd_c_iteration_get_particle_species(iteration%c_ptr, name//C_NULL_CHAR, particle_species%c_ptr)
+   status = openpmd_c_iteration_get_particle_species(this%c_ptr, name//C_NULL_CHAR, particle_species%c_ptr)
       CPASSERT(C_ASSOCIATED(particle_species%c_ptr))
    END FUNCTION openpmd_iteration_get_particle_species
 
@@ -524,8 +533,8 @@ CONTAINS
 !> \param dtype ...
 !> \param dimensionality ...
 ! **************************************************************************************************
-   SUBROUTINE openpmd_record_component_make_empty(record_component, dtype, dimensionality)
-      TYPE(openpmd_record_component_type)                :: record_component
+   SUBROUTINE openpmd_record_component_make_empty(this, dtype, dimensionality)
+      CLASS(openpmd_record_component_type)                :: this
       INTEGER(kind=C_INT)                                :: dtype
       INTEGER                                            :: dimensionality
 
@@ -540,7 +549,7 @@ CONTAINS
          END FUNCTION openpmd_c_record_component_make_empty
       END INTERFACE
 
-      status = openpmd_c_record_component_make_empty(record_component%c_ptr, dtype, dimensionality)
+   status = openpmd_c_record_component_make_empty(this%c_ptr, dtype, dimensionality)
    END SUBROUTINE openpmd_record_component_make_empty
 
 ! **************************************************************************************************
@@ -549,8 +558,8 @@ CONTAINS
 !> \param dtype ...
 !> \param extent ...
 ! **************************************************************************************************
-   SUBROUTINE openpmd_record_component_make_constant_zero(record_component, dtype, extent)
-      TYPE(openpmd_record_component_type)                :: record_component
+   SUBROUTINE openpmd_record_component_make_constant_zero(this, dtype, extent)
+      CLASS(openpmd_record_component_type)                :: this
       INTEGER(kind=C_INT)                                :: dtype
       INTEGER, DIMENSION(:), TARGET                      :: extent
 
@@ -567,11 +576,11 @@ CONTAINS
          END FUNCTION openpmd_c_record_component_make_constant
       END INTERFACE
 
-     status = openpmd_c_record_component_make_constant(record_component%c_ptr, dtype, SIZE(extent), C_LOC(extent(1)), 1, C_NULL_PTR)
+   status = openpmd_c_record_component_make_constant(this%c_ptr, dtype, SIZE(extent), C_LOC(extent(1)), 1, C_NULL_PTR)
    END SUBROUTINE openpmd_record_component_make_constant_zero
 
-   SUBROUTINE openpmd_mesh_set_axis_labels(mesh, labels)
-      TYPE(openpmd_mesh_type) :: mesh
+   SUBROUTINE openpmd_mesh_set_axis_labels(this, labels)
+      CLASS(openpmd_mesh_type) :: this
       CHARACTER(len=*), DIMENSION(:) :: labels
 
       INTEGER :: i
@@ -595,7 +604,7 @@ CONTAINS
          labels_as_c_strings(i) = C_LOC(labels_as_null_terminated_strings(i))
       END DO
 
-      CALL openpmd_c_mesh_set_axis_labels(mesh%c_ptr, C_LOC(labels_as_c_strings(1)), SIZE(labels), invert=1)
+   CALL openpmd_c_mesh_set_axis_labels(this%c_ptr, C_LOC(labels_as_c_strings(1)), SIZE(labels), invert=1)
 
       DEALLOCATE (labels_as_c_strings)
       DEALLOCATE (labels_as_null_terminated_strings)
@@ -606,8 +615,8 @@ CONTAINS
    #:set f_vector_types = ["REAL(KIND=dp)" for _ in range(3)]
 
    #:for f_routine, c_function, f_vector_type in zip(f_routines, c_functions, f_vector_types)
-      SUBROUTINE ${f_routine}$ (mesh, vec)
-         TYPE(openpmd_mesh_type)                        :: mesh
+   SUBROUTINE ${f_routine}$ (this, vec)
+      CLASS(openpmd_mesh_type)                        :: this
          ${f_vector_type}$, DIMENSION(:), TARGET        :: vec
 
          INTEGER, TARGET                                :: size_
@@ -621,13 +630,13 @@ CONTAINS
          END INTERFACE
 
          size_ = SIZE(vec)
-         CALL openpmd_c_set_vector_attribute(mesh%c_ptr, C_LOC(vec(1)), size_, 1)
+         CALL openpmd_c_set_vector_attribute(this%c_ptr, C_LOC(vec(1)), size_, 1)
 
       END SUBROUTINE
    #:endfor
 
-   SUBROUTINE openpmd_record_component_reset_dataset(record_component, dtype, extent, cfg)
-      TYPE(openpmd_record_component_type)                :: record_component
+   SUBROUTINE openpmd_record_component_reset_dataset(this, dtype, extent, cfg)
+      CLASS(openpmd_record_component_type)                :: this
       INTEGER(kind=C_INT)                                :: dtype
       INTEGER, DIMENSION(:), TARGET                      :: extent
       CHARACTER(len=*), OPTIONAL :: cfg
@@ -648,7 +657,7 @@ CONTAINS
 
       IF (PRESENT(cfg)) my_config = cfg
 
-      status = openpmd_c_record_component_reset_dataset(record_component%c_ptr, dtype, SIZE(extent), C_LOC(extent(1)), 1, my_config//C_NULL_CHAR)
+   status = openpmd_c_record_component_reset_dataset(this%c_ptr, dtype, SIZE(extent), C_LOC(extent(1)), 1, my_config//C_NULL_CHAR)
    END SUBROUTINE openpmd_record_component_reset_dataset
 
    #:for type_f, type_enum in zip(dataset_types_f, dataset_types_enum)
@@ -740,8 +749,8 @@ CONTAINS
 !> \param name ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION openpmd_particle_species_get_record(particle_species, name) RESULT(record)
-      TYPE(openpmd_particle_species_type)                :: particle_species
+   FUNCTION openpmd_particle_species_get_record(this, name) RESULT(record)
+      CLASS(openpmd_particle_species_type)                :: this
       CHARACTER(len=*), INTENT(IN)                       :: name
       TYPE(openpmd_record_type)                          :: record
 
@@ -757,7 +766,7 @@ CONTAINS
       END INTERFACE
 
       CPASSERT(.NOT. C_ASSOCIATED(record%c_ptr))
-      status = openpmd_c_particle_species_get_record(particle_species%c_ptr, name//C_NULL_CHAR, record%c_ptr)
+   status = openpmd_c_particle_species_get_record(this%c_ptr, name//C_NULL_CHAR, record%c_ptr)
       CPASSERT(C_ASSOCIATED(record%c_ptr))
    END FUNCTION openpmd_particle_species_get_record
 
@@ -767,8 +776,8 @@ CONTAINS
 !> \param name ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION openpmd_record_get_component(record, name) RESULT(record_component)
-      TYPE(openpmd_record_type)                          :: record
+   FUNCTION openpmd_record_get_component(this, name) RESULT(record_component)
+      CLASS(openpmd_record_type)                          :: this
       CHARACTER(len=*), INTENT(IN)                       :: name
       TYPE(openpmd_record_component_type)                :: record_component
 
@@ -784,7 +793,7 @@ CONTAINS
       END INTERFACE
 
       CPASSERT(.NOT. C_ASSOCIATED(record_component%c_ptr))
-      status = openpmd_c_record_get_component(record%c_ptr, name//C_NULL_CHAR, record_component%c_ptr)
+   status = openpmd_c_record_get_component(this%c_ptr, name//C_NULL_CHAR, record_component%c_ptr)
       CPASSERT(C_ASSOCIATED(record_component%c_ptr))
    END FUNCTION openpmd_record_get_component
 
