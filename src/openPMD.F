@@ -82,6 +82,30 @@ MODULE openPMD_api
       PROCEDURE, PUBLIC :: make_empty => openpmd_record_component_make_empty
       PROCEDURE, PUBLIC :: make_constant_zero => openpmd_record_component_make_constant_zero
       PROCEDURE, PUBLIC :: reset_dataset => openpmd_record_component_reset_dataset
+      #:for type_f, type_enum in zip(dataset_types_f, dataset_types_enum)
+         #:for dim in dimensions
+            PROCEDURE, PRIVATE :: store_chunk_${dim}$d_${type_enum}$ => openpmd_record_component_store_chunk_${dim}$d_${type_enum}$
+            PROCEDURE, PUBLIC  :: store_chunk_span_${dim}$d_${type_enum}$ => openpmd_record_component_store_chunk_span_${dim}$d_${type_enum}$
+         #:endfor
+      #:endfor
+      GENERIC, PUBLIC :: store_chunk => &
+      #:set zipped = zip(dataset_types_f, dataset_types_enum)
+      #:set n = len([x for x in zipped])
+      #:set m = len(dimensions)
+      #:set count_up_to = m * n
+      #:for i, type_f, type_enum in zip(range(n), dataset_types_f, dataset_types_enum)
+         #:for j, dim in enumerate(dimensions)
+            #:if i * n + j == count_up_to - 1
+               store_chunk_${dim}$d_${type_enum}$
+            #:else
+               store_chunk_${dim}$d_${type_enum}$, &
+            #:endif
+         #:endfor
+      #:endfor
+      #:del count_up_to
+      #:del zipped
+      #:del n
+      #:del m
    END TYPE openpmd_record_component_type
 
    TYPE openpmd_mesh_record_component_type
@@ -102,6 +126,12 @@ MODULE openPMD_api
          PRIVATE
          INTEGER, DIMENSION(${dim}$) :: chunk_extent
          TYPE(C_PTR) :: c_ptr = C_NULL_PTR
+
+      CONTAINS
+
+         #:for type_f, type_enum in zip(dataset_types_f, dataset_types_enum)
+            PROCEDURE, PUBLIC :: resolve_${type_enum}$ => openpmd_dynamic_memory_view_resolve_${dim}$d_${type_enum}$
+         #:endfor
       END TYPE openpmd_dynamic_memory_view_type_${dim}$d
    #:endfor
 
@@ -115,13 +145,6 @@ MODULE openPMD_api
       PUBLIC :: openpmd_${child_f}$_as_${parent_f}$
    #:endfor
    PUBLIC :: openpmd_get_default_extension
-   #:for type_f, type_enum in zip(dataset_types_f, dataset_types_enum)
-      #:for dim in dimensions
-         PUBLIC :: openpmd_record_component_store_chunk_${dim}$d_${type_enum}$, &
-                   openpmd_record_component_store_chunk_span_${dim}$d_${type_enum}$, &
-                   openpmd_dynamic_memory_view_resolve_${dim}$d_${type_enum}$
-      #:endfor
-   #:endfor
    #:for dim in dimensions
       PUBLIC :: openpmd_dynamic_memory_view_type_${dim}$d
    #:endfor
@@ -665,7 +688,7 @@ CONTAINS
          ! e.g. ':,:,:'
          #:set dimensionality_wildcard = ','.join(':' for _ in range(dim))
          SUBROUTINE openpmd_record_component_store_chunk_${dim}$d_${type_enum}$ (record_component, data_, offset)
-            TYPE(openpmd_record_component_type)                        :: record_component
+            CLASS(openpmd_record_component_type)                        :: record_component
             ${type_f}$, TARGET                                         :: data_(${dimensionality_wildcard}$)
             INTEGER, DIMENSION(${dim}$), TARGET                        :: offset, extent
 
@@ -689,7 +712,7 @@ CONTAINS
          END SUBROUTINE openpmd_record_component_store_chunk_${dim}$d_${type_enum}$
 
     FUNCTION openpmd_record_component_store_chunk_span_${dim}$d_${type_enum}$ (record_component, offset, extent) RESULT(memory_view)
-            TYPE(openpmd_record_component_type)                        :: record_component
+            CLASS(openpmd_record_component_type)                        :: record_component
             INTEGER, DIMENSION(${dim}$), TARGET                        :: offset, extent
 
             TYPE(openpmd_dynamic_memory_view_type_${dim}$d)            :: memory_view
@@ -714,7 +737,7 @@ CONTAINS
          END FUNCTION openpmd_record_component_store_chunk_span_${dim}$d_${type_enum}$
 
          FUNCTION openpmd_dynamic_memory_view_resolve_${dim}$d_${type_enum}$ (memory_view, deallocate) RESULT(buffer)
-            TYPE(openpmd_dynamic_memory_view_type_${dim}$d)            :: memory_view
+            CLASS(openpmd_dynamic_memory_view_type_${dim}$d)            :: memory_view
             LOGICAL                                                    :: deallocate
             ${type_f}$, POINTER                                        :: buffer(${dimensionality_wildcard}$)
 
