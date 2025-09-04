@@ -59,7 +59,7 @@ MODULE cp_output_handling_openpmd
       openpmd_iteration_get_mesh, &
       openpmd_iteration_get_particle_species, openpmd_iteration_type, openpmd_mesh_type, &
       openpmd_particle_species_get_record, openpmd_particle_species_type, &
-      openpmd_record_component_make_empty, openpmd_record_type, openpmd_series_close, &
+      openpmd_record_component_make_empty, openpmd_record_type, &
       openpmd_series_create, openpmd_series_present, openpmd_series_type, &
       openpmd_series_write_iteration, openpmd_type_int, openpmd_json_merge
    USE string_utilities, ONLY: compress, &
@@ -453,7 +453,7 @@ CONTAINS
       INTEGER :: i
       DO i = 1, cp_num_openpmd_per_callsite
          DEALLOCATE (cp_openpmd_per_callsite(i)%value%iteration_counter%complex_iteration)
-         CALL openpmd_series_close(cp_openpmd_per_callsite(i)%value%output_series)
+         CALL cp_openpmd_per_callsite(i)%value%output_series%close()
       END DO
       IF (ALLOCATED(cp_openpmd_per_callsite)) THEN
          DEALLOCATE (cp_openpmd_per_callsite)
