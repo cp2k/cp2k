@@ -42,6 +42,7 @@ MODULE openPMD_api
    CONTAINS
       PROCEDURE, PUBLIC :: as_pointer
       PROCEDURE, PUBLIC :: openpmd_series_as_attributable
+      PROCEDURE, PUBLIC :: close => openpmd_series_close
    END TYPE openpmd_series_type
 
    TYPE openpmd_iteration_type
@@ -89,7 +90,7 @@ MODULE openPMD_api
    #:endfor
 
    PUBLIC :: openpmd_series_type, openpmd_iteration_type, openpmd_mesh_type, openpmd_particle_species_type, openpmd_record_component_type, openpmd_record_type
-   PUBLIC :: openpmd_series_create, openpmd_series_close
+   PUBLIC :: openpmd_series_create
    PUBLIC :: openpmd_series_present
    PUBLIC :: openpmd_series_write_iteration
    PUBLIC :: openpmd_access_create, openpmd_access_read_only
@@ -271,7 +272,7 @@ CONTAINS
 !> \param series ...
 ! **************************************************************************************************
    SUBROUTINE openpmd_series_close(series)
-      TYPE(openpmd_series_type), INTENT(INOUT)           :: series
+      CLASS(openpmd_series_type), INTENT(INOUT)           :: series
 
       INTERFACE
 ! **************************************************************************************************
