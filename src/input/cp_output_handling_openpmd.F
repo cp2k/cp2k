@@ -56,12 +56,11 @@ MODULE cp_output_handling_openpmd
                               mp_file_type
    USE openpmd_api, ONLY: &
       openpmd_access_create, &
-      openpmd_iteration_get_mesh, &
-      openpmd_iteration_get_particle_species, openpmd_attributable_type, openpmd_iteration_type, openpmd_mesh_type, &
-      openpmd_particle_species_get_record, openpmd_particle_species_type, &
-      openpmd_record_component_make_empty, openpmd_record_type, &
-      openpmd_series_create, openpmd_series_present, openpmd_series_type, &
-      openpmd_series_write_iteration, openpmd_type_int, openpmd_json_merge
+      openpmd_attributable_type, openpmd_iteration_type, openpmd_mesh_type, &
+      openpmd_particle_species_type, &
+      openpmd_record_type, &
+      openpmd_series_create, openpmd_series_type, &
+      openpmd_type_int, openpmd_json_merge
    USE string_utilities, ONLY: compress, &
                                s2a
 #include "../base/base_uses.f90"
@@ -395,8 +394,7 @@ CONTAINS
 
       opened_new_iteration = cp_advance_iteration_number(logger, ${opmd}$)
 
-      res%iteration = openpmd_series_write_iteration( &
-                      ${opmd}$%output_series, ${opmd}$%iteration_counter%flat_iteration)
+      res%iteration = ${opmd}$%output_series%write_iteration(${opmd}$%iteration_counter%flat_iteration)
 
       ! res%mesh = openpmd_iteration_get_mesh(res%iteration, middle_name)
       ! CALL openpmd_record_component_make_empty(res%mesh%openpmd_mesh_as_record_component(), openpmd_type_int, 3)

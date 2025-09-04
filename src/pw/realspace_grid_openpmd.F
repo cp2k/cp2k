@@ -33,15 +33,12 @@ MODULE realspace_grid_openpmd
       openpmd_attributable_type, &
       openpmd_dynamic_memory_view_resolve_1d_double, &
       openpmd_dynamic_memory_view_resolve_3d_double, openpmd_dynamic_memory_view_type_1d, &
-      openpmd_dynamic_memory_view_type_3d, openpmd_iteration_get_mesh, &
-      openpmd_iteration_get_particle_species, openpmd_mesh_as_record_component, &
-      openpmd_mesh_set_axis_labels, openpmd_mesh_set_grid_global_offset, &
-      openpmd_mesh_set_grid_spacing, openpmd_mesh_set_position, openpmd_mesh_type, &
-      openpmd_particle_species_get_record, openpmd_particle_species_type, &
-      openpmd_record_component_make_constant_zero, openpmd_record_component_reset_dataset, &
+      openpmd_dynamic_memory_view_type_3d, &
+      openpmd_mesh_type, &
+      openpmd_particle_species_type, &
       openpmd_record_component_store_chunk_span_1d_double, &
       openpmd_record_component_store_chunk_span_3d_double, openpmd_record_component_type, &
-      openpmd_record_get_component, openpmd_record_type, openpmd_type_double, openpmd_type_int, openpmd_iteration_as_attributable, openpmd_record_component_store_chunk_3d_double
+      openpmd_record_type, openpmd_type_double, openpmd_type_int, openpmd_record_component_store_chunk_3d_double
    USE pw_grid_types, ONLY: PW_MODE_LOCAL
    USE pw_types, ONLY: pw_r3d_rs_type
    USE util, ONLY: sort_unique
@@ -145,15 +142,15 @@ CONTAINS
       WRITE (atom_type_as_string, '(I3)') atom_type
       species_name = TRIM(openpmd_data%name_prefix)//"-"//ADJUSTL(atom_type_as_string)
 
-      species = openpmd_iteration_get_particle_species(openpmd_data%iteration, TRIM(species_name))
+      species = openpmd_data%iteration%get_particle_species(TRIM(species_name))
 
-      position_offset = openpmd_particle_species_get_record(species, "positionOffset")
-      position = openpmd_particle_species_get_record(species, "position")
+      position_offset = species%get_record("positionOffset")
+      position = species%get_record("position")
       DO k = 1, SIZE(dims)
-         position_offset_component = openpmd_record_get_component(position_offset, dims(k))
-         CALL openpmd_record_component_make_constant_zero(position_offset_component, openpmd_type_int, global_extent)
-         position_component = openpmd_record_get_component(position, dims(k))
-         CALL openpmd_record_component_reset_dataset(position_component, openpmd_type_double, global_extent)
+         position_offset_component = position_offset%get_component(dims(k))
+         CALL position_offset_component%make_constant_zero(openpmd_type_int, global_extent)
+         position_component = position%get_component(dims(k))
+         CALL position_component%reset_dataset(openpmd_type_double, global_extent)
          unresolved_write_buffers(k) = &
             openpmd_record_component_store_chunk_span_1d_double(position_component, global_offset, local_extent)
          IF (do_write_data) THEN
@@ -320,13 +317,13 @@ CONTAINS
       END DO
       local_extent = local_extent - offset
 
-      mesh = openpmd_iteration_get_mesh(openpmd_data%iteration, TRIM(openpmd_data%name_prefix))
-      CALL openpmd_mesh_set_axis_labels(mesh, (/"x", "y", "z"/))
-      CALL openpmd_mesh_set_position(mesh, (/0.5_dp, 0.5_dp, 0.5_dp/))
-      CALL openpmd_mesh_set_grid_global_offset(mesh, (/0._dp, 0._dp, 0._dp/))
-      CALL openpmd_mesh_set_grid_spacing(mesh, grid_spacing)
-      scalar_mesh = openpmd_mesh_as_record_component(mesh)
-      CALL openpmd_record_component_reset_dataset(scalar_mesh, openpmd_type_double, global_extent)
+      mesh = openpmd_data%iteration%get_mesh(TRIM(openpmd_data%name_prefix))
+      CALL mesh%set_axis_labels((/"x", "y", "z"/))
+      CALL mesh%set_position( (/0.5_dp, 0.5_dp, 0.5_dp/) )
+      CALL mesh%set_grid_global_offset( (/0._dp, 0._dp, 0._dp/) )
+      CALL mesh%set_grid_spacing(grid_spacing)
+      scalar_mesh = mesh%as_record_component()
+      CALL scalar_mesh%reset_dataset(openpmd_type_double, global_extent)
 
       ! shortcut
       L1 = pw%pw_grid%bounds_local(1, 1)
