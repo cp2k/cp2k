@@ -23,6 +23,7 @@ typedef struct {
   int data_size;
   int data_allocated;
   offloadStream_t stream;
+  offloadEvent_t event;
 } dbm_shard_gpu_t;
 
 /*******************************************************************************
@@ -31,9 +32,9 @@ typedef struct {
  ******************************************************************************/
 typedef struct {
   offloadStream_t main_stream;
+  offloadEvent_t upload_event;
 
   int nshards;
-  dbm_shard_t *shards_c_host;
   dbm_shard_gpu_t *shards_c_dev;
 
   dbm_pack_t pack_a_dev;
@@ -53,9 +54,9 @@ void dbm_multiply_gpu_start(const int max_batch_size, const int nshards,
 
 /*******************************************************************************
  * \brief Internal routine for uploading newly arrived packs onto the device.
- * \author Ole Schuett
+ * \author Ole Schuett and Hans Pabst
  ******************************************************************************/
-void dbm_multiply_gpu_upload_packs(const dbm_pack_t *pack_a,
+bool dbm_multiply_gpu_upload_packs(const dbm_pack_t *pack_a,
                                    const dbm_pack_t *pack_b,
                                    dbm_multiply_gpu_context_t *ctx);
 
@@ -64,14 +65,9 @@ void dbm_multiply_gpu_upload_packs(const dbm_pack_t *pack_a,
  * \author Ole Schuett
  ******************************************************************************/
 void dbm_multiply_gpu_process_batch(const int ntasks, const dbm_task_t *batch,
-                                    const double alpha, const int kshard,
+                                    const double alpha, dbm_shard_t *shard_c,
+                                    const int kshard, const bool finish,
                                     dbm_multiply_gpu_context_t *ctx);
-
-/*******************************************************************************
- * \brief Internal routine for downloading results from the device.
- * \author Ole Schuett
- ******************************************************************************/
-void dbm_multiply_gpu_download_results(dbm_multiply_gpu_context_t *ctx);
 
 /*******************************************************************************
  * \brief Internal routine for shutting down the gpu backend.

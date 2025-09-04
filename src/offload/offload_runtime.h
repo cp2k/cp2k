@@ -22,6 +22,7 @@
 
 #if defined(__OFFLOAD_CUDA) || defined(__OFFLOAD_HIP) ||                       \
     defined(__OFFLOAD_OPENCL)
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -438,6 +439,21 @@ static inline void offloadStreamWaitEvent(offloadStream_t stream,
   OFFLOAD_CHECK(hipStreamWaitEvent(stream, event, 0 /*flags*/));
 #elif defined(__OFFLOAD_OPENCL)
   OFFLOAD_CHECK(c_dbcsr_acc_stream_wait_event(stream, event));
+#endif
+}
+
+/*******************************************************************************
+ * \brief Wrapper around cudaEventQuery.
+ ******************************************************************************/
+static inline bool offloadEventQuery(offloadEvent_t event) {
+#if defined(__OFFLOAD_CUDA)
+  return offloadSuccess == cudaEventQuery(event);
+#elif defined(__OFFLOAD_HIP)
+  return offloadSuccess == hipEventQuery(event);
+#elif defined(__OFFLOAD_OPENCL)
+  c_dbcsr_acc_bool_t has_occurred;
+  OFFLOAD_CHECK(c_dbcsr_acc_event_query(event, &has_occurred));
+  return (bool)has_occurred;
 #endif
 }
 
