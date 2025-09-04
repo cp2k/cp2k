@@ -31,14 +31,12 @@ MODULE realspace_grid_openpmd
 
    USE openpmd_api, ONLY: &
       openpmd_attributable_type, &
-      openpmd_dynamic_memory_view_resolve_1d_double, &
-      openpmd_dynamic_memory_view_resolve_3d_double, openpmd_dynamic_memory_view_type_1d, &
+      openpmd_dynamic_memory_view_type_1d, &
       openpmd_dynamic_memory_view_type_3d, &
       openpmd_mesh_type, &
       openpmd_particle_species_type, &
-      openpmd_record_component_store_chunk_span_1d_double, &
-      openpmd_record_component_store_chunk_span_3d_double, openpmd_record_component_type, &
-      openpmd_record_type, openpmd_type_double, openpmd_type_int, openpmd_record_component_store_chunk_3d_double
+      openpmd_record_component_type, &
+      openpmd_record_type, openpmd_type_double, openpmd_type_int
    USE pw_grid_types, ONLY: PW_MODE_LOCAL
    USE pw_types, ONLY: pw_r3d_rs_type
    USE util, ONLY: sort_unique
@@ -152,18 +150,16 @@ CONTAINS
          position_component = position%get_component(dims(k))
          CALL position_component%reset_dataset(openpmd_type_double, global_extent)
          unresolved_write_buffers(k) = &
-            openpmd_record_component_store_chunk_span_1d_double(position_component, global_offset, local_extent)
+            position_component%store_chunk_span_1d_double(global_offset, local_extent)
          IF (do_write_data) THEN
-            write_buffers(k)%buffer => &
-               openpmd_dynamic_memory_view_resolve_1d_double(unresolved_write_buffers(k), DEALLOCATE=.FALSE.)
+            write_buffers(k)%buffer => unresolved_write_buffers(k)%resolve_double(DEALLOCATE=.FALSE.)
          END IF
       END DO
 
       IF (do_write_data) THEN
          ! Resolve Spans for a second time to allow for internal reallocations in BP4 engine of ADIOS2
          DO k = 1, SIZE(dims)
-            write_buffers(k)%buffer = &
-               openpmd_dynamic_memory_view_resolve_1d_double(unresolved_write_buffers(k), DEALLOCATE=.TRUE.)
+            write_buffers(k)%buffer = unresolved_write_buffers(k)%resolve_double(DEALLOCATE=.TRUE.)
          END DO
          j = 1
          DO i = 1, SIZE(particles_z)
@@ -337,7 +333,7 @@ CONTAINS
       num_pe = pw%pw_grid%para%group%num_pe
 
       IF (ALL(my_stride == 1)) THEN
-         CALL openpmd_record_component_store_chunk_3d_double(scalar_mesh, pw%array(L1:U1, L2:U2, L3:U3), offset)
+         CALL scalar_mesh%store_chunk(pw%array(L1:U1, L2:U2, L3:U3), offset)
          ! Are there some conditions under which we can skip this flush?
          attr = openpmd_data%iteration%as_attributable()
          CALL attr%series_flush("hdf5.independent_stores = false")
@@ -347,11 +343,10 @@ CONTAINS
             ! maybe add an overload to provide `buf` here for HDF5, might have better performance
             ! for intermittent flushing
             ! or just call the buffer in the outer function if memory is no problem...
-            unresolved_write_buffer = openpmd_record_component_store_chunk_span_3d_double( &
-                                      scalar_mesh, &
+            unresolved_write_buffer = scalar_mesh%store_chunk_span_3d_double( &
                                       (/offset(1), offset(2), offset(3) + count3/), &
                                       (/local_extent(1), local_extent(2), 1/))
-            write_buffer => openpmd_dynamic_memory_view_resolve_3d_double(unresolved_write_buffer, DEALLOCATE=.TRUE.)
+            write_buffer => unresolved_write_buffer%resolve_double(DEALLOCATE=.TRUE.)
 
             count2 = 0
             DO I2 = L2, U2, my_stride(2)
