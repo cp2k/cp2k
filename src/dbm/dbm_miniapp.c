@@ -196,10 +196,15 @@ void benchmark_multiply(const int M, const int N, const int K, const int m,
   set_all_blocks(matrix_a);
   set_all_blocks(matrix_b);
 
-  dbm_distribution_t *const dist_shared = matrix_c->dist;
-  dbm_create(&matrix_d, dist_shared, matrix_c->name, matrix_c->nrows,
-             matrix_c->ncols, matrix_c->row_sizes, matrix_c->col_sizes);
-  dbm_copy(matrix_d, matrix_c);
+  const char *const verify_env = getenv("DBM_MULTIPLY_VERIFY");
+  const int skip_verify = (NULL == verify_env ? 0 : (atoi(verify_env) + 1));
+
+  if (0 == skip_verify) {
+    dbm_distribution_t *const dist_shared = matrix_c->dist;
+    dbm_create(&matrix_d, dist_shared, matrix_c->name, matrix_c->nrows,
+               matrix_c->ncols, matrix_c->row_sizes, matrix_c->col_sizes);
+    dbm_copy(matrix_d, matrix_c);
+  }
 
   int64_t flop = 0;
   const double time_start_multiply = omp_get_wtime();
@@ -207,33 +212,33 @@ void benchmark_multiply(const int M, const int N, const int K, const int m,
                1e-8, &flop);
   const double time_end_multiply = omp_get_wtime();
 
-  // Calculate result on the host for validation
-  dbm_multiply(false, false, 1.0, matrix_a, matrix_b, 1.0, matrix_d, false,
-               1e-8, NULL);
-
   if (dbm_mpi_comm_rank(comm) == 0) {
     printf("%5i x %5i x %5i  with  %3i x %3i x %3i blocks: ", M, N, K, m, n, k);
   }
 
-  // Validate result
-  const double maxeps = 1E-5, epsilon = dbm_maxeps(matrix_d, matrix_c);
-  if (maxeps >= epsilon) {
-    dbm_mpi_sum_int64(&flop, 1, comm);
-    if (dbm_mpi_comm_rank(comm) == 0) {
-      const double duration = time_end_multiply - time_start_multiply;
-      printf("%6.3f s =>  %6.1f GFLOP/s\n", duration, 1e-9 * flop / duration);
-      fflush(stdout);
+  if (NULL != matrix_d) { // Calculate result on the host for validation.
+    dbm_multiply(false, false, 1.0, matrix_a, matrix_b, 1.0, matrix_d, false,
+                 1e-8, NULL);
+
+    const double maxeps = 1E-5, epsilon = dbm_maxeps(matrix_d, matrix_c);
+    if (maxeps < epsilon) {
+      printf("ERROR\n");
+      fprintf(stderr, "Failed validation (epsilon=%f).\n", epsilon);
+      exit(1);
     }
-  } else {
-    printf("ERROR\n");
-    fprintf(stderr, "Failed validation (epsilon=%f).\n", epsilon);
-    exit(1);
+    dbm_release(matrix_d);
+  }
+
+  dbm_mpi_sum_int64(&flop, 1, comm);
+  if (dbm_mpi_comm_rank(comm) == 0) {
+    const double duration = time_end_multiply - time_start_multiply;
+    printf("%6.3f s =>  %6.1f GFLOP/s\n", duration, 1e-9 * flop / duration);
+    fflush(stdout);
   }
 
   dbm_release(matrix_a);
   dbm_release(matrix_b);
   dbm_release(matrix_c);
-  dbm_release(matrix_d);
 }
 
 /*******************************************************************************
