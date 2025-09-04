@@ -33,7 +33,8 @@ MODULE openPMD_api
       PRIVATE
       TYPE(C_PTR) :: c_ptr = C_NULL_PTR
    CONTAINS
-
+      PROCEDURE, PUBLIC :: set_attribute_vec_int => openpmd_attributable_set_attribute_vec_int
+      PROCEDURE, PUBLIC :: series_flush => openpmd_attributable_series_flush
    END TYPE openpmd_attributable_type
 
    TYPE openpmd_series_type
@@ -41,7 +42,7 @@ MODULE openPMD_api
       TYPE(C_PTR) :: c_ptr = C_NULL_PTR
    CONTAINS
       PROCEDURE, PUBLIC :: as_pointer
-      PROCEDURE, PUBLIC :: openpmd_series_as_attributable
+      PROCEDURE, PUBLIC :: as_attributable => openpmd_series_as_attributable
       PROCEDURE, PUBLIC :: close => openpmd_series_close
    END TYPE openpmd_series_type
 
@@ -49,7 +50,7 @@ MODULE openPMD_api
       PRIVATE
       TYPE(C_PTR) :: c_ptr = C_NULL_PTR
    CONTAINS
-      PROCEDURE, PUBLIC :: openpmd_iteration_as_attributable
+      PROCEDURE, PUBLIC :: as_attributable => openpmd_iteration_as_attributable
    END TYPE openpmd_iteration_type
 
    TYPE openpmd_mesh_type
@@ -89,7 +90,7 @@ MODULE openPMD_api
       END TYPE openpmd_dynamic_memory_view_type_${dim}$d
    #:endfor
 
-   PUBLIC :: openpmd_series_type, openpmd_iteration_type, openpmd_mesh_type, openpmd_particle_species_type, openpmd_record_component_type, openpmd_record_type
+   PUBLIC :: openpmd_series_type, openpmd_attributable_type, openpmd_iteration_type, openpmd_mesh_type, openpmd_particle_species_type, openpmd_record_component_type, openpmd_record_type
    PUBLIC :: openpmd_series_create
    PUBLIC :: openpmd_series_present
    PUBLIC :: openpmd_series_write_iteration
@@ -101,7 +102,6 @@ MODULE openPMD_api
       PUBLIC :: openpmd_${child_f}$_as_${parent_f}$
    #:endfor
    PUBLIC :: openpmd_get_default_extension
-   PUBLIC :: openpmd_attributable_set_attribute_vec_int, openpmd_attributable_series_flush
    PUBLIC :: openpmd_iteration_get_mesh, openpmd_iteration_get_particle_species
    PUBLIC :: openpmd_record_component_make_empty, openpmd_record_component_make_constant_zero, openpmd_record_get_component, openpmd_record_component_reset_dataset
    #:for type_f, type_enum in zip(dataset_types_f, dataset_types_enum)
@@ -372,8 +372,8 @@ CONTAINS
 !> \param name ...
 !> \param vec ...
 ! **************************************************************************************************
-   SUBROUTINE openpmd_attributable_set_attribute_vec_int(attributable, name, vec)
-      TYPE(openpmd_attributable_type)                    :: attributable
+   SUBROUTINE openpmd_attributable_set_attribute_vec_int(this, name, vec)
+      CLASS(openpmd_attributable_type)                    :: this
       CHARACTER(len=*), INTENT(IN)                       :: name
       INTEGER, DIMENSION(:), TARGET                      :: vec
 
@@ -389,12 +389,12 @@ CONTAINS
       END INTERFACE
 
       size_ = SIZE(vec)
-      CALL openpmd_c_attributable_set_attribute_vec_int(attributable%c_ptr, name//C_NULL_CHAR, C_LOC(vec(1)), size_)
+   CALL openpmd_c_attributable_set_attribute_vec_int(this%c_ptr, name//C_NULL_CHAR, C_LOC(vec(1)), size_)
 
    END SUBROUTINE
 
-   SUBROUTINE openpmd_attributable_series_flush(attributable, backendconfig)
-      TYPE(openpmd_attributable_type)                    :: attributable
+   SUBROUTINE openpmd_attributable_series_flush(this, backendconfig)
+      CLASS(openpmd_attributable_type)                    :: this
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: backendconfig
       CHARACTER(len=default_string_length)               :: my_backendconfig = ""
 
@@ -407,7 +407,7 @@ CONTAINS
       END INTERFACE
 
       IF (PRESENT(backendconfig)) my_backendconfig = backendconfig
-      CALL openpmd_c_attributable_series_flush(attributable%c_ptr, my_backendconfig//C_NULL_CHAR)
+   CALL openpmd_c_attributable_series_flush(this%c_ptr, my_backendconfig//C_NULL_CHAR)
    END SUBROUTINE openpmd_attributable_series_flush
 
    FUNCTION openpmd_json_merge(into, from, mpi_comm) RESULT(merged)

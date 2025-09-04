@@ -55,9 +55,9 @@ MODULE cp_output_handling_openpmd
                               mp_file_get_amode, &
                               mp_file_type
    USE openpmd_api, ONLY: &
-      openpmd_access_create, openpmd_attributable_set_attribute_vec_int, &
+      openpmd_access_create, &
       openpmd_iteration_get_mesh, &
-      openpmd_iteration_get_particle_species, openpmd_iteration_type, openpmd_mesh_type, &
+      openpmd_iteration_get_particle_species, openpmd_attributable_type, openpmd_iteration_type, openpmd_mesh_type, &
       openpmd_particle_species_get_record, openpmd_particle_species_type, &
       openpmd_record_component_make_empty, openpmd_record_type, &
       openpmd_series_create, openpmd_series_present, openpmd_series_type, &
@@ -387,6 +387,7 @@ CONTAINS
       TYPE(cp_openpmd_per_call_value_type)               :: res
 
       LOGICAL                                            :: opened_new_iteration = .FALSE.
+      TYPE(openpmd_attributable_type)                    :: attr
 
       #:set opmd = 'cp_openpmd_per_callsite(openpmd_file_index)%value'
 
@@ -407,8 +408,8 @@ CONTAINS
       res%name_prefix = TRIM(middle_name)
 
       IF (opened_new_iteration) THEN
-         CALL openpmd_attributable_set_attribute_vec_int( &
-            res%iteration%openpmd_iteration_as_attributable(), &
+         attr = res%iteration%as_attributable()
+         CALL attr%set_attribute_vec_int( &
             "ndim_iteration_index", &
             ${opmd}$%iteration_counter%complex_iteration)
       END IF
