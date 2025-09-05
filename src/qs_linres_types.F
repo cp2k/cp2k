@@ -66,7 +66,8 @@ MODULE qs_linres_types
       TYPE(qs_loc_env_type), POINTER            :: qs_loc_env => NULL()
       CHARACTER(LEN=8)                          :: flag = ""
       REAL(dp), DIMENSION(:, :, :), POINTER     :: gapt_charge => NULL()
-      TYPE(cp_fm_type), DIMENSION(:, :), POINTER       :: matrix_s1 => NULL()
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER       :: matrix_s1_fm => NULL()
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER     :: matrix_s1 => NULL()
       TYPE(cp_fm_type), DIMENSION(:, :, :), POINTER    :: dcdr => NULL()
    END TYPE linres_control_type
 

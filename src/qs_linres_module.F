@@ -22,11 +22,15 @@ MODULE qs_linres_module
                                               cite_reference
    USE colvar_elec_utils,               ONLY: charge_cv_linres_init
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_api,                    ONLY: dbcsr_p_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
+                                              dbcsr_p_type
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_print
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm
-   USE cp_fm_types,                     ONLY: cp_fm_to_fm
+   USE cp_fm_types,                     ONLY: cp_fm_to_fm,&
+                                              cp_fm_write_formatted           
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
-                                              cp_logger_type
+                                              cp_logger_type,&
+                                              cp_logger_get_default_io_unit
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
    USE force_env_types,                 ONLY: force_env_get,&
@@ -240,18 +244,22 @@ CONTAINS
       TYPE(qs_p_env_type)                                :: p_env
 
       CHARACTER(LEN=default_string_length)               :: population
-      INTEGER                                            :: beta, ispin, latom, nspins
+      INTEGER                                            :: beta, ispin, latom, nspins, output_unit
       LOGICAL                                            :: do_charge_colvar
       TYPE(dcdr_env_type)                                :: dcdr_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(polar_env_type), POINTER                      :: polar_env
       TYPE(section_vals_type), POINTER                   :: charge_colvar_sections
+      TYPE(cp_logger_type), POINTER                      :: logger
 
       CALL get_qs_env(qs_env=qs_env, &
                       dft_control=dft_control)
 
       CALL cite_reference(Ditler2021)
       CALL dcdr_env_init(dcdr_env, qs_env)
+
+      logger => cp_get_default_logger()
+      output_unit = cp_logger_get_default_io_unit(logger)
 
       charge_colvar_sections => section_vals_get_subs_vals(qs_env%input, "SUBSYS%COLVAR%CHARGE")
       CALL section_vals_get(charge_colvar_sections, explicit=do_charge_colvar)
@@ -303,9 +311,13 @@ CONTAINS
                ! Store dCdR
                DO ispin = 1, nspins
                   CALL cp_fm_to_fm(dcdr_env%dCR(ispin), qs_env%linres_control%dcdr(latom, beta, ispin))
+                  ! CALL cp_fm_write_formatted(dcdr_env%dCR(ispin), output_unit)
                END DO
                ! Store dSdR
-               CALL copy_dbcsr_to_fm(dcdr_env%matrix_s1(1 + beta)%matrix, qs_env%linres_control%matrix_s1(latom, beta))
+               CALL copy_dbcsr_to_fm(dcdr_env%matrix_s1(1 + beta)%matrix, qs_env%linres_control%matrix_s1_fm(latom, beta))
+               ! CALL cp_fm_write_formatted(qs_env%linres_control%matrix_s1(latom, beta), output_unit)
+               CALL dbcsr_print(dcdr_env%matrix_s1(1 + beta)%matrix)
+               CALL dbcsr_copy(dcdr_env%matrix_s1(1 + beta)%matrix, qs_env%linres_control%matrix_s1(beta)%matrix)
             END IF
 
          END DO !beta
@@ -313,6 +325,22 @@ CONTAINS
          dcdr_env%apt_total_dcdr(:, :, dcdr_env%lambda) = &
             dcdr_env%apt_el_dcdr(:, :, dcdr_env%lambda) + dcdr_env%apt_nuc_dcdr(:, :, dcdr_env%lambda)
       END DO !lambda
+
+      ! ! Store dSdR
+      ! CALL prepare_per_atom(dcdr_env, qs_env)
+      ! DO beta = 1, 3
+      !    print *, "Nutttt qs linres"
+      !    CALL dbcsr_print(dcdr_env%matrix_s1(1 + beta)%matrix)
+      !    CALL dbcsr_copy(dcdr_env%matrix_s1(1 + beta)%matrix, qs_env%linres_control%matrix_s1(beta)%matrix)
+      !    ! CALL copy_dbcsr_to_fm(dcdr_env%matrix_s1(1 + beta)%matrix, qs_env%linres_control%matrix_s1(latom, beta)%matrix)
+      !    ! CALL cp_fm_write_formatted(qs_env%linres_control%matrix_s1(latom, beta), output_unit)
+      ! END DO
+
+      ! DO latom = 1, SIZE(dcdr_env%list_of_atoms)
+      ! DO beta = 1, 3
+      !    CALL cp_fm_write_formatted(qs_env%linres_control%dcdr(latom, beta, 1), output_unit)
+      ! END DO
+      ! END DO
 
       IF (do_charge_colvar) THEN
          ! Store APT

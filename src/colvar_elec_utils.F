@@ -14,7 +14,8 @@
 MODULE colvar_elec_utils
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_type
-   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
+   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply,&
+                                              dbcsr_deallocate_matrix_set
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
@@ -146,7 +147,7 @@ CONTAINS
       CPASSERT(ASSOCIATED(dcdr_env%likemos_fm_struct))
       ! Store overlap matrix derivatives (dSdR) (nsgf x nsgf)
       ! where nsgf = contracted spherical Gaussian basis functions
-      ALLOCATE (qs_env%linres_control%matrix_s1(SIZE(dcdr_env%list_of_atoms), 3))
+      ALLOCATE (qs_env%linres_control%matrix_s1(3))
       ! Create full matrices for derivatives for all atoms
       DO m = 1, SIZE(dcdr_env%list_of_atoms)
          DO n = 1, 3
@@ -158,10 +159,10 @@ CONTAINS
                CALL cp_fm_set_all(qs_env%linres_control%dcdr(m, n, ispin), 0.0_dp)
             END DO
             ! dSdR
-            CALL cp_fm_create(matrix=qs_env%linres_control%matrix_s1(m, n), &
-                              matrix_struct=dcdr_env%nsgf_fm_struct, &
-                              name="dSdR MATRIX")
-            CALL cp_fm_set_all(qs_env%linres_control%matrix_s1(m, n), 0.0_dp)
+            ! CALL cp_fm_create(matrix=qs_env%linres_control%matrix_s1(m, n), &
+            !                   matrix_struct=dcdr_env%nsgf_fm_struct, &
+            !                   name="dSdR MATRIX")
+            ! CALL cp_fm_set_all(qs_env%linres_control%matrix_s1(m, n), 0.0_dp)
          END DO
       END DO
 
@@ -193,12 +194,13 @@ CONTAINS
          DEALLOCATE (qs_env%linres_control%dcdr)
       END IF
       IF (ASSOCIATED(qs_env%linres_control%matrix_s1)) THEN
-         DO ii = 1, SIZE(qs_env%linres_control%matrix_s1, 2)
-            DO i = 1, SIZE(qs_env%linres_control%matrix_s1, 1)
-               CALL cp_fm_release(qs_env%linres_control%matrix_s1(i, ii))
-            END DO
-         END DO
-         DEALLOCATE (qs_env%linres_control%matrix_s1)
+         ! DO ii = 1, SIZE(qs_env%linres_control%matrix_s1, 2)
+         !    DO i = 1, SIZE(qs_env%linres_control%matrix_s1, 1)
+         !       CALL cp_fm_release(qs_env%linres_control%matrix_s1(i, ii))
+         !    END DO
+         ! END DO
+         ! DEALLOCATE (qs_env%linres_control%matrix_s1)
+         CALL dbcsr_deallocate_matrix_set(qs_env%linres_control%matrix_s1)
       END IF
 
    END SUBROUTINE charge_cv_cleanup
