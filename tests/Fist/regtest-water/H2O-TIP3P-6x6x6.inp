@@ -173,6 +173,7 @@
       ELEMENT H
     &END KIND
     &TOPOLOGY
+      CONNECTIVITY generate
       MULTIPLE_UNIT_CELL ${na} ${nb} ${nc}
     &END TOPOLOGY
   &END SUBSYS
