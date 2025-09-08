@@ -3,6 +3,9 @@
     # https://doi.org/10.1021/j100308a038
     # Note: This force field requires a correpsonding &G3X3 constraint section
     #       in &MOTION / &CONSTRAINT
+    #       Alternatively, an unconstrained flexible variant of this force field can be defined
+    #       by setting the K parameters in the sections &BEND and &BOND to non-zero values.
+    #       Usage examples can be found in the folder cp2k/tests/Fist/regtest-water/.
     &FORCEFIELD
       &BEND
         ATOMS HW OW HW

@@ -1,17 +1,19 @@
     # TIP3P flexible water
     # M. W. Mahoney and W. L. Jorgensen, J. Chem. Phys. 112, 8910 (2000)
     # https://doi.org/10.1063/1.481505
+    # https://docs.lammps.org/Howto_tip3p.html
+    # Usage examples can be found in the folder cp2k/tests/Fist/regtest-water/.
     &FORCEFIELD
       &BEND
         ATOMS HW OW HW
-        K [kcalmol*rad^-2] 110.0
-        KIND harmonic
+        K [kcalmol*rad^-2] 55.0
+        KIND charmm
         THETA0 [deg] 104.52
       &END BEND
       &BOND
         ATOMS OW HW
-        K [kcalmol*Angstrom^-2] 900.0
-        KIND harmonic
+        K [kcalmol*Angstrom^-2] 450.0
+        KIND charmm
         R0 [Angstrom] 0.9572
       &END BOND
       &CHARGE
