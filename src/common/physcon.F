@@ -77,7 +77,7 @@ MODULE physcon
    PUBLIC :: a_bohr, a_fine, a_mass, angstrom, atm, bar, bohr, boltzmann, c_light_au, &
              debye, e_charge, e_gfactor, e_mass, evolt, femtoseconds, h_bar, &
              hertz, joule, kcalmol, kelvin, kjmol, massunit, mu_perm, n_avogadro, newton, &
-             p_mass, pascal, picoseconds, seconds, vibfac, wavenumbers
+             p_mass, pascal, picoseconds, seconds, vibfac, wavenumbers, c_light
 
    PUBLIC :: write_physcon
 

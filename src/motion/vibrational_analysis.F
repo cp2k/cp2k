@@ -72,7 +72,7 @@ MODULE vibrational_analysis
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: &
         a_bohr, angstrom, bohr, boltzmann, debye, e_mass, h_bar, hertz, kelvin, kjmol, massunit, &
-        n_avogadro, pascal, vibfac, wavenumbers
+        n_avogadro, pascal, vibfac, wavenumbers, c_light, joule
    USE replica_methods,                 ONLY: rep_env_calc_e_f,&
                                               rep_env_create
    USE replica_types,                   ONLY: rep_env_release,&
@@ -632,8 +632,6 @@ CONTAINS
                   rmass(i) = norm/massunit
                   ! Renormalize displacements and convert in Angstrom
                   D(:, i) = SQRT(norm)*D(:, i)
-                  ! Force constants
-                  konst(i) = SIGN(1.0_dp, H_eigval2(i))*2.0_dp*pi**2*(ABS(H_eigval2(i))/massunit)**2*rmass(i)
                   IF (calc_intens) THEN
                      D_deriv = 0._dp
                      DO j = 1, nvib
@@ -671,6 +669,8 @@ CONTAINS
                   END IF
                   ! Convert frequencies to cm^-1
                   H_eigval2(i) = SIGN(1.0_dp, H_eigval2(i))*SQRT(ABS(H_eigval2(i))*massunit)*vibfac/1000.0_dp
+                  ! Force constant in au, conversion to mdyne/A is 15.57
+                  konst(i) = SIGN(1.0_dp, H_eigval2(i))*rmass(i)*massunit*(2.0_dp*pi*c_light*100*ABS(H_eigval2(i))*h_bar/joule)**2
                END DO
                IF (calc_intens) THEN
                   IF (iounit > 0) THEN
@@ -881,7 +881,7 @@ CONTAINS
          WRITE (UNIT=iw, FMT="(T2,'VIB|Red.Masses (a.u.)',3(1X,F12.6,8X))") &
             (m(icol), icol=from, to)
          WRITE (UNIT=iw, FMT="(T2,'VIB|Frc consts (a.u.)',3(1X,F12.6,8X))") &
-            (k(icol), icol=from, to)
+            (k(icol), icol=from, to)   
          WRITE (UNIT=iw, FMT="(T2,' ATOM',2X,'EL',7X,3(4X,'  X  ',1X,'  Y  ',1X,'  Z  '))")
          DO iatom = 1, natom, 3
             katom = iatom/3
