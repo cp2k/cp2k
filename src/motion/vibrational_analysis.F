@@ -71,8 +71,8 @@ MODULE vibrational_analysis
    USE particle_methods,                ONLY: write_particle_matrix
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: &
-        a_bohr, angstrom, bohr, boltzmann, debye, e_mass, h_bar, hertz, kelvin, kjmol, massunit, &
-        n_avogadro, pascal, vibfac, wavenumbers, c_light, joule
+        a_bohr, angstrom, bohr, boltzmann, c_light, debye, e_mass, h_bar, hertz, joule, kelvin, &
+        kjmol, massunit, n_avogadro, pascal, vibfac, wavenumbers
    USE replica_methods,                 ONLY: rep_env_calc_e_f,&
                                               rep_env_create
    USE replica_types,                   ONLY: rep_env_release,&
@@ -881,7 +881,7 @@ CONTAINS
          WRITE (UNIT=iw, FMT="(T2,'VIB|Red.Masses (a.u.)',3(1X,F12.6,8X))") &
             (m(icol), icol=from, to)
          WRITE (UNIT=iw, FMT="(T2,'VIB|Frc consts (a.u.)',3(1X,F12.6,8X))") &
-            (k(icol), icol=from, to)   
+            (k(icol), icol=from, to)
          WRITE (UNIT=iw, FMT="(T2,' ATOM',2X,'EL',7X,3(4X,'  X  ',1X,'  Y  ',1X,'  Z  '))")
          DO iatom = 1, natom, 3
             katom = iatom/3
