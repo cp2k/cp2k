@@ -125,7 +125,7 @@ void dbm_multiply_gpu_process_batch(const int ntasks, const dbm_task_t *batch,
 
     // Reallocate shard_g->data if necessary.
     if (shard_c->data_promised > shard_g->data_allocated) {
-      shard_g->data_allocated = DBM_OVERCOMMIT_DEVICE * shard_c->data_promised;
+      shard_g->data_allocated = DBM_ALLOCATION_FACTOR * shard_c->data_promised;
       assert(shard_c->data_promised <= shard_g->data_allocated);
       old_data_dev = shard_g->data;
       shard_g->data =
