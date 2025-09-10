@@ -1,6 +1,6 @@
 #
 # This file was created by generate_dockerfiles.py.
-# Usage: podman build --shm-size=1g -f ./Dockerfile.test_intel-ssmp ../../
+# Usage: podman build --shm-size=1g -f ./Dockerfile.test_intel-ifort-ssmp ../../
 #
 
 FROM intel/hpckit:2024.2.1-0-devel-ubuntu22.04

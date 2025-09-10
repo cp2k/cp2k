@@ -33,12 +33,12 @@ def main() -> None:
         f.write(regtest_cmake("toolchain", "psmp"))
 
     for ver in "ssmp", "psmp":
-        with OutputFile(f"Dockerfile.test_intel-{ver}", args.check) as f:
+        with OutputFile(f"Dockerfile.test_intel-ifort-{ver}", args.check) as f:
             base_image = "intel/hpckit:2024.2.1-0-devel-ubuntu22.04"
             f.write(install_deps_toolchain_intel(base_image=base_image, with_ifx="no"))
             f.write(regtest(ver, intel=True, testopts="--mpiexec mpiexec"))
-        with OutputFile(f"Dockerfile.test_intel-oneapi-hpckit-{ver}", args.check) as f:
-            base_image = "intel/oneapi-hpckit:2025.1.3-0-devel-ubuntu24.04"
+        with OutputFile(f"Dockerfile.test_intel-ifx-{ver}", args.check) as f:
+            base_image = "intel/oneapi-hpckit:2025.2.2-0-devel-ubuntu24.04"
             f.write(install_deps_toolchain_intel(base_image=base_image, with_ifx="yes"))
             f.write(regtest(ver, intel=True, testopts="--mpiexec mpiexec"))
 
