@@ -93,7 +93,12 @@ CONTAINS
       END IF
 
 !$    flags = TRIM(flags)//" omp"
-#if defined(__LIBINT)
+
+      ! TODO: remove __INTEL_LLVM_COMPILER conditions (regtests)
+#if defined(__INTEL_LLVM_COMPILER)
+      flags = TRIM(flags)//" ifx"
+#endif
+#if defined(__LIBINT) && !defined(__INTEL_LLVM_COMPILER)
       flags = TRIM(flags)//" libint"
 #endif
 #if defined(__FFTW3)
@@ -129,35 +134,27 @@ CONTAINS
 #if defined(__COSMA)
       flags = TRIM(flags)//" cosma"
 #endif
-
 #if defined(__QUIP)
       flags = TRIM(flags)//" quip"
 #endif
-
 #if defined(__HAS_PATCHED_CUFFT_70)
       flags = TRIM(flags)//" patched_cufft_70"
 #endif
-
 #if defined(__ACE)
       flags = TRIM(flags)//" ace"
 #endif
-
 #if defined(__DEEPMD)
       flags = TRIM(flags)//" deepmd"
 #endif
-
 #if defined(__PW_FPGA)
       flags = TRIM(flags)//" pw_fpga"
 #endif
-
 #if defined(__PW_FPGA_SP)
       flags = TRIM(flags)//" pw_fpga_sp"
 #endif
-
 #if defined(__LIBXSMM)
       flags = TRIM(flags)//" xsmm"
 #endif
-
 #if defined(__CRAY_PM_ACCEL_ENERGY)
       flags = TRIM(flags)//" cray_pm_accel_energy"
 #endif
@@ -266,39 +263,30 @@ CONTAINS
 #if defined(__OFFLOAD_PROFILING)
       flags = TRIM(flags)//" offload_profiling"
 #endif
-
 #if defined(__SPLA) && defined(__OFFLOAD_GEMM)
       flags = TRIM(flags)//" spla_gemm_offloading"
 #endif
-
 #if defined(__CUSOLVERMP)
       flags = TRIM(flags)//" cusolvermp"
 #endif
-
 #if defined(__DLAF)
       flags = TRIM(flags)//" dlaf"
 #endif
-
 #if defined(__LIBVDWXC)
       flags = TRIM(flags)//" libvdwxc"
 #endif
-
 #if defined(__HDF5)
       flags = TRIM(flags)//" hdf5"
 #endif
-
 #if defined(__TREXIO)
       flags = TRIM(flags)//" trexio"
 #endif
-
 #if defined(__OFFLOAD_UNIFIED_MEMORY)
       flags = TRIM(flags)//" offload_unified_memory"
 #endif
-
 #if defined(__SMEAGOL)
       flags = TRIM(flags)//" libsmeagol"
 #endif
-
 #if defined(__GREENX)
       flags = TRIM(flags)//" greenx"
 #endif

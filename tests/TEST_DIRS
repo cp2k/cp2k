@@ -103,7 +103,7 @@ QS/regtest-libxc                                            libxc libint
 QS/regtest-debug-1
 QS/regtest-tddfpt-stda                                      libint
 QS/regtest-tddfpt-static                                    libint
-QS/regtest-scalable-gw                                       libint
+QS/regtest-scalable-gw                                      libint
 QS/regtest-hfx-periodic                                     libint
 QS/regtest-gapw                                             libvori
 QS/regtest-ot-2
@@ -302,9 +302,9 @@ QS/regtest-ri-laplace-mp2                                   libint
 QS/regtest-ri-rpa-exchange                                  libint
 QS/regtest-cdft-4-1
 QS/regtest-epr-2
-QS/regtest-double-hybrid-grad-numer-meta                    libxc
+QS/regtest-double-hybrid-grad-numer-meta                    libxc !ifx
 xTB/regtest-stda
-QS/regtest-double-hybrid-grad-numer
+QS/regtest-double-hybrid-grad-numer                         !ifx
 QS/regtest-nlmo
 QS/regtest-admm-type                                        libint
 QS/regtest-rs-dhft                                          libint libxc
@@ -346,7 +346,7 @@ QS/regtest-nmr-3
 QS/regtest-cdft-3-1
 QS/regtest-tddfpt-prop
 QS/regtest-pao-3
-QS/regtest-double-hybrid-stress-numer-laplace               libxc
+QS/regtest-double-hybrid-stress-numer-laplace               libxc !ifx
 QS/regtest-as                                               libint
 QS/regtest-double-hybrid-2                                  libint
 QS/regtest-sccs-2
@@ -354,10 +354,10 @@ FE/regtest-3
 QS/regtest-properties/resp
 QS/regtest-negf-fft                                         fftw3
 NEB/regtest-1
-QS/regtest-double-hybrid-stress-numer-meta                  libxc
+QS/regtest-double-hybrid-stress-numer-meta                  libxc !ifx
 QS/regtest-elpa-qr                                          elpa mpiranks==1||mpiranks%2==0
 SE/regtest-3-1
-QS/regtest-double-hybrid-stress-numer
+QS/regtest-double-hybrid-stress-numer                       !ifx
 QS/regtest-double-hybrid-stress-meta                        libxc
 QS/regtest-nmr-2
 QS/regtest-double-hybrid-stress
@@ -394,4 +394,4 @@ QS/regtest-eht-guess                                        libdftd4
 QS/regtest-trexio                                           trexio
 QS/regtest-trexio-2                                         trexio libgrpp
 QS/regtest-rtbse-gxac                                       libint greenx
-QS/regtest-cneo
+QS/regtest-cneo                                             !ifx

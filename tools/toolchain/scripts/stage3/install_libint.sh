@@ -65,6 +65,7 @@ case "$with_libint" in
       # reduce debug information to level 1 since
       # level 2 (default for -g flag) leads to very large binary size
       LIBINT_CXXFLAGS="$CXXFLAGS -g1"
+      LIBINT_FCFLAGS="$FCFLAGS -g1"
 
       # cmake build broken with libint 2.6, uncomment for libint 2.7 and above
       #cmake . -DCMAKE_INSTALL_PREFIX=${pkg_install_dir} \
@@ -77,7 +78,10 @@ case "$with_libint" in
       ./configure --prefix=${pkg_install_dir} \
         --with-cxx="$CXX $LIBINT_CXXFLAGS" \
         --with-cxx-optflags="$LIBINT_CXXFLAGS" \
+        --with-fc="$FC $LIBINT_FCFLAGS" \
+        --disable-unrolling \
         --enable-fortran \
+        --enable-fma \
         --with-pic \
         --libdir="${pkg_install_dir}/lib" \
         > configure.log 2>&1 || tail -n ${LOG_LINES} configure.log
@@ -85,6 +89,8 @@ case "$with_libint" in
       if [ "${with_intel}" != "__DONTUSE__" ]; then
         # Fix bug in makefile for Fortran module
         sed -i -e "s/\$(CXX) \$(CXXFLAGS)/\$(FC) \$(FCFLAGS)/g" -e "s/\$(FCLIBS) -o/\$(FCLIBS) -lstdc++ -o/" fortran/Makefile
+        # Fix bug about autoconf spilling -loopopt option into link list
+        sed -i -e "s/-loopopt //g" MakeVars
       fi
 
       make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
