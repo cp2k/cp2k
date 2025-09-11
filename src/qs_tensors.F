@@ -1496,7 +1496,7 @@ CONTAINS
          END DO
 
          CALL timeset(routineN//"_put_dbcsr", handle2)
-!$OMP CRITICAL
+!$OMP CRITICAL(qs_tensors_t3c_der_i)
          sp = SHAPE(block_t_i(:, :, :, 1))
          sp([2, 3, 1]) = sp
 
@@ -1519,19 +1519,19 @@ CONTAINS
                                RESHAPE(block_t_k(:, :, :, i_xyz), SHAPE=sp, ORDER=[2, 3, 1]), &
                                summation=.TRUE.)
          END DO
-!$OMP END CRITICAL
+!$OMP END CRITICAL(qs_tensors_t3c_der_i)
 
          IF (nl_3c%sym == symmetric_jk) THEN
             sp = SHAPE(block_t_j(:, :, :, 1))
             sp([2, 3, 1]) = sp
-!$OMP CRITICAL
+!$OMP CRITICAL(qs_tensors_t3c_der_j)
             DO i_xyz = 1, 3
                IF (.NOT. block_j_not_zero(i_xyz)) CYCLE
                CALL dbt_put_block(t3c_der_j(jcell, kcell, i_xyz), blk_idx, sp, &
                                   RESHAPE(block_t_j(:, :, :, i_xyz), SHAPE=sp, ORDER=[2, 3, 1]), &
                                   summation=.TRUE.)
             END DO
-!$OMP END CRITICAL
+!$OMP END CRITICAL(qs_tensors_t3c_der_j)
          END IF
 
          CALL timestop(handle2)
@@ -2635,7 +2635,7 @@ CONTAINS
          END DO
 
          IF (block_not_zero) THEN
-!$OMP CRITICAL
+!$OMP CRITICAL(qs_tensors_t3c)
             CALL timeset(routineN//"_put_dbcsr", handle2)
             IF (debug) THEN
                CALL dbt_get_block(t3c(jcell, kcell), blk_idx, dummy_block_t, found=found)
@@ -2649,7 +2649,7 @@ CONTAINS
                                RESHAPE(block_t, SHAPE=sp, ORDER=[2, 3, 1]), summation=.TRUE.)
 
             CALL timestop(handle2)
-!$OMP END CRITICAL
+!$OMP END CRITICAL(qs_tensors_t3c)
          END IF
 
          DEALLOCATE (block_t)
@@ -3462,10 +3462,10 @@ CONTAINS
 !$OMP PRIVATE(iter,ind,offset,nblk,iblk)
       CALL dbt_iterator_start(iter, tensor)
       nblk = dbt_iterator_num_blocks(iter)
-!$OMP CRITICAL
+!$OMP CRITICAL(qs_tensors_offset)
       offset = shared_offset
       shared_offset = shared_offset + nblk
-!$OMP END CRITICAL
+!$OMP END CRITICAL(qs_tensors_offset)
       DO iblk = 1, nblk
          CALL dbt_iterator_next_block(iter, ind)
          blk_indices(offset + iblk, :) = ind(:)
