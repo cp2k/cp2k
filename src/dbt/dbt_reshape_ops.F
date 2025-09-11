@@ -165,7 +165,7 @@ CONTAINS
       CALL dbt_communicate_buffer(mp_comm, buffer_recv, buffer_send)
 !$OMP BARRIER
 
-!$OMP DO
+!$OMP DO NOWAIT
       DO iproc = 0, numnodes - 1
          DEALLOCATE (buffer_send(iproc)%blocks, buffer_send(iproc)%data)
       END DO
@@ -230,14 +230,14 @@ CONTAINS
 !> \author Patrick Seewald
 ! **************************************************************************************************
    SUBROUTINE dbt_communicate_buffer(mp_comm, buffer_recv, buffer_send)
-      TYPE(mp_comm_type), INTENT(IN)                    :: mp_comm
+      TYPE(mp_comm_type), INTENT(IN)                        :: mp_comm
       TYPE(block_buffer_type), DIMENSION(0:), INTENT(INOUT) :: buffer_recv, buffer_send
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'dbt_communicate_buffer'
 
       INTEGER                                               :: iproc, numnodes, &
                                                                rec_counter, send_counter, i
-      TYPE(mp_request_type), ALLOCATABLE, DIMENSION(:, :)                 :: req_array
+      TYPE(mp_request_type), ALLOCATABLE, DIMENSION(:, :)   :: req_array
       INTEGER                                               :: handle
 
       CALL timeset(routineN, handle)
@@ -275,7 +275,7 @@ CONTAINS
 !$OMP END MASTER
 
       ELSE
-!$OMP DO SCHEDULE(static)
+!$OMP DO SCHEDULE(static) NOWAIT
          DO i = 1, SIZE(buffer_send(0)%blocks, 1)
             buffer_recv(0)%blocks(i, :) = buffer_send(0)%blocks(i, :)
          END DO
