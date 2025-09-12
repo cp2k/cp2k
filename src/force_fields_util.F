@@ -164,86 +164,75 @@ CONTAINS
       gro_info => ff_type%gro_info
       amb_info => ff_type%amb_info
       !-----------------------------------------------------------------------------
-      !-----------------------------------------------------------------------------
       ! 1. Determine the number of unique bond kind and allocate bond_kind_set
       !-----------------------------------------------------------------------------
       CALL force_field_unique_bond(particle_set, molecule_kind_set, molecule_set, &
-                                   ff_type)
-      !-----------------------------------------------------------------------------
+                                   ff_type, iw)
       !-----------------------------------------------------------------------------
       ! 2. Determine the number of unique bend kind and allocate bend_kind_set
       !-----------------------------------------------------------------------------
       CALL force_field_unique_bend(particle_set, molecule_kind_set, molecule_set, &
-                                   ff_type)
-      !-----------------------------------------------------------------------------
+                                   ff_type, iw)
       !-----------------------------------------------------------------------------
       ! 3. Determine the number of unique Urey-Bradley kind and allocate ub_kind_set
       !-----------------------------------------------------------------------------
-      CALL force_field_unique_ub(particle_set, molecule_kind_set, molecule_set)
-      !-----------------------------------------------------------------------------
+      CALL force_field_unique_ub(particle_set, molecule_kind_set, molecule_set, iw)
       !-----------------------------------------------------------------------------
       ! 4. Determine the number of unique torsion kind and allocate torsion_kind_set
       !-----------------------------------------------------------------------------
       CALL force_field_unique_tors(particle_set, molecule_kind_set, molecule_set, &
-                                   ff_type)
-      !-----------------------------------------------------------------------------
+                                   ff_type, iw)
       !-----------------------------------------------------------------------------
       ! 5. Determine the number of unique impr kind and allocate impr_kind_set
       !-----------------------------------------------------------------------------
       CALL force_field_unique_impr(particle_set, molecule_kind_set, molecule_set, &
-                                   ff_type)
-      !-----------------------------------------------------------------------------
+                                   ff_type, iw)
       !-----------------------------------------------------------------------------
       ! 6. Determine the number of unique opbend kind and allocate opbend_kind_set
       !-----------------------------------------------------------------------------
       CALL force_field_unique_opbend(particle_set, molecule_kind_set, molecule_set, &
-                                     ff_type)
-      !-----------------------------------------------------------------------------
+                                     ff_type, iw)
       !-----------------------------------------------------------------------------
       ! 7. Bonds
       !-----------------------------------------------------------------------------
       CALL force_field_pack_bond(particle_set, molecule_kind_set, molecule_set, &
-                                 fatal, Ainfo, chm_info, inp_info, gro_info, amb_info)
-      !-----------------------------------------------------------------------------
+                                 fatal, Ainfo, chm_info, inp_info, gro_info, &
+                                 amb_info, iw)
       !-----------------------------------------------------------------------------
       ! 8. Bends
       !-----------------------------------------------------------------------------
       CALL force_field_pack_bend(particle_set, molecule_kind_set, molecule_set, &
-                                 fatal, Ainfo, chm_info, inp_info, gro_info, amb_info)
+                                 fatal, Ainfo, chm_info, inp_info, gro_info, &
+                                 amb_info, iw)
       ! Give information and abort if any bond or angle parameter is missing..
       CALL release_FF_missing_par(fatal, ignore_fatal, AInfo, output_unit, iw)
-      !-----------------------------------------------------------------------------
       !-----------------------------------------------------------------------------
       ! 9. Urey-Bradley
       !-----------------------------------------------------------------------------
       CALL force_field_pack_ub(particle_set, molecule_kind_set, molecule_set, &
                                Ainfo, chm_info, inp_info, iw)
       !-----------------------------------------------------------------------------
-      !-----------------------------------------------------------------------------
       ! 10. Torsions
       !-----------------------------------------------------------------------------
       CALL force_field_pack_tors(particle_set, molecule_kind_set, molecule_set, &
                                  Ainfo, chm_info, inp_info, gro_info, amb_info, iw)
       !-----------------------------------------------------------------------------
-      !-----------------------------------------------------------------------------
       ! 11. Impropers
       !-----------------------------------------------------------------------------
       CALL force_field_pack_impr(particle_set, molecule_kind_set, molecule_set, &
-                                 Ainfo, chm_info, inp_info, gro_info)
-      !-----------------------------------------------------------------------------
+                                 Ainfo, chm_info, inp_info, gro_info, iw)
       !-----------------------------------------------------------------------------
       ! 12. Out of plane bends
       !-----------------------------------------------------------------------------
       CALL force_field_pack_opbend(particle_set, molecule_kind_set, molecule_set, &
-                                   Ainfo, inp_info)
+                                   Ainfo, inp_info, iw)
       ! Give information only if any Urey-Bradley, Torsion, improper or opbend is missing
-      ! continue calculation..
+      ! continue calculation
       CALL release_FF_missing_par(fatal, ignore_fatal, AInfo, output_unit, iw)
 
       charges_section => section_vals_get_subs_vals(mm_section, "FORCEFIELD%CHARGES")
       CALL section_vals_get(charges_section, explicit=explicit)
       IF (.NOT. explicit) THEN
-         !-----------------------------------------------------------------------------
          !-----------------------------------------------------------------------------
          ! 13.a Set up atomic_kind_set()%fist_potentail%[qeff] and shell
          !      potential parameters
@@ -254,28 +243,21 @@ CONTAINS
          CALL release_FF_missing_par(fatal, ignore_fatal, AInfo, output_unit, iw)
       ELSE
          !-----------------------------------------------------------------------------
-         !-----------------------------------------------------------------------------
          ! 13.b Setup a global array of classical charges - this avoids the packing and
          !      allows the usage of different charges for same atomic types
          !-----------------------------------------------------------------------------
          CALL force_field_pack_charges(charges, charges_section, particle_set, my_qmmm, &
                                        qmmm_env, inp_info, iw4)
       END IF
-
-      !-----------------------------------------------------------------------------
       !-----------------------------------------------------------------------------
       ! 14. Set up the radius of the electrostatic multipole in Fist
       !-----------------------------------------------------------------------------
       CALL force_field_pack_radius(atomic_kind_set, iw, subsys_section)
-
-      !-----------------------------------------------------------------------------
       !-----------------------------------------------------------------------------
       ! 15. Set up the polarizable FF parameters
       !-----------------------------------------------------------------------------
       CALL force_field_pack_pol(atomic_kind_set, iw, inp_info)
       CALL force_field_pack_damp(atomic_kind_set, iw, inp_info)
-
-      !-----------------------------------------------------------------------------
       !-----------------------------------------------------------------------------
       ! 16. Set up  Shell potential
       !-----------------------------------------------------------------------------
@@ -283,7 +265,6 @@ CONTAINS
                                   molecule_kind_set, molecule_set, root_section, subsys_section, &
                                   shell_particle_set, core_particle_set, cell, iw, inp_info)
       IF (ff_type%do_nonbonded) THEN
-         !-----------------------------------------------------------------------------
          !-----------------------------------------------------------------------------
          ! 17. Set up potparm_nonbond14
          !-----------------------------------------------------------------------------
@@ -296,7 +277,6 @@ CONTAINS
          CALL section_vals_val_get(mm_section, "FORCEFIELD%ZBL_SCATTERING", l_val=do_zbl)
          CALL force_field_pack_splines(atomic_kind_set, ff_type, iw2, iw3, iw4, &
                                        potparm_nonbond14, do_zbl, nonbonded_type="NONBONDED14")
-         !-----------------------------------------------------------------------------
          !-----------------------------------------------------------------------------
          ! 18. Set up potparm_nonbond
          !-----------------------------------------------------------------------------
@@ -312,7 +292,6 @@ CONTAINS
                                        potparm_nonbond, do_zbl, nonbonded_type="NONBONDED")
       END IF
       !-----------------------------------------------------------------------------
-      !-----------------------------------------------------------------------------
       ! 19. Create nonbond environment
       !-----------------------------------------------------------------------------
       CALL ewald_env_get(ewald_env, rcut=ewald_rcut)
@@ -326,12 +305,13 @@ CONTAINS
       CALL fist_nonbond_env_set(fist_nonbond_env, charges=charges)
       ! Compute the electrostatic interaction cutoffs.
       CALL force_field_pack_eicut(atomic_kind_set, ff_type, potparm_nonbond, &
-                                  ewald_env)
+                                  ewald_env, iw)
 
       CALL cp_print_key_finished_output(iw4, logger, mm_section, "PRINT%PROGRAM_RUN_INFO")
       CALL cp_print_key_finished_output(iw3, logger, mm_section, "PRINT%FF_INFO/SPLINE_DATA")
       CALL cp_print_key_finished_output(iw2, logger, mm_section, "PRINT%FF_INFO/SPLINE_INFO")
       CALL cp_print_key_finished_output(iw, logger, mm_section, "PRINT%FF_INFO")
+
       CALL timestop(handle)
 
    END SUBROUTINE force_field_pack
@@ -420,6 +400,7 @@ CONTAINS
       TYPE(shell_kind_type), POINTER                     :: shell
 
       CALL timeset(routineN, handle)
+
       NULLIFY (logger)
       logger => cp_get_default_logger()
       iw = cp_print_key_unit_nr(logger, mm_section, "PRINT%FF_INFO", &
@@ -429,8 +410,6 @@ CONTAINS
       qeff_mol = 0.0_dp
       qeff_sum = 0.0_dp
       mass_sum = 0.0_dp
-
-      !-----------------------------------------------------------------------------
       !-----------------------------------------------------------------------------
       ! 1. Sum of [qeff,mass] for each molecule_kind
       !-----------------------------------------------------------------------------
@@ -461,8 +440,6 @@ CONTAINS
          CALL set_molecule_kind(molecule_kind=molecule_kind, charge=qeff_mol, mass=mass_mol)
          IF (iw > 0) WRITE (iw, *) "    Mol Kind ", TRIM(molname), " charge = ", qeff_mol
       END DO
-
-      !-----------------------------------------------------------------------------
       !-----------------------------------------------------------------------------
       ! 2. Sum of [qeff,mass] for particle_set
       !-----------------------------------------------------------------------------
@@ -484,7 +461,9 @@ CONTAINS
 
       CALL cp_print_key_finished_output(iw, logger, mm_section, &
                                         "PRINT%FF_INFO")
+
       CALL timestop(handle)
+
    END SUBROUTINE force_field_qeff_output
 
 ! **************************************************************************************************
@@ -529,7 +508,6 @@ CONTAINS
       iw = cp_print_key_unit_nr(logger, mm_section, "PRINT%FF_INFO", &
                                 extension=".mmLog")
       !-----------------------------------------------------------------------------
-      !-----------------------------------------------------------------------------
       ! 1. Lets Tag the unwanted bonds due to the use of distance constraint
       !-----------------------------------------------------------------------------
       DO ikind = 1, SIZE(molecule_kind_set)
@@ -556,7 +534,6 @@ CONTAINS
             END DO
          END IF
       END DO
-      !-----------------------------------------------------------------------------
       !-----------------------------------------------------------------------------
       ! 2. Lets Tag the unwanted bends due to the use of distance constraint
       !-----------------------------------------------------------------------------
@@ -591,7 +568,6 @@ CONTAINS
          END IF
       END DO
       !-----------------------------------------------------------------------------
-      !-----------------------------------------------------------------------------
       ! 3. Lets Tag the unwanted bonds due to the use of 3x3
       !-----------------------------------------------------------------------------
       DO ikind = 1, SIZE(molecule_kind_set)
@@ -616,7 +592,6 @@ CONTAINS
             END DO
          END DO
       END DO
-      !-----------------------------------------------------------------------------
       !-----------------------------------------------------------------------------
       ! 4. Lets Tag the unwanted bends due to the use of 3x3
       !-----------------------------------------------------------------------------
@@ -645,7 +620,6 @@ CONTAINS
          END DO
       END DO
       !-----------------------------------------------------------------------------
-      !-----------------------------------------------------------------------------
       ! 5. Lets Tag the unwanted bonds due to the use of 4x6
       !-----------------------------------------------------------------------------
       DO ikind = 1, SIZE(molecule_kind_set)
@@ -671,7 +645,6 @@ CONTAINS
             END DO
          END DO
       END DO
-      !-----------------------------------------------------------------------------
       !-----------------------------------------------------------------------------
       ! 6. Lets Tag the unwanted bends due to the use of 4x6
       !-----------------------------------------------------------------------------
@@ -699,7 +672,6 @@ CONTAINS
             END DO
          END DO
       END DO
-      !-----------------------------------------------------------------------------
       !-----------------------------------------------------------------------------
       ! 7. Count the number of UNSET bond kinds there are
       !-----------------------------------------------------------------------------
@@ -782,7 +754,6 @@ CONTAINS
          END IF
       END DO
       !-----------------------------------------------------------------------------
-      !-----------------------------------------------------------------------------
       ! 8. Count the number of UNSET bend kinds there are
       !-----------------------------------------------------------------------------
       DO ikind = 1, SIZE(molecule_kind_set)
@@ -864,8 +835,6 @@ CONTAINS
             DEALLOCATE (bad1)
          END IF
       END DO
-
-      !-----------------------------------------------------------------------------
       !-----------------------------------------------------------------------------
       ! 9. Count the number of UNSET Urey-Bradley kinds there are
       !-----------------------------------------------------------------------------
@@ -948,8 +917,6 @@ CONTAINS
             DEALLOCATE (bad1)
          END IF
       END DO
-
-      !-----------------------------------------------------------------------------
       !-----------------------------------------------------------------------------
       ! 10. Count the number of UNSET torsion kinds there are
       !-----------------------------------------------------------------------------
@@ -1045,8 +1012,6 @@ CONTAINS
             DEALLOCATE (bad1)
          END IF
       END DO
-
-      !-----------------------------------------------------------------------------
       !-----------------------------------------------------------------------------
       ! 11. Count the number of UNSET improper kinds there are
       !-----------------------------------------------------------------------------
@@ -1128,8 +1093,6 @@ CONTAINS
             DEALLOCATE (bad1)
          END IF
       END DO
-
-      !-----------------------------------------------------------------------------
       !-----------------------------------------------------------------------------
       ! 11. Count the number of UNSET opbends kinds there are
       !-----------------------------------------------------------------------------
@@ -1208,15 +1171,15 @@ CONTAINS
             DEALLOCATE (bad1)
          END IF
       END DO
-
-      !---------------------------------------------------------------------------
       !---------------------------------------------------------------------------
       ! 12. Count the number of UNSET NONBOND14 kinds there are
       !-                NEED TO REMOVE EXTRAS HERE   - IKUO
       !---------------------------------------------------------------------------
       CALL cp_print_key_finished_output(iw, logger, mm_section, &
                                         "PRINT%FF_INFO")
+
       CALL timestop(handle)
+
    END SUBROUTINE clean_intra_force_kind
 
 ! **************************************************************************************************

@@ -97,7 +97,7 @@ MODULE topology
 
    PRIVATE
 
-! *** Public parameters ***
+   ! Public parameters
    PUBLIC :: topology_control, &
              connectivity_control
 
@@ -538,8 +538,6 @@ CONTAINS
       NULLIFY (global_section)
       global_section => section_vals_get_subs_vals(root_section, "GLOBAL")
       CALL section_vals_val_get(global_section, "SAVE_MEM", l_val=save_mem)
-
-      !-----------------------------------------------------------------------------
       !-----------------------------------------------------------------------------
       ! 1. If reading in from external file, make sure its there first
       !-----------------------------------------------------------------------------
@@ -557,7 +555,6 @@ CONTAINS
                           "> not found.")
          END IF
       END IF
-      !-----------------------------------------------------------------------------
       !-----------------------------------------------------------------------------
       ! 2. Read in the coordinates from the corresponding locations
       !-----------------------------------------------------------------------------

@@ -492,7 +492,9 @@ CONTAINS
 
          IF (ASSOCIATED(cneo_potential)) THEN
             IF (PRESENT(zcore)) THEN
-               IF (zcore == 0.0_dp) CPABORT("Electronic TDDFT with CNEO quantum nuclei is not implemented.")
+               IF (zcore == 0.0_dp) THEN
+                  CPABORT("Electronic TDDFT with CNEO quantum nuclei is not implemented.")
+               END IF
             END IF
             CPASSERT(paw_atom)
             NULLIFY (nuc_basis, nuc_soft_basis)

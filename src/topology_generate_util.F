@@ -99,34 +99,35 @@ CONTAINS
       CHARACTER(LEN=default_string_length), PARAMETER    :: basename = "MOL"
 
       CHARACTER(LEN=default_string_length)               :: molname
-      INTEGER                                            :: i, N, nmol
+      INTEGER                                            :: i, id_undef, n, nmol
       LOGICAL                                            :: check
       TYPE(array1_list_type), ALLOCATABLE, DIMENSION(:)  :: atom_bond_list
 
-! convert a simple list of bonds to a list of bonds per atom
-! (each bond is present in the forward and backward direction
+      ! convert a simple list of bonds to a list of bonds per atom
+      ! (each bond is present in the forward and backward direction
 
       ALLOCATE (atom_bond_list(natom))
-      DO I = 1, natom
-         ALLOCATE (atom_bond_list(I)%array1(0))
+      DO i = 1, natom
+         ALLOCATE (atom_bond_list(i)%array1(0))
       END DO
-      N = 0
-      IF (ASSOCIATED(conn_info%bond_a)) N = SIZE(conn_info%bond_a) - nbond_prev
+      n = 0
+      IF (ASSOCIATED(conn_info%bond_a)) n = SIZE(conn_info%bond_a) - nbond_prev
       CALL reorder_structure(atom_bond_list, conn_info%bond_a(nbond_prev + 1:) - natom_prev, &
-                             conn_info%bond_b(nbond_prev + 1:) - natom_prev, N)
+                             conn_info%bond_b(nbond_prev + 1:) - natom_prev, n)
 
       nmol = 0
-      check = ALL(id_molname == str2id(s2s("__UNDEF__"))) .OR. ALL(id_molname /= str2id(s2s("__UNDEF__")))
+      id_undef = str2id(s2s("__UNDEF__"))
+      check = ALL(id_molname == id_undef) .OR. ALL(id_molname /= id_undef)
       CPASSERT(check)
       DO i = 1, natom
-         IF (id2str(id_molname(i)) == "__UNDEF__") THEN
+         IF (id_molname(i) == id_undef) THEN
             molname = TRIM(basename)//ADJUSTL(cp_to_string(nmol))
             CALL generate_molname_low(i, atom_bond_list, molname, id_molname)
             nmol = nmol + 1
          END IF
       END DO
-      DO I = 1, natom
-         DEALLOCATE (atom_bond_list(I)%array1)
+      DO i = 1, natom
+         DEALLOCATE (atom_bond_list(i)%array1)
       END DO
       DEALLOCATE (atom_bond_list)
 
@@ -243,7 +244,8 @@ CONTAINS
          ELSE IF (topology%conn_type == do_conn_user) THEN
             ! User-defined connectivity: 5th column of COORD section or molecule
             ! or residue name in the case of PDB files
-            IF (atom_info%id_molname(iatom) == atom_info%id_molname(iatom - 1)) THEN
+            IF ((atom_info%id_molname(iatom) == atom_info%id_molname(iatom - 1)) .AND. &
+                (.NOT. MODULO(iatom, topology%natom_muc) == 1)) THEN
                atom_info%map_mol_typ(iatom) = atom_info%map_mol_typ(iatom - 1)
                IF (atom_info%id_resname(iatom) == atom_info%id_resname(iatom - 1)) THEN
                   atom_info%map_mol_res(iatom) = atom_info%map_mol_res(iatom - 1)

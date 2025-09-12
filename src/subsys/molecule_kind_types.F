@@ -11,7 +11,7 @@
 !> \par History
 !>      Teodoro Laino [tlaino] 12.2008 - Preparing for VIRTUAL SITE constraints
 !>                                       (patch by Marcel Baer)
-!> \author MK (22.08.2003)
+!> \author Matthias Krack (22.08.2003)
 ! **************************************************************************************************
 MODULE molecule_kind_types
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
@@ -50,159 +50,153 @@ MODULE molecule_kind_types
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'molecule_kind_types'
 
-! *** Define the derived structure types ***
+   ! Define the derived structure types
 
-! **************************************************************************************************
    TYPE atom_type
       TYPE(atomic_kind_type), POINTER :: atomic_kind => NULL()
       INTEGER :: id_name = 0
    END TYPE atom_type
 
-! **************************************************************************************************
    TYPE shell_type
       INTEGER :: a = 0
-      CHARACTER(LEN=default_string_length)  :: name = ""
+      CHARACTER(LEN=default_string_length) :: name = ""
       TYPE(shell_kind_type), POINTER :: shell_kind => NULL()
    END TYPE shell_type
 
-! **************************************************************************************************
    TYPE bond_type
       INTEGER :: a = 0, b = 0
       INTEGER :: id_type = do_ff_undef, itype = 0
       TYPE(bond_kind_type), POINTER :: bond_kind => NULL()
    END TYPE bond_type
 
-! **************************************************************************************************
    TYPE bend_type
       INTEGER :: a = 0, b = 0, c = 0
       INTEGER :: id_type = do_ff_undef, itype = 0
       TYPE(bend_kind_type), POINTER :: bend_kind => NULL()
    END TYPE bend_type
 
-! **************************************************************************************************
    TYPE ub_type
       INTEGER :: a = 0, b = 0, c = 0
       INTEGER :: id_type = do_ff_undef, itype = 0
       TYPE(ub_kind_type), POINTER :: ub_kind => NULL()
    END TYPE ub_type
 
-! **************************************************************************************************
    TYPE torsion_type
       INTEGER :: a = 0, b = 0, c = 0, d = 0
       INTEGER :: id_type = do_ff_undef, itype = 0
       TYPE(torsion_kind_type), POINTER :: torsion_kind => NULL()
    END TYPE torsion_type
 
-! **************************************************************************************************
    TYPE impr_type
       INTEGER :: a = 0, b = 0, c = 0, d = 0
       INTEGER :: id_type = do_ff_undef, itype = 0
       TYPE(impr_kind_type), POINTER :: impr_kind => NULL()
    END TYPE impr_type
 
-! **************************************************************************************************
    TYPE opbend_type
       INTEGER :: a = 0, b = 0, c = 0, d = 0
       INTEGER :: id_type = do_ff_undef, itype = 0
       TYPE(opbend_kind_type), POINTER :: opbend_kind => NULL()
    END TYPE opbend_type
 
-! **************************************************************************************************
    TYPE restraint_type
-      LOGICAL       :: active = .FALSE.
+      LOGICAL :: active = .FALSE.
       REAL(KIND=dp) :: k0 = 0.0_dp
    END TYPE restraint_type
 
-! **************************************************************************************************
+   ! Constraint types
    TYPE colvar_constraint_type
       INTEGER                        :: type_id = no_colvar_id
       INTEGER                        :: inp_seq_num = 0
       LOGICAL                        :: use_points = .FALSE.
-      REAL(KIND=dp)                :: expected_value = 0.0_dp
-      REAL(KIND=dp)                :: expected_value_growth_speed = 0.0_dp
+      REAL(KIND=dp)                  :: expected_value = 0.0_dp
+      REAL(KIND=dp)                  :: expected_value_growth_speed = 0.0_dp
       INTEGER, POINTER, DIMENSION(:) :: i_atoms => NULL()
       TYPE(restraint_type)           :: restraint = restraint_type()
    END TYPE colvar_constraint_type
 
-! **************************************************************************************************
    TYPE g3x3_constraint_type
       INTEGER                        :: a = 0, b = 0, c = 0
-      REAL(KIND=dp)                :: dab = 0.0_dp, dac = 0.0_dp, dbc = 0.0_dp
+      REAL(KIND=dp)                  :: dab = 0.0_dp, dac = 0.0_dp, dbc = 0.0_dp
       TYPE(restraint_type)           :: restraint = restraint_type()
    END TYPE g3x3_constraint_type
 
-! **************************************************************************************************
    TYPE g4x6_constraint_type
       INTEGER                        :: a = 0, b = 0, c = 0, d = 0
-      REAL(KIND=dp)                :: dab = 0.0_dp, dac = 0.0_dp, dbc = 0.0_dp, dad = 0.0_dp, dbd = 0.0_dp, dcd = 0.0_dp
+      REAL(KIND=dp)                  :: dab = 0.0_dp, dac = 0.0_dp, dbc = 0.0_dp, &
+                                        dad = 0.0_dp, dbd = 0.0_dp, dcd = 0.0_dp
       TYPE(restraint_type)           :: restraint = restraint_type()
    END TYPE g4x6_constraint_type
 
-! **************************************************************************************************
    TYPE vsite_constraint_type
       INTEGER                        :: a = 0, b = 0, c = 0, d = 0
-      REAL(KIND=dp)                :: wbc = 0.0_dp, wdc = 0.0_dp
+      REAL(KIND=dp)                  :: wbc = 0.0_dp, wdc = 0.0_dp
       TYPE(restraint_type)           :: restraint = restraint_type()
    END TYPE vsite_constraint_type
 
-! **************************************************************************************************
    TYPE fixd_constraint_type
       TYPE(restraint_type)           :: restraint = restraint_type()
       INTEGER                        :: fixd = 0, itype = 0
       REAL(KIND=dp), DIMENSION(3)    :: coord = 0.0_dp
    END TYPE fixd_constraint_type
 
-! **************************************************************************************************
    TYPE local_fixd_constraint_type
       INTEGER                        :: ifixd_index = 0, ikind = 0
    END TYPE local_fixd_constraint_type
 
-! **************************************************************************************************
+   ! Molecule kind type
    TYPE molecule_kind_type
-      TYPE(atom_type), DIMENSION(:), POINTER            :: atom_list => NULL()
-      TYPE(bond_kind_type), DIMENSION(:), POINTER       :: bond_kind_set => NULL()
-      TYPE(bond_type), DIMENSION(:), POINTER            :: bond_list => NULL()
-      TYPE(bend_kind_type), DIMENSION(:), POINTER       :: bend_kind_set => NULL()
-      TYPE(bend_type), DIMENSION(:), POINTER            :: bend_list => NULL()
-      TYPE(ub_kind_type), DIMENSION(:), POINTER         :: ub_kind_set => NULL()
-      TYPE(ub_type), DIMENSION(:), POINTER              :: ub_list => NULL()
-      TYPE(torsion_kind_type), DIMENSION(:), POINTER    :: torsion_kind_set => NULL()
-      TYPE(torsion_type), DIMENSION(:), POINTER         :: torsion_list => NULL()
-      TYPE(impr_kind_type), DIMENSION(:), POINTER       :: impr_kind_set => NULL()
-      TYPE(impr_type), DIMENSION(:), POINTER            :: impr_list => NULL()
-      TYPE(opbend_kind_type), DIMENSION(:), POINTER     :: opbend_kind_set => NULL()
-      TYPE(opbend_type), DIMENSION(:), POINTER          :: opbend_list => NULL()
-      TYPE(colvar_constraint_type), DIMENSION(:), POINTER :: colv_list => NULL()
-      TYPE(g3x3_constraint_type), DIMENSION(:), POINTER   :: g3x3_list => NULL()
-      TYPE(g4x6_constraint_type), DIMENSION(:), POINTER   :: g4x6_list => NULL()
-      TYPE(vsite_constraint_type), DIMENSION(:), POINTER  :: vsite_list => NULL()
-      TYPE(fixd_constraint_type), DIMENSION(:), POINTER   :: fixd_list => NULL()
-      TYPE(shell_type), DIMENSION(:), POINTER           :: shell_list => NULL()
-      CHARACTER(LEN=default_string_length)              :: name = ""
-      REAL(KIND=dp)                                   :: charge = 0.0_dp, &
-                                                         mass = 0.0_dp
-      INTEGER                                           :: kind_number = 0, &
-                                                           natom = 0, &
-                                                           nbond = 0, &
-                                                           nbend = 0, &
-                                                           nimpr = 0, &
-                                                           nopbend = 0, &
-                                                           ntorsion = 0, &
-                                                           nub = 0, &
-                                                           ng3x3 = 0, ng3x3_restraint = 0, &
-                                                           ng4x6 = 0, ng4x6_restraint = 0, &
-                                                           nvsite = 0, nvsite_restraint = 0, &
-                                                           nfixd = 0, nfixd_restraint = 0, &
-                                                           nmolecule = 0, nshell = 0
-      TYPE(colvar_counters)                             :: ncolv = colvar_counters()
-      INTEGER                                           :: nsgf = 0, nelectron = 0, &
-                                                           nelectron_alpha = 0, &
-                                                           nelectron_beta = 0
-      INTEGER, DIMENSION(:), POINTER                    :: molecule_list => NULL()
-      LOGICAL                                           :: molname_generated = .FALSE.
+      TYPE(atom_type), DIMENSION(:), POINTER             :: atom_list => NULL()
+      TYPE(bond_kind_type), DIMENSION(:), POINTER        :: bond_kind_set => NULL()
+      TYPE(bond_type), DIMENSION(:), POINTER             :: bond_list => NULL()
+      TYPE(bend_kind_type), DIMENSION(:), POINTER        :: bend_kind_set => NULL()
+      TYPE(bend_type), DIMENSION(:), POINTER             :: bend_list => NULL()
+      TYPE(ub_kind_type), DIMENSION(:), POINTER          :: ub_kind_set => NULL()
+      TYPE(ub_type), DIMENSION(:), POINTER               :: ub_list => NULL()
+      TYPE(torsion_kind_type), DIMENSION(:), POINTER     :: torsion_kind_set => NULL()
+      TYPE(torsion_type), DIMENSION(:), POINTER          :: torsion_list => NULL()
+      TYPE(impr_kind_type), DIMENSION(:), POINTER        :: impr_kind_set => NULL()
+      TYPE(impr_type), DIMENSION(:), POINTER             :: impr_list => NULL()
+      TYPE(opbend_kind_type), DIMENSION(:), POINTER      :: opbend_kind_set => NULL()
+      TYPE(opbend_type), DIMENSION(:), POINTER           :: opbend_list => NULL()
+      TYPE(colvar_constraint_type), DIMENSION(:), &
+         POINTER                                         :: colv_list => NULL()
+      TYPE(g3x3_constraint_type), DIMENSION(:), POINTER  :: g3x3_list => NULL()
+      TYPE(g4x6_constraint_type), DIMENSION(:), POINTER  :: g4x6_list => NULL()
+      TYPE(vsite_constraint_type), DIMENSION(:), POINTER :: vsite_list => NULL()
+      TYPE(fixd_constraint_type), DIMENSION(:), POINTER  :: fixd_list => NULL()
+      TYPE(shell_type), DIMENSION(:), POINTER            :: shell_list => NULL()
+      CHARACTER(LEN=default_string_length)               :: name = ""
+      REAL(KIND=dp)                                      :: charge = 0.0_dp, &
+                                                            mass = 0.0_dp
+      INTEGER                                            :: kind_number = 0, &
+                                                            natom = 0, &
+                                                            nbond = 0, &
+                                                            nbend = 0, &
+                                                            nimpr = 0, &
+                                                            nopbend = 0, &
+                                                            ntorsion = 0, &
+                                                            nub = 0, &
+                                                            ng3x3 = 0, &
+                                                            ng3x3_restraint = 0, &
+                                                            ng4x6 = 0, &
+                                                            ng4x6_restraint = 0, &
+                                                            nvsite = 0, &
+                                                            nvsite_restraint = 0, &
+                                                            nfixd = 0, &
+                                                            nfixd_restraint = 0, &
+                                                            nmolecule = 0, &
+                                                            nshell = 0
+      TYPE(colvar_counters)                              :: ncolv = colvar_counters()
+      INTEGER                                            :: nsgf = 0, &
+                                                            nelectron = 0, &
+                                                            nelectron_alpha = 0, &
+                                                            nelectron_beta = 0
+      INTEGER, DIMENSION(:), POINTER                     :: molecule_list => NULL()
+      LOGICAL                                            :: molname_generated = .FALSE.
    END TYPE molecule_kind_type
 
-   ! *** Public subroutines ***
+   ! Public subroutines
    PUBLIC :: allocate_molecule_kind_set, &
              deallocate_molecule_kind_set, &
              get_molecule_kind, &
@@ -211,7 +205,7 @@ MODULE molecule_kind_types
              write_molecule_kind_set, &
              setup_colvar_counters
 
-   ! *** Public data types ***
+   ! Public data types
    PUBLIC :: atom_type, &
              bend_type, &
              bond_type, &
@@ -316,7 +310,7 @@ CONTAINS
 !> \param molecule_kind_set ...
 !> \param nmolecule_kind ...
 !> \date    22.08.2003
-!> \author  MK
+!> \author  Matthias Krack
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE allocate_molecule_kind_set(molecule_kind_set, nmolecule_kind)
@@ -343,7 +337,7 @@ CONTAINS
 !> \brief   Deallocate a molecule kind set.
 !> \param molecule_kind_set ...
 !> \date    22.08.2003
-!> \author  MK
+!> \author  Matthias Krack
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE deallocate_molecule_kind_set(molecule_kind_set)
@@ -493,7 +487,7 @@ CONTAINS
 !> \param torsion_kind_set ...
 !> \param molname_generated ...
 !> \date    27.08.2003
-!> \author  MK
+!> \author  Matthias Krack
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE get_molecule_kind(molecule_kind, atom_list, bond_list, bend_list, &
@@ -648,7 +642,7 @@ CONTAINS
 !> \param nmolecule ...
 !> \param nrestraints ...
 !> \date    27.08.2003
-!> \author  MK
+!> \author  Matthias Krack
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE get_molecule_kind_set(molecule_kind_set, maxatom, natom, &
@@ -761,7 +755,7 @@ CONTAINS
 !> \param nsgf ...
 !> \param molname_generated ...
 !> \date    27.08.2003
-!> \author  MK
+!> \author  Matthias Krack
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE set_molecule_kind(molecule_kind, name, mass, charge, kind_number, &
@@ -889,7 +883,7 @@ CONTAINS
 !> \param molecule_kind ...
 !> \param output_unit ...
 !> \date    24.09.2003
-!> \author  MK
+!> \author  Matthias Krack
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE write_molecule_kind(molecule_kind, output_unit)
@@ -959,7 +953,7 @@ CONTAINS
 !> \param molecule_kind_set ...
 !> \param subsys_section ...
 !> \date    24.09.2003
-!> \author  MK
+!> \author  Matthias Krack
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE write_molecule_kind_set(molecule_kind_set, subsys_section)
