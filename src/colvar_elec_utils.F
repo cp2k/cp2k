@@ -13,8 +13,12 @@
 ! **************************************************************************************************
 MODULE colvar_elec_utils
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_api,                    ONLY: dbcsr_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_create,&
+                                              dbcsr_init_p,&
+                                              dbcsr_type,&
+                                              dbcsr_type_no_symmetry
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply,&
+                                              dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_release,&
@@ -145,9 +149,7 @@ CONTAINS
       ! Store the perturbed wavefunction (dCdR) (no. of atoms x 3 directions x no. of spins)
       ALLOCATE (qs_env%linres_control%dcdr(SIZE(dcdr_env%list_of_atoms), 3, nspins))
       CPASSERT(ASSOCIATED(dcdr_env%likemos_fm_struct))
-      ! Store overlap matrix derivatives (dSdR) (nsgf x nsgf)
-      ! where nsgf = contracted spherical Gaussian basis functions
-      ALLOCATE (qs_env%linres_control%matrix_s1(3))
+
       ! Create full matrices for derivatives for all atoms
       DO m = 1, SIZE(dcdr_env%list_of_atoms)
          DO n = 1, 3
@@ -164,6 +166,18 @@ CONTAINS
             !                   name="dSdR MATRIX")
             ! CALL cp_fm_set_all(qs_env%linres_control%matrix_s1(m, n), 0.0_dp)
          END DO
+      END DO
+
+      ! Store overlap matrix derivatives (dSdR) (nsgf x nsgf)
+      ! where nsgf = contracted spherical Gaussian basis functions
+      NULLIFY (qs_env%linres_control%matrix_s1)
+      CALL dbcsr_allocate_matrix_set(qs_env%linres_control%matrix_s1, 3)
+
+      DO n = 1, 3
+         CALL dbcsr_init_p(qs_env%linres_control%matrix_s1(n)%matrix)
+         CALL dbcsr_create(qs_env%linres_control%matrix_s1(n)%matrix, &
+                           template=dcdr_env%matrix_s1(1 + n)%matrix, &
+                           matrix_type=dbcsr_type_no_symmetry)
       END DO
 
    END SUBROUTINE charge_cv_linres_init

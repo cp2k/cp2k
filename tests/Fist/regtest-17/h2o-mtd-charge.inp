@@ -35,11 +35,11 @@
         PERIODIC FALSE
       &END MOMENTS
       &MULLIKEN
-       FILENAME mulliken
-       COMMON_ITERATION_LEVELS 1
-       &EACH
-        MD 1
-       &END EACH
+        COMMON_ITERATION_LEVELS 1
+        FILENAME mulliken
+        &EACH
+          MD 1
+        &END EACH
       &END MULLIKEN
     &END PRINT
     &QS
@@ -80,9 +80,9 @@
     &END CELL
     &COLVAR
       &CHARGE
+        FUNCTION DIFF
         GROUP_1 1
         GROUP_2 2
-        FUNCTION DIFF
         POPULATION MULLIKEN
       &END CHARGE
     &END COLVAR

@@ -69,7 +69,6 @@ MODULE qs_dcdr_utils
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: get_qs_kind_set,&
                                               qs_kind_type
-   USE qs_kinetic,                      ONLY: build_kinetic_matrix
    USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_linres_types,                 ONLY: dcdr_env_type,&
                                               linres_control_type

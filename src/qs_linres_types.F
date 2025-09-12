@@ -51,24 +51,23 @@ MODULE qs_linres_types
 !> \author MI
 ! **************************************************************************************************
    TYPE linres_control_type
-      INTEGER                                   :: property = HUGE(0)
-      INTEGER                                   :: preconditioner_type = HUGE(0)
-      INTEGER                                   :: restart_every = HUGE(0)
-      REAL(KIND=dp)                             :: energy_gap = HUGE(0.0_dp)
-      INTEGER                                   :: max_iter = HUGE(0)
-      LOGICAL                                   :: localized_psi0 = .FALSE.
-      LOGICAL                                   :: do_kernel = .FALSE.
-      LOGICAL                                   :: converged = .FALSE.
-      LOGICAL                                   :: linres_restart = .FALSE.
-      LOGICAL                                   :: lr_triplet = .FALSE.
-      REAL(KIND=dp)                             :: eps = HUGE(0.0_dp)
-      REAL(KIND=dp)                             :: eps_filter = TINY(0.0_dp)
-      TYPE(qs_loc_env_type), POINTER            :: qs_loc_env => NULL()
-      CHARACTER(LEN=8)                          :: flag = ""
-      REAL(dp), DIMENSION(:, :, :), POINTER     :: gapt_charge => NULL()
-      TYPE(cp_fm_type), DIMENSION(:, :), POINTER       :: matrix_s1_fm => NULL()
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER     :: matrix_s1 => NULL()
-      TYPE(cp_fm_type), DIMENSION(:, :, :), POINTER    :: dcdr => NULL()
+      INTEGER                                         :: property = HUGE(0)
+      INTEGER                                         :: preconditioner_type = HUGE(0)
+      INTEGER                                         :: restart_every = HUGE(0)
+      REAL(KIND=dp)                                   :: energy_gap = HUGE(0.0_dp)
+      INTEGER                                         :: max_iter = HUGE(0)
+      LOGICAL                                         :: localized_psi0 = .FALSE.
+      LOGICAL                                         :: do_kernel = .FALSE.
+      LOGICAL                                         :: converged = .FALSE.
+      LOGICAL                                         :: linres_restart = .FALSE.
+      LOGICAL                                         :: lr_triplet = .FALSE.
+      REAL(KIND=dp)                                   :: eps = HUGE(0.0_dp)
+      REAL(KIND=dp)                                   :: eps_filter = TINY(0.0_dp)
+      TYPE(qs_loc_env_type), POINTER                  :: qs_loc_env => NULL()
+      CHARACTER(LEN=8)                                :: flag = ""
+      REAL(dp), DIMENSION(:, :, :), POINTER           :: gapt_charge => NULL()
+      TYPE(cp_fm_type), DIMENSION(:, :, :), POINTER   :: dcdr => NULL()
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER       :: matrix_s1 => NULL()
    END TYPE linres_control_type
 
 ! **************************************************************************************************
