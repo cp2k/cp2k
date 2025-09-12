@@ -11,7 +11,7 @@
 !>      JGH (22.05.2004) add last_atom information
 !>      Teodoro Laino [tlaino] 12.2008 - Preparing for VIRTUAL SITE constraints
 !>                                       (patch by Marcel Baer)
-!> \author MK (29.08.2003)
+!> \author Matthias Krack (29.08.2003)
 ! **************************************************************************************************
 MODULE molecule_types
 
@@ -32,92 +32,141 @@ MODULE molecule_types
 
    PRIVATE
 
-! *** Global parameters (in this module) ***
+   ! Global parameters (in this module)
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'molecule_types'
 
-! *** Data types ***
-! **************************************************************************************************
+   ! Molecular constraint types
    TYPE local_colvar_constraint_type
-      LOGICAL                       :: init = .FALSE.
-      TYPE(colvar_type), POINTER     :: colvar => NULL()
-      TYPE(colvar_type), POINTER     :: colvar_old => NULL()
-      REAL(KIND=dp)               :: lambda = 0.0_dp, sigma = 0.0_dp
+      TYPE(colvar_type), POINTER                         :: colvar => NULL(), &
+                                                            colvar_old => NULL()
+      REAL(KIND=dp)                                      :: lambda = 0.0_dp, &
+                                                            sigma = 0.0_dp
+      LOGICAL                                            :: init = .FALSE.
    END TYPE local_colvar_constraint_type
 
-! **************************************************************************************************
    TYPE local_g3x3_constraint_type
-      LOGICAL                       :: init = .FALSE.
-      REAL(KIND=dp)               :: scale = 0.0_dp, scale_old = 0.0_dp, &
-                                     imass1 = 0.0_dp, imass2 = 0.0_dp, imass3 = 0.0_dp
-      REAL(KIND=dp), DIMENSION(3) :: fa = 0.0_dp, fb = 0.0_dp, fc = 0.0_dp, &
-                                     f_roll1 = 0.0_dp, f_roll2 = 0.0_dp, f_roll3 = 0.0_dp, &
-                                     ra_old = 0.0_dp, rb_old = 0.0_dp, rc_old = 0.0_dp, &
-                                     va = 0.0_dp, vb = 0.0_dp, vc = 0.0_dp, &
-                                     lambda = 0.0_dp, del_lambda = 0.0_dp, lambda_old = 0.0_dp, &
-                                     r0_12 = 0.0_dp, r0_13 = 0.0_dp, r0_23 = 0.0_dp
-      REAL(KIND=dp), DIMENSION(3, 3) :: amat = 0.0_dp
+      LOGICAL                                            :: init = .FALSE.
+      REAL(KIND=dp)                                      :: scale = 0.0_dp, &
+                                                            imass1 = 0.0_dp, &
+                                                            imass2 = 0.0_dp, &
+                                                            imass3 = 0.0_dp, &
+                                                            scale_old = 0.0_dp
+      REAL(KIND=dp), DIMENSION(3)                        :: fa = 0.0_dp, &
+                                                            fb = 0.0_dp, &
+                                                            fc = 0.0_dp, &
+                                                            f_roll1 = 0.0_dp, &
+                                                            f_roll2 = 0.0_dp, &
+                                                            f_roll3 = 0.0_dp, &
+                                                            ra_old = 0.0_dp, &
+                                                            rb_old = 0.0_dp, &
+                                                            rc_old = 0.0_dp, &
+                                                            r0_12 = 0.0_dp, &
+                                                            r0_13 = 0.0_dp, &
+                                                            r0_23 = 0.0_dp, &
+                                                            va = 0.0_dp, &
+                                                            vb = 0.0_dp, &
+                                                            vc = 0.0_dp, &
+                                                            del_lambda = 0.0_dp, &
+                                                            lambda = 0.0_dp, &
+                                                            lambda_old = 0.0_dp
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: amat = 0.0_dp
    END TYPE local_g3x3_constraint_type
 
-! **************************************************************************************************
    TYPE local_g4x6_constraint_type
-      LOGICAL                       :: init = .FALSE.
-      REAL(KIND=dp)               :: scale = 0.0_dp, scale_old = 0.0_dp, imass1 = 0.0_dp, &
-                                     imass2 = 0.0_dp, imass3 = 0.0_dp, imass4 = 0.0_dp
-      REAL(KIND=dp), DIMENSION(3) :: fa = 0.0_dp, fb = 0.0_dp, fc = 0.0_dp, fd = 0.0_dp, fe = 0.0_dp, ff = 0.0_dp, &
-                                     f_roll1 = 0.0_dp, f_roll2 = 0.0_dp, f_roll3 = 0.0_dp, &
-                                     f_roll4 = 0.0_dp, f_roll5 = 0.0_dp, f_roll6 = 0.0_dp, &
-                                     ra_old = 0.0_dp, rb_old = 0.0_dp, rc_old = 0.0_dp, &
-                                     rd_old = 0.0_dp, re_old = 0.0_dp, rf_old = 0.0_dp, &
-                                     va = 0.0_dp, vb = 0.0_dp, vc = 0.0_dp, vd = 0.0_dp, ve = 0.0_dp, vf = 0.0_dp, &
-                                     r0_12 = 0.0_dp, r0_13 = 0.0_dp, r0_14 = 0.0_dp, &
-                                     r0_23 = 0.0_dp, r0_24 = 0.0_dp, r0_34 = 0.0_dp
-      REAL(KIND=dp), DIMENSION(6)   :: lambda = 0.0_dp, del_lambda = 0.0_dp, lambda_old = 0.0_dp
-      REAL(KIND=dp), DIMENSION(6, 6) :: amat = 0.0_dp
+      LOGICAL                                            :: init = .FALSE.
+      REAL(KIND=dp)                                      :: scale = 0.0_dp, &
+                                                            scale_old = 0.0_dp, &
+                                                            imass1 = 0.0_dp, &
+                                                            imass2 = 0.0_dp, &
+                                                            imass3 = 0.0_dp, &
+                                                            imass4 = 0.0_dp
+      REAL(KIND=dp), DIMENSION(3)                        :: fa = 0.0_dp, &
+                                                            fb = 0.0_dp, &
+                                                            fc = 0.0_dp, &
+                                                            fd = 0.0_dp, &
+                                                            fe = 0.0_dp, &
+                                                            ff = 0.0_dp, &
+                                                            f_roll1 = 0.0_dp, &
+                                                            f_roll2 = 0.0_dp, &
+                                                            f_roll3 = 0.0_dp, &
+                                                            f_roll4 = 0.0_dp, &
+                                                            f_roll5 = 0.0_dp, &
+                                                            f_roll6 = 0.0_dp, &
+                                                            ra_old = 0.0_dp, &
+                                                            rb_old = 0.0_dp, &
+                                                            rc_old = 0.0_dp, &
+                                                            rd_old = 0.0_dp, &
+                                                            re_old = 0.0_dp, &
+                                                            rf_old = 0.0_dp, &
+                                                            va = 0.0_dp, &
+                                                            vb = 0.0_dp, &
+                                                            vc = 0.0_dp, &
+                                                            vd = 0.0_dp, &
+                                                            ve = 0.0_dp, &
+                                                            vf = 0.0_dp, &
+                                                            r0_12 = 0.0_dp, &
+                                                            r0_13 = 0.0_dp, &
+                                                            r0_14 = 0.0_dp, &
+                                                            r0_23 = 0.0_dp, &
+                                                            r0_24 = 0.0_dp, &
+                                                            r0_34 = 0.0_dp
+      REAL(KIND=dp), DIMENSION(6)                        :: del_lambda = 0.0_dp, &
+                                                            lambda = 0.0_dp, &
+                                                            lambda_old = 0.0_dp
+      REAL(KIND=dp), DIMENSION(6, 6)                     :: amat = 0.0_dp
    END TYPE local_g4x6_constraint_type
 
-! **************************************************************************************************
    TYPE local_states_type
-      INTEGER, DIMENSION(:), POINTER :: states => NULL() ! indices of Kohn-Sham states for molecule
-      INTEGER                        :: nstates = 0 ! Kohn-Sham states for molecule
+      INTEGER                                            :: nstates = 0 ! Kohn-Sham states for molecule
+      INTEGER, DIMENSION(:), POINTER                     :: states => NULL() ! indices of Kohn-Sham states for molecule
    END TYPE local_states_type
 
-! **************************************************************************************************
    TYPE local_constraint_type
-      TYPE(local_colvar_constraint_type), DIMENSION(:), POINTER :: lcolv => NULL()
-      TYPE(local_g3x3_constraint_type), DIMENSION(:), POINTER :: lg3x3 => NULL()
-      TYPE(local_g4x6_constraint_type), DIMENSION(:), POINTER :: lg4x6 => NULL()
+      TYPE(local_colvar_constraint_type), &
+         DIMENSION(:), POINTER                           :: lcolv => NULL()
+      TYPE(local_g3x3_constraint_type), DIMENSION(:), &
+         POINTER                                         :: lg3x3 => NULL()
+      TYPE(local_g4x6_constraint_type), DIMENSION(:), &
+         POINTER                                         :: lg4x6 => NULL()
    END TYPE local_constraint_type
 
-! **************************************************************************************************
    TYPE global_constraint_type
-      TYPE(colvar_counters)                    :: ncolv = colvar_counters()
-      INTEGER                                  :: ntot = 0, nrestraint = 0
-      INTEGER                                  :: ng3x3 = 0, ng3x3_restraint = 0
-      INTEGER                                  :: ng4x6 = 0, ng4x6_restraint = 0
-      INTEGER                                  :: nvsite = 0, nvsite_restraint = 0
-      TYPE(fixd_constraint_type), DIMENSION(:), POINTER   :: fixd_list => NULL()
-      TYPE(colvar_constraint_type), DIMENSION(:), POINTER :: colv_list => NULL()
-      TYPE(g3x3_constraint_type), DIMENSION(:), POINTER   :: g3x3_list => NULL()
-      TYPE(g4x6_constraint_type), DIMENSION(:), POINTER   :: g4x6_list => NULL()
-      TYPE(vsite_constraint_type), DIMENSION(:), POINTER  :: vsite_list => NULL()
-      TYPE(local_colvar_constraint_type), DIMENSION(:), POINTER :: lcolv => NULL()
-      TYPE(local_g3x3_constraint_type), DIMENSION(:), POINTER :: lg3x3 => NULL()
-      TYPE(local_g4x6_constraint_type), DIMENSION(:), POINTER :: lg4x6 => NULL()
+      TYPE(colvar_counters)                              :: ncolv = colvar_counters()
+      INTEGER                                            :: ntot = 0, &
+                                                            nrestraint = 0, &
+                                                            ng3x3 = 0, &
+                                                            ng3x3_restraint = 0, &
+                                                            ng4x6 = 0, &
+                                                            ng4x6_restraint = 0, &
+                                                            nvsite = 0, &
+                                                            nvsite_restraint = 0
+      TYPE(fixd_constraint_type), DIMENSION(:), POINTER  :: fixd_list => NULL()
+      TYPE(colvar_constraint_type), DIMENSION(:), &
+         POINTER                                         :: colv_list => NULL()
+      TYPE(g3x3_constraint_type), DIMENSION(:), POINTER  :: g3x3_list => NULL()
+      TYPE(g4x6_constraint_type), DIMENSION(:), POINTER  :: g4x6_list => NULL()
+      TYPE(vsite_constraint_type), DIMENSION(:), POINTER :: vsite_list => NULL()
+      TYPE(local_colvar_constraint_type), &
+         DIMENSION(:), POINTER                           :: lcolv => NULL()
+      TYPE(local_g3x3_constraint_type), DIMENSION(:), &
+         POINTER                                         :: lg3x3 => NULL()
+      TYPE(local_g4x6_constraint_type), DIMENSION(:), &
+         POINTER                                         :: lg4x6 => NULL()
    END TYPE global_constraint_type
 
-! **************************************************************************************************
+   ! Molecule type
    TYPE molecule_type
-      TYPE(molecule_kind_type), POINTER    :: molecule_kind => NULL() ! pointer to molecule kind information
-      TYPE(local_states_type), DIMENSION(:), POINTER   :: lmi => NULL() ! local (spin)-states information
-      TYPE(local_constraint_type), POINTER :: lci => NULL() ! local molecule constraint info
-      INTEGER                              :: first_atom = 0 ! global index of first atom in molecule
-      INTEGER                              :: last_atom = 0 ! global index of last atom in molecule
-      INTEGER                              :: first_shell = 0 ! global index of first shell atom in molecule
-      INTEGER                              :: last_shell = 0 ! global index of last shell atom in molecule
+      TYPE(molecule_kind_type), POINTER                  :: molecule_kind => NULL() ! pointer to molecule kind information
+      TYPE(local_states_type), DIMENSION(:), POINTER     :: lmi => NULL() ! local (spin)-states information
+      TYPE(local_constraint_type), POINTER               :: lci => NULL() ! local molecule constraint info
+      INTEGER                                            :: first_atom = 0 ! global index of first atom in molecule
+      INTEGER                                            :: last_atom = 0 ! global index of last atom in molecule
+      INTEGER                                            :: first_shell = 0 ! global index of first shell atom in molecule
+      INTEGER                                            :: last_shell = 0 ! global index of last shell atom in molecule
    END TYPE molecule_type
 
-! *** Public data types ***
+   ! Public data types
 
    PUBLIC :: local_colvar_constraint_type, &
              local_g3x3_constraint_type, &
@@ -127,7 +176,7 @@ MODULE molecule_types
              global_constraint_type, &
              molecule_type
 
-! *** Public subroutines ***
+   ! Public subroutines
 
    PUBLIC :: deallocate_global_constraint, &
              allocate_molecule_set, &
@@ -195,7 +244,7 @@ CONTAINS
 !> \param molecule_set ...
 !> \param nmolecule ...
 !> \date    29.08.2003
-!> \author  MK
+!> \author  Matthias Krack
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE allocate_molecule_set(molecule_set, nmolecule)
@@ -212,7 +261,7 @@ CONTAINS
 !> \brief   Deallocate a molecule set.
 !> \param molecule_set ...
 !> \date    29.08.2003
-!> \author  MK
+!> \author  Matthias Krack
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE deallocate_molecule_set(molecule_set)
@@ -269,7 +318,7 @@ CONTAINS
 !> \param first_shell ...
 !> \param last_shell ...
 !> \date    29.08.2003
-!> \author  MK
+!> \author  Matthias Krack
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE get_molecule(molecule, molecule_kind, lmi, lci, lg3x3, lg4x6, lcolv, &
@@ -330,7 +379,7 @@ CONTAINS
 !> \param lg3x3 ...
 !> \param lg4x6 ...
 !> \date    29.08.2003
-!> \author  MK
+!> \author  Matthias Krack
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE set_molecule(molecule, molecule_kind, lmi, lci, lcolv, lg3x3, lg4x6)
@@ -379,7 +428,7 @@ CONTAINS
 !> \param first_atom ...
 !> \param last_atom ...
 !> \date    29.08.2003
-!> \author  MK
+!> \author  Matthias Krack
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE set_molecule_set(molecule_set, first_atom, last_atom)

@@ -33,20 +33,20 @@ MODULE topology_types
 
 ! **************************************************************************************************
    TYPE atom_info_type
-      INTEGER, DIMENSION(:), POINTER         :: id_molname => NULL()
-      INTEGER, DIMENSION(:), POINTER         :: id_resname => NULL()
-      INTEGER, DIMENSION(:), POINTER         :: id_atmname => NULL()
-      INTEGER, DIMENSION(:), POINTER         :: id_atom_names => NULL()
-      INTEGER, DIMENSION(:), POINTER         :: id_element => NULL()
-      INTEGER, POINTER                       :: resid(:) => NULL()
-      REAL(KIND=dp), DIMENSION(:, :), POINTER :: r => NULL()
-      INTEGER, POINTER                       :: map_mol_typ(:) => NULL()
-      INTEGER, POINTER                       :: map_mol_num(:) => NULL()
-      INTEGER, POINTER                       :: map_mol_res(:) => NULL()
-      REAL(KIND=dp), POINTER                 :: atm_charge(:) => NULL()
-      REAL(KIND=dp), POINTER                 :: atm_mass(:) => NULL()
-      REAL(KIND=dp), POINTER                 :: occup(:) => NULL()
-      REAL(KIND=dp), POINTER                 :: beta(:) => NULL()
+      INTEGER, DIMENSION(:), POINTER                     :: id_molname => NULL(), &
+                                                            id_resname => NULL(), &
+                                                            id_atmname => NULL(), &
+                                                            id_atom_names => NULL(), &
+                                                            id_element => NULL()
+      INTEGER, POINTER                                   :: resid(:) => NULL()
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: r => NULL()
+      INTEGER, POINTER                                   :: map_mol_typ(:) => NULL()
+      INTEGER, POINTER                                   :: map_mol_num(:) => NULL()
+      INTEGER, POINTER                                   :: map_mol_res(:) => NULL()
+      REAL(KIND=dp), POINTER                             :: atm_charge(:) => NULL()
+      REAL(KIND=dp), POINTER                             :: atm_mass(:) => NULL()
+      REAL(KIND=dp), POINTER                             :: occup(:) => NULL()
+      REAL(KIND=dp), POINTER                             :: beta(:) => NULL()
    END TYPE atom_info_type
 
 ! **************************************************************************************************
@@ -144,14 +144,14 @@ MODULE topology_types
       TYPE(atom_info_type), POINTER             :: atom_info => NULL()
       TYPE(connectivity_info_type), POINTER     :: conn_info => NULL()
       TYPE(constraint_info_type), POINTER       :: cons_info => NULL()
-      TYPE(cell_type), POINTER                 :: cell => NULL(), cell_ref => NULL(), cell_muc => NULL()
+      TYPE(cell_type), POINTER                  :: cell => NULL(), cell_ref => NULL(), cell_muc => NULL()
       INTEGER                                   :: conn_type = -1
       INTEGER                                   :: coord_type = -1
       INTEGER                                   :: exclude_vdw = -1
       INTEGER                                   :: exclude_ei = -1
       INTEGER                                   :: bondparm_type = -1
       !TRY TO REMOVE THIS FIVE VARIABLE IN THE FUTURE
-      INTEGER                                   :: natoms = -1, natom_type = -1
+      INTEGER                                   :: natoms = -1, natom_type = -1, natom_muc = -1
       INTEGER                                   :: nmol = -1, nmol_type = -1, nmol_conn = -1
       !TRY TO REMOVE THIS FIVE VARIABLE IN THE FUTURE
       LOGICAL                                   :: aa_element = .FALSE.
@@ -162,8 +162,8 @@ MODULE topology_types
       LOGICAL                                   :: molecules_check = .FALSE.
       LOGICAL                                   :: coordinate = .FALSE.
       LOGICAL                                   :: use_g96_velocity = .FALSE.
-      CHARACTER(LEN=default_path_length)       :: coord_file_name = ""
-      CHARACTER(LEN=default_path_length)       :: conn_file_name = ""
+      CHARACTER(LEN=default_path_length)        :: coord_file_name = ""
+      CHARACTER(LEN=default_path_length)        :: conn_file_name = ""
       LOGICAL                                   :: const_atom = .FALSE.
       LOGICAL                                   :: const_hydr = .FALSE.
       LOGICAL                                   :: const_colv = .FALSE.
@@ -217,6 +217,7 @@ CONTAINS
       !-----------------------------------------------------------------------------
       NULLIFY (topology%cell, topology%cell_ref, topology%cell_muc)
       topology%natoms = 0
+      topology%natom_muc = 0
       topology%natom_type = 0
       topology%nmol = 0
       topology%nmol_type = 0

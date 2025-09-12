@@ -90,6 +90,8 @@ MODULE force_fields_all
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'force_fields_all'
 
    PRIVATE
+   LOGICAL, PARAMETER                   :: debug_this_module = .FALSE.
+
    PUBLIC :: force_field_unique_bond, &
              force_field_unique_bend, &
              force_field_unique_ub, &
@@ -121,14 +123,15 @@ CONTAINS
 !> \param molecule_kind_set ...
 !> \param molecule_set ...
 !> \param ff_type ...
+!> \param iw ...
 ! **************************************************************************************************
-   SUBROUTINE force_field_unique_bond(particle_set, &
-                                      molecule_kind_set, molecule_set, ff_type)
+   SUBROUTINE force_field_unique_bond(particle_set, molecule_kind_set, molecule_set, ff_type, iw)
 
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       TYPE(force_field_type), INTENT(INOUT)              :: ff_type
+      INTEGER, INTENT(IN)                                :: iw
 
       CHARACTER(len=*), PARAMETER :: routineN = 'force_field_unique_bond'
 
@@ -146,6 +149,12 @@ CONTAINS
       TYPE(molecule_type), POINTER                       :: molecule
 
       CALL timeset(routineN, handle2)
+
+      IF (iw > 0) THEN
+         WRITE (UNIT=iw, FMT="(/,T2,A)") &
+            "FORCEFIELD| Checking for unique bond terms"
+      END IF
+
       DO i = 1, SIZE(molecule_kind_set)
          molecule_kind => molecule_kind_set(i)
          CALL get_molecule_kind(molecule_kind=molecule_kind, &
@@ -217,14 +226,15 @@ CONTAINS
 !> \param molecule_kind_set ...
 !> \param molecule_set ...
 !> \param ff_type ...
+!> \param iw ...
 ! **************************************************************************************************
-   SUBROUTINE force_field_unique_bend(particle_set, &
-                                      molecule_kind_set, molecule_set, ff_type)
+   SUBROUTINE force_field_unique_bend(particle_set, molecule_kind_set, molecule_set, ff_type, iw)
 
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       TYPE(force_field_type), INTENT(INOUT)              :: ff_type
+      INTEGER, INTENT(IN)                                :: iw
 
       CHARACTER(len=*), PARAMETER :: routineN = 'force_field_unique_bend'
 
@@ -242,6 +252,12 @@ CONTAINS
       TYPE(molecule_type), POINTER                       :: molecule
 
       CALL timeset(routineN, handle2)
+
+      IF (iw > 0) THEN
+         WRITE (UNIT=iw, FMT="(/,T2,A)") &
+            "FORCEFIELD| Checking for unique bend terms"
+      END IF
+
       DO i = 1, SIZE(molecule_kind_set)
          molecule_kind => molecule_kind_set(i)
          CALL get_molecule_kind(molecule_kind=molecule_kind, &
@@ -313,6 +329,7 @@ CONTAINS
             DEALLOCATE (map_bend_kind)
          END IF
       END DO
+
       CALL timestop(handle2)
 
    END SUBROUTINE force_field_unique_bend
@@ -322,13 +339,14 @@ CONTAINS
 !> \param particle_set ...
 !> \param molecule_kind_set ...
 !> \param molecule_set ...
+!> \param iw ...
 ! **************************************************************************************************
-   SUBROUTINE force_field_unique_ub(particle_set, &
-                                    molecule_kind_set, molecule_set)
+   SUBROUTINE force_field_unique_ub(particle_set, molecule_kind_set, molecule_set, iw)
 
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
+      INTEGER, INTENT(IN)                                :: iw
 
       CHARACTER(len=*), PARAMETER :: routineN = 'force_field_unique_ub'
 
@@ -346,6 +364,12 @@ CONTAINS
       TYPE(ub_type), DIMENSION(:), POINTER               :: ub_list
 
       CALL timeset(routineN, handle2)
+
+      IF (iw > 0) THEN
+         WRITE (UNIT=iw, FMT="(/,T2,A)") &
+            "FORCEFIELD| Checking for unique Urey-Bradley terms"
+      END IF
+
       DO i = 1, SIZE(molecule_kind_set)
          molecule_kind => molecule_kind_set(i)
          CALL get_molecule_kind(molecule_kind=molecule_kind, &
@@ -419,14 +443,15 @@ CONTAINS
 !> \param molecule_kind_set ...
 !> \param molecule_set ...
 !> \param ff_type ...
+!> \param iw ...
 ! **************************************************************************************************
-   SUBROUTINE force_field_unique_tors(particle_set, &
-                                      molecule_kind_set, molecule_set, ff_type)
+   SUBROUTINE force_field_unique_tors(particle_set, molecule_kind_set, molecule_set, ff_type, iw)
 
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       TYPE(force_field_type), INTENT(INOUT)              :: ff_type
+      INTEGER, INTENT(IN)                                :: iw
 
       CHARACTER(len=*), PARAMETER :: routineN = 'force_field_unique_tors'
 
@@ -446,6 +471,11 @@ CONTAINS
       TYPE(torsion_type), DIMENSION(:), POINTER          :: torsion_list
 
       CALL timeset(routineN, handle2)
+
+      IF (iw > 0) THEN
+         WRITE (UNIT=iw, FMT="(/,T2,A)") &
+            "FORCEFIELD| Checking for unique torsion terms"
+      END IF
 
       ! Now decide whether we need to check D-C-B-A type combination in addtion to usual A-B-C-D
       ! We don't need it for Amber FF
@@ -533,6 +563,7 @@ CONTAINS
             DEALLOCATE (map_torsion_kind)
          END IF
       END DO
+
       CALL timestop(handle2)
 
    END SUBROUTINE force_field_unique_tors
@@ -543,14 +574,15 @@ CONTAINS
 !> \param molecule_kind_set ...
 !> \param molecule_set ...
 !> \param ff_type ...
+!> \param iw ...
 ! **************************************************************************************************
-   SUBROUTINE force_field_unique_impr(particle_set, &
-                                      molecule_kind_set, molecule_set, ff_type)
+   SUBROUTINE force_field_unique_impr(particle_set, molecule_kind_set, molecule_set, ff_type, iw)
 
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       TYPE(force_field_type), INTENT(INOUT)              :: ff_type
+      INTEGER, INTENT(IN)                                :: iw
 
       CHARACTER(len=*), PARAMETER :: routineN = 'force_field_unique_impr'
 
@@ -570,6 +602,12 @@ CONTAINS
       TYPE(molecule_type), POINTER                       :: molecule
 
       CALL timeset(routineN, handle2)
+
+      IF (iw > 0) THEN
+         WRITE (UNIT=iw, FMT="(/,T2,A)") &
+            "FORCEFIELD| Checking for unique improper terms"
+      END IF
+
       DO i = 1, SIZE(molecule_kind_set)
          molecule_kind => molecule_kind_set(i)
          CALL get_molecule_kind(molecule_kind=molecule_kind, &
@@ -577,7 +615,9 @@ CONTAINS
                                 natom=natom, &
                                 nimpr=nimpr, impr_list=impr_list)
          molecule => molecule_set(molecule_list(1))
+
          CALL get_molecule(molecule=molecule, first_atom=first, last_atom=last)
+
          IF (nimpr > 0) THEN
             ALLOCATE (map_impr_kind(nimpr))
             counter = 0
@@ -663,14 +703,15 @@ CONTAINS
 !> \param molecule_kind_set ...
 !> \param molecule_set ...
 !> \param ff_type ...
+!> \param iw ...
 ! **************************************************************************************************
-   SUBROUTINE force_field_unique_opbend(particle_set, &
-                                        molecule_kind_set, molecule_set, ff_type)
+   SUBROUTINE force_field_unique_opbend(particle_set, molecule_kind_set, molecule_set, ff_type, iw)
 
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
       TYPE(force_field_type), INTENT(INOUT)              :: ff_type
+      INTEGER, INTENT(IN)                                :: iw
 
       CHARACTER(len=*), PARAMETER :: routineN = 'force_field_unique_opbend'
 
@@ -690,6 +731,12 @@ CONTAINS
       TYPE(opbend_type), DIMENSION(:), POINTER           :: opbend_list
 
       CALL timeset(routineN, handle2)
+
+      IF (iw > 0) THEN
+         WRITE (UNIT=iw, FMT="(/,T2,A)") &
+            "FORCEFIELD| Checking for unique out-of-plane bend terms"
+      END IF
+
       DO i = 1, SIZE(molecule_kind_set)
          molecule_kind => molecule_kind_set(i)
          CALL get_molecule_kind(molecule_kind=molecule_kind, &
@@ -786,9 +833,10 @@ CONTAINS
 !> \param inp_info ...
 !> \param gro_info ...
 !> \param amb_info ...
+!> \param iw ...
 ! **************************************************************************************************
-   SUBROUTINE force_field_pack_bond(particle_set, molecule_kind_set, molecule_set, &
-                                    fatal, Ainfo, chm_info, inp_info, gro_info, amb_info)
+   SUBROUTINE force_field_pack_bond(particle_set, molecule_kind_set, molecule_set, fatal, Ainfo, &
+                                    chm_info, inp_info, gro_info, amb_info, iw)
 
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
@@ -800,6 +848,7 @@ CONTAINS
       TYPE(input_info_type), POINTER                     :: inp_info
       TYPE(gromos_info_type), POINTER                    :: gro_info
       TYPE(amber_info_type), POINTER                     :: amb_info
+      INTEGER, INTENT(IN)                                :: iw
 
       CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_bond'
 
@@ -814,6 +863,11 @@ CONTAINS
       TYPE(molecule_type), POINTER                       :: molecule
 
       CALL timeset(routineN, handle2)
+
+      IF (iw > 0) THEN
+         WRITE (UNIT=iw, FMT="(/,T2,A)") &
+            "FORCEFIELD| Checking for bond terms"
+      END IF
 
       DO i = 1, SIZE(molecule_kind_set)
          molecule_kind => molecule_kind_set(i)
@@ -917,9 +971,12 @@ CONTAINS
                bond_list(j)%bond_kind%id_type = do_ff_undef
             END IF
          END DO
+
          CALL set_molecule_kind(molecule_kind=molecule_kind, &
                                 bond_list=bond_list)
+
       END DO
+
       CALL timestop(handle2)
 
    END SUBROUTINE force_field_pack_bond
@@ -935,9 +992,10 @@ CONTAINS
 !> \param inp_info ...
 !> \param gro_info ...
 !> \param amb_info ...
+!> \param iw ...
 ! **************************************************************************************************
-   SUBROUTINE force_field_pack_bend(particle_set, molecule_kind_set, molecule_set, &
-                                    fatal, Ainfo, chm_info, inp_info, gro_info, amb_info)
+   SUBROUTINE force_field_pack_bend(particle_set, molecule_kind_set, molecule_set, fatal, Ainfo, &
+                                    chm_info, inp_info, gro_info, amb_info, iw)
 
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
@@ -949,6 +1007,7 @@ CONTAINS
       TYPE(input_info_type), POINTER                     :: inp_info
       TYPE(gromos_info_type), POINTER                    :: gro_info
       TYPE(amber_info_type), POINTER                     :: amb_info
+      INTEGER, INTENT(IN)                                :: iw
 
       CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_bend'
 
@@ -963,6 +1022,11 @@ CONTAINS
       TYPE(molecule_type), POINTER                       :: molecule
 
       CALL timeset(routineN, handle2)
+
+      IF (iw > 0) THEN
+         WRITE (UNIT=iw, FMT="(/,T2,A)") &
+            "FORCEFIELD| Checking for bend terms"
+      END IF
 
       DO i = 1, SIZE(molecule_kind_set)
          molecule_kind => molecule_kind_set(i)
@@ -1137,6 +1201,12 @@ CONTAINS
       TYPE(ub_type), DIMENSION(:), POINTER               :: ub_list
 
       CALL timeset(routineN, handle2)
+
+      IF (iw > 0) THEN
+         WRITE (UNIT=iw, FMT="(/,T2,A)") &
+            "FORCEFIELD| Checking for Urey-Bradley (UB) terms"
+      END IF
+
       DO i = 1, SIZE(molecule_kind_set)
          molecule_kind => molecule_kind_set(i)
          CALL get_molecule_kind(molecule_kind=molecule_kind, &
@@ -1164,10 +1234,10 @@ CONTAINS
             CALL uppercase(name_atm_b)
             CALL uppercase(name_atm_c)
 
-            ! loop over params from GROMOS
+            ! Loop over params from GROMOS
             ! ikuo - None that I know...
 
-            ! loop over params from CHARMM
+            ! Loop over params from CHARMM
             IF (ASSOCIATED(chm_info%ub_a)) THEN
                DO k = 1, SIZE(chm_info%ub_a)
                   IF ((((chm_info%ub_a(k)) == (name_atm_a)) .AND. &
@@ -1179,8 +1249,11 @@ CONTAINS
                      ub_list(j)%ub_kind%id_type = do_ff_charmm
                      ub_list(j)%ub_kind%k(1) = chm_info%ub_k(k)
                      ub_list(j)%ub_kind%r0 = chm_info%ub_r0(k)
-                     IF (iw > 0) WRITE (iw, *) "    Found UB ", TRIM(name_atm_a), " ", &
-                        TRIM(name_atm_b), " ", TRIM(name_atm_c)
+                     IF (iw > 0) THEN
+                        WRITE (UNIT=iw, FMT="(T2,A)") &
+                           "FORCEFIELD| Found Urey-Bradley term (CHARMM) for the atomic kinds "// &
+                           TRIM(name_atm_a)//", "//TRIM(name_atm_b)//" and "//TRIM(name_atm_c)
+                     END IF
                      CALL issue_duplications(found, "Urey-Bradley", name_atm_a, &
                                              name_atm_b, name_atm_c)
                      found = .TRUE.
@@ -1189,10 +1262,10 @@ CONTAINS
                END DO
             END IF
 
-            ! loop over params from AMBER
+            ! Loop over params from AMBER
             ! teo - None that I know...
 
-            ! always have the input param last to overwrite all the other ones
+            ! Always have the input param last to overwrite all the other ones
             IF (ASSOCIATED(inp_info%ub_a)) THEN
                DO k = 1, SIZE(inp_info%ub_a)
                   IF ((((inp_info%ub_a(k)) == (name_atm_a)) .AND. &
@@ -1204,6 +1277,11 @@ CONTAINS
                      ub_list(j)%ub_kind%id_type = inp_info%ub_kind(k)
                      ub_list(j)%ub_kind%k(:) = inp_info%ub_k(:, k)
                      ub_list(j)%ub_kind%r0 = inp_info%ub_r0(k)
+                     IF (iw > 0) THEN
+                        WRITE (UNIT=iw, FMT="(T2,A)") &
+                           "FORCEFIELD| Found Urey-Bradley term (input) for the atomic kinds "// &
+                           TRIM(name_atm_a)//", "//TRIM(name_atm_b)//" and "//TRIM(name_atm_c)
+                     END IF
                      CALL issue_duplications(found, "Urey-Bradley", name_atm_a, &
                                              name_atm_b, name_atm_c)
                      found = .TRUE.
@@ -1230,9 +1308,12 @@ CONTAINS
                ub_list(j)%ub_kind%id_type = do_ff_undef
             END IF
          END DO
+
          CALL set_molecule_kind(molecule_kind=molecule_kind, &
                                 ub_list=ub_list)
+
       END DO
+
       CALL timestop(handle2)
 
    END SUBROUTINE force_field_pack_ub
@@ -1265,8 +1346,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_tors'
 
-      CHARACTER(LEN=default_string_length)               :: ldum, name_atm_a, name_atm_b, &
-                                                            name_atm_c, name_atm_d
+      CHARACTER(LEN=default_string_length)               :: ldum, molecule_name, name_atm_a, &
+                                                            name_atm_b, name_atm_c, name_atm_d
       INTEGER                                            :: atm_a, atm_b, atm_c, atm_d, first, &
                                                             handle2, i, imul, itype, j, k, k_end, &
                                                             k_start, last, natom, ntorsion, &
@@ -1281,14 +1362,23 @@ CONTAINS
 
       CALL timeset(routineN, handle2)
 
+      IF (iw > 0) THEN
+         WRITE (UNIT=iw, FMT="(/,T2,A)") &
+            "FORCEFIELD| Checking for torsion terms"
+      END IF
+
       DO i = 1, SIZE(molecule_kind_set)
          molecule_kind => molecule_kind_set(i)
          CALL get_molecule_kind(molecule_kind=molecule_kind, &
                                 molecule_list=molecule_list, &
+                                name=molecule_name, &
                                 natom=natom, &
-                                ntorsion=ntorsion, torsion_list=torsion_list)
+                                ntorsion=ntorsion, &
+                                torsion_list=torsion_list)
          molecule => molecule_set(molecule_list(1))
-         CALL get_molecule(molecule=molecule, first_atom=first, last_atom=last)
+         CALL get_molecule(molecule=molecule, &
+                           first_atom=first, &
+                           last_atom=last)
          DO j = 1, ntorsion
             IF (torsion_list(j)%torsion_kind%id_type == do_ff_undef) THEN
                atm_a = torsion_list(j)%a
@@ -1314,7 +1404,7 @@ CONTAINS
                CALL uppercase(name_atm_c)
                CALL uppercase(name_atm_d)
 
-               ! loop over params from GROMOS
+               ! Loop over params from GROMOS
                IF (ASSOCIATED(gro_info%torsion_k)) THEN
                   k = SIZE(gro_info%torsion_k)
                   itype = torsion_list(j)%itype
@@ -1341,7 +1431,7 @@ CONTAINS
                   imul = torsion_list(j)%torsion_kind%nmul
                END IF
 
-               ! loop over params from CHARMM
+               ! Loop over params from CHARMM
                IF (ASSOCIATED(chm_info%torsion_a)) THEN
                   DO k = 1, SIZE(chm_info%torsion_a)
                      IF ((((chm_info%torsion_a(k)) == (name_atm_a)) .AND. &
@@ -1390,7 +1480,7 @@ CONTAINS
                   END IF
                END IF
 
-               ! loop over params from AMBER
+               ! Loop over params from AMBER
                ! Assign real parameters from Amber PRMTOP file using global atom indices
                ! Type-based assignment is prone to errors
                IF (ASSOCIATED(amb_info%torsion_a)) THEN
@@ -1430,7 +1520,7 @@ CONTAINS
 
                END IF
 
-               ! always have the input param last to overwrite all the other ones
+               ! Always have the input param last to overwrite all the other ones
                IF (ASSOCIATED(inp_info%torsion_a)) THEN
                   DO k = 1, SIZE(inp_info%torsion_a)
                      IF ((((inp_info%torsion_a(k)) == (name_atm_a)) .AND. &
@@ -1455,7 +1545,28 @@ CONTAINS
                   END DO
                END IF
 
-               IF (.NOT. found) THEN
+               IF (found) THEN
+                  ldum = cp_to_string(imul)
+                  IF (iw > 0) THEN
+                     IF (imul < 1) THEN
+                        WRITE (UNIT=iw, FMT="(T2,A)") &
+                           "FORCEFIELD| No torsion term found"
+                     ELSE IF (imul == 1) THEN
+                        WRITE (UNIT=iw, FMT="(T2,A)") &
+                           "FORCEFIELD| Found torsion term for the atomic kinds "// &
+                           TRIM(name_atm_a)//", "//TRIM(name_atm_b)// &
+                           ", "//TRIM(name_atm_c)// &
+                           " and "//TRIM(name_atm_d)
+                     ELSE
+                        WRITE (UNIT=iw, FMT="(T2,A)") &
+                           "FORCEFIELD| Found multiple ("//TRIM(ldum)// &
+                           ") torsion terms for the atomic kinds "// &
+                           TRIM(name_atm_a)//", "//TRIM(name_atm_b)// &
+                           ", "//TRIM(name_atm_c)// &
+                           " and "//TRIM(name_atm_d)
+                     END IF
+                  END IF
+               ELSE
                   CALL store_FF_missing_par(atm1=TRIM(name_atm_a), &
                                             atm2=TRIM(name_atm_b), &
                                             atm3=TRIM(name_atm_c), &
@@ -1464,35 +1575,32 @@ CONTAINS
                                             array=Ainfo)
                   torsion_list(j)%torsion_kind%id_type = do_ff_undef
                   torsion_list(j)%id_type = do_ff_undef
-               ELSE
-                  ldum = cp_to_string(imul)
-                  IF ((imul /= 1) .AND. (iw > 0)) &
-                     WRITE (iw, '(/,2("UTIL_INFO| ",A,/))') &
-                     "Multiple Torsion declarations: "//TRIM(name_atm_a)// &
-                     ","//TRIM(name_atm_b)//","//TRIM(name_atm_c)//" and "//TRIM(name_atm_d), &
-                     "Number of defined torsions: "//TRIM(ldum)//" ."
                END IF
-               !
+
                ! QM/MM modifications
-               !
                IF (only_qm) THEN
-                  IF (iw > 0) WRITE (iw, *) "    Torsion PARAM between QM atoms ", j, " : ", &
-                     TRIM(name_atm_a), " ", &
-                     TRIM(name_atm_b), " ", &
-                     TRIM(name_atm_c), " ", &
-                     TRIM(name_atm_d), " ", &
-                     torsion_list(j)%a, &
-                     torsion_list(j)%b, &
-                     torsion_list(j)%c, &
-                     torsion_list(j)%d
+                  IF (iw > 0) THEN
+                     WRITE (UNIT=iw, FMT="(T2,A,I0,4(A,I0))") &
+                        "FORCEFIELD| Torsion ", j, " for molecule kind "//TRIM(molecule_name)// &
+                        TRIM(name_atm_a)// &
+                        "-"//TRIM(name_atm_b)//"-"//TRIM(name_atm_c)//"-"// &
+                        TRIM(name_atm_d)//" (", torsion_list(j)%a, ", ", &
+                        torsion_list(j)%b, ", ", torsion_list(j)%c, ", ", &
+                        torsion_list(j)%d
+                  END IF
                   torsion_list(j)%torsion_kind%id_type = do_ff_undef
                   torsion_list(j)%id_type = do_ff_undef
                END IF
+
             END IF
-         END DO
+
+         END DO ! torsion
+
          CALL set_molecule_kind(molecule_kind=molecule_kind, &
                                 torsion_list=torsion_list)
-      END DO
+
+      END DO ! molecule kind
+
       CALL timestop(handle2)
 
    END SUBROUTINE force_field_pack_tors
@@ -1506,9 +1614,10 @@ CONTAINS
 !> \param chm_info ...
 !> \param inp_info ...
 !> \param gro_info ...
+!> \param iw ...
 ! **************************************************************************************************
    SUBROUTINE force_field_pack_impr(particle_set, molecule_kind_set, molecule_set, &
-                                    Ainfo, chm_info, inp_info, gro_info)
+                                    Ainfo, chm_info, inp_info, gro_info, iw)
 
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
@@ -1518,6 +1627,7 @@ CONTAINS
       TYPE(charmm_info_type), POINTER                    :: chm_info
       TYPE(input_info_type), POINTER                     :: inp_info
       TYPE(gromos_info_type), POINTER                    :: gro_info
+      INTEGER, INTENT(IN)                                :: iw
 
       CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_impr'
 
@@ -1535,14 +1645,23 @@ CONTAINS
 
       CALL timeset(routineN, handle2)
 
+      IF (iw > 0) THEN
+         WRITE (UNIT=iw, FMT="(/,T2,A)") &
+            "FORCEFIELD| Checking for improper terms"
+      END IF
+
       DO i = 1, SIZE(molecule_kind_set)
+
          molecule_kind => molecule_kind_set(i)
          CALL get_molecule_kind(molecule_kind=molecule_kind, &
                                 molecule_list=molecule_list, &
                                 natom=natom, &
-                                nimpr=nimpr, impr_list=impr_list)
+                                nimpr=nimpr, &
+                                impr_list=impr_list)
+
          molecule => molecule_set(molecule_list(1))
          CALL get_molecule(molecule=molecule, first_atom=first, last_atom=last)
+
          DO j = 1, nimpr
             atm_a = impr_list(j)%a
             atomic_kind => particle_set(atm_a + first - 1)%atomic_kind
@@ -1567,7 +1686,7 @@ CONTAINS
             CALL uppercase(name_atm_c)
             CALL uppercase(name_atm_d)
 
-            ! loop over params from GROMOS
+            ! Loop over params from GROMOS
             IF (ASSOCIATED(gro_info%impr_k)) THEN
                k = SIZE(gro_info%impr_k)
                itype = impr_list(j)%itype
@@ -1583,7 +1702,7 @@ CONTAINS
                impr_list(j)%id_type = gro_info%ff_gromos_type
             END IF
 
-            ! loop over params from CHARMM
+            ! Loop over params from CHARMM
             IF (ASSOCIATED(chm_info%impr_a)) THEN
                DO k = 1, SIZE(chm_info%impr_a)
                   IF ((((chm_info%impr_a(k)) == (name_atm_a)) .AND. &
@@ -1625,7 +1744,7 @@ CONTAINS
                END IF
             END IF
 
-            ! loop over params from AMBER not needed since impropers in AMBER
+            ! Loop over params from AMBER not needed since impropers in AMBER
             ! are treated like standard torsions
 
             ! always have the input param last to overwrite all the other ones
@@ -1674,17 +1793,27 @@ CONTAINS
                impr_list(j)%impr_kind%id_type = do_ff_undef
                impr_list(j)%id_type = do_ff_undef
             END IF
-            !
+
             ! QM/MM modifications
-            !
             IF (only_qm) THEN
+               IF (found) THEN
+                  IF (iw > 0) THEN
+                     WRITE (UNIT=iw, FMT="(T2,A)") &
+                        "FORCEFIELD| Found improper term for "//TRIM(name_atm_a)// &
+                        "-"//TRIM(name_atm_b)//"-"//TRIM(name_atm_c)//"-"// &
+                        TRIM(name_atm_d)
+                  END IF
+               END IF
                impr_list(j)%impr_kind%id_type = do_ff_undef
                impr_list(j)%id_type = do_ff_undef
             END IF
 
          END DO
+
          CALL set_molecule_kind(molecule_kind=molecule_kind, impr_list=impr_list)
+
       END DO
+
       CALL timestop(handle2)
 
    END SUBROUTINE force_field_pack_impr
@@ -1698,10 +1827,11 @@ CONTAINS
 !> \param molecule_set ...
 !> \param Ainfo ...
 !> \param inp_info ...
+!> \param iw ...
 !> \author Louis Vanduyfhuys
 ! **************************************************************************************************
-   SUBROUTINE force_field_pack_opbend(particle_set, molecule_kind_set, molecule_set, &
-                                      Ainfo, inp_info)
+   SUBROUTINE force_field_pack_opbend(particle_set, molecule_kind_set, molecule_set, Ainfo, &
+                                      inp_info, iw)
 
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(molecule_kind_type), DIMENSION(:), POINTER    :: molecule_kind_set
@@ -1709,6 +1839,7 @@ CONTAINS
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: Ainfo
       TYPE(input_info_type), POINTER                     :: inp_info
+      INTEGER, INTENT(IN)                                :: iw
 
       CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_opbend'
 
@@ -1724,6 +1855,11 @@ CONTAINS
       TYPE(opbend_type), DIMENSION(:), POINTER           :: opbend_list
 
       CALL timeset(routineN, handle2)
+
+      IF (iw > 0) THEN
+         WRITE (UNIT=iw, FMT="(/,T2,A)") &
+            "FORCEFIELD| Checking for out-of-plane bend terms"
+      END IF
 
       DO i = 1, SIZE(molecule_kind_set)
          molecule_kind => molecule_kind_set(i)
@@ -1812,8 +1948,11 @@ CONTAINS
             END IF
 
          END DO
+
          CALL set_molecule_kind(molecule_kind=molecule_kind, opbend_list=opbend_list)
+
       END DO
+
       CALL timestop(handle2)
 
    END SUBROUTINE force_field_pack_opbend
@@ -1839,7 +1978,7 @@ CONTAINS
       LOGICAL                                            :: my_qmmm
       TYPE(qmmm_env_mm_type), POINTER                    :: qmmm_env
       TYPE(input_info_type), POINTER                     :: inp_info
-      INTEGER                                            :: iw4
+      INTEGER, INTENT(IN)                                :: iw4
 
       CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_charges'
 
@@ -1854,12 +1993,13 @@ CONTAINS
       TYPE(val_type), POINTER                            :: val
 
       CALL timeset(routineN, handle)
+
       charge_tot = 0.0_dp
       NULLIFY (list)
 
       ! Not implemented for core-shell
       IF (ASSOCIATED(inp_info%shell_list)) THEN
-         CPABORT("Array of charges not implemented for CORE-SHELL model!")
+         CPABORT("Array of charges is not implemented for the core-shell model")
       END IF
 
       ! Allocate array to particle_set size
@@ -1918,16 +2058,13 @@ CONTAINS
                END IF
             END IF
          END IF
-         !
+
          ! QM/MM modifications
-         !
          IF (only_qm .AND. my_qmmm) THEN
             IF (qmmm_env%qmmm_coupl_type /= do_qmmm_none) THEN
                scale_factor = 0.0_dp
                IF (is_link_atom) THEN
-                  !
                   ! Find the scaling factor...
-                  !
                   DO ilink = 1, SIZE(qmmm_env%mm_link_atoms)
                      IF (iatom == qmmm_env%mm_link_atoms(ilink)) EXIT
                   END DO
@@ -1938,17 +2075,22 @@ CONTAINS
             END IF
          END IF
       END DO
+
       ! Sum up total charges for IO
       charge_tot = SUM(charges)
-      ! Print Total Charge of the system
+
+      ! Print total charge of the system
       IF (iw4 > 0) THEN
-         WRITE (iw4, FMT='(T2,"CHARGE_INFO| Total Charge of the Classical System: ",T69,F12.6)') charge_tot
+         WRITE (UNIT=iw4, FMT="(/,T2,A,T61,F20.10)") &
+            "FORCEFIELD| Total charge of the classical system: ", charge_tot
       END IF
+
       CALL timestop(handle)
+
    END SUBROUTINE force_field_pack_charges
 
 ! **************************************************************************************************
-!> \brief Set up atomic_kind_set()%fist_potentail%[qeff]
+!> \brief Set up atomic_kind_set()%fist_potential%[qeff]
 !>      and shell potential parameters
 !> \param atomic_kind_set ...
 !> \param qmmm_env ...
@@ -1964,11 +2106,11 @@ CONTAINS
 
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(qmmm_env_mm_type), POINTER                    :: qmmm_env
-      LOGICAL                                            :: fatal
-      INTEGER                                            :: iw, iw4
+      LOGICAL, INTENT(INOUT)                             :: fatal
+      INTEGER, INTENT(IN)                                :: iw, iw4
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: Ainfo
-      LOGICAL                                            :: my_qmmm
+      LOGICAL, INTENT(IN)                                :: my_qmmm
       TYPE(input_info_type), POINTER                     :: inp_info
 
       CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_charge'
@@ -1984,7 +2126,9 @@ CONTAINS
       TYPE(fist_potential_type), POINTER                 :: fist_potential
 
       CALL timeset(routineN, handle)
+
       charge_tot = 0.0_dp
+
       DO i = 1, SIZE(atomic_kind_set)
          atomic_kind => atomic_kind_set(i)
          CALL get_atomic_kind(atomic_kind=atomic_kind, &
@@ -2001,8 +2145,15 @@ CONTAINS
 
          ! Always have the input param last to overwrite all the other ones
          IF (ASSOCIATED(inp_info%charge_atm)) THEN
+            IF (iw > 0) WRITE (UNIT=iw, FMT="(A)") ""
             DO j = 1, SIZE(inp_info%charge_atm)
-               IF (iw > 0) WRITE (iw, *) "Charge Checking ::", TRIM(inp_info%charge_atm(j)), atmname
+               IF (debug_this_module) THEN
+                  IF (iw > 0) THEN
+                     WRITE (UNIT=iw, FMT="(T2,A)") &
+                        "Checking charges for the atomic kinds "// &
+                        TRIM(inp_info%charge_atm(j))//" and "//TRIM(atmname)
+                  END IF
+               END IF
                IF ((inp_info%charge_atm(j)) == atmname) THEN
                   charge = inp_info%charge(j)
                   CALL issue_duplications(found, "Charge", atmname)
@@ -2097,11 +2248,15 @@ CONTAINS
             END IF
          END IF
       END DO
-      ! Print Total Charge of the system
+
+      ! Print total charge of the system
       IF (iw4 > 0) THEN
-         WRITE (iw4, FMT='(T2,"CHARGE_INFO| Total Charge of the Classical System: ",T69,F12.6)') charge_tot
+         WRITE (UNIT=iw4, FMT="(/,T2,A,T61,F20.10)") &
+            "FORCEFIELD| Total charge of the classical system: ", charge_tot
       END IF
+
       CALL timestop(handle)
+
    END SUBROUTINE force_field_pack_charge
 
 ! **************************************************************************************************
@@ -2142,13 +2297,17 @@ CONTAINS
          ! Try to find a matching KIND section in the SUBSYS section and read the
          ! MM_RADIUS field if it is present. In case the kind section is never
          ! encountered, the mm_radius remains zero.
+         IF (iw > 0) WRITE (UNIT=iw, FMT="(A)") ""
          mm_radius = 0.0_dp
          DO i_rep = 1, n_rep
             CALL section_vals_val_get(kind_section, "_SECTION_PARAMETERS_", &
                                       c_val=inp_kind_name, i_rep_section=i_rep)
             CALL uppercase(inp_kind_name)
-            IF (iw > 0) WRITE (iw, *) "Matching kinds for MM_RADIUS :: '", &
-               TRIM(kind_name), "' with '", TRIM(inp_kind_name), "'"
+            IF (iw > 0) THEN
+               WRITE (UNIT=iw, FMT="(T2,A)") &
+                  "FORCEFIELD| Matching atomic kinds "//TRIM(kind_name)// &
+                  " and "//TRIM(inp_kind_name)//" for MM_RADIUS"
+            END IF
             IF (TRIM(kind_name) == TRIM(inp_kind_name)) THEN
                CALL section_vals_val_get(kind_section, i_rep_section=i_rep, &
                                          keyword_name="MM_RADIUS", r_val=mm_radius)
@@ -2156,10 +2315,11 @@ CONTAINS
                found = .TRUE.
             END IF
          END DO
-
          CALL set_potential(potential=fist_potential, mm_radius=mm_radius)
       END DO
+
       CALL timestop(handle)
+
    END SUBROUTINE force_field_pack_radius
 
 ! **************************************************************************************************
@@ -2186,6 +2346,11 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+      IF (iw > 0) THEN
+         WRITE (UNIT=iw, FMT="(/,T2,A)") &
+            "FORCEFIELD| Checking for polarisable forcefield terms"
+      END IF
+
       DO i = 1, SIZE(atomic_kind_set)
          atomic_kind => atomic_kind_set(i)
          CALL get_atomic_kind(atomic_kind=atomic_kind, &
@@ -2195,11 +2360,15 @@ CONTAINS
          CALL uppercase(kind_name)
          found = .FALSE.
 
+         IF (iw > 0) WRITE (UNIT=iw, FMT="(A)") ""
          ! Always have the input param last to overwrite all the other ones
          IF (ASSOCIATED(inp_info%apol_atm)) THEN
             DO j = 1, SIZE(inp_info%apol_atm)
-               IF (iw > 0) WRITE (iw, *) "Matching kinds for APOL :: '", &
-                  TRIM(kind_name), "' with '", TRIM(inp_info%apol_atm(j)), "'"
+               IF (iw > 0) THEN
+                  WRITE (UNIT=iw, FMT="(T2,A)") &
+                     "FORCEFIELD| Matching atomic kinds "//TRIM(kind_name)// &
+                     " and "//TRIM(inp_info%apol_atm(j))//" for APOL"
+               END IF
                IF ((inp_info%apol_atm(j)) == kind_name) THEN
                   apol = inp_info%apol(j)
                   CALL issue_duplications(found, "APOL", kind_name)
@@ -2210,8 +2379,11 @@ CONTAINS
 
          IF (ASSOCIATED(inp_info%cpol_atm)) THEN
             DO j = 1, SIZE(inp_info%cpol_atm)
-               IF (iw > 0) WRITE (iw, *) "Matching kinds for CPOL :: '", &
-                  TRIM(kind_name), "' with '", TRIM(inp_info%cpol_atm(j)), "'"
+               IF (iw > 0) THEN
+                  WRITE (UNIT=iw, FMT="(T2,A)") &
+                     "FORCEFIELD| Matching atomic kinds "//TRIM(kind_name)// &
+                     " and "//TRIM(inp_info%cpol_atm(j))//" for CPOL"
+               END IF
                IF ((inp_info%cpol_atm(j)) == kind_name) THEN
                   cpol = inp_info%cpol(j)
                   CALL issue_duplications(found, "CPOL", kind_name)
@@ -2221,8 +2393,11 @@ CONTAINS
          END IF
 
          CALL set_potential(potential=fist_potential, apol=apol, cpol=cpol)
+
       END DO
+
       CALL timestop(handle)
+
    END SUBROUTINE force_field_pack_pol
 
 ! **************************************************************************************************
@@ -2231,8 +2406,7 @@ CONTAINS
 !> \param iw ...
 !> \param inp_info ...
 ! **************************************************************************************************
-   SUBROUTINE force_field_pack_damp(atomic_kind_set, &
-                                    iw, inp_info)
+   SUBROUTINE force_field_pack_damp(atomic_kind_set, iw, inp_info)
 
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       INTEGER                                            :: iw
@@ -2248,38 +2422,48 @@ CONTAINS
       TYPE(damping_p_type), POINTER                      :: damping
 
       CALL timeset(routineN, handle2)
+
+      IF (iw > 0) THEN
+         WRITE (UNIT=iw, FMT="(/,T2,A)") &
+            "FORCEFIELD| Checking for damping terms"
+      END IF
+
       NULLIFY (damping)
       nkinds = SIZE(atomic_kind_set)
 
       DO j = 1, SIZE(atomic_kind_set)
+
          atomic_kind => atomic_kind_set(j)
+
          CALL get_atomic_kind(atomic_kind=atomic_kind, &
                               name=atm_name1)
-         CALL UPPERCASE(atm_name1)
+         CALL uppercase(atm_name1)
+
          IF (ASSOCIATED(inp_info%damping_list)) THEN
             DO i = 1, SIZE(inp_info%damping_list)
                my_atm_name1 = inp_info%damping_list(i)%atm_name1
                my_atm_name2 = inp_info%damping_list(i)%atm_name2
-
-               IF (iw > 0) WRITE (iw, *) "Damping Checking ::", TRIM(my_atm_name1), &
-                  TRIM(atm_name1)
+               IF (debug_this_module) THEN
+                  IF (iw > 0) THEN
+                     WRITE (UNIT=iw, FMT="(T2,A)") &
+                        "FORCEFIELD| Check damping for the atomic kinds "// &
+                        TRIM(my_atm_name1)//" and "//TRIM(atm_name1)
+                  END IF
+               END IF
                IF (my_atm_name1 == atm_name1) THEN
                   IF (.NOT. ASSOCIATED(damping)) THEN
                      CALL damping_p_create(damping, nkinds)
                   END IF
-
                   found = .FALSE.
                   DO k = 1, SIZE(atomic_kind_set)
                      atomic_kind2 => atomic_kind_set(k)
                      CALL get_atomic_kind(atomic_kind=atomic_kind2, &
                                           name=atm_name2)
-                     CALL UPPERCASE(atm_name2)
-
+                     CALL uppercase(atm_name2)
                      IF (my_atm_name2 == atm_name2) THEN
                         IF (damping%damp(k)%bij /= HUGE(0.0_dp)) found = .TRUE.
                         CALL issue_duplications(found, "Damping", atm_name1)
                         found = .TRUE.
-
                         SELECT CASE (TRIM(inp_info%damping_list(i)%dtype))
                         CASE ('TANG-TOENNIES')
                            damping%damp(k)%itype = tang_toennies
@@ -2290,20 +2474,21 @@ CONTAINS
                         damping%damp(k)%bij = inp_info%damping_list(i)%bij
                         damping%damp(k)%cij = inp_info%damping_list(i)%cij
                      END IF
-
                   END DO
-                  IF (.NOT. found) &
+                  IF (.NOT. found) THEN
                      CALL cp_warn(__LOCATION__, &
                                   "Atom "//TRIM(my_atm_name2)// &
                                   " in damping parameters for atom "//TRIM(my_atm_name1)// &
-                                  " not found! ")
+                                  " not found.")
+                  END IF
                END IF
             END DO
-
          END IF
 
          CALL set_atomic_kind(atomic_kind=atomic_kind, damping=damping)
+
          NULLIFY (damping)
+
       END DO
 
       CALL timestop(handle2)
@@ -2356,6 +2541,7 @@ CONTAINS
       TYPE(shell_type), DIMENSION(:), POINTER            :: shell_list
 
       CALL timeset(routineN, handle2)
+
       nshell_tot = 0
       n = 0
       first_shell = 1
@@ -2366,6 +2552,11 @@ CONTAINS
       NULLIFY (global_section)
       global_section => section_vals_get_subs_vals(root_section, "GLOBAL")
       CALL section_vals_val_get(global_section, "SAVE_MEM", l_val=save_mem)
+
+      IF (iw > 0) THEN
+         WRITE (UNIT=iw, FMT="(/,T2,A)") &
+            "FORCEFIELD| Checking for core-shell terms"
+      END IF
 
       DO i = 1, SIZE(atomic_kind_set)
          atomic_kind => atomic_kind_set(i)
@@ -2379,7 +2570,13 @@ CONTAINS
          ! The shell potential can be defined only from input
          IF (ASSOCIATED(inp_info%shell_list)) THEN
             DO j = 1, SIZE(inp_info%shell_list)
-               IF (iw > 0) WRITE (iw, *) "Shell Checking ::", TRIM(inp_info%shell_list(j)%atm_name), atmname
+               IF (debug_this_module) THEN
+                  IF (iw > 0) THEN
+                     WRITE (UNIT=iw, FMT="(T2,A)") &
+                        "Checking shells for the atomic kinds "// &
+                        TRIM(inp_info%shell_list(j)%atm_name)//" and "//TRIM(atmname)
+                  END IF
+               END IF
                IF ((inp_info%shell_list(j)%atm_name) == atmname) THEN
                   CALL get_atomic_kind(atomic_kind=atomic_kind, &
                                        shell=shell, mass=atmmass, natom=natom)
@@ -2400,11 +2597,14 @@ CONTAINS
                   CALL set_atomic_kind(atomic_kind=atomic_kind, &
                                        shell=shell, shell_active=.TRUE.)
                END IF
-            END DO ! j shell kind
+            END DO ! shell kind
          END IF ! associated shell_list
-      END DO ! i atomic kind
+      END DO ! atomic kind
 
-      IF (iw > 0) WRITE (iw, *) "Total number of particles with a shell :: ", nshell_tot
+      IF (iw > 0) THEN
+         WRITE (UNIT=iw, FMT="(/,T2,A,T61,I20)") &
+            "FORCEFIELD| Total number of particles with a shell:", nshell_tot
+      END IF
       ! If shell-model is present: Create particle_set of shells (coord. vel. force)
       NULLIFY (shell_particle_set)
       NULLIFY (core_particle_set)
@@ -2510,8 +2710,10 @@ CONTAINS
             n = n + nmol*counter
          END DO ! i molecule kind
       END IF
+
       CPASSERT(first_shell - 1 == nshell_tot)
       CPASSERT(n == nshell_tot)
+
       CALL timestop(handle2)
 
    END SUBROUTINE force_field_pack_shell
@@ -2558,11 +2760,19 @@ CONTAINS
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind
       TYPE(pair_potential_single_type), POINTER          :: pot
 
+      CALL timeset(routineN, handle2)
+
       use_qmmm_ff = qmmm_env%use_qmmm_ff
       NULLIFY (pot)
+
+      IF (iw > 0) THEN
+         WRITE (UNIT=iw, FMT="(/,T2,A)") &
+            "FORCEFIELD| Checking for nonbonded14 terms"
+      END IF
+
       CALL ewald_env_get(ewald_env, rcut=ewald_rcut)
-      CALL timeset(routineN, handle2)
       CALL pair_potential_pp_create(potparm_nonbond14, SIZE(atomic_kind_set))
+
       DO i = 1, SIZE(atomic_kind_set)
          atomic_kind => atomic_kind_set(i)
          CALL get_atomic_kind(atomic_kind=atomic_kind, name=name_atm_a_local)
@@ -2611,7 +2821,7 @@ CONTAINS
                END IF
             END IF
 
-            ! loop over params from CHARMM
+            ! Loop over params from CHARMM
             ii = 0
             jj = 0
             IF (ASSOCIATED(chm_info%nonbond_a_14)) THEN
@@ -2668,7 +2878,7 @@ CONTAINS
                found = .TRUE.
             END IF
 
-            ! loop over params from AMBER
+            ! Loop over params from AMBER
             IF (ASSOCIATED(amb_info%nonbond_a)) THEN
                ii = 0
                jj = 0
@@ -2708,7 +2918,7 @@ CONTAINS
                END IF
             END IF
 
-            ! always have the input param last to overwrite all the other ones
+            ! Always have the input param last to overwrite all the other ones
             IF (ASSOCIATED(inp_info%nonbonded14)) THEN
                DO k = 1, SIZE(inp_info%nonbonded14%pot)
                   IF (iw > 0) WRITE (iw, *) "    TESTING ", TRIM(name_atm_a), TRIM(name_atm_b), &
@@ -2738,7 +2948,8 @@ CONTAINS
                   END IF
                END DO
             END IF
-            ! at the very end we offer the possibility to overwrite the parameters for QM/MM
+
+            ! At the very end we offer the possibility to overwrite the parameters for QM/MM
             ! nonbonded interactions
             IF (use_qmmm_ff) THEN
                match_names = 0
@@ -2747,9 +2958,14 @@ CONTAINS
                IF (match_names == 1) THEN
                   IF (ASSOCIATED(qmmm_env%inp_info%nonbonded14)) THEN
                      DO k = 1, SIZE(qmmm_env%inp_info%nonbonded14%pot)
-                        IF (iw > 0) WRITE (iw, *) "    TESTING ", TRIM(name_atm_a), TRIM(name_atm_b), &
-                           " with ", TRIM(qmmm_env%inp_info%nonbonded14%pot(k)%pot%at1), &
-                           TRIM(qmmm_env%inp_info%nonbonded14%pot(k)%pot%at2)
+                        IF (debug_this_module) THEN
+                           IF (iw > 0) THEN
+                              WRITE (UNIT=iw, FMT="(T2,A)") &
+                                 "FORCEFIELD| Testing "//TRIM(name_atm_a)//"-"//TRIM(name_atm_b)// &
+                                 " with "//TRIM(qmmm_env%inp_info%nonbonded14%pot(k)%pot%at1)//"-"// &
+                                 TRIM(qmmm_env%inp_info%nonbonded14%pot(k)%pot%at2)
+                           END IF
+                        END IF
                         IF ((((name_atm_a) == (qmmm_env%inp_info%nonbonded14%pot(k)%pot%at1)) .AND. &
                              ((name_atm_b) == (qmmm_env%inp_info%nonbonded14%pot(k)%pot%at2))) .OR. &
                             (((name_atm_b) == (qmmm_env%inp_info%nonbonded14%pot(k)%pot%at1)) .AND. &
@@ -2759,7 +2975,7 @@ CONTAINS
                               IF (found) &
                                  CALL cp_warn(__LOCATION__, &
                                               "Multiple ONFO declaration: "//TRIM(name_atm_a)// &
-                                              " and "//TRIM(name_atm_b)//" ADDING QM/MM forcefield specifications! ")
+                                              " and "//TRIM(name_atm_b)//" Adding QM/MM forcefield specifications")
                               potparm_nonbond14%pot(i, j)%pot => pot
                               potparm_nonbond14%pot(j, i)%pot => pot
                            ELSE
@@ -2788,17 +3004,22 @@ CONTAINS
                pot%at1 = name_atm_a
                pot%at2 = name_atm_b
             END IF
+
             ! If defined global RCUT let's use it
             IF (ff_type%rcut_nb > 0.0_dp) THEN
                pot%rcutsq = ff_type%rcut_nb*ff_type%rcut_nb
             END IF
+
             ! Cutoff is defined always as the maximum between the FF and Ewald
             pot%rcutsq = MAX(pot%rcutsq, ewald_rcut*ewald_rcut)
             IF (only_qm) THEN
                CALL pair_potential_single_clean(pot)
             END IF
+
          END DO ! atom kind j
+
       END DO ! atom kind i
+
       CALL timestop(handle2)
 
    END SUBROUTINE force_field_pack_nonbond14
@@ -2848,19 +3069,34 @@ CONTAINS
       TYPE(pair_potential_single_type), POINTER          :: pot
 
       CALL timeset(routineN, handle2)
+
       use_qmmm_ff = qmmm_env%use_qmmm_ff
       NULLIFY (pot)
+
+      IF (iw > 0) THEN
+         WRITE (UNIT=iw, FMT="(/,T2,A)") &
+            "FORCEFIELD| Checking for nonbonded terms"
+      END IF
+
       CALL ewald_env_get(ewald_env, rcut=ewald_rcut)
       CALL pair_potential_pp_create(potparm_nonbond, SIZE(atomic_kind_set))
+
       DO i = 1, SIZE(atomic_kind_set)
+
          atomic_kind => atomic_kind_set(i)
+
          CALL get_atomic_kind(atomic_kind=atomic_kind, name=name_atm_a_local, &
                               shell_active=is_a_shell)
+
          DO j = i, SIZE(atomic_kind_set)
+
             atomic_kind => atomic_kind_set(j)
+
             CALL get_atomic_kind(atomic_kind=atomic_kind, name=name_atm_b_local, &
                                  shell_active=is_b_shell)
+
             found = .FALSE.
+
             name_atm_a = name_atm_a_local
             name_atm_b = name_atm_b_local
             only_qm = qmmm_ff_precond_only_qm(id1=name_atm_a, id2=name_atm_b)
@@ -2868,7 +3104,13 @@ CONTAINS
             CALL uppercase(name_atm_b)
             pot => potparm_nonbond%pot(i, j)%pot
 
-            ! loop over params from GROMOS
+            IF (iw > 0) THEN
+               WRITE (UNIT=iw, FMT="(/,T2,A)") &
+                  "FORCEFIELD| Checking for nonbonded terms between the atomic kinds "// &
+                  TRIM(name_atm_a)//" and "//TRIM(name_atm_b)
+            END IF
+
+            ! Loop over params from GROMOS
             IF (ASSOCIATED(gro_info%nonbond_a)) THEN
                ii = 0
                jj = 0
@@ -2899,7 +3141,7 @@ CONTAINS
                END IF
             END IF
 
-            ! loop over params from CHARMM
+            ! Loop over params from CHARMM
             IF (ASSOCIATED(chm_info%nonbond_a)) THEN
                ii = 0
                jj = 0
@@ -2931,7 +3173,7 @@ CONTAINS
                END IF
             END IF
 
-            ! loop over params from AMBER
+            ! Loop over params from AMBER
             IF (ASSOCIATED(amb_info%nonbond_a)) THEN
                ii = 0
                jj = 0
@@ -2962,104 +3204,128 @@ CONTAINS
                END IF
             END IF
 
-            ! always have the input param last to overwrite all the other ones
+            ! Always have the input param last to overwrite all the other ones
             IF (ASSOCIATED(inp_info%nonbonded)) THEN
                DO k = 1, SIZE(inp_info%nonbonded%pot)
                   IF ((TRIM(inp_info%nonbonded%pot(k)%pot%at1) == "*") .OR. &
                       (TRIM(inp_info%nonbonded%pot(k)%pot%at2) == "*")) CYCLE
-
-                  IF (iw > 0) WRITE (iw, *) "    TESTING ", TRIM(name_atm_a), TRIM(name_atm_b), &
-                     " with ", TRIM(inp_info%nonbonded%pot(k)%pot%at1), &
-                     TRIM(inp_info%nonbonded%pot(k)%pot%at2)
+                  IF (debug_this_module) THEN
+                     IF (iw > 0) THEN
+                        WRITE (UNIT=iw, FMT="(T2,A)") &
+                           "FORCEFIELD| Testing "//TRIM(name_atm_a)//"-"//TRIM(name_atm_b)// &
+                           " with "//TRIM(inp_info%nonbonded%pot(k)%pot%at1)//"-"// &
+                           TRIM(inp_info%nonbonded%pot(k)%pot%at2)
+                     END IF
+                  END IF
                   IF ((((name_atm_a) == (inp_info%nonbonded%pot(k)%pot%at1)) .AND. &
                        ((name_atm_b) == (inp_info%nonbonded%pot(k)%pot%at2))) .OR. &
                       (((name_atm_b) == (inp_info%nonbonded%pot(k)%pot%at1)) .AND. &
                        ((name_atm_a) == (inp_info%nonbonded%pot(k)%pot%at2)))) THEN
+                     IF (iw > 0) THEN
+                        WRITE (UNIT=iw, FMT="(T2,A)") &
+                           "FORCEFIELD| Found nonbonded term "// &
+                           TRIM(name_atm_a)//"-"//TRIM(name_atm_b)
+                     END IF
                      IF (ff_type%multiple_potential) THEN
                         CALL pair_potential_single_add(inp_info%nonbonded%pot(k)%pot, pot)
                         IF (found) &
                            CALL cp_warn(__LOCATION__, &
-                                        "Multiple NONBONDED declaration: "//TRIM(name_atm_a)// &
-                                        " and "//TRIM(name_atm_b)//" ADDING! ")
+                                        "Multiple NONBONDED declarations for "//TRIM(name_atm_a)// &
+                                        "-"//TRIM(name_atm_b)//" -> ADDING")
                         potparm_nonbond%pot(i, j)%pot => pot
                         potparm_nonbond%pot(j, i)%pot => pot
                      ELSE
                         CALL pair_potential_single_copy(inp_info%nonbonded%pot(k)%pot, pot)
                         IF (found) &
                            CALL cp_warn(__LOCATION__, &
-                                        "Multiple NONBONDED declaration: "//TRIM(name_atm_a)// &
-                                        " and "//TRIM(name_atm_b)//" OVERWRITING! ")
+                                        "Multiple NONBONDED declarations for "//TRIM(name_atm_a)// &
+                                        "-"//TRIM(name_atm_b)//" -> OVERWRITING")
                      END IF
-                     IF (iw > 0) WRITE (iw, *) "    FOUND ", TRIM(name_atm_a), " ", TRIM(name_atm_b)
                      found = .TRUE.
                   END IF
                END DO
+
                ! Check for wildcards for one of the two types (if not associated yet)
                IF (.NOT. found) THEN
                   DO k = 1, SIZE(inp_info%nonbonded%pot)
                      IF ((TRIM(inp_info%nonbonded%pot(k)%pot%at1) == "*") .EQV. &
                          (TRIM(inp_info%nonbonded%pot(k)%pot%at2) == "*")) CYCLE
-
-                     IF (iw > 0) WRITE (iw, *) "    TESTING ", TRIM(name_atm_a), TRIM(name_atm_b), &
-                        " with ", TRIM(inp_info%nonbonded%pot(k)%pot%at1), &
-                        TRIM(inp_info%nonbonded%pot(k)%pot%at2)
-
+                     IF (debug_this_module) THEN
+                        IF (iw > 0) THEN
+                           WRITE (UNIT=iw, FMT="(T2,A)") &
+                              "FORCEFIELD| Testing "//TRIM(name_atm_a)//"-"//TRIM(name_atm_b)// &
+                              " with "//TRIM(inp_info%nonbonded%pot(k)%pot%at1)//"-"// &
+                              TRIM(inp_info%nonbonded%pot(k)%pot%at2)
+                        END IF
+                     END IF
                      IF ((name_atm_a == inp_info%nonbonded%pot(k)%pot%at1) .OR. &
                          (name_atm_b == inp_info%nonbonded%pot(k)%pot%at2) .OR. &
                          (name_atm_b == inp_info%nonbonded%pot(k)%pot%at1) .OR. &
                          (name_atm_a == inp_info%nonbonded%pot(k)%pot%at2)) THEN
+                        IF (iw > 0) THEN
+                           WRITE (UNIT=iw, FMT="(T2,A)") &
+                              "FORCEFIELD| Found one wildcard for "// &
+                              TRIM(name_atm_a)//"-"//TRIM(name_atm_b)
+                        END IF
                         IF (ff_type%multiple_potential) THEN
                            CALL pair_potential_single_add(inp_info%nonbonded%pot(k)%pot, pot)
                            IF (found) &
                               CALL cp_warn(__LOCATION__, &
-                                           "Multiple NONBONDED declaration: "//TRIM(name_atm_a)// &
-                                           " and "//TRIM(name_atm_b)//" ADDING! ")
+                                           "Multiple NONBONDED declarations "//TRIM(name_atm_a)// &
+                                           "-"//TRIM(name_atm_b)//" -> ADDING")
                            potparm_nonbond%pot(i, j)%pot => pot
                            potparm_nonbond%pot(j, i)%pot => pot
                         ELSE
                            CALL pair_potential_single_copy(inp_info%nonbonded%pot(k)%pot, pot)
                            IF (found) &
                               CALL cp_warn(__LOCATION__, &
-                                           "Multiple NONBONDED declaration: "//TRIM(name_atm_a)// &
-                                           " and "//TRIM(name_atm_b)//" OVERWRITING! ")
+                                           "Multiple NONBONDED declarations "//TRIM(name_atm_a)// &
+                                           "-"//TRIM(name_atm_b)//" -> OVERWRITING")
                         END IF
-                        IF (iw > 0) WRITE (iw, *) "    FOUND (one WILDCARD)", TRIM(name_atm_a), " ", TRIM(name_atm_b)
                         found = .TRUE.
                      END IF
                   END DO
                END IF
+
                ! Check for wildcards for both types (if not associated yet)
                IF (.NOT. found) THEN
                   DO k = 1, SIZE(inp_info%nonbonded%pot)
                      IF ((TRIM(inp_info%nonbonded%pot(k)%pot%at1) /= "*") .OR. &
                          (TRIM(inp_info%nonbonded%pot(k)%pot%at2) /= "*")) CYCLE
-
-                     IF (iw > 0) WRITE (iw, *) "    TESTING ", TRIM(name_atm_a), TRIM(name_atm_b), &
-                        " with ", TRIM(inp_info%nonbonded%pot(k)%pot%at1), &
-                        TRIM(inp_info%nonbonded%pot(k)%pot%at2)
-
+                     IF (debug_this_module) THEN
+                        IF (iw > 0) THEN
+                           WRITE (UNIT=iw, FMT="(T2,A)") &
+                              "FORCEFIELD| Testing "//TRIM(name_atm_a)//"-"//TRIM(name_atm_b)// &
+                              " with "//TRIM(inp_info%nonbonded%pot(k)%pot%at1)//"-"// &
+                              TRIM(inp_info%nonbonded%pot(k)%pot%at2)
+                        END IF
+                     END IF
+                     IF (iw > 0) THEN
+                        WRITE (UNIT=iw, FMT="(T2,A)") &
+                           "FORCEFIELD| Found wildcards for both "// &
+                           TRIM(name_atm_a)//" and "//TRIM(name_atm_b)
+                     END IF
                      IF (ff_type%multiple_potential) THEN
                         CALL pair_potential_single_add(inp_info%nonbonded%pot(k)%pot, pot)
                         IF (found) &
                            CALL cp_warn(__LOCATION__, &
-                                        "Multiple NONBONDED declaration: "//TRIM(name_atm_a)// &
-                                        " and "//TRIM(name_atm_b)//" ADDING! ")
+                                        "Multiple NONBONDED declarations "//TRIM(name_atm_a)// &
+                                        " - "//TRIM(name_atm_b)//" -> ADDING")
                         potparm_nonbond%pot(i, j)%pot => pot
                         potparm_nonbond%pot(j, i)%pot => pot
                      ELSE
                         CALL pair_potential_single_copy(inp_info%nonbonded%pot(k)%pot, pot)
                         IF (found) &
                            CALL cp_warn(__LOCATION__, &
-                                        "Multiple NONBONDED declaration: "//TRIM(name_atm_a)// &
-                                        " and "//TRIM(name_atm_b)//" OVERWRITING! ")
+                                        "Multiple NONBONDED declarations "//TRIM(name_atm_a)// &
+                                        " - "//TRIM(name_atm_b)//" -> OVERWRITING")
                      END IF
-                     IF (iw > 0) WRITE (iw, *) "    FOUND (both WILDCARDS)", TRIM(name_atm_a), " ", TRIM(name_atm_b)
                      found = .TRUE.
                   END DO
                END IF
             END IF
 
-            ! at the very end we offer the possibility to overwrite the parameters for QM/MM
+            ! At the very end we offer the possibility to overwrite the parameters for QM/MM
             ! nonbonded interactions
             IF (use_qmmm_ff) THEN
                match_names = 0
@@ -3068,35 +3334,44 @@ CONTAINS
                IF (match_names == 1) THEN
                   IF (ASSOCIATED(qmmm_env%inp_info%nonbonded)) THEN
                      DO k = 1, SIZE(qmmm_env%inp_info%nonbonded%pot)
-                        IF (iw > 0) WRITE (iw, *) "    TESTING ", TRIM(name_atm_a), TRIM(name_atm_b), &
-                           " with ", TRIM(qmmm_env%inp_info%nonbonded%pot(k)%pot%at1), &
-                           TRIM(qmmm_env%inp_info%nonbonded%pot(k)%pot%at2)
+                        IF (debug_this_module) THEN
+                           IF (iw > 0) THEN
+                              WRITE (UNIT=iw, FMT="(T2,A)") &
+                                 "FORCEFIELD| Testing "//TRIM(name_atm_a)//"-"//TRIM(name_atm_b)// &
+                                 " with "//TRIM(qmmm_env%inp_info%nonbonded%pot(k)%pot%at1), &
+                                 TRIM(qmmm_env%inp_info%nonbonded%pot(k)%pot%at2)
+                           END IF
+                        END IF
                         IF ((((name_atm_a) == (qmmm_env%inp_info%nonbonded%pot(k)%pot%at1)) .AND. &
                              ((name_atm_b) == (qmmm_env%inp_info%nonbonded%pot(k)%pot%at2))) .OR. &
                             (((name_atm_b) == (qmmm_env%inp_info%nonbonded%pot(k)%pot%at1)) .AND. &
                              ((name_atm_a) == (qmmm_env%inp_info%nonbonded%pot(k)%pot%at2)))) THEN
+                           IF (iw > 0) THEN
+                              WRITE (UNIT=iw, FMT="(T2,A)") &
+                                 "FORCEFIELD| Found "//TRIM(name_atm_a)//"-"//TRIM(name_atm_b)//" (QM/MM)"
+                           END IF
                            IF (qmmm_env%multiple_potential) THEN
                               CALL pair_potential_single_add(qmmm_env%inp_info%nonbonded%pot(k)%pot, pot)
                               IF (found) &
                                  CALL cp_warn(__LOCATION__, &
-                                              "Multiple NONBONDED declaration: "//TRIM(name_atm_a)// &
-                                              " and "//TRIM(name_atm_b)//" ADDING QM/MM forcefield specifications! ")
+                                              "Multiple NONBONDED declarations for "//TRIM(name_atm_a)// &
+                                              " and "//TRIM(name_atm_b)//" -> ADDING QM/MM forcefield specifications")
                               potparm_nonbond%pot(i, j)%pot => pot
                               potparm_nonbond%pot(j, i)%pot => pot
                            ELSE
                               CALL pair_potential_single_copy(qmmm_env%inp_info%nonbonded%pot(k)%pot, pot)
                               IF (found) &
                                  CALL cp_warn(__LOCATION__, &
-                                              "Multiple NONBONDED declaration: "//TRIM(name_atm_a)// &
-                                              " and "//TRIM(name_atm_b)//" OVERWRITING QM/MM forcefield specifications! ")
+                                              "Multiple NONBONDED declarations for "//TRIM(name_atm_a)// &
+                                              " and "//TRIM(name_atm_b)//" -> OVERWRITING QM/MM forcefield specifications")
                            END IF
-                           IF (iw > 0) WRITE (iw, *) "    FOUND ", TRIM(name_atm_a), " ", TRIM(name_atm_b)
                            found = .TRUE.
                         END IF
                      END DO
                   END IF
                END IF
             END IF
+
             IF (.NOT. found) THEN
                CALL store_FF_missing_par(atm1=TRIM(name_atm_a), &
                                          atm2=TRIM(name_atm_b), &
@@ -3104,10 +3379,12 @@ CONTAINS
                                          fatal=fatal, &
                                          array=Ainfo)
             END IF
+
             ! If defined global RCUT let's use it
             IF (ff_type%rcut_nb > 0.0_dp) THEN
                pot%rcutsq = ff_type%rcut_nb*ff_type%rcut_nb
             END IF
+
             ! Cutoff is defined always as the maximum between the FF and Ewald
             pot%rcutsq = MAX(pot%rcutsq, ewald_rcut*ewald_rcut)
             ! Set the shell type
@@ -3118,12 +3395,17 @@ CONTAINS
             ELSE
                pot%shell_type = nosh_nosh
             END IF
+
             IF (only_qm) THEN
                CALL pair_potential_single_clean(pot)
             END IF
+
          END DO ! jkind
+
       END DO ! ikind
+
       CALL timestop(handle2)
+
    END SUBROUTINE force_field_pack_nonbond
 
 ! **************************************************************************************************
@@ -3154,20 +3436,27 @@ CONTAINS
       TYPE(spline_environment_type), POINTER             :: spline_env
 
       CALL timeset(routineN, handle2)
+
+      IF (iw2 > 0) THEN
+         WRITE (UNIT=iw2, FMT="(/,T2,A)") &
+            "FORCEFIELD| Splining nonbonded terms"
+      END IF
+
       ! Figure out which nonbonded interactions happen to be identical, and
       ! prepare storage for these, avoiding duplicates.
       NULLIFY (spline_env)
       CALL get_nonbond_storage(spline_env, potparm, atomic_kind_set, &
                                do_zbl, shift_cutoff=ff_type%shift_cutoff)
-      ! Effectively compute the spline data.
+      ! Effectively compute the spline data
       CALL spline_nonbond_control(spline_env, potparm, &
                                   atomic_kind_set, eps_spline=ff_type%eps_spline, &
                                   max_energy=ff_type%max_energy, rlow_nb=ff_type%rlow_nb, &
-                                  emax_spline=ff_type%emax_spline, npoints=ff_type%npoints, iw=iw2, iw2=iw3, iw3=iw4, &
+                                  emax_spline=ff_type%emax_spline, npoints=ff_type%npoints, &
+                                  iw=iw2, iw2=iw3, iw3=iw4, &
                                   do_zbl=do_zbl, shift_cutoff=ff_type%shift_cutoff, &
                                   nonbonded_type=nonbonded_type)
       ! Let the pointers on potparm point to the splines generated in
-      ! spline_nonbond_control.
+      ! spline_nonbond_control
       DO ikind = 1, SIZE(potparm%pot, 1)
          DO jkind = ikind, SIZE(potparm%pot, 2)
             n = spline_env%spltab(ikind, jkind)
@@ -3180,6 +3469,12 @@ CONTAINS
       CALL spline_env_release(spline_env)
       DEALLOCATE (spline_env)
       NULLIFY (spline_env)
+
+      IF (iw2 > 0) THEN
+         WRITE (UNIT=iw2, FMT="(/,T2,A)") &
+            "FORCEFIELD| Splining done"
+      END IF
+
       CALL timestop(handle2)
 
    END SUBROUTINE force_field_pack_splines
@@ -3190,15 +3485,16 @@ CONTAINS
 !> \param ff_type ...
 !> \param potparm_nonbond ...
 !> \param ewald_env ...
+!> \param iw ...
 !> \author Toon.Verstraelen@gmail.com
 ! **************************************************************************************************
-   SUBROUTINE force_field_pack_eicut(atomic_kind_set, ff_type, &
-                                     potparm_nonbond, ewald_env)
+   SUBROUTINE force_field_pack_eicut(atomic_kind_set, ff_type, potparm_nonbond, ewald_env, iw)
 
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(force_field_type), INTENT(IN)                 :: ff_type
       TYPE(pair_potential_pp_type), POINTER              :: potparm_nonbond
       TYPE(ewald_environment_type), POINTER              :: ewald_env
+      INTEGER, INTENT(IN)                                :: iw
 
       CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack_eicut'
 
@@ -3210,14 +3506,20 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+      IF (iw > 0) THEN
+         WRITE (UNIT=iw, FMT="(/,T2,A)") &
+            "FORCEFIELD| Computing the electrostatic interactions cutoffs"
+      END IF
+
       tmp = 0.0_dp
       nkinds = SIZE(atomic_kind_set)
-      ! allocate the array with interaction cutoffs for the electrostatics, used
+
+      ! Allocate the array with interaction cutoffs for the electrostatics, used
       ! to make the electrostatic interaction continuous at ewald_env%rcut
       ALLOCATE (interaction_cutoffs(3, nkinds, nkinds))
       interaction_cutoffs = 0.0_dp
 
-      ! compute the interaction cutoff if SHIFT_CUTOFF is active
+      ! Compute the interaction cutoff if SHIFT_CUTOFF is active
       IF (ff_type%shift_cutoff) THEN
          CALL ewald_env_get(ewald_env, alpha=alpha, ewald_type=ewald_type, &
                             rcut=rcut2_ewald)
@@ -3260,6 +3562,7 @@ CONTAINS
       CALL ewald_env_set(ewald_env, interaction_cutoffs=interaction_cutoffs)
 
       CALL timestop(handle)
+
    END SUBROUTINE force_field_pack_eicut
 
 ! **************************************************************************************************
@@ -3282,19 +3585,19 @@ CONTAINS
 
       CHARACTER(LEN=default_string_length)               :: item
 
-      item = "( "//TRIM(name_atm_a)
+      item = "("//TRIM(name_atm_a)
       IF (PRESENT(name_atm_b)) THEN
-         item = TRIM(item)//" , "//TRIM(name_atm_b)
+         item = TRIM(item)//", "//TRIM(name_atm_b)
       END IF
       IF (PRESENT(name_atm_c)) THEN
-         item = TRIM(item)//" , "//TRIM(name_atm_c)
+         item = TRIM(item)//", "//TRIM(name_atm_c)
       END IF
       IF (PRESENT(name_atm_d)) THEN
-         item = TRIM(item)//" , "//TRIM(name_atm_d)
+         item = TRIM(item)//", "//TRIM(name_atm_d)
       END IF
-      item = TRIM(item)//" )"
+      item = TRIM(item)//")"
       IF (found) THEN
-         CPWARN("Multiple "//TRIM(tag_label)//" declarations: "//TRIM(item)//" overwriting!")
+         CPWARN("Found multiple "//TRIM(tag_label)//" terms for "//TRIM(item)//" -> OVERWRITING")
       END IF
 
    END SUBROUTINE issue_duplications
@@ -3491,4 +3794,3 @@ CONTAINS
    END FUNCTION bsearch_leftmost_2d
 
 END MODULE force_fields_all
-

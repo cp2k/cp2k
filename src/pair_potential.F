@@ -132,9 +132,9 @@ CONTAINS
 !> \par History
 !>      Teo 2006.05 : Improved speed and accuracy. Linear scaling of the setup
 ! **************************************************************************************************
-   SUBROUTINE spline_nonbond_control(spline_env, potparm, atomic_kind_set, &
-                                     eps_spline, max_energy, rlow_nb, emax_spline, npoints, iw, iw2, iw3, do_zbl, &
-                                     shift_cutoff, nonbonded_type)
+   SUBROUTINE spline_nonbond_control(spline_env, potparm, atomic_kind_set, eps_spline, &
+                                     max_energy, rlow_nb, emax_spline, npoints, iw, iw2, iw3, &
+                                     do_zbl, shift_cutoff, nonbonded_type)
 
       TYPE(spline_environment_type), POINTER             :: spline_env
       TYPE(pair_potential_pp_type), POINTER              :: potparm
@@ -153,11 +153,12 @@ CONTAINS
       REAL(KIND=dp)                                      :: energy_cutoff, hicut, hicut0, locut
       TYPE(pair_potential_single_type), POINTER          :: pot
 
+      CALL timeset(routineN, handle)
+
       n = 0
       ncount = 0
-
       ntype = SIZE(atomic_kind_set)
-      CALL timeset(routineN, handle)
+
       IF (iw3 > 0) THEN
          WRITE (iw3, "(/,T2,A,I0,A,I0,A)") &
             "SPLINE_INFO| Generating ", (ntype*(ntype + 1))/2, " splines for "// &
@@ -255,13 +256,12 @@ CONTAINS
       CALL finalizef()
 
       IF (iw > 0) THEN
-         WRITE (iw, '(/,T2,A,I0)') &
+         WRITE (UNIT=iw, FMT='(/,T2,A,I0)') &
             "SPLINE_INFO| Number of pair potential splines allocated:   ", MAXVAL(spline_env%spltab)
       END IF
       IF (iw3 > 0) THEN
-         WRITE (iw3, '(/,T2,A,I0,/,T2,A)') &
-            "SPLINE_INFO| Number of unique splines computed:            ", MAXVAL(spline_env%spltab), &
-            "SPLINE_INFO| Done"
+         WRITE (UNIT=iw3, FMT='(/,T2,A,I0)') &
+            "SPLINE_INFO| Number of unique splines computed:            ", MAXVAL(spline_env%spltab)
       END IF
 
       CALL timestop(handle)

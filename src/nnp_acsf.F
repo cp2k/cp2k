@@ -71,7 +71,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: forcetmp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: force3tmp
       REAL(KIND=dp), DIMENSION(3)                        :: rvect1, rvect2, rvect3
-      TYPE(nnp_neighbor_type)                            :: neighbor
+      TYPE(nnp_neighbor_type)                            :: neighbor = nnp_neighbor_type()
 
       CALL timeset(routineN, handle)
 

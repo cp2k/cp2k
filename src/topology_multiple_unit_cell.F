@@ -29,13 +29,13 @@ MODULE topology_multiple_unit_cell
 
    PRIVATE
 
-! *** Public parameters ***
+   ! Public parameters
    PUBLIC :: topology_muc
 
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief Handles the multiple_unit_cell for the atomic coordinates..
+!> \brief Handles the multiple_unit_cell for the atomic coordinates.
 !> \param topology ...
 !> \param subsys_section ...
 !> \author Teodoro Laino [tlaino] - 05.2009
@@ -55,21 +55,30 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: work_section
 
       CALL timeset(routineN, handle)
+
       NULLIFY (multiple_unit_cell, iwork, cell)
+
+      ! Store original number of atoms for the molecule generation in any case
+      topology%natom_muc = topology%natoms
+
       CALL section_vals_val_get(subsys_section, "TOPOLOGY%MULTIPLE_UNIT_CELL", &
                                 i_vals=multiple_unit_cell)
+
       ! Fail is one of the value is set to zero..
       IF (ANY(multiple_unit_cell <= 0)) &
          CALL cp_abort(__LOCATION__, "SUBSYS%TOPOLOGY%MULTIPLE_UNIT_CELL accepts "// &
-                       "only integer values larger than 0! A value of 0 or negative is meaningless!")
+                       "only integer values greater than zero.")
+
       IF (ANY(multiple_unit_cell /= 1)) THEN
-         ! Check that the setup between CELL and TOPOLOGY is the same..
+
+         ! Check that the setup between CELL and TOPOLOGY is the same
          CALL section_vals_val_get(subsys_section, "CELL%MULTIPLE_UNIT_CELL", &
                                    i_vals=iwork)
          IF (ANY(iwork /= multiple_unit_cell)) &
-            CALL cp_abort(__LOCATION__, "SUBSYS%TOPOLOGY%MULTIPLE_UNIT_CELL and "// &
-                          "SUBSYS%CELL%MULTIPLE_UNIT_CELL have been "// &
-                          "setup to two different values!! Correct this error!")
+            CALL cp_abort(__LOCATION__, "The input parameters for "// &
+                          "SUBSYS%TOPOLOGY%MULTIPLE_UNIT_CELL and "// &
+                          "SUBSYS%CELL%MULTIPLE_UNIT_CELL have to agree.")
+
          cell => topology%cell_muc
          natoms = topology%natoms*PRODUCT(multiple_unit_cell)
 
@@ -80,8 +89,8 @@ CONTAINS
             CALL section_vals_val_get(work_section, '_DEFAULT_KEYWORD_', n_rep_val=nrep)
             check = nrep == natoms
             IF (.NOT. check) &
-               CALL cp_abort(__LOCATION__, &
-                             "Number of available entries in VELOCITY section is not compatible with the number of atoms!")
+               CALL cp_abort(__LOCATION__, "The number of available entries in the "// &
+                             "VELOCITY section is not compatible with the number of atoms.")
          END IF
 
          CALL reallocate(topology%atom_info%id_molname, 1, natoms)
@@ -94,6 +103,7 @@ CONTAINS
          CALL reallocate(topology%atom_info%occup, 1, natoms)
          CALL reallocate(topology%atom_info%beta, 1, natoms)
          CALL reallocate(topology%atom_info%id_element, 1, natoms)
+
          ind = 0
          DO k = 1, multiple_unit_cell(3)
             trsl_k = cell%hmat(:, 3)*REAL(k - 1, KIND=dp)
@@ -104,8 +114,7 @@ CONTAINS
                   trsl = trsl_i + trsl_j + trsl_k
                   ind = ind + 1
                   IF (ind == 1) CYCLE
-
-                  ! loop over atoms
+                  ! Loop over all atoms
                   n = (ind - 1)*topology%natoms
                   DO m = 1, topology%natoms
                      topology%atom_info%id_atmname(n + m) = topology%atom_info%id_atmname(m)
@@ -122,6 +131,7 @@ CONTAINS
                END DO
             END DO
          END DO
+         ! Store the new total number of atoms
          topology%natoms = natoms
 
          ! Deallocate the coordinate section (will be rebuilt later with the whole atomic set)
@@ -137,7 +147,9 @@ CONTAINS
             CALL section_vals_val_set(work_section, "SCALED", l_val=scale)
          END IF
       END IF
+
       CALL timestop(handle)
+
    END SUBROUTINE topology_muc
 
 END MODULE topology_multiple_unit_cell
