@@ -549,7 +549,7 @@ CONTAINS
       TYPE(pw_pool_type), POINTER                        :: pw_pool
       REAL(KIND=dp), INTENT(IN)                          :: zeta
       REAL(dp), DIMENSION(2), INTENT(IN)                 :: x_xtnt, y_xtnt, z_xtnt
-      REAL(dp), ALLOCATABLE, DIMENSION(:), INTENT(IN)    :: x_glbl, y_glbl, z_glbl, x_locl, y_locl, &
+      REAL(dp), CONTIGUOUS, DIMENSION(:), INTENT(IN)     :: x_glbl, y_glbl, z_glbl, x_locl, y_locl, &
                                                             z_locl
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'dielectric_constant_aa_cuboidal'
@@ -644,7 +644,7 @@ CONTAINS
       TYPE(pw_pool_type), POINTER                        :: pw_pool
       REAL(dp), INTENT(IN)                               :: zeta
       REAL(dp), DIMENSION(2), INTENT(IN)                 :: x_xtnt, base_center, base_radii
-      REAL(dp), ALLOCATABLE, DIMENSION(:), INTENT(IN)    :: x_glbl, y_glbl, z_glbl, x_locl, y_locl, &
+      REAL(dp), CONTIGUOUS, DIMENSION(:), INTENT(IN)     :: x_glbl, y_glbl, z_glbl, x_locl, y_locl, &
                                                             z_locl
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'dielectric_constant_xaa_annular'

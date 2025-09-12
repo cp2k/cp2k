@@ -226,7 +226,7 @@ CONTAINS
          DIMENSION(:, :, :), INTENT(INOUT)               :: t_3c_O_compressed
       TYPE(block_ind_type), ALLOCATABLE, &
          DIMENSION(:, :, :), INTENT(INOUT)               :: t_3c_O_ind
-      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: starts_array_mc, ends_array_mc, &
+      INTEGER, CONTIGUOUS, DIMENSION(:), INTENT(IN)      :: starts_array_mc, ends_array_mc, &
                                                             starts_array_mc_block, &
                                                             ends_array_mc_block
       LOGICAL, INTENT(IN)                                :: calc_forces
@@ -687,7 +687,7 @@ CONTAINS
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(OUT)                                     :: BIb_C_2D
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
          INTENT(IN)                                      :: BIb_C
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env_sub
       INTEGER, INTENT(IN)                                :: dimen_ia, homo, virtual
@@ -1098,7 +1098,7 @@ CONTAINS
          DIMENSION(:, :, :), INTENT(INOUT)               :: t_3c_O_compressed
       TYPE(block_ind_type), ALLOCATABLE, &
          DIMENSION(:, :, :), INTENT(INOUT)               :: t_3c_O_ind
-      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: starts_array_mc, ends_array_mc, &
+      INTEGER, CONTIGUOUS, DIMENSION(:), INTENT(IN)      :: starts_array_mc, ends_array_mc, &
                                                             starts_array_mc_block, &
                                                             ends_array_mc_block
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s

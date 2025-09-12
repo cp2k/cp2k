@@ -83,13 +83,13 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Creates a Torch tensor from an array. The passed array has to outlive the tensor!
-!>        The source must be an ALLOCATABLE to prevent passing a temporary array.
+!>        The source must be CONTIGUOUS to prevent passing a temporary array.
 !> \author Ole Schuett
 ! **************************************************************************************************
          SUBROUTINE torch_tensor_from_array_${typename}$_${ndims}$d(tensor, source, requires_grad)
             TYPE(torch_tensor_type), INTENT(INOUT)             :: tensor
             #:set arraydims = ", ".join(":" for i in range(ndims))
-            ${type_f}$, DIMENSION(${arraydims}$), ALLOCATABLE, INTENT(IN)  :: source
+            ${type_f}$, DIMENSION(${arraydims}$), CONTIGUOUS, INTENT(IN)  :: source
             LOGICAL, OPTIONAL, INTENT(IN)                      :: requires_grad
 
 #if defined(__LIBTORCH)
@@ -479,7 +479,7 @@ CONTAINS
 ! **************************************************************************************************
    FUNCTION torch_model_read_metadata(filename, key) RESULT(res)
       CHARACTER(len=*), INTENT(IN)                       :: filename, key
-      CHARACTER(:), ALLOCATABLE                           :: res
+      CHARACTER(:), ALLOCATABLE                          :: res
 
 #if defined(__LIBTORCH)
       CHARACTER(len=*), PARAMETER                        :: routineN = 'torch_model_read_metadata'

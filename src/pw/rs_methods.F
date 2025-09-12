@@ -366,7 +366,7 @@ CONTAINS
 
       TYPE(pw_pool_type), INTENT(IN), POINTER            :: pw_pool
       REAL(dp), INTENT(IN)                               :: zeta
-      REAL(dp), ALLOCATABLE, DIMENSION(:), INTENT(IN)    :: x_glbl, y_glbl, z_glbl
+      REAL(dp), CONTIGUOUS, DIMENSION(:), INTENT(IN)     :: x_glbl, y_glbl, z_glbl
       TYPE(pw_r3d_rs_type), INTENT(IN)                   :: pw_in
       TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: pw_out
 

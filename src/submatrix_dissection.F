@@ -686,7 +686,7 @@ CONTAINS
    SUBROUTINE submatrix_cpy_resultcol(this, sm_id, sm)
       CLASS(submatrix_dissection_type), INTENT(INOUT)         :: this
       INTEGER, INTENT(in)                                     :: sm_id
-      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE, INTENT(IN) :: sm
+      REAL(KIND=dp), DIMENSION(:, :), CONTIGUOUS, INTENT(IN)  :: sm
 
       TYPE(set_type)                                          :: nonzero_rows
       INTEGER                                                 :: i, j, k, m, sm_col_offset, offset_x1, offset_x2, offset_y1, &

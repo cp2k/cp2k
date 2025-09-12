@@ -636,7 +636,7 @@ CONTAINS
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_BIb_jb
       REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: BIb_jb
       INTEGER, INTENT(IN)                                :: max_row_col_local
-      INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(IN)  :: local_col_row_info
+      INTEGER, CONTIGUOUS, DIMENSION(:, :), INTENT(IN)   :: local_col_row_info
       INTEGER, INTENT(IN)                                :: my_B_virtual_end, my_B_virtual_start
 
       INTEGER                                            :: i_global, iiB, j_global, jjB, ncol_rec, &

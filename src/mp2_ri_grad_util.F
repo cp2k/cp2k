@@ -502,7 +502,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: my_start_row, my_end_row, my_start_col, &
                                                             my_end_col
       TYPE(group_dist_d1_type), INTENT(IN)               :: gd_row, gd_col
-      INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(IN)  :: group_grid_2_mepos
+      INTEGER, CONTIGUOUS, DIMENSION(:, :), INTENT(IN)   :: group_grid_2_mepos
       INTEGER, INTENT(IN)                                :: ngroup_row, ngroup_col
       TYPE(cp_fm_type), INTENT(OUT)                      :: fm_mat
       INTEGER, INTENT(IN), OPTIONAL                      :: integ_group_size, color_group
@@ -898,7 +898,7 @@ CONTAINS
          INTENT(OUT)                                     :: mat2D
       INTEGER, INTENT(IN)                                :: my_rows, my_start_row, my_end_row, &
                                                             my_cols, my_start_col, my_end_col
-      INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(IN)  :: group_grid_2_mepos, mepos_2_grid_group
+      INTEGER, CONTIGUOUS, DIMENSION(:, :), INTENT(IN)   :: group_grid_2_mepos, mepos_2_grid_group
       INTEGER, INTENT(IN)                                :: ngroup_row, ngroup_col
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat
 
@@ -1037,77 +1037,79 @@ CONTAINS
       END DO
       ! allocate the structure that will hold the messages to be sent
       ALLOCATE (buffer_send(number_of_send))
-      ! grid_ref_2_send_pos is an array (map) that given a pair
-      ! (ref_send_prow,ref_send_pcol) returns
-      ! the position in the buffer_send associated to that process
+      ! can be zero-sized
+      IF (0 /= number_of_send) THEN
+         ! grid_ref_2_send_pos is an array (map) that given a pair
+         ! (ref_send_prow,ref_send_pcol) returns
+         ! the position in the buffer_send associated to that process
+         ALLOCATE (grid_ref_2_send_pos(0:ngroup_row - 1, 0:ngroup_col - 1))
+         grid_ref_2_send_pos = 0
 
-      ALLOCATE (grid_ref_2_send_pos(0:ngroup_row - 1, 0:ngroup_col - 1))
-      grid_ref_2_send_pos = 0
-
-      ! finalize the allocation of buffer_send with the actual size
-      ! of each message (actual size is size_send_buffer)
-      send_counter = 0
-      DO proc_shift = 1, para_env%num_pe - 1
-         proc_send = MODULO(para_env%mepos + proc_shift, para_env%num_pe)
-         size_send_buffer = map_send_size(proc_send)
-         IF (map_send_size(proc_send) > 0) THEN
-            send_counter = send_counter + 1
-            ! allocate the sending buffer (msg)
-            ALLOCATE (buffer_send(send_counter)%msg(size_send_buffer))
-            buffer_send(send_counter)%msg = 0.0_dp
-            buffer_send(send_counter)%proc = proc_send
-            ! get the pointer to prow, pcol of the process that has
-            ! to receive this message
-            ref_send_prow = mepos_2_grid_group(1, proc_send)
-            ref_send_pcol = mepos_2_grid_group(2, proc_send)
-            ! save the rank of the process that has to receive this message
-            grid_ref_2_send_pos(ref_send_prow, ref_send_pcol) = send_counter
-         END IF
-      END DO
-
-      ! loop over the locally held data and fill the buffer_send
-      ! for doing that we need an array that keep track if the
-      ! sequential increase of the index for each message
-      ALLOCATE (iii_vet(number_of_send))
-      iii_vet = 0
-      DO jjB = 1, ncol_local
-         j_global = col_indices(jjB)
-         ! check the group holding this element
-         ! dirty way, if someone has a better idea ...
-         send_pcol = INT(REAL(j_global - 1, KIND=dp)/part_col)
-         send_pcol = MAX(0, send_pcol)
-         send_pcol = MIN(send_pcol, ngroup_col - 1)
-         DO
-            itmp = get_limit(num_cols, ngroup_col, send_pcol)
-            IF (j_global >= itmp(1) .AND. j_global <= itmp(2)) EXIT
-            IF (j_global < itmp(1)) send_pcol = send_pcol - 1
-            IF (j_global > itmp(2)) send_pcol = send_pcol + 1
+         ! finalize the allocation of buffer_send with the actual size
+         ! of each message (actual size is size_send_buffer)
+         send_counter = 0
+         DO proc_shift = 1, para_env%num_pe - 1
+            proc_send = MODULO(para_env%mepos + proc_shift, para_env%num_pe)
+            size_send_buffer = map_send_size(proc_send)
+            IF (map_send_size(proc_send) > 0) THEN
+               send_counter = send_counter + 1
+               ! allocate the sending buffer (msg)
+               ALLOCATE (buffer_send(send_counter)%msg(size_send_buffer))
+               buffer_send(send_counter)%msg = 0.0_dp
+               buffer_send(send_counter)%proc = proc_send
+               ! get the pointer to prow, pcol of the process that has
+               ! to receive this message
+               ref_send_prow = mepos_2_grid_group(1, proc_send)
+               ref_send_pcol = mepos_2_grid_group(2, proc_send)
+               ! save the rank of the process that has to receive this message
+               grid_ref_2_send_pos(ref_send_prow, ref_send_pcol) = send_counter
+            END IF
          END DO
 
-         DO iiB = 1, nrow_local
-            i_global = row_indices(iiB)
-            ! check the process in the group holding this element
-            send_prow = INT(REAL(i_global - 1, KIND=dp)/part_row)
-            send_prow = MAX(0, send_prow)
-            send_prow = MIN(send_prow, ngroup_row - 1)
+         ! loop over the locally held data and fill the buffer_send
+         ! for doing that we need an array that keep track if the
+         ! sequential increase of the index for each message
+         ALLOCATE (iii_vet(number_of_send))
+         iii_vet = 0
+         DO jjB = 1, ncol_local
+            j_global = col_indices(jjB)
+            ! check the group holding this element
+            ! dirty way, if someone has a better idea ...
+            send_pcol = INT(REAL(j_global - 1, KIND=dp)/part_col)
+            send_pcol = MAX(0, send_pcol)
+            send_pcol = MIN(send_pcol, ngroup_col - 1)
             DO
-               itmp = get_limit(num_rows, ngroup_row, send_prow)
-               IF (i_global >= itmp(1) .AND. i_global <= itmp(2)) EXIT
-               IF (i_global < itmp(1)) send_prow = send_prow - 1
-               IF (i_global > itmp(2)) send_prow = send_prow + 1
+               itmp = get_limit(num_cols, ngroup_col, send_pcol)
+               IF (j_global >= itmp(1) .AND. j_global <= itmp(2)) EXIT
+               IF (j_global < itmp(1)) send_pcol = send_pcol - 1
+               IF (j_global > itmp(2)) send_pcol = send_pcol + 1
             END DO
-            ! we don't need to send to ourselves
-            IF (group_grid_2_mepos(send_prow, send_pcol) == para_env%mepos) CYCLE
 
-            send_counter = grid_ref_2_send_pos(send_prow, send_pcol)
-            iii_vet(send_counter) = iii_vet(send_counter) + 1
-            iii = iii_vet(send_counter)
-            buffer_send(send_counter)%msg(iii) = fm_mat%local_data(iiB, jjB)
+            DO iiB = 1, nrow_local
+               i_global = row_indices(iiB)
+               ! check the process in the group holding this element
+               send_prow = INT(REAL(i_global - 1, KIND=dp)/part_row)
+               send_prow = MAX(0, send_prow)
+               send_prow = MIN(send_prow, ngroup_row - 1)
+               DO
+                  itmp = get_limit(num_rows, ngroup_row, send_prow)
+                  IF (i_global >= itmp(1) .AND. i_global <= itmp(2)) EXIT
+                  IF (i_global < itmp(1)) send_prow = send_prow - 1
+                  IF (i_global > itmp(2)) send_prow = send_prow + 1
+               END DO
+               ! we don't need to send to ourselves
+               IF (group_grid_2_mepos(send_prow, send_pcol) == para_env%mepos) CYCLE
+
+               send_counter = grid_ref_2_send_pos(send_prow, send_pcol)
+               iii_vet(send_counter) = iii_vet(send_counter) + 1
+               iii = iii_vet(send_counter)
+               buffer_send(send_counter)%msg(iii) = fm_mat%local_data(iiB, jjB)
+            END DO
          END DO
-      END DO
 
-      DEALLOCATE (iii_vet)
-      DEALLOCATE (grid_ref_2_send_pos)
+         DEALLOCATE (iii_vet)
+         DEALLOCATE (grid_ref_2_send_pos)
+      END IF
       CALL timestop(handle2)
 
       ! 5) similarly to what done for the buffer_send
@@ -1123,89 +1125,91 @@ CONTAINS
          END IF
       END DO
 
+      ! can be zero-sized
       ALLOCATE (buffer_rec(number_of_rec))
+      IF (0 /= number_of_send) THEN
+         rec_counter = 0
+         DO proc_shift = 1, para_env%num_pe - 1
+            proc_receive = MODULO(para_env%mepos - proc_shift, para_env%num_pe)
+            size_rec_buffer = map_rec_size(proc_receive)
+            IF (map_rec_size(proc_receive) > 0) THEN
+               rec_counter = rec_counter + 1
+               ! prepare the buffer for receive
+               ALLOCATE (buffer_rec(rec_counter)%msg(size_rec_buffer))
+               buffer_rec(rec_counter)%msg = 0.0_dp
+               buffer_rec(rec_counter)%proc = proc_receive
+               ! post the message to be received
+               CALL para_env%irecv(buffer_rec(rec_counter)%msg, proc_receive, &
+                                   buffer_rec(rec_counter)%msg_req)
+            END IF
+         END DO
 
-      rec_counter = 0
-      DO proc_shift = 1, para_env%num_pe - 1
-         proc_receive = MODULO(para_env%mepos - proc_shift, para_env%num_pe)
-         size_rec_buffer = map_rec_size(proc_receive)
-         IF (map_rec_size(proc_receive) > 0) THEN
-            rec_counter = rec_counter + 1
-            ! prepare the buffer for receive
-            ALLOCATE (buffer_rec(rec_counter)%msg(size_rec_buffer))
-            buffer_rec(rec_counter)%msg = 0.0_dp
-            buffer_rec(rec_counter)%proc = proc_receive
-            ! post the message to be received
-            CALL para_env%irecv(buffer_rec(rec_counter)%msg, proc_receive, &
-                                buffer_rec(rec_counter)%msg_req)
-         END IF
-      END DO
+         ! send messages
+         ALLOCATE (req_send(number_of_send))
+         send_counter = 0
+         DO proc_shift = 1, para_env%num_pe - 1
+            proc_send = MODULO(para_env%mepos + proc_shift, para_env%num_pe)
+            IF (map_send_size(proc_send) > 0) THEN
+               send_counter = send_counter + 1
+               CALL para_env%isend(buffer_send(send_counter)%msg, proc_send, &
+                                   buffer_send(send_counter)%msg_req)
+               req_send(send_counter) = buffer_send(send_counter)%msg_req
+            END IF
+         END DO
+         CALL timestop(handle2)
 
-      ! send messages
-      ALLOCATE (req_send(number_of_send))
-      send_counter = 0
-      DO proc_shift = 1, para_env%num_pe - 1
-         proc_send = MODULO(para_env%mepos + proc_shift, para_env%num_pe)
-         IF (map_send_size(proc_send) > 0) THEN
-            send_counter = send_counter + 1
-            CALL para_env%isend(buffer_send(send_counter)%msg, proc_send, &
-                                buffer_send(send_counter)%msg_req)
-            req_send(send_counter) = buffer_send(send_counter)%msg_req
-         END IF
-      END DO
-      CALL timestop(handle2)
+         ! 6) fill the fm_mat matrix with the messages received from the
+         !    other processes
+         CALL timeset(routineN//"_fill", handle2)
+         CALL cp_fm_get_info(matrix=fm_mat, &
+                             nrow_local=nrow_local, &
+                             ncol_local=ncol_local)
+         ALLOCATE (sizes(2, 0:para_env%num_pe - 1))
+         CALL para_env%allgather([nrow_local, ncol_local], sizes)
+         iiB = MAXVAL(sizes(1, :))
+         ALLOCATE (index_row_rec(iiB))
+         index_row_rec = 0
+         rec_counter = 0
+         DO proc_shift = 1, para_env%num_pe - 1
+            proc_receive = MODULO(para_env%mepos - proc_shift, para_env%num_pe)
+            size_rec_buffer = map_rec_size(proc_receive)
 
-      ! 6) fill the fm_mat matrix with the messages received from the
-      !    other processes
-      CALL timeset(routineN//"_fill", handle2)
-      CALL cp_fm_get_info(matrix=fm_mat, &
-                          nrow_local=nrow_local, &
-                          ncol_local=ncol_local)
-      ALLOCATE (sizes(2, 0:para_env%num_pe - 1))
-      CALL para_env%allgather([nrow_local, ncol_local], sizes)
-      iiB = MAXVAL(sizes(1, :))
-      ALLOCATE (index_row_rec(iiB))
-      index_row_rec = 0
-      rec_counter = 0
-      DO proc_shift = 1, para_env%num_pe - 1
-         proc_receive = MODULO(para_env%mepos - proc_shift, para_env%num_pe)
-         size_rec_buffer = map_rec_size(proc_receive)
+            IF (map_rec_size(proc_receive) > 0) THEN
+               rec_counter = rec_counter + 1
 
-         IF (map_rec_size(proc_receive) > 0) THEN
-            rec_counter = rec_counter + 1
+               rec_col_size = sizes(2, proc_receive)
+               rec_row_size = sizes(1, proc_receive)
 
-            rec_col_size = sizes(2, proc_receive)
-            rec_row_size = sizes(1, proc_receive)
+               ! precompute the indeces of the rows
+               num_rec_rows = 0
+               DO iiB = 1, rec_row_size
+                  i_global = fm_mat%matrix_struct%l2g_row(iiB, mepos_2_grid(1, proc_receive))
+                  IF (i_global >= my_start_row .AND. i_global <= my_end_row) THEN
+                     num_rec_rows = num_rec_rows + 1
+                     index_row_rec(num_rec_rows) = i_global
+                  END IF
+               END DO
 
-            ! precompute the indeces of the rows
-            num_rec_rows = 0
-            DO iiB = 1, rec_row_size
-               i_global = fm_mat%matrix_struct%l2g_row(iiB, mepos_2_grid(1, proc_receive))
-               IF (i_global >= my_start_row .AND. i_global <= my_end_row) THEN
-                  num_rec_rows = num_rec_rows + 1
-                  index_row_rec(num_rec_rows) = i_global
-               END IF
-            END DO
+               CALL buffer_rec(rec_counter)%msg_req%wait()
 
-            CALL buffer_rec(rec_counter)%msg_req%wait()
+               iii = 0
+               DO jjB = 1, rec_col_size
+                  j_global = fm_mat%matrix_struct%l2g_col(jjB, mepos_2_grid(2, proc_receive))
+                  IF (j_global >= my_start_col .AND. j_global <= my_end_col) THEN
+                     DO iiB = 1, num_rec_rows
+                        i_global = index_row_rec(iiB)
+                        iii = iii + 1
+                        mat2D(i_global - my_start_row + 1, j_global - my_start_col + 1) = buffer_rec(rec_counter)%msg(iii)
+                     END DO
+                  END IF
+               END DO
 
-            iii = 0
-            DO jjB = 1, rec_col_size
-               j_global = fm_mat%matrix_struct%l2g_col(jjB, mepos_2_grid(2, proc_receive))
-               IF (j_global >= my_start_col .AND. j_global <= my_end_col) THEN
-                  DO iiB = 1, num_rec_rows
-                     i_global = index_row_rec(iiB)
-                     iii = iii + 1
-                     mat2D(i_global - my_start_row + 1, j_global - my_start_col + 1) = buffer_rec(rec_counter)%msg(iii)
-                  END DO
-               END IF
-            END DO
-
-            DEALLOCATE (buffer_rec(rec_counter)%msg)
-         END IF
-      END DO
+               DEALLOCATE (buffer_rec(rec_counter)%msg)
+            END IF
+         END DO
+         DEALLOCATE (index_row_rec)
+      END IF
       DEALLOCATE (buffer_rec)
-      DEALLOCATE (index_row_rec)
       CALL cp_fm_release(fm_mat)
       CALL timestop(handle2)
 

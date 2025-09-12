@@ -433,7 +433,7 @@ CONTAINS
                                  req_array, do_indx, do_msg)
 
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
-      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: num_entries_rec, num_entries_send
+      INTEGER, CONTIGUOUS, DIMENSION(:), INTENT(IN)      :: num_entries_rec, num_entries_send
       TYPE(integ_mat_buffer_type), ALLOCATABLE, &
          DIMENSION(:), INTENT(INOUT)                     :: buffer_rec, buffer_send
       TYPE(mp_request_type), DIMENSION(:, :), POINTER    :: req_array

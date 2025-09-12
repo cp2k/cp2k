@@ -1909,13 +1909,13 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ij_index, my_B_size, my_block_size, &
                                                             my_group_L_size, my_i, my_ij_pairs, &
                                                             ngroup, num_integ_group
-      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: integ_group_pos2color_sub, num_ij_pairs
-      INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(IN)  :: ij_map
-      INTEGER, ALLOCATABLE, DIMENSION(:, :, :), &
+      INTEGER, CONTIGUOUS, DIMENSION(:), INTENT(IN)      :: integ_group_pos2color_sub, num_ij_pairs
+      INTEGER, CONTIGUOUS, DIMENSION(:, :), INTENT(IN)   :: ij_map
+      INTEGER, CONTIGUOUS, DIMENSION(:, :, :), &
          INTENT(IN)                                      :: ranges_info_array
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: Y_i_aP
       TYPE(mp_comm_type), INTENT(IN)                     :: comm_exchange
-      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: sizes_array
+      INTEGER, CONTIGUOUS, DIMENSION(:), INTENT(IN)      :: sizes_array
       INTEGER, INTENT(IN)                                :: spin
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:), TARGET    :: buffer_1D
 
@@ -2116,14 +2116,14 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: unit_nr, dimen_RI
       INTEGER, DIMENSION(:), INTENT(IN)                  :: my_B_size
       INTEGER, INTENT(IN)                                :: ngroup, my_group_L_size, color_sub
-      INTEGER, ALLOCATABLE, DIMENSION(:, :, :), &
+      INTEGER, CONTIGUOUS, DIMENSION(:, :, :), &
          INTENT(IN)                                      :: ranges_info_array
       TYPE(mp_comm_type), INTENT(IN)                     :: comm_exchange
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env_sub, para_env
       INTEGER, DIMENSION(:), INTENT(IN)                  :: my_B_virtual_start, my_B_virtual_end
-      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: sizes_array
+      INTEGER, CONTIGUOUS, DIMENSION(:), INTENT(IN)      :: sizes_array
       TYPE(group_dist_d1_type), DIMENSION(:), INTENT(IN) :: gd_B_virtual
-      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: integ_group_pos2color_sub
+      INTEGER, CONTIGUOUS, DIMENSION(:), INTENT(IN)      :: integ_group_pos2color_sub
       TYPE(dgemm_counter_type), INTENT(INOUT)            :: dgemm_counter
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:), TARGET    :: buffer_1D
 

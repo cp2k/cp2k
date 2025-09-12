@@ -151,9 +151,9 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN)                  :: starts_array_mc, ends_array_mc, &
                                                             starts_array_mc_block, &
                                                             ends_array_mc_block
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          INTENT(IN)                                      :: weights_cos_tf_t_to_w
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:), &
          INTENT(IN)                                      :: tj
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: tau_tj
       REAL(KIND=dp), INTENT(IN)                          :: e_fermi, eps_filter, alpha, &
@@ -165,8 +165,8 @@ CONTAINS
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN)                                :: do_kpoints_from_Gamma
-      INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(IN)  :: index_to_cell_3c
-      INTEGER, ALLOCATABLE, DIMENSION(:, :, :), &
+      INTEGER, CONTIGUOUS, DIMENSION(:, :), INTENT(IN)   :: index_to_cell_3c
+      INTEGER, CONTIGUOUS, DIMENSION(:, :, :), &
          INTENT(IN)                                      :: cell_to_index_3c
       LOGICAL, DIMENSION(:, :, :, :, :), INTENT(INOUT)   :: has_mat_P_blocks
       LOGICAL, INTENT(IN)                                :: do_ri_sos_laplace_mp2
@@ -1547,8 +1547,8 @@ CONTAINS
 
       INTEGER, INTENT(IN)                                :: i_cell_R, i_cell_S
       INTEGER, INTENT(OUT)                               :: i_cell_R_minus_S
-      INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(IN)  :: index_to_cell_3c
-      INTEGER, ALLOCATABLE, DIMENSION(:, :, :), &
+      INTEGER, CONTIGUOUS, DIMENSION(:, :), INTENT(IN)   :: index_to_cell_3c
+      INTEGER, CONTIGUOUS, DIMENSION(:, :, :), &
          INTENT(IN)                                      :: cell_to_index_3c
       INTEGER, DIMENSION(:, :), INTENT(IN), POINTER      :: index_to_cell_dm
       LOGICAL, INTENT(OUT)                               :: R_minus_S_needed
@@ -1634,7 +1634,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: i_cell_R, i_cell_S, i_cell_T
       INTEGER, INTENT(OUT)                               :: i_cell_R_minus_S_minus_T
       INTEGER, DIMENSION(:, :), INTENT(IN)               :: index_to_cell_3c
-      INTEGER, ALLOCATABLE, DIMENSION(:, :, :), &
+      INTEGER, CONTIGUOUS, DIMENSION(:, :, :), &
          INTENT(IN)                                      :: cell_to_index_3c
       INTEGER, DIMENSION(:, :), INTENT(IN)               :: index_to_cell_dm
       LOGICAL, INTENT(OUT)                               :: R_minus_S_minus_T_needed

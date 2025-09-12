@@ -281,7 +281,7 @@ CONTAINS
       INTEGER, DIMENSION(3), INTENT(IN)                  :: n_prtn
       TYPE(pw_pool_type), INTENT(IN), POINTER            :: pw_pool
       REAL(dp), DIMENSION(2, 3), INTENT(IN)              :: cell_xtnts
-      REAL(dp), ALLOCATABLE, DIMENSION(:), INTENT(IN)    :: x_locl, y_locl, z_locl
+      REAL(dp), CONTIGUOUS, DIMENSION(:), INTENT(IN)     :: x_locl, y_locl, z_locl
       LOGICAL, INTENT(IN)                                :: is_periodic, verbose
       TYPE(dirichlet_bc_type), INTENT(INOUT), POINTER    :: dirichlet_bc
 
@@ -793,7 +793,7 @@ CONTAINS
 
       TYPE(pw_pool_type), POINTER                        :: pw_pool
       REAL(dp), DIMENSION(2, 3), INTENT(IN)              :: cell_xtnts
-      REAL(dp), ALLOCATABLE, DIMENSION(:), INTENT(IN)    :: x_locl, y_locl, z_locl
+      REAL(dp), CONTIGUOUS, DIMENSION(:), INTENT(IN)     :: x_locl, y_locl, z_locl
       INTEGER, INTENT(IN), OPTIONAL                      :: apx_type
       INTEGER, INTENT(IN)                                :: parallel_axis
       REAL(dp), DIMENSION(2), INTENT(IN)                 :: xtnt, base_center
@@ -1390,7 +1390,7 @@ CONTAINS
                                  sigma, is_periodic, tile_pw)
 
       REAL(dp), DIMENSION(2, 3), INTENT(IN)              :: cell_xtnts
-      REAL(dp), ALLOCATABLE, DIMENSION(:), INTENT(IN)    :: x_locl, y_locl, z_locl
+      REAL(dp), CONTIGUOUS, DIMENSION(:), INTENT(IN)     :: x_locl, y_locl, z_locl
       REAL(dp), DIMENSION(3, 8), INTENT(IN)              :: tile_vertices
       REAL(dp), INTENT(IN)                               :: sigma
       LOGICAL, INTENT(IN)                                :: is_periodic
@@ -1493,7 +1493,7 @@ CONTAINS
                                         sigma, tile_pw)
 
       REAL(dp), DIMENSION(2, 3), INTENT(IN)              :: cell_xtnts
-      REAL(dp), ALLOCATABLE, DIMENSION(:), INTENT(IN)    :: x_locl, y_locl, z_locl
+      REAL(dp), CONTIGUOUS, DIMENSION(:), INTENT(IN)     :: x_locl, y_locl, z_locl
       REAL(dp), DIMENSION(3, 8), INTENT(IN)              :: tile_vertices
       REAL(dp), INTENT(IN)                               :: sigma
       TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: tile_pw
