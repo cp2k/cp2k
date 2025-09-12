@@ -1,13 +1,16 @@
 #
 "nlcc-mix.inp"                          = [{matcher="E_total", tol=1.0E-12, ref=-18.10530459905852}]
 "C2H4_GRRM.inp"                         = [{matcher="E_total", tol=1.0E-12, ref=-13.93037233386821}]
-"h2o_GRRM.inp"                          = [{matcher="M008", tol=8.0E-06, ref=1465.672}]
+"h2o_GRRM.inp"                          = [{matcher="Vib_freq", tol=8.0E-06, ref=1465.672},
+                                           {matcher="Vib_frc_const", tol=1.0E-04, ref=0.087928}]
 "C2H4_frozen_GRRM.inp"                  = [{matcher="E_total", tol=1.0E-12, ref=-13.93037233386821}]
-"h2o_frozen_GRRM.inp"                   = [{matcher="M008", tol=8.0E-06, ref=872.278}]
+"h2o_frozen_GRRM.inp"                   = [{matcher="Vib_freq", tol=8.0E-06, ref=872.278}]
 #
 "C2H4_SCINE.inp"                        = [{matcher="E_total", tol=1.0E-12, ref=-13.14346149279209}]
-"h2o_SCINE.inp"                         = [{matcher="M008", tol=8.0E-06, ref=1465.672}]
-"h2o_NEWTONX.inp"                       = [{matcher="M008", tol=8.0E-06, ref=1447.380}]
+"h2o_SCINE.inp"                         = [{matcher="Vib_freq", tol=8.0E-06, ref=1465.672},
+                                           {matcher="Vib_frc_const", tol=1.0E-04, ref=0.087928}]
+"h2o_NEWTONX.inp"                       = [{matcher="Vib_freq", tol=8.0E-06, ref=1447.380},
+                                           {matcher="Vib_frc_const", tol=1.0E-04, ref=0.085778}]
 #
 "cif_symbol_1st_column.inp"             = [{matcher="E_total", tol=1.0E-14, ref=-13.41107059145742}]
 "cif_symbol_2nd_column.inp"             = [{matcher="E_total", tol=1.0E-14, ref=-13.41107059145742}]

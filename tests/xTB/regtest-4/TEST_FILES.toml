@@ -15,6 +15,7 @@
 "H2O-xtb-tc2-2.inp"                     = [{matcher="M011", tol=1.0E-12, ref=-92.314663104135690}]
 "H2O-32-xtb-trs4.inp"                   = [{matcher="M011", tol=1.0E-12, ref=-46.149897253047165}]
 "H2O-32-xtb-trs4-dyn.inp"               = [{matcher="M011", tol=1.0E-12, ref=-46.149897253047165}]
-"h2o_vib.inp"                           = [{matcher="M008", tol=8.0E-06, ref=1465.672}]
+"h2o_vib.inp"                           = [{matcher="Vib_freq", tol=8.0E-06, ref=1465.672},
+                                           {matcher="Vib_frc_const", tol=1.0E-04, ref=0.087927}]
 "tmol.inp"                              = [{matcher="M011", tol=1.0E-12, ref=-41.908456607784821}]
 #EOF

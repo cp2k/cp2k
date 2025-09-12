@@ -92,7 +92,10 @@ registry["M004"] = GenericMatcher(r"Ideal and single determinant", col=8)
 registry["M005"] = GenericMatcher(r"BSSE-free interaction energy:", col=5)
 registry["M006"] = GenericMatcher(r"Average Energy", col=4)
 registry["M007"] = GenericMatcher(r"OPT| Total energy [hartree]", col=5)
-registry["M008"] = GenericMatcher(r"VIB|Frequency", col=3)
+
+registry["Vib_freq"] = GenericMatcher(r"VIB|Frequency", col=3)  # M008
+registry["Vib_frc_const"] = GenericMatcher(r"VIB|Frc consts", col=4)  # M128
+
 registry["M009"] = GenericMatcher(r"PINT| Total energy =", col=5)
 registry["M010"] = GenericMatcher(r"BAND TOTAL ENERGY [au]", col=6)
 registry["M011"] = GenericMatcher(r"ENERGY| Total FORCE_EVAL", col=9)

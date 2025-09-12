@@ -4,9 +4,11 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 #normal mode analysis
-"H2-vib.inp"                            = [{matcher="M008", tol=9e-06, ref=3855.5249239999998}]
+"H2-vib.inp"                            = [{matcher="Vib_freq", tol=9e-06, ref=3855.5249239999998},
+                                           {matcher="Vib_frc_const", tol=1e-04, ref=0.567018}]
 "H2-vib_tc.inp"                         = [{matcher="M062", tol=2e-05, ref=-5.75148845}]
-"N2_raman.inp"                          = [{matcher="M008", tol=1e-05, ref=2662.743559}]
+"N2_raman.inp"                          = [{matcher="Vib_freq", tol=1e-05, ref=2662.743559},
+                                           {matcher="Vib_frc_const", tol=1e-04, ref=3.757279}]
 # test thermostats
 "H2O-2.inp"                             = [{matcher="E_total", tol=3e-14, ref=-17.14619644944913}]
 "H2O-3.inp"                             = [{matcher="E_total", tol=4e-14, ref=-17.14553123442895}]

@@ -4,5 +4,6 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 #
-"h2o_v01.inp"                           = [{matcher="M008", tol=1.0E-07, ref=402.001443}]
+"h2o_v01.inp"                           = [{matcher="Vib_freq", tol=1.0E-07, ref=402.001443},
+                                           {matcher="Vib_frc_const", tol=1.0E-05, ref=0.006556}]
 #EOF

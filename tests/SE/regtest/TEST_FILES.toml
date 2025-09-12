@@ -54,5 +54,6 @@
 # Atprop energy
 "dimer_atprop.inp"                      = [{matcher="M003", tol=2.0e-13, ref=-697.08211512090054}]
 # VIBANALYSIS
-"h2o_vib.inp"                           = [{matcher="M008", tol=8.0E-06, ref=1922.908914}]
+"h2o_vib.inp"                           = [{matcher="Vib_freq", tol=8.0E-06, ref=1922.908914},
+                                           {matcher="Vib_frc_const", tol=1.0E-04, ref=0.151524}]
 #EOF

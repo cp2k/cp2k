@@ -1,7 +1,8 @@
 #vibrational analysis
-"wat_freq.inp"                          = [{matcher="M008", tol=1.0E-14, ref=1736.710173}]
-"wat_freq_norot.inp"                    = [{matcher="M008", tol=1.0E-14, ref=1736.710173}]
-"wat_freq_freeze.inp"                   = [{matcher="M008", tol=1.0E-14, ref=-37.593284}]
+"wat_freq.inp"                          = [{matcher="Vib_freq", tol=1.0E-14, ref=1736.710173},
+                                           {matcher="Vib_frc_const", tol=1.0E-04, ref=0.122443}]
+"wat_freq_norot.inp"                    = [{matcher="Vib_freq", tol=1.0E-14, ref=1736.710173}]
+"wat_freq_freeze.inp"                   = [{matcher="Vib_freq", tol=1.0E-14, ref=-37.593284}]
 "wat_mode_sel.inp"                      = []
 "wat_mode_sel_range.inp"                = []
 # MD inititalization with velocities from vibrational analysis
