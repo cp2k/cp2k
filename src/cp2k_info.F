@@ -98,7 +98,7 @@ CONTAINS
 #if defined(__INTEL_LLVM_COMPILER)
       flags = TRIM(flags)//" ifx"
 #endif
-#if defined(__LIBINT) && !defined(__INTEL_LLVM_COMPILER)
+#if defined(__LIBINT)
       flags = TRIM(flags)//" libint"
 #endif
 #if defined(__FFTW3)
