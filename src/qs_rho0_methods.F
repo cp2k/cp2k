@@ -491,8 +491,9 @@ CONTAINS
                           basis_set=basis_1c, basis_type="GAPW_1C")
 
          IF (ASSOCIATED(cneo_potential)) THEN
-            IF (PRESENT(zcore) .AND. zcore == 0.0_dp) &
-               CPABORT("Electronic TDDFT with CNEO quantum nuclei is not implemented.")
+            IF (PRESENT(zcore)) THEN
+               IF (zcore == 0.0_dp) CPABORT("Electronic TDDFT with CNEO quantum nuclei is not implemented.")
+            END IF
             CPASSERT(paw_atom)
             NULLIFY (nuc_basis, nuc_soft_basis)
             CALL get_qs_kind(qs_kind_set(ikind), &
