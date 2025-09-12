@@ -165,11 +165,11 @@ CONTAINS
       CALL dbt_communicate_buffer(mp_comm, buffer_recv, buffer_send)
 !$OMP BARRIER
 
-!$OMP DO NOWAIT
+!$OMP DO
       DO iproc = 0, numnodes - 1
          DEALLOCATE (buffer_send(iproc)%blocks, buffer_send(iproc)%data)
       END DO
-!$OMP END DO
+!$OMP END DO NOWAIT
 
       nblks_recv_mythread = 0
       DO iproc = 0, numnodes - 1
@@ -275,11 +275,11 @@ CONTAINS
 !$OMP END MASTER
 
       ELSE
-!$OMP DO SCHEDULE(static) NOWAIT
+!$OMP DO SCHEDULE(static)
          DO i = 1, SIZE(buffer_send(0)%blocks, 1)
             buffer_recv(0)%blocks(i, :) = buffer_send(0)%blocks(i, :)
          END DO
-!$OMP END DO
+!$OMP END DO NOWAIT
 !$OMP DO SCHEDULE(static)
          DO i = 1, SIZE(buffer_send(0)%data)
             buffer_recv(0)%data(i) = buffer_send(0)%data(i)
