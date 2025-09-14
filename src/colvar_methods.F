@@ -22,8 +22,7 @@ MODULE colvar_methods
    USE cell_types,                      ONLY: cell_transform_input_cartesian,&
                                               cell_type,&
                                               pbc
-   USE colvar_elec_utils,               ONLY: charge_cv_cleanup,&
-                                              mult_fm_sm_fm
+   USE colvar_elec_utils,               ONLY: charge_cv_cleanup
    USE colvar_types,                    ONLY: &
         HBP_colvar_id, Wc_colvar_id, acid_hyd_dist_colvar_id, acid_hyd_shell_colvar_id, &
         angle_colvar_id, charge_colvar_id, colvar_create, colvar_setup, colvar_type, combine_colvar_id, &
@@ -39,10 +38,10 @@ MODULE colvar_methods
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_create,&
                                               dbcsr_p_type,&
+                                              dbcsr_release,&
                                               dbcsr_set,&
                                               dbcsr_type,&
-                                              dbcsr_type_no_symmetry,&
-                                              dbcsr_release
+                                              dbcsr_type_no_symmetry
    USE cp_dbcsr_contrib,                ONLY: dbcsr_hadamard_product,&
                                               dbcsr_print,&
                                               dbcsr_trace
@@ -6745,8 +6744,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dqdr_atom'
 
-      INTEGER                                            :: handle, i, ii, nao, nao_alp, nao_bet, nmo, &
-                                                            nmo_alp, nmo_bet, output_unit
+      INTEGER                                            :: handle, i, ii, nao, nao_alp, nao_bet, &
+                                                            nmo, nmo_alp, nmo_bet, output_unit
       REAL(KIND=dp)                                      :: ftmp, tmp_trc
       TYPE(cp_fm_type)                                   :: tmp_1, tmp_2, tmp_alp_1, tmp_alp_2, &
                                                             tmp_bet_1, tmp_bet_2
@@ -6835,7 +6834,7 @@ CONTAINS
             CALL dbcsr_hadamard_product(tmp_dbcsr, dsdr(ii)%matrix, sec_dbcsr)
             CALL dbcsr_trace(sec_dbcsr, tmp_trc)
             ftmp = ftmp + tmp_trc
-            
+
             !-------------------------------------------------------------------------
             ! Open-shell
             ! Same as closed-shell, but now we have two spins: alpha & beta
