@@ -122,8 +122,8 @@ CONTAINS
                                   group_grid_2_mepos, mepos_2_grid_group)
 
       ! fm_mat_Gamma_3 is released here
-      CALL fm2array(Gamma_2D, my_ia_size, my_ia_start, my_ia_end, &
-                    my_group_L_size, my_group_L_start, my_group_L_end, &
+      CALL fm2array(Gamma_2D, my_ia_start, my_ia_end, &
+                    my_group_L_start, my_group_L_end, &
                     group_grid_2_mepos, mepos_2_grid_group, &
                     para_env_sub%num_pe, ngroup, &
                     fm_mat_Gamma_3)

@@ -2170,16 +2170,16 @@ CONTAINS
 
       ALLOCATE (mp2_env%ri_grad%Gamma_PQ(my_P_size, my_group_L_size))
       CALL fm2array(mp2_env%ri_grad%Gamma_PQ, &
-                    my_P_size, my_P_start, my_P_end, &
-                    my_group_L_size, my_group_L_start, my_group_L_end, &
+                    my_P_start, my_P_end, &
+                    my_group_L_start, my_group_L_end, &
                     group_grid_2_mepos, mepos_2_grid_group, &
                     para_env_sub%num_pe, ngroup, &
                     fm_PQ)
 
       IF (.NOT. compare_potential_types(mp2_env%ri_metric, mp2_env%potential_parameter)) THEN
          ALLOCATE (mp2_env%ri_grad%Gamma_PQ_2(my_P_size, my_group_L_size))
-         CALL fm2array(mp2_env%ri_grad%Gamma_PQ_2, my_P_size, my_P_start, my_P_end, &
-                       my_group_L_size, my_group_L_start, my_group_L_end, &
+         CALL fm2array(mp2_env%ri_grad%Gamma_PQ_2, my_P_start, my_P_end, &
+                       my_group_L_start, my_group_L_end, &
                        group_grid_2_mepos, mepos_2_grid_group, &
                        para_env_sub%num_pe, ngroup, &
                        fm_PQ_2)
@@ -2220,8 +2220,8 @@ CONTAINS
          CALL create_group_dist(gd_ia, para_env_sub%num_pe, dimen_ia)
          CALL get_group_dist(gd_ia, para_env_sub%mepos, my_ia_start, my_ia_end, my_ia_size)
 
-         CALL fm2array(Gamma_2D, my_ia_size, my_ia_start, my_ia_end, &
-                       my_group_L_size, my_group_L_start, my_group_L_end, &
+         CALL fm2array(Gamma_2D, my_ia_start, my_ia_end, &
+                       my_group_L_start, my_group_L_end, &
                        group_grid_2_mepos, mepos_2_grid_group, &
                        para_env_sub%num_pe, ngroup, &
                        fm_G_P_ia)
