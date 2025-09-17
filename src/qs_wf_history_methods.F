@@ -1183,7 +1183,7 @@ CONTAINS
             ! get the coefficients for the fitting
             NULLIFY (matrix_s)
             CALL get_qs_env(qs_env, matrix_s=matrix_s)
-            CALL fitting_interface(wf_history,matrix_s(1)%matrix,nvec,coeffs,tmp_square)
+            CALL fitting_interface(wf_history,matrix_s(1)%matrix,nvec,coeffs)
             CALL cp_fm_release(tmp_square)
 
             ! do the linear combination of previous PSs
@@ -1843,7 +1843,8 @@ CONTAINS
          CALL square_to_lt(square_fm%local_data,d(:,i),n)
       END DO
 
-      CALL diff_fitting(d,nd,nvec,target_d,0.0001_dp,coeffs,1,error)
+      CALL diff_fitting(d,nd,nvec,target_d,0.0001_dp,coeffs,error)
+      !CALL tr_fitting(d,nd,nvec,target_d,0.0001_dp,coeffs,error)
       IF (error.ne.0) THEN
          CPABORT("Fitting failed.")
       END IF
@@ -1854,6 +1855,7 @@ CONTAINS
       dev = dlange('f',nd,1,test_d,1,xx)
       WRITE(6,*) "Fitting error:", dev
       WRITE(6,*) "Fitting coeffs:", coeffs
+      WRITE(6,*) "Sum coeffs:", sum(coeffs)
 
       DEALLOCATE(d,target_d,test_d)
 
@@ -1881,24 +1883,33 @@ CONTAINS
    end subroutine square_to_lt
 
    subroutine tr_fitting(descriptors,nd,q,target_descriptor,eps, &
-           & coefficients,last,error)
-       integer, intent(in) :: nd, q, last
+           & coefficients,error)
+       integer, intent(in) :: nd, q
        real(dp), intent(in) :: descriptors(nd, q), target_descriptor(nd), &
            & eps
        real(dp), intent(out) :: coefficients(q)
        integer, intent(out) :: error
-   !
+
        real(dp), allocatable :: tr_descriptors(:,:), tr_target(:), &
            & tr_coefficients(:)
-       integer :: info, i, jp, jm, ntr, first
-   !
+       integer :: info, i, jp, jm, ntr, first, last
+
+       error = 0
+
+       if (q.eq.1) then
+           coefficients(1) = 1.0d0
+           return
+       end if
+
+
        if (mod(q,2).eq.0) then
            ntr = q/2
        else
            ntr = (q-1)/2
        end if
    !
-       first = mod(last,q) + 1
+       last = 1
+       first = q
    !
        allocate(tr_descriptors(nd,ntr),tr_target(nd), &
            & tr_coefficients(ntr),stat=info)
@@ -1908,8 +1919,8 @@ CONTAINS
        end if
    !
        do i = 1, ntr
-           jp = mod(last+i,q) + 1
-           jm = mod(last-i+q,q) + 1
+           jp = last + i - 1
+           jm = first - i
            tr_descriptors(:,i) = descriptors(:,jp) + descriptors(:,jm)
        end do
    !
@@ -1925,8 +1936,8 @@ CONTAINS
    !
        coefficients = 0.0d0
        do i = 1, ntr
-           jp = mod(last+i,q) + 1
-           jm = mod(last-i+q,q) + 1
+           jp = last + i - 1
+           jm = first - i
            coefficients(jp) = coefficients(jp) + tr_coefficients(i)
            coefficients(jm) = coefficients(jm) + tr_coefficients(i)
        end do
@@ -1941,8 +1952,8 @@ CONTAINS
    end subroutine tr_fitting
 
    subroutine diff_fitting(descriptors,nd,q,target_descriptor,eps, &
-           & coefficients,last,error)
-       integer, intent(in) :: nd, q, last
+           & coefficients,error)
+       integer, intent(in) :: nd, q
        real(dp), intent(in) :: descriptors(nd, q), target_descriptor(nd), &
            & eps
        real(dp), intent(out) :: coefficients(q)
@@ -1950,14 +1961,17 @@ CONTAINS
    !
        real(dp), allocatable :: diff_descriptors(:,:), diff_target(:), &
            & diff_coefficients(:)
-       integer :: info, i, j
+       integer :: info, i, j, last
    !
+       error = 0
        allocate(diff_descriptors(nd,q-1),diff_target(nd), &
            & diff_coefficients(q-1),stat=info)
        if (info.ne.0) then
            error = 34
            return
        end if
+
+       last = 1
    !
    !   Compute the difference between the descriptor and the reference.
    !
