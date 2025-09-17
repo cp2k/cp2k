@@ -3,7 +3,7 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-"cecl3.inp"                             = [{matcher="E_total", tol=2e-12, ref=-77.44297796403167}]
+"cecl3.inp"                             = [{matcher="E_total", tol=2e-12, ref=-77.44297796400000}]
 "prcl3.inp"                             = [{matcher="E_total", tol=2e-12, ref=-78.92550303116266}]
 "ndcl3.inp"                             = [{matcher="E_total", tol=2e-12, ref=-79.61434159284383}]
 "pmcl3.inp"                             = [{matcher="E_total", tol=2e-12, ref=-80.1463733929614}]
@@ -17,21 +17,3 @@
 "tmcl3.inp"                             = [{matcher="E_total", tol=2e-12, ref=-85.16789203070509}]
 "ybcl3.inp"                             = [{matcher="E_total", tol=2e-12, ref=-85.8867828510421}]
 "lucl3.inp"                             = [{matcher="E_total", tol=2e-12, ref=-86.4963141384957}]
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
