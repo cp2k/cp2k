@@ -59,19 +59,12 @@ MODULE qs_wf_history_methods
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-<<<<<<< HEAD
    USE cp_fm_types,                     ONLY: &
         copy_info_type, cp_fm_cleanup_copy_general, cp_fm_create, cp_fm_finish_copy_general, &
-        cp_fm_get_info, cp_fm_release, cp_fm_start_copy_general, cp_fm_to_fm, cp_fm_type
-=======
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_get_info,&
-                                              cp_fm_release,&
-                                              cp_fm_to_fm,&
-                                              cp_fm_type,&
+        cp_fm_get_info, cp_fm_release, cp_fm_start_copy_general, cp_fm_to_fm, cp_fm_type, &
+        cp_fm_set_all, &
                                               !cmn: debug
                                               cp_fm_write_unformatted
->>>>>>> 20269829d6 (Added a new extrapolation keyword and some temporary debug code.)
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type,&
                                               cp_to_string
@@ -568,7 +561,7 @@ CONTAINS
             wf_history%store_overlap_kp = .TRUE.
          END IF
       CASE (wfi_gext_nr)
-         wf_history%memory_depth = extrapolation_order + 2
+         wf_history%memory_depth = extrapolation_order
          wf_history%store_wf = .TRUE.
          wf_history%store_overlap = .TRUE.
       CASE default
@@ -702,6 +695,8 @@ CONTAINS
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_wf_snapshot_type), POINTER                 :: t0_state, t1_state
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: coeffs
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
 
       NULLIFY (mos, ao_mo_fm_pools, t0_state, t1_state, mo_coeff, &
                rho, rho_ao, rho_frozen_ao)
@@ -1149,22 +1144,12 @@ CONTAINS
          CPASSERT(.NOT. do_kpoints)
          CALL cite_reference(Kolafa2004)
          CALL cite_reference(Kuhne2007)
+
          ! figure out the actual number of vectors to use in the extrapolation:
          nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
          CPASSERT(nvec .GT. 0)
-         IF (nvec >= wf_history%memory_depth) THEN
-            IF ((qs_env%scf_control%max_scf_hist .NE. 0) .AND. &
-                (qs_env%scf_control%eps_scf_hist .NE. 0)) THEN
-               qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
-               qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
-               qs_env%scf_control%outer_scf%have_scf = .FALSE.
-            ELSE IF (qs_env%scf_control%max_scf_hist .NE. 0) THEN
-               qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
-               qs_env%scf_control%outer_scf%have_scf = .FALSE.
-            ELSE IF (qs_env%scf_control%eps_scf_hist .NE. 0) THEN
-               qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
-            END IF
-         END IF
+
+         ALLOCATE(coeffs(nvec))
 
          my_orthogonal_wf = .TRUE.
          CALL qs_rho_get(rho, rho_ao=rho_ao)
@@ -1183,51 +1168,32 @@ CONTAINS
             CALL cp_fm_create(csc, matrix_struct_new)
             CALL cp_fm_struct_release(matrix_struct_new)
 
-            !cmn: debug
+            !cmn: debug save the matrices to file
             CALL cp_fm_struct_create(matrix_struct_new, &
                                      template_fmstruct=matrix_struct, &
                                      nrow_global=n, &
                                      ncol_global=n)
             CALL cp_fm_create(tmp_square, matrix_struct_new)
             CALL cp_fm_struct_release(matrix_struct_new)
-
-            ! first the most recent
-            t1_state => wfi_get_snapshot(wf_history, &
-                                         wf_index=1)
-            CALL cp_fm_to_fm(t1_state%wf(ispin), mo_coeff)
-
-            !cmn: debug
+            t1_state => wfi_get_snapshot(wf_history, wf_index=1)
             CALL save_matrix_bin(mo_coeff, "matrices/C", wf_history%snapshot_count)
             CALL copy_dbcsr_to_fm(t1_state%overlap, tmp_square)
             CALL save_matrix_bin(tmp_square, "matrices/S", wf_history%snapshot_count)
+
+            ! get the coefficients for the fitting
+            NULLIFY (matrix_s)
+            CALL get_qs_env(qs_env, matrix_s=matrix_s)
+            CALL fitting_interface(wf_history,matrix_s(1)%matrix,nvec,coeffs,tmp_square)
             CALL cp_fm_release(tmp_square)
 
-            alpha = REAL(4*nvec - 2, KIND=dp)/REAL(nvec + 1, KIND=dp)
-            IF ((io_unit > 0) .AND. (print_level > low_print_level)) THEN
-               WRITE (UNIT=io_unit, FMT="(/,T2,A,/,/,T3,A,I0,/,/,T3,A2,I0,A4,F10.6)") &
-                  "Parameters for the always stable predictor-corrector (ASPC) method:", &
-                  "ASPC order: ", MAX(nvec - 2, 0), &
-                  "B(", 1, ") = ", alpha
-            END IF
-            CALL cp_fm_scale(alpha, mo_coeff)
-
-            DO i = 2, nvec
+            ! do the linear combination of previous PSs
+            CALL cp_fm_set_all(mo_coeff, 0.0_dp)
+            DO i = 1, nvec
                t0_state => wfi_get_snapshot(wf_history, wf_index=i)
-               IF (use_overlap) THEN
-                  CALL cp_dbcsr_sm_fm_multiply(t0_state%overlap, t1_state%wf(ispin), fm_tmp, k)
-                  CALL parallel_gemm('T', 'N', k, k, n, 1.0_dp, t0_state%wf(ispin), fm_tmp, 0.0_dp, csc)
-               ELSE
-                  CALL parallel_gemm('T', 'N', k, k, n, 1.0_dp, t0_state%wf(ispin), &
-                                     t1_state%wf(ispin), 0.0_dp, csc)
-               END IF
+               CALL cp_dbcsr_sm_fm_multiply(t0_state%overlap, t1_state%wf(ispin), fm_tmp, k)
+               CALL parallel_gemm('T', 'N', k, k, n, 1.0_dp, t0_state%wf(ispin), fm_tmp, 0.0_dp, csc)
                CALL parallel_gemm('N', 'N', n, k, k, 1.0_dp, t0_state%wf(ispin), csc, 0.0_dp, fm_tmp)
-               alpha = (-1.0_dp)**(i + 1)*REAL(i, KIND=dp)* &
-                       binomial(2*nvec, nvec - i)/binomial(2*nvec - 2, nvec - 1)
-               IF ((io_unit > 0) .AND. (print_level > low_print_level)) THEN
-                  WRITE (UNIT=io_unit, FMT="(T3,A2,I0,A4,F10.6)") &
-                     "B(", i, ") = ", alpha
-               END IF
-               CALL cp_fm_scale_and_add(1.0_dp, mo_coeff, alpha, fm_tmp)
+               CALL cp_fm_scale_and_add(1.0_dp, mo_coeff, coeffs(i), fm_tmp)
             END DO
             CALL cp_fm_release(csc)
             CALL cp_fm_release(fm_tmp)
@@ -1239,6 +1205,8 @@ CONTAINS
          END DO
          CALL qs_rho_update_rho(rho, qs_env=qs_env)
          CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE.)
+
+         DEALLOCATE(coeffs)
 
       CASE default
          CALL cp_abort(__LOCATION__, &
@@ -1826,5 +1794,321 @@ CONTAINS
       CALL cp_fm_write_unformatted(matrix, 100)
       CLOSE(100)
    END SUBROUTINE save_matrix_bin
+
+   SUBROUTINE fitting_interface(wf_history, current_overlap, nvec, coeffs)
+      INTEGER, INTENT(IN) :: nvec
+      TYPE(qs_wf_history_type), POINTER :: wf_history
+      TYPE(dbcsr_type), INTENT(IN) :: current_overlap
+      REAL(KIND=dp), INTENT(OUT) :: coeffs(nvec)
+
+      TYPE(cp_fm_type) :: square_fm
+      TYPE(qs_wf_snapshot_type), POINTER :: state
+      TYPE(cp_fm_struct_type), POINTER  :: matrix_struct, matrix_struct_new
+      INTEGER :: i, n, k, nd, error
+
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:) :: d
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: target_d, &
+                                                  test_d
+      REAL(KIND=dp) :: dev, xx(1) = 0.0_dp, dlange
+
+      ! create a temporary square matrix
+      NULLIFY (state)
+      state => wfi_get_snapshot(wf_history, wf_index=1)
+      CALL cp_fm_get_info(state%wf(1), &
+                          nrow_global=n, &
+                          ncol_global=k, &
+                          matrix_struct=matrix_struct)
+
+      CALL cp_fm_struct_create(matrix_struct_new, &
+                               template_fmstruct=matrix_struct, &
+                               nrow_global=n, &
+                               ncol_global=n)
+      CALL cp_fm_create(square_fm, matrix_struct_new)
+      CALL cp_fm_struct_release(matrix_struct_new)
+
+      ! this creates problems
+      !CALL cp_fm_struct_release(matrix_struct)
+
+      ! allocate the descriptor matrix
+      nd = n*(n+1)/2
+      ALLOCATE(d(nd,nvec),target_d(nd),test_d(nd))
+
+      ! convert overlaps to lower triangular dense matrices
+      CALL copy_dbcsr_to_fm(current_overlap, square_fm)
+      CALL square_to_lt(square_fm%local_data,target_d,n)
+
+      DO i = 1, nvec
+         state => wfi_get_snapshot(wf_history, wf_index=i)
+         CALL copy_dbcsr_to_fm(state%overlap, square_fm)
+         CALL square_to_lt(square_fm%local_data,d(:,i),n)
+      END DO
+
+      CALL diff_fitting(d,nd,nvec,target_d,0.0001_dp,coeffs,1,error)
+      IF (error.ne.0) THEN
+         CPABORT("Fitting failed.")
+      END IF
+
+      ! test if the fitting is reasonable
+      CALL dgemv("n",nd,nvec,1.0_dp,d,nd,coeffs,1,0.0_dp,test_d,1)
+      test_d(:) = test_d(:) - target_d(:)
+      dev = dlange('f',nd,1,test_d,1,xx)
+      WRITE(6,*) "Fitting error:", dev
+      WRITE(6,*) "Fitting coeffs:", coeffs
+
+      DEALLOCATE(d,target_d,test_d)
+
+   END SUBROUTINE fitting_interface
+
+   subroutine square_to_lt(square,lt,n)
+   !
+   !   Given a symmetric square matrix, assemble the lower triangular.
+   !
+       integer, intent(in) :: n
+       real(dp), intent(in) :: square(n,n)
+       real(dp), intent(out) :: lt(n*(n+1)/2)
+   !
+       integer :: ij, i, j
+   !
+       lt = 0.0d0
+       ij = 0
+       do i = 1, n
+           do j = 1, i
+               ij = ij + 1
+               lt(ij) = square(j,i)
+           end do
+       end do
+   !
+   end subroutine square_to_lt
+
+   subroutine tr_fitting(descriptors,nd,q,target_descriptor,eps, &
+           & coefficients,last,error)
+       integer, intent(in) :: nd, q, last
+       real(dp), intent(in) :: descriptors(nd, q), target_descriptor(nd), &
+           & eps
+       real(dp), intent(out) :: coefficients(q)
+       integer, intent(out) :: error
+   !
+       real(dp), allocatable :: tr_descriptors(:,:), tr_target(:), &
+           & tr_coefficients(:)
+       integer :: info, i, jp, jm, ntr, first
+   !
+       if (mod(q,2).eq.0) then
+           ntr = q/2
+       else
+           ntr = (q-1)/2
+       end if
+   !
+       first = mod(last,q) + 1
+   !
+       allocate(tr_descriptors(nd,ntr),tr_target(nd), &
+           & tr_coefficients(ntr),stat=info)
+       if (info.ne.0) then
+           error = 32
+           return
+       end if
+   !
+       do i = 1, ntr
+           jp = mod(last+i,q) + 1
+           jm = mod(last-i+q,q) + 1
+           tr_descriptors(:,i) = descriptors(:,jp) + descriptors(:,jm)
+       end do
+   !
+       tr_target(:) = target_descriptor(:) + descriptors(:,first)
+   !
+   !   Call the normal least square fitting using the time reversible
+   !   quantities.
+   !
+       call ls_fitting(tr_descriptors,nd,ntr,tr_target,eps, &
+           & tr_coefficients,error)
+   !
+   !   Put back the coefficients where they should be.
+   !
+       coefficients = 0.0d0
+       do i = 1, ntr
+           jp = mod(last+i,q) + 1
+           jm = mod(last-i+q,q) + 1
+           coefficients(jp) = coefficients(jp) + tr_coefficients(i)
+           coefficients(jm) = coefficients(jm) + tr_coefficients(i)
+       end do
+       coefficients(first) = -1.0d0
+   !
+       deallocate(tr_descriptors,tr_target,tr_coefficients,stat=info)
+       if (info.ne.0) then
+           error = 33
+           return
+       end if
+   !
+   end subroutine tr_fitting
+
+   subroutine diff_fitting(descriptors,nd,q,target_descriptor,eps, &
+           & coefficients,last,error)
+       integer, intent(in) :: nd, q, last
+       real(dp), intent(in) :: descriptors(nd, q), target_descriptor(nd), &
+           & eps
+       real(dp), intent(out) :: coefficients(q)
+       integer, intent(out) :: error
+   !
+       real(dp), allocatable :: diff_descriptors(:,:), diff_target(:), &
+           & diff_coefficients(:)
+       integer :: info, i, j
+   !
+       allocate(diff_descriptors(nd,q-1),diff_target(nd), &
+           & diff_coefficients(q-1),stat=info)
+       if (info.ne.0) then
+           error = 34
+           return
+       end if
+   !
+   !   Compute the difference between the descriptor and the reference.
+   !
+       do i = 1, q - 1
+           j = mod(i+last-1,q) + 1
+           diff_descriptors(:,i) = descriptors(:,j) - descriptors(:,last)
+       end do
+       diff_target(:) = target_descriptor(:) - descriptors(:,last)
+   !
+   !   Call the normal least square fitting using the diff quantities.
+   !
+       call ls_fitting(diff_descriptors,nd,q-1, &
+           & diff_target,eps,diff_coefficients,error)
+   !
+   !   Put back the coefficients where they should be.
+   !
+       do i = 1, q - 1
+           j = mod(i+last-1,q) + 1
+           coefficients(j) = diff_coefficients(i)
+       end do
+       coefficients(last) = 1.0d0 - sum(diff_coefficients)
+   !
+       deallocate(diff_descriptors,diff_target,diff_coefficients,stat=info)
+       if (info.ne.0) then
+           error = 35
+           return
+       end if
+   !
+   end subroutine diff_fitting
+
+   subroutine ls_fitting(descriptors,nd,q,target_descriptor,eps, &
+           & coefficients,error)
+   !
+   !   Given a matrix of descriptors of size (nd,q) and a target descriptor
+   !   of size (nd), find the linear combination that best approximates it.
+   !   The argument eps sets the Tikhonov regularization. This version
+   !   uses the lapack dgels, instead of constructing the pseudo-matrix.
+   !
+       integer, intent(in) :: nd, q
+       real(dp), intent(in) :: descriptors(nd,q), target_descriptor(nd), &
+           & eps
+       real(dp), intent(out) :: coefficients(q)
+       integer, intent(out) :: error
+   !
+       integer :: i, m_aug, info, lwork
+       real(dp), allocatable :: a(:,:), b(:), work(:)
+   !
+       error = 0
+       m_aug = nd
+       if (eps.ne.0.0d0) m_aug = nd + q
+   !
+       allocate(a(m_aug,q),b(m_aug),stat=info)
+       if (info.ne.0) then
+           error = 45
+           return
+       end if
+   !
+       a(1:nd,:) = descriptors
+       b(1:nd) = target_descriptor
+   !
+   !   If regularized, append eps * I to the matrix and zeros to the RHS.
+   !
+       if (eps.ne.0.0d0) then
+           a(nd+1:m_aug, :) = 0.0_dp
+           do i = 1, q
+               a(nd + i, i) = eps
+           end do
+           b(nd+1:m_aug) = 0.0_dp
+       end if
+   !
+   !   Query the optimal workspace size.
+   !
+       lwork = -1
+       allocate(work(1),stat=info)
+       if (info.ne.0) then
+           error = 46
+           return
+       end if
+   !
+       call dgels("n",m_aug,q,1,a,m_aug,b,m_aug,work,lwork,info)
+       if (info.ne.0) then
+           error = 47
+           return
+       end if
+   !
+       lwork = int(work(1))
+       deallocate(work,stat=info)
+       if (info.ne.0) then
+           error = 48
+           return
+       end if
+       allocate(work(lwork),stat=info)
+       if (info.ne.0) then
+           error = 49
+           return
+       end if
+   !
+   !   Solve the over-determined linear system.
+   !
+       call dgels("n",m_aug,q,1,a,m_aug,b,m_aug,work,lwork,info)
+       if (info.ne.0) then
+           error = 50
+           return
+       end if
+       coefficients = b(1:q)
+   !
+       deallocate(a,b,work,stat=info)
+       if (info.ne.0) then
+           error = 51
+           return
+       end if
+   !
+   end subroutine ls_fitting
+
+   !SUBROUTINE diff_fitting(wf_history, current_overlap, coeffs, nvec)
+   !   INTEGER, INTENT(IN) :: nvec
+   !   TYPE(qs_wf_history_type), POINTER :: wf_history
+   !   TYPE(dbcsr_type), INTENT(IN) :: current_overlap
+   !   REAL(KIND=dp), INTENT(OUT) :: coeffs(nvec)
+
+   !   INTEGER :: i, j
+   !   REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE :: A
+   !   REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: B
+   !   TYPE(qs_wf_snapshot_type), POINTER :: ref_state, state
+   !   TYPE(dbcsr_type) :: tmp_i, tmp_j
+
+   !   ALLOCATE(A(nvec-1, nvec-1), b(nvec-1))
+
+   !   ! i = 1 should be the most recent, our reference
+   !   ref_state => wfi_get_snapshot(wf_history, wf_index=1)
+
+   !   write(6,*) "TEST", ASSOCIATED(ref_state%overlap)
+   !   write(6,*) "NVEC", nvec
+
+   !   ! assemble the matrix A
+   !   DO i = 2, nvec
+   !      state => wfi_get_snapshot(wf_history, wf_index=i)
+   !      CALL dbcsr_copy(tmp_i, state%overlap)
+   !      CALL dbcsr_add(tmp_i, ref_state%overlap, 1.0_dp, -1.0_dp)
+   !      DO j = 2, nvec
+   !         state => wfi_get_snapshot(wf_history, wf_index=j)
+   !         CALL dbcsr_copy(tmp_j, state%overlap)
+   !         CALL dbcsr_add(tmp_j, ref_state%overlap, 1.0_dp, -1.0_dp)
+   !      END DO
+   !   END DO
+   !   coeffs = 0.0d0
+
+   !   !CALL dbcsr_add(tmp_j, current_overlap, 1.0_dp, -1.0_dp)
+   !   STOP 0
+
+   !   DEALLOCATE(A, b)
+   !END SUBROUTINE diff_fitting
 
 END MODULE qs_wf_history_methods
