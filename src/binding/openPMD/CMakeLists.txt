@@ -1,4 +1,4 @@
-add_library(CP2K_OPENPMD_BINDINGS STATIC openPMD.cpp auxiliary.c)
+add_library(CP2K_OPENPMD_BINDINGS STATIC openPMD.cpp)
 
 find_package(openPMD 0.16.1 REQUIRED)
 target_link_libraries(CP2K_OPENPMD_BINDINGS PRIVATE openPMD::openPMD)
