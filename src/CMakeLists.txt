@@ -1627,6 +1627,15 @@ set(CP2K_GPU_DFLAGS
 # set properties for the cp2k target.
 # ##############################################################################
 
+if(CP2K_USE_OPENPMD)
+  list(APPEND CP2K_SRCS_F
+    openPMD.F
+    input/cp_output_handling_openpmd.F
+    cp_realspace_grid_openpmd.F
+    pw/realspace_grid_openpmd.F
+  )
+endif()
+
 add_fypp_sources(CP2K_SRCS ${CP2K_SRCS_F})
 
 # TODO Add __SHORT_FILE__ also to program files, e.g. metadyn_tools/graph.F
@@ -1648,6 +1657,10 @@ else()
   else()
     add_library(cp2k STATIC "${CP2K_SRCS};${CP2K_SRCS_C};${CP2K_SRCS_GPU}")
   endif()
+endif()
+
+if(CP2K_USE_OPENPMD)
+  target_link_libraries(cp2k PRIVATE CP2K_OPENPMD_BINDINGS)
 endif()
 
 target_compile_features(cp2k PUBLIC cuda_std_11)
@@ -1777,6 +1790,7 @@ target_compile_definitions(
     $<$<BOOL:${CP2K_USE_DLAF}>:__DLAF>
     $<$<BOOL:${CP2K_USE_LIBXC}>:__LIBXC>
     $<$<BOOL:${CP2K_USE_HDF5}>:__HDF5>
+    $<$<BOOL:${CP2K_USE_OPENPMD}>:__OPENPMD>
     $<$<BOOL:${CP2K_USE_TREXIO}>:__TREXIO>
     $<$<BOOL:${CP2K_USE_GREENX}>:__GREENX>
     $<$<BOOL:${CP2K_USE_GRPP}>:__LIBGRPP>
