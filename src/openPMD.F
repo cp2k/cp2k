@@ -6,8 +6,18 @@
 !--------------------------------------------------------------------------------------------------!
 MODULE openPMD_api
    USE ISO_C_BINDING, ONLY: &
-      C_ASSOCIATED, C_CHAR, C_INT, C_INT64_T, C_LOC, C_NULL_CHAR, C_NULL_PTR, C_PTR, C_SIZE_T, C_F_POINTER, C_DOUBLE
-   USE kinds, ONLY: default_string_length
+      C_ASSOCIATED, &
+      C_CHAR, &
+      C_DOUBLE, &
+      C_F_POINTER, &
+      C_INT, &
+      C_INT64_T, &
+      C_LOC, &
+      C_NULL_CHAR, &
+      C_NULL_PTR, &
+      C_PTR, &
+      C_SIZE_T
+   USE kinds, ONLY: default_string_length, dp, sp
    USE message_passing, ONLY: mp_comm_type
 #include "./base/base_uses.f90"
 
@@ -200,9 +210,6 @@ MODULE openPMD_api
       #:for dim in dimensions
          PUBLIC :: openpmd_dynamic_memory_view_type_${dim}$d
       #:endfor
-
-      INTEGER, PARAMETER :: sp = SELECTED_REAL_KIND(6, 30)
-      INTEGER, PARAMETER :: dp = SELECTED_REAL_KIND(14, 200)
 
    CONTAINS
 

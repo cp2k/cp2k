@@ -6,8 +6,8 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief A wrapper around pw_to_cube() which accepts particle_list_type
-!> \author Ole Schuett
+!> \brief A wrapper around pw_to_openpmd() which accepts particle_list_type
+!> \author Ole Schuett, Franz Poeschel
 ! **************************************************************************************************
 MODULE cp_realspace_grid_openpmd
    USE atomic_kind_types,               ONLY: get_atomic_kind
