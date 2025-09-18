@@ -127,7 +127,21 @@ MODULE cp_output_handling_openpmd
    INTEGER :: cp_num_openpmd_per_callsite = 0
    INTEGER :: cp_capacity_openpmd_per_callsite = 0
 
+   ! This is currently hardcoded, reallocation in case of greater needed map sizes
+   ! is not (yet) supported. However, the maps should normally not grow to large
+   ! sizes:
+   !
+   ! * cp_openpmd_per_call will normally contain one single element, since a
+   !   (virtual) file is opened, written and then closed.
+   !   The output routines normally do not contain interleaved open-write-close
+   !   logic.
+   ! * cp_openpmd_per_callsite will normally contain a handful of elements,
+   !   equal to the number of output modules activated in the input file
+   !   (and in openPMD: equal to the number of output Series).
+   !   There are not 100 of them.
    INTEGER, PARAMETER :: cp_allocation_size = 100
+   ! Some default settings. May be overwritten / extended by specifying a JSON/TOML
+   ! config in the input file.
    CHARACTER(len=*), PARAMETER :: cp_default_backend_config = &
                                   "[hdf5]"//new_line('a')// &
                                   "# will be overridden by particle flushes"//new_line('a')// &
@@ -159,6 +173,7 @@ MODULE cp_output_handling_openpmd
 
 CONTAINS
 
+   ! Helper functions for interacting with the two maps declared above.
    #:set name_suffixes = ['unit_nr', 'filedata']
    #:set key_types = ['INTEGER', 'CHARACTER(len=default_string_length)']
    #:set value_types = ['cp_openpmd_per_call_value_type', 'cp_openpmd_per_callsite_value_type']
@@ -371,9 +386,9 @@ CONTAINS
 !         For this, we need to emulate unit numbers as (1) they are not native to openPMD and
 !         (2) a single openPMD Series might contain multiple datasets treated logically by CP2K
 !         as distinct outputs. As a result, a single unit number is resolved by the openPMD logic
-!         to the values represented by the cp_print_key_generate_openpmd_filename struct,
-!         containing the output Series and the referred datasets therein (Iteration number, mesh
-!         name, particle species name, ...).
+!         to the values represented by the cp_openpmd_per_call_value_type struct,
+!         containing the output Series and the referred datasets therein (Iteration number,
+!         name prefix for meshes and particles, referred output Series ...).
 !> \param series ...
 !> \param middle_name ...
 !> \param logger ...
@@ -395,14 +410,6 @@ CONTAINS
       opened_new_iteration = cp_advance_iteration_number(logger, ${opmd}$)
 
       res%iteration = ${opmd}$%output_series%write_iteration(${opmd}$%iteration_counter%flat_iteration)
-
-      ! res%mesh = openpmd_iteration_get_mesh(res%iteration, middle_name)
-      ! CALL openpmd_record_component_make_empty(res%mesh%openpmd_mesh_as_record_component(), openpmd_type_int, 3)
-      ! res%particle_species = openpmd_iteration_get_particle_species(res%iteration, middle_name)
-      ! position = openpmd_particle_species_get_record(res%particle_species, "position")
-      ! CALL openpmd_record_component_make_empty_int(position%openpmd_record_as_record_component(), 3)
-      ! positionOffset = openpmd_particle_species_get_record(res%particle_species, "positionOffset")
-      ! CALL openpmd_record_component_make_empty_int(positionOffset%openpmd_record_as_record_component(), 3)
       res%name_prefix = TRIM(middle_name)
 
       IF (opened_new_iteration) THEN
@@ -484,14 +491,14 @@ CONTAINS
 !> \return ...
 ! **************************************************************************************************
    FUNCTION cp_openpmd_print_key_unit_nr(logger, basis_section, print_key_path, &
-                                         middle_name, log_filename, ignore_should_output, &
+                                         middle_name, ignore_should_output, &
                                          mpi_io, &
                                          fout, openpmd_basename) RESULT(res)
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), INTENT(IN)                :: basis_section
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: print_key_path
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: middle_name
-      LOGICAL, INTENT(IN), OPTIONAL                      :: log_filename, ignore_should_output
+      LOGICAL, INTENT(IN), OPTIONAL                      :: ignore_should_output
       LOGICAL, INTENT(INOUT), OPTIONAL                   :: mpi_io
       CHARACTER(len=default_path_length), INTENT(OUT), &
          OPTIONAL                                        :: fout
@@ -501,7 +508,7 @@ CONTAINS
       CHARACTER(len=default_path_length)                 :: filename
 
       CHARACTER(len=default_string_length)               :: openpmd_config, outPath, file_extension
-      LOGICAL                                            :: do_log, found, &
+      LOGICAL                                            :: found, &
                                                             my_mpi_io, &
                                                             my_should_output, &
                                                             replace
@@ -544,14 +551,6 @@ CONTAINS
             openpmd_config = "@"//openpmd_config
          END IF
          filename = cp_print_key_generate_openpmd_filename(logger, print_key, openpmd_basename, file_extension)
-
-         ! Check is we have to log any operation performed on the file..
-         do_log = .FALSE.
-         IF (PRESENT(log_filename)) THEN
-            do_log = log_filename
-         ELSE
-            CALL section_vals_val_get(print_key, "LOG_PRINT_KEY", l_val=do_log)
-         END IF
 
          IF (PRESENT(fout)) THEN
             fout = filename
