@@ -268,24 +268,6 @@ MODULE openPMD_api
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param message ...
-! **************************************************************************************************
-      SUBROUTINE cp2k_log(message)
-         CHARACTER(len=*), INTENT(IN)                       :: message
-
-         INTERFACE
-            SUBROUTINE cp2k_c_log(message) &
-               BIND(C, name="CP2K_log")
-               IMPORT :: C_PTR, C_CHAR
-               CHARACTER(kind=C_CHAR), DIMENSION(*) :: message
-            END SUBROUTINE
-         END INTERFACE
-
-         CALL cp2k_c_log(message=TRIM(message)//C_NULL_CHAR)
-      END SUBROUTINE cp2k_log
-
-! **************************************************************************************************
-!> \brief ...
 !> \param path ...
 !> \param access ...
 !> \param mpi_comm ...
