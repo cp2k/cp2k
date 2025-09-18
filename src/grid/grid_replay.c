@@ -44,7 +44,9 @@ static int parse_int(const char key[], FILE *fp) {
   char line[100], format[100];
   read_next_line(line, sizeof(line), fp);
   snprintf(format, sizeof(format), "%s %%i", key);
-  assert(sscanf(line, format, &value) == 1);
+  if (sscanf(line, format, &value) != 1) {
+    assert(!"parse_int failed");
+  }
   return value;
 }
 
@@ -56,7 +58,9 @@ static void parse_int3(const char key[], FILE *fp, int vec[3]) {
   char line[100], format[100];
   read_next_line(line, sizeof(line), fp);
   snprintf(format, sizeof(format), "%s %%i %%i %%i", key);
-  assert(sscanf(line, format, &vec[0], &vec[1], &vec[2]) == 3);
+  if (sscanf(line, format, &vec[0], &vec[1], &vec[2]) != 3) {
+    assert(!"parse_int3 failed");
+  }
 }
 
 /*******************************************************************************
@@ -67,8 +71,10 @@ static double parse_double(const char key[], FILE *fp) {
   double value;
   char line[100], format[100];
   read_next_line(line, sizeof(line), fp);
-  snprintf(format, sizeof(format), "%s %%le", key);
-  assert(sscanf(line, format, &value) == 1);
+  snprintf(format, sizeof(format), "%s %%lf", key);
+  if (sscanf(line, format, &value) != 1) {
+    assert(!"parse_double failed");
+  }
   return value;
 }
 
@@ -79,8 +85,10 @@ static double parse_double(const char key[], FILE *fp) {
 static void parse_double3(const char key[], FILE *fp, double vec[3]) {
   char line[100], format[100];
   read_next_line(line, sizeof(line), fp);
-  snprintf(format, sizeof(format), "%s %%le %%le %%le", key);
-  assert(sscanf(line, format, &vec[0], &vec[1], &vec[2]) == 3);
+  snprintf(format, sizeof(format), "%s %%lf %%lf %%lf", key);
+  if (sscanf(line, format, &vec[0], &vec[1], &vec[2]) != 3) {
+    assert(!"parse_double3 failed");
+  }
 }
 
 /*******************************************************************************
@@ -91,8 +99,10 @@ static void parse_double3x3(const char key[], FILE *fp, double mat[3][3]) {
   char line[100], format[100];
   for (int i = 0; i < 3; i++) {
     read_next_line(line, sizeof(line), fp);
-    snprintf(format, sizeof(format), "%s %i %%le %%le %%le", key, i);
-    assert(sscanf(line, format, &mat[i][0], &mat[i][1], &mat[i][2]) == 3);
+    snprintf(format, sizeof(format), "%s %i %%lf %%lf %%lf", key, i);
+    if (sscanf(line, format, &mat[i][0], &mat[i][1], &mat[i][2]) != 3) {
+      assert(!"parse_double3x3 failed");
+    }
   }
 }
 
@@ -272,8 +282,10 @@ bool grid_replay(const char *filename, const int cycles, const bool collocate,
   for (int i = 0; i < n2; i++) {
     for (int j = 0; j < n1; j++) {
       read_next_line(line, sizeof(line), fp);
-      snprintf(format, sizeof(format), "pab %i %i %%le", i, j);
-      assert(sscanf(line, format, &pab_mutable[i][j]) == 1);
+      snprintf(format, sizeof(format), "pab %i %i %%lf", i, j);
+      if (sscanf(line, format, &pab_mutable[i][j]) != 1) {
+        assert(!"parse_pab failed");
+      }
     }
   }
   const double(*pab)[n1] = (const double(*)[n1])pab_mutable;
@@ -288,7 +300,9 @@ bool grid_replay(const char *filename, const int cycles, const bool collocate,
     int i, j, k;
     double value;
     read_next_line(line, sizeof(line), fp);
-    assert(sscanf(line, "grid %i %i %i %le", &i, &j, &k, &value) == 4);
+    if (sscanf(line, "grid %i %i %i %le", &i, &j, &k, &value) != 4) {
+      assert(!"parse_grid failed");
+    }
     grid_ref->host_buffer[k * npts_local[1] * npts_local[0] +
                           j * npts_local[0] + i] = value;
   }
@@ -298,8 +312,10 @@ bool grid_replay(const char *filename, const int cycles, const bool collocate,
   for (int i = o2; i < ncoset(lb_max) + o2; i++) {
     for (int j = o1; j < ncoset(la_max) + o1; j++) {
       read_next_line(line, sizeof(line), fp);
-      snprintf(format, sizeof(format), "hab %i %i %%le", i, j);
-      assert(sscanf(line, format, &hab_ref[i][j]) == 1);
+      snprintf(format, sizeof(format), "hab %i %i %%lf", i, j);
+      if (sscanf(line, format, &hab_ref[i][j]) != 1) {
+        assert(!"parse_hab failed");
+      }
     }
   }
 
