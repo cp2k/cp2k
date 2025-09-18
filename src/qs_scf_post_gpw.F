@@ -218,19 +218,33 @@ MODULE qs_scf_post_gpw
 
    PUBLIC :: make_lumo_gpw
 
-   CHARACTER(len=*), PARAMETER :: str_mo_cubes = "PRINT%MO_CUBES", str_mo_openpmd = "PRINT%MO_OPENPMD", str_elf_cubes = "PRINT%ELF_CUBE", str_elf_openpmd = "PRINT%ELF_OPENPMD", str_e_density_cubes = "PRINT%E_DENSITY_CUBE", str_e_density_openpmd = "PRINT%E_DENSITY_OPENPMD"
+   CHARACTER(len=*), PARAMETER :: &
+   str_mo_cubes = "PRINT%MO_CUBES", &
+str_mo_openpmd = "PRINT%MO_OPENPMD", &
+str_elf_cubes = "PRINT%ELF_CUBE", &
+str_elf_openpmd = "PRINT%ELF_OPENPMD", &
+str_e_density_cubes = "PRINT%E_DENSITY_CUBE", &
+str_e_density_openpmd = "PRINT%E_DENSITY_OPENPMD"
 
    INTEGER, PARAMETER :: grid_output_cubes = 1, grid_output_openpmd = 2
+
+   ! Generic information on whether a certain output section has been activated
+   ! or not, and on whether it has been activated in the Cube or openPMD variant.
+   ! Create with function cube_or_openpmd(), see there for further details.
    TYPE cp_section_key
-      CHARACTER(len=default_string_length) :: relative_section_key
-      CHARACTER(len=default_string_length) :: absolute_section_key
-      CHARACTER(len=7) :: format_name ! for output
-      INTEGER :: grid_output
+      CHARACTER(len=default_string_length) :: relative_section_key ! e.g. PRINT%MO_CUBES
+      CHARACTER(len=default_string_length) :: absolute_section_key ! e.g. DFT%PRINT%MO_CUBES
+      CHARACTER(len=7) :: format_name ! 'openPMD' or 'Cube', for logging
+      INTEGER :: grid_output ! either 1 for grid_output_cubes or 2 for grid_output_openpmd
       LOGICAL :: do_output
    CONTAINS
+      ! Open a file as either Cube or openPMD
       PROCEDURE, PUBLIC :: print_key_unit_nr => cp_forward_print_key_unit_nr
+      ! Write either to the Cube or openPMD file
       PROCEDURE, PUBLIC :: write_pw => cp_forward_write_pw
+      ! Close either the Cube or openPMD file
       PROCEDURE, PUBLIC :: print_key_finished_output => cp_forward_print_key_finished_output
+      ! Helpers
       PROCEDURE, PUBLIC :: do_openpmd => cp_section_key_do_openpmd
       PROCEDURE, PUBLIC :: do_cubes => cp_section_key_do_cubes
       PROCEDURE, PUBLIC :: concat_to_relative => cp_section_key_concat_to_relative
@@ -280,6 +294,7 @@ CONTAINS
       res = self%do_output .AND. self%grid_output == grid_output_openpmd
    END FUNCTION
 
+   ! Opens either a Cube or openPMD output file, depending on the passed configuration in self.
    FUNCTION cp_forward_print_key_unit_nr(self, logger, basis_section, print_key_path, extension, &
                                          middle_name, local, log_filename, ignore_should_output, file_form, file_position, &
                                          file_action, file_status, do_backup, on_file, is_new_file, mpi_io, &
@@ -357,6 +372,16 @@ CONTAINS
 #endif
    END SUBROUTINE
 
+   ! Decides if a particular output routine will write to openPMD, to Cube or to none.
+   ! Writing to both is not supported.
+   ! The distinction between Cube and openPMD output works such that the output configuration
+   ! sections exist as duplicates: E.g. for DFT%PRINT%MO_CUBES,
+   ! there additionally exists DFT%PRINT%MO_OPENPMD.
+   ! The internal base configuration for such sections is identical; additionally there
+   ! exist format-specific options such as APPEND for Cube or OPENPMD_CFG_FILE for openPMD.
+   ! The routines in this file alternate between using relative section paths without the
+   ! %DFT prefix (e.g. PRINT%MO_CUBES) or absolute section paths with the %DF% prefix
+   ! (e.g. DFT%PRINT%MO_CUBES). Call this routine with the relative paths.
    FUNCTION cube_or_openpmd(input, str_cubes, str_openpmd, logger) RESULT(res)
       TYPE(section_vals_type), POINTER                   :: input
       CHARACTER(len=*), INTENT(IN) :: str_cubes, str_openpmd

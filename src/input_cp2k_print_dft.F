@@ -1009,10 +1009,10 @@ CONTAINS
                                        " by the kinetic energy density of a uniform el. gas of same density.", &
                                        print_level=high_print_level, filename="")
       CALL keyword_create(keyword, __LOCATION__, name="stride", &
-                          description="The stride (X,Y,Z) used to write the cube file "// &
-                          "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
+                          description="The stride (X,Y,Z) used to write the openPMD file "// &
+                          "(larger values result in smaller openPMD files). You can provide 3 numbers (for X,Y,Z) or"// &
                           " 1 number valid for all components.", &
-                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+                          usage="STRIDE 1 1 1", n_var=-1, default_i_vals=(/1, 1, 1/), type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
@@ -2255,16 +2255,16 @@ CONTAINS
       NULLIFY (keyword)
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, "MO_OPENPMD", &
-                                       description="Controls the printing of the molecular orbitals (MOs) as cube files."// &
+                                       description="Controls the printing of the molecular orbitals (MOs) as openPMD files."// &
                                        " It can be used during a Real Time calculation to print the MOs."// &
                                        " In this case, the density corresponding to the time dependent MO is printed"// &
                                        " instead of the wave-function.", &
                                        print_level=high_print_level, filename="")
       CALL keyword_create(keyword, __LOCATION__, name="stride", &
-                          description="The stride (X,Y,Z) used to write the cube file "// &
-                          "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
+                          description="The stride (X,Y,Z) used to write the openPMD file "// &
+                          "(larger values result in smaller openPMD files). You can provide 3 numbers (for X,Y,Z) or"// &
                           " 1 number valid for all components.", &
-                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+                          usage="STRIDE 1 1 1", n_var=-1, default_i_vals=(/1, 1, 1/), type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
@@ -2277,13 +2277,13 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="nlumo", &
                           description="If the printkey is activated controls the number of lumos"// &
-                          " that are printed and dumped as a cube (-1=all)", &
+                          " that are printed and dumped as openPMD (-1=all)", &
                           default_i_val=0)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create( &
          keyword, __LOCATION__, name="nhomo", &
-         description="If the printkey is activated controls the number of homos that dumped as a cube (-1=all),"// &
+         description="If the printkey is activated controls the number of homos that dumped as openPMD (-1=all),"// &
          " eigenvalues are always all dumped", &
          default_i_val=1)
       CALL section_add_keyword(print_key, keyword)
@@ -2291,7 +2291,7 @@ CONTAINS
 
       CALL keyword_create( &
          keyword, __LOCATION__, name="homo_list", &
-         description="If the printkey is activated controls the index of homos dumped as a cube,"// &
+         description="If the printkey is activated controls the index of homos dumped as openPMD,"// &
          " eigenvalues are always all dumped. It overrides nhomo.", &
          usage="HOMO_LIST {integer}  {integer} ..  {integer} ", type_of_var=integer_t, &
          n_var=-1, repeats=.TRUE.)
@@ -2310,12 +2310,12 @@ CONTAINS
       NULLIFY (keyword)
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, name="E_DENSITY_OPENPMD", &
-                                       description="Controls the printing of cube files with "// &
+                                       description="Controls the printing of openPMD files with "// &
                                        "the electronic density and, for LSD calculations, the spin density.", &
                                        print_level=high_print_level, filename="")
       CALL keyword_create(keyword, __LOCATION__, name="stride", &
-                          description="The stride (X,Y,Z) used to write the cube file "// &
-                          "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
+                          description="The stride (X,Y,Z) used to write the openPMD file "// &
+                          "(larger values result in smaller openPMD files). You can provide 3 numbers (for X,Y,Z) or"// &
                           " 1 number valid for all components.", &
                           usage="STRIDE 1 1 1", n_var=-1, default_i_vals=(/1, 1, 1/), type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
