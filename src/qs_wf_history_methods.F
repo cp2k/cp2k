@@ -41,13 +41,15 @@ MODULE qs_wf_history_methods
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_deallocate_matrix, dbcsr_desymmetrize, &
         dbcsr_p_type, dbcsr_set, dbcsr_type, dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, &
-        dbcsr_type_symmetric
+        dbcsr_type_symmetric, dbcsr_multiply, dbcsr_release
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               cp_dbcsr_sm_fm_multiply,&
                                               dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set,&
                                               copy_dbcsr_to_fm
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_trace,&
+                                              dbcsr_frobenius_norm
    USE cp_fm_basic_linalg,              ONLY: cp_fm_scale,&
                                               cp_fm_scale_and_add
    USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
@@ -1147,6 +1149,19 @@ CONTAINS
 
          ! figure out the actual number of vectors to use in the extrapolation:
          nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
+         IF (nvec >= wf_history%memory_depth) THEN
+            IF ((qs_env%scf_control%max_scf_hist .NE. 0) .AND. &
+                (qs_env%scf_control%eps_scf_hist .NE. 0)) THEN
+               qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
+               qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
+               qs_env%scf_control%outer_scf%have_scf = .FALSE.
+            ELSE IF (qs_env%scf_control%max_scf_hist .NE. 0) THEN
+               qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
+               qs_env%scf_control%outer_scf%have_scf = .FALSE.
+            ELSE IF (qs_env%scf_control%eps_scf_hist .NE. 0) THEN
+               qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
+            END IF
+         END IF
          CPASSERT(nvec .GT. 0)
 
          ALLOCATE(coeffs(nvec))
@@ -1183,7 +1198,10 @@ CONTAINS
             ! get the coefficients for the fitting
             NULLIFY (matrix_s)
             CALL get_qs_env(qs_env, matrix_s=matrix_s)
+
+            CALL dbcsr_diff_fitting(wf_history,matrix_s(1)%matrix,coeffs,nvec)
             CALL fitting_interface(wf_history,matrix_s(1)%matrix,nvec,coeffs)
+
             CALL cp_fm_release(tmp_square)
 
             ! do the linear combination of previous PSs
@@ -1826,9 +1844,6 @@ CONTAINS
       CALL cp_fm_create(square_fm, matrix_struct_new)
       CALL cp_fm_struct_release(matrix_struct_new)
 
-      ! this creates problems
-      !CALL cp_fm_struct_release(matrix_struct)
-
       ! allocate the descriptor matrix
       nd = n*(n+1)/2
       ALLOCATE(d(nd,nvec),target_d(nd),test_d(nd))
@@ -1964,6 +1979,11 @@ CONTAINS
        integer :: info, i, j, last
    !
        error = 0
+       if (q.eq.1) then
+           coefficients(1) = 1.0d0
+           return
+       end if
+
        allocate(diff_descriptors(nd,q-1),diff_target(nd), &
            & diff_coefficients(q-1),stat=info)
        if (info.ne.0) then
@@ -2002,7 +2022,7 @@ CONTAINS
    !
    end subroutine diff_fitting
 
-   subroutine ls_fitting(descriptors,nd,q,target_descriptor,eps, &
+   subroutine ls_fitting_dgels(descriptors,nd,q,target_descriptor,eps, &
            & coefficients,error)
    !
    !   Given a matrix of descriptors of size (nd,q) and a target descriptor
@@ -2084,45 +2104,157 @@ CONTAINS
            return
        end if
    !
-   end subroutine ls_fitting
+   end subroutine ls_fitting_dgels
 
-   !SUBROUTINE diff_fitting(wf_history, current_overlap, coeffs, nvec)
-   !   INTEGER, INTENT(IN) :: nvec
-   !   TYPE(qs_wf_history_type), POINTER :: wf_history
-   !   TYPE(dbcsr_type), INTENT(IN) :: current_overlap
-   !   REAL(KIND=dp), INTENT(OUT) :: coeffs(nvec)
+   SUBROUTINE dbcsr_diff_fitting(wf_history, current_overlap, coeffs, nvec)
+      INTEGER, INTENT(IN) :: nvec
+      TYPE(qs_wf_history_type), POINTER :: wf_history
+      TYPE(dbcsr_type), INTENT(IN) :: current_overlap
+      REAL(KIND=dp), INTENT(OUT) :: coeffs(nvec)
 
-   !   INTEGER :: i, j
-   !   REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE :: A
-   !   REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: B
-   !   TYPE(qs_wf_snapshot_type), POINTER :: ref_state, state
-   !   TYPE(dbcsr_type) :: tmp_i, tmp_j
+      INTEGER :: i, j, info
+      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE :: A
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: b
+      TYPE(qs_wf_snapshot_type), POINTER :: ref_state, state
+      TYPE(dbcsr_type) :: tmp_i, tmp_j, tmp_k, target_diff
 
-   !   ALLOCATE(A(nvec-1, nvec-1), b(nvec-1))
+      IF (nvec.LE.0) THEN
+         CPABORT("Not enough vectors to do the fitting")
+      ELSE IF (nvec.EQ.1) THEN
+         coeffs(1) = 1.0_dp
+         RETURN
+      END IF
 
-   !   ! i = 1 should be the most recent, our reference
-   !   ref_state => wfi_get_snapshot(wf_history, wf_index=1)
+      ALLOCATE(A(nvec-1,nvec-1), b(nvec-1))
 
-   !   write(6,*) "TEST", ASSOCIATED(ref_state%overlap)
-   !   write(6,*) "NVEC", nvec
+      ! get the reference for the difference fitting
+      ref_state => wfi_get_snapshot(wf_history, wf_index=1)
 
-   !   ! assemble the matrix A
-   !   DO i = 2, nvec
-   !      state => wfi_get_snapshot(wf_history, wf_index=i)
-   !      CALL dbcsr_copy(tmp_i, state%overlap)
-   !      CALL dbcsr_add(tmp_i, ref_state%overlap, 1.0_dp, -1.0_dp)
-   !      DO j = 2, nvec
-   !         state => wfi_get_snapshot(wf_history, wf_index=j)
-   !         CALL dbcsr_copy(tmp_j, state%overlap)
-   !         CALL dbcsr_add(tmp_j, ref_state%overlap, 1.0_dp, -1.0_dp)
-   !      END DO
-   !   END DO
-   !   coeffs = 0.0d0
+      ! assemble the target difference
+      CALL dbcsr_copy(target_diff, current_overlap)
+      CALL dbcsr_add(target_diff, ref_state%overlap, 1.0_dp, -1.0_dp)
 
-   !   !CALL dbcsr_add(tmp_j, current_overlap, 1.0_dp, -1.0_dp)
-   !   STOP 0
+      ! allocate tmp_k
+      CALL dbcsr_copy(tmp_k, current_overlap)
 
-   !   DEALLOCATE(A, b)
-   !END SUBROUTINE diff_fitting
+      ! assemble the matrix A and the RHS b
+      DO i = 2, nvec
+         state => wfi_get_snapshot(wf_history, wf_index=i)
+         CALL dbcsr_copy(tmp_i, state%overlap)
+         CALL dbcsr_add(tmp_i, ref_state%overlap, 1.0_dp, -1.0_dp)
+         CALL dbcsr_multiply("N", "N", 1.0_dp, tmp_i, target_diff, 0.0_dp, tmp_k)
+         CALL dbcsr_trace(tmp_k, b(i-1))
+
+         DO j = 2, i
+            state => wfi_get_snapshot(wf_history, wf_index=j)
+            CALL dbcsr_copy(tmp_j, state%overlap)
+            CALL dbcsr_add(tmp_j, ref_state%overlap, 1.0_dp, -1.0_dp)
+            CALL dbcsr_multiply("N", "N", 1.0_dp, tmp_i, tmp_j, 0.0_dp, tmp_k)
+            CALL dbcsr_trace(tmp_k, A(j-1, i-1))
+            A(i-1, j-1) = A(j-1, i-1)
+         END DO
+      END DO
+
+      ! technically not needed, but anyway used for consistency between
+      ! the square overlap (used here) and the lower triangular overlap
+      A(:,:) = 0.5_dp*A(:,:)
+      B(:) = 0.5_dp*b(:)
+
+      ! add the Tikhonov regularization
+      DO i = 1, nvec-1
+         A(i, i) = A(i, i) + 1e-8_dp
+      END DO
+
+      ! solve the linear system
+      CALL dposv('u', nvec-1, 1, A, nvec-1, b, nvec-1, info)
+      IF (info.ne.0) THEN
+         CPABORT("DPOSV failed.")
+      END IF
+
+      ! set the coefficient for the reference snapshot
+      coeffs(1) = 1.0_dp - sum(b)
+      coeffs(2:nvec) = b(:)
+
+      ! debug: test how good is approximated the target overlap
+      CALL dbcsr_copy(tmp_i, current_overlap)
+      DO i = 1, nvec
+         state => wfi_get_snapshot(wf_history, wf_index=i)
+         CALL dbcsr_add(tmp_i, state%overlap, 1.0_dp, -coeffs(i))
+      END DO
+      WRITE(6,*) "Fitting error:", dbcsr_frobenius_norm(tmp_i)
+      WRITE(6,*) "Fitting coeffs:", coeffs
+      WRITE(6,*) "Sum coeffs:", sum(coeffs)
+
+      ! free the memory
+      CALL dbcsr_release(tmp_i)
+      CALL dbcsr_release(tmp_j)
+      CALL dbcsr_release(tmp_k)
+      CALL dbcsr_release(target_diff)
+      DEALLOCATE(A, b)
+
+   END SUBROUTINE dbcsr_diff_fitting
+
+   subroutine ls_fitting(descriptors,nd,q,target_descriptor,eps, &
+        & coefficients,error)
+!
+!   Given a matrix of descriptors of size (nd,q) and a target descriptor
+!   of size (nd), find the linear combination that best approximates it.
+!   The argument eps sets the Tikhonov regularization.
+!
+    integer, intent(in) :: nd, q
+    real(dp), intent(in) :: descriptors(nd, q), target_descriptor(nd), &
+        & eps
+    real(dp), intent(out) :: coefficients(q)
+    integer, intent(out) :: error
+!
+    real(dp), allocatable :: a(:,:)
+    integer :: info, i
+!
+    error = 0
+!
+!   Debug: call the dgels version of the fitting.
+!
+    !call ls_fitting_dgels(descriptors,nd,q,target_descriptor,eps, &
+    !    & coefficients,error)
+    !return
+!
+    allocate(a(q,q),stat=info)
+    if (info.ne.0) then
+        error = 42
+        return
+    end if
+!
+!   Given the descriptor matrix (D), compute A := D^T D.
+!
+    call dgemm("t","n",q,q,nd,1.0d0,descriptors,nd,descriptors,nd, &
+        & 0.0d0,a,q)
+!
+!   Add the regularization to the diagonal.
+!
+    do i = 1, q
+        a(i,i) = a(i,i) + eps**2
+    end do
+
+!
+!   Get the RHS b := D^T target.
+!
+    call dgemv("t",nd,q,1.0d0,descriptors,nd,target_descriptor,1, &
+        & 0.0d0,coefficients,1)
+!
+!   Solve the linear system A coeff = b.
+!
+    call dposv('u',q,1,a,q,coefficients,q,info)
+    if (info.ne.0) then
+        error = 43
+        return
+    end if
+!
+    deallocate(a,stat=info)
+    if (info.ne.0) then
+        error = 44
+        return
+    end if
+!
+end subroutine ls_fitting
 
 END MODULE qs_wf_history_methods
