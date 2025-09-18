@@ -308,7 +308,7 @@ CONTAINS
 #ifdef __OPENPMD
       ELSE
          res = cp_openpmd_print_key_unit_nr(logger, basis_section, print_key_path, &
-                                    middle_name=middle_name, log_filename=log_filename, ignore_should_output=ignore_should_output, &
+                                    middle_name=middle_name, ignore_should_output=ignore_should_output, &
                                             mpi_io=mpi_io, fout=fout, openpmd_basename=openpmd_basename)
       END IF
 #endif
