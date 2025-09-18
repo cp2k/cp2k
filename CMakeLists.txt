@@ -771,7 +771,8 @@ if(CP2K_USE_LIBTORCH)
 endif()
 
 if(CP2K_USE_OPENPMD)
-  add_subdirectory(src/binding/openPMD)
+  find_package(openPMD 0.16.1 REQUIRED)
+  list(APPEND cp2k_link_libs)
 endif()
 
 if(CP2K_USE_MPI_F08 AND NOT MPI_Fortran_HAVE_F08_MODULE)
