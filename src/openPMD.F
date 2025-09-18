@@ -917,6 +917,6 @@ MODULE openPMD_api
          END SUBROUTINE
          #:endfor
 
-      ! In two lines of this file, `make pretty` applies a wrong indentation and keeps it for the rest of this file.
-      ! Hence, we end up a bit further to the right than we should.
+         ! In two lines of this file, `make pretty` applies a wrong indentation and keeps it for the rest of this file.
+         ! Hence, we end up a bit further to the right than we should.
       END MODULE openPMD_api

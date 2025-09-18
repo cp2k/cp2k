@@ -1647,9 +1647,11 @@ foreach(cp2k_src ${CP2K_SRCS})
 endforeach()
 
 if(BUILD_SHARED_LIBS)
-  add_library(cp2k SHARED "${CP2K_SRCS};${CP2K_SRCS_C};${CP2K_SRCS_GPU};${CP2K_SRCS_CPP}")
+  add_library(cp2k SHARED
+              "${CP2K_SRCS};${CP2K_SRCS_C};${CP2K_SRCS_GPU};${CP2K_SRCS_CPP}")
 else()
-  add_library(cp2k STATIC "${CP2K_SRCS};${CP2K_SRCS_C};${CP2K_SRCS_GPU};${CP2K_SRCS_CPP}")
+  add_library(cp2k STATIC
+              "${CP2K_SRCS};${CP2K_SRCS_C};${CP2K_SRCS_GPU};${CP2K_SRCS_CPP}")
 endif()
 
 target_compile_features(cp2k PUBLIC cuda_std_11)

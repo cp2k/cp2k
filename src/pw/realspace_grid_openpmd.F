@@ -20,7 +20,6 @@ MODULE realspace_grid_openpmd
       file_amode_rdonly, file_offset, mp_comm_type, mp_file_descriptor_type, mp_file_type, &
       mp_file_type_free, mp_file_type_hindexed_make_chv, mp_file_type_set_view_chv, &
       mpi_character_size
-! TODO deal properly with MPI
 #if defined(__parallel)
 #if defined(__MPI_F08)
    USE mpi_f08, ONLY: mpi_allreduce, mpi_integer, mpi_bxor, mpi_allgather
@@ -207,7 +206,6 @@ CONTAINS
       END DO
    END SUBROUTINE pw_write_particles
 
-! TODO move this to own module
 ! **************************************************************************************************
 !> \brief ...
 !> \param pw ...
