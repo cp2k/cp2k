@@ -1164,7 +1164,12 @@ CONTAINS
          END IF
          CPASSERT(nvec .GT. 0)
 
+         ! get the coefficients for the fitting
          ALLOCATE(coeffs(nvec))
+         NULLIFY (matrix_s)
+         CALL get_qs_env(qs_env, matrix_s=matrix_s)
+         CALL dbcsr_diff_fitting(wf_history,matrix_s(1)%matrix,coeffs,nvec)
+         !CALL fitting_interface(wf_history,matrix_s(1)%matrix,nvec,coeffs)
 
          my_orthogonal_wf = .TRUE.
          CALL qs_rho_get(rho, rho_ao=rho_ao)
@@ -1194,14 +1199,6 @@ CONTAINS
             CALL save_matrix_bin(mo_coeff, "matrices/C", wf_history%snapshot_count)
             CALL copy_dbcsr_to_fm(t1_state%overlap, tmp_square)
             CALL save_matrix_bin(tmp_square, "matrices/S", wf_history%snapshot_count)
-
-            ! get the coefficients for the fitting
-            NULLIFY (matrix_s)
-            CALL get_qs_env(qs_env, matrix_s=matrix_s)
-
-            CALL dbcsr_diff_fitting(wf_history,matrix_s(1)%matrix,coeffs,nvec)
-            CALL fitting_interface(wf_history,matrix_s(1)%matrix,nvec,coeffs)
-
             CALL cp_fm_release(tmp_square)
 
             ! do the linear combination of previous PSs
@@ -2214,9 +2211,9 @@ CONTAINS
 !
 !   Debug: call the dgels version of the fitting.
 !
-    !call ls_fitting_dgels(descriptors,nd,q,target_descriptor,eps, &
-    !    & coefficients,error)
-    !return
+    call ls_fitting_dgels(descriptors,nd,q,target_descriptor,eps, &
+        & coefficients,error)
+    return
 !
     allocate(a(q,q),stat=info)
     if (info.ne.0) then
