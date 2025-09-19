@@ -1565,7 +1565,8 @@ CONTAINS
                           description="Options to compute the kernel", &
                           usage="KERNEL FULL", &
                           enum_c_vals=s2a("FULL", "sTDA", "NONE"), &
-                          enum_i_vals=(/tddfpt_kernel_full, tddfpt_kernel_stda, tddfpt_kernel_none/), &
+                          enum_i_vals=(/tddfpt_kernel_full, &
+                                        tddfpt_kernel_stda, tddfpt_kernel_none/), &
                           default_i_val=tddfpt_kernel_full)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1792,6 +1793,12 @@ CONTAINS
       CALL create_stda_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
+
+      CALL keyword_create(keyword, __LOCATION__, name="DO_BSE", &
+                          description="Choosing BSE kernel.", &
+                          usage="DO_BSE", default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
 
       ! LRI subsection
       CALL create_lrigpw_section(subsection)

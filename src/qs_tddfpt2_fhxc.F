@@ -257,11 +257,13 @@ CONTAINS
                CALL tddfpt_apply_xc_potential(work_matrices%A_ia_rspace_sub, work_matrices%fxc_rspace_sub, &
                                               work_matrices%rho_orb_struct_sub, is_rks_triplets)
             ELSE
-               CALL tddfpt_apply_xc(A_ia_rspace=work_matrices%A_ia_rspace_sub, kernel_env=kernel_env, &
-                                    rho_ia_struct=work_matrices%rho_orb_struct_sub, &
-                                    is_rks_triplets=is_rks_triplets, pw_env=sub_env%pw_env, &
-                                    work_v_xc=work_matrices%wpw_rspace_sub, &
-                                    work_v_xc_tau=work_matrices%wpw_tau_rspace_sub)
+               IF (.NOT. dft_control%tddfpt2_control%do_bse) THEN
+                  CALL tddfpt_apply_xc(A_ia_rspace=work_matrices%A_ia_rspace_sub, kernel_env=kernel_env, &
+                                       rho_ia_struct=work_matrices%rho_orb_struct_sub, &
+                                       is_rks_triplets=is_rks_triplets, pw_env=sub_env%pw_env, &
+                                       work_v_xc=work_matrices%wpw_rspace_sub, &
+                                       work_v_xc_tau=work_matrices%wpw_tau_rspace_sub)
+               END IF
             END IF
          END IF
          IF (gapw .OR. gapw_xc) THEN

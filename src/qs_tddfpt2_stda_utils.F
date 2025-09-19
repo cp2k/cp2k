@@ -523,8 +523,8 @@ CONTAINS
                                                             nsgf, nspins
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf, kind_of, last_sgf
       INTEGER, DIMENSION(2)                              :: nactive, nlim
-      LOGICAL                                            :: calculate_forces, do_coulomb, do_ewald, &
-                                                            do_exchange, use_virial
+      LOGICAL                                            :: calculate_forces, do_bse, do_coulomb, &
+                                                            do_ewald, do_exchange, use_virial
       REAL(KIND=dp)                                      :: alpha, bp, dr, eta, gabr, hfx, rbeta, &
                                                             spinfac
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: tcharge, tv
@@ -563,6 +563,7 @@ CONTAINS
       END IF
       do_ewald = stda_control%do_ewald
       do_exchange = stda_control%do_exchange
+      do_bse = stda_env%do_bse
 
       para_env => sub_env%para_env
 
@@ -681,7 +682,7 @@ CONTAINS
          !
          ! *** Exchange contribution
          !
-         IF (do_exchange) THEN ! option to explicitly switch off exchange
+         IF ((do_exchange) .AND. (.NOT. do_bse)) THEN ! option to explicitly switch off exchange
             ! (exchange contributes also if hfx_fraction=0)
             CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set)
             CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set, kind_of=kind_of)

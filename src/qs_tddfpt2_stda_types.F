@@ -46,6 +46,7 @@ MODULE qs_tddfpt2_stda_types
       !fraction of non-local HF exchange
       REAL(KIND=dp)                                :: hfx_fraction = -1.0_dp
       LOGICAL                                      :: do_exchange = .FALSE.
+      LOGICAL                                      :: do_bse = .FALSE.
       ! empirical parameters
       REAL(KIND=dp)                                :: alpha_param = -1.0_dp
       REAL(KIND=dp)                                :: beta_param = -1.0_dp
@@ -160,6 +161,12 @@ CONTAINS
       ELSE
          stda_kernel%do_exchange = .FALSE.
          stda_kernel%hfx_fraction = 0.0_dp
+      END IF
+      IF (dft_control%tddfpt2_control%do_bse) THEN ! option to switch on off dynamical screening
+         stda_kernel%do_bse = .TRUE.
+         stda_kernel%do_exchange = .FALSE.
+      ELSE
+         stda_kernel%do_bse = .FALSE.
       END IF
 
       ! alpha and beta parameter
