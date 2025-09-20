@@ -349,7 +349,7 @@ CONTAINS
          fac = 1.0_dp
       END IF
 
-      ! Read xc functional section and find out what does the functional needs
+      ! Read xc functional section and find out what the functional actually needs
       xc_fun_section => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
       needs = xc_functionals_get_needs(xc_fun_section, lsd, .TRUE.)
 

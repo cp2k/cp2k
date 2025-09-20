@@ -339,7 +339,7 @@ CONTAINS
          CALL get_qs_env(qs_env, admm_env=admm_env)
          nao_aux = admm_env%nao_aux_fit
          nao = admm_env%nao_orb
-         ! Fit the symmetriced and antisymmetriced matrices
+         ! Fit the symmetrized and antisymmetrized matrices
          DO ispin = 1, SIZE(evect, 1)
 
             CALL copy_dbcsr_to_fm(matrix_px1(ispin)%matrix, admm_env%work_orb_orb)
@@ -1216,7 +1216,7 @@ CONTAINS
       IF (nspins == 2) focc = 1.0_dp
 
       ! Initialize mos and dimensions of occupied space
-      ! In the following comments mos is refer as Ca and mos2 as Cb
+      ! In the following comments mos is referred to as Ca and mos2 as Cb
       spin = 1
       mos => gs_mos(1)%mos_occ
       CALL cp_fm_get_info(mos, ncol_global=norb(1))
@@ -1281,7 +1281,7 @@ CONTAINS
                ! -S*X*Ca^T*F*Cb
                CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, vcvec, cpmos(ispin), &
                                             norb(ispin), alpha=-focc, beta=1.0_dp)
-               ! Add contributions to the \Lambda_munu for the perturbed overlab matrix term, third term of Eq. 51
+               ! Add contributions to the \Lambda_munu for the perturbed overlap matrix term, third term of Eq. 51
                ! 2X*Ca^T*F*Cb*Cb^T
                CALL cp_dbcsr_plus_fm_fm_t(matrix_wx1(ispin)%matrix, matrix_v=vcvec, matrix_g=gs_mos(ispin)%mos_occ, &
                                           ncol=norb(ispin), alpha=2.0_dp, symmetry_mode=1)
@@ -1292,7 +1292,7 @@ CONTAINS
             ! g*Ca*focc
             CALL cp_dbcsr_sm_fm_multiply(matrix_gx(ispin)%matrix, gs_mos(ispin)%mos_occ, &
                                          cpmos(ispin), norb(ispin), alpha=focc, beta=1.0_dp)
-            ! Add contributions to the \Lambda_munu for the perturbed overlab matrix term, third term of Eq. 51
+            ! Add contributions to the \Lambda_munu for the perturbed overlap matrix term, third term of Eq. 51
             ! g*Ca
             CALL cp_dbcsr_sm_fm_multiply(matrix_gx(ispin)%matrix, gs_mos(ispin)%mos_occ, vcvec, norb(ispin), &
                                          alpha=1.0_dp, beta=0.0_dp)
@@ -1314,7 +1314,6 @@ CONTAINS
                                             cpmos(ispin), norb(ispin), alpha=focc, beta=1.0_dp)
                ! F^asym*X
                CALL cp_dbcsr_sm_fm_multiply(matrix_hfx_asymm(spin)%matrix, evect(spin), &
-                                            !BUGFIX changed focc to -focc to correctly calculate Transpose(fock)*X. Having possitive focc correspond to fock*X
                                             cpmos(ispin), norb(ispin), alpha=focc, beta=1.0_dp)
             END IF
 
@@ -1332,7 +1331,7 @@ CONTAINS
                ! -S*X*Ca^T*F*Cb
                CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, vcvec, cpmos(ispin), &
                                             norb(ispin), alpha=-focc, beta=1.0_dp)
-               ! Add contributions to the \Lambda_munu for the perturbed overlab matrix term, third term of Eq. 51
+               ! Add contributions to the \Lambda_munu for the perturbed overlap matrix term, third term of Eq. 51
                ! 2X*Ca^T*F*Cb*Cb^T
                CALL cp_dbcsr_plus_fm_fm_t(matrix_wx1(ispin)%matrix, matrix_v=vcvec, matrix_g=mos2, &
                                           ncol=norb(ispin), alpha=2.0_dp, symmetry_mode=1)

@@ -3685,7 +3685,7 @@ CONTAINS
 
          ELSE
 
-            ! Analytic third derivative for colsed-shell
+            ! Analytic third derivative for closed-shell
             CPABORT("Exchange-correlation's analytic third derivative not implemented")
 
          END IF
@@ -3696,7 +3696,7 @@ CONTAINS
                ! partial integration
                DO idir = 1, 3
 
-                  ! GGA contributions to the spin-flip xcKernel
+                  ! GGA contributions to the spin-flip xc-Kernel
                   !
                   !                     v_drhoa(1)*drhoa(:)*rhoa1     v_drhob(1)*drhob(:)*rhoa1     v_drho(1)*drho(:)*rhoa1
                   !   v_drho_r(:,1) =  --------------------------- + --------------------------- + -------------------------

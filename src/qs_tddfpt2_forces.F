@@ -241,7 +241,7 @@ CONTAINS
                              matrix_s(1)%matrix, ex_env%matrix_pe(ispin)%matrix, ispin, do_sf)
       END DO
       !
-      ! Fit difference density
+      ! Project the difference density into auxiliary basis for ADMM
       IF (dft_control%do_admm) THEN
          CALL get_qs_env(qs_env, admm_env=admm_env)
          CALL get_admm_env(admm_env, matrix_s_aux_fit=matrix_s_aux_fit)
@@ -479,7 +479,7 @@ CONTAINS
          ELSE
             spin = ispin
          END IF
-         ! Create and initialize the Lambda matrix as a sparce matrix
+         ! Create and initialize the Lambda matrix as a sparse matrix
          ALLOCATE (matrix_wz(ispin)%matrix)
          CALL dbcsr_create(matrix=matrix_wz(ispin)%matrix, template=matrix_s(1)%matrix)
          CALL cp_dbcsr_alloc_block_from_nbl(matrix_wz(ispin)%matrix, sab_orb)
