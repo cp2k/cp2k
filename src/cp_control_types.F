@@ -499,6 +499,8 @@ MODULE cp_control_types
       INTEGER                              :: nprocs = 0
       !> type of kernel function/approximation to use
       INTEGER                              :: kernel = 0
+      !> type of spin excitations to compute
+      INTEGER                              :: spinflip = 0
       !> for full kernel, do we have HFX/ADMM
       LOGICAL                              :: do_hfx = .FALSE.
       LOGICAL                              :: do_admm = .FALSE.

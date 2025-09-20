@@ -1,0 +1,11 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+# Check noncollinear kernel for optimizations using LDA, GGA and global Hybrid functional
+"h2o_pade_opt.inp"                       = [{matcher="E_total", tol=1.0E-11, ref=-16.83108497678968}]
+"h2o_pbe_opt.inp"                        = [{matcher="E_total", tol=1.0E-06, ref=-16.93971229185894}]
+"h2o_pbe0_opt.inp"                       = [{matcher="E_total", tol=1.0E-11, ref=-16.92940602177875}]
+#
+#EOF

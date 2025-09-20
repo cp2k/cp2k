@@ -1674,6 +1674,7 @@ CONTAINS
       CALL section_vals_val_get(t_section, "NLUMO", i_val=t_control%nlumo)
       CALL section_vals_val_get(t_section, "NPROC_STATE", i_val=t_control%nprocs)
       CALL section_vals_val_get(t_section, "KERNEL", i_val=t_control%kernel)
+      CALL section_vals_val_get(t_section, "SPINFLIP", i_val=t_control%spinflip)
       CALL section_vals_val_get(t_section, "OE_CORR", i_val=t_control%oe_corr)
       CALL section_vals_val_get(t_section, "EV_SHIFT", r_val=t_control%ev_shift)
       CALL section_vals_val_get(t_section, "EOS_SHIFT", r_val=t_control%eos_shift)

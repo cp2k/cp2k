@@ -70,7 +70,8 @@ MODULE qs_rho_methods
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_rho_methods'
 
    PUBLIC :: qs_rho_update_rho, qs_rho_update_tddfpt, &
-             qs_rho_rebuild, qs_rho_copy, qs_rho_scale_and_add
+             qs_rho_rebuild, qs_rho_copy, qs_rho_scale_and_add, &
+             qs_rho_scale_and_add_b
    PUBLIC :: duplicate_rho_type, allocate_rho_ao_imag_from_real
 
 CONTAINS
@@ -1056,6 +1057,123 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE qs_rho_copy
+
+! **************************************************************************************************
+!> \brief rhoa(2) = alpha*rhoa(2)+beta*rhob(1)
+!> \param rhoa ...
+!> \param rhob ...
+!> \param alpha ...
+!> \param beta ...
+! **************************************************************************************************
+   SUBROUTINE qs_rho_scale_and_add_b(rhoa, rhob, alpha, beta)
+
+      TYPE(qs_rho_type), INTENT(IN)                      :: rhoa, rhob
+      REAL(KIND=dp), INTENT(IN)                          :: alpha, beta
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'qs_rho_scale_and_add_b'
+
+      INTEGER                                            :: handle
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_g_a, tot_rho_g_b, tot_rho_r_a, &
+                                                            tot_rho_r_b
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao_a, rho_ao_b, rho_ao_im_a, &
+                                                            rho_ao_im_b
+      TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho_g_a, rho_g_b, tau_g_a, tau_g_b
+      TYPE(pw_c1d_gs_type), DIMENSION(:, :), POINTER     :: drho_g_a, drho_g_b
+      TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r_a, rho_r_b, tau_r_a, tau_r_b
+      TYPE(pw_r3d_rs_type), DIMENSION(:, :), POINTER     :: drho_r_a, drho_r_b
+      TYPE(pw_r3d_rs_type), POINTER                      :: rho_r_sccs_a, rho_r_sccs_b
+
+      CALL timeset(routineN, handle)
+
+      NULLIFY (rho_ao_a, rho_ao_im_a, rho_r_a, rho_g_a, drho_r_a, &
+               drho_g_a, tau_r_a, tau_g_a, tot_rho_r_a, tot_rho_g_a, rho_r_sccs_a)
+
+      CALL qs_rho_get(rhoa, &
+                      rho_ao=rho_ao_a, &
+                      rho_ao_im=rho_ao_im_a, &
+                      rho_r=rho_r_a, &
+                      rho_g=rho_g_a, &
+                      drho_r=drho_r_a, &
+                      drho_g=drho_g_a, &
+                      tau_r=tau_r_a, &
+                      tau_g=tau_g_a, &
+                      tot_rho_r=tot_rho_r_a, &
+                      tot_rho_g=tot_rho_g_a, &
+                      rho_r_sccs=rho_r_sccs_a)
+
+      NULLIFY (rho_ao_b, rho_ao_im_b, rho_r_b, rho_g_b, drho_r_b, &
+               drho_g_b, tau_r_b, tau_g_b, tot_rho_r_b, tot_rho_g_b, rho_r_sccs_b)
+
+      CALL qs_rho_get(rhob, &
+                      rho_ao=rho_ao_b, &
+                      rho_ao_im=rho_ao_im_b, &
+                      rho_r=rho_r_b, &
+                      rho_g=rho_g_b, &
+                      drho_r=drho_r_b, &
+                      drho_g=drho_g_b, &
+                      tau_r=tau_r_b, &
+                      tau_g=tau_g_b, &
+                      tot_rho_r=tot_rho_r_b, &
+                      tot_rho_g=tot_rho_g_b, &
+                      rho_r_sccs=rho_r_sccs_b)
+      ! rho_ao
+      IF (ASSOCIATED(rho_ao_a) .AND. ASSOCIATED(rho_ao_b)) THEN
+         CALL dbcsr_add(rho_ao_a(2)%matrix, rho_ao_b(1)%matrix, alpha, beta)
+      END IF
+
+      ! rho_ao_im
+      IF (ASSOCIATED(rho_ao_im_a) .AND. ASSOCIATED(rho_ao_im_b)) THEN
+         CALL dbcsr_add(rho_ao_im_a(2)%matrix, rho_ao_im_b(1)%matrix, alpha, beta)
+      END IF
+
+      ! rho_r
+      IF (ASSOCIATED(rho_r_a) .AND. ASSOCIATED(rho_r_b)) THEN
+         CALL pw_axpy(rho_r_b(1), rho_r_a(2), beta, alpha)
+      END IF
+
+      ! rho_g
+      IF (ASSOCIATED(rho_g_a) .AND. ASSOCIATED(rho_g_b)) THEN
+         CALL pw_axpy(rho_g_b(1), rho_g_a(2), beta, alpha)
+      END IF
+
+      ! SCCS
+      IF (ASSOCIATED(rho_r_sccs_a) .AND. ASSOCIATED(rho_r_sccs_b)) THEN
+         CALL pw_axpy(rho_r_sccs_b, rho_r_sccs_a, beta, alpha)
+      END IF
+
+      ! drho_r
+      IF (ASSOCIATED(drho_r_a) .AND. ASSOCIATED(drho_r_b)) THEN
+         CPASSERT(ASSOCIATED(drho_r_a) .AND. ASSOCIATED(drho_r_b)) ! not implemented
+      END IF
+
+      ! drho_g
+      IF (ASSOCIATED(drho_g_a) .AND. ASSOCIATED(drho_g_b)) THEN
+         CPASSERT(ASSOCIATED(drho_g_a) .AND. ASSOCIATED(drho_g_b)) ! not implemented
+      END IF
+
+      ! tau_r
+      IF (ASSOCIATED(tau_r_a) .AND. ASSOCIATED(tau_r_b)) THEN
+         CALL pw_axpy(tau_r_b(1), tau_r_a(2), beta, alpha)
+      END IF
+
+      ! tau_g
+      IF (ASSOCIATED(tau_g_a) .AND. ASSOCIATED(tau_g_b)) THEN
+         CALL pw_axpy(tau_g_b(1), tau_g_a(2), beta, alpha)
+      END IF
+
+      ! tot_rho_r
+      IF (ASSOCIATED(tot_rho_r_a) .AND. ASSOCIATED(tot_rho_r_b)) THEN
+         tot_rho_r_a(2) = alpha*tot_rho_r_a(2) + beta*tot_rho_r_b(1)
+      END IF
+
+      ! tot_rho_g
+      IF (ASSOCIATED(tot_rho_g_a) .AND. ASSOCIATED(tot_rho_g_b)) THEN
+         tot_rho_g_a(2) = alpha*tot_rho_g_a(2) + beta*tot_rho_g_b(1)
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE qs_rho_scale_and_add_b
 
 ! **************************************************************************************************
 !> \brief rhoa = alpha*rhoa+beta*rhob

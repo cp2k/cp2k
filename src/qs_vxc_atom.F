@@ -435,16 +435,17 @@ CONTAINS
 !> \param para_env ...
 !> \param do_tddfpt2 New implementation of TDDFT.
 !> \param do_triplet ...
+!> \param do_sf ...
 !> \param kind_set_external ...
 ! **************************************************************************************************
    SUBROUTINE calculate_xc_2nd_deriv_atom(rho_atom_set, rho1_atom_set, qs_env, xc_section, para_env, &
-                                          do_tddfpt2, do_triplet, kind_set_external)
+                                          do_tddfpt2, do_triplet, do_sf, kind_set_external)
 
       TYPE(rho_atom_type), DIMENSION(:), POINTER         :: rho_atom_set, rho1_atom_set
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(section_vals_type), POINTER                   :: xc_section
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
-      LOGICAL, INTENT(IN), OPTIONAL                      :: do_tddfpt2, do_triplet
+      LOGICAL, INTENT(IN), OPTIONAL                      :: do_tddfpt2, do_triplet, do_sf
       TYPE(qs_kind_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: kind_set_external
 
@@ -455,8 +456,8 @@ CONTAINS
       INTEGER, DIMENSION(2)                              :: local_loop_limit
       INTEGER, DIMENSION(2, 3)                           :: bounds
       INTEGER, DIMENSION(:), POINTER                     :: atom_list
-      LOGICAL                                            :: gradient_functional, lsd, paw_atom, &
-                                                            scale_rho, tau_f
+      LOGICAL                                            :: gradient_functional, lsd, my_do_sf, &
+                                                            paw_atom, scale_rho, tau_f
       REAL(KIND=dp)                                      :: density_cut, gradient_cut, rtot, tau_cut
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
          POINTER                                         :: vxc_h, vxc_s
@@ -510,6 +511,9 @@ CONTAINS
                                 r_val=gradient_cut)
       CALL section_vals_val_get(xc_section, "TAU_CUTOFF", &
                                 r_val=tau_cut)
+
+      my_do_sf = .FALSE.
+      IF (PRESENT(do_sf)) my_do_sf = do_sf
 
       xc_fun_section => section_vals_get_subs_vals(xc_section, &
                                                    "XC_FUNCTIONAL")
@@ -682,11 +686,13 @@ CONTAINS
             CALL xc_2nd_deriv_of_r(xc_section=xc_section, &
                                    rho_set=rho_set_h, rho1_set=rho1_set_h, &
                                    deriv_set=deriv_set, &
-                                   w=weight, vxc=vxc_h, vxg=vxg_h, do_triplet=do_triplet)
+                                   w=weight, vxc=vxc_h, vxg=vxg_h, do_triplet=do_triplet, &
+                                   do_sf=my_do_sf)
             CALL xc_2nd_deriv_of_r(xc_section=xc_section, &
                                    rho_set=rho_set_s, rho1_set=rho1_set_s, &
                                    deriv_set=deriv_set, &
-                                   w=weight, vxc=vxc_s, vxg=vxg_s, do_triplet=do_triplet)
+                                   w=weight, vxc=vxc_s, vxg=vxg_s, do_triplet=do_triplet, &
+                                   do_sf=my_do_sf)
 
             CALL get_rho_atom(rho_atom=rho1_atom, ga_Vlocal_gb_h=int_hh, ga_Vlocal_gb_s=int_ss)
             IF (gradient_functional) THEN

@@ -57,7 +57,8 @@ MODULE qs_tddfpt2_properties
                                               cp_print_key_should_output,&
                                               cp_print_key_unit_nr
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
-   USE input_constants,                 ONLY: tddfpt_dipole_berry,&
+   USE input_constants,                 ONLY: no_sf_tddfpt,&
+                                              tddfpt_dipole_berry,&
                                               tddfpt_dipole_length,&
                                               tddfpt_dipole_velocity
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -632,26 +633,29 @@ CONTAINS
 !> \param evals              TDDFPT eigenvalues
 !> \param gs_mos             molecular orbitals optimised for the ground state
 !> \param matrix_s           overlap matrix
+!> \param spinflip ...
 !> \param min_amplitude      the smallest excitation amplitude to print
 !> \par History
 !>    * 05.2016 created as 'tddfpt_print_summary' [Sergey Chulkov]
 !>    * 08.2018 splited of from 'tddfpt_print_summary' [Sergey Chulkov]
 ! **************************************************************************************************
-   SUBROUTINE tddfpt_print_excitation_analysis(log_unit, evects, evals, gs_mos, matrix_s, min_amplitude)
+   SUBROUTINE tddfpt_print_excitation_analysis(log_unit, evects, evals, gs_mos, matrix_s, spinflip, min_amplitude)
       INTEGER, INTENT(in)                                :: log_unit
       TYPE(cp_fm_type), DIMENSION(:, :), INTENT(in)      :: evects
       REAL(kind=dp), DIMENSION(:), INTENT(in)            :: evals
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          INTENT(in)                                      :: gs_mos
       TYPE(dbcsr_type), POINTER                          :: matrix_s
+      INTEGER                                            :: spinflip
       REAL(kind=dp), INTENT(in)                          :: min_amplitude
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_print_excitation_analysis'
 
-      CHARACTER(len=5)                                   :: spin_label
+      CHARACTER(len=5)                                   :: spin_label, spin_label2
       INTEGER                                            :: handle, icol, iproc, irow, ispin, &
                                                             istate, nao, ncols_local, nrows_local, &
-                                                            nspins, nstates, state_spin
+                                                            nspins, nstates, spin2, state_spin, &
+                                                            state_spin2
       INTEGER(kind=int_8)                                :: iexc, imo_occ, imo_virt, ind, nexcs, &
                                                             nexcs_local, nexcs_max_local, &
                                                             nmo_virt_occ, nmo_virt_occ_alpha
@@ -675,7 +679,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      nspins = SIZE(evects, 1)
+      nspins = SIZE(gs_mos, 1)
       nstates = SIZE(evects, 2)
       do_exc_analysis = min_amplitude < 1.0_dp
 
@@ -705,28 +709,40 @@ CONTAINS
 
             IF (nspins == 1) THEN
                state_spin = 1
+               state_spin2 = 2
                spin_label = '     '
+               spin_label2 = '     '
+            ELSE IF (spinflip .NE. no_sf_tddfpt) THEN
+               state_spin = 1
+               state_spin2 = 2
+               spin_label = '(alp)'
+               spin_label2 = '(bet)'
             END IF
          END IF
 
-         ALLOCATE (S_mos_virt(nspins), weights_fm(nspins))
-         DO ispin = 1, nspins
-            CALL cp_fm_get_info(gs_mos(ispin)%mos_virt, matrix_struct=fm_struct)
+         ALLOCATE (S_mos_virt(SIZE(evects, 1)), weights_fm(SIZE(evects, 1)))
+         DO ispin = 1, SIZE(evects, 1)
+            IF (spinflip == no_sf_tddfpt) THEN
+               spin2 = ispin
+            ELSE
+               spin2 = 2
+            END IF
+            CALL cp_fm_get_info(gs_mos(spin2)%mos_virt, matrix_struct=fm_struct)
             CALL cp_fm_create(S_mos_virt(ispin), fm_struct)
             CALL cp_dbcsr_sm_fm_multiply(matrix_s, &
-                                         gs_mos(ispin)%mos_virt, &
+                                         gs_mos(spin2)%mos_virt, &
                                          S_mos_virt(ispin), &
-                                         ncol=nmo_virt(ispin), alpha=1.0_dp, beta=0.0_dp)
+                                         ncol=nmo_virt(spin2), alpha=1.0_dp, beta=0.0_dp)
 
             NULLIFY (fm_struct)
-            CALL cp_fm_struct_create(fm_struct, nrow_global=nmo_virt(ispin), ncol_global=nmo_occ(ispin), &
+            CALL cp_fm_struct_create(fm_struct, nrow_global=nmo_virt(spin2), ncol_global=nmo_occ(ispin), &
                                      context=blacs_env)
             CALL cp_fm_create(weights_fm(ispin), fm_struct)
             CALL cp_fm_struct_release(fm_struct)
          END DO
 
          nexcs_max_local = 0
-         DO ispin = 1, nspins
+         DO ispin = 1, SIZE(evects, 1)
             CALL cp_fm_get_info(weights_fm(ispin), nrow_local=nrows_local, ncol_local=ncols_local)
             nexcs_max_local = nexcs_max_local + INT(nrows_local, int_8)*INT(ncols_local, int_8)
          END DO
@@ -739,9 +755,14 @@ CONTAINS
 
             ! analyse matrix elements locally and transfer only significant
             ! excitations to the master node for subsequent ordering
-            DO ispin = 1, nspins
+            DO ispin = 1, SIZE(evects, 1)
+               IF (spinflip == no_sf_tddfpt) THEN
+                  spin2 = ispin
+               ELSE
+                  spin2 = 2
+               END IF
                ! compute excitation amplitudes
-               CALL parallel_gemm('T', 'N', nmo_virt(ispin), nmo_occ(ispin), nao, 1.0_dp, S_mos_virt(ispin), &
+               CALL parallel_gemm('T', 'N', nmo_virt(spin2), nmo_occ(ispin), nao, 1.0_dp, S_mos_virt(ispin), &
                                   evects(ispin, istate), 0.0_dp, weights_fm(ispin))
 
                CALL cp_fm_get_info(weights_fm(ispin), nrow_local=nrows_local, ncol_local=ncols_local, &
@@ -757,12 +778,12 @@ CONTAINS
                         weights_local(nexcs_local) = local_data(irow, icol)
                         ! index of single excitation (ivirt, iocc, ispin) in compressed form
                         inds_local(nexcs_local) = nmo_virt_occ + INT(row_indices(irow), int_8) + &
-                                                  INT(col_indices(icol) - 1, int_8)*nmo_virt8(ispin)
+                                                  INT(col_indices(icol) - 1, int_8)*nmo_virt8(spin2)
                      END IF
                   END DO
                END DO
 
-               nmo_virt_occ = nmo_virt_occ + nmo_virt8(ispin)*nmo_occ8(ispin)
+               nmo_virt_occ = nmo_virt_occ + nmo_virt8(spin2)*nmo_occ8(ispin)
             END DO
 
             IF (para_env%is_source()) THEN
@@ -846,24 +867,33 @@ CONTAINS
 
                WRITE (log_unit, '(T7,I8,F10.5,A)') istate, evals(istate)*evolt, " eV"
 
+               ! This reinitialization is needed to prevent the intel fortran compiler from introduce
+               ! a bug when using optimization level 3 flag
+               state_spin = 1
+               state_spin2 = 1
+               IF (spinflip .NE. no_sf_tddfpt) THEN
+                  state_spin = 1
+                  state_spin2 = 2
+               END IF
                DO iexc = 1, nexcs
                   ind = inds_recv(inds(iexc)) - 1
-                  IF (nspins > 1) THEN
+                  IF ((nspins > 1) .AND. (spinflip == no_sf_tddfpt)) THEN
                      IF (ind < nmo_virt_occ_alpha) THEN
-                        state_spin = 1
                         spin_label = '(alp)'
+                        spin_label2 = '(alp)'
                      ELSE
                         state_spin = 2
+                        state_spin2 = 2
                         ind = ind - nmo_virt_occ_alpha
                         spin_label = '(bet)'
+                        spin_label2 = '(bet)'
                      END IF
                   END IF
-
-                  imo_occ = ind/nmo_virt8(state_spin) + 1
-                  imo_virt = MOD(ind, nmo_virt8(state_spin)) + 1
+                  imo_occ = ind/nmo_virt8(state_spin2) + 1
+                  imo_virt = MOD(ind, nmo_virt8(state_spin2)) + 1
 
                   WRITE (log_unit, '(T27,I8,1X,A5,T48,I8,1X,A5,T70,F9.6)') imo_occ, spin_label, &
-                     nmo_occ8(state_spin) + imo_virt, spin_label, weights_recv(inds(iexc))
+                     nmo_occ8(state_spin2) + imo_virt, spin_label2, weights_recv(inds(iexc))
                END DO
             END IF
 

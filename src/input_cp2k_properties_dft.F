@@ -38,8 +38,8 @@ MODULE input_cp2k_properties_dft
       ot_precond_full_single, ot_precond_full_single_inverse, ot_precond_none, &
       ot_precond_s_inverse, scan_x, scan_xy, scan_xyz, scan_xz, scan_y, scan_yz, scan_z, &
       tddfpt_dipole_berry, tddfpt_dipole_length, tddfpt_dipole_velocity, tddfpt_kernel_full, &
-      tddfpt_kernel_none, tddfpt_kernel_stda, use_mom_ref_coac, use_mom_ref_com, &
-      use_mom_ref_user, use_mom_ref_zero
+      tddfpt_kernel_none, tddfpt_kernel_stda, no_sf_tddfpt, tddfpt_sf_col, tddfpt_sf_noncol, &
+      use_mom_ref_coac, use_mom_ref_com, use_mom_ref_user, use_mom_ref_zero
    USE input_cp2k_atprop, ONLY: create_atprop_section
    USE input_cp2k_dft, ONLY: create_interp_section, &
                              create_mgrid_section
@@ -1508,7 +1508,7 @@ CONTAINS
                           "Density Functional Perturbation Theory. "// &
                           "Current implementation works for hybrid functionals. "// &
                           "Can be used with Gaussian and Plane Waves (GPW) method only.", &
-                          n_keywords=12, n_subsections=4, repeats=.FALSE., &
+                          n_keywords=14, n_subsections=4, repeats=.FALSE., &
                           citations=(/Iannuzzi2005/))
 
       NULLIFY (keyword, print_key, subsection)
@@ -1567,6 +1567,16 @@ CONTAINS
                           enum_c_vals=s2a("FULL", "sTDA", "NONE"), &
                           enum_i_vals=(/tddfpt_kernel_full, tddfpt_kernel_stda, tddfpt_kernel_none/), &
                           default_i_val=tddfpt_kernel_full)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      ! spin-flip TDDFPT options
+      CALL keyword_create(keyword, __LOCATION__, name="SPINFLIP", &
+                          description="Selects the type of spin-flip TDDFPT kernel", &
+                          usage="SPINFLIP NONCOLLINEAR", &
+                          enum_c_vals=s2a("NONE", "COLLINEAR", "NONCOLLINEAR"), &
+                          enum_i_vals=(/no_sf_tddfpt, tddfpt_sf_col, tddfpt_sf_noncol/), &
+                          default_i_val=no_sf_tddfpt)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

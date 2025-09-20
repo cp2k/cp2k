@@ -159,8 +159,10 @@ CONTAINS
          END IF
 
          IF (.NOT. loverlap_deltat) THEN
+            ! Calculate energy, response vector and some contributions to the force
             CALL qs_energies_properties(qs_env, calc_forces)
 
+            ! Update total energy of the selected excited state
             CALL excited_state_energy(qs_env, calculate_forces=.FALSE.)
          END IF
 

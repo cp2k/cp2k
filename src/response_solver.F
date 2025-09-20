@@ -645,9 +645,11 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Initializes vectors for MO-coefficient based linear response solver
 !>        and calculates response density, and energy-weighted response density matrix
+!>        J. Chem. Theory Comput. 2022, 18, 4186−4202 (https://doi.org/10.1021/acs.jctc.2c00144)
 !>
 !> \param qs_env ...
-!> \param p_env ...
+!> \param p_env Holds the two results of this routine, p_env%p1 = CZ^T + ZC^T,
+!>              p_env%w1 = 0.5\sum_i(C_i*\epsilon_i*Z_i^T + Z_i*\epsilon_i*C_i^T)
 !> \param cpmos RHS of equation as Ax + b = 0 (sign of b)
 !> \param iounit ...
 !> \param lr_section ...
@@ -780,7 +782,7 @@ CONTAINS
          END DO
       END IF
 
-      ! Calculate Wz = 0.5*(psi1*eps*psi0^T + psi0*eps*psi1^T)
+      ! Calculate the second term of Eq. 51 Wz = 0.5*(psi1*eps*psi0^T + psi0*eps*psi1^T)
       CALL get_qs_env(qs_env, matrix_ks=matrix_ks)
       DO ispin = 1, nspins
          CALL calculate_wz_matrix(mos(ispin), psi1(ispin), matrix_ks(ispin)%matrix, &
@@ -965,7 +967,7 @@ CONTAINS
          mpa => matrix_pz
       END IF
       !
-      ! START OF Tr(P+Z)Hcore
+      ! START OF Tr[(P+Z)Hcore]
       !
 
       ! Kinetic energy matrix
@@ -1060,7 +1062,7 @@ CONTAINS
          CALL total_qs_force(ftot2, force, atomic_kind_set)
          fodeb(1:3) = ftot2(1:3, 1) - ftot1(1:3, 1)
          CALL para_env%sum(fodeb)
-         IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pz*dHcore", fodeb
+         IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: (T+Dz)*dHcore", fodeb
       END IF
       IF (debug_stress .AND. use_virial) THEN
          stdeb = fconv*(virial%pv_virial - sttot)
