@@ -197,7 +197,7 @@ CONTAINS
          dft_control%qs_control%cdft_control%save_pot = .TRUE.
       END IF
 
-      ! recalculate energy with forces
+      ! recalculate energy and the response vector for the Z-vector linear equation system if calc_force = .true.
       CALL qs_energies(qs_env, calc_forces=.TRUE.)
 
       NULLIFY (para_env)
@@ -374,6 +374,8 @@ CONTAINS
       END IF
 
       ! Excited state forces
+      ! Solve the response linear equation system for the Z-vector method
+      ! and calculate remaining terms of the force
       CALL excited_state_energy(qs_env, calculate_forces=.TRUE.)
 
       ! replicate forces (get current pointer)

@@ -84,7 +84,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Refactoring of qs_energies_scf. Moves computation of properties
-!>        into separate subroutine
+!>        into separate subroutine. Calculates energy and if calc_forces then the response vector
+!>        and some contributions to the force
 !> \param qs_env ...
 !> \param calc_forces ...
 !> \par History
@@ -191,10 +192,12 @@ CONTAINS
       END IF
 
       ! Compute Linear Response properties as post-scf
+      ! Initialization of TDDFPT calculation
       IF (.NOT. qs_env%linres_run) THEN
          CALL linres_calculation_low(qs_env)
       END IF
 
+      ! Calculates the energy, response vector and some contributions to the force
       IF (dft_control%tddfpt2_control%enabled) THEN
          CALL tddfpt(qs_env, calc_forces)
       END IF
