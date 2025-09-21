@@ -205,7 +205,7 @@ CONTAINS
                ex_env%evalue = evals(istate)
                CALL cp_fm_release(ex_env%evect)
                ALLOCATE (ex_env%evect(nspins))
-               DO ispin = 1, nspins
+               DO ispin = 1, SIZE(evects, 1)
                   CALL cp_fm_get_info(matrix=evects(ispin, 1), matrix_struct=matrix_struct)
                   CALL cp_fm_create(ex_env%evect(ispin), matrix_struct)
                   CALL cp_fm_to_fm(evects(ispin, istate), ex_env%evect(ispin))
@@ -233,12 +233,14 @@ CONTAINS
                   CALL response_force(qs_env=qs_env, vh_rspace=ex_env%vh_rspace, &
                                       vxc_rspace=ex_env%vxc_rspace, vtau_rspace=ex_env%vtau_rspace, &
                                       vadmm_rspace=ex_env%vadmm_rspace, matrix_hz=ex_env%matrix_hz, &
-                                      matrix_pz=ex_env%matrix_px1, matrix_pz_admm=p_env%p1_admm, &
+                                      matrix_pz=p_env%p1, matrix_pz_admm=p_env%p1_admm, &
                                       matrix_wz=p_env%w1, p_env=p_env, ex_env=ex_env, debug=debug_forces)
                END IF
                CALL p_env_release(p_env)
                !
                CALL replicate_qs_force(td_force, para_env)
+               CALL pforce(iwunit, gs_force, atomic_kind_set, natom)
+               CALL pforce(iwunit, td_force, atomic_kind_set, natom)
                CALL sum_qs_force(td_force, gs_force)
                CALL pforce(iwunit, td_force, atomic_kind_set, natom)
                !

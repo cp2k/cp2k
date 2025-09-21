@@ -62,7 +62,9 @@ MODULE qs_tddfpt2_fhxc_forces
                                               hfx_ri_update_ks
    USE hfx_types,                       ONLY: hfx_type
    USE input_constants,                 ONLY: do_admm_aux_exch_func_none,&
+                                              no_sf_tddfpt,&
                                               tddfpt_kernel_full,&
+                                              tddfpt_sf_col,&
                                               xc_kernel_method_analytic,&
                                               xc_kernel_method_best,&
                                               xc_kernel_method_numeric,&
@@ -94,7 +96,8 @@ MODULE qs_tddfpt2_fhxc_forces
                                               qs_environment_type,&
                                               set_qs_env
    USE qs_force_types,                  ONLY: qs_force_type
-   USE qs_fxc,                          ONLY: qs_fgxc_create,&
+   USE qs_fxc,                          ONLY: qs_fgxc_analytic,&
+                                              qs_fgxc_create,&
                                               qs_fgxc_gdiff,&
                                               qs_fgxc_release
    USE qs_gapw_densities,               ONLY: prepare_gapw_den
@@ -148,10 +151,12 @@ MODULE qs_tddfpt2_fhxc_forces
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief Calculate direct tddft forces
-!> \param qs_env ...
-!> \param ex_env ...
-!> \param gs_mos ...
+!> \brief Calculate direct tddft forces. Calculate the three last terms of the response vector
+!>        in equation 49 and the first term of \Lambda_munu in equation 51 in
+!>        J. Chem. Theory Comput. 2022, 18, 7, 4186–4202 (https://doi.org/10.1021/acs.jctc.2c00144)
+!> \param qs_env   Holds all system information relevant for the calculation.
+!> \param ex_env   Holds the response vector ex_env%cpmos and Lambda ex_env%matrix_wx1.
+!> \param gs_mos   MO coefficients of the ground state.
 !> \param full_kernel ...
 !> \param debug_forces ...
 !> \par History
@@ -171,10 +176,10 @@ CONTAINS
       CHARACTER(LEN=default_string_length)               :: basis_type
       INTEGER                                            :: handle, iounit, ispin, mspin, myfun, &
                                                             n_rep_hf, nao, nao_aux, natom, nkind, &
-                                                            norb, nspins, order
+                                                            norb(2), nspins, order, spin
       LOGICAL :: distribute_fock_matrix, do_admm, do_analytic, do_hfx, do_hfxlr, do_hfxsr, &
-         do_numeric, gapw, gapw_xc, hfx_treat_lsd_in_core, is_rks_triplets, s_mstruct_changed, &
-         use_virial
+         do_numeric, do_sf, gapw, gapw_xc, hfx_treat_lsd_in_core, is_rks_triplets, &
+         s_mstruct_changed, use_virial
       REAL(KIND=dp)                                      :: eh1, eh1c, eps_delta, eps_fit, focc, &
                                                             fscal, fval, kval, xehartree
       REAL(KIND=dp), DIMENSION(3)                        :: fodeb
@@ -183,7 +188,7 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct, fm_struct_mat
       TYPE(cp_fm_type)                                   :: cvcmat, vcvec
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: cpmos, evect
-      TYPE(cp_fm_type), POINTER                          :: mos
+      TYPE(cp_fm_type), POINTER                          :: mos, mos2
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: matrix_fx, matrix_gx, matrix_hfx, &
          matrix_hfx_admm, matrix_hfx_admm_asymm, matrix_hfx_asymm, matrix_hx, matrix_p, &
@@ -232,6 +237,11 @@ CONTAINS
       tddfpt_control => dft_control%tddfpt2_control
       nspins = dft_control%nspins
       is_rks_triplets = tddfpt_control%rks_triplets .AND. (nspins == 1)
+      IF (tddfpt_control%spinflip == no_sf_tddfpt) THEN
+         do_sf = .FALSE.
+      ELSE
+         do_sf = .TRUE.
+      END IF
       CPASSERT(tddfpt_control%kernel == tddfpt_kernel_full)
       do_hfx = tddfpt_control%do_hfx
       do_hfxsr = tddfpt_control%do_hfxsr
@@ -248,20 +258,22 @@ CONTAINS
 
       focc = 1.0_dp
       IF (nspins == 2) focc = 0.5_dp
-      DO ispin = 1, nspins
+      DO ispin = 1, SIZE(evect, 1)
+         ! Calculate (C*X^T + X*C^T)/2
          CALL dbcsr_set(matrix_px1(ispin)%matrix, 0.0_dp)
-         CALL cp_fm_get_info(evect(ispin), ncol_global=norb)
+         CALL cp_fm_get_info(evect(ispin), ncol_global=norb(ispin))
          CALL cp_dbcsr_plus_fm_fm_t(matrix_px1(ispin)%matrix, &
                                     matrix_v=evect(ispin), &
                                     matrix_g=gs_mos(ispin)%mos_occ, &
-                                    ncol=norb, alpha=2.0_dp*focc, symmetry_mode=1)
+                                    ncol=norb(ispin), alpha=2.0_dp*focc, symmetry_mode=1)
 
+         ! Calculate (C*X^T - X*C^T)/2
          CALL dbcsr_set(matrix_px1_asymm(ispin)%matrix, 0.0_dp)
-         CALL cp_fm_get_info(evect(ispin), ncol_global=norb)
+         CALL cp_fm_get_info(evect(ispin), ncol_global=norb(ispin))
          CALL cp_dbcsr_plus_fm_fm_t(matrix_px1_asymm(ispin)%matrix, &
                                     matrix_v=gs_mos(ispin)%mos_occ, &
                                     matrix_g=evect(ispin), &
-                                    ncol=norb, alpha=2.0_dp*focc, &
+                                    ncol=norb(ispin), alpha=2.0_dp*focc, &
                                     symmetry_mode=-1)
       END DO
       !
@@ -270,7 +282,7 @@ CONTAINS
       NULLIFY (hartree_local, local_rho_set, local_rho_set_admm)
       IF (gapw .OR. gapw_xc) THEN
          IF (nspins == 2) THEN
-            DO ispin = 1, nspins
+            DO ispin = 1, SIZE(evect, 1)
                CALL dbcsr_scale(matrix_px1(ispin)%matrix, 2.0_dp)
             END DO
          END IF
@@ -298,7 +310,7 @@ CONTAINS
                                  sap_oce, eps_fit)
          CALL set_qs_env(qs_env, oce=oce)
 
-         mpga(1:nspins, 1:1) => matrix_px1(1:nspins)
+         mpga(1:SIZE(evect, 1), 1:1) => matrix_px1(1:SIZE(evect, 1))
          CALL calculate_rho_atom_coeff(qs_env, mpga, local_rho_set%rho_atom_set, &
                                        qs_kind_set, oce, sab, para_env)
          CALL prepare_gapw_den(qs_env, local_rho_set, do_rho0=gapw)
@@ -317,7 +329,7 @@ CONTAINS
                                        qs_kind_set, oce, sab, para_env)
          CALL prepare_gapw_den(qs_env, local_rho_set_g, do_rho0=.FALSE.)
          IF (nspins == 2) THEN
-            DO ispin = 1, nspins
+            DO ispin = 1, SIZE(evect, 1)
                CALL dbcsr_scale(matrix_px1(ispin)%matrix, 0.5_dp)
             END DO
          END IF
@@ -327,8 +339,9 @@ CONTAINS
          CALL get_qs_env(qs_env, admm_env=admm_env)
          nao_aux = admm_env%nao_aux_fit
          nao = admm_env%nao_orb
-         !
-         DO ispin = 1, nspins
+         ! Fit the symmetrized and antisymmetrized matrices
+         DO ispin = 1, SIZE(evect, 1)
+
             CALL copy_dbcsr_to_fm(matrix_px1(ispin)%matrix, admm_env%work_orb_orb)
             CALL parallel_gemm('N', 'N', nao_aux, nao, nao, &
                                1.0_dp, admm_env%A, admm_env%work_orb_orb, 0.0_dp, &
@@ -359,7 +372,7 @@ CONTAINS
                   CALL local_rho_set_create(local_rho_set_admm)
                   CALL allocate_rho_atom_internals(local_rho_set_admm%rho_atom_set, atomic_kind_set, &
                                                    admm_env%admm_gapw_env%admm_kind_set, dft_control, para_env)
-                  mpga(1:nspins, 1:1) => matrix_px1_admm(1:nspins)
+                  mpga(1:SIZE(evect, 1), 1:1) => matrix_px1_admm(1:SIZE(evect, 1))
                   CALL get_admm_env(admm_env, sab_aux_fit=sab_aux_fit)
                   CALL calculate_rho_atom_coeff(qs_env, mpga, local_rho_set_admm%rho_atom_set, &
                                                 admm_env%admm_gapw_env%admm_kind_set, &
@@ -392,30 +405,33 @@ CONTAINS
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, &
                       poisson_env=poisson_env)
 
-      ALLOCATE (rhox_r(nspins), rhox_g(nspins))
-      DO ispin = 1, nspins
+      ALLOCATE (rhox_r(SIZE(evect, 1)), rhox_g(SIZE(evect, 1)))
+      DO ispin = 1, SIZE(evect, 1)
          CALL auxbas_pw_pool%create_pw(rhox_r(ispin))
          CALL auxbas_pw_pool%create_pw(rhox_g(ispin))
       END DO
       CALL auxbas_pw_pool%create_pw(rhox_tot_gspace)
 
       CALL pw_zero(rhox_tot_gspace)
-      DO ispin = 1, nspins
+      DO ispin = 1, SIZE(evect, 1)
+         ! Calculate gridpoint values of the density associated to 2*matrix_px1 = C*X^T + X*C^T
          IF (nspins == 2) CALL dbcsr_scale(matrix_px1(ispin)%matrix, 2.0_dp)
          CALL calculate_rho_elec(ks_env=ks_env, matrix_p=matrix_px1(ispin)%matrix, &
                                  rho=rhox_r(ispin), rho_gspace=rhox_g(ispin), &
                                  soft_valid=gapw)
+         ! rhox_tot_gspace contains the values on the grid points of rhox = sum_munu 4D^X_munu*mu(r)*nu(r)
          CALL pw_axpy(rhox_g(ispin), rhox_tot_gspace)
+         ! Recover matrix_px1 = (C*X^T + X*C^T)/2
          IF (nspins == 2) CALL dbcsr_scale(matrix_px1(ispin)%matrix, 0.5_dp)
       END DO
 
       IF (gapw_xc) THEN
-         ALLOCATE (rhoxx_r(nspins), rhoxx_g(nspins))
-         DO ispin = 1, nspins
+         ALLOCATE (rhoxx_r(SIZE(evect, 1)), rhoxx_g(SIZE(evect, 1)))
+         DO ispin = 1, SIZE(evect, 1)
             CALL auxbas_pw_pool%create_pw(rhoxx_r(ispin))
             CALL auxbas_pw_pool%create_pw(rhoxx_g(ispin))
          END DO
-         DO ispin = 1, nspins
+         DO ispin = 1, SIZE(evect, 1)
             IF (nspins == 2) CALL dbcsr_scale(matrix_px1(ispin)%matrix, 2.0_dp)
             CALL calculate_rho_elec(ks_env=ks_env, matrix_p=matrix_px1(ispin)%matrix, &
                                     rho=rhoxx_r(ispin), rho_gspace=rhoxx_g(ispin), &
@@ -426,7 +442,7 @@ CONTAINS
 
       CALL get_qs_env(qs_env, matrix_s=matrix_s, force=force)
 
-      IF (.NOT. is_rks_triplets) THEN
+      IF (.NOT. (is_rks_triplets .OR. do_sf)) THEN
          CALL auxbas_pw_pool%create_pw(xv_hartree_rspace)
          CALL auxbas_pw_pool%create_pw(xv_hartree_gspace)
          ! calculate associated hartree potential
@@ -456,7 +472,7 @@ CONTAINS
          IF (debug_forces) THEN
             fodeb(1:3) = force(1)%rho_elec(1:3, 1) - fodeb(1:3)
             CALL para_env%sum(fodeb)
-            IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Px*dKh[X]   ", fodeb
+            IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Dx*dKh[Dx]  ", fodeb
          END IF
          IF (gapw) THEN
             IF (debug_forces) fodeb(1:3) = force(1)%g0s_Vh_elec(1:3, 1)
@@ -472,7 +488,7 @@ CONTAINS
             IF (debug_forces) THEN
                fodeb(1:3) = force(1)%g0s_Vh_elec(1:3, 1) - fodeb(1:3)
                CALL para_env%sum(fodeb)
-               IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Px*dKh[X]PAWg0", fodeb
+               IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Dx*dKh[Dx]PAWg0", fodeb
             END IF
             IF (debug_forces) fodeb(1:3) = force(1)%Vhxc_atom(1:3, 1)
             CALL update_ks_atom(qs_env, matrix_hx, matrix_px1, forces=.TRUE., &
@@ -480,7 +496,7 @@ CONTAINS
             IF (debug_forces) THEN
                fodeb(1:3) = force(1)%Vhxc_atom(1:3, 1) - fodeb(1:3)
                CALL para_env%sum(fodeb)
-               IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Px*dKh[X]PAW ", fodeb
+               IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Dx*dKh[Dx]PAW", fodeb
             END IF
          END IF
       END IF
@@ -493,7 +509,7 @@ CONTAINS
       xc_section => full_kernel%xc_section
       CALL section_vals_val_get(xc_section, "XC_FUNCTIONAL%_SECTION_PARAMETERS_", &
                                 i_val=myfun)
-      IF (myfun /= xc_none) THEN
+      IF (.NOT. ((myfun == xc_none) .OR. (tddfpt_control%spinflip == tddfpt_sf_col))) THEN
          SELECT CASE (ex_env%xc_kernel_method)
          CASE (xc_kernel_method_best)
             do_analytic = .TRUE.
@@ -518,6 +534,8 @@ CONTAINS
          CALL qs_rho_get(rho, rho_ao=matrix_p)
          NULLIFY (rhox)
          ALLOCATE (rhox)
+         ! Create rhox object to collect all information on matrix_px1, including its values on the
+         ! grid points
          CALL qs_rho_create(rhox)
          IF (gapw_xc) THEN
             CALL qs_rho_set(rho_struct=rhox, rho_ao=matrix_px1, rho_r=rhoxx_r, rho_g=rhoxx_g, &
@@ -526,12 +544,19 @@ CONTAINS
             CALL qs_rho_set(rho_struct=rhox, rho_ao=matrix_px1, rho_r=rhox_r, rho_g=rhox_g, &
                             rho_r_valid=.TRUE., rho_g_valid=.TRUE.)
          END IF
+         ! Calculate the exchange-correlation kernel derivative contribution, notice that for open-shell
+         ! rhox_r contains a factor of 2!
          IF (do_analytic .AND. .NOT. do_numeric) THEN
-            CPABORT("Analytic 3rd EXC derivatives not available")
+            IF (.NOT. do_sf) THEN
+               CPABORT("Analytic 3rd EXC derivatives not available")
+            ELSE !TODO
+               CALL qs_fgxc_analytic(rho, rhox, xc_section, auxbas_pw_pool, &
+                                     fxc_rho, fxc_tau, gxc_rho, gxc_tau, spinflip=do_sf)
+            END IF
          ELSEIF (do_numeric) THEN
             IF (do_analytic) THEN
                CALL qs_fgxc_gdiff(ks_env, rho, rhox, xc_section, order, eps_delta, is_rks_triplets, &
-                                  fxc_rho, fxc_tau, gxc_rho, gxc_tau)
+                                  fxc_rho, fxc_tau, gxc_rho, gxc_tau, spinflip=do_sf)
             ELSE
                CALL qs_fgxc_create(ks_env, rho, rhox, xc_section, order, is_rks_triplets, &
                                    fxc_rho, fxc_tau, gxc_rho, gxc_tau)
@@ -572,13 +597,15 @@ CONTAINS
 
          IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
          NULLIFY (matrix_fx)
-         CALL dbcsr_allocate_matrix_set(matrix_fx, nspins)
-         DO ispin = 1, nspins
+         CALL dbcsr_allocate_matrix_set(matrix_fx, SIZE(fxc_rho))
+         DO ispin = 1, SIZE(fxc_rho, 1)
             ALLOCATE (matrix_fx(ispin)%matrix)
             CALL dbcsr_create(matrix_fx(ispin)%matrix, template=matrix_s(1)%matrix)
             CALL dbcsr_copy(matrix_fx(ispin)%matrix, matrix_s(1)%matrix)
             CALL dbcsr_set(matrix_fx(ispin)%matrix, 0.0_dp)
             CALL pw_scale(fxc_rho(ispin), fxc_rho(ispin)%pw_grid%dvol)
+            ! Calculate 2sum_sigmatau<munu|fxc|sigmatau>D^X_sigmatau
+            ! fxc_rho here containes a factor of 2
             CALL integrate_v_rspace(qs_env=qs_env, v_rspace=fxc_rho(ispin), &
                                     pmat=matrix_px1(ispin), hmat=matrix_fx(ispin), &
                                     gapw=(gapw .OR. gapw_xc), calculate_forces=.TRUE.)
@@ -586,12 +613,14 @@ CONTAINS
          IF (debug_forces) THEN
             fodeb(1:3) = force(1)%rho_elec(1:3, 1) - fodeb(1:3)
             CALL para_env%sum(fodeb)
-            IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Px*dKf[X]   ", fodeb
+            IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Dx*dfxc[Dx] ", fodeb
          END IF
 
          IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
          NULLIFY (matrix_gx)
          CALL dbcsr_allocate_matrix_set(matrix_gx, nspins)
+         ! Calculate exchange-correlation kernel derivative 2<D^X D^X|gxc|mu nu>
+         ! gxc comes with a factor of 4, so a factor of 1/2 is introduced
          DO ispin = 1, nspins
             ALLOCATE (matrix_gx(ispin)%matrix)
             CALL dbcsr_create(matrix_gx(ispin)%matrix, template=matrix_s(1)%matrix)
@@ -607,7 +636,7 @@ CONTAINS
          IF (debug_forces) THEN
             fodeb(1:3) = force(1)%rho_elec(1:3, 1) - fodeb(1:3)
             CALL para_env%sum(fodeb)
-            IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: P*dKg[X]   ", fodeb
+            IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Dx*dgxc[Dx]", fodeb
          END IF
          CALL qs_fgxc_release(ks_env, fxc_rho, fxc_tau, gxc_rho, gxc_tau)
 
@@ -619,7 +648,7 @@ CONTAINS
             IF (debug_forces) THEN
                fodeb(1:3) = force(1)%Vhxc_atom(1:3, 1) - fodeb(1:3)
                CALL para_env%sum(fodeb)
-               IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Px*dKf[X]PAW ", fodeb
+               IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Dx*dfxc[Dx]PAW ", fodeb
             END IF
             IF (debug_forces) fodeb(1:3) = force(1)%Vhxc_atom(1:3, 1)
             IF (nspins == 1) THEN
@@ -634,13 +663,13 @@ CONTAINS
             IF (debug_forces) THEN
                fodeb(1:3) = force(1)%Vhxc_atom(1:3, 1) - fodeb(1:3)
                CALL para_env%sum(fodeb)
-               IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Px*dKg[X]PAW ", fodeb
+               IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Dx*dgxc[Dx]PAW ", fodeb
             END IF
          END IF
       END IF
 
       ! ADMM XC correction Exc[rho_admm]
-      IF (do_admm .AND. tddfpt_control%admm_xc_correction) THEN
+      IF (do_admm .AND. tddfpt_control%admm_xc_correction .AND. (tddfpt_control%spinflip .NE. tddfpt_sf_col)) THEN
          IF (admm_env%aux_exch_func == do_admm_aux_exch_func_none) THEN
             ! nothing to do
          ELSE
@@ -658,13 +687,16 @@ CONTAINS
             END IF
             !
             NULLIFY (mfx, mgx)
-            CALL dbcsr_allocate_matrix_set(mfx, nspins)
+            CALL dbcsr_allocate_matrix_set(mfx, SIZE(evect, 1))
             CALL dbcsr_allocate_matrix_set(mgx, nspins)
-            DO ispin = 1, nspins
-               ALLOCATE (mfx(ispin)%matrix, mgx(ispin)%matrix)
+            DO ispin = 1, SIZE(evect, 1)
+               ALLOCATE (mfx(ispin)%matrix)
                CALL dbcsr_create(mfx(ispin)%matrix, template=matrix_s_aux_fit(1)%matrix)
                CALL dbcsr_copy(mfx(ispin)%matrix, matrix_s_aux_fit(1)%matrix)
                CALL dbcsr_set(mfx(ispin)%matrix, 0.0_dp)
+            END DO
+            DO ispin = 1, nspins
+               ALLOCATE (mgx(ispin)%matrix)
                CALL dbcsr_create(mgx(ispin)%matrix, template=matrix_s_aux_fit(1)%matrix)
                CALL dbcsr_copy(mgx(ispin)%matrix, matrix_s_aux_fit(1)%matrix)
                CALL dbcsr_set(mgx(ispin)%matrix, 0.0_dp)
@@ -675,12 +707,12 @@ CONTAINS
             CALL qs_rho_get(rho_aux_fit, rho_r=rho_r_aux, rho_g=rho_g_aux)
             CALL qs_rho_get(rho_aux_fit, rho_ao=matrix_p_admm)
             ! rhox_aux
-            ALLOCATE (rhox_r_aux(nspins), rhox_g_aux(nspins))
-            DO ispin = 1, nspins
+            ALLOCATE (rhox_r_aux(SIZE(evect, 1)), rhox_g_aux(SIZE(evect, 1)))
+            DO ispin = 1, SIZE(evect, 1)
                CALL auxbas_pw_pool%create_pw(rhox_r_aux(ispin))
                CALL auxbas_pw_pool%create_pw(rhox_g_aux(ispin))
             END DO
-            DO ispin = 1, nspins
+            DO ispin = 1, SIZE(evect, 1)
                CALL calculate_rho_elec(ks_env=ks_env, matrix_p=matrix_px1_admm(ispin)%matrix, &
                                        rho=rhox_r_aux(ispin), rho_gspace=rhox_g_aux(ispin), &
                                        basis_type=basis_type, &
@@ -713,7 +745,7 @@ CONTAINS
             ! because this would release the arrays. Instead we're simply going to deallocate rhox_aux.
             DEALLOCATE (rhox_aux)
 
-            DO ispin = 1, nspins
+            DO ispin = 1, SIZE(evect, 1)
                CALL auxbas_pw_pool%give_back_pw(rhox_r_aux(ispin))
                CALL auxbas_pw_pool%give_back_pw(rhox_g_aux(ispin))
             END DO
@@ -722,7 +754,7 @@ CONTAINS
             IF (nspins == 2) fscal = 2.0_dp
             !
             IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
-            DO ispin = 1, nspins
+            DO ispin = 1, SIZE(evect, 1)
                CALL pw_scale(fxc_rho(ispin), fxc_rho(ispin)%pw_grid%dvol)
                CALL integrate_v_rspace(qs_env=qs_env, v_rspace=fxc_rho(ispin), &
                                        hmat=mfx(ispin), &
@@ -735,11 +767,11 @@ CONTAINS
             IF (debug_forces) THEN
                fodeb(1:3) = force(1)%rho_elec(1:3, 1) - fodeb(1:3)
                CALL para_env%sum(fodeb)
-               IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Px*dKf[X]ADMM", fodeb
+               IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Dx*dfxc[Dx]ADMM", fodeb
             END IF
 
             IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
-            DO ispin = 1, nspins
+            DO ispin = 1, SIZE(evect, 1)
                CALL pw_scale(gxc_rho(ispin), gxc_rho(ispin)%pw_grid%dvol)
                CALL pw_scale(gxc_rho(ispin), 0.5_dp)
                CALL integrate_v_rspace(qs_env=qs_env, v_rspace=gxc_rho(ispin), &
@@ -754,7 +786,7 @@ CONTAINS
             IF (debug_forces) THEN
                fodeb(1:3) = force(1)%rho_elec(1:3, 1) - fodeb(1:3)
                CALL para_env%sum(fodeb)
-               IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: P*dKg[X]ADMM", fodeb
+               IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Dx*dgxc[Dx]ADMM", fodeb
             END IF
             CALL qs_fgxc_release(ks_env, fxc_rho, fxc_tau, gxc_rho, gxc_tau)
             !
@@ -799,7 +831,7 @@ CONTAINS
                IF (debug_forces) THEN
                   fodeb(1:3) = force(1)%Vhxc_atom(1:3, 1) - fodeb(1:3)
                   CALL para_env%sum(fodeb)
-                  IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Px*dKf[X]ADMM-PAW ", fodeb
+                  IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Dx*dfxc[Dx]ADMM-PAW ", fodeb
                END IF
                IF (debug_forces) fodeb(1:3) = force(1)%Vhxc_atom(1:3, 1)
                IF (nspins == 1) THEN
@@ -818,7 +850,7 @@ CONTAINS
                IF (debug_forces) THEN
                   fodeb(1:3) = force(1)%Vhxc_atom(1:3, 1) - fodeb(1:3)
                   CALL para_env%sum(fodeb)
-                  IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: P*dKg[X]ADMM-PAW ", fodeb
+                  IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Dx*dgxc[Dx]ADMM-PAW ", fodeb
                END IF
             END IF
             !
@@ -848,7 +880,7 @@ CONTAINS
             nao_aux = admm_env%nao_aux_fit
             ALLOCATE (dbwork)
             CALL dbcsr_create(dbwork, template=matrix_fx(1)%matrix)
-            DO ispin = 1, nspins
+            DO ispin = 1, SIZE(evect, 1)
                ! fx
                CALL cp_dbcsr_sm_fm_multiply(mfx(ispin)%matrix, admm_env%A, &
                                             admm_env%work_aux_orb, nao)
@@ -877,20 +909,20 @@ CONTAINS
          END IF
       END IF
 
-      DO ispin = 1, nspins
+      DO ispin = 1, SIZE(evect, 1)
          CALL auxbas_pw_pool%give_back_pw(rhox_r(ispin))
          CALL auxbas_pw_pool%give_back_pw(rhox_g(ispin))
       END DO
       DEALLOCATE (rhox_r, rhox_g)
       CALL auxbas_pw_pool%give_back_pw(rhox_tot_gspace)
       IF (gapw_xc) THEN
-         DO ispin = 1, nspins
+         DO ispin = 1, SIZE(evect, 1)
             CALL auxbas_pw_pool%give_back_pw(rhoxx_r(ispin))
             CALL auxbas_pw_pool%give_back_pw(rhoxx_g(ispin))
          END DO
          DEALLOCATE (rhoxx_r, rhoxx_g)
       END IF
-      IF (.NOT. is_rks_triplets) THEN
+      IF (.NOT. (is_rks_triplets .OR. do_sf)) THEN
          CALL auxbas_pw_pool%give_back_pw(xv_hartree_rspace)
          CALL auxbas_pw_pool%give_back_pw(xv_hartree_gspace)
       END IF
@@ -898,9 +930,9 @@ CONTAINS
       ! HFX
       IF (do_hfx) THEN
          NULLIFY (matrix_hfx, matrix_hfx_asymm)
-         CALL dbcsr_allocate_matrix_set(matrix_hfx, nspins)
-         CALL dbcsr_allocate_matrix_set(matrix_hfx_asymm, nspins)
-         DO ispin = 1, nspins
+         CALL dbcsr_allocate_matrix_set(matrix_hfx, SIZE(evect, 1))
+         CALL dbcsr_allocate_matrix_set(matrix_hfx_asymm, SIZE(evect, 1))
+         DO ispin = 1, SIZE(evect, 1)
             ALLOCATE (matrix_hfx(ispin)%matrix)
             CALL dbcsr_create(matrix_hfx(ispin)%matrix, template=matrix_s(1)%matrix)
             CALL dbcsr_copy(matrix_hfx(ispin)%matrix, matrix_s(1)%matrix)
@@ -919,7 +951,7 @@ CONTAINS
          CALL section_vals_val_get(hfx_section, "TREAT_LSD_IN_CORE", l_val=hfx_treat_lsd_in_core, &
                                    i_rep_section=1)
          mspin = 1
-         IF (hfx_treat_lsd_in_core) mspin = nspins
+         IF (hfx_treat_lsd_in_core) mspin = SIZE(evect, 1)
          !
          CALL get_qs_env(qs_env=qs_env, x_data=x_data, s_mstruct_changed=s_mstruct_changed)
          distribute_fock_matrix = .TRUE.
@@ -927,9 +959,9 @@ CONTAINS
          IF (do_admm) THEN
             CALL get_admm_env(qs_env%admm_env, matrix_s_aux_fit=matrix_s_aux_fit)
             NULLIFY (matrix_hfx_admm, matrix_hfx_admm_asymm)
-            CALL dbcsr_allocate_matrix_set(matrix_hfx_admm, nspins)
-            CALL dbcsr_allocate_matrix_set(matrix_hfx_admm_asymm, nspins)
-            DO ispin = 1, nspins
+            CALL dbcsr_allocate_matrix_set(matrix_hfx_admm, SIZE(evect, 1))
+            CALL dbcsr_allocate_matrix_set(matrix_hfx_admm_asymm, SIZE(evect, 1))
+            DO ispin = 1, SIZE(evect, 1)
                ALLOCATE (matrix_hfx_admm(ispin)%matrix)
                CALL dbcsr_create(matrix_hfx_admm(ispin)%matrix, template=matrix_s_aux_fit(1)%matrix)
                CALL dbcsr_copy(matrix_hfx_admm(ispin)%matrix, matrix_s_aux_fit(1)%matrix)
@@ -942,8 +974,8 @@ CONTAINS
             END DO
             !
             NULLIFY (mpe, mhe)
-            ALLOCATE (mpe(nspins, 1), mhe(nspins, 1))
-            DO ispin = 1, nspins
+            ALLOCATE (mpe(SIZE(evect, 1), 1), mhe(SIZE(evect, 1), 1))
+            DO ispin = 1, SIZE(evect)
                mhe(ispin, 1)%matrix => matrix_hfx_admm(ispin)%matrix
                mpe(ispin, 1)%matrix => matrix_px1_admm(ispin)%matrix
             END DO
@@ -957,11 +989,11 @@ CONTAINS
                   eh1 = 0.0
                   CALL integrate_four_center(qs_env, x_data, mhe, eh1, mpe, hfx_section, &
                                              para_env, s_mstruct_changed, 1, distribute_fock_matrix, &
-                                             ispin=ispin)
+                                             ispin=ispin, nspins=SIZE(evect, 1))
                END DO
             END IF
             !anti-symmetric density
-            DO ispin = 1, nspins
+            DO ispin = 1, SIZE(evect, 1)
                mhe(ispin, 1)%matrix => matrix_hfx_admm_asymm(ispin)%matrix
                mpe(ispin, 1)%matrix => matrix_px1_admm_asymm(ispin)%matrix
             END DO
@@ -975,7 +1007,7 @@ CONTAINS
                   eh1 = 0.0
                   CALL integrate_four_center(qs_env, x_data, mhe, eh1, mpe, hfx_section, &
                                              para_env, s_mstruct_changed, 1, distribute_fock_matrix, &
-                                             ispin=ispin)
+                                             ispin=ispin, nspins=SIZE(evect, 1))
                END DO
             END IF
             !
@@ -984,7 +1016,7 @@ CONTAINS
             ALLOCATE (dbwork, dbwork_asymm)
             CALL dbcsr_create(dbwork, template=matrix_hfx(1)%matrix)
             CALL dbcsr_create(dbwork_asymm, template=matrix_hfx(1)%matrix, matrix_type=dbcsr_type_antisymmetric)
-            DO ispin = 1, nspins
+            DO ispin = 1, SIZE(evect, 1)
                CALL cp_dbcsr_sm_fm_multiply(matrix_hfx_admm(ispin)%matrix, admm_env%A, &
                                             admm_env%work_aux_orb, nao)
                CALL parallel_gemm('T', 'N', nao, nao, nao_aux, &
@@ -1023,8 +1055,10 @@ CONTAINS
             use_virial = .FALSE.
             NULLIFY (mdum)
             fval = 2.0_dp*REAL(nspins, KIND=dp)*0.5_dp !0.5 factor because of symemtry/anti-symmetry
+            ! For SF TDDFT integrate_four_center and derivatives_four_center routines introduce a factor of 1/2
+            IF (do_sf) fval = fval*2.0_dp
             IF (debug_forces) fodeb(1:3) = force(1)%fock_4c(1:3, 1)
-            DO ispin = 1, nspins
+            DO ispin = 1, SIZE(evect, 1)
                mpe(ispin, 1)%matrix => matrix_px1_admm(ispin)%matrix
             END DO
             IF (x_data(1, 1)%do_hfx_ri) THEN
@@ -1034,9 +1068,9 @@ CONTAINS
                                          use_virial=use_virial, rescale_factor=fval)
             ELSE
                CALL derivatives_four_center(qs_env, mpe, mdum, hfx_section, para_env, 1, use_virial, &
-                                            adiabatic_rescale_factor=fval)
+                                            adiabatic_rescale_factor=fval, nspins=SIZE(mpe, 1))
             END IF
-            DO ispin = 1, nspins
+            DO ispin = 1, SIZE(evect, 1)
                mpe(ispin, 1)%matrix => matrix_px1_admm_asymm(ispin)%matrix
             END DO
             IF (x_data(1, 1)%do_hfx_ri) THEN
@@ -1046,12 +1080,12 @@ CONTAINS
                                          use_virial=use_virial, rescale_factor=fval)
             ELSE
                CALL derivatives_four_center(qs_env, mpe, mdum, hfx_section, para_env, 1, use_virial, &
-                                            adiabatic_rescale_factor=fval)
+                                            adiabatic_rescale_factor=fval, nspins=SIZE(mpe, 1))
             END IF
             IF (debug_forces) THEN
                fodeb(1:3) = force(1)%fock_4c(1:3, 1) - fodeb(1:3)
                CALL para_env%sum(fodeb)
-               IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Px*hfx'*Px ", fodeb
+               IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Dx*dhfx'*Dx ", fodeb
             END IF
             !
             DEALLOCATE (mpe, mhe)
@@ -1060,8 +1094,8 @@ CONTAINS
             CALL dbcsr_deallocate_matrix_set(matrix_hfx_admm_asymm)
          ELSE
             NULLIFY (mpe, mhe)
-            ALLOCATE (mpe(nspins, 1), mhe(nspins, 1))
-            DO ispin = 1, nspins
+            ALLOCATE (mpe(SIZE(evect, 1), 1), mhe(SIZE(evect, 1), 1))
+            DO ispin = 1, SIZE(evect, 1)
                mhe(ispin, 1)%matrix => matrix_hfx(ispin)%matrix
                mpe(ispin, 1)%matrix => matrix_px1(ispin)%matrix
             END DO
@@ -1075,12 +1109,12 @@ CONTAINS
                   eh1 = 0.0
                   CALL integrate_four_center(qs_env, x_data, mhe, eh1, mpe, hfx_section, &
                                              para_env, s_mstruct_changed, 1, distribute_fock_matrix, &
-                                             ispin=ispin)
+                                             ispin=ispin, nspins=SIZE(mpe, 1))
                END DO
             END IF
 
             !anti-symmetric density matrix
-            DO ispin = 1, nspins
+            DO ispin = 1, SIZE(evect, 1)
                mhe(ispin, 1)%matrix => matrix_hfx_asymm(ispin)%matrix
                mpe(ispin, 1)%matrix => matrix_px1_asymm(ispin)%matrix
             END DO
@@ -1094,15 +1128,17 @@ CONTAINS
                   eh1 = 0.0
                   CALL integrate_four_center(qs_env, x_data, mhe, eh1, mpe, hfx_section, &
                                              para_env, s_mstruct_changed, 1, distribute_fock_matrix, &
-                                             ispin=ispin)
+                                             ispin=ispin, nspins=SIZE(mpe, 1))
                END DO
             END IF
             ! forces
             use_virial = .FALSE.
             NULLIFY (mdum)
             fval = 2.0_dp*REAL(nspins, KIND=dp)*0.5_dp !extra 0.5 factor because of symmetry/antisymemtry
+            ! For SF TDDFT integrate_four_center and derivatives_four_center routines introduce a factor of 1/2
+            IF (do_sf) fval = fval*2.0_dp
             IF (debug_forces) fodeb(1:3) = force(1)%fock_4c(1:3, 1)
-            DO ispin = 1, nspins
+            DO ispin = 1, SIZE(evect, 1)
                mpe(ispin, 1)%matrix => matrix_px1(ispin)%matrix
             END DO
             IF (x_data(1, 1)%do_hfx_ri) THEN
@@ -1112,9 +1148,9 @@ CONTAINS
                                          use_virial=use_virial, rescale_factor=fval)
             ELSE
                CALL derivatives_four_center(qs_env, mpe, mdum, hfx_section, para_env, 1, use_virial, &
-                                            adiabatic_rescale_factor=fval)
+                                            adiabatic_rescale_factor=fval, nspins=SIZE(mpe, 1))
             END IF
-            DO ispin = 1, nspins
+            DO ispin = 1, SIZE(evect, 1)
                mpe(ispin, 1)%matrix => matrix_px1_asymm(ispin)%matrix
             END DO
             IF (x_data(1, 1)%do_hfx_ri) THEN
@@ -1124,18 +1160,20 @@ CONTAINS
                                          use_virial=use_virial, rescale_factor=fval)
             ELSE
                CALL derivatives_four_center(qs_env, mpe, mdum, hfx_section, para_env, 1, use_virial, &
-                                            adiabatic_rescale_factor=fval)
+                                            adiabatic_rescale_factor=fval, nspins=SIZE(mpe, 1))
             END IF
             IF (debug_forces) THEN
                fodeb(1:3) = force(1)%fock_4c(1:3, 1) - fodeb(1:3)
                CALL para_env%sum(fodeb)
-               IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Px*hfx'*Px ", fodeb
+               IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Dx*dhfx*Dx ", fodeb
             END IF
             !
             DEALLOCATE (mpe, mhe)
          END IF
          fval = 2.0_dp*REAL(nspins, KIND=dp)*0.5_dp !extra 0.5 because of symm/antisymm
-         DO ispin = 1, nspins
+         ! For SF TDDFT integrate_four_center and derivatives_four_center routines introduce a factor of 1/2
+         IF (do_sf) fval = fval*2.0_dp
+         DO ispin = 1, SIZE(evect, 1)
             CALL dbcsr_scale(matrix_hfx(ispin)%matrix, fval)
             CALL dbcsr_scale(matrix_hfx_asymm(ispin)%matrix, fval)
          END DO
@@ -1176,83 +1214,140 @@ CONTAINS
       cpmos => ex_env%cpmos
       focc = 2.0_dp
       IF (nspins == 2) focc = 1.0_dp
+
+      ! Initialize mos and dimensions of occupied space
+      ! In the following comments mos is referred to as Ca and mos2 as Cb
+      spin = 1
+      mos => gs_mos(1)%mos_occ
+      CALL cp_fm_get_info(mos, ncol_global=norb(1))
+      IF (nspins == 2) THEN
+         mos2 => gs_mos(2)%mos_occ
+         CALL cp_fm_get_info(mos2, ncol_global=norb(2))
+      END IF
+      ! Build response vector, Eq. 49, and the third term of \Lamda_munu, Eq. 51
       DO ispin = 1, nspins
-         mos => gs_mos(ispin)%mos_occ
-         CALL cp_fm_get_info(evect(ispin), ncol_global=norb)
-         CALL cp_fm_create(vcvec, mos%matrix_struct, "vcvec")
+
+         ! Initialize mos and dimensions of occupied space
+         IF (.NOT. do_sf) THEN
+            spin = ispin
+            mos => gs_mos(ispin)%mos_occ
+            mos2 => gs_mos(ispin)%mos_occ
+         END IF
+
+         ! Create working fields for the response vector
+         CALL cp_fm_create(vcvec, gs_mos(ispin)%mos_occ%matrix_struct, "vcvec")
          CALL cp_fm_get_info(vcvec, matrix_struct=fm_struct, nrow_global=nao)
-         CALL cp_fm_struct_create(fm_struct_mat, context=fm_struct%context, nrow_global=norb, &
-                                  ncol_global=norb, para_env=fm_struct%para_env)
+         CALL cp_fm_struct_create(fm_struct_mat, context=fm_struct%context, nrow_global=norb(spin), &
+                                  ncol_global=norb(ispin), para_env=fm_struct%para_env)
          CALL cp_fm_create(cvcmat, fm_struct_mat)
          CALL cp_fm_struct_release(fm_struct_mat)
-         !
+         ! Allocate and initialize the Lambda matrix
          ALLOCATE (matrix_wx1(ispin)%matrix)
          CALL dbcsr_create(matrix=matrix_wx1(ispin)%matrix, template=matrix_s(1)%matrix)
          CALL cp_dbcsr_alloc_block_from_nbl(matrix_wx1(ispin)%matrix, sab_orb)
          CALL dbcsr_set(matrix_wx1(ispin)%matrix, 0.0_dp)
-         !
-         IF (.NOT. is_rks_triplets) THEN
+
+         ! Add Hartree contributions to the perturbation vector
+         IF (.NOT. (is_rks_triplets .OR. do_sf)) THEN
             CALL cp_dbcsr_sm_fm_multiply(matrix_hx(ispin)%matrix, evect(ispin), &
-                                         cpmos(ispin), norb, alpha=focc, beta=1.0_dp)
-            CALL cp_dbcsr_sm_fm_multiply(matrix_hx(ispin)%matrix, mos, vcvec, norb, alpha=1.0_dp, beta=0.0_dp)
-            CALL parallel_gemm("T", "N", norb, norb, nao, 1.0_dp, mos, vcvec, 0.0_dp, cvcmat)
-            CALL parallel_gemm("N", "N", nao, norb, norb, 1.0_dp, evect(ispin), cvcmat, 0.0_dp, vcvec)
+                                         cpmos(ispin), norb(ispin), alpha=focc, beta=1.0_dp)
+            CALL cp_dbcsr_sm_fm_multiply(matrix_hx(ispin)%matrix, mos, vcvec, norb(ispin), alpha=1.0_dp, beta=0.0_dp)
+            CALL parallel_gemm("T", "N", norb(ispin), norb(ispin), nao, 1.0_dp, mos, vcvec, 0.0_dp, cvcmat)
+            CALL parallel_gemm("N", "N", nao, norb(ispin), norb(ispin), 1.0_dp, evect(ispin), cvcmat, 0.0_dp, vcvec)
             CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, vcvec, cpmos(ispin), &
-                                         norb, alpha=-focc, beta=1.0_dp)
+                                         norb(ispin), alpha=-focc, beta=1.0_dp)
             !
             CALL cp_dbcsr_plus_fm_fm_t(matrix_wx1(ispin)%matrix, matrix_v=mos, matrix_g=vcvec, &
-                                       ncol=norb, alpha=2.0_dp, symmetry_mode=1)
+                                       ncol=norb(ispin), alpha=2.0_dp, symmetry_mode=1)
          END IF
-         !
-         IF (myfun /= xc_none) THEN
-            CALL cp_dbcsr_sm_fm_multiply(matrix_fx(ispin)%matrix, evect(ispin), &
-                                         cpmos(ispin), norb, alpha=focc, beta=1.0_dp)
-            CALL cp_dbcsr_sm_fm_multiply(matrix_fx(ispin)%matrix, mos, vcvec, norb, alpha=1.0_dp, beta=0.0_dp)
-            CALL parallel_gemm("T", "N", norb, norb, nao, 1.0_dp, mos, vcvec, 0.0_dp, cvcmat)
-            CALL parallel_gemm("N", "N", nao, norb, norb, 1.0_dp, evect(ispin), cvcmat, 0.0_dp, vcvec)
-            CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, vcvec, cpmos(ispin), &
-                                         norb, alpha=-focc, beta=1.0_dp)
+         ! Add exchange-correlation kernel and exchange-correlation kernel derivative contributions to the response vector
+         IF ((myfun /= xc_none) .AND. (tddfpt_control%spinflip /= tddfpt_sf_col)) THEN
+
+            ! XC Kernel contributions
+            ! For spin-flip excitations this is the only contribution to the alpha response vector
+            IF (.NOT. (do_sf .AND. (ispin .EQ. 2))) THEN
+               ! F*X
+               CALL cp_dbcsr_sm_fm_multiply(matrix_fx(spin)%matrix, evect(spin), &
+                                            cpmos(ispin), norb(ispin), alpha=focc, beta=1.0_dp)
+            END IF
+            ! For spin-flip excitations this is the only contribution to the beta response vector
+            IF (.NOT. (do_sf .AND. (ispin .EQ. 1))) THEN
+               ! F*Cb
+               CALL cp_dbcsr_sm_fm_multiply(matrix_fx(spin)%matrix, mos2, vcvec, norb(ispin), alpha=1.0_dp, beta=0.0_dp)
+               ! Ca^T*F*Cb
+               CALL parallel_gemm("T", "N", norb(spin), norb(ispin), nao, 1.0_dp, mos, vcvec, 0.0_dp, cvcmat)
+               ! X*Ca^T*F*Cb
+               CALL parallel_gemm("N", "N", nao, norb(ispin), norb(spin), 1.0_dp, evect(spin), cvcmat, 0.0_dp, vcvec)
+               ! -S*X*Ca^T*F*Cb
+               CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, vcvec, cpmos(ispin), &
+                                            norb(ispin), alpha=-focc, beta=1.0_dp)
+               ! Add contributions to the \Lambda_munu for the perturbed overlap matrix term, third term of Eq. 51
+               ! 2X*Ca^T*F*Cb*Cb^T
+               CALL cp_dbcsr_plus_fm_fm_t(matrix_wx1(ispin)%matrix, matrix_v=vcvec, matrix_g=gs_mos(ispin)%mos_occ, &
+                                          ncol=norb(ispin), alpha=2.0_dp, symmetry_mode=1)
+            END IF
             !
-            CALL cp_dbcsr_plus_fm_fm_t(matrix_wx1(ispin)%matrix, matrix_v=mos, matrix_g=vcvec, &
-                                       ncol=norb, alpha=2.0_dp, symmetry_mode=1)
+
+            ! XC g (third functional derivative) contributions
+            ! g*Ca*focc
+            CALL cp_dbcsr_sm_fm_multiply(matrix_gx(ispin)%matrix, gs_mos(ispin)%mos_occ, &
+                                         cpmos(ispin), norb(ispin), alpha=focc, beta=1.0_dp)
+            ! Add contributions to the \Lambda_munu for the perturbed overlap matrix term, third term of Eq. 51
+            ! g*Ca
+            CALL cp_dbcsr_sm_fm_multiply(matrix_gx(ispin)%matrix, gs_mos(ispin)%mos_occ, vcvec, norb(ispin), &
+                                         alpha=1.0_dp, beta=0.0_dp)
+            ! Ca^T*g*Ca
+            CALL parallel_gemm("T", "N", norb(ispin), norb(ispin), nao, 1.0_dp, gs_mos(ispin)%mos_occ, vcvec, 0.0_dp, cvcmat)
+            ! Ca*Ca^T*g*Ca
+            CALL parallel_gemm("N", "N", nao, norb(ispin), norb(ispin), 1.0_dp, gs_mos(ispin)%mos_occ, cvcmat, 0.0_dp, vcvec)
+            ! Ca*Ca^T*g*Ca*Ca^T
+            CALL cp_dbcsr_plus_fm_fm_t(matrix_wx1(ispin)%matrix, matrix_v=vcvec, matrix_g=gs_mos(ispin)%mos_occ, &
+                                       ncol=norb(ispin), alpha=1.0_dp, symmetry_mode=1)
             !
-            CALL cp_dbcsr_sm_fm_multiply(matrix_gx(ispin)%matrix, mos, &
-                                         cpmos(ispin), norb, alpha=focc, beta=1.0_dp)
-            !
-            CALL cp_dbcsr_sm_fm_multiply(matrix_gx(ispin)%matrix, mos, vcvec, norb, alpha=1.0_dp, beta=0.0_dp)
-            CALL parallel_gemm("T", "N", norb, norb, nao, 1.0_dp, mos, vcvec, 0.0_dp, cvcmat)
-            CALL parallel_gemm("N", "N", nao, norb, norb, 1.0_dp, mos, cvcmat, 0.0_dp, vcvec)
-            CALL cp_dbcsr_plus_fm_fm_t(matrix_wx1(ispin)%matrix, matrix_v=mos, matrix_g=vcvec, &
-                                       ncol=norb, alpha=1.0_dp, symmetry_mode=1)
          END IF
-         !
+         ! Add Fock contributions to the response vector
          IF (do_hfx) THEN
-            CALL cp_dbcsr_sm_fm_multiply(matrix_hfx(ispin)%matrix, evect(ispin), &
-                                         cpmos(ispin), norb, alpha=focc, beta=1.0_dp)
-            CALL cp_dbcsr_sm_fm_multiply(matrix_hfx(ispin)%matrix, mos, vcvec, norb, alpha=1.0_dp, beta=0.0_dp)
-            CALL cp_dbcsr_sm_fm_multiply(matrix_hfx_asymm(ispin)%matrix, evect(ispin), &
-                                         cpmos(ispin), norb, alpha=focc, beta=1.0_dp)
-            CALL cp_dbcsr_sm_fm_multiply(matrix_hfx_asymm(ispin)%matrix, mos, vcvec, norb, alpha=1.0_dp, beta=1.0_dp)
-            !
-            CALL parallel_gemm("T", "N", norb, norb, nao, 1.0_dp, mos, vcvec, 0.0_dp, cvcmat)
-            CALL parallel_gemm("N", "N", nao, norb, norb, 1.0_dp, evect(ispin), cvcmat, 0.0_dp, vcvec)
-            CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, vcvec, cpmos(ispin), &
-                                         norb, alpha=-focc, beta=1.0_dp)
-            !
-            CALL cp_dbcsr_plus_fm_fm_t(matrix_wx1(ispin)%matrix, matrix_v=mos, matrix_g=vcvec, &
-                                       ncol=norb, alpha=2.0_dp, symmetry_mode=1)
+            ! For spin-flip excitations this is the only contribution to the alpha response vector
+            IF (.NOT. (do_sf .AND. (ispin .EQ. 2))) THEN
+               ! F^sym*X
+               CALL cp_dbcsr_sm_fm_multiply(matrix_hfx(spin)%matrix, evect(spin), &
+                                            cpmos(ispin), norb(ispin), alpha=focc, beta=1.0_dp)
+               ! F^asym*X
+               CALL cp_dbcsr_sm_fm_multiply(matrix_hfx_asymm(spin)%matrix, evect(spin), &
+                                            cpmos(ispin), norb(ispin), alpha=focc, beta=1.0_dp)
+            END IF
+
+            ! For spin-flip excitations this is the only contribution to the beta response vector
+            IF (.NOT. (do_sf .AND. (ispin .EQ. 1))) THEN
+               ! F^sym*Cb
+               CALL cp_dbcsr_sm_fm_multiply(matrix_hfx(spin)%matrix, mos2, vcvec, norb(ispin), alpha=1.0_dp, beta=0.0_dp)
+               ! -F^asym*Cb
+               CALL cp_dbcsr_sm_fm_multiply(matrix_hfx_asymm(spin)%matrix, mos2, vcvec, norb(ispin), &
+                                            alpha=1.0_dp, beta=1.0_dp)
+               ! Ca^T*F*Cb
+               CALL parallel_gemm("T", "N", norb(spin), norb(ispin), nao, 1.0_dp, mos, vcvec, 0.0_dp, cvcmat)
+               ! X*Ca^T*F*Cb
+               CALL parallel_gemm("N", "N", nao, norb(ispin), norb(spin), 1.0_dp, evect(spin), cvcmat, 0.0_dp, vcvec)
+               ! -S*X*Ca^T*F*Cb
+               CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, vcvec, cpmos(ispin), &
+                                            norb(ispin), alpha=-focc, beta=1.0_dp)
+               ! Add contributions to the \Lambda_munu for the perturbed overlap matrix term, third term of Eq. 51
+               ! 2X*Ca^T*F*Cb*Cb^T
+               CALL cp_dbcsr_plus_fm_fm_t(matrix_wx1(ispin)%matrix, matrix_v=vcvec, matrix_g=mos2, &
+                                          ncol=norb(ispin), alpha=2.0_dp, symmetry_mode=1)
+            END IF
          END IF
          !
          CALL cp_fm_release(vcvec)
          CALL cp_fm_release(cvcmat)
       END DO
 
-      IF (.NOT. is_rks_triplets) THEN
+      IF (.NOT. (is_rks_triplets .OR. do_sf)) THEN
          CALL dbcsr_deallocate_matrix_set(matrix_hx)
       END IF
       IF (ASSOCIATED(ex_env%matrix_wx1)) CALL dbcsr_deallocate_matrix_set(ex_env%matrix_wx1)
       ex_env%matrix_wx1 => matrix_wx1
-      IF (myfun /= xc_none) THEN
+      IF (.NOT. ((myfun == xc_none) .OR. (tddfpt_control%spinflip == tddfpt_sf_col))) THEN
          CALL dbcsr_deallocate_matrix_set(matrix_fx)
          CALL dbcsr_deallocate_matrix_set(matrix_gx)
       END IF

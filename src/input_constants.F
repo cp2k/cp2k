@@ -583,6 +583,9 @@ MODULE input_constants
    INTEGER, PARAMETER, PUBLIC               :: tddfpt_kernel_none = 2, &
                                                tddfpt_kernel_full = 1, &
                                                tddfpt_kernel_stda = 0
+   INTEGER, PARAMETER, PUBLIC               :: no_sf_tddfpt = 0, &
+                                               tddfpt_sf_col = 1, &
+                                               tddfpt_sf_noncol = 2
    INTEGER, PARAMETER, PUBLIC               :: oe_none = 0, &
                                                oe_lb = 1, &
                                                oe_gllb = 2, &

@@ -214,25 +214,27 @@ CONTAINS
 !> \param do_admm ...
 !> \param do_hfxlr ...
 !> \param do_exck ...
+!> \param do_sf ...
 !> \param qs_env         Quickstep environment
 !> \param sub_env        parallel group environment
 !> \par History
 !>    * 02.2017 created [Sergey Chulkov]
 ! **************************************************************************************************
    SUBROUTINE tddfpt_create_work_matrices(work_matrices, gs_mos, nstates, do_hfx, do_admm, &
-                                          do_hfxlr, do_exck, qs_env, sub_env)
+                                          do_hfxlr, do_exck, do_sf, qs_env, sub_env)
       TYPE(tddfpt_work_matrices), INTENT(out)            :: work_matrices
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          INTENT(in)                                      :: gs_mos
       INTEGER, INTENT(in)                                :: nstates
-      LOGICAL, INTENT(in)                                :: do_hfx, do_admm, do_hfxlr, do_exck
+      LOGICAL, INTENT(in)                                :: do_hfx, do_admm, do_hfxlr, do_exck, do_sf
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(tddfpt_subgroup_env_type), INTENT(in)         :: sub_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_create_work_matrices'
 
-      INTEGER                                            :: handle, igroup, ispin, istate, nao, &
-                                                            nao_aux, natom, ngroups, nspins
+      INTEGER                                            :: evecs_dim, handle, igroup, ispin, &
+                                                            istate, nao, nao_aux, natom, ngroups, &
+                                                            nspins
       INTEGER, DIMENSION(maxspins)                       :: nmo_occ, nmo_virt
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -271,6 +273,11 @@ CONTAINS
       NULLIFY (work_matrices%rho_xc_struct_sub)
 
       nspins = SIZE(gs_mos)
+      IF (do_sf) THEN
+         evecs_dim = 1
+      ELSE
+         evecs_dim = nspins
+      END IF
       CALL get_qs_env(qs_env, blacs_env=blacs_env, matrix_s=matrix_s)
       CALL dbcsr_get_info(matrix_s(1)%matrix, nfullrows_total=nao)
 
@@ -313,25 +320,25 @@ CONTAINS
       END DO
 
       IF (sub_env%is_split) THEN
-         DO ispin = 1, nspins
+         DO ispin = 1, evecs_dim
             CALL cp_fm_struct_create(fm_struct_evects(ispin)%struct, nrow_global=nao, &
                                      ncol_global=nmo_occ(ispin), context=sub_env%blacs_env)
          END DO
 
-         ALLOCATE (work_matrices%evects_sub(nspins, nstates), work_matrices%Aop_evects_sub(nspins, nstates))
+         ALLOCATE (work_matrices%evects_sub(evecs_dim, nstates), work_matrices%Aop_evects_sub(evecs_dim, nstates))
 
          CALL blacs_env%get(para_env=para_env)
          igroup = sub_env%group_distribution(para_env%mepos)
          ngroups = sub_env%ngroups
 
          DO istate = ngroups - igroup, nstates, ngroups
-            DO ispin = 1, nspins
+            DO ispin = 1, evecs_dim
                CALL cp_fm_create(work_matrices%evects_sub(ispin, istate), fm_struct_evects(ispin)%struct)
                CALL cp_fm_create(work_matrices%Aop_evects_sub(ispin, istate), fm_struct_evects(ispin)%struct)
             END DO
          END DO
 
-         DO ispin = nspins, 1, -1
+         DO ispin = evecs_dim, 1, -1
             CALL cp_fm_struct_release(fm_struct_evects(ispin)%struct)
          END DO
       END IF
@@ -356,8 +363,8 @@ CONTAINS
 
       ! group-specific dbcsr matrices
       NULLIFY (work_matrices%A_ia_munu_sub)
-      CALL dbcsr_allocate_matrix_set(work_matrices%A_ia_munu_sub, nspins)
-      DO ispin = 1, nspins
+      CALL dbcsr_allocate_matrix_set(work_matrices%A_ia_munu_sub, evecs_dim)
+      DO ispin = 1, evecs_dim
          CALL dbcsr_init_p(work_matrices%A_ia_munu_sub(ispin)%matrix)
          CALL tddfpt_dbcsr_create_by_dist(work_matrices%A_ia_munu_sub(ispin)%matrix, template=matrix_s(1)%matrix, &
                                           dbcsr_dist=sub_env%dbcsr_dist, sab=sub_env%sab_orb)
