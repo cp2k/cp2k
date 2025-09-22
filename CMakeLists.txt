@@ -1103,7 +1103,7 @@ if(NOT CP2K_USE_HDF5)
 endif()
 
 if(NOT CP2K_USE_OPENPMD)
-  message("   - openPMD\n")
+  message("   - openPMD")
 endif()
 
 if(${CP2K_USE_ACCEL} MATCHES "NONE")
