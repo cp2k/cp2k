@@ -111,7 +111,8 @@ int dbm_multiply_opencl_launch_kernel(void *stream, double alpha, int ntasks,
   if (0 != dbm_multiply_opencl_smm || 0 != info) {
     dbm_multiply_gpu_launch_info(&task, params_host, ntasks, param_format);
   }
-  if (0 > dbm_multiply_opencl_smm || dbm_multiply_opencl_smm < task.max_m ||
+  if (0 > dbm_multiply_opencl_smm || 0 != task.mnk_changes ||
+      dbm_multiply_opencl_smm < task.max_m ||
       dbm_multiply_opencl_smm < task.max_n ||
       dbm_multiply_opencl_smm < task.max_k || 0 == task.max_k || 1 != alpha)
 #endif
