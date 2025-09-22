@@ -256,7 +256,7 @@ MODULE qs_scf_post_gpw
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Append `extend_by` to the absolute path of the base section.
 !> \param self ...
 !> \param extend_by ...
 !> \return ...
@@ -274,7 +274,7 @@ CONTAINS
    END FUNCTION
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Append `extend_by` to the relative path (e.g. without DFT%) of the base section.
 !> \param self ...
 !> \param extend_by ...
 !> \return ...
@@ -292,7 +292,7 @@ CONTAINS
    END FUNCTION
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Is Cube output active for the current base section?
 !> \param self ...
 !> \return ...
 ! **************************************************************************************************
@@ -304,7 +304,7 @@ CONTAINS
    END FUNCTION
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Is openPMD output active for the current base section?
 !> \param self ...
 !> \return ...
 ! **************************************************************************************************
@@ -315,9 +315,10 @@ CONTAINS
       res = self%do_output .AND. self%grid_output == grid_output_openpmd
    END FUNCTION
 
-   ! Opens either a Cube or openPMD output file, depending on the passed configuration in self.
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Forwards to either `cp_print_key_unit_nr` or `cp_openpmd_print_key_unit_nr`,
+!>        depending on the configuration of the current base section.
+!>        Opens either a Cube or openPMD output file
 !> \param self ...
 !> \param logger ...
 !> \param basis_section ...
@@ -375,7 +376,9 @@ CONTAINS
    END FUNCTION
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Forwards to either `cp_pw_to_cube` or `cp_pw_to_openpmd`,
+!>        depending on the configuration of the current base section.
+!>        Writes data to either a Cube or an openPMD file.
 !> \param self ...
 !> \param pw ...
 !> \param unit_nr ...
@@ -406,7 +409,9 @@ CONTAINS
    END SUBROUTINE
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Forwards to either `cp_print_key_finished_output` or `cp_openpmd_print_key_finished_output`,
+!>        depending on the configuration of the current base section.
+!>        Closes either a Cube file or a reference to a section within an openPMD file.
 !> \param self ...
 !> \param unit_nr ...
 !> \param logger ...
@@ -439,18 +444,18 @@ CONTAINS
 #endif
    END SUBROUTINE
 
-   ! Decides if a particular output routine will write to openPMD, to Cube or to none.
-   ! Writing to both is not supported.
-   ! The distinction between Cube and openPMD output works such that the output configuration
-   ! sections exist as duplicates: E.g. for DFT%PRINT%MO_CUBES,
-   ! there additionally exists DFT%PRINT%MO_OPENPMD.
-   ! The internal base configuration for such sections is identical; additionally there
-   ! exist format-specific options such as APPEND for Cube or OPENPMD_CFG_FILE for openPMD.
-   ! The routines in this file alternate between using relative section paths without the
-   ! %DFT prefix (e.g. PRINT%MO_CUBES) or absolute section paths with the %DF% prefix
-   ! (e.g. DFT%PRINT%MO_CUBES). Call this routine with the relative paths.
+   !
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Decides if a particular output routine will write to openPMD, to Cube or to none.
+!>        Writing to both is not supported.
+!>        The distinction between Cube and openPMD output works such that the output configuration
+!>        sections exist as duplicates: E.g. for DFT%PRINT%MO_CUBES,
+!>        there additionally exists DFT%PRINT%MO_OPENPMD.
+!>        The internal base configuration for such sections is identical; additionally there
+!>        exist format-specific options such as APPEND for Cube or OPENPMD_CFG_FILE for openPMD.
+!>        The routines in this file alternate between using relative section paths without the
+!>        %DFT prefix (e.g. PRINT%MO_CUBES) or absolute section paths with the %DF% prefix
+!>        (e.g. DFT%PRINT%MO_CUBES). Call this routine with the relative paths.
 !> \param input ...
 !> \param str_cubes ...
 !> \param str_openpmd ...
@@ -493,7 +498,8 @@ CONTAINS
    END FUNCTION
 
 ! **************************************************************************************************
-!> \brief ...
+!> \brief This section key is named WRITE_CUBE for Cube which does not make much sense
+!>        for openPMD, so this key name has to be distinguished.
 !> \param grid_output ...
 !> \return ...
 ! **************************************************************************************************
