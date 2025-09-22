@@ -567,9 +567,9 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'dbcsr_matrix_vector_mult'
 
-      INTEGER                                            :: col, handle, handle1, ithread, mypcol, &
-                                                            myprow, ncols, nrows, pcol, prow, &
-                                                            prow_handle, row
+      INTEGER                                            :: col, handle, handle1, ithread, k, m, &
+                                                            mypcol, myprow, n, ncols, nrows, pcol, &
+                                                            prow, prow_handle, row
       REAL(kind=real_8), DIMENSION(:), POINTER           :: data_vec
       REAL(kind=real_8), DIMENSION(:, :), POINTER        :: data_d, vec_res
       TYPE(dbcsr_distribution_type)                      :: dist
@@ -599,7 +599,7 @@ CONTAINS
       ! It is important to note, that the input and result vector are distributed differently (row wise, col wise respectively)
       CALL timeset(routineN//"_local_mm", handle1)
 
-!$OMP PARALLEL DEFAULT(NONE) PRIVATE(row,col,iter,data_d,ithread,pcol,prow) &
+!$OMP PARALLEL DEFAULT(NONE) PRIVATE(row,col,iter,data_d,ithread,pcol,prow,m,n,k) &
 !$OMP          SHARED(matrix,fast_vec_col,fast_vec_row)
 !$    ithread = omp_get_thread_num()
       CALL dbcsr_iterator_start(iter, matrix, shared=.FALSE.)
@@ -607,21 +607,17 @@ CONTAINS
          CALL dbcsr_iterator_next_block(iter, row, col, data_d)
          prow = hash_table_get(fast_vec_col%hash_table, row)
          IF (fast_vec_col%blk_map(prow)%assigned_thread .NE. ithread) CYCLE
+         m = SIZE(fast_vec_col%blk_map(prow)%ptr, 1)
+         n = SIZE(fast_vec_col%blk_map(prow)%ptr, 2)
+         k = SIZE(data_d, 2)
+         IF ((m .EQ. 0) .OR. (n .EQ. 0) .OR. (k .EQ. 0)) CYCLE
+         CPASSERT(n .EQ. 1)
          pcol = hash_table_get(fast_vec_row%hash_table, col)
-         IF (SIZE(fast_vec_col%blk_map(prow)%ptr, 1) .EQ. 0 .OR. &
-             SIZE(fast_vec_col%blk_map(prow)%ptr, 2) .EQ. 0 .OR. &
-             SIZE(data_d, 2) .EQ. 0) CYCLE
-         CALL dgemm('N', 'T', SIZE(fast_vec_col%blk_map(prow)%ptr, 1), &
-                    SIZE(fast_vec_col%blk_map(prow)%ptr, 2), &
-                    SIZE(data_d, 2), &
+         CALL dgemm('N', 'T', m, n, k, &
+                    1.0_dp, data_d, m, &
+                    fast_vec_row%blk_map(pcol)%ptr, n, &
                     1.0_dp, &
-                    data_d, &
-                    SIZE(fast_vec_col%blk_map(prow)%ptr, 1), &
-                    fast_vec_row%blk_map(pcol)%ptr, &
-                    SIZE(fast_vec_col%blk_map(prow)%ptr, 2), &
-                    1.0_dp, &
-                    fast_vec_col%blk_map(prow)%ptr, &
-                    SIZE(fast_vec_col%blk_map(prow)%ptr, 1))
+                    fast_vec_col%blk_map(prow)%ptr, m)
       END DO
       CALL dbcsr_iterator_stop(iter)
 !$OMP END PARALLEL
