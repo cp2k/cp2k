@@ -119,13 +119,13 @@ CONTAINS
       INTEGER, DIMENSION(1)                              :: global_extent, global_offset, &
                                                             local_extent
       TYPE(cp_openpmd_write_buffer_1d), DIMENSION(3)     :: write_buffers
+      TYPE(openpmd_attributable_type)                    :: attr
       TYPE(openpmd_dynamic_memory_view_type_1d), &
          DIMENSION(3)                                    :: unresolved_write_buffers
       TYPE(openpmd_particle_species_type)                :: species
       TYPE(openpmd_record_component_type)                :: position_component, &
                                                             position_offset_component
       TYPE(openpmd_record_type)                          :: position, position_offset
-      TYPE(openpmd_attributable_type)                    :: attr
 
       global_extent(1) = atom_count
       IF (do_write_data) THEN
@@ -243,10 +243,10 @@ CONTAINS
       REAL(KIND=dp), POINTER                             :: write_buffer(:, :, :)
       TYPE(cp_openpmd_per_call_value_type)               :: openpmd_data
       TYPE(mp_comm_type)                                 :: gid
+      TYPE(openpmd_attributable_type)                    :: attr
       TYPE(openpmd_dynamic_memory_view_type_3d)          :: unresolved_write_buffer
       TYPE(openpmd_mesh_type)                            :: mesh
       TYPE(openpmd_record_component_type)                :: scalar_mesh
-      TYPE(openpmd_attributable_type)                    :: attr
 
       CALL timeset(routineN, handle)
 
@@ -313,8 +313,8 @@ CONTAINS
 
       mesh = openpmd_data%iteration%get_mesh(TRIM(openpmd_data%name_prefix))
       CALL mesh%set_axis_labels((/"x", "y", "z"/))
-      CALL mesh%set_position( (/0.5_dp, 0.5_dp, 0.5_dp/) )
-      CALL mesh%set_grid_global_offset( (/0._dp, 0._dp, 0._dp/) )
+      CALL mesh%set_position((/0.5_dp, 0.5_dp, 0.5_dp/))
+      CALL mesh%set_grid_global_offset((/0._dp, 0._dp, 0._dp/))
       CALL mesh%set_grid_spacing(grid_spacing)
       scalar_mesh = mesh%as_record_component()
       CALL scalar_mesh%reset_dataset(openpmd_type_double, global_extent)
