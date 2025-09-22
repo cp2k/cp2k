@@ -363,6 +363,8 @@ CONTAINS
 
 #ifdef __OPENPMD
       IF (self%grid_output == grid_output_cubes) THEN
+#else
+      MARK_USED(self)
 #endif
          res = cp_print_key_unit_nr(logger, basis_section, print_key_path, extension=extension, &
                                               middle_name=middle_name, local=local, log_filename=log_filename, ignore_should_output=ignore_should_output, file_form=file_form, file_position=file_position, file_action=file_action, file_status=file_status, do_backup=do_backup, on_file=on_file, is_new_file=is_new_file, mpi_io=mpi_io, fout=fout)
@@ -399,6 +401,8 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: zero_tails, silent, mpi_io
 #ifdef __OPENPMD
       IF (self%grid_output == grid_output_cubes) THEN
+#else
+      MARK_USED(self)
 #endif
          CALL cp_pw_to_cube(pw, unit_nr, title, particles, stride, zero_tails, silent, mpi_io)
 #ifdef __OPENPMD
@@ -435,6 +439,8 @@ CONTAINS
 
 #ifdef __OPENPMD
       IF (self%grid_output == grid_output_cubes) THEN
+#else
+      MARK_USED(self)
 #endif
      CALL cp_print_key_finished_output(unit_nr, logger, basis_section, print_key_path, local, ignore_should_output, on_file, mpi_io)
 #ifdef __OPENPMD
@@ -489,6 +495,8 @@ CONTAINS
          res%format_name = "Cube"
       END IF
 #else
+      MARK_USED(str_openpmd)
+      MARK_USED(do_openpmd)
       res%do_output = do_cubes
       res%grid_output = grid_output_cubes
       res%relative_section_key = TRIM(ADJUSTL(str_cubes))
