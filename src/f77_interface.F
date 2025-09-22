@@ -39,7 +39,7 @@ MODULE f77_interface
         cp_logger_type, cp_rm_default_logger, cp_to_string
    USE cp_output_handling,              ONLY: cp_iterate
 #ifdef __OPENPMD
-   USE cp_output_handling_openpmd,      ONLY: cp_openpmd_output_finalize
+   USE cp_output_handling_openpmd, ONLY: cp_openpmd_output_finalize
 #endif
    USE cp_result_methods,               ONLY: get_results,&
                                               test_for_result
