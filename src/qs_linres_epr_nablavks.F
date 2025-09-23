@@ -81,7 +81,7 @@ MODULE qs_linres_epr_nablavks
    USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                               qs_subsys_type
    USE qs_vxc,                          ONLY: qs_vxc_create
-   USE qs_vxc_atom,                     ONLY: calculate_vxc_atom
+   USE qs_vxc_atom,                     ONLY: calculate_vxc_atom_epr
    USE util,                            ONLY: get_limit
 #include "./base/base_uses.f90"
 
@@ -924,8 +924,7 @@ CONTAINS
       CALL auxbas_pw_pool%give_back_pw(v_xc_rtemp)
 
       IF (gapw .OR. gapw_xc) THEN
-         CALL calculate_vxc_atom(qs_env=qs_env, energy_only=.FALSE., exc1=exc1, &
-                                 gradient_atom_set=nablavks_atom_set)
+         CALL calculate_vxc_atom_epr(qs_env=qs_env, exc1=exc1, gradient_atom_set=nablavks_atom_set)
       END IF
 
 !   -------------------------------------

@@ -36,7 +36,7 @@ MODULE xc_atom
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_atom'
 
-   PUBLIC :: vxc_of_r_new, xc_rho_set_atom_update, xc_2nd_deriv_of_r, fill_rho_set
+   PUBLIC :: vxc_of_r_new, vxc_of_r_epr, xc_rho_set_atom_update, xc_2nd_deriv_of_r, fill_rho_set
 
 CONTAINS
 
@@ -56,12 +56,11 @@ CONTAINS
 !> \param vxg ...
 !> \param vtau ...
 !> \param energy_only ...
-!> \param epr_xc ...
 !> \param adiabatic_rescale_factor ...
 ! **************************************************************************************************
    SUBROUTINE vxc_of_r_new(xc_fun_section, rho_set, deriv_set, deriv_order, needs, w, &
                            lsd, na, nr, exc, vxc, vxg, vtau, &
-                           energy_only, epr_xc, adiabatic_rescale_factor)
+                           energy_only, adiabatic_rescale_factor)
 
 ! This routine updates rho_set by giving to it the rho and drho that are needed.
 ! Since for the local densities rho1_h and rho1_s local grids are used it is not possible
@@ -85,13 +84,13 @@ CONTAINS
       REAL(dp), DIMENSION(:, :, :), POINTER              :: vxc
       REAL(dp), DIMENSION(:, :, :, :), POINTER           :: vxg
       REAL(dp), DIMENSION(:, :, :), POINTER              :: vtau
-      LOGICAL, INTENT(IN), OPTIONAL                      :: energy_only, epr_xc
+      LOGICAL, INTENT(IN), OPTIONAL                      :: energy_only
       REAL(dp), INTENT(IN), OPTIONAL                     :: adiabatic_rescale_factor
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'vxc_of_r_new'
 
-      INTEGER                                            :: handle, ia, idir, ir, my_deriv_order
-      LOGICAL                                            :: gradient_f, my_epr_xc, my_only_energy
+      INTEGER                                            :: handle, ia, idir, ir
+      LOGICAL                                            :: gradient_f, my_only_energy
       REAL(dp)                                           :: my_adiabatic_rescale_factor
       REAL(dp), DIMENSION(:, :, :), POINTER              :: deriv_data
       REAL(KIND=dp)                                      :: drho_cutoff
@@ -107,16 +106,228 @@ CONTAINS
          my_adiabatic_rescale_factor = 1.0_dp
       END IF
 
-      ! needed for the epr routines
-      my_epr_xc = .FALSE.
-      IF (PRESENT(epr_xc)) my_epr_xc = epr_xc
-      my_deriv_order = deriv_order
-      IF (my_epr_xc) my_deriv_order = 2
+      gradient_f = (needs%drho_spin .OR. needs%norm_drho_spin .OR. &
+                    needs%drho .OR. needs%norm_drho)
+
+      !  Calculate the derivatives
+      CALL xc_functionals_eval(xc_fun_section, &
+                               lsd=lsd, &
+                               rho_set=rho_set, &
+                               deriv_set=deriv_set, &
+                               deriv_order=deriv_order)
+
+      CALL xc_rho_set_get(rho_set, drho_cutoff=drho_cutoff)
+
+      NULLIFY (deriv_data)
+
+      !  EXC energy
+      deriv_att => xc_dset_get_derivative(deriv_set, [INTEGER::])
+      exc = 0.0_dp
+      IF (ASSOCIATED(deriv_att)) THEN
+         CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
+         DO ir = 1, nr
+            DO ia = 1, na
+               exc = exc + deriv_data(ia, ir, 1)*w(ia, ir)
+            END DO
+         END DO
+         NULLIFY (deriv_data)
+      END IF
+      ! Calculate the potential only if needed
+      IF (.NOT. my_only_energy) THEN
+         !  Derivative with respect to the density
+         IF (lsd) THEN
+            deriv_att => xc_dset_get_derivative(deriv_set, [deriv_rhoa])
+            IF (ASSOCIATED(deriv_att)) THEN
+               CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
+               vxc(:, :, 1) = deriv_data(:, :, 1)*w(:, :)*my_adiabatic_rescale_factor
+               NULLIFY (deriv_data)
+            END IF
+            deriv_att => xc_dset_get_derivative(deriv_set, [deriv_rhob])
+            IF (ASSOCIATED(deriv_att)) THEN
+               CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
+               vxc(:, :, 2) = deriv_data(:, :, 1)*w(:, :)*my_adiabatic_rescale_factor
+               NULLIFY (deriv_data)
+            END IF
+            deriv_att => xc_dset_get_derivative(deriv_set, [deriv_rho])
+            IF (ASSOCIATED(deriv_att)) THEN
+               CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
+               vxc(:, :, 1) = vxc(:, :, 1) + deriv_data(:, :, 1)*w(:, :)*my_adiabatic_rescale_factor
+               vxc(:, :, 2) = vxc(:, :, 2) + deriv_data(:, :, 1)*w(:, :)*my_adiabatic_rescale_factor
+               NULLIFY (deriv_data)
+            END IF
+         ELSE
+            deriv_att => xc_dset_get_derivative(deriv_set, [deriv_rho])
+            IF (ASSOCIATED(deriv_att)) THEN
+               CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
+               vxc(:, :, 1) = deriv_data(:, :, 1)*w(:, :)*my_adiabatic_rescale_factor
+               NULLIFY (deriv_data)
+            END IF
+         END IF ! lsd
+
+         !  Derivatives with respect to the gradient
+         IF (lsd) THEN
+            deriv_att => xc_dset_get_derivative(deriv_set, [deriv_norm_drhoa])
+            IF (ASSOCIATED(deriv_att)) THEN
+               CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
+               DO ir = 1, nr
+                  DO ia = 1, na
+                     DO idir = 1, 3
+                        IF (rho_set%norm_drhoa(ia, ir, 1) > drho_cutoff) THEN
+                           vxg(idir, ia, ir, 1) = rho_set%drhoa(idir)%array(ia, ir, 1)* &
+                                                  deriv_data(ia, ir, 1)*w(ia, ir)/ &
+                                                  rho_set%norm_drhoa(ia, ir, 1)*my_adiabatic_rescale_factor
+                        ELSE
+                           vxg(idir, ia, ir, 1) = 0.0_dp
+                        END IF
+                     END DO
+                  END DO
+               END DO
+               NULLIFY (deriv_data)
+            END IF
+            deriv_att => xc_dset_get_derivative(deriv_set, [deriv_norm_drhob])
+            IF (ASSOCIATED(deriv_att)) THEN
+               CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
+               DO ir = 1, nr
+                  DO ia = 1, na
+                     DO idir = 1, 3
+                        IF (rho_set%norm_drhob(ia, ir, 1) > drho_cutoff) THEN
+                           vxg(idir, ia, ir, 2) = rho_set%drhob(idir)%array(ia, ir, 1)* &
+                                                  deriv_data(ia, ir, 1)*w(ia, ir)/ &
+                                                  rho_set%norm_drhob(ia, ir, 1)*my_adiabatic_rescale_factor
+                        ELSE
+                           vxg(idir, ia, ir, 2) = 0.0_dp
+                        END IF
+                     END DO
+                  END DO
+               END DO
+               NULLIFY (deriv_data)
+            END IF
+            ! Cross Terms
+            deriv_att => xc_dset_get_derivative(deriv_set, [deriv_norm_drho])
+            IF (ASSOCIATED(deriv_att)) THEN
+               CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
+               DO ir = 1, nr
+                  DO ia = 1, na
+                     DO idir = 1, 3
+                        IF (rho_set%norm_drho(ia, ir, 1) > drho_cutoff) THEN
+                           vxg(idir, ia, ir, 1:2) = &
+                              vxg(idir, ia, ir, 1:2) + ( &
+                              rho_set%drhoa(idir)%array(ia, ir, 1) + &
+                              rho_set%drhob(idir)%array(ia, ir, 1))* &
+                              deriv_data(ia, ir, 1)*w(ia, ir)/rho_set%norm_drho(ia, ir, 1)* &
+                              my_adiabatic_rescale_factor
+                        END IF
+                     END DO
+                  END DO
+               END DO
+               NULLIFY (deriv_data)
+            END IF
+         ELSE
+            deriv_att => xc_dset_get_derivative(deriv_set, [deriv_norm_drho])
+            IF (ASSOCIATED(deriv_att)) THEN
+               CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
+               DO ir = 1, nr
+                  DO ia = 1, na
+                     IF (rho_set%norm_drho(ia, ir, 1) > drho_cutoff) THEN
+                        DO idir = 1, 3
+                           vxg(idir, ia, ir, 1) = rho_set%drho(idir)%array(ia, ir, 1)* &
+                                                  deriv_data(ia, ir, 1)*w(ia, ir)/ &
+                                                  rho_set%norm_drho(ia, ir, 1)*my_adiabatic_rescale_factor
+                        END DO
+                     ELSE
+                        vxg(1:3, ia, ir, 1) = 0.0_dp
+                     END IF
+                  END DO
+               END DO
+               NULLIFY (deriv_data)
+            END IF
+         END IF ! lsd
+         !  Derivative with respect to tau
+         IF (lsd) THEN
+            deriv_att => xc_dset_get_derivative(deriv_set, [deriv_tau_a])
+            IF (ASSOCIATED(deriv_att)) THEN
+               CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
+               vtau(:, :, 1) = deriv_data(:, :, 1)*w(:, :)*my_adiabatic_rescale_factor
+               NULLIFY (deriv_data)
+            END IF
+            deriv_att => xc_dset_get_derivative(deriv_set, [deriv_tau_b])
+            IF (ASSOCIATED(deriv_att)) THEN
+               CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
+               vtau(:, :, 2) = deriv_data(:, :, 1)*w(:, :)*my_adiabatic_rescale_factor
+               NULLIFY (deriv_data)
+            END IF
+            deriv_att => xc_dset_get_derivative(deriv_set, [deriv_tau])
+            IF (ASSOCIATED(deriv_att)) THEN
+               CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
+               vtau(:, :, 1) = vtau(:, :, 1) + deriv_data(:, :, 1)*w(:, :)*my_adiabatic_rescale_factor
+               vtau(:, :, 2) = vtau(:, :, 2) + deriv_data(:, :, 1)*w(:, :)*my_adiabatic_rescale_factor
+               NULLIFY (deriv_data)
+            END IF
+         ELSE
+            deriv_att => xc_dset_get_derivative(deriv_set, [deriv_tau])
+            IF (ASSOCIATED(deriv_att)) THEN
+               CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
+               vtau(:, :, 1) = deriv_data(:, :, 1)*w(:, :)*my_adiabatic_rescale_factor
+               NULLIFY (deriv_data)
+            END IF
+         END IF ! lsd
+      END IF ! only_energy
+
+      CALL timestop(handle)
+
+   END SUBROUTINE vxc_of_r_new
+
+! **************************************************************************************************
+!> \brief Specific EPR version of vxc_of_r_new
+!> \param xc_fun_section ...
+!> \param rho_set ...
+!> \param deriv_set ...
+!> \param needs ...
+!> \param w ...
+!> \param lsd ...
+!> \param na ...
+!> \param nr ...
+!> \param exc ...
+!> \param vxc ...
+!> \param vxg ...
+!> \param vtau ...
+! **************************************************************************************************
+   SUBROUTINE vxc_of_r_epr(xc_fun_section, rho_set, deriv_set, needs, w, &
+                           lsd, na, nr, exc, vxc, vxg, vtau)
+
+      TYPE(section_vals_type), POINTER                   :: xc_fun_section
+      TYPE(xc_rho_set_type), INTENT(IN)                  :: rho_set
+      TYPE(xc_derivative_set_type), INTENT(IN)           :: deriv_set
+      TYPE(xc_rho_cflags_type), INTENT(in)               :: needs
+      REAL(dp), DIMENSION(:, :), POINTER                 :: w
+      LOGICAL, INTENT(IN)                                :: lsd
+      INTEGER, INTENT(in)                                :: na, nr
+      REAL(dp)                                           :: exc
+      REAL(dp), DIMENSION(:, :, :), POINTER              :: vxc
+      REAL(dp), DIMENSION(:, :, :, :), POINTER           :: vxg
+      REAL(dp), DIMENSION(:, :, :), POINTER              :: vtau
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'vxc_of_r_epr'
+
+      INTEGER                                            :: handle, ia, idir, ir, my_deriv_order
+      LOGICAL                                            :: gradient_f
+      REAL(dp)                                           :: my_adiabatic_rescale_factor
+      REAL(dp), DIMENSION(:, :, :), POINTER              :: deriv_data
+      REAL(KIND=dp)                                      :: drho_cutoff
+      TYPE(xc_derivative_type), POINTER                  :: deriv_att
+
+      CALL timeset(routineN, handle)
+
+      MARK_USED(vxc)
+      MARK_USED(vtau)
+
+      my_adiabatic_rescale_factor = 1.0_dp
+      my_deriv_order = 2
 
       gradient_f = (needs%drho_spin .OR. needs%norm_drho_spin .OR. &
                     needs%drho .OR. needs%norm_drho)
 
-!  Calculate the derivatives
+      !  Calculate the derivatives
       CALL xc_functionals_eval(xc_fun_section, &
                                lsd=lsd, &
                                rho_set=rho_set, &
@@ -127,207 +338,52 @@ CONTAINS
 
       NULLIFY (deriv_data)
 
-      IF (my_epr_xc) THEN
-         ! nabla v_xc (using the vxg arrays)
-         ! there's no point doing this when lsd = false
-         IF (lsd) THEN
-            deriv_att => xc_dset_get_derivative(deriv_set, [deriv_rhoa, deriv_rhoa])
-            IF (ASSOCIATED(deriv_att)) THEN
-               CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
-               DO ir = 1, nr
-                  DO ia = 1, na
-                     DO idir = 1, 3
-                        vxg(idir, ia, ir, 1) = rho_set%drhoa(idir)%array(ia, ir, 1)* &
-                                               deriv_data(ia, ir, 1)
-                     END DO !idir
-                  END DO !ia
-               END DO !ir
-               NULLIFY (deriv_data)
-            END IF
-            deriv_att => xc_dset_get_derivative(deriv_set, [deriv_rhob, deriv_rhob])
-            IF (ASSOCIATED(deriv_att)) THEN
-               CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
-               DO ir = 1, nr
-                  DO ia = 1, na
-                     DO idir = 1, 3
-                        vxg(idir, ia, ir, 2) = rho_set%drhob(idir)%array(ia, ir, 1)* &
-                                               deriv_data(ia, ir, 1)
-                     END DO !idir
-                  END DO !ia
-               END DO !ir
-               NULLIFY (deriv_data)
-            END IF
-         END IF
-         !  EXC energy ! is that needed for epr?
-         deriv_att => xc_dset_get_derivative(deriv_set, [INTEGER::])
-         exc = 0.0_dp
+      ! nabla v_xc (using the vxg arrays)
+      ! there's no point doing this when lsd = false
+      IF (lsd) THEN
+         deriv_att => xc_dset_get_derivative(deriv_set, [deriv_rhoa, deriv_rhoa])
          IF (ASSOCIATED(deriv_att)) THEN
             CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
             DO ir = 1, nr
                DO ia = 1, na
-                  exc = exc + deriv_data(ia, ir, 1)*w(ia, ir)
-               END DO
-            END DO
+                  DO idir = 1, 3
+                     vxg(idir, ia, ir, 1) = rho_set%drhoa(idir)%array(ia, ir, 1)* &
+                                            deriv_data(ia, ir, 1)
+                  END DO !idir
+               END DO !ia
+            END DO !ir
             NULLIFY (deriv_data)
          END IF
-      ELSE
-!  EXC energy
-         deriv_att => xc_dset_get_derivative(deriv_set, [INTEGER::])
-         exc = 0.0_dp
+         deriv_att => xc_dset_get_derivative(deriv_set, [deriv_rhob, deriv_rhob])
          IF (ASSOCIATED(deriv_att)) THEN
             CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
             DO ir = 1, nr
                DO ia = 1, na
-                  exc = exc + deriv_data(ia, ir, 1)*w(ia, ir)
-               END DO
-            END DO
+                  DO idir = 1, 3
+                     vxg(idir, ia, ir, 2) = rho_set%drhob(idir)%array(ia, ir, 1)* &
+                                            deriv_data(ia, ir, 1)
+                  END DO !idir
+               END DO !ia
+            END DO !ir
             NULLIFY (deriv_data)
          END IF
-         ! Calculate the potential only if needed
-         IF (.NOT. my_only_energy) THEN
-!  Derivative with respect to the density
-            IF (lsd) THEN
-               deriv_att => xc_dset_get_derivative(deriv_set, [deriv_rhoa])
-               IF (ASSOCIATED(deriv_att)) THEN
-                  CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
-                  vxc(:, :, 1) = deriv_data(:, :, 1)*w(:, :)*my_adiabatic_rescale_factor
-                  NULLIFY (deriv_data)
-               END IF
-               deriv_att => xc_dset_get_derivative(deriv_set, [deriv_rhob])
-               IF (ASSOCIATED(deriv_att)) THEN
-                  CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
-                  vxc(:, :, 2) = deriv_data(:, :, 1)*w(:, :)*my_adiabatic_rescale_factor
-                  NULLIFY (deriv_data)
-               END IF
-               deriv_att => xc_dset_get_derivative(deriv_set, [deriv_rho])
-               IF (ASSOCIATED(deriv_att)) THEN
-                  CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
-                  vxc(:, :, 1) = vxc(:, :, 1) + deriv_data(:, :, 1)*w(:, :)*my_adiabatic_rescale_factor
-                  vxc(:, :, 2) = vxc(:, :, 2) + deriv_data(:, :, 1)*w(:, :)*my_adiabatic_rescale_factor
-                  NULLIFY (deriv_data)
-               END IF
-            ELSE
-               deriv_att => xc_dset_get_derivative(deriv_set, [deriv_rho])
-               IF (ASSOCIATED(deriv_att)) THEN
-                  CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
-                  vxc(:, :, 1) = deriv_data(:, :, 1)*w(:, :)*my_adiabatic_rescale_factor
-                  NULLIFY (deriv_data)
-               END IF
-            END IF ! lsd
-
-!  Derivatives with respect to the gradient
-            IF (lsd) THEN
-               deriv_att => xc_dset_get_derivative(deriv_set, [deriv_norm_drhoa])
-               IF (ASSOCIATED(deriv_att)) THEN
-                  CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
-                  DO ir = 1, nr
-                     DO ia = 1, na
-                        DO idir = 1, 3
-                           IF (rho_set%norm_drhoa(ia, ir, 1) > drho_cutoff) THEN
-                              vxg(idir, ia, ir, 1) = rho_set%drhoa(idir)%array(ia, ir, 1)* &
-                                                     deriv_data(ia, ir, 1)*w(ia, ir)/ &
-                                                     rho_set%norm_drhoa(ia, ir, 1)*my_adiabatic_rescale_factor
-                           ELSE
-                              vxg(idir, ia, ir, 1) = 0.0_dp
-                           END IF
-                        END DO
-                     END DO
-                  END DO
-                  NULLIFY (deriv_data)
-               END IF
-               deriv_att => xc_dset_get_derivative(deriv_set, [deriv_norm_drhob])
-               IF (ASSOCIATED(deriv_att)) THEN
-                  CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
-                  DO ir = 1, nr
-                     DO ia = 1, na
-                        DO idir = 1, 3
-                           IF (rho_set%norm_drhob(ia, ir, 1) > drho_cutoff) THEN
-                              vxg(idir, ia, ir, 2) = rho_set%drhob(idir)%array(ia, ir, 1)* &
-                                                     deriv_data(ia, ir, 1)*w(ia, ir)/ &
-                                                     rho_set%norm_drhob(ia, ir, 1)*my_adiabatic_rescale_factor
-                           ELSE
-                              vxg(idir, ia, ir, 2) = 0.0_dp
-                           END IF
-                        END DO
-                     END DO
-                  END DO
-                  NULLIFY (deriv_data)
-               END IF
-               ! Cross Terms
-               deriv_att => xc_dset_get_derivative(deriv_set, [deriv_norm_drho])
-               IF (ASSOCIATED(deriv_att)) THEN
-                  CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
-                  DO ir = 1, nr
-                     DO ia = 1, na
-                        DO idir = 1, 3
-                           IF (rho_set%norm_drho(ia, ir, 1) > drho_cutoff) THEN
-                              vxg(idir, ia, ir, 1:2) = &
-                                 vxg(idir, ia, ir, 1:2) + ( &
-                                 rho_set%drhoa(idir)%array(ia, ir, 1) + &
-                                 rho_set%drhob(idir)%array(ia, ir, 1))* &
-                                 deriv_data(ia, ir, 1)*w(ia, ir)/rho_set%norm_drho(ia, ir, 1)* &
-                                 my_adiabatic_rescale_factor
-                           END IF
-                        END DO
-                     END DO
-                  END DO
-                  NULLIFY (deriv_data)
-               END IF
-            ELSE
-               deriv_att => xc_dset_get_derivative(deriv_set, [deriv_norm_drho])
-               IF (ASSOCIATED(deriv_att)) THEN
-                  CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
-                  DO ir = 1, nr
-                     DO ia = 1, na
-                        IF (rho_set%norm_drho(ia, ir, 1) > drho_cutoff) THEN
-                           DO idir = 1, 3
-                              vxg(idir, ia, ir, 1) = rho_set%drho(idir)%array(ia, ir, 1)* &
-                                                     deriv_data(ia, ir, 1)*w(ia, ir)/ &
-                                                     rho_set%norm_drho(ia, ir, 1)*my_adiabatic_rescale_factor
-                           END DO
-                        ELSE
-                           vxg(1:3, ia, ir, 1) = 0.0_dp
-                        END IF
-                     END DO
-                  END DO
-                  NULLIFY (deriv_data)
-               END IF
-            END IF ! lsd
-!  Derivative with respect to tau
-            IF (lsd) THEN
-               deriv_att => xc_dset_get_derivative(deriv_set, [deriv_tau_a])
-               IF (ASSOCIATED(deriv_att)) THEN
-                  CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
-                  vtau(:, :, 1) = deriv_data(:, :, 1)*w(:, :)*my_adiabatic_rescale_factor
-                  NULLIFY (deriv_data)
-               END IF
-               deriv_att => xc_dset_get_derivative(deriv_set, [deriv_tau_b])
-               IF (ASSOCIATED(deriv_att)) THEN
-                  CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
-                  vtau(:, :, 2) = deriv_data(:, :, 1)*w(:, :)*my_adiabatic_rescale_factor
-                  NULLIFY (deriv_data)
-               END IF
-               deriv_att => xc_dset_get_derivative(deriv_set, [deriv_tau])
-               IF (ASSOCIATED(deriv_att)) THEN
-                  CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
-                  vtau(:, :, 1) = vtau(:, :, 1) + deriv_data(:, :, 1)*w(:, :)*my_adiabatic_rescale_factor
-                  vtau(:, :, 2) = vtau(:, :, 2) + deriv_data(:, :, 1)*w(:, :)*my_adiabatic_rescale_factor
-                  NULLIFY (deriv_data)
-               END IF
-            ELSE
-               deriv_att => xc_dset_get_derivative(deriv_set, [deriv_tau])
-               IF (ASSOCIATED(deriv_att)) THEN
-                  CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
-                  vtau(:, :, 1) = deriv_data(:, :, 1)*w(:, :)*my_adiabatic_rescale_factor
-                  NULLIFY (deriv_data)
-               END IF
-            END IF ! lsd
-         END IF ! only_energy
-      END IF ! epr_xc
+      END IF
+      !  EXC energy ! is that needed for epr?
+      deriv_att => xc_dset_get_derivative(deriv_set, [INTEGER::])
+      exc = 0.0_dp
+      IF (ASSOCIATED(deriv_att)) THEN
+         CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
+         DO ir = 1, nr
+            DO ia = 1, na
+               exc = exc + deriv_data(ia, ir, 1)*w(ia, ir)
+            END DO
+         END DO
+         NULLIFY (deriv_data)
+      END IF
 
       CALL timestop(handle)
 
-   END SUBROUTINE vxc_of_r_new
+   END SUBROUTINE vxc_of_r_epr
 
 ! **************************************************************************************************
 !> \brief ...
