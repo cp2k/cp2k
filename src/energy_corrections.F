@@ -3040,10 +3040,19 @@ CONTAINS
       skip_load_balance_distributed = dft_control%qs_control%skip_load_balance_distributed
       IF (ASSOCIATED(ec_env%task_list)) CALL deallocate_task_list(ec_env%task_list)
       CALL allocate_task_list(ec_env%task_list)
-      CALL generate_qs_task_list(ks_env, ec_env%task_list, &
-                                 reorder_rs_grid_ranks=.FALSE., soft_valid=.FALSE., &
+      CALL generate_qs_task_list(ks_env, ec_env%task_list, basis_type="HARRIS", &
+                                 reorder_rs_grid_ranks=.FALSE., &
                                  skip_load_balance_distributed=skip_load_balance_distributed, &
-                                 basis_type="HARRIS", sab_orb_external=ec_env%sab_orb)
+                                 sab_orb_external=ec_env%sab_orb)
+      ! Task list soft
+      IF (dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc) THEN
+         IF (ASSOCIATED(ec_env%task_list_soft)) CALL deallocate_task_list(ec_env%task_list_soft)
+         CALL allocate_task_list(ec_env%task_list_soft)
+         CALL generate_qs_task_list(ks_env, ec_env%task_list, basis_type="HARRIS_SOFT", &
+                                    reorder_rs_grid_ranks=.FALSE., &
+                                    skip_load_balance_distributed=skip_load_balance_distributed, &
+                                    sab_orb_external=ec_env%sab_orb)
+      END IF
 
       CALL timestop(handle)
 

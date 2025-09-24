@@ -91,6 +91,7 @@ MODULE ec_env_types
          DIMENSION(:), POINTER                         :: sab_orb => Null(), sac_ppl => Null(), &
                                                           sac_ae => Null(), sap_ppnl => Null()
       TYPE(task_list_type), POINTER                    :: task_list => Null()
+      TYPE(task_list_type), POINTER                    :: task_list_soft => Null()
       ! the XC function to be used for the correction, dispersion info
       TYPE(section_vals_type), POINTER                 :: xc_section => Null()
       TYPE(qs_dispersion_type), POINTER                :: dispersion_env => Null()
@@ -169,6 +170,9 @@ CONTAINS
          IF (ASSOCIATED(ec_env%matrix_w)) CALL dbcsr_deallocate_matrix_set(ec_env%matrix_w)
          IF (ASSOCIATED(ec_env%task_list)) THEN
             CALL deallocate_task_list(ec_env%task_list)
+         END IF
+         IF (ASSOCIATED(ec_env%task_list_soft)) THEN
+            CALL deallocate_task_list(ec_env%task_list_soft)
          END IF
          ! reduced basis
          IF (ASSOCIATED(ec_env%mao_coef)) CALL dbcsr_deallocate_matrix_set(ec_env%mao_coef)
