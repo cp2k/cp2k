@@ -92,6 +92,7 @@ MODULE tblite_interface
 
    INTEGER, PARAMETER                                 :: dip_n = 3
    INTEGER, PARAMETER                                 :: quad_n = 6
+   REAL(KIND=dp), PARAMETER                           :: same_atom = 0.00001_dp
 
    PUBLIC :: tb_set_calculator, tb_init_geometry, tb_init_wf
    PUBLIC :: tb_get_basis, build_tblite_matrices
@@ -801,7 +802,7 @@ CONTAINS
          END IF
 
          ! --------- Hamiltonian
-         IF (icol == irow .AND. dr < 0.001_dp) THEN
+         IF (icol == irow .AND. dr < same_atom) THEN
             !get diagonal F matrix from selfenergy
             n1 = tb%calc%bas%ish_at(icol)
             DO iset = 1, nseta
@@ -2105,10 +2106,10 @@ CONTAINS
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa, first_sgfb
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: found
-      REAL(KIND=dp)                                      :: r2, itemp, jtemp, rr, hij, shpoly, dshpoly, idHdc, jdHdc, &
+      REAL(KIND=dp)                                      :: r2, dr, itemp, jtemp, rr, hij, shpoly, dshpoly, idHdc, jdHdc, &
                                                             scal, hp, i_a_shift, j_a_shift, ishift, jshift
       REAL(KIND=dp), DIMENSION(3)                        :: rij, dgrad
-      REAL(KIND=dp), DIMENSION(3, 3)                      :: hsigma
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: hsigma
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: dE, t_ov, idip, jdip, iquad, jquad
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: t_dip, t_quad, t_d_ov
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: t_i_dip, t_i_quad, t_j_dip, t_j_quad
@@ -2185,8 +2186,6 @@ CONTAINS
          CALL get_iterator_info(nl_iterator, ikind=ikind, jkind=jkind, &
                                 iatom=iatom, jatom=jatom, r=rij, cell=cellind)
 
-         IF (iatom == jatom) CYCLE
-
          icol = MAX(iatom, jatom)
          jrow = MIN(iatom, jatom)
 
@@ -2200,9 +2199,10 @@ CONTAINS
          ityp = tb%mol%id(icol)
          jtyp = tb%mol%id(jrow)
 
-         r2 = NORM2(rij(:))
-         rr = SQRT(r2/(h0%rad(ikind) + h0%rad(jkind)))
-         r2 = r2**2
+         r2 = DOT_PRODUCT(rij, rij)
+         dr = SQRT(r2)
+         IF (icol == jrow .AND. dr < same_atom) CYCLE
+         rr = SQRT(dr/(h0%rad(ikind) + h0%rad(jkind)))
 
          !get basis information
          basis_set_a => basis_set_list(ikind)%gto_basis_set
@@ -2296,18 +2296,20 @@ CONTAINS
                dE(jrow) = dE(jrow) + jtemp
                tb%grad(:, icol) = tb%grad(:, icol) - dgrad
                tb%grad(:, jrow) = tb%grad(:, jrow) + dgrad
-               IF ((tb%use_virial) .AND. (icol == jrow)) THEN
-                  DO ia = 1, 3
-                     DO ib = 1, 3
-                        hsigma(ia, ib) = hsigma(ia, ib) + 0.25_dp*(rij(ia)*dgrad(ib) + rij(ib)*dgrad(ia))
+               IF (tb%use_virial) THEN
+                  IF (icol == jrow) THEN
+                     DO ia = 1, 3
+                        DO ib = 1, 3
+                           hsigma(ia, ib) = hsigma(ia, ib) + 0.25_dp*(rij(ia)*dgrad(ib) + rij(ib)*dgrad(ia))
+                        END DO
                      END DO
-                  END DO
-               ELSE
-                  DO ia = 1, 3
-                     DO ib = 1, 3
-                        hsigma(ia, ib) = hsigma(ia, ib) + 0.50_dp*(rij(ia)*dgrad(ib) + rij(ib)*dgrad(ia))
+                  ELSE
+                     DO ia = 1, 3
+                        DO ib = 1, 3
+                           hsigma(ia, ib) = hsigma(ia, ib) + 0.50_dp*(rij(ia)*dgrad(ib) + rij(ib)*dgrad(ia))
+                        END DO
                      END DO
-                  END DO
+                  END IF
                END IF
             END DO
          END DO
@@ -2315,17 +2317,17 @@ CONTAINS
       CALL neighbor_list_iterator_release(nl_iterator)
 
       CALL para_env%sum(hsigma)
-      tb%sigma = tb%sigma + hsigma
-
       CALL para_env%sum(dE)
       CALL para_env%sum(tb%grad)
+
       CALL tb_add_grad(tb%grad, tb%dcndr, dE, tb%mol%nat)
-      IF (tb%use_virial) CALL tb_add_sig(tb%sigma, tb%dcndL, dE, tb%mol%nat)
       CALL tb_grad2force(qs_env, tb, para_env, 4)
+
+      tb%sigma = tb%sigma + hsigma
+      IF (tb%use_virial) CALL tb_add_sig(tb%sigma, tb%dcndL, dE, tb%mol%nat)
 
       DEALLOCATE (dE)
       DEALLOCATE (basis_set_list)
-
       DEALLOCATE (t_ov, t_d_ov)
       DEALLOCATE (t_dip, t_i_dip, t_j_dip)
       DEALLOCATE (t_quad, t_i_quad, t_j_quad)
@@ -2354,10 +2356,11 @@ CONTAINS
       TYPE(tblite_type)                                  :: tb
       TYPE(mp_para_env_type)                             :: para_env
 
+      TYPE(cell_type), POINTER                           :: cell
       TYPE(virial_type), POINTER                         :: virial
 
-      NULLIFY (virial)
-      CALL get_qs_env(qs_env=qs_env, virial=virial)
+      NULLIFY (virial, cell)
+      CALL get_qs_env(qs_env=qs_env, virial=virial, cell=cell)
 
       virial%pv_virial = virial%pv_virial - tb%sigma/para_env%num_pe
 
