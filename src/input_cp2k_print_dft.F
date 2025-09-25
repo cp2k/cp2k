@@ -641,12 +641,18 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL create_mo_cubes_section(print_key)
+      CALL create_mo_section(print_key, "MO_CUBES", "cube", (/2, 2, 2/), "STRIDE 1 1 1", high_print_level, "")
+      CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
+                          description="append the cube files when they already exist", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
 #ifdef __OPENPMD
-      CALL create_mo_openpmd_section(print_key)
+      CALL create_mo_section(print_key, "MO_OPENPMD", "openPMD", (/1, 1, 1/), "STRIDE 2 2 2", debug_print_level + 1, "")
+      CALL add_generic_openpmd_arguments(print_key)
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 #endif
@@ -1006,8 +1012,8 @@ CONTAINS
       CALL create_elf_print_section(print_key, "ELF_OPENPMD", &
                                     "openPMD", &
                                     (/1, 1, 1/), "STRIDE 1 1 1", debug_print_level + 1, "")
+      CALL add_generic_openpmd_arguments(print_key)
       CALL section_add_subsection(section, print_key)
-      CALL add_generic_openpmd_arguments(print_key, keyword)
       CALL section_release(print_key)
 #endif
 
@@ -2138,28 +2144,31 @@ CONTAINS
 !> \brief creates the input section for dealing with homo lumos, including dumping cubes
 !> \param print_key ...
 ! **************************************************************************************************
-   SUBROUTINE create_mo_cubes_section(print_key)
-      TYPE(section_type), POINTER                        :: print_key
+   SUBROUTINE create_mo_section(print_key, section_name, description, stride_default, stride_usage, print_level, filename)
+      TYPE(section_type), POINTER :: print_key
+      CHARACTER(len=*), INTENT(IN) :: section_name, description, stride_usage, filename
+      INTEGER, DIMENSION(3), INTENT(IN) :: stride_default
+      INTEGER, INTENT(IN) :: print_level
 
       TYPE(keyword_type), POINTER                        :: keyword
 
       NULLIFY (keyword)
 
-      CALL cp_print_key_section_create(print_key, __LOCATION__, "MO_CUBES", &
-                                       description="Controls the printing of the molecular orbitals (MOs) as cube files."// &
+      CALL cp_print_key_section_create(print_key, __LOCATION__, section_name, &
+                    description="Controls the printing of the molecular orbitals (MOs) as"//TRIM(ADJUSTL(description))//"files."// &
                                        " It can be used during a Real Time calculation to print the MOs."// &
                                        " In this case, the density corresponding to the time dependent MO is printed"// &
                                        " instead of the wave-function.", &
-                                       print_level=high_print_level, filename="")
+                                       print_level=print_level, filename="")
       CALL keyword_create(keyword, __LOCATION__, name="stride", &
-                          description="The stride (X,Y,Z) used to write the cube file "// &
-                          "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
+                          description="The stride (X,Y,Z) used to write the"//TRIM(ADJUSTL(description))//"file "// &
+              "(larger values result in smaller"//TRIM(ADJUSTL(description))//"files). You can provide 3 numbers (for X,Y,Z) or"// &
                           " 1 number valid for all components.", &
-                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+                          usage=stride_usage, n_var=-1, default_i_vals=stride_default, type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="write_cube", &
+      CALL keyword_create(keyword, __LOCATION__, name="write_openpmd", &
                           description="If the MO cube file should be written. If false, the eigenvalues are still computed."// &
                           " Can also be useful in combination with STM calculations", &
                           default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
@@ -2168,13 +2177,13 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="nlumo", &
                           description="If the printkey is activated controls the number of lumos"// &
-                          " that are printed and dumped as a cube (-1=all)", &
+                          " that are printed and dumped as"//TRIM(ADJUSTL(description))//"(-1=all)", &
                           default_i_val=0)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create( &
          keyword, __LOCATION__, name="nhomo", &
-         description="If the printkey is activated controls the number of homos that dumped as a cube (-1=all),"// &
+ description="If the printkey is activated controls the number of homos that dumped as"//TRIM(ADJUSTL(description))//"(-1=all),"// &
          " eigenvalues are always all dumped", &
          default_i_val=1)
       CALL section_add_keyword(print_key, keyword)
@@ -2182,26 +2191,22 @@ CONTAINS
 
       CALL keyword_create( &
          keyword, __LOCATION__, name="homo_list", &
-         description="If the printkey is activated controls the index of homos dumped as a cube,"// &
+         description="If the printkey is activated controls the index of homos dumped as openPMD,"// &
          " eigenvalues are always all dumped. It overrides nhomo.", &
          usage="HOMO_LIST {integer}  {integer} ..  {integer} ", type_of_var=integer_t, &
          n_var=-1, repeats=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
-                          description="append the cube files when they already exist", &
-                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
-
-   END SUBROUTINE create_mo_cubes_section
+   END SUBROUTINE create_mo_section
 
 #ifdef __OPENPMD
 
-   SUBROUTINE add_generic_openpmd_arguments(print_key, keyword)
+   SUBROUTINE add_generic_openpmd_arguments(print_key)
       TYPE(section_type), POINTER                        :: print_key
+
       TYPE(keyword_type), POINTER                        :: keyword
+      NULLIFY (keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="OPENPMD_EXTENSION", &
       description="Filename extension for openPMD files, including the dot and (for optionally activating file encoding) a file expansion pattern.", default_c_val="_%06T." // openpmd_get_default_extension(), &
@@ -2223,61 +2228,6 @@ CONTAINS
 
    END SUBROUTINE
 
-   !! TODO update descriptions, trim unneeded bits, add needed bits
-   SUBROUTINE create_mo_openpmd_section(print_key)
-      TYPE(section_type), POINTER                        :: print_key
-
-      TYPE(keyword_type), POINTER                        :: keyword
-
-      NULLIFY (keyword)
-
-      CALL cp_print_key_section_create(print_key, __LOCATION__, "MO_OPENPMD", &
-                                       description="Controls the printing of the molecular orbitals (MOs) as openPMD files."// &
-                                       " It can be used during a Real Time calculation to print the MOs."// &
-                                       " In this case, the density corresponding to the time dependent MO is printed"// &
-                                       " instead of the wave-function.", &
-                                       print_level=debug_print_level + 1, filename="")
-      CALL keyword_create(keyword, __LOCATION__, name="stride", &
-                          description="The stride (X,Y,Z) used to write the openPMD file "// &
-                          "(larger values result in smaller openPMD files). You can provide 3 numbers (for X,Y,Z) or"// &
-                          " 1 number valid for all components.", &
-                          usage="STRIDE 1 1 1", n_var=-1, default_i_vals=(/1, 1, 1/), type_of_var=integer_t)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="write_openpmd", &
-                          description="If the MO cube file should be written. If false, the eigenvalues are still computed."// &
-                          " Can also be useful in combination with STM calculations", &
-                          default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="nlumo", &
-                          description="If the printkey is activated controls the number of lumos"// &
-                          " that are printed and dumped as openPMD (-1=all)", &
-                          default_i_val=0)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
-      CALL keyword_create( &
-         keyword, __LOCATION__, name="nhomo", &
-         description="If the printkey is activated controls the number of homos that dumped as openPMD (-1=all),"// &
-         " eigenvalues are always all dumped", &
-         default_i_val=1)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create( &
-         keyword, __LOCATION__, name="homo_list", &
-         description="If the printkey is activated controls the index of homos dumped as openPMD,"// &
-         " eigenvalues are always all dumped. It overrides nhomo.", &
-         usage="HOMO_LIST {integer}  {integer} ..  {integer} ", type_of_var=integer_t, &
-         n_var=-1, repeats=.TRUE.)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
-
-      CALL add_generic_openpmd_arguments(print_key, keyword)
-
-   END SUBROUTINE create_mo_openpmd_section
 
    SUBROUTINE create_e_density_openpmd_section(print_key)
       TYPE(section_type), POINTER                        :: print_key
@@ -2323,7 +2273,7 @@ CONTAINS
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
-      CALL add_generic_openpmd_arguments(print_key, keyword)
+      CALL add_generic_openpmd_arguments(print_key)
 
    END SUBROUTINE
 #endif
