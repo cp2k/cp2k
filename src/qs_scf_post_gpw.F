@@ -484,6 +484,9 @@ CONTAINS
       do_openpmd = BTEST(cp_print_key_should_output( &
                          logger%iter_info, input, &
                          "DFT%"//TRIM(ADJUSTL(str_openpmd))), cp_p_file)
+      ! Having Cube and openPMD output both active should be theoretically possible.
+      ! It would require some extra handling for the unit_nr return values.
+      ! (e.g. returning the Cube unit_nr and internally storing the associated openPMD unit_nr).
       CPASSERT(.NOT. (do_cubes .AND. do_openpmd))
       res%do_output = do_cubes .OR. do_openpmd
       IF (do_openpmd) THEN
