@@ -1007,7 +1007,7 @@ CONTAINS
                                        " the electron localization function (ELF). Note that"// &
                                        " the value of ELF is defined between 0 and 1: Pauli kinetic energy density normalized"// &
                                        " by the kinetic energy density of a uniform el. gas of same density.", &
-                                       print_level=high_print_level, filename="")
+                                       print_level=debug_print_level + 1, filename="")
       CALL keyword_create(keyword, __LOCATION__, name="stride", &
                           description="The stride (X,Y,Z) used to write the openPMD file "// &
                           "(larger values result in smaller openPMD files). You can provide 3 numbers (for X,Y,Z) or"// &
@@ -2259,7 +2259,7 @@ CONTAINS
                                        " It can be used during a Real Time calculation to print the MOs."// &
                                        " In this case, the density corresponding to the time dependent MO is printed"// &
                                        " instead of the wave-function.", &
-                                       print_level=high_print_level, filename="")
+                                       print_level=debug_print_level + 1, filename="")
       CALL keyword_create(keyword, __LOCATION__, name="stride", &
                           description="The stride (X,Y,Z) used to write the openPMD file "// &
                           "(larger values result in smaller openPMD files). You can provide 3 numbers (for X,Y,Z) or"// &
@@ -2312,7 +2312,7 @@ CONTAINS
       CALL cp_print_key_section_create(print_key, __LOCATION__, name="E_DENSITY_OPENPMD", &
                                        description="Controls the printing of openPMD files with "// &
                                        "the electronic density and, for LSD calculations, the spin density.", &
-                                       print_level=high_print_level, filename="")
+                                       print_level=debug_print_level + 1, filename="")
       CALL keyword_create(keyword, __LOCATION__, name="stride", &
                           description="The stride (X,Y,Z) used to write the openPMD file "// &
                           "(larger values result in smaller openPMD files). You can provide 3 numbers (for X,Y,Z) or"// &
