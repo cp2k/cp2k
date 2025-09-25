@@ -180,6 +180,38 @@ MODULE input_cp2k_print_dft
 CONTAINS
 
 ! **************************************************************************************************
+!> \brief Helper to create ELF print sections (cube or openPMD)
+!> \param print_key section handle (output)
+!> \param section_name name of the section (e.g. "ELF_CUBE" or "ELF_OPENPMD")
+!> \param description Either "cube" or "openPMD", for the descriptions.
+!> \param stride_default default stride values
+!> \param stride_usage usage string for stride
+!> \param print_level print level
+!> \param filename output filename (empty string for default)
+   SUBROUTINE create_elf_print_section(print_key, section_name, description, stride_default, stride_usage, print_level, filename)
+      TYPE(section_type), POINTER :: print_key
+      CHARACTER(len=*), INTENT(IN) :: section_name, description, stride_usage, filename
+      INTEGER, DIMENSION(3), INTENT(IN) :: stride_default
+      INTEGER, INTENT(IN) :: print_level
+      TYPE(keyword_type), POINTER :: keyword
+
+      CALL cp_print_key_section_create(print_key, __LOCATION__, section_name, &
+         description="Controls printing of "//TRIM(ADJUSTL(description))//" files with the electron localization function (ELF). Note that the value of ELF is defined between 0 and 1: Pauli kinetic energy density normalized by the kinetic energy density of a uniform el. gas of same density.", print_level=print_level, filename=filename)
+
+      CALL keyword_create(keyword, __LOCATION__, name="stride", &
+         description="The stride (X,Y,Z) used to write the file (larger values result in smaller files). You can provide 3 numbers (for X,Y,Z) or 1 number valid for all components.", &
+                          usage=stride_usage, n_var=-1, default_i_vals=stride_default, type_of_var=integer_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="density_cutoff", &
+                          description=" ", usage="density_cutoff 0.0001", repeats=.FALSE., n_var=1, &
+                          type_of_var=real_t, default_r_val=1.0e-10_dp)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+   END SUBROUTINE create_elf_print_section
+
+! **************************************************************************************************
 !> \brief Create the print dft section
 !> \param section the section to create
 !> \author teo
@@ -968,32 +1000,12 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL cp_print_key_section_create(print_key, __LOCATION__, "ELF_CUBE", &
-                                       description="Controls printing of cube files with"// &
-                                       " the electron localization function (ELF). Note that"// &
-                                       " the value of ELF is defined between 0 and 1: Pauli kinetic energy density normalized"// &
-                                       " by the kinetic energy density of a uniform el. gas of same density.", &
-                                       print_level=high_print_level, filename="")
-      CALL keyword_create(keyword, __LOCATION__, name="stride", &
-                          description="The stride (X,Y,Z) used to write the cube file "// &
-                          "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
-                          " 1 number valid for all components.", &
-                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=[2, 2, 2], type_of_var=integer_t)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
+      CALL create_elf_print_section(print_key, "ELF_CUBE", &
+                                    "cube", &
+                                    [2, 2, 2], "STRIDE 2 2 2", high_print_level, "")
       CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
                           description="append the cube files when they already exist", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="density_cutoff", &
-                          description=" ", &
-                          usage="density_cutoff 0.0001", &
-                          repeats=.FALSE., &
-                          n_var=1, &
-                          type_of_var=real_t, &
-                          default_r_val=1.0e-10_dp)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
@@ -1001,37 +1013,12 @@ CONTAINS
       CALL section_release(print_key)
 
 #ifdef __OPENPMD
-
-      CALL cp_print_key_section_create(print_key, __LOCATION__, "ELF_OPENPMD", &
-                                       description="Controls printing of openPMD files with"// &
-                                       " the electron localization function (ELF). Note that"// &
-                                       " the value of ELF is defined between 0 and 1: Pauli kinetic energy density normalized"// &
-                                       " by the kinetic energy density of a uniform el. gas of same density.", &
-                                       print_level=debug_print_level + 1, filename="")
-      CALL keyword_create(keyword, __LOCATION__, name="stride", &
-                          description="The stride (X,Y,Z) used to write the openPMD file "// &
-                          "(larger values result in smaller openPMD files). You can provide 3 numbers (for X,Y,Z) or"// &
-                          " 1 number valid for all components.", &
-                          usage="STRIDE 1 1 1", n_var=-1, default_i_vals=(/1, 1, 1/), type_of_var=integer_t)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="density_cutoff", &
-                          description=" ", &
-                          usage="density_cutoff 0.0001", &
-                          repeats=.FALSE., &
-                          n_var=1, &
-                          type_of_var=real_t, &
-                          default_r_val=1.0e-10_dp)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
-
+      CALL create_elf_print_section(print_key, "ELF_OPENPMD", &
+                                    "openPMD", &
+                                    [1, 1, 1], "STRIDE 1 1 1", debug_print_level + 1, "")
       CALL section_add_subsection(section, print_key)
-
       CALL add_generic_openpmd_arguments(print_key, keyword)
-
       CALL section_release(print_key)
-
 #endif
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, "LOCAL_ENERGY_CUBE", &
@@ -2264,7 +2251,7 @@ CONTAINS
                           description="The stride (X,Y,Z) used to write the openPMD file "// &
                           "(larger values result in smaller openPMD files). You can provide 3 numbers (for X,Y,Z) or"// &
                           " 1 number valid for all components.", &
-                          usage="STRIDE 1 1 1", n_var=-1, default_i_vals=(/1, 1, 1/), type_of_var=integer_t)
+                          usage="STRIDE 1 1 1", n_var=-1, default_i_vals=[1, 1, 1], type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
@@ -2317,7 +2304,7 @@ CONTAINS
                           description="The stride (X,Y,Z) used to write the openPMD file "// &
                           "(larger values result in smaller openPMD files). You can provide 3 numbers (for X,Y,Z) or"// &
                           " 1 number valid for all components.", &
-                          usage="STRIDE 1 1 1", n_var=-1, default_i_vals=(/1, 1, 1/), type_of_var=integer_t)
+                          usage="STRIDE 1 1 1", n_var=-1, default_i_vals=[1, 1, 1], type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
