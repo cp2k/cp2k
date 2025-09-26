@@ -180,40 +180,6 @@ MODULE input_cp2k_print_dft
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief Helper to create ELF print sections (cube or openPMD)
-!> \param print_key section handle (output)
-!> \param section_name name of the section (e.g. "ELF_CUBE" or "ELF_OPENPMD")
-!> \param description Either "cube" or "openPMD", for the descriptions.
-!> \param stride_default default stride values
-!> \param stride_usage usage string for stride
-!> \param print_level print level
-!> \param filename output filename (empty string for default)
-   SUBROUTINE create_elf_print_section(print_key, section_name, description, stride_default, stride_usage, print_level, filename)
-      TYPE(section_type), POINTER :: print_key
-      CHARACTER(len=*), INTENT(IN) :: section_name, description, stride_usage, filename
-      INTEGER, DIMENSION(3), INTENT(IN) :: stride_default
-      INTEGER, INTENT(IN) :: print_level
-      TYPE(keyword_type), POINTER :: keyword
-
-      NULLIFY (keyword)
-
-      CALL cp_print_key_section_create(print_key, __LOCATION__, section_name, &
-         description="Controls printing of "//TRIM(ADJUSTL(description))//" files with the electron localization function (ELF). Note that the value of ELF is defined between 0 and 1: Pauli kinetic energy density normalized by the kinetic energy density of a uniform el. gas of same density.", print_level=print_level, filename=filename)
-
-      CALL keyword_create(keyword, __LOCATION__, name="stride", &
-         description="The stride (X,Y,Z) used to write the file (larger values result in smaller files). You can provide 3 numbers (for X,Y,Z) or 1 number valid for all components.", &
-                          usage=stride_usage, n_var=-1, default_i_vals=stride_default, type_of_var=integer_t)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="density_cutoff", &
-                          description=" ", usage="density_cutoff 0.0001", repeats=.FALSE., n_var=1, &
-                          type_of_var=real_t, default_r_val=1.0e-10_dp)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
-   END SUBROUTINE create_elf_print_section
-
-! **************************************************************************************************
 !> \brief Create the print dft section
 !> \param section the section to create
 !> \author teo
@@ -760,6 +726,7 @@ CONTAINS
          "STRIDE 1 1 1", &
          debug_print_level + 1, &
          "")
+      CALL add_generic_openpmd_arguments(print_key)
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 #endif
@@ -2124,6 +2091,36 @@ CONTAINS
 
    END SUBROUTINE create_bandstructure_section
 
+#ifdef __OPENPMD
+
+   SUBROUTINE add_generic_openpmd_arguments(print_key)
+      TYPE(section_type), POINTER                        :: print_key
+
+      TYPE(keyword_type), POINTER                        :: keyword
+      NULLIFY (keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="OPENPMD_EXTENSION", &
+      description="Filename extension for openPMD files, including the dot and (for optionally activating file encoding) a file expansion pattern.", default_c_val="_%06T." // openpmd_get_default_extension(), &
+                          type_of_var=char_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="OPENPMD_CFG", &
+      description="Inline runtime config for openPMD output. Note that inline specifications are subject to restrictions imposed by the input file format, making this option useful only for very simple use cases. Refer to OPENPMD_CFG_FILE for anything else.", default_c_val="{}", &
+                          type_of_var=char_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="OPENPMD_CFG_FILE", &
+        description="Runtime config file for openPMD output. This parameter takes precedence over OPENPMD_CFG.", default_c_val="", &
+                          type_of_var=char_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+   END SUBROUTINE
+
+#endif
+
 ! **************************************************************************************************
 !> \brief creates the input section for dealing with homo lumos, including dumping cubes
 !> \param print_key ...
@@ -2192,34 +2189,6 @@ CONTAINS
 
    END SUBROUTINE create_mo_section
 
-#ifdef __OPENPMD
-
-   SUBROUTINE add_generic_openpmd_arguments(print_key)
-      TYPE(section_type), POINTER                        :: print_key
-
-      TYPE(keyword_type), POINTER                        :: keyword
-      NULLIFY (keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="OPENPMD_EXTENSION", &
-      description="Filename extension for openPMD files, including the dot and (for optionally activating file encoding) a file expansion pattern.", default_c_val="_%06T." // openpmd_get_default_extension(), &
-                          type_of_var=char_t)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="OPENPMD_CFG", &
-      description="Inline runtime config for openPMD output. Note that inline specifications are subject to restrictions imposed by the input file format, making this option useful only for very simple use cases. Refer to OPENPMD_CFG_FILE for anything else.", default_c_val="{}", &
-                          type_of_var=char_t)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="OPENPMD_CFG_FILE", &
-        description="Runtime config file for openPMD output. This parameter takes precedence over OPENPMD_CFG.", default_c_val="", &
-                          type_of_var=char_t)
-      CALL section_add_keyword(print_key, keyword)
-      CALL keyword_release(keyword)
-
-   END SUBROUTINE
-
    SUBROUTINE create_e_density_section(print_key, section_name, description, stride_default, stride_usage, print_level, filename)
       TYPE(section_type), POINTER :: print_key
       CHARACTER(len=*), INTENT(IN) :: section_name, description, stride_usage, filename
@@ -2269,10 +2238,41 @@ CONTAINS
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
-      CALL add_generic_openpmd_arguments(print_key)
-
    END SUBROUTINE
-#endif
+
+   ! **************************************************************************************************
+!> \brief Helper to create ELF print sections (cube or openPMD)
+!> \param print_key section handle (output)
+!> \param section_name name of the section (e.g. "ELF_CUBE" or "ELF_OPENPMD")
+!> \param description Either "cube" or "openPMD", for the descriptions.
+!> \param stride_default default stride values
+!> \param stride_usage usage string for stride
+!> \param print_level print level
+!> \param filename output filename (empty string for default)
+   SUBROUTINE create_elf_print_section(print_key, section_name, description, stride_default, stride_usage, print_level, filename)
+      TYPE(section_type), POINTER :: print_key
+      CHARACTER(len=*), INTENT(IN) :: section_name, description, stride_usage, filename
+      INTEGER, DIMENSION(3), INTENT(IN) :: stride_default
+      INTEGER, INTENT(IN) :: print_level
+      TYPE(keyword_type), POINTER :: keyword
+
+      NULLIFY (keyword)
+
+      CALL cp_print_key_section_create(print_key, __LOCATION__, section_name, &
+         description="Controls printing of "//TRIM(ADJUSTL(description))//" files with the electron localization function (ELF). Note that the value of ELF is defined between 0 and 1: Pauli kinetic energy density normalized by the kinetic energy density of a uniform el. gas of same density.", print_level=print_level, filename=filename)
+
+      CALL keyword_create(keyword, __LOCATION__, name="stride", &
+         description="The stride (X,Y,Z) used to write the file (larger values result in smaller files). You can provide 3 numbers (for X,Y,Z) or 1 number valid for all components.", &
+                          usage=stride_usage, n_var=-1, default_i_vals=stride_default, type_of_var=integer_t)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="density_cutoff", &
+                          description=" ", usage="density_cutoff 0.0001", repeats=.FALSE., n_var=1, &
+                          type_of_var=real_t, default_r_val=1.0e-10_dp)
+      CALL section_add_keyword(print_key, keyword)
+      CALL keyword_release(keyword)
+   END SUBROUTINE create_elf_print_section
 
 ! **************************************************************************************************
 !> \brief ...
