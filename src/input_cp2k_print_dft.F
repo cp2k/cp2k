@@ -653,7 +653,7 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL create_mo_section(print_key, "MO_CUBES", "cube", [2, 2, 2], "STRIDE 1 1 1", high_print_level, "")
+      CALL create_mo_section(print_key, "MO_CUBES", "cube", [2, 2, 2], "STRIDE 1 1 1", high_print_level, "", "write_cube")
       CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
                           description="append the cube files when they already exist", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
@@ -663,7 +663,8 @@ CONTAINS
       CALL section_release(print_key)
 
 #ifdef __OPENPMD
-      CALL create_mo_section(print_key, "MO_OPENPMD", "openPMD", [1, 1, 1], "STRIDE 2 2 2", debug_print_level + 1, "")
+      CALL create_mo_section( &
+         print_key, "MO_OPENPMD", "openPMD", [1, 1, 1], "STRIDE 2 2 2", debug_print_level + 1, "", "write_openpmd")
       CALL add_generic_openpmd_arguments(print_key)
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
@@ -2127,9 +2128,9 @@ CONTAINS
 !> \brief creates the input section for dealing with homo lumos, including dumping cubes
 !> \param print_key ...
 ! **************************************************************************************************
-   SUBROUTINE create_mo_section(print_key, section_name, description, stride_default, stride_usage, print_level, filename)
+   SUBROUTINE create_mo_section(print_key, section_name, description, stride_default, stride_usage, print_level, filename, do_write_keyname)
       TYPE(section_type), POINTER :: print_key
-      CHARACTER(len=*), INTENT(IN) :: section_name, description, stride_usage, filename
+      CHARACTER(len=*), INTENT(IN) :: section_name, description, stride_usage, filename, do_write_keyname
       INTEGER, DIMENSION(3), INTENT(IN) :: stride_default
       INTEGER, INTENT(IN) :: print_level
 
@@ -2155,8 +2156,10 @@ CONTAINS
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="write_openpmd", &
-                          description="If the MO cube file should be written. If false, the eigenvalues are still computed."// &
+      CALL keyword_create(keyword, __LOCATION__, name=do_write_keyname, &
+                          description="If the MO " &
+                          //TRIM(ADJUSTL(description)) &
+                          //" file should be written. If false, the eigenvalues are still computed."// &
                           " Can also be useful in combination with STM calculations", &
                           default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
