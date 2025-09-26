@@ -519,6 +519,16 @@ greenX - Open-source file format and library. Support for greenX can be enabled 
 - For more information see <https://github.com/tblite/tblite>
 - Add `-D__TBLITE` to DFLAGS
 
+### 2z-c. openPMD (optional, structured output)
+
+openPMD - Open-source data standard and library. Support for openPMD can be enabled in CMake via
+`-DCP2K_USE_OPENPMD=ON`. CMake is the only supported way of enabling openPMD, use of `-D__OPENPMD`
+as part of DFLAGS may or may not work.
+
+- openPMD-api may be downloaded from <https://github.com/openPMD/openPMD-api/>, a equal to or
+  greater than 0.16.1 is required.
+- For more information see <https://openpmd-api.readthedocs.io>.
+
 ## 3. Compile
 
 ### 3a. ARCH files
