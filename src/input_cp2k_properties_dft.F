@@ -207,6 +207,8 @@ CONTAINS
       TYPE(keyword_type), POINTER                        :: keyword
       TYPE(section_type), POINTER                        :: print_key, subsection
 
+      CHARACTER(len=256)                      :: desc
+
       NULLIFY (keyword, print_key)
 
       IF (PRESENT(default_set_tdlr)) THEN
@@ -215,19 +217,19 @@ CONTAINS
          def_eps_filter = 1.0e-15_dp
          def_max_iter = 100
          def_precond = ot_precond_full_single_inverse
+         desc = "Controls the parameters of the LINRES force calculations for excited states."
       ELSE
          def_egap = 0.2_dp
          def_eps = 1.e-6_dp
          def_eps_filter = 0.0_dp
          def_max_iter = 50
          def_precond = ot_precond_none
+         desc = "The linear response is used to calculate one of the following properties: nmr, epr, raman, ..."
       END IF
 
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="linres", &
-                          description="The linear response is used to calculate one of the "// &
-                          "following properties: nmr, epr, raman, ... ", &
-                          n_keywords=5, n_subsections=2, repeats=.FALSE., &
+                          description=desc, n_keywords=5, n_subsections=2, repeats=.FALSE., &
                           citations=(/Putrino2000/))
 
       CALL keyword_create(keyword, __LOCATION__, name="EPS", &
