@@ -37,6 +37,7 @@ MODULE qs_tddfpt2_utils
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
+   USE exstates_types,                  ONLY: excited_energy_type
    USE input_constants,                 ONLY: &
         cholesky_dbcsr, cholesky_inverse, cholesky_off, cholesky_restore, no_sf_tddfpt, oe_gllb, &
         oe_lb, oe_none, oe_saop, oe_shift
@@ -56,6 +57,8 @@ MODULE qs_tddfpt2_utils
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_ks_methods,                   ONLY: qs_ks_build_kohn_sham_matrix
+   USE qs_ks_types,                     ONLY: qs_ks_env_type,&
+                                              set_ks_env
    USE qs_mo_types,                     ONLY: allocate_mo_set,&
                                               deallocate_mo_set,&
                                               get_mo_set,&
@@ -117,7 +120,9 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: mos_virt_spin
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(excited_energy_type), POINTER                 :: ex_env
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
+      TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(section_vals_type), POINTER                   :: print_section
       TYPE(tddfpt2_control_type), POINTER                :: tddfpt_control
@@ -127,6 +132,12 @@ CONTAINS
       CALL get_qs_env(qs_env, blacs_env=blacs_env, cell=cell, dft_control=dft_control, &
                       matrix_ks=matrix_ks, matrix_s=matrix_s, mos=mos, scf_env=scf_env)
       tddfpt_control => dft_control%tddfpt2_control
+      IF (tddfpt_control%do_bse) THEN
+         NULLIFY (ks_env, ex_env)
+         CALL get_qs_env(qs_env, exstate_env=ex_env, ks_env=ks_env)
+         CALL dbcsr_copy(matrix_ks(1)%matrix, ex_env%matrix_ks(1)%matrix)
+         CALL set_ks_env(ks_env, matrix_ks=matrix_ks)
+      END IF
 
       CPASSERT(.NOT. ASSOCIATED(gs_mos))
       ! obtain occupied and virtual (unoccupied) ground-state Kohn-Sham orbitals
@@ -918,12 +929,13 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Generate missed guess vectors.
-!> \param tddfpt_control ...
-!> \param nspins ...
 !> \param evects   guess vectors distributed across all processors (initialised on exit)
 !> \param evals    guessed transition energies (initialised on exit)
 !> \param gs_mos   occupied and virtual molecular orbitals optimised for the ground state
 !> \param log_unit output unit
+!> \param tddfpt_control ...
+!> \param qs_env ...
+!> \param nspins ...
 !> \par History
 !>    * 05.2016 created as tddfpt_guess() [Sergey Chulkov]
 !>    * 06.2016 renamed, altered prototype, supports spin-polarised density [Sergey Chulkov]
@@ -938,28 +950,28 @@ CONTAINS
 !>       a restart file).
 !>       \endparblock
 ! **************************************************************************************************
-   SUBROUTINE tddfpt_guess_vectors(tddfpt_control, nspins, evects, evals, gs_mos, log_unit)
-      TYPE(tddfpt2_control_type), POINTER                :: tddfpt_control
-      INTEGER                                            :: nspins
+   SUBROUTINE tddfpt_guess_vectors(evects, evals, gs_mos, log_unit, tddfpt_control, qs_env, nspins)
       TYPE(cp_fm_type), DIMENSION(:, :), INTENT(inout)   :: evects
       REAL(kind=dp), DIMENSION(:), INTENT(inout)         :: evals
+      INTEGER, INTENT(in)                                :: nspins
+      TYPE(qs_environment_type), INTENT(in), POINTER     :: qs_env
+      TYPE(tddfpt2_control_type), INTENT(in), POINTER    :: tddfpt_control
+      INTEGER, INTENT(in)                                :: log_unit
       TYPE(tddfpt_ground_state_mos), DIMENSION(nspins), &
          INTENT(in)                                      :: gs_mos
-      INTEGER, INTENT(in)                                :: log_unit
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_guess_vectors'
 
       CHARACTER(len=5)                                   :: spin_label1, spin_label2
-      INTEGER                                            :: handle, imo_occ, imo_virt, ind, ispin, &
-                                                            istate, jspin, nstates, &
-                                                            nstates_occ_virt_alpha, &
-                                                            nstates_selected, spin1, spin2
+      INTEGER :: handle, imo_occ, imo_virt, ind, ispin, istate, jspin, nstates, &
+         nstates_occ_virt_alpha, nstates_selected, spin1, spin2, total
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: inds
       INTEGER, DIMENSION(maxspins)                       :: nmo_occ_avail, nmo_occ_selected, &
                                                             nmo_virt_selected
       REAL(kind=dp)                                      :: e_occ
-      REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: e_virt_minus_occ
+      REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: e_virt_minus_occ, gw_occ, gw_virt
       TYPE(cp_fm_struct_p_type), DIMENSION(maxspins)     :: fm_struct_evects
+      TYPE(excited_energy_type), POINTER                 :: ex_env
 
       CALL timeset(routineN, handle)
 
@@ -969,6 +981,9 @@ CONTAINS
          CPASSERT(nstates > 0)
          CPASSERT(nspins == 1 .OR. nspins == 2)
       END IF
+
+      NULLIFY (ex_env)
+      CALL get_qs_env(qs_env, exstate_env=ex_env)
 
       DO ispin = 1, nspins
          ! number of occupied orbitals for each spin component
@@ -996,15 +1011,35 @@ CONTAINS
       IF (tddfpt_control%spinflip == no_sf_tddfpt) THEN
          ! Guess for spin-conserving TDDFT
          DO ispin = 1, nspins
+            ! if do_bse and do_gw, take gw zeroth order
+            IF (tddfpt_control%do_bse) THEN
+               ALLOCATE (gw_virt(nmo_virt_selected(ispin)), gw_occ(nmo_occ_selected(ispin)))
+               total = nmo_virt_selected(ispin) + nmo_occ_selected(ispin)
+               gw_virt(1:nmo_virt_selected(ispin)) = ex_env%gw_eigen((nmo_occ_selected(ispin) + 1):total)
+               gw_occ(1:nmo_occ_selected(ispin)) = ex_env%gw_eigen(1:nmo_occ_selected(ispin))
+            END IF
+
             DO imo_occ = 1, nmo_occ_selected(ispin)
                ! Here imo_occ enumerate Occupied orbitals in inverse order (from the last to the first element)
-               e_occ = gs_mos(ispin)%evals_occ(nmo_occ_avail(ispin) - imo_occ + 1)
+               IF (.NOT. tddfpt_control%do_bse) THEN
+                  e_occ = gs_mos(ispin)%evals_occ(nmo_occ_avail(ispin) - imo_occ + 1)
+               ELSE
+                  e_occ = gw_occ(nmo_occ_avail(ispin) - imo_occ + 1)
+               END IF
 
                DO imo_virt = 1, nmo_virt_selected(ispin)
                   istate = istate + 1
-                  e_virt_minus_occ(istate) = gs_mos(ispin)%evals_virt(imo_virt) - e_occ
+                  IF (.NOT. tddfpt_control%do_bse) THEN
+                     e_virt_minus_occ(istate) = gs_mos(ispin)%evals_virt(imo_virt) - e_occ
+                  ELSE
+                     e_virt_minus_occ(istate) = gw_virt(imo_virt) - e_occ
+                  END IF
                END DO
             END DO
+
+            IF (tddfpt_control%do_bse) THEN
+               DEALLOCATE (gw_virt, gw_occ)
+            END IF
          END DO
       ELSE
          ! Guess for spin-flip TDDFT
