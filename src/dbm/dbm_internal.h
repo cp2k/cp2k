@@ -4,7 +4,6 @@
 /*                                                                            */
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
-
 #ifndef DBM_INTERNAL_H
 #define DBM_INTERNAL_H
 

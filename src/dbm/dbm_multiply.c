@@ -4,6 +4,15 @@
 /*                                                                            */
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
+#include "dbm_multiply.h"
+#include "../offload/offload_mempool.h"
+#include "../offload/offload_runtime.h"
+#include "dbm_hyperparams.h"
+#include "dbm_internal.h"
+#include "dbm_library.h"
+#include "dbm_multiply_comm.h"
+#include "dbm_multiply_cpu.h"
+#include "dbm_multiply_gpu.h"
 
 #include <assert.h>
 #include <limits.h>
@@ -12,16 +21,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#include "../offload/offload_runtime.h"
-#include "dbm_hyperparams.h"
-#include "dbm_internal.h"
-#include "dbm_library.h"
-#include "dbm_mempool.h"
-#include "dbm_multiply.h"
-#include "dbm_multiply_comm.h"
-#include "dbm_multiply_cpu.h"
-#include "dbm_multiply_gpu.h"
 
 /*******************************************************************************
  * \brief Private routine for computing the max filter threshold for each row.
@@ -47,7 +46,7 @@ static float *compute_rows_max_eps(const bool trans, const dbm_matrix_t *matrix,
       }
     }
 #pragma omp master
-    dbm_mpi_sum_int(nblocks_per_row, nrows, matrix->dist->comm);
+    cp_mpi_sum_int(nblocks_per_row, nrows, matrix->dist->comm);
 #pragma omp barrier
 #pragma omp for
     for (int i = 0; i < nrows; i++) {
@@ -186,7 +185,7 @@ static void multiply_packs(const bool transa, const bool transb,
   {
     // Thread-private array covering given work in piece-wise fashion.
     dbm_task_t *batch =
-        dbm_mempool_host_malloc(sizeof(dbm_task_t) * DBM_MAX_BATCH_SIZE);
+        offload_mempool_host_malloc(sizeof(dbm_task_t) * DBM_MAX_BATCH_SIZE);
 
     // Blocks are ordered first by shard. Creating lookup tables of boundaries.
 #pragma omp for nowait
@@ -295,7 +294,7 @@ static void multiply_packs(const bool transa, const bool transb,
       }
     }
 
-    dbm_mempool_host_free(batch);
+    offload_mempool_host_free(batch);
   }
 
   free(shard_row_start);

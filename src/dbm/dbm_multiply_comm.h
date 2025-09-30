@@ -4,7 +4,6 @@
 /*                                                                            */
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
-
 #ifndef DBM_MULTIPLY_COMM_H
 #define DBM_MULTIPLY_COMM_H
 

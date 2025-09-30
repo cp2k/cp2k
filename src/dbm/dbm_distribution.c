@@ -4,6 +4,9 @@
 /*                                                                            */
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
+#include "dbm_distribution.h"
+#include "dbm_hyperparams.h"
+#include "dbm_internal.h"
 
 #include <assert.h>
 #include <math.h>
@@ -13,21 +16,17 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "dbm_distribution.h"
-#include "dbm_hyperparams.h"
-#include "dbm_internal.h"
-
 /*******************************************************************************
  * \brief Private routine for creating a new one dimensional distribution.
  * \author Ole Schuett
  ******************************************************************************/
 static void dbm_dist_1d_new(dbm_dist_1d_t *dist, const int length,
-                            const int coords[length], const dbm_mpi_comm_t comm,
+                            const int coords[length], const cp_mpi_comm_t comm,
                             const int nshards) {
   dist->comm = comm;
   dist->nshards = nshards;
-  dist->my_rank = dbm_mpi_comm_rank(comm);
-  dist->nranks = dbm_mpi_comm_size(comm);
+  dist->my_rank = cp_mpi_comm_rank(comm);
+  dist->nranks = cp_mpi_comm_size(comm);
   dist->length = length;
   dist->index2coord = malloc(length * sizeof(int));
   assert(dist->index2coord != NULL || length == 0);
@@ -37,7 +36,7 @@ static void dbm_dist_1d_new(dbm_dist_1d_t *dist, const int length,
 
   // Check that cart coordinates and ranks are equivalent.
   int cart_dims[1], cart_periods[1], cart_coords[1];
-  dbm_mpi_cart_get(comm, 1, cart_dims, cart_periods, cart_coords);
+  cp_mpi_cart_get(comm, 1, cart_dims, cart_periods, cart_coords);
   assert(dist->nranks == cart_dims[0]);
   assert(dist->my_rank == cart_coords[0]);
 
@@ -68,7 +67,7 @@ static void dbm_dist_1d_new(dbm_dist_1d_t *dist, const int length,
 static void dbm_dist_1d_free(dbm_dist_1d_t *dist) {
   free(dist->index2coord);
   free(dist->local_indicies);
-  dbm_mpi_comm_free(&dist->comm);
+  cp_mpi_comm_free(&dist->comm);
 }
 
 /*******************************************************************************
@@ -108,15 +107,15 @@ void dbm_distribution_new(dbm_distribution_t **dist_out, const int fortran_comm,
   dbm_distribution_t *dist = calloc(1, sizeof(dbm_distribution_t));
   dist->ref_count = 1;
 
-  dist->comm = dbm_mpi_comm_f2c(fortran_comm);
-  dist->my_rank = dbm_mpi_comm_rank(dist->comm);
-  dist->nranks = dbm_mpi_comm_size(dist->comm);
+  dist->comm = cp_mpi_comm_f2c(fortran_comm);
+  dist->my_rank = cp_mpi_comm_rank(dist->comm);
+  dist->nranks = cp_mpi_comm_size(dist->comm);
 
   const int row_dim_remains[2] = {1, 0};
-  const dbm_mpi_comm_t row_comm = dbm_mpi_cart_sub(dist->comm, row_dim_remains);
+  const cp_mpi_comm_t row_comm = cp_mpi_cart_sub(dist->comm, row_dim_remains);
 
   const int col_dim_remains[2] = {0, 1};
-  const dbm_mpi_comm_t col_comm = dbm_mpi_cart_sub(dist->comm, col_dim_remains);
+  const cp_mpi_comm_t col_comm = cp_mpi_cart_sub(dist->comm, col_dim_remains);
 
   const int nshards = DBM_SHARDS_PER_THREAD * omp_get_max_threads();
   const int nrow_shards = find_best_nrow_shards(nshards, nrows, ncols);
@@ -184,7 +183,7 @@ int dbm_distribution_stored_coords(const dbm_distribution_t *dist,
   assert(0 <= row && row < dist->rows.length);
   assert(0 <= col && col < dist->cols.length);
   int coords[2] = {dist->rows.index2coord[row], dist->cols.index2coord[col]};
-  return dbm_mpi_cart_rank(dist->comm, coords);
+  return cp_mpi_cart_rank(dist->comm, coords);
 }
 
 // EOF

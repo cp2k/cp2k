@@ -4,6 +4,10 @@
 /*                                                                            */
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
+#include "../mpiwrap/cp_mpi.h"
+#include "../offload/offload_library.h"
+#include "dbm_library.h"
+#include "dbm_matrix.h"
 
 #include <assert.h>
 #include <omp.h>
@@ -15,11 +19,6 @@
 #if defined(__LIBXSMM)
 #include <libxsmm.h>
 #endif
-
-#include "../offload/offload_library.h"
-#include "dbm_library.h"
-#include "dbm_matrix.h"
-#include "dbm_mpi.h"
 
 /*******************************************************************************
  * \brief Wrapper for printf, passed to dbm_library_print_stats.
@@ -42,9 +41,9 @@ static inline int imin(int x, int y) { return (x < y ? x : y); }
  * \author Ole Schuett
  ******************************************************************************/
 static dbm_distribution_t *create_dist(const int nrows, const int ncols,
-                                       const dbm_mpi_comm_t comm) {
+                                       const cp_mpi_comm_t comm) {
   int cart_dims[2], cart_periods[2], cart_coords[2];
-  dbm_mpi_cart_get(comm, 2, cart_dims, cart_periods, cart_coords);
+  cp_mpi_cart_get(comm, 2, cart_dims, cart_periods, cart_coords);
 
   // Create distribution.
   assert(0 < nrows && 0 < ncols);
@@ -57,7 +56,7 @@ static dbm_distribution_t *create_dist(const int nrows, const int ncols,
   for (int i = 0; i < ncols; i++) {
     col_dist[i] = i % cart_dims[1];
   }
-  const int fortran_comm = dbm_mpi_comm_c2f(comm);
+  const int fortran_comm = cp_mpi_comm_c2f(comm);
   dbm_distribution_t *dist = NULL;
   dbm_distribution_new(&dist, fortran_comm, nrows, ncols, row_dist, col_dist);
   free(row_dist);
@@ -72,7 +71,7 @@ static dbm_distribution_t *create_dist(const int nrows, const int ncols,
 static dbm_matrix_t *
 create_some_matrix(const int nrows, const int ncols, const int nrows_min,
                    const int nrows_max, const int ncols_min,
-                   const int ncols_max, const dbm_mpi_comm_t comm) {
+                   const int ncols_max, const cp_mpi_comm_t comm) {
   // Create distribution.
   dbm_distribution_t *dist = create_dist(nrows, ncols, comm);
 
@@ -182,7 +181,7 @@ static void set_all_blocks(dbm_matrix_t *matrix) {
  * \author Ole Schuett
  ******************************************************************************/
 void benchmark_multiply(const int M, const int N, const int K, const int m,
-                        const int n, const int k, const dbm_mpi_comm_t comm) {
+                        const int n, const int k, const cp_mpi_comm_t comm) {
   dbm_matrix_t *matrix_a = create_some_matrix(M, K, 1, m, k, k, comm);
   dbm_matrix_t *matrix_b = create_some_matrix(K, N, k, k, 1, n, comm);
   dbm_distribution_t *dist_c = create_dist(M, N, comm);
@@ -212,7 +211,7 @@ void benchmark_multiply(const int M, const int N, const int K, const int m,
                1e-8, &flop);
   const double time_end_multiply = omp_get_wtime();
 
-  if (dbm_mpi_comm_rank(comm) == 0) {
+  if (cp_mpi_comm_rank(comm) == 0) {
     printf("%5i x %5i x %5i  with  %3i x %3i x %3i blocks: ", M, N, K, m, n, k);
   }
 
@@ -229,8 +228,8 @@ void benchmark_multiply(const int M, const int N, const int K, const int m,
     dbm_release(matrix_d);
   }
 
-  dbm_mpi_sum_int64(&flop, 1, comm);
-  if (dbm_mpi_comm_rank(comm) == 0) {
+  cp_mpi_sum_int64(&flop, 1, comm);
+  if (cp_mpi_comm_rank(comm) == 0) {
     const double duration = time_end_multiply - time_start_multiply;
     printf("%6.3f s =>  %6.1f GFLOP/s\n", duration, 1e-9 * flop / duration);
     fflush(stdout);
@@ -250,12 +249,12 @@ int main(int argc, char *argv[]) {
 
   srand(25071975); // seed rng
 
-  dbm_mpi_init(&argc, &argv);
+  cp_mpi_init(&argc, &argv);
   dbm_library_init();
 
-  const dbm_mpi_comm_t world_comm = dbm_mpi_get_comm_world();
-  const int nranks = dbm_mpi_comm_size(world_comm);
-  const int my_rank = dbm_mpi_comm_rank(world_comm);
+  const cp_mpi_comm_t world_comm = cp_mpi_get_comm_world();
+  const int nranks = cp_mpi_comm_size(world_comm);
+  const int my_rank = cp_mpi_comm_rank(world_comm);
 
   if (offload_get_device_count() > 0) {
     offload_set_chosen_device(my_rank % offload_get_device_count());
@@ -263,10 +262,9 @@ int main(int argc, char *argv[]) {
 
   // Create 2D cart.
   int dims[2] = {0, 0};
-  dbm_mpi_dims_create(nranks, 2, dims);
+  cp_mpi_dims_create(nranks, 2, dims);
   const int periods[2] = {true, true};
-  dbm_mpi_comm_t comm =
-      dbm_mpi_cart_create(world_comm, 2, dims, periods, false);
+  cp_mpi_comm_t comm = cp_mpi_cart_create(world_comm, 2, dims, periods, false);
 
   if (my_rank == 0) {
     printf("OpenMP-threads: %i  GPUs: %i", omp_get_max_threads(),
@@ -351,11 +349,11 @@ int main(int argc, char *argv[]) {
   }
 
   if (EXIT_SUCCESS == result) {
-    dbm_library_print_stats(dbm_mpi_comm_c2f(comm), &print_func, my_rank);
+    dbm_library_print_stats(cp_mpi_comm_c2f(comm), &print_func, my_rank);
   }
   dbm_library_finalize();
-  dbm_mpi_comm_free(&comm);
-  dbm_mpi_finalize();
+  cp_mpi_comm_free(&comm);
+  cp_mpi_finalize();
   return result;
 }
 

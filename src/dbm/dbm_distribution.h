@@ -4,11 +4,10 @@
 /*                                                                            */
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
-
 #ifndef DBM_DISTRIBUTION_H
 #define DBM_DISTRIBUTION_H
 
-#include "dbm_mpi.h"
+#include "../mpiwrap/cp_mpi.h"
 
 /*******************************************************************************
  * \brief Internal struct for storing a one dimensional distribution.
@@ -19,7 +18,7 @@ typedef struct {
   int *index2coord; // maps row/col indicies to cart coordinate
   int nlocals;
   int *local_indicies; // list of row/col indicies that reside locally.
-  dbm_mpi_comm_t comm; // 1D communicator
+  cp_mpi_comm_t comm;  // 1D communicator
   int nranks;
   int my_rank;
   int nshards; // Number of shards for distributing blocks across threads.
@@ -33,7 +32,7 @@ typedef struct {
   int ref_count;
   dbm_dist_1d_t rows;
   dbm_dist_1d_t cols;
-  dbm_mpi_comm_t comm;
+  cp_mpi_comm_t comm;
   int nranks;
   int my_rank;
 } dbm_distribution_t;

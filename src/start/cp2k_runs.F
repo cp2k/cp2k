@@ -112,7 +112,8 @@ MODULE cp2k_runs
    USE neb_methods,                     ONLY: neb
    USE negf_methods,                    ONLY: do_negf
    USE offload_api,                     ONLY: offload_get_chosen_device,&
-                                              offload_get_device_count
+                                              offload_get_device_count,&
+                                              offload_mempool_stats_print
    USE optimize_basis,                  ONLY: run_optimize_basis
    USE optimize_input,                  ONLY: run_optimize_input
    USE pint_methods,                    ONLY: do_pint_run
@@ -384,12 +385,13 @@ CONTAINS
          CPABORT("")
       END SELECT
 
-      !sample peak memory
+      ! Sample peak memory
       CALL m_memory()
 
       CALL dbcsr_print_statistics()
       CALL dbm_library_print_stats(mpi_comm=mpi_comm, output_unit=output_unit)
       CALL grid_library_print_stats(mpi_comm=mpi_comm, output_unit=output_unit)
+      CALL offload_mempool_stats_print(mpi_comm=mpi_comm, output_unit=output_unit)
 
       m_memory_max_mpi = m_memory_max
       CALL mpi_comm%max(m_memory_max_mpi)

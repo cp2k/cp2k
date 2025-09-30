@@ -4,14 +4,13 @@
 /*                                                                            */
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
-
 #ifndef DBM_MATRIX_H
 #define DBM_MATRIX_H
 
-#include <stdbool.h>
-
 #include "dbm_distribution.h"
 #include "dbm_shard.h"
+
+#include <stdbool.h>
 
 /*******************************************************************************
  * \brief Internal struct for storing a matrix.

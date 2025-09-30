@@ -4,11 +4,11 @@ OMP_TRACE := $(wildcard $(PROJHOME)/../base/openmp_trace.c)
 ALL_HEADERS := $(shell find . -name "*.h") $(shell find ../offload/ -name "*.h")
 ALL_OBJECTS :=  $(OMP_TRACE:.c=.o) \
         ../offload/offload_library.o \
+        ../offload/offload_mempool.o \
+        ../mpiwrap/cp_mpi.o \
         dbm_distribution.o \
         dbm_library.o \
         dbm_matrix.o \
-        dbm_mempool.o \
-        dbm_mpi.o \
         dbm_multiply.o \
         dbm_multiply_comm.o \
         dbm_multiply_cpu.o \

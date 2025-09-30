@@ -921,12 +921,19 @@ list(
   arnoldi/arnoldi_types.F
   arnoldi/arnoldi_vector.F)
 
-list(APPEND CP2K_SRCS_F base/base_hooks.F base/kinds.F base/machine.F)
+list(
+  APPEND
+  CP2K_SRCS_F
+  mpiwrap/message_passing.F
+  mpiwrap/mp_perf_env.F
+  mpiwrap/mp_perf_test.F
+  base/base_hooks.F
+  base/machine.F
+  base/kinds.F)
 
 list(
   APPEND
   CP2K_SRCS_F
-  mpiwrap/mp_perf_env.F
   common/bessel_lib.F
   common/bibliography.F
   common/callgraph.F
@@ -1072,9 +1079,6 @@ list(
   input/input_parsing.F
   input/input_section_types.F
   input/input_val_types.F)
-
-list(APPEND CP2K_SRCS_F mpiwrap/mp_perf_env.F mpiwrap/message_passing.F
-     mpiwrap/mp_perf_test.F)
 
 list(
   APPEND
@@ -1382,12 +1386,15 @@ list(
 
 list(APPEND CP2K_SRCS_C sockets.c base/machine_cpuid.c base/openmp_trace.c)
 
+set(CP2K_OFFLOAD_SRCS_C offload/offload_buffer.c offload/offload_library.c
+                        offload/offload_mempool.c)
+
+set(CP2K_MPIWRAP_SRCS_C mpiwrap/cp_mpi.c)
+
 set(CP2K_DBM_SRCS_C
     dbm/dbm_distribution.c
     dbm/dbm_library.c
     dbm/dbm_matrix.c
-    dbm/dbm_mempool.c
-    dbm/dbm_mpi.c
     dbm/dbm_multiply.c
     dbm/dbm_multiply_comm.c
     dbm/dbm_multiply_cpu.c
@@ -1459,10 +1466,9 @@ set(CP2K_GRPP_SRCS_F grpp/libgrpp.F)
 
 set(CP2K_FPGA_SRC_C pw/fpga/fft_fpga.c pw/fpga/opencl_utils.c)
 set(CP2K_PW_SRCS_C pw/gpu/pw_gpu_internal.c)
-set(CP2K_OFFLOAD_SRCS_C offload/offload_buffer.c offload/offload_library.c)
 set(CP2K_SRCS_CPP torch_c_api.cpp ace_c_api.cpp)
 
-list(APPEND CP2K_SRCS_C "${CP2K_OFFLOAD_SRCS_C}")
+list(APPEND CP2K_SRCS_C "${CP2K_OFFLOAD_SRCS_C}" "${CP2K_MPIWRAP_SRCS_C}")
 
 # ##############################################################################
 # gpu code
@@ -1551,7 +1557,7 @@ endif()
 
 if(CP2K_ENABLE_CONSISTENCY_CHECKS)
   cp2k_compare_src_with_list(
-    "${CP2K_FPGA_SRC_C};${CP2K_SRCS_C};${CP2K_OFFLOAD_SRCS_C};${CP2K_DBM_SRCS_C};${CP2K_GRID_SRCS_C};${CP2K_PW_SRCS_C};${CP2K_DBM_SRCS_GPU_C};${CP2K_PROGS_C};${CP2K_GRPP_SRCS_C}"
+    "${CP2K_FPGA_SRC_C};${CP2K_SRCS_C};${CP2K_MPIWRAP_SRCS_C};${CP2K_OFFLOAD_SRCS_C};${CP2K_DBM_SRCS_C};${CP2K_GRID_SRCS_C};${CP2K_PW_SRCS_C};${CP2K_DBM_SRCS_GPU_C};${CP2K_PROGS_C};${CP2K_GRPP_SRCS_C}"
     "*.c"
     "${CP2K_EXCLUDED_SRCS_C}")
   cp2k_compare_src_with_list(
@@ -1870,8 +1876,9 @@ endforeach()
 # different miniapps
 # ##############################################################################
 
-add_executable(dbm_miniapp dbm/dbm_miniapp.c ${CP2K_DBM_SRCS_C}
-                           ${CP2K_DBM_SRCS_GPU} ${CP2K_OFFLOAD_SRCS_C})
+add_executable(
+  dbm_miniapp dbm/dbm_miniapp.c ${CP2K_DBM_SRCS_C} ${CP2K_MPIWRAP_SRCS_C}
+              ${CP2K_DBM_SRCS_GPU} ${CP2K_OFFLOAD_SRCS_C})
 target_compile_definitions(
   dbm_miniapp PRIVATE $<$<BOOL:${CP2K_USE_LIBXSMM}>:__LIBXSMM>
                       $<$<STREQUAL:"${CP2K_BLAS_VENDOR}","MKL">:__MKL>)
@@ -1889,6 +1896,7 @@ foreach(__app grid_miniapp grid_unittest)
     ${CP2K_GRID_SRCS_C}
     $<$<OR:$<BOOL:${CP2K_USE_CUDA}>,$<BOOL:${CP2K_USE_HIP}>>:${CP2K_GRID_SRCS_GPU}>
     $<$<BOOL:${CP2K_USE_HIP}>:${CP2K_GRID_SRCS_HIP}>
+    ${CP2K_MPIWRAP_SRCS_C}
     ${CP2K_OFFLOAD_SRCS_C})
   target_compile_definitions(
     ${__app} PRIVATE $<$<BOOL:${CP2K_USE_LIBXSMM}>:__LIBXSMM>

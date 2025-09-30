@@ -4,16 +4,16 @@
 /*                                                                            */
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
+#include "dbm_shard.h"
+#include "../offload/offload_mempool.h"
+#include "dbm_hyperparams.h"
+
 #include <assert.h>
 #include <omp.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
-
-#include "dbm_hyperparams.h"
-#include "dbm_mempool.h"
-#include "dbm_shard.h"
 
 /*******************************************************************************
  * \brief Internal routine for finding a power of two greater than given number.
@@ -97,9 +97,9 @@ void dbm_shard_copy(dbm_shard_t *shard_a, const dbm_shard_t *shard_b) {
   shard_a->hashtable_prime = shard_b->hashtable_prime;
 
   if (shard_a->data_allocated < shard_b->data_size) {
-    dbm_mempool_host_free(shard_a->data);
+    offload_mempool_host_free(shard_a->data);
     shard_a->data =
-        dbm_mempool_host_malloc(shard_b->data_size * sizeof(double));
+        offload_mempool_host_malloc(shard_b->data_size * sizeof(double));
     shard_a->data_allocated = shard_b->data_size;
     assert(shard_a->data != NULL);
   }
@@ -128,7 +128,7 @@ void dbm_shard_copy(dbm_shard_t *shard_a, const dbm_shard_t *shard_b) {
 void dbm_shard_release(dbm_shard_t *shard) {
   free(shard->blocks);
   free(shard->hashtable);
-  dbm_mempool_host_free(shard->data);
+  offload_mempool_host_free(shard->data);
   omp_destroy_lock(&shard->lock);
 }
 
@@ -239,11 +239,11 @@ void dbm_shard_allocate_promised_blocks(dbm_shard_t *shard) {
     shard->data_allocated = DBM_ALLOCATION_FACTOR * shard->data_promised;
     assert(shard->data_promised <= shard->data_allocated);
     shard->data =
-        dbm_mempool_host_malloc(shard->data_allocated * sizeof(double));
+        offload_mempool_host_malloc(shard->data_allocated * sizeof(double));
     assert(shard->data != NULL);
     if (data != NULL) {
       memcpy(shard->data, data, shard->data_size * sizeof(double));
-      dbm_mempool_host_free(data);
+      offload_mempool_host_free(data);
     }
   }
 

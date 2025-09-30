@@ -10,16 +10,12 @@
 !> \author Ole Schuett
 ! **************************************************************************************************
 MODULE offload_api
-   USE ISO_C_BINDING,                   ONLY: C_ASSOCIATED,&
-                                              C_CHAR,&
-                                              C_F_POINTER,&
-                                              C_INT,&
-                                              C_NULL_CHAR,&
-                                              C_NULL_PTR,&
-                                              C_PTR,&
-                                              C_SIZE_T
+   USE ISO_C_BINDING,                   ONLY: &
+        C_ASSOCIATED, C_CHAR, C_FUNLOC, C_FUNPTR, C_F_POINTER, C_INT, C_NULL_CHAR, C_NULL_PTR, &
+        C_PTR, C_SIZE_T
    USE kinds,                           ONLY: dp,&
                                               int_8
+   USE message_passing,                 ONLY: mp_comm_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -34,6 +30,7 @@ MODULE offload_api
    PUBLIC :: offload_timeset, offload_timestop, offload_mem_info
    PUBLIC :: offload_buffer_type, offload_create_buffer, offload_free_buffer
    PUBLIC :: offload_malloc_pinned_mem, offload_free_pinned_mem
+   PUBLIC :: offload_mempool_stats_print
 
    TYPE offload_buffer_type
       REAL(KIND=dp), DIMENSION(:), CONTIGUOUS, POINTER :: host_buffer => Null()
@@ -330,4 +327,46 @@ CONTAINS
 
       CALL timestop(handle)
    END SUBROUTINE offload_free_buffer
+
+! **************************************************************************************************
+!> \brief Print allocation statistics.
+!> \param mpi_comm ...
+!> \param output_unit ...
+!> \author Ole Schuett
+! **************************************************************************************************
+   SUBROUTINE offload_mempool_stats_print(mpi_comm, output_unit)
+      TYPE(mp_comm_type), INTENT(IN)                     :: mpi_comm
+      INTEGER, INTENT(IN)                                :: output_unit
+
+      INTERFACE
+         SUBROUTINE offload_mempool_stats_print_c(mpi_comm, print_func, output_unit) &
+            BIND(C, name="offload_mempool_stats_print")
+            IMPORT :: C_FUNPTR, C_INT
+            INTEGER(KIND=C_INT), VALUE          :: mpi_comm
+            TYPE(C_FUNPTR), VALUE               :: print_func
+            INTEGER(KIND=C_INT), VALUE          :: output_unit
+         END SUBROUTINE offload_mempool_stats_print_c
+      END INTERFACE
+
+      ! Since Fortran units groups can't be used from C, we pass a function pointer instead.
+      CALL offload_mempool_stats_print_c(mpi_comm=mpi_comm%get_handle(), &
+                                         print_func=C_FUNLOC(print_func), &
+                                         output_unit=output_unit)
+
+   END SUBROUTINE offload_mempool_stats_print
+
+! **************************************************************************************************
+!> \brief Callback to write to a Fortran output unit (called by C-side).
+!> \param msg to be printed.
+!> \param msglen number of characters excluding the terminating character.
+!> \param output_unit used for output.
+!> \author Hans Pabst
+! **************************************************************************************************
+   SUBROUTINE print_func(msg, msglen, output_unit) BIND(C, name="offload_api_print_func")
+      CHARACTER(KIND=C_CHAR), INTENT(IN)                 :: msg(*)
+      INTEGER(KIND=C_INT), INTENT(IN), VALUE             :: msglen, output_unit
+
+      IF (output_unit <= 0) RETURN ! Omit to print the message.
+      WRITE (output_unit, FMT="(100A)", ADVANCE="NO") msg(1:msglen)
+   END SUBROUTINE print_func
 END MODULE offload_api
