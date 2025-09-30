@@ -7,14 +7,13 @@
 #ifndef OFFLOAD_FFT_H
 #define OFFLOAD_FFT_H
 
-#include <stdio.h>
-#include <stdlib.h>
-
 #include "offload_library.h"
 #include "offload_runtime.h"
 
-#if (defined(__OFFLOAD_CUDA) || defined(__OFFLOAD_HIP))
+#include <stdio.h>
+#include <stdlib.h>
 
+#if (defined(__OFFLOAD_CUDA) || defined(__OFFLOAD_HIP))
 #if defined(__OFFLOAD_CUDA)
 #include <cufft.h>
 #elif defined(__OFFLOAD_HIP)

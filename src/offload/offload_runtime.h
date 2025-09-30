@@ -77,9 +77,9 @@ typedef int offloadError_t;
     if (error != offloadSuccess) {                                             \
       const char *const name = offloadGetErrorName(error);                     \
       if (NULL != name && '\0' != *name) {                                     \
-        fprintf(stderr, "ERROR: \"%s\" at %s:%d\n", name, __FILE__, __LINE__); \
+        fprintf(stderr, "ERROR: \"%s\" at %s:%i\n", name, __FILE__, __LINE__); \
       } else {                                                                 \
-        fprintf(stderr, "ERROR %i: %s:%d\n", (int)error, __FILE__, __LINE__);  \
+        fprintf(stderr, "ERROR %i: %s:%i\n", (int)error, __FILE__, __LINE__);  \
       }                                                                        \
       abort();                                                                 \
     }                                                                          \

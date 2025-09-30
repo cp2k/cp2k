@@ -4,6 +4,8 @@
 /*                                                                            */
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
+#include "dbm_multiply_cpu.h"
+#include "dbm_hyperparams.h"
 
 #include <assert.h>
 #include <stddef.h>
@@ -19,9 +21,6 @@
 #define libxsmm_dispatch_gemm libxsmm_dispatch_gemm_v2
 #endif
 #endif
-
-#include "dbm_hyperparams.h"
-#include "dbm_multiply_cpu.h"
 
 /*******************************************************************************
  * \brief Prototype for BLAS dgemm.

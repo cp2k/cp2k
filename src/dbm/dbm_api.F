@@ -1334,7 +1334,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dbcsr_distribution_new_wrapper(dist, mp_comm, row_dist_block, col_dist_block)
       TYPE(dbm_distribution_obj), INTENT(INOUT)          :: dist
-      TYPE(mp_cart_type), INTENT(IN)                                :: mp_comm
+      TYPE(mp_cart_type), INTENT(IN)                     :: mp_comm
       INTEGER, CONTIGUOUS, DIMENSION(:), INTENT(IN), &
          POINTER                                         :: row_dist_block, col_dist_block
 

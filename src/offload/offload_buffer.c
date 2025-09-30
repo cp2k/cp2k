@@ -4,14 +4,13 @@
 /*                                                                            */
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
+#include "offload_buffer.h"
+#include "offload_library.h"
+#include "offload_runtime.h"
 
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
-
-#include "offload_buffer.h"
-#include "offload_library.h"
-#include "offload_runtime.h"
 
 /*******************************************************************************
  * \brief Allocates a buffer of given length, ie., number of elements.

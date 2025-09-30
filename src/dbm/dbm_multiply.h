@@ -4,14 +4,13 @@
 /*                                                                            */
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
-
 #ifndef DBM_MULTIPLY_H
 #define DBM_MULTIPLY_H
 
+#include "dbm_matrix.h"
+
 #include <stdbool.h>
 #include <stdint.h>
-
-#include "dbm_matrix.h"
 
 /*******************************************************************************
  * \brief Performs a multiplication of two dbm_matrix_t matrices,

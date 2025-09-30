@@ -2,8 +2,9 @@
 /*  CP2K: A general program to perform molecular dynamics simulations         */
 /*  Copyright 2000-2025 CP2K developers group <https://cp2k.org>              */
 /*                                                                            */
-/*  SPDX-License-Identifier: BSD-3-Clause                                     */
+/*  SPDX-License-Identifier: GPL-2.0-or-later                                 */
 /*----------------------------------------------------------------------------*/
+#include "cp_mpi.h"
 
 #include <assert.h>
 #include <omp.h>
@@ -11,17 +12,16 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "dbm_mpi.h"
-
 #if defined(__parallel)
 /*******************************************************************************
  * \brief Check given MPI status and upon failure abort with a nice message.
  * \author Ole Schuett
  ******************************************************************************/
-#define CHECK(STATUS)                                                          \
+#define CHECK(CMD)                                                             \
   do {                                                                         \
-    if (MPI_SUCCESS != (STATUS)) {                                             \
-      fprintf(stderr, "MPI error #%i in %s:%i\n", STATUS, __FILE__, __LINE__); \
+    const int error = (CMD);                                                   \
+    if (MPI_SUCCESS != error) {                                                \
+      fprintf(stderr, "MPI error #%i in %s:%i\n", error, __FILE__, __LINE__);  \
       MPI_Abort(MPI_COMM_WORLD, EXIT_FAILURE);                                 \
     }                                                                          \
   } while (0)
@@ -31,7 +31,7 @@
  * \brief Wrapper around MPI_Init.
  * \author Ole Schuett
  ******************************************************************************/
-void dbm_mpi_init(int *argc, char ***argv) {
+void cp_mpi_init(int *argc, char ***argv) {
 #if defined(__parallel)
   CHECK(MPI_Init(argc, argv));
 #else
@@ -44,7 +44,7 @@ void dbm_mpi_init(int *argc, char ***argv) {
  * \brief Wrapper around MPI_Finalize.
  * \author Ole Schuett
  ******************************************************************************/
-void dbm_mpi_finalize() {
+void cp_mpi_finalize() {
 #if defined(__parallel)
   CHECK(MPI_Finalize());
 #endif
@@ -54,7 +54,7 @@ void dbm_mpi_finalize() {
  * \brief Returns MPI_COMM_WORLD.
  * \author Ole Schuett
  ******************************************************************************/
-dbm_mpi_comm_t dbm_mpi_get_comm_world() {
+cp_mpi_comm_t cp_mpi_get_comm_world() {
 #if defined(__parallel)
   return MPI_COMM_WORLD;
 #else
@@ -66,7 +66,7 @@ dbm_mpi_comm_t dbm_mpi_get_comm_world() {
  * \brief Wrapper around MPI_Comm_f2c.
  * \author Ole Schuett
  ******************************************************************************/
-dbm_mpi_comm_t dbm_mpi_comm_f2c(const int fortran_comm) {
+cp_mpi_comm_t cp_mpi_comm_f2c(const int fortran_comm) {
 #if defined(__parallel)
   return MPI_Comm_f2c(fortran_comm);
 #else
@@ -79,7 +79,7 @@ dbm_mpi_comm_t dbm_mpi_comm_f2c(const int fortran_comm) {
  * \brief Wrapper around MPI_Comm_c2f.
  * \author Ole Schuett
  ******************************************************************************/
-int dbm_mpi_comm_c2f(const dbm_mpi_comm_t comm) {
+int cp_mpi_comm_c2f(const cp_mpi_comm_t comm) {
 #if defined(__parallel)
   return MPI_Comm_c2f(comm);
 #else
@@ -92,7 +92,7 @@ int dbm_mpi_comm_c2f(const dbm_mpi_comm_t comm) {
  * \brief Wrapper around MPI_Comm_rank.
  * \author Ole Schuett
  ******************************************************************************/
-int dbm_mpi_comm_rank(const dbm_mpi_comm_t comm) {
+int cp_mpi_comm_rank(const cp_mpi_comm_t comm) {
 #if defined(__parallel)
   int rank;
   CHECK(MPI_Comm_rank(comm, &rank));
@@ -107,7 +107,7 @@ int dbm_mpi_comm_rank(const dbm_mpi_comm_t comm) {
  * \brief Wrapper around MPI_Comm_size.
  * \author Ole Schuett
  ******************************************************************************/
-int dbm_mpi_comm_size(const dbm_mpi_comm_t comm) {
+int cp_mpi_comm_size(const cp_mpi_comm_t comm) {
 #if defined(__parallel)
   int nranks;
   CHECK(MPI_Comm_size(comm, &nranks));
@@ -122,7 +122,7 @@ int dbm_mpi_comm_size(const dbm_mpi_comm_t comm) {
  * \brief Wrapper around MPI_Dims_create.
  * \author Ole Schuett
  ******************************************************************************/
-void dbm_mpi_dims_create(const int nnodes, const int ndims, int dims[]) {
+void cp_mpi_dims_create(const int nnodes, const int ndims, int dims[]) {
 #if defined(__parallel)
   CHECK(MPI_Dims_create(nnodes, ndims, dims));
 #else
@@ -137,11 +137,11 @@ void dbm_mpi_dims_create(const int nnodes, const int ndims, int dims[]) {
  * \brief Wrapper around MPI_Cart_create.
  * \author Ole Schuett
  ******************************************************************************/
-dbm_mpi_comm_t dbm_mpi_cart_create(const dbm_mpi_comm_t comm_old,
-                                   const int ndims, const int dims[],
-                                   const int periods[], const int reorder) {
+cp_mpi_comm_t cp_mpi_cart_create(const cp_mpi_comm_t comm_old, const int ndims,
+                                 const int dims[], const int periods[],
+                                 const int reorder) {
 #if defined(__parallel)
-  dbm_mpi_comm_t comm_cart;
+  cp_mpi_comm_t comm_cart;
   CHECK(MPI_Cart_create(comm_old, ndims, dims, periods, reorder, &comm_cart));
   return comm_cart;
 #else
@@ -158,8 +158,8 @@ dbm_mpi_comm_t dbm_mpi_cart_create(const dbm_mpi_comm_t comm_old,
  * \brief Wrapper around MPI_Cart_get.
  * \author Ole Schuett
  ******************************************************************************/
-void dbm_mpi_cart_get(const dbm_mpi_comm_t comm, int maxdims, int dims[],
-                      int periods[], int coords[]) {
+void cp_mpi_cart_get(const cp_mpi_comm_t comm, int maxdims, int dims[],
+                     int periods[], int coords[]) {
 #if defined(__parallel)
   CHECK(MPI_Cart_get(comm, maxdims, dims, periods, coords));
 #else
@@ -176,7 +176,7 @@ void dbm_mpi_cart_get(const dbm_mpi_comm_t comm, int maxdims, int dims[],
  * \brief Wrapper around MPI_Cart_rank.
  * \author Ole Schuett
  ******************************************************************************/
-int dbm_mpi_cart_rank(const dbm_mpi_comm_t comm, const int coords[]) {
+int cp_mpi_cart_rank(const cp_mpi_comm_t comm, const int coords[]) {
 #if defined(__parallel)
   int rank;
   CHECK(MPI_Cart_rank(comm, coords, &rank));
@@ -192,10 +192,10 @@ int dbm_mpi_cart_rank(const dbm_mpi_comm_t comm, const int coords[]) {
  * \brief Wrapper around MPI_Cart_sub.
  * \author Ole Schuett
  ******************************************************************************/
-dbm_mpi_comm_t dbm_mpi_cart_sub(const dbm_mpi_comm_t comm,
-                                const int remain_dims[]) {
+cp_mpi_comm_t cp_mpi_cart_sub(const cp_mpi_comm_t comm,
+                              const int remain_dims[]) {
 #if defined(__parallel)
-  dbm_mpi_comm_t newcomm;
+  cp_mpi_comm_t newcomm;
   CHECK(MPI_Cart_sub(comm, remain_dims, &newcomm));
   return newcomm;
 #else
@@ -209,7 +209,7 @@ dbm_mpi_comm_t dbm_mpi_cart_sub(const dbm_mpi_comm_t comm,
  * \brief Wrapper around MPI_Comm_free.
  * \author Ole Schuett
  ******************************************************************************/
-void dbm_mpi_comm_free(dbm_mpi_comm_t *comm) {
+void cp_mpi_comm_free(cp_mpi_comm_t *comm) {
 #if defined(__parallel)
   CHECK(MPI_Comm_free(comm));
 #else
@@ -221,8 +221,8 @@ void dbm_mpi_comm_free(dbm_mpi_comm_t *comm) {
  * \brief Wrapper around MPI_Comm_compare.
  * \author Ole Schuett
  ******************************************************************************/
-bool dbm_mpi_comms_are_similar(const dbm_mpi_comm_t comm1,
-                               const dbm_mpi_comm_t comm2) {
+bool cp_mpi_comms_are_similar(const cp_mpi_comm_t comm1,
+                              const cp_mpi_comm_t comm2) {
 #if defined(__parallel)
   int res;
   CHECK(MPI_Comm_compare(comm1, comm2, &res));
@@ -238,14 +238,14 @@ bool dbm_mpi_comms_are_similar(const dbm_mpi_comm_t comm1,
  * \brief Wrapper around MPI_Allreduce for op MPI_MAX and datatype MPI_INT.
  * \author Ole Schuett
  ******************************************************************************/
-void dbm_mpi_max_int(int *values, const int count, const dbm_mpi_comm_t comm) {
+void cp_mpi_max_int(int *values, const int count, const cp_mpi_comm_t comm) {
 #if defined(__parallel)
   int value = 0;
-  void *recvbuf = (1 < count ? dbm_mpi_alloc_mem(count * sizeof(int)) : &value);
+  void *recvbuf = (1 < count ? cp_mpi_alloc_mem(count * sizeof(int)) : &value);
   CHECK(MPI_Allreduce(values, recvbuf, count, MPI_INT, MPI_MAX, comm));
   memcpy(values, recvbuf, count * sizeof(int));
   if (1 < count) {
-    dbm_mpi_free_mem(recvbuf);
+    cp_mpi_free_mem(recvbuf);
   }
 #else
   (void)comm; // mark used
@@ -258,16 +258,16 @@ void dbm_mpi_max_int(int *values, const int count, const dbm_mpi_comm_t comm) {
  * \brief Wrapper around MPI_Allreduce for op MPI_MAX and datatype MPI_UINT64_T.
  * \author Ole Schuett
  ******************************************************************************/
-void dbm_mpi_max_uint64(uint64_t *values, const int count,
-                        const dbm_mpi_comm_t comm) {
+void cp_mpi_max_uint64(uint64_t *values, const int count,
+                       const cp_mpi_comm_t comm) {
 #if defined(__parallel)
   uint64_t value = 0;
   void *recvbuf =
-      (1 < count ? dbm_mpi_alloc_mem(count * sizeof(uint64_t)) : &value);
+      (1 < count ? cp_mpi_alloc_mem(count * sizeof(uint64_t)) : &value);
   CHECK(MPI_Allreduce(values, recvbuf, count, MPI_UINT64_T, MPI_MAX, comm));
   memcpy(values, recvbuf, count * sizeof(uint64_t));
   if (1 < count) {
-    dbm_mpi_free_mem(recvbuf);
+    cp_mpi_free_mem(recvbuf);
   }
 #else
   (void)comm; // mark used
@@ -280,16 +280,16 @@ void dbm_mpi_max_uint64(uint64_t *values, const int count,
  * \brief Wrapper around MPI_Allreduce for op MPI_MAX and datatype MPI_DOUBLE.
  * \author Ole Schuett
  ******************************************************************************/
-void dbm_mpi_max_double(double *values, const int count,
-                        const dbm_mpi_comm_t comm) {
+void cp_mpi_max_double(double *values, const int count,
+                       const cp_mpi_comm_t comm) {
 #if defined(__parallel)
   double value = 0;
   void *recvbuf =
-      (1 < count ? dbm_mpi_alloc_mem(count * sizeof(double)) : &value);
+      (1 < count ? cp_mpi_alloc_mem(count * sizeof(double)) : &value);
   CHECK(MPI_Allreduce(values, recvbuf, count, MPI_DOUBLE, MPI_MAX, comm));
   memcpy(values, recvbuf, count * sizeof(double));
   if (1 < count) {
-    dbm_mpi_free_mem(recvbuf);
+    cp_mpi_free_mem(recvbuf);
   }
 #else
   (void)comm; // mark used
@@ -302,14 +302,14 @@ void dbm_mpi_max_double(double *values, const int count,
  * \brief Wrapper around MPI_Allreduce for op MPI_SUM and datatype MPI_INT.
  * \author Ole Schuett
  ******************************************************************************/
-void dbm_mpi_sum_int(int *values, const int count, const dbm_mpi_comm_t comm) {
+void cp_mpi_sum_int(int *values, const int count, const cp_mpi_comm_t comm) {
 #if defined(__parallel)
   int value = 0;
-  void *recvbuf = (1 < count ? dbm_mpi_alloc_mem(count * sizeof(int)) : &value);
+  void *recvbuf = (1 < count ? cp_mpi_alloc_mem(count * sizeof(int)) : &value);
   CHECK(MPI_Allreduce(values, recvbuf, count, MPI_INT, MPI_SUM, comm));
   memcpy(values, recvbuf, count * sizeof(int));
   if (1 < count) {
-    dbm_mpi_free_mem(recvbuf);
+    cp_mpi_free_mem(recvbuf);
   }
 #else
   (void)comm; // mark used
@@ -322,16 +322,16 @@ void dbm_mpi_sum_int(int *values, const int count, const dbm_mpi_comm_t comm) {
  * \brief Wrapper around MPI_Allreduce for op MPI_SUM and datatype MPI_INT64_T.
  * \author Ole Schuett
  ******************************************************************************/
-void dbm_mpi_sum_int64(int64_t *values, const int count,
-                       const dbm_mpi_comm_t comm) {
+void cp_mpi_sum_int64(int64_t *values, const int count,
+                      const cp_mpi_comm_t comm) {
 #if defined(__parallel)
   int64_t value = 0;
   void *recvbuf =
-      (1 < count ? dbm_mpi_alloc_mem(count * sizeof(int64_t)) : &value);
+      (1 < count ? cp_mpi_alloc_mem(count * sizeof(int64_t)) : &value);
   CHECK(MPI_Allreduce(values, recvbuf, count, MPI_INT64_T, MPI_SUM, comm));
   memcpy(values, recvbuf, count * sizeof(int64_t));
   if (1 < count) {
-    dbm_mpi_free_mem(recvbuf);
+    cp_mpi_free_mem(recvbuf);
   }
 #else
   (void)comm; // mark used
@@ -344,16 +344,16 @@ void dbm_mpi_sum_int64(int64_t *values, const int count,
  * \brief Wrapper around MPI_Allreduce for op MPI_SUM and datatype MPI_DOUBLE.
  * \author Ole Schuett
  ******************************************************************************/
-void dbm_mpi_sum_double(double *values, const int count,
-                        const dbm_mpi_comm_t comm) {
+void cp_mpi_sum_double(double *values, const int count,
+                       const cp_mpi_comm_t comm) {
 #if defined(__parallel)
   double value = 0;
   void *recvbuf =
-      (1 < count ? dbm_mpi_alloc_mem(count * sizeof(double)) : &value);
+      (1 < count ? cp_mpi_alloc_mem(count * sizeof(double)) : &value);
   CHECK(MPI_Allreduce(values, recvbuf, count, MPI_DOUBLE, MPI_SUM, comm));
   memcpy(values, recvbuf, count * sizeof(double));
   if (1 < count) {
-    dbm_mpi_free_mem(recvbuf);
+    cp_mpi_free_mem(recvbuf);
   }
 #else
   (void)comm; // mark used
@@ -366,10 +366,10 @@ void dbm_mpi_sum_double(double *values, const int count,
  * \brief Wrapper around MPI_Sendrecv for datatype MPI_BYTE.
  * \author Ole Schuett
  ******************************************************************************/
-int dbm_mpi_sendrecv_byte(const void *sendbuf, const int sendcount,
-                          const int dest, const int sendtag, void *recvbuf,
-                          const int recvcount, const int source,
-                          const int recvtag, const dbm_mpi_comm_t comm) {
+int cp_mpi_sendrecv_byte(const void *sendbuf, const int sendcount,
+                         const int dest, const int sendtag, void *recvbuf,
+                         const int recvcount, const int source,
+                         const int recvtag, const cp_mpi_comm_t comm) {
 #if defined(__parallel)
   MPI_Status status;
   CHECK(MPI_Sendrecv(sendbuf, sendcount, MPI_BYTE, dest, sendtag, recvbuf,
@@ -387,7 +387,7 @@ int dbm_mpi_sendrecv_byte(const void *sendbuf, const int sendcount,
   (void)source;
   (void)recvtag;
   (void)comm;
-  fprintf(stderr, "Error: dbm_mpi_sendrecv_byte not available without MPI\n");
+  fprintf(stderr, "Error: cp_mpi_sendrecv_byte not available without MPI\n");
   abort();
 #endif
 }
@@ -396,10 +396,10 @@ int dbm_mpi_sendrecv_byte(const void *sendbuf, const int sendcount,
  * \brief Wrapper around MPI_Sendrecv for datatype MPI_DOUBLE.
  * \author Ole Schuett
  ******************************************************************************/
-int dbm_mpi_sendrecv_double(const double *sendbuf, const int sendcount,
-                            const int dest, const int sendtag, double *recvbuf,
-                            const int recvcount, const int source,
-                            const int recvtag, const dbm_mpi_comm_t comm) {
+int cp_mpi_sendrecv_double(const double *sendbuf, const int sendcount,
+                           const int dest, const int sendtag, double *recvbuf,
+                           const int recvcount, const int source,
+                           const int recvtag, const cp_mpi_comm_t comm) {
 #if defined(__parallel)
   MPI_Status status;
   CHECK(MPI_Sendrecv(sendbuf, sendcount, MPI_DOUBLE, dest, sendtag, recvbuf,
@@ -417,7 +417,7 @@ int dbm_mpi_sendrecv_double(const double *sendbuf, const int sendcount,
   (void)source;
   (void)recvtag;
   (void)comm;
-  fprintf(stderr, "Error: dbm_mpi_sendrecv_double not available without MPI\n");
+  fprintf(stderr, "Error: cp_mpi_sendrecv_double not available without MPI\n");
   abort();
 #endif
 }
@@ -426,8 +426,8 @@ int dbm_mpi_sendrecv_double(const double *sendbuf, const int sendcount,
  * \brief Wrapper around MPI_Alltoall for datatype MPI_INT.
  * \author Ole Schuett
  ******************************************************************************/
-void dbm_mpi_alltoall_int(const int *sendbuf, const int sendcount, int *recvbuf,
-                          const int recvcount, const dbm_mpi_comm_t comm) {
+void cp_mpi_alltoall_int(const int *sendbuf, const int sendcount, int *recvbuf,
+                         const int recvcount, const cp_mpi_comm_t comm) {
 #if defined(__parallel)
   CHECK(MPI_Alltoall(sendbuf, sendcount, MPI_INT, recvbuf, recvcount, MPI_INT,
                      comm));
@@ -442,10 +442,10 @@ void dbm_mpi_alltoall_int(const int *sendbuf, const int sendcount, int *recvbuf,
  * \brief Wrapper around MPI_Alltoallv for datatype MPI_BYTE.
  * \author Ole Schuett
  ******************************************************************************/
-void dbm_mpi_alltoallv_byte(const void *sendbuf, const int *sendcounts,
-                            const int *sdispls, void *recvbuf,
-                            const int *recvcounts, const int *rdispls,
-                            const dbm_mpi_comm_t comm) {
+void cp_mpi_alltoallv_byte(const void *sendbuf, const int *sendcounts,
+                           const int *sdispls, void *recvbuf,
+                           const int *recvcounts, const int *rdispls,
+                           const cp_mpi_comm_t comm) {
 #if defined(__parallel)
   CHECK(MPI_Alltoallv(sendbuf, sendcounts, sdispls, MPI_BYTE, recvbuf,
                       recvcounts, rdispls, MPI_BYTE, comm));
@@ -461,10 +461,10 @@ void dbm_mpi_alltoallv_byte(const void *sendbuf, const int *sendcounts,
  * \brief Wrapper around MPI_Alltoallv for datatype MPI_DOUBLE.
  * \author Ole Schuett
  ******************************************************************************/
-void dbm_mpi_alltoallv_double(const double *sendbuf, const int *sendcounts,
-                              const int *sdispls, double *recvbuf,
-                              const int *recvcounts, const int *rdispls,
-                              const dbm_mpi_comm_t comm) {
+void cp_mpi_alltoallv_double(const double *sendbuf, const int *sendcounts,
+                             const int *sdispls, double *recvbuf,
+                             const int *recvcounts, const int *rdispls,
+                             const cp_mpi_comm_t comm) {
 #if defined(__parallel)
   CHECK(MPI_Alltoallv(sendbuf, sendcounts, sdispls, MPI_DOUBLE, recvbuf,
                       recvcounts, rdispls, MPI_DOUBLE, comm));
@@ -480,7 +480,7 @@ void dbm_mpi_alltoallv_double(const double *sendbuf, const int *sendcounts,
  * \brief Wrapper around MPI_Alloc_mem.
  * \author Hans Pabst
  ******************************************************************************/
-void *dbm_mpi_alloc_mem(size_t size) {
+void *cp_mpi_alloc_mem(size_t size) {
   void *result = NULL;
 #if DBM_ALLOC_MPI && defined(__parallel)
   CHECK(MPI_Alloc_mem((MPI_Aint)size, MPI_INFO_NULL, &result));
@@ -496,7 +496,7 @@ void *dbm_mpi_alloc_mem(size_t size) {
  * \brief Wrapper around MPI_Free_mem.
  * \author Hans Pabst
  ******************************************************************************/
-void dbm_mpi_free_mem(void *mem) {
+void cp_mpi_free_mem(void *mem) {
 #if DBM_ALLOC_MPI && defined(__parallel)
   CHECK(MPI_Free_mem(mem));
 #elif DBM_ALLOC_OPENMP && (201811 /*v5.0*/ <= _OPENMP)

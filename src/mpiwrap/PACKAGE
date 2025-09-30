@@ -2,4 +2,5 @@
     "description": "wrappers of the mpi routines",
     "requires": ["../base"],
     "implicit": "MPI_.*",
+    "public": ["message_passing.F", "mp_perf_test.F", "mp_perf_env.F", "cp_mpi.h"],
 }
