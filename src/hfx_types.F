@@ -2723,10 +2723,10 @@ CONTAINS
                WRITE (iw, '(T3,A,T61,F20.10)') &
                   "HFX_RI_INFO| Omega:     ", ri_metric%omega
             CASE (do_potential_id)
-               WRITE (UNIT=iw, FMT="(T3,A,T73,A)") &
+               WRITE (UNIT=iw, FMT="(T3,A,T74,A)") &
                   "HFX_RI_INFO| RI metric: ", "OVERLAP"
             CASE (do_potential_truncated)
-               WRITE (UNIT=iw, FMT="(T3,A,T72,A)") &
+               WRITE (UNIT=iw, FMT="(T3,A,T64,A)") &
                   "HFX_RI_INFO| RI metric: ", "TRUNCATED COULOMB"
                rc_ang = cp_unit_from_cp2k(ri_metric%cutoff_radius, "angstrom")
                WRITE (iw, '(T3,A,T61,F20.10)') &
