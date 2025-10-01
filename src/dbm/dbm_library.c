@@ -145,6 +145,17 @@ void dbm_library_print_stats(const int fortran_comm,
   // Sort counters.
   qsort(counters, DBM_NUM_COUNTERS, 2 * sizeof(int64_t), &compare_counters);
 
+  // Determine if anything needs to be printed.
+  bool print = false;
+  for (int i = 0; i < DBM_NUM_COUNTERS && !print; i++) {
+    if (counters[i][0] != 0) {
+      print = true;
+    }
+  }
+  if (!print) {
+    return; // nothing to be printed
+  }
+
   // Print counters.
   DBM_LIBRARY_PRINT(print_func, "\n", output_unit);
   DBM_LIBRARY_PRINT(
