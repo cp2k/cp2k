@@ -13,7 +13,7 @@ steps:
 1. Install the required Python packages:
 
    ```
-   pip3 install torch e3nn scipy
+   pip3 install -r requirements.txt
    ```
 
 1. Train a new model:

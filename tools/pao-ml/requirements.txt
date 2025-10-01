@@ -1,0 +1,6 @@
+nequip==0.12.0
+torch
+numpy
+e3nn
+
+#EOF

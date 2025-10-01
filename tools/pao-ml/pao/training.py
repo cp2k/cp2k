@@ -2,9 +2,10 @@
 
 import torch
 from torch.utils.data import DataLoader
+from typing import Union, Iterable
+from nequip.data import AtomicDataDict  # type: ignore
 
 from .model import PaoModel
-from .dataset import PaoRecord
 
 
 # ======================================================================================
@@ -17,21 +18,17 @@ def loss_function(prediction: torch.Tensor, label: torch.Tensor) -> torch.Tensor
 
 # ======================================================================================
 def train_model(
-    model: PaoModel | torch.jit.ScriptModule,
-    dataloader: DataLoader[PaoRecord],
+    model: Union[PaoModel, torch.jit.ScriptModule],
+    data_source: Iterable[AtomicDataDict],
     epochs: int,
 ) -> None:
     # Train the model.
     optim = torch.optim.Adam(model.parameters())
     for epoch in range(epochs + 1):
         optim.zero_grad()
-        for neighbors_relpos, neighbors_features, label in dataloader:
-            inputs = {
-                "neighbors_relpos": neighbors_relpos,
-                "neighbors_features": neighbors_features,
-            }
-            outputs = model(inputs)
-            loss = loss_function(outputs["xblock"], label)
+        for example in data_source:
+            outputs = model(example)
+            loss = loss_function(outputs["xblock"], example["xblock"])
             loss.backward()  # type: ignore
             optim.step()
         if epoch % 100 == 0:

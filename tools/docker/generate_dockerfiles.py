@@ -303,6 +303,7 @@ FROM ubuntu:24.04
 # Install dependencies.
 WORKDIR /opt/cp2k
 COPY ./tools/docker/scripts/install_{name}.sh .
+COPY ./tools/pao-ml/requirements.txt pao-ml-requirements.txt
 RUN ./install_{name}.sh
 ENV PATH="/opt/venv/bin:$PATH"
 
