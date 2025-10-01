@@ -4,19 +4,18 @@
 /*                                                                            */
 /*  SPDX-License-Identifier: GPL-2.0-or-later                                 */
 /*----------------------------------------------------------------------------*/
-
 #include "../../offload/offload_runtime.h"
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
+
+#include "../../offload/offload_fft.h"
+#include "../../offload/offload_library.h"
+#include "pw_gpu_kernels.h"
 
 #include <assert.h>
 #include <omp.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <string.h>
-
-#include "../../offload/offload_fft.h"
-#include "../../offload/offload_library.h"
-#include "pw_gpu_kernels.h"
 
 /*******************************************************************************
  * \brief Static variables for retaining objects that are expensive to create.
