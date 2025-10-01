@@ -4,10 +4,12 @@
 /*                                                                            */
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
-#include "../mpiwrap/cp_mpi.h"
-#include "../offload/offload_library.h"
 #include "dbm_library.h"
 #include "dbm_matrix.h"
+
+#include "../mpiwrap/cp_mpi.h"
+#include "../offload/offload_library.h"
+#include "../offload/offload_mempool.h"
 
 #include <assert.h>
 #include <omp.h>
@@ -24,9 +26,9 @@
  * \brief Wrapper for printf, passed to dbm_library_print_stats.
  * \author Ole Schuett
  ******************************************************************************/
-static void print_func(char *message, int output_unit) {
+static void print_func(const char *msg, int /*msglen*/, int output_unit) {
   if (output_unit == 0) { // i.e. my_rank == 0
-    printf("%s", message);
+    printf("%s", msg);
   }
 }
 
@@ -349,7 +351,9 @@ int main(int argc, char *argv[]) {
   }
 
   if (EXIT_SUCCESS == result) {
-    dbm_library_print_stats(cp_mpi_comm_c2f(comm), &print_func, my_rank);
+    const int fortran_comm = cp_mpi_comm_c2f(comm);
+    dbm_library_print_stats(fortran_comm, &print_func, my_rank);
+    offload_mempool_stats_print(fortran_comm, &print_func, my_rank);
   }
   dbm_library_finalize();
   cp_mpi_comm_free(&comm);
