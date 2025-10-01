@@ -593,6 +593,7 @@ libraries (see 2.)
 
 - `-D__parallel` builds an MPI parallel CP2K binary (implies the use and thus the availabiltity of
   the ScaLAPACK/BLACS libraries)
+- `-D__SCALAPACK_NO_WA` disables code working around issues in ScaLAPACK/BLACS.
 - `-D__LIBINT` use LIBINT (needed for HF exchange)
 - `-D__LIBXC` use LIBXC
 - `-D__LIBGRPP` use libgrpp (for calculations with ECPs)

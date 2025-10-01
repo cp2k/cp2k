@@ -146,8 +146,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_cholesky_invert'
       REAL(KIND=dp), DIMENSION(:, :), POINTER   :: a
       REAL(KIND=sp), DIMENSION(:, :), POINTER   :: a_sp
-      INTEGER                                   :: info, handle
-      INTEGER                                   :: my_n
+      INTEGER                                   :: info, handle, my_n
 #if defined(__parallel)
       INTEGER, DIMENSION(9)                     :: desca
 #endif
