@@ -13,7 +13,6 @@ MODULE dbm_api
                     int_8
    USE message_passing, ONLY: mp_cart_type, &
                               mp_comm_type
-   USE string_utilities, ONLY: strlcpy_c2f
 
 ! Uncomment the following line to enable validation.
 !#define DBM_VALIDATE_AGAINST_DBCSR
@@ -1531,26 +1530,17 @@ CONTAINS
    END SUBROUTINE dbm_library_print_stats
 
 ! **************************************************************************************************
-!> \brief Callback to write to a Fortran output unit.
-!> \param message ...
-!> \param output_unit ...
-!> \author Ole Schuett
+!> \brief Callback to write to a Fortran output unit (called by C-side).
+!> \param msg to be printed.
+!> \param msglen number of characters excluding the terminating character.
+!> \param output_unit used for output.
+!> \author Ole Schuett and Hans Pabst
 ! **************************************************************************************************
-   SUBROUTINE print_func(message, output_unit) BIND(C, name="dbm_api_print_func")
-      CHARACTER(LEN=1, KIND=C_CHAR), INTENT(IN)          :: message(*)
-      INTEGER(KIND=C_INT), INTENT(IN), VALUE             :: output_unit
+   SUBROUTINE print_func(msg, msglen, output_unit) BIND(C, name="dbm_api_print_func")
+      CHARACTER(KIND=C_CHAR), INTENT(IN)                 :: msg(*)
+      INTEGER(KIND=C_INT), INTENT(IN), VALUE             :: msglen, output_unit
 
-      CHARACTER(LEN=1000)                                :: buffer
-      INTEGER                                            :: nchars
-
-      IF (output_unit <= 0) &
-         RETURN
-
-      ! Convert C char array into Fortran string.
-      nchars = strlcpy_c2f(buffer, message)
-
-      ! Print the message.
-      WRITE (output_unit, FMT="(A)", ADVANCE="NO") buffer(1:nchars)
+      IF (output_unit <= 0) RETURN ! Omit to print the message.
+      WRITE (output_unit, FMT="(100A)", ADVANCE="NO") msg(1:msglen)
    END SUBROUTINE print_func
-
 END MODULE dbm_api

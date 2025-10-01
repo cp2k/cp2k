@@ -32,7 +32,7 @@ void dbm_library_counter_increment(const int m, const int n, const int k);
  * \author Ole Schuett
  ******************************************************************************/
 void dbm_library_print_stats(const int fortran_comm,
-                             void (*print_func)(char *, int),
+                             void (*print_func)(const char *, int, int),
                              const int output_unit);
 
 #endif

@@ -15,6 +15,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define DBM_LIBRARY_PRINT(FN, MSG, OUTPUT_UNIT)                                \
+  ((FN)(MSG, (int)strlen(MSG), OUTPUT_UNIT))
 #define DBM_NUM_COUNTERS 64
 
 static int64_t **per_thread_counters = NULL;
@@ -118,7 +120,7 @@ static int compare_counters(const void *a, const void *b) {
  * \author Ole Schuett
  ******************************************************************************/
 void dbm_library_print_stats(const int fortran_comm,
-                             void (*print_func)(char *, int),
+                             void (*print_func)(const char *, int, int),
                              const int output_unit) {
   assert(omp_get_num_threads() == 1);
 
@@ -144,25 +146,37 @@ void dbm_library_print_stats(const int fortran_comm,
   qsort(counters, DBM_NUM_COUNTERS, 2 * sizeof(int64_t), &compare_counters);
 
   // Print counters.
-  print_func("\n", output_unit);
-  print_func(" ----------------------------------------------------------------"
-             "---------------\n",
-             output_unit);
-  print_func(" -                                                               "
-             "              -\n",
-             output_unit);
-  print_func(" -                                DBM STATISTICS                 "
-             "              -\n",
-             output_unit);
-  print_func(" -                                                               "
-             "              -\n",
-             output_unit);
-  print_func(" ----------------------------------------------------------------"
-             "---------------\n",
-             output_unit);
-  print_func("    M  x    N  x    K                                          "
-             "COUNT     PERCENT\n",
-             output_unit);
+  DBM_LIBRARY_PRINT(print_func, "\n", output_unit);
+  DBM_LIBRARY_PRINT(
+      print_func,
+      " ----------------------------------------------------------------"
+      "---------------\n",
+      output_unit);
+  DBM_LIBRARY_PRINT(
+      print_func,
+      " -                                                               "
+      "              -\n",
+      output_unit);
+  DBM_LIBRARY_PRINT(
+      print_func,
+      " -                                DBM STATISTICS                 "
+      "              -\n",
+      output_unit);
+  DBM_LIBRARY_PRINT(
+      print_func,
+      " -                                                               "
+      "              -\n",
+      output_unit);
+  DBM_LIBRARY_PRINT(
+      print_func,
+      " ----------------------------------------------------------------"
+      "---------------\n",
+      output_unit);
+  DBM_LIBRARY_PRINT(
+      print_func,
+      "    M  x    N  x    K                                          "
+      "COUNT     PERCENT\n",
+      output_unit);
 
   const char *labels[] = {"?", "??", "???", ">999"};
   char buffer[100];
@@ -178,12 +192,14 @@ void dbm_library_print_stats(const int fortran_comm,
     snprintf(buffer, sizeof(buffer),
              " %4s  x %4s  x %4s %46" PRId64 " %10.2f%%\n", labels[m],
              labels[n], labels[k], counters[i][0], percent);
-    print_func(buffer, output_unit);
+    DBM_LIBRARY_PRINT(print_func, buffer, output_unit);
   }
 
-  print_func(" ----------------------------------------------------------------"
-             "---------------\n",
-             output_unit);
+  DBM_LIBRARY_PRINT(
+      print_func,
+      " ----------------------------------------------------------------"
+      "---------------\n",
+      output_unit);
 }
 
 // EOF
