@@ -28,13 +28,13 @@ void cp_mpi_init(int *argc, char ***argv);
  * \brief Wrapper around MPI_Finalize.
  * \author Ole Schuett
  ******************************************************************************/
-void cp_mpi_finalize();
+void cp_mpi_finalize(void);
 
 /*******************************************************************************
  * \brief Returns MPI_COMM_WORLD.
  * \author Ole Schuett
  ******************************************************************************/
-cp_mpi_comm_t cp_mpi_get_comm_world();
+cp_mpi_comm_t cp_mpi_get_comm_world(void);
 
 /*******************************************************************************
  * \brief Wrapper around MPI_Comm_f2c.

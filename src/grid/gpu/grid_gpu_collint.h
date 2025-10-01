@@ -181,7 +181,7 @@ __constant__ double binomial_coef[19][19];
  * \brief Initializes the device's constant memory.
  * \author Ole Schuett
  ******************************************************************************/
-static void init_constant_memory() {
+static void init_constant_memory(void) {
   static bool initialized = false;
   if (initialized) {
     return; // constant memory has to be initialized only once
