@@ -15,7 +15,6 @@
 !> \author Joost VandeVondele (2003-08)
 ! **************************************************************************************************
 MODULE cp_fm_diag
-
    USE cp_blacs_types, ONLY: cp_blacs_type
    USE cp_blacs_env, ONLY: cp_blacs_env_type
    USE cp_fm_basic_linalg, ONLY: cp_fm_column_scale, &
@@ -396,6 +395,39 @@ CONTAINS
    END SUBROUTINE check_diag
 
 ! **************************************************************************************************
+!> \brief Issues an error messages and exits (optionally only warns).
+!> \param mesg message to be issued
+!> \param info error code (optional)
+!> \param warn only warn (optional)
+! **************************************************************************************************
+   SUBROUTINE cp_fm_error(mesg, info, warn)
+      CHARACTER(LEN=*), INTENT(IN)                       :: mesg
+      INTEGER, INTENT(IN), OPTIONAL                      :: info
+      LOGICAL, INTENT(IN), OPTIONAL                      :: warn
+
+      CHARACTER(LEN=2*default_string_length)             :: message
+      LOGICAL                                            :: warning
+
+      IF (PRESENT(info)) THEN
+         WRITE (message, "(A,A,I0,A)") mesg, " (INFO = ", info, ")"
+      ELSE
+         WRITE (message, "(A)") mesg
+      END IF
+
+      IF (PRESENT(warn)) THEN
+         warning = warn
+      ELSE ! abort
+         warning = .FALSE.
+      END IF
+
+      IF (warning) THEN
+         CPWARN(TRIM(message))
+      ELSE
+         CPABORT(TRIM(message))
+      END IF
+   END SUBROUTINE cp_fm_error
+
+! **************************************************************************************************
 !> \brief   Computes all eigenvalues and vectors of a real symmetric matrix
 !>          significantly faster than syevx, scales also much better.
 !>          Needs workspace to allocate all the eigenvectors
@@ -421,11 +453,12 @@ CONTAINS
 #if defined(__parallel)
       TYPE(cp_fm_type)                         :: eigenvectors_new, matrix_new
 #else
-      CHARACTER(LEN=2*default_string_length)   :: message
-      INTEGER                                  :: liwork, lwork, nl
+      INTEGER                                  :: liwork, lwork
       INTEGER, DIMENSION(:), POINTER           :: iwork
       REAL(KIND=dp), DIMENSION(:, :), POINTER  :: m
       REAL(KIND=dp), DIMENSION(:), POINTER     :: work
+      INTEGER, TARGET                          :: v(1)
+      REAL(KIND=dp), TARGET                    :: w(1)
 #endif
 
       CALL timeset(routineN, handle)
@@ -457,45 +490,26 @@ CONTAINS
       lwork = -1
       liwork = -1
       m => matrix%local_data
-      eig(:) = 0.0_dp
+      iwork => v
+      work => w
 
-      ALLOCATE (work(1))
-      work(:) = 0.0_dp
-      ALLOCATE (iwork(1))
-      iwork(:) = 0
-      nl = SIZE(m, 1)
-
-      CALL dsyevd('V', 'U', n, m(1, 1), nl, eig(1), work(1), lwork, iwork(1), liwork, myinfo)
+      CALL dsyevd('V', 'U', n, m(1, 1), SIZE(m, 1), eig(1), work(1), lwork, iwork(1), liwork, myinfo)
 
       IF (myinfo /= 0) THEN
-         WRITE (message, "(A,I0,A)") "ERROR in DSYEVD: Work space query failed (INFO = ", myinfo, ")"
-         IF (PRESENT(info)) THEN
-            CPWARN(TRIM(message))
-         ELSE
-            CPABORT(TRIM(message))
-         END IF
+         CALL cp_fm_error("ERROR in DSYEVD: Work space query failed", myinfo, PRESENT(info))
       END IF
 
       ! Reallocate work arrays and perform diagonalisation
       lwork = INT(work(1))
-      DEALLOCATE (work)
       ALLOCATE (work(lwork))
-      work(:) = 0.0_dp
 
       liwork = iwork(1)
-      DEALLOCATE (iwork)
       ALLOCATE (iwork(liwork))
-      iwork(:) = 0
 
-      CALL dsyevd('V', 'U', n, m(1, 1), nl, eig(1), work(1), lwork, iwork(1), liwork, myinfo)
+      CALL dsyevd('V', 'U', n, m(1, 1), SIZE(m, 1), eig(1), work(1), lwork, iwork(1), liwork, myinfo)
 
       IF (myinfo /= 0) THEN
-         WRITE (message, "(A,I0,A)") "ERROR in DSYEVD: Matrix diagonalization failed (INFO = ", myinfo, ")"
-         IF (PRESENT(info)) THEN
-            CPWARN(TRIM(message))
-         ELSE
-            CPABORT(TRIM(message))
-         END IF
+         CALL cp_fm_error("ERROR in DSYEVD: Matrix diagonalization failed", myinfo, PRESENT(info))
       END IF
 
       CALL cp_fm_to_fm(matrix, eigenvectors)
@@ -530,22 +544,21 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_syevd_base(matrix, eigenvectors, eigenvalues, info)
 
-      TYPE(cp_fm_type), INTENT(IN)          :: matrix, eigenvectors
+      TYPE(cp_fm_type), INTENT(IN)             :: matrix, eigenvectors
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: eigenvalues
       INTEGER, INTENT(OUT), OPTIONAL           :: info
 
       CHARACTER(LEN=*), PARAMETER              :: routineN = 'cp_fm_syevd_base'
 
-      CHARACTER(LEN=2*default_string_length)   :: message
       INTEGER                                  :: handle, myinfo
 #if defined(__parallel)
       TYPE(cp_blacs_env_type), POINTER         :: context
-      INTEGER                                  :: liwork, lwork, &
-                                                  mypcol, myprow, n
+      INTEGER                                  :: liwork, lwork, n
       INTEGER, DIMENSION(9)                    :: descm, descv
       INTEGER, DIMENSION(:), POINTER           :: iwork
       REAL(KIND=dp), DIMENSION(:), POINTER     :: work
       REAL(KIND=dp), DIMENSION(:, :), POINTER  :: m, v
+      REAL(KIND=dp), TARGET                    :: w(1)
 #if defined (__HAS_IEEE_EXCEPTIONS)
       LOGICAL, DIMENSION(5)                    :: halt
 #endif
@@ -560,8 +573,6 @@ CONTAINS
       n = matrix%matrix_struct%nrow_global
       m => matrix%local_data
       context => matrix%matrix_struct%context
-      myprow = context%mepos(1)
-      mypcol = context%mepos(2)
       descm(:) = matrix%matrix_struct%descriptor(:)
 
       v => eigenvectors%local_data
@@ -572,32 +583,39 @@ CONTAINS
 
       ! Work space query
       lwork = -1
-      ALLOCATE (work(1))
+      work => w
 
       CALL pdsyevd('V', 'U', n, m(1, 1), 1, 1, descm, eigenvalues(1), v(1, 1), 1, 1, descv, &
                    work(1), lwork, iwork(1), liwork, myinfo)
 
       IF (matrix%matrix_struct%para_env%is_source() .AND. (myinfo /= 0)) THEN
-         WRITE (message, "(A,I0,A)") "ERROR in PDSYEVD: Work space query failed (INFO = ", myinfo, ")"
-         IF (PRESENT(info)) THEN
-            CPWARN(TRIM(message))
-         ELSE
-            CPABORT(TRIM(message))
-         END IF
+         CALL cp_fm_error("ERROR in PDSYEVD: Work space query failed", myinfo, PRESENT(info))
       END IF
 
-      ! look here for a PDORMTR warning :-)
-      ! this routine seems to need more workspace than reported
-      ! (? lapack bug ...)
-      ! arbitrary additional memory  ... we give 100000 more words
-      ! (it seems to depend on the block size used)
+      lwork = NINT(work(1)) ! can be insufficient due to bug in reference ScaLAPACK
+#if !defined(__SCALAPACK_NO_WA)
+      ! Query workspace for QDORMTR as called by reference ScaLAPACK (PDSYEVD).
+      CALL pdormtr('L', 'U', 'N', n, n, m(1, 1), 1, 1, descm, m(1, 1), &
+                   v(1, 1), 1, 1, descv, work(1), -1, myinfo)
 
-      lwork = NINT(work(1) + 100000)
-      ! lwork = NINT(work(1))
-      DEALLOCATE (work)
+      IF (matrix%matrix_struct%para_env%is_source() .AND. (myinfo /= 0)) THEN
+         CALL cp_fm_error("ERROR in PDORMTR: Work space query failed", myinfo, PRESENT(info))
+      END IF
+
+      IF (lwork .LT. (work(1) + 2*n)) THEN
+         lwork = NINT(work(1)) + 2*n ! still wrong by 2*N
+      END IF
+#endif
       ALLOCATE (work(lwork))
 
-      ! Scalapack takes advantage of IEEE754 exceptions for speedup.
+      ! Initial/documented amount of liwork is exceeded (slightly worrisome too).
+      IF (liwork .LT. iwork(1)) THEN
+         liwork = iwork(1)
+         DEALLOCATE (iwork)
+         ALLOCATE (iwork(liwork))
+      END IF
+
+      ! ScaLAPACK takes advantage of IEEE754 exceptions for speedup.
       ! Therefore, we disable floating point traps temporarily.
 #if defined (__HAS_IEEE_EXCEPTIONS)
       CALL ieee_get_halting_mode(IEEE_ALL, halt)
@@ -611,12 +629,7 @@ CONTAINS
       CALL ieee_set_halting_mode(IEEE_ALL, halt)
 #endif
       IF (matrix%matrix_struct%para_env%is_source() .AND. (myinfo /= 0)) THEN
-         WRITE (message, "(A,I0,A)") "ERROR in PDSYEVD: Matrix diagonalization failed (INFO = ", myinfo, ")"
-         IF (PRESENT(info)) THEN
-            CPWARN(TRIM(message))
-         ELSE
-            CPABORT(TRIM(message))
-         END IF
+         CALL cp_fm_error("ERROR in PDSYEVD: Matrix diagonalization failed", myinfo, PRESENT(info))
       END IF
 
       IF (PRESENT(info)) info = myinfo
@@ -629,9 +642,8 @@ CONTAINS
       MARK_USED(eigenvalues)
       myinfo = -1
       IF (PRESENT(info)) info = myinfo
-      message = "ERROR in "//TRIM(routineN)// &
-                ": Matrix diagonalization using PDSYEVD requested without ScaLAPACK support"
-      CPABORT(TRIM(message))
+      CALL cp_fm_error("ERROR in "//TRIM(routineN)// &
+                       ": Matrix diagonalization using PDSYEVD requested without ScaLAPACK support")
 #endif
 
       CALL timestop(handle)
@@ -674,11 +686,9 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                :: logger
       CHARACTER(LEN=1)                             :: job_type
       REAL(KIND=dp)                                :: abstol, work_syevx_local
-      INTEGER                                      :: handle, info, &
-                                                      liwork, lwork, m, mypcol, &
-                                                      myprow, n, nb, npcol, &
-                                                      nprow, output_unit, &
-                                                      neig_local
+      INTEGER                                      :: handle, info, liwork, lwork, &
+                                                      m, n, nb, npcol, nprow, &
+                                                      output_unit, neig_local
       LOGICAL                                      :: ionode, needs_evecs
       INTEGER, DIMENSION(:), ALLOCATABLE           :: ifail, iwork
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE     :: w, work
@@ -729,8 +739,6 @@ CONTAINS
       abstol = 2.0_dp*dlamch("S")
 
       context => matrix%matrix_struct%context
-      myprow = context%mepos(1)
-      mypcol = context%mepos(2)
       nprow = context%num_pe(1)
       npcol = context%num_pe(2)
 
@@ -892,23 +900,23 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_svd(matrix_a, matrix_eigvl, matrix_eigvr_t, eigval, info)
 
-      TYPE(cp_fm_type), INTENT(IN)             :: matrix_a
-      TYPE(cp_fm_type), INTENT(INOUT)          :: matrix_eigvl, matrix_eigvr_t
+      TYPE(cp_fm_type), INTENT(IN)              :: matrix_a
+      TYPE(cp_fm_type), INTENT(INOUT)           :: matrix_eigvl, matrix_eigvr_t
       REAL(KIND=dp), DIMENSION(:), POINTER, &
-         INTENT(INOUT)                         :: eigval
-      INTEGER, INTENT(OUT), OPTIONAL           :: info
+         INTENT(INOUT)                          :: eigval
+      INTEGER, INTENT(OUT), OPTIONAL            :: info
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_svd'
 
-      CHARACTER(LEN=2*default_string_length)   :: message
-      INTEGER                                  :: handle, n, m, myinfo, lwork
-      REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
-      TYPE(cp_fm_type)                         :: matrix_lu
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: work
-
+      INTEGER                                   :: handle, n, m, myinfo, lwork
+      REAL(KIND=dp), DIMENSION(:, :), POINTER   :: a
+      TYPE(cp_fm_type)                          :: matrix_lu
+      REAL(KIND=dp), DIMENSION(:), POINTER      :: work
+      REAL(KIND=dp), TARGET                     :: w(1)
 #if defined(__parallel)
-      INTEGER, DIMENSION(9)                    :: desca, descu, descvt
+      INTEGER, DIMENSION(9)                     :: desca, descu, descvt
 #endif
+
       CALL timeset(routineN, handle)
 
       CALL cp_fm_create(matrix=matrix_lu, &
@@ -924,8 +932,7 @@ CONTAINS
       ! Prepare for workspace queries
       myinfo = 0
       lwork = -1
-      ALLOCATE (work(1))
-      work(:) = 0.0_dp
+      work => w
 #if defined(__parallel)
       ! To do: That might need a redistribution check as in cp_fm_syevd
       desca(:) = matrix_lu%matrix_struct%descriptor(:)
@@ -937,28 +944,17 @@ CONTAINS
                    1, 1, descu, matrix_eigvr_t%local_data, 1, 1, descvt, work, lwork, myinfo)
 
       IF (matrix_lu%matrix_struct%para_env%is_source() .AND. (myinfo /= 0)) THEN
-         WRITE (message, "(A,I0,A)") "ERROR in PDGESVD: Work space query failed (INFO = ", myinfo, ")"
-         IF (PRESENT(info)) THEN
-            CPWARN(TRIM(message))
-         ELSE
-            CPABORT(TRIM(message))
-         END IF
+         CALL cp_fm_error("ERROR in PDGESVD: Work space query failed", myinfo, PRESENT(info))
       END IF
 
       lwork = INT(work(1))
-      DEALLOCATE (work)
       ALLOCATE (work(lwork))
-      ! SVD
+
       CALL pdgesvd('V', 'V', m, m, matrix_lu%local_data, 1, 1, desca, eigval, matrix_eigvl%local_data, &
                    1, 1, descu, matrix_eigvr_t%local_data, 1, 1, descvt, work, lwork, myinfo)
 
       IF (matrix_lu%matrix_struct%para_env%is_source() .AND. (myinfo /= 0)) THEN
-         WRITE (message, "(A,I0,A)") "ERROR in PDGESVD: Matrix diagonalization failed (INFO = ", myinfo, ")"
-         IF (PRESENT(info)) THEN
-            CPWARN(TRIM(message))
-         ELSE
-            CPABORT(TRIM(message))
-         END IF
+         CALL cp_fm_error("ERROR in PDGESVD: Matrix diagonalization failed", myinfo, PRESENT(info))
       END IF
 #else
       ! Workspace query
@@ -966,30 +962,18 @@ CONTAINS
                   m, matrix_eigvr_t%local_data, m, work, lwork, myinfo)
 
       IF (myinfo /= 0) THEN
-         WRITE (message, "(A,I0,A)") "ERROR in DGESVD: Work space query failed (INFO = ", myinfo, ")"
-         IF (PRESENT(info)) THEN
-            CPWARN(TRIM(message))
-         ELSE
-            CPABORT(TRIM(message))
-         END IF
+         CALL cp_fm_error("ERROR in DGESVD: Work space query failed", myinfo, PRESENT(info))
       END IF
 
       ! SVD
       lwork = INT(work(1))
-      DEALLOCATE (work)
       ALLOCATE (work(lwork))
-      work(:) = 0.0_dp
 
       CALL dgesvd('S', 'S', m, m, matrix_lu%local_data, m, eigval, matrix_eigvl%local_data, &
                   m, matrix_eigvr_t%local_data, m, work, lwork, myinfo)
 
       IF (myinfo /= 0) THEN
-         WRITE (message, "(A,I0,A)") "ERROR in DGESVD: Matrix diagonalization failed (INFO = ", myinfo, ")"
-         IF (PRESENT(info)) THEN
-            CPWARN(TRIM(message))
-         ELSE
-            CPABORT(TRIM(message))
-         END IF
+         CALL cp_fm_error("ERROR in DGESVD: Matrix diagonalization failed", myinfo, PRESENT(info))
       END IF
 
 #endif
@@ -1032,8 +1016,7 @@ CONTAINS
 
       INTEGER                                    :: handle, icol_global, &
                                                     mypcol, myprow, &
-                                                    ncol_global, npcol, nprow, &
-                                                    nrow_global
+                                                    ncol_global, nrow_global
       LOGICAL                                    :: my_verbose
       REAL(KIND=dp)                              :: condition_number, f, p
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE   :: eigenvalues
@@ -1041,8 +1024,7 @@ CONTAINS
       TYPE(cp_blacs_env_type), POINTER           :: context
 
 #if defined(__parallel)
-      INTEGER           :: icol_local, ipcol, iprow, irow_global, &
-                           irow_local
+      INTEGER           :: icol_local, ipcol, iprow, irow_global, irow_local
 #endif
 
       CALL timeset(routineN, handle)
@@ -1053,8 +1035,6 @@ CONTAINS
       context => matrix%matrix_struct%context
       myprow = context%mepos(1)
       mypcol = context%mepos(2)
-      nprow = context%num_pe(1)
-      npcol = context%num_pe(2)
       n_dependent = 0
       p = 0.5_dp*exponent
 
@@ -1062,7 +1042,6 @@ CONTAINS
       ncol_global = matrix%matrix_struct%ncol_global
 
       ALLOCATE (eigenvalues(ncol_global))
-
       eigenvalues(:) = 0.0_dp
 
       ! Compute the eigenvectors and eigenvalues
@@ -1178,8 +1157,7 @@ CONTAINS
 !> \param thresh ...
 !> \param start_sec_block ...
 ! **************************************************************************************************
-   SUBROUTINE cp_fm_block_jacobi(matrix, eigenvectors, eigval, thresh, &
-                                 start_sec_block)
+   SUBROUTINE cp_fm_block_jacobi(matrix, eigenvectors, eigval, thresh, start_sec_block)
 
       ! Calculates block diagonalization of a full symmetric matrix
       ! It has its origin in cp_fm_syevx. This routine rotates only elements
@@ -1207,11 +1185,11 @@ CONTAINS
 #if defined(__parallel)
       TYPE(cp_blacs_env_type), POINTER :: context
 
-      INTEGER :: myprow, mypcol, nprow, npcol, block_dim_row, block_dim_col, &
-                 info, ev_row_block_size, iam, mynumrows, mype, npe, &
-                 q_loc
+      INTEGER :: nprow, npcol, block_dim_row, block_dim_col, info, &
+                 ev_row_block_size, iam, mynumrows, mype, npe, q_loc
       REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE  :: a_loc, ev_loc
-      INTEGER, DIMENSION(9)                        :: desca, descz, desc_a_block, &
+      INTEGER, DIMENSION(9)                        :: desca, descz, &
+                                                      desc_a_block, &
                                                       desc_ev_loc
       TYPE(mp_comm_type):: allgrp
       TYPE(cp_blacs_type) :: ictxt_loc
@@ -1226,8 +1204,6 @@ CONTAINS
       context => matrix%matrix_struct%context
       allgrp = matrix%matrix_struct%para_env
 
-      myprow = context%mepos(1)
-      mypcol = context%mepos(2)
       nprow = context%num_pe(1)
       npcol = context%num_pe(2)
 
@@ -1249,7 +1225,7 @@ CONTAINS
       mype = matrix%matrix_struct%para_env%mepos
       npe = matrix%matrix_struct%para_env%num_pe
       ! Get a new context
-      CALL ictxt_loc%gridinit(matrix%matrix_struct%para_env, 'Row-major', NPROW*NPCOL, 1)
+      CALL ictxt_loc%gridinit(matrix%matrix_struct%para_env, 'Row-major', nprow*npcol, 1)
 
       CALL descinit(desc_a_block, block_dim_row, block_dim_col, block_dim_row, &
                     block_dim_col, 0, 0, ictxt_loc%get_handle(), block_dim_row, info)
@@ -1265,7 +1241,7 @@ CONTAINS
       ! Initialize distribution of the eigenvectors
       iam = mype
       ev_row_block_size = n/(nprow*npcol)
-      mynumrows = NUMROC(N, ev_row_block_size, iam, 0, NPROW*NPCOL)
+      mynumrows = NUMROC(N, ev_row_block_size, iam, 0, nprow*npcol)
 
       ALLOCATE (EV_loc(mynumrows, N), c_ip(mynumrows))
 

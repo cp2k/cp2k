@@ -126,7 +126,11 @@ CONTAINS
       flags = TRIM(flags)//" elpa_intel_gpu"
 #endif
 #if defined(__parallel)
+#if defined(__SCALAPACK_NO_WA)
       flags = TRIM(flags)//" parallel scalapack"
+#else
+      flags = TRIM(flags)//" parallel scalapack"
+#endif
 #endif
 #if defined(__MPI_F08)
       flags = TRIM(flags)//" mpi_f08"
