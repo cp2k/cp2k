@@ -65,9 +65,9 @@ MODULE pao_types
       CHARACTER(LEN=default_string_length)      :: prim_basis_name = ""
       INTEGER                                   :: prim_basis_size = -1
       INTEGER                                   :: pao_basis_size = -1
-      INTEGER                                   :: num_neighbors = -1
+      INTEGER                                   :: num_layers = -1
       REAL(dp)                                  :: cutoff = 0.0_dp
-      INTEGER, DIMENSION(:), ALLOCATABLE        :: feature_kinds
+      INTEGER, DIMENSION(:), ALLOCATABLE        :: kinds_mapping
       INTEGER(kind=omp_lock_kind)               :: lock = -1
    END TYPE pao_model_type
 

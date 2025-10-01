@@ -27,13 +27,11 @@ export PATH="/opt/venv/bin:$PATH"
 
 # install python packages
 pip3 install --quiet \
+  -r pao-ml-requirements.txt \
   numpy==2.2.4 \
   matplotlib==3.10.1 \
   requests==2.32.3 \
   types-requests==2.32.0.20250328 \
-  torch==2.6.0 \
-  e3nn==0.5.6 \
-  scipy==1.15.2 \
   mypy==1.5.1
 
 # download inputs for minimax_to_fortran_source.py

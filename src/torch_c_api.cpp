@@ -57,6 +57,17 @@ extern "C" {
 #endif
 
 /*******************************************************************************
+ * \brief Creates a Torch tensor from an array of int32s.
+ *        The passed array has to outlive the tensor!
+ * \author Ole Schuett
+ ******************************************************************************/
+void torch_c_tensor_from_array_int32(torch_c_tensor_t **tensor,
+                                     const bool req_grad, const int ndims,
+                                     const int64_t sizes[], int32_t source[]) {
+  *tensor = tensor_from_array(torch::kInt32, req_grad, ndims, sizes, source);
+}
+
+/*******************************************************************************
  * \brief Creates a Torch tensor from an array of floats.
  *        The passed array has to outlive the tensor!
  * \author Ole Schuett
@@ -87,6 +98,17 @@ void torch_c_tensor_from_array_double(torch_c_tensor_t **tensor,
                                       const bool req_grad, const int ndims,
                                       const int64_t sizes[], double source[]) {
   *tensor = tensor_from_array(torch::kFloat64, req_grad, ndims, sizes, source);
+}
+
+/*******************************************************************************
+ * \brief Returns the data_ptr and sizes of a Torch tensor of int32s.
+ *        The returned pointer is only valide during the tensor's live time!
+ * \author Ole Schuett
+ ******************************************************************************/
+void torch_c_tensor_data_ptr_int32(const torch_c_tensor_t *tensor,
+                                   const int ndims, int64_t sizes[],
+                                   int32_t **data_ptr) {
+  *data_ptr = (int32_t *)get_data_ptr(tensor, torch::kInt32, ndims, sizes);
 }
 
 /*******************************************************************************

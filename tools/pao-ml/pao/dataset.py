@@ -3,78 +3,128 @@
 import torch
 import numpy as np
 import numpy.typing as npt
-import scipy.spatial  # type: ignore
+from numpy.linalg import norm
 from pathlib import Path
 from typing import Any, List, Tuple, Iterator
 from torch.utils.data import Dataset
+from nequip.data import AtomicDataDict, register_fields  # type: ignore
 
 from .io import parse_pao_file
 
-PaoRecord = Tuple[torch.Tensor, torch.Tensor, torch.Tensor]
+NDArray = npt.NDArray[np.float64]
+
+# ======================================================================================
+register_fields(graph_fields=["xblock"])  # no need to register "central_edge_index"
+
+collate_fn = AtomicDataDict.batched_from_list
 
 
 # ======================================================================================
-def _as_tensor(x: List[Any] | npt.NDArray[np.float64]) -> torch.Tensor:
+def _as_float_tensor(x: List[Any] | npt.NDArray[np.float64]) -> torch.Tensor:
     return torch.tensor(np.array(x, dtype=np.float32))
 
 
 # ======================================================================================
-class PaoDataset(Dataset[PaoRecord]):
-    def __init__(self, kind_name: str, num_neighbors: int, files: List[Path]):
-        self.neighbors_relpos: List[torch.Tensor] = []
-        self.neighbors_features: List[torch.Tensor] = []
-        self.labels: List[torch.Tensor] = []
+def _as_int_tensor(x: List[Any] | npt.NDArray[np.int64]) -> torch.Tensor:
+    return torch.tensor(np.array(x, dtype=np.int64))
+
+
+# ======================================================================================
+class PaoDataset(Dataset[AtomicDataDict]):
+    def __init__(
+        self,
+        kind_name: str,
+        num_layers: int,
+        cutoff: float,
+        files: List[Path],
+    ):
+        self.examples: List[AtomicDataDict] = []
 
         # Load kinds from the first training data file.
         kinds = parse_pao_file(files[0]).kinds
         self.kind = kinds[kind_name]
-        self.feature_kind_names = sorted(kinds.keys())
+        self.all_kind_names = sorted(kinds.keys())
 
         # Load all training data files.
         for fn in files:
             f = parse_pao_file(fn)
+            natoms = f.coords.shape[0]
+            all_cell_shifts = [
+                i * f.cell[0, :] + j * f.cell[1, :] + k * f.cell[2, :]
+                for i in (-1, 0, +1)
+                for j in (-1, 0, +1)
+                for k in (-1, 0, +1)
+            ]
 
-            # Build  k-d tree of atom positions.
-            assert 0 < num_neighbors
-            assert np.all(f.cell == np.diag(np.diagonal(f.cell)))
-            boxsize = np.diagonal(f.cell)
-            kdtree = scipy.spatial.KDTree(np.mod(f.coords, boxsize), boxsize=boxsize)
-            # alternative: https://wiki.fysik.dtu.dk/ase/ase/neighborlist.html
-
-            # Small systems might contain less atoms than the model's num_neighbors.
-            num_available_neighbors = min(f.coords.shape[0] - 1, num_neighbors)
             for iatom, ikind in enumerate(f.atom2kind):
                 if ikind != kind_name:
                     continue
 
-                # Find indicies of neighbor atoms.
-                nearest = kdtree.query(f.coords[iatom], num_available_neighbors + 1)[1]
-                assert nearest[0] == iatom  # the central atom should be the nearest
+                # Find atoms that are reachable within num_layers * cutoff.
+                neighbor_pos: List[NDArray] = [f.coords[iatom]]
+                neighbor_atom_types: List[int] = [self.all_kind_names.index(ikind)]
+                for jatom, jkind in enumerate(f.atom2kind):
+                    for cell_shift in all_cell_shifts:
+                        if jatom == iatom and all(cell_shift == 0.0):
+                            continue  # central atom is always the first neighbor
+                        jpos = f.coords[jatom] + cell_shift
+                        if norm(jpos - f.coords[iatom]) < num_layers * cutoff:
+                            neighbor_pos.append(jpos)
+                            neighbor_atom_types.append(self.all_kind_names.index(jkind))
 
-                # Compute relative positions and features of neighbor atoms.
-                relpos = np.zeros([num_neighbors, 3])
-                features = np.zeros([num_neighbors, len(self.feature_kind_names)])
-                for jneighbor in range(num_available_neighbors):
-                    jatom = nearest[jneighbor + 1]  # +1 to skip over central atom
-                    relpos[jneighbor, :] = f.coords[jatom] - f.coords[iatom]
-                    # Features of neighbor atoms is the one-hot encoding of their kind.
-                    one_hot = f.atom2kind[jatom] == np.array(self.feature_kind_names)
-                    features[jneighbor, :] = one_hot
-                self.neighbors_relpos.append(_as_tensor(relpos))
-                self.neighbors_features.append(_as_tensor(features))
+                # Build connectivity graph of neighbors.
+                edge_index: List[Tuple[int, int]] = []
+                edge_vectors: List[NDArray] = []
+                for ineighbor, ipos in enumerate(neighbor_pos):
+                    for jneighbor, jpos in enumerate(neighbor_pos):
+                        if ineighbor == jneighbor:
+                            continue  # ConvNetLayer already includes self connections
+                        edge_vector = jpos - ipos
+                        if norm(edge_vector) < cutoff:
+                            edge_index.append((ineighbor, jneighbor))
+                            edge_vectors.append(edge_vector)
+
+                # TODO remove edges that are more than num_layers hops await from iatom.
 
                 # Orthonormalize labels as it's required for the loss_functions.
-                label = np.linalg.svd(f.xblocks[iatom], full_matrices=False)[2]
-                self.labels.append(_as_tensor(label))
+                xblock = np.linalg.svd(f.xblocks[iatom], full_matrices=False)[2]
 
+                # Collect all tensors into an AtomicDataDict for NequIP.
+                self.examples.append(
+                    {
+                        "atom_types": _as_int_tensor(neighbor_atom_types),
+                        "edge_index": _as_int_tensor(edge_index).T,
+                        "edge_vectors": _as_float_tensor(edge_vectors),
+                        # Adding an extra leading dimension to simplify the batching.
+                        "xblock": _as_float_tensor(xblock).unsqueeze(0),
+                        # The "pos" key is used by batched_from_list() to compute edge_index offsets.
+                        "pos": torch.zeros(len(neighbor_pos)),
+                        # Within an example the central atom is always the first atom.
+                        # However, during batching multiple examples are concatenated.
+                        # To keep track of the central atom we're using a key that
+                        # contains "edge_index" because in batched_from_list() the
+                        # correct offsets are added to those fields during batching.
+                        "central_edge_index": _as_int_tensor([[0, 0]]).T,
+                    }
+                )
+
+        # Print some stats.
+        avg_neighbors = np.mean([e["atom_types"].shape[0] for e in self.examples])
+        avg_edges = np.mean([e["edge_index"].shape[1] for e in self.examples])
+        print(
+            f"Found {len(self.examples)} examples of kind '{kind_name}' with "
+            f"on average {avg_neighbors:.1f} neighbors and {avg_edges:.1f} edges."
+        )
+
+    # ----------------------------------------------------------------------------------
     def __len__(self) -> int:
-        return len(self.labels)
+        return len(self.examples)
 
-    def __getitem__(self, i: int) -> PaoRecord:
-        return self.neighbors_relpos[i], self.neighbors_features[i], self.labels[i]
+    def __getitem__(self, i: int) -> AtomicDataDict:
+        return self.examples[i]
 
     # To make mypy happy.
-    def __iter__(self) -> Iterator[PaoRecord]:
+    def __iter__(self) -> Iterator[AtomicDataDict]:
         for i in range(len(self)):
             yield self[i]
 

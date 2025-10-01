@@ -15,9 +15,10 @@ MODULE torch_api
                             C_NULL_CHAR, &
                             C_NULL_PTR, &
                             C_PTR, &
+                            C_INT32_T, &
                             C_INT64_T
 
-   USE kinds, ONLY: sp, int_8, dp, default_string_length
+   USE kinds, ONLY: sp, int_4, int_8, dp, default_string_length
 
 #include "./base/base_uses.f90"
 
@@ -43,6 +44,7 @@ MODULE torch_api
    #:set max_dim = 3
    INTERFACE torch_tensor_from_array
       #:for ndims  in range(1, max_dim+1)
+         MODULE PROCEDURE torch_tensor_from_array_int32_${ndims}$d
          MODULE PROCEDURE torch_tensor_from_array_float_${ndims}$d
          MODULE PROCEDURE torch_tensor_from_array_int64_${ndims}$d
          MODULE PROCEDURE torch_tensor_from_array_double_${ndims}$d
@@ -51,6 +53,7 @@ MODULE torch_api
 
    INTERFACE torch_tensor_data_ptr
       #:for ndims  in range(1, max_dim+1)
+         MODULE PROCEDURE torch_tensor_data_ptr_int32_${ndims}$d
          MODULE PROCEDURE torch_tensor_data_ptr_float_${ndims}$d
          MODULE PROCEDURE torch_tensor_data_ptr_int64_${ndims}$d
          MODULE PROCEDURE torch_tensor_data_ptr_double_${ndims}$d
@@ -74,9 +77,9 @@ MODULE torch_api
 
 CONTAINS
 
-   #:set typenames = ['float', 'int64', 'double']
-   #:set types_f = ['REAL(sp)','INTEGER(kind=int_8)', 'REAL(dp)']
-   #:set types_c = ['REAL(kind=C_FLOAT)','INTEGER(kind=C_INT64_T)', 'REAL(kind=C_DOUBLE)']
+   #:set typenames = ['int32', 'float', 'int64', 'double']
+   #:set types_f = ['INTEGER(kind=int_4)', 'REAL(sp)', 'INTEGER(kind=int_8)', 'REAL(dp)']
+   #:set types_c = ['INTEGER(kind=C_INT32_T)', 'REAL(kind=C_FLOAT)', 'INTEGER(kind=C_INT64_T)', 'REAL(kind=C_DOUBLE)']
 
    #:for ndims in range(1, max_dim+1)
       #:for typename, type_f, type_c in zip(typenames, types_f, types_c)
@@ -99,7 +102,7 @@ CONTAINS
             INTERFACE
                SUBROUTINE torch_c_tensor_from_array_${typename}$ (tensor, req_grad, ndims, sizes, source) &
                   BIND(C, name="torch_c_tensor_from_array_${typename}$")
-                  IMPORT :: C_PTR, C_INT, C_INT64_T, C_FLOAT, C_DOUBLE, C_BOOL
+                  IMPORT :: C_PTR, C_INT, C_INT32_T, C_INT64_T, C_FLOAT, C_DOUBLE, C_BOOL
                   TYPE(C_PTR)                                  :: tensor
                   LOGICAL(kind=C_BOOL), VALUE                  :: req_grad
                   INTEGER(kind=C_INT), VALUE                   :: ndims
@@ -147,7 +150,7 @@ CONTAINS
             INTERFACE
                SUBROUTINE torch_c_tensor_data_ptr_${typename}$ (tensor, ndims, sizes, data_ptr) &
                   BIND(C, name="torch_c_tensor_data_ptr_${typename}$")
-                  IMPORT :: C_CHAR, C_PTR, C_INT, C_INT64_T
+                  IMPORT :: C_CHAR, C_PTR, C_INT, C_INT32_T, C_INT64_T
                   TYPE(C_PTR), VALUE                           :: tensor
                   INTEGER(kind=C_INT), VALUE                   :: ndims
                   INTEGER(kind=C_INT64_T), DIMENSION(*)        :: sizes

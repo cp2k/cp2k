@@ -1,14 +1,29 @@
 # author: Ole Schuett
 
 import torch
-import e3nn.o3  # type: ignore
-import e3nn.nn  # type: ignore
-import warnings
-from typing import Any, Dict, List
+from typing import Any, List, Dict
+
+from e3nn import o3  # type: ignore
+from e3nn.o3._linear import Linear  # type: ignore
+from nequip.data import AtomicDataDict  # type: ignore
+from nequip.nn import GraphModel, SequentialGraphNetwork, ConvNetLayer, GraphModuleMixin  # type: ignore
+from nequip.nn.embedding import (  # type: ignore
+    NodeTypeEmbed,
+    PolynomialCutoff,
+    EdgeLengthNormalizer,
+    BesselEdgeLengthEncoding,
+    SphericalHarmonicEdgeAttrs,
+)
+
+# from nequip.model import model_builder
 
 
 # ======================================================================================
-class PaoModel(torch.nn.Module):
+# Based on NequIPGNNEnergyModel:
+# https://github.com/mir-group/nequip/blob/main/nequip/model/nequip_models.py
+# @model_builder  # TODO: Probably needed for PyTorch's Ahead-of-Time Inductor compiler.
+class PaoModel(SequentialGraphNetwork):  # type: ignore
+
     # Ensure these get picked up as attributes by TorchScript.
     # https://pytorch.org/docs/stable/generated/torch.jit.Attribute.html
     pao_model_version: int
@@ -17,9 +32,7 @@ class PaoModel(torch.nn.Module):
     prim_basis_name: str
     prim_basis_size: int
     pao_basis_size: int
-    feature_kind_names: List[str]
-    num_neighbors: int
-    num_distances: int
+    all_kind_names: List[str]
     num_layers: int
     cutoff: float
 
@@ -30,24 +43,30 @@ class PaoModel(torch.nn.Module):
         prim_basis_name: str,
         prim_basis_size: int,
         pao_basis_size: int,
-        feature_kind_names: List[str],
-        num_neighbors: int,
-        num_distances: int,
+        all_kind_names: List[str],
+        avg_num_neighbors: float,
         num_layers: int,
         cutoff: float,
+        # convnet params
+        parity: bool = True,  # TODO really needed?
+        num_features: int = 32,
+        radial_mlp_depth: int = 2,
+        radial_mlp_width: int = 64,
+        # edge length encoding
+        num_bessels: int = 8,
+        bessel_trainable: bool = False,
+        polynomial_cutoff_p: int = 6,
     ):
-        super().__init__()
-        self.pao_model_version = 1
+        assert num_layers > 0
+        assert all(tn.isalnum() for tn in all_kind_names)
+
+        self.pao_model_version = 2
         self.kind_name = kind_name
         self.atomic_number = atomic_number
         self.prim_basis_name = prim_basis_name
         self.prim_basis_size = prim_basis_size
         self.pao_basis_size = pao_basis_size
-        self.feature_kind_names = feature_kind_names
-
-        # hyper-parameters
-        self.num_neighbors = num_neighbors
-        self.num_distances = num_distances
+        self.all_kind_names = all_kind_names
         self.num_layers = num_layers
         self.cutoff = cutoff
 
@@ -60,78 +79,106 @@ class PaoModel(torch.nn.Module):
             "TZV2P-MOLOPT-GGA-GTH-q6/O": "3x0e + 3x1o + 2x2e + 1x3o",
         }
         basis_specs_key = f"{prim_basis_name}/{kind_name}"
-        prim_basis_irreps = e3nn.o3.Irreps(prim_basis_specs[basis_specs_key])
-        assert self.prim_basis_size == prim_basis_irreps.dim
+        irreps_prim_basis = o3.Irreps(prim_basis_specs[basis_specs_key])
+        assert prim_basis_size == irreps_prim_basis.dim
 
-        # auxiliary Hamiltonian
-        self.matrix = SymmetricMatrix(prim_basis_irreps)
-
-        # Irreps of input features, i.e. the descriptor.
-        self.features_irreps = len(self.feature_kind_names) * e3nn.o3.Irrep("0e")
-        self.features_irreps_dim = self.features_irreps.dim
-
-        # Irreps of Spherical Harmonics used for sensing neighbors.
-        self.sensor_irreps = e3nn.o3.Irreps.spherical_harmonics(
-            lmax=self.matrix.input_irreps.lmax
+        # Spherical harmonics
+        lmax = 2 * irreps_prim_basis.lmax
+        irreps_edge_sh = repr(
+            o3.Irreps.spherical_harmonics(lmax=lmax, p=-1 if parity else 1)
         )
 
-        # Tensor Product
-        # TODO: fix warning
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", category=UserWarning)
-            self.tensor_product = e3nn.o3.FullyConnectedTensorProduct(
-                irreps_in1=self.features_irreps,
-                irreps_in2=self.sensor_irreps,
-                irreps_out=self.matrix.input_irreps,
-                shared_weights=False,
+        # Convert a single set of parameters uniformly for every layer
+        feature_irreps_hidden = repr(
+            o3.Irreps(
+                [
+                    (num_features, (l, p))
+                    for p in ((1, -1) if parity else (1,))
+                    for l in range(lmax + 1)
+                ]
             )
-
-        # Perceptron
-        # Note ReLu does not work well because many of the distance buckets from soft_one_hot_linspace are zero.
-        self.net = e3nn.nn.FullyConnectedNet(
-            hs=[self.num_distances, self.num_layers, self.tensor_product.weight_numel],
-            act=torch.sigmoid,
         )
 
+        # Assemble modules for SequentialGraphNetwork.
+        modules: Dict[str, GraphModuleMixin] = dict()
+
+        # Edge tensor embedding
+        modules["spharm"] = SphericalHarmonicEdgeAttrs(irreps_edge_sh=irreps_edge_sh)
+
+        # Edge scalar embedding
+        modules["edge_norm"] = EdgeLengthNormalizer(
+            r_max=cutoff,
+            type_names=all_kind_names,
+            irreps_in=modules["spharm"].irreps_out,
+        )
+
+        # Edge length encoding
+        modules["bessel_encode"] = BesselEdgeLengthEncoding(
+            num_bessels=num_bessels,
+            trainable=bessel_trainable,
+            cutoff=PolynomialCutoff(polynomial_cutoff_p),
+            irreps_in=modules["edge_norm"].irreps_out,
+        )
+
+        # Node scalar embedding
+        modules["type_embed"] = NodeTypeEmbed(
+            type_names=all_kind_names,
+            num_features=num_features,
+            irreps_in=modules["bessel_encode"].irreps_out,
+        )
+
+        # ConvNetLayer layers
+        prev_irreps_out = modules["type_embed"].irreps_out
+        for ilayer in range(num_layers):
+            modules[f"convnet_layer_{ilayer}"] = ConvNetLayer(
+                irreps_in=prev_irreps_out,
+                feature_irreps_hidden=feature_irreps_hidden,
+                convolution_kwargs={
+                    "radial_mlp_depth": radial_mlp_depth,
+                    "radial_mlp_width": radial_mlp_width,
+                    "avg_num_neighbors": avg_num_neighbors,
+                    # to ensure isolated atom limit
+                    # "use_sc": layer_i != 0,  # TODO user self connection
+                },
+            )
+            prev_irreps_out = modules[f"convnet_layer_{ilayer}"].irreps_out
+
+        # Readout into PAO basis
+        modules["pao_readout"] = PaoReadout(
+            irreps_in=prev_irreps_out,
+            irreps_prim_basis=irreps_prim_basis,
+            pao_basis_size=pao_basis_size,
+        )
+
+        super().__init__(modules)
+
+
+# ======================================================================================
+class PaoReadout(GraphModuleMixin, torch.nn.Module):  # type: ignore
+    def __init__(
+        self, irreps_in: Any, irreps_prim_basis: Any, pao_basis_size: int
+    ) -> None:
+        super().__init__()
+        self._init_irreps(  # type: ignore
+            irreps_in=irreps_in,
+            required_irreps_in=["node_features"],
+            irreps_out={},  # no irreps to output
+        )
+        self.pao_basis_size = pao_basis_size
+        self.matrix = SymmetricMatrix(irreps_prim_basis)  # auxiliary Hamiltonian
+        self.linear = Linear(
+            irreps_in=self.irreps_in["node_features"], irreps_out=self.matrix.irreps_in  # type: ignore
+        )
         # CP2K uses the yzx convention, while e3nn uses xyz.
         # https://docs.e3nn.org/en/stable/guide/change_of_basis.html
         yzx_to_xyz = torch.tensor([[0.0, 0.0, 1.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]])
-        self.D_yzx_to_xyz = prim_basis_irreps.D_from_matrix(yzx_to_xyz)
+        self.D_yzx_to_xyz = irreps_prim_basis.D_from_matrix(yzx_to_xyz)
 
-        # Spherical Harmonics
-        self.spherical_harmonics = e3nn.o3.SphericalHarmonics(
-            self.sensor_irreps,
-            normalize=True,
-            normalization="component",
-        )
-
-        # Used for distance embedding.
-        self.distance_buckets = torch.linspace(0.0, self.cutoff, self.num_distances)
-
-    # ----------------------------------------------------------------------------------
-    def forward(self, inputs: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
-        neighbors_relpos = inputs["neighbors_relpos"]
-        neighbors_features = inputs["neighbors_features"]
-
-        assert neighbors_relpos.shape[-2] == self.num_neighbors
-        assert neighbors_relpos.shape[-1] == 3
-        assert neighbors_features.shape[-2] == self.num_neighbors
-        assert neighbors_features.shape[-1] == self.features_irreps_dim
-
-        neighbors_distances = torch.norm(neighbors_relpos, dim=-1)
-
-        # Corresponds to e3nn.math.soft_one_hot_linspace(neighb_dists, basis="gaussian")
-        bucket_width = self.distance_buckets[1] - self.distance_buckets[0]
-        diff = (neighbors_distances[..., None] - self.distance_buckets) / bucket_width
-        distance_embedding = diff.pow(2).neg().exp().div(1.12)
-        weights = self.net(distance_embedding.mul(self.num_distances**0.5))
-        sensors = self.spherical_harmonics(neighbors_relpos)
-        vec_per_neighbor = self.tensor_product(
-            x=neighbors_features.mul(self.num_neighbors**0.5),
-            y=sensors,
-            weight=weights,
-        )
-        h_aux_vec = vec_per_neighbor.sum(dim=-2).div(self.num_neighbors**0.5)
+    def forward(self, data: AtomicDataDict.Type) -> AtomicDataDict.Type:
+        # Due to batching there can be multiple central atoms.
+        central_atoms = data["central_edge_index"][0]
+        central_atom_features = data["node_features"].index_select(0, central_atoms)
+        h_aux_vec = self.linear(central_atom_features)
         h_aux_matrix = self.matrix(h_aux_vec)
         u_matrix = torch.linalg.eigh(h_aux_matrix)[1]
         xblock = u_matrix[..., : self.pao_basis_size].transpose(-2, -1)
@@ -140,7 +187,7 @@ class PaoModel(torch.nn.Module):
 
 
 # ======================================================================================
-def flatten_irreps(irreps: e3nn.o3.Irreps) -> List[e3nn.o3.Irrep]:
+def flatten_irreps(irreps: o3.Irreps) -> List[o3.Irrep]:
     "Helper function to turn an Irreps object into a list of individual Irrep objects."
     result = []
     for mul, ir in irreps:
@@ -155,40 +202,40 @@ def dim(l: int) -> int:
 
 # ======================================================================================
 class SymmetricMatrix(torch.nn.Module):
-    def __init__(self, basis_irreps: Any):
+    def __init__(self, irreps_prim_basis: Any):
         super().__init__()
-        self.basis_irreps = basis_irreps
-        self.basis_irreps_ls: List[int] = basis_irreps.ls
+        self.irreps_prim_basis = irreps_prim_basis
+        self.irreps_prim_basis_ls: List[int] = irreps_prim_basis.ls
 
         # Compute irreps required to represent a matrix
-        self.input_irreps = e3nn.o3.Irreps()
+        self.irreps_in = o3.Irreps()
         self.wigner_blocks = []
-        for i, a in enumerate(flatten_irreps(basis_irreps)):
-            for j, b in enumerate(flatten_irreps(basis_irreps)):
+        for i, a in enumerate(flatten_irreps(irreps_prim_basis)):
+            for j, b in enumerate(flatten_irreps(irreps_prim_basis)):
                 if j > i:
                     continue  # skip upper triangle
-                self.input_irreps += a * b
+                self.irreps_in += a * b
 
                 # Pre-compute wigner blocks
                 for lk in range(abs(a.l - b.l), a.l + b.l + 1):
-                    self.wigner_blocks.append(e3nn.o3.wigner_3j(a.l, b.l, lk))
+                    self.wigner_blocks.append(o3.wigner_3j(a.l, b.l, lk))
 
-        self.input_irreps_ls = self.input_irreps.ls
+        self.irreps_in_ls = self.irreps_in.ls
 
     # ----------------------------------------------------------------------------------
     def forward(self, vector: torch.Tensor) -> torch.Tensor:
-        assert vector.shape[-1] == sum(dim(l) for l in self.input_irreps_ls)
-        basis_size = sum(dim(l) for l in self.basis_irreps_ls)
+        assert vector.shape[-1] == sum(dim(l) for l in self.irreps_in_ls)
+        basis_size = sum(dim(l) for l in self.irreps_prim_basis_ls)
         matrix = torch.zeros(vector.shape[:-1] + (basis_size, basis_size))
         matrix[..., :, :] = torch.eye(basis_size)  # ensure matrix is diagonalizable
         c = 0  # position in vector
         z = 0  # position in self.wigner_blocks
-        for i, li in enumerate(self.basis_irreps_ls):
-            a = sum(dim(l) for l in self.basis_irreps_ls[:i])  # first matrix row
-            for j, lj in enumerate(self.basis_irreps_ls):
+        for i, li in enumerate(self.irreps_prim_basis_ls):
+            a = sum(dim(l) for l in self.irreps_prim_basis_ls[:i])  # first matrix row
+            for j, lj in enumerate(self.irreps_prim_basis_ls):
                 if j > i:
                     continue  # skip upper triangle
-                b = sum(dim(l) for l in self.basis_irreps_ls[:j])  # first matrix col
+                b = sum(dim(l) for l in self.irreps_prim_basis_ls[:j])  # 1st matrix col
                 for lk in range(abs(li - lj), li + lj + 1):
                     # TODO the wigner blocks are mostly zeros - not sure pytorch takes advantage of that.
                     wigner_block = self.wigner_blocks[z]
