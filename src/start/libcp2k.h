@@ -32,23 +32,23 @@ void cp2k_get_version(char *version_str, int str_length);
  * \brief Initialize CP2K and MPI
  * \warning You are supposed to call cp2k_finalize() before exiting the program.
  ******************************************************************************/
-void cp2k_init();
+void cp2k_init(void);
 
 /*******************************************************************************
  * \brief Initialize CP2K without initializing MPI
  * \warning You are supposed to call cp2k_finalize() before exiting the program.
  ******************************************************************************/
-void cp2k_init_without_mpi();
+void cp2k_init_without_mpi(void);
 
 /*******************************************************************************
  * \brief Finalize CP2K and MPI
  ******************************************************************************/
-void cp2k_finalize();
+void cp2k_finalize(void);
 
 /*******************************************************************************
  * \brief Finalize CP2K and without finalizing MPI
  ******************************************************************************/
-void cp2k_finalize_without_mpi();
+void cp2k_finalize_without_mpi(void);
 
 /*******************************************************************************
  * \brief Create a new force environment
