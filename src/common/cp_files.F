@@ -14,7 +14,10 @@
 !> \author Matthias Krack (MK)
 ! **************************************************************************************************
 MODULE cp_files
-
+   USE ISO_C_BINDING,                   ONLY: C_CHAR,&
+                                              C_F_POINTER,&
+                                              C_NULL_CHAR,&
+                                              C_PTR
    USE kinds,                           ONLY: default_path_length
    USE machine,                         ONLY: default_input_unit,&
                                               default_output_unit,&
@@ -551,19 +554,30 @@ CONTAINS
 !> \return ...
 !> \author Ole Schuett
 ! **************************************************************************************************
-   FUNCTION get_data_dir() RESULT(data_dir_path)
-      CHARACTER(LEN=default_path_length)                 :: data_dir_path
+   FUNCTION get_data_dir() RESULT(res)
+      CHARACTER(len=default_path_length)                 :: res
 
-      INTEGER                                            :: stat
+      CHARACTER(LEN=1, KIND=C_CHAR), DIMENSION(:), &
+         POINTER                                         :: path_f
+      INTEGER                                            :: i
+      TYPE(C_PTR)                                        :: path_c
+      INTERFACE
+         FUNCTION get_data_dir_c() BIND(C, name="get_data_dir")
+            IMPORT :: C_PTR
+            TYPE(C_PTR)                               :: get_data_dir_c
+         END FUNCTION get_data_dir_c
+      END INTERFACE
 
-      CALL GET_ENVIRONMENT_VARIABLE("CP2K_DATA_DIR", data_dir_path, status=stat)
-      IF (stat == 0) RETURN
+      path_c = get_data_dir_c()
+      CALL C_F_POINTER(path_c, path_f, shape=(/default_path_length/))
 
-#if defined(__DATA_DIR)
-      data_dir_path = __DATA_DIR
-#else
-      data_dir_path = "" !data-dir not set
-#endif
+      res = ""
+      DO i = 1, default_path_length
+         IF (path_f(i) == C_NULL_CHAR) RETURN
+         res(i:i) = path_f(i)
+      END DO
+
+      CPABORT("CP2K_DATA_DIR path is too long")
 
    END FUNCTION get_data_dir
 

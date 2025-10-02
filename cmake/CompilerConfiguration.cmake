@@ -35,7 +35,7 @@ endif()
 
 # Baseline
 add_compile_options(
-  "$<$<COMPILE_LANG_AND_ID:Fortran,GNU>:-std=f2008;-ffree-form;-ffree-line-length-none;-fimplicit-none>"
+  "$<$<COMPILE_LANG_AND_ID:Fortran,GNU>:-std=f2008;-ffree-form;-fimplicit-none>"
   "$<$<COMPILE_LANG_AND_ID:Fortran,GNU>:-g;-fno-omit-frame-pointer;-fbacktrace>"
   "$<$<COMPILE_LANG_AND_ID:Fortran,GNU>:$<$<VERSION_GREATER_EQUAL:${CMAKE_Fortran_COMPILER_VERSION},11>:-fallow-argument-mismatch>>"
   "$<$<COMPILE_LANG_AND_ID:Fortran,GNU>:-Wno-deprecated-declarations;-Wno-maybe-uninitialized;-Wuninitialized;-Wuse-without-only>"

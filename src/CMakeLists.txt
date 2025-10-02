@@ -1385,7 +1385,14 @@ list(
   xc/xc_xpbe_hole_t_c_lr.F
   xc/xc_xwpbe.F)
 
-list(APPEND CP2K_SRCS_C sockets.c base/machine_cpuid.c base/openmp_trace.c)
+list(
+  APPEND
+  CP2K_SRCS_C
+  sockets.c
+  base/machine_cpuid.c
+  base/openmp_trace.c
+  base/openmp_trace.c
+  common/cp_data_dir.c)
 
 set(CP2K_OFFLOAD_SRCS_C offload/offload_buffer.c offload/offload_library.c
                         offload/offload_mempool.c)
