@@ -95,8 +95,9 @@ static inline const char *offload_fftGetErrorString(offload_fftResult error) {
     return "CUFFT_NOT_SUPPORTED";
   case CUFFT_UNALIGNED_DATA:
     return "CUFFT_UNALIGNED_DATA";
-    /*case CUFFT_LICENSE_ERROR:
-      return "CUFFT_LICENSE_ERROR";*/
+  /*case CUFFT_LICENSE_ERROR:
+    return "CUFFT_LICENSE_ERROR";*/
+  default:; // <unknown>
   }
 
 #elif defined(__OFFLOAD_HIP)
@@ -133,6 +134,7 @@ static inline const char *offload_fftGetErrorString(offload_fftResult error) {
     return "HIPFFT_NOT_SUPPORTED";
   case HIPFFT_UNALIGNED_DATA:
     return "HIPFFT_UNALIGNED_DATA";
+  default:; // <unknown>
   }
 #endif
 
