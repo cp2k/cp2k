@@ -6,7 +6,7 @@
 /*----------------------------------------------------------------------------*/
 
 /*
- * inspirartions from the gpu backend
+ * inspirations from the gpu backend
  * Authors :
  - Dr Mathieu Taillefumier (ETH Zurich / CSCS)
  - Advanced Micro Devices, Inc.
