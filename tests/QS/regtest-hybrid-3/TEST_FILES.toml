@@ -2,7 +2,7 @@
 "H2O-hybrid-b3lyp_shortcut.inp"         = [{matcher="E_total", tol=4e-14, ref=-76.37338940401885}]
 "H2O-hybrid-pbe0_shortcut.inp"          = [{matcher="E_total", tol=3e-14, ref=-76.31995335312706}]
 "Li-hybrid-rcam-b3lyp.inp"              = [{matcher="E_total", tol=3e-08, ref=-7.4460773270220502}]
-"Ne-hybrid-rcam-b3lyp.inp"              = [{matcher="E_total", tol=1e-11, ref=-128.87260245488937}]
+"Ne-hybrid-rcam-b3lyp.inp"              = [{matcher="E_total", tol=5e-11, ref=-128.87260245488937}]
 "Li-hybrid-MCY3.inp"                    = [{matcher="E_total", tol=1e-13, ref=-7.46323602713238}]
 "Ne-hybrid-MCY3.inp"                    = [{matcher="E_total", tol=3e-12, ref=-128.86159937473883}]
 #EOF

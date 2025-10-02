@@ -28,8 +28,9 @@
 #error "OpenMP should not be used in .cu files to accommodate HIP."
 #endif
 
-// Teen registers are sufficient to integrate lp <= 2 with a single grid sweep.
-#define GRID_N_CXYZ_REGISTERS 10
+// Twenty registers are sufficient to integrate lp <= 3 with a single grid
+// sweep.
+#define GRID_N_CXYZ_REGISTERS 20
 
 /*******************************************************************************
  * \brief Add value to designated register without using dynamic indexing.
@@ -70,6 +71,36 @@ add_to_register(const double value, const int index, cxyz_store *store) {
   case 9:
     store->regs[9] += value;
     break;
+  case 10:
+    store->regs[10] += value;
+    break;
+  case 11:
+    store->regs[11] += value;
+    break;
+  case 12:
+    store->regs[12] += value;
+    break;
+  case 13:
+    store->regs[13] += value;
+    break;
+  case 14:
+    store->regs[14] += value;
+    break;
+  case 15:
+    store->regs[15] += value;
+    break;
+  case 16:
+    store->regs[16] += value;
+    break;
+  case 17:
+    store->regs[17] += value;
+    break;
+  case 18:
+    store->regs[18] += value;
+    break;
+  case 19:
+    store->regs[19] += value;
+    break;
   }
 }
 
@@ -103,20 +134,20 @@ __device__ static void gridpoint_to_cxyz(const double dx, const double dy,
         store->regs[7] += prefactor * dy * dy;
         store->regs[8] += prefactor * dy * dz;
         store->regs[9] += prefactor * dz * dz;
+        if (lp >= 3) {
+          store->regs[10] += prefactor * dx * dx * dx;
+          store->regs[11] += prefactor * dx * dx * dy;
+          store->regs[12] += prefactor * dx * dx * dz;
+          store->regs[13] += prefactor * dx * dy * dy;
+          store->regs[14] += prefactor * dx * dy * dz;
+          store->regs[15] += prefactor * dx * dz * dz;
+          store->regs[16] += prefactor * dy * dy * dy;
+          store->regs[17] += prefactor * dy * dy * dz;
+          store->regs[18] += prefactor * dy * dz * dz;
+          store->regs[19] += prefactor * dz * dz * dz;
+        }
       }
     }
-
-  } else if (store->offset == 10) {
-    store->regs[0] += prefactor * dx * dx * dx;
-    store->regs[1] += prefactor * dx * dx * dy;
-    store->regs[2] += prefactor * dx * dx * dz;
-    store->regs[3] += prefactor * dx * dy * dy;
-    store->regs[4] += prefactor * dx * dy * dz;
-    store->regs[5] += prefactor * dx * dz * dz;
-    store->regs[6] += prefactor * dy * dy * dy;
-    store->regs[7] += prefactor * dy * dy * dz;
-    store->regs[8] += prefactor * dy * dz * dz;
-    store->regs[9] += prefactor * dz * dz * dz;
 
   } else if (store->offset == 20) {
     store->regs[0] += prefactor * dx * dx * dx * dx;
@@ -129,21 +160,18 @@ __device__ static void gridpoint_to_cxyz(const double dx, const double dy,
     store->regs[7] += prefactor * dx * dy * dy * dz;
     store->regs[8] += prefactor * dx * dy * dz * dz;
     store->regs[9] += prefactor * dx * dz * dz * dz;
-
-  } else if (store->offset == 30) {
-    store->regs[0] += prefactor * dy * dy * dy * dy;
-    store->regs[1] += prefactor * dy * dy * dy * dz;
-    store->regs[2] += prefactor * dy * dy * dz * dz;
-    store->regs[3] += prefactor * dy * dz * dz * dz;
-    store->regs[4] += prefactor * dz * dz * dz * dz;
+    store->regs[10] += prefactor * dy * dy * dy * dy;
+    store->regs[11] += prefactor * dy * dy * dy * dz;
+    store->regs[12] += prefactor * dy * dy * dz * dz;
+    store->regs[13] += prefactor * dy * dz * dz * dz;
+    store->regs[14] += prefactor * dz * dz * dz * dz;
     if (lp >= 5) {
-      store->regs[5] += prefactor * dx * dx * dx * dx * dx;
-      store->regs[6] += prefactor * dx * dx * dx * dx * dy;
-      store->regs[7] += prefactor * dx * dx * dx * dx * dz;
-      store->regs[8] += prefactor * dx * dx * dx * dy * dy;
-      store->regs[9] += prefactor * dx * dx * dx * dy * dz;
+      store->regs[15] += prefactor * dx * dx * dx * dx * dx;
+      store->regs[16] += prefactor * dx * dx * dx * dx * dy;
+      store->regs[17] += prefactor * dx * dx * dx * dx * dz;
+      store->regs[18] += prefactor * dx * dx * dx * dy * dy;
+      store->regs[19] += prefactor * dx * dx * dx * dy * dz;
     }
-
   } else if (store->offset == 40) {
     store->regs[0] += prefactor * dx * dx * dx * dz * dz;
     store->regs[1] += prefactor * dx * dx * dy * dy * dy;
@@ -155,21 +183,18 @@ __device__ static void gridpoint_to_cxyz(const double dx, const double dy,
     store->regs[7] += prefactor * dx * dy * dy * dz * dz;
     store->regs[8] += prefactor * dx * dy * dz * dz * dz;
     store->regs[9] += prefactor * dx * dz * dz * dz * dz;
-
-  } else if (store->offset == 50) {
-    store->regs[0] += prefactor * dy * dy * dy * dy * dy;
-    store->regs[1] += prefactor * dy * dy * dy * dy * dz;
-    store->regs[2] += prefactor * dy * dy * dy * dz * dz;
-    store->regs[3] += prefactor * dy * dy * dz * dz * dz;
-    store->regs[4] += prefactor * dy * dz * dz * dz * dz;
-    store->regs[5] += prefactor * dz * dz * dz * dz * dz;
+    store->regs[10] += prefactor * dy * dy * dy * dy * dy;
+    store->regs[11] += prefactor * dy * dy * dy * dy * dz;
+    store->regs[12] += prefactor * dy * dy * dy * dz * dz;
+    store->regs[13] += prefactor * dy * dy * dz * dz * dz;
+    store->regs[14] += prefactor * dy * dz * dz * dz * dz;
+    store->regs[15] += prefactor * dz * dz * dz * dz * dz;
     if (lp >= 6) {
-      store->regs[6] += prefactor * dx * dx * dx * dx * dx * dx;
-      store->regs[7] += prefactor * dx * dx * dx * dx * dx * dy;
-      store->regs[8] += prefactor * dx * dx * dx * dx * dx * dz;
-      store->regs[9] += prefactor * dx * dx * dx * dx * dy * dy;
+      store->regs[16] += prefactor * dx * dx * dx * dx * dx * dx;
+      store->regs[17] += prefactor * dx * dx * dx * dx * dx * dy;
+      store->regs[18] += prefactor * dx * dx * dx * dx * dx * dz;
+      store->regs[19] += prefactor * dx * dx * dx * dx * dy * dy;
     }
-
   } else if (store->offset == 60) {
     store->regs[0] += prefactor * dx * dx * dx * dx * dy * dz;
     store->regs[1] += prefactor * dx * dx * dx * dx * dz * dz;
@@ -181,19 +206,16 @@ __device__ static void gridpoint_to_cxyz(const double dx, const double dy,
     store->regs[7] += prefactor * dx * dx * dy * dy * dy * dz;
     store->regs[8] += prefactor * dx * dx * dy * dy * dz * dz;
     store->regs[9] += prefactor * dx * dx * dy * dz * dz * dz;
-
-  } else if (store->offset == 70) {
-    store->regs[0] += prefactor * dx * dx * dz * dz * dz * dz;
-    store->regs[1] += prefactor * dx * dy * dy * dy * dy * dy;
-    store->regs[2] += prefactor * dx * dy * dy * dy * dy * dz;
-    store->regs[3] += prefactor * dx * dy * dy * dy * dz * dz;
-    store->regs[4] += prefactor * dx * dy * dy * dz * dz * dz;
-    store->regs[5] += prefactor * dx * dy * dz * dz * dz * dz;
-    store->regs[6] += prefactor * dx * dz * dz * dz * dz * dz;
-    store->regs[7] += prefactor * dy * dy * dy * dy * dy * dy;
-    store->regs[8] += prefactor * dy * dy * dy * dy * dy * dz;
-    store->regs[9] += prefactor * dy * dy * dy * dy * dz * dz;
-
+    store->regs[10] += prefactor * dx * dx * dz * dz * dz * dz;
+    store->regs[11] += prefactor * dx * dy * dy * dy * dy * dy;
+    store->regs[12] += prefactor * dx * dy * dy * dy * dy * dz;
+    store->regs[13] += prefactor * dx * dy * dy * dy * dz * dz;
+    store->regs[14] += prefactor * dx * dy * dy * dz * dz * dz;
+    store->regs[15] += prefactor * dx * dy * dz * dz * dz * dz;
+    store->regs[16] += prefactor * dx * dz * dz * dz * dz * dz;
+    store->regs[17] += prefactor * dy * dy * dy * dy * dy * dy;
+    store->regs[18] += prefactor * dy * dy * dy * dy * dy * dz;
+    store->regs[19] += prefactor * dy * dy * dy * dy * dz * dz;
   } else if (store->offset == 80) {
     store->regs[0] += prefactor * dy * dy * dy * dz * dz * dz;
     store->regs[1] += prefactor * dy * dy * dz * dz * dz * dz;
@@ -206,6 +228,16 @@ __device__ static void gridpoint_to_cxyz(const double dx, const double dy,
       store->regs[7] += prefactor * dx * dx * dx * dx * dx * dy * dy;
       store->regs[8] += prefactor * dx * dx * dx * dx * dx * dy * dz;
       store->regs[9] += prefactor * dx * dx * dx * dx * dx * dz * dz;
+      store->regs[10] += prefactor * dx * dx * dx * dx * dy * dy * dy;
+      store->regs[11] += prefactor * dx * dx * dx * dx * dy * dy * dz;
+      store->regs[12] += prefactor * dx * dx * dx * dx * dy * dz * dz;
+      store->regs[13] += prefactor * dx * dx * dx * dx * dz * dz * dz;
+      store->regs[14] += prefactor * dx * dx * dx * dy * dy * dy * dy;
+      store->regs[15] += prefactor * dx * dx * dx * dy * dy * dy * dz;
+      store->regs[16] += prefactor * dx * dx * dx * dy * dy * dz * dz;
+      store->regs[17] += prefactor * dx * dx * dx * dy * dz * dz * dz;
+      store->regs[18] += prefactor * dx * dx * dx * dz * dz * dz * dz;
+      store->regs[19] += prefactor * dx * dx * dy * dy * dy * dy * dy;
     }
 
     // Handle higher offsets, ie. values of lp.
