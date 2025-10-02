@@ -504,8 +504,8 @@ cp2k_info.o: $(GIT_REF)
 FCFLAGS += -D__COMPILE_ARCH="\"$(ARCH)\""\
         -D__COMPILE_DATE="\"$(shell date)\""\
         -D__COMPILE_HOST="\"$(shell hostname 2>/dev/null || hostnamectl --transient)\""\
-        -D__COMPILE_REVISION="\"$(strip $(REVISION))\""\
-        -D__DATA_DIR="\"$(DATA_DIR)\""
+        -D__COMPILE_REVISION="\"$(strip $(REVISION))\""
+CFLAGS +=  -D__DATA_DIR="\"$(DATA_DIR)\""
 
 # $(FCLOGPIPE) can be used to store compiler output, e.g. warnings, for each F-file separately.
 # This is used e.g. by the convention checker.
