@@ -596,8 +596,8 @@ RUN make -j ARCH=Linux-x86-64-nvhpc VERSION=ssmp cp2k
 
 # ======================================================================================
 def install_deps_toolchain_cuda(gpu_ver: str) -> str:
-    return rf"""
-FROM nvidia/cuda:13.0.1-devel-ubuntu24.04
+    deps = rf"""
+FROM nvidia/cuda:12.9.1-devel-ubuntu24.04
 
 # Setup CUDA environment.
 ENV CUDA_PATH /usr/local/cuda
@@ -621,12 +621,13 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
         gpu_ver=gpu_ver,
         with_dbcsr="no",
     )
+    return deps
 
 
 # ======================================================================================
 def install_deps_toolchain_hip_cuda(gpu_ver: str) -> str:
     return rf"""
-FROM nvidia/cuda:13.0.1-devel-ubuntu24.04
+FROM nvidia/cuda:12.9.1-devel-ubuntu24.04
 
 # Setup CUDA environment.
 ENV CUDA_PATH /usr/local/cuda
