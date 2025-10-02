@@ -6,8 +6,8 @@
 [ "${BASH_SOURCE[0]}" ] && SCRIPT_NAME="${BASH_SOURCE[0]}" || SCRIPT_NAME=$0
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_NAME")/.." && pwd -P)"
 
-sirius_ver="7.7.0"
-sirius_sha256="be0bdc76db9eb8afdcb950f0ccaf7535b8e85d72a4232dc92246f54fa68d9d7b"
+sirius_ver="7.7.1"
+sirius_sha256="6039c84197d9e719e826f98b840cff19bc513887b443f97c0099d3c8b908efed"
 
 source "${SCRIPT_DIR}"/common_vars.sh
 source "${SCRIPT_DIR}"/tool_kit.sh
@@ -114,12 +114,6 @@ case "$with_sirius" in
       [ -d sirius-${sirius_ver} ] && rm -rf sirius-${sirius_ver}
       tar -xzf SIRIUS-${sirius_ver}.tar.gz
       cd SIRIUS-${sirius_ver}
-
-      # Workaround for https://github.com/electronic-structure/SIRIUS/issues/1073
-      patch -p1 < ${SCRIPT_DIR}/stage8/sirius_memory.patch
-
-      # Fix for GCC 15
-      sed -i '1i #include <cstdint>' src/core/memory.hpp
 
       rm -Rf build
       mkdir build
