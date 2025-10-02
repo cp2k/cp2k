@@ -26,7 +26,8 @@
  * \brief Wrapper for printf, passed to dbm_library_print_stats.
  * \author Ole Schuett
  ******************************************************************************/
-static void print_func(const char *msg, int /*msglen*/, int output_unit) {
+static void print_func(const char *msg, int msglen, int output_unit) {
+  (void)msglen;           // mark used
   if (output_unit == 0) { // i.e. my_rank == 0
     printf("%s", msg);
   }

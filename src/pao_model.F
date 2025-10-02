@@ -358,7 +358,9 @@ CONTAINS
       NULLIFY (predicted_xblock)
       CALL torch_dict_get(model_outputs, "xblock", predicted_xblock_tensor)
       CALL torch_tensor_data_ptr(predicted_xblock_tensor, predicted_xblock)
-      CPASSERT(SIZE(predicted_xblock, 1) == n .AND. SIZE(predicted_xblock, 2) == m .AND. SIZE(predicted_xblock, 3) == 1)
+      CPASSERT(SIZE(predicted_xblock, 1) == n)
+      CPASSERT(SIZE(predicted_xblock, 2) == m)
+      CPASSERT(SIZE(predicted_xblock, 3) == 1)
       IF (PRESENT(block_X)) THEN
          block_X = RESHAPE(predicted_xblock, [n*m, 1])
       END IF
