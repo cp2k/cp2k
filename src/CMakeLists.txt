@@ -1493,12 +1493,7 @@ set(CP2K_GRID_SRCS_HIP
     grid/hip/grid_hip_context.cu)
 
 set(CP2K_DBM_SRCS_GPU dbm/dbm_multiply_gpu_kernel.cu)
-set(CP2K_DBM_SRCS_GPU_C dbm/dbm_multiply_gpu.c)
-
-# opencl iles should be decoupled so that we include them in the compilation
-# process only when needed.
-set(CP2K_DBM_SRCS_OPENCL dbm/dbm_multiply_opencl.cl)
-set(CP2K_DBM_SRCS_OPENCL_C dbm/dbm_multiply_opencl.c)
+set(CP2K_DBM_SRCS_GPU_C dbm/dbm_multiply_opencl.c dbm/dbm_multiply_gpu.c)
 
 set(CP2K_PW_SRCS_GPU pw/gpu/pw_gpu_kernels.cu)
 
@@ -1518,41 +1513,16 @@ set(CP2K_PROGS_F
     nequip_unittest.F
     gx_ac_unittest.F)
 
-# ##############################################################################
-# check that the files registered in CMakeLists.txt are all present and return
-# an error otherwise. cmake only runs this test nothing else below
-# ##############################################################################
-
-if(CP2K_ENABLE_CONSISTENCY_CHECKS)
-  cp2k_compare_src_with_list(
-    "${CP2K_SRCS_C};${CP2K_FPGA_SRC_C};${CP2K_GRPP_SRCS_C};${CP2K_OFFLOAD_SRCS_C};${CP2K_DBM_SRCS_C};${CP2K_GRID_SRCS_C};${CP2K_PW_SRCS_C};${CP2K_DBM_SRCS_GPU_C};${CP2K_PROGS_C};${CP2K_DBM_SRCS_OPENCL_C}"
-    "*.c"
-    "${CP2K_EXCLUDED_SRCS_C}")
-  cp2k_compare_src_with_list(
-    "${CP2K_GRPP_SRCS_F};${CP2K_SRCS_F};${CP2K_OFFLOAD_SRCS_F};${CP2K_PROGS_F}"
-    "*.F" "${CP2K_EXCLUDED_SRCS_F}")
-  cp2k_compare_src_with_list(
-    "${CP2K_GRID_SRCS_GPU};${CP2K_GRID_SRCS_HIP};${CP2K_DBM_SRCS_GPU};${CP2K_PW_SRCS_GPU}"
-    "*.cu"
-    "")
-  cp2k_compare_src_with_list("${CP2K_SRCS_CPP}" "*.cpp" "")
-  return()
-endif()
-
-# ##############################################################################
-# Set all necessary CUDA/HIP/OpenCL source files before compilation.
-# ##############################################################################
 if(CP2K_USE_CUDA
    OR CP2K_USE_HIP
    OR CP2K_USE_OPENCL)
-
   if(CP2K_ENABLE_PW_GPU)
     list(APPEND CP2K_SRCS_GPU "pw/gpu/pw_gpu_kernels.cu")
     list(APPEND CP2K_SRCS_C ${CP2K_PW_SRCS_C})
   endif()
 
   if(CP2K_ENABLE_DBM_GPU)
-    list(APPEND CP2K_DBM_SRCS_C ${CP2K_DBM_SRCS_GPU_C})
+    list(APPEND CP2K_DBM_SRCS_C dbm/dbm_multiply_gpu.c)
     if(CP2K_USE_OPENCL)
       set(CP2K_DBM_OPENCL_KERNEL dbm/dbm_multiply_opencl.cl)
       add_custom_command(
@@ -1565,7 +1535,7 @@ if(CP2K_USE_CUDA
                 ${CMAKE_CURRENT_SOURCE_DIR}/${CP2K_DBM_OPENCL_KERNEL}
         OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/${CP2K_DBM_OPENCL_KERNEL}.h
         COMMENT "Generating OpenCL kernel for DBM")
-      list(APPEND CP2K_DBM_SRCS_C ${CP2K_DBM_SRCS_OPENCL_C}
+      list(APPEND CP2K_DBM_SRCS_C dbm/dbm_multiply_opencl.c
            ${CP2K_DBM_OPENCL_KERNEL}.h)
     else()
       list(APPEND CP2K_SRCS_GPU ${CP2K_DBM_SRCS_GPU})
@@ -1573,12 +1543,11 @@ if(CP2K_USE_CUDA
   endif()
 
   if(CP2K_ENABLE_GRID_GPU)
-    list(APPEND CP2K_SRCS_GPU ${CP2K_GRID_SRCS_GPU})
     if(CP2K_USE_HIP)
       list(APPEND CP2K_SRCS_GPU ${CP2K_GRID_SRCS_HIP})
     endif()
+    list(APPEND CP2K_SRCS_GPU ${CP2K_GRID_SRCS_GPU})
   endif()
-
   if(CP2K_USE_HIP)
     set_source_files_properties(${CP2K_SRCS_GPU} PROPERTIES LANGUAGE HIP)
   endif()
@@ -1590,29 +1559,25 @@ if(CP2K_USE_GRPP)
   list(APPEND CP2K_SRCS_C ${CP2K_GRPP_SRCS_C})
   list(APPEND CP2K_SRCS_F ${CP2K_GRPP_SRCS_F})
 endif()
+# ##############################################################################
+# check that the files registered in CMakeLists.txt are all present and return
+# an error otherwise. cmake only runs this test nothing else below
+# ##############################################################################
 
-add_fypp_sources(CP2K_SRCS ${CP2K_SRCS_F})
-add_fypp_sources(CP2K_PROGS_F_FYPP ${CP2K_PROGS_F})
-
-# set the __SHORT_FILE__ per file for CP2K sources
-foreach(cp2k_src ${CP2K_SRCS} ${CP2K_PROGS_F_FYPP})
-  # add_fypp_sources returns a path in the current binary dir
-  file(RELATIVE_PATH short_file "${CMAKE_BINARY_DIR}/src" "${cp2k_src}")
-  set_source_files_properties(
-    ${cp2k_src} PROPERTIES COMPILE_DEFINITIONS __SHORT_FILE__="${short_file}")
-endforeach()
-
-set(CP2K_FULL_SRCS "${CP2K_SRCS};${CP2K_SRCS_C}")
-
-if(CP2K_USE_HIP
-   OR CP2K_USE_CUDA
-   OR CP2K_USE_OPENCL
-   OR CP2K_USE_LIBTORCH)
-  list(APPEND CP2K_FULL_SRCS ${CP2K_SRCS_GPU})
-endif()
-
-if(CP2K_USE_LIBTORCH)
-  list(APPEND CP2K_FULL_SRCS "${CP2K_SRCS_CPP}")
+if(CP2K_ENABLE_CONSISTENCY_CHECKS)
+  cp2k_compare_src_with_list(
+    "${CP2K_FPGA_SRC_C};${CP2K_SRCS_C};${CP2K_MPIWRAP_SRCS_C};${CP2K_OFFLOAD_SRCS_C};${CP2K_DBM_SRCS_C};${CP2K_GRID_SRCS_C};${CP2K_PW_SRCS_C};${CP2K_DBM_SRCS_GPU_C};${CP2K_PROGS_C};${CP2K_GRPP_SRCS_C}"
+    "*.c"
+    "${CP2K_EXCLUDED_SRCS_C}")
+  cp2k_compare_src_with_list(
+    "${CP2K_GRPP_SRCS_F};${CP2K_SRCS_F};${CP2K_OFFLOAD_SRCS_F};${CP2K_PROGS_F}"
+    "*.F" "${CP2K_EXCLUDED_SRCS_F}")
+  cp2k_compare_src_with_list(
+    "${CP2K_GRID_SRCS_GPU};${CP2K_GRID_SRCS_HIP};${CP2K_DBM_SRCS_GPU};${CP2K_PW_SRCS_GPU}"
+    "*.cu"
+    "")
+  cp2k_compare_src_with_list("${CP2K_SRCS_CPP}" "*.cpp" "")
+  return()
 endif()
 
 # ##############################################################################
@@ -1645,14 +1610,14 @@ add_library(cp2k_linalg_libs INTERFACE)
 target_link_libraries(
   cp2k_linalg_libs
   INTERFACE cp2k::LAPACK::lapack
-            $<$<BOOL:${CP2K_USE_LIBXSMM}>:cp2k::LibXSMM::libxsmmf
-            cp2k::LibXSMM::libxsmmext>
+            $<$<BOOL:${CP2K_USE_LIBXSMM}>:cp2k::LibXSMM::libxsmmf>
+            $<$<BOOL:${CP2K_USE_LIBXSMM}>:cp2k::LibXSMM::libxsmmext>
             cp2k::BLAS::blas
             $<$<BOOL:${CP2K_USE_CUDA}>:cp2k_cuda_libs>
             $<$<BOOL:${CP2K_USE_HIP}>:cp2k_hip_libs>
-            $<$<BOOL:${CP2K_USE_MPI}>:MPI::MPI_Fortran
-            MPI::MPI_C
-            MPI::MPI_CXX>
+            $<$<BOOL:${CP2K_USE_MPI}>:MPI::MPI_Fortran>
+            $<$<BOOL:${CP2K_USE_MPI}>:MPI::MPI_C>
+            $<$<BOOL:${CP2K_USE_MPI}>:MPI::MPI_CXX>
             OpenMP::OpenMP_Fortran
             OpenMP::OpenMP_C
             OpenMP::OpenMP_CXX)
@@ -1671,15 +1636,7 @@ set(CP2K_GPU_DFLAGS
     $<$<BOOL:${CP2K_USE_HIP}>:__OFFLOAD_HIP
     ${CP2K_GPU_PLATFORM_DFLAGS}>
     $<$<COMPILE_LANGUAGE:HIP>:__OFFLOAD_HIP
-    ${CP2K_GPU_PLATFORM_DFLAGS}>
-    $<$<NOT:$<BOOL:${CP2K_ENABLE_GRID_GPU}>>:__NO_OFFLOAD_GRID>
-    $<$<NOT:$<BOOL:${CP2K_ENABLE_PW_GPU}>>:__NO_OFFLOAD_PW>
-    $<$<NOT:$<BOOL:${CP2K_ENABLE_DBM_GPU}>>:__NO_OFFLOAD_DBM>
-    $<$<NOT:$<BOOL:${CP2K_DBCSR_USE_CPU_ONLY}>>:__DBCSR_ACC>)
-
-if(DEFINED CP2K_LAPACK_INCLUDE_DIRS)
-  include_directories(${CP2K_LAPACK_INCLUDE_DIRS})
-endif()
+    ${CP2K_GPU_PLATFORM_DFLAGS}>)
 
 # ##############################################################################
 # set properties for the cp2k target.
@@ -1700,21 +1657,18 @@ foreach(cp2k_prog ${CP2K_PROGS_F})
     ${cp2k_prog} PROPERTIES COMPILE_DEFINITIONS __SHORT_FILE__="${cp2k_prog}")
 endforeach()
 
-set(CP2K_FULL_SRCS "${CP2K_SRCS};${CP2K_SRCS_C}")
-
-if(CP2K_USE_HIP
-   OR CP2K_USE_CUDA
-   OR CP2K_USE_OPENCL
-   OR CP2K_USE_LIBTORCH)
-  list(APPEND CP2K_FULL_SRCS ${CP2K_SRCS_GPU})
-endif()
-
 if(CP2K_USE_LIBTORCH)
-  list(APPEND CP2K_FULL_SRCS "${CP2K_SRCS_CPP}")
+  add_library(cp2k
+              "${CP2K_SRCS};${CP2K_SRCS_C};${CP2K_SRCS_GPU};${CP2K_SRCS_CPP}")
+else()
+  if(BUILD_SHARED_LIBS)
+    add_library(cp2k SHARED "${CP2K_SRCS};${CP2K_SRCS_C};${CP2K_SRCS_GPU}")
+  else()
+    add_library(cp2k STATIC "${CP2K_SRCS};${CP2K_SRCS_C};${CP2K_SRCS_GPU}")
+  endif()
 endif()
 
-add_library(cp2k "${CP2K_FULL_SRCS}")
-
+target_compile_features(cp2k PUBLIC cuda_std_11)
 target_include_directories(cp2k PUBLIC $<INSTALL_INTERFACE:include/cp2k>)
 
 set_target_properties(
@@ -1763,13 +1717,19 @@ add_library(cp2k_link_libs INTERFACE)
 target_link_libraries(
   cp2k_link_libs
   INTERFACE
-    $<$<BOOL:${CP2K_USE_DFTD4}>:mctc-lib::mctc-lib
-    dftd4::dftd4>
+    $<$<BOOL:${CP2K_USE_DFTD4}>:mctc-lib::mctc-lib>
+    $<$<BOOL:${CP2K_USE_DFTD4}>:dftd4::dftd4>
     $<$<BOOL:${CP2K_USE_DEEPMD}>:DeePMD::deepmd
     DeePMD::deepmd_c>
     $<$<BOOL:${CP2K_USE_PEXSI}>:PEXSI::PEXSI>
-    $<$<BOOL:${CP2K_USE_ACE}>:cp2k::ACE>
-    $<$<BOOL:${CP2K_USE_TBLITE}>:cp2k::tblite>
+    $<$<BOOL:${CP2K_USE_ACE}>:ACE::pace>
+    $<$<BOOL:${CP2K_USE_ACE}>:ACE::yaml-cpp-pace>
+    $<$<BOOL:${CP2K_USE_ACE}>:ACE::cnpy>
+    $<$<BOOL:${CP2K_USE_TBLITE}>:toml-f::toml-f>
+    $<$<BOOL:${CP2K_USE_TBLITE}>:s-dftd3::s-dftd3>
+    $<$<BOOL:${CP2K_USE_TBLITE}>:mctc-lib::mctc-lib>
+    $<$<BOOL:${CP2K_USE_TBLITE}>:dftd4::dftd4>
+    $<$<BOOL:${CP2K_USE_TBLITE}>:tblite::tblite>
     $<$<BOOL:${CP2K_USE_SIRIUS}>:sirius::sirius>
     $<$<BOOL:${CP2K_USE_VORI}>:cp2k::VORI::vori>
     $<$<BOOL:${CP2K_USE_SPGLIB}>:Spglib::symspg>
@@ -1782,10 +1742,12 @@ target_link_libraries(
     $<$<AND:$<BOOL:${CP2K_USE_FFTW3_}>,$<BOOL:${CP2K_ENABLE_FFTW3_OPENMP_SUPPORT}>>:cp2k::FFTW3::fftw3_omp>
     $<$<BOOL:${CP2K_USE_SPLA}>:SPLA::spla>
     $<$<BOOL:${CP2K_USE_LIBINT2}>:cp2k::Libint2::int2>
-    $<$<BOOL:${CP2K_USE_COSMA}>:cosma::cosma_prefixed_pxgemm
-    cosma::cosma>
+    $<$<BOOL:${CP2K_USE_COSMA}>:cosma::cosma_prefixed_pxgemm>
+    $<$<BOOL:${CP2K_USE_COSMA}>:cosma::cosma>
     $<$<BOOL:${CP2K_USE_DLAF}>:DLAF::Fortran>
-    $<$<BOOL:${CP2K_USE_GREENX}>:cp2k::greenx>
+    $<$<BOOL:${CP2K_USE_GREENX}>:greenX::GXCommon>
+    $<$<BOOL:${CP2K_USE_GREENX}>:greenX::LibGXAC>
+    $<$<BOOL:${CP2K_USE_GREENX}>:greenX::LibGXMiniMax>
     $<$<BOOL:${CP2K_USE_TREXIO}>:cp2k::trexio::trexio>
     $<$<BOOL:${CP2K_USE_HDF5}>:HDF5::HDF5
     hdf5::hdf5_fortran>
@@ -1819,7 +1781,8 @@ target_compile_definitions(
     $<$<BOOL:${CP2K_USE_SPGLIB}>:__SPGLIB>
     $<$<BOOL:${CP2K_USE_LIBSMEAGOL}>:__SMEAGOL>
     $<$<BOOL:${CP2K_USE_TBLITE}>:__TBLITE>
-    $<$<OR:$<BOOL:${CP2K_USE_DFTD4}>,$<BOOL:${CP2K_USE_TBLITE}>>:__DFTD4>
+    $<$<BOOL:${CP2K_USE_TBLITE}>:__DFTD4>
+    $<$<BOOL:${CP2K_USE_DFTD4}>:__DFTD4>
     $<$<BOOL:${CP2K_USE_DEEPMD}>:__DEEPMD>
     $<$<BOOL:${CP2K_USE_PEXSI}>:__PEXSI>
     $<$<BOOL:${CP2K_USE_ACE}>:__ACE>
@@ -1840,13 +1803,24 @@ target_compile_definitions(
     $<$<BOOL:${CP2K_USE_LIBTORCH}>:__LIBTORCH>
     $<$<BOOL:${CP2K_USE_COSMA}>:__COSMA>
     $<$<BOOL:${CP2K_USE_LIBXSMM}>:__LIBXSMM>
-    $<$<BOOL:${CP2K_USE_SIRIUS_DFTD4}>:__SIRIUS_DFTD4>
-    $<$<BOOL:${CP2K_USE_SIRIUS_NLCG}>:__SIRIUS_NLCG>
+    $<$<BOOL:${CCP2K_USE_SIRIUS_DFTD4}>:__SIRIUS_DFTD4>
+    $<$<BOOL:${CCP2K_USE_SIRIUS_NLCG}>:__SIRIUS_NLCG>
     $<$<BOOL:${CP2K_USE_SIRIUS_VCSQNM}>:__SIRIUS_VCSQNM>
     $<$<STREQUAL:"${CP2K_BLAS_VENDOR}","MKL">:__MKL>
     $<$<STREQUAL:"${CP2K_BLAS_VENDOR}","Apple">:__ACCELERATE>
     $<$<BOOL:${CP2K_USE_CUSOLVER_MP}>:__CUSOLVERMP>
     ${CP2K_GPU_DFLAGS})
+
+if(CP2K_USE_CUDA
+   OR CP2K_USE_HIP
+   OR CP2K_USE_OPENCL)
+  target_compile_definitions(
+    cp2k
+    PUBLIC $<$<NOT:$<BOOL:${CP2K_DBCSR_USE_CPU_ONLY}>>:__DBCSR_ACC>
+           $<$<NOT:$<BOOL:${CP2K_ENABLE_GRID_GPU}>>:__NO_OFFLOAD_GRID>
+           $<$<NOT:$<BOOL:${CP2K_ENABLE_PW_GPU}>>:__NO_OFFLOAD_PW>
+           $<$<NOT:$<BOOL:${CP2K_ENABLE_DBM_GPU}>>:__NO_OFFLOAD_DBM>)
+endif()
 
 # add an alias for the FetchContent. Note that FindPackage will automatically
 # have this alias available.
@@ -1917,17 +1891,17 @@ endforeach()
 # ##############################################################################
 
 add_executable(
-  dbm_miniapp
-  dbm/dbm_miniapp.c
-  ${CP2K_DBM_SRCS_C}
-  $<$<BOOL:${CP2K_ENABLE_DBM_GPU}>:"${CP2K_DBM_SRCS_GPU_C}:${CP2K_DBM_SRCS_GPU}">
-  ${CP2K_OFFLOAD_SRCS_C})
-
+  dbm_miniapp dbm/dbm_miniapp.c ${CP2K_DBM_SRCS_C} ${CP2K_MPIWRAP_SRCS_C}
+              ${CP2K_DBM_SRCS_GPU} ${CP2K_OFFLOAD_SRCS_C})
 target_compile_definitions(
-  dbm_miniapp
-  PRIVATE $<$<BOOL:${CP2K_USE_LIBXSMM}>:__LIBXSMM>
-          $<$<STREQUAL:"${CP2K_BLAS_VENDOR}","MKL">:__MKL>
-          $<$<BOOL:${CP2K_ENABLE_DBM_GPU}>:${CP2K_GPU_DFLAGS}>)
+  dbm_miniapp PRIVATE $<$<BOOL:${CP2K_USE_LIBXSMM}>:__LIBXSMM>
+                      $<$<STREQUAL:"${CP2K_BLAS_VENDOR}","MKL">:__MKL>)
+
+if(CP2K_DISABLE_DBM_GPU)
+  target_compile_definitions(dbm_miniapp PRIVATE __NO_OFFLOAD_DBM)
+else()
+  target_compile_definitions(dbm_miniapp PRIVATE ${CP2K_GPU_DFLAGS})
+endif()
 
 foreach(__app grid_miniapp grid_unittest)
   add_executable(
@@ -1939,10 +1913,14 @@ foreach(__app grid_miniapp grid_unittest)
     ${CP2K_MPIWRAP_SRCS_C}
     ${CP2K_OFFLOAD_SRCS_C})
   target_compile_definitions(
-    ${__app}
-    PRIVATE $<$<BOOL:${CP2K_USE_LIBXSMM}>:__LIBXSMM>
-            $<$<STREQUAL:"${CP2K_BLAS_VENDOR}","MKL">:__MKL>
-            $<$<BOOL:${CP2K_ENABLE_GRID_GPU}>:${CP2K_GPU_DFLAGS}>)
+    ${__app} PRIVATE $<$<BOOL:${CP2K_USE_LIBXSMM}>:__LIBXSMM>
+                     $<$<STREQUAL:"${CP2K_BLAS_VENDOR}","MKL">:__MKL>)
+
+  if(CP2K_DISABLE_GRID_GPU)
+    target_compile_definitions(${__app} PUBLIC __NO_OFFLOAD_GRID)
+  else()
+    target_compile_definitions(${__app} PUBLIC ${CP2K_GPU_DFLAGS})
+  endif()
 endforeach()
 
 # ##############################################################################
@@ -1969,6 +1947,8 @@ foreach(__app grid_miniapp grid_unittest dbm_miniapp)
     set_target_properties(${__app} PROPERTIES CUDA_ARCHITECTURES
                                               ${CMAKE_CUDA_ARCHITECTURES})
   endif()
+
+  target_compile_features(${__app} PUBLIC cuda_std_14 c_std_99 cxx_std_14)
 
   target_include_directories(
     ${__app}
