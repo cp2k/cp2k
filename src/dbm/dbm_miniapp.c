@@ -135,10 +135,12 @@ static void reserve_all_blocks(dbm_matrix_t *matrix) {
         }
       }
     }
-    assert(0 < nblocks);
-    int *reserve_row = malloc(nblocks * sizeof(int));
-    int *reserve_col = malloc(nblocks * sizeof(int));
-    assert(reserve_row != NULL && reserve_col != NULL);
+    int *reserve_row = NULL, *reserve_col = NULL;
+    if (0 < nblocks) {
+      reserve_row = malloc(nblocks * sizeof(int));
+      reserve_col = malloc(nblocks * sizeof(int));
+      assert(reserve_row != NULL && reserve_col != NULL);
+    }
     int iblock = 0;
 #pragma omp for collapse(2)
     for (int row = 0; row < nrows; row++) {
@@ -147,7 +149,7 @@ static void reserve_all_blocks(dbm_matrix_t *matrix) {
             matrix->dist->my_rank) {
           reserve_row[iblock] = row;
           reserve_col[iblock] = col;
-          iblock++;
+          ++iblock;
         }
       }
     }
