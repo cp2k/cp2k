@@ -212,11 +212,14 @@ CONTAINS
 !>      other functions when using cp2k as library
 !> \param init_mpi if the mpi environment should be initialized
 !> \param ierr returns a number different from 0 if there was an error
+!> \param mpi_comm an existing mpi communicator (if not given mp_comm_world
+!>      will be used)
 !> \author fawzi
 ! **************************************************************************************************
-   SUBROUTINE init_cp2k(init_mpi, ierr)
+   SUBROUTINE init_cp2k(init_mpi, ierr, mpi_comm)
       LOGICAL, INTENT(in)                                :: init_mpi
       INTEGER, INTENT(out)                               :: ierr
+      TYPE(mp_comm_type), INTENT(in), OPTIONAL           :: mpi_comm
 
       INTEGER                                            :: offload_device_count, unit_nr
       INTEGER, POINTER                                   :: active_device_id
@@ -246,7 +249,11 @@ CONTAINS
             ! get the default system wide communicator
             CALL mp_world_init(default_para_env)
          ELSE
-            default_para_env = mp_comm_world
+            IF (PRESENT(mpi_comm)) THEN
+               default_para_env = mpi_comm
+            ELSE
+               default_para_env = mp_comm_world
+            END IF
          END IF
 
          CALL string_table_allocate()

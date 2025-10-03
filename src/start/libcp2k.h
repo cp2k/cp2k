@@ -35,10 +35,17 @@ void cp2k_get_version(char *version_str, int str_length);
 void cp2k_init(void);
 
 /*******************************************************************************
- * \brief Initialize CP2K without initializing MPI
+ * \brief Initialize CP2K without initializing MPI (on MPI_COMM_WORLD)
  * \warning You are supposed to call cp2k_finalize() before exiting the program.
  ******************************************************************************/
 void cp2k_init_without_mpi(void);
+
+/*******************************************************************************
+ * \brief Initialize CP2K without initializing MPI on the given comm
+ * \warning You are supposed to call cp2k_finalize() before exiting the program.
+ * \param mpi_comm Fortran MPI communicator if MPI is not managed by CP2K
+ ******************************************************************************/
+void cp2k_init_without_mpi_comm(int mpi_comm);
 
 /*******************************************************************************
  * \brief Finalize CP2K and MPI
