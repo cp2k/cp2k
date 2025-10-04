@@ -367,7 +367,7 @@ void offload_mempool_stats_print(int fortran_comm,
 
     OFFLOAD_MEMPOOL_PRINT(
         print_func,
-        " -                         OFFLOAD MEMPOOL STATISTICS            "
+        " -                          OFFLOAD MEMPOOL STATISTICS           "
         "              -\n",
         output_unit);
     OFFLOAD_MEMPOOL_PRINT(
