@@ -271,7 +271,7 @@ CONTAINS
       DO j = -1, +1
       DO k = -1, +1
          jcell = jcell + 1
-         cell_shifts(jcell, :) = i*cell%hmat(1, :) + j*cell%hmat(2, :) + k*cell%hmat(3, :)
+         cell_shifts(jcell, :) = i*cell%hmat(:, 1) + j*cell%hmat(:, 2) + k*cell%hmat(:, 3)
       END DO
       END DO
       END DO
