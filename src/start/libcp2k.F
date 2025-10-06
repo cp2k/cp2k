@@ -114,7 +114,7 @@ CONTAINS
       CALL my_mpi_comm%set_handle(INT(mpi_comm))
       CALL init_cp2k(.FALSE., ierr, my_mpi_comm)
       CPASSERT(ierr == 0)
-   END SUBROUTINE cp2k_init_without_mpi
+   END SUBROUTINE cp2k_init_without_mpi_comm
 
 ! **************************************************************************************************
 !> \brief ...
