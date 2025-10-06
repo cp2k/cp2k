@@ -16,8 +16,6 @@ ENV CUDA_CACHE_DISABLE 1
 # Install Ubuntu packages.
 RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     gfortran                                                          \
-    mpich                                                             \
-    libmpich-dev                                                      \
    && rm -rf /var/lib/apt/lists/*
 
 # Install requirements for the toolchain.
@@ -36,6 +34,7 @@ COPY ./tools/toolchain/scripts/VERSION \
      ./scripts/
 COPY ./tools/toolchain/install_cp2k_toolchain.sh .
 RUN ./install_cp2k_toolchain.sh \
+    --with-mpich=install \
     --mpi-mode=mpich \
     --enable-cuda=yes \
     --gpu-ver=P100 \
