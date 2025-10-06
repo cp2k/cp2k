@@ -4,14 +4,14 @@
 /*                                                                            */
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
+#include "../offload/offload_library.h"
+#include "../offload/offload_mempool.h"
+#include "common/grid_library.h"
+#include "grid_replay.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#include "../offload/offload_library.h"
-#include "common/grid_library.h"
-#include "grid_replay.h"
 
 // Only used to call MPI_Init and MPI_Finalize to avoid spurious MPI error.
 #if defined(__parallel)
@@ -19,21 +19,14 @@
 #endif
 
 /*******************************************************************************
- * \brief Standin for mpi_sum, passed to grid_library_print_stats.
- * \author Ole Schuett
- ******************************************************************************/
-static void mpi_sum_func(long *number, int mpi_comm) {
-  (void)number; // mark used
-  (void)mpi_comm;
-}
-
-/*******************************************************************************
  * \brief Wrapper for printf, passed to grid_library_print_stats.
  * \author Ole Schuett
  ******************************************************************************/
-static void print_func(char *message, int output_unit) {
-  (void)output_unit; // mark used
-  printf("%s", message);
+static void print_func(const char *msg, int msglen, int output_unit) {
+  (void)msglen;           // mark used
+  if (output_unit == 0) { // i.e. my_rank == 0
+    printf("%s", msg);
+  }
 }
 
 /*******************************************************************************
@@ -98,12 +91,13 @@ int main(int argc, char *argv[]) {
   errors += run_test(argv[1], "general_subpatch16.task");
   errors += run_test(argv[1], "general_overflow.task");
 
-  grid_library_print_stats(&mpi_sum_func, 0, &print_func, 0);
-  grid_library_finalize();
-
   if (errors == 0) {
+    grid_library_print_stats(0 /*fortran_comm*/, &print_func, 0 /*rank*/);
+    offload_mempool_stats_print(0 /*fortran_comm*/, &print_func, 0 /*rank*/);
+    grid_library_finalize();
     printf("\nAll tests have passed :-)\n");
   } else {
+    grid_library_finalize();
     printf("\nFound %i errors :-(\n", errors);
   }
 
