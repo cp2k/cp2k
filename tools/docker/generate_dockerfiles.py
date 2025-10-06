@@ -610,12 +610,11 @@ ENV CUDA_CACHE_DISABLE 1
 # Install Ubuntu packages.
 RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
     gfortran                                                          \
-    mpich                                                             \
-    libmpich-dev                                                      \
    && rm -rf /var/lib/apt/lists/*
 
 """ + install_toolchain(
         base_image="ubuntu",
+        with_mpich="install",
         mpi_mode="mpich",
         enable_cuda="yes",
         gpu_ver=gpu_ver,
