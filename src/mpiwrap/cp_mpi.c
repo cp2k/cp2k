@@ -319,6 +319,26 @@ void cp_mpi_sum_int(int *values, const int count, const cp_mpi_comm_t comm) {
 }
 
 /*******************************************************************************
+ * \brief Wrapper around MPI_Allreduce for op MPI_SUM and datatype MPI_LONG.
+ * \author Hans Pabst
+ ******************************************************************************/
+void cp_mpi_sum_long(long *values, const int count, const cp_mpi_comm_t comm) {
+#if defined(__parallel)
+  long value = 0;
+  void *recvbuf = (1 < count ? cp_mpi_alloc_mem(count * sizeof(long)) : &value);
+  CHECK(MPI_Allreduce(values, recvbuf, count, MPI_LONG, MPI_SUM, comm));
+  memcpy(values, recvbuf, count * sizeof(long));
+  if (1 < count) {
+    cp_mpi_free_mem(recvbuf);
+  }
+#else
+  (void)comm; // mark used
+  (void)values;
+  (void)count;
+#endif
+}
+
+/*******************************************************************************
  * \brief Wrapper around MPI_Allreduce for op MPI_SUM and datatype MPI_INT64_T.
  * \author Ole Schuett
  ******************************************************************************/

@@ -11,13 +11,11 @@
 ! **************************************************************************************************
 MODULE grid_api
    USE ISO_C_BINDING,                   ONLY: &
-        C_ASSOCIATED, C_BOOL, C_CHAR, C_DOUBLE, C_FUNLOC, C_FUNPTR, C_INT, C_LOC, C_LONG, &
-        C_NULL_PTR, C_PTR
+        C_ASSOCIATED, C_BOOL, C_CHAR, C_DOUBLE, C_FUNLOC, C_FUNPTR, C_INT, C_LOC, C_NULL_PTR, C_PTR
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_comm_type
    USE offload_api,                     ONLY: offload_buffer_type
    USE realspace_grid_types,            ONLY: realspace_grid_type
-   USE string_utilities,                ONLY: strlcpy_c2f
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -1193,10 +1191,9 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: output_unit
 
       INTERFACE
-         SUBROUTINE grid_library_print_stats_c(mpi_sum_func, mpi_comm, print_func, output_unit) &
+         SUBROUTINE grid_library_print_stats_c(mpi_comm, print_func, output_unit) &
             BIND(C, name="grid_library_print_stats")
             IMPORT :: C_FUNPTR, C_INT
-            TYPE(C_FUNPTR), VALUE                     :: mpi_sum_func
             INTEGER(KIND=C_INT), VALUE                :: mpi_comm
             TYPE(C_FUNPTR), VALUE                     :: print_func
             INTEGER(KIND=C_INT), VALUE                :: output_unit
@@ -1204,52 +1201,24 @@ CONTAINS
       END INTERFACE
 
       ! Since Fortran units and mpi groups can't be used from C, we pass function pointers instead.
-      CALL grid_library_print_stats_c(mpi_sum_func=C_FUNLOC(mpi_sum_func), &
-                                      mpi_comm=mpi_comm%get_handle(), &
+      CALL grid_library_print_stats_c(mpi_comm=mpi_comm%get_handle(), &
                                       print_func=C_FUNLOC(print_func), &
                                       output_unit=output_unit)
 
    END SUBROUTINE grid_library_print_stats
 
 ! **************************************************************************************************
-!> \brief Callback to run mpi_sum on a Fortran MPI communicator.
-!> \param number ...
-!> \param mpi_comm ...
-!> \author Ole Schuett
+!> \brief Callback to write to a Fortran output unit (called by C-side).
+!> \param msg to be printed.
+!> \param msglen number of characters excluding the terminating character.
+!> \param output_unit used for output.
+!> \author Ole Schuett and Hans Pabst
 ! **************************************************************************************************
-   SUBROUTINE mpi_sum_func(number, mpi_comm) BIND(C, name="grid_api_mpi_sum_func")
-      INTEGER(KIND=C_LONG), INTENT(INOUT)                :: number
-      INTEGER(KIND=C_INT), INTENT(IN), VALUE             :: mpi_comm
+   SUBROUTINE print_func(msg, msglen, output_unit) BIND(C, name="grid_api_print_func")
+      CHARACTER(KIND=C_CHAR), INTENT(IN)                 :: msg(*)
+      INTEGER(KIND=C_INT), INTENT(IN), VALUE             :: msglen, output_unit
 
-      TYPE(mp_comm_type)                                 :: my_mpi_comm
-
-      ! Convert the handle to the default integer kind and convert it to the communicator type
-      CALL my_mpi_comm%set_handle(INT(mpi_comm))
-
-      CALL my_mpi_comm%sum(number)
-   END SUBROUTINE mpi_sum_func
-
-! **************************************************************************************************
-!> \brief Callback to write to a Fortran output unit.
-!> \param message ...
-!> \param output_unit ...
-!> \author Ole Schuett
-! **************************************************************************************************
-   SUBROUTINE print_func(message, output_unit) BIND(C, name="grid_api_print_func")
-      CHARACTER(LEN=1, KIND=C_CHAR), INTENT(IN)          :: message(*)
-      INTEGER(KIND=C_INT), INTENT(IN), VALUE             :: output_unit
-
-      CHARACTER(LEN=1000)                                :: buffer
-      INTEGER                                            :: nchars
-
-      IF (output_unit <= 0) &
-         RETURN
-
-      ! Convert C char array into Fortran string.
-      nchars = strlcpy_c2f(buffer, message)
-
-      ! Print the message.
-      WRITE (output_unit, FMT="(A)", ADVANCE="NO") buffer(1:nchars)
+      IF (output_unit <= 0) RETURN ! Omit to print the message.
+      WRITE (output_unit, FMT="(100A)", ADVANCE="NO") msg(1:msglen)
    END SUBROUTINE print_func
-
 END MODULE grid_api

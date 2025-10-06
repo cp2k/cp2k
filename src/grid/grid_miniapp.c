@@ -4,23 +4,24 @@
 /*                                                                            */
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
+#include "../offload/offload_library.h"
+#include "../offload/offload_mempool.h"
+#include "common/grid_library.h"
+#include "grid_replay.h"
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "../offload/offload_library.h"
-#include "common/grid_library.h"
-#include "grid_replay.h"
-
-void mpi_sum_func(long *number, int mpi_comm) {
-  *number += 0; // Nothing todo without MPI, pretend arguments are used anyways.
-  mpi_comm += 0;
-}
-
-void print_func(char *message, int output_unit) {
-  output_unit += 0; // Pretend argument is used.
-  printf("%s", message);
+/*******************************************************************************
+ * \brief Wrapper for printf, passed to grid_library_print_stats.
+ * \author Ole Schuett
+ ******************************************************************************/
+static void print_func(const char *msg, int msglen, int output_unit) {
+  (void)msglen;           // mark used
+  if (output_unit == 0) { // i.e. my_rank == 0
+    printf("%s", msg);
+  }
 }
 
 /*******************************************************************************
@@ -71,11 +72,13 @@ int main(int argc, char *argv[]) {
   const bool success = grid_replay(argv[iarg++], cycles, collocate, batch,
                                    cycles_per_block, tolerance);
 
-  grid_library_print_stats(&mpi_sum_func, 0, &print_func, 0);
-  grid_library_finalize();
-
-  if (!success) {
+  if (success) {
+    grid_library_print_stats(0 /*fortran_comm*/, &print_func, 0 /*rank*/);
+    offload_mempool_stats_print(0 /*fortran_comm*/, &print_func, 0 /*rank*/);
+    grid_library_finalize();
+  } else {
     fprintf(stderr, "Error: Maximal difference is too large.\n");
+    grid_library_finalize();
     return 2;
   }
 

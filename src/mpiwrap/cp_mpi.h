@@ -134,6 +134,12 @@ void cp_mpi_max_double(double *values, const int count,
 void cp_mpi_sum_int(int *values, const int count, const cp_mpi_comm_t comm);
 
 /*******************************************************************************
+ * \brief Wrapper around MPI_Allreduce for op MPI_SUM and datatype MPI_LONG.
+ * \author Hans Pabst
+ ******************************************************************************/
+void cp_mpi_sum_long(long *values, const int count, const cp_mpi_comm_t comm);
+
+/*******************************************************************************
  * \brief Wrapper around MPI_Allreduce for op MPI_SUM and datatype MPI_INT64_T.
  * \author Ole Schuett
  ******************************************************************************/

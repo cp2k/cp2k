@@ -4,6 +4,12 @@
 /*                                                                            */
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
+#include "grid_library.h"
+#include "grid_common.h"
+#include "grid_constants.h"
+
+#include "../../mpiwrap/cp_mpi.h"
+#include "../../offload/offload_runtime.h"
 
 #include <assert.h>
 #include <omp.h>
@@ -12,10 +18,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../../offload/offload_runtime.h"
-#include "grid_common.h"
-#include "grid_constants.h"
-#include "grid_library.h"
+#define GRID_LIBRARY_PRINT(FN, MSG, OUTPUT_UNIT)                               \
+  ((FN)(MSG, (int)strlen(MSG), OUTPUT_UNIT))
 
 // counter dimensions
 #define GRID_NBACKENDS 5
@@ -154,15 +158,15 @@ static int compare_counters(const void *a, const void *b) {
  * \brief Prints statistics gathered by the grid library.
  * \author Ole Schuett
  ******************************************************************************/
-void grid_library_print_stats(void (*mpi_sum_func)(long *, int),
-                              const int mpi_comm,
-                              void (*print_func)(char *, int),
+void grid_library_print_stats(const int fortran_comm,
+                              void (*print_func)(const char *, int, int),
                               const int output_unit) {
   if (!library_initialized) {
     printf("Error: Grid library is not initialized.\n");
     abort();
   }
 
+  const cp_mpi_comm_t comm = cp_mpi_comm_f2c(fortran_comm);
   // Sum all counters across threads and mpi ranks.
   const int ncounters = GRID_NBACKENDS * GRID_NKERNELS * GRID_MAX_LP;
   long counters[ncounters][2];
@@ -173,33 +177,56 @@ void grid_library_print_stats(void (*mpi_sum_func)(long *, int),
     for (int j = 0; j < max_threads; j++) {
       counters[i][0] += per_thread_globals[j]->counters[i];
     }
-    mpi_sum_func(&counters[i][0], mpi_comm);
+    cp_mpi_sum_long(&counters[i][0], 1, comm);
     total += counters[i][0];
   }
 
   // Sort counters.
   qsort(counters, ncounters, 2 * sizeof(long), &compare_counters);
 
+  // Determine if anything needs to be printed.
+  bool print = false;
+  for (int i = 0; i < ncounters && !print; i++) {
+    if (counters[i][0] != 0) {
+      print = true;
+    }
+  }
+  if (!print) {
+    return; // nothing to be printed
+  }
+
   // Print counters.
-  print_func("\n", output_unit);
-  print_func(" ----------------------------------------------------------------"
-             "---------------\n",
-             output_unit);
-  print_func(" -                                                               "
-             "              -\n",
-             output_unit);
-  print_func(" -                                GRID STATISTICS                "
-             "              -\n",
-             output_unit);
-  print_func(" -                                                               "
-             "              -\n",
-             output_unit);
-  print_func(" ----------------------------------------------------------------"
-             "---------------\n",
-             output_unit);
-  print_func(" LP    KERNEL             BACKEND                              "
-             "COUNT     PERCENT\n",
-             output_unit);
+  GRID_LIBRARY_PRINT(print_func, "\n", output_unit);
+  GRID_LIBRARY_PRINT(
+      print_func,
+      " ----------------------------------------------------------------"
+      "---------------\n",
+      output_unit);
+  GRID_LIBRARY_PRINT(
+      print_func,
+      " -                                                               "
+      "              -\n",
+      output_unit);
+  GRID_LIBRARY_PRINT(
+      print_func,
+      " -                                GRID STATISTICS                "
+      "              -\n",
+      output_unit);
+  GRID_LIBRARY_PRINT(
+      print_func,
+      " -                                                               "
+      "              -\n",
+      output_unit);
+  GRID_LIBRARY_PRINT(
+      print_func,
+      " ----------------------------------------------------------------"
+      "---------------\n",
+      output_unit);
+  GRID_LIBRARY_PRINT(
+      print_func,
+      " LP    KERNEL             BACKEND                              "
+      "COUNT     PERCENT\n",
+      output_unit);
 
   const char *kernel_names[] = {"collocate ortho", "integrate ortho",
                                 "collocate general", "integrate general"};
@@ -217,12 +244,14 @@ void grid_library_print_stats(void (*mpi_sum_func)(long *, int),
     char buffer[100];
     snprintf(buffer, sizeof(buffer), " %-5i %-17s  %-6s  %34li %10.2f%%\n", lp,
              kernel_names[kern], backend_names[back], counters[i][0], percent);
-    print_func(buffer, output_unit);
+    GRID_LIBRARY_PRINT(print_func, buffer, output_unit);
   }
 
-  print_func(" ----------------------------------------------------------------"
-             "---------------\n",
-             output_unit);
+  GRID_LIBRARY_PRINT(
+      print_func,
+      " ----------------------------------------------------------------"
+      "---------------\n",
+      output_unit);
 }
 
 // EOF
