@@ -103,6 +103,21 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param mpi_comm ...
+! **************************************************************************************************
+   SUBROUTINE cp2k_init_without_mpi_comm(mpi_comm) BIND(C)
+      INTEGER(C_INT), VALUE                              :: mpi_comm
+
+      INTEGER                                            :: ierr
+      TYPE(mp_comm_type)                                 :: my_mpi_comm
+
+      CALL my_mpi_comm%set_handle(INT(mpi_comm))
+      CALL init_cp2k(.FALSE., ierr, my_mpi_comm)
+      CPASSERT(ierr == 0)
+   END SUBROUTINE cp2k_init_without_mpi_comm
+
+! **************************************************************************************************
+!> \brief ...
 ! **************************************************************************************************
    SUBROUTINE cp2k_finalize() BIND(C)
       INTEGER                                            :: ierr
