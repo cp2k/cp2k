@@ -38,7 +38,6 @@ RUN ./install_cp2k_toolchain.sh \
     --mpi-mode=mpich \
     --enable-cuda=yes \
     --gpu-ver=A100 \
-    --with-dbcsr=no \
     --dry-run
 
 # Dry-run leaves behind config files for the followup install scripts.
@@ -78,25 +77,26 @@ COPY ./tools/toolchain/scripts/arch_base.tmpl \
      ./scripts/
 RUN ./scripts/generate_arch_files.sh && rm -rf ./build
 
-# Install CP2K using local_cuda.psmp.
+# Install CP2K sources.
 WORKDIR /opt/cp2k
-COPY ./Makefile .
 COPY ./src ./src
-COPY ./exts ./exts
-COPY ./tools/build_utils ./tools/build_utils
-RUN /bin/bash -c " \
-    mkdir -p arch && \
-    ln -vs /opt/cp2k-toolchain/install/arch/local_cuda.psmp ./arch/"
 COPY ./data ./data
 COPY ./tests ./tests
-COPY ./tools/regtesting ./tools/regtesting
+COPY ./tools/build_utils ./tools/build_utils
+COPY ./cmake ./cmake
+COPY ./CMakeLists.txt .
 
-# Run performance test for local_cuda.
+# Compile CP2K.
+COPY ./tools/docker/scripts/build_cp2k_cmake.sh .
+RUN ./build_cp2k_cmake.sh toolchain_cuda_A100 psmp
+
+# Run performance test for toolchain_cuda_A100.
 COPY ./benchmarks ./benchmarks
+COPY ./tools/regtesting ./tools/regtesting
 COPY ./tools/docker/scripts/test_performance.sh  \
      ./tools/docker/scripts/plot_performance.py  \
      ./
-RUN ./test_performance.sh "local_cuda" 2>&1 | tee report.log
+RUN ./test_performance.sh "toolchain_cuda_A100" 2>&1 | tee report.log
 
 # Output the report if the image is old and was therefore pulled from the build cache.
 CMD cat $(find ./report.log -mmin +10) | sed '/^Summary:/ s/$/ (cached)/'
