@@ -78,8 +78,8 @@ def main() -> None:
         f.write(regtest_cmake("toolchain_arm64", "psmp"))
 
     with OutputFile(f"Dockerfile.test_performance", args.check) as f:
-        f.write(install_deps_toolchain(with_dbcsr="no"))
-        f.write(performance())
+        f.write(install_deps_toolchain())
+        f.write(performance("toolchain"))
 
     for gpu_ver in "P100", "V100", "A100":
         with OutputFile(f"Dockerfile.test_cuda_{gpu_ver}", args.check) as f:
@@ -91,8 +91,8 @@ def main() -> None:
             f.write(regtest("psmp", "local_hip"))
 
         with OutputFile(f"Dockerfile.test_performance_cuda_{gpu_ver}", args.check) as f:
-            f.write(install_deps_toolchain_cuda(gpu_ver=gpu_ver, with_dbcsr="no"))
-            f.write(performance("local_cuda"))
+            f.write(install_deps_toolchain_cuda(gpu_ver=gpu_ver))
+            f.write(performance(f"toolchain_cuda_{gpu_ver}"))
 
     for gpu_ver in "Mi50", "Mi100":
         with OutputFile(f"Dockerfile.test_hip_rocm_{gpu_ver}", args.check) as f:
@@ -192,16 +192,17 @@ RUN ./test_build.sh "{arch}" "{version}" 2>&1 | tee report.log
 
 
 # ======================================================================================
-def performance(arch: str = "local") -> str:
+def performance(profile: str) -> str:
     return (
-        install_cp2k(version="psmp", arch=arch)
+        install_cp2k_cmake(profile=profile, version="psmp")
         + rf"""
-# Run performance test for {arch}.
+# Run performance test for {profile}.
 COPY ./benchmarks ./benchmarks
+COPY ./tools/regtesting ./tools/regtesting
 COPY ./tools/docker/scripts/test_performance.sh  \
      ./tools/docker/scripts/plot_performance.py  \
      ./
-RUN ./test_performance.sh "{arch}" 2>&1 | tee report.log
+RUN ./test_performance.sh "{profile}" 2>&1 | tee report.log
 """
         + print_cached_report()
     )

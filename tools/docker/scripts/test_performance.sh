@@ -3,11 +3,11 @@
 # author: Ole Schuett
 
 if (($# != 1)); then
-  echo "Usage: test_performance.sh <ARCH>"
+  echo "Usage: test_performance.sh <PROFILE>"
   exit 1
 fi
 
-ARCH=$1
+PROFILE=$1
 
 function run_benchmark {
   set +e #disable error trapping
@@ -17,7 +17,7 @@ function run_benchmark {
   OUTPUT=$4
   echo -n "Running ${INPUT} with ${OMP_THREADS} threads and ${MPI_RANKS} ranks... "
   if OMP_NUM_THREADS="${OMP_THREADS}" mpiexec -np "${MPI_RANKS}" \
-    "/opt/cp2k/exe/${ARCH}/cp2k.psmp" "${INPUT}" &> "${OUTPUT}"; then
+    "/opt/cp2k/build/bin/cp2k.psmp" "${INPUT}" &> "${OUTPUT}"; then
     echo "done."
   else
     echo -e "failed.\n\n"
@@ -32,23 +32,9 @@ function run_benchmark {
 # shellcheck disable=SC1091
 source /opt/cp2k-toolchain/install/setup
 
-echo -e '\n========== Compiling CP2K =========='
-cd /opt/cp2k
-echo -n "Compiling cp2k... "
-if make -j ARCH="${ARCH}" VERSION="psmp" &> make.out; then
-  echo "done."
-else
-  echo -e "failed.\n\n"
-  tail -n 100 make.out
-  cp make.out /workspace/artifacts/
-  echo -e "\nSummary: Compilation failed."
-  echo -e "Status: FAILED\n"
-  exit 0
-fi
-
 # Check benchmark files for input errors.
 echo -en "\nChecking benchmark inputs... "
-if ! ./tools/regtesting/check_inputs.py "./exe/${ARCH}/cp2k.psmp" "./benchmarks/"; then
+if ! ./tools/regtesting/check_inputs.py "./build/bin/cp2k.psmp" "./benchmarks/"; then
   echo -e "\nSummary: Some benchmark inputs could not be parsed."
   echo -e "Status: FAILED\n"
   exit 0
@@ -72,7 +58,7 @@ BENCHMARKS=(
   "QMMM_MQAE/MQAE_single_node.inp"
 )
 
-if [[ "${ARCH}" == "local" ]]; then
+if [[ "${PROFILE}" == "toolchain" ]]; then
   for INPUT in "${BENCHMARKS[@]}"; do
     INPUT_BASENAME=$(basename "${INPUT}")
     LABEL=${INPUT_BASENAME%.*}
@@ -89,7 +75,7 @@ if [[ "${ARCH}" == "local" ]]; then
     echo ""
   done
 
-elif [[ "${ARCH}" == "local_cuda" ]]; then
+elif [[ "${PROFILE}" == "toolchain_cuda_"* ]]; then
   for INPUT in "${BENCHMARKS[@]}"; do
     if [[ "$INPUT" == "QS_single_node/H2O-hyb.inp" ]]; then
       continue # Has no gpu acceleration, yet.
@@ -108,7 +94,7 @@ elif [[ "${ARCH}" == "local_cuda" ]]; then
   done
 
 else
-  echo "Unknown ARCH: ${ARCH}"
+  echo "Unknown PROFILE: ${PROFILE}"
   exit 1
 fi
 
