@@ -124,6 +124,32 @@ elif [[ "${PROFILE}" == "toolchain_arm64" ]] && [[ "${VERSION}" == "psmp" ]]; th
     .. |& tee ./cmake.log
   CMAKE_EXIT_CODE=$?
 
+elif [[ "${PROFILE}" == "toolchain_cuda_"* ]] && [[ "${VERSION}" == "psmp" ]]; then
+  cmake \
+    -GNinja \
+    -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
+    -DDBCSR_DIR="${DBCSR_CUDA_ROOT}/lib/cmake/dbcsr" \
+    -DCP2K_WITH_GPU="${PROFILE:(-4)}" \
+    -DCP2K_USE_ACCEL=CUDA \
+    -DCP2K_USE_EVERYTHING=ON \
+    -DCP2K_USE_DLAF=OFF \
+    -DCP2K_USE_PEXSI=OFF \
+    -DCP2K_USE_ELPA=OFF \
+    -DCP2K_USE_ACE=OFF \
+    -DCP2K_USE_DEEPMD=OFF \
+    -DCP2K_USE_PLUMED=OFF \
+    -DCP2K_USE_LIBSMEAGOL=OFF \
+    -DCP2K_USE_LIBTORCH=OFF \
+    -DCP2K_USE_DFTD4=OFF \
+    -DCP2K_USE_TBLITE=OFF \
+    -DCP2K_USE_GREENX=OFF \
+    -DCP2K_USE_SPGLIB=OFF \
+    -DCP2K_USE_VORI=OFF \
+    -DCP2K_USE_TREXIO=OFF \
+    -Werror=dev \
+    .. |& tee ./cmake.log
+  CMAKE_EXIT_CODE=$?
+
 elif [[ "${PROFILE}" == "toolchain_generic" ]] && [[ "${VERSION}" == "psmp" ]]; then
   cmake \
     -GNinja \
