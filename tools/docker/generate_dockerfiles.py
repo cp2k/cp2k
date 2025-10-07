@@ -84,14 +84,14 @@ def main() -> None:
     for gpu_ver in "P100", "V100", "A100":
         with OutputFile(f"Dockerfile.test_cuda_{gpu_ver}", args.check) as f:
             f.write(install_deps_toolchain_cuda(gpu_ver=gpu_ver))
-            f.write(regtest("psmp", "local_cuda"))
+            f.write(regtest_cmake(f"toolchain_cuda_{gpu_ver}", "psmp"))
 
         with OutputFile(f"Dockerfile.test_hip_cuda_{gpu_ver}", args.check) as f:
             f.write(install_deps_toolchain_hip_cuda(gpu_ver=gpu_ver))
             f.write(regtest("psmp", "local_hip"))
 
         with OutputFile(f"Dockerfile.test_performance_cuda_{gpu_ver}", args.check) as f:
-            f.write(install_deps_toolchain_cuda(gpu_ver=gpu_ver))
+            f.write(install_deps_toolchain_cuda(gpu_ver=gpu_ver, with_dbcsr="no"))
             f.write(performance("local_cuda"))
 
     for gpu_ver in "Mi50", "Mi100":
@@ -595,7 +595,7 @@ RUN make -j ARCH=Linux-x86-64-nvhpc VERSION=ssmp cp2k
 
 
 # ======================================================================================
-def install_deps_toolchain_cuda(gpu_ver: str) -> str:
+def install_deps_toolchain_cuda(gpu_ver: str, **kwargs: str) -> str:
     deps = rf"""
 FROM nvidia/cuda:12.9.1-devel-ubuntu24.04
 
@@ -618,7 +618,7 @@ RUN apt-get update -qq && apt-get install -qq --no-install-recommends \
         mpi_mode="mpich",
         enable_cuda="yes",
         gpu_ver=gpu_ver,
-        with_dbcsr="no",
+        **kwargs,
     )
     return deps
 

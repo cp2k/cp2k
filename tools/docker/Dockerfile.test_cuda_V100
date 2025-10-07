@@ -38,7 +38,6 @@ RUN ./install_cp2k_toolchain.sh \
     --mpi-mode=mpich \
     --enable-cuda=yes \
     --gpu-ver=V100 \
-    --with-dbcsr=no \
     --dry-run
 
 # Dry-run leaves behind config files for the followup install scripts.
@@ -78,25 +77,25 @@ COPY ./tools/toolchain/scripts/arch_base.tmpl \
      ./scripts/
 RUN ./scripts/generate_arch_files.sh && rm -rf ./build
 
-# Install CP2K using local_cuda.psmp.
+# Install CP2K sources.
 WORKDIR /opt/cp2k
-COPY ./Makefile .
 COPY ./src ./src
-COPY ./exts ./exts
-COPY ./tools/build_utils ./tools/build_utils
-RUN /bin/bash -c " \
-    mkdir -p arch && \
-    ln -vs /opt/cp2k-toolchain/install/arch/local_cuda.psmp ./arch/"
 COPY ./data ./data
 COPY ./tests ./tests
-COPY ./tools/regtesting ./tools/regtesting
+COPY ./tools/build_utils ./tools/build_utils
+COPY ./cmake ./cmake
+COPY ./CMakeLists.txt .
+
+# Compile CP2K.
+COPY ./tools/docker/scripts/build_cp2k_cmake.sh .
+RUN ./build_cp2k_cmake.sh toolchain_cuda_V100 psmp
 
 # Run regression tests.
 ARG TESTOPTS=""
-COPY ./tools/docker/scripts/test_regtest.sh ./
+COPY ./tools/docker/scripts/test_regtest_cmake.sh ./
 RUN /bin/bash -o pipefail -c " \
     TESTOPTS='${TESTOPTS}' \
-    ./test_regtest.sh 'local_cuda' 'psmp' |& tee report.log && \
+    ./test_regtest_cmake.sh toolchain_cuda_V100 psmp |& tee report.log && \
     rm -rf regtesting"
 
 # Output the report if the image is old and was therefore pulled from the build cache.
