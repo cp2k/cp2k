@@ -645,14 +645,20 @@ CONTAINS
                'σ_h^x    = sqrt( <x_h^2>_exc - <x_h>_exc^2 )'
             WRITE (unit_nr, '(T2,A4)') prefix_output
             WRITE (unit_nr, '(T2,A4,T15,A)') prefix_output, &
-               'COV_eh^x = <x_e x_h>_exc - <x_e>_exc <x_h>_exc'
+               "COV_eh^{μμ'} = <r^μ_e r^μ'_h>_exc - <r^μ_e>_exc <r^μ'_h>_exc"
             WRITE (unit_nr, '(T2,A4)') prefix_output
             WRITE (unit_nr, '(T2,A4,T15,A)') prefix_output, &
                'd_exc^x  = sqrt( | < |x_h - x_e|^2 >_exc )'
             WRITE (unit_nr, '(T2,A4,T15,A)') prefix_output, &
                '         = sqrt( (d_eh^x)^2 + (σ_e^x)^2'
             WRITE (unit_nr, '(T2,A4,T15,A)') prefix_output, &
-               '                 + (σ_h^x)^2 - 2 * (COV_eh^x) )'
+               "                 + (σ_h^x)^2 - 2 * (COV_eh^{xx}) )"
+            WRITE (unit_nr, '(T2,A4)') prefix_output
+            WRITE (unit_nr, '(T2,A4,T7,A)') prefix_output, &
+               "Subsequently, the cross-correlation matrix R_eh^{μμ'} is printed"
+            WRITE (unit_nr, '(T2,A4)') prefix_output
+            WRITE (unit_nr, '(T2,A4,T15,A)') prefix_output, &
+               "R_eh^{μμ'} = COV_eh^{μμ'}/(σ^μ_e σ^μ_h) "
             WRITE (unit_nr, '(T2,A4)') prefix_output
             WRITE (unit_nr, '(T2,A4)') prefix_output
             IF (exc_descr(1)%flag_TDA) THEN
@@ -690,7 +696,7 @@ CONTAINS
             WRITE (unit_nr, '(T2,A4,T12,A1,8X,6(8X,A2))') prefix_output, &
                'n', 'xx', 'yy', 'zz', 'xy', 'xz', 'yz'
             DO i_exc = 1, num_print_exc_descr
-               WRITE (unit_nr, '(T2,A4,T9,I4,8X,6(3X,F7.4))') &
+               WRITE (unit_nr, '(T2,A4,T9,I4,8X,6(3X,F7.4),3X,F7.4)') &
                   prefix_output, i_exc, &
                   exc_descr(i_exc)%corr_e_h_matrix(1, 1), &
                   exc_descr(i_exc)%corr_e_h_matrix(2, 2), &
