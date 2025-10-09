@@ -178,6 +178,8 @@ CONTAINS
 
       ! Get oscillator strengths themselves
       ALLOCATE (oscill_str(homo_red*virtual_red))
+      ! trans_mom_bse needs to be a 2D array per direction idir, such that cp_fm_get_submatrix can directly
+      !  write to it
       ALLOCATE (trans_mom_bse(3, 1, homo_red*virtual_red))
       ALLOCATE (polarizability_residues(3, 3, homo_red*virtual_red))
       trans_mom_bse(:, :, :) = 0.0_dp
@@ -193,7 +195,7 @@ CONTAINS
                polarizability_residues(idir, jdir, n) = 2.0_dp*Exc_ens(n)*trans_mom_bse(idir, 1, n)*trans_mom_bse(jdir, 1, n)
             END DO
          END DO
-         oscill_str(n) = 2.0_dp/3.0_dp*Exc_ens(n)*SUM(ABS(trans_mom_bse(:, :, n))**2)
+         oscill_str(n) = 2.0_dp/3.0_dp*Exc_ens(n)*SUM(ABS(trans_mom_bse(:, 1, n))**2)
       END DO
 
       CALL cp_fm_struct_release(fm_struct_dipole_MO_trunc_reordered)
