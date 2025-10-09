@@ -895,76 +895,77 @@ CONTAINS
       END DO
       exc_descr(i_exc)%r_e_sq(:) = r_e_sq_X(:) + r_e_sq_Y(:)
 
-      ! <r_h r_e>_X
-      !   = Tr[ X^T µ_ij X µ_ab  +  Y^T µ_ij Y µ_ab + X µ_ai Y µ_ai + Y µ_ai X µ_ai]
-      !   = X_bj µ_ji X_ia µ_ab + Y_bj µ_ji Y_ia µ_ab + X_ia µ_aj Y_jb µ_bi + Y_ia µ_aj X_jb µ_bi
+      ! <r_e^\mu r_h^\mu'>_X
+      !   = Tr[ X^T µ'_ij X µ_ab  +  Y^T µ_ij Y µ'_ab + X µ'_ai Y µ_ai + Y µ_ai X µ'_ai]
+      !   = X_bj µ'_ji X_ia µ_ab + Y_bj µ_ji Y_ia µ'_ab + X_ia µ'_aj Y_jb µ_bi + Y_ia µ_aj X_jb µ'_bi
+      ! The i_dir and j_dir convert to mu and mu'
       CALL cp_fm_create(fm_work_ia, fm_struct_ia)
       CALL cp_fm_create(fm_work_ia_2, fm_struct_ia)
       CALL cp_fm_create(fm_work_ba, fm_struct_ab)
       DO i_dir = 1, 3
          DO j_dir = 1, 3
-            ! First term - X^T µ_ij X µ_ab
+            ! First term - X^T µ'_ij X µ_ab
             CALL cp_fm_set_all(fm_work_ia, 0.0_dp)
             CALL cp_fm_set_all(fm_work_ia_2, 0.0_dp)
             ! work_ib = X_ia µ_ab
             CALL parallel_gemm("N", "N", homo, virtual, virtual, 1.0_dp, &
                                fm_X_ia, fm_multipole_ab_trunc(i_dir), 0.0_dp, fm_work_ia)
-            ! work_ja_2 = µ_ji work_ia
+            ! work_ja_2 = µ'_ji work_ia
             CALL parallel_gemm("N", "N", homo, virtual, homo, 1.0_dp, &
                                fm_multipole_ij_trunc(j_dir), fm_work_ia, 0.0_dp, fm_work_ia_2)
-            ! <r_h r_e>_X = work_ia_2 X_bj + ... = X^T work_ia_2 + ...
+            ! <r_e^\mu r_h^\mu'>_X = work_ia_2 X_bj + ... = X^T work_ia_2 + ...
             CALL cp_fm_trace(fm_X_ia, fm_work_ia_2, r_e_h_XX(i_dir, j_dir))
             r_e_h_XX(i_dir, j_dir) = r_e_h_XX(i_dir, j_dir)/norm_XpY
             IF (.NOT. flag_TDA) THEN
-               ! Second term -  Y^T µ_ij Y µ_ab
+               ! Second term -  Y^T µ_ij Y µ'_ab
                CALL cp_fm_set_all(fm_work_ia, 0.0_dp)
                CALL cp_fm_set_all(fm_work_ia_2, 0.0_dp)
-               ! work_ib = Y_ia µ_ab
+               ! work_ib = Y_ia µ'_ab
                CALL parallel_gemm("N", "N", homo, virtual, virtual, 1.0_dp, &
-                                  fm_Y_ia, fm_multipole_ab_trunc(i_dir), 0.0_dp, fm_work_ia)
+                                  fm_Y_ia, fm_multipole_ab_trunc(j_dir), 0.0_dp, fm_work_ia)
                ! work_ja_2 = µ_ji work_ia
                CALL parallel_gemm("N", "N", homo, virtual, homo, 1.0_dp, &
-                                  fm_multipole_ij_trunc(j_dir), fm_work_ia, 0.0_dp, fm_work_ia_2)
+                                  fm_multipole_ij_trunc(i_dir), fm_work_ia, 0.0_dp, fm_work_ia_2)
                ! <r_h r_e>_X = work_ia_2 Y_bj + ... = Y^T work_ia_2 + ...
                CALL cp_fm_trace(fm_Y_ia, fm_work_ia_2, r_e_h_YY(i_dir, j_dir))
                r_e_h_YY(i_dir, j_dir) = r_e_h_YY(i_dir, j_dir)/norm_XpY
 
-               ! Third term - X µ_ai Y µ_ai = X_ia µ_aj Y_jb µ_bi
+               ! Third term - X µ'_ai Y µ_ai = X_ia µ'_aj Y_jb µ_bi
                !     Reshuffle for usage of trace (where first argument is transposed)
-               !     = µ_aj Y_jb µ_bi X_ia =
-               !        \__________/
-               !         fm_work_ai
-               !     fm_work_ai = µ_aj Y_jb µ_bi
-               !     fm_work_ia = µ_ib Y_bj µ_ja
+               !     = µ'_aj Y_jb µ_bi X_ia =
+               !        \___________/
+               !          fm_work_ai
+               !     fm_work_ai = µ'_aj Y_jb µ_bi
+               !     fm_work_ia = µ_ib Y_bj µ'_ja
                !                        \_____/
                !                       fm_work_ba
                CALL cp_fm_set_all(fm_work_ba, 0.0_dp)
                CALL cp_fm_set_all(fm_work_ia, 0.0_dp)
-               ! fm_work_ba = Y_bj µ_ja
+               ! fm_work_ba = Y_bj µ'_ja
                CALL parallel_gemm("T", "T", virtual, virtual, homo, 1.0_dp, &
-                                  fm_Y_ia, fm_multipole_ai_trunc(i_dir), 0.0_dp, fm_work_ba)
+                                  fm_Y_ia, fm_multipole_ai_trunc(j_dir), 0.0_dp, fm_work_ba)
                ! fm_work_ia = µ_ib fm_work_ba
                CALL parallel_gemm("T", "N", homo, virtual, virtual, 1.0_dp, &
-                                  fm_multipole_ai_trunc(j_dir), fm_work_ba, 0.0_dp, fm_work_ia)
+                                  fm_multipole_ai_trunc(i_dir), fm_work_ba, 0.0_dp, fm_work_ia)
                ! <r_h r_e>_X = ... + X_ia µ_aj Y_jb µ_bi
                CALL cp_fm_trace(fm_work_ia, fm_X_ia, r_e_h_XY(i_dir, j_dir))
                r_e_h_XY(i_dir, j_dir) = r_e_h_XY(i_dir, j_dir)/norm_XpY
 
-               ! Fourth term - Y µ_ai X µ_ai = Y_ia µ_aj X_jb µ_bi
+               ! Fourth term - Y µ_ai X µ'_ai = Y_ia µ_aj X_jb µ'_bi
                !     Reshuffle for usage of trace (where first argument is transposed)
-               !     = µ_aj X_jb µ_bi Y_ia =
-               !        \__________/
+               !     = µ_aj X_jb µ'_bi Y_ia =
+               !        \___________/
                !         fm_work_ai
-               !     fm_work_ai = µ_aj X_jb µ_bi
-               !     fm_work_ia = µ_ib X_bj µ_ja
-               !                        \_____/
+               !     fm_work_ai = µ_aj X_jb µ'_bi
+               !     fm_work_ia = µ'_ib X_bj µ_ja
+               !                         \_____/
                !                       fm_work_ba
                CALL cp_fm_set_all(fm_work_ba, 0.0_dp)
                CALL cp_fm_set_all(fm_work_ia, 0.0_dp)
                ! fm_work_ba = Y_bj µ_ja
                CALL parallel_gemm("T", "T", virtual, virtual, homo, 1.0_dp, &
                                   fm_X_ia, fm_multipole_ai_trunc(i_dir), 0.0_dp, fm_work_ba)
-               ! fm_work_ia = µ_ib fm_work_ba
+               ! fm_work_ia = µ'_ib fm_work_ba
                CALL parallel_gemm("T", "N", homo, virtual, virtual, 1.0_dp, &
                                   fm_multipole_ai_trunc(j_dir), fm_work_ba, 0.0_dp, fm_work_ia)
                ! <r_h r_e>_X = ... + X_ia µ_aj Y_jb µ_bi
