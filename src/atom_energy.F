@@ -40,7 +40,10 @@ MODULE atom_energy
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                               cp_print_key_unit_nr
-   USE input_constants,                 ONLY: do_analytic
+   USE input_constants,                 ONLY: &
+        do_analytic, xc_funct_b3lyp, xc_funct_beefvdw, xc_funct_blyp, xc_funct_bp, &
+        xc_funct_hcth120, xc_funct_no_shortcut, xc_funct_olyp, xc_funct_pade, xc_funct_pbe, &
+        xc_funct_pbe0, xc_funct_tpss, xc_none
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -83,16 +86,16 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'atom_energy_opt'
 
       CHARACTER(LEN=2)                                   :: elem
-      CHARACTER(LEN=default_string_length)               :: filename
+      CHARACTER(LEN=default_string_length)               :: filename, xcfstr
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: tmpstringlist
       INTEGER :: do_eric, do_erie, handle, i, im, in, iw, k, maxl, mb, method, mo, n_meth, n_rep, &
-         nder, nr_gh, num_gau, num_gto, num_pol, reltyp, zcore, zval, zz
+         nder, nr_gh, num_gau, num_gto, num_pol, reltyp, shortcut, zcore, zval, zz
       INTEGER, DIMENSION(0:lmat)                         :: maxn
       INTEGER, DIMENSION(:), POINTER                     :: cn
       LOGICAL                                            :: dm, do_gh, do_zmp, doread, eri_c, eri_e, &
-                                                            graph, had_ae, had_pp, lcomp, lcond, &
-                                                            pp_calc, read_vxc
+                                                            explicit, graph, had_ae, had_pp, &
+                                                            lcomp, lcond, pp_calc, read_vxc
       REAL(KIND=dp)                                      :: crad, delta, lambda
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: ext_density, ext_vxc
       REAL(KIND=dp), DIMENSION(0:lmat, 10)               :: pocc
@@ -105,8 +108,8 @@ CONTAINS
       TYPE(atom_state), POINTER                          :: state
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER :: admm_section, basis_section, external_vxc_section, &
-         method_section, opt_section, potential_section, powell_section, sgp_section, xc_section, &
-         zmp_restart_section, zmp_section
+         method_section, opt_section, potential_section, powell_section, sgp_section, xc_func, &
+         xc_section, zmp_restart_section, zmp_section
 
       CALL timeset(routineN, handle)
 
@@ -199,8 +202,45 @@ CONTAINS
             atom_info(in, im)%atom%optimization = optimization
 
             atom_info(in, im)%atom%z = zval
+
             xc_section => section_vals_get_subs_vals(method_section, "XC", i_rep_section=im)
             atom_info(in, im)%atom%xc_section => xc_section
+
+            ! Retrieve the XC functional string for upf output
+            ! This does not work within the routine atom_write_upf below for unknown reasons
+            xc_func => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
+            CALL section_vals_get(xc_func, explicit=explicit)
+            IF (explicit) THEN
+               CALL section_vals_val_get(xc_func, "_SECTION_PARAMETERS_", i_val=shortcut)
+               SELECT CASE (shortcut)
+               CASE (xc_funct_no_shortcut, xc_none)
+                  xcfstr = "NONE"
+               CASE (xc_funct_pbe0)
+                  xcfstr = "PBE0"
+               CASE (xc_funct_beefvdw)
+                  xcfstr = "BEEFVDW"
+               CASE (xc_funct_b3lyp)
+                  xcfstr = "B3LYP"
+               CASE (xc_funct_blyp)
+                  xcfstr = "BLYP"
+               CASE (xc_funct_bp)
+                  xcfstr = "BP"
+               CASE (xc_funct_pade)
+                  xcfstr = "PADE"
+               CASE (xc_funct_pbe)
+                  xcfstr = "PBE"
+               CASE (xc_funct_tpss)
+                  xcfstr = "TPSS"
+               CASE (xc_funct_olyp)
+                  xcfstr = "OLYP"
+               CASE (xc_funct_hcth120)
+                  xcfstr = "HCTH120"
+               CASE DEFAULT
+                  xcfstr = "DFT"
+               END SELECT
+            ELSE
+               xcfstr = "DFT"
+            END IF
 
             ! ZMP Reading input sections if they are found initialize everything
             do_zmp = .FALSE.
@@ -395,7 +435,7 @@ CONTAINS
                iw = cp_print_key_unit_nr(logger, atom_section, "PRINT%UPF_FILE", extension=".upf", &
                                          file_position="REWIND")
                IF (iw > 0) THEN
-                  CALL atom_write_upf(atom_info(in, im)%atom, iw)
+                  CALL atom_write_upf(atom_info(in, im)%atom, iw, xcfstr)
                END IF
                CALL cp_print_key_finished_output(iw, logger, atom_section, "PRINT%UPF_FILE")
             END IF
@@ -603,13 +643,15 @@ CONTAINS
 !> \brief Write pseudo-potential in Quantum Espresso UPF format.
 !> \param atom  information about the atomic kind
 !> \param iw    output file unit
+!> \param xcfstr ...
 !> \par History
 !>    * 09.2012 created [Juerg Hutter]
 ! **************************************************************************************************
-   SUBROUTINE atom_write_upf(atom, iw)
+   SUBROUTINE atom_write_upf(atom, iw, xcfstr)
 
       TYPE(atom_type), POINTER                           :: atom
       INTEGER, INTENT(IN)                                :: iw
+      CHARACTER(LEN=*), INTENT(IN)                       :: xcfstr
 
       CHARACTER(LEN=default_string_length)               :: string
       INTEGER                                            :: i, ibeta, ii, j, k, kk, l, lmax, n0, &
@@ -659,7 +701,7 @@ CONTAINS
       ELSE
          WRITE (iw, '(T8,A)') 'core_correction="F"'
       END IF
-      WRITE (iw, '(T8,A)') 'functional="DFT"'
+      WRITE (iw, '(T8,A)') 'functional="'//TRIM(ADJUSTL(xcfstr))//'"'
       CALL compose(string, "z_valence", rval=pot%zion)
       WRITE (iw, '(T8,A)') TRIM(string)
       CALL compose(string, "total_psenergy", rval=2._dp*atom%energy%etot)
