@@ -1030,7 +1030,7 @@ CONTAINS
          END IF
          DO ii = 1, nrow_local
             eigvec_idx = row_indices(ii)
-            eigvec_entry = fm_eigvec%local_data(ii, jj)/SQRT(2.0_dp)
+            eigvec_entry = fm_eigvec%local_data(ii, jj)
             IF (ABS(eigvec_entry) > mp2_env%bse%eps_x) THEN
                num_entries_to_comm(para_env%mepos) = num_entries_to_comm(para_env%mepos) + 1
             END IF
@@ -1059,7 +1059,7 @@ CONTAINS
          END IF
          DO ii = 1, nrow_local
             eigvec_idx = row_indices(ii)
-            eigvec_entry = fm_eigvec%local_data(ii, jj)/SQRT(2.0_dp)
+            eigvec_entry = fm_eigvec%local_data(ii, jj)
             IF (ABS(eigvec_entry) > mp2_env%bse%eps_x) THEN
                buffer_entries(para_env%mepos)%indx(kk, 1) = (eigvec_idx - 1)/virtual + 1
                buffer_entries(para_env%mepos)%indx(kk, 2) = MOD(eigvec_idx - 1, virtual) + 1
