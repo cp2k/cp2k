@@ -395,11 +395,6 @@ CONTAINS
          sttot = virial%pv_virial
       END IF
 
-      ! check for GAPW/GAPW_XC
-      IF (dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc) THEN
-         CPABORT("GAPW not implemented")
-      END IF
-
       ! initialize src matrix
       NULLIFY (scrm)
       CALL dbcsr_allocate_matrix_set(scrm, 1, 1)
