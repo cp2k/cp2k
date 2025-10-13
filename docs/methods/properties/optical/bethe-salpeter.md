@@ -478,20 +478,26 @@ BSE|         -- Quick reminder: HOMO i =    1 and LUMO a =    2 --
 BSE|
 BSE| Excitation n           i =>/<=     a      TDA/ABBA       |X_ia^n|/|Y_ia^n|
 BSE|
-BSE|            1           1    =>     2        -ABBA-                  0.6687
-BSE|            1           1    =>     4        -ABBA-                  0.2431
+BSE|            1           1    =>     2        -ABBA-                  0.9457
+BSE|            1           1    =>     4        -ABBA-                  0.3437
 BSE|
-BSE|            2           1    =>     3        -ABBA-                  0.7061
+BSE|            2           1    =>     3        -ABBA-                  0.9985
 BSE|
-BSE|            3           1    =>     5        -ABBA-                  0.7077
+BSE|            3           1    =>     5        -ABBA-                  1.0010
 BSE|
-BSE|            4           1    =>     6        -ABBA-                  0.7077
+BSE|            4           1    =>     6        -ABBA-                  1.0010
 ```
 
 In the case of H<sub>2</sub>, the lowest excitation *n* = 1 is mainly built up by a transition from
 the HOMO (i=1) to the LUMO (a=2), what is apparent from
-$X_{i=\text{HOMO},a=\text{LUMO}}^{(n=1)}= 0.6687$, and also contains a considerable contribution
-from the 1=>4 (HOMO=>LUMO+2) transition ($X_{i=\text{HOMO},a=\text{LUMO+2}}^{(n=1)}=0.2431$ ).
+$X_{i=\text{HOMO},a=\text{LUMO}}^{(n=1)}= 0.9457$, and also contains a considerable contribution
+from the 1=>4 (HOMO=>LUMO+2) transition ($X_{i=\text{HOMO},a=\text{LUMO+2}}^{(n=1)}=0.3437$ ). The
+contributions larger than 1, e.g. $X_{i=1,a=5}^{(n=3)}= 1.0010$ are due to the unusual normalization
+condition of the generalized eigenvalue problem for the $ABBA$-matrix:
+
+$$
+\sum_{i,a} X_{ia}^{(m)} X_{ia}^{(n)} - Y_{ia}^{(m)} Y_{ia}^{(n)} = \pm \delta_{mn} \quad .
+$$
 
 In the next section, the optical properties, i.e. the transition moments $d^{(n)}_{r}$ and the
 oscillator strengths $f^{(n)}$, are printed:
@@ -501,9 +507,9 @@ BSE| Optical properties from solving the BSE without the TDA:
 BSE|
 BSE|  Excitation n  TDA/ABBA        d_x^n     d_y^n     d_z^n Osc. strength f^n
 BSE|             1    -ABBA-        0.000    -0.000    -1.191             0.418
-BSE|             2    -ABBA-        0.000     0.000     0.000             0.000
-BSE|             3    -ABBA-       -0.836     0.713    -0.000             0.469
-BSE|             4    -ABBA-       -0.713    -0.836    -0.000             0.469
+BSE|             2    -ABBA-       -0.000    -0.000     0.000             0.000
+BSE|             3    -ABBA-       -0.829     0.721    -0.000             0.469
+BSE|             4    -ABBA-       -0.721    -0.829     0.000             0.469
 ```
 
 We can see that $n=1,3,4$ are optically active since they have a nonzero oscillator strength
@@ -516,22 +522,22 @@ specified $\eta$ in
 separate file, e.g. `BSE-ABBA-eta=0.010.spectrum`, is created, which starts with
 
 ```none
-# Imaginary part of polarizability α_{µ µ'}(ω) =  \sum_n [2 Ω^n d_µ^n d_µ'^n] / [(ω+iη)²- (Ω^n)²] from Bethe Salpeter equation for method -ABBA-
+# Imaginary part of polarizability α_{µ µ'}(ω) = -\sum_n [2 Ω^n d_µ^n d_µ'^n] / [(ω+iη)²- (Ω^n)²] from Bethe Salpeter equation for method -ABBA-
 #     Frequency (eV)       Im{α_{avg}(ω)}          Im{α_xx(ω)}          Im{α_xy(ω)}          Im{α_xz(ω)}          Im{α_yx(ω)}          Im{α_yy(ω)}          Im{α_yz(ω)}          Im{α_zx(ω)}          Im{α_zy(ω)}          Im{α_zz(ω)}
           0.00000000           0.00000000           0.00000000           0.00000000           0.00000000           0.00000000           0.00000000           0.00000000           0.00000000           0.00000000           0.00000000
-          0.10000000           0.00005283           0.00003298          -0.00000000           0.00000000          -0.00000000           0.00003298           0.00000000           0.00000000           0.00000000           0.00009251
+          0.10000000           0.00005283           0.00003298          -0.00000000          -0.00000000          -0.00000000           0.00003298           0.00000000          -0.00000000           0.00000000           0.00009251
 ```
 
 The next table summarizes some of the exciton descriptors of each excitation level $n$:
 
 ```none
-BSE| Exciton descriptors from solving the BSE without the TDA:
+BSE| Exciton descriptors from solving the BSE   without the TDA:
 BSE|
 BSE|    n      c_n     d_eh [Å]     σ_e [Å]     σ_h [Å]   d_exc [Å]        R_eh
-BSE|    1    1.026       0.0000      2.0542      0.8576      2.2521     -0.0176
+BSE|    1    1.026       0.0000      2.0542      0.8576      2.2521     -0.0332
 BSE|    2    1.004       0.0000      2.9922      0.8578      3.1127     -0.0000
-BSE|    3    1.005       0.0000      1.5859      0.8568      1.8134     -0.0077
-BSE|    4    1.005       0.0000      1.5859      0.8568      1.8134     -0.0077
+BSE|    3    1.005       0.0000      1.5859      0.8568      1.8134     -0.0145
+BSE|    4    1.005       0.0000      1.5859      0.8568      1.8134     -0.0145
 ```
 
 where we obtain the normalization factor
