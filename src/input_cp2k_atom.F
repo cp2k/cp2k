@@ -402,8 +402,11 @@ CONTAINS
                                        description="Controls the printing of the optimized orbitals information", &
                                        print_level=high_print_level, filename="__STD_OUT__")
       CALL keyword_create(keyword, __LOCATION__, name="XMGRACE", &
-                          description="Output Orbitals in Xmgrace Format to Files.", &
-                          usage="XMGRACE <logical>", type_of_var=logical_t, default_l_val=.FALSE.)
+                          description="Output orbitals in Xmgrace format to files.", &
+                          usage="XMGRACE <logical>", &
+                          type_of_var=logical_t, &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL section_add_subsection(section, print_key)
