@@ -14,13 +14,6 @@
 !>      but have been spawned off. Some dependencies are still there,
 !>      and some of the comments about log handling also applies to output
 !>      handling: @see cp_log_handling
-!> \par History
-!>      12.2001 created [fawzi]
-!>      08.2002 updated to new logger [fawzi]
-!>      10.2004 big rewrite of the output methods, connected to the new
-!>              input, and iteration_info [fawzi]
-!>      08.2005 property flags [fawzi]
-!> \author Fawzi Mohamed
 ! **************************************************************************************************
 MODULE cp_output_handling_openpmd
    USE cp_output_handling, only: cp_print_key_should_output, cp_p_file
@@ -610,6 +603,7 @@ CONTAINS
       MARK_USED(mpi_io)
       MARK_USED(fout)
       MARK_USED(openpmd_basename)
+      res = 0
       CPABORT("CP2K compiled without the openPMD-api")
 #endif
    END FUNCTION cp_openpmd_print_key_unit_nr
@@ -629,9 +623,6 @@ CONTAINS
 !> \param ignore_should_output ...
 !> \param mpi_io True if file was opened in parallel with MPI
 !> \param use_openpmd ...
-!> \par History
-!>      08.2002 created [fawzi]
-!> \author Fawzi Mohamed
 !> \note
 !>      closes if the corresponding filename of the printkey is
 !>      not __STD_OUT__
