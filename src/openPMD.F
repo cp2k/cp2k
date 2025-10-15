@@ -29,13 +29,47 @@ MODULE openPMD_api
 
    PRIVATE
 
-   ENUM, BIND(C)
-      ENUMERATOR :: openpmd_access_create, openpmd_access_read_only
-   END ENUM
+   INTEGER, PARAMETER :: openpmd_access_create = 0
+   INTEGER, PARAMETER :: openpmd_access_read_only = 1
 
-   ENUM, BIND(C)
-      ENUMERATOR :: openpmd_type_char, openpmd_type_uchar, openpmd_type_schar, openpmd_type_short, openpmd_type_int, openpmd_type_long, openpmd_type_longlong, openpmd_type_ushort, openpmd_type_uint, openpmd_type_ulong, openpmd_type_ulonglong, openpmd_type_float, openpmd_type_double, openpmd_type_long_double, openpmd_type_cfloat, openpmd_type_cdouble, openpmd_type_clong_double, openpmd_type_string, openpmd_type_vec_char, openpmd_type_vec_short, openpmd_type_vec_int, openpmd_type_vec_long, openpmd_type_vec_longlong, openpmd_type_vec_uchar, openpmd_type_vec_ushort, openpmd_type_vec_uint, openpmd_type_vec_ulong, openpmd_type_vec_ulonglong, openpmd_type_vec_float, openpmd_type_vec_double, openpmd_type_vec_long_double, openpmd_type_vec_cfloat, openpmd_type_vec_cdouble, openpmd_type_vec_clong_double, openpmd_type_vec_schar, openpmd_type_vec_string, openpmd_type_arr_dbl_7, openpmd_type_bool
-   END ENUM
+   INTEGER, PARAMETER :: openpmd_type_char = 0
+   INTEGER, PARAMETER :: openpmd_type_uchar = 1
+   INTEGER, PARAMETER :: openpmd_type_schar = 2
+   INTEGER, PARAMETER :: openpmd_type_short = 3
+   INTEGER, PARAMETER :: openpmd_type_int = 4
+   INTEGER, PARAMETER :: openpmd_type_long = 5
+   INTEGER, PARAMETER :: openpmd_type_longlong = 6
+   INTEGER, PARAMETER :: openpmd_type_ushort = 7
+   INTEGER, PARAMETER :: openpmd_type_uint = 8
+   INTEGER, PARAMETER :: openpmd_type_ulong = 9
+   INTEGER, PARAMETER :: openpmd_type_ulonglong = 10
+   INTEGER, PARAMETER :: openpmd_type_float = 11
+   INTEGER, PARAMETER :: openpmd_type_double = 12
+   INTEGER, PARAMETER :: openpmd_type_long_double = 13
+   INTEGER, PARAMETER :: openpmd_type_cfloat = 14
+   INTEGER, PARAMETER :: openpmd_type_cdouble = 15
+   INTEGER, PARAMETER :: openpmd_type_clong_double = 16
+   INTEGER, PARAMETER :: openpmd_type_string = 17
+   INTEGER, PARAMETER :: openpmd_type_vec_char = 18
+   INTEGER, PARAMETER :: openpmd_type_vec_short = 19
+   INTEGER, PARAMETER :: openpmd_type_vec_int = 20
+   INTEGER, PARAMETER :: openpmd_type_vec_long = 21
+   INTEGER, PARAMETER :: openpmd_type_vec_longlong = 22
+   INTEGER, PARAMETER :: openpmd_type_vec_uchar = 23
+   INTEGER, PARAMETER :: openpmd_type_vec_ushort = 24
+   INTEGER, PARAMETER :: openpmd_type_vec_uint = 25
+   INTEGER, PARAMETER :: openpmd_type_vec_ulong = 26
+   INTEGER, PARAMETER :: openpmd_type_vec_ulonglong = 27
+   INTEGER, PARAMETER :: openpmd_type_vec_float = 28
+   INTEGER, PARAMETER :: openpmd_type_vec_double = 29
+   INTEGER, PARAMETER :: openpmd_type_vec_long_double = 30
+   INTEGER, PARAMETER :: openpmd_type_vec_cfloat = 31
+   INTEGER, PARAMETER :: openpmd_type_vec_cdouble = 32
+   INTEGER, PARAMETER :: openpmd_type_vec_clong_double = 33
+   INTEGER, PARAMETER :: openpmd_type_vec_schar = 34
+   INTEGER, PARAMETER :: openpmd_type_vec_string = 35
+   INTEGER, PARAMETER :: openpmd_type_arr_dbl_7 = 36
+   INTEGER, PARAMETER :: openpmd_type_bool = 37
 
    #:set dataset_types_f = ['REAL(kind=dp)']
    #:set dataset_types_enum = ['double']
