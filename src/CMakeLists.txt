@@ -1563,6 +1563,13 @@ if(CP2K_USE_GRPP)
   list(APPEND CP2K_SRCS_C ${CP2K_GRPP_SRCS_C})
   list(APPEND CP2K_SRCS_F ${CP2K_GRPP_SRCS_F})
 endif()
+
+list(APPEND CP2K_SRCS_F openPMD.F input/cp_output_handling_openpmd.F
+     cp_realspace_grid_openpmd.F pw/realspace_grid_openpmd.F)
+if(CP2K_USE_OPENPMD)
+  list(APPEND CP2K_SRCS_CPP openPMD.cpp)
+endif()
+
 # ##############################################################################
 # check that the files registered in CMakeLists.txt are all present and return
 # an error otherwise. cmake only runs this test nothing else below
@@ -1645,12 +1652,6 @@ set(CP2K_GPU_DFLAGS
 # ##############################################################################
 # set properties for the cp2k target.
 # ##############################################################################
-
-list(APPEND CP2K_SRCS_F openPMD.F input/cp_output_handling_openpmd.F
-     cp_realspace_grid_openpmd.F pw/realspace_grid_openpmd.F)
-if(CP2K_USE_OPENPMD)
-  list(APPEND CP2K_SRCS_CPP openPMD.cpp)
-endif()
 
 add_fypp_sources(CP2K_SRCS ${CP2K_SRCS_F})
 
