@@ -6,6 +6,9 @@
 !--------------------------------------------------------------------------------------------------!
 
 MODULE openPMD_api
+
+#ifdef __OPENPMD
+
    USE ISO_C_BINDING, ONLY: &
       C_ASSOCIATED, &
       C_CHAR, &
@@ -212,7 +215,11 @@ MODULE openPMD_api
          PUBLIC :: openpmd_dynamic_memory_view_type_${dim}$d
       #:endfor
 
+#endif
+
    CONTAINS
+
+#ifdef __OPENPMD
 
 ! **************************************************************************************************
 !> \brief ...
@@ -918,6 +925,7 @@ MODULE openPMD_api
          END SUBROUTINE
          #:endfor
 
+#endif
          ! In two lines of this file, `make pretty` applies a wrong indentation and keeps it for the rest of this file.
          ! Hence, we end up a bit further to the right than we should.
       END MODULE openPMD_api

@@ -54,13 +54,15 @@ MODULE cp_output_handling_openpmd
    USE message_passing, ONLY: mp_file_delete, &
                               mp_file_get_amode, &
                               mp_file_type
+#ifdef __OPENPMD
    USE openpmd_api, ONLY: &
       openpmd_access_create, &
       openpmd_attributable_type, openpmd_iteration_type, openpmd_mesh_type, &
       openpmd_particle_species_type, &
       openpmd_record_type, &
       openpmd_series_create, openpmd_series_type, &
-      openpmd_type_int, openpmd_json_merge
+      openpmd_type_int, openpmd_json_merge, openpmd_get_default_extension
+#endif
    USE string_utilities, ONLY: compress, &
                                s2a
 #include "../base/base_uses.f90"
@@ -73,7 +75,9 @@ MODULE cp_output_handling_openpmd
    PUBLIC :: cp_openpmd_print_key_unit_nr, cp_openpmd_print_key_finished_output
    PUBLIC :: cp_openpmd_get_value_unit_nr, cp_openpmd_per_call_value_type
    PUBLIC :: cp_openpmd_output_finalize
+   PUBLIC :: cp_openpmd_get_default_extension
 
+#ifdef __OPENPMD
    TYPE :: cp_openpmd_per_call_value_type
       TYPE(openpmd_series_type) :: series
       TYPE(openpmd_iteration_type) :: iteration
@@ -171,8 +175,17 @@ MODULE cp_output_handling_openpmd
    ! End data members for openPMD output. !
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+#else ! defined(__OPENPMD)
+
+   TYPE :: cp_openpmd_per_call_value_type
+      ! nothing there
+   END TYPE
+
+#endif
+
 CONTAINS
 
+#ifdef __OPENPMD
    ! Helper functions for interacting with the two maps declared above.
    #:set name_suffixes = ['unit_nr', 'filedata']
    #:set key_types = ['INTEGER', 'CHARACTER(len=default_string_length)']
@@ -452,10 +465,25 @@ CONTAINS
       file_index = cp_openpmd_add_filedata(basename_copied, emplace_new)
    END FUNCTION
 
+#else ! defined(__OPENPMD)
+
+   FUNCTION cp_openpmd_get_value_unit_nr(key) RESULT(value)
+      INTEGER, INTENT(in)                           :: key
+      TYPE(cp_openpmd_per_call_value_type)                               :: value
+
+      MARK_USED(key)
+      MARK_USED(value)
+      CPABORT("CP2K compiled without the openPMD-api")
+
+   END FUNCTION cp_openpmd_get_value_unit_nr
+
+#endif
+
 ! **************************************************************************************************
 !> \brief Close all outputs.
 ! **************************************************************************************************
    SUBROUTINE cp_openpmd_output_finalize()
+#ifdef __OPENPMD
       INTEGER :: i
       DO i = 1, cp_num_openpmd_per_callsite
          DEALLOCATE (cp_openpmd_per_callsite(i)%value%iteration_counter%complex_iteration)
@@ -465,6 +493,9 @@ CONTAINS
          DEALLOCATE (cp_openpmd_per_callsite)
       END IF
       cp_num_openpmd_per_callsite = 0
+#else
+      CPABORT("CP2K compiled without the openPMD-api")
+#endif
    END SUBROUTINE cp_openpmd_output_finalize
 
 ! **************************************************************************************************
@@ -504,6 +535,8 @@ CONTAINS
          OPTIONAL                                        :: fout
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: openpmd_basename
       INTEGER                                            :: res
+
+#ifdef __OPENPMD
 
       CHARACTER(len=default_path_length)                 :: filename
 
@@ -568,6 +601,17 @@ CONTAINS
       ELSE
          res = -1
       END IF
+#else
+      MARK_USED(logger)
+      MARK_USED(basis_section)
+      MARK_USED(print_key_path)
+      MARK_USED(middle_name)
+      MARK_USED(ignore_should_output)
+      MARK_USED(mpi_io)
+      MARK_USED(fout)
+      MARK_USED(openpmd_basename)
+      CPABORT("CP2K compiled without the openPMD-api")
+#endif
    END FUNCTION cp_openpmd_print_key_unit_nr
 
 ! **************************************************************************************************
@@ -602,6 +646,8 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: local, ignore_should_output, &
                                                             mpi_io
 
+#ifdef __OPENPMD
+
       CHARACTER(len=default_string_length)               :: outPath
       LOGICAL                                            :: my_local, my_mpi_io, &
                                                             my_should_output
@@ -630,6 +676,27 @@ CONTAINS
       END IF
       CPASSERT(unit_nr == -1)
       unit_nr = -1
+#else
+      MARK_USED(unit_nr)
+      MARK_USED(logger)
+      MARK_USED(basis_section)
+      MARK_USED(print_key_path)
+      MARK_USED(local)
+      MARK_USED(ignore_should_output)
+      MARK_USED(mpi_io)
+      CPABORT("CP2K compiled without the openPMD-api")
+#endif
    END SUBROUTINE cp_openpmd_print_key_finished_output
+
+   FUNCTION cp_openpmd_get_default_extension() RESULT(extension)
+      CHARACTER(len=default_string_length)               :: extension
+
+#ifdef __OPENPMD
+      extension = openpmd_get_default_extension()
+#else
+      extension = ".bp5"
+#endif
+
+   END FUNCTION
 
 END MODULE cp_output_handling_openpmd
