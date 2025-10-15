@@ -9,6 +9,8 @@
 !> \brief Generate Gaussian cube files
 ! **************************************************************************************************
 MODULE realspace_grid_openpmd
+
+#ifdef __OPENPMD
    USE cp_files, ONLY: close_file, &
                        open_file
    USE cp_log_handling, ONLY: cp_logger_get_default_io_unit
@@ -39,6 +41,14 @@ MODULE realspace_grid_openpmd
    USE pw_grid_types, ONLY: PW_MODE_LOCAL
    USE pw_types, ONLY: pw_r3d_rs_type
    USE util, ONLY: sort_unique
+
+#else
+
+   USE pw_types, ONLY: pw_r3d_rs_type
+   USE kinds, ONLY: dp
+
+#endif
+
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -47,6 +57,7 @@ MODULE realspace_grid_openpmd
 
    PUBLIC ::pw_to_openpmd
 
+#ifdef __OPENPMD
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'realspace_grid_openpmd'
    LOGICAL, PARAMETER, PRIVATE          :: debug_this_module = .FALSE.
    LOGICAL, PRIVATE                     :: parses_linebreaks = .FALSE., &
@@ -55,9 +66,11 @@ MODULE realspace_grid_openpmd
    TYPE cp_openpmd_write_buffer_1d
       REAL(KIND=dp), POINTER :: buffer(:)
    END TYPE
+#endif
 
 CONTAINS
 
+#ifdef __OPENPMD
 ! **************************************************************************************************
 !> \brief ...
 !> \param particles_z ...
@@ -364,5 +377,45 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE pw_to_openpmd
+
+#else
+
+! **************************************************************************************************
+!> \brief ...
+!> \param pw ...
+!> \param unit_nr ...
+!> \param title ...
+!> \param particles_r ...
+!> \param particles_z ...
+!> \param stride ...
+!> \param zero_tails ...
+!> \param silent ...
+!> \param mpi_io ...
+! **************************************************************************************************
+   SUBROUTINE pw_to_openpmd(pw, unit_nr, title, particles_r, particles_z, stride, zero_tails, &
+                            silent, mpi_io)
+      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: pw
+      INTEGER                                            :: unit_nr
+      CHARACTER(*), INTENT(IN), OPTIONAL                 :: title
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN), &
+         OPTIONAL                                        :: particles_r
+      INTEGER, DIMENSION(:), INTENT(IN), OPTIONAL        :: particles_z
+      INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: stride
+      LOGICAL, INTENT(IN), OPTIONAL                      :: zero_tails, silent, mpi_io
+
+      MARK_USED(pw)
+      MARK_USED(unit_nr)
+      MARK_USED(title)
+      MARK_USED(particles_r)
+      MARK_USED(particles_z)
+      MARK_USED(stride)
+      MARK_USED(zero_tails)
+      MARK_USED(silent)
+      MARK_USED(mpi_io)
+      CPABORT("CP2K compiled without the openPMD-api")
+
+   END SUBROUTINE
+
+#endif
 
 END MODULE realspace_grid_openpmd
