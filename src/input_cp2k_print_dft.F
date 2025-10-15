@@ -164,9 +164,7 @@ MODULE input_cp2k_print_dft
    USE string_utilities, ONLY: newline, &
                                s2a
 
-#ifdef __OPENPMD
-   USE openPMD_api, ONLY: openpmd_get_default_extension
-#endif
+   USE cp_output_handling_openpmd, ONLY: cp_openpmd_get_default_extension
 
 #include "./base/base_uses.f90"
 
@@ -628,13 +626,11 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-#ifdef __OPENPMD
       CALL create_mo_section( &
          print_key, "MO_OPENPMD", "openPMD", (/1, 1, 1/), "STRIDE 2 2 2", debug_print_level + 1, "", "write_openpmd")
       CALL add_generic_openpmd_arguments(print_key)
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
-#endif
 
       CALL create_stm_section(print_key)
       CALL section_add_subsection(section, print_key)
@@ -717,7 +713,6 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-#ifdef __OPENPMD
       CALL create_e_density_section( &
          print_key, &
          "E_DENSITY_OPENPMD", &
@@ -729,7 +724,6 @@ CONTAINS
       CALL add_generic_openpmd_arguments(print_key)
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
-#endif
 
       CALL create_e_density_section(print_key, "E_DENSITY_CUBE", "cube", (/2, 2, 2/), "STRIDE 2 2 2", high_print_level, "")
       CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
@@ -959,14 +953,12 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-#ifdef __OPENPMD
       CALL create_elf_print_section(print_key, "ELF_OPENPMD", &
                                     "openPMD", &
                                     (/1, 1, 1/), "STRIDE 1 1 1", debug_print_level + 1, "")
       CALL add_generic_openpmd_arguments(print_key)
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
-#endif
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, "LOCAL_ENERGY_CUBE", &
                                        description="Controls the printing of cube files with the local"// &
@@ -2091,8 +2083,6 @@ CONTAINS
 
    END SUBROUTINE create_bandstructure_section
 
-#ifdef __OPENPMD
-
    SUBROUTINE add_generic_openpmd_arguments(print_key)
       TYPE(section_type), POINTER                        :: print_key
 
@@ -2100,7 +2090,7 @@ CONTAINS
       NULLIFY (keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="OPENPMD_EXTENSION", &
-      description="Filename extension for openPMD files, including the dot and (for optionally activating file encoding) a file expansion pattern.", default_c_val="_%06T." // openpmd_get_default_extension(), &
+      description="Filename extension for openPMD files, including the dot and (for optionally activating file encoding) a file expansion pattern.", default_c_val="_%06T." // cp_openpmd_get_default_extension(), &
                           type_of_var=char_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
@@ -2118,8 +2108,6 @@ CONTAINS
       CALL keyword_release(keyword)
 
    END SUBROUTINE
-
-#endif
 
 ! **************************************************************************************************
 !> \brief creates the input section for dealing with homo lumos, including dumping cubes

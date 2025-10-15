@@ -13,197 +13,194 @@
 !> \author Joost VandeVondele (10.2003)
 ! **************************************************************************************************
 MODULE qs_scf_post_gpw
-   USE admm_types, ONLY: admm_type
-   USE admm_utils, ONLY: admm_correct_for_eigenvalues, &
-                         admm_uncorrect_for_eigenvalues
-   USE ai_onecenter, ONLY: sg_overlap
-   USE atom_kind_orbitals, ONLY: calculate_atomic_density
-   USE atomic_kind_types, ONLY: atomic_kind_type, &
-                                get_atomic_kind
-   USE basis_set_types, ONLY: gto_basis_set_p_type, &
-                              gto_basis_set_type
-   USE cell_types, ONLY: cell_type
-   USE cp_array_utils, ONLY: cp_1d_r_p_type
-   USE cp_blacs_env, ONLY: cp_blacs_env_type
-   USE cp_control_types, ONLY: dft_control_type
-   USE cp_dbcsr_api, ONLY: dbcsr_add, &
-                           dbcsr_p_type, &
-                           dbcsr_type
-   USE cp_dbcsr_operations, ONLY: copy_dbcsr_to_fm, &
-                                  dbcsr_deallocate_matrix_set
-   USE cp_dbcsr_output, ONLY: cp_dbcsr_write_sparse_matrix
-   USE cp_ddapc_util, ONLY: get_ddapc
-   USE cp_fm_diag, ONLY: choose_eigv_solver
-   USE cp_fm_struct, ONLY: cp_fm_struct_create, &
-                           cp_fm_struct_release, &
-                           cp_fm_struct_type
-   USE cp_fm_types, ONLY: cp_fm_create, &
-                          cp_fm_get_info, &
-                          cp_fm_init_random, &
-                          cp_fm_release, &
-                          cp_fm_to_fm, &
-                          cp_fm_type
-   USE cp_log_handling, ONLY: cp_get_default_logger, &
-                              cp_logger_get_default_io_unit, &
-                              cp_logger_type, &
-                              cp_to_string
-   USE cp_output_handling, ONLY: cp_p_file, &
-                                 cp_print_key_finished_output, &
-                                 cp_print_key_should_output, &
-                                 cp_print_key_unit_nr
-   USE cp_realspace_grid_cube, ONLY: cp_pw_to_cube
-   USE dct, ONLY: pw_shrink
-   USE ed_analysis, ONLY: edmf_analysis
-   USE eeq_method, ONLY: eeq_print
-   USE et_coupling_types, ONLY: set_et_coupling_type
-   USE hfx_ri, ONLY: print_ri_hfx
-   USE hirshfeld_methods, ONLY: comp_hirshfeld_charges, &
-                                comp_hirshfeld_i_charges, &
-                                create_shape_function, &
-                                save_hirshfeld_charges, &
-                                write_hirshfeld_charges
-   USE hirshfeld_types, ONLY: create_hirshfeld_type, &
-                              hirshfeld_type, &
-                              release_hirshfeld_type, &
-                              set_hirshfeld_info
-   USE iao_analysis, ONLY: iao_wfn_analysis
-   USE iao_types, ONLY: iao_env_type, &
-                        iao_read_input
-   USE input_constants, ONLY: &
-      do_loc_both, do_loc_homo, do_loc_jacobi, do_loc_lumo, do_loc_mixed, do_loc_none, &
-      ot_precond_full_all, radius_covalent, radius_user, ref_charge_atomic, ref_charge_mulliken
-   USE input_section_types, ONLY: section_get_ival, &
-                                  section_get_ivals, &
-                                  section_get_lval, &
-                                  section_get_rval, &
-                                  section_vals_get, &
-                                  section_vals_get_subs_vals, &
-                                  section_vals_type, &
-                                  section_vals_val_get
-   USE kinds, ONLY: default_path_length, &
-                    default_string_length, &
-                    dp
-   USE kpoint_types, ONLY: kpoint_type
-   USE mao_wfn_analysis, ONLY: mao_analysis
-   USE mathconstants, ONLY: pi
-   USE memory_utilities, ONLY: reallocate
-   USE message_passing, ONLY: mp_para_env_type
-   USE minbas_wfn_analysis, ONLY: minbas_analysis
-   USE molden_utils, ONLY: write_mos_molden
-   USE molecule_types, ONLY: molecule_type
-   USE mulliken, ONLY: mulliken_charges
-   USE orbital_pointers, ONLY: indso
-   USE particle_list_types, ONLY: particle_list_type
-   USE particle_types, ONLY: particle_type
-   USE physcon, ONLY: angstrom, &
-                      evolt
-   USE population_analyses, ONLY: lowdin_population_analysis, &
-                                  mulliken_population_analysis
-   USE preconditioner_types, ONLY: preconditioner_type
-   USE ps_implicit_types, ONLY: MIXED_BC, &
-                                MIXED_PERIODIC_BC, &
-                                NEUMANN_BC, &
-                                PERIODIC_BC
-   USE pw_env_types, ONLY: pw_env_get, &
-                           pw_env_type
-   USE pw_grids, ONLY: get_pw_grid_info
-   USE pw_methods, ONLY: pw_axpy, &
-                         pw_copy, &
-                         pw_derive, &
-                         pw_integrate_function, &
-                         pw_scale, &
-                         pw_transfer, &
-                         pw_zero
-   USE pw_poisson_methods, ONLY: pw_poisson_solve
-   USE pw_poisson_types, ONLY: pw_poisson_implicit, &
-                               pw_poisson_type
-   USE pw_pool_types, ONLY: pw_pool_p_type, &
-                            pw_pool_type
-   USE pw_types, ONLY: pw_c1d_gs_type, &
-                       pw_r3d_rs_type
-   USE qs_chargemol, ONLY: write_wfx
-   USE qs_collocate_density, ONLY: calculate_rho_resp_all, &
-                                   calculate_wavefunction
-   USE qs_commutators, ONLY: build_com_hr_matrix
-   USE qs_core_energies, ONLY: calculate_ptrace
-   USE qs_dos, ONLY: calculate_dos, &
-                     calculate_dos_kp
-   USE qs_electric_field_gradient, ONLY: qs_efg_calc
-   USE qs_elf_methods, ONLY: qs_elf_calc
-   USE qs_energy_types, ONLY: qs_energy_type
-   USE qs_energy_window, ONLY: energy_windows
-   USE qs_environment_types, ONLY: get_qs_env, &
-                                   qs_environment_type, &
-                                   set_qs_env
-   USE qs_epr_hyp, ONLY: qs_epr_hyp_calc
-   USE qs_grid_atom, ONLY: grid_atom_type
-   USE qs_integral_utils, ONLY: basis_set_list_setup
-   USE qs_kind_types, ONLY: get_qs_kind, &
-                            qs_kind_type
-   USE qs_ks_methods, ONLY: calc_rho_tot_gspace, &
-                            qs_ks_update_qs_env
-   USE qs_ks_types, ONLY: qs_ks_did_change
-   USE qs_loc_dipole, ONLY: loc_dipole
-   USE qs_loc_states, ONLY: get_localization_info
-   USE qs_loc_types, ONLY: qs_loc_env_create, &
-                           qs_loc_env_release, &
-                           qs_loc_env_type
-   USE qs_loc_utils, ONLY: loc_write_restart, &
-                           qs_loc_control_init, &
-                           qs_loc_env_init, &
-                           qs_loc_init, &
-                           retain_history
-   USE qs_local_properties, ONLY: qs_local_energy, &
-                                  qs_local_stress
-   USE qs_mo_io, ONLY: write_dm_binary_restart
-   USE qs_mo_methods, ONLY: calculate_subspace_eigenvalues, &
-                            make_mo_eig
-   USE qs_mo_occupation, ONLY: set_mo_occupation
-   USE qs_mo_types, ONLY: get_mo_set, &
-                          mo_set_type
-   USE qs_moments, ONLY: qs_moment_berry_phase, &
-                         qs_moment_locop
-   USE qs_neighbor_list_types, ONLY: get_iterator_info, &
-                                     get_neighbor_list_set_p, &
-                                     neighbor_list_iterate, &
-                                     neighbor_list_iterator_create, &
-                                     neighbor_list_iterator_p_type, &
-                                     neighbor_list_iterator_release, &
-                                     neighbor_list_set_p_type
-   USE qs_ot_eigensolver, ONLY: ot_eigensolver
-   USE qs_pdos, ONLY: calculate_projected_dos
-   USE qs_resp, ONLY: resp_fit
-   USE qs_rho0_types, ONLY: get_rho0_mpole, &
-                            mpole_rho_atom, &
-                            rho0_mpole_type
-   USE qs_rho_atom_types, ONLY: rho_atom_type
-   USE qs_rho_methods, ONLY: qs_rho_update_rho
-   USE qs_rho_types, ONLY: qs_rho_get, &
-                           qs_rho_type
-   USE qs_scf_csr_write, ONLY: write_ks_matrix_csr, &
-                               write_s_matrix_csr
-   USE qs_scf_output, ONLY: qs_scf_write_mos
-   USE qs_scf_types, ONLY: ot_method_nr, &
-                           qs_scf_env_type
-   USE qs_scf_wfn_mix, ONLY: wfn_mix
-   USE qs_subsys_types, ONLY: qs_subsys_get, &
-                              qs_subsys_type
-   USE qs_wannier90, ONLY: wannier90_interface
-   USE s_square_methods, ONLY: compute_s_square
-   USE scf_control_types, ONLY: scf_control_type
-   USE stm_images, ONLY: th_stm_image
-   USE transport, ONLY: qs_scf_post_transport
-   USE trexio_utils, ONLY: write_trexio
-   USE virial_types, ONLY: virial_type
-   USE voronoi_interface, ONLY: entry_voronoi_or_bqb
-   USE xray_diffraction, ONLY: calculate_rhotot_elec_gspace, &
-                               xray_diffraction_spectrum
-#ifdef __OPENPMD
-   USE cp_output_handling_openpmd, ONLY: cp_openpmd_print_key_finished_output, &
-                                         cp_openpmd_print_key_unit_nr
-   USE cp_realspace_grid_openpmd, ONLY: cp_pw_to_openpmd
-#endif
-
+   USE admm_types,                      ONLY: admm_type
+   USE admm_utils,                      ONLY: admm_correct_for_eigenvalues,&
+                                              admm_uncorrect_for_eigenvalues
+   USE ai_onecenter,                    ONLY: sg_overlap
+   USE atom_kind_orbitals,              ONLY: calculate_atomic_density
+   USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                              get_atomic_kind
+   USE basis_set_types,                 ONLY: gto_basis_set_p_type,&
+                                              gto_basis_set_type
+   USE cell_types,                      ONLY: cell_type
+   USE cp_array_utils,                  ONLY: cp_1d_r_p_type
+   USE cp_blacs_env,                    ONLY: cp_blacs_env_type
+   USE cp_control_types,                ONLY: dft_control_type
+   USE cp_dbcsr_api,                    ONLY: dbcsr_add,&
+                                              dbcsr_p_type,&
+                                              dbcsr_type
+   USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
+                                              dbcsr_deallocate_matrix_set
+   USE cp_dbcsr_output,                 ONLY: cp_dbcsr_write_sparse_matrix
+   USE cp_ddapc_util,                   ONLY: get_ddapc
+   USE cp_fm_diag,                      ONLY: choose_eigv_solver
+   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                              cp_fm_struct_release,&
+                                              cp_fm_struct_type
+   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                              cp_fm_get_info,&
+                                              cp_fm_init_random,&
+                                              cp_fm_release,&
+                                              cp_fm_to_fm,&
+                                              cp_fm_type
+   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_get_default_io_unit,&
+                                              cp_logger_type,&
+                                              cp_to_string
+   USE cp_output_handling,              ONLY: cp_p_file,&
+                                              cp_print_key_finished_output,&
+                                              cp_print_key_should_output,&
+                                              cp_print_key_unit_nr
+   USE cp_output_handling_openpmd,      ONLY: cp_openpmd_print_key_finished_output,&
+                                              cp_openpmd_print_key_unit_nr
+   USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
+   USE cp_realspace_grid_openpmd,       ONLY: cp_pw_to_openpmd
+   USE dct,                             ONLY: pw_shrink
+   USE ed_analysis,                     ONLY: edmf_analysis
+   USE eeq_method,                      ONLY: eeq_print
+   USE et_coupling_types,               ONLY: set_et_coupling_type
+   USE hfx_ri,                          ONLY: print_ri_hfx
+   USE hirshfeld_methods,               ONLY: comp_hirshfeld_charges,&
+                                              comp_hirshfeld_i_charges,&
+                                              create_shape_function,&
+                                              save_hirshfeld_charges,&
+                                              write_hirshfeld_charges
+   USE hirshfeld_types,                 ONLY: create_hirshfeld_type,&
+                                              hirshfeld_type,&
+                                              release_hirshfeld_type,&
+                                              set_hirshfeld_info
+   USE iao_analysis,                    ONLY: iao_wfn_analysis
+   USE iao_types,                       ONLY: iao_env_type,&
+                                              iao_read_input
+   USE input_constants,                 ONLY: &
+        do_loc_both, do_loc_homo, do_loc_jacobi, do_loc_lumo, do_loc_mixed, do_loc_none, &
+        ot_precond_full_all, radius_covalent, radius_user, ref_charge_atomic, ref_charge_mulliken
+   USE input_section_types,             ONLY: section_get_ival,&
+                                              section_get_ivals,&
+                                              section_get_lval,&
+                                              section_get_rval,&
+                                              section_vals_get,&
+                                              section_vals_get_subs_vals,&
+                                              section_vals_type,&
+                                              section_vals_val_get
+   USE kinds,                           ONLY: default_path_length,&
+                                              default_string_length,&
+                                              dp
+   USE kpoint_types,                    ONLY: kpoint_type
+   USE mao_wfn_analysis,                ONLY: mao_analysis
+   USE mathconstants,                   ONLY: pi
+   USE memory_utilities,                ONLY: reallocate
+   USE message_passing,                 ONLY: mp_para_env_type
+   USE minbas_wfn_analysis,             ONLY: minbas_analysis
+   USE molden_utils,                    ONLY: write_mos_molden
+   USE molecule_types,                  ONLY: molecule_type
+   USE mulliken,                        ONLY: mulliken_charges
+   USE orbital_pointers,                ONLY: indso
+   USE particle_list_types,             ONLY: particle_list_type
+   USE particle_types,                  ONLY: particle_type
+   USE physcon,                         ONLY: angstrom,&
+                                              evolt
+   USE population_analyses,             ONLY: lowdin_population_analysis,&
+                                              mulliken_population_analysis
+   USE preconditioner_types,            ONLY: preconditioner_type
+   USE ps_implicit_types,               ONLY: MIXED_BC,&
+                                              MIXED_PERIODIC_BC,&
+                                              NEUMANN_BC,&
+                                              PERIODIC_BC
+   USE pw_env_types,                    ONLY: pw_env_get,&
+                                              pw_env_type
+   USE pw_grids,                        ONLY: get_pw_grid_info
+   USE pw_methods,                      ONLY: pw_axpy,&
+                                              pw_copy,&
+                                              pw_derive,&
+                                              pw_integrate_function,&
+                                              pw_scale,&
+                                              pw_transfer,&
+                                              pw_zero
+   USE pw_poisson_methods,              ONLY: pw_poisson_solve
+   USE pw_poisson_types,                ONLY: pw_poisson_implicit,&
+                                              pw_poisson_type
+   USE pw_pool_types,                   ONLY: pw_pool_p_type,&
+                                              pw_pool_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
+   USE qs_chargemol,                    ONLY: write_wfx
+   USE qs_collocate_density,            ONLY: calculate_rho_resp_all,&
+                                              calculate_wavefunction
+   USE qs_commutators,                  ONLY: build_com_hr_matrix
+   USE qs_core_energies,                ONLY: calculate_ptrace
+   USE qs_dos,                          ONLY: calculate_dos,&
+                                              calculate_dos_kp
+   USE qs_electric_field_gradient,      ONLY: qs_efg_calc
+   USE qs_elf_methods,                  ONLY: qs_elf_calc
+   USE qs_energy_types,                 ONLY: qs_energy_type
+   USE qs_energy_window,                ONLY: energy_windows
+   USE qs_environment_types,            ONLY: get_qs_env,&
+                                              qs_environment_type,&
+                                              set_qs_env
+   USE qs_epr_hyp,                      ONLY: qs_epr_hyp_calc
+   USE qs_grid_atom,                    ONLY: grid_atom_type
+   USE qs_integral_utils,               ONLY: basis_set_list_setup
+   USE qs_kind_types,                   ONLY: get_qs_kind,&
+                                              qs_kind_type
+   USE qs_ks_methods,                   ONLY: calc_rho_tot_gspace,&
+                                              qs_ks_update_qs_env
+   USE qs_ks_types,                     ONLY: qs_ks_did_change
+   USE qs_loc_dipole,                   ONLY: loc_dipole
+   USE qs_loc_states,                   ONLY: get_localization_info
+   USE qs_loc_types,                    ONLY: qs_loc_env_create,&
+                                              qs_loc_env_release,&
+                                              qs_loc_env_type
+   USE qs_loc_utils,                    ONLY: loc_write_restart,&
+                                              qs_loc_control_init,&
+                                              qs_loc_env_init,&
+                                              qs_loc_init,&
+                                              retain_history
+   USE qs_local_properties,             ONLY: qs_local_energy,&
+                                              qs_local_stress
+   USE qs_mo_io,                        ONLY: write_dm_binary_restart
+   USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues,&
+                                              make_mo_eig
+   USE qs_mo_occupation,                ONLY: set_mo_occupation
+   USE qs_mo_types,                     ONLY: get_mo_set,&
+                                              mo_set_type
+   USE qs_moments,                      ONLY: qs_moment_berry_phase,&
+                                              qs_moment_locop
+   USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
+                                              get_neighbor_list_set_p,&
+                                              neighbor_list_iterate,&
+                                              neighbor_list_iterator_create,&
+                                              neighbor_list_iterator_p_type,&
+                                              neighbor_list_iterator_release,&
+                                              neighbor_list_set_p_type
+   USE qs_ot_eigensolver,               ONLY: ot_eigensolver
+   USE qs_pdos,                         ONLY: calculate_projected_dos
+   USE qs_resp,                         ONLY: resp_fit
+   USE qs_rho0_types,                   ONLY: get_rho0_mpole,&
+                                              mpole_rho_atom,&
+                                              rho0_mpole_type
+   USE qs_rho_atom_types,               ONLY: rho_atom_type
+   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
+   USE qs_rho_types,                    ONLY: qs_rho_get,&
+                                              qs_rho_type
+   USE qs_scf_csr_write,                ONLY: write_ks_matrix_csr,&
+                                              write_s_matrix_csr
+   USE qs_scf_output,                   ONLY: qs_scf_write_mos
+   USE qs_scf_types,                    ONLY: ot_method_nr,&
+                                              qs_scf_env_type
+   USE qs_scf_wfn_mix,                  ONLY: wfn_mix
+   USE qs_subsys_types,                 ONLY: qs_subsys_get,&
+                                              qs_subsys_type
+   USE qs_wannier90,                    ONLY: wannier90_interface
+   USE s_square_methods,                ONLY: compute_s_square
+   USE scf_control_types,               ONLY: scf_control_type
+   USE stm_images,                      ONLY: th_stm_image
+   USE transport,                       ONLY: qs_scf_post_transport
+   USE trexio_utils,                    ONLY: write_trexio
+   USE virial_types,                    ONLY: virial_type
+   USE voronoi_interface,               ONLY: entry_voronoi_or_bqb
+   USE xray_diffraction,                ONLY: calculate_rhotot_elec_gspace,&
+                                              xray_diffraction_spectrum
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -361,21 +358,14 @@ CONTAINS
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: openpmd_basename
       INTEGER                                            :: res
 
-#ifdef __OPENPMD
       IF (self%grid_output == grid_output_cubes) THEN
-#else
-         MARK_USED(self)
-         MARK_USED(openpmd_basename)
-#endif
          res = cp_print_key_unit_nr(logger, basis_section, print_key_path, extension=extension, &
                                               middle_name=middle_name, local=local, log_filename=log_filename, ignore_should_output=ignore_should_output, file_form=file_form, file_position=file_position, file_action=file_action, file_status=file_status, do_backup=do_backup, on_file=on_file, is_new_file=is_new_file, mpi_io=mpi_io, fout=fout)
-#ifdef __OPENPMD
       ELSE
          res = cp_openpmd_print_key_unit_nr(logger, basis_section, print_key_path, &
                                             middle_name=middle_name, ignore_should_output=ignore_should_output, &
                                             mpi_io=mpi_io, fout=fout, openpmd_basename=openpmd_basename)
       END IF
-#endif
    END FUNCTION
 
 ! **************************************************************************************************
