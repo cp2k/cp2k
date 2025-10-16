@@ -8,19 +8,21 @@
 #include "../../offload/offload_runtime.h"
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_GRID)
 
+#include "grid_gpu_collocate.h"
+#include "grid_gpu_integrate.h"
+#include "grid_gpu_task_list.h"
+
+#include "../../offload/offload_library.h"
+#include "../../offload/offload_mempool.h"
+#include "../common/grid_common.h"
+#include "../common/grid_constants.h"
+#include "../common/grid_library.h"
+
 #include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#include "../../offload/offload_library.h"
-#include "../common/grid_common.h"
-#include "../common/grid_constants.h"
-#include "../common/grid_library.h"
-#include "grid_gpu_collocate.h"
-#include "grid_gpu_integrate.h"
-#include "grid_gpu_task_list.h"
 
 #if defined(_OMP_H)
 #error "OpenMP should not be used in .cu files to accommodate HIP."
@@ -198,18 +200,24 @@ create_tasks(const bool orthorhombic, const int ntasks,
 
     // See also rs_find_node() in task_list_methods.F.
     // If the bit is set then we need to exclude the border in that direction.
-    if (border_mask & (1 << 0))
+    if (border_mask & (1 << 0)) {
       task->bounds_i[0] += border_width[level][0];
-    if (border_mask & (1 << 1))
+    }
+    if (border_mask & (1 << 1)) {
       task->bounds_i[1] -= border_width[level][0];
-    if (border_mask & (1 << 2))
+    }
+    if (border_mask & (1 << 2)) {
       task->bounds_j[0] += border_width[level][1];
-    if (border_mask & (1 << 3))
+    }
+    if (border_mask & (1 << 3)) {
       task->bounds_j[1] -= border_width[level][1];
-    if (border_mask & (1 << 4))
+    }
+    if (border_mask & (1 << 4)) {
       task->bounds_k[0] += border_width[level][2];
-    if (border_mask & (1 << 5))
+    }
+    if (border_mask & (1 << 5)) {
       task->bounds_k[1] -= border_width[level][2];
+    }
   }
 }
 
@@ -270,7 +278,7 @@ void grid_gpu_create_task_list(
   task_list->sphis_dev = (double **)malloc(nkinds * sizeof(double *));
   for (int i = 0; i < nkinds; i++) {
     size = basis_sets[i]->nsgf * basis_sets[i]->maxco * sizeof(double);
-    offloadMalloc((void **)&task_list->sphis_dev[i], size);
+    task_list->sphis_dev[i] = (double *)offload_mempool_device_malloc(size);
     offloadMemcpyHtoD(task_list->sphis_dev[i], basis_sets[i]->sphi, size);
   }
 
@@ -282,7 +290,7 @@ void grid_gpu_create_task_list(
                block_num_list, radius_list, rab_list, npts_local, shift_local,
                border_width, dh, dh_inv, (const double **)task_list->sphis_dev,
                tasks_host);
-  offloadMalloc((void **)&task_list->tasks_dev, size);
+  task_list->tasks_dev = (grid_gpu_task *)offload_mempool_device_malloc(size);
   offloadMemcpyHtoD(task_list->tasks_dev, tasks_host, size);
 
   free(tasks_host);
@@ -340,7 +348,7 @@ void grid_gpu_create_task_list(
  ******************************************************************************/
 void grid_gpu_free_task_list(grid_gpu_task_list *task_list) {
 
-  offloadFree(task_list->tasks_dev);
+  offload_mempool_device_free(task_list->tasks_dev);
 
   offloadStreamDestroy(task_list->main_stream);
 
@@ -350,7 +358,7 @@ void grid_gpu_free_task_list(grid_gpu_task_list *task_list) {
   free(task_list->level_streams);
 
   for (int i = 0; i < task_list->nkinds; i++) {
-    offloadFree(task_list->sphis_dev[i]);
+    offload_mempool_device_free(task_list->sphis_dev[i]);
   }
   free(task_list->sphis_dev);
 
@@ -458,11 +466,11 @@ void grid_gpu_integrate_task_list(const grid_gpu_task_list *task_list,
     pab_blocks_dev = pab_blocks->device_buffer;
   }
   if (forces != NULL) {
-    offloadMalloc((void **)&forces_dev, forces_size);
+    forces_dev = (double *)offload_mempool_device_malloc(forces_size);
     offloadMemsetAsync(forces_dev, 0, forces_size, task_list->main_stream);
   }
   if (virial != NULL) {
-    offloadMalloc((void **)&virial_dev, virial_size);
+    virial_dev = (double *)offload_mempool_device_malloc(virial_size);
     offloadMemsetAsync(virial_dev, 0, virial_size, task_list->main_stream);
   }
 
@@ -537,10 +545,10 @@ void grid_gpu_integrate_task_list(const grid_gpu_task_list *task_list,
   // clean up
   offloadEventDestroy(input_ready_event);
   if (forces != NULL) {
-    offloadFree(forces_dev);
+    offload_mempool_device_free(forces_dev);
   }
   if (virial != NULL) {
-    offloadFree(virial_dev);
+    offload_mempool_device_free(virial_dev);
   }
 }
 
