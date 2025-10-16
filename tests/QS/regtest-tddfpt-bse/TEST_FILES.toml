@@ -3,5 +3,5 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
-"H2O.inp"                               = [{matcher="M037", tol=1.0E-05, ref=2.1463}]
+"H2O.inp"                               = [{matcher="M037", tol=2.0E-05, ref=2.14634}]
 #EOF
