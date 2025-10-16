@@ -29,12 +29,13 @@ MODULE cp_cfm_diag
    USE cp_fm_diag, ONLY: diag_type, dlaf_neigvec_min, FM_DIAG_TYPE_DLAF
 #endif
    USE kinds, ONLY: dp
+   USE mathconstants, ONLY: z_one, &
+                            z_zero
 #if defined (__HAS_IEEE_EXCEPTIONS)
    USE ieee_exceptions, ONLY: ieee_get_halting_mode, &
                               ieee_set_halting_mode, &
                               IEEE_ALL
 #endif
-
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -263,8 +264,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: epseig
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_geeig_canon'
-      COMPLEX(KIND=dp), PARAMETER :: cone = CMPLX(1.0_dp, 0.0_dp, KIND=dp), &
-         czero = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: cevals
       INTEGER                                            :: handle, i, icol, irow, nao, nc, ncol, &
@@ -279,7 +278,7 @@ CONTAINS
       ALLOCATE (evals(nao), cevals(nao))
 
       ! Diagonalize -S matrix, this way the NULL space is at the end of the spectrum
-      CALL cp_cfm_scale(-cone, bmatrix)
+      CALL cp_cfm_scale(-z_one, bmatrix)
       CALL cp_cfm_heevd(bmatrix, work, evals)
       evals(:) = -evals(:)
       nc = nao
@@ -300,7 +299,7 @@ CONTAINS
          ! Set NULL space in eigenvector matrix of S to zero
          DO icol = nc + 1, nao
             DO irow = 1, nao
-               CALL cp_cfm_set_element(work, irow, icol, czero)
+               CALL cp_cfm_set_element(work, irow, icol, z_zero)
             END DO
          END DO
          ! Set small eigenvalues to a dummy save value
@@ -310,8 +309,8 @@ CONTAINS
       cevals(:) = CMPLX(1.0_dp/SQRT(evals(:)), 0.0_dp, KIND=dp)
       CALL cp_cfm_column_scale(work, cevals)
       ! Reduce to get U^(-C) * H * U^(-1)
-      CALL cp_cfm_gemm("C", "N", nao, nao, nao, cone, work, amatrix, czero, bmatrix)
-      CALL cp_cfm_gemm("N", "N", nao, nao, nao, cone, bmatrix, work, czero, amatrix)
+      CALL cp_cfm_gemm("C", "N", nao, nao, nao, z_one, work, amatrix, z_zero, bmatrix)
+      CALL cp_cfm_gemm("N", "N", nao, nao, nao, z_one, bmatrix, work, z_zero, amatrix)
       IF (nc /= nao) THEN
          ! set diagonal values to save large value
          DO icol = nc + 1, nao
@@ -323,7 +322,7 @@ CONTAINS
       eigenvalues(1:nmo) = evals(1:nmo)
       nx = MIN(nc, nmo)
       ! Restore vectors C = U^(-1) * C*
-      CALL cp_cfm_gemm("N", "N", nao, nx, nc, cone, work, bmatrix, czero, eigenvectors)
+      CALL cp_cfm_gemm("N", "N", nao, nx, nc, z_one, work, bmatrix, z_zero, eigenvectors)
 
       DEALLOCATE (evals)
 

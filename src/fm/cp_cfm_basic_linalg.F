@@ -998,7 +998,7 @@ CONTAINS
       uplo = 'U'
       transa = 'N'
       invert = .FALSE.
-      al = CMPLX(1.0_dp, 0.0_dp, dp)
+      al = z_one
       CALL cp_cfm_get_info(matrix_b, nrow_global=m, ncol_global=n)
       IF (PRESENT(side)) side_char = side
       IF (PRESENT(invert_tr)) invert = invert_tr

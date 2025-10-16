@@ -18,7 +18,8 @@ MODULE dgs
                                               fft3d,&
                                               fft_radix_operations
    USE kinds,                           ONLY: dp
-   USE mathconstants,                   ONLY: z_one,&
+   USE mathconstants,                   ONLY: gaussi,&
+                                              z_one,&
                                               z_zero
    USE mathlib,                         ONLY: det_3x3,&
                                               inv_3x3
@@ -871,7 +872,7 @@ CONTAINS
       CALL cd%create(rho0%pw_grid)
       CALL pw_zero(cd)
 
-      za = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      za = z_zero
       zb = CMPLX(charge1, 0.0_dp, KIND=dp)
       CALL rankup(nd, za, cd%array, zb, ex1, ey1, ez1, zs)
       CALL pw_multiply_with(cd, rho0)
@@ -917,10 +918,10 @@ CONTAINS
       CALL cd%create(rhos1%pw_grid)
       CALL pw_zero(cd)
 
-      za = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      za = z_zero
       zb = CMPLX(charge2, 0.0_dp, KIND=dp)
       CALL rankup(nd, za, cd%array, zb, ex2, ey2, ez2, zs)
-      za = CMPLX(0.0_dp, 1.0_dp, KIND=dp)
+      za = gaussi
       zb = CMPLX(charge1, 0.0_dp, KIND=dp)
       CALL rankup(nd, za, cd%array, zb, ex1, ey1, ez1, zs)
       CALL pw_multiply_with(cd, rho0)

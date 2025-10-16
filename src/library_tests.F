@@ -73,6 +73,7 @@ MODULE library_tests
    USE kinds,                           ONLY: dp
    USE machine,                         ONLY: m_flush,&
                                               m_walltime
+   USE mathconstants,                   ONLY: gaussi
    USE message_passing,                 ONLY: mp_para_env_type
    USE minimax_exp,                     ONLY: validate_exp_minimax
    USE mp2_grids,                       ONLY: test_least_square_ft
@@ -609,7 +610,7 @@ CONTAINS
                CALL RANDOM_NUMBER(ra)
                ca(:, :, :) = ra
                CALL RANDOM_NUMBER(ra)
-               ca(:, :, :) = ca + CMPLX(0.0_dp, 1.0_dp, KIND=dp)*ra
+               ca(:, :, :) = ca + gaussi*ra
                flops = REAL(len**3, KIND=dp)*15.0_dp*LOG(REAL(len, KIND=dp))
                ntim = NINT(siz*1.e7_dp/flops)
                ntim = MAX(ntim, 1)
@@ -646,7 +647,7 @@ CONTAINS
             CALL RANDOM_NUMBER(ra)
             ca(:, :, :) = ra
             CALL RANDOM_NUMBER(ra)
-            ca(:, :, :) = ca + CMPLX(0.0_dp, 1.0_dp, KIND=dp)*ra
+            ca(:, :, :) = ca + gaussi*ra
             cc(:, :, :) = ca
             CALL fft3d(FWFFT, n, ca, cb)
             tdiff = MAXVAL(ABS(ca - cc))

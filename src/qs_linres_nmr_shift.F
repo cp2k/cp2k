@@ -31,7 +31,8 @@ MODULE qs_linres_nmr_shift
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE mathconstants,                   ONLY: gaussi,&
-                                              twopi
+                                              twopi,&
+                                              z_zero
    USE mathlib,                         ONLY: diamat_all
    USE message_passing,                 ONLY: mp_para_env_type
    USE particle_types,                  ONLY: particle_type
@@ -665,7 +666,7 @@ CONTAINS
       TYPE(pw_grid_type), POINTER                        :: grid
 
       grid => pw%pw_grid
-      cplx = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      cplx = z_zero
       DO ig = grid%first_gne0, grid%ngpts_cut_local
          rg = (grid%g(1, ig)*r(1) + grid%g(2, ig)*r(2) + grid%g(3, ig)*r(3))*gaussi
          cplx = cplx + pw%array(ig)*EXP(rg)

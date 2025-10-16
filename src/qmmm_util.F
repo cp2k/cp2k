@@ -26,7 +26,8 @@ MODULE qmmm_util
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
-   USE mathconstants,                   ONLY: pi
+   USE mathconstants,                   ONLY: gaussi,&
+                                              pi
    USE particle_methods,                ONLY: write_fist_particle_coordinates,&
                                               write_qs_particle_coordinates
    USE particle_types,                  ONLY: particle_type
@@ -528,12 +529,12 @@ CONTAINS
 
       mean_z = 0.0_dp
       DO ip = 1, SIZE(qm_atom_index)
-         mean_z = mean_z + EXP(CMPLX(0.0_dp, 1.0_dp, KIND=dp)*2.0*pi* &
+         mean_z = mean_z + EXP(gaussi*2.0*pi* &
                                MATMUL(mm_cell%h_inv, particles_mm(qm_atom_index(ip))%r))
       END DO
       mean_z = mean_z/ABS(mean_z)
       qmmm_pbc_aware_mean = MATMUL(mm_cell%hmat, &
-                                   REAL(LOG(mean_z)/(CMPLX(0.0_dp, 1.0_dp, KIND=dp)*2.0_dp*pi), dp))
+                                   REAL(LOG(mean_z)/(gaussi*2.0_dp*pi), dp))
    END FUNCTION
 
 ! **************************************************************************************************

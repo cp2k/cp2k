@@ -19,7 +19,8 @@ MODULE ai_overlap
    USE ai_os_rr,                        ONLY: os_rr_ovlp
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi,&
-                                              twopi
+                                              twopi,&
+                                              z_one
    USE orbital_pointers,                ONLY: coset,&
                                               nco,&
                                               ncoset,&
@@ -2048,7 +2049,7 @@ CONTAINS
       END DO
       DO l = 0, la
          IF (l == 0) THEN
-            fun(:, l) = CMPLX(1.0_dp, 0.0_dp, KIND=dp)
+            fun(:, l) = z_one
          ELSEIF (l == 1) THEN
             fun(:, l) = CMPLX(0.0_dp, 0.5_dp*oa*gval(:), KIND=dp)
          ELSEIF (l == 2) THEN
@@ -2063,7 +2064,7 @@ CONTAINS
       END DO
       DO l = 0, lb
          IF (l == 0) THEN
-            gun(:, l) = CMPLX(1.0_dp, 0.0_dp, KIND=dp)
+            gun(:, l) = z_one
          ELSEIF (l == 1) THEN
             gun(:, l) = CMPLX(0.0_dp, 0.5_dp*ob*gval(:), KIND=dp)
          ELSEIF (l == 2) THEN

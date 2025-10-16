@@ -43,7 +43,9 @@ MODULE qs_scf_post_se
                                               section_vals_val_get
    USE kinds,                           ONLY: default_string_length,&
                                               dp
-   USE mathconstants,                   ONLY: twopi
+   USE mathconstants,                   ONLY: twopi,&
+                                              z_one,&
+                                              z_zero
    USE message_passing,                 ONLY: mp_para_env_type
    USE moments_utils,                   ONLY: get_reference_point
    USE orbital_pointers,                ONLY: coset,&
@@ -299,8 +301,8 @@ CONTAINS
             dria = twopi*MATMUL(cell%h_inv, drcc)
             dzphase = charge_tot*CMPLX(-SIN(ria), COS(ria), dp)**(charge_tot - 1.0_dp)*dria
 
-            ggamma = CMPLX(1.0_dp, 0.0_dp, KIND=dp)
-            dggamma = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+            ggamma = z_one
+            dggamma = z_zero
             DO ikind = 1, SIZE(atomic_kind_set)
                CALL get_atomic_kind(atomic_kind_set(ikind), natom=nat)
                DO i = 1, nat

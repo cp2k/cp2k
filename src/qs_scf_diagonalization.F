@@ -71,6 +71,9 @@ MODULE qs_scf_diagonalization
                                               kpoint_type
    USE machine,                         ONLY: m_flush,&
                                               m_walltime
+   USE mathconstants,                   ONLY: gaussi,&
+                                              z_one,&
+                                              z_zero
    USE message_passing,                 ONLY: mp_para_env_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE preconditioner,                  ONLY: prepare_preconditioner,&
@@ -429,8 +432,6 @@ CONTAINS
          POINTER                                         :: probe
 
       CHARACTER(len=*), PARAMETER :: routineN = 'do_general_diag_kp'
-      COMPLEX(KIND=dp), PARAMETER :: cone = CMPLX(1.0_dp, 0.0_dp, KIND=dp), &
-         czero = CMPLX(0.0_dp, 0.0_dp, KIND=dp), ione = CMPLX(0.0_dp, 1.0_dp, KIND=dp)
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: coeffs
       INTEGER                                            :: handle, ib, igroup, ik, ikp, indx, &
@@ -594,13 +595,13 @@ CONTAINS
                   indx = indx + 1
                   IF (my_kpgrp) THEN
                      CALL cp_fm_finish_copy_general(fmlocal, info(indx, 1))
-                     CALL cp_cfm_scale_and_add_fm(czero, cksmat, cone, fmlocal)
+                     CALL cp_cfm_scale_and_add_fm(z_zero, cksmat, z_one, fmlocal)
                      CALL cp_fm_finish_copy_general(fmlocal, info(indx, 2))
-                     CALL cp_cfm_scale_and_add_fm(cone, cksmat, ione, fmlocal)
+                     CALL cp_cfm_scale_and_add_fm(z_one, cksmat, gaussi, fmlocal)
                      CALL cp_fm_finish_copy_general(fmlocal, info(indx, 3))
-                     CALL cp_cfm_scale_and_add_fm(czero, csmat, cone, fmlocal)
+                     CALL cp_cfm_scale_and_add_fm(z_zero, csmat, z_one, fmlocal)
                      CALL cp_fm_finish_copy_general(fmlocal, info(indx, 4))
-                     CALL cp_cfm_scale_and_add_fm(cone, csmat, ione, fmlocal)
+                     CALL cp_cfm_scale_and_add_fm(z_one, csmat, gaussi, fmlocal)
                   END IF
                END DO  !igroup
 
@@ -622,9 +623,9 @@ CONTAINS
                kp => kpoints%kp_env(ikp)%kpoint_env
                CALL cp_cfm_to_cfm(kpoints%scf_diis_buffer%smat(ikp), csmat)
 
-               CALL cp_cfm_set_all(cksmat, czero)
+               CALL cp_cfm_set_all(cksmat, z_zero)
                DO jb = 1, nb
-                  CALL cp_cfm_scale_and_add(cone, cksmat, coeffs(jb), kpoints%scf_diis_buffer%param(jb, ispin, ikp))
+                  CALL cp_cfm_scale_and_add(z_one, cksmat, coeffs(jb), kpoints%scf_diis_buffer%param(jb, ispin, ikp))
                END DO
 
                CALL get_mo_set(kp%mos(1, ispin), mo_coeff=rmos, eigenvalues=eigenvalues)
@@ -658,13 +659,13 @@ CONTAINS
                         CALL cp_fm_finish_copy_general(rsmat, info(indx, 2))
                      ELSE
                         CALL cp_fm_finish_copy_general(fmlocal, info(indx, 1))
-                        CALL cp_cfm_scale_and_add_fm(czero, cksmat, cone, fmlocal)
+                        CALL cp_cfm_scale_and_add_fm(z_zero, cksmat, z_one, fmlocal)
                         CALL cp_fm_finish_copy_general(fmlocal, info(indx, 2))
-                        CALL cp_cfm_scale_and_add_fm(cone, cksmat, ione, fmlocal)
+                        CALL cp_cfm_scale_and_add_fm(z_one, cksmat, gaussi, fmlocal)
                         CALL cp_fm_finish_copy_general(fmlocal, info(indx, 3))
-                        CALL cp_cfm_scale_and_add_fm(czero, csmat, cone, fmlocal)
+                        CALL cp_cfm_scale_and_add_fm(z_zero, csmat, z_one, fmlocal)
                         CALL cp_fm_finish_copy_general(fmlocal, info(indx, 4))
-                        CALL cp_cfm_scale_and_add_fm(cone, csmat, ione, fmlocal)
+                        CALL cp_cfm_scale_and_add_fm(z_one, csmat, gaussi, fmlocal)
                      END IF
                   END IF
                END DO
