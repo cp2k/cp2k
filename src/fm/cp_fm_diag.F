@@ -78,7 +78,6 @@ MODULE cp_fm_diag
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
-
    PRIVATE
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_fm_diag'
@@ -500,7 +499,7 @@ CONTAINS
       END IF
 
       ! Reallocate work arrays and perform diagonalisation
-      lwork = INT(work(1))
+      lwork = NINT(work(1))
       ALLOCATE (work(lwork))
 
       liwork = iwork(1)
@@ -947,7 +946,7 @@ CONTAINS
          CALL cp_fm_error("ERROR in PDGESVD: Work space query failed", myinfo, PRESENT(info))
       END IF
 
-      lwork = INT(work(1))
+      lwork = NINT(work(1))
       ALLOCATE (work(lwork))
 
       CALL pdgesvd('V', 'V', m, m, matrix_lu%local_data, 1, 1, desca, eigval, matrix_eigvl%local_data, &
@@ -965,8 +964,7 @@ CONTAINS
          CALL cp_fm_error("ERROR in DGESVD: Work space query failed", myinfo, PRESENT(info))
       END IF
 
-      ! SVD
-      lwork = INT(work(1))
+      lwork = NINT(work(1))
       ALLOCATE (work(lwork))
 
       CALL dgesvd('S', 'S', m, m, matrix_lu%local_data, m, eigval, matrix_eigvl%local_data, &
