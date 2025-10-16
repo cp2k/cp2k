@@ -28,7 +28,8 @@ MODULE ewalds
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: fourpi,&
                                               oorootpi,&
-                                              pi
+                                              pi,&
+                                              z_zero
    USE message_passing,                 ONLY: mp_comm_type
    USE particle_types,                  ONLY: particle_type
    USE pw_grid_types,                   ONLY: pw_grid_type
@@ -169,7 +170,7 @@ CONTAINS
          END IF
       END DO
 
-      summe(:) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      summe(:) = z_zero
       ! looping over the positive g-vectors
       DO gpt = 1, pw_grid%ngpts_cut_local
 

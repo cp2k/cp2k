@@ -21,6 +21,7 @@ MODULE fftw3_lib
       C_LOC, &
       C_NULL_CHAR, &
       C_SIZE_T, C_F_POINTER
+   USE mathconstants, ONLY: z_zero
 #endif
    USE cp_files, ONLY: get_unit_number
    USE fft_kinds, ONLY: dp
@@ -534,7 +535,7 @@ CONTAINS
       howmany_istride(2) = 1
       howmany_ostride(1) = 1
       howmany_ostride(2) = 1
-      zin = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      zin = z_zero
       CALL fftw3_create_guru_plan(test_plan, 1, &
                                   dim_n, dim_istride, dim_ostride, &
                                   2, howmany_n, howmany_istride, howmany_ostride, &

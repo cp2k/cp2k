@@ -78,6 +78,9 @@ MODULE mp2_ri_2c
    USE libint_2c_3c,                    ONLY: compare_potential_types,&
                                               libint_potential_type
    USE machine,                         ONLY: m_flush
+   USE mathconstants,                   ONLY: gaussi,&
+                                              z_one,&
+                                              z_zero
    USE message_passing,                 ONLY: mp_comm_type,&
                                               mp_para_env_release,&
                                               mp_para_env_type,&
@@ -1471,8 +1474,6 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: eps_eigval_S
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'inversion_of_M_and_mult_with_chol_dec_of_V'
-      COMPLEX(KIND=dp), PARAMETER :: cone = CMPLX(1.0_dp, 0.0_dp, KIND=dp), &
-         czero = CMPLX(0.0_dp, 0.0_dp, KIND=dp), ione = CMPLX(0.0_dp, 1.0_dp, KIND=dp)
 
       INTEGER                                            :: handle, ikp, nkp
       TYPE(cp_cfm_type)                                  :: cfm_matrix_K_tmp, cfm_matrix_M_tmp, &
@@ -1492,11 +1493,11 @@ CONTAINS
 
       DO ikp = 1, nkp
 
-         CALL cp_cfm_scale_and_add_fm(czero, cfm_matrix_M_tmp, cone, fm_matrix_Minv_L_kpoints(ikp, 1))
-         CALL cp_cfm_scale_and_add_fm(cone, cfm_matrix_M_tmp, ione, fm_matrix_Minv_L_kpoints(ikp, 2))
+         CALL cp_cfm_scale_and_add_fm(z_zero, cfm_matrix_M_tmp, z_one, fm_matrix_Minv_L_kpoints(ikp, 1))
+         CALL cp_cfm_scale_and_add_fm(z_one, cfm_matrix_M_tmp, gaussi, fm_matrix_Minv_L_kpoints(ikp, 2))
 
-         CALL cp_cfm_scale_and_add_fm(czero, cfm_matrix_V_tmp, cone, fm_matrix_L_kpoints(ikp, 1))
-         CALL cp_cfm_scale_and_add_fm(cone, cfm_matrix_V_tmp, ione, fm_matrix_L_kpoints(ikp, 2))
+         CALL cp_cfm_scale_and_add_fm(z_zero, cfm_matrix_V_tmp, z_one, fm_matrix_L_kpoints(ikp, 1))
+         CALL cp_cfm_scale_and_add_fm(z_one, cfm_matrix_V_tmp, gaussi, fm_matrix_L_kpoints(ikp, 2))
 
          CALL cp_cfm_power(cfm_matrix_M_tmp, threshold=eps_eigval_S, exponent=-1.0_dp)
 
@@ -1506,8 +1507,8 @@ CONTAINS
          CALL cp_cfm_to_fm(cfm_matrix_V_tmp, fm_matrix_L_kpoints(ikp, 1), fm_matrix_L_kpoints(ikp, 2))
 
          ! get K = M^(-1)*L, where L is the Cholesky decomposition of V = L^T*L
-         CALL parallel_gemm("N", "C", dimen_RI, dimen_RI, dimen_RI, cone, cfm_matrix_M_tmp, cfm_matrix_V_tmp, &
-                            czero, cfm_matrix_K_tmp)
+         CALL parallel_gemm("N", "C", dimen_RI, dimen_RI, dimen_RI, z_one, cfm_matrix_M_tmp, cfm_matrix_V_tmp, &
+                            z_zero, cfm_matrix_K_tmp)
 
          ! move
          CALL cp_cfm_to_fm(cfm_matrix_K_tmp, fm_matrix_Minv_L_kpoints(ikp, 1), fm_matrix_Minv_L_kpoints(ikp, 2))

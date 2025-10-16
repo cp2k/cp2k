@@ -29,7 +29,8 @@ MODULE qs_loc_dipole
                                               section_vals_val_get
    USE kinds,                           ONLY: default_string_length,&
                                               dp
-   USE mathconstants,                   ONLY: twopi
+   USE mathconstants,                   ONLY: twopi,&
+                                              z_one
    USE moments_utils,                   ONLY: get_reference_point
    USE particle_types,                  ONLY: particle_type
    USE physcon,                         ONLY: debye
@@ -108,7 +109,7 @@ CONTAINS
             charge_tot = REAL(dft_control%charge, KIND=dp)
             ria = twopi*MATMUL(cell%h_inv, rcc)
             zphase = CMPLX(COS(ria), SIN(ria), KIND=dp)**charge_tot
-            ggamma = CMPLX(1.0_dp, 0.0_dp, KIND=dp)
+            ggamma = z_one
 
             ! Nuclear charges
             DO i = 1, SIZE(particle_set)

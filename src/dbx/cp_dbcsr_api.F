@@ -55,6 +55,8 @@ MODULE cp_dbcsr_api
         dbm_scale, dbm_type, dbm_zero
    USE kinds,                           ONLY: dp,&
                                               int_8
+   USE mathconstants,                   ONLY: gaussi,&
+                                              z_one
    USE message_passing,                 ONLY: mp_comm_type
 #include "../base/base_uses.f90"
 
@@ -495,9 +497,6 @@ CONTAINS
       TYPE(dbcsr_csr_type), INTENT(INOUT)                :: csr_mat
       INTEGER                                            :: dist_format
 
-      COMPLEX(KIND=dp), PARAMETER :: ione = CMPLX(0.0_dp, 1.0_dp, KIND=dp), &
-         rone = CMPLX(1.0_dp, 0.0_dp, KIND=dp)
-
       TYPE(dbcsr_type)                                   :: cmatrix, tmp_matrix
 
       IF (USE_DBCSR_BACKEND) THEN
@@ -505,7 +504,7 @@ CONTAINS
          CALL dbcsr_create_prv(cmatrix%dbcsr, template=rmatrix%dbcsr, data_type=dbcsr_type_complex_8)
          CALL dbcsr_copy_prv(cmatrix%dbcsr, rmatrix%dbcsr)
          CALL dbcsr_copy_prv(tmp_matrix%dbcsr, imatrix%dbcsr)
-         CALL dbcsr_add_prv(cmatrix%dbcsr, tmp_matrix%dbcsr, rone, ione)
+         CALL dbcsr_add_prv(cmatrix%dbcsr, tmp_matrix%dbcsr, z_one, gaussi)
          CALL dbcsr_release_prv(tmp_matrix%dbcsr)
          ! Convert to csr
          CALL dbcsr_csr_create_from_dbcsr_prv(cmatrix%dbcsr, csr_mat, dist_format)

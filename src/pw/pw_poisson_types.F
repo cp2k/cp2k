@@ -26,7 +26,8 @@ MODULE pw_poisson_types
    USE dirichlet_bc_types,              ONLY: dirichlet_bc_parameters
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: fourpi,&
-                                              twopi
+                                              twopi,&
+                                              z_zero
    USE mt_util,                         ONLY: MT0D,&
                                               MT1D,&
                                               MT2D,&
@@ -509,7 +510,7 @@ CONTAINS
          DO pt = lb(dim), ub(dim)
             val = twopi*(REAL(pt, KIND=dp)/REAL(npts(dim), KIND=dp))
             exp_m = CMPLX(COS(val), -SIN(val), KIND=dp)
-            sum_m = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+            sum_m = z_zero
             DO k = 0, n - 2
                sum_m = sum_m + m_assign(k)*exp_m**k
             END DO

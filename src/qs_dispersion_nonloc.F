@@ -30,7 +30,8 @@ MODULE qs_dispersion_nonloc
    USE kinds,                           ONLY: default_path_length,&
                                               dp
    USE mathconstants,                   ONLY: pi,&
-                                              rootpi
+                                              rootpi,&
+                                              z_zero
    USE message_passing,                 ONLY: mp_para_env_type
    USE pw_grid_types,                   ONLY: HALFSPACE,&
                                               pw_grid_type
@@ -610,7 +611,7 @@ CONTAINS
 
       IF (.NOT. energy_only) THEN
          ALLOCATE (u_vdW(grid%ngpts_cut_local, nqs))
-         u_vdW(:, :) = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+         u_vdW(:, :) = z_zero
       END IF
 
 !$OMP PARALLEL DEFAULT( NONE )                                             &
@@ -643,7 +644,7 @@ CONTAINS
             theta(iq) = thetas_g(iq)%array(ig)
          END DO
          DO q2_i = 1, nqs
-            uu = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+            uu = z_zero
             DO q1_i = 1, nqs
                uu = uu + kernel_of_k(q2_i, q1_i)*theta(q1_i)
             END DO

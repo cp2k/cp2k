@@ -58,7 +58,8 @@ MODULE qs_localization_methods
    USE machine,                         ONLY: m_flush,&
                                               m_walltime
    USE mathconstants,                   ONLY: pi,&
-                                              twopi
+                                              twopi,&
+                                              z_zero
    USE matrix_exp,                      ONLY: exp_pade_real,&
                                               get_nsquare_norder
    USE message_passing,                 ONLY: mp_para_env_type
@@ -2537,9 +2538,9 @@ CONTAINS
 
       DO idim = 1, dim2
          ALLOCATE (zdiag_me(idim)%c_array(nblock_max))
-         zdiag_me(idim)%c_array = CMPLX(0.0_dp, 0.0_dp, dp)
+         zdiag_me(idim)%c_array = z_zero
          ALLOCATE (zdiag_all(idim)%c_array(para_env%num_pe*nblock_max))
-         zdiag_all(idim)%c_array = CMPLX(0.0_dp, 0.0_dp, dp)
+         zdiag_all(idim)%c_array = z_zero
       END DO
       ALLOCATE (rmat_recv(nblock_max*2, nblock_max))
       ALLOCATE (rmat_send(nblock_max*2, nblock_max))
@@ -2696,7 +2697,7 @@ CONTAINS
 
                DO idim = 1, dim2
                   DO i = 1, n1
-                     xyz_mix_ns(idim)%c_array(1:nstate, i) = CMPLX(0.0_dp, 0.0_dp, dp)
+                     xyz_mix_ns(idim)%c_array(1:nstate, i) = z_zero
                   END DO
 
                   DO istate = 1, n1
@@ -2730,7 +2731,7 @@ CONTAINS
 
             DO idim = 1, dim2
                DO i = 1, ns_me
-                  cz_ij_loc(idim)%c_array(1:nstate, i) = CMPLX(0.0_dp, 0.0_dp, dp)
+                  cz_ij_loc(idim)%c_array(1:nstate, i) = z_zero
                END DO
             END DO
 

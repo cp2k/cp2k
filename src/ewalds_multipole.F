@@ -42,7 +42,8 @@ MODULE ewalds_multipole
    USE mathconstants, ONLY: fourpi, &
                             oorootpi, &
                             pi, &
-                            sqrthalf
+                            sqrthalf, &
+                            z_zero
    USE message_passing, ONLY: mp_comm_type
    USE parallel_rng_types, ONLY: UNIFORM, &
                                  rng_stream_type
@@ -704,12 +705,12 @@ CONTAINS
       CALL structure_factor_allocate(pw_grid%bounds, nnodes, exp_igr)
 
       ALLOCATE (summe_ef(1:pw_grid%ngpts_cut))
-      summe_ef = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      summe_ef = z_zero
       ! Stress Tensor
       IF (do_stress) THEN
          pv_tmp = 0.0_dp
          ALLOCATE (summe_st(3, 1:pw_grid%ngpts_cut))
-         summe_st = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+         summe_st = z_zero
       END IF
 
       ! Defining four_alpha_sq
@@ -983,14 +984,14 @@ CONTAINS
       COMPLEX(KIND=dp)                                   :: tmp
       INTEGER                                            :: i, j
 
-      atm_factor = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      atm_factor = z_zero
       IF (task(1, 1)) THEN
          ! Charge
          atm_factor = atm_factor + charges(iparticle)
       END IF
       IF (task(2, 2)) THEN
          ! Dipole
-         tmp = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+         tmp = z_zero
          DO i = 1, 3
             tmp = tmp + dipoles(i, iparticle)*pw_grid%g(i, gpt)
          END DO
@@ -998,7 +999,7 @@ CONTAINS
       END IF
       IF (task(3, 3)) THEN
          ! Quadrupole
-         tmp = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+         tmp = z_zero
          DO i = 1, 3
             DO j = 1, 3
                tmp = tmp + quadrupoles(j, i, iparticle)*pw_grid%g(j, gpt)*pw_grid%g(i, gpt)
@@ -1035,7 +1036,7 @@ CONTAINS
 
       INTEGER                                            :: i
 
-      atm_factor = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
+      atm_factor = z_zero
       IF (ANY(task(2, :))) THEN
          ! Dipole
          atm_factor = dipoles(:, iparticle)*CMPLX(0.0_dp, -1.0_dp, KIND=dp)

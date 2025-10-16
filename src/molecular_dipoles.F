@@ -23,7 +23,8 @@ MODULE molecular_dipoles
                                               section_vals_type,&
                                               section_vals_val_get
    USE kinds,                           ONLY: dp
-   USE mathconstants,                   ONLY: twopi
+   USE mathconstants,                   ONLY: twopi,&
+                                              z_one
    USE message_passing,                 ONLY: mp_para_env_type
    USE molecule_kind_types,             ONLY: get_molecule_kind,&
                                               molecule_kind_type
@@ -147,7 +148,7 @@ CONTAINS
                   charge_tot = charge_set(imol_now)
                   ria = twopi*MATMUL(cell%h_inv, rcc)
                   zphase = CMPLX(COS(ria), SIN(ria), KIND=dp)**charge_tot
-                  ggamma = CMPLX(1.0_dp, 0.0_dp, KIND=dp)
+                  ggamma = z_one
 
                   ! Nuclear charges
                   IF (ispin == 1) THEN

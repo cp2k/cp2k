@@ -17,6 +17,7 @@ MODULE qs_mixing_utils
    USE cp_dbcsr_operations,             ONLY: dbcsr_allocate_matrix_set
    USE distribution_1d_types,           ONLY: distribution_1d_type
    USE kinds,                           ONLY: dp
+   USE mathconstants,                   ONLY: z_zero
    USE message_passing,                 ONLY: mp_para_env_type
    USE pw_types,                        ONLY: pw_c1d_gs_type
    USE qs_density_mixing_types,         ONLY: broyden_mixing_nr,&
@@ -550,10 +551,10 @@ CONTAINS
                ALLOCATE (mixing_store%last_res(ispin)%cc(ng))
             END IF
             DO ib = 1, nbuffer
-               mixing_store%drho_buffer(ib, ispin)%cc = CMPLX(0.0_dp, 0.0_dp, kind=dp)
+               mixing_store%drho_buffer(ib, ispin)%cc = z_zero
             END DO
-            mixing_store%last_res(ispin)%cc = CMPLX(0.0_dp, 0.0_dp, kind=dp)
-            mixing_store%rhoin_old(ispin)%cc = CMPLX(0.0_dp, 0.0_dp, kind=dp)
+            mixing_store%last_res(ispin)%cc = z_zero
+            mixing_store%rhoin_old(ispin)%cc = z_zero
          END DO
          IF (mixing_store%gmix_p) THEN
             IF (PRESENT(rho_atom)) THEN
