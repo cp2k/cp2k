@@ -121,8 +121,14 @@ BANNER_C = """\
 
 C_EXTENSIONS = (".c", ".cu", ".cpp", ".cc", ".h", ".hpp")
 
-BSD_PATHS = ("src/offload/", "src/grid/", "src/dbm/", "src/base/openmp_trace.c")
-
+# Non-GPL licenses (directory, file, basename, or generally "startswith")
+BSD_PATHS = (
+    "src/base/openmp_trace.c",
+    "src/mpiwrap/cp_mpi.",
+    "src/offload/",
+    "src/grid/",
+    "src/dbm/",
+)
 MIT_PATHS = ("src/grpp/",)
 
 
