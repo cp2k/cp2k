@@ -359,8 +359,13 @@ CONTAINS
       INTEGER                                            :: res
 
       IF (self%grid_output == grid_output_cubes) THEN
-         res = cp_print_key_unit_nr(logger, basis_section, print_key_path, extension=extension, &
-                                              middle_name=middle_name, local=local, log_filename=log_filename, ignore_should_output=ignore_should_output, file_form=file_form, file_position=file_position, file_action=file_action, file_status=file_status, do_backup=do_backup, on_file=on_file, is_new_file=is_new_file, mpi_io=mpi_io, fout=fout)
+         res = cp_print_key_unit_nr( &
+               logger, basis_section, print_key_path, extension=extension, &
+               middle_name=middle_name, local=local, log_filename=log_filename, &
+               ignore_should_output=ignore_should_output, file_form=file_form, &
+               file_position=file_position, file_action=file_action, &
+               file_status=file_status, do_backup=do_backup, on_file=on_file, &
+               is_new_file=is_new_file, mpi_io=mpi_io, fout=fout)
       ELSE
          res = cp_openpmd_print_key_unit_nr(logger, basis_section, print_key_path, &
                                             middle_name=middle_name, ignore_should_output=ignore_should_output, &
@@ -541,7 +546,9 @@ CONTAINS
       CHARACTER(6), OPTIONAL                             :: wf_type
       LOGICAL, OPTIONAL                                  :: do_mp2
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'scf_post_calculation_gpw'
+      CHARACTER(len=*), PARAMETER :: routineN = 'scf_post_calculation_gpw', &
+         warning_cube_kpoint = "Print MO cubes not implemented for k-point calculations", &
+         warning_openpmd_kpoint = "Writing to openPMD not implemented for k-point calculations"
 
       INTEGER                                            :: handle, homo, ispin, min_lumos, n_rep, &
                                                             nchk_nmoloc, nhomo, nlumo, nlumo_stm, &
@@ -769,10 +776,8 @@ CONTAINS
       END IF
       ! Makes the MOs eigenstates, computes eigenvalues, write cubes
       IF (do_kpoints) THEN
-         CPWARN_IF(mo_section%do_cubes(), "Print MO cubes not implemented for k-point calculations")
-#ifdef __OPENPMD
-         CPWARN_IF(mo_section%do_openpmd(), "Writing to openPMD not implemented for k-point calculations")
-#endif
+         CPWARN_IF(mo_section%do_cubes(), warning_cube_kpoint)
+         CPWARN_IF(mo_section%do_openpmd(), warning_openpmd_kpoint)
       ELSE
          CALL get_qs_env(qs_env, &
                          mos=mos, &
