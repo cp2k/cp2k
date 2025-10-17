@@ -2090,14 +2090,19 @@ CONTAINS
       NULLIFY (keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="OPENPMD_EXTENSION", &
-      description="Filename extension for openPMD files, including the dot and (for optionally activating file encoding) a file expansion pattern.", default_c_val="_%06T." // cp_openpmd_get_default_extension(), &
+                          description="Filename extension for openPMD files, including the dot and "// &
+                          "(for optionally activating file encoding) a file expansion pattern.", &
+                          default_c_val="_%06T."//cp_openpmd_get_default_extension(), &
                           type_of_var=char_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="OPENPMD_CFG", &
-      description="Inline runtime config for openPMD output. Note that inline specifications are subject to restrictions imposed by the input file format, making this option useful only for very simple use cases. Refer to OPENPMD_CFG_FILE for anything else.", default_c_val="{}", &
-                          type_of_var=char_t)
+                          description="Inline runtime config for openPMD output. Note that inline "// &
+                          "specifications are subject to restrictions imposed by the input "// &
+                          "file format, making this option useful only for very simple use cases. "// &
+                          "Refer to OPENPMD_CFG_FILE for anything else.", &
+                          default_c_val="{}", type_of_var=char_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
@@ -2113,7 +2118,10 @@ CONTAINS
 !> \brief creates the input section for dealing with homo lumos, including dumping cubes
 !> \param print_key ...
 ! **************************************************************************************************
-   SUBROUTINE create_mo_section(print_key, section_name, description, stride_default, stride_usage, print_level, filename, do_write_keyname)
+   SUBROUTINE create_mo_section( &
+      print_key, section_name, description, stride_default, stride_usage, &
+      print_level, filename, do_write_keyname)
+
       TYPE(section_type), POINTER :: print_key
       CHARACTER(len=*), INTENT(IN) :: section_name, description, stride_usage, filename, do_write_keyname
       INTEGER, DIMENSION(3), INTENT(IN) :: stride_default
@@ -2177,7 +2185,10 @@ CONTAINS
 
    END SUBROUTINE create_mo_section
 
-   SUBROUTINE create_e_density_section(print_key, section_name, description, stride_default, stride_usage, print_level, filename)
+   SUBROUTINE create_e_density_section( &
+      print_key, section_name, description, stride_default, &
+      stride_usage, print_level, filename)
+
       TYPE(section_type), POINTER :: print_key
       CHARACTER(len=*), INTENT(IN) :: section_name, description, stride_usage, filename
       INTEGER, DIMENSION(3), INTENT(IN) :: stride_default
@@ -2237,7 +2248,9 @@ CONTAINS
 !> \param stride_usage usage string for stride
 !> \param print_level print level
 !> \param filename output filename (empty string for default)
-   SUBROUTINE create_elf_print_section(print_key, section_name, description, stride_default, stride_usage, print_level, filename)
+   SUBROUTINE create_elf_print_section( &
+      print_key, section_name, description, stride_default, stride_usage, print_level, filename)
+
       TYPE(section_type), POINTER :: print_key
       CHARACTER(len=*), INTENT(IN) :: section_name, description, stride_usage, filename
       INTEGER, DIMENSION(3), INTENT(IN) :: stride_default
@@ -2247,10 +2260,15 @@ CONTAINS
       NULLIFY (keyword)
 
       CALL cp_print_key_section_create(print_key, __LOCATION__, section_name, &
-         description="Controls printing of "//TRIM(ADJUSTL(description))//" files with the electron localization function (ELF). Note that the value of ELF is defined between 0 and 1: Pauli kinetic energy density normalized by the kinetic energy density of a uniform el. gas of same density.", print_level=print_level, filename=filename)
+                                       description="Controls printing of "//TRIM(ADJUSTL(description))// &
+                                       " files with the electron localization function (ELF). "// &
+                                       "Note that the value of ELF is defined between 0 and 1: "// &
+                                       "Pauli kinetic energy density normalized by the kinetic energy density "// &
+                                       "of a uniform el. gas of same density.", print_level=print_level, filename=filename)
 
       CALL keyword_create(keyword, __LOCATION__, name="stride", &
-         description="The stride (X,Y,Z) used to write the file (larger values result in smaller files). You can provide 3 numbers (for X,Y,Z) or 1 number valid for all components.", &
+                          description="The stride (X,Y,Z) used to write the file (larger values result in smaller files). "// &
+                          "You can provide 3 numbers (for X,Y,Z) or 1 number valid for all components.", &
                           usage=stride_usage, n_var=-1, default_i_vals=stride_default, type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
