@@ -617,7 +617,7 @@ CONTAINS
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL create_mo_section(print_key, "MO_CUBES", "cube", [2, 2, 2], "STRIDE 1 1 1", high_print_level, "", "write_cube")
+      CALL create_mo_section(print_key, "MO_CUBES", "cube", [2, 2, 2], "STRIDE 1 1 1", high_print_level, "write_cube")
       CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
                           description="append the cube files when they already exist", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
@@ -627,7 +627,7 @@ CONTAINS
       CALL section_release(print_key)
 
       CALL create_mo_section( &
-         print_key, "MO_OPENPMD", "openPMD", [1, 1, 1], "STRIDE 2 2 2", debug_print_level + 1, "", "write_openpmd")
+         print_key, "MO_OPENPMD", "openPMD", [1, 1, 1], "STRIDE 2 2 2", debug_print_level + 1, "write_openpmd")
       CALL add_generic_openpmd_arguments(print_key)
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
@@ -719,13 +719,12 @@ CONTAINS
          "openPMD", &
          (/1, 1, 1/), &
          "STRIDE 1 1 1", &
-         debug_print_level + 1, &
-         "")
+         debug_print_level + 1)
       CALL add_generic_openpmd_arguments(print_key)
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
-      CALL create_e_density_section(print_key, "E_DENSITY_CUBE", "cube", [2, 2, 2], "STRIDE 2 2 2", high_print_level, "")
+      CALL create_e_density_section(print_key, "E_DENSITY_CUBE", "cube", [2, 2, 2], "STRIDE 2 2 2", high_print_level)
       CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
                           description="append the cube files when they already exist", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
@@ -2120,10 +2119,10 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE create_mo_section( &
       print_key, section_name, description, stride_default, stride_usage, &
-      print_level, filename, do_write_keyname)
+      print_level, do_write_keyname)
 
       TYPE(section_type), POINTER :: print_key
-      CHARACTER(len=*), INTENT(IN) :: section_name, description, stride_usage, filename, do_write_keyname
+      CHARACTER(len=*), INTENT(IN) :: section_name, description, stride_usage, do_write_keyname
       INTEGER, DIMENSION(3), INTENT(IN) :: stride_default
       INTEGER, INTENT(IN) :: print_level
 
@@ -2187,10 +2186,10 @@ CONTAINS
 
    SUBROUTINE create_e_density_section( &
       print_key, section_name, description, stride_default, &
-      stride_usage, print_level, filename)
+      stride_usage, print_level)
 
       TYPE(section_type), POINTER :: print_key
-      CHARACTER(len=*), INTENT(IN) :: section_name, description, stride_usage, filename
+      CHARACTER(len=*), INTENT(IN) :: section_name, description, stride_usage
       INTEGER, DIMENSION(3), INTENT(IN) :: stride_default
       INTEGER, INTENT(IN) :: print_level
 
