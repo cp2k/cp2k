@@ -201,6 +201,7 @@ CONTAINS
          TYPE(${value_type}$), INTENT(in)                   :: value
          INTEGER                                            :: index
 
+         LOGICAL                                            :: check_capacity
          INTEGER                                            :: i
 
          ! Check if the key already exists
@@ -218,7 +219,8 @@ CONTAINS
          END IF
 
          ! No idea how to do reallocations, so for now just assert that they're not needed
-         CPASSERT(${map_counter}$ < ${map_capacity}$)
+         check_capacity = ${map_counter}$ < ${map_capacity}$
+         CPASSERT(check_capacity)
 
          ! Add a new entry
          ${map_counter}$ = ${map_counter}$+1
