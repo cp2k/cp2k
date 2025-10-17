@@ -62,8 +62,7 @@ def main() -> None:
     parser.add_argument("files", metavar="FILE", nargs="*", help="files to process")
     args = parser.parse_args()
 
-    # Say hello to the server.
-    print(
+    print(  # Say hello to the server.
         f"Running precommit checks using {args.num_workers} workers and server: {SERVER}"
     )
     server_hello = urlopen(Request(SERVER + "/"), timeout=10).read().decode("utf8")
@@ -79,7 +78,18 @@ def main() -> None:
     if not file_list:
         sys.stdout.write("Searching for files...\r")
         sys.stdout.flush()
-        for root, dirs, files in os.walk("."):
+
+        walk_list = []
+        try:
+            output = subprocess.check_output(["git", "ls-files"], encoding="utf8")
+            for line in filter(None, output.split("\n")):
+                dir, file = os.path.split(line)
+                walk_list.append((os.path.join(".", dir), [dir], [file]))
+        except Exception:
+            walk_list = []
+            pass
+
+        for root, dirs, files in walk_list if walk_list else os.walk("."):
             if root.startswith("./tools/toolchain/build"):
                 continue
             if root.startswith("./tools/toolchain/install"):
