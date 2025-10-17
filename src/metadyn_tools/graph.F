@@ -59,6 +59,7 @@ PROGRAM graph
    REAL(KIND=dp), POINTER :: delta_s(:, :), dp_cut(:), dp_grid(:), fes(:), &
                              gauss(:, :), ss0(:, :), tmpr(:), ww(:), x0(:), xf(:)
    TYPE(mep_input_data_type)                :: mep_input_data
+   CHARACTER(LEN=*), PARAMETER :: errmsg_missing_specification = "Error! You've to specify either ORAC, CP2K or CPMD!"
 
    ! Initialize variables
    nprd = 0
@@ -200,8 +201,9 @@ PROGRAM graph
       END IF
 
    END DO
-   IF (COUNT((/l_orac, l_cp2k, l_cpmd/)) /= 1) &
-      CPABORT("Error! You've to specify either ORAC, CP2K or CPMD!")
+   IF (COUNT((/l_orac, l_cp2k, l_cpmd/)) /= 1) THEN
+      CPABORT(errmsg_missing_specification)
+   END IF
 
    ! For CPMD move filename to colvar_mtd
    IF (l_cpmd) THEN
@@ -702,7 +704,9 @@ PROGRAM graph
    IF (l_fmin) CALL fes_min(fes, ndim, iperd, ngrid, dp_grid, x0, ndw)
 
    ! If requested find  or opt path
-   IF ((l_pmin) .AND. (l_popt)) CPABORT("USE EITHER -find-path OR -opt-path")
+   IF ((l_pmin) .AND. (l_popt)) THEN
+      CPABORT("USE EITHER -find-path OR -opt-path")
+   END IF
    IF (l_pmin) l_int = .TRUE.
    IF (l_popt) l_int = .FALSE.
 
