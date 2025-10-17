@@ -1474,10 +1474,7 @@ set(CP2K_GRPP_SRCS_F grpp/libgrpp.F)
 
 set(CP2K_FPGA_SRC_C pw/fpga/fft_fpga.c pw/fpga/opencl_utils.c)
 set(CP2K_PW_SRCS_C pw/gpu/pw_gpu_internal.c)
-set(CP2K_SRCS_CPP "")
-if(CP2K_USE_LIBTORCH)
-  list(APPEND CP2K_SRCS_CPP torch_c_api.cpp ace_c_api.cpp)
-endif()
+set(CP2K_SRCS_CPP torch_c_api.cpp ace_c_api.cpp)
 
 list(APPEND CP2K_SRCS_C "${CP2K_OFFLOAD_SRCS_C}" "${CP2K_MPIWRAP_SRCS_C}")
 
@@ -1564,9 +1561,7 @@ endif()
 
 list(APPEND CP2K_SRCS_F openPMD.F input/cp_output_handling_openpmd.F
      cp_realspace_grid_openpmd.F pw/realspace_grid_openpmd.F)
-if(CP2K_USE_OPENPMD)
-  list(APPEND CP2K_SRCS_CPP openPMD.cpp)
-endif()
+list(APPEND CP2K_SRCS_CPP openPMD.cpp)
 
 # ##############################################################################
 # check that the files registered in CMakeLists.txt are all present and return

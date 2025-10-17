@@ -9,6 +9,8 @@
 // openPMD.h openPMD.cpp auxiliary.h auxiliary.c
 // Implements C bindings for a subselection of the openPMD-api.
 
+#ifdef __OPENPMD
+
 ///////////////
 // openPMD.h //
 ///////////////
@@ -868,3 +870,4 @@ void CP2K_free(void *ptr) { free(ptr); }
 #ifdef __cplusplus
 }
 #endif // defined(__cplusplus)
+#endif // defined(__OPENPMD)
