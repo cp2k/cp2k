@@ -14,8 +14,7 @@ PROGRAM gx_ac_unittest
 #if !defined(__GREENX)
    ! Abort and inform that GreenX was not included in the compilation
    ! Ideally, this will be avoided in testing by the conditional tests
-   CHARACTER(len=*), PARAMETER :: error_no_greenx = "CP2K not compiled with GreenX link - please recompile to access GXAC."
-   CPABORT(error_no_greenx)
+   CPABORT("CP2K not compiled with GreenX link - please recompile to access GXAC.")
 #else
    USE kinds, ONLY: dp
    USE gx_ac, ONLY: create_thiele_pade, &
