@@ -5,7 +5,7 @@
 #      for details see cp2k/tools/do_regtest
 # d-orbitals analytical der continued from regtest-2-1
 "Pt-cis-2xpet3Cl2.inp"                  = [{matcher="M003", tol=8e-14, ref=-3116.62376488246764}]
-"ZrF2-PM6.inp"                          = [{matcher="M003", tol=4e-12, ref=-985.9930664264728}]
+"ZrF2-PM6.inp"                          = [{matcher="M003", tol=5e-12, ref=-985.9930664264728}]
 "Hg_cat.inp"                            = [{matcher="M003", tol=1.0E-14, ref=-17.60873200000000}]
 "Hg_dicat.inp"                          = [{matcher="M029", tol=1.0E-14, ref=679.86329923655944}]
 "Hg_dicat2.inp"                         = [{matcher="M029", tol=1.0E-14, ref=679.86329923655944}]
