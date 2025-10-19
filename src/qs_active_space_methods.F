@@ -148,6 +148,7 @@ MODULE qs_active_space_methods
                            qs_rho_type
    USE qs_subsys_types, ONLY: qs_subsys_get, &
                               qs_subsys_type
+   USE qs_scf_post_scf, ONLY: qs_scf_compute_properties
    USE scf_control_types, ONLY: scf_control_type
 #ifndef __NO_SOCKETS
    USE sockets_interface, ONLY: accept_socket, &
@@ -1022,6 +1023,7 @@ CONTAINS
          END IF
       CASE (qiskit_solver)
          CALL rsdft_embedding(qs_env, active_space_env, as_input)
+         CALL qs_scf_compute_properties(qs_env, wf_type="MC-DFT", do_mp2=.FALSE.)
       CASE DEFAULT
          CPABORT("Unknown active space solver")
       END SELECT
