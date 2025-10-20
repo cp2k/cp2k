@@ -45,6 +45,7 @@ cd /workspace/artifacts/coverage || exit 1
 # collect coverage stats
 lcov --directory "/opt/cp2k/build/src" \
   --exclude "/opt/cp2k-toolchain/*" \
+  --exclude "/usr/*" \
   --capture \
   --keep-going \
   --output-file coverage.info &> lcov.log
