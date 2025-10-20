@@ -249,7 +249,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE echo_all_hosts(para_env, output_unit)
       TYPE(mp_para_env_type), POINTER                    :: para_env
-      INTEGER                                            :: output_unit
+      INTEGER, INTENT(IN)                                :: output_unit
 
       CHARACTER(LEN=default_string_length)               :: string
       INTEGER                                            :: ipe
@@ -258,17 +258,15 @@ CONTAINS
 
       ! Print a list of all started processes
 
-      ALLOCATE (all_pid(para_env%num_pe))
-      all_pid(:) = 0
+      ALLOCATE (all_pid(para_env%num_pe), SOURCE=0)
       all_pid(para_env%mepos + 1) = r_pid
 
       CALL para_env%sum(all_pid)
-      ALLOCATE (all_host(30, para_env%num_pe))
-      all_host(:, :) = 0
+      ALLOCATE (all_host(30, para_env%num_pe), SOURCE=0)
+
       CALL string_to_ascii(r_host_name, all_host(:, para_env%mepos + 1))
       CALL para_env%sum(all_host)
       IF (output_unit > 0) THEN
-
          WRITE (UNIT=output_unit, FMT="(T2,A)") ""
          DO ipe = 1, para_env%num_pe
             CALL ascii_to_string(all_host(:, ipe), string)
@@ -276,8 +274,8 @@ CONTAINS
                TRIM(r_user_name)//"@"//TRIM(string)// &
                " has created rank and process ", ipe - 1, all_pid(ipe)
          END DO
-         WRITE (UNIT=output_unit, FMT="(T2,A)") ""
       END IF
+
       DEALLOCATE (all_pid)
       DEALLOCATE (all_host)
 
@@ -287,51 +285,53 @@ CONTAINS
 !> \brief echoes the list the number of process per host
 !> \param para_env ...
 !> \param output_unit ...
+!> \param node_count Count number of distributed systems (nodes)
 ! **************************************************************************************************
-   SUBROUTINE echo_all_process_host(para_env, output_unit)
+   SUBROUTINE echo_all_process_host(para_env, output_unit, node_count)
       TYPE(mp_para_env_type), POINTER                    :: para_env
-      INTEGER                                            :: output_unit
+      INTEGER, INTENT(IN)                                :: output_unit
+      INTEGER, INTENT(OUT), OPTIONAL                     :: node_count
 
       CHARACTER(LEN=default_string_length)               :: string, string_sec
-      INTEGER                                            :: ipe, jpe, nr_occu
+      INTEGER                                            :: ipe, jpe, nr_dist, nr_occu
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: all_pid
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: all_host
 
-      ALLOCATE (all_host(30, para_env%num_pe))
-      all_host(:, :) = 0
+      ALLOCATE (all_host(30, para_env%num_pe), SOURCE=0)
+      ALLOCATE (all_pid(para_env%num_pe), SOURCE=0)
 
       IF (m_procrun(r_pid) .EQ. 1) THEN
          CALL string_to_ascii(r_host_name, all_host(:, para_env%mepos + 1))
          CALL para_env%sum(all_host)
       END IF
 
-      IF (output_unit > 0) THEN
-         ALLOCATE (all_pid(para_env%num_pe))
-         all_pid(:) = 0
-
-         WRITE (UNIT=output_unit, FMT="(T2,A)") ""
-         DO ipe = 1, para_env%num_pe
-            nr_occu = 0
-            IF (all_pid(ipe) .NE. -1) THEN
-               CALL ascii_to_string(all_host(:, ipe), string)
-               DO jpe = 1, para_env%num_pe
-                  CALL ascii_to_string(all_host(:, jpe), string_sec)
-                  IF (string .EQ. string_sec) THEN
-                     nr_occu = nr_occu + 1
-                     all_pid(jpe) = -1
-                  END IF
-               END DO
+      nr_dist = 0
+      IF (output_unit > 0) WRITE (UNIT=output_unit, FMT="(T2,A)") ""
+      DO ipe = 1, para_env%num_pe
+         nr_occu = 0
+         IF (all_pid(ipe) .NE. -1) THEN
+            CALL ascii_to_string(all_host(:, ipe), string)
+            DO jpe = 1, para_env%num_pe
+               CALL ascii_to_string(all_host(:, jpe), string_sec)
+               IF (string .EQ. string_sec) THEN
+                  nr_occu = nr_occu + 1
+                  all_pid(jpe) = -1
+               END IF
+            END DO
+            IF (output_unit > 0) THEN
                WRITE (UNIT=output_unit, FMT="(T2,A,T63,I8,A)") &
                   TRIM(r_user_name)//"@"//TRIM(string)// &
                   " is running ", nr_occu, " processes"
-               WRITE (UNIT=output_unit, FMT="(T2,A)") ""
             END IF
-         END DO
-         DEALLOCATE (all_pid)
+            nr_dist = nr_dist + 1
+         END IF
+      END DO
 
-      END IF
-
+      DEALLOCATE (all_pid)
       DEALLOCATE (all_host)
+
+      CPASSERT(0 .LT. nr_dist)
+      IF (PRESENT(node_count)) node_count = nr_dist
 
    END SUBROUTINE echo_all_process_host
 
@@ -519,8 +519,8 @@ CONTAINS
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: trace_routines
       INTEGER :: cpuid, cpuid_static, i_cholesky, i_dgemm, i_diag, i_fft, i_grid_backend, &
-         iforce_eval, method_name_id, n_rep_val, nforce_eval, num_threads, output_unit, &
-         print_level, trace_max, unit_nr
+         iforce_eval, method_name_id, n_rep_val, nforce_eval, node_count, num_threads, &
+         output_unit, print_level, trace_max, unit_nr
       INTEGER(kind=int_8) :: Buffers, Buffers_avr, Buffers_max, Buffers_min, Cached, Cached_avr, &
          Cached_max, Cached_min, MemFree, MemFree_avr, MemFree_max, MemFree_min, MemLikelyFree, &
          MemLikelyFree_avr, MemLikelyFree_max, MemLikelyFree_min, MemTotal, MemTotal_avr, &
@@ -739,12 +739,15 @@ CONTAINS
       SReclaimable = SReclaimable/1024
       MemLikelyFree = MemLikelyFree/1024
 
+      node_count = 1
       ! Print a list of all started processes
       IF (do_echo_all_hosts) THEN
          CALL echo_all_hosts(para_env, output_unit)
 
          ! Print the number of processes per host
-         CALL echo_all_process_host(para_env, output_unit)
+         CALL echo_all_process_host(para_env, output_unit, node_count)
+      ELSE ! no echo
+         CALL echo_all_process_host(para_env, 0, node_count)
       END IF
 
       num_threads = 1
@@ -918,6 +921,8 @@ CONTAINS
          WRITE (UNIT=output_unit, FMT="(T2,A,T75,I6)") &
             start_section_label//"| Total number of message passing processes", &
             para_env%num_pe, &
+            start_section_label//"| Number of distributed systems (nodes)", &
+            node_count, &
             start_section_label//"| Number of threads for this process", &
             num_threads, &
             start_section_label//"| This output is from process", para_env%mepos

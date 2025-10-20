@@ -836,7 +836,6 @@ MODULE message_passing
    ! informational / generation of sub comms
    PUBLIC :: mp_dims_create
    PUBLIC :: cp2k_is_parallel
-   PUBLIC :: mp_get_node_global_rank
 
    ! message passing
    PUBLIC :: mp_waitall, mp_waitany
@@ -1231,7 +1230,7 @@ CONTAINS
 
          CHARACTER(LEN=default_string_length) :: debug_comm_count_char
 #if defined(__parallel)
-         INTEGER                                  :: ierr
+         INTEGER                              :: ierr
          CALL mpi_barrier(MPI_COMM_WORLD, ierr) ! call mpi directly to avoid 0 stack pointer
 #endif
          CALL rm_mp_perf_env()
@@ -1284,15 +1283,15 @@ CONTAINS
 !>       this function is private to message_passing.F
 ! **************************************************************************************************
       SUBROUTINE mp_stop(ierr, prg_code)
-         INTEGER, INTENT(IN)                      :: ierr
-         CHARACTER(LEN=*), INTENT(IN)                         :: prg_code
+         INTEGER, INTENT(IN)                        :: ierr
+         CHARACTER(LEN=*), INTENT(IN)               :: prg_code
 
 #if defined(__parallel)
-         INTEGER                                  :: istat, len
-         CHARACTER(LEN=MPI_MAX_ERROR_STRING)     :: error_string
+         INTEGER                                    :: istat, len
+         CHARACTER(LEN=MPI_MAX_ERROR_STRING)        :: error_string
          CHARACTER(LEN=MPI_MAX_ERROR_STRING + 512)  :: full_error
 #else
-         CHARACTER(LEN=512)                       :: full_error
+         CHARACTER(LEN=512)                         :: full_error
 #endif
 
 #if defined(__parallel)
@@ -1337,8 +1336,8 @@ CONTAINS
 !> \param request ...
 ! **************************************************************************************************
       SUBROUTINE mp_isync(comm, request)
-         CLASS(mp_comm_type), INTENT(IN)                                :: comm
-         TYPE(mp_request_type), INTENT(OUT)                               :: request
+         CLASS(mp_comm_type), INTENT(IN)                    :: comm
+         TYPE(mp_request_type), INTENT(OUT)                 :: request
 
          CHARACTER(len=*), PARAMETER :: routineN = 'mp_isync'
 
@@ -1367,7 +1366,7 @@ CONTAINS
       SUBROUTINE mp_comm_rank(taskid, comm)
 
          INTEGER, INTENT(OUT)                               :: taskid
-         CLASS(mp_comm_type), INTENT(IN)                                :: comm
+         CLASS(mp_comm_type), INTENT(IN)                    :: comm
 
          CHARACTER(len=*), PARAMETER :: routineN = 'mp_comm_rank'
 
@@ -1430,8 +1429,8 @@ CONTAINS
       SUBROUTINE mp_cart_get(comm, dims, task_coor, periods)
 
          CLASS(mp_cart_type), INTENT(IN)                    :: comm
-         INTEGER, INTENT(OUT), OPTIONAL                               :: dims(comm%ndims), task_coor(comm%ndims)
-         LOGICAL, INTENT(out), OPTIONAL                               :: periods(comm%ndims)
+         INTEGER, INTENT(OUT), OPTIONAL                     :: dims(comm%ndims), task_coor(comm%ndims)
+         LOGICAL, INTENT(out), OPTIONAL                     :: periods(comm%ndims)
 
          CHARACTER(len=*), PARAMETER :: routineN = 'mp_cart_get'
 
@@ -1559,8 +1558,8 @@ CONTAINS
 ! **************************************************************************************************
       FUNCTION mp_comm_compare(comm1, comm2) RESULT(res)
 
-         CLASS(mp_comm_type), INTENT(IN)                                :: comm1, comm2
-         INTEGER                               :: res
+         CLASS(mp_comm_type), INTENT(IN)                    :: comm1, comm2
+         INTEGER                                            :: res
 
          CHARACTER(len=*), PARAMETER :: routineN = 'mp_comm_compare'
 
@@ -1637,7 +1636,7 @@ CONTAINS
 ! **************************************************************************************************
       SUBROUTINE mp_comm_free(comm)
 
-         CLASS(mp_comm_type), INTENT(INOUT)                             :: comm
+         CLASS(mp_comm_type), INTENT(INOUT)                 :: comm
 
          CHARACTER(len=*), PARAMETER :: routineN = 'mp_comm_free'
 
@@ -1741,8 +1740,8 @@ CONTAINS
 ! **************************************************************************************************
       SUBROUTINE mp_comm_dup(comm1, comm2)
 
-         CLASS(mp_comm_type), INTENT(IN)                                :: comm1
-         CLASS(mp_comm_type), INTENT(OUT)                               :: comm2
+         CLASS(mp_comm_type), INTENT(IN)                    :: comm1
+         CLASS(mp_comm_type), INTENT(OUT)                   :: comm2
 
          CHARACTER(len=*), PARAMETER :: routineN = 'mp_comm_dup'
 
@@ -1848,7 +1847,7 @@ CONTAINS
 ! **************************************************************************************************
       SUBROUTINE mp_para_env_create(para_env, group)
          TYPE(mp_para_env_type), POINTER        :: para_env
-         CLASS(mp_comm_type), INTENT(in)                     :: group
+         CLASS(mp_comm_type), INTENT(in)        :: group
 
          IF (ASSOCIATED(para_env)) &
             CPABORT("The passed para_env must not be associated!")
@@ -1885,8 +1884,8 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
       SUBROUTINE mp_para_cart_create(cart, group)
-         TYPE(mp_para_cart_type), POINTER, INTENT(OUT)                   :: cart
-         CLASS(mp_comm_type), INTENT(in)                     :: group
+         TYPE(mp_para_cart_type), POINTER, INTENT(OUT)      :: cart
+         CLASS(mp_comm_type), INTENT(in)                    :: group
 
          IF (ASSOCIATED(cart)) &
             CPABORT("The passed para_cart must not be associated!")
@@ -2006,7 +2005,7 @@ CONTAINS
 !> \param rank ...
 ! **************************************************************************************************
       SUBROUTINE mp_cart_rank(comm, pos, rank)
-         CLASS(mp_cart_type), INTENT(IN)                                :: comm
+         CLASS(mp_cart_type), INTENT(IN)                    :: comm
          INTEGER, DIMENSION(:), INTENT(IN)                  :: pos
          INTEGER, INTENT(OUT)                               :: rank
 
@@ -2041,7 +2040,7 @@ CONTAINS
 !>      see isendrecv
 ! **************************************************************************************************
       SUBROUTINE mp_wait(request)
-         CLASS(mp_request_type), INTENT(inout)                             :: request
+         CLASS(mp_request_type), INTENT(inout)              :: request
 
          CHARACTER(len=*), PARAMETER :: routineN = 'mp_wait'
 
@@ -2161,16 +2160,16 @@ CONTAINS
 ! **************************************************************************************************
 #if defined(__parallel)
       SUBROUTINE mpi_waitall_internal(count, array_of_requests, array_of_statuses, ierr)
-         INTEGER, INTENT(in)                                :: count
-         TYPE(mp_request_type), DIMENSION(count), INTENT(inout)           :: array_of_requests
+         INTEGER, INTENT(in)                                      :: count
+         TYPE(mp_request_type), DIMENSION(count), INTENT(inout)   :: array_of_requests
 #if !defined(__MPI_F08)
          INTEGER, DIMENSION(MPI_STATUS_SIZE, count), &
-            INTENT(out)                                     :: array_of_statuses
+            INTENT(out)                                           :: array_of_statuses
 #else
          TYPE(MPI_Status), DIMENSION(count), &
-            INTENT(out)                                     :: array_of_statuses
+            INTENT(out)                                           :: array_of_statuses
 #endif
-         INTEGER, INTENT(out)                               :: ierr
+         INTEGER, INTENT(out)                                     :: ierr
 
          INTEGER :: i
          MPI_REQUEST_TYPE, ALLOCATABLE, DIMENSION(:) :: request_handles
@@ -2275,7 +2274,7 @@ CONTAINS
 !> \author Nico Holmberg
 ! **************************************************************************************************
       FUNCTION mp_test_1(request) RESULT(flag)
-         CLASS(mp_request_type), INTENT(inout)                             :: request
+         CLASS(mp_request_type), INTENT(inout)              :: request
          LOGICAL                                            :: flag
 
 #if defined(__parallel)
@@ -2400,8 +2399,8 @@ CONTAINS
 !> \author Joost VandeVondele
 ! **************************************************************************************************
       SUBROUTINE mp_comm_split_direct(comm, sub_comm, color, key)
-         CLASS(mp_comm_type), INTENT(in)                                :: comm
-         CLASS(mp_comm_type), INTENT(OUT)                               :: sub_comm
+         CLASS(mp_comm_type), INTENT(in)                    :: comm
+         CLASS(mp_comm_type), INTENT(OUT)                   :: sub_comm
          INTEGER, INTENT(in)                                :: color
          INTEGER, INTENT(in), OPTIONAL                      :: key
 
@@ -2563,41 +2562,6 @@ CONTAINS
       END SUBROUTINE mp_comm_split
 
 ! **************************************************************************************************
-!> \brief Get the local rank on the node according to the global communicator
-!> \return Node Rank id
-!> \author Alfio Lazzaro
-! **************************************************************************************************
-      FUNCTION mp_get_node_global_rank() &
-         RESULT(node_rank)
-
-         INTEGER                                            :: node_rank
-
-         CHARACTER(len=*), PARAMETER :: routineN = 'mp_get_node_global_rank'
-         INTEGER                                            :: handle
-#if defined(__parallel)
-         INTEGER :: ierr, rank
-         TYPE(mp_comm_type) :: comm
-#endif
-
-         CALL mp_timeset(routineN, handle)
-
-#if defined(__parallel)
-         CALL mpi_comm_rank(MPI_COMM_WORLD, rank, ierr)
-         IF (ierr /= mpi_success) CALL mp_stop(ierr, routineN)
-         CALL mpi_comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, rank, MPI_INFO_NULL, comm%handle, ierr)
-         IF (ierr /= mpi_success) CALL mp_stop(ierr, routineN)
-         CALL mpi_comm_rank(comm%handle, node_rank, ierr)
-         IF (ierr /= mpi_success) CALL mp_stop(ierr, routineN)
-         CALL mpi_comm_free(comm%handle, ierr)
-         IF (ierr /= mpi_success) CALL mp_stop(ierr, routineN)
-#else
-         node_rank = 0
-#endif
-         CALL mp_timestop(handle)
-
-      END FUNCTION mp_get_node_global_rank
-
-! **************************************************************************************************
 !> \brief probes for an incoming message with any tag
 !> \param[inout] source the source of the possible incoming message,
 !>        if MP_ANY_SOURCE it is a blocking one and return value is the source
@@ -2609,8 +2573,8 @@ CONTAINS
 !> \author Mandes
 ! **************************************************************************************************
       SUBROUTINE mp_probe(source, comm, tag)
-         INTEGER, INTENT(INOUT)                      :: source
-         CLASS(mp_comm_type), INTENT(IN)           :: comm
+         INTEGER, INTENT(INOUT)                   :: source
+         CLASS(mp_comm_type), INTENT(IN)          :: comm
          INTEGER, INTENT(OUT)                     :: tag
 
          CHARACTER(len=*), PARAMETER :: routineN = 'mp_probe'
