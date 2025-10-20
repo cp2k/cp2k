@@ -4,9 +4,9 @@
 
 echo -e "\n========== Generating Doxygen =========="
 cd /opt/cp2k
-if ! make doxygen &> make.out; then
+if ! ./tools/doxify/generate_doxygen.sh &> doxygen.out; then
   echo -e "failed.\n\n"
-  tail -n 100 make.out
+  tail -n 100 doxygen.out
   mkdir -p /workspace/artifacts/
   cp make.out /workspace/artifacts/
   echo -e "\nSummary: Doxygen generation failed."
