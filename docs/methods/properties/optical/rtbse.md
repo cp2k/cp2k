@@ -1,5 +1,7 @@
 # Real-Time Bethe-Salpeter Propagation
 
+**References** : [](#Marek2025)
+
 Instead of solving the Casida equation in the linear response regime, an explicit time-integration
 of the equation of motion of electrons can be carried out to determine the excitation frequencies.
 In the real-time Bethe-Salpeter propagation (RTBSE) method, the equation of motion is the von

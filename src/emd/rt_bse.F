@@ -12,6 +12,8 @@
 ! **************************************************************************************************
 
 MODULE rt_bse
+   USE bibliography,                    ONLY: Marek2025,&
+                                              cite_reference
    USE cp_control_types, ONLY: dft_control_type, &
                                rtp_control_type
    USE qs_environment_types, ONLY: get_qs_env, &
@@ -202,6 +204,9 @@ CONTAINS
                                                             idempotence_dev, a_metric_1, a_metric_2
 
       CALL timeset(routineN, handle)
+
+      ! Bibliography information
+      CALL cite_reference(Marek2025)
 
       ! Run the initial SCF calculation / read SCF restart information
       CALL force_env_calc_energy_force(force_env, calc_force=.FALSE., consistent_energies=.FALSE.)

@@ -17,7 +17,7 @@ MODULE input_cp2k_dft
    USE bibliography,                    ONLY: &
         Andermatt2016, Andreussi2012, Avezac2005, Bengtsson1999, Blochl1995, Brelaz1979, &
         Fattebert2002, Guidon2010, Iannuzzi2006, Kunert2003, Merlot2014, Perdew1981, &
-        VandeVondele2005b, Yin2017
+        VandeVondele2005b, Yin2017, Marek2025
    USE cp_output_handling,              ONLY: add_last_numeric,&
                                               cp_print_key_section_create,&
                                               high_print_level,&
@@ -1957,7 +1957,7 @@ CONTAINS
                           "[GW](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BANDSTRUCTURE.GW) calculation. Also note that "// &
                           "designating this section as RTBSE run but choosing run type ENERGY leads to potential "// &
                           "deallocation errors.", &
-                          repeats=.FALSE.)
+                          repeats=.FALSE., citations=(/Marek2025/))
 
       ! Marek : Controlling flow to RTBSE
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
