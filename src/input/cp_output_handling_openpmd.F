@@ -488,8 +488,6 @@ CONTAINS
          DEALLOCATE (cp_openpmd_per_callsite)
       END IF
       cp_num_openpmd_per_callsite = 0
-#else
-      CPABORT("CP2K compiled without the openPMD-api")
 #endif
    END SUBROUTINE cp_openpmd_output_finalize
 
