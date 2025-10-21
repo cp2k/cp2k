@@ -3276,7 +3276,6 @@ CONTAINS
 
          ! Build orbital-GAPW projector overlap list
          IF (ANY(oce_present)) THEN
-            NULLIFY (ec_env%sap_oce)
             CALL pair_radius_setup(orb_present, oce_present, orb_radius, oce_radius, pair_radius)
             CALL build_neighbor_lists(ec_env%sap_oce, particle_set, atom2d, cell, pair_radius, &
                                       subcells=subcells, operator_type="ABBA", nlname="sap_oce")
