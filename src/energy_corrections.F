@@ -1816,11 +1816,14 @@ CONTAINS
          END IF
 
          ks_mat => ec_env%matrix_ks(:, 1)
-         NULLIFY (ps_mat)
+         ps_mat => ec_env%matrix_p(:, 1)
          CALL update_ks_atom(qs_env, ks_mat, ps_mat, forces=.FALSE., &
                              rho_atom_external=local_rho_set_ec%rho_atom_set)
 
          CALL local_rho_set_release(local_rho_set_ec)
+         IF (gapw) THEN
+            CALL hartree_local_release(hartree_local)
+         END IF
 
       END IF
 
