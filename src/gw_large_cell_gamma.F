@@ -779,16 +779,15 @@ CONTAINS
       NULLIFY (mat_V_kp)
       ALLOCATE (mat_V_kp(ikp_start:ikp_end, 2))
 
-      DO ikp = ikp_start, ikp_end
-         DO re_im = 1, 2
+      DO re_im = 1, 2
+         DO ikp = ikp_start, ikp_end
             NULLIFY (mat_V_kp(ikp, re_im)%matrix)
             ALLOCATE (mat_V_kp(ikp, re_im)%matrix)
             CALL dbcsr_create(mat_V_kp(ikp, re_im)%matrix, template=bs_env%mat_RI_RI%matrix)
             CALL dbcsr_reserve_all_blocks(mat_V_kp(ikp, re_im)%matrix)
             CALL dbcsr_set(mat_V_kp(ikp, re_im)%matrix, 0.0_dp)
-
-         END DO ! re_im
-      END DO ! ikp
+         END DO ! ikp
+      END DO ! re_im
 
       CALL get_qs_env(qs_env=qs_env, &
                       particle_set=particle_set, &
@@ -828,8 +827,8 @@ CONTAINS
       bs_env%kpoints_chi_eps_W%nkp_grid = bs_env%nkp_grid_chi_eps_W_orig
 
       ALLOCATE (fm_V_kp(ikp_start:ikp_end, 2))
-      DO ikp = ikp_start, ikp_end
-         DO re_im = 1, 2
+      DO re_im = 1, 2
+         DO ikp = ikp_start, ikp_end
             CALL cp_fm_create(fm_V_kp(ikp, re_im), bs_env%fm_RI_RI%matrix_struct)
             CALL copy_dbcsr_to_fm(mat_V_kp(ikp, re_im)%matrix, fm_V_kp(ikp, re_im))
             CALL dbcsr_deallocate_matrix(mat_V_kp(ikp, re_im)%matrix)
@@ -1021,6 +1020,8 @@ CONTAINS
                                          cfm_V_sqrt_ikp, cfm_M_inv_V_sqrt_ikp, ikp)
 
             CALL bs_env%para_env%sync()
+            CALL cp_fm_release(fm_V_kp(ikp, 1))
+            CALL cp_fm_release(fm_V_kp(ikp, 2))
 
             DO j_w = 1, bs_env%num_time_freq_points
 
@@ -1036,9 +1037,6 @@ CONTAINS
                CALL Fourier_transform_w_to_t(bs_env, fm_W_MIC_time, bs_env%fm_W_MIC_freq, j_w)
 
             END DO ! ω_j
-
-            CALL cp_fm_release(fm_V_kp(ikp, 1))
-            CALL cp_fm_release(fm_V_kp(ikp, 2))
 
          END DO ! ikp_in_batch
 
@@ -1191,8 +1189,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'clean_lower_part'
 
-      INTEGER                                            :: handle, i_global, i_row, j_col, &
-                                                            j_global, ncol_local, nrow_local
+      INTEGER                                            :: handle, i_row, j_col, j_global, &
+                                                            ncol_local, nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
 
       CALL timeset(routineN, handle)
@@ -1201,11 +1199,10 @@ CONTAINS
                            nrow_local=nrow_local, ncol_local=ncol_local, &
                            row_indices=row_indices, col_indices=col_indices)
 
-      DO i_row = 1, nrow_local
-         DO j_col = 1, ncol_local
-            i_global = row_indices(i_row)
-            j_global = col_indices(j_col)
-            IF (j_global < i_global) cfm_mat%local_data(i_row, j_col) = z_zero
+      DO j_col = 1, ncol_local
+         j_global = col_indices(j_col)
+         DO i_row = 1, nrow_local
+            IF (j_global < row_indices(i_row)) cfm_mat%local_data(i_row, j_col) = z_zero
          END DO
       END DO
 
@@ -1232,20 +1229,20 @@ CONTAINS
       CALL cp_fm_get_info(matrix=fm_W_MIC_time(1), nrow_local=nrow_local, ncol_local=ncol_local)
 
       DO i_t = 1, bs_env%num_time_freq_points
-         DO i = 1, nrow_local
-            DO j = 1, ncol_local
+         DO j = 1, ncol_local
+            DO i = 1, nrow_local
 
                W_extra_1 = bs_env%fm_W_MIC_freq_1_extra%local_data(i, j)
                W_no_extra_1 = bs_env%fm_W_MIC_freq_1_no_extra%local_data(i, j)
 
                IF (ABS(W_no_extra_1) > 1.0E-13) THEN
-                  extrapol_factor = W_extra_1/W_no_extra_1
+                  extrapol_factor = ABS(W_extra_1/W_no_extra_1)
                ELSE
                   extrapol_factor = 1.0_dp
                END IF
 
                ! reset extrapolation factor if it is very large
-               IF (ABS(extrapol_factor) > 10.0_dp) extrapol_factor = 1.0_dp
+               IF (extrapol_factor > 10.0_dp) extrapol_factor = 1.0_dp
 
                fm_W_MIC_time(i_t)%local_data(i, j) = fm_W_MIC_time(i_t)%local_data(i, j) &
                                                      *extrapol_factor
@@ -1474,8 +1471,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'cfm_add_on_diag'
 
-      INTEGER                                            :: handle, i_global, i_row, j_col, &
-                                                            j_global, ncol_local, nrow_local
+      INTEGER                                            :: handle, i_row, j_col, j_global, &
+                                                            ncol_local, nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
 
       CALL timeset(routineN, handle)
@@ -1490,8 +1487,7 @@ CONTAINS
       DO j_col = 1, ncol_local
          j_global = col_indices(j_col)
          DO i_row = 1, nrow_local
-            i_global = row_indices(i_row)
-            IF (j_global == i_global) THEN
+            IF (j_global == row_indices(i_row)) THEN
                cfm%local_data(i_row, j_col) = cfm%local_data(i_row, j_col) + alpha
             END IF
          END DO
@@ -1917,8 +1913,8 @@ CONTAINS
       ALLOCATE (mat_Sigma_neg_tau(bs_env%num_time_freq_points, bs_env%n_spin))
       ALLOCATE (mat_Sigma_pos_tau(bs_env%num_time_freq_points, bs_env%n_spin))
 
-      DO i_t = 1, bs_env%num_time_freq_points
-         DO ispin = 1, bs_env%n_spin
+      DO ispin = 1, bs_env%n_spin
+         DO i_t = 1, bs_env%num_time_freq_points
             ALLOCATE (mat_Sigma_neg_tau(i_t, ispin)%matrix)
             ALLOCATE (mat_Sigma_pos_tau(i_t, ispin)%matrix)
             CALL dbcsr_create(mat_Sigma_neg_tau(i_t, ispin)%matrix, template=bs_env%mat_ao_ao%matrix)
@@ -2096,8 +2092,8 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ALLOCATE (fm_Sigma_c_Gamma_time(bs_env%num_time_freq_points, 2, bs_env%n_spin))
-      DO i_t = 1, bs_env%num_time_freq_points
-         DO ispin = 1, bs_env%n_spin
+      DO ispin = 1, bs_env%n_spin
+         DO i_t = 1, bs_env%num_time_freq_points
             DO pos_neg = 1, 2
                CALL cp_fm_create(fm_Sigma_c_Gamma_time(i_t, pos_neg, ispin), &
                                  bs_env%fm_s_Gamma%matrix_struct)
