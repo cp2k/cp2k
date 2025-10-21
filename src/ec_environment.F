@@ -271,8 +271,11 @@ CONTAINS
          ! GAPW: Generate soft version of Harris basis
          CALL get_qs_env(qs_env, dft_control=dft_control)
          IF (dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc) THEN
+            eps_pgf_orb = dft_control%qs_control%eps_pgf_orb
             DO ikind = 1, nkind
                qs_kind => qs_kind_set(ikind)
+               NULLIFY (harris_basis)
+               CALL get_qs_kind(qs_kind, basis_set=harris_basis, basis_type="HARRIS")
                CALL get_qs_kind(qs_kind, hard_radius=rc, gpw_type_forced=gpw)
                NULLIFY (harris_soft_basis)
                CALL allocate_gto_basis_set(harris_soft_basis)
@@ -280,6 +283,7 @@ CONTAINS
                                       dft_control%qs_control%gapw_control%eps_fit, &
                                       rc, paw_atom, &
                                       dft_control%qs_control%gapw_control%force_paw, gpw)
+               CALL init_interaction_radii_orb_basis(harris_soft_basis, eps_pgf_orb)
                CALL add_basis_set_to_container(qs_kind%basis_sets, harris_soft_basis, "HARRIS_SOFT")
             END DO
          END IF

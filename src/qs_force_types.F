@@ -655,10 +655,22 @@ CONTAINS
                       + qs_force(jkind)%kinetic(1:3, jatom) &
                       + qs_force(jkind)%gth_ppl(1:3, jatom) &
                       + qs_force(jkind)%gth_ppnl(1:3, jatom) &
+                      + qs_force(jkind)%gth_nlcc(1:3, jatom) &
+                      + qs_force(jkind)%all_potential(1:3, jatom) &
+                      + qs_force(jkind)%cneo_potential(1:3, jatom) &
+                      + qs_force(jkind)%rho_cneo_nuc(1:3, jatom) &
                       + qs_force(jkind)%core_overlap(1:3, jatom) &
                       + qs_force(jkind)%rho_core(1:3, jatom) &
                       + qs_force(jkind)%rho_elec(1:3, jatom) &
+                      + qs_force(jkind)%rho_lri_elec(1:3, jatom) &
+                      + qs_force(jkind)%vhxc_atom(1:3, jatom) &
+                      + qs_force(jkind)%g0s_Vh_elec(1:3, jatom) &
                       + qs_force(jkind)%dispersion(1:3, jatom) &
+                      + qs_force(jkind)%repulsive(1:3, jatom) &
+                      + qs_force(jkind)%gcp(1:3, jatom) &
+                      + qs_force(jkind)%efield(1:3, jatom) &
+                      + qs_force(jkind)%eev(1:3, jatom) &
+                      + qs_force(jkind)%ehrenfest(1:3, jatom) &
                       + qs_force(jkind)%fock_4c(1:3, jatom) &
                       + qs_force(jkind)%mp2_non_sep(1:3, jatom)
 
@@ -668,10 +680,22 @@ CONTAINS
             jatom, jkind, "       kinetic", qs_force(jkind)%kinetic(1:3, jatom), &
             jatom, jkind, "       gth_ppl", qs_force(jkind)%gth_ppl(1:3, jatom), &
             jatom, jkind, "      gth_ppnl", qs_force(jkind)%gth_ppnl(1:3, jatom), &
+            jatom, jkind, "      gth_nlcc", qs_force(jkind)%gth_nlcc(1:3, jatom), &
+            jatom, jkind, " all_potential", qs_force(jkind)%all_potential(1:3, jatom), &
+            jatom, jkind, "cneo_potential", qs_force(jkind)%cneo_potential(1:3, jatom), &
+            jatom, jkind, "  rho_cneo_nuc", qs_force(jkind)%rho_cneo_nuc(1:3, jatom), &
             jatom, jkind, "  core_overlap", qs_force(jkind)%core_overlap(1:3, jatom), &
             jatom, jkind, "      rho_core", qs_force(jkind)%rho_core(1:3, jatom), &
             jatom, jkind, "      rho_elec", qs_force(jkind)%rho_elec(1:3, jatom), &
+            jatom, jkind, "  rho_lri_elec", qs_force(jkind)%rho_lri_elec(1:3, jatom), &
+            jatom, jkind, "     vhxc_atom", qs_force(jkind)%vhxc_atom(1:3, jatom), &
+            jatom, jkind, "   g0s_Vh_elec", qs_force(jkind)%g0s_Vh_elec(1:3, jatom), &
             jatom, jkind, "    dispersion", qs_force(jkind)%dispersion(1:3, jatom), &
+            jatom, jkind, "     repulsive", qs_force(jkind)%repulsive(1:3, jatom), &
+            jatom, jkind, "           gcp", qs_force(jkind)%gcp(1:3, jatom), &
+            jatom, jkind, "        efield", qs_force(jkind)%efield(1:3, jatom), &
+            jatom, jkind, "           eev", qs_force(jkind)%eev(1:3, jatom), &
+            jatom, jkind, "     ehrenfest", qs_force(jkind)%ehrenfest(1:3, jatom), &
             jatom, jkind, "       fock_4c", qs_force(jkind)%fock_4c(1:3, jatom), &
             jatom, jkind, "   mp2_non_sep", qs_force(jkind)%mp2_non_sep(1:3, jatom), &
             jatom, jkind, "         total", total(1:3)

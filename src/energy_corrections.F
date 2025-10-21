@@ -92,8 +92,8 @@ MODULE energy_corrections
                                               sgp_potential_type
    USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals,&
                                               init_coulomb_local
-   USE hartree_local_types,             ONLY: ecoul_1center_type,&
-                                              hartree_local_create,&
+   USE hartree_local_types,             ONLY: hartree_local_create,&
+                                              hartree_local_release,&
                                               hartree_local_type
    USE hfx_exx,                         ONLY: add_exx_to_rhs,&
                                               calculate_exx
@@ -208,7 +208,8 @@ MODULE energy_corrections
    USE string_utilities,                ONLY: uppercase
    USE task_list_methods,               ONLY: generate_qs_task_list
    USE task_list_types,                 ONLY: allocate_task_list,&
-                                              deallocate_task_list
+                                              deallocate_task_list,&
+                                              task_list_type
    USE trexio_utils,                    ONLY: write_trexio
    USE virial_methods,                  ONLY: one_third_sum_diag,&
                                               write_stress_tensor,&
@@ -440,6 +441,23 @@ CONTAINS
 
          debug_f = ec_env%debug_forces .OR. ec_env%debug_stress
 
+         CALL get_qs_env(qs_env=qs_env, dft_control=dft_control)
+         nspins = dft_control%nspins
+         gapw = dft_control%qs_control%gapw
+         gapw_xc = dft_control%qs_control%gapw_xc
+         IF (gapw .OR. gapw_xc) THEN
+            CALL get_qs_env(qs_env=qs_env, nkind=nkind, &
+                            qs_kind_set=qs_kind_set, particle_set=particle_set)
+            NULLIFY (oce, sap_oce)
+            CALL get_qs_env(qs_env=qs_env, oce=oce, sap_oce=sap_oce)
+            CALL create_oce_set(oce)
+            CALL allocate_oce_set(oce, nkind)
+            eps_fit = dft_control%qs_control%gapw_control%eps_fit
+            CALL build_oce_matrices(oce%intac, .TRUE., 1, qs_kind_set, particle_set, &
+                                    sap_oce, eps_fit)
+            CALL set_qs_env(qs_env, oce=oce)
+         END IF
+
          CALL ec_disp(qs_env, ec_env, calculate_forces=.TRUE.)
 
          SELECT CASE (ec_env%energy_functional)
@@ -479,22 +497,6 @@ CONTAINS
          CASE DEFAULT
             CPABORT("unknown energy correction")
          END SELECT
-
-         CALL get_qs_env(qs_env=qs_env, dft_control=dft_control)
-         nspins = dft_control%nspins
-         gapw = dft_control%qs_control%gapw
-         gapw_xc = dft_control%qs_control%gapw_xc
-         IF (gapw .OR. gapw_xc) THEN
-            CALL get_qs_env(qs_env=qs_env, nkind=nkind, &
-                            qs_kind_set=qs_kind_set, particle_set=particle_set)
-            CALL get_qs_env(qs_env=qs_env, oce=oce, sap_oce=sap_oce)
-            CALL create_oce_set(oce)
-            CALL allocate_oce_set(oce, nkind)
-            eps_fit = dft_control%qs_control%gapw_control%eps_fit
-            CALL build_oce_matrices(oce%intac, .TRUE., 1, qs_kind_set, particle_set, &
-                                    sap_oce, eps_fit)
-            CALL set_qs_env(qs_env, oce=oce)
-         END IF
 
          CALL response_calculation(qs_env, ec_env)
 
@@ -819,7 +821,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'ec_dc_build_ks_matrix_force'
 
-      CHARACTER(LEN=default_string_length)               :: unit_string
+      CHARACTER(LEN=default_string_length)               :: basis_type, unit_string
       INTEGER                                            :: handle, i, iounit, ispin, natom, nspins
       LOGICAL                                            :: debug_forces, debug_stress, do_ec_hfx, &
                                                             gapw, gapw_xc, use_virial
@@ -832,14 +834,15 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_s, scrm
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, scrm
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(ecoul_1center_type), DIMENSION(:), POINTER    :: ecoul_1c
+      TYPE(hartree_local_type), POINTER                  :: hartree_local
       TYPE(local_rho_type), POINTER                      :: local_rho_set
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb
+      TYPE(oce_matrix_type), POINTER                     :: oce
       TYPE(pw_c1d_gs_type)                               :: rho_tot_gspace, v_hartree_gspace
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_grid_type), POINTER                        :: pw_grid
@@ -849,9 +852,11 @@ CONTAINS
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho_r, v_rspace, v_rspace_in, &
                                                             v_tau_rspace
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho_struct, rho_xc
       TYPE(section_vals_type), POINTER                   :: ec_hfx_sections
+      TYPE(task_list_type), POINTER                      :: task_list
       TYPE(virial_type), POINTER                         :: virial
 
       CALL timeset(routineN, handle)
@@ -866,20 +871,18 @@ CONTAINS
          iounit = -1
       END IF
 
-      NULLIFY (atomic_kind_set, cell, dft_control, force, ks_env, matrix_ks, &
+      NULLIFY (atomic_kind_set, cell, dft_control, force, ks_env, &
                matrix_p, matrix_s, para_env, pw_env, rho, sab_orb, virial)
       CALL get_qs_env(qs_env=qs_env, &
                       cell=cell, &
                       dft_control=dft_control, &
                       force=force, &
                       ks_env=ks_env, &
-                      matrix_ks=matrix_ks, &
                       matrix_s=matrix_s, &
                       para_env=para_env, &
                       pw_env=pw_env, &
                       rho=rho, &
                       rho_xc=rho_xc, &
-                      sab_orb=sab_orb, &
                       virial=virial)
       CPASSERT(ASSOCIATED(pw_env))
 
@@ -906,8 +909,26 @@ CONTAINS
       ! Get density matrix of reference calculation
       CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
 
+      NULLIFY (hartree_local, local_rho_set)
       IF (gapw .OR. gapw_xc) THEN
-         CALL prepare_gapw_den(qs_env, do_rho0=(.NOT. gapw_xc))
+         CALL get_qs_env(qs_env, &
+                         atomic_kind_set=atomic_kind_set, &
+                         qs_kind_set=qs_kind_set)
+         CALL local_rho_set_create(local_rho_set)
+         CALL allocate_rho_atom_internals(local_rho_set%rho_atom_set, atomic_kind_set, &
+                                          qs_kind_set, dft_control, para_env)
+         IF (gapw) THEN
+            CALL get_qs_env(qs_env, natom=natom)
+            CALL init_rho0(local_rho_set, qs_env, dft_control%qs_control%gapw_control)
+            CALL rho0_s_grid_create(pw_env, local_rho_set%rho0_mpole)
+            CALL hartree_local_create(hartree_local)
+            CALL init_coulomb_local(hartree_local, natom)
+         END IF
+
+         CALL get_qs_env(qs_env=qs_env, oce=oce, sab_orb=sab_orb)
+         CALL calculate_rho_atom_coeff(qs_env, matrix_p, local_rho_set%rho_atom_set, &
+                                       qs_kind_set, oce, sab_orb, para_env)
+         CALL prepare_gapw_den(qs_env, local_rho_set, do_rho0=gapw)
       END IF
 
       NULLIFY (auxbas_pw_pool, poisson_env)
@@ -1007,10 +1028,6 @@ CONTAINS
          ! virial%pv_xc will be zeroed in the xc routines
       END IF
 
-      IF (gapw .OR. gapw_xc) THEN
-         CALL calculate_vxc_atom(qs_env, .FALSE., exc1, xc_section_external=ec_env%xc_section)
-      END IF
-
       ! initialize srcm matrix
       NULLIFY (scrm)
       CALL dbcsr_allocate_matrix_set(scrm, nspins)
@@ -1031,8 +1048,12 @@ CONTAINS
       DO ispin = 1, nspins
          ! v_xc[n_in]_GS
          CALL pw_transfer(ec_env%vxc_rspace(ispin), v_rspace_in(ispin))
-         ! add v_H[n_in]
-         CALL pw_axpy(ec_env%vh_rspace, v_rspace_in(ispin))
+         IF (.NOT. gapw_xc) THEN
+            ! add v_H[n_in] this is not really needed, see further down
+            !               but we do it for historical reasons
+            ! for gapw_xc we have to skip it as it is not integrated on the same grid
+            CALL pw_axpy(ec_env%vh_rspace, v_rspace_in(ispin))
+         END IF
       END DO
 
       ! If hybrid functional in DC-DFT
@@ -1092,21 +1113,47 @@ CONTAINS
          pv_loc = virial%pv_virial
       END IF
 
+      basis_type = "HARRIS"
+      IF (gapw .OR. gapw_xc) THEN
+         task_list => ec_env%task_list_soft
+      ELSE
+         task_list => ec_env%task_list
+      END IF
+
       IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
       IF (debug_stress .AND. use_virial) stdeb = virial%pv_virial
 
       DO ispin = 1, nspins
          ! Add v_H[n_in] + v_xc[n_in] = v_rspace
          CALL pw_scale(v_rspace(ispin), v_rspace(ispin)%pw_grid%dvol)
-         CALL pw_axpy(v_hartree_rspace, v_rspace(ispin))
-         ! integrate over potential <a|V|b>
-         CALL integrate_v_rspace(v_rspace=v_rspace(ispin), &
-                                 hmat=scrm(ispin), &
-                                 pmat=matrix_p(ispin, 1), &
-                                 qs_env=qs_env, &
-                                 calculate_forces=.TRUE., &
-                                 basis_type="HARRIS", &
-                                 task_list_external=ec_env%task_list)
+         IF (gapw_xc) THEN
+            ! integrate over potential <a|Vxc|b>
+            CALL integrate_v_rspace(v_rspace=v_rspace(ispin), &
+                                    hmat=scrm(ispin), &
+                                    pmat=matrix_p(ispin, 1), &
+                                    qs_env=qs_env, &
+                                    calculate_forces=.TRUE., &
+                                    basis_type=basis_type, &
+                                    task_list_external=task_list)
+            ! integrate over potential <a|Vh|b>
+            CALL integrate_v_rspace(v_rspace=v_hartree_rspace, &
+                                    hmat=scrm(ispin), &
+                                    pmat=matrix_p(ispin, 1), &
+                                    qs_env=qs_env, &
+                                    calculate_forces=.TRUE., &
+                                    basis_type=basis_type, &
+                                    task_list_external=ec_env%task_list)
+         ELSE
+            CALL pw_axpy(v_hartree_rspace, v_rspace(ispin))
+            ! integrate over potential <a|V|b>
+            CALL integrate_v_rspace(v_rspace=v_rspace(ispin), &
+                                    hmat=scrm(ispin), &
+                                    pmat=matrix_p(ispin, 1), &
+                                    qs_env=qs_env, &
+                                    calculate_forces=.TRUE., &
+                                    basis_type=basis_type, &
+                                    task_list_external=task_list)
+         END IF
       END DO
 
       IF (debug_forces) THEN
@@ -1133,8 +1180,8 @@ CONTAINS
                                     qs_env=qs_env, &
                                     calculate_forces=.TRUE., &
                                     compute_tau=.TRUE., &
-                                    basis_type="HARRIS", &
-                                    task_list_external=ec_env%task_list)
+                                    basis_type=basis_type, &
+                                    task_list_external=task_list)
          END DO
 
          IF (debug_forces) THEN
@@ -1150,16 +1197,36 @@ CONTAINS
          END IF
       END IF
 
+      IF (gapw .OR. gapw_xc) THEN
+         exc1 = 0.0_dp
+         CALL calculate_vxc_atom(qs_env, .FALSE., exc1, &
+                                 rho_atom_set_external=local_rho_set%rho_atom_set, &
+                                 xc_section_external=ec_env%xc_section)
+      END IF
       IF (gapw) THEN
-         CALL integrate_vhg0_rspace(qs_env, v_hartree_rspace, para_env, .TRUE.)
-         CALL get_qs_env(qs_env, ecoul_1c=ecoul_1c, local_rho_set=local_rho_set)
-         CALL Vh_1c_gg_integrals(qs_env, ehartree_1c, ecoul_1c, local_rho_set, para_env, tddft=.FALSE., &
-                                 core_2nd=.FALSE.)
+         IF (debug_forces) fodeb(1:3) = force(1)%g0s_Vh_elec(1:3, 1)
+         CALL integrate_vhg0_rspace(qs_env, v_hartree_rspace, para_env, &
+                                    calculate_forces=.TRUE., local_rho_set=local_rho_set)
+         IF (debug_forces) THEN
+            fodeb(1:3) = force(1)%g0s_Vh_elec(1:3, 1) - fodeb(1:3)
+            CALL para_env%sum(fodeb)
+            IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: P*g0s_Vh_elec ", fodeb
+         END IF
+         ehartree_1c = 0.0_dp
+         CALL Vh_1c_gg_integrals(qs_env, ehartree_1c, hartree_local%ecoul_1c, local_rho_set, &
+                                 para_env, tddft=.FALSE., core_2nd=.FALSE.)
       END IF
 
       IF (gapw .OR. gapw_xc) THEN
          ! Single atom contributions in the KS matrix ***
-         CALL update_ks_atom(qs_env, scrm, matrix_p, .TRUE.)
+         IF (debug_forces) fodeb(1:3) = force(1)%vhxc_atom(1:3, 1)
+         CALL update_ks_atom(qs_env, scrm, matrix_p, forces=.TRUE., &
+                             rho_atom_external=local_rho_set%rho_atom_set)
+         IF (debug_forces) THEN
+            fodeb(1:3) = force(1)%vhxc_atom(1:3, 1) - fodeb(1:3)
+            CALL para_env%sum(fodeb)
+            IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: P*vhxc_atom ", fodeb
+         END IF
       END IF
 
       ! Stress-tensor
@@ -1179,7 +1246,7 @@ CONTAINS
       !
       ! with v_Hxc[n] = v_H[n] + v_xc[n]
       !
-      ! Actually v_H[n_in] same for DC and GS, just there for convenience
+      ! Actually v_H[n_in] same for DC and GS, just there for convenience (v_H skipped for GAPW_XC)
       !          v_xc[n_in]_GS = 0 if GS is HF BUT =/0 if hybrid
       !          so, we keep this general form
 
@@ -1204,8 +1271,8 @@ CONTAINS
                                  pmat=matrix_p(ispin, 1), &
                                  qs_env=qs_env, &
                                  calculate_forces=.FALSE., &
-                                 basis_type="HARRIS", &
-                                 task_list_external=ec_env%task_list)
+                                 basis_type=basis_type, &
+                                 task_list_external=task_list)
       END DO
 
       ! Check if mGGA functionals are used
@@ -1231,15 +1298,16 @@ CONTAINS
                                     pmat=matrix_p(ispin, 1), &
                                     qs_env=qs_env, &
                                     calculate_forces=.FALSE., compute_tau=.TRUE., &
-                                    basis_type="HARRIS", &
-                                    task_list_external=ec_env%task_list)
+                                    basis_type=basis_type, &
+                                    task_list_external=task_list)
          END DO
       END IF
 
       IF (gapw .OR. gapw_xc) THEN
          ! Single atom contributions in the KS matrix ***
          ! DC-DFT
-         CALL update_ks_atom(qs_env, ec_env%matrix_hz, matrix_p, .FALSE., kintegral=1.0_dp)
+         CALL update_ks_atom(qs_env, ec_env%matrix_hz, matrix_p, .FALSE., &
+                             rho_atom_external=local_rho_set%rho_atom_set, kintegral=1.0_dp)
          ! Ref
          CALL update_ks_atom(qs_env, ec_env%matrix_hz, matrix_p, .FALSE., &
                              rho_atom_external=ec_env%local_rho_set%rho_atom_set, kintegral=-1.0_dp)
@@ -1281,6 +1349,14 @@ CONTAINS
          DEALLOCATE (ftot)
          CALL para_env%sum(fodeb)
          IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Force Explicit", fodeb
+      END IF
+
+      ! return gapw arrays
+      IF (gapw .OR. gapw_xc) THEN
+         CALL local_rho_set_release(local_rho_set)
+      END IF
+      IF (gapw) THEN
+         CALL hartree_local_release(hartree_local)
       END IF
 
       ! return pw grids
@@ -1721,6 +1797,10 @@ CONTAINS
                                        qs_kind_set, oce, sab, para_env)
          CALL prepare_gapw_den(qs_env, local_rho_set_ec, do_rho0=gapw)
 
+         CALL calculate_vxc_atom(qs_env, .FALSE., exc1=exc1, xc_section_external=ec_env%xc_section, &
+                                 rho_atom_set_external=local_rho_set_ec%rho_atom_set)
+         ec_env%exc1 = exc1
+
          IF (gapw) THEN
             CALL Vh_1c_gg_integrals(qs_env, eh1c, hartree_local%ecoul_1c, local_rho_set_ec, para_env, .FALSE.)
             CALL integrate_vhg0_rspace(qs_env, ec_env%vh_rspace, para_env, calculate_forces=.FALSE., &
@@ -1734,9 +1814,6 @@ CONTAINS
                CPABORT("GAPW HFX ADMM + Energy Correction NYA")
             END IF
          END IF
-         CALL calculate_vxc_atom(qs_env, .FALSE., exc1=exc1, xc_section_external=ec_env%xc_section, &
-                                 rho_atom_set_external=local_rho_set_ec%rho_atom_set)
-         ec_env%exc1 = exc1
 
          ks_mat => ec_env%matrix_ks(:, 1)
          NULLIFY (ps_mat)
@@ -3227,7 +3304,7 @@ CONTAINS
       IF (dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc) THEN
          IF (ASSOCIATED(ec_env%task_list_soft)) CALL deallocate_task_list(ec_env%task_list_soft)
          CALL allocate_task_list(ec_env%task_list_soft)
-         CALL generate_qs_task_list(ks_env, ec_env%task_list, basis_type="HARRIS_SOFT", &
+         CALL generate_qs_task_list(ks_env, ec_env%task_list_soft, basis_type="HARRIS_SOFT", &
                                     reorder_rs_grid_ranks=.FALSE., &
                                     skip_load_balance_distributed=skip_load_balance_distributed, &
                                     sab_orb_external=ec_env%sab_orb)
@@ -3297,6 +3374,10 @@ CONTAINS
                                               subsection_name="PRINT%MOMENTS")
 
       IF (BTEST(cp_print_key_should_output(logger%iter_info, print_key), cp_p_file)) THEN
+
+         IF (dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc) THEN
+            CPABORT("Properties for GAPW in EC NYA")
+         END IF
 
          maxmom = section_get_ival(section_vals=ec_section, &
                                    keyword_name="PRINT%MOMENTS%MAX_MOMENT")
@@ -3417,6 +3498,10 @@ CONTAINS
          should_print_bqb = 0
       END IF
       IF ((should_print_voro /= 0) .OR. (should_print_bqb /= 0)) THEN
+
+         IF (dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc) THEN
+            CPABORT("Properties for GAPW in EC NYA")
+         END IF
 
          CALL get_qs_env(qs_env=qs_env, &
                          pw_env=pw_env)

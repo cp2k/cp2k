@@ -62,6 +62,7 @@ QS/regtest-xastdp                                           libint libxc !ifx
 QS/regtest-rixs                                             libint libxc !ifx
 QS/regtest-pao-1
 QS/regtest-dcdft-force                                      libint libxc !ifx
+QS/regtest-dcdft-gapw                                       libint libxc !ifx
 QS/regtest-admm-gapw                                        libint !ifx
 QS/regtest-gpw-8
 SE/regtest-2-2
