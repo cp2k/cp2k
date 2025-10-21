@@ -537,11 +537,11 @@ CONTAINS
       gto_basis_set%norm_type = 3
 
 #else
+      occ = 0
       MARK_USED(tb)
       MARK_USED(gto_basis_set)
       MARK_USED(element_symbol)
       MARK_USED(param)
-      MARK_USED(occ)
       CPABORT("Built without TBLITE")
 #endif
 

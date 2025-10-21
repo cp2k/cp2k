@@ -304,9 +304,9 @@ CONTAINS
 
       CALL timestop(handle)
 #else
+      eigenvalues = 0
       MARK_USED(matrix)
       MARK_USED(eigenvectors)
-      MARK_USED(eigenvalues)
 
       CPABORT("CP2K compiled without the ELPA library.")
 #endif

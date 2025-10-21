@@ -181,10 +181,10 @@ CONTAINS
          model%symbolc(i) = symbolc(i)
       END DO
 #else
+      rcutc = 0
       MARK_USED(ntypec)
       MARK_USED(symbolc)
       MARK_USED(fname)
-      MARK_USED(rcutc)
       MARK_USED(model)
       CPABORT("CP2K was compiled without ACE library.")
 #endif

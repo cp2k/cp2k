@@ -239,11 +239,11 @@ CONTAINS
       DEALLOCATE (forceunroll)
 
 #else
+      pot_ace = 0.0
+      ace_force = 0
+      ace_virial = 0.0
       MARK_USED(ace_natom)
       MARK_USED(ace_atype)
-      MARK_USED(pot_ace)
-      MARK_USED(ace_force)
-      MARK_USED(ace_virial)
       MARK_USED(fist_nonbond_env)
       MARK_USED(cell)
       MARK_USED(ace_data)

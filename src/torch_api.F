@@ -526,10 +526,10 @@ CONTAINS
       DEALLOCATE (content_f) ! Was allocated on the C side.
       CALL timestop(handle)
 #else
-      CPABORT("CP2K was compiled without Torch library.")
+      res = ""
       MARK_USED(filename)
       MARK_USED(key)
-      MARK_USED(res)
+      CPABORT("CP2K was compiled without Torch library.")
 #endif
    END FUNCTION torch_model_read_metadata
 
@@ -611,8 +611,9 @@ CONTAINS
    #:set typenames = ['int64', 'double', 'string']
    #:set types_f = ['INTEGER(kind=int_8)', 'REAL(dp)', 'CHARACTER(LEN=default_string_length)']
    #:set types_c = ['INTEGER(kind=C_INT64_T)', 'REAL(kind=C_DOUBLE)', 'CHARACTER(kind=C_CHAR), DIMENSION(*)']
+   #:set zeros_f = ['0', '0.0_dp', '""']
 
-   #:for typename, type_f, type_c in zip(typenames, types_f, types_c)
+   #:for typename, type_f, type_c, zero_f in zip(typenames, types_f, types_c, zeros_f)
 ! **************************************************************************************************
 !> \brief Retrieves an attribute from a Torch model. Must be called before torch_model_freeze.
 !> \author Ole Schuett
@@ -638,10 +639,10 @@ CONTAINS
                                                    key=TRIM(key)//C_NULL_CHAR, &
                                                    dest=dest)
 #else
-         CPABORT("CP2K compiled without the Torch library.")
+         dest = ${zero_f}$
          MARK_USED(model)
          MARK_USED(key)
-         MARK_USED(dest)
+         CPABORT("CP2K compiled without the Torch library.")
 #endif
       END SUBROUTINE torch_model_get_attr_${typename}$
    #:endfor
