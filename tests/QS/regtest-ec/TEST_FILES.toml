@@ -64,4 +64,8 @@
 #
 "EXT1.inp"                              = []
 "EXT2.inp"                              = [{matcher="M119", tol=1e-08, ref=1.12631842}]
+"EXT3.inp"                              = []
+"EXT4.inp"                              = []
+"EXT5.inp"                              = []
+"EXT6.inp"                              = []
 #EOF

@@ -127,6 +127,7 @@ MODULE basis_set_types
              set_gto_basis_set, &
              sort_gto_basis_set, &
              write_gto_basis_set, &
+             dump_gto_basis_set, &
              write_orb_basis_set
 
    PUBLIC :: allocate_sto_basis_set, &
@@ -1974,6 +1975,85 @@ CONTAINS
       END IF
 
    END SUBROUTINE write_orb_basis_set
+
+! **************************************************************************************************
+!> \brief ...
+!> \param gto_basis_set ...
+!> \param output_unit ...
+!> \author JGH
+! **************************************************************************************************
+   SUBROUTINE dump_gto_basis_set(gto_basis_set, output_unit)
+
+      TYPE(gto_basis_set_type), INTENT(IN)               :: gto_basis_set
+      INTEGER, INTENT(in)                                :: output_unit
+
+      INTEGER                                            :: ipgf, iset, ishell
+
+      IF (output_unit > 0) THEN
+
+         WRITE (UNIT=output_unit, FMT="(/,T6,A40)") TRIM(gto_basis_set%name)
+         WRITE (UNIT=output_unit, FMT="(/,T6,A40)") TRIM(gto_basis_set%aliases)
+         WRITE (UNIT=output_unit, FMT="(/,T6,F12.8)") gto_basis_set%kind_radius
+         WRITE (UNIT=output_unit, FMT="(/,T6,F12.8)") gto_basis_set%short_kind_radius
+         WRITE (UNIT=output_unit, FMT="(/,T6,I8)") gto_basis_set%norm_type
+         WRITE (UNIT=output_unit, FMT="(/,T6,3I8)") gto_basis_set%ncgf, gto_basis_set%nset, gto_basis_set%nsgf
+         WRITE (UNIT=output_unit, FMT="(/,T6,6A12)") gto_basis_set%cgf_symbol
+         WRITE (UNIT=output_unit, FMT="(/,T6,6A12)") gto_basis_set%sgf_symbol
+         WRITE (UNIT=output_unit, FMT="(/,T6,6F12.6)") gto_basis_set%norm_cgf
+         WRITE (UNIT=output_unit, FMT="(/,T6,6F12.6)") gto_basis_set%set_radius
+         WRITE (UNIT=output_unit, FMT="(/,T6,12I6)") gto_basis_set%lmax
+         WRITE (UNIT=output_unit, FMT="(/,T6,12I6)") gto_basis_set%lmin
+         WRITE (UNIT=output_unit, FMT="(/,T6,12I6)") gto_basis_set%lx
+         WRITE (UNIT=output_unit, FMT="(/,T6,12I6)") gto_basis_set%ly
+         WRITE (UNIT=output_unit, FMT="(/,T6,12I6)") gto_basis_set%lz
+         WRITE (UNIT=output_unit, FMT="(/,T6,12I6)") gto_basis_set%m
+         WRITE (UNIT=output_unit, FMT="(/,T6,12I6)") gto_basis_set%ncgf_set
+         WRITE (UNIT=output_unit, FMT="(/,T6,12I6)") gto_basis_set%nsgf_set
+         WRITE (UNIT=output_unit, FMT="(/,T6,12I6)") gto_basis_set%npgf
+         WRITE (UNIT=output_unit, FMT="(/,T6,12I6)") gto_basis_set%nshell
+
+         DO iset = 1, gto_basis_set%nset
+            WRITE (UNIT=output_unit, FMT="(T8,6F15.6)") &
+               gto_basis_set%pgf_radius(1:gto_basis_set%npgf(iset), iset)
+         END DO
+
+         DO iset = 1, gto_basis_set%nset
+            WRITE (UNIT=output_unit, FMT="(T8,6F15.6)") &
+               gto_basis_set%zet(1:gto_basis_set%npgf(iset), iset)
+         END DO
+
+         DO iset = 1, gto_basis_set%nset
+            DO ishell = 1, gto_basis_set%nshell(iset)
+               WRITE (UNIT=output_unit, FMT="(T8,8I10)") &
+                  iset, ishell, &
+                  gto_basis_set%n(ishell, iset), &
+                  gto_basis_set%l(ishell, iset), &
+                  gto_basis_set%first_cgf(ishell, iset), &
+                  gto_basis_set%last_cgf(ishell, iset), &
+                  gto_basis_set%first_sgf(ishell, iset), &
+                  gto_basis_set%last_sgf(ishell, iset)
+            END DO
+         END DO
+
+         DO iset = 1, gto_basis_set%nset
+            DO ishell = 1, gto_basis_set%nshell(iset)
+               WRITE (UNIT=output_unit, FMT="(T8,2I5,(T25,4F15.6))") &
+                  iset, ishell, &
+                  (gto_basis_set%gcc(ipgf, ishell, iset), &
+                   ipgf=1, gto_basis_set%npgf(iset))
+            END DO
+         END DO
+
+         WRITE (UNIT=output_unit, FMT="(A5)") "CPHI"
+         WRITE (UNIT=output_unit, FMT="(12F10.5)") gto_basis_set%cphi
+         WRITE (UNIT=output_unit, FMT="(A1)") "SPHI"
+         WRITE (UNIT=output_unit, FMT="(12F10.5)") gto_basis_set%sphi
+         WRITE (UNIT=output_unit, FMT="(A1)") "SCON"
+         WRITE (UNIT=output_unit, FMT="(12F10.5)") gto_basis_set%scon
+
+      END IF
+
+   END SUBROUTINE dump_gto_basis_set
 
 ! **************************************************************************************************
 !> \brief ...

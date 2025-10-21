@@ -96,11 +96,10 @@ CONTAINS
 !> \brief ...
 !> \param ks_env ...
 !> \param task_list ...
+!> \param basis_type ...
 !> \param reorder_rs_grid_ranks Flag that indicates if this routine should
 !>        or should not overwrite the rs descriptor (see comment below)
 !> \param skip_load_balance_distributed ...
-!> \param soft_valid ...
-!> \param basis_type ...
 !> \param pw_env_external ...
 !> \param sab_orb_external ...
 !> \par History
@@ -114,16 +113,15 @@ CONTAINS
 !>        of performing a new optimization by leaving the rank order in
 !>        its current state.
 ! **************************************************************************************************
-   SUBROUTINE generate_qs_task_list(ks_env, task_list, &
+   SUBROUTINE generate_qs_task_list(ks_env, task_list, basis_type, &
                                     reorder_rs_grid_ranks, skip_load_balance_distributed, &
-                                    soft_valid, basis_type, pw_env_external, sab_orb_external)
+                                    pw_env_external, sab_orb_external)
 
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(task_list_type), POINTER                      :: task_list
+      CHARACTER(LEN=*), INTENT(IN)                       :: basis_type
       LOGICAL, INTENT(IN)                                :: reorder_rs_grid_ranks, &
                                                             skip_load_balance_distributed
-      LOGICAL, INTENT(IN), OPTIONAL                      :: soft_valid
-      CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: basis_type
       TYPE(pw_env_type), OPTIONAL, POINTER               :: pw_env_external
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          OPTIONAL, POINTER                               :: sab_orb_external
@@ -131,7 +129,6 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'generate_qs_task_list'
       INTEGER, PARAMETER                                 :: max_tasks = 2000
 
-      CHARACTER(LEN=default_string_length)               :: my_basis_type
       INTEGER :: cindex, curr_tasks, handle, i, iatom, iatom_old, igrid_level, igrid_level_old, &
                  ikind, ilevel, img, img_old, ipair, ipgf, iset, itask, jatom, jatom_old, jkind, jpgf, &
                  jset, maxpgf, maxset, natoms, nimages, nkind, nseta, nsetb, slot
@@ -140,7 +137,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, lb_max, lb_min, npgfa, &
                                                             npgfb, nsgf
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
-      LOGICAL                                            :: dokp, my_soft
+      LOGICAL                                            :: dokp
       REAL(KIND=dp)                                      :: kind_radius_a, kind_radius_b
       REAL(KIND=dp), DIMENSION(3)                        :: ra, rab
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a, set_radius_b
@@ -171,20 +168,6 @@ CONTAINS
                       particle_set=particle_set, &
                       dft_control=dft_control)
 
-      ! OPTION 1) basis is set through input
-      ! OPTION 2) soft orb basis is requested
-      ! OPTION 3) by default, the full orb basis density is calculated
-      my_soft = .FALSE.
-      IF (PRESENT(soft_valid)) my_soft = soft_valid
-      IF (PRESENT(basis_type)) THEN
-         CPASSERT(.NOT. my_soft)
-         my_basis_type = basis_type
-      ELSEIF (my_soft) THEN
-         my_basis_type = "ORB_SOFT"
-      ELSE
-         my_basis_type = "ORB"
-      END IF
-
       CALL get_ks_env(ks_env, sab_orb=sab_orb)
       IF (PRESENT(sab_orb_external)) sab_orb => sab_orb_external
 
@@ -204,7 +187,7 @@ CONTAINS
       DO ikind = 1, nkind
          qs_kind => qs_kind_set(ikind)
          CALL get_qs_kind(qs_kind=qs_kind, &
-                          basis_set=orb_basis_set, basis_type=my_basis_type)
+                          basis_set=orb_basis_set, basis_type=basis_type)
 
          IF (.NOT. ASSOCIATED(orb_basis_set)) CYCLE
          CALL get_gto_basis_set(gto_basis_set=orb_basis_set, npgf=npgfa, nset=nseta)
@@ -240,7 +223,7 @@ CONTAINS
       DO ikind = 1, nkind
          qs_kind => qs_kind_set(ikind)
          CALL get_qs_kind(qs_kind=qs_kind, basis_set=basis_set_a, &
-                          basis_type=my_basis_type)
+                          basis_type=basis_type)
          IF (ASSOCIATED(basis_set_a)) THEN
             basis_set_list(ikind)%gto_basis_set => basis_set_a
          ELSE
@@ -347,7 +330,7 @@ CONTAINS
                                  qs_kind_set=qs_kind_set, &
                                  particle_set=particle_set, &
                                  cell=cell, &
-                                 basis_type=my_basis_type, &
+                                 basis_type=basis_type, &
                                  rs_grids=rs_grids)
 
       ! Now we have the final list of tasks, setup the task_list with the
@@ -518,7 +501,7 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(cell_type), POINTER                           :: cell
-      CHARACTER(LEN=default_string_length)               :: basis_type
+      CHARACTER(LEN=*)                                   :: basis_type
       TYPE(realspace_grid_type), DIMENSION(:), POINTER :: rs_grids
 
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set

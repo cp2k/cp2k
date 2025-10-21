@@ -20,6 +20,7 @@ MODULE qs_update_s_mstruct
                                               do_ppl_grid,&
                                               kg_tnadd_embed,&
                                               kg_tnadd_embed_ri
+   USE kinds,                           ONLY: default_string_length
    USE pw_methods,                      ONLY: pw_transfer
    USE pw_types,                        ONLY: pw_c1d_gs_type,&
                                               pw_r3d_rs_type
@@ -163,6 +164,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'qs_create_task_list'
 
+      CHARACTER(LEN=default_string_length)               :: basis_type
       INTEGER                                            :: handle, isub
       LOGICAL                                            :: skip_load_balance_distributed, soft_valid
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -173,6 +175,7 @@ CONTAINS
       NULLIFY (ks_env, dft_control)
       CALL get_qs_env(qs_env, ks_env=ks_env, dft_control=dft_control)
 
+      soft_valid = (dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc)
       skip_load_balance_distributed = dft_control%qs_control%skip_load_balance_distributed
       IF (.NOT. (dft_control%qs_control%semi_empirical &
                  .OR. dft_control%qs_control%xtb &
@@ -184,8 +187,8 @@ CONTAINS
                CALL allocate_task_list(task_list)
                CALL set_ks_env(ks_env, task_list=task_list)
             END IF
-            CALL generate_qs_task_list(ks_env, task_list, &
-                                       reorder_rs_grid_ranks=.TRUE., soft_valid=.FALSE., &
+            CALL generate_qs_task_list(ks_env, task_list, basis_type="ORB", &
+                                       reorder_rs_grid_ranks=.TRUE., &
                                        skip_load_balance_distributed=skip_load_balance_distributed)
          END IF
          ! generate the soft task list
@@ -195,14 +198,13 @@ CONTAINS
                CALL allocate_task_list(task_list)
                CALL set_ks_env(ks_env, task_list_soft=task_list)
             END IF
-            CALL generate_qs_task_list(ks_env, task_list, &
-                                       reorder_rs_grid_ranks=.TRUE., soft_valid=.TRUE., &
+            CALL generate_qs_task_list(ks_env, task_list, basis_type="ORB_SOFT", &
+                                       reorder_rs_grid_ranks=.TRUE., &
                                        skip_load_balance_distributed=skip_load_balance_distributed)
          END IF
       END IF
 
       IF (dft_control%qs_control%do_kg) THEN
-         soft_valid = (dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc)
 
          IF (qs_env%kg_env%tnadd_method == kg_tnadd_embed .OR. &
              qs_env%kg_env%tnadd_method == kg_tnadd_embed_ri) THEN
@@ -216,11 +218,18 @@ CONTAINS
                ALLOCATE (qs_env%kg_env%subset(qs_env%kg_env%nsubsets))
             END IF
 
+            IF (soft_valid) THEN
+               basis_type = "ORB_SOFT"
+            ELSE
+               basis_type = "ORB"
+            END IF
+
             DO isub = 1, qs_env%kg_env%nsubsets
                CALL allocate_task_list(qs_env%kg_env%subset(isub)%task_list)
                ! generate the subset task list from the neighborlist
                CALL generate_qs_task_list(ks_env, qs_env%kg_env%subset(isub)%task_list, &
-                                          reorder_rs_grid_ranks=.FALSE., soft_valid=soft_valid, &
+                                          basis_type=basis_type, &
+                                          reorder_rs_grid_ranks=.FALSE., &
                                           skip_load_balance_distributed=skip_load_balance_distributed, &
                                           sab_orb_external=qs_env%kg_env%subset(isub)%sab_orb)
             END DO

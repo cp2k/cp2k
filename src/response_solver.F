@@ -60,10 +60,10 @@ MODULE response_solver
                                               hfx_ri_update_ks
    USE hfx_types,                       ONLY: hfx_type
    USE input_constants,                 ONLY: &
-        do_admm_aux_exch_func_none, ec_ls_solver, ec_mo_solver, kg_tnadd_atomic, kg_tnadd_embed, &
-        kg_tnadd_embed_ri, ls_s_sqrt_ns, ls_s_sqrt_proot, ot_precond_full_all, &
-        ot_precond_full_kinetic, ot_precond_full_single, ot_precond_full_single_inverse, &
-        ot_precond_none, ot_precond_s_inverse, precond_mlp, xc_none
+        do_admm_aux_exch_func_none, ec_functional_ext, ec_ls_solver, ec_mo_solver, &
+        kg_tnadd_atomic, kg_tnadd_embed, kg_tnadd_embed_ri, ls_s_sqrt_ns, ls_s_sqrt_proot, &
+        ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
+        ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, precond_mlp, xc_none
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -391,6 +391,10 @@ CONTAINS
          END DO
 
       CASE (ec_ls_solver)
+
+         IF (ec_env%energy_functional == ec_functional_ext) THEN
+            CPABORT("AO Response Solver NYA for External Functional")
+         END IF
 
          ! AO ortho solver
          CALL ec_response_ao(qs_env=qs_env, &
@@ -955,7 +959,11 @@ CONTAINS
             CALL dbcsr_add(mpa(ispin)%matrix, ex_env%matrix_pe(ispin)%matrix, 1.0_dp, 1.0_dp)
             CALL dbcsr_set(matrix_hz(ispin)%matrix, 0.0_dp)
          END DO
-
+      ELSE
+         mpa => matrix_pz
+      END IF
+      !
+      IF (do_ex .OR. (gapw .OR. gapw_xc)) THEN
          CALL dbcsr_allocate_matrix_set(matrix_ht, nspins)
          DO ispin = 1, nspins
             ALLOCATE (matrix_ht(ispin)%matrix)
@@ -963,8 +971,6 @@ CONTAINS
             CALL dbcsr_copy(matrix_ht(ispin)%matrix, matrix_hz(ispin)%matrix)
             CALL dbcsr_set(matrix_ht(ispin)%matrix, 0.0_dp)
          END DO
-      ELSE
-         mpa => matrix_pz
       END IF
       !
       ! START OF Tr[(P+Z)Hcore]
@@ -1159,7 +1165,6 @@ CONTAINS
 
       IF (gapw) THEN
          ! Hartree grid PAW term
-         CPASSERT(do_ex)
          CPASSERT(.NOT. use_virial)
          IF (debug_forces) fodeb(1:3) = force(1)%g0s_Vh_elec(1:3, 1)
          CALL Vh_1c_gg_integrals(qs_env, hartree_gs, hartree_local_gs%ecoul_1c, local_rho_set_t, para_env, tddft=.TRUE., &
@@ -1246,7 +1251,6 @@ CONTAINS
       END IF
 
       IF (gapw .OR. gapw_xc) THEN
-         CPASSERT(do_ex)
          ! HXC term
          IF (debug_forces) fodeb(1:3) = force(1)%Vhxc_atom(1:3, 1)
          IF (gapw) CALL update_ks_atom(qs_env, scrm, mpa, forces=.TRUE., tddft=.FALSE., &
@@ -2738,7 +2742,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE calculate_whz_ao_matrix
 
 ! **************************************************************************************************
 

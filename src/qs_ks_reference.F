@@ -349,11 +349,6 @@ CONTAINS
                                        qs_kind_set, oce, sab, para_env)
          CALL prepare_gapw_den(qs_env, local_rho_set, do_rho0=gapw)
 
-         IF (gapw) THEN
-            CALL Vh_1c_gg_integrals(qs_env, eh1c, hartree_local%ecoul_1c, local_rho_set, para_env, .FALSE.)
-            CALL integrate_vhg0_rspace(qs_env, v_hartree_rspace, para_env, calculate_forces=.FALSE., &
-                                       local_rho_set=local_rho_set)
-         END IF
          IF (dft_control%do_admm) THEN
             CALL get_qs_env(qs_env, admm_env=admm_env)
             xc_section => admm_env%xc_section_primary
@@ -362,6 +357,12 @@ CONTAINS
          END IF
          CALL calculate_vxc_atom(qs_env, .FALSE., exc1=exc1, xc_section_external=xc_section, &
                                  rho_atom_set_external=local_rho_set%rho_atom_set)
+
+         IF (gapw) THEN
+            CALL Vh_1c_gg_integrals(qs_env, eh1c, hartree_local%ecoul_1c, local_rho_set, para_env, .FALSE.)
+            CALL integrate_vhg0_rspace(qs_env, v_hartree_rspace, para_env, calculate_forces=.FALSE., &
+                                       local_rho_set=local_rho_set)
+         END IF
 
          IF (dft_control%do_admm) THEN
             IF (admm_env%do_gapw) THEN

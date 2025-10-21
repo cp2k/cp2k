@@ -1053,8 +1053,8 @@ CONTAINS
          CALL set_ks_env(ks_env, task_list=task_list)
       END IF
       skip_load_balance_distributed = dft_control%qs_control%skip_load_balance_distributed
-      CALL generate_qs_task_list(ks_env, task_list, &
-                                 reorder_rs_grid_ranks=.TRUE., soft_valid=.FALSE., &
+      CALL generate_qs_task_list(ks_env, task_list, basis_type="ORB", &
+                                 reorder_rs_grid_ranks=.TRUE., &
                                  skip_load_balance_distributed=skip_load_balance_distributed)
       CALL get_qs_env(qs_env, rho=rho)
       CALL qs_rho_rebuild(rho, qs_env=qs_env, rebuild_ao=.FALSE., rebuild_grids=.TRUE.)

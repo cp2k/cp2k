@@ -1242,9 +1242,9 @@ CONTAINS
          IF (debug_comm_count .NE. 0) THEN
             ! A bug, we're leaking or double-freeing communicators. Needs to be fixed where the leak happens.
             ! Memory leak checking might be helpful to locate the culprit
-            WRITE (unit=debug_comm_count_char, FMT='(I0)')
+            WRITE (unit=debug_comm_count_char, FMT='(I2)') debug_comm_count
             CALL cp_abort(__LOCATION__, "mp_world_finalize: assert failed:"// &
-                          "  leaking communicators "//TRIM(debug_comm_count_char))
+                          " leaking communicators "//ADJUSTL(TRIM(debug_comm_count_char)))
          END IF
 #if defined(__parallel)
          CALL mpi_finalize(ierr)

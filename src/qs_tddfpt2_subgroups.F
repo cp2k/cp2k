@@ -725,8 +725,8 @@ CONTAINS
       END IF
 
       CALL allocate_task_list(task_list)
-      CALL generate_qs_task_list(ks_env, task_list, &
-                                 reorder_rs_grid_ranks=reorder_grid_ranks, basis_type=basis_type, &
+      CALL generate_qs_task_list(ks_env, task_list, basis_type=basis_type, &
+                                 reorder_rs_grid_ranks=reorder_grid_ranks, &
                                  skip_load_balance_distributed=skip_load_balance, &
                                  pw_env_external=pw_env, sab_orb_external=sab)
 
