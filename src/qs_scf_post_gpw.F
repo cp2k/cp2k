@@ -396,17 +396,12 @@ CONTAINS
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: stride
       LOGICAL, INTENT(IN), OPTIONAL                      :: zero_tails, silent, mpi_io
       REAL(KIND=dp), DIMENSION(:)                        :: zcharge
-#ifdef __OPENPMD
+
       IF (self%grid_output == grid_output_cubes) THEN
-#else
-         MARK_USED(self)
-#endif
-         CALL cp_pw_to_cube(pw, unit_nr, title, particles, zeff=zcharge, stride, zero_tails, silent, mpi_io)
-#ifdef __OPENPMD
+         CALL cp_pw_to_cube(pw, unit_nr, title, particles, stride, zero_tails, silent, mpi_io)
       ELSE
          CALL cp_pw_to_openpmd(pw, unit_nr, title, particles, stride, zero_tails, silent, mpi_io)
       END IF
-#endif
    END SUBROUTINE
 
 ! **************************************************************************************************
@@ -434,17 +429,11 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: local, ignore_should_output, on_file, &
                                                             mpi_io
 
-#ifdef __OPENPMD
       IF (self%grid_output == grid_output_cubes) THEN
-#else
-         MARK_USED(self)
-#endif
      CALL cp_print_key_finished_output(unit_nr, logger, basis_section, print_key_path, local, ignore_should_output, on_file, mpi_io)
-#ifdef __OPENPMD
       ELSE
       CALL cp_openpmd_print_key_finished_output(unit_nr, logger, basis_section, print_key_path, local, ignore_should_output, mpi_io)
       END IF
-#endif
    END SUBROUTINE
 
    !
@@ -476,7 +465,6 @@ CONTAINS
       do_cubes = BTEST(cp_print_key_should_output( &
                        logger%iter_info, input, &
                        "DFT%"//TRIM(ADJUSTL(str_cubes))), cp_p_file)
-#ifdef __OPENPMD
       do_openpmd = BTEST(cp_print_key_should_output( &
                          logger%iter_info, input, &
                          "DFT%"//TRIM(ADJUSTL(str_openpmd))), cp_p_file)
@@ -494,14 +482,6 @@ CONTAINS
          res%relative_section_key = TRIM(ADJUSTL(str_cubes))
          res%format_name = "Cube"
       END IF
-#else
-      MARK_USED(str_openpmd)
-      MARK_USED(do_openpmd)
-      res%do_output = do_cubes
-      res%grid_output = grid_output_cubes
-      res%relative_section_key = TRIM(ADJUSTL(str_cubes))
-      res%format_name = "Cube"
-#endif
       res%absolute_section_key = "DFT%"//TRIM(ADJUSTL(res%relative_section_key))
    END FUNCTION
 
