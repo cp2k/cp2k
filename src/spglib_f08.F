@@ -292,8 +292,8 @@ CONTAINS
 ! size is product(mesh)
 
 ! the number of points in the reduced mesh
-      MARK_USED(grid_point)
-      MARK_USED(map)
+      grid_point = 0
+      map = 0
       MARK_USED(mesh)
       MARK_USED(is_shift)
       MARK_USED(is_time_reversal)

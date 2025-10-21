@@ -2030,7 +2030,7 @@ CONTAINS
 
             CALL alloc_containers(store_3c(k_mem, i_mem), 1)
 
-            !contract witht KBK^T over the RI index and store
+            !contract with KBK^T over the RI index and store
             CALL dbt_batched_contract_init(t_KBKT)
             CALL dbt_contract(1.0_dp, t_KBKT, t_3c_ints, 0.0_dp, t_3c_work, &
                               contract_1=[2], notcontract_1=[1], &
