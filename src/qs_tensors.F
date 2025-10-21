@@ -2511,16 +2511,14 @@ CONTAINS
          CALL get_gto_basis_set(basis_i(ikind)%gto_basis_set, first_sgf=first_sgf_i, lmax=lmax_i, lmin=lmin_i, &
                                 npgf=npgfi, nset=nseti, nsgf_set=nsgfi, pgf_radius=rpgf_i, set_radius=set_radius_i, &
                                 sphi=sphi_i, zet=zeti, kind_radius=kind_radius_i)
-
          CALL get_gto_basis_set(basis_j(jkind)%gto_basis_set, first_sgf=first_sgf_j, lmax=lmax_j, lmin=lmin_j, &
                                 npgf=npgfj, nset=nsetj, nsgf_set=nsgfj, pgf_radius=rpgf_j, set_radius=set_radius_j, &
                                 sphi=sphi_j, zet=zetj, kind_radius=kind_radius_j)
+         IF (kind_radius_j + kind_radius_i + dr_ij < dij) CYCLE
 
          CALL get_gto_basis_set(basis_k(kkind)%gto_basis_set, first_sgf=first_sgf_k, lmax=lmax_k, lmin=lmin_k, &
                                 npgf=npgfk, nset=nsetk, nsgf_set=nsgfk, pgf_radius=rpgf_k, set_radius=set_radius_k, &
                                 sphi=sphi_k, zet=zetk, kind_radius=kind_radius_k)
-
-         IF (kind_radius_j + kind_radius_i + dr_ij < dij) CYCLE
          IF (kind_radius_j + kind_radius_k + dr_jk < djk) CYCLE
          IF (kind_radius_k + kind_radius_i + dr_ik < dik) CYCLE
 
@@ -2538,9 +2536,8 @@ CONTAINS
 
          CALL dbt_blk_sizes(t3c(jcell, kcell), blk_idx, blk_size)
 
-         ALLOCATE (block_t(blk_size(2), blk_size(3), blk_size(1)))
+         ALLOCATE (block_t(blk_size(2), blk_size(3), blk_size(1)), SOURCE=0.0_dp)
 
-         block_t = 0.0_dp
          block_not_zero = .FALSE.
          DO iset = 1, nseti
 
@@ -2577,8 +2574,7 @@ CONTAINS
                                       lmin_i(iset), lmax_i(iset), npgfi(iset), zeti(:, iset), rpgf_i(:, iset), ri, &
                                       djk, dij, dik, lib, potential_parameter, int_abc_ext=sijk_ext)
                   ELSE
-                     ALLOCATE (tmp_ijk(ncoi, ncoj, ncok))
-                     tmp_ijk(:, :, :) = 0.0_dp
+                     ALLOCATE (tmp_ijk(ncoi, ncoj, ncok), SOURCE=0.0_dp)
                      CALL eri_3center(tmp_ijk, &
                                       lmin_i(iset), lmax_i(iset), npgfi(iset), zeti(:, iset), rpgf_i(:, iset), ri, &
                                       lmin_j(jset), lmax_j(jset), npgfj(jset), zetj(:, jset), rpgf_j(:, jset), rj, &
@@ -2716,8 +2712,8 @@ CONTAINS
          CPABORT("requested symmetric case not implemented")
       END IF
 
-      DO iset = 1, max_nset
-         DO ibasis = 1, nbasis
+      DO ibasis = 1, nbasis
+         DO iset = 1, max_nset
             IF (ASSOCIATED(spi(iset, ibasis)%array)) DEALLOCATE (spi(iset, ibasis)%array)
             IF (ASSOCIATED(tspj(iset, ibasis)%array)) DEALLOCATE (tspj(iset, ibasis)%array)
             IF (ASSOCIATED(spk(iset, ibasis)%array)) DEALLOCATE (spk(iset, ibasis)%array)
