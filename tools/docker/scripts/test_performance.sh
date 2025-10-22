@@ -32,6 +32,9 @@ function run_benchmark {
 # shellcheck disable=SC1091
 source /opt/cp2k-toolchain/install/setup
 
+echo -e '\n============== CP2K Binary Flags ============='
+./build/bin/cp2k.psmp --version | grep cp2kflags
+
 # Check benchmark files for input errors.
 echo -en "\nChecking benchmark inputs... "
 if ! ./tools/regtesting/check_inputs.py "./build/bin/cp2k.psmp" "./benchmarks/"; then
