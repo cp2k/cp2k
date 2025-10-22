@@ -136,7 +136,6 @@ elif [[ "${PROFILE}" == "toolchain_cuda_"* ]] && [[ "${VERSION}" == "psmp" ]]; t
     -DCP2K_USE_DLAF=OFF \
     -DCP2K_USE_SPLA_GEMM_OFFLOADING=ON \
     -DCP2K_USE_PEXSI=OFF \
-    -DCP2K_USE_ELPA=OFF \
     -DCP2K_USE_ACE=OFF \
     -DCP2K_USE_DEEPMD=OFF \
     -DCP2K_USE_PLUMED=OFF \
