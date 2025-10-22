@@ -1025,6 +1025,7 @@ list(
   emd/rt_hfx_utils.F
   emd/rt_make_propagators.F
   emd/rt_projection_mo_utils.F
+  emd/rt_propagation_ft.F
   emd/rt_propagation_methods.F
   emd/rt_propagation_output.F
   emd/rt_propagation_utils.F
