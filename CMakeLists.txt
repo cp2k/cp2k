@@ -983,6 +983,10 @@ if(CP2K_USE_SPLA)
           "   - libraries: ${CP2K_SPLA_LINK_LIBRARIES}\n\n")
 endif()
 
+if(CP2K_USE_SPLA_GEMM_OFFLOADING)
+  message(" - SpLA GEMM offloading\n\n")
+endif()
+
 if(CP2K_USE_DFTD4)
   message(" - DFTD4\n" "   - include directories :  ${dftd4_INCLUDE_DIRS}\n"
           "   - libraries           :  ${dftd4_LINK_LIBRARIES}\n\n")

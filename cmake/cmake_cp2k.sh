@@ -125,6 +125,7 @@ elif [[ "${PROFILE}" == "toolchain_arm64" ]] && [[ "${VERSION}" == "psmp" ]]; th
   CMAKE_EXIT_CODE=$?
 
 elif [[ "${PROFILE}" == "toolchain_cuda_"* ]] && [[ "${VERSION}" == "psmp" ]]; then
+  # TODO: CP2K_USE_SPLA_GEMM_OFFLOADING should get enabled automatically.
   cmake \
     -GNinja \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
@@ -133,6 +134,7 @@ elif [[ "${PROFILE}" == "toolchain_cuda_"* ]] && [[ "${VERSION}" == "psmp" ]]; t
     -DCP2K_USE_ACCEL=CUDA \
     -DCP2K_USE_EVERYTHING=ON \
     -DCP2K_USE_DLAF=OFF \
+    -DCP2K_USE_SPLA_GEMM_OFFLOADING=ON \
     -DCP2K_USE_PEXSI=OFF \
     -DCP2K_USE_ELPA=OFF \
     -DCP2K_USE_ACE=OFF \
