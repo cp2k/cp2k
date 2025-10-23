@@ -12,7 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#if 0
+#if 1
 #define DBM_MULTIPLY_COMM_MEMPOOL
 #endif
 
