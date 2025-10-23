@@ -27,6 +27,7 @@ MODULE local_gemm_api
                    SPLA_SUCCESS
 #endif
 
+   USE cp_log_handling, ONLY: cp_to_string
    USE offload_api, ONLY: offload_activate_chosen_device
 
 #include "./base/base_uses.f90"
@@ -135,7 +136,8 @@ CONTAINS
                                  c_loc(A), lda, &
                                  c_loc(B), ldb, &
                                  beta, c_loc(C), ldc, ctx%spla_context)
-         CPASSERT(spla_error == SPLA_SUCCESS)
+         IF (spla_error /= SPLA_SUCCESS) &
+            CPABORT("spla_dgemm failed: "//cp_to_string(spla_error))
       ELSE
 #endif
          CALL dgemm(opA, opB, m, n, k, alpha, &
@@ -167,7 +169,8 @@ CONTAINS
             CALL offload_activate_chosen_device()
 
             error_ = spla_ctx_create(ctx%spla_context, pu)
-            CPASSERT(error_ == SPLA_SUCCESS)
+            IF (error_ /= SPLA_SUCCESS) &
+               CPABORT("spla_ctx_create failed: "//cp_to_string(error_))
          ELSE
             ctx%spla_context = C_NULL_PTR
          END IF
@@ -192,7 +195,8 @@ CONTAINS
          CALL offload_activate_chosen_device()
 
          error_ = spla_ctx_destroy(ctx%spla_context)
-         CPASSERT(error_ == SPLA_SUCCESS)
+         IF (error_ /= SPLA_SUCCESS) &
+            CPABORT("spla_ctx_destroy failed: "//cp_to_string(error_))
       END IF
 #endif
       ctx%spla_context = C_NULL_PTR
