@@ -415,7 +415,6 @@ def make_plot_image(
     # Setup figure.
     fig = plt.figure(figsize=(12, 4))
     fig.subplots_adjust(bottom=0.18, left=0.06, right=0.70)
-    fig.suptitle(plot.title, fontsize=14, fontweight="bold", x=0.4)
     ax = fig.add_subplot(111)
     ax.set_xlabel("Commit Age")
     ax.set_ylabel(plot.ylabel)
@@ -442,23 +441,26 @@ def make_plot_image(
     legend_style = dict(numpoints=1, fancybox=True, shadow=True, borderaxespad=0.0)
     ax.legend(bbox_to_anchor=(1.01, 1), loc="upper left", **legend_style)
 
-    # Determine y-range such that all curves are visible while ignoring outlayers.
-    visibles = []
+    # Determine y-range such that all curves are visible while ignoring outliers.
+    visibles, title = [], plot.title
     for curve in plot.curves:
         ys = [y for x, y in zip(curve.x, curve.y) if x >= -max_age]  # visible y-values
         visibles += [ys] if ys else []  # ignore completely invisible curves
-    if not visibles:
-        print("Warning: Found no visible plot curve.")
-    else:
+    if visibles:
         ymin = min([min(ys) for ys in visibles])  # lowest point from lowest curve
         ymax = max([max(ys) for ys in visibles])  # highest point from highest curve
         if full_archive:
             ax.set_ylim(0.98 * ymin, 1.02 * ymax)
         else:
             ymax2 = max([min(ys) for ys in visibles])  # lowest point from highest curve
-            ax.set_ylim(0.98 * ymin, min(1.02 * ymax, 1.3 * ymax2))  # ignore outlayers
+            ax.set_ylim(0.98 * ymin, min(1.02 * ymax, 1.3 * ymax2))  # ignore outliers
+        ysum = [sum(ys) for ys in visibles]  # range of total timings
+        title = f"{plot.title}: {min(ysum)}..{max(ysum)} s"
+    else:
+        print("Warning: Found no visible plot curve.")
 
     # Save figure to file.
+    fig.suptitle(title, fontsize=14, fontweight="bold", x=0.4)
     fig.savefig(fn)
     plt.close(fig)
 
