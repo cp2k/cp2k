@@ -26,10 +26,10 @@ def main():
     routines.remove("total")
     routines.sort(reverse=True, key=lambda r: timings[0].get(r, 0.0))
 
-    for title, plot, timing in zip(titles, plots, timings):
+    for titel, plot, timing in zip(titles, plots, timings):
         timing["rest"] = timing["total"] - sum([timing.get(r, 0.0) for r in routines])
 
-        full_title = f"{title}: {timings['total']} s"
+        full_title = f"Timings of {titel}"
         print(f'Plot: name="{plot}", title="{full_title}", ylabel="time [s]"')
         for r in ["rest"] + routines:
             t = timing.get(r, 0.0)
