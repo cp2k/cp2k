@@ -59,7 +59,7 @@ case "${with_spla}" in
         mkdir build-cuda
         cd build-cuda
         cmake \
-          -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
+          -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}-cuda" \
           -DCMAKE_INSTALL_LIBDIR=lib \
           -DCMAKE_VERBOSE_MAKEFILE=ON \
           -DCMAKE_BUILD_TYPE="RelWithDebInfo" \
@@ -71,9 +71,7 @@ case "${with_spla}" in
           .. \
           > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
         make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
-        install -d ${pkg_install_dir}/lib/cuda
-        [ -f src/libspla.a ] && install -m 644 src/*.a ${pkg_install_dir}/lib/cuda >> install.log 2>&1
-        [ -f src/libspla.so ] && install -m 644 src/*.so ${pkg_install_dir}/lib/cuda >> install.log 2>&1
+        make -j $(get_nprocs) install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
       fi
 
       if [ "$ENABLE_HIP" = "__TRUE__" ]; then
@@ -84,7 +82,7 @@ case "${with_spla}" in
             mkdir build-cuda
             cd build-cuda
             cmake \
-              -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
+              -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}-hip" \
               -DCMAKE_INSTALL_LIBDIR=lib \
               -DCMAKE_VERBOSE_MAKEFILE=ON \
               -DCMAKE_BUILD_TYPE="RelWithDebInfo" \
@@ -96,16 +94,14 @@ case "${with_spla}" in
               .. \
               > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
             make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
-            install -d ${pkg_install_dir}/lib/hip
-            [ -f src/libspla.a ] && install -m 644 src/*.a ${pkg_install_dir}/lib/hip >> install.log 2>&1
-            [ -f src/libspla.so ] && install -m 644 src/*.so ${pkg_install_dir}/lib/hip >> install.log 2>&1
+            make -j $(get_nprocs) install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
             ;;
           Mi50 | Mi100 | Mi200 | Mi250)
             [ -d build-hip ] && rm -rf "build-hip"
             mkdir build-hip
             cd build-hip
             cmake \
-              -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}" \
+              -DCMAKE_INSTALL_PREFIX="${pkg_install_dir}-hip" \
               -DCMAKE_INSTALL_LIBDIR=lib \
               -DCMAKE_VERBOSE_MAKEFILE=ON \
               -DCMAKE_BUILD_TYPE="RelWithDebInfo" \
@@ -117,9 +113,7 @@ case "${with_spla}" in
               .. \
               > cmake.log 2>&1 || tail -n ${LOG_LINES} cmake.log
             make -j $(get_nprocs) > make.log 2>&1 || tail -n ${LOG_LINES} make.log
-            install -d ${pkg_install_dir}/lib/hip
-            [ -f src/libspla.a ] && install -m 644 src/*.a ${pkg_install_dir}/lib/hip >> install.log 2>&1
-            [ -f src/libspla.so ] && install -m 644 src/*.so ${pkg_install_dir}/lib/hip >> install.log 2>&1
+            make -j $(get_nprocs) install > install.log 2>&1 || tail -n ${LOG_LINES} install.log
             ;;
           *) ;;
         esac

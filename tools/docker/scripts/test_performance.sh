@@ -35,8 +35,7 @@ source /opt/cp2k-toolchain/install/setup
 echo -e '\n============== CP2K Binary Flags ============='
 ./build/bin/cp2k.psmp --version | grep cp2kflags
 
-# Check benchmark files for input errors.
-echo -en "\nChecking benchmark inputs... "
+echo -e '\n========== Checking Benchmark Inputs ========='
 if ! ./tools/regtesting/check_inputs.py "./build/bin/cp2k.psmp" "./benchmarks/"; then
   echo -e "\nSummary: Some benchmark inputs could not be parsed."
   echo -e "Status: FAILED\n"

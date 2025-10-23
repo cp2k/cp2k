@@ -130,6 +130,7 @@ elif [[ "${PROFILE}" == "toolchain_cuda_"* ]] && [[ "${VERSION}" == "psmp" ]]; t
     -GNinja \
     -DCMAKE_INSTALL_PREFIX="${INSTALL_PREFIX}" \
     -DDBCSR_DIR="${DBCSR_CUDA_ROOT}/lib/cmake/dbcsr" \
+    -DSPLA_ROOT="${SPLA_ROOT}-cuda" \
     -DCP2K_WITH_GPU="${PROFILE:(-4)}" \
     -DCP2K_USE_ACCEL=CUDA \
     -DCP2K_USE_EVERYTHING=ON \
