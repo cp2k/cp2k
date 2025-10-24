@@ -226,7 +226,7 @@ PROGRAM nequip_unittest
    CALL torch_model_release(model)
    DEALLOCATE (edge_index, edge_cell_shift, pos, cell, atom_types)
 
-   WRITE (*, *) "NequIP unittest was successfully :-)"
+   WRITE (*, *) "NequIP unittest was success :-)"
 
 CONTAINS
 
