@@ -1643,14 +1643,16 @@ set(CP2K_GPU_DFLAGS
 
 add_fypp_sources(CP2K_SRCS ${CP2K_SRCS_F})
 
-# TODO Add __SHORT_FILE__ also to program files, e.g. metadyn_tools/graph.F
-
 # set the __SHORT_FILE__ per file for CP2K sources
 foreach(cp2k_src ${CP2K_SRCS})
   # add_fypp_sources returns a path in the current binary dir
   file(RELATIVE_PATH short_file "${CMAKE_BINARY_DIR}/src" "${cp2k_src}")
   set_source_files_properties(
     ${cp2k_src} PROPERTIES COMPILE_DEFINITIONS __SHORT_FILE__="${short_file}")
+endforeach()
+foreach(cp2k_prog ${CP2K_PROGS_F})
+  set_source_files_properties(
+    ${cp2k_prog} PROPERTIES COMPILE_DEFINITIONS __SHORT_FILE__="${cp2k_prog}")
 endforeach()
 
 if(CP2K_USE_LIBTORCH)
