@@ -21,9 +21,8 @@
    "OpenMP is required. Please add the corresponding flag (eg. -fopenmp for GFortran) to your Fortran compiler flags."
 #endif
 
-! Dangerous: Full path can be arbitrarily long and might overflow Fortran line.
 #if !defined(__SHORT_FILE__)
-#define __SHORT_FILE__ __FILE__
+   "The preprocessor macro __SHORT_FILE__ is required but has not been defined."
 #endif
 
 #define __LOCATION__ cp__l(__SHORT_FILE__,__LINE__)
