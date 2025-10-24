@@ -114,9 +114,9 @@ CONTAINS
       INTEGER, DIMENSION(9)                    :: descm, descv
       COMPLEX(KIND=dp), DIMENSION(:, :), &
          POINTER                               :: v
+#endif
 #if defined (__HAS_IEEE_EXCEPTIONS)
       LOGICAL, DIMENSION(5)                    :: halt
-#endif
 #endif
 
       CALL timeset(routineN, handle)
@@ -152,29 +152,26 @@ CONTAINS
       DEALLOCATE (iwork, rwork, work)
       ALLOCATE (iwork(liwork), rwork(lrwork), work(lwork))
 
-#if defined(__parallel)
-! Scalapack takes advantage of IEEE754 exceptions for speedup.
+! (Sca-)LAPACK takes advantage of IEEE754 exceptions for speedup.
 ! Therefore, we disable floating point traps temporarily.
 #if defined (__HAS_IEEE_EXCEPTIONS)
       CALL ieee_get_halting_mode(IEEE_ALL, halt)
       CALL ieee_set_halting_mode(IEEE_ALL, .FALSE.)
 #endif
-
+#if defined(__parallel)
       CALL pzheevd('V', 'U', n, m(1, 1), 1, 1, descm, eigenvalues(1), v(1, 1), 1, 1, descv, &
                    work(1), lwork, rwork(1), lrwork, iwork(1), liwork, info)
-
-#if defined (__HAS_IEEE_EXCEPTIONS)
-      CALL ieee_set_halting_mode(IEEE_ALL, halt)
-#endif
 #else
       CALL zheevd('V', 'U', n, m(1, 1), SIZE(m, 1), eigenvalues(1), &
                   work(1), lwork, rwork(1), lrwork, iwork(1), liwork, info)
       eigenvectors%local_data = matrix%local_data
 #endif
+#if defined (__HAS_IEEE_EXCEPTIONS)
+      CALL ieee_set_halting_mode(IEEE_ALL, halt)
+#endif
 
       DEALLOCATE (iwork, rwork, work)
-      IF (info /= 0) &
-         CPABORT("Diagonalisation of a complex matrix failed")
+      IF (info /= 0) CPABORT("Diagonalisation of a complex matrix failed")
 
       CALL timestop(handle)
 

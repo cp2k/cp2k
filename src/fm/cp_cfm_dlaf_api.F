@@ -108,7 +108,7 @@ CONTAINS
       CALL timestop(handle)
    END SUBROUTINE cp_cfm_pzpotri_dlaf
 
-   ! **************************************************************************************************
+! **************************************************************************************************
 !> \brief DLA-Future eigensolver for complex Hermitian matrices
 !> \param matrix ...
 !> \param eigenvectors ...
@@ -210,6 +210,7 @@ CONTAINS
       ! Use eigenvectors matrix as workspace
       CALL cp_cfm_uplo_to_full(matrix, eigenvectors)
 
+      ! Create DLAF grid from BLACS context (if already present, does nothing)
       blacs_context = matrix%matrix_struct%context%get_handle()
       CALL cp_dlaf_create_grid(blacs_context)
 
@@ -282,6 +283,7 @@ CONTAINS
       CALL cp_cfm_uplo_to_full(amatrix, eigenvectors)
       CALL cp_cfm_uplo_to_full(bmatrix, eigenvectors)
 
+      ! Create DLAF grid from BLACS context (if already present, does nothing)
       blacs_context = amatrix%matrix_struct%context%get_handle()
       CALL cp_dlaf_create_grid(blacs_context)
 
