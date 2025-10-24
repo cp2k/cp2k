@@ -101,7 +101,6 @@ CONTAINS
       INTEGER                                            :: handle
 
       CALL timeset(routineN, handle)
-
 #if defined(__DLAF)
       CALL dlaf_pspotrf(uplo, n, a, ia, ja, desca, info)
 #else
@@ -247,7 +246,7 @@ CONTAINS
       CHARACTER, PARAMETER                               :: uplo = 'L'
 
       CHARACTER(LEN=100)                                 :: message
-      INTEGER                                            :: dlaf_handle, handle, n
+      INTEGER                                            :: blacs_context, dlaf_handle, handle, n
       INTEGER, DIMENSION(9)                              :: desca, descz
       INTEGER, TARGET                                    :: info
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: a, z
@@ -259,8 +258,9 @@ CONTAINS
       ! Use eigenvectors matrix as workspace
       CALL cp_fm_uplo_to_full(matrix, eigenvectors)
 
-      ! Create DLAF grid from BLACS context; if already present, does nothing
-      CALL cp_dlaf_create_grid(matrix%matrix_struct%context%get_handle())
+      ! Create DLAF grid from BLACS context (if already present, does nothing)
+      blacs_context = matrix%matrix_struct%context%get_handle()
+      CALL cp_dlaf_create_grid(blacs_context)
 
       n = matrix%matrix_struct%nrow_global
 
@@ -272,9 +272,7 @@ CONTAINS
 
       info = -1
       CALL timeset(dlaf_name, dlaf_handle)
-
       CALL dlaf_pdsyevd(uplo, n, a, 1, 1, desca, eigenvalues, z, 1, 1, descz, info)
-
       CALL timestop(dlaf_handle)
 
       IF (info /= 0) THEN
@@ -295,6 +293,7 @@ CONTAINS
       MARK_USED(dlaf_handle)
       MARK_USED(dlaf_name)
       MARK_USED(message)
+      MARK_USED(blacs_context)
       CPABORT("CP2K compiled without DLA-Future-Fortran library.")
 #endif
 
@@ -357,7 +356,7 @@ CONTAINS
       CHARACTER, PARAMETER                               :: uplo = 'L'
 
       CHARACTER(LEN=100)                                 :: message
-      INTEGER                                            :: dlaf_handle, handle, n
+      INTEGER                                            :: blacs_context, dlaf_handle, handle, n
       INTEGER, DIMENSION(9)                              :: desca, descb, descz
       INTEGER, TARGET                                    :: info
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: a, b, z
@@ -371,7 +370,8 @@ CONTAINS
       CALL cp_fm_uplo_to_full(b_matrix, eigenvectors)
 
       ! Create DLAF grid from BLACS context; if already present, does nothing
-      CALL cp_dlaf_create_grid(a_matrix%matrix_struct%context%get_handle())
+      blacs_context = a_matrix%matrix_struct%context%get_handle()
+      CALL cp_dlaf_create_grid(blacs_context)
 
       n = a_matrix%matrix_struct%nrow_global
 
@@ -406,6 +406,7 @@ CONTAINS
       MARK_USED(uplo)
       MARK_USED(n)
       MARK_USED(info)
+      MARK_USED(blacs_context)
       MARK_USED(dlaf_handle)
       MARK_USED(dlaf_name)
       MARK_USED(message)

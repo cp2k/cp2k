@@ -86,10 +86,10 @@ MODULE cp_fm_diag
 
    ! The following saved variables are diagonalization global
    ! Stores the default library for diagonalization
-   INTEGER, SAVE, PUBLIC   :: diag_type = 0
+   INTEGER, SAVE, PUBLIC    :: diag_type = 0
    ! Minimum number of eigenvectors for the use of the ELPA eigensolver.
    ! The ScaLAPACK eigensolver is used as fallback for all smaller cases.
-   INTEGER, SAVE       :: elpa_neigvec_min = 0
+   INTEGER, SAVE            :: elpa_neigvec_min = 0
 #if defined(__DLAF)
    ! Minimum number of eigenvectors for the use of the DLAF eigensolver.
    ! The ScaLAPACK eigensolver is used as fallback for all smaller cases.
@@ -701,12 +701,12 @@ CONTAINS
       INTEGER, DIMENSION(:), ALLOCATABLE           :: iclustr
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE     :: gap
       INTEGER, EXTERNAL                            :: iceil, numroc
-#if defined (__HAS_IEEE_EXCEPTIONS)
-      LOGICAL, DIMENSION(5)                        :: halt
-#endif
 #else
       INTEGER                                      :: nla, nlz
       INTEGER, EXTERNAL                            :: ilaenv
+#endif
+#if defined (__HAS_IEEE_EXCEPTIONS)
+      LOGICAL, DIMENSION(5)                        :: halt
 #endif
 
       ! by default all
@@ -786,22 +786,19 @@ CONTAINS
       ALLOCATE (iwork(liwork))
       ALLOCATE (work(lwork))
 
-      ! Scalapack takes advantage of IEEE754 exceptions for speedup.
+      ! ScaLAPACK takes advantage of IEEE754 exceptions for speedup.
       ! Therefore, we disable floating point traps temporarily.
 #if defined (__HAS_IEEE_EXCEPTIONS)
       CALL ieee_get_halting_mode(IEEE_ALL, halt)
       CALL ieee_set_halting_mode(IEEE_ALL, .FALSE.)
 #endif
-
       CALL pdsyevx(job_type, "I", "U", n, a(1, 1), 1, 1, desca, vl, vu, 1, neig_local, abstol, m, nz, w(1), orfac, &
                    z(1, 1), 1, 1, descz, work(1), lwork, iwork(1), liwork, ifail(1), iclustr(1), gap, info)
-
 #if defined (__HAS_IEEE_EXCEPTIONS)
       CALL ieee_set_halting_mode(IEEE_ALL, halt)
 #endif
 
       ! Error handling
-
       IF (info /= 0) THEN
          IF (ionode) THEN
             output_unit = cp_logger_get_unit_nr(logger, local=.FALSE.)
@@ -823,12 +820,8 @@ CONTAINS
       END IF
 
       ! Release work storage
-
       DEALLOCATE (gap)
       DEALLOCATE (iclustr)
-      DEALLOCATE (ifail)
-      DEALLOCATE (iwork)
-      DEALLOCATE (work)
 
 #else
 
@@ -856,11 +849,19 @@ CONTAINS
       nla = SIZE(a, 1)
       nlz = SIZE(z, 1)
 
+      ! LAPACK takes advantage of IEEE754 exceptions for speedup.
+      ! Therefore, we disable floating point traps temporarily.
+#if defined (__HAS_IEEE_EXCEPTIONS)
+      CALL ieee_get_halting_mode(IEEE_ALL, halt)
+      CALL ieee_set_halting_mode(IEEE_ALL, .FALSE.)
+#endif
       CALL dsyevx(job_type, "I", "U", n, a(1, 1), nla, vl, vu, 1, neig_local, &
                   abstol, m, w, z(1, 1), nlz, work(1), lwork, iwork(1), ifail(1), info)
+#if defined (__HAS_IEEE_EXCEPTIONS)
+      CALL ieee_set_halting_mode(IEEE_ALL, halt)
+#endif
 
       ! Error handling
-
       IF (info /= 0) THEN
          output_unit = cp_logger_get_unit_nr(logger, local=.FALSE.)
          WRITE (unit=output_unit, FMT="(/,(T3,A,T12,1X,I10))") &
@@ -872,13 +873,11 @@ CONTAINS
          CPABORT("Error in DSYEVX (ScaLAPACK)")
       END IF
 
+#endif
       ! Release work storage
-
       DEALLOCATE (ifail)
       DEALLOCATE (iwork)
       DEALLOCATE (work)
-
-#endif
       eigenvalues(1:neig_local) = w(1:neig_local)
       DEALLOCATE (w)
 
