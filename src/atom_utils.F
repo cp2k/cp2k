@@ -402,7 +402,7 @@ CONTAINS
                                + 2._dp*ff*basis%dbf(:, i, l)*basis%bf(:, j, l)/rr(:) &
                                + 2._dp*ff*basis%bf(:, i, l)*basis%dbf(:, j, l)/rr(:)
                ELSE
-                  CPABORT("")
+                  CPABORT("Unknown matrix type specified. Check the code!")
                END IF
             END DO
          END DO
@@ -1148,8 +1148,6 @@ CONTAINS
                   END DO
                   expa(:) = EXP(-z(:)**2)*ff/(a + b)**(l + 1)
                   SELECT CASE (l)
-                  CASE DEFAULT
-                     CPABORT("")
                   CASE (0)
                      cpot(:) = cpot(:) + 0.25_dp*erfa(:)
                   CASE (1)
@@ -1158,6 +1156,8 @@ CONTAINS
                      cpot(:) = cpot(:) + 0.9375_dp*erfa(:) - expa(:)*(0.875_dp + 0.25_dp*z(:)**2)
                   CASE (3)
                      cpot(:) = cpot(:) + 3.28125_dp*erfa(:) - expa(:)*(3.5625_dp + 1.375_dp*z(:)**2 + 0.25*z(:)**4)
+                  CASE DEFAULT
+                     CPABORT("Invalid l number for GTO specified. Check the code!")
                   END SELECT
                END DO
             END DO
@@ -1183,8 +1183,6 @@ CONTAINS
                   END DO
                   expa(:) = EXP(-z(:)**2)*ff/(a + b)**(l + 1)
                   SELECT CASE (l)
-                  CASE DEFAULT
-                     CPABORT("")
                   CASE (0)
                      cpot(:) = cpot(:) + 0.25_dp*erfa(:)
                   CASE (1)
@@ -1193,6 +1191,8 @@ CONTAINS
                      cpot(:) = cpot(:) + 0.9375_dp*erfa(:) - expa(:)*(0.875_dp + 0.25_dp*z(:)**2)
                   CASE (3)
                      cpot(:) = cpot(:) + 3.28125_dp*erfa(:) - expa(:)*(3.5625_dp + 1.375_dp*z(:)**2 + 0.25*z(:)**4)
+                  CASE DEFAULT
+                     CPABORT("Invalid l number for CGTO specified. Check the code!")
                   END SELECT
                END DO
             END DO

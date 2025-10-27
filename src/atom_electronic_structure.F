@@ -98,9 +98,9 @@ CONTAINS
       CASE (do_uks_atom, do_uhf_atom)
          CALL calculate_atom_unrestricted(atom, iw, noguess, converged)
       CASE (do_rohf_atom)
-         CPABORT("")
+         CPABORT("The ROHF method is not yet implemented in the ATOM code.")
       CASE DEFAULT
-         CPABORT("")
+         CPABORT("Invalid method specified for ATOM code. Check the code!")
       END SELECT
 
       CALL timestop(handle)
