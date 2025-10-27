@@ -380,6 +380,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: zval
       CHARACTER(LEN=2)                                   :: btyp
 
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'init_atom_basis'
       INTEGER, PARAMETER                                 :: nua = 40, nup = 16
       REAL(KIND=dp), DIMENSION(nua), PARAMETER :: ugbs = (/0.007299_dp, 0.013705_dp, 0.025733_dp, &
          0.048316_dp, 0.090718_dp, 0.170333_dp, 0.319819_dp, 0.600496_dp, 1.127497_dp, 2.117000_dp,&
@@ -392,13 +393,15 @@ CONTAINS
          341890134.751331_dp/)
 
       CHARACTER(LEN=default_string_length)               :: basis_fn, basis_name
-      INTEGER                                            :: basistype, i, j, k, l, ll, m, ngp, nl, &
-                                                            nr, nu, quadtype
+      INTEGER                                            :: basistype, handle, i, j, k, l, ll, m, &
+                                                            ngp, nl, nr, nu, quadtype
       INTEGER, DIMENSION(0:lmat)                         :: starti
       INTEGER, DIMENSION(:), POINTER                     :: nqm, num_gto, num_slater, sindex
       REAL(KIND=dp)                                      :: al, amax, aval, cval, ear, pf, rk
       REAL(KIND=dp), DIMENSION(:), POINTER               :: expo
       TYPE(section_vals_type), POINTER                   :: gto_basis_section
+
+      CALL timeset(routineN, handle)
 
       !   btyp = AE : standard all-electron basis
       !   btyp = PP : standard pseudopotential basis
@@ -700,6 +703,8 @@ CONTAINS
          CPABORT("")
       END SELECT
 
+      CALL timestop(handle)
+
    END SUBROUTINE init_atom_basis
 
 ! **************************************************************************************************
@@ -709,6 +714,7 @@ CONTAINS
    SUBROUTINE init_atom_basis_default_pp(basis)
       TYPE(atom_basis_type), INTENT(INOUT)               :: basis
 
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'init_atom_basis_default_pp'
       INTEGER, PARAMETER                                 :: nua = 40, nup = 20
       REAL(KIND=dp), DIMENSION(nua), PARAMETER :: ugbs = (/0.007299_dp, 0.013705_dp, 0.025733_dp, &
          0.048316_dp, 0.090718_dp, 0.170333_dp, 0.319819_dp, 0.600496_dp, 1.127497_dp, 2.117000_dp,&
@@ -720,11 +726,14 @@ CONTAINS
          27508345.793637_dp, 51649961.080194_dp, 96978513.342764_dp, 182087882.613702_dp, &
          341890134.751331_dp/)
 
-      INTEGER                                            :: i, k, l, m, ngp, nr, nu, quadtype
+      INTEGER                                            :: handle, i, k, l, m, ngp, nr, nu, quadtype
       REAL(KIND=dp)                                      :: al, ear, rk
 
+      CALL timeset(routineN, handle)
+
       NULLIFY (basis%am, basis%cm, basis%as, basis%ns, basis%bf, basis%dbf, basis%ddbf)
-      ! allocate and initialize the atomic grid
+
+      ! Allocate and initialize the atomic grid
       NULLIFY (basis%grid)
       CALL allocate_grid_atom(basis%grid)
       quadtype = do_gapw_log
@@ -767,6 +776,8 @@ CONTAINS
             END DO
          END DO
       END DO
+
+      CALL timestop(handle)
 
    END SUBROUTINE init_atom_basis_default_pp
 

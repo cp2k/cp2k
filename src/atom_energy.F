@@ -51,8 +51,8 @@ MODULE atom_energy
    USE kinds,                           ONLY: default_string_length,&
                                               dp
    USE mathconstants,                   ONLY: dfac,&
+                                              fourpi,&
                                               gamma1,&
-                                              pi,&
                                               rootpi
    USE periodic_table,                  ONLY: nelem,&
                                               ptable
@@ -657,7 +657,8 @@ CONTAINS
       INTEGER                                            :: i, ibeta, ii, j, k, kk, l, lmax, n0, &
                                                             nbeta, nr, nwfc, nwfn
       LOGICAL                                            :: soc, up
-      REAL(KIND=dp)                                      :: occa, occb, pf, rl, rlp, rmax, vnlm, vnlp
+      REAL(KIND=dp)                                      :: occa, occb, pf, rhoatom, rl, rlp, rmax, &
+                                                            vnlm, vnlp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: beta, corden, dens, ef, locpot, rp
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: dij
       TYPE(atom_gthpot_type), POINTER                    :: pot
@@ -963,11 +964,18 @@ CONTAINS
       CALL atom_density(dens, atom%orbitals%pmat, atom%basis, atom%state%maxl_occ, &
                         "RHO", atom%basis%grid%rad)
       IF (up) THEN
-         WRITE (iw, '(T8,4ES25.12E3)') (4._dp*pi*dens(j)*atom%basis%grid%rad2(j), j=1, nr)
+         WRITE (iw, '(T8,4ES25.12E3)') (fourpi*dens(j)*atom%basis%grid%rad2(j), j=1, nr)
       ELSE
-         WRITE (iw, '(T8,4ES25.12E3)') (4._dp*pi*dens(j)*atom%basis%grid%rad2(j), j=nr, 1, -1)
+         WRITE (iw, '(T8,4ES25.12E3)') (fourpi*dens(j)*atom%basis%grid%rad2(j), j=nr, 1, -1)
       END IF
       WRITE (iw, '(T4,A)') '</PP_RHOATOM>'
+
+      ! Check atomic electron count
+      rhoatom = SUM(fourpi*atom%basis%grid%wr(:)*dens(:))
+      IF (ABS(pot%zion - rhoatom) > 0.01_dp) THEN
+         CALL cp_warn(__LOCATION__, "Valence charge and electron count differ by more than 0.01")
+      END IF
+
       DEALLOCATE (dens)
 
       ! PP SOC information

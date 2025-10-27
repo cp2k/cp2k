@@ -602,15 +602,12 @@ CONTAINS
       INTEGER                                            :: i
       REAL(dp)                                           :: cost, f, sint, sint2, t, w, x
 
-      f = pi/REAL(n + 1, dp)
+      f = pi/REAL(n + 1, KIND=dp)
 
       SELECT CASE (radial_quadrature)
-
       CASE (do_gapw_gcs)
-
-         !     *** Gauss-Chebyshev quadrature formula of the second kind ***
-         !     *** u [-1,+1] -> r [0,infinity] =>  r = (1 + u)/(1 - u)   ***
-
+         ! Gauss-Chebyshev quadrature formula of the second kind
+         ! u [-1,+1] -> r [0,infinity] =>  r = (1 + u)/(1 - u)
          DO i = 1, n
             t = REAL(i, dp)*f
             x = COS(t)
@@ -620,12 +617,9 @@ CONTAINS
             wr(i) = w/SQRT(1.0_dp - x**2)
             wr(i) = 2.0_dp*wr(i)*r2(i)/(1.0_dp - x)**2
          END DO
-
       CASE (do_gapw_gct)
-
-         !     *** Transformed Gauss-Chebyshev quadrature formula of the second kind ***
-         !     *** u [-1,+1] -> r [0,infinity] => r = (1 + u)/(1 - u)                ***
-
+         ! Transformed Gauss-Chebyshev quadrature formula of the second kind
+         ! u [-1,+1] -> r [0,infinity] => r = (1 + u)/(1 - u)
          DO i = 1, n
             t = REAL(i, dp)*f
             cost = COS(t)
@@ -638,12 +632,9 @@ CONTAINS
             r2(n + 1 - i) = r(n + 1 - i)**2
             wr(n + 1 - i) = 2.0_dp*w*r2(n + 1 - i)/(1.0_dp - x)**2
          END DO
-
       CASE (do_gapw_log)
-
-         !     *** Transformed Gauss-Chebyshev quadrature formula of the second kind ***
-         !     *** u [-1,+1] -> r [0,infinity] => r = ln(2/(1 - u))/ln(2)            ***
-
+         ! Logarithmic transformed Gauss-Chebyshev quadrature formula of the second kind
+         ! u [-1,+1] -> r [0,infinity] => r = ln(2/(1 - u))/ln(2)
          DO i = 1, n
             t = REAL(i, dp)*f
             cost = COS(t)
@@ -656,11 +647,8 @@ CONTAINS
             r2(n + 1 - i) = r(n + 1 - i)**2
             wr(n + 1 - i) = w*r2(n + 1 - i)/(LOG(2.0_dp)*(1.0_dp - x))
          END DO
-
       CASE DEFAULT
-
          CPABORT("Invalid radial quadrature type specified")
-
       END SELECT
 
    END SUBROUTINE radial_grid
