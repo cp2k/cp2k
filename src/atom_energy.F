@@ -944,9 +944,9 @@ CONTAINS
                END DO
                beta(:) = beta*atom%basis%grid%rad
                IF (up) THEN
-                  WRITE (iw, '(T12,4ES25.12E3)') (beta(j)*atom%basis%grid%rad(j), j=1, nr)
+                  WRITE (iw, '(T12,4ES25.12E3)') (beta(j), j=1, nr)
                ELSE
-                  WRITE (iw, '(T12,4ES25.12E3)') (beta(j)*atom%basis%grid%rad(j), j=nr, 1, -1)
+                  WRITE (iw, '(T12,4ES25.12E3)') (beta(j), j=nr, 1, -1)
                END IF
                CALL compose(string, "</PP_CHI", counter=nwfn, isfinal=.TRUE.)
                WRITE (iw, '(T8,A)') TRIM(string)
