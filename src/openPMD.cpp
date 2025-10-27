@@ -293,9 +293,18 @@ char *openPMD_json_merge(char const *into, char const *from,
 /////////////////
 
 #include <openPMD/openPMD.hpp>
+#if !OPENPMDAPI_VERSION_GE(0, 17, 0)
+#include <openPMD/auxiliary/Filesystem.hpp>
+#endif
 
 #include <any>
+#include <cctype>
+#include <cstdio>
+#include <fstream>
+#include <sstream>
+#include <stdexcept>
 #include <string>
+#include <variant>
 
 namespace implementation {
 namespace {
@@ -446,6 +455,73 @@ template <typename res_t = void, typename T>
 auto pointer_to_vector(T *ptr, size_t len, int invert) {
   return pointer_to_vector<res_t, T>(ptr, len, static_cast<bool>(invert));
 }
+
+#if !OPENPMDAPI_VERSION_GE(0, 17, 0)
+auto resolveFilename(char const *unparsed) -> std::optional<std::string> {
+  char const *current_char = unparsed;
+  // First, trim front
+  while (std::isspace(*current_char) && *current_char != '\0' &&
+         *current_char != '@') {
+    ++current_char;
+  }
+  if (*current_char == '@') {
+    // Now, trim back
+    auto begin_filename = current_char + 1;
+    auto end_filename = begin_filename;
+    size_t i = 0;
+    while (*end_filename != '\0') {
+      ++end_filename;
+      ++i;
+      if (i > FILENAME_MAX) {
+        throw std::runtime_error(
+            "resolveFilename: Longer than maximum allowed filename.");
+      }
+    }
+    // *end_filename is now equal to '\0'
+    --end_filename;
+    while (std::isspace(*end_filename)) {
+      --end_filename;
+    }
+    // need past-the-end iterator
+    ++end_filename;
+    return std::string(begin_filename, end_filename);
+  } else {
+    return std::nullopt;
+  }
+}
+
+auto resolveFileContent(char const *maybeStringMaybeFilename,
+                        std::optional<MPI_Comm> maybe_comm)
+    -> std::variant<char const *, std::string> {
+  auto filename = resolveFilename(maybeStringMaybeFilename);
+  if (!filename.has_value()) {
+    return maybeStringMaybeFilename;
+  }
+  auto serialImplementation = [&]() {
+    std::fstream handle;
+    handle.open(*filename, std::ios_base::in);
+    std::stringstream stream;
+    stream << handle.rdbuf();
+    if (!handle.good()) {
+      throw std::runtime_error("Failed acessing file '" + *filename + "'.");
+    }
+    handle.close();
+    return stream.str();
+  };
+#if openPMD_HAVE_MPI
+  auto parallelImplementation = [&](MPI_Comm comm) {
+    return openPMD::auxiliary::collective_file_read(*filename, comm);
+  };
+  if (maybe_comm.has_value()) {
+    return parallelImplementation(*maybe_comm);
+  } else {
+    return serialImplementation();
+  }
+#else
+  return serialImplementation();
+#endif
+}
+#endif
 
 struct RecordComponent_makeConstant {
   template <typename Type>
@@ -813,7 +889,23 @@ char *openPMD_json_merge(char const *into, char const *from,
   auto const res = maybe_comm ? openPMD::json::merge(into, from, maybe_comm)
                               : openPMD::json::merge(into, from);
 #else
-  auto const res = openPMD::json::merge(into, from);
+  // openPMD::json::merge in release 0.16.1 has an API bug in which it does not
+  // resolve filenames, so we do it manually.
+  auto comm =
+      maybe_comm ? std::make_optional<MPI_Comm>(maybe_comm) : std::nullopt;
+  auto const into_resolved = implementation::resolveFileContent(into, comm);
+  auto const from_resolved = implementation::resolveFileContent(from, comm);
+  auto const res = std::visit(
+      [&](auto &&i) {
+        return std::visit(
+            [&](auto &&f) {
+              return openPMD::json::merge(
+                  // poor man's std::forward()
+                  static_cast<decltype(i)>(i), static_cast<decltype(f)>(f));
+            },
+            from_resolved);
+      },
+      into_resolved);
 #endif
   char *c_res = static_cast<char *>(malloc(sizeof(char) * (res.size() + 1)));
   std::copy_n(res.c_str(), res.size() + 1, c_res);
