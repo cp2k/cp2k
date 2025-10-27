@@ -403,6 +403,14 @@ CONTAINS
                END IF
                CALL cp_print_key_finished_output(iw, logger, atom_section, "PRINT%ORBITALS")
 
+               ! generate a UPF file
+               iw = cp_print_key_unit_nr(logger, atom_section, "PRINT%UPF_FILE", extension=".upf", &
+                                         file_position="REWIND")
+               IF (iw > 0) THEN
+                  CALL atom_write_upf(atom_info(in, im)%atom, iw, xcfstr)
+               END IF
+               CALL cp_print_key_finished_output(iw, logger, atom_section, "PRINT%UPF_FILE")
+
                ! perform a fit of the total electronic density
                iw = cp_print_key_unit_nr(logger, atom_section, "PRINT%FIT_DENSITY", extension=".log")
                IF (iw > 0) THEN
@@ -431,13 +439,6 @@ CONTAINS
                END IF
                CALL cp_print_key_finished_output(iw, logger, atom_section, "PRINT%RESPONSE_BASIS")
 
-               ! generate a UPF file
-               iw = cp_print_key_unit_nr(logger, atom_section, "PRINT%UPF_FILE", extension=".upf", &
-                                         file_position="REWIND")
-               IF (iw > 0) THEN
-                  CALL atom_write_upf(atom_info(in, im)%atom, iw, xcfstr)
-               END IF
-               CALL cp_print_key_finished_output(iw, logger, atom_section, "PRINT%UPF_FILE")
             END IF
 
          END DO
@@ -920,9 +921,9 @@ CONTAINS
             END DO
             beta(:) = beta*atom%basis%grid%rad
             IF (up) THEN
-               WRITE (iw, '(T12,4ES25.12E3)') (beta(j)*atom%basis%grid%rad(j), j=1, nr)
+               WRITE (iw, '(T12,4ES25.12E3)') (beta(j), j=1, nr)
             ELSE
-               WRITE (iw, '(T12,4ES25.12E3)') (beta(j)*atom%basis%grid%rad(j), j=nr, 1, -1)
+               WRITE (iw, '(T12,4ES25.12E3)') (beta(j), j=nr, 1, -1)
             END IF
             CALL compose(string, "</PP_CHI", counter=nwfn, isfinal=.TRUE.)
             WRITE (iw, '(T8,A)') TRIM(string)
@@ -943,9 +944,9 @@ CONTAINS
                END DO
                beta(:) = beta*atom%basis%grid%rad
                IF (up) THEN
-                  WRITE (iw, '(T12,4ES25.12E3)') (beta(j)*atom%basis%grid%rad(j), j=1, nr)
+                  WRITE (iw, '(T12,4ES25.12E3)') (beta(j), j=1, nr)
                ELSE
-                  WRITE (iw, '(T12,4ES25.12E3)') (beta(j)*atom%basis%grid%rad(j), j=nr, 1, -1)
+                  WRITE (iw, '(T12,4ES25.12E3)') (beta(j), j=nr, 1, -1)
                END IF
                CALL compose(string, "</PP_CHI", counter=nwfn, isfinal=.TRUE.)
                WRITE (iw, '(T8,A)') TRIM(string)
@@ -977,7 +978,6 @@ CONTAINS
       END IF
 
       DEALLOCATE (dens)
-
       ! PP SOC information
       IF (soc) THEN
          WRITE (iw, '(T4,A)') '<PP_SPIN_ORB>'
