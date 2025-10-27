@@ -809,8 +809,12 @@ int openPMD_Record_get_Component(
 
 char *openPMD_json_merge(char const *into, char const *from,
                          MPI_Comm maybe_comm) {
+#if OPENPMDAPI_VERSION_GE(0, 17, 0)
   auto const res = maybe_comm ? openPMD::json::merge(into, from, maybe_comm)
                               : openPMD::json::merge(into, from);
+#else
+  auto const res = openPMD::json::merge(into, from);
+#endif
   char *c_res = static_cast<char *>(malloc(sizeof(char) * (res.size() + 1)));
   std::copy_n(res.c_str(), res.size() + 1, c_res);
   return c_res;
