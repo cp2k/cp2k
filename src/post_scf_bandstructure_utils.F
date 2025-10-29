@@ -1392,12 +1392,11 @@ CONTAINS
          CALL bs_env%para_env%min(i_y_start_glob)
          CALL bs_env%para_env%max(i_y_end_glob)
 
-         ALLOCATE (n_sum_for_bins(bin_mesh(1), bin_mesh(2)))
-         n_sum_for_bins(:, :) = 0
+         ALLOCATE (n_sum_for_bins(bin_mesh(1), bin_mesh(2)), SOURCE=0)
 
          ! transform interval [i_x_start, i_x_end] to [1, bin_mesh(1)] (and same for y)
-         DO i_x = i_x_start, i_x_end
-            DO i_y = i_y_start, i_y_end
+         DO i_y = i_y_start, i_y_end
+            DO i_x = i_x_start, i_x_end
                i_x_bin = bin_mesh(1)*(i_x - i_x_start_glob)/(i_x_end_glob - i_x_start_glob + 1) + 1
                i_y_bin = bin_mesh(2)*(i_y - i_y_start_glob)/(i_y_end_glob - i_y_start_glob + 1) + 1
                LDOS_2d_bins(i_x_bin, i_y_bin, :) = LDOS_2d_bins(i_x_bin, i_y_bin, :) + &
@@ -1410,8 +1409,8 @@ CONTAINS
          CALL bs_env%para_env%sum(n_sum_for_bins)
 
          ! divide by number of terms in the sum so we have the average LDOS(x,y,E)
-         DO i_x_bin = 1, bin_mesh(1)
-            DO i_y_bin = 1, bin_mesh(2)
+         DO i_y_bin = 1, bin_mesh(2)
+            DO i_x_bin = 1, bin_mesh(1)
                LDOS_2d_bins(i_x_bin, i_y_bin, :) = LDOS_2d_bins(i_x_bin, i_y_bin, :)/ &
                                                    REAL(n_sum_for_bins(i_x_bin, i_y_bin), KIND=dp)
             END DO
@@ -1470,8 +1469,8 @@ CONTAINS
 
       IF (bs_env%para_env%is_source()) THEN
 
-         DO i_x = i_x_start, i_x_end
-            DO i_y = i_y_start, i_y_end
+         DO i_y = i_y_start, i_y_end
+            DO i_x = i_x_start, i_x_end
 
                idx(1) = (REAL(i_x, KIND=dp) - 0.5_dp)/REAL(n_x, KIND=dp)
                idx(2) = (REAL(i_y, KIND=dp) - 0.5_dp)/REAL(n_y, KIND=dp)
@@ -2224,8 +2223,8 @@ CONTAINS
          CALL cp_cfm_to_cfm(cfm_s, cfm_s_i_kind)
 
          ! set entries in overlap matrix to zero which do not belong to atoms of i_kind
-         DO i_row = 1, nrow_local
-            DO j_col = 1, ncol_local
+         DO j_col = 1, ncol_local
+            DO i_row = 1, nrow_local
 
                i_global = row_indices(i_row)
 
@@ -2352,7 +2351,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cfm_ikp_from_fm_Gamma'
 
-      INTEGER :: col_global, handle, i, i_atom, i_atom_old, i_cell, i_mic_cell, i_row, j, j_atom, &
+      INTEGER :: col_global, handle, i_atom, i_atom_old, i_cell, i_mic_cell, i_row, j_atom, &
          j_atom_old, j_cell, j_col, n_bf, ncol_local, nrow_local, num_cells, row_global
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_from_bf
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
@@ -2400,8 +2399,8 @@ CONTAINS
       i_atom_old = 0
       j_atom_old = 0
 
-      DO i_row = 1, nrow_local
-         DO j_col = 1, ncol_local
+      DO j_col = 1, ncol_local
+         DO i_row = 1, nrow_local
 
             row_global = row_indices(i_row)
             col_global = col_indices(j_col)
@@ -2446,11 +2445,8 @@ CONTAINS
                   REAL(index_to_cell(2, i_mic_cell), dp)*kpoints%xkp(2, ikp) + &
                   REAL(index_to_cell(3, i_mic_cell), dp)*kpoints%xkp(3, ikp)
 
-            i = i_row
-            j = j_col
-
-            cfm_ikp%local_data(i, j) = COS(twopi*arg)*fm_Gamma%local_data(i, j)*z_one + &
-                                       SIN(twopi*arg)*fm_Gamma%local_data(i, j)*gaussi
+            cfm_ikp%local_data(i_row, j_col) = COS(twopi*arg)*fm_Gamma%local_data(i_row, j_col)*z_one + &
+                                               SIN(twopi*arg)*fm_Gamma%local_data(i_row, j_col)*gaussi
 
             j_atom_old = j_atom
             i_atom_old = i_atom
@@ -2479,7 +2475,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_type)                                   :: fm_W_MIC_freq_j
       TYPE(cp_cfm_type)                                  :: cfm_W_ikp_freq_j
-      INTEGER                                            :: ikp
+      INTEGER, INTENT(IN)                                :: ikp
       TYPE(kpoint_type), POINTER                         :: kpoints
       CHARACTER(LEN=*)                                   :: basis_type
       REAL(KIND=dp), OPTIONAL                            :: wkp_ext
@@ -2531,8 +2527,8 @@ CONTAINS
       iatom_old = 0
       jatom_old = 0
 
-      DO irow = 1, nrow_local
-         DO jcol = 1, ncol_local
+      DO jcol = 1, ncol_local
+         DO irow = 1, nrow_local
 
             i_bf = row_indices(irow)
             j_bf = col_indices(jcol)

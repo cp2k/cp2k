@@ -184,13 +184,10 @@ CONTAINS
 
       CALL section_vals_val_get(qs_env%input, "DFT%SUBCELLS", r_val=subcells)
 
-      ALLOCATE (i_present(nkind), j_present(nkind))
-      ALLOCATE (i_radius(nkind), j_radius(nkind))
-
-      i_present = .FALSE.
-      j_present = .FALSE.
-      i_radius = 0.0_dp
-      j_radius = 0.0_dp
+      ALLOCATE (i_present(nkind), SOURCE=.FALSE.)
+      ALLOCATE (j_present(nkind), SOURCE=.FALSE.)
+      ALLOCATE (i_radius(nkind), SOURCE=0.0_dp)
+      ALLOCATE (j_radius(nkind), SOURCE=0.0_dp)
 
       IF (PRESENT(dist_2d)) dist_2d_prv => dist_2d
 
@@ -245,8 +242,7 @@ CONTAINS
          CPABORT("Operator not implemented.")
       END IF
 
-      ALLOCATE (pair_radius(nkind, nkind))
-      pair_radius = 0.0_dp
+      ALLOCATE (pair_radius(nkind, nkind), SOURCE=0.0_dp)
       CALL pair_radius_setup(i_present, j_present, i_radius, j_radius, pair_radius)
 
       ALLOCATE (atom2d(nkind))
@@ -1321,36 +1317,32 @@ CONTAINS
          IF (kind_radius_j + kind_radius_k + dr_jk < djk) CYCLE
          IF (kind_radius_k + kind_radius_i + dr_ik < dik) CYCLE
 
-         ALLOCATE (max_contraction_i(nseti))
-         max_contraction_i = 0.0_dp
-         DO iset = 1, nseti
-            sgfi = first_sgf_i(1, iset)
-            max_contraction_i(iset) = MAXVAL((/(SUM(ABS(sphi_i(:, i))), i=sgfi, sgfi + nsgfi(iset) - 1)/))
-         END DO
+         IF (PRESENT(der_eps)) THEN
+            ALLOCATE (max_contraction_i(nseti))
+            DO iset = 1, nseti
+               sgfi = first_sgf_i(1, iset)
+               max_contraction_i(iset) = MAXVAL((/(SUM(ABS(sphi_i(:, i))), i=sgfi, sgfi + nsgfi(iset) - 1)/))
+            END DO
 
-         ALLOCATE (max_contraction_j(nsetj))
-         max_contraction_j = 0.0_dp
-         DO jset = 1, nsetj
-            sgfj = first_sgf_j(1, jset)
-            max_contraction_j(jset) = MAXVAL((/(SUM(ABS(sphi_j(:, i))), i=sgfj, sgfj + nsgfj(jset) - 1)/))
-         END DO
+            ALLOCATE (max_contraction_j(nsetj))
+            DO jset = 1, nsetj
+               sgfj = first_sgf_j(1, jset)
+               max_contraction_j(jset) = MAXVAL((/(SUM(ABS(sphi_j(:, i))), i=sgfj, sgfj + nsgfj(jset) - 1)/))
+            END DO
 
-         ALLOCATE (max_contraction_k(nsetk))
-         max_contraction_k = 0.0_dp
-         DO kset = 1, nsetk
-            sgfk = first_sgf_k(1, kset)
-            max_contraction_k(kset) = MAXVAL((/(SUM(ABS(sphi_k(:, i))), i=sgfk, sgfk + nsgfk(kset) - 1)/))
-         END DO
+            ALLOCATE (max_contraction_k(nsetk))
+            DO kset = 1, nsetk
+               sgfk = first_sgf_k(1, kset)
+               max_contraction_k(kset) = MAXVAL((/(SUM(ABS(sphi_k(:, i))), i=sgfk, sgfk + nsgfk(kset) - 1)/))
+            END DO
+         END IF
 
          CALL dbt_blk_sizes(t3c_der_i(jcell, kcell, 1), blk_idx, blk_size)
 
-         ALLOCATE (block_t_i(blk_size(2), blk_size(3), blk_size(1), 3))
-         ALLOCATE (block_t_j(blk_size(2), blk_size(3), blk_size(1), 3))
-         ALLOCATE (block_t_k(blk_size(2), blk_size(3), blk_size(1), 3))
+         ALLOCATE (block_t_i(blk_size(2), blk_size(3), blk_size(1), 3), SOURCE=0.0_dp)
+         ALLOCATE (block_t_j(blk_size(2), blk_size(3), blk_size(1), 3), SOURCE=0.0_dp)
+         ALLOCATE (block_t_k(blk_size(2), blk_size(3), blk_size(1), 3), SOURCE=0.0_dp)
 
-         block_t_i = 0.0_dp
-         block_t_j = 0.0_dp
-         block_t_k = 0.0_dp
          block_j_not_zero = .FALSE.
          block_k_not_zero = .FALSE.
 
@@ -1374,10 +1366,8 @@ CONTAINS
                   sgfk = first_sgf_k(1, kset)
 
                   IF (ncoj*ncok*ncoi > 0) THEN
-                     ALLOCATE (dijk_j(ncoj, ncok, ncoi, 3))
-                     ALLOCATE (dijk_k(ncoj, ncok, ncoi, 3))
-                     dijk_j(:, :, :, :) = 0.0_dp
-                     dijk_k(:, :, :, :) = 0.0_dp
+                     ALLOCATE (dijk_j(ncoj, ncok, ncoi, 3), SOURCE=0.0_dp)
+                     ALLOCATE (dijk_k(ncoj, ncok, ncoi, 3), SOURCE=0.0_dp)
 
                      der_j_zero = .FALSE.
                      der_k_zero = .FALSE.
@@ -1395,10 +1385,8 @@ CONTAINS
                                                 djk, dij, dik, lib, potential_parameter, &
                                                 der_abc_1_ext=der_ext_j, der_abc_2_ext=der_ext_k)
                      ELSE
-                        ALLOCATE (tmp_ijk_i(ncoi, ncoj, ncok, 3))
-                        ALLOCATE (tmp_ijk_j(ncoi, ncoj, ncok, 3))
-                        tmp_ijk_i(:, :, :, :) = 0.0_dp
-                        tmp_ijk_j(:, :, :, :) = 0.0_dp
+                        ALLOCATE (tmp_ijk_i(ncoi, ncoj, ncok, 3), SOURCE=0.0_dp)
+                        ALLOCATE (tmp_ijk_j(ncoi, ncoj, ncok, 3), SOURCE=0.0_dp)
 
                         CALL eri_3center_derivs(tmp_ijk_i, tmp_ijk_j, &
                                                 lmin_i(iset), lmax_i(iset), npgfi(iset), zeti(:, iset), rpgf_i(:, iset), ri, &
@@ -1537,7 +1525,9 @@ CONTAINS
          CALL timestop(handle2)
 
          DEALLOCATE (block_t_i, block_t_j, block_t_k)
-         DEALLOCATE (max_contraction_i, max_contraction_j, max_contraction_k)
+         IF (PRESENT(der_eps)) THEN
+            DEALLOCATE (max_contraction_i, max_contraction_j, max_contraction_k)
+         END IF
       END DO
 
       IF (ALLOCATED(ccp_buffer)) DEALLOCATE (ccp_buffer)
@@ -1762,8 +1752,8 @@ CONTAINS
       END DO
       m_max = maxli + maxlj + maxlk + 1
 
-      !To minimize expensive memory opsand generally optimize contraction, pre-allocate
-      !contiguous sphi arrays (and transposed in the cas of sphi_i)
+      !To minimize expensive memory ops and generally optimize contraction, pre-allocate
+      !contiguous sphi arrays (and transposed in the case of sphi_i)
 
       NULLIFY (tspj, spi, spk)
       ALLOCATE (spi(max_nset, nbasis), tspj(max_nset, nbasis), spk(max_nset, nbasis))
@@ -1883,26 +1873,25 @@ CONTAINS
          IF (kind_radius_j + kind_radius_k + dr_jk < djk) CYCLE
          IF (kind_radius_k + kind_radius_i + dr_ik < dik) CYCLE
 
-         ALLOCATE (max_contraction_i(nseti))
-         max_contraction_i = 0.0_dp
-         DO iset = 1, nseti
-            sgfi = first_sgf_i(1, iset)
-            max_contraction_i(iset) = MAXVAL((/(SUM(ABS(sphi_i(:, i))), i=sgfi, sgfi + nsgfi(iset) - 1)/))
-         END DO
+         IF (PRESENT(der_eps)) THEN
+            ALLOCATE (max_contraction_i(nseti))
+            DO iset = 1, nseti
+               sgfi = first_sgf_i(1, iset)
+               max_contraction_i(iset) = MAXVAL((/(SUM(ABS(sphi_i(:, i))), i=sgfi, sgfi + nsgfi(iset) - 1)/))
+            END DO
 
-         ALLOCATE (max_contraction_j(nsetj))
-         max_contraction_j = 0.0_dp
-         DO jset = 1, nsetj
-            sgfj = first_sgf_j(1, jset)
-            max_contraction_j(jset) = MAXVAL((/(SUM(ABS(sphi_j(:, i))), i=sgfj, sgfj + nsgfj(jset) - 1)/))
-         END DO
+            ALLOCATE (max_contraction_j(nsetj))
+            DO jset = 1, nsetj
+               sgfj = first_sgf_j(1, jset)
+               max_contraction_j(jset) = MAXVAL((/(SUM(ABS(sphi_j(:, i))), i=sgfj, sgfj + nsgfj(jset) - 1)/))
+            END DO
 
-         ALLOCATE (max_contraction_k(nsetk))
-         max_contraction_k = 0.0_dp
-         DO kset = 1, nsetk
-            sgfk = first_sgf_k(1, kset)
-            max_contraction_k(kset) = MAXVAL((/(SUM(ABS(sphi_k(:, i))), i=sgfk, sgfk + nsgfk(kset) - 1)/))
-         END DO
+            ALLOCATE (max_contraction_k(nsetk))
+            DO kset = 1, nsetk
+               sgfk = first_sgf_k(1, kset)
+               max_contraction_k(kset) = MAXVAL((/(SUM(ABS(sphi_k(:, i))), i=sgfk, sgfk + nsgfk(kset) - 1)/))
+            END DO
+         END IF
 
          CALL dbt_blk_sizes(t3c_trace, [iatom, jatom, katom], blk_size)
 
@@ -1942,10 +1931,8 @@ CONTAINS
                   sgfk = first_sgf_k(1, kset)
 
                   IF (ncoj*ncok*ncoi > 0) THEN
-                     ALLOCATE (dijk_j(ncoj, ncok, ncoi, 3))
-                     ALLOCATE (dijk_k(ncoj, ncok, ncoi, 3))
-                     dijk_j(:, :, :, :) = 0.0_dp
-                     dijk_k(:, :, :, :) = 0.0_dp
+                     ALLOCATE (dijk_j(ncoj, ncok, ncoi, 3), SOURCE=0.0_dp)
+                     ALLOCATE (dijk_k(ncoj, ncok, ncoi, 3), SOURCE=0.0_dp)
 
                      der_j_zero = .FALSE.
                      der_k_zero = .FALSE.
@@ -2073,7 +2060,9 @@ CONTAINS
          END DO
 
          DEALLOCATE (block_t_i, block_t_j, block_t_k)
-         DEALLOCATE (max_contraction_i, max_contraction_j, max_contraction_k, ablock)
+         IF (PRESENT(der_eps)) THEN
+            DEALLOCATE (max_contraction_i, max_contraction_j, max_contraction_k, ablock)
+         END IF
       END DO
 
       IF (ALLOCATED(ccp_buffer)) DEALLOCATE (ccp_buffer)
@@ -2522,17 +2511,19 @@ CONTAINS
          IF (kind_radius_j + kind_radius_k + dr_jk < djk) CYCLE
          IF (kind_radius_k + kind_radius_i + dr_ik < dik) CYCLE
 
-         ALLOCATE (max_contraction_j(nsetj))
-         DO jset = 1, nsetj
-            sgfj = first_sgf_j(1, jset)
-            max_contraction_j(jset) = MAXVAL((/(SUM(ABS(sphi_j(:, i))), i=sgfj, sgfj + nsgfj(jset) - 1)/))
-         END DO
+         IF (PRESENT(int_eps)) THEN
+            ALLOCATE (max_contraction_j(nsetj))
+            DO jset = 1, nsetj
+               sgfj = first_sgf_j(1, jset)
+               max_contraction_j(jset) = MAXVAL((/(SUM(ABS(sphi_j(:, i))), i=sgfj, sgfj + nsgfj(jset) - 1)/))
+            END DO
 
-         ALLOCATE (max_contraction_k(nsetk))
-         DO kset = 1, nsetk
-            sgfk = first_sgf_k(1, kset)
-            max_contraction_k(kset) = MAXVAL((/(SUM(ABS(sphi_k(:, i))), i=sgfk, sgfk + nsgfk(kset) - 1)/))
-         END DO
+            ALLOCATE (max_contraction_k(nsetk))
+            DO kset = 1, nsetk
+               sgfk = first_sgf_k(1, kset)
+               max_contraction_k(kset) = MAXVAL((/(SUM(ABS(sphi_k(:, i))), i=sgfk, sgfk + nsgfk(kset) - 1)/))
+            END DO
+         END IF
 
          CALL dbt_blk_sizes(t3c(jcell, kcell), blk_idx, blk_size)
 
@@ -2649,7 +2640,9 @@ CONTAINS
          END IF
 
          DEALLOCATE (block_t)
-         DEALLOCATE (max_contraction_j, max_contraction_k)
+         IF (PRESENT(int_eps)) THEN
+            DEALLOCATE (max_contraction_j, max_contraction_k)
+         END IF
       END DO
 
       IF (ALLOCATED(ccp_buffer)) DEALLOCATE (ccp_buffer)
@@ -2917,8 +2910,7 @@ CONTAINS
 
                IF (ncoi*ncoj > 0) THEN
                   ALLOCATE (dij_contr(nsgfi(iset), nsgfj(jset)))
-                  ALLOCATE (dij(ncoi, ncoj, 3))
-                  dij(:, :, :) = 0.0_dp
+                  ALLOCATE (dij(ncoi, ncoj, 3), SOURCE=0.0_dp)
 
                   ri = 0.0_dp
                   rj = rij
@@ -3097,8 +3089,7 @@ CONTAINS
 
                IF (ncoi*ncoj > 0) THEN
                   ALLOCATE (dij_contr(nsgfi(iset), nsgfj(jset)))
-                  ALLOCATE (dij(ncoi, ncoj, 3))
-                  dij(:, :, :) = 0.0_dp
+                  ALLOCATE (dij(ncoi, ncoj, 3), SOURCE=0.0_dp)
 
                   ri = 0.0_dp
                   rj = rij
@@ -3343,11 +3334,8 @@ CONTAINS
                sgfj = first_sgf_j(1, jset)
 
                IF (ncoi*ncoj > 0) THEN
-                  ALLOCATE (sij_contr(nsgfi(iset), nsgfj(jset)))
-                  sij_contr(:, :) = 0.0_dp
-
-                  ALLOCATE (sij(ncoi, ncoj))
-                  sij(:, :) = 0.0_dp
+                  ALLOCATE (sij_contr(nsgfi(iset), nsgfj(jset)), SOURCE=0.0_dp)
+                  ALLOCATE (sij(ncoi, ncoj), SOURCE=0.0_dp)
 
                   ri = 0.0_dp
                   rj = rij
