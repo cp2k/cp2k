@@ -575,6 +575,8 @@ CONTAINS
          wfn(:, :, :, ider) = atom%orbitals%wfn
          state%occupation(lhomo, nhomo) = fhomo
       END DO
+      ! reset
+      CALL calculate_atom(atom, iw=0, noguess=.TRUE.)
 
       DO l = 0, state%maxl_occ
          ! occupied states
