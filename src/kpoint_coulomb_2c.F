@@ -179,10 +179,14 @@ CONTAINS
                                               qs_kind_set, atomic_kind_set, basis_type, cell, &
                                               operator_type)
 
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP             SHARED(blocks_v_L, blocks_v_L_store) &
+!$OMP             PRIVATE(i_block)
                         DO i_block = 1, SIZE(blocks_v_L)
                            blocks_v_L_store(i_block)%block(:, :) = blocks_v_L_store(i_block)%block(:, :) &
                                                                    + blocks_v_L(i_block)%block(:, :)
                         END DO
+!$OMP END PARALLEL DO
 
                      END DO
                   END DO

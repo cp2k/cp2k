@@ -575,14 +575,10 @@ CONTAINS
       ALLOCATE (buffer_rec(0:para_env%num_pe - 1))
       ALLOCATE (buffer_send(0:para_env%num_pe - 1))
 
-      ALLOCATE (num_entries_rec(0:para_env%num_pe - 1))
-      ALLOCATE (num_blocks_rec(0:para_env%num_pe - 1))
-      ALLOCATE (num_entries_send(0:para_env%num_pe - 1))
-      ALLOCATE (num_blocks_send(0:para_env%num_pe - 1))
-      num_entries_rec = 0
-      num_blocks_rec = 0
-      num_entries_send = 0
-      num_blocks_send = 0
+      ALLOCATE (num_entries_rec(0:para_env%num_pe - 1), SOURCE=0)
+      ALLOCATE (num_blocks_rec(0:para_env%num_pe - 1), SOURCE=0)
+      ALLOCATE (num_entries_send(0:para_env%num_pe - 1), SOURCE=0)
+      ALLOCATE (num_blocks_send(0:para_env%num_pe - 1), SOURCE=0)
 
       CALL dbcsr_iterator_readonly_start(iter, mat_orig)
       DO WHILE (dbcsr_iterator_blocks_left(iter))

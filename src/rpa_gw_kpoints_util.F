@@ -290,10 +290,8 @@ CONTAINS
       ! Test that matrix is square
       CALL cp_cfm_get_info(matrix, nrow_global=nrow_global, ncol_global=ncol_global)
       CPASSERT(nrow_global == ncol_global)
-      ALLOCATE (eigenvalues(nrow_global))
-      eigenvalues(:) = 0.0_dp
-      ALLOCATE (eigenvalues_exponent(nrow_global))
-      eigenvalues_exponent(:) = z_zero
+      ALLOCATE (eigenvalues(nrow_global), SOURCE=0.0_dp)
+      ALLOCATE (eigenvalues_exponent(nrow_global), SOURCE=z_zero)
 
       ! Diagonalize matrix: get eigenvectors and eigenvalues
       CALL cp_cfm_heevd(matrix, cfm_work, eigenvalues)
