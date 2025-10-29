@@ -149,10 +149,12 @@ int dbm_multiply_opencl_launch_kernel(void *stream, double alpha, int ntasks,
         const char *const sm_env = getenv("DBM_MULTIPLY_SM");
         const char *const wg_env = getenv("DBM_MULTIPLY_WG");
         const char *const lu_env = getenv("DBM_MULTIPLY_LU");
+        const char *const ro_env = getenv("DBM_MULTIPLY_RO");
         const char *const xf_env = getenv("DBM_MULTIPLY_XF");
         const char *exts[] = {NULL, NULL}, *options = NULL;
         int sm = (NULL == sm_env ? 0 /*default*/ : atoi(sm_env));
         const int dd = (0 != config->debug && 0 != config->dump);
+        const int ro = (NULL == ro_env ? -1 /*default*/ : atoi(ro_env));
         const int xf = (NULL == xf_env ? -1 /*default*/ : atoi(xf_env));
         const int bn0 = (0 == devinfo->nv ? 8 : 2), uid = devinfo->uid;
         const int bn1 = ((0 == sm && 0 == clinear) ? bn0 : (bn0 * 2));
@@ -160,7 +162,7 @@ int dbm_multiply_opencl_launch_kernel(void *stream, double alpha, int ntasks,
         const int precision = (NULL == fp_env ? 0 /*default*/ : atoi(fp_env));
         const int gen0 = (NULL == fp_env && NULL == bn_env && NULL == sm_env &&
                           NULL == wg_env && NULL == lu_env && NULL == lin_env &&
-                          0 == param_format);
+                          NULL == ro_env && 0 == param_format);
         const int gen1 = (devinfo->intel && 0x0bd0 <= uid && 0x0bdb >= uid);
         int gen = (0 != gen0 ? (NULL == gen_env ? gen1 : atoi(gen_env)) : 0);
         int bn = LIBXSMM_CLMP(NULL == bn_env ? bn1 : atoi(bn_env), 1, 32);
@@ -201,9 +203,15 @@ int dbm_multiply_opencl_launch_kernel(void *stream, double alpha, int ntasks,
           clinear = (NULL == lin_env ? 0 /*default*/ : atoi(lin_env));
           offset += (size_t)LIBXSMM_SNPRINTF(
               flags + offset, sizeof(flags) - offset,
-              " %s %s -DBN=%i -DSM=%i -DLU=%i -DWG=%i -DSG=%i",
-              0 != gpu ? "-DGPU" : "", 0 == clinear ? "" : "-DCLINEAR", bn, sm,
-              lu, (int)wgsize[0], (int)sgsize);
+              " %s %s -DCONSTANT=%s -DBN=%i -DSM=%i -DLU=%i -DWG=%i -DSG=%i",
+              0 != gpu ? "-DGPU" : "", 0 == clinear ? "" : "-DCLINEAR",
+#if defined(ACC_OPENCL_CMEM)
+              (0 > ro && EXIT_SUCCESS == c_dbcsr_acc_opencl_use_cmem(devinfo))
+                  ? "constant"
+                  :
+#endif
+                  (0 >= ro ? "global" : "constant"),
+              bn, sm, lu, (int)wgsize[0], (int)sgsize);
           if (0 != precision) {
             offset +=
                 (size_t)LIBXSMM_SNPRINTF(flags + offset, sizeof(flags) - offset,

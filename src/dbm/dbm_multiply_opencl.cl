@@ -77,16 +77,19 @@ __attribute__((intel_reqd_sub_group_size(SG)))
 #endif
 kernel void
 dbm_multiply(double alpha, int itask, int ntasks, int size, int param_format,
-             global const int *params,
+             CONSTANT const int *restrict params,
 #if !defined(CLINEAR)
-             global const double *restrict a, global const double *restrict b,
+             CONSTANT const double *restrict a,
+             CONSTANT const double *restrict b,
 #else
-             global const double *restrict b, global const double *restrict a,
+             CONSTANT const double *restrict b,
+             CONSTANT const double *restrict a,
 #endif
              global double *restrict c) {
   const int i = (int)get_global_id(0);
 #if defined(SM) && (0 < SM)
-  local TYPE tls[WG][BN + SM - 1], *const cvec = &tls[get_local_id(0)];
+  local TYPE tls[WG][BN + SM - 1];
+  local TYPE *restrict const cvec = &tls[get_local_id(0)][0];
 #else
   TYPE cvec[BN];
 #endif
