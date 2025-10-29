@@ -174,8 +174,8 @@ CONTAINS
                                                       "FORCE_EVAL%DFT%REAL_TIME_PROPAGATION%PRINT")
       CALL warn_section_unused(rtp_print_section, "POLARIZABILITY", &
                                "POLARIZABILITY printing not implemented for non-RTBSE code.")
-      CALL warn_section_unused(rtp_print_section, "MOMENTS", &
-                               "MOMENTS not implemented: Use DFT%PRINT%MOMENTS for moments printing with TDDFT.")
+      ! CALL warn_section_unused(rtp_print_section, "MOMENTS", &
+      !                          "MOMENTS not implemented: Use DFT%PRINT%MOMENTS for moments printing with TDDFT.")
       CALL warn_section_unused(rtp_print_section, "MOMENTS_FT", &
                                "MOMENTS_FT printing not implemented for non-RTBSE code.")
       CALL warn_section_unused(rtp_print_section, "DENSITY_MATRIX", &
@@ -289,6 +289,9 @@ CONTAINS
             END IF
             CALL calc_update_rho_sparse(qs_env)
          END IF
+         ! Marek : allocate moments
+         CALL get_rtp(rtp, rho_old=rho_old)
+         ALLOCATE (rtp%moments(SIZE(rho_old)/2, 3, rtp%nsteps), source=CMPLX(0.0, 0.0, kind=dp))
       END IF
       ! Modify KS matrix to include the additional terms in the velocity gauge
       IF (rtp_control%velocity_gauge) THEN
@@ -406,6 +409,10 @@ CONTAINS
       IF (.NOT. rtp%converged) &
          CALL cp_abort(__LOCATION__, "propagation did not converge, "// &
                        "either increase MAX_ITER or use a smaller TIMESTEP")
+
+      ! TODO : Marek - output full time propagation quantities - MOMENTS_FT and POLARIZABILITY
+      ! Deallocating the moments array
+      DEALLOCATE (rtp%moments)
 
       CALL timestop(handle)
 

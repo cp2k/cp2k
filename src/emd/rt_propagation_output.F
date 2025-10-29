@@ -19,7 +19,7 @@ MODULE rt_propagation_output
         dbcsr_get_info, dbcsr_get_occupation, dbcsr_init_p, dbcsr_iterator_blocks_left, &
         dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
         dbcsr_multiply, dbcsr_p_type, dbcsr_scale, dbcsr_set, dbcsr_type, &
-        dbcsr_type_antisymmetric, dbcsr_type_no_symmetry
+        dbcsr_type_antisymmetric, dbcsr_type_no_symmetry, dbcsr_release
    USE cp_dbcsr_contrib,                ONLY: dbcsr_checksum,&
                                               dbcsr_trace
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
@@ -49,10 +49,12 @@ MODULE rt_propagation_output
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
    USE efield_utils,                    ONLY: make_field
    USE input_constants,                 ONLY: ehrenfest,&
-                                              real_time_propagation
+                                              real_time_propagation, &
+                                              use_mom_ref_coac
    USE input_section_types,             ONLY: section_get_ivals,&
                                               section_vals_get_subs_vals,&
-                                              section_vals_type
+                                              section_vals_type, &
+                                              section_vals_val_get
    USE kahan_sum,                       ONLY: accurate_sum
    USE kinds,                           ONLY: default_path_length,&
                                               dp
@@ -93,6 +95,8 @@ MODULE rt_propagation_output
                                               rt_prop_type
    USE rt_propagation_utils,            ONLY: write_rtp_mo_cubes,&
                                               write_rtp_mos_to_output_unit
+   USE moments_utils,                   ONLY: get_reference_point
+   USE qs_moments,                      ONLY: build_local_moment_matrix
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -104,7 +108,8 @@ MODULE rt_propagation_output
    PUBLIC :: rt_prop_output, &
              rt_convergence, &
              rt_convergence_density, &
-             report_density_occupation
+             report_density_occupation, &
+             print_moments
 
 CONTAINS
 
@@ -121,18 +126,21 @@ CONTAINS
       REAL(dp), INTENT(in), OPTIONAL                     :: delta_iter, used_time
 
       INTEGER                                            :: i, n_electrons, n_proj, natom, nspin, &
-                                                            output_unit, spin, unit_nr
+                                                            output_unit, spin, unit_nr, k, ref_type
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: first_sgf, last_sgf
       INTEGER, DIMENSION(:), POINTER                     :: row_blk_sizes
       LOGICAL                                            :: new_file
-      REAL(dp)                                           :: orthonormality, strace, tot_rho_r, trace
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: qs_tot_rho_r
+      REAL(dp)                                           :: orthonormality, strace, tot_rho_r, trace, &
+                                                            real_moment
+      REAL(kind=dp), DIMENSION(3)                        :: reference_point
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: qs_tot_rho_r, custom_reference
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: j_int
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: mos_new
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_distribution_type), POINTER             :: dbcsr_dist
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, P_im, p_xyz, rho_new
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: moments_matrix
       TYPE(dbcsr_type), POINTER                          :: tmp_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -227,8 +235,68 @@ CONTAINS
             CALL write_available_results(qs_env=qs_env, rtp=rtp)
          END IF
 
+
          IF (rtp%linear_scaling) THEN
             CALL get_rtp(rtp=rtp, rho_new=rho_new)
+
+            ! TODO : Insert saving of trace of electric moment at the present time here - both to memory and to file
+            ! Probably have to rebuild the moment matrix, since atoms can also move, in principle
+            ! Is get_reference_point needed?
+            ! NOTE : This print key prints only with respect to COAC, but should be easy to generalize to other points if needed
+            CALL section_vals_val_get(rtp_section, "PRINT%MOMENTS%REFERENCE_POINT", r_vals=custom_reference)
+            CALL section_vals_val_get(rtp_section, "PRINT%MOMENTS%REFERENCE", i_val=ref_type)
+            CALL get_reference_point(rpoint=reference_point, qs_env=qs_env, reference=ref_type, ref_point=custom_reference)
+            ! TODO : Create somewhere else
+            NULLIFY (moments_matrix)
+            ALLOCATE (moments_matrix(3))
+            DO k=1,3
+               NULLIFY (moments_matrix(k)%matrix)
+               ALLOCATE (moments_matrix(k)%matrix)
+               ! CALL dbcsr_create(moments_matrix(k)%matrix, template=matrix_s(1)%matrix, &
+               !    name="moments")
+               ! CALL cp_dbcsr_alloc_block_from_nbl(moments_matrix(k)%matrix, sab_all)
+               CALL dbcsr_copy(moments_matrix(k)%matrix, matrix_s(1)%matrix)
+               CALL dbcsr_set(moments_matrix(k)%matrix, 0.0_dp)
+            END DO
+            CALL build_local_moment_matrix(qs_env, moments_matrix, 1, reference_point)
+            ! TODO : Is symmetric rho possible?
+            ! TODO : Spin + imaginary part
+            ! Spin + complex parts
+            NULLIFY (tmp_ao)
+            CALL dbcsr_init_p(tmp_ao)
+            CALL dbcsr_create(tmp_ao, template=matrix_s(1)%matrix, matrix_type=dbcsr_type_no_symmetry, name="tmp")
+            CALL cp_dbcsr_alloc_block_from_nbl(tmp_ao, sab_all)
+            CALL dbcsr_set(tmp_ao, 0.0_dp)
+            ! Extensions setup
+            DO i=1,SIZE(rho_new)/2
+               DO k=1, 3
+                  ! Negative sign for the negative charge of the electron
+                  CALL dbcsr_multiply("N", "N", -1.0_dp, rho_new(2*i-1)%matrix, moments_matrix(k)%matrix, &
+                                      0.0_dp, tmp_ao)
+                  ! TODO : Add rtp%istart (maybe with -1?)
+                  CALL dbcsr_trace(tmp_ao, real_moment)
+                  rtp%moments(i, k, rtp%istep) = CMPLX(real_moment, 0.0, kind=dp)
+                  ! If required, store the imaginary moment
+                  IF (rtp%track_imag_density) THEN
+                     CALL dbcsr_multiply("N", "N", -1.0_dp, rho_new(2*i)%matrix, moments_matrix(k)%matrix, &
+                                         0.0_dp, tmp_ao)
+                     CALL dbcsr_trace(tmp_ao, real_moment)
+                     rtp%moments(i, k, rtp%istep) = rtp%moments(i, k, rtp%istep) + CMPLX(0.0, real_moment, kind=dp)
+                  END IF
+               END DO
+               ! TODO : Implement saving/appending/outputting of moments
+               output_unit = cp_logger_get_default_io_unit(logger)
+               CALL print_moments(section_vals_get_subs_vals(rtp_section, "PRINT%MOMENTS"), output_unit, &
+                  rtp%moments(:,:,rtp%istep), qs_env%sim_time, rtp%track_imag_density)
+            END DO
+            DO k=1,3
+               CALL dbcsr_release(moments_matrix(k)%matrix)
+               DEALLOCATE (moments_matrix(k)%matrix)
+            END DO
+            DEALLOCATE (moments_matrix)
+            CALL dbcsr_release(tmp_ao)
+            DEALLOCATE(tmp_ao)
+
             IF (BTEST(cp_print_key_should_output(logger%iter_info, &
                                                  dft_section, "REAL_TIME_PROPAGATION%PRINT%RESTART"), cp_p_file)) THEN
                CALL write_rt_p_to_restart(rho_new, .FALSE.)
@@ -1036,5 +1104,82 @@ CONTAINS
                                         "REAL_TIME_PROPAGATION%PRINT%E_CONSTITUENTS")
 
    END SUBROUTINE print_rtp_energy_components
+
+! **************************************************************************************************
+!> \brief Print the dipole moments into a file
+!> \param moments_section Section of the input defining the file/stream to print the moments to
+!> \param moments Actual moment values (for specific time step)
+!> \par History
+!>      10.2025  Created [Marek]
+! **************************************************************************************************
+   SUBROUTINE print_moments(moments_section, info_unit, moments, time, imag_opt)
+      TYPE(section_vals_type), POINTER                   :: moments_section
+      INTEGER                                            :: info_unit
+      ! Index 1 : spin, Index 2 : direction
+      COMPLEX(kind=dp), DIMENSION(:,:)                   :: moments
+      REAL(kind=dp), OPTIONAL                            :: time
+      LOGICAL, OPTIONAL                                  :: imag_opt
+      INTEGER                                            :: nspin, &
+                                                            ndir, &
+                                                            print_unit, &
+                                                            i, &
+                                                            j
+      TYPE(cp_logger_type), POINTER                      :: logger
+      LOGICAL                                            :: imaginary
+      CHARACTER(len=14), DIMENSION(4)                    :: file_extensions
+
+      nspin = SIZE(moments,1)
+      ndir = SIZE(moments,2)
+
+      IF (nspin < 1) CPABORT("Zero spin index size in print moments!")
+      IF (ndir < 1) CPABORT("Zero direction index size in print moments!")
+
+      imaginary = .TRUE.
+      IF (PRESENT(imag_opt)) imaginary = imag_opt
+
+      ! Get the program run info unit and target unit
+      ! If these are the same (most likely the case of __STD_OUT__), add
+      ! extra identifier to the printed output
+      file_extensions(1) = "_SPIN_A_RE.dat"
+      file_extensions(2) = "_SPIN_A_IM.dat"
+      file_extensions(3) = "_SPIN_B_RE.dat"
+      file_extensions(4) = "_SPIN_B_IM.dat"
+      logger => cp_get_default_logger()
+      DO i=1,nspin
+         ! Real part
+         print_unit = cp_print_key_unit_nr(logger, moments_section, extension=file_extensions(2*i - 1))
+         IF (print_unit == info_unit .AND. print_unit > 0) THEN
+            ! Do the output with additional suffix
+            WRITE (print_unit, "(A18)", advance="no") " MOMENTS_TRACE_RE|"
+         END IF
+         IF (print_unit > 0) THEN
+            IF (PRESENT(time)) WRITE (print_unit, "(E20.8E3)", advance="no") time*femtoseconds
+            DO j=1,ndir-1
+               WRITE (print_unit, "(E20.8E3)", advance="no") REAL(moments(i, j))
+            END DO
+            ! Write the last direction
+            WRITE (print_unit, "(E20.8E3)") REAL(moments(i,ndir))
+         END IF
+         CALL cp_print_key_finished_output(print_unit, logger, moments_section)
+         ! Same for imaginary part
+         IF (imaginary) THEN
+            print_unit = cp_print_key_unit_nr(logger, moments_section, extension=file_extensions(2*i))
+            IF (print_unit == info_unit .AND. print_unit > 0) THEN
+               ! Do the output with additional suffix
+               WRITE (print_unit, "(A18)", advance="no") " MOMENTS_TRACE_IM|"
+            END IF
+            IF (print_unit > 0) THEN
+               IF (PRESENT(time)) WRITE (print_unit, "(E20.8E3)", advance="no") time*femtoseconds
+               DO j=1,ndir-1
+                  WRITE (print_unit, "(E20.8E3)", advance="no") AIMAG(moments(i, j))
+               END DO
+               ! Write the last direction
+               WRITE (print_unit, "(E20.8E3)") AIMAG(moments(i,ndir))
+            END IF
+            CALL cp_print_key_finished_output(print_unit, logger, moments_section)
+         END IF
+      END DO
+
+   END SUBROUTINE print_moments
 
 END MODULE rt_propagation_output

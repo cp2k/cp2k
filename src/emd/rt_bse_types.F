@@ -190,7 +190,11 @@ MODULE rt_bse_types
                                                                    sim_start = 0, &
                                                                    ! Needed for continuation runs for loading of previous moments trace
                                                                    sim_start_orig = 0, &
-                                                                   sim_nsteps = -1
+                                                                   sim_nsteps = -1, &
+                                                                   ! Default reference point type for output moments
+                                                                   ! Field moments always use zero reference
+                                                                   moment_ref_type = use_mom_ref_coac
+      REAL(kind=dp), DIMENSION(:), POINTER                      :: user_moment_ref_point => NULL()
       REAL(kind=dp)                                             :: sim_time = 0.0_dp, &
                                                                    sim_dt = 0.1_dp, &
                                                                    etrs_threshold = 1.0e-7_dp, &
@@ -428,6 +432,11 @@ CONTAINS
       rtbse_env%restart_extracted = .FALSE.
       rtbse_env%field_section => section_vals_get_subs_vals(input, "DFT%REAL_TIME_PROPAGATION%PRINT%FIELD")
       rtbse_env%moments_section => section_vals_get_subs_vals(input, "DFT%REAL_TIME_PROPAGATION%PRINT%MOMENTS")
+      ! Moment specification
+      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%PRINT%MOMENTS%REFERENCE", &
+         i_val=rtbse_env%moment_ref_type)
+      CALL section_vals_val_get(input, "DFT%REAL_TIME_PROPAGATION%PRINT%MOMENTS%REFERENCE_POINT", &
+         r_vals=rtbse_env%user_moment_ref_point)
       rtbse_env%rho_section => section_vals_get_subs_vals(input, "DFT%REAL_TIME_PROPAGATION%PRINT%DENSITY_MATRIX")
       rtbse_env%ft_section => section_vals_get_subs_vals(input, "DFT%REAL_TIME_PROPAGATION%PRINT%MOMENTS_FT")
       rtbse_env%pol_section => section_vals_get_subs_vals(input, "DFT%REAL_TIME_PROPAGATION%PRINT%POLARIZABILITY")

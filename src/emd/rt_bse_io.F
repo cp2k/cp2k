@@ -52,6 +52,7 @@ MODULE rt_bse_io
                       evolt
    USE greenx_interface, ONLY: greenx_refine_pade, greenx_output_polarizability, greenx_refine_ft
    USE rt_propagation_ft, ONLY: multi_fft
+   USE rt_propagation_output, ONLY: print_moments
 
 #include "../base/base_uses.f90"
 
@@ -86,41 +87,46 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE print_rtbse_header_info(rtbse_env)
       TYPE(rtbse_env_type)                               :: rtbse_env
+      TYPE(cp_logger_type), POINTER                      :: logger
 
-      WRITE (rtbse_env%unit_nr, *) ''
-      WRITE (rtbse_env%unit_nr, '(A)') ' /-----------------------------------------------'// &
-         '------------------------------\'
-      WRITE (rtbse_env%unit_nr, '(A)') ' |                                               '// &
-         '                              |'
-      WRITE (rtbse_env%unit_nr, '(A)') ' |                    Real Time Bethe-Salpeter Propagation'// &
-         '                     |'
-      WRITE (rtbse_env%unit_nr, '(A)') ' |                                               '// &
-         '                              |'
-      WRITE (rtbse_env%unit_nr, '(A)') ' \-----------------------------------------------'// &
-         '------------------------------/'
-      WRITE (rtbse_env%unit_nr, *) ''
+      logger => cp_get_default_logger()
 
-      ! Methods used
-      WRITE (rtbse_env%unit_nr, '(A19)', advance="no") ' Exponential method'
-      SELECT CASE (rtbse_env%mat_exp_method)
-      CASE (do_bch)
-         WRITE (rtbse_env%unit_nr, '(A61)') 'BCH'
-      CASE (do_exact)
-         WRITE (rtbse_env%unit_nr, '(A61)') 'EXACT'
-      END SELECT
+      IF (rtbse_env%unit_nr > 0) THEN
+         WRITE (rtbse_env%unit_nr, *) ''
+         WRITE (rtbse_env%unit_nr, '(A)') ' /-----------------------------------------------'// &
+            '------------------------------\'
+         WRITE (rtbse_env%unit_nr, '(A)') ' |                                               '// &
+            '                              |'
+         WRITE (rtbse_env%unit_nr, '(A)') ' |                    Real Time Bethe-Salpeter Propagation'// &
+            '                     |'
+         WRITE (rtbse_env%unit_nr, '(A)') ' |                                               '// &
+            '                              |'
+         WRITE (rtbse_env%unit_nr, '(A)') ' \-----------------------------------------------'// &
+            '------------------------------/'
+         WRITE (rtbse_env%unit_nr, *) ''
 
-      WRITE (rtbse_env%unit_nr, '(A22)', advance="no") ' Reference Hamiltonian'
-      SELECT CASE (rtbse_env%ham_reference_type)
-      CASE (rtp_bse_ham_g0w0)
-         WRITE (rtbse_env%unit_nr, '(A58)') 'G0W0'
-      CASE (rtp_bse_ham_ks)
-         WRITE (rtbse_env%unit_nr, '(A58)') 'Kohn-Sham'
-      END SELECT
+         ! Methods used
+         WRITE (rtbse_env%unit_nr, '(A19)', advance="no") ' Exponential method'
+         SELECT CASE (rtbse_env%mat_exp_method)
+         CASE (do_bch)
+            WRITE (rtbse_env%unit_nr, '(A61)') 'BCH'
+         CASE (do_exact)
+            WRITE (rtbse_env%unit_nr, '(A61)') 'EXACT'
+         END SELECT
 
-      WRITE (rtbse_env%unit_nr, '(A18,L62)') ' Apply delta pulse', &
-         rtbse_env%dft_control%rtp_control%apply_delta_pulse
+         WRITE (rtbse_env%unit_nr, '(A22)', advance="no") ' Reference Hamiltonian'
+         SELECT CASE (rtbse_env%ham_reference_type)
+         CASE (rtp_bse_ham_g0w0)
+            WRITE (rtbse_env%unit_nr, '(A58)') 'G0W0'
+         CASE (rtp_bse_ham_ks)
+            WRITE (rtbse_env%unit_nr, '(A58)') 'Kohn-Sham'
+         END SELECT
 
-      WRITE (rtbse_env%unit_nr, '(A)') ''
+         WRITE (rtbse_env%unit_nr, '(A18,L62)') ' Apply delta pulse', &
+            rtbse_env%dft_control%rtp_control%apply_delta_pulse
+
+         WRITE (rtbse_env%unit_nr, '(A)') ''
+      END IF
 
    END SUBROUTINE print_rtbse_header_info
 
@@ -157,7 +163,7 @@ CONTAINS
 
    END SUBROUTINE print_etrs_info_header
 ! **************************************************************************************************
-!> \brief Writes the header for the etrs iteration updates - only for log level > medium
+!> \brief Writes the header for the etrs iteration updates - only for log level > low
 !> \param rtbse_env Entry point - rtbse environment
 ! **************************************************************************************************
    SUBROUTINE print_timestep_info(rtbse_env, step, convergence, electron_num_re, etrs_num)
@@ -344,71 +350,42 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       INTEGER                                            :: i, j, n, moments_unit_re, moments_unit_im
       CHARACTER(len=14), DIMENSION(4)                    :: file_labels
-      REAL(kind=dp), DIMENSION(3)                        :: moments
+      REAL(kind=dp), DIMENSION(3)                        :: moments_re
+      COMPLEX(kind=dp), DIMENSION(:,:), ALLOCATABLE      :: moments
 
-      ! Start by getting the relevant file unit
-      file_labels(1) = "_SPIN_A_RE.dat"
-      file_labels(2) = "_SPIN_A_IM.dat"
-      file_labels(3) = "_SPIN_B_RE.dat"
-      file_labels(4) = "_SPIN_B_IM.dat"
-      logger => cp_get_default_logger()
+      ! TODO : Once we go away from the series representation, the array will be taken from memory directly
+      ALLOCATE (moments(rtbse_env%n_spin, 3), source=CMPLX(0.0, 0.0, kind=dp))
+
       DO j = 1, rtbse_env%n_spin
-         moments_unit_re = cp_print_key_unit_nr(logger, rtbse_env%moments_section, extension=file_labels(2*j - 1))
-         moments_unit_im = cp_print_key_unit_nr(logger, rtbse_env%moments_section, extension=file_labels(2*j))
-         ! If, for any reason, the file unit is not provided, skip to next cycle immediately
-         ! TODO : Specify output units in config
          ! Need to transpose due to the definition of trace function
          CALL cp_cfm_to_fm(msource=rho(j), mtargetr=rtbse_env%real_workspace(2))
          DO i = 1, 3
             ! Moments should be symmetric, test without transopose?
             CALL cp_fm_transpose(rtbse_env%moments(i), rtbse_env%real_workspace(1))
-            CALL cp_fm_trace(rtbse_env%real_workspace(1), rtbse_env%real_workspace(2), moments(i))
+            CALL cp_fm_trace(rtbse_env%real_workspace(1), rtbse_env%real_workspace(2), moments_re(i))
             ! Scale by spin degeneracy and electron charge
-            moments(i) = -moments(i)*rtbse_env%spin_degeneracy
-         END DO
-         ! Output to the file
-         IF (moments_unit_re > 0) THEN
-            ! If outputting to standard output, also prepend identifying 'MOMENTS_TRACE|' string
-            IF (rtbse_env%unit_nr == moments_unit_re) THEN
-               WRITE (moments_unit_re, '(A18,E20.8E3,E20.8E3,E20.8E3,E20.8E3)') &
-                  " MOMENTS_TRACE_RE|", rtbse_env%sim_time*femtoseconds, moments(1), moments(2), moments(3)
-            ELSE
-               WRITE (moments_unit_re, '(E20.8E3,E20.8E3,E20.8E3,E20.8E3)') &
-                  rtbse_env%sim_time*femtoseconds, moments(1), moments(2), moments(3)
-               CALL cp_print_key_finished_output(moments_unit_re, logger, rtbse_env%moments_section)
-            END IF
-         END IF
-         ! Save to memory for FT - real part
-         n = rtbse_env%sim_step - rtbse_env%sim_start_orig + 1
-         DO i = 1, 3
-            rtbse_env%moments_trace(i)%series(n) = CMPLX(moments(i), 0.0, kind=dp)
+            moments_re(i) = -moments_re(i)*rtbse_env%spin_degeneracy
+            moments(j,i) = CMPLX(moments_re(i), 0.0, kind=dp)
          END DO
          ! Same for imaginary part
          CALL cp_cfm_to_fm(msource=rho(j), mtargeti=rtbse_env%real_workspace(2))
          DO i = 1, 3
             CALL cp_fm_transpose(rtbse_env%moments(i), rtbse_env%real_workspace(1))
-            CALL cp_fm_trace(rtbse_env%real_workspace(1), rtbse_env%real_workspace(2), moments(i))
+            CALL cp_fm_trace(rtbse_env%real_workspace(1), rtbse_env%real_workspace(2), moments_re(i))
             ! Scale by spin degeneracy and electron charge
-            moments(i) = -moments(i)*rtbse_env%spin_degeneracy
+            moments_re(i) = -moments_re(i)*rtbse_env%spin_degeneracy
+            moments(j,i) = moments(j,i) + CMPLX(0.0, moments_re(i), kind=dp)
          END DO
-         ! Output to the file
-         IF (moments_unit_im > 0) THEN
-            ! If outputting to standard output, also prepend identifying 'MOMENTS_TRACE|' string
-            IF (rtbse_env%unit_nr == moments_unit_im) THEN
-               WRITE (moments_unit_im, '(A18,E20.8E3,E20.8E3,E20.8E3,E20.8E3)') &
-                  " MOMENTS_TRACE_IM|", rtbse_env%sim_time*femtoseconds, moments(1), moments(2), moments(3)
-            ELSE
-               WRITE (moments_unit_im, '(E20.8E3,E20.8E3,E20.8E3,E20.8E3)') &
-                  rtbse_env%sim_time*femtoseconds, moments(1), moments(2), moments(3)
-               ! Close the files
-               CALL cp_print_key_finished_output(moments_unit_im, logger, rtbse_env%moments_section)
-            END IF
-         END IF
          ! Save to memory for FT - imag part
+         n = rtbse_env%sim_step - rtbse_env%sim_start_orig + 1
          DO i = 1, 3
-            rtbse_env%moments_trace(i)%series(n) = rtbse_env%moments_trace(i)%series(n) + CMPLX(0.0, moments(i), kind=dp)
+            rtbse_env%moments_trace(i)%series(n) = moments(j, i)
          END DO
       END DO
+      ! Output to the file
+      CALL print_moments(rtbse_env%moments_section, rtbse_env%unit_nr, moments, rtbse_env%sim_time, .TRUE.)
+
+      DEALLOCATE (moments)
    END SUBROUTINE output_moments
 ! **************************************************************************************************
 !> \brief Outputs the restart info (last finished iteration step) + restard density matrix

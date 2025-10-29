@@ -158,6 +158,11 @@ MODULE rt_bse
    USE cp_files, ONLY: open_file, &
                        file_exists, &
                        close_file
+   USE cp_log_handling, ONLY: cp_logger_type, &
+                              cp_get_default_logger
+   USE cp_output_handling, ONLY: cp_add_iter_level, &
+                                 cp_rm_iter_level, &
+                                 cp_iterate
    USE physcon, ONLY: femtoseconds
    USE mathconstants, ONLY: twopi
 
@@ -202,11 +207,14 @@ CONTAINS
       LOGICAL                                            :: converged
       REAL(kind=dp)                                      :: metric, enum_re, enum_im, &
                                                             idempotence_dev, a_metric_1, a_metric_2
+      TYPE(cp_logger_type), POINTER                      :: logger
 
       CALL timeset(routineN, handle)
 
       ! Bibliography information
       CALL cite_reference(Marek2025)
+
+      logger => cp_get_default_logger()
 
       ! Run the initial SCF calculation / read SCF restart information
       CALL force_env_calc_energy_force(force_env, calc_force=.FALSE., consistent_energies=.FALSE.)
@@ -214,7 +222,7 @@ CONTAINS
       ! Allocate all persistant storage and read input that does not need further processing
       CALL create_rtbse_env(rtbse_env, qs_env, force_env)
 
-      IF (rtbse_env%unit_nr > 0) CALL print_rtbse_header_info(rtbse_env)
+      CALL print_rtbse_header_info(rtbse_env)
 
       ! Initialize non-trivial values
       !  - calculates the moment operators
@@ -227,6 +235,9 @@ CONTAINS
       !  - calculates the COHSEX reference self-energy
       !  - prints some info about loaded files into the output
       CALL initialize_rtbse_env(rtbse_env)
+
+      ! Initiate iteration level "MD" in order to copy the structure of other RTP codes
+      CALL cp_add_iter_level(logger%iter_info, "MD")
 
       ! Setup the time based on the starting step
       ! Assumes identical dt between two runs
@@ -265,6 +276,7 @@ CONTAINS
          END IF
          CALL print_timestep_info(rtbse_env, i, metric, enum_re, k)
          IF (.NOT. converged) CPABORT("ETRS did not converge")
+         CALL cp_iterate(logger%iter_info, iter_nr=i, last=(i == rtbse_env%sim_nsteps))
          DO j = 1, rtbse_env%n_spin
             CALL cp_cfm_to_cfm(rtbse_env%rho_new(j), rtbse_env%rho(j))
          END DO
@@ -278,6 +290,8 @@ CONTAINS
          CALL output_restart(rtbse_env, rtbse_env%rho, i + 1)
       END DO
       ! ********************** End the time loop **********************
+
+      CALL cp_rm_iter_level(logger%iter_info, "MD")
 
       ! Carry out the FT
       CALL output_moments_ft(rtbse_env)
@@ -301,8 +315,7 @@ CONTAINS
       TYPE(post_scf_bandstructure_type), POINTER   :: bs_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER    :: moments_dbcsr_p
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER    :: matrix_s
-      REAL(kind=dp), DIMENSION(:), POINTER         :: custom_ref_point, &
-                                                      occupations
+      REAL(kind=dp), DIMENSION(:), POINTER         :: occupations
       REAL(kind=dp), DIMENSION(3)                  :: rpoint
       INTEGER                                      :: i, k, handle
 
@@ -325,10 +338,9 @@ CONTAINS
       END DO
       ! Run the moment calculation
       ! check for presence to prevent memory errors
-      NULLIFY (custom_ref_point)
-      ALLOCATE (custom_ref_point(3), source=0.0_dp)
       rpoint(:) = 0.0_dp
-      CALL get_reference_point(rpoint, qs_env=rtbse_env%qs_env, reference=use_mom_ref_coac, ref_point=custom_ref_point)
+      CALL get_reference_point(rpoint, qs_env=rtbse_env%qs_env, &
+         reference=rtbse_env%moment_ref_type, ref_point=rtbse_env%user_moment_ref_point)
       CALL build_local_moment_matrix(rtbse_env%qs_env, moments_dbcsr_p, 1, rpoint)
       ! Copy to full matrix
       DO k = 1, 3
@@ -336,8 +348,8 @@ CONTAINS
          CALL copy_dbcsr_to_fm(moments_dbcsr_p(k)%matrix, rtbse_env%moments(k))
       END DO
       ! Now, repeat without reference point to get the moments for field
-      CALL get_reference_point(rpoint, qs_env=rtbse_env%qs_env, reference=use_mom_ref_zero, ref_point=custom_ref_point)
-      DEALLOCATE (custom_ref_point)
+      CALL get_reference_point(rpoint, qs_env=rtbse_env%qs_env, &
+         reference=use_mom_ref_zero)
       CALL build_local_moment_matrix(rtbse_env%qs_env, moments_dbcsr_p, 1, rpoint)
       DO k = 1, 3
          CALL copy_dbcsr_to_fm(moments_dbcsr_p(k)%matrix, rtbse_env%moments_field(k))
