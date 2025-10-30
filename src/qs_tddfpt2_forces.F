@@ -11,7 +11,9 @@ MODULE qs_tddfpt2_forces
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind,&
                                               get_atomic_kind_set
-   USE bibliography,                    ONLY: Sertcan2024,&
+   USE bibliography,                    ONLY: Hehn2022,&
+                                              Hehn2024,&
+                                              Sertcan2024,&
                                               cite_reference
    USE cp_control_types,                ONLY: dft_control_type,&
                                               tddfpt2_control_type
@@ -182,6 +184,8 @@ CONTAINS
 
       CALL get_qs_env(qs_env, dft_control=dft_control)
 
+      CALL cite_reference(Hehn2022)
+      CALL cite_reference(Hehn2024)
       IF (dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc) CALL cite_reference(Sertcan2024)
 
       nspins = dft_control%nspins

@@ -262,9 +262,9 @@ CONTAINS
 
       CALL tddfpt_header(log_unit)
       CALL kernel_info(log_unit, dft_control, tddfpt_control, xc_section)
+
       ! obtain occupied and virtual (unoccupied) ground-state Kohn-Sham orbitals
       NULLIFY (gs_mos)
-
       CALL tddfpt_init_mos(qs_env, gs_mos, log_unit)
 
       ! obtain smeared occupation numbers
