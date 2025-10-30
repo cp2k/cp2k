@@ -2780,6 +2780,8 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: tmp
       LOGICAL                                            :: is_present
       TYPE(section_vals_type), POINTER                   :: proj_mo_section
+      TYPE(section_vals_type), POINTER                   :: subsection
+      INTEGER                                            :: n_elems, i, j
 
       ALLOCATE (dft_control%rtp_control)
       CALL section_vals_val_get(rtp_section, "MAX_ITER", &
@@ -2842,8 +2844,146 @@ CONTAINS
       ELSE
          dft_control%rtp_control%is_proj_mo = .FALSE.
       END IF
+      ! Moment trace
+      ! TODO : Implement for other moment operators
+      subsection => section_vals_get_subs_vals(rtp_section, "PRINT%MOMENTS")
+      CALL section_vals_get(subsection, explicit=is_present)
+      IF (is_present .AND. dft_control%rtp_control%periodic) THEN
+         CALL cp_abort(__LOCATION__, "Moments trace printing only "// &
+            "implemented in non-periodic systems. "// &
+            "Please use DFT%PRINT%MOMENTS for other printing.")
+      END IF
+      CALL section_vals_val_get(rtp_section, "PRINT%MOMENTS%REFERENCE", &
+                                i_val=dft_control%rtp_control%moment_trace_ref_type)
+      CALL section_vals_val_get(rtp_section, "PRINT%MOMENTS%REFERENCE_POINT", &
+                                r_vals=dft_control%rtp_control%moment_trace_user_ref_point)
+      ! Moment Fourier transform
+      subsection => section_vals_get_subs_vals(rtp_section, "PRINT%MOMENTS_FT")
+      CALL section_vals_get(subsection, explicit=is_present)
+      IF (is_present .AND. dft_control%rtp_control%periodic) THEN
+         ! Not implemented
+         CALL cp_abort(__LOCATION__, "Moments Fourier transform printing "// &
+            "implemented only for non-periodic systems.")
+      END IF
+      ! General FT settings
+      CALL section_vals_val_get(rtp_section, "FT%DAMPING", &
+                                r_val=dft_control%rtp_control%ft_damping)
+      CALL section_vals_val_get(rtp_section, "FT%START_TIME", &
+                                r_val=dft_control%rtp_control%ft_t0)
+      ! Padé settings
+      subsection => section_vals_get_subs_vals(rtp_section, "FT%PADE")
+      CALL section_vals_val_get(subsection, "E_MIN", &
+                                r_val=dft_control%rtp_control%pade_e_min)
+      CALL section_vals_val_get(subsection, "E_STEP", &
+                                r_val=dft_control%rtp_control%pade_e_step)
+      CALL section_vals_val_get(subsection, "E_MAX", &
+                                r_val=dft_control%rtp_control%pade_e_max)
+      CALL section_vals_val_get(subsection, "FIT_E_MIN", &
+                                r_val=dft_control%rtp_control%pade_fit_e_min)
+      CALL section_vals_val_get(subsection, "FIT_E_MAX", &
+                                r_val=dft_control%rtp_control%pade_fit_e_max)
+      ! If default settings used for fit_e_min/max, rewrite with appropriate values
+      IF (dft_control%rtp_control%pade_fit_e_min < 0) THEN
+         dft_control%rtp_control%pade_fit_e_min = dft_control%rtp_control%pade_e_min
+      END IF
+      IF (dft_control%rtp_control%pade_fit_e_max < 0) THEN
+         dft_control%rtp_control%pade_fit_e_max = dft_control%rtp_control%pade_e_max
+      END IF
+      ! Polarizability settings
+      subsection => section_vals_get_subs_vals(rtp_section, "PRINT%POLARIZABILITY")
+      CALL section_vals_get(subsection, explicit=is_present)
+      IF (is_present .AND. dft_control%rtp_control%periodic) THEN
+         ! Not implemented
+         CALL cp_abort(__LOCATION__, "Polarizability printing "// &
+            "implemented only for non-periodic systems.")
+      END IF
+      CALL section_vals_val_get(subsection, "ELEMENT", explicit=is_present, n_rep_val=n_elems)
+      IF (is_present) THEN
+         ! Explicit list of elements
+         ! Allocate the array
+         NULLIFY (dft_control%rtp_control%print_pol_elements)
+         ALLOCATE (dft_control%rtp_control%print_pol_elements(n_elems,2))
+         DO i=1, n_elems
+            CALL section_vals_val_get(subsection, "ELEMENT", i_vals=tmp, i_rep_val=i)
+            dft_control%rtp_control%print_pol_elements(i,:) = tmp(:)
+         END DO
+         ! Do basic sanity checks for pol_element
+         DO i = 1, n_elems
+            DO j = 1, 2
+               IF (dft_control%rtp_control%print_pol_elements(i, j) > 3 .OR. &
+                   dft_control%rtp_control%print_pol_elements(i, j) < 1) &
+                  CPABORT("Polarisation tensor element not 1,2 or 3 in at least one index")
+            END DO
+         END DO
+      ELSE
+         CALL section_vals_get(subsection, explicit=is_present)
+         IF (is_present) THEN
+            ! Make a guess
+            CALL guess_pol_elements(rtp_section, dft_control, &
+               dft_control%rtp_control%print_pol_elements)
+         ELSE
+            ! Do not bother user if POLARIZABILITY is not present
+            NULLIFY (dft_control%rtp_control%print_pol_elements)
+            ALLOCATE (dft_control%rtp_control%print_pol_elements(0,2))
+         END IF
+      ENDIF
 
    END SUBROUTINE read_rtp_section
+! **************************************************************************************************
+!> \brief Tries to guess the elements of polarization to print
+!> \param dft_control ...
+!> \param rtp_section ...
+!> \author fschiff
+! **************************************************************************************************
+   SUBROUTINE guess_pol_elements(rtp_section, dftc, elems)
+      TYPE(section_vals_type), POINTER                   :: rtp_section
+      TYPE(dft_control_type)                             :: dftc
+      INTEGER, DIMENSION(:,:), POINTER                   :: elems
+      LOGICAL                                            :: pol_vector_known
+      REAL(kind=dp), DIMENSION(3)                        :: pol_vector
+      INTEGER                                            :: n_nonzero, &
+                                                            i, i_nonzero
+      
+      pol_vector_known = .FALSE.
+
+      IF (dftc%rtp_control%apply_delta_pulse) THEN
+         pol_vector(:) = REAL(dftc%rtp_control%delta_pulse_direction(:), kind=dp)
+      ELSE
+         ! Maybe RT field is applied?
+         pol_vector(:) = dftc%efield_fields(1)%efield%polarisation(:)
+      END IF
+      IF (DOT_PRODUCT(pol_vector, pol_vector) > 0.0_dp) pol_vector_known = .TRUE.
+
+      IF (.NOT. pol_vector_known) THEN
+         CPABORT("Cannot guess polarization elements - please specify!")
+      ELSE
+         ! Check whether just one element is non-zero
+         n_nonzero = 0
+         DO i=1,3
+            IF (pol_vector(i) /= 0.0_dp) THEN
+               n_nonzero = n_nonzero + 1
+               i_nonzero = i
+            END IF
+         END DO
+         IF (n_nonzero > 1) THEN
+            CALL cp_abort(__LOCATION__, &
+               "More than one non-zero field elements - "// &
+               "cannot guess polarizability elements - please specify!")
+         ELSE IF (n_nonzero == 0) THEN
+            CALL cp_abort(__LOCATION__, &
+               "No non-zero field elements - "// &
+               "cannot guess polarizability elements - please specify!")
+         ELSE
+            ! Clear guess can be made
+            NULLIFY (elems)
+            ALLOCATE (elems(3,2))
+            DO i=1,3
+               elems(i,1) = i
+               elems(i,2) = i_nonzero
+            END DO
+         END IF
+      END IF
+   END SUBROUTINE guess_pol_elements
 
 ! **************************************************************************************************
 !> \brief Parses the BLOCK_LIST keywords from the ADMM section

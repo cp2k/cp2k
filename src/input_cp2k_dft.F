@@ -2199,20 +2199,22 @@ CONTAINS
       ! Minimum fitting energy
       CALL keyword_create(keyword, __LOCATION__, "FIT_E_MIN", &
          description="The lower boundary in energy for the points "// &
-         "used in the fitting of Padé parameters.", &
+         "used in the fitting of Padé parameters. If negative, uses "// &
+         "value of E_MIN (default).", &
          type_of_var=real_t, &
          unit_str="eV", &
-         default_r_val=0.0_dp)
+         default_r_val=-1.0_dp)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
       ! Maximum fitting energy
       CALL keyword_create(keyword, __LOCATION__, "FIT_E_MAX", &
          description="The upper boundary in energy for the points "// &
-         "used in the fitting of Padé parameters.", &
+         "used in the fitting of Padé parameters. If negative, uses "// &
+         "the value of E_MAX (default).", &
          type_of_var=real_t, &
          unit_str="eV", &
-         default_r_val=300.0_dp)
+         default_r_val=-1.0_dp)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 

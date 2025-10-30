@@ -102,7 +102,7 @@ CONTAINS
       ! For value and result series: Index 1 - different series, Index 2 - single series entry
       COMPLEX(kind=dp), DIMENSION(:,:), POINTER         :: value_series
       COMPLEX(kind=dp), DIMENSION(:,:), POINTER         :: result_series
-      REAL(kind=dp), DIMENSION(:), POINTER              :: omega_series
+      REAL(kind=dp), DIMENSION(:), POINTER, OPTIONAL    :: omega_series
       REAL(kind=dp), OPTIONAL                           :: damping_opt
       REAL(kind=dp), OPTIONAL                           :: t0_opt
       LOGICAL, OPTIONAL                                 :: subtract_initial_opt
@@ -116,7 +116,8 @@ CONTAINS
                                                            stat
       REAL(kind=dp)                                     :: damping, &
                                                            t0, &
-                                                           t_total
+                                                           t_total, &
+                                                           subtract_value
       LOGICAL                                           :: subtract_initial, &
                                                            ionode
       TYPE(fft_plan_type)                               :: fft_plan
@@ -152,6 +153,7 @@ CONTAINS
       END IF
       ! subtract initial
       subtract_initial = .TRUE.
+      subtract_value = 0.0_dp
       IF (PRESENT(subtract_initial_opt)) subtract_initial = subtract_initial_opt
 
       ! Determine nseries
@@ -163,7 +165,9 @@ CONTAINS
       ENDIF
 
       ! Calculate the omega series values, ordered from negative to positive
-      CALL fft_freqs(nsamples, t_total, omega_series, fft_ordering_opt=.FALSE.)
+      IF (PRESENT(omega_series)) THEN
+         CALL fft_freqs(nsamples, t_total, omega_series, fft_ordering_opt=.FALSE.)
+      END IF
 
 #if defined(__FFTW3)
       ! Use FFTW3 library
@@ -179,10 +183,9 @@ CONTAINS
          DO j = 1, nsamples
             ! Subtract initial value if required
             IF (subtract_initial) THEN
-               samples(j + (i-1)*nsamples) = value_series(i, i0 + j - 1) - value_series(i, i0)
-            ELSE
-               samples(j + (i-1)*nsamples) = value_series(i, i0 + j - 1)
+               subtract_value = value_series(i, 1)
             ENDIF
+            samples(j + (i-1)*nsamples) = value_series(i, i0 + j - 1) - subtract_value
             ! Apply damping
             samples(j + (i-1)*nsamples) = samples(j + (i-1)*nsamples) * &
                     EXP( - damping * (time_series(i0 + j - 1) - time_series(i0)))
@@ -206,9 +209,12 @@ CONTAINS
       ! FFTSG can only use a specific length - use custom (slow) FT library instead
       ! For each series, do ft_simple call
       DO i=1,nseries
+         IF (subtract_initial) THEN
+            subtract_value = value_series(i, 1)
+         END IF
          CALL ft_simple(time_series(i0:SIZE(time_series)), &
             value_series(i,i0:SIZE(value_series, 2)), result_series(i,1:nsamples), &
-            damping, value_series(i, i0))
+            damping, subtract_value)
       END DO
 #endif
    END SUBROUTINE multi_fft

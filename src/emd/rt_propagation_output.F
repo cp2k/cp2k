@@ -12,7 +12,8 @@
 
 MODULE rt_propagation_output
    USE atomic_kind_types,               ONLY: atomic_kind_type
-   USE cp_control_types,                ONLY: dft_control_type
+   USE cp_control_types,                ONLY: dft_control_type, &
+                                              rtp_control_type
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_binary_write, dbcsr_convert_offsets_to_sizes, dbcsr_copy, dbcsr_create, &
         dbcsr_deallocate_matrix, dbcsr_desymmetrize, dbcsr_distribution_type, dbcsr_filter, &
@@ -45,6 +46,7 @@ MODULE rt_propagation_output
                                               cp_p_file,&
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
+                                              cp_printkey_is_on,&
                                               cp_print_key_unit_nr
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
    USE efield_utils,                    ONLY: make_field
@@ -97,6 +99,7 @@ MODULE rt_propagation_output
                                               write_rtp_mos_to_output_unit
    USE moments_utils,                   ONLY: get_reference_point
    USE qs_moments,                      ONLY: build_local_moment_matrix
+   USE rt_propagation_ft,               ONLY: multi_fft
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -109,7 +112,9 @@ MODULE rt_propagation_output
              rt_convergence, &
              rt_convergence_density, &
              report_density_occupation, &
-             print_moments
+             print_moments, &
+             calc_local_moment, &
+             print_ft
 
 CONTAINS
 
@@ -132,7 +137,7 @@ CONTAINS
       LOGICAL                                            :: new_file
       REAL(dp)                                           :: orthonormality, strace, tot_rho_r, trace, &
                                                             real_moment
-      REAL(kind=dp), DIMENSION(3)                        :: reference_point
+      REAL(kind=dp), DIMENSION(3)                        :: reference_point, field
       REAL(KIND=dp), DIMENSION(:), POINTER               :: qs_tot_rho_r, custom_reference
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: j_int
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
@@ -241,61 +246,27 @@ CONTAINS
 
             ! TODO : Insert saving of trace of electric moment at the present time here - both to memory and to file
             ! Probably have to rebuild the moment matrix, since atoms can also move, in principle
-            ! Is get_reference_point needed?
-            ! NOTE : This print key prints only with respect to COAC, but should be easy to generalize to other points if needed
-            CALL section_vals_val_get(rtp_section, "PRINT%MOMENTS%REFERENCE_POINT", r_vals=custom_reference)
-            CALL section_vals_val_get(rtp_section, "PRINT%MOMENTS%REFERENCE", i_val=ref_type)
-            CALL get_reference_point(rpoint=reference_point, qs_env=qs_env, reference=ref_type, ref_point=custom_reference)
-            ! TODO : Create somewhere else
-            NULLIFY (moments_matrix)
-            ALLOCATE (moments_matrix(3))
-            DO k=1,3
-               NULLIFY (moments_matrix(k)%matrix)
-               ALLOCATE (moments_matrix(k)%matrix)
-               ! CALL dbcsr_create(moments_matrix(k)%matrix, template=matrix_s(1)%matrix, &
-               !    name="moments")
-               ! CALL cp_dbcsr_alloc_block_from_nbl(moments_matrix(k)%matrix, sab_all)
-               CALL dbcsr_copy(moments_matrix(k)%matrix, matrix_s(1)%matrix)
-               CALL dbcsr_set(moments_matrix(k)%matrix, 0.0_dp)
-            END DO
-            CALL build_local_moment_matrix(qs_env, moments_matrix, 1, reference_point)
-            ! TODO : Is symmetric rho possible?
-            ! TODO : Spin + imaginary part
-            ! Spin + complex parts
-            NULLIFY (tmp_ao)
-            CALL dbcsr_init_p(tmp_ao)
-            CALL dbcsr_create(tmp_ao, template=matrix_s(1)%matrix, matrix_type=dbcsr_type_no_symmetry, name="tmp")
-            CALL cp_dbcsr_alloc_block_from_nbl(tmp_ao, sab_all)
-            CALL dbcsr_set(tmp_ao, 0.0_dp)
-            ! Extensions setup
-            DO i=1,SIZE(rho_new)/2
-               DO k=1, 3
-                  ! Negative sign for the negative charge of the electron
-                  CALL dbcsr_multiply("N", "N", -1.0_dp, rho_new(2*i-1)%matrix, moments_matrix(k)%matrix, &
-                                      0.0_dp, tmp_ao)
-                  ! TODO : Add rtp%istart (maybe with -1?)
-                  CALL dbcsr_trace(tmp_ao, real_moment)
-                  rtp%moments(i, k, rtp%istep) = CMPLX(real_moment, 0.0, kind=dp)
-                  ! If required, store the imaginary moment
-                  IF (rtp%track_imag_density) THEN
-                     CALL dbcsr_multiply("N", "N", -1.0_dp, rho_new(2*i)%matrix, moments_matrix(k)%matrix, &
-                                         0.0_dp, tmp_ao)
-                     CALL dbcsr_trace(tmp_ao, real_moment)
-                     rtp%moments(i, k, rtp%istep) = rtp%moments(i, k, rtp%istep) + CMPLX(0.0, real_moment, kind=dp)
-                  END IF
-               END DO
-               ! TODO : Implement saving/appending/outputting of moments
+            IF (.NOT. dft_control%rtp_control%periodic) THEN
+               ! Save the field value
+               IF (dft_control%apply_efield_field) THEN
+                  CALL make_field(dft_control, field, qs_env%sim_step, qs_env%sim_time)
+                  ! TODO : Check the istart during restarts
+                  rtp%fields(:,rtp%istep+1) = CMPLX(field(:), 0.0, kind=dp)
+               END IF
+               IF (.NOT. dft_control%rtp_control%fixed_ions) THEN
+                  CALL build_local_moment_matrix(qs_env, rtp%local_moments, 1, reference_point)
+               END IF
+               ! TODO : Is symmetric rho possible?
+               ! Spin + complex parts
+               ! Extensions setup
+               CALL calc_local_moment(rtp%local_moments, rho_new, &
+                  rtp%local_moments_work, rtp%moments(:,:,rtp%istep+1))
+               ! Time 1 is zero (start) time
+               rtp%times(rtp%istep+1) = qs_env%sim_time
                output_unit = cp_logger_get_default_io_unit(logger)
                CALL print_moments(section_vals_get_subs_vals(rtp_section, "PRINT%MOMENTS"), output_unit, &
-                  rtp%moments(:,:,rtp%istep), qs_env%sim_time, rtp%track_imag_density)
-            END DO
-            DO k=1,3
-               CALL dbcsr_release(moments_matrix(k)%matrix)
-               DEALLOCATE (moments_matrix(k)%matrix)
-            END DO
-            DEALLOCATE (moments_matrix)
-            CALL dbcsr_release(tmp_ao)
-            DEALLOCATE(tmp_ao)
+                  rtp%moments(:,:,rtp%istep+1), qs_env%sim_time, rtp%track_imag_density)
+            END IF
 
             IF (BTEST(cp_print_key_should_output(logger%iter_info, &
                                                  dft_section, "REAL_TIME_PROPAGATION%PRINT%RESTART"), cp_p_file)) THEN
@@ -1108,7 +1079,10 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Print the dipole moments into a file
 !> \param moments_section Section of the input defining the file/stream to print the moments to
+!> \param info_unit Unit where standard output from the program is written - for add. identifiers
 !> \param moments Actual moment values (for specific time step)
+!> \param time Current simulation time
+!> \param imag_opt Whether to calculate the imaginary part
 !> \par History
 !>      10.2025  Created [Marek]
 ! **************************************************************************************************
@@ -1181,5 +1155,204 @@ CONTAINS
       END DO
 
    END SUBROUTINE print_moments
+
+! **************************************************************************************************
+!> \brief Calculate the values of real/imaginary parts of moments in all directions
+!> \param moment_matrices Local matrix representations of dipole (position) operator
+!> \param density_matrices Density matrices (spin and real+complex parts)
+!> \param work Extra dbcsr matrix for work
+!> \param moment Resulting moments (spin and direction)
+!> \param imag_opt Whether to calculate the imaginary part of the moment
+!> \par History
+!>      10.2025  Created [Marek]
+! **************************************************************************************************
+   SUBROUTINE calc_local_moment(moment_matrices, density_matrices, work, moment, imag_opt)
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: moment_matrices, &
+                                                            density_matrices
+      TYPE(dbcsr_type)                                   :: work
+      COMPLEX(kind=dp), DIMENSION(:,:)                   :: moment
+      LOGICAL, OPTIONAL                                  :: imag_opt
+      LOGICAL                                            :: imag
+      INTEGER                                            :: i, k, nspin
+      REAL(kind=dp)                                      :: real_moment
+
+      imag = .FALSE.
+      IF (PRESENT(imag_opt)) imag = imag_opt
+      nspin = SIZE(density_matrices)/2
+
+      DO i=1, nspin
+         DO k=1,3
+            CALL dbcsr_multiply("N", "N", -1.0_dp, &
+               density_matrices(2*i-1)%matrix, moment_matrices(k)%matrix, &
+               0.0_dp, work)
+            CALL dbcsr_trace(work, real_moment)
+            moment(i, k) = CMPLX(real_moment, 0.0, kind=dp)
+            IF (imag) THEN
+               CALL dbcsr_multiply("N", "N", -1.0_dp, &
+                  density_matrices(2*i)%matrix, moment_matrices(k)%matrix, &
+                  0.0_dp, work)
+               CALL dbcsr_trace(work, real_moment)
+               moment(i, k) = moment(i, k) + CMPLX(0.0, real_moment, kind=dp)
+            END IF
+         END DO
+      END DO
+
+   END SUBROUTINE calc_local_moment
+
+! **************************************************************************************************
+!> \brief Calculate and print the Fourier transforms + polarizabilites from moment trace
+!> \param rtp_section The RTP input section (needed to access PRINT configurations)
+!> \param moments Moment trace
+!> \param times Corresponding times
+!> \par History
+!>      10.2025  Created [Marek]
+! **************************************************************************************************
+   SUBROUTINE print_ft(rtp_section, moments, times, fields, rtc)
+      TYPE(section_vals_type), POINTER                   :: rtp_section
+      COMPLEX(kind=dp), DIMENSION(:,:,:), POINTER        :: moments
+      REAL(kind=dp), DIMENSION(:), POINTER               :: times
+      COMPLEX(kind=dp), DIMENSION(:,:), POINTER          :: fields
+      TYPE(rtp_control_type), POINTER                    :: rtc
+      INTEGER                                            :: i, j, k, nspin, n, &
+                                                            ft_unit, n_elems
+      REAL(kind=dp), DIMENSION(:), POINTER               :: omegas
+      COMPLEX(kind=dp), DIMENSION(:,:), POINTER          :: results, &
+                                                            pol_results
+      COMPLEX(kind=dp), DIMENSION(:,:), POINTER          :: field_results
+      TYPE(cp_logger_type), POINTER                      :: logger
+      LOGICAL                                            :: do_polarizability, &
+                                                            do_moments_ft
+      COMPLEX(kind=dp), DIMENSION(:,:), POINTER          :: value_series
+      TYPE(section_vals_type), POINTER                   :: moment_ft_section, &
+                                                            pol_section
+      CHARACTER(len=11), DIMENSION(2)                    :: file_extensions
+      REAL(kind=dp)                                      :: damping
+      REAL(kind=dp)                                      :: t0
+
+      logger => cp_get_default_logger()
+
+      moment_ft_section => section_vals_get_subs_vals(rtp_section, "PRINT%MOMENTS_FT")
+      pol_section => section_vals_get_subs_vals(rtp_section, "PRINT%POLARIZABILITY")
+
+      nspin = SIZE(moments, 1)
+      n = SIZE(times)
+      n_elems = SIZE(rtc%print_pol_elements, 1)
+
+      ! NOTE : Allows for at most 2 spin species
+      file_extensions(1) = "_SPIN_A.dat"
+      file_extensions(2) = "_SPIN_B.dat"
+
+      ! Determine whether MOMENTS_FT and/or polarizability needs to be calculated
+      do_moments_ft = cp_printkey_is_on(logger%iter_info, moment_ft_section)
+      do_polarizability = cp_printkey_is_on(logger%iter_info, pol_section)
+      do_polarizability = do_polarizability .AND. (n_elems > 0)
+
+      damping = rtc%ft_damping
+      t0 = rtc%ft_t0
+
+      ! Determine field ft if polarizability required
+      IF (do_polarizability) THEN
+         NULLIFY (field_results)
+         ALLOCATE (field_results(3,n))
+         IF (rtc%apply_delta_pulse) THEN
+            ! Constant real FT
+            DO k=1,3
+               field_results(k,:) = CMPLX( &
+                  rtc%delta_pulse_direction(k) * rtc%delta_pulse_scale, &
+                  0.0, kind=dp)
+            END DO
+         ELSE
+            ! Do explicit FT
+            CALL multi_fft(times, fields, field_results, &
+               damping_opt=damping, t0_opt=t0, subtract_initial_opt=.TRUE.)
+         ENDIF
+      END IF
+
+      IF (do_moments_ft .OR. do_polarizability) THEN
+         ! We need to transform at least the moments
+         ! NOTE : Might be able to save some memory by only doing FT of actually
+         ! required moments, but for now, doing FT of all moment directions
+         NULLIFY (results)
+         ALLOCATE (results(3,n))
+         NULLIFY (omegas)
+         ALLOCATE (omegas(n))
+         DO i=1, nspin
+            value_series => moments(i,:,:)
+            ! TODO : Choose whether the initial subtraction is applied in &FT section?
+            CALL multi_fft(times, value_series, results, omegas, &
+               damping_opt=damping, t0_opt=t0, subtract_initial_opt=.TRUE.)
+            ! Output to FT file, if needed
+            ft_unit = cp_print_key_unit_nr(logger, moment_ft_section, extension=file_extensions(i), &
+                                           file_form="FORMATTED", file_position="REWIND")
+            ! Print header
+            IF (ft_unit > 0) THEN
+               WRITE (ft_unit, "(A20,A20,A20,A20,A20,A20,A20)") "#      omega [at.u.]", &
+               "x,real [at.u.]", "x,imag [at.u.]", &
+               "y,real [at.u.]", "y,imag [at.u.]", &
+               "z,real [at.u.]", "z,imag [at.u.]"
+               DO j=1, n
+                  WRITE (ft_unit, "(E20.8E3)", advance="no") omegas(j)
+                  DO k=1, 2
+                     WRITE (ft_unit, "(E20.8E3,E20.8E3)", advance="no") &
+                        REAL(results(k, j)), AIMAG(results(k, j))
+                  END DO
+                  WRITE (ft_unit, "(E20.8E3,E20.8E3)") REAL(results(3, j)), AIMAG(results(3, j))
+               END DO
+            END IF
+            CALL cp_print_key_finished_output(ft_unit, logger, moment_ft_section)
+         END DO
+      END IF
+
+      IF (do_polarizability) THEN
+         ! get the polarizability elements, as required
+         NULLIFY (pol_results)
+         ALLOCATE (pol_results(n_elems,n))
+         DO i=1, nspin
+            DO k=1,n_elems
+               ! TODO : Field regularization?
+               pol_results(k,:) = results(rtc%print_pol_elements(k,1),:) / field_results(rtc%print_pol_elements(k,2),:)
+            END DO
+            ! Print to the file
+            ft_unit = cp_print_key_unit_nr(logger, pol_section, extension=file_extensions(i), &
+               file_form="FORMATTED", file_position="REWIND")
+            IF (ft_unit > 0) THEN
+               ! Write header
+               WRITE (ft_unit, "(A20)", advance="no") "#      omega [at.u.]"
+               DO k=1, n_elems-1
+                  WRITE (ft_unit, "(A16,I2,I2)", advance="no") "real pol. elem.", &
+                     rtc%print_pol_elements(k,1), &
+                     rtc%print_pol_elements(k,2)
+                  WRITE (ft_unit, "(A16,I2,I2)", advance="no") "imag pol. elem.", &
+                     rtc%print_pol_elements(k,1), &
+                     rtc%print_pol_elements(k,2)
+               END DO
+               WRITE (ft_unit, "(A16,I2,I2)", advance="no") "real pol. elem.", &
+                  rtc%print_pol_elements(n_elems,1), &
+                  rtc%print_pol_elements(n_elems,2)
+               WRITE (ft_unit, "(A16,I2,I2)") "imag pol. elem.", &
+                  rtc%print_pol_elements(n_elems,1), &
+                  rtc%print_pol_elements(n_elems,2)
+               ! Iterate over energies
+               DO j=1,n
+                  WRITE (ft_unit, "(E20.8E3)", advance="no") omegas(j)
+                  DO k=1,n_elems-1
+                     WRITE (ft_unit, "(E20.8E3,E20.8E3)", advance="no") &
+                        REAL(pol_results(k,j)), AIMAG(pol_results(k,j))
+                  END DO
+                  WRITE (ft_unit, "(E20.8E3,E20.8E3)") &
+                     REAL(pol_results(k,j)), AIMAG(pol_results(k,j))
+               END DO
+            END IF
+            CALL cp_print_key_finished_output(ft_unit, logger, pol_section)
+         END DO
+         DEALLOCATE(pol_results)
+         DEALLOCATE(field_results)
+      END IF
+
+      IF (do_moments_ft .OR. do_polarizability) THEN
+         DEALLOCATE (results)
+         DEALLOCATE (omegas)
+      END IF
+   END SUBROUTINE print_ft
 
 END MODULE rt_propagation_output

@@ -142,8 +142,6 @@ MODULE rt_bse
    USE rt_bse_io, ONLY: output_moments, &
                         read_moments, &
                         read_field, &
-                        output_moments_ft, &
-                        output_polarizability, &
                         output_field, &
                         output_mos_contravariant, &
                         read_restart, &
@@ -165,6 +163,7 @@ MODULE rt_bse
                                  cp_iterate
    USE physcon, ONLY: femtoseconds
    USE mathconstants, ONLY: twopi
+   USE rt_propagation_output, ONLY: print_ft
 
 #include "../base/base_uses.f90"
 
@@ -294,8 +293,14 @@ CONTAINS
       CALL cp_rm_iter_level(logger%iter_info, "MD")
 
       ! Carry out the FT
-      CALL output_moments_ft(rtbse_env)
-      CALL output_polarizability(rtbse_env)
+      ! TODO : couple here
+      CALL print_ft(rtbse_env%rtp_section, &
+         rtbse_env%moments_trace, &
+         rtbse_env%time_trace, &
+         rtbse_env%field_trace, &
+         rtbse_env%dft_control%rtp_control)
+      ! CALL output_moments_ft(rtbse_env)
+      ! CALL output_polarizability(rtbse_env)
 
       ! Deallocate everything
       CALL release_rtbse_env(rtbse_env)

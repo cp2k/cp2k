@@ -66,8 +66,6 @@ MODULE rt_bse_io
 
    PUBLIC :: output_moments, &
              read_moments, &
-             output_moments_ft, &
-             output_polarizability, &
              output_field, &
              read_field, &
              output_mos_contravariant, &
@@ -299,9 +297,9 @@ CONTAINS
       ! Need the absolute index
       n = rtbse_env%sim_step - rtbse_env%sim_start_orig + 1
       DO i = 1, 3
-         rtbse_env%field_trace(i)%series(n) = rtbse_env%field(i)
+         rtbse_env%field_trace(i,n) = CMPLX(rtbse_env%field(i), 0.0, kind=dp)
       END DO
-      rtbse_env%time_trace%series(n) = rtbse_env%sim_time
+      rtbse_env%time_trace(n) = rtbse_env%sim_time
       CALL cp_print_key_finished_output(field_unit, logger, rtbse_env%field_section)
 
    END SUBROUTINE output_field
@@ -315,6 +313,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       CHARACTER(len=default_path_length)                 :: save_name
       INTEGER                                            :: k, n, field_unit
+      REAL(kind=dp), DIMENSION(3)                        :: real_field
 
       ! Get logger
       logger => cp_get_default_logger()
@@ -325,10 +324,11 @@ CONTAINS
                         unit_number=field_unit)
          DO k = rtbse_env%sim_start_orig, rtbse_env%sim_start
             n = k - rtbse_env%sim_start_orig + 1
-            READ (field_unit, '(E20.8E3,E20.8E3,E20.8E3,E20.8E3)') rtbse_env%time_trace%series(n), &
-               rtbse_env%field_trace(1)%series(n), rtbse_env%field_trace(2)%series(n), rtbse_env%field_trace(3)%series(n)
+            READ (field_unit, '(E20.8E3,E20.8E3,E20.8E3,E20.8E3)') rtbse_env%time_trace(n), &
+               real_field(1), real_field(2), real_field(3)
+            rtbse_env%field_trace(:,n) = CMPLX(real_field(:), 0.0, kind=dp)
             ! Set the time units back to atomic units
-            rtbse_env%time_trace%series(n) = rtbse_env%time_trace%series(n)/femtoseconds
+            rtbse_env%time_trace(n) = rtbse_env%time_trace(n)/femtoseconds
          END DO
          CALL close_file(field_unit)
       ELSE IF (.NOT. rtbse_env%dft_control%rtp_control%apply_delta_pulse .AND. &
@@ -351,10 +351,8 @@ CONTAINS
       INTEGER                                            :: i, j, n, moments_unit_re, moments_unit_im
       CHARACTER(len=14), DIMENSION(4)                    :: file_labels
       REAL(kind=dp), DIMENSION(3)                        :: moments_re
-      COMPLEX(kind=dp), DIMENSION(:,:), ALLOCATABLE      :: moments
 
-      ! TODO : Once we go away from the series representation, the array will be taken from memory directly
-      ALLOCATE (moments(rtbse_env%n_spin, 3), source=CMPLX(0.0, 0.0, kind=dp))
+      n = rtbse_env%sim_step - rtbse_env%sim_start_orig + 1
 
       DO j = 1, rtbse_env%n_spin
          ! Need to transpose due to the definition of trace function
@@ -365,7 +363,7 @@ CONTAINS
             CALL cp_fm_trace(rtbse_env%real_workspace(1), rtbse_env%real_workspace(2), moments_re(i))
             ! Scale by spin degeneracy and electron charge
             moments_re(i) = -moments_re(i)*rtbse_env%spin_degeneracy
-            moments(j,i) = CMPLX(moments_re(i), 0.0, kind=dp)
+            rtbse_env%moments_trace(j,i,n) = CMPLX(moments_re(i), 0.0, kind=dp)
          END DO
          ! Same for imaginary part
          CALL cp_cfm_to_fm(msource=rho(j), mtargeti=rtbse_env%real_workspace(2))
@@ -374,18 +372,12 @@ CONTAINS
             CALL cp_fm_trace(rtbse_env%real_workspace(1), rtbse_env%real_workspace(2), moments_re(i))
             ! Scale by spin degeneracy and electron charge
             moments_re(i) = -moments_re(i)*rtbse_env%spin_degeneracy
-            moments(j,i) = moments(j,i) + CMPLX(0.0, moments_re(i), kind=dp)
-         END DO
-         ! Save to memory for FT - imag part
-         n = rtbse_env%sim_step - rtbse_env%sim_start_orig + 1
-         DO i = 1, 3
-            rtbse_env%moments_trace(i)%series(n) = moments(j, i)
+            rtbse_env%moments_trace(j,i,n) = rtbse_env%moments_trace(j,i,n) + CMPLX(0.0, moments_re(i), kind=dp)
          END DO
       END DO
       ! Output to the file
-      CALL print_moments(rtbse_env%moments_section, rtbse_env%unit_nr, moments, rtbse_env%sim_time, .TRUE.)
-
-      DEALLOCATE (moments)
+      CALL print_moments(rtbse_env%moments_section, rtbse_env%unit_nr, rtbse_env%moments_trace(:,:,n), &
+         rtbse_env%sim_time, .TRUE.)
    END SUBROUTINE output_moments
 ! **************************************************************************************************
 !> \brief Outputs the restart info (last finished iteration step) + restard density matrix
@@ -529,12 +521,12 @@ CONTAINS
                READ (moments_unit_im, '(E20.8E3,E20.8E3,E20.8E3,E20.8E3)') timestamp, &
                   moments_im(1), moments_im(2), moments_im(3)
                DO i = 1, 3
-                  rtbse_env%moments_trace(i)%series(n) = CMPLX(moments_re(i), moments_im(i), kind=dp)
+                  rtbse_env%moments_trace(j,i,n) = CMPLX(moments_re(i), moments_im(i), kind=dp)
                END DO
-               rtbse_env%time_trace%series(n) = timestamp
+               rtbse_env%time_trace(n) = timestamp
             END DO
             ! Change back to atomic units in the trace
-            rtbse_env%time_trace%series(:) = rtbse_env%time_trace%series(:)/femtoseconds
+            rtbse_env%time_trace(:) = rtbse_env%time_trace(:)/femtoseconds
             CALL close_file(moments_unit_re)
             CALL close_file(moments_unit_im)
          ELSE IF (rtbse_env%dft_control%rtp_control%initial_wfn == use_rt_restart) THEN
@@ -542,246 +534,27 @@ CONTAINS
          END IF
       END DO
    END SUBROUTINE read_moments
-! **************************************************************************************************
-!> \brief Outputs the Fourier transform of moments stored in the environment memory to the configured file
-!> \param rtbse_env GW-BSE environment
-! **************************************************************************************************
-   SUBROUTINE output_moments_ft(rtbse_env)
-      TYPE(rtbse_env_type), POINTER                     :: rtbse_env
-      TYPE(cp_logger_type), POINTER                     :: logger
-      REAL(kind=dp), DIMENSION(:), POINTER              :: omega_series
-      ! Stores the data in ready for input/output format
-      !  - first dimension is 3: 1 - part along x, 2 - part along y, 3 - part along z
-      COMPLEX(kind=dp), DIMENSION(:,:), POINTER         :: value_full_series
-      COMPLEX(kind=dp), DIMENSION(:,:), POINTER         :: ft_full_series
-      INTEGER                                           :: i, n, ft_unit
-
-      logger => cp_get_default_logger()
-
-      n = rtbse_env%sim_nsteps + 2
-      NULLIFY (omega_series)
-      ALLOCATE (omega_series(n), source=0.0_dp)
-      NULLIFY (value_full_series)
-      ALLOCATE (value_full_series(3, n), source=CMPLX(0.0, 0.0, kind=dp))
-      NULLIFY (ft_full_series)
-      ALLOCATE (ft_full_series(3, n), source=CMPLX(0.0, 0.0, kind=dp))
-      ! Copy the series data to full series
-      ! TODO : Maybe remove series type? Might get away with just multi-dimensional array
-      DO i = 1, 3
-         value_full_series(i,:) = rtbse_env%moments_trace(i)%series
-      END DO
-      ! Carry out the Fourier transform for all 3 series simultaneously
-      CALL multi_fft(rtbse_env%time_trace%series, value_full_series, ft_full_series, omega_series, &
-              damping_opt=rtbse_env%ft_damping, t0_opt=rtbse_env%ft_start, subtract_initial_opt=.TRUE.)
-      ! Carry out for each direction independently and real and imaginary parts also independently
-      ! DO i = 1, 3
-      !    ! Real part of the value first
-      !    value_series(:) = REAL(rtbse_env%moments_trace(i)%series(:))
-      !    CALL ft_simple(rtbse_env%time_trace%series, value_series, ft_real_series, ft_imag_series, &
-      !                   damping_opt=rtbse_env%ft_damping, t0_opt=rtbse_env%ft_start, subtract_initial_opt=.TRUE.)
-      !    ft_full_series(2*i - 1, :) = ft_real_series(:)
-      !    ft_full_series(2*i, :) = ft_imag_series(:)
-      !    ! Now imaginary part
-      !    value_series(:) = AIMAG(rtbse_env%moments_trace(i)%series(:))
-      !    CALL ft_simple(rtbse_env%time_trace%series, value_series, ft_real_series, ft_imag_series, omega_series, &
-      !                   damping_opt=rtbse_env%ft_damping, t0_opt=rtbse_env%ft_start, subtract_initial_opt=.TRUE.)
-      !    ft_full_series(2*i - 1, :) = ft_full_series(2*i - 1, :) - ft_imag_series
-      !    ft_full_series(2*i, :) = ft_full_series(2*i, :) + ft_real_series
-      ! END DO
-      ! DEALLOCATE (value_series)
-      ! Now, write these to file
-      ft_unit = cp_print_key_unit_nr(logger, rtbse_env%ft_section, extension=".dat", &
-                                     file_form="FORMATTED", file_position="REWIND")
-      IF (ft_unit > 0) THEN
-         DO i = 1, n
-            WRITE (ft_unit, '(E20.8E3,E20.8E3,E20.8E3,E20.8E3,E20.8E3,E20.8E3,E20.8E3)') &
-               omega_series(i), REAL(ft_full_series(1, i)), AIMAG(ft_full_series(1, i)), &
-               REAL(ft_full_series(2, i)), AIMAG(ft_full_series(2, i)), &
-               REAL(ft_full_series(3, i)), AIMAG(ft_full_series(3, i))
-         END DO
-      END IF
-      CALL cp_print_key_finished_output(ft_unit, logger, rtbse_env%ft_section)
       ! TODO : Rebind to fully complex pade
       ! IF (rtbse_env%pade_requested) THEN
       !    CALL greenx_refine_pade(rtbse_env%pade_e_min, rtbse_env%pade_e_max, rtbse_env%pade_x_eval, &
       !                            n, rtbse_env%pade_npoints, logger, rtbse_env%ft_section, &
       !                            rtbse_env%unit_nr, omega_series, ft_full_series)
       ! END IF
-      DEALLOCATE (omega_series)
-      DEALLOCATE (ft_full_series)
-      ! Perform control with gx_ac
-   END SUBROUTINE output_moments_ft
-! **************************************************************************************************
-!> \brief Outputs the isotropic polarizability tensor element alpha _ ij = mu_i(omega)/E_j(omega),
-!>        where i and j are provided by the configuration. The tensor element is energy dependent and
-!>        has real and imaginary parts
-!> \param rtbse_env GW-BSE environment
-! **************************************************************************************************
-   SUBROUTINE output_polarizability(rtbse_env)
-      TYPE(rtbse_env_type), POINTER                      :: rtbse_env
-      TYPE(cp_logger_type), POINTER                      :: logger
-      REAL(kind=dp), DIMENSION(:), ALLOCATABLE           :: ft_real_series, &
-                                                            ft_imag_series
-      REAL(kind=dp), DIMENSION(:), POINTER               :: omega_series
-      COMPLEX(kind=dp), DIMENSION(:), ALLOCATABLE        :: moment_series, &
-                                                            field_series, &
-                                                            moment_refined, &
-                                                            field_refined, &
-                                                            omega_complex
-      COMPLEX(kind=dp), DIMENSION(:, :), ALLOCATABLE     :: polarizability_series, &
-                                                            polarizability_refined
-      COMPLEX(kind=dp), DIMENSION(:, :), POINTER         :: ft_series, &
-                                                            value_series
-      INTEGER                                            :: pol_unit, &
-                                                            i, k, n, n_elems
-
-      logger => cp_get_default_logger()
-
-      n = rtbse_env%sim_nsteps + 2
-      n_elems = SIZE(rtbse_env%pol_elements, 1)
-      ! All allocations together, although could save some memory, if required by consequent deallocations
-      NULLIFY (omega_series)
-      ALLOCATE (omega_series(n), source=0.0_dp)
-      NULLIFY (value_series)
-      ALLOCATE (value_series(1,n), source=CMPLX(0.0, 0.0, kind=dp))
-      NULLIFY (ft_series)
-      ALLOCATE (ft_series(1,n), source=CMPLX(0.0, 0.0, kind=dp))
-      ALLOCATE (moment_series(n), source=CMPLX(0.0, 0.0, kind=dp))
-      ALLOCATE (field_series(n), source=CMPLX(0.0, 0.0, kind=dp))
-      ALLOCATE (polarizability_series(n_elems, n), source=CMPLX(0.0, 0.0, kind=dp))
-
-      ! Allocations for Padé refinement
-      IF (rtbse_env%pade_requested) THEN
-         ALLOCATE (omega_complex(n), source=CMPLX(0.0, 0.0, kind=dp))
-         ALLOCATE (field_refined(rtbse_env%pade_npoints), source=CMPLX(0.0, 0.0, kind=dp))
-         ALLOCATE (moment_refined(rtbse_env%pade_npoints), source=CMPLX(0.0, 0.0, kind=dp))
-         ALLOCATE (polarizability_refined(n_elems, rtbse_env%pade_npoints), source=CMPLX(0.0, 0.0, kind=dp))
-      ELSE
-         ALLOCATE (omega_complex(0), source=CMPLX(0.0, 0.0, kind=dp))
-         ALLOCATE (field_refined(0), source=CMPLX(0.0, 0.0, kind=dp))
-         ALLOCATE (moment_refined(0), source=CMPLX(0.0, 0.0, kind=dp))
-         ALLOCATE (polarizability_refined(0, 0), source=CMPLX(0.0, 0.0, kind=dp))
-      END IF
-
-      DO k = 1, n_elems
-         ! The moment ft
-         ! TODO : Do checking for already FT transformed fields and moments
-         ! TODO : Redo so that all series are done at once
-         ! Real part
-         ! value_series(:) = REAL(rtbse_env%moments_trace(rtbse_env%pol_elements(k, 1))%series(:))
-         ! CALL ft_simple(rtbse_env%time_trace%series, value_series, ft_real_series, ft_imag_series, &
-         !                damping_opt=rtbse_env%ft_damping, t0_opt=rtbse_env%ft_start, subtract_initial_opt=.TRUE.)
-         value_series(1,:) = rtbse_env%moments_trace(rtbse_env%pol_elements(k, 1))%series(:)
-         CALL multi_fft(rtbse_env%time_trace%series, value_series, ft_series, omega_series, &
-                 damping_opt=rtbse_env%ft_damping, t0_opt=rtbse_env%ft_start, subtract_initial_opt=.TRUE.)
-         moment_series(:) = ft_series(1,:)
-
-         ! Calculate the field transform - store it in ft_real_series
-         IF (rtbse_env%dft_control%rtp_control%apply_delta_pulse) THEN
-            ! Only divide by constant magnitude in atomic units
-            ! TODO : Fix for field with more than one direction
-            field_series(:) = CMPLX( &
-                              rtbse_env%dft_control%rtp_control%delta_pulse_direction(rtbse_env%pol_elements(k, 2))* &
-                              rtbse_env%dft_control%rtp_control%delta_pulse_scale, 0.0, kind=dp)
-         ELSE
-            ! Calculate the transform of the field as well and divide by it
-            ! The field FT is not damped - assume field is localised in time
-            ! The field is strictly real
-            ! CALL ft_simple(rtbse_env%time_trace%series, rtbse_env%field_trace(rtbse_env%pol_elements(k, 2))%series, &
-            !                ft_real_series, ft_imag_series, omega_series, &
-            !                0.0_dp, rtbse_env%ft_start, .FALSE.)
-            value_series(1,:) = CMPLX(rtbse_env%field_trace(rtbse_env%pol_elements(k, 2))%series(:), 0.0, kind=dp)
-            CALL multi_fft(rtbse_env%time_trace%series, value_series, ft_series, omega_series, &
-                    0.0_dp, rtbse_env%ft_start, .FALSE.)
-            ! Regularization for the case when ft_series becomes identically zero - TODO : Set in config
-            field_series(:) = ft_series(1,:)
-         END IF
-         ! Divide to get the polarizability series
-         ! Real part
-         polarizability_series(k, :) = moment_series(:)/field_series(:)
-
-         ! Refinement of the grid via Padé approximants, if requested
-         IF (rtbse_env%pade_requested) THEN
-            omega_complex(:) = CMPLX(omega_series(:), 0.0, kind=dp)
-            ! No need to refine the field if it is known exactly
-            ! Also GreenX has trouble fitting constant functions
-            IF (rtbse_env%dft_control%rtp_control%apply_delta_pulse) THEN
-               field_refined(:) = CMPLX( &
-                                  rtbse_env%dft_control%rtp_control%delta_pulse_direction(rtbse_env%pol_elements(k, 2))* &
-                                  rtbse_env%dft_control%rtp_control%delta_pulse_scale, 0.0, kind=dp)
-            ELSE
-               CALL greenx_refine_ft(rtbse_env%pade_fit_e_min, rtbse_env%pade_fit_e_max, omega_complex, field_series, &
-                                     rtbse_env%pade_x_eval, field_refined)
-            END IF
-            CALL greenx_refine_ft(rtbse_env%pade_fit_e_min, rtbse_env%pade_fit_e_max, omega_complex, moment_series, &
-                                  rtbse_env%pade_x_eval, moment_refined)
-            polarizability_refined(k, :) = moment_refined(:)/field_refined(:)
-         END IF
-      END DO
-
-      ! Change units to eV for energy
-      ! use value_series for energy and moment_series for polarizability
-      value_series(1,:) = CMPLX(omega_series(:)*evolt, 0.0, kind=dp)
-      ! Print out the polarizability to a file
-      pol_unit = cp_print_key_unit_nr(logger, rtbse_env%pol_section, extension=".dat", &
-                                      file_form="FORMATTED", file_position="REWIND")
-      ! Printing for both the stdout and separate file
-      IF (pol_unit > 0) THEN
-         IF (pol_unit == rtbse_env%unit_nr) THEN
-            ! Print the stdout preline
-            WRITE (pol_unit, '(A16)', advance="no") " POLARIZABILITY|"
-         ELSE
-            ! Print also the energy in atomic units
-            WRITE (pol_unit, '(A1,A19)', advance="no") "#", "omega [a.u.]"
-         END IF
-         ! Common - print the energy in eV
-         WRITE (pol_unit, '(A20)', advance="no") "Energy [eV]"
-         ! Print a header for each polarizability element
-         DO k = 1, n_elems - 1
-            WRITE (pol_unit, '(A16,I2,I2,A16,I2,I2)', advance="no") &
-               "Real pol.", rtbse_env%pol_elements(k, 1), rtbse_env%pol_elements(k, 2), &
-               "Imag pol.", rtbse_env%pol_elements(k, 1), rtbse_env%pol_elements(k, 2)
-         END DO
-         WRITE (pol_unit, '(A16,I2,I2,A16,I2,I2)') &
-            "Real pol.", rtbse_env%pol_elements(n_elems, 1), rtbse_env%pol_elements(n_elems, 2), &
-            "Imag pol.", rtbse_env%pol_elements(n_elems, 1), rtbse_env%pol_elements(n_elems, 2)
-         DO i = 1, n
-            IF (pol_unit == rtbse_env%unit_nr) THEN
-               ! Print the stdout preline
-               WRITE (pol_unit, '(A16)', advance="no") " POLARIZABILITY|"
-            ELSE
-               ! omega in a.u.
-               WRITE (pol_unit, '(E20.8E3)', advance="no") omega_series(i)
-            END IF
-            ! Common values
-            WRITE (pol_unit, '(E20.8E3)', advance="no") REAL(value_series(1,i))
-            DO k = 1, n_elems - 1
-               WRITE (pol_unit, '(E20.8E3,E20.8E3)', advance="no") &
-                  REAL(polarizability_series(k, i)), AIMAG(polarizability_series(k, i))
-            END DO
-            ! Print the final value and advance
-            WRITE (pol_unit, '(E20.8E3,E20.8E3)') &
-               REAL(polarizability_series(n_elems, i)), AIMAG(polarizability_series(n_elems, i))
-         END DO
-         CALL cp_print_key_finished_output(pol_unit, logger, rtbse_env%pol_section)
-      END IF
-
-      IF (rtbse_env%pade_requested) THEN
-         CALL greenx_output_polarizability(logger, rtbse_env%pol_section, rtbse_env%unit_nr, &
-                                           rtbse_env%pol_elements, rtbse_env%pade_x_eval, polarizability_refined)
-      END IF
-
-      DEALLOCATE (value_series)
-
-      DEALLOCATE (field_series)
-      DEALLOCATE (moment_series)
-
-      DEALLOCATE (omega_series)
-      DEALLOCATE (polarizability_series)
-
-      DEALLOCATE (omega_complex)
-      DEALLOCATE (field_refined)
-      DEALLOCATE (moment_refined)
-      DEALLOCATE (polarizability_refined)
-   END SUBROUTINE output_polarizability
+      ! ! Refinement of the grid via Padé approximants, if requested
+      ! IF (rtbse_env%pade_requested) THEN
+      !    omega_complex(:) = CMPLX(omega_series(:), 0.0, kind=dp)
+      !    ! No need to refine the field if it is known exactly
+      !    ! Also GreenX has trouble fitting constant functions
+      !    IF (rtbse_env%dft_control%rtp_control%apply_delta_pulse) THEN
+      !       field_refined(:) = CMPLX( &
+      !                          rtbse_env%dft_control%rtp_control%delta_pulse_direction(rtbse_env%pol_elements(k, 2))* &
+      !                          rtbse_env%dft_control%rtp_control%delta_pulse_scale, 0.0, kind=dp)
+      !    ELSE
+      !       CALL greenx_refine_ft(rtbse_env%pade_fit_e_min, rtbse_env%pade_fit_e_max, omega_complex, field_series, &
+      !                             rtbse_env%pade_x_eval, field_refined)
+      !    END IF
+      !    CALL greenx_refine_ft(rtbse_env%pade_fit_e_min, rtbse_env%pade_fit_e_max, omega_complex, moment_series, &
+      !                          rtbse_env%pade_x_eval, moment_refined)
+      !    polarizability_refined(k, :) = moment_refined(:)/field_refined(:)
+      ! END IF
 END MODULE rt_bse_io
