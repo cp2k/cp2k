@@ -1558,6 +1558,11 @@ if(CP2K_USE_GRPP)
   list(APPEND CP2K_SRCS_C ${CP2K_GRPP_SRCS_C})
   list(APPEND CP2K_SRCS_F ${CP2K_GRPP_SRCS_F})
 endif()
+
+list(APPEND CP2K_SRCS_F openPMD.F input/cp_output_handling_openpmd.F
+     cp_realspace_grid_openpmd.F pw/realspace_grid_openpmd.F)
+list(APPEND CP2K_SRCS_CPP openPMD.cpp)
+
 # ##############################################################################
 # check that the files registered in CMakeLists.txt are all present and return
 # an error otherwise. cmake only runs this test nothing else below
@@ -1655,15 +1660,12 @@ foreach(cp2k_prog ${CP2K_PROGS_F})
     ${cp2k_prog} PROPERTIES COMPILE_DEFINITIONS __SHORT_FILE__="${cp2k_prog}")
 endforeach()
 
-if(CP2K_USE_LIBTORCH)
-  add_library(cp2k
+if(BUILD_SHARED_LIBS)
+  add_library(cp2k SHARED
               "${CP2K_SRCS};${CP2K_SRCS_C};${CP2K_SRCS_GPU};${CP2K_SRCS_CPP}")
 else()
-  if(BUILD_SHARED_LIBS)
-    add_library(cp2k SHARED "${CP2K_SRCS};${CP2K_SRCS_C};${CP2K_SRCS_GPU}")
-  else()
-    add_library(cp2k STATIC "${CP2K_SRCS};${CP2K_SRCS_C};${CP2K_SRCS_GPU}")
-  endif()
+  add_library(cp2k STATIC
+              "${CP2K_SRCS};${CP2K_SRCS_C};${CP2K_SRCS_GPU};${CP2K_SRCS_CPP}")
 endif()
 
 target_compile_features(cp2k PUBLIC cuda_std_11)
@@ -1754,6 +1756,7 @@ target_link_libraries(
     cp2k_linalg_libs
     # Torch includes some LAPACK routines, but with floating-point exceptions.
     $<$<BOOL:${CP2K_USE_LIBTORCH}>:${TORCH_LIBRARIES}>
+    $<$<BOOL:${CP2K_USE_OPENPMD}>:openPMD::openPMD>
     $<$<AND:$<CONFIG:COVERAGE>,$<Fortran_COMPILER_ID:GNU>>:gcov>)
 
 string(TIMESTAMP CP2K_TIMESTAMP "%Y-%m-%d %H:%M:%S")
@@ -1793,6 +1796,7 @@ target_compile_definitions(
     $<$<BOOL:${CP2K_USE_DLAF}>:__DLAF>
     $<$<BOOL:${CP2K_USE_LIBXC}>:__LIBXC>
     $<$<BOOL:${CP2K_USE_HDF5}>:__HDF5>
+    $<$<BOOL:${CP2K_USE_OPENPMD}>:__OPENPMD>
     $<$<BOOL:${CP2K_USE_TREXIO}>:__TREXIO>
     $<$<BOOL:${CP2K_USE_GREENX}>:__GREENX>
     $<$<BOOL:${CP2K_USE_GRPP}>:__LIBGRPP>
