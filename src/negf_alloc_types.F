@@ -25,7 +25,7 @@ MODULE negf_alloc_types
 !> \brief Allocatable 1-D integer vector
 ! **************************************************************************************************
    TYPE negf_allocatable_ivector
-      !> allocatable 1-D real vector
+      !> allocatable 1-D integer vector
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: vector
    END TYPE negf_allocatable_ivector
 
