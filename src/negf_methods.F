@@ -8,7 +8,6 @@
 ! **************************************************************************************************
 !> \brief NEGF based quantum transport calculations
 ! **************************************************************************************************
-
 MODULE negf_methods
    USE bibliography,                    ONLY: Bailey2006,&
                                               Papior2017,&
@@ -157,11 +156,13 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'do_negf'
 
+      CHARACTER(len=100)                                 :: sfmt
       CHARACTER(len=default_string_length)               :: contact_id_str
-      INTEGER                                            :: handle, icontact, ispin, log_unit, &
-                                                            ncontacts, npoints, nspins, &
-                                                            print_level, print_unit
-      LOGICAL                                            :: should_output, verbose_output
+      INTEGER                                            :: handle, i, icontact, ispin, j, k, &
+                                                            log_unit, n, ncontacts, npoints, &
+                                                            nspins, print_level, print_unit
+      LOGICAL                                            :: debug_output, should_output, &
+                                                            verbose_output
       REAL(kind=dp)                                      :: energy_max, energy_min
       REAL(kind=dp), DIMENSION(2)                        :: current
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
@@ -198,36 +199,82 @@ CONTAINS
       NULLIFY (negf_control)
       CALL negf_control_create(negf_control)
       CALL read_negf_control(negf_control, root_section, cp_subsys)
+      CALL get_qs_env(qs_env, dft_control=dft_control)
 
       ! print unit, if log_unit > 0, otherwise no output
       log_unit = cp_print_key_unit_nr(logger, negf_section, "PRINT%PROGRAM_RUN_INFO", extension=".Log")
+
+      IF (log_unit > 0) THEN
+         WRITE (log_unit, '(/,T2,79("-"))')
+         WRITE (log_unit, '(T27,A,T62)') "NEGF calculation is started"
+         WRITE (log_unit, '(T2,79("-"))')
+      END IF
 
       ! print levels, are used if log_unit > 0
       IF (log_unit > 0) THEN
          CALL section_vals_val_get(negf_section, "PRINT%PROGRAM_RUN_INFO%PRINT_LEVEL", i_val=print_level)
          SELECT CASE (print_level)
-         CASE (high_print_level, debug_print_level)
+         CASE (high_print_level)
             verbose_output = .TRUE.
+         CASE (debug_print_level)
+            verbose_output = .TRUE.
+            debug_output = .TRUE.
          CASE DEFAULT
             verbose_output = .FALSE.
+            debug_output = .FALSE.
          END SELECT
       END IF
 
       IF (log_unit > 0) THEN
-         WRITE (log_unit, '(/,T2,A,T62)') "COMPUTE THE RELEVANT HAMILTONIAN MATRICES"
+         WRITE (log_unit, "(/,' THE RELEVANT HAMILTONIAN AND OVERLAP MATRICES FROM DFT')")
+         WRITE (log_unit, "(  ' ------------------------------------------------------')")
       END IF
 
       CALL negf_sub_env_create(sub_env, negf_control, blacs_env, global_env%blacs_grid_layout, global_env%blacs_repeatable)
       CALL negf_env_create(negf_env, sub_env, negf_control, force_env, negf_mixing_section, log_unit)
 
-      IF (log_unit > 0 .AND. verbose_output) THEN
+      IF (log_unit > 0) THEN
+         WRITE (log_unit, "(/,' NEGF| The initial Hamiltonian and Overlap matrices are calculated.')")
+      END IF
+
+      IF (log_unit > 0) THEN
          DO icontact = 1, SIZE(negf_control%contacts)
-            WRITE (log_unit, "(/,' NEGF| Atoms in the contact region',I2,':',I4)") &
-               icontact, SIZE(negf_control%contacts(icontact)%atomlist_bulk)
-            WRITE (log_unit, "(16I5)") negf_control%contacts(icontact)%atomlist_bulk
+            WRITE (log_unit, "(/,' The electrode',I5)") icontact
+            WRITE (log_unit, "(  ' ------------------')")
+            WRITE (log_unit, "(' From the force environment:',I16)") negf_control%contacts(icontact)%force_env_index
+            WRITE (log_unit, "(' Number of atoms:',I27)") SIZE(negf_control%contacts(icontact)%atomlist_bulk)
+            IF (verbose_output) WRITE (log_unit, "(' Atoms belonging to a contact:')")
+            IF (verbose_output) WRITE (log_unit, "(16I5)") negf_control%contacts(icontact)%atomlist_bulk
+            WRITE (log_unit, "(' Number of atoms in a primary unit cell:',I4)") SIZE(negf_env%contacts(icontact)%atomlist_cell0)
+            IF (verbose_output) WRITE (log_unit, "(' Atoms belonging to a primary unit cell:')")
+            IF (verbose_output) WRITE (log_unit, "(16I5)") negf_env%contacts(icontact)%atomlist_cell0
+            n = SIZE(negf_env%contacts(icontact)%h_00(1)%local_data, 1)
+            WRITE (sfmt, "('(',i0,'(E15.5))')") n
+            WRITE (log_unit, "(' The number of atomic orbtals:',I14)") n
+            ! print the electrode Hamiltonians for check and debuging
+            IF (debug_output) THEN
+               DO k = 1, dft_control%nspins
+                  WRITE (log_unit, "(' The H_00 electrode Hamiltonian for spin',I2)") k
+                  DO i = 1, n
+                     WRITE (log_unit, sfmt) (negf_env%contacts(icontact)%h_00(k)%local_data(i, j), j=1, n)
+                  END DO
+                  WRITE (log_unit, "(' The H_01 electrode Hamiltonian for spin',I2)") k
+                  DO i = 1, n
+                     WRITE (log_unit, sfmt) (negf_env%contacts(icontact)%h_01(k)%local_data(i, j), j=1, n)
+                  END DO
+               END DO
+               WRITE (log_unit, "(' The S_00 overlap matrix')")
+               DO i = 1, n
+                  WRITE (log_unit, sfmt) (negf_env%contacts(icontact)%s_00%local_data(i, j), j=1, n)
+               END DO
+               WRITE (log_unit, "(' The S_01 overlap matrix')")
+               DO i = 1, n
+                  WRITE (log_unit, sfmt) (negf_env%contacts(icontact)%s_01%local_data(i, j), j=1, n)
+               END DO
+            END IF
          END DO
-         WRITE (log_unit, "(/,' NEGF| Atoms in the full scattering region:',I4)") SIZE(negf_control%atomlist_S_screening)
-         WRITE (log_unit, "(16I5)") negf_control%atomlist_S_screening
+         WRITE (log_unit, "(/,' Atoms in the full scattering region:',I4)") SIZE(negf_control%atomlist_S_screening)
+         IF (verbose_output) WRITE (log_unit, "(16I5)") negf_control%atomlist_S_screening
          WRITE (log_unit, *)
       END IF
 
@@ -342,6 +389,12 @@ CONTAINS
             CALL cp_print_key_finished_output(print_unit, logger, print_section, "TRANSMISSION")
          END IF
 
+      END IF
+
+      IF (log_unit > 0) THEN
+         WRITE (log_unit, '(/,T2,79("-"))')
+         WRITE (log_unit, '(T27,A,T62)') "NEGF calculation is finished"
+         WRITE (log_unit, '(T2,79("-"))')
       END IF
 
       CALL negf_env_release(negf_env)
@@ -475,8 +528,9 @@ CONTAINS
 
          IF (log_unit > 0) THEN
             WRITE (temperature_str, '(F11.3)') negf_control%contacts(contact_id)%temperature*kelvin
-            WRITE (log_unit, '(/,T2,A,I0,A)') "COMPUTE FERMI LEVEL OF CONTACT ", &
-               contact_id, " AT "//TRIM(ADJUSTL(temperature_str))//" KELVIN"
+            WRITE (log_unit, '(/,T2,A,I3)') "COMPUTE FERMI LEVEL OF CONTACT ", contact_id
+            WRITE (log_unit, "(            ' ----------------------------------')")
+            WRITE (log_unit, '(A)') " Temperature "//TRIM(ADJUSTL(temperature_str))//" Kelvin"
             WRITE (log_unit, '(/,T2,A,T60,F20.10,/)') "Electronic density of the isolated contact unit cell:", &
                -1.0_dp*(nelectrons_qs_cell0 + nelectrons_qs_cell1)
             WRITE (log_unit, '(T3,A)') "Step     Integration method      Time      Fermi level   Convergence (density)"
@@ -746,6 +800,7 @@ CONTAINS
 
       IF (log_unit > 0) THEN
          WRITE (log_unit, '(/,T2,A)') "COMPUTE SHIFT IN HARTREE POTENTIAL"
+         WRITE (log_unit, "(         ' ----------------------------------')")
          WRITE (log_unit, '(/,T2,A,T55,F25.14,/)') "Initial electronic density of the scattering region:", -1.0_dp*nelectrons_ref
          WRITE (log_unit, '(T3,A)') "Step     Integration method      Time        V shift     Convergence (density)"
          WRITE (log_unit, '(T3,78("-"))')
@@ -1049,6 +1104,7 @@ CONTAINS
 
       IF (log_unit > 0) THEN
          WRITE (log_unit, '(/,T2,A)') "NEGF SELF-CONSISTENT PROCEDURE"
+         WRITE (log_unit, "(         ' ------------------------------')")
          WRITE (log_unit, '(/,T2,A,T55,F25.14,/)') "Initial electronic density of the scattering region:", -1.0_dp*nelectrons
          WRITE (log_unit, '(T3,A)') "Step     Integration method      Time     Electronic density      Convergence"
          WRITE (log_unit, '(T3,78("-"))')

@@ -356,7 +356,8 @@ QS/regtest-double-hybrid-2                                  libint !ifx
 QS/regtest-sccs-2
 FE/regtest-3
 QS/regtest-properties/resp
-QS/regtest-negf-fft                                         fftw3
+QS/regtest-negf-1                                           fftw3
+QS/regtest-negf-2                                           fftw3
 NEB/regtest-1
 QS/regtest-double-hybrid-stress-numer-meta                  libxc !ifx
 QS/regtest-elpa-qr                                          elpa mpiranks==1||mpiranks%2==0
@@ -368,7 +369,6 @@ QS/regtest-double-hybrid-stress
 DFTB/regtest-debug
 optimize_input/regtest-1
 DFTB/regtest-vdw
-QS/regtest-negf
 SWARM/regtest-glbopt-1
 QS/regtest-cdft-hirshfeld-3
 QS/regtest-linearscaling
