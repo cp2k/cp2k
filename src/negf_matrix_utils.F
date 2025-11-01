@@ -8,7 +8,6 @@
 ! **************************************************************************************************
 !> \brief Helper routines to manipulate with matrices.
 ! **************************************************************************************************
-
 MODULE negf_matrix_utils
    USE cp_dbcsr_api,                    ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_deallocate_matrix, dbcsr_get_block_p, dbcsr_get_info, &
@@ -19,6 +18,8 @@ MODULE negf_matrix_utils
                                               cp_fm_set_submatrix,&
                                               cp_fm_type
    USE kinds,                           ONLY: dp
+   USE kpoint_types,                    ONLY: get_kpoint_info,&
+                                              kpoint_type
    USE message_passing,                 ONLY: mp_comm_type,&
                                               mp_para_env_type,&
                                               mp_request_type
@@ -27,6 +28,13 @@ MODULE negf_matrix_utils
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
    USE qs_kind_types,                   ONLY: qs_kind_type
+   USE qs_neighbor_list_types,          ONLY: get_iterator_info,&
+                                              get_neighbor_list_set_p,&
+                                              neighbor_list_iterate,&
+                                              neighbor_list_iterator_create,&
+                                              neighbor_list_iterator_p_type,&
+                                              neighbor_list_iterator_release,&
+                                              neighbor_list_set_p_type
    USE qs_subsys_types,                 ONLY: qs_subsys_get,&
                                               qs_subsys_type
 #include "./base/base_uses.f90"
@@ -38,7 +46,7 @@ MODULE negf_matrix_utils
    LOGICAL, PARAMETER, PRIVATE          :: debug_this_module = .TRUE.
 
    PUBLIC :: number_of_atomic_orbitals, negf_copy_fm_submat_to_dbcsr, negf_copy_sym_dbcsr_to_fm_submat
-   PUBLIC :: negf_copy_contact_matrix, negf_reference_contact_matrix
+   PUBLIC :: negf_copy_contact_matrix, negf_copy_contact_matrix_old, negf_reference_contact_matrix
    PUBLIC :: invert_cell_to_index, get_index_by_cell
 
 CONTAINS
@@ -285,15 +293,181 @@ CONTAINS
 !> \param atom_list1      list of atoms which belong to the secondary contact unit cell
 !> \param subsys          QuickStep subsystem
 !> \param mpi_comm_global global MPI communicator
+!> \param kpoints ...
+!> \par History
+!>   * 10.2017 created [Sergey Chulkov]
+!>   * 10.2025 The subroutine is essentially modified. The old one is kept as negf_copy_contact_matrix_old.
+!>             [Dmitry Ryndyk]
+! **************************************************************************************************
+   SUBROUTINE negf_copy_contact_matrix(fm_cell0, fm_cell1, direction_axis, matrix_kp, index_to_cell, &
+                                       atom_list0, atom_list1, subsys, mpi_comm_global, kpoints)
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_cell0, fm_cell1
+      INTEGER, INTENT(in)                                :: direction_axis
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(in)       :: matrix_kp
+      INTEGER, DIMENSION(:, :), INTENT(in)               :: index_to_cell
+      INTEGER, DIMENSION(:), INTENT(in)                  :: atom_list0, atom_list1
+      TYPE(qs_subsys_type), POINTER                      :: subsys
+
+      CLASS(mp_comm_type), INTENT(in)                    :: mpi_comm_global
+      TYPE(kpoint_type), POINTER                         :: kpoints
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'negf_copy_contact_matrix'
+
+      INTEGER                                            :: direction_axis_abs, handle, iatom_col, &
+                                                            iatom_row, image, natoms, nimages, &
+                                                            rep
+      LOGICAL                                            :: found, do_symmetric
+      REAL(kind=dp), DIMENSION(:, :), POINTER            :: block_dest, block_src
+      TYPE(dbcsr_p_type), ALLOCATABLE, DIMENSION(:)      :: matrix_cells_raw
+      TYPE(dbcsr_type), POINTER                          :: matrix_cell_1, matrix_cell_minus1
+      INTEGER, DIMENSION(3)                              :: cell
+      TYPE(neighbor_list_set_p_type), DIMENSION(:), &
+         POINTER                                         :: sab_nl
+      TYPE(neighbor_list_iterator_p_type), &
+         DIMENSION(:), POINTER                           :: nl_iterator
+
+      CALL timeset(routineN, handle)
+
+      CPASSERT(ASSOCIATED(subsys))
+
+      nimages = SIZE(index_to_cell, 2)
+      direction_axis_abs = ABS(direction_axis)
+
+      ! 0 -- primary unit cell;
+      ! +- 1 -- upper- and lower-diagonal matrices for neighbor-cell matrix elements;
+      ! +- 2 -- for control
+      ALLOCATE (matrix_cells_raw(-2:2))
+      DO rep = -2, 2
+         NULLIFY (matrix_cells_raw(rep)%matrix)
+         CALL dbcsr_init_p(matrix_cells_raw(rep)%matrix)
+         CALL dbcsr_copy(matrix_cells_raw(rep)%matrix, matrix_kp(1)%matrix)
+         CALL dbcsr_set(matrix_cells_raw(rep)%matrix, 0.0_dp)
+      END DO
+
+      DO image = 1, nimages
+         rep = index_to_cell(direction_axis_abs, image)
+
+         IF (ABS(rep) <= 2) &
+            CALL dbcsr_add(matrix_cells_raw(rep)%matrix, matrix_kp(image)%matrix, 1.0_dp, 1.0_dp)
+      END DO
+
+      NULLIFY (matrix_cell_1, matrix_cell_minus1)
+
+      CALL dbcsr_init_p(matrix_cell_1)
+      CALL dbcsr_copy(matrix_cell_1, matrix_kp(1)%matrix)
+      CALL dbcsr_set(matrix_cell_1, 0.0_dp)
+
+      CALL dbcsr_init_p(matrix_cell_minus1)
+      CALL dbcsr_copy(matrix_cell_minus1, matrix_kp(1)%matrix)
+      CALL dbcsr_set(matrix_cell_minus1, 0.0_dp)
+
+      CALL dbcsr_get_info(matrix_cell_1, nblkrows_total=natoms)
+
+      CALL get_kpoint_info(kpoints, sab_nl=sab_nl)
+      CALL get_neighbor_list_set_p(neighbor_list_sets=sab_nl, symmetric=do_symmetric)
+      CALL neighbor_list_iterator_create(nl_iterator, sab_nl)
+      DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
+         CALL get_iterator_info(nl_iterator, iatom=iatom_row, jatom=iatom_col, cell=cell)
+
+         IF (ABS(cell(direction_axis_abs)) == 1) THEN
+         IF (iatom_row <= iatom_col) THEN
+            ! secondary unit cell, i <= j:
+            CALL dbcsr_get_block_p(matrix=matrix_cell_1, &
+                                   row=iatom_row, col=iatom_col, block=block_dest, found=found)
+            CPASSERT(found)
+            CALL dbcsr_get_block_p(matrix=matrix_cells_raw(-cell(direction_axis_abs))%matrix, &
+                                   row=iatom_row, col=iatom_col, block=block_src, found=found)
+            CPASSERT(found)
+            block_dest(:, :) = block_src(:, :)
+
+            CALL dbcsr_get_block_p(matrix=matrix_cell_minus1, &
+                                   row=iatom_row, col=iatom_col, block=block_dest, found=found)
+            CPASSERT(found)
+            CALL dbcsr_get_block_p(matrix=matrix_cells_raw(cell(direction_axis_abs))%matrix, &
+                                   row=iatom_row, col=iatom_col, block=block_src, found=found)
+            CPASSERT(found)
+            block_dest(:, :) = block_src(:, :)
+
+         ELSE
+            ! secondary unit cell, i > j:
+            CALL dbcsr_get_block_p(matrix=matrix_cell_1, &
+                                   row=iatom_col, col=iatom_row, block=block_dest, found=found)
+            CPASSERT(found)
+            CALL dbcsr_get_block_p(matrix=matrix_cells_raw(-cell(direction_axis_abs))%matrix, &
+                                   row=iatom_col, col=iatom_row, block=block_src, found=found)
+            CPASSERT(found)
+            block_dest(:, :) = block_src(:, :)
+
+            CALL dbcsr_get_block_p(matrix=matrix_cell_minus1, &
+                                   row=iatom_col, col=iatom_row, block=block_dest, found=found)
+            CPASSERT(found)
+            CALL dbcsr_get_block_p(matrix=matrix_cells_raw(cell(direction_axis_abs))%matrix, &
+                                   row=iatom_col, col=iatom_row, block=block_src, found=found)
+            CPASSERT(found)
+            block_dest(:, :) = block_src(:, :)
+
+         END IF
+
+         END IF
+
+      END DO
+
+      IF (direction_axis >= 0) THEN
+         ! upper-diagonal part of fm_cell1
+         CALL negf_copy_sym_dbcsr_to_fm_submat(matrix_cell_1, fm_cell1, atom_list0, atom_list1, &
+                                               subsys, mpi_comm_global, do_upper_diag=.TRUE., do_lower=.FALSE.)
+         ! lower-diagonal part of fm_cell1
+         CALL negf_copy_sym_dbcsr_to_fm_submat(matrix_cell_minus1, fm_cell0, atom_list0, atom_list1, &
+                                               subsys, mpi_comm_global, do_upper_diag=.FALSE., do_lower=.TRUE.)
+      ELSE
+         ! upper-diagonal part of fm_cell1
+         CALL negf_copy_sym_dbcsr_to_fm_submat(matrix_cell_minus1, fm_cell1, atom_list0, atom_list1, &
+                                               subsys, mpi_comm_global, do_upper_diag=.TRUE., do_lower=.FALSE.)
+         ! lower-diagonal part of fm_cell1
+         CALL negf_copy_sym_dbcsr_to_fm_submat(matrix_cell_1, fm_cell0, atom_list0, atom_list1, &
+                                               subsys, mpi_comm_global, do_upper_diag=.FALSE., do_lower=.TRUE.)
+      END IF
+      CALL cp_fm_scale_and_add(1.0_dp, fm_cell1, 1.0_dp, fm_cell0)
+
+      ! symmetric matrix fm_cell0
+      CALL negf_copy_sym_dbcsr_to_fm_submat(matrix_cells_raw(0)%matrix, fm_cell0, atom_list0, atom_list0, &
+                                            subsys, mpi_comm_global, do_upper_diag=.TRUE., do_lower=.TRUE.)
+
+      DO rep = -2, 2
+         CALL dbcsr_deallocate_matrix(matrix_cells_raw(rep)%matrix)
+      END DO
+      DEALLOCATE (matrix_cells_raw)
+      CALL neighbor_list_iterator_release(nl_iterator)
+      CALL dbcsr_deallocate_matrix(matrix_cell_1)
+      CALL dbcsr_deallocate_matrix(matrix_cell_minus1)
+
+      CALL timestop(handle)
+   END SUBROUTINE negf_copy_contact_matrix
+
+! **************************************************************************************************
+!> \brief Driver routine to extract diagonal and off-diagonal blocks from a symmetric DBCSR matrix.
+!> \param fm_cell0        extracted diagonal matrix block
+!> \param fm_cell1        extracted off-diagonal matrix block
+!> \param direction_axis  axis towards the secondary unit cell
+!> \param matrix_kp       set of DBCSR matrices
+!> \param index_to_cell   inverted mapping between unit cells and DBCSR matrix images
+!> \param atom_list0      list of atoms which belong to the primary contact unit cell
+!> \param atom_list1      list of atoms which belong to the secondary contact unit cell
+!> \param subsys          QuickStep subsystem
+!> \param mpi_comm_global global MPI communicator
 !> \param is_same_cell    for every atomic pair indicates whether or not both atoms are assigned to
 !>                        the same (0) or different (-1) unit cells (initialised when the optional
 !>                        argument 'matrix_ref' is given)
 !> \param matrix_ref      reference DBCSR matrix
 !> \par History
 !>   * 10.2017 created [Sergey Chulkov]
+!>   * 10.2025 "is_the_same" condition is modified [Dmitry Ryndyk]
+!> \note This subroutine is replaced by the new one, but is kept for testing and debugging.
+!>       It is activated by recompiling the src/negf_env_types.F module with
+!>       CALL negf_env_contact_init_matrices_old in SUBROUTINE negf_env_create uncommented.
 ! **************************************************************************************************
-   SUBROUTINE negf_copy_contact_matrix(fm_cell0, fm_cell1, direction_axis, matrix_kp, index_to_cell, &
-                                       atom_list0, atom_list1, subsys, mpi_comm_global, is_same_cell, matrix_ref)
+   SUBROUTINE negf_copy_contact_matrix_old(fm_cell0, fm_cell1, direction_axis, matrix_kp, index_to_cell, &
+                                           atom_list0, atom_list1, subsys, mpi_comm_global, is_same_cell, matrix_ref)
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_cell0, fm_cell1
       INTEGER, INTENT(in)                                :: direction_axis
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(in)       :: matrix_kp
@@ -393,11 +567,17 @@ CONTAINS
                   CPASSERT(found)
                   error_diff = MAXVAL(ABS(block_dest(:, :) - block_src(:, :)))
 
-                  IF (error_same <= error_diff) THEN
+                  ! IF (error_same <= error_diff) THEN
+                  ! The condition is changed because it gives wrong results for small S-matrix elements,
+                  ! and it leads to observable mistakes in the transmission function.
+                  ! The new condition is a dirty hack, it works in all made tests.
+                  ! Anyway, this part of the code is outdated and kept for testing and debugging.
+                  IF ((error_same - error_diff) < -0.00001) THEN
                      is_same_cell(iatom_row, iatom_col) = 0
                   ELSE
                      is_same_cell(iatom_row, iatom_col) = 1
                   END IF
+
                END IF
             END DO
          END DO
@@ -482,7 +662,7 @@ CONTAINS
       DEALLOCATE (matrix_cells_raw)
 
       CALL timestop(handle)
-   END SUBROUTINE negf_copy_contact_matrix
+   END SUBROUTINE negf_copy_contact_matrix_old
 
 ! **************************************************************************************************
 !> \brief Extract part of the DBCSR matrix based on selected atoms and copy it into another DBCSR

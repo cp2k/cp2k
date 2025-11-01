@@ -47,17 +47,17 @@ MODULE negf_control_types
    TYPE negf_control_contact_type
       !> atoms belonging to bulk and screening regions
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atomlist_bulk, atomlist_screening
-      !> atom belonging to the primary and secondary bulk unit cells
+      !> atoms belonging to the primary and secondary bulk unit cells
       TYPE(negf_allocatable_ivector), ALLOCATABLE, &
          DIMENSION(:)                                    :: atomlist_cell
       !> index of the sub_force_env which should be used for bulk calculation
       INTEGER                                            :: force_env_index = -1
       !> contact Fermi level needs to be computed prior NEGF run
       LOGICAL                                            :: compute_fermi_level = .FALSE.
-      !> when computing contact Fermi level, use the energy given in 'fermi_level' (instead of HOMO)
-      !> (instead of the HOMO energy) as a starting point
+      !> to compute contact Fermi level starting from 'fermi_level'
+      !> (instead of the HOMO energy)
       LOGICAL                                            :: refine_fermi_level = .FALSE.
-      !> Fermi level
+      !> Fermi level or starting Fermi level
       REAL(kind=dp)                                      :: fermi_level = -1.0_dp
       !> temperature [in a.u.]
       REAL(kind=dp)                                      :: temperature = -1.0_dp
@@ -493,7 +493,7 @@ CONTAINS
       CALL section_vals_val_get(input_section, "MOLNAME", i_rep_section=i_rep_section, &
                                 n_rep_val=nrep_molname, explicit=is_molname)
 
-      ! compute the number of atoms in the NEGF region, and check the validity of giben atomic indices
+      ! compute the number of atoms in the NEGF region, and check the validity of given atomic indices
       natoms_total = 0
       IF (is_list .AND. nrep_list > 0) THEN
          DO irep = 1, nrep_list
