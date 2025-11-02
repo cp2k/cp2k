@@ -4,4 +4,4 @@
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
 #
-"li_chain.inp"                          = []
+"H28.inp"                          = []

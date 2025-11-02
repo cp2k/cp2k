@@ -17,8 +17,7 @@ MODULE negf_env_types
                                               dbcsr_deallocate_matrix,&
                                               dbcsr_init_p,&
                                               dbcsr_p_type,&
-                                              dbcsr_set,&
-                                              dbcsr_type
+                                              dbcsr_set
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
@@ -45,7 +44,6 @@ MODULE negf_env_types
    USE negf_matrix_utils,               ONLY: invert_cell_to_index,&
                                               negf_copy_contact_matrix,&
                                               negf_copy_sym_dbcsr_to_fm_submat,&
-                                              negf_reference_contact_matrix,&
                                               number_of_atomic_orbitals
    USE negf_subgroup_types,             ONLY: negf_subgroup_env_type
    USE negf_vectors,                    ONLY: contact_direction_vector,&
@@ -260,18 +258,20 @@ CONTAINS
       DO icontact = 1, ncontacts
          IF (negf_control%contacts(icontact)%force_env_index > 0) THEN
             IF (log_unit > 0) &
-               WRITE (log_unit, '(/,T2,A,T70,I11)') "NEGF| Construct the Kohn-Sham matrix for the contact ", icontact
+               WRITE (log_unit, '(/,T2,A,T70,I11)') "NEGF| Construct the Kohn-Sham matrix for the contact", icontact
 
             CALL force_env_get(sub_force_env(negf_control%contacts(icontact)%force_env_index)%force_env, qs_env=qs_env_contact)
 
             CALL qs_energies(qs_env_contact, consistent_energies=.FALSE., calc_forces=.FALSE.)
 
             CALL negf_env_contact_init_matrices(contact_env=negf_env%contacts(icontact), sub_env=sub_env, &
-                                                qs_env_contact=qs_env_contact, matrix_s_device=matrix_s_kp(1, 1)%matrix)
+                                                qs_env_contact=qs_env_contact)
          END IF
       END DO
 
       ! obtain an initial KS-matrix for the scattering region
+      IF (log_unit > 0) &
+         WRITE (log_unit, '(/,T2,A,T70)') "NEGF| Construct the Kohn-Sham matrix for the entire system"
       CALL qs_energies(qs_env, consistent_energies=.FALSE., calc_forces=.FALSE.)
 
       ! *** obtain relevant Kohn-Sham matrix blocks for each contact with no separate FORCE_ENV ***
@@ -376,26 +376,26 @@ CONTAINS
 !> \param contact_env         NEGF environment for the contact (modified on exit)
 !> \param sub_env             NEGF parallel (sub)group environment
 !> \param qs_env_contact      QuickStep environment for the contact force environment
-!> \param matrix_s_device     overlap matrix from device force environment
-!> \author Sergey Chulkov
+!> \par History
+!>   * 10.2017 created [Sergey Chulkov]
+!>   * 10.2025 The subroutine is essentially modified. New functionality of negf_copy_contact_matrix.
+!>             [Dmitry Ryndyk]
 ! **************************************************************************************************
-   SUBROUTINE negf_env_contact_init_matrices(contact_env, sub_env, qs_env_contact, matrix_s_device)
+   SUBROUTINE negf_env_contact_init_matrices(contact_env, sub_env, qs_env_contact)
       TYPE(negf_env_contact_type), INTENT(inout)         :: contact_env
       TYPE(negf_subgroup_env_type), INTENT(in)           :: sub_env
       TYPE(qs_environment_type), POINTER                 :: qs_env_contact
-      TYPE(dbcsr_type), POINTER                          :: matrix_s_device
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'negf_env_contact_init_matrices'
 
       INTEGER                                            :: handle, iatom, ispin, nao, natoms, &
                                                             nimages, nspins
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_list0, atom_list1
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: index_to_cell, is_same_cell
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: index_to_cell
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: do_kpoints
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_kp, matrix_s_kp, rho_ao_kp
-      TYPE(dbcsr_type), POINTER                          :: matrix_s_ref
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mp_para_env_type), POINTER                    :: para_env
@@ -470,19 +470,6 @@ CONTAINS
 
       CALL cp_fm_struct_release(fm_struct)
 
-      NULLIFY (matrix_s_ref)
-      CALL dbcsr_init_p(matrix_s_ref)
-      CALL dbcsr_copy(matrix_s_ref, matrix_s_kp(1, 1)%matrix)
-      CALL dbcsr_set(matrix_s_ref, 0.0_dp)
-
-      ALLOCATE (is_same_cell(natoms, natoms))
-
-      CALL negf_reference_contact_matrix(matrix_contact=matrix_s_ref, &
-                                         matrix_device=matrix_s_device, &
-                                         atom_list=contact_env%atomlist_cell0, &
-                                         atom_map=contact_env%atom_map_cell0, &
-                                         para_env=para_env)
-
       ! extract matrices: s_00, s_01
       CALL negf_copy_contact_matrix(fm_cell0=contact_env%s_00, &
                                     fm_cell1=contact_env%s_01, &
@@ -491,7 +478,7 @@ CONTAINS
                                     index_to_cell=index_to_cell, &
                                     atom_list0=atom_list0, atom_list1=atom_list1, &
                                     subsys=subsys, mpi_comm_global=para_env, &
-                                    is_same_cell=is_same_cell, matrix_ref=matrix_s_ref)
+                                    kpoints=kpoints)
 
       ! extract matrices: h_00, h_01, rho_00, rho_01
       DO ispin = 1, nspins
@@ -502,7 +489,7 @@ CONTAINS
                                        index_to_cell=index_to_cell, &
                                        atom_list0=atom_list0, atom_list1=atom_list1, &
                                        subsys=subsys, mpi_comm_global=para_env, &
-                                       is_same_cell=is_same_cell)
+                                       kpoints=kpoints)
 
          CALL negf_copy_contact_matrix(fm_cell0=contact_env%rho_00(ispin), &
                                        fm_cell1=contact_env%rho_01(ispin), &
@@ -511,12 +498,9 @@ CONTAINS
                                        index_to_cell=index_to_cell, &
                                        atom_list0=atom_list0, atom_list1=atom_list1, &
                                        subsys=subsys, mpi_comm_global=para_env, &
-                                       is_same_cell=is_same_cell)
+                                       kpoints=kpoints)
       END DO
 
-      DEALLOCATE (is_same_cell)
-      CALL dbcsr_deallocate_matrix(matrix_s_ref)
-      DEALLOCATE (index_to_cell)
       DEALLOCATE (atom_list0, atom_list1)
 
       CALL timestop(handle)
