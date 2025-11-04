@@ -158,7 +158,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'get_mat_chi_Gamma_tau'
 
       INTEGER :: handle, i_intval_idx, i_t, inner_loop_atoms_interval_index, ispin, j_intval_idx
-      INTEGER, DIMENSION(2)                              :: i_atoms, IL_atoms, j_atoms
+      INTEGER, DIMENSION(2)                              :: bounds_RI, i_atoms, IL_atoms, j_atoms
+      INTEGER, DIMENSION(2, 2)                           :: bounds_comb
       LOGICAL                                            :: dist_too_long_i, dist_too_long_j
       REAL(KIND=dp)                                      :: t1, tau
       TYPE(dbt_type)                                     :: t_2c_Gocc, t_2c_Gvir, t_3c_for_Gocc, &
@@ -227,32 +228,46 @@ CONTAINS
                      CALL check_dist(j_atoms, IL_atoms, qs_env, bs_env, dist_too_long_j)
                      IF (dist_too_long_i .OR. dist_too_long_j) CYCLE
 
-                     ! 2. compute 3-center integrals (µν|P) ("|": truncated Coulomb operator)
-                     CALL compute_3c_integrals(qs_env, bs_env, t_3c_for_Gocc, i_atoms, IL_atoms)
+                     ! 2. compute 3-center integrals (Pν|µ) ("|": truncated Coulomb operator)
+                     CALL compute_3c_integrals(qs_env, bs_env, t_3c_for_Gocc, &
+                                               atoms_AO_1=i_atoms, atoms_AO_2=IL_atoms)
 
-                     ! 3. tensor operation M_λνP(iτ) = sum_µ (µν|P) G^occ_µλ(i|τ|,k=0)
+                     ! 3. tensor operation M_Pνλ(iτ) = sum_µ (Pν|µ) G^occ_λµ(i|τ|,k=0)
                      CALL G_times_3c(t_3c_for_Gocc, t_2c_Gocc, t_3c_x_Gocc, bs_env, &
                                      j_atoms, i_atoms, IL_atoms)
 
-                     ! 4. compute 3-center integrals (σλ|Q) ("|": truncated Coulomb operator)
-                     CALL compute_3c_integrals(qs_env, bs_env, t_3c_for_Gvir, j_atoms, IL_atoms)
+                     ! 4. compute 3-center integrals (Qλ|σ) ("|": truncated Coulomb operator)
+                     CALL compute_3c_integrals(qs_env, bs_env, t_3c_for_Gvir, &
+                                               atoms_AO_1=j_atoms, atoms_AO_2=IL_atoms)
 
-                     ! 5. tensor operation N_νλQ(iτ) = sum_σ (σλ|Q) G^vir_σν(i|τ|,k=0)
+                     ! 5. tensor operation N_Qλν(iτ) = sum_σ (Qλ|σ) G^vir_νσ(i|τ|,k=0)
                      CALL G_times_3c(t_3c_for_Gvir, t_2c_Gvir, t_3c_x_Gvir, bs_env, &
                                      i_atoms, j_atoms, IL_atoms)
 
                   END DO ! IL_atoms
 
-                  ! 6. reorder tensors
+                  ! 6. reorder tensors: M_Pνλ -> M_Pλν
                   CALL dbt_copy(t_3c_x_Gocc, t_3c_x_Gocc_2, move_data=.TRUE., order=[1, 3, 2])
                   CALL dbt_copy(t_3c_x_Gvir, t_3c_x_Gvir_2, move_data=.TRUE.)
 
-                  ! 7. tensor operation χ_PQ(iτ,k=0) = sum_λν M_λνP(iτ) N_νλQ(iτ),
+                  ! 7. tensor operation χ_PQ(iτ,k=0) = sum_λν M_Pλν(iτ) N_Qλν(iτ),
+                  ! Bounds:
+                  ! "comb" (combined index)
+                  !   ->  λ   bounds from j_atoms
+                  !   ->  ν   bounds from i_atoms
+                  ! P,Q   unbound, full RI
+                  bounds_comb(1:2, 1) = [bs_env%i_ao_start_from_atom(j_atoms(1)), &
+                                         bs_env%i_ao_end_from_atom(j_atoms(2))]
+                  bounds_comb(1:2, 2) = [bs_env%i_ao_start_from_atom(i_atoms(1)), &
+                                         bs_env%i_ao_end_from_atom(i_atoms(2))]
+                  bounds_RI(1:2) = [1, bs_env%n_RI]
+
                   CALL dbt_contract(alpha=bs_env%spin_degeneracy, &
                                     tensor_1=t_3c_x_Gocc_2, tensor_2=t_3c_x_Gvir_2, &
                                     beta=1.0_dp, tensor_3=bs_env%t_chi, &
                                     contract_1=[2, 3], notcontract_1=[1], map_1=[1], &
                                     contract_2=[2, 3], notcontract_2=[1], map_2=[2], &
+                                    bounds_1=bounds_comb, bounds_2=bounds_RI, bounds_3=bounds_RI, &
                                     filter_eps=bs_env%eps_filter, move_data=.TRUE.)
 
                END DO ! j_atoms
@@ -641,22 +656,26 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'G_times_3c'
 
       INTEGER                                            :: handle
-      INTEGER, DIMENSION(2)                              :: bounds_IL, bounds_l
-      INTEGER, DIMENSION(2, 2)                           :: bounds_k
+      INTEGER, DIMENSION(2)                              :: bounds_ao_1, bounds_IL
+      INTEGER, DIMENSION(2, 2)                           :: bounds_comb
 
       CALL timeset(routineN, handle)
 
-      ! JW bounds_IL and bounds_k do not safe any operations, but maybe communication
-      !    maybe remove "bounds_1=bounds_IL, &" and "bounds_2=bounds_k, &" later and
-      !    check whether performance improves
+      ! Bounds reduce needed memory and therefore scaling behavior
+      ! Operations are of the form, e.g, M_Pνλ = sum_µ (Pν|µ) G_λµ
+      ! "comb" (combined index)
+      !   ->  Q   no bounds
+      !   ->  λ   bounds from j_atoms (via atoms_AO_1)
+      ! µ   bounds from inner loop "IL" indices
+      ! ν   bounds from i_atoms (via atoms_AO_2)
 
       bounds_IL(1:2) = [bs_env%i_ao_start_from_atom(atoms_IL(1)), &
                         bs_env%i_ao_end_from_atom(atoms_IL(2))]
-      bounds_k(1:2, 1) = [1, bs_env%n_RI]
-      bounds_k(1:2, 2) = [bs_env%i_ao_start_from_atom(atoms_AO_2(1)), &
-                          bs_env%i_ao_end_from_atom(atoms_AO_2(2))]
-      bounds_l(1:2) = [bs_env%i_ao_start_from_atom(atoms_AO_1(1)), &
-                       bs_env%i_ao_end_from_atom(atoms_AO_1(2))]
+      bounds_comb(1:2, 1) = [1, bs_env%n_RI]
+      bounds_comb(1:2, 2) = [bs_env%i_ao_start_from_atom(atoms_AO_2(1)), &
+                             bs_env%i_ao_end_from_atom(atoms_AO_2(2))]
+      bounds_ao_1(1:2) = [bs_env%i_ao_start_from_atom(atoms_AO_1(1)), &
+                          bs_env%i_ao_end_from_atom(atoms_AO_1(2))]
 
       CALL dbt_contract(alpha=1.0_dp, &
                         tensor_1=t_3c_for_G, &
@@ -666,8 +685,8 @@ CONTAINS
                         contract_1=[3], notcontract_1=[1, 2], map_1=[1, 2], &
                         contract_2=[2], notcontract_2=[1], map_2=[3], &
                         bounds_1=bounds_IL, &
-                        bounds_2=bounds_k, &
-                        bounds_3=bounds_l, &
+                        bounds_2=bounds_comb, &
+                        bounds_3=bounds_ao_1, &
                         filter_eps=bs_env%eps_filter)
 
       CALL dbt_clear(t_3c_for_G)
@@ -2056,7 +2075,7 @@ CONTAINS
       ! "comb" (combined index)
       !   ->  Q   bounds from j_atoms
       !   ->  λ (AO_1 in compute_3c_integrals)  no bounds
-      ! µ (AO_2 in compute_3c_integrals)  bounds from inner loop indices
+      ! µ (AO_2 in compute_3c_integrals)  bounds from inner loop "IL" indices
       ! ν   bounds from i_atoms
 
       bounds_full_ao(1:2) = [bs_env%i_ao_start_from_atom(1), &
