@@ -1948,8 +1948,10 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_3c_and_contract_W'
 
-      INTEGER                                            :: handle, RI_intval_idx
-      INTEGER, DIMENSION(2)                              :: bounds_j, RI_atoms
+      INTEGER                                            :: handle, RI_intval_idx, i
+      INTEGER, DIMENSION(2)                              :: bounds_j, RI_atoms, & 
+                                                            bounds_contract
+      INTEGER, DIMENSION(2,2)                            :: bounds_ao
       TYPE(dbt_type)                                     :: t_3c_for_W, t_3c_x_W_tmp
 
       CALL timeset(routineN, handle)
@@ -1959,15 +1961,22 @@ CONTAINS
 
       bounds_j(1:2) = [bs_env%i_RI_start_from_atom(j_atoms(1)), &
                        bs_env%i_RI_end_from_atom(j_atoms(2))]
+      DO i=1,2
+         bounds_ao(1:2,i) = [bs_env%i_ao_start_from_atom(i_atoms(1)), &
+                        bs_env%i_ao_end_from_atom(i_atoms(2))]
+      END DO
 
       DO RI_intval_idx = 1, bs_env%n_intervals_inner_loop_atoms
          RI_atoms = bs_env%inner_loop_atom_intervals(1:2, RI_intval_idx)
 
-         ! 1. compute 3-center integrals (µν|P) ("|": truncated Coulomb operator)
+         bounds_contract(1:2) = [bs_env%i_RI_start_from_atom(RI_atoms(1)), &
+                        bs_env%i_RI_end_from_atom(RI_atoms(2))]
+
+         ! 1. compute 3-center integrals (P|µν) ("|": truncated Coulomb operator)
          CALL compute_3c_integrals(qs_env, bs_env, t_3c_for_W, &
                                    atoms_AO_1=i_atoms, atoms_RI=RI_atoms)
 
-         ! 2. tensor operation M_νσQ(iτ) = sum_P (νσ|P) W^MIC_PQ(iτ)
+         ! 2. tensor operation M_νσQ(iτ) = sum_P (P|νσ) W^MIC_PQ(iτ)
          CALL dbt_contract(alpha=1.0_dp, &
                            tensor_1=t_2c_W, &
                            tensor_2=t_3c_for_W, &
@@ -1975,7 +1984,7 @@ CONTAINS
                            tensor_3=t_3c_x_W_tmp, &
                            contract_1=[2], notcontract_1=[1], map_1=[1], &
                            contract_2=[1], notcontract_2=[2, 3], map_2=[2, 3], &
-                           bounds_2=bounds_j, &
+                           bounds_1 = bounds_contract, bounds_2=bounds_j, bounds_3=bounds_ao, &
                            filter_eps=bs_env%eps_filter)
 
       END DO ! RI_atoms
@@ -2017,7 +2026,9 @@ CONTAINS
 
       INTEGER :: handle, inner_loop_atoms_interval_index
       INTEGER(KIND=int_8)                                :: flop
-      INTEGER, DIMENSION(2)                              :: bounds_i, IL_atoms
+      INTEGER, DIMENSION(2)                              :: bounds_i, IL_atoms, &
+                                                            bounds_contract
+      INTEGER, DIMENSION(2,2)                              :: bounds_3
       REAL(KIND=dp)                                      :: sign_Sigma
       TYPE(dbt_type)                                     :: t_3c_for_G, t_3c_x_G, t_3c_x_G_2
 
@@ -2033,9 +2044,16 @@ CONTAINS
 
       bounds_i(1:2) = [bs_env%i_ao_start_from_atom(i_atoms(1)), &
                        bs_env%i_ao_end_from_atom(i_atoms(2))]
+      bounds_3(1:2,1) = [bs_env%i_RI_start_from_atom(j_atoms(1)), &
+                       bs_env%i_RI_end_from_atom(j_atoms(2))]
+      bounds_3(1:2,2) = [bs_env%i_ao_start_from_atom(j_atoms(1)), &
+                       bs_env%i_ao_end_from_atom(j_atoms(2))]
 
       DO inner_loop_atoms_interval_index = 1, bs_env%n_intervals_inner_loop_atoms
          IL_atoms = bs_env%inner_loop_atom_intervals(1:2, inner_loop_atoms_interval_index)
+
+         bounds_contract(1:2) = [bs_env%i_ao_start_from_atom(IL_atoms(1)), &
+                                 bs_env%i_ao_end_from_atom(IL_atoms(2))]
 
          CALL compute_3c_integrals(qs_env, bs_env, t_3c_for_G, &
                                    atoms_RI=j_atoms, atoms_AO_2=IL_atoms)
@@ -2047,7 +2065,8 @@ CONTAINS
                            tensor_3=t_3c_x_G, &
                            contract_1=[2], notcontract_1=[1], map_1=[3], &
                            contract_2=[3], notcontract_2=[1, 2], map_2=[1, 2], &
-                           bounds_2=bounds_i, &
+                           bounds_1=bounds_contract ,bounds_2=bounds_i, &
+                           bounds_3=bounds_3, &
                            filter_eps=bs_env%eps_filter)
 
       END DO ! IL_atoms
