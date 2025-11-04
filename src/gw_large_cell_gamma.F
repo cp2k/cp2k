@@ -1701,11 +1701,11 @@ CONTAINS
                j_atoms = bs_env%j_atom_intervals(1:2, j_intval_idx)
 
                ! 4. compute 3-center integrals (µν|P) ("|": truncated Coulomb operator)
-               ! 5. M_νσQ(iτ) = sum_P (νσ|P) (M^-1(k=0)*V^tr(k=0)*M^-1(k=0))_PQ(iτ)
+               ! 5. M_Qνσ(iτ) = sum_P (νσ|P) (M^-1(k=0)*V^tr(k=0)*M^-1(k=0))_QP(iτ)
                CALL compute_3c_and_contract_W(qs_env, bs_env, i_atoms, j_atoms, t_3c_x_V, t_2c_V)
 
                ! 6. tensor operations with D and computation of Σ^x
-               !    Σ^x_λσ(k=0) = sum_νQ M_νσQ(iτ) sum_µ (λµ|Q) D_µν
+               !    Σ^x_λσ(k=0) = sum_νQ M_Qνσ(iτ) sum_µ (Qλ|µ) D_νµ
                CALL contract_to_Sigma(t_2c_D, t_3c_x_V, t_2c_Sigma_x, i_atoms, j_atoms, &
                                       qs_env, bs_env, occ=.TRUE., vir=.FALSE., clear_W=.TRUE.)
 
@@ -1822,16 +1822,16 @@ CONTAINS
                       bs_env%skip_Sigma_vir(i_intval_idx, j_intval_idx)) CYCLE
 
                   ! 1. compute 3-center integrals (µν|P) ("|": truncated Coulomb operator)
-                  ! 2. tensor operation M_νσQ(iτ) = sum_P (νσ|P) W^MIC_PQ(iτ)
+                  ! 2. tensor operation M_Qνσ(iτ) = sum_P (νσ|P) W^MIC_QP(iτ)
                   CALL compute_3c_and_contract_W(qs_env, bs_env, i_atoms, j_atoms, t_3c_x_W, t_2c_W)
 
-                  ! 3. Σ_λσ(iτ,k=0) = sum_νQ M_νσQ(iτ) sum_µ (λµ|Q) G^occ_µν(i|τ|) for τ < 0
-                  !    (recall M_νσQ(iτ) = M_νσQ(-iτ) because W^MIC_PQ(iτ) = W^MIC_PQ(-iτ) )
+                  ! 3. Σ_λσ(iτ,k=0) = sum_νQ M_Qνσ(iτ) sum_µ (Qλ|µ) G^occ_νµ(i|τ|) for τ < 0
+                  !    (recall M_Qνσ(iτ) = M_Qνσ(-iτ) because W^MIC_PQ(iτ) = W^MIC_PQ(-iτ) )
                   CALL contract_to_Sigma(t_2c_Gocc, t_3c_x_W, t_2c_Sigma_neg_tau, i_atoms, j_atoms, &
                                          qs_env, bs_env, occ=.TRUE., vir=.FALSE., clear_W=.FALSE., &
                                          can_skip=bs_env%skip_Sigma_occ(i_intval_idx, j_intval_idx))
 
-                  !    Σ_λσ(iτ,k=0) = sum_νQ M_νσQ(iτ) sum_µ (λµ|Q) G^vir_µν(i|τ|) for τ > 0
+                  !    Σ_λσ(iτ,k=0) = sum_νQ M_Qνσ(iτ) sum_µ (Qλ|µ) G^vir_νµ(i|τ|) for τ > 0
                   CALL contract_to_Sigma(t_2c_Gvir, t_3c_x_W, t_2c_Sigma_pos_tau, i_atoms, j_atoms, &
                                          qs_env, bs_env, occ=.FALSE., vir=.TRUE., clear_W=.TRUE., &
                                          can_skip=bs_env%skip_Sigma_vir(i_intval_idx, j_intval_idx))
@@ -1948,10 +1948,9 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_3c_and_contract_W'
 
-      INTEGER                                            :: handle, RI_intval_idx, i
-      INTEGER, DIMENSION(2)                              :: bounds_j, RI_atoms, & 
-                                                            bounds_contract
-      INTEGER, DIMENSION(2,2)                            :: bounds_ao
+      INTEGER                                            :: handle, RI_intval_idx
+      INTEGER, DIMENSION(2)                              :: bounds_P, bounds_Q, RI_atoms
+      INTEGER, DIMENSION(2, 2)                           :: bounds_ao
       TYPE(dbt_type)                                     :: t_3c_for_W, t_3c_x_W_tmp
 
       CALL timeset(routineN, handle)
@@ -1959,24 +1958,33 @@ CONTAINS
       CALL dbt_create(bs_env%t_RI__AO_AO, t_3c_x_W_tmp)
       CALL dbt_create(bs_env%t_RI__AO_AO, t_3c_for_W)
 
-      bounds_j(1:2) = [bs_env%i_RI_start_from_atom(j_atoms(1)), &
+      ! final layout will be: M_Qνσ(iτ) = sum_P (νσ|P) W^MIC_QP(iτ)
+      ! Bounds:
+      ! "AO"
+      !  ->  ν (AO_1 in compute_3c_integrals)  bounds from i_atoms
+      !  ->  σ (AO_2 in compute_3c_integrals)  no bounds
+      ! Q   bounds from j_atoms
+      ! P   bounds from inner loop indices
+
+      bounds_ao(1:2, 1) = [bs_env%i_ao_start_from_atom(i_atoms(1)), &
+                           bs_env%i_ao_end_from_atom(i_atoms(2))]
+      bounds_ao(1:2, 2) = [bs_env%i_ao_start_from_atom(1), &
+                           bs_env%i_ao_end_from_atom(bs_env%n_atom)]
+
+      bounds_Q(1:2) = [bs_env%i_RI_start_from_atom(j_atoms(1)), &
                        bs_env%i_RI_end_from_atom(j_atoms(2))]
-      DO i=1,2
-         bounds_ao(1:2,i) = [bs_env%i_ao_start_from_atom(i_atoms(1)), &
-                        bs_env%i_ao_end_from_atom(i_atoms(2))]
-      END DO
 
       DO RI_intval_idx = 1, bs_env%n_intervals_inner_loop_atoms
          RI_atoms = bs_env%inner_loop_atom_intervals(1:2, RI_intval_idx)
 
-         bounds_contract(1:2) = [bs_env%i_RI_start_from_atom(RI_atoms(1)), &
-                        bs_env%i_RI_end_from_atom(RI_atoms(2))]
+         bounds_P(1:2) = [bs_env%i_RI_start_from_atom(RI_atoms(1)), &
+                          bs_env%i_RI_end_from_atom(RI_atoms(2))]
 
          ! 1. compute 3-center integrals (P|µν) ("|": truncated Coulomb operator)
          CALL compute_3c_integrals(qs_env, bs_env, t_3c_for_W, &
                                    atoms_AO_1=i_atoms, atoms_RI=RI_atoms)
 
-         ! 2. tensor operation M_νσQ(iτ) = sum_P (P|νσ) W^MIC_PQ(iτ)
+         ! 2. tensor operation M_Qνσ(iτ) = sum_P (νσ|P) W^MIC_QP(iτ)
          CALL dbt_contract(alpha=1.0_dp, &
                            tensor_1=t_2c_W, &
                            tensor_2=t_3c_for_W, &
@@ -1984,7 +1992,7 @@ CONTAINS
                            tensor_3=t_3c_x_W_tmp, &
                            contract_1=[2], notcontract_1=[1], map_1=[1], &
                            contract_2=[1], notcontract_2=[2, 3], map_2=[2, 3], &
-                           bounds_1 = bounds_contract, bounds_2=bounds_j, bounds_3=bounds_ao, &
+                           bounds_1=bounds_P, bounds_2=bounds_Q, bounds_3=bounds_ao, &
                            filter_eps=bs_env%eps_filter)
 
       END DO ! RI_atoms
@@ -2026,9 +2034,9 @@ CONTAINS
 
       INTEGER :: handle, inner_loop_atoms_interval_index
       INTEGER(KIND=int_8)                                :: flop
-      INTEGER, DIMENSION(2)                              :: bounds_i, IL_atoms, &
-                                                            bounds_contract
-      INTEGER, DIMENSION(2,2)                              :: bounds_3
+      INTEGER, DIMENSION(2)                              :: bounds_full_ao, bounds_mu, bounds_nu, &
+                                                            bounds_Q, IL_atoms
+      INTEGER, DIMENSION(2, 2)                           :: bounds_comb
       REAL(KIND=dp)                                      :: sign_Sigma
       TYPE(dbt_type)                                     :: t_3c_for_G, t_3c_x_G, t_3c_x_G_2
 
@@ -2042,18 +2050,31 @@ CONTAINS
       CALL dbt_create(bs_env%t_RI_AO__AO, t_3c_x_G)
       CALL dbt_create(bs_env%t_RI_AO__AO, t_3c_x_G_2)
 
-      bounds_i(1:2) = [bs_env%i_ao_start_from_atom(i_atoms(1)), &
-                       bs_env%i_ao_end_from_atom(i_atoms(2))]
-      bounds_3(1:2,1) = [bs_env%i_RI_start_from_atom(j_atoms(1)), &
+      ! Here, in the first step e.g., is computed: N_Qλν = sum_µ (Qλ|µ) G_νµ
+      ! Afterwards e.g., is computed: Σ_λσ = sum_νQ M_Qνσ N_Qνλ (after reordering)
+      ! Bounds:
+      ! "comb" (combined index)
+      !   ->  Q   bounds from j_atoms
+      !   ->  λ (AO_1 in compute_3c_integrals)  no bounds
+      ! µ (AO_2 in compute_3c_integrals)  bounds from inner loop indices
+      ! ν   bounds from i_atoms
+
+      bounds_full_ao(1:2) = [bs_env%i_ao_start_from_atom(1), &
+                             bs_env%i_ao_end_from_atom(bs_env%n_atom)]
+      bounds_Q(1:2) = [bs_env%i_RI_start_from_atom(j_atoms(1)), &
                        bs_env%i_RI_end_from_atom(j_atoms(2))]
-      bounds_3(1:2,2) = [bs_env%i_ao_start_from_atom(j_atoms(1)), &
-                       bs_env%i_ao_end_from_atom(j_atoms(2))]
+
+      bounds_comb(1:2, 1) = bounds_Q(1:2)
+      bounds_comb(1:2, 2) = bounds_full_ao(1:2)
+
+      bounds_nu(1:2) = [bs_env%i_ao_start_from_atom(i_atoms(1)), &
+                        bs_env%i_ao_end_from_atom(i_atoms(2))]
 
       DO inner_loop_atoms_interval_index = 1, bs_env%n_intervals_inner_loop_atoms
          IL_atoms = bs_env%inner_loop_atom_intervals(1:2, inner_loop_atoms_interval_index)
 
-         bounds_contract(1:2) = [bs_env%i_ao_start_from_atom(IL_atoms(1)), &
-                                 bs_env%i_ao_end_from_atom(IL_atoms(2))]
+         bounds_mu(1:2) = [bs_env%i_ao_start_from_atom(IL_atoms(1)), &
+                           bs_env%i_ao_end_from_atom(IL_atoms(2))]
 
          CALL compute_3c_integrals(qs_env, bs_env, t_3c_for_G, &
                                    atoms_RI=j_atoms, atoms_AO_2=IL_atoms)
@@ -2065,14 +2086,19 @@ CONTAINS
                            tensor_3=t_3c_x_G, &
                            contract_1=[2], notcontract_1=[1], map_1=[3], &
                            contract_2=[3], notcontract_2=[1, 2], map_2=[1, 2], &
-                           bounds_1=bounds_contract ,bounds_2=bounds_i, &
-                           bounds_3=bounds_3, &
+                           bounds_1=bounds_mu, bounds_2=bounds_nu, &
+                           bounds_3=bounds_comb, &
                            filter_eps=bs_env%eps_filter)
 
       END DO ! IL_atoms
 
+      ! Reordering: N_Qλν -> N_Qνλ
       CALL dbt_copy(t_3c_x_G, t_3c_x_G_2, order=[1, 3, 2], move_data=.TRUE.)
 
+      ! Here, the last contraction is done, e.g., Σ_λσ = sum_νQ M_Qνσ N_Qνλ
+      ! Bounds as above, new "comb" with upper ingredients
+      bounds_comb(1:2, 1) = bounds_Q(1:2)
+      bounds_comb(1:2, 2) = bounds_nu(1:2)
       CALL dbt_contract(alpha=sign_Sigma, &
                         tensor_1=t_3c_x_W, &
                         tensor_2=t_3c_x_G_2, &
@@ -2080,6 +2106,8 @@ CONTAINS
                         tensor_3=t_2c_Sigma, &
                         contract_1=[1, 2], notcontract_1=[3], map_1=[1], &
                         contract_2=[1, 2], notcontract_2=[3], map_2=[2], &
+                        bounds_1=bounds_comb, bounds_2=bounds_full_ao, &
+                        bounds_3=bounds_full_ao, &
                         filter_eps=bs_env%eps_filter, move_data=clear_W, flop=flop)
 
       IF (PRESENT(can_skip)) THEN
