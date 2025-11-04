@@ -17,7 +17,6 @@ MODULE qs_tddfpt2_bse_utils
                                               copy_fm_to_dbcsr,&
                                               cp_dbcsr_sm_fm_multiply
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
-                                              cp_fm_gemm,&
                                               cp_fm_scale_and_add
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
@@ -32,6 +31,7 @@ MODULE qs_tddfpt2_bse_utils
    USE exstates_types,                  ONLY: excited_energy_type
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
+   USE parallel_gemm_api,               ONLY: parallel_gemm
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_neighbor_list_types,          ONLY: neighbor_list_set_p_type
@@ -146,12 +146,9 @@ CONTAINS
             CALL cp_fm_set_element(matrixtmp, i, i, gw_virt(i))
          END DO
          DEALLOCATE (gw_virt)
-         CALL cp_fm_gemm('N', 'N', nao, virt, nao, 1.0_dp, fms, weighted_vect, 0.0_dp, &
-                         Sweighted_vect)
-         CALL cp_fm_gemm('N', 'T', virt, nao, virt, 1.0_dp, matrixtmp, Sweighted_vect, 0.0_dp, &
-                         matrixtmp2)
-         CALL cp_fm_gemm('N', 'N', nao, nao, virt, 1.0_dp, Sweighted_vect, matrixtmp2, 0.0_dp, &
-                         matrixtmp3)
+         CALL parallel_gemm('N', 'N', nao, virt, nao, 1.0_dp, fms, weighted_vect, 0.0_dp, Sweighted_vect)
+         CALL parallel_gemm('N', 'T', virt, nao, virt, 1.0_dp, matrixtmp, Sweighted_vect, 0.0_dp, matrixtmp2)
+         CALL parallel_gemm('N', 'N', nao, nao, virt, 1.0_dp, Sweighted_vect, matrixtmp2, 0.0_dp, matrixtmp3)
          CALL copy_fm_to_dbcsr(matrixtmp3, matrixf)
 
          CALL cp_fm_release(weighted_vect)
@@ -273,8 +270,7 @@ CONTAINS
             CALL cp_fm_struct_release(fmstruct)
             CALL cp_fm_set_all(WXaoao, 0.0_dp)
 
-            CALL cp_fm_gemm('T', 'N', nvirt, nao, nao, 1.0_dp, gs_mos(ispin)%mos_virt, fms, 0.0_dp, &
-                            CSvirt)
+            CALL parallel_gemm('T', 'N', nvirt, nao, nao, 1.0_dp, gs_mos(ispin)%mos_virt, fms, 0.0_dp, CSvirt)
             NULLIFY (row_indices, col_indices)
             CALL cp_fm_get_info(matrix=WXvirtao, nrow_local=nrow_local, ncol_local=ncol_local, &
                                 row_indices=row_indices, col_indices=col_indices, &
