@@ -66,7 +66,8 @@ MODULE rt_propagation_output
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_methods,                ONLY: get_particle_set
    USE particle_types,                  ONLY: particle_type
-   USE physcon,                         ONLY: femtoseconds
+   USE physcon,                         ONLY: femtoseconds, &
+                                              evolt
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_zero
@@ -100,6 +101,8 @@ MODULE rt_propagation_output
    USE moments_utils,                   ONLY: get_reference_point
    USE qs_moments,                      ONLY: build_local_moment_matrix
    USE rt_propagation_ft,               ONLY: multi_fft
+   USE cell_types,                      ONLY: cell_type
+   USE mathconstants,                   ONLY: twopi
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -251,7 +254,7 @@ CONTAINS
                IF (dft_control%apply_efield_field) THEN
                   CALL make_field(dft_control, field, qs_env%sim_step, qs_env%sim_time)
                   ! TODO : Check the istart during restarts
-                  rtp%fields(:,rtp%istep+1) = CMPLX(field(:), 0.0, kind=dp)
+                  rtp%fields(:,rtp%istep+rtp%i_start+1) = CMPLX(field(:), 0.0, kind=dp)
                END IF
                IF (.NOT. dft_control%rtp_control%fixed_ions) THEN
                   CALL build_local_moment_matrix(qs_env, rtp%local_moments, 1, reference_point)
@@ -260,12 +263,12 @@ CONTAINS
                ! Spin + complex parts
                ! Extensions setup
                CALL calc_local_moment(rtp%local_moments, rho_new, &
-                  rtp%local_moments_work, rtp%moments(:,:,rtp%istep+1))
+                  rtp%local_moments_work, rtp%moments(:,:,rtp%istep+rtp%i_start+1))
                ! Time 1 is zero (start) time
-               rtp%times(rtp%istep+1) = qs_env%sim_time
+               rtp%times(rtp%istep+rtp%i_start+1) = qs_env%sim_time
                output_unit = cp_logger_get_default_io_unit(logger)
                CALL print_moments(section_vals_get_subs_vals(rtp_section, "PRINT%MOMENTS"), output_unit, &
-                  rtp%moments(:,:,rtp%istep+1), qs_env%sim_time, rtp%track_imag_density)
+                  rtp%moments(:,:,rtp%istep+rtp%i_start+1), qs_env%sim_time, rtp%track_imag_density)
             END IF
 
             IF (BTEST(cp_print_key_should_output(logger%iter_info, &
@@ -1204,17 +1207,23 @@ CONTAINS
 !> \param rtp_section The RTP input section (needed to access PRINT configurations)
 !> \param moments Moment trace
 !> \param times Corresponding times
+!> \param fields Corresponding fields
+!> \param rtc rt_control_type that includes metadata
+!> \param cell If present, used to change the delta peak representation to be in units of reciprocal lattice
 !> \par History
 !>      10.2025  Created [Marek]
 ! **************************************************************************************************
-   SUBROUTINE print_ft(rtp_section, moments, times, fields, rtc)
+   SUBROUTINE print_ft(rtp_section, moments, times, fields, rtc, info_opt, cell)
       TYPE(section_vals_type), POINTER                   :: rtp_section
       COMPLEX(kind=dp), DIMENSION(:,:,:), POINTER        :: moments
       REAL(kind=dp), DIMENSION(:), POINTER               :: times
       COMPLEX(kind=dp), DIMENSION(:,:), POINTER          :: fields
       TYPE(rtp_control_type), POINTER                    :: rtc
+      TYPE(cell_type), POINTER, OPTIONAL                 :: cell
+      INTEGER, OPTIONAL                                  :: info_opt
       INTEGER                                            :: i, j, k, nspin, n, &
-                                                            ft_unit, n_elems
+                                                            ft_unit, n_elems, &
+                                                            info_unit
       REAL(kind=dp), DIMENSION(:), POINTER               :: omegas
       COMPLEX(kind=dp), DIMENSION(:,:), POINTER          :: results, &
                                                             pol_results
@@ -1228,6 +1237,7 @@ CONTAINS
       CHARACTER(len=11), DIMENSION(2)                    :: file_extensions
       REAL(kind=dp)                                      :: damping
       REAL(kind=dp)                                      :: t0
+      REAL(kind=dp), DIMENSION(3)                        :: delta_vec
 
       logger => cp_get_default_logger()
 
@@ -1237,6 +1247,9 @@ CONTAINS
       nspin = SIZE(moments, 1)
       n = SIZE(times)
       n_elems = SIZE(rtc%print_pol_elements, 1)
+
+      info_unit = -1
+      IF (PRESENT(info_opt)) info_unit = info_opt
 
       ! NOTE : Allows for at most 2 spin species
       file_extensions(1) = "_SPIN_A.dat"
@@ -1256,10 +1269,16 @@ CONTAINS
          ALLOCATE (field_results(3,n))
          IF (rtc%apply_delta_pulse) THEN
             ! Constant real FT
+            IF (PRESENT(cell)) THEN
+               delta_vec(:) = (REAL(rtc%delta_pulse_direction(1), kind=dp) * cell%h_inv(1,:) + &
+                  REAL(rtc%delta_pulse_direction(2), kind=dp) * cell%h_inv(2,:) + &
+                  REAL(rtc%delta_pulse_direction(3), kind=dp) * cell%h_inv(3,:)) &
+                  * twopi * rtc%delta_pulse_scale
+            ELSE
+               delta_vec(:) = REAL(rtc%delta_pulse_direction(:), kind=dp) * rtc%delta_pulse_scale
+            END IF
             DO k=1,3
-               field_results(k,:) = CMPLX( &
-                  rtc%delta_pulse_direction(k) * rtc%delta_pulse_scale, &
-                  0.0, kind=dp)
+               field_results(k,:) = CMPLX( delta_vec(k), 0.0, kind=dp)
             END DO
          ELSE
             ! Do explicit FT
@@ -1286,12 +1305,23 @@ CONTAINS
                                            file_form="FORMATTED", file_position="REWIND")
             ! Print header
             IF (ft_unit > 0) THEN
-               WRITE (ft_unit, "(A20,A20,A20,A20,A20,A20,A20)") "#      omega [at.u.]", &
-               "x,real [at.u.]", "x,imag [at.u.]", &
+               IF (info_unit == ft_unit) THEN
+                  ! Add the line header
+                  WRITE (ft_unit, "(A12,A20)", advance="no") " MOMENTS_FT|", "#         omega [eV]"
+               ELSE
+                  WRITE (ft_unit, "(A20)", advance="no") "#      omega [at.u.]"
+               END IF
+               WRITE (ft_unit, "(A20,A20,A20,A20,A20,A20)") "x,real [at.u.]", "x,imag [at.u.]", &
                "y,real [at.u.]", "y,imag [at.u.]", &
                "z,real [at.u.]", "z,imag [at.u.]"
                DO j=1, n
-                  WRITE (ft_unit, "(E20.8E3)", advance="no") omegas(j)
+                  IF (info_unit == ft_unit) THEN
+                     ! Add the line header
+                     WRITE (ft_unit, "(A12,E20.8E3)", advance="no") " MOMENTS_FT|", &
+                        omegas(j) * evolt
+                  ELSE
+                     WRITE (ft_unit, "(E20.8E3)", advance="no") omegas(j)
+                  END IF
                   DO k=1, 2
                      WRITE (ft_unit, "(E20.8E3,E20.8E3)", advance="no") &
                         REAL(results(k, j)), AIMAG(results(k, j))
@@ -1317,7 +1347,12 @@ CONTAINS
                file_form="FORMATTED", file_position="REWIND")
             IF (ft_unit > 0) THEN
                ! Write header
-               WRITE (ft_unit, "(A20)", advance="no") "#      omega [at.u.]"
+               IF (info_unit == ft_unit) THEN
+                  ! Add the line header
+                  WRITE (ft_unit, "(A16,A20)", advance="no") " POLARIZABILITY|", "#         omega [eV]"
+               ELSE
+                  WRITE (ft_unit, "(A20)", advance="no") "#      omega [at.u.]"
+               END IF
                DO k=1, n_elems-1
                   WRITE (ft_unit, "(A16,I2,I2)", advance="no") "real pol. elem.", &
                      rtc%print_pol_elements(k,1), &
@@ -1334,7 +1369,13 @@ CONTAINS
                   rtc%print_pol_elements(n_elems,2)
                ! Iterate over energies
                DO j=1,n
-                  WRITE (ft_unit, "(E20.8E3)", advance="no") omegas(j)
+                  IF (info_unit == ft_unit) THEN
+                     ! Add the line header
+                     WRITE (ft_unit, "(A16,E20.8E3)", advance="no") " POLARIZABILITY|", &
+                        omegas(j) * evolt
+                  ELSE
+                     WRITE (ft_unit, "(E20.8E3)", advance="no") omegas(j)
+                  END IF
                   DO k=1,n_elems-1
                      WRITE (ft_unit, "(E20.8E3,E20.8E3)", advance="no") &
                         REAL(pol_results(k,j)), AIMAG(pol_results(k,j))

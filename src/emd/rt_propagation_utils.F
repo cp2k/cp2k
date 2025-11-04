@@ -38,7 +38,8 @@ MODULE rt_propagation_utils
    USE cp_output_handling,              ONLY: cp_p_file,&
                                               cp_print_key_finished_output,&
                                               cp_print_key_should_output,&
-                                              cp_print_key_unit_nr
+                                              cp_print_key_unit_nr,&
+                                              cp_print_key_generate_filename
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
    USE input_constants,                 ONLY: use_restart_wfn,&
                                               use_rt_restart
@@ -93,6 +94,10 @@ MODULE rt_propagation_utils
                                               qs_subsys_type
    USE rt_propagation_types,            ONLY: get_rtp,&
                                               rt_prop_type
+   USE cp_files,                        ONLY: open_file, &
+                                              file_exists, &
+                                              close_file
+   USE physcon,                         ONLY: femtoseconds
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -105,7 +110,8 @@ MODULE rt_propagation_utils
              calculate_P_imaginary, &
              write_rtp_mos_to_output_unit, &
              write_rtp_mo_cubes, &
-             warn_section_unused
+             warn_section_unused, &
+             read_moments
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rt_propagation_utils'
 
@@ -894,5 +900,78 @@ CONTAINS
       CALL section_vals_get(target_section, explicit=explicit)
       IF (explicit) CPWARN(error_message)
    END SUBROUTINE warn_section_unused
+! **************************************************************************************************
+!> \brief Attempt to read the moments from a previously written file
+!> \param moments_section Print key section for the moments trace
+!> \param orig_start Index from which the original calculation started (given by input file)
+!> \param current_start The current start index from which the calculation continues
+!> \param moments Moment trace, where the read entries are overwritten
+!> \param times Optional time trace, where again the read entries are overwritten
+!> \author Stepan Marek (11.25)
+! **************************************************************************************************
+   SUBROUTINE read_moments(moments_section, orig_start, current_start, moments, times, read)
+      TYPE(section_vals_type), POINTER                   :: moments_section
+      INTEGER                                            :: orig_start, &
+                                                            current_start
+      COMPLEX(kind=dp), DIMENSION(:,:,:), POINTER        :: moments
+      REAL(kind=dp), DIMENSION(:), POINTER, OPTIONAL     :: times
+      ! Whether at least some moments where extracted from the files
+      LOGICAL, OPTIONAL                                  :: read
+      CHARACTER(len=14), DIMENSION(4)                    :: file_extensions
+      CHARACTER(len=default_path_length)                 :: save_name_re, &
+                                                            save_name_im
+      TYPE(cp_logger_type), POINTER                      :: logger
+      INTEGER                                            :: i,k,n, &
+                                                            n_spin, &
+                                                            max_n, &
+                                                            unit_re, unit_im
+      REAL(kind=dp), DIMENSION(3)                        :: moments_re, &
+                                                            moments_im
+      REAL(kind=dp)                                      :: time
+
+      file_extensions(1) = "_SPIN_A_RE.dat"
+      file_extensions(2) = "_SPIN_A_IM.dat"
+      file_extensions(3) = "_SPIN_B_RE.dat"
+      file_extensions(4) = "_SPIN_B_IM.dat"
+
+      IF (PRESENT(read)) read = .FALSE.
+
+      n_spin = SIZE(moments,1)
+
+      logger => cp_get_default_logger()
+      max_n = current_start - orig_start + 1
+
+      DO i=1,n_spin
+         ! Open the relevant files
+         save_name_re = cp_print_key_generate_filename(logger, moments_section, &
+                                                       extension=file_extensions(2*i-1), my_local=.FALSE.)
+         save_name_im = cp_print_key_generate_filename(logger, moments_section, &
+                                                       extension=file_extensions(2*i), my_local=.FALSE.)
+         IF (file_exists(save_name_re) .AND. file_exists(save_name_im)) THEN
+            CALL open_file(save_name_re, file_status="OLD", file_form="FORMATTED", file_action="READ", &
+                           unit_number=unit_re)
+            CALL open_file(save_name_im, file_status="OLD", file_form="FORMATTED", file_action="READ", &
+                           unit_number=unit_im)
+            DO n=1,max_n
+               READ (unit_re, '(E20.8E3,E20.8E3,E20.8E3,E20.8E3,E20.8E3)') time, &
+                  moments_re(1), moments_re(2), moments_re(3)
+               READ (unit_im, '(E20.8E3,E20.8E3,E20.8E3,E20.8E3,E20.8E3)') time, &
+                  moments_im(1), moments_im(2), moments_im(3)
+               DO k=1,3
+                  moments(i, k, n) = CMPLX(moments_re(k), moments_im(k), kind=dp)
+               END DO
+               IF (PRESENT(times)) THEN
+                  times(n) = time/femtoseconds
+               END IF
+            END DO
+            IF(PRESENT(read)) read = .TRUE.
+            CALL close_file(unit_re)
+            CALL close_file(unit_im)
+         ELSE
+            moments(i, :, 1:max_n) = CMPLX(0.0, 0.0, kind=dp)
+            CPWARN("Could not read at least one moments file - missing trace is set to zero.")
+         END IF
+      END DO
+   END SUBROUTINE read_moments
 
 END MODULE rt_propagation_utils

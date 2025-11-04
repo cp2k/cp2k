@@ -92,12 +92,14 @@ MODULE rt_propagation
                                               calc_update_rho,&
                                               calc_update_rho_sparse,&
                                               get_restart_wfn,&
-                                              warn_section_unused
+                                              warn_section_unused, &
+                                              read_moments
    USE rt_propagation_velocity_gauge,   ONLY: velocity_gauge_ks_matrix
    USE rt_propagator_init,              ONLY: init_propagators,&
                                               rt_initialize_rho_from_mos
    USE moments_utils,                   ONLY: get_reference_point
    USE qs_moments,                      ONLY: build_local_moment_matrix
+   USE cell_types,                      ONLY: cell_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -120,7 +122,7 @@ CONTAINS
    SUBROUTINE rt_prop_setup(force_env)
       TYPE(force_env_type), POINTER                      :: force_env
 
-      INTEGER                                            :: aspc_order, k
+      INTEGER                                            :: aspc_order, k, unit_nr
       LOGICAL                                            :: magnetic, vel_reprs
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(global_environment_type), POINTER             :: globenv
@@ -132,6 +134,8 @@ CONTAINS
                                                             md_section, motion_section, &
                                                             print_moments_section, &
                                                             rtp_print_section, rtp_section
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_logger_type), POINTER                      :: logger
 
       NULLIFY (qs_env, rtp_control, dft_control)
 
@@ -181,12 +185,6 @@ CONTAINS
       ! Marek : In case some print sections that apply so far only to RTBSE are present,
       !         warn the user that the quantities will not be in fact printed out
       rtp_print_section => section_vals_get_subs_vals(rtp_section, "PRINT")
-      CALL warn_section_unused(rtp_print_section, "POLARIZABILITY", &
-                               "POLARIZABILITY printing not implemented for non-RTBSE code.")
-      ! CALL warn_section_unused(rtp_print_section, "MOMENTS", &
-      !                          "MOMENTS not implemented: Use DFT%PRINT%MOMENTS for moments printing with TDDFT.")
-      CALL warn_section_unused(rtp_print_section, "MOMENTS_FT", &
-                               "MOMENTS_FT printing not implemented for non-RTBSE code.")
       CALL warn_section_unused(rtp_print_section, "DENSITY_MATRIX", &
                                "DENSITY_MATRIX printing not implemented for non-RTBSE code.")
 
@@ -220,8 +218,11 @@ CONTAINS
       END IF
 
       IF (.NOT. rtp_control%periodic) THEN
-         ! TODO : Marek - output full time propagation quantities - MOMENTS_FT and POLARIZABILITY
-         CALL print_ft(rtp_section, rtp%moments, rtp%times, rtp%fields, rtp_control)
+         CALL get_qs_env(qs_env, cell=cell)
+         logger => cp_get_default_logger()
+         unit_nr = cp_logger_get_default_io_unit(logger)
+         CALL print_ft(rtp_section, rtp%moments, rtp%times, rtp%fields, rtp_control, &
+            info_opt=unit_nr,cell=cell)
          ! Deallocating the local moments matrices and array
          DEALLOCATE (rtp%moments)
          DO k=1,3
@@ -346,7 +347,7 @@ CONTAINS
       INTEGER                                            :: aspc_order, handle, i_iter, i_step, &
                                                             max_iter, max_steps, output_unit, &
                                                             i, k
-      LOGICAL                                            :: should_stop
+      LOGICAL                                            :: should_stop, moments_read
       REAL(Kind=dp)                                      :: eps_ener, time_iter_start, &
                                                             time_iter_stop, used_time, &
                                                             real_moment
@@ -387,14 +388,19 @@ CONTAINS
       output_unit = cp_print_key_unit_nr(logger, rtp_section, "PRINT%PROGRAM_RUN_INFO", &
                                          extension=".scfLog")
       ! Add the zero iteration moments to the moment trace
+      ! TODO : Skip when not at i_start = 0/when restarting?
       IF (.NOT. rtp_control%periodic) THEN
          CALL get_rtp(rtp, rho_new=rho_new)
          moments_section => section_vals_get_subs_vals(rtp_section, "PRINT%MOMENTS")
-         CALL calc_local_moment(rtp%local_moments, rho_new, rtp%local_moments_work, rtp%moments(:, :, 1))
-         qs_env%sim_time = REAL(rtp%i_start, dp)*rtp%dt
-         rtp%times(1) = qs_env%sim_time
-         CALL print_moments(moments_section, output_unit, rtp%moments(:, :, 1), &
-            qs_env%sim_time, rtp%track_imag_density)
+         ! TODO : Conditions on when not to read the files
+         CALL read_moments(moments_section, 0, rtp%i_start, rtp%moments, rtp%times, moments_read)
+         IF (.NOT. moments_read) THEN
+            CALL calc_local_moment(rtp%local_moments, rho_new, rtp%local_moments_work, rtp%moments(:, :, 1))
+            qs_env%sim_time = REAL(rtp%i_start, dp)*rtp%dt
+            rtp%times(1) = qs_env%sim_time
+            CALL print_moments(moments_section, output_unit, rtp%moments(:, :, 1), &
+               qs_env%sim_time, rtp%track_imag_density)
+         END IF
       END IF
 
       DO i_step = rtp%i_start + 1, max_steps

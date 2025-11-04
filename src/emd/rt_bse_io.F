@@ -65,7 +65,6 @@ MODULE rt_bse_io
    #:include "rt_bse_macros.fypp"
 
    PUBLIC :: output_moments, &
-             read_moments, &
              output_field, &
              read_field, &
              output_mos_contravariant, &
@@ -485,55 +484,55 @@ CONTAINS
 !> \param rtbse_env GW-BSE environment (assumes consistent setup, i.e. a continuation run).
 !>                  Otherwise, the traces are set at zero
 ! **************************************************************************************************
-   SUBROUTINE read_moments(rtbse_env)
-      TYPE(rtbse_env_type), POINTER                      :: rtbse_env
-      TYPE(cp_logger_type), POINTER                      :: logger
-      CHARACTER(len=default_path_length)                 :: save_name, save_name_2
-      INTEGER                                            :: i, j, k, moments_unit_re, moments_unit_im, n
-      CHARACTER(len=17), DIMENSION(4)                    :: file_labels
-      REAL(kind=dp), DIMENSION(3)                        :: moments_re, moments_im
-      REAL(kind=dp)                                      :: timestamp
-
-      logger => cp_get_default_logger()
-
-      ! Read moments from the previous run
-      ! Default labels distinguishing up to two spin species and real/imaginary parts
-      file_labels(1) = "_SPIN_A_RE.dat"
-      file_labels(2) = "_SPIN_A_IM.dat"
-      file_labels(3) = "_SPIN_B_RE.dat"
-      file_labels(4) = "_SPIN_B_IM.dat"
-      DO j = 1, rtbse_env%n_spin
-         save_name = cp_print_key_generate_filename(logger, rtbse_env%moments_section, &
-                                                    extension=file_labels(2*j - 1), my_local=.FALSE.)
-         save_name_2 = cp_print_key_generate_filename(logger, rtbse_env%moments_section, &
-                                                      extension=file_labels(2*j), my_local=.FALSE.)
-         IF (file_exists(save_name) .AND. file_exists(save_name_2)) THEN
-            CALL open_file(save_name, file_status="OLD", file_form="FORMATTED", file_action="READ", &
-                           unit_number=moments_unit_re)
-            CALL open_file(save_name_2, file_status="OLD", file_form="FORMATTED", file_action="READ", &
-                           unit_number=moments_unit_im)
-            ! Extra time step for the initial one
-            DO k = rtbse_env%sim_start_orig, rtbse_env%sim_start
-               ! Determine the absolute time step - offset in memory
-               n = k - rtbse_env%sim_start_orig + 1
-               READ (moments_unit_re, '(E20.8E3,E20.8E3,E20.8E3,E20.8E3)') timestamp, &
-                  moments_re(1), moments_re(2), moments_re(3)
-               READ (moments_unit_im, '(E20.8E3,E20.8E3,E20.8E3,E20.8E3)') timestamp, &
-                  moments_im(1), moments_im(2), moments_im(3)
-               DO i = 1, 3
-                  rtbse_env%moments_trace(j,i,n) = CMPLX(moments_re(i), moments_im(i), kind=dp)
-               END DO
-               rtbse_env%time_trace(n) = timestamp
-            END DO
-            ! Change back to atomic units in the trace
-            rtbse_env%time_trace(:) = rtbse_env%time_trace(:)/femtoseconds
-            CALL close_file(moments_unit_re)
-            CALL close_file(moments_unit_im)
-         ELSE IF (rtbse_env%dft_control%rtp_control%initial_wfn == use_rt_restart) THEN
-            CPWARN("Restart without previous moments - unknown moments trace set to zero.")
-         END IF
-      END DO
-   END SUBROUTINE read_moments
+!    SUBROUTINE read_moments(rtbse_env)
+!       TYPE(rtbse_env_type), POINTER                      :: rtbse_env
+!       TYPE(cp_logger_type), POINTER                      :: logger
+!       CHARACTER(len=default_path_length)                 :: save_name, save_name_2
+!       INTEGER                                            :: i, j, k, moments_unit_re, moments_unit_im, n
+!       CHARACTER(len=17), DIMENSION(4)                    :: file_labels
+!       REAL(kind=dp), DIMENSION(3)                        :: moments_re, moments_im
+!       REAL(kind=dp)                                      :: timestamp
+! 
+!       logger => cp_get_default_logger()
+! 
+!       ! Read moments from the previous run
+!       ! Default labels distinguishing up to two spin species and real/imaginary parts
+!       file_labels(1) = "_SPIN_A_RE.dat"
+!       file_labels(2) = "_SPIN_A_IM.dat"
+!       file_labels(3) = "_SPIN_B_RE.dat"
+!       file_labels(4) = "_SPIN_B_IM.dat"
+!       DO j = 1, rtbse_env%n_spin
+!          save_name = cp_print_key_generate_filename(logger, rtbse_env%moments_section, &
+!                                                     extension=file_labels(2*j - 1), my_local=.FALSE.)
+!          save_name_2 = cp_print_key_generate_filename(logger, rtbse_env%moments_section, &
+!                                                       extension=file_labels(2*j), my_local=.FALSE.)
+!          IF (file_exists(save_name) .AND. file_exists(save_name_2)) THEN
+!             CALL open_file(save_name, file_status="OLD", file_form="FORMATTED", file_action="READ", &
+!                            unit_number=moments_unit_re)
+!             CALL open_file(save_name_2, file_status="OLD", file_form="FORMATTED", file_action="READ", &
+!                            unit_number=moments_unit_im)
+!             ! Extra time step for the initial one
+!             DO k = rtbse_env%sim_start_orig, rtbse_env%sim_start
+!                ! Determine the absolute time step - offset in memory
+!                n = k - rtbse_env%sim_start_orig + 1
+!                READ (moments_unit_re, '(E20.8E3,E20.8E3,E20.8E3,E20.8E3)') timestamp, &
+!                   moments_re(1), moments_re(2), moments_re(3)
+!                READ (moments_unit_im, '(E20.8E3,E20.8E3,E20.8E3,E20.8E3)') timestamp, &
+!                   moments_im(1), moments_im(2), moments_im(3)
+!                DO i = 1, 3
+!                   rtbse_env%moments_trace(j,i,n) = CMPLX(moments_re(i), moments_im(i), kind=dp)
+!                END DO
+!                rtbse_env%time_trace(n) = timestamp
+!             END DO
+!             ! Change back to atomic units in the trace
+!             rtbse_env%time_trace(:) = rtbse_env%time_trace(:)/femtoseconds
+!             CALL close_file(moments_unit_re)
+!             CALL close_file(moments_unit_im)
+!          ELSE IF (rtbse_env%dft_control%rtp_control%initial_wfn == use_rt_restart) THEN
+!             CPWARN("Restart without previous moments - unknown moments trace set to zero.")
+!          END IF
+!       END DO
+!    END SUBROUTINE read_moments
       ! TODO : Rebind to fully complex pade
       ! IF (rtbse_env%pade_requested) THEN
       !    CALL greenx_refine_pade(rtbse_env%pade_e_min, rtbse_env%pade_e_max, rtbse_env%pade_x_eval, &

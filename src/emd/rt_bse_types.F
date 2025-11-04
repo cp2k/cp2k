@@ -595,11 +595,11 @@ CONTAINS
       ! Workspace for FT - includes (in principle) the zeroth step and the extra last step
       NULLIFY (rtbse_env%moments_trace)
       ! TODO : Unite the number of steps with TD-DFT
-      ALLOCATE (rtbse_env%moments_trace(rtbse_env%n_spin, 3, rtbse_env%sim_nsteps+2), source=z_zero)
+      ALLOCATE (rtbse_env%moments_trace(rtbse_env%n_spin, 3, rtbse_env%sim_nsteps+1), source=z_zero)
       NULLIFY (rtbse_env%field_trace)
-      ALLOCATE (rtbse_env%field_trace(3, rtbse_env%sim_nsteps+2), source=z_zero)
+      ALLOCATE (rtbse_env%field_trace(3, rtbse_env%sim_nsteps+1), source=z_zero)
       NULLIFY (rtbse_env%time_trace)
-      ALLOCATE (rtbse_env%time_trace(rtbse_env%sim_nsteps+2), source=0.0_dp)
+      ALLOCATE (rtbse_env%time_trace(rtbse_env%sim_nsteps+1), source=0.0_dp)
 
       ! Allocate self-energy parts and dynamic Hartree potential
       NULLIFY (rtbse_env%hartree_curr)

@@ -140,7 +140,6 @@ MODULE rt_bse
                            multiply_cfm_fm, &
                            multiply_fm_cfm
    USE rt_bse_io, ONLY: output_moments, &
-                        read_moments, &
                         read_field, &
                         output_field, &
                         output_mos_contravariant, &
@@ -164,6 +163,7 @@ MODULE rt_bse
    USE physcon, ONLY: femtoseconds
    USE mathconstants, ONLY: twopi
    USE rt_propagation_output, ONLY: print_ft
+   USE rt_propagation_utils, ONLY: read_moments
 
 #include "../base/base_uses.f90"
 
@@ -253,7 +253,8 @@ CONTAINS
       END IF
 
       ! ********************** Start the time loop **********************
-      DO i = rtbse_env%sim_start, rtbse_env%sim_nsteps
+      ! NOTE : Time-loop starts at index sim_start = 0, unless restarted or configured otherwise
+      DO i = rtbse_env%sim_start, rtbse_env%sim_nsteps-1
 
          ! Update the simulation time
          rtbse_env%sim_time = REAL(i, dp)*rtbse_env%sim_dt
@@ -293,14 +294,12 @@ CONTAINS
       CALL cp_rm_iter_level(logger%iter_info, "MD")
 
       ! Carry out the FT
-      ! TODO : couple here
       CALL print_ft(rtbse_env%rtp_section, &
          rtbse_env%moments_trace, &
          rtbse_env%time_trace, &
          rtbse_env%field_trace, &
-         rtbse_env%dft_control%rtp_control)
-      ! CALL output_moments_ft(rtbse_env)
-      ! CALL output_polarizability(rtbse_env)
+         rtbse_env%dft_control%rtp_control, &
+         info_opt=rtbse_env%unit_nr)
 
       ! Deallocate everything
       CALL release_rtbse_env(rtbse_env)
@@ -395,7 +394,8 @@ CONTAINS
       ! ****** END INITIAL DENSITY MATRIX CALCULATION
       ! ****** START MOMENTS TRACE LOAD
       ! The moments are only loaded if the consistent save files exist
-      CALL read_moments(rtbse_env)
+      CALL read_moments(rtbse_env%moments_section, rtbse_env%sim_start_orig, &
+                        rtbse_env%sim_start, rtbse_env%moments_trace, rtbse_env%time_trace)
       ! ****** END MOMENTS TRACE LOAD
 
       ! ****** START FIELD TRACE LOAD
