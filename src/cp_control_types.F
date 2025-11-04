@@ -537,6 +537,8 @@ MODULE cp_control_types
       INTEGER                              :: oe_corr = 0
       !> eigenvalue shifts
       REAL(KIND=dp)                        :: ev_shift = 0.0_dp, eos_shift = 0.0_dp
+      !> active orbitals
+      INTEGER, DIMENSION(2)                :: nactive = -1
       !> target accuracy
       REAL(kind=dp)                        :: conv = 0.0_dp
       !> the smallest excitation amplitude to print

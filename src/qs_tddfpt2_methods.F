@@ -282,6 +282,13 @@ CONTAINS
 
       IF (ASSOCIATED(matrix_ks_oep)) matrix_ks => matrix_ks_oep
 
+      ! determine active orbitals
+      ! default is all occupied MOs
+      DO ispin = 1, SIZE(gs_mos)
+         CALL cp_fm_get_info(gs_mos(ispin)%mos_occ, &
+                             ncol_global=tddfpt_control%nactive(ispin))
+      END DO
+
       ! components of the dipole operator
       CALL tddfpt_dipole_operator(dipole_op_mos_occ, &
                                   tddfpt_control, &
@@ -366,8 +373,8 @@ CONTAINS
             nstates = nstate_max
             tddfpt_control%nstates = nstate_max
          END IF
-         CALL tddfpt_create_work_matrices(work_matrices, gs_mos, nstates, do_hfx, do_admm, &
-                                          do_hfxlr, do_exck, do_sf, qs_env, sub_env)
+         CALL tddfpt_create_work_matrices(work_matrices, gs_mos, nstates, tddfpt_control%nactive, &
+                                          do_hfx, do_admm, do_hfxlr, do_exck, do_sf, qs_env, sub_env)
 
          ! create full_kernel and admm_kernel within tddfpt_energies
          kernel_env%full_kernel => full_kernel_env
@@ -383,19 +390,15 @@ CONTAINS
          END IF
       ELSE IF (tddfpt_control%kernel == tddfpt_kernel_stda) THEN
          ! setup for kernel_stda outside tddfpt_energies
-         nactive = 0
          CALL cp_fm_get_info(gs_mos(1)%mos_occ, nrow_global=nao)
-         DO ispin = 1, SIZE(gs_mos)
-            CALL cp_fm_get_info(gs_mos(ispin)%mos_occ, &
-                                ncol_global=nactive(ispin))
-         END DO
+         nactive = tddfpt_control%nactive
          CALL allocate_stda_env(qs_env, stda_kernel, nao, nactive)
          ! sTDA parameters
          CALL stda_init_param(qs_env, stda_kernel, tddfpt_control%stda_control)
          ! allocate pools and work matrices
          nstates = tddfpt_control%nstates
          CALL stda_create_work_matrices(work_matrices, gs_mos, nstates, &
-                                        qs_env, sub_env)
+                                        tddfpt_control%nactive, qs_env, sub_env)
          !
          CALL stda_init_matrices(qs_env, stda_kernel, sub_env, &
                                  work_matrices, tddfpt_control)
@@ -407,7 +410,7 @@ CONTAINS
          ! allocate pools and work matrices
          nstates = tddfpt_control%nstates
          CALL stda_create_work_matrices(work_matrices, gs_mos, nstates, &
-                                        qs_env, sub_env)
+                                        tddfpt_control%nactive, qs_env, sub_env)
          NULLIFY (kernel_env%full_kernel)
          NULLIFY (kernel_env%admm_kernel)
          NULLIFY (kernel_env%stda_kernel)
@@ -425,7 +428,7 @@ CONTAINS
       DO istate = 1, nstates
          DO ispin = 1, SIZE(evects, 1)
             CALL fm_pool_create_fm( &
-               work_matrices%fm_pool_ao_mo_occ(ispin)%pool, &
+               work_matrices%fm_pool_ao_mo_active(ispin)%pool, &
                S_evects(ispin, istate))
          END DO
       END DO
@@ -1079,7 +1082,7 @@ CONTAINS
                         logger=logger, &
                         tddfpt_section=tddfpt_section, &
                         tddfpt_print_section=tddfpt_print_section, &
-                        fm_pool_ao_mo_occ=work_matrices%fm_pool_ao_mo_occ, &
+                        fm_pool_ao_mo_active=work_matrices%fm_pool_ao_mo_active, &
                         blacs_env_global=blacs_env)
       ELSE
          nstates_read = 0
@@ -1369,7 +1372,8 @@ CONTAINS
          IF (tddfpt_control%do_admm) CALL release_kernel_env(kernel_env%admm_kernel)
          CALL release_kernel_env(kernel_env%full_kernel)
          CALL tddfpt_release_work_matrices(work_matrices, sub_env)
-         CALL tddfpt_create_work_matrices(work_matrices, gs_mos, nstates, tddfpt_control%do_hfx, &
+         CALL tddfpt_create_work_matrices(work_matrices, gs_mos, nstates, tddfpt_control%nactive, &
+                                          tddfpt_control%do_hfx, &
                                           tddfpt_control%do_admm, tddfpt_control%do_hfxlr, &
                                           tddfpt_control%do_exck, do_sf, qs_env, sub_env)
       END IF
@@ -1383,7 +1387,7 @@ CONTAINS
       DO istate = 1, nstates
          DO ispin = 1, nspins
             CALL fm_pool_create_fm( &
-               work_matrices%fm_pool_ao_mo_occ(ispin)%pool, &
+               work_matrices%fm_pool_ao_mo_active(ispin)%pool, &
                S_evects(ispin, istate))
          END DO
       END DO

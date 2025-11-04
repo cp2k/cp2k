@@ -987,7 +987,7 @@ CONTAINS
 
       DO ispin = 1, nspins
          ! number of occupied orbitals for each spin component
-         nmo_occ_avail(ispin) = SIZE(gs_mos(ispin)%evals_occ)
+         nmo_occ_avail(ispin) = tddfpt_control%nactive(ispin)
          ! number of occupied and virtual orbitals which can potentially
          ! contribute to the excited states in question.
          nmo_occ_selected(ispin) = MIN(nmo_occ_avail(ispin), nstates)

@@ -866,7 +866,7 @@ CONTAINS
       ALLOCATE (Aop_ritz(nspins, nstates))
       DO istate = 1, nstates
          DO ispin = 1, nspins
-            CALL fm_pool_create_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, Aop_ritz(ispin, istate))
+            CALL fm_pool_create_fm(work_matrices%fm_pool_ao_mo_active(ispin)%pool, Aop_ritz(ispin, istate))
          END DO
       END DO
 
@@ -876,13 +876,13 @@ CONTAINS
 
       DO istate = 1, nstates
          DO ispin = 1, nspins
-            CALL fm_pool_create_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, krylov_vects(ispin, istate))
+            CALL fm_pool_create_fm(work_matrices%fm_pool_ao_mo_active(ispin)%pool, krylov_vects(ispin, istate))
             CALL cp_fm_to_fm(evects(ispin, istate), krylov_vects(ispin, istate))
 
-            CALL fm_pool_create_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, S_krylov(ispin, istate))
+            CALL fm_pool_create_fm(work_matrices%fm_pool_ao_mo_active(ispin)%pool, S_krylov(ispin, istate))
             CALL cp_fm_to_fm(S_evects(ispin, istate), S_krylov(ispin, istate))
 
-            CALL fm_pool_create_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, Aop_krylov(ispin, istate))
+            CALL fm_pool_create_fm(work_matrices%fm_pool_ao_mo_active(ispin)%pool, Aop_krylov(ispin, istate))
          END DO
       END DO
 
@@ -928,11 +928,11 @@ CONTAINS
             ! compute residual vectors for the next iteration
             DO istate = 1, nvects_new
                DO ispin = 1, nspins
-                  CALL fm_pool_create_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, &
+                  CALL fm_pool_create_fm(work_matrices%fm_pool_ao_mo_active(ispin)%pool, &
                                          krylov_vects(ispin, nvects_exist + istate))
-                  CALL fm_pool_create_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, &
+                  CALL fm_pool_create_fm(work_matrices%fm_pool_ao_mo_active(ispin)%pool, &
                                          S_krylov(ispin, nvects_exist + istate))
-                  CALL fm_pool_create_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, &
+                  CALL fm_pool_create_fm(work_matrices%fm_pool_ao_mo_active(ispin)%pool, &
                                          Aop_krylov(ispin, nvects_exist + istate))
                END DO
             END DO
@@ -999,9 +999,9 @@ CONTAINS
 
       DO istate = nvects_exist + nvects_new, 1, -1
          DO ispin = nspins, 1, -1
-            CALL fm_pool_give_back_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, Aop_krylov(ispin, istate))
-            CALL fm_pool_give_back_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, S_krylov(ispin, istate))
-            CALL fm_pool_give_back_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, krylov_vects(ispin, istate))
+            CALL fm_pool_give_back_fm(work_matrices%fm_pool_ao_mo_active(ispin)%pool, Aop_krylov(ispin, istate))
+            CALL fm_pool_give_back_fm(work_matrices%fm_pool_ao_mo_active(ispin)%pool, S_krylov(ispin, istate))
+            CALL fm_pool_give_back_fm(work_matrices%fm_pool_ao_mo_active(ispin)%pool, krylov_vects(ispin, istate))
          END DO
       END DO
       DEALLOCATE (Aop_krylov, krylov_vects, S_krylov)
@@ -1009,7 +1009,7 @@ CONTAINS
 
       DO istate = nstates, 1, -1
          DO ispin = nspins, 1, -1
-            CALL fm_pool_give_back_fm(work_matrices%fm_pool_ao_mo_occ(ispin)%pool, Aop_ritz(ispin, istate))
+            CALL fm_pool_give_back_fm(work_matrices%fm_pool_ao_mo_active(ispin)%pool, Aop_ritz(ispin, istate))
          END DO
       END DO
       DEALLOCATE (Aop_ritz)

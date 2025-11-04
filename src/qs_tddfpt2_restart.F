@@ -15,7 +15,8 @@ MODULE qs_tddfpt2_restart
                                               cp_fm_scale_and_add,&
                                               cp_fm_trace
    USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
-                                              fm_pool_create_fm
+                                              fm_pool_create_fm,&
+                                              fm_pool_give_back_fm
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
@@ -85,7 +86,7 @@ CONTAINS
 
       INTEGER                                            :: handle, ispin, istate, nao, nspins, &
                                                             nstates, ounit
-      INTEGER, DIMENSION(maxspins)                       :: nmo_occ
+      INTEGER, DIMENSION(maxspins)                       :: nmo_active
 
       IF (BTEST(cp_print_key_should_output(logger%iter_info, tddfpt_print_section, "RESTART"), cp_p_file)) THEN
          CALL timeset(routineN, handle)
@@ -99,10 +100,9 @@ CONTAINS
             CPASSERT(nstates > 0)
          END IF
 
-         CALL cp_fm_get_info(gs_mos(1)%mos_occ, nrow_global=nao)
-
+         CALL cp_fm_get_info(evects(1, 1), nrow_global=nao)
          DO ispin = 1, nspins
-            nmo_occ(ispin) = SIZE(gs_mos(ispin)%evals_occ)
+            CALL cp_fm_get_info(evects(ispin, 1), ncol_global=nmo_active(ispin))
          END DO
 
          ounit = cp_print_key_unit_nr(logger, tddfpt_print_section, "RESTART", &
@@ -111,7 +111,7 @@ CONTAINS
 
          IF (ounit > 0) THEN
             WRITE (ounit) nstates, nspins, nao
-            WRITE (ounit) nmo_occ(1:nspins)
+            WRITE (ounit) nmo_active(1:nspins)
             WRITE (ounit) evals
          END IF
 
@@ -151,21 +151,21 @@ CONTAINS
 !> \param logger               a logger object
 !> \param tddfpt_section       TDDFPT input section
 !> \param tddfpt_print_section TDDFPT%PRINT input section
-!> \param fm_pool_ao_mo_occ    pools of dense matrices with shape [nao x nmo_occ(spin)]
+!> \param fm_pool_ao_mo_active pools of dense matrices with shape [nao x nmo_active(spin)]
 !> \param blacs_env_global     BLACS parallel environment involving all the processor
 !> \return the number of excited states found in the restart file
 !> \par History
 !>    * 08.2016 created [Sergey Chulkov]
 ! **************************************************************************************************
    FUNCTION tddfpt_read_restart(evects, evals, gs_mos, logger, tddfpt_section, tddfpt_print_section, &
-                                fm_pool_ao_mo_occ, blacs_env_global) RESULT(nstates_read)
+                                fm_pool_ao_mo_active, blacs_env_global) RESULT(nstates_read)
       TYPE(cp_fm_type), DIMENSION(:, :), INTENT(inout)   :: evects
       REAL(kind=dp), DIMENSION(:), INTENT(out)           :: evals
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          INTENT(in)                                      :: gs_mos
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: tddfpt_section, tddfpt_print_section
-      TYPE(cp_fm_pool_p_type), DIMENSION(:), INTENT(in)  :: fm_pool_ao_mo_occ
+      TYPE(cp_fm_pool_p_type), DIMENSION(:), INTENT(in)  :: fm_pool_ao_mo_active
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_global
       INTEGER                                            :: nstates_read
 
@@ -176,9 +176,10 @@ CONTAINS
       INTEGER                                            :: handle, ispin, istate, iunit, n_rep_val, &
                                                             nao, nao_read, nspins, nspins_read, &
                                                             nstates
-      INTEGER, DIMENSION(maxspins)                       :: nmo_occ, nmo_occ_read
+      INTEGER, DIMENSION(maxspins)                       :: nmo_active, nmo_active_read
       LOGICAL                                            :: file_exists
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: evals_read
+      TYPE(cp_fm_type)                                   :: evtest
       TYPE(mp_para_env_type), POINTER                    :: para_env_global
       TYPE(section_vals_type), POINTER                   :: print_key
 
@@ -218,10 +219,11 @@ CONTAINS
 
       nspins = SIZE(evects, 1)
       nstates = SIZE(evects, 2)
-      CALL cp_fm_get_info(gs_mos(1)%mos_occ, nrow_global=nao)
 
       DO ispin = 1, nspins
-         nmo_occ(ispin) = SIZE(gs_mos(ispin)%evals_occ)
+         CALL fm_pool_create_fm(fm_pool_ao_mo_active(ispin)%pool, evtest)
+         CALL cp_fm_get_info(evtest, nrow_global=nao, ncol_global=nmo_active(ispin))
+         CALL fm_pool_give_back_fm(fm_pool_ao_mo_active(ispin)%pool, evtest)
       END DO
 
       IF (para_env_global%is_source()) THEN
@@ -242,10 +244,10 @@ CONTAINS
                           "Incompatible number of atomic orbitals ("//TRIM(read_str)//" instead of "//TRIM(ref_str)//").")
          END IF
 
-         READ (iunit) nmo_occ_read(1:nspins)
+         READ (iunit) nmo_active_read(1:nspins)
 
          DO ispin = 1, nspins
-            IF (nmo_occ_read(ispin) /= nmo_occ(ispin)) THEN
+            IF (nmo_active_read(ispin) /= nmo_active(ispin)) THEN
                CALL cp_abort(__LOCATION__, &
                              "Incompatible number of electrons and/or multiplicity.")
             END IF
@@ -283,7 +285,7 @@ CONTAINS
       DO istate = 1, nstates_read
          DO ispin = 1, nspins
             IF (istate <= nstates) THEN
-               CALL fm_pool_create_fm(fm_pool_ao_mo_occ(ispin)%pool, evects(ispin, istate))
+               CALL fm_pool_create_fm(fm_pool_ao_mo_active(ispin)%pool, evects(ispin, istate))
 
                CALL cp_fm_read_unformatted(evects(ispin, istate), iunit)
 
@@ -327,7 +329,7 @@ CONTAINS
 
       INTEGER                                            :: handle, iocc, ispin, istate, ivirt, nao, &
                                                             nspins, nstates, ounit
-      INTEGER, DIMENSION(maxspins)                       :: nmo_occ, nmo_virt
+      INTEGER, DIMENSION(maxspins)                       :: nmo_active, nmo_occ, nmo_virt
       LOGICAL                                            :: print_phases, print_virtuals, &
                                                             scale_with_phases
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: phase_evects
@@ -355,6 +357,16 @@ CONTAINS
             CALL cp_abort(__LOCATION__, "NEWTONX interface print not possible when states"// &
                           " are distributed to different CPU pools.")
          END IF
+
+         ! test for reduced active orbitals
+         DO ispin = 1, nspins
+            nmo_occ(ispin) = SIZE(gs_mos(ispin)%evals_occ)
+            CALL cp_fm_get_info(evects(ispin, 1), ncol_global=nmo_active(ispin))
+            IF (nmo_occ(ispin) /= nmo_active(ispin)) THEN
+               CALL cp_abort(__LOCATION__, "NEWTONX interface print not possible when using"// &
+                             " a reduced set of active occupied orbitals.")
+            END IF
+         END DO
 
          ounit = cp_print_key_unit_nr(logger, tddfpt_print_section, "NAMD_PRINT", &
                                       extension=".inp", file_form="FORMATTED", file_action="WRITE", file_status="REPLACE")
