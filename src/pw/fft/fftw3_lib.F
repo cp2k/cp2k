@@ -1004,7 +1004,7 @@ CONTAINS
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(IN)         :: zout
       INTEGER, INTENT(IN)                                :: plan_style
 #if defined(__FFTW3)
-      INTEGER                                            :: ii, di, io, DO, num_threads, num_rows
+      INTEGER                                            :: ii, di, jj, dj, num_threads, num_rows
 
       INTEGER :: fftw_plan_type
       SELECT CASE (plan_style)
@@ -1049,32 +1049,32 @@ CONTAINS
 !$    plan%num_rows = num_rows
       ii = 1
       di = plan%n
-      io = 1
-      DO = plan%n
+      jj = 1
+      dj = plan%n
       IF (plan%fsign == +1 .AND. plan%trans) THEN
          ii = plan%m
          di = 1
       ELSEIF (plan%fsign == -1 .AND. plan%trans) THEN
-         io = plan%m
-         DO = 1
+         jj = plan%m
+         dj = 1
       END IF
 
       IF (plan%fsign == +1) THEN
          CALL dfftw_plan_many_dft(plan%fftw_plan, 1, plan%n, num_rows, zin, 0, ii, di, &
-                                  zout, 0, io, DO, FFTW_FORWARD, fftw_plan_type)
+                                  zout, 0, jj, dj, FFTW_FORWARD, fftw_plan_type)
       ELSE
          CALL dfftw_plan_many_dft(plan%fftw_plan, 1, plan%n, num_rows, zin, 0, ii, di, &
-                                  zout, 0, io, DO, FFTW_BACKWARD, fftw_plan_type)
+                                  zout, 0, jj, dj, FFTW_BACKWARD, fftw_plan_type)
       END IF
 
 !$    IF (plan%need_alt_plan) THEN
 !$       plan%alt_num_rows = plan%m - (plan%num_threads_needed - 1)*num_rows
 !$       IF (plan%fsign == +1) THEN
 !$          CALL dfftw_plan_many_dft(plan%alt_fftw_plan, 1, plan%n, plan%alt_num_rows, zin, 0, ii, di, &
-!$                                   zout, 0, io, DO, FFTW_FORWARD, fftw_plan_type)
+!$                                   zout, 0, jj, dj, FFTW_FORWARD, fftw_plan_type)
 !$       ELSE
 !$          CALL dfftw_plan_many_dft(plan%alt_fftw_plan, 1, plan%n, plan%alt_num_rows, zin, 0, ii, di, &
-!$                                   zout, 0, io, DO, FFTW_BACKWARD, fftw_plan_type)
+!$                                   zout, 0, jj, dj, FFTW_BACKWARD, fftw_plan_type)
 !$       END IF
 !$    END IF
 

@@ -29,8 +29,6 @@ SERVER = os.environ.get("CP2K_PRECOMMIT_SERVER", "https://precommit.cp2k.org")
 # The following Fortran files can not be parsed by Fortitude.
 # Typically because Fortran statements are inter-leafed with pre-processor macros.
 FORTITUDE_EXCLUDE = [
-    "machine.F",
-    "fftw3_lib.F",
     "pw_methods.F",
     "local_gemm_api.F",
     "cp_fm_diag.F",
