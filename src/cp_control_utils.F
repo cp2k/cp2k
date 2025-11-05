@@ -2872,6 +2872,8 @@ CONTAINS
                                 r_val=dft_control%rtp_control%ft_t0)
       ! Padé settings
       subsection => section_vals_get_subs_vals(rtp_section, "FT%PADE")
+      CALL section_vals_val_get(subsection, "_SECTION_PARAMETERS_", &
+                                l_val=dft_control%rtp_control%pade_requested)
       CALL section_vals_val_get(subsection, "E_MIN", &
                                 r_val=dft_control%rtp_control%pade_e_min)
       CALL section_vals_val_get(subsection, "E_STEP", &

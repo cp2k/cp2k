@@ -131,6 +131,7 @@ MODULE cp_control_types
       ! print_pol_elements(2,1) = 1
       ! print_pol_elements(2,2) = 3
       INTEGER, DIMENSION(:,:), POINTER     :: print_pol_elements
+      LOGICAL                              :: pade_requested
       REAL(dp)                             :: pade_e_min
       REAL(dp)                             :: pade_e_step
       REAL(dp)                             :: pade_e_max

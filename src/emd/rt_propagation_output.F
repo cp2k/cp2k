@@ -103,6 +103,7 @@ MODULE rt_propagation_output
    USE rt_propagation_ft,               ONLY: multi_fft
    USE cell_types,                      ONLY: cell_type
    USE mathconstants,                   ONLY: twopi
+   USE greenx_interface,                ONLY: greenx_refine_ft
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -1223,21 +1224,34 @@ CONTAINS
       INTEGER, OPTIONAL                                  :: info_opt
       INTEGER                                            :: i, j, k, nspin, n, &
                                                             ft_unit, n_elems, &
-                                                            info_unit
-      REAL(kind=dp), DIMENSION(:), POINTER               :: omegas
+                                                            info_unit, n_pade
+      REAL(kind=dp), DIMENSION(:), POINTER               :: omegas, &
+                                                            omegas_pade_real
+      COMPLEX(kind=dp), DIMENSION(:), POINTER            :: omegas_complex, &
+                                                            omegas_pade
+      ! For results, using spin * direction for first index, e.g. for nspin = 2
+      ! results(1,:) = (spin=1 and direction=1,:),
+      ! results(5,:) = (spin=2 and direction=2,:)
       COMPLEX(kind=dp), DIMENSION(:,:), POINTER          :: results, &
-                                                            pol_results
-      COMPLEX(kind=dp), DIMENSION(:,:), POINTER          :: field_results
+                                                            field_results, &
+                                                            field_results_pade, &
+                                                            pol_results, &
+                                                            pol_results_pade, &
+                                                            value_series, &
+                                                            results_p, &
+                                                            results_pade
       TYPE(cp_logger_type), POINTER                      :: logger
       LOGICAL                                            :: do_polarizability, &
                                                             do_moments_ft
-      COMPLEX(kind=dp), DIMENSION(:,:), POINTER          :: value_series
       TYPE(section_vals_type), POINTER                   :: moment_ft_section, &
                                                             pol_section
       CHARACTER(len=11), DIMENSION(2)                    :: file_extensions
       REAL(kind=dp)                                      :: damping
       REAL(kind=dp)                                      :: t0
       REAL(kind=dp), DIMENSION(3)                        :: delta_vec
+      CHARACTER(len=21)                                  :: prefix
+      CHARACTER(len=5)                                   :: prefix_format
+      CHARACTER(len=20), DIMENSION(:), POINTER           :: headers
 
       logger => cp_get_default_logger()
 
@@ -1292,44 +1306,97 @@ CONTAINS
          ! NOTE : Might be able to save some memory by only doing FT of actually
          ! required moments, but for now, doing FT of all moment directions
          NULLIFY (results)
-         ALLOCATE (results(3,n))
+         ALLOCATE (results(3*nspin,n))
          NULLIFY (omegas)
          ALLOCATE (omegas(n))
+         NULLIFY (value_series)
+         ALLOCATE (value_series(3*nspin,n))
          DO i=1, nspin
-            value_series => moments(i,:,:)
-            ! TODO : Choose whether the initial subtraction is applied in &FT section?
-            CALL multi_fft(times, value_series, results, omegas, &
-               damping_opt=damping, t0_opt=t0, subtract_initial_opt=.TRUE.)
+            DO k=1,3
+               value_series(3*(i-1)+k,:) = moments(i, k, :)
+            END DO
+         END DO
+         ! TODO : Choose whether the initial subtraction is applied in &FT section?
+         CALL multi_fft(times, value_series, results, omegas, &
+                        damping_opt=damping, t0_opt=t0, subtract_initial_opt=.TRUE.)
+         DEALLOCATE (value_series)
+         DO i=1, nspin
             ! Output to FT file, if needed
             ft_unit = cp_print_key_unit_nr(logger, moment_ft_section, extension=file_extensions(i), &
                                            file_form="FORMATTED", file_position="REWIND")
             ! Print header
             IF (ft_unit > 0) THEN
+               NULLIFY (headers)
+               ALLOCATE (headers(7))
+               headers(2) = "      x,real [at.u.]"
+               headers(3) = "      x,imag [at.u.]"
+               headers(4) = "      y,real [at.u.]"
+               headers(5) = "      y,imag [at.u.]"
+               headers(6) = "      z,real [at.u.]"
+               headers(7) = "      z,imag [at.u.]"
+               results_p => results(3*(i-1)+1:3*(i-1)+3,:)
                IF (info_unit == ft_unit) THEN
-                  ! Add the line header
-                  WRITE (ft_unit, "(A12,A20)", advance="no") " MOMENTS_FT|", "#         omega [eV]"
+                  headers(1) = "#        Energy [eV]"
+                  prefix = " MOMENTS_FT|"
+                  prefix_format = "(A12)"
+                  CALL print_ft_file(ft_unit, headers, omegas, results_p, &
+                                     prefix, prefix_format, evolt)
                ELSE
-                  WRITE (ft_unit, "(A20)", advance="no") "#      omega [at.u.]"
+                  headers(1) = "#      omega [at.u.]"
+                  CALL print_ft_file(ft_unit, headers, omegas, results_p)
                END IF
-               WRITE (ft_unit, "(A20,A20,A20,A20,A20,A20)") "x,real [at.u.]", "x,imag [at.u.]", &
-               "y,real [at.u.]", "y,imag [at.u.]", &
-               "z,real [at.u.]", "z,imag [at.u.]"
-               DO j=1, n
-                  IF (info_unit == ft_unit) THEN
-                     ! Add the line header
-                     WRITE (ft_unit, "(A12,E20.8E3)", advance="no") " MOMENTS_FT|", &
-                        omegas(j) * evolt
-                  ELSE
-                     WRITE (ft_unit, "(E20.8E3)", advance="no") omegas(j)
-                  END IF
-                  DO k=1, 2
-                     WRITE (ft_unit, "(E20.8E3,E20.8E3)", advance="no") &
-                        REAL(results(k, j)), AIMAG(results(k, j))
-                  END DO
-                  WRITE (ft_unit, "(E20.8E3,E20.8E3)") REAL(results(3, j)), AIMAG(results(3, j))
-               END DO
+               DEALLOCATE (headers)
             END IF
             CALL cp_print_key_finished_output(ft_unit, logger, moment_ft_section)
+         END DO
+      END IF
+
+      IF (rtc%pade_requested .AND. (do_moments_ft .OR. do_polarizability)) THEN
+         NULLIFY (omegas_complex)
+         ALLOCATE (omegas_complex(SIZE(omegas)))
+         omegas_complex(:) = CMPLX(omegas(:), 0.0, kind=dp)
+         NULLIFY (omegas_pade)
+         NULLIFY (omegas_pade_real)
+         n_pade = INT((rtc%pade_e_max - rtc%pade_e_min) / rtc%pade_e_step)
+         ALLOCATE (omegas_pade(n_pade))
+         ALLOCATE (omegas_pade_real(n_pade))
+         ! Construct omegas_pade and omegas_complex
+         DO i=1,n_pade
+            omegas_pade_real(i) = (i-1)*rtc%pade_e_step + rtc%pade_e_min
+            omegas_pade(i) = CMPLX(omegas_pade_real(i), 0.0, kind=dp)
+         END DO
+         NULLIFY (results_pade)
+         ALLOCATE (results_pade(nspin*3,n_pade), source=CMPLX(0.0, 0.0, kind=dp))
+         DO i=1,nspin
+            DO k=1,3
+               CALL greenx_refine_ft(rtc%pade_fit_e_min, rtc%pade_fit_e_max, omegas_complex, results(3*(i-1)+k,:), &
+                  omegas_pade, results_pade(3*(i-1) + k,:))
+            END DO
+            ! TODO : Print into file
+            ft_unit = cp_print_key_unit_nr(logger, moment_ft_section, extension="_PADE"//file_extensions(i), &
+                                           file_form="FORMATTED", file_position="REWIND")
+            IF (ft_unit > 0) THEN
+               NULLIFY (headers)
+               ALLOCATE (headers(7))
+               headers(2) = " x,real,pade [at.u.]"
+               headers(3) = " x,imag,pade [at.u.]"
+               headers(4) = " y,real,pade [at.u.]"
+               headers(5) = " y,imag,pade [at.u.]"
+               headers(6) = " z,real,pade [at.u.]"
+               headers(7) = " z,imag,pade [at.u.]"
+               results_p => results_pade(3*(i-1)+1:3*(i-1)+3,:)
+               IF (info_unit == ft_unit) THEN
+                  headers(1) = "#        Energy [eV]"
+                  prefix = " MOMENTS_FT_PADE|"
+                  prefix_format = "(A17)"
+                  CALL print_ft_file(ft_unit, headers, omegas_pade_real, results_p, &
+                                     prefix, prefix_format, evolt)
+               ELSE
+                  headers(1) = "#      omega [at.u.]"
+                  CALL print_ft_file(ft_unit, headers, omegas_pade_real, results_p)
+               END IF
+               DEALLOCATE (headers)
+            END IF
          END DO
       END IF
 
@@ -1340,52 +1407,105 @@ CONTAINS
          DO i=1, nspin
             DO k=1,n_elems
                ! TODO : Field regularization?
-               pol_results(k,:) = results(rtc%print_pol_elements(k,1),:) / field_results(rtc%print_pol_elements(k,2),:)
+               pol_results(k,:) = results(3*(i-1)+rtc%print_pol_elements(k,1),:) / field_results(rtc%print_pol_elements(k,2),:)
             END DO
             ! Print to the file
             ft_unit = cp_print_key_unit_nr(logger, pol_section, extension=file_extensions(i), &
                file_form="FORMATTED", file_position="REWIND")
             IF (ft_unit > 0) THEN
+               NULLIFY (headers)
+               ALLOCATE (headers(2*n_elems+1))
+               DO k=1, n_elems
+                  WRITE(headers(2*k), "(A16,I2,I2)") "real pol. elem.", &
+                     rtc%print_pol_elements(k,1), &
+                     rtc%print_pol_elements(k,2)
+                  WRITE(headers(2*k+1), "(A16,I2,I2)") "imag pol. elem.", &
+                     rtc%print_pol_elements(k,1), &
+                     rtc%print_pol_elements(k,2)
+               END DO
                ! Write header
                IF (info_unit == ft_unit) THEN
-                  ! Add the line header
-                  WRITE (ft_unit, "(A16,A20)", advance="no") " POLARIZABILITY|", "#         omega [eV]"
+                  headers(1) = "#        Energy [eV]"
+                  prefix = " POLARIZABILITY|"
+                  prefix_format = "(A16)"
+                  CALL print_ft_file(ft_unit, headers, omegas, pol_results, &
+                                     prefix, prefix_format, evolt)
                ELSE
-                  WRITE (ft_unit, "(A20)", advance="no") "#      omega [at.u.]"
+                  headers(1) = "#      omega [at.u.]"
+                  CALL print_ft_file(ft_unit, headers, omegas, pol_results)
                END IF
-               DO k=1, n_elems-1
-                  WRITE (ft_unit, "(A16,I2,I2)", advance="no") "real pol. elem.", &
-                     rtc%print_pol_elements(k,1), &
-                     rtc%print_pol_elements(k,2)
-                  WRITE (ft_unit, "(A16,I2,I2)", advance="no") "imag pol. elem.", &
-                     rtc%print_pol_elements(k,1), &
-                     rtc%print_pol_elements(k,2)
-               END DO
-               WRITE (ft_unit, "(A16,I2,I2)", advance="no") "real pol. elem.", &
-                  rtc%print_pol_elements(n_elems,1), &
-                  rtc%print_pol_elements(n_elems,2)
-               WRITE (ft_unit, "(A16,I2,I2)") "imag pol. elem.", &
-                  rtc%print_pol_elements(n_elems,1), &
-                  rtc%print_pol_elements(n_elems,2)
-               ! Iterate over energies
-               DO j=1,n
-                  IF (info_unit == ft_unit) THEN
-                     ! Add the line header
-                     WRITE (ft_unit, "(A16,E20.8E3)", advance="no") " POLARIZABILITY|", &
-                        omegas(j) * evolt
-                  ELSE
-                     WRITE (ft_unit, "(E20.8E3)", advance="no") omegas(j)
-                  END IF
-                  DO k=1,n_elems-1
-                     WRITE (ft_unit, "(E20.8E3,E20.8E3)", advance="no") &
-                        REAL(pol_results(k,j)), AIMAG(pol_results(k,j))
-                  END DO
-                  WRITE (ft_unit, "(E20.8E3,E20.8E3)") &
-                     REAL(pol_results(k,j)), AIMAG(pol_results(k,j))
-               END DO
             END IF
             CALL cp_print_key_finished_output(ft_unit, logger, pol_section)
          END DO
+      END IF
+
+      ! TODO : Insert polarizability padé here
+      IF (rtc%pade_requested .AND. do_polarizability) THEN
+         ! Start with the field pade
+         NULLIFY (field_results_pade)
+         ALLOCATE (field_results_pade(3, n_pade))
+         IF (rtc%apply_delta_pulse) THEN
+            DO k=1,3
+               field_results_pade(k,:) = CMPLX(delta_vec(k), 0.0, kind=dp)
+            END DO
+         ELSE
+            DO k=1,3
+               CALL greenx_refine_ft(rtc%pade_fit_e_min, rtc%pade_fit_e_max, &
+                                     omegas_complex, field_results(k,:), &
+                                     omegas_pade, field_results_pade(k,:))
+            END DO
+         END IF
+         ! Allocate polarisation pade
+         NULLIFY (pol_results_pade)
+         ALLOCATE (pol_results_pade(n_elems,n_pade))
+         ! Refine
+         DO i=1, nspin
+            DO k=1,n_elems
+               ! TODO : regularisation
+               pol_results_pade(k,:) = results_pade(3*(i-1) + rtc%print_pol_elements(k,1),:) / &
+                  field_results_pade(rtc%print_pol_elements(k,2),:)
+            END DO
+            ! Print to the file
+            ft_unit = cp_print_key_unit_nr(logger, pol_section, extension="_PADE"//file_extensions(i), &
+               file_form="FORMATTED", file_position="REWIND")
+            IF (ft_unit > 0) THEN
+               NULLIFY (headers)
+               ALLOCATE (headers(2*n_elems+1))
+               DO k=1, n_elems
+                  WRITE(headers(2*k), "(A16,I2,I2)") "re,pade,pol.", &
+                     rtc%print_pol_elements(k,1), &
+                     rtc%print_pol_elements(k,2)
+                  WRITE(headers(2*k+1), "(A16,I2,I2)") "im,pade,pol.", &
+                     rtc%print_pol_elements(k,1), &
+                     rtc%print_pol_elements(k,2)
+               END DO
+               ! Write header
+               IF (info_unit == ft_unit) THEN
+                  headers(1) = "#        Energy [eV]"
+                  prefix = " POLARIZABILITY_PADE|"
+                  prefix_format = "(A21)"
+                  CALL print_ft_file(ft_unit, headers, omegas_pade_real, pol_results_pade, &
+                                     prefix, prefix_format, evolt)
+               ELSE
+                  headers(1) = "#      omega [at.u.]"
+                  CALL print_ft_file(ft_unit, headers, omegas_pade_real, pol_results_pade)
+               END IF
+               DEALLOCATE (headers)
+            END IF
+            CALL cp_print_key_finished_output(ft_unit, logger, pol_section)
+         END DO
+         DEALLOCATE (field_results_pade)
+         DEALLOCATE (pol_results_pade)
+      END IF
+
+      IF (rtc%pade_requested .AND. (do_moments_ft .OR. do_polarizability)) THEN
+         DEALLOCATE (omegas_complex)
+         DEALLOCATE (omegas_pade)
+         DEALLOCATE (omegas_pade_real)
+         DEALLOCATE (results_pade)
+      END IF
+
+      IF (do_polarizability) THEN
          DEALLOCATE(pol_results)
          DEALLOCATE(field_results)
       END IF
@@ -1395,5 +1515,71 @@ CONTAINS
          DEALLOCATE (omegas)
       END IF
    END SUBROUTINE print_ft
+
+   SUBROUTINE print_ft_file(ft_unit, headers, xvals, yvals, prefix, prefix_format, xscale_opt)
+      INTEGER, INTENT(IN)                                :: ft_unit
+      CHARACTER(len=20), DIMENSION(:), POINTER           :: headers
+      REAL(kind=dp), DIMENSION(:), POINTER               :: xvals
+      COMPLEX(kind=dp), DIMENSION(:,:), POINTER          :: yvals
+      CHARACTER(len=21), OPTIONAL                        :: prefix
+      CHARACTER(len=5), OPTIONAL                         :: prefix_format
+      REAL(kind=dp), OPTIONAL                            :: xscale_opt
+      REAL(kind=dp)                                      :: xscale
+      LOGICAL                                            :: do_prefix
+      INTEGER                                            :: ncols, &
+                                                            nrows, &
+                                                            i, j
+
+      do_prefix = .FALSE.
+      IF (PRESENT(prefix)) THEN
+         IF (PRESENT(prefix_format)) THEN
+            do_prefix = .TRUE.
+         ELSE
+            CPABORT("Printing of prefix with missing format!")
+         END IF
+      END IF
+
+      xscale = 1.0_dp
+      IF (PRESENT(xscale_opt)) xscale = xscale_opt
+
+      ncols = SIZE(yvals, 1)
+      nrows = SIZE(yvals, 2)
+
+      ! Check whether enough headers for yvals and xvals is present
+      IF (SIZE(headers) < 2*ncols+1) THEN
+         CPABORT("Not enough headers to print the file!")
+      END IF
+
+      IF (SIZE(xvals) < nrows) THEN
+         CPABORT("Not enough xvals to print all yvals!")
+      END IF
+
+      IF (ft_unit > 0) THEN
+         ! If prefix is present, write prefix
+         ! Also write energy in eV instead of at.u.
+         IF (do_prefix) THEN
+            WRITE (ft_unit, prefix_format, advance="no") prefix
+         END IF
+         WRITE (ft_unit, "(A20)", advance="no") headers(1)
+         ! Print the rest of the headers
+         DO j=1,2*ncols-1
+            WRITE (ft_unit, "(A20)", advance="no") headers(j+1)
+         END DO
+         WRITE (ft_unit, "(A20)") headers(2*ncols+1)
+         ! Done with the headers, print actual data
+         DO i=1, nrows
+            IF (do_prefix) THEN
+               WRITE (ft_unit, prefix_format, advance="no") prefix
+            END IF
+            WRITE (ft_unit, "(E20.8E3)", advance="no") xvals(i)*xscale
+            DO j=1,ncols-1
+               WRITE (ft_unit, "(E20.8E3,E20.8E3)", advance="no") &
+                  REAL(yvals(j,i)), AIMAG(yvals(j,i))
+            END DO
+            WRITE (ft_unit, "(E20.8E3,E20.8E3)") &
+               REAL(yvals(ncols,i)), AIMAG(yvals(ncols,i))
+         END DO
+      END IF
+   END SUBROUTINE print_ft_file
 
 END MODULE rt_propagation_output

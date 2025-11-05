@@ -223,6 +223,8 @@ CONTAINS
 
       CALL print_rtbse_header_info(rtbse_env)
 
+      ! Initiate iteration level "MD" in order to copy the structure of other RTP codes
+      CALL cp_add_iter_level(logger%iter_info, "MD")
       ! Initialize non-trivial values
       !  - calculates the moment operators
       !  - populates the initial density matrix
@@ -234,9 +236,6 @@ CONTAINS
       !  - calculates the COHSEX reference self-energy
       !  - prints some info about loaded files into the output
       CALL initialize_rtbse_env(rtbse_env)
-
-      ! Initiate iteration level "MD" in order to copy the structure of other RTP codes
-      CALL cp_add_iter_level(logger%iter_info, "MD")
 
       ! Setup the time based on the starting step
       ! Assumes identical dt between two runs

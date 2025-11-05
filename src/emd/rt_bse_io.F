@@ -12,25 +12,18 @@
 
 MODULE rt_bse_io
    USE cp_fm_types, ONLY: cp_fm_type, &
-                          cp_fm_p_type, &
-                          cp_fm_create, &
-                          cp_fm_release, &
                           cp_fm_read_unformatted, &
                           cp_fm_write_unformatted, &
                           cp_fm_write_formatted
    USE cp_cfm_types, ONLY: cp_cfm_type, &
-                           cp_cfm_p_type, &
                            cp_fm_to_cfm, &
                            cp_cfm_to_fm
    USE kinds, ONLY: dp, &
                     default_path_length
    USE cp_fm_basic_linalg, ONLY: cp_fm_trace, &
-                                 cp_fm_transpose, &
-                                 cp_fm_norm
-   USE parallel_gemm_api, ONLY: parallel_gemm
+                                 cp_fm_transpose
    USE cp_log_handling, ONLY: cp_logger_type, &
-                              cp_get_default_logger, &
-                              cp_logger_get_default_io_unit
+                              cp_get_default_logger
    USE cp_output_handling, ONLY: cp_print_key_unit_nr, &
                                  cp_print_key_finished_output, &
                                  cp_print_key_generate_filename, &
@@ -48,10 +41,7 @@ MODULE rt_bse_io
                               rtp_bse_ham_g0w0, &
                               rtp_bse_ham_ks, &
                               use_rt_restart
-   USE physcon, ONLY: femtoseconds, &
-                      evolt
-   USE greenx_interface, ONLY: greenx_refine_pade, greenx_output_polarizability, greenx_refine_ft
-   USE rt_propagation_ft, ONLY: multi_fft
+   USE physcon, ONLY: femtoseconds
    USE rt_propagation_output, ONLY: print_moments
 
 #include "../base/base_uses.f90"
@@ -346,9 +336,7 @@ CONTAINS
    SUBROUTINE output_moments(rtbse_env, rho)
       TYPE(rtbse_env_type)                               :: rtbse_env
       TYPE(cp_cfm_type), DIMENSION(:), POINTER           :: rho
-      TYPE(cp_logger_type), POINTER                      :: logger
-      INTEGER                                            :: i, j, n, moments_unit_re, moments_unit_im
-      CHARACTER(len=14), DIMENSION(4)                    :: file_labels
+      INTEGER                                            :: i, j, n
       REAL(kind=dp), DIMENSION(3)                        :: moments_re
 
       n = rtbse_env%sim_step - rtbse_env%sim_start_orig + 1
@@ -479,81 +467,4 @@ CONTAINS
          END IF
       END DO
    END SUBROUTINE read_restart
-! **************************************************************************************************
-!> \brief Reads the moments and time traces from the save files
-!> \param rtbse_env GW-BSE environment (assumes consistent setup, i.e. a continuation run).
-!>                  Otherwise, the traces are set at zero
-! **************************************************************************************************
-!    SUBROUTINE read_moments(rtbse_env)
-!       TYPE(rtbse_env_type), POINTER                      :: rtbse_env
-!       TYPE(cp_logger_type), POINTER                      :: logger
-!       CHARACTER(len=default_path_length)                 :: save_name, save_name_2
-!       INTEGER                                            :: i, j, k, moments_unit_re, moments_unit_im, n
-!       CHARACTER(len=17), DIMENSION(4)                    :: file_labels
-!       REAL(kind=dp), DIMENSION(3)                        :: moments_re, moments_im
-!       REAL(kind=dp)                                      :: timestamp
-! 
-!       logger => cp_get_default_logger()
-! 
-!       ! Read moments from the previous run
-!       ! Default labels distinguishing up to two spin species and real/imaginary parts
-!       file_labels(1) = "_SPIN_A_RE.dat"
-!       file_labels(2) = "_SPIN_A_IM.dat"
-!       file_labels(3) = "_SPIN_B_RE.dat"
-!       file_labels(4) = "_SPIN_B_IM.dat"
-!       DO j = 1, rtbse_env%n_spin
-!          save_name = cp_print_key_generate_filename(logger, rtbse_env%moments_section, &
-!                                                     extension=file_labels(2*j - 1), my_local=.FALSE.)
-!          save_name_2 = cp_print_key_generate_filename(logger, rtbse_env%moments_section, &
-!                                                       extension=file_labels(2*j), my_local=.FALSE.)
-!          IF (file_exists(save_name) .AND. file_exists(save_name_2)) THEN
-!             CALL open_file(save_name, file_status="OLD", file_form="FORMATTED", file_action="READ", &
-!                            unit_number=moments_unit_re)
-!             CALL open_file(save_name_2, file_status="OLD", file_form="FORMATTED", file_action="READ", &
-!                            unit_number=moments_unit_im)
-!             ! Extra time step for the initial one
-!             DO k = rtbse_env%sim_start_orig, rtbse_env%sim_start
-!                ! Determine the absolute time step - offset in memory
-!                n = k - rtbse_env%sim_start_orig + 1
-!                READ (moments_unit_re, '(E20.8E3,E20.8E3,E20.8E3,E20.8E3)') timestamp, &
-!                   moments_re(1), moments_re(2), moments_re(3)
-!                READ (moments_unit_im, '(E20.8E3,E20.8E3,E20.8E3,E20.8E3)') timestamp, &
-!                   moments_im(1), moments_im(2), moments_im(3)
-!                DO i = 1, 3
-!                   rtbse_env%moments_trace(j,i,n) = CMPLX(moments_re(i), moments_im(i), kind=dp)
-!                END DO
-!                rtbse_env%time_trace(n) = timestamp
-!             END DO
-!             ! Change back to atomic units in the trace
-!             rtbse_env%time_trace(:) = rtbse_env%time_trace(:)/femtoseconds
-!             CALL close_file(moments_unit_re)
-!             CALL close_file(moments_unit_im)
-!          ELSE IF (rtbse_env%dft_control%rtp_control%initial_wfn == use_rt_restart) THEN
-!             CPWARN("Restart without previous moments - unknown moments trace set to zero.")
-!          END IF
-!       END DO
-!    END SUBROUTINE read_moments
-      ! TODO : Rebind to fully complex pade
-      ! IF (rtbse_env%pade_requested) THEN
-      !    CALL greenx_refine_pade(rtbse_env%pade_e_min, rtbse_env%pade_e_max, rtbse_env%pade_x_eval, &
-      !                            n, rtbse_env%pade_npoints, logger, rtbse_env%ft_section, &
-      !                            rtbse_env%unit_nr, omega_series, ft_full_series)
-      ! END IF
-      ! ! Refinement of the grid via Padé approximants, if requested
-      ! IF (rtbse_env%pade_requested) THEN
-      !    omega_complex(:) = CMPLX(omega_series(:), 0.0, kind=dp)
-      !    ! No need to refine the field if it is known exactly
-      !    ! Also GreenX has trouble fitting constant functions
-      !    IF (rtbse_env%dft_control%rtp_control%apply_delta_pulse) THEN
-      !       field_refined(:) = CMPLX( &
-      !                          rtbse_env%dft_control%rtp_control%delta_pulse_direction(rtbse_env%pol_elements(k, 2))* &
-      !                          rtbse_env%dft_control%rtp_control%delta_pulse_scale, 0.0, kind=dp)
-      !    ELSE
-      !       CALL greenx_refine_ft(rtbse_env%pade_fit_e_min, rtbse_env%pade_fit_e_max, omega_complex, field_series, &
-      !                             rtbse_env%pade_x_eval, field_refined)
-      !    END IF
-      !    CALL greenx_refine_ft(rtbse_env%pade_fit_e_min, rtbse_env%pade_fit_e_max, omega_complex, moment_series, &
-      !                          rtbse_env%pade_x_eval, moment_refined)
-      !    polarizability_refined(k, :) = moment_refined(:)/field_refined(:)
-      ! END IF
 END MODULE rt_bse_io

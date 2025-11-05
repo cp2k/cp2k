@@ -1978,10 +1978,8 @@ CONTAINS
       TYPE(section_type), POINTER                        :: section
 
       TYPE(keyword_type), POINTER                        :: keyword
-      TYPE(section_type), POINTER                        :: subsection
 
       NULLIFY (keyword)
-      NULLIFY (subsection)
       CPASSERT(.NOT. ASSOCIATED(section))
 
       CALL section_create(section, __LOCATION__, name="RTBSE", &
@@ -2019,88 +2017,6 @@ CONTAINS
                                         "Use G0W0 Hamiltonian for Green's function propagation"))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      ! Marek : Options for the Fourier transform
-      CALL keyword_create(keyword, __LOCATION__, "FT_DAMPING", &
-                          description="Numerical Fourier transform (required for calculation of "// &
-                          "MOMENTS_FT and POLARIZABILITY) can oscillate "// &
-                          "when the final values are far away from zero. "// &
-                          "This keyword controls the exponential damping in the Fourier transform "// &
-                          "(Fourier transform is used for calculation of MOMENTS_FT and POLARIZABILITY). "// &
-                          "For negative values (the default), calculates the damping at the run time so that the last point "// &
-                          "in the time trace is reduced by factor e^(-4). When set manually, determines the time in which "// &
-                          "the moments trace is reduced by factor of e^(-1), except when set to zero, in which case "// &
-                          "the damping is not applied.", &
-                          type_of_var=real_t, &
-                          unit_str="fs", &
-                          default_r_val=-1.0_dp/femtoseconds)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-      CALL keyword_create(keyword, __LOCATION__, "FT_START_TIME", &
-                          description="The starting time from which damping is applied and from which on the trace is "// &
-                          "considered for the Fourier transform (Fourier transform is used for the calculation of "// &
-                          "MOMENTS_FT and POLARIZABILITY). Useful for real-time pulse - "// &
-                          "one can specify the center of the pulse as the starting point.", &
-                          type_of_var=real_t, &
-                          unit_str="fs", &
-                          default_r_val=0.0_dp)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      ! Padé FT refinement
-      ! TODO : Link MOMENTS_FT in documentation.
-      CALL section_create(subsection, __LOCATION__, name="PADE_FT", &
-                          description="Options for the Padé approximant refinement of the Fourier transform. Uses GreenX "// &
-                          "library to perform the analytic continuation and interpolation of the Fourier transform of "// &
-                          "dipole moments. The resulting moments are printed into the MOMENTS_FT file.", &
-                          repeats=.FALSE.)
-
-      CALL keyword_create(keyword, __LOCATION__, name="E_MIN", &
-                          description="Minimal energy of the interpolated values.", &
-                          unit_str="eV", &
-                          type_of_var=real_t, &
-                          default_r_val=0.0_dp)
-      CALL section_add_keyword(subsection, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="E_MAX", &
-                          description="Maximal energy of the interpolated values.", &
-                          unit_str="eV", &
-                          type_of_var=real_t, &
-                          default_r_val=100.0_dp/evolt)
-      CALL section_add_keyword(subsection, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="E_STEP", &
-                          description="Energy resolution of the interpolated values.", &
-                          unit_str="eV", &
-                          type_of_var=real_t, &
-                          default_r_val=0.02_dp/evolt)
-      CALL section_add_keyword(subsection, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="FIT_E_MIN", &
-                          description="Minimum energy to be used in the fitting of Padé approximants. "// &
-                          "Can be used to restrict the number of Padé parameters. "// &
-                          "When not present, takes the value of E_MIN.", &
-                          unit_str="eV", &
-                          type_of_var=real_t, &
-                          default_r_val=0.0_dp)
-      CALL section_add_keyword(subsection, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create(keyword, __LOCATION__, name="FIT_E_MAX", &
-                          description="Maximum energy to be used in the fitting of Padé approximants. "// &
-                          "Can be used to restrict the number of Padé parameters. Negative energy is interpreted "// &
-                          "as maximum available energy from the original Fourier transform. "// &
-                          "When not present, takes the value of E_MAX.", &
-                          unit_str="eV", &
-                          type_of_var=real_t, &
-                          default_r_val=-1.0_dp/evolt)
-      CALL section_add_keyword(subsection, keyword)
-      CALL keyword_release(keyword)
-
-      CALL section_add_subsection(section, subsection)
-      CALL section_release(subsection)
 
    END SUBROUTINE create_rtbse_section
 ! **************************************************************************************************
@@ -2154,8 +2070,7 @@ CONTAINS
 
       ! Create the Padé subsection
       NULLIFY (subsection)
-      CALL section_create(subsection, __LOCATION__, &
-         name="PADE", &
+      CALL section_create(subsection, __LOCATION__, name="PADE", &
          description="Defines the parameters for the Padé interpolation of the "// &
          "Fourier transforms used in the output of RTP. Only available with the GreenX library linked to CP2K.", &
          repeats=.FALSE.)
