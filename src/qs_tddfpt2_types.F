@@ -298,7 +298,7 @@ CONTAINS
       ALLOCATE (work_matrices%fm_pool_ao_mo_active(nspins))
       DO ispin = 1, nspins
          NULLIFY (work_matrices%fm_pool_ao_mo_active(ispin)%pool)
-         CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nmo_occ(ispin), context=blacs_env)
+         CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nactive(ispin), context=blacs_env)
          CALL fm_pool_create(work_matrices%fm_pool_ao_mo_active(ispin)%pool, fm_struct)
          CALL cp_fm_struct_release(fm_struct)
       END DO
@@ -318,6 +318,7 @@ CONTAINS
                                       ncol=nmo_occ(ispin), alpha=1.0_dp, beta=0.0_dp)
          CALL parallel_gemm('N', 'T', nao, nao, nmo_occ(ispin), 1.0_dp, work_matrices%S_C0(ispin), &
                             gs_mos(ispin)%mos_occ, 0.0_dp, work_matrices%S_C0_C0T(ispin))
+         CALL cp_fm_struct_release(fm_struct)
       END DO
 
       IF (sub_env%is_split) THEN
@@ -676,7 +677,7 @@ CONTAINS
       ALLOCATE (work_matrices%fm_pool_ao_mo_active(nspins))
       DO ispin = 1, nspins
          NULLIFY (work_matrices%fm_pool_ao_mo_active(ispin)%pool)
-         CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nmo_occ(ispin), context=blacs_env)
+         CALL cp_fm_struct_create(fm_struct, nrow_global=nao, ncol_global=nactive(ispin), context=blacs_env)
          CALL fm_pool_create(work_matrices%fm_pool_ao_mo_active(ispin)%pool, fm_struct)
          CALL cp_fm_struct_release(fm_struct)
       END DO
@@ -694,13 +695,14 @@ CONTAINS
          CALL cp_fm_create(work_matrices%S_C0(ispin), fm_struct)
          CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, gs_mos(ispin)%mos_occ, work_matrices%S_C0(ispin), &
                                       ncol=nmo_occ(ispin), alpha=1.0_dp, beta=0.0_dp)
-         CALL parallel_gemm('N', 'T', nao, nao, nactive(ispin), 1.0_dp, work_matrices%S_C0(ispin), &
+         CALL parallel_gemm('N', 'T', nao, nao, nmo_occ(ispin), 1.0_dp, work_matrices%S_C0(ispin), &
                             gs_mos(ispin)%mos_occ, 0.0_dp, work_matrices%S_C0_C0T(ispin))
+         CALL cp_fm_struct_release(fm_struct)
       END DO
 
       DO ispin = 1, nspins
          CALL cp_fm_struct_create(fm_struct_evects(ispin)%struct, nrow_global=nao, &
-                                  ncol_global=nmo_occ(ispin), context=sub_env%blacs_env)
+                                  ncol_global=nactive(ispin), context=sub_env%blacs_env)
       END DO
 
       IF (sub_env%is_split) THEN

@@ -23,8 +23,9 @@ MODULE qs_tddfpt2_utils
                                               dbcsr_allocate_matrix_set
    USE cp_fm_basic_linalg,              ONLY: cp_fm_triangular_invert
    USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
+   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
+                                              fm_pool_create_fm
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
-                                              cp_fm_struct_p_type,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: cp_fm_create,&
@@ -934,6 +935,7 @@ CONTAINS
 !> \param gs_mos   occupied and virtual molecular orbitals optimised for the ground state
 !> \param log_unit output unit
 !> \param tddfpt_control ...
+!> \param fm_pool_ao_mo_active ...
 !> \param qs_env ...
 !> \param nspins ...
 !> \par History
@@ -950,11 +952,13 @@ CONTAINS
 !>       a restart file).
 !>       \endparblock
 ! **************************************************************************************************
-   SUBROUTINE tddfpt_guess_vectors(evects, evals, gs_mos, log_unit, tddfpt_control, qs_env, nspins)
+   SUBROUTINE tddfpt_guess_vectors(evects, evals, gs_mos, log_unit, tddfpt_control, &
+                                   fm_pool_ao_mo_active, qs_env, nspins)
       TYPE(cp_fm_type), DIMENSION(:, :), INTENT(inout)   :: evects
       REAL(kind=dp), DIMENSION(:), INTENT(inout)         :: evals
       INTEGER, INTENT(in)                                :: nspins
       TYPE(qs_environment_type), INTENT(in), POINTER     :: qs_env
+      TYPE(cp_fm_pool_p_type), DIMENSION(:), INTENT(in)  :: fm_pool_ao_mo_active
       TYPE(tddfpt2_control_type), INTENT(in), POINTER    :: tddfpt_control
       INTEGER, INTENT(in)                                :: log_unit
       TYPE(tddfpt_ground_state_mos), DIMENSION(nspins), &
@@ -970,7 +974,6 @@ CONTAINS
                                                             nmo_virt_selected
       REAL(kind=dp)                                      :: e_occ
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: e_virt_minus_occ, gw_occ, gw_virt
-      TYPE(cp_fm_struct_p_type), DIMENSION(maxspins)     :: fm_struct_evects
       TYPE(excited_energy_type), POINTER                 :: ex_env
 
       CALL timeset(routineN, handle)
@@ -992,8 +995,6 @@ CONTAINS
          ! contribute to the excited states in question.
          nmo_occ_selected(ispin) = MIN(nmo_occ_avail(ispin), nstates)
          nmo_virt_selected(ispin) = MIN(SIZE(gs_mos(ispin)%evals_virt), nstates)
-
-         CALL cp_fm_get_info(gs_mos(ispin)%mos_occ, matrix_struct=fm_struct_evects(ispin)%struct)
       END DO
 
       ! TO DO: the variable 'nstates_selected' should probably be declared as INTEGER(kind=int_8),
@@ -1131,7 +1132,7 @@ CONTAINS
 
             DO jspin = 1, SIZE(evects, 1)
                ! .NOT. ASSOCIATED(evects(jspin, istate)%matrix_struct))
-               CALL cp_fm_create(evects(jspin, istate), fm_struct_evects(jspin)%struct)
+               CALL fm_pool_create_fm(fm_pool_ao_mo_active(jspin)%pool, evects(jspin, istate))
                CALL cp_fm_set_all(evects(jspin, istate), 0.0_dp)
 
                IF (jspin == spin1) &

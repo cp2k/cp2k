@@ -670,17 +670,19 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_print_excitation_analysis'
 
       CHARACTER(len=5)                                   :: spin_label, spin_label2
-      INTEGER :: handle, icol, iproc, irow, ispin, istate, nactive, nao, ncols_local, nrows_local, &
-         nspins, nstates, spin2, state_spin, state_spin2
+      INTEGER                                            :: handle, icol, iproc, irow, ispin, &
+                                                            istate, nao, ncols_local, nrows_local, &
+                                                            nspins, nstates, spin2, state_spin, &
+                                                            state_spin2
       INTEGER(kind=int_8)                                :: iexc, imo_occ, imo_virt, ind, nexcs, &
                                                             nexcs_local, nexcs_max_local, &
                                                             nmo_virt_occ, nmo_virt_occ_alpha
       INTEGER(kind=int_8), ALLOCATABLE, DIMENSION(:)     :: inds_local, inds_recv, nexcs_recv
       INTEGER(kind=int_8), DIMENSION(1)                  :: nexcs_send
-      INTEGER(kind=int_8), DIMENSION(maxspins)           :: nmo_occ8, nmo_virt8
+      INTEGER(kind=int_8), DIMENSION(maxspins)           :: nactive8, nmo_occ8, nmo_virt8
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: inds
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      INTEGER, DIMENSION(maxspins)                       :: nmo_occ, nmo_virt
+      INTEGER, DIMENSION(maxspins)                       :: nactive, nmo_occ, nmo_virt
       LOGICAL                                            :: do_exc_analysis
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: weights_local, weights_neg_abs_recv, &
                                                             weights_recv
@@ -703,6 +705,8 @@ CONTAINS
       CALL dbcsr_get_info(matrix_s, nfullrows_total=nao)
 
       DO ispin = 1, nspins
+         CALL cp_fm_get_info(evects(ispin, 1), ncol_global=nactive(ispin))
+         nactive8(ispin) = INT(nactive(ispin), kind=int_8)
          nmo_occ(ispin) = SIZE(gs_mos(ispin)%evals_occ)
          nmo_virt(ispin) = SIZE(gs_mos(ispin)%evals_virt)
          nmo_occ8(ispin) = SIZE(gs_mos(ispin)%evals_occ, kind=int_8)
@@ -751,9 +755,10 @@ CONTAINS
                                          ncol=nmo_virt(spin2), alpha=1.0_dp, beta=0.0_dp)
 
             NULLIFY (fm_struct)
-            CALL cp_fm_struct_create(fm_struct, nrow_global=nmo_virt(spin2), ncol_global=nmo_occ(ispin), &
+            CALL cp_fm_struct_create(fm_struct, nrow_global=nmo_virt(spin2), ncol_global=nactive(ispin), &
                                      context=blacs_env)
             CALL cp_fm_create(weights_fm(ispin), fm_struct)
+            CALL cp_fm_set_all(weights_fm(ispin), 0.0_dp)
             CALL cp_fm_struct_release(fm_struct)
          END DO
 
@@ -778,8 +783,7 @@ CONTAINS
                   spin2 = 2
                END IF
                ! compute excitation amplitudes
-               CALL cp_fm_get_info(evects(ispin, istate), ncol_global=nactive)
-               CALL parallel_gemm('T', 'N', nmo_virt(spin2), nactive, nao, 1.0_dp, S_mos_virt(ispin), &
+               CALL parallel_gemm('T', 'N', nmo_virt(spin2), nactive(ispin), nao, 1.0_dp, S_mos_virt(ispin), &
                                   evects(ispin, istate), 0.0_dp, weights_fm(ispin))
 
                CALL cp_fm_get_info(weights_fm(ispin), nrow_local=nrows_local, ncol_local=ncols_local, &

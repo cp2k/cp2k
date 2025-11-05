@@ -287,6 +287,9 @@ CONTAINS
       DO ispin = 1, SIZE(gs_mos)
          CALL cp_fm_get_info(gs_mos(ispin)%mos_occ, &
                              ncol_global=tddfpt_control%nactive(ispin))
+!deb
+!        tddfpt_control%nactive(ispin) = 1
+!deb
       END DO
 
       ! components of the dipole operator
@@ -1094,6 +1097,7 @@ CONTAINS
                                       "GUESS_VECTORS", extension=".tddfptLog")
       CALL tddfpt_guess_vectors(evects=evects, evals=evals, &
                                 gs_mos=gs_mos, log_unit=log_unit, tddfpt_control=tddfpt_control, &
+                                fm_pool_ao_mo_active=work_matrices%fm_pool_ao_mo_active, &
                                 qs_env=qs_env, nspins=nspins)
       CALL cp_print_key_finished_output(log_unit, logger, &
                                         tddfpt_print_section, "GUESS_VECTORS")
