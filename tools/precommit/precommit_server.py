@@ -64,11 +64,18 @@ def clangformat():
 # ======================================================================================
 @app.route("/cmakeformat", methods=["POST"])
 def cmakeformat():
-    return run_tool(["cmake-format", "-i"])
+    return run_tool(["cmake-format", "-i"], timeout=30)
 
 
 # ======================================================================================
-def run_tool(cmd, timeout=30):
+@app.route("/fortitude", methods=["POST"])
+def fortitude():
+    config = f"--config-file={os.getcwd()}/fortitude.toml"
+    return run_tool(["fortitude", config, "check"])
+
+
+# ======================================================================================
+def run_tool(cmd, timeout=3):
     assert len(request.files) == 1
     orig_fn = list(request.files.keys())[0]
     data_before = request.files[orig_fn].read()
@@ -88,7 +95,6 @@ def run_tool(cmd, timeout=30):
         return f"Timeout while running {cmd[0]} - please try again.", 504
     t2 = time()
     app.logger.info(f"Ran {cmd[0]} on {data_kb:.1f}KB in {t2-t1:.1f}s.")
-
     if p.returncode != 0:
         return p.stdout, 422  # Unprocessable Entity
     data_after = open(abs_fn, "rb").read()

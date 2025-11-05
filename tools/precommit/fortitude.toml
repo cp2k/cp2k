@@ -1,0 +1,40 @@
+[check]
+line-length = 132
+
+# Also see https://fortitude.readthedocs.io/en/stable/rules
+ignore = [
+    "non-standard-file-extension",
+    "old-style-array-literal",
+    "bad-quote-string",
+    "multiple-allocations-with-stat",
+    "missing-intent",
+    "misleading-inline-if-continuation",
+    "deprecated-relational-operator",
+    "missing-default-case",
+    "implicit-external-procedures",
+    "keywords-missing-space",
+    "superfluous-semicolon",
+    "missing-exit-or-cycle-label",
+    "assumed-size",
+    "unnamed-end-statement",
+    "unchecked-stat",
+    "assumed-size-character-intent",
+    "external-procedure",
+    "literal-kind",
+    "trailing-whitespace",
+    "specific-name",
+    "missing-default-pointer-initalisation",
+    "interface-implicit-typing",
+    "misleading-inline-if-semicolon",
+    "procedure-not-in-module",
+    "keyword-has-whitespace",
+    "implicit-typing",
+    "trailing-backslash",
+    "missing-accessibility-statement",
+    "line-too-long",
+    "initialisation-in-declaration",
+    "pointer-initialisation-in-declaration",
+    "nonportable-shortcircuit-inquiry",
+]
+
+#EOF
