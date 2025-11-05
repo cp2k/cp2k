@@ -171,7 +171,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_forces_main'
 
-      INTEGER                                            :: handle, ispin, nspins, spin
+      INTEGER                                            :: handle, ispin, nocc, nspins, spin
       LOGICAL                                            :: do_sf
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
@@ -195,6 +195,16 @@ CONTAINS
       ELSE
          do_sf = .TRUE.
       END IF
+
+      ! check for active space
+      DO ispin = 1, nspins
+         CALL cp_fm_get_info(gs_mos(ispin)%mos_occ, ncol_global=nocc)
+         IF (tddfpt_control%nactive(ispin) /= nocc) THEN
+            CALL cp_abort(__LOCATION__, &
+                          "Reduced active space excitations not implemented for TDDFPT forces")
+         END IF
+      END DO
+
       ! rhs of linres equation
       IF (ASSOCIATED(ex_env%cpmos)) THEN
          DO ispin = 1, SIZE(ex_env%cpmos)

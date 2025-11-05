@@ -115,7 +115,7 @@ MODULE qs_tddfpt2_subgroups
       TYPE(mp_para_env_type), POINTER                    :: para_env => NULL()
       !> occupied MOs stored in a matrix form [nao x nmo_occ(spin)] distributed across processes
       !> in the parallel group
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)      :: mos_occ
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: mos_occ
       !> group-specific copy of the ADMM A matrix 'admm_type%A'
       TYPE(cp_fm_type), POINTER                          :: admm_A => NULL()
       !
