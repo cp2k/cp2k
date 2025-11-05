@@ -26,6 +26,29 @@ SCRATCH_DIR = Path("./obj/precommit")
 CACHE_FILE = SCRATCH_DIR / "cache.json"
 SERVER = os.environ.get("CP2K_PRECOMMIT_SERVER", "https://precommit.cp2k.org")
 
+# The following Fortran files can not be parsed by Fortitude.
+# Typically because Fortran statements are inter-leafed with pre-processor macros.
+FORTITUDE_EXCLUDE = [
+    "machine.F",
+    "fftw3_lib.F",
+    "pw_methods.F",
+    "local_gemm_api.F",
+    "cp_fm_diag.F",
+    "cp_fm_cholesky.F",
+    "cp_fm_basic_linalg.F",
+    "cp_cfm_diag.F",
+    "cp_cfm_cholesky.F",
+    "cp_cfm_basic_linalg.F",
+    "dbt_split.F",
+    "dbt_tas_util.F",
+    "dbt_array_list_methods.F",
+    "xc_libxc_wrap.F",
+    "ai_contraction_sphi.F",
+    "smeagol_control_types.F",
+    "message_passing.F",  # fypp output too large
+    "eri_mme_lattice_summation.F",  # fypp output too large
+]
+
 
 # ======================================================================================
 def main() -> None:
@@ -203,13 +226,20 @@ def print_box(fn: str, message: str) -> None:
 # ======================================================================================
 def process_file(fn: str, allow_modifications: bool) -> None:
     # Make a backup copy.
+    basename = Path(fn).name
     orig_content = Path(fn).read_bytes()
-    bak_fn = SCRATCH_DIR / f"{Path(fn).name}_{time()}.bak"
+    bak_fn = SCRATCH_DIR / f"{basename}_{time()}.bak"
     shutil.copy2(fn, bak_fn)
 
     if re.match(r".*\.(F|fypp)$", fn):
         run_local_tool("./tools/doxify/doxify.sh", fn)
         run_format_fortran(fn)
+
+    if re.match(r".*\.F$", fn) and basename not in FORTITUDE_EXCLUDE:
+        fypped_fn = SCRATCH_DIR / basename
+        run_local_tool("./tools/build_utils/fypp", fn, str(fypped_fn))
+        run_remote_tool("fortitude", str(fypped_fn))
+        fypped_fn.unlink()
 
     if re.match(r".*\.(c|cu|cl|h)$", fn):
         run_remote_tool("clangformat", fn)
