@@ -33,12 +33,14 @@ MODULE machine
    (LIBXSMM_CONFIG_VERSION_MAJOR*1000000 + LIBXSMM_CONFIG_VERSION_MINOR*10000 + LIBXSMM_CONFIG_VERSION_UPDATE*100 + LIBXSMM_CONFIG_VERSION_PATCH)))
 #define __LIBXSMM2
 #endif
+#if defined(__LIBXSMM2)
    USE libxsmm, ONLY: libxsmm_timer_tick, libxsmm_timer_duration, libxsmm_get_target_archid, &
                       LIBXSMM_TARGET_ARCH_GENERIC, LIBXSMM_X86_SSE4, LIBXSMM_X86_AVX, LIBXSMM_X86_AVX2, &
-#if defined(__LIBXSMM2)
                       LIBXSMM_X86_AVX512_SKX, LIBXSMM_AARCH64_V81, LIBXSMM_AARCH64_SVE128
 #else
-   LIBXSMM_X86_AVX512_SKX => LIBXSMM_X86_AVX512_CORE
+   USE libxsmm, ONLY: libxsmm_timer_tick, libxsmm_timer_duration, libxsmm_get_target_archid, &
+                      LIBXSMM_TARGET_ARCH_GENERIC, LIBXSMM_X86_SSE4, LIBXSMM_X86_AVX, LIBXSMM_X86_AVX2, &
+                      LIBXSMM_X86_AVX512_SKX => LIBXSMM_X86_AVX512_CORE
 #endif
 #endif
 
@@ -193,31 +195,38 @@ CONTAINS
 ! **************************************************************************************************
    PURE FUNCTION m_cpuid()
       INTEGER :: m_cpuid
-#if defined(__LIBXSMM)
-      m_cpuid = libxsmm_get_target_archid()
-      IF (LIBXSMM_X86_SSE4 <= m_cpuid .AND. m_cpuid < LIBXSMM_X86_AVX) THEN
-         m_cpuid = MACHINE_X86_SSE4
-      ELSE IF (LIBXSMM_X86_AVX <= m_cpuid .AND. m_cpuid < LIBXSMM_X86_AVX2) THEN
-         m_cpuid = MACHINE_X86_AVX
-      ELSE IF (LIBXSMM_X86_AVX2 <= m_cpuid .AND. m_cpuid < LIBXSMM_X86_AVX512_SKX) THEN
-         m_cpuid = MACHINE_X86_AVX2
-      ELSE IF (LIBXSMM_X86_AVX512_SKX <= m_cpuid .AND. m_cpuid <= 1999) THEN
-         m_cpuid = MACHINE_X86_AVX512
-#if defined(__LIBXSMM2)
-      ELSE IF (LIBXSMM_AARCH64_V81 <= m_cpuid .AND. m_cpuid < LIBXSMM_AARCH64_SVE128) THEN
-         m_cpuid = MACHINE_ARM_ARCH64
-      ELSE IF (LIBXSMM_AARCH64_SVE128 <= m_cpuid .AND. m_cpuid < 2401) THEN ! LIBXSMM_AARCH64_SVE512
-         m_cpuid = MACHINE_ARM_SVE256
-      ELSE IF (2401 <= m_cpuid .AND. m_cpuid <= 2999) THEN
-         m_cpuid = MACHINE_ARM_SVE512
-#endif
-      ELSE IF (LIBXSMM_TARGET_ARCH_GENERIC <= m_cpuid .AND. m_cpuid <= 2999) THEN
-         m_cpuid = MACHINE_CPU_GENERIC
-      ELSE
-         m_cpuid = MACHINE_CPU_UNKNOWN
-      END IF
-#else
+#if !defined(__LIBXSMM)
       m_cpuid = m_cpuid_static()
+#else
+
+      INTEGER :: archid
+      m_cpuid = MACHINE_CPU_UNKNOWN
+      archid = libxsmm_get_target_archid()
+      IF (LIBXSMM_X86_SSE4 <= archid .AND. archid < LIBXSMM_X86_AVX) THEN
+         m_cpuid = MACHINE_X86_SSE4
+      ELSE IF (LIBXSMM_X86_AVX <= archid .AND. archid < LIBXSMM_X86_AVX2) THEN
+         m_cpuid = MACHINE_X86_AVX
+      ELSE IF (LIBXSMM_X86_AVX2 <= archid .AND. archid < LIBXSMM_X86_AVX512_SKX) THEN
+         m_cpuid = MACHINE_X86_AVX2
+      ELSE IF (LIBXSMM_X86_AVX512_SKX <= archid .AND. archid <= 1999) THEN
+         m_cpuid = MACHINE_X86_AVX512
+      END IF
+
+#if defined(__LIBXSMM2)
+      IF (m_cpuid == MACHINE_CPU_UNKNOWN) THEN
+         IF (LIBXSMM_AARCH64_V81 <= archid .AND. archid < LIBXSMM_AARCH64_SVE128) THEN
+            m_cpuid = MACHINE_ARM_ARCH64
+         ELSE IF (LIBXSMM_AARCH64_SVE128 <= archid .AND. archid < 2401) THEN ! LIBXSMM_AARCH64_SVE512
+            m_cpuid = MACHINE_ARM_SVE256
+         ELSE IF (2401 <= archid .AND. archid <= 2999) THEN
+            m_cpuid = MACHINE_ARM_SVE512
+         END IF
+      END IF
+#endif
+
+      IF (m_cpuid == MACHINE_CPU_UNKNOWN .AND. LIBXSMM_TARGET_ARCH_GENERIC <= archid .AND. archid <= 2999) THEN
+         m_cpuid = MACHINE_CPU_GENERIC
+      END IF
 #endif
    END FUNCTION m_cpuid
 
@@ -230,10 +239,10 @@ CONTAINS
 !>      09.2024 update+arm [Hans Pabst]
 ! **************************************************************************************************
    PURE FUNCTION m_cpuid_name(cpuid)
-      INTEGER, OPTIONAL, INTENT(IN)         :: cpuid
-      CHARACTER(len=default_string_length)  :: m_cpuid_name
+      INTEGER, INTENT(IN), OPTIONAL                      :: cpuid
+      CHARACTER(len=default_string_length)               :: m_cpuid_name
 
-      INTEGER                               :: isa
+      INTEGER                                            :: isa
 
       IF (PRESENT(cpuid)) THEN
          isa = cpuid
@@ -274,9 +283,10 @@ CONTAINS
 !>      12.2024 created [Hans Pabst]
 ! **************************************************************************************************
    PURE FUNCTION m_cpuid_vlen(cpuid, typesize)
-      INTEGER, OPTIONAL, INTENT(IN) :: cpuid, typesize
+      INTEGER, INTENT(IN), OPTIONAL                      :: cpuid, typesize
+      INTEGER                                            :: m_cpuid_vlen
 
-      INTEGER                       :: isa, m_cpuid_vlen, nbytes
+      INTEGER                                            :: isa, nbytes
 
       IF (PRESENT(typesize)) THEN
          nbytes = typesize
@@ -556,10 +566,10 @@ CONTAINS
 !> \return ...
 ! **************************************************************************************************
       INTEGER(int_8) FUNCTION get_field_value_in_bytes(field)
-         CHARACTER(LEN=*)                                   :: field
+      CHARACTER(LEN=*)                                   :: field
 
-         INTEGER                                            :: start
-         INTEGER(KIND=int_8)                                :: value
+      INTEGER                                            :: start
+      INTEGER(KIND=int_8)                                :: value
 
          get_field_value_in_bytes = 0
          start = INDEX(meminfo, field)
