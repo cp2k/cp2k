@@ -510,6 +510,20 @@ CONTAINS
          END IF
       END IF
 
+      ! Now, can try to guess polarisation in rtp
+      IF (do_rtp) THEN
+         tmp_section => section_vals_get_subs_vals(dft_section, "REAL_TIME_PROPAGATION%PRINT%POLARIZABILITY")
+         CALL section_vals_get(tmp_section, explicit=is_present)
+         IF (is_present .AND. (.NOT. ASSOCIATED(dft_control%rtp_control%print_pol_elements))) THEN
+            tmp_section => section_vals_get_subs_vals(dft_section, "REAL_TIME_PROPAGATION")
+            CALL guess_pol_elements(tmp_section, dft_control, &
+               dft_control%rtp_control%print_pol_elements)
+         ELSE
+            NULLIFY (dft_control%rtp_control%print_pol_elements)
+            ALLOCATE (dft_control%rtp_control%print_pol_elements(0,2))
+         END IF
+      END IF
+
       ! Read the finite field input section for periodic fields
       tmp_section => section_vals_get_subs_vals(dft_section, "PERIODIC_EFIELD")
       CALL section_vals_get(tmp_section, explicit=dft_control%apply_period_efield)
@@ -2900,10 +2914,10 @@ CONTAINS
             "implemented only for non-periodic systems.")
       END IF
       CALL section_vals_val_get(subsection, "ELEMENT", explicit=is_present, n_rep_val=n_elems)
+      NULLIFY (dft_control%rtp_control%print_pol_elements)
       IF (is_present) THEN
          ! Explicit list of elements
          ! Allocate the array
-         NULLIFY (dft_control%rtp_control%print_pol_elements)
          ALLOCATE (dft_control%rtp_control%print_pol_elements(n_elems,2))
          DO i=1, n_elems
             CALL section_vals_val_get(subsection, "ELEMENT", i_vals=tmp, i_rep_val=i)
@@ -2917,17 +2931,6 @@ CONTAINS
                   CPABORT("Polarisation tensor element not 1,2 or 3 in at least one index")
             END DO
          END DO
-      ELSE
-         CALL section_vals_get(subsection, explicit=is_present)
-         IF (is_present) THEN
-            ! Make a guess
-            CALL guess_pol_elements(rtp_section, dft_control, &
-               dft_control%rtp_control%print_pol_elements)
-         ELSE
-            ! Do not bother user if POLARIZABILITY is not present
-            NULLIFY (dft_control%rtp_control%print_pol_elements)
-            ALLOCATE (dft_control%rtp_control%print_pol_elements(0,2))
-         END IF
       ENDIF
 
    END SUBROUTINE read_rtp_section

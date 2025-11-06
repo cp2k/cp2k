@@ -134,8 +134,6 @@ CONTAINS
                                                             md_section, motion_section, &
                                                             print_moments_section, &
                                                             rtp_print_section, rtp_section
-      TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_logger_type), POINTER                      :: logger
 
       NULLIFY (qs_env, rtp_control, dft_control)
 
@@ -191,7 +189,7 @@ CONTAINS
       CALL rt_init_complex_quantities(qs_env, imag_p=rtp%track_imag_density, &
                                       imag_ks=rtp%propagate_complex_ks, imag_h=rtp_control%velocity_gauge)
 
-      IF (.NOT. rtp_control%periodic) CALL rt_init_local_moments(rtp, qs_env)
+      IF (.NOT. rtp_control%periodic .AND. rtp%linear_scaling) CALL rt_init_local_moments(rtp, qs_env)
 
       ! Hmm, not really like to initialize with the structure of S but I reckon it is
       ! done everywhere like this
@@ -217,23 +215,9 @@ CONTAINS
          rtp%energy_old = energy%total
       END IF
 
-      IF (.NOT. rtp_control%periodic) THEN
-         CALL get_qs_env(qs_env, cell=cell)
-         logger => cp_get_default_logger()
-         unit_nr = cp_logger_get_default_io_unit(logger)
-         CALL print_ft(rtp_section, rtp%moments, rtp%times, rtp%fields, rtp_control, &
-            info_opt=unit_nr,cell=cell)
-         ! Deallocating the local moments matrices and array
-         DEALLOCATE (rtp%moments)
-         DO k=1,3
-            CALL dbcsr_release(rtp%local_moments(k)%matrix)
-            DEALLOCATE (rtp%local_moments(k)%matrix)
-         END DO
-         DEALLOCATE (rtp%local_moments)
-         CALL dbcsr_release(rtp%local_moments_work)
-         DEALLOCATE (rtp%local_moments_work)
-         DEALLOCATE (rtp%times)
-         DEALLOCATE (rtp%fields)
+      IF (.NOT. rtp_control%periodic .AND. rtp%linear_scaling) THEN
+         ! Call routines for outputs and deallocations of FT observables
+         CALL final_ft_output(qs_env)
       END IF
 
    END SUBROUTINE rt_prop_setup
@@ -632,7 +616,7 @@ CONTAINS
    END SUBROUTINE rt_init_complex_quantities
 
 ! **************************************************************************************************
-!> \brief Allocates and fills the local moment matrices
+!> \brief Allocates and fills the local moment matrices (only available for linear scaling)
 !> \param rtp Real time propagtion properties - local moment matrices are stored there
 !> \param qs_env QS environment necessary for moment matrix calculation
 ! **************************************************************************************************
@@ -695,5 +679,38 @@ CONTAINS
       ALLOCATE (rtp%fields(3,rtp%nsteps+1), source=CMPLX(0.0, 0.0, kind=dp))
 
    END SUBROUTINE rt_init_local_moments
+
+! **************************************************************************************************
+!> \brief Allocates and fills the local moment matrices (only available for linear scaling)
+!> \param qs_env QS environment necessary for moment matrix calculation
+! **************************************************************************************************
+   SUBROUTINE final_ft_output(qs_env)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(rt_prop_type), POINTER                        :: rtp
+      TYPE(cell_type), POINTER                           :: cell
+      INTEGER                                            :: unit_nr, k
+      TYPE(section_vals_type), POINTER                   :: rtp_section, &
+                                                            input
+      TYPE(dft_control_type), POINTER                    :: dft_control
+
+      CALL get_qs_env(qs_env, cell=cell, rtp=rtp, input=input, dft_control=dft_control)
+      rtp_section => section_vals_get_subs_vals(input, "DFT%REAL_TIME_PROPAGATION") 
+      logger => cp_get_default_logger()
+      unit_nr = cp_logger_get_default_io_unit(logger)
+      CALL print_ft(rtp_section, rtp%moments, rtp%times, rtp%fields, dft_control%rtp_control, &
+         info_opt=unit_nr,cell=cell)
+      ! Deallocating the local moments matrices and array
+      DO k=1,3
+         CALL dbcsr_release(rtp%local_moments(k)%matrix)
+         DEALLOCATE (rtp%local_moments(k)%matrix)
+      END DO
+      DEALLOCATE (rtp%local_moments)
+      CALL dbcsr_release(rtp%local_moments_work)
+      DEALLOCATE (rtp%local_moments_work)
+      DEALLOCATE (rtp%moments)
+      DEALLOCATE (rtp%times)
+      DEALLOCATE (rtp%fields)
+   END SUBROUTINE final_ft_output
 
 END MODULE rt_propagation
