@@ -43,6 +43,7 @@
       EXP_ACCURACY 1.0E-10
       INITIAL_WFN RT_RESTART
       MAT_EXP BCH
+      PERIODIC .FALSE.
       &PRINT
         &MOMENTS
           FILENAME MOMENTS
@@ -52,12 +53,14 @@
         &END POLARIZABILITY
       &END PRINT
       &RTBSE
-        &PADE_FT
+      &END RTBSE
+      &FT
+      	&PADE
           E_MAX [eV] 50.0
           E_MIN [eV] 0.0
           E_STEP [eV] 0.05
-        &END PADE_FT
-      &END RTBSE
+	&END PADE
+      &END FT
     &END REAL_TIME_PROPAGATION
     &SCF
       ADDED_MOS -1
