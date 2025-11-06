@@ -26,27 +26,6 @@ SCRATCH_DIR = Path("./obj/precommit")
 CACHE_FILE = SCRATCH_DIR / "cache.json"
 SERVER = os.environ.get("CP2K_PRECOMMIT_SERVER", "https://precommit.cp2k.org")
 
-# The following Fortran files can not be parsed by Fortitude.
-# Typically because Fortran statements are inter-leafed with pre-processor macros.
-FORTITUDE_EXCLUDE = [
-    "pw_methods.F",
-    "local_gemm_api.F",
-    "cp_fm_diag.F",
-    "cp_fm_cholesky.F",
-    "cp_fm_basic_linalg.F",
-    "cp_cfm_diag.F",
-    "cp_cfm_cholesky.F",
-    "cp_cfm_basic_linalg.F",
-    "dbt_split.F",
-    "dbt_tas_util.F",
-    "dbt_array_list_methods.F",
-    "xc_libxc_wrap.F",
-    "ai_contraction_sphi.F",
-    "smeagol_control_types.F",
-    "message_passing.F",  # fypp output too large
-    "eri_mme_lattice_summation.F",  # fypp output too large
-]
-
 
 # ======================================================================================
 def main() -> None:
@@ -160,7 +139,6 @@ def main() -> None:
     file_list = [fn for fn in file_list if not fn[-1] in ("~", "#")]
     file_list = [fn for fn in file_list if not fn.endswith(".log")]
     file_list = [fn for fn in file_list if not os.path.basename(fn).startswith(".")]
-    file_list = [fn for fn in file_list if os.path.getsize(fn) < 2**20]  # 1MiB
 
     # Sort files by size as larger ones will take longer to process.
     file_list.sort(reverse=True, key=lambda fn: os.path.getsize(fn))
@@ -233,7 +211,7 @@ def process_file(fn: str, allow_modifications: bool) -> None:
         run_local_tool("./tools/doxify/doxify.sh", fn)
         run_format_fortran(fn)
 
-    if re.match(r".*\.F$", fn) and basename not in FORTITUDE_EXCLUDE:
+    if re.match(r".*\.F$", fn):
         try:
             # First try without fypp as this allows for auto-fixing.
             run_remote_tool("fortitude", fn)
@@ -332,6 +310,9 @@ def run_local_tool(*cmd: str, timeout: int = 20) -> None:
 
 # ======================================================================================
 def run_remote_tool(tool: str, fn: str) -> None:
+    if os.path.getsize(fn) > 2**20:
+        return  # skip files that are larger than 1MiB
+
     url = f"{SERVER}/{tool}"
     r = http_post(url, fn)
     if r.status == 304:
