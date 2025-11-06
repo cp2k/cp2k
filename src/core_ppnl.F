@@ -663,7 +663,7 @@ CONTAINS
                            END IF
 
                            IF (do_dR) THEN
-                              i = 1; j = 2; 
+                              i = 1; j = 2;
                               katom = alist_ac%clist(kac)%catom
                               IF (iatom <= jatom) THEN
                                  h_block(1:na, 1:nb) = h_block(1:na, 1:nb) + &
@@ -682,7 +682,7 @@ CONTAINS
                                                        MATMUL(bcint(1:nb, 1:np, j), TRANSPOSE(achint(1:na, 1:np, 1)))
                               END IF
 
-                              i = 2; j = 3; 
+                              i = 2; j = 3;
                               katom = alist_ac%clist(kac)%catom
                               IF (iatom <= jatom) THEN
                                  r_2block(1:na, 1:nb) = r_2block(1:na, 1:nb) + &
@@ -701,7 +701,7 @@ CONTAINS
                                                         MATMUL(bcint(1:nb, 1:np, j), TRANSPOSE(achint(1:na, 1:np, 1)))
                               END IF
 
-                              i = 3; j = 4; 
+                              i = 3; j = 4;
                               katom = alist_ac%clist(kac)%catom
                               IF (iatom <= jatom) THEN
                                  r_3block(1:na, 1:nb) = r_3block(1:na, 1:nb) + &

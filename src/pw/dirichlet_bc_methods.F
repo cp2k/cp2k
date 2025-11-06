@@ -905,7 +905,7 @@ CONTAINS
       END SELECT
 
       alpha = linspace(0.0_dp, 2*pi, n_dbcs + 1)
-      alpha_rotd = alpha + delta_alpha; 
+      alpha_rotd = alpha + delta_alpha;
       SELECT CASE (parallel_axis)
       CASE (x_axis)
          DO j = 1, n_dbcs

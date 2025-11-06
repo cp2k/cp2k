@@ -971,7 +971,7 @@ CONTAINS
 
       ! calculate the chemical potential by doing a bisection of fk(x0)-0.5, where fk is evaluated using the stored values for gamma
       ! E. Rubensson et al., Chem Phys Lett 432, 2006, 591-594
-      mu_a = 0.0_dp; mu_b = 1.0_dp; 
+      mu_a = 0.0_dp; mu_b = 1.0_dp;
       mu_fa = evaluate_trs4_polynomial(mu_a, gamma_values, i - 1) - 0.5_dp
       DO j = 1, 40
          mu_c = 0.5*(mu_a + mu_b)

@@ -296,7 +296,7 @@ CONTAINS
       dummy => a
 
       e_0 => dummy
-      ea => dummy; 
+      ea => dummy;
       eaa => dummy; eab => dummy; ebb => dummy
       eaaa => dummy; eaab => dummy; eabb => dummy; ebbb => dummy
 

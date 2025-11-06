@@ -62,7 +62,7 @@ CONTAINS
 
       IF (t <= 12.0_dp) THEN
          ! downward recursion
-         g(nmax) = gfun_taylor(nmax, t); 
+         g(nmax) = gfun_taylor(nmax, t);
          DO i = nmax, 1, -1
             g(i - 1) = (1.0_dp - 2.0_dp*t*g(i))/(2.0_dp*i - 1.0_dp)
          END DO

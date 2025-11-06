@@ -2821,9 +2821,9 @@ CONTAINS
                      ! alternative method for finding step size
                      ! do not use quadratic approximation, only gradient signs
                      IF (g1sign .NE. g0sign) THEN
-                        step_size = -step_size/2.0; 
+                        step_size = -step_size/2.0;
                      ELSE
-                        step_size = step_size*1.5; 
+                        step_size = step_size*1.5;
                      END IF
                   END IF
                   ! end alternative LS types

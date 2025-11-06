@@ -1368,9 +1368,9 @@ CONTAINS
             ! If on-diagonal quadrants only, can skip jso < iso
             IF (.NOT. quadrants(2) .AND. jso < iso) CYCLE
 
-            i = iso; j = jso; 
+            i = iso; j = jso;
             IF (my_mt) THEN
-               i = jso; j = iso; 
+               i = jso; j = iso;
             END IF
 
             ! Take the product lhs*rhs^T
