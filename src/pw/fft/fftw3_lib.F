@@ -1004,7 +1004,7 @@ CONTAINS
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(IN)         :: zout
       INTEGER, INTENT(IN)                                :: plan_style
 #if defined(__FFTW3)
-      INTEGER                                            :: ii, di, jj, dj, num_threads, num_rows
+      INTEGER                                            :: istride, idist, ostride, odist, num_threads, num_rows
 
       INTEGER :: fftw_plan_type
       SELECT CASE (plan_style)
@@ -1047,34 +1047,34 @@ CONTAINS
 !$    END IF
 
 !$    plan%num_rows = num_rows
-      ii = 1
-      di = plan%n
-      jj = 1
-      dj = plan%n
+      istride = 1
+      idist = plan%n
+      ostride = 1
+      odist = plan%n
       IF (plan%fsign == +1 .AND. plan%trans) THEN
-         ii = plan%m
-         di = 1
+         istride = plan%m
+         idist = 1
       ELSEIF (plan%fsign == -1 .AND. plan%trans) THEN
-         jj = plan%m
-         dj = 1
+         ostride = plan%m
+         odist = 1
       END IF
 
       IF (plan%fsign == +1) THEN
-         CALL dfftw_plan_many_dft(plan%fftw_plan, 1, plan%n, num_rows, zin, 0, ii, di, &
-                                  zout, 0, jj, dj, FFTW_FORWARD, fftw_plan_type)
+         CALL dfftw_plan_many_dft(plan%fftw_plan, 1, plan%n, num_rows, zin, 0, istride, idist, &
+                                  zout, 0, ostride, odist, FFTW_FORWARD, fftw_plan_type)
       ELSE
-         CALL dfftw_plan_many_dft(plan%fftw_plan, 1, plan%n, num_rows, zin, 0, ii, di, &
-                                  zout, 0, jj, dj, FFTW_BACKWARD, fftw_plan_type)
+         CALL dfftw_plan_many_dft(plan%fftw_plan, 1, plan%n, num_rows, zin, 0, istride, idist, &
+                                  zout, 0, ostride, odist, FFTW_BACKWARD, fftw_plan_type)
       END IF
 
 !$    IF (plan%need_alt_plan) THEN
 !$       plan%alt_num_rows = plan%m - (plan%num_threads_needed - 1)*num_rows
 !$       IF (plan%fsign == +1) THEN
-!$          CALL dfftw_plan_many_dft(plan%alt_fftw_plan, 1, plan%n, plan%alt_num_rows, zin, 0, ii, di, &
-!$                                   zout, 0, jj, dj, FFTW_FORWARD, fftw_plan_type)
+!$          CALL dfftw_plan_many_dft(plan%alt_fftw_plan, 1, plan%n, plan%alt_num_rows, zin, 0, istride, idist, &
+!$                                   zout, 0, ostride, odist, FFTW_FORWARD, fftw_plan_type)
 !$       ELSE
-!$          CALL dfftw_plan_many_dft(plan%alt_fftw_plan, 1, plan%n, plan%alt_num_rows, zin, 0, ii, di, &
-!$                                   zout, 0, jj, dj, FFTW_BACKWARD, fftw_plan_type)
+!$          CALL dfftw_plan_many_dft(plan%alt_fftw_plan, 1, plan%n, plan%alt_num_rows, zin, 0, istride, idist, &
+!$                                   zout, 0, ostride, odist, FFTW_BACKWARD, fftw_plan_type)
 !$       END IF
 !$    END IF
 
