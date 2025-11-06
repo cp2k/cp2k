@@ -1185,7 +1185,7 @@ CONTAINS
 !  Point to the rho_set densities
       rhoa => rho_set%rhoa
       rhob => rho_set%rhob
-      rhoa = 0.0_dp; rhob = 0.0_dp; 
+      rhoa = 0.0_dp; rhob = 0.0_dp;
       IF (do_gga) THEN
          DO dir = 1, 3
             rho_set%drhoa(dir)%array = 0.0_dp

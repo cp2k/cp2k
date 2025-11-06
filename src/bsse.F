@@ -373,10 +373,10 @@ CONTAINS
       iw = cp_print_key_unit_nr(logger, bsse_section, "PRINT%PROGRAM_RUN_INFO", &
                                 extension=".log")
       IF (iw > 0) THEN
-         WRITE (conf_s, fmt="(1000I0)", iostat=istat) conf; 
+         WRITE (conf_s, fmt="(1000I0)", iostat=istat) conf;
          IF (istat .NE. 0) conf_s = "exceeded"
          CALL compress(conf_s, full=.TRUE.)
-         WRITE (conf_loc_s, fmt="(1000I0)", iostat=istat) conf_loc; 
+         WRITE (conf_loc_s, fmt="(1000I0)", iostat=istat) conf_loc;
          IF (istat .NE. 0) conf_loc_s = "exceeded"
          CALL compress(conf_loc_s, full=.TRUE.)
 

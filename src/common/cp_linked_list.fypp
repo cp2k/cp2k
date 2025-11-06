@@ -183,7 +183,8 @@
 
       CONTAINS
 
-      ${private_routines}$
+      ${private_routines}$ ! this comment prevents trailing whitespace
+
 ! =========== creation / destruction ========
 
       #:for i in inst

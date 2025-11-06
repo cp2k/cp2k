@@ -267,15 +267,15 @@
    #:set emtoptions_sigma_ilist = list(zip(emtoptions_sigma_inames, emtoptions_sigma_ikeywords, emtoptions_sigma_ivals))
 
    #:set emtoptions_negfmod_rnames = [ &
-      'bs_tol', 'bs_min ', 'HSTol ', 'deltaimag ', &
-      'deltaini ', 'deltatode ', 'critam ', 'setemin ', &
-      'setemax ', 'tolab ', 'weightrho ', &
-      'ThetaLeadsL ', 'PhiLeadsL ', &
-      'ThetaLeadsR ', 'PhiLeadsR ', &
-      'deltaimagtrc ', 'm_tolki ', 'm_svdtolmax ', 'm_svdtolmin ', &
-      'm_dsigmamax ', 'm_rnoise ', 'm_skipsvd ', 'm_svdtolzi ', &
-      'SigmaWideBand ', 'emSTTkScale ', 'nlSetZeroRatio ', 'nrSetZeroRatio ', &
-      'curr_fl_L ', 'curr_fr_L ', 'curr_fl_R ', 'curr_fr_R ']
+      'bs_tol', 'bs_min', 'HSTol', 'deltaimag', &
+      'deltaini', 'deltatode', 'critam', 'setemin', &
+      'setemax', 'tolab', 'weightrho', &
+      'ThetaLeadsL', 'PhiLeadsL', &
+      'ThetaLeadsR', 'PhiLeadsR', &
+      'deltaimagtrc', 'm_tolki', 'm_svdtolmax', 'm_svdtolmin', &
+      'm_dsigmamax', 'm_rnoise', 'm_skipsvd', 'm_svdtolzi', &
+      'SigmaWideBand', 'emSTTkScale', 'nlSetZeroRatio', 'nrSetZeroRatio', &
+      'curr_fl_L', 'curr_fr_L', 'curr_fl_R', 'curr_fr_R']
    #:set emtoptions_negfmod_rkeywords = [ &
       'BS.Tolerance', 'BS.Minimum', 'EM.HSTol', 'Sigma.EImag', &
       'AM.DeltaInit', 'AM.DeltaToDe', 'AM.Criterium', 'SetEmin', &

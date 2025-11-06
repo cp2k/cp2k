@@ -561,7 +561,7 @@ CONTAINS
       ar_data%local_history = Zmat
       ! broadcast the Hessenberg matrix so we don't need to care later on
 
-      DEALLOCATE (v_vec); DEALLOCATE (w_vec); DEALLOCATE (s_vec); DEALLOCATE (h_vec); DEALLOCATE (CZmat); 
+      DEALLOCATE (v_vec); DEALLOCATE (w_vec); DEALLOCATE (s_vec); DEALLOCATE (h_vec); DEALLOCATE (CZmat);
       DEALLOCATE (Zmat); DEALLOCATE (BZmat)
 
       CALL timestop(handle)

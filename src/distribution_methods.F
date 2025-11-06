@@ -1197,7 +1197,7 @@ CONTAINS
                   balance_new = MAXVAL(REAL(nat_cluster, KIND=dp))/MINVAL(REAL(nat_cluster, KIND=dp))
                   IF (balance_new .LT. balance) THEN
                      balance = balance_new
-                     min_seed = seed + i*40; 
+                     min_seed = seed + i*40;
                   END IF
                ELSE
                   found = .TRUE.

@@ -661,7 +661,7 @@ CONTAINS
                      IF (x .GE. 0.01_dp) EXIT
                   END DO
                   z = -LOG(0.01_dp)
-                  y = LOG(x)/z + 1.0_dp; 
+                  y = LOG(x)/z + 1.0_dp;
                   cyclen = INT(helium%maxcycle*y) + 1
                   IF (cyclen .NE. helium%m_value) EXIT
                END DO

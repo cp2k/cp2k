@@ -166,7 +166,7 @@ CONTAINS
       my_do_reflection_b = .FALSE.
       IF (PRESENT(do_reflection_b) .AND. PRESENT(reflection_z_b)) my_do_reflection_b = do_reflection_b
 
-      G_count = 0; R_count = 0; 
+      G_count = 0; R_count = 0
       ! get mapping between ERIs and atoms, sets, set offsets
       CALL get_eri_offsets(qs_env, basis_type_b, eri_offsets)
 
