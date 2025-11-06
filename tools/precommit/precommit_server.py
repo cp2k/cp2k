@@ -71,6 +71,13 @@ def cmakeformat():
 @app.route("/fortitude", methods=["POST"])
 def fortitude():
     config = f"--config-file={os.getcwd()}/fortitude.toml"
+    return run_tool(["fortitude", config, "check", "--fix", "--unsafe-fixes"])
+
+
+# ======================================================================================
+@app.route("/fortitude_nofix", methods=["POST"])
+def fortitude_nofix():
+    config = f"--config-file={os.getcwd()}/fortitude.toml"
     return run_tool(["fortitude", config, "check"])
 
 
