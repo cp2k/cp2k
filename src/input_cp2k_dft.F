@@ -1893,9 +1893,9 @@ CONTAINS
                                         "Use User Defined Point (Keyword:REFERENCE_POINT)", &
                                         "Use Origin of Coordinate System"), &
                           enum_i_vals=[use_mom_ref_com, &
-                                        use_mom_ref_coac, &
-                                        use_mom_ref_user, &
-                                        use_mom_ref_zero], &
+                                       use_mom_ref_coac, &
+                                       use_mom_ref_user, &
+                                       use_mom_ref_zero], &
                           default_i_val=use_mom_ref_coac)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
