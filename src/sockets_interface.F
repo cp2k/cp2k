@@ -52,7 +52,7 @@ MODULE sockets_interface
          USE ISO_C_BINDING, ONLY: C_DOUBLE
       REAL(C_DOUBLE)                                     :: sec
 
-      END SUBROUTINE
+      END SUBROUTINE uwait
    END INTERFACE
 
    INTERFACE
@@ -135,7 +135,7 @@ CONTAINS
       CALL writebuffer_csocket(psockfd, c_loc(cdata), 8)
 
       CALL timestop(handle)
-   END SUBROUTINE
+   END SUBROUTINE writebuffer_d
 
 ! **************************************************************************************************
 !> \brief ...
@@ -156,7 +156,7 @@ CONTAINS
       CALL writebuffer_csocket(psockfd, c_loc(cdata), 4)
 
       CALL timestop(handle)
-   END SUBROUTINE
+   END SUBROUTINE writebuffer_i
 
 ! **************************************************************************************************
 !> \brief ...
@@ -183,7 +183,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE writebuffer_s
 
 ! **************************************************************************************************
 !> \brief ...
@@ -204,7 +204,7 @@ CONTAINS
       CALL writebuffer_csocket(psockfd, c_loc(fdata(1)), 8*plen)
 
       CALL timestop(handle)
-   END SUBROUTINE
+   END SUBROUTINE writebuffer_dv
 
 ! **************************************************************************************************
 !> \brief ...
@@ -226,7 +226,7 @@ CONTAINS
       fdata = cdata
 
       CALL timestop(handle)
-   END SUBROUTINE
+   END SUBROUTINE readbuffer_d
 
 ! **************************************************************************************************
 !> \brief ...
@@ -248,7 +248,7 @@ CONTAINS
       fdata = cdata
 
       CALL timestop(handle)
-   END SUBROUTINE
+   END SUBROUTINE readbuffer_i
 
 ! **************************************************************************************************
 !> \brief ...
@@ -276,7 +276,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE readbuffer_s
 
 ! **************************************************************************************************
 !> \brief ...
@@ -298,7 +298,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE readbuffer_dv
 #endif
 
 END MODULE sockets_interface

@@ -144,7 +144,7 @@ CONTAINS
       END DO
 
       module_initialized = .TRUE.
-   END SUBROUTINE
+   END SUBROUTINE init_d3_poly_module
 
 ! **************************************************************************************************
 !> \brief size of a polynomial in x up to the given degree
@@ -156,7 +156,7 @@ CONTAINS
       INTEGER                                            :: res
 
       res = maxgrad + 1
-   END FUNCTION
+   END FUNCTION poly_size1
 
 ! **************************************************************************************************
 !> \brief size of a polynomial in x,y up to the given degree
@@ -168,7 +168,7 @@ CONTAINS
       INTEGER                                            :: res
 
       res = (maxgrad + 1)*(maxgrad + 2)/2
-   END FUNCTION
+   END FUNCTION poly_size2
 
 ! **************************************************************************************************
 !> \brief size of a polynomial in x,y,z up to the given degree
@@ -180,7 +180,7 @@ CONTAINS
       INTEGER                                            :: res
 
       res = (maxgrad + 1)*(maxgrad + 2)*(maxgrad + 3)/6
-   END FUNCTION
+   END FUNCTION poly_size3
 
 ! **************************************************************************************************
 !> \brief max grad for a polynom of the given size
@@ -192,7 +192,7 @@ CONTAINS
       INTEGER                                            :: res
 
       res = n - 1
-   END FUNCTION
+   END FUNCTION grad_size1
 
 ! **************************************************************************************************
 !> \brief max grad for a polynom of the given size
@@ -204,7 +204,7 @@ CONTAINS
       INTEGER                                            :: res
 
       res = INT(FLOOR(0.5_dp*(SQRT(1.0_dp + 8.0_dp*REAL(n, dp)) - 1.0_dp) - 2.e-6_dp))
-   END FUNCTION
+   END FUNCTION grad_size2
 
 ! **************************************************************************************************
 !> \brief max grad for a polynom of the given size
@@ -225,7 +225,7 @@ CONTAINS
          g1 = (108.0_dp*nn + 12.0_dp*SQRT(81.0_dp*nn*nn - 12.0_dp))**(1.0_dp/3.0_dp)
          res = FLOOR(g1/6.0_dp + 2.0_dp/g1 - 1.0_dp - 2.e-6_dp)
       END IF
-   END FUNCTION
+   END FUNCTION grad_size3
 
 ! **************************************************************************************************
 !> \brief 0-based index of monomial of the given degree
@@ -237,7 +237,7 @@ CONTAINS
       INTEGER                                            :: res
 
       res = i
-   END FUNCTION
+   END FUNCTION mono_index1
 
 ! **************************************************************************************************
 !> \brief 0-based index of monomial of the given degree
@@ -253,7 +253,7 @@ CONTAINS
 
       grad = i + j
       res = grad*(grad + 1)/2 + j
-   END FUNCTION
+   END FUNCTION mono_index2
 
 ! **************************************************************************************************
 !> \brief 0-based index of monomial of the given degree
@@ -271,7 +271,7 @@ CONTAINS
       sgrad = j + k
       grad = i + sgrad
       res = grad*(grad + 1)*(grad + 2)/6 + (sgrad)*(sgrad + 1)/2 + k
-   END FUNCTION
+   END FUNCTION mono_index3
 
 ! **************************************************************************************************
 !> \brief exponents of the monomial at the given 0-based index
@@ -283,7 +283,7 @@ CONTAINS
       INTEGER                                            :: res
 
       res = ii
-   END FUNCTION
+   END FUNCTION mono_exp1
 
 ! **************************************************************************************************
 !> \brief exponents of the monomial at the given 0-based index
@@ -299,7 +299,7 @@ CONTAINS
       grad = INT(FLOOR(0.5_dp*(SQRT(9.0_dp + 8.0_dp*ii) - 1.0_dp) - 2.e-6_dp))
       res(2) = ii - (grad)*(grad + 1)/2
       res(1) = grad - res(2)
-   END FUNCTION
+   END FUNCTION mono_exp2
 
 ! **************************************************************************************************
 !> \brief exponents of the monomial at the given 0-based index
@@ -321,7 +321,7 @@ CONTAINS
       res(3) = ii - grad*(grad + 1)/2
       res(2) = grad - res(3)
       res(1) = grad1 - grad
-   END FUNCTION
+   END FUNCTION mono_exp3
 
 ! **************************************************************************************************
 !> \brief the index of the result of the multiplication of the two monomials
@@ -334,7 +334,7 @@ CONTAINS
       INTEGER                                            :: res
 
       res = ii + ij
-   END FUNCTION
+   END FUNCTION mono_mult1
 
 ! **************************************************************************************************
 !> \brief the index of the result of the multiplication of the two monomials
@@ -350,7 +350,7 @@ CONTAINS
 
       monoRes = mono_exp2(ii) + mono_exp2(ij)
       res = mono_index2(monoRes(1), monoRes(2))
-   END FUNCTION
+   END FUNCTION mono_mult2
 
 ! **************************************************************************************************
 !> \brief the index of the result of the multiplication of the two monomials
@@ -366,7 +366,7 @@ CONTAINS
 
       monoRes = mono_exp3(ii) + mono_exp3(ij)
       res = mono_index3(monoRes(1), monoRes(2), monoRes(3))
-   END FUNCTION
+   END FUNCTION mono_mult3
 
 ! **************************************************************************************************
 !> \brief multiplies the polynomials p1 with p2 using pRes to store the result
@@ -411,7 +411,7 @@ CONTAINS
          END DO
          resShift_0 = resShift_0 + newSize
       END DO
-   END SUBROUTINE
+   END SUBROUTINE poly_mult1
 
 ! **************************************************************************************************
 !> \brief multiplies p1 with p2 using pRes to store the result
@@ -489,7 +489,7 @@ CONTAINS
             msize_p1 = msize_p1 + size_p1
          END DO
       END IF
-   END SUBROUTINE
+   END SUBROUTINE poly_mult2
 
 ! **************************************************************************************************
 !> \brief multiplies p1 with p2 using pRes to store the result
@@ -522,7 +522,7 @@ CONTAINS
       newSize = SIZE(pRes)/myNp1
       CPASSERT(newSize >= poly_size3(newGrad))
       CALL poly_mult3b(p1, SIZE(p1), grad1, p2, SIZE(p2), grad2, pRes, SIZE(pRes), myNp1, mySumUp)
-   END SUBROUTINE
+   END SUBROUTINE poly_mult3
 
 ! **************************************************************************************************
 !> \brief low level routine of poly_mult3 without checks
@@ -626,7 +626,7 @@ CONTAINS
             msize_p1 = msize_p1 + my_size_p1
          END DO
       END IF
-   END SUBROUTINE
+   END SUBROUTINE poly_mult3b
 
 ! **************************************************************************************************
 !> \brief low level routine that multiplies with a polynomial of grad 1
@@ -726,7 +726,7 @@ CONTAINS
             msize_p1 = msize_p1 + my_size_p1
          END DO
       END IF
-   END SUBROUTINE
+   END SUBROUTINE poly_mult3ab
 
 ! **************************************************************************************************
 !> \brief writes out a 1d polynomial in a human readable form
@@ -750,7 +750,7 @@ CONTAINS
          END IF
       END DO
       IF (.NOT. did_write) WRITE (out_f, '("0.0")', advance='NO')
-   END SUBROUTINE
+   END SUBROUTINE poly_write1
 
 ! **************************************************************************************************
 !> \brief writes out a 2d polynomial in a human readable form
@@ -778,7 +778,7 @@ CONTAINS
          END IF
       END DO
       IF (.NOT. did_write) WRITE (out_f, '("0.0")', advance='NO')
-   END SUBROUTINE
+   END SUBROUTINE poly_write2
 
 ! **************************************************************************************************
 !> \brief writes out the polynomial in a human readable form
@@ -807,7 +807,7 @@ CONTAINS
          END IF
       END DO
       IF (.NOT. did_write) WRITE (out_f, '("0.0")', advance='NO')
-   END SUBROUTINE
+   END SUBROUTINE poly_write3
 
 ! **************************************************************************************************
 !> \brief random poly with coeffiecents that are easy to print exactly,
@@ -840,7 +840,7 @@ CONTAINS
          p(i) = 0.0_dp
       END DO
       res = pSize
-   END FUNCTION
+   END FUNCTION poly_random
 
 ! **************************************************************************************************
 !> \brief returns in the polynomials pRes the transpose of the
@@ -1001,7 +1001,7 @@ CONTAINS
          ! monoFullDim1=monoFullDim2
       END DO
       DEALLOCATE (monoG1, monoG2)
-   END SUBROUTINE
+   END SUBROUTINE poly_affine_t3t
 
 ! **************************************************************************************************
 !> \brief returns in the polynomials pRes the affine transformation x -> m*x+b of p
@@ -1161,7 +1161,7 @@ CONTAINS
          ! monoFullDim1=monoFullDim2
       END DO
       DEALLOCATE (monoG1, monoG2)
-   END SUBROUTINE
+   END SUBROUTINE poly_affine_t3
 
 ! **************************************************************************************************
 !> \brief evaluates the 3d polymial at x (the result is a polynomial in two variables)
@@ -1190,7 +1190,7 @@ CONTAINS
       ALLOCATE (xi(grad + 1))
       CALL poly_p_eval3b(p, SIZE(p), x, pRes, SIZE(pRes), my_npoly, grad, xi)
       DEALLOCATE (xi)
-   END SUBROUTINE
+   END SUBROUTINE poly_p_eval3
 
 ! **************************************************************************************************
 !> \brief low level routine of poly_p_eval3 without checks
@@ -1263,7 +1263,7 @@ CONTAINS
             msize_p = msize_p + inSize
          END DO
       END IF
-   END SUBROUTINE
+   END SUBROUTINE poly_p_eval3b
 
 ! **************************************************************************************************
 !> \brief unevaluates a 2d polymial to a 3d polynomial at x
@@ -1294,7 +1294,7 @@ CONTAINS
       ALLOCATE (xi(grad + 1))
       CALL poly_padd_uneval3b(p, SIZE(p), x, pRes, SIZE(pRes), my_npoly, grad, xi)
       DEALLOCATE (xi)
-   END SUBROUTINE
+   END SUBROUTINE poly_padd_uneval3
 
 ! **************************************************************************************************
 !> \brief low level routine of poly_padd_uneval3 without checks
@@ -1368,7 +1368,7 @@ CONTAINS
             msize_p = msize_p + inSize
          END DO
       END IF
-   END SUBROUTINE
+   END SUBROUTINE poly_padd_uneval3b
 
 ! **************************************************************************************************
 !> \brief evaluates the 2d polynomial at x (the result is a polynomial in one variable)
@@ -1397,7 +1397,7 @@ CONTAINS
       ALLOCATE (xi(grad + 1))
       CALL poly_p_eval2b(p, SIZE(p), x, pRes, SIZE(pRes), my_npoly, grad, xi)
       DEALLOCATE (xi)
-   END SUBROUTINE
+   END SUBROUTINE poly_p_eval2
 
 ! **************************************************************************************************
 !> \brief low level routine of poly_p_eval2 without checks
@@ -1465,7 +1465,7 @@ CONTAINS
             ii0 = ii0 + inSize
          END DO
       END IF
-   END SUBROUTINE
+   END SUBROUTINE poly_p_eval2b
 
 ! **************************************************************************************************
 !> \brief unevaluates a 1d polynomial to 2d at x
@@ -1496,7 +1496,7 @@ CONTAINS
       ALLOCATE (xi(grad + 1))
       CALL poly_padd_uneval2b(p, SIZE(p), x, pRes, SIZE(pRes), my_npoly, grad, xi)
       DEALLOCATE (xi)
-   END SUBROUTINE
+   END SUBROUTINE poly_padd_uneval2
 
 ! **************************************************************************************************
 !> \brief low level routine of poly_p_uneval2 without checks
@@ -1565,7 +1565,7 @@ CONTAINS
             ii0 = ii0 + inSize
          END DO
       END IF
-   END SUBROUTINE
+   END SUBROUTINE poly_padd_uneval2b
 
 ! **************************************************************************************************
 !> \brief evaluates the 1d polynomial at the given place, results are stored contiguosly
@@ -1598,7 +1598,7 @@ CONTAINS
          pRes(ipoly) = vv
          pShift = pShift + size_p
       END DO
-   END SUBROUTINE
+   END SUBROUTINE poly_eval1
 
 ! **************************************************************************************************
 !> \brief evaluates the 2d polynomial at the given place, results are stored contiguosly
@@ -1664,7 +1664,7 @@ CONTAINS
             msize_p = msize_p + size_p
          END DO
       END IF
-   END SUBROUTINE
+   END SUBROUTINE poly_eval2
 
 ! **************************************************************************************************
 !> \brief evaluates the 3d polynomial at the given place, results are stored contiguosly
@@ -1739,7 +1739,7 @@ CONTAINS
             msize_p = msize_p + size_p
          END DO
       END IF
-   END SUBROUTINE
+   END SUBROUTINE poly_eval3
 
 ! **************************************************************************************************
 !> \brief returns an array with all dp/dx, the all dp/dy, and finally all dp/dz
@@ -1822,7 +1822,7 @@ CONTAINS
             msize_p = msize_p + size_p
          END DO
       END IF
-   END SUBROUTINE
+   END SUBROUTINE poly_derive3
 
 ! **************************************************************************************************
 !> \brief subroutine that converts from the cp2k poly format to the d3 poly format
@@ -1871,7 +1871,7 @@ CONTAINS
       IF (SIZE(poly_d3) >= size_p) THEN
          poly_d3(size_p + 1:) = 0.0_dp
       END IF
-   END SUBROUTINE
+   END SUBROUTINE poly_cp2k2d3
 
 ! **************************************************************************************************
 !> \brief subroutine that converts from the d3 poly format to the cp2k poly format
@@ -1920,6 +1920,6 @@ CONTAINS
       IF (SIZE(poly_d3) >= size_p) THEN
          poly_cp2k(size_p + 1:) = 0.0_dp
       END IF
-   END SUBROUTINE
+   END SUBROUTINE poly_d32cp2k
 
 END MODULE d3_poly

@@ -2023,7 +2023,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE add_dbcsr_submatrix
 
 ! **************************************************************************************************
 !> \brief ...
@@ -2109,7 +2109,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE create_cfm_double_row_col_size
 
 ! **************************************************************************************************
 !> \brief ...
@@ -2192,7 +2192,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE check_NaN
 
 ! **************************************************************************************************
 !> \brief ...
@@ -6709,7 +6709,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE contract_cubic_gw
 
 ! **************************************************************************************************
 !> \brief ...
@@ -6796,7 +6796,7 @@ CONTAINS
          vec_Sigma(mo_bounds_off(1):mo_bounds_off(2)) + vec_Sigma_prv
 
       CALL timestop(handle)
-   END SUBROUTINE
+   END SUBROUTINE trace_sigma_gw
 
 ! **************************************************************************************************
 !> \brief ...

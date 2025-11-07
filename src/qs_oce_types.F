@@ -36,7 +36,7 @@ MODULE qs_oce_types
 ! **************************************************************************************************
    TYPE oce_matrix_type
       TYPE(sap_int_type), DIMENSION(:), POINTER        :: intac => NULL()
-   END TYPE
+   END TYPE oce_matrix_type
 
 ! *** Public data types ***
 

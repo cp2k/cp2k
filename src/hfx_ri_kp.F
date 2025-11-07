@@ -5367,4 +5367,4 @@ CONTAINS
 
    END SUBROUTINE get_force_from_3c_trace
 
-END MODULE
+END MODULE hfx_ri_kp

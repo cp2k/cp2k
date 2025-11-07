@@ -2892,7 +2892,7 @@ CONTAINS
 
       encoded_int = rank*n_levels + grid_level - 1
 
-   END FUNCTION
+   END FUNCTION encode_rank
 
 ! **************************************************************************************************
 !> \brief ...
@@ -2908,7 +2908,7 @@ CONTAINS
 
       rank = INT(encoded_int/n_levels)
 
-   END FUNCTION
+   END FUNCTION decode_rank
 
 ! **************************************************************************************************
 !> \brief ...

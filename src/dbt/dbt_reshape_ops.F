@@ -42,7 +42,7 @@ MODULE dbt_reshape_ops
    TYPE block_buffer_type
       INTEGER, DIMENSION(:, :), ALLOCATABLE      :: blocks
       REAL(dp), DIMENSION(:), ALLOCATABLE        :: data
-   END TYPE
+   END TYPE block_buffer_type
 
 CONTAINS
 

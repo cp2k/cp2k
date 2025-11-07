@@ -48,7 +48,7 @@ MODULE cp_fm_diag_utils
       LOGICAL :: redistribute = .FALSE. ! whether or not the matrix was actually redistributed
    CONTAINS
       PROCEDURE, PASS(self) :: write => cp_fm_redistribute_info_write
-   END TYPE
+   END TYPE cp_fm_redistribute_info
 
    ! Container for redistribution settings and temporary work structs
    TYPE cp_fm_redistribute_type

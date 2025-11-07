@@ -653,7 +653,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE get_dummys
 
 ! **************************************************************************************************
 !> \brief ...
@@ -680,7 +680,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE release_dummys
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1414,7 +1414,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE compute_wkp_W
 
 ! **************************************************************************************************
 !> \brief ...

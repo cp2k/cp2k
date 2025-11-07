@@ -1197,6 +1197,6 @@ CONTAINS
          arr(idxa) = arr(idxb)
          arr(idxb) = tmp
       END DO
-   END SUBROUTINE
+   END SUBROUTINE shuffle
 
 END MODULE parallel_rng_types

@@ -61,7 +61,7 @@ MODULE ace_wrapper
          REAL(C_DOUBLE), DIMENSION(1:6)                                  :: virialc
          REAL(C_DOUBLE), DIMENSION(1:natomc)                             :: energyc
          TYPE(C_PTR)                                                     :: acedata_ptr
-      END SUBROUTINE
+      END SUBROUTINE AcePotCompute
 ! **************************************************************************************************
 !> \brief ...
 !> \param ntypec ...
@@ -144,7 +144,7 @@ CONTAINS
       MARK_USED(model)
       CPABORT("CP2K was compiled without ACE library.")
 #endif
-   END SUBROUTINE
+   END SUBROUTINE ace_model_compute
 
 ! **************************************************************************************************
 !> \brief ...

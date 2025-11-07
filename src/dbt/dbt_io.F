@@ -113,7 +113,7 @@ CONTAINS
          END IF
       END IF
 
-   END SUBROUTINE
+   END SUBROUTINE dbt_write_tensor_info
 
 ! **************************************************************************************************
 !> \brief Write info on tensor distribution & load balance
@@ -161,7 +161,7 @@ CONTAINS
          WRITE (unit_nr_prv, "(T15,A,T68,I13)") "Maximum number of matrix elements per CPU:", nelement_max
       END IF
 
-   END SUBROUTINE
+   END SUBROUTINE dbt_write_tensor_dist
 
 ! **************************************************************************************************
 !> \brief Write all tensor blocks
@@ -203,7 +203,7 @@ CONTAINS
          #:endfor
       END DO
       CALL dbt_iterator_stop(iterator)
-   END SUBROUTINE
+   END SUBROUTINE dbt_write_blocks
 
 ! **************************************************************************************************
 !> \brief Write a tensor block
@@ -264,7 +264,7 @@ CONTAINS
                   END IF
                #:endfor
             END IF
-         END SUBROUTINE
+         END SUBROUTINE dbt_write_block
 
 ! **************************************************************************************************
 !> \author Patrick Seewald
@@ -294,7 +294,7 @@ CONTAINS
                #:endfor
             END DO
             CALL dbt_iterator_stop(iterator)
-         END SUBROUTINE
+         END SUBROUTINE dbt_write_block_indices
 
 ! **************************************************************************************************
 !> \author Patrick Seewald
@@ -306,7 +306,7 @@ CONTAINS
             IF (ALLOCATED(pgrid%tas_split_info)) THEN
                CALL dbt_tas_write_split_info(pgrid%tas_split_info, unit_nr)
             END IF
-         END SUBROUTINE
+         END SUBROUTINE dbt_write_split_info
 
 ! **************************************************************************************************
 !> \author Patrick Seewald
@@ -321,6 +321,6 @@ CONTAINS
                unit_nr_out = 0
             END IF
 
-         END FUNCTION
+         END FUNCTION prep_output_unit
 
-      END MODULE
+      END MODULE dbt_io

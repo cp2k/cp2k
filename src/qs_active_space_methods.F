@@ -176,7 +176,7 @@ MODULE qs_active_space_methods
       INTEGER :: unit_nr = -1, bra_start = -1, ket_start = -1
    CONTAINS
       PROCEDURE :: func => eri_fcidump_print_func
-   END TYPE
+   END TYPE eri_fcidump_print
 
    TYPE, EXTENDS(eri_type_eri_element_func) :: eri_fcidump_checksum
       INTEGER :: bra_start = 0, ket_start = 0

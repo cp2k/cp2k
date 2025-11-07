@@ -535,7 +535,7 @@ CONTAINS
       mean_z = mean_z/ABS(mean_z)
       qmmm_pbc_aware_mean = MATMUL(mm_cell%hmat, &
                                    REAL(LOG(mean_z)/(gaussi*2.0_dp*pi), dp))
-   END FUNCTION
+   END FUNCTION qmmm_pbc_aware_mean
 
 ! **************************************************************************************************
 !> \brief minimum image lattice coordinates difference vector

@@ -48,7 +48,7 @@ MODULE rpa_communication
 
    TYPE index_map
       INTEGER, DIMENSION(:, :), ALLOCATABLE :: map
-   END TYPE
+   END TYPE index_map
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rpa_communication'
 

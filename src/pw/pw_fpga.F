@@ -159,7 +159,7 @@ CONTAINS
       CALL timestop(handle3)
 
 #endif
-   END SUBROUTINE
+   END SUBROUTINE pw_fpga_r3dc1d_3d_dp
 
 ! **************************************************************************************************
 !> \brief perform an in-place double precision inverse fft3d on the FPGA
@@ -183,7 +183,7 @@ CONTAINS
       CALL timestop(handle3)
 
 #endif
-   END SUBROUTINE
+   END SUBROUTINE pw_fpga_c1dr3d_3d_dp
 
 ! **************************************************************************************************
 !> \brief perform an in-place single precision fft3d on the FPGA
@@ -217,7 +217,7 @@ CONTAINS
 
       DEALLOCATE (c_in_sp)
 #endif
-   END SUBROUTINE
+   END SUBROUTINE pw_fpga_r3dc1d_3d_sp
 
 ! **************************************************************************************************
 !> \brief perform an in-place single precision inverse fft3d on the FPGA
@@ -251,7 +251,7 @@ CONTAINS
 
       DEALLOCATE (c_in_sp)
 #endif
-   END SUBROUTINE
+   END SUBROUTINE pw_fpga_c1dr3d_3d_sp
 
 ! **************************************************************************************************
 !> \brief  Invoke the pw_fpga_check_bitstream C function passing the path to the data dir
@@ -276,7 +276,7 @@ CONTAINS
 
       res = pw_fpga_check_bitstream(data_path, n)
 #endif
-   END FUNCTION
+   END FUNCTION pw_fpga_init_bitstream
 
 END MODULE pw_fpga
 

@@ -191,7 +191,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE tddfpt_soc
 
 ! **************************************************************************************************
 !> \brief Will perform the soc-calculation for restricted-closed-shell systems

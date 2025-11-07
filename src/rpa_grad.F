@@ -84,7 +84,7 @@ MODULE rpa_grad
       INTEGER, DIMENSION(:, :), ALLOCATABLE :: pair_list
       TYPE(one_dim_int_array), DIMENSION(:), ALLOCATABLE :: index2send, index2recv
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: P
-   END TYPE
+   END TYPE sos_mp2_grad_work_type
 
    TYPE rpa_grad_work_type
       TYPE(cp_fm_type) :: fm_mat_Q_copy = cp_fm_type()
@@ -93,7 +93,7 @@ MODULE rpa_grad
       TYPE(group_dist_d1_type), DIMENSION(:), ALLOCATABLE :: gd_homo, gd_virtual
       INTEGER, DIMENSION(2) :: grid = -1, mepos = -1
       TYPE(two_dim_real_array), DIMENSION(:), ALLOCATABLE :: P_ij, P_ab
-   END TYPE
+   END TYPE rpa_grad_work_type
 
    TYPE rpa_grad_type
       PRIVATE
@@ -101,7 +101,7 @@ MODULE rpa_grad
       TYPE(cp_fm_type), DIMENSION(:), ALLOCATABLE :: fm_Y
       TYPE(sos_mp2_grad_work_type), ALLOCATABLE, DIMENSION(:) :: sos_mp2_work_occ, sos_mp2_work_virt
       TYPE(rpa_grad_work_type) :: rpa_work
-   END TYPE
+   END TYPE rpa_grad_type
 
    INTEGER, PARAMETER :: spla_threshold = 128*128*128*2
    INTEGER, PARAMETER :: blksize_threshold = 4
@@ -261,7 +261,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE sos_mp2_work_type_create
 
 ! **************************************************************************************************
 !> \brief ...
@@ -397,7 +397,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE rpa_work_type_create
 
 ! **************************************************************************************************
 !> \brief ...
@@ -571,7 +571,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE prepare_comm_Pij
 
 ! **************************************************************************************************
 !> \brief ...
@@ -702,7 +702,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE prepare_comm_Pab
 
 ! **************************************************************************************************
 !> \brief ...
@@ -715,7 +715,7 @@ CONTAINS
 
       CALL cp_fm_to_fm(fm_mat_Q, rpa_grad%rpa_work%fm_mat_Q_copy)
 
-   END SUBROUTINE
+   END SUBROUTINE rpa_grad_copy_Q
 
 ! **************************************************************************************************
 !> \brief ...
@@ -877,7 +877,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE rpa_grad_matrix_operations
 
 ! **************************************************************************************************
 !> \brief ...
@@ -972,7 +972,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE calc_P_sos_mp2
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1271,7 +1271,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE calc_P_rpa
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1490,7 +1490,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE kahan_step
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1742,7 +1742,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE calc_Pij_degen
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1901,7 +1901,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE calc_Pab_degen
 
 ! **************************************************************************************************
 !> \brief ...
@@ -2009,7 +2009,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE redistribute_fm_mat_S
 
 ! **************************************************************************************************
 !> \brief ...
@@ -2388,7 +2388,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE sos_mp2_grad_finalize
 
 ! **************************************************************************************************
 !> \brief ...
@@ -2584,7 +2584,7 @@ CONTAINS
       END IF
 
       CALL timestop(handle)
-   END SUBROUTINE
+   END SUBROUTINE rpa_grad_work_finalize
 
 ! **************************************************************************************************
 !> \brief Dereplicate data from fm_sub and collect in fm_global, overlapping data will be added
@@ -2831,7 +2831,7 @@ CONTAINS
          index2send(proc)%array(data2send(proc)) = i_local
       END DO
 
-   END SUBROUTINE
+   END SUBROUTINE get_elements2send_col
 
 ! **************************************************************************************************
 !> \brief ...
@@ -2874,6 +2874,6 @@ CONTAINS
          index2send(proc)%array(data2send(proc)) = i_local
       END DO
 
-   END SUBROUTINE
+   END SUBROUTINE get_elements2send_row
 
 END MODULE rpa_grad

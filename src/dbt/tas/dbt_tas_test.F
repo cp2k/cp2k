@@ -163,7 +163,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE dbt_tas_setup_test_matrix
 
 ! **************************************************************************************************
 !> \brief Benchmark routine. Due to random sparsity (as opposed to structured sparsity pattern),
@@ -301,7 +301,7 @@ CONTAINS
          CALL comm_dbm%free()
       END IF
 
-   END SUBROUTINE
+   END SUBROUTINE dbt_tas_benchmark_mm
 
 ! **************************************************************************************************
 !> \brief Test tall-and-skinny matrix multiplication for accuracy
@@ -480,7 +480,7 @@ CONTAINS
       CALL dbt_tas_convert_to_dbm(matrix, dbm_m)
       dbt_tas_checksum = dbm_checksum(dbm_m)
       CALL dbm_release(dbm_m)
-   END FUNCTION
+   END FUNCTION dbt_tas_checksum
 
 ! **************************************************************************************************
 !> \brief Create random block sizes
@@ -500,7 +500,7 @@ CONTAINS
          size_i = MOD((d - 1)/repeat, SIZE(sizes)) + 1
          dbt_sizes(d) = sizes(size_i)
       END DO
-   END SUBROUTINE
+   END SUBROUTINE dbt_tas_random_bsizes
 
 ! **************************************************************************************************
 !> \brief Reset the seed used for generating random matrices to default value
@@ -508,6 +508,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dbt_tas_reset_randmat_seed()
       randmat_counter = rand_seed_init
-   END SUBROUTINE
+   END SUBROUTINE dbt_tas_reset_randmat_seed
 
-END MODULE
+END MODULE dbt_tas_test

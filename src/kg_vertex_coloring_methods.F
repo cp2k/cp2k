@@ -155,7 +155,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE kg_create_graph
 
    ! greedy algorithm
 ! **************************************************************************************************
@@ -206,7 +206,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE color_graph_greedy
 
    ! prints the subset info to the screen - useful for vmd visualization
    ! note that the index starts with '0' and not with '1'
@@ -253,7 +253,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE print_subsets
 
 ! **************************************************************************************************
 !> \brief ...
@@ -272,7 +272,7 @@ CONTAINS
 
       value = (huge_4 - INT(dsat, KIND=int_8))*huge_4 + huge_4 - degree
 
-   END FUNCTION
+   END FUNCTION kg_get_value
 
 ! **************************************************************************************************
 !> \brief ...
@@ -300,7 +300,7 @@ CONTAINS
 
       DEALLOCATE (values)
 
-   END SUBROUTINE
+   END SUBROUTINE kg_cp_heap_fill
 
 ! **************************************************************************************************
 !> \brief ...
@@ -328,7 +328,7 @@ CONTAINS
 
       END IF
 
-   END SUBROUTINE
+   END SUBROUTINE kg_update_node
 
    ! Subroutine revised by Samuel Andermatt (2013.11)
 ! **************************************************************************************************
@@ -438,7 +438,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE kg_dsatur
 
 ! **************************************************************************************************
 !> \brief Checks if the color of two nodes can be exchanged legally
@@ -487,7 +487,7 @@ CONTAINS
          END IF
       END DO
 
-   END SUBROUTINE
+   END SUBROUTINE kg_check_switch
 
 ! **************************************************************************************************
 !> \brief An algorithm that works on an already colored graph and tries to
@@ -558,7 +558,7 @@ CONTAINS
       DEALLOCATE (color_present)
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE kg_pair_switching
 
 ! **************************************************************************************************
 !> \brief ...
@@ -596,7 +596,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE check_coloring
 
 ! **************************************************************************************************
 !> \brief ...
@@ -615,7 +615,7 @@ CONTAINS
       END DO
       DEALLOCATE (graph)
 
-   END SUBROUTINE
+   END SUBROUTINE deallocate_graph
 
 ! **************************************************************************************************
 !> \brief ...
@@ -698,6 +698,6 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE kg_vertex_coloring
 
-END MODULE
+END MODULE kg_vertex_coloring_methods

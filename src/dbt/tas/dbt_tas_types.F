@@ -61,7 +61,7 @@ MODULE dbt_tas_types
       INTEGER, ALLOCATABLE  :: ngroup_opt
       LOGICAL, DIMENSION(2) :: strict_split = [.FALSE., .FALSE.]
       INTEGER, POINTER      :: refcount => NULL()
-   END TYPE
+   END TYPE dbt_tas_split_info
 
    TYPE dbt_tas_distribution_type
       TYPE(dbt_tas_split_info)                       :: info
@@ -69,7 +69,7 @@ MODULE dbt_tas_types
       CLASS(dbt_tas_distribution), ALLOCATABLE       :: row_dist
       CLASS(dbt_tas_distribution), ALLOCATABLE       :: col_dist
       INTEGER(KIND=int_8), ALLOCATABLE, DIMENSION(:) :: local_rowcols
-   END TYPE
+   END TYPE dbt_tas_distribution_type
 
 ! **************************************************************************************************
 !> \brief storage for batched matrix multiplication
@@ -84,7 +84,7 @@ MODULE dbt_tas_types
       LOGICAL                     :: batched_out = .FALSE.
       LOGICAL                     :: batched_trans = .FALSE.
       REAL(dp)                    :: batched_beta = 1.0_dp
-   END TYPE
+   END TYPE dbt_tas_mm_storage
 
 ! **************************************************************************************************
 !> \brief type for tall-and-skinny matrices
@@ -113,11 +113,11 @@ MODULE dbt_tas_types
       INTEGER                                 :: do_batched = 0
       TYPE(dbt_tas_mm_storage), ALLOCATABLE   :: mm_storage
       LOGICAL                                 :: has_opt_pgrid = .FALSE.
-   END TYPE
+   END TYPE dbt_tas_type
 
    TYPE dbt_tas_iterator
       TYPE(dbt_tas_distribution_type), POINTER :: dist => NULL()
       TYPE(dbm_iterator)                       :: iter
    END TYPE dbt_tas_iterator
 
-END MODULE
+END MODULE dbt_tas_types

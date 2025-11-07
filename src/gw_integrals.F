@@ -448,5 +448,5 @@ CONTAINS
 
    END SUBROUTINE build_3c_integral_block
 
-END MODULE
+END MODULE gw_integrals
 

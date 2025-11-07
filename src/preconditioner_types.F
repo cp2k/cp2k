@@ -74,7 +74,7 @@ CONTAINS
       LOGICAL                                            :: preconditioner_in_use
 
       preconditioner_in_use = .NOT. (preconditioner%in_use == 0)
-   END FUNCTION
+   END FUNCTION preconditioner_in_use
 
 ! **************************************************************************************************
 !> \brief ...

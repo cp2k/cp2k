@@ -145,7 +145,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE create_kernel
 
 ! **************************************************************************************************
 !> \brief Allocate and initiate molecular orbitals environment

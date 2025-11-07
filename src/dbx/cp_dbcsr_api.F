@@ -171,7 +171,7 @@ MODULE cp_dbcsr_api
 
    TYPE dbcsr_p_type
       TYPE(dbcsr_type), POINTER :: matrix => Null()
-   END TYPE
+   END TYPE dbcsr_p_type
 
    TYPE dbcsr_type
       PRIVATE
@@ -308,7 +308,7 @@ CONTAINS
       ELSE
          CALL dbm_clear(matrix%dbm)
       END IF
-   END SUBROUTINE
+   END SUBROUTINE dbcsr_clear
 
 ! **************************************************************************************************
 !> \brief ...

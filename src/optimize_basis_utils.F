@@ -233,7 +233,7 @@ CONTAINS
       set_id = (calc_id)/ncom + 1
       bas_id = MOD(calc_id, ncom) + 1
 
-   END SUBROUTINE
+   END SUBROUTINE get_set_and_basis_id
 
 ! **************************************************************************************************
 !> \brief Pack calculations in groups. If less MPI tasks than systems are used

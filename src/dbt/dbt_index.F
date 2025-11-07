@@ -131,7 +131,7 @@ CONTAINS
       INTEGER                                            :: ndims_mapping
 
       ndims_mapping = map%ndim_nd
-   END FUNCTION
+   END FUNCTION ndims_mapping
 
 ! **************************************************************************************************
 !> \brief how many tensor dimensions are mapped to matrix row
@@ -141,7 +141,7 @@ CONTAINS
       TYPE(nd_to_2d_mapping), INTENT(IN) :: map
       INTEGER :: ndims_mapping_row
       ndims_mapping_row = map%ndim1_2d
-   END FUNCTION
+   END FUNCTION ndims_mapping_row
 
 ! **************************************************************************************************
 !> \brief how many tensor dimensions are mapped to matrix column
@@ -151,7 +151,7 @@ CONTAINS
       TYPE(nd_to_2d_mapping), INTENT(IN) :: map
       INTEGER :: ndims_mapping_column
       ndims_mapping_column = map%ndim2_2d
-   END FUNCTION
+   END FUNCTION ndims_mapping_column
 
 ! **************************************************************************************************
 !> \brief get mapping info
@@ -241,7 +241,7 @@ CONTAINS
          ind_out = (ind_out - 1)*dims(i_dim) + ind_in(i_dim)
       END DO
 
-   END FUNCTION
+   END FUNCTION combine_tensor_index
 
 ! **************************************************************************************************
 !> \brief transform nd index to flat index
@@ -260,7 +260,7 @@ CONTAINS
       DO i_dim = 2, SIZE(dims)
          ind_out = ind_out*dims(i_dim) + ind_in(i_dim)
       END DO
-   END FUNCTION
+   END FUNCTION combine_pgrid_index
 
 ! **************************************************************************************************
 !> \brief transform flat index to nd index
@@ -283,7 +283,7 @@ CONTAINS
          tmp = (tmp - 1)/dims(i_dim) + 1
       END DO
 
-   END FUNCTION
+   END FUNCTION split_tensor_index
 
 ! **************************************************************************************************
 !> \brief transform flat index to nd index
@@ -305,7 +305,7 @@ CONTAINS
          ind_out(i_dim) = MOD(tmp, dims(i_dim))
          tmp = tmp/dims(i_dim)
       END DO
-   END FUNCTION
+   END FUNCTION split_pgrid_index
 
 ! **************************************************************************************************
 !> \brief transform nd index to 2d index, using info from index mapping.
@@ -330,7 +330,7 @@ CONTAINS
          ind_tmp(i) = ind_in(map%map2_2d(i))
       END DO
       ind_out(2) = combine_tensor_index(ind_tmp(:map%ndim2_2d), map%dims2_2d)
-   END FUNCTION
+   END FUNCTION get_2d_indices_tensor
 
 ! **************************************************************************************************
 !> \brief transform nd index to 2d index, using info from index mapping.
@@ -355,7 +355,7 @@ CONTAINS
          ind_tmp(i) = ind_in(map%map2_2d(i))
       END DO
       ind_out(2) = combine_pgrid_index(ind_tmp(:map%ndim2_2d), map%dims2_2d)
-   END FUNCTION
+   END FUNCTION get_2d_indices_pgrid
 
 ! **************************************************************************************************
 !> \brief transform 2d index to nd index, using info from index mapping.
@@ -383,7 +383,7 @@ CONTAINS
          ind_out(map%map2_2d(i)) = ind_tmp(i)
       END DO
 
-   END FUNCTION
+   END FUNCTION get_nd_indices_tensor
 
 ! **************************************************************************************************
 !> \brief transform 2d index to nd index, using info from index mapping.
@@ -400,7 +400,7 @@ CONTAINS
       ind_out(map%map1_2d) = split_pgrid_index(ind_in(1), map%dims1_2d)
       ind_out(map%map2_2d) = split_pgrid_index(ind_in(2), map%dims2_2d)
 
-   END FUNCTION
+   END FUNCTION get_nd_indices_pgrid
 
 ! **************************************************************************************************
 !> \brief Invert order
@@ -413,7 +413,7 @@ CONTAINS
       INTEGER                                            :: i
 
       dbt_inverse_order(order) = [(i, i=1, SIZE(order))]
-   END FUNCTION
+   END FUNCTION dbt_inverse_order
 
 ! **************************************************************************************************
 !> \brief reorder tensor index (no data)
@@ -438,6 +438,6 @@ CONTAINS
       map2_2d_reorder(:) = order(map2_2d)
 
       CALL create_nd_to_2d_mapping(map_out, dims_reorder, map1_2d_reorder, map2_2d_reorder)
-   END SUBROUTINE
+   END SUBROUTINE permute_index
 
 END MODULE dbt_index

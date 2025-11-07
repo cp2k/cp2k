@@ -174,7 +174,7 @@ CONTAINS
       CALL C_F_POINTER(C_LOC(zout), zout_real, [2, nn, n])
       CALL fftstp(mm, nfft, m, nn, n, zin_real, zout_real, trig, now, after, before, isign)
 
-   END SUBROUTINE
+   END SUBROUTINE fftstp_cmplx
 
 ! **************************************************************************************************
 !> \brief ...
@@ -207,7 +207,7 @@ CONTAINS
 
       CALL fftpre(mm, nfft, m, nn, n, zin_real, zout_real, trig, now, after, before, isign)
 
-   END SUBROUTINE
+   END SUBROUTINE fftpre_cmplx
 
 ! **************************************************************************************************
 !> \brief ...
@@ -241,7 +241,7 @@ CONTAINS
 
       CALL fftrot(mm, nfft, m, nn, n, zin_real, zout_real, trig, now, after, before, isign)
 
-   END SUBROUTINE
+   END SUBROUTINE fftrot_cmplx
 
 !-----------------------------------------------------------------------------!
 !  Copyright (C) Stefan Goedecker, Lausanne, Switzerland, August 1, 1991

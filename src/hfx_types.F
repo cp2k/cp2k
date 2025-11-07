@@ -144,7 +144,7 @@ MODULE hfx_types
       REAL(dp)                                 :: scale_gaussian = 0.0_dp!! scaling factor for mixed potential
       REAL(dp)                                 :: cutoff_radius = 0.0_dp!! cutoff radius if cutoff potential in use
       CHARACTER(default_path_length)           :: filename = ""
-   END TYPE
+   END TYPE hfx_potential_type
 
 ! **************************************************************************************************
    TYPE hfx_screening_type
@@ -152,7 +152,7 @@ MODULE hfx_types
       REAL(dp)                                 :: eps_schwarz_forces = 0.0_dp !! threshold
       LOGICAL                                  :: do_p_screening_forces = .FALSE. !! screen on P^2 ?
       LOGICAL                                  :: do_initial_p_screening = .FALSE. !! screen on initial guess?
-   END TYPE
+   END TYPE hfx_screening_type
 
 ! **************************************************************************************************
    TYPE hfx_memory_type
@@ -173,7 +173,7 @@ MODULE hfx_types
       INTEGER(int_8)                           :: size_p_screen = 0_int_8
       LOGICAL                                  :: treat_forces_in_core = .FALSE.
       LOGICAL                                  :: recalc_forces = .FALSE.
-   END TYPE
+   END TYPE hfx_memory_type
 
 ! **************************************************************************************************
    TYPE hfx_periodic_type
@@ -183,7 +183,7 @@ MODULE hfx_types
       INTEGER                                  :: mode = -1
       REAL(dp)                                 :: R_max_stress = 0.0_dp
       INTEGER                                  :: number_of_shells_from_input = 0
-   END TYPE
+   END TYPE hfx_periodic_type
 
 ! **************************************************************************************************
    TYPE hfx_load_balance_type
@@ -193,19 +193,19 @@ MODULE hfx_types
       LOGICAL                                  :: rtp_redistribute = .FALSE.
       LOGICAL                                  :: blocks_initialized = .FALSE.
       LOGICAL                                  :: do_randomize = .FALSE.
-   END TYPE
+   END TYPE hfx_load_balance_type
 
 ! **************************************************************************************************
    TYPE hfx_general_type
       REAL(dp)                                 :: fraction = 0.0_dp !! for hybrids
       LOGICAL                                  :: treat_lsd_in_core = .FALSE.
-   END TYPE
+   END TYPE hfx_general_type
 
 ! **************************************************************************************************
    TYPE hfx_cell_type
       REAL(dp)                                 :: cell(3) = 0.0_dp
       REAL(dp)                                 :: cell_r(3) = 0.0_dp
-   END TYPE
+   END TYPE hfx_cell_type
 
 ! **************************************************************************************************
    TYPE hfx_distribution
@@ -216,7 +216,7 @@ MODULE hfx_types
       REAL(KIND=dp)                            :: time_other_scf = 0.0_dp
       REAL(KIND=dp)                            :: time_forces = 0.0_dp
       INTEGER(int_8)                           :: ram_counter = 0_int_8
-   END TYPE
+   END TYPE hfx_distribution
 
 ! **************************************************************************************************
    TYPE pair_list_element_type
@@ -225,12 +225,12 @@ MODULE hfx_types
       INTEGER, DIMENSION(2) :: kind_pair = 0
       REAL(KIND=dp)         :: r1(3) = 0.0_dp, r2(3) = 0.0_dp
       REAL(KIND=dp)         :: dist2 = 0.0_dp
-   END TYPE
+   END TYPE pair_list_element_type
 
    ! **************************************************************************************************
    TYPE pair_set_list_type
       INTEGER, DIMENSION(2) :: pair = 0
-   END TYPE
+   END TYPE pair_set_list_type
 
 ! **************************************************************************************************
    TYPE pair_list_type
@@ -242,13 +242,13 @@ MODULE hfx_types
    TYPE hfx_cache_type
       INTEGER(int_8), DIMENSION(CACHE_SIZE)    :: DATA = 0_int_8
       INTEGER                                  :: element_counter = 0
-   END TYPE
+   END TYPE hfx_cache_type
 
 ! **************************************************************************************************
    TYPE hfx_container_node
       TYPE(hfx_container_node), POINTER        :: next => NULL(), prev => NULL()
       INTEGER(int_8), DIMENSION(CACHE_SIZE)    :: DATA = 0_int_8
-   END TYPE
+   END TYPE hfx_container_node
 
 ! **************************************************************************************************
    TYPE hfx_container_type
@@ -258,7 +258,7 @@ MODULE hfx_types
       CHARACTER(LEN=5)                         :: desc = ""
       INTEGER                                  :: unit = -1
       CHARACTER(default_path_length)           :: filename = ""
-   END TYPE
+   END TYPE hfx_container_type
 
 ! **************************************************************************************************
    TYPE hfx_basis_type
@@ -279,30 +279,30 @@ MODULE hfx_types
       REAL(dp), DIMENSION(:), POINTER          :: set_radius => NULL()
       REAL(dp), DIMENSION(:, :), POINTER        :: pgf_radius => NULL()
       REAL(dp)                                 :: kind_radius = 0.0_dp
-   END TYPE
+   END TYPE hfx_basis_type
 
 ! **************************************************************************************************
    TYPE hfx_basis_info_type
       INTEGER                                  :: max_set = 0
       INTEGER                                  :: max_sgf = 0
       INTEGER                                  :: max_am = 0
-   END TYPE
+   END TYPE hfx_basis_info_type
 
 ! **************************************************************************************************
    TYPE hfx_screen_coeff_type
       REAL(dp)                                 :: x(2) = 0.0_dp
-   END TYPE
+   END TYPE hfx_screen_coeff_type
 
 ! **************************************************************************************************
    TYPE hfx_p_kind
       REAL(dp), DIMENSION(:, :, :, :), POINTER    :: p_kind => NULL()
-   END TYPE
+   END TYPE hfx_p_kind
 
 ! **************************************************************************************************
    TYPE hfx_2D_map
       INTEGER, DIMENSION(:), POINTER           :: iatom_list => NULL()
       INTEGER, DIMENSION(:), POINTER           :: jatom_list => NULL()
-   END TYPE
+   END TYPE hfx_2D_map
 
 ! **************************************************************************************************
    TYPE hfx_pgf_image
@@ -313,7 +313,7 @@ MODULE hfx_types
       REAL(dp)                                 :: R = 0.0_dp
       REAL(dp)                                 :: pgf_max = 0.0_dp
       REAL(dp), DIMENSION(3)                   :: bcell = 0.0_dp
-   END TYPE
+   END TYPE hfx_pgf_image
 
 ! **************************************************************************************************
    TYPE hfx_pgf_list
@@ -324,7 +324,7 @@ MODULE hfx_types
       REAL(dp)                                 :: ZetaInv = 0.0_dp
       REAL(dp)                                 :: zeta = 0.0_dp, zetb = 0.0_dp
       INTEGER                                  :: ipgf = 0, jpgf = 0
-   END TYPE
+   END TYPE hfx_pgf_list
 
 ! **************************************************************************************************
    TYPE hfx_pgf_product_list
@@ -334,20 +334,20 @@ MODULE hfx_types
       REAL(dp)                                 :: P(3) = 0.0_dp, Q(3) = 0.0_dp, W(3) = 0.0_dp
       REAL(dp)                                 :: AB(3) = 0.0_dp, CD(3) = 0.0_dp
       REAL(dp)                                 :: Fm(prim_data_f_size) = 0.0_dp
-   END TYPE
+   END TYPE hfx_pgf_product_list
 
 ! **************************************************************************************************
    TYPE hfx_block_range_type
       INTEGER        :: istart = 0, iend = 0
       INTEGER(int_8) :: cost = 0_int_8
-   END TYPE
+   END TYPE hfx_block_range_type
 
 ! **************************************************************************************************
    TYPE hfx_task_list_type
       INTEGER                                  :: thread_id = 0
       INTEGER                                  :: bin_id = 0
       INTEGER(int_8)                           :: cost = 0_int_8
-   END TYPE
+   END TYPE hfx_task_list_type
 
    TYPE :: hfx_compression_type
       TYPE(hfx_container_type), DIMENSION(:), &
@@ -363,11 +363,11 @@ MODULE hfx_types
       TYPE(hfx_cache_type)      :: integral_caches_disk(64) = hfx_cache_type()
       TYPE(hfx_container_type), POINTER, &
          DIMENSION(:)  :: integral_containers_disk => NULL()
-   END TYPE
+   END TYPE hfx_compression_type
 
    TYPE :: block_ind_type
       INTEGER, DIMENSION(:, :), ALLOCATABLE :: ind
-   END TYPE
+   END TYPE block_ind_type
 
    TYPE hfx_ri_type
       ! input parameters (see input_cp2k_hfx)
@@ -470,7 +470,7 @@ MODULE hfx_types
       INTEGER        :: num_pe = 0
       TYPE(hfx_compression_type), DIMENSION(:, :), ALLOCATABLE :: store_3c
 
-   END TYPE
+   END TYPE hfx_ri_type
 
 ! **************************************************************************************************
 !> \brief stores some data used in construction of Kohn-Sham matrix
@@ -1198,7 +1198,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE hfx_ri_init_read_input
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1437,7 +1437,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE hfx_ri_init
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1458,7 +1458,7 @@ CONTAINS
          IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T2,A,T66,F15.2)") &
             "RI-HFX PERFORMANCE| DBT flop rate (Gflops / MPI rank):", my_flop_rate
       END ASSOCIATE
-   END SUBROUTINE
+   END SUBROUTINE hfx_ri_write_stats
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1644,7 +1644,7 @@ CONTAINS
       END IF
 
       CALL timestop(handle)
-   END SUBROUTINE
+   END SUBROUTINE hfx_ri_release
 
 ! **************************************************************************************************
 !> \brief - This routine allocates and initializes the basis_info and basis_parameter types
@@ -2772,7 +2772,7 @@ CONTAINS
             "HFX_RI_INFO| Memory reduction factor", ri_data%n_mem_input
       END IF
 
-   END SUBROUTINE
+   END SUBROUTINE hfx_print_ri_info
 
 ! **************************************************************************************************
 !> \brief ...
@@ -2867,7 +2867,7 @@ CONTAINS
 
       CALL cp_print_key_finished_output(iw, logger, hfx_section, &
                                         "HF_INFO")
-   END SUBROUTINE
+   END SUBROUTINE hfx_print_info
 
 ! **************************************************************************************************
 !> \brief ...

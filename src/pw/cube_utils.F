@@ -197,7 +197,7 @@ CONTAINS
       ELSE
          ! no info to be deallocated
       END IF
-   END SUBROUTINE
+   END SUBROUTINE destroy_cube_info
 
 ! **************************************************************************************************
 !> \brief ...
@@ -317,7 +317,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE init_cube_info
 
    ! try to hide things from the optimizer, so that we get the same numbers,
    ! always (this solves the optimisation problems with the intel and nag compiler

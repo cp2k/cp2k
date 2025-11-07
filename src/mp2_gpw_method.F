@@ -587,7 +587,7 @@ CONTAINS
       ! Mb
       mem_try = mem_try*8.0D+00/1024.0D+00**2
 
-   END SUBROUTINE
+   END SUBROUTINE estimate_memory_usage
 
 ! **************************************************************************************************
 !> \brief ...

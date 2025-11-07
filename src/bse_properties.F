@@ -411,7 +411,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE compute_and_print_absorption_spectrum
 
 ! **************************************************************************************************
 !> \brief ...

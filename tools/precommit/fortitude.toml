@@ -9,7 +9,6 @@ ignore = [
     "missing-intent",
     "missing-exit-or-cycle-label",
     "assumed-size",
-    "unnamed-end-statement",
     "assumed-size-character-intent",
     "external-procedure",
     "literal-kind",

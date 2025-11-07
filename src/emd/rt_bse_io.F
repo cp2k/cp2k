@@ -121,7 +121,7 @@ CONTAINS
 
       WRITE (rtbse_env%unit_nr, '(A)') ''
 
-   END SUBROUTINE
+   END SUBROUTINE print_rtbse_header_info
 
 ! **************************************************************************************************
 !> \brief Writes the update after single etrs iteration - only for log level > medium
@@ -139,7 +139,7 @@ CONTAINS
          WRITE (rtbse_env%unit_nr, '(A7,I5, E20.8E3)') ' RTBSE|', step, metric
       END IF
 
-   END SUBROUTINE
+   END SUBROUTINE print_etrs_info
 ! **************************************************************************************************
 !> \brief Writes the header for the etrs iteration updates - only for log level > medium
 !> \param rtbse_env Entry point - rtbse environment
@@ -154,7 +154,7 @@ CONTAINS
          WRITE (rtbse_env%unit_nr, '(A13, A20)') ' RTBSE| Iter.', 'Convergence'
       END IF
 
-   END SUBROUTINE
+   END SUBROUTINE print_etrs_info_header
 ! **************************************************************************************************
 !> \brief Writes the header for the etrs iteration updates - only for log level > medium
 !> \param rtbse_env Entry point - rtbse environment
@@ -176,7 +176,7 @@ CONTAINS
             electron_num_re, etrs_num
       END IF
 
-   END SUBROUTINE
+   END SUBROUTINE print_timestep_info
 
 ! **************************************************************************************************
 !> \brief Outputs the matrix in MO basis for matrix coefficients corresponding to contravariant
@@ -227,7 +227,7 @@ CONTAINS
          CALL cp_print_key_finished_output(rho_unit_re, logger, print_key_section)
          CALL cp_print_key_finished_output(rho_unit_im, logger, print_key_section)
       END DO
-   END SUBROUTINE
+   END SUBROUTINE output_mos_contravariant
 ! **************************************************************************************************
 !> \brief Outputs the matrix in MO basis for matrix components corresponding to covariant representation,
 !>        i.e. the Hamiltonian matrix
@@ -267,7 +267,7 @@ CONTAINS
          CALL cp_print_key_finished_output(rho_unit_re, logger, print_key_section)
          CALL cp_print_key_finished_output(rho_unit_im, logger, print_key_section)
       END DO
-   END SUBROUTINE
+   END SUBROUTINE output_mos_covariant
 ! **************************************************************************************************
 !> \brief Prints the current field components into a file provided by input
 !> \param rtbse_env Entry point - gwbse environment
@@ -297,7 +297,7 @@ CONTAINS
       rtbse_env%time_trace%series(n) = rtbse_env%sim_time
       CALL cp_print_key_finished_output(field_unit, logger, rtbse_env%field_section)
 
-   END SUBROUTINE
+   END SUBROUTINE output_field
 ! **************************************************************************************************
 !> \brief Reads the field from the files provided by input - useful for the continuation run
 !> \param rtbse_env Entry point - gwbse environment
@@ -408,7 +408,7 @@ CONTAINS
             rtbse_env%moments_trace(i)%series(n) = rtbse_env%moments_trace(i)%series(n) + CMPLX(0.0, moments(i), kind=dp)
          END DO
       END DO
-   END SUBROUTINE
+   END SUBROUTINE output_moments
 ! **************************************************************************************************
 !> \brief Outputs the restart info (last finished iteration step) + restard density matrix
 !> \param restart_section Print key section for the restart files
@@ -889,5 +889,5 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE ft_simple
 END MODULE rt_bse_io

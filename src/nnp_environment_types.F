@@ -153,7 +153,7 @@ MODULE nnp_environment_types
       INTEGER, DIMENSION(:), ALLOCATABLE                  :: ele_ind
       CHARACTER(LEN=2), DIMENSION(:), ALLOCATABLE         :: ele
       REAL(KIND=dp)                                       :: cutoff = -1.0_dp
-   END TYPE
+   END TYPE nnp_symfgrp_type
 
 ! **************************************************************************************************
 !> \brief Set of radial symmetry function type
@@ -183,7 +183,7 @@ MODULE nnp_environment_types
       INTEGER, ALLOCATABLE, DIMENSION(:)                  :: nuc_ele
       INTEGER                                             :: n_symfgrp = -1
       TYPE(nnp_symfgrp_type), DIMENSION(:), ALLOCATABLE   :: symfgrp
-   END TYPE
+   END TYPE nnp_acsf_rad_type
 
 ! **************************************************************************************************
 !> \brief Set of angular symmetry function type
@@ -218,7 +218,7 @@ MODULE nnp_environment_types
       INTEGER, ALLOCATABLE, DIMENSION(:)                  :: nuc_ele2
       INTEGER                                             :: n_symfgrp = -1
       TYPE(nnp_symfgrp_type), DIMENSION(:), ALLOCATABLE   :: symfgrp
-   END TYPE
+   END TYPE nnp_acsf_ang_type
 
 ! **************************************************************************************************
 !> \brief Contains neighbors list of an atom
@@ -238,7 +238,7 @@ MODULE nnp_environment_types
       REAL(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE      :: dist_rad
       REAL(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE      :: dist_ang1
       REAL(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE      :: dist_ang2
-   END TYPE
+   END TYPE nnp_neighbor_type
 
 ! **************************************************************************************************
 !> \brief Data type for artificial neural networks
@@ -248,7 +248,7 @@ MODULE nnp_environment_types
    TYPE nnp_arc_type
       TYPE(nnp_arc_layer_type), POINTER, DIMENSION(:)     :: layer => NULL() ! DIM(n_layer)
       INTEGER, ALLOCATABLE, DIMENSION(:)                  :: n_nodes
-   END TYPE
+   END TYPE nnp_arc_type
 
 ! **************************************************************************************************
 !> \brief Data type for individual layer
@@ -261,7 +261,7 @@ MODULE nnp_environment_types
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)            :: node ! DIM(n_nodes)
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)            :: node_grad ! DIM(n_nodes)
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)         :: tmp_der ! DIM(n_sym,n_nodes)
-   END TYPE
+   END TYPE nnp_arc_layer_type
 
 CONTAINS
 

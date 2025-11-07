@@ -1354,7 +1354,7 @@ CONTAINS
 
       length = length_x**2 + length_y**2 + length_z**2
 
-   END SUBROUTINE
+   END SUBROUTINE pw_vec_length
 
 ! **************************************************************************************************
 !> \brief Count total number of g vectors

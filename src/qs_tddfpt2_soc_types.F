@@ -59,7 +59,7 @@ MODULE qs_tddfpt2_soc_types
                                                          b_coeff = cp_fm_type()
       REAL(dp), ALLOCATABLE, DIMENSION(:)             :: soc_evals, &
                                                          soc_osc
-   END TYPE
+   END TYPE soc_env_type
 
 ! ************************************************************************************************
 ! \bief: an environment type analog to the xas_atom_env in xas_tdp_types:343
@@ -75,7 +75,7 @@ MODULE qs_tddfpt2_soc_types
       TYPE(harmonics_atom_p_type), DIMENSION(:), POINTER :: harmonics_atom_set => Null()
       TYPE(cp_2d_r_p_type), DIMENSION(:), POINTER        :: orb_sphi_so => Null()
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: soc_pp => Null()
-   END TYPE
+   END TYPE soc_atom_env_type
 
 CONTAINS
 

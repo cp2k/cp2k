@@ -47,7 +47,7 @@ MODULE rpa_sigma_functional
       TYPE(cp_fm_type)                                   :: fm_evec = cp_fm_type()
       REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: sigma_eigenvalue
       INTEGER                                            :: dimen_RI_red = 0
-   END TYPE
+   END TYPE rpa_sigma_type
 
 CONTAINS
 

@@ -53,7 +53,7 @@ MODULE kpoint_coulomb_2c
 
    TYPE two_d_util_type
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)  :: block
-   END TYPE
+   END TYPE two_d_util_type
 
 CONTAINS
 
@@ -395,7 +395,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE deallocate_blocks_v_kp
 
 ! **************************************************************************************************
 !> \brief ...
@@ -418,7 +418,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE deallocate_blocks_v_L
 
 ! **************************************************************************************************
 !> \brief ...
@@ -472,7 +472,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE allocate_blocks_v_L
 
 ! **************************************************************************************************
 !> \brief ...
@@ -540,7 +540,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE allocate_blocks_v_kp
 
 ! **************************************************************************************************
 !> \brief ...
@@ -631,7 +631,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE get_factor_and_xyz_min_max
 
 ! **************************************************************************************************
 !> \brief ...
@@ -661,7 +661,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE allocate_tmp
 
 ! **************************************************************************************************
 !> \brief ...
@@ -681,7 +681,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE deallocate_tmp
 
 ! **************************************************************************************************
 !> \brief ...

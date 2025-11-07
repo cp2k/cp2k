@@ -191,7 +191,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE metadyn_initialise_plumed
 
 ! **************************************************************************************************
 !> \brief makes sure PLUMED is shut down cleanly
@@ -210,7 +210,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE metadyn_finalise_plumed
 
 ! **************************************************************************************************
 !> \brief  General driver for applying metadynamics

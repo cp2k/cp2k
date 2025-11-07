@@ -1046,4 +1046,4 @@ CONTAINS
 
    END SUBROUTINE tmc_print_params
 
-END MODULE
+END MODULE tmc_setup

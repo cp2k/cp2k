@@ -50,7 +50,7 @@ MODULE gw_communication
       INTEGER, DIMENSION(:, :), POINTER  :: indx => NULL()
       INTEGER :: proc = -1
       INTEGER :: msg_req = -1
-   END TYPE
+   END TYPE buffer_type
 
 CONTAINS
 

@@ -47,7 +47,7 @@ MODULE admm_dm_types
       INTEGER, DIMENSION(:, :), POINTER         :: block_map => Null()
       TYPE(mcweeny_history_p_type), &
          DIMENSION(:), POINTER                  :: mcweeny_history => Null()
-   END TYPE
+   END TYPE admm_dm_type
 
 CONTAINS
 

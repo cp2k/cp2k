@@ -1174,7 +1174,7 @@ CONTAINS
       CALL section_add_subsection(section, gw_dos_section)
       CALL section_release(gw_dos_section)
 
-   END SUBROUTINE
+   END SUBROUTINE create_print_section
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1282,7 +1282,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-   END SUBROUTINE
+   END SUBROUTINE create_periodic_gw_correction_section
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1439,7 +1439,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-   END SUBROUTINE
+   END SUBROUTINE create_bse_section
 
    SUBROUTINE create_bse_screening_section(section)
       TYPE(section_type), POINTER                        :: section
@@ -1627,7 +1627,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-   END SUBROUTINE
+   END SUBROUTINE create_bse_spectrum_section
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1721,7 +1721,7 @@ CONTAINS
                           type_of_var=real_t, default_r_val=-1.0_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-   END SUBROUTINE
+   END SUBROUTINE create_bse_iterat_section
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1757,7 +1757,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-   END SUBROUTINE
+   END SUBROUTINE create_ic_section
 
 ! **************************************************************************************************
 !> \brief ...
@@ -2022,7 +2022,7 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-   END SUBROUTINE
+   END SUBROUTINE create_low_scaling
 
 ! **************************************************************************************************
 !> \brief ...

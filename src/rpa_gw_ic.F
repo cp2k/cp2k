@@ -282,7 +282,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE trace_ic_gw
 
 ! **************************************************************************************************
 !> \brief ...

@@ -671,7 +671,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE calc_energy_func_der
 
 ! **************************************************************************************************
 !> \brief ...
@@ -811,7 +811,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE calc_energy_func
 
 ! **************************************************************************************************
 !> \brief ...
@@ -839,7 +839,7 @@ CONTAINS
          END DO
       END DO
 
-   END SUBROUTINE
+   END SUBROUTINE init_transf
 
 ! **************************************************************************************************
 !> \brief ...
@@ -868,7 +868,7 @@ CONTAINS
          END DO
       END DO
 
-   END SUBROUTINE
+   END SUBROUTINE p2basis
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1023,7 +1023,7 @@ CONTAINS
          END DO
       END DO
 
-   END SUBROUTINE
+   END SUBROUTINE reset_basis
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1102,7 +1102,7 @@ CONTAINS
 
       DEALLOCATE (mat_ab)
 
-   END SUBROUTINE
+   END SUBROUTINE contract_integrals
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1162,7 +1162,7 @@ CONTAINS
       valout = 0.0_dp
       valout = lower_B + max_dev/(1.0_dp + EXP(-alpha*valin))
 
-   END FUNCTION
+   END FUNCTION transf_val
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1775,7 +1775,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE create_ri_basis
 
 END MODULE mp2_optimize_ri_basis
 

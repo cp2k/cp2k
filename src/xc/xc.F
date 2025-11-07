@@ -100,7 +100,7 @@ CONTAINS
                                        calc_potential=.FALSE.)
       res = (needs%tau_spin .OR. needs%tau)
 
-   END FUNCTION
+   END FUNCTION xc_uses_kinetic_energy_density
 
 ! **************************************************************************************************
 !> \brief ...
@@ -120,7 +120,7 @@ CONTAINS
                                        calc_potential=.FALSE.)
       res = (needs%norm_drho .OR. needs%norm_drho_spin)
 
-   END FUNCTION
+   END FUNCTION xc_uses_norm_drho
 
 ! **************************************************************************************************
 !> \brief Exchange and Correlation functional calculations.
@@ -4209,7 +4209,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE calc_drho_from_ab
 
 ! **************************************************************************************************
 !> \brief allocates and calculates drho from given spin densities drhoa, drhob
@@ -4239,7 +4239,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE calc_drho_from_a
 
 ! **************************************************************************************************
 !> \brief allocates and calculates dot products of two density gradients

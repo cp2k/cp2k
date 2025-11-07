@@ -576,7 +576,7 @@ CONTAINS
       ! Deallocate workspace
       IF (.NOT. PRESENT(workspace_opt)) CALL cp_cfm_release(workspace)
       DEALLOCATE (partial_metric)
-   END FUNCTION
+   END FUNCTION rho_metric
 
 ! **************************************************************************************************
 !> \brief Determines the metric of the antihermitian part of the matrix
@@ -601,7 +601,7 @@ CONTAINS
       complex_one = CMPLX(1.0, 0.0, kind=dp)
       CALL cp_cfm_scale_and_add(complex_one, workspace(1), -complex_one, workspace(2))
       metric = cp_cfm_norm(workspace(1), "M")
-   END SUBROUTINE
+   END SUBROUTINE antiherm_metric
 
 ! **************************************************************************************************
 !> \brief For Taylor and Exact exp_method, calculates the matrix exponential of the
@@ -640,7 +640,7 @@ CONTAINS
       END DO
 
       CALL timestop(handle)
-   END SUBROUTINE
+   END SUBROUTINE ham_to_exp
 ! **************************************************************************************************
 !> \brief Updates the effective Hamiltonian, given a density matrix rho
 !> \param rtbse_env Entry point of the calculation - contains current state of variables
@@ -902,7 +902,7 @@ CONTAINS
       END IF
 
       CALL timestop(handle)
-   END SUBROUTINE
+   END SUBROUTINE propagate_density
 
 ! **************************************************************************************************
 !> \brief Outputs the number of electrons in the system from the density matrix
@@ -1219,7 +1219,7 @@ CONTAINS
       ! DEALLOCATE(metric_fm)
       CALL cp_fm_release(work_fm)
       CALL cp_fm_release(metric_inv_fm)
-   END SUBROUTINE
+   END SUBROUTINE init_hartree
 ! **************************************************************************************************
 !> \brief Calculates the Hartree matrix in the atomic orbital basis, given a density matrix, in local arrays
 !>        Calculates the values for single spin species present in given rho

@@ -57,7 +57,7 @@ MODULE mp2_ri_grad_util
 
    TYPE index_map
       INTEGER, DIMENSION(:, :), ALLOCATABLE :: map
-   END TYPE
+   END TYPE index_map
 
 CONTAINS
 

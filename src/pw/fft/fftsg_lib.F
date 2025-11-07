@@ -25,7 +25,7 @@ CONTAINS
 
       ! no init needed
 
-   END SUBROUTINE
+   END SUBROUTINE fftsg_do_init
 
 ! **************************************************************************************************
 !> \brief ...
@@ -34,7 +34,7 @@ CONTAINS
 
       ! no cleanup needed
 
-   END SUBROUTINE
+   END SUBROUTINE fftsg_do_cleanup
 
 ! **************************************************************************************************
 !> \brief ...
@@ -155,5 +155,5 @@ CONTAINS
 
    END SUBROUTINE fftsg1dm
 
-END MODULE
+END MODULE fftsg_lib
 

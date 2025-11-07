@@ -191,7 +191,7 @@ CONTAINS
       WRITE (UNIT=default_output_unit, FMT="(T4,A)") &
          "Serialized record matches the expected output"
 
-   END SUBROUTINE
+   END SUBROUTINE dump_reload_check
 
 ! **************************************************************************************************
 !> \brief ...
@@ -241,6 +241,6 @@ CONTAINS
 
       WRITE (UNIT=default_output_unit, FMT="(T4,A)") &
          " successful"
-   END SUBROUTINE
+   END SUBROUTINE shuffle_check
 END PROGRAM parallel_rng_types_TEST
 ! vim: set ts=3 sw=3 tw=132 :

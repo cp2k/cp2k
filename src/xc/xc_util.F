@@ -61,7 +61,7 @@ CONTAINS
       requires = (xc_deriv_id == xc_deriv_spline2) .OR. &
                  (xc_deriv_id == xc_deriv_spline3) .OR. &
                  (xc_deriv_id == xc_deriv_pw)
-   END FUNCTION
+   END FUNCTION xc_requires_tmp_g
 
 ! **************************************************************************************************
 !> \brief ...

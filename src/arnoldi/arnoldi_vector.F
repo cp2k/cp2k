@@ -60,7 +60,7 @@ MODULE arnoldi_vector
    TYPE fast_vec_access_type
       TYPE(hash_table_type) :: hash_table = hash_table_type()
       TYPE(block_ptr), DIMENSION(:), ALLOCATABLE :: blk_map
-   END TYPE
+   END TYPE fast_vec_access_type
 
    PUBLIC :: dbcsr_matrix_colvec_multiply, &
              create_col_vec_from_matrix, &
@@ -385,7 +385,7 @@ CONTAINS
             END IF
          END DO
       END DO
-   END FUNCTION
+   END FUNCTION matching_prime
 
 ! **************************************************************************************************
 !> \brief create a hash_table of given initial size.

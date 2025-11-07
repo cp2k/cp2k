@@ -464,7 +464,7 @@ CONTAINS
                $:recover(variable)
             #:endfor
 
-         END SUBROUTINE
+         END SUBROUTINE xc_rho_set_recover_pw
 
          SUBROUTINE xc_rho_set_recover_pw_low(rho_pw, rho, pw_grid, pw_pool, rhoa, rhob)
             TYPE(pw_r3d_rs_type), INTENT(OUT) :: rho_pw
@@ -486,7 +486,7 @@ CONTAINS
                              "have to be associated in rho_set!")
             END IF
 
-         END SUBROUTINE
+         END SUBROUTINE xc_rho_set_recover_pw_low
 
 ! **************************************************************************************************
 !> \brief cleans (releases) most of the data stored in the rho_set giving back

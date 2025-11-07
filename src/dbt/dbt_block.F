@@ -70,19 +70,19 @@ MODULE dbt_block
    TYPE block_nd
       INTEGER, DIMENSION(:), ALLOCATABLE   :: sizes
       REAL(dp), DIMENSION(:), ALLOCATABLE :: blk
-   END TYPE
+   END TYPE block_nd
 
    INTERFACE create_block
       MODULE PROCEDURE create_block_data
       MODULE PROCEDURE create_block_nodata
-   END INTERFACE
+   END INTERFACE create_block
 
    INTERFACE dbt_put_block
       #:for ndim in ndims
          MODULE PROCEDURE dbt_put_${ndim}$d_block
       #:endfor
       MODULE PROCEDURE dbt_put_anyd_block
-   END INTERFACE
+   END INTERFACE dbt_put_block
 
    INTERFACE dbt_get_block
       #:for ndim in ndims
@@ -90,7 +90,7 @@ MODULE dbt_block
          MODULE PROCEDURE dbt_allocate_and_get_${ndim}$d_block
       #:endfor
       MODULE PROCEDURE dbt_get_anyd_block
-   END INTERFACE
+   END INTERFACE dbt_get_block
 
    INTERFACE dbt_reserve_blocks
       MODULE PROCEDURE dbt_reserve_blocks_index
@@ -98,7 +98,7 @@ MODULE dbt_block
       MODULE PROCEDURE dbt_reserve_blocks_template
       MODULE PROCEDURE dbt_reserve_blocks_tensor_to_matrix
       MODULE PROCEDURE dbt_reserve_blocks_matrix_to_tensor
-   END INTERFACE
+   END INTERFACE dbt_reserve_blocks
 
 CONTAINS
 
@@ -111,7 +111,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:) :: block_size
 
       ALLOCATE (block_size, source=block%sizes)
-   END FUNCTION
+   END FUNCTION block_size
 
 ! **************************************************************************************************
 !> \brief Generalization of block_iterator_start for tensors.
@@ -124,7 +124,7 @@ CONTAINS
       CPASSERT(tensor%valid)
       CALL dbt_tas_iterator_start(iterator%iter, tensor%matrix_rep)
       iterator%tensor => tensor
-   END SUBROUTINE
+   END SUBROUTINE dbt_iterator_start
 
 ! **************************************************************************************************
 !> \brief Generalization of block_iterator_stop for tensors.
@@ -134,7 +134,7 @@ CONTAINS
       TYPE(dbt_iterator_type), INTENT(INOUT) :: iterator
 
       CALL dbt_tas_iterator_stop(iterator%iter)
-   END SUBROUTINE
+   END SUBROUTINE dbt_iterator_stop
 
 ! **************************************************************************************************
 !> \brief Number of dimensions.
@@ -147,7 +147,7 @@ CONTAINS
       INTEGER                                 :: ndims_iterator
 
       ndims_iterator = iterator%tensor%nd_index%ndim_nd
-   END FUNCTION
+   END FUNCTION ndims_iterator
 
 ! **************************************************************************************************
 !> \brief iterate over nd blocks of an nd rank tensor, index only (blocks must be retrieved by
@@ -175,7 +175,7 @@ CONTAINS
       ! offset since block index mapping is not consistent with element index mapping
       IF (PRESENT(blk_offset)) blk_offset(:) = get_array_elements(iterator%tensor%blk_offsets, ind_nd)
 
-   END SUBROUTINE
+   END SUBROUTINE dbt_iterator_next_block
 
 ! **************************************************************************************************
 !> \brief Generalization of block_iterator_num_blocks for tensors.
@@ -187,7 +187,7 @@ CONTAINS
 
       dbt_iterator_num_blocks = dbt_tas_iterator_num_blocks(iterator%iter)
 
-   END FUNCTION
+   END FUNCTION dbt_iterator_num_blocks
 
 ! **************************************************************************************************
 !> \brief Generalization of block_iterator_blocks_left for tensors.
@@ -199,7 +199,7 @@ CONTAINS
 
       dbt_iterator_blocks_left = dbt_tas_iterator_blocks_left(iterator%iter)
 
-   END FUNCTION
+   END FUNCTION dbt_iterator_blocks_left
 
 ! **************************************************************************************************
 !> \brief reserve blocks from indices as array object
@@ -219,7 +219,7 @@ CONTAINS
       #:endfor
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE dbt_reserve_blocks_index_array
 
 ! **************************************************************************************************
 !> \brief reserve tensor blocks using block indices
@@ -255,7 +255,7 @@ CONTAINS
       CALL dbt_tas_reserve_blocks(tensor%matrix_rep, rows=rows, columns=cols)
       CALL dbt_finalize(tensor)
       CALL timestop(handle)
-   END SUBROUTINE
+   END SUBROUTINE dbt_reserve_blocks_index
 
 ! **************************************************************************************************
 !> \brief reserve tensor blocks using template
@@ -289,7 +289,7 @@ CONTAINS
 !$OMP END PARALLEL
 
       CALL timestop(handle)
-   END SUBROUTINE
+   END SUBROUTINE dbt_reserve_blocks_template
 
 ! **************************************************************************************************
 !> \brief reserve tensor blocks using matrix template
@@ -340,7 +340,7 @@ CONTAINS
       END IF
 
       CALL timestop(handle)
-   END SUBROUTINE
+   END SUBROUTINE dbt_reserve_blocks_matrix_to_tensor
 
 ! **************************************************************************************************
 !> \brief reserve matrix blocks using tensor template
@@ -384,7 +384,7 @@ CONTAINS
       CALL dbcsr_finalize(matrix_out)
 
       CALL timestop(handle)
-   END SUBROUTINE
+   END SUBROUTINE dbt_reserve_blocks_tensor_to_matrix
 
 ! **************************************************************************************************
 !> \brief Swaps two integers
@@ -410,7 +410,7 @@ CONTAINS
 
       ALLOCATE (block%sizes, source=sizes)
       ALLOCATE (block%blk, source=array)
-   END SUBROUTINE
+   END SUBROUTINE create_block_data
 
 ! **************************************************************************************************
 !> \brief Create and allocate block, but no data.
@@ -421,7 +421,7 @@ CONTAINS
       TYPE(block_nd), INTENT(OUT) :: block
       ALLOCATE (block%sizes, source=sizes)
       ALLOCATE (block%blk(PRODUCT(sizes)))
-   END SUBROUTINE
+   END SUBROUTINE create_block_nodata
 
 ! **************************************************************************************************
 !> \brief
@@ -431,7 +431,7 @@ CONTAINS
       TYPE(block_nd), INTENT(INOUT) :: block
       DEALLOCATE (block%blk)
       DEALLOCATE (block%sizes)
-   END SUBROUTINE
+   END SUBROUTINE destroy_block
 
 ! **************************************************************************************************
 !> \brief Determines whether a transpose must be applied
@@ -478,7 +478,7 @@ CONTAINS
             CALL dbt_put_${ndim}$d_block(tensor, ind, block%sizes, block%blk, summation=summation)
          #:endfor
       END SELECT
-   END SUBROUTINE
+   END SUBROUTINE dbt_put_anyd_block
 
 ! **************************************************************************************************
 !> \brief Generic implementation of dbt_get_block (arbitrary tensor rank)
@@ -511,7 +511,7 @@ CONTAINS
          #:endfor
       END SELECT
       CALL create_block(block, blk_size, block_arr)
-   END SUBROUTINE
+   END SUBROUTINE dbt_get_anyd_block
 
    #:for ndim in ndims
 ! **************************************************************************************************
@@ -575,7 +575,7 @@ CONTAINS
 
          IF (new_block) DEALLOCATE (block_2d)
 
-      END SUBROUTINE
+      END SUBROUTINE dbt_put_${ndim}$d_block
    #:endfor
 
    #:for ndim in ndims
@@ -603,7 +603,7 @@ CONTAINS
          CALL allocate_any(block, shape_spec=blk_size)
          CALL dbt_get_${ndim}$d_block(tensor, ind, blk_size, block, found)
 
-      END SUBROUTINE
+      END SUBROUTINE dbt_allocate_and_get_${ndim}$d_block
    #:endfor
 
    #:for ndim in ndims
@@ -651,7 +651,7 @@ CONTAINS
 
          END ASSOCIATE
 
-      END SUBROUTINE
+      END SUBROUTINE dbt_get_${ndim}$d_block
    #:endfor
 
-END MODULE
+END MODULE dbt_block

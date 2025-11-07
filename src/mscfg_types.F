@@ -50,7 +50,7 @@ MODULE mscfg_types
       INTEGER, DIMENSION(:), ALLOCATABLE                :: nmosets_of_frag
       TYPE(dbcsr_type), DIMENSION(:, :), ALLOCATABLE  :: mos_of_frag
 
-   END TYPE
+   END TYPE molecular_scf_guess_env_type
 
 CONTAINS
 

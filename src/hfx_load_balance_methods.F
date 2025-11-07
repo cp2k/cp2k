@@ -1148,7 +1148,7 @@ CONTAINS
 
       nBins = p*q/a
 
-   END SUBROUTINE
+   END SUBROUTINE hfx_calculate_PQ
 
 ! **************************************************************************************************
 !> \brief Recursive permutation routine for the load balancing of the integral

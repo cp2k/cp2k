@@ -180,7 +180,7 @@ CONTAINS
 #else
       CPABORT("Initialization of ELPA library requested but not enabled during build")
 #endif
-   END SUBROUTINE
+   END SUBROUTINE initialize_elpa_library
 
 ! **************************************************************************************************
 !> \brief Finalize the ELPA library
@@ -191,7 +191,7 @@ CONTAINS
 #else
       CPABORT("Finalization of ELPA library requested but not enabled during build")
 #endif
-   END SUBROUTINE
+   END SUBROUTINE finalize_elpa_library
 
 ! **************************************************************************************************
 !> \brief Sets the active ELPA kernel.

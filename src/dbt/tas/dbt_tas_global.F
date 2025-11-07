@@ -50,7 +50,7 @@ MODULE dbt_tas_global
    CONTAINS
       PROCEDURE(rowcol_dist), deferred  :: dist
       PROCEDURE(dist_rowcols), deferred :: rowcols
-   END TYPE
+   END TYPE dbt_tas_distribution
 
 ! **************************************************************************************************
 !> \brief type for cyclic (round robin) distribution:
@@ -62,7 +62,7 @@ MODULE dbt_tas_global
    CONTAINS
       PROCEDURE :: dist => cyclic_dist
       PROCEDURE :: rowcols => cyclic_rowcols
-   END TYPE
+   END TYPE dbt_tas_dist_cyclic
 
 ! **************************************************************************************************
 !> \brief type for arbitrary distributions
@@ -74,7 +74,7 @@ MODULE dbt_tas_global
    CONTAINS
       PROCEDURE                          :: dist => arb_dist
       PROCEDURE                          :: rowcols => arb_rowcols
-   END TYPE
+   END TYPE dbt_tas_dist_arb
 
 ! **************************************************************************************************
 !> \brief type for replicated distribution
@@ -89,7 +89,7 @@ MODULE dbt_tas_global
    CONTAINS
       PROCEDURE                         :: dist => repl_dist
       PROCEDURE                         :: rowcols => repl_rowcols
-   END TYPE
+   END TYPE dbt_tas_dist_repl
 
 ! **************************************************************************************************
 !> \brief abstract type for integer data (e.g. block sizes) along one dimension
@@ -102,7 +102,7 @@ MODULE dbt_tas_global
       INTEGER(KIND=int_8)              :: nfullrowcol = -1
    CONTAINS
       PROCEDURE(rowcol_data), deferred :: DATA
-   END TYPE
+   END TYPE dbt_tas_rowcol_data
 
 ! **************************************************************************************************
 !> \brief type for arbitrary block sizes
@@ -113,7 +113,7 @@ MODULE dbt_tas_global
       INTEGER, DIMENSION(:), ALLOCATABLE :: blk_size_vec
    CONTAINS
       PROCEDURE                          :: DATA => blk_size_arb
-   END TYPE
+   END TYPE dbt_tas_blk_size_arb
 
 ! **************************************************************************************************
 !> \brief type for replicated block sizes
@@ -125,7 +125,7 @@ MODULE dbt_tas_global
       INTEGER                            :: nmrowcol_local = -1
    CONTAINS
       PROCEDURE                          :: DATA => blk_size_repl
-   END TYPE
+   END TYPE dbt_tas_blk_size_repl
 
 ! **************************************************************************************************
 !> \brief type for blocks of size one
@@ -134,7 +134,7 @@ MODULE dbt_tas_global
    TYPE, EXTENDS(dbt_tas_rowcol_data) :: dbt_tas_blk_size_one
    CONTAINS
       PROCEDURE :: DATA => blk_size_one
-   END TYPE
+   END TYPE dbt_tas_blk_size_one
 
    ABSTRACT INTERFACE
 
@@ -149,7 +149,7 @@ MODULE dbt_tas_global
          CLASS(dbt_tas_distribution), INTENT(IN) :: t
          INTEGER(KIND=int_8), INTENT(IN) :: rowcol
          INTEGER :: rowcol_dist
-      END FUNCTION
+      END FUNCTION rowcol_dist
 
 ! **************************************************************************************************
 !> \brief map distribution rows/cols to matrix rows/cols
@@ -162,7 +162,7 @@ MODULE dbt_tas_global
          CLASS(dbt_tas_distribution), INTENT(IN) :: t
          INTEGER, INTENT(IN) :: dist
          INTEGER(KIND=int_8), DIMENSION(:), ALLOCATABLE :: dist_rowcols
-      END FUNCTION
+      END FUNCTION dist_rowcols
 
 ! **************************************************************************************************
 !> \brief integer data for each block row / col
@@ -175,7 +175,7 @@ MODULE dbt_tas_global
          CLASS(dbt_tas_rowcol_data), INTENT(IN) :: t
          INTEGER(KIND=int_8), INTENT(IN) :: rowcol
          INTEGER :: rowcol_data
-      END FUNCTION
+      END FUNCTION rowcol_data
 
    END INTERFACE
 
@@ -217,7 +217,7 @@ CONTAINS
       INTEGER(KIND=int_8), INTENT(IN) :: rowcol
       INTEGER :: blk_size_arb
       blk_size_arb = t%blk_size_vec(rowcol)
-   END FUNCTION
+   END FUNCTION blk_size_arb
 
 ! **************************************************************************************************
 !> \brief ...
@@ -237,7 +237,7 @@ CONTAINS
       rowcol_local = INT(MOD(rowcol - 1_int_8, INT(t%nmrowcol_local, KIND=int_8))) + 1
       blk_size_repl = t%blk_size_vec(rowcol_local)
 
-   END FUNCTION
+   END FUNCTION blk_size_repl
 
 ! **************************************************************************************************
 !> \brief ...
@@ -254,7 +254,7 @@ CONTAINS
       MARK_USED(t)
       MARK_USED(rowcol)
       blk_size_one = 1
-   END FUNCTION
+   END FUNCTION blk_size_one
 
 ! **************************************************************************************************
 !> \brief ...
@@ -270,7 +270,7 @@ CONTAINS
       new_block_tas_blk_size_arb%blk_size_vec(:) = blk_size_vec(:)
       new_block_tas_blk_size_arb%nmrowcol = SIZE(blk_size_vec)
       new_block_tas_blk_size_arb%nfullrowcol = SUM(blk_size_vec)
-   END FUNCTION
+   END FUNCTION new_block_tas_blk_size_arb
 
 ! **************************************************************************************************
 !> \brief ...
@@ -289,7 +289,7 @@ CONTAINS
       new_block_tas_blk_size_repl%blk_size_vec(:) = blk_size_vec(:)
       new_block_tas_blk_size_repl%nmrowcol = new_block_tas_blk_size_repl%nmrowcol_local*n_repl
       new_block_tas_blk_size_repl%nfullrowcol = SUM(blk_size_vec)*n_repl
-   END FUNCTION
+   END FUNCTION new_block_tas_blk_size_repl
 
 ! **************************************************************************************************
 !> \brief ...
@@ -303,7 +303,7 @@ CONTAINS
 
       new_block_tas_blk_size_one%nmrowcol = nrowcol
       new_block_tas_blk_size_one%nfullrowcol = nrowcol
-   END FUNCTION
+   END FUNCTION new_block_tas_blk_size_one
 
 ! **************************************************************************************************
 !> \brief ...
@@ -318,7 +318,7 @@ CONTAINS
       INTEGER :: arb_dist
 
       arb_dist = t%dist_vec(rowcol)
-   END FUNCTION
+   END FUNCTION arb_dist
 
 ! **************************************************************************************************
 !> \brief ...
@@ -339,7 +339,7 @@ CONTAINS
 
       repl_dist = t%dist_vec(rowcol_local) + igroup*t%dist_size
 
-   END FUNCTION
+   END FUNCTION repl_dist
 
 ! **************************************************************************************************
 !> \brief ...
@@ -375,7 +375,7 @@ CONTAINS
       ALLOCATE (repl_rowcols(count))
       repl_rowcols(:) = rowcols_tmp(1:count) + igroup*t%nmrowcol_local
 
-   END FUNCTION
+   END FUNCTION repl_rowcols
 
 ! **************************************************************************************************
 !> \brief ...
@@ -404,7 +404,7 @@ CONTAINS
 
       ALLOCATE (arb_rowcols(count))
       arb_rowcols(:) = rowcols_tmp(1:count)
-   END FUNCTION
+   END FUNCTION arb_rowcols
 
 ! **************************************************************************************************
 !> \brief ...
@@ -422,7 +422,7 @@ CONTAINS
       new_block_tas_dist_cyclic%split_size = split_size
       new_block_tas_dist_cyclic%nprowcol = nprowcol
       new_block_tas_dist_cyclic%nmrowcol = nmrowcol
-   END FUNCTION
+   END FUNCTION new_block_tas_dist_cyclic
 
 ! **************************************************************************************************
 !> \brief ...
@@ -442,7 +442,7 @@ CONTAINS
       new_block_tas_dist_arb%dist_vec(:) = dist_vec(:)
       new_block_tas_dist_arb%nprowcol = nprowcol
       new_block_tas_dist_arb%nmrowcol = nmrowcol
-   END FUNCTION
+   END FUNCTION new_block_tas_dist_arb
 
 ! **************************************************************************************************
 !> \brief Distribution that is more or less cyclic (round robin) and load balanced with different
@@ -471,7 +471,7 @@ CONTAINS
       CALL dbt_tas_default_distvec(INT(nmrowcol), nprowcol, bsize_vec, dist_vec)
       dbt_tas_dist_arb_default = dbt_tas_dist_arb(dist_vec, nprowcol, nmrowcol)
 
-   END FUNCTION
+   END FUNCTION dbt_tas_dist_arb_default
 
 ! **************************************************************************************************
 !> \brief get a load-balanced and randomized distribution along one tensor dimension
@@ -488,7 +488,7 @@ CONTAINS
 
       CALL distribute_lpt_random(nblk, nproc, blk_size, dist)
 
-   END SUBROUTINE
+   END SUBROUTINE dbt_tas_default_distvec
 
 ! **************************************************************************************************
 !> \brief distribute `nel` elements with weights `weights` over `nbin` bins.
@@ -552,7 +552,7 @@ CONTAINS
          occup(ibin) = occup(ibin) + weights_s(iel)
       END DO
 
-   END SUBROUTINE
+   END SUBROUTINE distribute_lpt_random
 
 ! **************************************************************************************************
 !> \brief ...
@@ -576,7 +576,7 @@ CONTAINS
       new_block_tas_dist_repl%nprowcol = nprowcol
       new_block_tas_dist_repl%nmrowcol_local = nmrowcol
       new_block_tas_dist_repl%nmrowcol = nmrowcol*n_repl
-   END FUNCTION
+   END FUNCTION new_block_tas_dist_repl
 
 ! **************************************************************************************************
 !> \brief ...
@@ -592,7 +592,7 @@ CONTAINS
 
       cyclic_dist = INT(MOD((rowcol - 1)/INT(t%split_size, KIND=int_8), INT(t%nprowcol, KIND=int_8)))
 
-   END FUNCTION
+   END FUNCTION cyclic_dist
 
 ! **************************************************************************************************
 !> \brief ...
@@ -629,6 +629,6 @@ CONTAINS
 
       ALLOCATE (cyclic_rowcols(count))
       cyclic_rowcols(:) = rowcols_tmp(1:count)
-   END FUNCTION
+   END FUNCTION cyclic_rowcols
 
-END MODULE
+END MODULE dbt_tas_global

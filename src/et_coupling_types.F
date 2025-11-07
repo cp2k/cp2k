@@ -44,7 +44,7 @@ MODULE et_coupling_types
       LOGICAL                                            :: first_run = .FALSE.
       LOGICAL                                            :: keep_matrix = .FALSE.
       REAL(KIND=dp)                                    :: energy = 0.0_dp, e1 = 0.0_dp, order_p = 0.0_dp
-   END TYPE
+   END TYPE et_coupling_type
 
 CONTAINS
 

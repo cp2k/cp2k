@@ -49,7 +49,7 @@ MODULE string_table
    TYPE hash_element_type
       CHARACTER(LEN=default_string_length), POINTER :: str => NULL()
       TYPE(hash_element_type), POINTER :: next => NULL()
-   END TYPE
+   END TYPE hash_element_type
 
    ! the array of linked lists of hashed strings
    TYPE(hash_element_type), SAVE, ALLOCATABLE, TARGET, DIMENSION(:) :: hash_table

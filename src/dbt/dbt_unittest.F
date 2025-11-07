@@ -790,4 +790,4 @@ PROGRAM dbt_unittest
    ! finalize mpi
    CALL mp_world_finalize()
 
-END PROGRAM
+END PROGRAM dbt_unittest

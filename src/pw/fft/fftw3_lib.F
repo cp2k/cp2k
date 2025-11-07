@@ -46,13 +46,13 @@ MODULE fftw3_lib
       MODULE PROCEDURE :: fftw_alloc_complex_1d
       MODULE PROCEDURE :: fftw_alloc_complex_2d
       MODULE PROCEDURE :: fftw_alloc_complex_3d
-   END INTERFACE
+   END INTERFACE fftw_alloc
 
    INTERFACE fftw_dealloc
       MODULE PROCEDURE :: fftw_dealloc_complex_1d
       MODULE PROCEDURE :: fftw_dealloc_complex_2d
       MODULE PROCEDURE :: fftw_dealloc_complex_3d
-   END INTERFACE
+   END INTERFACE fftw_dealloc
 
 CONTAINS
 
@@ -130,7 +130,7 @@ CONTAINS
       MARK_USED(FFTW_NO_SLOW)
       MARK_USED(FFTW_NO_FIXED_RADIX_LARGE_N)
       MARK_USED(FFTW_ALLOW_PRUNING)
-   END SUBROUTINE
+   END SUBROUTINE dummy_routine_to_call_mark_used
 #endif
 
 ! **************************************************************************************************
@@ -174,7 +174,7 @@ CONTAINS
       MARK_USED(ionode)
 #endif
 
-   END SUBROUTINE
+   END SUBROUTINE fftw3_do_cleanup
 
 ! **************************************************************************************************
 !> \brief ...
@@ -222,7 +222,7 @@ CONTAINS
       MARK_USED(wisdom_file)
 #endif
 
-   END SUBROUTINE
+   END SUBROUTINE fftw3_do_init
 
 ! **************************************************************************************************
 !> \brief ...
@@ -502,7 +502,7 @@ CONTAINS
 
 #endif
 
-   END SUBROUTINE
+   END SUBROUTINE fftw3_create_guru_plan
 
 ! **************************************************************************************************
 
@@ -549,7 +549,7 @@ CONTAINS
       guru_supported = .FALSE.
 #endif
 
-   END FUNCTION
+   END FUNCTION fftw3_is_guru_supported
 
 ! **************************************************************************************************
 
@@ -581,7 +581,7 @@ CONTAINS
          th_planB = nt - th_planA
       END IF
 
-   END SUBROUTINE
+   END SUBROUTINE fftw3_compute_rows_per_th
 
 ! **************************************************************************************************
 
@@ -642,7 +642,7 @@ CONTAINS
          CPABORT("fftw3_create_plan (remaining)")
       END IF
 
-   END SUBROUTINE
+   END SUBROUTINE fftw3_create_3d_plans
 
 ! **************************************************************************************************
 
@@ -892,7 +892,7 @@ CONTAINS
       IF (.FALSE.) THEN; DO; IF (ABS(input(1)) > ABS(output(1))) EXIT; END DO; END IF
 #endif
 
-   END SUBROUTINE
+   END SUBROUTINE fftw3_workshare_execute_dft
 
 ! **************************************************************************************************
 
@@ -1201,4 +1201,4 @@ CONTAINS
 
       END SUBROUTINE fftw31dm
 
-   END MODULE
+   END MODULE fftw3_lib

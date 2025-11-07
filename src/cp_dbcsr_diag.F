@@ -317,6 +317,6 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE cp_dbcsr_power
 
 END MODULE cp_dbcsr_diag

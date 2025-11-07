@@ -69,11 +69,11 @@ MODULE admm_types
 
    TYPE eigvals_type
       REAL(dp), DIMENSION(:), POINTER          :: DATA => NULL()
-   END TYPE
+   END TYPE eigvals_type
 
    TYPE eigvals_p_type
       TYPE(eigvals_type), POINTER              :: eigvals => NULL()
-   END TYPE
+   END TYPE eigvals_p_type
 
 ! **************************************************************************************************
 !> \brief A subtype of the admm_env that contains the extra data needed for an ADMM GAPW calculation
@@ -198,7 +198,7 @@ MODULE admm_types
       TYPE(cp_fm_type), DIMENSION(:), &
          POINTER                               :: mo_derivs_aux_fit => NULL()
 
-   END TYPE
+   END TYPE admm_type
 
 CONTAINS
 

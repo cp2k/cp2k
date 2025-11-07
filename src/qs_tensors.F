@@ -118,7 +118,7 @@ MODULE qs_tensors
 
    TYPE one_dim_int_array
       INTEGER, DIMENSION(:), ALLOCATABLE    :: array
-   END TYPE
+   END TYPE one_dim_int_array
 
    ! cache size for integral compression
    INTEGER, PARAMETER, PRIVATE :: cache_size = 1024
@@ -254,7 +254,7 @@ CONTAINS
 
       CALL atom2d_cleanup(atom2d)
 
-   END SUBROUTINE
+   END SUBROUTINE build_2c_neighbor_lists
 
 ! **************************************************************************************************
 !> \brief Build a 3-center neighbor list
@@ -353,7 +353,7 @@ CONTAINS
       END IF
 
       CALL timestop(handle)
-   END SUBROUTINE
+   END SUBROUTINE build_3c_neighbor_lists
 
 ! **************************************************************************************************
 !> \brief Symmetry criterion
@@ -371,7 +371,7 @@ CONTAINS
          include_symmetric = (MODULO(a + b, 2) == 0)
       END IF
 
-   END FUNCTION
+   END FUNCTION include_symmetric
 
 ! **************************************************************************************************
 !> \brief Destroy 3c neighborlist
@@ -387,7 +387,7 @@ CONTAINS
          CALL distribution_3d_destroy(ijk_list%dist_3d)
       END IF
 
-   END SUBROUTINE
+   END SUBROUTINE neighbor_list_3c_destroy
 
 ! **************************************************************************************************
 !> \brief Create a 3-center neighborlist iterator
@@ -415,7 +415,7 @@ CONTAINS
       iterator%bounds_k = 0
 
       CALL timestop(handle)
-   END SUBROUTINE
+   END SUBROUTINE neighbor_list_3c_iterator_create
 
 ! **************************************************************************************************
 !> \brief impose atomic upper and lower bounds
@@ -433,7 +433,7 @@ CONTAINS
       IF (PRESENT(bounds_j)) iterator%bounds_j = bounds_j
       IF (PRESENT(bounds_k)) iterator%bounds_k = bounds_k
 
-   END SUBROUTINE
+   END SUBROUTINE nl_3c_iter_set_bounds
 
 ! **************************************************************************************************
 !> \brief Destroy 3c-nl iterator
@@ -454,7 +454,7 @@ CONTAINS
       NULLIFY (iterator%iter_jk)
 
       CALL timestop(handle)
-   END SUBROUTINE
+   END SUBROUTINE neighbor_list_3c_iterator_destroy
 
 ! **************************************************************************************************
 !> \brief Iterate 3c-nl iterator
@@ -538,7 +538,7 @@ CONTAINS
          RETURN
       END IF
 
-   END FUNCTION
+   END FUNCTION neighbor_list_3c_iterate
 
 ! **************************************************************************************************
 !> \brief Get info of current iteration
@@ -596,7 +596,7 @@ CONTAINS
       IF (PRESENT(cell_j)) cell_j = cell_1
       IF (PRESENT(cell_k)) cell_k = cell_1 + cell_2
 
-   END SUBROUTINE
+   END SUBROUTINE get_3c_iterator_info
 
 ! **************************************************************************************************
 !> \brief Allocate blocks of a 3-center tensor based on neighborlist
@@ -891,7 +891,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE alloc_block_3c
 
 ! **************************************************************************************************
 !> \brief Build 3-center derivative tensors
@@ -3520,7 +3520,7 @@ CONTAINS
                                             memory_usage, .FALSE.)
       END DO
 
-   END SUBROUTINE
+   END SUBROUTINE compress_tensor
 
 ! **************************************************************************************************
 !> \brief ...
@@ -3612,7 +3612,7 @@ CONTAINS
          CALL hfx_reset_cache_and_container(integral_caches(i), integral_containers(i), &
                                             memory_usage, .FALSE.)
       END DO
-   END SUBROUTINE
+   END SUBROUTINE decompress_tensor
 
 ! **************************************************************************************************
 !> \brief ...
@@ -3631,6 +3631,6 @@ CONTAINS
       CALL dbt_get_info(tensor, nfull_total=dims)
       occ = REAL(nze, dp)/PRODUCT(REAL(dims, dp))
 
-   END SUBROUTINE
+   END SUBROUTINE get_tensor_occupancy
 
-END MODULE
+END MODULE qs_tensors

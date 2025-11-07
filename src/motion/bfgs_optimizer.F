@@ -1148,7 +1148,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: d, rho, deriv
 
       deriv = 0.45_dp*rho*(r1(i)*r1(j))/d**2
-   END FUNCTION
+   END FUNCTION dist_second_deriv
 
 ! **************************************************************************************************
 !> \brief ...

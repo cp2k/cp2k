@@ -64,7 +64,7 @@ MODULE dbt_tas_reshape_ops
       INTEGER(KIND=int_8), DIMENSION(:, :), ALLOCATABLE :: indx
       REAL(dp), DIMENSION(:), ALLOCATABLE :: msg
       INTEGER :: endpos = -1
-   END TYPE
+   END TYPE dbt_buffer_type
 
 CONTAINS
 
@@ -254,7 +254,7 @@ CONTAINS
       CALL dbt_tas_finalize(matrix_out)
 
       CALL timestop(handle)
-   END SUBROUTINE
+   END SUBROUTINE dbt_tas_reshape
 
 ! **************************************************************************************************
 !> \brief Replicate matrix_in such that each submatrix of matrix_out is an exact copy of matrix_in
@@ -488,7 +488,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE dbt_tas_replicate
 
 ! **************************************************************************************************
 !> \brief Merge submatrices of matrix_in to matrix_out by sum
@@ -657,7 +657,7 @@ CONTAINS
       CALL dbm_finalize(matrix_out)
 
       CALL timestop(handle)
-   END SUBROUTINE
+   END SUBROUTINE dbt_tas_merge
 
 ! **************************************************************************************************
 !> \brief get all indices from buffer
@@ -681,7 +681,7 @@ CONTAINS
       ALLOCATE (INDEX(indx_shape(1), indx_shape(2)))
       INDEX(:, :) = buffer%indx(1:indx_shape(1), 1:indx_shape(2))
       CALL timestop(handle)
-   END SUBROUTINE
+   END SUBROUTINE dbt_buffer_get_index
 
 ! **************************************************************************************************
 !> \brief how many blocks left in iterator
@@ -694,7 +694,7 @@ CONTAINS
       LOGICAL                                            :: dbt_buffer_blocks_left
 
       dbt_buffer_blocks_left = buffer%endpos < buffer%nblock
-   END FUNCTION
+   END FUNCTION dbt_buffer_blocks_left
 
 ! **************************************************************************************************
 !> \brief Create block buffer for MPI communication.
@@ -711,7 +711,7 @@ CONTAINS
       buffer%endpos = 0
       ALLOCATE (buffer%msg(ndata))
       ALLOCATE (buffer%indx(nblock, 3))
-   END SUBROUTINE
+   END SUBROUTINE dbt_buffer_create
 
 ! **************************************************************************************************
 !> \brief ...
@@ -777,7 +777,7 @@ CONTAINS
          buffer%indx(p + 1, 3) = INT(ndata, KIND=int_8)
       END IF
       buffer%endpos = buffer%endpos + 1
-   END SUBROUTINE
+   END SUBROUTINE dbt_buffer_add_block
 
 ! **************************************************************************************************
 !> \brief get next block from buffer. Iterator is advanced only if block is retrieved or advance_iter.
@@ -824,7 +824,7 @@ CONTAINS
       END IF
 
       IF (do_advance) buffer%endpos = buffer%endpos + 1
-   END SUBROUTINE
+   END SUBROUTINE dbt_buffer_get_next_block
 
 ! **************************************************************************************************
 !> \brief communicate buffer
@@ -884,6 +884,6 @@ CONTAINS
          END IF
       END IF
       CALL timestop(handle)
-   END SUBROUTINE
+   END SUBROUTINE dbt_tas_communicate_buffer
 
-END MODULE
+END MODULE dbt_tas_reshape_ops

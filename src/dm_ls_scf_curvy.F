@@ -749,7 +749,7 @@ CONTAINS
       CALL dbcsr_release(matrix_work)
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE transform_matrix_orth
 
 ! **************************************************************************************************
 !> \brief ...

@@ -178,7 +178,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE mult_B_with_W
 
 ! **************************************************************************************************
 !> \brief Adds and reorders full matrices with a combined index structure, e.g. adding W_ij,ab
@@ -840,7 +840,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE comp_eigvec_coeff_BSE
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1108,7 +1108,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE filter_eigvec_contrib
 
 ! **************************************************************************************************
 !> \brief Reads cutoffs for BSE from mp2_env and compares to energies in Eigenval to extract
@@ -1179,7 +1179,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE determine_cutoff_indices
 
 ! **************************************************************************************************
 !> \brief Determines indices within the given energy cutoffs and truncates Eigenvalues and matrices
@@ -1923,4 +1923,4 @@ CONTAINS
 
    END SUBROUTINE trace_exciton_descr
 
-END MODULE
+END MODULE bse_util
