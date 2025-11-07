@@ -266,13 +266,13 @@ CONTAINS
             DO at_k = 1, natom
 
                IF (PRESENT(atom_i)) THEN
-                  IF (at_i .NE. atom_i) CYCLE
+                  IF (at_i /= atom_i) CYCLE
                END IF
                IF (PRESENT(atom_j)) THEN
-                  IF (at_j .NE. atom_j) CYCLE
+                  IF (at_j /= atom_j) CYCLE
                END IF
                IF (PRESENT(atom_k)) THEN
-                  IF (at_k .NE. atom_k) CYCLE
+                  IF (at_k /= atom_k) CYCLE
                END IF
 
                my_cell_i(1:3) = 0
@@ -360,7 +360,7 @@ CONTAINS
                         sgfj = first_sgf_j(1, jset)
                         sgfk = first_sgf_k(1, kset)
 
-                        IF (ncoj*ncok*ncoi .LE. 0) CYCLE
+                        IF (ncoj*ncok*ncoi <= 0) CYCLE
                         ALLOCATE (sijk(ncoj, ncok, ncoi))
                         sijk(:, :, :) = 0.0_dp
 

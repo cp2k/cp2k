@@ -80,10 +80,10 @@ CONTAINS
          WRITE (output_unit, *) "Running with ", nprocs
          WRITE (output_unit, *) "running messages with npow = ", npow
          WRITE (output_unit, *) "use MPI X in the input for larger (e.g. 6) of smaller (e.g. 3) messages"
-         IF (MODULO(nprocs, 2) .NE. 0) WRITE (output_unit, *) "Testing only with an even number of tasks"
+         IF (MODULO(nprocs, 2) /= 0) WRITE (output_unit, *) "Testing only with an even number of tasks"
       END IF
 
-      IF (MODULO(nprocs, 2) .NE. 0) RETURN
+      IF (MODULO(nprocs, 2) /= 0) RETURN
 
       ! equal loads
       Nloc = Ngrid/nprocs
@@ -122,7 +122,7 @@ CONTAINS
       DO i = 1, npow
          ncount = 10**i
          t2 = 0.0E0_dp
-         IF (ncount .GT. nbufmax) CPABORT("")
+         IF (ncount > nbufmax) CPABORT("")
          DO j = 1, 3**(npow - i)
             CALL comm%sync()
             t1 = MPI_WTIME()
@@ -145,7 +145,7 @@ CONTAINS
       DO i = 1, npow
          ncount = 10**i
          t2 = 0.0E0_dp
-         IF (ncount .GT. nbufmax) CPABORT("")
+         IF (ncount > nbufmax) CPABORT("")
          DO j = 1, 3**(npow - i)
             CALL comm%sync()
             t1 = MPI_WTIME()
@@ -167,15 +167,15 @@ CONTAINS
       END IF
       ncount = 10**npow
       IF (ionode .AND. output_unit > 0) WRITE (output_unit, *) "For messages of ", ncount*8, " bytes"
-      IF (ncount .GT. nbufmax) CPABORT("")
+      IF (ncount > nbufmax) CPABORT("")
       DO itask = 0, nprocs - 1
          DO jtask = itask + 1, nprocs - 1
             CALL comm%sync()
             t1 = MPI_WTIME()
-            IF (taskid .EQ. itask) THEN
+            IF (taskid == itask) THEN
                CALL comm%send(buffer1, jtask, itask*jtask)
             END IF
-            IF (taskid .EQ. jtask) THEN
+            IF (taskid == jtask) THEN
                source = itask
                tag = itask*jtask
                CALL comm%recv(buffer1, source, tag)
@@ -202,7 +202,7 @@ CONTAINS
       DO i = 1, npow
          ncount = 10**i
          t2 = 0.0E0_dp
-         IF (ncount .GT. nbufmax) CPABORT("")
+         IF (ncount > nbufmax) CPABORT("")
          DO j = 1, 3**(npow - i)
             CALL comm%sync()
             t1 = MPI_WTIME()
@@ -231,12 +231,12 @@ CONTAINS
       DO i = 1, npow
          ncount = 10**i
          t2 = 0.0E0_dp
-         IF (ncount .GT. nbufmax) CPABORT("")
+         IF (ncount > nbufmax) CPABORT("")
          DO j = 1, 3**(npow - i)
             CALL comm%sync()
             t1 = MPI_WTIME()
             ! first half with partner
-            IF (taskid .LT. nprocs/2) THEN
+            IF (taskid < nprocs/2) THEN
                CALL comm%send(buffer1, taskid + nprocs/2, 0)
             ELSE
                source = taskid - nprocs/2
@@ -261,7 +261,7 @@ CONTAINS
       DO i = 1, npow
          ncount = 10**i
          t2 = 0.0E0_dp
-         IF (ncount .GT. nbufmax) CPABORT("")
+         IF (ncount > nbufmax) CPABORT("")
          DO j = 1, 3**(npow - i)
             CALL comm%sync()
             t1 = MPI_WTIME()
@@ -281,7 +281,7 @@ CONTAINS
       DO i = 1, npow
          ncount = 10**i
          t2 = 0.0E0_dp
-         IF (ncount .GT. nbufmax) CPABORT("")
+         IF (ncount > nbufmax) CPABORT("")
          DO j = 1, 3**(npow - i)
             buffer2(:) = buffer1
             CALL comm%sync()
@@ -305,7 +305,7 @@ CONTAINS
       DO i = 1, npow
          ncount = 10**i
          t2 = 0.0E0_dp
-         IF (ncount .GT. nbufmax) CPABORT("")
+         IF (ncount > nbufmax) CPABORT("")
          scount = ncount/nprocs
          rcount = ncount/nprocs
          DO j = 1, nprocs
@@ -357,7 +357,7 @@ CONTAINS
          lgrid2 = 0.0E0_dp
          DO i = 1, Nprocs
             lgrid2(:) = lgrid2 + grid(:, MODULO(taskid - i, Nprocs) + 1)
-            IF (i .EQ. nprocs) EXIT
+            IF (i == nprocs) EXIT
             CALL comm%shift(lgrid2, 1)
          END DO
          t4 = MPI_WTIME() - t3 + threshold
@@ -399,7 +399,7 @@ CONTAINS
          lgrid3 = 0.0E0_dp
          DO i = 1, Nprocs, 2
             lgrid3(:) = lgrid3 + grid3(:, MODULO(taskid - i - 1, Nprocs) + 1)
-            IF (i .EQ. nprocs - 1) EXIT
+            IF (i == nprocs - 1) EXIT
             CALL comm%shift(lgrid3, 2)
          END DO
          t5 = MPI_WTIME() - t3 + threshold

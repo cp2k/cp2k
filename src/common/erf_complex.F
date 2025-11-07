@@ -114,7 +114,7 @@ CONTAINS
       ! For purely imaginary z, use intrinsic scaled complement of
       ! the error function, erfc_scaled (F2008 and beyond).
       ! Return immediately.
-      IF (ABS(x) .EQ. zero) THEN
+      IF (ABS(x) == zero) THEN
          faddeyeva_accurate = erfc_scaled(y)
          RETURN
       END IF
@@ -152,7 +152,7 @@ CONTAINS
       n3 = CEILING(x/a)
       n3_3 = n3 - 1
 
-      outer: IF ((sqrt_log_rmin - x) .GT. 0) THEN
+      outer: IF ((sqrt_log_rmin - x) > 0) THEN
          sigma1 = rmin
          sigma2 = rmin
          sigma4 = rmin
@@ -165,14 +165,14 @@ CONTAINS
          del3_3_tmp = EXP(a_sqr - (two_a_sqr*n3 - two_a_x))
 
          loop1: DO
-            IF (delta3 .LT. myerr .AND. delta5 .LT. myerr .AND. &
-                n .GT. 50) EXIT loop1
+            IF (delta3 < myerr .AND. delta5 < myerr .AND. &
+                n > 50) EXIT loop1
             n = n + 1
             den1 = a_sqr*n**2 + y_sqr
             exp_del1 = EXP(-(a_sqr*n**2))/den1
             del2_tmp = del2_tmp*exp1
 
-            minor: IF (n3_3 .GE. 1) THEN
+            minor: IF (n3_3 >= 1) THEN
                del3_tmp = del3_tmp*exp3
                exp3_den = del3_tmp*exp_del1* &
                           (den1/(a_sqr*n3**2 + y_sqr))
@@ -197,7 +197,7 @@ CONTAINS
             sigma4 = sigma4 + n*del2_tmp*exp_x_sqr*exp_del1
             sigma5 = sigma5 + del5
 
-            IF (x .GE. 5.0e-4_dp) THEN
+            IF (x >= 5.0e-4_dp) THEN
                sigma4_5 = -sigma4 + sigma5
             ELSE
                sigma4_5 = sigma4_5 + 2*n**2*two_a_x*exp_x_sqr &
@@ -214,11 +214,11 @@ CONTAINS
          ! Second line of Eqn (13)
          aux13 = y*two_a_pi* &
                  (-cos_2yx*exp_x_sqr*sigma1 + half*(sigma2 + sigma3))
-         mumu: IF (y .LE. 5.0_dp .AND. two_yx .GT. rmin) THEN
+         mumu: IF (y <= 5.0_dp .AND. two_yx > rmin) THEN
             faddeyeva_accurate = v_old + aux13 + cmplxj*xsign &
                                  *(sin_2yx*exp_x_sqr*(l_old + two_a_pi*y*sigma1) &
                                    + two_a_pi*half_a*sigma4_5)
-         ELSE IF (y .LE. 5.0_dp .AND. two_yx .LE. rmin) THEN
+         ELSE IF (y <= 5.0_dp .AND. two_yx <= rmin) THEN
             faddeyeva_accurate = v_old + aux13 + cmplxj*xsign &
                                  *(two*y*exp_x_sqr*(x*l_old + x*two_a_pi*y &
                                                     *sigma1) + two_a_pi*half_a*sigma4_5)
@@ -229,16 +229,16 @@ CONTAINS
                                    *sigma4_5)
          END IF mumu
 
-      ELSE IF (x .GE. sqrt_log_rmin .AND. x .LT. 1.0e15_dp) THEN
+      ELSE IF (x >= sqrt_log_rmin .AND. x < 1.0e15_dp) THEN
 
          exp2 = EXP(four_a_sqr*n3 - 2*two_a_x - two_a_sqr)
          del3_3_tmp = EXP(a_sqr + two_a_x - two_a_sqr*n3)
 
          loop2: DO
-            IF (delta3 .LT. myerr .AND. delta5 .LT. myerr .AND. &
-                n .GT. 50) EXIT loop2
+            IF (delta3 < myerr .AND. delta5 < myerr .AND. &
+                n > 50) EXIT loop2
             n = n + 1
-            IF (n3_3 .GE. 1) THEN
+            IF (n3_3 >= 1) THEN
                exp3_den = EXP(-(a*n3 - x)*(a*n3 - x)) &
                           /(a_sqr*n3**2 + y_sqr)
                del3_3_tmp = del3_3_tmp*exp2
@@ -267,7 +267,7 @@ CONTAINS
          faddeyeva_accurate = one_sqrt_pi*((y + cmplxj*xsign*x)/(x_sqr + y_sqr))
       END IF outer
 
-      IF (ysign .LT. zero) THEN
+      IF (ysign < zero) THEN
          two_exp_x_sqr_ysqr = two*EXP(-x_sqr + y_sqr)
          faddeyeva_accurate = two_exp_x_sqr_ysqr*cos_2yx - REAL(faddeyeva_accurate) - cmplxj &
                               *(-xsign*two_exp_x_sqr_ysqr*sin_2yx - AIMAG(faddeyeva_accurate))
@@ -341,7 +341,7 @@ CONTAINS
       xquad = xabsq - yabs**2
       yquad = 2*xabs*yabs
 
-      a = qrho .LT. 0.085264_dp
+      a = qrho < 0.085264_dp
 
       branch1: IF (a) THEN
 
@@ -372,7 +372,7 @@ CONTAINS
          v = u1*v2 + v1*u2
       ELSE
 
-         bran2: IF (qrho .GT. one) THEN
+         bran2: IF (qrho > one) THEN
 
             ! If ( qrho .gt. 1) then w(z) is evaluated using the laplace
             ! continued fraction. nu is the minimum number of terms needed
@@ -402,7 +402,7 @@ CONTAINS
 
          END IF bran2
 
-         b = h .GT. zero
+         b = h > zero
 
          ! To avoid uninitialise compiler warning. qlambda is used
          ! only if (b), so can define to any value otherwise.
@@ -421,7 +421,7 @@ CONTAINS
             c = half/(tx**2 + ty**2)
             rx = c*tx
             ry = c*ty
-            IF (b .AND. n .LE. kapn) THEN
+            IF (b .AND. n <= kapn) THEN
                tx = qlambda + sx
                sx = rx*tx - ry*sy
                sy = ry*tx + rx*sy
@@ -429,7 +429,7 @@ CONTAINS
             END IF
          END DO
 
-         IF (h .EQ. zero) THEN
+         IF (h == zero) THEN
             u = factor*rx
             v = factor*ry
          ELSE
@@ -437,13 +437,13 @@ CONTAINS
             v = factor*sy
          END IF
 
-         IF (yabs .EQ. zero) u = EXP(-xabs**2)
+         IF (yabs == zero) u = EXP(-xabs**2)
 
       END IF branch1
 
       ! Evaluation of w(z) in the other quadrants
 
-      IF (yi .LT. zero) THEN
+      IF (yi < zero) THEN
 
          IF (a) THEN
             u2 = two*u2
@@ -457,9 +457,9 @@ CONTAINS
 
          u = u2 - u
          v = v2 - v
-         IF (xi .GT. zero) v = -v
+         IF (xi > zero) v = -v
       ELSE
-         IF (xi .LT. zero) v = -v
+         IF (xi < zero) v = -v
       END IF
 
       faddeyeva_fast = CMPLX(u, v, kind=dp)

@@ -582,7 +582,7 @@ CONTAINS
          jmol = kg_env%atom_to_molecule(jatom)
 
          !IF (imol<jmol) THEN
-         IF (imol .NE. jmol) THEN
+         IF (imol /= jmol) THEN
 
             npairs = npairs + 2
 
@@ -601,7 +601,7 @@ CONTAINS
          imol = kg_env%atom_to_molecule(iatom)
          jmol = kg_env%atom_to_molecule(jatom)
 
-         IF (imol .NE. jmol) THEN
+         IF (imol /= jmol) THEN
 
             ! add pair to the local list
 
@@ -659,7 +659,7 @@ CONTAINS
          npairs = 0
 
          DO i = 1, SIZE(msg_gather, 2)
-            IF (msg_gather(1, i) .NE. 0) THEN
+            IF (msg_gather(1, i) /= 0) THEN
                npairs = npairs + 1
                msg_gather(:, npairs) = msg_gather(:, i)
             END IF
@@ -702,7 +702,7 @@ CONTAINS
       ! broadcast the resulting coloring to all nodes.....
       CALL para_env%bcast(color_of_node)
 
-      IF ((kg_env%nsubsets .NE. 0) .AND. (ncolors .NE. kg_env%nsubsets)) THEN
+      IF ((kg_env%nsubsets /= 0) .AND. (ncolors /= kg_env%nsubsets)) THEN
          ! number of subsets has changed
 
          ! deallocate stuff if necessary

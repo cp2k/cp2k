@@ -155,7 +155,7 @@ CONTAINS
 
       ! initialize PEXSI
       IF (ls_scf_env%do_pexsi) THEN
-         IF (dft_control%qs_control%eps_filter_matrix .NE. 0.0_dp) &
+         IF (dft_control%qs_control%eps_filter_matrix /= 0.0_dp) &
             CPABORT("EPS_FILTER_MATRIX must be set to 0 for PEXSI.")
          CALL lib_pexsi_init(ls_scf_env%pexsi, ls_scf_env%para_env, ls_scf_env%nspins)
       END IF
@@ -269,7 +269,7 @@ CONTAINS
       pexsi_section => section_vals_get_subs_vals(input, "DFT%LS_SCF%PEXSI")
       CALL section_vals_get(pexsi_section)
 
-      ls_scf_env%do_pexsi = ls_scf_env%purification_method .EQ. ls_scf_pexsi &
+      ls_scf_env%do_pexsi = ls_scf_env%purification_method == ls_scf_pexsi &
                             .AND. .NOT. ls_scf_env%do_transport
       IF (ls_scf_env%do_pexsi) THEN
          CALL pexsi_init_read_input(pexsi_section, ls_scf_env%pexsi)
@@ -323,16 +323,16 @@ CONTAINS
          CPABORT("CURVY_STEPS requires the use of the sqrt inversion.")
 
       ! verify requirements for direct submatrix sign methods
-      IF (ls_scf_env%sign_method .EQ. ls_scf_sign_submatrix &
+      IF (ls_scf_env%sign_method == ls_scf_sign_submatrix &
           .AND. ( &
-          ls_scf_env%submatrix_sign_method .EQ. ls_scf_submatrix_sign_direct &
-          .OR. ls_scf_env%submatrix_sign_method .EQ. ls_scf_submatrix_sign_direct_muadj &
-          .OR. ls_scf_env%submatrix_sign_method .EQ. ls_scf_submatrix_sign_direct_muadj_lowmem &
+          ls_scf_env%submatrix_sign_method == ls_scf_submatrix_sign_direct &
+          .OR. ls_scf_env%submatrix_sign_method == ls_scf_submatrix_sign_direct_muadj &
+          .OR. ls_scf_env%submatrix_sign_method == ls_scf_submatrix_sign_direct_muadj_lowmem &
           ) .AND. .NOT. ls_scf_env%sign_symmetric) &
          CPABORT("DIRECT submatrix sign methods require SIGN_SYMMETRIC being set.")
       IF (ls_scf_env%fixed_mu .AND. ( &
-          ls_scf_env%submatrix_sign_method .EQ. ls_scf_submatrix_sign_direct_muadj &
-          .OR. ls_scf_env%submatrix_sign_method .EQ. ls_scf_submatrix_sign_direct_muadj_lowmem &
+          ls_scf_env%submatrix_sign_method == ls_scf_submatrix_sign_direct_muadj &
+          .OR. ls_scf_env%submatrix_sign_method == ls_scf_submatrix_sign_direct_muadj_lowmem &
           )) CPABORT("Invalid submatrix sign method for FIXED_MU.")
 
       ! sign_symmetric requires computation of s_sqrt

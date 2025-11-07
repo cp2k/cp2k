@@ -2939,7 +2939,7 @@ CONTAINS
             ALLOCATE (fft_scratch_new)
             ALLOCATE (fft_scratch_new%fft_scratch)
 
-            IF (tf_type .NE. 400) THEN
+            IF (tf_type /= 400) THEN
                fft_scratch_new%fft_scratch%sizes = fft_sizes
                np = fft_sizes%numtask
                ALLOCATE (fft_scratch_new%fft_scratch%scount(0:np - 1), fft_scratch_new%fft_scratch%rcount(0:np - 1), &

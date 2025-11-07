@@ -717,7 +717,7 @@ CONTAINS
          ev(1:nb) = MATMUL(a(1:nb, 1:nb1), b(nb1, 1:nb1))
 
          ! Update Kohn-Sham matrix
-         IF (iscf .GE. ls_scf_env%iter_ini_diis) THEN ! if-iscf-to-updateKS------ START
+         IF (iscf >= ls_scf_env%iter_ini_diis) THEN ! if-iscf-to-updateKS------ START
 
             IF (unit_nr > 0) THEN
                WRITE (unit_nr, '(A40,I3)') 'DIIS: Updating Kohn-Sham matrix at iscf=', iscf

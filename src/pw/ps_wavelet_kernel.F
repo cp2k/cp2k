@@ -901,7 +901,7 @@ CONTAINS
       iend = MIN((iproc + 1)*nker2/nproc, n2h + n03)
 
       istart1 = istart
-      IF (iproc .EQ. 0) istart1 = n2h - n03 + 2
+      IF (iproc == 0) istart1 = n2h - n03 + 2
 
       !Allocations
       ALLOCATE (x_scf(0:n_scf))
@@ -992,7 +992,7 @@ CONTAINS
             ! This seems to happen with large MPI processor counts if the size of the
             ! RS grid is not directly compatible with the allowed FFT dimensions in
             ! subroutine fourier_dim (ps_wavelet_fft3d.F)
-            IF (i03 .LT. -n_range .OR. i03 .GT. n_range) THEN
+            IF (i03 < -n_range .OR. i03 > n_range) THEN
                CALL cp_abort(__LOCATION__, "Index out of range in wavelet solver. "// &
                              "Try decreasing the number of MPI processors, or adjust the PW_CUTOFF or cell size "// &
                              "so that 2*(number of RS grid points) matches the allowed FFT dimensions "// &
@@ -1127,19 +1127,19 @@ CONTAINS
 !Body
 !check input
 
-      CPASSERT(nd1 .GE. n1)
-      CPASSERT(nd2 .GE. n2)
-      CPASSERT(nd3 .GE. n3/2 + 1)
-      CPASSERT(MOD(nd3, nproc) .EQ. 0)
-      CPASSERT(MOD(nd2, nproc) .EQ. 0)
+      CPASSERT(nd1 >= n1)
+      CPASSERT(nd2 >= n2)
+      CPASSERT(nd3 >= n3/2 + 1)
+      CPASSERT(MOD(nd3, nproc) == 0)
+      CPASSERT(MOD(nd2, nproc) == 0)
       MARK_USED(nd1)
 
       !defining work arrays dimensions
       ncache = ncache_optimal
       IF (ncache <= MAX(n1, n2, n3/2)*4) ncache = MAX(n1, n2, n3/2)*4
       lzt = n2
-      IF (MOD(n2, 2) .EQ. 0) lzt = lzt + 1
-      IF (MOD(n2, 4) .EQ. 0) lzt = lzt + 1
+      IF (MOD(n2, 2) == 0) lzt = lzt + 1
+      IF (MOD(n2, 4) == 0) lzt = lzt + 1
 
       !Allocations
       ALLOCATE (trig1(2, ctrig_length))
@@ -1158,7 +1158,7 @@ CONTAINS
       ALLOCATE (zt(2, lzt, n1))
       ALLOCATE (zmpi2(2, n1, nd2/nproc, nd3))
       ALLOCATE (cosinarr(2, n3/2))
-      IF (nproc .GT. 1) THEN
+      IF (nproc > 1) THEN
          ALLOCATE (zmpi1(2, n1, nd2/nproc, nd3/nproc, nproc))
          zmpi1 = 0.0_dp
       END IF
@@ -1179,11 +1179,11 @@ CONTAINS
       !transform along z axis
 
       lot = ncache/(2*n3)
-      CPASSERT(lot .GE. 1)
+      CPASSERT(lot >= 1)
 
       DO j2 = 1, nd2/nproc
          !this condition ensures that we manage only the interesting part for the FFT
-         IF (iproc*(nd2/nproc) + j2 .LE. n2) THEN
+         IF (iproc*(nd2/nproc) + j2 <= n2) THEN
             DO i1 = 1, n1, lot
                ma = i1
                mb = MIN(i1 + (lot - 1), n1)
@@ -1214,7 +1214,7 @@ CONTAINS
 
       !Interprocessor data transposition
       !input: I1,J2,j3,jp3,(Jp2)
-      IF (nproc .GT. 1) THEN
+      IF (nproc > 1) THEN
          !communication scheduling
          CALL mpi_group%alltoall(zmpi2, &!2*n1*(nd2/nproc)*(nd3/nproc), &
                                  zmpi1, 2*n1*(nd2/nproc)*(nd3/nproc))
@@ -1223,13 +1223,13 @@ CONTAINS
 
       DO j3 = 1, nd3/nproc
          !this condition ensures that we manage only the interesting part for the FFT
-         IF (iproc*(nd3/nproc) + j3 .LE. n3/2 + 1) THEN
+         IF (iproc*(nd3/nproc) + j3 <= n3/2 + 1) THEN
             Jp2st = 1
             J2st = 1
 
             !transform along x axis
             lot = ncache/(4*n1)
-            CPASSERT(lot .GE. 1)
+            CPASSERT(lot >= 1)
 
             DO j = 1, n2, lot
                ma = j
@@ -1238,7 +1238,7 @@ CONTAINS
 
                !reverse ordering
                !input: I1,J2,j3,Jp2,(jp3)
-               IF (nproc .EQ. 1) THEN
+               IF (nproc == 1) THEN
                   CALL mpiswitch(j3, nfft, Jp2st, J2st, lot, n1, nd2, nd3, nproc, zmpi2, zw(1, 1, 1))
                ELSE
                   CALL mpiswitch(j3, nfft, Jp2st, J2st, lot, n1, nd2, nd3, nproc, zmpi1, zw(1, 1, 1))
@@ -1262,7 +1262,7 @@ CONTAINS
 
             !transform along y axis, and taking only the first half
             lot = ncache/(4*n2)
-            CPASSERT(lot .GE. 1)
+            CPASSERT(lot >= 1)
 
             DO j = 1, nk1, lot
                ma = j
@@ -1307,7 +1307,7 @@ CONTAINS
       DEALLOCATE (zw)
       DEALLOCATE (zt)
       DEALLOCATE (cosinarr)
-      IF (nproc .GT. 1) DEALLOCATE (zmpi1)
+      IF (nproc > 1) DEALLOCATE (zmpi1)
 
    END SUBROUTINE kernelfft
 
@@ -1386,7 +1386,7 @@ CONTAINS
                DO 300, Jp2 = Jp2st, nproc
                   DO 200, J2 = J2st, nd2/nproc
                      mfft = mfft + 1
-                     IF (mfft .GT. nfft) THEN
+                     IF (mfft > nfft) THEN
                         Jp2st = Jp2
                         J2st = J2
                         RETURN

@@ -533,9 +533,9 @@ CONTAINS
                ot_elb = xas_tdp_env%lumo_evals(1)%array(1)
                IF (do_os) ot_elb = MIN(ot_elb, xas_tdp_env%lumo_evals(2)%array(1))
 
-               ot_nevals = COUNT(xas_tdp_env%lumo_evals(1)%array - ot_elb .LE. xas_tdp_control%e_range)
+               ot_nevals = COUNT(xas_tdp_env%lumo_evals(1)%array - ot_elb <= xas_tdp_control%e_range)
                IF (do_os) ot_nevals = ot_nevals + &
-                                      COUNT(xas_tdp_env%lumo_evals(2)%array - ot_elb .LE. xas_tdp_control%e_range)
+                                      COUNT(xas_tdp_env%lumo_evals(2)%array - ot_elb <= xas_tdp_control%e_range)
 
             ELSE
 
@@ -633,7 +633,7 @@ CONTAINS
          CALL dbcsr_multiply('N', 'N', 1.0_dp, donor_state%metric(2)%matrix, tmp_mat2, &
                              0.0_dp, tmp_mat, filter_eps=xas_tdp_control%eps_filter)
          CALL cp_dbcsr_sm_fm_multiply(tmp_mat, c_diff, c_sum, ncol=nrow)
-         WHERE (tmp_evals .NE. 0) scaling = -1.0_dp/tmp_evals
+         WHERE (tmp_evals /= 0) scaling = -1.0_dp/tmp_evals
          CALL cp_fm_column_scale(c_sum, scaling)
 
 !        Full TDDFT specific clean-up

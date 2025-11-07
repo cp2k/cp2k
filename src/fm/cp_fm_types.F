@@ -805,7 +805,7 @@ CONTAINS
       IF (al == 1.0 .AND. be == 0.0) THEN
          DO j = 1, ncol_local
             this_col = col_indices(j) - j0 + 1
-            IF (this_col .GE. 1 .AND. this_col .LE. ncol) THEN
+            IF (this_col >= 1 .AND. this_col <= ncol) THEN
                IF (tr_a) THEN
                   IF (i0 == 1 .AND. nrow_global == nrow) THEN
                      DO i = 1, nrow_local
@@ -838,7 +838,7 @@ CONTAINS
       ELSE
          DO j = 1, ncol_local
             this_col = col_indices(j) - j0 + 1
-            IF (this_col .GE. 1 .AND. this_col .LE. ncol) THEN
+            IF (this_col >= 1 .AND. this_col <= ncol) THEN
                IF (tr_a) THEN
                   DO i = 1, nrow_local
                      this_row = row_indices(i) - i0 + 1
@@ -942,7 +942,7 @@ CONTAINS
 
       DO j = 1, ncol_local
          this_col = col_indices(j) - j0 + 1
-         IF (this_col .GE. 1 .AND. this_col .LE. ncol) THEN
+         IF (this_col >= 1 .AND. this_col <= ncol) THEN
             IF (tr_a) THEN
                IF (i0 == 1 .AND. nrow_global == nrow) THEN
                   DO i = 1, nrow_local
@@ -1634,9 +1634,9 @@ CONTAINS
 
          CALL para_env%allgather(send_rank, all_ranks)
          IF (ASSOCIATED(recv_dist)) THEN
-            ALLOCATE (source2global(0:COUNT(all_ranks .NE. mp_proc_null) - 1))
+            ALLOCATE (source2global(0:COUNT(all_ranks /= mp_proc_null) - 1))
             DO i = 0, global_size - 1
-               IF (all_ranks(i) .NE. mp_proc_null) THEN
+               IF (all_ranks(i) /= mp_proc_null) THEN
                   source2global(all_ranks(i)) = i
                END IF
             END DO
@@ -1644,9 +1644,9 @@ CONTAINS
 
          CALL para_env%allgather(recv_rank, all_ranks)
          IF (ASSOCIATED(send_dist)) THEN
-            ALLOCATE (dest2global(0:COUNT(all_ranks .NE. mp_proc_null) - 1))
+            ALLOCATE (dest2global(0:COUNT(all_ranks /= mp_proc_null) - 1))
             DO i = 0, global_size - 1
-               IF (all_ranks(i) .NE. mp_proc_null) THEN
+               IF (all_ranks(i) /= mp_proc_null) THEN
                   dest2global(all_ranks(i)) = i
                END IF
             END DO
@@ -1667,7 +1667,7 @@ CONTAINS
          END IF
 
          IF (ASSOCIATED(send_dist)) THEN
-            IF ((send_rank .EQ. 0)) THEN
+            IF ((send_rank == 0)) THEN
                ! need to use separate buffers here in case this is actually global rank 0
                src_block_tmp = [send_dist%nrow_block, send_dist%ncol_block]
                CALL para_env%isend(src_block_tmp, 0, send_req(1), tag=src_tag)
@@ -1676,7 +1676,7 @@ CONTAINS
          END IF
 
          IF (ASSOCIATED(recv_dist)) THEN
-            IF ((recv_rank .EQ. 0)) THEN
+            IF ((recv_rank == 0)) THEN
                dest_block_tmp = [recv_dist%nrow_block, recv_dist%ncol_block]
                CALL para_env%isend(dest_block_tmp, 0, send_req(3), tag=dest_tag)
                CALL para_env%isend(recv_dist%context%num_pe, 0, send_req(4), tag=dest_tag)
@@ -1694,13 +1694,13 @@ CONTAINS
          END IF
 
          IF (ASSOCIATED(send_dist)) THEN
-            IF ((send_rank .EQ. 0)) THEN
+            IF ((send_rank == 0)) THEN
                CALL para_env%isend(send_dist%context%blacs2mpi(:, :), 0, send_req(5), tag=src_tag)
             END IF
          END IF
 
          IF (ASSOCIATED(recv_dist)) THEN
-            IF ((recv_rank .EQ. 0)) THEN
+            IF ((recv_rank == 0)) THEN
                CALL para_env%isend(recv_dist%context%blacs2mpi(:, :), 0, send_req(6), tag=dest_tag)
             END IF
          END IF
@@ -1716,7 +1716,7 @@ CONTAINS
          CALL para_env%bcast(dest_num_pe, 0)
          info%src_num_pe(1:2) = src_num_pe(1:2)
          info%nblock_src(1:2) = src_block(1:2)
-         IF (global_rank .NE. 0) THEN
+         IF (global_rank /= 0) THEN
             ALLOCATE (info%src_blacs2mpi(0:src_num_pe(1) - 1, 0:src_num_pe(2) - 1), &
                       dest_blacs2mpi(0:dest_num_pe(1) - 1, 0:dest_num_pe(2) - 1) &
                       )
@@ -1773,9 +1773,9 @@ CONTAINS
             ! src_p/q now contains the process row/column ID that will send data to that row/column
 
             DO q = 0, src_num_pe(2) - 1
-               ncols = COUNT(src_q .EQ. q)
+               ncols = COUNT(src_q == q)
                DO p = 0, src_num_pe(1) - 1
-                  nrows = COUNT(src_p .EQ. p)
+                  nrows = COUNT(src_p == p)
                   ! Use the send_dist here as we are looking up the processes where the data comes from
                   recv_count(info%src_blacs2mpi(p, q)) = nrows*ncols
                END DO
@@ -1792,7 +1792,7 @@ CONTAINS
 
             ! Issue receive calls on ranks which expect data
             DO k = 0, send_size - 1
-               IF (recv_count(k) .GT. 0) THEN
+               IF (recv_count(k) > 0) THEN
                   CALL para_env%irecv(info%recv_buf(info%recv_disp(k) + 1:info%recv_disp(k) + recv_count(k)), &
                                       source2global(k), info%recv_request(k))
                END IF
@@ -1827,9 +1827,9 @@ CONTAINS
             ! dest_p/q now contain the process row/column ID that will receive data from that row/column
 
             DO q = 0, dest_num_pe(2) - 1
-               ncols = COUNT(dest_q .EQ. q)
+               ncols = COUNT(dest_q == q)
                DO p = 0, dest_num_pe(1) - 1
-                  nrows = COUNT(dest_p .EQ. p)
+                  nrows = COUNT(dest_p == p)
                   send_count(dest_blacs2mpi(p, q)) = nrows*ncols
                END DO
             END DO
@@ -1857,7 +1857,7 @@ CONTAINS
 
             ! For each non-zero send_count, call mpi_isend
             DO k = 0, recv_size - 1
-               IF (send_count(k) .GT. 0) THEN
+               IF (send_count(k) > 0) THEN
                   CALL para_env%isend(info%send_buf(send_disp(k) + 1:send_disp(k) + send_count(k)), &
                                       dest2global(k), info%send_request(k))
                END IF
@@ -2036,9 +2036,9 @@ CONTAINS
          IF (ASSOCIATED(source%matrix_struct)) THEN
             desca = source%matrix_struct%descriptor
             IF (source%use_sp) CPABORT("only DP kind implemented")
-            IF (nrows .GT. source%matrix_struct%nrow_global) &
+            IF (nrows > source%matrix_struct%nrow_global) &
                CPABORT("nrows is greater than nrow_global of source")
-            IF (ncols .GT. source%matrix_struct%ncol_global) &
+            IF (ncols > source%matrix_struct%ncol_global) &
                CPABORT("ncols is greater than ncol_global of source")
             smat => source%local_data
          ELSE
@@ -2049,9 +2049,9 @@ CONTAINS
          IF (ASSOCIATED(destination%matrix_struct)) THEN
             descb = destination%matrix_struct%descriptor
             IF (destination%use_sp) CPABORT("only DP kind implemented")
-            IF (nrows .GT. destination%matrix_struct%nrow_global) &
+            IF (nrows > destination%matrix_struct%nrow_global) &
                CPABORT("nrows is greater than nrow_global of destination")
-            IF (ncols .GT. destination%matrix_struct%ncol_global) &
+            IF (ncols > destination%matrix_struct%ncol_global) &
                CPABORT("ncols is greater than ncol_global of destination")
             dmat => destination%local_data
          ELSE

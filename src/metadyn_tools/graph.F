@@ -126,13 +126,13 @@ PROGRAM graph
       CALL GET_COMMAND_ARGUMENT(i, wq_char, status=istat)
       CPASSERT(istat == 0)
 
-      IF (INDEX(wq_char, '-file') .NE. 0) THEN
+      IF (INDEX(wq_char, '-file') /= 0) THEN
          CALL GET_COMMAND_ARGUMENT(i + 1, wq_char, status=istat)
          CPASSERT(istat == 0)
          READ (wq_char, *) file
       END IF
 
-      IF (INDEX(wq_char, '-out') .NE. 0) THEN
+      IF (INDEX(wq_char, '-out') /= 0) THEN
          CALL GET_COMMAND_ARGUMENT(i + 1, wq_char, status=istat)
          CPASSERT(istat == 0)
          READ (wq_char, *) out1
@@ -141,58 +141,58 @@ PROGRAM graph
          out2 = out1
       END IF
 
-      IF (INDEX(wq_char, '-ndim') .NE. 0) THEN
+      IF (INDEX(wq_char, '-ndim') /= 0) THEN
          CALL GET_COMMAND_ARGUMENT(i + 1, wq_char, status=istat)
          CPASSERT(istat == 0)
          READ (wq_char, *) ndim
       END IF
 
-      IF (INDEX(wq_char, '-stride') .NE. 0) THEN
+      IF (INDEX(wq_char, '-stride') /= 0) THEN
          CALL GET_COMMAND_ARGUMENT(i + 1, wq_char, status=istat)
          CPASSERT(istat == 0)
          READ (wq_char, *) nt_p
          lstride = .TRUE.
       END IF
 
-      IF (INDEX(wq_char, '-cutoff') .NE. 0) THEN
+      IF (INDEX(wq_char, '-cutoff') /= 0) THEN
          CALL GET_COMMAND_ARGUMENT(i + 1, wq_char, status=istat)
          CPASSERT(istat == 0)
          READ (wq_char, *) eps_cut
       END IF
 
-      IF (INDEX(wq_char, '-integrated_fes') .NE. 0) THEN
+      IF (INDEX(wq_char, '-integrated_fes') /= 0) THEN
          l_fes_int = .TRUE.
       END IF
 
-      IF (INDEX(wq_char, '-orac') .NE. 0) THEN
+      IF (INDEX(wq_char, '-orac') /= 0) THEN
          l_orac = .TRUE.
       END IF
 
-      IF (INDEX(wq_char, '-cp2k') .NE. 0) THEN
+      IF (INDEX(wq_char, '-cp2k') /= 0) THEN
          l_cp2k = .TRUE.
       END IF
 
-      IF (INDEX(wq_char, '-cpmd') .NE. 0) THEN
+      IF (INDEX(wq_char, '-cpmd') /= 0) THEN
          l_cpmd = .TRUE.
       END IF
 
-      IF (INDEX(wq_char, '-find-minima') .NE. 0) THEN
+      IF (INDEX(wq_char, '-find-minima') /= 0) THEN
          l_fmin = .TRUE.
       END IF
 
-      IF (INDEX(wq_char, '-find-path') .NE. 0) THEN
+      IF (INDEX(wq_char, '-find-path') /= 0) THEN
          l_pmin = .TRUE.
       END IF
 
-      IF (INDEX(wq_char, '-mathlab') .NE. 0) THEN
+      IF (INDEX(wq_char, '-mathlab') /= 0) THEN
          l_math = .TRUE.
       END IF
 
-      IF (INDEX(wq_char, '-cube') .NE. 0) THEN
+      IF (INDEX(wq_char, '-cube') /= 0) THEN
          l_cube = .TRUE.
       END IF
 
-      IF (INDEX(wq_char, '-opt-path') .NE. 0) THEN
+      IF (INDEX(wq_char, '-opt-path') /= 0) THEN
          l_popt = .TRUE.
          CALL GET_COMMAND_ARGUMENT(i + 1, wq_char, status=istat)
          CPASSERT(istat == 0)
@@ -233,14 +233,14 @@ PROGRAM graph
       CALL GET_COMMAND_ARGUMENT(i, wq_char, status=istat)
       CPASSERT(istat == 0)
 
-      IF (INDEX(wq_char, '-ndw') .NE. 0) THEN
+      IF (INDEX(wq_char, '-ndw') /= 0) THEN
          DEALLOCATE (idw)
 
          ndw = 0
          ndw_loop: DO ix = i + 1, COMMAND_ARGUMENT_COUNT()
             CALL GET_COMMAND_ARGUMENT(ix, wq_char, status=istat)
             CPASSERT(istat == 0)
-            IF (INDEX(wq_char, '-') .EQ. 0) THEN
+            IF (INDEX(wq_char, '-') == 0) THEN
                ndw = ndw + 1
             ELSE
                EXIT ndw_loop
@@ -257,12 +257,12 @@ PROGRAM graph
          END DO
       END IF
 
-      IF (INDEX(wq_char, '-periodic') .NE. 0) THEN
+      IF (INDEX(wq_char, '-periodic') /= 0) THEN
          nprd = 0
          nprd_loop: DO ix = i + 1, COMMAND_ARGUMENT_COUNT()
             CALL GET_COMMAND_ARGUMENT(ix, wq_char, status=istat)
             CPASSERT(istat == 0)
-            IF (INDEX(wq_char, '-') .EQ. 0) THEN
+            IF (INDEX(wq_char, '-') == 0) THEN
                nprd = nprd + 1
             ELSE
                EXIT nprd_loop
@@ -280,7 +280,7 @@ PROGRAM graph
          END DO
       END IF
 
-      IF (INDEX(wq_char, '-ngrid') .NE. 0) THEN
+      IF (INDEX(wq_char, '-ngrid') /= 0) THEN
          DO ix = 1, ndim
             CALL GET_COMMAND_ARGUMENT(i + ix, wq_char, status=istat)
             CPASSERT(istat == 0)
@@ -289,7 +289,7 @@ PROGRAM graph
          END DO
       END IF
 
-      IF (INDEX(wq_char, '-dp') .NE. 0) THEN
+      IF (INDEX(wq_char, '-dp') /= 0) THEN
          l_dp = .TRUE.
          l_grid = .FALSE.
          DO ix = 1, ndim
@@ -299,7 +299,7 @@ PROGRAM graph
          END DO
       END IF
 
-      IF (INDEX(wq_char, '-fix') .NE. 0) THEN
+      IF (INDEX(wq_char, '-fix') /= 0) THEN
          fix = .TRUE.
          DO id = 1, ndw
             CALL GET_COMMAND_ARGUMENT(i + 2*(id - 1) + 1, wq_char, status=istat)
@@ -323,7 +323,7 @@ PROGRAM graph
          CALL GET_COMMAND_ARGUMENT(i, wq_char, status=istat)
          CPASSERT(istat == 0)
 
-         IF (INDEX(wq_char, '-point-a') .NE. 0) THEN
+         IF (INDEX(wq_char, '-point-a') /= 0) THEN
             DO id = 1, ndw
                CALL GET_COMMAND_ARGUMENT(i + id, wq_char, status=istat)
                CPASSERT(istat == 0)
@@ -331,7 +331,7 @@ PROGRAM graph
             END DO
          END IF
 
-         IF (INDEX(wq_char, '-point-b') .NE. 0) THEN
+         IF (INDEX(wq_char, '-point-b') /= 0) THEN
             DO id = 1, ndw
                CALL GET_COMMAND_ARGUMENT(i + id, wq_char, status=istat)
                CPASSERT(istat == 0)
@@ -339,19 +339,19 @@ PROGRAM graph
             END DO
          END IF
 
-         IF (INDEX(wq_char, '-mep-iter') .NE. 0) THEN
+         IF (INDEX(wq_char, '-mep-iter') /= 0) THEN
             CALL GET_COMMAND_ARGUMENT(i + 1, wq_char, status=istat)
             CPASSERT(istat == 0)
             READ (wq_char, *) mep_input_data%max_iter
          END IF
 
-         IF (INDEX(wq_char, '-mep-kb') .NE. 0) THEN
+         IF (INDEX(wq_char, '-mep-kb') /= 0) THEN
             CALL GET_COMMAND_ARGUMENT(i + 1, wq_char, status=istat)
             CPASSERT(istat == 0)
             READ (wq_char, *) mep_input_data%kb
          END IF
 
-         IF (INDEX(wq_char, '-mep-nreplica') .NE. 0) THEN
+         IF (INDEX(wq_char, '-mep-nreplica') /= 0) THEN
             CALL GET_COMMAND_ARGUMENT(i + 1, wq_char, status=istat)
             CPASSERT(istat == 0)
             READ (wq_char, *) mep_input_data%nreplica
@@ -375,19 +375,19 @@ PROGRAM graph
          CALL GET_COMMAND_ARGUMENT(i, wq_char, status=istat)
          CPASSERT(istat == 0)
 
-         IF (INDEX(wq_char, '-mep-kb') .NE. 0) THEN
+         IF (INDEX(wq_char, '-mep-kb') /= 0) THEN
             CALL GET_COMMAND_ARGUMENT(i + 1, wq_char, status=istat)
             CPASSERT(istat == 0)
             READ (wq_char, *) mep_input_data%kb
          END IF
 
-         IF (INDEX(wq_char, '-mep-iter') .NE. 0) THEN
+         IF (INDEX(wq_char, '-mep-iter') /= 0) THEN
             CALL GET_COMMAND_ARGUMENT(i + 1, wq_char, status=istat)
             CPASSERT(istat == 0)
             READ (wq_char, *) mep_input_data%max_iter
          END IF
 
-         IF (INDEX(wq_char, '-mep-nreplica') .NE. 0) THEN
+         IF (INDEX(wq_char, '-mep-nreplica') /= 0) THEN
             CALL GET_COMMAND_ARGUMENT(i + 1, wq_char, status=istat)
             CPASSERT(istat == 0)
             READ (wq_char, *) mep_input_data%nreplica
@@ -631,8 +631,8 @@ PROGRAM graph
                coor = coor + 1
                ss = ss + dp_grid(i)
                IF (iperd(i) == 0) THEN
-                  IF (coor .GT. ngrid(i)) CYCLE
-                  IF (coor .LT. 1) CYCLE
+                  IF (coor > ngrid(i)) CYCLE
+                  IF (coor < 1) CYCLE
                END IF
                diff = ss - ss0(i, it)
                dp2 = (diff/delta_s(i, it))**2

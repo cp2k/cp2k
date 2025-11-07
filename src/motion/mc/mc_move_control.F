@@ -396,7 +396,7 @@ CONTAINS
             molecule_type
 
 ! update the maximum displacement for bond length change
-         IF (move_updates%bias_bond%attempts .GT. 0) THEN
+         IF (move_updates%bias_bond%attempts > 0) THEN
 
 ! first account for the extreme cases
             IF (move_updates%bias_bond%successes == 0) THEN
@@ -408,8 +408,8 @@ CONTAINS
 ! now for the middle case
                test_ratio = REAL(move_updates%bias_bond%successes, dp) &
                             /REAL(move_updates%bias_bond%attempts, dp)/0.5E0_dp
-               IF (test_ratio .GT. 2.0E0_dp) test_ratio = 2.0E0_dp
-               IF (test_ratio .LT. 0.5E0_dp) test_ratio = 0.5E0_dp
+               IF (test_ratio > 2.0E0_dp) test_ratio = 2.0E0_dp
+               IF (test_ratio < 0.5E0_dp) test_ratio = 0.5E0_dp
                rmbond(molecule_type) = rmbond(molecule_type)*test_ratio
             END IF
 
@@ -424,7 +424,7 @@ CONTAINS
          END IF
 
 ! update the maximum displacement for bond angle change
-         IF (move_updates%bias_angle%attempts .GT. 0) THEN
+         IF (move_updates%bias_angle%attempts > 0) THEN
 
 ! first account for the extreme cases
             IF (move_updates%bias_angle%successes == 0) THEN
@@ -436,13 +436,13 @@ CONTAINS
 ! now for the middle case
                test_ratio = REAL(move_updates%bias_angle%successes, dp) &
                             /REAL(move_updates%bias_angle%attempts, dp)/0.5E0_dp
-               IF (test_ratio .GT. 2.0E0_dp) test_ratio = 2.0E0_dp
-               IF (test_ratio .LT. 0.5E0_dp) test_ratio = 0.5E0_dp
+               IF (test_ratio > 2.0E0_dp) test_ratio = 2.0E0_dp
+               IF (test_ratio < 0.5E0_dp) test_ratio = 0.5E0_dp
                rmangle(molecule_type) = rmangle(molecule_type)*test_ratio
             END IF
 
 ! more than pi changes meaningless
-            IF (rmangle(molecule_type) .GT. pi) rmangle(molecule_type) = pi
+            IF (rmangle(molecule_type) > pi) rmangle(molecule_type) = pi
 
 ! clear the counters
             move_updates%bias_angle%attempts = 0
@@ -454,7 +454,7 @@ CONTAINS
          END IF
 
 ! update the maximum displacement for a dihedral change
-         IF (move_updates%bias_dihedral%attempts .GT. 0) THEN
+         IF (move_updates%bias_dihedral%attempts > 0) THEN
 
 ! first account for the extreme cases
             IF (move_updates%bias_dihedral%successes == 0) THEN
@@ -466,13 +466,13 @@ CONTAINS
 ! now for the middle case
                test_ratio = REAL(move_updates%bias_dihedral%successes, dp) &
                             /REAL(move_updates%bias_dihedral%attempts, dp)/0.5E0_dp
-               IF (test_ratio .GT. 2.0E0_dp) test_ratio = 2.0E0_dp
-               IF (test_ratio .LT. 0.5E0_dp) test_ratio = 0.5E0_dp
+               IF (test_ratio > 2.0E0_dp) test_ratio = 2.0E0_dp
+               IF (test_ratio < 0.5E0_dp) test_ratio = 0.5E0_dp
                rmdihedral(molecule_type) = rmdihedral(molecule_type)*test_ratio
             END IF
 
 ! more than pi changes meaningless
-            IF (rmdihedral(molecule_type) .GT. pi) rmdihedral(molecule_type) = pi
+            IF (rmdihedral(molecule_type) > pi) rmdihedral(molecule_type) = pi
 
 ! clear the counters
             move_updates%bias_dihedral%attempts = 0
@@ -484,7 +484,7 @@ CONTAINS
          END IF
 
 ! update the maximum displacement for molecule translation
-         IF (move_updates%bias_trans%attempts .GT. 0) THEN
+         IF (move_updates%bias_trans%attempts > 0) THEN
 
 ! first account for the extreme cases
             IF (move_updates%bias_trans%successes == 0) THEN
@@ -496,13 +496,13 @@ CONTAINS
 ! now for the middle case
                test_ratio = REAL(move_updates%bias_trans%successes, dp) &
                             /REAL(move_updates%bias_trans%attempts, dp)/0.5E0_dp
-               IF (test_ratio .GT. 2.0E0_dp) test_ratio = 2.0E0_dp
-               IF (test_ratio .LT. 0.5E0_dp) test_ratio = 0.5E0_dp
+               IF (test_ratio > 2.0E0_dp) test_ratio = 2.0E0_dp
+               IF (test_ratio < 0.5E0_dp) test_ratio = 0.5E0_dp
                rmtrans(molecule_type) = rmtrans(molecule_type)*test_ratio
             END IF
 
             ! make an upper bound...10 a.u.
-            IF (rmtrans(molecule_type) .GT. 10.0E0_dp) &
+            IF (rmtrans(molecule_type) > 10.0E0_dp) &
                rmtrans(molecule_type) = 10.0E0_dp
 
             ! clear the counters
@@ -515,7 +515,7 @@ CONTAINS
          END IF
 
 ! update the maximum displacement for cluster translation
-         IF (move_updates%bias_cltrans%attempts .GT. 0) THEN
+         IF (move_updates%bias_cltrans%attempts > 0) THEN
 
 ! first account for the extreme cases
             IF (move_updates%bias_cltrans%successes == 0) THEN
@@ -527,13 +527,13 @@ CONTAINS
 ! now for the middle case
                test_ratio = REAL(move_updates%bias_cltrans%successes, dp) &
                             /REAL(move_updates%bias_cltrans%attempts, dp)/0.5E0_dp
-               IF (test_ratio .GT. 2.0E0_dp) test_ratio = 2.0E0_dp
-               IF (test_ratio .LT. 0.5E0_dp) test_ratio = 0.5E0_dp
+               IF (test_ratio > 2.0E0_dp) test_ratio = 2.0E0_dp
+               IF (test_ratio < 0.5E0_dp) test_ratio = 0.5E0_dp
                rmcltrans = rmcltrans*test_ratio
             END IF
 
             ! make an upper bound...10 a.u.
-            IF (rmcltrans .GT. 10.0E0_dp) &
+            IF (rmcltrans > 10.0E0_dp) &
                rmcltrans = 10.0E0_dp
 
             ! clear the counters
@@ -546,31 +546,31 @@ CONTAINS
          END IF
 
 ! update the maximum displacement for molecule rotation
-         IF (move_updates%bias_rot%attempts .GT. 0) THEN
+         IF (move_updates%bias_rot%attempts > 0) THEN
 
 ! first account for the extreme cases
             IF (move_updates%bias_rot%successes == 0) THEN
                rmrot = rmrot/2.0E0_dp
 
-               IF (rmrot(molecule_type) .GT. pi) rmrot(molecule_type) = pi
+               IF (rmrot(molecule_type) > pi) rmrot(molecule_type) = pi
 
             ELSEIF (move_updates%bias_rot%successes == &
                     move_updates%bias_rot%attempts) THEN
                rmrot(molecule_type) = rmrot(molecule_type)*2.0E0_dp
 
 ! more than pi rotation is meaningless
-               IF (rmrot(molecule_type) .GT. pi) rmrot(molecule_type) = pi
+               IF (rmrot(molecule_type) > pi) rmrot(molecule_type) = pi
 
             ELSE
 ! now for the middle case
                test_ratio = REAL(move_updates%bias_rot%successes, dp) &
                             /REAL(move_updates%bias_rot%attempts, dp)/0.5E0_dp
-               IF (test_ratio .GT. 2.0E0_dp) test_ratio = 2.0E0_dp
-               IF (test_ratio .LT. 0.5E0_dp) test_ratio = 0.5E0_dp
+               IF (test_ratio > 2.0E0_dp) test_ratio = 2.0E0_dp
+               IF (test_ratio < 0.5E0_dp) test_ratio = 0.5E0_dp
                rmrot(molecule_type) = rmrot(molecule_type)*test_ratio
 
 ! more than pi rotation is meaningless
-               IF (rmrot(molecule_type) .GT. pi) rmrot(molecule_type) = pi
+               IF (rmrot(molecule_type) > pi) rmrot(molecule_type) = pi
 
             END IF
 
@@ -586,7 +586,7 @@ CONTAINS
       CASE ("volume")
 
 ! update the maximum displacement for volume displacement
-         IF (move_updates%volume%attempts .NE. 0) THEN
+         IF (move_updates%volume%attempts /= 0) THEN
 
 ! first account for the extreme cases
             IF (move_updates%volume%successes == 0) THEN
@@ -599,8 +599,8 @@ CONTAINS
 ! now for the middle case
                test_ratio = REAL(move_updates%volume%successes, dp)/ &
                             REAL(move_updates%volume%attempts, dp)/0.5E0_dp
-               IF (test_ratio .GT. 2.0E0_dp) test_ratio = 2.0E0_dp
-               IF (test_ratio .LT. 0.5E0_dp) test_ratio = 0.5E0_dp
+               IF (test_ratio > 2.0E0_dp) test_ratio = 2.0E0_dp
+               IF (test_ratio < 0.5E0_dp) test_ratio = 0.5E0_dp
                rmvolume = rmvolume*test_ratio
 
             END IF

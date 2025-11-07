@@ -866,7 +866,7 @@ CONTAINS
       logger => cp_get_default_logger()
       IF (.NOT. calculate_forces) THEN
          IF (cp_print_key_should_output(logger%iter_info, qs_env%input, &
-                                        "DFT%PRINT%OVERLAP_CONDITION") .NE. 0) THEN
+                                        "DFT%PRINT%OVERLAP_CONDITION") /= 0) THEN
             iw = cp_print_key_unit_nr(logger, qs_env%input, "DFT%PRINT%OVERLAP_CONDITION", &
                                       extension=".Log")
             CALL section_vals_val_get(qs_env%input, "DFT%PRINT%OVERLAP_CONDITION%1-NORM", l_val=norml1)

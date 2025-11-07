@@ -208,7 +208,7 @@ CONTAINS
       ! Resolve AUTO kernel.
       IF (elpa_kernel == ELPA_2STAGE_REAL_INVALID) THEN
          cpuid = m_cpuid()
-         IF ((MACHINE_CPU_GENERIC .LT. cpuid) .AND. (cpuid .LE. MACHINE_X86)) THEN
+         IF ((MACHINE_CPU_GENERIC < cpuid) .AND. (cpuid <= MACHINE_X86)) THEN
             SELECT CASE (cpuid)
             CASE (MACHINE_X86_SSE4)
                elpa_kernel = ELPA_2STAGE_REAL_SSE_BLOCK4
@@ -386,10 +386,10 @@ CONTAINS
       !     - Proper block size:    test/Fortran/test.F90
       ! Note that the names of these files might change in different ELPA versions
       ! Matrix order must be even
-      use_qr = elpa_qr .AND. (MODULO(n, 2) .EQ. 0)
+      use_qr = elpa_qr .AND. (MODULO(n, 2) == 0)
       ! Matrix order and block size must be greater than or equal to 64
       IF (.NOT. elpa_qr_unsafe) &
-         use_qr = use_qr .AND. (n .GE. 64) .AND. (nblk .GE. 64)
+         use_qr = use_qr .AND. (n >= 64) .AND. (nblk >= 64)
 
       ! Check if eigenvalues computed with ELPA_QR_UNSAFE should be verified
       IF (use_qr .AND. elpa_qr_unsafe .AND. elpa_should_print) &
@@ -544,7 +544,7 @@ CONTAINS
          IF (success /= elpa_ok) &
             CPABORT("ELPA failed to diagonalize a matrix even without QR decomposition")
 
-         IF (ANY(ABS(eval(1:neig) - eval_noqr(1:neig)) .GT. th)) &
+         IF (ANY(ABS(eval(1:neig) - eval_noqr(1:neig)) > th)) &
             CPABORT("Eigenvalues calculated with QR decomp. in ELPA are wrong. Disable ELPA_QR_UNSAFE.")
 
          DEALLOCATE (eval_noqr)

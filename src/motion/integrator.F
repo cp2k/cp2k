@@ -565,7 +565,7 @@ CONTAINS
          END IF
 
          IF (ehrenfest_md) deallocate_vel = force_env%qs_env%rtp%converged
-         IF (i_iter .EQ. n_iter) deallocate_vel = .TRUE.
+         IF (i_iter == n_iter) deallocate_vel = .TRUE.
          ! Broadcast the new particle velocities and deallocate the full temporary
          CALL update_dealloc_tmp(tmp, particle_set, shell_particle_set, &
                                  core_particle_set, para_env, shell_adiabatic, vel=.TRUE., &

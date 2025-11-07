@@ -1090,7 +1090,7 @@ CONTAINS
                                   logger%para_env%is_source() .OR. &
                                   my_mpi_io)) THEN
          CALL section_vals_val_get(print_key, "FILENAME", c_val=outPath)
-         IF (my_on_file .OR. outPath .NE. '__STD_OUT__') THEN
+         IF (my_on_file .OR. outPath /= '__STD_OUT__') THEN
             CPASSERT(unit_nr > 0)
             IF (.NOT. my_mpi_io) THEN
                CALL close_file(unit_nr, "KEEP")

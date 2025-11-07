@@ -118,7 +118,7 @@ CONTAINS
 
       IF (dft_control%qs_control%ddapc_restraint) THEN
          ddapc_size = SIZE(dft_control%qs_control%ddapc_restraint_control)
-         IF (SIZE(energy%ddapc_restraint) .NE. ddapc_size) THEN
+         IF (SIZE(energy%ddapc_restraint) /= ddapc_size) THEN
             DEALLOCATE (energy%ddapc_restraint)
             ALLOCATE (energy%ddapc_restraint(ddapc_size))
          END IF

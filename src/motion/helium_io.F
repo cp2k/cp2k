@@ -243,7 +243,7 @@ CONTAINS
             CALL helium_write_line("PBC turned off.")
          END IF
 
-         IF (helium%droplet_radius .LT. HUGE(1.0_dp)) THEN
+         IF (helium%droplet_radius < HUGE(1.0_dp)) THEN
             WRITE (stmp, *) helium%droplet_radius*angstrom
             CALL helium_write_line("Droplet radius: "//TRIM(ADJUSTL(stmp))//" [angstrom]")
          END IF
@@ -667,7 +667,7 @@ CONTAINS
 
          IF (is_new) THEN
             ! comment
-            IF (cmmnt .NE. "") THEN
+            IF (cmmnt /= "") THEN
                WRITE (unit_nr, '(A)') "# "//cmmnt
             END IF
             ! column labels
@@ -681,7 +681,7 @@ CONTAINS
          IF (my_avg) THEN
             DO i = 1, 3
                WRITE (unit_nr, '(E27.20)', ADVANCE='NO') uconv*avg_data(i)
-               IF (i .LT. 3) THEN
+               IF (i < 3) THEN
                   WRITE (unit_nr, '(1X)', ADVANCE='NO')
                END IF
             END DO
@@ -696,7 +696,7 @@ CONTAINS
                ! write out the data
                DO i = 1, 3
                   WRITE (unit_nr, '(E27.20)', ADVANCE='NO') uconv*data_p(i)
-                  IF (i .LT. 3) THEN
+                  IF (i < 3) THEN
                      WRITE (unit_nr, '(1X)', ADVANCE='NO')
                   END IF
                END DO
@@ -831,7 +831,7 @@ CONTAINS
 
       ! get the output type
       CALL section_vals_val_get(print_key, "FORMAT", i_val=outformat)
-      IF (outformat .EQ. perm_cycle) THEN
+      IF (outformat == perm_cycle) THEN
          ! gather positions from all processors
          helium_env(1)%helium%rtmp_3_atoms_beads_np_1d = 0.0_dp
          j = SIZE(helium_env(1)%helium%rtmp_3_atoms_beads_1d)
@@ -888,7 +888,7 @@ CONTAINS
                curat = 1
                nused = 0
                first_cycle = .TRUE.
-               DO WHILE (curat .LE. helium_env(1)%helium%atoms)
+               DO WHILE (curat <= helium_env(1)%helium%atoms)
 
                   ! get the permutation cycle the current atom belongs to
                   my_cycle => helium_cycle_of(curat, my_perm)
@@ -932,7 +932,7 @@ CONTAINS
                   NULLIFY (my_cycle)
 
                   ! try to increment the current atom index
-                  DO WHILE (ANY(used_indices .EQ. curat))
+                  DO WHILE (ANY(used_indices == curat))
                      curat = curat + 1
                   END DO
 
@@ -1154,7 +1154,7 @@ CONTAINS
                CALL helium_pbc(helium_env(k)%helium, r2)
                ltmp = .FALSE.
                DO ic = 1, 3
-                  IF (ABS(r1(ic) - r2(ic)) .GT. 100.0_dp*EPSILON(0.0_dp)) THEN
+                  IF (ABS(r1(ic) - r2(ic)) > 100.0_dp*EPSILON(0.0_dp)) THEN
                      ltmp = .TRUE.
                      CYCLE
                   END IF
@@ -1268,7 +1268,7 @@ CONTAINS
 
                   ! write connectivity records for this atom only if the path
                   ! it belongs to is longer than 1.
-                  IF (helium_path_length(helium_env(1)%helium, ia, my_perm) .LE. 1) THEN
+                  IF (helium_path_length(helium_env(1)%helium, ia, my_perm) <= 1) THEN
                      CYCLE
                   END IF
 
@@ -1279,7 +1279,7 @@ CONTAINS
                      CALL helium_pbc(helium_env(1)%helium, r2)
                      are_connected = .TRUE.
                      DO ic = 1, 3
-                        IF (ABS(r1(ic) - r2(ic)) .GT. 100.0_dp*EPSILON(0.0_dp)) THEN
+                        IF (ABS(r1(ic) - r2(ic)) > 100.0_dp*EPSILON(0.0_dp)) THEN
                            ! if the distance betw ib and ib+1 changes upon applying
                            ! PBC do not connect them
                            are_connected = .FALSE.
@@ -1290,7 +1290,7 @@ CONTAINS
                         tmp1 = (ia - 1)*helium_env(1)%helium%beads + ib
                         tmp2 = (ia - 1)*helium_env(1)%helium%beads + ib + 1
                         ! smaller value has to go first
-                        IF (tmp1 .LT. tmp2) THEN
+                        IF (tmp1 < tmp2) THEN
                            ib1 = tmp1
                            ib2 = tmp2
                         ELSE
@@ -1308,7 +1308,7 @@ CONTAINS
                   CALL helium_pbc(helium_env(1)%helium, r2)
                   are_connected = .TRUE.
                   DO ic = 1, 3
-                     IF (ABS(r1(ic) - r2(ic)) .GT. 100.0_dp*EPSILON(0.0_dp)) THEN
+                     IF (ABS(r1(ic) - r2(ic)) > 100.0_dp*EPSILON(0.0_dp)) THEN
                         ! if the distance betw ib and ib+1 changes upon applying
                         ! PBC do not connect them
                         are_connected = .FALSE.
@@ -1318,7 +1318,7 @@ CONTAINS
                   IF (are_connected) THEN
                      tmp1 = ia*helium_env(1)%helium%beads
                      tmp2 = (my_perm(ia) - 1)*helium_env(1)%helium%beads + 1
-                     IF (tmp1 .LT. tmp2) THEN
+                     IF (tmp1 < tmp2) THEN
                         ib1 = tmp1
                         ib2 = tmp2
                      ELSE
@@ -1609,7 +1609,7 @@ CONTAINS
 
             WRITE (fname, '(A)') "helium-rho-"// &
                TRIM(ADJUSTL(helium_env(1)%helium%rho_property(id)%filename_suffix(ic)))
-            IF (helium_env(1)%helium%rho_property(id)%component_name(ic) .EQ. "") THEN
+            IF (helium_env(1)%helium%rho_property(id)%component_name(ic) == "") THEN
                WRITE (comment, '(A)') TRIM(helium_env(1)%helium%rho_property(id)%name)
             ELSE
                WRITE (comment, '(A)') TRIM(helium_env(1)%helium%rho_property(id)%name)// &
@@ -1695,7 +1695,7 @@ CONTAINS
             DO iz = 1, ndim
                WRITE (unit, '(1X,E13.5)', ADVANCE='NO') inva3*DATA(ix, iy, iz)
                nw = nw + 1
-               IF (MOD(nw, 6) .EQ. 0) THEN
+               IF (MOD(nw, 6) == 0) THEN
                   nw = 0
                   WRITE (unit, *)
                END IF
@@ -1706,7 +1706,7 @@ CONTAINS
       ! values written on that line unless line terminator is written at the end
       ! so make sure that the last WRITE statement runs without ADVANCE='NO'
       ! (observed for ifort 14.0.1 and 14.0.2 but not for gfortran 4.8.2)
-      IF (nw .NE. 0) THEN
+      IF (nw /= 0) THEN
          WRITE (unit, *)
       END IF
 
@@ -1756,7 +1756,7 @@ CONTAINS
 
             DO i = 1, helium_env(1)%helium%atoms
                WRITE (unit_nr, '(F20.10)', ADVANCE='NO') helium_env(1)%helium%plength_avrg(i)
-               IF (i .LT. helium_env(1)%helium%atoms) THEN
+               IF (i < helium_env(1)%helium%atoms) THEN
                   WRITE (unit_nr, '(1X)', ADVANCE='NO')
                END IF
             END DO

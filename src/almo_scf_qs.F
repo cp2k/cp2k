@@ -299,7 +299,7 @@ CONTAINS
          !QQQ      iblock_col = col
          !QQQ      CALL dbcsr_get_stored_coordinates(matrix_new, iblock_row, iblock_col, tr, hold)
 
-         !QQQ      IF(hold.EQ.mynode) THEN
+         !QQQ      IF(hold==mynode) THEN
          !QQQ
          !QQQ         ! RZK-warning replace with a function which says if this
          !QQQ         ! distribution block is active or not
@@ -353,7 +353,7 @@ CONTAINS
             iblock_col = row
             CALL dbcsr_get_stored_coordinates(matrix_new, iblock_row, iblock_col, hold)
 
-            IF (hold .EQ. mynode) THEN
+            IF (hold == mynode) THEN
 
                active = .TRUE.
 
@@ -910,7 +910,7 @@ CONTAINS
                         matrix_type=dbcsr_type_no_symmetry)
       CALL dbcsr_get_info(almo_scf_env%matrix_s(1), &
                           matrix_type=sym)
-      IF (sym .EQ. dbcsr_type_no_symmetry) THEN
+      IF (sym == dbcsr_type_no_symmetry) THEN
          CALL dbcsr_copy(matrix_s_sym, almo_scf_env%matrix_s(1))
       ELSE
          CALL dbcsr_desymmetrize(almo_scf_env%matrix_s(1), &
@@ -1001,7 +1001,7 @@ CONTAINS
          ! add to the list
          current_number_neighbors(idomain2) = current_number_neighbors(idomain2) + 1
          ! add j,i with i,j
-         IF (idomain2 .NE. jdomain2) THEN
+         IF (idomain2 /= jdomain2) THEN
             current_number_neighbors(jdomain2) = current_number_neighbors(jdomain2) + 1
          END IF
       END DO
@@ -1020,7 +1020,7 @@ CONTAINS
          jdomain2 = almo_scf_env%domain_index_of_atom(jatom2)
          already_listed = .FALSE.
          DO ineighbor = 1, current_number_neighbors(idomain2)
-            IF (domain_neighbor_list_excessive(idomain2, ineighbor) .EQ. jdomain2) THEN
+            IF (domain_neighbor_list_excessive(idomain2, ineighbor) == jdomain2) THEN
                already_listed = .TRUE.
                EXIT
             END IF
@@ -1030,7 +1030,7 @@ CONTAINS
             current_number_neighbors(idomain2) = current_number_neighbors(idomain2) + 1
             domain_neighbor_list_excessive(idomain2, current_number_neighbors(idomain2)) = jdomain2
             ! add j,i with i,j
-            IF (idomain2 .NE. jdomain2) THEN
+            IF (idomain2 /= jdomain2) THEN
                current_number_neighbors(jdomain2) = current_number_neighbors(jdomain2) + 1
                domain_neighbor_list_excessive(jdomain2, current_number_neighbors(jdomain2)) = idomain2
             END IF
@@ -1064,7 +1064,7 @@ CONTAINS
             CALL dbcsr_get_stored_coordinates(almo_scf_env%quench_t(ispin), &
                                               iblock_row, iblock_col, hold)
 
-            IF (hold .EQ. mynode) THEN
+            IF (hold == mynode) THEN
 
                ! Translate indices of distribution blocks to indices of domain blocks
                ! Rows are AOs
@@ -1120,7 +1120,7 @@ CONTAINS
                      CALL dbcsr_put_block(almo_scf_env%quench_t(ispin), iblock_row, iblock_col, new_block)
                      DEALLOCATE (new_block)
 
-                     IF (domain_map_local_entries .GE. max_domain_neighbors*almo_scf_env%ndomains) THEN
+                     IF (domain_map_local_entries >= max_domain_neighbors*almo_scf_env%ndomains) THEN
                         CPABORT("weird... max_domain_neighbors is exceeded")
                      END IF
                      almo_scf_env%domain_map(ispin)%pairs(domain_map_local_entries + 1, 1) = iblock_row
@@ -1185,25 +1185,25 @@ CONTAINS
 
                   s0 = -LOG10(ABS(almo_scf_env%quencher_s0))
                   s1 = -LOG10(ABS(almo_scf_env%quencher_s1))
-                  IF (overlap .EQ. 0.0_dp) THEN
+                  IF (overlap == 0.0_dp) THEN
                      overlap = -LOG10(ABS(almo_scf_env%eps_filter)) + 100.0_dp
                   ELSE
                      overlap = -LOG10(overlap)
                   END IF
-                  IF (s0 .LT. 0.0_dp) THEN
+                  IF (s0 < 0.0_dp) THEN
                      CPABORT("S0 is less than zero")
                   END IF
-                  IF (s1 .LE. 0.0_dp) THEN
+                  IF (s1 <= 0.0_dp) THEN
                      CPABORT("S1 is less than or equal to zero")
                   END IF
-                  IF (s0 .GE. s1) THEN
+                  IF (s0 >= s1) THEN
                      CPABORT("S0 is greater than or equal to S1")
                   END IF
 
                   ! Fill in non-zero blocks if AOs are close to the electron center
-                  IF (overlap .LT. s1) THEN
+                  IF (overlap < s1) THEN
                      ALLOCATE (new_block(row_blk_size(iblock_row), col_blk_size(iblock_col)))
-                     IF (overlap .LE. s0) THEN
+                     IF (overlap <= s0) THEN
                         new_block(:, :) = 1.0_dp
                         !WRITE(*,'(A15,2I7,3F8.3,E11.3)') "INTRA-BLOCKS: ",&
                         !   iblock_col, iblock_row, s0, s1, overlap, new_block(1,1)
@@ -1213,8 +1213,8 @@ CONTAINS
                         !   iblock_col, iblock_row, s0, s1, overlap, new_block(1,1)
                      END IF
 
-                     IF (ABS(new_block(1, 1)) .GT. ABS(almo_scf_env%eps_filter)) THEN
-                        IF (domain_map_local_entries .GE. max_domain_neighbors*almo_scf_env%ndomains) THEN
+                     IF (ABS(new_block(1, 1)) > ABS(almo_scf_env%eps_filter)) THEN
+                        IF (domain_map_local_entries >= max_domain_neighbors*almo_scf_env%ndomains) THEN
                            CPABORT("weird... max_domain_neighbors is exceeded")
                         END IF
                         almo_scf_env%domain_map(ispin)%pairs(domain_map_local_entries + 1, 1) = iblock_row
@@ -1252,14 +1252,14 @@ CONTAINS
                               DO jatom = first_atom_of_molecule(domain_col), last_atom_of_molecule(domain_col)
                                  rab(:) = pbc(particle_set(iatom)%r(:), particle_set(jatom)%r(:), cell)
                                  trial_distance_squared = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
-                                 IF (trial_distance_squared .LT. distance_squared) THEN
+                                 IF (trial_distance_squared < distance_squared) THEN
                                     distance_squared = trial_distance_squared
                                     contact_atom_1 = iatom
                                     contact_atom_2 = jatom
                                  END IF
                               END DO ! jatom
                            END DO ! iatom
-                           CPASSERT(contact_atom_1 .GT. 0)
+                           CPASSERT(contact_atom_1 > 0)
                            distance = SQRT(distance_squared)
                         END IF
 
@@ -1320,20 +1320,20 @@ CONTAINS
                   r1 = almo_scf_env%quencher_r1_factor*(contact1_radius + contact2_radius)
                   !+almo_scf_env%quencher_r1_shift
 
-                  IF (r0 .LT. 0.0_dp) THEN
+                  IF (r0 < 0.0_dp) THEN
                      CPABORT("R0 is less than zero")
                   END IF
-                  IF (r1 .LE. 0.0_dp) THEN
+                  IF (r1 <= 0.0_dp) THEN
                      CPABORT("R1 is less than or equal to zero")
                   END IF
-                  IF (r0 .GT. r1) THEN
+                  IF (r0 > r1) THEN
                      CPABORT("R0 is greater than or equal to R1")
                   END IF
 
                   ! Fill in non-zero blocks if AOs are close to the electron center
-                  IF (distance .LT. r1) THEN
+                  IF (distance < r1) THEN
                      ALLOCATE (new_block(row_blk_size(iblock_row), col_blk_size(iblock_col)))
-                     IF (distance .LE. r0) THEN
+                     IF (distance <= r0) THEN
                         new_block(:, :) = 1.0_dp
                         !WRITE(*,'(A15,2I7,5F8.3,E11.3)') "INTRA-BLOCKS: ",&
                         !   iblock_col, iblock_row, contact1_radius,&
@@ -1347,8 +1347,8 @@ CONTAINS
                         !   contact2_radius, r0, r1, distance, new_block(1,1)
                      END IF
 
-                     IF (ABS(new_block(1, 1)) .GT. ABS(almo_scf_env%eps_filter)) THEN
-                        IF (domain_map_local_entries .GE. max_domain_neighbors*almo_scf_env%ndomains) THEN
+                     IF (ABS(new_block(1, 1)) > ABS(almo_scf_env%eps_filter)) THEN
+                        IF (domain_map_local_entries >= max_domain_neighbors*almo_scf_env%ndomains) THEN
                            CPABORT("weird... max_domain_neighbors is exceeded")
                         END IF
                         almo_scf_env%domain_map(ispin)%pairs(domain_map_local_entries + 1, 1) = iblock_row
@@ -1380,7 +1380,7 @@ CONTAINS
 
       ! check that both domain_map and quench_t have the same number of entries
       nblks = dbcsr_get_num_blocks(almo_scf_env%quench_t(ispin))
-      IF (nblks .NE. domain_map_local_entries) THEN
+      IF (nblks /= domain_map_local_entries) THEN
          CPABORT("number of blocks is wrong")
       END IF
 
@@ -1434,7 +1434,7 @@ CONTAINS
             ! get the neighbor
             ineig = domain_map_global(2*(ientry - 1) + 1)
             ! check boundaries
-            IF (domain_grid(grid1, 0) .GT. max_neig) THEN
+            IF (domain_grid(grid1, 0) > max_neig) THEN
                ! this neighbor will overstep the boundaries
                ! stop the trial and increase the max number of neighbors
                DEALLOCATE (domain_grid)
@@ -1446,14 +1446,14 @@ CONTAINS
             delayed_increment = .FALSE.
             DO igrid = 1, domain_grid(grid1, 0)
                ! compare the current neighbor with that already in the 'book'
-               IF (ineig .LT. domain_grid(grid1, igrid)) THEN
+               IF (ineig < domain_grid(grid1, igrid)) THEN
                   ! if this one is smaller then insert it here and pick up the one
                   ! from the book to continue inserting
                   neig_temp = ineig
                   ineig = domain_grid(grid1, igrid)
                   domain_grid(grid1, igrid) = neig_temp
                ELSE
-                  IF (domain_grid(grid1, igrid) .EQ. 0) THEN
+                  IF (domain_grid(grid1, igrid) == 0) THEN
                      ! got the empty slot now - insert the record
                      domain_grid(grid1, igrid) = ineig
                      ! increase the record counter but do it outside the loop
@@ -1484,7 +1484,7 @@ CONTAINS
       DEALLOCATE (domain_grid)
 
       !ENDDO ! ispin
-      IF (almo_scf_env%nspins .EQ. 2) THEN
+      IF (almo_scf_env%nspins == 2) THEN
          CALL dbcsr_copy(almo_scf_env%quench_t(2), &
                          almo_scf_env%quench_t(1))
          almo_scf_env%domain_map(2)%pairs(:, :) = &

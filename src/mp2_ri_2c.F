@@ -907,16 +907,16 @@ CONTAINS
 
       potential_type = potential%potential_type
 
-      IF ((eri_method .EQ. do_eri_mme .OR. eri_method .EQ. do_eri_os) &
-          .AND. potential_type .EQ. do_potential_coulomb .OR. &
-          (eri_method .EQ. do_eri_mme .AND. potential_type .EQ. do_potential_long)) THEN
+      IF ((eri_method == do_eri_mme .OR. eri_method == do_eri_os) &
+          .AND. potential_type == do_potential_coulomb .OR. &
+          (eri_method == do_eri_mme .AND. potential_type == do_potential_long)) THEN
 
          CALL mp2_eri_2c_integrate(eri_param, potential, para_env_sub, qs_env, &
                                    basis_type_a="RI_AUX", basis_type_b="RI_AUX", &
                                    hab=L_local_col, first_b=my_group_L_start, last_b=my_group_L_end, &
                                    eri_method=eri_method)
 
-      ELSEIF (eri_method .EQ. do_eri_gpw .OR. &
+      ELSEIF (eri_method == do_eri_gpw .OR. &
               (potential_type == do_potential_long .AND. qs_env%mp2_env%eri_method == do_eri_os) &
               .OR. (potential_type == do_potential_id .AND. qs_env%mp2_env%eri_method == do_eri_mme)) THEN
 

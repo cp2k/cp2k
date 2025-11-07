@@ -734,7 +734,7 @@ CONTAINS
 
       IF (PRESENT(header)) THEN
          DO i = 1, SIZE(header, 1)
-            IF (header(i) .NE. "") THEN
+            IF (header(i) /= "") THEN
                WRITE (iunit, "(A)") TRIM(header(i))
             END IF
          END DO

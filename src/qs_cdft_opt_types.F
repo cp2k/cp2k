@@ -187,8 +187,8 @@ CONTAINS
                                 l_val=cdft_opt_control%continue_ls)
       CALL section_vals_val_get(cdft_opt_section, "FACTOR_LS", &
                                 r_val=cdft_opt_control%factor_ls)
-      IF (cdft_opt_control%factor_ls .LE. 0.0_dp .OR. &
-          cdft_opt_control%factor_ls .GE. 1.0_dp) &
+      IF (cdft_opt_control%factor_ls <= 0.0_dp .OR. &
+          cdft_opt_control%factor_ls >= 1.0_dp) &
          CALL cp_abort(__LOCATION__, &
                        "Keyword FACTOR_LS must be between 0.0 and 1.0.")
       CALL section_vals_val_get(cdft_opt_section, "JACOBIAN_FREQ", explicit=exists)
@@ -198,10 +198,10 @@ CONTAINS
          IF (SIZE(tmplist) /= 2) &
             CALL cp_abort(__LOCATION__, &
                           "Keyword JACOBIAN_FREQ takes exactly two input values.")
-         IF (ANY(tmplist .LT. 0)) &
+         IF (ANY(tmplist < 0)) &
             CALL cp_abort(__LOCATION__, &
                           "Keyword JACOBIAN_FREQ takes only positive values.")
-         IF (ALL(tmplist .EQ. 0)) &
+         IF (ALL(tmplist == 0)) &
             CALL cp_abort(__LOCATION__, &
                           "Both values to keyword JACOBIAN_FREQ cannot be zero.")
          cdft_opt_control%jacobian_freq(:) = tmplist(1:2)

@@ -503,7 +503,7 @@ CONTAINS
                rij_pbc(2)*rij_pbc(2) + &
                rij_pbc(3)*rij_pbc(3)
          rij = SQRT(rij)
-         IF (rij .LE. pair_radii(ikind, jkind)) THEN
+         IF (rij <= pair_radii(ikind, jkind)) THEN
             ! jatom is in iatom's halo
             nhalo_atoms = nhalo_atoms + 1
             halo_atoms(nhalo_atoms) = jatom

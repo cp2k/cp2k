@@ -334,14 +334,14 @@ CONTAINS
          maxn_sendrecv = 4
          ALLOCATE (srcs_coord(2, maxn_sendrecv))
 
-         IF (MOD(rs_dim1, 2) .EQ. 0) THEN
+         IF (MOD(rs_dim1, 2) == 0) THEN
             tmp_size1 = rs_dim1
          ELSE
             tmp_size1 = rs_dim1 + 1
          END IF
          ALLOCATE (tmp1_arr(tmp_size1), src_pos1(2, 0:rs_dim1 - 1))
 
-         IF (MOD(rs_dim1, 2) .EQ. 0) THEN
+         IF (MOD(rs_dim1, 2) == 0) THEN
             tmp1_arr(:) = [(i, i=1, rs_dim1)]
             src_pos1(:, :) = RESHAPE([tmp1_arr, -tmp1_arr(tmp_size1:1:-1)], [2, rs_dim1])
          ELSE
@@ -349,14 +349,14 @@ CONTAINS
             src_pos1(:, :) = RESHAPE([tmp1_arr, -tmp1_arr(tmp_size1 - 2:1:-1)], [2, rs_dim1])
          END IF
 !---
-         IF (MOD(rs_dim2, 2) .EQ. 0) THEN
+         IF (MOD(rs_dim2, 2) == 0) THEN
             tmp_size2 = rs_dim2
          ELSE
             tmp_size2 = rs_dim2 + 1
          END IF
          ALLOCATE (tmp2_arr(tmp_size2), src_pos2(2, 0:rs_dim2 - 1))
 
-         IF (MOD(rs_dim2, 2) .EQ. 0) THEN
+         IF (MOD(rs_dim2, 2) == 0) THEN
             tmp2_arr(:) = [(i, i=1, rs_dim2)]
             src_pos2(:, :) = RESHAPE([tmp2_arr, -tmp2_arr(tmp_size2:1:-1)], [2, rs_dim2])
          ELSE
@@ -372,14 +372,14 @@ CONTAINS
          maxn_sendrecv = 2
          ALLOCATE (srcs_coord(2, maxn_sendrecv))
 
-         IF (MOD(rs_dim1, 2) .EQ. 0) THEN
+         IF (MOD(rs_dim1, 2) == 0) THEN
             tmp_size1 = rs_dim1
          ELSE
             tmp_size1 = rs_dim1 + 1
          END IF
          ALLOCATE (tmp1_arr(tmp_size1), src_pos1(2, 0:rs_dim1 - 1))
 
-         IF (MOD(rs_dim1, 2) .EQ. 0) THEN
+         IF (MOD(rs_dim1, 2) == 0) THEN
             tmp1_arr(:) = [(i, i=1, rs_dim1)]
             src_pos1(:, :) = RESHAPE([tmp1_arr, -tmp1_arr(tmp_size1:1:-1)], [2, rs_dim1])
          ELSE
@@ -399,14 +399,14 @@ CONTAINS
          ALLOCATE (src_pos1_onesdd(0:rs_dim1 - 1))
          src_pos1_onesdd(:) = [(i, i=1, rs_dim1)]
 !---
-         IF (MOD(rs_dim2, 2) .EQ. 0) THEN
+         IF (MOD(rs_dim2, 2) == 0) THEN
             tmp_size2 = rs_dim2
          ELSE
             tmp_size2 = rs_dim2 + 1
          END IF
          ALLOCATE (tmp2_arr(tmp_size2), src_pos2(2, 0:rs_dim2 - 1))
 
-         IF (MOD(rs_dim2, 2) .EQ. 0) THEN
+         IF (MOD(rs_dim2, 2) == 0) THEN
             tmp2_arr(:) = [(i, i=1, rs_dim2)]
             src_pos2(:, :) = RESHAPE([tmp2_arr, -tmp2_arr(tmp_size2:1:-1)], [2, rs_dim2])
          ELSE
@@ -436,11 +436,11 @@ CONTAINS
 ! convert srcs_coord to pid
          CALL pw_grid%para%group%rank_cart(ABS(srcs_coord(:, k)) - 1, srcs_expand(k))
 ! find out the flipping status
-         IF ((srcs_coord(1, k) .GT. 0) .AND. (srcs_coord(2, k) .GT. 0)) THEN
+         IF ((srcs_coord(1, k) > 0) .AND. (srcs_coord(2, k) > 0)) THEN
             flipg_stat(k) = NOT_FLIPPED
-         ELSE IF ((srcs_coord(1, k) .LT. 0) .AND. (srcs_coord(2, k) .GT. 0)) THEN
+         ELSE IF ((srcs_coord(1, k) < 0) .AND. (srcs_coord(2, k) > 0)) THEN
             flipg_stat(k) = UD_FLIPPED
-         ELSE IF ((srcs_coord(1, k) .GT. 0) .AND. (srcs_coord(2, k) .LT. 0)) THEN
+         ELSE IF ((srcs_coord(1, k) > 0) .AND. (srcs_coord(2, k) < 0)) THEN
             flipg_stat(k) = LR_FLIPPED
          ELSE
             flipg_stat(k) = ROTATED
@@ -455,7 +455,7 @@ CONTAINS
       k = 1
       DO i = 1, group_size
          DO j = 1, maxn_sendrecv
-            IF (srcs_expand_all(j, i) .EQ. rs_mpo) THEN
+            IF (srcs_expand_all(j, i) == rs_mpo) THEN
                dests_expand(k) = i - 1
                k = k + 1
             END IF
@@ -470,7 +470,7 @@ CONTAINS
 ! if the flipping status for a process is NOT_FLIPPED that means I will have to resend
 ! data to that process in the reverse procedure (the process is on my dests_shrink list)
       DO i = 1, maxn_sendrecv
-         IF (flipg_stat(i) .EQ. NOT_FLIPPED) dests_shrink(i) = srcs_expand(i)
+         IF (flipg_stat(i) == NOT_FLIPPED) dests_shrink(i) = srcs_expand(i)
       END DO
 
 ! let all the nodes know about each others dests_shrink list
@@ -481,7 +481,7 @@ CONTAINS
 ! note that in the shrinking procedure I will receive from only one node
       DO i = 1, group_size
          DO j = 1, maxn_sendrecv
-            IF (dests_shrink_all(j, i) .EQ. rs_mpo) THEN
+            IF (dests_shrink_all(j, i) == rs_mpo) THEN
                srcs_shrink = i - 1
                EXIT
             END IF
@@ -567,7 +567,7 @@ CONTAINS
 
       DO i = 1, maxn_sendrecv
 ! no need to send to myself or to the destination that I have already sent to
-         IF ((dests_expand(i) .NE. rs_mpo) .AND. .NOT. ANY(dest_hist .EQ. dests_expand(i))) THEN
+         IF ((dests_expand(i) /= rs_mpo) .AND. .NOT. ANY(dest_hist == dests_expand(i))) THEN
             CALL rs_group%isend(pw_in%array, dests_expand(i), send_reqs(i))
          END IF
          dest_hist(i) = dests_expand(i)
@@ -581,11 +581,11 @@ CONTAINS
          lb3 = recv_msgs_bnds(1, 3, i)
          ub3 = recv_msgs_bnds(2, 3, i)
 ! no need to receive from myself
-         IF (srcs_expand(i) .EQ. rs_mpo) THEN
+         IF (srcs_expand(i) == rs_mpo) THEN
             ALLOCATE (recv_msgs(i)%msg(lb1:ub1, lb2:ub2, lb3:ub3))
             recv_msgs(i)%msg(:, :, :) = pw_in%array
 ! if I have already received data from the source, just use the one from the last time
-         ELSE IF (ANY(src_hist .EQ. srcs_expand(i))) THEN
+         ELSE IF (ANY(src_hist == srcs_expand(i))) THEN
             loc = MINLOC(ABS(src_hist - srcs_expand(i)), 1)
             lb1_loc = recv_msgs_bnds(1, 1, loc)
             ub1_loc = recv_msgs_bnds(2, 1, loc)
@@ -750,7 +750,7 @@ CONTAINS
 
       DO i = 1, maxn_sendrecv
 ! no need to send to myself or to an invalid destination (pid = -1)
-         IF ((dests_shrink(i) .NE. rs_mpo) .AND. (dests_shrink(i) .NE. -1)) THEN
+         IF ((dests_shrink(i) /= rs_mpo) .AND. (dests_shrink(i) /= -1)) THEN
             send_lb1 = bounds_local_all(1, 1, dests_shrink(i) + 1)
             send_ub1 = bounds_local_all(2, 1, dests_shrink(i) + 1)
             send_lb2 = bounds_local_all(1, 2, dests_shrink(i) + 1)
@@ -773,9 +773,9 @@ CONTAINS
       ub3_orig = bounds_local_shftd(2, 3)
 
 ! no need to receive from myself
-      IF (srcs_shrink .EQ. rs_mpo) THEN
+      IF (srcs_shrink == rs_mpo) THEN
          pw_shrinked%array = cr3d(lb1_orig:ub1_orig, lb2_orig:ub2_orig, lb3_orig:ub3_orig)
-      ELSE IF (srcs_shrink .EQ. -1) THEN
+      ELSE IF (srcs_shrink == -1) THEN
 ! the source is invalid ... do nothing
       ELSE
          CALL rs_group%recv(pw_shrinked%array, srcs_shrink, tag)
@@ -836,7 +836,7 @@ CONTAINS
 ! the last existing grid points
       ALLOCATE (indx(ub1_new - lb1_new + 1))
       indx(:) = [(i, i=2*(ub1_glbl + 1) - lb1_new, 2*(ub1_glbl + 1) - ub1_new, -1)]
-      IF (lb1_new .EQ. ub1_glbl + 1) indx(1) = indx(2)
+      IF (lb1_new == ub1_glbl + 1) indx(1) = indx(2)
       cr3d_out(lb1_new:ub1_new, lb2_new:ub2_new, lb3_new:ub3_new) = cr3d_in(indx, :, :)
 
       CALL timestop(handle)
@@ -892,7 +892,7 @@ CONTAINS
 ! the last existing grid points
       ALLOCATE (indy(ub2_new - lb2_new + 1))
       indy(:) = [(i, i=2*(ub2_glbl + 1) - lb2_new, 2*(ub2_glbl + 1) - ub2_new, -1)]
-      IF (lb2_new .EQ. ub2_glbl + 1) indy(1) = indy(2)
+      IF (lb2_new == ub2_glbl + 1) indy(1) = indy(2)
       cr3d_out(lb1_new:ub1_new, lb2_new:ub2_new, lb3_new:ub3_new) = cr3d_in(:, indy, :)
 
       CALL timestop(handle)
@@ -948,7 +948,7 @@ CONTAINS
 ! the last existing grid points
       ALLOCATE (indz(ub3_new - lb3_new + 1))
       indz(:) = [(i, i=2*(ub3_glbl + 1) - lb3_new, 2*(ub3_glbl + 1) - ub3_new, -1)]
-      IF (lb3_new .EQ. ub3_glbl + 1) indz(1) = indz(2)
+      IF (lb3_new == ub3_glbl + 1) indz(1) = indz(2)
       cr3d_out(lb1_new:ub1_new, lb2_new:ub2_new, lb3_new:ub3_new) = cr3d_in(:, :, indz)
 
       CALL timestop(handle)
@@ -1005,8 +1005,8 @@ CONTAINS
       ALLOCATE (indx(ub1_new - lb1_new + 1), indy(ub2_new - lb2_new + 1))
       indx(:) = [(i, i=2*(ub1_glbl + 1) - lb1_new, 2*(ub1_glbl + 1) - ub1_new, -1)]
       indy(:) = [(i, i=2*(ub2_glbl + 1) - lb2_new, 2*(ub2_glbl + 1) - ub2_new, -1)]
-      IF (lb1_new .EQ. ub1_glbl + 1) indx(1) = indx(2)
-      IF (lb2_new .EQ. ub2_glbl + 1) indy(1) = indy(2)
+      IF (lb1_new == ub1_glbl + 1) indx(1) = indx(2)
+      IF (lb2_new == ub2_glbl + 1) indy(1) = indy(2)
       cr3d_out(lb1_new:ub1_new, lb2_new:ub2_new, lb3_new:ub3_new) = cr3d_in(indx, indy, :)
 
       CALL timestop(handle)
@@ -1109,7 +1109,7 @@ CONTAINS
 
       DO i = 1, maxn_sendrecv
 ! no need to receive from myself
-         IF (srcs_expand(i) .EQ. rs_mpo) THEN
+         IF (srcs_expand(i) == rs_mpo) THEN
             recv_msgs_bnds(1, 1, i) = bounds_local_shftd(1, 1)
             recv_msgs_bnds(2, 1, i) = bounds_local_shftd(2, 1)
             recv_msgs_bnds(1, 2, i) = bounds_local_shftd(1, 2)
@@ -1117,7 +1117,7 @@ CONTAINS
             recv_msgs_bnds(1, 3, i) = bounds_local_shftd(1, 3)
             recv_msgs_bnds(2, 3, i) = bounds_local_shftd(2, 3)
 ! if I have already received data from the source, just use the one from the last time
-         ELSE IF (ANY(src_hist .EQ. srcs_expand(i))) THEN
+         ELSE IF (ANY(src_hist == srcs_expand(i))) THEN
             loc = MINLOC(ABS(src_hist - srcs_expand(i)), 1)
             recv_msgs_bnds(1, 1, i) = bounds_local_all(1, 1, srcs_expand(loc) + 1)
             recv_msgs_bnds(2, 1, i) = bounds_local_all(2, 1, srcs_expand(loc) + 1)
@@ -1200,8 +1200,8 @@ CONTAINS
 
       bndsl_out(1, 1) = 2*(bounds(2, 1) + 1) - bndsl_in(2, 1)
       bndsl_out(2, 1) = 2*(bounds(2, 1) + 1) - bndsl_in(1, 1)
-      IF (bndsl_out(1, 1) .EQ. bounds(2, 1) + 2) bndsl_out(1, 1) = bndsl_out(1, 1) - 1
-      IF (bndsl_out(2, 1) .EQ. 2*(bounds(2, 1) + 1) - bounds(1, 1)) bndsl_out(2, 1) = bndsl_out(2, 1) - 1
+      IF (bndsl_out(1, 1) == bounds(2, 1) + 2) bndsl_out(1, 1) = bndsl_out(1, 1) - 1
+      IF (bndsl_out(2, 1) == 2*(bounds(2, 1) + 1) - bounds(1, 1)) bndsl_out(2, 1) = bndsl_out(2, 1) - 1
 
       bndsl_out(1, 2) = bndsl_in(1, 2)
       bndsl_out(2, 2) = bndsl_in(2, 2)
@@ -1230,8 +1230,8 @@ CONTAINS
 
       bndsl_out(1, 2) = 2*(bounds(2, 2) + 1) - bndsl_in(2, 2)
       bndsl_out(2, 2) = 2*(bounds(2, 2) + 1) - bndsl_in(1, 2)
-      IF (bndsl_out(1, 2) .EQ. bounds(2, 2) + 2) bndsl_out(1, 2) = bndsl_out(1, 2) - 1
-      IF (bndsl_out(2, 2) .EQ. 2*(bounds(2, 2) + 1) - bounds(1, 2)) bndsl_out(2, 2) = bndsl_out(2, 2) - 1
+      IF (bndsl_out(1, 2) == bounds(2, 2) + 2) bndsl_out(1, 2) = bndsl_out(1, 2) - 1
+      IF (bndsl_out(2, 2) == 2*(bounds(2, 2) + 1) - bounds(1, 2)) bndsl_out(2, 2) = bndsl_out(2, 2) - 1
 
       bndsl_out(1, 3) = bndsl_in(1, 3)
       bndsl_out(2, 3) = bndsl_in(2, 3)
@@ -1260,8 +1260,8 @@ CONTAINS
 
       bndsl_out(1, 3) = 2*(bounds(2, 3) + 1) - bndsl_in(2, 3)
       bndsl_out(2, 3) = 2*(bounds(2, 3) + 1) - bndsl_in(1, 3)
-      IF (bndsl_out(1, 3) .EQ. bounds(2, 3) + 2) bndsl_out(1, 3) = bndsl_out(1, 3) - 1
-      IF (bndsl_out(2, 3) .EQ. 2*(bounds(2, 3) + 1) - bounds(1, 3)) bndsl_out(2, 3) = bndsl_out(2, 3) - 1
+      IF (bndsl_out(1, 3) == bounds(2, 3) + 2) bndsl_out(1, 3) = bndsl_out(1, 3) - 1
+      IF (bndsl_out(2, 3) == 2*(bounds(2, 3) + 1) - bounds(1, 3)) bndsl_out(2, 3) = bndsl_out(2, 3) - 1
 
    END FUNCTION flipbf_bounds_local
 
@@ -1281,13 +1281,13 @@ CONTAINS
 
       bndsl_out(1, 1) = 2*(bounds(2, 1) + 1) - bndsl_in(2, 1)
       bndsl_out(2, 1) = 2*(bounds(2, 1) + 1) - bndsl_in(1, 1)
-      IF (bndsl_out(1, 1) .EQ. bounds(2, 1) + 2) bndsl_out(1, 1) = bndsl_out(1, 1) - 1
-      IF (bndsl_out(2, 1) .EQ. 2*(bounds(2, 1) + 1) - bounds(1, 1)) bndsl_out(2, 1) = bndsl_out(2, 1) - 1
+      IF (bndsl_out(1, 1) == bounds(2, 1) + 2) bndsl_out(1, 1) = bndsl_out(1, 1) - 1
+      IF (bndsl_out(2, 1) == 2*(bounds(2, 1) + 1) - bounds(1, 1)) bndsl_out(2, 1) = bndsl_out(2, 1) - 1
 
       bndsl_out(1, 2) = 2*(bounds(2, 2) + 1) - bndsl_in(2, 2)
       bndsl_out(2, 2) = 2*(bounds(2, 2) + 1) - bndsl_in(1, 2)
-      IF (bndsl_out(1, 2) .EQ. bounds(2, 2) + 2) bndsl_out(1, 2) = bndsl_out(1, 2) - 1
-      IF (bndsl_out(2, 2) .EQ. 2*(bounds(2, 2) + 1) - bounds(1, 2)) bndsl_out(2, 2) = bndsl_out(2, 2) - 1
+      IF (bndsl_out(1, 2) == bounds(2, 2) + 2) bndsl_out(1, 2) = bndsl_out(1, 2) - 1
+      IF (bndsl_out(2, 2) == 2*(bounds(2, 2) + 1) - bounds(1, 2)) bndsl_out(2, 2) = bndsl_out(2, 2) - 1
 
       bndsl_out(1, 3) = bndsl_in(1, 3)
       bndsl_out(2, 3) = bndsl_in(2, 3)

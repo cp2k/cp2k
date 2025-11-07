@@ -416,7 +416,7 @@ CONTAINS
       ! we need in periodic directions at least 4 k-points in the SCF
       DO i_dim = 1, 3
          IF (bs_env%periodic(i_dim) == 1) THEN
-            CPASSERT(nkp_grid(i_dim) .GE. 4)
+            CPASSERT(nkp_grid(i_dim) >= 4)
          END IF
       END DO
 
@@ -780,7 +780,7 @@ CONTAINS
 
          ! check if Cholesky decomposition failed (Cholesky decomposition only works for
          ! positive definite matrices
-         IF (info .NE. 0) THEN
+         IF (info /= 0) THEN
             u = bs_env%unit_nr
 
             IF (u > 0) THEN
@@ -1211,7 +1211,7 @@ CONTAINS
          IF (bs_env%do_soc) THEN
 
             ! only print eigenvalues of DOS k-points in case no bandstructure path has been given
-            print_DOS_kpoints = (bs_env%nkp_only_bs .LE. 0)
+            print_DOS_kpoints = (bs_env%nkp_only_bs <= 0)
             ! in kpoints_DOS, the last nkp_only_bs are bandstructure k-points
             is_bandstruc_kpoint = (ikp > bs_env%nkp_only_DOS)
             print_ikp = print_DOS_kpoints .OR. is_bandstruc_kpoint
@@ -2002,7 +2002,7 @@ CONTAINS
          n_occ_spinor = bs_env%n_occ(1) + bs_env%n_occ(bs_env%n_spin)
 
          DO i_mo = 1, SIZE(eigenval_spinor)
-            IF (i_mo .LE. n_occ_spinor) occ_vir = 'occ'
+            IF (i_mo <= n_occ_spinor) occ_vir = 'occ'
             IF (i_mo > n_occ_spinor) occ_vir = 'vir'
             IF (PRESENT(eigenval_spinor_G0W0)) THEN
                ! SCF+SOC and G0W0+SOC eigenvalues
@@ -2228,15 +2228,15 @@ CONTAINS
 
                i_global = row_indices(i_row)
 
-               IF (i_global .LE. n_ao) THEN
+               IF (i_global <= n_ao) THEN
                   i_atom = atom_from_bf(i_global)
-               ELSE IF (i_global .LE. 2*n_ao) THEN
+               ELSE IF (i_global <= 2*n_ao) THEN
                   i_atom = atom_from_bf(i_global - n_ao)
                ELSE
                   CPABORT("Wrong indices.")
                END IF
 
-               IF (i_kind .NE. kind_of(i_atom)) THEN
+               IF (i_kind /= kind_of(i_atom)) THEN
                   cfm_s_i_kind%local_data(i_row, j_col) = z_zero
                END IF
 
@@ -2409,7 +2409,7 @@ CONTAINS
             j_atom = atom_from_bf(col_global)
 
             ! we only need to check for new MIC cell for new i_atom-j_atom pair
-            IF (i_atom .NE. i_atom_old .OR. j_atom .NE. j_atom_old) THEN
+            IF (i_atom /= i_atom_old .OR. j_atom /= j_atom_old) THEN
                DO i_cell = 1, num_cells
 
                   ! only check nearest neigbors
@@ -2552,7 +2552,7 @@ CONTAINS
                END SELECT
             END IF
 
-            IF (iatom .NE. iatom_old .OR. jatom .NE. jatom_old) THEN
+            IF (iatom /= iatom_old .OR. jatom /= jatom_old) THEN
 
                CALL compute_weight_re_im(weight_re, weight_im, &
                                          num_cells, iatom, jatom, xkp(1:3, ikp), wkp_of_ikp, &

@@ -453,14 +453,14 @@ CONTAINS
 
       lmaxab = MAX(lmaxa, lmaxb)
       ! Determine l quantum limits.
-      IF (lmaxab .GT. 2) CPABORT('lmax=2')
+      IF (lmaxab > 2) CPABORT('lmax=2')
       minlmaxab = MIN(lmaxa, lmaxb)
       !
       ! s-s interaction
       !
       CALL skss(skab1, mat)
       !
-      IF (lmaxab .LE. 0) RETURN
+      IF (lmaxab <= 0) RETURN
       !
       rr2(1:3) = dxv(1:3)**2
       rr(1:3) = dxv(1:3)
@@ -473,12 +473,12 @@ CONTAINS
       !
       ! s-p, p-s and p-p interaction
       !
-      IF (minlmaxab .GE. 1) THEN
+      IF (minlmaxab >= 1) THEN
          CALL skpp(skab1, mat, iptr(:, :, :, lmaxa, lmaxb))
          CALL sksp(skab2, mat, iptr(:, :, :, lmaxa, lmaxb), .TRUE.)
          CALL sksp(skab1, mat, iptr(:, :, :, lmaxa, lmaxb), .FALSE.)
       ELSE
-         IF (lmaxb .GE. 1) THEN
+         IF (lmaxb >= 1) THEN
             CALL sksp(skab2, mat, iptr(:, :, :, lmaxa, lmaxb), .TRUE.)
          ELSE
             CALL sksp(skab1, mat, iptr(:, :, :, lmaxa, lmaxb), .FALSE.)
@@ -487,11 +487,11 @@ CONTAINS
       !
       ! If there is only s-p interaction we have finished
       !
-      IF (lmaxab .LE. 1) RETURN
+      IF (lmaxab <= 1) RETURN
       !
       ! at least one atom has d functions
       !
-      IF (minlmaxab .EQ. 2) THEN
+      IF (minlmaxab == 2) THEN
          !
          ! in case both atoms have d functions
          !
@@ -504,12 +504,12 @@ CONTAINS
          !
          ! One atom has d functions, the other has s or s and p functions
          !
-         IF (lmaxa .EQ. 0) THEN
+         IF (lmaxa == 0) THEN
             !
             ! atom b has d, the atom a only s functions
             !
             CALL sksd(skab2, mat, iptr(:, :, :, lmaxa, lmaxb), .TRUE.)
-         ELSE IF (lmaxa .EQ. 1) THEN
+         ELSE IF (lmaxa == 1) THEN
             !
             ! atom b has d, the atom a s and p functions
             !
@@ -519,7 +519,7 @@ CONTAINS
             !
             ! atom a has d functions
             !
-            IF (lmaxb .EQ. 0) THEN
+            IF (lmaxb == 0) THEN
                !
                ! atom a has d, atom b has only s functions
                !
@@ -849,7 +849,7 @@ CONTAINS
       dif = ABS(x - xa(1))
       DO i = 1, n
          dift = ABS(x - xa(i))
-         IF (dift .LT. dif) THEN
+         IF (dift < dif) THEN
             ns = i
             dif = dift
          END IF
@@ -870,7 +870,7 @@ CONTAINS
             d(i) = hp*den
             c(i) = ho*den
          END DO
-         IF (2*ns .LT. n - m) THEN
+         IF (2*ns < n - m) THEN
             dy = c(ns + 1)
          ELSE
             dy = d(ns)

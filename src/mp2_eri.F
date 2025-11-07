@@ -418,7 +418,7 @@ CONTAINS
 
       IF (PRESENT(force_a) .OR. PRESENT(force_b)) THEN
          CPASSERT(PRESENT(pab))
-         CPASSERT(ALL(SHAPE(pab) .EQ. SHAPE(hab)))
+         CPASSERT(ALL(SHAPE(pab) == SHAPE(hab)))
       END IF
 
       la_max_d = la_max
@@ -812,12 +812,12 @@ CONTAINS
                CALL dbcsr_get_block_p(matrix=pabc(ic)%matrix, &
                                       row=irow, col=icol, block=pab_block, found=found)
                CPASSERT(found)
-               IF (irow .EQ. iatom) THEN
-                  to_be_asserted = SIZE(pab_block, 1) .EQ. SIZE(pabc_block, 1) .AND. SIZE(pab_block, 2) .EQ. SIZE(pabc_block, 2)
+               IF (irow == iatom) THEN
+                  to_be_asserted = SIZE(pab_block, 1) == SIZE(pabc_block, 1) .AND. SIZE(pab_block, 2) == SIZE(pabc_block, 2)
                   CPASSERT(to_be_asserted)
                   pabc_block(:, :, ic) = pab_block(:, :)
                ELSE
-                  to_be_asserted = SIZE(pab_block, 2) .EQ. SIZE(pabc_block, 1) .AND. SIZE(pab_block, 1) .EQ. SIZE(pabc_block, 2)
+                  to_be_asserted = SIZE(pab_block, 2) == SIZE(pabc_block, 1) .AND. SIZE(pab_block, 1) == SIZE(pabc_block, 2)
                   CPASSERT(to_be_asserted)
                   pabc_block(:, :, ic) = TRANSPOSE(pab_block(:, :))
                END IF
@@ -910,7 +910,7 @@ CONTAINS
                            $:                         'force_b=force_b(jkind)%forces(:, atom_b), &'*doforce_2
                            $:                         'force_c=force_c(kkind)%forces(:, atom_c), &'*doforce_3
                                                 do_symmetric=do_symmetric, &
-                                                on_diagonal=iatom .EQ. jatom, &
+                                                on_diagonal=iatom == jatom, &
                            $:                         'hdabc=hdabc, &'*dabc
                            $:                         'hadbc=hadbc, &'*adbc
                            $:                         'habdc=habdc, &'*abdc
@@ -935,12 +935,12 @@ CONTAINS
                                    row=irow, col=icol, block=munu_block, found=found)
             CPASSERT(found)
             munu_block(:, :) = 0.0_dp
-            IF (irow .EQ. iatom) THEN
-               to_be_asserted = SIZE(munu_block, 1) .EQ. SIZE(habc, 1) .AND. SIZE(munu_block, 2) .EQ. SIZE(habc, 2)
+            IF (irow == iatom) THEN
+               to_be_asserted = SIZE(munu_block, 1) == SIZE(habc, 1) .AND. SIZE(munu_block, 2) == SIZE(habc, 2)
                CPASSERT(to_be_asserted)
                munu_block(:, :) = habc(:, :, ic)
             ELSE
-               to_be_asserted = SIZE(munu_block, 2) .EQ. SIZE(habc, 1) .AND. SIZE(munu_block, 1) .EQ. SIZE(habc, 2)
+               to_be_asserted = SIZE(munu_block, 2) == SIZE(habc, 1) .AND. SIZE(munu_block, 1) == SIZE(habc, 2)
                CPASSERT(to_be_asserted)
                munu_block(:, :) = TRANSPOSE(habc(:, :, ic))
             END IF
@@ -955,7 +955,7 @@ CONTAINS
                                             row=irow, col=icol, block=munu_block, found=found)
                      CPASSERT(found)
                      munu_block(:, :) = 0.0_dp
-                     IF (irow .EQ. iatom) THEN
+                     IF (irow == iatom) THEN
                         munu_block(:, :) = hdabc(i_xyz, :, :, ic)
                      ELSE
                         munu_block(:, :) = TRANSPOSE(hdabc(i_xyz, :, :, ic))
@@ -967,7 +967,7 @@ CONTAINS
                                             row=irow, col=icol, block=munu_block, found=found)
                      CPASSERT(found)
                      munu_block(:, :) = 0.0_dp
-                     IF (irow .EQ. iatom) THEN
+                     IF (irow == iatom) THEN
                         munu_block(:, :) = hadbc(i_xyz, :, :, ic)
                      ELSE
                         munu_block(:, :) = TRANSPOSE(hadbc(i_xyz, :, :, ic))
@@ -979,7 +979,7 @@ CONTAINS
                                             row=irow, col=icol, block=munu_block, found=found)
                      CPASSERT(found)
                      munu_block(:, :) = 0.0_dp
-                     IF (irow .EQ. iatom) THEN
+                     IF (irow == iatom) THEN
                         munu_block(:, :) = habdc(i_xyz, :, :, ic)
                      ELSE
                         munu_block(:, :) = TRANSPOSE(habdc(i_xyz, :, :, ic))

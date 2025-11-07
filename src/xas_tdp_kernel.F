@@ -1203,7 +1203,7 @@ CONTAINS
          jatom = ind(2)
          katom = ind(3)
 
-         IF (atom_k .NE. katom) CYCLE
+         IF (atom_k /= katom) CYCLE
 
          CALL dbt_get_block(ab_Q, ind, iabc, t_found)
          IF (.NOT. t_found) CYCLE

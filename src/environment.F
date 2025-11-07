@@ -300,7 +300,7 @@ CONTAINS
       ALLOCATE (all_host(30, para_env%num_pe), SOURCE=0)
       ALLOCATE (all_pid(para_env%num_pe), SOURCE=0)
 
-      IF (m_procrun(r_pid) .EQ. 1) THEN
+      IF (m_procrun(r_pid) == 1) THEN
          CALL string_to_ascii(r_host_name, all_host(:, para_env%mepos + 1))
          CALL para_env%sum(all_host)
       END IF
@@ -309,11 +309,11 @@ CONTAINS
       IF (output_unit > 0) WRITE (UNIT=output_unit, FMT="(T2,A)") ""
       DO ipe = 1, para_env%num_pe
          nr_occu = 0
-         IF (all_pid(ipe) .NE. -1) THEN
+         IF (all_pid(ipe) /= -1) THEN
             CALL ascii_to_string(all_host(:, ipe), string)
             DO jpe = 1, para_env%num_pe
                CALL ascii_to_string(all_host(:, jpe), string_sec)
-               IF (string .EQ. string_sec) THEN
+               IF (string == string_sec) THEN
                   nr_occu = nr_occu + 1
                   all_pid(jpe) = -1
                END IF
@@ -330,7 +330,7 @@ CONTAINS
       DEALLOCATE (all_pid)
       DEALLOCATE (all_host)
 
-      CPASSERT(0 .LT. nr_dist)
+      CPASSERT(0 < nr_dist)
       IF (PRESENT(node_count)) node_count = nr_dist
 
    END SUBROUTINE echo_all_process_host
@@ -1218,7 +1218,7 @@ CONTAINS
          IF (ierr /= 0) CPABORT('Could not parse WALLTIME: "'//txt(1:n)//'"')
       ELSE
          READ (txt(1:n), FMT="(I2,A1,I2,A1,I2)", IOSTAT=ierr) hours, c1, minutes, c2, seconds
-         IF (n /= 8 .OR. ierr /= 0 .OR. c1 .NE. ":" .OR. c2 .NE. ":") &
+         IF (n /= 8 .OR. ierr /= 0 .OR. c1 /= ":" .OR. c2 /= ":") &
             CPABORT('Could not parse WALLTIME: "'//txt(1:n)//'"')
          walltime = 3600.0_dp*REAL(hours, dp) + 60.0_dp*REAL(minutes, dp) + REAL(seconds, dp)
       END IF
@@ -1308,7 +1308,7 @@ CONTAINS
       r_timings = section_get_rval(root_section, "GLOBAL%TIMINGS%THRESHOLD")
       sort_by_self_time = section_get_lval(root_section, "GLOBAL%TIMINGS%SORT_BY_SELF_TIME")
       report_maxloc = section_get_lval(root_section, "GLOBAL%TIMINGS%REPORT_MAXLOC")
-      IF (m_energy() .NE. 0.0_dp) THEN
+      IF (m_energy() /= 0.0_dp) THEN
          CALL timings_report_print(iw, r_timings, sort_by_self_time, cost_type_energy, report_maxloc, para_env)
       END IF
       CALL timings_report_print(iw, r_timings, sort_by_self_time, cost_type_time, report_maxloc, para_env)

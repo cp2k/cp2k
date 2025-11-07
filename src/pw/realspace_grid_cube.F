@@ -162,7 +162,7 @@ CONTAINS
             DO I2 = L2, U2, my_stride(2)
 
                ! cycling through the CPUs, check if the current ray (I1,I2) is local to that CPU
-               IF (pw%pw_grid%para%mode .NE. PW_MODE_LOCAL) THEN
+               IF (pw%pw_grid%para%mode /= PW_MODE_LOCAL) THEN
                   DO ip = 0, num_pe - 1
                      IF (pw%pw_grid%para%bo(1, 1, ip, 1) <= I1 - L1 + 1 .AND. pw%pw_grid%para%bo(2, 1, ip, 1) >= I1 - L1 + 1 .AND. &
                          pw%pw_grid%para%bo(1, 2, ip, 1) <= I2 - L2 + 1 .AND. pw%pw_grid%para%bo(2, 2, ip, 1) >= I2 - L2 + 1) THEN
@@ -320,14 +320,14 @@ CONTAINS
          !master sends all data to everyone
          DO i = lbounds(1), ubounds(1)
             DO j = lbounds(2), ubounds(2)
-               IF (my_rank .EQ. 0) THEN
+               IF (my_rank == 0) THEN
                   READ (extunit, *) (buffer(k), k=lbounds(3), ubounds(3))
                END IF
                CALL gid%bcast(buffer(lbounds(3):ubounds(3)), 0)
 
                !only use data that is local to me - i.e. in slice of pencil I own
-               IF ((lbounds_local(1) .LE. i) .AND. (i .LE. ubounds_local(1)) .AND. (lbounds_local(2) .LE. j) &
-                   .AND. (j .LE. ubounds_local(2))) THEN
+               IF ((lbounds_local(1) <= i) .AND. (i <= ubounds_local(1)) .AND. (lbounds_local(2) <= j) &
+                   .AND. (j <= ubounds_local(2))) THEN
                   !allow scaling of external potential values by factor 'scaling' (SCALING_FACTOR in input file)
                   grid%array(i, j, lbounds(3):ubounds(3)) = buffer(lbounds(3):ubounds(3))*scaling
                END IF
@@ -465,14 +465,14 @@ CONTAINS
       displacements = 0
       DO i = lbounds(1), ubounds(1)
          should_read(:) = .TRUE.
-         IF (i .LT. lbounds_local(1)) THEN
+         IF (i < lbounds_local(1)) THEN
             should_read(1) = .FALSE.
-         ELSE IF (i .GT. ubounds_local(1)) THEN
+         ELSE IF (i > ubounds_local(1)) THEN
             EXIT
          END IF
          DO j = lbounds(2), ubounds(2)
             should_read(2) = .TRUE.
-            IF (j .LT. lbounds_local(2) .OR. j .GT. ubounds_local(2)) THEN
+            IF (j < lbounds_local(2) .OR. j > ubounds_local(2)) THEN
                should_read(2) = .FALSE.
             END IF
             IF (ALL(should_read .EQV. .TRUE.)) THEN
@@ -582,14 +582,14 @@ CONTAINS
          !master sends all data to everyone
          DO i = lbounds(1), ubounds(1)
             DO j = lbounds(2), ubounds(2)
-               IF (my_rank .EQ. 0) THEN
+               IF (my_rank == 0) THEN
                   READ (extunit_handle, *) (buffer(k), k=lbounds(3), ubounds(3))
                END IF
                CALL gid%bcast(buffer(lbounds(3):ubounds(3)), 0)
 
                !only use data that is local to me - i.e. in slice of pencil I own
-               IF ((lbounds_local(1) .LE. i) .AND. (i .LE. ubounds_local(1)) .AND. (lbounds_local(2) .LE. j) &
-                   .AND. (j .LE. ubounds_local(2))) THEN
+               IF ((lbounds_local(1) <= i) .AND. (i <= ubounds_local(1)) .AND. (lbounds_local(2) <= j) &
+                   .AND. (j <= ubounds_local(2))) THEN
                   !allow scaling of external potential values by factor 'scaling' (SCALING_FACTOR in input file)
                   IF (ANY(grid%array(i, j, lbounds(3):ubounds(3)) /= buffer(lbounds(3):ubounds(3))*scaling)) &
                      CALL cp_abort(__LOCATION__, &
@@ -667,14 +667,14 @@ CONTAINS
       islice = 1
       DO i = lbounds(1), ubounds(1), stride(1)
          should_write(:) = .TRUE.
-         IF (i .LT. lbounds_local(1)) THEN
+         IF (i < lbounds_local(1)) THEN
             should_write(1) = .FALSE.
-         ELSE IF (i .GT. ubounds_local(1)) THEN
+         ELSE IF (i > ubounds_local(1)) THEN
             EXIT
          END IF
          DO j = lbounds(2), ubounds(2), stride(2)
             should_write(2) = .TRUE.
-            IF (j .LT. lbounds_local(2) .OR. j .GT. ubounds_local(2)) THEN
+            IF (j < lbounds_local(2) .OR. j > ubounds_local(2)) THEN
                should_write(2) = .FALSE.
             END IF
             IF (ALL(should_write .EQV. .TRUE.)) THEN
@@ -752,14 +752,14 @@ CONTAINS
       writebuffer(:) = ''
       DO i = lbounds(1), ubounds(1), stride(1)
          should_write(:) = .TRUE.
-         IF (i .LT. lbounds_local(1)) THEN
+         IF (i < lbounds_local(1)) THEN
             should_write(1) = .FALSE.
-         ELSE IF (i .GT. ubounds_local(1)) THEN
+         ELSE IF (i > ubounds_local(1)) THEN
             EXIT
          END IF
          DO j = lbounds(2), ubounds(2), stride(2)
             should_write(2) = .TRUE.
-            IF (j .LT. lbounds_local(2) .OR. j .GT. ubounds_local(2)) THEN
+            IF (j < lbounds_local(2) .OR. j > ubounds_local(2)) THEN
                should_write(2) = .FALSE.
             END IF
             IF (ALL(should_write .EQV. .TRUE.)) THEN
@@ -895,7 +895,7 @@ CONTAINS
          DO I2 = L2, U2, my_stride(2)
 
             ! cycling through the CPUs, check if the current ray (I1,I2) is local to that CPU
-            IF (pw%pw_grid%para%mode .NE. PW_MODE_LOCAL) THEN
+            IF (pw%pw_grid%para%mode /= PW_MODE_LOCAL) THEN
                DO ip = 0, num_pe - 1
                   IF (pw%pw_grid%para%bo(1, 1, ip, 1) <= I1 - L1 + 1 .AND. pw%pw_grid%para%bo(2, 1, ip, 1) >= I1 - L1 + 1 .AND. &
                       pw%pw_grid%para%bo(1, 2, ip, 1) <= I2 - L2 + 1 .AND. pw%pw_grid%para%bo(2, 2, ip, 1) >= I2 - L2 + 1) THEN

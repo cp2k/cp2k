@@ -136,7 +136,7 @@ CONTAINS
                          shell_particles=shell_particles)
       particle_set => particles%els
 
-      IF (ALL(particle_set(:)%shell_index .EQ. 0)) THEN
+      IF (ALL(particle_set(:)%shell_index == 0)) THEN
          shell_model = .FALSE.
          CALL create_add_shell_type(added_shells, ndim=0)
       ELSE
@@ -420,7 +420,7 @@ CONTAINS
          IF (ASSOCIATED(maxradius2)) DEALLOCATE (maxradius2)
       END IF
 
-      IF (qmmm_env_qm%added_shells%num_mm_atoms .GT. 0) THEN
+      IF (qmmm_env_qm%added_shells%num_mm_atoms > 0) THEN
 
          maxchrg = MAXVAL(ABS(added_shells%mm_core_chrg(:)))
          CALL qmmm_gaussian_initialize(qmmm_gaussian_fns=added_shells%pgfs, &
@@ -489,7 +489,7 @@ CONTAINS
                                   print_section=print_section)
       END IF
 
-      IF (qmmm_env_qm%added_shells%num_mm_atoms .GT. 0) THEN
+      IF (qmmm_env_qm%added_shells%num_mm_atoms > 0) THEN
 
          CALL qmmm_potential_init(qmmm_coupl_type=qmmm_env_qm%qmmm_coupl_type, &
                                   mm_el_pot_radius=added_shells%mm_el_pot_radius, &
@@ -584,7 +584,7 @@ CONTAINS
                                             ncpl=qmmm_env_qm%aug_pools(SIZE(qmmm_env_qm%aug_pools))%pool%pw_grid%npts_local)
             END IF
 
-            IF (qmmm_env_qm%added_shells%num_mm_atoms .GT. 0) THEN
+            IF (qmmm_env_qm%added_shells%num_mm_atoms > 0) THEN
 
                CALL qmmm_per_potential_init(qmmm_coupl_type=qmmm_env_qm%qmmm_coupl_type, &
                                             per_potentials=added_shells%per_potentials, &
@@ -817,7 +817,7 @@ CONTAINS
          CALL section_vals_val_get(image_charge_section, "IMAGE_MATRIX_METHOD", &
                                    i_val=qmmm_env%image_charge_pot%image_matrix_method)
 
-         IF (qmmm_env%image_charge_pot%image_matrix_method .EQ. do_eri_mme) THEN
+         IF (qmmm_env%image_charge_pot%image_matrix_method == do_eri_mme) THEN
             eri_mme_section => section_vals_get_subs_vals(image_charge_section, "ERI_MME")
             CALL cp_eri_mme_init_read_input(eri_mme_section, qmmm_env%image_charge_pot%eri_mme_param)
             CALL cp_eri_mme_set_params(qmmm_env%image_charge_pot%eri_mme_param, &

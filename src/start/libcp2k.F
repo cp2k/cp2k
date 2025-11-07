@@ -473,7 +473,7 @@ CONTAINS
       NULLIFY (f_env)
       CALL f_env_add_defaults(f_env_id, f_env)
       CALL force_env_get(f_env%force_env, in_use=in_use)
-      IF (in_use .EQ. use_qs_force) THEN
+      IF (in_use == use_qs_force) THEN
          f_env%force_env%qs_env%transport_env%ext_c_method_ptr = func_ptr
       END IF
       CALL f_env_rm_defaults(f_env, ierr)

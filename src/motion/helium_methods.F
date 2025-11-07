@@ -152,7 +152,7 @@ CONTAINS
          num_env = logger%para_env%num_pe
       END IF
       CPASSERT(num_env >= 0)
-      IF (num_env .NE. logger%para_env%num_pe) THEN
+      IF (num_env /= logger%para_env%num_pe) THEN
          msg_str = "NUM_ENV not equal to number of processors"
          CPWARN(msg_str)
       END IF
@@ -181,7 +181,7 @@ CONTAINS
       END IF
 
       NULLIFY (helium_env)
-      IF (mepos .GT. 0) THEN
+      IF (mepos > 0) THEN
          ALLOCATE (helium_env(mepos))
          DO k = 1, mepos
             helium_env(k)%comm => new_comm
@@ -299,7 +299,7 @@ CONTAINS
                                       explicit=expl_cell)
             cgeof = 1.0_dp
             IF (helium_env(k)%helium%periodic) THEN
-               IF (helium_env(k)%helium%cell_shape .EQ. helium_cell_shape_octahedron) cgeof = 2.0_dp
+               IF (helium_env(k)%helium%cell_shape == helium_cell_shape_octahedron) cgeof = 2.0_dp
             END IF
             rtmp = (cgeof*helium_env(k)%helium%atoms/helium_env(k)%helium%density)**(1.0_dp/3.0_dp)
             IF (.NOT. expl_cell) THEN
@@ -308,7 +308,7 @@ CONTAINS
                CALL section_vals_val_get(helium_section, "CELL_SIZE", &
                                          r_val=helium_env(k)%helium%cell_size)
                ! only more work if not all three values are consistent:
-               IF (ABS(helium_env(k)%helium%cell_size - rtmp) .GT. 100.0_dp*EPSILON(0.0_dp)* &
+               IF (ABS(helium_env(k)%helium%cell_size - rtmp) > 100.0_dp*EPSILON(0.0_dp)* &
                    (ABS(helium_env(k)%helium%cell_size) + rtmp)) THEN
                   IF (expl_dens .AND. expl_nats) THEN
                      msg_str = "DENSITY, NATOMS and CELL_SIZE options "// &
@@ -331,7 +331,7 @@ CONTAINS
                      ! (should be a small correction)
                      rtmp = (cgeof*helium_env(k)%helium%atoms/helium_env(k)%helium%density &
                              )**(1.0_dp/3.0_dp)
-                     IF (ABS(helium_env(k)%helium%cell_size - rtmp) .GT. 100.0_dp*EPSILON(0.0_dp) &
+                     IF (ABS(helium_env(k)%helium%cell_size - rtmp) > 100.0_dp*EPSILON(0.0_dp) &
                          *(ABS(helium_env(k)%helium%cell_size) + rtmp)) THEN
                         msg_str = "Adjusting actual cell size "// &
                                   "to maintain correct density."
@@ -771,7 +771,7 @@ CONTAINS
                ! set the interaction potential type
                CALL section_vals_val_get(helium_section, "SOLUTE_INTERACTION", &
                                          i_val=helium_env(k)%helium%solute_interaction)
-               IF (helium_env(k)%helium%solute_interaction .EQ. helium_solute_intpot_nnp) THEN
+               IF (helium_env(k)%helium%solute_interaction == helium_solute_intpot_nnp) THEN
                   IF (k == 1) THEN
                      NULLIFY (nnp_section)
                      nnp_section => section_vals_get_subs_vals(helium_section, "NNP")
@@ -786,7 +786,7 @@ CONTAINS
                   CALL cp_rm_default_logger()
                   CALL cp_logger_release(tmplogger)
                END IF
-               IF (helium_env(k)%helium%solute_interaction .EQ. helium_solute_intpot_none) THEN
+               IF (helium_env(k)%helium%solute_interaction == helium_solute_intpot_none) THEN
                   WRITE (msg_str, '(A,I0,A)') &
                      "Solute found but no helium-solute interaction selected "// &
                      "(see SOLUTE_INTERACTION keyword)"
@@ -829,7 +829,7 @@ CONTAINS
                                                                     helium_env(k)%helium%beads*helium_env(k)%helium%num_env))
             ALLOCATE (helium_env(k)%helium%ltmp_3_atoms_beads_3d(3, helium_env(k)%helium%atoms, &
                                                                  helium_env(k)%helium%beads))
-            IF (k .EQ. 1) THEN
+            IF (k == 1) THEN
                CALL helium_write_setup(helium_env(k)%helium)
             END IF
          END DO
@@ -837,7 +837,7 @@ CONTAINS
       ELSE
          ! Deallocate env_all on processors without helium_env
          DEALLOCATE (env_all)
-      END IF ! mepos .GT. 0
+      END IF ! mepos > 0
 
       NULLIFY (env_all)
       CALL timestop(handle)
@@ -859,7 +859,7 @@ CONTAINS
 
       IF (ASSOCIATED(helium_env)) THEN
          DO k = 1, SIZE(helium_env)
-            IF (k .EQ. 1) THEN
+            IF (k == 1) THEN
                CALL helium_env(k)%comm%free()
                DEALLOCATE (helium_env(k)%comm)
                DEALLOCATE (helium_env(k)%env_all)
@@ -1506,7 +1506,7 @@ CONTAINS
       actlen = SIZE(message)
       num_env_restart = actlen/helium_env(1)%helium%atoms/helium_env(1)%helium%beads/3
 
-      IF (num_env_restart .NE. helium_env(1)%helium%num_env) THEN
+      IF (num_env_restart /= helium_env(1)%helium%num_env) THEN
          err_str = "Reading bead coordinates from the input file."
          CALL helium_write_line(err_str)
          err_str = "Number of environments in the restart...: '"
@@ -1697,7 +1697,7 @@ CONTAINS
 !TODO maybe add some sanity checks here:
 ! is num_env_restart integer ?
 
-      IF (num_env_restart .NE. helium_env(1)%helium%num_env) THEN
+      IF (num_env_restart /= helium_env(1)%helium%num_env) THEN
          err_str = "Reading permutation state from the input file."
          CALL helium_write_line(err_str)
          err_str = "Number of environments in the restart...: '"
@@ -1963,7 +1963,7 @@ CONTAINS
       END DO
 
       DO i = 1, helium_env(1)%helium%num_env
-         IF (i .LE. offset .OR. i .GT. offset + SIZE(helium_env)) THEN
+         IF (i <= offset .OR. i > offset + SIZE(helium_env)) THEN
             ! only deallocate pointers here which were not passed on to helium_env(*)%helium
             DEALLOCATE (uniform_array(i)%stream)
             DEALLOCATE (gaussian_array(i)%stream)
@@ -2014,7 +2014,7 @@ CONTAINS
       num_env_restart = actlen/40
 
       ! check, if RNG restart has the same dimension as helium%num_env
-      IF (num_env_restart .NE. helium_env(1)%helium%num_env) THEN
+      IF (num_env_restart /= helium_env(1)%helium%num_env) THEN
          err_str = "Reading RNG state from the input file."
          CALL helium_write_line(err_str)
          err_str = "Number of environments in the restart...: '"
@@ -2048,7 +2048,7 @@ CONTAINS
             ig(:, :) = UNPACK(message(off + 13:off + 18), MASK=m, FIELD=f)
             bf = message(off + 19)
             bu = message(off + 20)
-            IF (bf .GT. 0) THEN
+            IF (bf > 0) THEN
                lbf = .TRUE.
             ELSE
                lbf = .FALSE.
@@ -2060,7 +2060,7 @@ CONTAINS
             ig(:, :) = UNPACK(message(off + 33:off + 38), MASK=m, FIELD=f)
             bf = message(off + 39)
             bu = message(off + 40)
-            IF (bf .GT. 0) THEN
+            IF (bf > 0) THEN
                lbf = .TRUE.
             ELSE
                lbf = .FALSE.
@@ -2239,7 +2239,7 @@ CONTAINS
                                    r_vals=message)
          msglen = SIZE(message)
          itmp = SIZE(helium_env(1)%helium%rdf_rstr)
-         ltmp = (msglen .EQ. itmp)
+         ltmp = (msglen == itmp)
          IF (.NOT. ltmp) THEN
             stmp1 = ""
             WRITE (stmp1, *) msglen
@@ -2247,7 +2247,7 @@ CONTAINS
             WRITE (stmp2, *) itmp
             err_str = "Size of the RDF array in the input ("// &
                       TRIM(ADJUSTL(stmp1))// &
-                      ") .NE. that in the runtime ("// &
+                      ") /= that in the runtime ("// &
                       TRIM(ADJUSTL(stmp2))//")."
             CPABORT(err_str)
          END IF
@@ -2569,7 +2569,7 @@ CONTAINS
             "MOTION%PINT%HELIUM%RHO%MIN_CYCLE_LENGTHS_WDG", &
             i_vals=helium%rho_min_len_wdg_vals)
          itmp = SIZE(helium%rho_min_len_wdg_vals)
-         IF (itmp .GT. 0) THEN
+         IF (itmp > 0) THEN
             helium%rho_num_min_len_wdg = itmp
             helium%rho_num_act = helium%rho_num_act + itmp
          END IF
@@ -2588,7 +2588,7 @@ CONTAINS
             "MOTION%PINT%HELIUM%RHO%MIN_CYCLE_LENGTHS_NON", &
             i_vals=helium%rho_min_len_non_vals)
          itmp = SIZE(helium%rho_min_len_non_vals)
-         IF (itmp .GT. 0) THEN
+         IF (itmp > 0) THEN
             helium%rho_num_min_len_non = itmp
             helium%rho_num_act = helium%rho_num_act + itmp
          END IF
@@ -2607,7 +2607,7 @@ CONTAINS
             "MOTION%PINT%HELIUM%RHO%MIN_CYCLE_LENGTHS_ALL", &
             i_vals=helium%rho_min_len_all_vals)
          itmp = SIZE(helium%rho_min_len_all_vals)
-         IF (itmp .GT. 0) THEN
+         IF (itmp > 0) THEN
             helium%rho_num_min_len_all = itmp
             helium%rho_num_act = helium%rho_num_act + itmp
          END IF
@@ -2665,7 +2665,7 @@ CONTAINS
                                    r_vals=message)
          msglen = SIZE(message)
          itmp = SIZE(helium_env(1)%helium%rho_rstr)
-         ltmp = (msglen .EQ. itmp)
+         ltmp = (msglen == itmp)
          IF (.NOT. ltmp) THEN
             stmp1 = ""
             WRITE (stmp1, *) msglen
@@ -2673,7 +2673,7 @@ CONTAINS
             WRITE (stmp2, *) itmp
             err_str = "Size of the S density array in the input ("// &
                       TRIM(ADJUSTL(stmp1))// &
-                      ") .NE. that in the runtime ("// &
+                      ") /= that in the runtime ("// &
                       TRIM(ADJUSTL(stmp2))//")."
             CPABORT(err_str)
          END IF

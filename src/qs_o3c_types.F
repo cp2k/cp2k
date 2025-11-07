@@ -178,7 +178,7 @@ CONTAINS
                   !we only take ijk if rjk = 0 OR rik = 0 (because of symmetry)
                   CALL get_iterator_info(ac_iterator, r=rik)
                   rjk(:) = rik(:) - ijpair%rij(:)
-                  IF (.NOT. (ALL(ABS(rjk) .LE. 1.0E-4_dp) .OR. ALL(ABS(rik) .LE. 1.0E-4_dp))) CYCLE
+                  IF (.NOT. (ALL(ABS(rjk) <= 1.0E-4_dp) .OR. ALL(ABS(rik) <= 1.0E-4_dp))) CYCLE
                END IF
                nk = nk + 1
             END DO
@@ -195,7 +195,7 @@ CONTAINS
                   !we only take ijk if rjk = 0 OR rik = 0 (because of symmetry)
                   CALL get_iterator_info(ac_iterator, r=rik)
                   rjk(:) = rik(:) - ijpair%rij(:)
-                  IF (.NOT. (ALL(ABS(rjk) .LE. 1.0E-4_dp) .OR. ALL(ABS(rik) .LE. 1.0E-4_dp))) CYCLE
+                  IF (.NOT. (ALL(ABS(rjk) <= 1.0E-4_dp) .OR. ALL(ABS(rik) <= 1.0E-4_dp))) CYCLE
                END IF
 
                nk = nk + 1

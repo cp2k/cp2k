@@ -531,7 +531,7 @@ CONTAINS
             rf = ref_point
             my_ref = .TRUE.
          ELSE ! use my_ref = False in periodic case, corresponds to distributed ref point
-            IF (order .GT. 1) THEN
+            IF (order > 1) THEN
                CPWARN("Not clear how to define reference point for order > 1 in periodic cells.")
             END IF
          END IF

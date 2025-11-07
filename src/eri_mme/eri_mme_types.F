@@ -127,7 +127,7 @@ CONTAINS
       CHARACTER(len=2)                                   :: string
 
       WRITE (string, '(I2)') n_minimax_max
-      IF (n_minimax .GT. n_minimax_max) &
+      IF (n_minimax > n_minimax_max) &
          CPABORT("The maximum allowed number of minimax points N_MINIMAX is "//TRIM(string))
 
       param%n_minimax = n_minimax
@@ -191,7 +191,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ! Note: in MP2 default logger hacked and does not use global default print level
-      s_only = l_max .EQ. 0
+      s_only = l_max == 0
 
       CALL init_orbital_pointers(3*l_max) ! allow for orbital pointers of combined index
 
@@ -287,8 +287,8 @@ CONTAINS
 
       DEALLOCATE (minimax_aw)
 
-      CPASSERT(param%zet_max + 1.0E-12 .GT. param%zet_min)
-      CPASSERT(param%n_grids .GE. 1)
+      CPASSERT(param%zet_max + 1.0E-12 > param%zet_min)
+      CPASSERT(param%n_grids >= 1)
 
       cutoff_max = param%cutoff
       cutoff_rel = param%cutoff/param%zet_max
@@ -338,7 +338,7 @@ CONTAINS
       ! for first grid (for max. cutoff) always use default n_minimax
       CALL get_minimax_coeff_v_gspace(n_minimax, cutoff, G_min, minimax_aw, err_minimax=err_mm, &
                                       potential=potential, pot_par=pot_par)
-      CPASSERT(err_mm .LT. 1.1_dp*target_error + 1.0E-12)
+      CPASSERT(err_mm < 1.1_dp*target_error + 1.0E-12)
       CALL create_minimax_grid(minimax_grids(n_grids), cutoff, n_minimax, minimax_aw, err_mm)
       DEALLOCATE (minimax_aw)
 
@@ -348,8 +348,8 @@ CONTAINS
             CALL get_minimax_coeff_v_gspace(n_mm, cutoff, G_min, minimax_aw, err_minimax=err_mm, &
                                             potential=potential, pot_par=pot_par)
 
-            IF (err_mm .GT. 1.1_dp*target_error) THEN
-               CPASSERT(n_mm .NE. n_minimax)
+            IF (err_mm > 1.1_dp*target_error) THEN
+               CPASSERT(n_mm /= n_minimax)
                CALL create_minimax_grid(minimax_grids(i_grid), cutoff, n_mm + 1, minimax_aw_prev, err_mm_prev)
 
                DEALLOCATE (minimax_aw)
@@ -428,7 +428,7 @@ CONTAINS
 
       grid_no = 0
       DO igrid = 1, SIZE(grids)
-         IF (grids(igrid)%cutoff .GE. cutoff/2) THEN
+         IF (grids(igrid)%cutoff >= cutoff/2) THEN
             n_minimax = grids(igrid)%n_minimax
             minimax_aw => grids(igrid)%minimax_aw
             grid_no = igrid

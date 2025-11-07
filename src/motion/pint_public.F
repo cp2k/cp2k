@@ -158,7 +158,7 @@ CONTAINS
             ! indices of two points betw which to generate a new point
             i1 = 2*dl*ip
             i2 = 2*dl*(ip + 1)
-            IF (i2 .EQ. n) THEN
+            IF (i2 == n) THEN
                i2 = 0
             END IF
 

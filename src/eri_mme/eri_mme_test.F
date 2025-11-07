@@ -153,7 +153,7 @@ CONTAINS
                MAXVAL(I_diff)
 
             IF (param%is_ortho) THEN
-               acc_check = param%err_mm + param%err_c .GE. MAXVAL(I_diff)
+               acc_check = param%err_mm + param%err_c >= MAXVAL(I_diff)
             ELSE
                acc_check = .TRUE.
             END IF
@@ -259,7 +259,7 @@ CONTAINS
          DO izetb = 1, nzet
          DO izetc = 1, nzet
             nintg = nintg + 1
-            IF (MOD(nintg, ns) .EQ. 0) THEN
+            IF (MOD(nintg, ns) == 0) THEN
                I_test(:, :, :) = 0.0_dp
                CALL CPU_TIME(t0)
                DO irep = 1, nrep
@@ -365,8 +365,8 @@ CONTAINS
       C_prod_err = MAXVAL(ABS(C_prod_test - C_prod_ref)/(0.5_dp*(ABS(C_prod_test) + ABS(C_prod_ref)) + 1.0_dp))
       H_prod_err = MAXVAL(ABS(H_prod_test - H_prod_ref)/(0.5_dp*(ABS(C_prod_test) + ABS(C_prod_ref)) + 1.0_dp))
 
-      CPASSERT(C_prod_err .LE. tolerance)
-      CPASSERT(H_prod_err .LE. tolerance)
+      CPASSERT(C_prod_err <= tolerance)
+      CPASSERT(H_prod_err <= tolerance)
       MARK_USED(tolerance)
 
    END SUBROUTINE overlap_dist_expansion_test

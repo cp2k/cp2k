@@ -236,7 +236,7 @@ CONTAINS
       routine_id = routine_name2id(routine_name_dsl)
       !
       ! Take timings when the timings_level is appropriated
-      IF (global_timings_level .NE. 0 .OR. routine_id .EQ. root_cp2k_id) THEN
+      IF (global_timings_level /= 0 .OR. routine_id == root_cp2k_id) THEN
          cs_entry%walltime_start = m_walltime()
          cs_entry%energy_start = m_energy()
       END IF
@@ -320,7 +320,7 @@ CONTAINS
       wt_elapsed = 0
       en_elapsed = 0
       ! Take timings only when the start time is >=0, i.e. the timings_level is appropriated
-      IF (cs_entry%walltime_start .GE. 0) THEN
+      IF (cs_entry%walltime_start >= 0) THEN
          wt_now = m_walltime()
          en_now = m_energy()
          ! add the elapsed time for this timeset/timestop to the time accumulator

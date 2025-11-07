@@ -653,7 +653,7 @@ CONTAINS
       END IF
 
       occupation = -1.0_dp
-      IF (nblock_tot .NE. 0) occupation = 100.0_dp*REAL(nblock_sum, dp)/REAL(nblock_tot, dp)
+      IF (nblock_tot /= 0) occupation = 100.0_dp*REAL(nblock_sum, dp)/REAL(nblock_tot, dp)
 
       IF (ionode) THEN
          WRITE (UNIT=output_unit, FMT="(/,/,T2,A)") &

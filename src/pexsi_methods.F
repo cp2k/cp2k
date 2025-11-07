@@ -146,7 +146,7 @@ CONTAINS
       pexsi_env%num_ranks_per_pole = min_ranks_per_pole ! not a PEXSI option
       pexsi_env%csr_screening = csr_screening
 
-      IF (numElectronInitialTolerance .LT. numElectronTargetTolerance) &
+      IF (numElectronInitialTolerance < numElectronTargetTolerance) &
          numElectronInitialTolerance = numElectronTargetTolerance
 
       pexsi_env%tol_nel_initial = numElectronInitialTolerance
@@ -255,7 +255,7 @@ CONTAINS
 
       mu_total = SUM(mu_spin(1:pexsi_env%nspin))/REAL(pexsi_env%nspin, KIND=dp)
       kTS_total = SUM(pexsi_env%kTS)
-      IF (pexsi_env%nspin .EQ. 1) kTS_total = kTS_total*2.0_dp
+      IF (pexsi_env%nspin == 1) kTS_total = kTS_total*2.0_dp
 
       IF (unit_nr > 0) THEN
          WRITE (unit_nr, "(/A,T55,F26.15)") &
@@ -331,7 +331,7 @@ CONTAINS
          unit_nr = -1
       END IF
 
-      first_call = (iscf .EQ. 1) .AND. (ispin .EQ. 1)
+      first_call = (iscf == 1) .AND. (ispin == 1)
 
       ! Assert a few things the first time PEXSI is called
       IF (first_call) THEN
@@ -343,13 +343,13 @@ CONTAINS
             CPABORT("PEXSI interface expects a non-symmetric DBCSR overlap matrix")
 
          ! Assertion on datatype
-         IF ((pexsi_env%csr_mat_s%nzval_local%data_type .NE. dbcsr_csr_type_real_8) &
-             .OR. (pexsi_env%csr_mat_ks%nzval_local%data_type .NE. dbcsr_csr_type_real_8)) &
+         IF ((pexsi_env%csr_mat_s%nzval_local%data_type /= dbcsr_csr_type_real_8) &
+             .OR. (pexsi_env%csr_mat_ks%nzval_local%data_type /= dbcsr_csr_type_real_8)) &
             CPABORT("Complex data type not supported by PEXSI")
 
          ! Assertion on number of non-zero elements
          !(TODO: update when PEXSI changes to Long Int)
-         IF (pexsi_env%csr_mat_s%nze_total .GE. INT(2, kind=int_8)**31) &
+         IF (pexsi_env%csr_mat_s%nze_total >= INT(2, kind=int_8)**31) &
             CPABORT("Total number of non-zero elements of CSR matrix is too large to be handled by PEXSI")
       END IF
 
@@ -375,7 +375,7 @@ CONTAINS
       CALL setup_arnoldi_env(arnoldi_env, arnoldi_matrices, max_iter=20, &
                              threshold=1.0E-2_dp, selection_crit=2, nval_request=1, nrestarts=21, &
                              generalized_ev=.TRUE., iram=.FALSE.)
-      IF (iscf .GT. 1) CALL set_arnoldi_initial_vector(arnoldi_env, pexsi_env%max_ev_vector(ispin))
+      IF (iscf > 1) CALL set_arnoldi_initial_vector(arnoldi_env, pexsi_env%max_ev_vector(ispin))
       CALL arnoldi_ev(arnoldi_matrices, arnoldi_env)
       delta_E = REAL(get_selected_ritz_val(arnoldi_env, 1), dp)
       ! increase delta_E a bit to make sure that it really is an upper bound
@@ -390,7 +390,7 @@ CONTAINS
       CALL cp_pexsi_set_options(pexsi_env%options, deltaE=delta_E)
 
       ! Set PEXSI options appropriately for first SCF iteration
-      IF (iscf .EQ. 1) THEN
+      IF (iscf == 1) THEN
          ! Get option isInertiaCount to reset it later on and set it to 1 for first SCF iteration
          CALL cp_pexsi_get_options(pexsi_env%options, isInertiaCount=isInertiaCount)
          CALL cp_pexsi_set_options(pexsi_env%options, isInertiaCount=1, &
@@ -407,7 +407,7 @@ CONTAINS
 !                                                ", spin component", ispin
 
       IF (unit_nr > 0) WRITE (unit_nr, '(/A,T41,L20)') " PEXSI| Do inertia counting?", &
-         isInertiaCount_out .EQ. 1
+         isInertiaCount_out == 1
       IF (unit_nr > 0) WRITE (unit_nr, '(A,T50,F5.2,T56,F5.2)') &
          " PEXSI| Guess for min mu, max mu", mu_min_in, mu_max_in
 
@@ -415,7 +415,7 @@ CONTAINS
          " PEXSI| Tolerance in number of electrons", nel_tol
 
 !    IF(unit_nr>0) WRITE(unit_nr,'(A,T41,L20)') &
-!                  " PEXSI|   Do symbolic factorization?", is_symbolic_factorize.EQ.1
+!                  " PEXSI|   Do symbolic factorization?", is_symbolic_factorize==1
 
       IF (unit_nr > 0) WRITE (unit_nr, '(A,T41,F20.2)') &
          " PEXSI| Arnoldi est. spectral radius", delta_E
@@ -445,7 +445,7 @@ CONTAINS
 
       ! Check convergence
       nelectron_diff = nelectron_out - nelectron_exact_pexsi
-      pexsi_convergence = ABS(nelectron_diff) .LT. nel_tol
+      pexsi_convergence = ABS(nelectron_diff) < nel_tol
 
       IF (unit_nr > 0) THEN
          IF (pexsi_convergence) THEN
@@ -499,7 +499,7 @@ CONTAINS
                                 muMax0=mu_max_out)
 
       ! Reset isInertiaCount according to user input
-      IF (iscf .EQ. 1) THEN
+      IF (iscf == 1) THEN
          CALL cp_pexsi_set_options(pexsi_env%options, isInertiaCount= &
                                    isInertiaCount)
       END IF
@@ -559,7 +559,7 @@ CONTAINS
          tol_nel = MIN(tol_nel, pexsi_env%tol_nel_initial)
       END IF
 
-      check_convergence = (tol_nel .LE. pexsi_env%tol_nel_target)
+      check_convergence = (tol_nel <= pexsi_env%tol_nel_target)
 
       CALL cp_pexsi_set_options(pexsi_env%options, numElectronPEXSITolerance=tol_nel)
       CALL timestop(handle)
@@ -609,13 +609,13 @@ CONTAINS
          DO ispin = 1, ls_scf_env%nspins
             CALL matrix_ls_to_qs(matrix_w_qs(ispin)%matrix, matrix_w(ispin)%matrix, &
                                  ls_scf_env%ls_mstruct, covariant=.FALSE.)
-            IF (ls_scf_env%nspins .EQ. 1) CALL dbcsr_scale(matrix_w_qs(ispin)%matrix, 2.0_dp)
+            IF (ls_scf_env%nspins == 1) CALL dbcsr_scale(matrix_w_qs(ispin)%matrix, 2.0_dp)
          END DO
       END IF
 
       IF (PRESENT(kTS)) THEN
          kTS_total = SUM(kTS)
-         IF (ls_scf_env%nspins .EQ. 1) kTS_total = kTS_total*2.0_dp
+         IF (ls_scf_env%nspins == 1) kTS_total = kTS_total*2.0_dp
          energy%kTS = kTS_total
       END IF
 

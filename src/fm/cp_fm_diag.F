@@ -342,7 +342,7 @@ CONTAINS
             DO i = 1, ncol
                CALL infog2l(i, j, desca, nprow, npcol, myprow, mypcol, il, jl, iprow, ipcol)
                IF ((iprow == myprow) .AND. (ipcol == mypcol)) THEN
-                  gold = MERGE(0.0_dp, 1.0_dp, i .NE. j)
+                  gold = MERGE(0.0_dp, 1.0_dp, i /= j)
                   test = matrix%local_data(il, jl)
                   eps = ABS(test - gold)
                   IF (eps > eps_warning) EXIT outer
@@ -358,7 +358,7 @@ CONTAINS
                     0.0_dp, matrix%local_data(1, 1), nrow)
          outer: DO j = 1, ncol
             DO i = 1, ncol
-               gold = MERGE(0.0_dp, 1.0_dp, i .NE. j)
+               gold = MERGE(0.0_dp, 1.0_dp, i /= j)
                test = matrix%local_data(i, j)
                eps = ABS(test - gold)
                IF (eps > eps_warning) EXIT outer
@@ -601,14 +601,14 @@ CONTAINS
          CALL cp_fm_error("ERROR in PDORMTR: Work space query failed", myinfo, PRESENT(info))
       END IF
 
-      IF (lwork .LT. (work(1) + 2*n)) THEN
+      IF (lwork < (work(1) + 2*n)) THEN
          lwork = NINT(work(1)) + 2*n ! still wrong by 2*N
       END IF
 #endif
       ALLOCATE (work(lwork))
 
       ! Initial/documented amount of liwork is exceeded (slightly worrisome too).
-      IF (liwork .LT. iwork(1)) THEN
+      IF (liwork < iwork(1)) THEN
          liwork = iwork(1)
          DEALLOCATE (iwork)
          ALLOCATE (iwork(liwork))

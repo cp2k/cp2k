@@ -1028,11 +1028,11 @@ CONTAINS
             WRITE (log_unit, '(A)') "-----------------------------------------------------------------------------"
             mult = "   "
             DO iex = 1, SIZE(soc_env%soc_evals)
-               IF (evects_sort(iex + 1) .GT. nsg + ntp*2 + 1) THEN
+               IF (evects_sort(iex + 1) > nsg + ntp*2 + 1) THEN
                   mult = "T+1"
-               ELSE IF (evects_sort(iex + 1) .GT. nsg + ntp + 1) THEN
+               ELSE IF (evects_sort(iex + 1) > nsg + ntp + 1) THEN
                   mult = "T0"
-               ELSE IF (evects_sort(iex + 1) .GT. nsg + 1) THEN
+               ELSE IF (evects_sort(iex + 1) > nsg + 1) THEN
                   mult = "T-1"
                ELSE
                   mult = "S  "
@@ -1361,9 +1361,9 @@ CONTAINS
          DO igrid = 1, SIZE(grid_info, 1)
             IF (grid_info(igrid, 1) == kind_name) THEN
                READ (grid_info(igrid, 2), *, iostat=stat) na
-               IF (stat .NE. 0) CPABORT("The 'na' value for the GRID keyword must be an integer")
+               IF (stat /= 0) CPABORT("The 'na' value for the GRID keyword must be an integer")
                READ (grid_info(igrid, 3), *, iostat=stat) nr
-               IF (stat .NE. 0) CPABORT("The 'nr' value for the GRID keyword must be an integer")
+               IF (stat /= 0) CPABORT("The 'nr' value for the GRID keyword must be an integer")
                EXIT
             END IF
          END DO !igrid

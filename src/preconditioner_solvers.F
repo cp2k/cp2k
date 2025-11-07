@@ -98,7 +98,7 @@ CONTAINS
             occ_matrix = dbcsr_get_occupation(preconditioner_env%sparse_matrix)
          END IF
          ! check whether we are in the first step and if it is a good idea to use cholesky (matrix sparsity)
-         IF (preconditioner_env%solver .NE. ot_precond_solver_update .AND. occ_matrix > 0.5_dp) THEN
+         IF (preconditioner_env%solver /= ot_precond_solver_update .AND. occ_matrix > 0.5_dp) THEN
             preconditioner_env%solver = ot_precond_solver_update
             CALL make_full_inverse_cholesky(preconditioner_env, matrix_s)
          ELSE
@@ -193,7 +193,7 @@ CONTAINS
       CALL cp_fm_cholesky_decompose(fm, info_out=info_out)
       !
       ! if fm not SPD we go with the overlap matrix
-      IF (info_out .NE. 0) THEN
+      IF (info_out /= 0) THEN
          !
          ! just the overlap matrix
          IF (PRESENT(matrix_s)) THEN

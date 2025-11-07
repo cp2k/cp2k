@@ -99,8 +99,8 @@ CONTAINS
       INTEGER                                            :: iatom
 
       DO iatom = 1, 6
-         IF (connectivity(iatom, current_atom) .NE. 0) THEN
-            IF (connectivity(iatom, current_atom) .NE. avoid_atom) THEN
+         IF (connectivity(iatom, current_atom) /= 0) THEN
+            IF (connectivity(iatom, current_atom) /= avoid_atom) THEN
                atom(connectivity(iatom, current_atom)) = 1
                CALL depth_first_search(connectivity(iatom, current_atom), &
                                        current_atom, connectivity, atom)
@@ -336,9 +336,9 @@ CONTAINS
 ! correction factor for the change in phase space...dis_length is
 ! made unitless in change_bond_length
             value = -BETA*(bias_energy_new - bias_energy_old)
-            IF (value .GT. exp_max_val) THEN
+            IF (value > exp_max_val) THEN
                w = 10.0_dp
-            ELSEIF (value .LT. exp_min_val) THEN
+            ELSEIF (value < exp_min_val) THEN
                w = 0.0_dp
             ELSE
                w = EXP(value)*dis_length**2
@@ -346,7 +346,7 @@ CONTAINS
 
          END IF
 
-         IF (w .GE. 1.0E0_dp) THEN
+         IF (w >= 1.0E0_dp) THEN
             w = 1.0E0_dp
             rand = 0.0E0_dp
          ELSE
@@ -356,7 +356,7 @@ CONTAINS
             CALL group%bcast(rand, source)
          END IF
 
-         IF (rand .LT. w) THEN
+         IF (rand < w) THEN
 
 ! accept the move
             IF (move_type == 'bond') THEN
@@ -579,9 +579,9 @@ CONTAINS
                                potential_energy=bias_energy_new)
 ! accept or reject the move based on the Metropolis rule
             value = -BETA*(bias_energy_new - bias_energy_old)
-            IF (value .GT. exp_max_val) THEN
+            IF (value > exp_max_val) THEN
                w = 10.0_dp
-            ELSEIF (value .LT. exp_min_val) THEN
+            ELSEIF (value < exp_min_val) THEN
                w = 0.0_dp
             ELSE
                w = EXP(value)
@@ -589,7 +589,7 @@ CONTAINS
 
          END IF
 
-         IF (w .GE. 1.0E0_dp) THEN
+         IF (w >= 1.0E0_dp) THEN
             w = 1.0E0_dp
             rand = 0.0E0_dp
          ELSE
@@ -597,7 +597,7 @@ CONTAINS
             CALL group%bcast(rand, source)
          END IF
 
-         IF (rand .LT. w) THEN
+         IF (rand < w) THEN
 
 ! accept the move
             moves%bias_trans%successes = moves%bias_trans%successes + 1
@@ -778,9 +778,9 @@ CONTAINS
       ! 1,2,3 with equal prob
       dir = INT(3*rand) + 1
 
-      IF (dir .EQ. 1) THEN
+      IF (dir == 1) THEN
          lx = .TRUE.
-      ELSEIF (dir .EQ. 2) THEN
+      ELSEIF (dir == 2) THEN
          ly = .TRUE.
       END IF
 
@@ -882,9 +882,9 @@ CONTAINS
                                potential_energy=bias_energy_new)
 ! accept or reject the move based on the Metropolis rule
             value = -BETA*(bias_energy_new - bias_energy_old)
-            IF (value .GT. exp_max_val) THEN
+            IF (value > exp_max_val) THEN
                w = 10.0_dp
-            ELSEIF (value .LT. exp_min_val) THEN
+            ELSEIF (value < exp_min_val) THEN
                w = 0.0_dp
             ELSE
                w = EXP(value)
@@ -892,7 +892,7 @@ CONTAINS
 
          END IF
 
-         IF (w .GE. 1.0E0_dp) THEN
+         IF (w >= 1.0E0_dp) THEN
             w = 1.0E0_dp
             rand = 0.0E0_dp
          ELSE
@@ -900,7 +900,7 @@ CONTAINS
             CALL group%bcast(rand, source)
          END IF
 
-         IF (rand .LT. w) THEN
+         IF (rand < w) THEN
 
 ! accept the move
             moves%bias_rot%successes = moves%bias_rot%successes + 1
@@ -1053,7 +1053,7 @@ CONTAINS
 
 ! find the test cell lengths for the discrete volume move
       IF (ldiscrete) THEN
-         IF (rand .LT. 0.5_dp) THEN
+         IF (rand < 0.5_dp) THEN
             lincrease = .TRUE.
          ELSE
             lincrease = .FALSE.
@@ -1067,7 +1067,7 @@ CONTAINS
                IF (ionode) rand = rng_stream%next()
                CALL group%bcast(rand, source)
                iside_change = CEILING(3.0_dp*rand)
-               IF (discrete_array(iside_change, 1) .EQ. 1) THEN
+               IF (discrete_array(iside_change, 1) == 1) THEN
                   new_cell_length(iside_change) = &
                      new_cell_length(iside_change) + discrete_step
                   EXIT
@@ -1078,7 +1078,7 @@ CONTAINS
                IF (ionode) rand = rng_stream%next()
                CALL group%bcast(rand, source)
                iside_change = CEILING(3.0_dp*rand)
-               IF (discrete_array(iside_change, 2) .EQ. 1) THEN
+               IF (discrete_array(iside_change, 2) == 1) THEN
                   new_cell_length(iside_change) = &
                      new_cell_length(iside_change) - discrete_step
                   EXIT
@@ -1094,7 +1094,7 @@ CONTAINS
 !         WRITE(output_unit,*) '************************ be sure to change back!',&
 !                 old_cell_length(1),14.64_dp/angstrom
 !         vol_dis=-56.423592_dp/angstrom**3
-!         IF(old_cell_length(1) .LE. 14.64_dp/angstrom) THEN
+!         IF(old_cell_length(1) <= 14.64_dp/angstrom) THEN
 !            vol_dis=0.0_dp
 !            WRITE(output_unit,*) 'Found the correct box length!'
 !         ENDIF
@@ -1103,7 +1103,7 @@ CONTAINS
                     old_cell_length(1)*old_cell_length(2)* &
                     old_cell_length(3)
 
-         IF (temp_var .LE. 0.0E0_dp) THEN
+         IF (temp_var <= 0.0E0_dp) THEN
             loverlap = .TRUE. ! cannot have a negative volume
          ELSE
             new_cell_length(1) = (temp_var)**(1.0E0_dp/3.0E0_dp)
@@ -1194,11 +1194,11 @@ CONTAINS
 ! stop if we're trying to change a box to a boxlength smaller than rcut
       IF (ionode) THEN
          ltoo_small = .FALSE.
-         IF (force_env%in_use .EQ. use_fist_force) THEN
+         IF (force_env%in_use == use_fist_force) THEN
             CALL get_mc_par(mc_par, rcut=rcut)
-            IF (new_cell_length(1) .LT. 2.0_dp*rcut) ltoo_small = .TRUE.
-            IF (new_cell_length(2) .LT. 2.0_dp*rcut) ltoo_small = .TRUE.
-            IF (new_cell_length(3) .LT. 2.0_dp*rcut) ltoo_small = .TRUE.
+            IF (new_cell_length(1) < 2.0_dp*rcut) ltoo_small = .TRUE.
+            IF (new_cell_length(2) < 2.0_dp*rcut) ltoo_small = .TRUE.
+            IF (new_cell_length(3) < 2.0_dp*rcut) ltoo_small = .TRUE.
 
             IF (ltoo_small) THEN
                WRITE (iw, *) 'new_cell_lengths ', &
@@ -1225,9 +1225,9 @@ CONTAINS
       pressure_term = pressure*vol_dis
 
       value = -BETA*(energy_term + volume_term + pressure_term)
-      IF (value .GT. exp_max_val) THEN
+      IF (value > exp_max_val) THEN
          w = 10.0_dp
-      ELSEIF (value .LT. exp_min_val) THEN
+      ELSEIF (value < exp_min_val) THEN
          w = 0.0_dp
       ELSE
          w = EXP(value)
@@ -1237,7 +1237,7 @@ CONTAINS
 !         w=1.0E0_dp
 !         w=0.0E0_dp
 
-      IF (w .GE. 1.0E0_dp) THEN
+      IF (w >= 1.0E0_dp) THEN
          w = 1.0E0_dp
          rand = 0.0E0_dp
       ELSE
@@ -1245,7 +1245,7 @@ CONTAINS
          CALL group%bcast(rand, source)
       END IF
 
-      IF (rand .LT. w) THEN
+      IF (rand < w) THEN
 
 ! accept the move
          moves%volume%successes = moves%volume%successes + 1
@@ -1645,7 +1645,7 @@ CONTAINS
 ! if the y-coordinate is less than zero, we need to switch the sign when we make the vector,
 ! as the angle computed by the dot product can't distinguish between that
             IF (DOT_PRODUCT(cross_prod_plane(1:3), r_new(1:3, iatom)) &
-                .LT. 0.0_dp) THEN
+                < 0.0_dp) THEN
 
 ! need to figure out the current iatom-B-bisector angle, so we know what the new angle is
                new_angle_a = ACOS(DOT_PRODUCT(bisector, temp(1:3))/ &
@@ -1672,7 +1672,7 @@ CONTAINS
 ! if the y-coordinate is less than zero, we need to switch the sign when we make the vector,
 ! as the angle computed by the dot product can't distinguish between that
             IF (DOT_PRODUCT(cross_prod_plane(1:3), r_new(1:3, iatom)) &
-                .LT. 0.0_dp) THEN
+                < 0.0_dp) THEN
 ! need to figure out the current iatom-B-bisector angle, so we know what the new angle is
                new_angle_c = ACOS(DOT_PRODUCT(bisector(1:3), temp(1:3))/ &
                                   (temp_length)) - dis_angle_c
@@ -2052,7 +2052,7 @@ CONTAINS
                (particles%els(start_atom_swap + avbmc_atom(molecule_type) - 1)%r(3) - &
                 particles%els(target_atom)%r(3))/abc(3))
       distance = SQRT(RIJ(1)**2 + RIJ(2)**2 + RIJ(3)**2)
-      IF (distance .LE. avbmc_rmax(molecule_type) .AND. distance .GE. avbmc_rmin(molecule_type)) THEN
+      IF (distance <= avbmc_rmax(molecule_type) .AND. distance >= avbmc_rmin(molecule_type)) THEN
          lin = .TRUE.
       ELSE
          lin = .FALSE.
@@ -2227,9 +2227,9 @@ CONTAINS
          del_quickstep_energy = (-BETA)*(new_energy - old_energy - &
                                          (bias_energy_new - bias_energy_old))
 
-         IF (del_quickstep_energy .GT. exp_max_val) THEN
+         IF (del_quickstep_energy > exp_max_val) THEN
             del_quickstep_energy = max_val
-         ELSEIF (del_quickstep_energy .LT. exp_min_val) THEN
+         ELSEIF (del_quickstep_energy < exp_min_val) THEN
             del_quickstep_energy = 0.0_dp
          ELSE
             del_quickstep_energy = EXP(del_quickstep_energy)
@@ -2244,14 +2244,14 @@ CONTAINS
       END IF
 
 ! check if the move is accepted
-      IF (w .GE. 1.0E0_dp) THEN
+      IF (w >= 1.0E0_dp) THEN
          rand = 0.0E0_dp
       ELSE
          IF (ionode) rand = rng_stream%next()
          CALL group%bcast(rand, source)
       END IF
 
-      IF (rand .LT. w) THEN
+      IF (rand < w) THEN
 
 ! accept the move
 
@@ -2414,15 +2414,15 @@ CONTAINS
       energy_term = new_energy + hmc_ekin%final_ekin - old_energy - hmc_ekin%initial_ekin
 
       value = -BETA*(energy_term)
-      IF (value .GT. exp_max_val) THEN
+      IF (value > exp_max_val) THEN
          w = 10.0_dp
-      ELSEIF (value .LT. exp_min_val) THEN
+      ELSEIF (value < exp_min_val) THEN
          w = 0.0_dp
       ELSE
          w = EXP(value)
       END IF
 
-      IF (w .GE. 1.0E0_dp) THEN
+      IF (w >= 1.0E0_dp) THEN
          w = 1.0E0_dp
          rand = 0.0E0_dp
       ELSE
@@ -2430,7 +2430,7 @@ CONTAINS
          CALL group%bcast(rand, source)
       END IF
 
-      IF (rand .LT. w) THEN
+      IF (rand < w) THEN
 
 ! accept the move
          moves%hmc%successes = moves%hmc%successes + 1
@@ -2604,7 +2604,7 @@ CONTAINS
 ! do the cluster move
       DO cstart = 1, nend
          imol = 0
-         IF (cluster(jpart, cstart) .NE. 0) THEN
+         IF (cluster(jpart, cstart) /= 0) THEN
             imol = cluster(jpart, cstart)
             iunit = 1
             DO ipart = 1, imol - 1
@@ -2650,11 +2650,11 @@ CONTAINS
 
 ! check if cluster size changes then reject the move
       IF (lbias) THEN
-         IF (total_clusafmo .NE. total_clus) THEN
+         IF (total_clusafmo /= total_clus) THEN
             loverlap = .TRUE.
          END IF
       ELSE
-         IF (total_clusafmo .NE. total_clus) THEN
+         IF (total_clusafmo /= total_clus) THEN
             loverlap = .TRUE.
             lreject = .TRUE.
          END IF
@@ -2672,9 +2672,9 @@ CONTAINS
                                potential_energy=bias_energy_new)
 ! accept or reject the move based on the Metropolis rule
             value = -BETA*(bias_energy_new - bias_energy_old)
-            IF (value .GT. exp_max_val) THEN
+            IF (value > exp_max_val) THEN
                w = 10.0_dp
-            ELSEIF (value .LT. exp_min_val) THEN
+            ELSEIF (value < exp_min_val) THEN
                w = 0.0_dp
             ELSE
                w = EXP(value)
@@ -2682,14 +2682,14 @@ CONTAINS
 
          END IF
 
-         IF (w .GE. 1.0E0_dp) THEN
+         IF (w >= 1.0E0_dp) THEN
             w = 1.0E0_dp
             rand = 0.0E0_dp
          ELSE
             IF (ionode) rand = rng_stream%next()
             CALL group%bcast(rand, source)
          END IF
-         IF (rand .LT. w) THEN
+         IF (rand < w) THEN
 
 ! accept the move
             moves%bias_cltrans%successes = moves%bias_cltrans%successes + 1

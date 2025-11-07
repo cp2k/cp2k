@@ -1190,9 +1190,9 @@ CONTAINS
          iter_evGW = mp2_env%ri_g0w0%iter_evGW
          iter_sc_GW0 = mp2_env%ri_g0w0%iter_sc_GW0
          IF ((.NOT. do_im_time)) THEN
-            IF (iter_sc_GW0 .NE. 1 .AND. iter_evGW .NE. 1) CPABORT("Mixed scGW0/evGW not implemented.")
+            IF (iter_sc_GW0 /= 1 .AND. iter_evGW /= 1) CPABORT("Mixed scGW0/evGW not implemented.")
             ! in case of scGW0 with the N^4 algorithm, we use the evGW code but use the DFT eigenvalues for W
-            IF (iter_sc_GW0 .NE. 1) iter_evGW = iter_sc_GW0
+            IF (iter_sc_GW0 /= 1) iter_evGW = iter_sc_GW0
          END IF
       ELSE
          ext_scaling = 0.0_dp
@@ -1270,7 +1270,7 @@ CONTAINS
          ! image charge model only implemented for cubic scaling GW
          CPASSERT(do_gw_im_time)
          CPASSERT(.NOT. do_periodic)
-         IF (cut_memory .NE. 1) CPABORT("For IC, use MEMORY_CUT 1 in the LOW_SCALING section.")
+         IF (cut_memory /= 1) CPABORT("For IC, use MEMORY_CUT 1 in the LOW_SCALING section.")
       END IF
 
       ALLOCATE (e_fermi(nspins))

@@ -95,7 +95,7 @@ CONTAINS
          CPABORT("q-update is possible only with p-update")
       END IF
 
-      IF (cts_env%tensor_type .EQ. tensor_up_down) THEN
+      IF (cts_env%tensor_type == tensor_up_down) THEN
          CPABORT("riccati is not implemented for biorthogonal basis")
       END IF
 
@@ -129,8 +129,8 @@ CONTAINS
          END IF
       END IF
 
-      IF (cts_env%tensor_type .NE. tensor_up_down .AND. &
-          cts_env%tensor_type .NE. tensor_orthogonal) THEN
+      IF (cts_env%tensor_type /= tensor_up_down .AND. &
+          cts_env%tensor_type /= tensor_orthogonal) THEN
          CPABORT("illegal tensor flag")
       END IF
 
@@ -176,7 +176,7 @@ CONTAINS
          IF (ASSOCIATED(cts_env%matrix_x_guess)) THEN
             CALL dbcsr_copy(cts_env%matrix_x, &
                             cts_env%matrix_x_guess)
-            IF (cts_env%tensor_type .EQ. tensor_orthogonal) THEN
+            IF (cts_env%tensor_type == tensor_orthogonal) THEN
                ! bring x from contravariant-covariant representation
                ! to the orthogonal/cholesky representation
                ! use res as temporary storage
@@ -241,7 +241,7 @@ CONTAINS
             CALL matrix_forward_transform(cts_env%matrix_x, u_qq, u_pp, &
                                           cts_env%eps_filter)
 
-            IF (cts_env%max_iter .GE. 0) THEN
+            IF (cts_env%max_iter >= 0) THEN
 
                CALL solve_riccati_equation( &
                   pp=matrix_pp, &
@@ -355,7 +355,7 @@ CONTAINS
 !CALL dbcsr_print(matrix_qp)
 !CALL dbcsr_print(matrix_pp)
 
-            IF (cts_env%max_iter .GE. 0) THEN
+            IF (cts_env%max_iter >= 0) THEN
 
                CALL solve_riccati_equation( &
                   pp=matrix_pp, &
@@ -407,7 +407,7 @@ CONTAINS
 
          IF (cts_env%update_p) THEN
 
-            IF (cts_env%tensor_type .EQ. tensor_up_down) THEN
+            IF (cts_env%tensor_type == tensor_up_down) THEN
                CPABORT("orbital update is NYI for this tensor type")
             END IF
 
@@ -481,7 +481,7 @@ CONTAINS
 
          ELSE ! do not update p
 
-            IF (cts_env%tensor_type .EQ. tensor_orthogonal) THEN
+            IF (cts_env%tensor_type == tensor_orthogonal) THEN
                ! bring x to contravariant-covariant representation
                CALL dbcsr_create(matrix_qp, &
                                  template=cts_env%matrix_qp_template, &
@@ -828,7 +828,7 @@ CONTAINS
       DO
 
          ! (re)-compute the residuals
-         IF (iteration .EQ. 0) THEN
+         IF (iteration == 0) THEN
             CALL dbcsr_copy(res, qp)
             IF (present_oo) THEN
                CALL dbcsr_multiply("N", "N", +1.0_dp, qq, x, 0.0_dp, res_trial, &
@@ -876,8 +876,8 @@ CONTAINS
          END IF
 
          ! check convergence and other exit criteria
-         converged = (best_norm .LT. eps_convergence)
-         IF (converged .OR. (iteration .GE. max_iter)) THEN
+         converged = (best_norm < eps_convergence)
+         IF (converged .OR. (iteration >= max_iter)) THEN
             prepare_to_exit = .TRUE.
          END IF
 
@@ -885,7 +885,7 @@ CONTAINS
 
             ! update aux1=-pp-pq.x.oo and aux2=qq-vv.x.pq
             IF (quadratic_term) THEN
-               IF (iteration .EQ. 0) THEN
+               IF (iteration == 0) THEN
                   IF (present_oo) THEN
                      CALL dbcsr_multiply("N", "N", -1.0_dp, pq, x, 0.0_dp, oo1, &
                                          filter_eps=eps_filter)
@@ -946,7 +946,7 @@ CONTAINS
 
             ! compute preconditioner
             !IF (iteration.eq.0.OR.(mod(iteration,update_prec_freq).eq.0)) THEN
-            IF (iteration .EQ. 0) THEN
+            IF (iteration == 0) THEN
                CALL create_preconditioner(prec, aux1, aux2, eps_filter)
                !restart_conjugator=.TRUE.
 !CALL dbcsr_set(prec,1.0_dp)
@@ -954,7 +954,7 @@ CONTAINS
             END IF
 
             ! compute the conjugation coefficient - beta
-            IF ((iteration .EQ. 0) .OR. restart_conjugator) THEN
+            IF ((iteration == 0) .OR. restart_conjugator) THEN
                beta = 0.0_dp
             ELSE
                restart_conjugator = .FALSE.
@@ -1107,7 +1107,7 @@ CONTAINS
             ! find step size
             CALL analytic_line_search(c0, c1, c2, c3, step_size, nsteps)
 
-            IF (nsteps .EQ. 0) THEN
+            IF (nsteps == 0) THEN
                CPABORT("no step sizes!")
             END IF
             ! if we have several possible step sizes
@@ -1124,7 +1124,7 @@ CONTAINS
                ! tensor_up_down
                !obj_function=0.5_dp*(dbcsr_frobenius_norm(res_trial))**2
                obj_function = dbcsr_maxabs(res_trial)
-               IF (obj_function .LT. best_norm) THEN
+               IF (obj_function < best_norm) THEN
                   best_norm = obj_function
                   best_step_size = step_size(istep)
                END IF
@@ -1142,8 +1142,8 @@ CONTAINS
          !change_ecorr=ecorr-change_ecorr
 
          ! check convergence and other exit criteria
-         converged = (best_norm .LT. eps_convergence)
-         IF (converged .OR. (iteration .GE. max_iter)) THEN
+         converged = (best_norm < eps_convergence)
+         IF (converged .OR. (iteration >= max_iter)) THEN
             prepare_to_exit = .TRUE.
          END IF
 
@@ -1387,9 +1387,9 @@ CONTAINS
       pi = ACOS(-1.0_dp)
 
       ! Step 0: Check coefficients and find the true order of the eq
-      IF (a .EQ. 0.0_dp) THEN
-         IF (b .EQ. 0.0_dp) THEN
-            IF (c .EQ. 0.0_dp) THEN
+      IF (a == 0.0_dp) THEN
+         IF (b == 0.0_dp) THEN
+            IF (c == 0.0_dp) THEN
                ! Non-equation, no valid solutions
                nroots = 0
             ELSE
@@ -1400,11 +1400,11 @@ CONTAINS
          ELSE
             ! Quadratic equation with max two roots.
             DD = c*c - 4.0_dp*b*d
-            IF (DD .GT. 0.0_dp) THEN
+            IF (DD > 0.0_dp) THEN
                nroots = 2
                x(1) = (-c + SQRT(DD))/2.0_dp/b
                x(2) = (-c - SQRT(DD))/2.0_dp/b
-            ELSE IF (DD .LT. 0.0_dp) THEN
+            ELSE IF (DD < 0.0_dp) THEN
                nroots = 0
             ELSE
                nroots = 1
@@ -1420,7 +1420,7 @@ CONTAINS
          ! Calculate DD
          DD = p*p*p/27.0_dp + q*q/4.0_dp
 
-         IF (DD .LT. 0.0_dp) THEN
+         IF (DD < 0.0_dp) THEN
             ! three real unequal roots -- use the trigonometric formulation
             phi = ACOS(-q/2.0_dp/SQRT(ABS(p*p*p)/27.0_dp))
             temp1 = 2.0_dp*SQRT(ABS(p)/3.0_dp)
@@ -1433,8 +1433,8 @@ CONTAINS
             temp2 = -q/2.0_dp - SQRT(DD)
             u = ABS(temp1)**(1.0_dp/3.0_dp)
             v = ABS(temp2)**(1.0_dp/3.0_dp)
-            IF (temp1 .LT. 0.0_dp) u = -u
-            IF (temp2 .LT. 0.0_dp) v = -v
+            IF (temp1 < 0.0_dp) u = -u
+            IF (temp2 < 0.0_dp) v = -v
             y1 = u + v
             y2r = -(u + v)/2.0_dp
             y2i = (u - v)*SQRT(3.0_dp)/2.0_dp
@@ -1448,12 +1448,12 @@ CONTAINS
          y2r = y2r - temp1
 
          ! Assign answers
-         IF (DD .LT. 0.0_dp) THEN
+         IF (DD < 0.0_dp) THEN
             nroots = 3
             x(1) = y1
             x(2) = y2
             x(3) = y3
-         ELSE IF (DD .EQ. 0.0_dp) THEN
+         ELSE IF (DD == 0.0_dp) THEN
             nroots = 2
             x(1) = y1
             x(2) = y2r
@@ -1473,7 +1473,7 @@ CONTAINS
          ! maximum or minimum? use the derivative
          ! 3*a*x**2+2*b*x+c
          der = 3.0_dp*a*x(i)*x(i) + 2.0_dp*b*x(i) + c
-         IF (der .GT. 0.0_dp) THEN
+         IF (der > 0.0_dp) THEN
             nmins = nmins + 1
             minima(nmins) = x(i)
 !write(*,'(a,i2,a,f10.5)') 'Minimum ', i, ', value: ', x(i)
@@ -1549,7 +1549,7 @@ CONTAINS
             ! Allocate the workspace and solve the eigenproblem
             ALLOCATE (WORK(MAX(1, LWORK)))
             CALL dsyev('V', 'L', iblock_size, data_copy, iblock_size, eigenvalues, WORK, LWORK, INFO)
-            IF (INFO .NE. 0) CPABORT("DSYEV failed")
+            IF (INFO /= 0) CPABORT("DSYEV failed")
 
             ! copy eigenvectors into a cp_dbcsr matrix
             CALL dbcsr_put_block(c, iblock_row, iblock_col, block=data_copy)

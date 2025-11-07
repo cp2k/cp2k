@@ -229,7 +229,7 @@ CONTAINS
 
             ! Now calculate hard-soft anisotropic contributions for the other nuclei
             DO jatom = 1, natom
-               IF (jatom .EQ. iatom) CYCLE ! iatom already done
+               IF (jatom == iatom) CYCLE ! iatom already done
                rab = pbc(particle_set(iatom)%r, particle_set(jatom)%r, cell)
                rab2 = DOT_PRODUCT(rab, rab)
                ! SQRT(rab2) <= int_radius

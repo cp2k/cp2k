@@ -463,7 +463,7 @@ CONTAINS
       ! Manipulate eigenvalues to get diagonal matrix
       IF (exchange_work%exchange_correction == rpa_exchange_axk) THEN
          DO iib = 1, dimen_RI
-            IF (ABS(eigenval(iib)) .GE. thresh) THEN
+            IF (ABS(eigenval(iib)) >= thresh) THEN
                eigenval(iib) = &
                   SQRT((1.0_dp/(eigenval(iib)**2))*LOG(1.0_dp + eigenval(iib)) &
                        - 1.0_dp/(eigenval(iib)*(eigenval(iib) + 1.0_dp)))
@@ -473,7 +473,7 @@ CONTAINS
          END DO
       ELSE IF (exchange_work%exchange_correction == rpa_exchange_sosex) THEN
          DO iib = 1, dimen_RI
-            IF (ABS(eigenval(iib)) .GE. thresh) THEN
+            IF (ABS(eigenval(iib)) >= thresh) THEN
                eigenval(iib) = &
                   SQRT(-(1.0_dp/(eigenval(iib)**2))*LOG(1.0_dp + eigenval(iib)) &
                        + 1.0_dp/eigenval(iib))

@@ -233,7 +233,7 @@ CONTAINS
             ii = ii + 1
          END DO
          DO i = my_reject + 1, ng_points
-            IF ((ng_points - my_reject) .LT. min_sample_size) THEN
+            IF ((ng_points - my_reject) < min_sample_size) THEN
                my_reject = MAX(0, my_reject - 1)
                test_avg = .FALSE.
                EXIT
@@ -261,7 +261,7 @@ CONTAINS
                ii = ii + 1
             END DO
             DO i = my_reject + 1, ng_points
-               IF ((ng_points - my_reject) .LT. min_sample_size) THEN
+               IF ((ng_points - my_reject) < min_sample_size) THEN
                   my_reject = MAX(0, my_reject - 1)
                   test_std = .FALSE.
                   EXIT

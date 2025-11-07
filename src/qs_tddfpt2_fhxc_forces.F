@@ -669,7 +669,7 @@ CONTAINS
       END IF
 
       ! ADMM XC correction Exc[rho_admm]
-      IF (do_admm .AND. tddfpt_control%admm_xc_correction .AND. (tddfpt_control%spinflip .NE. tddfpt_sf_col)) THEN
+      IF (do_admm .AND. tddfpt_control%admm_xc_correction .AND. (tddfpt_control%spinflip /= tddfpt_sf_col)) THEN
          IF (admm_env%aux_exch_func == do_admm_aux_exch_func_none) THEN
             ! nothing to do
          ELSE
@@ -1265,13 +1265,13 @@ CONTAINS
 
             ! XC Kernel contributions
             ! For spin-flip excitations this is the only contribution to the alpha response vector
-            IF (.NOT. (do_sf .AND. (ispin .EQ. 2))) THEN
+            IF (.NOT. (do_sf .AND. (ispin == 2))) THEN
                ! F*X
                CALL cp_dbcsr_sm_fm_multiply(matrix_fx(spin)%matrix, evect(spin), &
                                             cpmos(ispin), norb(ispin), alpha=focc, beta=1.0_dp)
             END IF
             ! For spin-flip excitations this is the only contribution to the beta response vector
-            IF (.NOT. (do_sf .AND. (ispin .EQ. 1))) THEN
+            IF (.NOT. (do_sf .AND. (ispin == 1))) THEN
                ! F*Cb
                CALL cp_dbcsr_sm_fm_multiply(matrix_fx(spin)%matrix, mos2, vcvec, norb(ispin), alpha=1.0_dp, beta=0.0_dp)
                ! Ca^T*F*Cb
@@ -1308,7 +1308,7 @@ CONTAINS
          ! Add Fock contributions to the response vector
          IF (do_hfx) THEN
             ! For spin-flip excitations this is the only contribution to the alpha response vector
-            IF (.NOT. (do_sf .AND. (ispin .EQ. 2))) THEN
+            IF (.NOT. (do_sf .AND. (ispin == 2))) THEN
                ! F^sym*X
                CALL cp_dbcsr_sm_fm_multiply(matrix_hfx(spin)%matrix, evect(spin), &
                                             cpmos(ispin), norb(ispin), alpha=focc, beta=1.0_dp)
@@ -1318,7 +1318,7 @@ CONTAINS
             END IF
 
             ! For spin-flip excitations this is the only contribution to the beta response vector
-            IF (.NOT. (do_sf .AND. (ispin .EQ. 1))) THEN
+            IF (.NOT. (do_sf .AND. (ispin == 1))) THEN
                ! F^sym*Cb
                CALL cp_dbcsr_sm_fm_multiply(matrix_hfx(spin)%matrix, mos2, vcvec, norb(ispin), alpha=1.0_dp, beta=0.0_dp)
                ! -F^asym*Cb

@@ -202,15 +202,15 @@ CONTAINS
          size_a = SIZE(a, 1)*SIZE(a, 2)
       END IF
 
-      IF (alpha .NE. 1.0_dp) THEN
+      IF (alpha /= 1.0_dp) THEN
          IF (matrix_a%use_sp) THEN
             CALL sscal(size_a, REAL(alpha, sp), a_sp, 1)
          ELSE
             CALL dscal(size_a, alpha, a, 1)
          END IF
       END IF
-      IF (my_beta .NE. 0.0_dp) THEN
-         IF (matrix_a%matrix_struct%context .NE. matrix_b%matrix_struct%context) &
+      IF (my_beta /= 0.0_dp) THEN
+         IF (matrix_a%matrix_struct%context /= matrix_b%matrix_struct%context) &
             CPABORT("Matrices must be in the same blacs context")
 
          IF (cp_fm_struct_equivalent(matrix_a%matrix_struct, &
@@ -223,7 +223,7 @@ CONTAINS
             ELSE
                size_b = SIZE(b, 1)*SIZE(b, 2)
             END IF
-            IF (size_a .NE. size_b) &
+            IF (size_a /= size_b) &
                CPABORT("Matrices must have same local sizes")
 
             IF (matrix_a%use_sp .AND. matrix_b%use_sp) THEN
@@ -285,8 +285,8 @@ CONTAINS
 
       nrow_global = matrix_a%matrix_struct%nrow_global
       ncol_global = matrix_a%matrix_struct%ncol_global
-      CPASSERT(nrow_global .EQ. matrix_b%matrix_struct%nrow_global)
-      CPASSERT(ncol_global .EQ. matrix_b%matrix_struct%ncol_global)
+      CPASSERT(nrow_global == matrix_b%matrix_struct%nrow_global)
+      CPASSERT(ncol_global == matrix_b%matrix_struct%ncol_global)
 
       aa => matrix_a%local_data
       bb => matrix_b%local_data
@@ -391,7 +391,7 @@ CONTAINS
       determinant = 1.0_dp
       IF (correct_sign) THEN
          DO i = 1, n
-            IF (ipivot(i) .NE. i) THEN
+            IF (ipivot(i) /= i) THEN
                determinant = -determinant*a(i, i)
             ELSE
                determinant = determinant*a(i, i)
@@ -1125,7 +1125,7 @@ CONTAINS
       al = 1.0_dp
       CALL cp_fm_get_info(matrix_b, nrow_global=m, ncol_global=n)
       IF (PRESENT(side)) side_char = side
-      mdim = MERGE(1, 2, 'L' .EQ. side_char)
+      mdim = MERGE(1, 2, 'L' == side_char)
       IF (PRESENT(invert_tr)) invert = invert_tr
       IF (PRESENT(uplo_tr)) uplo = uplo_tr
       IF (PRESENT(unit_diag_tr)) THEN
@@ -1582,7 +1582,7 @@ CONTAINS
       ALLOCATE (ipivot(n + matrix_a%matrix_struct%nrow_block))
       ipivot(:) = 0
 #if defined(__parallel)
-      IF (my_eps_svd .EQ. 0.0_dp) THEN
+      IF (my_eps_svd == 0.0_dp) THEN
          ! Use LU decomposition
          lwork = 3*n
          liwork = 3*n
@@ -1599,7 +1599,7 @@ CONTAINS
             determinant = 1.0_dp
             DO i = 1, n
                determinant = determinant*diag(i)
-               IF (ipivot(i) .NE. i) THEN
+               IF (ipivot(i) /= i) THEN
                   exponent_of_minus_one = exponent_of_minus_one + 1
                END IF
             END DO
@@ -1695,7 +1695,7 @@ CONTAINS
          CALL cp_fm_release(inv_sigma_ut)
       END IF
 #else
-      IF (my_eps_svd .EQ. 0.0_dp) THEN
+      IF (my_eps_svd == 0.0_dp) THEN
          sign = .TRUE.
          CALL invert_matrix(matrix_a%local_data, matrix_inverse%local_data, &
                             eval_error=eps1)
@@ -2013,7 +2013,7 @@ CONTAINS
       mat => matrix%local_data
       mat_sp => matrix%local_data_sp
       nrows_global = matrix%matrix_struct%nrow_global
-      CPASSERT(nrows_global .EQ. matrix%matrix_struct%ncol_global)
+      CPASSERT(nrows_global == matrix%matrix_struct%ncol_global)
       ALLOCATE (ipivot(nrows_global))
       ! do LU decomposition
 #if defined(__parallel)
@@ -2227,7 +2227,7 @@ CONTAINS
 
       nrows = matrix%matrix_struct%nrow_global
       ncols = matrix%matrix_struct%ncol_global
-      CPASSERT(nrows .EQ. ncols)
+      CPASSERT(nrows == ncols)
       aa => matrix%local_data
       aa_sp => matrix%local_data_sp
 

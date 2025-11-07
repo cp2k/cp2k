@@ -337,7 +337,7 @@ CONTAINS
             CASE (SIRIUS_INTEGER_ARRAY_TYPE)
                CALL sirius_option_get(section_name, name, ctype, C_LOC(ivec(1)), max_length=16)
 
-               IF (num_possible_values .EQ. 0) THEN
+               IF (num_possible_values == 0) THEN
                   CALL keyword_create(keyword, __LOCATION__, &
                                       name=name, &
                                       description=TRIM(ADJUSTL(description)), &
@@ -383,7 +383,7 @@ CONTAINS
             CASE (SIRIUS_NUMBER_ARRAY_TYPE)
                CALL sirius_option_get(section_name, name, ctype, C_LOC(rvec(1)), max_length=16)
 
-               IF (num_possible_values .EQ. 0) THEN
+               IF (num_possible_values == 0) THEN
                   CALL keyword_create(keyword, __LOCATION__, &
                                       name=name, &
                                       description=TRIM(ADJUSTL(description)), &

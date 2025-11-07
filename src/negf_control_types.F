@@ -522,7 +522,7 @@ CONTAINS
 
             DO iname = 1, nnames
                DO ikind = 1, nkinds
-                  IF (molecule_kind_set(ikind)%name .EQ. cptr(iname)) EXIT
+                  IF (molecule_kind_set(ikind)%name == cptr(iname)) EXIT
                END DO
 
                IF (ikind <= nkinds) THEN
@@ -567,7 +567,7 @@ CONTAINS
 
                DO iname = 1, nnames
                   DO ikind = 1, nkinds
-                     IF (molecule_kind_set(ikind)%name .EQ. cptr(iname)) EXIT
+                     IF (molecule_kind_set(ikind)%name == cptr(iname)) EXIT
                   END DO
 
                   IF (ikind <= nkinds) THEN

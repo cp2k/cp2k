@@ -78,7 +78,7 @@ CONTAINS
                dep_ok = .TRUE.
                dep: DO idep = 1, ndep
                   DO icheck = start, END
-                     IF (farming_env%job(icheck)%status .NE. job_finished) THEN
+                     IF (farming_env%job(icheck)%status /= job_finished) THEN
                         IF (farming_env%job(icheck)%id == farming_env%job(itry)%dependencies(idep)) THEN
                            dep_ok = .FALSE.
                            EXIT dep
@@ -102,7 +102,7 @@ CONTAINS
          IF (todo == do_wait) THEN
             dep_OK = .FALSE.
             DO itry = start, END
-               IF (farming_env%job(itry)%status .EQ. job_running) dep_OK = .TRUE.
+               IF (farming_env%job(itry)%status == job_running) dep_OK = .TRUE.
             END DO
             IF (.NOT. dep_OK) todo = do_deadlock
          END IF
@@ -225,7 +225,7 @@ CONTAINS
                                       keyword_name="DEPENDENCIES", i_vals=dependencies)
             ALLOCATE (farming_env%Job(i)%dependencies(SIZE(dependencies, 1)))
             farming_env%Job(i)%dependencies = dependencies
-            IF (SIZE(dependencies, 1) .NE. 0) has_dep = .TRUE.
+            IF (SIZE(dependencies, 1) /= 0) has_dep = .TRUE.
          END IF
       END DO
 
@@ -259,7 +259,7 @@ CONTAINS
                   WRITE (output_unit, FMT='(I4)', ADVANCE="NO") farming_env%group_partition(i)
                END DO
                WRITE (output_unit, *)
-               IF (SUM(farming_env%group_partition) .NE. num_minions) THEN
+               IF (SUM(farming_env%group_partition) /= num_minions) THEN
                   WRITE (output_unit, FMT="(T2,A,T61,I10,T71,I10)") &
                      "FARMING| WARNING : group partition CPUs not equal to the available number (ignoring Captain) ", &
                      num_minions, SUM(farming_env%group_partition)

@@ -255,12 +255,12 @@ CONTAINS
          ! check the list
          CPASSERT(ASSOCIATED(nmr_env%cs_atom_list))
          DO ir = 1, SIZE(nmr_env%cs_atom_list, 1)
-            IF (nmr_env%cs_atom_list(ir) .LT. 1 .OR. nmr_env%cs_atom_list(ir) .GT. natom) THEN
+            IF (nmr_env%cs_atom_list(ir) < 1 .OR. nmr_env%cs_atom_list(ir) > natom) THEN
                CPABORT("Unknown atom(s)")
             END IF
             DO j = 1, SIZE(nmr_env%cs_atom_list, 1)
-               IF (j .EQ. ir) CYCLE
-               IF (nmr_env%cs_atom_list(ir) .EQ. nmr_env%cs_atom_list(j)) THEN
+               IF (j == ir) CYCLE
+               IF (nmr_env%cs_atom_list(ir) == nmr_env%cs_atom_list(j)) THEN
                   CPABORT("Duplicate atoms")
                END IF
             END DO

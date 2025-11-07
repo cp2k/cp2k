@@ -243,7 +243,7 @@ CONTAINS
       CALL section_vals_get(aa_cuboidal_section, explicit=aa_cuboidal_explicit, n_repetition=n_aac_rep)
       CALL section_vals_get(xaa_annular_section, explicit=xaa_annular_explicit, n_repetition=n_xaaa_rep)
 
-      IF (params%solver .EQ. pw_poisson_implicit) THEN
+      IF (params%solver == pw_poisson_implicit) THEN
 
          IF (aa_cuboidal_explicit) THEN
             params%dielectric_params%n_aa_cuboidal = n_aac_rep
@@ -340,7 +340,7 @@ CONTAINS
       CALL section_vals_get(aa_cylindrical_section, explicit=aa_cylindrical_explicit, n_repetition=n_aacyl_rep)
       CALL section_vals_get(aa_cuboidal_section, explicit=aa_cuboidal_explicit, n_repetition=n_aac_rep)
 
-      IF (params%solver .EQ. pw_poisson_implicit) THEN
+      IF (params%solver == pw_poisson_implicit) THEN
 
          IF (aa_planar_explicit) THEN
             params%dbc_params%n_aa_planar = n_aap_rep

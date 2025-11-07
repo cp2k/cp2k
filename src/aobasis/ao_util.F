@@ -107,17 +107,17 @@ CONTAINS
       REAL(KIND=dp)                                      :: a, d, dr, eps, r, rd, t
       REAL(KIND=dp), DIMENSION(SIZE(contract))           :: g, s
 
-      IF (l .LT. 0) THEN
+      IF (l < 0) THEN
          CPABORT("The angular momentum quantum number is negative")
       END IF
 
-      IF (alpha .EQ. 0.0_dp) THEN
+      IF (alpha == 0.0_dp) THEN
          CPABORT("The Gaussian function exponent is zero")
       ELSE
          a = ABS(alpha)
       END IF
 
-      IF (threshold .NE. 0.0_dp) THEN
+      IF (threshold /= 0.0_dp) THEN
          t = ABS(threshold)
       ELSE
          CPABORT("The requested threshold is zero")
@@ -125,24 +125,24 @@ CONTAINS
 
       radius = 0.0_dp
       IF (PRESENT(rlow)) radius = rlow
-      IF (prefactor .EQ. 0.0_dp) RETURN
+      IF (prefactor == 0.0_dp) RETURN
 
       ! MAX: facilitate early exit
       r = MAX(SQRT(0.5_dp*REAL(l, dp)/a), radius)
 
       d = ABS(prefactor); g(1) = d
-      IF (l .NE. 0) THEN
+      IF (l /= 0) THEN
          g(1) = g(1)*EXP(REAL(-a*r*r, KIND=prec_exp))*r**l
       END IF
       ! original approach may return radius=0
       ! with g(r) != g(radius)
       !radius = r
-      IF (g(1) .LT. t) RETURN ! early exit
+      IF (g(1) < t) RETURN ! early exit
 
       radius = r*next + step
       DO i = 1, itermax
          g(1) = d*EXP(REAL(-a*radius*radius, KIND=prec_exp))*radius**l
-         IF (g(1) .LT. t) EXIT
+         IF (g(1) < t) EXIT
          r = radius; radius = r*next + step
       END DO
 
@@ -160,11 +160,11 @@ CONTAINS
       DO i = i + 1, itermax
          rd = radius - r
          ! check if finished or no further progress
-         IF ((rd .LT. eps) .OR. (rd .EQ. dr)) RETURN
+         IF ((rd < eps) .OR. (rd == dr)) RETURN
          s = r + rd*contract ! interval contraction
          g = d*EXP(REAL(-a*s*s, KIND=prec_exp))*s**l
          DO j = 1, SIZE(contract)
-            IF (g(j) .LT. t) THEN
+            IF (g(j) < t) THEN
                radius = s(j) ! interval [r, sj)
                EXIT
             ELSE
@@ -173,7 +173,7 @@ CONTAINS
          END DO
          dr = rd
       END DO
-      IF (i .GE. itermax) THEN
+      IF (i >= itermax) THEN
          CPABORT("Maximum number of iterations reached")
       END IF
 

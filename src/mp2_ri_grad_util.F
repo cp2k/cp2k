@@ -604,7 +604,7 @@ CONTAINS
 
          IF (convert_pos) THEN
             ! if the group is not in the same RPA group cycle
-            IF ((rec_prow/integ_group_size) .NE. color_group) CYCLE
+            IF ((rec_prow/integ_group_size) /= color_group) CYCLE
             ! convert global position to position into the RPA group
             rec_prow = MOD(rec_prow, integ_group_size)
          END IF

@@ -281,7 +281,7 @@ CONTAINS
       CALL timeset(routineN, handle)
       cp_pexsi_plan_initialize = f_ppexsi_plan_initialize(comm%get_handle(), numProcRow, &
                                                           numProcCol, outputFileIndex, info)
-      IF (info .NE. 0) &
+      IF (info /= 0) &
          CPABORT("Pexsi returned an error. Consider logPEXSI0 for details.")
       CALL timestop(handle)
 #else
@@ -329,7 +329,7 @@ CONTAINS
       CALL f_ppexsi_load_real_hs_matrix(plan, pexsi_options%options, nrows, nnz, nnzLocal, &
                                         numColLocal, colptrLocal, rowindLocal, &
                                         HnzvalLocal, isSIdentity, SnzvalLocal, info)
-      IF (info .NE. 0) &
+      IF (info /= 0) &
          CPABORT("Pexsi returned an error. Consider logPEXSI0 for details.")
       CALL timestop(handle)
 #else
@@ -396,7 +396,7 @@ CONTAINS
       CALL ieee_set_halting_mode(IEEE_ALL, halt)
 #endif
 
-      IF (info .NE. 0) &
+      IF (info /= 0) &
          CPABORT("Pexsi returned an error. Consider logPEXSI0 for details.")
       CALL timestop(handle)
 #else
@@ -440,7 +440,7 @@ CONTAINS
       CALL f_ppexsi_retrieve_real_dft_matrix(plan, DMnzvalLocal, EDMnzvalLocal, &
                                              FDMnzvalLocal, totalEnergyH, &
                                              totalEnergyS, totalFreeEnergy, info)
-      IF (info .NE. 0) &
+      IF (info /= 0) &
          CPABORT("Pexsi returned an error. Consider logPEXSI0 for details.")
       CALL timestop(handle)
 #else
@@ -470,7 +470,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       CALL f_ppexsi_plan_finalize(plan, info)
-      IF (info .NE. 0) &
+      IF (info /= 0) &
          CPABORT("Pexsi returned an error. Consider logPEXSI0 for details.")
       CALL timestop(handle)
 #else

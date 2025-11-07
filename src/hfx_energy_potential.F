@@ -262,7 +262,7 @@ CONTAINS
 
       logger => cp_get_default_logger()
 
-      is_anti_symmetric = dbcsr_get_matrix_type(rho_ao(1, 1)%matrix) .EQ. dbcsr_type_antisymmetric
+      is_anti_symmetric = dbcsr_get_matrix_type(rho_ao(1, 1)%matrix) == dbcsr_type_antisymmetric
 
       IF (my_geo_change) THEN
          CALL m_memory(memsize_before)
@@ -523,7 +523,7 @@ CONTAINS
       ALLOCATE (ee_buffer2(ncos_max**4))
       ALLOCATE (ee_primitives_tmp(nsgf_max**4))
 
-      IF (my_nspins .EQ. 0) my_nspins = dft_control%nspins
+      IF (my_nspins == 0) my_nspins = dft_control%nspins
 
       ALLOCATE (max_contraction(max_set, natom))
 
@@ -897,7 +897,7 @@ CONTAINS
       !! is taken into account by the following criterion:
       !!
       !! IF(katom+latom<=iatom+jatom)  THEN
-      !!   IF( ((iatom+jatom).EQ.(katom+latom) ) .AND.(katom<iatom)) CYCLE
+      !!   IF( ((iatom+jatom)==(katom+latom) ) .AND.(katom<iatom)) CYCLE
       !!
       !! Depending on the degeneracy of an integral the exchange contribution is multiplied by a corresponding
       !! factor ( symm_fac ).
@@ -1218,7 +1218,7 @@ CONTAINS
                   latom = list_kl%elements(i_list_kl)%pair(2)
 
                   IF (.NOT. (katom + latom <= iatom + jatom)) CYCLE
-                  IF (((iatom + jatom) .EQ. (katom + latom)) .AND. (katom < iatom)) CYCLE
+                  IF (((iatom + jatom) == (katom + latom)) .AND. (katom < iatom)) CYCLE
                   i_set_list_kl_start = list_kl%elements(i_list_kl)%set_bounds(1)
                   i_set_list_kl_stop = list_kl%elements(i_list_kl)%set_bounds(2)
                   kkind = list_kl%elements(i_list_kl)%kind_pair(1)
@@ -2962,7 +2962,7 @@ CONTAINS
             DO mb = 1, mb_max
                DO ma = 1, ma_max
                   iint = iint + 1
-                  IF (ABS(prim(iint)) .GT. 0.0000000000001) &
+                  IF (ABS(prim(iint)) > 0.0000000000001) &
                      WRITE (99, *) atom_offsets(i, 1) + ma + set_offsets(iset, 1, i, 1) - 1, &
                      atom_offsets(j, 1) + ma + set_offsets(jset, 1, j, 1) - 1, &
                      atom_offsets(k, 1) + ma + set_offsets(kset, 1, k, 1) - 1, &

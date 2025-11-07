@@ -75,7 +75,7 @@ CONTAINS
 !ENDIF
 
       env%nfrags = nfrags
-      IF (nfrags .GT. 0) THEN
+      IF (nfrags > 0) THEN
          ALLOCATE (env%energy_of_frag(nfrags))
          ALLOCATE (env%nmosets_of_frag(nfrags))
          ALLOCATE (env%mos_of_frag(nfrags, mscfg_max_moset_size))
@@ -134,7 +134,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CPASSERT(iset .LE. mscfg_max_moset_size)
+      CPASSERT(iset <= mscfg_max_moset_size)
 
       CALL dbcsr_create(matrix_temp, &
                         template=matrix_out, &
@@ -148,7 +148,7 @@ CONTAINS
 
       DO ifrag = 1, mscfg_env%nfrags
 
-         CPASSERT(iset .LE. mscfg_env%nmosets_of_frag(ifrag))
+         CPASSERT(iset <= mscfg_env%nmosets_of_frag(ifrag))
 
          CALL dbcsr_get_info(mscfg_env%mos_of_frag(ifrag, iset), &
                              nfullrows_total=submatrix_size(1), nfullcols_total=submatrix_size(2))
@@ -166,8 +166,8 @@ CONTAINS
       ! is exactly the same as the size of the big matrix
       ! This is to prevent unexpected conversion errors
       ! If however such conversion is intended - remove these safeguards
-      CPASSERT(offset(1) .EQ. matrix_size(1))
-      CPASSERT(offset(2) .EQ. matrix_size(2))
+      CPASSERT(offset(1) == matrix_size(1))
+      CPASSERT(offset(2) == matrix_size(2))
 
       CALL dbcsr_release(matrix_temp)
 
@@ -214,11 +214,11 @@ CONTAINS
          add_blocks_after = 0
          start_index = 1
          trailing_size = matrix_size(dimen) - offset(dimen) - submatrix_size(dimen)
-         IF (offset(dimen) .GT. 0) THEN
+         IF (offset(dimen) > 0) THEN
             add_blocks_before(dimen) = add_blocks_before(dimen) + 1
             start_index = 2
          END IF
-         IF (trailing_size .GT. 0) THEN
+         IF (trailing_size > 0) THEN
             add_blocks_after = add_blocks_after + 1
          END IF
 
@@ -237,7 +237,7 @@ CONTAINS
          !IF (ASSOCIATED(cluster_distr)) THEN
          !ALLOCATE (cluster_distr_new(nblocks_new))
          !END IF
-         IF (add_blocks_before(dimen) .GT. 0) THEN
+         IF (add_blocks_before(dimen) > 0) THEN
             block_sizes_new(1) = offset(dimen)
             distr_new_array(1) = 0
             !IF (ASSOCIATED(cluster_distr)) THEN
@@ -249,7 +249,7 @@ CONTAINS
          !IF (ASSOCIATED(cluster_distr)) THEN
          !cluster_distr_new(start_index:nblocks+start_index-1) = cluster_distr(1:nblocks)
          !END IF
-         IF (add_blocks_after .GT. 0) THEN
+         IF (add_blocks_after > 0) THEN
             block_sizes_new(nblocks_new) = trailing_size
             distr_new_array(nblocks_new) = 0
             !IF (ASSOCIATED(cluster_distr)) THEN

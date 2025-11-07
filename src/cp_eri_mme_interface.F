@@ -311,14 +311,14 @@ CONTAINS
       unit_nr = param%par%unit_nr
 
       IF (unit_nr > 0) THEN
-         IF (count_2c .GT. 0) THEN
+         IF (count_2c > 0) THEN
             WRITE (unit_nr, '(/T2, A)') "ERI_MME| Percentage of 2-center integrals evaluated in"
             WRITE (unit_nr, '(T2, A, T76, F5.1)') "ERI_MME|   G space:", &
                100.0_dp*param%G_count_2c/count_2c
             WRITE (unit_nr, '(T2, A, T76, F5.1/)') "ERI_MME|   R space:", &
                100.0_dp*param%R_count_2c/count_2c
          END IF
-         IF (count_3c .GT. 0) THEN
+         IF (count_3c > 0) THEN
             WRITE (unit_nr, '(/T2, A)') "ERI_MME| Percentage of 3-center integrals evaluated in"
             WRITE (unit_nr, '(T2, A, T76, F5.1)') "ERI_MME|   G/G space:", &
                100.0_dp*param%GG_count_3c/count_3c
@@ -468,7 +468,7 @@ CONTAINS
       ! (and min zet for minimax error)
       DO ikind = 1, nkind
          DO ibasis = 1, nbasis
-            IF (ibasis .EQ. 1) THEN
+            IF (ibasis == 1) THEN
                basis_type = basis_type_1
             ELSE
                basis_type = basis_type_2
@@ -481,7 +481,7 @@ CONTAINS
             l_m = MAX(l_m, MAXVAL(basis_set%lmax(:)))
             DO iset = 1, nset
                zet_m = MAX(zet_m, MAXVAL(basis_set%zet(1:npgf(iset), iset)))
-               IF (zet_min .LT. 0.0_dp) THEN
+               IF (zet_min < 0.0_dp) THEN
                   zet_min = MINVAL(basis_set%zet(1:npgf(iset), iset))
                ELSE
                   zet_min = MIN(zet_min, MINVAL(basis_set%zet(1:npgf(iset), iset)))
@@ -493,7 +493,7 @@ CONTAINS
       ! 2) get largest zet for max l and largest l for max zet
       DO ikind = 1, nkind
          DO ibasis = 1, nbasis
-            IF (ibasis .EQ. 1) THEN
+            IF (ibasis == 1) THEN
                basis_type = basis_type_1
             ELSE
                basis_type = basis_type_2
@@ -502,8 +502,8 @@ CONTAINS
                              basis_type=basis_type)
             DO iset = 1, basis_set%nset
                DO ipgf = 1, basis_set%npgf(iset)
-                  IF (ABS(zet_m - basis_set%zet(ipgf, iset)) .LE. (zet_m*1.0E-12_dp) &
-                      .AND. (basis_set%lmax(iset) .GT. l_zet)) THEN
+                  IF (ABS(zet_m - basis_set%zet(ipgf, iset)) <= (zet_m*1.0E-12_dp) &
+                      .AND. (basis_set%lmax(iset) > l_zet)) THEN
                      l_zet = basis_set%lmax(iset)
                   END IF
                END DO
@@ -511,7 +511,7 @@ CONTAINS
          END DO
       END DO
 
-      CPASSERT(l_zet .GE. 0)
+      CPASSERT(l_zet >= 0)
 
       zet_max = zet_m
 
@@ -786,7 +786,7 @@ CONTAINS
       CALL section_vals_val_get(eri_mme_test_section, "POTENTIAL", i_val=potential)
       CALL section_vals_val_get(eri_mme_test_section, "POTENTIAL_PARAM", r_val=pot_par)
 
-      IF (nzet .LE. 0) &
+      IF (nzet <= 0) &
          CPABORT("Number of exponents NZET must be greater than 0.")
 
       CALL init_orbital_pointers(l_max)
@@ -795,7 +795,7 @@ CONTAINS
       ALLOCATE (zet(nzet))
 
       zet(1) = zetmin
-      IF (nzet .GT. 1) THEN
+      IF (nzet > 1) THEN
          zet_fac = (zetmax/zetmin)**(1.0_dp/(nzet - 1))
          DO i = 1, nzet - 1
             zet(i + 1) = zet(i)*zet_fac

@@ -239,7 +239,7 @@ CONTAINS
             IF (.NOT. found) CYCLE
             IF (.NOT. (ASSOCIATED(s_block) .AND. ASSOCIATED(p_block))) CYCLE
 
-            IF (iblock_row .EQ. iblock_col) THEN
+            IF (iblock_row == iblock_col) THEN
                mult = 0.5_dp ! avoid double counting of diagonal blocks
             ELSE
                mult = 1.0_dp
@@ -288,7 +288,7 @@ CONTAINS
          IF (.NOT. found) CYCLE
          IF (.NOT. (ASSOCIATED(s_block) .AND. ASSOCIATED(p_block))) CYCLE
 
-         IF (iblock_row .EQ. iblock_col) THEN
+         IF (iblock_row == iblock_col) THEN
             mult = 0.5_dp ! avoid double counting of diagonal blocks
          ELSE
             mult = 1.0_dp
@@ -340,7 +340,7 @@ CONTAINS
             IF (.NOT. found) CYCLE
             IF (.NOT. (ASSOCIATED(s_block) .AND. ASSOCIATED(p_block))) CYCLE
 
-            IF (iblock_row .EQ. iblock_col) THEN
+            IF (iblock_row == iblock_col) THEN
                mult = 0.5_dp ! avoid double counting of diagonal blocks
             ELSE
                mult = 1.0_dp
@@ -934,7 +934,7 @@ CONTAINS
          ! we can cycle if a block is not present
          IF (.NOT. (ASSOCIATED(b_block) .AND. ASSOCIATED(a_block))) CYCLE
 
-         IF (iblock_row .EQ. iblock_col) THEN
+         IF (iblock_row == iblock_col) THEN
             mult = 0.5_dp ! avoid double counting of diagonal blocks
          ELSE
             mult = 1.0_dp

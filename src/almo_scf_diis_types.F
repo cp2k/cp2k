@@ -105,7 +105,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      IF (max_length .LE. 0) THEN
+      IF (max_length <= 0) THEN
          CPABORT("DIIS: max_length is less than zero")
       END IF
 
@@ -135,7 +135,7 @@ CONTAINS
       ! hack into d_b structure to gain full control
       diis_env%m_b(:)%domain = 100 ! arbitrary positive number
       DO idomain = 1, ndomains
-         IF (diis_env%m_b(idomain)%domain .GT. 0) THEN
+         IF (diis_env%m_b(idomain)%domain > 0) THEN
             ALLOCATE (diis_env%m_b(idomain)%mdata(1, 1))
             diis_env%m_b(idomain)%mdata(:, :) = 0.0_dp
          END IF
@@ -169,7 +169,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      IF (max_length .LE. 0) THEN
+      IF (max_length <= 0) THEN
          CPABORT("DIIS: max_length is less than zero")
       END IF
 
@@ -196,7 +196,7 @@ CONTAINS
       ! distribute matrices as the err/var matrices
       diis_env%m_b(:)%domain = sample_err(:)%domain
       DO idomain = 1, ndomains
-         IF (diis_env%m_b(idomain)%domain .GT. 0) THEN
+         IF (diis_env%m_b(idomain)%domain > 0) THEN
             ALLOCATE (diis_env%m_b(idomain)%mdata(1, 1))
             diis_env%m_b(idomain)%mdata(:, :) = 0.0_dp
          END IF
@@ -232,11 +232,11 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      IF (diis_env%diis_env_type .EQ. diis_env_dbcsr) THEN
+      IF (diis_env%diis_env_type == diis_env_dbcsr) THEN
          IF (.NOT. (PRESENT(var) .AND. PRESENT(err))) THEN
             CPABORT("provide DBCSR matrices")
          END IF
-      ELSE IF (diis_env%diis_env_type .EQ. diis_env_domain) THEN
+      ELSE IF (diis_env%diis_env_type == diis_env_domain) THEN
          IF (.NOT. (PRESENT(d_var) .AND. PRESENT(d_err))) THEN
             CPABORT("provide domain submatrices")
          END IF
@@ -247,10 +247,10 @@ CONTAINS
       in_point = diis_env%in_point
 
       ! store a var-error pair
-      IF (diis_env%diis_env_type .EQ. diis_env_dbcsr) THEN
+      IF (diis_env%diis_env_type == diis_env_dbcsr) THEN
          CALL dbcsr_copy(diis_env%m_var(in_point), var)
          CALL dbcsr_copy(diis_env%m_err(in_point), err)
-      ELSE IF (diis_env%diis_env_type .EQ. diis_env_domain) THEN
+      ELSE IF (diis_env%diis_env_type == diis_env_domain) THEN
          CALL copy_submatrices(d_var, diis_env%d_var(in_point, :), copy_data=.TRUE.)
          CALL copy_submatrices(d_err, diis_env%d_err(in_point, :), copy_data=.TRUE.)
       END IF
@@ -258,7 +258,7 @@ CONTAINS
       ! update the buffer length
       old_buffer_length = diis_env%buffer_length
       diis_env%buffer_length = diis_env%buffer_length + 1
-      IF (diis_env%buffer_length .GT. diis_env%max_buffer_length) &
+      IF (diis_env%buffer_length > diis_env%max_buffer_length) &
          diis_env%buffer_length = diis_env%max_buffer_length
 
       !!!! resize B matrix
@@ -285,10 +285,10 @@ CONTAINS
 
       ! resize B matrix and update its elements
       ndomains = SIZE(diis_env%m_b)
-      IF (old_buffer_length .LT. diis_env%buffer_length) THEN
+      IF (old_buffer_length < diis_env%buffer_length) THEN
          ALLOCATE (m_b_tmp(diis_env%buffer_length + 1, diis_env%buffer_length + 1))
          DO idomain = 1, ndomains
-            IF (diis_env%m_b(idomain)%domain .GT. 0) THEN
+            IF (diis_env%m_b(idomain)%domain > 0) THEN
                m_b_tmp(:, :) = 0.0_dp
                m_b_tmp(1:diis_env%buffer_length, 1:diis_env%buffer_length) = &
                   diis_env%m_b(idomain)%mdata(:, :)
@@ -301,14 +301,14 @@ CONTAINS
          DEALLOCATE (m_b_tmp)
       END IF
       DO idomain = 1, ndomains
-         IF (diis_env%m_b(idomain)%domain .GT. 0) THEN
+         IF (diis_env%m_b(idomain)%domain > 0) THEN
             diis_env%m_b(idomain)%mdata(1, in_point + 1) = -1.0_dp
             diis_env%m_b(idomain)%mdata(in_point + 1, 1) = -1.0_dp
             DO irow = 1, diis_env%buffer_length
-               IF (diis_env%diis_env_type .EQ. diis_env_dbcsr) THEN
+               IF (diis_env%diis_env_type == diis_env_dbcsr) THEN
                   trace0 = almo_scf_diis_error_overlap(diis_env, &
                                                        A=diis_env%m_err(irow), B=diis_env%m_err(in_point))
-               ELSE IF (diis_env%diis_env_type .EQ. diis_env_domain) THEN
+               ELSE IF (diis_env%diis_env_type == diis_env_domain) THEN
                   trace0 = almo_scf_diis_error_overlap(diis_env, &
                                                        d_A=diis_env%d_err(irow, idomain), &
                                                        d_B=diis_env%d_err(in_point, idomain))
@@ -321,7 +321,7 @@ CONTAINS
 
       ! update the insertion point for the next "PUSH"
       diis_env%in_point = diis_env%in_point + 1
-      IF (diis_env%in_point .GT. diis_env%max_buffer_length) diis_env%in_point = 1
+      IF (diis_env%in_point > diis_env%max_buffer_length) diis_env%in_point = 1
 
       CALL timestop(handle)
 
@@ -361,11 +361,11 @@ CONTAINS
          unit_nr = -1
       END IF
 
-      IF (diis_env%diis_env_type .EQ. diis_env_dbcsr) THEN
+      IF (diis_env%diis_env_type == diis_env_dbcsr) THEN
          IF (.NOT. PRESENT(extr_var)) THEN
             CPABORT("provide DBCSR matrix")
          END IF
-      ELSE IF (diis_env%diis_env_type .EQ. diis_env_domain) THEN
+      ELSE IF (diis_env%diis_env_type == diis_env_domain) THEN
          IF (.NOT. PRESENT(d_extr_var)) THEN
             CPABORT("provide domain submatrices")
          END IF
@@ -381,7 +381,7 @@ CONTAINS
 
       DO idomain = 1, ndomains
 
-         IF (diis_env%m_b(idomain)%domain .GT. 0) THEN
+         IF (diis_env%m_b(idomain)%domain > 0) THEN
 
             m_b_copy(:, :) = diis_env%m_b(idomain)%mdata(:, :)
 
@@ -397,7 +397,7 @@ CONTAINS
             ALLOCATE (WORK(MAX(1, LWORK)))
             CALL dsyev('V', 'L', diis_env%buffer_length + 1, m_b_copy, &
                        diis_env%buffer_length + 1, eigenvalues, WORK, LWORK, INFO)
-            IF (INFO .NE. 0) CPABORT("DSYEV failed")
+            IF (INFO /= 0) CPABORT("DSYEV failed")
             DEALLOCATE (WORK)
 
             ! use the eigensystem to invert (implicitly) B matrix
@@ -422,14 +422,14 @@ CONTAINS
 
             ! extrapolate the variable
             checksum = 0.0_dp
-            IF (diis_env%diis_env_type .EQ. diis_env_dbcsr) THEN
+            IF (diis_env%diis_env_type == diis_env_dbcsr) THEN
                CALL dbcsr_set(extr_var, 0.0_dp)
                DO im = 1, diis_env%buffer_length
                   CALL dbcsr_add(extr_var, diis_env%m_var(im), &
                                  1.0_dp, coeff(im + 1))
                   checksum = checksum + coeff(im + 1)
                END DO
-            ELSE IF (diis_env%diis_env_type .EQ. diis_env_domain) THEN
+            ELSE IF (diis_env%diis_env_type == diis_env_domain) THEN
                CALL copy_submatrices(diis_env%d_var(1, idomain), &
                                      d_extr_var(idomain), &
                                      copy_data=.FALSE.)
@@ -483,11 +483,11 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      IF (diis_env%diis_env_type .EQ. diis_env_dbcsr) THEN
+      IF (diis_env%diis_env_type == diis_env_dbcsr) THEN
          IF (.NOT. (PRESENT(A) .AND. PRESENT(B))) THEN
             CPABORT("provide DBCSR matrices")
          END IF
-      ELSE IF (diis_env%diis_env_type .EQ. diis_env_domain) THEN
+      ELSE IF (diis_env%diis_env_type == diis_env_domain) THEN
          IF (.NOT. (PRESENT(d_A) .AND. PRESENT(d_B))) THEN
             CPABORT("provide domain submatrices")
          END IF
@@ -497,14 +497,14 @@ CONTAINS
 
       SELECT CASE (diis_env%error_type)
       CASE (diis_error_orthogonal)
-         IF (diis_env%diis_env_type .EQ. diis_env_dbcsr) THEN
+         IF (diis_env%diis_env_type == diis_env_dbcsr) THEN
             CALL dbcsr_dot(A, B, trace)
-         ELSE IF (diis_env%diis_env_type .EQ. diis_env_domain) THEN
-            CPASSERT(SIZE(d_A%mdata, 1) .EQ. SIZE(d_B%mdata, 1))
-            CPASSERT(SIZE(d_A%mdata, 2) .EQ. SIZE(d_B%mdata, 2))
-            CPASSERT(d_A%domain .EQ. d_B%domain)
-            CPASSERT(d_A%domain .GT. 0)
-            CPASSERT(d_B%domain .GT. 0)
+         ELSE IF (diis_env%diis_env_type == diis_env_domain) THEN
+            CPASSERT(SIZE(d_A%mdata, 1) == SIZE(d_B%mdata, 1))
+            CPASSERT(SIZE(d_A%mdata, 2) == SIZE(d_B%mdata, 2))
+            CPASSERT(d_A%domain == d_B%domain)
+            CPASSERT(d_A%domain > 0)
+            CPASSERT(d_B%domain > 0)
             trace = SUM(d_A%mdata(:, :)*d_B%mdata(:, :))
          END IF
       CASE DEFAULT
@@ -535,16 +535,16 @@ CONTAINS
 
       ! release matrices
       DO im = 1, diis_env%max_buffer_length
-         IF (diis_env%diis_env_type .EQ. diis_env_dbcsr) THEN
+         IF (diis_env%diis_env_type == diis_env_dbcsr) THEN
             CALL dbcsr_release(diis_env%m_err(im))
             CALL dbcsr_release(diis_env%m_var(im))
-         ELSE IF (diis_env%diis_env_type .EQ. diis_env_domain) THEN
+         ELSE IF (diis_env%diis_env_type == diis_env_domain) THEN
             CALL release_submatrices(diis_env%d_var(im, :))
             CALL release_submatrices(diis_env%d_err(im, :))
          END IF
       END DO
 
-      IF (diis_env%diis_env_type .EQ. diis_env_domain) THEN
+      IF (diis_env%diis_env_type == diis_env_domain) THEN
          CALL release_submatrices(diis_env%m_b(:))
       END IF
 

@@ -250,7 +250,7 @@ CONTAINS
       ! to the average cost
       lowest_cost_ind = 1
       DO ipe = nprocs, 1, -1
-         redistribute: DO WHILE (dist(pe(ipe))%cost .GT. average_cost)
+         redistribute: DO WHILE (dist(pe(ipe))%cost > average_cost)
             iatom = dist(pe(ipe))%list(lowest_cost_ind)%id
             move_happened = .FALSE.
             ! first try to move to a preferred process
@@ -261,7 +261,7 @@ CONTAINS
                                                   dist(pe(ipe))%list(lowest_cost_ind), &
                                                   dist(pref_pe), &
                                                   average_cost)
-               IF ((pref_pe .NE. pe(ipe)) .AND. acceptable_move) THEN
+               IF ((pref_pe /= pe(ipe)) .AND. acceptable_move) THEN
                   CALL fb_distribution_move(dist(pe(ipe)), &
                                             lowest_cost_ind, &
                                             dist(pref_pe))
@@ -281,7 +281,7 @@ CONTAINS
                                                      dist(pe(ipe))%list(lowest_cost_ind), &
                                                      dist(pe(ii)), &
                                                      average_cost)
-                  IF ((pe(ii) .NE. pe(ipe)) .AND. acceptable_move) THEN
+                  IF ((pe(ii) /= pe(ipe)) .AND. acceptable_move) THEN
                      CALL fb_distribution_move(dist(pe(ipe)), &
                                                lowest_cost_ind, &
                                                dist(pe(ii)))
@@ -360,8 +360,8 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: threshold
       LOGICAL                                            :: acceptable
 
-      acceptable = (dist_to%cost + element%cost .LT. dist_from%cost) .AND. &
-                   (dist_to%cost .LT. threshold)
+      acceptable = (dist_to%cost + element%cost < dist_from%cost) .AND. &
+                   (dist_to%cost < threshold)
    END FUNCTION fb_distribution_acceptable_move
 
 ! **************************************************************************************************
@@ -523,9 +523,9 @@ CONTAINS
 
       n_procs = SIZE(dist_set)
 
-      check_ok = SIZE(local_atoms_starts) .GE. n_procs
+      check_ok = SIZE(local_atoms_starts) >= n_procs
       CPASSERT(check_ok)
-      check_ok = SIZE(local_atoms_sizes) .GE. n_procs
+      check_ok = SIZE(local_atoms_sizes) >= n_procs
       CPASSERT(check_ok)
 
       local_atoms(:) = 0
@@ -561,7 +561,7 @@ CONTAINS
          DEALLOCATE (dist%list)
       END IF
       NULLIFY (dist%list)
-      IF (my_nmax .GT. 0) THEN
+      IF (my_nmax > 0) THEN
          ALLOCATE (dist%list(my_nmax))
          DO ii = 1, SIZE(dist%list)
             dist%list(ii)%id = 0
@@ -621,7 +621,7 @@ CONTAINS
       ! resize list if necessary
       IF (.NOT. ASSOCIATED(dist%list)) THEN
          CALL fb_distribution_resize(dist, new_nelements)
-      ELSE IF (new_nelements*ENLARGE_RATIO .GT. SIZE(dist%list)) THEN
+      ELSE IF (new_nelements*ENLARGE_RATIO > SIZE(dist%list)) THEN
          CALL fb_distribution_resize(dist, SIZE(dist%list)*EXPAND_FACTOR)
       END IF
       ! assuming the list of elements is always sorted with respect to cost
@@ -655,19 +655,19 @@ CONTAINS
       INTEGER                                            :: lower, middle, N, upper
 
       N = dist%nelements
-      IF (element%cost .LT. dist%list(1)%cost) THEN
+      IF (element%cost < dist%list(1)%cost) THEN
          pos = 1
          RETURN
       END IF
-      IF (element%cost .GE. dist%list(N)%cost) THEN
+      IF (element%cost >= dist%list(N)%cost) THEN
          pos = N + 1
          RETURN
       END IF
       lower = 1
       upper = N
-      DO WHILE ((upper - lower) .GT. 1)
+      DO WHILE ((upper - lower) > 1)
          middle = (lower + upper)/2
-         IF (element%cost .LT. dist%list(middle)%cost) THEN
+         IF (element%cost < dist%list(middle)%cost) THEN
             upper = middle
          ELSE
             lower = middle
@@ -689,9 +689,9 @@ CONTAINS
       INTEGER                                            :: ii
       LOGICAL                                            :: check_ok
 
-      check_ok = pos .GT. 0
+      check_ok = pos > 0
       CPASSERT(check_ok)
-      IF (pos .LE. dist%nelements) THEN
+      IF (pos <= dist%nelements) THEN
          dist%cost = dist%cost - dist%list(pos)%cost
          DO ii = pos, dist%nelements - 1
             dist%list(ii) = dist%list(ii + 1)
@@ -700,7 +700,7 @@ CONTAINS
          dist%list(dist%nelements)%cost = 0.0_dp
          dist%nelements = dist%nelements - 1
          ! auto resize if required
-         IF (dist%nelements*REDUCE_RATIO .LT. SIZE(dist%list)) THEN
+         IF (dist%nelements*REDUCE_RATIO < SIZE(dist%list)) THEN
             CALL fb_distribution_resize(dist, dist%nelements/SHRINK_FACTOR)
          END IF
       END IF
@@ -745,7 +745,7 @@ CONTAINS
 
       check_ok = ASSOCIATED(dist_from%list)
       CPASSERT(check_ok)
-      check_ok = pos .LE. dist_from%nelements
+      check_ok = pos <= dist_from%nelements
       CPASSERT(check_ok)
       element = dist_from%list(pos)
       CALL fb_distribution_add(dist_to, element)

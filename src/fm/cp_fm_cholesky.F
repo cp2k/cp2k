@@ -326,7 +326,7 @@ CONTAINS
       b_sp => fm_matrixb%local_data_sp
       outm_sp => fm_matrixout%local_data_sp
       n = fm_matrix%matrix_struct%nrow_global
-      mdim = MERGE(1, 2, 'L' .EQ. chol_pos)
+      mdim = MERGE(1, 2, 'L' == chol_pos)
       alpha = 1.0_dp
 
 #if defined(__parallel)
@@ -340,7 +340,7 @@ CONTAINS
             CALL pdcopy(n, a(1, 1), 1, i, desca, 1, outm(1, 1), 1, i, descout, 1)
          END IF
       END DO
-      IF (op .EQ. "SOLVE") THEN
+      IF (op == "SOLVE") THEN
          IF (fm_matrix%use_sp) THEN
             CALL pstrsm(chol_pos, 'U', chol_transa, 'N', n, neig, REAL(alpha, sp), b_sp(1, 1), 1, 1, descb, &
                         outm_sp(1, 1), 1, 1, descout)
@@ -357,7 +357,7 @@ CONTAINS
       END IF
 #elif defined(__MKL) && (2025 <= __INTEL_MKL__)
       beta = 0.0_dp
-      IF (op .EQ. "SOLVE") THEN
+      IF (op == "SOLVE") THEN
          IF (fm_matrix%use_sp) THEN
             CALL strsm_oop(chol_pos, 'U', chol_transa, 'N', n, neig, REAL(alpha, sp), b_sp(1, 1), SIZE(b_sp, mdim), a_sp(1, 1), n, REAL(beta, sp), outm_sp(1, 1), n)
          ELSE
@@ -376,7 +376,7 @@ CONTAINS
       ELSE
          CALL dcopy(neig*n, a(1, 1), 1, outm(1, 1), 1)
       END IF
-      IF (op .EQ. "SOLVE") THEN
+      IF (op == "SOLVE") THEN
          IF (fm_matrix%use_sp) THEN
             CALL strsm(chol_pos, 'U', chol_transa, 'N', n, neig, REAL(alpha, sp), b_sp(1, 1), SIZE(b_sp, mdim), outm_sp(1, 1), n)
          ELSE

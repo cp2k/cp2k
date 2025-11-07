@@ -172,13 +172,13 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
       TYPE(cp_fm_type)                                   :: csc, sc, work
 
-      IF (ncol .EQ. 0) RETURN
+      IF (ncol == 0) RETURN
 
       CALL timeset(routineN, handle)
 
       threshold = 1.0E-7_dp
       CALL cp_fm_get_info(matrix=vmatrix, nrow_global=n, ncol_global=ncol_global)
-      IF (ncol .GT. ncol_global) CPABORT("Wrong ncol value")
+      IF (ncol > ncol_global) CPABORT("Wrong ncol value")
 
       CALL cp_fm_create(sc, xmatrix%matrix_struct, "SC")
       CALL cp_dbcsr_sm_fm_multiply(matrix_s, vmatrix, sc, ncol)
@@ -246,7 +246,7 @@ CONTAINS
 
       ncol = SIZE(rdiag)
       CALL cp_fm_get_info(matrix=vmatrix, nrow_global=n, ncol_global=ncol_global)
-      IF (ncol .GT. ncol_global) CPABORT("Wrong ncol value")
+      IF (ncol > ncol_global) CPABORT("Wrong ncol value")
 
       CALL cp_fm_create(sc, vmatrix%matrix_struct, "SC")
       CALL cp_dbcsr_sm_fm_multiply(matrix_s, vmatrix, sc, ncol)
@@ -301,7 +301,7 @@ CONTAINS
 
       ncol = SIZE(rdiag)
       CALL cp_fm_get_info(matrix=xmatrix, nrow_global=n, ncol_global=ncol_global)
-      IF (ncol .GT. ncol_global) CPABORT("Wrong ncol value")
+      IF (ncol > ncol_global) CPABORT("Wrong ncol value")
 
       CALL cp_fm_create(sc, xmatrix%matrix_struct, "SC")
       CALL cp_dbcsr_sm_fm_multiply(matrix_s, xmatrix, sc, ncol)

@@ -151,7 +151,7 @@ CONTAINS
       CALL get_mc_molecule_info(mc_molecule_info, nmol_types=nmol_types, &
                                 nchains=nchains, nunits_tot=nunits_tot, nunits=nunits, mol_type=mol_type)
 
-      IF (nboxes .GT. 1) THEN
+      IF (nboxes > 1) THEN
          DO ibox = 2, nboxes
             CALL get_mc_par(mc_par(ibox)%mc_par, diff=diff(ibox))
          END DO
@@ -233,7 +233,7 @@ CONTAINS
 
             DO ibox = 1, nboxes
 ! look for overlap
-               IF (SUM(nchains(:, ibox)) .NE. 0) THEN
+               IF (SUM(nchains(:, ibox)) /= 0) THEN
 ! find the molecule bounds
                   start_mol = 1
                   DO jbox = 1, ibox - 1
@@ -252,9 +252,9 @@ CONTAINS
                               - (SUM(old_energy(:)) - SUM(bias_energy_old(:))))
 
 ! used to prevent over and underflows
-            IF (energies .GE. -1.0E-8) THEN
+            IF (energies >= -1.0E-8) THEN
                w = 1.0_dp
-            ELSEIF (energies .LE. -500.0_dp) THEN
+            ELSEIF (energies <= -500.0_dp) THEN
                w = 0.0_dp
             ELSE
                w = EXP(energies)
@@ -270,9 +270,9 @@ CONTAINS
          ELSE
             energies = -BETA*(SUM(new_energy(:)) - SUM(old_energy(:)))
 ! used to prevent over and underflows
-            IF (energies .GE. 0.0_dp) THEN
+            IF (energies >= 0.0_dp) THEN
                w = 1.0_dp
-            ELSEIF (energies .LE. -500.0_dp) THEN
+            ELSEIF (energies <= -500.0_dp) THEN
                w = 0.0_dp
             ELSE
                w = EXP(energies)
@@ -281,7 +281,7 @@ CONTAINS
       ELSE
          w = 0.0E0_dp
       END IF
-      IF (w .GE. 1.0E0_dp) THEN
+      IF (w >= 1.0E0_dp) THEN
          w = 1.0E0_dp
          rand = 0.0E0_dp
       ELSE
@@ -289,7 +289,7 @@ CONTAINS
          CALL group%bcast(rand, source)
       END IF
 
-      IF (rand .LT. w) THEN
+      IF (rand < w) THEN
 
 ! accept the move
          moves(1, 1)%moves%Quickstep%successes = &
@@ -333,7 +333,7 @@ CONTAINS
 
 ! update coordinates
          DO ibox = 1, nboxes
-            IF (nunits_tot(ibox) .NE. 0) THEN
+            IF (nunits_tot(ibox) /= 0) THEN
                DO iparticle = 1, nunits_tot(ibox)
                   r_old(1:3, iparticle, ibox) = &
                      particles(ibox)%list%els(iparticle)%r(1:3)
@@ -515,7 +515,7 @@ CONTAINS
       IF (ionode) rand = rng_stream%next()
       CALL group%bcast(rand, source)
 
-      IF (rand .LE. 0.50E0_dp) THEN
+      IF (rand <= 0.50E0_dp) THEN
          remove_box = 1
          insert_box = 2
       ELSE
@@ -535,7 +535,7 @@ CONTAINS
       IF (ionode) rand = rng_stream%next()
       CALL group%bcast(rand, source)
       DO itype = 1, nmol_types
-         IF (rand .LT. pmswap_mol(itype)) THEN
+         IF (rand < pmswap_mol(itype)) THEN
             molecule_type = itype
             EXIT
          END IF
@@ -989,9 +989,9 @@ CONTAINS
                                                                    bias_energy_new(remove_box) - bias_energy_old(insert_box) &
                                                                    - bias_energy_old(remove_box)))
 
-         IF (del_quickstep_energy .GT. exp_max_val) THEN
+         IF (del_quickstep_energy > exp_max_val) THEN
             del_quickstep_energy = max_val
-         ELSEIF (del_quickstep_energy .LT. exp_min_val) THEN
+         ELSEIF (del_quickstep_energy < exp_min_val) THEN
             del_quickstep_energy = min_val
          ELSE
             del_quickstep_energy = EXP(del_quickstep_energy)
@@ -1006,7 +1006,7 @@ CONTAINS
       END IF
 
 ! check if the move is accepted
-      IF (w .GE. 1.0E0_dp) THEN
+      IF (w >= 1.0E0_dp) THEN
          rand = 0.0E0_dp
       ELSE
          IF (ionode) rand = rng_stream%next()
@@ -1014,7 +1014,7 @@ CONTAINS
       END IF
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-      IF (rand .LT. w) THEN
+      IF (rand < w) THEN
 
 ! accept the move
 
@@ -1245,10 +1245,10 @@ CONTAINS
 
 ! add to one box, subtract from the other
       IF (old_cell_length(1, 1)*old_cell_length(2, 1)* &
-          old_cell_length(3, 1) + vol_dis .LE. (3.0E0_dp/angstrom)**3) &
+          old_cell_length(3, 1) + vol_dis <= (3.0E0_dp/angstrom)**3) &
          CPABORT('GE_volume moves are trying to make box 1 smaller than 3')
       IF (old_cell_length(1, 2)*old_cell_length(2, 2)* &
-          old_cell_length(3, 2) + vol_dis .LE. (3.0E0_dp/angstrom)**3) &
+          old_cell_length(3, 2) + vol_dis <= (3.0E0_dp/angstrom)**3) &
          CPABORT('GE_volume moves are trying to make box 2 smaller than 3')
 
       DO iside = 1, 3
@@ -1288,7 +1288,7 @@ CONTAINS
          END DO
          DO imolecule = 1, SUM(nchains(:, ibox))
             molecule_type = mol_type(imolecule + molecule_index - 1)
-            IF (imolecule .NE. 1) THEN
+            IF (imolecule /= 1) THEN
                start_atom = start_atom + nunits(mol_type(imolecule + molecule_index - 2))
             END IF
             end_atom = start_atom + nunits(molecule_type) - 1
@@ -1360,7 +1360,7 @@ CONTAINS
 
       END IF
 
-      IF (w .GE. 1.0E0_dp) THEN
+      IF (w >= 1.0E0_dp) THEN
          w = 1.0E0_dp
          rand = 0.0E0_dp
       ELSE
@@ -1368,7 +1368,7 @@ CONTAINS
          CALL group%bcast(rand, source)
       END IF
 
-      IF (rand .LT. w) THEN
+      IF (rand < w) THEN
 
 ! write cell length, volume, density, and trial displacement to a file
          IF (ionode) THEN

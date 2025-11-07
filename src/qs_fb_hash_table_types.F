@@ -113,7 +113,7 @@ CONTAINS
       check_ok = fb_hash_table_has_data(hash_table)
       CPASSERT(check_ok)
       ! check hash table size, if too small rehash in a larger table
-      IF (hash_table%obj%nelements*ENLARGE_RATIO .GE. &
+      IF (hash_table%obj%nelements*ENLARGE_RATIO >= &
           hash_table%obj%nmax) THEN
          CALL fb_hash_table_rehash(hash_table=hash_table, &
                                    nmax=hash_table%obj%nmax*EXPAND_FACTOR)
@@ -224,12 +224,12 @@ CONTAINS
       ! table length should always be power of 2. Find the least
       ! power that is greater or equal to my_nmax
       power = 0
-      DO WHILE (2**power .LT. my_nmax)
+      DO WHILE (2**power < my_nmax)
          power = power + 1
       END DO
       my_nmax = 2**power
       IF (ASSOCIATED(hash_table%obj%table)) THEN
-         IF (SIZE(hash_table%obj%table) .NE. my_nmax) THEN
+         IF (SIZE(hash_table%obj%table) /= my_nmax) THEN
             DEALLOCATE (hash_table%obj%table)
             ALLOCATE (hash_table%obj%table(my_nmax))
          END IF
@@ -287,7 +287,7 @@ CONTAINS
       CALL fb_hash_table_create(hash_table=hash_table, &
                                 nmax=my_nmax)
       DO ii = 1, SIZE(tmp_table)
-         IF (tmp_table(ii)%key .NE. EMPTY_KEY) THEN
+         IF (tmp_table(ii)%key /= EMPTY_KEY) THEN
             CALL fb_hash_table_add(hash_table=hash_table, &
                                    key=tmp_table(ii)%key, &
                                    val=tmp_table(ii)%val)
@@ -337,7 +337,7 @@ CONTAINS
             hash_table%obj%nelements = hash_table%obj%nelements - 1
             ! must rehash after setting a filled slot to empty, otherwise the
             ! table will not work. Automatic resize if required
-            IF (hash_table%obj%nelements*REDUCE_RATIO .LT. &
+            IF (hash_table%obj%nelements*REDUCE_RATIO < &
                 hash_table%obj%nmax) THEN
                CALL fb_hash_table_rehash(hash_table=hash_table, &
                                          nmax=hash_table%obj%nmax/SHRINK_FACTOR)

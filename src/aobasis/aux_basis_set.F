@@ -117,7 +117,7 @@ CONTAINS
                   zb = (2.0_dp*zet(j, iset))**(0.25_dp*(2*l + 3))
                   zetab = zet(i, iset) + zet(j, iset)
                   so(i, j) = za*zb/zetab**(l + 1.5_dp)
-                  IF (i .NE. j) so(j, i) = so(i, j)
+                  IF (i /= j) so(j, i) = so(i, j)
                END DO
             END DO
             info = 0

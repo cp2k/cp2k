@@ -184,8 +184,8 @@ CONTAINS
                CALL put_rho0_on_grid(qs_env, rho0_mpole, tot_rs_int)
             END IF
 
-            IF (ABS(rho0_h_tot) .GE. 1.0E-5_dp) THEN
-               IF (ABS(1.0_dp - ABS(tot_rs_int/rho0_h_tot)) .GT. 1.0E-3_dp) THEN
+            IF (ABS(rho0_h_tot) >= 1.0E-5_dp) THEN
+               IF (ABS(1.0_dp - ABS(tot_rs_int/rho0_h_tot)) > 1.0E-3_dp) THEN
                   IF (output_unit > 0) THEN
                      WRITE (output_unit, '(/,72("*"))')
                      WRITE (output_unit, '(T2,A,T66,1E20.8)') &
@@ -202,8 +202,8 @@ CONTAINS
             IF (rho0_mpole%do_cneo) THEN
                ! put soft tails of quantum nuclear charge densities on the global grid
                CALL put_rhoz_cneo_s_on_grid(qs_env, rho0_mpole, rhoz_cneo_set, tot_rs_int)
-               IF (ABS(rho0_mpole%tot_rhoz_cneo_s) .GE. 1.0E-5_dp) THEN
-                  IF (ABS(1.0_dp - ABS(tot_rs_int/rho0_mpole%tot_rhoz_cneo_s)) .GT. 1.0E-3_dp) THEN
+               IF (ABS(rho0_mpole%tot_rhoz_cneo_s) >= 1.0E-5_dp) THEN
+                  IF (ABS(1.0_dp - ABS(tot_rs_int/rho0_mpole%tot_rhoz_cneo_s)) > 1.0E-3_dp) THEN
                      IF (output_unit > 0) THEN
                         WRITE (output_unit, '(/,72("*"))')
                         WRITE (output_unit, '(T2,A,T66,1E20.8)') &

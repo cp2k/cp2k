@@ -219,7 +219,7 @@ CONTAINS
       END DO
 
       !Square the matrices, due to the scaling and squaring procedure
-      IF (nsquare .GT. 0) THEN
+      IF (nsquare > 0) THEN
          DO i = 1, nsquare
             CALL cp_complex_dbcsr_gemm_3("N", "N", one, Tres_re, Tres_im, &
                                          Tres_re, Tres_im, zero, exp_H(1)%matrix, exp_H(2)%matrix, &
@@ -313,7 +313,7 @@ CONTAINS
          CALL dbcsr_copy(T1_im, T2_im)
       END DO
 
-      IF (nsquare .GT. 0) THEN
+      IF (nsquare > 0) THEN
          DO i = 1, nsquare
             ! T2 = Tres * Tres
             CALL cp_complex_dbcsr_gemm_3("N", "N", alpha=1.0_dp, beta=0.0_dp, &

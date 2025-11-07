@@ -108,7 +108,7 @@ CONTAINS
          ! file name prefix
          CALL section_vals_val_get(tmc_ana_section, "PREFIX_ANA_FILES", &
                                    c_val=tmc_ana%out_file_prefix)
-         IF (tmc_ana%out_file_prefix .NE. "") THEN
+         IF (tmc_ana%out_file_prefix /= "") THEN
             tmc_ana%out_file_prefix = TRIM(tmc_ana%out_file_prefix)//"_"
          END IF
 
@@ -117,16 +117,16 @@ CONTAINS
          IF (explicit_key) THEN
             CALL section_vals_val_get(tmc_ana_section, "DENSITY", i_vals=i_arr_tmp)
 
-            IF (SIZE(i_arr_tmp(:)) .EQ. 3) THEN
-               IF (ANY(i_arr_tmp(:) .LE. 0)) &
+            IF (SIZE(i_arr_tmp(:)) == 3) THEN
+               IF (ANY(i_arr_tmp(:) <= 0)) &
                   CALL cp_abort(__LOCATION__, "The amount of intervals in each "// &
                                 "direction has to be greater than 0.")
                nr_bins(:) = i_arr_tmp(:)
-            ELSE IF (SIZE(i_arr_tmp(:)) .EQ. 1) THEN
-               IF (ANY(i_arr_tmp(:) .LE. 0)) &
+            ELSE IF (SIZE(i_arr_tmp(:)) == 1) THEN
+               IF (ANY(i_arr_tmp(:) <= 0)) &
                   CPABORT("The amount of intervals has to be greater than 0.")
                nr_bins(:) = i_arr_tmp(1)
-            ELSE IF (SIZE(i_arr_tmp(:)) .EQ. 0) THEN
+            ELSE IF (SIZE(i_arr_tmp(:)) == 0) THEN
                nr_bins(:) = 1
             ELSE
                CPABORT("unknown amount of dimensions for the binning.")
@@ -389,7 +389,7 @@ CONTAINS
          CALL open_file(file_name=file_name_tmp, file_status="OLD", file_form="UNFORMATTED", &
                         file_action="READ", unit_number=file_ptr)
          READ (file_ptr) temp
-         CPASSERT(ana_env%temperature .EQ. temp)
+         CPASSERT(ana_env%temperature == temp)
          ana_env%last_elem => elem
          CALL read_subtree_elem_unformated(elem, file_ptr)
 
@@ -482,7 +482,7 @@ CONTAINS
          weight_act = elem%nr - ana_env%last_elem%nr
       END IF
 
-      IF (weight_act .GT. 0) THEN
+      IF (weight_act > 0) THEN
          ! calculates the 3 dimensional distributed density
          IF (ASSOCIATED(ana_env%density_3d)) &
             CALL calc_density_3d(elem=ana_env%last_elem, &
@@ -500,7 +500,7 @@ CONTAINS
          IF (ASSOCIATED(ana_env%dip_ana)) THEN
             ! in symmetric case use also the dipoles
             !   (-x,y,z) .. .. (-x,-y,z).... (-x,-y-z) all have the same energy
-            IF (ana_env%dip_ana%ana_type .EQ. ana_type_sym_xyz) THEN
+            IF (ana_env%dip_ana%ana_type == ana_type_sym_xyz) THEN
                ! (-x,y,z)
                ana_env%last_elem%dipole(1) = -ana_env%last_elem%dipole(1)
                dip_tmp(:) = ana_env%last_elem%dipole(:)
@@ -600,23 +600,23 @@ CONTAINS
       ! start the timing
       CALL timeset(routineN, handle)
       IF (ASSOCIATED(ana_env%density_3d)) THEN
-         IF (ana_env%density_3d%conf_counter .GT. 0) &
+         IF (ana_env%density_3d%conf_counter > 0) &
             CALL print_density_3d(ana_env=ana_env)
       END IF
       IF (ASSOCIATED(ana_env%pair_correl)) THEN
-         IF (ana_env%pair_correl%conf_counter .GT. 0) &
+         IF (ana_env%pair_correl%conf_counter > 0) &
             CALL print_paircorrelation(ana_env=ana_env)
       END IF
       IF (ASSOCIATED(ana_env%dip_mom)) THEN
-         IF (ana_env%dip_mom%conf_counter .GT. 0) &
+         IF (ana_env%dip_mom%conf_counter > 0) &
             CALL print_dipole_moment(ana_env)
       END IF
       IF (ASSOCIATED(ana_env%dip_ana)) THEN
-         IF (ana_env%dip_ana%conf_counter .GT. 0) &
+         IF (ana_env%dip_ana%conf_counter > 0) &
             CALL print_dipole_analysis(ana_env)
       END IF
       IF (ASSOCIATED(ana_env%displace)) THEN
-         IF (ana_env%displace%conf_counter .GT. 0) &
+         IF (ana_env%displace%conf_counter > 0) &
             CALL print_average_displacement(ana_env)
       END IF
 
@@ -657,7 +657,7 @@ CONTAINS
       ! open the files
       CALL analyse_files_open(tmc_ana=ana_env, stat=stat, dir_ind=dir_ind)
       ! set the existence of exact dipoles (from file)
-      IF (ana_env%id_dip .GT. 0) THEN
+      IF (ana_env%id_dip > 0) THEN
          tmc_params%print_dipole = .TRUE.
       ELSE
          tmc_params%print_dipole = .FALSE.
@@ -670,17 +670,17 @@ CONTAINS
       IF (ASSOCIATED(ana_env%last_elem)) conf_nr = ana_env%last_elem%nr
       nr_dim = SIZE(elem%pos)
 
-      IF (stat .EQ. TMC_STATUS_OK) THEN
+      IF (stat == TMC_STATUS_OK) THEN
          conf_loop: DO
             CALL read_element_from_file(elem=elem, tmc_ana=ana_env, conf_nr=conf_nr, &
                                         stat=stat)
-            IF (stat .EQ. TMC_STATUS_WAIT_FOR_NEW_TASK) THEN
+            IF (stat == TMC_STATUS_WAIT_FOR_NEW_TASK) THEN
                CALL deallocate_sub_tree_node(tree_elem=elem)
                EXIT conf_loop
             END IF
             ! if we want just a certain part of the trajectory
-            IF (start_id .LT. 0 .OR. conf_nr .GE. start_id) THEN
-               IF (end_id .LT. 0 .OR. conf_nr .LE. end_id) THEN
+            IF (start_id < 0 .OR. conf_nr >= start_id) THEN
+               IF (end_id < 0 .OR. conf_nr <= end_id) THEN
                   ! do the analysis calculations
                   CALL do_tmc_analysis(elem=elem, ana_env=ana_env)
                END IF
@@ -740,7 +740,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(elem))
       CPASSERT(ASSOCIATED(elem%pos))
-      CPASSERT(weight .GT. 0)
+      CPASSERT(weight > 0)
       CPASSERT(ASSOCIATED(atoms))
       CPASSERT(ASSOCIATED(ana_env))
       CPASSERT(ASSOCIATED(ana_env%cell))
@@ -762,7 +762,7 @@ CONTAINS
       ALLOCATE (mass_bin(bin_x, bin_y, bin_z))
       mass_bin(:, :, :) = 0.0_dp
 
-      ! if NPT -> box_scale.NE.1.0 use the scaled cell
+      ! if NPT -> box_scale/=1.0 use the scaled cell
       ! ATTENTION then the sub box middle points are not correct in the output
       !  espacially if we use multiple sub boxes
       CALL get_scaled_cell(cell=ana_env%cell, box_scale=elem%box_scale, &
@@ -801,10 +801,10 @@ CONTAINS
          bin_x = INT(atom_pos(1)/interval_size(1)) + 1
          bin_y = INT(atom_pos(2)/interval_size(2)) + 1
          bin_z = INT(atom_pos(3)/interval_size(3)) + 1
-         CPASSERT(bin_x .GT. 0 .AND. bin_y .GT. 0 .AND. bin_z .GT. 0)
-         CPASSERT(bin_x .LE. SIZE(ana_env%density_3d%sum_density(:, 1, 1)))
-         CPASSERT(bin_y .LE. SIZE(ana_env%density_3d%sum_density(1, :, 1)))
-         CPASSERT(bin_z .LE. SIZE(ana_env%density_3d%sum_density(1, 1, :)))
+         CPASSERT(bin_x > 0 .AND. bin_y > 0 .AND. bin_z > 0)
+         CPASSERT(bin_x <= SIZE(ana_env%density_3d%sum_density(:, 1, 1)))
+         CPASSERT(bin_y <= SIZE(ana_env%density_3d%sum_density(1, :, 1)))
+         CPASSERT(bin_z <= SIZE(ana_env%density_3d%sum_density(1, 1, :)))
 
          ! sum mass in [g] (in bins and total)
          mass_bin(bin_x, bin_y, bin_z) = mass_bin(bin_x, bin_y, bin_z) + &
@@ -820,7 +820,7 @@ CONTAINS
       END DO
       ! check total cell density
       r_tmp = mass_total/vol_cell - SUM(mass_bin(:, :, :))/vol_sub_box/SIZE(mass_bin(:, :, :))
-      CPASSERT(ABS(r_tmp) .LT. 1E-5)
+      CPASSERT(ABS(r_tmp) < 1E-5)
 
       ! calculate density (mass per volume) and sum up for average value
       ana_env%density_3d%sum_density(:, :, :) = ana_env%density_3d%sum_density(:, :, :) + &
@@ -1011,14 +1011,14 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(ana_pair_correl%g_r))
       CPASSERT(.NOT. ASSOCIATED(ana_pair_correl%pairs))
       CPASSERT(ASSOCIATED(atoms))
-      CPASSERT(SIZE(atoms) .GT. 1)
+      CPASSERT(SIZE(atoms) > 1)
       CPASSERT(ASSOCIATED(cell))
 
       ! start the timing
       CALL timeset(routineN, handle)
 
       CALL get_cell(cell=cell, abc=cell_size)
-      IF (ana_pair_correl%nr_bins .LE. 0) THEN
+      IF (ana_pair_correl%nr_bins <= 0) THEN
          ana_pair_correl%nr_bins = CEILING(MAXVAL(cell_size(:))/2.0_dp/(0.03/au2a))
       END IF
       ana_pair_correl%step_length = MAXVAL(cell_size(:))/2.0_dp/ &
@@ -1034,7 +1034,7 @@ CONTAINS
             list_ind = search_pair_in_list(pair_list=pairs_tmp, n1=atoms(f_n)%name, &
                                            n2=atoms(s_n)%name, list_end=counter - 1)
             ! add to list
-            IF (list_ind .LT. 0) THEN
+            IF (list_ind < 0) THEN
                pairs_tmp(counter)%f_n = atoms(f_n)%name
                pairs_tmp(counter)%s_n = atoms(s_n)%name
                pairs_tmp(counter)%pair_count = 1
@@ -1082,8 +1082,8 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(elem))
       CPASSERT(ASSOCIATED(elem%pos))
-      CPASSERT(ALL(elem%box_scale(:) .GT. 0.0_dp))
-      CPASSERT(weight .GT. 0)
+      CPASSERT(ALL(elem%box_scale(:) > 0.0_dp))
+      CPASSERT(weight > 0)
       CPASSERT(ASSOCIATED(atoms))
       CPASSERT(ASSOCIATED(ana_env))
       CPASSERT(ASSOCIATED(ana_env%cell))
@@ -1102,11 +1102,11 @@ CONTAINS
                                     x2=elem%pos(j:j + ana_env%dim_per_elem - 1), &
                                     cell=ana_env%cell, box_scale=elem%box_scale)
             ind = CEILING(dist/ana_env%pair_correl%step_length)
-            IF (ind .LE. ana_env%pair_correl%nr_bins) THEN
+            IF (ind <= ana_env%pair_correl%nr_bins) THEN
                pair_ind = search_pair_in_list(pair_list=ana_env%pair_correl%pairs, &
                                               n1=atoms(INT(i/REAL(ana_env%dim_per_elem, KIND=dp)) + 1)%name, &
                                               n2=atoms(INT(j/REAL(ana_env%dim_per_elem, KIND=dp)) + 1)%name)
-               CPASSERT(pair_ind .GT. 0)
+               CPASSERT(pair_ind > 0)
                ana_env%pair_correl%g_r(pair_ind, ind) = &
                   ana_env%pair_correl%g_r(pair_ind, ind) + weight
             END IF
@@ -1218,7 +1218,7 @@ CONTAINS
       ! for every atom searcht the correct charge
       DO atom = 1, SIZE(atoms)
          charge_loop: DO charge = 1, SIZE(ana_dip_mom%charges_inp)
-            IF (atoms(atom)%name .EQ. ana_dip_mom%charges_inp(charge)%name) THEN
+            IF (atoms(atom)%name == ana_dip_mom%charges_inp(charge)%name) THEN
                ana_dip_mom%charges(atom) = ana_dip_mom%charges_inp(charge)%mass
                EXIT charge_loop
             END IF
@@ -1327,7 +1327,7 @@ CONTAINS
       CPASSERT(ASSOCIATED(ana_env%dip_ana))
 
       weight_act = weight
-      IF (ana_env%dip_ana%ana_type .EQ. ana_type_sym_xyz) &
+      IF (ana_env%dip_ana%ana_type == ana_type_sym_xyz) &
          weight_act = weight_act/REAL(8.0, KIND=dp)
 
       ! get the volume
@@ -1337,7 +1337,7 @@ CONTAINS
 
       ! fold exact dipole moments using the classical ones
       IF (ASSOCIATED(ana_env%dip_mom)) THEN
-         IF (ALL(ana_env%dip_mom%last_dip_cl .NE. elem%dipole)) THEN
+         IF (ALL(ana_env%dip_mom%last_dip_cl /= elem%dipole)) THEN
             elem%dipole = pbc(r=elem%dipole(:) - ana_env%dip_mom%last_dip_cl, &
                               cell=scaled_cell) + ana_env%dip_mom%last_dip_cl
          END IF
@@ -1521,10 +1521,10 @@ CONTAINS
       WRITE (ana_env%io_unit, FMT=fmt_my) plabel, "temperature ", cp_to_string(ana_env%temperature)
       WRITE (ana_env%io_unit, FMT=fmt_my) plabel, "used configurations ", &
          cp_to_string(REAL(ana_env%dip_ana%conf_counter, KIND=dp))
-      IF (ana_env%dip_ana%ana_type .EQ. ana_type_ice) &
+      IF (ana_env%dip_ana%ana_type == ana_type_ice) &
          WRITE (ana_env%io_unit, FMT='(T2,A,"| ",A)') plabel, &
          "ice analysis with directions of hexagonal structure"
-      IF (ana_env%dip_ana%ana_type .EQ. ana_type_sym_xyz) &
+      IF (ana_env%dip_ana%ana_type == ana_type_sym_xyz) &
          WRITE (ana_env%io_unit, FMT='(T2,A,"| ",A)') plabel, &
          "ice analysis with symmetrized dipoles in each direction."
 

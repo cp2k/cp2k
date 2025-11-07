@@ -284,7 +284,7 @@ CONTAINS
             jpgf = tasks(itask)%jpgf
 
             ! At the start of a block of tasks, get atom data (and kind data, if needed)
-            IF (itask .EQ. task_list%taskstart(ipair, igrid_level)) THEN
+            IF (itask == task_list%taskstart(ipair, igrid_level)) THEN
 
                ikind = particle_set(iatom)%atomic_kind%kind_number
                jkind = particle_set(jatom)%atomic_kind%kind_number
@@ -299,7 +299,7 @@ CONTAINS
                   bcol = iatom
                END IF
 
-               IF (ikind .NE. ikind_old) THEN
+               IF (ikind /= ikind_old) THEN
                   CALL get_qs_kind(qs_kind_set(ikind), &
                                    basis_set=orb_basis_set, basis_type="ORB")
 
@@ -316,7 +316,7 @@ CONTAINS
                                          zet=zeta)
                END IF
 
-               IF (jkind .NE. jkind_old) THEN
+               IF (jkind /= jkind_old) THEN
                   CALL get_qs_kind(qs_kind_set(jkind), &
                                    basis_set=orb_basis_set, basis_type="ORB")
                   CALL get_gto_basis_set(gto_basis_set=orb_basis_set, &
@@ -354,7 +354,7 @@ CONTAINS
 
             END IF
 
-            IF (atom_pair_changed .OR. iset_old .NE. iset .OR. jset_old .NE. jset) THEN
+            IF (atom_pair_changed .OR. iset_old /= iset .OR. jset_old /= jset) THEN
 
                ncoa = npgfa(iset)*ncoset(la_max(iset))
                sgfa = first_sgfa(1, iset)
@@ -407,7 +407,7 @@ CONTAINS
             ! check whether we need to use fawzi's generalised collocation scheme
             IF (rs_rho(igrid_level)%desc%distributed) THEN
                !tasks(4,:) is 0 for replicated, 1 for distributed 2 for exceptional distributed tasks
-               IF (tasks(itask)%dist_type .EQ. 2) THEN
+               IF (tasks(itask)%dist_type == 2) THEN
                   use_subpatch = .TRUE.
                ELSE
                   use_subpatch = .FALSE.
@@ -478,7 +478,7 @@ CONTAINS
                jset_new = tasks(itask + 1)%jset
                ipgf_new = tasks(itask + 1)%ipgf
                jpgf_new = tasks(itask + 1)%jpgf
-               IF (iset_new .NE. iset .OR. jset_new .NE. jset) THEN
+               IF (iset_new /= iset .OR. jset_new /= jset) THEN
                   new_set_pair_coming = .TRUE.
                END IF
             ELSE

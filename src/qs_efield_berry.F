@@ -369,7 +369,7 @@ CONTAINS
       DO idir = 1, 3
          ci(idir) = 0.0_dp
          zi(idir) = z_zero
-         IF (ABS(fpolvec(idir)) .GT. 1.0E-12_dp) THEN
+         IF (ABS(fpolvec(idir)) > 1.0E-12_dp) THEN
             cosmat => efield%cosmat(idir)%matrix
             sinmat => efield%sinmat(idir)%matrix
             !evaluate the expression needed for the derivative (S_berry * C  and [C^T S_berry C]^-1)

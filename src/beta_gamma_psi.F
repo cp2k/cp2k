@@ -39,7 +39,7 @@ CONTAINS
 
 !               SIGN ( X(N-1)*A**(N-1) + ... + X(1)*A + X(0) )
 
-!               WHERE 0 .LE. X(I) .LT. A FOR I=0,...,N-1.
+!               WHERE 0 <= X(I) < A FOR I=0,...,N-1.
 
 !     IPMPAR(1) = A, THE BASE (radix).
 
@@ -56,7 +56,7 @@ CONTAINS
 !               SIGN (B**E) * (X(1)/B + ... + X(M)/B**M)
 
 !               WHERE X(I) = 0,1,...,B-1 FOR I=1,...,M,
-!               X(1) .GE. 1, AND EMIN .LE. E .LE. EMAX.
+!               X(1) >= 1, AND EMIN <= E <= EMAX.
 
 !     IPMPAR(4) = B, THE BASE.
 
@@ -678,7 +678,7 @@ CONTAINS
 ! **************************************************************************************************
    FUNCTION gamln1(a) RESULT(fn_val)
 !-----------------------------------------------------------------------
-!     EVALUATION OF LN(GAMMA(1 + A)) FOR -0.2 .LE. A .LE. 1.25
+!     EVALUATION OF LN(GAMMA(1 + A)) FOR -0.2 <= A <= 1.25
 !-----------------------------------------------------------------------
       REAL(dp), INTENT(IN)                               :: a
       REAL(dp)                                           :: fn_val
@@ -781,7 +781,7 @@ CONTAINS
       aug = 0.0e0_dp
       IF (x < 0.5e0_dp) THEN
 !---------------------------------------------------------------------
-!     X .LT. 0.5,  USE REFLECTION FORMULA
+!     X < 0.5,  USE REFLECTION FORMULA
 !     PSI(1-X) = PSI(X) + PI * COTAN(PI*X)
 !---------------------------------------------------------------------
          IF (ABS(x) <= xsmall) THEN
@@ -791,7 +791,7 @@ CONTAINS
                RETURN
             END IF
 !---------------------------------------------------------------------
-!     0 .LT. ABS(X) .LE. XSMALL.  USE 1/X AS A SUBSTITUTE
+!     0 < ABS(X) <= XSMALL.  USE 1/X AS A SUBSTITUTE
 !     FOR  PI*COTAN(PI*X)
 !---------------------------------------------------------------------
             aug = -1.0e0_dp/x
@@ -807,7 +807,7 @@ CONTAINS
                sgn = -sgn
             END IF
 !---------------------------------------------------------------------
-!     MAKE AN ERROR EXIT IF X .LE. -XMAX1
+!     MAKE AN ERROR EXIT IF X <= -XMAX1
 !---------------------------------------------------------------------
             IF (w >= xmax1) THEN
                !     ERROR RETURN
@@ -856,7 +856,7 @@ CONTAINS
       END IF
       IF (x <= 3.0e0_dp) THEN
 !---------------------------------------------------------------------
-!     0.5 .LE. X .LE. 3.0
+!     0.5 <= X <= 3.0
 !---------------------------------------------------------------------
          den = x
          upper = p1(1)*x
@@ -872,11 +872,11 @@ CONTAINS
          RETURN
       END IF
 !---------------------------------------------------------------------
-!     IF X .GE. XMAX1, PSI = LN(X)
+!     IF X >= XMAX1, PSI = LN(X)
 !---------------------------------------------------------------------
       IF (x < xmax1) THEN
 !---------------------------------------------------------------------
-!     3.0 .LT. X .LT. XMAX1
+!     3.0 < X < XMAX1
 !---------------------------------------------------------------------
          w = 1.0e0_dp/(x*x)
          den = w
@@ -918,7 +918,7 @@ CONTAINS
       a = MIN(a0, b0)
       b = MAX(a0, b0)
 !-----------------------------------------------------------------------
-!                   PROCEDURE WHEN A .GE. 8
+!                   PROCEDURE WHEN A >= 8
 !-----------------------------------------------------------------------
       IF (a >= 8.0e0_dp) THEN
          w = bcorr(a, b)
@@ -932,7 +932,7 @@ CONTAINS
             fn_val = (((-0.5e0_dp*LOG(b) + e) + w) - u) - v
          END IF
 !-----------------------------------------------------------------------
-!                   PROCEDURE WHEN A .LT. 1
+!                   PROCEDURE WHEN A < 1
 !-----------------------------------------------------------------------
       ELSEIF (a < 1.0e0_dp) THEN
          IF (b < 8.0e0_dp) THEN
@@ -941,7 +941,7 @@ CONTAINS
             fn_val = LOG_GAMMA(a) + algdiv(a, b)
          END IF
 !-----------------------------------------------------------------------
-!                PROCEDURE WHEN 1 .LE. A .LT. 8
+!                PROCEDURE WHEN 1 <= A < 8
 !-----------------------------------------------------------------------
       ELSEIF (a <= 2.0e0_dp) THEN
          IF (b <= 2.0e0_dp) THEN
@@ -950,7 +950,7 @@ CONTAINS
          END IF
          w = 0.0e0_dp
          IF (b < 8.0e0_dp) THEN
-            !                 REDUCTION OF B WHEN B .LT. 8
+            !                 REDUCTION OF B WHEN B < 8
 
             n = INT(b - 1.0e0_dp)
             z = 1.0e0_dp
@@ -962,7 +962,7 @@ CONTAINS
             RETURN
          END IF
          fn_val = LOG_GAMMA(a) + algdiv(a, b)
-!                REDUCTION OF A WHEN B .LE. 1000
+!                REDUCTION OF A WHEN B <= 1000
       ELSEIF (b <= 1000.0e0_dp) THEN
          n = INT(a - 1.0e0_dp)
          w = 1.0e0_dp
@@ -977,7 +977,7 @@ CONTAINS
             RETURN
          END IF
 
-         !                 REDUCTION OF B WHEN B .LT. 8
+         !                 REDUCTION OF B WHEN B < 8
 
          n = INT(b - 1.0e0_dp)
          z = 1.0e0_dp
@@ -987,7 +987,7 @@ CONTAINS
          END DO
          fn_val = w + LOG(z) + (LOG_GAMMA(a) + (LOG_GAMMA(b) - gsumln(a, b)))
       ELSE
-!                REDUCTION OF A WHEN B .GT. 1000
+!                REDUCTION OF A WHEN B > 1000
 
          n = INT(a - 1.0e0_dp)
          w = 1.0e0_dp
@@ -1009,7 +1009,7 @@ CONTAINS
    FUNCTION gsumln(a, b) RESULT(fn_val)
 !-----------------------------------------------------------------------
 !          EVALUATION OF THE FUNCTION LN(GAMMA(A + B))
-!          FOR 1 .LE. A .LE. 2  AND  1 .LE. B .LE. 2
+!          FOR 1 <= A <= 2  AND  1 <= B <= 2
 !-----------------------------------------------------------------------
       REAL(dp), INTENT(IN)                               :: a, b
       REAL(dp)                                           :: fn_val
@@ -1037,7 +1037,7 @@ CONTAINS
 
 !     EVALUATION OF  DEL(A0) + DEL(B0) - DEL(A0 + B0)  WHERE
 !     LN(GAMMA(A)) = (A - 0.5)*LN(A) - A + 0.5*LN(2*PI) + DEL(A).
-!     IT IS ASSUMED THAT A0 .GE. 8 AND B0 .GE. 8.
+!     IT IS ASSUMED THAT A0 >= 8 AND B0 >= 8.
 
 !-----------------------------------------------------------------------
       REAL(dp), INTENT(IN)                               :: a0, b0
@@ -1110,9 +1110,9 @@ CONTAINS
 
 !        IERR = 1  IF A OR B IS NEGATIVE
 !        IERR = 2  IF A = B = 0
-!        IERR = 3  IF X .LT. 0 OR X .GT. 1
-!        IERR = 4  IF Y .LT. 0 OR Y .GT. 1
-!        IERR = 5  IF X + Y .NE. 1
+!        IERR = 3  IF X < 0 OR X > 1
+!        IERR = 4  IF Y < 0 OR Y > 1
+!        IERR = 5  IF X + Y /= 1
 !        IERR = 6  IF X = A = 0
 !        IERR = 7  IF Y = B = 0
 
@@ -1131,7 +1131,7 @@ CONTAINS
 
 !-----------------------------------------------------------------------
 !     ****** EPS IS A MACHINE DEPENDENT CONSTANT. EPS IS THE SMALLEST
-!            FLOATING POINT NUMBER FOR WHICH 1.0 + EPS .GT. 1.0
+!            FLOATING POINT NUMBER FOR WHICH 1.0 + EPS > 1.0
 
       eps = dpmpar(1)
 
@@ -1183,7 +1183,7 @@ CONTAINS
 
       eps = MAX(eps, 1.e-15_dp)
       IF (MAX(a, b) < 1.e-3_dp*eps) THEN
-!           PROCEDURE FOR A AND B .LT. 1.E-3*EPS
+!           PROCEDURE FOR A AND B < 1.E-3*EPS
          w = b/(a + b)
          w1 = a/(a + b)
          RETURN
@@ -1196,7 +1196,7 @@ CONTAINS
       y0 = y
       IF (MIN(a0, b0) > 1.0e0_dp) GO TO 30
 
-!             PROCEDURE FOR A0 .LE. 1 OR B0 .LE. 1
+!             PROCEDURE FOR A0 <= 1 OR B0 <= 1
 
       IF (x > 0.5e0_dp) THEN
          ind = 1
@@ -1222,7 +1222,7 @@ CONTAINS
       n = 20
       GO TO 130
 
-!             PROCEDURE FOR A0 .GT. 1 AND B0 .GT. 1
+!             PROCEDURE FOR A0 > 1 AND B0 > 1
 
 30    IF (a > b) THEN
          lambda = (a + b)*y - b
@@ -1324,7 +1324,7 @@ CONTAINS
 !                 EVALUATION OF I (A,B)
 !                                X
 
-!          FOR B .LT. MIN(EPS,EPS*A) AND X .LE. 0.5.
+!          FOR B < MIN(EPS,EPS*A) AND X <= 0.5.
 
 !-----------------------------------------------------------------------
       REAL(dp), INTENT(IN)                               :: a, b, x, eps
@@ -1375,7 +1375,7 @@ CONTAINS
    FUNCTION apser(a, b, x, eps) RESULT(fn_val)
 !-----------------------------------------------------------------------
 !     APSER YIELDS THE INCOMPLETE BETA RATIO I(SUB(1-X))(B,A) FOR
-!     A .LE. MIN(EPS,EPS*B), B*X .LE. 1, AND X .LE. 0.5. USED WHEN
+!     A <= MIN(EPS,EPS*B), B*X <= 1, AND X <= 0.5. USED WHEN
 !     A IS VERY SMALL. USE ONLY IF ABOVE INEQUALITIES ARE SATISFIED.
 !-----------------------------------------------------------------------
       REAL(dp), INTENT(IN)                               :: a, b, x, eps
@@ -1420,8 +1420,8 @@ CONTAINS
 ! **************************************************************************************************
    FUNCTION bpser(a, b, x, eps) RESULT(fn_val)
 !-----------------------------------------------------------------------
-!     POWER SERIES EXPANSION FOR EVALUATING IX(A,B) WHEN B .LE. 1
-!     OR B*X .LE. 0.7.  EPS IS THE TOLERANCE USED.
+!     POWER SERIES EXPANSION FOR EVALUATING IX(A,B) WHEN B <= 1
+!     OR B*X <= 0.7.  EPS IS THE TOLERANCE USED.
 !-----------------------------------------------------------------------
       REAL(dp), INTENT(IN)                               :: a, b, x, eps
       REAL(dp)                                           :: fn_val
@@ -1444,7 +1444,7 @@ CONTAINS
          z = a*LOG(x) - u
          fn_val = (a0/a)*EXP(z)
       ELSEIF (b0 > 1.0e0_dp) THEN
-!         PROCEDURE FOR A0 .LT. 1 AND 1 .LT. B0 .LT. 8
+!         PROCEDURE FOR A0 < 1 AND 1 < B0 < 8
 
          u = gamln1(a0)
          m = INT(b0 - 1.0e0_dp)
@@ -1469,7 +1469,7 @@ CONTAINS
          fn_val = EXP(z)*(a0/a)*(1.0e0_dp + gam1(b0))/t
       ELSE
 
-         !            PROCEDURE FOR A0 .LT. 1 AND B0 .LE. 1
+         !            PROCEDURE FOR A0 < 1 AND B0 <= 1
 
          fn_val = x**a
          IF (fn_val == 0.0e0_dp) RETURN
@@ -1486,7 +1486,7 @@ CONTAINS
          fn_val = fn_val*c*(b/apb)
       END IF
 
-!            PROCEDURE FOR A0 .LT. 1 AND B0 .GE. 8
+!            PROCEDURE FOR A0 < 1 AND B0 >= 8
 
       IF (fn_val == 0.0e0_dp .OR. a <= 0.1e0_dp*eps) RETURN
 !-----------------------------------------------------------------------
@@ -1618,7 +1618,7 @@ CONTAINS
 ! **************************************************************************************************
    FUNCTION bfrac(a, b, x, y, lambda, eps) RESULT(fn_val)
 !-----------------------------------------------------------------------
-!     CONTINUED FRACTION EXPANSION FOR IX(A,B) WHEN A,B .GT. 1.
+!     CONTINUED FRACTION EXPANSION FOR IX(A,B) WHEN A,B > 1.
 !     IT IS ASSUMED THAT  LAMBDA = (A + B)*Y - B.
 !-----------------------------------------------------------------------
       REAL(dp), INTENT(IN)                               :: a, b, x, y, lambda, eps
@@ -1718,7 +1718,7 @@ CONTAINS
       a0 = MIN(a, b)
       IF (a0 >= 8.0e0_dp) THEN
 !-----------------------------------------------------------------------
-!              PROCEDURE FOR A .GE. 8 AND B .GE. 8
+!              PROCEDURE FOR A >= 8 AND B >= 8
 !-----------------------------------------------------------------------
          IF (a > b) THEN
             h = b/a
@@ -1771,17 +1771,17 @@ CONTAINS
          RETURN
       END IF
 !-----------------------------------------------------------------------
-!              PROCEDURE FOR A .LT. 1 OR B .LT. 1
+!              PROCEDURE FOR A < 1 OR B < 1
 !-----------------------------------------------------------------------
       b0 = MAX(a, b)
       IF (b0 >= 8.0e0_dp) THEN
-!                   ALGORITHM FOR B0 .GE. 8
+!                   ALGORITHM FOR B0 >= 8
          u = gamln1(a0) + algdiv(a0, b0)
          fn_val = a0*EXP(z - u)
       END IF
       IF (b0 <= 1.0e0_dp) THEN
 
-!                   ALGORITHM FOR B0 .LE. 1
+!                   ALGORITHM FOR B0 <= 1
 
          fn_val = EXP(z)
          IF (fn_val == 0.0e0_dp) RETURN
@@ -1799,7 +1799,7 @@ CONTAINS
          RETURN
       END IF
 
-!                ALGORITHM FOR 1 .LT. B0 .LT. 8
+!                ALGORITHM FOR 1 < B0 < 8
 
       u = gamln1(a0)
       n = INT(b0 - 1.0e0_dp)
@@ -1855,7 +1855,7 @@ CONTAINS
       a0 = MIN(a, b)
       IF (a0 >= 8.0e0_dp) THEN
 !-----------------------------------------------------------------------
-!              PROCEDURE FOR A .GE. 8 AND B .GE. 8
+!              PROCEDURE FOR A >= 8 AND B >= 8
 !-----------------------------------------------------------------------
          IF (a > b) THEN
             h = b/a
@@ -1905,11 +1905,11 @@ CONTAINS
          RETURN
       END IF
 !-----------------------------------------------------------------------
-!              PROCEDURE FOR A .LT. 1 OR B .LT. 1
+!              PROCEDURE FOR A < 1 OR B < 1
 !-----------------------------------------------------------------------
       b0 = MAX(a, b)
       IF (b0 >= 8.0e0_dp) THEN
-!                   ALGORITHM FOR B0 .GE. 8
+!                   ALGORITHM FOR B0 >= 8
 
          u = gamln1(a0) + algdiv(a0, b0)
          fn_val = a0*esum(mu, z - u)
@@ -1917,7 +1917,7 @@ CONTAINS
       END IF
       IF (b0 <= 1.0e0_dp) THEN
 
-!                   ALGORITHM FOR B0 .LE. 1
+!                   ALGORITHM FOR B0 <= 1
 
          fn_val = esum(mu, z)
          IF (fn_val == 0.0e0_dp) RETURN
@@ -1935,7 +1935,7 @@ CONTAINS
          RETURN
       END IF
 
-!                ALGORITHM FOR 1 .LT. B0 .LT. 8
+!                ALGORITHM FOR 1 < B0 < 8
 
       u = gamln1(a0)
       n = INT(b0 - 1.0e0_dp)

@@ -200,8 +200,8 @@ MODULE message_passing
       ! Comparisons
       PROCEDURE, PRIVATE, PASS, NON_OVERRIDABLE :: mp_comm_op_eq
       PROCEDURE, PRIVATE, PASS, NON_OVERRIDABLE :: mp_comm_op_neq
-      GENERIC, PUBLIC :: operator(.EQ.) => mp_comm_op_eq
-      GENERIC, PUBLIC :: operator(.NE.) => mp_comm_op_neq
+      GENERIC, PUBLIC :: operator(==) => mp_comm_op_eq
+      GENERIC, PUBLIC :: operator(/=) => mp_comm_op_neq
       ! Communication routines
       PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: &
          mp_sendrecv_i, mp_sendrecv_l, mp_sendrecv_r, mp_sendrecv_d, &
@@ -628,8 +628,8 @@ MODULE message_passing
       PROCEDURE, PUBLIC, NON_OVERRIDABLE :: get_handle => mp_request_type_get_handle
       PROCEDURE, PRIVATE, NON_OVERRIDABLE :: mp_request_op_eq
       PROCEDURE, PRIVATE, NON_OVERRIDABLE :: mp_request_op_neq
-      GENERIC, PUBLIC :: OPERATOR(.EQ.) => mp_request_op_eq
-      GENERIC, PUBLIC :: OPERATOR(.NE.) => mp_request_op_neq
+      GENERIC, PUBLIC :: OPERATOR(==) => mp_request_op_eq
+      GENERIC, PUBLIC :: OPERATOR(/=) => mp_request_op_neq
 
       PROCEDURE, PUBLIC, PASS(request), NON_OVERRIDABLE :: test => mp_test_1
 
@@ -644,8 +644,8 @@ MODULE message_passing
       PROCEDURE, PUBLIC, NON_OVERRIDABLE :: get_handle => mp_win_type_get_handle
       PROCEDURE, PRIVATE, NON_OVERRIDABLE :: mp_win_op_eq
       PROCEDURE, PRIVATE, NON_OVERRIDABLE :: mp_win_op_neq
-      GENERIC, PUBLIC :: OPERATOR(.EQ.) => mp_win_op_eq
-      GENERIC, PUBLIC :: OPERATOR(.NE.) => mp_win_op_neq
+      GENERIC, PUBLIC :: OPERATOR(==) => mp_win_op_eq
+      GENERIC, PUBLIC :: OPERATOR(/=) => mp_win_op_neq
 
       PROCEDURE, PRIVATE, PASS(win), NON_OVERRIDABLE :: mp_win_create_iv, mp_win_create_lv, &
          mp_win_create_rv, mp_win_create_dv, mp_win_create_cv, mp_win_create_zv
@@ -674,8 +674,8 @@ MODULE message_passing
       PROCEDURE, PUBLIC, NON_OVERRIDABLE :: get_handle => mp_file_type_get_handle
       PROCEDURE, PRIVATE, NON_OVERRIDABLE :: mp_file_op_eq
       PROCEDURE, PRIVATE, NON_OVERRIDABLE :: mp_file_op_neq
-      GENERIC, PUBLIC :: OPERATOR(.EQ.) => mp_file_op_eq
-      GENERIC, PUBLIC :: OPERATOR(.NE.) => mp_file_op_neq
+      GENERIC, PUBLIC :: OPERATOR(==) => mp_file_op_eq
+      GENERIC, PUBLIC :: OPERATOR(/=) => mp_file_op_neq
 
       PROCEDURE, PRIVATE, PASS(fh), NON_OVERRIDABLE :: mp_file_write_at_ch, mp_file_write_at_chv, &
          mp_file_write_at_i, mp_file_write_at_iv, mp_file_write_at_r, mp_file_write_at_rv, &
@@ -733,8 +733,8 @@ MODULE message_passing
       PROCEDURE, NON_OVERRIDABLE :: get_handle => mp_info_type_get_handle
       PROCEDURE, PRIVATE, NON_OVERRIDABLE :: mp_info_op_eq
       PROCEDURE, PRIVATE, NON_OVERRIDABLE :: mp_info_op_neq
-      GENERIC, PUBLIC :: OPERATOR(.EQ.) => mp_info_op_eq
-      GENERIC, PUBLIC :: OPERATOR(.NE.) => mp_info_op_neq
+      GENERIC, PUBLIC :: OPERATOR(==) => mp_info_op_eq
+      GENERIC, PUBLIC :: OPERATOR(/=) => mp_info_op_neq
    END TYPE
 
    TYPE, EXTENDS(mp_comm_type) :: mp_cart_type
@@ -977,18 +977,18 @@ CONTAINS
       LOGICAL FUNCTION mp_${type}$_op_eq(${type}$1, ${type}$2)
          CLASS(mp_${type}$_type), INTENT(IN) :: ${type}$1, ${type}$2
 #if defined(__parallel) && defined(__MPI_F08)
-         mp_${type}$_op_eq = (${type}$1%handle%mpi_val .EQ. ${type}$2%handle%mpi_val)
+         mp_${type}$_op_eq = (${type}$1%handle%mpi_val == ${type}$2%handle%mpi_val)
 #else
-         mp_${type}$_op_eq = (${type}$1%handle .EQ. ${type}$2%handle)
+         mp_${type}$_op_eq = (${type}$1%handle == ${type}$2%handle)
 #endif
       END FUNCTION mp_${type}$_op_eq
 
       LOGICAL FUNCTION mp_${type}$_op_neq(${type}$1, ${type}$2)
          CLASS(mp_${type}$_type), INTENT(IN) :: ${type}$1, ${type}$2
 #if defined(__parallel) && defined(__MPI_F08)
-         mp_${type}$_op_neq = (${type}$1%handle%mpi_val .NE. ${type}$2%handle%mpi_val)
+         mp_${type}$_op_neq = (${type}$1%handle%mpi_val /= ${type}$2%handle%mpi_val)
 #else
-         mp_${type}$_op_neq = (${type}$1%handle .NE. ${type}$2%handle)
+         mp_${type}$_op_neq = (${type}$1%handle /= ${type}$2%handle)
 #endif
       END FUNCTION mp_${type}$_op_neq
 
@@ -1151,11 +1151,11 @@ CONTAINS
 #endif
 !$          IF (ierr /= 0) CALL mp_stop(ierr, "mpi_init_thread @ mp_world_init")
 #if defined(__DLAF)
-!$          IF (provided_tsl .LT. MPI_THREAD_MULTIPLE) THEN
+!$          IF (provided_tsl < MPI_THREAD_MULTIPLE) THEN
 !$             CALL mp_stop(0, "MPI library does not support the requested level of threading (MPI_THREAD_MULTIPLE), required by DLA-Future. Build CP2K without DLA-Future.")
 !$          END IF
 #else
-!$          IF (provided_tsl .LT. MPI_THREAD_SERIALIZED) THEN
+!$          IF (provided_tsl < MPI_THREAD_SERIALIZED) THEN
 !$             CALL mp_stop(0, "MPI library does not support the requested level of threading (MPI_THREAD_SERIALIZED).")
 !$          END IF
 #endif
@@ -1239,7 +1239,7 @@ CONTAINS
 #if defined(__parallel)
          IF (ierr /= 0) CALL mp_stop(ierr, "mpi_barrier @ mp_world_finalize")
 #endif
-         IF (debug_comm_count .NE. 0) THEN
+         IF (debug_comm_count /= 0) THEN
             ! A bug, we're leaking or double-freeing communicators. Needs to be fixed where the leak happens.
             ! Memory leak checking might be helpful to locate the culprit
             WRITE (unit=debug_comm_count_char, FMT='(I2)') debug_comm_count
@@ -1800,7 +1800,7 @@ CONTAINS
          CLASS(mp_comm_type), INTENT(INOUT) :: comm
          LOGICAL, INTENT(IN), OPTIONAL :: owns_group
 
-         IF (comm%handle MPI_GET_COMP .NE. mp_comm_null_handle MPI_GET_COMP) THEN
+         IF (comm%handle MPI_GET_COMP /= mp_comm_null_handle MPI_GET_COMP) THEN
             comm%source = 0
             CALL comm%get_size(comm%num_pe)
             CALL comm%get_rank(comm%mepos)
@@ -1820,7 +1820,7 @@ CONTAINS
 
             comm%mepos_cart = 0
             comm%periodic = .FALSE.
-            IF (comm%handle MPI_GET_COMP .NE. mp_comm_null_handle MPI_GET_COMP) THEN
+            IF (comm%handle MPI_GET_COMP /= mp_comm_null_handle MPI_GET_COMP) THEN
                CALL comm%get_info_cart(comm%num_pe_cart, comm%mepos_cart, &
                                        comm%periodic)
             END IF
@@ -2488,7 +2488,7 @@ CONTAINS
          CALL comm%get_size(nnodes)
          CALL comm%get_rank(mepos)
 
-         IF (UBOUND(group_distribution, 1) .NE. nnodes - 1) THEN
+         IF (UBOUND(group_distribution, 1) /= nnodes - 1) THEN
             CPABORT(routineP//" group_distribution wrong bounds")
          END IF
 
@@ -2530,7 +2530,7 @@ CONTAINS
          END DO
          ! even the user gave a partition, see if we can use it to overwrite this choice
          IF (PRESENT(group_partition)) THEN
-            IF (ALL(group_partition > 0) .AND. (SUM(group_partition) .EQ. nnodes) .AND. (ngroups == SIZE(group_partition))) THEN
+            IF (ALL(group_partition > 0) .AND. (SUM(group_partition) == nnodes) .AND. (ngroups == SIZE(group_partition))) THEN
                k = 0
                DO i = 0, SIZE(group_partition) - 1
                   DO j = 1, group_partition(i)
@@ -2591,7 +2591,7 @@ CONTAINS
          CALL mp_timeset(routineN, handle)
 
 #if defined(__parallel)
-         IF (source .EQ. mp_any_source) THEN
+         IF (source == mp_any_source) THEN
             CALL mpi_probe(mp_any_source, mp_any_tag, comm%handle, status_single, ierr)
             IF (ierr /= 0) CALL mp_stop(ierr, "mpi_probe @ mp_probe")
             source = status_single MPI_STATUS_EXTRACT(MPI_SOURCE)
@@ -3232,7 +3232,7 @@ CONTAINS
          REAL(kind=real_8), ALLOCATABLE           :: res(:)
 #endif
 
-         IF ("d" .EQ. "l" .AND. real_8 .EQ. int_8) THEN
+         IF ("d" == "l" .AND. real_8 == int_8) THEN
             CPABORT("Minimal location not available with long integers @ "//routineN)
          END IF
          CALL mp_timeset(routineN, handle)
@@ -3276,7 +3276,7 @@ CONTAINS
          INTEGER(KIND=int_4), ALLOCATABLE         :: res(:)
 #endif
 
-         IF ("i" .EQ. "l" .AND. int_4 .EQ. int_8) THEN
+         IF ("i" == "l" .AND. int_4 == int_8) THEN
             CPABORT("Minimal location not available with long integers @ "//routineN)
          END IF
          CALL mp_timeset(routineN, handle)
@@ -3318,7 +3318,7 @@ CONTAINS
          INTEGER(KIND=int_8), ALLOCATABLE         :: res(:)
 #endif
 
-         IF ("l" .EQ. "l" .AND. int_8 .EQ. int_8) THEN
+         IF ("l" == "l" .AND. int_8 == int_8) THEN
             CPABORT("Minimal location not available with long integers @ "//routineN)
          END IF
          CALL mp_timeset(routineN, handle)
@@ -3360,7 +3360,7 @@ CONTAINS
          REAL(kind=real_4), ALLOCATABLE           :: res(:)
 #endif
 
-         IF ("r" .EQ. "l" .AND. real_4 .EQ. int_8) THEN
+         IF ("r" == "l" .AND. real_4 == int_8) THEN
             CPABORT("Minimal location not available with long integers @ "//routineN)
          END IF
          CALL mp_timeset(routineN, handle)
@@ -3402,7 +3402,7 @@ CONTAINS
          REAL(kind=real_8), ALLOCATABLE           :: res(:)
 #endif
 
-         IF ("d" .EQ. "l" .AND. real_8 .EQ. int_8) THEN
+         IF ("d" == "l" .AND. real_8 == int_8) THEN
             CPABORT("Maximal location not available with long integers @ "//routineN)
          END IF
          CALL mp_timeset(routineN, handle)
@@ -3444,7 +3444,7 @@ CONTAINS
          INTEGER(KIND=int_4), ALLOCATABLE         :: res(:)
 #endif
 
-         IF ("i" .EQ. "l" .AND. int_4 .EQ. int_8) THEN
+         IF ("i" == "l" .AND. int_4 == int_8) THEN
             CPABORT("Maximal location not available with long integers @ "//routineN)
          END IF
          CALL mp_timeset(routineN, handle)
@@ -3486,7 +3486,7 @@ CONTAINS
          INTEGER(KIND=int_8), ALLOCATABLE         :: res(:)
 #endif
 
-         IF ("l" .EQ. "l" .AND. int_8 .EQ. int_8) THEN
+         IF ("l" == "l" .AND. int_8 == int_8) THEN
             CPABORT("Maximal location not available with long integers @ "//routineN)
          END IF
          CALL mp_timeset(routineN, handle)
@@ -3528,7 +3528,7 @@ CONTAINS
          REAL(kind=real_4), ALLOCATABLE           :: res(:)
 #endif
 
-         IF ("r" .EQ. "l" .AND. real_4 .EQ. int_8) THEN
+         IF ("r" == "l" .AND. real_4 == int_8) THEN
             CPABORT("Maximal location not available with long integers @ "//routineN)
          END IF
          CALL mp_timeset(routineN, handle)
@@ -3601,7 +3601,7 @@ CONTAINS
          CALL mp_timeset(routineN, handle)
 #if defined(__parallel)
          msglen = SIZE(msg)
-         IF (msglen .GT. 0) THEN
+         IF (msglen > 0) THEN
             CALL mpi_allreduce(MPI_IN_PLACE, msg, msglen, MPI_LOGICAL, MPI_LOR, comm%handle, ierr)
             IF (ierr /= 0) CALL mp_stop(ierr, "mpi_allreduce @ "//routineN)
          END IF
@@ -3640,7 +3640,7 @@ CONTAINS
          CPASSERT(IS_CONTIGUOUS(msg))
 #endif
 
-         IF (msglen .GT. 0) THEN
+         IF (msglen > 0) THEN
             CALL mpi_iallreduce(MPI_IN_PLACE, msg, msglen, MPI_LOGICAL, MPI_LOR, comm%handle, request%handle, ierr)
             IF (ierr /= 0) CALL mp_stop(ierr, "mpi_allreduce @ "//routineN)
          ELSE
@@ -3716,20 +3716,20 @@ CONTAINS
          IF (PRESENT(info)) my_info = info%handle
          CALL mpi_file_open(groupid%handle, filepath, amode_status, my_info, fh%handle, ierr)
          CALL mpi_file_set_errhandler(fh%handle, MPI_ERRORS_RETURN, ierr)
-         IF (ierr .NE. 0) CALL mp_stop(ierr, "mpi_file_set_errhandler @ mp_file_open")
+         IF (ierr /= 0) CALL mp_stop(ierr, "mpi_file_set_errhandler @ mp_file_open")
 #else
          MARK_USED(groupid)
          MARK_USED(info)
          amode = amode_status
-         IF (amode .GT. file_amode_append) THEN
+         IF (amode > file_amode_append) THEN
             fposition = "APPEND"
             amode = amode - file_amode_append
          ELSE
             fposition = "REWIND"
          END IF
-         IF ((amode .EQ. file_amode_create) .OR. &
-             (amode .EQ. file_amode_create + file_amode_wronly) .OR. &
-             (amode .EQ. file_amode_create + file_amode_wronly + file_amode_excl)) THEN
+         IF ((amode == file_amode_create) .OR. &
+             (amode == file_amode_create + file_amode_wronly) .OR. &
+             (amode == file_amode_create + file_amode_wronly + file_amode_excl)) THEN
             fstatus = "UNKNOWN"
          ELSE
             fstatus = "OLD"
@@ -3766,7 +3766,7 @@ CONTAINS
          IF (PRESENT(info)) my_info = info%handle
          INQUIRE (FILE=filepath, EXIST=exists)
          IF (exists) CALL mpi_file_delete(filepath, my_info, ierr)
-         IF (ierr .NE. 0) CALL mp_stop(ierr, "mpi_file_set_errhandler @ mp_file_delete")
+         IF (ierr /= 0) CALL mp_stop(ierr, "mpi_file_set_errhandler @ mp_file_delete")
 #else
          MARK_USED(filepath)
          MARK_USED(info)
@@ -3793,7 +3793,7 @@ CONTAINS
          ierr = 0
          CALL mpi_file_set_errhandler(fh%handle, MPI_ERRORS_RETURN, ierr)
          CALL mpi_file_close(fh%handle, ierr)
-         IF (ierr .NE. 0) CALL mp_stop(ierr, "mpi_file_set_errhandler @ mp_file_close")
+         IF (ierr /= 0) CALL mp_stop(ierr, "mpi_file_set_errhandler @ mp_file_close")
 #else
          CLOSE (fh%handle)
          fh%handle = mp_file_null_handle
@@ -3830,7 +3830,7 @@ CONTAINS
          ierr = 0
          CALL mpi_file_set_errhandler(fh%handle, MPI_ERRORS_RETURN, ierr)
          CALL mpi_file_get_size(fh%handle, file_size, ierr)
-         IF (ierr .NE. 0) CALL mp_stop(ierr, "mpi_file_set_errhandler @ mp_file_get_size")
+         IF (ierr /= 0) CALL mp_stop(ierr, "mpi_file_set_errhandler @ mp_file_get_size")
 #else
          INQUIRE (UNIT=fh%handle, SIZE=file_size)
 #endif
@@ -3858,7 +3858,7 @@ CONTAINS
          ierr = 0
          CALL mpi_file_set_errhandler(fh%handle, MPI_ERRORS_RETURN, ierr)
          CALL mpi_file_get_position(fh%handle, pos, ierr)
-         IF (ierr .NE. 0) CALL mp_stop(ierr, "mpi_file_set_errhandler @ mp_file_get_position")
+         IF (ierr /= 0) CALL mp_stop(ierr, "mpi_file_set_errhandler @ mp_file_get_position")
 #else
          INQUIRE (UNIT=fh%handle, POS=pos)
 #endif
@@ -3889,7 +3889,7 @@ CONTAINS
          msg_len = SIZE(msg)
          IF (PRESENT(msglen)) msg_len = msglen
          CALL MPI_FILE_WRITE_AT(fh%handle, offset, msg, msg_len, MPI_CHARACTER, MPI_STATUS_IGNORE, ierr)
-         IF (ierr .NE. 0) &
+         IF (ierr /= 0) &
             CPABORT("mpi_file_write_at_chv @ mp_file_write_at_chv")
 #else
          MARK_USED(msglen)
@@ -3914,7 +3914,7 @@ CONTAINS
 
 #if defined(__parallel)
          CALL MPI_FILE_WRITE_AT(fh%handle, offset, msg, LEN(msg), MPI_CHARACTER, MPI_STATUS_IGNORE, ierr)
-         IF (ierr .NE. 0) &
+         IF (ierr /= 0) &
             CPABORT("mpi_file_write_at_ch @ mp_file_write_at_ch")
 #else
          WRITE (UNIT=fh%handle, POS=offset + 1) msg
@@ -3945,7 +3945,7 @@ CONTAINS
          msg_len = SIZE(msg)
          IF (PRESENT(msglen)) msg_len = msglen
          CALL MPI_FILE_WRITE_AT_ALL(fh%handle, offset, msg, msg_len, MPI_CHARACTER, MPI_STATUS_IGNORE, ierr)
-         IF (ierr .NE. 0) &
+         IF (ierr /= 0) &
             CPABORT("mpi_file_write_at_all_chv @ mp_file_write_at_all_chv")
 #else
          MARK_USED(msglen)
@@ -3970,7 +3970,7 @@ CONTAINS
 
 #if defined(__parallel)
          CALL MPI_FILE_WRITE_AT_ALL(fh%handle, offset, msg, LEN(msg), MPI_CHARACTER, MPI_STATUS_IGNORE, ierr)
-         IF (ierr .NE. 0) &
+         IF (ierr /= 0) &
             CPABORT("mpi_file_write_at_all_ch @ mp_file_write_at_all_ch")
 #else
          WRITE (UNIT=fh%handle, POS=offset + 1) msg
@@ -4002,7 +4002,7 @@ CONTAINS
          msg_len = SIZE(msg)
          IF (PRESENT(msglen)) msg_len = msglen
          CALL MPI_FILE_READ_AT(fh%handle, offset, msg, msg_len, MPI_CHARACTER, MPI_STATUS_IGNORE, ierr)
-         IF (ierr .NE. 0) &
+         IF (ierr /= 0) &
             CPABORT("mpi_file_read_at_chv @ mp_file_read_at_chv")
 #else
          MARK_USED(msglen)
@@ -4027,7 +4027,7 @@ CONTAINS
 
 #if defined(__parallel)
          CALL MPI_FILE_READ_AT(fh%handle, offset, msg, LEN(msg), MPI_CHARACTER, MPI_STATUS_IGNORE, ierr)
-         IF (ierr .NE. 0) &
+         IF (ierr /= 0) &
             CPABORT("mpi_file_read_at_ch @ mp_file_read_at_ch")
 #else
          READ (UNIT=fh%handle, POS=offset + 1) msg
@@ -4058,7 +4058,7 @@ CONTAINS
          msg_len = SIZE(msg)
          IF (PRESENT(msglen)) msg_len = msglen
          CALL MPI_FILE_READ_AT_ALL(fh%handle, offset, msg, msg_len, MPI_CHARACTER, MPI_STATUS_IGNORE, ierr)
-         IF (ierr .NE. 0) &
+         IF (ierr /= 0) &
             CPABORT("mpi_file_read_at_all_chv @ mp_file_read_at_all_chv")
 #else
          MARK_USED(msglen)
@@ -4083,7 +4083,7 @@ CONTAINS
 
 #if defined(__parallel)
          CALL MPI_FILE_READ_AT_ALL(fh%handle, offset, msg, LEN(msg), MPI_CHARACTER, MPI_STATUS_IGNORE, ierr)
-         IF (ierr .NE. 0) &
+         IF (ierr /= 0) &
             CPABORT("mpi_file_read_at_all_ch @ mp_file_read_at_all_ch")
 #else
          READ (UNIT=fh%handle, POS=offset + 1) msg
@@ -4107,7 +4107,7 @@ CONTAINS
 
          ierr = 0
          CALL MPI_TYPE_SIZE(type_descriptor%type_handle, type_size, ierr)
-         IF (ierr .NE. 0) &
+         IF (ierr /= 0) &
             CPABORT("mpi_type_size failed @ mp_type_size")
 #else
          SELECT CASE (type_descriptor%type_handle)
@@ -4310,7 +4310,7 @@ CONTAINS
          CALL mpi_file_set_errhandler(fh%handle, MPI_ERRORS_RETURN, ierr)
          CALL MPI_File_set_view(fh%handle, offset, MPI_CHARACTER, &
                                 type_descriptor%type_handle, "native", MPI_INFO_NULL, ierr)
-         IF (ierr .NE. 0) CALL mp_stop(ierr, "mpi_file_set_errhandler @ MPI_File_set_view")
+         IF (ierr /= 0) CALL mp_stop(ierr, "mpi_file_set_errhandler @ MPI_File_set_view")
 #else
          ! Uses absolute offsets stored in mp_file_descriptor_type
          MARK_USED(fh)
@@ -4356,7 +4356,7 @@ CONTAINS
          ierr = 0
          MARK_USED(type_descriptor)
          CALL MPI_File_read_all(fh%handle, buffer, ndims*msglen, MPI_CHARACTER, MPI_STATUS_IGNORE, ierr)
-         IF (ierr .NE. 0) CALL mp_stop(ierr, "mpi_file_set_errhandler @ MPI_File_read_all")
+         IF (ierr /= 0) CALL mp_stop(ierr, "mpi_file_set_errhandler @ MPI_File_read_all")
          CALL add_perf(perf_id=28, count=1, msg_size=ndims*msglen)
 #else
          MARK_USED(msglen)
@@ -4411,7 +4411,7 @@ CONTAINS
          MARK_USED(type_descriptor)
          CALL mpi_file_set_errhandler(fh%handle, MPI_ERRORS_RETURN, ierr)
          CALL MPI_File_write_all(fh%handle, buffer, ndims*msglen, MPI_CHARACTER, MPI_STATUS_IGNORE, ierr)
-         IF (ierr .NE. 0) CALL mp_stop(ierr, "mpi_file_set_errhandler @ MPI_File_write_all")
+         IF (ierr /= 0) CALL mp_stop(ierr, "mpi_file_set_errhandler @ MPI_File_write_all")
          CALL add_perf(perf_id=28, count=1, msg_size=ndims*msglen)
 #else
          MARK_USED(msglen)

@@ -227,7 +227,7 @@ CONTAINS
             settings%rs_dims(:, iforce_eval) = auxbas_pw_pool%pw_grid%para%group%num_pe_cart
             IF (auxbas_pw_pool%pw_grid%grid_span == HALFSPACE) settings%odd(iforce_eval) = 1
             ! Becke constraint atoms/coeffs
-            IF (cdft_control%natoms .GT. SIZE(settings%atoms, 1)) &
+            IF (cdft_control%natoms > SIZE(settings%atoms, 1)) &
                CALL cp_abort(__LOCATION__, &
                              "More CDFT constraint atoms than defined in mixed section. "// &
                              "Use default values for MIXED\MAPPING.")
@@ -274,7 +274,7 @@ CONTAINS
             IF (cdft_control%type == outer_scf_becke_constraint) THEN
                IF (cdft_control%becke_control%cutoff_type == becke_cutoff_element) THEN
                   nkinds = SIZE(cdft_control%becke_control%cutoffs_tmp)
-                  IF (nkinds .GT. settings%max_nkinds) &
+                  IF (nkinds > settings%max_nkinds) &
                      CALL cp_abort(__LOCATION__, &
                                    "More than "//TRIM(cp_to_string(settings%max_nkinds))// &
                                    " unique elements were defined in BECKE_CONSTRAINT\ELEMENT_CUTOFF. Are you sure"// &
@@ -288,7 +288,7 @@ CONTAINS
                                    "Length of keyword BECKE_CONSTRAINT\ATOMIC_RADII does not "// &
                                    "match number of atomic kinds in the input coordinate file.")
                   nkinds = SIZE(cdft_control%becke_control%radii_tmp)
-                  IF (nkinds .GT. settings%max_nkinds) &
+                  IF (nkinds > settings%max_nkinds) &
                      CALL cp_abort(__LOCATION__, &
                                    "More than "//TRIM(cp_to_string(settings%max_nkinds))// &
                                    " unique elements were defined in BECKE_CONSTRAINT\ATOMIC_RADII. Are you sure"// &
@@ -304,7 +304,7 @@ CONTAINS
                                    "Length of keyword HIRSHFELD_CONSTRAINT&RADII does not "// &
                                    "match number of atomic kinds in the input coordinate file.")
                   nkinds = SIZE(cdft_control%hirshfeld_control%radii)
-                  IF (nkinds .GT. settings%max_nkinds) &
+                  IF (nkinds > settings%max_nkinds) &
                      CALL cp_abort(__LOCATION__, &
                                    "More than "//TRIM(cp_to_string(settings%max_nkinds))// &
                                    " unique elements were defined in HIRSHFELD_CONSTRAINT&RADII. Are you sure"// &
@@ -706,12 +706,12 @@ CONTAINS
          mixed_cdft%is_special = .FALSE. ! Flag to control the last mapping
          ! With xc smoothing, the grid is always (ncpu/2,1) distributed
          ! and correct behavior cannot be guaranteed for ncpu/2 > nx, so we abort...
-         IF (ncpu/2 .GT. settings%npts(1, 1)) &
+         IF (ncpu/2 > settings%npts(1, 1)) &
             CPABORT("ncpu/2 => nx: decrease ncpu or disable xc_smoothing")
          !
          ALLOCATE (mixed_rs_dims(2))
          IF (settings%rs_dims(2, 1) /= 1) mixed_cdft%is_pencil = .TRUE.
-         IF (.NOT. mixed_cdft%is_pencil .AND. ncpu .GT. settings%npts(1, 1)) mixed_cdft%is_special = .TRUE.
+         IF (.NOT. mixed_cdft%is_pencil .AND. ncpu > settings%npts(1, 1)) mixed_cdft%is_special = .TRUE.
          IF (mixed_cdft%is_special) THEN
             mixed_rs_dims = [-1, -1]
          ELSE IF (mixed_cdft%is_pencil) THEN
@@ -867,11 +867,11 @@ CONTAINS
             ntargets = 0
             offset = -1
             DO i = 0, auxbas_pw_pool%pw_grid%para%group%num_pe - 1
-               IF ((bounds(i, 1) .GE. bo_mixed(1, 1) .AND. bounds(i, 1) .LE. bo_mixed(2, 1)) .OR. &
-                   (bounds(i, 2) .GE. bo_mixed(1, 1) .AND. bounds(i, 2) .LE. bo_mixed(2, 1))) THEN
+               IF ((bounds(i, 1) >= bo_mixed(1, 1) .AND. bounds(i, 1) <= bo_mixed(2, 1)) .OR. &
+                   (bounds(i, 2) >= bo_mixed(1, 1) .AND. bounds(i, 2) <= bo_mixed(2, 1))) THEN
                   ntargets = ntargets + 1
                   IF (offset == -1) offset = i
-               ELSE IF (bounds(i, 2) .GT. bo_mixed(2, 1)) THEN
+               ELSE IF (bounds(i, 2) > bo_mixed(2, 1)) THEN
                   EXIT
                ELSE
                   CYCLE
@@ -904,11 +904,11 @@ CONTAINS
             ntargets = 0
             offset = -1
             DO i = 0, pw_pools(1)%pool%pw_grid%para%group%num_pe - 1
-               IF ((bo(1, 1) .GE. bounds(i, 1) .AND. bo(1, 1) .LE. bounds(i, 2)) .OR. &
-                   (bo(2, 1) .GE. bounds(i, 1) .AND. bo(2, 1) .LE. bounds(i, 2))) THEN
+               IF ((bo(1, 1) >= bounds(i, 1) .AND. bo(1, 1) <= bounds(i, 2)) .OR. &
+                   (bo(2, 1) >= bounds(i, 1) .AND. bo(2, 1) <= bounds(i, 2))) THEN
                   ntargets = ntargets + 1
                   IF (offset == -1) offset = i
-               ELSE IF (bo(2, 1) .LT. bounds(i, 1)) THEN
+               ELSE IF (bo(2, 1) < bounds(i, 1)) THEN
                   EXIT
                ELSE
                   CYCLE
@@ -919,10 +919,10 @@ CONTAINS
             j = 1
             DO i = offset, offset + ntargets - 1
                mixed_cdft%source_list(j) = i
-               IF (bo(1, 1) .GE. bounds(i, 1) .AND. bo(2, 1) .LE. bounds(i, 2)) THEN
+               IF (bo(1, 1) >= bounds(i, 1) .AND. bo(2, 1) <= bounds(i, 2)) THEN
                   mixed_cdft%source_list_bo(:, j) = [bo(1, 1), bo(2, 1), &
                                                      bounds(i, 3), bounds(i, 4)]
-               ELSE IF (bo(1, 1) .GE. bounds(i, 1) .AND. bo(1, 1) .LE. bounds(i, 2)) THEN
+               ELSE IF (bo(1, 1) >= bounds(i, 1) .AND. bo(1, 1) <= bounds(i, 2)) THEN
                   mixed_cdft%source_list_bo(:, j) = [bo(1, 1), bounds(i, 2), &
                                                      bounds(i, 3), bounds(i, 4)]
                ELSE
@@ -1399,7 +1399,7 @@ CONTAINS
                'Charge transfer energy (J-I) (Hartree):', (mixed_cdft%results%energy(jstate) - mixed_cdft%results%energy(istate))
             WRITE (iounit, *)
             IF (ALLOCATED(mixed_cdft%results%rotation)) THEN
-               IF (ABS(mixed_cdft%results%rotation(ipermutation))*1.0E3_dp .GE. 0.1_dp) THEN
+               IF (ABS(mixed_cdft%results%rotation(ipermutation))*1.0E3_dp >= 0.1_dp) THEN
                   WRITE (iounit, '(T3,A,T60,(3X,F18.12))') &
                      'Diabatic electronic coupling (rotation, mHartree):', &
                      ABS(mixed_cdft%results%rotation(ipermutation)*1.0E3_dp)
@@ -1410,7 +1410,7 @@ CONTAINS
                END IF
             END IF
             IF (ALLOCATED(mixed_cdft%results%lowdin)) THEN
-               IF (ABS(mixed_cdft%results%lowdin(ipermutation))*1.0E3_dp .GE. 0.1_dp) THEN
+               IF (ABS(mixed_cdft%results%lowdin(ipermutation))*1.0E3_dp >= 0.1_dp) THEN
                   WRITE (iounit, '(T3,A,T60,(3X,F18.12))') &
                      'Diabatic electronic coupling (Lowdin, mHartree):', &
                      ABS(mixed_cdft%results%lowdin(ipermutation)*1.0E3_dp)
@@ -1421,7 +1421,7 @@ CONTAINS
                END IF
             END IF
             IF (ALLOCATED(mixed_cdft%results%wfn)) THEN
-               IF (mixed_cdft%results%wfn(ipermutation)*1.0E3_dp .GE. 0.1_dp) THEN
+               IF (mixed_cdft%results%wfn(ipermutation)*1.0E3_dp >= 0.1_dp) THEN
                   WRITE (iounit, '(T3,A,T60,(3X,F18.12))') &
                      'Diabatic electronic coupling (wfn overlap, mHartree):', &
                      ABS(mixed_cdft%results%wfn(ipermutation)*1.0E3_dp)
@@ -1709,7 +1709,7 @@ CONTAINS
             END DO
          END DO
          ! Check that none of the interaction energies is repulsive
-         IF (ANY(H_block(i)%array .GE. 0.0_dp)) &
+         IF (ANY(H_block(i)%array >= 0.0_dp)) &
             CALL cp_abort(__LOCATION__, &
                           "At least one of the interaction energies within block "//TRIM(ADJUSTL(cp_to_string(i)))// &
                           " is repulsive.")
@@ -1847,7 +1847,7 @@ CONTAINS
             END DO
          END DO
          ! Check that none of the interaction energies is repulsive
-         IF (ANY(H_offdiag .GE. 0.0_dp)) &
+         IF (ANY(H_offdiag >= 0.0_dp)) &
             CALL cp_abort(__LOCATION__, &
                           "At least one of the interaction energies between blocks "//TRIM(ADJUSTL(cp_to_string(i)))// &
                           " and "//TRIM(ADJUSTL(cp_to_string(j)))//" is repulsive.")
@@ -1860,10 +1860,10 @@ CONTAINS
          ! The S/H matrices contain only positive/negative values so that any sign flipping occurs in the
          ! same elements in both matrices
          ! Check for sign flipping using the S matrix
-         IF (ANY(S_offdiag .LT. 0.0_dp)) THEN
+         IF (ANY(S_offdiag < 0.0_dp)) THEN
             DO l = 1, SIZE(S_offdiag, 2)
                DO k = 1, SIZE(S_offdiag, 1)
-                  IF (S_offdiag(k, l) .LT. 0.0_dp) THEN
+                  IF (S_offdiag(k, l) < 0.0_dp) THEN
                      S_offdiag(k, l) = -1.0_dp*S_offdiag(k, l)
                      H_offdiag(k, l) = -1.0_dp*H_offdiag(k, l)
                   END IF

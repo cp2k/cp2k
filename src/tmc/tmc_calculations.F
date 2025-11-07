@@ -77,19 +77,19 @@ CONTAINS
       rnd = 0.0_dp
 
       CPASSERT(ASSOCIATED(conf))
-      CPASSERT(env_id .GT. 0)
+      CPASSERT(env_id > 0)
       CPASSERT(ASSOCIATED(tmc_env))
 
       SELECT CASE (tmc_env%params%task_type)
       CASE (task_type_gaussian_adaptation)
          !CALL gaussian_adaptation_energy(, )
       CASE (task_type_MC)
-         IF (tmc_env%params%pressure .GE. 0.0_dp) THEN
+         IF (tmc_env%params%pressure >= 0.0_dp) THEN
             ALLOCATE (tmp_cell)
             CALL get_scaled_cell(cell=tmc_env%params%cell, box_scale=conf%box_scale, &
                                  scaled_cell=tmp_cell)
             CALL set_cell(env_id=env_id, new_cell=tmp_cell%hmat, ierr=ierr)
-            CPASSERT(ierr .EQ. 0)
+            CPASSERT(ierr == 0)
             DEALLOCATE (tmp_cell)
          END IF
 
@@ -97,7 +97,7 @@ CONTAINS
          flag = .TRUE.
          IF (flag .EQV. .TRUE.) THEN
             IF (tmc_env%params%print_forces .OR. &
-                conf%move_type .EQ. mv_type_MD) THEN
+                conf%move_type == mv_type_MD) THEN
                e_pot = 0.0_dp
                conf%frc(:) = 0.0_dp
                CALL calc_force(env_id=env_id, pos=conf%pos, n_el_pos=SIZE(conf%pos), &
@@ -241,13 +241,13 @@ CONTAINS
       NULLIFY (tmp_box_scale)
 
       CPASSERT(ASSOCIATED(cell))
-      CPASSERT(SIZE(x1) .EQ. 3)
-      CPASSERT(SIZE(x2) .EQ. 3)
+      CPASSERT(SIZE(x1) == 3)
+      CPASSERT(SIZE(x2) == 3)
 
       dist_vec(:) = x2(:) - x1(:) ! distance vector between atoms
       ALLOCATE (tmp_box_scale(3))
       IF (PRESENT(box_scale)) THEN
-         CPASSERT(SIZE(box_scale) .EQ. 3)
+         CPASSERT(SIZE(box_scale) == 3)
          tmp_box_scale(:) = box_scale
       ELSE
          tmp_box_scale(:) = 1.0_dp
@@ -273,7 +273,7 @@ CONTAINS
       INTEGER                                            :: handle, i
 
       CPASSERT(ASSOCIATED(center))
-      CPASSERT(SIZE(pos) .GE. SIZE(center))
+      CPASSERT(SIZE(pos) >= SIZE(center))
 
       ! start the timing
       CALL timeset(routineN, handle)
@@ -308,7 +308,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: mass_sum, mass_tmp
 
       CPASSERT(ASSOCIATED(center))
-      CPASSERT(SIZE(pos) .GE. SIZE(center))
+      CPASSERT(SIZE(pos) >= SIZE(center))
 
       ! start the timing
       CALL timeset(routineN, handle)
@@ -317,7 +317,7 @@ CONTAINS
       mass_sum = 0.0_dp
       DO i = 1, SIZE(pos), SIZE(center)
          IF (PRESENT(atoms)) THEN
-            CPASSERT(SIZE(atoms) .EQ. SIZE(pos)/SIZE(center))
+            CPASSERT(SIZE(atoms) == SIZE(pos)/SIZE(center))
             mass_tmp = atoms(INT(i/REAL(SIZE(center), KIND=dp)) + 1)%mass
             center(:) = center(:) + pos(i:i + SIZE(center) - 1)/ &
                         (SIZE(pos)/REAL(SIZE(center), KIND=dp))*mass_tmp
@@ -448,7 +448,7 @@ CONTAINS
          extrapolate = a**7*b + c
          res_err = e3 - extrapolate
       END IF
-      CPASSERT(extrapolate .NE. HUGE(extrapolate))
+      CPASSERT(extrapolate /= HUGE(extrapolate))
    CONTAINS
 ! **************************************************************************************************
 !> \brief ...
@@ -532,15 +532,15 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(elem_old))
       CPASSERT(ASSOCIATED(elem_new))
-      CPASSERT(rnd_nr .GT. 0.0_dp)
+      CPASSERT(rnd_nr > 0.0_dp)
 
       ! start the timing
       CALL timeset(routineN, handle)
 
       prob = -1.0_dp
-      IF ((elem_new%scf_energies_count .GE. 3) .AND. &
-          (elem_old%scf_energies_count .GE. 3) .AND. &
-          tmc_params%prior_NMC_acc%counter .GE. 10) THEN
+      IF ((elem_new%scf_energies_count >= 3) .AND. &
+          (elem_old%scf_energies_count >= 3) .AND. &
+          tmc_params%prior_NMC_acc%counter >= 10) THEN
          !-- first the new element energy estimation
          ! using 3 point extrapolation of two different intervals -> more stable estimation
          ! the energies are sorted in the three_point_extrapolate routine !
@@ -549,7 +549,7 @@ CONTAINS
                                       v2=elem_new%scf_energies(MOD(elem_new%scf_energies_count - 2, 4) + 1), &
                                       v3=elem_new%scf_energies(MOD(elem_new%scf_energies_count - 1, 4) + 1), &
                                       extrapolate=E_mu_tmp, res_err=E_sigma_tmp)
-         IF ((elem_new%scf_energies_count .GT. 3)) THEN
+         IF ((elem_new%scf_energies_count > 3)) THEN
             CALL three_point_extrapolate(v1=elem_new%scf_energies(MOD(elem_new%scf_energies_count - 4, 4) + 1), &
                                          v2=elem_new%scf_energies(MOD(elem_new%scf_energies_count - 3, 4) + 1), &
                                          v3=elem_new%scf_energies(MOD(elem_new%scf_energies_count - 2, 4) + 1), &
@@ -565,7 +565,7 @@ CONTAINS
                                       v2=elem_old%scf_energies(MOD(elem_old%scf_energies_count - 2, 4) + 1), &
                                       v3=elem_old%scf_energies(MOD(elem_old%scf_energies_count - 1, 4) + 1), &
                                       extrapolate=E_mu_tmp, res_err=E_sigma_tmp)
-         IF ((elem_old%scf_energies_count .GT. 3)) THEN
+         IF ((elem_old%scf_energies_count > 3)) THEN
             CALL three_point_extrapolate(v1=elem_old%scf_energies(MOD(elem_old%scf_energies_count - 4, 4) + 1), &
                                          v2=elem_old%scf_energies(MOD(elem_old%scf_energies_count - 3, 4) + 1), &
                                          v3=elem_old%scf_energies(MOD(elem_old%scf_energies_count - 2, 4) + 1), &

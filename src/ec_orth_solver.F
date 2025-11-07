@@ -239,14 +239,14 @@ CONTAINS
             IF (abnormal_value(norm_rr(ispin))) &
                CPABORT("Preconditioner: Tr[r_j*r_j] is an abnormal value (NaN/Inf)")
 
-            IF (norm_rr(ispin) .LT. 0.0_dp) CPABORT("norm_rr < 0")
+            IF (norm_rr(ispin) < 0.0_dp) CPABORT("norm_rr < 0")
             norm_res = MAX(norm_res, ABS(norm_rr(ispin)/REAL(nao, dp)))
 
             ! norm_cA = tr(Ap_j * p_j)
             CALL dbcsr_dot(matrix_cg(ispin)%matrix, matrix_Ax(ispin)%matrix, norm_cA(ispin))
 
             ! Determine step-size
-            IF (norm_cA(ispin) .LT. linres_control%eps) THEN
+            IF (norm_cA(ispin) < linres_control%eps) THEN
                alpha(ispin) = 1.0_dp
             ELSE
                alpha(ispin) = norm_rr(ispin)/norm_cA(ispin)
@@ -266,13 +266,13 @@ CONTAINS
          DO ispin = 1, nspins
             ! Tr[r_j+1*z_j+1]
             CALL dbcsr_dot(matrix_res(ispin)%matrix, matrix_res(ispin)%matrix, new_norm(ispin))
-            IF (new_norm(ispin) .LT. 0.0_dp) CPABORT("tr(r_j+1*z_j+1) < 0")
+            IF (new_norm(ispin) < 0.0_dp) CPABORT("tr(r_j+1*z_j+1) < 0")
             IF (abnormal_value(new_norm(ispin))) &
                CPABORT("Preconditioner: Tr[r_j+1*z_j+1] is an abnormal value (NaN/Inf)")
             norm_res = MAX(norm_res, new_norm(ispin)/REAL(nao, dp))
 
-            IF (norm_rr(ispin) .LT. linres_control%eps*0.001_dp &
-                .OR. new_norm(ispin) .LT. linres_control%eps*0.001_dp) THEN
+            IF (norm_rr(ispin) < linres_control%eps*0.001_dp &
+                .OR. new_norm(ispin) < linres_control%eps*0.001_dp) THEN
                beta(ispin) = 0.0_dp
                converged = .TRUE.
             ELSE
@@ -288,12 +288,12 @@ CONTAINS
          END DO
 
          ! Convergence criteria
-         IF (norm_res .LT. linres_control%eps) THEN
+         IF (norm_res < linres_control%eps) THEN
             converged = .TRUE.
          END IF
 
          t2 = m_walltime()
-         IF (i .EQ. 1 .OR. MOD(i, 1) .EQ. 0 .OR. converged) THEN
+         IF (i == 1 .OR. MOD(i, 1) == 0 .OR. converged) THEN
             IF (iounit > 0) THEN
                WRITE (iounit, "(T10,I5,T25,1E8.2,T33,F25.14,T58,F8.2)") &
                   i, MAXVAL(alpha), norm_res, t2 - t1
@@ -583,7 +583,7 @@ CONTAINS
          ! Tr(r_0 * z_0)
          CALL dbcsr_dot(matrix_res(ispin)%matrix, matrix_cg(ispin)%matrix, norm_rr(ispin))
 
-         IF (norm_rr(ispin) .LT. 0.0_dp) CPABORT("norm_rr < 0")
+         IF (norm_rr(ispin) < 0.0_dp) CPABORT("norm_rr < 0")
          norm_res = MAX(norm_res, ABS(norm_rr(ispin)/REAL(nao, dp)))
       END DO
 
@@ -610,12 +610,12 @@ CONTAINS
 
          ! Convergence criteria
          ! default for eps 10E-6 in MO_linres
-         IF (norm_res .LT. linres_control%eps) THEN
+         IF (norm_res < linres_control%eps) THEN
             linres_control%converged = .TRUE.
          END IF
 
          t2 = m_walltime()
-         IF (i .EQ. 1 .OR. MOD(i, 1) .EQ. 0 .OR. linres_control%converged &
+         IF (i == 1 .OR. MOD(i, 1) == 0 .OR. linres_control%converged &
              .OR. restart .OR. should_stop) THEN
             IF (iounit > 0) THEN
                WRITE (iounit, "(T5,I5,T18,A3,T28,L1,T38,1E8.2,T48,F16.10,T68,F8.2)") &
@@ -666,7 +666,7 @@ CONTAINS
             ! norm_cA = tr(Ap_j * p_j)
             CALL dbcsr_dot(matrix_cg(ispin)%matrix, matrix_Ax(ispin)%matrix, norm_cA(ispin))
 
-            IF (norm_cA(ispin) .LT. 0.0_dp) THEN
+            IF (norm_cA(ispin) < 0.0_dp) THEN
 
                ! Recalculate w/o preconditioner
                IF (i > 1) THEN
@@ -707,7 +707,7 @@ CONTAINS
 
          DO ispin = 1, nspins
             ! Determine step-size
-            IF (norm_cA(ispin) .LT. linres_control%eps) THEN
+            IF (norm_cA(ispin) < linres_control%eps) THEN
                alpha(ispin) = 1.0_dp
             ELSE
                alpha(ispin) = norm_rr(ispin)/norm_cA(ispin)
@@ -720,7 +720,7 @@ CONTAINS
 
          ! need to recompute the residue
          restart = .FALSE.
-         IF (MOD(i, linres_control%restart_every) .EQ. 0) THEN
+         IF (MOD(i, linres_control%restart_every) == 0) THEN
             !
             ! r_j+1 = b - A * x_j+1
             CALL build_hessian_op(qs_env=qs_env, &
@@ -777,12 +777,12 @@ CONTAINS
          DO ispin = 1, nspins
             ! Tr[r_j+1*z_j+1]
             CALL dbcsr_dot(matrix_res(ispin)%matrix, matrix_z0(ispin)%matrix, new_norm(ispin))
-            IF (new_norm(ispin) .LT. 0.0_dp) CPABORT("tr(r_j+1*z_j+1) < 0")
+            IF (new_norm(ispin) < 0.0_dp) CPABORT("tr(r_j+1*z_j+1) < 0")
             IF (abnormal_value(new_norm(ispin))) &
                CPABORT("Preconditioner: Tr[r_j+1*z_j+1] is an abnormal value (NaN/Inf)")
             norm_res = MAX(norm_res, new_norm(ispin)/REAL(nao, dp))
 
-            IF (norm_rr(ispin) .LT. linres_control%eps .OR. new_norm(ispin) .LT. linres_control%eps) THEN
+            IF (norm_rr(ispin) < linres_control%eps .OR. new_norm(ispin) < linres_control%eps) THEN
                beta(ispin) = 0.0_dp
                linres_control%converged = .TRUE.
             ELSE
@@ -1057,7 +1057,7 @@ CONTAINS
       END DO
 
       ! skip the kernel if the DM is very small
-      IF (chksum .GT. 1.0E-14_dp) THEN
+      IF (chksum > 1.0E-14_dp) THEN
 
          ! Bring matrix B as density on grid
 

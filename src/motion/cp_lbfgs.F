@@ -3047,22 +3047,22 @@ CONTAINS
          IF (nbd(k) /= 0) THEN
 !
             ! lower bounds only
-            IF (nbd(k) .EQ. 1) THEN
+            IF (nbd(k) == 1) THEN
                x(k) = MAX(lower_bound(k), xk + dk)
-               IF (x(k) .EQ. lower_bound(k)) iword = 1
+               IF (x(k) == lower_bound(k)) iword = 1
             ELSE
 !
                ! upper and lower bounds
-               IF (nbd(k) .EQ. 2) THEN
+               IF (nbd(k) == 2) THEN
                   xk = MAX(lower_bound(k), xk + dk)
                   x(k) = MIN(upper_bound(k), xk)
-                  IF (x(k) .EQ. lower_bound(k) .OR. x(k) .EQ. upper_bound(k)) iword = 1
+                  IF (x(k) == lower_bound(k) .OR. x(k) == upper_bound(k)) iword = 1
                ELSE
 !
                   ! upper bounds only
-                  IF (nbd(k) .EQ. 3) THEN
+                  IF (nbd(k) == 3) THEN
                      x(k) = MIN(upper_bound(k), xk + dk)
-                     IF (x(k) .EQ. upper_bound(k)) iword = 1
+                     IF (x(k) == upper_bound(k)) iword = 1
                   END IF
                END IF
             END IF
@@ -3073,7 +3073,7 @@ CONTAINS
          END IF
       END DO
 !
-      IF (.NOT. (iword .EQ. 0)) THEN
+      IF (.NOT. (iword == 0)) THEN
 !
 !     check sign of the directional derivative
 !
@@ -3081,7 +3081,7 @@ CONTAINS
          DO i = 1, n
             dd_p = dd_p + (x(i) - xx(i))*gg(i)
          END DO
-         IF (dd_p .GT. zero) THEN
+         IF (dd_p > zero) THEN
             CALL dcopy(n, xp, 1, x, 1)
             IF (iprint > 0) WRITE (*, *) ' Positive dir derivative in projection '
             IF (iprint > 0) WRITE (*, *) ' Using the backtracking step '

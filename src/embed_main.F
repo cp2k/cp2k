@@ -93,7 +93,7 @@ CONTAINS
          CALL section_vals_val_get(force_env_section, "EMBED%NGROUPS", n_rep_val=n_rep_val)
          IF (n_rep_val > 0) THEN
             CALL section_vals_val_get(force_env_section, "EMBED%NGROUPS", i_val=ngroup_wish)
-            IF (ngroup_wish .NE. 1) CPABORT("Embedding runs with NGROUP=1 and no group partitioning")
+            IF (ngroup_wish /= 1) CPABORT("Embedding runs with NGROUP=1 and no group partitioning")
          ELSE
             ngroup_wish = n_subforce_eval
          END IF

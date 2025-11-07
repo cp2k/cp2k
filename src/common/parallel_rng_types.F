@@ -512,7 +512,7 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: antithetic, extended_precision
       TYPE(rng_stream_type)                              :: rng_stream
 
-      IF (LEN_TRIM(name) .GT. rng_name_length) &
+      IF (LEN_TRIM(name) > rng_name_length) &
          CPABORT("given random number generator name is too long")
 
       rng_stream%name = TRIM(name)

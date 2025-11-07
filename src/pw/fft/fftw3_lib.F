@@ -569,7 +569,7 @@ CONTAINS
       INTEGER, INTENT(OUT)                               :: rows_per_thread, rows_per_thread_r, &
                                                             th_planA, th_planB
 
-      IF (MOD(nrows, nt) .EQ. 0) THEN
+      IF (MOD(nrows, nt) == 0) THEN
          rows_per_thread = nrows/nt
          rows_per_thread_r = 0
          th_planA = nt
@@ -853,11 +853,11 @@ CONTAINS
                                      rows_per_thread_r, &
                                      th_planA, th_planB)
 
-      IF (th_planB .GT. 0) THEN
-         IF (tid .LT. th_planA) THEN
+      IF (th_planB > 0) THEN
+         IF (tid < th_planA) THEN
             i_off = (tid)*(istride*(rows_per_thread)) + 1
             o_off = (tid)*(ostride*(rows_per_thread)) + 1
-            IF (rows_per_thread .GT. 0) THEN
+            IF (rows_per_thread > 0) THEN
                CALL fftw_execute_dft(plan, input(i_off), &
                                      output(o_off))
             END IF
@@ -1042,7 +1042,7 @@ CONTAINS
 !$    END IF
 
 ! Check for total number of rows not divisible by num_threads
-!$    IF (num_rows*plan%num_threads_needed .NE. plan%m) THEN
+!$    IF (num_rows*plan%num_threads_needed /= plan%m) THEN
 !$       plan%need_alt_plan = .TRUE.
 !$    END IF
 
@@ -1166,7 +1166,7 @@ CONTAINS
 !$          out_offset = 1 + plan%num_rows*my_id
 !$       END IF
 !$       scal_offset = 1 + plan%n*plan%num_rows*my_id
-!$       IF (plan%need_alt_plan .AND. my_id .EQ. plan%num_threads_needed - 1) THEN
+!$       IF (plan%need_alt_plan .AND. my_id == plan%num_threads_needed - 1) THEN
 !$          num_rows = plan%alt_num_rows
 !$          fftw_plan = plan%alt_fftw_plan
 !$       ELSE

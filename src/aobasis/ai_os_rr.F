@@ -54,7 +54,7 @@ CONTAINS
       !
       ! recursion along la for lb=0
       !
-      IF (la_max .GT. 0) THEN
+      IF (la_max > 0) THEN
          rr(1, 0, 1) = rap(1)
          rr(1, 0, 2) = rap(2)
          rr(1, 0, 3) = rap(3)
@@ -70,7 +70,7 @@ CONTAINS
       !
       ! recursion along lb for all la
       !
-      IF (lb_max .GT. 0) THEN
+      IF (lb_max > 0) THEN
          rr(0, 1, 1) = rbp(1)
          rr(0, 1, 2) = rbp(2)
          rr(0, 1, 3) = rbp(3)
@@ -153,29 +153,29 @@ CONTAINS
             coa2x = coset(MAX(ax - 2, 0), ay, az)
             coa2y = coset(ax, MAX(ay - 2, 0), az)
             coa2z = coset(ax, ay, MAX(az - 2, 0))
-            IF (az .GT. 0) THEN
+            IF (az > 0) THEN
                DO m = 0, mmax - la
                   rr(m, coa, 1) = rap(3)*rr(m, coa1z, 1) - rcp(3)*rr(m + 1, coa1z, 1)
                END DO
-               IF (az .GT. 1) THEN
+               IF (az > 1) THEN
                   DO m = 0, mmax - la
                      rr(m, coa, 1) = rr(m, coa, 1) + g*REAL(az - 1, dp)*(rr(m, coa2z, 1) - rr(m + 1, coa2z, 1))
                   END DO
                END IF
-            ELSEIF (ay .GT. 0) THEN
+            ELSEIF (ay > 0) THEN
                DO m = 0, mmax - la
                   rr(m, coa, 1) = rap(2)*rr(m, coa1y, 1) - rcp(2)*rr(m + 1, coa1y, 1)
                END DO
-               IF (ay .GT. 1) THEN
+               IF (ay > 1) THEN
                   DO m = 0, mmax - la
                      rr(m, coa, 1) = rr(m, coa, 1) + g*REAL(ay - 1, dp)*(rr(m, coa2y, 1) - rr(m + 1, coa2y, 1))
                   END DO
                END IF
-            ELSEIF (ax .GT. 0) THEN
+            ELSEIF (ax > 0) THEN
                DO m = 0, mmax - la
                   rr(m, coa, 1) = rap(1)*rr(m, coa1x, 1) - rcp(1)*rr(m + 1, coa1x, 1)
                END DO
-               IF (ax .GT. 1) THEN
+               IF (ax > 1) THEN
                   DO m = 0, mmax - la
                      rr(m, coa, 1) = rr(m, coa, 1) + g*REAL(ax - 1, dp)*(rr(m, coa2x, 1) - rr(m + 1, coa2x, 1))
                   END DO
@@ -211,44 +211,44 @@ CONTAINS
                   cob2x = coset(MAX(bx - 2, 0), by, bz)
                   cob2y = coset(bx, MAX(by - 2, 0), bz)
                   cob2z = coset(bx, by, MAX(bz - 2, 0))
-                  IF (bz .GT. 0) THEN
+                  IF (bz > 0) THEN
                      DO m = 0, mmax - la - lb
                         rr(m, coa, cob) = rbp(3)*rr(m, coa, cob1z) - rcp(3)*rr(m + 1, coa, cob1z)
                      END DO
-                     IF (bz .GT. 1) THEN
+                     IF (bz > 1) THEN
                         DO m = 0, mmax - la - lb
                            rr(m, coa, cob) = rr(m, coa, cob) + g*REAL(bz - 1, dp)*(rr(m, coa, cob2z) - rr(m + 1, coa, cob2z))
                         END DO
                      END IF
-                     IF (az .GT. 0) THEN
+                     IF (az > 0) THEN
                         DO m = 0, mmax - la - lb
                            rr(m, coa, cob) = rr(m, coa, cob) + g*REAL(az, dp)*(rr(m, coa1z, cob1z) - rr(m + 1, coa1z, cob1z))
                         END DO
                      END IF
-                  ELSEIF (by .GT. 0) THEN
+                  ELSEIF (by > 0) THEN
                      DO m = 0, mmax - la - lb
                         rr(m, coa, cob) = rbp(2)*rr(m, coa, cob1y) - rcp(2)*rr(m + 1, coa, cob1y)
                      END DO
-                     IF (by .GT. 1) THEN
+                     IF (by > 1) THEN
                         DO m = 0, mmax - la - lb
                            rr(m, coa, cob) = rr(m, coa, cob) + g*REAL(by - 1, dp)*(rr(m, coa, cob2y) - rr(m + 1, coa, cob2y))
                         END DO
                      END IF
-                     IF (ay .GT. 0) THEN
+                     IF (ay > 0) THEN
                         DO m = 0, mmax - la - lb
                            rr(m, coa, cob) = rr(m, coa, cob) + g*REAL(ay, dp)*(rr(m, coa1y, cob1y) - rr(m + 1, coa1y, cob1y))
                         END DO
                      END IF
-                  ELSEIF (bx .GT. 0) THEN
+                  ELSEIF (bx > 0) THEN
                      DO m = 0, mmax - la - lb
                         rr(m, coa, cob) = rbp(1)*rr(m, coa, cob1x) - rcp(1)*rr(m + 1, coa, cob1x)
                      END DO
-                     IF (bx .GT. 1) THEN
+                     IF (bx > 1) THEN
                         DO m = 0, mmax - la - lb
                            rr(m, coa, cob) = rr(m, coa, cob) + g*REAL(bx - 1, dp)*(rr(m, coa, cob2x) - rr(m + 1, coa, cob2x))
                         END DO
                      END IF
-                     IF (ax .GT. 0) THEN
+                     IF (ax > 0) THEN
                         DO m = 0, mmax - la - lb
                            rr(m, coa, cob) = rr(m, coa, cob) + g*REAL(ax, dp)*(rr(m, coa1x, cob1x) - rr(m + 1, coa1x, cob1x))
                         END DO

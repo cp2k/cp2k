@@ -1331,7 +1331,7 @@ CONTAINS
          bs_env%group_size_tensor = num_pe
 
       ! group_size_tensor must divide num_pe without rest; otherwise everything will be complicated
-      IF (MODULO(num_pe, bs_env%group_size_tensor) .NE. 0) THEN
+      IF (MODULO(num_pe, bs_env%group_size_tensor) /= 0) THEN
          CALL find_good_group_size(num_pe, bs_env%group_size_tensor)
       END IF
 
@@ -1494,7 +1494,7 @@ CONTAINS
       gcd_max = -1
       DO ipe = 1, CEILING(SQRT(REAL(nproc, dp)))
          jpe = nproc/ipe
-         IF (ipe*jpe .NE. nproc) CYCLE
+         IF (ipe*jpe /= nproc) CYCLE
          IF (gcd(ipe, jpe) >= gcd_max) THEN
             nprow = ipe
             npcol = jpe
@@ -1531,7 +1531,7 @@ CONTAINS
          ! for periodic systems and for 20 minimax points, we use a regularized minimax mesh
          ! (from experience: regularized minimax meshes converges faster for periodic systems
          !  and for 20 pts)
-         IF (SUM(bs_env%periodic) .NE. 0 .OR. bs_env%num_time_freq_points >= 20) THEN
+         IF (SUM(bs_env%periodic) /= 0 .OR. bs_env%num_time_freq_points >= 20) THEN
             bs_env%regularization_minimax = 1.0E-6_dp
          ELSE
             bs_env%regularization_minimax = 0.0_dp
@@ -1817,7 +1817,7 @@ CONTAINS
       ALLOCATE (points_and_weights(2*num_time_freq_points))
 
       ! frequency points
-      IF (num_time_freq_points .LE. 20) THEN
+      IF (num_time_freq_points <= 20) THEN
          CALL get_rpa_minimax_coeff(num_time_freq_points, E_range, points_and_weights, ierr, .FALSE.)
       ELSE
          CALL get_rpa_minimax_coeff_larger_grid(num_time_freq_points, E_range, points_and_weights)
@@ -1852,7 +1852,7 @@ CONTAINS
       END IF
 
       ! time points
-      IF (num_time_freq_points .LE. 20) THEN
+      IF (num_time_freq_points <= 20) THEN
          CALL get_exp_minimax_coeff(num_time_freq_points, E_range, points_and_weights)
       ELSE
          CALL get_exp_minimax_coeff_gw(num_time_freq_points, E_range, points_and_weights)
@@ -2060,7 +2060,7 @@ CONTAINS
             DO atom_i = 1, bs_env%n_atom
 
                block_count = block_count + 1
-               IF (MODULO(block_count, bs_env%para_env%num_pe) .NE. bs_env%para_env%mepos) CYCLE
+               IF (MODULO(block_count, bs_env%para_env%num_pe) /= bs_env%para_env%mepos) CYCLE
 
                CALL scaled_to_real(vec_cell_j, REAL(index_to_cell_3c_max(j_cell, 1:3), kind=dp), cell)
                CALL scaled_to_real(vec_cell_k, REAL(index_to_cell_3c_max(k_cell, 1:3), kind=dp), cell)
@@ -2568,7 +2568,7 @@ CONTAINS
 
       n_tasks_local = 0
 
-      DO WHILE (ANY(n_tensor_ops_Delta_R(:) .NE. 0))
+      DO WHILE (ANY(n_tensor_ops_Delta_R(:) /= 0))
 
          ! get largest element of n_tensor_ops_Delta_R
          i_Delta_R_max_op = MAXLOC(n_tensor_ops_Delta_R, 1)
@@ -2931,7 +2931,7 @@ CONTAINS
       nkp_local = 0
       DO ikp = 1, nkp
          ! trivial parallelization over k-points
-         IF (MODULO(ikp, bs_env%para_env%num_pe) .NE. bs_env%para_env%mepos) CYCLE
+         IF (MODULO(ikp, bs_env%para_env%num_pe) /= bs_env%para_env%mepos) CYCLE
          nkp_local = nkp_local + 1
       END DO
 
@@ -2945,7 +2945,7 @@ CONTAINS
       DO ikp = 1, nkp
 
          ! trivial parallelization
-         IF (MODULO(ikp, bs_env%para_env%num_pe) .NE. bs_env%para_env%mepos) CYCLE
+         IF (MODULO(ikp, bs_env%para_env%num_pe) /= bs_env%para_env%mepos) CYCLE
 
          ikp_local = ikp_local + 1
 
@@ -3238,7 +3238,7 @@ CONTAINS
       bs_env%eigenval_HF(:, ikp, ispin) = eigenval_scf(:) + Sigma_x_ikp_n(:) - V_xc_ikp_n(:)
 
       ! only print eigenvalues of DOS k-points in case no bandstructure path has been given
-      print_DOS_kpoints = (bs_env%nkp_only_bs .LE. 0)
+      print_DOS_kpoints = (bs_env%nkp_only_bs <= 0)
       ! in kpoints_DOS, the last nkp_only_bs are bandstructure k-points
       is_bandstruc_kpoint = (ikp > bs_env%nkp_only_DOS)
       print_ikp = print_DOS_kpoints .OR. is_bandstruc_kpoint
@@ -3272,7 +3272,7 @@ CONTAINS
          WRITE (iunit, "(A)") " "
 
          DO i_mo = 1, n_mo
-            IF (i_mo .LE. bs_env%n_occ(ispin)) occ_vir = 'occ'
+            IF (i_mo <= bs_env%n_occ(ispin)) occ_vir = 'occ'
             IF (i_mo > bs_env%n_occ(ispin)) occ_vir = 'vir'
             WRITE (iunit, "(I5,3A,I5,4F16.3,F17.3)") i_mo, ' (', occ_vir, ') ', ikp_for_print, &
                eigenval_scf(i_mo)*evolt, &
@@ -3320,7 +3320,7 @@ CONTAINS
          ! if |𝚺^c| > 13 eV, we use a scissors shift
          IF (ABS(Sigma_c_ikp_n_qp(i_mo)) > 13.0_dp/evolt) THEN
 
-            is_occ = (i_mo .LE. homo)
+            is_occ = (i_mo <= homo)
             is_vir = (i_mo > homo)
 
             n_levels_scissor = 0
@@ -3331,7 +3331,7 @@ CONTAINS
 
                ! only compute scissor from other GW levels close in energy
                IF (is_occ .AND. j_mo > homo) CYCLE
-               IF (is_vir .AND. j_mo .LE. homo) CYCLE
+               IF (is_vir .AND. j_mo <= homo) CYCLE
                IF (ABS(i_mo - j_mo) > 10) CYCLE
                IF (i_mo == j_mo) CYCLE
 

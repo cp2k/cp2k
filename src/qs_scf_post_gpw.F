@@ -512,8 +512,8 @@ CONTAINS
          IF (do_kpoints) THEN
             CPWARN("Localization not implemented for k-point calculations!")
          ELSEIF (dft_control%restricted &
-                 .AND. (section_get_ival(localize_section, "METHOD") .NE. do_loc_none) &
-                 .AND. (section_get_ival(localize_section, "METHOD") .NE. do_loc_jacobi)) THEN
+                 .AND. (section_get_ival(localize_section, "METHOD") /= do_loc_none) &
+                 .AND. (section_get_ival(localize_section, "METHOD") /= do_loc_jacobi)) THEN
             CPABORT("ROKS works only with LOCALIZE METHOD NONE or JACOBI")
          ELSE
             ALLOCATE (occupied_orbs(dft_control%nspins))
@@ -565,7 +565,7 @@ CONTAINS
             CPWARN("Localization and MO related output not implemented for k-point calculations!")
          END IF
       ELSE
-         compute_lumos = do_mo_cubes .AND. nlumo .NE. 0
+         compute_lumos = do_mo_cubes .AND. nlumo /= 0
          compute_lumos = compute_lumos .OR. p_loc_lumo
 
          DO ispin = 1, dft_control%nspins
@@ -582,7 +582,7 @@ CONTAINS
                IF (nlumo > nmo - homo) THEN
                   ! this case not yet implemented
                ELSE
-                  IF (nlumo .EQ. -1) THEN
+                  IF (nlumo == -1) THEN
                      nlumo = nmo - homo
                   END IF
                   IF (output_unit > 0) WRITE (output_unit, *) " "
@@ -620,7 +620,7 @@ CONTAINS
                homo_lumo(ispin, 2) = unoccupied_evals(ispin)%array(1)
                CALL get_mo_set(mo_set=mos(ispin), homo=homo)
                IF (check_write) THEN
-                  IF (p_loc_lumo .AND. nlumo .NE. -1) nlumos = MIN(nlumo, nlumos)
+                  IF (p_loc_lumo .AND. nlumo /= -1) nlumos = MIN(nlumo, nlumos)
                   ! Prints the cube files of UNOCCUPIED ORBITALS
                   CALL qs_scf_post_unocc_cubes(input, dft_section, dft_control, logger, qs_env, &
                                                unoccupied_orbs(ispin), wf_g, wf_r, particles, nlumos, homo, ispin)
@@ -3185,7 +3185,7 @@ CONTAINS
 
       has_implicit_ps = .FALSE.
       CALL get_qs_env(qs_env=qs_env, pw_env=pw_env)
-      IF (pw_env%poisson_env%parameters%solver .EQ. pw_poisson_implicit) has_implicit_ps = .TRUE.
+      IF (pw_env%poisson_env%parameters%solver == pw_poisson_implicit) has_implicit_ps = .TRUE.
 
       ! Write the dielectric constant into a cube file
       do_dielectric_cube = BTEST(cp_print_key_should_output(logger%iter_info, input, &
@@ -3231,7 +3231,7 @@ CONTAINS
       has_dirichlet_bc = .FALSE.
       IF (has_implicit_ps) THEN
          boundary_condition = pw_env%poisson_env%parameters%ps_implicit_params%boundary_condition
-         IF (boundary_condition .EQ. MIXED_PERIODIC_BC .OR. boundary_condition .EQ. MIXED_BC) THEN
+         IF (boundary_condition == MIXED_PERIODIC_BC .OR. boundary_condition == MIXED_BC) THEN
             has_dirichlet_bc = .TRUE.
          END IF
       END IF
@@ -3278,7 +3278,7 @@ CONTAINS
       has_dirichlet_bc = .FALSE.
       IF (has_implicit_ps) THEN
          boundary_condition = pw_env%poisson_env%parameters%ps_implicit_params%boundary_condition
-         IF (boundary_condition .EQ. MIXED_PERIODIC_BC .OR. boundary_condition .EQ. MIXED_BC) THEN
+         IF (boundary_condition == MIXED_PERIODIC_BC .OR. boundary_condition == MIXED_BC) THEN
             has_dirichlet_bc = .TRUE.
          END IF
       END IF
@@ -3399,7 +3399,7 @@ CONTAINS
          CALL get_qs_env(qs_env, qs_kind_set=qs_kind_set, sab_orb=nl, natom=natom, para_env=para_env)
 
          nkind = SIZE(qs_kind_set)
-         CPASSERT(SIZE(nl) .GT. 0)
+         CPASSERT(SIZE(nl) > 0)
          CALL get_neighbor_list_set_p(neighbor_list_sets=nl, symmetric=do_symmetric)
          CPASSERT(do_symmetric)
          ALLOCATE (basis_set_list_a(nkind), basis_set_list_b(nkind))
@@ -3412,7 +3412,7 @@ CONTAINS
 
          NULLIFY (nl_iterator)
          CALL neighbor_list_iterator_create(nl_iterator, nl)
-         DO WHILE (neighbor_list_iterate(nl_iterator) .EQ. 0)
+         DO WHILE (neighbor_list_iterate(nl_iterator) == 0)
             CALL get_iterator_info(nl_iterator, &
                                    ikind=ikind, jkind=jkind, &
                                    iatom=iatom, jatom=jatom)
@@ -3423,7 +3423,7 @@ CONTAINS
             IF (.NOT. ASSOCIATED(basis_set_b)) CYCLE
 
             ! move everything to the upper triangular part
-            IF (iatom .LE. jatom) THEN
+            IF (iatom <= jatom) THEN
                rowind = iatom
                colind = jatom
             ELSE
@@ -3450,11 +3450,11 @@ CONTAINS
          unit_nr = cp_print_key_unit_nr(logger, dft_section, "PRINT%ADJMAT_WRITE", &
                                         extension=".adjmat", file_form="FORMATTED", &
                                         file_status="REPLACE")
-         IF (unit_nr .GT. 0) THEN
+         IF (unit_nr > 0) THEN
             WRITE (unit_nr, "(1A,2X,1A,5X,1A,4X,A5,3X,A5)") "#", "iatom", "jatom", "ikind", "jkind"
             DO k = 1, 4*adjm_size, 4
                ! print only the interacting atoms
-               IF (interact_adjm(k) .GT. 0 .AND. interact_adjm(k + 1) .GT. 0) THEN
+               IF (interact_adjm(k) > 0 .AND. interact_adjm(k + 1) > 0) THEN
                   WRITE (unit_nr, "(I8,2X,I8,3X,I6,2X,I6)") interact_adjm(k:k + 3)
                END IF
             END DO

@@ -1579,8 +1579,8 @@ CONTAINS
       nspins = dft_control%nspins
       nimages = dft_control%nimages
 
-      CPASSERT(nspins .EQ. SIZE(rho_ao_kp, 1))
-      CPASSERT(nimages .EQ. SIZE(rho_ao_kp, 2))
+      CPASSERT(nspins == SIZE(rho_ao_kp, 1))
+      CPASSERT(nimages == SIZE(rho_ao_kp, 2))
 
       CALL dbcsr_allocate_matrix_set(rho_ao_im_kp, nspins, nimages)
       CALL qs_rho_set(rho, rho_ao_im_kp=rho_ao_im_kp)

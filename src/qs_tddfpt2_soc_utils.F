@@ -538,7 +538,7 @@ CONTAINS
          max_wfn = 0_dp
          DO ii = 1, ntot
             wfn_sq = ABS(REAL(cpl_tmp(ii, jj)**2 - AIMAG(cpl_tmp(ii, jj)**2)))
-            IF (max_wfn .LE. wfn_sq) THEN
+            IF (max_wfn <= wfn_sq) THEN
                CALL test_repetition(sort, ii, rep, rep_int(ii))
                IF (rep) THEN
                   max_wfn = wfn_sq
@@ -554,7 +554,7 @@ CONTAINS
                   max_wfn = ABS(REAL(cpl_tmp(sort(i_rep), jj)**2 - AIMAG(cpl_tmp(sort(i_rep), jj)**2))) - max_dev
                   DO ii = 1, ntot
                      wfn_sq = ABS(REAL(cpl_tmp(ii, jj)**2 - AIMAG(cpl_tmp(ii, jj)**2)))
-                     IF ((max_wfn - wfn_sq)/max_wfn .LE. max_dev) THEN
+                     IF ((max_wfn - wfn_sq)/max_wfn <= max_dev) THEN
                         CALL test_repetition(sort, ii, rep)
                         IF (rep .AND. ii /= i_rep) THEN
                            sort(jj) = sort(i_rep)

@@ -193,7 +193,7 @@ CONTAINS
                   !we check for rbc or rac because of symmetry in ab_nl
                   CALL get_iterator_info(ac_iter, r=rac)
                   rbc(:) = rac(:) - rab(:)
-                  IF (.NOT. (ALL(ABS(rbc) .LE. 1.0E-8_dp) .OR. ALL(ABS(rac) .LE. 1.0E-8_dp))) CYCLE
+                  IF (.NOT. (ALL(ABS(rbc) <= 1.0E-8_dp) .OR. ALL(ABS(rac) <= 1.0E-8_dp))) CYCLE
 
                END IF
 
@@ -223,7 +223,7 @@ CONTAINS
                   !we check for rbc or rac because of symmetry in ab_nl
                   CALL get_iterator_info(ac_iter, r=rac)
                   rbc(:) = rac(:) - rab(:)
-                  IF (.NOT. (ALL(ABS(rbc) .LE. 1.0E-8_dp) .OR. ALL(ABS(rac) .LE. 1.0E-8_dp))) CYCLE
+                  IF (.NOT. (ALL(ABS(rbc) <= 1.0E-8_dp) .OR. ALL(ABS(rac) <= 1.0E-8_dp))) CYCLE
 
                END IF
 
@@ -946,7 +946,7 @@ CONTAINS
                   !only take a,b,c if b,c (or a,c because of symmetry) share the same center
                   CALL get_iterator_info(ac_iter, r=rac)
                   rbc(:) = rac(:) - rab(:)
-                  IF (.NOT. (ALL(ABS(rbc) .LE. 1.0E-8_dp) .OR. ALL(ABS(rac) .LE. 1.0E-8_dp))) CYCLE
+                  IF (.NOT. (ALL(ABS(rbc) <= 1.0E-8_dp) .OR. ALL(ABS(rac) <= 1.0E-8_dp))) CYCLE
 
                END IF
 

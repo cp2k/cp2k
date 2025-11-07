@@ -743,7 +743,7 @@ CONTAINS
                IF (gapw .OR. gapw_xc) exc1_energy = energy%exc1
             END IF
 
-            IF (psolver .EQ. pw_poisson_implicit) THEN
+            IF (psolver == pw_poisson_implicit) THEN
                implicit_ps_ehartree = pw_env%poisson_env%implicit_env%ehartree
                bc = pw_env%poisson_env%parameters%ps_implicit_params%boundary_condition
                SELECT CASE (bc)

@@ -1009,12 +1009,12 @@ CONTAINS
                a(j, i) = (a(j - 1, i)*fac - a(j - 1, i - 1))/(fac - 1.0_rn)
                fac = con2*fac
                errt = MAX(ABS(a(j, i) - a(j - 1, i)), ABS(a(j, i) - a(j - 1, i - 1)))
-               IF (errt .LE. err) THEN
+               IF (errt <= err) THEN
                   err = errt
                   derivative = a(j, i)
                END IF
             END DO
-            IF (ABS(a(i, i) - a(i - 1, i - 1)) .GE. safe*err) RETURN
+            IF (ABS(a(i, i) - a(i - 1, i - 1)) >= safe*err) RETURN
          END DO
       ELSE
          CPABORT("DX provided equals zero!")

@@ -1166,7 +1166,7 @@ CONTAINS
          !
          ! update the weighting factor
          itmp = helium_env(1)%helium%averages_iweight
-         IF (itmp .LT. 0) THEN
+         IF (itmp < 0) THEN
             itmp = helium_env(1)%helium%current_step - helium_env(1)%helium%first_step
          ELSE
             itmp = itmp + helium_env(1)%helium%current_step - helium_env(1)%helium%first_step

@@ -153,7 +153,7 @@ CONTAINS
          '***************************'
       WRITE (iw, '(A,T66,F15.8)') "Average Energy [Hartrees]:", &
          averages%ave_energy
-      IF (pmswap .GT. 0.0E0_dp) THEN
+      IF (pmswap > 0.0E0_dp) THEN
          WRITE (iw, '(A,T66,F15.8)') "Average number of molecules:", &
             averages%molecules
       END IF
@@ -175,7 +175,7 @@ CONTAINS
                             displacement=rmvolume, lbias=.FALSE., format_string=format_string, &
                             string3=string3)
 
-      IF (pmcltrans .GT. 0.0E0_dp) THEN
+      IF (pmcltrans > 0.0E0_dp) THEN
 
 ! Cluster translation moves
          WRITE (iw, '(A,A)') '-----------------------------------------------------', &
@@ -235,9 +235,9 @@ CONTAINS
          CALL final_move_write(moves%avbmc_outout, string1, string2, iw)
 
 ! conformation changes
-         IF (moves%angle%attempts .GT. 0 .OR. &
-             moves%bond%attempts .GT. 0 .OR. &
-             moves%dihedral%attempts .GT. 0) THEN
+         IF (moves%angle%attempts > 0 .OR. &
+             moves%bond%attempts > 0 .OR. &
+             moves%dihedral%attempts > 0) THEN
             WRITE (iw, '(A,T43,A)') "Conformational Moves", &
                "Attempted       Accepted       Percent"
             WRITE (iw, '(T46,I6,9X,I6,7X,F7.3)') &
@@ -294,7 +294,7 @@ CONTAINS
                                string3=string3)
 
 ! swap moves
-         IF (moves%swap%attempts .GT. 0) THEN
+         IF (moves%swap%attempts > 0) THEN
             WRITE (iw, '(A,T43,A)') "Swap Moves into this box", &
                "Attempted       Empty          Percent"
             WRITE (iw, '(T46,I6,9X,I6,7X,F7.3)') &
@@ -364,7 +364,7 @@ CONTAINS
       END DO
 
 ! see if the energies add up properly
-      IF (ABS(initial_energy + energy_check - final_energy) .GT. 0.0000001E0_dp) &
+      IF (ABS(initial_energy + energy_check - final_energy) > 0.0000001E0_dp) &
          THEN
          WRITE (iw, *) '!!!!!!! We have an energy problem. !!!!!!!!'
          WRITE (iw, '(A,T64,F16.10)') 'Final Energy = ', final_energy
@@ -403,7 +403,7 @@ CONTAINS
       REAL(dp), OPTIONAL                                 :: displacement
 
       IF (.NOT. PRESENT(format_string)) THEN
-         IF (move_data%attempts .GT. 0) THEN
+         IF (move_data%attempts > 0) THEN
             WRITE (iw, '(A,T43,A)') TRIM(ADJUSTL(string1)), &
                TRIM(ADJUSTL(string2))
             WRITE (iw, '(T46,I6,9X,I6,7X,F7.3)') &
@@ -419,7 +419,7 @@ CONTAINS
              .NOT. PRESENT(displacement)) THEN
             WRITE (iw, *) 'MISSING FLAGS IN FINAL_MOVE_WRITE'
          END IF
-         IF (move_data%attempts .GT. 0) THEN
+         IF (move_data%attempts > 0) THEN
             WRITE (iw, '(A,T43,A)') TRIM(ADJUSTL(string1)), &
                TRIM(ADJUSTL(string2))
             WRITE (iw, '(T46,I6,9X,I6,7X,F7.3)') &

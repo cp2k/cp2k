@@ -702,7 +702,7 @@ CONTAINS
                         WRITE (output_unit, FMT=*) ""
                         CALL m_flush(output_unit)
                      END IF
-                     CPASSERT(todo .NE. do_deadlock)
+                     CPASSERT(todo /= do_deadlock)
                   END IF
                END IF
 
@@ -792,7 +792,7 @@ CONTAINS
          ! change to the new working directory
 
          CALL m_chdir(TRIM(farming_env%Job(i)%cwd), ierr)
-         IF (ierr .NE. 0) &
+         IF (ierr /= 0) &
             CPABORT("Failed to change dir to: "//TRIM(farming_env%Job(i)%cwd))
 
          ! generate a fresh call to cp2k_run
@@ -813,10 +813,10 @@ CONTAINS
                   CALL cp_unit_set_release(default_units)
                   CALL section_vals_val_get(g_data, "PROJECT", &
                                             c_val=str)
-                  IF (str .NE. "") output_file = TRIM(str)//".out"
+                  IF (str /= "") output_file = TRIM(str)//".out"
                   CALL section_vals_val_get(g_data, "OUTPUT_FILE_NAME", &
                                             c_val=str)
-                  IF (str .NE. "") output_file = str
+                  IF (str /= "") output_file = str
                   CALL section_vals_release(g_data)
                   CALL section_release(g_section)
                END IF

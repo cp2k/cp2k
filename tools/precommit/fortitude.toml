@@ -7,7 +7,6 @@ ignore = [
     "non-standard-file-extension",
     "implicit-external-procedures", # requires Fortran 2018
     "missing-intent",
-    "deprecated-relational-operator",
     "missing-exit-or-cycle-label",
     "assumed-size",
     "unnamed-end-statement",

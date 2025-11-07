@@ -472,12 +472,12 @@ CONTAINS
 
          READ (extunit, *, IOSTAT=er) nbas
 
-         IF (er .NE. 0) THEN
+         IF (er /= 0) THEN
             WRITE (iw, fmt="(' ZMP       | ERROR! Restart file unreadable')")
             WRITE (iw, fmt="(' ZMP       | ERROR! Starting ZMP calculation form initial atomic guess')")
             doguess = .TRUE.
             atom%doread = .FALSE.
-         ELSE IF (nbas(1) .NE. atom%basis%nbas(1)) THEN
+         ELSE IF (nbas(1) /= atom%basis%nbas(1)) THEN
             WRITE (iw, fmt="(' ZMP       | ERROR! Restart file contains a different basis set')")
             WRITE (iw, fmt="(' ZMP       | ERROR! Starting ZMP calculation form initial atomic guess')")
             doguess = .TRUE.
@@ -535,7 +535,7 @@ CONTAINS
       IF (.NOT. ldm) THEN
          READ (extunit, *) nr
 
-         IF (nr .NE. atom%basis%grid%nr) THEN
+         IF (nr /= atom%basis%grid%nr) THEN
             IF (iw > 0) WRITE (iw, fmt="(' ZMP       | ERROR! External grid dimension ',I4,' differs from internal grid ',I4)") &
                nr, atom%basis%grid%nr
             IF (iw > 0) WRITE (iw, fmt="(' ZMP       | ERROR! Stopping ZMP calculation')")
@@ -544,7 +544,7 @@ CONTAINS
 
          DO ir = 1, nr
             READ (extunit, *) rr, density(ir)
-            IF (ABS(rr - atom%basis%grid%rad(ir)) .GT. atom%zmpgrid_tol) THEN
+            IF (ABS(rr - atom%basis%grid%rad(ir)) > atom%zmpgrid_tol) THEN
                IF (iw > 0) WRITE (iw, fmt="(' ZMP       | ERROR! Grid points do not coincide: ')")
                IF (iw > 0) WRITE (iw, fmt='(" ZMP       |",T20,"R_out[bohr]",T36,"R_in[bohr]",T61,"R_diff[bohr]")')
                IF (iw > 0) WRITE (iw, fmt='(" ZMP       |",T14,E24.15,T39,E24.15,T64,E24.15)') &
@@ -622,7 +622,7 @@ CONTAINS
       READ (extunit, *)
       READ (extunit, *) adum, nr
 
-      IF (nr .NE. atom%basis%grid%nr) THEN
+      IF (nr /= atom%basis%grid%nr) THEN
          IF (iw > 0) WRITE (iw, fmt="(' ZMP       | ERROR! External grid dimension ',I4,' differs from internal grid ',I4)") &
             nr, atom%basis%grid%nr
          IF (iw > 0) WRITE (iw, fmt="(' ZMP       | ERROR! Stopping ZMP calculation')")
@@ -630,7 +630,7 @@ CONTAINS
       END IF
       DO ir = 1, nr
          READ (extunit, *) rr, vxc(ir)
-         IF (ABS(rr - atom%basis%grid%rad(ir)) .GT. atom%zmpvxcgrid_tol) THEN
+         IF (ABS(rr - atom%basis%grid%rad(ir)) > atom%zmpvxcgrid_tol) THEN
             IF (iw > 0) WRITE (iw, fmt="(' ZMP       | ERROR! Grid points do not coincide: ')")
             IF (iw > 0) WRITE (iw, fmt='(" ZMP       |",T20,"R_out[bohr]",T36,"R_in[bohr]",T61,"R_diff[bohr]")')
             IF (iw > 0) WRITE (iw, fmt='(" ZMP       |",T14,E24.15,T39,E24.15,T64,E24.15)') &

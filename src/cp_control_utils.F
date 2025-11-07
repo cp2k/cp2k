@@ -1928,7 +1928,7 @@ CONTAINS
          WRITE (UNIT=output_unit, FMT="(T2,A,T76,I5)") &
             "DFT| Charge", dft_control%charge
 
-         IF (dft_control%sic_method_id .NE. sic_none) CALL cite_reference(VandeVondele2005b)
+         IF (dft_control%sic_method_id /= sic_none) CALL cite_reference(VandeVondele2005b)
          SELECT CASE (dft_control%sic_method_id)
          CASE (sic_none)
             tmpstr = "NO"
@@ -2522,7 +2522,7 @@ CONTAINS
          IF (qs_control%ddapc_restraint) THEN
             DO i = 1, SIZE(qs_control%ddapc_restraint_control)
                ddapc_restraint_control => qs_control%ddapc_restraint_control(i)
-               IF (SIZE(qs_control%ddapc_restraint_control) .GT. 1) &
+               IF (SIZE(qs_control%ddapc_restraint_control) > 1) &
                   WRITE (UNIT=output_unit, FMT="(T2,A,T3,I8)") &
                   "QS| parameters for DDAPC restraint number", i
                WRITE (UNIT=output_unit, FMT="(T2,A,T73,ES8.1)") &
@@ -2595,7 +2595,7 @@ CONTAINS
 
       IF (PRESENT(ddapc_restraint_section)) THEN
          IF (ASSOCIATED(qs_control%ddapc_restraint_control)) THEN
-            IF (SIZE(qs_control%ddapc_restraint_control) .GE. 2) &
+            IF (SIZE(qs_control%ddapc_restraint_control) >= 2) &
                CPABORT("ET_COUPLING cannot be used in combination with a normal restraint")
          ELSE
             ddapc_section => ddapc_restraint_section
@@ -2666,7 +2666,7 @@ CONTAINS
                ddapc_restraint_control%coeff(jj) = rtmplist(j)
             END DO
          END DO
-         IF (jj < ddapc_restraint_control%natoms .AND. jj .NE. 0) &
+         IF (jj < ddapc_restraint_control%natoms .AND. jj /= 0) &
             CPABORT("Need no or the same number of coeff as there are atoms.")
       END DO
       k = 0

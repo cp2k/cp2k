@@ -72,22 +72,22 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, &
          DIMENSION(:, :, :, :, :)                        :: zmpi1
 
-      IF (nd1 .LT. n1/2 + 1) CPABORT("Parallel convolution:ERROR:nd1")
-      IF (nd2 .LT. n2/2 + 1) CPABORT("Parallel convolution:ERROR:nd2")
-      IF (nd3 .LT. n3/2 + 1) CPABORT("Parallel convolution:ERROR:nd3")
-      IF (md1 .LT. n1) CPABORT("Parallel convolution:ERROR:md1")
-      IF (md2 .LT. n2) CPABORT("Parallel convolution:ERROR:md2")
-      IF (md3 .LT. n3) CPABORT("Parallel convolution:ERROR:md3")
-      IF (MOD(nd3, nproc) .NE. 0) CPABORT("Parallel convolution:ERROR:nd3")
-      IF (MOD(md2, nproc) .NE. 0) CPABORT("Parallel convolution:ERROR:md2")
+      IF (nd1 < n1/2 + 1) CPABORT("Parallel convolution:ERROR:nd1")
+      IF (nd2 < n2/2 + 1) CPABORT("Parallel convolution:ERROR:nd2")
+      IF (nd3 < n3/2 + 1) CPABORT("Parallel convolution:ERROR:nd3")
+      IF (md1 < n1) CPABORT("Parallel convolution:ERROR:md1")
+      IF (md2 < n2) CPABORT("Parallel convolution:ERROR:md2")
+      IF (md3 < n3) CPABORT("Parallel convolution:ERROR:md3")
+      IF (MOD(nd3, nproc) /= 0) CPABORT("Parallel convolution:ERROR:nd3")
+      IF (MOD(md2, nproc) /= 0) CPABORT("Parallel convolution:ERROR:md2")
 
       !defining work arrays dimensions
       ncache = ncache_optimal
       IF (ncache <= MAX(n1, n2, n3)*4) ncache = MAX(n1, n2, n3)*4
 
       lzt = n2
-      IF (MOD(n2, 2) .EQ. 0) lzt = lzt + 1
-      IF (MOD(n2, 4) .EQ. 0) lzt = lzt + 1 !maybe this is useless
+      IF (MOD(n2, 2) == 0) lzt = lzt + 1
+      IF (MOD(n2, 4) == 0) lzt = lzt + 1 !maybe this is useless
 
       !Allocations
       ALLOCATE (btrig1(2, ctrig_length))
@@ -108,7 +108,7 @@ CONTAINS
       ALLOCATE (zw(2, ncache/4, 2))
       ALLOCATE (zt(2, lzt, n1))
       ALLOCATE (zmpi2(2, n1, md2/nproc, nd3))
-      IF (nproc .GT. 1) ALLOCATE (zmpi1(2, n1, md2/nproc, nd3/nproc, nproc))
+      IF (nproc > 1) ALLOCATE (zmpi1(2, n1, md2/nproc, nd3/nproc, nproc))
 
       !calculating the FFT work arrays (beware on the HalFFT in n3 dimension)
       CALL ctrig(n3, btrig3, after3, before3, now3, 1, ic3)
@@ -129,7 +129,7 @@ CONTAINS
 
       ! transform along z axis
       lot = ncache/(4*n3)
-      IF (lot .LT. 1) THEN
+      IF (lot < 1) THEN
          WRITE (*, *) &
             'convolxc_off:ncache has to be enlarged to be able to hold at'// &
             'least one 1-d FFT of this size even though this will'// &
@@ -138,7 +138,7 @@ CONTAINS
       END IF
       DO j2 = 1, md2/nproc
          !this condition ensures that we manage only the interesting part for the FFT
-         IF (iproc*(md2/nproc) + j2 .LE. n2) THEN
+         IF (iproc*(md2/nproc) + j2 <= n2) THEN
             DO i1 = 1, n1, lot
                ma = i1
                mb = MIN(i1 + (lot - 1), n1)
@@ -166,7 +166,7 @@ CONTAINS
 
       !Interprocessor data transposition
       !input: I1,J2,j3,jp3,(Jp2)
-      IF (nproc .GT. 1) THEN
+      IF (nproc > 1) THEN
          !communication scheduling
          CALL mpi_group%alltoall(zmpi2, zmpi1, 2*n1*(md2/nproc)*(nd3/nproc))
       END IF
@@ -175,7 +175,7 @@ CONTAINS
       !now each process perform complete convolution of its planes
       DO j3 = 1, nd3/nproc
          !this condition ensures that we manage only the interesting part for the FFT
-         IF (iproc*(nd3/nproc) + j3 .LE. n3/2 + 1) THEN
+         IF (iproc*(nd3/nproc) + j3 <= n3/2 + 1) THEN
             Jp2stb = 1
             J2stb = 1
             Jp2stf = 1
@@ -183,7 +183,7 @@ CONTAINS
 
             ! transform along x axis
             lot = ncache/(4*n1)
-            IF (lot .LT. 1) THEN
+            IF (lot < 1) THEN
                WRITE (*, *) &
                   'convolxc_off:ncache has to be enlarged to be able to hold at'// &
                   'least one 1-d FFT of this size even though this will'// &
@@ -198,7 +198,7 @@ CONTAINS
 
                !reverse index ordering, leaving the planes to be transformed at the end
                !input: I1,J2,j3,Jp2,(jp3)
-               IF (nproc .EQ. 1) THEN
+               IF (nproc == 1) THEN
                   CALL P_mpiswitch_upcorn(j3, nfft, Jp2stb, J2stb, lot, n1, md2, nd3, nproc, zmpi2, zw(1, 1, 1))
                ELSE
                   CALL P_mpiswitch_upcorn(j3, nfft, Jp2stb, J2stb, lot, n1, md2, nd3, nproc, zmpi1, zw(1, 1, 1))
@@ -223,7 +223,7 @@ CONTAINS
 
             !transform along y axis
             lot = ncache/(4*n2)
-            IF (lot .LT. 1) THEN
+            IF (lot < 1) THEN
                WRITE (*, *) &
                   'convolxc_off:ncache has to be enlarged to be able to hold at'// &
                   'least one 1-d FFT of this size even though this will'// &
@@ -294,7 +294,7 @@ CONTAINS
 
                !reverse ordering
                !input: J2,Jp2,I1,j3,(jp3)
-               IF (nproc .EQ. 1) THEN
+               IF (nproc == 1) THEN
                   CALL P_unmpiswitch_downcorn(j3, nfft, Jp2stf, J2stf, lot, n1, md2, nd3, nproc, zw(1, 1, inzee), zmpi2)
                ELSE
                   CALL P_unmpiswitch_downcorn(j3, nfft, Jp2stf, J2stf, lot, n1, md2, nd3, nproc, zw(1, 1, inzee), zmpi1)
@@ -306,7 +306,7 @@ CONTAINS
 
       !Interprocessor data transposition
       !input: I1,J2,j3,Jp2,(jp3)
-      IF (nproc .GT. 1) THEN
+      IF (nproc > 1) THEN
          !communication scheduling
          CALL mpi_group%alltoall(zmpi1, zmpi2, 2*n1*(md2/nproc)*(nd3/nproc))
       END IF
@@ -316,7 +316,7 @@ CONTAINS
       lot = ncache/(4*n3)
       DO j2 = 1, md2/nproc
          !this condition ensures that we manage only the interesting part for the FFT
-         IF (iproc*(md2/nproc) + j2 .LE. n2) THEN
+         IF (iproc*(md2/nproc) + j2 <= n2) THEN
             DO i1 = 1, n1, lot
                ma = i1
                mb = MIN(i1 + (lot - 1), n1)
@@ -363,7 +363,7 @@ CONTAINS
       DEALLOCATE (zmpi2)
       DEALLOCATE (zw)
       DEALLOCATE (zt)
-      IF (nproc .GT. 1) DEALLOCATE (zmpi1)
+      IF (nproc > 1) DEALLOCATE (zmpi1)
       !  call timing(iproc,'PSolv_comput  ','OF')
    END SUBROUTINE P_PoissonSolver
 
@@ -397,7 +397,7 @@ CONTAINS
       DO Jp2 = Jp2stb, nproc
          DO J2 = J2stb, md2/nproc
             mfft = mfft + 1
-            IF (mfft .GT. nfft) THEN
+            IF (mfft > nfft) THEN
                Jp2stb = Jp2
                J2stb = J2
                RETURN
@@ -494,7 +494,7 @@ CONTAINS
       DO Jp2 = Jp2stf, nproc
          DO J2 = J2stf, md2/nproc
             mfft = mfft + 1
-            IF (mfft .GT. nfft) THEN
+            IF (mfft > nfft) THEN
                Jp2stf = Jp2
                J2stf = J2
                RETURN
@@ -867,15 +867,15 @@ CONTAINS
 
       CALL timeset(routineN, handle)
       ! check input
-      IF (MOD(n3, 2) .NE. 0) CPABORT("Parallel convolution:ERROR:n3")
-      IF (nd1 .LT. n1/2 + 1) CPABORT("Parallel convolution:ERROR:nd1")
-      IF (nd2 .LT. n2/2 + 1) CPABORT("Parallel convolution:ERROR:nd2")
-      IF (nd3 .LT. n3/2 + 1) CPABORT("Parallel convolution:ERROR:nd3")
-      IF (md1 .LT. n1) CPABORT("Parallel convolution:ERROR:md1")
-      IF (md2 .LT. n2) CPABORT("Parallel convolution:ERROR:md2")
-      IF (md3 .LT. n3/2) CPABORT("Parallel convolution:ERROR:md3")
-      IF (MOD(nd3, nproc) .NE. 0) CPABORT("Parallel convolution:ERROR:nd3")
-      IF (MOD(md2, nproc) .NE. 0) CPABORT("Parallel convolution:ERROR:md2")
+      IF (MOD(n3, 2) /= 0) CPABORT("Parallel convolution:ERROR:n3")
+      IF (nd1 < n1/2 + 1) CPABORT("Parallel convolution:ERROR:nd1")
+      IF (nd2 < n2/2 + 1) CPABORT("Parallel convolution:ERROR:nd2")
+      IF (nd3 < n3/2 + 1) CPABORT("Parallel convolution:ERROR:nd3")
+      IF (md1 < n1) CPABORT("Parallel convolution:ERROR:md1")
+      IF (md2 < n2) CPABORT("Parallel convolution:ERROR:md2")
+      IF (md3 < n3/2) CPABORT("Parallel convolution:ERROR:md3")
+      IF (MOD(nd3, nproc) /= 0) CPABORT("Parallel convolution:ERROR:nd3")
+      IF (MOD(md2, nproc) /= 0) CPABORT("Parallel convolution:ERROR:md2")
 
       !defining work arrays dimensions
       ncache = ncache_optimal
@@ -884,8 +884,8 @@ CONTAINS
       !  if (timing_flag == 1 .and. iproc ==0) print *,'parallel ncache=',ncache
 
       lzt = n2
-      IF (MOD(n2, 2) .EQ. 0) lzt = lzt + 1
-      IF (MOD(n2, 4) .EQ. 0) lzt = lzt + 1 !maybe this is useless
+      IF (MOD(n2, 2) == 0) lzt = lzt + 1
+      IF (MOD(n2, 4) == 0) lzt = lzt + 1 !maybe this is useless
 
       !Allocations
       ALLOCATE (btrig1(2, ctrig_length))
@@ -907,7 +907,7 @@ CONTAINS
       ALLOCATE (zt(2, lzt, n1))
       ALLOCATE (zmpi2(2, n1, md2/nproc, nd3))
       ALLOCATE (cosinarr(2, n3/2))
-      IF (nproc .GT. 1) THEN
+      IF (nproc > 1) THEN
          ALLOCATE (zmpi1(2, n1, md2/nproc, nd3/nproc, nproc))
          zmpi1 = 0.0_dp
       END IF
@@ -944,7 +944,7 @@ CONTAINS
 
       ! transform along z axis
       lot = ncache/(2*n3)
-      IF (lot .LT. 1) THEN
+      IF (lot < 1) THEN
          WRITE (*, *) &
             'convolxc_off:ncache has to be enlarged to be able to hold at'// &
             'least one 1-d FFT of this size even though this will'// &
@@ -954,7 +954,7 @@ CONTAINS
 
       DO j2 = 1, md2/nproc
          !this condition ensures that we manage only the interesting part for the FFT
-         IF (iproc*(md2/nproc) + j2 .LE. n2) THEN
+         IF (iproc*(md2/nproc) + j2 <= n2) THEN
             DO i1 = 1, n1, lot
                ma = i1
                mb = MIN(i1 + (lot - 1), n1)
@@ -982,7 +982,7 @@ CONTAINS
       END DO
       !Interprocessor data transposition
       !input: I1,J2,j3,jp3,(Jp2)
-      IF (nproc .GT. 1) THEN
+      IF (nproc > 1) THEN
          CALL mpi_group%alltoall(zmpi2, zmpi1, 2*n1*(md2/nproc)*(nd3/nproc))
       END IF
       !output: I1,J2,j3,Jp2,(jp3)
@@ -990,7 +990,7 @@ CONTAINS
       !now each process perform complete convolution of its planes
       DO j3 = 1, nd3/nproc
          !this condition ensures that we manage only the interesting part for the FFT
-         IF (iproc*(nd3/nproc) + j3 .LE. n3/2 + 1) THEN
+         IF (iproc*(nd3/nproc) + j3 <= n3/2 + 1) THEN
             Jp2stb = 1
             J2stb = 1
             Jp2stf = 1
@@ -998,7 +998,7 @@ CONTAINS
 
             ! transform along x axis
             lot = ncache/(4*n1)
-            IF (lot .LT. 1) THEN
+            IF (lot < 1) THEN
                WRITE (*, *) &
                   'convolxc_off:ncache has to be enlarged to be able to hold at'// &
                   'least one 1-d FFT of this size even though this will'// &
@@ -1013,7 +1013,7 @@ CONTAINS
 
                !reverse index ordering, leaving the planes to be transformed at the end
                !input: I1,J2,j3,Jp2,(jp3)
-               IF (nproc .EQ. 1) THEN
+               IF (nproc == 1) THEN
                   CALL S_mpiswitch_upcorn(j3, nfft, Jp2stb, J2stb, lot, n1, md2, nd3, nproc, zmpi2, zw(1, 1, 1))
                ELSE
                   CALL S_mpiswitch_upcorn(j3, nfft, Jp2stb, J2stb, lot, n1, md2, nd3, nproc, zmpi1, zw(1, 1, 1))
@@ -1038,7 +1038,7 @@ CONTAINS
 
             !transform along y axis
             lot = ncache/(4*n2)
-            IF (lot .LT. 1) THEN
+            IF (lot < 1) THEN
                WRITE (*, *) &
                   'convolxc_off:ncache has to be enlarged to be able to hold at'// &
                   'least one 1-d FFT of this size even though this will'// &
@@ -1108,7 +1108,7 @@ CONTAINS
 
                !reverse ordering
                !input: J2,Jp2,I1,j3,(jp3)
-               IF (nproc .EQ. 1) THEN
+               IF (nproc == 1) THEN
                   CALL S_unmpiswitch_downcorn(j3, nfft, Jp2stf, J2stf, lot, n1, md2, nd3, nproc, zw(1, 1, inzee), zmpi2)
                ELSE
                   CALL S_unmpiswitch_downcorn(j3, nfft, Jp2stf, J2stf, lot, n1, md2, nd3, nproc, zw(1, 1, inzee), zmpi1)
@@ -1120,7 +1120,7 @@ CONTAINS
 
       !Interprocessor data transposition
       !input: I1,J2,j3,Jp2,(jp3)
-      IF (nproc .GT. 1) THEN
+      IF (nproc > 1) THEN
          !communication scheduling
          CALL mpi_group%alltoall(zmpi1, zmpi2, 2*n1*(md2/nproc)*(nd3/nproc))
       END IF
@@ -1132,7 +1132,7 @@ CONTAINS
       lot = ncache/(2*n3)
       DO j2 = 1, md2/nproc
          !this condition ensures that we manage only the interesting part for the FFT
-         IF (iproc*(md2/nproc) + j2 .LE. n2) THEN
+         IF (iproc*(md2/nproc) + j2 <= n2) THEN
             DO i1 = 1, n1, lot
                ma = i1
                mb = MIN(i1 + (lot - 1), n1)
@@ -1183,7 +1183,7 @@ CONTAINS
       DEALLOCATE (zw)
       DEALLOCATE (zt)
       DEALLOCATE (cosinarr)
-      IF (nproc .GT. 1) DEALLOCATE (zmpi1)
+      IF (nproc > 1) DEALLOCATE (zmpi1)
 
       !  call timing(iproc,'PSolv_comput  ','OF')
       CALL timestop(handle)
@@ -1219,7 +1219,7 @@ CONTAINS
       DO Jp2 = Jp2stb, nproc
          DO J2 = J2stb, md2/nproc
             mfft = mfft + 1
-            IF (mfft .GT. nfft) THEN
+            IF (mfft > nfft) THEN
                Jp2stb = Jp2
                J2stb = J2
                RETURN
@@ -1314,7 +1314,7 @@ CONTAINS
       DO Jp2 = Jp2stf, nproc
          DO J2 = J2stf, md2/nproc
             mfft = mfft + 1
-            IF (mfft .GT. nfft) THEN
+            IF (mfft > nfft) THEN
                Jp2stf = Jp2
                J2stf = J2
                RETURN
@@ -1611,25 +1611,25 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, &
          DIMENSION(:, :, :, :, :)                        :: zmpi1
 
-      IF (MOD(n1, 2) .NE. 0) CPABORT("Parallel convolution:ERROR:n1")
-      IF (MOD(n2, 2) .NE. 0) CPABORT("Parallel convolution:ERROR:n2")
-      IF (MOD(n3, 2) .NE. 0) CPABORT("Parallel convolution:ERROR:n3")
-      IF (nd1 .LT. n1/2 + 1) CPABORT("Parallel convolution:ERROR:nd1")
-      IF (nd2 .LT. n2/2 + 1) CPABORT("Parallel convolution:ERROR:nd2")
-      IF (nd3 .LT. n3/2 + 1) CPABORT("Parallel convolution:ERROR:nd3")
-      IF (md1 .LT. n1/2) CPABORT("Parallel convolution:ERROR:md1")
-      IF (md2 .LT. n2/2) CPABORT("Parallel convolution:ERROR:md2")
-      IF (md3 .LT. n3/2) CPABORT("Parallel convolution:ERROR:md3")
-      IF (MOD(nd3, nproc) .NE. 0) CPABORT("Parallel convolution:ERROR:nd3")
-      IF (MOD(md2, nproc) .NE. 0) CPABORT("Parallel convolution:ERROR:md2")
+      IF (MOD(n1, 2) /= 0) CPABORT("Parallel convolution:ERROR:n1")
+      IF (MOD(n2, 2) /= 0) CPABORT("Parallel convolution:ERROR:n2")
+      IF (MOD(n3, 2) /= 0) CPABORT("Parallel convolution:ERROR:n3")
+      IF (nd1 < n1/2 + 1) CPABORT("Parallel convolution:ERROR:nd1")
+      IF (nd2 < n2/2 + 1) CPABORT("Parallel convolution:ERROR:nd2")
+      IF (nd3 < n3/2 + 1) CPABORT("Parallel convolution:ERROR:nd3")
+      IF (md1 < n1/2) CPABORT("Parallel convolution:ERROR:md1")
+      IF (md2 < n2/2) CPABORT("Parallel convolution:ERROR:md2")
+      IF (md3 < n3/2) CPABORT("Parallel convolution:ERROR:md3")
+      IF (MOD(nd3, nproc) /= 0) CPABORT("Parallel convolution:ERROR:nd3")
+      IF (MOD(md2, nproc) /= 0) CPABORT("Parallel convolution:ERROR:md2")
 
       !defining work arrays dimensions
 
       ncache = ncache_optimal
       IF (ncache <= MAX(n1, n2, n3/2)*4) ncache = MAX(n1, n2, n3/2)*4
       lzt = n2/2
-      IF (MOD(n2/2, 2) .EQ. 0) lzt = lzt + 1
-      IF (MOD(n2/2, 4) .EQ. 0) lzt = lzt + 1
+      IF (MOD(n2/2, 2) == 0) lzt = lzt + 1
+      IF (MOD(n2/2, 4) == 0) lzt = lzt + 1
 
       !Allocations
       ALLOCATE (btrig1(2, ctrig_length))
@@ -1652,7 +1652,7 @@ CONTAINS
       ALLOCATE (zmpi2(2, n1, md2/nproc, nd3))
       zmpi2 = 1.0E99_dp ! init mpi'ed buffers to silence warnings under valgrind
       ALLOCATE (cosinarr(2, n3/2))
-      IF (nproc .GT. 1) ALLOCATE (zmpi1(2, n1, md2/nproc, nd3/nproc, nproc))
+      IF (nproc > 1) ALLOCATE (zmpi1(2, n1, md2/nproc, nd3/nproc, nproc))
 
       !calculating the FFT work arrays (beware on the HalFFT in n3 dimension)
       CALL ctrig(n3/2, btrig3, after3, before3, now3, 1, ic3)
@@ -1680,7 +1680,7 @@ CONTAINS
 
       ! transform along z axis
       lot = ncache/(2*n3)
-      IF (lot .LT. 1) THEN
+      IF (lot < 1) THEN
          WRITE (*, *) &
             'convolxc_on:ncache has to be enlarged to be able to hold at'// &
             'least one 1-d FFT of this size even though this will'// &
@@ -1690,7 +1690,7 @@ CONTAINS
 
       DO j2 = 1, md2/nproc
          !this condition ensures that we manage only the interesting part for the FFT
-         IF (iproc*(md2/nproc) + j2 .LE. n2/2) THEN
+         IF (iproc*(md2/nproc) + j2 <= n2/2) THEN
             DO i1 = 1, (n1/2), lot
                ma = i1
                mb = MIN(i1 + (lot - 1), (n1/2))
@@ -1720,7 +1720,7 @@ CONTAINS
 
       !Interprocessor data transposition
       !input: I1,J2,j3,jp3,(Jp2)
-      IF (nproc .GT. 1) THEN
+      IF (nproc > 1) THEN
          !communication scheduling
          CALL mpi_group%alltoall(zmpi2, zmpi1, n1*(md2/nproc)*(nd3/nproc))
       END IF
@@ -1729,7 +1729,7 @@ CONTAINS
       !now each process perform complete convolution of its planes
       DO j3 = 1, nd3/nproc
          !this condition ensures that we manage only the interesting part for the FFT
-         IF (iproc*(nd3/nproc) + j3 .LE. n3/2 + 1) THEN
+         IF (iproc*(nd3/nproc) + j3 <= n3/2 + 1) THEN
             Jp2stb = 1
             J2stb = 1
             Jp2stf = 1
@@ -1737,7 +1737,7 @@ CONTAINS
 
             ! transform along x axis
             lot = ncache/(4*n1)
-            IF (lot .LT. 1) THEN
+            IF (lot < 1) THEN
                WRITE (*, *) &
                   'convolxc_on:ncache has to be enlarged to be able to hold at'// &
                   'least one 1-d FFT of this size even though this will'// &
@@ -1752,7 +1752,7 @@ CONTAINS
 
                !reverse index ordering, leaving the planes to be transformed at the end
                !input: I1,J2,j3,Jp2,(jp3)
-               IF (nproc .EQ. 1) THEN
+               IF (nproc == 1) THEN
                   CALL mpiswitch_upcorn(j3, nfft, Jp2stb, J2stb, lot, n1, md2, nd3, nproc, zmpi2, zw(1, 1, 1))
                ELSE
                   CALL mpiswitch_upcorn(j3, nfft, Jp2stb, J2stb, lot, n1, md2, nd3, nproc, zmpi1, zw(1, 1, 1))
@@ -1777,7 +1777,7 @@ CONTAINS
 
             !transform along y axis
             lot = ncache/(4*n2)
-            IF (lot .LT. 1) THEN
+            IF (lot < 1) THEN
                WRITE (*, *) &
                   'convolxc_on:ncache has to be enlarged to be able to hold at'// &
                   'least one 1-d FFT of this size even though this will'// &
@@ -1847,7 +1847,7 @@ CONTAINS
 
                !reverse ordering
                !input: J2,Jp2,I1,j3,(jp3)
-               IF (nproc .EQ. 1) THEN
+               IF (nproc == 1) THEN
                   CALL unmpiswitch_downcorn(j3, nfft, Jp2stf, J2stf, lot, n1, md2, nd3, nproc, zw(1, 1, inzee), zmpi2)
                ELSE
                   CALL unmpiswitch_downcorn(j3, nfft, Jp2stf, J2stf, lot, n1, md2, nd3, nproc, zw(1, 1, inzee), zmpi1)
@@ -1859,7 +1859,7 @@ CONTAINS
 
       !Interprocessor data transposition
       !input: I1,J2,j3,Jp2,(jp3)
-      IF (nproc .GT. 1) THEN
+      IF (nproc > 1) THEN
          !communication scheduling
          CALL mpi_group%alltoall(zmpi1, zmpi2, n1*(md2/nproc)*(nd3/nproc))
          !output: I1,J2,j3,jp3,(Jp2)
@@ -1870,7 +1870,7 @@ CONTAINS
       lot = ncache/(2*n3)
       DO j2 = 1, md2/nproc
          !this condition ensures that we manage only the interesting part for the FFT
-         IF (iproc*(md2/nproc) + j2 .LE. n2/2) THEN
+         IF (iproc*(md2/nproc) + j2 <= n2/2) THEN
             DO i1 = 1, (n1/2), lot
                ma = i1
                mb = MIN(i1 + (lot - 1), (n1/2))
@@ -1921,7 +1921,7 @@ CONTAINS
       DEALLOCATE (zw)
       DEALLOCATE (zt)
       DEALLOCATE (cosinarr)
-      IF (nproc .GT. 1) DEALLOCATE (zmpi1)
+      IF (nproc > 1) DEALLOCATE (zmpi1)
 
    END SUBROUTINE F_PoissonSolver
 
@@ -1988,7 +1988,7 @@ CONTAINS
       Main: DO Jp2 = Jp2stb, nproc
          DO J2 = J2stb, md2/nproc
             mfft = mfft + 1
-            IF (mfft .GT. nfft) THEN
+            IF (mfft > nfft) THEN
                Jp2stb = Jp2
                J2stb = J2
                EXIT Main
@@ -2063,7 +2063,7 @@ CONTAINS
       Main: DO Jp2 = Jp2stf, nproc
          DO J2 = J2stf, md2/nproc
             mfft = mfft + 1
-            IF (mfft .GT. nfft) THEN
+            IF (mfft > nfft) THEN
                Jp2stf = Jp2
                J2stf = J2
                EXIT Main

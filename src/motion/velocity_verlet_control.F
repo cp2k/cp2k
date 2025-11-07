@@ -59,7 +59,7 @@ CONTAINS
       CALL get_md_env(md_env, force_env=force_env, simpar=simpar)
 
       ! RESPA implemented only for NVE
-      IF (simpar%do_respa .AND. nve_ensemble .NE. simpar%ensemble) THEN
+      IF (simpar%do_respa .AND. nve_ensemble /= simpar%ensemble) THEN
          CPABORT("RESPA integrator not implemented for this ensemble")
       END IF
 

@@ -190,7 +190,7 @@ CONTAINS
             raise = .FALSE.
             DO j = opt_bas%nkind, 1, -1
                IF (raise) tmp_i2(j) = tmp_i2(j) + 1
-               IF (tmp_i2(j) .GT. tmp_i(j)) THEN
+               IF (tmp_i2(j) > tmp_i(j)) THEN
                   tmp_i2(j) = 0
                   raise = .TRUE.
                END IF
@@ -260,7 +260,7 @@ CONTAINS
 
       ! No input information available, try to equally distribute
       IF (.NOT. explicit) THEN
-         IF (nproc .GE. ncalc) THEN
+         IF (nproc >= ncalc) THEN
             iadd1 = nproc/ncalc
             iadd2 = MOD(nproc, ncalc)
             ALLOCATE (opt_bas%comp_group(ncalc))
@@ -269,7 +269,7 @@ CONTAINS
                ALLOCATE (opt_bas%comp_group(igroup + 1)%member_list(1))
                opt_bas%comp_group(igroup + 1)%member_list(1) = igroup
                opt_bas%group_partition(igroup) = iadd1
-               IF (igroup .LT. iadd2) opt_bas%group_partition(igroup) = opt_bas%group_partition(igroup) + 1
+               IF (igroup < iadd2) opt_bas%group_partition(igroup) = opt_bas%group_partition(igroup) + 1
             END DO
          ELSE
             iadd1 = ncalc/nproc
@@ -280,7 +280,7 @@ CONTAINS
             DO igroup = 0, nproc - 1
                opt_bas%group_partition(igroup) = 1
                isize = iadd1
-               IF (igroup .LT. iadd2) isize = isize + 1
+               IF (igroup < iadd2) isize = isize + 1
                ALLOCATE (opt_bas%comp_group(igroup + 1)%member_list(isize))
                DO j = 1, isize
                   opt_bas%comp_group(igroup + 1)%member_list(j) = icount
@@ -298,21 +298,21 @@ CONTAINS
             CALL cp_abort(__LOCATION__, &
                           "Number of processors in group distribution does not match number of MPI tasks."// &
                           " Please change input.")
-         IF (.NOT. isize .LE. ncalc) &
+         IF (.NOT. isize <= ncalc) &
             CALL cp_abort(__LOCATION__, &
                           "Number of Groups larger than number of calculations"// &
                           " Please change input.")
          CPASSERT(nptot == nproc)
          ALLOCATE (opt_bas%comp_group(isize))
          ALLOCATE (opt_bas%group_partition(0:isize - 1))
-         IF (isize .LT. ncalc) THEN
+         IF (isize < ncalc) THEN
             iadd1 = ncalc/isize
             iadd2 = MOD(ncalc, isize)
             icount = 0
             DO igroup = 0, isize - 1
                opt_bas%group_partition(igroup) = i_vals(igroup + 1)
                isize = iadd1
-               IF (igroup .LT. iadd2) isize = isize + 1
+               IF (igroup < iadd2) isize = isize + 1
                ALLOCATE (opt_bas%comp_group(igroup + 1)%member_list(isize))
                DO j = 1, isize
                   opt_bas%comp_group(igroup + 1)%member_list(j) = icount
@@ -563,7 +563,7 @@ CONTAINS
             iind = convert_l_contr_to_entry(subset%lmin, subset%l, icon, subset%lmin + il - 1)
             IF (.NOT. in_use(iind)) tmp_l(il) = tmp_l(il) - 1
          END DO
-         IF (tmp_l(il) .GT. 0) subset_new%lmax = subset_new%lmax + 1
+         IF (tmp_l(il) > 0) subset_new%lmax = subset_new%lmax + 1
       END DO
       subset_new%nl = subset_new%lmax - subset_new%lmin + 1
       subset_new%ncon_tot = SUM(tmp_l)
@@ -754,7 +754,7 @@ CONTAINS
                      CALL set_constraint(flex_basis, iset, ipgf, const_section, is_bound, is_varlim, irep)
                   END DO
                ELSE
-                  IF (def_exp(2) .LE. flex_basis%subset(iset)%nexp) &
+                  IF (def_exp(2) <= flex_basis%subset(iset)%nexp) &
                      CALL cp_abort(__LOCATION__, &
                                    "Exponent declared in constraint is larger than number of exponents in the set"// &
                                    " Please change input.")
@@ -762,7 +762,7 @@ CONTAINS
                END IF
             END DO
          ELSE
-            IF (.NOT. def_exp(1) .LE. flex_basis%nsets) &
+            IF (.NOT. def_exp(1) <= flex_basis%nsets) &
                CALL cp_abort(__LOCATION__, &
                              "Set number of constraint is larger than number of sets in the template basis set."// &
                              " Please change input.")
@@ -771,7 +771,7 @@ CONTAINS
                   CALL set_constraint(flex_basis, def_exp(1), ipgf, const_section, is_bound, is_varlim, irep)
                END DO
             ELSE
-               IF (.NOT. def_exp(2) .LE. flex_basis%subset(def_exp(1))%nexp) &
+               IF (.NOT. def_exp(2) <= flex_basis%subset(def_exp(1))%nexp) &
                   CALL cp_abort(__LOCATION__, &
                                 "Exponent declared in constraint is larger than number of exponents in the set"// &
                                 " Please change input.")
@@ -816,7 +816,7 @@ CONTAINS
          flex_basis%subset(iset)%exp_const(ipgf)%llim = MINVAL(r_vals)
          flex_basis%subset(iset)%exp_const(ipgf)%ulim = MAXVAL(r_vals)
          r_val = flex_basis%subset(iset)%exps(ipgf)
-         IF (flex_basis%subset(iset)%exps(ipgf) .GT. MAXVAL(r_vals) .OR. flex_basis%subset(iset)%exps(ipgf) .LT. MINVAL(r_vals)) &
+         IF (flex_basis%subset(iset)%exps(ipgf) > MAXVAL(r_vals) .OR. flex_basis%subset(iset)%exps(ipgf) < MINVAL(r_vals)) &
             CALL cp_abort(__LOCATION__, &
                           "Exponent "//cp_to_string(r_val)// &
                           " declared in constraint is out of bounds of constraint"//cp_to_string(MINVAL(r_vals))// &

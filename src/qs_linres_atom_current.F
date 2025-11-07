@@ -170,7 +170,7 @@ CONTAINS
       eps_cpc = dft_control%qs_control%gapw_control%eps_cpc
 
       idir2 = 1
-      IF (idir .NE. iB) THEN
+      IF (idir /= iB) THEN
          CALL set_vecp_rev(idir, iB, idir2)
       END IF
       CALL set_vecp(iB, ii, iii)
@@ -368,7 +368,7 @@ CONTAINS
                      n_cont_b = alist_bc%clist(kbc)%nsgf_cnt
                      sgf_soft_only_a = alist_ac%clist(kac)%sgf_soft_only
                      sgf_soft_only_b = alist_bc%clist(kbc)%sgf_soft_only
-                     IF (n_cont_a .EQ. 0 .OR. n_cont_b .EQ. 0) CYCLE
+                     IF (n_cont_a == 0 .OR. n_cont_b == 0) CYCLE
 
                      ! thanks to the linearity of the response, we
                      ! can avoid computing soft-soft interactions.
@@ -544,7 +544,7 @@ CONTAINS
             iatom = atom_list(iat)
             is_not_associated = .NOT. ASSOCIATED(jrho1_atom_set(iatom)%cjc0_h(1)%r_coef)
 
-            IF (iat .GE. bo(1) .AND. iat .LE. bo(2) .AND. is_not_associated) THEN
+            IF (iat >= bo(1) .AND. iat <= bo(2) .AND. is_not_associated) THEN
                CALL allocate_jrho_coeff(jrho1_atom_set, iatom, nsoctot)
             END IF
 
@@ -754,7 +754,7 @@ CONTAINS
             ! step function
             gauge_h(1:nr) = 0e0_dp
             DO ir = 1, nr
-               IF (grid_atom%rad(ir) .LE. hard_radius) THEN
+               IF (grid_atom%rad(ir) <= hard_radius) THEN
                   gauge_s(ir) = grid_atom%rad(ir)
                ELSE
                   gauge_s(ir) = gauge_h(ir)
@@ -775,10 +775,10 @@ CONTAINS
             DO iset2 = 1, nset
                CALL get_none0_cg_list(my_CG, lmin(iset1), lmax(iset1), lmin(iset2), lmax(iset2), &
                                       max_s_harm, lmax_expansion, cg_list, cg_n_list, max_iso_not0_local)
-               CPASSERT(max_iso_not0_local .LE. max_iso_not0)
+               CPASSERT(max_iso_not0_local <= max_iso_not0)
                CALL get_none0_cg_list(my_CG_dxyz_asym, lmin(iset1), lmax(iset1), lmin(iset2), lmax(iset2), &
                                       max_s_harm, lmax_expansion, dacg_list, dacg_n_list, damax_iso_not0_local)
-               CPASSERT(damax_iso_not0_local .LE. damax_iso_not0)
+               CPASSERT(damax_iso_not0_local <= damax_iso_not0)
 
                n1s = nsoset(lmax(iset1))
                DO ipgf1 = 1, npgf(iset1)
@@ -814,9 +814,9 @@ CONTAINS
                      dgg_1 = 0.0_dp
                      !
                      ! Take only the terms of expansion for L < lmax_expansion
-                     IF (lmin12 .LE. lmax_expansion) THEN
+                     IF (lmin12 <= lmax_expansion) THEN
                         !
-                        IF (lmax12 .GT. lmax_expansion) lmax12 = lmax_expansion
+                        IF (lmax12 > lmax_expansion) lmax12 = lmax_expansion
                         !
                         IF (lmin12 == 0) THEN
                            gg(1:nr, lmin12) = g1(1:nr)*g2(1:nr)
@@ -954,7 +954,7 @@ CONTAINS
                                  CPASSERT(iso2 > 0 .AND. iso1 > 0)
                                  !
                                  l = indso(1, iso1) + indso(1, iso2)
-                                 IF (l .GT. lmax_expansion .OR. l .LT. .0) THEN
+                                 IF (l > lmax_expansion .OR. l < .0) THEN
                                     WRITE (*, *) 'calculate_jrho_atom_rad: 1 l', l
                                     WRITE (*, *) 'calculate_jrho_atom_rad: 1 lmax_expansion', lmax_expansion
                                     WRITE (*, *) '.... will stop!'
@@ -963,7 +963,7 @@ CONTAINS
                                  !------------------------------------------------------------------
                                  ! P0
                                  !
-                                 IF (current_env%gauge .EQ. current_gauge_atom) THEN
+                                 IF (current_env%gauge == current_gauge_atom) THEN
                                     ! Hard term
                                     Fr_h(1:nr, iso) = Fr_h(1:nr, iso) + &
                                                       gg(1:nr, l)*cjc0_h_block(iso1, iso2)* &
@@ -997,7 +997,7 @@ CONTAINS
                                  !------------------------------------------------------------------
                                  ! Rci
                                  !
-                                 IF (current_env%gauge .EQ. current_gauge_atom) THEN
+                                 IF (current_env%gauge == current_gauge_atom) THEN
                                     ! Hard term
                                     Fr_a_h_ii(1:nr, iso) = Fr_a_h_ii(1:nr, iso) + &
                                                            dgg_1(1:nr, l)* &
@@ -1023,7 +1023,7 @@ CONTAINS
                                  !------------------------------------------------------------------
                                  ! Rbi
                                  !
-                                 IF (current_env%gauge .EQ. current_gauge_atom) THEN
+                                 IF (current_env%gauge == current_gauge_atom) THEN
                                     ! Hard term
                                     Fr_a_h_iii(1:nr, iso) = Fr_a_h_iii(1:nr, iso) + &
                                                             dgg_1(1:nr, l)* &
@@ -1068,7 +1068,7 @@ CONTAINS
                                  CPASSERT(iso2 > 0 .AND. iso1 > 0)
                                  !
                                  l = indso(1, iso1) + indso(1, iso2)
-                                 IF (l .GT. lmax_expansion) THEN
+                                 IF (l > lmax_expansion) THEN
                                     WRITE (*, *) 'calculate_jrho_atom_rad: 1 l', l
                                     WRITE (*, *) 'calculate_jrho_atom_rad: 1 lmax_expansion', lmax_expansion
                                     WRITE (*, *) '.... will stop!'
@@ -1090,7 +1090,7 @@ CONTAINS
                                  !------------------------------------------------------------------
                                  ! Dcij
                                  !
-                                 IF (current_env%gauge .EQ. current_gauge_atom) THEN
+                                 IF (current_env%gauge == current_gauge_atom) THEN
                                     ! Hard term
                                     Fr_b_h_ii(1:nr, iso) = Fr_b_h_ii(1:nr, iso) + &
                                                            gg_lm1(1:nr, l)* &
@@ -1116,7 +1116,7 @@ CONTAINS
                                  !------------------------------------------------------------------
                                  ! Dbij
                                  !
-                                 IF (current_env%gauge .EQ. current_gauge_atom) THEN
+                                 IF (current_env%gauge == current_gauge_atom) THEN
                                     ! Hard term
                                     Fr_b_h_iii(1:nr, iso) = Fr_b_h_iii(1:nr, iso) + &
                                                             gg_lm1(1:nr, l)* &
@@ -1274,7 +1274,7 @@ CONTAINS
       !
       scale = 0.0_dp
       idir2 = 1
-      IF (idir .NE. iB) THEN
+      IF (idir /= iB) THEN
          CALL set_vecp_rev(idir, iB, idir2)
          scale = fac_vecp(idir, iB, idir2)
       END IF
@@ -1361,7 +1361,7 @@ CONTAINS
                pra = point - ratom(:, iatom)
                pa = SQRT(pra(1)**2 + pra(2)**2 + pra(3)**2)
                DO jatom = 1, natm_gauge
-                  IF (iatom .EQ. jatom) CYCLE
+                  IF (iatom == jatom) CYCLE
                   prb = point - ratom(:, jatom)
                   pb = SQRT(prb(1)**2 + prb(2)**2 + prb(3)**2)
                   ab = SQRT((pra(1) - prb(1))**2 + (pra(2) - prb(2))**2 + (pra(3) - prb(3))**2)
@@ -1434,7 +1434,7 @@ CONTAINS
                            jrho1_atom_set=jrho1_atom_set)
 
       do_igaim = .FALSE.
-      IF (current_env%gauge .EQ. current_gauge_atom) do_igaim = .TRUE.
+      IF (current_env%gauge == current_gauge_atom) do_igaim = .TRUE.
 
       gapw = dft_control%qs_control%gapw
       nkind = SIZE(qs_kind_set, 1)
@@ -1467,8 +1467,8 @@ CONTAINS
                natm_gauge = 0
                DO jatom = 1, natm_tot
                   r(:) = pbc(particle_set(jatom)%r(:) - particle_set(iatom)%r(:), cell)
-                  ! SQRT(SUM(r(:)**2)) .LE. 2.0_dp*hard_radius
-                  IF (SUM(r(:)**2) .LE. (4.0_dp*hard_radius*hard_radius)) THEN
+                  ! SQRT(SUM(r(:)**2)) <= 2.0_dp*hard_radius
+                  IF (SUM(r(:)**2) <= (4.0_dp*hard_radius*hard_radius)) THEN
                      natm_gauge = natm_gauge + 1
                      ratom(:, natm_gauge) = r(:)
                   END IF

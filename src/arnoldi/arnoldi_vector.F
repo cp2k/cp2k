@@ -267,7 +267,7 @@ CONTAINS
       ALLOCATE (fast_vec_access%blk_map(0:nblk_local))
 
       CALL dbcsr_get_info(matrix=vec, nblkcols_local=col)
-      IF (col .GT. 1) CPABORT("BUG")
+      IF (col > 1) CPABORT("BUG")
 
       ! go through the blocks of the vector
       iblock = 0
@@ -318,7 +318,7 @@ CONTAINS
 
       ! sanity check
       CALL dbcsr_get_info(matrix=vec, nblkrows_local=row)
-      IF (row .GT. 1) CPABORT("BUG")
+      IF (row > 1) CPABORT("BUG")
 
       ! go through the blocks of the vector
       iblock = 0
@@ -448,7 +448,7 @@ CONTAINS
          CALL hash_table_release(hash_table)
          CALL hash_table_create(hash_table, INT((UBOUND(tmp_hash, 1) + 8)*hash_table_expand))
          DO i = LBOUND(tmp_hash, 1), UBOUND(tmp_hash, 1)
-            IF (tmp_hash(i)%c .NE. 0) THEN
+            IF (tmp_hash(i)%c /= 0) THEN
                CALL hash_table_add(hash_table, tmp_hash(i)%c, tmp_hash(i)%p)
             END IF
          END DO
@@ -606,12 +606,12 @@ CONTAINS
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, row, col, data_d)
          prow = hash_table_get(fast_vec_col%hash_table, row)
-         IF (fast_vec_col%blk_map(prow)%assigned_thread .NE. ithread) CYCLE
+         IF (fast_vec_col%blk_map(prow)%assigned_thread /= ithread) CYCLE
          m = SIZE(fast_vec_col%blk_map(prow)%ptr, 1)
          n = SIZE(fast_vec_col%blk_map(prow)%ptr, 2)
          k = SIZE(data_d, 2)
-         IF ((m .EQ. 0) .OR. (n .EQ. 0) .OR. (k .EQ. 0)) CYCLE
-         CPASSERT(n .EQ. 1)
+         IF ((m == 0) .OR. (n == 0) .OR. (k == 0)) CYCLE
+         CPASSERT(n == 1)
          pcol = hash_table_get(fast_vec_row%hash_table, col)
          CALL dgemm('N', 'T', m, n, k, &
                     1.0_dp, data_d, m, &
@@ -722,13 +722,13 @@ CONTAINS
          pcol = hash_table_get(fast_vec_row%hash_table, col)
          IF (ASSOCIATED(fast_vec_row%blk_map(pcol)%ptr) .AND. &
              ASSOCIATED(fast_vec_col%blk_map(prow)%ptr)) THEN
-            IF (fast_vec_row%blk_map(pcol)%assigned_thread .NE. ithread) CYCLE
+            IF (fast_vec_row%blk_map(pcol)%assigned_thread /= ithread) CYCLE
             fast_vec_row%blk_map(pcol)%ptr = fast_vec_row%blk_map(pcol)%ptr + &
                                              MATMUL(TRANSPOSE(fast_vec_col%blk_map(prow)%ptr), data_d)
          ELSE
             prow = hash_table_get(fast_vec_row%hash_table, row)
             pcol = hash_table_get(fast_vec_col%hash_table, col)
-            IF (fast_vec_row%blk_map(prow)%assigned_thread .NE. ithread) CYCLE
+            IF (fast_vec_row%blk_map(prow)%assigned_thread /= ithread) CYCLE
             fast_vec_row%blk_map(prow)%ptr = fast_vec_row%blk_map(prow)%ptr + &
                                              MATMUL(TRANSPOSE(fast_vec_col%blk_map(pcol)%ptr), TRANSPOSE(data_d))
          END IF
@@ -969,26 +969,26 @@ CONTAINS
          rprow = hash_table_get(res_fast_vec_col%hash_table, row)
          IF (ASSOCIATED(fast_vec_row%blk_map(pcol)%ptr) .AND. &
              ASSOCIATED(res_fast_vec_col%blk_map(rprow)%ptr)) THEN
-            IF (res_fast_vec_col%blk_map(rprow)%assigned_thread .EQ. ithread) THEN
+            IF (res_fast_vec_col%blk_map(rprow)%assigned_thread == ithread) THEN
                res_fast_vec_col%blk_map(rprow)%ptr = res_fast_vec_col%blk_map(rprow)%ptr + &
                                                      MATMUL(data_d, TRANSPOSE(fast_vec_row%blk_map(pcol)%ptr))
             END IF
             prow = hash_table_get(fast_vec_col%hash_table, row)
             rpcol = hash_table_get(res_fast_vec_row%hash_table, col)
-            IF (res_fast_vec_row%blk_map(rpcol)%assigned_thread .EQ. ithread .AND. row .NE. col) THEN
+            IF (res_fast_vec_row%blk_map(rpcol)%assigned_thread == ithread .AND. row /= col) THEN
                res_fast_vec_row%blk_map(rpcol)%ptr = res_fast_vec_row%blk_map(rpcol)%ptr + &
                                                      MATMUL(TRANSPOSE(fast_vec_col%blk_map(prow)%ptr), data_d)
             END IF
          ELSE
             rpcol = hash_table_get(res_fast_vec_col%hash_table, col)
             prow = hash_table_get(fast_vec_row%hash_table, row)
-            IF (res_fast_vec_col%blk_map(rpcol)%assigned_thread .EQ. ithread) THEN
+            IF (res_fast_vec_col%blk_map(rpcol)%assigned_thread == ithread) THEN
                res_fast_vec_col%blk_map(rpcol)%ptr = res_fast_vec_col%blk_map(rpcol)%ptr + &
                                                      TRANSPOSE(MATMUL(fast_vec_row%blk_map(prow)%ptr, data_d))
             END IF
             rprow = hash_table_get(res_fast_vec_row%hash_table, row)
             pcol = hash_table_get(fast_vec_col%hash_table, col)
-            IF (res_fast_vec_row%blk_map(rprow)%assigned_thread .EQ. ithread .AND. row .NE. col) THEN
+            IF (res_fast_vec_row%blk_map(rprow)%assigned_thread == ithread .AND. row /= col) THEN
                res_fast_vec_row%blk_map(rprow)%ptr = res_fast_vec_row%blk_map(rprow)%ptr + &
                                                      TRANSPOSE(MATMUL(data_d, fast_vec_col%blk_map(pcol)%ptr))
             END IF

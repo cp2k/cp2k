@@ -186,7 +186,7 @@ CONTAINS
          CALL cp_fm_scale_and_add(1.0_dp, U, expfactor, G)
          tnorm = cp_fm_frobenius_norm(G)
          !write(*,*) 'Taylor expansion i=',1,' norm(X^i)/i!=',tnorm
-         IF (tnorm .GT. 1.0E-10_dp) THEN
+         IF (tnorm > 1.0E-10_dp) THEN
             ! other orders
             CALL cp_fm_to_fm(G, Gp1)
             DO i = 2, taylor_order
@@ -198,7 +198,7 @@ CONTAINS
                CALL cp_fm_scale_and_add(1.0_dp, U, expfactor, Gp1)
                tnorm = cp_fm_frobenius_norm(Gp1)
                !write(*,*) 'Taylor expansion i=',i,' norm(X^i)/i!=',tnorm*expfactor
-               IF (tnorm*expfactor .LT. 1.0E-10_dp) EXIT
+               IF (tnorm*expfactor < 1.0E-10_dp) EXIT
             END DO
          END IF
          !
@@ -207,14 +207,14 @@ CONTAINS
          CALL cp_fm_to_fm(CTmp, C)
          !
          ! printing
-         IF (output_unit .GT. 0) THEN
+         IF (output_unit > 0) THEN
             WRITE (output_unit, '(10X,I4,E18.10,2E10.2)') istep, f2, gnorm, ABS((f2 - f2old)/f2)
          END IF
          !
          ! Are we done?
          sweeps = istep
-         !IF(gnorm.LE.grad_thresh.AND.ABS((f2-f2old)/f2).LE.f2_thresh.AND.istep.GT.1) THEN
-         IF (ABS((f2 - f2old)/f2) .LE. eps .AND. istep .GT. 1) THEN
+         !IF(gnorm<=grad_thresh.AND.ABS((f2-f2old)/f2)<=f2_thresh.AND.istep>1) THEN
+         IF (ABS((f2 - f2old)/f2) <= eps .AND. istep > 1) THEN
             converged = .TRUE.
             EXIT
          END IF
@@ -224,20 +224,20 @@ CONTAINS
       ! here we should do one refine step to enforce C'*S*C=1 for any case
       !
       ! Print the final result
-      IF (output_unit .GT. 0) WRITE (output_unit, '(A,E16.10)') ' sparseness function f2 = ', f2
+      IF (output_unit > 0) WRITE (output_unit, '(A,E16.10)') ' sparseness function f2 = ', f2
       !
       ! sparsity
       !DO i=1,size(thresh,1)
       !   gnorm = 0.0_dp
       !   DO o=1,ncol_local
       !      DO p=1,nrow_local
-      !         IF(ABS(C%local_data(p,o)).GT.thresh(i)) THEN
+      !         IF(ABS(C%local_data(p,o))>thresh(i)) THEN
       !            gnorm = gnorm + 1.0_dp
       !         ENDIF
       !      ENDDO
       !   ENDDO
       !   CALL C%matrix_struct%para_env%sum(gnorm)
-      !   IF(output_unit.GT.0) THEN
+      !   IF(output_unit>0) THEN
       !      WRITE(output_unit,*) 'qs_localize: ratio2=',gnorm / ( REAL(k,KIND=dp)*REAL(n,KIND=dp) ),thresh(i)
       !   ENDIF
       !ENDDO
@@ -933,7 +933,7 @@ CONTAINS
             END IF
 
             ! reset if new_direction
-            IF (new_direction .AND. MOD(line_searches, 20) .EQ. 5) THEN
+            IF (new_direction .AND. MOD(line_searches, 20) == 5) THEN
                CALL cp_cfm_set_all(skc, czero)
                CALL cp_cfm_set_all(Gct_old, czero)
                norm2_old = 1.0E30_dp
@@ -1078,7 +1078,7 @@ CONTAINS
                   CALL cp_cfm_scale_and_add(cone, skc, cone, Gct_old)
                   CALL cp_cfm_trace(skc, Gct_old, cnorm2_Gct_cross)
                   norm2_Gct_cross = REAL(cnorm2_Gct_cross, KIND=dp)
-                  IF (norm2_Gct_cross .LE. 0.0_dp) THEN ! back to steepest ascent
+                  IF (norm2_Gct_cross <= 0.0_dp) THEN ! back to steepest ascent
                      CALL cp_cfm_scale_and_add(czero, skc, cone, Gct_old)
                   END IF
                ELSE
@@ -1093,7 +1093,7 @@ CONTAINS
 
             ! gold line search
             new_direction = .FALSE.
-            IF (line_search_count .EQ. 1) THEN
+            IF (line_search_count == 1) THEN
                lsl = 1
                lsr = 0
                lsm = 1
@@ -1101,7 +1101,7 @@ CONTAINS
                pos(2) = ds_min/gold_sec
                ds = pos(2)
             ELSE
-               IF (line_search_count .EQ. 50) THEN
+               IF (line_search_count == 50) THEN
                   IF (ABS(energy(line_search_count) - energy(line_search_count - 1)) < 1.0E-4_dp) THEN
                      CPWARN("Line search failed to converge properly")
                      ds_min = 0.1_dp
@@ -1112,8 +1112,8 @@ CONTAINS
                      CPABORT("No. of line searches exceeds 50")
                   END IF
                ELSE
-                  IF (lsr .EQ. 0) THEN
-                     IF (energy(line_search_count - 1) .GT. energy(line_search_count)) THEN
+                  IF (lsr == 0) THEN
+                     IF (energy(line_search_count - 1) > energy(line_search_count)) THEN
                         lsr = line_search_count
                         pos(line_search_count + 1) = pos(lsm) + (pos(lsr) - pos(lsm))*gold_sec
                      ELSE
@@ -1122,27 +1122,27 @@ CONTAINS
                         pos(line_search_count + 1) = pos(line_search_count)/gold_sec
                      END IF
                   ELSE
-                     IF (pos(line_search_count) .LT. pos(lsm)) THEN
-                        IF (energy(line_search_count) .GT. energy(lsm)) THEN
+                     IF (pos(line_search_count) < pos(lsm)) THEN
+                        IF (energy(line_search_count) > energy(lsm)) THEN
                            lsr = lsm
                            lsm = line_search_count
                         ELSE
                            lsl = line_search_count
                         END IF
                      ELSE
-                        IF (energy(line_search_count) .GT. energy(lsm)) THEN
+                        IF (energy(line_search_count) > energy(lsm)) THEN
                            lsl = lsm
                            lsm = line_search_count
                         ELSE
                            lsr = line_search_count
                         END IF
                      END IF
-                     IF (pos(lsr) - pos(lsm) .GT. pos(lsm) - pos(lsl)) THEN
+                     IF (pos(lsr) - pos(lsm) > pos(lsm) - pos(lsl)) THEN
                         pos(line_search_count + 1) = pos(lsm) + gold_sec*(pos(lsr) - pos(lsm))
                      ELSE
                         pos(line_search_count + 1) = pos(lsl) + gold_sec*(pos(lsm) - pos(lsl))
                      END IF
-                     IF ((pos(lsr) - pos(lsl)) .LT. 1.0E-3_dp*pos(lsr)) THEN
+                     IF ((pos(lsr) - pos(lsl)) < 1.0E-3_dp*pos(lsr)) THEN
                         new_direction = .TRUE.
                      END IF
                   END IF ! lsr .eq. 0
@@ -1685,11 +1685,11 @@ CONTAINS
                   mii(idim) = diag_z(row_indices(irow), idim)
                   mjj(idim) = diag_z(col_indices(icol), idim)
                END DO
-               IF (row_indices(irow) .NE. col_indices(icol)) THEN
+               IF (row_indices(irow) /= col_indices(icol)) THEN
                   CALL get_angle(mii, mjj, mij, weights, theta)
                   theta = crazy_scale*theta
-                  IF (theta .GT. limit_crazy_angle) theta = limit_crazy_angle
-                  IF (theta .LT. -limit_crazy_angle) theta = -limit_crazy_angle
+                  IF (theta > limit_crazy_angle) theta = limit_crazy_angle
+                  IF (theta < -limit_crazy_angle) theta = -limit_crazy_angle
                   IF (crazy_use_diag) THEN
                      cmat_A%local_data(irow, icol) = -CMPLX(0.0_dp, theta, dp)
                   ELSE
@@ -1744,10 +1744,10 @@ CONTAINS
                "CRAZY| ", iterations, value, tolerance, maxeval, limit_crazy_angle
             CALL m_flush(unit_nr)
          END IF
-         IF (tolerance .LT. eps_localization .OR. iterations .GE. max_iter) EXIT
+         IF (tolerance < eps_localization .OR. iterations >= max_iter) EXIT
       END DO
 
-      IF (PRESENT(converged)) converged = (tolerance .LT. eps_localization)
+      IF (PRESENT(converged)) converged = (tolerance < eps_localization)
 
       CALL cp_cfm_release(cmat_A)
       CALL cp_cfm_release(cmat_R)
@@ -1880,7 +1880,7 @@ CONTAINS
          CALL parallel_gemm('N', 'C', n, n, n, cone, cmat_t1, cmat_R, czero, cmat_U)
          cmat_U%local_data = REAL(cmat_U%local_data, KIND=dp) ! enforce numerics, U is a real matrix
 
-         IF (new_direction .AND. MOD(line_searches, 20) .EQ. 5) THEN ! reset with A .eq. 0
+         IF (new_direction .AND. MOD(line_searches, 20) == 5) THEN ! reset with A .eq. 0
             DO idim = 1, ndim
                CALL parallel_gemm('N', 'N', n, n, n, cone, c_zij(idim), cmat_U, czero, cmat_t1)
                CALL parallel_gemm('C', 'N', n, n, n, cone, cmat_U, cmat_t1, czero, c_zij(idim))
@@ -1940,7 +1940,7 @@ CONTAINS
             DO irow = 1, nrow_local
                ll = (0.0_dp, -1.0_dp)*evals(row_indices(irow))
                lk = (0.0_dp, -1.0_dp)*evals(col_indices(icol))
-               IF (ABS(ll - lk) .LT. 0.5_dp) THEN ! use a series expansion to avoid loss of precision
+               IF (ABS(ll - lk) < 0.5_dp) THEN ! use a series expansion to avoid loss of precision
                   tmp = 1.0_dp
                   cmat_B%local_data(irow, icol) = 0.0_dp
                   DO i = 1, 16
@@ -1999,7 +1999,7 @@ CONTAINS
                beta_pr = MAX(beta_pr, 0.0_dp)
                CALL cp_fm_scale_and_add(beta_pr, matrix_G_search, -1.0_dp, matrix_G_old)
                CALL cp_fm_trace(matrix_G_search, matrix_G_old, normg_cross)
-               IF (normg_cross .GE. 0) THEN ! back to SD
+               IF (normg_cross >= 0) THEN ! back to SD
                   IF (matrix_A%matrix_struct%para_env%is_source()) THEN
                      WRITE (cp_logger_get_default_unit_nr(), *) "!"
                   END IF
@@ -2032,10 +2032,10 @@ CONTAINS
                b = grad(1)
                x1 = pos(2)
                a = (energy(2) - b*x1 - c)/(x1**2)
-               IF (a .LE. 0.0_dp) a = 1.0E-15_dp
+               IF (a <= 0.0_dp) a = 1.0E-15_dp
                npos = -b/(2.0_dp*a)
                val = a*npos**2 + b*npos + c
-               IF (val .LT. energy(1) .AND. val .LE. energy(2)) THEN
+               IF (val < energy(1) .AND. val <= energy(2)) THEN
                   ! we go to a minimum, but ...
                   ! we take a guard against too large steps
                   pos(3) = MIN(npos, MAXVAL(pos(1:2))*4.0_dp)
@@ -2051,7 +2051,7 @@ CONTAINS
                pos(2) = ds_min*0.8_dp
             CASE (2)
                new_direction = .FALSE.
-               IF (energy(2) .GT. energy(1)) THEN
+               IF (energy(2) > energy(1)) THEN
                   pos(3) = ds_min*0.7_dp
                ELSE
                   pos(3) = ds_min*1.4_dp
@@ -2066,7 +2066,7 @@ CONTAINS
                fc = energy(3)
                nom = (xb - xa)**2*(fb - fc) - (xb - xc)**2*(fb - fa)
                denom = (xb - xa)*(fb - fc) - (xb - xc)*(fb - fa)
-               IF (ABS(denom) .LE. 1.0E-18_dp*MAX(ABS(fb - fc), ABS(fb - fa))) THEN
+               IF (ABS(denom) <= 1.0E-18_dp*MAX(ABS(fb - fc), ABS(fb - fa))) THEN
                   npos = xb
                ELSE
                   npos = xb - 0.5_dp*nom/denom ! position of the stationary point
@@ -2074,7 +2074,7 @@ CONTAINS
                val = (npos - xa)*(npos - xb)*fc/((xc - xa)*(xc - xb)) + &
                      (npos - xb)*(npos - xc)*fa/((xa - xb)*(xa - xc)) + &
                      (npos - xc)*(npos - xa)*fb/((xb - xc)*(xb - xa))
-               IF (val .LT. fa .AND. val .LE. fb .AND. val .LE. fc) THEN ! OK, we go to a minimum
+               IF (val < fa .AND. val <= fb .AND. val <= fc) THEN ! OK, we go to a minimum
                   ! we take a guard against too large steps
                   pos(4) = MAX(MAXVAL(pos(1:3))*0.01_dp, &
                                MIN(npos, MAXVAL(pos(1:3))*4.0_dp))
@@ -2084,16 +2084,16 @@ CONTAINS
             END SELECT
          CASE (3) ! golden section hunt
             new_direction = .FALSE.
-            IF (line_search_count .EQ. 1) THEN
+            IF (line_search_count == 1) THEN
                lsl = 1
                lsr = 0
                lsm = 1
                pos(1) = 0.0_dp
                pos(2) = ds_min/gold_sec
             ELSE
-               IF (line_search_count .EQ. 150) CPABORT("Too many")
-               IF (lsr .EQ. 0) THEN
-                  IF (energy(line_search_count - 1) .LT. energy(line_search_count)) THEN
+               IF (line_search_count == 150) CPABORT("Too many")
+               IF (lsr == 0) THEN
+                  IF (energy(line_search_count - 1) < energy(line_search_count)) THEN
                      lsr = line_search_count
                      pos(line_search_count + 1) = pos(lsm) + (pos(lsr) - pos(lsm))*gold_sec
                   ELSE
@@ -2102,27 +2102,27 @@ CONTAINS
                      pos(line_search_count + 1) = pos(line_search_count)/gold_sec
                   END IF
                ELSE
-                  IF (pos(line_search_count) .LT. pos(lsm)) THEN
-                     IF (energy(line_search_count) .LT. energy(lsm)) THEN
+                  IF (pos(line_search_count) < pos(lsm)) THEN
+                     IF (energy(line_search_count) < energy(lsm)) THEN
                         lsr = lsm
                         lsm = line_search_count
                      ELSE
                         lsl = line_search_count
                      END IF
                   ELSE
-                     IF (energy(line_search_count) .LT. energy(lsm)) THEN
+                     IF (energy(line_search_count) < energy(lsm)) THEN
                         lsl = lsm
                         lsm = line_search_count
                      ELSE
                         lsr = line_search_count
                      END IF
                   END IF
-                  IF (pos(lsr) - pos(lsm) .GT. pos(lsm) - pos(lsl)) THEN
+                  IF (pos(lsr) - pos(lsm) > pos(lsm) - pos(lsl)) THEN
                      pos(line_search_count + 1) = pos(lsm) + gold_sec*(pos(lsr) - pos(lsm))
                   ELSE
                      pos(line_search_count + 1) = pos(lsl) + gold_sec*(pos(lsm) - pos(lsl))
                   END IF
-                  IF ((pos(lsr) - pos(lsl)) .LT. 1.0E-3_dp*pos(lsr)) THEN
+                  IF ((pos(lsr) - pos(lsl)) < 1.0E-3_dp*pos(lsr)) THEN
                      new_direction = .TRUE.
                   END IF
                END IF ! lsr .eq. 0

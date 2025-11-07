@@ -101,10 +101,10 @@ CONTAINS
 
 ! Set the energies for the line search and make sure to give the correct energy back to scf_main
       ls_scf_env%curvy_data%energies(lsstep) = energy
-      IF (lsstep .NE. 1) energy = ls_scf_env%curvy_data%energies(1)
+      IF (lsstep /= 1) energy = ls_scf_env%curvy_data%energies(1)
 
 ! start the optimization by calling the driver routine or simply combine saved P(2D line search)
-      IF (lsstep .LE. 2) THEN
+      IF (lsstep <= 2) THEN
          CALL optimization_step(ls_scf_env%curvy_data, ls_scf_env)
       ELSE IF (lsstep == ls_scf_env%curvy_data%line_search_type) THEN
 ! line_search type has the value appropriate to the number of energy calculations needed
@@ -125,7 +125,7 @@ CONTAINS
       IF (ls_scf_env%nspins == 1) CALL dbcsr_scale(ls_scf_env%matrix_p(1), 2.0_dp)
 
 ! P-matrices only need to be stored in case of 2D line search
-      IF (lsstep .LE. 3 .AND. ls_scf_env%curvy_data%line_search_type == ls_scf_line_search_3point_2d) THEN
+      IF (lsstep <= 3 .AND. ls_scf_env%curvy_data%line_search_type == ls_scf_line_search_3point_2d) THEN
          DO i = 1, ls_scf_env%nspins
             CALL dbcsr_copy(ls_scf_env%curvy_data%matrix_psave(i, lsstep), &
                             ls_scf_env%matrix_p(i))
@@ -175,7 +175,7 @@ CONTAINS
          curvy_data%BCH_saved = 0
       ELSE IF (curvy_data%line_search_step == 2) THEN
          step_size = curvy_data%step_size
-         IF (curvy_data%energies(1) - curvy_data%energies(2) .GT. 0.0_dp) THEN
+         IF (curvy_data%energies(1) - curvy_data%energies(2) > 0.0_dp) THEN
             curvy_data%step_size = curvy_data%step_size*2.0_dp
             curvy_data%double_step_size = .TRUE.
          ELSE
@@ -225,7 +225,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
 
       logger => cp_get_default_logger()
-      IF (energies(1) - energies(2) .LT. 0._dp) THEN
+      IF (energies(1) - energies(2) < 0._dp) THEN
          tmp_e = energies(2); energies(2) = energies(3); energies(3) = tmp_e
          step_size = step_size*2.0_dp
       END IF
@@ -248,13 +248,13 @@ CONTAINS
       v2 = -(param(2)**2)/(2.0_dp*param(1)) + 2.0_dp*param(3)
       step_size(2) = v1/v2
       step_size(1) = (-param(2)*step_size(2) - param(4))/(2.0_dp*param(1))
-      IF (step_size(1) .LT. 0.0_dp) step_size(1) = 1.0_dp
-      IF (step_size(2) .LT. 0.0_dp) step_size(2) = 1.0_dp
+      IF (step_size(1) < 0.0_dp) step_size(1) = 1.0_dp
+      IF (step_size(2) < 0.0_dp) step_size(2) = 1.0_dp
 !    step_size(1)=MIN(step_size(1),2.0_dp)
 !    step_size(2)=MIN(step_size(2),2.0_dp)
       e_pred = param(1)*step_size(1)**2 + param(2)*step_size(1)*step_size(2) + &
                param(3)*step_size(2)**2 + param(4)*step_size(1) + param(5)*step_size(2) + param(6)
-      IF (unit_nr .GT. 0) WRITE (unit_nr, "(t3,a,F10.5,F10.5,A,F20.9)") &
+      IF (unit_nr > 0) WRITE (unit_nr, "(t3,a,F10.5,F10.5,A,F20.9)") &
          " Line Search: Step Size", step_size, " Predicted energy", e_pred
       e_pred = param(1)*s1**2 + param(2)*s2*s1*0.0_dp + &
                param(3)*s1**2*0.0_dp + param(4)*s1 + param(5)*s1*0.0_dp + param(6)
@@ -279,7 +279,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
 
       logger => cp_get_default_logger()
-      IF (energies(1) - energies(2) .LT. 0._dp) THEN
+      IF (energies(1) - energies(2) < 0._dp) THEN
          tmp_e = energies(2); energies(2) = energies(3); energies(3) = tmp_e
          step_size = step_size*2.0_dp
       END IF
@@ -292,18 +292,18 @@ CONTAINS
       c = energies(1)
       a = (energies(3) + c - 2.0_dp*energies(2))/(2.0_dp*step1**2)
       b = (energies(2) - c - a*step1**2)/step1
-      IF (a .LT. 1.0E-12_dp) a = -1.0E-12_dp
+      IF (a < 1.0E-12_dp) a = -1.0E-12_dp
       min_val = -b/(2.0_dp*a)
       e_pred = a*min_val**2 + b*min_val + c
       tmp = step_size(1)
-      IF (e_pred .LT. energies(1) .AND. e_pred .LT. energies(2)) THEN
+      IF (e_pred < energies(1) .AND. e_pred < energies(2)) THEN
          step_size = MAX(-1.0_dp, &
                          MIN(min_val, 10_dp*step_size))
       ELSE
          step_size = 1.0_dp
       END IF
       e_pred = a*(step_size(1))**2 + b*(step_size(1)) + c
-      IF (unit_nr .GT. 0) THEN
+      IF (unit_nr > 0) THEN
          WRITE (unit_nr, "(t3,a,f16.8,a,F20.9)") "Line Search: Step Size", step_size(1), " Predicted energy", e_pred
          CALL m_flush(unit_nr)
       END IF
@@ -414,17 +414,17 @@ CONTAINS
 
 ! check for convergence of the newton step
             maxel = dbcsr_frobenius_norm(matrix_res)
-            IF (unit_nr .GT. 0) THEN
+            IF (unit_nr > 0) THEN
                WRITE (unit_nr, "(T3,A,F12.6)") "Convergence of Newton iteration ", maxel
                CALL m_flush(unit_nr)
             END IF
-            at_limit = at_limit .OR. (old_conv/maxel .LT. 1.01_dp)
+            at_limit = at_limit .OR. (old_conv/maxel < 1.01_dp)
             old_conv = maxel
-            IF (i == ncyc .AND. maxel/conv_val .GT. 5.0_dp) THEN
+            IF (i == ncyc .AND. maxel/conv_val > 5.0_dp) THEN
                fix_shift(ispin) = .TRUE.
                curvy_shift(ispin) = 4.0_dp*shift
             END IF
-            IF (maxel .LT. conv_val .OR. at_limit) EXIT
+            IF (maxel < conv_val .OR. at_limit) EXIT
          END DO
 
 ! Refine the Newton like search direction with a preconditioned cg update
@@ -435,11 +435,11 @@ CONTAINS
          cg_denom(ispin) = cg_numer(ispin)
          CALL dbcsr_dot(matrix_cg, matrix_dp(ispin), cg_numer(ispin))
          beta = cg_numer(ispin)/MAX(cg_denom(ispin), 1.0E-6_dp)
-         IF (beta .LT. 1.0_dp) THEN
+         IF (beta < 1.0_dp) THEN
             beta = MAX(0.0_dp, beta)
             CALL dbcsr_add(matrix_dp(ispin), matrix_dp_old, 1.0_dp, beta)
          END IF
-         IF (unit_nr .GT. 0) WRITE (unit_nr, "(A)") " "
+         IF (unit_nr > 0) WRITE (unit_nr, "(A)") " "
       END DO
 
       CALL dbcsr_release(matrix_PKs)
@@ -452,7 +452,7 @@ CONTAINS
       CALL dbcsr_release(matrix_res)
       CALL dbcsr_release(matrix_cg)
 
-      IF (unit_nr .GT. 0) CALL m_flush(unit_nr)
+      IF (unit_nr > 0) CALL m_flush(unit_nr)
       CALL timestop(handle)
    END SUBROUTINE compute_direction_newton
 
@@ -508,7 +508,7 @@ CONTAINS
       alpha = norm_rr/norm_cA
       CALL dbcsr_add(res, Ax, 1.0_dp, -alpha)
       CALL dbcsr_dot(res, res, new_norm)
-      IF (norm_rr .LT. eps_filter*0.001_dp .OR. new_norm .LT. eps_filter*0.001_dp) THEN
+      IF (norm_rr < eps_filter*0.001_dp .OR. new_norm < eps_filter*0.001_dp) THEN
          beta = 0.0_dp
          at_limit = .TRUE.
       ELSE
@@ -659,13 +659,13 @@ CONTAINS
             CALL dbcsr_add(matrix_p_out(ispin), matrix_BCH(ispin, i), 1.0_dp, ifac(i)*step_fac)
             CALL dbcsr_add(matrix_tmp, matrix_p_out(ispin), 1.0_dp, -1.0_dp)
             frob_norm = dbcsr_frobenius_norm(matrix_tmp)
-            IF (unit_nr .GT. 0) WRITE (unit_nr, "(t3,a,i3,a,f16.8)") "BCH: step", i, " Norm of P_old-Pnew:", frob_norm
-            IF (frob_norm .LT. threshold) EXIT
+            IF (unit_nr > 0) WRITE (unit_nr, "(t3,a,i3,a,f16.8)") "BCH: step", i, " Norm of P_old-Pnew:", frob_norm
+            IF (frob_norm < threshold) EXIT
          END DO
-         IF (frob_norm .LT. threshold) CYCLE
+         IF (frob_norm < threshold) CYCLE
 
 ! If the copy and scale isn't enough compute a few more BCH steps. 20 seems high but except of the first step it will never be close
-         save_BCH = BCH_saved(ispin) == 0 .AND. n_bch_hist .GT. 0
+         save_BCH = BCH_saved(ispin) == 0 .AND. n_bch_hist > 0
          DO i = BCH_saved(ispin) + 1, 20
             step_fac = step_fac*step_size(ispin)
             !allow for a bit of matrix magic here by exploiting matrix and matrix_tmp
@@ -681,7 +681,7 @@ CONTAINS
             !Finally, add the new BCH order to P, but store the previous one for a convergence check
             CALL dbcsr_copy(matrix_tmp, matrix_p_out(ispin))
             CALL dbcsr_add(matrix_p_out(ispin), matrix, 1.0_dp, ifac(i)*step_fac)
-            IF (save_BCH .AND. i .LE. n_bch_hist) THEN
+            IF (save_BCH .AND. i <= n_bch_hist) THEN
                CALL dbcsr_copy(matrix_BCH(ispin, i), matrix)
                nsave = i
             END IF
@@ -690,19 +690,19 @@ CONTAINS
 
             !Stop the BCH-series if two successive P's differ by less the threshold
             frob_norm = dbcsr_frobenius_norm(matrix_tmp)
-            IF (unit_nr .GT. 0) WRITE (unit_nr, "(t3,a,i3,a,f16.8)") "BCH: step", i, " Norm of P_old-Pnew:", frob_norm
-            IF (frob_norm .LT. threshold) EXIT
+            IF (unit_nr > 0) WRITE (unit_nr, "(t3,a,i3,a,f16.8)") "BCH: step", i, " Norm of P_old-Pnew:", frob_norm
+            IF (frob_norm < threshold) EXIT
 
             !Copy the latest BCH-matrix on matrix tmp, so we can cycle with all matrices in place
             CALL dbcsr_copy(matrix_tmp, matrix)
             CALL dbcsr_filter(matrix_tmp, threshold)
          END DO
          BCH_saved(ispin) = nsave
-         IF (unit_nr .GT. 0) WRITE (unit_nr, "(A)") " "
+         IF (unit_nr > 0) WRITE (unit_nr, "(A)") " "
       END DO
 
       CALL purify_mcweeny(matrix_p_out, threshold, 1)
-      IF (unit_nr .GT. 0) CALL m_flush(unit_nr)
+      IF (unit_nr > 0) CALL m_flush(unit_nr)
       CALL dbcsr_release(matrix_tmp)
       CALL dbcsr_release(matrix)
       CALL timestop(handle)
@@ -836,7 +836,7 @@ CONTAINS
             END DO
          END DO
       END IF
-      IF (curvy_data%n_bch_hist .GT. 0) THEN
+      IF (curvy_data%n_bch_hist > 0) THEN
          ALLOCATE (curvy_data%matrix_BCH(nspins, curvy_data%n_bch_hist))
          DO ispin = 1, nspins
             DO j = 1, curvy_data%n_bch_hist

@@ -9,7 +9,7 @@
 !> \brief generates a unique id number for a string (str2id) that can be used
 !>      two compare two strings. I.e.
 !>      if (str1==str2) => str2id(str1)==str2id(str2)
-!>      if (str1.NE.str2) => str2id(str1).NE.str2id(str2)
+!>      if (str1/=str2) => str2id(str1)/=str2id(str2)
 !>      and the other way around. Given an id, the string can be retrieved.
 !> \note
 !>      the purpose of this routine is to speed up string handling,

@@ -910,7 +910,7 @@ CONTAINS
                            END IF
                            DO iso = 1, nso(lshell)
                               IF (use_this) THEN
-                                 IF (offset_read - 1 + iso .LT. 1 .OR. offset_read - 1 + iso .GT. nao_read) THEN
+                                 IF (offset_read - 1 + iso < 1 .OR. offset_read - 1 + iso > nao_read) THEN
                                     vecbuffer(1, irow) = 0.0_dp
                                  ELSE
                                     vecbuffer(1, irow) = vecbuffer_read(1, offset_read - 1 + iso)
@@ -952,7 +952,7 @@ CONTAINS
                mos(ispin + 1)%homo = mos(ispin)%homo
                mos(ispin + 1)%lfomo = mos(ispin)%lfomo
                nelectron = mos(ispin)%nelectron
-               IF (my_mult .NE. 1) THEN
+               IF (my_mult /= 1) THEN
                   CALL cp_abort(__LOCATION__, &
                                 "Restarting an LSD calculation from an LDA wfn only works for multiplicity=1 (singlets).")
                END IF

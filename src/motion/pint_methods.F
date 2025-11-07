@@ -225,7 +225,7 @@ CONTAINS
       CALL rep_env_create(rep_env, para_env=para_env, input=input, &
                           input_declaration=input_declaration, nrep=nrep, prep=prep, row_force=.TRUE.)
       CALL section_vals_val_set(input, "GLOBAL%PROJECT_NAME", c_val=TRIM(project_name))
-      IF (LEN_TRIM(output_file_name) .GT. 0) THEN
+      IF (LEN_TRIM(output_file_name) > 0) THEN
          CALL section_vals_val_set(input, "GLOBAL%OUTPUT_FILE_NAME", c_val=TRIM(output_file_name))
       ELSE
          CALL section_vals_val_unset(input, "GLOBAL%OUTPUT_FILE_NAME")
@@ -448,7 +448,7 @@ CONTAINS
          ALLOCATE (pint_env%gle)
          CALL gle_init(pint_env%gle, dt=pint_env%dt/pint_env%nrespa, temp=pint_env%kT, &
                        section=gle_section)
-         IF (pint_env%pimd_thermostat == thermostat_none .AND. pint_env%gle%ndim .GT. 0) THEN
+         IF (pint_env%pimd_thermostat == thermostat_none .AND. pint_env%gle%ndim > 0) THEN
             pint_env%pimd_thermostat = thermostat_gle
 
             ! initialize a GLE with ALL degrees of freedom on node 0,
@@ -604,7 +604,7 @@ CONTAINS
 
       CALL section_vals_val_get(pint_section, "FIX_CENTROID_POS", &
                                 l_val=ltmp)
-      IF (ltmp .AND. (pint_env%transform .EQ. transformation_normal)) THEN
+      IF (ltmp .AND. (pint_env%transform == transformation_normal)) THEN
          pint_env%first_propagated_mode = 2
       ELSE
          pint_env%first_propagated_mode = 1
@@ -1691,7 +1691,7 @@ CONTAINS
       CALL pint_f2uf(pint_env)
 
       ! set the centroid forces to 0 if FIX_CENTROID_POS
-      IF (pint_env%first_propagated_mode .EQ. 2) THEN
+      IF (pint_env%first_propagated_mode == 2) THEN
          pint_env%uf(1, :) = 0.0_dp
       END IF
 
@@ -2163,7 +2163,7 @@ CONTAINS
 
                CALL pint_f2uf(pint_env)
                ! set the centroid forces to 0 if FIX_CENTROID_POS
-               IF (pint_env%first_propagated_mode .EQ. 2) THEN
+               IF (pint_env%first_propagated_mode == 2) THEN
                   pint_env%uf(1, :) = 0.0_dp
                END IF
                !Scale physical forces and integrate velocities with physical
@@ -2488,7 +2488,7 @@ CONTAINS
          END IF
          CALL pint_f2uf(pint_env)
          ! set the centroid forces to 0 if FIX_CENTROID_POS
-         IF (pint_env%first_propagated_mode .EQ. 2) THEN
+         IF (pint_env%first_propagated_mode == 2) THEN
             pint_env%uf(1, :) = 0.0_dp
          END IF
          pint_env%uv_t = pint_env%uv_t + dti2*pint_env%uf

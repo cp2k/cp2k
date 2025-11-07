@@ -685,14 +685,14 @@ CONTAINS
          tangent(:) = (coords%wrk(:, i) - coords%wrk(:, i - 1))/distance1 + &
                       (coords%wrk(:, i + 1) - coords%wrk(:, i))/distance2
       CASE (do_it_neb, do_ci_neb, do_d_neb)
-         IF ((energies(i + 1) .GT. energies(i)) .AND. (energies(i) .GT. (energies(i - 1)))) THEN
+         IF ((energies(i + 1) > energies(i)) .AND. (energies(i) > (energies(i - 1)))) THEN
             tangent(:) = coords%wrk(:, i + 1) - coords%wrk(:, i)
-         ELSE IF ((energies(i + 1) .LT. energies(i)) .AND. (energies(i) .LT. (energies(i - 1)))) THEN
+         ELSE IF ((energies(i + 1) < energies(i)) .AND. (energies(i) < (energies(i - 1)))) THEN
             tangent(:) = coords%wrk(:, i) - coords%wrk(:, i - 1)
          ELSE
             DVmax = MAX(ABS(energies(i + 1) - energies(i)), ABS(energies(i - 1) - energies(i)))
             DVmin = MIN(ABS(energies(i + 1) - energies(i)), ABS(energies(i - 1) - energies(i)))
-            IF (energies(i + 1) .GE. energies(i - 1)) THEN
+            IF (energies(i + 1) >= energies(i - 1)) THEN
                tangent(:) = (coords%wrk(:, i + 1) - coords%wrk(:, i))*DVmax + (coords%wrk(:, i) - coords%wrk(:, i - 1))*DVmin
             ELSE
                tangent(:) = (coords%wrk(:, i + 1) - coords%wrk(:, i))*DVmin + (coords%wrk(:, i) - coords%wrk(:, i - 1))*DVmax

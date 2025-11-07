@@ -344,13 +344,13 @@ CONTAINS
          qs_ot_env%use_gx_old = .TRUE.
          qs_ot_env%use_dx = .TRUE.
       CASE ("DIIS", "BROY")
-         IF (m_diis .LT. 1) CPABORT("m_diis less than one")
+         IF (m_diis < 1) CPABORT("m_diis less than one")
       CASE DEFAULT
          CPABORT("Unknown option")
       END SELECT
 
-      IF (qs_ot_env%settings%ot_method .EQ. "DIIS" .OR. &
-          qs_ot_env%settings%ot_method .EQ. "BROY") THEN
+      IF (qs_ot_env%settings%ot_method == "DIIS" .OR. &
+          qs_ot_env%settings%ot_method == "BROY") THEN
          ALLOCATE (qs_ot_env%ls_diis(m_diis + 1, m_diis + 1))
          qs_ot_env%ls_diis = 0.0_dp
          ALLOCATE (qs_ot_env%lss_diis(m_diis + 1, m_diis + 1))
@@ -530,8 +530,8 @@ CONTAINS
 
       END SELECT
 
-      IF (qs_ot_env%settings%ot_method .EQ. "DIIS" .OR. &
-          qs_ot_env%settings%ot_method .EQ. "BROY") THEN
+      IF (qs_ot_env%settings%ot_method == "DIIS" .OR. &
+          qs_ot_env%settings%ot_method == "BROY") THEN
          NULLIFY (qs_ot_env%matrix_h_e)
          NULLIFY (qs_ot_env%matrix_h_x)
          CALL dbcsr_allocate_matrix_set(qs_ot_env%matrix_h_e, m_diis)
@@ -569,7 +569,7 @@ CONTAINS
          CALL cp_dbcsr_m_by_n_from_template(qs_ot_env%rot_mat_chc, template=matrix_s, m=k, n=k, &
                                             sym=dbcsr_type_no_symmetry)
 
-         IF (qs_ot_env%settings%ot_method .EQ. "DIIS") THEN
+         IF (qs_ot_env%settings%ot_method == "DIIS") THEN
             CALL dbcsr_allocate_matrix_set(qs_ot_env%rot_mat_h_e, m_diis)
             CALL dbcsr_allocate_matrix_set(qs_ot_env%rot_mat_h_x, m_diis)
             DO i = 1, m_diis
@@ -613,7 +613,7 @@ CONTAINS
          ncoef = k
          ALLOCATE (qs_ot_env%ener_x(ncoef))
 
-         IF (qs_ot_env%settings%ot_method .EQ. "DIIS") THEN
+         IF (qs_ot_env%settings%ot_method == "DIIS") THEN
             ALLOCATE (qs_ot_env%ener_h_e(m_diis, ncoef))
             ALLOCATE (qs_ot_env%ener_h_x(m_diis, ncoef))
          END IF
@@ -678,8 +678,8 @@ CONTAINS
       IF (ASSOCIATED(qs_ot_env%buf1_n_k)) CALL dbcsr_release_p(qs_ot_env%buf1_n_k)
       IF (ASSOCIATED(qs_ot_env%buf1_n_k_dp)) CALL dbcsr_release_p(qs_ot_env%buf1_n_k_dp)
 
-      IF (qs_ot_env%settings%ot_method .EQ. "DIIS" .OR. &
-          qs_ot_env%settings%ot_method .EQ. "BROY") THEN
+      IF (qs_ot_env%settings%ot_method == "DIIS" .OR. &
+          qs_ot_env%settings%ot_method == "BROY") THEN
          CALL dbcsr_deallocate_matrix_set(qs_ot_env%matrix_h_x)
          CALL dbcsr_deallocate_matrix_set(qs_ot_env%matrix_h_e)
          DEALLOCATE (qs_ot_env%ls_diis)
@@ -697,7 +697,7 @@ CONTAINS
          IF (ASSOCIATED(qs_ot_env%rot_mat_dedu)) CALL dbcsr_release_p(qs_ot_env%rot_mat_dedu)
          IF (ASSOCIATED(qs_ot_env%rot_mat_chc)) CALL dbcsr_release_p(qs_ot_env%rot_mat_chc)
 
-         IF (qs_ot_env%settings%ot_method .EQ. "DIIS") THEN
+         IF (qs_ot_env%settings%ot_method == "DIIS") THEN
             CALL dbcsr_deallocate_matrix_set(qs_ot_env%rot_mat_h_x)
             CALL dbcsr_deallocate_matrix_set(qs_ot_env%rot_mat_h_e)
          END IF
@@ -713,7 +713,7 @@ CONTAINS
       IF (qs_ot_env%settings%do_ener) THEN
          DEALLOCATE (qs_ot_env%ener_x)
          DEALLOCATE (qs_ot_env%ener_gx)
-         IF (qs_ot_env%settings%ot_method .EQ. "DIIS") THEN
+         IF (qs_ot_env%settings%ot_method == "DIIS") THEN
             DEALLOCATE (qs_ot_env%ener_h_x)
             DEALLOCATE (qs_ot_env%ener_h_e)
          END IF
@@ -964,7 +964,7 @@ CONTAINS
 
          WRITE (output_unit, '(A)') "  Precond_solver : "//TRIM(settings%precond_solver_name)
 
-         IF (settings%OT_METHOD .EQ. "SD" .OR. settings%OT_METHOD .EQ. "CG") THEN
+         IF (settings%OT_METHOD == "SD" .OR. settings%OT_METHOD == "CG") THEN
             SELECT CASE (settings%line_search_method)
             CASE ("2PNT")
                WRITE (output_unit, '(A)') "  Line search    : 2PNT                : 2 energies, one gradient"
@@ -981,11 +981,11 @@ CONTAINS
          END IF
          WRITE (output_unit, '(A,F14.8,T49,A,F14.8)') "  stepsize       :", settings%ds_min, &
             "  energy_gap     :", settings%energy_gap
-         IF (settings%ot_algorithm .EQ. 'TOD') THEN
+         IF (settings%ot_algorithm == 'TOD') THEN
             WRITE (output_unit, '(A,E14.5,T49,A,I14)') "  eps_taylor     :", settings%eps_taylor, &
                "  max_taylor     :", settings%max_taylor
          END IF
-         IF (settings%ot_algorithm .EQ. 'REF') THEN
+         IF (settings%ot_algorithm == 'REF') THEN
             WRITE (output_unit, '(A,1X,A,T49,A,I14)') "  ortho_irac     :", settings%ortho_irac, &
                "  irac_degree    :", settings%irac_degree
             WRITE (output_unit, '(A,I14,T49,A,E14.5)') "  max_irac       :", settings%max_irac, &

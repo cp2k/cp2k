@@ -615,7 +615,7 @@ CONTAINS
       kab = 1.0_dp
       custom = .FALSE.
 
-      IF (xtb_control%kab_nval .GT. 0) THEN
+      IF (xtb_control%kab_nval > 0) THEN
          DO j = 1, xtb_control%kab_nval
             IF ((za == xtb_control%kab_types(1, j) .AND. &
                  zb == xtb_control%kab_types(2, j)) .OR. &

@@ -162,13 +162,13 @@ CONTAINS
 
                DO i = lbounds(1), ubounds(1)
                   DO j = lbounds(2), ubounds(2)
-                     IF (my_rank .EQ. 0) THEN
+                     IF (my_rank == 0) THEN
                         READ (extunit, *) (buffer(k), k=lbounds(3), ubounds(3))
                      END IF
                      CALL gid%bcast(buffer(lbounds(3):ubounds(3)), 0)
 
-                     IF ((lbounds_local(1) .LE. i) .AND. (i .LE. ubounds_local(1)) .AND. (lbounds_local(2) .LE. j) &
-                         .AND. (j .LE. ubounds_local(2))) THEN
+                     IF ((lbounds_local(1) <= i) .AND. (i <= ubounds_local(1)) .AND. (lbounds_local(2) <= j) &
+                         .AND. (j <= ubounds_local(2))) THEN
                         rs_rho_ext(igrid_level)%r(i, j, lbounds(3):ubounds(3)) = buffer(lbounds(3):ubounds(3))
                      END IF
 

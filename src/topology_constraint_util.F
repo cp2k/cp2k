@@ -617,7 +617,7 @@ CONTAINS
             CALL get_molecule_kind(molecule_kind=molecule_kind, &
                                    nmolecule=nmolecule, molecule_list=molecule_list, name=molname)
             is_qm = qmmm_ff_precond_only_qm(id1=molname)
-            WHERE (molname .EQ. cons_info%fixed_molnames)
+            WHERE (molname == cons_info%fixed_molnames)
                missed_molname = .FALSE.
             END WHERE
             ! Try to figure out how many atoms of the list belong to this molecule_kind
@@ -628,7 +628,7 @@ CONTAINS
                fix_atom_molname = .FALSE.
                IF (ASSOCIATED(cons_info%fixed_molnames)) THEN
                   DO k = 1, SIZE(cons_info%fixed_molnames)
-                     IF (cons_info%fixed_molnames(k) .EQ. molname) THEN
+                     IF (cons_info%fixed_molnames(k) == molname) THEN
                         fix_atom_molname = .TRUE.
                         IF (is_qm .AND. cons_info%fixed_exclude_qm(k)) fix_atom_molname = .FALSE.
                         IF ((.NOT. is_qm) .AND. cons_info%fixed_exclude_mm(k)) fix_atom_molname = .FALSE.
@@ -666,7 +666,7 @@ CONTAINS
                   fix_atom_molname = .FALSE.
                   IF (ASSOCIATED(cons_info%fixed_molnames)) THEN
                      DO k1loc = 1, SIZE(cons_info%fixed_molnames)
-                        IF (cons_info%fixed_molnames(k1loc) .EQ. molname) THEN
+                        IF (cons_info%fixed_molnames(k1loc) == molname) THEN
                            fix_atom_molname = .TRUE.
                            itype = cons_info%fixed_mol_type(k1loc)
                            EXIT

@@ -231,7 +231,7 @@ CONTAINS
       my_resp_only = .FALSE.
       IF (PRESENT(resp_only)) my_resp_only = resp_only
 
-      is_anti_symmetric = dbcsr_get_matrix_type(rho_ao(1, 1)%matrix) .EQ. dbcsr_type_antisymmetric
+      is_anti_symmetric = dbcsr_get_matrix_type(rho_ao(1, 1)%matrix) == dbcsr_type_antisymmetric
 
       CALL get_qs_env(qs_env, &
                       admm_env=admm_env, &
@@ -696,7 +696,7 @@ CONTAINS
       !! is taken into account by the following criterion:
       !!
       !! IF(katom+latom<=iatom+jatom)  THEN
-      !!   IF( ((iatom+jatom).EQ.(katom+latom) ) .AND.(katom<iatom)) CYCLE
+      !!   IF( ((iatom+jatom)==(katom+latom) ) .AND.(katom<iatom)) CYCLE
       !!
       !! Furthermore, if iatom==jatom==katom==latom we cycle, because the derivatives are zero anyway.
       !!
@@ -1004,7 +1004,7 @@ CONTAINS
                   !All four centers equivalent => zero-contribution
 !VIIRAL            IF((iatom==jatom .AND. iatom==katom .AND. iatom==latom)) CYCLE
                   IF (.NOT. (katom + latom <= iatom + jatom)) CYCLE
-                  IF (((iatom + jatom) .EQ. (katom + latom)) .AND. (katom < iatom)) CYCLE
+                  IF (((iatom + jatom) == (katom + latom)) .AND. (katom < iatom)) CYCLE
 
                   i_set_list_kl_start = list_kl%elements(i_list_kl)%set_bounds(1)
                   i_set_list_kl_stop = list_kl%elements(i_list_kl)%set_bounds(2)

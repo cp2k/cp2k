@@ -166,13 +166,13 @@ CONTAINS
       IF (control%generalized_ev .AND. selection_crit == 1) &
          CALL cp_abort(__LOCATION__, &
                        'generalized ev can only highest OR lowest EV')
-      IF (control%generalized_ev .AND. nval_request .NE. 1) &
+      IF (control%generalized_ev .AND. nval_request /= 1) &
          CALL cp_abort(__LOCATION__, &
                        'generalized ev can only compute one EV at the time')
       IF (control%generalized_ev .AND. control%nrestart == 0) &
          CALL cp_abort(__LOCATION__, &
                        'outer loops are mandatory for generalized EV, set nrestart appropriatly')
-      IF (SIZE(matrix) .NE. 2 .AND. control%generalized_ev) &
+      IF (SIZE(matrix) /= 2 .AND. control%generalized_ev) &
          CALL cp_abort(__LOCATION__, &
                        'generalized ev needs exactly two matrices as input (2nd is the metric)')
 
@@ -288,7 +288,7 @@ CONTAINS
          convergence = MAX(convergence, &
                            ABS(ar_data%revec(last_el, my_ind)*ar_data%Hessenberg(last_el + 1, last_el)))
       END DO
-      control%converged = convergence .LT. control%threshold
+      control%converged = convergence < control%threshold
 
    END SUBROUTINE select_evals
 
@@ -386,7 +386,7 @@ CONTAINS
       INTEGER                                            :: ev_ind
       INTEGER, DIMENSION(:), POINTER                     :: selected_ind
 
-      IF (ind .GT. get_nval_out(arnoldi_env)) &
+      IF (ind > get_nval_out(arnoldi_env)) &
          CPABORT('outside range of indexed evals')
 
       selected_ind => get_sel_ind(arnoldi_env)
@@ -411,7 +411,7 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: selected_ind
 
       NULLIFY (evals)
-      IF (SIZE(eval_out) .LT. get_nval_out(arnoldi_env)) &
+      IF (SIZE(eval_out) < get_nval_out(arnoldi_env)) &
          CPABORT('array for eval output too small')
       selected_ind => get_sel_ind(arnoldi_env)
 

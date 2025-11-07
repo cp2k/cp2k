@@ -449,7 +449,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: row, column
       LOGICAL                                            :: transpose
 
-      transpose = BTEST(column + row, 0) .EQV. column .GE. row
+      transpose = BTEST(column + row, 0) .EQV. column >= row
 
    END FUNCTION checker_tr
 

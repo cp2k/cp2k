@@ -695,7 +695,7 @@ CONTAINS
       f0 = 2.0_dp*SQRT(pi**5*zetw)*zetp*zetq
 
       !check that the operator has been init from file
-      CPASSERT(get_lmax_init() .GE. nmax)
+      CPASSERT(get_lmax_init() >= nmax)
 
       CALL t_c_g0_n(f, use_gamma, r, t, nmax)
       IF (use_gamma) CALL fgamma(nmax, t, f)

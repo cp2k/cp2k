@@ -192,7 +192,7 @@ CONTAINS
       eps_iso = qs_control%gapw_control%eps_iso
       eps_svd = qs_control%gapw_control%eps_svd
       max_rad_local = qs_control%gapw_control%max_rad_local
-      IF (max_rad_local_type .LT. max_rad_local) THEN
+      IF (max_rad_local_type < max_rad_local) THEN
          max_rad_local = max_rad_local_type
       END IF
       eps_orb = qs_control%eps_pgf_orb
@@ -441,7 +441,7 @@ CONTAINS
          END DO
 
          ! Compute inverse of the transpose
-         IF (eps_svd .EQ. 0.0_dp) THEN
+         IF (eps_svd == 0.0_dp) THEN
             CALL invert_matrix(smat, gcc, my_error, "T")
          ELSE
             work = TRANSPOSE(smat)

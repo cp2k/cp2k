@@ -435,7 +435,7 @@ CONTAINS
                            vks_ra_idir3 = Eval_Interp_Spl3_pbc(ra, &
                                                                vks_pw_spline(idir3, ispin))
 
-                           IF (iat .LT. bo(1) .OR. iat .GT. bo(2)) CYCLE !quick and dirty:
+                           IF (iat < bo(1) .OR. iat > bo(2)) CYCLE !quick and dirty:
                            !                                    !here take care of the partition
 
                            ! + sum_A j_loc_h_A x nabla_vks_s_A
@@ -700,7 +700,7 @@ CONTAINS
                            bind_ra_idir1 = Eval_Interp_Spl3_pbc(ra, &
                                                                 bind_pw_spline(idir1, iB))
 
-                           IF (iat .LT. bo(1) .OR. iat .GT. bo(2)) CYCLE !quick and dirty:
+                           IF (iat < bo(1) .OR. iat > bo(2)) CYCLE !quick and dirty:
                            !                                    !here take care of the partition
 
                            rho_spin = 0.0_dp

@@ -400,7 +400,7 @@ CONTAINS
          CPASSERT(SIZE(rho_ia_r) == nspins)
          CPASSERT((.NOT. ASSOCIATED(tau_ia_r)) .OR. SIZE(tau_ia_r) == nspins)
          CPASSERT((.NOT. is_rks_triplets) .OR. nspins == 1)
-         CPASSERT((spinflip .NE. no_sf_tddfpt) .EQV. (nspins == 2))
+         CPASSERT((spinflip /= no_sf_tddfpt) .EQV. (nspins == 2))
       END IF
 
       IF (spinflip == tddfpt_sf_noncol) THEN

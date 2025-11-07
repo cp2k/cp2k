@@ -464,11 +464,11 @@ CONTAINS
 
       INTEGER                                            :: iso, iso1, iso2, l1, l2, nlist
 
-      CPASSERT(nsoset(lmax1) .LE. SIZE(cgc, 2))
-      CPASSERT(nsoset(lmax2) .LE. SIZE(cgc, 3))
-      CPASSERT(max_s_harm .LE. SIZE(cgc, 4))
+      CPASSERT(nsoset(lmax1) <= SIZE(cgc, 2))
+      CPASSERT(nsoset(lmax2) <= SIZE(cgc, 3))
+      CPASSERT(max_s_harm <= SIZE(cgc, 4))
       IF (PRESENT(n_list) .AND. PRESENT(list)) THEN
-         CPASSERT(max_s_harm .LE. SIZE(list, 3))
+         CPASSERT(max_s_harm <= SIZE(list, 3))
       END IF
       max_iso_not0 = 0
       IF (PRESENT(n_list) .AND. PRESENT(list)) n_list = 0
@@ -522,11 +522,11 @@ CONTAINS
 
       INTEGER                                            :: iso, iso1, iso2, l1, l2, nlist
 
-      CPASSERT(nsoset(lmax1) .LE. SIZE(cgc, 1))
-      CPASSERT(nsoset(lmax2) .LE. SIZE(cgc, 2))
-      CPASSERT(max_s_harm .LE. SIZE(cgc, 3))
+      CPASSERT(nsoset(lmax1) <= SIZE(cgc, 1))
+      CPASSERT(nsoset(lmax2) <= SIZE(cgc, 2))
+      CPASSERT(max_s_harm <= SIZE(cgc, 3))
       IF (PRESENT(n_list) .AND. PRESENT(list)) THEN
-         CPASSERT(max_s_harm .LE. SIZE(list, 3))
+         CPASSERT(max_s_harm <= SIZE(list, 3))
       END IF
       max_iso_not0 = 0
       IF (PRESENT(n_list) .AND. PRESENT(list)) n_list = 0

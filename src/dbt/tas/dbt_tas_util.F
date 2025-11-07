@@ -89,7 +89,7 @@ CONTAINS
       array_eq_i = .NOT. libxsmm_diff(arr1, arr2)
 #else
       array_eq_i = .FALSE.
-      IF (SIZE(arr1) .EQ. SIZE(arr2)) array_eq_i = ALL(arr1 == arr2)
+      IF (SIZE(arr1) == SIZE(arr2)) array_eq_i = ALL(arr1 == arr2)
 #endif
    END FUNCTION
 
@@ -108,7 +108,7 @@ CONTAINS
       array_eq_i8 = .NOT. libxsmm_diff(arr1, arr2)
 #else
       array_eq_i8 = .FALSE.
-      IF (SIZE(arr1) .EQ. SIZE(arr2)) array_eq_i8 = ALL(arr1 == arr2)
+      IF (SIZE(arr1) == SIZE(arr2)) array_eq_i8 = ALL(arr1 == arr2)
 #endif
    END FUNCTION
 

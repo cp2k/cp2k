@@ -156,7 +156,7 @@ CONTAINS
       dest = MODULO(mepos + 1, ncpu)
       source = MODULO(mepos - 1, ncpu)
       DO icpu = 0, ncpu - 1
-         IF (icpu .NE. ncpu - 1) THEN
+         IF (icpu /= ncpu - 1) THEN
             CALL para_env%isendrecv(sendbuffer, dest, recbuffer, source, &
                                     req(1), req(2), 13)
          END IF
@@ -165,7 +165,7 @@ CONTAINS
          block_size = block_offset(source_cpu + 1) - block_offset(source_cpu)
          full_density(block_offset(source_cpu):block_offset(source_cpu) + block_size - 1) = sendbuffer(1:block_size)
 
-         IF (icpu .NE. ncpu - 1) THEN
+         IF (icpu /= ncpu - 1) THEN
             CALL mp_waitall(req)
          END IF
          swapbuffer => sendbuffer
@@ -239,7 +239,7 @@ CONTAINS
          dest_cpu = MODULO(data_to, ncpu) + 1
          block_size = block_offset(dest_cpu + 1) - block_offset(dest_cpu)
        sendbuffer(1:block_size) = sendbuffer(1:block_size) + full_ks(block_offset(dest_cpu):block_offset(dest_cpu) + block_size - 1)
-         IF (icpu .EQ. ncpu) EXIT
+         IF (icpu == ncpu) EXIT
          CALL para_env%isendrecv(sendbuffer, dest, recbuffer, source, &
                                  req(1), req(2), 13)
 
@@ -502,7 +502,7 @@ CONTAINS
          itask = buffer_out(ibuf + 3)
          ! buffer_out can be 0 if buffer_in contained less elements than the max number of atom pairs
          ! is_assoc_atomic_block is a map for atom pairs to a processor (assumes symmetry, i,j on the ame as j,i)
-         IF (itask .NE. 0) THEN
+         IF (itask /= 0) THEN
             iatom = buffer_out(ibuf + 1)
             jatom = buffer_out(ibuf + 2)
             is_assoc_atomic_block(iatom, jatom) = itask

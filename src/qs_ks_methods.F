@@ -336,7 +336,7 @@ CONTAINS
       ! gets the tmp grids
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, poisson_env=poisson_env)
 
-      IF (gapw .AND. (poisson_env%parameters%solver .EQ. pw_poisson_implicit)) THEN
+      IF (gapw .AND. (poisson_env%parameters%solver == pw_poisson_implicit)) THEN
          CPABORT("The implicit Poisson solver cannot be used in conjunction with GAPW.")
       END IF
 
@@ -354,7 +354,7 @@ CONTAINS
                                            "PRINT%DETAILED_ENERGY"), &
                 cp_p_file) .AND. &
           (.NOT. gapw) .AND. (.NOT. gapw_xc) .AND. &
-          (.NOT. (poisson_env%parameters%solver .EQ. pw_poisson_implicit))) THEN
+          (.NOT. (poisson_env%parameters%solver == pw_poisson_implicit))) THEN
          CALL pw_zero(rho_tot_gspace)
          CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho, skip_nuclear_density=.TRUE.)
          CALL pw_poisson_solve(poisson_env, rho_tot_gspace, energy%e_hartree, &
@@ -376,7 +376,7 @@ CONTAINS
          ALLOCATE (v_sccs_rspace)
          CALL auxbas_pw_pool%create_pw(v_sccs_rspace)
 
-         IF (poisson_env%parameters%solver .EQ. pw_poisson_implicit) THEN
+         IF (poisson_env%parameters%solver == pw_poisson_implicit) THEN
             CPABORT("The implicit Poisson solver cannot be used together with SCCS.")
          END IF
 
@@ -662,7 +662,7 @@ CONTAINS
       IF (.NOT. just_energy) THEN
          IF (calculate_forces) THEN
             ! Getting nuclear force contribution from the core charge density
-            IF ((poisson_env%parameters%solver .EQ. pw_poisson_implicit) .AND. &
+            IF ((poisson_env%parameters%solver == pw_poisson_implicit) .AND. &
                 (poisson_env%parameters%dielectric_params%dielec_core_correction)) THEN
                BLOCK
                   TYPE(pw_r3d_rs_type) :: v_minus_veps
@@ -1375,8 +1375,8 @@ CONTAINS
 
       IF (is_complex) THEN
          IF (.NOT. ASSOCIATED(matrixkp_im_ks)) THEN
-            CPASSERT(nspins .EQ. SIZE(matrixkp_ks, 1))
-            CPASSERT(nimages .EQ. SIZE(matrixkp_ks, 2))
+            CPASSERT(nspins == SIZE(matrixkp_ks, 1))
+            CPASSERT(nimages == SIZE(matrixkp_ks, 2))
             CALL dbcsr_allocate_matrix_set(matrixkp_im_ks, nspins, nimages)
             DO ispin = 1, nspins
                DO ic = 1, nimages

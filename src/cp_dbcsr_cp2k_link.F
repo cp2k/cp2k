@@ -489,7 +489,7 @@ CONTAINS
             new_atom_b = .FALSE.
             CYCLE
          END IF
-         IF (blk_cnt + nadd .GT. SIZE(rows)) THEN
+         IF (blk_cnt + nadd > SIZE(rows)) THEN
             ALLOCATE (tmp(blk_cnt + nadd))
             tmp(1:blk_cnt) = rows(1:blk_cnt)
             DEALLOCATE (rows)
@@ -674,7 +674,7 @@ CONTAINS
                   DO jshell = 1, nshell_b(jset)
                      gto_loop: DO ipgf = 1, npgf_a(iset)
                         DO jpgf = 1, npgf_b(jset)
-                           IF (rpgfa(ipgf, iset) + rpgfb(jpgf, jset) .GE. dab) THEN
+                           IF (rpgfa(ipgf, iset) + rpgfb(jpgf, jset) >= dab) THEN
                               ! more selective screening with radius calculated for each primitive GTO
                               r_a = exp_radius(l_a(ishell, iset), &
                                                zet_a(ipgf, iset), &
@@ -684,8 +684,8 @@ CONTAINS
                                                zet_b(jpgf, jset), &
                                                eps_pgf_orb, &
                                                gcc_b(jpgf, jshell, jset))
-                              IF (r_a + r_b .GE. dab) THEN
-                                 IF (irow .EQ. iatom) THEN
+                              IF (r_a + r_b >= dab) THEN
+                                 IF (irow == iatom) THEN
                                     screen_blk(isgf + 1:isgf + nso(l_a(ishell, iset)), &
                                                jsgf + 1:jsgf + nso(l_b(jshell, jset))) = 1.0_dp
                                  ELSE

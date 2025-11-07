@@ -53,7 +53,7 @@ CONTAINS
 
       INTEGER                                            :: ii
 
-      IF (num .LE. 3) THEN
+      IF (num <= 3) THEN
          res = .FALSE.
          RETURN
       END IF
@@ -66,7 +66,7 @@ CONTAINS
       ! (although not all 6*kk +/- 1 is a prime);
       ! and we only have to check factors less than and equal to SQRT(num)
       ii = 5
-      DO WHILE (ii*ii .LE. num)
+      DO WHILE (ii*ii <= num)
          IF (MOD(num, ii) == 0 .OR. MOD(num, ii + 2) == 0) THEN
             res = .FALSE.
             RETURN

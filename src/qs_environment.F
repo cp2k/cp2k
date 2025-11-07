@@ -1095,7 +1095,7 @@ CONTAINS
          maxlgto = MAX(maxlgto, maxlgto_nuc)
       END IF
       lmax_sphere = dft_control%qs_control%gapw_control%lmax_sphere
-      IF (lmax_sphere .LT. 0) THEN
+      IF (lmax_sphere < 0) THEN
          lmax_sphere = 2*maxlgto
          dft_control%qs_control%gapw_control%lmax_sphere = lmax_sphere
       END IF

@@ -712,7 +712,7 @@ CONTAINS
                state_spin2 = 2
                spin_label = '     '
                spin_label2 = '     '
-            ELSE IF (spinflip .NE. no_sf_tddfpt) THEN
+            ELSE IF (spinflip /= no_sf_tddfpt) THEN
                state_spin = 1
                state_spin2 = 2
                spin_label = '(alp)'
@@ -871,7 +871,7 @@ CONTAINS
                ! a bug when using optimization level 3 flag
                state_spin = 1
                state_spin2 = 1
-               IF (spinflip .NE. no_sf_tddfpt) THEN
+               IF (spinflip /= no_sf_tddfpt) THEN
                   state_spin = 1
                   state_spin2 = 2
                END IF

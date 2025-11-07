@@ -537,7 +537,7 @@ CONTAINS
       history => rtp%history
 
       NULLIFY (history%rho_history, history%mo_history, history%s_history)
-      IF (aspc_order .GT. 0) THEN
+      IF (aspc_order > 0) THEN
          IF (rtp%linear_scaling) THEN
             nmat = SIZE(rtp%rho%new)
             CALL dbcsr_allocate_matrix_set(history%rho_history, nmat, aspc_order)

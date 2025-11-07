@@ -393,7 +393,7 @@ CONTAINS
 
             CALL get_none0_cg_list(my_CG, lmin(iset1), lmax(iset1), lmin(iset2), lmax(iset2), &
                                    max_s_harm, lmax_expansion, cg_list, cg_n_list, max_iso_not0_local)
-            CPASSERT(max_iso_not0_local .LE. max_iso_not0)
+            CPASSERT(max_iso_not0_local <= max_iso_not0)
 
             DO ipgf1 = 1, npgf(iset1)
                g1(1:nr) = EXP(-zet(ipgf1, iset1)*grid_atom%rad2(1:nr))
@@ -442,7 +442,7 @@ CONTAINS
                   vgg(:, :, :, j) = 0.0_dp
                   done_vgg = .FALSE.
                   ! reduce the number of terms in the expansion local densities
-                  IF (lmin12 .LE. lmax_expansion) THEN
+                  IF (lmin12 <= lmax_expansion) THEN
                      IF (lmin12 == 0) THEN
                         gg(1:nr, lmin12, j) = g1(1:nr)*g2(1:nr)
                         gg0(1:nr) = gg(1:nr, lmin12, j)
@@ -452,7 +452,7 @@ CONTAINS
                      END IF
 
                      ! reduce the number of terms in the expansion local densities
-                     IF (lmax12 .GT. lmax_expansion) lmax12 = lmax_expansion
+                     IF (lmax12 > lmax_expansion) lmax12 = lmax_expansion
 
                      DO l = lmin12 + 1, lmax12
                         gg(1:nr, l, j) = grid_atom%rad(1:nr)*gg(1:nr, l - 1, j)
@@ -1199,7 +1199,7 @@ CONTAINS
 
             CALL get_none0_cg_list(my_CG, lmin(iset1), lmax(iset1), lmin(iset2), lmax(iset2), &
                                    max_s_harm, lmax_expansion, cg_list, cg_n_list, max_iso_not0_local)
-            CPASSERT(max_iso_not0_local .LE. max_iso_not0)
+            CPASSERT(max_iso_not0_local <= max_iso_not0)
 
             n2s = nsoset(lmax(iset2))
             DO ipgf1 = 1, npgf(iset1)

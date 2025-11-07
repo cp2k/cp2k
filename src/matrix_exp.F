@@ -126,7 +126,7 @@ CONTAINS
 
       END DO
 
-      IF (nsquare .GT. 0) THEN
+      IF (nsquare > 0) THEN
          DO i = 1, nsquare
             CALL cp_complex_fm_gemm("N", "N", ndim, ndim, ndim, one, Tres_re, Tres_im, &
                                     Tres_re, Tres_im, zero, exp_H(1), exp_H(2))
@@ -211,7 +211,7 @@ CONTAINS
          CALL cp_cfm_to_cfm(T3, T2)
       END DO
 
-      IF (nsquare .GT. 0) THEN
+      IF (nsquare > 0) THEN
          DO i = 1, nsquare
             CALL parallel_gemm("N", "N", ndim, ndim, ndim, z_one, Tres, Tres, z_zero, &
                                T2)
@@ -264,12 +264,12 @@ CONTAINS
                   D = 1.0_dp
                   N = 1.0_dp
                   DO i = 1, q
-                     IF (i .LE. p) scaleN = fac(p + q - i)*fac(p)/(fac(p + q)*fac(i)*fac(p - i))
+                     IF (i <= p) scaleN = fac(p + q - i)*fac(p)/(fac(p + q)*fac(i)*fac(p - i))
                      scaleD = (-1.0)**i*fac(p + q - i)*fac(q)/(fac(p + q)*fac(i)*fac(q - i))
-                     IF (i .LE. p) N = N + scaleN*eval**i
+                     IF (i <= p) N = N + scaleN*eval**i
                      D = D + scaleD*eval**i
                   END DO
-                  IF (ABS((EXP(norm) - (N/D)**(2.0_dp**iscale))/MAX(1.0_dp, EXP(norm))) .LE. eps_exp) THEN
+                  IF (ABS((EXP(norm) - (N/D)**(2.0_dp**iscale))/MAX(1.0_dp, EXP(norm))) <= eps_exp) THEN
                      IF (do_emd) THEN
                         cost = iscale + q
                         prev_cost = orders(1) + orders(2)
@@ -277,7 +277,7 @@ CONTAINS
                         cost = iscale + CEILING(REAL(q, dp)/3.0_dp)
                         prev_cost = orders(1) + CEILING(REAL(orders(2), dp)/3.0_dp)
                      END IF
-                     IF (cost .LT. prev_cost) THEN
+                     IF (cost < prev_cost) THEN
                         orders(:) = [iscale, q, p]
                         myval = (N/D)**(2.0_dp**iscale)
                      END IF
@@ -287,14 +287,14 @@ CONTAINS
                END DO
                IF (new_scale) EXIT
             END DO
-            IF (iscale .GE. orders(1) + orders(2) .AND. new_scale) EXIT
+            IF (iscale >= orders(1) + orders(2) .AND. new_scale) EXIT
          END DO
       ELSE IF (method == 1) THEN
          q = 0
          eval = norm
          DO iscale = 0, 6
             new_scale = .FALSE.
-            IF (iscale .GE. 1) eval = norm/(2.0_dp**REAL(iscale, dp))
+            IF (iscale >= 1) eval = norm/(2.0_dp**REAL(iscale, dp))
             DO p = 1, 20
                D = 1.0_dp
                N = 1.0_dp
@@ -302,7 +302,7 @@ CONTAINS
                   scaleN = 1.0_dp/fac(i)
                   N = N + scaleN*(eval**REAL(i, dp))
                END DO
-               IF (ABS((EXP(norm) - N**(2.0_dp**REAL(iscale, dp)))/MAX(1.0_dp, EXP(norm))) .LE. eps_exp) THEN
+               IF (ABS((EXP(norm) - N**(2.0_dp**REAL(iscale, dp)))/MAX(1.0_dp, EXP(norm))) <= eps_exp) THEN
                   IF (do_emd) THEN
                      cost = iscale + p
                      prev_cost = orders(1) + orders(2)
@@ -310,7 +310,7 @@ CONTAINS
                      cost = iscale + CEILING(REAL(p, dp)/3.0_dp)
                      prev_cost = orders(1) + CEILING(REAL(orders(2), dp)/3.0_dp)
                   END IF
-                  IF (cost .LT. prev_cost) THEN
+                  IF (cost < prev_cost) THEN
                      orders(:) = [iscale, p, 0]
                      myval = (N)**(2.0_dp**iscale)
                   END IF
@@ -318,7 +318,7 @@ CONTAINS
                   EXIT
                END IF
             END DO
-            IF (iscale .GE. orders(1) + orders(2) .AND. new_scale) EXIT
+            IF (iscale >= orders(1) + orders(2) .AND. new_scale) EXIT
          END DO
       END IF
 
@@ -395,14 +395,14 @@ CONTAINS
       CALL cp_cfm_scale_and_add(z_one, Npq, z_one*0.5_dp, T2)
       CALL cp_cfm_scale_and_add(z_one, Dpq, -z_one*0.5_dp, T2)
 
-      IF (npade .GT. 2) THEN
+      IF (npade > 2) THEN
          DO i = 2, npade
-            IF (i .LE. p) scaleN = CMPLX(fac(p + q - i)*fac(p)/(fac(p + q)*fac(i)*fac(p - i)), 0.0_dp, kind=dp)
+            IF (i <= p) scaleN = CMPLX(fac(p + q - i)*fac(p)/(fac(p + q)*fac(i)*fac(p - i)), 0.0_dp, kind=dp)
             scaleD = CMPLX((-1.0_dp)**i*fac(p + q - i)*fac(q)/(fac(p + q)*fac(i)*fac(q - i)), 0.0_dp, kind=dp)
             CALL parallel_gemm("N", "N", ndim, ndim, ndim, z_one, T1, mult_p(MOD(i, 2) + 1), z_zero, &
                                mult_p(MOD(i + 1, 2) + 1))
-            IF (i .LE. p) CALL cp_cfm_scale_and_add(z_one, Npq, scaleN, mult_p(MOD(i + 1, 2) + 1))
-            IF (i .LE. q) CALL cp_cfm_scale_and_add(z_one, Dpq, scaleD, mult_p(MOD(i + 1, 2) + 1))
+            IF (i <= p) CALL cp_cfm_scale_and_add(z_one, Npq, scaleN, mult_p(MOD(i + 1, 2) + 1))
+            IF (i <= q) CALL cp_cfm_scale_and_add(z_one, Dpq, scaleD, mult_p(MOD(i + 1, 2) + 1))
          END DO
       END IF
 
@@ -410,7 +410,7 @@ CONTAINS
 
       mult_p(2) = Npq
       mult_p(1) = Tres
-      IF (nsquare .GT. 0) THEN
+      IF (nsquare > 0) THEN
          DO i = 1, nsquare
             CALL parallel_gemm("N", "N", ndim, ndim, ndim, z_one, mult_p(MOD(i, 2) + 1), mult_p(MOD(i, 2) + 1), z_zero, &
                                mult_p(MOD(i + 1, 2) + 1))
@@ -502,11 +502,11 @@ CONTAINS
          Dpq%local_data(:, i) = Dpq%local_data(:, i) - CMPLX(rzero, 0.5_dp*square_fac*local_data_im(:, i), dp)
       END DO
 
-      IF (npade .GT. 2) THEN
+      IF (npade > 2) THEN
          DO j = 1, FLOOR(npade/2.0_dp)
             i = 2*j
             my_fac = (-rone)**j
-            IF (i .LE. p) scaleN = CMPLX(my_fac*fac(p + q - i)*fac(p)/(fac(p + q)*fac(i)*fac(p - i)), 0.0_dp, dp)
+            IF (i <= p) scaleN = CMPLX(my_fac*fac(p + q - i)*fac(p)/(fac(p + q)*fac(i)*fac(p - i)), 0.0_dp, dp)
             scaleD = CMPLX(my_fac*fac(p + q - i)*fac(q)/(fac(p + q)*fac(i)*fac(q - i)), 0.0_dp, dp)
             CALL parallel_gemm("N", "N", ndim, ndim, ndim, square_fac, im_part, T2, rzero, Tres)
 
@@ -515,9 +515,9 @@ CONTAINS
                Dpq%local_data(:, k) = Dpq%local_data(:, k) + scaleD*Tres%local_data(:, k)
             END DO
 
-            IF (2*j + 1 .LE. q) THEN
+            IF (2*j + 1 <= q) THEN
                i = 2*j + 1
-               IF (i .LE. p) scaleN = CMPLX(my_fac*fac(p + q - i)*fac(p)/(fac(p + q)*fac(i)*fac(p - i)), rzero, dp)
+               IF (i <= p) scaleN = CMPLX(my_fac*fac(p + q - i)*fac(p)/(fac(p + q)*fac(i)*fac(p - i)), rzero, dp)
                scaleD = CMPLX(-my_fac*fac(p + q - i)*fac(q)/(fac(p + q)*fac(i)*fac(q - i)), rzero, dp)
                CALL parallel_gemm("N", "N", ndim, ndim, ndim, square_fac, im_part, Tres, rzero, T2)
 
@@ -533,7 +533,7 @@ CONTAINS
 
       cmult_p(2) = Npq
       cmult_p(1) = T1
-      IF (nsquare .GT. 0) THEN
+      IF (nsquare > 0) THEN
          DO i = 1, nsquare
             CALL parallel_gemm("N", "N", ndim, ndim, ndim, z_one, cmult_p(MOD(i, 2) + 1), cmult_p(MOD(i, 2) + 1), z_zero, &
                                cmult_p(MOD(i + 1, 2) + 1))
@@ -624,7 +624,7 @@ CONTAINS
       mult_p(1) = T2
       mult_p(2) = Tres
 
-      IF (npade .GE. 2) THEN
+      IF (npade >= 2) THEN
          DO j = 2, npade
             my_fac = (-1.0_dp)**j
             scaleN = fac(p + q - j)*fac(p)/(fac(p + q)*fac(j)*fac(p - j))
@@ -643,7 +643,7 @@ CONTAINS
 
       mult_p(2) = Npq
       mult_p(1) = T1
-      IF (nsquare .GT. 0) THEN
+      IF (nsquare > 0) THEN
          DO i = 1, nsquare
             CALL parallel_gemm("N", "N", ndim, ndim, ndim, one, mult_p(MOD(i, 2) + 1), mult_p(MOD(i, 2) + 1), zero, &
                                mult_p(MOD(i + 1, 2) + 1))
@@ -798,7 +798,7 @@ CONTAINS
 
          CALL col_group%sum(results)
 
-         IF (i .LE. narnoldi) THEN
+         IF (i <= narnoldi) THEN
 
 !$OMP PARALLEL DO DEFAULT(NONE) SHARED(H_approx_save,last_norm,V_mats,ncol_local,i,results)
             DO icol_local = 1, ncol_local
@@ -820,7 +820,7 @@ CONTAINS
          ! PADE approximation for exp(H_approx), everything is done locally
 
          convergence = .FALSE.
-         IF (i .GE. narn_old) THEN
+         IF (i >= narn_old) THEN
             npade = 9
             mydim = MIN(i, narnoldi)
             ALLOCATE (ipivot(mydim))
@@ -888,7 +888,7 @@ CONTAINS
 
             CALL para_env%max(conv_norm)
 
-            IF (conv_norm .LT. eps_exp .OR. i .GT. narnoldi) THEN
+            IF (conv_norm < eps_exp .OR. i > narnoldi) THEN
 
                mos_new(1)%local_data = rzero
                mos_new(2)%local_data = rzero
@@ -930,7 +930,7 @@ CONTAINS
                      END DO
                   END DO
                END IF
-               IF (conv_norm .LT. eps_exp) THEN
+               IF (conv_norm < eps_exp) THEN
                   convergence = .TRUE.
                   narn_old = i - 1
                END IF

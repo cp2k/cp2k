@@ -169,18 +169,18 @@ CONTAINS
       dz = grid%dr(3)
       kk = bo(1, 3)
       DO k = bo(1, 3), bo(2, 3)
-         z = REAL(k - glb(3), dp)*dz; IF (z .GT. box2(3)) z = box(3) - z
+         z = REAL(k - glb(3), dp)*dz; IF (z > box2(3)) z = box(3) - z
          z2 = z*z
          jj = bo(1, 2)
          DO j = bo(1, 2), bo(2, 2)
-            y = REAL(j - glb(2), dp)*dy; IF (y .GT. box2(2)) y = box(2) - y
+            y = REAL(j - glb(2), dp)*dy; IF (y > box2(2)) y = box(2) - y
             y2 = y*y
             ii = bo(1, 1)
             DO i = bo(1, 1), bo(2, 1)
-               x = REAL(i - glb(1), dp)*dx; IF (x .GT. box2(1)) x = box(1) - x
+               x = REAL(i - glb(1), dp)*dx; IF (x > box2(1)) x = box(1) - x
                r2 = x*x + y2 + z2
                r = SQRT(r2)
-               IF (r .GT. 1.0E-10_dp) THEN
+               IF (r > 1.0E-10_dp) THEN
                   Vloc%array(ii, jj, kk) = erf(alpha*r)/r*fact
                ELSE
                   Vloc%array(ii, jj, kk) = 2.0_dp*alpha*oorootpi*fact

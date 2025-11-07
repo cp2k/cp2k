@@ -1415,7 +1415,7 @@ CONTAINS
       IF (resp_env%rheavies) THEN
          DO i = 1, natom
             CALL get_atomic_kind(atomic_kind=particle_set(i)%atomic_kind, z=z)
-            IF (z .NE. 1) THEN
+            IF (z /= 1) THEN
                resp_env%matrix(i, i) = resp_env%matrix(i, i) + 2.0_dp*resp_env%rheavies_strength
             END IF
          END DO

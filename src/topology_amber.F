@@ -1623,7 +1623,7 @@ CONTAINS
          label_d(iphi) = work_label(4, 1)
          k(iphi) = pk(icp(iwork(1)))
          m(iphi) = NINT(pn(icp(iwork(1))))
-         IF (m(iphi) - pn(icp(iwork(1))) .GT. EPSILON(1.0_dp)) THEN
+         IF (m(iphi) - pn(icp(iwork(1))) > EPSILON(1.0_dp)) THEN
             ! non integer torsions not supported
             CPABORT("")
          END IF
@@ -1657,7 +1657,7 @@ CONTAINS
                label_d(iphi) = work_label(4, i)
                k(iphi) = pk(icp(iwork(i)))
                m(iphi) = NINT(pn(icp(iwork(i))))
-               IF (m(iphi) - pn(icp(iwork(i))) .GT. EPSILON(1.0_dp)) THEN
+               IF (m(iphi) - pn(icp(iwork(i))) > EPSILON(1.0_dp)) THEN
                   ! non integer torsions not supported
                   CPABORT("")
                END IF

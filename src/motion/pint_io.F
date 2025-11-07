@@ -216,7 +216,7 @@ CONTAINS
                                         local=.FALSE., file_form=form, is_new_file=new_file)
 
          ! don't write the 0-th frame if the file already exists
-         IF (.NOT. new_file .AND. (pint_env%iter .LE. pint_env%first_step)) THEN
+         IF (.NOT. new_file .AND. (pint_env%iter <= pint_env%first_step)) THEN
             CALL cp_print_key_finished_output(unit_nr, logger, &
                                               print_key)
             CONTINUE
@@ -366,7 +366,7 @@ CONTAINS
                                            local=.FALSE., file_form=form, is_new_file=new_file)
 
             ! don't write the 0-th frame if the file already exists
-            IF (.NOT. new_file .AND. (pint_env%iter .LE. pint_env%first_step)) THEN
+            IF (.NOT. new_file .AND. (pint_env%iter <= pint_env%first_step)) THEN
                CALL cp_print_key_finished_output(unit_nr, logger, &
                                                  print_key)
                CONTINUE
@@ -445,7 +445,7 @@ CONTAINS
                                      middle_name="com-pos", extension=".xyz")
 
       ! don't write the 0-th frame if the file already exists
-      IF (.NOT. new_file .AND. (pint_env%iter .LE. pint_env%first_step)) THEN
+      IF (.NOT. new_file .AND. (pint_env%iter <= pint_env%first_step)) THEN
          CALL cp_print_key_finished_output(unit_nr, logger, &
                                            print_key)
          RETURN
@@ -497,7 +497,7 @@ CONTAINS
                                         extension=".dat", is_new_file=file_is_new)
 
          ! don't write the 0-th frame if the file already exists
-         IF (.NOT. file_is_new .AND. (pint_env%iter .LE. pint_env%first_step)) THEN
+         IF (.NOT. file_is_new .AND. (pint_env%iter <= pint_env%first_step)) THEN
             CALL cp_print_key_finished_output(unit_nr, logger, &
                                               print_key)
             RETURN
@@ -523,7 +523,7 @@ CONTAINS
             t = cp_unit_from_cp2k(pint_env%t, "fs")
 
             ndof = pint_env%p
-            IF (pint_env%first_propagated_mode .EQ. 2) THEN
+            IF (pint_env%first_propagated_mode == 2) THEN
                ndof = ndof - 1
             END IF
             temp = cp_unit_from_cp2k(2.0_dp*pint_env%e_kin_beads/ &
@@ -573,7 +573,7 @@ CONTAINS
                                         extension=".dat", is_new_file=file_is_new)
 
          ! don't write the 0-th frame if the file already exists
-         IF (.NOT. file_is_new .AND. (pint_env%iter .LE. pint_env%first_step)) THEN
+         IF (.NOT. file_is_new .AND. (pint_env%iter <= pint_env%first_step)) THEN
             CALL cp_print_key_finished_output(unit_nr, logger, &
                                               print_key)
             RETURN
@@ -630,11 +630,11 @@ CONTAINS
 
       time_used = pint_env%time_per_step
       time_unit = "sec"
-      IF (time_used .GE. 60.0_dp) THEN
+      IF (time_used >= 60.0_dp) THEN
          time_used = time_used/60.0_dp
          time_unit = "min"
       END IF
-      IF (time_used .GE. 60.0_dp) THEN
+      IF (time_used >= 60.0_dp) THEN
          time_used = time_used/60.0_dp
          time_unit = "hours"
       END IF
@@ -731,7 +731,7 @@ CONTAINS
                                      middle_name="centroid-gyr", extension=".dat")
 
       ! don't write the 0-th frame if the file already exists
-      IF (.NOT. new_file .AND. (pint_env%iter .LE. pint_env%first_step)) THEN
+      IF (.NOT. new_file .AND. (pint_env%iter <= pint_env%first_step)) THEN
          CALL cp_print_key_finished_output(unit_nr, logger, &
                                            print_key)
          RETURN

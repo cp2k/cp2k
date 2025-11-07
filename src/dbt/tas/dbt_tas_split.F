@@ -123,7 +123,7 @@ CONTAINS
 
       CALL world_to_group_proc_map(iproc, pdims, split_rowcol, split_info%pgrid_split_size, igroup_check, pdims_group, iproc_group)
 
-      IF (igroup_check .NE. split_info%igroup) THEN
+      IF (igroup_check /= split_info%igroup) THEN
          CPABORT('inconsistent subgroups')
       END IF
 
@@ -131,7 +131,7 @@ CONTAINS
 
       iproc_group_check = split_info%mp_comm_group%mepos
 
-      CPASSERT(iproc_group_check .EQ. iproc_group)
+      CPASSERT(iproc_group_check == iproc_group)
 
       CALL mp_comm_group%free()
 
@@ -285,7 +285,7 @@ CONTAINS
          get_opt_nsplit = nsplit_list(minpos)
       ELSE
          get_opt_nsplit = nsplit
-         DO WHILE (MOD(numproc, get_opt_nsplit) .NE. 0)
+         DO WHILE (MOD(numproc, get_opt_nsplit) /= 0)
             get_opt_nsplit = get_opt_nsplit - 1
          END DO
       END IF
@@ -368,7 +368,7 @@ CONTAINS
       IF (opt_nsplit_prv) THEN
          nsplit_opt = get_opt_nsplit(pdim_split, nsplit, split_pgrid=.TRUE., pdim_nonsplit=pdim_nonsplit)
       ELSE
-         IF (MOD(pdims(split_rowcol), nsplit) .NE. 0) THEN
+         IF (MOD(pdims(split_rowcol), nsplit) /= 0) THEN
             CPABORT("Split factor does not divide process grid dimension")
          END IF
          nsplit_opt = nsplit
@@ -406,9 +406,9 @@ CONTAINS
       IF (relative) THEN
          dims_opt = 0
          CALL mp_dims_create(PRODUCT(dims), dims_opt)
-         accept_pgrid_dims = (MAXVAL(REAL(dims, dp))/MAXVAL(dims_opt) .LT. default_pdims_accept_ratio)
+         accept_pgrid_dims = (MAXVAL(REAL(dims, dp))/MAXVAL(dims_opt) < default_pdims_accept_ratio)
       ELSE
-         accept_pgrid_dims = (MAXVAL(REAL(dims, dp))/MINVAL(dims) .LT. default_pdims_accept_ratio**2)
+         accept_pgrid_dims = (MAXVAL(REAL(dims, dp))/MINVAL(dims) < default_pdims_accept_ratio**2)
       END IF
    END FUNCTION
 

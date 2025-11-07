@@ -420,7 +420,7 @@ CONTAINS
          DO i = 1, nrow_local
             DO j = 1, ncol_local
                alpha = overlap_re%local_data(i, j)
-               IF (row_indices(i) .EQ. col_indices(j)) alpha = alpha - 1.0_dp
+               IF (row_indices(i) == col_indices(j)) alpha = alpha - 1.0_dp
                max_alpha = MAX(max_alpha, ABS(alpha))
             END DO
          END DO

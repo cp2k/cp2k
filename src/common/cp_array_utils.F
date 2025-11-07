@@ -146,7 +146,7 @@ CONTAINS
          IF (PRESENT(el_format)) THEN
             DO i = 1, SIZE(array) - 1
                WRITE (unit=unit_nr, fmt=el_format, advance="no") array(i)
-               IF (MOD(i, 5) .EQ. 0) THEN  ! only a few elements per line
+               IF (MOD(i, 5) == 0) THEN  ! only a few elements per line
                   WRITE (unit=unit_nr, fmt="(',')")
                ELSE
                   WRITE (unit=unit_nr, fmt="(',')", advance="no")
@@ -157,7 +157,7 @@ CONTAINS
          ELSE
             DO i = 1, SIZE(array) - 1
                WRITE (unit=unit_nr, fmt=defaultFormat, advance="no") array(i)
-               IF (MOD(i, 5) .EQ. 0) THEN  ! only a few elements per line
+               IF (MOD(i, 5) == 0) THEN  ! only a few elements per line
                   WRITE (unit=unit_nr, fmt="(',')")
                ELSE
                   WRITE (unit=unit_nr, fmt="(',')", advance="no")

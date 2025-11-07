@@ -113,7 +113,7 @@ CONTAINS
          DO WHILE (dbcsr_iterator_blocks_left(iter))
             CALL dbcsr_iterator_next_block(iter, irow, icol, pdata)
             ikind = kind_of(irow)
-            IF (icol .EQ. irow) THEN
+            IF (icol == irow) THEN
                IF (ispin == 1) THEN
                   pdata(:, :) = pmat(ikind)%mat(:, :, 1)*rscale + &
                                 pmat(ikind)%mat(:, :, 2)*rscale

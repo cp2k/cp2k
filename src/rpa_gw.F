@@ -1828,12 +1828,12 @@ CONTAINS
          DO j_col = 1, ncol_local
             i_glob = row_indices(i_row)
             j_glob = col_indices(j_col)
-            IF (i_glob .LE. nao) THEN
+            IF (i_glob <= nao) THEN
                E_i = Eigenval(i_glob, ikp, 1)
             ELSE
                E_i = Eigenval(i_glob - nao, ikp, 1)
             END IF
-            IF (j_glob .LE. nao) THEN
+            IF (j_glob <= nao) THEN
                E_j = Eigenval(j_glob, ikp, 1)
             ELSE
                E_j = Eigenval(j_glob - nao, ikp, 1)
@@ -2184,7 +2184,7 @@ CONTAINS
       DO k = 1, SIZE(array, 3)
 
          ! check for NaN
-         IF (array(i, j, k) .NE. array(i, j, k)) array(i, j, k) = real_value
+         IF (array(i, j, k) /= array(i, j, k)) array(i, j, k) = real_value
 
       END DO
       END DO
@@ -3419,7 +3419,7 @@ CONTAINS
                         m_level = i_row + row_offset - 1
 
                         ! we only compute the correction for n=m
-                        IF (m_level .NE. n_level_gw) CYCLE
+                        IF (m_level /= n_level_gw) CYCLE
 
                         IF (.NOT. do_extra_kpoints) THEN
 
@@ -3472,7 +3472,7 @@ CONTAINS
                         contribution = weight*(eps_inv_head(ikp) - 1.0_dp)/abs_k_square*(data_block(i_row, i_col))**2
 
                         ! we only compute the correction for n=m
-                        IF (m_level .NE. n_level_gw) CYCLE
+                        IF (m_level /= n_level_gw) CYCLE
 
                         IF (.NOT. do_extra_kpoints) THEN
 

@@ -115,12 +115,12 @@ CONTAINS
 
       SELECT CASE (poisson_params%ps_implicit_params%boundary_condition)
       CASE (MIXED_BC, MIXED_PERIODIC_BC)
-         IF (n_dbcs .EQ. 0) THEN
+         IF (n_dbcs == 0) THEN
             CPABORT("No Dirichlet region is defined.")
          END IF
 
          ALLOCATE (dbcs(n_dbcs))
-         IF (unit_nr .GT. 0) THEN
+         IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(/,T3,A,A,/,T3,A)') "POISSON| IMPLICIT (GENERALIZED) SOLVER ", REPEAT('-', 39), &
                "POISSON| Preparing Dirichlet regions ..."
          END IF
@@ -138,7 +138,7 @@ CONTAINS
             parallel_plane = poisson_params%dbc_params%aa_planar_pplane(j)
             is_periodic = poisson_params%dbc_params%aa_planar_is_periodic(j)
 
-            IF (unit_nr .GT. 0) THEN
+            IF (unit_nr > 0) THEN
                WRITE (unit_nr, '(T3,A,I5)') "POISSON| Dirichlet region", j
                WRITE (unit_nr, '(T3,A)') "POISSON|     type : axis-aligned planar"
                WRITE (unit_nr, '(T3,A,E13.4,2X,A)') "POISSON|     applied potential :", v_D, "[Eh/e]"
@@ -166,7 +166,7 @@ CONTAINS
             sigma = poisson_params%dbc_params%aa_cuboidal_sigma(j - l)
             is_periodic = poisson_params%dbc_params%aa_cuboidal_is_periodic(j - l)
 
-            IF (unit_nr .GT. 0) THEN
+            IF (unit_nr > 0) THEN
                WRITE (unit_nr, '(T3,A,I5)') "POISSON| Dirichlet region", j
                WRITE (unit_nr, '(T3,A)') "POISSON|     type : axis-aligned cuboidal"
                WRITE (unit_nr, '(T3,A,E13.4,2X,A)') "POISSON|     applied potential :", v_D, "[Eh/e]"
@@ -196,7 +196,7 @@ CONTAINS
             thickness = poisson_params%dbc_params%planar_thickness(j - l)
             is_periodic = poisson_params%dbc_params%planar_is_periodic(j - l)
 
-            IF (unit_nr .GT. 0) THEN
+            IF (unit_nr > 0) THEN
                WRITE (unit_nr, '(T3,A,I5)') "POISSON| Dirichlet region", j
                WRITE (unit_nr, '(T3,A)') "POISSON|     type : planar"
                WRITE (unit_nr, '(T3,A,E13.4,2X,A)') "POISSON|     applied potential :", v_D, "[Eh/e]"
@@ -232,7 +232,7 @@ CONTAINS
             phase = poisson_params%dbc_params%aa_cylindrical_phase(j)
             is_periodic = poisson_params%dbc_params%aa_cylindrical_is_periodic(j)
 
-            IF (unit_nr .GT. 0) THEN
+            IF (unit_nr > 0) THEN
                WRITE (unit_nr, '(T3,A,I5)') "POISSON| Dirichlet region", l + j
                WRITE (unit_nr, '(T3,A)') "POISSON|     type : axis-aligned cylindrical"
                WRITE (unit_nr, '(T3,A,E13.4,2X,A)') "POISSON|     applied potential :", v_D, "[Eh/e]"
@@ -311,7 +311,7 @@ CONTAINS
          dirichlet_bc%n_tiles = n_tiles
          ALLOCATE (dirichlet_bc%tiles(n_tiles))
          dirichlet_bc%tiles = tiles
-         IF ((unit_nr .GT. 0) .AND. verbose) WRITE (unit_nr, '(T7,A,I5)') "number of partitions : ", n_tiles
+         IF ((unit_nr > 0) .AND. verbose) WRITE (unit_nr, '(T7,A,I5)') "number of partitions : ", n_tiles
 
          ALLOCATE (tile_maxvals(n_tiles))
          tile_maxvals = 0.0_dp
@@ -320,7 +320,7 @@ CONTAINS
             CALL pw_pool%create_pw(dirichlet_bc%tiles(k)%tile%tile_pw)
             CALL pw_zero(dirichlet_bc%tiles(k)%tile%tile_pw)
 
-            IF ((unit_nr .GT. 0) .AND. verbose) THEN
+            IF ((unit_nr > 0) .AND. verbose) THEN
                WRITE (unit_nr, '(T7,A,I5)') "tile", k
                DO i = 1, 8
                   WRITE (unit_nr, '(T10,A,I1,3F10.3)') &
@@ -335,7 +335,7 @@ CONTAINS
             dirichlet_bc%tiles(k)%tile%volume = tile_volume
          END DO
 
-         IF ((unit_nr .GT. 0) .AND. verbose) WRITE (unit_nr, '(T3,A)') REPEAT('=', 78)
+         IF ((unit_nr > 0) .AND. verbose) WRITE (unit_nr, '(T3,A)') REPEAT('=', 78)
 
          DEALLOCATE (tiles)
 
@@ -346,7 +346,7 @@ CONTAINS
          dirichlet_bc%n_tiles = n_tiles
          ALLOCATE (dirichlet_bc%tiles(n_tiles))
          dirichlet_bc%tiles = tiles
-         IF ((unit_nr .GT. 0) .AND. verbose) WRITE (unit_nr, '(T7,A,I5)') "number of partitions : ", n_tiles
+         IF ((unit_nr > 0) .AND. verbose) WRITE (unit_nr, '(T7,A,I5)') "number of partitions : ", n_tiles
 
          NULLIFY (cylinder_pw)
          ALLOCATE (cylinder_pw)
@@ -358,7 +358,7 @@ CONTAINS
             CALL pw_pool%create_pw(dirichlet_bc%tiles(k)%tile%tile_pw)
             CALL pw_zero(dirichlet_bc%tiles(k)%tile%tile_pw)
 
-            IF ((unit_nr .GT. 0) .AND. verbose) THEN
+            IF ((unit_nr > 0) .AND. verbose) THEN
                WRITE (unit_nr, '(T7,A,I5)') "tile", k
                DO i = 1, 8
                   WRITE (unit_nr, '(T10,A,I1,3F10.3)') &
@@ -376,7 +376,7 @@ CONTAINS
 
          cyl_maxval = MAXVAL(cylinder_pw%array)
          CALL pw_pool%pw_grid%para%group%max(cyl_maxval)
-         IF (cyl_maxval .GT. 1.01_dp) THEN
+         IF (cyl_maxval > 1.01_dp) THEN
             CALL cp_abort(__LOCATION__, &
                           "Inaccurate approximation of unit step function at cylindrical Dirichlet region. "// &
                           "Increase the number of sides (N_SIDES) and/or the base radius. Alternatively, "// &
@@ -386,7 +386,7 @@ CONTAINS
          CALL pw_pool%give_back_pw(cylinder_pw)
          DEALLOCATE (cylinder_pw)
 
-         IF ((unit_nr .GT. 0) .AND. verbose) WRITE (unit_nr, '(T3,A)') REPEAT('=', 78)
+         IF ((unit_nr > 0) .AND. verbose) WRITE (unit_nr, '(T3,A)') REPEAT('=', 78)
 
          DEALLOCATE (tiles)
 
@@ -397,14 +397,14 @@ CONTAINS
          dirichlet_bc%n_tiles = n_tiles
          ALLOCATE (dirichlet_bc%tiles(n_tiles))
          dirichlet_bc%tiles = tiles
-         IF ((unit_nr .GT. 0) .AND. verbose) WRITE (unit_nr, '(T7,A,I5)') "number of partitions : ", n_tiles
+         IF ((unit_nr > 0) .AND. verbose) WRITE (unit_nr, '(T7,A,I5)') "number of partitions : ", n_tiles
 
          DO k = 1, n_tiles
             ALLOCATE (dirichlet_bc%tiles(k)%tile%tile_pw)
             CALL pw_pool%create_pw(dirichlet_bc%tiles(k)%tile%tile_pw)
             CALL pw_zero(dirichlet_bc%tiles(k)%tile%tile_pw)
 
-            IF ((unit_nr .GT. 0) .AND. verbose) THEN
+            IF ((unit_nr > 0) .AND. verbose) THEN
                WRITE (unit_nr, '(T7,A,I5)') "tile", k
                DO i = 1, 8
                   WRITE (unit_nr, '(T10,A,I1,3F10.3)') &
@@ -419,7 +419,7 @@ CONTAINS
             dirichlet_bc%tiles(k)%tile%volume = tile_volume
          END DO
 
-         IF ((unit_nr .GT. 0) .AND. verbose) WRITE (unit_nr, '(T3,A)') REPEAT('=', 78)
+         IF ((unit_nr > 0) .AND. verbose) WRITE (unit_nr, '(T3,A)') REPEAT('=', 78)
 
          DEALLOCATE (tiles)
 
@@ -495,15 +495,15 @@ CONTAINS
          xub = xub + thickness*0.5_dp
       END SELECT
 
-      forb_xtnt1 = xlb .LT. cell_xtnts(1, 1)
-      forb_xtnt2 = xub .GT. cell_xtnts(2, 1)
-      forb_xtnt3 = ylb .LT. cell_xtnts(1, 2)
-      forb_xtnt4 = yub .GT. cell_xtnts(2, 2)
-      forb_xtnt5 = zlb .LT. cell_xtnts(1, 3)
-      forb_xtnt6 = zub .GT. cell_xtnts(2, 3)
+      forb_xtnt1 = xlb < cell_xtnts(1, 1)
+      forb_xtnt2 = xub > cell_xtnts(2, 1)
+      forb_xtnt3 = ylb < cell_xtnts(1, 2)
+      forb_xtnt4 = yub > cell_xtnts(2, 2)
+      forb_xtnt5 = zlb < cell_xtnts(1, 3)
+      forb_xtnt6 = zub > cell_xtnts(2, 3)
       n_forb_xtnts = COUNT([forb_xtnt1, forb_xtnt2, forb_xtnt3, &
                             forb_xtnt4, forb_xtnt5, forb_xtnt6] .EQV. test_forb_xtnts)
-      IF (n_forb_xtnts .GT. 0) THEN
+      IF (n_forb_xtnts > 0) THEN
          CALL cp_abort(__LOCATION__, &
                        "The given extents for the Dirichlet region are outside the range of "// &
                        "the simulation cell.")
@@ -527,7 +527,7 @@ CONTAINS
       dirichlet_bc%vertices(1:3, 7) = [xub, ylb, zub]
       dirichlet_bc%vertices(1:3, 8) = [xub, yub, zub]
 
-      IF ((unit_nr .GT. 0) .AND. verbose) THEN
+      IF ((unit_nr > 0) .AND. verbose) THEN
          WRITE (unit_nr, '(T3,A,A)') "======== verbose ", REPEAT('=', 61)
          DO i = 1, 8
             WRITE (unit_nr, '(T10,A,I1,3F10.3)') "   vertex ", i, angstrom*dirichlet_bc%vertices(:, i)
@@ -583,15 +583,15 @@ CONTAINS
          unit_nr = -1
       END IF
 
-      forb_xtnt1 = x_xtnt(1) .LT. cell_xtnts(1, 1)
-      forb_xtnt2 = x_xtnt(2) .GT. cell_xtnts(2, 1)
-      forb_xtnt3 = y_xtnt(1) .LT. cell_xtnts(1, 2)
-      forb_xtnt4 = y_xtnt(2) .GT. cell_xtnts(2, 2)
-      forb_xtnt5 = z_xtnt(1) .LT. cell_xtnts(1, 3)
-      forb_xtnt6 = z_xtnt(2) .GT. cell_xtnts(2, 3)
+      forb_xtnt1 = x_xtnt(1) < cell_xtnts(1, 1)
+      forb_xtnt2 = x_xtnt(2) > cell_xtnts(2, 1)
+      forb_xtnt3 = y_xtnt(1) < cell_xtnts(1, 2)
+      forb_xtnt4 = y_xtnt(2) > cell_xtnts(2, 2)
+      forb_xtnt5 = z_xtnt(1) < cell_xtnts(1, 3)
+      forb_xtnt6 = z_xtnt(2) > cell_xtnts(2, 3)
       n_forb_xtnts = COUNT([forb_xtnt1, forb_xtnt2, forb_xtnt3, &
                             forb_xtnt4, forb_xtnt5, forb_xtnt6] .EQV. test_forb_xtnts)
-      IF (n_forb_xtnts .GT. 0) THEN
+      IF (n_forb_xtnts > 0) THEN
          CALL cp_abort(__LOCATION__, &
                        "The given extents for the Dirichlet region are outside the range of "// &
                        "the simulation cell.")
@@ -615,7 +615,7 @@ CONTAINS
       dirichlet_bc%vertices(1:3, 7) = [x_xtnt(2), y_xtnt(1), z_xtnt(2)]
       dirichlet_bc%vertices(1:3, 8) = [x_xtnt(2), y_xtnt(2), z_xtnt(2)]
 
-      IF ((unit_nr .GT. 0) .AND. verbose) THEN
+      IF ((unit_nr > 0) .AND. verbose) THEN
          WRITE (unit_nr, '(T3,A,A)') "======== verbose ", REPEAT('=', 61)
          DO i = 1, 8
             WRITE (unit_nr, '(T10,A,I1,3F10.3)') "   vertex ", i, angstrom*dirichlet_bc%vertices(:, i)
@@ -679,7 +679,7 @@ CONTAINS
 
       D = A + (C - B)
       AB = B - A; AC = C - A; AD = D - A; BC = C - B
-      are_orthogonal = ABS(DOT_PRODUCT(AB, BC)/(SQRT(SUM(AB**2))*SQRT(SUM(BC**2)))) .LE. small_value
+      are_orthogonal = ABS(DOT_PRODUCT(AB, BC)/(SQRT(SUM(AB**2))*SQRT(SUM(BC**2)))) <= small_value
       IF (.NOT. are_orthogonal) THEN
          CALL cp_abort(__LOCATION__, "The given vertices for defining a "// &
                        "planar Dirichlet region do not form orthogonal edges.")
@@ -688,25 +688,25 @@ CONTAINS
       normal_vector = vector_product(AB, AC)
       unit_normal = normal_vector/SQRT(SUM(normal_vector**2))
 
-      A_is_inside = (A(1) .GT. cell_xtnts(1, 1) .AND. A(1) .LT. cell_xtnts(2, 1)) .AND. &
-                    (A(2) .GT. cell_xtnts(1, 2) .AND. A(2) .LT. cell_xtnts(2, 2)) .AND. &
-                    (A(3) .GT. cell_xtnts(1, 3) .AND. A(3) .LT. cell_xtnts(2, 3))
-      B_is_inside = (B(1) .GT. cell_xtnts(1, 1) .AND. B(1) .LT. cell_xtnts(2, 1)) .AND. &
-                    (B(2) .GT. cell_xtnts(1, 2) .AND. B(2) .LT. cell_xtnts(2, 2)) .AND. &
-                    (B(3) .GT. cell_xtnts(1, 3) .AND. B(3) .LT. cell_xtnts(2, 3))
-      C_is_inside = (C(1) .GT. cell_xtnts(1, 1) .AND. C(1) .LT. cell_xtnts(2, 1)) .AND. &
-                    (C(2) .GT. cell_xtnts(1, 2) .AND. C(2) .LT. cell_xtnts(2, 2)) .AND. &
-                    (C(3) .GT. cell_xtnts(1, 3) .AND. C(3) .LT. cell_xtnts(2, 3))
-      D_is_inside = (D(1) .GT. cell_xtnts(1, 1) .AND. D(1) .LT. cell_xtnts(2, 1)) .AND. &
-                    (D(2) .GT. cell_xtnts(1, 2) .AND. D(2) .LT. cell_xtnts(2, 2)) .AND. &
-                    (D(3) .GT. cell_xtnts(1, 3) .AND. D(3) .LT. cell_xtnts(2, 3))
+      A_is_inside = (A(1) > cell_xtnts(1, 1) .AND. A(1) < cell_xtnts(2, 1)) .AND. &
+                    (A(2) > cell_xtnts(1, 2) .AND. A(2) < cell_xtnts(2, 2)) .AND. &
+                    (A(3) > cell_xtnts(1, 3) .AND. A(3) < cell_xtnts(2, 3))
+      B_is_inside = (B(1) > cell_xtnts(1, 1) .AND. B(1) < cell_xtnts(2, 1)) .AND. &
+                    (B(2) > cell_xtnts(1, 2) .AND. B(2) < cell_xtnts(2, 2)) .AND. &
+                    (B(3) > cell_xtnts(1, 3) .AND. B(3) < cell_xtnts(2, 3))
+      C_is_inside = (C(1) > cell_xtnts(1, 1) .AND. C(1) < cell_xtnts(2, 1)) .AND. &
+                    (C(2) > cell_xtnts(1, 2) .AND. C(2) < cell_xtnts(2, 2)) .AND. &
+                    (C(3) > cell_xtnts(1, 3) .AND. C(3) < cell_xtnts(2, 3))
+      D_is_inside = (D(1) > cell_xtnts(1, 1) .AND. D(1) < cell_xtnts(2, 1)) .AND. &
+                    (D(2) > cell_xtnts(1, 2) .AND. D(2) < cell_xtnts(2, 2)) .AND. &
+                    (D(3) > cell_xtnts(1, 3) .AND. D(3) < cell_xtnts(2, 3))
       IF (.NOT. (A_is_inside .AND. B_is_inside .AND. C_is_inside .AND. D_is_inside)) THEN
          CALL cp_abort(__LOCATION__, &
                        "At least one of the given vertices for defining a planar Dirichlet "// &
                        "region is outside the simulation box.")
       END IF
 
-      are_coplanar = ABS(DOT_PRODUCT(vector_product(AB, AC), AD)) .LE. small_value
+      are_coplanar = ABS(DOT_PRODUCT(vector_product(AB, AC), AD)) <= small_value
       IF (.NOT. are_coplanar) THEN
          CPABORT("The given vertices for defining a planar Dirichlet region are not coplanar.")
       END IF
@@ -716,9 +716,9 @@ CONTAINS
       dist2 = SUM((B - cm)**2)
       dist3 = SUM((C - cm)**2)
       dist4 = SUM((D - cm)**2)
-      is_rectangle = (ABS(dist1 - dist2) .LE. small_value) .AND. &
-                     (ABS(dist1 - dist3) .LE. small_value) .AND. &
-                     (ABS(dist1 - dist4) .LE. small_value)
+      is_rectangle = (ABS(dist1 - dist2) <= small_value) .AND. &
+                     (ABS(dist1 - dist3) <= small_value) .AND. &
+                     (ABS(dist1 - dist4) <= small_value)
       IF (.NOT. is_rectangle) THEN
          CALL cp_abort(__LOCATION__, "The given vertices for defining "// &
                        "a planar Dirichlet region do not form a rectangle.")
@@ -742,7 +742,7 @@ CONTAINS
       dirichlet_bc%vertices(1:3, 7) = B + 0.5_dp*thickness*unit_normal
       dirichlet_bc%vertices(1:3, 8) = C + 0.5_dp*thickness*unit_normal
 
-      IF ((unit_nr .GT. 0) .AND. verbose) THEN
+      IF ((unit_nr > 0) .AND. verbose) THEN
          WRITE (unit_nr, '(T3,A,A)') "======== verbose ", REPEAT('=', 61)
          DO i = 1, 8
             WRITE (unit_nr, '(T10,A,I1,3F10.3)') "   vertex ", i, angstrom*dirichlet_bc%vertices(:, i)
@@ -832,41 +832,41 @@ CONTAINS
 
       SELECT CASE (parallel_axis)
       CASE (x_axis)
-         IF (xtnt(1) .LT. cell_xtnts(1, 1) .OR. xtnt(2) .GT. cell_xtnts(2, 1)) THEN
+         IF (xtnt(1) < cell_xtnts(1, 1) .OR. xtnt(2) > cell_xtnts(2, 1)) THEN
             CALL cp_abort(__LOCATION__, &
                           "The length of the cylindrical Dirichlet region is larger than the "// &
                           "x range of the simulation cell.")
          END IF
-         forb_xtnt1 = base_center(1) - base_radius .LT. cell_xtnts(1, 2)
-         forb_xtnt2 = base_center(1) + base_radius .GT. cell_xtnts(2, 2)
-         forb_xtnt3 = base_center(2) - base_radius .LT. cell_xtnts(1, 3)
-         forb_xtnt4 = base_center(2) + base_radius .GT. cell_xtnts(2, 3)
+         forb_xtnt1 = base_center(1) - base_radius < cell_xtnts(1, 2)
+         forb_xtnt2 = base_center(1) + base_radius > cell_xtnts(2, 2)
+         forb_xtnt3 = base_center(2) - base_radius < cell_xtnts(1, 3)
+         forb_xtnt4 = base_center(2) + base_radius > cell_xtnts(2, 3)
          IF (forb_xtnt1 .OR. forb_xtnt2 .OR. forb_xtnt3 .OR. forb_xtnt4) THEN
             CPABORT("The cylinder does not fit entirely inside the simulation cell.")
          END IF
       CASE (y_axis)
-         IF (xtnt(1) .LT. cell_xtnts(1, 2) .OR. xtnt(2) .GT. cell_xtnts(2, 2)) THEN
+         IF (xtnt(1) < cell_xtnts(1, 2) .OR. xtnt(2) > cell_xtnts(2, 2)) THEN
             CALL cp_abort(__LOCATION__, &
                           "The length of the cylindrical Dirichlet region is larger than the "// &
                           "y range of the simulation cell.")
          END IF
-         forb_xtnt1 = base_center(1) - base_radius .LT. cell_xtnts(1, 1)
-         forb_xtnt2 = base_center(1) + base_radius .GT. cell_xtnts(2, 1)
-         forb_xtnt3 = base_center(2) - base_radius .LT. cell_xtnts(1, 3)
-         forb_xtnt4 = base_center(2) + base_radius .GT. cell_xtnts(2, 3)
+         forb_xtnt1 = base_center(1) - base_radius < cell_xtnts(1, 1)
+         forb_xtnt2 = base_center(1) + base_radius > cell_xtnts(2, 1)
+         forb_xtnt3 = base_center(2) - base_radius < cell_xtnts(1, 3)
+         forb_xtnt4 = base_center(2) + base_radius > cell_xtnts(2, 3)
          IF (forb_xtnt1 .OR. forb_xtnt2 .OR. forb_xtnt3 .OR. forb_xtnt4) THEN
             CPABORT("The cylinder does not fit entirely inside the simulation cell.")
          END IF
       CASE (z_axis)
-         IF (xtnt(1) .LT. cell_xtnts(1, 3) .OR. xtnt(2) .GT. cell_xtnts(2, 3)) THEN
+         IF (xtnt(1) < cell_xtnts(1, 3) .OR. xtnt(2) > cell_xtnts(2, 3)) THEN
             CALL cp_abort(__LOCATION__, &
                           "The length of the cylindrical Dirichlet region is larger than the "// &
                           "z range of the simulation cell.")
          END IF
-         forb_xtnt1 = base_center(1) - base_radius .LT. cell_xtnts(1, 1)
-         forb_xtnt2 = base_center(1) + base_radius .GT. cell_xtnts(2, 1)
-         forb_xtnt3 = base_center(2) - base_radius .LT. cell_xtnts(1, 2)
-         forb_xtnt4 = base_center(2) + base_radius .GT. cell_xtnts(2, 2)
+         forb_xtnt1 = base_center(1) - base_radius < cell_xtnts(1, 1)
+         forb_xtnt2 = base_center(1) + base_radius > cell_xtnts(2, 1)
+         forb_xtnt3 = base_center(2) - base_radius < cell_xtnts(1, 2)
+         forb_xtnt4 = base_center(2) + base_radius > cell_xtnts(2, 2)
          IF (forb_xtnt1 .OR. forb_xtnt2 .OR. forb_xtnt3 .OR. forb_xtnt4) THEN
             CPABORT("The cylinder does not fit entirely inside the simulation cell.")
          END IF
@@ -882,24 +882,24 @@ CONTAINS
 
       theta = twopi/n_dbcs
 
-      IF (intern_apx_type .EQ. INSCRIBED) THEN
+      IF (intern_apx_type == INSCRIBED) THEN
          h = base_radius ! inscribed uniform prism
-      ELSE IF (intern_apx_type .EQ. CIRCUMSCRIBED) THEN
+      ELSE IF (intern_apx_type == CIRCUMSCRIBED) THEN
          h = base_radius/COS(0.5*theta) ! circumscribed uniform prism
       ELSE
          CPABORT("Unknown approximation type for cylinder.")
       END IF
       SELECT CASE (parallel_axis)
       CASE (x_axis)
-         IF (h .GT. MINVAL([Ly, Lz])) THEN
+         IF (h > MINVAL([Ly, Lz])) THEN
             CPABORT("Reduce the base radius!")
          END IF
       CASE (y_axis)
-         IF (h .GT. MINVAL([Lx, Lz])) THEN
+         IF (h > MINVAL([Lx, Lz])) THEN
             CPABORT("Reduce the base radius!")
          END IF
       CASE (z_axis)
-         IF (h .GT. MINVAL([Lx, Ly])) THEN
+         IF (h > MINVAL([Lx, Ly])) THEN
             CPABORT("Reduce the base radius!")
          END IF
       END SELECT
@@ -946,7 +946,7 @@ CONTAINS
 
             dbcs(j)%dirichlet_bc%n_tiles = 1
 
-            IF ((unit_nr .GT. 0) .AND. verbose) THEN
+            IF ((unit_nr > 0) .AND. verbose) THEN
                WRITE (unit_nr, '(T3,A,A)') "======== verbose ", REPEAT('=', 61)
                WRITE (unit_nr, '(T7,A,I5,T20,A,I5,A)') "edge", j, "of the", n_dbcs, &
                   "-gonal prism approximating the cylinder"
@@ -998,7 +998,7 @@ CONTAINS
 
             dbcs(j)%dirichlet_bc%n_tiles = 1
 
-            IF ((unit_nr .GT. 0) .AND. verbose) THEN
+            IF ((unit_nr > 0) .AND. verbose) THEN
                WRITE (unit_nr, '(T3,A,A)') "======== verbose ", REPEAT('=', 61)
                WRITE (unit_nr, '(T7,A,I5,T20,A,I5,A)') "edge", j, "of the", n_dbcs, &
                   "-gonal prism approximating the cylinder"
@@ -1050,7 +1050,7 @@ CONTAINS
 
             dbcs(j)%dirichlet_bc%n_tiles = 1
 
-            IF ((unit_nr .GT. 0) .AND. verbose) THEN
+            IF ((unit_nr > 0) .AND. verbose) THEN
                WRITE (unit_nr, '(T3,A,A)') "======== verbose ", REPEAT('=', 61)
                WRITE (unit_nr, '(T7,A,I5,T20,A,I5,A)') "edge", j, "of the", n_dbcs, &
                   "-gonal prism approximating the cylinder"
@@ -1177,10 +1177,10 @@ CONTAINS
 
       Tpoint = 0.0_dp
 
-      IF (direction .EQ. FWROT) THEN
+      IF (direction == FWROT) THEN
          vec_tmp = MATMUL(Rmat, vec)
          vec_transfd = vec_tmp + Tp
-      ELSEIF (direction .EQ. BWROT) THEN
+      ELSEIF (direction == BWROT) THEN
          Rmat_inv = inv_3x3(Rmat)
          Tpoint(1) = Rmat_inv(1, 1)*Tp(1) + Rmat_inv(1, 2)*Tp(2) + Rmat_inv(1, 3)*Tp(3)
          Tpoint(2) = Rmat_inv(2, 1)*Tp(1) + Rmat_inv(2, 2)*Tp(2) + Rmat_inv(2, 3)*Tp(3)
@@ -1318,7 +1318,7 @@ CONTAINS
 ! the larger n_prtn is assigned to the longer edge
       ABlength = SQRT(SUM(AB**2))
       ADlength = SQRT(SUM(AD**2))
-      IF (ADlength .GE. ABlength) THEN
+      IF (ADlength >= ABlength) THEN
          np1 = MAX(n_prtn(1) + 1, n_prtn(2) + 1)
          np2 = MIN(n_prtn(1) + 1, n_prtn(2) + 1)
       ELSE

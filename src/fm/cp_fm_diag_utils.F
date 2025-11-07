@@ -216,7 +216,7 @@ CONTAINS
          gcd_max = -1
          DO ipe = 1, CEILING(SQRT(REAL(ncpu, dp)))
             jpe = ncpu/ipe
-            IF (ipe*jpe .NE. ncpu) &
+            IF (ipe*jpe /= ncpu) &
                CYCLE
             IF (gcd(ipe, jpe) >= gcd_max) THEN
                npcol = jpe

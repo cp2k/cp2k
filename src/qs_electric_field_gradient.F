@@ -458,7 +458,7 @@ CONTAINS
          DO iset2 = 1, nset
             CALL get_none0_cg_list(my_CG, lmin(iset1), lmax(iset1), lmin(iset2), lmax(iset2), &
                                    max_s_harm, llmax, cg_list, cg_n_list, max_iso_not0_local)
-            CPASSERT(max_iso_not0_local .LE. max_iso_not0)
+            CPASSERT(max_iso_not0_local <= max_iso_not0)
 
             n1s = nsoset(lmax(iset1))
             DO ipgf1 = 1, npgf(iset1)

@@ -178,7 +178,7 @@ CONTAINS
          n_rep = nrep
       END IF
 
-      IF (nrep .LE. 0) &
+      IF (nrep <= 0) &
          CALL cp_abort(__LOCATION__, &
                        " Trying to access result ("//TRIM(description)//") which was never stored!")
 
@@ -251,7 +251,7 @@ CONTAINS
          n_rep = nrep
       END IF
 
-      IF (nrep .LE. 0) &
+      IF (nrep <= 0) &
          CALL cp_abort(__LOCATION__, &
                        " Trying to access result ("//TRIM(description)//") which was never stored!")
 
@@ -377,7 +377,7 @@ CONTAINS
          DO i = 1, nlist
             IF (TRIM(results%result_label(i)) == TRIM(description)) nrep = nrep + 1
          END DO
-         IF (nrep .NE. 0) THEN
+         IF (nrep /= 0) THEN
             k = 0
             entry_deleted = 0
             DO i = 1, nlist

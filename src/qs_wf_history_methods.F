@@ -731,14 +731,14 @@ CONTAINS
          END IF
          nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
          IF (nvec >= wf_history%memory_depth) THEN
-            IF ((qs_env%scf_control%max_scf_hist .NE. 0) .AND. (qs_env%scf_control%eps_scf_hist .NE. 0)) THEN
+            IF ((qs_env%scf_control%max_scf_hist /= 0) .AND. (qs_env%scf_control%eps_scf_hist /= 0)) THEN
                qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
                qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
                qs_env%scf_control%outer_scf%have_scf = .FALSE.
-            ELSE IF (qs_env%scf_control%max_scf_hist .NE. 0) THEN
+            ELSE IF (qs_env%scf_control%max_scf_hist /= 0) THEN
                qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
                qs_env%scf_control%outer_scf%have_scf = .FALSE.
-            ELSE IF (qs_env%scf_control%eps_scf_hist .NE. 0) THEN
+            ELSE IF (qs_env%scf_control%eps_scf_hist /= 0) THEN
                qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
             END IF
          END IF
@@ -780,16 +780,16 @@ CONTAINS
          CPASSERT(.NOT. do_kpoints)
          ! figure out the actual number of vectors to use in the extrapolation:
          nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
-         CPASSERT(nvec .GT. 0)
+         CPASSERT(nvec > 0)
          IF (nvec >= wf_history%memory_depth) THEN
-            IF ((qs_env%scf_control%max_scf_hist .NE. 0) .AND. (qs_env%scf_control%eps_scf_hist .NE. 0)) THEN
+            IF ((qs_env%scf_control%max_scf_hist /= 0) .AND. (qs_env%scf_control%eps_scf_hist /= 0)) THEN
                qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
                qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
                qs_env%scf_control%outer_scf%have_scf = .FALSE.
-            ELSE IF (qs_env%scf_control%max_scf_hist .NE. 0) THEN
+            ELSE IF (qs_env%scf_control%max_scf_hist /= 0) THEN
                qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
                qs_env%scf_control%outer_scf%have_scf = .FALSE.
-            ELSE IF (qs_env%scf_control%eps_scf_hist .NE. 0) THEN
+            ELSE IF (qs_env%scf_control%eps_scf_hist /= 0) THEN
                qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
             END IF
          END IF
@@ -842,17 +842,17 @@ CONTAINS
          CALL cite_reference(Kuhne2007)
          ! figure out the actual number of vectors to use in the extrapolation:
          nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
-         CPASSERT(nvec .GT. 0)
+         CPASSERT(nvec > 0)
          IF (nvec >= wf_history%memory_depth) THEN
-            IF ((qs_env%scf_control%max_scf_hist .NE. 0) .AND. &
-                (qs_env%scf_control%eps_scf_hist .NE. 0)) THEN
+            IF ((qs_env%scf_control%max_scf_hist /= 0) .AND. &
+                (qs_env%scf_control%eps_scf_hist /= 0)) THEN
                qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
                qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
                qs_env%scf_control%outer_scf%have_scf = .FALSE.
-            ELSE IF (qs_env%scf_control%max_scf_hist .NE. 0) THEN
+            ELSE IF (qs_env%scf_control%max_scf_hist /= 0) THEN
                qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
                qs_env%scf_control%outer_scf%have_scf = .FALSE.
-            ELSE IF (qs_env%scf_control%eps_scf_hist .NE. 0) THEN
+            ELSE IF (qs_env%scf_control%eps_scf_hist /= 0) THEN
                qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
             END IF
          END IF
@@ -940,14 +940,14 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nvec
 
       IF (nvec >= qs_env%wf_history%memory_depth) THEN
-         IF ((qs_env%scf_control%max_scf_hist .NE. 0) .AND. (qs_env%scf_control%eps_scf_hist .NE. 0)) THEN
+         IF ((qs_env%scf_control%max_scf_hist /= 0) .AND. (qs_env%scf_control%eps_scf_hist /= 0)) THEN
             qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
             qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
             qs_env%scf_control%outer_scf%have_scf = .FALSE.
-         ELSE IF (qs_env%scf_control%max_scf_hist .NE. 0) THEN
+         ELSE IF (qs_env%scf_control%max_scf_hist /= 0) THEN
             qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_hist
             qs_env%scf_control%outer_scf%have_scf = .FALSE.
-         ELSE IF (qs_env%scf_control%eps_scf_hist .NE. 0) THEN
+         ELSE IF (qs_env%scf_control%eps_scf_hist /= 0) THEN
             qs_env%scf_control%eps_scf = qs_env%scf_control%eps_scf_hist
             qs_env%scf_control%outer_scf%eps_scf = qs_env%scf_control%eps_scf_hist
          END IF
@@ -1090,7 +1090,7 @@ CONTAINS
       CASE (wfi_linear_wf_method_nr, wfi_linear_p_method_nr, &
             wfi_linear_ps_method_nr, wfi_ps_method_nr, &
             wfi_aspc_nr)
-         IF (qs_env%wf_history%snapshot_count .GE. 2) THEN
+         IF (qs_env%wf_history%snapshot_count >= 2) THEN
             IF (debug_this_module .AND. io_unit > 0) &
                WRITE (io_unit, FMT="(T2,A)") "QS| Purging WFN history"
             CALL wfi_create(wf_history, interpolation_method_nr= &

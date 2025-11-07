@@ -122,11 +122,11 @@ CONTAINS
       CALL get_atomic_kind(atomic_kind_set(ikind), name=kind_name, z=z)
       IF (model%version /= 2) &
          CPABORT("Model version not supported.")
-      IF (TRIM(model%kind_name) .NE. TRIM(kind_name)) &
+      IF (TRIM(model%kind_name) /= TRIM(kind_name)) &
          CPABORT("Kind name does not match.")
       IF (model%atomic_number /= z) &
          CPABORT("Atomic number does not match.")
-      IF (TRIM(model%prim_basis_name) .NE. TRIM(basis_set%name)) &
+      IF (TRIM(model%prim_basis_name) /= TRIM(basis_set%name)) &
          CPABORT("Primary basis set name does not match.")
       IF (model%prim_basis_size /= basis_set%nsgf) &
          CPABORT("Primary basis set size does not match.")

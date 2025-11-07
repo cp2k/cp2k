@@ -156,7 +156,7 @@ CONTAINS
       CALL dbcsr_add_on_diag(tmp2, -1.0_dp)
       frobnorm = dbcsr_frobenius_norm(tmp2)
       IF (unit_nr > 0) THEN
-         IF (recursion_depth .EQ. 0) THEN
+         IF (recursion_depth == 0) THEN
             WRITE (unit_nr, '()')
          ELSE
             WRITE (unit_nr, '(T6,A28,1X,I15)') &
@@ -167,7 +167,7 @@ CONTAINS
          CALL m_flush(unit_nr)
       END IF
 
-      IF (frobnorm .GE. 1.0_dp) THEN
+      IF (frobnorm >= 1.0_dp) THEN
 
          CALL dbcsr_add_on_diag(tmp2, 1.0_dp)
          ! these controls should be provided as input
@@ -245,7 +245,7 @@ CONTAINS
       END IF ! decide to do sqrt or not
 
       IF (unit_nr > 0) THEN
-         IF (recursion_depth .EQ. 0) THEN
+         IF (recursion_depth == 0) THEN
             WRITE (unit_nr, '(T6,A28,1X,F15.10)') &
                "Final determinant:", det
             WRITE (unit_nr, '()')
@@ -322,7 +322,7 @@ CONTAINS
 
       accelerator_type = 0
       IF (PRESENT(accelerator_order)) accelerator_type = accelerator_order
-      IF (accelerator_type .GT. 1) accelerator_type = 1
+      IF (accelerator_type > 1) accelerator_type = 1
 
       use_inv_guess = .FALSE.
       IF (PRESENT(use_inv_as_guess)) use_inv_guess = use_inv_as_guess
@@ -352,7 +352,7 @@ CONTAINS
             ! invert the main diagonal
             CALL dbcsr_get_diag(matrix, p_diagonal)
             DO i = 1, nrows
-               IF (p_diagonal(i) .NE. 0.0_dp) THEN
+               IF (p_diagonal(i) /= 0.0_dp) THEN
                   p_diagonal(i) = 1.0_dp/p_diagonal(i)
                END IF
             END DO
@@ -511,7 +511,7 @@ CONTAINS
 
       accelerator_type = 1
       IF (PRESENT(accelerator_order)) accelerator_type = accelerator_order
-      IF (accelerator_type .GT. 1) accelerator_type = 1
+      IF (accelerator_type > 1) accelerator_type = 1
 
       use_inv_guess = .FALSE.
       IF (PRESENT(use_inv_as_guess)) use_inv_guess = use_inv_as_guess
@@ -717,10 +717,10 @@ CONTAINS
       CALL dbcsr_create(tmp1, template=matrix_sign)
 
       CALL dbcsr_create(tmp2, template=matrix_sign)
-      IF (ABS(order) .GE. 4) THEN
+      IF (ABS(order) >= 4) THEN
          CALL dbcsr_create(tmp3, template=matrix_sign)
       END IF
-      IF (ABS(order) .GT. 4) THEN
+      IF (ABS(order) > 4) THEN
          CALL dbcsr_create(tmp4, template=matrix_sign)
       END IF
 
@@ -778,13 +778,13 @@ CONTAINS
          ! y=1-X*X
 
          ! tmp1 = I-x*x
-         IF (order .EQ. 2) THEN
+         IF (order == 2) THEN
             prefactor = 0.5_dp
 
             ! update the above to 3*I-X*X
             CALL dbcsr_add_on_diag(tmp1, +2.0_dp)
             occ_matrix = dbcsr_get_occupation(matrix_sign)
-         ELSE IF (order .EQ. 3) THEN
+         ELSE IF (order == 3) THEN
             ! with one multiplication
             ! tmp1=y
             CALL dbcsr_copy(tmp2, tmp1)
@@ -797,7 +797,7 @@ CONTAINS
             floptot = floptot + flops
             prefactor = 3.0_dp/8.0_dp
 
-         ELSE IF (order .EQ. 4) THEN
+         ELSE IF (order == 4) THEN
             ! with two multiplications
             ! tmp1=y
             CALL dbcsr_copy(tmp3, tmp1)
@@ -816,7 +816,7 @@ CONTAINS
             floptot = floptot + flops
 
             prefactor = 5.0_dp/16.0_dp
-         ELSE IF (order .EQ. -5) THEN
+         ELSE IF (order == -5) THEN
             ! with three multiplications
             ! tmp1=y
             CALL dbcsr_copy(tmp3, tmp1)
@@ -841,7 +841,7 @@ CONTAINS
             floptot = floptot + flops
 
             prefactor = 35.0_dp/128.0_dp
-         ELSE IF (order .EQ. 5) THEN
+         ELSE IF (order == 5) THEN
             ! with two multiplications
             !      z(y)=(y+a_0)*y+a_1
             ! f5(y)=35/128*((z(y)+y+a_2)*z(y)+a_3)
@@ -873,7 +873,7 @@ CONTAINS
             CALL dbcsr_copy(tmp1, tmp3)
 
             prefactor = 35.0_dp/128.0_dp
-         ELSE IF (order .EQ. 6) THEN
+         ELSE IF (order == 6) THEN
             ! with four multiplications
             ! f6(y)=63/256*(256/63 + (128 y)/63 + (32 y^2)/21 + (80 y^3)/63 + (10 y^4)/9 + y^5)
             ! tmp1=y
@@ -905,7 +905,7 @@ CONTAINS
             floptot = floptot + flops
 
             prefactor = 63.0_dp/256.0_dp
-         ELSE IF (order .EQ. 7) THEN
+         ELSE IF (order == 7) THEN
             ! with three multiplications
 
             a0 = 1.3686502058092053653287666647611728507211996691324048468010382350359929055186612505791532871573242422_dp
@@ -988,10 +988,10 @@ CONTAINS
 
       CALL dbcsr_release(tmp1)
       CALL dbcsr_release(tmp2)
-      IF (ABS(order) .GE. 4) THEN
+      IF (ABS(order) >= 4) THEN
          CALL dbcsr_release(tmp3)
       END IF
-      IF (ABS(order) .GT. 4) THEN
+      IF (ABS(order) > 4) THEN
          CALL dbcsr_release(tmp4)
       END IF
 
@@ -1146,13 +1146,13 @@ CONTAINS
          END DO
          frob_matrix = dlange('F', sz, sz, tmp1, sz, work)
 
-         IF (sign_order .EQ. 2) THEN
+         IF (sign_order == 2) THEN
             prefactor = 0.5_dp
             ! update the above to 3*I-X*X
             DO j = 1, sz
                tmp1(j, j) = tmp1(j, j) + 2.0_dp
             END DO
-         ELSE IF (sign_order .EQ. 3) THEN
+         ELSE IF (sign_order == 3) THEN
             tmp2(:, :) = tmp1
             tmp1 = tmp1*4.0_dp/3.0_dp
             DO j = 1, sz
@@ -1233,7 +1233,7 @@ CONTAINS
       CALL dsyevd('V', 'U', N, eigvecs, N, eigvals, WORK, LWORK, IWORK, LIWORK, INFO)
       DEALLOCATE (IWORK)
       DEALLOCATE (WORK)
-      IF (INFO .NE. 0) CPABORT("dsyevd did not succeed")
+      IF (INFO /= 0) CPABORT("dsyevd did not succeed")
 
       DEALLOCATE (tmp)
    END SUBROUTINE eigdecomp
@@ -1490,7 +1490,7 @@ CONTAINS
 
          CALL dissection%get_relevant_sm_columns(my_sms(i), sm_firstcol, sm_lastcol)
 
-         IF (variant .EQ. ls_scf_submatrix_sign_direct_muadj) THEN
+         IF (variant == ls_scf_submatrix_sign_direct_muadj) THEN
             ! Store all eigenvectors in buffer. We will use it to compute sm_sign at the end.
             CALL eigdecomp(sm, sm_size, eigvals=eigbufs(i)%eigvals, eigvecs=eigbufs(i)%eigvecs)
          ELSE
@@ -1554,7 +1554,7 @@ CONTAINS
       END DO
 
       ! Finalize sign matrix from eigendecompositions if we kept all eigenvectors
-      IF (variant .EQ. ls_scf_submatrix_sign_direct_muadj) THEN
+      IF (variant == ls_scf_submatrix_sign_direct_muadj) THEN
          !$OMP PARALLEL DEFAULT(OMP_DEFAULT_NONE_WITH_OOP) &
          !$OMP          PRIVATE(sm, sm_sign, sm_size, sm_firstcol, sm_lastcol, j) &
          !$OMP          SHARED(dissection, myrank, my_sms, unit_nr, eigbufs, mu, new_mu)
@@ -1574,7 +1574,7 @@ CONTAINS
       DEALLOCATE (eigbufs)
 
       ! If we only stored parts of the eigenvectors and mu has changed, we need to recompute sm_sign
-      IF ((variant .EQ. ls_scf_submatrix_sign_direct_muadj_lowmem) .AND. (mu .NE. new_mu)) THEN
+      IF ((variant == ls_scf_submatrix_sign_direct_muadj_lowmem) .AND. (mu /= new_mu)) THEN
          !$OMP PARALLEL DEFAULT(OMP_DEFAULT_NONE_WITH_OOP) &
          !$OMP          PRIVATE(sm, sm_sign, sm_size, sm_firstcol, sm_lastcol, j) &
          !$OMP          SHARED(dissection, myrank, my_sms, unit_nr, eigbufs, mu, new_mu)
@@ -1666,7 +1666,7 @@ CONTAINS
       ! for stability symmetry can not be assumed
       CALL dbcsr_create(tmp1, template=matrix, matrix_type=dbcsr_type_no_symmetry)
       CALL dbcsr_create(tmp2, template=matrix, matrix_type=dbcsr_type_no_symmetry)
-      IF (order .GE. 4) THEN
+      IF (order >= 4) THEN
          CALL dbcsr_create(tmp3, template=matrix, matrix_type=dbcsr_type_no_symmetry)
       END IF
 
@@ -1849,7 +1849,7 @@ CONTAINS
 
       CALL dbcsr_release(tmp1)
       CALL dbcsr_release(tmp2)
-      IF (order .GE. 4) THEN
+      IF (order >= 4) THEN
          CALL dbcsr_release(tmp3)
       END IF
 
@@ -1921,7 +1921,7 @@ CONTAINS
       CALL dbcsr_create(matrixS, template=matrix, matrix_type=dbcsr_type_no_symmetry)
 
       CALL dbcsr_copy(matrixS, matrix)
-      IF (1 .EQ. 1) THEN
+      IF (1 == 1) THEN
          ! scale the matrix to get into the convergence range
          CALL arnoldi_extremal(matrixS, max_ev, min_ev, threshold=eps_lanczos, &
                                max_iter=max_iter_lanczos, converged=arnoldi_converged)
@@ -1952,7 +1952,7 @@ CONTAINS
       DO i = 1, 100
 
          t1 = m_walltime()
-         IF (1 .EQ. 1) THEN
+         IF (1 == 1) THEN
             !build R=1-A B_K^2
             CALL dbcsr_multiply("N", "N", 1.0_dp, matrix_sqrt_inv, matrix_sqrt_inv, 0.0_dp, tmp1, &
                                 filter_eps=threshold, flop=flop1)
@@ -1968,7 +1968,7 @@ CONTAINS
             flop3 = 0
 
             DO j = 2, order
-               IF (j .EQ. 2) THEN
+               IF (j == 2) THEN
                   CALL dbcsr_copy(tmp2, Rmat)
                ELSE
                   f = 0
@@ -1999,7 +1999,7 @@ CONTAINS
                !choose=factorial(order)/(factorial(j)*factorial(order-j))
                choose = PRODUCT([(ii, ii=1, order)])/(PRODUCT([(ii, ii=1, j)])*PRODUCT([(ii, ii=1, order - j)]))
                CALL dbcsr_add(tmp1, tmp2, 1.0_dp, -1.0_dp*(-1)**j*choose)
-               IF (j .LT. order) THEN
+               IF (j < order) THEN
                   f = 0
                   CALL dbcsr_copy(tmp3, tmp2)
                   CALL dbcsr_multiply("N", "N", 1.0_dp, tmp3, BK2A, 0.0_dp, tmp2, &

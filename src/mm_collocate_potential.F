@@ -128,7 +128,7 @@ CONTAINS
          END DO ! Loop on y
 
          ! cleanup loop: check if the last loop element has done
-         IF (iy2 .NE. yub) THEN
+         IF (iy2 /= yub) THEN
             iy2 = yub
             fx2 = 0.0_dp
             fyz2 = 0.0_dp
@@ -191,7 +191,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: grid
 
       radius = exp_radius(0, zetp, eps_mm_rspace, scale*W)
-      IF (radius .EQ. 0.0_dp) THEN
+      IF (radius == 0.0_dp) THEN
          RETURN
       END IF
 
@@ -213,7 +213,7 @@ CONTAINS
          ylb = MAX(bo(1, 2), cubecenter(2) + lb_cube(2))
          xub = MIN(bo(2, 1), cubecenter(1) + ub_cube(1))
          xlb = MAX(bo(1, 1), cubecenter(1) + lb_cube(1))
-         IF (zlb .GT. zub .OR. ylb .GT. yub .OR. xlb .GT. xub) RETURN
+         IF (zlb > zub .OR. ylb > yub .OR. xlb > xub) RETURN
          DO ig = zlb, zub
             rpg = REAL(ig - gbo(1, 3), dp)*dr(3) - rpl(3)
             zap = EXP(-zetp*rpg**2)
@@ -245,7 +245,7 @@ CONTAINS
                   ylb = MAX(bo(1, 2), cubecenter(2) + lb_cube(2))
                   xub = MIN(bo(2, 1), cubecenter(1) + ub_cube(1))
                   xlb = MAX(bo(1, 1), cubecenter(1) + lb_cube(1))
-                  IF (zlb .GT. zub .OR. ylb .GT. yub .OR. xlb .GT. xub) CYCLE
+                  IF (zlb > zub .OR. ylb > yub .OR. xlb > xub) CYCLE
                   DO ig = zlb, zub
                      rpg = REAL(ig - gbo(1, 3), dp)*dr(3) - rpl(3)
                      zap = EXP(-zetp*rpg**2)
@@ -318,7 +318,7 @@ CONTAINS
 
       force = 0.0_dp
       radius = exp_radius(0, zetp, eps_mm_rspace, scale*W)
-      IF (radius .EQ. 0.0_dp) RETURN
+      IF (radius == 0.0_dp) RETURN
 
 !   *** properties of the grid ***
       rpl = rp
@@ -337,7 +337,7 @@ CONTAINS
          ylb = MAX(bo(1, 2), cubecenter(2) + lb_cube(2))
          xub = MIN(bo(2, 1), cubecenter(1) + ub_cube(1))
          xlb = MAX(bo(1, 1), cubecenter(1) + lb_cube(1))
-         IF (zlb .GT. zub .OR. ylb .GT. yub .OR. xlb .GT. xub) RETURN
+         IF (zlb > zub .OR. ylb > yub .OR. xlb > xub) RETURN
          DO ig = zlb, zub
             rpg = REAL(ig - gbo(1, 3), dp)*dr(3) - rpl(3)
             zap = EXP(-zetp*rpg**2)
@@ -372,7 +372,7 @@ CONTAINS
                   ylb = MAX(bo(1, 2), cubecenter(2) + lb_cube(2))
                   xub = MIN(bo(2, 1), cubecenter(1) + ub_cube(1))
                   xlb = MAX(bo(1, 1), cubecenter(1) + lb_cube(1))
-                  IF (zlb .GT. zub .OR. ylb .GT. yub .OR. xlb .GT. xub) CYCLE
+                  IF (zlb > zub .OR. ylb > yub .OR. xlb > xub) CYCLE
                   DO ig = zlb, zub
                      rpg = REAL(ig - gbo(1, 3), dp)*dr(3) - rpl(3)
                      zap = EXP(-zetp*rpg**2)

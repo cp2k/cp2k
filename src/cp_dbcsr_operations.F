@@ -336,7 +336,7 @@ CONTAINS
       ! calculate first_row and last_row
       ALLOCATE (local_row_sizes(nblkrows_total))
       local_row_sizes(:) = 0
-      IF (nblkrows_local .GE. 1) THEN
+      IF (nblkrows_local >= 1) THEN
          DO row = 1, nblkrows_local
             local_row_sizes(local_rows(row)) = row_blk_size(local_rows(row))
          END DO
@@ -348,7 +348,7 @@ CONTAINS
       ! calculate first_col and last_col
       ALLOCATE (local_col_sizes(nblkcols_total))
       local_col_sizes(:) = 0
-      IF (nblkcols_local .GE. 1) THEN
+      IF (nblkcols_local >= 1) THEN
          DO col = 1, nblkcols_local
             local_col_sizes(local_cols(col)) = col_blk_size(local_cols(col))
          END DO
@@ -480,18 +480,18 @@ CONTAINS
       IF (PRESENT(ncol)) my_ncol = ncol
 
       my_alpha2 = 0.0_dp
-      IF (dbcsr_get_matrix_type(matrix_a) .EQ. dbcsr_type_symmetric) my_alpha2 = my_alpha
-      IF (dbcsr_get_matrix_type(matrix_a) .EQ. dbcsr_type_antisymmetric) my_alpha2 = -my_alpha
+      IF (dbcsr_get_matrix_type(matrix_a) == dbcsr_type_symmetric) my_alpha2 = my_alpha
+      IF (dbcsr_get_matrix_type(matrix_a) == dbcsr_type_antisymmetric) my_alpha2 = -my_alpha
 
-      has_symm = (dbcsr_get_matrix_type(matrix_a) .EQ. dbcsr_type_symmetric .OR. &
-                  dbcsr_get_matrix_type(matrix_a) .EQ. dbcsr_type_antisymmetric)
+      has_symm = (dbcsr_get_matrix_type(matrix_a) == dbcsr_type_symmetric .OR. &
+                  dbcsr_get_matrix_type(matrix_a) == dbcsr_type_antisymmetric)
 
 !$OMP     PARALLEL DEFAULT(NONE) SHARED(matrix_a,vec_b,vec_c,ncol,my_alpha2,my_alpha,my_ncol,has_symm) &
 !$OMP              PRIVATE(iter,row,col,data_d,rowoff,coloff)
       CALL dbcsr_iterator_readonly_start(iter, matrix_a, dynamic=.TRUE., dynamic_byrows=.TRUE.)
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, row, col, data_d, row_offset=rowoff, col_offset=coloff)
-         IF (my_ncol .NE. 1) THEN
+         IF (my_ncol /= 1) THEN
             CALL dgemm('N', 'N', &
                        SIZE(data_d, 1), my_ncol, SIZE(data_d, 2), &
                        my_alpha, data_d(1, 1), SIZE(data_d, 1), &
@@ -513,8 +513,8 @@ CONTAINS
          CALL dbcsr_iterator_readonly_start(iter, matrix_a)
          DO WHILE (dbcsr_iterator_blocks_left(iter))
             CALL dbcsr_iterator_next_block(iter, row, col, data_d, row_offset=rowoff, col_offset=coloff)
-            IF (row .NE. col) THEN
-               IF (my_ncol .NE. 1) THEN
+            IF (row /= col) THEN
+               IF (my_ncol /= 1) THEN
                   CALL dgemm('T', 'N', &
                              SIZE(data_d, 2), my_ncol, SIZE(data_d, 1), &
                              my_alpha2, data_d(1, 1), SIZE(data_d, 1), &
@@ -586,12 +586,12 @@ CONTAINS
 
       CALL cp_fm_get_info(fm_in, ncol_global=k_in)
       !write(*,*)routineN//" -----------------------------------"
-      !IF (k_in .NE. k_out) &
+      !IF (k_in /= k_out) &
       !   WRITE(*,'(3(A,I5,1X),2(A,F5.2,1X))')&
       !   routineN//" ncol", ncol,'k_in',k_in,'k_out',k_out,&
       !   'alpha',my_alpha,'beta',my_beta
 
-      IF (ncol .GT. 0 .AND. k_out .GT. 0 .AND. k_in .GT. 0) THEN
+      IF (ncol > 0 .AND. k_out > 0 .AND. k_in > 0) THEN
          CALL dbcsr_get_info(matrix, row_blk_size=row_blk_size, col_blk_size=col_blk_size, distribution=dist)
          CALL dbcsr_create_dist_r_unrot(dist_right_in, dist, k_in, col_blk_size_right_in)
 
@@ -615,7 +615,7 @@ CONTAINS
                            row_blk_size, col_blk_size_right_out)
 
          CALL copy_fm_to_dbcsr(fm_in, in)
-         IF (ncol .NE. k_out .OR. my_beta .NE. 0.0_dp) &
+         IF (ncol /= k_out .OR. my_beta /= 0.0_dp) &
             CALL copy_fm_to_dbcsr(fm_out, out)
 
          CALL timeset(routineN//'_core', timing_handle_mult)
@@ -652,19 +652,19 @@ CONTAINS
 
       n1 = SIZE(sizes1)
       n2 = SIZE(sizes2)
-      IF (n1 .NE. n2) &
+      IF (n1 /= n2) &
          CPABORT("distributions must be equal!")
       sizes1(1:n1) = sizes2(1:n1)
       used = SUM(sizes1(1:n1))
       ! If sizes1 does not cover everything, then we increase the
       ! size of the last block; otherwise we reduce the blocks
       ! (from the end) until it is small enough.
-      IF (used .LT. full_num) THEN
+      IF (used < full_num) THEN
          sizes1(n1) = sizes1(n1) + full_num - used
       ELSE
          left = used - full_num
          p = n1
-         DO WHILE (left .GT. 0 .AND. p .GT. 0)
+         DO WHILE (left > 0 .AND. p > 0)
             rm = MIN(left, sizes1(p))
             sizes1(p) = sizes1(p) - rm
             left = left - rm
@@ -726,7 +726,7 @@ CONTAINS
 
       NULLIFY (col_dist_left)
 
-      IF (ncol .GT. 0) THEN
+      IF (ncol > 0) THEN
          IF (.NOT. dbcsr_valid_index(sparse_matrix)) &
             CPABORT("sparse_matrix must pre-exist")
          !
@@ -834,7 +834,7 @@ CONTAINS
             WRITE (*, *) 'PRESENT (matrix_g)', PRESENT(matrix_g)
             WRITE (*, *) 'matrix_type=', dbcsr_get_matrix_type(sparse_matrix)
             WRITE (*, *) 'norm(sm+alpha*v*g^t - fm+alpha*v*g^t)/n=', norm/REAL(nao, dp)
-            IF (norm/REAL(nao, dp) .GT. 1e-12_dp) THEN
+            IF (norm/REAL(nao, dp) > 1e-12_dp) THEN
                !WRITE(*,*) 'fm_matrix'
                !DO j=1,SIZE(fm_matrix%local_data,2)
                !   DO i=1,SIZE(fm_matrix%local_data,1)
@@ -1011,7 +1011,7 @@ CONTAINS
       NULLIFY (block_distribution)
       NULLIFY (block_size)
       ! Define the sizes on which we build the distribution.
-      IF (nelements .GT. 0) THEN
+      IF (nelements > 0) THEN
 
          nblocks = CEILING(REAL(nelements, KIND=dp)/REAL(max_elements_per_block, KIND=dp))
          max_blocks_per_bin = CEILING(REAL(nblocks, KIND=dp)/REAL(nbins, KIND=dp))
@@ -1039,7 +1039,7 @@ CONTAINS
          DO blk_layer = 1, max_blocks_per_bin
             DO bin = 0, nbins - 1
                els = MIN(max_elements_per_block, nelements - element_stack)
-               IF (els .GT. 0) THEN
+               IF (els > 0) THEN
                   element_stack = element_stack + els
                   nblks = nblks + 1
                   blk_dist(nblks) = bin
@@ -1050,7 +1050,7 @@ CONTAINS
             END DO
          END DO
          ! Create the output arrays.
-         IF (nblks .EQ. estimated_blocks) THEN
+         IF (nblks == estimated_blocks) THEN
             block_distribution => blk_dist
             block_size => blk_sizes
          ELSE
@@ -1174,14 +1174,14 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-      IF (MOD(nbins*nimages, multiplicity) .NE. 0) THEN
+      IF (MOD(nbins*nimages, multiplicity) /= 0) THEN
          CPWARN("mulitplicity is not divisor of new process grid coordinate")
       END IF
       old_nbins = (nbins*nimages)/multiplicity
       ALLOCATE (bin_multiplier(0:old_nbins - 1))
       bin_multiplier(:) = 0
       DO i = 1, SIZE(new_bins)
-         IF (i .LE. SIZE(source_bins)) THEN
+         IF (i <= SIZE(source_bins)) THEN
             bin = source_bins(i)
          ELSE
             ! Fill remainder with a cyclic distribution
@@ -1191,7 +1191,7 @@ CONTAINS
          new_bins(i) = virtual_bin/nimages
          images(i) = 1 + MOD(virtual_bin, nimages)
          bin_multiplier(bin) = bin_multiplier(bin) + 1
-         IF (bin_multiplier(bin) .GE. multiplicity) THEN
+         IF (bin_multiplier(bin) >= multiplicity) THEN
             bin_multiplier(bin) = 0
          END IF
       END DO
@@ -1227,30 +1227,30 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: cd_data, rd_data
 
       ! Row sizes
-      IF (nrow_block .EQ. 0) THEN
+      IF (nrow_block == 0) THEN
          nblkrows = 0
          sz = 0
       ELSE
          nblkrows = nrows/nrow_block
          sz = MOD(nrows, nrow_block)
       END IF
-      IF (sz .GT. 0) nblkrows = nblkrows + 1
+      IF (sz > 0) nblkrows = nblkrows + 1
       ALLOCATE (row_blk_sizes(nblkrows), rd_data(nblkrows))
       row_blk_sizes = nrow_block
-      IF (sz .NE. 0) row_blk_sizes(nblkrows) = sz
+      IF (sz /= 0) row_blk_sizes(nblkrows) = sz
 
       ! Column sizes
-      IF (ncol_block .EQ. 0) THEN
+      IF (ncol_block == 0) THEN
          nblkcols = 0
          sz = 0
       ELSE
          nblkcols = ncolumns/ncol_block
          sz = MOD(ncolumns, ncol_block)
       END IF
-      IF (sz .GT. 0) nblkcols = nblkcols + 1
+      IF (sz > 0) nblkcols = nblkcols + 1
       ALLOCATE (col_blk_sizes(nblkcols), cd_data(nblkcols))
       col_blk_sizes = ncol_block
-      IF (sz .NE. 0) col_blk_sizes(nblkcols) = sz
+      IF (sz /= 0) col_blk_sizes(nblkcols) = sz
       !
       IF (debug_mod) THEN
          WRITE (*, *) routineN//" nrows,nrow_block,nblkrows=", &

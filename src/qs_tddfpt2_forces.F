@@ -186,7 +186,7 @@ CONTAINS
 
       nspins = dft_control%nspins
       tddfpt_control => dft_control%tddfpt2_control
-      IF (tddfpt_control%spinflip .EQ. no_sf_tddfpt) THEN
+      IF (tddfpt_control%spinflip == no_sf_tddfpt) THEN
          do_sf = .FALSE.
       ELSE
          do_sf = .TRUE.
@@ -451,7 +451,7 @@ CONTAINS
                       sab_orb=sab_orb, dft_control=dft_control, force=force)
       NULLIFY (tddfpt_control)
       tddfpt_control => dft_control%tddfpt2_control
-      IF (tddfpt_control%spinflip .EQ. no_sf_tddfpt) THEN
+      IF (tddfpt_control%spinflip == no_sf_tddfpt) THEN
          do_sf = .FALSE.
       ELSE
          do_sf = .TRUE.
@@ -637,12 +637,12 @@ CONTAINS
       CALL cp_fm_get_info(mos_occ, nrow_global=nao, ncol_global=norb)
 
       ! matrix_pe = X*X^T
-      IF (.NOT. do_sf .OR. (do_sf .AND. (spin .EQ. 2))) THEN
+      IF (.NOT. do_sf .OR. (do_sf .AND. (spin == 2))) THEN
          CALL cp_dbcsr_plus_fm_fm_t(matrix_pe, matrix_v=evect, ncol=norb)
       END IF
 
       ! matrix_pe = matrix_pe - (C*X^T*S*X*C^T + (C*X^T*S*X*C^T)^T)/2
-      IF (.NOT. do_sf .OR. (do_sf .AND. (spin .EQ. 1))) THEN
+      IF (.NOT. do_sf .OR. (do_sf .AND. (spin == 1))) THEN
          CALL cp_fm_get_info(evect, matrix_struct=fmstruct)
          NULLIFY (fmstruct2)
          CALL cp_fm_struct_create(fmstruct=fmstruct2, template_fmstruct=fmstruct, &
@@ -679,7 +679,7 @@ CONTAINS
                WRITE (iounit, "(T2,A,/)") REPEAT("*", 79)
             END IF
          END IF
-      ELSE IF (spin .EQ. 1) THEN
+      ELSE IF (spin == 1) THEN
          IF (ABS(tmp + 1) > 1.e-08_dp) THEN
             logger => cp_get_default_logger()
             IF (logger%para_env%is_source()) THEN
@@ -693,7 +693,7 @@ CONTAINS
                WRITE (iounit, "(T2,A,/)") REPEAT("*", 79)
             END IF
          END IF
-      ELSE IF (spin .EQ. 2) THEN
+      ELSE IF (spin == 2) THEN
          IF (ABS(tmp - 1) > 1.e-08_dp) THEN
             logger => cp_get_default_logger()
             IF (logger%para_env%is_source()) THEN

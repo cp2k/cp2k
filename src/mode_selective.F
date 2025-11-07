@@ -285,9 +285,9 @@ CONTAINS
       CALL section_vals_val_get(ms_vib_section, "EPS_NORM", r_val=ms_vib%eps(2))
       CALL section_vals_val_get(ms_vib_section, "RANGE", n_rep_val=n_rep_val)
       ms_vib%select_id = 0
-      IF (n_rep_val .NE. 0) THEN
+      IF (n_rep_val /= 0) THEN
          CALL section_vals_val_get(ms_vib_section, "RANGE", r_vals=ms_vib%f_range)
-         IF (ms_vib%f_range(1) .GT. ms_vib%f_range(2)) THEN
+         IF (ms_vib%f_range(1) > ms_vib%f_range(2)) THEN
             my_val = ms_vib%f_range(2)
             ms_vib%f_range(2) = ms_vib%f_range(1)
             ms_vib%f_range(1) = my_val
@@ -296,7 +296,7 @@ CONTAINS
       END IF
       CALL section_vals_val_get(ms_vib_section, "FREQUENCY", r_val=ms_vib%sel_freq)
       CALL section_vals_val_get(ms_vib_section, "LOWEST_FREQUENCY", r_val=ms_vib%low_freq)
-      IF (ms_vib%sel_freq .GT. 0._dp) ms_vib%select_id = 1
+      IF (ms_vib%sel_freq > 0._dp) ms_vib%select_id = 1
       involved_at_section => section_vals_get_subs_vals(ms_vib_section, "INVOLVED_ATOMS")
       CALL section_vals_get(involved_at_section, explicit=do_involved_atoms)
       IF (do_involved_atoms) THEN
@@ -308,7 +308,7 @@ CONTAINS
                jj = jj + 1
             END DO
          END DO
-         IF (jj .GE. 1) THEN
+         IF (jj >= 1) THEN
             natoms = jj
             ALLOCATE (ms_vib%inv_atoms(natoms))
             jj = 0
@@ -321,9 +321,9 @@ CONTAINS
             ms_vib%select_id = 3
          END IF
          CALL section_vals_val_get(involved_at_section, "RANGE", n_rep_val=n_rep_val)
-         IF (n_rep_val .NE. 0) THEN
+         IF (n_rep_val /= 0) THEN
             CALL section_vals_val_get(involved_at_section, "RANGE", r_vals=ms_vib%inv_range)
-            IF (ms_vib%inv_range(1) .GT. ms_vib%inv_range(2)) THEN
+            IF (ms_vib%inv_range(1) > ms_vib%inv_range(2)) THEN
                ms_vib%inv_range(2) = my_val
                ms_vib%inv_range(2) = ms_vib%inv_range(1)
                ms_vib%inv_range(1) = my_val
@@ -378,11 +378,11 @@ CONTAINS
             ms_vib%b_vec(:, i) = ms_vib%b_vec(:, i)/norm
          END DO
 
-         IF (nrep .GT. 1) THEN
+         IF (nrep > 1) THEN
             DO k = 1, 10
                DO j = 1, nrep
                   DO i = 1, nrep
-                     IF (i .NE. j) THEN
+                     IF (i /= j) THEN
                         ms_vib%b_vec(:, j) = &
                            ms_vib%b_vec(:, j) - DOT_PRODUCT(ms_vib%b_vec(:, j), ms_vib%b_vec(:, i))*ms_vib%b_vec(:, i)
                         ms_vib%b_vec(:, j) = &
@@ -510,7 +510,7 @@ CONTAINS
                      tmp(i) = tmp(i) + SQRT(ms_vib%hes_bfgs(jj, i)**2)
                   END DO
                END DO
-               IF ((SIGN(1._dp, ms_vib%eig_bfgs(i))*SQRT(ABS(ms_vib%eig_bfgs(i))*massunit)*vibfac) .LE. 400._dp) tmp(i) = 0._dp
+               IF ((SIGN(1._dp, ms_vib%eig_bfgs(i))*SQRT(ABS(ms_vib%eig_bfgs(i))*massunit)*vibfac) <= 400._dp) tmp(i) = 0._dp
             END DO
             tmp(:) = -tmp(:)
          END IF
@@ -623,7 +623,7 @@ CONTAINS
       CALL diamat_all(approx_H, eigenval)
 
       CALL select_vector(ms_vib, nrep, mass, ncoord, approx_H, eigenval, ind, ms_vib%b_vec)
-      IF (ms_vib%initial_guess .NE. 4) THEN
+      IF (ms_vib%initial_guess /= 4) THEN
 
          ms_vib%b_vec = 0._dp
          DO i = 1, nrep
@@ -751,7 +751,7 @@ CONTAINS
                istat = istat + stat
             END DO
          END DO
-         IF (ms_filename .NE. "") CALL close_file(iw)
+         IF (ms_filename /= "") CALL close_file(iw)
          IF (output_unit > 0) THEN
             IF (istat /= 0) THEN
                WRITE (output_unit, FMT="(/,T2,A)") "**  Error while reading MOLDEN file **"
@@ -777,7 +777,7 @@ CONTAINS
                      tmp(i) = tmp(i) + SQRT(modes(jj, i)**2)
                   END DO
                END DO
-               IF (freq(i) .LE. 400._dp) tmp(i) = 0._dp
+               IF (freq(i) <= 400._dp) tmp(i) = 0._dp
             END DO
             tmp(:) = -tmp(:)
          END IF
@@ -850,7 +850,7 @@ CONTAINS
       nrep = SIZE(rep_env%f, 2)
 
       !!!!!!!!   reallocate and update the davidson matrices   !!!!!!!!!!
-      IF (ms_vib%mat_size .NE. 0) THEN
+      IF (ms_vib%mat_size /= 0) THEN
 
          ALLOCATE (tmp_b(3*natoms, ms_vib%mat_size))
          ALLOCATE (tmp_s(3*natoms, ms_vib%mat_size))
@@ -868,7 +868,7 @@ CONTAINS
       ms_vib%s_mat = 0.0_dp
 
       DO i = 1, 3*natoms
-         IF (ms_vib%mat_size .NE. 0) THEN
+         IF (ms_vib%mat_size /= 0) THEN
             DO j = 1, ms_vib%mat_size
                ms_vib%b_mat(i, j) = tmp_b(i, j)
                ms_vib%s_mat(i, j) = tmp_s(i, j)
@@ -879,7 +879,7 @@ CONTAINS
          END DO
       END DO
 
-      IF (ms_vib%mat_size .NE. 0) THEN
+      IF (ms_vib%mat_size /= 0) THEN
          DEALLOCATE (tmp_s)
          DEALLOCATE (tmp_b)
       END IF
@@ -924,8 +924,8 @@ CONTAINS
          ms_vib%step_b(i) = SQRT(DOT_PRODUCT(ms_vib%step_r(i)*ms_vib%b_vec(:, i), ms_vib%step_r(i)*ms_vib%b_vec(:, i)))
       END DO
       converged = .FALSE.
-      IF (MAXVAL(criteria(1, :)) .LE. ms_vib%eps(1) .AND. MAXVAL(criteria(2, :)) &
-          .LE. ms_vib%eps(2) .OR. ms_vib%mat_size .GE. ncoord) converged = .TRUE.
+      IF (MAXVAL(criteria(1, :)) <= ms_vib%eps(1) .AND. MAXVAL(criteria(2, :)) &
+          <= ms_vib%eps(2) .OR. ms_vib%mat_size >= ncoord) converged = .TRUE.
       ALLOCATE (freq(nrep))
       DO i = 1, nrep
          freq(i) = SQRT(ABS(eigenval(ind(i)))*massunit)*vibfac
@@ -964,7 +964,7 @@ CONTAINS
             CALL ms_out(output_unit_ms, converged, freq, criteria, ms_vib, &
                         input, nrep, approx_H, eigenval, calc_intens, logger=logger)
          END IF
-         dump_only_positive = ms_vib%low_freq .GT. 0.0_dp
+         dump_only_positive = ms_vib%low_freq > 0.0_dp
          CALL write_vibrations_molden(input, particles, eigenval, tmp_b, intensities, calc_intens, &
                                       dump_only_positive=dump_only_positive, logger=logger)
          IF (calc_intens) THEN
@@ -1052,10 +1052,10 @@ CONTAINS
                END DO
             END DO
             IF (.NOT. ASSOCIATED(ms_vib%inv_range)) THEN
-               IF ((SIGN(1._dp, eigenval(i))*SQRT(ABS(eigenval(i))*massunit)*vibfac) .LE. 400._dp) tmp(i) = 0._dp
+               IF ((SIGN(1._dp, eigenval(i))*SQRT(ABS(eigenval(i))*massunit)*vibfac) <= 400._dp) tmp(i) = 0._dp
             ELSE
-               IF ((SIGN(1._dp, eigenval(i))*SQRT(ABS(eigenval(i))*massunit)*vibfac) .LE. ms_vib%inv_range(1)) tmp(i) = 0._dp
-               IF ((SIGN(1._dp, eigenval(i))*SQRT(ABS(eigenval(i))*massunit)*vibfac) .GE. ms_vib%inv_range(2)) tmp(i) = 0._dp
+               IF ((SIGN(1._dp, eigenval(i))*SQRT(ABS(eigenval(i))*massunit)*vibfac) <= ms_vib%inv_range(1)) tmp(i) = 0._dp
+               IF ((SIGN(1._dp, eigenval(i))*SQRT(ABS(eigenval(i))*massunit)*vibfac) >= ms_vib%inv_range(2)) tmp(i) = 0._dp
             END IF
          END DO
          tmp(:) = -tmp(:)
@@ -1093,9 +1093,9 @@ CONTAINS
                residuum(:, j) = residuum(:, j) - DOT_PRODUCT(residuum(:, j), ms_vib%b_mat(:, i))*ms_vib%b_mat(:, i)
                residuum(:, j) = residuum(:, j)/SQRT(DOT_PRODUCT(residuum(:, j), residuum(:, j)))
             END DO
-            IF (nrep .GT. 1) THEN
+            IF (nrep > 1) THEN
                DO i = 1, nrep
-                  IF (i .NE. j) THEN
+                  IF (i /= j) THEN
                      residuum(:, j) = residuum(:, j) - DOT_PRODUCT(residuum(:, j), residuum(:, i))*residuum(:, i)
                      residuum(:, j) = residuum(:, j)/SQRT(DOT_PRODUCT(residuum(:, j), residuum(:, j)))
                   END IF
@@ -1150,7 +1150,7 @@ CONTAINS
       fint = 42.255_dp*massunit*debye**2*bohr**2
 
       IF (converged) THEN
-         IF (iw .GT. 0) THEN
+         IF (iw > 0) THEN
             WRITE (iw, '(T2,A)') "MS| DAVIDSON ALGORITHM CONVERGED"
             DO i = 1, nrep
                WRITE (iw, '(T2,"MS| TRACKED FREQUENCY (",I0,") IS:",F12.6,3X,A)') i, freq(i), 'cm-1'
@@ -1175,19 +1175,19 @@ CONTAINS
                crit_b = SQRT(DOT_PRODUCT(residuum, residuum))
                IF (PRESENT(intensities)) THEN
                   gintval = fint*intensities(i)**2
-                  IF (crit_a .LE. ms_vib%eps(1) .AND. crit_b .LE. ms_vib%eps(2)) THEN
-                     IF (eigenval(i) .GT. ms_vib%low_freq) WRITE (iw, '(2X,A,2X,F9.3,1X,F12.6,3X,E12.3,7X,E12.3,11X,A)') &
+                  IF (crit_a <= ms_vib%eps(1) .AND. crit_b <= ms_vib%eps(2)) THEN
+                     IF (eigenval(i) > ms_vib%low_freq) WRITE (iw, '(2X,A,2X,F9.3,1X,F12.6,3X,E12.3,7X,E12.3,11X,A)') &
                         'VIB|', eigenval(i), gintval, crit_a, crit_b, 'YES'
                   ELSE
-                     IF (eigenval(i) .GT. ms_vib%low_freq) WRITE (iw, '(2X,A,2X,F9.3,1X,F12.6,3X,E12.3,7X,E12.3,11X,A)') &
+                     IF (eigenval(i) > ms_vib%low_freq) WRITE (iw, '(2X,A,2X,F9.3,1X,F12.6,3X,E12.3,7X,E12.3,11X,A)') &
                         'VIB|', eigenval(i), gintval, crit_a, crit_b, 'NO'
                   END IF
                ELSE
-                  IF (crit_a .LE. ms_vib%eps(1) .AND. crit_b .LE. ms_vib%eps(2)) THEN
-                     IF (eigenval(i) .GT. ms_vib%low_freq) WRITE (iw, '(2X,A,2X,F9.3,5X,E12.6,5X,E12.3,11X,A)') &
+                  IF (crit_a <= ms_vib%eps(1) .AND. crit_b <= ms_vib%eps(2)) THEN
+                     IF (eigenval(i) > ms_vib%low_freq) WRITE (iw, '(2X,A,2X,F9.3,5X,E12.6,5X,E12.3,11X,A)') &
                         'VIB|', eigenval(i), crit_a, crit_b, 'YES'
                   ELSE
-                     IF (eigenval(i) .GT. ms_vib%low_freq) WRITE (iw, '(2X,A,2X,F9.3,5X,E12.6,5X,E12.3,11X,A)') &
+                     IF (eigenval(i) > ms_vib%low_freq) WRITE (iw, '(2X,A,2X,F9.3,5X,E12.6,5X,E12.3,11X,A)') &
                         'VIB|', eigenval(i), crit_a, crit_b, 'NO'
                   END IF
                END IF
@@ -1210,7 +1210,7 @@ CONTAINS
                                               "PRINT%MS_RESTART")
          END IF
       ELSE
-         IF (iw .GT. 0) THEN
+         IF (iw > 0) THEN
             msunit = cp_print_key_unit_nr(logger, ms_vib_section, &
                                           "PRINT%MS_RESTART", extension=".bin", middle_name="MS_RESTART", &
                                           file_status="REPLACE", file_form="UNFORMATTED", &
@@ -1228,7 +1228,7 @@ CONTAINS
 
             WRITE (iw, '(T2,A,3X,I6)') "MS| ITERATION STEP", ms_vib%mat_size/nrep
             DO i = 1, nrep
-               IF (criter(1, i) .LE. 1E-7 .AND. (criter(2, i)) .LE. 1E-6) THEN
+               IF (criter(1, i) <= 1E-7 .AND. (criter(2, i)) <= 1E-6) THEN
                   WRITE (iw, '(T2,A,3X,F12.6,A)') "MS| TRACKED MODE ", freq(i), "cm-1  IS  CONVERGED"
                ELSE
                   WRITE (iw, '(T2,A,3X,F12.6,A)') "MS| TRACKED MODE ", freq(i), "cm-1  NOT  CONVERGED"
@@ -1273,7 +1273,7 @@ CONTAINS
       ALLOCATE (map1(SIZE(eigenval), 2))
       ALLOCATE (tmp(SIZE(eigenval)))
       DO i = 1, SIZE(eigenval)
-         IF (ABS(eigenval(i) - myrange(1)) + ABS(eigenval(i) - myrange(2)) .LE. &
+         IF (ABS(eigenval(i) - myrange(1)) + ABS(eigenval(i) - myrange(2)) <= &
              ABS(myrange(1) - myrange(2)) + myrange(1)*0.001_dp) THEN
             count1 = count1 + 1
             map1(count1, 1) = i
@@ -1284,14 +1284,14 @@ CONTAINS
          END IF
       END DO
 
-      IF (count1 .EQ. nrep) THEN
+      IF (count1 == nrep) THEN
          DO j = 1, count1
             DO i = 1, ms_vib%mat_size
             residuum(:, j) = residuum(:, j) + approx_H(i, map1(j, 1))*(ms_vib%s_mat(:, i) - eigenval(map1(j, 1))*ms_vib%b_mat(:, i))
                ind(j) = map1(j, 1)
             END DO
          END DO
-      ELSE IF (count1 .GT. nrep) THEN
+      ELSE IF (count1 > nrep) THEN
          ALLOCATE (tmp_resid(SIZE(ms_vib%b_mat, 1), count1))
          ALLOCATE (tmp1(count1))
          ALLOCATE (map2(count1))
@@ -1317,10 +1317,10 @@ CONTAINS
          DEALLOCATE (tmp_resid)
          DEALLOCATE (tmp1)
          DEALLOCATE (map2)
-      ELSE IF (count1 .LT. nrep) THEN
+      ELSE IF (count1 < nrep) THEN
 
          ALLOCATE (map2(count2))
-         IF (count1 .NE. 0) THEN
+         IF (count1 /= 0) THEN
             DO j = 1, count1
                DO i = 1, ms_vib%mat_size
                   residuum(:, j) = residuum(:, j) + approx_H(i, map1(j, 1))* &

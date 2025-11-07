@@ -354,9 +354,9 @@ CONTAINS
 
                   !hack to convert string into integer
                   READ (grid_info(igrid, 2), *, iostat=stat) na
-                  IF (stat .NE. 0) CPABORT("The 'na' value for the GRID keyword must be an integer")
+                  IF (stat /= 0) CPABORT("The 'na' value for the GRID keyword must be an integer")
                   READ (grid_info(igrid, 3), *, iostat=stat) nr
-                  IF (stat .NE. 0) CPABORT("The 'nr' value for the GRID keyword must be an integer")
+                  IF (stat /= 0) CPABORT("The 'nr' value for the GRID keyword must be an integer")
                   EXIT
                END IF
             END DO
@@ -3120,7 +3120,7 @@ CONTAINS
       my_CG => harmonics%my_CG
       max_iso_not0 = harmonics%max_iso_not0
       max_s_harm = harmonics%max_s_harm
-      CPASSERT(2*maxl .LE. indso(1, max_iso_not0))
+      CPASSERT(2*maxl <= indso(1, max_iso_not0))
 
       ALLOCATE (g1(nr), g2(nr), gg(nr, 0:2*maxl))
       ALLOCATE (gfxcg(na, 0:2*maxl))
@@ -3138,7 +3138,7 @@ CONTAINS
             CALL get_none0_cg_list(my_CG, lmin(iset1), lmax(iset1), lmin(iset2), lmax(iset2), &
                                    max_s_harm, lmax(iset1) + lmax(iset2), cg_list, cg_n_list, &
                                    max_iso_not0_local)
-            CPASSERT(max_iso_not0_local .LE. max_iso_not0)
+            CPASSERT(max_iso_not0_local <= max_iso_not0)
 
             n2 = nsoset(lmax(iset2))
             DO ipgf1 = 1, npgf(iset1)

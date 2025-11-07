@@ -445,10 +445,10 @@ CONTAINS
 
                G = G_x + G_y + G_z
                G_sq = G(1)**2 + G(2)**2 + G(3)**2
-               IF (G_sq .GT. G_rads_sq) CYCLE
+               IF (G_sq > G_rads_sq) CYCLE
 
                IF (PRESENT(potential)) THEN
-                  IF (gx .EQ. 0 .AND. gy .EQ. 0 .AND. gz .EQ. 0) CYCLE
+                  IF (gx == 0 .AND. gy == 0 .AND. gz == 0) CYCLE
                END IF
 
                exp_tot = EXP(-alpha*G_sq)*EXP(gaussi*DOT_PRODUCT(G, R)) ! cost: 2 exp_w flops
@@ -601,7 +601,7 @@ CONTAINS
                Rz = hmat(:, 3)*sz
                Rp = Rx + Ry + Rz
                R_sq = (Rp(1) + R(1))**2 + (Rp(2) + R(2))**2 + (Rp(3) + R(3))**2
-               IF (R_sq .GT. R_rad_sq) CYCLE
+               IF (R_sq > R_rad_sq) CYCLE
                exp_tot = EXP(-alpha*R_sq) ! cost: exp_w flops
                DO k = 1, 3
                   R_pow_l(k, 0) = 1.0_dp
@@ -667,16 +667,16 @@ CONTAINS
       l_max = UBOUND(S_G, 1)
 
       S_G(:) = 0.0_dp
-      IF (0 .LT. G_min) THEN
+      IF (0 < G_min) THEN
          k0 = G_min; k1 = 0
-      ELSE IF (G_c .LT. 0) THEN
+      ELSE IF (G_c < 0) THEN
          k0 = 0; k1 = G_c
       ELSE ! Gmin <= 0 /\ 0 <= Gc
          S_G(0) = prefac
          k0 = 1; k1 = -1
       END IF
       ! positive range
-      IF (0 .LT. k0) THEN
+      IF (0 < k0) THEN
          DO k = k0, G_c
             G = k*dG; exp_tot = EXP(-alpha*G**2)*prefac
             DO l = 0, l_max
@@ -685,7 +685,7 @@ CONTAINS
          END DO
       END IF
       ! negative range
-      IF (k1 .LT. 0) THEN
+      IF (k1 < 0) THEN
          DO k = G_min, k1
             G = k*dG; exp_tot = EXP(-alpha*G**2)*prefac
             DO l = 0, l_max
@@ -755,7 +755,7 @@ CONTAINS
          prop_exp = 0
       END IF
 
-      IF (MAXVAL([l_max, m_max, n_max]) .GT. ${lmax_unroll}$) THEN
+      IF (MAXVAL([l_max, m_max, n_max]) > ${lmax_unroll}$) THEN
          CALL pgf_sum_3c_rspace_1d_generic(S_G, RA, RB, RC, zeta, zetb, zetc, a_mm, lgth, R_bounds_3)
       ELSE
          #:for l_max in range(0,lmax_unroll+1)
@@ -1198,7 +1198,7 @@ CONTAINS
       SELECT CASE (sum_method)
       CASE (1) ! sum_G sum_G' C(G) C(G,G') C(G')
 
-         IF (sum_order .EQ. 0) THEN
+         IF (sum_order == 0) THEN
             sum_order = MAXLOC(G_bounds_1(:, 1), DIM=1)
             assert_stm = MINLOC(G_bounds_1(:, 1), DIM=1) == &
                MINLOC(G_bounds_1(:, 2), DIM=1) .AND. &
@@ -1210,7 +1210,7 @@ CONTAINS
          CALL pgf_sum_3c_gspace_3d(S_G, l_max, m_max, n_max, R1, R2, alpha, beta, gamma, ht, vol, G_bounds_1, G_rads_1, sum_order)
 
       CASE (2) ! sum_G sum_R C(G) C(R)
-         IF (sum_order .EQ. 0) THEN
+         IF (sum_order == 0) THEN
             sum_order = MINLOC(G_bounds_1(:, 1), DIM=1)
             assert_stm = MINLOC(G_bounds_1(:, 1), DIM=1) == &
                MINLOC(G_bounds_1(:, 2), DIM=1) .AND. &
@@ -1334,7 +1334,7 @@ CONTAINS
                   G2_z = ht(:, 3)*g2z
                   G2 = G2_x + G2_y + G2_z
                   G2_sq = G2(1)**2 + G2(2)**2 + G2(3)**2
-                  IF (G2_sq .GT. G_rads_sq(2)) CYCLE
+                  IF (G2_sq > G_rads_sq(2)) CYCLE
                   DO g3x = -G3c(1), G3c(1)
                      G3_x = ht(:, 1)*g3x
                      DO g3y = -G3c(2), G3c(2)
@@ -1343,10 +1343,10 @@ CONTAINS
                            G3_z = ht(:, 3)*g3z
                            G3 = G3_x + G3_y + G3_z
                            G3_sq = G3(1)**2 + G3(2)**2 + G3(3)**2
-                           IF (G3_sq .GT. G_rads_sq(3)) CYCLE
+                           IF (G3_sq > G_rads_sq(3)) CYCLE
                            G1 = G3 - G2
                            G1_sq = G1(1)**2 + G1(2)**2 + G1(3)**2
-                           IF (G1_sq .GT. G_rads_sq(1)) CYCLE
+                           IF (G1_sq > G_rads_sq(1)) CYCLE
                            IF (use_coulomb) THEN
                               IF (g3x == 0 .AND. g3y == 0 .AND. g3z == 0) CYCLE
                            END IF
@@ -1367,7 +1367,7 @@ CONTAINS
                   G1_z = ht(:, 3)*g1z
                   G1 = G1_x + G1_y + G1_z
                   G1_sq = G1(1)**2 + G1(2)**2 + G1(3)**2
-                  IF (G1_sq .GT. G_rads_sq(1)) CYCLE
+                  IF (G1_sq > G_rads_sq(1)) CYCLE
                   DO g3x = -G3c(1), G3c(1)
                      G3_x = ht(:, 1)*g3x
                      DO g3y = -G3c(2), G3c(2)
@@ -1376,10 +1376,10 @@ CONTAINS
                            G3_z = ht(:, 3)*g3z
                            G3 = G3_x + G3_y + G3_z
                            G3_sq = G3(1)**2 + G3(2)**2 + G3(3)**2
-                           IF (G3_sq .GT. G_rads_sq(3)) CYCLE
+                           IF (G3_sq > G_rads_sq(3)) CYCLE
                            G2 = G3 - G1
                            G2_sq = G2(1)**2 + G2(2)**2 + G2(3)**2
-                           IF (G2_sq .GT. G_rads_sq(2)) CYCLE
+                           IF (G2_sq > G_rads_sq(2)) CYCLE
                            IF (use_coulomb) THEN
                               IF (g3x == 0 .AND. g3y == 0 .AND. g3z == 0) CYCLE
                            END IF
@@ -1400,7 +1400,7 @@ CONTAINS
                   G1_z = ht(:, 3)*g1z
                   G1 = G1_x + G1_y + G1_z
                   G1_sq = G1(1)**2 + G1(2)**2 + G1(3)**2
-                  IF (G1_sq .GT. G_rads_sq(1)) CYCLE
+                  IF (G1_sq > G_rads_sq(1)) CYCLE
                   DO g2x = -G2c(1), G2c(1)
                      G2_x = ht(:, 1)*g2x
                      DO g2y = -G2c(2), G2c(2)
@@ -1409,10 +1409,10 @@ CONTAINS
                            G2_z = ht(:, 3)*g2z
                            G2 = G2_x + G2_y + G2_z
                            G2_sq = G2(1)**2 + G2(2)**2 + G2(3)**2
-                           IF (G2_sq .GT. G_rads_sq(2)) CYCLE
+                           IF (G2_sq > G_rads_sq(2)) CYCLE
                            G3 = G1 + G2
                            G3_sq = G3(1)**2 + G3(2)**2 + G3(3)**2
-                           IF (G3_sq .GT. G_rads_sq(3)) CYCLE
+                           IF (G3_sq > G_rads_sq(3)) CYCLE
                            IF (use_coulomb) THEN
                               IF (g1x + g2x == 0 .AND. g1y + g2y == 0 .AND. g1z + g2z == 0) CYCLE
                            END IF
@@ -1604,7 +1604,7 @@ CONTAINS
                G_z = ht(:, 3)*gz
                G = G_x + G_y + G_z
                G_sq = G(1)**2 + G(2)**2 + G(3)**2
-               IF (G_sq .GT. G_rad_sq) CYCLE
+               IF (G_sq > G_rad_sq) CYCLE
 
                exp_tot = EXP(-alpha*G_sq)*EXP(gaussi*DOT_PRODUCT(G, R1)) ! cost: exp_w*2 flops
 
@@ -1695,7 +1695,7 @@ CONTAINS
                Rz = hmat(:, 3)*sz
                Rp = Rx + Ry + Rz - R
                Rp_sq = Rp(1)**2 + Rp(2)**2 + Rp(3)**2
-               IF (Rp_sq .GT. R_rad_sq) CYCLE
+               IF (Rp_sq > R_rad_sq) CYCLE
 
                exp_tot = EXP(-c1*Rp_sq)*EXP(-gaussi*c2*DOT_PRODUCT(Rp, G)) ! cost: exp_w*2 flops
                DO k = 1, 3
@@ -1853,7 +1853,7 @@ CONTAINS
                R1_tmp = R1 - (RA - RB)
                R1_sq = R1_tmp(1)**2 + R1_tmp(2)**2 + R1_tmp(3)**2
 
-               IF (R1_sq .GT. R_rad_sq(1)) CYCLE
+               IF (R1_sq > R_rad_sq(1)) CYCLE
 
                R_tmp = R_offset + R1*zeta/(zeta + zetb)
                s2_shift = -MATMUL(h_inv, R_tmp)
@@ -1868,7 +1868,7 @@ CONTAINS
                         R = R_tmp + R2x + R2y + R2z
                         R_sq = R(1)**2 + R(2)**2 + R(3)**2
 
-                        IF (R_sq .GT. R_rad_sq(2)) CYCLE
+                        IF (R_sq > R_rad_sq(2)) CYCLE
 
                         exp_tot = EXP(-alpha*R_sq) ! cost: exp_w flops
                         DO k = 1, 3
@@ -1957,7 +1957,7 @@ CONTAINS
 
       nsum_gaussian_overlap = exp_w
       loop = (m + 1)*(l + 1)*(m + l + 2)
-      IF (H_or_C_product .EQ. 1) THEN
+      IF (H_or_C_product == 1) THEN
          nsum_gaussian_overlap = nsum_gaussian_overlap + loop*16
       ELSE
          nsum_gaussian_overlap = nsum_gaussian_overlap + loop*32

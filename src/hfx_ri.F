@@ -4246,7 +4246,7 @@ CONTAINS
       DO iblk = 1, SIZE(bsizes_split)
          split_sum = split_sum + bsizes_split(iblk)
 
-         IF (split_sum .GT. full_sum) THEN
+         IF (split_sum > full_sum) THEN
             iat = iat + 1
             full_sum = full_sum + bsizes_orig(iat)
          END IF

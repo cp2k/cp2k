@@ -373,7 +373,7 @@ CONTAINS
 999   CLOSE (121245)
       DATA(I:80) = ""
       READ (DATA, *, IOSTAT=iostat) raw
-      IF (iostat .NE. 0) THEN
+      IF (iostat /= 0) THEN
          wt = 0.0_dp
       ELSE
          ! convert from J to kJ
@@ -489,7 +489,7 @@ CONTAINS
       ! m2 = resident
       ! m3 = shared
       READ (DATA, *, IOSTAT=iostat) m1, m2, m3
-      IF (iostat .NE. 0) THEN
+      IF (iostat /= 0) THEN
          mem_local = 0
       ELSE
          mem_local = m2
@@ -576,9 +576,9 @@ CONTAINS
 
          get_field_value_in_bytes = 0
          start = INDEX(meminfo, field)
-         IF (start .NE. 0) THEN
+         IF (start /= 0) THEN
             start = start + LEN_TRIM(field)
-            IF (start .LT. Nbuffer) THEN
+            IF (start < Nbuffer) THEN
                READ (meminfo(start:), *, ERR=999, END=999) value
                ! XXXXXXX convert from Kb to bytes XXXXXXXX
                get_field_value_in_bytes = value*1024
@@ -738,7 +738,7 @@ CONTAINS
 
       ! now move
       istat = rename(TRIM(source)//c_null_char, TRIM(TARGET)//c_null_char)
-      IF (istat .NE. 0) THEN
+      IF (istat /= 0) THEN
          WRITE (*, *) "Trying to move "//TRIM(source)//" to "//TRIM(TARGET)//"."
          WRITE (*, *) "rename returned status: ", istat
          WRITE (*, *) "Problem moving file"

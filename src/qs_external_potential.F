@@ -436,7 +436,7 @@ CONTAINS
 
             ! Find the process that has the data for indices i_pbc and j_pbc
             ! and store the data to bcast_buffer. Assuming that each process has full z data
-            IF (grid%pw_grid%para%mode .NE. PW_MODE_LOCAL) THEN
+            IF (grid%pw_grid%para%mode /= PW_MODE_LOCAL) THEN
                DO ip = 0, num_pe - 1
                   IF (grid%pw_grid%para%bo(1, 1, ip, 1) <= i_pbc - lbounds(1) + 1 .AND. &
                       grid%pw_grid%para%bo(2, 1, ip, 1) >= i_pbc - lbounds(1) + 1 .AND. &

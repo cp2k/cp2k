@@ -700,13 +700,13 @@ CONTAINS
          dest = MODULO(mepos + 1, ncpu)
          source = MODULO(mepos - 1, ncpu)
          DO icpu = 0, ncpu - 1
-            IF (icpu .NE. ncpu - 1) THEN
+            IF (icpu /= ncpu - 1) THEN
                CALL para_env%isendrecv(sendbuffer, dest, recbuffer, source, &
                                        req(1), req(2), 13)
             END IF
             data_from = MODULO(mepos - icpu, ncpu)
             cost_matrix(data_from*nbins*n_threads + 1:data_from*nbins*n_threads + nbins*n_threads) = sendbuffer
-            IF (icpu .NE. ncpu - 1) THEN
+            IF (icpu /= ncpu - 1) THEN
                CALL mp_waitall(req)
             END IF
             swapbuffer => sendbuffer
@@ -768,7 +768,7 @@ CONTAINS
          dest = MODULO(mepos + 1, ncpu)
          source = MODULO(mepos - 1, ncpu)
          DO icpu = 0, ncpu - 1
-            IF (icpu .NE. ncpu - 1) THEN
+            IF (icpu /= ncpu - 1) THEN
                CALL para_env%isendrecv(sendbuffer, dest, recbuffer, source, &
                                        req(1), req(2), 13)
             END IF
@@ -781,7 +781,7 @@ CONTAINS
                END DO
             END DO
 
-            IF (icpu .NE. ncpu - 1) THEN
+            IF (icpu /= ncpu - 1) THEN
                CALL mp_waitall(req)
             END IF
             swapbuffer => sendbuffer
@@ -1137,7 +1137,7 @@ CONTAINS
       a = p
       b = q
 
-      DO WHILE (b .NE. 0)
+      DO WHILE (b /= 0)
          IF (a > b) THEN
             a = a - b
          ELSE
@@ -1277,14 +1277,14 @@ CONTAINS
 
          row = (katom_block - 1)*nblocks + jatom_block
          inv_perm = 1
-         DO WHILE (permute(inv_perm) .NE. row)
+         DO WHILE (permute(inv_perm) /= row)
             inv_perm = inv_perm + 1
          END DO
          row = inv_perm
 
          col = (iatom_block - 1)*nblocks + latom_block
          inv_perm = 1
-         DO WHILE (permute(inv_perm) .NE. col)
+         DO WHILE (permute(inv_perm) /= col)
             inv_perm = inv_perm + 1
          END DO
          col = inv_perm
@@ -1321,7 +1321,7 @@ CONTAINS
 
 !       every second recursion step, compute row sum instead of column sum
 
-         IF (MODULO(step, 2) .EQ. 0) THEN
+         IF (MODULO(step, 2) == 0) THEN
             idx = row
          ELSE
             idx = col
@@ -1348,7 +1348,7 @@ CONTAINS
 
 !   calculate next prime factor of nProc
       nBins = 2
-      DO WHILE (MODULO(INT(nProc), INT(nBins)) .NE. 0)
+      DO WHILE (MODULO(INT(nProc), INT(nBins)) /= 0)
          nBins = nBins + 1
       END DO
 
@@ -1609,7 +1609,7 @@ CONTAINS
          ! sync before/after ring of isendrecv
          CALL para_env%sync()
          DO icpu = 0, ncpu - 1
-            IF (icpu .NE. ncpu - 1) THEN
+            IF (icpu /= ncpu - 1) THEN
                CALL para_env%isendrecv(sendbuffer, dest, recbuffer, source, &
                                        req(1), req(2), 13)
             END IF
@@ -1618,7 +1618,7 @@ CONTAINS
             end_idx = start_idx + bins_per_rank(data_from + 1) - 1
             cost_matrix(start_idx:end_idx) = sendbuffer(1:end_idx - start_idx + 1)
 
-            IF (icpu .NE. ncpu - 1) THEN
+            IF (icpu /= ncpu - 1) THEN
                CALL mp_waitall(req)
             END IF
             swapbuffer => sendbuffer
@@ -1667,7 +1667,7 @@ CONTAINS
          ! sync before/after ring of isendrecv
          CALL para_env%sync()
          DO icpu = 0, ncpu - 1
-            IF (icpu .NE. ncpu - 1) THEN
+            IF (icpu /= ncpu - 1) THEN
                CALL para_env%isendrecv(sendbuffer, dest, recbuffer, source, &
                                        req(1), req(2), 13)
             END IF
@@ -1680,7 +1680,7 @@ CONTAINS
                END DO
             END DO
 
-            IF (icpu .NE. ncpu - 1) THEN
+            IF (icpu /= ncpu - 1) THEN
                CALL mp_waitall(req)
             END IF
             swapbuffer => sendbuffer
@@ -2026,7 +2026,7 @@ CONTAINS
             latom = list_kl%elements(i_list_kl)%pair(2)
 
             IF (.NOT. (katom + latom <= iatom + jatom)) CYCLE
-            IF (((iatom + jatom) .EQ. (katom + latom)) .AND. (katom < iatom)) CYCLE
+            IF (((iatom + jatom) == (katom + latom)) .AND. (katom < iatom)) CYCLE
 
             IF (eval_type == hfx_do_eval_forces) THEN
                IF (.NOT. use_virial) THEN

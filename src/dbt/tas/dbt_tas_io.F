@@ -166,7 +166,7 @@ CONTAINS
 
       ndbt_tot = dbt_tas_nblkrows_total(matrix)*dbt_tas_nblkcols_total(matrix)
       occupation = -1.0_dp
-      IF (ndbt_tot .NE. 0) occupation = 100.0_dp*REAL(ndbt_p_sum, dp)/REAL(ndbt_tot, dp)
+      IF (ndbt_tot /= 0) occupation = 100.0_dp*REAL(ndbt_p_sum, dp)/REAL(ndbt_tot, dp)
 
       dist = dbm_get_distribution(matrix%matrix)
       rowdist => dbm_distribution_row_dist(dist)

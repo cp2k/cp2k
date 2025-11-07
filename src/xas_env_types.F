@@ -365,7 +365,7 @@ CONTAINS
          NULLIFY (xas_env%unoccupied_orbs)
       END IF
       NULLIFY (xas_env%ao_mo_fm_pools)
-      IF (ASSOCIATED(xas_env%all_vectors) .AND. xas_env%nvirtual .GT. 0) THEN
+      IF (ASSOCIATED(xas_env%all_vectors) .AND. xas_env%nvirtual > 0) THEN
          CALL cp_fm_release(xas_env%all_vectors)
          DEALLOCATE (xas_env%all_vectors)
          NULLIFY (xas_env%all_vectors)

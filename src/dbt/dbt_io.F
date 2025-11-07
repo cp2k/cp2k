@@ -148,7 +148,7 @@ CONTAINS
       nblock_tot = PRODUCT(INT(bdims, KIND=int_8))
 
       occupation = -1.0_dp
-      IF (nblock_tot .NE. 0) occupation = 100.0_dp*REAL(nblock_sum, dp)/REAL(nblock_tot, dp)
+      IF (nblock_tot /= 0) occupation = 100.0_dp*REAL(nblock_sum, dp)/REAL(nblock_tot, dp)
 
       IF (unit_nr_prv > 0) THEN
          WRITE (unit_nr_prv, "(T2,A)") &
@@ -191,7 +191,7 @@ CONTAINS
          CALL dbt_iterator_next_block(iterator, blk_index, blk_size=blk_size)
          CALL dbt_get_stored_coordinates(tensor, blk_index, proc)
          mynode = tensor%pgrid%mp_comm_2d%mepos
-         CPASSERT(proc .EQ. mynode)
+         CPASSERT(proc == mynode)
          #:for ndim in ndims
             IF (ndims_tensor(tensor) == ${ndim}$) THEN
                CALL dbt_get_block(tensor, blk_index, blk_values_${ndim}$, found)
@@ -285,7 +285,7 @@ CONTAINS
                CALL dbt_iterator_next_block(iterator, blk_index, blk_size=blk_size)
                CALL dbt_get_stored_coordinates(tensor, blk_index, proc)
                mynode = tensor%pgrid%mp_comm_2d%mepos
-               CPASSERT(proc .EQ. mynode)
+               CPASSERT(proc == mynode)
                #:for ndim in ndims
                   IF (ndims_tensor(tensor) == ${ndim}$) THEN
                      WRITE (io_unit_all, '(T7,A,T16,A,${ndim}$I3,1X,A,1X,I3,A2,${ndim}$I3)') &

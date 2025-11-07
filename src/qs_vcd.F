@@ -117,7 +117,7 @@ CONTAINS
 
          ! I_{alpha beta}^lambda = 1/2c \sum_j^occ ...
          aat_prefactor = 1.0_dp!/(c_light_au * 2._dp)
-         IF (nspins .EQ. 1) aat_prefactor = aat_prefactor*2.0_dp
+         IF (nspins == 1) aat_prefactor = aat_prefactor*2.0_dp
 
          ! The non-PP part of the AAT consists of four contributions:
          !  (A1):  + P^0 * ε_{alpha gamma delta} * < mu | r_beta r_gamma ∂_delta | nu > * (mu == lambda)

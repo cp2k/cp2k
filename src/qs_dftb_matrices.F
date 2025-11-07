@@ -763,7 +763,7 @@ CONTAINS
                                    row=irow, col=icol, BLOCK=sblock, found=found)
             CPASSERT(found)
 
-            IF (nderivative .GT. 0) THEN
+            IF (nderivative > 0) THEN
                DO i = 2, SIZE(matrix_s, 1)
                   NULLIFY (dsblocks(i)%block)
                   CALL dbcsr_get_block_p(matrix=matrix_s(i)%matrix, &
@@ -781,7 +781,7 @@ CONTAINS
                CALL compute_block_sk(sblock, smatij, smatji, rij, ngrd, ngrdcut, dgrd, &
                                      llm, lmaxi, lmaxj, irow, iatom)
 
-               IF (nderivative .GE. 1) THEN
+               IF (nderivative >= 1) THEN
                   n1 = SIZE(sblock, 1); n2 = SIZE(sblock, 2)
                   indder = 1 ! used to put the 2nd derivatives in the correct matric (5=xx,8=yy,10=zz)
 
@@ -806,7 +806,7 @@ CONTAINS
 
                      CPASSERT(ASSOCIATED(dsblocks(i + 1)%block))
                      dsblocks(i + 1)%block = dsblocks(i + 1)%block + dsblock
-                     IF (nderivative .GT. 1) THEN
+                     IF (nderivative > 1) THEN
                         indder = indder + 5 - i
                         dsblocks(indder)%block = 0.0_dp
                         dsblocks(indder)%block = dsblocks(indder)%block + &
@@ -814,7 +814,7 @@ CONTAINS
                      END IF
                   END DO
 
-                  IF (nderivative .GT. 1) THEN
+                  IF (nderivative > 1) THEN
                      DO i = 1, 2
                         DO j = i + 1, 3
                            dsblock = 0._dp; dsblockm = 0.0_dp
@@ -915,10 +915,10 @@ CONTAINS
 
       ! Up to 2nd derivative take care to get the symmetries correct
       DO i = 1, nmat
-         IF (i .GT. 1) THEN
+         IF (i > 1) THEN
             matnames = TRIM(mnames)//" DERIVATIVE MATRIX DFTB"
             symmetry_type = dbcsr_type_antisymmetric
-            IF (i .GT. 4) symmetry_type = dbcsr_type_symmetric
+            IF (i > 4) symmetry_type = dbcsr_type_symmetric
          ELSE
             symmetry_type = dbcsr_type_symmetric
             matnames = TRIM(mnames)//" MATRIX DFTB"
@@ -1003,10 +1003,10 @@ CONTAINS
       ! Up to 2nd derivative take care to get the symmetries correct
       DO img = 1, nimg
          DO i = 1, nmat
-            IF (i .GT. 1) THEN
+            IF (i > 1) THEN
                matnames = TRIM(mnames)//" DERIVATIVE MATRIX DFTB"
                symmetry_type = dbcsr_type_antisymmetric
-               IF (i .GT. 4) symmetry_type = dbcsr_type_symmetric
+               IF (i > 4) symmetry_type = dbcsr_type_symmetric
             ELSE
                symmetry_type = dbcsr_type_symmetric
                matnames = TRIM(mnames)//" MATRIX DFTB"

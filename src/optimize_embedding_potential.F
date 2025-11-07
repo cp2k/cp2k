@@ -140,7 +140,7 @@ CONTAINS
       change_spin = .FALSE.
       open_shell_embed = .FALSE.
       ALLOCATE (all_nspins(ref_subsys_number))
-      IF (ref_subsys_number .EQ. 3) THEN
+      IF (ref_subsys_number == 3) THEN
          all_spins = 0
          DO i_force_eval = 1, ref_subsys_number
             CALL get_qs_env(qs_env=force_env%sub_force_env(i_force_eval)%force_env%qs_env, &
@@ -151,31 +151,31 @@ CONTAINS
          END DO
 
          ! Find out whether we need a spin-dependend embedding potential
-         IF (.NOT. ((all_nspins(1) .EQ. 1) .AND. (all_nspins(2) .EQ. 1) .AND. (all_nspins(3) .EQ. 1))) &
+         IF (.NOT. ((all_nspins(1) == 1) .AND. (all_nspins(2) == 1) .AND. (all_nspins(3) == 1))) &
             open_shell_embed = .TRUE.
 
          ! If it's open shell, we need to check spin states
          IF (open_shell_embed) THEN
 
-            IF (all_nspins(3) .EQ. 1) THEN
+            IF (all_nspins(3) == 1) THEN
                total_spin = 0
             ELSE
                total_spin = all_spins(1, 3) - all_spins(2, 3)
             END IF
-            IF (all_nspins(1) .EQ. 1) THEN
+            IF (all_nspins(1) == 1) THEN
                sub_spin_1 = 0
             ELSE
                sub_spin_1 = all_spins(1, 1) - all_spins(2, 1)
             END IF
-            IF (all_nspins(2) .EQ. 1) THEN
+            IF (all_nspins(2) == 1) THEN
                sub_spin_2 = 0
             ELSE
                sub_spin_2 = all_spins(1, 2) - all_spins(2, 2)
             END IF
-            IF ((sub_spin_1 + sub_spin_2) .EQ. total_spin) THEN
+            IF ((sub_spin_1 + sub_spin_2) == total_spin) THEN
                change_spin = .FALSE.
             ELSE
-               IF (ABS(sub_spin_1 - sub_spin_2) .EQ. total_spin) THEN
+               IF (ABS(sub_spin_1 - sub_spin_2) == total_spin) THEN
                   change_spin = .TRUE.
                ELSE
                   CPABORT("Spin states of subsystems are not compatible.")
@@ -626,7 +626,7 @@ CONTAINS
                       pw_env=pw_env)
       qs_section => section_vals_get_subs_vals(input, "DFT%QS")
       open_shell_embed = .FALSE.
-      IF (dft_control%nspins .EQ. 2) open_shell_embed = .TRUE.
+      IF (dft_control%nspins == 2) open_shell_embed = .TRUE.
 
       ! Prepare plane-waves pool
       CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool_subsys)
@@ -1106,7 +1106,7 @@ CONTAINS
                                           opt_embed%open_shell_embed, opt_embed%lri)
 
       ! Add regularization with kinetic matrix
-      IF (opt_embed%i_iter .EQ. 1) THEN ! Else it is kept in memory
+      IF (opt_embed%i_iter == 1) THEN ! Else it is kept in memory
          CALL compute_kinetic_mat(qs_env, opt_embed%kinetic_mat)
       END IF
 
@@ -1510,11 +1510,11 @@ CONTAINS
 
          ! Do a simple steepest descent
          IF (opt_embed%steep_desc) THEN
-            IF (opt_embed%i_iter .GT. 2) &
+            IF (opt_embed%i_iter > 2) &
                opt_embed%trust_rad = Barzilai_Borwein(opt_embed%step, opt_embed%prev_step, &
                                                       opt_embed%embed_pot_grad, opt_embed%prev_embed_pot_grad)
-            IF (ABS(opt_embed%trust_rad) .GT. opt_embed%max_trad) THEN
-               IF (opt_embed%trust_rad .GT. 0.0_dp) THEN
+            IF (ABS(opt_embed%trust_rad) > opt_embed%max_trad) THEN
+               IF (opt_embed%trust_rad > 0.0_dp) THEN
                   opt_embed%trust_rad = opt_embed%max_trad
                ELSE
                   opt_embed%trust_rad = -opt_embed%max_trad
@@ -1577,7 +1577,7 @@ CONTAINS
 
             DO LLL = 1, nrow_local
                l_global = row_indices(LLL)
-               IF (ABS(eigenval(l_global)) .GE. thresh) THEN
+               IF (ABS(eigenval(l_global)) >= thresh) THEN
                   diag_step%local_data(LLL, 1) = &
                      -diag_grad%local_data(LLL, 1)/(eigenval(l_global))
                ELSE
@@ -1601,7 +1601,7 @@ CONTAINS
             ! Scale the step to fit within the trust radius: it it's less already,
             ! then take the Newton step
             CALL cp_fm_trace(opt_embed%step, opt_embed%step, opt_embed%step_len)
-            IF (opt_embed%step_len .GT. opt_embed%trust_rad) THEN
+            IF (opt_embed%step_len > opt_embed%trust_rad) THEN
 
                IF (opt_embed%level_shift) THEN
                   ! Find a level shift parameter and apply it
@@ -2207,22 +2207,22 @@ CONTAINS
 
       CALL cp_fm_release(H_b)
 
-      IF (actual_ener_change .GT. 0.0_dp) THEN ! If energy increases
+      IF (actual_ener_change > 0.0_dp) THEN ! If energy increases
          ! We accept step
          opt_embed%accept_step = .TRUE.
          ! If energy change is larger than the predicted one, increase trust radius twice
          ! Else (between 0 and 1) leave as it is, unless Newton step has been taken and if the step is less than max
-         IF ((ener_ratio .GT. 1.0_dp) .AND. (.NOT. opt_embed%newton_step) .AND. &
-             (opt_embed%trust_rad .LT. opt_embed%max_trad)) &
+         IF ((ener_ratio > 1.0_dp) .AND. (.NOT. opt_embed%newton_step) .AND. &
+             (opt_embed%trust_rad < opt_embed%max_trad)) &
             opt_embed%trust_rad = 2.0_dp*opt_embed%trust_rad
       ELSE ! Energy decreases
          ! If the decrease is not too large we allow this step to be taken
          ! Otherwise, the step is rejected
-         IF (ABS(actual_ener_change) .GE. opt_embed%allowed_decrease) THEN
+         IF (ABS(actual_ener_change) >= opt_embed%allowed_decrease) THEN
             opt_embed%accept_step = .FALSE.
          END IF
          ! Trust radius is decreased 4 times unless it's smaller than the minimal allowed value
-         IF (opt_embed%trust_rad .GE. opt_embed%min_trad) &
+         IF (opt_embed%trust_rad >= opt_embed%min_trad) &
             opt_embed%trust_rad = 0.25_dp*opt_embed%trust_rad
       END IF
 
@@ -2272,14 +2272,14 @@ CONTAINS
 
       CALL cp_fm_trace(diag_grad, diag_grad, diag_grad_norm)
 
-      IF (hess_min .LT. 0.0_dp) THEN
+      IF (hess_min < 0.0_dp) THEN
          !shift_min = -2.0_dp*(diag_grad_norm/opt_embed%trust_rad - min(hess_min, 0.0_dp))
          !shift_max = max(0.0_dp, -hess_min + 0.5_dp*grad_min/opt_embed%trust_rad)
          !shift_max = MIN(-hess_min+0.5_dp*grad_min/opt_embed%trust_rad, 0.0_dp)
          shift_max = hess_min + 0.1
          shift_min = diag_grad_norm/opt_embed%trust_rad
          shift_min = 10.0_dp
-         !If (abs(shift_max) .LE. thresh) then
+         !If (abs(shift_max) <= thresh) then
          !   shift_min = -20.0_dp*(diag_grad_norm/opt_embed%trust_rad - min(hess_min, 0.0_dp))
          !Else
          !   shift_min = 20.0_dp*shift_max
@@ -2292,30 +2292,30 @@ CONTAINS
          ! Find zero by bisection
          converged = .FALSE.
          do_shift = .FALSE.
-         IF (ABS(step_minus_trad_max) .LE. thresh) THEN
+         IF (ABS(step_minus_trad_max) <= thresh) THEN
             shift = shift_max
          ELSE
-            IF (ABS(step_minus_trad_min) .LE. thresh) THEN
+            IF (ABS(step_minus_trad_min) <= thresh) THEN
                shift = shift_min
             ELSE
                DO i_iter = 1, max_iter
                   shift = 0.5_dp*(shift_max + shift_min)
                   step_minus_trad = shifted_step(diag_grad, eigenval, shift, opt_embed%trust_rad)
-                  IF (i_iter .EQ. 1) step_minus_trad_first = step_minus_trad
-                  IF (step_minus_trad .GT. 0.0_dp) shift_max = shift
-                  IF (step_minus_trad .LT. 0.0_dp) shift_min = shift
-                  !IF (ABS(shift_max-shift_min) .LT. thresh) converged = .TRUE.
-                  IF (ABS(step_minus_trad) .LT. thresh) converged = .TRUE.
+                  IF (i_iter == 1) step_minus_trad_first = step_minus_trad
+                  IF (step_minus_trad > 0.0_dp) shift_max = shift
+                  IF (step_minus_trad < 0.0_dp) shift_min = shift
+                  !IF (ABS(shift_max-shift_min) < thresh) converged = .TRUE.
+                  IF (ABS(step_minus_trad) < thresh) converged = .TRUE.
                   IF (converged) EXIT
                END DO
-               IF (ABS(step_minus_trad) .LT. ABS(step_minus_trad_first)) do_shift = .TRUE.
+               IF (ABS(step_minus_trad) < ABS(step_minus_trad_first)) do_shift = .TRUE.
             END IF
          END IF
          ! Apply level-shifting
          IF (converged .OR. do_shift) THEN
             DO LLL = 1, nrow_local
                l_global = row_indices(LLL)
-               IF (ABS(eigenval(l_global)) .GE. thresh) THEN
+               IF (ABS(eigenval(l_global)) >= thresh) THEN
                   diag_step%local_data(LLL, 1) = &
                      -diag_grad%local_data(LLL, 1)/(eigenval(l_global) - shift)
                ELSE
@@ -2329,13 +2329,13 @@ CONTAINS
          END IF
 
          ! Special case
-      ELSE ! Hess min .LT. 0.0_dp
+      ELSE ! Hess min < 0.0_dp
          ! First, find all positive eigenvalues
          ALLOCATE (red_eigenval_map(opt_embed%dimen_var_aux))
          red_eigenval_map = 0
          DO LLL = 1, nrow_local
             l_global = row_indices(LLL)
-            IF (eigenval(l_global) .GE. 0.0_dp) THEN
+            IF (eigenval(l_global) >= 0.0_dp) THEN
                red_eigenval_map(l_global) = 1
             END IF
          END DO
@@ -2346,8 +2346,8 @@ CONTAINS
          shift = -hess_min
          DO LLL = 1, nrow_local
             l_global = row_indices(LLL)
-            IF (red_eigenval_map(l_global) .EQ. 0) THEN
-               IF (ABS(eigenval(l_global)) .GE. thresh) THEN
+            IF (red_eigenval_map(l_global) == 0) THEN
+               IF (ABS(eigenval(l_global)) >= thresh) THEN
                   diag_step%local_data(LLL, 1) = &
                      -diag_grad%local_data(LLL, 1)/(eigenval(l_global) - shift)
                ELSE
@@ -2397,7 +2397,7 @@ CONTAINS
       step = 0.0_dp
       DO LLL = 1, nrow_local
          l_global = row_indices(LLL)
-         IF ((ABS(eigenval(l_global)) .GE. thresh) .AND. (ABS(diag_grad%local_data(LLL, 1)) .GE. thresh)) THEN
+         IF ((ABS(eigenval(l_global)) >= thresh) .AND. (ABS(diag_grad%local_data(LLL, 1)) >= thresh)) THEN
             step_1d = -diag_grad%local_data(LLL, 1)/(eigenval(l_global) + shift)
             step = step + step_1d**2
          END IF
@@ -2510,7 +2510,7 @@ CONTAINS
          DO k = lb(3), ub(3)
             DO j = lb(2), ub(2)
                DO i = lb(1), ub(1)
-                  IF (rho_r_ref(1)%array(i, j, k) .GT. rho_cutoff) THEN
+                  IF (rho_r_ref(1)%array(i, j, k) > rho_cutoff) THEN
                      my_rho = rho_r_ref(1)%array(i, j, k)
                   ELSE
                      my_rho = rho_cutoff
@@ -2547,7 +2547,7 @@ CONTAINS
          CALL pw_axpy(spin_embed_pot, temp_embed_pot(1), 1.0_dp)
          CALL pw_axpy(spin_embed_pot, temp_embed_pot(2), -1.0_dp)
 
-         IF (SIZE(rho_r_ref) .EQ. 2) THEN
+         IF (SIZE(rho_r_ref) == 2) THEN
             CALL pw_axpy(rho_r_ref(1), rho_n_1(1), 1.0_dp)
             CALL pw_axpy(rho_r_ref(2), rho_n_1(2), 1.0_dp)
 
@@ -2557,14 +2557,14 @@ CONTAINS
             DO k = lb(3), ub(3)
                DO j = lb(2), ub(2)
                   DO i = lb(1), ub(1)
-                     IF (rho_r_ref(1)%array(i, j, k) .GT. rho_cutoff) THEN
+                     IF (rho_r_ref(1)%array(i, j, k) > rho_cutoff) THEN
                         my_rho = rho_r_ref(1)%array(i, j, k)
                      ELSE
                         my_rho = rho_cutoff
                      END IF
                      new_embed_pot(1)%array(i, j, k) = step_len*temp_embed_pot(1)%array(i, j, k)* &
                                                        (rho_n_1(1)%array(i, j, k))/my_rho
-                     IF (rho_r_ref(2)%array(i, j, k) .GT. rho_cutoff) THEN
+                     IF (rho_r_ref(2)%array(i, j, k) > rho_cutoff) THEN
                         my_rho = rho_r_ref(2)%array(i, j, k)
                      ELSE
                         my_rho = rho_cutoff
@@ -2586,7 +2586,7 @@ CONTAINS
             DO k = lb(3), ub(3)
                DO j = lb(2), ub(2)
                   DO i = lb(1), ub(1)
-                     IF (rho_r_ref(1)%array(i, j, k) .GT. rho_cutoff) THEN
+                     IF (rho_r_ref(1)%array(i, j, k) > rho_cutoff) THEN
                         my_rho = 0.5_dp*rho_r_ref(1)%array(i, j, k)
                      ELSE
                         my_rho = rho_cutoff
@@ -2678,7 +2678,7 @@ CONTAINS
 
       ! We calculate von Weizsaecker potential for the reference density
       ! only at the first iteration
-      IF (i_iter .LE. 1) THEN
+      IF (i_iter <= 1) THEN
          nspins = SIZE(rho_r_ref)
          NULLIFY (v_w_ref)
          ALLOCATE (v_w_ref(nspins))
@@ -2741,7 +2741,7 @@ CONTAINS
             CALL pw_scale(curr_rho(1), a=0.5_dp)
             CALL pw_scale(curr_rho(2), a=0.5_dp)
 
-            IF (SIZE(rho_r_ref) .EQ. 1) THEN ! If reference system is closed-shell
+            IF (SIZE(rho_r_ref) == 1) THEN ! If reference system is closed-shell
                CALL pw_axpy(rho_r_ref(1), curr_rho(1), 0.5_dp)
                CALL pw_axpy(rho_r_ref(1), curr_rho(2), 0.5_dp)
             ELSE ! If reference system is open-shell
@@ -2764,7 +2764,7 @@ CONTAINS
             CALL pw_axpy(spin_embed_pot, temp_embed_pot(2), -1.0_dp)
 
             ! Compute new embedding potential
-            IF (SIZE(v_w_ref) .EQ. 1) THEN ! Reference system is closed-shell
+            IF (SIZE(v_w_ref) == 1) THEN ! Reference system is closed-shell
                CALL pw_copy(temp_embed_pot(1), new_embed_pot(1))
                CALL pw_axpy(v_w(1), new_embed_pot(1), 0.5_dp*step_len)
                CALL pw_axpy(v_w_ref(1), new_embed_pot(1), -0.5_dp*step_len)
@@ -2876,7 +2876,7 @@ CONTAINS
 
       CALL xc_rho_cflags_setall(needs, .FALSE.)
 
-      IF (nspins .EQ. 2) THEN
+      IF (nspins == 2) THEN
          needs%rho_spin = .TRUE.
          needs%norm_drho_spin = .TRUE.
          needs%laplace_rho_spin = .TRUE.
@@ -2899,14 +2899,14 @@ CONTAINS
       lb(1:3) = rho_r(1)%pw_grid%bounds_local(1, 1:3)
       ub(1:3) = rho_r(1)%pw_grid%bounds_local(2, 1:3)
 
-      IF (nspins .EQ. 2) THEN
+      IF (nspins == 2) THEN
 !$OMP    PARALLEL DO DEFAULT(NONE) &
 !$OMP                PRIVATE(i,j,k, my_rho) &
 !$OMP                SHARED(v_w, rho_r, rho_set, lb, ub, rho_cutoff)
          DO k = lb(3), ub(3)
             DO j = lb(2), ub(2)
                DO i = lb(1), ub(1)
-                  IF (rho_r(1)%array(i, j, k) .GT. rho_cutoff) THEN
+                  IF (rho_r(1)%array(i, j, k) > rho_cutoff) THEN
                      my_rho = rho_r(1)%array(i, j, k)
                   ELSE
                      my_rho = rho_cutoff
@@ -2914,7 +2914,7 @@ CONTAINS
                   v_w(1)%array(i, j, k) = one_8*rho_set%norm_drhoa(i, j, k)**2/my_rho**2 - &
                                           one_4*rho_set%laplace_rhoa(i, j, k)/my_rho
 
-                  IF (rho_r(2)%array(i, j, k) .GT. rho_cutoff) THEN
+                  IF (rho_r(2)%array(i, j, k) > rho_cutoff) THEN
                      my_rho = rho_r(2)%array(i, j, k)
                   ELSE
                      my_rho = rho_cutoff
@@ -2932,7 +2932,7 @@ CONTAINS
          DO k = lb(3), ub(3)
             DO j = lb(2), ub(2)
                DO i = lb(1), ub(1)
-                  IF (rho_r(1)%array(i, j, k) .GT. rho_cutoff) THEN
+                  IF (rho_r(1)%array(i, j, k) > rho_cutoff) THEN
                      my_rho = rho_r(1)%array(i, j, k)
                      v_w(1)%array(i, j, k) = one_8*rho_set%norm_drho(i, j, k)**2/my_rho**2 - &
                                              one_4*rho_set%laplace_rho(i, j, k)/my_rho
@@ -3389,7 +3389,7 @@ CONTAINS
             "  Optimize embedding potential info at step = ", step_num
          WRITE (UNIT=output_unit, FMT="(T2,A,F20.10)") &
             " Functional value         = ", opt_embed%w_func(step_num)
-         IF (step_num .GT. 1) THEN
+         IF (step_num > 1) THEN
             WRITE (UNIT=output_unit, FMT="(T2,A,F20.10)") &
                " Real energy change         = ", opt_embed%w_func(step_num) - &
                opt_embed%w_func(step_num - 1)
@@ -3504,14 +3504,14 @@ CONTAINS
       ! Open shell
       IF (opt_embed%open_shell_embed) THEN
          max_diff_spin = opt_embed%max_diff(2)
-         IF ((max_diff .LE. opt_embed%conv_max) .AND. (max_diff_spin .LE. opt_embed%conv_max_spin)) THEN
+         IF ((max_diff <= opt_embed%conv_max) .AND. (max_diff_spin <= opt_embed%conv_max_spin)) THEN
             conv_max_diff = .TRUE.
          ELSE
             conv_max_diff = .FALSE.
          END IF
       ELSE
          ! Closed shell
-         IF (max_diff .LE. opt_embed%conv_max) THEN
+         IF (max_diff <= opt_embed%conv_max) THEN
             conv_max_diff = .TRUE.
          ELSE
             conv_max_diff = .FALSE.
@@ -3523,14 +3523,14 @@ CONTAINS
       ! Open shell
       IF (opt_embed%open_shell_embed) THEN
          int_diff_spin = opt_embed%int_diff(2)
-         IF ((int_diff .LE. opt_embed%conv_int) .AND. (int_diff_spin .LE. opt_embed%conv_int_spin)) THEN
+         IF ((int_diff <= opt_embed%conv_int) .AND. (int_diff_spin <= opt_embed%conv_int_spin)) THEN
             conv_int_diff = .TRUE.
          ELSE
             conv_int_diff = .FALSE.
          END IF
       ELSE
          ! Closed shell
-         IF (int_diff .LE. opt_embed%conv_int) THEN
+         IF (int_diff <= opt_embed%conv_int) THEN
             conv_int_diff = .TRUE.
          ELSE
             conv_int_diff = .FALSE.

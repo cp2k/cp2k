@@ -137,7 +137,7 @@ CONTAINS
          CALL cp_abort(__LOCATION__, "Initial dimension was too large and could not be corrected. "// &
                        "Choose another num_exc_en and num_add_start_z_space or adapt your basis set.")
       END IF
-      IF (num_max_z_space .GE. homo*virtual) THEN
+      IF (num_max_z_space >= homo*virtual) THEN
          fac_max_z_space = homo*virtual/num_Z_vectors_init
          num_max_z_space = num_Z_vectors_init*fac_max_z_space
 
@@ -336,7 +336,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      IF (num_Z_vectors + num_new_t .LE. num_max_z_space) THEN
+      IF (num_Z_vectors + num_new_t <= num_max_z_space) THEN
          W_vectors(:, :, :num_Z_vectors) = Z_vectors(:, :, :)
          W_vectors(:, :, num_Z_vectors + 1:) = Subspace_add_dir
          num_Z_vectors = num_Z_vectors + num_new_t

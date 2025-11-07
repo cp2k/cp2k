@@ -400,7 +400,7 @@ CONTAINS
       ! make valgrind happy
       use_virial = .FALSE.
 
-      IF (dispersion_env%type .NE. xc_vdw_fun_pairpot) THEN
+      IF (dispersion_env%type /= xc_vdw_fun_pairpot) THEN
          RETURN
       END IF
 

@@ -106,7 +106,7 @@ CONTAINS
          N_half = accurate_sum(occ)
 
          h = fermi_half - fermi_min
-         IF (h .GT. N*epsocc*100) THEN
+         IF (h > N*epsocc*100) THEN
             y0 = N_min - N
             y1 = N_half - N
             y2 = N_max - N
@@ -135,8 +135,8 @@ CONTAINS
          END IF
 
          !define 2nd bracker using fermi_fit
-         IF (h .GT. N*epsocc*100) THEN
-            IF (fermi_fit .GE. fermi_min .AND. fermi_fit .LE. fermi_max) THEN
+         IF (h > N*epsocc*100) THEN
+            IF (fermi_fit >= fermi_min .AND. fermi_fit <= fermi_max) THEN
                IF (N_fit < N) THEN
                   fermi_min = fermi_fit
                   N_min = N_fit
@@ -277,7 +277,7 @@ CONTAINS
          !***HP loop
 
          h = fermi_half - fermi_min
-         IF (h .GT. N*epsocc*100) THEN
+         IF (h > N*epsocc*100) THEN
             y0 = N_min - N
             y1 = N_half - N
             y2 = N_max - N
@@ -317,8 +317,8 @@ CONTAINS
          END IF
 
          !define 2nd bracker using fermi_fit
-         IF (h .GT. N*epsocc*100) THEN
-            IF (fermi_fit .GE. fermi_min .AND. fermi_fit .LE. fermi_max) THEN
+         IF (h > N*epsocc*100) THEN
+            IF (fermi_fit >= fermi_min .AND. fermi_fit <= fermi_max) THEN
                IF (N_fit < N) THEN
                   fermi_min = fermi_fit
                   N_min = N_fit
@@ -410,7 +410,7 @@ CONTAINS
          fermi_fun_sol = 0.0_dp
 
          probes2: DO ip = 1, np
-            IF (probe(ip)%alpha .LT. 1.0_dp) THEN
+            IF (probe(ip)%alpha < 1.0_dp) THEN
                alpha = probe(ip)%alpha
                !fermi distribution, solution probes
                CALL fermi_distribution(energies(iMO), fermi, probe(ip)%T, fermi_fun_sol)
@@ -435,7 +435,7 @@ CONTAINS
          occupancy(iMO) = f*maxocc
 
          !entropy kTS= kT*[f ln f + (1-f) ln (1-f)]
-         IF (f .EQ. 0.0d0 .OR. f .EQ. 1.0d0) THEN
+         IF (f == 0.0d0 .OR. f == 1.0d0) THEN
             s = 0.0d0
          ELSE
             s = f*LOG(f) + (1.0d0 - f)*LOG(1.0d0 - f)
@@ -514,7 +514,7 @@ CONTAINS
                isgf = isgf + nso(lshell)
 
                boundaries: DO ii = 1, p_atom
-                  IF (iatom .NE. probe%atom_ids(ii)) THEN
+                  IF (iatom /= probe%atom_ids(ii)) THEN
                      CYCLE boundaries
                   ELSE
                      !defines iAO boundaries***********
@@ -527,7 +527,7 @@ CONTAINS
          END DO sets
       END DO atoms
 
-      IF (isgf .NE. nAO) CPWARN("row count does not correspond to nAO, number of rows in mo_coeff")
+      IF (isgf /= nAO) CPWARN("row count does not correspond to nAO, number of rows in mo_coeff")
 
    END SUBROUTINE AO_boundaries
 
@@ -593,7 +593,7 @@ CONTAINS
       b = (4.0_dp*y1 - 3.0_dp*y0 - y2)/(2.0_dp*h)
       c = y0
 
-      IF (ABS(a) .LT. 1.0e-15_dp) THEN
+      IF (ABS(a) < 1.0e-15_dp) THEN
          delta = 0.0_dp
          RETURN
       END IF
@@ -602,17 +602,17 @@ CONTAINS
 
       u0 = (-b + d)/(2.0_dp*a)
 
-      IF (u0 .GE. 0.0_dp .AND. u0 .LE. 2.0_dp*h) THEN
+      IF (u0 >= 0.0_dp .AND. u0 <= 2.0_dp*h) THEN
          delta = u0
          !RETURN
       ELSE
          u0 = (-b - d)/(2.0_dp*a)
-         IF (u0 .GE. 0.0_dp .AND. u0 .LE. 2.0_dp*h) THEN
+         IF (u0 >= 0.0_dp .AND. u0 <= 2.0_dp*h) THEN
             delta = u0
             !RETURN
          ELSE
-            IF (y1 .LT. 0.0_dp) delta = 2.0_dp*h
-            IF (y1 .GE. 0.0_dp) delta = 0.0_dp
+            IF (y1 < 0.0_dp) delta = 2.0_dp*h
+            IF (y1 >= 0.0_dp) delta = 0.0_dp
          END IF
       END IF
 

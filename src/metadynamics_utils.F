@@ -323,7 +323,7 @@ CONTAINS
             WRITE (iw, '( A )') ' METADYN| Spawning the Hills '
             WRITE (iw, '( A,T71,F10.3)') ' METADYN| Height of the Spawned Gaussian', meta_env%hills_env%ww
             !RG Adaptive hills
-            IF (meta_env%hills_env%min_disp .GT. 0.0_dp) THEN
+            IF (meta_env%hills_env%min_disp > 0.0_dp) THEN
                WRITE (iw, '(A)') ' METADYN| Adapative meta time step is activated'
                WRITE (iw, '(A,T71,F10.4)') ' METADYN| Minimum displacement for next hill', &
                   meta_env%hills_env%min_disp

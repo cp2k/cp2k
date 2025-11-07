@@ -487,7 +487,7 @@ CONTAINS
 
       counter = 0
       DO irow = 1, nrow_local
-         IF (ipivot(irow) .NE. row_indices(irow)) counter = counter + 1
+         IF (ipivot(irow) /= row_indices(irow)) counter = counter + 1
       END DO
 
       IF (MOD(counter, 2) == 0) THEN
@@ -517,7 +517,7 @@ CONTAINS
       counter = 0
       determinant = z_one
       DO irow = 1, nrow_global
-         IF (ipivot(irow) .NE. irow) counter = counter + 1
+         IF (ipivot(irow) /= irow) counter = counter + 1
          determinant = determinant*a(irow, irow)
       END DO
       IF (MOD(counter, 2) == 1) determinant = -1.0_dp*determinant
@@ -764,7 +764,7 @@ CONTAINS
 
          counter = 0
          DO irow = 1, nrow_local
-            IF (ipivot(irow) .NE. row_indices(irow)) counter = counter + 1
+            IF (ipivot(irow) /= row_indices(irow)) counter = counter + 1
          END DO
 
          IF (MOD(counter, 2) == 0) THEN
@@ -800,7 +800,7 @@ CONTAINS
          counter = 0
          determinant = z_one
          DO irow = 1, nrow_global
-            IF (ipivot(irow) .NE. irow) counter = counter + 1
+            IF (ipivot(irow) /= irow) counter = counter + 1
             determinant = determinant*a(irow, irow)
          END DO
          IF (MOD(counter, 2) == 1) determinant = -1.0_dp*determinant
@@ -846,7 +846,7 @@ CONTAINS
 
       mat => matrix%local_data
       nrows_global = matrix%matrix_struct%nrow_global
-      CPASSERT(nrows_global .EQ. matrix%matrix_struct%ncol_global)
+      CPASSERT(nrows_global == matrix%matrix_struct%ncol_global)
       ALLOCATE (ipivot(nrows_global))
 
       ! do LU decomposition

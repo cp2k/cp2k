@@ -205,11 +205,11 @@ CONTAINS
             WRITE (*, 37) (idata(1, j), j=1, 149)
             CPABORT("")
          END IF
-         IF (n .EQ. idata(1, i)) THEN
+         IF (n == idata(1, i)) THEN
             ic = 0
             DO j = 1, 6
                itt = idata(1 + j, i)
-               IF (itt .GT. 1) THEN
+               IF (itt > 1) THEN
                   ic = ic + 1
                   now(j) = idata(1 + j, i)
                ELSE
@@ -229,7 +229,7 @@ CONTAINS
 
       twopi = 6.283185307179586_dp
       angle = isign*twopi/n
-      IF (MOD(n, 2) .EQ. 0) THEN
+      IF (MOD(n, 2) == 0) THEN
          nh = n/2
          trig(1, 1) = 1._dp
          trig(2, 1) = 0._dp
@@ -301,7 +301,7 @@ CONTAINS
 
 !         sqrt(.5_dp)
                   rt2i = 0.7071067811865475_dp
-                  IF (now .EQ. 2) THEN
+                  IF (now == 2) THEN
                      ia = 1
                      nin1 = ia - after
                      nout1 = ia - atn
@@ -322,8 +322,8 @@ CONTAINS
                         END DO; END DO
                      DO 2000, ia = 2, after
                         ias = ia - 1
-                        IF (2*ias .EQ. after) THEN
-                           IF (isign .EQ. 1) THEN
+                        IF (2*ias == after) THEN
+                           IF (isign == 1) THEN
                               nin1 = ia - after
                               nout1 = ia - atn
                               DO ib = 1, before
@@ -360,8 +360,8 @@ CONTAINS
                                     zout(2, j, nout2) = s2 + s1
                                  END DO; END DO
                            END IF
-                        ELSE IF (4*ias .EQ. after) THEN
-                           IF (isign .EQ. 1) THEN
+                        ELSE IF (4*ias == after) THEN
+                           IF (isign == 1) THEN
                               nin1 = ia - after
                               nout1 = ia - atn
                               DO ib = 1, before
@@ -402,8 +402,8 @@ CONTAINS
                                     zout(2, j, nout2) = s1 - s2
                                  END DO; END DO
                            END IF
-                        ELSE IF (4*ias .EQ. 3*after) THEN
-                           IF (isign .EQ. 1) THEN
+                        ELSE IF (4*ias == 3*after) THEN
+                           IF (isign == 1) THEN
                               nin1 = ia - after
                               nout1 = ia - atn
                               DO ib = 1, before
@@ -469,8 +469,8 @@ CONTAINS
                               END DO; END DO
                         END IF
 2000                    CONTINUE
-                        ELSE IF (now .EQ. 4) THEN
-                        IF (isign .EQ. 1) THEN
+                        ELSE IF (now == 4) THEN
+                        IF (isign == 1) THEN
                            ia = 1
                            nin1 = ia - after
                            nout1 = ia - atn
@@ -511,7 +511,7 @@ CONTAINS
                               END DO; END DO
                            DO 4000, ia = 2, after
                               ias = ia - 1
-                              IF (2*ias .EQ. after) THEN
+                              IF (2*ias == after) THEN
                                  nin1 = ia - after
                                  nout1 = ia - atn
                                  DO ib = 1, before
@@ -650,7 +650,7 @@ CONTAINS
                                  END DO; END DO
                               DO 4100, ia = 2, after
                                  ias = ia - 1
-                                 IF (2*ias .EQ. after) THEN
+                                 IF (2*ias == after) THEN
                                     nin1 = ia - after
                                     nout1 = ia - atn
                                     DO ib = 1, before
@@ -749,8 +749,8 @@ CONTAINS
                                  END IF
 4100                             CONTINUE
                                  END IF
-                                 ELSE IF (now .EQ. 8) THEN
-                                 IF (isign .EQ. -1) THEN
+                                 ELSE IF (now == 8) THEN
+                                 IF (isign == -1) THEN
                                     ia = 1
                                     nin1 = ia - after
                                     nout1 = ia - atn
@@ -1192,7 +1192,7 @@ CONTAINS
 8001                                      CONTINUE
 
                                           END IF
-                                          ELSE IF (now .EQ. 3) THEN
+                                          ELSE IF (now == 3) THEN
 !         .5_dp*sqrt(3._dp)
                                           bb = isign*0.8660254037844387_dp
                                           ia = 1
@@ -1227,8 +1227,8 @@ CONTAINS
                                              END DO; END DO
                                           DO 3000, ia = 2, after
                                              ias = ia - 1
-                                             IF (4*ias .EQ. 3*after) THEN
-                                             IF (isign .EQ. 1) THEN
+                                             IF (4*ias == 3*after) THEN
+                                             IF (isign == 1) THEN
                                                 nin1 = ia - after
                                                 nout1 = ia - atn
                                                 DO ib = 1, before
@@ -1289,8 +1289,8 @@ CONTAINS
                                                       zout(2, j, nout3) = s1 - r2
                                                    END DO; END DO
                                              END IF
-                                             ELSE IF (8*ias .EQ. 3*after) THEN
-                                             IF (isign .EQ. 1) THEN
+                                             ELSE IF (8*ias == 3*after) THEN
+                                             IF (isign == 1) THEN
                                                 nin1 = ia - after
                                                 nout1 = ia - atn
                                                 DO ib = 1, before
@@ -1398,7 +1398,7 @@ CONTAINS
                                                 END DO; END DO
                                              END IF
 3000                                         CONTINUE
-                                             ELSE IF (now .EQ. 5) THEN
+                                             ELSE IF (now == 5) THEN
 !         cos(2._dp*pi/5._dp)
                                              cos2 = 0.3090169943749474_dp
 !         cos(4._dp*pi/5._dp)
@@ -1461,8 +1461,8 @@ CONTAINS
                                                 END DO; END DO
                                              DO 5000, ia = 2, after
                                                 ias = ia - 1
-                                                IF (8*ias .EQ. 5*after) THEN
-                                                   IF (isign .EQ. 1) THEN
+                                                IF (8*ias == 5*after) THEN
+                                                   IF (isign == 1) THEN
                                                       nin1 = ia - after
                                                       nout1 = ia - atn
                                                       DO ib = 1, before
@@ -1651,7 +1651,7 @@ CONTAINS
                                                       END DO; END DO
                                                 END IF
 5000                                            CONTINUE
-                                                ELSE IF (now .EQ. 6) THEN
+                                                ELSE IF (now == 6) THEN
 !         .5_dp*sqrt(3._dp)
                                                 bb = isign*0.8660254037844387_dp
 
