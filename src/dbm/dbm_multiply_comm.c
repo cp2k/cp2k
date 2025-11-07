@@ -94,8 +94,9 @@ static void create_pack_plans(const bool trans_matrix, const bool trans_dist,
       for (int iblock = 0; iblock < shard->nblocks; iblock++) {
         const dbm_block_t *blk = &shard->blocks[iblock];
         const int sum_index = (trans_matrix) ? blk->row : blk->col;
-        const int itick = (1021 * sum_index) % nticks; // 1021 = a random prime
-        const int ipack = itick / dist_ticks->nranks;
+        unsigned long long itick64 = (unsigned long long)sum_index 
+                  * 1021ULL % (unsigned long long)nticks; // 1021 = a random prime
+        const int ipack = itick64 / dist_ticks->nranks;
         nblks_mythread[ipack]++;
       }
     }
@@ -124,11 +125,12 @@ static void create_pack_plans(const bool trans_matrix, const bool trans_dist,
         const dbm_block_t *blk = &shard->blocks[iblock];
         const int free_index = (trans_matrix) ? blk->col : blk->row;
         const int sum_index = (trans_matrix) ? blk->row : blk->col;
-        const int itick = (1021 * sum_index) % nticks; // Same mapping as above.
-        const int ipack = itick / dist_ticks->nranks;
+        unsigned long long itick64 = (unsigned long long)sum_index 
+                  * 1021ULL % (unsigned long long)nticks; // same mapping as above
+        const int ipack = itick64 / dist_ticks->nranks;
         // Compute rank to which this block should be sent.
         const int coord_free_idx = dist_indices->index2coord[free_index];
-        const int coord_sum_idx = itick % dist_ticks->nranks;
+        const int coord_sum_idx = itick64 % dist_ticks->nranks;
         const int coords[2] = {(trans_dist) ? coord_sum_idx : coord_free_idx,
                                (trans_dist) ? coord_free_idx : coord_sum_idx};
         const int rank = cp_mpi_cart_rank(comm, coords);
