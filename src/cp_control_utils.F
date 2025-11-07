@@ -516,11 +516,11 @@ CONTAINS
          CALL section_vals_get(tmp_section, explicit=is_present)
          IF (is_present .AND. (.NOT. ASSOCIATED(dft_control%rtp_control%print_pol_elements))) THEN
             tmp_section => section_vals_get_subs_vals(dft_section, "REAL_TIME_PROPAGATION")
-            CALL guess_pol_elements(tmp_section, dft_control, &
-               dft_control%rtp_control%print_pol_elements)
+            CALL guess_pol_elements(dft_control, &
+                                    dft_control%rtp_control%print_pol_elements)
          ELSE
             NULLIFY (dft_control%rtp_control%print_pol_elements)
-            ALLOCATE (dft_control%rtp_control%print_pol_elements(0,2))
+            ALLOCATE (dft_control%rtp_control%print_pol_elements(0, 2))
          END IF
       END IF
 
@@ -2791,11 +2791,10 @@ CONTAINS
       TYPE(dft_control_type), INTENT(INOUT)              :: dft_control
       TYPE(section_vals_type), POINTER                   :: rtp_section
 
+      INTEGER                                            :: i, j, n_elems
       INTEGER, DIMENSION(:), POINTER                     :: tmp
       LOGICAL                                            :: is_present
-      TYPE(section_vals_type), POINTER                   :: proj_mo_section
-      TYPE(section_vals_type), POINTER                   :: subsection
-      INTEGER                                            :: n_elems, i, j
+      TYPE(section_vals_type), POINTER                   :: proj_mo_section, subsection
 
       ALLOCATE (dft_control%rtp_control)
       CALL section_vals_val_get(rtp_section, "MAX_ITER", &
@@ -2864,8 +2863,8 @@ CONTAINS
       CALL section_vals_get(subsection, explicit=is_present)
       IF (is_present .AND. dft_control%rtp_control%periodic) THEN
          CALL cp_abort(__LOCATION__, "Moments trace printing only "// &
-            "implemented in non-periodic systems. "// &
-            "Please use DFT%PRINT%MOMENTS for other printing.")
+                       "implemented in non-periodic systems. "// &
+                       "Please use DFT%PRINT%MOMENTS for other printing.")
       END IF
       CALL section_vals_val_get(rtp_section, "PRINT%MOMENTS%REFERENCE", &
                                 i_val=dft_control%rtp_control%moment_trace_ref_type)
@@ -2877,7 +2876,7 @@ CONTAINS
       IF (is_present .AND. dft_control%rtp_control%periodic) THEN
          ! Not implemented
          CALL cp_abort(__LOCATION__, "Moments Fourier transform printing "// &
-            "implemented only for non-periodic systems.")
+                       "implemented only for non-periodic systems.")
       END IF
       ! General FT settings
       CALL section_vals_val_get(rtp_section, "FT%DAMPING", &
@@ -2911,17 +2910,17 @@ CONTAINS
       IF (is_present .AND. dft_control%rtp_control%periodic) THEN
          ! Not implemented
          CALL cp_abort(__LOCATION__, "Polarizability printing "// &
-            "implemented only for non-periodic systems.")
+                       "implemented only for non-periodic systems.")
       END IF
       CALL section_vals_val_get(subsection, "ELEMENT", explicit=is_present, n_rep_val=n_elems)
       NULLIFY (dft_control%rtp_control%print_pol_elements)
       IF (is_present) THEN
          ! Explicit list of elements
          ! Allocate the array
-         ALLOCATE (dft_control%rtp_control%print_pol_elements(n_elems,2))
-         DO i=1, n_elems
+         ALLOCATE (dft_control%rtp_control%print_pol_elements(n_elems, 2))
+         DO i = 1, n_elems
             CALL section_vals_val_get(subsection, "ELEMENT", i_vals=tmp, i_rep_val=i)
-            dft_control%rtp_control%print_pol_elements(i,:) = tmp(:)
+            dft_control%rtp_control%print_pol_elements(i, :) = tmp(:)
          END DO
          ! Do basic sanity checks for pol_element
          DO i = 1, n_elems
@@ -2931,24 +2930,24 @@ CONTAINS
                   CPABORT("Polarisation tensor element not 1,2 or 3 in at least one index")
             END DO
          END DO
-      ENDIF
+      END IF
 
    END SUBROUTINE read_rtp_section
 ! **************************************************************************************************
 !> \brief Tries to guess the elements of polarization to print
-!> \param dft_control ...
-!> \param rtp_section ...
-!> \author fschiff
+!> \param dftc DFT parameters
+!> \param elems 2D array, where the guessed element indeces are stored
+!> \date 11.2025
+!> \author Stepan Marek
 ! **************************************************************************************************
-   SUBROUTINE guess_pol_elements(rtp_section, dftc, elems)
-      TYPE(section_vals_type), POINTER                   :: rtp_section
+   SUBROUTINE guess_pol_elements(dftc, elems)
       TYPE(dft_control_type)                             :: dftc
-      INTEGER, DIMENSION(:,:), POINTER                   :: elems
+      INTEGER, DIMENSION(:, :), POINTER                  :: elems
+
+      INTEGER                                            :: i, i_nonzero, n_nonzero
       LOGICAL                                            :: pol_vector_known
       REAL(kind=dp), DIMENSION(3)                        :: pol_vector
-      INTEGER                                            :: n_nonzero, &
-                                                            i, i_nonzero
-      
+
       pol_vector_known = .FALSE.
 
       IF (dftc%rtp_control%apply_delta_pulse) THEN
@@ -2964,7 +2963,7 @@ CONTAINS
       ELSE
          ! Check whether just one element is non-zero
          n_nonzero = 0
-         DO i=1,3
+         DO i = 1, 3
             IF (pol_vector(i) /= 0.0_dp) THEN
                n_nonzero = n_nonzero + 1
                i_nonzero = i
@@ -2972,19 +2971,19 @@ CONTAINS
          END DO
          IF (n_nonzero > 1) THEN
             CALL cp_abort(__LOCATION__, &
-               "More than one non-zero field elements - "// &
-               "cannot guess polarizability elements - please specify!")
+                          "More than one non-zero field elements - "// &
+                          "cannot guess polarizability elements - please specify!")
          ELSE IF (n_nonzero == 0) THEN
             CALL cp_abort(__LOCATION__, &
-               "No non-zero field elements - "// &
-               "cannot guess polarizability elements - please specify!")
+                          "No non-zero field elements - "// &
+                          "cannot guess polarizability elements - please specify!")
          ELSE
             ! Clear guess can be made
             NULLIFY (elems)
-            ALLOCATE (elems(3,2))
-            DO i=1,3
-               elems(i,1) = i
-               elems(i,2) = i_nonzero
+            ALLOCATE (elems(3, 2))
+            DO i = 1, 3
+               elems(i, 1) = i
+               elems(i, 2) = i_nonzero
             END DO
          END IF
       END IF

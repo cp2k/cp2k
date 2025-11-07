@@ -44,6 +44,13 @@
       INITIAL_WFN RT_RESTART
       MAT_EXP BCH
       PERIODIC .FALSE.
+      &FT
+        &PADE
+          E_MAX [eV] 50.0
+          E_MIN [eV] 0.0
+          E_STEP [eV] 0.05
+        &END PADE
+      &END FT
       &PRINT
         &MOMENTS
           FILENAME MOMENTS
@@ -54,13 +61,6 @@
       &END PRINT
       &RTBSE
       &END RTBSE
-      &FT
-      	&PADE
-          E_MAX [eV] 50.0
-          E_MIN [eV] 0.0
-          E_STEP [eV] 0.05
-	&END PADE
-      &END FT
     &END REAL_TIME_PROPAGATION
     &SCF
       ADDED_MOS -1

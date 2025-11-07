@@ -10,23 +10,22 @@
 !> \author Stepan Marek (08.24)
 ! **************************************************************************************************
 MODULE rt_propagation_ft
-   USE kinds,           ONLY: dp
-   USE mathconstants,   ONLY: twopi
-   USE fft_plan,        ONLY: fft_plan_type
-   USE fft_lib,         ONLY: fft_library, &
-                              fft_alloc, &
-                              fft_dealloc, &
-                              fft_create_plan_1dm, &
-                              fft_destroy_plan, &
-                              fft_1dm
-
+   USE fft_lib,                         ONLY: fft_1dm,&
+                                              fft_alloc,&
+                                              fft_create_plan_1dm,&
+                                              fft_dealloc,&
+                                              fft_destroy_plan,&
+                                              fft_library
+   USE fft_plan,                        ONLY: fft_plan_type
+   USE kinds,                           ONLY: dp
+   USE mathconstants,                   ONLY: twopi
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
 
    PRIVATE
 
-   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = "rt_bse_io"
+   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rt_propagation_ft'
 
    PUBLIC :: multi_fft, &
              fft_freqs, &
@@ -35,28 +34,27 @@ MODULE rt_propagation_ft
 CONTAINS
 ! **************************************************************************************************
 !> \brief Naively calculates the Fourier transform - it is not the bottleneck of this calculation
-!> \note Uses physics ordering in frequencies, those can be constructed by fft_freq
 !> \param time_series Timestamps in atomic units of time
 !> \param value_series Values to be Fourier transformed - moments, field etc.
 !> \param result_series FT of the value series
 !> \param damping Applied exponential damping
 !> \param subtract_value Value to be subtracted from the value_series (for example initial value)
-!> \author Stepan Marek
 !> \par History
 !>      10.2025 Refactored for use with multi_fft routine, moved to separate file [Stepan Marek]
 !>      09.2024 Initial version [Stepan Marek]
+!> \author Stepan Marek
+!> \note Uses physics ordering in frequencies, those can be constructed by fft_freq
 ! **************************************************************************************************
    SUBROUTINE ft_simple(time_series, value_series, result_series, damping, subtract_value)
       REAL(kind=dp), DIMENSION(:)                        :: time_series
-      COMPLEX(kind=dp), DIMENSION(:)                     :: value_series
-      COMPLEX(kind=dp), DIMENSION(:)                     :: result_series
+      COMPLEX(kind=dp), DIMENSION(:)                     :: value_series, result_series
       REAL(kind=dp)                                      :: damping
-      INTEGER                                            :: i0
       COMPLEX(kind=dp)                                   :: subtract_value
-      CHARACTER(len=*), PARAMETER                        :: routineN = "ft_simple"
-      INTEGER                                            :: N, i, j, start, handle
-      REAL(kind=dp)                                      :: t0, delta_t, delta_omega
-      LOGICAL                                            :: subtract_initial
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'ft_simple'
+
+      INTEGER                                            :: handle, i, j, N, start
+      REAL(kind=dp)                                      :: delta_t
 
       CALL timeset(routineN, handle)
 
@@ -64,18 +62,18 @@ CONTAINS
 
       delta_t = time_series(2) - time_series(1)
 
-      IF (MOD(N,2) == 0) THEN
+      IF (MOD(N, 2) == 0) THEN
          start = -N/2
       ELSE
-         start = -(N-1)/2
+         start = -(N - 1)/2
       END IF
 
       ! TODO : At least OMP, but ideally even MPI parallelize, or handle this on higher level?
       DO i = 1, N
          result_series(i) = CMPLX(0.0, 0.0, kind=dp)
          DO j = 1, N
-            result_series(i) = result_series(i) + EXP(CMPLX(0.0, twopi*(start + i-1)*(j-1)/N)) * &
-                    EXP(- damping * delta_t * (j-1)) * (value_series(j) - subtract_value)
+            result_series(i) = result_series(i) + EXP(CMPLX(0.0, twopi*(start + i - 1)*(j - 1)/N, kind=dp))* &
+                               EXP(-damping*delta_t*(j - 1))*(value_series(j) - subtract_value)
          END DO
       END DO
       result_series(:) = delta_t*result_series(:)
@@ -88,49 +86,42 @@ CONTAINS
 !> \param time_series Timestamps in atomic units of time
 !> \param value_series Values to be Fourier transformed - moments, field etc. Real only. Many series can be provided.
 !> \param result_series FT of the value series - complex numbers
+!> \param omega_series ...
 !> \param damping_opt Supply custom exponential damping - default is 4.0/totalTime, i.e. ratio
 !>                    of last and first element in windowed value series is reduced by e^(-4)
 !> \param t0_opt Carry the FT only starting from certain time - allows for exclusion of trace before
 !>               the pulse application etc.
-!> \param subtract_initial Subtract the value at t0 from the values to be transformed. Default is true
-!> \author Stepan Marek
+!> \param subtract_initial_opt Subtract the value at the start of the array
 !> \date 10.2025
+!> \author Stepan Marek
 ! **************************************************************************************************
    SUBROUTINE multi_fft(time_series, value_series, result_series, omega_series, &
-                   damping_opt, t0_opt, subtract_initial_opt)
-      REAL(kind=dp), DIMENSION(:), POINTER              :: time_series
-      ! For value and result series: Index 1 - different series, Index 2 - single series entry
-      COMPLEX(kind=dp), DIMENSION(:,:), POINTER         :: value_series
-      COMPLEX(kind=dp), DIMENSION(:,:), POINTER         :: result_series
-      REAL(kind=dp), DIMENSION(:), POINTER, OPTIONAL    :: omega_series
-      REAL(kind=dp), OPTIONAL                           :: damping_opt
-      REAL(kind=dp), OPTIONAL                           :: t0_opt
-      LOGICAL, OPTIONAL                                 :: subtract_initial_opt
-      CHARACTER(len=*), PARAMETER                       :: routineN="multi_fft"
-      INTEGER                                           :: handle, &
-                                                           nsamples, &
-                                                           nseries, &
-                                                           i, &
-                                                           i0, &
-                                                           j, &
-                                                           stat
-      REAL(kind=dp)                                     :: damping, &
-                                                           t0, &
-                                                           t_total, &
-                                                           subtract_value
-      LOGICAL                                           :: subtract_initial, &
-                                                           ionode
-      TYPE(fft_plan_type)                               :: fft_plan
+                        damping_opt, t0_opt, subtract_initial_opt)
+      REAL(kind=dp), DIMENSION(:), POINTER               :: time_series
+      COMPLEX(kind=dp), DIMENSION(:, :), POINTER         :: value_series, result_series
+      REAL(kind=dp), DIMENSION(:), OPTIONAL, POINTER     :: omega_series
+      REAL(kind=dp), OPTIONAL                            :: damping_opt, t0_opt
+      LOGICAL, OPTIONAL                                  :: subtract_initial_opt
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'multi_fft'
+
+      COMPLEX(kind=dp)                                   :: subtract_value
       COMPLEX(kind=dp), CONTIGUOUS, DIMENSION(:), &
-              POINTER                                   :: samples, &
-                                                           ft_samples
+         POINTER                                         :: ft_samples, samples
+      INTEGER                                            :: handle, i, i0, j, nsamples, nseries, stat
+      LOGICAL                                            :: subtract_initial
+      REAL(kind=dp)                                      :: damping, t0, t_total
+      TYPE(fft_plan_type)                                :: fft_plan
+
+! For value and result series: Index 1 - different series, Index 2 - single series entry
+
       ! Evaluate optional arguments
       ! Start with t0
       t0 = 0.0_dp
       IF (PRESENT(t0_opt)) t0 = t0_opt
       ! Determine zero index
       i0 = 1
-      DO i=1,SIZE(time_series)
+      DO i = 1, SIZE(time_series)
          IF (time_series(i) >= t0) THEN
             i0 = i
             EXIT
@@ -162,7 +153,7 @@ CONTAINS
       IF (nsamples /= SIZE(result_series, 2)) THEN
          DEALLOCATE (result_series)
          ALLOCATE (result_series(nseries, nsamples), source=CMPLX(0.0, 0.0, kind=dp))
-      ENDIF
+      END IF
 
       ! Calculate the omega series values, ordered from negative to positive
       IF (PRESENT(omega_series)) THEN
@@ -175,8 +166,8 @@ CONTAINS
       CALL timeset(routineN, handle)
       NULLIFY (samples)
       NULLIFY (ft_samples)
-      CALL fft_alloc(samples, [nsamples * nseries])
-      CALL fft_alloc(ft_samples, [nsamples * nseries])
+      CALL fft_alloc(samples, [nsamples*nseries])
+      CALL fft_alloc(ft_samples, [nsamples*nseries])
       CALL fft_create_plan_1dm(fft_plan, fft_library("FFTW3"), -1, .FALSE., nsamples, nseries, samples, ft_samples, 3)
       ! TODO : Fill the samples with actual data
       DO i = 1, nseries
@@ -184,21 +175,21 @@ CONTAINS
             ! Subtract initial value if required
             IF (subtract_initial) THEN
                subtract_value = value_series(i, 1)
-            ENDIF
-            samples(j + (i-1)*nsamples) = value_series(i, i0 + j - 1) - subtract_value
+            END IF
+            samples(j + (i - 1)*nsamples) = value_series(i, i0 + j - 1) - subtract_value
             ! Apply damping
-            samples(j + (i-1)*nsamples) = samples(j + (i-1)*nsamples) * &
-                    EXP( - damping * (time_series(i0 + j - 1) - time_series(i0)))
+            samples(j + (i - 1)*nsamples) = samples(j + (i - 1)*nsamples)* &
+                                            EXP(-damping*(time_series(i0 + j - 1) - time_series(i0)))
          END DO
       END DO
       ! TODO : Carry out the transform
       ! Scale by dt - to transform to an integral
       CALL fft_1dm(fft_plan, samples, ft_samples, time_series(2) - time_series(1), stat)
       IF (stat /= 0) CPABORT("Failed FFT in RTBSE output routines.")
-      DO i=1, nseries
+      DO i = 1, nseries
          ! TODO : Reorder/fftshift
-         CALL fft_shift(ft_samples((i-1)*nsamples+1:i*nsamples))
-         result_series(i, :) = ft_samples((i-1)*nsamples+1:i*nsamples)
+         CALL fft_shift(ft_samples((i - 1)*nsamples + 1:i*nsamples))
+         result_series(i, :) = ft_samples((i - 1)*nsamples + 1:i*nsamples)
       END DO
       ! Deallocate
       CALL fft_dealloc(samples)
@@ -208,32 +199,32 @@ CONTAINS
 #else
       ! FFTSG can only use a specific length - use custom (slow) FT library instead
       ! For each series, do ft_simple call
-      DO i=1,nseries
+      DO i = 1, nseries
          IF (subtract_initial) THEN
             subtract_value = value_series(i, 1)
          END IF
          CALL ft_simple(time_series(i0:SIZE(time_series)), &
-            value_series(i,i0:SIZE(value_series, 2)), result_series(i,1:nsamples), &
-            damping, subtract_value)
+                        value_series(i, i0:SIZE(value_series, 2)), result_series(i, 1:nsamples), &
+                        damping, subtract_value)
       END DO
 #endif
    END SUBROUTINE multi_fft
 ! **************************************************************************************************
 !> \brief Switches the order in result of FT, so that negative frequencies go first
 !> \param source Array containing the FT - buffer is used to reorder it
-!> \author Stepan Marek
 !> \date 10.2025
+!> \author Stepan Marek
 ! **************************************************************************************************
    SUBROUTINE fft_shift(source)
-      COMPLEX(kind=dp), DIMENSION(:)                    :: source
-      COMPLEX(kind=dp), DIMENSION(:), ALLOCATABLE       :: buffer
-      ! Boundary indices for positive/negative part of the spectrum
-      ! Index 1 : 1 = transformed order, 2 = FFT order
-      INTEGER, DIMENSION(2)                             :: pos_lower, &
-                                                           pos_upper, &
-                                                           neg_lower, &
-                                                           neg_upper
-      INTEGER                                           :: n
+      COMPLEX(kind=dp), DIMENSION(:)                     :: source
+
+      COMPLEX(kind=dp), ALLOCATABLE, DIMENSION(:)        :: buffer
+      INTEGER                                            :: n
+      INTEGER, DIMENSION(2)                              :: neg_lower, neg_upper, pos_lower, &
+                                                            pos_upper
+
+! Boundary indices for positive/negative part of the spectrum
+! Index 1 : 1 = transformed order, 2 = FFT order
 
       n = SIZE(source)
       IF (MOD(n, 2) == 0) THEN
@@ -243,10 +234,10 @@ CONTAINS
          neg_lower(2) = n/2 + 1
          neg_upper(1) = n/2
       ELSE
-         pos_lower(1) = (n+1)/2
-         pos_upper(2) = (n+1)/2
-         neg_lower(2) = (n+1)/2 + 1
-         neg_upper(1) = (n-1)/2
+         pos_lower(1) = (n + 1)/2
+         pos_upper(2) = (n + 1)/2
+         neg_lower(2) = (n + 1)/2 + 1
+         neg_upper(1) = (n - 1)/2
       END IF
       ! Parity independent positions
       pos_lower(2) = 1
@@ -263,21 +254,24 @@ CONTAINS
    END SUBROUTINE fft_shift
 ! **************************************************************************************************
 !> \brief Switches the order in result of FT, so that negative frequencies go first
-!> \param source Array containing the FT - buffer is used to reorder it
-!> \author Stepan Marek
+!> \param n Number of frequencies
+!> \param t_total Total corresponding propagation time
+!> \param omegas Array of frequencies
+!> \param fft_ordering_opt Whether to switch to FFT ordering
 !> \date 10.2025
+!> \author Stepan Marek
 ! **************************************************************************************************
    SUBROUTINE fft_freqs(n, t_total, omegas, fft_ordering_opt)
       ! Number of FT samples
-      INTEGER                                           :: n
-      ! Total window time, dt = nsamples / t_total
-      REAL(kind=dp)                                     :: t_total
-      REAL(kind=dp), DIMENSION(:)                       :: omegas
-      LOGICAL, OPTIONAL                                 :: fft_ordering_opt
-      LOGICAL                                           :: fft_ordering
-      INTEGER                                           :: i, &
-                                                           start, &
-                                                           finish
+      INTEGER                                            :: n
+      REAL(kind=dp)                                      :: t_total
+      REAL(kind=dp), DIMENSION(:)                        :: omegas
+      LOGICAL, OPTIONAL                                  :: fft_ordering_opt
+
+      INTEGER                                            :: finish, i, start
+      LOGICAL                                            :: fft_ordering
+
+! Total window time, dt = nsamples / t_total
 
       ! Determine the order, by default, use physics order,
       ! i.e. negative frequencies before positive ones
@@ -289,38 +283,38 @@ CONTAINS
          ! Unit frequencies at
          !  - for even n : -n/2, -n/2 + 1, -n/2 + 2, ..., -1, 0, 1, ..., n/2 - 1
          !  - for odd n : -(n-1)/2, -(n-1)/2 + 1, ..., -1, 0, 1, ..., (n-1)/2
-         IF (MOD(n,2) == 0) THEN
+         IF (MOD(n, 2) == 0) THEN
             start = -n/2
          ELSE
-            start = -(n-1)/2
+            start = -(n - 1)/2
          END IF
-         DO i=1, n
-            omegas(i) = start + i-1
+         DO i = 1, n
+            omegas(i) = start + i - 1
          END DO
       ELSE
          ! FFT order case
          ! Unit frequencies at
          !  - for even n : 0, 1, ..., n/2 - 1, -n/2, -n/2 + 1, -n/2 + 2, ..., -1
          !  - for odd n : 0, 1, ..., (n-1)/2, -(n-1)/2, -(n-1)/2 + 1, ..., -1
-         IF (MOD(n,2) == 0) THEN
+         IF (MOD(n, 2) == 0) THEN
             finish = n/2 - 1
             start = -n/2
          ELSE
-            finish = (n-1)/2
-            start = -(n-1)/2
-         ENDIF
+            finish = (n - 1)/2
+            start = -(n - 1)/2
+         END IF
          ! Positive frequencies
-         DO i=1,finish+1
-            omegas(i) = (i-1)
+         DO i = 1, finish + 1
+            omegas(i) = (i - 1)
          END DO
          ! Negative frequencies
-         DO i=finish+2,n
+         DO i = finish + 2, n
             omegas(i) = start + i - finish - 2
          END DO
-      ENDIF
+      END IF
 
       ! Finally, multiply by the factor to translate to angular frequency
-      omegas(:) = omegas(:) * twopi / t_total
+      omegas(:) = omegas(:)*twopi/t_total
    END SUBROUTINE fft_freqs
 
 END MODULE rt_propagation_ft

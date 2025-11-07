@@ -24,6 +24,9 @@ MODULE rt_propagation_utils
    USE cp_dbcsr_contrib,                ONLY: dbcsr_checksum
    USE cp_dbcsr_operations,             ONLY: cp_dbcsr_plus_fm_fm_t,&
                                               dbcsr_deallocate_matrix_set
+   USE cp_files,                        ONLY: close_file,&
+                                              file_exists,&
+                                              open_file
    USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
@@ -37,10 +40,11 @@ MODULE rt_propagation_utils
                                               cp_logger_type
    USE cp_output_handling,              ONLY: cp_p_file,&
                                               cp_print_key_finished_output,&
+                                              cp_print_key_generate_filename,&
                                               cp_print_key_should_output,&
-                                              cp_print_key_unit_nr,&
-                                              cp_print_key_generate_filename
+                                              cp_print_key_unit_nr
    USE cp_realspace_grid_cube,          ONLY: cp_pw_to_cube
+   USE efield_utils,                    ONLY: make_field
    USE input_constants,                 ONLY: use_restart_wfn,&
                                               use_rt_restart
    USE input_section_types,             ONLY: section_get_ival,&
@@ -59,6 +63,7 @@ MODULE rt_propagation_utils
    USE orbital_pointers,                ONLY: ncoset
    USE particle_list_types,             ONLY: particle_list_type
    USE particle_types,                  ONLY: particle_type
+   USE physcon,                         ONLY: femtoseconds
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_multiply,&
@@ -94,11 +99,6 @@ MODULE rt_propagation_utils
                                               qs_subsys_type
    USE rt_propagation_types,            ONLY: get_rtp,&
                                               rt_prop_type
-   USE cp_files,                        ONLY: open_file, &
-                                              file_exists, &
-                                              close_file
-   USE physcon,                         ONLY: femtoseconds
-   USE efield_utils,                    ONLY: make_field
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -909,44 +909,41 @@ CONTAINS
 !> \param current_start The current start index from which the calculation continues
 !> \param moments Moment trace, where the read entries are overwritten
 !> \param times Optional time trace, where again the read entries are overwritten
+!> \param read ...
 !> \author Stepan Marek (11.25)
 ! **************************************************************************************************
-   SUBROUTINE read_moments(moments_section, orig_start, current_start, moments, times, read)
+   SUBROUTINE read_moments(moments_section, orig_start, current_start, moments, times, READ)
       TYPE(section_vals_type), POINTER                   :: moments_section
-      INTEGER                                            :: orig_start, &
-                                                            current_start
-      COMPLEX(kind=dp), DIMENSION(:,:,:), POINTER        :: moments
-      REAL(kind=dp), DIMENSION(:), POINTER, OPTIONAL     :: times
-      ! Whether at least some moments where extracted from the files
+      INTEGER                                            :: orig_start, current_start
+      COMPLEX(kind=dp), DIMENSION(:, :, :), POINTER      :: moments
+      REAL(kind=dp), DIMENSION(:), OPTIONAL, POINTER     :: times
       LOGICAL, OPTIONAL                                  :: read
+
       CHARACTER(len=14), DIMENSION(4)                    :: file_extensions
-      CHARACTER(len=default_path_length)                 :: save_name_re, &
-                                                            save_name_im
-      TYPE(cp_logger_type), POINTER                      :: logger
-      INTEGER                                            :: i,k,n, &
-                                                            n_spin, &
-                                                            max_n, &
-                                                            unit_re, unit_im
-      REAL(kind=dp), DIMENSION(3)                        :: moments_re, &
-                                                            moments_im
+      CHARACTER(len=default_path_length)                 :: save_name_im, save_name_re
+      INTEGER                                            :: i, k, max_n, n, n_spin, unit_im, unit_re
       REAL(kind=dp)                                      :: time
+      REAL(kind=dp), DIMENSION(3)                        :: moments_im, moments_re
+      TYPE(cp_logger_type), POINTER                      :: logger
+
+! Whether at least some moments where extracted from the files
 
       file_extensions(1) = "_SPIN_A_RE.dat"
       file_extensions(2) = "_SPIN_A_IM.dat"
       file_extensions(3) = "_SPIN_B_RE.dat"
       file_extensions(4) = "_SPIN_B_IM.dat"
 
-      IF (PRESENT(read)) read = .FALSE.
+      IF (PRESENT(READ)) READ = .FALSE.
 
-      n_spin = SIZE(moments,1)
+      n_spin = SIZE(moments, 1)
 
       logger => cp_get_default_logger()
       max_n = current_start - orig_start + 1
 
-      DO i=1,n_spin
+      DO i = 1, n_spin
          ! Open the relevant files
          save_name_re = cp_print_key_generate_filename(logger, moments_section, &
-                                                       extension=file_extensions(2*i-1), my_local=.FALSE.)
+                                                       extension=file_extensions(2*i - 1), my_local=.FALSE.)
          save_name_im = cp_print_key_generate_filename(logger, moments_section, &
                                                        extension=file_extensions(2*i), my_local=.FALSE.)
          IF (file_exists(save_name_re) .AND. file_exists(save_name_im)) THEN
@@ -954,19 +951,19 @@ CONTAINS
                            unit_number=unit_re)
             CALL open_file(save_name_im, file_status="OLD", file_form="FORMATTED", file_action="READ", &
                            unit_number=unit_im)
-            DO n=1,max_n
+            DO n = 1, max_n
                READ (unit_re, '(E20.8E3,E20.8E3,E20.8E3,E20.8E3,E20.8E3)') time, &
                   moments_re(1), moments_re(2), moments_re(3)
                READ (unit_im, '(E20.8E3,E20.8E3,E20.8E3,E20.8E3,E20.8E3)') time, &
                   moments_im(1), moments_im(2), moments_im(3)
-               DO k=1,3
+               DO k = 1, 3
                   moments(i, k, n) = CMPLX(moments_re(k), moments_im(k), kind=dp)
                END DO
                IF (PRESENT(times)) THEN
                   times(n) = time/femtoseconds
                END IF
             END DO
-            IF(PRESENT(read)) read = .TRUE.
+            IF (PRESENT(READ)) READ = .TRUE.
             CALL close_file(unit_re)
             CALL close_file(unit_im)
          ELSE
@@ -979,23 +976,28 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Recalculates the field for index range given by orig_start and i_start,
 !>        with times taken from the times array
-!> \param qs_env QS environment necessary for moment matrix calculation
+!> \param fields Array, where relevant indices are recalculated
+!> \param times Array of input times
+!> \param orig_start original start (in case of restarts)
+!> \param i_start current start
+!> \param dft_control DFT parameters
+!> \date 11.2025
+!> \author Stepan Marek
 ! **************************************************************************************************
    SUBROUTINE recalculate_fields(fields, times, orig_start, i_start, dft_control)
-      COMPLEX(kind=dp), DIMENSION(:,:), POINTER          :: fields
+      COMPLEX(kind=dp), DIMENSION(:, :), POINTER         :: fields
       REAL(kind=dp), DIMENSION(:), POINTER               :: times
-      INTEGER                                            :: orig_start, &
-                                                            i_start
+      INTEGER                                            :: orig_start, i_start
       TYPE(dft_control_type), POINTER                    :: dft_control
-      INTEGER                                            :: max_n, &
-                                                            i
+
+      INTEGER                                            :: i, max_n
       REAL(kind=dp), DIMENSION(3)                        :: field
 
       max_n = i_start - orig_start + 1
 
-      DO i=1,max_n
-         CALL make_field(dft_control, field, i + orig_start-1, times(i))
-         fields(:,i) = field(:)
+      DO i = 1, max_n
+         CALL make_field(dft_control, field, i + orig_start - 1, times(i))
+         fields(:, i) = field(:)
       END DO
    END SUBROUTINE recalculate_fields
 

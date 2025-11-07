@@ -14,85 +14,42 @@ MODULE rt_bse_types
 
    USE kinds, ONLY: dp
    USE cp_fm_types, ONLY: cp_fm_type, &
-                          cp_fm_p_type, &
                           cp_fm_release, &
                           cp_fm_create, &
-                          cp_fm_set_all, &
-                          cp_fm_write_formatted, &
-                          cp_fm_to_fm
-   USE cp_cfm_types, ONLY: cp_cfm_p_type, &
-                           cp_cfm_type, &
+                          cp_fm_set_all
+   USE cp_cfm_types, ONLY: cp_cfm_type, &
                            cp_cfm_set_all, &
                            cp_cfm_create, &
                            cp_fm_to_cfm, &
                            cp_cfm_to_fm, &
-                           cp_cfm_to_cfm, &
                            cp_cfm_release
-   USE cp_fm_basic_linalg, ONLY: cp_fm_invert, &
-                                 cp_fm_transpose, &
-                                 cp_fm_column_scale, &
-                                 cp_fm_scale_and_add
-   USE cp_cfm_basic_linalg, ONLY: cp_cfm_column_scale
-   USE cp_dbcsr_contrib, ONLY: dbcsr_print
    USE cp_dbcsr_api, ONLY: dbcsr_type, &
                            dbcsr_p_type, &
                            dbcsr_create, &
                            dbcsr_release, &
-                           dbcsr_get_info, &
-                           dbcsr_copy, &
-                           dbcsr_set, &
-                           dbcsr_scale
+                           dbcsr_get_info
    USE parallel_gemm_api, ONLY: parallel_gemm
    USE dbt_api, ONLY: dbt_type, &
-                      dbt_pgrid_type, &
-                      dbt_pgrid_create, &
-                      dbt_pgrid_destroy, &
-                      dbt_mp_environ_pgrid, &
-                      dbt_default_distvec, &
-                      dbt_distribution_type, &
-                      dbt_distribution_new, &
-                      dbt_distribution_destroy, &
                       dbt_create, &
-                      dbt_copy_matrix_to_tensor, &
-                      dbt_get_num_blocks, &
                       dbt_destroy
-   USE cp_dbcsr_operations, ONLY: copy_dbcsr_to_fm, &
-                                  copy_fm_to_dbcsr
    USE qs_mo_types, ONLY: mo_set_type
-   USE basis_set_types, ONLY: gto_basis_set_p_type
    USE basis_set_types, ONLY: gto_basis_set_p_type
    USE cp_control_types, ONLY: dft_control_type
    USE qs_environment_types, ONLY: qs_environment_type, &
                                    get_qs_env
    USE force_env_types, ONLY: force_env_type
    USE post_scf_bandstructure_types, ONLY: post_scf_bandstructure_type
-   USE post_scf_bandstructure_utils, ONLY: create_and_init_bs_env
-   USE rt_propagation_types, ONLY: rt_prop_type, &
-                                   get_rtp
+   USE rt_propagation_types, ONLY: rt_prop_type
    USE rt_propagation_utils, ONLY: warn_section_unused
-   USE rt_propagator_init, ONLY: rt_initialize_rho_from_mos
-   USE rt_propagation_methods, ONLY: s_matrices_create
-   USE qs_moments, ONLY: build_local_moment_matrix
-   USE moments_utils, ONLY: get_reference_point
-   USE matrix_exp, ONLY: get_nsquare_norder
    USE gw_integrals, ONLY: build_3c_integral_block
    USE gw_large_cell_Gamma, ONLY: compute_3c_integrals
    USE qs_tensors, ONLY: neighbor_list_3c_destroy
-   USE libint_wrapper, ONLY: cp_libint_static_init
    USE libint_2c_3c, ONLY: libint_potential_type
    USE input_constants, ONLY: use_mom_ref_coac, &
-                              use_mom_ref_zero, &
-                              use_mom_ref_user, &
-                              use_mom_ref_com, &
-                              rtp_bse_ham_g0w0, &
-                              rtp_bse_ham_ks, &
-                              do_taylor, &
                               do_bch, &
                               do_exact
-   USE physcon, ONLY: angstrom
    USE mathconstants, ONLY: z_zero
    USE input_section_types, ONLY: section_vals_type, &
-                                  section_vals_get, &
                                   section_vals_val_get, &
                                   section_vals_get_subs_vals
 
@@ -246,10 +203,10 @@ MODULE rt_bse_types
       ! Workspace for saving the values for FT
       ! TODO : Change back to multi-dimensional arrays
       ! Index 1 : spin, Index 2 : direction, Index 3 : time point
-      COMPLEX(kind=dp), DIMENSION(:,:,:), POINTER               :: moments_trace => NULL()
+      COMPLEX(kind=dp), DIMENSION(:, :, :), POINTER               :: moments_trace => NULL()
       REAL(kind=dp), DIMENSION(:), POINTER                      :: time_trace => NULL()
       ! Index 1 : direction, Index 2 : time point
-      COMPLEX(kind=dp), DIMENSION(:,:), POINTER                 :: field_trace => NULL()
+      COMPLEX(kind=dp), DIMENSION(:, :), POINTER                 :: field_trace => NULL()
       ! Workspace required for hartree_pw
       TYPE(dbcsr_type)                                          :: v_dbcsr = dbcsr_type(), &
                                                                    w_dbcsr = dbcsr_type()
@@ -301,13 +258,8 @@ CONTAINS
       TYPE(rt_prop_type), POINTER                               :: rtp
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER                 :: matrix_s
       TYPE(mo_set_type), DIMENSION(:), POINTER                  :: mos
-      INTEGER                                                   :: i, j, k, single_pol_index
+      INTEGER                                                   :: i, k
       TYPE(section_vals_type), POINTER                          :: input, bs_sec, md_sec
-      INTEGER, DIMENSION(:), POINTER                            :: pol_tmp
-      LOGICAL                                                   :: pol_elements_explicit, &
-                                                                   pade_fit_lim_explicit, &
-                                                                   pol_vector_known
-      REAL(kind=dp), DIMENSION(3)                               :: pol_vector
 
       ! Allocate the storage for the gwbse environment
       NULLIFY (rtbse_env)
@@ -373,9 +325,9 @@ CONTAINS
       rtbse_env%moments_section => section_vals_get_subs_vals(rtbse_env%rtp_section, "PRINT%MOMENTS")
       ! Moment specification
       CALL section_vals_val_get(rtbse_env%rtp_section, "PRINT%MOMENTS%REFERENCE", &
-         i_val=rtbse_env%moment_ref_type)
+                                i_val=rtbse_env%moment_ref_type)
       CALL section_vals_val_get(rtbse_env%rtp_section, "PRINT%MOMENTS%REFERENCE_POINT", &
-         r_vals=rtbse_env%user_moment_ref_point)
+                                r_vals=rtbse_env%user_moment_ref_point)
       rtbse_env%rho_section => section_vals_get_subs_vals(rtbse_env%rtp_section, "PRINT%DENSITY_MATRIX")
       rtbse_env%ft_section => section_vals_get_subs_vals(rtbse_env%rtp_section, "PRINT%MOMENTS_FT")
       rtbse_env%pol_section => section_vals_get_subs_vals(rtbse_env%rtp_section, "PRINT%POLARIZABILITY")
@@ -504,11 +456,11 @@ CONTAINS
       ! Workspace for FT - includes (in principle) the zeroth step and the extra last step
       NULLIFY (rtbse_env%moments_trace)
       ! TODO : Unite the number of steps with TD-DFT
-      ALLOCATE (rtbse_env%moments_trace(rtbse_env%n_spin, 3, rtbse_env%sim_nsteps+1), source=z_zero)
+      ALLOCATE (rtbse_env%moments_trace(rtbse_env%n_spin, 3, rtbse_env%sim_nsteps + 1), source=z_zero)
       NULLIFY (rtbse_env%field_trace)
-      ALLOCATE (rtbse_env%field_trace(3, rtbse_env%sim_nsteps+1), source=z_zero)
+      ALLOCATE (rtbse_env%field_trace(3, rtbse_env%sim_nsteps + 1), source=z_zero)
       NULLIFY (rtbse_env%time_trace)
-      ALLOCATE (rtbse_env%time_trace(rtbse_env%sim_nsteps+1), source=0.0_dp)
+      ALLOCATE (rtbse_env%time_trace(rtbse_env%sim_nsteps + 1), source=0.0_dp)
 
       ! Allocate self-energy parts and dynamic Hartree potential
       NULLIFY (rtbse_env%hartree_curr)
@@ -536,7 +488,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Simple reimplementation of cp_fm_release_pp1 for complex matrices
-!> \param matrices cp_cfm_p_type(:)
+!> \param matrices cp_cfm_type(:)
 !> \author Stepan Marek
 !> \date 02.2024
 ! **************************************************************************************************
@@ -559,7 +511,6 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE release_rtbse_env(rtbse_env)
       TYPE(rtbse_env_type), POINTER                             :: rtbse_env
-      INTEGER                                                   :: i
 
       CALL cp_cfm_release_pa1(rtbse_env%ham_effective)
       CALL cp_cfm_release_pa1(rtbse_env%ham_workspace)
@@ -578,10 +529,6 @@ CONTAINS
       CALL cp_fm_release(rtbse_env%S_fm)
       CALL cp_cfm_release(rtbse_env%S_cfm)
 
-      ! DO i = 1, 3
-      !    CALL cp_fm_release(rtbse_env%moments(i)%matrix)
-      !    CALL cp_fm_release(rtbse_env%moments_field(i)%matrix)
-      ! END DO
       CALL cp_fm_release(rtbse_env%moments)
       CALL cp_fm_release(rtbse_env%moments_field)
 

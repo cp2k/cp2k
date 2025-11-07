@@ -286,7 +286,7 @@ CONTAINS
       ! Need the absolute index
       n = rtbse_env%sim_step - rtbse_env%sim_start_orig + 1
       DO i = 1, 3
-         rtbse_env%field_trace(i,n) = CMPLX(rtbse_env%field(i), 0.0, kind=dp)
+         rtbse_env%field_trace(i, n) = CMPLX(rtbse_env%field(i), 0.0, kind=dp)
       END DO
       rtbse_env%time_trace(n) = rtbse_env%sim_time
       CALL cp_print_key_finished_output(field_unit, logger, rtbse_env%field_section)
@@ -315,7 +315,7 @@ CONTAINS
             n = k - rtbse_env%sim_start_orig + 1
             READ (field_unit, '(E20.8E3,E20.8E3,E20.8E3,E20.8E3)') rtbse_env%time_trace(n), &
                real_field(1), real_field(2), real_field(3)
-            rtbse_env%field_trace(:,n) = CMPLX(real_field(:), 0.0, kind=dp)
+            rtbse_env%field_trace(:, n) = CMPLX(real_field(:), 0.0, kind=dp)
             ! Set the time units back to atomic units
             rtbse_env%time_trace(n) = rtbse_env%time_trace(n)/femtoseconds
          END DO
@@ -350,7 +350,7 @@ CONTAINS
             CALL cp_fm_trace(rtbse_env%real_workspace(1), rtbse_env%real_workspace(2), moments_re(i))
             ! Scale by spin degeneracy and electron charge
             moments_re(i) = -moments_re(i)*rtbse_env%spin_degeneracy
-            rtbse_env%moments_trace(j,i,n) = CMPLX(moments_re(i), 0.0, kind=dp)
+            rtbse_env%moments_trace(j, i, n) = CMPLX(moments_re(i), 0.0, kind=dp)
          END DO
          ! Same for imaginary part
          CALL cp_cfm_to_fm(msource=rho(j), mtargeti=rtbse_env%real_workspace(2))
@@ -359,12 +359,12 @@ CONTAINS
             CALL cp_fm_trace(rtbse_env%real_workspace(1), rtbse_env%real_workspace(2), moments_re(i))
             ! Scale by spin degeneracy and electron charge
             moments_re(i) = -moments_re(i)*rtbse_env%spin_degeneracy
-            rtbse_env%moments_trace(j,i,n) = rtbse_env%moments_trace(j,i,n) + CMPLX(0.0, moments_re(i), kind=dp)
+            rtbse_env%moments_trace(j, i, n) = rtbse_env%moments_trace(j, i, n) + CMPLX(0.0, moments_re(i), kind=dp)
          END DO
       END DO
       ! Output to the file
-      CALL print_moments(rtbse_env%moments_section, rtbse_env%unit_nr, rtbse_env%moments_trace(:,:,n), &
-         rtbse_env%sim_time, .TRUE.)
+      CALL print_moments(rtbse_env%moments_section, rtbse_env%unit_nr, rtbse_env%moments_trace(:, :, n), &
+                         rtbse_env%sim_time, .TRUE.)
    END SUBROUTINE output_moments
 ! **************************************************************************************************
 !> \brief Outputs the restart info (last finished iteration step) + restard density matrix

@@ -63,7 +63,7 @@ CONTAINS
       TYPE(qs_environment_type), OPTIONAL, POINTER       :: qs_env
       TYPE(fist_environment_type), OPTIONAL, POINTER     :: fist_env
       INTEGER, INTENT(IN)                                :: reference
-      REAL(KIND=dp), DIMENSION(:), POINTER, OPTIONAL     :: ref_point
+      REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: ref_point
       INTEGER, INTENT(IN), OPTIONAL                      :: ifirst, ilast
 
       INTEGER                                            :: akind, ia, iatom, ikind

@@ -16,8 +16,8 @@ MODULE input_cp2k_dft
                                               basis_sort_zet
    USE bibliography,                    ONLY: &
         Andermatt2016, Andreussi2012, Avezac2005, Bengtsson1999, Blochl1995, Brelaz1979, &
-        Fattebert2002, Guidon2010, Iannuzzi2006, Kunert2003, Merlot2014, Perdew1981, &
-        VandeVondele2005b, Yin2017, Marek2025
+        Fattebert2002, Guidon2010, Iannuzzi2006, Kunert2003, Marek2025, Merlot2014, Perdew1981, &
+        VandeVondele2005b, Yin2017
    USE cp_output_handling,              ONLY: add_last_numeric,&
                                               cp_print_key_section_create,&
                                               high_print_level,&
@@ -86,8 +86,8 @@ MODULE input_cp2k_dft
    USE input_val_types,                 ONLY: char_t,&
                                               integer_t,&
                                               lchar_t,&
-                                              real_t,&
-                                              logical_t
+                                              logical_t,&
+                                              real_t
    USE kinds,                           ONLY: dp
    USE physcon,                         ONLY: evolt,&
                                               femtoseconds
@@ -2021,10 +2021,11 @@ CONTAINS
    END SUBROUTINE create_rtbse_section
 ! **************************************************************************************************
 !> \brief Creates the subsection for Fourier transform options applicable to RTP output
-!> \param section The created FT section
+!> \param ft_section The created FT section
+!> \date 11.2025
 !> \author Stepan Marek
 ! **************************************************************************************************
-   SUBROUTINE create_ft_section (ft_section)
+   SUBROUTINE create_ft_section(ft_section)
       TYPE(section_type), POINTER                        :: ft_section
 
       TYPE(keyword_type), POINTER                        :: keyword
@@ -2034,102 +2035,102 @@ CONTAINS
 
       ! Create the section itself
       CALL section_create(ft_section, __LOCATION__, &
-         name="FT", &
-         description="Define parameters for Fourier transforms used in RTP outputs.", &
-         repeats=.FALSE.)
+                          name="FT", &
+                          description="Define parameters for Fourier transforms used in RTP outputs.", &
+                          repeats=.FALSE.)
 
       ! Start time keyword
-      NULLIFY(keyword)
+      NULLIFY (keyword)
       CALL keyword_create(keyword, __LOCATION__, "START_TIME", &
-         description="The starting time from which damping is applied and from which on the trace is "// &
-         "considered for the Fourier transform (Fourier transform is used for the calculation of "// &
-         "MOMENTS_FT and POLARIZABILITY). Useful for real-time pulse - "// &
-         "one can specify the center of the pulse as the starting point.", &
-         type_of_var=real_t, &
-         unit_str="fs", &
-         default_r_val=0.0_dp)
+                          description="The starting time from which damping is applied and from which on the trace is "// &
+                          "considered for the Fourier transform (Fourier transform is used for the calculation of "// &
+                          "MOMENTS_FT and POLARIZABILITY). Useful for real-time pulse - "// &
+                          "one can specify the center of the pulse as the starting point.", &
+                          type_of_var=real_t, &
+                          unit_str="fs", &
+                          default_r_val=0.0_dp)
       CALL section_add_keyword(ft_section, keyword)
       CALL keyword_release(keyword)
 
       ! Damping keyword
       CALL keyword_create(keyword, __LOCATION__, "DAMPING", &
-         description="Numerical Fourier transform (required for calculation of "// &
-         "MOMENTS_FT and POLARIZABILITY) can oscillate "// &
-         "when the final time trace values are far away from zero. "// &
-         "This keyword controls the exponential damping added to the Fourier transform "// &
-         "(Fourier transform is used for calculation of MOMENTS_FT and POLARIZABILITY). "// &
-         "For negative values (the default), calculates the damping at the run time so that the last point "// &
-         "in the time trace is reduced by factor e^(-4). When set manually, determines the time in which "// &
-         "the moments trace is reduced by factor of e^(-1), except when set to zero, in which case "// &
-         "the damping is not applied.", &
-         type_of_var=real_t, &
-         unit_str="fs", &
-         default_r_val=-1.0_dp/femtoseconds)
+                          description="Numerical Fourier transform (required for calculation of "// &
+                          "MOMENTS_FT and POLARIZABILITY) can oscillate "// &
+                          "when the final time trace values are far away from zero. "// &
+                          "This keyword controls the exponential damping added to the Fourier transform "// &
+                          "(Fourier transform is used for calculation of MOMENTS_FT and POLARIZABILITY). "// &
+                          "For negative values (the default), calculates the damping at the run time so that the last point "// &
+                          "in the time trace is reduced by factor e^(-4). When set manually, determines the time in which "// &
+                          "the moments trace is reduced by factor of e^(-1), except when set to zero, in which case "// &
+                          "the damping is not applied.", &
+                          type_of_var=real_t, &
+                          unit_str="fs", &
+                          default_r_val=-1.0_dp/femtoseconds)
       CALL section_add_keyword(ft_section, keyword)
       CALL keyword_release(keyword)
 
       ! Create the Padé subsection
       NULLIFY (subsection)
       CALL section_create(subsection, __LOCATION__, name="PADE", &
-         description="Defines the parameters for the Padé interpolation of the "// &
-         "Fourier transforms used in the output of RTP. Only available with the GreenX library linked to CP2K.", &
-         repeats=.FALSE.)
+                          description="Defines the parameters for the Padé interpolation of the "// &
+                          "Fourier transforms used in the output of RTP. Only available with the GreenX library linked to CP2K.", &
+                          repeats=.FALSE.)
 
       ! Explicit presence of the section turns on the Padé interpolation
       CALL keyword_create(keyword, __LOCATION__, "_SECTION_PARAMETERS_", &
-         description="Turns on the Padé interpolation", &
-         type_of_var=logical_t, &
-         default_l_val=.FALSE., &
-         lone_keyword_l_val=.TRUE.)
+                          description="Turns on the Padé interpolation", &
+                          type_of_var=logical_t, &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
       ! Minimum interpolated energy
       CALL keyword_create(keyword, __LOCATION__, "E_MIN", &
-         description="The minimum energy of the Padé interpolation output.", &
-         type_of_var=real_t, &
-         unit_str="eV", &
-         default_r_val=0.0_dp)
+                          description="The minimum energy of the Padé interpolation output.", &
+                          type_of_var=real_t, &
+                          unit_str="eV", &
+                          default_r_val=0.0_dp)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
       ! Maximum interpolated energy
       CALL keyword_create(keyword, __LOCATION__, "E_MAX", &
-         description="The maximum energy of the Padé interpolation output.", &
-         type_of_var=real_t, &
-         unit_str="eV", &
-         default_r_val=100.0_dp)
+                          description="The maximum energy of the Padé interpolation output.", &
+                          type_of_var=real_t, &
+                          unit_str="eV", &
+                          default_r_val=100.0_dp)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
       ! Energy resolution
       CALL keyword_create(keyword, __LOCATION__, "E_STEP", &
-         description="The energy resolution of the Padé interpolation output.", &
-         type_of_var=real_t, &
-         unit_str="eV", &
-         default_r_val=0.02_dp/evolt)
+                          description="The energy resolution of the Padé interpolation output.", &
+                          type_of_var=real_t, &
+                          unit_str="eV", &
+                          default_r_val=0.02_dp/evolt)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
       ! Minimum fitting energy
       CALL keyword_create(keyword, __LOCATION__, "FIT_E_MIN", &
-         description="The lower boundary in energy for the points "// &
-         "used in the fitting of Padé parameters. If negative, uses "// &
-         "value of E_MIN (default).", &
-         type_of_var=real_t, &
-         unit_str="eV", &
-         default_r_val=-1.0_dp)
+                          description="The lower boundary in energy for the points "// &
+                          "used in the fitting of Padé parameters. If negative, uses "// &
+                          "value of E_MIN (default).", &
+                          type_of_var=real_t, &
+                          unit_str="eV", &
+                          default_r_val=-1.0_dp)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
       ! Maximum fitting energy
       CALL keyword_create(keyword, __LOCATION__, "FIT_E_MAX", &
-         description="The upper boundary in energy for the points "// &
-         "used in the fitting of Padé parameters. If negative, uses "// &
-         "the value of E_MAX (default).", &
-         type_of_var=real_t, &
-         unit_str="eV", &
-         default_r_val=-1.0_dp)
+                          description="The upper boundary in energy for the points "// &
+                          "used in the fitting of Padé parameters. If negative, uses "// &
+                          "the value of E_MAX (default).", &
+                          type_of_var=real_t, &
+                          unit_str="eV", &
+                          default_r_val=-1.0_dp)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
