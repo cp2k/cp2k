@@ -100,7 +100,7 @@ CONTAINS
       END IF
       !
       IF (ASSOCIATED(smat)) THEN
-         CPASSERT(dbcsr_get_matrix_type(smat) .EQ. dbcsr_type_symmetric)
+         CPASSERT(dbcsr_get_matrix_type(smat) == dbcsr_type_symmetric)
          IF (norml1) THEN
             ! norm of S
             anorm = dbcsr_gershgorin_norm(smat)

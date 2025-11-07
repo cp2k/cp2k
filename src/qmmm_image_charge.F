@@ -305,7 +305,7 @@ CONTAINS
       CALL cp_print_key_finished_output(output_unit, logger, input, &
                                         "QMMM%PRINT%PROGRAM_RUN_INFO")
 
-      IF (iter_steps .LT. 25) THEN
+      IF (iter_steps < 25) THEN
          qs_env%calc_image_preconditioner = .FALSE.
       ELSE
          qs_env%calc_image_preconditioner = .TRUE.

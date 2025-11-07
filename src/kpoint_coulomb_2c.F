@@ -758,7 +758,7 @@ CONTAINS
 
                         vec_s = [REAL(i_x, dp), REAL(j_y, dp), REAL(k_z, dp)]
 
-                        IF (MODULO(i_cell, para_env%num_pe) .NE. para_env%mepos) CYCLE
+                        IF (MODULO(i_cell, para_env%num_pe) /= para_env%mepos) CYCLE
 
                         vec_L = MATMUL(hmat, vec_s)
 
@@ -780,7 +780,7 @@ CONTAINS
                ! add exp(iq*vec_L) * (P 0 | Q vec_L) to V_PQ(q)
                DO ik = 1, ikp_end
 
-                  IF (MODULO(ik, para_env%num_pe) .NE. para_env%mepos) CYCLE
+                  IF (MODULO(ik, para_env%num_pe) /= para_env%mepos) CYCLE
 
                   ikp_local = ikp_local + 1
 

@@ -315,7 +315,7 @@ CONTAINS
                   DO i = 1, SIZE(distribution_2d%row_distribution, 1)
                      WRITE (unit=unit_nr, fmt="(i6,',')", advance="no") distribution_2d%row_distribution(i, 1)
                      ! keep lines finite, so that we can open outputs in vi
-                     IF (MODULO(i, 8) == 0 .AND. i .NE. SIZE(distribution_2d%row_distribution, 1)) &
+                     IF (MODULO(i, 8) == 0 .AND. i /= SIZE(distribution_2d%row_distribution, 1)) &
                         WRITE (unit=unit_nr, fmt='()')
                   END DO
                   WRITE (unit=unit_nr, fmt="('),')")
@@ -336,7 +336,7 @@ CONTAINS
                   DO i = 1, SIZE(distribution_2d%col_distribution, 1)
                      WRITE (unit=unit_nr, fmt="(i6,',')", advance="no") distribution_2d%col_distribution(i, 1)
                      ! keep lines finite, so that we can open outputs in vi
-                     IF (MODULO(i, 8) == 0 .AND. i .NE. SIZE(distribution_2d%col_distribution, 1)) &
+                     IF (MODULO(i, 8) == 0 .AND. i /= SIZE(distribution_2d%col_distribution, 1)) &
                         WRITE (unit=unit_nr, fmt='()')
                   END DO
                   WRITE (unit=unit_nr, fmt="('),')")
@@ -355,7 +355,7 @@ CONTAINS
                   DO i = 1, SIZE(distribution_2d%n_local_rows)
                      WRITE (unit=unit_nr, fmt="(i6,',')", advance="no") distribution_2d%n_local_rows(i)
                      ! keep lines finite, so that we can open outputs in vi
-                     IF (MODULO(i, 10) == 0 .AND. i .NE. SIZE(distribution_2d%n_local_rows)) &
+                     IF (MODULO(i, 10) == 0 .AND. i /= SIZE(distribution_2d%n_local_rows)) &
                         WRITE (unit=unit_nr, fmt='()')
                   END DO
                   WRITE (unit=unit_nr, fmt="('),')")
@@ -395,7 +395,7 @@ CONTAINS
                   DO i = 1, SIZE(distribution_2d%n_local_cols)
                      WRITE (unit=unit_nr, fmt="(i6,',')", advance="no") distribution_2d%n_local_cols(i)
                      ! keep lines finite, so that we can open outputs in vi
-                     IF (MODULO(i, 10) == 0 .AND. i .NE. SIZE(distribution_2d%n_local_cols)) &
+                     IF (MODULO(i, 10) == 0 .AND. i /= SIZE(distribution_2d%n_local_cols)) &
                         WRITE (unit=unit_nr, fmt='()')
                   END DO
                   WRITE (unit=unit_nr, fmt="('),')")

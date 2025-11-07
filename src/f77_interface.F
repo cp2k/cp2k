@@ -754,7 +754,7 @@ CONTAINS
                              "the one omitted from that order list) must be a MIXED_ENV type calculation. Please check your "// &
                              "input file and possibly correct the MULTIPLE_FORCE_EVAL%FORCE_EVAL_ORDER. ")
 
-            IF (method_name_id .EQ. do_mixed) THEN
+            IF (method_name_id == do_mixed) THEN
                check = ASSOCIATED(force_env%mixed_env%sub_para_env)
                CPASSERT(check)
                ngroups = force_env%mixed_env%ngroups
@@ -767,7 +767,7 @@ CONTAINS
                CALL cp_rm_default_logger()
                CALL cp_add_default_logger(my_logger)
             END IF
-            IF (method_name_id .EQ. do_embed) THEN
+            IF (method_name_id == do_embed) THEN
                check = ASSOCIATED(force_env%embed_env%sub_para_env)
                CPASSERT(check)
                ngroups = force_env%embed_env%ngroups

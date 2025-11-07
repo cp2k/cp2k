@@ -114,7 +114,7 @@ CONTAINS
       TYPE(block_nd), INTENT(IN) :: block1, block2
       LOGICAL                    :: blocks_equal
 
-      blocks_equal = MAXVAL(ABS(block1%blk - block2%blk)) .LT. 1.0E-12_dp
+      blocks_equal = MAXVAL(ABS(block1%blk - block2%blk)) < 1.0E-12_dp
 
    END FUNCTION
 
@@ -203,7 +203,7 @@ CONTAINS
       mynode = mp_comm%mepos
 
       io_unit = 0
-      IF (mynode .EQ. 0) io_unit = unit_nr
+      IF (mynode == 0) io_unit = unit_nr
 
       CALL permute(ndims, perm)
       ALLOCATE (map1_ref, source=perm(1:ndims/2, 1))
@@ -389,7 +389,7 @@ CONTAINS
       mynode = mp_comm%mepos
 
       IF (.NOT. enumerate) THEN
-         CPASSERT(randmat_counter .NE. 0)
+         CPASSERT(randmat_counter /= 0)
 
          randmat_counter = randmat_counter + 1
       END IF
@@ -530,7 +530,7 @@ CONTAINS
                INTEGER, DIMENSION(ndims_tensor(tensor))                   :: blk_start, blk_end
                LOGICAL                                                    :: found
 
-               CPASSERT(ndims_tensor(tensor) .EQ. ${ndim}$)
+               CPASSERT(ndims_tensor(tensor) == ${ndim}$)
                CALL dbt_get_info(tensor, nfull_total=dims_nd)
                CALL allocate_any(array, shape_spec=dims_nd)
                array(${shape_colon(ndim)}$) = 0.0_dp
@@ -620,7 +620,7 @@ CONTAINS
             mp_comm = tensor_1%pgrid%mp_comm_2d
             mynode = mp_comm%mepos
             io_unit = -1
-            IF (mynode .EQ. 0) io_unit = unit_nr
+            IF (mynode == 0) io_unit = unit_nr
 
             cs_1 = dbt_checksum(tensor_1)
             cs_2 = dbt_checksum(tensor_2)
@@ -762,9 +762,9 @@ CONTAINS
             END ASSOCIATE
 
             eql_diff = MAXVAL(ABS(array_3_test_mm(:, :) - array_3_mm(:, :)))
-            notzero = MAXVAL(ABS(array_3_test_mm(:, :))) .GT. 1.0E-12_dp
+            notzero = MAXVAL(ABS(array_3_test_mm(:, :))) > 1.0E-12_dp
 
-            eql = eql_diff .LT. 1.0E-11_dp
+            eql = eql_diff < 1.0E-11_dp
 
             IF (.NOT. eql .OR. .NOT. notzero) THEN
                IF (io_unit > 0) WRITE (io_unit, *) 'Test failed!', eql_diff

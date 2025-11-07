@@ -32,7 +32,7 @@ PROGRAM parallel_rng_types_TEST
    nsamples = 1000
    nargs = command_argument_count()
 
-   IF (nargs .GT. 1) &
+   IF (nargs > 1) &
       ERROR STOP "Usage: parallel_rng_types_TEST [<int:nsamples>]"
 
    IF (nargs == 1) THEN

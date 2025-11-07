@@ -136,9 +136,9 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ! initialize
-      IF (tmc_env%tmc_comp_set%group_nr .GT. 0) THEN
+      IF (tmc_env%tmc_comp_set%group_nr > 0) THEN
          CPASSERT(ASSOCIATED(tmc_env%tmc_comp_set%para_env_sub_group))
-         IF (tmc_env%w_env%env_id_ener .GT. 0) THEN
+         IF (tmc_env%w_env%env_id_ener > 0) THEN
             itmp = tmc_env%w_env%env_id_ener
          ELSE
             itmp = tmc_env%w_env%env_id_approx
@@ -159,8 +159,8 @@ CONTAINS
       ! get messages from master and handle them
       IF (master) THEN
          ! NOT the analysis group
-         IF (tmc_env%tmc_comp_set%group_nr .GT. 0) THEN
-            IF (tmc_env%w_env%env_id_ener .GT. 0) THEN
+         IF (tmc_env%tmc_comp_set%group_nr > 0) THEN
+            IF (tmc_env%w_env%env_id_ener > 0) THEN
                itmp = tmc_env%w_env%env_id_ener
             ELSE
                itmp = tmc_env%w_env%env_id_approx
@@ -187,7 +187,7 @@ CONTAINS
                              result_count=ana_restart_conf, &
                              tmc_params=tmc_env%params, elem=conf)
 
-            IF (DEBUG .GE. 1 .AND. work_stat .NE. TMC_STATUS_WAIT_FOR_NEW_TASK) &
+            IF (DEBUG >= 1 .AND. work_stat /= TMC_STATUS_WAIT_FOR_NEW_TASK) &
                WRITE (tmc_env%w_env%io_unit, *) "worker: group master of group ", &
                tmc_env%tmc_comp_set%group_nr, "got task ", work_stat
             calc_stat = TMC_STATUS_CALCULATING
@@ -208,13 +208,13 @@ CONTAINS
                                 para_env=para_env_m_w, &
                                 tmc_params=tmc_env%params)
             CASE (TMC_STATUS_FAILED)
-               IF (DEBUG .GE. 1) &
+               IF (DEBUG >= 1) &
                   WRITE (tmc_env%w_env%io_unit, *) "master worker of group", &
                   tmc_env%tmc_comp_set%group_nr, " exit work time."
                EXIT master_work_time
                !-- group master read the CP2K input file, and write data to master
             CASE (TMC_STAT_START_CONF_REQUEST)
-               IF (tmc_env%w_env%env_id_ener .GT. 0) THEN
+               IF (tmc_env%w_env%env_id_ener > 0) THEN
                   itmp = tmc_env%w_env%env_id_ener
                ELSE
                   itmp = tmc_env%w_env%env_id_approx
@@ -236,7 +236,7 @@ CONTAINS
                                               para_env=tmc_env%tmc_comp_set%para_env_m_first_w)
                !-- calculate the approximate energy
             CASE (TMC_STAT_APPROX_ENERGY_REQUEST)
-               CPASSERT(tmc_env%w_env%env_id_approx .GT. 0)
+               CPASSERT(tmc_env%w_env%env_id_approx > 0)
                itmp = bcast_group
                !-- DISTRIBUTING WORK (group master) to all other group members
                CALL tmc_message(msg_type=work_stat, send_recv=send_msg, &
@@ -262,12 +262,12 @@ CONTAINS
                                 para_env=tmc_env%tmc_comp_set%para_env_sub_group, &
                                 tmc_params=tmc_env%params, elem=conf)
                !-- collective calculation for MD/NMC steps
-               IF (work_stat .EQ. TMC_STAT_NMC_REQUEST) THEN
+               IF (work_stat == TMC_STAT_NMC_REQUEST) THEN
                   !-- calculate MD steps, in case of 2 different potentials do nested Monte Carlo
                   CALL nested_markov_chain_MC(conf=conf, &
                                               env_id=tmc_env%w_env%env_id_approx, &
                                               tmc_env=tmc_env, calc_status=calc_stat)
-               ELSEIF (work_stat .EQ. TMC_STAT_MD_REQUEST) THEN
+               ELSEIF (work_stat == TMC_STAT_MD_REQUEST) THEN
                   !TODO Hybrid MC routine
                   CPABORT("there is no Hybrid MC implemented yet.")
 
@@ -307,7 +307,7 @@ CONTAINS
                                 para_env=para_env_m_w, &
                                 tmc_params=tmc_env%params, elem=conf)
             CASE (TMC_STAT_ENERGY_REQUEST)
-               CPASSERT(tmc_env%w_env%env_id_ener .GT. 0)
+               CPASSERT(tmc_env%w_env%env_id_ener > 0)
                !-- DISTRIBUTING WORK (group master) to all other group members
                itmp = bcast_group
                CALL tmc_message(msg_type=work_stat, send_recv=send_msg, &
@@ -358,7 +358,7 @@ CONTAINS
                END SELECT
 
                !-- send information back to master
-               IF (DEBUG .GE. 1) &
+               IF (DEBUG >= 1) &
                   WRITE (tmc_env%w_env%io_unit, *) "worker group ", &
                   tmc_env%tmc_comp_set%group_nr, &
                   "calculations done, send result energy", conf%potential
@@ -369,7 +369,7 @@ CONTAINS
                                 tmc_params=tmc_env%params, elem=conf)
             CASE (TMC_STAT_INIT_ANALYSIS)
                CPASSERT(ASSOCIATED(ana_restart_conf))
-               CPASSERT(SIZE(ana_restart_conf) .EQ. tmc_env%params%nr_temp)
+               CPASSERT(SIZE(ana_restart_conf) == tmc_env%params%nr_temp)
                CPASSERT(PRESENT(ana_list))
                CPASSERT(ASSOCIATED(ana_list))
                itmp = MASTER_COMM_ID
@@ -394,7 +394,7 @@ CONTAINS
                   !check if we have the read the file
                   flag = .FALSE.
                   IF ((.NOT. ASSOCIATED(ana_list(itmp)%temp%last_elem)) .AND. &
-                      ana_restart_conf(itmp) .GT. 0) THEN
+                      ana_restart_conf(itmp) > 0) THEN
                      flag = .TRUE.
                      i1 = 0
                      i2 = ana_restart_conf(itmp)
@@ -403,7 +403,7 @@ CONTAINS
                                   "elem "//cp_to_string(ana_restart_conf(itmp))// &
                                   ". Read trajectory file.")
                   ELSE IF (ASSOCIATED(ana_list(itmp)%temp%last_elem)) THEN
-                     IF (.NOT. (ana_list(itmp)%temp%last_elem%nr .EQ. ana_restart_conf(itmp))) THEN
+                     IF (.NOT. (ana_list(itmp)%temp%last_elem%nr == ana_restart_conf(itmp))) THEN
                         flag = .TRUE.
                         i1 = ana_list(itmp)%temp%last_elem%nr
                         i2 = ana_restart_conf(itmp)
@@ -438,7 +438,7 @@ CONTAINS
                              cp_to_string(work_stat))
             END SELECT
 
-            IF (DEBUG .GE. 1 .AND. work_stat .NE. TMC_STATUS_WAIT_FOR_NEW_TASK) &
+            IF (DEBUG >= 1 .AND. work_stat /= TMC_STATUS_WAIT_FOR_NEW_TASK) &
                WRITE (tmc_env%w_env%io_unit, *) "worker: group ", &
                tmc_env%tmc_comp_set%group_nr, &
                "send back status:", work_stat
@@ -465,11 +465,11 @@ CONTAINS
                EXIT worker_work_time
                ! all group members have to calculate the (MD potential) energy together
             CASE (TMC_STAT_START_CONF_RESULT)
-               CPASSERT(tmc_env%w_env%env_id_approx .GT. 0)
+               CPASSERT(tmc_env%w_env%env_id_approx > 0)
                !-- collective calculation of the potential energy of MD potential
                SELECT CASE (tmc_env%params%task_type)
                CASE (task_type_MC, task_type_ideal_gas)
-                  IF (tmc_env%params%NMC_inp_file .NE. "") THEN
+                  IF (tmc_env%params%NMC_inp_file /= "") THEN
                      conf%box_scale(:) = 1.0_dp
                      CALL calc_potential_energy(conf=conf, &
                                                 env_id=tmc_env%w_env%env_id_approx, &
@@ -484,12 +484,12 @@ CONTAINS
                !-- HMC - calculating MD steps
             CASE (TMC_STAT_NMC_REQUEST, TMC_STAT_MD_REQUEST)
                !-- collective calculation for MD/NMC steps
-               IF (work_stat .EQ. TMC_STAT_NMC_REQUEST) THEN
+               IF (work_stat == TMC_STAT_NMC_REQUEST) THEN
                   !-- calculate MD steps, in case of 2 different potentials do nested Monte Carlo
                   CALL nested_markov_chain_MC(conf=conf, &
                                               env_id=tmc_env%w_env%env_id_approx, &
                                               tmc_env=tmc_env, calc_status=calc_stat)
-               ELSEIF (work_stat .EQ. TMC_STAT_MD_REQUEST) THEN
+               ELSEIF (work_stat == TMC_STAT_MD_REQUEST) THEN
                   !TODO Hybrid MC routine
                   CPABORT("there is no Hybrid MC implemented yet.")
 
@@ -499,14 +499,14 @@ CONTAINS
                !-- energy calculations
             CASE (TMC_STAT_APPROX_ENERGY_REQUEST)
                !--- do calculate energy
-               CPASSERT(tmc_env%w_env%env_id_approx .GT. 0)
+               CPASSERT(tmc_env%w_env%env_id_approx > 0)
                CALL calc_potential_energy(conf=conf, &
                                           env_id=tmc_env%w_env%env_id_approx, &
                                           exact_approx_pot=.FALSE., &
                                           tmc_env=tmc_env)
             CASE (TMC_STAT_ENERGY_REQUEST)
                !--- do calculate energy
-               CPASSERT(tmc_env%w_env%env_id_ener .GT. 0)
+               CPASSERT(tmc_env%w_env%env_id_ener > 0)
                CALL calc_potential_energy(conf=conf, &
                                           env_id=tmc_env%w_env%env_id_ener, &
                                           exact_approx_pot=.TRUE., &
@@ -534,11 +534,11 @@ CONTAINS
       ! sending back receipt for stopping
       IF (master) THEN
          ! NOT the analysis group
-         IF (tmc_env%tmc_comp_set%group_nr .GT. 0) THEN
+         IF (tmc_env%tmc_comp_set%group_nr > 0) THEN
             ! remove the communicator in the external control for receiving exit tags
             !  and sending additional information (e.g. the intermediate scf energies)
             IF (tmc_env%params%use_scf_energy_info) THEN
-               IF (tmc_env%w_env%env_id_ener .GT. 0) THEN
+               IF (tmc_env%w_env%env_id_ener > 0) THEN
                   itmp = tmc_env%w_env%env_id_ener
                ELSE
                   itmp = tmc_env%w_env%env_id_approx
@@ -563,7 +563,7 @@ CONTAINS
                           tmc_params=tmc_env%params)
       END IF
 
-      IF (DEBUG .GE. 5) &
+      IF (DEBUG >= 5) &
          WRITE (tmc_env%w_env%io_unit, *) "worker ", &
          tmc_env%tmc_comp_set%para_env_sub_group%mepos, "of group ", &
          tmc_env%tmc_comp_set%group_nr, "stops working!"
@@ -614,9 +614,9 @@ CONTAINS
       CPASSERT(ASSOCIATED(tmc_env%tmc_comp_set))
       CPASSERT(ALLOCATED(tmc_env%rng_stream))
       CPASSERT(ASSOCIATED(conf))
-      CPASSERT(conf%temp_created .GT. 0)
-      CPASSERT(conf%temp_created .LE. tmc_env%params%nr_temp)
-      CPASSERT(env_id .GT. 0)
+      CPASSERT(conf%temp_created > 0)
+      CPASSERT(conf%temp_created <= tmc_env%params%nr_temp)
+      CPASSERT(env_id > 0)
       MARK_USED(env_id)
 
       ! start the timing
@@ -680,7 +680,7 @@ CONTAINS
                          move_rejected=change_rejected)
          ! for Hybrid MC the change_pos is only velocity change,
          !   the actual MD step hast to be done in this module for communication reason
-         IF (conf%move_type .EQ. mv_type_MD) THEN
+         IF (conf%move_type == mv_type_MD) THEN
             !TODO implement the MD part
             !CALL calc_MD_step(...)
             !CALL calc_calc_e_kin(...)
@@ -782,7 +782,7 @@ CONTAINS
 
       ! get positions
       CALL get_natom(env_id=env_id, n_atom=nr_atoms, ierr=ierr)
-      CPASSERT(ierr .EQ. 0)
+      CPASSERT(ierr == 0)
       ndim = 3*nr_atoms
       CALL allocate_new_sub_tree_node(tmc_params=tmc_params, &
                                       next_el=init_conf, nr_dim=ndim)
@@ -825,7 +825,7 @@ CONTAINS
       NULLIFY (f_env, subsys, particles)
       nr_atoms = 0
 
-      CPASSERT(env_id .GT. 0)
+      CPASSERT(env_id > 0)
       CPASSERT(.NOT. ASSOCIATED(atoms))
       CPASSERT(.NOT. ASSOCIATED(cell))
 
@@ -839,12 +839,12 @@ CONTAINS
       CALL allocate_tmc_atom_type(atoms, nr_atoms)
       CALL cp_subsys_get(subsys, particles=particles)
       nunits_tot = SIZE(particles%els(:))
-      IF (nunits_tot .GT. 0) THEN
+      IF (nunits_tot > 0) THEN
          DO iparticle = 1, nunits_tot
             atoms(iparticle)%name = particles%els(iparticle)%atomic_kind%name
             atoms(iparticle)%mass = particles%els(iparticle)%atomic_kind%mass
          END DO
-         CPASSERT(iparticle - 1 .EQ. nr_atoms)
+         CPASSERT(iparticle - 1 == nr_atoms)
       END IF
    END SUBROUTINE get_atom_kinds_and_cell
 
@@ -866,7 +866,7 @@ CONTAINS
       TYPE(f_env_type), POINTER                          :: f_env
 
       NULLIFY (results, subsys)
-      CPASSERT(env_id .GT. 0)
+      CPASSERT(env_id > 0)
 
       CALL f_env_get_from_id(env_id, f_env)
 
@@ -904,7 +904,7 @@ CONTAINS
       TYPE(f_env_type), POINTER                          :: f_env
 
       NULLIFY (subsys, results)
-      CPASSERT(env_id .GT. 0)
+      CPASSERT(env_id > 0)
 
       CALL f_env_get_from_id(env_id, f_env)
 

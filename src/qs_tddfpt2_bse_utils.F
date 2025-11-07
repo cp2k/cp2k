@@ -343,11 +343,11 @@ CONTAINS
                   j_occ_row = MOD(i_row_global - 1, nactive(ispin)) + 1
                   a_nao_col = (j_col_global - 1)/nao + 1
                   b_nao_col = MOD(j_col_global - 1, nao) + 1
-                  IF (a_nao_col .EQ. b_nao_col) THEN
+                  IF (a_nao_col == b_nao_col) THEN
                      WXmat2%local_data(b_nao_col, i_occ_row) = WXmat2%local_data(b_nao_col, i_occ_row) + &
                                  WXaoao%local_data(i_row_global, j_col_global)*evects(ispin, ivect)%local_data(a_nao_col, j_occ_row)
                   END IF
-                  IF (a_nao_col .NE. b_nao_col) THEN
+                  IF (a_nao_col /= b_nao_col) THEN
                      WXmat2%local_data(a_nao_col, i_occ_row) = WXmat2%local_data(a_nao_col, i_occ_row) + &
                                  WXaoao%local_data(i_row_global, j_col_global)*evects(ispin, ivect)%local_data(b_nao_col, j_occ_row)
                   END IF

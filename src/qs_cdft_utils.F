@@ -246,13 +246,13 @@ CONTAINS
                ircov = becke_control%radii(ikind)
                CALL get_atomic_kind(atomic_kind=particle_set(jatom)%atomic_kind, kind_number=ikind)
                jrcov = becke_control%radii(ikind)
-               IF (ircov .NE. jrcov) THEN
+               IF (ircov /= jrcov) THEN
                   chi = ircov/jrcov
                   uij = (chi - 1.0_dp)/(chi + 1.0_dp)
                   becke_control%aij(iatom, jatom) = uij/(uij**2 - 1.0_dp)
-                  IF (becke_control%aij(iatom, jatom) .GT. 0.5_dp) THEN
+                  IF (becke_control%aij(iatom, jatom) > 0.5_dp) THEN
                      becke_control%aij(iatom, jatom) = 0.5_dp
-                  ELSE IF (becke_control%aij(iatom, jatom) .LT. -0.5_dp) THEN
+                  ELSE IF (becke_control%aij(iatom, jatom) < -0.5_dp) THEN
                      becke_control%aij(iatom, jatom) = -0.5_dp
                   END IF
                ELSE
@@ -399,12 +399,12 @@ CONTAINS
             CALL hfun_zero(becke_control%cavity%array, eps_cavity, just_bounds=.TRUE., bounds=bounds)
             ! Save bounds (first nonzero grid point indices)
             bo = group(1)%weight%pw_grid%bounds_local
-            IF (bounds(2) .LT. bo(2, 3)) THEN
+            IF (bounds(2) < bo(2, 3)) THEN
                bounds(2) = bounds(2) - 1
             ELSE
                bounds(2) = bo(2, 3)
             END IF
-            IF (bounds(1) .GT. bo(1, 3)) THEN
+            IF (bounds(1) > bo(1, 3)) THEN
                ! In the special case bounds(1) == bounds(2) == bo(2, 3), after this check
                ! bounds(1) > bounds(2) and the subsequent gradient allocation (:, :, :, bounds(1):bounds(2))
                ! will correctly allocate a 0-sized array
@@ -425,7 +425,7 @@ CONTAINS
                                            middle_name="BECKE_CAVITY", &
                                            extension=".cube", file_position="REWIND", &
                                            log_filename=.FALSE., mpi_io=mpi_io)
-            IF (para_env%is_source() .AND. unit_nr .LT. 1) &
+            IF (para_env%is_source() .AND. unit_nr < 1) &
                CALL cp_abort(__LOCATION__, &
                              "Please turn on PROGRAM_RUN_INFO to print cavity")
             CALL get_qs_env(qs_env, subsys=subsys)
@@ -1290,7 +1290,7 @@ CONTAINS
                                         extension=".cube", file_position="REWIND", &
                                         log_filename=.FALSE., mpi_io=mpi_io)
          ! Note PROGRAM_RUN_INFO section neeeds to be active!
-         IF (para_env%is_source() .AND. unit_nr .LT. 1) &
+         IF (para_env%is_source() .AND. unit_nr < 1) &
             CALL cp_abort(__LOCATION__, &
                           "Please turn on PROGRAM_RUN_INFO to print CDFT weight function.")
 

@@ -869,7 +869,7 @@ CONTAINS
          need_coeff_b = .TRUE.
          IF (SUM(ABS(scf_control%added_mos)) > 0) &
             CPABORT("OT with ADDED_MOS/=0 not implemented")
-         IF (dft_control%restricted .AND. dft_control%nspins .NE. 2) &
+         IF (dft_control%restricted .AND. dft_control%nspins /= 2) &
             CPABORT("nspin must be 2 for restricted (ROKS)")
          IF (do_kpoints) &
             CPABORT("OT not possible with kpoint calculations")

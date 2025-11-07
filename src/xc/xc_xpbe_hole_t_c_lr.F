@@ -1244,13 +1244,13 @@ CONTAINS
 
       nm1 = n - 1
 
-      IF (n .LT. 0 .OR. x .LT. 0.0_dp .OR. (x .EQ. 0.0_dp .AND. (n .EQ. 0 .OR. n .EQ. 1))) THEN
+      IF (n < 0 .OR. x < 0.0_dp .OR. (x == 0.0_dp .AND. (n == 0 .OR. n == 1))) THEN
          expint = HUGE(1.0_dp)
-      ELSE IF (n .EQ. 0) THEN !Special case.
+      ELSE IF (n == 0) THEN !Special case.
          expint = EXP(-x)/x
-      ELSE IF (x .EQ. 0.0_dp) THEN !Another special case.
+      ELSE IF (x == 0.0_dp) THEN !Another special case.
          expint = 1.0_dp/nm1
-      ELSE IF (x .GT. 1.0_dp) THEN !Lentz's algorithm (5.2).
+      ELSE IF (x > 1.0_dp) THEN !Lentz's algorithm (5.2).
          b = x + n
          c = 1.0_dp/FPMIN
          d = 1.0_dp/b
@@ -1262,13 +1262,13 @@ CONTAINS
             c = b + a/c
             del = c*d
             h = h*del
-            IF (ABS(del - 1.0_dp) .LT. EPS .OR. i == MAXIT) THEN
+            IF (ABS(del - 1.0_dp) < EPS .OR. i == MAXIT) THEN
                expint = h*EXP(-x)
                RETURN
             END IF
          END DO
       ELSE !Evaluate series.
-         IF (nm1 .NE. 0) THEN !Set first term.
+         IF (nm1 /= 0) THEN !Set first term.
             expint = 1.0_dp/nm1
          ELSE
             expint = -LOG(x) - euler
@@ -1276,7 +1276,7 @@ CONTAINS
          fact = 1.0_dp
          DO i = 1, MAXIT
             fact = -fact*x/i
-            IF (i .NE. nm1) THEN
+            IF (i /= nm1) THEN
                del = -fact/(i - nm1)
             ELSE
                psi = -euler !Compute I(n).
@@ -1286,7 +1286,7 @@ CONTAINS
                del = fact*(-LOG(x) + psi)
             END IF
             expint = expint + del
-            IF (ABS(del) .LT. ABS(expint)*EPS) RETURN
+            IF (ABS(del) < ABS(expint)*EPS) RETURN
          END DO
       END IF
       RETURN

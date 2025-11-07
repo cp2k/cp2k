@@ -118,7 +118,7 @@ CONTAINS
       CALL parse_input(oi_env, root_section)
 
       ! if we have been asked to randomize the variables, we do this.
-      IF (oi_env%randomize_variables .NE. 0.0_dp) THEN
+      IF (oi_env%randomize_variables /= 0.0_dp) THEN
          seed = REAL(oi_env%seed, KIND=dp)
          rng_stream = rng_stream_type("run_optimize_input", distribution_type=UNIFORM, seed=seed)
          DO i_var = 1, SIZE(oi_env%variables, 1)
@@ -525,7 +525,7 @@ CONTAINS
       n_frames_current = 0
       NULLIFY (pos_traj, energy_traj, force_traj)
       filename = oi_env%fm_env%ref_traj_file_name
-      IF (filename .EQ. "") &
+      IF (filename == "") &
          CPABORT("The reference trajectory file name is empty")
       CALL parser_create(local_parser, filename, para_env=para_env)
       DO
@@ -559,7 +559,7 @@ CONTAINS
 
       ! now force reference trajectory
       filename = oi_env%fm_env%ref_force_file_name
-      IF (filename .EQ. "") &
+      IF (filename == "") &
          CPABORT("The reference force file name is empty")
       CALL parser_create(local_parser, filename, para_env=para_env)
       DO iframe = 1, n_frames
@@ -589,7 +589,7 @@ CONTAINS
       ! and cell, which is optional
       NULLIFY (cell_traj)
       filename = oi_env%fm_env%ref_cell_file_name
-      IF (filename .NE. "") THEN
+      IF (filename /= "") THEN
          CALL parser_create(local_parser, filename, para_env=para_env)
          ALLOCATE (cell_traj(3, 3, n_frames))
          DO iframe = 1, n_frames

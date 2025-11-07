@@ -280,7 +280,7 @@ CONTAINS
       md1 = n1
       md2 = n2
       md3 = n3
-      DO WHILE (nproc*(md2/nproc) .LT. n2)
+      DO WHILE (nproc*(md2/nproc) < n2)
          md2 = md2 + 1
       END DO
 
@@ -289,7 +289,7 @@ CONTAINS
       nd1 = n1/2 + 1
       nd2 = n2/2 + 1
       nd3 = n3/2 + 1
-      DO WHILE (MODULO(nd3, nproc) .NE. 0)
+      DO WHILE (MODULO(nd3, nproc) /= 0)
          nd3 = nd3 + 1
       END DO
 
@@ -380,7 +380,7 @@ CONTAINS
       md1 = n1
       md2 = n2
       md3 = n3/2
-      DO WHILE (nproc*(md2/nproc) .LT. n2)
+      DO WHILE (nproc*(md2/nproc) < n2)
          md2 = md2 + 1
       END DO
 
@@ -392,7 +392,7 @@ CONTAINS
       nd2 = n2/2 + 1
 
       nd3 = n3/2 + 1
-      DO WHILE (MODULO(nd3, nproc) .NE. 0)
+      DO WHILE (MODULO(nd3, nproc) /= 0)
          nd3 = nd3 + 1
       END DO
       CALL timestop(handle)
@@ -482,7 +482,7 @@ CONTAINS
       md1 = n1/2
       md2 = n2/2
       md3 = n3/2
-      DO WHILE (nproc*(md2/nproc) .LT. n2/2)
+      DO WHILE (nproc*(md2/nproc) < n2/2)
          md2 = md2 + 1
       END DO
 
@@ -492,7 +492,7 @@ CONTAINS
       nd2 = n2/2 + 1
       nd3 = n3/2 + 1
 
-      DO WHILE (MODULO(nd3, nproc) .NE. 0)
+      DO WHILE (MODULO(nd3, nproc) /= 0)
          nd3 = nd3 + 1
       END DO
 
@@ -526,7 +526,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      IF (nxc .GE. 1) THEN
+      IF (nxc >= 1) THEN
          DO jp2 = 1, nxc
             DO j3 = 1, m3
                DO j1 = 1, m1

@@ -130,7 +130,7 @@ CONTAINS
       ! 1) compute minimax coefficients
 
       G_max = SQRT(3.0_dp*2.0_dp*cutoff)
-      CPASSERT(G_max .GT. G_min)
+      CPASSERT(G_max > G_min)
       IF (potential_prv == eri_mme_coulomb .OR. potential_prv == eri_mme_longrange) THEN
          minimax_Rc = (G_max/G_min)**2
       ELSEIF (potential_prv == eri_mme_yukawa) THEN
@@ -207,16 +207,16 @@ CONTAINS
       c2 = (b/(a + b))*(R2 - R1)
       c3 = (a/(a + b))*(R1 - R2)
 
-      IF (H_or_C_product .EQ. 1) THEN ! Cartesian overlap dist
+      IF (H_or_C_product == 1) THEN ! Cartesian overlap dist
          DO mm = 0, m
             DO ll = 0, l
                DO t = 0, ll + mm + 1
-                  IF (ll .LT. l) THEN
+                  IF (ll < l) THEN
                      E(t, ll + 1, mm) = c1*E(t - 1, ll, mm) + & ! cost: 8 flops
                                         c2*E(t, ll, mm) + &
                                         (t + 1)*E(t + 1, ll, mm)
                   END IF
-                  IF (mm .LT. m) THEN
+                  IF (mm < m) THEN
                      E(t, ll, mm + 1) = c1*E(t - 1, ll, mm) + & ! cost: 8 flops
                                         c3*E(t, ll, mm) + &
                                         (t + 1)*E(t + 1, ll, mm)
@@ -228,13 +228,13 @@ CONTAINS
          DO mm = 0, m
             DO ll = 0, l
                DO t = 0, ll + mm + 1
-                  IF (ll .LT. l) THEN
+                  IF (ll < l) THEN
                      E(t, ll + 1, mm) = a*(2*c1*E(t - 1, ll, mm) + & ! cost: 16 flops
                                            2*c2*E(t, ll, mm) + &
                                            2*(t + 1)*E(t + 1, ll, mm) - &
                                            2*ll*E(t, ll - 1, mm))
                   END IF
-                  IF (mm .LT. m) THEN
+                  IF (mm < m) THEN
                      E(t, ll, mm + 1) = b*(2*c1*E(t - 1, ll, mm) + & ! cost: 16 flops
                                            2*c3*E(t, ll, mm) + &
                                            2*(t + 1)*E(t + 1, ll, mm) - &

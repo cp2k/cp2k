@@ -100,7 +100,7 @@ CONTAINS
             ! create iteration level
             ! Although the Helium MC is not really an md it is most of the times
             ! embedded in the pint code so the same step counter applies.
-            IF (k .EQ. 1) THEN
+            IF (k == 1) THEN
                CALL cp_add_iter_level(helium_env(k)%helium%logger%iter_info, "PINT")
                CALL cp_iterate(helium_env(k)%helium%logger%iter_info, &
                                iter_nr=helium_env(k)%helium%first_step)
@@ -132,7 +132,7 @@ CONTAINS
 
          IF (ASSOCIATED(helium_env)) THEN
             DO k = 1, SIZE(helium_env)
-               IF (k .EQ. 1) THEN
+               IF (k == 1) THEN
                   CALL cp_iterate(helium_env(k)%helium%logger%iter_info, &
                                   last=(step == helium_env(k)%helium%num_steps), &
                                   iter_nr=tot_steps)
@@ -388,7 +388,7 @@ CONTAINS
             ALLOCATE (work_2d(SIZE(helium_env(1)%helium%force_avrg, 1), &
                               SIZE(helium_env(1)%helium%force_avrg, 2)))
             work_2d(:, :) = 0.0_dp
-            IF (sel_mp_source .GE. offset .AND. sel_mp_source .LT. offset + SIZE(helium_env)) THEN
+            IF (sel_mp_source >= offset .AND. sel_mp_source < offset + SIZE(helium_env)) THEN
                work_2d(:, :) = helium_env(sel_mp_source - offset + 1)%helium%force_avrg(:, :)
             END IF
             CALL helium_env(1)%comm%sum(work_2d(:, :))
@@ -534,10 +534,10 @@ CONTAINS
          time_stop = m_walltime()
          time_used = time_stop - time_start
          time_unit = "sec"
-         IF (time_used .GE. 60.0_dp) THEN
+         IF (time_used >= 60.0_dp) THEN
             time_used = time_used/60.0_dp
             time_unit = "min"
-            IF (time_used .GE. 60.0_dp) THEN
+            IF (time_used >= 60.0_dp) THEN
                time_used = time_used/60.0_dp
                time_unit = "hours"
             END IF
@@ -588,7 +588,7 @@ CONTAINS
       IF (helium%maxcycle > 1) CALL helium_update_transition_matrix(helium)
 
       ! consecutive calls to helium_slice_metro_cyclic require that
-      ! ALL(helium%pos.EQ.helium%work) - see a comment there,
+      ! ALL(helium%pos==helium%work) - see a comment there,
       ! besides there is a magic regarding helium%permutation
       ! you have been warned
       helium%work(:, :, :) = helium%pos(:, :, :)
@@ -605,7 +605,7 @@ CONTAINS
 
          CASE (helium_mdist_singlev)
             x = helium%rng_stream_uniform%next()
-            IF (x .LT. r) THEN
+            IF (x < r) THEN
                cyclen = 1
             ELSE
                cyclen = helium%m_value
@@ -613,32 +613,32 @@ CONTAINS
 
          CASE (helium_mdist_uniform)
             x = helium%rng_stream_uniform%next()
-            IF (x .LT. r) THEN
+            IF (x < r) THEN
                cyclen = helium%m_value
             ELSE
                DO
                   x = helium%rng_stream_uniform%next()
                   cyclen = INT(helium%maxcycle*x) + 1
-                  IF (cyclen .NE. helium%m_value) EXIT
+                  IF (cyclen /= helium%m_value) EXIT
                END DO
             END IF
 
          CASE (helium_mdist_linear)
             x = helium%rng_stream_uniform%next()
-            IF (x .LT. r) THEN
+            IF (x < r) THEN
                cyclen = helium%m_value
             ELSE
                DO
                   x = helium%rng_stream_uniform%next()
                   y = SQRT(2.0_dp*x)
                   cyclen = INT(helium%maxcycle*y/SQRT(2.0_dp)) + 1
-                  IF (cyclen .NE. helium%m_value) EXIT
+                  IF (cyclen /= helium%m_value) EXIT
                END DO
             END IF
 
          CASE (helium_mdist_quadratic)
             x = helium%rng_stream_uniform%next()
-            IF (x .LT. r) THEN
+            IF (x < r) THEN
                cyclen = helium%m_value
             ELSE
                DO
@@ -646,36 +646,36 @@ CONTAINS
                   y = (3.0_dp*x)**(1.0_dp/3.0_dp)
                   z = 3.0_dp**(1.0_dp/3.0_dp)
                   cyclen = INT(helium%maxcycle*y/z) + 1
-                  IF (cyclen .NE. helium%m_value) EXIT
+                  IF (cyclen /= helium%m_value) EXIT
                END DO
             END IF
 
          CASE (helium_mdist_exponential)
             x = helium%rng_stream_uniform%next()
-            IF (x .LT. r) THEN
+            IF (x < r) THEN
                cyclen = helium%m_value
             ELSE
                DO
                   DO
                      x = helium%rng_stream_uniform%next()
-                     IF (x .GE. 0.01_dp) EXIT
+                     IF (x >= 0.01_dp) EXIT
                   END DO
                   z = -LOG(0.01_dp)
                   y = LOG(x)/z + 1.0_dp;
                   cyclen = INT(helium%maxcycle*y) + 1
-                  IF (cyclen .NE. helium%m_value) EXIT
+                  IF (cyclen /= helium%m_value) EXIT
                END DO
             END IF
 
          CASE (helium_mdist_gaussian)
             x = helium%rng_stream_uniform%next()
-            IF (x .LT. r) THEN
+            IF (x < r) THEN
                cyclen = 1
             ELSE
                DO
                   x = helium%rng_stream_gaussian%next()
                   cyclen = INT(x*0.75_dp + helium%m_value - 0.5_dp) + 1
-                  IF (cyclen .NE. 1) EXIT
+                  IF (cyclen /= 1) EXIT
                END DO
             END IF
 
@@ -1176,7 +1176,7 @@ CONTAINS
             END DO
             bis(:) = bis(:)/helium%beads
             rtmp = DOT_PRODUCT(bis, bis)
-            IF (rtmp .GE. helium%droplet_radius**2) THEN
+            IF (rtmp >= helium%droplet_radius**2) THEN
                biso(:) = 0.0_dp
                DO ib = 1, helium%beads
                   DO ic = 1, 3

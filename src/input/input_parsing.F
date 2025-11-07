@@ -628,7 +628,7 @@ CONTAINS
          CALL cp_abort(__LOCATION__, &
                        "type "//cp_to_string(type_of_var)//"unknown to the parser")
       END SELECT
-      IF (parser_test_next_token(parser) .NE. "EOL") THEN
+      IF (parser_test_next_token(parser) /= "EOL") THEN
          location = TRIM(parser_location(parser))
          CALL parser_get_object(parser, info)
          CALL cp_abort(__LOCATION__, &

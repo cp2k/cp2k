@@ -411,9 +411,9 @@ CONTAINS
       used_submatrix_sign_method = ls_scf_submatrix_sign_ns
       IF (PRESENT(submatrix_sign_method)) used_submatrix_sign_method = submatrix_sign_method
 
-      internal_mu_adjust = ((sign_method .EQ. ls_scf_sign_submatrix) .AND. &
-                            (used_submatrix_sign_method .EQ. ls_scf_submatrix_sign_direct_muadj .OR. &
-                             used_submatrix_sign_method .EQ. ls_scf_submatrix_sign_direct_muadj_lowmem))
+      internal_mu_adjust = ((sign_method == ls_scf_sign_submatrix) .AND. &
+                            (used_submatrix_sign_method == ls_scf_submatrix_sign_direct_muadj .OR. &
+                             used_submatrix_sign_method == ls_scf_submatrix_sign_direct_muadj_lowmem))
 
       IF (internal_mu_adjust) THEN
          CALL density_matrix_sign_internal_mu(matrix_p, trace, mu, sign_method, &

@@ -274,7 +274,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(pair_list))
       IF (PRESENT(list_end)) THEN
-         CPASSERT(list_end .LE. SIZE(pair_list))
+         CPASSERT(list_end <= SIZE(pair_list))
          last = list_end
       ELSE
          last = SIZE(pair_list)
@@ -283,10 +283,10 @@ CONTAINS
       ind = -1
 
       list_search: DO list_nr = 1, last
-         IF ((pair_list(list_nr)%f_n .EQ. n1 .AND. &
-              pair_list(list_nr)%s_n .EQ. n2) .OR. &
-             (pair_list(list_nr)%f_n .EQ. n2 .AND. &
-              pair_list(list_nr)%s_n .EQ. n1)) THEN
+         IF ((pair_list(list_nr)%f_n == n1 .AND. &
+              pair_list(list_nr)%s_n == n2) .OR. &
+             (pair_list(list_nr)%f_n == n2 .AND. &
+              pair_list(list_nr)%s_n == n1)) THEN
             ind = list_nr
             EXIT list_search
          END IF
@@ -403,7 +403,7 @@ CONTAINS
       INTEGER                                            :: dim_per_elem
 
       CPASSERT(.NOT. ASSOCIATED(ana_disp))
-      CPASSERT(dim_per_elem .GT. 0)
+      CPASSERT(dim_per_elem > 0)
       MARK_USED(dim_per_elem)
 
       ALLOCATE (ana_disp)

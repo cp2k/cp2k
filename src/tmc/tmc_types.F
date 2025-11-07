@@ -257,7 +257,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(tmc_env))
       CPASSERT(ASSOCIATED(tmc_env%params))
-      CPASSERT(tmc_env%params%nr_temp .GT. 0)
+      CPASSERT(tmc_env%params%nr_temp > 0)
 
       CPASSERT(.NOT. ASSOCIATED(tmc_env%m_env))
 
@@ -395,7 +395,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nr_atoms
 
       CPASSERT(.NOT. ASSOCIATED(atoms))
-      CPASSERT(nr_atoms .GT. 0)
+      CPASSERT(nr_atoms > 0)
 
       ALLOCATE (atoms(nr_atoms))
 

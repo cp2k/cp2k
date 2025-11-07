@@ -93,7 +93,7 @@ CONTAINS
       precon_type = preconditioner_env%in_use
       SELECT CASE (precon_type)
       CASE (ot_precond_full_single)
-         IF (my_solver_type .NE. ot_precond_solver_default) &
+         IF (my_solver_type /= ot_precond_solver_default) &
             CPABORT("Only PRECOND_SOLVER DEFAULT for the moment")
          IF (PRESENT(matrix_s)) THEN
             CALL make_full_single(preconditioner_env, preconditioner_env%fm, &
@@ -104,22 +104,22 @@ CONTAINS
          END IF
 
       CASE (ot_precond_s_inverse)
-         IF (my_solver_type .EQ. ot_precond_solver_default) my_solver_type = ot_precond_solver_inv_chol
+         IF (my_solver_type == ot_precond_solver_default) my_solver_type = ot_precond_solver_inv_chol
          IF (.NOT. PRESENT(matrix_s)) &
             CPABORT("Type for S=1 not implemented")
          CALL make_full_s_inverse(preconditioner_env, matrix_s)
 
       CASE (ot_precond_full_kinetic)
-         IF (my_solver_type .EQ. ot_precond_solver_default) my_solver_type = ot_precond_solver_inv_chol
+         IF (my_solver_type == ot_precond_solver_default) my_solver_type = ot_precond_solver_inv_chol
          IF (.NOT. (PRESENT(matrix_s) .AND. PRESENT(matrix_t))) &
             CPABORT("Type for S=1 not implemented")
          CALL make_full_kinetic(preconditioner_env, matrix_t, matrix_s, energy_gap)
       CASE (ot_precond_full_single_inverse)
-         IF (my_solver_type .EQ. ot_precond_solver_default) my_solver_type = ot_precond_solver_inv_chol
+         IF (my_solver_type == ot_precond_solver_default) my_solver_type = ot_precond_solver_inv_chol
          CALL make_full_single_inverse(preconditioner_env, mo_coeff, matrix_h, energy_gap, &
                                        matrix_s=matrix_s)
       CASE (ot_precond_full_all)
-         IF (my_solver_type .NE. ot_precond_solver_default) THEN
+         IF (my_solver_type /= ot_precond_solver_default) THEN
             CPABORT("Only PRECOND_SOLVER DEFAULT for the moment")
          END IF
          IF (PRESENT(matrix_s)) THEN
@@ -793,7 +793,7 @@ CONTAINS
       ! Shift the Lumo to the 1.5*the computed energy_gap or the external energy gap value
       ! The factor 1.5 is determined by trying. If the LUMO is positive, enough, just leave it alone
       pre_shift = MAX(1.5_dp*(min_ev - max_ev), energy_gap)
-      IF (min_ev .LT. pre_shift) THEN
+      IF (min_ev < pre_shift) THEN
          pre_shift = pre_shift - min_ev
       ELSE
          pre_shift = 0.0_dp

@@ -531,7 +531,7 @@ CONTAINS
             !  will be consistent with atomic guess. A guess with broken symmetry will be easy to
             !  implement as well.
             CALL get_molecule_kind(imol_kind, nelectron=nelec)
-            IF (MOD(nelec, 2) .EQ. 0) THEN
+            IF (MOD(nelec, 2) == 0) THEN
                mol_to_multiplicity(imol) = 1
             ELSE
                mol_to_multiplicity(imol) = 2

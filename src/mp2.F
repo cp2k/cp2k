@@ -249,7 +249,7 @@ CONTAINS
                                      extension=".mp2Log")
 
       IF (unit_nr > 0) THEN
-         IF (mp2_env%method .NE. ri_rpa_method_gpw) THEN
+         IF (mp2_env%method /= ri_rpa_method_gpw) THEN
             WRITE (unit_nr, *)
             WRITE (unit_nr, *)
             WRITE (unit_nr, '(T2,A)') 'MP2 section'
@@ -283,7 +283,7 @@ CONTAINS
          END IF
       END IF
 
-      IF (mp2_env%do_im_time .AND. mp2_env%eri_method .NE. do_eri_gpw) THEN
+      IF (mp2_env%do_im_time .AND. mp2_env%eri_method /= do_eri_gpw) THEN
          mp2_env%mp2_num_proc = 1
       END IF
 
@@ -302,10 +302,10 @@ CONTAINS
             mp2_env%mp2_memory, ' MiB'
       END IF
 
-      IF ((mp2_env%method .NE. mp2_method_gpw) .AND. &
-          (mp2_env%method .NE. ri_mp2_method_gpw) .AND. &
-          (mp2_env%method .NE. ri_rpa_method_gpw) .AND. &
-          (mp2_env%method .NE. ri_mp2_laplace)) THEN
+      IF ((mp2_env%method /= mp2_method_gpw) .AND. &
+          (mp2_env%method /= ri_mp2_method_gpw) .AND. &
+          (mp2_env%method /= ri_rpa_method_gpw) .AND. &
+          (mp2_env%method /= ri_mp2_laplace)) THEN
          CALL m_memory(mem)
          mem_real = (mem + 1024*1024 - 1)/(1024*1024)
          CALL para_env%max(mem_real)
@@ -748,7 +748,7 @@ CONTAINS
 
       t2 = m_walltime()
       IF (unit_nr > 0) WRITE (unit_nr, *)
-      IF (mp2_env%method .NE. ri_rpa_method_gpw) THEN
+      IF (mp2_env%method /= ri_rpa_method_gpw) THEN
          IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T56,F25.6)') 'Total MP2 Time=', t2 - t1
          IF (mp2_env%method == ri_mp2_laplace) THEN
             Emp2_S = Emp2

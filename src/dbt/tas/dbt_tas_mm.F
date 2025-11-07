@@ -241,7 +241,7 @@ CONTAINS
 
       dims_c = [dims_a(1), dims_b(2)]
 
-      IF (.NOT. (dims_a(2) .EQ. dims_b(1))) THEN
+      IF (.NOT. (dims_a(2) == dims_b(1))) THEN
          CPABORT("inconsistent matrix dimensions")
       END IF
 
@@ -1344,7 +1344,7 @@ CONTAINS
       dim_split_template = info_template%split_rowcol
       dim_split_matrix = split_rc
 
-      transposed = dim_split_template .NE. dim_split_matrix
+      transposed = dim_split_template /= dim_split_matrix
       IF (transposed) trans = .NOT. trans
 
       pdims = info_template%mp_comm%num_pe_cart

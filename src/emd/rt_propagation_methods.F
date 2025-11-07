@@ -306,19 +306,19 @@ CONTAINS
                       matrix_ks=matrix_ks, matrix_ks_im=matrix_ks_im, energy=energy)
       CALL get_rtp(rtp=rtp, exp_H_old=exp_H_old, exp_H_new=exp_H_new)
 
-      IF (rtp_control%sc_check_start .LT. rtp%iter) THEN
+      IF (rtp_control%sc_check_start < rtp%iter) THEN
          rtp%delta_iter_old = rtp%delta_iter
          IF (rtp%linear_scaling) THEN
             CALL rt_convergence_density(rtp, delta_P, rtp%delta_iter)
          ELSE
             CALL rt_convergence(rtp, s_mat(1)%matrix, delta_mos, rtp%delta_iter)
          END IF
-         rtp%converged = (rtp%delta_iter .LT. rtp_control%eps_ener)
+         rtp%converged = (rtp%delta_iter < rtp_control%eps_ener)
          !Apply mixing if scf loop is not converging
 
          !It would be better to redo the current step with mixixng,
          !but currently the decision is made to use mixing from the next step on
-         IF (rtp_control%sc_check_start .LT. rtp%iter + 1) THEN
+         IF (rtp_control%sc_check_start < rtp%iter + 1) THEN
             IF (rtp%delta_iter/rtp%delta_iter_old > 0.9) THEN
                rtp%mixing_factor = MAX(rtp%mixing_factor/2.0_dp, 0.125_dp)
                rtp%mixing = .TRUE.
@@ -639,8 +639,8 @@ CONTAINS
             CALL dbcsr_add(tmp(re)%matrix, P(re)%matrix, 1.0_dp, -1.0_dp)
             CALL dbcsr_add(tmp(im)%matrix, P(im)%matrix, 1.0_dp, -1.0_dp)
             CALL complex_frobenius_norm(frob_norm, tmp(re)%matrix, tmp(im)%matrix)
-            IF (unit_nr .GT. 0) WRITE (unit_nr, '(t3,a,2f16.8)') "Deviation from idempotency: ", frob_norm
-            IF (frob_norm .GT. threshold .AND. max_iter > 0) THEN
+            IF (unit_nr > 0) WRITE (unit_nr, '(t3,a,2f16.8)') "Deviation from idempotency: ", frob_norm
+            IF (frob_norm > threshold .AND. max_iter > 0) THEN
                CALL dbcsr_copy(P(re)%matrix, PSP(re)%matrix)
                CALL dbcsr_copy(P(im)%matrix, PSP(im)%matrix)
                CALL cp_complex_dbcsr_gemm_3("N", "N", -2.0_dp, PS(re)%matrix, PS(im)%matrix, &

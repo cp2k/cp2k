@@ -151,20 +151,20 @@ CONTAINS
 
          ! Use all nodes available per pole by default or if the user tries to use
          ! more nodes than MPI size
-         IF ((pexsi_env%num_ranks_per_pole .GT. numnodes) &
-             .OR. (pexsi_env%num_ranks_per_pole .EQ. 0)) THEN
+         IF ((pexsi_env%num_ranks_per_pole > numnodes) &
+             .OR. (pexsi_env%num_ranks_per_pole == 0)) THEN
             pexsi_env%num_ranks_per_pole = numnodes
          END IF
 
          ! Find num_ranks_per_pole from user input MIN_RANKS_PER_POLE s.t. num_ranks_per_pole
          ! is the smallest number greater or equal to min_ranks_per_pole that divides
          ! MPI size without remainder.
-         DO WHILE (MOD(numnodes, pexsi_env%num_ranks_per_pole) .NE. 0)
+         DO WHILE (MOD(numnodes, pexsi_env%num_ranks_per_pole) /= 0)
             pexsi_env%num_ranks_per_pole = pexsi_env%num_ranks_per_pole + 1
          END DO
 
          CALL cp_pexsi_get_options(pexsi_env%options, npSymbFact=npSymbFact)
-         IF ((npSymbFact .GT. pexsi_env%num_ranks_per_pole) .OR. (npSymbFact .EQ. 0)) THEN
+         IF ((npSymbFact > pexsi_env%num_ranks_per_pole) .OR. (npSymbFact == 0)) THEN
             ! Use maximum possible number of ranks for symbolic factorization
             CALL cp_pexsi_set_options(pexsi_env%options, npSymbFact=pexsi_env%num_ranks_per_pole)
          END IF
@@ -320,7 +320,7 @@ CONTAINS
       CASE (1)
          WRITE (unit_nr, '(A,T61,A20)') " PEXSI|   Row permutation strategy", "make diagonal entry larger than off diagonal"
       END SELECT
-      IF (ordering .EQ. 0) WRITE (unit_nr, '(A,T61,I20/)') &
+      IF (ordering == 0) WRITE (unit_nr, '(A,T61,I20/)') &
          " PEXSI|   Number of processors for symbolic factorization", npSymbFact
 
    END SUBROUTINE print_pexsi_info

@@ -96,12 +96,12 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
       TYPE(cp_fm_type)                                   :: overlap_vv, svmatrix
 
-      IF (ncol .EQ. 0) RETURN
+      IF (ncol == 0) RETURN
 
       CALL timeset(routineN, handle)
 
       CALL cp_fm_get_info(matrix=vmatrix, nrow_global=n, ncol_global=ncol_global)
-      IF (ncol .GT. ncol_global) CPABORT("Wrong ncol value")
+      IF (ncol > ncol_global) CPABORT("Wrong ncol value")
 
       CALL cp_fm_create(svmatrix, vmatrix%matrix_struct, "SV")
       CALL cp_dbcsr_sm_fm_multiply(matrix_s, vmatrix, svmatrix, ncol)
@@ -145,13 +145,13 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
       TYPE(cp_fm_type)                                   :: overlap_vv
 
-      IF (ncol .EQ. 0) RETURN
+      IF (ncol == 0) RETURN
 
       CALL timeset(routineN, handle)
       NULLIFY (fm_struct_tmp)
 
       CALL cp_fm_get_info(matrix=vmatrix, nrow_global=n, ncol_global=ncol_global)
-      IF (ncol .GT. ncol_global) CPABORT("Wrong ncol value")
+      IF (ncol > ncol_global) CPABORT("Wrong ncol value")
 
       CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ncol, ncol_global=ncol, &
                                para_env=vmatrix%matrix_struct%para_env, &
@@ -193,13 +193,13 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
       TYPE(cp_fm_type)                                   :: fm_svmatrix, fm_vmatrix, overlap_vv
 
-      IF (ncol .EQ. 0) RETURN
+      IF (ncol == 0) RETURN
 
       CALL timeset(routineN, handle)
 
       !CALL cp_fm_get_info(matrix=vmatrix,nrow_global=n,ncol_global=ncol_global)
       CALL dbcsr_get_info(vmatrix, nfullrows_total=n, nfullcols_total=ncol_global)
-      IF (ncol .GT. ncol_global) CPABORT("Wrong ncol value")
+      IF (ncol > ncol_global) CPABORT("Wrong ncol value")
 
       CALL cp_fm_struct_create(fm_struct_tmp, context=blacs_env, nrow_global=ncol, &
                                ncol_global=ncol, para_env=para_env)
@@ -257,13 +257,13 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
       TYPE(cp_fm_type)                                   :: overlap_vv
 
-      IF (ncol .EQ. 0) RETURN
+      IF (ncol == 0) RETURN
 
       CALL timeset(routineN, handle)
       NULLIFY (fm_struct_tmp)
 
       CALL cp_fm_get_info(matrix=vmatrix, nrow_global=n, ncol_global=ncol_global)
-      IF (ncol .GT. ncol_global) CPABORT("Wrong ncol value")
+      IF (ncol > ncol_global) CPABORT("Wrong ncol value")
 
       CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ncol, ncol_global=ncol, &
                                para_env=vmatrix%matrix_struct%para_env, &
@@ -309,13 +309,13 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
       TYPE(cp_fm_type)                                   :: csc, sc, work
 
-      IF (ncol .EQ. 0) RETURN
+      IF (ncol == 0) RETURN
 
       CALL timeset(routineN, handle)
       NULLIFY (fm_struct_tmp)
       threshold = 1.0E-7_dp
       CALL cp_fm_get_info(matrix=vmatrix, nrow_global=n, ncol_global=ncol_global)
-      IF (ncol .GT. ncol_global) CPABORT("Wrong ncol value")
+      IF (ncol > ncol_global) CPABORT("Wrong ncol value")
 
       CALL cp_fm_create(sc, vmatrix%matrix_struct, "SC")
       CALL cp_dbcsr_sm_fm_multiply(matrix_s, vmatrix, sc, ncol)
@@ -361,14 +361,14 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
       TYPE(cp_fm_type)                                   :: overlap_vv
 
-      IF (ncol .EQ. 0) RETURN
+      IF (ncol == 0) RETURN
 
       CALL timeset(routineN, handle)
 
       NULLIFY (fm_struct_tmp)
 
       CALL cp_fm_get_info(matrix=vmatrix, nrow_global=n, ncol_global=ncol_global)
-      IF (ncol .GT. ncol_global) CPABORT("Wrong ncol value")
+      IF (ncol > ncol_global) CPABORT("Wrong ncol value")
 
       CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ncol, ncol_global=ncol, &
                                para_env=vmatrix%matrix_struct%para_env, &
@@ -443,7 +443,7 @@ CONTAINS
          compute_evecs = .TRUE.
       END IF
 
-      IF (ncol_global .GT. 0) THEN
+      IF (ncol_global > 0) THEN
 
          ALLOCATE (evals(ncol_global))
 
@@ -583,7 +583,7 @@ CONTAINS
          compute_evecs = .TRUE.
       END IF
 
-      IF (ncol_global .GT. 0) THEN
+      IF (ncol_global > 0) THEN
 
          ALLOCATE (evals(ncol_global))
 
@@ -737,7 +737,7 @@ CONTAINS
          DO i = 1, nrow_local
             DO j = 1, ncol_local
                alpha = overlap%local_data(i, j)
-               IF (row_indices(i) .EQ. col_indices(j)) alpha = alpha - 1.0_dp
+               IF (row_indices(i) == col_indices(j)) alpha = alpha - 1.0_dp
                max_alpha = MAX(max_alpha, ABS(alpha))
             END DO
          END DO
@@ -846,7 +846,7 @@ CONTAINS
                          eigenvalues=mo_eigenvalues, homo=homo, nmo=nmo)
          IF (output_unit > 0) WRITE (output_unit, *) " "
          IF (output_unit > 0) WRITE (output_unit, *) " Eigenvalues of the occupied subspace spin ", ispin
-         !      IF (homo .NE. nmo) THEN
+         !      IF (homo /= nmo) THEN
          !         IF (output_unit>0) WRITE(output_unit,*)" and ",nmo-homo," added MO eigenvalues"
          !      END IF
          IF (output_unit > 0) WRITE (output_unit, *) "---------------------------------------------"

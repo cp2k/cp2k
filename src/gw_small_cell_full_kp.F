@@ -612,7 +612,7 @@ CONTAINS
          DO ikp = 1, bs_env%nkp_chi_eps_W_orig_plus_extra
 
             ! trivial parallelization over k-points
-            IF (MODULO(ikp, bs_env%para_env%num_pe) .NE. bs_env%para_env%mepos) CYCLE
+            IF (MODULO(ikp, bs_env%para_env%num_pe) /= bs_env%para_env%mepos) CYCLE
 
             ikp_local = ikp_local + 1
 
@@ -713,7 +713,7 @@ CONTAINS
       nkp_local = 0
       DO ikp = 1, nkp
          ! trivial parallelization over k-points
-         IF (MODULO(ikp, bs_env%para_env%num_pe) .NE. bs_env%para_env%mepos) CYCLE
+         IF (MODULO(ikp, bs_env%para_env%num_pe) /= bs_env%para_env%mepos) CYCLE
          nkp_local = nkp_local + 1
       END DO
 
@@ -745,7 +745,7 @@ CONTAINS
       DO ikp = 1, nkp
 
          ! trivial parallelization
-         IF (MODULO(ikp, bs_env%para_env%num_pe) .NE. bs_env%para_env%mepos) CYCLE
+         IF (MODULO(ikp, bs_env%para_env%num_pe) /= bs_env%para_env%mepos) CYCLE
 
          ikp_local = ikp_local + 1
 
@@ -826,7 +826,7 @@ CONTAINS
       DO ikp = 1, bs_env%nkp_scf_desymm
 
          ! trivial parallelization
-         IF (MODULO(ikp, bs_env%para_env%num_pe) .NE. bs_env%para_env%mepos) CYCLE
+         IF (MODULO(ikp, bs_env%para_env%num_pe) /= bs_env%para_env%mepos) CYCLE
 
          ! M(k) = sum_R e^ikR M^R
          CALL trafo_rs_to_ikp(M_R, M_inv, &
@@ -1063,7 +1063,7 @@ CONTAINS
 
       DO ikp = 1, nkp_scf
          ! trivial parallelization
-         IF (MODULO(ikp, bs_env%para_env%num_pe) .NE. bs_env%para_env%mepos) CYCLE
+         IF (MODULO(ikp, bs_env%para_env%num_pe) /= bs_env%para_env%mepos) CYCLE
          ! V_tr(k) = sum_R e^ikR V_tr^R
          CALL trafo_rs_to_ikp(V_tr_R, V_tr_kp, bs_env%kpoints_scf_desymm%index_to_cell, &
                               bs_env%kpoints_scf_desymm%xkp(1:3, ikp))

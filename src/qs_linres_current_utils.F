@@ -429,7 +429,7 @@ CONTAINS
                      mo_coeff => psi0_order(ispin)
                      !
                      ! take care that no overflow can occur for uks
-                     IF (icenter .GT. nbr_center(ispin)) THEN
+                     IF (icenter > nbr_center(ispin)) THEN
                         !
                         ! set h1_psi0 and psi1 to zero to avoid problems in linres_scf
                         CALL cp_fm_set_all(h1_psi0(ispin), 0.0_dp)
@@ -498,7 +498,7 @@ CONTAINS
                   DO ispin = 1, nspins
                      !
                      ! take care that no overflow can occur for uks
-                     IF (icenter .GT. nbr_center(ispin)) CYCLE
+                     IF (icenter > nbr_center(ispin)) CYCLE
                      !
                      ! need to reset those guys
                      ist_true = statetrueindex(idir, icenter, ispin)
@@ -647,11 +647,11 @@ CONTAINS
                          uniform_occupation=uniform_occupation)
          !
          ! check that homo=nmo
-         IF (nmo .NE. homo) CPABORT("nmo != homo")
+         IF (nmo /= homo) CPABORT("nmo != homo")
          !
          ! check that the nbr of localized states is equal to the nbr of states
 !       nmoloc = SIZE(linres_control%localized_wfn_control%centers_set(ispin)%array,2)
-!       IF (nmoloc.NE.nmo) CALL cp_abort(__LOCATION__,&
+!       IF (nmoloc/=nmo) CALL cp_abort(__LOCATION__,&
 !                                            "The nbr of localized functions "//&
 !            &                               "is not equal to the nbr of states.")
          !
@@ -767,15 +767,15 @@ CONTAINS
             DO istate = 1, SIZE(localized_wfn_control%centers_set(ispin)%array, 2)
                ! just to be sure...
                r(:) = pbc(localized_wfn_control%centers_set(ispin)%array(:, istate), cell)
-               IF (r(1) .LT. 0.0_dp) THEN
+               IF (r(1) < 0.0_dp) THEN
                   localized_wfn_control%centers_set(ispin)%array(1, istate) = &
                      r(1) + cell%hmat(1, 1)
                END IF
-               IF (r(2) .LT. 0.0_dp) THEN
+               IF (r(2) < 0.0_dp) THEN
                   localized_wfn_control%centers_set(ispin)%array(2, istate) = &
                      r(2) + cell%hmat(2, 2)
                END IF
-               IF (r(3) .LT. 0.0_dp) THEN
+               IF (r(3) < 0.0_dp) THEN
                   localized_wfn_control%centers_set(ispin)%array(3, istate) = &
                      r(3) + cell%hmat(3, 3)
                END IF
@@ -791,10 +791,10 @@ CONTAINS
                                 r_val=current_env%selected_states_atom_radius)
       CALL section_vals_val_get(current_section, "SELECTED_STATES_ON_ATOM_LIST", n_rep_val=n_rep)
       !
-      current_env%do_selected_states = n_rep .GT. 0
+      current_env%do_selected_states = n_rep > 0
       !
       ! for the moment selected states doesnt work with the preconditioner FULL_ALL
-      IF (linres_control%preconditioner_type .EQ. ot_precond_full_all .AND. current_env%do_selected_states) &
+      IF (linres_control%preconditioner_type == ot_precond_full_all .AND. current_env%do_selected_states) &
          CPABORT("Selected states doesnt work with the preconditioner FULL_ALL")
       !
       !
@@ -823,9 +823,9 @@ CONTAINS
                DO i = 1, SIZE(selected_states_on_atom_list, 1)
                   iatom = selected_states_on_atom_list(i)
                   r(:) = pbc(center_array(1:3, istate) - particle_set(iatom)%r(:), cell)
-                  ! SQRT(DOT_PRODUCT(r, r)) .LE. current_env%selected_states_atom_radius
-                  IF ((DOT_PRODUCT(r, r)) .LE. (current_env%selected_states_atom_radius &
-                                                *current_env%selected_states_atom_radius)) &
+                  ! SQRT(DOT_PRODUCT(r, r)) <= current_env%selected_states_atom_radius
+                  IF ((DOT_PRODUCT(r, r)) <= (current_env%selected_states_atom_radius &
+                                              *current_env%selected_states_atom_radius)) &
                      THEN
                      !
                      ! add the state to the list
@@ -902,7 +902,7 @@ CONTAINS
                   r = pbc(particle_set(iatom)%r(:), cell)
                   rab = pbc(r, center_array(1:3, istate), cell)
                   dist = SQRT(rab(1)**2 + rab(2)**2 + rab(3)**2)
-                  IF (dist .LT. mdist) THEN
+                  IF (dist < mdist) THEN
                      buff(is) = iatom
                      mdist = dist
                   END IF
@@ -917,7 +917,7 @@ CONTAINS
                is0 = .TRUE.
                DO is = 1, nstate
                   istate = state_list(is, ispin)
-                  IF (buff(is) .EQ. iatom) THEN
+                  IF (buff(is) == iatom) THEN
                      j = j + 1
                      i = i + 1
                      is0 = .FALSE.
@@ -964,7 +964,7 @@ CONTAINS
                DO ibox = 1, nbr_box
                   rab(:) = pbc(rbuff(:, ibox), center_array(1:3, istate), cell)
                   dist = SQRT(rab(1)**2 + rab(2)**2 + rab(3)**2)
-                  IF (dist .LT. mdist) THEN
+                  IF (dist < mdist) THEN
                      buff(is) = ibox
                      mdist = dist
                   END IF
@@ -979,7 +979,7 @@ CONTAINS
                is0 = .TRUE.
                DO is = 1, nstate
                   istate = state_list(is, ispin)
-                  IF (buff(is) .EQ. ibox) THEN
+                  IF (buff(is) == ibox) THEN
                      j = j + 1
                      i = i + 1
                      is0 = .FALSE.
@@ -1047,9 +1047,9 @@ CONTAINS
       !
       !
       IF (current_env%do_qmmm .AND.&
-           & (current_env%orb_center .EQ. current_orb_center_wannier .OR. &
-              current_env%orb_center .EQ. current_orb_center_atom .OR. &
-              current_env%orb_center .EQ. current_orb_center_box)) THEN
+           & (current_env%orb_center == current_orb_center_wannier .OR. &
+              current_env%orb_center == current_orb_center_atom .OR. &
+              current_env%orb_center == current_orb_center_box)) THEN
          IF (output_unit > 0) THEN
             WRITE (output_unit, *) 'WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING '
             WRITE (output_unit, *) 'orbital center shifted to match the '
@@ -1058,15 +1058,15 @@ CONTAINS
          END IF
          DO ispin = 1, nspins
             DO istate = 1, current_env%nbr_center(ispin)
-               IF (current_env%centers_set(ispin)%array(1, istate) .LE. 0.0_dp) THEN
+               IF (current_env%centers_set(ispin)%array(1, istate) <= 0.0_dp) THEN
                   current_env%centers_set(ispin)%array(1, istate) = &
                      current_env%centers_set(ispin)%array(1, istate) + cell%hmat(1, 1)
                END IF
-               IF (current_env%centers_set(ispin)%array(2, istate) .LE. 0.0_dp) THEN
+               IF (current_env%centers_set(ispin)%array(2, istate) <= 0.0_dp) THEN
                   current_env%centers_set(ispin)%array(2, istate) = &
                      current_env%centers_set(ispin)%array(2, istate) + cell%hmat(2, 2)
                END IF
-               IF (current_env%centers_set(ispin)%array(3, istate) .LE. 0.0_dp) THEN
+               IF (current_env%centers_set(ispin)%array(3, istate) <= 0.0_dp) THEN
                   current_env%centers_set(ispin)%array(3, istate) = &
                      current_env%centers_set(ispin)%array(3, istate) + cell%hmat(3, 3)
                END IF
@@ -1120,7 +1120,7 @@ CONTAINS
                         CALL set_vecp(idir, j, k)
                         dist = SQRT(rab(j)*rab(j) + rab(k)*rab(k))
                         !
-                        IF (dist .LT. mdist) THEN
+                        IF (dist < mdist) THEN
                            mdist = dist
                            istate_next = istate2
                         END IF
@@ -1152,15 +1152,15 @@ CONTAINS
             REPEAT(' ', 20 - LEN_TRIM(current_env%gauge_name))//TRIM(current_env%gauge_name)
          WRITE (output_unit, "(T2,A,T79,L1)") "CURRENT| Use old gauge code", current_env%use_old_gauge_atom
          WRITE (output_unit, "(T2,A,T79,L1)") "CURRENT| Compute chi for PBC calculation", current_env%chi_pbc
-         IF (current_env%gauge .EQ. current_gauge_atom) THEN
+         IF (current_env%gauge == current_gauge_atom) THEN
             WRITE (output_unit, "(T2,A,T68,E12.6)") "CURRENT| Radius for building the gauge", &
                current_env%gauge_atom_radius
          END IF
          WRITE (output_unit, "(T2,A,T60,A)") "CURRENT| Orbital center used", &
             REPEAT(' ', 20 - LEN_TRIM(current_env%orb_center_name))//TRIM(current_env%orb_center_name)
-         IF (current_env%orb_center .EQ. current_orb_center_common) THEN
+         IF (current_env%orb_center == current_orb_center_common) THEN
             WRITE (output_unit, "(T2,A,T50,3F10.6)") "CURRENT| Common center", common_center(1:3)
-         ELSEIF (current_env%orb_center .EQ. current_orb_center_box) THEN
+         ELSEIF (current_env%orb_center == current_orb_center_box) THEN
             WRITE (output_unit, "(T2,A,T60,3I5)") "CURRENT| Nbr boxes in each direction", nbox(1:3)
          END IF
          !

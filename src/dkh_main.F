@@ -226,7 +226,7 @@ CONTAINS
       !     Calculate even3 in T-basis, only if requested
       !-----------------------------------------------------------------------
 
-      IF (dkh_order .GE. 3) THEN
+      IF (dkh_order >= 3) THEN
          CALL peven1p(n, matrix_pe1p, matrix_v, matrix_pvp, matrix_aux, matrix_aux2, aa, rr, tt)
          CALL even3b(n, matrix_ev3, matrix_ev1, matrix_pe1p, matrix_v, matrix_pvp, aa, rr, tt, e, matrix_aux)
 
@@ -241,7 +241,7 @@ CONTAINS
          !     Calculate even4 in T-basis, only if requested
          !-----------------------------------------------------------------------
 
-         IF (dkh_order .GE. 4) THEN
+         IF (dkh_order >= 4) THEN
             CPABORT("DKH order greater than 3 not yet available")
             !          CALL even4a(n,matrix_ev4%local_data,matrix_ev2%local_data,matrix_pe1p%local_data,matrix_v%local_data,&
             !                      matrix_pvp%local_data,aa,rr,tt,e)
@@ -277,9 +277,9 @@ CONTAINS
       CALL cp_fm_scale_and_add(1.0_dp, matrix_ev1, 1.0_dp, matrix_ev2)
       CALL cp_fm_uplo_to_full(matrix_ev1, matrix_aux)
       CALL cp_fm_to_fm(matrix_ev1, matrix_v)
-      IF (dkh_order .GE. 3) THEN
+      IF (dkh_order >= 3) THEN
          CALL cp_fm_scale_and_add(1.0_dp, matrix_v, 1.0_dp, matrix_ev3)
-         IF (dkh_order .GE. 4) THEN
+         IF (dkh_order >= 4) THEN
             CALL cp_fm_scale_and_add(1.0_dp, matrix_v, 1.0_dp, matrix_ev4)
          END IF
       END IF
@@ -326,7 +326,7 @@ CONTAINS
       con = 1.0_dp/prea
 
       DO i = 1, n
-         IF (tt(i) .LT. 0.0_dp) THEN
+         IF (tt(i) < 0.0_dp) THEN
             WRITE (*, *) ' dkh_main.F | tt(', i, ') = ', tt(i)
          END IF
 
@@ -335,7 +335,7 @@ CONTAINS
 
          ev0t(i) = tt(i)
          ratio = tt(i)/c_light_au
-         IF (ratio .LE. 0.02_dp) THEN
+         IF (ratio <= 0.02_dp) THEN
             tv1 = tt(i)
             tv2 = -tv1*tt(i)*prea*0.5_dp
             tv3 = -tv2*tt(i)*prea
@@ -1384,7 +1384,7 @@ CONTAINS
       !     Calculate even1 in T-basis
       !-----------------------------------------------------------------------
 
-      IF (dkh_order .GE. 1) THEN
+      IF (dkh_order >= 1) THEN
          CALL even1_a(n, ev1t, vt, pvpt, aa, rr)
 
          !----------------------------------------------------------------------
@@ -1399,7 +1399,7 @@ CONTAINS
       !     Calculate even2 in T-basis
       !-----------------------------------------------------------------------
 
-      IF (dkh_order .GE. 2) THEN
+      IF (dkh_order >= 2) THEN
          CALL even2c_a(n, ev2t, vt, pvpt, aa, rr, tt, e)
 
          !-----------------------------------------------------------------------
@@ -1415,7 +1415,7 @@ CONTAINS
       !     Calculate even3 in T-basis, only if requested
       !-----------------------------------------------------------------------
 
-      IF (dkh_order .GE. 3) THEN
+      IF (dkh_order >= 3) THEN
          CALL peven1p_a(n, pev1tp, vt, pvpt, aa, rr, tt)
          CALL even3b_a(n, ev3t, ev1t, pev1tp, vt, pvpt, aa, rr, tt, e)
 
@@ -1430,7 +1430,7 @@ CONTAINS
          !     Calculate even4 in T-basis, only if requested
          !-----------------------------------------------------------------------
 
-         IF (dkh_order .GE. 4) THEN
+         IF (dkh_order >= 4) THEN
             CALL even4a_a(n, ev4t, ev1t, pev1tp, vt, pvpt, aa, rr, tt, e)
 
             !-----------------------------------------------------------------------
@@ -1442,23 +1442,23 @@ CONTAINS
          END IF
       END IF
 
-      IF (dkh_order .GE. 4) THEN
+      IF (dkh_order >= 4) THEN
          CPABORT("DKH 4")
       END IF
       !-----------------------------------------------------------------------
       !     Calculate v in position space
       !-----------------------------------------------------------------------
 
-      IF (dkh_order .GE. 1) THEN
+      IF (dkh_order >= 1) THEN
          CALL mat_add2(v, 0.0_dp, 1.0_dp, ev1, n)
       END IF
-      IF (dkh_order .GE. 2) THEN
+      IF (dkh_order >= 2) THEN
          CALL mat_add2(v, 1.0_dp, 1.0_dp, ev2, n)
       END IF
-      IF (dkh_order .GE. 3) THEN
+      IF (dkh_order >= 3) THEN
          CALL mat_add2(v, 1.0_dp, 1.0_dp, ev3, n)
       END IF
-      IF (dkh_order .GE. 4) THEN
+      IF (dkh_order >= 4) THEN
          CALL mat_add2(v, 1.0_dp, 1.0_dp, ev4, n)
       END IF
 
@@ -1488,7 +1488,7 @@ CONTAINS
                                                             tv4
 
       DO i = 1, n
-         IF (tt(i) .LT. 0.0_dp) THEN
+         IF (tt(i) < 0.0_dp) THEN
             WRITE (*, *) ' dkh_main.F | tt(', i, ') = ', tt(i)
          END IF
 
@@ -1503,7 +1503,7 @@ CONTAINS
 
          ev0t(i) = tt(i)
          ratio = tt(i)/c_light_au
-         IF (ratio .LE. 0.02_dp) THEN
+         IF (ratio <= 0.02_dp) THEN
             tv1 = tt(i)
             tv2 = -tv1*tt(i)*prea/2.0_dp
             tv3 = -tv2*tt(i)*prea
@@ -2541,7 +2541,7 @@ CONTAINS
          eigv(i, i) = 1.0_dp
          eigw(i) = sogt(i, i)
          DO j = 1, i
-            IF (i .NE. j) THEN
+            IF (i /= j) THEN
                eigv(i, j) = 0.0_dp
                eigv(j, i) = 0.0_dp
                ext_norm = ext_norm + sogt(i, j)*sogt(i, j)
@@ -2549,7 +2549,7 @@ CONTAINS
          END DO
       END DO
 
-      IF (ext_norm .GT. 0.0_dp) THEN
+      IF (ext_norm > 0.0_dp) THEN
          ext_norm = SQRT(2.0_dp*ext_norm)
          thr_min = ext_norm*tol/u1
          ind = 0
@@ -2562,14 +2562,14 @@ CONTAINS
                DO
                   m = l + 1
                   DO
-                     IF ((ABS(sogt(m, l)) - thr) .GE. 0.0_dp) THEN
+                     IF ((ABS(sogt(m, l)) - thr) >= 0.0_dp) THEN
                         ind = 1
                         x = 0.5_dp*(eigw(l) - eigw(m))
                         y = -sogt(m, l)/SQRT(sogt(m, l)*sogt(m, l) + x*x)
-                        IF (x .LT. 0.0_dp) y = -y
+                        IF (x < 0.0_dp) y = -y
 
-                        IF (y .GT. 1.0_dp) y = 1.0_dp
-                        IF (y .LT. -1.0_dp) y = -1.0_dp
+                        IF (y > 1.0_dp) y = 1.0_dp
+                        IF (y < -1.0_dp) y = -1.0_dp
                         xy = 1.0_dp - y*y
                         sint = y/SQRT(2.0_dp*(1.0_dp + SQRT(xy)))
                         sint2 = sint*sint
@@ -2578,16 +2578,16 @@ CONTAINS
                         sincs = sint*cost
 
                         DO i = 1, n
-                           IF ((i - m) .NE. 0) THEN
-                              IF ((i - m) .LT. 0) THEN
+                           IF ((i - m) /= 0) THEN
+                              IF ((i - m) < 0) THEN
                                  im = m
                                  mm = i
                               ELSE
                                  im = i
                                  mm = m
                               END IF
-                              IF ((i - l) .NE. 0) THEN
-                                 IF ((i - l) .LT. 0) THEN
+                              IF ((i - l) /= 0) THEN
+                                 IF ((i - l) < 0) THEN
                                     il = l
                                     ll = i
                                  ELSE
@@ -2612,23 +2612,23 @@ CONTAINS
                         eigw(l) = y
                         eigw(m) = x
                      END IF
-                     IF ((m - n) .EQ. 0) EXIT
+                     IF ((m - n) == 0) EXIT
                      m = m + 1
                   END DO
-                  IF ((l - m + 1) .EQ. 0) EXIT
+                  IF ((l - m + 1) == 0) EXIT
                   l = l + 1
                END DO
-               IF ((ind - 1) .NE. 0.0_dp) EXIT
+               IF ((ind - 1) /= 0.0_dp) EXIT
                ind = 0
             END DO
-            IF ((thr - thr_min) .LE. 0.0_dp) EXIT
+            IF ((thr - thr_min) <= 0.0_dp) EXIT
          END DO
       END IF
 
-      IF (ic .NE. 0) THEN
+      IF (ic /= 0) THEN
          DO i = 1, n
             DO j = 1, n
-               IF ((eigw(i) - eigw(j)) .GT. 0.0_dp) THEN
+               IF ((eigw(i) - eigw(j)) > 0.0_dp) THEN
                   x = eigw(i)
                   eigw(i) = eigw(j)
                   eigw(j) = x
@@ -2678,7 +2678,7 @@ CONTAINS
          diag_s = matrix_s_pgf(jn, jn)
          g(jn, jn) = 1.0_dp
 
-         IF (jn .NE. 1) THEN
+         IF (jn /= 1) THEN
             DO j = 1, jn - 1
                scalar = 0.0_dp
                DO i = 1, j

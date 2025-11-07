@@ -180,7 +180,7 @@ CONTAINS
       iindex = 0
       imol = 0
       DO i = 1, natom
-         IF (old_mol .NE. atom_info%map_mol_num(I)) THEN
+         IF (old_mol /= atom_info%map_mol_num(I)) THEN
             old_mol = atom_info%map_mol_num(I)
             iindex = 0
             IF (imol > 0) THEN
@@ -225,7 +225,7 @@ CONTAINS
             "New ones will be provided on the basis of the connectivity!"
       END IF
       DO j = 1, max_mol_num
-         IF (mol_hash(j) .NE. old_hash) THEN
+         IF (mol_hash(j) /= old_hash) THEN
             unique_mol = unique_mol + 1
             old_hash = mol_hash(j)
             CALL setup_graph_set(reference_set, unique_mol, map_mol_hash(j), &

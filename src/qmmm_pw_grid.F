@@ -88,8 +88,8 @@ CONTAINS
 
             Maxdr = MAX(Maxdr, el_struct%dr)
             Mindr = MIN(Mindr, el_struct%dr)
-            IF (ALL(Maxdr .EQ. el_struct%dr)) qmmm_env%gridlevel_info%coarser_grid = Ilevel
-            IF (ALL(Mindr .EQ. el_struct%dr)) qmmm_env%gridlevel_info%auxbas_grid = Ilevel
+            IF (ALL(Maxdr == el_struct%dr)) qmmm_env%gridlevel_info%coarser_grid = Ilevel
+            IF (ALL(Mindr == el_struct%dr)) qmmm_env%gridlevel_info%auxbas_grid = Ilevel
 
             CALL pw_grid_release(el_struct)
 

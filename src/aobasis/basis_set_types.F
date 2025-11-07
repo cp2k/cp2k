@@ -844,7 +844,7 @@ CONTAINS
       n = SIZE(gto_basis_set%cphi, 1)
 
       gto_basis_set%sphi = 0.0_dp
-      IF (n .GT. 0) THEN
+      IF (n > 0) THEN
          lmax = -1
          ! Ensure proper setup of orbtramat
          DO iset = 1, gto_basis_set%nset
@@ -876,7 +876,7 @@ CONTAINS
       n = SIZE(gto_basis_set%scon, 1)
 
       gto_basis_set%scon = 0.0_dp
-      IF (n .GT. 0) THEN
+      IF (n > 0) THEN
          DO iset = 1, gto_basis_set%nset
             lmin = gto_basis_set%lmin(iset)
             lmax = gto_basis_set%lmax(iset)
@@ -1207,7 +1207,7 @@ CONTAINS
          basis_set_file_name = cbasis(ibasis)
          tmp = basis_set_file_name
          CALL uppercase(tmp)
-         IF (INDEX(tmp, "MOLOPT") .NE. 0) CALL cite_reference(VandeVondele2007)
+         IF (INDEX(tmp, "MOLOPT") /= 0) CALL cite_reference(VandeVondele2007)
       END DO
 
       ! Search for the requested basis set in the basis set file
@@ -1225,7 +1225,7 @@ CONTAINS
 
          tmp = basis_set_name
          CALL uppercase(tmp)
-         IF (INDEX(tmp, "MOLOPT") .NE. 0) CALL cite_reference(VandeVondele2007)
+         IF (INDEX(tmp, "MOLOPT") /= 0) CALL cite_reference(VandeVondele2007)
 
          nset = 0
          maxshell = 0
@@ -1261,7 +1261,7 @@ CONTAINS
          CALL reallocate(gto_basis_set%m, 1, nsgf)
          CALL reallocate(gto_basis_set%norm_cgf, 1, ncgf)
 
-         IF (tmp .NE. "NONE") THEN
+         IF (tmp /= "NONE") THEN
             search_loop: DO
 
                CALL parser_search_string(parser, TRIM(bsname), .TRUE., found, line)
@@ -1463,7 +1463,7 @@ CONTAINS
 
       END DO basis_loop
 
-      IF (tmp .NE. "NONE") THEN
+      IF (tmp /= "NONE") THEN
          IF (.NOT. basis_found) THEN
             basis_set_file_name = ""
             DO ibasis = 1, nbasis
@@ -2259,7 +2259,7 @@ CONTAINS
          tmp = basis_set_name
          CALL uppercase(tmp)
 
-         IF (tmp .NE. "NONE") THEN
+         IF (tmp /= "NONE") THEN
             search_loop: DO
 
                CALL parser_search_string(parser, TRIM(bsname), .TRUE., found, line)
@@ -2339,7 +2339,7 @@ CONTAINS
 
       END DO basis_loop
 
-      IF (tmp .NE. "NONE") THEN
+      IF (tmp /= "NONE") THEN
          IF (.NOT. basis_found) THEN
             basis_set_file_name = ""
             DO ibasis = 1, nbasis

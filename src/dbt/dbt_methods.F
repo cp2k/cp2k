@@ -642,22 +642,22 @@ CONTAINS
       CPASSERT(tensor_2%valid)
       CPASSERT(tensor_3%valid)
 
-      assert_stmt = SIZE(contract_1) .EQ. SIZE(contract_2)
+      assert_stmt = SIZE(contract_1) == SIZE(contract_2)
       CPASSERT(assert_stmt)
 
-      assert_stmt = SIZE(map_1) .EQ. SIZE(notcontract_1)
+      assert_stmt = SIZE(map_1) == SIZE(notcontract_1)
       CPASSERT(assert_stmt)
 
-      assert_stmt = SIZE(map_2) .EQ. SIZE(notcontract_2)
+      assert_stmt = SIZE(map_2) == SIZE(notcontract_2)
       CPASSERT(assert_stmt)
 
-      assert_stmt = SIZE(notcontract_1) + SIZE(contract_1) .EQ. ndims_tensor(tensor_1)
+      assert_stmt = SIZE(notcontract_1) + SIZE(contract_1) == ndims_tensor(tensor_1)
       CPASSERT(assert_stmt)
 
-      assert_stmt = SIZE(notcontract_2) + SIZE(contract_2) .EQ. ndims_tensor(tensor_2)
+      assert_stmt = SIZE(notcontract_2) + SIZE(contract_2) == ndims_tensor(tensor_2)
       CPASSERT(assert_stmt)
 
-      assert_stmt = SIZE(map_1) + SIZE(map_2) .EQ. ndims_tensor(tensor_3)
+      assert_stmt = SIZE(map_1) + SIZE(map_2) == ndims_tensor(tensor_3)
       CPASSERT(assert_stmt)
 
       unit_nr_prv = prep_output_unit(unit_nr)
@@ -1197,7 +1197,7 @@ CONTAINS
       CALL blk_dims_tensor(tensor1, dims1)
       CALL blk_dims_tensor(tensor2, dims2)
 
-      IF (PRODUCT(int(dims1, int_8)) .GE. PRODUCT(int(dims2, int_8))) THEN
+      IF (PRODUCT(int(dims1, int_8)) >= PRODUCT(int(dims2, int_8))) THEN
          ref_tensor = 1
       ELSE
          ref_tensor = 2
@@ -1350,7 +1350,7 @@ CONTAINS
       END SELECT
 
       IF (unit_nr_prv > 0) THEN
-         IF (compat1 .NE. compat1_old) THEN
+         IF (compat1 /= compat1_old) THEN
             WRITE (unit_nr_prv, '(T2,A,1X,A,A,1X)', advance='no') "compatibility of", TRIM(tensor1_out%name), ":"
             SELECT CASE (compat1)
             CASE (0)
@@ -1361,7 +1361,7 @@ CONTAINS
                WRITE (unit_nr_prv, '(A)') "Transposed"
             END SELECT
          END IF
-         IF (compat2 .NE. compat2_old) THEN
+         IF (compat2 /= compat2_old) THEN
             WRITE (unit_nr_prv, '(T2,A,1X,A,A,1X)', advance='no') "compatibility of", TRIM(tensor2_out%name), ":"
             SELECT CASE (compat2)
             CASE (0)
@@ -1449,7 +1449,7 @@ CONTAINS
       END IF
 
       IF (unit_nr_prv > 0) THEN
-         IF (compat1_old .NE. compat1 .OR. compat2_old .NE. compat2) THEN
+         IF (compat1_old /= compat1 .OR. compat2_old /= compat2) THEN
             WRITE (unit_nr_prv, '(T2,A,1X,A,A,1X)', advance='no') "compatibility of", TRIM(tensor_out%name), ":"
             IF (compat1 == 1 .AND. compat2 == 2) THEN
                WRITE (unit_nr_prv, '(A)') "Normal"

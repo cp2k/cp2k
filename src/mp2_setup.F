@@ -493,7 +493,7 @@ CONTAINS
       NULLIFY (mp2_env%eri_mme_param)
       ALLOCATE (mp2_env%eri_mme_param)
 
-      IF (mp2_env%eri_method .EQ. do_eri_mme) THEN
+      IF (mp2_env%eri_method == do_eri_mme) THEN
          eri_mme_section => section_vals_get_subs_vals(mp2_section, "INTEGRALS%ERI_MME")
          CALL cp_eri_mme_init_read_input(eri_mme_section, mp2_env%eri_mme_param)
       END IF
@@ -522,7 +522,7 @@ CONTAINS
       ! print some info about the MP2 parameters
       unit_nr = cp_print_key_unit_nr(logger, mp2_section, "PRINT", &
                                      extension=".mp2Log")
-      IF ((mp2_env%method .NE. mp2_method_none) .AND. unit_nr > 0) THEN
+      IF ((mp2_env%method /= mp2_method_none) .AND. unit_nr > 0) THEN
          WRITE (unit_nr, '(T2,A)') ""
          SELECT CASE (mp2_env%method)
          CASE (mp2_method_direct)
@@ -564,7 +564,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      IF (method .NE. mp2_method_none) THEN
+      IF (method /= mp2_method_none) THEN
          CPABORT("Please use not more than one method to compute the correlation energy.")
       END IF
 

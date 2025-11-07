@@ -176,7 +176,7 @@ CONTAINS
       CALL diamat_all(Z, lambda)
       ! Pick the correct eigenvectors
       S = 1.0_dp
-      IF (Z(1, 1) .LT. 0.0_dp) S = -1.0_dp
+      IF (Z(1, 1) < 0.0_dp) S = -1.0_dp
       Q(0) = S*Z(1, 1)
       Q(1) = S*Z(2, 1)
       Q(2) = S*Z(3, 1)

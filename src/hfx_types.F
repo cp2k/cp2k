@@ -2980,7 +2980,7 @@ CONTAINS
 
          CALL section_vals_val_get(hfx_section1, "PW_HFX_BLOCKSIZE", i_val=ival1, i_rep_section=irep)
          CALL section_vals_val_get(hfx_section2, "PW_HFX_BLOCKSIZE", i_val=ival2, i_rep_section=irep)
-         IF (ival1 .NE. ival2) is_identical = .FALSE.
+         IF (ival1 /= ival2) is_identical = .FALSE.
 
          CALL section_vals_val_get(hfx_section1, "TREAT_LSD_IN_CORE", l_val=lval1, i_rep_section=irep)
          CALL section_vals_val_get(hfx_section2, "TREAT_LSD_IN_CORE", l_val=lval2, i_rep_section=irep)
@@ -2995,7 +2995,7 @@ CONTAINS
 
          CALL section_vals_val_get(hfx_sub_section1, "POTENTIAL_TYPE", i_val=ival1, i_rep_section=irep)
          CALL section_vals_val_get(hfx_sub_section2, "POTENTIAL_TYPE", i_val=ival2, i_rep_section=irep)
-         IF (ival1 .NE. ival2) is_identical = .FALSE.
+         IF (ival1 /= ival2) is_identical = .FALSE.
          IF (.NOT. is_identical) RETURN
 
          IF (ival1 == do_potential_truncated .OR. ival1 == do_potential_mix_cl_trunc) THEN
@@ -3005,7 +3005,7 @@ CONTAINS
 
             CALL section_vals_val_get(hfx_sub_section1, "T_C_G_DATA", c_val=cval1, i_rep_section=irep)
             CALL section_vals_val_get(hfx_sub_section2, "T_C_G_DATA", c_val=cval2, i_rep_section=irep)
-            IF (cval1 .NE. cval2) is_identical = .FALSE.
+            IF (cval1 /= cval2) is_identical = .FALSE.
          END IF
 
          CALL section_vals_val_get(hfx_sub_section1, "SCALE_COULOMB", r_val=rval1, i_rep_section=irep)
@@ -3025,7 +3025,7 @@ CONTAINS
 
          CALL section_vals_val_get(hfx_sub_section1, "NUMBER_OF_SHELLS", i_val=ival1, i_rep_section=irep)
          CALL section_vals_val_get(hfx_sub_section2, "NUMBER_OF_SHELLS", i_val=ival2, i_rep_section=irep)
-         IF (ival1 .NE. ival2) is_identical = .FALSE.
+         IF (ival1 /= ival2) is_identical = .FALSE.
 
          hfx_sub_section1 => section_vals_get_subs_vals(hfx_section1, "RI", i_rep_section=irep)
          hfx_sub_section2 => section_vals_get_subs_vals(hfx_section2, "RI", i_rep_section=irep)
@@ -3060,11 +3060,11 @@ CONTAINS
 
          CALL section_vals_val_get(hfx_sub_section1, "MAX_BLOCK_SIZE_MO", i_val=ival1, i_rep_section=irep)
          CALL section_vals_val_get(hfx_sub_section2, "MAX_BLOCK_SIZE_MO", i_val=ival2, i_rep_section=irep)
-         IF (ival1 .NE. ival2) is_identical = .FALSE.
+         IF (ival1 /= ival2) is_identical = .FALSE.
 
          CALL section_vals_val_get(hfx_sub_section1, "MIN_BLOCK_SIZE", i_val=ival1, i_rep_section=irep)
          CALL section_vals_val_get(hfx_sub_section2, "MIN_BLOCK_SIZE", i_val=ival2, i_rep_section=irep)
-         IF (ival1 .NE. ival2) is_identical = .FALSE.
+         IF (ival1 /= ival2) is_identical = .FALSE.
 
          CALL section_vals_val_get(hfx_sub_section1, "OMEGA", r_val=rval1, i_rep_section=irep)
          CALL section_vals_val_get(hfx_sub_section2, "OMEGA", r_val=rval2, i_rep_section=irep)
@@ -3072,11 +3072,11 @@ CONTAINS
 
          CALL section_vals_val_get(hfx_sub_section1, "RI_FLAVOR", i_val=ival1, i_rep_section=irep)
          CALL section_vals_val_get(hfx_sub_section2, "RI_FLAVOR", i_val=ival2, i_rep_section=irep)
-         IF (ival1 .NE. ival2) is_identical = .FALSE.
+         IF (ival1 /= ival2) is_identical = .FALSE.
 
          CALL section_vals_val_get(hfx_sub_section1, "RI_METRIC", i_val=ival1, i_rep_section=irep)
          CALL section_vals_val_get(hfx_sub_section2, "RI_METRIC", i_val=ival2, i_rep_section=irep)
-         IF (ival1 .NE. ival2) is_identical = .FALSE.
+         IF (ival1 /= ival2) is_identical = .FALSE.
 
          hfx_sub_section1 => section_vals_get_subs_vals(hfx_section1, "SCREENING", i_rep_section=irep)
          hfx_sub_section2 => section_vals_get_subs_vals(hfx_section2, "SCREENING", i_rep_section=irep)

@@ -681,7 +681,7 @@ CONTAINS
       CALL get_mo_set(mos(my_spin), nao=nao, homo=homo, nmo=nmo, mo_coeff=mo_coeff, nelectron=nelectron)
 
       nvirtual2 = 0
-      IF (xas_control%added_mos .GT. 0) THEN
+      IF (xas_control%added_mos > 0) THEN
          nvirtual2 = MIN(xas_control%added_mos, nao - nmo)
          xas_env%unoccupied_eps = xas_control%eps_added
          xas_env%unoccupied_max_iter = xas_control%max_iter_added
@@ -827,7 +827,7 @@ CONTAINS
       CALL cp_fm_struct_release(tmp_fm_struct)
 
       !Array to store all the eigenstates: occupied and the required not occupied
-      IF (nvirtual2 .GT. 0) THEN
+      IF (nvirtual2 > 0) THEN
          ALLOCATE (xas_env%unoccupied_evals(nvirtual2))
          NULLIFY (tmp_fm_struct)
          CALL cp_fm_struct_create(tmp_fm_struct, nrow_global=nao, &
@@ -1641,7 +1641,7 @@ CONTAINS
                   IF (output_unit > 0) WRITE (UNIT=output_unit, FMT="(I4)") state_of_atom(iat, istate)
                END IF
             END DO
-            IF (state_of_atom(iat, 1) == 0 .OR. state_of_atom(iat, 1) .GT. homo) THEN
+            IF (state_of_atom(iat, 1) == 0 .OR. state_of_atom(iat, 1) > homo) THEN
                CPABORT("A wrong state has been selected for excitation, check the Wannier centers")
             END IF
          END DO
@@ -1715,7 +1715,7 @@ CONTAINS
                   END IF
                END DO
             END IF
-            IF (state_of_atom(iat, 1) .GT. homo) THEN
+            IF (state_of_atom(iat, 1) > homo) THEN
                CPABORT("A wrong state has been selected for excitation, check the Wannier centers")
             END IF
          END DO

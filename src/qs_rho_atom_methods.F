@@ -188,7 +188,7 @@ CONTAINS
 
             CALL get_none0_cg_list(my_CG, lmin(iset1), lmax(iset1), lmin(iset2), lmax(iset2), &
                                    max_s_harm, lmax_expansion, cg_list, cg_n_list, max_iso_not0_local)
-            CPASSERT(max_iso_not0_local .LE. max_iso_not0)
+            CPASSERT(max_iso_not0_local <= max_iso_not0)
             CALL get_none0_cg_list(my_CG_dxyz, lmin(iset1), lmax(iset1), lmin(iset2), lmax(iset2), &
                                    max_s_harm, lmax_expansion, dacg_list, dacg_n_list, damax_iso_not0_local)
             n1s = nsoset(lmax(iset1))
@@ -232,7 +232,7 @@ CONTAINS
                   vgg = 0.0_dp
                   done_vgg = .FALSE.
                   ! reduce the number of terms in the expansion local densities
-                  IF (lmin12 .LE. lmax_expansion) THEN
+                  IF (lmin12 <= lmax_expansion) THEN
                      IF (lmin12 == 0) THEN
                         gg(1:nr, lmin12) = g1(1:nr)*g2(1:nr)
                         gg_lm1(1:nr, lmin12) = 0.0_dp
@@ -244,7 +244,7 @@ CONTAINS
                      END IF
 
                      ! reduce the number of terms in the expansion local densities
-                     IF (lmax12 .GT. lmax_expansion) lmax12 = lmax_expansion
+                     IF (lmax12 > lmax_expansion) lmax12 = lmax_expansion
 
                      DO l = lmin12 + 1, lmax12
                         gg(1:nr, l) = grid_atom%rad(1:nr)*gg(1:nr, l - 1)
@@ -632,7 +632,7 @@ CONTAINS
 
                      n_cont_a = alist_ac%clist(kac)%nsgf_cnt
                      n_cont_b = alist_bc%clist(kbc)%nsgf_cnt
-                     IF (n_cont_a .EQ. 0 .OR. n_cont_b .EQ. 0) CYCLE
+                     IF (n_cont_a == 0 .OR. n_cont_b == 0) CYCLE
 
                      list_a => alist_ac%clist(kac)%sgf_list
                      list_b => alist_bc%clist(kbc)%sgf_list

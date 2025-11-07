@@ -397,7 +397,7 @@ CONTAINS
       END IF
       IF (ASSOCIATED(qmmm_env%image_charge_pot)) THEN
          IF (qmmm_env%image_charge) THEN
-            IF (qmmm_env%image_charge_pot%image_matrix_method .EQ. do_eri_mme) THEN
+            IF (qmmm_env%image_charge_pot%image_matrix_method == do_eri_mme) THEN
                CALL cp_eri_mme_finalize(qmmm_env%image_charge_pot%eri_mme_param)
             END IF
          END IF

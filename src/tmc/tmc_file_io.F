@@ -77,17 +77,17 @@ CONTAINS
 
       INTEGER                                            :: ind
 
-      CPASSERT(file_name .NE. "")
+      CPASSERT(file_name /= "")
 
       ind = INDEX(file_name, ".", BACK=.TRUE.)
-      IF (.NOT. ind .EQ. 0) THEN
+      IF (.NOT. ind == 0) THEN
          WRITE (result_file_name, *) file_name(1:ind - 1), ".", &
             TRIM(ADJUSTL(extra))
       ELSE
          WRITE (result_file_name, *) TRIM(file_name), ".", extra
       END IF
       result_file_name = TRIM(ADJUSTL(result_file_name))
-      CPASSERT(result_file_name .NE. "")
+      CPASSERT(result_file_name /= "")
    END FUNCTION expand_file_name_ending
 
 ! **************************************************************************************************
@@ -104,17 +104,17 @@ CONTAINS
 
       INTEGER                                            :: ind
 
-      CPASSERT(file_name .NE. "")
+      CPASSERT(file_name /= "")
 
       ind = INDEX(file_name, ".", BACK=.TRUE.)
-      IF (.NOT. ind .EQ. 0) THEN
+      IF (.NOT. ind == 0) THEN
          WRITE (result_file_name, *) file_name(1:ind - 1), "_", &
             TRIM(ADJUSTL(extra)), file_name(ind:LEN_TRIM(file_name))
       ELSE
          WRITE (result_file_name, *) TRIM(file_name), "_", extra
       END IF
       result_file_name = TRIM(ADJUSTL(result_file_name))
-      CPASSERT(result_file_name .NE. "")
+      CPASSERT(result_file_name /= "")
    END FUNCTION expand_file_name_char
 
 ! **************************************************************************************************
@@ -133,17 +133,17 @@ CONTAINS
       CHARACTER(LEN=18)                                  :: rval_to_string
       INTEGER                                            :: ind
 
-      CPASSERT(file_name .NE. "")
+      CPASSERT(file_name /= "")
 
       rval_to_string = ""
 
       WRITE (rval_to_string, "(F16.2)") rvalue
       ind = INDEX(file_name, ".", BACK=.TRUE.)
-      IF (.NOT. ind .EQ. 0) THEN
+      IF (.NOT. ind == 0) THEN
          WRITE (result_file_name, *) file_name(1:ind - 1), "_T", &
             TRIM(ADJUSTL(rval_to_string)), file_name(ind:LEN_TRIM(file_name))
       ELSE
-         IF (LEN(file_name) .EQ. 0) THEN
+         IF (LEN(file_name) == 0) THEN
             WRITE (result_file_name, *) TRIM(file_name), "T", TRIM(ADJUSTL(rval_to_string)), &
                file_name(ind:LEN_TRIM(file_name))
          ELSE
@@ -151,7 +151,7 @@ CONTAINS
          END IF
       END IF
       result_file_name = TRIM(ADJUSTL(result_file_name))
-      CPASSERT(result_file_name .NE. "")
+      CPASSERT(result_file_name /= "")
    END FUNCTION expand_file_name_temp
 
 ! **************************************************************************************************
@@ -170,17 +170,17 @@ CONTAINS
       CHARACTER(LEN=18)                                  :: rval_to_string
       INTEGER                                            :: ind
 
-      CPASSERT(file_name .NE. "")
+      CPASSERT(file_name /= "")
 
       rval_to_string = ""
 
       WRITE (rval_to_string, *) ivalue
       ind = INDEX(file_name, ".", BACK=.TRUE.)
-      IF (.NOT. ind .EQ. 0) THEN
+      IF (.NOT. ind == 0) THEN
          WRITE (result_file_name, *) file_name(1:ind - 1), "_", &
             TRIM(ADJUSTL(rval_to_string)), file_name(ind:LEN_TRIM(file_name))
       ELSE
-         IF (LEN(file_name) .EQ. 0) THEN
+         IF (LEN(file_name) == 0) THEN
             WRITE (result_file_name, *) TRIM(file_name), "", TRIM(ADJUSTL(rval_to_string)), &
                file_name(ind:LEN_TRIM(file_name))
          ELSE
@@ -189,7 +189,7 @@ CONTAINS
          END IF
       END IF
       result_file_name = TRIM(ADJUSTL(result_file_name))
-      CPASSERT(result_file_name .NE. "")
+      CPASSERT(result_file_name /= "")
    END FUNCTION expand_file_name_int
 
 !------------------------------------------------------------------------------
@@ -289,7 +289,7 @@ CONTAINS
       CPASSERT(ASSOCIATED(tmc_env%params))
       CPASSERT(ASSOCIATED(tmc_env%m_env%gt_act))
 
-      IF (file_name .EQ. tmc_default_restart_in_file_name) THEN
+      IF (file_name == tmc_default_restart_in_file_name) THEN
          INQUIRE (FILE=tmc_default_restart_in_file_name, EXIST=flag)
          CPASSERT(flag)
          CALL open_file(file_name=tmc_default_restart_in_file_name, file_status="OLD", &
@@ -301,7 +301,7 @@ CONTAINS
       CALL open_file(file_name=file_name, file_status="OLD", file_form="UNFORMATTED", &
                      file_action="READ", unit_number=file_ptr)
       READ (file_ptr) temp_size
-      IF (temp_size .NE. SIZE(tmc_env%params%Temp)) &
+      IF (temp_size /= SIZE(tmc_env%params%Temp)) &
          CALL cp_abort(__LOCATION__, &
                        "the actual specified temperatures does not "// &
                        "fit in amount with the one from restart file ")
@@ -323,10 +323,10 @@ CONTAINS
          job_counts, &
          timings
 
-      IF (ANY(ABS(tmc_env%params%Temp(:) - tmp_temp(:)) .GE. 0.005)) &
+      IF (ANY(ABS(tmc_env%params%Temp(:) - tmp_temp(:)) >= 0.005)) &
          CALL cp_abort(__LOCATION__, "the temperatures differ from the previous calculation. "// &
                        "There were the following temperatures used:")
-      IF (ANY(mv_weight_tmp(:) .NE. tmc_env%params%move_types%mv_weight(:))) THEN
+      IF (ANY(mv_weight_tmp(:) /= tmc_env%params%move_types%mv_weight(:))) THEN
          CPWARN("The amount of mv types differs between the original and the restart run.")
       END IF
 
@@ -380,13 +380,13 @@ CONTAINS
       CPASSERT(ASSOCIATED(result_count))
       CPASSERT(ASSOCIATED(tmc_params))
       CPASSERT(ASSOCIATED(tmc_params%Temp))
-      CPASSERT(conf_updated .GE. 0)
-      CPASSERT(conf_updated .LE. SIZE(tmc_params%Temp))
+      CPASSERT(conf_updated >= 0)
+      CPASSERT(conf_updated <= SIZE(tmc_params%Temp))
 
       ! start the timing
       CALL timeset(routineN, handle)
 
-      IF (conf_updated .EQ. 0) THEN
+      IF (conf_updated == 0) THEN
          ! for debugging print every configuration of every temperature
          DO i = 1, SIZE(tmc_params%Temp)
             WRITE (file_name, *) "every_step_", TRIM(tmc_default_trajectory_file_name)
@@ -451,7 +451,7 @@ CONTAINS
 
          ! set default file name
          IF (PRESENT(file_name)) THEN
-            CPASSERT(file_name .NE. "")
+            CPASSERT(file_name /= "")
             file_name_act = file_name
          ELSE
             CPASSERT(ASSOCIATED(tmc_params%Temp))
@@ -583,7 +583,7 @@ CONTAINS
       CPASSERT(ASSOCIATED(dip))
 
       IF (PRESENT(file_ext)) THEN
-         CPASSERT(file_ext .NE. "")
+         CPASSERT(file_ext /= "")
          file_name_tmp = expand_file_name_ending(file_name, TRIM(file_ext))
       ELSE
          file_name_tmp = expand_file_name_ending(file_name, "dip")
@@ -638,17 +638,17 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ! read the coordinates
-      IF (tmc_ana%id_traj .GT. 0) THEN
+      IF (tmc_ana%id_traj > 0) THEN
          i_tmp = conf_nr_old
          CALL read_pos_from_file(elem=elem, tmc_ana=tmc_ana, stat=stat, &
                                  conf_nr=i_tmp)
-         IF (stat .EQ. TMC_STATUS_WAIT_FOR_NEW_TASK) THEN
+         IF (stat == TMC_STATUS_WAIT_FOR_NEW_TASK) THEN
             CALL cp_warn(__LOCATION__, &
                          'end of position file reached at line '// &
                          cp_to_string(REAL(tmc_ana%lc_traj, KIND=dp))//", last element "// &
                          cp_to_string(tmc_ana%last_elem%nr))
          ELSE
-            CPASSERT(i_tmp .GT. conf_nr_old)
+            CPASSERT(i_tmp > conf_nr_old)
             conf_nr = i_tmp
             elem%nr = i_tmp
          END IF
@@ -658,20 +658,20 @@ CONTAINS
       ! TODO if necessary
 
       ! read the dipoles file
-      IF (tmc_ana%id_dip .GT. 0 .AND. stat .EQ. TMC_STATUS_OK) THEN
+      IF (tmc_ana%id_dip > 0 .AND. stat == TMC_STATUS_OK) THEN
          i_tmp = conf_nr_old
          search_conf_dip: DO
             CALL read_dipole_from_file(elem=elem, tmc_ana=tmc_ana, stat=stat, &
                                        conf_nr=i_tmp)
-            IF (stat .EQ. TMC_STATUS_WAIT_FOR_NEW_TASK) THEN
+            IF (stat == TMC_STATUS_WAIT_FOR_NEW_TASK) THEN
                CALL cp_warn(__LOCATION__, &
                             'end of dipole file reached at line'// &
                             cp_to_string(REAL(tmc_ana%lc_dip, KIND=dp)))
                EXIT search_conf_dip
             END IF
             ! check consitence with pos file
-            IF (tmc_ana%id_traj .GT. 0) THEN
-               IF (i_tmp .EQ. conf_nr) THEN
+            IF (tmc_ana%id_traj > 0) THEN
+               IF (i_tmp == conf_nr) THEN
                   files_conf_missmatch = .FALSE.
                   EXIT search_conf_dip
                ELSE
@@ -680,7 +680,7 @@ CONTAINS
                   files_conf_missmatch = .TRUE.
                END IF
                ! if no pos file, just take the next conf
-            ELSE IF (i_tmp .GT. conf_nr_old) THEN
+            ELSE IF (i_tmp > conf_nr_old) THEN
                conf_nr = i_tmp
                elem%nr = i_tmp
                EXIT search_conf_dip
@@ -689,19 +689,19 @@ CONTAINS
       END IF
 
       ! read the cell file
-      IF (tmc_ana%id_cell .GT. 0 .AND. stat .EQ. TMC_STATUS_OK) THEN
+      IF (tmc_ana%id_cell > 0 .AND. stat == TMC_STATUS_OK) THEN
          search_conf_cell: DO
             CALL read_cell_from_file(elem=elem, tmc_ana=tmc_ana, stat=stat, &
                                      conf_nr=i_tmp)
-            IF (stat .EQ. TMC_STATUS_WAIT_FOR_NEW_TASK) THEN
+            IF (stat == TMC_STATUS_WAIT_FOR_NEW_TASK) THEN
                CALL cp_warn(__LOCATION__, &
                             'end of cell file reached at line at line'// &
                             cp_to_string(REAL(tmc_ana%lc_cell, KIND=dp)))
                EXIT search_conf_cell
             END IF
             ! check consitence with pos file
-            IF (tmc_ana%id_traj .GT. 0) THEN
-               IF (i_tmp .EQ. conf_nr) THEN
+            IF (tmc_ana%id_traj > 0) THEN
+               IF (i_tmp == conf_nr) THEN
                   files_conf_missmatch = .FALSE.
                   EXIT search_conf_cell
                ELSE
@@ -710,7 +710,7 @@ CONTAINS
                   files_conf_missmatch = .TRUE.
                END IF
                ! if no pos file, just take the next conf
-            ELSE IF (i_tmp .GT. conf_nr_old) THEN
+            ELSE IF (i_tmp > conf_nr_old) THEN
                conf_nr = i_tmp
                elem%nr = i_tmp
                EXIT search_conf_cell
@@ -760,7 +760,7 @@ CONTAINS
       CPASSERT(ASSOCIATED(elem))
       CPASSERT(ASSOCIATED(elem%pos))
       CPASSERT(ASSOCIATED(tmc_ana))
-      CPASSERT(tmc_ana%id_traj .GT. 0)
+      CPASSERT(tmc_ana%id_traj > 0)
 
       ! start the timing
       CALL timeset(routineN, handle)
@@ -769,21 +769,21 @@ CONTAINS
          c_tmp(:) = " "
          tmc_ana%lc_traj = tmc_ana%lc_traj + 1
          READ (tmc_ana%id_traj, '(A)', IOSTAT=status) c_tmp(:)
-         IF (status .GT. 0) &
+         IF (status > 0) &
             CALL cp_abort(__LOCATION__, &
                           "configuration header read error at line: "// &
                           cp_to_string(tmc_ana%lc_traj)//": "//c_tmp)
-         IF (status .LT. 0) THEN ! end of file reached
+         IF (status < 0) THEN ! end of file reached
             stat = TMC_STATUS_WAIT_FOR_NEW_TASK
             EXIT search_next_conf
          END IF
-         IF (INDEX(c_tmp, "=") .GT. 0) THEN
+         IF (INDEX(c_tmp, "=") > 0) THEN
             READ (c_tmp(INDEX(c_tmp, "=") + 1:), *, IOSTAT=status) i_tmp ! read the configuration number
-            IF (status .NE. 0) &
+            IF (status /= 0) &
                CALL cp_abort(__LOCATION__, &
                              "configuration header read error (for conf nr) at line: "// &
                              cp_to_string(tmc_ana%lc_traj))
-            IF (i_tmp .GT. conf_nr) THEN
+            IF (i_tmp > conf_nr) THEN
                ! TODO we could also read the energy ...
                conf_nr = i_tmp
                IF (PRESENT(header_info)) header_info = c_tmp
@@ -793,12 +793,12 @@ CONTAINS
          END IF
       END DO search_next_conf
 
-      IF (stat .EQ. TMC_STATUS_OK) THEN
+      IF (stat == TMC_STATUS_OK) THEN
          pos_loop: DO i = 1, SIZE(elem%pos), tmc_ana%dim_per_elem
             tmc_ana%lc_traj = tmc_ana%lc_traj + 1
             READ (tmc_ana%id_traj, FMT="(A4,1X,1000F20.10)", IOSTAT=status) &
                c_tmp, elem%pos(i:i + tmc_ana%dim_per_elem - 1)
-            IF (status .NE. 0) THEN
+            IF (status /= 0) THEN
                CALL cp_abort(__LOCATION__, &
                              "configuration pos read error at line: "// &
                              cp_to_string(tmc_ana%lc_traj))
@@ -835,29 +835,29 @@ CONTAINS
       CPASSERT(ASSOCIATED(elem))
       CPASSERT(ASSOCIATED(elem%dipole))
       CPASSERT(ASSOCIATED(tmc_ana))
-      CPASSERT(tmc_ana%id_dip .GT. 0)
+      CPASSERT(tmc_ana%id_dip > 0)
 
       ! start the timing
       CALL timeset(routineN, handle)
       tmc_ana%lc_dip = tmc_ana%lc_dip + 1
       READ (tmc_ana%id_dip, FMT="(A)", IOSTAT=status) c_tmp
-      IF (status .EQ. 0) THEN
+      IF (status == 0) THEN
          ! skip the initial line (header)
-         IF (INDEX(c_tmp, "#") .GT. 0) THEN
+         IF (INDEX(c_tmp, "#") > 0) THEN
             tmc_ana%lc_dip = tmc_ana%lc_dip + 1
             READ (tmc_ana%id_dip, FMT="(A)", IOSTAT=status) c_tmp
          END IF
       END IF
-      IF (status .EQ. 0) THEN
+      IF (status == 0) THEN
          READ (c_tmp, FMT="(I8,10F20.10)", IOSTAT=status) &
             conf_nr, elem%dipole(:)
       END IF
-      IF (status .EQ. 0) THEN ! success
+      IF (status == 0) THEN ! success
          stat = TMC_STATUS_OK
-      ELSE IF (status .LT. 0) THEN ! end of file reached
+      ELSE IF (status < 0) THEN ! end of file reached
          stat = TMC_STATUS_WAIT_FOR_NEW_TASK
       ELSE
-         IF (status .NE. 0) THEN
+         IF (status /= 0) THEN
             CPWARN("configuration dipole read error at line: "//cp_to_string(tmc_ana%lc_dip))
          END IF
          stat = TMC_STATUS_FAILED
@@ -893,32 +893,32 @@ CONTAINS
       CPASSERT(ASSOCIATED(elem))
       CPASSERT(ASSOCIATED(tmc_ana))
       CPASSERT(ASSOCIATED(tmc_ana%cell))
-      CPASSERT(tmc_ana%id_cell .GT. 0)
+      CPASSERT(tmc_ana%id_cell > 0)
 
       ! start the timing
       CALL timeset(routineN, handle)
 
       tmc_ana%lc_cell = tmc_ana%lc_cell + 1
       READ (tmc_ana%id_cell, FMT="(A)", IOSTAT=status) c_tmp
-      IF (status .EQ. 0) THEN
+      IF (status == 0) THEN
          ! skip the initial line (header)
-         IF (INDEX(c_tmp, "#") .GT. 0) THEN
+         IF (INDEX(c_tmp, "#") > 0) THEN
             tmc_ana%lc_cell = tmc_ana%lc_cell + 1
             READ (tmc_ana%id_cell, FMT="(A)", IOSTAT=status) c_tmp
          END IF
       END IF
-      IF (status .EQ. 0) THEN
+      IF (status == 0) THEN
          READ (c_tmp, FMT="(I8,9(1X,F19.10),1X,F24.10)", IOSTAT=status) conf_nr, &
             hmat(:, :), r_tmp
       END IF
-      IF (status .LT. 0) THEN ! end of file reached
+      IF (status < 0) THEN ! end of file reached
          stat = TMC_STATUS_WAIT_FOR_NEW_TASK
-      ELSE IF (status .GT. 0) THEN
-         IF (status .NE. 0) &
+      ELSE IF (status > 0) THEN
+         IF (status /= 0) &
             CPABORT("configuration cell read error at line: "//cp_to_string(tmc_ana%lc_cell))
          stat = TMC_STATUS_FAILED
       ELSE
-         IF (elem%nr .LT. 0) elem%nr = conf_nr
+         IF (elem%nr < 0) elem%nr = conf_nr
          hmat(:, :) = hmat(:, :)/au2a
          ! get the box scaling
          CALL get_cell_scaling(cell=tmc_ana%cell, scaled_hmat=hmat, &
@@ -961,10 +961,10 @@ CONTAINS
 
       IF (PRESENT(dir_ind)) THEN
          CPASSERT(ASSOCIATED(tmc_ana%dirs))
-         CPASSERT(dir_ind .GT. 0)
-         CPASSERT(dir_ind .LE. SIZE(tmc_ana%dirs))
+         CPASSERT(dir_ind > 0)
+         CPASSERT(dir_ind <= SIZE(tmc_ana%dirs))
 
-         IF (INDEX(tmc_ana%dirs(dir_ind), "/", BACK=.TRUE.) .EQ. &
+         IF (INDEX(tmc_ana%dirs(dir_ind), "/", BACK=.TRUE.) == &
              LEN_TRIM(tmc_ana%dirs(dir_ind))) THEN
             dir_name = TRIM(tmc_ana%dirs(dir_ind))
          ELSE
@@ -979,7 +979,7 @@ CONTAINS
                        file_name=tmc_default_trajectory_file_name, &
                        rvalue=tmc_ana%temperature)
       ! position file
-      IF (tmc_ana%costum_pos_file_name .NE. "") THEN
+      IF (tmc_ana%costum_pos_file_name /= "") THEN
          file_name_act = TRIM(dir_name)//tmc_ana%costum_pos_file_name
       ELSE
          file_name_act = TRIM(dir_name)// &
@@ -994,7 +994,7 @@ CONTAINS
       END IF
 
       ! cell file
-      IF (tmc_ana%costum_cell_file_name .NE. "") THEN
+      IF (tmc_ana%costum_cell_file_name /= "") THEN
          file_name_act = TRIM(dir_name)//tmc_ana%costum_cell_file_name
       ELSE
          file_name_act = TRIM(dir_name)// &
@@ -1009,7 +1009,7 @@ CONTAINS
       END IF
 
       ! dipole file
-      IF (tmc_ana%costum_dip_file_name .NE. "") THEN
+      IF (tmc_ana%costum_dip_file_name /= "") THEN
          file_name_act = TRIM(dir_name)//tmc_ana%costum_dip_file_name
       ELSE
          file_name_act = TRIM(dir_name)// &
@@ -1023,8 +1023,8 @@ CONTAINS
             "read dip file", TRIM(file_name_act)
       END IF
 
-      IF (tmc_ana%id_traj .GT. 0 .OR. tmc_ana%id_cell .GT. 0 .OR. &
-          tmc_ana%id_dip .GT. 0) THEN
+      IF (tmc_ana%id_traj > 0 .OR. tmc_ana%id_cell > 0 .OR. &
+          tmc_ana%id_dip > 0) THEN
          stat = TMC_STATUS_OK
       ELSE
          CALL cp_warn(__LOCATION__, &
@@ -1054,13 +1054,13 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ! position file
-      IF (tmc_ana%id_traj .GT. 0) CALL close_file(unit_number=tmc_ana%id_traj)
+      IF (tmc_ana%id_traj > 0) CALL close_file(unit_number=tmc_ana%id_traj)
 
       ! cell file
-      IF (tmc_ana%id_cell .GT. 0) CALL close_file(unit_number=tmc_ana%id_cell)
+      IF (tmc_ana%id_cell > 0) CALL close_file(unit_number=tmc_ana%id_cell)
 
       ! dipole file
-      IF (tmc_ana%id_dip .GT. 0) CALL close_file(unit_number=tmc_ana%id_dip)
+      IF (tmc_ana%id_dip > 0) CALL close_file(unit_number=tmc_ana%id_dip)
 
       ! end the timing
       CALL timestop(handle)

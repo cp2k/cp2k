@@ -359,7 +359,7 @@ CONTAINS
 !$OMP PARALLEL DO DEFAULT( NONE )                                  &
 !$OMP             SHARED( np, rho, dispersion_env, thetas, const ) &
 !$OMP             PRIVATE( i )                                     &
-!$OMP             SCHEDULE(DYNAMIC)    ! use dynamic to allow for possibility of cases having   (rho(i_grid) .LE. epsr)
+!$OMP             SCHEDULE(DYNAMIC)    ! use dynamic to allow for possibility of cases having   (rho(i_grid) <= epsr)
          DO i_grid = 1, np
             IF (rho(i_grid) > epsr) THEN
                DO i = 1, dispersion_env%nqs
@@ -839,7 +839,7 @@ CONTAINS
                   prefactor = 0.0_dp
                END IF
             END SELECT
-            IF (q0(i_grid) .NE. q_mesh(nqs)) THEN
+            IF (q0(i_grid) /= q_mesh(nqs)) THEN
                h_prefactor(i_grid) = h_prefactor(i_grid) + prefactor
             END IF
 

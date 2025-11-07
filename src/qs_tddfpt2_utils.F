@@ -1067,7 +1067,7 @@ CONTAINS
          spin_label1 = '     '
          spin_label2 = spin_label1
          ! Labels and spin component for spin-flip excitations
-      ELSE IF (tddfpt_control%spinflip .NE. no_sf_tddfpt) THEN
+      ELSE IF (tddfpt_control%spinflip /= no_sf_tddfpt) THEN
          spin1 = 1
          spin2 = 2
          spin_label1 = '(alp)'

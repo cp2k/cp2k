@@ -391,7 +391,7 @@ CONTAINS
                            isplit_sum = 0
                            DO iblk = 1, SIZE(blk_size_d)
                               splitsum = 0
-                              IF (iblk .GT. 1) first_split_d(iblk) = last_split_d(iblk - 1) + 1
+                              IF (iblk > 1) first_split_d(iblk) = last_split_d(iblk - 1) + 1
                               DO WHILE (splitsum < blk_size_d(iblk))
                                  isplit_sum = isplit_sum + 1
                                  #:for idim in range(1, maxdim+1)

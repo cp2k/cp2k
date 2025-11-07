@@ -112,7 +112,7 @@ CONTAINS
       CPASSERT(check_ok)
 
       ! check hash table size, if too small rehash in a larger table
-      IF (hash_table%obj%nelements*ENLARGE_RATIO .GE. hash_table%obj%nmax) THEN
+      IF (hash_table%obj%nelements*ENLARGE_RATIO >= hash_table%obj%nmax) THEN
          CALL nl_hash_table_rehash(hash_table=hash_table, nmax=hash_table%obj%nmax*EXPAND_FACTOR)
       END IF
 
@@ -174,7 +174,7 @@ CONTAINS
 
       LOGICAL                                            :: check_ok
 
-      CPASSERT((idx .GT. 0) .AND. (idx .LE. hash_table%obj%nmax))
+      CPASSERT((idx > 0) .AND. (idx <= hash_table%obj%nmax))
 
       check_ok = nl_hash_table_has_data(hash_table)
       CPASSERT(check_ok)
@@ -215,13 +215,13 @@ CONTAINS
       ! table length should always be power of 2. Find the least
       ! power that is greater or equal to my_nmax
       two_to_power = 1 ! = 2**0
-      DO WHILE (two_to_power .LT. my_nmax)
+      DO WHILE (two_to_power < my_nmax)
          two_to_power = 2*two_to_power
       END DO
       my_nmax = two_to_power
 
       IF (ASSOCIATED(hash_table%obj%table)) THEN
-         IF (SIZE(hash_table%obj%table) .NE. my_nmax) THEN
+         IF (SIZE(hash_table%obj%table) /= my_nmax) THEN
             DEALLOCATE (hash_table%obj%table)
             ALLOCATE (hash_table%obj%table(my_nmax))
          END IF
@@ -254,7 +254,7 @@ CONTAINS
 
       check_ok = nl_hash_table_has_data(hash_table)
       CPASSERT(check_ok)
-      check_ok = (key .LE. hash_table%obj%nmax)
+      check_ok = (key <= hash_table%obj%nmax)
       CPASSERT(check_ok)
 
       is_null = .FALSE.
@@ -292,7 +292,7 @@ CONTAINS
       CALL nl_hash_table_release(hash_table)
       CALL nl_hash_table_create(hash_table=hash_table, nmax=my_nmax)
       DO ii = 1, SIZE(tmp_table)
-         IF (tmp_table(ii)%key .NE. EMPTY_KEY) THEN
+         IF (tmp_table(ii)%key /= EMPTY_KEY) THEN
             CALL nl_hash_table_add(hash_table=hash_table, &
                                    key=tmp_table(ii)%key, &
                                    val=tmp_table(ii)%val)

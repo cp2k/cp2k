@@ -92,7 +92,7 @@ CONTAINS
                           cg=elem%rng_seed(:, :, 2), ig=elem%rng_seed(:, :, 3))
 
       IF (new_subbox) THEN
-         IF (ALL(tmc_params%sub_box_size .GT. 0.0_dp)) THEN
+         IF (ALL(tmc_params%sub_box_size > 0.0_dp)) THEN
             CALL elements_in_new_subbox(tmc_params=tmc_params, &
                                         rng_stream=rng_stream, elem=elem, &
                                         nr_of_sub_box_elements=nr_sub_box_elem)
@@ -102,8 +102,8 @@ CONTAINS
       END IF
 
       ! at least one atom should be in the sub box
-      CPASSERT(ANY(elem%elem_stat(:) .EQ. status_ok))
-      IF (tmc_params%nr_elem_mv .EQ. 0) THEN
+      CPASSERT(ANY(elem%elem_stat(:) == status_ok))
+      IF (tmc_params%nr_elem_mv == 0) THEN
          ! move all elements (could be all atoms or all molecules)
          act_nr_elem_mv = 0
       ELSE
@@ -124,13 +124,13 @@ CONTAINS
 !                    rng_seed=elem%rng_seed, rng_seed_last_acc=last_acc_elem%rng_seed)
          !-- atom translation
       CASE (mv_type_atom_trans)
-         IF (act_nr_elem_mv .EQ. 0) &
+         IF (act_nr_elem_mv == 0) &
             act_nr_elem_mv = SIZE(elem%pos)/tmc_params%dim_per_elem
          ALLOCATE (elem_center(tmc_params%dim_per_elem))
          i = 1
          move_elements_loop: DO
             ! select atom
-            IF (tmc_params%nr_elem_mv .EQ. 0) THEN
+            IF (tmc_params%nr_elem_mv == 0) THEN
                ind = (i - 1)*(tmc_params%dim_per_elem) + 1
             ELSE
                rnd = rng_stream%next()
@@ -138,7 +138,7 @@ CONTAINS
                      INT(rnd*(SIZE(elem%pos)/tmc_params%dim_per_elem)) + 1
             END IF
             ! apply move
-            IF (elem%elem_stat(ind) .EQ. status_ok) THEN
+            IF (elem%elem_stat(ind) == status_ok) THEN
                ! displace atom
                DO d = 0, tmc_params%dim_per_elem - 1
                   rnd = rng_stream%next()
@@ -156,10 +156,10 @@ CONTAINS
                END IF
             ELSE
                ! element was not in sub box, search new one instead
-               IF (tmc_params%nr_elem_mv .GT. 0) i = i - 1
+               IF (tmc_params%nr_elem_mv > 0) i = i - 1
             END IF
             i = i + 1
-            IF (i .GT. act_nr_elem_mv) EXIT move_elements_loop
+            IF (i > act_nr_elem_mv) EXIT move_elements_loop
          END DO move_elements_loop
          DEALLOCATE (elem_center)
 
@@ -167,7 +167,7 @@ CONTAINS
       CASE (mv_type_mol_trans)
          nr_molec = MAXVAL(elem%mol(:))
          ! if all particles should be displaced, set the amount of molecules
-         IF (act_nr_elem_mv .EQ. 0) &
+         IF (act_nr_elem_mv == 0) &
             act_nr_elem_mv = nr_molec
          ALLOCATE (mol_in_sb(nr_molec))
          ALLOCATE (elem_center(tmc_params%dim_per_elem))
@@ -185,12 +185,12 @@ CONTAINS
                mol_in_sb(m) = status_ok
          END DO
          ! displace the selected amount of molecules
-         IF (ANY(mol_in_sb(:) .EQ. status_ok)) THEN
+         IF (ANY(mol_in_sb(:) == status_ok)) THEN
             ALLOCATE (direction(tmc_params%dim_per_elem))
             counter = 1
             move_molecule_loop: DO
                ! select molecule
-               IF (tmc_params%nr_elem_mv .EQ. 0) THEN
+               IF (tmc_params%nr_elem_mv == 0) THEN
                   m = counter
                ELSE
                   rnd = rng_stream%next()
@@ -199,11 +199,11 @@ CONTAINS
                CALL get_mol_indeces(tmc_params=tmc_params, mol_arr=elem%mol, mol=m, &
                                     start_ind=ind, end_ind=ind_e)
                ! when "molecule" is single atom, search a new one
-               IF (ind .EQ. ind_e) CYCLE move_molecule_loop
+               IF (ind == ind_e) CYCLE move_molecule_loop
 
                ! calculate displacement
                !  move only molecules, with geom. center in subbox
-               IF (mol_in_sb(m) .EQ. status_ok) THEN
+               IF (mol_in_sb(m) == status_ok) THEN
                   ! calculate displacement
                   DO d = 1, tmc_params%dim_per_elem
                      rnd = rng_stream%next()
@@ -229,10 +229,10 @@ CONTAINS
                   END IF
                ELSE
                   ! element was not in sub box, search new one instead
-                  IF (tmc_params%nr_elem_mv .GT. 0) counter = counter - 1
+                  IF (tmc_params%nr_elem_mv > 0) counter = counter - 1
                END IF
                counter = counter + 1
-               IF (counter .GT. act_nr_elem_mv) EXIT move_molecule_loop
+               IF (counter > act_nr_elem_mv) EXIT move_molecule_loop
             END DO move_molecule_loop
             DEALLOCATE (direction)
          END IF
@@ -242,7 +242,7 @@ CONTAINS
          !-- molecule rotation
       CASE (mv_type_mol_rot)
          nr_molec = MAXVAL(elem%mol(:))
-         IF (act_nr_elem_mv .EQ. 0) &
+         IF (act_nr_elem_mv == 0) &
             act_nr_elem_mv = nr_molec
          ALLOCATE (mol_in_sb(nr_molec))
          ALLOCATE (elem_center(tmc_params%dim_per_elem))
@@ -260,11 +260,11 @@ CONTAINS
                mol_in_sb(m) = status_ok
          END DO
          ! rotate the selected amount of molecules
-         IF (ANY(mol_in_sb(:) .EQ. status_ok)) THEN
+         IF (ANY(mol_in_sb(:) == status_ok)) THEN
             counter = 1
             rot_molecule_loop: DO
                ! select molecule
-               IF (tmc_params%nr_elem_mv .EQ. 0) THEN
+               IF (tmc_params%nr_elem_mv == 0) THEN
                   m = counter
                ELSE
                   rnd = rng_stream%next()
@@ -273,10 +273,10 @@ CONTAINS
                CALL get_mol_indeces(tmc_params=tmc_params, mol_arr=elem%mol, mol=m, &
                                     start_ind=ind, end_ind=ind_e)
                ! when "molecule" is single atom, search a new one
-               IF (ind .EQ. ind_e) CYCLE rot_molecule_loop
+               IF (ind == ind_e) CYCLE rot_molecule_loop
 
                ! apply move
-               IF (mol_in_sb(m) .EQ. status_ok) THEN
+               IF (mol_in_sb(m) == status_ok) THEN
                   CALL do_mol_rot(pos=elem%pos, ind_start=ind, ind_end=ind_e, &
                                   max_angle=move_types%mv_size( &
                                   mv_type_mol_rot, mv_conf), &
@@ -296,10 +296,10 @@ CONTAINS
                   END DO
                ELSE
                   ! element was not in sub box, search new one instead
-                  IF (tmc_params%nr_elem_mv .GT. 0) counter = counter - 1
+                  IF (tmc_params%nr_elem_mv > 0) counter = counter - 1
                END IF
                counter = counter + 1
-               IF (counter .GT. act_nr_elem_mv) EXIT rot_molecule_loop
+               IF (counter > act_nr_elem_mv) EXIT rot_molecule_loop
             END DO rot_molecule_loop
          END IF
          DEALLOCATE (elem_center)
@@ -311,7 +311,7 @@ CONTAINS
          CPASSERT(ASSOCIATED(tmc_params%atoms))
          change_all_velocities_loop: DO i = 1, SIZE(elem%pos)
             !-- attention, move type size is in atomic units of velocity
-            IF (elem%elem_stat(i) .NE. status_frozen) THEN
+            IF (elem%elem_stat(i) /= status_frozen) THEN
                CALL vel_change(vel=elem%vel(i), &
                                atom_kind=tmc_params%atoms(INT(i/REAL(tmc_params%dim_per_elem, KIND=dp)) + 1), &
                                phi=move_types%mv_size(mv_type_MD, 1), & ! TODO parallel tempering move sizes for vel_change
@@ -374,25 +374,25 @@ CONTAINS
       end_ind = -1
 
       CPASSERT(ASSOCIATED(mol_arr))
-      CPASSERT(mol .LE. MAXVAL(mol_arr(:)))
+      CPASSERT(mol <= MAXVAL(mol_arr(:)))
       ! get start index
       loop_start: DO i = 1, SIZE(mol_arr)
-         IF (mol_arr(i) .EQ. mol) THEN
+         IF (mol_arr(i) == mol) THEN
             start_ind = i
             EXIT loop_start
          END IF
       END DO loop_start
       ! get end index
       loop_end: DO i = SIZE(mol_arr), i, -1
-         IF (mol_arr(i) .EQ. mol) THEN
+         IF (mol_arr(i) == mol) THEN
             end_ind = i
             EXIT loop_end
          END IF
       END DO loop_end
       ! check if all atoms inbetween attend to molecule
-      CPASSERT(ALL(mol_arr(start_ind:end_ind) .EQ. mol))
-      CPASSERT(start_ind .GT. 0)
-      CPASSERT(end_ind .GT. 0)
+      CPASSERT(ALL(mol_arr(start_ind:end_ind) == mol))
+      CPASSERT(start_ind > 0)
+      CPASSERT(end_ind > 0)
       ! convert to indeces mapped for the position array (multiple dim per atom)
       start_ind = (start_ind - 1)*tmc_params%dim_per_elem + 1
       end_ind = (end_ind - 1)*tmc_params%dim_per_elem + 1
@@ -424,10 +424,10 @@ CONTAINS
       CPASSERT(ASSOCIATED(subbox_center))
       CPASSERT(ASSOCIATED(box_scale))
       ! if pressure is defined, no scale should be 0
-      flag = .NOT. ((tmc_params%pressure .GT. 0.0_dp) .AND. (ANY(box_scale .EQ. 0.0_dp)))
+      flag = .NOT. ((tmc_params%pressure > 0.0_dp) .AND. (ANY(box_scale == 0.0_dp)))
       CPASSERT(flag)
-      CPASSERT(SIZE(pos) .EQ. 3)
-      CPASSERT(SIZE(pos) .EQ. SIZE(subbox_center))
+      CPASSERT(SIZE(pos) == 3)
+      CPASSERT(SIZE(pos) == SIZE(subbox_center))
 
       ! start the timing
       CALL timeset(routineN, handle)
@@ -436,13 +436,13 @@ CONTAINS
 
       inside = .TRUE.
       ! return if no subbox is defined
-      IF (.NOT. ANY(tmc_params%sub_box_size(:) .LE. 0.1_dp)) THEN
+      IF (.NOT. ANY(tmc_params%sub_box_size(:) <= 0.1_dp)) THEN
          pos_tmp(:) = pos(:) - subbox_center(:)
          CALL get_scaled_cell(cell=tmc_params%cell, box_scale=box_scale, &
                               vec=pos_tmp)
          ! check
-         IF (ANY(pos_tmp(:) .GE. tmc_params%sub_box_size(:)/2.0) .OR. &
-             ANY(pos_tmp(:) .LE. -tmc_params%sub_box_size(:)/2.0)) THEN
+         IF (ANY(pos_tmp(:) >= tmc_params%sub_box_size(:)/2.0) .OR. &
+             ANY(pos_tmp(:) <= -tmc_params%sub_box_size(:)/2.0)) THEN
             inside = .FALSE.
          END IF
       END IF
@@ -483,7 +483,7 @@ CONTAINS
       ! start the timing
       CALL timeset(routineN, handle)
 
-      IF (ANY(tmc_params%sub_box_size(:) .LE. 0.1_dp)) THEN
+      IF (ANY(tmc_params%sub_box_size(:) <= 0.1_dp)) THEN
          !CPWARN("try to count elements in sub box without sub box.")
          elem%elem_stat = status_ok
          nr_of_sub_box_elements = SIZE(elem%elem_stat)
@@ -552,9 +552,9 @@ CONTAINS
       NULLIFY (elem_center)
 
       CPASSERT(ASSOCIATED(pos))
-      CPASSERT(dim_per_elem .EQ. 3)
-      CPASSERT(ind_start .GT. 0 .AND. ind_start .LT. SIZE(pos))
-      CPASSERT(ind_end .GT. 0 .AND. ind_end .LT. SIZE(pos))
+      CPASSERT(dim_per_elem == 3)
+      CPASSERT(ind_start > 0 .AND. ind_start < SIZE(pos))
+      CPASSERT(ind_end > 0 .AND. ind_end < SIZE(pos))
       CPASSERT(ASSOCIATED(move_types))
       MARK_USED(move_types)
 
@@ -628,7 +628,7 @@ CONTAINS
       ! without still the balance condition should be fulfilled
 
       rnd3 = rng_stream%next()
-      IF (rnd3 .GE. 0.5 .AND. rnd_sign_change) THEN
+      IF (rnd3 >= 0.5 .AND. rnd_sign_change) THEN
          d = -1
       ELSE
          d = 1
@@ -680,7 +680,7 @@ CONTAINS
       mol_arr(:) = -1
       donor_acceptor = not_selected
       ! select randomly if neighboring molecule is donor / acceptor
-      IF (rng_stream%next() .LT. 0.5_dp) THEN
+      IF (rng_stream%next() < 0.5_dp) THEN
          donor_acceptor = proton_acceptor
       ELSE
          donor_acceptor = proton_donor
@@ -703,7 +703,7 @@ CONTAINS
          CALL find_nearest_proton_acceptor_donator(elem=elem, mol=mol, &
                                                    donor_acceptor=donor_acceptor, tmc_params=tmc_params, &
                                                    rng_stream=rng_stream)
-         IF (ANY(mol_arr(:) .EQ. mol)) &
+         IF (ANY(mol_arr(:) == mol)) &
             EXIT chain_completition_loop
          mol_arr(counter) = mol
       END DO chain_completition_loop
@@ -711,14 +711,14 @@ CONTAINS
 
       ! just take the loop of molecules out of the chain
       DO k = 1, counter
-         IF (mol_arr(k) .EQ. mol) &
+         IF (mol_arr(k) == mol) &
             EXIT
       END DO
       mol_arr(1:counter - k + 1) = mol_arr(k:counter)
       counter = counter - k + 1
 
       ! check if loop is minimum size of 6 molecules
-      IF (counter .LT. 6) THEN
+      IF (counter < 6) THEN
          CALL cp_warn(__LOCATION__, &
                       "short proton loop with"//cp_to_string(counter)// &
                       "molecules.")
@@ -790,21 +790,21 @@ CONTAINS
 
       ! calculate distances to all molecules
       list_distances: DO mol_tmp = 1, nr_mol
-         IF (mol_tmp .EQ. mol) CYCLE list_distances
+         IF (mol_tmp == mol) CYCLE list_distances
          ! index of the molecule (the O atom)
          ! assume the first atom of the molecule the first atom
          CALL get_mol_indeces(tmc_params=tmc_params, mol_arr=elem%mol, &
                               mol=mol_tmp, start_ind=ind_n, end_ind=ind_e)
          ! check if selected molecule is water respectively consists of 3 atoms
-         IF (MOD(ind_e - ind_n, 3) .GT. 0) THEN
+         IF (MOD(ind_e - ind_n, 3) > 0) THEN
             CALL cp_warn(__LOCATION__, &
                          "selected a molecule with more than 3 atoms, "// &
                          "the proton reordering does not support, skip molecule")
             CYCLE list_distances
          END IF
-         IF (donor_acceptor .EQ. proton_acceptor) THEN
+         IF (donor_acceptor == proton_acceptor) THEN
             IF (check_donor_acceptor(elem=elem, i_orig=ind, i_neighbor=ind_n, &
-                                     tmc_params=tmc_params) .EQ. proton_acceptor) THEN
+                                     tmc_params=tmc_params) == proton_acceptor) THEN
                !distance of fist proton to certain O
                distH1(mol_tmp) = nearest_distance( &
                                  x1=elem%pos(ind + tmc_params%dim_per_elem: &
@@ -820,9 +820,9 @@ CONTAINS
             END IF
          END IF
          !check for neighboring proton donors
-         IF (donor_acceptor .EQ. proton_donor) THEN
+         IF (donor_acceptor == proton_donor) THEN
             IF (check_donor_acceptor(elem=elem, i_orig=ind, i_neighbor=ind_n, &
-                                     tmc_params=tmc_params) .EQ. proton_donor) THEN
+                                     tmc_params=tmc_params) == proton_donor) THEN
                !distance of selected O to all first protons of other melecules
                distO(mol_tmp) = nearest_distance( &
                                 x1=elem%pos(ind:ind + tmc_params%dim_per_elem - 1), &
@@ -834,7 +834,7 @@ CONTAINS
                           x2=elem%pos(ind_n + 2*tmc_params%dim_per_elem: &
                                       ind_n + 3*tmc_params%dim_per_elem - 1), &
                           cell=tmc_params%cell, box_scale=elem%box_scale)
-               IF (dist_tmp .LT. distO(mol_tmp)) distO(mol_tmp) = dist_tmp
+               IF (dist_tmp < distO(mol_tmp)) distO(mol_tmp) = dist_tmp
             END IF
          END IF
       END DO list_distances
@@ -842,14 +842,14 @@ CONTAINS
       mol_tmp = 1
       ! select the nearest neighbors
       !check for neighboring proton acceptors
-      IF (donor_acceptor .EQ. proton_acceptor) THEN
+      IF (donor_acceptor == proton_acceptor) THEN
          neighbor_mol(mol_tmp) = MINLOC(distH1(:), 1)
          neighbor_mol(mol_tmp + 1) = MINLOC(distH2(:), 1)
          ! if both smallest distances points to the shortest molecule search also the second next shortest distance
-         IF (neighbor_mol(mol_tmp) .EQ. neighbor_mol(mol_tmp + 1)) THEN
+         IF (neighbor_mol(mol_tmp) == neighbor_mol(mol_tmp + 1)) THEN
             distH1(neighbor_mol(mol_tmp)) = HUGE(distH1(1))
             distH2(neighbor_mol(mol_tmp + 1)) = HUGE(distH2(1))
-            IF (MINVAL(distH1(:), 1) .LT. MINVAL(distH2(:), 1)) THEN
+            IF (MINVAL(distH1(:), 1) < MINVAL(distH2(:), 1)) THEN
                neighbor_mol(mol_tmp) = MINLOC(distH1(:), 1)
             ELSE
                neighbor_mol(mol_tmp + 1) = MINLOC(distH2(:), 1)
@@ -859,7 +859,7 @@ CONTAINS
       END IF
 
       !check for neighboring proton donors
-      IF (donor_acceptor .EQ. proton_donor) THEN
+      IF (donor_acceptor == proton_donor) THEN
          neighbor_mol(mol_tmp) = MINLOC(distO(:), 1)
          distO(neighbor_mol(mol_tmp)) = HUGE(distO(1))
          neighbor_mol(mol_tmp + 1) = MINLOC(distO(:), 1)
@@ -899,8 +899,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(4)                        :: distances
 
       CPASSERT(ASSOCIATED(elem))
-      CPASSERT(i_orig .GE. 1 .AND. i_orig .LE. SIZE(elem%pos))
-      CPASSERT(i_neighbor .GE. 1 .AND. i_neighbor .LE. SIZE(elem%pos))
+      CPASSERT(i_orig >= 1 .AND. i_orig <= SIZE(elem%pos))
+      CPASSERT(i_neighbor >= 1 .AND. i_neighbor <= SIZE(elem%pos))
       CPASSERT(ASSOCIATED(tmc_params))
 
       ! 1. proton of orig with neighbor O
@@ -928,7 +928,7 @@ CONTAINS
                                  i_neighbor + 3*tmc_params%dim_per_elem - 1), &
                      cell=tmc_params%cell, box_scale=elem%box_scale)
 
-      IF (MINLOC(distances(:), 1) .LE. 2) THEN
+      IF (MINLOC(distances(:), 1) <= 2) THEN
          donor_acceptor = proton_acceptor
       ELSE
          donor_acceptor = proton_donor
@@ -1000,7 +1000,7 @@ CONTAINS
              x2=elem%pos(ind_arr(i) + tmc_params%dim_per_elem: &
                          ind_arr(i) + 2*tmc_params%dim_per_elem - 1), &
              cell=tmc_params%cell, box_scale=elem%box_scale) &
-             .LT. &
+             < &
              nearest_distance( &
              x1=elem%pos(ind_arr(i + donor_acceptor): &
                          ind_arr(i + donor_acceptor) + tmc_params%dim_per_elem - 1), &
@@ -1048,11 +1048,11 @@ CONTAINS
             dist_near = HUGE(dist_near)
             search_O_loop: DO ind = 1, SIZE(elem%pos), &
                tmc_params%dim_per_elem*3
-               IF (ind .EQ. ind_arr(i)) CYCLE search_O_loop
+               IF (ind == ind_arr(i)) CYCLE search_O_loop
                tmp = nearest_distance(x1=vec_2H_f, &
                                       x2=elem%pos(ind:ind + tmc_params%dim_per_elem - 1), &
                                       cell=tmc_params%cell, box_scale=elem%box_scale)
-               IF (dist_near .GT. tmp) THEN
+               IF (dist_near > tmp) THEN
                   dist_near = tmp
                   vec_4O = elem%pos(ind:ind + tmc_params%dim_per_elem - 1)
                END IF
@@ -1067,7 +1067,7 @@ CONTAINS
                      ind_arr(i) + (H_offset + 1)*tmc_params%dim_per_elem - 1) &
                = vec_2O + vec_rotated
             vec_rotated = rotate_vector(vec_2H_f - vec_2O, dihe_angle, rot_axis)
-            IF (H_offset .EQ. 1) THEN
+            IF (H_offset == 1) THEN
                H_offset = 2
             ELSE
                H_offset = 1
@@ -1119,8 +1119,8 @@ CONTAINS
       CPASSERT(ASSOCIATED(conf))
       CPASSERT(ASSOCIATED(move_types))
       CPASSERT(ASSOCIATED(tmc_params))
-      CPASSERT(T_ind .GT. 0 .AND. T_ind .LE. tmc_params%nr_temp)
-      CPASSERT(tmc_params%dim_per_elem .EQ. 3)
+      CPASSERT(T_ind > 0 .AND. T_ind <= tmc_params%nr_temp)
+      CPASSERT(tmc_params%dim_per_elem == 3)
       CPASSERT(tmc_params%cell%orthorhombic)
 
       ! start the timing
@@ -1251,13 +1251,13 @@ CONTAINS
          a_2 = INT(SIZE(conf%pos)/REAL(tmc_params%dim_per_elem, KIND=dp)* &
                    rng_stream%next()) + 1
          ! check if they have different kinds
-         IF (tmc_params%atoms(a_1)%name .NE. tmc_params%atoms(a_2)%name) THEN
+         IF (tmc_params%atoms(a_1)%name /= tmc_params%atoms(a_2)%name) THEN
             ! if present, check if atoms have different type related to the specified table
             IF (ASSOCIATED(move_types%atom_lists)) THEN
                DO ind_1 = 1, SIZE(move_types%atom_lists)
-                  IF (ANY(move_types%atom_lists(ind_1)%atoms(:) .EQ. &
+                  IF (ANY(move_types%atom_lists(ind_1)%atoms(:) == &
                           tmc_params%atoms(a_1)%name) .AND. &
-                      ANY(move_types%atom_lists(ind_1)%atoms(:) .EQ. &
+                      ANY(move_types%atom_lists(ind_1)%atoms(:) == &
                           tmc_params%atoms(a_2)%name)) THEN
                      found = .TRUE.
                      EXIT atom_search_loop

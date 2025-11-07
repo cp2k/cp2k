@@ -542,7 +542,7 @@ CONTAINS
          IF (do_transport) THEN
             maxscf_reached = should_stop .OR. iscf >= ls_scf_env%max_scf
             ! one extra scf step for post-processing in transmission calculations
-            IF (transport_env%params%method .EQ. transport_transmission) THEN
+            IF (transport_env%params%method == transport_transmission) THEN
                IF (transm_maxscf_reached) THEN
                   IF (unit_nr > 0) WRITE (unit_nr, '(T2,A)') "SCF not converged! "
                   EXIT
@@ -596,7 +596,7 @@ CONTAINS
                      CALL dbcsr_copy(matrix_mixing_old(ispin), ls_scf_env%matrix_ks(ispin))
                   ELSE
                      IF (ls_scf_env%ls_diis) THEN ! ------- IF-DIIS+MIX--- START
-                        IF (diis_step .AND. (iscf - 1) .GE. ls_scf_env%iter_ini_diis) THEN
+                        IF (diis_step .AND. (iscf - 1) >= ls_scf_env%iter_ini_diis) THEN
                            IF (unit_nr > 0) THEN
                               WRITE (unit_nr, '(A61)') &
                                  '*************************************************************'
@@ -659,7 +659,7 @@ CONTAINS
                IF (do_transport) THEN
                   IF (ls_scf_env%has_s_preconditioner) &
                      CPABORT("NOT YET IMPLEMENTED with S preconditioner. ")
-                  IF (ls_scf_env%ls_mstruct%cluster_type .NE. ls_cluster_atomic) &
+                  IF (ls_scf_env%ls_mstruct%cluster_type /= ls_cluster_atomic) &
                      CPABORT("NOT YET IMPLEMENTED with molecular clustering. ")
 
                   extra_scf = maxscf_reached .OR. scf_converged
@@ -693,7 +693,7 @@ CONTAINS
                   CASE (ls_scf_pexsi)
                      IF (ls_scf_env%has_s_preconditioner) &
                         CPABORT("S preconditioning not implemented in combination with the PEXSI library. ")
-                     IF (ls_scf_env%ls_mstruct%cluster_type .NE. ls_cluster_atomic) &
+                     IF (ls_scf_env%ls_mstruct%cluster_type /= ls_cluster_atomic) &
                         CALL cp_abort(__LOCATION__, &
                                       "Molecular clustering not implemented in combination with the PEXSI library. ")
                      CALL density_matrix_pexsi(ls_scf_env%pexsi, ls_scf_env%matrix_p(ispin), ls_scf_env%pexsi%matrix_w(ispin), &
@@ -744,7 +744,7 @@ CONTAINS
          IF (do_transport) THEN
             scf_converged = check_convergence .AND. ABS(energy_diff) < ls_scf_env%eps_scf*ls_scf_env%nelectron_total
             ! one extra scf step for post-processing in transmission calculations
-            IF (transport_env%params%method .EQ. transport_transmission) THEN
+            IF (transport_env%params%method == transport_transmission) THEN
                IF (transm_scf_converged) EXIT
                transm_scf_converged = scf_converged
             ELSE
@@ -779,7 +779,7 @@ CONTAINS
             CALL pexsi_set_convergence_tolerance(ls_scf_env%pexsi, energy_diff, &
                                                  ls_scf_env%eps_scf*ls_scf_env%nelectron_total, &
                                                  ! initialize in second scf step of first SCF cycle:
-                                                 (iscf .EQ. 2) .AND. (ls_scf_env%scf_history%istore .EQ. 0), &
+                                                 (iscf == 2) .AND. (ls_scf_env%scf_history%istore == 0), &
                                                  check_convergence)
          END IF
 

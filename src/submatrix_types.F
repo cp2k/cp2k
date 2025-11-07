@@ -81,11 +81,11 @@ CONTAINS
       INTEGER, INTENT(IN)                     :: elem
       INTEGER, DIMENSION(:), ALLOCATABLE      :: tmp
 
-      IF (this%allocated .EQ. 0) THEN
+      IF (this%allocated == 0) THEN
          this%allocated = extvec_initial_alloc
          ALLOCATE (this%darr(this%allocated))
       ELSE
-         IF (this%elements .EQ. this%allocated) THEN
+         IF (this%elements == this%allocated) THEN
             ALLOCATE (tmp(this%allocated))
             tmp(:) = this%darr
             DEALLOCATE (this%darr)
@@ -161,7 +161,7 @@ CONTAINS
       idx = MODULO(elem, set_modulus)
 
       DO i = 1, this%data(idx)%elements
-         IF (this%data(idx)%darr(i) .EQ. elem) THEN
+         IF (this%data(idx)%darr(i) == elem) THEN
             found = .TRUE.
             EXIT
          END IF
@@ -213,7 +213,7 @@ CONTAINS
 
       idx = 1
       DO i = 0, set_modulus - 1
-         IF (this%data(i)%elements .GT. 0) THEN
+         IF (this%data(i)%elements > 0) THEN
             this%sorted(idx:idx + this%data(i)%elements - 1) = this%data(i)%darr(1:this%data(i)%elements)
             idx = idx + this%data(i)%elements
          END IF

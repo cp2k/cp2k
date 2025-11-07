@@ -693,7 +693,7 @@ CONTAINS
       TYPE(dbt_buffer_type), INTENT(IN)                  :: buffer
       LOGICAL                                            :: dbt_buffer_blocks_left
 
-      dbt_buffer_blocks_left = buffer%endpos .LT. buffer%nblock
+      dbt_buffer_blocks_left = buffer%endpos < buffer%nblock
    END FUNCTION
 
 ! **************************************************************************************************
@@ -758,7 +758,7 @@ CONTAINS
       ndata = PRODUCT(SHAPE(block))
 
       p = buffer%endpos
-      IF (p .EQ. 0) THEN
+      IF (p == 0) THEN
          p_data = 0
       ELSE
          p_data = INT(buffer%indx(p, 3))
@@ -806,7 +806,7 @@ CONTAINS
       END IF
 
       p = buffer%endpos
-      IF (p .EQ. 0) THEN
+      IF (p == 0) THEN
          p_data = 0
       ELSE
          p_data = INT(buffer%indx(p, 3))

@@ -589,7 +589,7 @@ CONTAINS
          fa = cg_eval1d(gopt_env, ax, pcom, xicom)
          fb = cg_eval1d(gopt_env, bx, pcom, xicom)
       END IF
-      IF (fb .GT. fa) THEN
+      IF (fb > fa) THEN
          dum = ax
          ax = bx
          bx = dum
@@ -606,7 +606,7 @@ CONTAINS
          fc = cg_eval1d(gopt_env, cx, pcom, xicom)
       END IF
       loc_iter = 3
-      DO WHILE (fb .GE. fc)
+      DO WHILE (fb >= fc)
          CALL external_control(should_stop, "MNBRACK", globenv=globenv)
          IF (should_stop) EXIT
          !
@@ -614,7 +614,7 @@ CONTAINS
          q = (bx - cx)*(fb - fa)
          u = bx - ((bx - cx)*q - (bx - ax)*r)/(2.0_dp*SIGN(MAX(ABS(q - r), TINY(0.0_dp)), q - r))
          ulim = bx + brack_limit*(cx - bx)
-         IF ((bx - u)*(u - cx) .GT. 0.0_dp) THEN
+         IF ((bx - u)*(u - cx) > 0.0_dp) THEN
             IF (hist) THEN
                odim = SIZE(histpoint, 1)
                CALL reallocate(histpoint, 1, odim + 1, 1, 3)
@@ -625,13 +625,13 @@ CONTAINS
                fu = cg_eval1d(gopt_env, u, pcom, xicom)
             END IF
             loc_iter = loc_iter + 1
-            IF (fu .LT. fc) THEN
+            IF (fu < fc) THEN
                ax = bx
                fa = fb
                bx = u
                fb = fu
                EXIT
-            ELSE IF (fu .GT. fb) THEN
+            ELSE IF (fu > fb) THEN
                cx = u
                fc = fu
                EXIT
@@ -647,7 +647,7 @@ CONTAINS
                fu = cg_eval1d(gopt_env, u, pcom, xicom)
             END IF
             loc_iter = loc_iter + 1
-         ELSE IF ((cx - u)*(u - ulim) .GT. 0.) THEN
+         ELSE IF ((cx - u)*(u - ulim) > 0.) THEN
             IF (hist) THEN
                odim = SIZE(histpoint, 1)
                CALL reallocate(histpoint, 1, odim + 1, 1, 3)
@@ -658,7 +658,7 @@ CONTAINS
                fu = cg_eval1d(gopt_env, u, pcom, xicom)
             END IF
             loc_iter = loc_iter + 1
-            IF (fu .LT. fc) THEN
+            IF (fu < fc) THEN
                bx = cx
                cx = u
                u = cx + gold*(cx - bx)
@@ -675,7 +675,7 @@ CONTAINS
                END IF
                loc_iter = loc_iter + 1
             END IF
-         ELSE IF ((u - ulim)*(ulim - cx) .GE. 0.) THEN
+         ELSE IF ((u - ulim)*(ulim - cx) >= 0.) THEN
             u = ulim
             IF (hist) THEN
                odim = SIZE(histpoint, 1)
@@ -783,22 +783,22 @@ CONTAINS
          tol2 = 2.0_dp*tol1
          skip0 = .FALSE.
          skip1 = .FALSE.
-         IF (ABS(x - xm) .LE. (tol2 - 0.5_dp*(b - a))) EXIT
-         IF (ABS(e) .GT. tol1) THEN
+         IF (ABS(x - xm) <= (tol2 - 0.5_dp*(b - a))) EXIT
+         IF (ABS(e) > tol1) THEN
             d1 = 2.0_dp*(b - a)
             d2 = d1
-            IF (dw .NE. dx) d1 = (w - x)*dx/(dx - dw)
-            IF (dv .NE. dx) d2 = (v - x)*dx/(dx - dv)
+            IF (dw /= dx) d1 = (w - x)*dx/(dx - dw)
+            IF (dv /= dx) d2 = (v - x)*dx/(dx - dv)
             u1 = x + d1
             u2 = x + d2
-            ok1 = ((a - u1)*(u1 - b) .GT. 0.0_dp) .AND. (dx*d1 .LE. 0.0_dp)
-            ok2 = ((a - u2)*(u2 - b) .GT. 0.0_dp) .AND. (dx*d2 .LE. 0.0_dp)
+            ok1 = ((a - u1)*(u1 - b) > 0.0_dp) .AND. (dx*d1 <= 0.0_dp)
+            ok2 = ((a - u2)*(u2 - b) > 0.0_dp) .AND. (dx*d2 <= 0.0_dp)
             olde = e
             e = d
             IF (.NOT. (ok1 .OR. ok2)) THEN
                skip0 = .TRUE.
             ELSE IF (ok1 .AND. ok2) THEN
-               IF (ABS(d1) .LT. ABS(d2)) THEN
+               IF (ABS(d1) < ABS(d2)) THEN
                   d = d1
                ELSE
                   d = d2
@@ -809,23 +809,23 @@ CONTAINS
                d = d2
             END IF
             IF (.NOT. skip0) THEN
-               IF (ABS(d) .GT. ABS(0.5_dp*olde)) skip0 = .TRUE.
+               IF (ABS(d) > ABS(0.5_dp*olde)) skip0 = .TRUE.
                IF (.NOT. skip0) THEN
                   u = x + d
-                  IF ((u - a) .LT. tol2 .OR. (b - u) .LT. tol2) d = SIGN(tol1, xm - x)
+                  IF ((u - a) < tol2 .OR. (b - u) < tol2) d = SIGN(tol1, xm - x)
                   skip1 = .TRUE.
                END IF
             END IF
          END IF
          IF (.NOT. skip1) THEN
-            IF (dx .GE. 0.0_dp) THEN
+            IF (dx >= 0.0_dp) THEN
                e = a - x
             ELSE
                e = b - x
             END IF
             d = 0.5_dp*e
          END IF
-         IF (ABS(d) .GE. tol1) THEN
+         IF (ABS(d) >= tol1) THEN
             u = x + d
             du = cg_deval1d(gopt_env, u, pcom, xicom, fu)
             loc_iter = loc_iter + 1
@@ -833,10 +833,10 @@ CONTAINS
             u = x + SIGN(tol1, d)
             du = cg_deval1d(gopt_env, u, pcom, xicom, fu)
             loc_iter = loc_iter + 1
-            IF (fu .GT. fx) EXIT
+            IF (fu > fx) EXIT
          END IF
-         IF (fu .LE. fx) THEN
-            IF (u .GE. x) THEN
+         IF (fu <= fx) THEN
+            IF (u >= x) THEN
                a = x
             ELSE
                b = x
@@ -844,15 +844,15 @@ CONTAINS
             v = w; fv = fw; dv = dw; w = x
             fw = fx; dw = dx; x = u; fx = fu; dx = du
          ELSE
-            IF (u .LT. x) THEN
+            IF (u < x) THEN
                a = u
             ELSE
                b = u
             END IF
-            IF (fu .LE. fw .OR. w .EQ. x) THEN
+            IF (fu <= fw .OR. w == x) THEN
                v = w; fv = fw; dv = dw
                w = u; fw = fu; dw = du
-            ELSE IF (fu .LE. fv .OR. v .EQ. x .OR. v .EQ. w) THEN
+            ELSE IF (fu <= fv .OR. v == x .OR. v == w) THEN
                v = u
                fv = fu
                dv = du

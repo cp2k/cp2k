@@ -257,7 +257,7 @@ CONTAINS
 
             ! follow to the next atom in the cycle
             curr_idx = helium%permutation(curr_idx)
-            IF (curr_idx .EQ. start_idx) THEN
+            IF (curr_idx == start_idx) THEN
                path_end_reached = .TRUE.
                EXIT
             END IF
@@ -323,7 +323,7 @@ CONTAINS
       curat = 1
       nused = 0
       ncycl = 0
-      DO WHILE (curat .LE. nsize)
+      DO WHILE (curat <= nsize)
 
          ! get the permutation cycle the current atom belongs to
          cur_cycle => helium_cycle_of(curat, permutation)
@@ -341,7 +341,7 @@ CONTAINS
          NULLIFY (cur_cycle)
 
          ! try to increment the current atom index
-         DO WHILE (ANY(used_indices .EQ. curat))
+         DO WHILE (ANY(used_indices == curat))
             curat = curat + 1
          END DO
 
@@ -445,7 +445,7 @@ CONTAINS
                   DO ib = 1, helium%beads
                      vlink(:) = helium_link_winding_number(helium, aa, ib)
                      DO id = 1, 3
-                        IF (ABS(wn(id)) .GT. 100.0_dp*EPSILON(0.0_dp)) THEN
+                        IF (ABS(wn(id)) > 100.0_dp*EPSILON(0.0_dp)) THEN
                            ii = helium%rho_property(ir)%component_index(id)
                            helium%rho_incr(ii, aa, ib) = vtotal(id)*vlink(id)*angstrom*angstrom
                         END IF
@@ -468,7 +468,7 @@ CONTAINS
             DO ic = 1, SIZE(cycles)
                wn = helium_cycle_winding_number(helium, cycles(ic)%iap, helium%pos)
                DO id = 1, 3
-                  IF (ABS(wn(id)) .GT. 100.0_dp*EPSILON(0.0_dp)) THEN
+                  IF (ABS(wn(id)) > 100.0_dp*EPSILON(0.0_dp)) THEN
                      nw(id) = nw(id) + SIZE(cycles(ic)%iap)
                   END IF
                END DO
@@ -477,11 +477,11 @@ CONTAINS
             DO ic = 1, SIZE(cycles)
                wn = helium_cycle_winding_number(helium, cycles(ic)%iap, helium%pos)
                DO id = 1, 3
-                  IF (ABS(wn(id)) .GT. 100.0_dp*EPSILON(0.0_dp)) THEN
+                  IF (ABS(wn(id)) > 100.0_dp*EPSILON(0.0_dp)) THEN
                      DO ia = 1, SIZE(cycles(ic)%iap)
                         aa = cycles(ic)%iap(ia)
                         DO ib = 1, helium%beads
-                           IF (nw(id) .GT. 0) THEN ! this test should always get passed
+                           IF (nw(id) > 0) THEN ! this test should always get passed
                               ii = helium%rho_property(ir)%component_index(id)
                               rtmp = invp/REAL(nw(id), dp)
                               helium%rho_incr(ii, aa, ib) = rtmp*vtotal(id)*vtotal(id)*angstrom*angstrom
@@ -526,9 +526,9 @@ CONTAINS
             by = INT((r(2) + maxr_half(2))*invdr) + 1
             bz = INT((r(3) + maxr_half(3))*invdr) + 1
             ! check that the resulting bin numbers are within array bounds
-            ltmp1 = (0 .LT. bx) .AND. (bx .LE. nbin)
-            ltmp2 = (0 .LT. by) .AND. (by .LE. nbin)
-            ltmp3 = (0 .LT. bz) .AND. (bz .LE. nbin)
+            ltmp1 = (0 < bx) .AND. (bx <= nbin)
+            ltmp2 = (0 < by) .AND. (by <= nbin)
+            ltmp3 = (0 < bz) .AND. (bz <= nbin)
             IF (ltmp1 .AND. ltmp2 .AND. ltmp3) THEN
                ! increment all the estimators (those that the current atom does not
                ! contribute to have increment incr(ic)==0)
@@ -547,7 +547,7 @@ CONTAINS
       ! since enforced PBC should have taken care of such leaks
       WRITE (msgstr, *) n_out_of_range
       msgstr = "Number of bead positions out of range: "//TRIM(ADJUSTL(msgstr))
-      IF (n_out_of_range .GT. 0) THEN
+      IF (n_out_of_range > 0) THEN
          CPABORT(msgstr)
       END IF
 
@@ -660,7 +660,7 @@ CONTAINS
                   CALL helium_pbc(helium, r)
                   ri = SQRT(r(1)*r(1) + r(2)*r(2) + r(3)*r(3))
                   bin = INT(ri*invdr) + 1
-                  IF ((0 .LT. bin) .AND. (bin .LE. nbin)) THEN
+                  IF ((0 < bin) .AND. (bin <= nbin)) THEN
                      ! increment the RDF value for He atoms inside the r_6 sphere
                      helium%rdf_inst(ind_hehe, bin) = helium%rdf_inst(ind_hehe, bin) + 1.0_dp
                   ELSE
@@ -682,7 +682,7 @@ CONTAINS
                   CALL helium_pbc(helium, r)
                   ri = SQRT(r(1)*r(1) + r(2)*r(2) + r(3)*r(3))
                   bin = INT(ri*invdr) + 1
-                  IF ((0 .LT. bin) .AND. (bin .LE. nbin)) THEN
+                  IF ((0 < bin) .AND. (bin <= nbin)) THEN
                      ! increment the RDF value for He atoms inside the r_6 sphere
                      helium%rdf_inst(ind_hehe + ia, bin) = helium%rdf_inst(ind_hehe + ia, bin) + 1.0_dp
                   ELSE
@@ -697,7 +697,7 @@ CONTAINS
       ! for periodic case we intentionally truncate RDFs to spherical volume
       ! so we skip atoms in the corners
       IF (.NOT. helium%periodic) THEN
-         IF (n_out_of_range .GT. 0) THEN
+         IF (n_out_of_range > 0) THEN
             WRITE (msgstr, *) n_out_of_range
             msgstr = "Number of bead positions out of range: "//TRIM(ADJUSTL(msgstr))
             CPWARN(msgstr)
@@ -1477,8 +1477,8 @@ CONTAINS
 !> \author Lukasz Walewski
 !> \note   Cycles (or paths) are numbered from 1 to <num_cycles>, where
 !>         <num_cycles> is in the range of (1, <helium%atoms>).
-!>         if (num_cycles .EQ. 1) then all atoms belong to one cycle
-!>         if (num_cycles .EQ. helium%atoms) then there are no cycles of
+!>         if (num_cycles == 1) then all atoms belong to one cycle
+!>         if (num_cycles == helium%atoms) then there are no cycles of
 !>         length greater than 1 (i.e. no atoms are connected)
 ! **************************************************************************************************
    FUNCTION helium_cycle_number(helium, atom_number, permutation) RESULT(cycle_number)
@@ -1502,7 +1502,7 @@ CONTAINS
       cycle_num = -1
       DO ia = 1, helium%atoms
          ! this loop reaches its maximum iteration count when atom in question
-         ! is the last one (i.e. when atom_number .EQ. helium%atoms)
+         ! is the last one (i.e. when atom_number == helium%atoms)
 
          ! exit if we have found the cycle number for the atom in question
          IF (found) THEN
@@ -1520,13 +1520,13 @@ CONTAINS
             ! proceed along the path
             atom_idx = permutation(atom_idx)
 
-            IF (atom_idx .EQ. ia) THEN
+            IF (atom_idx == ia) THEN
                ! end of cycle detected (looped back to the first atom)
 
                ! check if this is a new cycle
                new_cycle = .TRUE.
                DO ic = 1, num_cycles
-                  IF (cycle_index(ic) .EQ. cycle_idx) THEN
+                  IF (cycle_index(ic) == cycle_idx) THEN
                      new_cycle = .FALSE.
                   END IF
                END DO
@@ -1538,7 +1538,7 @@ CONTAINS
                END IF
 
                ! if this was the atom in question
-               IF (ia .EQ. atom_number) THEN
+               IF (ia == atom_number) THEN
                   ! save the cycle index it belongs to
                   cycle_num = cycle_idx
 
@@ -1551,7 +1551,7 @@ CONTAINS
             END IF
 
             ! set the cycle index to the lowest atom index in this cycle
-            IF (atom_idx .LT. cycle_idx) THEN
+            IF (atom_idx < cycle_idx) THEN
                cycle_idx = atom_idx
             END IF
 
@@ -1571,7 +1571,7 @@ CONTAINS
       ! (don't do it actually - just return the requested <cycle_number>)
       cycle_number = 0
       DO ic = 1, num_cycles
-         IF (cycle_index(ic) .EQ. cycle_num) THEN
+         IF (cycle_index(ic) == cycle_num) THEN
             cycle_number = ic
             EXIT
          END IF
@@ -1607,7 +1607,7 @@ CONTAINS
       DO ia = 1, helium%atoms
          path_length = path_length + 1
          atom_idx = permutation(atom_idx)
-         IF (atom_idx .EQ. atom_number) THEN
+         IF (atom_idx == atom_number) THEN
             path_end_reached = .TRUE.
             EXIT
          END IF
@@ -1653,7 +1653,7 @@ CONTAINS
          len = len + 1
          my_cycle(len) = icur
          icur = permutation(icur)
-         IF (icur .EQ. element) THEN
+         IF (icur == element) THEN
             cycle_end_reached = .TRUE.
             EXIT
          END IF
@@ -1728,7 +1728,7 @@ CONTAINS
       INTEGER                                            :: ja1, ja2, jb1, jb2
       REAL(KIND=dp), DIMENSION(:), POINTER               :: r1, r2
 
-      IF (ib .EQ. helium%beads) THEN
+      IF (ib == helium%beads) THEN
          ja1 = ia
          ja2 = helium%permutation(ia)
          jb1 = ib
@@ -1806,7 +1806,7 @@ CONTAINS
          ! contribution from the last bead of the current atom
          ! and the first bead of the next atom
          i1 = CYCLE(ia)
-         IF (ia .EQ. nsize) THEN
+         IF (ia == nsize) THEN
             i2 = CYCLE(1)
          ELSE
             i2 = CYCLE(ia + 1)
@@ -1921,7 +1921,7 @@ CONTAINS
       INTEGER                                            :: ja1, ja2, jb1, jb2
       REAL(KIND=dp), DIMENSION(3)                        :: r1, r12, r2
 
-      IF (ib .EQ. helium%beads) THEN
+      IF (ib == helium%beads) THEN
          ja1 = ia
          ja2 = helium%permutation(ia)
          jb1 = ib
@@ -2006,7 +2006,7 @@ CONTAINS
          ! contribution from the last bead of the current atom
          ! and the first bead of the next atom
          i1 = CYCLE(ia)
-         IF (ia .EQ. nsize) THEN
+         IF (ia == nsize) THEN
             i2 = CYCLE(1)
          ELSE
             i2 = CYCLE(ia + 1)
@@ -2061,7 +2061,7 @@ CONTAINS
          ! contribution from the last bead of the current atom
          ! and the first bead of the next atom
          i1 = CYCLE(ia)
-         IF (ia .EQ. nsize) THEN
+         IF (ia == nsize) THEN
             i2 = CYCLE(1)
          ELSE
             i2 = CYCLE(ia + 1)
@@ -2184,7 +2184,7 @@ CONTAINS
 
       com(:) = helium%center(:)
 
-      IF (ib .EQ. helium%beads) THEN
+      IF (ib == helium%beads) THEN
          ja1 = ia
          ja2 = helium%permutation(ia)
          jb1 = ib
@@ -2271,7 +2271,7 @@ CONTAINS
          ! contribution from the last bead of the current atom
          ! and the first bead of the next atom
          i1 = CYCLE(ia)
-         IF (ia .EQ. nsize) THEN
+         IF (ia == nsize) THEN
             i2 = CYCLE(1)
          ELSE
             i2 = CYCLE(ia + 1)
@@ -2418,7 +2418,7 @@ CONTAINS
       INTEGER                                            :: ia1, ia2, ib1, ib2
       REAL(KIND=dp), DIMENSION(:), POINTER               :: r1, r2
 
-      IF (ib .EQ. helium%beads) THEN
+      IF (ib == helium%beads) THEN
          ia1 = ia
          ia2 = helium%permutation(ia)
          ib1 = ib
@@ -2511,7 +2511,7 @@ CONTAINS
       wnum(:) = bohr*helium_cycle_winding_number(helium, CYCLE, pos)
       inum(:) = helium_wnumber_to_integer(helium, wnum)
       DO ic = 1, 3
-         IF (ABS(inum(ic)) .GT. 0) THEN
+         IF (ABS(inum(ic)) > 0) THEN
             is_winding = .TRUE.
             EXIT
          END IF

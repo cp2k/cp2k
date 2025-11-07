@@ -114,19 +114,19 @@ CONTAINS
       CALL section_vals_get(nmc_section, explicit=explicit)
       IF (explicit) THEN
          ! check the approx potential file, already read
-         IF (tmc_params%NMC_inp_file .EQ. "") &
+         IF (tmc_params%NMC_inp_file == "") &
             CPABORT("Please specify a valid approximate potential.")
 
          CALL section_vals_val_get(nmc_section, "NR_NMC_STEPS", &
                                    i_val=nmc_steps)
-         IF (nmc_steps .LE. 0) &
+         IF (nmc_steps <= 0) &
             CPABORT("Please specify a valid amount of NMC steps (NR_NMC_STEPS {INTEGER}).")
 
          CALL section_vals_val_get(nmc_section, "PROB", r_val=nmc_prob)
 
          CALL section_vals_val_get(move_type_section, "INIT_ACC_PROB", &
                                    r_val=nmc_init_acc_prob)
-         IF (nmc_init_acc_prob .LE. 0.0_dp) &
+         IF (nmc_init_acc_prob <= 0.0_dp) &
             CALL cp_abort(__LOCATION__, &
                           "Please select a valid initial acceptance probability (>0.0) "// &
                           "for INIT_ACC_PROB")
@@ -146,11 +146,11 @@ CONTAINS
       ! get the total weight/amount of move probabilities
       mv_prob_sum = mv_prob_sum + nmc_prob
 
-      IF (n_items + n_NMC_items .GT. 0) THEN
+      IF (n_items + n_NMC_items > 0) THEN
          ! initilaize the move array with related sizes, probs, etc.
          CALL move_types_create(tmc_params%move_types, tmc_params%nr_temp)
 
-         IF (mv_prob_sum .LE. 0.0) &
+         IF (mv_prob_sum <= 0.0) &
             CALL cp_abort(__LOCATION__, &
                           "The probabilities to perform the moves are "// &
                           "in total less equal 0")
@@ -158,9 +158,9 @@ CONTAINS
          ! get the sizes, probs, etc. for each move type and convert units
          DO i_tmp = 1, n_items + n_NMC_items
             ! select the correct section
-            IF (i_tmp .GT. n_items) THEN
+            IF (i_tmp > n_items) THEN
                i_rep = i_tmp - n_items
-               IF (i_rep .EQ. 1) THEN
+               IF (i_rep == 1) THEN
                   ! set the NMC stuff (approx potential)
                   tmc_params%move_types%mv_weight(mv_type_NMC_moves) = &
                      nmc_prob/REAL(mv_prob_sum, KIND=dp)
@@ -188,13 +188,13 @@ CONTAINS
             ! move sizes are checked afterwards, because not all moves require a valid move size
             CALL section_vals_val_get(move_type_section, "PROB", i_rep_section=i_rep, &
                                       r_val=mv_prob)
-            IF (mv_prob .LT. 0.0_dp) &
+            IF (mv_prob < 0.0_dp) &
                CALL cp_abort(__LOCATION__, &
                              "Please select a valid move probability (>0.0) "// &
                              "for the move type "//inp_kind_name)
             CALL section_vals_val_get(move_type_section, "INIT_ACC_PROB", i_rep_section=i_rep, &
                                       r_val=init_acc_prob)
-            IF (init_acc_prob .LT. 0.0_dp) &
+            IF (init_acc_prob < 0.0_dp) &
                CALL cp_abort(__LOCATION__, &
                              "Please select a valid initial acceptance probability (>0.0) "// &
                              "for the move type "//inp_kind_name)
@@ -244,7 +244,7 @@ CONTAINS
                ind = mv_type_swap_conf
                ! the move size is not necessary
                delta_x = 0.0_dp
-               IF (tmc_params%nr_temp .LE. 1) THEN
+               IF (tmc_params%nr_temp <= 1) THEN
                   ! no configurational swapping if only one temperature
                   mv_prob = 0.0_dp
                   CALL cp_warn(__LOCATION__, &
@@ -255,7 +255,7 @@ CONTAINS
             CASE ("VOL_MOVE")
                ind = mv_type_volume_move
                ! check the selected pressure
-               IF (tmc_params%pressure .GE. 0.0_dp) THEN
+               IF (tmc_params%pressure >= 0.0_dp) THEN
                   delta_x = delta_x/au2a
                   tmc_params%print_cell = .TRUE. ! print the cell sizes by default
                ELSE
@@ -272,13 +272,13 @@ CONTAINS
                ! select the types of atoms swapped
                CALL section_vals_val_get(move_type_section, "ATOMS", i_rep_section=i_rep, &
                                          n_rep_val=n_rep_val)
-               IF (n_rep_val .GT. 0) THEN
+               IF (n_rep_val > 0) THEN
                   ALLOCATE (move_types%atom_lists(n_rep_val))
                   DO i = 1, n_rep_val
                      CALL section_vals_val_get(move_type_section, "ATOMS", &
                                                i_rep_section=i_rep, i_rep_val=i, &
                                                c_vals=move_types%atom_lists(i)%atoms)
-                     IF (SIZE(move_types%atom_lists(i)%atoms) .LE. 1) &
+                     IF (SIZE(move_types%atom_lists(i)%atoms) <= 1) &
                         CPABORT("ATOM_SWAP requires minimum two atom kinds selected. ")
                   END DO
                END IF
@@ -290,12 +290,12 @@ CONTAINS
                CPABORT("A unknown move type is selected: "//inp_kind_name)
             END SELECT
             ! check for valid move sizes
-            IF (delta_x .LT. 0.0_dp) &
+            IF (delta_x < 0.0_dp) &
                CALL cp_abort(__LOCATION__, &
                              "Please select a valid move size (>0.0) "// &
                              "for the move type "//inp_kind_name)
             ! check if not already set
-            IF (move_types%mv_weight(ind) .GT. 0.0) THEN
+            IF (move_types%mv_weight(ind) > 0.0) THEN
                CPABORT("TMC: Each move type can be set only once. ")
             END IF
 
@@ -311,7 +311,7 @@ CONTAINS
       END IF
       mv_prob_sum = SUM(tmc_params%move_types%mv_weight(:))
       flag = .TRUE.
-      CPASSERT(ABS(mv_prob_sum - 1.0_dp) .LT. 0.01_dp)
+      CPASSERT(ABS(mv_prob_sum - 1.0_dp) < 0.01_dp)
       IF (ASSOCIATED(tmc_params%nmc_move_types)) THEN
          mv_prob_sum = SUM(tmc_params%nmc_move_types%mv_weight(:))
          CPASSERT(ABS(mv_prob_sum - 1.0_dp) < 10*EPSILON(1.0_dp))
@@ -337,11 +337,11 @@ CONTAINS
       CPASSERT(ASSOCIATED(move_types))
 
       ! molecule moves need molecule info
-      IF (move_types%mv_weight(mv_type_mol_trans) .GT. 0.0_dp .OR. &
-          move_types%mv_weight(mv_type_mol_rot) .GT. 0.0_dp) THEN
+      IF (move_types%mv_weight(mv_type_mol_trans) > 0.0_dp .OR. &
+          move_types%mv_weight(mv_type_mol_rot) > 0.0_dp) THEN
          ! if there is no molecule information available,
          !   molecules moves can not be performed
-         IF (mol_array(SIZE(mol_array)) .EQ. SIZE(mol_array)) &
+         IF (mol_array(SIZE(mol_array)) == SIZE(mol_array)) &
             CALL cp_abort(__LOCATION__, &
                           "molecule move: there is no molecule "// &
                           "information available. Please specify molecules when "// &
@@ -349,7 +349,7 @@ CONTAINS
       END IF
 
       ! for the atom swap move
-      IF (move_types%mv_weight(mv_type_atom_swap) .GT. 0.0_dp) THEN
+      IF (move_types%mv_weight(mv_type_atom_swap) > 0.0_dp) THEN
          ! check if the selected atom swaps are possible
          IF (ASSOCIATED(move_types%atom_lists)) THEN
             DO list_i = 1, SIZE(move_types%atom_lists(:))
@@ -357,7 +357,7 @@ CONTAINS
                   ! check if atoms exists
                   found = .FALSE.
                   ref_loop: DO ref_k = 1, SIZE(tmc_params%atoms(:))
-                     IF (move_types%atom_lists(list_i)%atoms(atom_j) .EQ. &
+                     IF (move_types%atom_lists(list_i)%atoms(atom_j) == &
                          tmc_params%atoms(ref_k)%name) THEN
                         found = .TRUE.
                         EXIT ref_loop
@@ -369,7 +369,7 @@ CONTAINS
                                    TRIM(move_types%atom_lists(list_i)%atoms(atom_j))// &
                                    ") is not contained in the system. ")
                   ! check if not be swapped with the same atom type
-                  IF (ANY(move_types%atom_lists(list_i)%atoms(atom_j) .EQ. &
+                  IF (ANY(move_types%atom_lists(list_i)%atoms(atom_j) == &
                           move_types%atom_lists(list_i)%atoms(atom_j + 1:))) THEN
                      CALL cp_abort(__LOCATION__, &
                                    "ATOM_SWAP can not swap two atoms of same kind ("// &
@@ -381,9 +381,9 @@ CONTAINS
          ELSE
             ! check if there exisit different atoms
             found = .FALSE.
-            IF (SIZE(tmc_params%atoms(:)) .GT. 1) THEN
+            IF (SIZE(tmc_params%atoms(:)) > 1) THEN
                ref_lop: DO ref_k = 2, SIZE(tmc_params%atoms(:))
-                  IF (tmc_params%atoms(1)%name .NE. tmc_params%atoms(ref_k)%name) THEN
+                  IF (tmc_params%atoms(1)%name /= tmc_params%atoms(ref_k)%name) THEN
                      found = .TRUE.
                      EXIT ref_lop
                   END IF
@@ -443,14 +443,14 @@ CONTAINS
       column_size = 10
       subbox_out = .FALSE.
       type_title = .FALSE.
-      CPASSERT(file_io .GT. 0)
+      CPASSERT(file_io > 0)
       CPASSERT(ASSOCIATED(tmc_params%move_types))
 
       FLUSH (file_io)
 
       IF (.NOT. init .AND. &
-          tmc_params%move_types%mv_weight(mv_type_NMC_moves) .GT. 0 .AND. &
-          ANY(tmc_params%sub_box_size .GT. 0.0_dp)) subbox_out = .TRUE.
+          tmc_params%move_types%mv_weight(mv_type_NMC_moves) > 0 .AND. &
+          ANY(tmc_params%sub_box_size > 0.0_dp)) subbox_out = .TRUE.
 
       ! set the format for each typ to add one column
       WRITE (FMT_c, '("(A,1X,A", I0, ")")') column_size
@@ -466,11 +466,11 @@ CONTAINS
 
       temp_loop: DO temper = 1, tmc_params%nr_temp
          c_tit = ""; c_a = ""; c_b = ""; c_c = ""
-         IF (init .AND. temper .GT. 1) EXIT temp_loop
+         IF (init .AND. temper > 1) EXIT temp_loop
          WRITE (c_t, "(F10.2)") tmc_params%Temp(temper)
          typ_loop: DO move = 0, SIZE(tmc_params%move_types%mv_weight) + nr_nmc_moves
             ! the NMC moves
-            IF (move .LE. SIZE(tmc_params%move_types%mv_weight)) THEN
+            IF (move <= SIZE(tmc_params%move_types%mv_weight)) THEN
                typ = move
                move_types => tmc_params%move_types
             ELSE
@@ -478,7 +478,7 @@ CONTAINS
                move_types => tmc_params%nmc_move_types
             END IF
             ! total average
-            IF (typ .EQ. 0) THEN
+            IF (typ == 0) THEN
                ! line start
                IF (type_title) WRITE (c_tit, TRIM(FMT_c)) " type  temperature  |"
                IF (init) WRITE (c_b, TRIM(FMT_c)) "   I       I        |"
@@ -526,15 +526,15 @@ CONTAINS
                END IF
             ELSE
                ! certain move types
-               IF (move_types%mv_weight(typ) .GT. 0.0_dp) THEN
+               IF (move_types%mv_weight(typ) > 0.0_dp) THEN
                   ! INIT: the weights in the initialisation output
                   IF (init) THEN
                      c_tmp = TRIM(c_b)
                      WRITE (c_b, TRIM(FMT_r)) TRIM(c_tmp), move_types%mv_weight(typ)
                   END IF
                   ! acc probabilities
-                  IF (typ .EQ. mv_type_swap_conf .AND. &
-                      temper .EQ. tmc_params%nr_temp) THEN
+                  IF (typ == mv_type_swap_conf .AND. &
+                      temper == tmc_params%nr_temp) THEN
                      IF (.NOT. init) THEN
                         c_tmp = TRIM(c_a)
                         WRITE (c_a, TRIM(FMT_c)) TRIM(c_tmp), "---"
@@ -555,7 +555,7 @@ CONTAINS
                   END IF
                   ! sub box
                   IF (subbox_out) THEN
-                     IF (move .GT. SIZE(tmc_params%move_types%mv_weight)) THEN
+                     IF (move > SIZE(tmc_params%move_types%mv_weight)) THEN
                         c_tmp = TRIM(c_d)
                         WRITE (c_d, TRIM(FMT_r)) TRIM(c_tmp), &
                            move_types%subbox_acc_count(typ, temper)/ &
@@ -679,7 +679,7 @@ CONTAINS
             END IF
          END DO typ_loop
          IF (init) WRITE (UNIT=file_io, FMT="(/,T2,A)") REPEAT("-", 79)
-         IF (type_title .AND. temper .LE. 1) WRITE (file_io, *) TRIM(c_tit)
+         IF (type_title .AND. temper <= 1) WRITE (file_io, *) TRIM(c_tit)
          IF (.NOT. init) WRITE (file_io, *) TRIM(c_a)
          WRITE (file_io, *) TRIM(c_b)
          WRITE (file_io, *) TRIM(c_c)
@@ -780,21 +780,21 @@ CONTAINS
 
       !-- INcrease or DEcrease accaptance rate
       ! MOVE types
-      IF (change_type .GT. 0) THEN
+      IF (change_type > 0) THEN
          move_types%acc_count(mv_type, conf_moved) = move_types%acc_count(mv_type, conf_moved) + 1
       END IF
 
       ! RESULTs
-      IF (change_res .GT. 0) THEN
+      IF (change_res > 0) THEN
          move_types%acc_count(0, conf_moved) = move_types%acc_count(0, conf_moved) + 1
       END IF
 
-      IF (conf_moved .GT. 0) move_types%mv_count(0, conf_moved) = move_types%mv_count(0, conf_moved) + ABS(change_res)
-      IF (mv_type .GE. 0 .AND. conf_moved .GT. 0) &
+      IF (conf_moved > 0) move_types%mv_count(0, conf_moved) = move_types%mv_count(0, conf_moved) + ABS(change_res)
+      IF (mv_type >= 0 .AND. conf_moved > 0) &
          move_types%mv_count(mv_type, conf_moved) = move_types%mv_count(mv_type, conf_moved) + ABS(change_type)
 
       IF (prob_opt) THEN
-         WHERE (move_types%mv_count .GT. 0) &
+         WHERE (move_types%mv_count > 0) &
             move_types%acc_prob(:, :) = move_types%acc_count(:, :)/REAL(move_types%mv_count(:, :), KIND=dp)
       END IF
       ! end the timing
@@ -826,7 +826,7 @@ CONTAINS
          move_types%mv_count(:, :) = move_types%mv_count(:, :) + mv_counter(:, :)
          move_types%acc_count(:, :) = move_types%acc_count(:, :) + acc_counter(:, :)
          IF (prob_opt) THEN
-            WHERE (move_types%mv_count .GT. 0) &
+            WHERE (move_types%mv_count > 0) &
                move_types%acc_prob(:, :) = move_types%acc_count(:, :)/REAL(move_types%mv_count(:, :), KIND=dp)
          END IF
       END IF
@@ -876,7 +876,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: rnd_mv, total_moves
 
       CPASSERT(ASSOCIATED(move_types))
-      CPASSERT(rnd .GE. 0.0_dp .AND. rnd .LT. 1.0_dp)
+      CPASSERT(rnd >= 0.0_dp .AND. rnd < 1.0_dp)
 
       CALL timeset(routineN, handle)
 
@@ -884,7 +884,7 @@ CONTAINS
       rnd_mv = total_moves*rnd
       mv_type = 0
       search_loop: DO i = 2, SIZE(move_types%mv_weight(:))
-         IF (SUM(move_types%mv_weight(2:i)) .GE. rnd_mv) THEN
+         IF (SUM(move_types%mv_weight(2:i)) >= rnd_mv) THEN
             mv_type = i
             EXIT search_loop
          END IF

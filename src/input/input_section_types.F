@@ -748,7 +748,7 @@ CONTAINS
 
       ! prepare for recursive parsing of subsections. i_rep_section will be used for last section
       my_index = INDEX(subsection_name, "%")
-      IF (my_index .EQ. 0) THEN
+      IF (my_index == 0) THEN
          is_path = .FALSE.
          my_index = LEN_TRIM(subsection_name)
       ELSE

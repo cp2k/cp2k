@@ -84,9 +84,9 @@ CONTAINS
       CALL fb_atomic_halo_get(atomic_halo=atomic_halo, &
                               natoms=natoms_in_halo, &
                               halo_atoms=halo_atoms)
-      check_ok = SIZE(blk_row_start) .GE. (natoms_in_halo + 1)
+      check_ok = SIZE(blk_row_start) >= (natoms_in_halo + 1)
       CPASSERT(check_ok)
-      check_ok = SIZE(blk_col_start) .GE. (natoms_in_halo + 1)
+      check_ok = SIZE(blk_col_start) >= (natoms_in_halo + 1)
       CPASSERT(check_ok)
       blk_row_start = 0
       blk_col_start = 0
@@ -378,7 +378,7 @@ CONTAINS
             jatom_global = halo_atoms(jatom)
             ! atomic matrices are symmetric, fill only the top
             ! triangular part
-            IF (jatom_global .GE. iatom_global) THEN
+            IF (jatom_global >= iatom_global) THEN
                CALL fb_matrix_data_get(matrix_storage, &
                                        iatom_global, &
                                        jatom_global, &
@@ -494,7 +494,7 @@ CONTAINS
                jatom_global = halo_atoms(jatom)
                ! atomic matrix is symmetric, and only upper triangular part
                ! is stored in DBCSR matrix
-               IF (jatom_global .GE. iatom_global) THEN
+               IF (jatom_global >= iatom_global) THEN
                   ! find the source proc that supposed to own the block
                   ! (iatom_global, jatom_global)
                   CALL dbcsr_get_stored_coordinates(dbcsr_mat, &
@@ -564,12 +564,12 @@ CONTAINS
             ! we can do this here, because essencially we are inspecting
             ! the send tasks one by one, and then omit ones which the
             ! block is not found in the DBCSR matrix. itask is always
-            ! .GE. counter
+            ! >= counter
             tasks_send(1:TASK_N_RECORDS, counter) = tasks_send(1:TASK_N_RECORDS, itask)
          END IF
       END DO
       ! the new send task list should have size counter. counter
-      ! .LE. the old ntasks_send, thus the task list does not really
+      ! <= the old ntasks_send, thus the task list does not really
       ! need to be reallocated (as it is just a temporary array), and
       ! the useful data will cutoff at counter, and the rest of the
       ! array will just be garbage
@@ -691,7 +691,7 @@ CONTAINS
                   jatom_global = halo_atoms(jatom)
                   ! atomic matrices are always symmetric, treat it as such.
                   ! so only deal with upper triangular parts
-                  IF (jatom_global .GE. iatom_global) THEN
+                  IF (jatom_global >= iatom_global) THEN
                      ! find the source proc that supposed to own the block
                      ! (iatom_global, jatom_global)
                      CALL dbcsr_get_stored_coordinates(dbcsr_mat, &
@@ -761,12 +761,12 @@ CONTAINS
             ! we can do this here, because essencially we are inspecting
             ! the send tasks one by one, and then omit ones which the
             ! block is not found in the DBCSR matrix. itask is always
-            ! .GE. counter
+            ! >= counter
             tasks_send(1:TASK_N_RECORDS, counter) = tasks_send(1:TASK_N_RECORDS, itask)
          END IF
       END DO
       ! the new send task list should have size counter. counter
-      ! .LE. the old ntasks_send, thus the task list does not really
+      ! <= the old ntasks_send, thus the task list does not really
       ! need to be reallocated (as it is just a temporary array), and
       ! the useful data will cutoff at counter, and the rest of the
       ! array will just be garbage

@@ -276,7 +276,7 @@ CONTAINS
       END IF
       ! copy data
       IF (PRESENT(data_1d)) THEN
-         check_ok = SIZE(data_1d) .GE. my_max_size .AND. &
+         check_ok = SIZE(data_1d) >= my_max_size .AND. &
                     PRESENT(sizes)
          CPASSERT(check_ok)
          buffer%obj%data_1d(1:my_ndata) = data_1d(1:my_ndata)
@@ -304,14 +304,14 @@ CONTAINS
       new_n = buffer%obj%n + 1
       new_data_size = buffer%obj%disps(new_n) + this_size
       ! resize when needed
-      IF (SIZE(buffer%obj%disps) .LT. new_n + 1) THEN
+      IF (SIZE(buffer%obj%disps) < new_n + 1) THEN
          ALLOCATE (new_disps(new_n*2))
          new_disps = 0
          new_disps(1:buffer%obj%n + 1) = buffer%obj%disps(1:buffer%obj%n + 1)
          DEALLOCATE (buffer%obj%disps)
          buffer%obj%disps => new_disps
       END IF
-      IF (SIZE(buffer%obj%data_1d) .LT. new_data_size) THEN
+      IF (SIZE(buffer%obj%data_1d) < new_data_size) THEN
          ALLOCATE (new_data(new_data_size*2))
          new_data = 0
          new_data(1:buffer%obj%disps(new_n)) = &
@@ -339,7 +339,7 @@ CONTAINS
 
       INTEGER                                            :: ii
 
-      CPASSERT(SIZE(sizes) .GE. buffer%obj%n)
+      CPASSERT(SIZE(sizes) >= buffer%obj%n)
       buffer%obj%disps(1) = 0
       DO ii = 2, buffer%obj%n + 1
          buffer%obj%disps(ii) = buffer%obj%disps(ii - 1) + sizes(ii - 1)
@@ -358,7 +358,7 @@ CONTAINS
 
       INTEGER                                            :: ii
 
-      CPASSERT(SIZE(sizes) .GE. buffer%obj%n)
+      CPASSERT(SIZE(sizes) >= buffer%obj%n)
       DO ii = 1, buffer%obj%n
          sizes(ii) = buffer%obj%disps(ii + 1) - buffer%obj%disps(ii)
       END DO
@@ -407,12 +407,12 @@ CONTAINS
          CALL fb_buffer_calc_sizes(buffer, sizes)
       END IF
       IF (PRESENT(disps)) THEN
-         CPASSERT(SIZE(disps) .GE. buffer%obj%n)
+         CPASSERT(SIZE(disps) >= buffer%obj%n)
          disps(1:buffer%obj%n) = buffer%obj%disps(1:buffer%obj%n)
       END IF
       IF (PRESENT(data_1d)) THEN
          IF (PRESENT(i_slice)) THEN
-            CPASSERT(i_slice .LE. buffer%obj%n)
+            CPASSERT(i_slice <= buffer%obj%n)
             data_1d => buffer%obj%data_1d(buffer%obj%disps(i_slice) + 1: &
                                           buffer%obj%disps(i_slice + 1))
          ELSE
@@ -593,7 +593,7 @@ CONTAINS
       END IF
       ! copy data
       IF (PRESENT(data_1d)) THEN
-         check_ok = SIZE(data_1d) .GE. my_max_size .AND. &
+         check_ok = SIZE(data_1d) >= my_max_size .AND. &
                     PRESENT(sizes)
          CPASSERT(check_ok)
          buffer%obj%data_1d(1:my_ndata) = data_1d(1:my_ndata)
@@ -622,14 +622,14 @@ CONTAINS
       new_n = buffer%obj%n + 1
       new_data_size = buffer%obj%disps(new_n) + this_size
       ! resize when needed
-      IF (SIZE(buffer%obj%disps) .LT. new_n + 1) THEN
+      IF (SIZE(buffer%obj%disps) < new_n + 1) THEN
          ALLOCATE (new_disps(new_n*2))
          new_disps = 0
          new_disps(1:buffer%obj%n + 1) = buffer%obj%disps(1:buffer%obj%n + 1)
          DEALLOCATE (buffer%obj%disps)
          buffer%obj%disps => new_disps
       END IF
-      IF (SIZE(buffer%obj%data_1d) .LT. new_data_size) THEN
+      IF (SIZE(buffer%obj%data_1d) < new_data_size) THEN
          ALLOCATE (new_data(new_data_size*2))
          new_data = 0.0_dp
          new_data(1:buffer%obj%disps(new_n)) = &
@@ -657,7 +657,7 @@ CONTAINS
 
       INTEGER                                            :: ii
 
-      CPASSERT(SIZE(sizes) .GE. buffer%obj%n)
+      CPASSERT(SIZE(sizes) >= buffer%obj%n)
       buffer%obj%disps(1) = 0
       DO ii = 2, buffer%obj%n + 1
          buffer%obj%disps(ii) = buffer%obj%disps(ii - 1) + sizes(ii - 1)
@@ -676,7 +676,7 @@ CONTAINS
 
       INTEGER                                            :: ii
 
-      CPASSERT(SIZE(sizes) .GE. buffer%obj%n)
+      CPASSERT(SIZE(sizes) >= buffer%obj%n)
       DO ii = 1, buffer%obj%n
          sizes(ii) = buffer%obj%disps(ii + 1) - buffer%obj%disps(ii)
       END DO
@@ -725,12 +725,12 @@ CONTAINS
          CALL fb_buffer_calc_sizes(buffer, sizes)
       END IF
       IF (PRESENT(disps)) THEN
-         CPASSERT(SIZE(disps) .GE. buffer%obj%n)
+         CPASSERT(SIZE(disps) >= buffer%obj%n)
          disps(1:buffer%obj%n) = buffer%obj%disps(1:buffer%obj%n)
       END IF
       IF (PRESENT(data_1d)) THEN
          IF (PRESENT(i_slice)) THEN
-            CPASSERT(i_slice .LE. buffer%obj%n)
+            CPASSERT(i_slice <= buffer%obj%n)
             data_1d => buffer%obj%data_1d(buffer%obj%disps(i_slice) + 1: &
                                           buffer%obj%disps(i_slice + 1))
          ELSE

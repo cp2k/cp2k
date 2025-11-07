@@ -256,7 +256,7 @@ CONTAINS
             CALL section_vals_val_get(contact_section, "INJECTION_SIGN", i_rep_section=i, i_val=contact_injsign)
             CALL section_vals_val_get(contact_section, "INJECTING_CONTACT", i_rep_section=i, l_val=injecting_contact)
 
-            IF (contact_natoms .LE. 0) CPABORT("Number of atoms in contact region needs to be defined.")
+            IF (contact_natoms <= 0) CPABORT("Number of atoms in contact region needs to be defined.")
 
             transport_env%contacts_data((i - 1)*stride_contacts + 1) = contact_bandwidth
             transport_env%contacts_data((i - 1)*stride_contacts + 2) = contact_start - 1 ! C indexing
@@ -461,25 +461,25 @@ CONTAINS
       nzerow_local => csr_mat%nzerow_local
       nzvals_local => csr_mat%nzval_local%r_dp ! support real double percision for now
 
-      IF (SIZE(rowptr_local) .EQ. 0) THEN
+      IF (SIZE(rowptr_local) == 0) THEN
          csr_interop_mat%rowptr_local = C_NULL_PTR
       ELSE
          csr_interop_mat%rowptr_local = C_LOC(rowptr_local(1))
       END IF
 
-      IF (SIZE(colind_local) .EQ. 0) THEN
+      IF (SIZE(colind_local) == 0) THEN
          csr_interop_mat%colind_local = C_NULL_PTR
       ELSE
          csr_interop_mat%colind_local = C_LOC(colind_local(1))
       END IF
 
-      IF (SIZE(nzerow_local) .EQ. 0) THEN
+      IF (SIZE(nzerow_local) == 0) THEN
          csr_interop_mat%nzerow_local = C_NULL_PTR
       ELSE
          csr_interop_mat%nzerow_local = C_LOC(nzerow_local(1))
       END IF
 
-      IF (SIZE(nzvals_local) .EQ. 0) THEN
+      IF (SIZE(nzvals_local) == 0) THEN
          csr_interop_mat%nzvals_local = C_NULL_PTR
       ELSE
          csr_interop_mat%nzvals_local = C_LOC(nzvals_local(1))
@@ -490,7 +490,7 @@ CONTAINS
          CALL mp_group%allgather(csr_mat%nrows_local, nrows_local_all)
          CALL cumsum_i(nrows_local_all, first_row_all)
 
-         IF (mepos .EQ. 0) THEN
+         IF (mepos == 0) THEN
             csr_interop_mat%first_row = 0
          ELSE
             csr_interop_mat%first_row = first_row_all(mepos - 1)
@@ -617,7 +617,7 @@ CONTAINS
          END DO
       END DO
 
-      IF (natom .EQ. 0) THEN
+      IF (natom == 0) THEN
          transport_env%params%nsgf = C_NULL_PTR
          transport_env%params%zeff = C_NULL_PTR
       ELSE

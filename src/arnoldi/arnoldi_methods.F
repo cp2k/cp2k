@@ -98,7 +98,7 @@ CONTAINS
          CALL zgeqrf(msize, msize, tmp_mat, msize, tau, work_measure, lwork, info)
          lwork = INT(work_measure(1))
          IF (ALLOCATED(work)) THEN
-            IF (SIZE(work) .LT. lwork) THEN
+            IF (SIZE(work) < lwork) THEN
                DEALLOCATE (work)
             END IF
          END IF
@@ -414,7 +414,7 @@ CONTAINS
          CALL compute_norms(ar_data%f_vec, norm, rnorm, control%pcol_group)
 
          ! check convergence and inform everybody about it, a bit annoying to talk to everybody because of that
-         IF (control%myproc == 0) control%converged = rnorm .LT. REAL(control%threshold, dp)
+         IF (control%myproc == 0) control%converged = rnorm < REAL(control%threshold, dp)
          CALL control%mp_group%bcast(control%converged, 0)
          IF (control%converged) EXIT
 
@@ -538,7 +538,7 @@ CONTAINS
          norm = DOT_PRODUCT(ar_data%f_vec, v_vec)
          CALL pcol_group%sum(norm)
 
-         IF (control%myproc == 0) control%converged = REAL(norm, dp) .LT. EPSILON(REAL(1.0, dp))
+         IF (control%myproc == 0) control%converged = REAL(norm, dp) < EPSILON(REAL(1.0, dp))
          CALL control%mp_group%bcast(control%converged, 0)
          IF (control%converged) EXIT
          IF (j == control%max_iter - 1) EXIT
@@ -632,7 +632,7 @@ CONTAINS
       IF (ncol_local > 0) THEN
          CALL compute_norms(v_vec, norm, rnorm, control%pcol_group)
          ! check convergence
-         control%converged = rnorm .LT. control%threshold
+         control%converged = rnorm < control%threshold
          DEALLOCATE (v_vec)
       END IF
       ! and broadcast the real eigenvalue

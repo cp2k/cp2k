@@ -78,7 +78,7 @@ CONTAINS
 #if defined(__parallel)
       desca(:) = matrix%matrix_struct%descriptor(:)
 #if defined(__DLAF)
-      IF (cholesky_type == FM_CHOLESKY_TYPE_DLAF .AND. matrix%matrix_struct%nrow_global .GE. dlaf_cholesky_n_min) THEN
+      IF (cholesky_type == FM_CHOLESKY_TYPE_DLAF .AND. matrix%matrix_struct%nrow_global >= dlaf_cholesky_n_min) THEN
          ! Initialize DLA-Future on-demand; if already initialized, does nothing
          CALL cp_dlaf_initialize()
 
@@ -147,7 +147,7 @@ CONTAINS
 #if defined(__parallel)
       desca = matrix%matrix_struct%descriptor
 #if defined(__DLAF)
-      IF (cholesky_type == FM_CHOLESKY_TYPE_DLAF .AND. matrix%matrix_struct%nrow_global .GE. dlaf_cholesky_n_min) THEN
+      IF (cholesky_type == FM_CHOLESKY_TYPE_DLAF .AND. matrix%matrix_struct%nrow_global >= dlaf_cholesky_n_min) THEN
          ! Initialize DLA-Future on-demand; if already initialized, does nothing
          CALL cp_dlaf_initialize()
 

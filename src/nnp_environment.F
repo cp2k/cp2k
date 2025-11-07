@@ -498,10 +498,10 @@ CONTAINS
          IF (found) THEN
             READ (line, *) dummy, ele, symfnct_type
             DO i = 1, nele
-               IF (TRIM(ele) .EQ. nnp_env%ele(i)) THEN
-                  IF (symfnct_type .EQ. 2) THEN
+               IF (TRIM(ele) == nnp_env%ele(i)) THEN
+                  IF (symfnct_type == 2) THEN
                      nnp_env%n_rad(i) = nnp_env%n_rad(i) + 1
-                  ELSE IF (symfnct_type .EQ. 3) THEN
+                  ELSE IF (symfnct_type == 3) THEN
                      nnp_env%n_ang(i) = nnp_env%n_ang(i) + 1
                   ELSE
                      CALL cp_abort(__LOCATION__, TRIM(printtag)// &
@@ -583,8 +583,8 @@ CONTAINS
          IF (found) THEN
             READ (line, *) dummy, ele, symfnct_type
             DO i = 1, nele
-               IF (TRIM(ele) .EQ. nnp_env%ele(i)) THEN
-                  IF (symfnct_type .EQ. 2) THEN
+               IF (TRIM(ele) == nnp_env%ele(i)) THEN
+                  IF (symfnct_type == 2) THEN
                      nnp_env%n_rad(i) = nnp_env%n_rad(i) + 1
                      READ (line, *) dummy, ele, symfnct_type, &
                         nnp_env%rad(i)%ele(nnp_env%n_rad(i)), &
@@ -594,7 +594,7 @@ CONTAINS
                      IF (nnp_env%max_cut < nnp_env%rad(i)%funccut(nnp_env%n_rad(i))) THEN
                         nnp_env%max_cut = nnp_env%rad(i)%funccut(nnp_env%n_rad(i))
                      END IF
-                  ELSE IF (symfnct_type .EQ. 3) THEN
+                  ELSE IF (symfnct_type == 3) THEN
                      nnp_env%n_ang(i) = nnp_env%n_ang(i) + 1
                      READ (line, *) dummy, ele, symfnct_type, &
                         nnp_env%ang(i)%ele1(nnp_env%n_ang(i)), &
@@ -631,7 +631,7 @@ CONTAINS
             CALL get_ptable_info(nnp_env%ang(i)%ele1(j), number=nnp_env%ang(i)%nuc_ele1(j))
             CALL get_ptable_info(nnp_env%ang(i)%ele2(j), number=nnp_env%ang(i)%nuc_ele2(j))
             ! sort ele1 and ele2
-            IF (nnp_env%ang(i)%nuc_ele1(j) .GT. nnp_env%ang(i)%nuc_ele2(j)) THEN
+            IF (nnp_env%ang(i)%nuc_ele1(j) > nnp_env%ang(i)%nuc_ele2(j)) THEN
                ele = nnp_env%ang(i)%ele1(j)
                nnp_env%ang(i)%ele1(j) = nnp_env%ang(i)%ele2(j)
                nnp_env%ang(i)%ele2(j) = ele
@@ -791,7 +791,7 @@ CONTAINS
             IF (explicit) THEN
                NULLIFY (work)
                CALL section_vals_val_get(bias_section, "ALIGN_NNP_ENERGIES", r_vals=work)
-               IF (SIZE(work) .NE. nnp_env%n_committee) THEN
+               IF (SIZE(work) /= nnp_env%n_committee) THEN
                   CPABORT("ALIGN_NNP_ENERGIES size mismatch wrt committee size.")
                END IF
                nnp_env%bias_e_avrg(:) = work

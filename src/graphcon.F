@@ -100,7 +100,7 @@ CONTAINS
          Nclasses = 1
          old_class = kind_new(1)
          DO i = 2, N
-            IF (kind_new(I) .NE. old_class) THEN
+            IF (kind_new(I) /= old_class) THEN
                Nclasses = Nclasses + 1
                old_class = kind_new(I)
             END IF
@@ -151,7 +151,7 @@ CONTAINS
 ! molecules with no symmetry e.g. JAC need less than 500 tries
 ! catch the cases where the molecules are trivially different
 
-      IF (SIZE(reference) .NE. SIZE(unordered)) THEN
+      IF (SIZE(reference) /= SIZE(unordered)) THEN
          matches = .FALSE.
          RETURN
       END IF
@@ -170,7 +170,7 @@ CONTAINS
                 class_of_atom(N), superclass_of_atom(N))
       CALL hash_molecule(reference, kind_ref, hash_re)
       CALL hash_molecule(unordered, kind_un, hash_un)
-      IF (hash_re .NE. hash_un) THEN
+      IF (hash_re /= hash_un) THEN
          matches = .FALSE.
          RETURN
       END IF
@@ -180,7 +180,7 @@ CONTAINS
       CALL sort(kind_ref_ordered, N, index_ref)
       kind_un_ordered(:) = kind_un
       CALL sort(kind_un_ordered, N, index_un)
-      IF (ANY(kind_ref_ordered .NE. kind_un_ordered)) THEN
+      IF (ANY(kind_ref_ordered /= kind_un_ordered)) THEN
          matches = .FALSE.
          RETURN
       END IF
@@ -189,7 +189,7 @@ CONTAINS
       Nclasses = 1
       old_class = kind_ref_ordered(1)
       DO i = 2, N
-         IF (kind_ref_ordered(I) .NE. old_class) THEN
+         IF (kind_ref_ordered(I) /= old_class) THEN
             Nclasses = Nclasses + 1
             old_class = kind_ref_ordered(I)
          END IF
@@ -199,7 +199,7 @@ CONTAINS
       Nclasses = 1
       classes(1)%Nele = 1
       DO i = 2, N
-         IF (kind_ref_ordered(I) .NE. classes(Nclasses)%kind) THEN
+         IF (kind_ref_ordered(I) /= classes(Nclasses)%kind) THEN
             Nclasses = Nclasses + 1
             classes(Nclasses)%kind = kind_ref_ordered(I)
             classes(Nclasses)%Nele = 1
@@ -234,7 +234,7 @@ CONTAINS
       isuperclass = 0
       DO I = 1, N
          ! this atom belongs to a class with several equivalent atoms, and has not yet been found
-         IF (superclass_of_atom(I) .EQ. -1 .AND. classes(class_of_atom(I))%Nele > 1) THEN
+         IF (superclass_of_atom(I) == -1 .AND. classes(class_of_atom(I))%Nele > 1) THEN
             isuperclass = isuperclass + 1
             CALL spread_superclass(I, isuperclass, superclass_of_atom, class_of_atom, classes, reference)
          END IF
@@ -298,7 +298,7 @@ CONTAINS
             END DO
 
             ! we are back at the original permutation so we're unable to match this superclass.
-            IF (iclass .EQ. superclasses(I)%Nele .AND. &
+            IF (iclass == superclasses(I)%Nele .AND. &
                 classes(superclasses(I)%classes(superclasses(I)%Nele))%first) EXIT
          END DO
          ! failed in this superblock, can exit now
@@ -343,7 +343,7 @@ CONTAINS
 
       INTEGER                                            :: J
 
-      IF (superclass_of_atom(I) .EQ. -1 .AND. classes(class_of_atom(I))%Nele > 1) THEN
+      IF (superclass_of_atom(I) == -1 .AND. classes(class_of_atom(I))%Nele > 1) THEN
          superclass_of_atom(I) = isuperclass
          DO J = 1, classes(class_of_atom(I))%Nele
             CALL spread_superclass(classes(class_of_atom(I))%reference(J), isuperclass, &
@@ -385,7 +385,7 @@ CONTAINS
                    SIZE(reference(order(I))%bonds) == SIZE(unordered(I)%bonds))
             IF (res) THEN
                DO J = 1, SIZE(reference(order(I))%bonds)
-                  IF (ALL(reference(order(I))%bonds(:) .NE. order(unordered(I)%bonds(J)))) THEN
+                  IF (ALL(reference(order(I))%bonds(:) /= order(unordered(I)%bonds(J)))) THEN
                      res = .FALSE.
                      EXIT loop
                   END IF
@@ -419,7 +419,7 @@ CONTAINS
                 SIZE(reference(order(I))%bonds) == SIZE(unordered(I)%bonds))
          IF (res) THEN
             DO J = 1, SIZE(reference(order(I))%bonds)
-               IF (ALL(reference(order(I))%bonds(:) .NE. order(unordered(I)%bonds(J)))) THEN
+               IF (ALL(reference(order(I))%bonds(:) /= order(unordered(I)%bonds(J)))) THEN
                   res = .FALSE.
                   EXIT loop
                END IF
@@ -536,7 +536,7 @@ CONTAINS
             q(m) = n
          END DO
       END IF
-      IF (q(n - 1) .EQ. n) THEN
+      IF (q(n - 1) == n) THEN
          q(n - 1) = n - 1
          t = x(n)
          x(n) = x(n - 1)
@@ -544,7 +544,7 @@ CONTAINS
          RETURN
       END IF
       DO k = n - 1, 1, -1
-         IF (q(k) .EQ. k) THEN
+         IF (q(k) == k) THEN
             q(k) = n
          ELSE
             go to 1
@@ -565,7 +565,7 @@ CONTAINS
       x(k) = t
       m = m - 1
       k = k + 1
-      DO WHILE (k .LT. m)
+      DO WHILE (k < m)
          t = x(m)
          x(m) = x(k)
          x(k) = t

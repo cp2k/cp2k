@@ -194,9 +194,9 @@ CONTAINS
       itype = 0
       DO i = 1, nat
          ! Assign an atomic type (for internal purposes)
-         IF (i .NE. 1) THEN
+         IF (i /= 1) THEN
             DO j = 1, (i - 1)
-               IF (ty(j) .EQ. ty(i)) THEN
+               IF (ty(j) == ty(i)) THEN
                   ! Type located
                   GOTO 178
                END IF
@@ -204,7 +204,7 @@ CONTAINS
             ! New type
          END IF
          itype = itype + 1
-         IF (itype .GT. nsp) THEN
+         IF (itype > nsp) THEN
             IF (iout > 0) &
                WRITE (iout, '(A,I4,")")') &
                ' KPSYM| NUMBER OF ATOMIC TYPES EXCEEDS DIMENSION (NSP=)', &
@@ -228,7 +228,7 @@ CONTAINS
       DO i = 1, 6
          totstr = totstr + ABS(strain(i))
       END DO
-      IF (totstr .GT. dtotstr) istrin = 1
+      IF (totstr > dtotstr) istrin = 1
       ! ==--------------------------------------------------------------==
       ! Volume of the cell.
       volum = a1(1)*a2(2)*a3(3) + a2(1)*a3(2)*a1(3) + &
@@ -262,7 +262,7 @@ CONTAINS
       END DO
       ! ==--------------------------------------------------------------==
       invadd = 0
-      IF (li .EQ. 0) THEN
+      IF (li == 0) THEN
          IF (iout > 0) &
             WRITE (iout, '(A,/,A,/,A)') &
             ' KPSYM| ALTHOUGH THE POINT GROUP OF THE CRYSTAL DOES NOT', &
@@ -291,24 +291,24 @@ CONTAINS
          icst(ihg)
       ! IHC .... Code distinguishing between hexagonal and cubic groups
       ! ISY .... Code indicating whether the space group is symmorphic
-      IF (isy .EQ. 0) THEN
+      IF (isy == 0) THEN
          IF (iout > 0) &
             WRITE (iout, '(" KPSYM|",4X,"NONSYMMORPHIC GROUP")')
-      ELSEIF (isy .EQ. 1) THEN
+      ELSEIF (isy == 1) THEN
          IF (iout > 0) &
             WRITE (iout, '(" KPSYM|",4X,"SYMMORPHIC GROUP")')
-      ELSEIF (isy .EQ. -1) THEN
+      ELSEIF (isy == -1) THEN
          IF (iout > 0) &
             WRITE (iout, '(" KPSYM|",4X,"SYMMORPHIC GROUP WITH NON-STANDARD ORIGIN")')
-      ELSEIF (isy .EQ. -2) THEN
+      ELSEIF (isy == -2) THEN
          IF (iout > 0) &
             WRITE (iout, '(" KPSYM|",4X,"NONSYMMORPHIC GROUP???")')
       END IF
       ! LI ..... Inversions symmetry
-      IF (li .EQ. 0) THEN
+      IF (li == 0) THEN
          IF (iout > 0) &
             WRITE (iout, '(" KPSYM|",4X,"NO INVERSION SYMMETRY")')
-      ELSEIF (li .GT. 0) THEN
+      ELSEIF (li > 0) THEN
          IF (iout > 0) &
             WRITE (iout, '(" KPSYM|",4X,"INVERSION SYMMETRY")')
       END IF
@@ -325,7 +325,7 @@ CONTAINS
       IF (iout > 0) &
          WRITE (iout, '(7X,12I4)') (ib(i), i=1, nc)
       ! V ...... Nonprimitive translations (for nonsymmorphic groups)
-      IF (isy .LE. 0) THEN
+      IF (isy <= 0) THEN
          IF (iout > 0) &
             WRITE (iout, '(/," KPSYM|",4X,"NONPRIMITIVE TRANSLATIONS:")')
          IF (iout > 0) &
@@ -355,16 +355,16 @@ CONTAINS
          DO j = 1, nat
             IF (iout > 0) &
                WRITE (iout, '(I5,2I4)', advance="no") ib(k), j, f0(k, j)
-            IF ((MOD(j, 5) .EQ. 0) .AND. iout > 0) &
+            IF ((MOD(j, 5) == 0) .AND. iout > 0) &
                WRITE (iout, *)
          END DO
-         IF ((MOD(j - 1, 5) .NE. 0) .AND. iout > 0) &
+         IF ((MOD(j - 1, 5) /= 0) .AND. iout > 0) &
             WRITE (iout, *)
       END DO
       ! R ...... List of the 3 x 3 rotation matrices
       IF (iout > 0) &
          WRITE (iout, '(/," KPSYM|",4X,"LIST OF THE 3 X 3 ROTATION MATRICES:")')
-      IF (ihc .EQ. 0) THEN
+      IF (ihc == 0) THEN
          DO k = 1, nc
             IF (iout > 0) &
                WRITE (iout, &
@@ -402,8 +402,8 @@ CONTAINS
       IF (iout > 0) &
          WRITE (iout, '(A,/,1X,3F10.5)') &
          ' KPSYM| CONSTANT VECTOR SHIFT (MACDONALD) OF THIS MESH:', wvk0
-      IF (iabs(iq1) + iabs(iq2) + iabs(iq3) .EQ. 0) GOTO 710
-      IF (ABS(istriz) .NE. 1) THEN
+      IF (iabs(iq1) + iabs(iq2) + iabs(iq3) == 0) GOTO 710
+      IF (ABS(istriz) /= 1) THEN
          IF (iout > 0) &
             WRITE (iout, '(" KPSYM| INVALID SWITCH FOR SYMMETRIZATION",I10)') istriz
          IF (iout > 0) &
@@ -412,7 +412,7 @@ CONTAINS
       END IF
       IF (iout > 0) &
          WRITE (iout, '(" KPSYM| SYMMETRIZATION SWITCH: ",I3)', advance="no") istriz
-      IF (istriz .EQ. 1) THEN
+      IF (istriz == 1) THEN
          IF (iout > 0) &
             WRITE (iout, '(" (SYMMETRIZATION OF MONKHORST-PACK MESH)")')
       ELSE
@@ -427,11 +427,11 @@ CONTAINS
       ! == Generation of the points (they are not multiplied            ==
       ! == by 2*Pi because B1,2,3  were not,either)                     ==
       ! ==--------------------------------------------------------------==
-      IF (nc .GT. nc0) THEN
+      IF (nc > nc0) THEN
          ! Due to non-use of primitive cell, the crystal has more
          ! rotations than Bravais lattice.
          ! We use only the rotations for Bravais lattices
-         IF (ntvec .EQ. 1) THEN
+         IF (ntvec == 1) THEN
             IF (iout > 0) &
                WRITE (iout, *) ' KPSYM| NUMBER OF ROTATIONS FOR BRAVAIS LATTICE', nc0
             IF (iout > 0) &
@@ -468,9 +468,9 @@ CONTAINS
       ! ==--------------------------------------------------------------==
       IF (iout > 0) &
          WRITE (iout, '(/," KPSYM|",1X,I5," SPECIAL POINTS GENERATED")') ntot
-      IF (ntot .EQ. 0) THEN
+      IF (ntot == 0) THEN
          GOTO 710
-      ELSE IF (ntot .LT. 0) THEN
+      ELSE IF (ntot < 0) THEN
          IF (iout > 0) &
             WRITE (iout, '(A,I5,/,A,/,A)') ' KPSYM| DIMENSION NKPOINT =', nkpoint, &
             ' KPSYM| INSUFFICIENT FOR ACCOMMODATING ALL THE SPECIAL POINTS', &
@@ -490,9 +490,9 @@ CONTAINS
       ! Set near-zeroes equal to zero:
       DO l = 1, ntot
          DO i = 1, 3
-            IF (ABS(wvkl(i, l)) .LT. delta) wvkl(i, l) = 0._dp
+            IF (ABS(wvkl(i, l)) < delta) wvkl(i, l) = 0._dp
          END DO
-         IF (istrin .NE. 0) THEN
+         IF (istrin /= 0) THEN
             ! Express special points in (unstrained) basis.
             proj1 = 0._dp
             proj2 = 0._dp
@@ -568,11 +568,11 @@ CONTAINS
       ! == INPUT DATA:                                                  ==
       ! == IOUT ... NUMBER OF THE OUTPUT UNIT FOR ON-LINE PRINTING      ==
       ! ==          OF VARIOUS MESSAGES                                 ==
-      ! ==          IF IOUT.LE.0 NO MESSAGE                             ==
+      ! ==          IF IOUT<=0 NO MESSAGE                             ==
       ! == A1,A2,A3 .. ELEMENTARY TRANSLATIONS OF THE LATTICE, IN SOME  ==
       ! ==          UNIT OF LENGTH                                      ==
       ! == NAT .... NUMBER OF ATOMS IN THE UNIT CELL                    ==
-      ! ==          ALL THE DIMENSIONS ARE SET FOR NAT .LE. 20          ==
+      ! ==          ALL THE DIMENSIONS ARE SET FOR NAT <= 20          ==
       ! == TY ..... INTEGERS DISTINGUISHING BETWEEN THE ATOMS OF        ==
       ! ==          DIFFERENT TYPE. TY(I) IS THE TYPE OF THE I-TH ATOM  ==
       ! ==          OF THE BASIS                                        ==
@@ -611,7 +611,7 @@ CONTAINS
       ! ==          (OPERATIONS 13 OR 25 IN RESPECTIVELY HEXAGONAL      ==
       ! ==          OR CUBIC GROUPS).                                   ==
       ! ==          LI=0 MEANS: DOES NOT CONTAIN INVERSION              ==
-      ! ==          LI.GT.0 MEANS: THERE IS INVERSION IN THE POINT      ==
+      ! ==          LI>0 MEANS: THERE IS INVERSION IN THE POINT      ==
       ! ==                         GROUP OF THE CRYSTAL                 ==
       ! == NC ..... TOTAL NUMBER OF ELEMENTS IN THE POINT GROUP OF THE  ==
       ! ==          CRYSTAL                                             ==
@@ -704,13 +704,13 @@ CONTAINS
       ! ==--------------------------------------------------------------==
       ! Determination of the holohedral group (and crystal system)
       CALL pgl1(ap, api, ihc, nc, ib, ihg, r, delta)
-      IF (ntvec .GT. 1) THEN
+      IF (ntvec > 1) THEN
          ! All rotations found by PGL1 have axes in x, y or z cart. axis
          ! So we have too check if we do not loose symmetry
          ncprim = nc
          ! The hexagonal system is found if the z axis is the sixfold axis
          CALL pgl1(a, ai, ihc, nc, ib, ihg, r, delta)
-         IF (ncprim .GT. nc) THEN
+         IF (ncprim > nc) THEN
             ! More symmetry with
             CALL pgl1(ap, api, ihc, nc, ib, ihg, r, delta)
          END IF
@@ -720,8 +720,8 @@ CONTAINS
       CALL atftm1(iout, r, v, x, f0, origin, ib, ty, nat, ihg, ihc, rx, &
                   nc, indpg, ntvec, a, ai, li, isy, isc, delta)
 
-      IF (iout .GT. 0) THEN
-         IF (li .GT. 0) THEN
+      IF (iout > 0) THEN
+         IF (li > 0) THEN
             IF (iout > 0) &
                WRITE (iout, '(1X,A)') &
                'KPSYM| THE POINT GROUP OF THE CRYSTAL CONTAINS THE INVERSION'
@@ -758,13 +758,13 @@ CONTAINS
       DO i = 1, 3
          il = 1
          iu = 3
-         IF (i .EQ. 1) il = 2
-         IF (i .EQ. 3) iu = 2
+         IF (i == 1) il = 2
+         IF (i == 3) iu = 2
          DO j = 1, 3
             jl = 1
             ju = 3
-            IF (j .EQ. 1) jl = 2
-            IF (j .EQ. 3) ju = 2
+            IF (j == 1) jl = 2
+            IF (j == 3) ju = 2
             ai(j, i) = (-1._dp)**(i + j)*det* &
                        (A(IL, JL)*A(IU, JU) - A(IL, JU)*A(IU, JL))
          END DO
@@ -840,7 +840,7 @@ CONTAINS
          f0(49, i) = i
       END DO
       DO k2 = 2, nat
-         IF (ty(1) .NE. ty(k2)) GOTO 100
+         IF (ty(1) /= ty(k2)) GOTO 100
          DO i = 1, 3
             xb(i) = x(i, k2) - x(i, 1)
          END DO
@@ -853,7 +853,7 @@ CONTAINS
             ! F0(49,1:NAT) gives number of equivalent atoms
             ! and has atom indexes of inequivalent atoms (for translation)
             DO i = 1, nat
-               IF (f0(49, i) .GT. f0(1, i)) f0(49, i) = f0(1, i)
+               IF (f0(49, i) > f0(1, i)) f0(49, i) = f0(1, i)
             END DO
             DO i = 1, 3
                tvec(i, ntvec) = vr(i)
@@ -870,7 +870,7 @@ CONTAINS
          api(2, i) = ai(2, i)
          api(3, i) = ai(3, i)
       END DO
-      IF (ntvec .EQ. 1) THEN
+      IF (ntvec == 1) THEN
          ! The current cell is definitely a primitive one
          ! Copy A and AI to AP and API
       ELSE
@@ -886,9 +886,9 @@ CONTAINS
             ! We calculare TVEC in AP basis
             CALL rlv3(api, xb, vr, il, delta)
             DO i = 1, 3
-               IF (ABS(vr(i)) .GT. delta) THEN
+               IF (ABS(vr(i)) > delta) THEN
                   il = NINT(1._dp/ABS(vr(i)))
-                  IF (il .GT. 1) THEN
+                  IF (il > 1) THEN
                      ! We replace AP(1:3,I) by TVEC(1:3,IV)
                      DO j = 1, 3
                         ap(j, i) = xb(j)
@@ -963,7 +963,7 @@ CONTAINS
 
       DO ihc = 0, 1
          ! IHC is 0 for hexagonal groups and 1 for cubic groups.
-         IF (ihc .EQ. 0) THEN
+         IF (ihc == 0) THEN
             nr = 24
          ELSE
             nr = 48
@@ -987,7 +987,7 @@ CONTAINS
                   tr = tr + ABS(vr(i))
                END DO
                ! If VR.ne.0, then XA cannot be a multiple of a lattice vector
-               IF (tr .GT. delta) GOTO 140
+               IF (tr > delta) GOTO 140
             END DO
             nc = nc + 1
             ib(nc) = n
@@ -995,19 +995,19 @@ CONTAINS
          END DO
          ! ==------------------------------------------------------------==
          ! IHG stands for holohedral group number.
-         IF (ihc .EQ. 0) THEN
+         IF (ihc == 0) THEN
             ! Hexagonal group:
-            IF (nc .EQ. 12) ihg = 6
-            IF (nc .GT. 12) ihg = 7
-            IF (nc .GE. 12) RETURN
+            IF (nc == 12) ihg = 6
+            IF (nc > 12) ihg = 7
+            IF (nc >= 12) RETURN
             ! Too few operations, try cubic group: (IHC=1,NR=48)
          ELSE
             ! Cubic group:
-            IF (nc .LT. 4) ihg = 1
-            IF (nc .EQ. 4) ihg = 2
-            IF (nc .GT. 4) ihg = 3
-            IF (nc .EQ. 16) ihg = 4
-            IF (nc .GT. 16) ihg = 5
+            IF (nc < 4) ihg = 1
+            IF (nc == 4) ihg = 2
+            IF (nc > 4) ihg = 3
+            IF (nc == 16) ihg = 4
+            IF (nc > 16) ihg = 5
             RETURN
          END IF
       END DO
@@ -1056,7 +1056,7 @@ CONTAINS
          vr(i) = 0._dp
       END DO
       ts = ABS(xb(1)) + ABS(xb(2)) + ABS(xb(3))
-      IF (ts .LE. delta) RETURN
+      IF (ts <= delta) RETURN
       DO i = 1, 3
          vr(i) = vr(i) + ai(i, 1)*xb(1) + ai(i, 2)*xb(2) + ai(i, 3)*xb(3)
          il = il + NINT(ABS(vr(i)))
@@ -1110,7 +1110,7 @@ CONTAINS
       ! ==--------------------------------------------------------------==
       ! == INPUT:                                                       ==
       ! ==   IOUT Logical file number (output)                          ==
-      ! ==        If IOUT.LE.0 no message                               ==
+      ! ==        If IOUT<=0 no message                               ==
       ! ==   IHG  Holohedral group number (determined by PGL1)          ==
       ! ==   IHC  Code distinguishing between hexagonal and cubic groups==
       ! ==          IHC=0 stands for hexagonal groups                   ==
@@ -1145,7 +1145,7 @@ CONTAINS
       ! ==          (operations 13 or 25 in respectively hexagonal      ==
       ! ==          or cubic groups).                                   ==
       ! ==          LI=0    : does not contain inversion                ==
-      ! ==          LI.GT.0 : there is inversion in the point           ==
+      ! ==          LI>0 : there is inversion in the point           ==
       ! ==                    group of the crystal                      ==
       ! ==--------------------------------------------------------------==
       ! INDPG group   indpg   group    indpg  group     indpg   group   ==
@@ -1200,7 +1200,7 @@ CONTAINS
       LOGICAL                                            :: nodupli, oksym
       REAL(dp)                                           :: vc(3, 48), vr(3), vs, xb(3)
 
-      nodupli = ntvec .EQ. 1
+      nodupli = ntvec == 1
       nca = 0
       DO n = 1, 48
          iis(n) = 0
@@ -1227,8 +1227,8 @@ CONTAINS
          ! Now we try other possible VR
          ! F0(49,1:NAT) has only inequivalent atom indexes for translation
          DO k2 = 1, nat
-            IF (f0(49, k2) .LT. k2) GOTO 185
-            IF (ty(1) .NE. ty(k2)) GOTO 185
+            IF (f0(49, k2) < k2) GOTO 185
+            IF (ty(1) /= ty(k2)) GOTO 185
             DO i = 1, 3
                xb(i) = rx(i, 1) - x(i, k2)
             END DO
@@ -1267,14 +1267,14 @@ CONTAINS
       ! Remove unused operations
       i = 0
       ni = 13
-      IF (ihg .LT. 6) ni = 25
+      IF (ihg < 6) ni = 25
       li = 0
       DO n = 1, nc
          l = ib(n)
-         IF (iis(l) .EQ. 0) GOTO 230 ! CYCLE
+         IF (iis(l) == 0) GOTO 230 ! CYCLE
          i = i + 1
          ib(i) = ib(n)
-         IF (ib(i) .EQ. ni) li = i
+         IF (ib(i) == ni) li = i
          DO k = 1, nat
             f0(i, k) = f0(n, k)
          END DO
@@ -1289,7 +1289,7 @@ CONTAINS
       ! THE ORIGINAL VALUE DELTA=0.0001 WAS MODIFIED
       ! BY K.K. , SEPTEMBER 1979 TO 0.0005
       ! AND RETURNED TO 0.0001 BY RJN OCT 1987
-      IF (vs .GT. delta) THEN
+      IF (vs > delta) THEN
          isy = 0
       ELSE
          isy = 1
@@ -1297,140 +1297,140 @@ CONTAINS
       ! ==--------------------------------------------------------------==
       ! Determination of the point group
       ! (Thierry Deutsch - 1998 [Maybe not complete!!])
-      IF (ihg .LT. 6) THEN
-         IF (nc .EQ. 0) THEN
+      IF (ihg < 6) THEN
+         IF (nc == 0) THEN
             IF (iout > 0) &
                WRITE (iout, '(" ATFTM1! IHG=",A," NC=",I2)') icst(ihg), nC
             CALL stopgm('ATFTM1', 'NUMBER OF ROTATION NULL')
             ! Triclinic system
-         ELSEIF (nc .EQ. 1) THEN
+         ELSEIF (nc == 1) THEN
             ! IB=1
             indpg = 1           ! 1 (c1)
-         ELSEIF (nc .EQ. 2 .AND. ib(2) .EQ. 25) THEN
+         ELSEIF (nc == 2 .AND. ib(2) == 25) THEN
             ! IB=125
             indpg = 2           ! <1>(ci)
-         ELSEIF (nc .EQ. 2 .AND. ( &
-                 ib(2) .EQ. 4 .OR. & ! 2[001]
-                 ib(2) .EQ. 2 .OR. & ! 2[100]
-                 ib(2) .EQ. 3)) THEN ! 2[010]
+         ELSEIF (nc == 2 .AND. ( &
+                 ib(2) == 4 .OR. & ! 2[001]
+                 ib(2) == 2 .OR. & ! 2[100]
+                 ib(2) == 3)) THEN ! 2[010]
             ! Monoclinic system
             ! IB=14 (z-axis) OR
             ! IB=12 (x-axis) OR
             ! IB=13 (y-axis)
             indpg = 3           ! 2 (c2)
-         ELSEIF (nc .EQ. 2 .AND. ( &
-                 ib(2) .EQ. 28 .OR. &
-                 ib(2) .EQ. 26 .OR. &
-                 ib(2) .EQ. 27)) THEN
+         ELSEIF (nc == 2 .AND. ( &
+                 ib(2) == 28 .OR. &
+                 ib(2) == 26 .OR. &
+                 ib(2) == 27)) THEN
             ! IB=128 (z-axis) OR
             ! IB=126 (x-axis) OR
             ! IB=127 (y-axis)
             indpg = 4           ! m (c1h)
-         ELSEIF (nc .EQ. 4 .AND. ( &
-                 ib(4) .EQ. 28 .OR. & ! 2[001]
-                 ib(4) .EQ. 27 .OR. & ! 2[010]
-                 ib(4) .EQ. 26 .OR. & ! 2[100]
-                 ib(4) .EQ. 37 .OR. & ! -2[-110]
-                 ib(4) .EQ. 40)) THEN ! 2[110]
+         ELSEIF (nc == 4 .AND. ( &
+                 ib(4) == 28 .OR. & ! 2[001]
+                 ib(4) == 27 .OR. & ! 2[010]
+                 ib(4) == 26 .OR. & ! 2[100]
+                 ib(4) == 37 .OR. & ! -2[-110]
+                 ib(4) == 40)) THEN ! 2[110]
             ! IB=1  425 28 (z-axis)  OR
             ! IB=1  225 26 (x-axis)  OR
             ! IB=1  325 27 (y-axis)  OR
             ! IB=113 2537 (-xy-axis)OR
             ! IB=116 2540 (xy-axis)
             indpg = 5           ! 2/m(c2h)
-         ELSEIF (nc .EQ. 4 .AND. ( &
-                 ib(4) .EQ. 15 .OR. &
-                 ib(4) .EQ. 20 .OR. &
-                 ib(4) .EQ. 24)) THEN
+         ELSEIF (nc == 4 .AND. ( &
+                 ib(4) == 15 .OR. &
+                 ib(4) == 20 .OR. &
+                 ib(4) == 24)) THEN
             ! Tetragonal system
             ! IB=14 1415 (z-axis) OR
             ! IB=12 1920 (x-axis) OR
             ! IB=13 2224 (y-axis)
             indpg = 11          ! 4 (c4)
-         ELSEIF (nc .EQ. 4 .AND. ( &
-                 ib(4) .EQ. 39 .OR. &
-                 ib(4) .EQ. 44 .OR. &
-                 ib(4) .EQ. 48)) THEN
+         ELSEIF (nc == 4 .AND. ( &
+                 ib(4) == 39 .OR. &
+                 ib(4) == 44 .OR. &
+                 ib(4) == 48)) THEN
             ! IB=14 3839 (z-axis) OR
             ! IB=12 4344 (x-axis) OR
             ! IB=13 4648 (y-axis)
             indpg = 12          ! <4>(s4)
-         ELSEIF (nc .EQ. 8 .AND. ( &
-                 (ib(3) .EQ. 14 .AND. ib(8) .EQ. 39) .OR. &
-                 (ib(3) .EQ. 19 .AND. ib(8) .EQ. 44) .OR. &
-                 (ib(3) .EQ. 22 .AND. ib(8) .EQ. 48))) THEN
+         ELSEIF (nc == 8 .AND. ( &
+                 (ib(3) == 14 .AND. ib(8) == 39) .OR. &
+                 (ib(3) == 19 .AND. ib(8) == 44) .OR. &
+                 (ib(3) == 22 .AND. ib(8) == 48))) THEN
             ! IB=14 1415 2825 3839 (z-axis) OR
             ! IB=12 1920 2625 4344 (x-axis) OR
             ! IB=13 2224 2725 4648 (y-axis)
             indpg = 13          ! 422(d4)
-         ELSEIF (nc .EQ. 8 .AND. ib(4) .EQ. 4 .AND. ( &
-                 ib(8) .EQ. 16 .OR. &
-                 ib(8) .EQ. 20 .OR. &
-                 ib(8) .EQ. 24)) THEN
+         ELSEIF (nc == 8 .AND. ib(4) == 4 .AND. ( &
+                 ib(8) == 16 .OR. &
+                 ib(8) == 20 .OR. &
+                 ib(8) == 24)) THEN
             ! IB=12 3 413 1415 16 (z-axis) OR
             ! IB=12 3 417 1920 18 (x-axis) OR
             ! IB=12 3 421 2224 23 (y-axis)
             indpg = 14          ! 4/m(c4h)
-         ELSEIF (nc .EQ. 8 .AND. ( &
-                 ib(8) .EQ. 40 .OR. &
-                 ib(8) .EQ. 42 .OR. &
-                 ib(8) .EQ. 47)) THEN
+         ELSEIF (nc == 8 .AND. ( &
+                 ib(8) == 40 .OR. &
+                 ib(8) == 42 .OR. &
+                 ib(8) == 47)) THEN
             ! IB=14 1415 2627 3740 (z-axis) OR
             ! IB=12 1920 2827 4142 (x-axis) OR
             ! IB=13 2224 2628 4547 (y-axis)
             indpg = 15          ! 4mm(c4v)
-         ELSEIF (nc .EQ. 8 .AND. ( &
-                 (ib(3) .EQ. 13 .AND. ib(8) .EQ. 39) .OR. &
-                 (ib(3) .EQ. 17 .AND. ib(8) .EQ. 44) .OR. &
-                 (ib(3) .EQ. 21 .AND. ib(8) .EQ. 48))) THEN
+         ELSEIF (nc == 8 .AND. ( &
+                 (ib(3) == 13 .AND. ib(8) == 39) .OR. &
+                 (ib(3) == 17 .AND. ib(8) == 44) .OR. &
+                 (ib(3) == 21 .AND. ib(8) == 48))) THEN
             ! IB=14 1316 2627 3839 (z-axis) OR
             ! IB=12 1718 2827 4344 (x-axis) OR
             ! IB=13 2123 2628 4648 (y-axis)
             indpg = 16          ! <4>2m(d2d)
-         ELSEIF (nc .EQ. 16 .AND. ( &
-                 ib(16) .EQ. 40 .OR. &
-                 ib(16) .EQ. 44 .OR. &
-                 ib(16) .EQ. 48)) THEN
+         ELSEIF (nc == 16 .AND. ( &
+                 ib(16) == 40 .OR. &
+                 ib(16) == 44 .OR. &
+                 ib(16) == 48)) THEN
             ! IB=12 3 413 1415 1625 2627 2837 3839 40 (z-axis) OR
             ! IB=12 3 417 1920 1825 2627 2841 4344 42 (x-axis) OR
             ! IB=12 3 421 2224 2325 2627 2845 4648 47 (y-axis)
             indpg = 17          ! 4/mmm(d4h)
-         ELSEIF (nc .EQ. 4 .AND. (ib(4) .EQ. 4)) THEN
+         ELSEIF (nc == 4 .AND. (ib(4) == 4)) THEN
             ! Orthorhombic system
             ! IB=12  3  4
             indpg = 25          ! 222(d2)
-         ELSEIF (nc .EQ. 4 .AND. ( &
-                 ib(4) .EQ. 27 .OR. &
-                 ib(4) .EQ. 28)) THEN
+         ELSEIF (nc == 4 .AND. ( &
+                 ib(4) == 27 .OR. &
+                 ib(4) == 28)) THEN
             ! IB=13 2627 (z-axis) OR
             ! IB=12 2728 (x-axis) OR
             ! IB=14 2628 (y-axis) OR
             indpg = 26          ! mm2(c2v)
-         ELSEIF (nc .EQ. 8) THEN
+         ELSEIF (nc == 8) THEN
             ! IB=12 3 425 2627 28
             indpg = 27          ! mmm(d2h)
-         ELSEIF (nc .EQ. 12 .AND. ( &
-                 ib(12) .EQ. 12 .OR. &
-                 ib(12) .EQ. 47 .OR. &
-                 ib(12) .EQ. 45)) THEN
+         ELSEIF (nc == 12 .AND. ( &
+                 ib(12) == 12 .OR. &
+                 ib(12) == 47 .OR. &
+                 ib(12) == 45)) THEN
             ! Cubic system
             ! IB=12  3  4  5  6  7  8  910 1112 OR
             ! IB=15 1113 1823 2530 3537 4247 OR
             ! IB=18 1016 1821 2532 3440 4245
             indpg = 28          ! 23 (t)
-         ELSEIF (nc .EQ. 24 .AND. ib(24) .EQ. 36) THEN
+         ELSEIF (nc == 24 .AND. ib(24) == 36) THEN
             ! IB= 1  2  3  4  5  6  7  8  910 1112
             ! 2526 2728 2930 3132 3334 3536
             indpg = 29          ! m3 (th)
-         ELSEIF (nc .EQ. 24 .AND. ib(24) .EQ. 24) THEN
+         ELSEIF (nc == 24 .AND. ib(24) == 24) THEN
             ! IB=12 3 45 6 78 9 1011 12
             ! 1314 1516 1718 1920 2122 2324
             indpg = 30          ! 432 (o)
-         ELSEIF (nc .EQ. 24 .AND. ib(24) .EQ. 48) THEN
+         ELSEIF (nc == 24 .AND. ib(24) == 48) THEN
             ! IB=12 3 45 6 78 9 1011 12
             ! 3738 3940 4142 4345 4647 48
             indpg = 31          ! <4>3m(td)
-         ELSEIF (nc .EQ. 48) THEN
+         ELSEIF (nc == 48) THEN
             ! IB=1..48
             indpg = 32          ! m3m(oh)
          ELSE
@@ -1440,69 +1440,69 @@ CONTAINS
             ! Probably a sub-group of 32
             indpg = -32
          END IF
-      ELSEIF (ihg .GE. 6) THEN
-         IF (nc .EQ. 0) THEN
+      ELSEIF (ihg >= 6) THEN
+         IF (nc == 0) THEN
             IF (iout > 0) &
                WRITE (iout, '(" ATFTM1! IHG=",A," NC=",I2)') icst(ihg), nC
             CALL stopgm('ATFTM1', 'NUMBER OF ROTATION NULL')
             ! Triclinic system
-         ELSEIF (nc .EQ. 1) THEN
+         ELSEIF (nc == 1) THEN
             ! IB=1
             indpg = 1           ! 1 (c1)
-         ELSEIF (nc .EQ. 2 .AND. ib(2) .EQ. 13) THEN
+         ELSEIF (nc == 2 .AND. ib(2) == 13) THEN
             ! IB=113
             indpg = 2           ! <1>(ci)
-         ELSEIF (nc .EQ. 2 .AND. ( &
-                 ib(2) .EQ. 4)) THEN ! 2[001]
+         ELSEIF (nc == 2 .AND. ( &
+                 ib(2) == 4)) THEN ! 2[001]
             ! Monoclinic system
             ! IB=1 4
             indpg = 3           ! 2 (c2)
-         ELSEIF (nc .EQ. 2 .AND. ( &
-                 ib(2) .EQ. 16)) THEN
+         ELSEIF (nc == 2 .AND. ( &
+                 ib(2) == 16)) THEN
             ! IB=116
             indpg = 4           ! m (c1h)
-         ELSEIF (nc .EQ. 4 .AND. ( &
-                 ib(4) .EQ. 24 .OR. &
-                 ib(4) .EQ. 20)) THEN
+         ELSEIF (nc == 4 .AND. ( &
+                 ib(4) == 24 .OR. &
+                 ib(4) == 20)) THEN
             ! IB=112 1324 OR
             ! IB=1  813 20
             indpg = 5           ! 2/m(c2h)
-         ELSEIF (nc .EQ. 3 .AND. ib(3) .EQ. 5) THEN
+         ELSEIF (nc == 3 .AND. ib(3) == 5) THEN
             ! Trigonal system
             ! IB=13 5
             indpg = 6           ! 3 (c3)
-         ELSEIF (nc .EQ. 6 .AND. ib(6) .EQ. 17) THEN
+         ELSEIF (nc == 6 .AND. ib(6) == 17) THEN
             ! IB=113 1517 35
             indpg = 7           ! <3>(c3i)
-         ELSEIF (nc .EQ. 6 .AND. ib(6) .EQ. 11) THEN
+         ELSEIF (nc == 6 .AND. ib(6) == 11) THEN
             ! IB=17 9 1135
             indpg = 8           ! 32 (d3)
-         ELSEIF (nc .EQ. 6 .AND. ib(6) .EQ. 23) THEN
+         ELSEIF (nc == 6 .AND. ib(6) == 23) THEN
             ! IB=13 5 1921 23
             indpg = 9           ! 3m (c3v)
-         ELSEIF (nc .EQ. 12 .AND. ib(12) .EQ. 23) THEN
+         ELSEIF (nc == 12 .AND. ib(12) == 23) THEN
             ! IB=13 5 79 1113 1517 1921 23
             indpg = 10          ! <3>m(d3d)
-         ELSEIF (nc .EQ. 6 .AND. ib(6) .EQ. 6) THEN
+         ELSEIF (nc == 6 .AND. ib(6) == 6) THEN
             ! Hexagonal system
             ! IB=12 3 45 6
             indpg = 18          ! 6 (c6)
-         ELSEIF (nc .EQ. 6 .AND. ib(6) .EQ. 18) THEN
+         ELSEIF (nc == 6 .AND. ib(6) == 18) THEN
             ! IB=13 5 1416 18
             indpg = 19          ! <6>(c3h)
-         ELSEIF (nc .EQ. 12 .AND. ib(12) .EQ. 18) THEN
+         ELSEIF (nc == 12 .AND. ib(12) == 18) THEN
             ! IB=12 3 45 6 1314 1516 1718
             indpg = 20          ! 6/m(c6h)
-         ELSEIF (nc .EQ. 12 .AND. ib(12) .EQ. 12) THEN
+         ELSEIF (nc == 12 .AND. ib(12) == 12) THEN
             ! IB=12 3 45 6 78 9 1011 12
             indpg = 21          ! 622(d6)
-         ELSEIF (nc .EQ. 12 .AND. ib(2) .EQ. 2 .AND. ib(12) .EQ. 24) THEN
+         ELSEIF (nc == 12 .AND. ib(2) == 2 .AND. ib(12) == 24) THEN
             ! IB=12 3 45 6 1920 2122 2324
             indpg = 22          ! 6mm(c6v)
-         ELSEIF (nc .EQ. 12 .AND. ib(2) .EQ. 3 .AND. ib(12) .EQ. 24) THEN
+         ELSEIF (nc == 12 .AND. ib(2) == 3 .AND. ib(12) == 24) THEN
             ! IB=13 5 79 1114 1618 2022 24
             indpg = 23          ! <6>m2(d3h)
-         ELSEIF (nc .EQ. 24) THEN
+         ELSEIF (nc == 24) THEN
             ! IB=1..24
             indpg = 24          ! 6/mmm(d6h)
          ELSE
@@ -1516,7 +1516,7 @@ CONTAINS
       ! ==--------------------------------------------------------------==
       ! == Determination if the space group is symmorphic or not        ==
       ! ==--------------------------------------------------------------==
-      IF (isy .NE. 1) THEN
+      IF (isy /= 1) THEN
          ! Transform V in cartesian coordinates
          DO n = 1, nc
             vc(1, n) = a(1, 1)*v(1, n) + a(1, 2)*v(2, n) + a(1, 3)*v(3, n)
@@ -1524,12 +1524,12 @@ CONTAINS
             vc(3, n) = a(3, 1)*v(1, n) + a(3, 2)*v(2, n) + a(3, 3)*v(3, n)
          END DO
          CALL symmorphic(nc, ib, r, vc, ai, info, origin, delta)
-         IF (info .EQ. 1) THEN
+         IF (info == 1) THEN
             CALL rlv3(ai, origin, xb, il, delta)
             ! !!!RLV3 determines -XB in crystal coordinates
             ! !!We want between 0.0 and 1.0
             DO i = 1, 3
-               IF (-xb(i) .GE. 0._dp) THEN
+               IF (-xb(i) >= 0._dp) THEN
                   origin(i) = -xb(i)
                ELSE
                   origin(i) = 1._dp - xb(i)
@@ -1539,7 +1539,7 @@ CONTAINS
                xb(i) = a(i, 1)*origin(1) + a(i, 2)*origin(2) + a(i, 3)*origin(3)
             END DO
             isy = -1
-         ELSEIF (info .EQ. 0) THEN
+         ELSEIF (info == 0) THEN
             isy = 0
          ELSE
             isy = -2
@@ -1552,12 +1552,12 @@ CONTAINS
       ! ==--------------------------------------------------------------==
       ! == Output                                                       ==
       ! ==--------------------------------------------------------------==
-      IF (iout .GT. 0) THEN
+      IF (iout > 0) THEN
          IF (iout > 0) &
             WRITE (iout, *)
          CALL xstring(icst(ihg), i, j)
-         IF ((ihg .EQ. 7 .AND. nc .EQ. 24) .OR. &
-             (ihg .EQ. 5 .AND. nc .EQ. 48)) THEN
+         IF ((ihg == 7 .AND. nc == 24) .OR. &
+             (ihg == 5 .AND. nc == 48)) THEN
             IF (iout > 0) &
                WRITE (iout, '(A,A,A)') &
                ' KPSYM| THE POINT GROUP OF THE CRYSTAL IS THE FULL ', &
@@ -1569,7 +1569,7 @@ CONTAINS
                ' KPSYM| THE CRYSTAL SYSTEM IS ', &
                icst(ihg) (i:j), &
                ' WITH ', nc, ' OPERATIONS:'
-            IF (ihc .EQ. 0) THEN
+            IF (ihc == 0) THEN
                IF (iout > 0) &
                   WRITE (iout, '( 5(5(A13),/))') (rname_hexai(ib(i)), i=1, nc)
             ELSE
@@ -1578,11 +1578,11 @@ CONTAINS
             END IF
          END IF
          ! ==------------------------------------------------------------==
-         IF (isy .EQ. 1) THEN
+         IF (isy == 1) THEN
             IF (iout > 0) &
                WRITE (iout, '(A)') &
                ' KPSYM| THE SPACE GROUP OF THE CRYSTAL IS SYMMORPHIC'
-         ELSEIF (isy .EQ. -1) THEN
+         ELSEIF (isy == -1) THEN
             IF (iout > 0) &
                WRITE (iout, '(A)') &
                ' KPSYM| THE SPACE GROUP OF THE CRYSTAL IS SYMMORPHIC'
@@ -1590,12 +1590,12 @@ CONTAINS
                WRITE (iout, '(A,A,/,T3,3F10.6,3X,3F10.6)') &
                ' KPSYM| THE STANDARD ORIGIN OF COORDINATES IS:   ', &
                '[CARTESIAN]   [CRYSTAL]', xb, origin
-         ELSEIF (isy .EQ. 0) THEN
+         ELSEIF (isy == 0) THEN
             IF (iout > 0) &
                WRITE (iout, '(A,/,3X,A,F15.6,A)') &
                ' KPSYM| THE SPACE GROUP IS NON-SYMMORPHIC,', &
                ' (SUM OF TRANSLATION VECTORS=', vs, ')'
-         ELSEIF (isy .EQ. -2) THEN
+         ELSEIF (isy == -2) THEN
             IF (iout > 0) &
                WRITE (iout, '(A,A)') &
                ' KPSYM| CANNOT DETERMINE IF THE SPACE GROUP IS', &
@@ -1606,7 +1606,7 @@ CONTAINS
                ' KPSYM| OR ELSE A NON STANDARD ORIGIN OF COORDINATES WAS USED.', &
                ' KPSYM| (SUM OF TRANSLATION VECTORS=', vs, ')'
          END IF
-         IF (indpg .GT. 0) THEN
+         IF (indpg > 0) THEN
             CALL xstring(pgrp(indpg), i, j)
             CALL xstring(pgrd(indpg), k, l)
             IF (iout > 0) &
@@ -1622,7 +1622,7 @@ CONTAINS
                '    SUBGROUP OF ', pgrp(-indpg) (i:j), &
                pgrd(-indpg) (k:l), -indpg
          END IF
-         IF (ntvec .EQ. 1) THEN
+         IF (ntvec == 1) THEN
             IF (iout > 0) &
                WRITE (iout, '(A,T60,I6)') &
                ' KPSYM| NUMBER OF PRIMITIVE CELL:', ntvec
@@ -1696,15 +1696,15 @@ CONTAINS
       ! Now we check if ROT(N)+VR gives a correct symmetry.
       DO ia = 1, nat
          DO ib = 1, nat
-            IF (ty(ia) .EQ. ty(ib) .AND. isc(ib) .EQ. 0) THEN
+            IF (ty(ia) == ty(ib) .AND. isc(ib) == 0) THEN
                xb(1) = rx(1, ia) - x(1, ib)
                xb(2) = rx(2, ia) - x(2, ib)
                xb(3) = rx(3, ia) - x(3, ib)
                CALL rlv3(ai, xb, vt, il, delta)
                ! VT STANDS FOR V-TEST
-               oksym = (ABS((vr(1) - vt(1)) - NINT(vr(1) - vt(1))) .LT. delta) .AND. &
-                       (ABS((vr(2) - vt(2)) - NINT(vr(2) - vt(2))) .LT. delta) .AND. &
-                       (ABS((vr(3) - vt(3)) - NINT(vr(3) - vt(3))) .LT. delta)
+               oksym = (ABS((vr(1) - vt(1)) - NINT(vr(1) - vt(1))) < delta) .AND. &
+                       (ABS((vr(2) - vt(2)) - NINT(vr(2) - vt(2))) < delta) .AND. &
+                       (ABS((vr(3) - vt(3)) - NINT(vr(3) - vt(3))) < delta)
                IF (oksym) THEN
                   IF (nodupli) isc(ib) = 1
                   f0(n, ia) = ib
@@ -1780,7 +1780,7 @@ CONTAINS
       END DO
       DO ir = 1, nc
          dif = v(1, ir)*v(1, ir) + v(2, ir)*v(2, ir) + v(3, ir)*v(3, ir)
-         IF (dif .GT. delta*delta) THEN
+         IF (dif > delta*delta) THEN
             DO i = 1, 3
                igood(i) = 1
             END DO
@@ -1792,7 +1792,7 @@ CONTAINS
                r3(i, i) = 1 + r3(i, i)
             END DO
             CALL invmat(r3, ierror)
-            IF (ierror .EQ. 0) THEN
+            IF (ierror == 0) THEN
                ! The matrix 3x3 has an inverse.
                DO i = 1, 3
                   vr(i) = r3(i, 1)*v(1, ir) &
@@ -1806,11 +1806,11 @@ CONTAINS
                imissing3 = ierror
                i1 = 0
                DO i = 1, 3
-                  IF (i .NE. ierror) THEN
+                  IF (i /= ierror) THEN
                      i1 = i1 + 1
                      j1 = 0
                      DO j = 1, 3
-                        IF (j .NE. ierror) THEN
+                        IF (j /= ierror) THEN
                            j1 = j1 + 1
                            r2(i1, j1) = -r(i, j, ib(ir))
                         END IF
@@ -1819,17 +1819,17 @@ CONTAINS
                   END IF
                END DO
                CALL invmat(r2, ierror)
-               IF (ierror .EQ. 0) THEN
+               IF (ierror == 0) THEN
                   ! The matrix 2X2 has an inverse.
                   ! Solve Vxy = (1-R).OAxy + OAz R3z (z is IMISSING3)
                   i1 = 0
                   DO i = 1, 3
-                     IF (igood(i) .EQ. 1) THEN
+                     IF (igood(i) == 1) THEN
                         i1 = i1 + 1
                         vr(i) = 0._dp
                         j1 = 0
                         DO j = 1, 3
-                           IF (igood(j) .EQ. 1) THEN
+                           IF (igood(j) == 1) THEN
                               j1 = j1 + 1
                               vr(i) = vr(i) + r2(i1, j1)*(v(j, ir) + &
                                                           origin(imissing3)*r(j, imissing3, ib(ir)))
@@ -1843,9 +1843,9 @@ CONTAINS
                   ! Construct matrix 1-R with 1x1
                   i1 = 0
                   DO i = 1, 3
-                     IF (i .NE. imissing3) THEN
+                     IF (i /= imissing3) THEN
                         i1 = i1 + 1
-                        IF (i1 .EQ. ierror) THEN
+                        IF (i1 == ierror) THEN
                            igood(i) = 0
                            imissing2 = i
                         ELSE
@@ -1854,7 +1854,7 @@ CONTAINS
                      END IF
                   END DO
                   diag = (1 - r(ionly, ionly, ib(ir)))
-                  IF (ABS(diag) .GT. delta) THEN
+                  IF (ABS(diag) > delta) THEN
                      vr(ionly) = 1._dp/diag*(v(ionly, ir) + &
                                              origin(imissing3)*r(ionly, imissing3, ib(ir)) + &
                                              origin(imissing2)*r(ionly, imissing2, ib(ir)))
@@ -1871,17 +1871,17 @@ CONTAINS
             dif = 0._dp
             ! If NTVEC /=1 there are NTVEC possible standard origins
             DO i = 1, 3
-               IF (iok(i) .EQ. 1) THEN
+               IF (iok(i) == 1) THEN
                   dif = dif + ABS(origin(i) - vr(i))
                END IF
             END DO
-            IF (dif .GT. delta) THEN
+            IF (dif > delta) THEN
                ! Non-symmorphic
                info = 0
                RETURN
             ELSE
                DO i = 1, 3
-                  IF (iok(i) .NE. 1 .AND. igood(i) .EQ. 1) THEN
+                  IF (iok(i) /= 1 .AND. igood(i) == 1) THEN
                      iok(i) = 1
                      origin(i) = vr(i)
                   END IF
@@ -1890,7 +1890,7 @@ CONTAINS
          END IF
       END DO
       ! ==--------------------------------------------------------------==
-      IF (iok(1) .EQ. 0 .AND. iok(2) .EQ. 0 .AND. iok(3) .EQ. 0) THEN
+      IF (iok(1) == 0 .AND. iok(2) == 0 .AND. iok(3) == 0) THEN
          ! Cannot not determine
          info = -1
          RETURN
@@ -1907,7 +1907,7 @@ CONTAINS
          END DO
          CALL rlv3(ai, vr, xb, il, delta)
          dif = ABS(xb(1)) + ABS(xb(2)) + ABS(xb(3))
-         IF (dif .GT. delta) THEN
+         IF (dif > delta) THEN
             ! Non-symmorphic
             info = 0
             RETURN
@@ -1959,7 +1959,7 @@ CONTAINS
             END DO
          END DO
       END DO
-      IF (ihc .EQ. 0) THEN
+      IF (ihc == 0) THEN
          ! ==------------------------------------------------------------==
          ! DEFINE THE GENERATORS FOR THE ROTATION MATRICES--HEXAGONAL GROUP
          ! ==------------------------------------------------------------==
@@ -2141,7 +2141,7 @@ CONTAINS
       ! ==--------------------------------------------------------------==
       ! == INPUT DATA:                                                  ==
       ! == IOUT:    LOGICAL UNIT FOR OUTPUT                             ==
-      ! ==          IF (IOUT.LE.0) NO MESSAGE                           ==
+      ! ==          IF (IOUT<=0) NO MESSAGE                           ==
       ! == IQ1,IQ2,IQ3 .. PARAMETER Q OF MONKHORST AND PACK,            ==
       ! ==          GENERALIZED AND DIFFERENT FOR THE 3 DIRECTIONS B1,  ==
       ! ==          B2 AND B3                                           ==
@@ -2153,7 +2153,7 @@ CONTAINS
       ! == NKPOINT .. VARIABLE DIMENSION OF THE (OUTPUT) ARRAYS WVKL,   ==
       ! ==          LWGHT,LROT, I.E. SPACE RESERVED FOR THE SPECIAL     ==
       ! ==          POINTS AND ACCESSORIES.                             ==
-      ! ==          NKPOINT HAS TO BE .GE. NTOT (TOTAL NUMBER OF SPECIAL==
+      ! ==          NKPOINT HAS TO BE >= NTOT (TOTAL NUMBER OF SPECIAL==
       ! ==          POINTS. THIS IS CHECKED BY THE SUBROUTINE.          ==
       ! == ISTRIZ . INDICATES WHETHER ADDITIONAL MESH POINTS SHOULD BE  ==
       ! ==          GENERATED BY APPLYING GROUP OPERATIONS TO THE MESH. ==
@@ -2167,8 +2167,8 @@ CONTAINS
       ! ==          TO THE POINT GROUP OF THE CRYSTAL OR NOT (IN THE    ==
       ! ==          CASE THAT THE POINT GROUP DOES NOT CONTAIN ANY).    ==
       ! ==          INV=0 MEANS: DO NOT ADD INVERSION                   ==
-      ! ==          INV.NE.0 MEANS: ADD THE INVERSION                   ==
-      ! ==          INV.NE.0 SHOULD BE THE STANDARD CHOICE WHEN SPPT2   ==
+      ! ==          INV/=0 MEANS: ADD THE INVERSION                   ==
+      ! ==          INV/=0 SHOULD BE THE STANDARD CHOICE WHEN SPPT2   ==
       ! ==          IS USED IN RECIPROCAL SPACE - IN ORDER TO MAKE      ==
       ! ==          USE OF THE HERMITICITY OF HAMILTONIAN.              ==
       ! ==          WHEN USED IN DIRECT SPACE, THE RIGHT CHOICE OF INV  ==
@@ -2226,7 +2226,7 @@ CONTAINS
       ! ==          NEGATIVE, THIS MEANS THAT THE CORRESPONDING ROTATION==
       ! ==          HAS TO BE APPLIED WITH INVERSION (THE LATTER HAVING ==
       ! ==          BEEN ARTIFICIALLY ADDED AS SYMMETRY OPERATION IN    ==
-      ! ==          CASE INV.NE.0).NO OTHER EFFORT WAS TAKEN,TO RENUMBER==
+      ! ==          CASE INV/=0).NO OTHER EFFORT WAS TAKEN,TO RENUMBER==
       ! ==          THE ROTATIONS WITH MINUS SIGN OR TO EXTEND THE      ==
       ! ==          LIST OF THE POINT-GROUP OPERATIONS IN THE LIST NB.  ==
       ! == INCLUD ... INTEGER ARRAY USED BY SPPT2 INCLUD(NKPOINT)       ==
@@ -2305,7 +2305,7 @@ CONTAINS
                ! Reduce WVK to the 1st Brillouin zone
                CALL bzrduc(wvk, a1, a2, a3, b1, b2, b3, rsdir, &
                            nrsdir, nplane, delta)
-               IF (istriz .EQ. 1) THEN
+               IF (istriz == 1) THEN
                   ! Symmetrization of the k-points mesh.
                   ! Apply all the Bravais lattice operations to WVK
                   DO iop = 1, ncbrav
@@ -2323,8 +2323,8 @@ CONTAINS
                                nkpoint, nhash, list, rlist, delta)
                      ! If WVA was new (and therefore inserted),
                      ! IPLACE is the number.
-                     IF (iplace .GT. 0) imesh = iplace
-                     IF (iplace .GT. nkpoint) GOTO 470
+                     IF (iplace > 0) imesh = iplace
+                     IF (iplace > nkpoint) GOTO 470
                   END DO
                ELSE
                   ! Place WVK in list
@@ -2332,7 +2332,7 @@ CONTAINS
                   CALL mesh(iout, wvk, iplace, igarb0, igarbg, &
                             nkpoint, nhash, list, rlist, delta)
                   imesh = iplace
-                  IF (iplace .GT. nkpoint) GOTO 470
+                  IF (iplace > nkpoint) GOTO 470
                END IF
             END DO
          END DO
@@ -2340,7 +2340,7 @@ CONTAINS
 !deb
 !deb get full mesh
 !deb
-      IF (iout .GT. 0) THEN
+      IF (iout > 0) THEN
          ! IMESH: Number of k points in the mesh.
          IF (iout > 0) &
             WRITE (iout, &
@@ -2351,7 +2351,7 @@ CONTAINS
             i = ii
             CALL mesh(iout, wva, i, igarb0, igarbg, nkpoint, nhash, &
                       list, rlist, delta)
-            IF (MOD(i, 2) .EQ. 1) THEN
+            IF (MOD(i, 2) == 1) THEN
                IF (iout > 0) &
                   WRITE (iout, '(1X,I5,3F10.4)', advance="no") i, wva
             ELSE
@@ -2363,7 +2363,7 @@ CONTAINS
             WRITE (iout, *)
       END IF
       ! ==--------------------------------------------------------------==
-      IF (istriz .EQ. 1) THEN
+      IF (istriz == 1) THEN
          ! Now figure out if any special point difference (K - K'') is an
          ! integral multiple of a reciprocal-space vector
          iremov = 0
@@ -2397,17 +2397,17 @@ CONTAINS
                ! Check (PROJA - PROJB): Is it integral ?
                DO k = 1, 3
                   diff = proja(k) - projb(k)
-                  IF (ABS(REAL(NINT(diff), kind=dp) - diff) .GT. delta) GOTO 280
+                  IF (ABS(REAL(NINT(diff), kind=dp) - diff) > delta) GOTO 280
                END DO
                ! DIFF is integral: remove WVK from mesh:
                CALL remove(wvk, jplace, igarb0, igarbg, &
                            nkpoint, nhash, list, rlist, delta)
                ! If WVK actually removed, increment IREMOV
-               IF (jplace .GT. 0) iremov = iremov + 1
+               IF (jplace > 0) iremov = iremov + 1
 280            CONTINUE
             END DO
          END DO
-         IF ((iremov .GT. 0 .AND. iout .GT. 0) .AND. iout > 0) &
+         IF ((iremov > 0 .AND. iout > 0) .AND. iout > 0) &
             WRITE (iout, '(A,A,/,A,1X,I6,A,/)') &
             ' KPSYM| SOME OF THESE MESH POINTS ARE RELATED BY LATTICE ', &
             'TRANSLATION VECTORS', &
@@ -2418,7 +2418,7 @@ CONTAINS
       ! == THE INVERSION (TIME REVERSAL !) MAY BE USED.                 ==
       ! ==--------------------------------------------------------------==
       DO iwvk = 1, imesh
-         ! IF(INCLUD(IWVK) .EQ. YES) GOTO 350
+         ! IF(INCLUD(IWVK) == YES) GOTO 350
          IF (BTEST(includ(iwvk), 0)) GOTO 350
          ! IWVK has not been encountered previously: new special point,
          ! (only if WVK is not a garbage vector, however.)
@@ -2430,7 +2430,7 @@ CONTAINS
          ! Find out whether Wvk is in the garbage list
          CALL garbag(wvk, igarbage, igarb0, &
                      nkpoint, nhash, list, rlist, delta)
-         IF (igarbage .GT. 0) GOTO 350
+         IF (igarbage > 0) GOTO 350
          ntot = ntot + 1
          ! Give the index in the special k points table.
          includ(iwvk) = includ(iwvk) + ntot*2
@@ -2454,15 +2454,15 @@ CONTAINS
             iplace = -1
             CALL mesh(iout, wva, iplace, igarb0, igarbg, &
                       nkpoint, nhash, list, rlist, delta)
-            IF (iplace .EQ. 0) THEN
-               IF (istriz .EQ. -1) THEN
+            IF (iplace == 0) THEN
+               IF (istriz == -1) THEN
                   ! No symmetrisation -> WVA not in the list
                   GOTO 364
                ELSE
                   ! Find out whether WVA is in the garbage list
                   CALL garbag(wva, igarbage, igarb0, &
                               nkpoint, nhash, list, rlist, delta)
-                  IF (igarbage .EQ. 0) THEN
+                  IF (igarbage == 0) THEN
                      ! I think this case is impossible (NC <= NCBRAV)
                      ! Error message
                      GOTO 490
@@ -2472,9 +2472,9 @@ CONTAINS
             ! Find out whether WVA is in the garbage list
             CALL garbag(wva, igarbage, igarb0, &
                         nkpoint, nhash, list, rlist, delta)
-            IF (igarbage .GT. 0) GOTO 370
+            IF (igarbage > 0) GOTO 370
             ! Was WVA encountered before ?
-            ! IF(INCLUD(IPLACE) .EQ. YES) GOTO 364
+            ! IF(INCLUD(IPLACE) == YES) GOTO 364
             IF (BTEST(includ(iplace), 0)) GOTO 364
             ! Increment weight.
             lwght(ntot) = lwght(ntot) + 1
@@ -2485,7 +2485,7 @@ CONTAINS
             ! Put the index of the special k-point.
             includ(iplace) = includ(iplace) + ntot*2
 364         CONTINUE
-            IF (ibsign .EQ. -1 .OR. inv .EQ. 0) GOTO 370
+            IF (ibsign == -1 .OR. inv == 0) GOTO 370
             ! The case where we also apply the inversion to WVA
             ! Repeat the search, but for -WVA
             ibsign = -1
@@ -2503,14 +2503,14 @@ CONTAINS
       ! == MULTIPLIED BY 2*PI                                           ==
       ! == THE LIST OF WEIGHTS LWGHT IS NOT NORMALIZED                  ==
       ! ==--------------------------------------------------------------==
-      IF (ntot .GT. nkpoint) THEN
+      IF (ntot > nkpoint) THEN
          IF (iout > 0) &
             WRITE (iout, *) 'IN SPPT2 NUMBER OF SPECIAL POINTS = ', ntot
          IF (iout > 0) &
             WRITE (iout, *) 'BUT NKPOINT = ', nkpoint
          ntot = -1
       END IF
-      IF (iout .GT. 0) THEN
+      IF (iout > 0) THEN
          ! Write the index table relating k points in the mesh
          ! with special k points
          IF (iout > 0) &
@@ -2522,10 +2522,10 @@ CONTAINS
             iplace = includ(i)/2
             IF (iout > 0) &
                WRITE (iout, '(1X,I5,1X,I5)', advance="no") i, iplace
-            IF ((MOD(i, 5) .EQ. 0) .AND. iout > 0) &
+            IF ((MOD(i, 5) == 0) .AND. iout > 0) &
                WRITE (iout, *)
          END DO
-         IF ((MOD(j - 1, 5) .NE. 0) .AND. iout > 0) &
+         IF ((MOD(j - 1, 5) /= 0) .AND. iout > 0) &
             WRITE (iout, *)
       END IF
       RETURN
@@ -2609,7 +2609,7 @@ CONTAINS
 ! ==--------------------------------------------------------------==
 
       delta1 = 10._dp*delta
-      IF (iplace .LE. -2) THEN
+      IF (iplace <= -2) THEN
          DO i = 1, nhash + nmesh
             list(i) = nil
          END DO
@@ -2619,7 +2619,7 @@ CONTAINS
          igarbg = 0
          RETURN
          ! ==--------------------------------------------------------------==
-      ELSEIF ((iplace .GT. -2) .AND. (iplace .LE. 0)) THEN
+      ELSEIF ((iplace > -2) .AND. (iplace <= 0)) THEN
          ! The particular HASH function used in this case:
          rhash = 0.7890_dp*wvk(1) &
                  + 0.6810_dp*wvk(2) &
@@ -2630,10 +2630,10 @@ CONTAINS
          ipoint = list(ihash)
          DO i = 1, 100
             ! List exhausted
-            IF (ipoint .EQ. nil) GOTO 130
+            IF (ipoint == nil) GOTO 130
             ! Compare WVK with this element
             DO j = 1, 3
-               IF (ABS(wvk(j) - rlist(j, ipoint)) .GT. delta1) GOTO 115
+               IF (ABS(wvk(j) - rlist(j, ipoint)) > delta1) GOTO 115
             END DO
             ! WVK located
             GOTO 160
@@ -2650,14 +2650,14 @@ CONTAINS
          CALL stopgm('MESH', 'WARNING')
          ! WVK was not found
 130      CONTINUE
-         IF (iplace .EQ. -1) THEN
+         IF (iplace == -1) THEN
             ! IPLACE=-1 : search for WVK unsuccessful
             iplace = 0
             RETURN
          ELSE
             ! IPLACE=0: add WVK to the list
             list(ihash) = istore
-            IF (istore .GT. nmesh) THEN
+            IF (istore > nmesh) THEN
                IF (iout > 0) &
                   WRITE (iout, '(A)') 'SUBROUTINE MESH *** FATAL ERROR ***'
                IF (iout > 0) &
@@ -2676,7 +2676,7 @@ CONTAINS
          END IF
          ! WVK was found
 160      CONTINUE
-         IF (iplace .EQ. 0) RETURN
+         IF (iplace == 0) RETURN
          ! IPLACE=-1
          iplace = ipoint
          RETURN
@@ -2685,7 +2685,7 @@ CONTAINS
          ! == Return a wavevector (IPLACE > 0)                             ==
          ! ==--------------------------------------------------------------==
          ipoint = iplace
-         IF (ipoint .GE. istore) GOTO 190
+         IF (ipoint >= istore) GOTO 190
          DO i = 1, 3
             wvk(i) = rlist(i, ipoint)
          END DO
@@ -2756,21 +2756,21 @@ CONTAINS
       ipoint = list(ihash)
       DO i = 1, 100
          ! List exhausted
-         IF (ipoint .EQ. nil) THEN
+         IF (ipoint == nil) THEN
             ! WVK was not found in the mesh:
             iplace = 0
             RETURN
          END IF
          ! Compare WVK with this element
          DO j = 1, 3
-            IF (ABS(wvk(j) - rlist(j, ipoint)) .GT. delta1) GOTO 215
+            IF (ABS(wvk(j) - rlist(j, ipoint)) > delta1) GOTO 215
          END DO
          ! WVK located, now remove it from the list:
          list(ihash) = list(ipoint)
          ! LIST(IHASH) now points to the next element in the list,
          ! and the present WVK has become garbage.
          ! Add WVK to the list of garbage:
-         IF (igarb0 .EQ. 0) THEN
+         IF (igarb0 == 0) THEN
             ! Start up the garbage list:
             igarb0 = ipoint
          ELSE
@@ -2834,14 +2834,14 @@ CONTAINS
       ipoint = igarb0
       DO i = 1, nmesh
          ! LIST EXHAUSTED
-         IF (ipoint .EQ. nil) THEN
+         IF (ipoint == nil) THEN
             ! WVK was not found in the mesh:
             iplace = 0
             RETURN
          END IF
          ! Compare WVK with this element
          DO j = 1, 3
-            IF (ABS(wvk(j) - rlist(j, ipoint)) .GT. delta1) GOTO 315
+            IF (ABS(wvk(j) - rlist(j, ipoint)) > delta1) GOTO 315
          END DO
          ! WVK was located in the garbage list
          iplace = i
@@ -3018,7 +3018,7 @@ CONTAINS
             i2 = nb2 + 1 - n2
             DO n3 = 1, nnb3
                i3 = nb3 + 1 - n3
-               IF (i1 .EQ. 0 .AND. i2 .EQ. 0 .AND. i3 .EQ. 0) GOTO 150
+               IF (i1 == 0 .AND. i2 == 0 .AND. i3 == 0) GOTO 150
                DO i = 1, 3
                   bvec(i) = REAL(i1, kind=dp)*b1(i) + REAL(i2, kind=dp)*b2(i) + &
                             REAL(i3, kind=dp)*b3(i)
@@ -3030,7 +3030,7 @@ CONTAINS
                   ! 1/2*BVEC is outside the Bz - skip this direction
                   ! The 1.e-6_dp takes care of single points touching the Bz,
                   ! and of the -(plane)
-                  IF (ABS(projct) .GT. 0.5_dp - delta) GOTO 150
+                  IF (ABS(projct) > 0.5_dp - delta) GOTO 150
                END DO
                ! 1/2*BVEC further confines the 1Bz - include into RSDIR
                nplane = nplane + 1

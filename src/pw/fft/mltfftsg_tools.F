@@ -105,7 +105,7 @@ CONTAINS
                END DO
             END IF
          END IF
-         IF (IC .EQ. 1) THEN
+         IF (IC == 1) THEN
             IF (TRANSB == 'N' .OR. TRANSB == 'n') THEN
                CALL zgetmo(Z(1, 1, id), LOT, NFFT, N, B(1, ITR), LDBX)
             ELSE

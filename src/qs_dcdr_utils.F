@@ -239,14 +239,14 @@ CONTAINS
 
          ! check that the number nao, nmo and nspins are
          ! the same as in the current mos
-         IF (nspins_tmp .NE. nspins) THEN
+         IF (nspins_tmp /= nspins) THEN
             CPABORT("nspins not consistent")
          END IF
-         IF (nao_tmp .NE. nao) CPABORT("nao not consistent")
+         IF (nao_tmp /= nao) CPABORT("nao not consistent")
          ! check that it's the right file
          ! the same as in the current mos
-         IF (lambda_tmp .NE. lambda) CPABORT("lambda not consistent")
-         IF (beta_tmp .NE. beta) CPABORT("beta not consistent")
+         IF (lambda_tmp /= lambda) CPABORT("lambda not consistent")
+         IF (beta_tmp /= beta) CPABORT("beta not consistent")
          !
          DO ispin = 1, nspins
             CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff)
@@ -254,7 +254,7 @@ CONTAINS
             !
             IF (rst_unit > 0) READ (rst_unit) nmo_tmp
             CALL para_env%bcast(nmo_tmp)
-            IF (nmo_tmp .NE. nmo) CPABORT("nmo not consistent")
+            IF (nmo_tmp /= nmo) CPABORT("nmo not consistent")
             !
             ! read the response
             DO i = 1, nmo, MAX(max_block, 1)
@@ -579,7 +579,7 @@ CONTAINS
 
       ! check that the number of localized states is equal to the number of states
       nmoloc = SIZE(linres_control%qs_loc_env%localized_wfn_control%centers_set(1)%array, 2)
-      IF (nmoloc .NE. nmo) THEN
+      IF (nmoloc /= nmo) THEN
          CPABORT("The number of localized functions is not equal to the number of states.")
       END IF
 

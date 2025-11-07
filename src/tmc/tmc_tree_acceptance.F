@@ -95,15 +95,15 @@ CONTAINS
       CPASSERT(ASSOCIATED(tree_element))
       CPASSERT(ASSOCIATED(parent_element))
       CPASSERT(ASSOCIATED(tmc_params))
-      CPASSERT(temperature .GT. 0.0_dp)
-      CPASSERT(rnd_nr .GE. 0.0_dp .AND. rnd_nr .LE. 1.0_dp)
+      CPASSERT(temperature > 0.0_dp)
+      CPASSERT(rnd_nr >= 0.0_dp .AND. rnd_nr <= 1.0_dp)
 
       kB = boltzmann/joule
 
       ! start the timing
       CALL timeset(routineN, handle)
 
-      IF (tmc_params%task_type .EQ. task_type_gaussian_adaptation) THEN
+      IF (tmc_params%task_type == task_type_gaussian_adaptation) THEN
          CPABORT("")
 !TODO       CALL acc_check_gauss_adapt(f=tree_element%potential, ct=tree_element%ekin_before_md, acc=accept)
 !DO NOT DO       RETURN
@@ -112,9 +112,9 @@ CONTAINS
       !-- using 2 different potentials, the energy difference between these potentials
       !   and the two configurations have to be regarded.
       !   The ensamble should be in equilibrium state of the approximate potential
-      IF (diff_pot_check .AND. (tmc_params%NMC_inp_file .NE. "")) THEN
-         IF ((tree_element%potential .EQ. HUGE(tree_element%potential)) .OR. &
-             tree_element%e_pot_approx .EQ. HUGE(tree_element%e_pot_approx)) THEN
+      IF (diff_pot_check .AND. (tmc_params%NMC_inp_file /= "")) THEN
+         IF ((tree_element%potential == HUGE(tree_element%potential)) .OR. &
+             tree_element%e_pot_approx == HUGE(tree_element%e_pot_approx)) THEN
             elem_ener = HUGE(elem_ener)
          ELSE
             !for different potentials we have to regard the differences in energy
@@ -128,11 +128,11 @@ CONTAINS
                        *parent_element%e_pot_approx
 
          !-- always accepted if new energy is smaller than old energy
-         IF (elem_ener .LE. parent_ener) THEN
+         IF (elem_ener <= parent_ener) THEN
             accept = .TRUE.
          ELSE
             !-- gaussian distributed acceptance if new energy is greater than old energy
-            IF (rnd_nr .LT. &
+            IF (rnd_nr < &
                 EXP(-(elem_ener - parent_ener))) THEN
                accept = .TRUE.
             ELSE
@@ -141,7 +141,7 @@ CONTAINS
          END IF
       ELSE
          !-- standard MC check, but also using the kinetic energy for Hybrid Monte Carlo
-         IF (tree_element%move_type .EQ. mv_type_MD) THEN
+         IF (tree_element%move_type == mv_type_MD) THEN
             ekin_last_acc = tree_element%ekin_before_md
             ! using the kinetic energy before velocity change
          ELSE
@@ -161,11 +161,11 @@ CONTAINS
          END IF
 
          !-- always accepted if new energy is smaller than old energy
-         IF (elem_ener .LE. parent_ener) THEN
+         IF (elem_ener <= parent_ener) THEN
             accept = .TRUE.
          ELSE
             !-- gaussian distributed acceptance if new energy is greater than old energy
-            IF (rnd_nr .LT. &
+            IF (rnd_nr < &
                 EXP(-1.0_dp/(kB*temperature)*(elem_ener - parent_ener))) THEN
                accept = .TRUE.
             ELSE
@@ -217,7 +217,7 @@ CONTAINS
       kB = boltzmann/joule
 
       CPASSERT(ASSOCIATED(tree_elem))
-      CPASSERT(tree_elem%rnd_nr .GE. 0.0_dp)
+      CPASSERT(tree_elem%rnd_nr >= 0.0_dp)
       CPASSERT(ASSOCIATED(conf1))
       CPASSERT(ASSOCIATED(conf2))
       CPASSERT(ASSOCIATED(tmc_params))
@@ -225,7 +225,7 @@ CONTAINS
       ! start the timing
       CALL timeset(routineN, handle)
 
-      IF (tmc_params%pressure .GT. 0.0_dp) THEN
+      IF (tmc_params%pressure > 0.0_dp) THEN
          ! pt-NVT
          elem1_ener = conf1%potential &
                       + conf1%ekin
@@ -233,9 +233,9 @@ CONTAINS
                       + conf2%ekin
          ! the swap is done with prob: exp((\beta_i-\beta_j)(U_i-U_j)),
          ! BUT because they are already swaped we exchange the energies.
-         IF (tree_elem%rnd_nr .LT. EXP((1.0_dp/(kB*tmc_params%Temp(tree_elem%mv_conf)) - &
-                                        1.0_dp/(kB*tmc_params%Temp(tree_elem%mv_conf + 1))) &
-                                       *(elem2_ener - elem1_ener))) THEN
+         IF (tree_elem%rnd_nr < EXP((1.0_dp/(kB*tmc_params%Temp(tree_elem%mv_conf)) - &
+                                     1.0_dp/(kB*tmc_params%Temp(tree_elem%mv_conf + 1))) &
+                                    *(elem2_ener - elem1_ener))) THEN
             accept = .TRUE.
          ELSE
             accept = .FALSE.
@@ -253,7 +253,7 @@ CONTAINS
                  (1.0_dp/(kB*tmc_params%Temp(tree_elem%mv_conf))*tmc_params%pressure &
                   - 1.0_dp/(kB*tmc_params%Temp(tree_elem%mv_conf + 1))*tmc_params%pressure)* &
                  (vol2 - vol1)
-         IF (tree_elem%rnd_nr .LT. EXP(delta)) THEN
+         IF (tree_elem%rnd_nr < EXP(delta)) THEN
             accept = .TRUE.
          ELSE
             accept = .FALSE.
@@ -292,10 +292,10 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(parent_elem))
       CPASSERT(ASSOCIATED(new_elem))
-      CPASSERT(temperature .GT. 0.0_dp)
-      CPASSERT(rnd_nr .GT. 0.0_dp)
+      CPASSERT(temperature > 0.0_dp)
+      CPASSERT(rnd_nr > 0.0_dp)
       CPASSERT(ASSOCIATED(tmc_params))
-      CPASSERT(tmc_params%pressure .GE. 0.0_dp)
+      CPASSERT(tmc_params%pressure >= 0.0_dp)
 
       ! start the timing
       CALL timeset(routineN, handle)
@@ -329,10 +329,10 @@ CONTAINS
          END IF
       END IF
       ! acc(o->n) = min(1, exp(-beta*delta_H))
-      IF (d_enthalpy .LE. 0.0_dp) THEN
+      IF (d_enthalpy <= 0.0_dp) THEN
          accept = .TRUE.
       ELSE
-         IF (rnd_nr .LT. EXP(-1.0_dp/(kB*temperature)*d_enthalpy)) THEN
+         IF (rnd_nr < EXP(-1.0_dp/(kB*temperature)*d_enthalpy)) THEN
             accept = .TRUE.
          ELSE
             accept = .FALSE.
@@ -366,7 +366,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(tmc_env))
       CPASSERT(ASSOCIATED(tree_elem))
-      CPASSERT(tree_elem%stat .EQ. status_calculated)
+      CPASSERT(tree_elem%stat == status_calculated)
       CPASSERT(ASSOCIATED(tree_elem%parent))
 
       ! start the timing
@@ -403,7 +403,7 @@ CONTAINS
       parent_elem => tree_elem
       IF (ASSOCIATED(tree_elem%acc)) THEN
          act_elem => tree_elem%acc
-         IF (act_elem%stat .EQ. status_calculated) THEN
+         IF (act_elem%stat == status_calculated) THEN
             CALL check_and_change_status_of_subtree_elem(act_elem=act_elem, &
                                                          parent_elem=parent_elem, tmc_env=tmc_env)
          END IF
@@ -412,7 +412,7 @@ CONTAINS
          nacc_loop: DO
             IF (.NOT. ASSOCIATED(act_elem%nacc)) EXIT nacc_loop
             act_elem => act_elem%nacc
-            IF (act_elem%stat .EQ. status_calculated) THEN
+            IF (act_elem%stat == status_calculated) THEN
                CALL check_and_change_status_of_subtree_elem(act_elem=act_elem, &
                                                             parent_elem=parent_elem, tmc_env=tmc_env)
             END IF
@@ -450,7 +450,7 @@ CONTAINS
       CPASSERT(ASSOCIATED(tmc_env%params))
       CPASSERT(ASSOCIATED(act_elem))
       CPASSERT(ASSOCIATED(parent_elem))
-      CPASSERT(act_elem%stat .EQ. status_calculated)
+      CPASSERT(act_elem%stat == status_calculated)
       MARK_USED(parent_elem)
 
       flag = .FALSE.
@@ -459,8 +459,8 @@ CONTAINS
       ! check for all global tree elements referring to this subtree element
       ! same subtree element can be accepted at a certain temperature and rejected at another one
       DO WHILE (ASSOCIATED(tmp_gt_list_ptr))
-         CPASSERT(tmp_gt_list_ptr%gt_elem%stat .NE. status_accepted_result)
-         CPASSERT(tmp_gt_list_ptr%gt_elem%stat .NE. status_rejected_result)
+         CPASSERT(tmp_gt_list_ptr%gt_elem%stat /= status_accepted_result)
+         CPASSERT(tmp_gt_list_ptr%gt_elem%stat /= status_rejected_result)
 
          CALL check_elements(gt_act_elem=tmp_gt_list_ptr%gt_elem, tmc_env=tmc_env, &
                              check_done=flag, result_acc=result_acc)
@@ -625,9 +625,9 @@ CONTAINS
       SELECT CASE (gt_act_elem%stat)
       CASE (status_accepted, status_rejected)
          check_done = .TRUE.
-         IF (gt_act_elem%stat .EQ. status_accepted) THEN
+         IF (gt_act_elem%stat == status_accepted) THEN
             result_acc = .TRUE.
-         ELSE IF (gt_act_elem%stat .EQ. status_rejected) THEN
+         ELSE IF (gt_act_elem%stat == status_rejected) THEN
             result_acc = .FALSE.
          ELSE
             CALL cp_abort(__LOCATION__, &
@@ -657,13 +657,13 @@ CONTAINS
                                           conf2=tmp_element, tmc_params=tmc_env%params, &
                                           accept=result_acc)
                ! volume move check
-            ELSE IF (act_element%move_type .EQ. mv_type_volume_move) THEN
+            ELSE IF (act_element%move_type == mv_type_volume_move) THEN
                CALL volume_acceptance_check(parent_elem=tmp_element, new_elem=act_element, &
                                             temperature=tmc_env%params%Temp(gt_act_elem%mv_conf), &
                                             rnd_nr=gt_act_elem%rnd_nr, &
                                             tmc_params=tmc_env%params, accept=result_acc)
             ELSE
-               IF (tmc_env%m_env%temp_decrease .NE. 1.0_dp) THEN
+               IF (tmc_env%m_env%temp_decrease /= 1.0_dp) THEN
                   CALL acceptance_check(tree_element=act_element, parent_element=tmp_element, &
                                         tmc_params=tmc_env%params, temperature=gt_act_elem%Temp, &
                                         diff_pot_check=.TRUE., accept=result_acc, &
@@ -685,7 +685,7 @@ CONTAINS
                !-- hence new configurations can be created on basis of this configuration
             CASE (status_calculate_MD, status_calculate_NMC_steps, status_calculate_energy, &
                   status_created, status_calc_approx_ener)
-               IF (gt_act_elem%conf(gt_act_elem%mv_conf)%elem%stat .NE. gt_act_elem%stat) &
+               IF (gt_act_elem%conf(gt_act_elem%mv_conf)%elem%stat /= gt_act_elem%stat) &
                   gt_act_elem%stat = gt_act_elem%conf(gt_act_elem%mv_conf)%elem%stat
             CASE (status_calculated)
             CASE DEFAULT
@@ -763,8 +763,8 @@ CONTAINS
          ! flag for doing tree cleaning with canceling and deallocation
          something_updated = .TRUE.
 
-         !IF((.NOT.gt_act_elem%swaped) .AND. act_element%temp_created.NE.0 .AND. &
-         !   act_element%temp_created.NE.gt_act_elem%mv_conf)&
+         !IF((.NOT.gt_act_elem%swaped) .AND. act_element%temp_created/=0 .AND. &
+         !   act_element%temp_created/=gt_act_elem%mv_conf)&
          !  count_wrong_temp_move(gt_act_elem%mv_conf) = &
          !       count_wrong_temp_move(gt_act_elem%mv_conf)+1
 
@@ -772,11 +772,11 @@ CONTAINS
          !-- sort element in lists
          !-- case NOT ACCEPTED
          IF (.NOT. result_acc) THEN !result NOT accepted
-            IF (gt_act_elem%prob_acc .GT. 0.0_dp) THEN
-               IF (gt_act_elem%prob_acc .GE. 0.5_dp) THEN
+            IF (gt_act_elem%prob_acc > 0.0_dp) THEN
+               IF (gt_act_elem%prob_acc >= 0.5_dp) THEN
                   ! wrong estimate (estimated accepted)
                   tmc_env%m_env%estim_corr_wrong(4) = tmc_env%m_env%estim_corr_wrong(4) + 1
-                  IF (DEBUG .GT. 0) WRITE (tmc_env%m_env%io_unit, *) &
+                  IF (DEBUG > 0) WRITE (tmc_env%m_env%io_unit, *) &
                      "Wrong guess for NACC (elem/estim acc prob)", gt_act_elem%nr, gt_act_elem%prob_acc
                ELSE
                   tmc_env%m_env%estim_corr_wrong(3) = tmc_env%m_env%estim_corr_wrong(3) + 1
@@ -788,11 +788,11 @@ CONTAINS
 
             !-- case ACCEPTED
          ELSE
-            IF (gt_act_elem%prob_acc .GT. 0.0_dp) THEN
-               IF (gt_act_elem%prob_acc .LE. 0.5_dp) THEN
+            IF (gt_act_elem%prob_acc > 0.0_dp) THEN
+               IF (gt_act_elem%prob_acc <= 0.5_dp) THEN
                   ! wrong estimate (estimated NOT accepted)
                   tmc_env%m_env%estim_corr_wrong(2) = tmc_env%m_env%estim_corr_wrong(2) + 1
-                  IF (DEBUG .GT. 0) WRITE (tmc_env%m_env%io_unit, *) &
+                  IF (DEBUG > 0) WRITE (tmc_env%m_env%io_unit, *) &
                      "wrong guess for ACC  (elem/estim acc prob)", gt_act_elem%nr, gt_act_elem%prob_acc
                ELSE
                   tmc_env%m_env%estim_corr_wrong(1) = tmc_env%m_env%estim_corr_wrong(1) + 1
@@ -842,7 +842,7 @@ CONTAINS
                                            tmc_params=tmc_env%params)
 
          ! save for analysis
-         IF (tmc_env%tmc_comp_set%para_env_m_ana%num_pe .GT. 1 .AND. result_acc) THEN
+         IF (tmc_env%tmc_comp_set%para_env_m_ana%num_pe > 1 .AND. result_acc) THEN
             CALL add_to_list(elem=tmc_env%m_env%result_list(gt_act_elem%mv_conf)%elem, &
                              list=tmc_env%m_env%analysis_list, &
                              temp_ind=gt_act_elem%mv_conf, &
@@ -877,9 +877,9 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(elem))
       ready = .FALSE.
-      IF ((elem%scf_energies_count .GE. 4) &
-          .AND. (elem%stat .NE. status_deleted) .AND. (elem%stat .NE. status_deleted_result) &
-          .AND. (elem%stat .NE. status_canceled_ener)) &
+      IF ((elem%scf_energies_count >= 4) &
+          .AND. (elem%stat /= status_deleted) .AND. (elem%stat /= status_deleted_result) &
+          .AND. (elem%stat /= status_canceled_ener)) &
          ready = .TRUE.
    END FUNCTION ready_for_update_acc_prob
 
@@ -1029,7 +1029,7 @@ CONTAINS
                END IF
             END IF
             !successful probability update
-            IF (tmp_prob .GE. 0.0_dp) THEN
+            IF (tmp_prob >= 0.0_dp) THEN
                tmp_pt_ptr%gt_elem%prob_acc = tmp_prob
                !-- speculative canceling for the related direction
                IF (tmc_env%params%SPECULATIVE_CANCELING) &

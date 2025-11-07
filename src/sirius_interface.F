@@ -546,7 +546,7 @@ CONTAINS
 ! angle of magnetization might come from input Atom x y z mx my mz
 ! or as an angle?
 ! Answer : SIRIUS only accept the magnetization as mx, my, mz
-         IF (num_mag_dims .EQ. 3) THEN
+         IF (num_mag_dims == 3) THEN
             angle1 = 0.0_dp
             angle2 = 0.0_dp
             v1(1) = magnetization*SIN(angle1)*COS(angle2)

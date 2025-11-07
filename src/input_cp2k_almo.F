@@ -669,7 +669,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       ! add keywords specific to each type
-      IF (optimizer_type .EQ. optimizer_diis) THEN
+      IF (optimizer_type == optimizer_diis) THEN
 
          CALL keyword_create(keyword, __LOCATION__, name="N_DIIS", &
                              description="Number of error vectors to be used in the DIIS "// &
@@ -680,9 +680,9 @@ CONTAINS
 
       END IF
 
-      IF (optimizer_type .EQ. optimizer_pcg .OR. &
-          optimizer_type .EQ. optimizer_lin_eq_pcg .OR. &
-          optimizer_type .EQ. optimizer_trustr) THEN
+      IF (optimizer_type == optimizer_pcg .OR. &
+          optimizer_type == optimizer_lin_eq_pcg .OR. &
+          optimizer_type == optimizer_trustr) THEN
 
          CALL keyword_create(keyword, __LOCATION__, name="MAX_ITER_OUTER_LOOP", &
                              description="Maximum number of iterations in the outer loop. "// &
@@ -709,7 +709,7 @@ CONTAINS
 
       END IF
 
-      IF (optimizer_type .EQ. optimizer_pcg) THEN
+      IF (optimizer_type == optimizer_pcg) THEN
 
          CALL keyword_create(keyword, __LOCATION__, name="LIN_SEARCH_EPS_ERROR", &
                              description="Target value of the gradient norm during the linear search", &
@@ -736,8 +736,8 @@ CONTAINS
 
       END IF
 
-      IF (optimizer_type .EQ. optimizer_pcg .OR. &
-          optimizer_type .EQ. optimizer_trustr) THEN
+      IF (optimizer_type == optimizer_pcg .OR. &
+          optimizer_type == optimizer_trustr) THEN
 
          CALL keyword_create(keyword, __LOCATION__, name="CONJUGATOR", &
                              description="Various methods to compute step directions in the PCG optimization", &
@@ -757,7 +757,7 @@ CONTAINS
 
       END IF
 
-      IF (optimizer_type .EQ. optimizer_trustr) THEN
+      IF (optimizer_type == optimizer_trustr) THEN
 
          CALL keyword_create(keyword, __LOCATION__, name="ALGORITHM", &
                              description="Selects an algorithm to solve the fixed-radius subproblem", &

@@ -769,7 +769,7 @@ CONTAINS
          minimum = nuc_ele(i)
          loc = i
          DO j = i + 1, SIZE(ele)
-            IF (nuc_ele(j) .LT. minimum) THEN
+            IF (nuc_ele(j) < minimum) THEN
                loc = j
                minimum = nuc_ele(j)
             END IF
@@ -806,7 +806,7 @@ CONTAINS
          DO j = 1, nnp%n_rad(i) - 1
             loc = j
             DO k = j + 1, nnp%n_rad(i)
-               IF (nnp%rad(i)%funccut(loc) .GT. nnp%rad(i)%funccut(k)) THEN
+               IF (nnp%rad(i)%funccut(loc) > nnp%rad(i)%funccut(k)) THEN
                   loc = k
                END IF
             END DO
@@ -819,8 +819,8 @@ CONTAINS
          DO j = 1, nnp%n_rad(i) - 1
             loc = j
             DO k = j + 1, nnp%n_rad(i)
-               IF (nnp%rad(i)%funccut(loc) .EQ. nnp%rad(i)%funccut(k) .AND. &
-                   nnp%rad(i)%eta(loc) .GT. nnp%rad(i)%eta(k)) THEN
+               IF (nnp%rad(i)%funccut(loc) == nnp%rad(i)%funccut(k) .AND. &
+                   nnp%rad(i)%eta(loc) > nnp%rad(i)%eta(k)) THEN
                   loc = k
                END IF
             END DO
@@ -833,9 +833,9 @@ CONTAINS
          DO j = 1, nnp%n_rad(i) - 1
             loc = j
             DO k = j + 1, nnp%n_rad(i)
-               IF (nnp%rad(i)%funccut(loc) .EQ. nnp%rad(i)%funccut(k) .AND. &
-                   nnp%rad(i)%eta(loc) .EQ. nnp%rad(i)%eta(k) .AND. &
-                   nnp%rad(i)%rs(loc) .GT. nnp%rad(i)%rs(k)) THEN
+               IF (nnp%rad(i)%funccut(loc) == nnp%rad(i)%funccut(k) .AND. &
+                   nnp%rad(i)%eta(loc) == nnp%rad(i)%eta(k) .AND. &
+                   nnp%rad(i)%rs(loc) > nnp%rad(i)%rs(k)) THEN
                   loc = k
                END IF
             END DO
@@ -848,10 +848,10 @@ CONTAINS
          DO j = 1, nnp%n_rad(i) - 1
             loc = j
             DO k = j + 1, nnp%n_rad(i)
-               IF (nnp%rad(i)%funccut(loc) .EQ. nnp%rad(i)%funccut(k) .AND. &
-                   nnp%rad(i)%eta(loc) .EQ. nnp%rad(i)%eta(k) .AND. &
-                   nnp%rad(i)%rs(loc) .EQ. nnp%rad(i)%rs(k) .AND. &
-                   nnp%rad(i)%nuc_ele(loc) .GT. nnp%rad(i)%nuc_ele(k)) THEN
+               IF (nnp%rad(i)%funccut(loc) == nnp%rad(i)%funccut(k) .AND. &
+                   nnp%rad(i)%eta(loc) == nnp%rad(i)%eta(k) .AND. &
+                   nnp%rad(i)%rs(loc) == nnp%rad(i)%rs(k) .AND. &
+                   nnp%rad(i)%nuc_ele(loc) > nnp%rad(i)%nuc_ele(k)) THEN
                   loc = k
                END IF
             END DO
@@ -864,7 +864,7 @@ CONTAINS
          DO j = 1, nnp%n_ang(i) - 1
             loc = j
             DO k = j + 1, nnp%n_ang(i)
-               IF (nnp%ang(i)%funccut(loc) .GT. nnp%ang(i)%funccut(k)) THEN
+               IF (nnp%ang(i)%funccut(loc) > nnp%ang(i)%funccut(k)) THEN
                   loc = k
                END IF
             END DO
@@ -877,8 +877,8 @@ CONTAINS
          DO j = 1, nnp%n_ang(i) - 1
             loc = j
             DO k = j + 1, nnp%n_ang(i)
-               IF (nnp%ang(i)%funccut(loc) .EQ. nnp%ang(i)%funccut(k) .AND. &
-                   nnp%ang(i)%eta(loc) .GT. nnp%ang(i)%eta(k)) THEN
+               IF (nnp%ang(i)%funccut(loc) == nnp%ang(i)%funccut(k) .AND. &
+                   nnp%ang(i)%eta(loc) > nnp%ang(i)%eta(k)) THEN
                   loc = k
                END IF
             END DO
@@ -891,9 +891,9 @@ CONTAINS
          DO j = 1, nnp%n_ang(i) - 1
             loc = j
             DO k = j + 1, nnp%n_ang(i)
-               IF (nnp%ang(i)%funccut(loc) .EQ. nnp%ang(i)%funccut(k) .AND. &
-                   nnp%ang(i)%eta(loc) .EQ. nnp%ang(i)%eta(k) .AND. &
-                   nnp%ang(i)%zeta(loc) .GT. nnp%ang(i)%zeta(k)) THEN
+               IF (nnp%ang(i)%funccut(loc) == nnp%ang(i)%funccut(k) .AND. &
+                   nnp%ang(i)%eta(loc) == nnp%ang(i)%eta(k) .AND. &
+                   nnp%ang(i)%zeta(loc) > nnp%ang(i)%zeta(k)) THEN
                   loc = k
                END IF
             END DO
@@ -906,10 +906,10 @@ CONTAINS
          DO j = 1, nnp%n_ang(i) - 1
             loc = j
             DO k = j + 1, nnp%n_ang(i)
-               IF (nnp%ang(i)%funccut(loc) .EQ. nnp%ang(i)%funccut(k) .AND. &
-                   nnp%ang(i)%eta(loc) .EQ. nnp%ang(i)%eta(k) .AND. &
-                   nnp%ang(i)%zeta(loc) .EQ. nnp%ang(i)%zeta(k) .AND. &
-                   nnp%ang(i)%lam(loc) .GT. nnp%ang(i)%lam(k)) THEN
+               IF (nnp%ang(i)%funccut(loc) == nnp%ang(i)%funccut(k) .AND. &
+                   nnp%ang(i)%eta(loc) == nnp%ang(i)%eta(k) .AND. &
+                   nnp%ang(i)%zeta(loc) == nnp%ang(i)%zeta(k) .AND. &
+                   nnp%ang(i)%lam(loc) > nnp%ang(i)%lam(k)) THEN
                   loc = k
                END IF
             END DO
@@ -922,11 +922,11 @@ CONTAINS
          DO j = 1, nnp%n_ang(i) - 1
             loc = j
             DO k = j + 1, nnp%n_ang(i)
-               IF (nnp%ang(i)%funccut(loc) .EQ. nnp%ang(i)%funccut(k) .AND. &
-                   nnp%ang(i)%eta(loc) .EQ. nnp%ang(i)%eta(k) .AND. &
-                   nnp%ang(i)%zeta(loc) .EQ. nnp%ang(i)%zeta(k) .AND. &
-                   nnp%ang(i)%lam(loc) .EQ. nnp%ang(i)%lam(k) .AND. &
-                   nnp%ang(i)%nuc_ele1(loc) .GT. nnp%ang(i)%nuc_ele1(k)) THEN
+               IF (nnp%ang(i)%funccut(loc) == nnp%ang(i)%funccut(k) .AND. &
+                   nnp%ang(i)%eta(loc) == nnp%ang(i)%eta(k) .AND. &
+                   nnp%ang(i)%zeta(loc) == nnp%ang(i)%zeta(k) .AND. &
+                   nnp%ang(i)%lam(loc) == nnp%ang(i)%lam(k) .AND. &
+                   nnp%ang(i)%nuc_ele1(loc) > nnp%ang(i)%nuc_ele1(k)) THEN
                   loc = k
                END IF
             END DO
@@ -937,12 +937,12 @@ CONTAINS
          DO j = 1, nnp%n_ang(i) - 1
             loc = j
             DO k = j + 1, nnp%n_ang(i)
-               IF (nnp%ang(i)%funccut(loc) .EQ. nnp%ang(i)%funccut(k) .AND. &
-                   nnp%ang(i)%eta(loc) .EQ. nnp%ang(i)%eta(k) .AND. &
-                   nnp%ang(i)%zeta(loc) .EQ. nnp%ang(i)%zeta(k) .AND. &
-                   nnp%ang(i)%lam(loc) .EQ. nnp%ang(i)%lam(k) .AND. &
-                   nnp%ang(i)%nuc_ele1(loc) .EQ. nnp%ang(i)%nuc_ele1(k) .AND. &
-                   nnp%ang(i)%nuc_ele2(loc) .GT. nnp%ang(i)%nuc_ele2(k)) THEN
+               IF (nnp%ang(i)%funccut(loc) == nnp%ang(i)%funccut(k) .AND. &
+                   nnp%ang(i)%eta(loc) == nnp%ang(i)%eta(k) .AND. &
+                   nnp%ang(i)%zeta(loc) == nnp%ang(i)%zeta(k) .AND. &
+                   nnp%ang(i)%lam(loc) == nnp%ang(i)%lam(k) .AND. &
+                   nnp%ang(i)%nuc_ele1(loc) == nnp%ang(i)%nuc_ele1(k) .AND. &
+                   nnp%ang(i)%nuc_ele2(loc) > nnp%ang(i)%nuc_ele2(k)) THEN
                   loc = k
                END IF
             END DO

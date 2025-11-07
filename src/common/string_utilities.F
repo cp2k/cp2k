@@ -151,7 +151,7 @@ CONTAINS
 !>      11.2004 created [Joost VandeVondele ]
 !> \note
 !>     can be used instead of the illegal (/"12","1234"/) generating
-!>     s2a("12","1234").EQ.(/"12  ","1234"/)
+!>     s2a("12","1234")==(/"12  ","1234"/)
 ! **************************************************************************************************
    PURE FUNCTION s2a_1(s1) RESULT(a)
       CHARACTER(LEN=*), INTENT(IN)                       :: s1

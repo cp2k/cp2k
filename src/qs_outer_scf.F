@@ -217,8 +217,8 @@ CONTAINS
                DO i = 1, ihistory
                   DO j = i + 1, ihistory
                      ! distrust often used points
-                     IF (scf_env%outer_scf%count(i) .GT. scf_control%outer_scf%bisect_trust_count) CYCLE
-                     IF (scf_env%outer_scf%count(j) .GT. scf_control%outer_scf%bisect_trust_count) CYCLE
+                     IF (scf_env%outer_scf%count(i) > scf_control%outer_scf%bisect_trust_count) CYCLE
+                     IF (scf_env%outer_scf%count(j) > scf_control%outer_scf%bisect_trust_count) CYCLE
 
                      ! if they bracket a zero use them
                      IF (scf_env%outer_scf%gradient(1, i)* &
@@ -273,7 +273,7 @@ CONTAINS
                   CALL diamat_all(b, ev)
                   a(:, :) = b
                   DO I = 1, nb + 1
-                     IF (ABS(ev(I)) .LT. 1.0E-12_dp) THEN
+                     IF (ABS(ev(I)) < 1.0E-12_dp) THEN
                         a(:, I) = 0.0_dp
                      ELSE
                         a(:, I) = a(:, I)/ev(I)
@@ -318,7 +318,7 @@ CONTAINS
                END IF
                IF (scf_control%outer_scf%cdft_opt_control%broyden_update) THEN
                   ! Perform a Broyden update of the inverse Jacobian J^(-1)
-                  IF (SIZE(scf_env%outer_scf%gradient, 2) .LT. 3) &
+                  IF (SIZE(scf_env%outer_scf%gradient, 2) < 3) &
                      CALL cp_abort(__LOCATION__, &
                                    "Keyword EXTRAPOLATION_ORDER in section OUTER_SCF "// &
                                    "must be greater than or equal to 3 for Broyden optimizers.")

@@ -1315,7 +1315,7 @@ CONTAINS
                  atomic_S_copy, mat_dim, eigenvalues, &
                  work, work_array_size, info)
       ! check if diagonalisation is successful
-      IF (info .NE. 0) THEN
+      IF (info /= 0) THEN
          WRITE (*, *) "DSYGV ERROR MESSAGE: ", info
          CPABORT("DSYGV failed")
       END IF

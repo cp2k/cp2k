@@ -525,7 +525,7 @@ CONTAINS
          ALLOCATE (xas_tdp_control%grid_info(nrep, 3))
          DO irep = 1, nrep
             CALL section_vals_val_get(xas_tdp_section, "GRID", i_rep_val=irep, c_vals=k_list)
-            IF (SIZE(k_list) .NE. 3) CPABORT("The GRID keyword needs three values")
+            IF (SIZE(k_list) /= 3) CPABORT("The GRID keyword needs three values")
             xas_tdp_control%grid_info(irep, :) = k_list
          END DO
       END IF
@@ -552,11 +552,11 @@ CONTAINS
                                 i_val=xas_tdp_control%define_excited)
 
       IF (.NOT. ASSOCIATED(xas_tdp_control%list_ex_kinds)) THEN
-         IF (xas_tdp_control%define_excited .EQ. xas_tdp_by_index) THEN
+         IF (xas_tdp_control%define_excited == xas_tdp_by_index) THEN
 
             ALLOCATE (xas_tdp_control%list_ex_kinds(0))
 
-         ELSE IF (xas_tdp_control%define_excited .EQ. xas_tdp_by_kind) THEN
+         ELSE IF (xas_tdp_control%define_excited == xas_tdp_by_kind) THEN
 
             CALL section_vals_val_get(xas_tdp_section, "DONOR_STATES%KIND_LIST", c_vals=k_list)
 
@@ -570,11 +570,11 @@ CONTAINS
       END IF
 
       IF (.NOT. ASSOCIATED(xas_tdp_control%list_ex_atoms)) THEN
-         IF (xas_tdp_control%define_excited .EQ. xas_tdp_by_kind) THEN
+         IF (xas_tdp_control%define_excited == xas_tdp_by_kind) THEN
 
             ALLOCATE (xas_tdp_control%list_ex_atoms(0))
 
-         ELSE IF (xas_tdp_control%define_excited .EQ. xas_tdp_by_index) THEN
+         ELSE IF (xas_tdp_control%define_excited == xas_tdp_by_index) THEN
 
             CALL section_vals_val_get(xas_tdp_section, "DONOR_STATES%ATOM_LIST", i_vals=a_list)
 
@@ -593,7 +593,7 @@ CONTAINS
          ALLOCATE (xas_tdp_control%state_types(nrep, nexc))
          DO irep = 1, nrep
             CALL section_vals_val_get(xas_tdp_section, "DONOR_STATES%STATE_TYPES", i_rep_val=irep, i_vals=t_list)
-            IF (SIZE(t_list) .NE. nexc) THEN
+            IF (SIZE(t_list) /= nexc) THEN
                CPABORT("The STATE_TYPES keywords do not have the correct number of entries.")
             END IF
             xas_tdp_control%state_types(irep, :) = t_list
@@ -608,7 +608,7 @@ CONTAINS
 !  Deal with the KERNEL subsection
       CALL section_vals_val_get(xas_tdp_section, "KERNEL%XC_FUNCTIONAL%_SECTION_PARAMETERS_", &
                                 i_val=xc_param)
-      xas_tdp_control%do_xc = xc_param .NE. xc_none
+      xas_tdp_control%do_xc = xc_param /= xc_none
       CALL section_vals_val_get(xas_tdp_section, "KERNEL%EXACT_EXCHANGE%_SECTION_PARAMETERS_", &
                                 l_val=xas_tdp_control%do_hfx)
 

@@ -92,11 +92,11 @@ CONTAINS
 
       max_iter = 100
 
-      IF ((cutoff_r - cutoff_l)/(0.5_dp*(cutoff_r + cutoff_l)) .LE. tol) &
+      IF ((cutoff_r - cutoff_l)/(0.5_dp*(cutoff_r + cutoff_l)) <= tol) &
          CALL cp_abort(__LOCATION__, "difference of boundaries for cutoff "// &
                        "(MAX - MIN) must be greater than cutoff precision.")
 
-      IF ((delta .GE. 1.0_dp) .OR. (delta .LE. 0.0_dp)) &
+      IF ((delta >= 1.0_dp) .OR. (delta <= 0.0_dp)) &
          CALL cp_abort(__LOCATION__, &
                        "relative delta to modify initial cutoff interval (DELTA) must be in (0, 1)")
 
@@ -113,7 +113,7 @@ CONTAINS
 
       ! 1) find valid initial values for bisection
       DO iter1 = 1, max_iter + 1
-         IF (iter1 .GT. max_iter) &
+         IF (iter1 > max_iter) &
             CALL cp_abort(__LOCATION__, &
                           "Maximum number of iterations in bisection to determine initial "// &
                           "cutoff interval has been exceeded.")
@@ -127,11 +127,11 @@ CONTAINS
          END DO
 
          valid_initial = .TRUE.
-         IF ((delta_mm(1) - delta_c(1)) .GT. 0) THEN
+         IF ((delta_mm(1) - delta_c(1)) > 0) THEN
             cutoff_lr(1) = cutoff_lr(1)*(1.0_dp - ABS(delta))
             valid_initial = .FALSE.
          END IF
-         IF ((delta_mm(2) - delta_c(2)) .LT. 0) THEN
+         IF ((delta_mm(2) - delta_c(2)) < 0) THEN
             cutoff_lr(2) = cutoff_lr(2)*(1.0_dp + ABS(delta))
             valid_initial = .FALSE.
          END IF
@@ -144,7 +144,7 @@ CONTAINS
          "ERI_MME| Step, cutoff (min, max, mid), err(minimax), err(cutoff), err diff"
 
       DO iter2 = 1, max_iter + 1
-         IF (iter2 .GT. max_iter) &
+         IF (iter2 > max_iter) &
             CALL cp_abort(__LOCATION__, &
                           "Maximum number of iterations in bisection to determine cutoff has been exceeded")
 
@@ -155,8 +155,8 @@ CONTAINS
             iter2, cutoff_lr(1), cutoff_lr(2), cutoff_mid, &
             delta_mm_mid, delta_c_mid, delta_mm_mid - delta_c_mid
 
-         IF ((cutoff_lr(2) - cutoff_lr(1))/cutoff_mid .LT. tol) EXIT
-         IF (delta_mm_mid - delta_c_mid .GT. 0) THEN
+         IF ((cutoff_lr(2) - cutoff_lr(1))/cutoff_mid < tol) EXIT
+         IF (delta_mm_mid - delta_c_mid > 0) THEN
             cutoff_lr(2) = cutoff_mid
             delta_mm(2) = delta_mm_mid
             delta_c(2) = delta_c_mid
@@ -257,7 +257,7 @@ CONTAINS
       prod_mm_k = 1.0_dp
       DO i_xyz = 1, 3
          prod_mm_k = prod_mm_k*(ABS(hmat(i_xyz, i_xyz))/twopi + &
-                                MERGE(SQRT(2.0_dp/(zet_min*pi))*EXP(-1.0_dp), 0.0_dp, l_mm .GT. 0))
+                                MERGE(SQRT(2.0_dp/(zet_min*pi))*EXP(-1.0_dp), 0.0_dp, l_mm > 0))
       END DO
       err_mm = 32*pi**4/vol*delta_mm*prod_mm_k
 
@@ -313,7 +313,7 @@ CONTAINS
       G_1 = SQRT(1.0_dp/(3.0_dp*MINVAL(minimax_aw(1:n_minimax))))
 
       C_mm = 0.0_dp
-      IF (G_1 .GT. G_c) THEN
+      IF (G_1 > G_c) THEN
          nG = 1000
          dG = (G_1 - G_c)/nG
          G = G_c
@@ -337,12 +337,12 @@ CONTAINS
       gr = 0.5_dp*(SQRT(5.0_dp) - 1.0_dp) ! golden ratio
       ! Find valid starting values for golden section search
       DO iter = 1, max_iter + 1
-         IF (iter .GT. max_iter) &
+         IF (iter > max_iter) &
             CALL cp_abort(__LOCATION__, "Maximum number of iterations for finding "// &
                           "exponent maximizing cutoff error has been exceeded.")
 
          CALL cutoff_error_fixed_exp(cutoff, h_inv, G_min, l_max_zet, zet_max_tmp, C, err_ctff_curr, para_env)
-         IF (err_ctff_prev .GE. err_ctff_curr) THEN
+         IF (err_ctff_prev >= err_ctff_curr) THEN
             zet_a = zet_max_tmp
             zet_b = MIN(zet_max_tmp*zet_div**2, zet_max)
             EXIT
@@ -356,7 +356,7 @@ CONTAINS
       zet_c = zet_b - gr*(zet_b - zet_a)
       zet_d = zet_a + gr*(zet_b - zet_a)
       DO iter = 1, max_iter + 1
-         IF (ABS(zet_c - zet_d) .LT. eps_zet*(zet_a + zet_b)) THEN
+         IF (ABS(zet_c - zet_d) < eps_zet*(zet_a + zet_b)) THEN
             CALL cutoff_error_fixed_exp(cutoff, h_inv, G_min, l_max_zet, zet_a, C, err0, para_env)
             CALL cutoff_error_fixed_exp(cutoff, h_inv, G_min, l_max_zet, zet_b, C, err1, para_env)
             err_ctff_curr = MAX(err0, err1)
@@ -364,7 +364,7 @@ CONTAINS
          END IF
          CALL cutoff_error_fixed_exp(cutoff, h_inv, G_min, l_max_zet, zet_c, C, err_c, para_env)
          CALL cutoff_error_fixed_exp(cutoff, h_inv, G_min, l_max_zet, zet_d, C, err_d, para_env)
-         IF (err_c .GT. err_d) THEN
+         IF (err_c > err_d) THEN
             zet_b = zet_d
             zet_d = zet_c
             zet_c = zet_b - gr*(zet_b - zet_a)
@@ -432,7 +432,7 @@ CONTAINS
          G_l = FLOOR(G_c/(inv_lgth*twopi))
          G_u = FLOOR(G_rad/(inv_lgth*twopi))
 
-         IF (G_u .LT. G_l) G_u = G_l
+         IF (G_u < G_l) G_u = G_l
 
          ! Serial code:
          ! !Sum |G| <= G_c
@@ -450,7 +450,7 @@ CONTAINS
          n_Gu_left = MOD(n_Gu, n_p)
          n_Gl_left = MOD(n_Gl, n_p)
 
-         IF (my_p .LT. n_Gu_left) THEN
+         IF (my_p < n_Gu_left) THEN
             Gu_first = G_l + 1 + (n_Gu_p + 1)*my_p
             Gu_last = G_l + 1 + (n_Gu_p + 1)*(my_p + 1) - 1
          ELSE
@@ -458,7 +458,7 @@ CONTAINS
             Gu_last = G_l + 1 + n_Gu_left + n_Gu_p*(my_p + 1) - 1
          END IF
 
-         IF (my_p .LT. n_Gl_left) THEN
+         IF (my_p < n_Gl_left) THEN
             Gl_first = -G_l + (n_Gl_p + 1)*my_p
             Gl_last = -G_l + (n_Gl_p + 1)*(my_p + 1) - 1
          ELSE

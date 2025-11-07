@@ -776,7 +776,7 @@ CONTAINS
       END IF
       ! fixup for topology output
       DO j = 1, topology%natoms
-         IF (charges(j) .EQ. -HUGE(0.0_dp)) charges(j) = -99.0_dp
+         IF (charges(j) == -HUGE(0.0_dp)) charges(j) = -99.0_dp
       END DO
       record = cp_print_key_generate_filename(logger, print_key, &
                                               extension=".psf", my_local=.FALSE.)

@@ -500,7 +500,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: input, xc_section
       TYPE(virial_type), POINTER                         :: virial
 
-      IF (dft_control%sic_method_id .NE. sic_eo) RETURN
+      IF (dft_control%sic_method_id /= sic_eo) RETURN
 
       CALL timeset(routineN, handle)
 
@@ -1054,7 +1054,7 @@ CONTAINS
             END IF
          END IF
          IF (dft_control%do_admm) THEN
-            IF (psolver .EQ. pw_poisson_implicit) THEN
+            IF (psolver == pw_poisson_implicit) THEN
                implicit_ps_ehartree = pw_env%poisson_env%implicit_env%ehartree
                bc = pw_env%poisson_env%parameters%ps_implicit_params%boundary_condition
                SELECT CASE (bc)
@@ -1091,7 +1091,7 @@ CONTAINS
                   "Core Hamiltonian energy:                       ", energy%core, &
                   "Hartree energy:                                ", energy%hartree
             ELSE
-               IF (psolver .EQ. pw_poisson_implicit) THEN
+               IF (psolver == pw_poisson_implicit) THEN
                   implicit_ps_ehartree = pw_env%poisson_env%implicit_env%ehartree
                   bc = pw_env%poisson_env%parameters%ps_implicit_params%boundary_condition
                   SELECT CASE (bc)
@@ -1403,7 +1403,7 @@ CONTAINS
             ! functional derivative of the Hartree energy wrt the density in the presence of dielectric
             ! (vhartree + v_eps); v_eps is nonzero only if the dielectric constant is defind as a function
             ! of the charge density
-            IF (poisson_env%parameters%solver .EQ. pw_poisson_implicit) THEN
+            IF (poisson_env%parameters%solver == pw_poisson_implicit) THEN
                dvol = poisson_env%implicit_env%v_eps%pw_grid%dvol
                CALL pw_axpy(poisson_env%implicit_env%v_eps, v_rspace_new(ispin), dvol)
             END IF
@@ -1498,7 +1498,7 @@ CONTAINS
          CPASSERT(.NOT. dft_control%qs_control%ddapc_restraint_is_spin)
          DO ispin = 1, nspins
             ! extra contribution attributed to the dependency of the dielectric constant to the charge density
-            IF (poisson_env%parameters%solver .EQ. pw_poisson_implicit) THEN
+            IF (poisson_env%parameters%solver == pw_poisson_implicit) THEN
                dvol = poisson_env%implicit_env%v_eps%pw_grid%dvol
                CALL pw_axpy(poisson_env%implicit_env%v_eps, v_rspace, dvol)
             END IF
@@ -1619,7 +1619,7 @@ CONTAINS
 
                ! Add potential to ks_matrix aux_fit, skip integration if no DFT correction
 
-               IF (admm_env%aux_exch_func .NE. do_admm_aux_exch_func_none) THEN
+               IF (admm_env%aux_exch_func /= do_admm_aux_exch_func_none) THEN
 
                   !GPW by default. IF GAPW, then take relevant task list and basis
                   CALL get_admm_env(admm_env, task_list_aux_fit=task_list)
@@ -1840,9 +1840,9 @@ CONTAINS
          embed_corr_local = 0.0_dp
 
          ! Spin embedding potential in open-shell case
-         IF (dft_control%nspins .EQ. 2) THEN
-            IF (ispin .EQ. 1) CALL pw_axpy(qs_env%spin_embed_pot, v_rspace_embed(ispin), 1.0_dp)
-            IF (ispin .EQ. 2) CALL pw_axpy(qs_env%spin_embed_pot, v_rspace_embed(ispin), -1.0_dp)
+         IF (dft_control%nspins == 2) THEN
+            IF (ispin == 1) CALL pw_axpy(qs_env%spin_embed_pot, v_rspace_embed(ispin), 1.0_dp)
+            IF (ispin == 2) CALL pw_axpy(qs_env%spin_embed_pot, v_rspace_embed(ispin), -1.0_dp)
          END IF
          ! Integrate the density*potential
          embed_corr_local = pw_integral_ab(v_rspace_embed(ispin), rho_r(ispin))

@@ -3894,7 +3894,7 @@ CONTAINS
             ! Basis sets of energy correction
             CALL get_qs_kind(qs_kind=qs_kind, basis_set=harris_basis, basis_type="HARRIS")
 
-            IF (basis_set%name .NE. harris_basis%name) THEN
+            IF (basis_set%name /= harris_basis%name) THEN
                CPABORT("OT-Diag initial guess: Harris and ground state need to use the same basis")
             END IF
          END DO

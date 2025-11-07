@@ -547,13 +547,13 @@ CONTAINS
          ! due to their reversed indexing
          IF (correct_nrow) THEN
             idx_col_first = idx_col_first - nrow_offset + 1
-            IF (idx_col_first .LE. 0) CYCLE
+            IF (idx_col_first <= 0) CYCLE
          ELSE
             IF (idx_col_first > nrow_out) EXIT
          END IF
          IF (correct_ncol) THEN
             idx_col_sec = idx_col_sec - ncol_offset + 1
-            IF (idx_col_sec .LE. 0) CYCLE
+            IF (idx_col_sec <= 0) CYCLE
          ELSE
             IF (idx_col_sec > ncol_out) CYCLE
          END IF
@@ -643,13 +643,13 @@ CONTAINS
          ! due to their reversed indexing
          IF (correct_nrow) THEN
             idx_col_first = idx_col_first - nrow_offset + 1
-            IF (idx_col_first .LE. 0) CYCLE
+            IF (idx_col_first <= 0) CYCLE
          ELSE
             IF (idx_col_first > nrow_out) EXIT
          END IF
          IF (correct_ncol) THEN
             idx_col_sec = idx_col_sec - ncol_offset + 1
-            IF (idx_col_sec .LE. 0) CYCLE
+            IF (idx_col_sec <= 0) CYCLE
          ELSE
             IF (idx_col_sec > ncol_out) CYCLE
          END IF
@@ -1141,14 +1141,14 @@ CONTAINS
       ! Determine index in homo and virtual for truncation
       ! Uses indices of outermost orbitals within energy range (-mp2_env%bse%bse_cutoff_occ,mp2_env%bse%bse_cutoff_empty)
       IF (mp2_env%bse%bse_cutoff_occ > 0 .OR. mp2_env%bse%bse_cutoff_empty > 0) THEN
-         IF (-mp2_env%bse%bse_cutoff_occ .LT. Eigenval(1) - Eigenval(homo) &
+         IF (-mp2_env%bse%bse_cutoff_occ < Eigenval(1) - Eigenval(homo) &
              .OR. mp2_env%bse%bse_cutoff_occ < 0) THEN
             homo_red = homo
             homo_incl = 1
          ELSE
             homo_incl = 1
             DO i_homo = 1, homo
-               IF (Eigenval(i_homo) - Eigenval(homo) .GT. -mp2_env%bse%bse_cutoff_occ) THEN
+               IF (Eigenval(i_homo) - Eigenval(homo) > -mp2_env%bse%bse_cutoff_occ) THEN
                   homo_incl = i_homo
                   EXIT
                END IF
@@ -1156,14 +1156,14 @@ CONTAINS
             homo_red = homo - homo_incl + 1
          END IF
 
-         IF (mp2_env%bse%bse_cutoff_empty .GT. Eigenval(homo + virtual) - Eigenval(homo + 1) &
+         IF (mp2_env%bse%bse_cutoff_empty > Eigenval(homo + virtual) - Eigenval(homo + 1) &
              .OR. mp2_env%bse%bse_cutoff_empty < 0) THEN
             virt_red = virtual
             virt_incl = virtual
          ELSE
             virt_incl = homo + 1
             DO j_virt = 1, virtual
-               IF (Eigenval(homo + j_virt) - Eigenval(homo + 1) .GT. mp2_env%bse%bse_cutoff_empty) THEN
+               IF (Eigenval(homo + j_virt) - Eigenval(homo + 1) > mp2_env%bse%bse_cutoff_empty) THEN
                   virt_incl = j_virt - 1
                   EXIT
                END IF

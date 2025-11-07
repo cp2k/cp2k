@@ -826,7 +826,7 @@ CONTAINS
             DO WHILE (dbcsr_iterator_blocks_left(iter))
                CALL dbcsr_iterator_next_block(iter, irow, icol, pdata)
                ikind = kind_of(irow)
-               IF (icol .EQ. irow) THEN
+               IF (icol == irow) THEN
                   IF (ispin == 1) THEN
                      pdata(:, :) = pmat(ikind)%mat(:, :, 1)*rscale + &
                                    pmat(ikind)%mat(:, :, 2)*rscale
@@ -906,11 +906,11 @@ CONTAINS
                      !
                      ! compute the "potential" nbr of states for this atom
                      n_cols = MAX(INT(REAL(nmo_tmp, dp)/REAL(natoms_tmp, dp)), 1)
-                     IF (n_cols .GT. n_rows) n_cols = n_rows
+                     IF (n_cols > n_rows) n_cols = n_rows
                      !
                      nmo_tmp = nmo_tmp - n_cols
                      natoms_tmp = natoms_tmp - 1
-                     IF (nmo_tmp .LT. 0 .OR. natoms_tmp .LT. 0) THEN
+                     IF (nmo_tmp < 0 .OR. natoms_tmp < 0) THEN
                         CPABORT("Wrong1!")
                      END IF
                      DO j = 1, n_cols
@@ -922,7 +922,7 @@ CONTAINS
                   END DO
                END DO
 
-               IF (istart_col .LE. nmo) THEN
+               IF (istart_col <= nmo) THEN
                   CPABORT("Wrong2!")
                END IF
 
@@ -932,7 +932,7 @@ CONTAINS
                   ALLOCATE (buff(nao, 1), buff2(nao, 1))
                   DO i = 1, nmo
                      CALL cp_fm_get_submatrix(mo_coeff, buff, 1, i, nao, 1)
-                     IF (SUM(buff**2) .LT. 1E-10_dp) THEN
+                     IF (SUM(buff**2) < 1E-10_dp) THEN
                         WRITE (*, *) 'wrong', i, SUM(buff**2)
                      END IF
                      length = SQRT(DOT_PRODUCT(buff(:, 1), buff(:, 1)))
@@ -941,13 +941,13 @@ CONTAINS
                         CALL cp_fm_get_submatrix(mo_coeff, buff2, 1, j, nao, 1)
                         length = SQRT(DOT_PRODUCT(buff2(:, 1), buff2(:, 1)))
                         buff2(:, :) = buff2(:, :)/length
-                        IF (ABS(DOT_PRODUCT(buff(:, 1), buff2(:, 1)) - 1.0_dp) .LT. 1E-10_dp) THEN
+                        IF (ABS(DOT_PRODUCT(buff(:, 1), buff2(:, 1)) - 1.0_dp) < 1E-10_dp) THEN
                            WRITE (*, *) 'wrong2', i, j, DOT_PRODUCT(buff(:, 1), buff2(:, 1))
                            DO ikind = 1, nao
-                              IF (ABS(mo_coeff%local_data(ikind, i)) .GT. 1e-10_dp) THEN
+                              IF (ABS(mo_coeff%local_data(ikind, i)) > 1e-10_dp) THEN
                                  WRITE (*, *) 'c1', ikind, mo_coeff%local_data(ikind, i)
                               END IF
-                              IF (ABS(mo_coeff%local_data(ikind, j)) .GT. 1e-10_dp) THEN
+                              IF (ABS(mo_coeff%local_data(ikind, j)) > 1e-10_dp) THEN
                                  WRITE (*, *) 'c2', ikind, mo_coeff%local_data(ikind, j)
                               END IF
                            END DO
@@ -1163,7 +1163,7 @@ CONTAINS
       DO WHILE (dbcsr_iterator_blocks_left(iter))
          CALL dbcsr_iterator_next_block(iter, irow, icol, block)
          ikind = kind_of(irow)
-         IF (icol .EQ. irow) block(:, :) = fmat(ikind)%mat(:, :, 1)
+         IF (icol == irow) block(:, :) = fmat(ikind)%mat(:, :, 1)
       END DO
       CALL dbcsr_iterator_stop(iter)
 

@@ -67,7 +67,7 @@ CONTAINS
 
          CALL back_trans(nd, nt, x, y, m, ch, cg)
          CALL dcopy(nt, y, 1, x, 1)
-         IF (nt .EQ. nd) THEN
+         IF (nt == nd) THEN
             EXIT loop1
          END IF
       END DO loop1
@@ -122,7 +122,7 @@ CONTAINS
          !WRITE(*,*) 'nd,nt',nd,nt
          CALL back_trans(nd, nt, x, y, m, ch, cg)
          CALL dcopy(nd, y, 1, x, 1)
-         IF (nt .EQ. nd) THEN
+         IF (nt == nd) THEN
             EXIT loop3
          END IF
       END DO loop3
@@ -212,11 +212,11 @@ CONTAINS
             ! periodically wrap index if necessary
             ind = j + 2*i
             loop99: DO
-               IF (ind .LT. 0) THEN
+               IF (ind < 0) THEN
                   ind = ind + nt
                   CYCLE loop99
                END IF
-               IF (ind .GE. nt) THEN
+               IF (ind >= nt) THEN
                   ind = ind - nt
                   CYCLE loop99
                END IF
@@ -266,11 +266,11 @@ CONTAINS
             ! periodically wrap index if necessary
             ind = i - j
             loop99: DO
-               IF (ind .LT. 0) THEN
+               IF (ind < 0) THEN
                   ind = ind + nt/2
                   CYCLE loop99
                END IF
-               IF (ind .GE. nt/2) THEN
+               IF (ind >= nt/2) THEN
                   ind = ind - nt/2
                   CYCLE loop99
                END IF
@@ -313,8 +313,8 @@ CONTAINS
             t3 = 0._dp
             t4 = 0._dp
             DO l = -3*m, 3*m
-               IF (l - 2*i .GE. -m .AND. l - 2*i .LE. m .AND. &
-                   l - 2*j .GE. -m .AND. l - 2*j .LE. m) THEN
+               IF (l - 2*i >= -m .AND. l - 2*i <= m .AND. &
+                   l - 2*j >= -m .AND. l - 2*j <= m) THEN
                   t1 = t1 + ch(l - 2*i)*cht(l - 2*j)
                   t2 = t2 + cg(l - 2*i)*cgt(l - 2*j)
                   t3 = t3 + ch(l - 2*i)*cgt(l - 2*j)
@@ -322,14 +322,14 @@ CONTAINS
                END IF
             END DO
             eps = 1.e-10_dp
-            IF (i .EQ. j) THEN
-               IF (ABS(t1 - 1._dp) .GT. eps .OR. ABS(t2 - 1._dp) .GT. eps .OR. &
-                   ABS(t3) .GT. eps .OR. ABS(t4) .GT. eps) THEN
+            IF (i == j) THEN
+               IF (ABS(t1 - 1._dp) > eps .OR. ABS(t2 - 1._dp) > eps .OR. &
+                   ABS(t3) > eps .OR. ABS(t4) > eps) THEN
                   WRITE (*, fmt22) 'Orthogonality ERROR', i, j, t1, t2, t3, t4
                END IF
             ELSE
-               IF (ABS(t1) .GT. eps .OR. ABS(t2) .GT. eps .OR. &
-                   ABS(t3) .GT. eps .OR. ABS(t4) .GT. eps) THEN
+               IF (ABS(t1) > eps .OR. ABS(t2) > eps .OR. &
+                   ABS(t3) > eps .OR. ABS(t4) > eps) THEN
                   WRITE (*, fmt22) 'Orthogonality ERROR', i, j, t1, t2, t3, t4
                END IF
             END IF

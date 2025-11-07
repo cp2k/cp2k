@@ -222,19 +222,19 @@ CONTAINS
             begin = 1
             IF (ntype /= 0) THEN
                DO
-                  IF (begin .EQ. 1) THEN
+                  IF (begin == 1) THEN
                      READ (parser%input_line, iostat=stat, FMT=*) itemp, itemp, ctemp, itemp, ftemp, ftemp, &
                         itemp, itemp, (ii(i), i=begin, ntype)
-                  ELSE IF (begin .GT. 1) THEN
+                  ELSE IF (begin > 1) THEN
                      CALL parser_get_next_line(parser, 1)
                      READ (parser%input_line, iostat=stat, FMT=*) (ii(i), i=begin, ntype)
                   END IF
                   DO i = ntype, 1, -1
-                     IF (ii(i) .LT. 0) THEN
+                     IF (ii(i) < 0) THEN
                         begin = i
                      END IF
                   END DO
-                  IF (stat .EQ. 0) EXIT
+                  IF (stat == 0) EXIT
                END DO
             END IF
             ! 1-4 list
@@ -254,18 +254,18 @@ CONTAINS
                begin = 1
                IF (ntype /= 0) THEN
                   DO
-                     IF (begin .EQ. 1) THEN
+                     IF (begin == 1) THEN
                         READ (parser%input_line, iostat=stat, FMT=*) itemp, (ii(i), i=begin, ntype)
-                     ELSE IF (begin .GT. 1) THEN
+                     ELSE IF (begin > 1) THEN
                         CALL parser_get_next_line(parser, 1)
                         READ (parser%input_line, iostat=stat, FMT=*) (ii(i), i=begin, ntype)
                      END IF
                      DO i = ntype, 1, -1
-                        IF (ii(i) .LT. 0) THEN
+                        IF (ii(i) < 0) THEN
                            begin = i
                         END IF
                      END DO
-                     IF (stat .EQ. 0) EXIT
+                     IF (stat == 0) EXIT
                   END DO
                   DO i = 1, ntype
                      conn_info%onfo_b(offset + i) = ii(i)

@@ -2320,12 +2320,12 @@ CONTAINS
          CALL section_vals_val_get(section, "PHI0", i_rep_section=isec, r_val=torsion_phi0(start + isec))
          CALL section_vals_val_get(section, "M", i_rep_section=isec, i_val=torsion_m(start + isec))
          ! Modify parameterisation for OPLS case
-         IF (torsion_kind(start + isec) .EQ. do_ff_opls) THEN
-            IF (torsion_phi0(start + isec) .NE. 0.0_dp) THEN
+         IF (torsion_kind(start + isec) == do_ff_opls) THEN
+            IF (torsion_phi0(start + isec) /= 0.0_dp) THEN
                CALL cp_warn(__LOCATION__, "PHI0 parameter was non-zero "// &
                             "for an OPLS-type TORSION.  It will be ignored.")
             END IF
-            IF (MODULO(torsion_m(start + isec), 2) .EQ. 0) THEN
+            IF (MODULO(torsion_m(start + isec), 2) == 0) THEN
                ! For even M, negate the cosine using a Pi phase factor
                torsion_phi0(start + isec) = pi
             END IF

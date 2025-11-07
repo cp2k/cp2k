@@ -1284,7 +1284,7 @@ CONTAINS
                   iatom = atom_from_ao_index(row_indices(irow))
                   jatom = atom_from_ao_index(col_indices(jcol))
 
-                  IF (iatom .NE. iatom_old .OR. jatom .NE. jatom_old) THEN
+                  IF (iatom /= iatom_old .OR. jatom /= jatom_old) THEN
 
                      CALL compute_weight_re_im(weight_re, weight_im, &
                                                num_cells, iatom, jatom, xkp(1:3, ik), wkp(ik), &
@@ -1443,9 +1443,9 @@ CONTAINS
 
       ! check that real space super lattice is a (2n+1)x(2m+1)x(2k+1) super lattice with the unit cell
       ! in the middle
-      CPASSERT(cell_grid(1) .NE. itm(1)*2)
-      CPASSERT(cell_grid(2) .NE. itm(2)*2)
-      CPASSERT(cell_grid(3) .NE. itm(3)*2)
+      CPASSERT(cell_grid(1) /= itm(1)*2)
+      CPASSERT(cell_grid(2) /= itm(2)*2)
+      CPASSERT(cell_grid(3) /= itm(3)*2)
 
       IF (ASSOCIATED(cell_to_index)) DEALLOCATE (cell_to_index)
       IF (ASSOCIATED(index_to_cell)) DEALLOCATE (index_to_cell)
@@ -1575,12 +1575,12 @@ CONTAINS
          y_cell_R_minus_S = y_cell_R - y_cell_S
          z_cell_R_minus_S = z_cell_R - z_cell_S
 
-         IF (x_cell_R_minus_S .GE. LBOUND(cell_to_index_3c, 1) .AND. &
-             x_cell_R_minus_S .LE. UBOUND(cell_to_index_3c, 1) .AND. &
-             y_cell_R_minus_S .GE. LBOUND(cell_to_index_3c, 2) .AND. &
-             y_cell_R_minus_S .LE. UBOUND(cell_to_index_3c, 2) .AND. &
-             z_cell_R_minus_S .GE. LBOUND(cell_to_index_3c, 3) .AND. &
-             z_cell_R_minus_S .LE. UBOUND(cell_to_index_3c, 3)) THEN
+         IF (x_cell_R_minus_S >= LBOUND(cell_to_index_3c, 1) .AND. &
+             x_cell_R_minus_S <= UBOUND(cell_to_index_3c, 1) .AND. &
+             y_cell_R_minus_S >= LBOUND(cell_to_index_3c, 2) .AND. &
+             y_cell_R_minus_S <= UBOUND(cell_to_index_3c, 2) .AND. &
+             z_cell_R_minus_S >= LBOUND(cell_to_index_3c, 3) .AND. &
+             z_cell_R_minus_S <= UBOUND(cell_to_index_3c, 3)) THEN
 
             i_cell_R_minus_S = cell_to_index_3c(x_cell_R_minus_S, y_cell_R_minus_S, z_cell_R_minus_S)
 
@@ -1666,12 +1666,12 @@ CONTAINS
          y_cell_R_minus_S_minus_T = y_cell_R - y_cell_S - y_cell_T
          z_cell_R_minus_S_minus_T = z_cell_R - z_cell_S - z_cell_T
 
-         IF (x_cell_R_minus_S_minus_T .GE. LBOUND(cell_to_index_3c, 1) .AND. &
-             x_cell_R_minus_S_minus_T .LE. UBOUND(cell_to_index_3c, 1) .AND. &
-             y_cell_R_minus_S_minus_T .GE. LBOUND(cell_to_index_3c, 2) .AND. &
-             y_cell_R_minus_S_minus_T .LE. UBOUND(cell_to_index_3c, 2) .AND. &
-             z_cell_R_minus_S_minus_T .GE. LBOUND(cell_to_index_3c, 3) .AND. &
-             z_cell_R_minus_S_minus_T .LE. UBOUND(cell_to_index_3c, 3)) THEN
+         IF (x_cell_R_minus_S_minus_T >= LBOUND(cell_to_index_3c, 1) .AND. &
+             x_cell_R_minus_S_minus_T <= UBOUND(cell_to_index_3c, 1) .AND. &
+             y_cell_R_minus_S_minus_T >= LBOUND(cell_to_index_3c, 2) .AND. &
+             y_cell_R_minus_S_minus_T <= UBOUND(cell_to_index_3c, 2) .AND. &
+             z_cell_R_minus_S_minus_T >= LBOUND(cell_to_index_3c, 3) .AND. &
+             z_cell_R_minus_S_minus_T <= UBOUND(cell_to_index_3c, 3)) THEN
 
             i_cell_R_minus_S_minus_T = cell_to_index_3c(x_cell_R_minus_S_minus_T, &
                                                         y_cell_R_minus_S_minus_T, &

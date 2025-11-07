@@ -127,7 +127,7 @@ CONTAINS
 
       ! can't do a simple particles%els%atomic_kind%element_symbol because
       ! of the classical force_env
-      IF (nunits_tot .GT. 0) THEN
+      IF (nunits_tot > 0) THEN
          nmol_types = SIZE(molecule_kinds%els(:))
          iparticle = 1
          DO imol_type = 1, nmol_types
@@ -228,7 +228,7 @@ CONTAINS
       CALL group%bcast(nchains, source)
 
       ! do some checking
-      IF (ABS(temperature - mc_temp) .GT. 0.01E0_dp) THEN
+      IF (ABS(temperature - mc_temp) > 0.01E0_dp) THEN
          IF (ionode) THEN
             WRITE (iw, *) 'The temperature in the restart file is ', &
                'not the same as the input file.'
@@ -237,7 +237,7 @@ CONTAINS
          END IF
          CPABORT("Temperature difference between restart and input")
       END IF
-      IF (nunits_tot .NE. mc_nunits_tot) THEN
+      IF (nunits_tot /= mc_nunits_tot) THEN
          IF (ionode) THEN
             WRITE (iw, *) 'The total number of units in the restart ', &
                'file is not the same as the input file.'
@@ -246,7 +246,7 @@ CONTAINS
          END IF
          mc_nunits_tot = nunits_tot
       END IF
-      IF (ensemble .NE. mc_ensemble) THEN
+      IF (ensemble /= mc_ensemble) THEN
          IF (ionode) THEN
             WRITE (iw, *) 'The ensemble in the restart file is ', &
                'not the same as the input file.'
@@ -268,9 +268,9 @@ CONTAINS
          box_length(1:3) = box_length(1:3)/angstrom ! convert to a.u.
       END IF
       CALL group%bcast(box_length, source)
-      IF (ABS(box_length(1) - abc(1)) .GT. 0.0001E0_dp .OR. &
-          ABS(box_length(2) - abc(2)) .GT. 0.0001E0_dp .OR. &
-          ABS(box_length(3) - abc(3)) .GT. 0.0001E0_dp) THEN
+      IF (ABS(box_length(1) - abc(1)) > 0.0001E0_dp .OR. &
+          ABS(box_length(2) - abc(2)) > 0.0001E0_dp .OR. &
+          ABS(box_length(3) - abc(3)) > 0.0001E0_dp) THEN
          IF (ionode) THEN
             WRITE (iw, *) 'The cell length in the restart file is ', &
                'not the same as the input file.'

@@ -136,7 +136,7 @@ CONTAINS
                         unit_number=unit_nr)
          ! the first record contains one integer giving degrees of freedom
          READ (unit_nr) dof
-         IF (dof .GT. SIZE(eigenvalues)) THEN
+         IF (dof > SIZE(eigenvalues)) THEN
             CPABORT("Too many DoFs found in "//filename)
          END IF
          ! the second record contains the eigenvalues

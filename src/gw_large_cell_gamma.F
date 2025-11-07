@@ -795,13 +795,13 @@ CONTAINS
                       qs_kind_set=qs_kind_set, &
                       atomic_kind_set=atomic_kind_set)
 
-      IF (ikp_end .LE. bs_env%nkp_chi_eps_W_orig) THEN
+      IF (ikp_end <= bs_env%nkp_chi_eps_W_orig) THEN
 
          ! 1. 2c Coulomb integrals for the first "original" k-point grid
          bs_env%kpoints_chi_eps_W%nkp_grid = bs_env%nkp_grid_chi_eps_W_orig
 
       ELSE IF (ikp_start > bs_env%nkp_chi_eps_W_orig .AND. &
-               ikp_end .LE. bs_env%nkp_chi_eps_W_orig_plus_extra) THEN
+               ikp_end <= bs_env%nkp_chi_eps_W_orig_plus_extra) THEN
 
          ! 2. 2c Coulomb integrals for the second "extrapolation" k-point grid
          bs_env%kpoints_chi_eps_W%nkp_grid = bs_env%nkp_grid_chi_eps_W_extra
@@ -1158,7 +1158,7 @@ CONTAINS
                                            cfm_W_ikp_freq_j, ikp, bs_env%kpoints_chi_eps_W, &
                                            "RI_AUX")
             ! non-kpoint extrapolated
-            IF (ikp .LE. bs_env%nkp_chi_eps_W_orig) THEN
+            IF (ikp <= bs_env%nkp_chi_eps_W_orig) THEN
                CALL MIC_contribution_from_ikp(bs_env, qs_env, bs_env%fm_W_MIC_freq_1_no_extra, &
                                               cfm_W_ikp_freq_j, ikp, bs_env%kpoints_chi_eps_W, &
                                               "RI_AUX", wkp_ext=bs_env%wkp_orig)
@@ -1167,7 +1167,7 @@ CONTAINS
          END IF
 
          ! for all ω_j, we need to compute W^MIC without k-point extrpolation
-         IF (ikp .LE. bs_env%nkp_chi_eps_W_orig) THEN
+         IF (ikp <= bs_env%nkp_chi_eps_W_orig) THEN
             CALL MIC_contribution_from_ikp(bs_env, qs_env, fm_W_MIC_freq_j, cfm_W_ikp_freq_j, &
                                            ikp, bs_env%kpoints_chi_eps_W, "RI_AUX", &
                                            wkp_ext=bs_env%wkp_orig)

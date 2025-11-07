@@ -87,8 +87,8 @@ CONTAINS
       DO i = -k, k
          pos(idim) = ind(idim) + i
          IF (iperd(idim) == 0) THEN
-            IF (pos(idim) .GT. ngrid(idim)) CYCLE
-            IF (pos(idim) .LT. 1) CYCLE
+            IF (pos(idim) > ngrid(idim)) CYCLE
+            IF (pos(idim) < 1) CYCLE
          END IF
          IF (idim /= 1) THEN
             CALL fes_compute_low(idim - 1, nn, fes, gauss, pos, ind0, nfes, ndim, ngauss, ngrid, iperd)
@@ -604,7 +604,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: xat
 
       CALL init_periodic_table()
-      IF (ndw .GT. 3) THEN
+      IF (ndw > 3) THEN
          WRITE (*, *)
          WRITE (*, *) 'ERROR: GAUSSIAN format can only handle FES on 3 CV !'
          CPABORT("")
@@ -630,7 +630,7 @@ CONTAINS
          END DO
       END DO
 
-      IF (residual .GT. 1.0d-6) THEN
+      IF (residual > 1.0d-6) THEN
          WRITE (*, *)
          WRITE (*, *) 'ERROR: this program can only handle orthogonal cells'
          WRITE (*, *) ' with vectors pointing in the X, Y and Z directions'
@@ -664,19 +664,19 @@ CONTAINS
                iix = ix + id(1)
                iiy = iy + id(2)
                iiz = iz + id(3)
-               IF (iix .LT. 1) iix = iix + ngrid(1)
-               IF (iiy .LT. 1) iiy = iiy + ngrid(2)
-               IF (iiz .LT. 1) iiz = iiz + ngrid(3)
-               IF (iix .GT. ngrid(1)) iix = iix - ngrid(1)
-               IF (iiy .GT. ngrid(2)) iiy = iiy - ngrid(2)
-               IF (iiz .GT. ngrid(3)) iiz = iiz - ngrid(3)
+               IF (iix < 1) iix = iix + ngrid(1)
+               IF (iiy < 1) iiy = iiy + ngrid(2)
+               IF (iiz < 1) iiz = iiz + ngrid(3)
+               IF (iix > ngrid(1)) iix = iix - ngrid(1)
+               IF (iiy > ngrid(2)) iiy = iiy - ngrid(2)
+               IF (iiz > ngrid(3)) iiz = iiz - ngrid(3)
 
-               IF (iix .LT. 1) CPABORT("ix < 0")
-               IF (iiy .LT. 1) CPABORT("iy < 0")
-               IF (iiz .LT. 1) CPABORT("iz < 0")
-               IF (iix .GT. ngrid(1)) CPABORT("ix > cell")
-               IF (iiy .GT. ngrid(2)) CPABORT("iy > cell")
-               IF (iiz .GT. ngrid(3)) CPABORT("iz > cell")
+               IF (iix < 1) CPABORT("ix < 0")
+               IF (iiy < 1) CPABORT("iy < 0")
+               IF (iiz < 1) CPABORT("iz < 0")
+               IF (iix > ngrid(1)) CPABORT("ix > cell")
+               IF (iiy > ngrid(2)) CPABORT("iy > cell")
+               IF (iiz > ngrid(3)) CPABORT("iz > cell")
                i = ix + (iy - 1)*ngrid(1) + (iz - 1)*ngrid(1)*ngrid(2)
                ii = iix + (iiy - 1)*ngrid(1) + (iiz - 1)*ngrid(1)*ngrid(2)
                rhot(ii) = rho(i)
@@ -716,8 +716,8 @@ CONTAINS
       DO i = 1, natoms
          DO ix = 1, 3
             xat(i, ix) = xat(i, ix) + rt(ix) - delta(ix)
-            IF (xat(i, ix) .LT. rt(ix)) xat(i, ix) = xat(i, ix) + cell(ix, ix)
-            IF (xat(i, ix) .GT. -rt(ix)) xat(i, ix) = xat(i, ix) - cell(ix, ix)
+            IF (xat(i, ix) < rt(ix)) xat(i, ix) = xat(i, ix) + cell(ix, ix)
+            IF (xat(i, ix) > -rt(ix)) xat(i, ix) = xat(i, ix) - cell(ix, ix)
          END DO
       END DO
 

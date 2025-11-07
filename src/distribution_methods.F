@@ -275,7 +275,7 @@ CONTAINS
 
          END DO
 
-         IF (ANY(workload_fill .NE. workload_count)) &
+         IF (ANY(workload_fill /= workload_count)) &
             CPABORT("Inconsistent heaps encountered")
 
          CALL cp_heap_release(bin_heap_count)
@@ -563,7 +563,7 @@ CONTAINS
             CALL section_vals_val_get(distribution_section, "COST_MODEL", i_val=cost_model)
             IF (.NOT. molecular_distribution) THEN
                DO iatom = 1, natom
-                  IF (iatom .GT. nclusters) &
+                  IF (iatom > nclusters) &
                      CPABORT("Bounds error")
                   CALL get_atomic_kind(particle_set(iatom)%atomic_kind, kind_number=ikind)
                   cluster_list(iatom) = iatom
@@ -868,10 +868,10 @@ CONTAINS
             CPABORT("No topmost heap element found.")
          !
          prow = INT((bin - 1)*pgrid_gcd/npcols)
-         IF (prow .GE. nprows) &
+         IF (prow >= nprows) &
             CPABORT("Invalid process row.")
          pcol = INT((bin - 1)*pgrid_gcd/nprows)
-         IF (pcol .GE. npcols) &
+         IF (pcol >= npcols) &
             CPABORT("Invalid process column.")
          row_distribution(cluster) = prow + 1
          col_distribution(cluster) = pcol + 1
@@ -1171,7 +1171,7 @@ CONTAINS
       natoms = SIZE(coord, 2)
       ! This is a bit of an arbitrary choice, simply a try to avoid too many clusters on large systems and too few for balancing on
       ! small systems or subclusters
-      IF (natoms .LE. 1) THEN
+      IF (natoms <= 1) THEN
          nsplits = 1
       ELSE
          nsplits = MIN(INT(MIN(INT(MAX(6, INT(60.00/LOG(REAL(natoms, KIND=dp)))), KIND=int_8), ncluster)), natoms)
@@ -1189,13 +1189,13 @@ CONTAINS
 
          ! If the system is small enough try to do better in terms of balancing number of atoms per cluster
          ! by changing the seed for the initial guess
-         IF (natoms .LT. 1000 .AND. balance .GT. 1.1) THEN
+         IF (natoms < 1000 .AND. balance > 1.1) THEN
             found = .FALSE.
             DO i = 1, 5
-               IF (balance .GT. 1.1) THEN
+               IF (balance > 1.1) THEN
                   CALL kmeans(nsplits, coord, scaled_coord, cell, cluster_inds, nat_cluster, seed + i*40, conv)
                   balance_new = MAXVAL(REAL(nat_cluster, KIND=dp))/MINVAL(REAL(nat_cluster, KIND=dp))
-                  IF (balance_new .LT. balance) THEN
+                  IF (balance_new < balance) THEN
                      balance = balance_new
                      min_seed = seed + i*40;
                   END IF
@@ -1225,11 +1225,11 @@ CONTAINS
          END DO
          ! now comes the next part that the number of clusters will not match anymore, so try to correct in a meaningful way without
          ! introducing 0 sized blocks again
-         IF (nleft .NE. 0) THEN
+         IF (nleft /= 0) THEN
             DO i = 1, ABS(nleft)
                IF (nleft < 0) THEN
                   maxv = MINLOC(cluster_cost/ncluster_new)
-                  IF (ncluster_new(maxv(1)) .NE. 1) THEN
+                  IF (ncluster_new(maxv(1)) /= 1) THEN
                      ncluster_new(maxv) = ncluster_new(maxv) - 1
                   ELSE
                      maxv = MAXLOC(ncluster_new)
@@ -1315,10 +1315,10 @@ CONTAINS
             DO j = 1, i - 1
                dvec = pbc(cent_coord(:, j), cent_coord(:, i), cell)
                dist = SQRT(DOT_PRODUCT(dvec, dvec))
-               IF (dist .LT. devi) devi = dist
+               IF (dist < devi) devi = dist
             END DO
             rn = rng_stream%next()
-            IF (rn .LT. devi**2/169.0) EXIT
+            IF (rn < devi**2/169.0) EXIT
          END DO
       END DO
 
@@ -1338,18 +1338,18 @@ CONTAINS
             devi = HUGE(1.0_dp); oldc = cluster(i)
             DO j = 1, ncent
                dist = dmat(j, i) + MAX(nat_cl(j)**2/nat*ncent, nat/ncent)
-               IF (dist .LT. devi) THEN
+               IF (dist < devi) THEN
                   devi = dist; cluster(i) = j
                END IF
             END DO
             deviat(cluster(i)) = deviat(cluster(i)) + SQRT(devi)
             nat_cl(cluster(i)) = nat_cl(cluster(i)) + 1
             tot_var = tot_var + devi
-            IF (oldc .NE. cluster(i)) changed = .TRUE.
+            IF (oldc /= cluster(i)) changed = .TRUE.
          END DO
          ! get the update of the centers done, add a new one in case one center lost all its atoms
          ! the algorithm would survive, but its nice to really create what you demand
-         IF (tot_var .GE. old_var) EXIT
+         IF (tot_var >= old_var) EXIT
          IF (changed) THEN
             ! Here misery of computing the center of geometry of the clusters in PBC.
             ! The mapping on the unit circle allows to circumvent all problems

@@ -103,7 +103,7 @@ CONTAINS
       cutoff = G_rad**2/2
       CALL get_minimax_from_cutoff(param%minimax_grid, cutoff, n_aw, aw, grid)
 
-      CPASSERT(grid .GT. 0)
+      CPASSERT(grid > 0)
 
       ! cell info
       h_inv = param%h_inv
@@ -187,13 +187,13 @@ CONTAINS
                      CALL pgf_sum_2c_rspace_1d(S_G_2, -rab(i_xyz), alpha_R, lgth, R_bounds(i_xyz))
                      max_error = MAXVAL(ABS(S_G_1 - S_G_2)/(0.5_dp*(ABS(S_G_1) + ABS(S_G_2)) + 1.0_dp))
 
-                     CPASSERT(max_error .LE. param%debug_delta)
+                     CPASSERT(max_error <= param%debug_delta)
                   END IF
                END DO
 
             ELSE ! general cell
 
-               do_g_sum = n_sum_3d(1) < n_sum_3d(2) !PRODUCT(2*R_bounds+1) .GT. PRODUCT(2*G_bounds+1)
+               do_g_sum = n_sum_3d(1) < n_sum_3d(2) !PRODUCT(2*R_bounds+1) > PRODUCT(2*G_bounds+1)
 
                IF (do_g_sum) THEN
                   CALL pgf_sum_2c_gspace_3d(S_G_no_H, l_max, -rab, alpha_G, h_inv, G_bounds, G_rad, vol)
@@ -229,7 +229,7 @@ CONTAINS
             ELSE
                Imm = S_G_no(coset(ax + bx, ay + by, az + bz))*prefac**3
             END IF
-            IF (la + lb .EQ. 0 .AND. .NOT. exact) THEN
+            IF (la + lb == 0 .AND. .NOT. exact) THEN
                Imm = Imm - SUM(aw(n_aw + 1:2*n_aw))*prefac**3/vol ! subtracting G = 0 term
             END IF
             IF (.NOT. norm) THEN
@@ -347,7 +347,7 @@ CONTAINS
 
       CALL get_minimax_from_cutoff(param%minimax_grid, cutoff, n_aw, aw, grid)
 
-      CPASSERT(grid .GT. 0)
+      CPASSERT(grid > 0)
 
       ! minimax coeffs
       n_aw = param%minimax_grid(grid)%n_minimax
@@ -473,7 +473,7 @@ CONTAINS
 
       CALL get_minimax_from_cutoff(param%minimax_grid, cutoff, n_aw, aw, grid)
 
-      CPASSERT(grid .GT. 0)
+      CPASSERT(grid > 0)
 
       ! minimax coeffs
       n_aw = param%minimax_grid(grid)%n_minimax
@@ -518,7 +518,7 @@ CONTAINS
          R_rad_0 = exp_radius(lmax_0, alpha_R_0, param%sum_precision, 1.0_dp, epsabs=R_res)
          G_bound_0 = ellipsoid_bounds(G_rad_0, TRANSPOSE(hmat)/(2.0_dp*pi))
          R_bound_0 = ellipsoid_bounds(R_rad_0, h_inv)
-         do_g_sum_0 = PRODUCT(2*R_bound_0 + 1) .GT. PRODUCT(2*G_bound_0 + 1)
+         do_g_sum_0 = PRODUCT(2*R_bound_0 + 1) > PRODUCT(2*G_bound_0 + 1)
          IF (do_g_sum_0) THEN
             CALL pgf_sum_2c_gspace_3d(S_G_0_no, lmax_0, R_0, alpha_G_0, h_inv, G_bound_0, G_rad_0, vol)
          ELSE
@@ -554,9 +554,9 @@ CONTAINS
             nresults = 0
             ! check consistency of summation methods
 
-            db_sum1 = (n_sum_3d(1)) .LT. INT(param%debug_nsum, KIND=int_8)
-            db_sum2 = (n_sum_3d(2)) .LT. INT(param%debug_nsum, KIND=int_8)
-            db_sum3 = (n_sum_3d(3)) .LT. INT(param%debug_nsum, KIND=int_8)
+            db_sum1 = (n_sum_3d(1)) < INT(param%debug_nsum, KIND=int_8)
+            db_sum2 = (n_sum_3d(2)) < INT(param%debug_nsum, KIND=int_8)
+            db_sum3 = (n_sum_3d(3)) < INT(param%debug_nsum, KIND=int_8)
 
             IF (param%unit_nr > 0) THEN
                WRITE (param%unit_nr, *) "ERI_MME DEBUG | number of summands (GG / GR / RR)", n_sum_3d
@@ -629,7 +629,7 @@ CONTAINS
                END DO
             END DO
 
-            CPASSERT(max_error .LE. param%debug_delta)
+            CPASSERT(max_error <= param%debug_delta)
             DEALLOCATE (results_no)
          END IF
       END DO
@@ -801,7 +801,7 @@ CONTAINS
                CALL get_l(ico, la, ax, ay, az)
 
                IF (la_prev < la) resc_a = resc_a*(2.0_dp*zeta)
-               IF (lc .GT. 0) THEN
+               IF (lc > 0) THEN
                   Imm = S_G(ico, jco, kco)
                ELSE
                   ijco = coset(ax + bx, ay + by, az + bz)

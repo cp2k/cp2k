@@ -238,7 +238,7 @@ CONTAINS
             CALL qs_scf_env_initialize(qs_env, scf_env)
          END IF
 
-         IF ((scf_control%density_guess .EQ. history_guess) .AND. (first_step_flag)) THEN
+         IF ((scf_control%density_guess == history_guess) .AND. (first_step_flag)) THEN
             max_scf_tmp = scf_control%max_scf
             scf_control%max_scf = 1
             outer_scf_loop = scf_control%outer_scf%have_scf
@@ -271,7 +271,7 @@ CONTAINS
             ! Update a counter and check if the Jacobian should be deallocated
             IF (ASSOCIATED(scf_env%outer_scf%inv_jacobian)) THEN
                scf_control%outer_scf%cdft_opt_control%ijacobian(2) = scf_control%outer_scf%cdft_opt_control%ijacobian(2) + 1
-               IF (scf_control%outer_scf%cdft_opt_control%ijacobian(2) .GE. &
+               IF (scf_control%outer_scf%cdft_opt_control%ijacobian(2) >= &
                    scf_control%outer_scf%cdft_opt_control%jacobian_freq(2) .AND. &
                    scf_control%outer_scf%cdft_opt_control%jacobian_freq(2) > 0) &
                   scf_env%outer_scf%deallocate_jacobian = .TRUE.
@@ -279,7 +279,7 @@ CONTAINS
          END IF
          !   *** add the converged wavefunction to the wavefunction history
          IF ((ASSOCIATED(qs_env%wf_history)) .AND. &
-             ((scf_control%density_guess .NE. history_guess) .OR. &
+             ((scf_control%density_guess /= history_guess) .OR. &
               (.NOT. first_step_flag))) THEN
             IF (.NOT. dft_control%qs_control%cdft) THEN
                CALL wfi_update(qs_env%wf_history, qs_env=qs_env, dt=1.0_dp)
@@ -292,7 +292,7 @@ CONTAINS
                   CALL wfi_update(qs_env%wf_history, qs_env=qs_env, dt=1.0_dp)
                END IF
             END IF
-         ELSE IF ((scf_control%density_guess .EQ. history_guess) .AND. &
+         ELSE IF ((scf_control%density_guess == history_guess) .AND. &
                   (first_step_flag)) THEN
             scf_control%max_scf = max_scf_tmp
             scf_control%outer_scf%have_scf = outer_scf_loop
@@ -446,8 +446,8 @@ CONTAINS
       IF (test_for_result(results, description=description)) THEN
          CALL get_results(results, description=description, &
                           values=res_val_3, n_entries=i_tmp)
-         CPASSERT(i_tmp .EQ. 3)
-         IF (ALL(res_val_3(:) .LE. 0.0)) &
+         CPASSERT(i_tmp == 3)
+         IF (ALL(res_val_3(:) <= 0.0)) &
             CALL cp_abort(__LOCATION__, &
                           " Trying to access result ("//TRIM(description)// &
                           ") which is not correctly stored.")
@@ -538,7 +538,7 @@ CONTAINS
             IF (.NOT. just_energy) energy%tot_old = energy%total
 
             ! check for external communicator and if the intermediate energy should be sent
-            IF (scf_energy_message_tag .GT. 0) THEN
+            IF (scf_energy_message_tag > 0) THEN
                CALL external_comm%send(energy%total, ext_master_id, scf_energy_message_tag)
             END IF
 
@@ -1140,8 +1140,8 @@ CONTAINS
                 .AND. cdft_control%total_steps /= 1) &
                cdft_control%nreused = cdft_control%nreused - 1
             ! SCF converged in less than precond_freq steps
-            IF (scf_env%outer_scf%iter_count == 1 .AND. scf_env%iter_count .LE. cdft_control%precond_freq .AND. &
-                cdft_control%total_steps /= 1 .AND. cdft_control%nreused .LT. cdft_control%max_reuse) THEN
+            IF (scf_env%outer_scf%iter_count == 1 .AND. scf_env%iter_count <= cdft_control%precond_freq .AND. &
+                cdft_control%total_steps /= 1 .AND. cdft_control%nreused < cdft_control%max_reuse) THEN
                reuse_precond = .TRUE.
                cdft_control%nreused = cdft_control%nreused + 1
             ELSE
@@ -1152,10 +1152,10 @@ CONTAINS
          ! Update history purging counters
          IF (first_iteration .AND. cdft_control%purge_history) THEN
             cdft_control%istep = cdft_control%istep + 1
-            IF (scf_env%outer_scf%iter_count .GT. 1) THEN
+            IF (scf_env%outer_scf%iter_count > 1) THEN
                cdft_control%nbad_conv = cdft_control%nbad_conv + 1
-               IF (cdft_control%nbad_conv .GE. cdft_control%purge_freq .AND. &
-                   cdft_control%istep .GE. cdft_control%purge_offset) THEN
+               IF (cdft_control%nbad_conv >= cdft_control%purge_freq .AND. &
+                   cdft_control%istep >= cdft_control%purge_offset) THEN
                   cdft_control%nbad_conv = 0
                   cdft_control%istep = 0
                   cdft_control%should_purge = .TRUE.
@@ -1664,12 +1664,12 @@ CONTAINS
                IF (continue_ls .AND. .NOT. ALLOCATED(positive_sign)) THEN
                   ALLOCATE (positive_sign(nvar))
                   DO ispin = 1, nvar
-                     positive_sign(ispin) = scf_env%outer_scf%gradient(ispin, iter_count + 1) .GE. 0.0_dp
+                     positive_sign(ispin) = scf_env%outer_scf%gradient(ispin, iter_count + 1) >= 0.0_dp
                   END DO
                END IF
                ! Check if the L2 norm of the gradient decreased
                inv_jacobian => scf_env%outer_scf%inv_jacobian
-               IF (dnrm2(nvar, scf_env%outer_scf%gradient(:, iter_count + 1), 1) .LT. &
+               IF (dnrm2(nvar, scf_env%outer_scf%gradient(:, iter_count + 1), 1) < &
                    dnrm2(nvar, scf_env%outer_scf%gradient(:, iter_count), 1)) THEN
                   ! Optimal step size found
                   IF (.NOT. continue_ls) THEN
@@ -1679,7 +1679,7 @@ CONTAINS
                      ! if max number of steps is not exceeded
                      IF (found_solution) THEN
                         ! Check if the norm also decreased w.r.t. to previously found solution
-                        IF (dnrm2(nvar, scf_env%outer_scf%gradient(:, iter_count + 1), 1) .GT. norm_ls) THEN
+                        IF (dnrm2(nvar, scf_env%outer_scf%gradient(:, iter_count + 1), 1) > norm_ls) THEN
                            ! Norm increased => accept previous solution and exit
                            continue_ls_exit = .TRUE.
                         END IF
@@ -1695,7 +1695,7 @@ CONTAINS
                         sign_changed = .TRUE.
                         DO ispin = 1, nvar
                            sign_changed = sign_changed .AND. (positive_sign(ispin) .NEQV. &
-                                                              scf_env%outer_scf%gradient(ispin, iter_count + 1) .GE. 0.0_dp)
+                                                              scf_env%outer_scf%gradient(ispin, iter_count + 1) >= 0.0_dp)
                         END DO
                         IF (.NOT. ALLOCATED(mos_ls)) THEN
                            ALLOCATE (mos_ls(nspins))
@@ -1711,7 +1711,7 @@ CONTAINS
                         ! Exit on last iteration
                         IF (i == max_linesearch) continue_ls_exit = .TRUE.
                         ! Exit if constraint target is satisfied to requested tolerance
-                        IF (SQRT(MAXVAL(scf_env%outer_scf%gradient(:, scf_env%outer_scf%iter_count + 1)**2)) .LT. &
+                        IF (SQRT(MAXVAL(scf_env%outer_scf%gradient(:, scf_env%outer_scf%iter_count + 1)**2)) < &
                             scf_control%outer_scf%eps_scf) &
                            continue_ls_exit = .TRUE.
                         ! Exit if line search jumped over the optimal step length

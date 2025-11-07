@@ -484,7 +484,7 @@ CONTAINS
          DO ip = 1, subsys_mm%particles%n_els
             particles_mm(ip)%r = particles_mm(ip)%r - transl_v
          END DO
-         IF (qmmm_env%qm%added_shells%num_mm_atoms .GT. 0) THEN
+         IF (qmmm_env%qm%added_shells%num_mm_atoms > 0) THEN
             DO ip = 1, qmmm_env%qm%added_shells%num_mm_atoms
                qmmm_env%qm%added_shells%added_particles(ip)%r = qmmm_env%qm%added_shells%added_particles(ip)%r - transl_v
                qmmm_env%qm%added_shells%added_cores(ip)%r = qmmm_env%qm%added_shells%added_cores(ip)%r - transl_v

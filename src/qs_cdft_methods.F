@@ -330,7 +330,7 @@ CONTAINS
                      CYCLE
                   END IF
                   IF (becke_control%vector_buffer%store_vectors) THEN
-                     IF (becke_control%vector_buffer%distances(iatom) .EQ. 0.0_dp) THEN
+                     IF (becke_control%vector_buffer%distances(iatom) == 0.0_dp) THEN
                         r = becke_control%vector_buffer%position_vecs(:, iatom)
                         dist_vec = (r - grid_p) - ANINT((r - grid_p)/cell_v)*cell_v
                         dist1 = SQRT(DOT_PRODUCT(dist_vec, dist_vec))
@@ -348,13 +348,13 @@ CONTAINS
                      dist_vec = (r - grid_p) - ANINT((r - grid_p)/cell_v)*cell_v
                      dist1 = SQRT(DOT_PRODUCT(dist_vec, dist_vec))
                   END IF
-                  IF (dist1 .LE. cutoffs(iatom)) THEN
+                  IF (dist1 <= cutoffs(iatom)) THEN
                      IF (in_memory) THEN
-                        IF (dist1 .LE. th) dist1 = th
+                        IF (dist1 <= th) dist1 = th
                         dr_i_dR(:) = dist_vec(:)/dist1
                      END IF
                      DO jatom = 1, natom
-                        IF (jatom .NE. iatom) THEN
+                        IF (jatom /= iatom) THEN
                            ! Using pairwise symmetry, execute block only for such j<i
                            ! that have previously not been looped over
                            ! Note that if skip_me(jatom) = .TRUE., this means that the outer
@@ -364,7 +364,7 @@ CONTAINS
                               IF (.NOT. skip_me(jatom)) CYCLE
                            END IF
                            IF (becke_control%vector_buffer%store_vectors) THEN
-                              IF (becke_control%vector_buffer%distances(jatom) .EQ. 0.0_dp) THEN
+                              IF (becke_control%vector_buffer%distances(jatom) == 0.0_dp) THEN
                                  r1 = becke_control%vector_buffer%position_vecs(:, jatom)
                                  dist_vec = (r1 - grid_p) - ANINT((r1 - grid_p)/cell_v)*cell_v
                                  dist2 = SQRT(DOT_PRODUCT(dist_vec, dist_vec))
@@ -388,7 +388,7 @@ CONTAINS
                               ELSE
                                  dr1_r2 = (r - r1) - ANINT((r - r1)/cell_v)*cell_v
                               END IF
-                              IF (dist2 .LE. th) dist2 = th
+                              IF (dist2 <= th) dist2 = th
                               tmp_const = (becke_control%vector_buffer%R12(iatom, jatom)**3)
                               dr_ij_dR(:) = dr1_r2(:)/tmp_const
                               !derivative w.r.t. Rj
@@ -427,18 +427,18 @@ CONTAINS
                            tmp_const = 0.5_dp*(1.0_dp - myexp)
                            cell_functions(iatom) = cell_functions(iatom)*tmp_const
                            IF (in_memory) THEN
-                              IF (ABS(tmp_const) .LE. th) tmp_const = tmp_const + th
+                              IF (ABS(tmp_const) <= th) tmp_const = tmp_const + th
                               ! P_i independent part of dP_i/dR_i
                               dP_i_dRi(:, iatom) = dP_i_dRi(:, iatom) + ds_dR_i(:)/tmp_const
                               ! P_i independent part of dP_i/dR_j
                               dP_i_dRj(:, iatom, jatom) = ds_dR_j(:)/tmp_const
                            END IF
 
-                           IF (dist2 .LE. cutoffs(jatom)) THEN
+                           IF (dist2 <= cutoffs(jatom)) THEN
                               tmp_const = 0.5_dp*(1.0_dp + myexp) ! s(myji)
                               cell_functions(jatom) = cell_functions(jatom)*tmp_const
                               IF (in_memory) THEN
-                                 IF (ABS(tmp_const) .LE. th) tmp_const = tmp_const + th
+                                 IF (ABS(tmp_const) <= th) tmp_const = tmp_const + th
                                  ! P_j independent part of dP_j/dR_i
                                  ! d s(myji)/d R_i = -d s(myij)/d R_i
                                  dP_i_dRj(:, jatom, iatom) = -ds_dR_i(:)/tmp_const
@@ -470,7 +470,7 @@ CONTAINS
                            END DO
                         END IF
                         DO jatom = 1, natom
-                           IF (jatom .NE. iatom) THEN
+                           IF (jatom /= iatom) THEN
                               ! Final value of dP_i_dRj
                               dP_i_dRj(:, iatom, jatom) = cell_functions(iatom)*dP_i_dRj(:, iatom, jatom)
                               ! Update where needed
@@ -523,7 +523,7 @@ CONTAINS
                   sum_cell_f_all = sum_cell_f_all + cell_functions(ip)
                END DO
                ! Gradients at (k,j,i)
-               IF (in_memory .AND. ABS(sum_cell_f_all) .GT. 0.0_dp) THEN
+               IF (in_memory .AND. ABS(sum_cell_f_all) > 0.0_dp) THEN
                   DO igroup = 1, SIZE(group)
                      DO iatom = 1, natom
                         group(igroup)%gradients(3*(iatom - 1) + 1:3*(iatom - 1) + 3, k, j, i) = &
@@ -533,7 +533,7 @@ CONTAINS
                   END DO
                END IF
                ! Weight function(s) at (k,j,i)
-               IF (.NOT. my_just_gradients .AND. ABS(sum_cell_f_all) .GT. 0.000001) THEN
+               IF (.NOT. my_just_gradients .AND. ABS(sum_cell_f_all) > 0.000001) THEN
                   DO igroup = 1, SIZE(group)
                      group(igroup)%weight%array(k, j, i) = sum_cell_f_group(igroup)/sum_cell_f_all
                   END DO

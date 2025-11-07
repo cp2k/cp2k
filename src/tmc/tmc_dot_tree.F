@@ -61,18 +61,18 @@ CONTAINS
       filename = ""
 
       CPASSERT(ASSOCIATED(tmc_params))
-      CPASSERT(ind .GE. 0)
+      CPASSERT(ind >= 0)
       CPASSERT(ASSOCIATED(tmc_params%Temp))
-      CPASSERT(ind .LE. SIZE(tmc_params%Temp))
+      CPASSERT(ind <= SIZE(tmc_params%Temp))
 
-      IF (ind .EQ. 0) THEN
+      IF (ind == 0) THEN
          filename = TRIM(expand_file_name_char(tmc_params%dot_file_name, "global"))
       ELSE
          filename = TRIM(expand_file_name_temp(file_name=tmc_params%dot_file_name, &
                                                rvalue=tmc_params%Temp(ind)))
       END IF
 
-      CPASSERT(filename .NE. "")
+      CPASSERT(filename /= "")
    END FUNCTION get_dot_file_name
 ! **************************************************************************************************
 !> \brief initializes the dot files (open and write headers)
@@ -140,7 +140,7 @@ CONTAINS
    SUBROUTINE write_legend(file_ptr)
       INTEGER, INTENT(IN)                                :: file_ptr
 
-      CPASSERT(file_ptr .GT. 0)
+      CPASSERT(file_ptr > 0)
 
       WRITE (file_ptr, *) '//LEGEND'
       WRITE (file_ptr, *) 'subgraph clusterLegend {'
@@ -191,8 +191,8 @@ CONTAINS
       CHARACTER(len=11)                                  :: label
       INTEGER                                            :: file_ptr
 
-      CPASSERT(filename .NE. "")
-      CPASSERT(node_nr .GE. 0)
+      CPASSERT(filename /= "")
+      CPASSERT(node_nr >= 0)
 
       CALL open_file(file_name=filename, file_status="OLD", &
                      file_action="WRITE", file_position="APPEND", unit_number=file_ptr)
@@ -279,7 +279,7 @@ CONTAINS
       TYPE(tmc_param_type), POINTER                      :: tmc_params
 
       CPASSERT(ASSOCIATED(new_element))
-      CPASSERT(conf .GT. 0)
+      CPASSERT(conf > 0)
       CPASSERT(ASSOCIATED(tmc_params))
 
       CALL create_dot_branch(parent_nr=new_element%parent%nr, &
@@ -320,7 +320,7 @@ CONTAINS
          WRITE (list_of_nr, *) TRIM(ADJUSTL(list_of_nr)), " ", new_element%conf(i)%elem%nr
       END DO
       ! print out the references of each subtree element
-      IF (DEBUG .GT. 8) THEN
+      IF (DEBUG > 8) THEN
          WRITE (list_of_nr, *) TRIM(ADJUSTL(list_of_nr)), '\n ref'
          DO i = 1, SIZE(new_element%conf(:))
             ref_count = 0
@@ -339,7 +339,7 @@ CONTAINS
       END IF
 
       IF (.NOT. ASSOCIATED(new_element%parent)) THEN
-         IF (new_element%nr .GT. 1) &
+         IF (new_element%nr > 1) &
             CALL cp_warn(__LOCATION__, &
                          "try to create dot, but no parent on node "// &
                          cp_to_string(new_element%nr)//"exists")
@@ -383,7 +383,7 @@ CONTAINS
       CPASSERT(ASSOCIATED(tree_element))
       CPASSERT(ASSOCIATED(tmc_params))
 
-      IF (DEBUG .GT. 8) THEN
+      IF (DEBUG > 8) THEN
          list_of_nr = ""
          tmp_pt_list_elem => tree_element%gt_nodes_references
          ref_count = 0
@@ -420,7 +420,7 @@ CONTAINS
       CPASSERT(ASSOCIATED(gt_tree_element))
       CPASSERT(ASSOCIATED(tmc_params))
 
-      IF (DEBUG .GT. 8) WRITE (*, *) "mark global tree node color", gt_tree_element%nr, gt_tree_element%stat
+      IF (DEBUG > 8) WRITE (*, *) "mark global tree node color", gt_tree_element%nr, gt_tree_element%stat
       CALL write_color(node_nr=gt_tree_element%nr, stat=gt_tree_element%stat, &
                        filename=get_dot_file_name(tmc_params, 0))
    END SUBROUTINE create_global_tree_dot_color

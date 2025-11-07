@@ -257,7 +257,7 @@ CONTAINS
       END IF
 
       ! prepare integral derivatives with mme method
-      IF (eri_method .EQ. do_eri_mme) THEN
+      IF (eri_method == do_eri_mme) THEN
          ALLOCATE (matrix_P_munu_local(my_group_L_size))
          ALLOCATE (mat_munu_local(my_group_L_size))
          L_counter = 0
@@ -431,7 +431,7 @@ CONTAINS
       DEALLOCATE (matrix_P_inu, G_P_ia)
 
       ! move the forces in the correct place
-      IF (eri_method .EQ. do_eri_gpw) THEN
+      IF (eri_method == do_eri_gpw) THEN
          DO ikind = 1, SIZE(mp2_force)
             mp2_force(ikind)%mp2_non_sep(:, :) = force(ikind)%rho_elec(:, :)
             force(ikind)%rho_elec(:, :) = 0.0_dp

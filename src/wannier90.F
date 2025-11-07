@@ -375,18 +375,18 @@ CONTAINS
                dist = SQRT((kpt_cart(1, 1) - vkpp(1))**2 &
                            + (kpt_cart(2, 1) - vkpp(2))**2 + (kpt_cart(3, 1) - vkpp(3))**2)
                !
-               IF ((dist .GT. kmesh_tol) .AND. (dist .GT. dnn0 + kmesh_tol)) THEN
-                  IF (dist .LT. dnn1 - kmesh_tol) THEN
+               IF ((dist > kmesh_tol) .AND. (dist > dnn0 + kmesh_tol)) THEN
+                  IF (dist < dnn1 - kmesh_tol) THEN
                      dnn1 = dist ! found a closer shell
                      counter = 0
                   END IF
-                  IF (dist .GT. (dnn1 - kmesh_tol) .AND. dist .LT. (dnn1 + kmesh_tol)) THEN
+                  IF (dist > (dnn1 - kmesh_tol) .AND. dist < (dnn1 + kmesh_tol)) THEN
                      counter = counter + 1 ! count the multiplicity of the shell
                   END IF
                END IF
             END DO
          END DO
-         IF (dnn1 .LT. eta - kmesh_tol) ndnntot = ndnntot + 1
+         IF (dnn1 < eta - kmesh_tol) ndnntot = ndnntot + 1
          dnn(nlist) = dnn1
          multi(nlist) = counter
          dnn0 = dnn1
@@ -408,7 +408,7 @@ CONTAINS
 
       WRITE (stdout, '(1x,a)', advance='no') '| The following shells are used: '
       DO ndnn = 1, num_shells
-         IF (ndnn .EQ. num_shells) THEN
+         IF (ndnn == num_shells) THEN
             WRITE (stdout, '(i3,1x)', advance='no') shell_list(ndnn)
          ELSE
             WRITE (stdout, '(i3,",")', advance='no') shell_list(ndnn)
@@ -486,7 +486,7 @@ CONTAINS
                   vkpp = vkpp2 + kpt_cart(:, nkp2)
                   dist = SQRT((kpt_cart(1, nkp) - vkpp(1))**2 &
                               + (kpt_cart(2, nkp) - vkpp(2))**2 + (kpt_cart(3, nkp) - vkpp(3))**2)
-                  IF ((dist .GE. dnn(ndnn)*(1 - kmesh_tol)) .AND. (dist .LE. dnn(ndnn)*(1 + kmesh_tol))) THEN
+                  IF ((dist >= dnn(ndnn)*(1 - kmesh_tol)) .AND. (dist <= dnn(ndnn)*(1 + kmesh_tol))) THEN
                      nnx = nnx + 1
                      nnshell(nkp, ndnn) = nnshell(nkp, ndnn) + 1
                      nnlist(nkp, nnx) = nkp2
@@ -522,7 +522,7 @@ CONTAINS
                   bb1 = bb1 + bk_local(i, nnx, 1)*bk_local(i, nnx, 1)
                   bbn = bbn + bk_local(i, nnx, nkp)*bk_local(i, nnx, nkp)
                END DO
-               IF (ABS(SQRT(bb1) - SQRT(bbn)) .GT. kmesh_tol) THEN
+               IF (ABS(SQRT(bb1) - SQRT(bbn)) > kmesh_tol) THEN
                   WRITE (stdout, '(1x,2f10.6)') bb1, bbn
                   CPABORT('Non-symmetric k-point neighbours!')
                END IF
@@ -546,11 +546,11 @@ CONTAINS
                      ddelta = ddelta + wb_local(nnx)*bk_local(i, nnx, nkp)*bk_local(j, nnx, nkp)
                   END DO
                END DO
-               IF ((i .EQ. j) .AND. (ABS(ddelta - 1.0_dp) .GT. kmesh_tol)) THEN
+               IF ((i == j) .AND. (ABS(ddelta - 1.0_dp) > kmesh_tol)) THEN
                   WRITE (stdout, '(1x,2i3,f12.8)') i, j, ddelta
                   CPABORT('Eq. (B1) not satisfied in kmesh_get (1)')
                END IF
-               IF ((i .NE. j) .AND. (ABS(ddelta) .GT. kmesh_tol)) THEN
+               IF ((i /= j) .AND. (ABS(ddelta) > kmesh_tol)) THEN
                   WRITE (stdout, '(1x,2i3,f12.8)') i, j, ddelta
                   CPABORT('Eq. (B1) not satisfied in kmesh_get (2)')
                END IF
@@ -578,13 +578,13 @@ CONTAINS
       na = 0
       DO nn = 1, nntot
          ifound = 0
-         IF (na .NE. 0) THEN
+         IF (na /= 0) THEN
             DO nap = 1, na
                CALL utility_compar(bka(1, nap), bk_local(1, nn, 1), ispos, isneg)
                IF (isneg) ifound = 1
             END DO
          END IF
-         IF (ifound .EQ. 0) THEN
+         IF (ifound == 0) THEN
             !         found new vector to add to set
             na = na + 1
             bka(1, na) = bk_local(1, nn, 1)
@@ -592,7 +592,7 @@ CONTAINS
             bka(3, na) = bk_local(3, nn, 1)
          END IF
       END DO
-      IF (na .NE. nnh) CPABORT('Did not find right number of bk directions')
+      IF (na /= nnh) CPABORT('Did not find right number of bk directions')
 
       WRITE (stdout, '(1x,a)') '|                 b_k Vectors (Bohr^-1) and Weights (Bohr^2)                 |'
       WRITE (stdout, '(1x,a)') '|                 ------------------------------------------                 |'
@@ -624,7 +624,7 @@ CONTAINS
                IF (ispos) neigh(nkp, na) = nn
             END DO
             ! check found
-            IF (neigh(nkp, na) .EQ. 0) THEN
+            IF (neigh(nkp, na) == 0) THEN
                WRITE (stdout, *) ' nkp,na=', nkp, na
                CPABORT('kmesh_get: failed to find neighbours for this kpoint')
             END IF
@@ -928,7 +928,7 @@ CONTAINS
             vkpp = vkpp2 + kpt_cart(:, nkp2)
             dist = SQRT((kpt_cart(1, kpt) - vkpp(1))**2 &
                         + (kpt_cart(2, kpt) - vkpp(2))**2 + (kpt_cart(3, kpt) - vkpp(3))**2)
-            IF ((dist .GE. shell_dist*(1.0_dp - kmesh_tol)) .AND. dist .LE. shell_dist*(1.0_dp + kmesh_tol)) THEN
+            IF ((dist >= shell_dist*(1.0_dp - kmesh_tol)) .AND. dist <= shell_dist*(1.0_dp + kmesh_tol)) THEN
                num_bvec = num_bvec + 1
                bvector(:, num_bvec) = vkpp(:) - kpt_cart(:, kpt)
             END IF
@@ -952,8 +952,8 @@ CONTAINS
       REAL(kind=dp), DIMENSION(3), INTENT(in)            :: a, b
       LOGICAL, INTENT(out)                               :: ispos, isneg
 
-      ispos = SUM((a - b)**2) .LT. eps8
-      isneg = SUM((a + b)**2) .LT. eps8
+      ispos = SUM((a - b)**2) < eps8
+      isneg = SUM((a + b)**2) < eps8
    END SUBROUTINE utility_compar
 
 ! **************************************************************************************************

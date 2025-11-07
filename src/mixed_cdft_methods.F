@@ -180,7 +180,7 @@ CONTAINS
          mixed_env%do_mixed_cdft = .TRUE.
          IF (mixed_env%do_mixed_cdft) THEN
             ! Sanity check
-            IF (nforce_eval .LT. 2) &
+            IF (nforce_eval < 2) &
                CALL cp_abort(__LOCATION__, &
                              "Mixed CDFT calculation requires at least 2 force_evals.")
             mapping_section => section_vals_get_subs_vals(mixed_section, "MAPPING")
@@ -189,7 +189,7 @@ CONTAINS
             IF (explicit) &
                CPABORT("Please disable section &MAPPING for mixed CDFT calculations")
             CALL section_vals_val_get(mixed_section, "MIXED_CDFT%COUPLING", i_val=et_freq)
-            IF (et_freq .LT. 0) THEN
+            IF (et_freq < 0) THEN
                mixed_env%do_mixed_et = .FALSE.
             ELSE
                mixed_env%do_mixed_et = .TRUE.
@@ -297,7 +297,7 @@ CONTAINS
             END IF
             ! Inversion method
             CALL section_vals_val_get(mixed_section, "MIXED_CDFT%EPS_SVD", r_val=mixed_cdft%eps_svd)
-            IF (mixed_cdft%eps_svd .LT. 0.0_dp .OR. mixed_cdft%eps_svd .GT. 1.0_dp) &
+            IF (mixed_cdft%eps_svd < 0.0_dp .OR. mixed_cdft%eps_svd > 1.0_dp) &
                CPABORT("Illegal value for EPS_SVD. Value must be between 0.0 and 1.0.")
             ! MD related settings
             CALL force_env_get(force_env, root_section=root_section)
@@ -561,8 +561,8 @@ CONTAINS
          DO i = 1, SIZE(mixed_cdft%source_list)
             lb(i) = recvbuffer(i)%iv(1)
             ub(i) = recvbuffer(i)%iv(2)
-            IF (lb(i) .LT. lb_min) lb_min = lb(i)
-            IF (ub(i) .GT. ub_max) ub_max = ub(i)
+            IF (lb(i) < lb_min) lb_min = lb(i)
+            IF (ub(i) > ub_max) ub_max = ub(i)
             DEALLOCATE (recvbuffer(i)%iv)
          END DO
          ! Take into account the grids already communicated during dlb
@@ -572,9 +572,9 @@ CONTAINS
                   IF (mixed_cdft%dlb_control%recv_work_repl(j)) THEN
                      DO i = 1, SIZE(mixed_cdft%dlb_control%recvbuff(j)%buffs)
                         IF (LBOUND(mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%weight, 3) &
-                            .LT. lb_min) lb_min = LBOUND(mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%weight, 3)
+                            < lb_min) lb_min = LBOUND(mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%weight, 3)
                         IF (UBOUND(mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%weight, 3) &
-                            .GT. ub_max) ub_max = UBOUND(mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%weight, 3)
+                            > ub_max) ub_max = UBOUND(mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%weight, 3)
                      END DO
                   END IF
                END DO
@@ -1258,7 +1258,7 @@ CONTAINS
          ALLOCATE (homo(nforce_eval, nspins))
          mixed_cdft_section => section_vals_get_subs_vals(force_env_section, "MIXED%MIXED_CDFT")
          CALL section_vals_val_get(mixed_cdft_section, "EPS_OCCUPIED", r_val=eps_occupied)
-         IF (eps_occupied .GT. 1.0_dp .OR. eps_occupied .LT. 0.0_dp) &
+         IF (eps_occupied > 1.0_dp .OR. eps_occupied < 0.0_dp) &
             CALL cp_abort(__LOCATION__, &
                           "Keyword EPS_OCCUPIED only accepts values between 0.0 and 1.0")
          IF (mixed_cdft%eps_svd == 0.0_dp) &
@@ -1282,7 +1282,7 @@ CONTAINS
             homo(:, ispin) = nmo
             DO istate = 1, nforce_eval
                DO j = nmo, 1, -1
-                  IF (mixed_cdft%occupations(istate, ispin)%array(j) .GE. eps_occupied) THEN
+                  IF (mixed_cdft%occupations(istate, ispin)%array(j) >= eps_occupied) THEN
                      homo(istate, ispin) = j
                      EXIT
                   END IF
@@ -1296,7 +1296,7 @@ CONTAINS
             nelectron_mismatch = .FALSE.
             nelectron_tot = SUM(mixed_cdft%occupations(1, ispin)%array(1:nmo))
             DO istate = 2, nforce_eval
-               IF (ABS(SUM(mixed_cdft%occupations(istate, ispin)%array(1:nmo)) - nelectron_tot) .GT. 1.0E-4_dp) &
+               IF (ABS(SUM(mixed_cdft%occupations(istate, ispin)%array(1:nmo)) - nelectron_tot) > 1.0E-4_dp) &
                   nelectron_mismatch = .TRUE.
             END DO
             IF (ANY(homo(:, ispin) /= nmo)) THEN
@@ -1579,7 +1579,7 @@ CONTAINS
       CALL diamat_all(S_mat, eigenv, .TRUE.)
       tmp_mat = 0.0_dp
       DO istate = 1, nforce_eval
-         IF (eigenv(istate) .LT. 1.0e-14_dp) THEN
+         IF (eigenv(istate) < 1.0e-14_dp) THEN
             ! Safeguard against division with 0 and negative numbers
             eigenv(istate) = 1.0e-14_dp
             CALL cp_warn(__LOCATION__, &
@@ -1830,7 +1830,7 @@ CONTAINS
                IF (istate == 1) THEN
                   WRITE (iounit, '(T3,A,T54,(3X,2F12.6))') &
                      'Expansion coefficients:', H_mat(istate, ivar), H_mat(istate + 1, ivar)
-               ELSE IF (istate .LT. nforce_eval) THEN
+               ELSE IF (istate < nforce_eval) THEN
                   WRITE (iounit, '(T54,(3X,2F12.6))') H_mat(istate, ivar), H_mat(istate + 1, ivar)
                ELSE
                   WRITE (iounit, '(T54,(3X,F12.6))') H_mat(istate, ivar)
@@ -2171,7 +2171,7 @@ CONTAINS
          END IF
          ! Calculate coupling using eq. 12c
          ! The coupling is singular if A = B (i.e. states I/J are identical or charge in ground state is fully delocalized)
-         IF (ABS(overlaps(1, ipermutation, 1) - overlaps(2, ipermutation, 1)) .LE. 1.0e-14_dp) THEN
+         IF (ABS(overlaps(1, ipermutation, 1) - overlaps(2, ipermutation, 1)) <= 1.0e-14_dp) THEN
             CALL cp_warn(__LOCATION__, &
                          "Coupling between states is singular and set to zero. "// &
                          "Potential causes: coupling is computed between identical CDFT states or the spin/charge "// &
@@ -2425,15 +2425,15 @@ CONTAINS
                CALL get_atomic_kind(atomic_kind=particle_set(jatom)%atomic_kind, &
                                     kind_number=ikind)
                jrcov = cdft_control%becke_control%radii(ikind)
-               IF (ircov .NE. jrcov) THEN
+               IF (ircov /= jrcov) THEN
                   chi = ircov/jrcov
                   uij = (chi - 1.0_dp)/(chi + 1.0_dp)
                   cdft_control%becke_control%aij(iatom, jatom) = uij/(uij**2 - 1.0_dp)
                   IF (cdft_control%becke_control%aij(iatom, jatom) &
-                      .GT. 0.5_dp) THEN
+                      > 0.5_dp) THEN
                      cdft_control%becke_control%aij(iatom, jatom) = 0.5_dp
                   ELSE IF (cdft_control%becke_control%aij(iatom, jatom) &
-                           .LT. -0.5_dp) THEN
+                           < -0.5_dp) THEN
                      cdft_control%becke_control%aij(iatom, jatom) = -0.5_dp
                   END IF
                ELSE
@@ -2579,12 +2579,12 @@ CONTAINS
          CALL hfun_zero(cdft_control%becke_control%cavity%array, &
                         cdft_control%becke_control%eps_cavity, &
                         just_zero=.FALSE., bounds=bounds, work=my_work)
-         IF (bounds(2) .LT. bo(2, 3)) THEN
+         IF (bounds(2) < bo(2, 3)) THEN
             bounds(2) = bounds(2) - 1
          ELSE
             bounds(2) = bo(2, 3)
          END IF
-         IF (bounds(1) .GT. bo(1, 3)) THEN
+         IF (bounds(1) > bo(1, 3)) THEN
             ! In the special case bounds(1) == bounds(2) == bo(2, 3), after this check
             ! bounds(1) > bounds(2) and the subsequent gradient allocation (:, :, :, bounds(1):bounds(2))
             ! will correctly allocate a 0-sized array
@@ -2614,7 +2614,7 @@ CONTAINS
                                            middle_name="BECKE_CAVITY", &
                                            extension=".cube", file_position="REWIND", &
                                            log_filename=.FALSE., mpi_io=mpi_io)
-            IF (force_env%para_env%is_source() .AND. unit_nr .LT. 1) &
+            IF (force_env%para_env%is_source() .AND. unit_nr < 1) &
                CALL cp_abort(__LOCATION__, &
                              "Please turn on PROGRAM_RUN_INFO to print cavity")
             CALL cp_pw_to_cube(cdft_control%becke_control%cavity, &
@@ -2826,10 +2826,10 @@ CONTAINS
       targets = 0
       ! Convert the load imbalance to a multiple of the actual work size
       DO i = 1, force_env%para_env%num_pe
-         IF (load_imbalance(i) .GT. 0) THEN
+         IF (load_imbalance(i) > 0) THEN
             no_overloaded = no_overloaded + 1
             ! Allow heavily overloaded processors to dump more data since most likely they have a lot of 'real' work
-            IF (expected_work(i) .GT. NINT(very_overloaded*average_work)) THEN
+            IF (expected_work(i) > NINT(very_overloaded*average_work)) THEN
                load_imbalance(i) = (CEILING(REAL(load_imbalance(i), dp)/REAL(work_size(i), dp)) + more_work)*work_size(i)
             ELSE
                load_imbalance(i) = CEILING(REAL(load_imbalance(i), dp)/REAL(work_size(i), dp))*work_size(i)
@@ -2870,20 +2870,20 @@ CONTAINS
          DO i = 1, no_underloaded
             IF (my_pos == force_env%para_env%num_pe) EXIT
             nsend = -load_imbalance(work_index(i))/work_size(work_index(j))
-            IF (nsend .LT. 1) nsend = 1
+            IF (nsend < 1) nsend = 1
             nsend_max = nsend_max - nsend
-            IF (nsend_max .LT. 0) nsend = nsend + nsend_max
+            IF (nsend_max < 0) nsend = nsend + nsend_max
             exhausted_work = exhausted_work + nsend*work_size(work_index(j))
             offset = offset - nsend*work_size(work_index(j))
-            IF (offset .LT. 0) EXIT
-            IF (exhausted_work .EQ. cumulative_work(j)) THEN
+            IF (offset < 0) EXIT
+            IF (exhausted_work == cumulative_work(j)) THEN
                j = j - 1
                nsend_max = load_imbalance(work_index(j))/work_size(work_index(j))
             END IF
          END DO
          ! Underloaded processors were fully exhausted: rewind index
          ! Load balancing will fail if this happens on multiple processors
-         IF (i .GT. no_underloaded) THEN
+         IF (i > no_underloaded) THEN
             i = no_underloaded
          END IF
          my_target = i
@@ -2912,9 +2912,9 @@ CONTAINS
          ! Main loop. Note, we actually allow my_pos to offload more slices than nsend_max
          DO
             nsend = -load_imbalance(work_index(my_target))/work_size(force_env%para_env%mepos + 1)
-            IF (nsend .LT. 1) nsend = 1 ! send at least one block
+            IF (nsend < 1) nsend = 1 ! send at least one block
             ! Prevent over redistribution: leave at least (1-work_factor)*nsend_limit slices to my_pos
-            IF (nsend .GT. NINT(work_factor*nsend_limit - send_total)) THEN
+            IF (nsend > NINT(work_factor*nsend_limit - send_total)) THEN
                nsend = NINT(work_factor*nsend_limit - send_total)
                IF (debug_this_module) &
                   should_warn(force_env%para_env%mepos + 1) = 1
@@ -2926,7 +2926,7 @@ CONTAINS
                DO j = ispecial, SIZE(mixed_cdft%dest_list)
                   mixed_cdft%dlb_control%target_list(2, i) = mixed_cdft%dlb_control%target_list(2, i) + 1
                   touched(j) = .TRUE.
-                  IF (nsend .LT. mixed_cdft%dest_list_bo(2, j) - mixed_cdft%dest_list_bo(1, j) + 1) THEN
+                  IF (nsend < mixed_cdft%dest_list_bo(2, j) - mixed_cdft%dest_list_bo(1, j) + 1) THEN
                      mixed_cdft%dlb_control%target_list(3 + 2*j - 1, i) = mixed_cdft%dest_list_bo(1, j)
                      mixed_cdft%dlb_control%target_list(3 + 2*j, i) = mixed_cdft%dest_list_bo(1, j) + nsend - 1
                      mixed_cdft%dest_list_bo(1, j) = mixed_cdft%dest_list_bo(1, j) + nsend
@@ -2938,9 +2938,9 @@ CONTAINS
                      nsend = nsend - (mixed_cdft%dest_list_bo(2, j) - mixed_cdft%dest_list_bo(1, j) + 1)
                      mixed_cdft%dest_list_bo(1:2, j) = should_deallocate
                   END IF
-                  IF (nsend .LE. 0) EXIT
+                  IF (nsend <= 0) EXIT
                END DO
-               IF (mixed_cdft%dest_list_bo(1, ispecial) .EQ. should_deallocate) ispecial = j + 1
+               IF (mixed_cdft%dest_list_bo(1, ispecial) == should_deallocate) ispecial = j + 1
                actually_sent = actually_sent - nsend
                nsend_max = nsend_max - actually_sent
                send_total = send_total + actually_sent
@@ -2949,8 +2949,8 @@ CONTAINS
                nsend_max = nsend_max - nsend
                send_total = send_total + nsend
             END IF
-            IF (nsend_max .LT. 0) nsend_max = 0
-            IF (nsend_max .EQ. 0) EXIT
+            IF (nsend_max < 0) nsend_max = 0
+            IF (nsend_max == 0) EXIT
             IF (my_target /= no_underloaded) THEN
                my_target = my_target + 1
             ELSE
@@ -2960,7 +2960,7 @@ CONTAINS
                EXIT
             END IF
             i = i + 1
-            IF (i .GT. max_targets) &
+            IF (i > max_targets) &
                CALL cp_abort(__LOCATION__, &
                              "Load balancing error: increase max_targets")
          END DO
@@ -2972,7 +2972,7 @@ CONTAINS
          targets(2, my_pos) = my_target
          ! Equalize the load on the target processors
          IF (.NOT. mixed_cdft%is_special) THEN
-            IF (send_total .GT. NINT(work_factor*nsend_limit)) send_total = NINT(work_factor*nsend_limit) - 1
+            IF (send_total > NINT(work_factor*nsend_limit)) send_total = NINT(work_factor*nsend_limit) - 1
             nsend = NINT(REAL(send_total, dp)/REAL(SIZE(mixed_cdft%dlb_control%target_list, 2), dp))
             mixed_cdft%dlb_control%target_list(2, :) = nsend
          END IF
@@ -2996,8 +2996,8 @@ CONTAINS
       IF (force_env%para_env%is_source()) THEN
          consistent = .TRUE.
          DO i = force_env%para_env%num_pe - 1, force_env%para_env%num_pe - no_overloaded + 1, -1
-            IF (targets(1, i) .GT. no_underloaded) consistent = .FALSE.
-            IF (targets(1, i) .GT. targets(2, i + 1)) THEN
+            IF (targets(1, i) > no_underloaded) consistent = .FALSE.
+            IF (targets(1, i) > targets(2, i + 1)) THEN
                CYCLE
             ELSE
                consistent = .FALSE.
@@ -3019,9 +3019,9 @@ CONTAINS
          END IF
       END IF
       ! Tell the target processors which grid points they should compute
-      IF (my_pos .LE. no_underloaded) THEN
+      IF (my_pos <= no_underloaded) THEN
          DO i = force_env%para_env%num_pe, force_env%para_env%num_pe - no_overloaded + 1, -1
-            IF (targets(1, i) .LE. my_pos .AND. targets(2, i) .GE. my_pos) THEN
+            IF (targets(1, i) <= my_pos .AND. targets(2, i) >= my_pos) THEN
                mixed_cdft%dlb_control%recv_work = .TRUE.
                mixed_cdft%dlb_control%my_source = work_index(i) - 1
                EXIT
@@ -3165,7 +3165,7 @@ CONTAINS
                tags = [(i - 1)*3 + 1 + force_env%para_env%mepos*6*max_targets, &
                        (i - 1)*3 + 1 + 3*max_targets + force_env%para_env%mepos*6*max_targets]
                DO j = 4, SIZE(mixed_cdft%dlb_control%target_list, 1)
-                  IF (mixed_cdft%dlb_control%target_list(j, i) .GT. uninitialized) EXIT
+                  IF (mixed_cdft%dlb_control%target_list(j, i) > uninitialized) EXIT
                END DO
                offset_special = j
                offset_proc = j - 4 - (j - 4)/2
@@ -3244,13 +3244,13 @@ CONTAINS
                   ALLOCATE (sbuff(j)%iv(3))
                   sbuff(j)%iv(1:2) = mixed_cdft%dest_list_bo(1:2, j)
                   sbuff(j)%iv(3) = 0
-                  IF (sbuff(j)%iv(1) .EQ. should_deallocate) mask_send(j) = .TRUE.
+                  IF (sbuff(j)%iv(1) == should_deallocate) mask_send(j) = .TRUE.
                   IF (mixed_cdft%dlb_control%send_work) THEN
                      sbuff(j)%bv = touched(j)
                      IF (touched(j)) THEN
                         nsend = 0
                         DO ispecial = 1, SIZE(mixed_cdft%dlb_control%target_list, 2)
-                           IF (mixed_cdft%dlb_control%target_list(4 + 2*(j - 1), ispecial) .NE. uninitialized) &
+                           IF (mixed_cdft%dlb_control%target_list(4 + 2*(j - 1), ispecial) /= uninitialized) &
                               nsend = nsend + 1
                         END DO
                         sbuff(j)%iv(3) = nsend
@@ -3276,7 +3276,7 @@ CONTAINS
          IF (mixed_cdft%is_special .AND. mixed_cdft%dlb_control%recv_work_repl(i)) THEN
             mixed_cdft%source_list_bo(1:2, i) = recvbuffer(i)%iv(1:2)
             nrecv(i) = recvbuffer(i)%iv(3)
-            IF (recvbuffer(i)%iv(1) .EQ. should_deallocate) mask_recv(i) = .TRUE.
+            IF (recvbuffer(i)%iv(1) == should_deallocate) mask_recv(i) = .TRUE.
          END IF
          DEALLOCATE (recvbuffer(i)%bv)
          IF (ASSOCIATED(recvbuffer(i)%iv)) DEALLOCATE (recvbuffer(i)%iv)
@@ -3381,7 +3381,7 @@ CONTAINS
                   sbuff(j)%iv(1:4) = [bo_conf(1, 2), bo_conf(2, 2), bo_conf(1, 3), bo_conf(2, 3)]
                   offset = 5
                   DO i = 1, SIZE(mixed_cdft%dlb_control%target_list, 2)
-                     IF (mixed_cdft%dlb_control%target_list(4 + 2*(j - 1), i) .NE. uninitialized) THEN
+                     IF (mixed_cdft%dlb_control%target_list(4 + 2*(j - 1), i) /= uninitialized) THEN
                         sbuff(j)%iv(offset:offset + 2) = [mixed_cdft%dlb_control%target_list(1, i), &
                                                           mixed_cdft%dlb_control%target_list(4 + 2*(j - 1), i), &
                                                           mixed_cdft%dlb_control%target_list(4 + 2*j - 1, i)]
@@ -3787,8 +3787,8 @@ CONTAINS
             DO k = LBOUND(weight, 1), UBOUND(weight, 1)
                IF (mixed_cdft%dlb .AND. mixed_cdft%is_pencil .AND. .NOT. mixed_cdft%is_special) THEN
                   IF (mixed_cdft%dlb_control%send_work) THEN
-                     IF (k .GE. mixed_cdft%dlb_control%distributed(1) .AND. &
-                         k .LE. mixed_cdft%dlb_control%distributed(2)) THEN
+                     IF (k >= mixed_cdft%dlb_control%distributed(1) .AND. &
+                         k <= mixed_cdft%dlb_control%distributed(2)) THEN
                         CYCLE
                      END IF
                   END IF
@@ -3796,8 +3796,8 @@ CONTAINS
                DO j = LBOUND(weight, 2), UBOUND(weight, 2)
                   IF (mixed_cdft%dlb .AND. .NOT. mixed_cdft%is_pencil .AND. .NOT. mixed_cdft%is_special) THEN
                      IF (mixed_cdft%dlb_control%send_work) THEN
-                        IF (j .GE. mixed_cdft%dlb_control%distributed(1) .AND. &
-                            j .LE. mixed_cdft%dlb_control%distributed(2)) THEN
+                        IF (j >= mixed_cdft%dlb_control%distributed(1) .AND. &
+                            j <= mixed_cdft%dlb_control%distributed(2)) THEN
                            CYCLE
                         END IF
                      END IF
@@ -3874,7 +3874,7 @@ CONTAINS
                            CYCLE
                         END IF
                         IF (store_vectors) THEN
-                           IF (distances(iatom) .EQ. 0.0_dp) THEN
+                           IF (distances(iatom) == 0.0_dp) THEN
                               r = position_vecs(:, iatom)
                               dist_vec = (r - grid_p) - ANINT((r - grid_p)/cell_v)*cell_v
                               dist1 = SQRT(DOT_PRODUCT(dist_vec, dist_vec))
@@ -3892,18 +3892,18 @@ CONTAINS
                            dist_vec = (r - grid_p) - ANINT((r - grid_p)/cell_v)*cell_v
                            dist1 = SQRT(DOT_PRODUCT(dist_vec, dist_vec))
                         END IF
-                        IF (dist1 .LE. cutoffs(iatom)) THEN
+                        IF (dist1 <= cutoffs(iatom)) THEN
                            IF (in_memory) THEN
-                              IF (dist1 .LE. th) dist1 = th
+                              IF (dist1 <= th) dist1 = th
                               dr_i_dR(:) = dist_vec(:)/dist1
                            END IF
                            DO jatom = 1, natom
-                              IF (jatom .NE. iatom) THEN
+                              IF (jatom /= iatom) THEN
                                  IF (jatom < iatom) THEN
                                     IF (.NOT. skip_me(jatom)) CYCLE
                                  END IF
                                  IF (store_vectors) THEN
-                                    IF (distances(jatom) .EQ. 0.0_dp) THEN
+                                    IF (distances(jatom) == 0.0_dp) THEN
                                        r1 = position_vecs(:, jatom)
                                        dist_vec = (r1 - grid_p) - ANINT((r1 - grid_p)/cell_v)*cell_v
                                        dist2 = SQRT(DOT_PRODUCT(dist_vec, dist_vec))
@@ -3927,7 +3927,7 @@ CONTAINS
                                     ELSE
                                        dr1_r2 = (r - r1) - ANINT((r - r1)/cell_v)*cell_v
                                     END IF
-                                    IF (dist2 .LE. th) dist2 = th
+                                    IF (dist2 <= th) dist2 = th
                                     tmp_const = (R12(iatom, jatom)**3)
                                     dr_ij_dR(:) = dr1_r2(:)/tmp_const
                                     !derivativ w.r.t. Rj
@@ -3961,16 +3961,16 @@ CONTAINS
                                  tmp_const = 0.5_dp*(1.0_dp - myexp)
                                  cell_functions(iatom) = cell_functions(iatom)*tmp_const
                                  IF (in_memory) THEN
-                                    IF (ABS(tmp_const) .LE. th) tmp_const = tmp_const + th
+                                    IF (ABS(tmp_const) <= th) tmp_const = tmp_const + th
                                     dP_i_dRi(:, iatom) = dP_i_dRi(:, iatom) + ds_dR_i(:)/tmp_const
                                     dP_i_dRj(:, iatom, jatom) = ds_dR_j(:)/tmp_const
                                  END IF
 
-                                 IF (dist2 .LE. cutoffs(jatom)) THEN
+                                 IF (dist2 <= cutoffs(jatom)) THEN
                                     tmp_const = 0.5_dp*(1.0_dp + myexp)
                                     cell_functions(jatom) = cell_functions(jatom)*tmp_const
                                     IF (in_memory) THEN
-                                       IF (ABS(tmp_const) .LE. th) tmp_const = tmp_const + th
+                                       IF (ABS(tmp_const) <= th) tmp_const = tmp_const + th
                                        dP_i_dRj(:, jatom, iatom) = -ds_dR_i(:)/tmp_const
                                        dP_i_dRi(:, jatom) = dP_i_dRi(:, jatom) - ds_dR_j(:)/tmp_const
                                     END IF
@@ -3986,7 +3986,7 @@ CONTAINS
                                  d_sum_const_dR(:, iatom) = d_sum_const_dR(:, iatom) + dP_i_dRi(:, iatom)* &
                                                             coefficients(iatom)
                               DO jatom = 1, natom
-                                 IF (jatom .NE. iatom) THEN
+                                 IF (jatom /= iatom) THEN
                                     IF (jatom < iatom) THEN
                                        IF (.NOT. skip_me(jatom)) THEN
                                           dP_i_dRj(:, iatom, jatom) = cell_functions(iatom)*dP_i_dRj(:, iatom, jatom)
@@ -4035,14 +4035,14 @@ CONTAINS
                      END DO
                      IF (in_memory) THEN
                         DO iatom = 1, natom
-                           IF (ABS(sum_cell_f_all) .GT. 0.0_dp) THEN
+                           IF (ABS(sum_cell_f_all) > 0.0_dp) THEN
                               gradients(3*(iatom - 1) + 1:3*(iatom - 1) + 3, k, j, i) = &
                                  d_sum_const_dR(:, iatom)/sum_cell_f_all - sum_cell_f_constr* &
                                  d_sum_Pm_dR(:, iatom)/(sum_cell_f_all**2)
                            END IF
                         END DO
                      END IF
-                     IF (ABS(sum_cell_f_all) .GT. 0.000001) &
+                     IF (ABS(sum_cell_f_all) > 0.000001) &
                         weight(k, j, i) = sum_cell_f_constr/sum_cell_f_all
                   END DO ! i
                END DO ! j
@@ -4078,7 +4078,7 @@ CONTAINS
                                                    dest=mixed_cdft%dlb_control%sendbuff(ispecial)%rank(i), &
                                                    request=req_send(i, 3*(ispecial - 1) + 3), tag=3)
                   END DO
-                  IF (ispecial .EQ. my_special_work) THEN
+                  IF (ispecial == my_special_work) THEN
                      should_communicate = .TRUE.
                      nsent_total = 0
                   END IF

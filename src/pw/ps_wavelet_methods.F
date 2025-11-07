@@ -96,9 +96,9 @@ CONTAINS
       wavelet%datacode = "D"
 
       IF (poisson_params%wavelet_method == WAVELET0D) THEN
-         IF (hx .NE. hy) &
+         IF (hx /= hy) &
             CPABORT("Poisson solver for non cubic cells not yet implemented")
-         IF (hz .NE. hy) &
+         IF (hz /= hy) &
             CPABORT("Poisson solver for non cubic cells not yet implemented")
       END IF
 
@@ -215,21 +215,21 @@ CONTAINS
          max_val_up = 0._dp
          IF (lb(2) == pw_grid%bounds(1, 2)) max_val_low = MAXVAL(ABS(density%array(:, lb(2), :)))
          IF (ub(2) == pw_grid%bounds(2, 2)) max_val_up = MAXVAL(ABS(density%array(:, ub(2), :)))
-         IF (max_val_low .GE. 0.0001_dp) should_warn = 1
-         IF (max_val_up .GE. 0.0001_dp) should_warn = 1
+         IF (max_val_low >= 0.0001_dp) should_warn = 1
+         IF (max_val_up >= 0.0001_dp) should_warn = 1
          IF (wavelet%geocode == 'F') THEN
             max_val_low = 0._dp
             max_val_up = 0._dp
             IF (lb(1) == pw_grid%bounds(1, 1)) max_val_low = MAXVAL(ABS(density%array(lb(1), :, :)))
             IF (ub(1) == pw_grid%bounds(2, 1)) max_val_up = MAXVAL(ABS(density%array(ub(1), :, :)))
-            IF (max_val_low .GE. 0.0001_dp) should_warn = 1
-            IF (max_val_up .GE. 0.0001_dp) should_warn = 1
+            IF (max_val_low >= 0.0001_dp) should_warn = 1
+            IF (max_val_up >= 0.0001_dp) should_warn = 1
             max_val_low = 0._dp
             max_val_up = 0._dp
             IF (lb(3) == pw_grid%bounds(1, 3)) max_val_low = MAXVAL(ABS(density%array(:, :, lb(3))))
             IF (ub(3) == pw_grid%bounds(2, 3)) max_val_up = MAXVAL(ABS(density%array(:, :, ub(3))))
-            IF (max_val_low .GE. 0.0001_dp) should_warn = 1
-            IF (max_val_up .GE. 0.0001_dp) should_warn = 1
+            IF (max_val_low >= 0.0001_dp) should_warn = 1
+            IF (max_val_up >= 0.0001_dp) should_warn = 1
          END IF
       END IF
 
@@ -241,9 +241,9 @@ CONTAINS
          DO j = 0, pw_grid%para%group%num_pe_cart(2) - 1
             cart_pos = [i, j]
             CALL pw_grid%para%group%rank_cart(cart_pos, dest)
-            IF ((ub(1) .GE. lb(1)) .AND. (ub(2) .GE. lb(2))) THEN
-               IF (dest*local_z_dim .LE. m2) THEN
-                  IF ((dest + 1)*local_z_dim .LE. m2) THEN
+            IF ((ub(1) >= lb(1)) .AND. (ub(2) >= lb(2))) THEN
+               IF (dest*local_z_dim <= m2) THEN
+                  IF ((dest + 1)*local_z_dim <= m2) THEN
                      scount(dest + 1) = ABS((ub(1) - lb(1) + 1)*(ub(2) - lb(2) + 1)*local_z_dim)
                   ELSE
                      scount(dest + 1) = ABS((ub(1) - lb(1) + 1)*(ub(2) - lb(2) + 1)*MOD(m2, local_z_dim))
@@ -256,9 +256,9 @@ CONTAINS
             END IF
             lox = get_limit(pw_grid%npts(1), pw_grid%para%group%num_pe_cart(1), i)
             loy = get_limit(pw_grid%npts(2), pw_grid%para%group%num_pe_cart(2), j)
-            IF ((lox(2) .GE. lox(1)) .AND. (loy(2) .GE. loy(1))) THEN
-               IF (iproc*local_z_dim .LE. m2) THEN
-                  IF ((iproc + 1)*local_z_dim .LE. m2) THEN
+            IF ((lox(2) >= lox(1)) .AND. (loy(2) >= loy(1))) THEN
+               IF (iproc*local_z_dim <= m2) THEN
+                  IF ((iproc + 1)*local_z_dim <= m2) THEN
                      rcount(dest + 1) = ABS((lox(2) - lox(1) + 1)*(loy(2) - loy(1) + 1)*local_z_dim)
                   ELSE
                      rcount(dest + 1) = ABS((lox(2) - lox(1) + 1)*(loy(2) - loy(1) + 1)*MOD(m2, local_z_dim))
@@ -290,8 +290,8 @@ CONTAINS
 
             lox = get_limit(pw_grid%npts(1), pw_grid%para%group%num_pe_cart(1), i)
             loy = get_limit(pw_grid%npts(2), pw_grid%para%group%num_pe_cart(2), j)
-            IF (iproc*local_z_dim .LE. m2) THEN
-               IF ((iproc + 1)*local_z_dim .LE. m2) THEN
+            IF (iproc*local_z_dim <= m2) THEN
+               IF ((iproc + 1)*local_z_dim <= m2) THEN
                   loz = local_z_dim
                ELSE
                   loz = MOD(m2, local_z_dim)
@@ -353,8 +353,8 @@ CONTAINS
       rcount = 0
       rbuf = 0.0_dp
       ii = 1
-      IF (iproc*local_z_dim .LE. m2) THEN
-         IF ((iproc + 1)*local_z_dim .LE. m2) THEN
+      IF (iproc*local_z_dim <= m2) THEN
+         IF ((iproc + 1)*local_z_dim <= m2) THEN
             loz = local_z_dim
          ELSE
             loz = MOD(m2, local_z_dim)
@@ -369,9 +369,9 @@ CONTAINS
          DO j = 0, pw_grid%para%group%num_pe_cart(2) - 1
             cart_pos = [i, j]
             CALL pw_grid%para%group%rank_cart(cart_pos, dest)
-            IF ((ub(1) .GE. lb(1)) .AND. (ub(2) .GE. lb(2))) THEN
-               IF (dest*local_z_dim .LE. m2) THEN
-                  IF ((dest + 1)*local_z_dim .LE. m2) THEN
+            IF ((ub(1) >= lb(1)) .AND. (ub(2) >= lb(2))) THEN
+               IF (dest*local_z_dim <= m2) THEN
+                  IF ((dest + 1)*local_z_dim <= m2) THEN
                      rcount(dest + 1) = ABS((ub(1) - lb(1) + 1)*(ub(2) - lb(2) + 1)*local_z_dim)
                   ELSE
                      rcount(dest + 1) = ABS((ub(1) - lb(1) + 1)*(ub(2) - lb(2) + 1)*MOD(m2, local_z_dim))
@@ -384,7 +384,7 @@ CONTAINS
             END IF
             lox = get_limit(pw_grid%npts(1), pw_grid%para%group%num_pe_cart(1), i)
             loy = get_limit(pw_grid%npts(2), pw_grid%para%group%num_pe_cart(2), j)
-            IF ((lox(2) .GE. lox(1)) .AND. (loy(2) .GE. loy(1))) THEN
+            IF ((lox(2) >= lox(1)) .AND. (loy(2) >= loy(1))) THEN
                scount(dest + 1) = ABS((lox(2) - lox(1) + 1)*(loy(2) - loy(1) + 1)*loz)
                DO k = lox(1) - min_x(1) + 1, lox(2) - min_x(1) + 1
                   DO l = loy(1) - min_y(1) + 1, loy(2) - min_y(1) + 1
@@ -413,14 +413,14 @@ CONTAINS
          DO j = 0, pw_grid%para%group%num_pe_cart(2) - 1
             cart_pos = [i, j]
             CALL pw_grid%para%group%rank_cart(cart_pos, dest)
-            IF (dest*local_z_dim .LE. m2) THEN
-               IF ((dest + 1)*local_z_dim .LE. m2) THEN
+            IF (dest*local_z_dim <= m2) THEN
+               IF ((dest + 1)*local_z_dim <= m2) THEN
                   loz = local_z_dim
                ELSE
                   loz = MOD(m2, local_z_dim)
                END IF
                ii = 1
-               IF (lb(3) + (dest*local_z_dim) .LE. ub(3)) THEN
+               IF (lb(3) + (dest*local_z_dim) <= ub(3)) THEN
                   DO m = lb(1), ub(1)
                      DO l = lb(2), ub(2)
                         DO k = lb(3) + (dest*local_z_dim), lb(3) + (dest*local_z_dim) + loz - 1

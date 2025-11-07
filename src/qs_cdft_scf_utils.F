@@ -221,7 +221,7 @@ CONTAINS
                       outer_scf_ihistory=outer_scf_ihistory)
       ihistory = scf_env%outer_scf%iter_count
 
-      IF (outer_scf_ihistory .GE. 3 .AND. .NOT. used_history) THEN
+      IF (outer_scf_ihistory >= 3 .AND. .NOT. used_history) THEN
          ! First, lets try using the history from previous energy evaluations
          CALL get_qs_env(qs_env, gradient_history=gradient_history, &
                          variable_history=variable_history)
@@ -229,7 +229,7 @@ CONTAINS
          use_md_history = .TRUE.
          ! Check that none of the history values are identical in which case we should try something different
          DO i = 1, nvar
-            IF (ABS(variable_history(i, 2) - variable_history(i, 1)) .LT. 1.0E-12_dp) &
+            IF (ABS(variable_history(i, 2) - variable_history(i, 1)) < 1.0E-12_dp) &
                use_md_history = .FALSE.
          END DO
          IF (use_md_history) THEN
@@ -250,10 +250,10 @@ CONTAINS
             used_history = .TRUE.
          END IF
       END IF
-      IF (ihistory .GE. 2 .AND. .NOT. ASSOCIATED(scf_env%outer_scf%inv_jacobian)) THEN
+      IF (ihistory >= 2 .AND. .NOT. ASSOCIATED(scf_env%outer_scf%inv_jacobian)) THEN
          ! Next, try history from current SCF procedure
          nvar = SIZE(scf_env%outer_scf%variables, 1)
-         IF (SIZE(scf_env%outer_scf%gradient, 2) .LT. 3) &
+         IF (SIZE(scf_env%outer_scf%gradient, 2) < 3) &
             CALL cp_abort(__LOCATION__, &
                           "Keyword EXTRAPOLATION_ORDER in section OUTER_SCF must be greater than or equal "// &
                           "to 3 for optimizers that build the Jacobian from SCF history.")
@@ -428,14 +428,14 @@ CONTAINS
          ! Check if an old Jacobian can be reused avoiding a rebuild
          IF (ASSOCIATED(scf_env%outer_scf%inv_jacobian)) THEN
             ! Rebuild if number of previous energy evaluations exceeds limit
-            IF (scf_control%outer_scf%cdft_opt_control%ijacobian(2) .GE. &
+            IF (scf_control%outer_scf%cdft_opt_control%ijacobian(2) >= &
                 scf_control%outer_scf%cdft_opt_control%jacobian_freq(2) .AND. .NOT. used_history .AND. &
                 scf_control%outer_scf%cdft_opt_control%jacobian_freq(2) > 0) THEN
                should_build = .TRUE.
                ! Zero the corresponding counters
                scf_control%outer_scf%cdft_opt_control%ijacobian(:) = 0
                ! Rebuild if number of previous SCF iterations exceeds limit (on this energy eval)
-            ELSE IF (scf_control%outer_scf%cdft_opt_control%ijacobian(1) .GE. &
+            ELSE IF (scf_control%outer_scf%cdft_opt_control%ijacobian(1) >= &
                      scf_control%outer_scf%cdft_opt_control%jacobian_freq(1) .AND. &
                      scf_control%outer_scf%cdft_opt_control%jacobian_freq(1) > 0) THEN
                should_build = .TRUE.

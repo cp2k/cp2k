@@ -358,7 +358,7 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: nl
 
-      IF (SIZE(iterator_set) .NE. 1 .AND. .NOT. PRESENT(mepos)) &
+      IF (SIZE(iterator_set) /= 1 .AND. .NOT. PRESENT(mepos)) &
          CPABORT("Parallel iterator calls must include 'mepos'")
 
       IF (PRESENT(mepos)) THEN
@@ -558,7 +558,7 @@ CONTAINS
       TYPE(neighbor_list_iterator_type), POINTER         :: iterator
 
       CPASSERT(ASSOCIATED(iterator_set))
-      IF ((SIZE(iterator_set) .NE. 1) .AND. (.NOT. PRESENT(mepos))) THEN
+      IF ((SIZE(iterator_set) /= 1) .AND. (.NOT. PRESENT(mepos))) THEN
          CPABORT("Parallel iterator calls must include 'mepos'")
       END IF
       IF (PRESENT(mepos)) THEN

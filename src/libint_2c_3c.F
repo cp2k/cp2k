@@ -359,7 +359,7 @@ CONTAINS
             S1234 = EXP(-zeti*zetj*params%EtaInv*SUM((rj - ri)**2))
             prefac = 2._dp*pi/params%Rho*SQRT((pi*params%ZetapEtaInv)**3)*S1234
 
-            CPASSERT(get_lmax_init() .GE. params%m_max) !check if truncated coulomb init correctly
+            CPASSERT(get_lmax_init() >= params%m_max) !check if truncated coulomb init correctly
             CALL t_c_g0_n(params%Fm, use_gamma, R, T, params%m_max)
             IF (use_gamma) CALL fgamma(params%m_max, T, params%Fm)
             params%Fm = prefac*params%Fm
@@ -389,7 +389,7 @@ CONTAINS
             S1234 = EXP(-zeti*zetj*params%EtaInv*SUM((rj - ri)**2))
             prefac = 2._dp*pi/params%Rho*SQRT((pi*params%ZetapEtaInv)**3)*S1234
 
-            CPASSERT(get_lmax_init() .GE. params%m_max) !check if truncated coulomb init correctly
+            CPASSERT(get_lmax_init() >= params%m_max) !check if truncated coulomb init correctly
             CALL t_c_g0_n(params%Fm, use_gamma, R, T, params%m_max)
             IF (use_gamma) CALL fgamma(params%m_max, T, params%Fm)
 
@@ -759,7 +759,7 @@ CONTAINS
             S1234 = EXP(-zeti*zetj*params%EtaInv*SUM((rj - ri)**2))
             prefac = 2._dp*pi/params%Rho*SQRT((pi*params%ZetapEtaInv)**3)*S1234
 
-            CPASSERT(get_lmax_init() .GE. params%m_max) !check if truncated coulomb init correctly
+            CPASSERT(get_lmax_init() >= params%m_max) !check if truncated coulomb init correctly
             CALL t_c_g0_n(params%Fm, use_gamma, R, T, params%m_max)
             IF (use_gamma) CALL fgamma(params%m_max, T, params%Fm)
             params%Fm = prefac*params%Fm
@@ -789,7 +789,7 @@ CONTAINS
             S1234 = EXP(-zeti*zetj*params%EtaInv*SUM((rj - ri)**2))
             prefac = 2._dp*pi/params%Rho*SQRT((pi*params%ZetapEtaInv)**3)*S1234
 
-            CPASSERT(get_lmax_init() .GE. params%m_max) !check if truncated coulomb init correctly
+            CPASSERT(get_lmax_init() >= params%m_max) !check if truncated coulomb init correctly
             CALL t_c_g0_n(params%Fm, use_gamma, R, T, params%m_max)
             IF (use_gamma) CALL fgamma(params%m_max, T, params%Fm)
 
@@ -984,7 +984,7 @@ CONTAINS
          T = params%Rho*SUM((rj - rk)**2)
          prefac = 2._dp*pi/params%Rho*SQRT((pi*params%ZetapEtaInv)**3)
 
-         CPASSERT(get_lmax_init() .GE. params%m_max) !check if truncated coulomb init correctly
+         CPASSERT(get_lmax_init() >= params%m_max) !check if truncated coulomb init correctly
          CALL t_c_g0_n(params%Fm, use_gamma, R, T, params%m_max)
          IF (use_gamma) CALL fgamma(params%m_max, T, params%Fm)
          params%Fm = prefac*params%Fm
@@ -1012,7 +1012,7 @@ CONTAINS
          T = params%Rho*SUM((rj - rk)**2)
          prefac = 2._dp*pi/params%Rho*SQRT((pi*params%ZetapEtaInv)**3)
 
-         CPASSERT(get_lmax_init() .GE. params%m_max) !check if truncated coulomb init correctly
+         CPASSERT(get_lmax_init() >= params%m_max) !check if truncated coulomb init correctly
          CALL t_c_g0_n(params%Fm, use_gamma, R, T, params%m_max)
          IF (use_gamma) CALL fgamma(params%m_max, T, params%Fm)
 
@@ -1237,7 +1237,7 @@ CONTAINS
          T = params%Rho*SUM((rj - rk)**2)
          prefac = 2._dp*pi/params%Rho*SQRT((pi*params%ZetapEtaInv)**3)
 
-         CPASSERT(get_lmax_init() .GE. params%m_max) !check if truncated coulomb init correctly
+         CPASSERT(get_lmax_init() >= params%m_max) !check if truncated coulomb init correctly
          CALL t_c_g0_n(params%Fm, use_gamma, R, T, params%m_max)
          IF (use_gamma) CALL fgamma(params%m_max, T, params%Fm)
          params%Fm = prefac*params%Fm
@@ -1265,7 +1265,7 @@ CONTAINS
          T = params%Rho*SUM((rj - rk)**2)
          prefac = 2._dp*pi/params%Rho*SQRT((pi*params%ZetapEtaInv)**3)
 
-         CPASSERT(get_lmax_init() .GE. params%m_max) !check if truncated coulomb init correctly
+         CPASSERT(get_lmax_init() >= params%m_max) !check if truncated coulomb init correctly
          CALL t_c_g0_n(params%Fm, use_gamma, R, T, params%m_max)
          IF (use_gamma) CALL fgamma(params%m_max, T, params%Fm)
 

@@ -341,7 +341,7 @@ CONTAINS
          scf_control%use_diag = .TRUE.
       END IF
       CALL section_vals_val_get(scf_section, "OT%ALGORITHM", i_val=ialgo)
-      scf_control%do_outer_scf_reortho = ialgo .EQ. ot_algo_taylor_or_diag
+      scf_control%do_outer_scf_reortho = ialgo == ot_algo_taylor_or_diag
       CALL section_vals_val_get(scf_section, "SCF_GUESS", i_val=scf_control%density_guess)
       CALL section_vals_val_get(scf_section, "eps_eigval", r_val=scf_control%eps_eigval)
       CALL section_vals_val_get(scf_section, "cholesky", i_val=cholesky_flag)

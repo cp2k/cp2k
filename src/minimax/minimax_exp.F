@@ -103,10 +103,10 @@ CONTAINS
       INTEGER, INTENT(OUT)                               :: ierr
 
       ierr = 0
-      IF (k .LE. 15) THEN
+      IF (k <= 15) THEN
          CALL check_range_k15(k, Rc, ierr)
       ELSE
-         IF (k .GT. k_max) ierr = -1
+         IF (k > k_max) ierr = -1
       END IF
 
    END SUBROUTINE check_exp_minimax_range
@@ -132,17 +132,17 @@ CONTAINS
 
       INTEGER                                            :: ierr
 
-      IF (k .LE. 15) THEN
+      IF (k <= 15) THEN
          CALL check_range_k15(k, Rc, ierr)
-         IF (ierr .EQ. 1) THEN ! Rc too small for k15 coeffs --> use k53
+         IF (ierr == 1) THEN ! Rc too small for k15 coeffs --> use k53
             CALL get_minimax_coeff_k53(k, Rc, aw, mm_error)
             IF (PRESENT(which_coeffs)) which_coeffs = mm_k53
          ELSE
-            CPASSERT(ierr .EQ. 0)
+            CPASSERT(ierr == 0)
             CALL get_minimax_coeff_k15(k, Rc, aw, mm_error)
             IF (PRESENT(which_coeffs)) which_coeffs = mm_k15
          END IF
-      ELSEIF (k .LE. 53) THEN
+      ELSEIF (k <= 53) THEN
          CALL get_minimax_coeff_k53(k, Rc, aw, mm_error)
          IF (PRESENT(which_coeffs)) which_coeffs = mm_k53
       ELSE
@@ -191,25 +191,25 @@ CONTAINS
       REAL(KIND=dp)                                      :: error_l, error_r, R_k_max, R_k_min
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: aw
 
-      CPASSERT(k .LE. k_max)
+      CPASSERT(k <= k_max)
 
       ! find k pointer and smallest and largest R_mm value for this k
       i_k = 1
-      DO WHILE (k_mm(k_p(i_k)) .LT. k)
+      DO WHILE (k_mm(k_p(i_k)) < k)
          i_k = i_k + 1
       END DO
-      CPASSERT(k_mm(k_p(i_k)) .EQ. k)
+      CPASSERT(k_mm(k_p(i_k)) == k)
 
       R_k_min = R_mm(k_p(i_k))
       R_k_max = R_mm(k_p(i_k + 1) - 1)
 
-      IF (Rc .GE. R_k_max) THEN
+      IF (Rc >= R_k_max) THEN
          i_mm = k_p(i_k + 1) - 1 ! pointer to largest Rc for current k
-      ELSE IF (Rc .LE. R_k_min) THEN
+      ELSE IF (Rc <= R_k_min) THEN
          i_mm = k_p(i_k) ! pointer to smallest Rc for current k
       ELSE
          i = k_p(i_k)
-         DO WHILE (Rc .GT. R_mm(i))
+         DO WHILE (Rc > R_mm(i))
             i = i + 1
          END DO
          i_r = i ! pointer to closest R_mm >= Rc
@@ -230,7 +230,7 @@ CONTAINS
          CALL get_minimax_coeff_low(i_l, aw)
          error_r = get_minimax_numerical_error(Rc, aw)
          DEALLOCATE (aw)
-         i_mm = MERGE(i_r, i_l, error_l .LE. error_r)
+         i_mm = MERGE(i_r, i_l, error_l <= error_r)
       END IF
 
    END SUBROUTINE get_best_minimax_approx_k53
@@ -267,33 +267,33 @@ CONTAINS
          R = R_mm(i_mm)
          k = k_mm(i_mm)
          CALL check_exp_minimax_range(k, R, ierr)
-         IF (ierr .EQ. 0) THEN
+         IF (ierr == 0) THEN
             ALLOCATE (aw(2*k))
             CALL get_exp_minimax_coeff(k, R, aw, mm_error, which_coeffs)
             ref_error = err_mm(i_mm)
             DEALLOCATE (aw)
             IF (iw > 0) WRITE (iw, '(T2,A4, I3, ES10.1, ES12.3, ES12.3, ES12.3)') &
-               MERGE("k15", "k53", which_coeffs .EQ. mm_k15), k, R, &
+               MERGE("k15", "k53", which_coeffs == mm_k15), k, R, &
                mm_error, ref_error, (mm_error - ref_error)/ref_error
-            CPASSERT(mm_error .LE. ref_error*1.05_dp + 1.0E-15_dp)
+            CPASSERT(mm_error <= ref_error*1.05_dp + 1.0E-15_dp)
          ELSE
             IF (iw > 0) WRITE (iw, '(T2,A4, I3, ES10.1, 3X, A)') "k15", k, R, "missing"
          END IF
 
-         IF (k .LE. 15) THEN
+         IF (k <= 15) THEN
             ALLOCATE (aw(2*k))
             CALL get_minimax_coeff_k53(k, R, aw, mm_error)
             ref_error = err_mm(i_mm)
             DEALLOCATE (aw)
             IF (iw > 0) WRITE (iw, '(T2,A4,I3, ES10.1, ES12.3, ES12.3, ES12.3)') &
                "k53", k, R, mm_error, ref_error, (mm_error - ref_error)/ref_error
-            IF (mm_error .GT. ref_error*1.05_dp + 1.0E-15_dp) THEN
+            IF (mm_error > ref_error*1.05_dp + 1.0E-15_dp) THEN
                CPABORT("Test 1 failed: numerical error is larger than tabulated error")
             END IF
          END IF
       END DO
 
-      IF (iw > 0 .AND. n_R .GT. 0) THEN
+      IF (iw > 0 .AND. n_R > 0) THEN
          WRITE (iw, '(T2,54("-"))')
          WRITE (iw, '(/T2,A)') "Test 1 OK"
          WRITE (iw, '(/T2,A)') &
@@ -311,15 +311,15 @@ CONTAINS
             R = dR**i_R
             CALL get_exp_minimax_coeff(k, R, aw, mm_error, which_coeffs)
             CALL get_best_minimax_approx_k53(k, R, i_mm, ge_Rc=.TRUE.)
-            IF (R .GT. R_mm(i_mm)) THEN
+            IF (R > R_mm(i_mm)) THEN
                R = R_max
                do_exit = .TRUE.
             END IF
             ref_error = err_mm(i_mm)
             IF (iw > 0) WRITE (iw, '(T2, A4, I3, ES10.1, ES12.3, ES12.3, ES12.3)') &
-               MERGE("k15", "k53", which_coeffs .EQ. mm_k15), k, R, &
+               MERGE("k15", "k53", which_coeffs == mm_k15), k, R, &
                mm_error, ref_error, (mm_error - ref_error)/ref_error
-            IF (mm_error .GT. ref_error*1.05_dp + 1.0E-15_dp) THEN
+            IF (mm_error > ref_error*1.05_dp + 1.0E-15_dp) THEN
                CPABORT("Test 2 failed: numerical error is larger than tabulated error")
             END IF
             IF (do_exit) EXIT

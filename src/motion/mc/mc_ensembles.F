@@ -233,7 +233,7 @@ CONTAINS
       ALLOCATE (moves(1:nmol_types, 1:nboxes))
       ALLOCATE (move_updates(1:nmol_types, 1:nboxes))
 
-      IF (nboxes .GT. 1) THEN
+      IF (nboxes > 1) THEN
          DO ibox = 2, nboxes
             CALL get_mc_par(mc_par(ibox)%mc_par, &
                             data_file=data_file(ibox), &
@@ -247,13 +247,13 @@ CONTAINS
       END IF
 
       ! this is a check we can't do in the input checking
-      IF (pmvol_box(nboxes) .LT. 1.0E0_dp) THEN
+      IF (pmvol_box(nboxes) < 1.0E0_dp) THEN
          CPABORT('The last value of PMVOL_BOX needs to be 1.0')
       END IF
-      IF (pmclus_box(nboxes) .LT. 1.0E0_dp) THEN
+      IF (pmclus_box(nboxes) < 1.0E0_dp) THEN
          CPABORT('The last value of PMVOL_BOX needs to be 1.0')
       END IF
-      IF (pmhmc_box(nboxes) .LT. 1.0E0_dp) THEN
+      IF (pmhmc_box(nboxes) < 1.0E0_dp) THEN
          CPABORT('The last value of PMHMC_BOX needs to be 1.0')
       END IF
 
@@ -286,7 +286,7 @@ CONTAINS
          CALL mc_averages_create(averages(ibox)%averages)
 
          ! find the energy of the initial configuration
-         IF (SUM(nchains(:, ibox)) .NE. 0) THEN
+         IF (SUM(nchains(:, ibox)) /= 0) THEN
             CALL force_env_calc_energy_force(force_env(ibox)%force_env, &
                                              calc_force=.FALSE.)
             CALL force_env_get(force_env(ibox)%force_env, &
@@ -342,7 +342,7 @@ CONTAINS
                                           r_old(:, :, ibox), atom_names_box(:), nunits_tot(ibox), &
                                           para_env, abc(:, ibox), nchains_box, input_declaration, mc_bias_file, &
                                           ionode)
-            IF (SUM(nchains(:, ibox)) .NE. 0) THEN
+            IF (SUM(nchains(:, ibox)) /= 0) THEN
                CALL force_env_calc_energy_force(bias_env(ibox)%force_env, &
                                                 calc_force=.FALSE.)
                CALL force_env_get(bias_env(ibox)%force_env, &
@@ -426,7 +426,7 @@ CONTAINS
       ! if we're doing a discrete volume move, we need to set up the array
       ! that keeps track of which direction we can move in
       IF (ldiscrete) THEN
-         IF (nboxes .NE. 1) &
+         IF (nboxes /= 1) &
             CPABORT('ldiscrete=.true. ONLY for systems with 1 box')
          CALL create_discrete_array(abc(:, 1), discrete_array(:, :), &
                                     discrete_step)
@@ -451,7 +451,7 @@ CONTAINS
          ! broadcast the random number, to make sure we're on the same move
          CALL group%bcast(rand, source)
 
-         IF (rand .LT. pmvolume) THEN
+         IF (rand < pmvolume) THEN
 
             IF (MOD(nnstep, iprint) == 0 .AND. (iw > 0)) THEN
                WRITE (iw, *) "Attempting a volume move"
@@ -476,7 +476,7 @@ CONTAINS
                CALL group%bcast(rand, source)
 
                DO ibox = 1, nboxes
-                  IF (rand .LE. pmvol_box(ibox)) THEN
+                  IF (rand <= pmvol_box(ibox)) THEN
                      box_number = ibox
                      EXIT
                   END IF
@@ -535,7 +535,7 @@ CONTAINS
                                                 para_env, abc(:, ibox), nchains_box, input_declaration, &
                                                 mc_bias_file, ionode)
 
-                  IF (SUM(nchains(:, ibox)) .NE. 0) THEN
+                  IF (SUM(nchains(:, ibox)) /= 0) THEN
                      CALL force_env_calc_energy_force( &
                         bias_env(ibox)%force_env, &
                         calc_force=.FALSE.)
@@ -549,7 +549,7 @@ CONTAINS
                END DO
             END IF
 
-         ELSEIF (rand .LT. pmswap) THEN
+         ELSEIF (rand < pmswap) THEN
 
             ! try a swap move
             IF (MOD(nnstep, iprint) == 0 .AND. (iw > 0)) THEN
@@ -569,7 +569,7 @@ CONTAINS
                                       mol_type=mol_type, nchain_total=nchain_total, nunits=nunits, &
                                       atom_names=atom_names, mass=mass)
 
-         ELSEIF (rand .LT. pmhmc) THEN
+         ELSEIF (rand < pmhmc) THEN
 ! try hybrid Monte Carlo
             IF (MOD(nnstep, iprint) == 0 .AND. (iw > 0)) THEN
                WRITE (iw, *) "Attempting a hybrid Monte Carlo move"
@@ -581,7 +581,7 @@ CONTAINS
             CALL group%bcast(rand, source)
 
             DO ibox = 1, nboxes
-               IF (rand .LE. pmhmc_box(ibox)) THEN
+               IF (rand <= pmhmc_box(ibox)) THEN
                   box_number = ibox
                   EXIT
                END IF
@@ -595,7 +595,7 @@ CONTAINS
                              energy_check(box_number), r_old(:, :, box_number), &
                              rng_stream)
 
-         ELSEIF (rand .LT. pmavbmc) THEN
+         ELSEIF (rand < pmavbmc) THEN
             ! try an AVBMC move
             IF (MOD(nnstep, iprint) == 0 .AND. (iw > 0)) THEN
                WRITE (iw, *) "Attempting an AVBMC1 move"
@@ -606,8 +606,8 @@ CONTAINS
             IF (ionode) rand = rng_stream%next()
             CALL group%bcast(rand, source)
 
-            IF (nboxes .EQ. 2) THEN
-               IF (rand .LT. 0.1E0_dp) THEN
+            IF (nboxes == 2) THEN
+               IF (rand < 0.1E0_dp) THEN
                   box_number = 1
                ELSE
                   box_number = 2
@@ -621,7 +621,7 @@ CONTAINS
             CALL group%bcast(rand, source)
             molecule_type_swap = 0
             DO imol_type = 1, nmol_types
-               IF (rand .LT. pmavbmc_mol(imol_type)) THEN
+               IF (rand < pmavbmc_mol(imol_type)) THEN
                   molecule_type_swap = imol_type
                   EXIT
                END IF
@@ -631,7 +631,7 @@ CONTAINS
 
             ! now pick a molecule, automatically rejecting the move if the
             ! box is empty or only has one molecule
-            IF (SUM(nchains(:, box_number)) .LE. 1) THEN
+            IF (SUM(nchains(:, box_number)) <= 1) THEN
                ! indicate that we tried a move
                moves(molecule_type_swap, box_number)%moves%empty_avbmc = &
                   moves(molecule_type_swap, box_number)%moves%empty_avbmc + 1
@@ -648,7 +648,7 @@ CONTAINS
                      CALL find_mc_test_molecule(mc_molecule_info, &
                                                 start_atom_target, idum, molecule_type_target, &
                                                 rng_stream, box=box_number)
-                     IF (start_atom_swap .NE. start_atom_target) THEN
+                     IF (start_atom_swap /= start_atom_target) THEN
                         start_atom_target = start_atom_target + &
                                             avbmc_atom(molecule_type_target) - 1
                         EXIT
@@ -665,7 +665,7 @@ CONTAINS
                CALL group%bcast(start_atom_target, source)
                CALL group%bcast(rand, source)
 
-               IF (rand .LT. pbias(molecule_type_swap)) THEN
+               IF (rand < pbias(molecule_type_swap)) THEN
                   move_type_avbmc = 'in'
                ELSE
                   move_type_avbmc = 'out'
@@ -695,13 +695,13 @@ CONTAINS
 
                IF (ionode) rand = rng_stream%next()
                CALL group%bcast(rand, source)
-               IF (rand .LT. pmtraion) THEN
+               IF (rand < pmtraion) THEN
                   ! change molecular conformation
                   ! first, pick a box to do it for
                   IF (ionode) rand = rng_stream%next()
                   CALL group%bcast(rand, source)
-                  IF (nboxes .EQ. 2) THEN
-                     IF (rand .LT. 0.75E0_dp) THEN
+                  IF (nboxes == 2) THEN
+                     IF (rand < 0.75E0_dp) THEN
                         box_number = 1
                      ELSE
                         box_number = 2
@@ -715,7 +715,7 @@ CONTAINS
                   CALL group%bcast(rand, source)
                   molecule_type = 0
                   DO imol_type = 1, nmol_types
-                     IF (rand .LT. pmtraion_mol(imol_type)) THEN
+                     IF (rand < pmtraion_mol(imol_type)) THEN
                         molecule_type = imol_type
                         EXIT
                      END IF
@@ -747,10 +747,10 @@ CONTAINS
                      CALL group%bcast(molecule_type, source)
 
                      ! figure out what kind of move we're doing
-                     IF (rand .LT. conf_prob(1, molecule_type)) THEN
+                     IF (rand < conf_prob(1, molecule_type)) THEN
                         move_type = 'bond'
-                     ELSEIF (rand .LT. (conf_prob(1, molecule_type) + &
-                                        conf_prob(2, molecule_type))) THEN
+                     ELSEIF (rand < (conf_prob(1, molecule_type) + &
+                                     conf_prob(2, molecule_type))) THEN
                         move_type = 'angle'
                      ELSE
                         move_type = 'dihedral'
@@ -766,14 +766,14 @@ CONTAINS
                                                  move_type, lreject, rng_stream)
                      IF (lreject) EXIT
                   END IF
-               ELSEIF (rand .LT. pmtrans) THEN
+               ELSEIF (rand < pmtrans) THEN
                   ! translate a whole molecule in the system
                   ! pick a molecule type
                   IF (ionode) rand = rng_stream%next()
                   CALL group%bcast(rand, source)
                   molecule_type = 0
                   DO imol_type = 1, nmol_types
-                     IF (rand .LT. pmtrans_mol(imol_type)) THEN
+                     IF (rand < pmtrans_mol(imol_type)) THEN
                         molecule_type = imol_type
                         EXIT
                      END IF
@@ -798,14 +798,14 @@ CONTAINS
                                                start_atom, box_number, bias_energy(box_number), &
                                                molecule_type, lreject, rng_stream)
                   IF (lreject) EXIT
-               ELSEIF (rand .LT. pmcltrans) THEN
+               ELSEIF (rand < pmcltrans) THEN
                   ! translate a whole cluster in the system
                   ! first, pick a box to do it for
                   IF (ionode) rand = rng_stream%next()
                   CALL group%bcast(rand, source)
 
                   DO ibox = 1, nboxes
-                  IF (rand .LE. pmclus_box(ibox)) THEN
+                  IF (rand <= pmclus_box(ibox)) THEN
                      box_number = ibox
                      EXIT
                   END IF
@@ -826,7 +826,7 @@ CONTAINS
                   CALL group%bcast(rand, source)
                   molecule_type = 0
                   DO imol_type = 1, nmol_types
-                     IF (rand .LT. pmrot_mol(imol_type)) THEN
+                     IF (rand < pmrot_mol(imol_type)) THEN
                         molecule_type = imol_type
                         EXIT
                      END IF
@@ -976,7 +976,7 @@ CONTAINS
 ! don't care about overlaps if we're only doing HMC
          IF (.NOT. lhmc) THEN
             DO ibox = 1, nboxes
-               IF (SUM(nchains(:, ibox)) .NE. 0) THEN
+               IF (SUM(nchains(:, ibox)) /= 0) THEN
                   start_mol = 1
                   DO jbox = 1, ibox - 1
                      start_mol = start_mol + SUM(nchains(:, jbox))
@@ -1031,7 +1031,7 @@ CONTAINS
          !debug code
          IF (debug_this_module) THEN
             DO ibox = 1, nboxes
-               IF (SUM(nchains(:, ibox)) .NE. 0) THEN
+               IF (SUM(nchains(:, ibox)) /= 0) THEN
                   CALL force_env_calc_energy_force(force_env(ibox)%force_env, &
                                                    calc_force=.FALSE.)
                   CALL force_env_get(force_env(ibox)%force_env, &
@@ -1041,7 +1041,7 @@ CONTAINS
                END IF
 
                IF (ABS(initial_energy(ibox) + energy_check(ibox) - &
-                       test_energy) .GT. 0.0000001E0_dp) THEN
+                       test_energy) > 0.0000001E0_dp) THEN
                   IF (iw > 0) THEN
                      WRITE (iw, *) '!!!!!!! We have an energy problem. !!!!!!!!'
                      WRITE (iw, '(A,T64,F16.10)') 'Final Energy = ', test_energy
@@ -1066,7 +1066,7 @@ CONTAINS
 
       ! calculate the final energy
       DO ibox = 1, nboxes
-         IF (SUM(nchains(:, ibox)) .NE. 0) THEN
+         IF (SUM(nchains(:, ibox)) /= 0) THEN
             CALL force_env_calc_energy_force(force_env(ibox)%force_env, &
                                              calc_force=.FALSE.)
             CALL force_env_get(force_env(ibox)%force_env, &
@@ -1267,10 +1267,10 @@ CONTAINS
                          particles=particles(1)%list)
 
       ! check and make sure the box is big enough
-      IF (abc(1) .NE. abc(2) .OR. abc(2) .NE. abc(3)) THEN
+      IF (abc(1) /= abc(2) .OR. abc(2) /= abc(3)) THEN
          CPABORT('The box needs to be cubic for a virial calculation (it is easiest).')
       END IF
-      IF (virial_cutoffs(nintegral_divisions) .GT. abc(1)/2.0E0_dp) THEN
+      IF (virial_cutoffs(nintegral_divisions) > abc(1)/2.0E0_dp) THEN
          IF (iw > 0) &
             WRITE (iw, *) "Box length ", abc(1)*angstrom, " virial cutoff ", &
             virial_cutoffs(nintegral_divisions)*angstrom
@@ -1335,7 +1335,7 @@ CONTAINS
             ! find out what our stepsize is
             current_division = 0
             DO idivision = 1, nintegral_divisions
-               IF (distance .LT. virial_cutoffs(idivision) - virial_stepsize(idivision)/2.0E0_dp) THEN
+               IF (distance < virial_cutoffs(idivision) - virial_stepsize(idivision)/2.0E0_dp) THEN
                   current_division = idivision
                   EXIT
                END IF
@@ -1369,9 +1369,9 @@ CONTAINS
 
                   exponent = -BETA(itemp)*trial_energy
 
-                  IF (exponent .GT. exp_max_val) THEN
+                  IF (exponent > exp_max_val) THEN
                      exponent = exp_max_val
-                  ELSEIF (exponent .LT. exp_min_val) THEN
+                  ELSEIF (exponent < exp_min_val) THEN
                      exponent = exp_min_val
                   END IF
                   mayer(itemp, ibin) = mayer(itemp, ibin) + EXP(exponent) - 1.0_dp
@@ -1398,7 +1398,7 @@ CONTAINS
          DO
             current_division = 0
             DO idivision = 1, nintegral_divisions
-               IF (distance .LT. virial_cutoffs(idivision) - virial_stepsize(idivision)/2.0E0_dp) THEN
+               IF (distance < virial_cutoffs(idivision) - virial_stepsize(idivision)/2.0E0_dp) THEN
                   current_division = idivision
                   EXIT
                END IF

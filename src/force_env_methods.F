@@ -1138,7 +1138,7 @@ CONTAINS
          IF (SIZE(itmplist) /= 2) &
             CALL cp_abort(__LOCATION__, &
                           "Keyword FORCE_STATES takes exactly two input values.")
-         IF (ANY(itmplist .LT. 0)) &
+         IF (ANY(itmplist < 0)) &
             CPABORT("Invalid force_eval index.")
          istate = itmplist
          IF (istate(1) > nforce_eval .OR. istate(2) > nforce_eval) &
@@ -1277,7 +1277,7 @@ CONTAINS
       DO iforce_eval = 1, nforce_eval
          IF (.NOT. ASSOCIATED(force_env%sub_force_env(iforce_eval)%force_env)) CYCLE
          ! From this point on the error is the sub_error
-         IF (force_env%mixed_env%cdft_control%run_type == mixed_cdft_serial .AND. iforce_eval .GE. 2) THEN
+         IF (force_env%mixed_env%cdft_control%run_type == mixed_cdft_serial .AND. iforce_eval >= 2) THEN
             my_logger => force_env%mixed_env%cdft_control%sub_logger(iforce_eval - 1)%p
          ELSE
             my_group = force_env%mixed_env%group_distribution(force_env%para_env%mepos)
@@ -1436,7 +1436,7 @@ CONTAINS
             NULLIFY (dft_control)
             CALL get_qs_env(force_env%sub_force_env(iforce_eval)%force_env%qs_env, dft_control=dft_control)
             IF (dft_control%qs_control%ref_embed_subsys) THEN
-               IF (iforce_eval .EQ. 2) CPABORT("Density importing force_eval can't be the first.")
+               IF (iforce_eval == 2) CPABORT("Density importing force_eval can't be the first.")
             END IF
          END IF
 
@@ -1665,7 +1665,7 @@ CONTAINS
          CALL pw_axpy(rho_r_ref(i_spin), diff_rho_r, -1.0_dp)
       END DO
       IF (opt_embed%open_shell_embed) THEN ! Spin part
-         IF (nspins .EQ. 2) THEN ! Reference systems has an open shell, else the reference diff_rho_spin is zero
+         IF (nspins == 2) THEN ! Reference systems has an open shell, else the reference diff_rho_spin is zero
             CALL pw_axpy(rho_r_ref(1), diff_rho_spin, -1.0_dp)
             CALL pw_axpy(rho_r_ref(2), diff_rho_spin, 1.0_dp)
          END IF
@@ -1682,9 +1682,9 @@ CONTAINS
             CALL pw_axpy(rho_r_subsys(i_spin), diff_rho_r, allow_noncompatible_grids=.TRUE.)
          END DO
          IF (opt_embed%open_shell_embed) THEN ! Spin part
-            IF (nspins_subsys .EQ. 2) THEN ! The subsystem makes contribution if it is spin-polarized
+            IF (nspins_subsys == 2) THEN ! The subsystem makes contribution if it is spin-polarized
                ! We may need to change spin ONLY FOR THE SECOND SUBSYSTEM: that's the internal convention
-               IF ((i_force_eval .EQ. 2) .AND. (opt_embed%change_spin)) THEN
+               IF ((i_force_eval == 2) .AND. (opt_embed%change_spin)) THEN
                   CALL pw_axpy(rho_r_subsys(1), diff_rho_spin, -1.0_dp, allow_noncompatible_grids=.TRUE.)
                   CALL pw_axpy(rho_r_subsys(2), diff_rho_spin, 1.0_dp, allow_noncompatible_grids=.TRUE.)
                ELSE
@@ -1715,7 +1715,7 @@ CONTAINS
          mapping_section => section_vals_get_subs_vals(embed_section, "MAPPING")
 
          DO i_force_eval = 1, ref_subsys_number - 1
-            IF (i_force_eval .EQ. 1) THEN
+            IF (i_force_eval == 1) THEN
                CALL Coulomb_guess(embed_pot, rhs, mapping_section, &
                                   force_env%sub_force_env(i_force_eval)%force_env%qs_env, nforce_eval, i_force_eval, opt_embed%eta)
             ELSE
@@ -1749,7 +1749,7 @@ CONTAINS
          END DO
          IF (opt_embed%open_shell_embed) THEN ! Spin part
             CALL pw_zero(diff_rho_spin)
-            IF (nspins .EQ. 2) THEN ! Reference systems has an open shell, else the reference diff_rho_spin is zero
+            IF (nspins == 2) THEN ! Reference systems has an open shell, else the reference diff_rho_spin is zero
                CALL pw_axpy(rho_r_ref(1), diff_rho_spin, -1.0_dp)
                CALL pw_axpy(rho_r_ref(2), diff_rho_spin, 1.0_dp)
             END IF
@@ -1760,7 +1760,7 @@ CONTAINS
             CALL get_qs_env(force_env%sub_force_env(i_force_eval)%force_env%qs_env, dft_control=dft_control)
             nspins_subsys = dft_control%nspins
 
-            IF ((i_force_eval .EQ. 2) .AND. (opt_embed%change_spin)) THEN
+            IF ((i_force_eval == 2) .AND. (opt_embed%change_spin)) THEN
                ! Here we change the sign of the spin embedding potential due to spin change:
                ! only in spin_embed_subsys
                CALL make_subsys_embed_pot(force_env%sub_force_env(i_force_eval)%force_env%qs_env, &
@@ -1777,7 +1777,7 @@ CONTAINS
 
             ! Add the embedding potential
             CALL set_qs_env(force_env%sub_force_env(i_force_eval)%force_env%qs_env, embed_pot=embed_pot_subsys)
-            IF ((opt_embed%open_shell_embed) .AND. (nspins_subsys .EQ. 2)) THEN ! Spin part
+            IF ((opt_embed%open_shell_embed) .AND. (nspins_subsys == 2)) THEN ! Spin part
                CALL set_qs_env(force_env%sub_force_env(i_force_eval)%force_env%qs_env, &
                                spin_embed_pot=spin_embed_pot_subsys)
             END IF
@@ -1811,9 +1811,9 @@ CONTAINS
                CALL pw_axpy(rho_r_subsys(i_spin), diff_rho_r, allow_noncompatible_grids=.TRUE.)
             END DO
             IF (opt_embed%open_shell_embed) THEN ! Spin part
-               IF (nspins_subsys .EQ. 2) THEN ! The subsystem makes contribution if it is spin-polarized
+               IF (nspins_subsys == 2) THEN ! The subsystem makes contribution if it is spin-polarized
                   ! We may need to change spin ONLY FOR THE SECOND SUBSYSTEM: that's the internal convention
-                  IF ((i_force_eval .EQ. 2) .AND. (opt_embed%change_spin)) THEN
+                  IF ((i_force_eval == 2) .AND. (opt_embed%change_spin)) THEN
                      CALL pw_axpy(rho_r_subsys(1), diff_rho_spin, -1.0_dp, allow_noncompatible_grids=.TRUE.)
                      CALL pw_axpy(rho_r_subsys(2), diff_rho_spin, 1.0_dp, allow_noncompatible_grids=.TRUE.)
                   ELSE
@@ -1849,7 +1849,7 @@ CONTAINS
          ! Spin part
          IF (opt_embed%open_shell_embed) THEN
             ! If reference system is not spin-polarized then it does not make a contribution to W functional
-            IF (nspins .EQ. 2) THEN
+            IF (nspins == 2) THEN
                opt_embed%w_func(i_iter) = opt_embed%w_func(i_iter) &
                                           - pw_integral_ab(spin_embed_pot, rho_r_ref(1)) &
                                           + pw_integral_ab(spin_embed_pot, rho_r_ref(2))
@@ -1864,7 +1864,7 @@ CONTAINS
          IF (opt_embed%converged) EXIT
 
          ! Update the trust radius and control the step
-         IF ((i_iter .GT. 1) .AND. (.NOT. opt_embed%steep_desc)) CALL step_control(opt_embed)
+         IF ((i_iter > 1) .AND. (.NOT. opt_embed%steep_desc)) CALL step_control(opt_embed)
 
          ! Print density difference
          CALL print_rho_diff(diff_rho_r, i_iter, force_env%sub_force_env(ref_subsys_number)%force_env%qs_env, .FALSE.)
@@ -1923,7 +1923,7 @@ CONTAINS
 
          CALL set_qs_env(force_env%sub_force_env(ref_subsys_number + 1)%force_env%qs_env, embed_pot=embed_pot_subsys)
 
-         IF ((opt_embed%open_shell_embed) .AND. (nspins_subsys .EQ. 2)) THEN
+         IF ((opt_embed%open_shell_embed) .AND. (nspins_subsys == 2)) THEN
             CALL set_qs_env(force_env%sub_force_env(ref_subsys_number + 1)%force_env%qs_env, &
                             spin_embed_pot=spin_embed_pot_subsys)
          END IF
@@ -2078,7 +2078,7 @@ CONTAINS
 
             IF (opt_dmfet%open_shell_embed) THEN ! Open-shell embedding
                ! We may need to change spin ONLY FOR THE SECOND SUBSYSTEM: that's the internal convention
-               IF ((i_force_eval .EQ. 2) .AND. (opt_dmfet%change_spin)) THEN
+               IF ((i_force_eval == 2) .AND. (opt_dmfet%change_spin)) THEN
                   CALL cp_fm_scale_and_add(-1.0_dp, opt_dmfet%dm_diff_beta, 1.0_dp, opt_dmfet%dm_subsys)
                   CALL cp_fm_scale_and_add(-1.0_dp, opt_dmfet%dm_diff, 1.0_dp, opt_dmfet%dm_subsys_beta)
                ELSE

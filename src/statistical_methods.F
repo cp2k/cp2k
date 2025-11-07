@@ -361,14 +361,14 @@ CONTAINS
       REAL(KIND=dp)                                      :: a1, var
 
       nt = n - istart + 1
-      IF (nt .GE. min_sample_size) THEN
+      IF (nt >= min_sample_size) THEN
          is = 0
          DO j = istart, n - 1
             DO k = j + 1, n
                a1 = xdata(j) - xdata(k)
-               IF (a1 .GT. 0.0_dp) THEN
+               IF (a1 > 0.0_dp) THEN
                   is = is + 1
-               ELSE IF (a1 .LT. 0.0_dp) THEN
+               ELSE IF (a1 < 0.0_dp) THEN
                   is = is - 1
                END IF
             END DO
@@ -402,7 +402,7 @@ CONTAINS
       INTEGER                                            :: i
       REAL(KIND=dp)                                      :: q, s, var, x
 
-      IF (n .GE. min_sample_size) THEN
+      IF (n >= min_sample_size) THEN
          x = 0.0_dp
          q = 0.0_dp
          s = 0.0_dp

@@ -321,7 +321,7 @@ CONTAINS
          ALLOCATE (occup_im(nactive, nactive), interocc(nactive, nactive))
 
          DO iocc = 1, nactive
-            IF (smear%method .EQ. smear_fermi_dirac) THEN
+            IF (smear%method == smear_fermi_dirac) THEN
                ! Different prefactor in comparison to Octopus !
                CALL Fermi(occuptmp, nelec, dummykTS, mos(ispin)%eigenvalues, mos(ispin)%eigenvalues(iocc), &
                           smear%electronic_temperature, mos(ispin)%maxocc)

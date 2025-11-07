@@ -460,7 +460,7 @@ CONTAINS
             END IF
          END DO
 
-         IF (npme .GT. 0) THEN
+         IF (npme > 0) THEN
             DO j = 1, npme
 
                iatom = cores(j)
@@ -881,7 +881,7 @@ CONTAINS
                END IF
             END DO
 
-            IF (npme .GT. 0) THEN
+            IF (npme > 0) THEN
                DO j = 1, npme
 
                   iatom = cores(j)
@@ -1015,7 +1015,7 @@ CONTAINS
             END IF
          END DO
 
-         IF (npme .GT. 0) THEN
+         IF (npme > 0) THEN
             DO j = 1, npme
 
                iatom = cores(j)
@@ -1113,7 +1113,7 @@ CONTAINS
          npme = npme + 1
       END IF
 
-      IF (npme .GT. 0) THEN
+      IF (npme > 0) THEN
          atom_a = qs_env%qmmm_env_qm%image_charge_pot%image_mm_list(iatom)
          ra(:) = pbc(qs_env%qmmm_env_qm%image_charge_pot%particles_all(atom_a)%r, cell)
          subpatch_pattern = 0
@@ -1213,7 +1213,7 @@ CONTAINS
          END IF
       END DO
 
-      IF (npme .GT. 0) THEN
+      IF (npme > 0) THEN
          DO j = 1, npme
             iatom = cores(j)
             atom_a = qs_env%qmmm_env_qm%image_charge_pot%image_mm_list(iatom)
@@ -1312,7 +1312,7 @@ CONTAINS
          npme = npme + 1
       END IF
 
-      IF (npme .GT. 0) THEN
+      IF (npme > 0) THEN
          ra(:) = pbc(particle_set(iatom)%r, cell)
          subpatch_pattern = 0
          radius = exp_radius_very_extended(la_min=0, la_max=0, &
@@ -1413,7 +1413,7 @@ CONTAINS
             END IF
          END DO
 
-         IF (npme .GT. 0) THEN
+         IF (npme > 0) THEN
             DO j = 1, npme
                iatom = cores(j)
                ra(:) = pbc(particle_set(iatom)%r, cell)
@@ -1823,9 +1823,9 @@ CONTAINS
             ikind = particle_set(iatom)%atomic_kind%kind_number
             jkind = particle_set(jatom)%atomic_kind%kind_number
 
-            IF (iatom .NE. iatom_old .OR. jatom .NE. jatom_old .OR. img .NE. img_old) THEN
+            IF (iatom /= iatom_old .OR. jatom /= jatom_old .OR. img /= img_old) THEN
 
-               IF (iatom .NE. iatom_old) ra(:) = pbc(particle_set(iatom)%r, cell)
+               IF (iatom /= iatom_old) ra(:) = pbc(particle_set(iatom)%r, cell)
 
                IF (iatom <= jatom) THEN
                   brow = iatom
@@ -1835,7 +1835,7 @@ CONTAINS
                   bcol = iatom
                END IF
 
-               IF (ikind .NE. ikind_old) THEN
+               IF (ikind /= ikind_old) THEN
                   IF (my_soft) THEN
                      CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set, &
                                       basis_type="ORB_SOFT")
@@ -1854,7 +1854,7 @@ CONTAINS
                                          zet=zeta)
                END IF
 
-               IF (jkind .NE. jkind_old) THEN
+               IF (jkind /= jkind_old) THEN
                   IF (my_soft) THEN
                      CALL get_qs_kind(qs_kind_set(jkind), basis_set=orb_basis_set, &
                                       basis_type="ORB_SOFT")
@@ -1890,7 +1890,7 @@ CONTAINS
 
             END IF
 
-            IF (atom_pair_changed .OR. iset_old .NE. iset .OR. jset_old .NE. jset) THEN
+            IF (atom_pair_changed .OR. iset_old /= iset .OR. jset_old /= jset) THEN
 
                ncoa = npgfa(iset)*ncoset(la_max(iset))
                sgfa = first_sgfa(1, iset)
@@ -1950,7 +1950,7 @@ CONTAINS
             ! check whether we need to use fawzi's generalised collocation scheme
             IF (rs_rho(igrid_level)%desc%distributed) THEN
                !tasks(4,:) is 0 for replicated, 1 for distributed 2 for exceptional distributed tasks
-               IF (tasks(itask)%dist_type .EQ. 2) THEN
+               IF (tasks(itask)%dist_type == 2) THEN
                   use_subpatch = .TRUE.
                ELSE
                   use_subpatch = .FALSE.
@@ -2206,9 +2206,9 @@ CONTAINS
          ikind = particle_set(iatom)%atomic_kind%kind_number
          jkind = particle_set(jatom)%atomic_kind%kind_number
 
-         IF (iatom .NE. iatom_old .OR. jatom .NE. jatom_old .OR. img .NE. img_old) THEN
+         IF (iatom /= iatom_old .OR. jatom /= jatom_old .OR. img /= img_old) THEN
 
-            IF (iatom .NE. iatom_old) ra(:) = pbc(particle_set(iatom)%r, cell)
+            IF (iatom /= iatom_old) ra(:) = pbc(particle_set(iatom)%r, cell)
 
             IF (iatom <= jatom) THEN
                brow = iatom
@@ -2218,7 +2218,7 @@ CONTAINS
                bcol = iatom
             END IF
 
-            IF (ikind .NE. ikind_old) THEN
+            IF (ikind /= ikind_old) THEN
                IF (my_soft) THEN
                   CALL get_qs_kind(qs_kind_set(ikind), basis_set=orb_basis_set, &
                                    basis_type="ORB_SOFT")
@@ -2237,7 +2237,7 @@ CONTAINS
                                       zet=zeta)
             END IF
 
-            IF (jkind .NE. jkind_old) THEN
+            IF (jkind /= jkind_old) THEN
                IF (my_soft) THEN
                   CALL get_qs_kind(qs_kind_set(jkind), basis_set=orb_basis_set, &
                                    basis_type="ORB_SOFT")
@@ -2273,7 +2273,7 @@ CONTAINS
 
          END IF
 
-         IF (atom_pair_changed .OR. iset_old .NE. iset .OR. jset_old .NE. jset) THEN
+         IF (atom_pair_changed .OR. iset_old /= iset .OR. jset_old /= jset) THEN
 
             ncoa = npgfa(iset)*ncoset(la_max(iset))
             sgfa = first_sgfa(1, iset)
@@ -2333,7 +2333,7 @@ CONTAINS
          ! check whether we need to use fawzi's generalised collocation scheme
          IF (rs_rho(igrid_level)%desc%distributed) THEN
             !tasks(4,:) is 0 for replicated, 1 for distributed 2 for exceptional distributed tasks
-            IF (tasks(itask)%dist_type .EQ. 2) THEN
+            IF (tasks(itask)%dist_type == 2) THEN
                use_subpatch = .TRUE.
             ELSE
                use_subpatch = .FALSE.

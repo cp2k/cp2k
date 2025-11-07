@@ -108,11 +108,11 @@ CONTAINS
       DO i = 1, SIZE(pairs, 2)
          jmol = pairs(1, i)
          ! counting loop
-         IF (jmol .NE. imol) THEN
-            IF (imol .NE. 0) THEN
+         IF (jmol /= imol) THEN
+            IF (imol /= 0) THEN
                ALLOCATE (graph(imol)%vertex%neighbors(nneighbors))
                graph(imol)%vertex%degree = nneighbors
-               IF (nneighbors .GT. maxdegree) maxdegree = nneighbors
+               IF (nneighbors > maxdegree) maxdegree = nneighbors
             END IF
             imol = jmol
             nneighbors = 0
@@ -120,10 +120,10 @@ CONTAINS
          nneighbors = nneighbors + 1
       END DO
 
-      IF (imol .NE. 0) THEN
+      IF (imol /= 0) THEN
          ALLOCATE (graph(imol)%vertex%neighbors(nneighbors))
          graph(imol)%vertex%degree = nneighbors
-         IF (nneighbors .GT. maxdegree) maxdegree = nneighbors
+         IF (nneighbors > maxdegree) maxdegree = nneighbors
       END IF
 
       kg_env%maxdegree = maxdegree
@@ -137,7 +137,7 @@ CONTAINS
 
       DO i = 1, SIZE(pairs, 2)
          jmol = pairs(1, i)
-         IF (jmol .NE. imol) THEN
+         IF (jmol /= imol) THEN
             ineighbor = 0
             imol = jmol
          END IF
@@ -189,7 +189,7 @@ CONTAINS
             nneighbors = SIZE(graph(i)%vertex%neighbors)
             DO j = 1, nneighbors
                color = graph(i)%vertex%neighbors(j)%vertex%color
-               IF (color .NE. 0) color_present(color) = .TRUE.
+               IF (color /= 0) color_present(color) = .TRUE.
             END DO
          END IF
          DO j = 1, maxdegree + 1 !nnodes
@@ -198,7 +198,7 @@ CONTAINS
                EXIT
             END IF
          END DO
-         IF (newcolor .GT. ncolors) ncolors = newcolor
+         IF (newcolor > ncolors) ncolors = newcolor
          graph(i)%vertex%color = newcolor ! smallest possible
       END DO
 
@@ -236,9 +236,9 @@ CONTAINS
             WRITE (unit_nr, '(T2,I5,1X,A)', ADVANCE='NO') i, "|"
             counter = 0
             DO j = 1, nnodes
-               IF (graph(j)%vertex%color .EQ. i) THEN
+               IF (graph(j)%vertex%color == i) THEN
                   counter = counter + 1
-                  IF (MOD(counter, 13) .EQ. 0) THEN
+                  IF (MOD(counter, 13) == 0) THEN
                      counter = counter + 1
                      WRITE (unit_nr, '()') ! line break
                      WRITE (unit_nr, '(6X,A)', ADVANCE='NO') " |" ! indent next line
@@ -361,7 +361,7 @@ CONTAINS
       maxdegree = kg_env%maxdegree
       nnodes = SIZE(graph)
 
-      IF (kg_env%maxdegree .EQ. 0) THEN
+      IF (kg_env%maxdegree == 0) THEN
          ! all nodes are disconnected
 
          ncolors = 1
@@ -398,7 +398,7 @@ CONTAINS
                   EXIT
                END IF
             END DO
-            IF (this%color .GT. ncolors) ncolors = this%color
+            IF (this%color > ncolors) ncolors = this%color
 
             ! update all neighboring nodes
             DO i = 1, nneighbors

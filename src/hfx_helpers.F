@@ -76,7 +76,7 @@ CONTAINS
                   m = [i, j, k]
                   EXIT outer
                END IF
-               IF (ALL(M .EQ. [i, j, k])) found = .TRUE.
+               IF (ALL(M == [i, j, k])) found = .TRUE.
             END DO inner
          END DO
          END DO

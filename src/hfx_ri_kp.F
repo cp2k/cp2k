@@ -248,7 +248,7 @@ CONTAINS
       CALL cleanup_kp(ri_data)
 
       !We do all the checks on what we allow in this initial implementation
-      IF (ri_data%flavor .NE. ri_pmat) CPABORT("K-points RI-HFX only with RHO flavor")
+      IF (ri_data%flavor /= ri_pmat) CPABORT("K-points RI-HFX only with RHO flavor")
       IF (ri_data%same_op) ri_data%same_op = .FALSE. !force the full calculation with RI metric
       IF (ABS(ri_data%eps_pgf_orb - dft_control%qs_control%eps_pgf_orb) > 1.0E-16_dp) &
          CPABORT("RI%EPS_PGF_ORB and QS%EPS_PGF_ORB must be identical for RI-HFX k-points")
@@ -572,12 +572,12 @@ CONTAINS
       END DO
       CALL contract_pmat_3c(t_3c_apc, ri_data%rho_ao_t, ri_data, qs_env)
 
-      IF (MOD(para_env%num_pe, ngroups) .NE. 0) THEN
+      IF (MOD(para_env%num_pe, ngroups) /= 0) THEN
          CPWARN("KP_NGROUPS must be an integer divisor of the total number of MPI ranks. It was set to 1.")
          ngroups = 1
          CALL section_vals_val_set(hfx_section, "KP_NGROUPS", i_val=ngroups)
       END IF
-      IF ((MOD(ngroups, natom) .NE. 0) .AND. (MOD(natom, ngroups) .NE. 0) .AND. geometry_did_change) THEN
+      IF ((MOD(ngroups, natom) /= 0) .AND. (MOD(natom, ngroups) /= 0) .AND. geometry_did_change) THEN
          IF (ngroups > 1) THEN
             CPWARN("Better load balancing is reached if NGROUPS is a multiple/divisor of the number of atoms")
          END IF
@@ -616,7 +616,7 @@ CONTAINS
       END DO
 
       n_batch_nze = nimg_nze/batch_size
-      IF (MODULO(nimg_nze, batch_size) .NE. 0) n_batch_nze = n_batch_nze + 1
+      IF (MODULO(nimg_nze, batch_size) /= 0) n_batch_nze = n_batch_nze + 1
       ALLOCATE (batch_ranges_nze(n_batch_nze + 1))
       DO i_batch = 1, n_batch_nze
          batch_ranges_nze(i_batch) = (i_batch - 1)*batch_size + 1
@@ -803,7 +803,7 @@ CONTAINS
 
             !desymmetrize
             mb_img = get_opp_index(b_img, qs_env)
-            IF (mb_img > 0 .AND. mb_img .LE. nimg) THEN
+            IF (mb_img > 0 .AND. mb_img <= nimg) THEN
                CALL dbt_copy(ks_t(i_spin, mb_img), ri_data%ks_t(i_spin, b_img), order=[2, 1], summation=.TRUE.)
             END IF
          END DO
@@ -1013,7 +1013,7 @@ CONTAINS
       nimg_nze = ri_data%nimg_nze
       batch_size = ri_data%kp_stack_size
       n_batch = nimg_nze/batch_size
-      IF (MODULO(nimg_nze, batch_size) .NE. 0) n_batch = n_batch + 1
+      IF (MODULO(nimg_nze, batch_size) /= 0) n_batch = n_batch + 1
       ALLOCATE (batch_ranges_nze(n_batch + 1))
       DO i_batch = 1, n_batch
          batch_ranges_nze(i_batch) = (i_batch - 1)*batch_size + 1
@@ -1630,7 +1630,7 @@ CONTAINS
       CALL dbt_iterator_start(iter, t_2c_in)
       DO WHILE (dbt_iterator_blocks_left(iter))
          CALL dbt_iterator_next_block(iter, ind)
-         IF (ind(1) .NE. ind(2)) CYCLE !bump matrix is diagonal
+         IF (ind(1) /= ind(2)) CYCLE !bump matrix is diagonal
 
          CALL dbt_get_block(t_2c_in, ind, blk, found)
          IF (.NOT. found) CYCLE
@@ -1707,8 +1707,8 @@ CONTAINS
       !Juerg
       r = (x - r0)/(r1 - r0)
       b = -6.0_dp*r**5 + 15.0_dp*r**4 - 10.0_dp*r**3 + 1.0_dp
-      IF (x .GE. r1) b = 0.0_dp
-      IF (x .LE. r0) b = 1.0_dp
+      IF (x >= r1) b = 0.0_dp
+      IF (x <= r0) b = 1.0_dp
 
    END FUNCTION bump
 
@@ -1727,8 +1727,8 @@ CONTAINS
 
       r = (x - r0)/(r1 - r0)
       b = (-30.0_dp*r**4 + 60.0_dp*r**3 - 30.0_dp*r**2)/(r1 - r0)
-      IF (x .GE. r1) b = 0.0_dp
-      IF (x .LE. r0) b = 0.0_dp
+      IF (x >= r1) b = 0.0_dp
+      IF (x <= r0) b = 0.0_dp
 
    END FUNCTION dbump
 
@@ -2037,7 +2037,7 @@ CONTAINS
 
             !symmetrize by addin transpose of opp img
             mi_img = get_opp_index(i_img, qs_env)
-            IF (mi_img > 0 .AND. mi_img .LE. nimg) THEN
+            IF (mi_img > 0 .AND. mi_img <= nimg) THEN
                CALL dbt_copy_matrix_to_tensor(rho_desymm(i_spin, mi_img)%matrix, tmp)
                CALL dbt_copy(tmp, rho_ao_t(i_spin, i_img), order=[2, 1], summation=.TRUE., move_data=.TRUE.)
             END IF
@@ -2181,8 +2181,8 @@ CONTAINS
          j_img = cell_to_index(cell_j(1), cell_j(2), cell_j(3))
          IF (j_img > nimg .OR. j_img < 1) CYCLE
 
-         IF (iatom == atom_i .AND. dij .LE. ri_data%kp_RI_range) present_atoms_i(jatom, j_img) = 1
-         IF (iatom == atom_j .AND. dij .LE. ri_data%kp_RI_range) present_atoms_j(jatom, j_img) = 1
+         IF (iatom == atom_i .AND. dij <= ri_data%kp_RI_range) present_atoms_i(jatom, j_img) = 1
+         IF (iatom == atom_j .AND. dij <= ri_data%kp_RI_range) present_atoms_j(jatom, j_img) = 1
       END DO
       CALL neighbor_list_iterator_release(nl_iterator)
       CALL release_neighbor_list_sets(nl_2c)
@@ -2320,7 +2320,7 @@ CONTAINS
                      IF (.NOT. found) CYCLE
 
                      bfac = 1.0_dp
-                     IF (iblk .NE. jblk) bfac = bump(NORM2(ri - rref), r0, r1)*bump(NORM2(rj - rref), r0, r1)
+                     IF (iblk /= jblk) bfac = bump(NORM2(ri - rref), r0, r1)*bump(NORM2(rj - rref), r0, r1)
                      CALL dbcsr_put_block(work_tight, iblk, jblk, bfac*pblock(:, :))
                   END DO
                END DO
@@ -2446,7 +2446,7 @@ CONTAINS
 
       !batching over all images
       n_batch_img = nimg/batch_size
-      IF (MODULO(nimg, batch_size) .NE. 0) n_batch_img = n_batch_img + 1
+      IF (MODULO(nimg, batch_size) /= 0) n_batch_img = n_batch_img + 1
       ALLOCATE (batch_ranges_img(n_batch_img + 1))
       DO i_batch = 1, n_batch_img
          batch_ranges_img(i_batch) = (i_batch - 1)*batch_size + 1
@@ -2455,7 +2455,7 @@ CONTAINS
 
       !batching over images with non-zero 3c integrals
       n_batch_nze = nimg_nze/batch_size
-      IF (MODULO(nimg_nze, batch_size) .NE. 0) n_batch_nze = n_batch_nze + 1
+      IF (MODULO(nimg_nze, batch_size) /= 0) n_batch_nze = n_batch_nze + 1
       ALLOCATE (batch_ranges_nze(n_batch_nze + 1))
       DO i_batch = 1, n_batch_nze
          batch_ranges_nze(i_batch) = (i_batch - 1)*batch_size + 1
@@ -2586,7 +2586,7 @@ CONTAINS
       !For more efficiency, we stack multiple images of the 3-center integrals into a single tensor
       batch_size = ri_data%kp_stack_size
       n_batch = nimg/batch_size
-      IF (MODULO(nimg, batch_size) .NE. 0) n_batch = n_batch + 1
+      IF (MODULO(nimg, batch_size) /= 0) n_batch = n_batch + 1
       ALLOCATE (batch_ranges(n_batch + 1))
       DO i_batch = 1, n_batch
          batch_ranges(i_batch) = (i_batch - 1)*batch_size + 1
@@ -2741,7 +2741,7 @@ CONTAINS
       !We go by batches, which cannot be larger than the maximum MPI tag value
       batch_size = MIN(para_env%get_tag_ub(), 128000, nocc*ngroups)
       n_batch = (nocc*ngroups)/batch_size
-      IF (MODULO(nocc*ngroups, batch_size) .NE. 0) n_batch = n_batch + 1
+      IF (MODULO(nocc*ngroups, batch_size) /= 0) n_batch = n_batch + 1
 
       DO i_batch = 1, n_batch
          !Loop over groups, blocks and send/receive
@@ -2812,7 +2812,7 @@ CONTAINS
                   tag = i_msg - (i_batch - 1)*batch_size
 
                   IF (para_env%mepos == current_dest(iblk, jblk, igroup) .AND. &
-                      block_source(iblk, jblk) .NE. current_dest(iblk, jblk, igroup)) THEN
+                      block_source(iblk, jblk) /= current_dest(iblk, jblk, igroup)) THEN
 
                      ALLOCATE (blk(bsizes1(iblk), bsizes2(jblk)))
                      blk(:, :) = recv_buff(tag)%array(:, :)
@@ -2954,7 +2954,7 @@ CONTAINS
       !We go by batches, which cannot be larger than the maximum MPI tag value
       batch_size = MIN(para_env%get_tag_ub(), 128000, nocc*ngroups)
       n_batch = (nocc*ngroups)/batch_size
-      IF (MODULO(nocc*ngroups, batch_size) .NE. 0) n_batch = n_batch + 1
+      IF (MODULO(nocc*ngroups, batch_size) /= 0) n_batch = n_batch + 1
 
       DO i_batch = 1, n_batch
          !Loop over groups, blocks and send/receive
@@ -3040,7 +3040,7 @@ CONTAINS
                      END IF
 
                      IF (para_env%mepos == subgroup_dest(iblk, jblk, kblk, igroup + 1) .AND. &
-                         block_source(iblk, jblk, kblk) .NE. subgroup_dest(iblk, jblk, kblk, igroup + 1)) THEN
+                         block_source(iblk, jblk, kblk) /= subgroup_dest(iblk, jblk, kblk, igroup + 1)) THEN
 
                         ir = ir + 1
                         CALL mp_waitall(recv_req(ir:ir))
@@ -3143,7 +3143,7 @@ CONTAINS
                   END IF
 
                   !receiving the message
-                  IF (para_env%mepos == dest .AND. source .NE. dest) THEN
+                  IF (para_env%mepos == dest .AND. source /= dest) THEN
                      ALLOCATE (recv_buff(n_mess)%array(ri_data%bsizes_AO(iatom), ri_data%bsizes_AO(jatom)))
                      ir = ir + 1
                      CALL para_env%irecv(msgout=recv_buff(n_mess)%array, source=source, &
@@ -4097,7 +4097,7 @@ CONTAINS
          IF (j_img > nimg .OR. j_img < 1) CYCLE
 
          mj_img = get_opp_index(j_img, qs_env)
-         IF (mj_img .LE. nimg .AND. mj_img > 0) CYCLE
+         IF (mj_img <= nimg .AND. mj_img > 0) CYCLE
 
          IF (ri_data%present_images(j_img) == 0) CYCLE
 
@@ -4110,7 +4110,7 @@ CONTAINS
       !If the opposite image is considered, then there is no need to compute diagonal twice
       DO j_img = 2, nimg
          DO iatom = 1, natom
-            IF (pattern(iatom, iatom, j_img) .NE. 0) THEN
+            IF (pattern(iatom, iatom, j_img) /= 0) THEN
                mj_img = get_opp_index(j_img, qs_env)
                IF (mj_img > nimg .OR. mj_img < 1) CYCLE
                pattern(iatom, iatom, mj_img) = 0
@@ -4195,7 +4195,7 @@ CONTAINS
          !We want each atom to be present the same amount of times. Some groups might have more atoms
          !than other to achieve this.
          ctr = 0
-         DO WHILE (MODULO(SUM(max_at_per_group), natom) .NE. 0)
+         DO WHILE (MODULO(SUM(max_at_per_group), natom) /= 0)
             igroup = MODULO(ctr, ngroups) + 1
             max_at_per_group(igroup) = max_at_per_group(igroup) + 1
             ctr = ctr + 1
@@ -4269,7 +4269,7 @@ CONTAINS
                IF (scf_pattern(iatom, jatom, b_img) > -1) CYCLE
 
                !If not, take the cost of block j, i, -b (same energy contribution)
-               IF (mb_img > 0 .AND. mb_img .LE. nimg) THEN
+               IF (mb_img > 0 .AND. mb_img <= nimg) THEN
                   IF (scf_pattern(jatom, iatom, mb_img) == -1) CYCLE
                   bins(igroup + 1) = bins(igroup + 1) + ri_data%kp_cost(jatom, iatom, mb_img)
                   force_pattern(iatom, jatom, b_img) = igroup
@@ -5121,7 +5121,7 @@ CONTAINS
 
             !Only take forecs due to block diagonal or block off-diagonal, depending on arguments
             IF ((my_diag .AND. .NOT. my_offdiag) .OR. (.NOT. my_diag .AND. my_offdiag)) THEN
-               IF (my_diag .AND. (ind(1) .NE. ind(2))) CYCLE
+               IF (my_diag .AND. (ind(1) /= ind(2))) CYCLE
                IF (my_offdiag .AND. (ind(1) == ind(2))) CYCLE
             END IF
 

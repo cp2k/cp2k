@@ -440,7 +440,7 @@ CONTAINS
 
       CHARACTER(33)                                      :: conj_string, prec_string, type_string
 
-      IF (unit_nr .GT. 0) THEN
+      IF (unit_nr > 0) THEN
 
          SELECT CASE (optimizer%optimizer_type)
          CASE (optimizer_diis)
@@ -455,14 +455,14 @@ CONTAINS
          WRITE (unit_nr, '(T4,A,T48,I33)') "maximum iterations:", optimizer%max_iter
          WRITE (unit_nr, '(T4,A,T48,E33.3)') "target error:", optimizer%eps_error
 
-         IF (optimizer%optimizer_type .EQ. optimizer_diis) THEN
+         IF (optimizer%optimizer_type == optimizer_diis) THEN
 
             WRITE (unit_nr, '(T4,A,T48,I33)') "maximum DIIS history:", optimizer%ndiis
 
          END IF
 
-         IF (optimizer%optimizer_type .EQ. optimizer_trustr .OR. &
-             optimizer%optimizer_type .EQ. optimizer_pcg) THEN
+         IF (optimizer%optimizer_type == optimizer_trustr .OR. &
+             optimizer%optimizer_type == optimizer_pcg) THEN
 
             WRITE (unit_nr, '(T4,A,T48,I33)') "maximum outer loop iterations:", &
                optimizer%max_iter_outer_loop
@@ -499,20 +499,20 @@ CONTAINS
 
          END IF
 
-         IF (optimizer%optimizer_type .EQ. optimizer_pcg) THEN
+         IF (optimizer%optimizer_type == optimizer_pcg) THEN
 
             WRITE (unit_nr, '(T4,A,T48,E33.3)') "line search step size guess:", &
                optimizer%lin_search_step_size_guess
             WRITE (unit_nr, '(T4,A,T48,E33.3)') "line search target error:", &
                optimizer%lin_search_eps_error
-            IF (optimizer%neglect_threshold .GT. 0.0_dp) THEN
+            IF (optimizer%neglect_threshold > 0.0_dp) THEN
                WRITE (unit_nr, '(T4,A,T48,E33.3)') "low-curvature threshold:", &
                   optimizer%neglect_threshold
             END IF
 
          END IF
 
-         IF (optimizer%optimizer_type .EQ. optimizer_trustr) THEN
+         IF (optimizer%optimizer_type == optimizer_trustr) THEN
 
             SELECT CASE (optimizer%trustr_algorithm)
             CASE (trustr_steihaug)
@@ -560,7 +560,7 @@ CONTAINS
          DO istore = 1, MIN(almo_scf_env%almo_history%istore, almo_scf_env%almo_history%nstore)
             CALL dbcsr_release(almo_scf_env%almo_history%matrix_p_up_down(ispin, istore))
          END DO
-         IF (almo_scf_env%almo_history%istore .GT. 0) &
+         IF (almo_scf_env%almo_history%istore > 0) &
             CALL dbcsr_release(almo_scf_env%almo_history%matrix_t(ispin))
       END DO
       DEALLOCATE (almo_scf_env%almo_history%matrix_p_up_down)
@@ -571,7 +571,7 @@ CONTAINS
             CALL dbcsr_release(almo_scf_env%xalmo_history%matrix_p_up_down(ispin, istore))
             !CALL dbcsr_release(almo_scf_env%xalmo_history%matrix_x(ispin, istore))
          END DO
-         IF (almo_scf_env%xalmo_history%istore .GT. 0) &
+         IF (almo_scf_env%xalmo_history%istore > 0) &
             CALL dbcsr_release(almo_scf_env%xalmo_history%matrix_t(ispin))
       END DO
       DEALLOCATE (almo_scf_env%xalmo_history%matrix_p_up_down)

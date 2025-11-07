@@ -660,7 +660,7 @@ CONTAINS
          DO i = 1, nex_atoms
             at_ind = xas_tdp_env%ex_atom_indices(i)
             CALL get_atomic_kind(particle_set(at_ind)%atomic_kind, kind_number=j)
-            IF (ALL(ABS(xas_tdp_env%ex_kind_indices - j) .NE. 0)) THEN
+            IF (ALL(ABS(xas_tdp_env%ex_kind_indices - j) /= 0)) THEN
                k = k + 1
                xas_tdp_env%ex_kind_indices(k) = j
             END IF
@@ -714,7 +714,7 @@ CONTAINS
          CALL set_xas_tdp_env(xas_tdp_env, nex_atoms=nex_atoms, nex_kinds=nex_kinds)
 
 !        Verifying that the input was valid
-         IF (nmatch .NE. SIZE(xas_tdp_control%list_ex_kinds)) THEN
+         IF (nmatch /= SIZE(xas_tdp_control%list_ex_kinds)) THEN
             CPABORT("Invalid kind(s) for the KIND_LIST keyword.")
          END IF
 
@@ -958,7 +958,7 @@ CONTAINS
       CALL rng_stream%shuffle(ex_atoms_of_kind(1:nex_atom))
 
       nbatch = nex_atom/batch_size
-      IF (nbatch*batch_size .NE. nex_atom) nbatch = nbatch + 1
+      IF (nbatch*batch_size /= nex_atom) nbatch = nbatch + 1
 
    END SUBROUTINE get_ri_3c_batches
 
@@ -1079,7 +1079,7 @@ CONTAINS
       !Overlap matrix sparsity
       occ = dbcsr_get_occupation(matrix_s(1)%matrix)
 
-      IF (ou .LE. 0) RETURN
+      IF (ou <= 0) RETURN
 
       !Reference calculation
       IF (xas_tdp_control%do_uks) THEN
@@ -1241,7 +1241,7 @@ CONTAINS
          WRITE (UNIT=ou, FMT="(T3,A,I5)") &
             "GW2X| contraction batch size: ", xas_tdp_control%batch_size
 
-         IF ((INT(xas_tdp_control%c_os) .NE. 1) .OR. (INT(xas_tdp_control%c_ss) .NE. 1)) THEN
+         IF ((INT(xas_tdp_control%c_os) /= 1) .OR. (INT(xas_tdp_control%c_ss) /= 1)) THEN
             WRITE (UNIT=ou, FMT="(T3,A,F7.4,/,T3,A,F7.4)") &
                "GW2X| Same-spin scaling factor: ", xas_tdp_control%c_ss, &
                "GW2X| Opposite-spin scaling factor: ", xas_tdp_control%c_os
@@ -2691,7 +2691,7 @@ CONTAINS
 
          !Check on NLUMO
          CALL section_vals_val_get(xas_tdp_section, "PRINT%PDOS%NLUMO", i_val=nlumo)
-         IF (nlumo .NE. 0) THEN
+         IF (nlumo /= 0) THEN
             CPWARN("NLUMO is irrelevant for XAS_TDP PDOS. It was overwritten to 0.")
          END IF
          CALL section_vals_val_set(xas_tdp_section, "PRINT%PDOS%NLUMO", i_val=0)
@@ -2947,7 +2947,7 @@ CONTAINS
       IF (xas_tdp_control%n_excited > 0 .AND. xas_tdp_control%n_excited < nguess) THEN
          nguess = xas_tdp_control%n_excited/nspins
       ELSE IF (xas_tdp_control%e_range > 0.0_dp) THEN
-         nguess = COUNT(evals(nocc + 1:nao) - evals(nocc + 1) .LE. xas_tdp_control%e_range)
+         nguess = COUNT(evals(nocc + 1:nao) - evals(nocc + 1) <= xas_tdp_control%e_range)
       END IF
 
       !Give max weight to the first LUMOs

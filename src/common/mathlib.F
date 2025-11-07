@@ -158,7 +158,7 @@ CONTAINS
       ! which the compiler uses to optimize the function to .FALSE. if based on the IEEE module
       ! therefore, pass this to the Fortran runtime/printf, if things are NaN or Inf, error out.
       WRITE (buffer, *) a
-      IF (INDEX(buffer, "N") .NE. 0 .OR. INDEX(buffer, "n") .NE. 0) abnormal_value = .TRUE.
+      IF (INDEX(buffer, "N") /= 0 .OR. INDEX(buffer, "n") /= 0) abnormal_value = .TRUE.
 
    END FUNCTION abnormal_value
 
@@ -1291,7 +1291,7 @@ CONTAINS
          s = ab
          l = aa
       END IF
-      IF (s .NE. 0) THEN
+      IF (s /= 0) THEN
          DO
             rem = MOD(l, s)
             IF (rem == 0) EXIT
@@ -1403,13 +1403,13 @@ CONTAINS
 
       nm1 = n - 1
 
-      IF (n .LT. 0 .OR. x .LT. 0.0_dp .OR. (x .EQ. 0.0_dp .AND. (n .EQ. 0 .OR. n .EQ. 1))) THEN
+      IF (n < 0 .OR. x < 0.0_dp .OR. (x == 0.0_dp .AND. (n == 0 .OR. n == 1))) THEN
          CPABORT("Invalid argument")
-      ELSE IF (n .EQ. 0) THEN !Special case.
+      ELSE IF (n == 0) THEN !Special case.
          expint = EXP(-x)/x
-      ELSE IF (x .EQ. 0.0_dp) THEN !Another special case.
+      ELSE IF (x == 0.0_dp) THEN !Another special case.
          expint = 1.0_dp/nm1
-      ELSE IF (x .GT. 1.0_dp) THEN !Lentz's algorithm (5.2).
+      ELSE IF (x > 1.0_dp) THEN !Lentz's algorithm (5.2).
          b = x + n
          c = 1.0_dp/FPMIN
          d = 1.0_dp/b
@@ -1421,14 +1421,14 @@ CONTAINS
             c = b + a/c
             del = c*d
             h = h*del
-            IF (ABS(del - 1.0_dp) .LT. EPS) THEN
+            IF (ABS(del - 1.0_dp) < EPS) THEN
                expint = h*EXP(-x)
                RETURN
             END IF
          END DO
          CPABORT("continued fraction failed in expint")
       ELSE !Evaluate series.
-         IF (nm1 .NE. 0) THEN !Set first term.
+         IF (nm1 /= 0) THEN !Set first term.
             expint = 1.0_dp/nm1
          ELSE
             expint = -LOG(x) - euler
@@ -1436,7 +1436,7 @@ CONTAINS
          fact = 1.0_dp
          DO i = 1, MAXIT
             fact = -fact*x/i
-            IF (i .NE. nm1) THEN
+            IF (i /= nm1) THEN
                del = -fact/(i - nm1)
             ELSE
                psi = -euler !Compute I(n).
@@ -1446,7 +1446,7 @@ CONTAINS
                del = fact*(-LOG(x) + psi)
             END IF
             expint = expint + del
-            IF (ABS(del) .LT. ABS(expint)*EPS) RETURN
+            IF (ABS(del) < ABS(expint)*EPS) RETURN
          END DO
          CPABORT("series failed in expint")
       END IF
@@ -1535,7 +1535,7 @@ CONTAINS
                g = 100.0_dp*ABS(apq)
                IF (tresh < ABS(apq)) THEN
                   h = diq - dip
-                  IF ((ABS(h) + g) .NE. ABS(h)) THEN
+                  IF ((ABS(h) + g) /= ABS(h)) THEN
                      theta = 0.5_dp*h/apq
                      t = 1.0_dp/(ABS(theta) + SQRT(1.0_dp + theta**2))
                      IF (theta < 0.0_dp) t = -t
@@ -1705,7 +1705,7 @@ CONTAINS
          delta_r = f0/fprime0
          r0 = r0 - delta_r
          CALL eval_transc_func(r0, eps, omg, f0, fprime0)
-         IF (ABS(delta_r) .LT. abstol .OR. ABS(f0) .LT. soltol) EXIT
+         IF (ABS(delta_r) < abstol .OR. ABS(f0) < soltol) EXIT
       END DO
       CPASSERT(iter <= itermax)
       r_cutoff = r0

@@ -2273,7 +2273,7 @@ CONTAINS
          DO iset2 = 1, nset
             CALL get_none0_cg_list(my_CG, lmin(iset1), lmax(iset1), lmin(iset2), lmax(iset2), &
                                    max_s_harm, lmax_expansion, cg_list, cg_n_list, max_iso_not0_local)
-            CPASSERT(max_iso_not0_local .LE. max_iso_not0)
+            CPASSERT(max_iso_not0_local <= max_iso_not0)
 
             n2 = nsoset(lmax(iset2))
             DO ipgf1 = 1, npgf(iset1)
@@ -2290,7 +2290,7 @@ CONTAINS
                   lmax12 = lmax(iset1) + lmax(iset2)
 
                   ! reduce expansion local densities
-                  IF (lmin12 .LE. lmax_expansion) THEN
+                  IF (lmin12 <= lmax_expansion) THEN
 
                      gg = 0.0_dp
                      IF (lmin12 == 0) THEN
@@ -2300,7 +2300,7 @@ CONTAINS
                      END IF
 
                      ! limit the expansion of the local densities to a max L
-                     IF (lmax12 .GT. lmax_expansion) lmax12 = lmax_expansion
+                     IF (lmax12 > lmax_expansion) lmax12 = lmax_expansion
 
                      DO l = lmin12 + 1, lmax12
                         gg(1:nr, l) = grid_atom%rad(1:nr)*gg(:, l - 1)
@@ -2448,7 +2448,7 @@ CONTAINS
             DO iset2 = 1, nset
                CALL get_none0_cg_list(my_CG, lmin(iset1), lmax(iset1), lmin(iset2), lmax(iset2), &
                                       max_s_harm, lmax_expansion, cg_list, cg_n_list, max_iso_not0_local)
-               CPASSERT(max_iso_not0_local .LE. max_iso_not0)
+               CPASSERT(max_iso_not0_local <= max_iso_not0)
                CALL get_none0_cg_list(my_CG_dxyz, lmin(iset1), lmax(iset1), lmin(iset2), lmax(iset2), &
                                       max_s_harm, lmax_expansion, dcg_list, dcg_n_list, dmax_iso_not0_local)
 
@@ -2467,7 +2467,7 @@ CONTAINS
                      lmax12 = lmax(iset1) + lmax(iset2)
 
                      !test reduce expansion local densities
-                     IF (lmin12 .LE. lmax_expansion) THEN
+                     IF (lmin12 <= lmax_expansion) THEN
 
                         gg = 0.0_dp
                         dgg = 0.0_dp
@@ -2479,7 +2479,7 @@ CONTAINS
                         END IF
 
                         !test reduce expansion local densities
-                        IF (lmax12 .GT. lmax_expansion) lmax12 = lmax_expansion
+                        IF (lmax12 > lmax_expansion) lmax12 = lmax_expansion
 
                         DO l = lmin12 + 1, lmax12
                            gg(1:nr, l) = grid_atom%rad(1:nr)*gg(:, l - 1)

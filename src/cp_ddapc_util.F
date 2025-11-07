@@ -726,10 +726,10 @@ CONTAINS
          CALL rho_tot_g%pw_grid%para%group%sum(bv2)
          ddbv(:) = (bv1(:) - bv2(:))/(2.0_dp*dx)
          DO kk = 1, SIZE(ddbv)
-            IF (ddbv(kk) .GT. 1.0E-8_dp) THEN
+            IF (ddbv(kk) > 1.0E-8_dp) THEN
                v0 = ABS(dbv(kk, i) - ddbv(kk))/ddbv(kk)*100.0_dp
                WRITE (*, *) "Error % on B ::", v0
-               IF (v0 .GT. 0.1_dp) THEN
+               IF (v0 > 0.1_dp) THEN
                   WRITE (*, '(A,2I5,2F15.9)') "ERROR IN DERIVATIVE OF B VECTOR, IPARTICLE, ICOORD:", iparticle, i, &
                      dbv(kk, i), ddbv(kk)
                   CPABORT("")
@@ -806,10 +806,10 @@ CONTAINS
          ddAm(:, :) = (Am1 - Am2)/(2.0_dp*dx)
          DO kk = 1, SIZE(ddAm, 1)
             DO ll = 1, SIZE(ddAm, 2)
-               IF (ddAm(kk, ll) .GT. 1.0E-8_dp) THEN
+               IF (ddAm(kk, ll) > 1.0E-8_dp) THEN
                   v0 = ABS(dAm(kk, ll, i) - ddAm(kk, ll))/ddAm(kk, ll)*100.0_dp
                   WRITE (*, *) "Error % on A ::", v0, Am1(kk, ll), Am2(kk, ll), iparticle, i, kk, ll
-                  IF (v0 .GT. 0.1_dp) THEN
+                  IF (v0 > 0.1_dp) THEN
                      WRITE (*, '(A,4I5,2F15.9)') "ERROR IN DERIVATIVE OF A MATRIX, IPARTICLE, ICOORD:", iparticle, i, kk, ll, &
                         dAm(kk, ll, i), ddAm(kk, ll)
                      CPABORT("")
@@ -876,7 +876,7 @@ CONTAINS
                            ext_rho_tot_g=rho_tot_g, Itype_of_density=type_of_density)
             ddqv(:) = (qtot1 - qtot2)/(2.0_dp*dx)
             DO kk = 1, SIZE(qtot1) - 1, SIZE(radii)
-               IF (ANY(ddqv(kk:kk + 2) .GT. 1.0E-8_dp)) THEN
+               IF (ANY(ddqv(kk:kk + 2) > 1.0E-8_dp)) THEN
                   WRITE (*, '(A,2F12.6,F12.2)') "Error :", SUM(dqv(kk:kk + 2, iparticle, i)), SUM(ddqv(kk:kk + 2)), &
                      ABS((SUM(ddqv(kk:kk + 2)) - SUM(dqv(kk:kk + 2, iparticle, i)))/SUM(ddqv(kk:kk + 2))*100.0_dp)
                END IF

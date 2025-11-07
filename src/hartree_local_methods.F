@@ -492,7 +492,7 @@ CONTAINS
                   rho_atom => rho_atom_set_2nd(iatom)
                   vrrad_0 => rho0_atom_set_2nd(iatom)%vrho0_rad_h%r_coef ! for potential
                END IF
-               IF (my_periodic .AND. back_ch .GT. 1.E-3_dp) THEN
+               IF (my_periodic .AND. back_ch > 1.E-3_dp) THEN
                   factor = -2.0_dp*pi/3.0_dp*SQRT(fourpi)*qs_charges%background
                ELSE
                   factor = 0._dp

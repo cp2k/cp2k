@@ -128,7 +128,7 @@ CONTAINS
 
          CALL dielectric_release(ps_implicit_env%dielectric, pw_pool)
          boundary_condition = ps_implicit_params%boundary_condition
-         IF (boundary_condition .EQ. MIXED_BC .OR. boundary_condition .EQ. NEUMANN_BC) THEN
+         IF (boundary_condition == MIXED_BC .OR. boundary_condition == NEUMANN_BC) THEN
             CALL dct_type_release(ps_implicit_env%dct_env)
          END IF
 

@@ -88,7 +88,7 @@ CONTAINS
       CPASSERT(ASSOCIATED(para_env))
 
       master = .FALSE.
-      IF (para_env%mepos .EQ. MASTER_COMM_ID) &
+      IF (para_env%mepos == MASTER_COMM_ID) &
          master = .TRUE.
    END FUNCTION check_if_group_master
 
@@ -135,9 +135,9 @@ CONTAINS
 
       ! init
       ! define send_recv flag for broadcast
-      IF (dest .EQ. bcast_group) THEN
+      IF (dest == bcast_group) THEN
          ! master should always send
-         IF (para_env%mepos .EQ. MASTER_COMM_ID) THEN
+         IF (para_env%mepos == MASTER_COMM_ID) THEN
             act_send_recv = send_msg
          ELSE
             ! worker should always receive
@@ -153,8 +153,8 @@ CONTAINS
       ! =============================
       ! creating message to send
       IF (act_send_recv .EQV. send_msg) THEN
-         IF ((DEBUG .GE. 7) .AND. (dest .NE. bcast_group) .AND. &
-             (dest .NE. MASTER_COMM_ID)) THEN
+         IF ((DEBUG >= 7) .AND. (dest /= bcast_group) .AND. &
+             (dest /= MASTER_COMM_ID)) THEN
             IF (PRESENT(elem)) THEN
                WRITE (*, *) "send element info to ", dest, " of type ", msg_type, "of subtree", elem%sub_tree_nr, &
                   "elem", elem%nr
@@ -199,44 +199,44 @@ CONTAINS
       END IF
 
       ! sending message
-      IF ((act_send_recv .EQV. send_msg) .AND. (dest .NE. bcast_group)) THEN
+      IF ((act_send_recv .EQV. send_msg) .AND. (dest /= bcast_group)) THEN
          CALL para_env%send(m_send%info, dest, message_tag)
-         IF (m_send%info(2) .GT. 0) THEN
+         IF (m_send%info(2) > 0) THEN
             CALL para_env%send(m_send%task_int, dest, message_tag)
          END IF
-         IF (m_send%info(3) .GT. 0) THEN
+         IF (m_send%info(3) > 0) THEN
             CALL para_env%send(m_send%task_real, dest, message_tag)
          END IF
-         IF (m_send%info(4) .GT. 0) THEN
+         IF (m_send%info(4) > 0) THEN
             CPABORT("")
             !TODO send characters CALL para_env%send(m_send%task_char, dest, message_tag)
          END IF
-         IF (DEBUG .GE. 1) &
+         IF (DEBUG >= 1) &
             WRITE (*, *) "TMC|message: ID: ", para_env%mepos, &
             " send element info to   ", dest, " of stat ", m_send%info(1), &
             " with size int/real/char", m_send%info(2:), " with comm ", &
             para_env%get_handle(), " and tag ", message_tag
-         IF (m_send%info(2) .GT. 0) DEALLOCATE (m_send%task_int)
-         IF (m_send%info(3) .GT. 0) DEALLOCATE (m_send%task_real)
-         IF (m_send%info(4) .GT. 0) DEALLOCATE (m_send%task_char)
+         IF (m_send%info(2) > 0) DEALLOCATE (m_send%task_int)
+         IF (m_send%info(3) > 0) DEALLOCATE (m_send%task_real)
+         IF (m_send%info(4) > 0) DEALLOCATE (m_send%task_char)
          IF (PRESENT(success)) success = .TRUE.
       END IF
 
       ! =============================
       ! broadcast
       ! =============================
-      IF (dest .EQ. bcast_group) THEN
-         IF (para_env%num_pe .GT. 1) THEN
+      IF (dest == bcast_group) THEN
+         IF (para_env%num_pe > 1) THEN
             CALL para_env%bcast(m_send%info, MASTER_COMM_ID)
-            IF (m_send%info(2) .GT. 0) THEN
+            IF (m_send%info(2) > 0) THEN
                IF (.NOT. act_send_recv) ALLOCATE (m_send%task_int(m_send%info(2)))
                CALL para_env%bcast(m_send%task_int, MASTER_COMM_ID)
             END IF
-            IF (m_send%info(3) .GT. 0) THEN
+            IF (m_send%info(3) > 0) THEN
                IF (.NOT. act_send_recv) ALLOCATE (m_send%task_real(m_send%info(3)))
                CALL para_env%bcast(m_send%task_real, MASTER_COMM_ID)
             END IF
-            IF (m_send%info(4) .GT. 0) THEN
+            IF (m_send%info(4) > 0) THEN
                IF (.NOT. act_send_recv) ALLOCATE (m_send%task_char(m_send%info(3)))
                CPABORT("")
                !TODO bcast char CALL para_env%bcast(m_send%task_char, MASTER_COMM_ID)
@@ -244,16 +244,16 @@ CONTAINS
          END IF
          ! sender delete arrays
          IF (act_send_recv) THEN
-            IF (m_send%info(2) .GT. 0) DEALLOCATE (m_send%task_int)
-            IF (m_send%info(3) .GT. 0) DEALLOCATE (m_send%task_real)
-            IF (m_send%info(4) .GT. 0) DEALLOCATE (m_send%task_char)
+            IF (m_send%info(2) > 0) DEALLOCATE (m_send%task_int)
+            IF (m_send%info(3) > 0) DEALLOCATE (m_send%task_real)
+            IF (m_send%info(4) > 0) DEALLOCATE (m_send%task_char)
          END IF
       END IF
 
       ! =============================
       ! receiving message
       ! =============================
-      IF ((act_send_recv .EQV. recv_msg) .AND. dest .NE. bcast_group) THEN
+      IF ((act_send_recv .EQV. recv_msg) .AND. dest /= bcast_group) THEN
          flag = .FALSE.
          tmp_tag = TMC_STATUS_WAIT_FOR_NEW_TASK
          IF (PRESENT(wait_for_message)) THEN
@@ -262,10 +262,10 @@ CONTAINS
             flag = .TRUE.
          ELSE
             participant_loop: DO i = 0, para_env%num_pe - 1
-               IF (i .NE. para_env%mepos) THEN
+               IF (i /= para_env%mepos) THEN
                   dest = i
                   CALL para_env%probe(dest, tmp_tag)
-                  IF (dest .EQ. i) THEN
+                  IF (dest == i) THEN
                      flag = .TRUE.
                      EXIT participant_loop
                   END IF
@@ -278,7 +278,7 @@ CONTAINS
             RETURN
          END IF
 
-         IF (tmp_tag .EQ. TMC_STAT_SCF_STEP_ENER_RECEIVE) THEN
+         IF (tmp_tag == TMC_STAT_SCF_STEP_ENER_RECEIVE) THEN
             ! CP2K send back SCF step energies without info message
             message_tag = TMC_STAT_SCF_STEP_ENER_RECEIVE
             m_send%info(1) = TMC_STAT_SCF_STEP_ENER_RECEIVE
@@ -290,22 +290,22 @@ CONTAINS
             ! first get message type and sizes
             CALL para_env%recv(m_send%info, dest, message_tag)
          END IF
-         IF (DEBUG .GE. 1) &
+         IF (DEBUG >= 1) &
             WRITE (*, *) "TMC|message: ID: ", para_env%mepos, &
             " recv element info from ", dest, " of stat ", m_send%info(1), &
             " with size int/real/char", m_send%info(2:)
          !-- receive message integer part
-         IF (m_send%info(2) .GT. 0) THEN
+         IF (m_send%info(2) > 0) THEN
             ALLOCATE (m_send%task_int(m_send%info(2)))
             CALL para_env%recv(m_send%task_int, dest, message_tag)
          END IF
          !-- receive message double (floatingpoint) part
-         IF (m_send%info(3) .GT. 0) THEN
+         IF (m_send%info(3) > 0) THEN
             ALLOCATE (m_send%task_real(m_send%info(3)))
             CALL para_env%recv(m_send%task_real, dest, message_tag)
          END IF
          !-- receive message character part
-         IF (m_send%info(4) .GT. 0) THEN
+         IF (m_send%info(4) > 0) THEN
             ALLOCATE (m_send%task_char(m_send%info(4)))
             CPABORT("")
             !TODO recv characters CALL para_env%recv(m_send%task_char, dest, message_tag)
@@ -317,11 +317,11 @@ CONTAINS
          ! if the element is supposed to be canceled but received message is not canceling receipt do not handle element
          ! (because element could be already deallocated, and hence a new element would be created -> not necessary)
          IF (PRESENT(elem_array)) THEN
-            IF (elem_array(dest)%canceled .AND. m_send%info(1) .NE. TMC_CANCELING_RECEIPT) THEN
+            IF (elem_array(dest)%canceled .AND. m_send%info(1) /= TMC_CANCELING_RECEIPT) THEN
                msg_type = m_send%info(1)
-               IF (m_send%info(2) .GT. 0) DEALLOCATE (m_send%task_int)
-               IF (m_send%info(3) .GT. 0) DEALLOCATE (m_send%task_real)
-               IF (m_send%info(4) .GT. 0) DEALLOCATE (m_send%task_char)
+               IF (m_send%info(2) > 0) DEALLOCATE (m_send%task_int)
+               IF (m_send%info(3) > 0) DEALLOCATE (m_send%task_real)
+               IF (m_send%info(4) > 0) DEALLOCATE (m_send%task_char)
                ! to check for further messages
                IF (PRESENT(success)) success = .TRUE.
                DEALLOCATE (m_send)
@@ -369,9 +369,9 @@ CONTAINS
                           "try to receive unknown message type "//cp_to_string(msg_type)// &
                           "from source "//cp_to_string(dest))
          END SELECT
-         IF (m_send%info(2) .GT. 0) DEALLOCATE (m_send%task_int)
-         IF (m_send%info(3) .GT. 0) DEALLOCATE (m_send%task_real)
-         IF (m_send%info(4) .GT. 0) DEALLOCATE (m_send%task_char)
+         IF (m_send%info(2) > 0) DEALLOCATE (m_send%task_int)
+         IF (m_send%info(3) > 0) DEALLOCATE (m_send%task_real)
+         IF (m_send%info(4) > 0) DEALLOCATE (m_send%task_char)
          IF (PRESENT(success)) success = .TRUE.
       END IF
 
@@ -440,7 +440,7 @@ CONTAINS
 !    END DO
 !    counter = counter + 1+INT(m_send%task_real(counter))
 !    m_send%task_real(counter) = REAL(message_end_flag, KIND=dp) !message end
-!    CPPostconditionNoFail(INT(m_send%task_real(msg_size_real)).EQ.message_end_flag,cp_failure_level,routineP)
+!    CPPostconditionNoFail(INT(m_send%task_real(msg_size_real))==message_end_flag,cp_failure_level,routineP)
 !  END SUBROUTINE create_atom_mass_message
 !
 !! **************************************************************************************************
@@ -479,7 +479,7 @@ CONTAINS
 !      atoms(i)%mass = m_send%task_real(counter+i)
 !    END DO
 !    counter = counter + 1+INT(m_send%task_real(counter))
-!    CPPostconditionNoFail(INT(m_send%task_real(counter)).EQ.message_end_flag,cp_failure_level,routineP)
+!    CPPostconditionNoFail(INT(m_send%task_real(counter))==message_end_flag,cp_failure_level,routineP)
 !  END SUBROUTINE read_atom_mass_message
 
 ! **************************************************************************************************
@@ -513,7 +513,7 @@ CONTAINS
       IF (tmc_params%cell%orthorhombic) m_send%task_int(counter + 2) = 1
       counter = counter + 3
       m_send%task_int(counter) = message_end_flag
-      CPASSERT(counter .EQ. SIZE(m_send%task_int))
+      CPASSERT(counter == SIZE(m_send%task_int))
 
       !float array with cell vectors
       msg_size_real = 1 + SIZE(tmc_params%cell%hmat) + 1
@@ -525,8 +525,8 @@ CONTAINS
                  [SIZE(tmc_params%cell%hmat)])
       counter = counter + 1 + INT(m_send%task_real(counter))
       m_send%task_real(counter) = REAL(message_end_flag, KIND=dp) !message end
-      CPASSERT(SIZE(m_send%task_real) .EQ. msg_size_real)
-      CPASSERT(INT(m_send%task_real(msg_size_real)) .EQ. message_end_flag)
+      CPASSERT(SIZE(m_send%task_real) == msg_size_real)
+      CPASSERT(INT(m_send%task_real(msg_size_real)) == message_end_flag)
    END SUBROUTINE create_worker_init_message
 
 ! **************************************************************************************************
@@ -544,33 +544,33 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(tmc_params))
       CPASSERT(ASSOCIATED(m_send))
-      CPASSERT(m_send%info(3) .GE. 4)
+      CPASSERT(m_send%info(3) >= 4)
 
       IF (.NOT. ASSOCIATED(tmc_params%cell)) ALLOCATE (tmc_params%cell)
       counter = 1
       !int array
-      flag = INT(m_send%task_int(1)) .EQ. SIZE(tmc_params%cell%perd)
+      flag = INT(m_send%task_int(1)) == SIZE(tmc_params%cell%perd)
       CPASSERT(flag)
       counter = 1 + m_send%task_int(1) + 1
       tmc_params%cell%perd = m_send%task_int(2:counter - 1)
       tmc_params%cell%symmetry_id = m_send%task_int(counter + 1)
       tmc_params%cell%orthorhombic = .FALSE.
-      IF (m_send%task_int(counter + 2) .EQ. 1) tmc_params%cell%orthorhombic = .TRUE.
+      IF (m_send%task_int(counter + 2) == 1) tmc_params%cell%orthorhombic = .TRUE.
       counter = counter + 3
-      CPASSERT(counter .EQ. m_send%info(2))
-      CPASSERT(m_send%task_int(counter) .EQ. message_end_flag)
+      CPASSERT(counter == m_send%info(2))
+      CPASSERT(m_send%task_int(counter) == message_end_flag)
 
       !float array with cell vectors
       counter = 1
-      flag = INT(m_send%task_real(counter)) .EQ. SIZE(tmc_params%cell%hmat)
+      flag = INT(m_send%task_real(counter)) == SIZE(tmc_params%cell%hmat)
       CPASSERT(flag)
       tmc_params%cell%hmat = &
          RESHAPE(m_send%task_real(counter + 1:counter + &
                                   SIZE(tmc_params%cell%hmat)), [3, 3])
       counter = counter + 1 + INT(m_send%task_real(counter))
 
-      CPASSERT(counter .EQ. m_send%info(3))
-      CPASSERT(INT(m_send%task_real(m_send%info(3))) .EQ. message_end_flag)
+      CPASSERT(counter == m_send%info(3))
+      CPASSERT(INT(m_send%task_real(m_send%info(3))) == message_end_flag)
 
    END SUBROUTINE read_worker_init_message
 
@@ -604,7 +604,7 @@ CONTAINS
 
       counter = 1
       msg_size_int = 1 + SIZE(tmc_params%cell%perd) + 1 + 1 + 1 + 1 + SIZE(elem%mol) + 1
-      IF (msg_type .EQ. TMC_STAT_INIT_ANALYSIS) THEN
+      IF (msg_type == TMC_STAT_INIT_ANALYSIS) THEN
          CPASSERT(PRESENT(result_count))
          CPASSERT(ASSOCIATED(result_count))
          msg_size_int = msg_size_int + 1 + SIZE(result_count(1:))
@@ -621,14 +621,14 @@ CONTAINS
       m_send%task_int(counter) = SIZE(elem%mol)
       m_send%task_int(counter + 1:counter + m_send%task_int(counter)) = elem%mol(:)
       counter = counter + 1 + m_send%task_int(counter)
-      IF (msg_type .EQ. TMC_STAT_INIT_ANALYSIS) THEN
+      IF (msg_type == TMC_STAT_INIT_ANALYSIS) THEN
          m_send%task_int(counter) = SIZE(result_count(1:))
          m_send%task_int(counter + 1:counter + m_send%task_int(counter)) = &
             result_count(1:)
          counter = counter + 1 + m_send%task_int(counter)
       END IF
       m_send%task_int(counter) = message_end_flag
-      CPASSERT(counter .EQ. SIZE(m_send%task_int))
+      CPASSERT(counter == SIZE(m_send%task_int))
 
       counter = 0
       !float array with pos, cell vectors, atom_mass
@@ -649,8 +649,8 @@ CONTAINS
       END DO
       counter = counter + 1 + INT(m_send%task_real(counter))
       m_send%task_real(counter) = REAL(message_end_flag, KIND=dp) !message end
-      CPASSERT(SIZE(m_send%task_real) .EQ. msg_size_real)
-      CPASSERT(INT(m_send%task_real(msg_size_real)) .EQ. message_end_flag)
+      CPASSERT(SIZE(m_send%task_real) == msg_size_real)
+      CPASSERT(INT(m_send%task_real(msg_size_real)) == message_end_flag)
 
    END SUBROUTINE create_start_conf_message
 
@@ -679,38 +679,38 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(tmc_params%atoms))
       CPASSERT(ASSOCIATED(m_send))
       CPASSERT(.NOT. ASSOCIATED(elem))
-      CPASSERT(m_send%info(3) .GE. 4)
+      CPASSERT(m_send%info(3) >= 4)
 
       IF (.NOT. ASSOCIATED(tmc_params%cell)) ALLOCATE (tmc_params%cell)
       CALL allocate_new_sub_tree_node(tmc_params=tmc_params, next_el=elem, &
                                       nr_dim=NINT(m_send%task_real(1)))
       counter = 1
       !int array
-      flag = INT(m_send%task_int(1)) .EQ. SIZE(tmc_params%cell%perd)
+      flag = INT(m_send%task_int(1)) == SIZE(tmc_params%cell%perd)
       CPASSERT(flag)
       counter = 1 + m_send%task_int(1) + 1
       tmc_params%cell%perd = m_send%task_int(2:counter - 1)
       tmc_params%cell%symmetry_id = m_send%task_int(counter + 1)
       tmc_params%cell%orthorhombic = .FALSE.
-      IF (m_send%task_int(counter + 2) .EQ. 1) tmc_params%cell%orthorhombic = .TRUE.
+      IF (m_send%task_int(counter + 2) == 1) tmc_params%cell%orthorhombic = .TRUE.
       counter = counter + 3
       elem%mol(:) = m_send%task_int(counter + 1:counter + m_send%task_int(counter))
       counter = counter + 1 + m_send%task_int(counter)
-      IF (msg_type .EQ. TMC_STAT_INIT_ANALYSIS) THEN
+      IF (msg_type == TMC_STAT_INIT_ANALYSIS) THEN
          CPASSERT(PRESENT(result_count))
          CPASSERT(.NOT. ASSOCIATED(result_count))
          ALLOCATE (result_count(m_send%task_int(counter)))
          result_count(:) = m_send%task_int(counter + 1:counter + m_send%task_int(counter))
          counter = counter + 1 + m_send%task_int(counter)
       END IF
-      CPASSERT(counter .EQ. m_send%info(2))
-      CPASSERT(m_send%task_int(counter) .EQ. message_end_flag)
+      CPASSERT(counter == m_send%info(2))
+      CPASSERT(m_send%task_int(counter) == message_end_flag)
 
       counter = 0
       !float array with pos, cell vectors, atom_mass
       counter = 2 + INT(m_send%task_real(1))
       elem%pos = m_send%task_real(2:counter - 1)
-      flag = INT(m_send%task_real(counter)) .EQ. SIZE(tmc_params%cell%hmat)
+      flag = INT(m_send%task_real(counter)) == SIZE(tmc_params%cell%hmat)
       CPASSERT(flag)
       tmc_params%cell%hmat = &
          RESHAPE(m_send%task_real(counter + 1:counter + &
@@ -724,8 +724,8 @@ CONTAINS
       END DO
       counter = counter + 1 + INT(m_send%task_real(counter))
 
-      CPASSERT(counter .EQ. m_send%info(3))
-      CPASSERT(INT(m_send%task_real(m_send%info(3))) .EQ. message_end_flag)
+      CPASSERT(counter == m_send%info(3))
+      CPASSERT(INT(m_send%task_real(m_send%info(3))) == message_end_flag)
 
    END SUBROUTINE read_start_conf_message
 
@@ -765,25 +765,25 @@ CONTAINS
       m_send%task_int(counter + 1:counter + m_send%task_int(counter)) = elem%nr
       counter = counter + 1 + m_send%task_int(counter)
       m_send%task_int(counter) = message_end_flag
-      CPASSERT(SIZE(m_send%task_int) .EQ. msg_size_int)
-      CPASSERT(m_send%task_int(msg_size_int) .EQ. message_end_flag)
+      CPASSERT(SIZE(m_send%task_int) == msg_size_int)
+      CPASSERT(m_send%task_int(msg_size_int) == message_end_flag)
 
       !then float array with pos
       msg_size_real = 1 + SIZE(elem%pos) + 1
-      IF (tmc_params%pressure .GE. 0.0_dp) msg_size_real = msg_size_real + 1 + SIZE(elem%box_scale(:))
+      IF (tmc_params%pressure >= 0.0_dp) msg_size_real = msg_size_real + 1 + SIZE(elem%box_scale(:))
       ALLOCATE (m_send%task_real(msg_size_real))
       m_send%task_real(1) = SIZE(elem%pos)
       counter = 2 + INT(m_send%task_real(1))
       m_send%task_real(2:counter - 1) = elem%pos
-      IF (tmc_params%pressure .GE. 0.0_dp) THEN
+      IF (tmc_params%pressure >= 0.0_dp) THEN
          m_send%task_real(counter) = SIZE(elem%box_scale)
          m_send%task_real(counter + 1:counter + INT(m_send%task_real(counter))) = elem%box_scale(:)
          counter = counter + 1 + INT(m_send%task_real(counter))
       END IF
       m_send%task_real(counter) = REAL(message_end_flag, KIND=dp) !message end
 
-      CPASSERT(SIZE(m_send%task_real) .EQ. msg_size_real)
-      CPASSERT(INT(m_send%task_real(msg_size_real)) .EQ. message_end_flag)
+      CPASSERT(SIZE(m_send%task_real) == msg_size_real)
+      CPASSERT(INT(m_send%task_real(msg_size_real)) == message_end_flag)
    END SUBROUTINE create_energy_request_message
 
 ! **************************************************************************************************
@@ -801,7 +801,7 @@ CONTAINS
       INTEGER                                            :: counter
 
       CPASSERT(ASSOCIATED(m_send))
-      CPASSERT(m_send%info(3) .GT. 0)
+      CPASSERT(m_send%info(3) > 0)
       CPASSERT(ASSOCIATED(tmc_params))
       CPASSERT(.NOT. ASSOCIATED(elem))
 
@@ -811,26 +811,26 @@ CONTAINS
                                          tmc_params=tmc_params)
       END IF
       ! read the integer values
-      CPASSERT(m_send%info(2) .GT. 0)
+      CPASSERT(m_send%info(2) > 0)
       counter = 1
       elem%sub_tree_nr = m_send%task_int(counter + 1)
       counter = counter + 1 + m_send%task_int(counter)
       elem%nr = m_send%task_int(counter + 1)
       counter = counter + 1 + m_send%task_int(counter)
-      CPASSERT(m_send%task_int(counter) .EQ. message_end_flag)
+      CPASSERT(m_send%task_int(counter) == message_end_flag)
 
       !float array with pos
       counter = 0
       counter = 1 + NINT(m_send%task_real(1))
       elem%pos = m_send%task_real(2:counter)
       counter = counter + 1
-      IF (tmc_params%pressure .GE. 0.0_dp) THEN
+      IF (tmc_params%pressure >= 0.0_dp) THEN
          elem%box_scale(:) = m_send%task_real(counter + 1:counter + INT(m_send%task_real(counter)))
          counter = counter + 1 + INT(m_send%task_real(counter))
       END IF
 
-      CPASSERT(counter .EQ. m_send%info(3))
-      CPASSERT(INT(m_send%task_real(m_send%info(3))) .EQ. message_end_flag)
+      CPASSERT(counter == m_send%info(3))
+      CPASSERT(INT(m_send%task_real(m_send%info(3))) == message_end_flag)
    END SUBROUTINE read_energy_request_message
 
 ! **************************************************************************************************
@@ -857,7 +857,7 @@ CONTAINS
       !first integer array
       msg_size_int = 0
       ! for checking the tree element mapping, send back the tree numbers
-      IF (DEBUG .GT. 0) THEN
+      IF (DEBUG > 0) THEN
          msg_size_int = 1 + 1 + 1 + 1 + 1 ! 1+SIZE(elem%sub_tree_nr) +1+SIZE(elem%nr)
          ALLOCATE (m_send%task_int(msg_size_int))
          counter = 1
@@ -892,8 +892,8 @@ CONTAINS
 
       m_send%task_real(counter) = REAL(message_end_flag, KIND=dp) !message end
 
-      CPASSERT(SIZE(m_send%task_real) .EQ. msg_size_real)
-      CPASSERT(INT(m_send%task_real(msg_size_real)) .EQ. message_end_flag)
+      CPASSERT(SIZE(m_send%task_real) == msg_size_real)
+      CPASSERT(INT(m_send%task_real(msg_size_real)) == message_end_flag)
    END SUBROUTINE create_energy_result_message
 
 ! **************************************************************************************************
@@ -912,22 +912,22 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(elem))
       CPASSERT(ASSOCIATED(m_send))
-      CPASSERT(m_send%info(3) .GT. 0)
+      CPASSERT(m_send%info(3) > 0)
       CPASSERT(ASSOCIATED(tmc_params))
 
       ! read the integer values
       ! for checking the tree element mapping, check the tree numbers
-      IF (DEBUG .GT. 0) THEN
+      IF (DEBUG > 0) THEN
          counter = 1
-         IF (elem%sub_tree_nr .NE. m_send%task_int(counter + 1) .OR. &
-             elem%nr .NE. m_send%task_int(counter + 3)) THEN
+         IF (elem%sub_tree_nr /= m_send%task_int(counter + 1) .OR. &
+             elem%nr /= m_send%task_int(counter + 3)) THEN
             WRITE (*, *) "ERROR: read_energy_result: master got energy result of subtree elem ", &
                m_send%task_int(counter + 1), m_send%task_int(counter + 3), &
                " but expect result of subtree elem", elem%sub_tree_nr, elem%nr
             CPABORT("read_energy_result: got energy result from unexpected tree element.")
          END IF
       ELSE
-         CPASSERT(m_send%info(2) .EQ. 0)
+         CPASSERT(m_send%info(2) == 0)
       END IF
 
       !then float array with energy of exact potential
@@ -942,8 +942,8 @@ CONTAINS
          counter = counter + 1 + NINT(m_send%task_real(counter))
       END IF
 
-      CPASSERT(counter .EQ. m_send%info(3))
-      CPASSERT(INT(m_send%task_real(m_send%info(3))) .EQ. message_end_flag)
+      CPASSERT(counter == m_send%info(3))
+      CPASSERT(INT(m_send%task_real(m_send%info(3))) == message_end_flag)
    END SUBROUTINE read_energy_result_message
 
 ! **************************************************************************************************
@@ -971,22 +971,22 @@ CONTAINS
 
       !then float array with energy of exact potential
       msg_size_real = 1 + 1 + 1
-      IF (tmc_params%pressure .GE. 0.0_dp) msg_size_real = msg_size_real + 1 + SIZE(elem%box_scale(:))
+      IF (tmc_params%pressure >= 0.0_dp) msg_size_real = msg_size_real + 1 + SIZE(elem%box_scale(:))
 
       ALLOCATE (m_send%task_real(msg_size_real))
       m_send%task_real(1) = 1
       m_send%task_real(2) = elem%e_pot_approx
       counter = 3
       ! the box size for NpT
-      IF (tmc_params%pressure .GE. 0.0_dp) THEN
+      IF (tmc_params%pressure >= 0.0_dp) THEN
          m_send%task_real(counter) = SIZE(elem%box_scale)
          m_send%task_real(counter + 1:counter + INT(m_send%task_real(counter))) = elem%box_scale(:)
          counter = counter + 1 + INT(m_send%task_real(counter))
       END IF
       m_send%task_real(counter) = REAL(message_end_flag, KIND=dp) !message end
 
-      CPASSERT(SIZE(m_send%task_real) .EQ. msg_size_real)
-      CPASSERT(INT(m_send%task_real(msg_size_real)) .EQ. message_end_flag)
+      CPASSERT(SIZE(m_send%task_real) == msg_size_real)
+      CPASSERT(INT(m_send%task_real(msg_size_real)) == message_end_flag)
    END SUBROUTINE create_approx_energy_result_message
 
 ! **************************************************************************************************
@@ -1005,19 +1005,19 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(elem))
       CPASSERT(ASSOCIATED(m_send))
-      CPASSERT(m_send%info(2) .EQ. 0 .AND. m_send%info(3) .GT. 0)
+      CPASSERT(m_send%info(2) == 0 .AND. m_send%info(3) > 0)
       CPASSERT(ASSOCIATED(tmc_params))
 
       !then float array with energy of exact potential
       elem%e_pot_approx = m_send%task_real(2)
       counter = 3
-      IF (tmc_params%pressure .GE. 0.0_dp) THEN
+      IF (tmc_params%pressure >= 0.0_dp) THEN
          elem%box_scale(:) = m_send%task_real(counter + 1:counter + INT(m_send%task_real(counter)))
          counter = counter + 1 + INT(m_send%task_real(counter))
       END IF
 
-      CPASSERT(counter .EQ. m_send%info(3))
-      CPASSERT(INT(m_send%task_real(m_send%info(3))) .EQ. message_end_flag)
+      CPASSERT(counter == m_send%info(3))
+      CPASSERT(INT(m_send%task_real(m_send%info(3))) == message_end_flag)
    END SUBROUTINE read_approx_energy_result
 
    !============================================================================
@@ -1075,15 +1075,15 @@ CONTAINS
       counter = 0
       !then float array with pos, (vel), random number seed, subbox_center
       msg_size_real = 1 + SIZE(elem%pos) + 1 + SIZE(elem%rng_seed) + 1 + SIZE(elem%subbox_center(:)) + 1
-      IF (msg_type .EQ. TMC_STAT_MD_REQUEST .OR. msg_type .EQ. TMC_STAT_MD_BROADCAST) &
+      IF (msg_type == TMC_STAT_MD_REQUEST .OR. msg_type == TMC_STAT_MD_BROADCAST) &
          msg_size_real = msg_size_real + 1 + SIZE(elem%vel) ! the velocities
-      IF (tmc_params%pressure .GE. 0.0_dp) msg_size_real = msg_size_real + 1 + SIZE(elem%box_scale(:)) ! box size for NpT
+      IF (tmc_params%pressure >= 0.0_dp) msg_size_real = msg_size_real + 1 + SIZE(elem%box_scale(:)) ! box size for NpT
 
       ALLOCATE (m_send%task_real(msg_size_real))
       m_send%task_real(1) = SIZE(elem%pos)
       counter = 2 + INT(m_send%task_real(1))
       m_send%task_real(2:counter - 1) = elem%pos
-      IF (msg_type .EQ. TMC_STAT_MD_REQUEST .OR. msg_type .EQ. TMC_STAT_MD_BROADCAST) THEN
+      IF (msg_type == TMC_STAT_MD_REQUEST .OR. msg_type == TMC_STAT_MD_BROADCAST) THEN
          m_send%task_real(counter) = SIZE(elem%vel)
          m_send%task_real(counter + 1:counter + NINT(m_send%task_real(counter))) = elem%vel
          counter = counter + 1 + NINT(m_send%task_real(counter))
@@ -1097,17 +1097,17 @@ CONTAINS
       m_send%task_real(counter + 1:counter + SIZE(elem%subbox_center)) = elem%subbox_center(:)
       counter = counter + 1 + NINT(m_send%task_real(counter))
       ! the box size for NpT
-      IF (tmc_params%pressure .GE. 0.0_dp) THEN
+      IF (tmc_params%pressure >= 0.0_dp) THEN
          m_send%task_real(counter) = SIZE(elem%box_scale)
          m_send%task_real(counter + 1:counter + INT(m_send%task_real(counter))) = elem%box_scale(:)
          counter = counter + 1 + INT(m_send%task_real(counter))
       END IF
       m_send%task_real(counter) = message_end_flag !message end
 
-      CPASSERT(SIZE(m_send%task_int) .EQ. msg_size_int)
-      CPASSERT(SIZE(m_send%task_real) .EQ. msg_size_real)
-      CPASSERT(m_send%task_int(msg_size_int) .EQ. message_end_flag)
-      CPASSERT(INT(m_send%task_real(msg_size_real)) .EQ. message_end_flag)
+      CPASSERT(SIZE(m_send%task_int) == msg_size_int)
+      CPASSERT(SIZE(m_send%task_real) == msg_size_real)
+      CPASSERT(m_send%task_int(msg_size_int) == message_end_flag)
+      CPASSERT(INT(m_send%task_real(msg_size_real)) == message_end_flag)
    END SUBROUTINE create_NMC_request_massage
 
 ! **************************************************************************************************
@@ -1129,7 +1129,7 @@ CONTAINS
 
       CPASSERT(.NOT. ASSOCIATED(elem))
       CPASSERT(ASSOCIATED(m_send))
-      CPASSERT(m_send%info(2) .GT. 5 .AND. m_send%info(3) .GT. 8)
+      CPASSERT(m_send%info(2) > 5 .AND. m_send%info(3) > 8)
       CPASSERT(ASSOCIATED(tmc_params))
 
       counter = 0
@@ -1154,14 +1154,14 @@ CONTAINS
       counter = counter + 2
       elem%temp_created = m_send%task_int(counter + 1)
       counter = counter + 2
-      CPASSERT(counter .EQ. m_send%info(2))
+      CPASSERT(counter == m_send%info(2))
 
       counter = 0
       !then float array with pos, (vel), subbox_center and temp
       num_dim = NINT(m_send%task_real(1))
       counter = 2 + INT(m_send%task_real(1))
       elem%pos = m_send%task_real(2:counter - 1)
-      IF (msg_type .EQ. TMC_STAT_MD_REQUEST .OR. msg_type .EQ. TMC_STAT_MD_BROADCAST) THEN
+      IF (msg_type == TMC_STAT_MD_REQUEST .OR. msg_type == TMC_STAT_MD_BROADCAST) THEN
          elem%vel = m_send%task_real(counter + 1:counter + NINT(m_send%task_real(counter)))
          counter = counter + NINT(m_send%task_real(counter)) + 1
       END IF
@@ -1172,16 +1172,16 @@ CONTAINS
       elem%subbox_center(:) = m_send%task_real(counter + 1:counter + INT(m_send%task_real(counter)))
       counter = counter + 1 + NINT(m_send%task_real(counter))
 
-      IF (tmc_params%pressure .GE. 0.0_dp) THEN
+      IF (tmc_params%pressure >= 0.0_dp) THEN
          elem%box_scale(:) = m_send%task_real(counter + 1:counter + INT(m_send%task_real(counter)))
          counter = counter + 1 + INT(m_send%task_real(counter))
       ELSE
          elem%box_scale(:) = 1.0_dp
       END IF
 
-      CPASSERT(counter .EQ. m_send%info(3))
-      CPASSERT(m_send%task_int(m_send%info(2)) .EQ. message_end_flag)
-      CPASSERT(INT(m_send%task_real(m_send%info(3))) .EQ. message_end_flag)
+      CPASSERT(counter == m_send%info(3))
+      CPASSERT(m_send%task_int(m_send%info(2)) == message_end_flag)
+      CPASSERT(INT(m_send%task_real(m_send%info(3))) == message_end_flag)
    END SUBROUTINE read_NMC_request_massage
 
    !============================================================================
@@ -1213,14 +1213,14 @@ CONTAINS
       msg_size_int = 1 + SIZE(elem%mol) &
                      + 1 + SIZE(tmc_params%nmc_move_types%mv_count) &
                      + 1 + SIZE(tmc_params%nmc_move_types%acc_count) + 1
-      IF (DEBUG .GT. 0) msg_size_int = msg_size_int + 1 + 1 + 1 + 1
-      IF (.NOT. ANY(tmc_params%sub_box_size .LE. 0.1_dp)) &
+      IF (DEBUG > 0) msg_size_int = msg_size_int + 1 + 1 + 1 + 1
+      IF (.NOT. ANY(tmc_params%sub_box_size <= 0.1_dp)) &
          msg_size_int = msg_size_int + 1 + SIZE(tmc_params%nmc_move_types%subbox_count) &
                         + 1 + SIZE(tmc_params%nmc_move_types%subbox_acc_count)
 
       ALLOCATE (m_send%task_int(msg_size_int))
       counter = 1
-      IF (DEBUG .GT. 0) THEN
+      IF (DEBUG > 0) THEN
          ! send the element number back
          m_send%task_int(counter) = 1
          m_send%task_int(counter + 1) = elem%sub_tree_nr
@@ -1246,7 +1246,7 @@ CONTAINS
                  [SIZE(tmc_params%nmc_move_types%acc_count)])
       counter = counter + 1 + m_send%task_int(counter)
       ! amount of rejected subbox moves
-      IF (.NOT. ANY(tmc_params%sub_box_size .LE. 0.1_dp)) THEN
+      IF (.NOT. ANY(tmc_params%sub_box_size <= 0.1_dp)) THEN
          m_send%task_int(counter) = SIZE(tmc_params%nmc_move_types%subbox_count)
          m_send%task_int(counter + 1:counter + m_send%task_int(counter)) = &
             RESHAPE(tmc_params%nmc_move_types%subbox_count(:, :), &
@@ -1269,8 +1269,8 @@ CONTAINS
                       + 1 + 1 & ! e_pot_approx
                       + 1 ! check bit
 
-      IF (msg_type .EQ. TMC_STAT_MD_REQUEST .OR. msg_type .EQ. TMC_STAT_MD_RESULT .OR. &
-          msg_type .EQ. TMC_STAT_MD_BROADCAST) &
+      IF (msg_type == TMC_STAT_MD_REQUEST .OR. msg_type == TMC_STAT_MD_RESULT .OR. &
+          msg_type == TMC_STAT_MD_BROADCAST) &
          msg_size_real = msg_size_real + 1 + SIZE(elem%vel) + 1 + 1 + 1 + 1 ! for MD also: vel, e_kin_befor_md, ekin
 
       ALLOCATE (m_send%task_real(msg_size_real))
@@ -1293,8 +1293,8 @@ CONTAINS
       m_send%task_real(counter + 1) = elem%e_pot_approx
       counter = counter + 2
       ! for MD also: vel, e_kin_befor_md, ekin
-      IF (msg_type .EQ. TMC_STAT_MD_REQUEST .OR. msg_type .EQ. TMC_STAT_MD_RESULT .OR. &
-          msg_type .EQ. TMC_STAT_MD_BROADCAST) THEN
+      IF (msg_type == TMC_STAT_MD_REQUEST .OR. msg_type == TMC_STAT_MD_RESULT .OR. &
+          msg_type == TMC_STAT_MD_BROADCAST) THEN
          m_send%task_real(counter) = SIZE(elem%vel)
          m_send%task_real(counter + 1:counter + NINT(m_send%task_real(counter))) = elem%vel
          counter = counter + 1 + INT(m_send%task_real(counter))
@@ -1307,10 +1307,10 @@ CONTAINS
       END IF
       m_send%task_real(counter) = message_end_flag ! message end
 
-      CPASSERT(SIZE(m_send%task_int) .EQ. msg_size_int)
-      CPASSERT(SIZE(m_send%task_real) .EQ. msg_size_real)
-      CPASSERT(m_send%task_int(msg_size_int) .EQ. message_end_flag)
-      CPASSERT(INT(m_send%task_real(msg_size_real)) .EQ. message_end_flag)
+      CPASSERT(SIZE(m_send%task_int) == msg_size_int)
+      CPASSERT(SIZE(m_send%task_real) == msg_size_real)
+      CPASSERT(m_send%task_int(msg_size_int) == message_end_flag)
+      CPASSERT(INT(m_send%task_real(msg_size_real)) == message_end_flag)
    END SUBROUTINE create_NMC_result_massage
 
 ! **************************************************************************************************
@@ -1335,13 +1335,13 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(elem))
       CPASSERT(ASSOCIATED(m_send))
-      CPASSERT(m_send%info(2) .GT. 0 .AND. m_send%info(3) .GT. 0)
+      CPASSERT(m_send%info(2) > 0 .AND. m_send%info(3) > 0)
       CPASSERT(ASSOCIATED(tmc_params))
 
       !first integer array with element status, random number seed, and move type
       counter = 1
-      IF (DEBUG .GT. 0) THEN
-         IF ((m_send%task_int(counter + 1) .NE. elem%sub_tree_nr) .AND. (m_send%task_int(counter + 3) .NE. elem%nr)) THEN
+      IF (DEBUG > 0) THEN
+         IF ((m_send%task_int(counter + 1) /= elem%sub_tree_nr) .AND. (m_send%task_int(counter + 3) /= elem%nr)) THEN
             CPABORT("read_NMC_result_massage: got result of wrong element")
          END IF
          counter = counter + 2 + 2
@@ -1364,7 +1364,7 @@ CONTAINS
                                    SIZE(tmc_params%nmc_move_types%acc_count(1, :))])
       counter = counter + 1 + m_send%task_int(counter)
       ! amount of rejected subbox moves
-      IF (.NOT. ANY(tmc_params%sub_box_size .LE. 0.1_dp)) THEN
+      IF (.NOT. ANY(tmc_params%sub_box_size <= 0.1_dp)) THEN
          ALLOCATE (subbox_counter(SIZE(tmc_params%nmc_move_types%subbox_count(:, 1)), &
                                   SIZE(tmc_params%nmc_move_types%subbox_count(1, :))))
          subbox_counter(:, :) = RESHAPE(m_send%task_int(counter + 1:counter + m_send%task_int(counter)), &
@@ -1378,7 +1378,7 @@ CONTAINS
                                              SIZE(tmc_params%nmc_move_types%subbox_acc_count(1, :))])
          counter = counter + 1 + m_send%task_int(counter)
       END IF
-      CPASSERT(counter .EQ. m_send%info(2))
+      CPASSERT(counter == m_send%info(2))
 
       counter = 0
       !then float array with pos, (vel, e_kin_befor_md, ekin), (forces), rng_seed, potential, e_pot_approx
@@ -1396,11 +1396,11 @@ CONTAINS
       elem%e_pot_approx = m_send%task_real(counter + 1)
       counter = counter + 2
       ! for MD also: vel, e_kin_befor_md, ekin
-      IF (msg_type .EQ. TMC_STAT_MD_REQUEST .OR. msg_type .EQ. TMC_STAT_MD_RESULT .OR. &
-          msg_type .EQ. TMC_STAT_MD_BROADCAST) THEN
+      IF (msg_type == TMC_STAT_MD_REQUEST .OR. msg_type == TMC_STAT_MD_RESULT .OR. &
+          msg_type == TMC_STAT_MD_BROADCAST) THEN
          elem%vel = m_send%task_real(counter + 1:counter + NINT(m_send%task_real(counter)))
          counter = counter + 1 + INT(m_send%task_real(counter))
-         IF (.NOT. (tmc_params%task_type .EQ. task_type_gaussian_adaptation)) &
+         IF (.NOT. (tmc_params%task_type == task_type_gaussian_adaptation)) &
             elem%ekin_before_md = m_send%task_real(counter + 1)
          counter = counter + 2
          elem%ekin = m_send%task_real(counter + 1)
@@ -1409,17 +1409,17 @@ CONTAINS
 
       CALL add_mv_prob(move_types=tmc_params%nmc_move_types, prob_opt=tmc_params%esimate_acc_prob, &
                        mv_counter=mv_counter, acc_counter=acc_counter)
-      IF (.NOT. ANY(tmc_params%sub_box_size .LE. 0.1_dp)) THEN
+      IF (.NOT. ANY(tmc_params%sub_box_size <= 0.1_dp)) THEN
          CALL add_mv_prob(move_types=tmc_params%nmc_move_types, prob_opt=tmc_params%esimate_acc_prob, &
                           subbox_counter=subbox_counter, subbox_acc_counter=subbox_acc_counter)
       END IF
 
       DEALLOCATE (mv_counter, acc_counter)
-      IF (.NOT. ANY(tmc_params%sub_box_size .LE. 0.1_dp)) &
+      IF (.NOT. ANY(tmc_params%sub_box_size <= 0.1_dp)) &
          DEALLOCATE (subbox_counter, subbox_acc_counter)
-      CPASSERT(counter .EQ. m_send%info(3))
-      CPASSERT(m_send%task_int(m_send%info(2)) .EQ. message_end_flag)
-      CPASSERT(INT(m_send%task_real(m_send%info(3))) .EQ. message_end_flag)
+      CPASSERT(counter == m_send%info(3))
+      CPASSERT(m_send%task_int(m_send%info(2)) == message_end_flag)
+      CPASSERT(INT(m_send%task_real(m_send%info(3))) == message_end_flag)
    END SUBROUTINE read_NMC_result_massage
 
    !============================================================================
@@ -1460,25 +1460,25 @@ CONTAINS
       m_send%task_int(counter + 1:counter + m_send%task_int(counter)) = list_elem%nr
       counter = counter + 1 + m_send%task_int(counter)
       m_send%task_int(counter) = message_end_flag
-      CPASSERT(SIZE(m_send%task_int) .EQ. msg_size_int)
-      CPASSERT(m_send%task_int(msg_size_int) .EQ. message_end_flag)
+      CPASSERT(SIZE(m_send%task_int) == msg_size_int)
+      CPASSERT(m_send%task_int(msg_size_int) == message_end_flag)
 
       !then float array with pos
       msg_size_real = 1 + SIZE(list_elem%elem%pos) + 1
-      IF (tmc_params%pressure .GE. 0.0_dp) msg_size_real = msg_size_real + 1 + SIZE(list_elem%elem%box_scale(:))
+      IF (tmc_params%pressure >= 0.0_dp) msg_size_real = msg_size_real + 1 + SIZE(list_elem%elem%box_scale(:))
       ALLOCATE (m_send%task_real(msg_size_real))
       m_send%task_real(1) = SIZE(list_elem%elem%pos)
       counter = 2 + INT(m_send%task_real(1))
       m_send%task_real(2:counter - 1) = list_elem%elem%pos
-      IF (tmc_params%pressure .GE. 0.0_dp) THEN
+      IF (tmc_params%pressure >= 0.0_dp) THEN
          m_send%task_real(counter) = SIZE(list_elem%elem%box_scale)
          m_send%task_real(counter + 1:counter + INT(m_send%task_real(counter))) = list_elem%elem%box_scale(:)
          counter = counter + 1 + INT(m_send%task_real(counter))
       END IF
       m_send%task_real(counter) = REAL(message_end_flag, KIND=dp) !message end
 
-      CPASSERT(SIZE(m_send%task_real) .EQ. msg_size_real)
-      CPASSERT(INT(m_send%task_real(msg_size_real)) .EQ. message_end_flag)
+      CPASSERT(SIZE(m_send%task_real) == msg_size_real)
+      CPASSERT(INT(m_send%task_real(msg_size_real)) == message_end_flag)
    END SUBROUTINE create_analysis_request_message
 
 ! **************************************************************************************************
@@ -1496,7 +1496,7 @@ CONTAINS
       INTEGER                                            :: counter
 
       CPASSERT(ASSOCIATED(m_send))
-      CPASSERT(m_send%info(3) .GT. 0)
+      CPASSERT(m_send%info(3) > 0)
       CPASSERT(ASSOCIATED(tmc_params))
       CPASSERT(.NOT. ASSOCIATED(elem))
 
@@ -1506,26 +1506,26 @@ CONTAINS
                                          tmc_params=tmc_params)
       END IF
       ! read the integer values
-      CPASSERT(m_send%info(2) .GT. 0)
+      CPASSERT(m_send%info(2) > 0)
       counter = 1
       elem%sub_tree_nr = m_send%task_int(counter + 1)
       counter = counter + 1 + m_send%task_int(counter)
       elem%nr = m_send%task_int(counter + 1)
       counter = counter + 1 + m_send%task_int(counter)
-      CPASSERT(m_send%task_int(counter) .EQ. message_end_flag)
+      CPASSERT(m_send%task_int(counter) == message_end_flag)
 
       !float array with pos
       counter = 0
       counter = 1 + NINT(m_send%task_real(1))
       elem%pos = m_send%task_real(2:counter)
       counter = counter + 1
-      IF (tmc_params%pressure .GE. 0.0_dp) THEN
+      IF (tmc_params%pressure >= 0.0_dp) THEN
          elem%box_scale(:) = m_send%task_real(counter + 1:counter + INT(m_send%task_real(counter)))
          counter = counter + 1 + INT(m_send%task_real(counter))
       END IF
 
-      CPASSERT(counter .EQ. m_send%info(3))
-      CPASSERT(INT(m_send%task_real(m_send%info(3))) .EQ. message_end_flag)
+      CPASSERT(counter == m_send%info(3))
+      CPASSERT(INT(m_send%task_real(m_send%info(3))) == message_end_flag)
    END SUBROUTINE read_analysis_request_message
 
    !============================================================================
@@ -1568,11 +1568,11 @@ CONTAINS
       INTEGER                                            :: i
 
       CPASSERT(ASSOCIATED(para_env))
-      CPASSERT(source .GE. 0)
-      CPASSERT(source .LT. para_env%num_pe)
+      CPASSERT(source >= 0)
+      CPASSERT(source < para_env%num_pe)
 
       ALLOCATE (msg(SIZE(atoms)))
-      IF (para_env%mepos .EQ. source) THEN
+      IF (para_env%mepos == source) THEN
          DO i = 1, SIZE(atoms)
             msg(i) = atoms(i)%name
          END DO
@@ -1641,7 +1641,7 @@ CONTAINS
       END IF
 
       ! receive stop message receipt
-      IF (para_env%mepos .EQ. MASTER_COMM_ID) THEN
+      IF (para_env%mepos == MASTER_COMM_ID) THEN
          wait_for_receipts: DO
             ! check incomming messages
             stat = TMC_STATUS_WAIT_FOR_NEW_TASK

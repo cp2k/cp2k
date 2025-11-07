@@ -209,7 +209,7 @@ CONTAINS
          !END IF
 
          IF (history%istore(vartype) <= history%nstore .AND. &
-             action .EQ. 1) THEN
+             action == 1) THEN
             !WRITE(*,*) "ZCRE: ispin,istore,vartype", ispin, istore, vartype
             CALL dbcsr_create(history%matrix(ispin, istore, vartype), &
                               template=matrix(ispin))
@@ -218,7 +218,7 @@ CONTAINS
             !END IF
          END IF
 
-         IF (action .EQ. 1) THEN
+         IF (action == 1) THEN
             CALL dbcsr_copy(history%matrix(ispin, istore, vartype), matrix(ispin))
          ELSE
             CALL dbcsr_add(history%matrix(ispin, istore, vartype), matrix(ispin), -1.0_dp, 1.0_dp)
@@ -228,7 +228,7 @@ CONTAINS
 
       ! allow the pointer to move forward only if deltas are stored (action==2)
       ! otherwise return the pointer to the previous value
-      IF (action .EQ. 1) THEN
+      IF (action == 1) THEN
          history%istore(vartype) = history%istore(vartype) - 1
       END IF
 
@@ -258,7 +258,7 @@ CONTAINS
       !   unit_nr = -1
       !ENDIF
 
-      IF (history%istore(1) .NE. history%istore(2)) THEN
+      IF (history%istore(1) /= history%istore(2)) THEN
          CPABORT("BFGS APIs are not used correctly")
       END IF
 
@@ -291,7 +291,7 @@ CONTAINS
 
             ! use the most recent term to
             ! compute gamma_k, Nocedal (7.20) and then get H0
-            IF (iterm .EQ. 1) THEN
+            IF (iterm == 1) THEN
                CALL dbcsr_dot(history%matrix(ispin, istore, 2), history%matrix(ispin, istore, 2), gammak)
                gammak = 1.0_dp/(gammak*history%rho(ispin, istore))
                !IF (unit_nr > 0) THEN

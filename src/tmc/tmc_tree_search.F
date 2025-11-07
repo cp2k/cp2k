@@ -203,7 +203,7 @@ CONTAINS
          ! test which direction is more likely
          !   and set result pointer and probability,
          ! remembering the direction
-         IF (prob_n_acc .GE. prob_n_nacc) THEN
+         IF (prob_n_acc >= prob_n_nacc) THEN
             prob = prob_n_acc
             global_tree_elem => ptr_acc
             n_acc = tmp_acc
@@ -250,18 +250,18 @@ CONTAINS
       stat = status_created
       ! set status for master
       !   (if TMC_STATUS_WAIT_FOR_NEW_TASK, no calculation necessary)
-      IF (.NOT. ASSOCIATED(new_gt_elem) .OR. (EXP(prob) .LT. 1.0E-10)) THEN
+      IF (.NOT. ASSOCIATED(new_gt_elem) .OR. (EXP(prob) < 1.0E-10)) THEN
          stat = TMC_STATUS_WAIT_FOR_NEW_TASK
       ELSE
          ! reactivate canceled elements
-         IF (new_gt_elem%conf(new_gt_elem%mv_conf)%elem%stat .EQ. &
+         IF (new_gt_elem%conf(new_gt_elem%mv_conf)%elem%stat == &
              status_canceled_ener) THEN
             CALL add_to_references(gt_elem=new_gt_elem)
             react_count = react_count + 1
             new_gt_elem%conf(new_gt_elem%mv_conf)%elem%stat = status_created
          END IF
          ! if elem status is not status_created
-         IF (new_gt_elem%conf(new_gt_elem%mv_conf)%elem%stat .NE. status_created) THEN
+         IF (new_gt_elem%conf(new_gt_elem%mv_conf)%elem%stat /= status_created) THEN
             stat = TMC_STATUS_WAIT_FOR_NEW_TASK
          END IF
       END IF
@@ -523,9 +523,9 @@ CONTAINS
       ready = .TRUE.
       ! if prob present select the related branch
       IF (PRESENT(prob)) THEN
-         IF (prob .LT. 1.0E-10 .AND. ASSOCIATED(pt_elem_in%acc)) THEN
+         IF (prob < 1.0E-10 .AND. ASSOCIATED(pt_elem_in%acc)) THEN
             pt_elem => pt_elem_in%acc
-         ELSE IF (prob .GT. (1.0_dp - 1.0E-10) .AND. ASSOCIATED(pt_elem_in%nacc)) THEN
+         ELSE IF (prob > (1.0_dp - 1.0E-10) .AND. ASSOCIATED(pt_elem_in%nacc)) THEN
             pt_elem => pt_elem_in%nacc
          ELSE
             ready = .FALSE.
@@ -588,7 +588,7 @@ CONTAINS
 
       CPASSERT(ASSOCIATED(global_tree_ptr))
       CPASSERT(ASSOCIATED(counters))
-      CPASSERT(SIZE(counters(1:)) .EQ. SIZE(global_tree_ptr%conf(:)))
+      CPASSERT(SIZE(counters(1:)) == SIZE(global_tree_ptr%conf(:)))
 
       ! start the timing
       CALL timeset(routineN, handle)
@@ -634,7 +634,7 @@ CONTAINS
          END IF
       CASE (status_created, status_calculate_MD, status_calculate_NMC_steps, &
             status_calc_approx_ener, status_calculated, status_calculate_energy)
-         IF (tree_ptr%stat .EQ. status_created) counter = counter + 1
+         IF (tree_ptr%stat == status_created) counter = counter + 1
          IF (ASSOCIATED(tree_ptr%acc)) THEN
             tmp_ptr => tree_ptr%acc
             CALL count_prepared_nodes_in_subtree(tmp_ptr, counter)
@@ -680,7 +680,7 @@ CONTAINS
       CPASSERT(ASSOCIATED(global_tree_ptr))
       CPASSERT(ASSOCIATED(end_of_clean_trees))
       CPASSERT(ASSOCIATED(counters))
-      CPASSERT(SIZE(counters(1:)) .EQ. SIZE(global_tree_ptr%conf(:)))
+      CPASSERT(SIZE(counters(1:)) == SIZE(global_tree_ptr%conf(:)))
 
       ! start the timing
       CALL timeset(routineN, handle)

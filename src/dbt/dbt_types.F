@@ -268,7 +268,7 @@ CONTAINS
       #:endfor
 
       #:for idim in range(1, maxdim+1)
-         IF (SIZE(t%dims) .GE. ${idim}$) THEN
+         IF (SIZE(t%dims) >= ${idim}$) THEN
             nblks = SIZE(dist_${idim}$)
             ALLOCATE (blks_tmp(nblks))
             iblk_count = 0
@@ -452,7 +452,7 @@ CONTAINS
                   dims(idim) = pdim
                   pdims_rem = pdims_rem/dims(idim)
 
-                  IF (idim .NE. SIZE(tensor_dims_sorted)) THEN
+                  IF (idim /= SIZE(tensor_dims_sorted)) THEN
                      dims(idim + 1:) = 0
                      CALL mp_dims_create(pdims_rem, dims(idim + 1:))
                   ELSEIF (lb_ratio_prv < 0.5_dp) THEN
@@ -719,7 +719,7 @@ CONTAINS
 
             CALL timeset(routineN, handle)
             ndims = SIZE(map1_2d) + SIZE(map2_2d)
-            CPASSERT(ndims .GE. 2 .AND. ndims .LE. ${maxdim}$)
+            CPASSERT(ndims >= 2 .AND. ndims <= ${maxdim}$)
 
             CALL create_array_list(nd_dist, ndims, ${varlist("nd_dist")}$)
 
@@ -756,7 +756,7 @@ CONTAINS
             comm_2d = pgrid_prv%mp_comm_2d
 
             pdims_2d_check = comm_2d%num_pe_cart
-            IF (ANY(pdims_2d_check .NE. pdims_2d)) THEN
+            IF (ANY(pdims_2d_check /= pdims_2d)) THEN
                CPABORT("inconsistent process grid dimensions")
             END IF
 
@@ -982,7 +982,7 @@ CONTAINS
             ALLOCATE (nfull_local(ndims))
             nfull_local(:) = 0
             #:for idim in range(1, maxdim+1)
-               IF (ndims .GE. ${idim}$) THEN
+               IF (ndims >= ${idim}$) THEN
                   nblks_local(${idim}$) = COUNT(dist_${idim}$ == task_coor(${idim}$))
                   ALLOCATE (blks_local_${idim}$ (nblks_local(${idim}$)))
                   iblk_count = 0

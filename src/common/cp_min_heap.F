@@ -176,7 +176,7 @@ CONTAINS
       INTEGER(KIND=valt), INTENT(OUT)                    :: value
       LOGICAL, INTENT(OUT)                               :: found
 
-      IF (heap%n .LT. 1) THEN
+      IF (heap%n < 1) THEN
          found = .FALSE.
       ELSE
          found = .TRUE.
@@ -203,7 +203,7 @@ CONTAINS
 
       CALL cp_heap_get_first(heap, key, value, found)
       IF (found) THEN
-         IF (heap%n .GT. 1) THEN
+         IF (heap%n > 1) THEN
             CALL cp_heap_copy_node(heap, 1, heap%n)
             heap%n = heap%n - 1
             CALL bubble_down(heap, 1)
@@ -316,30 +316,30 @@ CONTAINS
       all_done = .FALSE.
       ! Check whether we are finished, i.e,. whether the element to
       ! bubble down is childless.
-      DO WHILE (e .LE. get_parent(heap%n) .AND. .NOT. all_done)
+      DO WHILE (e <= get_parent(heap%n) .AND. .NOT. all_done)
          ! Determines which node (current, left, or right child) has the
          ! smallest value.
          smallest = e
          min_value = get_value(heap, e)
          left_child = get_left_child(e)
-         IF (left_child .LE. heap%n) THEN
+         IF (left_child <= heap%n) THEN
             left_child_value = get_value(heap, left_child)
-            IF (left_child_value .LT. min_value) THEN
+            IF (left_child_value < min_value) THEN
                min_value = left_child_value
                smallest = left_child
             END IF
          END IF
          right_child = left_child + 1
-         IF (right_child .LE. heap%n) THEN
+         IF (right_child <= heap%n) THEN
             right_child_value = get_value(heap, right_child)
-            IF (right_child_value .LT. min_value) THEN
+            IF (right_child_value < min_value) THEN
                min_value = right_child_value
                smallest = right_child
             END IF
          END IF
          !
          CALL cp_heap_swap(heap, e, smallest)
-         IF (smallest .EQ. e) THEN
+         IF (smallest == e) THEN
             all_done = .TRUE.
          ELSE
             e = smallest
@@ -366,18 +366,18 @@ CONTAINS
 
       e = first
       all_done = .FALSE.
-      IF (e .GT. 1) THEN
+      IF (e > 1) THEN
          my_value = get_value(heap, e)
       END IF
       ! Check whether we are finished, i.e,. whether the element to
       ! bubble up is an orphan.
       new_pos = e
-      DO WHILE (e .GT. 1 .AND. .NOT. all_done)
+      DO WHILE (e > 1 .AND. .NOT. all_done)
          ! Switches the parent and the current element if the current
          ! element's value is greater than the parent's value.
          parent = get_parent(e)
          parent_value = get_value(heap, parent)
-         IF (my_value .LT. parent_value) THEN
+         IF (my_value < parent_value) THEN
             CALL cp_heap_swap(heap, e, parent)
             e = parent
          ELSE

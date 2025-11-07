@@ -147,7 +147,7 @@ CONTAINS
             CALL section_vals_val_get(update_section, "RESULT_SCALE", i_rep_section=i_rep, r_val=result_scale)
 
             mark_ind = 1
-            IF (mark_number .GT. 0) result_mo_index = marked_states(mark_number, result_spin_index, mark_ind)
+            IF (mark_number > 0) result_mo_index = marked_states(mark_number, result_spin_index, mark_ind)
 
             ! The MO that will be added to the previous one, 'x'
             CALL section_vals_val_get(update_section, "ORIG_TYPE", i_rep_section=i_rep, &
@@ -159,7 +159,7 @@ CONTAINS
             CALL section_vals_val_get(update_section, "ORIG_SCALE", i_rep_section=i_rep, r_val=orig_scale)
 
             IF (orig_type == wfn_mix_orig_virtual) mark_ind = 2
-            IF (mark_number .GT. 0) orig_mo_index = marked_states(mark_number, orig_spin_index, mark_ind)
+            IF (mark_number > 0) orig_mo_index = marked_states(mark_number, orig_spin_index, mark_ind)
 
             CALL section_vals_val_get(wfn_mix_section, "OVERWRITE_MOS", l_val=overwrite_mos)
 

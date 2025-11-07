@@ -1121,7 +1121,7 @@ CONTAINS
             iatom = atom_from_RI_index(row_indices(irow))
             jatom = atom_from_RI_index(col_indices(jcol))
 
-            IF (iatom .NE. iatom_old .OR. jatom .NE. jatom_old) THEN
+            IF (iatom /= iatom_old .OR. jatom /= jatom_old) THEN
 
                ! symmetrize=.FALSE. necessary since we already have a symmetrized index_to_cell
                CALL compute_weight_re_im(weight_re, weight_im, &

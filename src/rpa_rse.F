@@ -243,7 +243,7 @@ CONTAINS
             j_global = col_indices(jjB)
             DO iiB = 1, nrow_local
                i_global = row_indices(iiB)
-               IF ((i_global .LE. homo(ispin)) .AND. (j_global .GT. homo(ispin))) THEN
+               IF ((i_global <= homo(ispin)) .AND. (j_global > homo(ispin))) THEN
                   corr = corr + fm_X_mo(ispin)%local_data(iib, jjb)**2.0_dp/ &
                          (eigenval(i_global, ispin) - eigenval(j_global, ispin) - diag_diff(i_global) + diag_diff(j_global))
                END IF
@@ -518,7 +518,7 @@ CONTAINS
             j_global = col_indices(jjB)
             DO iiB = 1, nrow_local
                i_global = row_indices(iiB)
-               IF (i_global .EQ. j_global) fm_F_mo(ispin)%local_data(iib, jjb) = &
+               IF (i_global == j_global) fm_F_mo(ispin)%local_data(iib, jjb) = &
                   fm_F_mo(ispin)%local_data(iib, jjb) + eigenval(i_global, ispin)
             END DO
          END DO

@@ -170,7 +170,7 @@ CONTAINS
       CALL force_env_get(force_env, force_env_section=force_env_section, &
                          qs_env=qs_env)
       CALL section_vals_val_get(force_env_section, "METHOD", i_val=force_method)
-      CPASSERT(force_method .EQ. do_qs)
+      CPASSERT(force_method == do_qs)
       root_section => force_env%root_section
       subsys_section => section_vals_get_subs_vals(force_env_section, "SUBSYS")
       dft_section => section_vals_get_subs_vals(force_env_section, "DFT")
@@ -198,12 +198,12 @@ CONTAINS
             tot_isize = last_atom_of_frag(nfrags) - first_atom_of_frag(1) + 1 !! Get total number of atoms (assume consecutive atoms)
             !! Check that number of added MOs matches the number of atoms
             !! (to ensure compatibility, since each fragment will be computed with such parameters)
-            IF (tot_isize .NE. tot_added_mos) THEN
+            IF (tot_isize /= tot_added_mos) THEN
                CPABORT("ALMO smearing currently requires ADDED_MOS == total number of atoms")
             END IF
             !! Get total number of MOs
             CALL get_qs_env(qs_env, mos=mos)
-            IF (SIZE(mos) .GT. 1) CPABORT("Unrestricted ALMO methods are NYI") !! Unrestricted ALMO is not implemented yet
+            IF (SIZE(mos) > 1) CPABORT("Unrestricted ALMO methods are NYI") !! Unrestricted ALMO is not implemented yet
             CALL get_mo_set(mo_set=mos(1), nmo=nmo)
             !! Initialize storage of MO energies for ALMO smearing
             CPASSERT(ASSOCIATED(almo_scf_env))
@@ -310,7 +310,7 @@ CONTAINS
          !
          mscfg_env%energy_of_frag(ifrag) = qs_energy%total
          nmosets_of_frag = SIZE(mos_of_frag)
-         CPASSERT(nmosets_of_frag .LE. mscfg_max_moset_size)
+         CPASSERT(nmosets_of_frag <= mscfg_max_moset_size)
          mscfg_env%nmosets_of_frag(ifrag) = nmosets_of_frag
          DO imo = 1, nmosets_of_frag
             !! Forcing compatibility for ALMO smearing
@@ -439,7 +439,7 @@ CONTAINS
       CALL force_env_get(force_env, force_env_section=force_env_section)
       CALL section_vals_val_get(force_env_section, "METHOD", i_val=method_name_id)
 
-      IF (method_name_id .EQ. do_qs) THEN
+      IF (method_name_id == do_qs) THEN
 
          CALL force_env_get(force_env, qs_env=qs_env)
          CPASSERT(ASSOCIATED(qs_env))
@@ -473,17 +473,17 @@ CONTAINS
          frz_term_type = almo_frz_none
 
          ! Are we doing the loop ?
-         IF (scf_guess_type .EQ. molecular_guess .OR. & ! SCF guess is molecular
-             (almo_guess_type .EQ. molecular_guess .AND. almo_scf_is_on) .OR. & ! ALMO SCF guess is molecular
-             frz_term_type .NE. almo_frz_none) THEN ! ALMO FRZ term is requested
+         IF (scf_guess_type == molecular_guess .OR. & ! SCF guess is molecular
+             (almo_guess_type == molecular_guess .AND. almo_scf_is_on) .OR. & ! ALMO SCF guess is molecular
+             frz_term_type /= almo_frz_none) THEN ! ALMO FRZ term is requested
 
             do_mol_loop = .TRUE.
 
             ! If we are calculating molecular guess it is OK to do fast and dirty loop
             ! It is NOT ok to be sloppy with ALMO EDA calculations of the FRZ term
-            IF (frz_term_type .NE. almo_frz_none) THEN
+            IF (frz_term_type /= almo_frz_none) THEN
                is_fast_dirty = .FALSE.
-               IF (frz_term_type .EQ. almo_frz_crystal) THEN
+               IF (frz_term_type == almo_frz_crystal) THEN
                   is_crystal = .TRUE.
                END IF
             END IF

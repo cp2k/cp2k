@@ -184,8 +184,8 @@ CONTAINS
       ALLOCATE (next_el%elem_stat(nr_dim))
       next_el%elem_stat = status_ok
       ALLOCATE (next_el%subbox_center(tmc_params%dim_per_elem))
-      IF (tmc_params%print_forces .OR. tmc_params%task_type .EQ. task_type_gaussian_adaptation) THEN
-         IF (tmc_params%task_type .EQ. task_type_gaussian_adaptation) THEN
+      IF (tmc_params%print_forces .OR. tmc_params%task_type == task_type_gaussian_adaptation) THEN
+         IF (tmc_params%task_type == task_type_gaussian_adaptation) THEN
             ALLOCATE (next_el%frc(nr_dim*nr_dim))
          ELSE
             ALLOCATE (next_el%frc(nr_dim))
@@ -314,7 +314,7 @@ CONTAINS
          global_tree%conf(i)%elem%temp_created = i
          global_tree%conf(i)%elem%stat = status_calculate_energy
          !it is default already: global_tree%conf(i)%elem%box_scale(:)  = 1.0_dp
-         IF (tmc_env%params%task_type .EQ. task_type_gaussian_adaptation) THEN
+         IF (tmc_env%params%task_type == task_type_gaussian_adaptation) THEN
             global_tree%conf(i)%elem%vel(:) = start_elem%vel(:)
             global_tree%conf(i)%elem%frc(:) = start_elem%frc(:)
             global_tree%conf(i)%elem%potential = start_elem%potential
@@ -330,8 +330,8 @@ CONTAINS
 
          !-- gaussian distributed velocities
          !-- calculating the kinetic energy of the initial configuration velocity
-         IF (tmc_env%params%task_type .EQ. task_type_MC) THEN
-            IF (tmc_env%params%move_types%mv_weight(mv_type_MD) .GT. 0.0_dp) THEN
+         IF (tmc_env%params%task_type == task_type_MC) THEN
+            IF (tmc_env%params%move_types%mv_weight(mv_type_MD) > 0.0_dp) THEN
                CALL init_vel(vel=global_tree%conf(i)%elem%vel, atoms=tmc_env%params%atoms, &
                              temerature=tmc_env%params%Temp(i), &
                              rng_stream=tmc_env%rng_stream, &
@@ -364,13 +364,13 @@ CONTAINS
 
       ! simulated annealing start temperature
       global_tree%Temp = tmc_env%params%Temp(1)
-      IF (tmc_env%params%nr_temp .NE. 1 .AND. tmc_env%m_env%temp_decrease .NE. 1.0_dp) &
+      IF (tmc_env%params%nr_temp /= 1 .AND. tmc_env%m_env%temp_decrease /= 1.0_dp) &
          CALL cp_abort(__LOCATION__, &
                        "there is no parallel tempering implementation for simulated annealing implemented "// &
                        "(just one Temp per global tree element.")
 
       !-- IF program is restarted, read restart file
-      IF (tmc_env%m_env%restart_in_file_name .NE. "") THEN
+      IF (tmc_env%m_env%restart_in_file_name /= "") THEN
          CALL read_restart_file(tmc_env=tmc_env, job_counts=job_counts, &
                                 timings=worker_timings, &
                                 file_name=tmc_env%m_env%restart_in_file_name)
@@ -387,10 +387,10 @@ CONTAINS
          !TODO enable calculation of the approx energy for case of fitting potential
          !     and changing the potential in between
          !     BUT check, there is no double counting (of the last/restarted elem) in the trajectory
-         !IF(tmc_env%params%NMC_inp_file.NE."") &
+         !IF(tmc_env%params%NMC_inp_file/="") &
          !  global_tree%conf(1)%elem%stat  = status_calc_approx_ener
          global_tree%stat = status_accepted_result
-      ELSE IF (tmc_env%params%NMC_inp_file .NE. "") THEN
+      ELSE IF (tmc_env%params%NMC_inp_file /= "") THEN
          global_tree%conf(1)%elem%stat = status_calc_approx_ener
       ELSE
          global_tree%conf(1)%elem%stat = status_created
@@ -442,11 +442,11 @@ CONTAINS
          gt_tree_ptr%conf(i)%elem%stat = status_accepted_result
          IF (ASSOCIATED(gt_tree_ptr%conf(1)%elem%dipole)) &
             gt_tree_ptr%conf(i)%elem%dipole = gt_tree_ptr%conf(1)%elem%dipole
-         IF (tmc_env%m_env%restart_in_file_name .EQ. "") &
+         IF (tmc_env%m_env%restart_in_file_name == "") &
             gt_tree_ptr%conf(i)%elem%potential = gt_tree_ptr%conf(1)%elem%potential
       END DO
 
-      IF (tmc_env%m_env%restart_in_file_name .EQ. "") THEN
+      IF (tmc_env%m_env%restart_in_file_name == "") THEN
          tmc_env%m_env%result_count(:) = tmc_env%m_env%result_count(:) + 1
          tmc_env%m_env%result_list(:) = gt_tree_ptr%conf(:)
          !-- write initial elements in result files
@@ -456,7 +456,7 @@ CONTAINS
                                            conf_updated=i, accepted=.TRUE., &
                                            tmc_params=tmc_env%params)
             ! save for analysis
-            IF (tmc_env%tmc_comp_set%para_env_m_ana%num_pe .GT. 1) THEN
+            IF (tmc_env%tmc_comp_set%para_env_m_ana%num_pe > 1) THEN
                CALL add_to_list(elem=tmc_env%m_env%result_list(i)%elem, &
                                 list=tmc_env%m_env%analysis_list, &
                                 nr=tmc_env%m_env%result_count(i), &
@@ -517,7 +517,7 @@ CONTAINS
       CALL most_prob_end(global_tree_elem=tmp_elem, prob=prob, n_acc=n_acc)
 
       keep_on = .TRUE.
-      IF (ASSOCIATED(tmp_elem) .AND. (EXP(prob) .LT. 1.0E-10)) THEN
+      IF (ASSOCIATED(tmp_elem) .AND. (EXP(prob) < 1.0E-10)) THEN
          new_elem => NULL()
          stat = TMC_STATUS_FAILED
          keep_on = .FALSE.
@@ -570,13 +570,13 @@ CONTAINS
             CASE (mv_type_MD)
                new_elem%conf(new_elem%mv_conf)%elem%stat = status_calculate_MD
             CASE (mv_type_NMC_moves)
-               IF (new_elem%conf(new_elem%mv_conf)%elem%stat .NE. status_canceled_nmc) &
+               IF (new_elem%conf(new_elem%mv_conf)%elem%stat /= status_canceled_nmc) &
                   CALL cp_warn(__LOCATION__, &
                                "reactivating tree element with wrong status"// &
                                cp_to_string(new_elem%conf(new_elem%mv_conf)%elem%stat))
                new_elem%conf(new_elem%mv_conf)%elem%stat = status_calculate_NMC_steps
 
-               !IF(DEBUG.GE.1) WRITE(tmc_out_file_nr,*)"ATTENTION: reactivation of canceled subtree ", &
+               !IF(DEBUG>=1) WRITE(tmc_out_file_nr,*)"ATTENTION: reactivation of canceled subtree ", &
                !  new_elem%conf(new_elem%mv_conf)%elem%sub_tree_nr, "elem", new_elem%conf(new_elem%mv_conf)%elem%nr, &
                !  " of existing gt elem ",new_elem%nr,", again calculate NMC steps"
             CASE (mv_type_atom_trans, mv_type_mol_trans, mv_type_mol_rot, &
@@ -668,7 +668,7 @@ CONTAINS
             ! swap moves are not part of the subtree structure,
             !  because existing elements from DIFFERENT subtrees are swaped
             ! -- do swap ?!
-            IF (tmc_env%params%move_types%mv_weight(mv_type_swap_conf) .GE. rnd) THEN
+            IF (tmc_env%params%move_types%mv_weight(mv_type_swap_conf) >= rnd) THEN
                ! set the index for the swaping element
                !  and the conf to move in next move
                new_elem%mv_next_conf = new_elem%mv_conf
@@ -746,10 +746,10 @@ CONTAINS
       END IF ! keep on (checking and creating)
 
       IF (keep_on) THEN ! status changes
-         IF (new_elem%stat .EQ. status_accepted_result .OR. &
-             new_elem%stat .EQ. status_accepted .OR. &
-             new_elem%stat .EQ. status_rejected .OR. &
-             new_elem%stat .EQ. status_rejected_result) &
+         IF (new_elem%stat == status_accepted_result .OR. &
+             new_elem%stat == status_accepted .OR. &
+             new_elem%stat == status_rejected .OR. &
+             new_elem%stat == status_rejected_result) &
             CPABORT("selected existing RESULT gt node")
          !-- set status of global tree element for decision in master routine
          SELECT CASE (new_elem%conf(new_elem%mv_conf)%elem%stat)
@@ -763,7 +763,7 @@ CONTAINS
                                      tmc_params=tmc_env%params)
          CASE (status_calc_approx_ener)
             new_elem%stat = new_elem%conf(new_elem%mv_conf)%elem%stat
-            IF (stat .NE. status_calculated) THEN
+            IF (stat /= status_calculated) THEN
                stat = new_elem%conf(new_elem%mv_conf)%elem%stat
                IF (tmc_env%params%DRAW_TREE) &
                   CALL create_dot_color(tree_element=new_elem%conf(new_elem%mv_conf)%elem, &
@@ -773,7 +773,7 @@ CONTAINS
                status_calculate_NMC_steps, status_created)
             ! if not already in progress, set status for new task message
             new_elem%stat = new_elem%conf(new_elem%mv_conf)%elem%stat
-            IF (stat .NE. status_calculated) THEN
+            IF (stat /= status_calculated) THEN
                stat = new_elem%conf(new_elem%mv_conf)%elem%stat
                IF (tmc_env%params%DRAW_TREE) &
                   CALL create_dot_color(tree_element=new_elem%conf(new_elem%mv_conf)%elem, &
@@ -810,8 +810,8 @@ CONTAINS
 
          ! set stat TMC_STATUS_WAIT_FOR_NEW_TASK if no new calculation necessary
          !   (energy calculation nodes searched by different routine)
-         IF (stat .EQ. TMC_STATUS_FAILED) stat = TMC_STATUS_WAIT_FOR_NEW_TASK
-         IF (stat .EQ. status_calculated) stat = TMC_STATUS_WAIT_FOR_NEW_TASK
+         IF (stat == TMC_STATUS_FAILED) stat = TMC_STATUS_WAIT_FOR_NEW_TASK
+         IF (stat == status_calculated) stat = TMC_STATUS_WAIT_FOR_NEW_TASK
       END IF
       ! end the timing
       CALL timestop(handle)
@@ -876,7 +876,7 @@ CONTAINS
       new_elem%next_elem_nr => parent_elem%next_elem_nr
       new_elem%sub_tree_nr = parent_elem%sub_tree_nr
       new_elem%box_scale = parent_elem%box_scale
-      IF (tmc_env%params%task_type .EQ. task_type_gaussian_adaptation) THEN
+      IF (tmc_env%params%task_type == task_type_gaussian_adaptation) THEN
          new_elem%frc(:) = parent_elem%frc(:)
          new_elem%potential = parent_elem%potential
          new_elem%ekin_before_md = parent_elem%ekin_before_md
@@ -893,7 +893,7 @@ CONTAINS
 
       ! set the temperature for the NMC moves
       rnd = tmc_env%rng_stream%next()
-      IF (tmc_env%params%NMC_inp_file .NE. "") THEN
+      IF (tmc_env%params%NMC_inp_file /= "") THEN
          new_elem%temp_created = INT(tmc_env%params%nr_temp*rnd) + 1
       ELSE
          new_elem%temp_created = act_gt_el%mv_conf
@@ -939,7 +939,7 @@ CONTAINS
             mv_type_volume_move)
          new_subbox = .TRUE.
          ! volume move on whole cell
-         IF (new_elem%move_type .EQ. mv_type_volume_move) THEN
+         IF (new_elem%move_type == mv_type_volume_move) THEN
             new_subbox = .FALSE.
          END IF
          CALL change_pos(tmc_params=tmc_env%params, &
@@ -953,7 +953,7 @@ CONTAINS
             new_elem%stat = status_calculated
          ELSE
             new_elem%stat = status_created
-            IF (tmc_env%params%NMC_inp_file .NE. "") &
+            IF (tmc_env%params%NMC_inp_file /= "") &
                new_elem%stat = status_calc_approx_ener
          END IF
       CASE (mv_type_gausian_adapt)
@@ -999,7 +999,7 @@ CONTAINS
       CALL remove_gt_references(gt_ptr=gt_ptr, tmc_env=tmc_env)
 
       ! set status and draw in tree
-      IF ((gt_ptr%stat .EQ. status_accepted_result) .OR. (gt_ptr%stat .EQ. status_rejected_result)) THEN
+      IF ((gt_ptr%stat == status_accepted_result) .OR. (gt_ptr%stat == status_rejected_result)) THEN
          gt_ptr%stat = status_deleted_result
       ELSE
          gt_ptr%stat = status_deleted
@@ -1089,8 +1089,8 @@ CONTAINS
 
          IF (ready) THEN
             ! set status and draw in tree
-            IF ((ptr%stat .EQ. status_accepted_result) .OR. &
-                (ptr%stat .EQ. status_rejected_result)) THEN
+            IF ((ptr%stat == status_accepted_result) .OR. &
+                (ptr%stat == status_rejected_result)) THEN
                ptr%stat = status_deleted_result
             ELSE
                ptr%stat = status_deleted
@@ -1246,7 +1246,7 @@ CONTAINS
             nacc_removed = .TRUE.
          END IF
 
-         !IF (DEBUG.GE.20) WRITE(tmc_out_file_nr,*)"try to dealloc: node", begin_ptr%nr," sides are removed: ", &
+         !IF (DEBUG>=20) WRITE(tmc_out_file_nr,*)"try to dealloc: node", begin_ptr%nr," sides are removed: ", &
          !                                          acc_removed, nacc_removed
 
          !-- deallocate node if NO child node exist
@@ -1292,7 +1292,7 @@ CONTAINS
                   END IF
                END DO
                IF (removed) THEN
-                  !IF (DEBUG.GE.20) WRITE(tmc_out_file_nr,*)"deallocation of node ", begin_ptr%nr, "with status ", begin_ptr%stat
+                  !IF (DEBUG>=20) WRITE(tmc_out_file_nr,*)"deallocation of node ", begin_ptr%nr, "with status ", begin_ptr%stat
                   ! if all groups are finished with this element, we can deallocate
                   CALL remove_st_elem(ptr=tmp_ptr, draw=.TRUE., tmc_env=tmc_env)
                   IF (.NOT. ASSOCIATED(tmp_ptr)) THEN
@@ -1340,7 +1340,7 @@ CONTAINS
       !-- new tree head has no parent
       IF (.NOT. ASSOCIATED(actual_ptr, end_of_clean_tree)) THEN
          !-- deallocate node
-         !IF(DEBUG.GE.20) WRITE(tmc_out_file_nr,*)"dealloc gt result tree element: ",actual_ptr%nr
+         !IF(DEBUG>=20) WRITE(tmc_out_file_nr,*)"dealloc gt result tree element: ",actual_ptr%nr
          tmp_ptr => actual_ptr
          CALL remove_gt_elem(gt_ptr=tmp_ptr, draw=.TRUE., tmc_env=tmc_env)
          actual_ptr => tmp_ptr
@@ -1452,7 +1452,7 @@ CONTAINS
             change_trajec = .TRUE.
          tmc_env%m_env%gt_head => tmc_env%m_env%gt_clean_end
          CPASSERT(.NOT. ASSOCIATED(tmc_env%m_env%gt_head%parent))
-         !IF (DEBUG.GE.20) WRITE(tmc_out_file_nr,*)"new head of pt tree is ",tmc_env%m_env%gt_head%nr
+         !IF (DEBUG>=20) WRITE(tmc_out_file_nr,*)"new head of pt tree is ",tmc_env%m_env%gt_head%nr
       END IF
 
       !-- deallocate the subtrees
@@ -1461,10 +1461,10 @@ CONTAINS
          ! get last checked element in trajectory related to the subtree (resultlist order is NOT subtree order)
          conf_loop: DO i = 1, SIZE(tmc_env%m_env%result_list)
             last_acc_st_elem => tmc_env%m_env%result_list(i)%elem
-            IF (last_acc_st_elem%sub_tree_nr .EQ. tree) &
+            IF (last_acc_st_elem%sub_tree_nr == tree) &
                EXIT conf_loop
          END DO conf_loop
-         CPASSERT(last_acc_st_elem%sub_tree_nr .EQ. tree)
+         CPASSERT(last_acc_st_elem%sub_tree_nr == tree)
          CALL remove_unused_s_tree(begin_ptr=tmc_env%m_env%st_clean_ends(tree)%elem, &
                                    end_ptr=last_acc_st_elem, working_elem_list=working_elem_list, &
                                    removed=flag, tmc_env=tmc_env)
@@ -1475,11 +1475,11 @@ CONTAINS
       IF (tmc_env%params%USE_REDUCED_TREE .AND. change_trajec) THEN
          DO tree = 1, tmc_env%params%nr_temp
             tmp_ptr => tmc_env%m_env%st_clean_ends(tree)%elem
-            CPASSERT(tmp_ptr%sub_tree_nr .EQ. tree)
+            CPASSERT(tmp_ptr%sub_tree_nr == tree)
             CALL remove_result_s_tree(end_of_clean_tree=tmc_env%m_env%st_clean_ends(tree)%elem, &
                                       actual_ptr=tmp_ptr, tmc_env=tmc_env)
             tmc_env%m_env%st_heads(tree)%elem => tmc_env%m_env%st_clean_ends(tree)%elem
-            !IF(DEBUG.GE.20) &
+            !IF(DEBUG>=20) &
             !  WRITE(tmc_out_file_nr,*)"new head of tree ",tree," is ",&
             !        tmc_env%m_env%st_heads(tree)%elem%nr
          END DO

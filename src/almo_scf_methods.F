@@ -584,7 +584,7 @@ CONTAINS
 
          !!!!!! use intermediate matrices to get the error vector !!!!!!!
          !!!!!! make sure s_blk_sqrt and its inverse exist (i.e. we use diag algorithm)
-         CPASSERT(almo_scf_env%almo_update_algorithm .EQ. almo_scf_diag)
+         CPASSERT(almo_scf_env%almo_update_algorithm == almo_scf_diag)
          ! tmp_err = (1-S.T_blk.SigInv.tr(T_blk)).F.T_blk.SigInv
          CALL dbcsr_create(matrix_tmp_err, &
                            template=almo_scf_env%matrix_t_blk(ispin))
@@ -799,7 +799,7 @@ CONTAINS
          DO idomain = 1, ndomains
 
             ! check if the submatrix exists
-            IF (subm_ks_xx_orthog(idomain)%domain .GT. 0) THEN
+            IF (subm_ks_xx_orthog(idomain)%domain > 0) THEN
 
                iblock_size = subm_ks_xx_orthog(idomain)%nrows
 
@@ -818,10 +818,10 @@ CONTAINS
                ! Allocate the workspace and solve the eigenproblem
                ALLOCATE (WORK(MAX(1, LWORK)))
                CALL dsyev('V', 'L', iblock_size, data_copy, iblock_size, eigenvalues, WORK, LWORK, INFO)
-               IF (INFO .NE. 0) CPABORT("DSYEV failed")
+               IF (INFO /= 0) CPABORT("DSYEV failed")
 
                ! Copy occupied eigenvectors
-               IF (almo_scf_env%domain_t(idomain, ispin)%ncols .NE. &
+               IF (almo_scf_env%domain_t(idomain, ispin)%ncols /= &
                    almo_scf_env%nocc_of_domain(idomain, ispin)) THEN
                   CPABORT("wrong domain structure")
                END IF
@@ -940,13 +940,13 @@ CONTAINS
          DO WHILE (dbcsr_iterator_blocks_left(iter))
             CALL dbcsr_iterator_next_block(iter, iblock_row, iblock_col, data_p, row_size=iblock_size)
 
-            IF (iblock_row .NE. iblock_col) THEN
+            IF (iblock_row /= iblock_col) THEN
                CPABORT("off-diagonal block found")
             END IF
 
             block_needed = .TRUE.
-            IF (almo_scf_env%nocc_of_domain(iblock_col, ispin) .EQ. 0 .AND. &
-                almo_scf_env%nvirt_of_domain(iblock_col, ispin) .EQ. 0) THEN
+            IF (almo_scf_env%nocc_of_domain(iblock_col, ispin) == 0 .AND. &
+                almo_scf_env%nvirt_of_domain(iblock_col, ispin) == 0) THEN
                block_needed = .FALSE.
             END IF
 
@@ -967,7 +967,7 @@ CONTAINS
                ! Allocate the workspace and solve the eigenproblem
                ALLOCATE (WORK(MAX(1, LWORK)))
                CALL dsyev('V', 'L', iblock_size, data_copy, iblock_size, eigenvalues, WORK, LWORK, INFO)
-               IF (INFO .NE. 0) CPABORT("DSYEV failed")
+               IF (INFO /= 0) CPABORT("DSYEV failed")
 
                !!! RZK-warning                                               !!!
                !!! IT IS EXTREMELY IMPORTANT THAT THE DIAGONAL BLOCKS OF THE !!!
@@ -977,7 +977,7 @@ CONTAINS
 
                ! copy eigenvectors into two dbcsr matrices - occupied and virtuals
                nocc_of_block = almo_scf_env%nocc_of_domain(iblock_col, ispin)
-               IF (nocc_of_block .GT. 0) THEN
+               IF (nocc_of_block > 0) THEN
                   CALL dbcsr_put_block(matrix_t_blk_orthog, iblock_row, iblock_col, &
                                        block=data_copy(:, 1:nocc_of_block))
                   ! copy eigenvalues into diagonal dbcsr matrix - Eoo
@@ -1005,7 +1005,7 @@ CONTAINS
 
                ! now virtuals
                nvirt_of_block = almo_scf_env%nvirt_of_domain(iblock_col, ispin)
-               IF (nvirt_of_block .GT. 0) THEN
+               IF (nvirt_of_block > 0) THEN
                   CALL dbcsr_put_block(matrix_v_blk_orthog, iblock_row, iblock_col, &
                                        block=data_copy(:, (nocc_of_block + 1):(nocc_of_block + nvirt_of_block)))
                   ! virtual energies
@@ -1201,7 +1201,7 @@ CONTAINS
                ! Allocate the workspace and solve the eigenproblem
                ALLOCATE (WORK(MAX(1, LWORK)))
                CALL dsyev('V', 'L', iblock_size, data_copy, iblock_size, eigenvalues, WORK, LWORK, INFO)
-               IF (INFO .NE. 0) THEN
+               IF (INFO /= 0) THEN
                   IF (unit_nr > 0) THEN
                      WRITE (unit_nr, *) 'BLOCK  = ', iblock_row
                      WRITE (unit_nr, *) 'INFO   =', INFO
@@ -2075,7 +2075,7 @@ CONTAINS
       operator2_required = .FALSE.
       matrix_trimmer_required = .FALSE.
 
-      IF (my_action .EQ. 1) operator2_required = .TRUE.
+      IF (my_action == 1) operator2_required = .TRUE.
 
       IF (my_use_trimmer) THEN
          matrix_trimmer_required = .TRUE.
@@ -2107,11 +2107,11 @@ CONTAINS
       !!!TRIM            dpattern,map,node_of_domain,select_row)
       !!!TRIM ENDIF
 
-      IF (my_action .EQ. 0) THEN
+      IF (my_action == 0) THEN
          ! for example, apply preconditioner
          CALL multiply_submatrices('N', 'N', 1.0_dp, operator1, &
                                    subm_in, 0.0_dp, subm_out)
-      ELSE IF (my_action .EQ. 1) THEN
+      ELSE IF (my_action == 1) THEN
          ! use for projectors
          CALL copy_submatrices(subm_in, subm_out, .TRUE.)
          CALL multiply_submatrices('N', 'N', 1.0_dp, operator1, &
@@ -2219,8 +2219,8 @@ CONTAINS
       matrix_trimmer_required = .FALSE.
       matrix_r_required = .FALSE.
 
-      IF (my_action .EQ. -1) matrix_s_inv_required = .TRUE.
-      IF (my_action .EQ. -1) matrix_r_required = .TRUE.
+      IF (my_action == -1) matrix_s_inv_required = .TRUE.
+      IF (my_action == -1) matrix_r_required = .TRUE.
       IF (my_use_trimmer) THEN
          matrix_trimmer_required = .TRUE.
          CPABORT("TRIMMED PRECONDITIONER DISABLED!")
@@ -2269,7 +2269,7 @@ CONTAINS
       !!!TRIM            dpattern,map,node_of_domain,select_row)
       !!!TRIM ENDIF
 
-      IF (my_action .EQ. -1) THEN
+      IF (my_action == -1) THEN
          ! project out the local occupied space
          !tmp=MATMUL(subm_r(idomain)%mdata,Minv)
          !Minv=MATMUL(tmp,subm_main(idomain)%mdata)
@@ -2300,10 +2300,10 @@ CONTAINS
          DO idomain = 1, ndomains
 
             ! check if the submatrix exists
-            IF (subm_main(idomain)%domain .GT. 0) THEN
+            IF (subm_main(idomain)%domain > 0) THEN
 
                ! find sizes of MO submatrices
-               IF (idomain .EQ. 1) THEN
+               IF (idomain == 1) THEN
                   index1_start = 1
                ELSE
                   index1_start = map%index1(idomain - 1)
@@ -2427,8 +2427,8 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       CALL dbcsr_get_info(dpattern, nblkcols_total=ndomains)
-      CPASSERT(SIZE(subm_s_sqrt) .EQ. ndomains)
-      CPASSERT(SIZE(subm_s_sqrt_inv) .EQ. ndomains)
+      CPASSERT(SIZE(subm_s_sqrt) == ndomains)
+      CPASSERT(SIZE(subm_s_sqrt_inv) == ndomains)
       ALLOCATE (subm_s(ndomains))
       CALL init_submatrices(subm_s)
 
@@ -2439,7 +2439,7 @@ CONTAINS
       DO idomain = 1, ndomains
 
          ! check if the submatrix exists
-         IF (subm_s(idomain)%domain .GT. 0) THEN
+         IF (subm_s(idomain)%domain > 0) THEN
 
             naos = subm_s(idomain)%nrows
 
@@ -2500,7 +2500,7 @@ CONTAINS
 
       CALL dbcsr_get_info(dpattern, nblkcols_total=ndomains)
 
-      CPASSERT(SIZE(subm_s_inv) .EQ. ndomains)
+      CPASSERT(SIZE(subm_s_inv) == ndomains)
       ALLOCATE (subm_s(ndomains))
       CALL init_submatrices(subm_s)
 
@@ -2511,7 +2511,7 @@ CONTAINS
       DO idomain = 1, ndomains
 
          ! check if the submatrix exists
-         IF (subm_s(idomain)%domain .GT. 0) THEN
+         IF (subm_s(idomain)%domain > 0) THEN
 
             naos = subm_s(idomain)%nrows
 
@@ -2590,7 +2590,7 @@ CONTAINS
       CALL dbcsr_release(m_tmp_no_2)
 
       CALL dbcsr_get_info(dpattern, nblkcols_total=ndomains)
-      CPASSERT(SIZE(subm_r_down) .EQ. ndomains)
+      CPASSERT(SIZE(subm_r_down) == ndomains)
 
       CALL construct_submatrices(matrix_r, subm_r_down, &
                                  dpattern, map, node_of_domain, select_row_col)
@@ -2638,12 +2638,12 @@ CONTAINS
       END IF
 
       !CALL dpotrf('L', N, Ainv, N, INFO )
-      !IF( INFO.NE.0 ) THEN
+      !IF( INFO/=0 ) THEN
       !   CPErrorMessage(cp_failure_level,routineP,"DPOTRF failed")
       !   CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
       !END IF
       !CALL dpotri('L', N, Ainv, N, INFO )
-      !IF( INFO.NE.0 ) THEN
+      !IF( INFO/=0 ) THEN
       !   CPErrorMessage(cp_failure_level,routineP,"DPOTRI failed")
       !   CPPrecondition(.FALSE.,cp_failure_level,routineP,failure)
       !END IF
@@ -2666,7 +2666,7 @@ CONTAINS
       ! Allocate the workspace and solve the eigenproblem
       ALLOCATE (WORK(MAX(1, LWORK)))
       CALL dsyev('V', 'L', N, Asqrtinv, N, eigenvalues, WORK, LWORK, INFO)
-      IF (INFO .NE. 0) THEN
+      IF (INFO /= 0) THEN
          IF (unit_nr > 0) WRITE (unit_nr, *) 'DSYEV ERROR MESSAGE: ', INFO
          CPABORT("DSYEV failed")
       END IF
@@ -2762,7 +2762,7 @@ CONTAINS
          unit_nr = -1
       END IF
 
-      IF (method .EQ. 1) THEN
+      IF (method == 1) THEN
 
          IF ((PRESENT(range1) .AND. (.NOT. PRESENT(range2))) .OR. (PRESENT(range2) .AND. (.NOT. PRESENT(range1)))) THEN
             CPABORT("range1 and range2 must be provided together")
@@ -2826,7 +2826,7 @@ CONTAINS
          ALLOCATE (WORK(MAX(1, LWORK)))
          CALL dsyev('V', 'L', N, Ainv, N, eigenvalues, WORK, LWORK, INFO)
 
-         IF (INFO .NE. 0) THEN
+         IF (INFO /= 0) THEN
             IF (unit_nr > 0) WRITE (unit_nr, *) 'EIGENSYSTEM ERROR MESSAGE: ', INFO
             CPABORT("Eigenproblem routine failed")
          END IF
@@ -2847,7 +2847,7 @@ CONTAINS
 
          IF (use_both) THEN
             DO jj = 1, N
-               IF ((jj .LE. range2) .AND. (eigenvalues(jj) .LT. range1_thr)) THEN
+               IF ((jj <= range2) .AND. (eigenvalues(jj) < range1_thr)) THEN
                   temp1(jj, :) = temp2(:, jj)*0.0_dp
                   IF (PRESENT(bad_modes_projector_down)) temp3(jj, :) = Ainv(:, jj)*1.0_dp
                   range1_eiv = range1_eiv + 1
@@ -2860,11 +2860,11 @@ CONTAINS
          ELSE
             IF (use_ranges_only) THEN
                DO jj = 1, N
-                  IF (jj .LE. range1) THEN
+                  IF (jj <= range1) THEN
                      temp1(jj, :) = temp2(:, jj)*0.0_dp
                      IF (PRESENT(bad_modes_projector_down)) temp3(jj, :) = Ainv(:, jj)*1.0_dp
                      range1_eiv = range1_eiv + 1
-                  ELSE IF (jj .LE. range2) THEN
+                  ELSE IF (jj <= range2) THEN
                      temp1(jj, :) = temp2(:, jj)*1.0_dp
                      IF (PRESENT(bad_modes_projector_down)) temp3(jj, :) = Ainv(:, jj)*1.0_dp
                      range2_eiv = range2_eiv + 1
@@ -2876,7 +2876,7 @@ CONTAINS
                END DO
             ELSE IF (use_thr_only) THEN
                DO jj = 1, N
-                  IF (eigenvalues(jj) .LT. range1_thr) THEN
+                  IF (eigenvalues(jj) < range1_thr) THEN
                      temp1(jj, :) = temp2(:, jj)*0.0_dp
                      IF (PRESENT(bad_modes_projector_down)) temp3(jj, :) = Ainv(:, jj)*1.0_dp
                      range1_eiv = range1_eiv + 1
@@ -3018,7 +3018,7 @@ CONTAINS
       ALLOCATE (WORK(MAX(1, LWORK)))
       CALL dsyev('V', 'L', N, Apow, N, eigenvalues, WORK, LWORK, INFO)
 
-      IF (INFO .NE. 0) THEN
+      IF (INFO /= 0) THEN
          IF (unit_nr > 0) WRITE (unit_nr, *) 'EIGENSYSTEM ERROR MESSAGE: ', INFO
          CPABORT("Eigenproblem routine failed")
       END IF
@@ -3038,7 +3038,7 @@ CONTAINS
 
       IF (use_both) THEN
          DO jj = 1, N
-            IF ((jj .LE. range1) .AND. (eigenvalues(jj) .LT. range1_thr)) THEN
+            IF ((jj <= range1) .AND. (eigenvalues(jj) < range1_thr)) THEN
                temp1(jj, :) = temp2(:, jj)*0.0_dp
                range1_eiv = range1_eiv + 1
             ELSE
@@ -3048,7 +3048,7 @@ CONTAINS
       ELSE
          IF (use_ranges) THEN
             DO jj = 1, N
-               IF (jj .LE. range1) THEN
+               IF (jj <= range1) THEN
                   temp1(jj, :) = temp2(:, jj)*0.0_dp
                   range1_eiv = range1_eiv + 1
                ELSE
@@ -3058,7 +3058,7 @@ CONTAINS
          ELSE
             IF (use_thr) THEN
                DO jj = 1, N
-                  IF (eigenvalues(jj) .LT. range1_thr) THEN
+                  IF (eigenvalues(jj) < range1_thr) THEN
                      temp1(jj, :) = temp2(:, jj)*0.0_dp
 
                      range1_eiv = range1_eiv + 1

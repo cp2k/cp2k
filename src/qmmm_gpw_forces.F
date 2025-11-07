@@ -338,7 +338,7 @@ CONTAINS
             IF (qmmm_env%image_charge) THEN
                DO iatom = 1, qmmm_env%num_image_mm_atoms
                   image_IndMM = qmmm_env%image_charge_pot%image_mm_list(iatom)
-                  IF (image_IndMM .EQ. IndMM) THEN
+                  IF (image_IndMM == IndMM) THEN
                      Forces(:, Imm) = Forces(:, Imm) &
                                       + qmmm_env%image_charge_pot%image_forcesMM(:, iatom)
                   END IF
@@ -359,7 +359,7 @@ CONTAINS
             END DO
          END IF
          DEALLOCATE (Forces_added_charges)
-         IF (qmmm_env%added_shells%num_mm_atoms .GT. 0) THEN
+         IF (qmmm_env%added_shells%num_mm_atoms > 0) THEN
             DO Imm = 1, qmmm_env%added_shells%num_mm_atoms
                IndMM = qmmm_env%added_shells%mm_core_index(Imm)
                ! Hack: In Forces there the gradients indeed...
@@ -470,7 +470,7 @@ CONTAINS
       me = grids(auxbas_grid)%pw_grid%para%group%mepos
       glb = rho%pw_grid%bounds(1, :)
       gub = rho%pw_grid%bounds(2, :)
-      IF ((pos_of_x(glb(1)) .EQ. me) .AND. (pos_of_x(gub(1)) .EQ. me)) THEN
+      IF ((pos_of_x(glb(1)) == me) .AND. (pos_of_x(gub(1)) == me)) THEN
          DO k = lb(3), ub(3)
             DO j = lb(2), ub(2)
                grids(auxbas_grid)%array(ub(1) + 1, j, k) = rho%array(lb(1), j, k)
@@ -481,14 +481,14 @@ CONTAINS
             grids(auxbas_grid)%array(ub(1) + 1, j, ub(3) + 1) = rho%array(lb(1), j, lb(3))
          END DO
          grids(auxbas_grid)%array(ub(1) + 1, ub(2) + 1, ub(3) + 1) = rho%array(lb(1), lb(2), lb(3))
-      ELSE IF (pos_of_x(glb(1)) .EQ. me) THEN
+      ELSE IF (pos_of_x(glb(1)) == me) THEN
          ALLOCATE (tmp(rho%pw_grid%bounds_local(1, 2):rho%pw_grid%bounds_local(2, 2), &
                        rho%pw_grid%bounds_local(1, 3):rho%pw_grid%bounds_local(2, 3)))
          tmp = rho%array(lb(1), :, :)
          CALL group%isend(msgin=tmp, dest=pos_of_x(rho%pw_grid%bounds(2, 1)), &
                           request=request, tag=112)
          CALL request%wait()
-      ELSE IF (pos_of_x(gub(1)) .EQ. me) THEN
+      ELSE IF (pos_of_x(gub(1)) == me) THEN
          ALLOCATE (tmp(rho%pw_grid%bounds_local(1, 2):rho%pw_grid%bounds_local(2, 2), &
                        rho%pw_grid%bounds_local(1, 3):rho%pw_grid%bounds_local(2, 3)))
          CALL group%irecv(msgout=tmp, source=pos_of_x(rho%pw_grid%bounds(1, 1)), &
@@ -546,7 +546,7 @@ CONTAINS
                                            qmmm_env%spherical_cutoff, shells)
       END IF
 
-      IF (qmmm_env%added_shells%num_mm_atoms .GT. 0) THEN
+      IF (qmmm_env%added_shells%num_mm_atoms > 0) THEN
          shells = .TRUE.
          CALL qmmm_force_with_gaussian_low(grids, qmmm_env%added_shells%added_particles, &
                                            qmmm_env%added_shells%mm_core_chrg, &

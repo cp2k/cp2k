@@ -151,7 +151,7 @@ CONTAINS
          ps_implicit_env%times_called = 0
 
 ! dct env
-         IF (boundary_condition .EQ. MIXED_BC .OR. boundary_condition .EQ. NEUMANN_BC) THEN
+         IF (boundary_condition == MIXED_BC .OR. boundary_condition == NEUMANN_BC) THEN
             CALL dct_type_init(pw_pool%pw_grid, neumann_directions, ps_implicit_env%dct_env)
          END IF
 
@@ -159,7 +159,7 @@ CONTAINS
          CALL dirichlet_boundary_region_setup(pw_pool, poisson_params, ps_implicit_env%contacts)
          CALL ps_implicit_prepare_blocks(pw_pool, dct_pw_grid, green, poisson_params, ps_implicit_env)
          ! release tiles if they are not supposed to be written into cube files
-         IF ((boundary_condition .EQ. MIXED_PERIODIC_BC .OR. boundary_condition .EQ. MIXED_BC) .AND. &
+         IF ((boundary_condition == MIXED_PERIODIC_BC .OR. boundary_condition == MIXED_BC) .AND. &
              (.NOT. poisson_params%dbc_params%do_dbc_cube)) THEN
             n_contacts = SIZE(ps_implicit_env%contacts)
             DO j = 1, n_contacts
@@ -218,7 +218,7 @@ CONTAINS
       times_called = ps_implicit_env%times_called
 
 ! check if this is the first scf iteration
-      IF (times_called .EQ. 0) CALL ps_implicit_initial_guess_create(ps_implicit_env, pw_pool)
+      IF (times_called == 0) CALL ps_implicit_initial_guess_create(ps_implicit_env, pw_pool)
 
       CALL pw_pool%create_pw(g)
       CALL pw_pool%create_pw(v_old)
@@ -268,13 +268,13 @@ CONTAINS
             CALL ps_implicit_report_ehartree(ps_implicit_env, outp_unit, ehartree)
             ps_implicit_env%ehartree = ehartree
          ELSE
-            IF (outp_unit .GT. 0) WRITE (outp_unit, '(A1,/)')
+            IF (outp_unit > 0) WRITE (outp_unit, '(A1,/)')
          END IF
 
          iter = iter + 1
-         reached_max_iter = iter .GT. max_iter
-         reached_tol = pres_error .LE. tol
-         IF (pres_error .GT. large_error) &
+         reached_max_iter = iter > max_iter
+         reached_tol = pres_error <= tol
+         IF (pres_error > large_error) &
             CPABORT("Poisson solver did not converge.")
          ps_implicit_env%times_called = ps_implicit_env%times_called + 1
          IF (reached_max_iter .OR. reached_tol) EXIT
@@ -286,7 +286,7 @@ CONTAINS
       END DO
       CALL ps_implicit_print_convergence_msg(iter, max_iter, outp_unit)
 
-      IF ((times_called .NE. 0) .AND. (.NOT. use_zero_initial_guess)) &
+      IF ((times_called /= 0) .AND. (.NOT. use_zero_initial_guess)) &
          CALL pw_copy(v_new, ps_implicit_env%initial_guess)
 
       IF (PRESENT(ehartree)) ehartree = ps_implicit_env%ehartree
@@ -373,7 +373,7 @@ CONTAINS
       CALL pw_pool_create(pw_pool_xpndd, pw_grid=poisson_env%dct_pw_grid)
 
 ! check if this is the first scf iteration
-      IF (times_called .EQ. 0) CALL ps_implicit_initial_guess_create(ps_implicit_env, pw_pool_xpndd)
+      IF (times_called == 0) CALL ps_implicit_initial_guess_create(ps_implicit_env, pw_pool_xpndd)
 
       CALL pw_pool_xpndd%create_pw(g)
       CALL pw_pool_xpndd%create_pw(v_old)
@@ -433,13 +433,13 @@ CONTAINS
             CALL ps_implicit_report_ehartree(ps_implicit_env, outp_unit, ehartree/vol_scfac)
             ps_implicit_env%ehartree = ehartree/vol_scfac
          ELSE
-            IF (outp_unit .GT. 0) WRITE (outp_unit, '(A1,/)')
+            IF (outp_unit > 0) WRITE (outp_unit, '(A1,/)')
          END IF
 
          iter = iter + 1
-         reached_max_iter = iter .GT. max_iter
-         reached_tol = pres_error .LE. tol
-         IF (pres_error .GT. large_error) &
+         reached_max_iter = iter > max_iter
+         reached_tol = pres_error <= tol
+         IF (pres_error > large_error) &
             CPABORT("Poisson solver did not converge.")
          ps_implicit_env%times_called = ps_implicit_env%times_called + 1
          IF (reached_max_iter .OR. reached_tol) EXIT
@@ -454,7 +454,7 @@ CONTAINS
       CALL pw_shrink(neumann_directions, dct_env%dests_shrink, dct_env%srcs_shrink, &
                      dct_env%bounds_local_shftd, v_new_xpndd, v_new)
 
-      IF ((times_called .NE. 0) .AND. (.NOT. use_zero_initial_guess)) &
+      IF ((times_called /= 0) .AND. (.NOT. use_zero_initial_guess)) &
          CALL pw_copy(v_new_xpndd, ps_implicit_env%initial_guess)
 
       IF (PRESENT(ehartree)) ehartree = ps_implicit_env%ehartree
@@ -558,7 +558,7 @@ CONTAINS
       END IF
 
 ! check if this is the first scf iteration
-      IF (times_called .EQ. 0) CALL ps_implicit_initial_guess_create(ps_implicit_env, pw_pool)
+      IF (times_called == 0) CALL ps_implicit_initial_guess_create(ps_implicit_env, pw_pool)
 
       ALLOCATE (B(n_tiles_tot, data_size))
       ALLOCATE (Bt(data_size, n_tiles_tot))
@@ -613,7 +613,7 @@ CONTAINS
       CALL apply_poisson_operator_fft(pw_pool, green, dielectric, v_old, res_old)
       CALL pw_scale(res_old, -1.0_dp)
       CALL pw_axpy(g, res_old)
-      IF (data_size .NE. 0) THEN
+      IF (data_size /= 0) THEN
          CALL DGEMV('N', data_size, n_tiles_tot, 1.0_dp, Bt, data_size, lambda_old, 1, 0.0_dp, Btxlambda_old, 1)
       END IF
       CALL convert_1dto3d(ps_implicit_env%idx_1dto3d, Btxlambda_old, Btxlambda_old3D)
@@ -653,7 +653,7 @@ CONTAINS
          v_new%array = v_new%array + eta/ngpts
 
 ! evaluate B^t * \lambda_new
-         IF (data_size .NE. 0) THEN
+         IF (data_size /= 0) THEN
             CALL DGEMV('N', data_size, n_tiles_tot, 1.0_dp, Bt, data_size, lambda_new, 1, 0.0_dp, Btxlambda_new, 1)
          END IF
          CALL convert_1dto3d(ps_implicit_env%idx_1dto3d, Btxlambda_new, Btxlambda_new3D)
@@ -677,7 +677,7 @@ CONTAINS
             ps_implicit_env%ehartree = ehartree
             ps_implicit_env%electric_enthalpy = electric_enthalpy
          ELSE
-            IF (outp_unit .GT. 0) WRITE (outp_unit, '(A1,/)')
+            IF (outp_unit > 0) WRITE (outp_unit, '(A1,/)')
          END IF
 
 ! verbose output
@@ -685,7 +685,7 @@ CONTAINS
             v_new1D(ps_implicit_env%idx_1dto3d) = RESHAPE(v_new%array, [data_size])
             CALL DGEMV('N', n_tiles_tot, data_size, 1.0_dp, B, n_tiles_tot, v_new1D, 1, 0.0_dp, Bxv_new, 1)
             CALL pw_grid%para%group%sum(Bxv_new)
-            IF (outp_unit .GT. 0) THEN
+            IF (outp_unit > 0) THEN
                WRITE (outp_unit, '(T3,A,A)') "======== verbose ", REPEAT('=', 61)
                WRITE (outp_unit, '(T20,A)') "Drgn       tile      vhartree      lambda "
                WRITE (outp_unit, '(T19,A)') REPEAT('-', 46)
@@ -702,10 +702,10 @@ CONTAINS
 
 ! check the convergence
          iter = iter + 1
-         reached_max_iter = iter .GT. max_iter
-         reached_tol = pres_error .LE. tol
+         reached_max_iter = iter > max_iter
+         reached_tol = pres_error <= tol
          ps_implicit_env%times_called = ps_implicit_env%times_called + 1
-         IF (pres_error .GT. large_error) &
+         IF (pres_error > large_error) &
             CPABORT("Poisson solver did not converge.")
          IF (reached_max_iter .OR. reached_tol) EXIT
 
@@ -718,7 +718,7 @@ CONTAINS
       END DO
       CALL ps_implicit_print_convergence_msg(iter, max_iter, outp_unit)
 
-      IF ((times_called .NE. 0) .AND. (.NOT. use_zero_initial_guess)) THEN
+      IF ((times_called /= 0) .AND. (.NOT. use_zero_initial_guess)) THEN
          CALL pw_copy(v_new, ps_implicit_env%initial_guess)
          ps_implicit_env%initial_lambda(:) = lambda_new
       END IF
@@ -836,7 +836,7 @@ CONTAINS
       CALL pw_pool_create(pw_pool_xpndd, pw_grid=dct_pw_grid)
 
 ! check if this is the first scf iteration
-      IF (times_called .EQ. 0) CALL ps_implicit_initial_guess_create(ps_implicit_env, pw_pool_xpndd)
+      IF (times_called == 0) CALL ps_implicit_initial_guess_create(ps_implicit_env, pw_pool_xpndd)
 
       ALLOCATE (B(n_tiles_tot, data_size))
       ALLOCATE (Bt(data_size, n_tiles_tot))
@@ -901,7 +901,7 @@ CONTAINS
       CALL apply_poisson_operator_dct(pw_pool_xpndd, green, dielectric, v_old, res_old)
       CALL pw_scale(res_old, -1.0_dp)
       CALL pw_axpy(g, res_old)
-      IF (data_size .NE. 0) THEN
+      IF (data_size /= 0) THEN
          CALL DGEMV('N', data_size, n_tiles_tot, 1.0_dp, Bt, data_size, lambda_old, 1, 0.0_dp, Btxlambda_old, 1)
       END IF
       CALL convert_1dto3d(ps_implicit_env%idx_1dto3d, Btxlambda_old, Btxlambda_old3D)
@@ -941,7 +941,7 @@ CONTAINS
          v_new_xpndd%array = v_new_xpndd%array + eta/ngpts
 
 ! evaluate B^t * \lambda_new
-         IF (data_size .NE. 0) THEN
+         IF (data_size /= 0) THEN
             CALL DGEMV('N', data_size, n_tiles_tot, 1.0_dp, Bt, data_size, lambda_new, 1, 0.0_dp, Btxlambda_new, 1)
          END IF
          CALL convert_1dto3d(ps_implicit_env%idx_1dto3d, Btxlambda_new, Btxlambda_new3D)
@@ -966,7 +966,7 @@ CONTAINS
             ps_implicit_env%ehartree = ehartree/vol_scfac
             ps_implicit_env%electric_enthalpy = electric_enthalpy/vol_scfac
          ELSE
-            IF (outp_unit .GT. 0) WRITE (outp_unit, '(A1,/)')
+            IF (outp_unit > 0) WRITE (outp_unit, '(A1,/)')
          END IF
 
 ! verbose output
@@ -974,7 +974,7 @@ CONTAINS
             v_new1D(ps_implicit_env%idx_1dto3d) = RESHAPE(v_new_xpndd%array, [data_size])
             CALL DGEMV('N', n_tiles_tot, data_size, 1.0_dp, B, n_tiles_tot, v_new1D, 1, 0.0_dp, Bxv_new, 1)
             CALL pw_grid%para%group%sum(Bxv_new)
-            IF (outp_unit .GT. 0) THEN
+            IF (outp_unit > 0) THEN
                WRITE (outp_unit, '(T3,A)') "======== verbose "//REPEAT('=', 61)
                WRITE (outp_unit, '(T20,A)') "Drgn       tile      vhartree      lambda "
                WRITE (outp_unit, '(T19,A)') REPEAT('-', 46)
@@ -991,10 +991,10 @@ CONTAINS
 
 ! check the convergence
          iter = iter + 1
-         reached_max_iter = iter .GT. max_iter
-         reached_tol = pres_error .LE. tol
+         reached_max_iter = iter > max_iter
+         reached_tol = pres_error <= tol
          ps_implicit_env%times_called = ps_implicit_env%times_called + 1
-         IF (pres_error .GT. large_error) &
+         IF (pres_error > large_error) &
             CPABORT("Poisson solver did not converge.")
          IF (reached_max_iter .OR. reached_tol) EXIT
 
@@ -1010,7 +1010,7 @@ CONTAINS
       CALL pw_shrink(neumann_directions, dct_env%dests_shrink, dct_env%srcs_shrink, &
                      dct_env%bounds_local_shftd, v_new_xpndd, v_new)
 
-      IF ((times_called .NE. 0) .AND. (.NOT. use_zero_initial_guess)) THEN
+      IF ((times_called /= 0) .AND. (.NOT. use_zero_initial_guess)) THEN
          CALL pw_copy(v_new_xpndd, ps_implicit_env%initial_guess)
          ps_implicit_env%initial_lambda(:) = lambda_new
       END IF
@@ -1231,7 +1231,7 @@ CONTAINS
          ps_implicit_env%B(:, :) = TRANSPOSE(ps_implicit_env%Bt)
 
 ! evaluate QS = - B*(\Delta^-1)*B^t
-         IF (data_size .NE. 0) THEN
+         IF (data_size /= 0) THEN
             CALL DGEMM('N', 'N', n_tiles_tot, n_tiles_tot, data_size, &
                        -1.0_dp, ps_implicit_env%B, n_tiles_tot, QAinvxBt, &
                        data_size, 0.0_dp, ps_implicit_env%QS, n_tiles_tot)
@@ -1249,12 +1249,12 @@ CONTAINS
 ! evaluate R^(-1)
          ps_implicit_env%Rinv(:, :) = R
          CALL DGETRF(n_tiles_tot + 1, n_tiles_tot + 1, ps_implicit_env%Rinv, n_tiles_tot + 1, ipiv, info)
-         IF (info .NE. 0) &
+         IF (info /= 0) &
             CALL cp_abort(__LOCATION__, &
                           "R is (nearly) singular! Either two Dirichlet constraints are identical or "// &
                           "you need to reduce the number of tiles.")
          CALL DGETRI(n_tiles_tot + 1, ps_implicit_env%Rinv, n_tiles_tot + 1, ipiv, work_arr, n_tiles_tot + 1, info)
-         IF (info .NE. 0) &
+         IF (info /= 0) &
             CPABORT("Inversion of R failed!")
 
          DEALLOCATE (QAinvxBt, Bxunit_vec, R, work_arr, ipiv)
@@ -1262,7 +1262,7 @@ CONTAINS
 
          done_preparing = .TRUE.
          CALL pw_grid_orig%para%group%sum(done_preparing)
-         IF ((unit_nr .GT. 0) .AND. done_preparing) THEN
+         IF ((unit_nr > 0) .AND. done_preparing) THEN
             WRITE (unit_nr, "(T3,A,/,T3,A,/,A)") "POISSON| ... Done. ", REPEAT('-', 78)
          END IF
 
@@ -1360,7 +1360,7 @@ CONTAINS
          ps_implicit_env%B(:, :) = TRANSPOSE(ps_implicit_env%Bt)
 
 ! evaluate QS = - B*(\Delta^-1)*B^t
-         IF (data_size .NE. 0) THEN
+         IF (data_size /= 0) THEN
             CALL DGEMM('N', 'N', n_tiles_tot, n_tiles_tot, data_size, &
                        -1.0_dp, ps_implicit_env%B, n_tiles_tot, QAinvxBt, &
                        data_size, 0.0_dp, ps_implicit_env%QS, n_tiles_tot)
@@ -1378,19 +1378,19 @@ CONTAINS
 ! evaluate R^(-1)
          ps_implicit_env%Rinv(:, :) = R
          CALL DGETRF(n_tiles_tot + 1, n_tiles_tot + 1, ps_implicit_env%Rinv, n_tiles_tot + 1, ipiv, info)
-         IF (info .NE. 0) &
+         IF (info /= 0) &
             CALL cp_abort(__LOCATION__, &
                           "R is (nearly) singular! Either two Dirichlet constraints are identical or "// &
                           "you need to reduce the number of tiles.")
          CALL DGETRI(n_tiles_tot + 1, ps_implicit_env%Rinv, n_tiles_tot + 1, ipiv, work_arr, n_tiles_tot + 1, info)
-         IF (info .NE. 0) &
+         IF (info /= 0) &
             CPABORT("Inversion of R failed!")
 
          DEALLOCATE (QAinvxBt, Bxunit_vec, R, work_arr, ipiv)
 
          done_preparing = .TRUE.
          CALL pw_grid_orig%para%group%sum(done_preparing)
-         IF ((unit_nr .GT. 0) .AND. done_preparing) THEN
+         IF ((unit_nr > 0) .AND. done_preparing) THEN
             WRITE (unit_nr, "(T3,A,/,T3,A,/,A)") "POISSON| ... Done. ", REPEAT('-', 78)
          END IF
 
@@ -2010,13 +2010,13 @@ CONTAINS
          outp_unit = -1
       END IF
 
-      IF (logger%iter_info%print_level .GT. low_print_level) THEN
-         IF ((outp_unit .GT. 0) .AND. (iter .EQ. 1)) THEN
+      IF (logger%iter_info%print_level > low_print_level) THEN
+         IF ((outp_unit > 0) .AND. (iter == 1)) THEN
             WRITE (outp_unit, '(T3,A)') &
                "POISSON|   iter        pres error      nabs error        E_hartree    delta E"
          END IF
 
-         IF (outp_unit .GT. 0) THEN
+         IF (outp_unit > 0) THEN
             WRITE (outp_unit, '(T3,A,I6,5X,E13.4,3X,E13.4)', ADVANCE='NO') &
                "POISSON| ", iter, pres_error, nabs_error
          END IF
@@ -2049,8 +2049,8 @@ CONTAINS
 
       logger => cp_get_default_logger()
       CALL timeset(routineN, handle)
-      IF (logger%iter_info%print_level .GT. low_print_level) THEN
-         IF (outp_unit .GT. 0) WRITE (outp_unit, '(F19.10,E10.2)') &
+      IF (logger%iter_info%print_level > low_print_level) THEN
+         IF (outp_unit > 0) WRITE (outp_unit, '(F19.10,E10.2)') &
             ehartree, ehartree - ps_implicit_env%ehartree
       END IF
       CALL timestop(handle)
@@ -2079,13 +2079,13 @@ CONTAINS
 
       last_iter = iter - 1
 
-      IF (outp_unit .GT. 0) THEN
-         IF (last_iter .EQ. max_iter) THEN
+      IF (outp_unit > 0) THEN
+         IF (last_iter == max_iter) THEN
             WRITE (outp_unit, '(T3,A)') &
                "POISSON| No convergence achieved within the maximum number of iterations."
          END IF
-         IF (last_iter .LT. max_iter) THEN
-            IF (last_iter .EQ. 1) THEN
+         IF (last_iter < max_iter) THEN
+            IF (last_iter == 1) THEN
                msg = " iteration."
             ELSE
                msg = " iterations."

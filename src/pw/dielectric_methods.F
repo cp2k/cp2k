@@ -138,9 +138,9 @@ CONTAINS
          times_called = dielectric%params%times_called
          dielec_functiontype = dielectric%params%dielec_functiontype
 
-         IF (.NOT. dielec_functiontype .EQ. rho_dependent .AND. &
-             ((derivative_method .EQ. derivative_fft_use_deps) .OR. &
-              (derivative_method .EQ. derivative_fft_use_deps))) THEN
+         IF (.NOT. dielec_functiontype == rho_dependent .AND. &
+             ((derivative_method == derivative_fft_use_deps) .OR. &
+              (derivative_method == derivative_fft_use_deps))) THEN
             CALL cp_abort(__LOCATION__, &
                           "The specified derivative method is not compatible with the type of "// &
                           "the dielectric constant function.")
@@ -173,7 +173,7 @@ CONTAINS
             CALL dielectric_constant_sccs(rho_elec_rs, dielectric%eps, dielectric%deps_drho, &
                                           eps0, rho_max, rho_min)
          CASE (spatially_dependent)
-            IF (times_called .EQ. 0) THEN
+            IF (times_called == 0) THEN
                CALL dielectric_constant_spatially_dependent(dielectric%eps, pw_pool, dielectric%params)
             END IF
          CASE (spatially_rho_dependent)
@@ -182,9 +182,9 @@ CONTAINS
          END SELECT
 
 ! derivatives
-         IF ((dielec_functiontype .EQ. rho_dependent) .OR. &
-             (dielec_functiontype .EQ. spatially_rho_dependent) .OR. &
-             ((dielec_functiontype .EQ. spatially_dependent) .AND. times_called .EQ. 0)) THEN
+         IF ((dielec_functiontype == rho_dependent) .OR. &
+             (dielec_functiontype == spatially_rho_dependent) .OR. &
+             ((dielec_functiontype == spatially_dependent) .AND. times_called == 0)) THEN
             SELECT CASE (derivative_method)
             CASE (derivative_cd3, derivative_cd5, derivative_cd7, derivative_fft)
                CALL pw_pool%create_pw(ln_eps)
@@ -224,7 +224,7 @@ CONTAINS
                   DO k = lb(3), ub(3)
                      DO j = lb(2), ub(2)
                         DO i = lb(1), ub(1)
-                           IF (ABS(dielectric%deps_drho%array(i, j, k)) .LE. small_value) THEN
+                           IF (ABS(dielectric%deps_drho%array(i, j, k)) <= small_value) THEN
                               deps(idir)%array(i, j, k) = 0.0_dp
                            END IF
                         END DO
@@ -321,9 +321,9 @@ CONTAINS
          times_called = dielectric%params%times_called
          dielec_functiontype = dielectric%params%dielec_functiontype
 
-         IF (.NOT. dielec_functiontype .EQ. rho_dependent .AND. &
-             ((derivative_method .EQ. derivative_fft_use_deps) .OR. &
-              (derivative_method .EQ. derivative_fft_use_deps))) THEN
+         IF (.NOT. dielec_functiontype == rho_dependent .AND. &
+             ((derivative_method == derivative_fft_use_deps) .OR. &
+              (derivative_method == derivative_fft_use_deps))) THEN
             CALL cp_abort(__LOCATION__, &
                           "The specified derivative method is not compatible with the type of "// &
                           "the dielectric constant function.")
@@ -366,7 +366,7 @@ CONTAINS
             CALL dielectric_constant_sccs(rho_elec_rs_xpndd, dielectric%eps, dielectric%deps_drho, &
                                           eps0, rho_max, rho_min)
          CASE (spatially_dependent)
-            IF (times_called .EQ. 0) THEN
+            IF (times_called == 0) THEN
                CALL dielectric_constant_spatially_dependent(dielectric%eps, pw_pool_xpndd, dielectric%params)
             END IF
          CASE (spatially_rho_dependent)
@@ -375,9 +375,9 @@ CONTAINS
          END SELECT
 
 ! derivatives
-         IF ((dielec_functiontype .EQ. rho_dependent) .OR. &
-             (dielec_functiontype .EQ. spatially_rho_dependent) .OR. &
-             ((dielec_functiontype .EQ. spatially_dependent) .AND. times_called .EQ. 0)) THEN
+         IF ((dielec_functiontype == rho_dependent) .OR. &
+             (dielec_functiontype == spatially_rho_dependent) .OR. &
+             ((dielec_functiontype == spatially_dependent) .AND. times_called == 0)) THEN
             SELECT CASE (derivative_method)
             CASE (derivative_cd3, derivative_cd5, derivative_cd7, derivative_fft)
                CALL pw_pool_xpndd%create_pw(ln_eps)
@@ -417,7 +417,7 @@ CONTAINS
                   DO k = lb(3), ub(3)
                      DO j = lb(2), ub(2)
                         DO i = lb(1), ub(1)
-                           IF (ABS(dielectric%deps_drho%array(i, j, k)) .LE. small_value) THEN
+                           IF (ABS(dielectric%deps_drho%array(i, j, k)) <= small_value) THEN
                               deps(idir)%array(i, j, k) = 0.0_dp
                            END IF
                         END DO
@@ -488,7 +488,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      IF (eps0 .LT. 1.0_dp) THEN
+      IF (eps0 < 1.0_dp) THEN
          CPABORT("The dielectric constant has to be greater than or equal to 1.")
       END IF
 
@@ -501,10 +501,10 @@ CONTAINS
       DO k = lb3, ub3
          DO j = lb2, ub2
             DO i = lb1, ub1
-               IF (rho%array(i, j, k) .LT. rho_min) THEN
+               IF (rho%array(i, j, k) < rho_min) THEN
                   eps%array(i, j, k) = eps0
                   deps_drho%array(i, j, k) = 0.0_dp
-               ELSE IF (rho%array(i, j, k) .GT. rho_max) THEN
+               ELSE IF (rho%array(i, j, k) > rho_max) THEN
                   eps%array(i, j, k) = 1.0_dp
                   deps_drho%array(i, j, k) = 0.0_dp
                ELSE
@@ -566,7 +566,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      IF (dielec_const .LT. 1.0_dp) THEN
+      IF (dielec_const < 1.0_dp) THEN
          CPABORT("The dielectric constant has to be greater than or equal to 1.")
       END IF
 
@@ -574,15 +574,15 @@ CONTAINS
 
       dx = pw_grid%dr(1); dy = pw_grid%dr(2); dz = pw_grid%dr(3)
 
-      forb_xtnt1 = x_xtnt(1) .LT. x_glbl(LBOUND(x_glbl, 1))
-      forb_xtnt2 = x_xtnt(2) .GT. x_glbl(UBOUND(x_glbl, 1)) + dx
-      forb_xtnt3 = y_xtnt(1) .LT. y_glbl(LBOUND(y_glbl, 1))
-      forb_xtnt4 = y_xtnt(2) .GT. y_glbl(UBOUND(y_glbl, 1)) + dy
-      forb_xtnt5 = z_xtnt(1) .LT. z_glbl(LBOUND(z_glbl, 1))
-      forb_xtnt6 = z_xtnt(2) .GT. z_glbl(UBOUND(z_glbl, 1)) + dz
+      forb_xtnt1 = x_xtnt(1) < x_glbl(LBOUND(x_glbl, 1))
+      forb_xtnt2 = x_xtnt(2) > x_glbl(UBOUND(x_glbl, 1)) + dx
+      forb_xtnt3 = y_xtnt(1) < y_glbl(LBOUND(y_glbl, 1))
+      forb_xtnt4 = y_xtnt(2) > y_glbl(UBOUND(y_glbl, 1)) + dy
+      forb_xtnt5 = z_xtnt(1) < z_glbl(LBOUND(z_glbl, 1))
+      forb_xtnt6 = z_xtnt(2) > z_glbl(UBOUND(z_glbl, 1)) + dz
       n_forb_xtnts = COUNT([forb_xtnt1, forb_xtnt2, forb_xtnt3, &
                             forb_xtnt4, forb_xtnt5, forb_xtnt6] .EQV. test_forb_xtnts)
-      IF (n_forb_xtnts .GT. 0) THEN
+      IF (n_forb_xtnts > 0) THEN
          CALL cp_abort(__LOCATION__, &
                        "The given extents for the dielectric region are outside the range of "// &
                        "the simulation cell.")
@@ -599,9 +599,9 @@ CONTAINS
       DO k = lb3, ub3
          DO j = lb2, ub2
             DO i = lb1, ub1
-               IF ((x_locl(i) .GE. x_xtnt(1)) .AND. (x_locl(i) .LE. x_xtnt(2)) .AND. &
-                   (y_locl(j) .GE. y_xtnt(1)) .AND. (y_locl(j) .LE. y_xtnt(2)) .AND. &
-                   (z_locl(k) .GE. z_xtnt(1)) .AND. (z_locl(k) .LE. z_xtnt(2))) THEN
+               IF ((x_locl(i) >= x_xtnt(1)) .AND. (x_locl(i) <= x_xtnt(2)) .AND. &
+                   (y_locl(j) >= y_xtnt(1)) .AND. (y_locl(j) <= y_xtnt(2)) .AND. &
+                   (z_locl(k) >= z_xtnt(1)) .AND. (z_locl(k) <= z_xtnt(2))) THEN
                   eps_tmp%array(i, j, k) = dielec_const
                END IF
             END DO
@@ -661,7 +661,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      IF (dielec_const .LT. 1.0_dp) THEN
+      IF (dielec_const < 1.0_dp) THEN
          CPABORT("The dielectric constant has to be greater than or equal to 1.")
       END IF
 
@@ -670,15 +670,15 @@ CONTAINS
       bctry = base_center(1); bctrz = base_center(2)
       dx = pw_grid%dr(1); dy = pw_grid%dr(2); dz = pw_grid%dr(3)
 
-      forb_xtnt1 = x_xtnt(1) .LT. x_glbl(LBOUND(x_glbl, 1))
-      forb_xtnt2 = x_xtnt(2) .GT. x_glbl(UBOUND(x_glbl, 1)) + dx
-      forb_xtnt3 = bctry - MAXVAL(base_radii) .LT. y_glbl(LBOUND(y_glbl, 1))
-      forb_xtnt4 = bctry + MAXVAL(base_radii) .GT. y_glbl(UBOUND(y_glbl, 1)) + dy
-      forb_xtnt5 = bctrz - MAXVAL(base_radii) .LT. z_glbl(LBOUND(z_glbl, 1))
-      forb_xtnt6 = bctrz + MAXVAL(base_radii) .GT. z_glbl(UBOUND(z_glbl, 1)) + dz
+      forb_xtnt1 = x_xtnt(1) < x_glbl(LBOUND(x_glbl, 1))
+      forb_xtnt2 = x_xtnt(2) > x_glbl(UBOUND(x_glbl, 1)) + dx
+      forb_xtnt3 = bctry - MAXVAL(base_radii) < y_glbl(LBOUND(y_glbl, 1))
+      forb_xtnt4 = bctry + MAXVAL(base_radii) > y_glbl(UBOUND(y_glbl, 1)) + dy
+      forb_xtnt5 = bctrz - MAXVAL(base_radii) < z_glbl(LBOUND(z_glbl, 1))
+      forb_xtnt6 = bctrz + MAXVAL(base_radii) > z_glbl(UBOUND(z_glbl, 1)) + dz
       n_forb_xtnts = COUNT([forb_xtnt1, forb_xtnt2, forb_xtnt3, &
                             forb_xtnt4, forb_xtnt5, forb_xtnt6] .EQV. test_forb_xtnts)
-      IF (n_forb_xtnts .GT. 0) THEN
+      IF (n_forb_xtnts > 0) THEN
          CALL cp_abort(__LOCATION__, &
                        "The given extents for the dielectric region are outside the range of "// &
                        "the simulation cell.")
@@ -696,8 +696,8 @@ CONTAINS
          DO j = lb2, ub2
             DO i = lb1, ub1
                distsq = (y_locl(j) - bctry)**2 + (z_locl(k) - bctrz)**2
-               IF ((x_locl(i) .GE. x_xtnt(1)) .AND. (x_locl(i) .LE. x_xtnt(2)) .AND. &
-                   (distsq .GE. MINVAL(base_radii)**2) .AND. (distsq .LE. MAXVAL(base_radii)**2)) THEN
+               IF ((x_locl(i) >= x_xtnt(1)) .AND. (x_locl(i) <= x_xtnt(2)) .AND. &
+                   (distsq >= MINVAL(base_radii)**2) .AND. (distsq <= MAXVAL(base_radii)**2)) THEN
                   eps_tmp%array(i, j, k) = dielec_const
                END IF
             END DO
@@ -746,7 +746,7 @@ CONTAINS
       CALL setup_grid_axes(pw_grid, x_glbl, y_glbl, z_glbl, x_locl, y_locl, z_locl)
       n_dielectric_region = n_aa_cuboidal + n_xaa_annular
 
-      IF (n_dielectric_region .EQ. 0) THEN
+      IF (n_dielectric_region == 0) THEN
          CPABORT("No density independent dielectric region is defined.")
       END IF
 
@@ -806,7 +806,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      IF (dielectric_params%eps0 .LT. 1.0_dp) THEN
+      IF (dielectric_params%eps0 < 1.0_dp) THEN
          CPABORT("The dielectric constant has to be greater than or equal to 1.")
       END IF
 

@@ -418,7 +418,7 @@ CONTAINS
       iw = cp_print_key_unit_nr(logger, input, "VIBRATIONAL_ANALYSIS%PRINT%MOLDEN_VIB", &
                                 extension=".mol", file_status='REPLACE')
 
-      IF (iw .GT. 0) THEN
+      IF (iw > 0) THEN
          CPASSERT(MOD(SIZE(eigen_vec, 1), 3) == 0)
          CPASSERT(SIZE(freq, 1) == SIZE(eigen_vec, 2))
          ALLOCATE (my_list(SIZE(particles)))
@@ -464,7 +464,7 @@ CONTAINS
                l = l + 1
                WRITE (iw, '(T2,A,1X,I6)') "vibration", l
                DO j = 1, SIZE(particles)
-                  IF (my_list(j) .NE. 0) THEN
+                  IF (my_list(j) /= 0) THEN
                      k = (my_list(j) - 1)*3
                      WRITE (iw, '(T2,3(F12.6,3X))') eigen_vec(k + 1, i), eigen_vec(k + 2, i), eigen_vec(k + 3, i)
                   ELSE

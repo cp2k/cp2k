@@ -142,7 +142,7 @@ CONTAINS
 
       search_loop: DO
          Ftarget = "&MM_FIT_POT"
-         IF (Ival .EQ. Nval) EXIT search_loop
+         IF (Ival == Nval) EXIT search_loop
          CALL parser_search_string(parser, Ftarget, .TRUE., found, line)
          IF (Found) THEN
 !
@@ -166,11 +166,11 @@ CONTAINS
             CALL parser_get_object(parser, units)
             CALL uppercase(units)
             fconv = 1.0_dp
-            IF (TRIM(units) .EQ. "ANGSTROM") fconv = bohr
+            IF (TRIM(units) == "ANGSTROM") fconv = bohr
             Found_Radius = .FALSE.
             radius = radius*fconv
             Radius_Loop: DO J = 1, SIZE(qmmm_gaussian_fns)
-               IF (ABS(radius - qmmm_gaussian_fns(J)%pgf%Elp_Radius) .LT. EPSILON(0.0_dp)) THEN
+               IF (ABS(radius - qmmm_gaussian_fns(J)%pgf%Elp_Radius) < EPSILON(0.0_dp)) THEN
                   Found_Radius = .TRUE.
                   EXIT Radius_Loop
                END IF
@@ -202,7 +202,7 @@ CONTAINS
                CALL parser_get_object(parser, units)
                CALL uppercase(units)
                fconv = 1.0_dp
-               IF (TRIM(units) .EQ. "ANGSTROM") fconv = bohr
+               IF (TRIM(units) == "ANGSTROM") fconv = bohr
                qmmm_gaussian_fns(IRad)%pgf%Ak(J) = qmmm_gaussian_fns(IRad)%pgf%Ak(J)*fconv
                qmmm_gaussian_fns(IRad)%pgf%Gk(J) = qmmm_gaussian_fns(IRad)%pgf%Gk(J)*fconv
             END DO

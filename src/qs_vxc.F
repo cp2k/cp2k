@@ -215,7 +215,7 @@ CONTAINS
             CPABORT("NYI")
          END SELECT
 
-         IF (dft_control%sic_scaling_b .EQ. 0.0_dp) THEN
+         IF (dft_control%sic_scaling_b == 0.0_dp) THEN
             sic_scaling_b_zero = .TRUE.
          ELSE
             sic_scaling_b_zero = .FALSE.
@@ -322,7 +322,7 @@ CONTAINS
             END IF
          END IF
 
-         IF (my_scaling .NE. 1.0_dp) THEN
+         IF (my_scaling /= 1.0_dp) THEN
             exc = exc*my_scaling
             IF (ASSOCIATED(my_vxc_rho)) THEN
                DO ispin = 1, SIZE(my_vxc_rho)
@@ -360,7 +360,7 @@ CONTAINS
          END IF
 
          ! compute again the xc but now for Exc(m,o) and the opposite sign
-         IF (dft_control%sic_method_id .EQ. sic_mauri_spz .AND. .NOT. sic_scaling_b_zero) THEN
+         IF (dft_control%sic_method_id == sic_mauri_spz .AND. .NOT. sic_scaling_b_zero) THEN
             ALLOCATE (rho_m_rspace(2), rho_m_gspace(2))
             CALL xc_pw_pool%create_pw(rho_m_gspace(1))
             CALL xc_pw_pool%create_pw(rho_m_rspace(1))
@@ -410,7 +410,7 @@ CONTAINS
          END IF
 
          ! now we have - sum_s N_s * Exc(rho_s/N_s,0)
-         IF (dft_control%sic_method_id .EQ. sic_ad .AND. .NOT. sic_scaling_b_zero) THEN
+         IF (dft_control%sic_method_id == sic_ad .AND. .NOT. sic_scaling_b_zero) THEN
 
             ! find out how many elecs we have
             CALL get_ks_env(ks_env, nelectron_spin=nelec_spin)
@@ -422,7 +422,7 @@ CONTAINS
             END DO
 
             DO ispin = 1, 2
-               IF (nelec_spin(ispin) .GT. 0.0_dp) THEN
+               IF (nelec_spin(ispin) > 0.0_dp) THEN
                   nelec_s_inv = 1.0_dp/nelec_spin(ispin)
                ELSE
                   ! does it matter if there are no electrons with this spin (H) ?
@@ -471,7 +471,7 @@ CONTAINS
          END IF
 
          ! compute again the xc but now for Exc(n_down,n_down)
-         IF (dft_control%sic_method_id .EQ. sic_mauri_us .AND. .NOT. sic_scaling_b_zero) THEN
+         IF (dft_control%sic_method_id == sic_mauri_us .AND. .NOT. sic_scaling_b_zero) THEN
             ALLOCATE (rho_r(2))
             rho_r(1) = rho_struct_r(2)
             rho_r(2) = rho_struct_r(2)

@@ -363,8 +363,8 @@ CONTAINS
          jset = task_list%tasks(i)%jset
          ipgf = task_list%tasks(i)%ipgf
          jpgf = task_list%tasks(i)%jpgf
-         IF (igrid_level .NE. igrid_level_old) THEN
-            IF (igrid_level_old .NE. -1) THEN
+         IF (igrid_level /= igrid_level_old) THEN
+            IF (igrid_level_old /= -1) THEN
                task_list%npairs(igrid_level_old) = ipair
             END IF
             ipair = 1
@@ -372,7 +372,7 @@ CONTAINS
             iatom_old = iatom
             jatom_old = jatom
             img_old = img
-         ELSE IF (iatom .NE. iatom_old .OR. jatom .NE. jatom_old .OR. img .NE. img_old) THEN
+         ELSE IF (iatom /= iatom_old .OR. jatom /= jatom_old .OR. img /= img_old) THEN
             ipair = ipair + 1
             iatom_old = iatom
             jatom_old = jatom
@@ -405,8 +405,8 @@ CONTAINS
          jset = task_list%tasks(i)%jset
          ipgf = task_list%tasks(i)%ipgf
          jpgf = task_list%tasks(i)%jpgf
-         IF (igrid_level .NE. igrid_level_old) THEN
-            IF (igrid_level_old .NE. -1) THEN
+         IF (igrid_level /= igrid_level_old) THEN
+            IF (igrid_level_old /= -1) THEN
                task_list%taskstop(ipair, igrid_level_old) = i - 1
             END IF
             ipair = 1
@@ -415,7 +415,7 @@ CONTAINS
             iatom_old = iatom
             jatom_old = jatom
             img_old = img
-         ELSE IF (iatom .NE. iatom_old .OR. jatom .NE. jatom_old .OR. img .NE. img_old) THEN
+         ELSE IF (iatom /= iatom_old .OR. jatom /= jatom_old .OR. img /= img_old) THEN
             ipair = ipair + 1
             task_list%taskstart(ipair, igrid_level) = i
             task_list%taskstop(ipair - 1, igrid_level) = i - 1
@@ -1031,7 +1031,7 @@ CONTAINS
          DO idest = 1, maxdest
             dest = list_global(1, idest, icpu)
             IF (dest < ncpu) THEN
-               IF (dest .NE. icpu) THEN
+               IF (dest /= icpu) THEN
                   IF (dest > icpu) THEN
                      Nflux = Nflux + 1
                      flux_limits(2, Nflux) = list_global(2, idest, icpu)
@@ -1089,7 +1089,7 @@ CONTAINS
          DO idest = 1, maxdest
             dest = list_global(1, idest, icpu)
             IF (dest < ncpu) THEN
-               IF (dest .NE. icpu) THEN
+               IF (dest /= icpu) THEN
                   IF (dest > icpu) THEN
                      Nflux = Nflux + 1
                      IF (optimized_flux(Nflux) > 0) THEN
@@ -1162,7 +1162,7 @@ CONTAINS
 
       ! ... and optimise the work per process
       ALLOCATE (list_global(2, maxdest, ncpu))
-      IF (rank_of_root .EQ. my_pos) THEN
+      IF (rank_of_root == my_pos) THEN
          list_global(1, :, :) = list(1, :, :)
          list_global(2, :, :) = RESHAPE(load_all, [maxdest, ncpu])
          CALL balance_global_list(list_global)
@@ -1302,7 +1302,7 @@ CONTAINS
             ipgf = tasks(itask_start + i - 1)%ipgf
             jpgf = tasks(itask_start + i - 1)%jpgf
 
-            IF (ilevel .EQ. grid_level) THEN
+            IF (ilevel == grid_level) THEN
                all_dests(i) = decode_rank(tasks(itask_start + i - 1)%destination, SIZE(rs_descs))
             ELSE
                all_dests(i) = HUGE(all_dests(i))
@@ -1311,7 +1311,7 @@ CONTAINS
          CALL sort(all_dests, nshort, index)
          ndest_pair = 1
          DO i = 2, nshort
-            IF ((all_dests(ndest_pair) .NE. all_dests(i)) .AND. (all_dests(i) .NE. HUGE(all_dests(i)))) THEN
+            IF ((all_dests(ndest_pair) /= all_dests(i)) .AND. (all_dests(i) /= HUGE(all_dests(i)))) THEN
                ndest_pair = ndest_pair + 1
                all_dests(ndest_pair) = all_dests(i)
             END IF
@@ -1330,7 +1330,7 @@ CONTAINS
             jpgf = tasks(itask)%jpgf
 
             ! Only proceed with tasks which are on this grid level
-            IF (ilevel .NE. grid_level) CYCLE
+            IF (ilevel /= grid_level) CYCLE
             ipair = (iatom - 1)*natom8 + (jatom - 1)
             cost = INT(tasks(itask)%cost)
 
@@ -1340,42 +1340,42 @@ CONTAINS
                nopt = 0
                IF (BTEST(bit_pattern, 0)) THEN
                   rank = rs_grid_locate_rank(rs_descs(ilevel)%rs_desc, dest, [-1, 0, 0])
-                  IF (ANY(all_dests(1:ndest_pair) .EQ. rank)) THEN
+                  IF (ANY(all_dests(1:ndest_pair) == rank)) THEN
                      nopt = nopt + 1
                      options(nopt) = rank
                   END IF
                END IF
                IF (BTEST(bit_pattern, 1)) THEN
                   rank = rs_grid_locate_rank(rs_descs(ilevel)%rs_desc, dest, [+1, 0, 0])
-                  IF (ANY(all_dests(1:ndest_pair) .EQ. rank)) THEN
+                  IF (ANY(all_dests(1:ndest_pair) == rank)) THEN
                      nopt = nopt + 1
                      options(nopt) = rank
                   END IF
                END IF
                IF (BTEST(bit_pattern, 2)) THEN
                   rank = rs_grid_locate_rank(rs_descs(ilevel)%rs_desc, dest, [0, -1, 0])
-                  IF (ANY(all_dests(1:ndest_pair) .EQ. rank)) THEN
+                  IF (ANY(all_dests(1:ndest_pair) == rank)) THEN
                      nopt = nopt + 1
                      options(nopt) = rank
                   END IF
                END IF
                IF (BTEST(bit_pattern, 3)) THEN
                   rank = rs_grid_locate_rank(rs_descs(ilevel)%rs_desc, dest, [0, +1, 0])
-                  IF (ANY(all_dests(1:ndest_pair) .EQ. rank)) THEN
+                  IF (ANY(all_dests(1:ndest_pair) == rank)) THEN
                      nopt = nopt + 1
                      options(nopt) = rank
                   END IF
                END IF
                IF (BTEST(bit_pattern, 4)) THEN
                   rank = rs_grid_locate_rank(rs_descs(ilevel)%rs_desc, dest, [0, 0, -1])
-                  IF (ANY(all_dests(1:ndest_pair) .EQ. rank)) THEN
+                  IF (ANY(all_dests(1:ndest_pair) == rank)) THEN
                      nopt = nopt + 1
                      options(nopt) = rank
                   END IF
                END IF
                IF (BTEST(bit_pattern, 5)) THEN
                   rank = rs_grid_locate_rank(rs_descs(ilevel)%rs_desc, dest, [0, 0, +1])
-                  IF (ANY(all_dests(1:ndest_pair) .EQ. rank)) THEN
+                  IF (ANY(all_dests(1:ndest_pair) == rank)) THEN
                      nopt = nopt + 1
                      options(nopt) = rank
                   END IF
@@ -1498,7 +1498,7 @@ CONTAINS
          CALL sort(sublist, ultimate_max, index)
          j = 1
          DO i = 2, 7
-            IF (sublist(i) .NE. sublist(j)) THEN
+            IF (sublist(i) /= sublist(j)) THEN
                j = j + 1
                sublist(j) = sublist(i)
             END IF
@@ -1567,7 +1567,7 @@ CONTAINS
          jset = tasks(i)%jset
          ipgf = tasks(i)%ipgf
          jpgf = tasks(i)%jpgf
-         IF (ilevel .NE. grid_level) CYCLE
+         IF (ilevel /= grid_level) CYCLE
          IF (use_reordered_ranks) THEN
             send_buf_i(rs_descs(ilevel)%rs_desc%virtual2real(decode_rank(tasks(i)%destination, SIZE(rs_descs))) + 1) = &
                send_buf_i(rs_descs(ilevel)%rs_desc%virtual2real(decode_rank(tasks(i)%destination, SIZE(rs_descs))) + 1) &
@@ -1650,8 +1650,8 @@ CONTAINS
       no_underloaded = 0
 
       DO i = 1, desc%group_size
-         IF (load_imbalance(i) .GT. 0) no_overloaded = no_overloaded + 1
-         IF (load_imbalance(i) .LT. 0) no_underloaded = no_underloaded + 1
+         IF (load_imbalance(i) > 0) no_overloaded = no_overloaded + 1
+         IF (load_imbalance(i) < 0) no_underloaded = no_underloaded + 1
       END DO
 
       ! sort the recv_buffer on number of tasks, gives us index which provides a
@@ -1662,7 +1662,7 @@ CONTAINS
       ! but only those tasks which have not yet been assigned
       cost_task_rep = 0
       DO i = 1, ntasks
-         IF (tasks(i)%dist_type .EQ. 0 &
+         IF (tasks(i)%dist_type == 0 &
              .AND. decode_rank(tasks(i)%destination, SIZE(rs_descs)) == decode_rank(tasks(i)%source, SIZE(rs_descs))) THEN
             cost_task_rep = cost_task_rep + tasks(i)%cost
          END IF
@@ -1674,7 +1674,7 @@ CONTAINS
 
       DO i = 1, desc%group_size
          ! At the moment we can only offload replicated tasks
-         IF (load_imbalance(i) .GT. 0) &
+         IF (load_imbalance(i) > 0) &
             load_imbalance(i) = MIN(load_imbalance(i), recv_buf_i(i))
       END DO
 
@@ -1684,14 +1684,14 @@ CONTAINS
       ! task balancing will be incomplete
 
       ! only need to do anything if I've excess tasks
-      IF (load_imbalance(desc%my_pos + 1) .GT. 0) THEN
+      IF (load_imbalance(desc%my_pos + 1) > 0) THEN
 
          count = 0 ! weighted amount of tasks offloaded
          offset = 0 ! no of underloaded processes already filled by other more overloaded procs
 
          ! calculate offset
          DO i = desc%group_size, desc%group_size - no_overloaded + 1, -1
-            IF (INDEX(i) .EQ. desc%my_pos + 1) THEN
+            IF (INDEX(i) == desc%my_pos + 1) THEN
                EXIT
             ELSE
                offset = offset + load_imbalance(INDEX(i))
@@ -1702,7 +1702,7 @@ CONTAINS
          proc_receiving = HUGE(proc_receiving)
          DO i = 1, no_underloaded
             offset = offset + load_imbalance(INDEX(i))
-            IF (offset .LE. 0) THEN
+            IF (offset <= 0) THEN
                proc_receiving = i
                EXIT
             END IF
@@ -1712,11 +1712,11 @@ CONTAINS
          ! we fill this up by adjusting the destination of tasks on the replicated grid,
          ! then move to next most underloaded proc
          DO j = 1, ntasks
-            IF (tasks(j)%dist_type .EQ. 0 &
+            IF (tasks(j)%dist_type == 0 &
                 .AND. decode_rank(tasks(j)%destination, SIZE(rs_descs)) == decode_rank(tasks(j)%source, SIZE(rs_descs))) THEN
                ! just avoid sending to non existing procs due to integer truncation
                ! in the computation of the average
-               IF (proc_receiving .GT. no_underloaded) EXIT
+               IF (proc_receiving > no_underloaded) EXIT
                ! set new destination
                ilevel = tasks(j)%grid_level
                img = tasks(j)%image
@@ -1729,12 +1729,12 @@ CONTAINS
                tasks(j)%destination = encode_rank(INDEX(proc_receiving) - 1, ilevel, SIZE(rs_descs))
                offset = offset + tasks(j)%cost
                count = count + tasks(j)%cost
-               IF (count .GE. load_imbalance(desc%my_pos + 1)) EXIT
-               IF (offset .GT. 0) THEN
+               IF (count >= load_imbalance(desc%my_pos + 1)) EXIT
+               IF (offset > 0) THEN
                   proc_receiving = proc_receiving + 1
                   ! just avoid sending to non existing procs due to integer truncation
                   ! in the computation of the average
-                  IF (proc_receiving .GT. no_underloaded) EXIT
+                  IF (proc_receiving > no_underloaded) EXIT
                   offset = load_imbalance(INDEX(proc_receiving))
                END IF
             END IF
@@ -2288,7 +2288,7 @@ CONTAINS
       ! do packing
 !$OMP DO schedule(guided)
       DO l = 1, desc%group_size
-         IF (l .EQ. me) CYCLE
+         IF (l == me) CYCLE
          send_sizes(l) = 0
          DO i = 1, send_pair_count(l)
             arow = atom_pair_send(send_pair_disps(l) + i)%row
@@ -2373,7 +2373,7 @@ CONTAINS
       !do unpacking
 !$OMP DO schedule(guided)
       DO l = 1, desc%group_size
-         IF (l .EQ. me) CYCLE
+         IF (l == me) CYCLE
          recv_sizes(l) = 0
          DO i = 1, recv_pair_count(l)
             arow = atom_pair_recv(recv_pair_disps(l) + i)%row
@@ -2735,8 +2735,8 @@ CONTAINS
       lbc = lb_cube + cube_center
       ubc = ub_cube + cube_center
 
-      IF (ALL((rs_desc%lb_global(:, dest) - rs_desc%border) .LE. lbc) .AND. &
-          ALL((rs_desc%ub_global(:, dest) + rs_desc%border) .GE. ubc)) THEN
+      IF (ALL((rs_desc%lb_global(:, dest) - rs_desc%border) <= lbc) .AND. &
+          ALL((rs_desc%ub_global(:, dest) + rs_desc%border) >= ubc)) THEN
          !standard distributed collocation/integration
          tasks(ntasks)%destination = encode_rank(dest, igrid_level, n_levels)
          tasks(ntasks)%dist_type = 1

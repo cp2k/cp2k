@@ -292,7 +292,7 @@ CONTAINS
                                           per_potentials=qmmm_env%added_charges%per_potentials, par_scheme=qmmm_env%par_scheme, &
                                           qmmm_spherical_cutoff=qmmm_env%spherical_cutoff, shells=shells)
       END IF
-      IF (qmmm_env%added_shells%num_mm_atoms .GT. 0) THEN
+      IF (qmmm_env%added_shells%num_mm_atoms > 0) THEN
          shells = .TRUE.
          CALL qmmm_elec_with_gaussian_low(grids, qmmm_env%added_shells%added_particles, &
                                           qmmm_env%added_shells%mm_core_chrg, &

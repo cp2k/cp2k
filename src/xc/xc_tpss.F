@@ -575,7 +575,7 @@ CONTAINS
                t561 = t197*t_s1
                t562 = t201*t561
                t569 = 0.1e1_dp/t208
-               t571 = epsilon_cGGA .LT. epsilon_cGGA_1_0
+               t571 = epsilon_cGGA < epsilon_cGGA_1_0
                IF (t571) THEN
                   marho = e_c_u_1_s1rho + t196*(0.2e1_dp*t541*t542 &
                                                 *t_s1rho + t187*t197*(t546 + t549)*t205 - t554*t557*(t546 &
@@ -606,7 +606,7 @@ CONTAINS
                t629 = t219*t_s2
                t630 = t223*t629
                t637 = 0.1e1_dp/t230
-               t639 = epsilon_cGGA .LT. epsilon_cGGA_0_1
+               t639 = epsilon_cGGA < epsilon_cGGA_0_1
                IF (t639) THEN
                   mbrho = e_c_u_1_s2rho + t218*(0.2e1_dp*t609*t610 &
                                                 *t_s2rho + t187*t219*(t614 + t617)*t227 - t622*t625*(t614 &

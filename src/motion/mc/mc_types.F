@@ -969,7 +969,7 @@ CONTAINS
       nlines = 0
       DO
          READ (unit, '(A)', IOSTAT=io_stat) line
-         IF (io_stat .NE. 0) EXIT
+         IF (io_stat /= 0) EXIT
          nlines = nlines + 1
       END DO
 
@@ -1085,7 +1085,7 @@ CONTAINS
             mc_input_file%mol_set_nmol_column(irep) = mc_input_file%mol_set_nmol_column(irep) + 5
 
          END DO
-         IF (irep .NE. nmol_types) THEN
+         IF (irep /= nmol_types) THEN
             IF (iw > 0) THEN
                WRITE (iw, *)
                WRITE (iw, *) 'File name ', input_file_name
@@ -1172,7 +1172,7 @@ CONTAINS
          index_string = -1
          index_string = INDEX(text(iline), string_search(1:string_size))
 
-         IF (index_string .GT. 0) THEN ! we found one
+         IF (index_string > 0) THEN ! we found one
             IF (.NOT. lend) THEN
                row_number = iline
                column_number = index_string
@@ -1183,7 +1183,7 @@ CONTAINS
 ! now we find the &END that matches up with this one...
 ! I need proper indentation because I'm not very smart
                   text_temp = text(jline)
-                  IF (text_temp(column_number:column_number) .EQ. "&") THEN
+                  IF (text_temp(column_number:column_number) == "&") THEN
                      row_number = jline
                      EXIT
                   END IF
@@ -1330,7 +1330,7 @@ CONTAINS
       END IF
 
       IF (.NOT. mc_par%lhmc) THEN
-         IF (SIZE(temp_i_array) .NE. nmol_types) THEN
+         IF (SIZE(temp_i_array) /= nmol_types) THEN
             CPABORT('AVBMC_ATOM must have as many values as there are molecule types.')
          END IF
       END IF
@@ -1379,7 +1379,7 @@ CONTAINS
 ! all of these arrays should have one value for each type of molecule...so check that
       CALL section_vals_val_get(mc_section, "AVBMC%AVBMC_RMIN", r_vals=temp_r_array)
       IF (.NOT. mc_par%lhmc) THEN
-         IF (SIZE(temp_r_array) .NE. nmol_types) THEN
+         IF (SIZE(temp_r_array) /= nmol_types) THEN
             CPABORT('AVBMC_RMIN must have as many values as there are molecule types.')
          END IF
       END IF
@@ -1388,7 +1388,7 @@ CONTAINS
       END DO
       CALL section_vals_val_get(mc_section, "AVBMC%AVBMC_RMAX", r_vals=temp_r_array)
       IF (.NOT. mc_par%lhmc) THEN
-         IF (SIZE(temp_r_array) .NE. nmol_types) THEN
+         IF (SIZE(temp_r_array) /= nmol_types) THEN
             CPABORT('AVBMC_RMAXL must have as many values as there are molecule types.')
          END IF
       END IF
@@ -1397,7 +1397,7 @@ CONTAINS
       END DO
       CALL section_vals_val_get(mc_section, "AVBMC%PBIAS", r_vals=temp_r_array)
       IF (.NOT. mc_par%lhmc) THEN
-         IF (SIZE(temp_r_array) .NE. nmol_types) THEN
+         IF (SIZE(temp_r_array) /= nmol_types) THEN
             CPABORT('PBIAS must have as many values as there are molecule types.')
          END IF
       END IF
@@ -1407,7 +1407,7 @@ CONTAINS
       CALL section_vals_val_get(mc_section, "MOVE_PROBABILITIES%MOL_PROBABILITIES%PMAVBMC_MOL", &
                                 r_vals=temp_r_array)
       IF (.NOT. mc_par%lhmc) THEN
-         IF (SIZE(temp_r_array) .NE. nmol_types) THEN
+         IF (SIZE(temp_r_array) /= nmol_types) THEN
             CPABORT('PMAVBMC_MOL must have as many values as there are molecule types.')
          END IF
       END IF
@@ -1416,7 +1416,7 @@ CONTAINS
       END DO
       CALL section_vals_val_get(mc_section, "ETA", r_vals=temp_r_array)
       IF (.NOT. mc_par%lhmc) THEN
-         IF (SIZE(temp_r_array) .NE. nmol_types) THEN
+         IF (SIZE(temp_r_array) /= nmol_types) THEN
             CPABORT('ETA must have as many values as there are molecule types.')
          END IF
       END IF
@@ -1426,7 +1426,7 @@ CONTAINS
       CALL section_vals_val_get(mc_section, "MAX_DISPLACEMENTS%MOL_DISPLACEMENTS%RMBOND", &
                                 r_vals=temp_r_array)
       IF (.NOT. mc_par%lhmc) THEN
-         IF (SIZE(temp_r_array) .NE. nmol_types) THEN
+         IF (SIZE(temp_r_array) /= nmol_types) THEN
             CPABORT('RMBOND must have as many values as there are molecule types.')
          END IF
       END IF
@@ -1436,7 +1436,7 @@ CONTAINS
       CALL section_vals_val_get(mc_section, "MAX_DISPLACEMENTS%MOL_DISPLACEMENTS%RMANGLE", &
                                 r_vals=temp_r_array)
       IF (.NOT. mc_par%lhmc) THEN
-         IF (SIZE(temp_r_array) .NE. nmol_types) THEN
+         IF (SIZE(temp_r_array) /= nmol_types) THEN
             CPABORT('RMANGLE must have as many values as there are molecule types.')
          END IF
       END IF
@@ -1446,7 +1446,7 @@ CONTAINS
       CALL section_vals_val_get(mc_section, "MAX_DISPLACEMENTS%MOL_DISPLACEMENTS%RMDIHEDRAL", &
                                 r_vals=temp_r_array)
       IF (.NOT. mc_par%lhmc) THEN
-         IF (SIZE(temp_r_array) .NE. nmol_types) THEN
+         IF (SIZE(temp_r_array) /= nmol_types) THEN
             CPABORT('RMDIHEDRAL must have as many values as there are molecule types.')
          END IF
       END IF
@@ -1456,7 +1456,7 @@ CONTAINS
       CALL section_vals_val_get(mc_section, "MAX_DISPLACEMENTS%MOL_DISPLACEMENTS%RMROT", &
                                 r_vals=temp_r_array)
       IF (.NOT. mc_par%lhmc) THEN
-         IF (SIZE(temp_r_array) .NE. nmol_types) THEN
+         IF (SIZE(temp_r_array) /= nmol_types) THEN
             CPABORT('RMROT must have as many values as there are molecule types.')
          END IF
       END IF
@@ -1466,7 +1466,7 @@ CONTAINS
       CALL section_vals_val_get(mc_section, "MAX_DISPLACEMENTS%MOL_DISPLACEMENTS%RMTRANS", &
                                 r_vals=temp_r_array)
       IF (.NOT. mc_par%lhmc) THEN
-         IF (SIZE(temp_r_array) .NE. nmol_types) THEN
+         IF (SIZE(temp_r_array) /= nmol_types) THEN
             CPABORT('RMTRANS must have as many values as there are molecule types.')
          END IF
       END IF
@@ -1477,7 +1477,7 @@ CONTAINS
       CALL section_vals_val_get(mc_section, "MOVE_PROBABILITIES%MOL_PROBABILITIES%PMTRAION_MOL", &
                                 r_vals=temp_r_array)
       IF (.NOT. mc_par%lhmc) THEN
-         IF (SIZE(temp_r_array) .NE. nmol_types) THEN
+         IF (SIZE(temp_r_array) /= nmol_types) THEN
             CPABORT('PMTRAION_MOL must have as many values as there are molecule types.')
          END IF
       END IF
@@ -1488,7 +1488,7 @@ CONTAINS
       CALL section_vals_val_get(mc_section, "MOVE_PROBABILITIES%MOL_PROBABILITIES%PMTRANS_MOL", &
                                 r_vals=temp_r_array)
       IF (.NOT. mc_par%lhmc) THEN
-         IF (SIZE(temp_r_array) .NE. nmol_types) THEN
+         IF (SIZE(temp_r_array) /= nmol_types) THEN
             CPABORT('PMTRANS_MOL must have as many values as there are molecule types.')
          END IF
       END IF
@@ -1499,7 +1499,7 @@ CONTAINS
       CALL section_vals_val_get(mc_section, "MOVE_PROBABILITIES%MOL_PROBABILITIES%PMROT_MOL", &
                                 r_vals=temp_r_array)
       IF (.NOT. mc_par%lhmc) THEN
-         IF (SIZE(temp_r_array) .NE. nmol_types) THEN
+         IF (SIZE(temp_r_array) /= nmol_types) THEN
             CPABORT('PMROT_MOL must have as many values as there are molecule types.')
          END IF
       END IF
@@ -1510,7 +1510,7 @@ CONTAINS
       CALL section_vals_val_get(mc_section, "MOVE_PROBABILITIES%MOL_PROBABILITIES%PMSWAP_MOL", &
                                 r_vals=temp_r_array)
       IF (.NOT. mc_par%lhmc) THEN
-         IF (SIZE(temp_r_array) .NE. nmol_types) THEN
+         IF (SIZE(temp_r_array) /= nmol_types) THEN
             CPABORT('PMSWAP_MOL must have as many values as there are molecule types.')
          END IF
       END IF
@@ -1608,7 +1608,7 @@ CONTAINS
             WRITE (iw, format_string) ' MC| AVBMC outer cutoff [ang]', &
                mc_par%avbmc_rmax
          END IF
-         IF (mc_par%ensemble .EQ. 'GEMC-NVT') THEN
+         IF (mc_par%ensemble == 'GEMC-NVT') THEN
             WRITE (iw, '( A,T58,A)') ' MC| Box 2 file', &
                TRIM(mc_par%box2_file)
          END IF
@@ -1655,7 +1655,7 @@ CONTAINS
          ELSE
             WRITE (iw, '(A)') ' MC| The moves will not be biased,'
          END IF
-         IF (mc_par%nmoves .EQ. 1) THEN
+         IF (mc_par%nmoves == 1) THEN
             WRITE (iw, '(A,A)') ' MC| A full energy calculation ', &
                'will be done at every step.'
          ELSE
@@ -1751,7 +1751,7 @@ CONTAINS
       rcutsq_max = 0.0e0_dp
       DO itype = 1, SIZE(potparm%pot, 1)
          DO jtype = itype, SIZE(potparm%pot, 2)
-            IF (potparm%pot(itype, jtype)%pot%rcutsq .GT. rcutsq_max) &
+            IF (potparm%pot(itype, jtype)%pot%rcutsq > rcutsq_max) &
                rcutsq_max = potparm%pot(itype, jtype)%pot%rcutsq
          END DO
       END DO
@@ -1760,7 +1760,7 @@ CONTAINS
 ! value
       mc_par%rcut = rcutsq_max**0.5_dp
       DO itype = 1, 3
-         IF (abc(itype) .LT. 2.0_dp*mc_par%rcut) THEN
+         IF (abc(itype) < 2.0_dp*mc_par%rcut) THEN
             lterminate = .TRUE.
          END IF
       END DO
@@ -1856,7 +1856,7 @@ CONTAINS
             molecule_kind => molecule_kinds(ibox)%list%els(imolecule)
             CALL get_molecule_kind(molecule_kind, name=names_init(itype), &
                                    natom=natom)
-            IF (natom .GT. natoms_large) natoms_large = natom
+            IF (natom > natoms_large) natoms_large = natom
             itype = itype + 1
          END DO
       END DO
@@ -1865,7 +1865,7 @@ CONTAINS
       DO itype = 1, ntypes
          lnew_type = .TRUE.
          DO jtype = 1, itype - 1
-            IF (TRIM(names_init(itype)) .EQ. TRIM(names_init(jtype))) &
+            IF (TRIM(names_init(itype)) == TRIM(names_init(jtype))) &
                lnew_type = .FALSE.
          END DO
          IF (lnew_type) THEN
@@ -1893,7 +1893,7 @@ CONTAINS
          IF (ibox == skip_box) CYCLE
          DO imolecule = 1, SIZE(molecule_kinds(ibox)%list%els(:))
             itype = itype + 1
-            IF (names_init(itype) .EQ. '') CYCLE
+            IF (names_init(itype) == '') CYCLE
             iunique = iunique + 1
             mc_molecule_info%names(iunique) = names_init(itype)
             molecule_kind => molecule_kinds(ibox)%list%els(imolecule)
@@ -1939,7 +1939,7 @@ CONTAINS
                molecule_kind => molecule_kinds(ibox)%list%els(imolecule)
                CALL get_molecule_kind(molecule_kind, nmolecule=nmolecule, &
                                       name=name)
-               IF (TRIM(name) .NE. mc_molecule_info%names(iunique)) CYCLE
+               IF (TRIM(name) /= mc_molecule_info%names(iunique)) CYCLE
                mc_molecule_info%nchains(iunique, ibox) = mc_molecule_info%nchains(iunique, ibox) + nmolecule
             END DO
          END DO
@@ -1973,7 +1973,7 @@ CONTAINS
 ! figure out which molecule number this is
             this_molecule = 0
             DO iunique = 1, nmol_types
-               IF (TRIM(name) .EQ. TRIM(mc_molecule_info%names(iunique))) THEN
+               IF (TRIM(name) == TRIM(mc_molecule_info%names(iunique))) THEN
                   this_molecule = iunique
                END IF
             END DO
@@ -2047,19 +2047,19 @@ CONTAINS
 
 ! the final value of these arrays needs to be 1.0, otherwise there is
 ! a chance we won't select a molecule type for a move
-      IF (mc_par%pmavbmc_mol(nmol_types) .LT. 0.9999E0_dp) THEN
+      IF (mc_par%pmavbmc_mol(nmol_types) < 0.9999E0_dp) THEN
          CPABORT('The last value of PMAVBMC_MOL needs to be 1.0')
       END IF
-      IF (mc_par%pmswap_mol(nmol_types) .LT. 0.9999E0_dp) THEN
+      IF (mc_par%pmswap_mol(nmol_types) < 0.9999E0_dp) THEN
          CPABORT('The last value of PMSWAP_MOL needs to be 1.0')
       END IF
-      IF (mc_par%pmtraion_mol(nmol_types) .LT. 0.9999E0_dp) THEN
+      IF (mc_par%pmtraion_mol(nmol_types) < 0.9999E0_dp) THEN
          CPABORT('The last value of PMTRAION_MOL needs to be 1.0')
       END IF
-      IF (mc_par%pmtrans_mol(nmol_types) .LT. 0.9999E0_dp) THEN
+      IF (mc_par%pmtrans_mol(nmol_types) < 0.9999E0_dp) THEN
          CPABORT('The last value of PMTRANS_MOL needs to be 1.0')
       END IF
-      IF (mc_par%pmrot_mol(nmol_types) .LT. 0.9999E0_dp) THEN
+      IF (mc_par%pmrot_mol(nmol_types) < 0.9999E0_dp) THEN
          CPABORT('The last value of PMROT_MOL needs to be 1.0')
       END IF
 
@@ -2068,25 +2068,25 @@ CONTAINS
       ! some ensembles require multiple boxes or molecule types
       SELECT CASE (mc_par%ensemble)
       CASE ("GEMC_NPT")
-         IF (nmol_types .LE. 1) &
+         IF (nmol_types <= 1) &
             CPABORT('Cannot have GEMC-NPT simulation with only one molecule type')
-         IF (nboxes .LE. 1) &
+         IF (nboxes <= 1) &
             CPABORT('Cannot have GEMC-NPT simulation with only one box')
       CASE ("GEMC_NVT")
-         IF (nboxes .LE. 1) &
+         IF (nboxes <= 1) &
             CPABORT('Cannot have GEMC-NVT simulation with only one box')
       CASE ("TRADITIONAL")
-         IF (mc_par%pmswap .GT. 0.0E0_dp) &
+         IF (mc_par%pmswap > 0.0E0_dp) &
             CPABORT('You cannot do swap moves in a system with only one box')
       CASE ("VIRIAL")
-         IF (nchain_total .NE. 2) &
+         IF (nchain_total /= 2) &
             CPABORT('You need exactly two molecules in the box to compute the second virial.')
       END SELECT
 
 ! can't choose an AVBMC target atom number higher than the number
 ! of units in that molecule
       DO imol_type = 1, nmol_types
-         IF (mc_par%avbmc_atom(imol_type) .GT. nunits(imol_type)) THEN
+         IF (mc_par%avbmc_atom(imol_type) > nunits(imol_type)) THEN
             CPABORT('Cannot have avbmc_atom higher than the number of atoms for that molecule type!')
          END IF
       END DO

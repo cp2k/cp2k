@@ -160,7 +160,7 @@ CONTAINS
 
             ! check if this function is hard
             radius = exp_radius(lb_max(jset), MAXVAL(zetb(1:npgfb(jset), jset)), eps_fit, 1.0_dp)
-            IF (radius .LE. hard_radius_b) sgf_hard_only = sgf_hard_only + 1
+            IF (radius <= hard_radius_b) sgf_hard_only = sgf_hard_only + 1
 
             ! Integral between proj of iatom and primitives of jatom
             ! Calculate the primitives overlap
@@ -243,7 +243,7 @@ CONTAINS
 
       ! Check if the screened functions are all soft
       sgf_soft_only = .FALSE.
-      IF (sgf_hard_only .EQ. 0) sgf_soft_only = .TRUE.
+      IF (sgf_hard_only == 0) sgf_soft_only = .TRUE.
 
       DEALLOCATE (s, spa_sb, spa_tmp, ovs)
 
@@ -796,10 +796,10 @@ CONTAINS
 
       REAL(KIND=dp)                                      :: buf1(len1), buf2(len2)
 
-      IF (na .EQ. 0 .OR. nb .EQ. 0 .OR. nso .EQ. 0) RETURN
+      IF (na == 0 .OR. nb == 0 .OR. nso == 0) RETURN
 
       ! Handle special cases
-      IF (na .EQ. 1 .AND. nb .EQ. 1) THEN
+      IF (na == 1 .AND. nb == 1) THEN
          ! hard
          CALL dger(nso, nso, fac*blk(1, 1), h_a(1, 1), 1, h_b(1, 1), 1, proj_h(1, 1), nso)
          ! soft

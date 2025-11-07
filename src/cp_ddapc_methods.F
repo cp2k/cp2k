@@ -137,7 +137,7 @@ CONTAINS
          IF (g2 > gcut2) EXIT
          igmax = ig
       END DO
-      IF (igmax .GE. s_dim) THEN
+      IF (igmax >= s_dim) THEN
          ALLOCATE (my_bv(s_dim:igmax))
          ALLOCATE (my_bvw(s_dim:igmax))
          !
@@ -218,7 +218,7 @@ CONTAINS
          IF (g2 > gcut2) EXIT
          igmax = ig
       END DO
-      IF (igmax .GE. s_dim) THEN
+      IF (igmax >= s_dim) THEN
          ALLOCATE (my_Am(s_dim:igmax))
          ALLOCATE (my_Amw(s_dim:igmax))
          ALLOCATE (gfunc_sq(s_dim:igmax, SIZE(radii), SIZE(radii)))
@@ -303,7 +303,7 @@ CONTAINS
          IF (g2 > gcut2) EXIT
          igmax = ig
       END DO
-      IF (igmax .GE. s_dim) THEN
+      IF (igmax >= s_dim) THEN
          ALLOCATE (my_dbv(3, s_dim:igmax))
          ALLOCATE (my_dbvw(s_dim:igmax))
          DO iparticle = 1, SIZE(particle_set)
@@ -403,7 +403,7 @@ CONTAINS
       Nr = SIZE(radii)
       Np = SIZE(particle_set)
       Ng = igmax - s_dim + 1
-      IF (igmax .GE. s_dim) THEN
+      IF (igmax >= s_dim) THEN
          ALLOCATE (lhs(nparticles*Nr, Ng))
          ALLOCATE (rhs(Ng, Np*Nr))
 
@@ -507,7 +507,7 @@ CONTAINS
          igmax = ig
       END DO
 
-      IF (igmax .GE. s_dim) THEN
+      IF (igmax >= s_dim) THEN
          ALLOCATE (g_dot_rvec_sin(1:igmax - s_dim + 1, SIZE(particle_set)))
          ALLOCATE (g_dot_rvec_cos(1:igmax - s_dim + 1, SIZE(particle_set)))
 

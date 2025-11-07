@@ -166,7 +166,7 @@ CONTAINS
          CALL pao_read_raw(filename, param, hmat, kinds, atom2kind, positions, xblocks, ml_range)
 
          ! check parametrization
-         IF (TRIM(param) .NE. TRIM(ADJUSTL(id2str(pao%parameterization)))) &
+         IF (TRIM(param) /= TRIM(ADJUSTL(id2str(pao%parameterization)))) &
             CPABORT("Restart PAO parametrization does not match")
 
          ! map read-in kinds onto kinds of this run
@@ -269,7 +269,7 @@ CONTAINS
          DO jkind = 1, SIZE(atomic_kind_set)
             CALL get_atomic_kind(atomic_kind_set(jkind), name=name)
             ! match kinds via their name
-            IF (TRIM(kinds(ikind)%name) .EQ. TRIM(name)) THEN
+            IF (TRIM(kinds(ikind)%name) == TRIM(name)) THEN
                CALL pao_kinds_ensure_equal(pao, qs_env, jkind, kinds(ikind))
                kindsmap(ikind) = jkind
                EXIT

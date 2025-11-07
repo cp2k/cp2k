@@ -215,84 +215,84 @@ CONTAINS
                   dum = 4.0_dp*(za**2*rr(0, coap2x, cob) + zb**2*rr(0, coa, cobp2x) &
                        &         + 2.0_dp*za*zb*rr(0, coap1x, cobp1x)) &
                        - 2.0_dp*rr(0, coa, cob)*(za*REAL(2*ax + 1, dp) + zb*REAL(2*bx + 1, dp))
-                  IF (ax .GT. 1) dum = dum + REAL(ax*(ax - 1), dp)*rr(0, coam2x, cob)
-                  IF (bx .GT. 1) dum = dum + REAL(bx*(bx - 1), dp)*rr(0, coa, cobm2x)
-                  IF (ax .GT. 0) dum = dum - 4.0_dp*zb*REAL(ax, dp)*rr(0, coam1x, cobp1x)
-                  IF (bx .GT. 0) dum = dum - 4.0_dp*za*REAL(bx, dp)*rr(0, coap1x, cobm1x)
-                  IF (ax .GT. 0 .AND. bx .GT. 0) dum = dum + 2.0_dp*REAL(ax*bx, dp)*rr(0, coam1x, cobm1x)
+                  IF (ax > 1) dum = dum + REAL(ax*(ax - 1), dp)*rr(0, coam2x, cob)
+                  IF (bx > 1) dum = dum + REAL(bx*(bx - 1), dp)*rr(0, coa, cobm2x)
+                  IF (ax > 0) dum = dum - 4.0_dp*zb*REAL(ax, dp)*rr(0, coam1x, cobp1x)
+                  IF (bx > 0) dum = dum - 4.0_dp*za*REAL(bx, dp)*rr(0, coap1x, cobm1x)
+                  IF (ax > 0 .AND. bx > 0) dum = dum + 2.0_dp*REAL(ax*bx, dp)*rr(0, coam1x, cobm1x)
                   dumxx = f0*dum
                   !
                   ! (a|yy|b)
                   dum = 4.0_dp*(za**2*rr(0, coap2y, cob) + zb**2*rr(0, coa, cobp2y) &
                        &         + 2.0_dp*za*zb*rr(0, coap1y, cobp1y)) &
                        - 2.0_dp*rr(0, coa, cob)*(za*REAL(2*ay + 1, dp) + zb*REAL(2*by + 1, dp))
-                  IF (ay .GT. 1) dum = dum + REAL(ay*(ay - 1), dp)*rr(0, coam2y, cob)
-                  IF (by .GT. 1) dum = dum + REAL(by*(by - 1), dp)*rr(0, coa, cobm2y)
-                  IF (ay .GT. 0) dum = dum - 4.0_dp*zb*REAL(ay, dp)*rr(0, coam1y, cobp1y)
-                  IF (by .GT. 0) dum = dum - 4.0_dp*za*REAL(by, dp)*rr(0, coap1y, cobm1y)
-                  IF (ay .GT. 0 .AND. by .GT. 0) dum = dum + 2.0_dp*REAL(ay*by, dp)*rr(0, coam1y, cobm1y)
+                  IF (ay > 1) dum = dum + REAL(ay*(ay - 1), dp)*rr(0, coam2y, cob)
+                  IF (by > 1) dum = dum + REAL(by*(by - 1), dp)*rr(0, coa, cobm2y)
+                  IF (ay > 0) dum = dum - 4.0_dp*zb*REAL(ay, dp)*rr(0, coam1y, cobp1y)
+                  IF (by > 0) dum = dum - 4.0_dp*za*REAL(by, dp)*rr(0, coap1y, cobm1y)
+                  IF (ay > 0 .AND. by > 0) dum = dum + 2.0_dp*REAL(ay*by, dp)*rr(0, coam1y, cobm1y)
                   dumyy = f0*dum
                   !
                   ! (a|zz|b)
                   dum = 4.0_dp*(za**2*rr(0, coap2z, cob) + zb**2*rr(0, coa, cobp2z) &
                        &         + 2.0_dp*za*zb*rr(0, coap1z, cobp1z)) &
                        - 2.0_dp*rr(0, coa, cob)*(za*REAL(2*az + 1, dp) + zb*REAL(2*bz + 1, dp))
-                  IF (az .GT. 1) dum = dum + REAL(az*(az - 1), dp)*rr(0, coam2z, cob)
-                  IF (bz .GT. 1) dum = dum + REAL(bz*(bz - 1), dp)*rr(0, coa, cobm2z)
-                  IF (az .GT. 0) dum = dum - 4.0_dp*zb*REAL(az, dp)*rr(0, coam1z, cobp1z)
-                  IF (bz .GT. 0) dum = dum - 4.0_dp*za*REAL(bz, dp)*rr(0, coap1z, cobm1z)
-                  IF (az .GT. 0 .AND. bz .GT. 0) dum = dum + 2.0_dp*REAL(az*bz, dp)*rr(0, coam1z, cobm1z)
+                  IF (az > 1) dum = dum + REAL(az*(az - 1), dp)*rr(0, coam2z, cob)
+                  IF (bz > 1) dum = dum + REAL(bz*(bz - 1), dp)*rr(0, coa, cobm2z)
+                  IF (az > 0) dum = dum - 4.0_dp*zb*REAL(az, dp)*rr(0, coam1z, cobp1z)
+                  IF (bz > 0) dum = dum - 4.0_dp*za*REAL(bz, dp)*rr(0, coap1z, cobm1z)
+                  IF (az > 0 .AND. bz > 0) dum = dum + 2.0_dp*REAL(az*bz, dp)*rr(0, coam1z, cobm1z)
                   dumzz = f0*dum
                   !
                   ! (a|xy|b)
                   dum = 4.0_dp*(za**2*rr(0, coapxy, cob) + zb**2*rr(0, coa, cobpxy) &
                        &         + za*zb*(rr(0, coap1x, cobp1y) + rr(0, coap1y, cobp1x)))
-                  IF (ax .GT. 0) dum = dum - 2.0_dp*REAL(ax, dp)* &
+                  IF (ax > 0) dum = dum - 2.0_dp*REAL(ax, dp)* &
                        &  (za*rr(0, coamxpy, cob) + zb*rr(0, coam1x, cobp1y))
-                  IF (ay .GT. 0) dum = dum - 2.0_dp*REAL(ay, dp)* &
+                  IF (ay > 0) dum = dum - 2.0_dp*REAL(ay, dp)* &
                        &  (za*rr(0, coamypx, cob) + zb*rr(0, coam1y, cobp1x))
-                  IF (ax .GT. 0 .AND. ay .GT. 0) dum = dum + REAL(ax*ay, dp)*rr(0, coamxy, cob)
-                  IF (bx .GT. 0) dum = dum - 2.0_dp*REAL(bx, dp)* &
+                  IF (ax > 0 .AND. ay > 0) dum = dum + REAL(ax*ay, dp)*rr(0, coamxy, cob)
+                  IF (bx > 0) dum = dum - 2.0_dp*REAL(bx, dp)* &
                        &  (zb*rr(0, coa, cobmxpy) + za*rr(0, coap1y, cobm1x))
-                  IF (by .GT. 0) dum = dum - 2.0_dp*REAL(by, dp)* &
+                  IF (by > 0) dum = dum - 2.0_dp*REAL(by, dp)* &
                        &  (zb*rr(0, coa, cobmypx) + za*rr(0, coap1x, cobm1y))
-                  IF (bx .GT. 0 .AND. by .GT. 0) dum = dum + REAL(bx*by, dp)*rr(0, coa, cobmxy)
-                  IF (ax .GT. 0 .AND. by .GT. 0) dum = dum + REAL(ax*by, dp)*rr(0, coam1x, cobm1y)
-                  IF (ay .GT. 0 .AND. bx .GT. 0) dum = dum + REAL(ay*bx, dp)*rr(0, coam1y, cobm1x)
+                  IF (bx > 0 .AND. by > 0) dum = dum + REAL(bx*by, dp)*rr(0, coa, cobmxy)
+                  IF (ax > 0 .AND. by > 0) dum = dum + REAL(ax*by, dp)*rr(0, coam1x, cobm1y)
+                  IF (ay > 0 .AND. bx > 0) dum = dum + REAL(ay*bx, dp)*rr(0, coam1y, cobm1x)
                   dumxy = f0*dum
                   !
                   ! (a|xz|b)
                   dum = 4.0_dp*(za**2*rr(0, coapxz, cob) + zb**2*rr(0, coa, cobpxz) &
                        &         + za*zb*(rr(0, coap1x, cobp1z) + rr(0, coap1z, cobp1x)))
-                  IF (ax .GT. 0) dum = dum - 2.0_dp*REAL(ax, dp)* &
+                  IF (ax > 0) dum = dum - 2.0_dp*REAL(ax, dp)* &
                        &  (za*rr(0, coamxpz, cob) + zb*rr(0, coam1x, cobp1z))
-                  IF (az .GT. 0) dum = dum - 2.0_dp*REAL(az, dp)* &
+                  IF (az > 0) dum = dum - 2.0_dp*REAL(az, dp)* &
                        &  (za*rr(0, coamzpx, cob) + zb*rr(0, coam1z, cobp1x))
-                  IF (ax .GT. 0 .AND. az .GT. 0) dum = dum + REAL(ax*az, dp)*rr(0, coamxz, cob)
-                  IF (bx .GT. 0) dum = dum - 2.0_dp*REAL(bx, dp)* &
+                  IF (ax > 0 .AND. az > 0) dum = dum + REAL(ax*az, dp)*rr(0, coamxz, cob)
+                  IF (bx > 0) dum = dum - 2.0_dp*REAL(bx, dp)* &
                        &  (zb*rr(0, coa, cobmxpz) + za*rr(0, coap1z, cobm1x))
-                  IF (bz .GT. 0) dum = dum - 2.0_dp*REAL(bz, dp)* &
+                  IF (bz > 0) dum = dum - 2.0_dp*REAL(bz, dp)* &
                        &  (zb*rr(0, coa, cobmzpx) + za*rr(0, coap1x, cobm1z))
-                  IF (bx .GT. 0 .AND. bz .GT. 0) dum = dum + REAL(bx*bz, dp)*rr(0, coa, cobmxz)
-                  IF (ax .GT. 0 .AND. bz .GT. 0) dum = dum + REAL(ax*bz, dp)*rr(0, coam1x, cobm1z)
-                  IF (az .GT. 0 .AND. bx .GT. 0) dum = dum + REAL(az*bx, dp)*rr(0, coam1z, cobm1x)
+                  IF (bx > 0 .AND. bz > 0) dum = dum + REAL(bx*bz, dp)*rr(0, coa, cobmxz)
+                  IF (ax > 0 .AND. bz > 0) dum = dum + REAL(ax*bz, dp)*rr(0, coam1x, cobm1z)
+                  IF (az > 0 .AND. bx > 0) dum = dum + REAL(az*bx, dp)*rr(0, coam1z, cobm1x)
                   dumxz = f0*dum
                   !
                   ! (a|yz|b)
                   dum = 4.0_dp*(za**2*rr(0, coapyz, cob) + zb**2*rr(0, coa, cobpyz) &
                        &         + za*zb*(rr(0, coap1y, cobp1z) + rr(0, coap1z, cobp1y)))
-                  IF (ay .GT. 0) dum = dum - 2.0_dp*REAL(ay, dp)* &
+                  IF (ay > 0) dum = dum - 2.0_dp*REAL(ay, dp)* &
                        &  (za*rr(0, coamypz, cob) + zb*rr(0, coam1y, cobp1z))
-                  IF (az .GT. 0) dum = dum - 2.0_dp*REAL(az, dp)* &
+                  IF (az > 0) dum = dum - 2.0_dp*REAL(az, dp)* &
                        &  (za*rr(0, coamzpy, cob) + zb*rr(0, coam1z, cobp1y))
-                  IF (ay .GT. 0 .AND. az .GT. 0) dum = dum + REAL(ay*az, dp)*rr(0, coamyz, cob)
-                  IF (by .GT. 0) dum = dum - 2.0_dp*REAL(by, dp)* &
+                  IF (ay > 0 .AND. az > 0) dum = dum + REAL(ay*az, dp)*rr(0, coamyz, cob)
+                  IF (by > 0) dum = dum - 2.0_dp*REAL(by, dp)* &
                        &  (zb*rr(0, coa, cobmypz) + za*rr(0, coap1z, cobm1y))
-                  IF (bz .GT. 0) dum = dum - 2.0_dp*REAL(bz, dp)* &
+                  IF (bz > 0) dum = dum - 2.0_dp*REAL(bz, dp)* &
                        &  (zb*rr(0, coa, cobmzpy) + za*rr(0, coap1y, cobm1z))
-                  IF (by .GT. 0 .AND. bz .GT. 0) dum = dum + REAL(by*bz, dp)*rr(0, coa, cobmyz)
-                  IF (ay .GT. 0 .AND. bz .GT. 0) dum = dum + REAL(ay*bz, dp)*rr(0, coam1y, cobm1z)
-                  IF (az .GT. 0 .AND. by .GT. 0) dum = dum + REAL(az*by, dp)*rr(0, coam1z, cobm1y)
+                  IF (by > 0 .AND. bz > 0) dum = dum + REAL(by*bz, dp)*rr(0, coa, cobmyz)
+                  IF (ay > 0 .AND. bz > 0) dum = dum + REAL(ay*bz, dp)*rr(0, coam1y, cobm1z)
+                  IF (az > 0 .AND. by > 0) dum = dum + REAL(az*by, dp)*rr(0, coam1z, cobm1y)
                   dumyz = f0*dum
                   !
                   !

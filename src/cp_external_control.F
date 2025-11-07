@@ -58,7 +58,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: in_external_master_id
       INTEGER, INTENT(IN), OPTIONAL                      :: in_scf_energy_message_tag, in_exit_tag
 
-      CPASSERT(in_external_master_id .GE. 0)
+      CPASSERT(in_external_master_id >= 0)
 
       external_comm = comm
       external_master_id = in_external_master_id
@@ -67,7 +67,7 @@ CONTAINS
          scf_energy_message_tag = in_scf_energy_message_tag
       IF (PRESENT(in_exit_tag)) THEN
          ! the exit tag should be different from the mpi_probe tag default
-         CPASSERT(in_exit_tag .NE. -1)
+         CPASSERT(in_exit_tag /= -1)
          exit_tag = in_exit_tag
       END IF
    END SUBROUTINE set_external_comm
@@ -123,10 +123,10 @@ CONTAINS
       exit_fname_level = TRIM(logger%iter_info%project_name)//"."//TRIM(exit_gname_level)
 
       ! check for incomming messages and if it is tagged with the exit tag
-      IF (exit_tag .NE. -1) THEN
+      IF (exit_tag /= -1) THEN
          i = external_master_id
          CALL external_comm%probe(source=i, tag=tag)
-         IF (tag .EQ. exit_tag) should_stop = .TRUE.
+         IF (tag == exit_tag) should_stop = .TRUE.
       END IF
 
       IF (logger%para_env%is_source()) THEN
@@ -214,7 +214,7 @@ CONTAINS
          IF ((.NOT. should_stop) .AND. (my_target_time > 0.0_dp)) THEN
             ! Check for execution time
             time_check = m_walltime() - my_start_time
-            IF (time_check .GT. my_target_time) THEN
+            IF (time_check > my_target_time) THEN
                should_stop = .TRUE.
                WRITE (UNIT=cp_logger_get_default_unit_nr(logger), FMT="(/,T2,A,f12.3,A)") &
                   "*** "//TRIM(flag)//" run terminated - exceeded requested execution time:", &

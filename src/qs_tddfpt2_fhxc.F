@@ -148,7 +148,7 @@ CONTAINS
       gapw_xc = dft_control%qs_control%gapw_xc
       spinflip = dft_control%tddfpt2_control%spinflip
 
-      do_noncol = spinflip .EQ. tddfpt_sf_noncol
+      do_noncol = spinflip == tddfpt_sf_noncol
 
       CALL cp_fm_get_info(evects(1, 1), nrow_global=nao)
       DO ispin = 1, nspins
@@ -404,7 +404,7 @@ CONTAINS
          END IF
 
          ! electron-hole Coulomb interaction
-         IF ((.NOT. is_rks_triplets) .AND. (spinflip .EQ. no_sf_tddfpt)) THEN
+         IF ((.NOT. is_rks_triplets) .AND. (spinflip == no_sf_tddfpt)) THEN
             ! a sum J_i{alpha}a{alpha}_munu + J_i{beta}a{beta}_munu can be computed by solving
             ! the Poisson equation for combined density (rho_{ia,alpha} + rho_{ia,beta}) .
             ! The following action will destroy reciprocal-space grid in spin-unrestricted case.

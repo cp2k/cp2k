@@ -514,9 +514,9 @@ CONTAINS
          trial_energy(imove) = (bias_energy - old_energy)
          exponent = -BETA*trial_energy(imove)
 
-         IF (exponent .GT. exp_max_val) THEN
+         IF (exponent > exp_max_val) THEN
             boltz_weights(imove) = max_val
-         ELSEIF (exponent .LT. exp_min_val) THEN
+         ELSEIF (exponent < exp_min_val) THEN
             boltz_weights(imove) = min_val
          ELSE
             boltz_weights(imove) = EXP(exponent)
@@ -527,7 +527,7 @@ CONTAINS
 ! now we need to pick a configuration based on the Rosenbluth weight,
 ! which is just the sum of the Boltzmann weights
       rosenbluth_weight = SUM(boltz_weights(:))
-      IF (rosenbluth_weight .EQ. 0.0_dp .AND. lremove) THEN
+      IF (rosenbluth_weight == 0.0_dp .AND. lremove) THEN
 ! should never have 0.0 for an old weight...causes a divide by zero
 ! in the acceptance rule
          IF (ionode) THEN
@@ -554,7 +554,7 @@ CONTAINS
          IF (loverlap_array(imove)) CYCLE
          all_overlaps = .FALSE.
          total_running_weight = total_running_weight + boltz_weights(imove)
-         IF (total_running_weight .GE. rand*rosenbluth_weight) THEN
+         IF (total_running_weight >= rand*rosenbluth_weight) THEN
             choosen = imove
             EXIT
          END IF
@@ -787,7 +787,7 @@ CONTAINS
 ! find which box it's in
          nchains_tot = 0
          DO ibox = 1, SIZE(nchains(molecule_type_old, :))
-            IF (molecule_number .LE. nchains(molecule_type_old, ibox)) THEN
+            IF (molecule_number <= nchains(molecule_type_old, ibox)) THEN
                box_number = ibox
                EXIT
             END IF
@@ -821,7 +821,7 @@ CONTAINS
 
 ! now which box it's in
          DO ibox = 1, SUM(nchains(1, :))
-            IF (molecule_number .LE. SUM(nchains(:, ibox))) THEN
+            IF (molecule_number <= SUM(nchains(:, ibox))) THEN
                box_number = ibox
                EXIT
             END IF
@@ -881,8 +881,8 @@ CONTAINS
       length2 = ABS(cell(2) - cell(3))
 
 ! now let's figure out all the different cases
-      IF (length1 .LT. 0.01_dp*step_size .AND. &
-          length2 .LT. 0.01_dp*step_size) THEN
+      IF (length1 < 0.01_dp*step_size .AND. &
+          length2 < 0.01_dp*step_size) THEN
 ! all sides are equal, so we can move up or down
          discrete_array(1:3, 1) = 1
          discrete_array(1:3, 2) = 1
@@ -892,13 +892,13 @@ CONTAINS
          high_value = -1.0_dp
          low_value = cell(1)*cell(2)*cell(3)
          DO iside = 1, 3
-            IF (cell(iside) .LT. low_value) low_value = cell(iside)
-            IF (cell(iside) .GT. high_value) high_value = cell(iside)
+            IF (cell(iside) < low_value) low_value = cell(iside)
+            IF (cell(iside) > high_value) high_value = cell(iside)
          END DO
          DO iside = 1, 3
 ! now we see if the value is a high value or a low value...it can only be
 ! one of the two
-            IF (ABS(cell(iside) - low_value) .LT. 0.01_dp*step_size) THEN
+            IF (ABS(cell(iside) - low_value) < 0.01_dp*step_size) THEN
 ! low value, we can only increase the cell size
                discrete_array(iside, 1) = 1
                discrete_array(iside, 2) = 0
@@ -949,7 +949,7 @@ CONTAINS
             eta_1 = rng_stream%next()
             eta_2 = rng_stream%next()
             eta_sq = eta_1**2 + eta_2**2
-            IF (eta_sq .LT. 1.0_dp) THEN
+            IF (eta_sq < 1.0_dp) THEN
                r_insert(1) = 2.0_dp*eta_1*SQRT(1.0_dp - eta_sq)
                r_insert(2) = 2.0_dp*eta_2*SQRT(1.0_dp - eta_sq)
                r_insert(3) = 1.0_dp - 2.0_dp*eta_sq
@@ -982,7 +982,7 @@ CONTAINS
 
             dist = RIJ(1)**2 + RIJ(2)**2 + RIJ(3)**2
 
-            IF (dist .LT. rmin**2 .OR. dist .GT. rmax**2) THEN
+            IF (dist < rmin**2 .OR. dist > rmax**2) THEN
                EXIT
             END IF
 
@@ -1072,9 +1072,9 @@ CONTAINS
 
       rclussquare = rclus*rclus
 ! Starting the cluster count loop
-      DO WHILE (SUM(decision) .LT. nend)
+      DO WHILE (SUM(decision) < nend)
          DO nstart = 1, nend
-            IF (clusmat(nstart) .EQ. 0) THEN
+            IF (clusmat(nstart) == 0) THEN
                counter = counter + 1
                clusmat(nstart) = counter
                EXIT
@@ -1087,7 +1087,7 @@ CONTAINS
                nunits_i = nunits(mol_type(imol))
 ! Allocating the xcoord,ycoord,zcoord based upon the size of molecule nunits
                lclus = .FALSE.
-               IF (clusmat(imol) .EQ. counter .AND. decision(imol) .EQ. 0) THEN
+               IF (clusmat(imol) == counter .AND. decision(imol) == 0) THEN
                   ALLOCATE (xcoord(nunits_i), ycoord(nunits_i), zcoord(nunits_i))
                   decision(imol) = 1
                   lclus = .TRUE.
@@ -1102,7 +1102,7 @@ CONTAINS
             IF (lclus .EQV. .TRUE.) THEN
                DO jmol = 1, nend
                   nunits_j = nunits(mol_type(jmol))
-                  IF (clusmat(jmol) .EQ. 0 .AND. decision(jmol) .EQ. 0) THEN
+                  IF (clusmat(jmol) == 0 .AND. decision(jmol) == 0) THEN
 !Calculating the distance between atoms
                      DO iunit = 1, nunits_i
                         DO junit = 1, nunits_j
@@ -1114,7 +1114,7 @@ CONTAINS
                            dz = dz - abc(3)*ANINT(dz/abc(3))
                            rsquare = (dx*dx) + (dy*dy) + (dz*dz)
 !Checking the distance based on rclus square(rclussq)
-                           IF (rsquare .LT. rclussquare) THEN
+                           IF (rsquare < rclussquare) THEN
                               clusmat(jmol) = counter
                            END IF
                         END DO
@@ -1131,7 +1131,7 @@ CONTAINS
 
       DO imol = 1, counter
          DO jmol = 1, nend
-            IF (imol .EQ. clusmat(jmol)) THEN
+            IF (imol == clusmat(jmol)) THEN
                cluster(imol, jmol) = jmol
             END IF
          END DO

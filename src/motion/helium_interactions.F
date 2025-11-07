@@ -556,7 +556,7 @@ CONTAINS
                   CALL helium_pbc(helium_env(k)%helium, pbc2)
                   wrapped = .FALSE.
                   DO ic = 1, 3
-                     IF (ABS(pbc1(ic) - pbc2(ic)) .GT. 10.0_dp*EPSILON(0.0_dp)) THEN
+                     IF (ABS(pbc1(ic) - pbc2(ic)) > 10.0_dp*EPSILON(0.0_dp)) THEN
                         wrapped = .TRUE.
                      END IF
                   END DO

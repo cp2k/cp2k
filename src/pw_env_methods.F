@@ -521,24 +521,24 @@ CONTAINS
                              dct_pw_grid=dct_pw_grid, use_level=pw_env%auxbas_grid)
       END IF
 
-      IF ((poisson_params%ps_implicit_params%boundary_condition .EQ. MIXED_PERIODIC_BC) .OR. &
-          (poisson_params%ps_implicit_params%boundary_condition .EQ. MIXED_BC)) THEN
+      IF ((poisson_params%ps_implicit_params%boundary_condition == MIXED_PERIODIC_BC) .OR. &
+          (poisson_params%ps_implicit_params%boundary_condition == MIXED_BC)) THEN
          pw_env%poisson_env%parameters%dbc_params%do_dbc_cube = &
             BTEST(cp_print_key_should_output(logger%iter_info, input, &
                                              "DFT%PRINT%IMPLICIT_PSOLVER%DIRICHLET_BC_CUBE"), cp_p_file)
       END IF
       ! setup dct_pw_grid (an extended pw_grid) for Discrete Cosine Transformation (DCT)
-      IF ((poisson_params%ps_implicit_params%boundary_condition .EQ. NEUMANN_BC) .OR. &
-          (poisson_params%ps_implicit_params%boundary_condition .EQ. MIXED_BC)) THEN
+      IF ((poisson_params%ps_implicit_params%boundary_condition == NEUMANN_BC) .OR. &
+          (poisson_params%ps_implicit_params%boundary_condition == MIXED_BC)) THEN
          CALL setup_dct_pw_grids(pw_env%poisson_env%pw_pools(pw_env%poisson_env%pw_level)%pool%pw_grid, &
                                  my_cell%hmat, poisson_params%ps_implicit_params%neumann_directions, &
                                  pw_env%poisson_env%dct_pw_grid)
       END IF
       ! setup real space grid for finite difference derivatives of dielectric constant function
       IF (poisson_params%has_dielectric .AND. &
-          ((poisson_params%dielectric_params%derivative_method .EQ. derivative_cd3) .OR. &
-           (poisson_params%dielectric_params%derivative_method .EQ. derivative_cd5) .OR. &
-           (poisson_params%dielectric_params%derivative_method .EQ. derivative_cd7))) THEN
+          ((poisson_params%dielectric_params%derivative_method == derivative_cd3) .OR. &
+           (poisson_params%dielectric_params%derivative_method == derivative_cd5) .OR. &
+           (poisson_params%dielectric_params%derivative_method == derivative_cd7))) THEN
 
          SELECT CASE (poisson_params%ps_implicit_params%boundary_condition)
          CASE (NEUMANN_BC, MIXED_BC)
@@ -652,7 +652,7 @@ CONTAINS
                WRITE (UNIT=iounit, FMT="(T2,A,T51,A30)") &
                   "POISSON| Boundary Condition", "PERIODIC"
             CASE (NEUMANN_BC, MIXED_BC)
-               IF (boundary_condition .EQ. NEUMANN_BC) THEN
+               IF (boundary_condition == NEUMANN_BC) THEN
                   WRITE (UNIT=iounit, FMT="(T2,A,T51,A30)") &
                      "POISSON| Boundary Condition", "NEUMANN"
                ELSE
@@ -694,7 +694,7 @@ CONTAINS
                "POISSON| Maximum number of iterations", poisson_params%ps_implicit_params%max_iter
             WRITE (UNIT=iounit, FMT="(T2,A,T51,ES30.2)") &
                "POISSON| Convergence threshold", poisson_params%ps_implicit_params%tol
-            IF (poisson_params%dielectric_params%dielec_functiontype .EQ. rho_dependent) THEN
+            IF (poisson_params%dielectric_params%dielec_functiontype == rho_dependent) THEN
                WRITE (UNIT=iounit, FMT="(T2,A,T51,F30.2)") &
                   "POISSON| Dielectric Constant", poisson_params%dielectric_params%eps0
             ELSE
@@ -846,7 +846,7 @@ CONTAINS
             IF (ASSOCIATED(cneo_potential)) CYCLE
             CALL get_qs_kind(qs_kind_set(ikind), &
                              alpha_core_charge=alpha, ccore_charge=core_charge)
-            IF (alpha > 0.0_dp .AND. core_charge .NE. 0.0_dp) THEN
+            IF (alpha > 0.0_dp .AND. core_charge /= 0.0_dp) THEN
                maxradius = MAX(maxradius, exp_radius(0, alpha, eps_rho, core_charge, rlow=maxradius))
                ! forces
                maxradius = MAX(maxradius, exp_radius(1, alpha, eps_rho, core_charge, rlow=maxradius))
@@ -870,7 +870,7 @@ CONTAINS
                         zetp = zeta(ipgf, iset)
                         la = lshella(ishell, iset)
                         lgrid_level = gaussian_gridlevel(pw_env%gridlevel_info, zetp)
-                        IF (lgrid_level .EQ. igrid_level) THEN
+                        IF (lgrid_level == igrid_level) THEN
                            maxradius = MAX(maxradius, exp_radius(la, zetp, eps_rho, 1.0_dp, rlow=maxradius))
                         END IF
                      END DO
@@ -906,7 +906,7 @@ CONTAINS
                         zetp = zeta(ipgf, iset) + zetb(jpgf, jset)
                         lb = lshellb(jshell, jset) + la
                         lgrid_level = gaussian_gridlevel(pw_env%gridlevel_info, zetp)
-                        IF (lgrid_level .EQ. igrid_level) THEN
+                        IF (lgrid_level == igrid_level) THEN
                            ! density (scale is at most 2)
                            maxradius = MAX(maxradius, exp_radius(lb, zetp, eps_rho, 2.0_dp, rlow=maxradius))
                            ! tau, properties?

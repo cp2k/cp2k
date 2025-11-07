@@ -149,7 +149,7 @@ CONTAINS
 !$    plan%need_alt_plan = .FALSE.
 
       ! Planning only needed for FFTW3
-      IF (fft_type .EQ. 3) THEN
+      IF (fft_type == 3) THEN
          CALL fftw3_create_plan_3d(plan, zin, zout, plan_style)
          plan%valid = .TRUE.
       END IF
@@ -186,7 +186,7 @@ CONTAINS
          END SELECT
       END IF
       ! stat is set to zero on error, -1,+1 are OK
-      IF (stat .EQ. 0) THEN
+      IF (stat == 0) THEN
          stat = 1
       ELSE
          stat = 0
@@ -224,7 +224,7 @@ CONTAINS
 !$    plan%need_alt_plan = .FALSE.
 
       ! Planning only needed for FFTW3
-      IF ((fft_type .EQ. 3) .AND. (n*m .NE. 0)) THEN
+      IF ((fft_type == 3) .AND. (n*m /= 0)) THEN
          CALL fftw3_create_plan_1dm(plan, zin, zout, plan_style)
          plan%valid = .TRUE.
       ELSE
@@ -242,7 +242,7 @@ CONTAINS
 
 ! Planning only needed for FFTW3
 
-      IF (plan%valid .AND. plan%fft_type .EQ. 3) THEN
+      IF (plan%valid .AND. plan%fft_type == 3) THEN
          CALL fftw3_destroy_plan(plan)
          plan%valid = .FALSE.
       END IF
@@ -275,7 +275,7 @@ CONTAINS
          END SELECT
       END IF
       ! stat is set to zero on error, -1,+1 are OK
-      IF (stat .EQ. 0) THEN
+      IF (stat == 0) THEN
          stat = 1
       ELSE
          stat = 0

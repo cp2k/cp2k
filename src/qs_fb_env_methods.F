@@ -627,10 +627,10 @@ CONTAINS
       ndep = 0
 
       ! first, obtain orthogonalisation (ortho) matrix
-      IF (my_method .NE. cholesky_off) THEN
+      IF (my_method /= cholesky_off) THEN
          CALL cp_fm_to_fm(fm_S, fm_ortho)
          CALL cp_fm_cholesky_decompose(fm_ortho, info_out=info)
-         IF (info .NE. 0) THEN
+         IF (info /= 0) THEN
             CALL cp_warn(__LOCATION__, &
                          "Unable to perform Cholesky decomposition on the overlap "// &
                          "matrix. The new filtered basis may not be linearly "// &
@@ -1028,7 +1028,7 @@ CONTAINS
                DO ico = ncoset(lshell - 1) + 1, ncoset(lshell)
                   counter = counter + 1
                   ! only include the first zeta orbitals
-                  IF ((lshell .GT. old_lshell) .AND. (counter .LE. nco(lshell))) THEN
+                  IF ((lshell > old_lshell) .AND. (counter <= nco(lshell))) THEN
                      nfunctions(ikind) = nfunctions(ikind) + 1
                   END IF
                END DO
@@ -1036,8 +1036,8 @@ CONTAINS
                ! basis functions to accommodate the number of electrons,
                ! AND that that we have included all the first zeta
                ! orbitals of an angular momentum quantum number l
-               IF (((lshell .GT. old_lshell) .OR. (lshell .EQ. lmax(iset))) .AND. &
-                   (maxocc*REAL(nfunctions(ikind), dp) .GE. zeff)) THEN
+               IF (((lshell > old_lshell) .OR. (lshell == lmax(iset))) .AND. &
+                   (maxocc*REAL(nfunctions(ikind), dp) >= zeff)) THEN
                   EXIT bset1
                END IF
                old_lshell = lshell
@@ -1072,7 +1072,7 @@ CONTAINS
                   icgf = icgf + 1
                   counter = counter + 1
                   ! only include the first zeta orbitals
-                  IF ((lshell .GT. old_lshell) .AND. (counter .LE. nco(lshell))) THEN
+                  IF ((lshell > old_lshell) .AND. (counter <= nco(lshell))) THEN
                      itrial = itrial + 1
                      functions(itrial, ikind) = icgf
                   END IF
@@ -1082,8 +1082,8 @@ CONTAINS
                ! from atomic z), AND that that we have included all the
                ! first zeta orbitals of an angular momentum quantum
                ! number l
-               IF (((lshell .GT. old_lshell) .OR. (lshell .EQ. lmax(iset))) .AND. &
-                   (maxocc*REAL(itrial, dp) .GE. zeff)) THEN
+               IF (((lshell > old_lshell) .OR. (lshell == lmax(iset))) .AND. &
+                   (maxocc*REAL(itrial, dp) >= zeff)) THEN
                   EXIT bset2
                END IF
                old_lshell = lshell

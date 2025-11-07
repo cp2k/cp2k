@@ -173,14 +173,14 @@ CONTAINS
                   !               -2*zeta*Ny(b)*(a+z||b-y)-2*zetb*Nz(a)*(a-z||b+y)
                   !               +Nz(a)*Ny(b)*(a-z||b-y))
                   dum1 = 4.0_dp*zeta(ipgf)*zetb(jpgf)*rr(0, coap1y, cobp1z)
-                  IF (bz .GT. 0) dum1 = dum1 - 2.0_dp*zeta(ipgf)*REAL(bz, dp)*rr(0, coap1y, cobm1z)
-                  IF (ay .GT. 0) dum1 = dum1 - 2.0_dp*zetb(jpgf)*REAL(ay, dp)*rr(0, coam1y, cobp1z)
-                  IF (ay .GT. 0 .AND. bz .GT. 0) dum1 = dum1 + REAL(ay, dp)*REAL(bz, dp)*rr(0, coam1y, cobm1z)
+                  IF (bz > 0) dum1 = dum1 - 2.0_dp*zeta(ipgf)*REAL(bz, dp)*rr(0, coap1y, cobm1z)
+                  IF (ay > 0) dum1 = dum1 - 2.0_dp*zetb(jpgf)*REAL(ay, dp)*rr(0, coam1y, cobp1z)
+                  IF (ay > 0 .AND. bz > 0) dum1 = dum1 + REAL(ay, dp)*REAL(bz, dp)*rr(0, coam1y, cobm1z)
                   !
                   dum2 = 4.0_dp*zeta(ipgf)*zetb(jpgf)*rr(0, coap1z, cobp1y)
-                  IF (by .GT. 0) dum2 = dum2 - 2.0_dp*zeta(ipgf)*REAL(by, dp)*rr(0, coap1z, cobm1y)
-                  IF (az .GT. 0) dum2 = dum2 - 2.0_dp*zetb(jpgf)*REAL(az, dp)*rr(0, coam1z, cobp1y)
-                  IF (az .GT. 0 .AND. by .GT. 0) dum2 = dum2 + REAL(az, dp)*REAL(by, dp)*rr(0, coam1z, cobm1y)
+                  IF (by > 0) dum2 = dum2 - 2.0_dp*zeta(ipgf)*REAL(by, dp)*rr(0, coap1z, cobm1y)
+                  IF (az > 0) dum2 = dum2 - 2.0_dp*zetb(jpgf)*REAL(az, dp)*rr(0, coam1z, cobp1y)
+                  IF (az > 0 .AND. by > 0) dum2 = dum2 + REAL(az, dp)*REAL(by, dp)*rr(0, coam1z, cobm1y)
                   vab(ma, mb, 1) = f0*(dum1 - dum2)
                   !
                   !
@@ -191,14 +191,14 @@ CONTAINS
                   !               -2*zeta*Nz(b)*(a+x||b-z)-2*zetb*Nx(a)*(a-x||b+z)
                   !               +Nx(a)*Nz(b)*(a-x||b-z))
                   dum1 = 4.0_dp*zeta(ipgf)*zetb(jpgf)*rr(0, coap1z, cobp1x)
-                  IF (bx .GT. 0) dum1 = dum1 - 2.0_dp*zeta(ipgf)*REAL(bx, dp)*rr(0, coap1z, cobm1x)
-                  IF (az .GT. 0) dum1 = dum1 - 2.0_dp*zetb(jpgf)*REAL(az, dp)*rr(0, coam1z, cobp1x)
-                  IF (az .GT. 0 .AND. bx .GT. 0) dum1 = dum1 + REAL(az, dp)*REAL(bx, dp)*rr(0, coam1z, cobm1x)
+                  IF (bx > 0) dum1 = dum1 - 2.0_dp*zeta(ipgf)*REAL(bx, dp)*rr(0, coap1z, cobm1x)
+                  IF (az > 0) dum1 = dum1 - 2.0_dp*zetb(jpgf)*REAL(az, dp)*rr(0, coam1z, cobp1x)
+                  IF (az > 0 .AND. bx > 0) dum1 = dum1 + REAL(az, dp)*REAL(bx, dp)*rr(0, coam1z, cobm1x)
                   !
                   dum2 = 4.0_dp*zeta(ipgf)*zetb(jpgf)*rr(0, coap1x, cobp1z)
-                  IF (bz .GT. 0) dum2 = dum2 - 2.0_dp*zeta(ipgf)*REAL(bz, dp)*rr(0, coap1x, cobm1z)
-                  IF (ax .GT. 0) dum2 = dum2 - 2.0_dp*zetb(jpgf)*REAL(ax, dp)*rr(0, coam1x, cobp1z)
-                  IF (ax .GT. 0 .AND. bz .GT. 0) dum2 = dum2 + REAL(ax, dp)*REAL(bz, dp)*rr(0, coam1x, cobm1z)
+                  IF (bz > 0) dum2 = dum2 - 2.0_dp*zeta(ipgf)*REAL(bz, dp)*rr(0, coap1x, cobm1z)
+                  IF (ax > 0) dum2 = dum2 - 2.0_dp*zetb(jpgf)*REAL(ax, dp)*rr(0, coam1x, cobp1z)
+                  IF (ax > 0 .AND. bz > 0) dum2 = dum2 + REAL(ax, dp)*REAL(bz, dp)*rr(0, coam1x, cobm1z)
                   vab(ma, mb, 2) = f0*(dum1 - dum2)
                   !
                   !
@@ -209,14 +209,14 @@ CONTAINS
                   !               -2*zeta*Nx(b)*(a+y||b-x)-2*zetb*Ny(a)*(a-y||b+x)
                   !               +Ny(a)*Nx(b)*(a-y||b-x))
                   dum1 = 4.0_dp*zeta(ipgf)*zetb(jpgf)*rr(0, coap1x, cobp1y)
-                  IF (by .GT. 0) dum1 = dum1 - 2.0_dp*zeta(ipgf)*REAL(by, dp)*rr(0, coap1x, cobm1y)
-                  IF (ax .GT. 0) dum1 = dum1 - 2.0_dp*zetb(jpgf)*REAL(ax, dp)*rr(0, coam1x, cobp1y)
-                  IF (ax .GT. 0 .AND. by .GT. 0) dum1 = dum1 + REAL(ax, dp)*REAL(by, dp)*rr(0, coam1x, cobm1y)
+                  IF (by > 0) dum1 = dum1 - 2.0_dp*zeta(ipgf)*REAL(by, dp)*rr(0, coap1x, cobm1y)
+                  IF (ax > 0) dum1 = dum1 - 2.0_dp*zetb(jpgf)*REAL(ax, dp)*rr(0, coam1x, cobp1y)
+                  IF (ax > 0 .AND. by > 0) dum1 = dum1 + REAL(ax, dp)*REAL(by, dp)*rr(0, coam1x, cobm1y)
                   !
                   dum2 = 4.0_dp*zeta(ipgf)*zetb(jpgf)*rr(0, coap1y, cobp1x)
-                  IF (bx .GT. 0) dum2 = dum2 - 2.0_dp*zeta(ipgf)*REAL(bx, dp)*rr(0, coap1y, cobm1x)
-                  IF (ay .GT. 0) dum2 = dum2 - 2.0_dp*zetb(jpgf)*REAL(ay, dp)*rr(0, coam1y, cobp1x)
-                  IF (ay .GT. 0 .AND. bx .GT. 0) dum2 = dum2 + REAL(ay, dp)*REAL(bx, dp)*rr(0, coam1y, cobm1x)
+                  IF (bx > 0) dum2 = dum2 - 2.0_dp*zeta(ipgf)*REAL(bx, dp)*rr(0, coap1y, cobm1x)
+                  IF (ay > 0) dum2 = dum2 - 2.0_dp*zetb(jpgf)*REAL(ay, dp)*rr(0, coam1y, cobp1x)
+                  IF (ay > 0 .AND. bx > 0) dum2 = dum2 + REAL(ay, dp)*REAL(bx, dp)*rr(0, coam1y, cobm1x)
                   vab(ma, mb, 3) = f0*(dum1 - dum2)
                   !
                END DO

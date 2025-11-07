@@ -300,7 +300,7 @@ CONTAINS
                ! Basis sets of energy correction
                CALL get_qs_kind(qs_kind=qs_kind, basis_set=harris_basis, basis_type="HARRIS")
 
-               IF (basis_set%name .NE. harris_basis%name) THEN
+               IF (basis_set%name /= harris_basis%name) THEN
                   ec_env%basis_inconsistent = .TRUE.
                END IF
             END DO
@@ -374,9 +374,9 @@ CONTAINS
 
          ! Initialize Harris LS solver environment
          ec_env%use_ls_solver = .FALSE.
-         ec_env%use_ls_solver = (ec_env%ks_solver .EQ. ec_matrix_sign) &
-                                .OR. (ec_env%ks_solver .EQ. ec_matrix_trs4) &
-                                .OR. (ec_env%ks_solver .EQ. ec_matrix_tc2)
+         ec_env%use_ls_solver = (ec_env%ks_solver == ec_matrix_sign) &
+                                .OR. (ec_env%ks_solver == ec_matrix_trs4) &
+                                .OR. (ec_env%ks_solver == ec_matrix_tc2)
 
          IF (ec_env%use_ls_solver) THEN
             CALL ec_ls_create(qs_env, ec_env)
