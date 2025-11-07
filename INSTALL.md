@@ -528,6 +528,8 @@ as part of DFLAGS may or may not work.
 - openPMD-api may be downloaded from <https://github.com/openPMD/openPMD-api/>, a equal to or
   greater than 0.16.1 is required.
 - For more information see <https://openpmd-api.readthedocs.io>.
+- The version of openPMD-api, determined by OPENPMDAPI_VERSION_GE, must be 0.16.1 or greater.
+- openPMD-api must be built against MPI, determined by openPMD_HAVE_MPI.
 
 ## 3. Compile
 
