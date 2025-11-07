@@ -99,6 +99,14 @@ MODULE qs_tddfpt2_types
       !> it is mainly needed to make the restart file transferable
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: phases_occ
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: phases_virt
+      !> number of occupied orbitals
+      INTEGER                                            :: nmo_occ = -1
+      !> number of active occupied orbitals
+      INTEGER                                            :: nmo_active = -1
+      !> indexing of active orbitals
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: index_active
+      !> active occupied MOs stored in a matrix form [nao x nmo_active]
+      TYPE(cp_fm_type), POINTER                          :: mos_active => NULL()
    END TYPE tddfpt_ground_state_mos
 
 ! **************************************************************************************************
@@ -208,7 +216,6 @@ CONTAINS
 !> \param work_matrices  work matrices (allocated on exit)
 !> \param gs_mos         occupied and virtual molecular orbitals optimised for the ground state
 !> \param nstates        number of excited states to converge
-!> \param nactive        number of active occupied states used for excitation
 !> \param do_hfx         flag that requested to allocate work matrices required for computation
 !>                       of exact-exchange terms
 !> \param do_admm ...
@@ -220,13 +227,12 @@ CONTAINS
 !> \par History
 !>    * 02.2017 created [Sergey Chulkov]
 ! **************************************************************************************************
-   SUBROUTINE tddfpt_create_work_matrices(work_matrices, gs_mos, nstates, nactive, do_hfx, do_admm, &
+   SUBROUTINE tddfpt_create_work_matrices(work_matrices, gs_mos, nstates, do_hfx, do_admm, &
                                           do_hfxlr, do_exck, do_sf, qs_env, sub_env)
       TYPE(tddfpt_work_matrices), INTENT(out)            :: work_matrices
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          INTENT(in)                                      :: gs_mos
       INTEGER, INTENT(in)                                :: nstates
-      INTEGER, DIMENSION(:), INTENT(in)                  :: nactive
       LOGICAL, INTENT(in)                                :: do_hfx, do_admm, do_hfxlr, do_exck, do_sf
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(tddfpt_subgroup_env_type), INTENT(in)         :: sub_env
@@ -236,7 +242,7 @@ CONTAINS
       INTEGER                                            :: evecs_dim, handle, igroup, ispin, &
                                                             istate, nao, nao_aux, natom, ngroups, &
                                                             nspins
-      INTEGER, DIMENSION(maxspins)                       :: nmo_occ, nmo_virt
+      INTEGER, DIMENSION(maxspins)                       :: nactive, nmo_occ, nmo_virt
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
@@ -283,7 +289,8 @@ CONTAINS
       CALL dbcsr_get_info(matrix_s(1)%matrix, nfullrows_total=nao)
 
       DO ispin = 1, nspins
-         nmo_occ(ispin) = SIZE(gs_mos(ispin)%evals_occ)
+         nactive(ispin) = gs_mos(ispin)%nmo_active
+         nmo_occ(ispin) = gs_mos(ispin)%nmo_occ
          nmo_virt(ispin) = SIZE(gs_mos(ispin)%evals_virt)
       END DO
 
@@ -634,18 +641,16 @@ CONTAINS
 !> \param work_matrices  work matrices (allocated on exit)
 !> \param gs_mos         occupied and virtual molecular orbitals optimised for the ground state
 !> \param nstates        number of excited states to converge
-!> \param nactive        number of active occupied states used for excitation
 !> \param qs_env         Quickstep environment
 !> \param sub_env        parallel group environment
 !> \par History
 !>    * 04.2019 created from full kernel version [JHU]
 ! **************************************************************************************************
-   SUBROUTINE stda_create_work_matrices(work_matrices, gs_mos, nstates, nactive, qs_env, sub_env)
+   SUBROUTINE stda_create_work_matrices(work_matrices, gs_mos, nstates, qs_env, sub_env)
       TYPE(tddfpt_work_matrices), INTENT(out)            :: work_matrices
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          INTENT(in)                                      :: gs_mos
       INTEGER, INTENT(in)                                :: nstates
-      INTEGER, DIMENSION(:), INTENT(in)                  :: nactive
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(tddfpt_subgroup_env_type), INTENT(in)         :: sub_env
 
@@ -653,7 +658,7 @@ CONTAINS
 
       INTEGER                                            :: handle, igroup, ispin, istate, nao, &
                                                             ngroups, nspins
-      INTEGER, DIMENSION(maxspins)                       :: nmo_occ, nmo_virt
+      INTEGER, DIMENSION(maxspins)                       :: nactive, nmo_occ, nmo_virt
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_p_type), DIMENSION(maxspins)     :: fm_struct_evects
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct
@@ -669,7 +674,8 @@ CONTAINS
       CALL dbcsr_get_info(matrix_s(1)%matrix, nfullrows_total=nao)
 
       DO ispin = 1, nspins
-         nmo_occ(ispin) = SIZE(gs_mos(ispin)%evals_occ)
+         nactive(ispin) = gs_mos(ispin)%nmo_active
+         nmo_occ(ispin) = gs_mos(ispin)%nmo_occ
          nmo_virt(ispin) = SIZE(gs_mos(ispin)%evals_virt)
       END DO
 

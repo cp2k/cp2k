@@ -320,6 +320,7 @@ CONTAINS
       ALLOCATE (gs_mos%mos_occ, gs_mos%mos_virt)
       CALL cp_fm_create(gs_mos%mos_occ, ao_mo_occ_fm_struct)
       CALL cp_fm_create(gs_mos%mos_virt, ao_mo_virt_fm_struct)
+      gs_mos%nmo_occ = nmo_occ
 
       ALLOCATE (gs_mos%evals_occ(nmo_occ))
       ALLOCATE (gs_mos%evals_virt(nmo_virt))
@@ -576,6 +577,9 @@ CONTAINS
       IF (ALLOCATED(gs_mos%phases_virt)) &
          DEALLOCATE (gs_mos%phases_virt)
 
+      IF (ALLOCATED(gs_mos%index_active)) &
+         DEALLOCATE (gs_mos%index_active)
+
       IF (ASSOCIATED(gs_mos%evals_occ_matrix)) THEN
          CALL cp_fm_release(gs_mos%evals_occ_matrix)
          DEALLOCATE (gs_mos%evals_occ_matrix)
@@ -591,7 +595,13 @@ CONTAINS
          DEALLOCATE (gs_mos%mos_occ)
       END IF
 
+      IF (ASSOCIATED(gs_mos%mos_active)) THEN
+         CALL cp_fm_release(gs_mos%mos_active)
+         DEALLOCATE (gs_mos%mos_active)
+      END IF
+
       CALL timestop(handle)
+
    END SUBROUTINE tddfpt_release_ground_state_mos
 
 ! **************************************************************************************************
@@ -967,13 +977,13 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_guess_vectors'
 
       CHARACTER(len=5)                                   :: spin_label1, spin_label2
-      INTEGER :: handle, imo_occ, imo_virt, ind, ispin, istate, jspin, nstates, &
-         nstates_occ_virt_alpha, nstates_selected, spin1, spin2, total
+      INTEGER :: handle, i, imo_occ, imo_virt, ind, ispin, istate, j, jspin, k, no, nstates, &
+         nstates_occ_virt_alpha, nstates_selected, nv, spin1, spin2
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: inds
-      INTEGER, DIMENSION(maxspins)                       :: nmo_occ_avail, nmo_occ_selected, &
+      INTEGER, DIMENSION(maxspins)                       :: nmo, nmo_occ_avail, nmo_occ_selected, &
                                                             nmo_virt_selected
       REAL(kind=dp)                                      :: e_occ
-      REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: e_virt_minus_occ, gw_occ, gw_virt
+      REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: e_virt_minus_occ, ev_occ, ev_virt
       TYPE(excited_energy_type), POINTER                 :: ex_env
 
       CALL timeset(routineN, handle)
@@ -990,7 +1000,8 @@ CONTAINS
 
       DO ispin = 1, nspins
          ! number of occupied orbitals for each spin component
-         nmo_occ_avail(ispin) = tddfpt_control%nactive(ispin)
+         nmo_occ_avail(ispin) = gs_mos(ispin)%nmo_active
+         nmo(ispin) = gs_mos(ispin)%nmo_occ
          ! number of occupied and virtual orbitals which can potentially
          ! contribute to the excited states in question.
          nmo_occ_selected(ispin) = MIN(nmo_occ_avail(ispin), nstates)
@@ -1012,41 +1023,45 @@ CONTAINS
       IF (tddfpt_control%spinflip == no_sf_tddfpt) THEN
          ! Guess for spin-conserving TDDFT
          DO ispin = 1, nspins
+            no = nmo_occ_selected(ispin)
+            nv = nmo_virt_selected(ispin)
+            ALLOCATE (ev_virt(nv), ev_occ(no))
             ! if do_bse and do_gw, take gw zeroth order
             IF (tddfpt_control%do_bse) THEN
-               ALLOCATE (gw_virt(nmo_virt_selected(ispin)), gw_occ(nmo_occ_selected(ispin)))
-               total = nmo_virt_selected(ispin) + nmo_occ_selected(ispin)
-               gw_virt(1:nmo_virt_selected(ispin)) = ex_env%gw_eigen((nmo_occ_selected(ispin) + 1):total)
-               gw_occ(1:nmo_occ_selected(ispin)) = ex_env%gw_eigen(1:nmo_occ_selected(ispin))
+               ev_virt(1:nv) = ex_env%gw_eigen(nmo(ispin) + 1:nmo(ispin) + nv)
+               DO i = 1, no
+                  j = nmo_occ_avail(ispin) - i + 1
+                  k = gs_mos(ispin)%index_active(j)
+                  ev_occ(i) = ex_env%gw_eigen(k)
+               END DO
+            ELSE
+               ev_virt(1:nv) = gs_mos(ispin)%evals_virt(1:nv)
+               DO i = 1, no
+                  j = nmo_occ_avail(ispin) - i + 1
+                  k = gs_mos(ispin)%index_active(j)
+                  ev_occ(i) = gs_mos(ispin)%evals_occ(k)
+               END DO
             END IF
 
             DO imo_occ = 1, nmo_occ_selected(ispin)
                ! Here imo_occ enumerate Occupied orbitals in inverse order (from the last to the first element)
-               IF (.NOT. tddfpt_control%do_bse) THEN
-                  e_occ = gs_mos(ispin)%evals_occ(nmo_occ_avail(ispin) - imo_occ + 1)
-               ELSE
-                  e_occ = gw_occ(nmo_occ_avail(ispin) - imo_occ + 1)
-               END IF
-
+               e_occ = ev_occ(imo_occ)
+               !
                DO imo_virt = 1, nmo_virt_selected(ispin)
                   istate = istate + 1
-                  IF (.NOT. tddfpt_control%do_bse) THEN
-                     e_virt_minus_occ(istate) = gs_mos(ispin)%evals_virt(imo_virt) - e_occ
-                  ELSE
-                     e_virt_minus_occ(istate) = gw_virt(imo_virt) - e_occ
-                  END IF
+                  e_virt_minus_occ(istate) = ev_virt(imo_virt) - e_occ
                END DO
             END DO
 
-            IF (tddfpt_control%do_bse) THEN
-               DEALLOCATE (gw_virt, gw_occ)
-            END IF
+            DEALLOCATE (ev_virt, ev_occ)
          END DO
       ELSE
          ! Guess for spin-flip TDDFT
          DO imo_occ = 1, nmo_occ_selected(1)
             ! Here imo_occ enumerate alpha Occupied orbitals in inverse order (from the last to the first element)
-            e_occ = gs_mos(1)%evals_occ(nmo_occ_avail(1) - imo_occ + 1)
+            i = gs_mos(1)%nmo_active - imo_occ + 1
+            k = gs_mos(1)%index_active(i)
+            e_occ = gs_mos(1)%evals_occ(k)
 
             DO imo_virt = 1, nmo_virt_selected(2)
                istate = istate + 1
@@ -1121,14 +1136,16 @@ CONTAINS
 
             ! Recover index of occupied MO (imo_occ) and unoccupied MO (imo_virt)
             ! associated to the excited state index (ind+1)
-            imo_occ = nmo_occ_avail(spin1) - ind/nmo_virt_selected(spin2)
+            i = ind/nmo_virt_selected(spin2) + 1
+            j = nmo_occ_avail(spin1) - i + 1
+            imo_occ = gs_mos(spin1)%index_active(j)
             imo_virt = MOD(ind, nmo_virt_selected(spin2)) + 1
             ! Assign initial guess for excitation energy
             evals(istate) = e_virt_minus_occ(istate)
 
             IF (log_unit > 0) &
                WRITE (log_unit, '(T7,I8,T24,I8,T37,A5,T45,I8,T54,A5,T60,F14.5)') &
-               istate, imo_occ, spin_label1, nmo_occ_avail(spin2) + imo_virt, spin_label2, e_virt_minus_occ(istate)*evolt
+               istate, imo_occ, spin_label1, nmo(spin2) + imo_virt, spin_label2, e_virt_minus_occ(istate)*evolt
 
             DO jspin = 1, SIZE(evects, 1)
                ! .NOT. ASSOCIATED(evects(jspin, istate)%matrix_struct))
