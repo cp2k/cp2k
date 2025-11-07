@@ -671,19 +671,19 @@ CONTAINS
 
       loop_iset: DO iset = 1, nseta
 
-         IF (set_radius_a(iset) + kind_radius_b < dab) CYCLE
+         IF (set_radius_a(iset) + kind_radius_b < dab) CYCLE loop_iset
 
          loop_jset: DO jset = 1, nsetb
 
-            IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE
+            IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE loop_jset
 
             loop_ipgf: DO ipgf = 1, npgfa(iset)
 
-               IF (rpgfa(ipgf, iset) + set_radius_b(jset) < dab) CYCLE
+               IF (rpgfa(ipgf, iset) + set_radius_b(jset) < dab) CYCLE loop_ipgf
 
                loop_jpgf: DO jpgf = 1, npgfb(jset)
 
-                  IF (rpgfa(ipgf, iset) + rpgfb(jpgf, jset) < dab) CYCLE
+                  IF (rpgfa(ipgf, iset) + rpgfb(jpgf, jset) < dab) CYCLE loop_jpgf
 
                   zetp = zeta(ipgf, iset) + zetb(jpgf, jset)
                   igrid_level = gaussian_gridlevel(gridlevel_info, zetp)

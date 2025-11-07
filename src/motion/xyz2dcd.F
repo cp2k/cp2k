@@ -513,7 +513,7 @@ PROGRAM xyz2dcd
       END IF ! dump_frame
 
       ! Exit loop and stop processing, if the last (requested) frame was encountered
-      IF (nframe >= last_frame) EXIT
+      IF (nframe >= last_frame) EXIT frame_loop
 
    END DO frame_loop
 

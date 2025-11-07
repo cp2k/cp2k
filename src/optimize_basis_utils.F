@@ -1062,7 +1062,7 @@ CONTAINS
                   CALL parse_subset(parser, flex_basis%subset(iset))
                END DO
                basis_found = .TRUE.
-               EXIT
+               EXIT search_loop
             END IF
          ELSE
             EXIT search_loop

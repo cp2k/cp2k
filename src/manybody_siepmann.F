@@ -740,7 +740,7 @@ CONTAINS
             jkind = neighbor_kind_pair%ij_kind(2, igrp)
             pot => potparm%pot(ikind, jkind)%pot
             npairs = iend - istart + 1
-            IF (pot%no_mb) CYCLE
+            IF (pot%no_mb) CYCLE Kind_Group_Loop1
             DO i = 1, SIZE(pot%type)
                IF (pot%type(i) == siepmann_type) npairs_tot = npairs_tot + npairs
             END DO
@@ -765,7 +765,7 @@ CONTAINS
             cvi = neighbor_kind_pair%cell_vector
             pot => potparm%pot(ikind, jkind)%pot
             npairs = iend - istart + 1
-            IF (pot%no_mb) CYCLE
+            IF (pot%no_mb) CYCLE Kind_Group_Loop2
             cell_v = MATMUL(cell%hmat, cvi)
             DO i = 1, SIZE(pot%type)
                ! SIEPMANN

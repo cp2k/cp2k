@@ -488,7 +488,7 @@ CONTAINS
       loop_a_k: DO a_k = 1, nsubcell(3)
       loop_a_j: DO a_j = 1, nsubcell(2)
       loop_a_i: DO a_i = 1, nsubcell(1)
-         IF (subcell_a(a_i, a_j, a_k)%natom == 0) CYCLE
+         IF (subcell_a(a_i, a_j, a_k)%natom == 0) CYCLE loop_a_i
          ! Loop over second subcell
          loop_b_k: DO ik = ik_start, isubcell(3)
             bg_k = a_k + ik
@@ -498,7 +498,7 @@ CONTAINS
                b_k = zdim + b_k
                b_pk = b_pk - 1
             END IF
-            IF ((periodic(3) == 0) .AND. (ABS(b_pk) > 0)) CYCLE
+            IF ((periodic(3) == 0) .AND. (ABS(b_pk) > 0)) CYCLE loop_b_k
             ! Setup the starting point.. this prescreens the order of the subcells
             ij_start = -isubcell(2)
             IF ((ik == 0) .AND. (ik_start == 0)) ij_start = 0
@@ -510,13 +510,13 @@ CONTAINS
                   b_j = ydim + b_j
                   b_pj = b_pj - 1
                END IF
-               IF ((periodic(2) == 0) .AND. (ABS(b_pj) > 0)) CYCLE
+               IF ((periodic(2) == 0) .AND. (ABS(b_pj) > 0)) CYCLE loop_b_j
                ! Setup the starting point.. this prescreens the order of the subcells
                ii_start = -isubcell(1)
                IF ((ij == 0) .AND. (ij_start == 0)) ii_start = 0
                loop_b_i: DO ii = ii_start, isubcell(1)
                   ! Ellipsoidal screening of subcells
-                  IF (.NOT. sphcub(ii, ij, ik)) CYCLE
+                  IF (.NOT. sphcub(ii, ij, ik)) CYCLE loop_b_i
                   bg_i = a_i + ii
                   b_i = MOD(bg_i, xdim)
                   b_pi = bg_i/xdim
@@ -524,8 +524,8 @@ CONTAINS
                      b_i = xdim + b_i
                      b_pi = b_pi - 1
                   END IF
-                  IF ((periodic(1) == 0) .AND. (ABS(b_pi) > 0)) CYCLE
-                  IF (subcell_b(b_i, b_j, b_k)%natom == 0) CYCLE
+                  IF ((periodic(1) == 0) .AND. (ABS(b_pi) > 0)) CYCLE loop_b_i
+                  IF (subcell_b(b_i, b_j, b_k)%natom == 0) CYCLE loop_b_i
                   ! Find the proper neighbor kind pair
                   icellmap = cellmap(b_pi, b_pj, b_pk)
                   neighbor_kind_pair => nonbonded%neighbor_kind_pairs(icellmap)

@@ -3222,7 +3222,7 @@ CONTAINS
                   IF (i == j) CYCLE jloop
                   xij(:) = xpj(:) - xpi(:)
                   rij = SQRT(DOT_PRODUCT(xij, xij))
-                  IF (rij > rcut) CYCLE
+                  IF (rij > rcut) CYCLE jloop
 
                   ! update qlm
                   CALL accumulate_qlm_over_neigbors(xij, rij, rcut, r1cut, &

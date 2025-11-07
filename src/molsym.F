@@ -516,7 +516,7 @@ CONTAINS
          END DO
 
          ! Exit loop, if all atoms are in the list
-         IF (sym%ulequatom(sym%ngroup) == natoms) EXIT
+         IF (sym%ulequatom(sym%ngroup) == natoms) EXIT loop
 
          ! Search for the next atom which is not in the list yet
          DO jatom = 2, natoms

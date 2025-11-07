@@ -590,7 +590,7 @@ CONTAINS
          Atoms: DO Imm = 1, SIZE(per_pot%mm_atom_index)
             IF (par_scheme == do_par_atom) THEN
                myind = Imm + (IRadTyp - 1)*SIZE(per_pot%mm_atom_index)
-               IF (MOD(myind, para_env%num_pe) /= para_env%mepos) CYCLE
+               IF (MOD(myind, para_env%num_pe) /= para_env%mepos) CYCLE Atoms
             END IF
             LIndMM = per_pot%mm_atom_index(Imm)
             IndMM = mm_atom_index(LIndMM)
@@ -804,7 +804,7 @@ CONTAINS
          Atoms: DO Imm = 1, SIZE(pot%mm_atom_index)
             IF (par_scheme == do_par_atom) THEN
                myind = Imm + (IRadTyp - 1)*SIZE(pot%mm_atom_index)
-               IF (MOD(myind, para_env%num_pe) /= para_env%mepos) CYCLE
+               IF (MOD(myind, para_env%num_pe) /= para_env%mepos) CYCLE Atoms
             END IF
             LIndMM = pot%mm_atom_index(Imm)
             IndMM = mm_atom_index(LIndMM)

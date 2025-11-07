@@ -918,12 +918,12 @@ CONTAINS
             latom_block = INT(MODULO(atom_block, nblocks)) + 1
             tmp_block = atom_block/nblocks
             katom_block = INT(MODULO(tmp_block, nblocks)) + 1
-            IF (latom_block < katom_block) CYCLE
+            IF (latom_block < katom_block) CYCLE atomic_blocks
             tmp_block = tmp_block/nblocks
             jatom_block = INT(MODULO(tmp_block, nblocks)) + 1
             tmp_block = tmp_block/nblocks
             iatom_block = INT(MODULO(tmp_block, nblocks)) + 1
-            IF (jatom_block < iatom_block) CYCLE
+            IF (jatom_block < iatom_block) CYCLE atomic_blocks
             my_current_counter = my_current_counter + 1
             IF (my_current_counter > distribution_forces%number_of_atom_quartets) EXIT atomic_blocks
 
@@ -941,7 +941,7 @@ CONTAINS
                               shm_pmax_block(latom_block, iatom_block) + &
                               shm_pmax_block(katom_block, jatom_block))
 
-            IF (2.0_dp*coeffs_kind_max0 + pmax_blocks < log10_eps_schwarz) CYCLE
+            IF (2.0_dp*coeffs_kind_max0 + pmax_blocks < log10_eps_schwarz) CYCLE atomic_blocks
 
             CALL build_pair_list(natom, list_ij, set_list_ij, iatom_start, iatom_end, &
                                  jatom_start, jatom_end, &

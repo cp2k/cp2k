@@ -180,7 +180,7 @@ CONTAINS
       Lists: DO ilist = 1, nonbonded%nlists
          neighbor_kind_pair => nonbonded%neighbor_kind_pairs(ilist)
          npairs = neighbor_kind_pair%npairs
-         IF (npairs == 0) CYCLE
+         IF (npairs == 0) CYCLE Lists
          list => neighbor_kind_pair%list
          cvi = neighbor_kind_pair%cell_vector
          cell_v = MATMUL(cell%hmat, cvi)
@@ -291,7 +291,7 @@ CONTAINS
 
                ! In case we have only manybody potentials and no charges, this
                ! pair of atom types can be ignored here.
-               IF (pot%no_pp .AND. (fac_ei == 0.0)) CYCLE
+               IF (pot%no_pp .AND. (fac_ei == 0.0)) CYCLE Pairs
 
                ! Setup spline_data set
                spl_f => pot%spl_f
@@ -692,12 +692,12 @@ CONTAINS
       Lists: DO ilist = 1, nonbonded%nlists
          neighbor_kind_pair => nonbonded%neighbor_kind_pairs(ilist)
          npairs = neighbor_kind_pair%nscale
-         IF (npairs == 0) CYCLE
+         IF (npairs == 0) CYCLE Lists
          list => neighbor_kind_pair%list
          Kind_Group_Loop: DO igrp = 1, neighbor_kind_pair%ngrp_kind
             istart = neighbor_kind_pair%grp_kind_start(igrp)
             IF (istart > npairs) THEN
-               EXIT
+               EXIT Kind_Group_Loop
             END IF
             iend = MIN(npairs, neighbor_kind_pair%grp_kind_end(igrp))
 
@@ -732,7 +732,7 @@ CONTAINS
                ! The amount of correction is related to the
                ! amount of scaling as follows:
                fac_cor = 1.0_dp - fac_ei
-               IF (fac_cor <= 0.0_dp) CYCLE
+               IF (fac_cor <= 0.0_dp) CYCLE Pairs
 
                ! Parameters for kind a
                atomic_kind => atomic_kind_set(kind_a)

@@ -691,7 +691,7 @@ CONTAINS
             list => neighbor_kind_pair%list
             cvi = neighbor_kind_pair%cell_vector
             pot => potparm%pot(ikind, jkind)%pot
-            IF (pot%no_mb) CYCLE
+            IF (pot%no_mb) CYCLE Kind_Group_Loop1
             rab2_max = pot%rcutsq
             cell_v = MATMUL(cell%hmat, cvi)
             any_tersoff = any_tersoff .OR. ANY(pot%type == tersoff_type)
@@ -703,7 +703,7 @@ CONTAINS
             any_nequip = any_nequip .OR. ANY(pot%type == nequip_type)
             any_allegro = any_allegro .OR. ANY(pot%type == allegro_type)
             i = eam_kinds_index(ikind, jkind)
-            IF (i == -1) CYCLE
+            IF (i == -1) CYCLE Kind_Group_Loop1
             ! EAM
             CPASSERT(ASSOCIATED(eam_data))
             DO ipair = istart, iend
@@ -771,7 +771,7 @@ CONTAINS
                cvi = neighbor_kind_pair%cell_vector
                pot => potparm%pot(ikind, jkind)%pot
 
-               IF (pot%no_mb) CYCLE
+               IF (pot%no_mb) CYCLE Kind_Group_Loop2
                rab2_max = pot%rcutsq
                cell_v = MATMUL(cell%hmat, cvi)
                DO i = 1, SIZE(pot%type)
@@ -848,7 +848,7 @@ CONTAINS
                cvi = neighbor_kind_pair%cell_vector
                pot => potparm%pot(ikind, jkind)%pot
 
-               IF (pot%no_mb) CYCLE
+               IF (pot%no_mb) CYCLE Kind_Group_Loop3
                rab2_max = pot%rcutsq
                cell_v = MATMUL(cell%hmat, cvi)
                DO i = 1, SIZE(pot%type)
@@ -930,7 +930,7 @@ CONTAINS
                cvi = neighbor_kind_pair%cell_vector
                pot => potparm%pot(ikind, jkind)%pot
 
-               IF (pot%no_mb) CYCLE
+               IF (pot%no_mb) CYCLE Kind_Group_Loop4
                rab2_max = pot%rcutsq
                cell_v = MATMUL(cell%hmat, cvi)
                DO i = 1, SIZE(pot%type)
@@ -1008,7 +1008,7 @@ CONTAINS
                cvi = neighbor_kind_pair%cell_vector
                pot => potparm%pot(ikind, jkind)%pot
 
-               IF (pot%no_mb) CYCLE
+               IF (pot%no_mb) CYCLE Kind_Group_Loop6
                rab2_max = pot%rcutsq
                cell_v = MATMUL(cell%hmat, cvi)
                DO i = 1, SIZE(pot%type)

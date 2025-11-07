@@ -1371,7 +1371,7 @@ CONTAINS
                                     IF (sb_min(1) >= subcell(i, j, k)%s_max(1)) CYCLE loop_i
                                  END IF
 
-                                 IF (subcell(i, j, k)%natom == 0) CYCLE
+                                 IF (subcell(i, j, k)%natom == 0) CYCLE loop_i
 
                                  DO iatom_subcell = 1, subcell(i, j, k)%natom
                                     iatom_local = subcell(i, j, k)%atom_list(iatom_subcell)
