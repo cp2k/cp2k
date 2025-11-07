@@ -80,7 +80,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE ft_simple
 ! **************************************************************************************************
 !> \brief Calculates the Fourier transform - couples to FFT libraries in CP2K, if available
 !> \param time_series Timestamps in atomic units of time

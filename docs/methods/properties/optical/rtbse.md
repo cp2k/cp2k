@@ -177,10 +177,10 @@ RTBSE propagation are listed here
   an element of the Fourier transform of polarizability.
 - [RESTART](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.PRINT.RESTART) - Controls the name of
   the restart file
-   - note that for RT-BSE calculations, the
-   [EACH](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.PRINT.RESTART.EACH) section should have
-   [MD](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.PRINT.RESTART.EACH.MD) keyword set to 1
-   to enable restarts at arbitrary number of iteration steps
+  - note that for RT-BSE calculations, the
+    [EACH](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.PRINT.RESTART.EACH) section should have
+    [MD](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.PRINT.RESTART.EACH.MD) keyword set to 1 to
+    enable restarts at arbitrary number of iteration steps
 
 When [RESTART](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.PRINT.RESTART),
 [MOMENTS](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.PRINT.MOMENTS) and
@@ -190,11 +190,10 @@ calculated time steps. Note that total length of the propagation time controls t
 precision, while timestep size controls the energy/frequency range.
 
 For applied field pulse not centered at zero in time, one can use
-[START_TIME](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.FT.START_TIME) to set the
-center of Fourier transforms to a provided time $t_0$. Furthermore, the damping $\gamma$ in the
-Fourier transform is controlled by
-[DAMPING](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.FT.DAMPING) parameter.
-Explicilty, in such case, the Fourier transform of function $f(t)$ is
+[START_TIME](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.FT.START_TIME) to set the center of
+Fourier transforms to a provided time $t_0$. Furthermore, the damping $\gamma$ in the Fourier
+transform is controlled by [DAMPING](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.FT.DAMPING)
+parameter. Explicilty, in such case, the Fourier transform of function $f(t)$ is
 
 $$ f(\omega) = \int dt e^{i (\omega + i \gamma) t } f(t + t_0)
 $$
@@ -203,29 +202,28 @@ $$
 
 It is possible to apply Padé interpolation to the Fourier transformed observables
 ([MOMENTS_FT](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.PRINT.MOMENTS_FT) and
-[POLARIZABILITY](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.PRINT.POLARIZABILITY))
-to increase the point density in the energy space, which is otherwise limited by the
-total time of propagation ($\Delta \omega \approx (2 \pi)/T$, where $T$ is the total time of
-propagation). The Padé interpolation is implemented via interface to the
+[POLARIZABILITY](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.PRINT.POLARIZABILITY)) to increase
+the point density in the energy space, which is otherwise limited by the total time of propagation
+($\Delta \omega \approx (2 \pi)/T$, where $T$ is the total time of propagation). The Padé
+interpolation is implemented via interface to the
 [GreenX library](https://github.com/nomad-coe/greenX)\[[Mattiat2018](https://doi.org/10.1063/1.5051250)\],
-specifically the analytic continuation
-component. In order to use it, CP2K has to be compiled with GreenX support
-(`-DCP2K_USE_GREENX=ON` in `cmake` build).
+specifically the analytic continuation component. In order to use it, CP2K has to be compiled with
+GreenX support (`-DCP2K_USE_GREENX=ON` in `cmake` build).
 
 The parameters of the interpolation are set via
-[PADE](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.FT.PADE) section, whose presence
-also triggers the evaluation of the interpolation. Available parameters are
+[PADE](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.FT.PADE) section, whose presence also
+triggers the evaluation of the interpolation. Available parameters are
 
- - [E_MIN](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.FT.PADE.E_MIN) - start
- of the energy interval for which the interpolation of FT observables is done
- - [E_MAX](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.FT.PADE.E_MAX) - end
- of the energy interval for which the interpolation of FT observables is done
- - [E_STEP](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.FT.PADE.E_STEP) - required
- resolution of the interpolation (smaller `E_STEP` means more interpolation evaluation points)
- - [FIT_E_MIN](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.FT.PADE.FIT_E_MIN) - start
- of the energy interval used to fit the interpolation parameters
- - [FIT_E_MAX](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.FT.PADE.FIT_E_MAX) - end
- of the energy interval used to fit the interpolation parameters
+- [E_MIN](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.FT.PADE.E_MIN) - start of the energy
+  interval for which the interpolation of FT observables is done
+- [E_MAX](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.FT.PADE.E_MAX) - end of the energy
+  interval for which the interpolation of FT observables is done
+- [E_STEP](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.FT.PADE.E_STEP) - required resolution of
+  the interpolation (smaller `E_STEP` means more interpolation evaluation points)
+- [FIT_E_MIN](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.FT.PADE.FIT_E_MIN) - start of the
+  energy interval used to fit the interpolation parameters
+- [FIT_E_MAX](#CP2K_INPUT.FORCE_EVAL.DFT.REAL_TIME_PROPAGATION.FT.PADE.FIT_E_MAX) - end of the
+  energy interval used to fit the interpolation parameters
 
 ### Example Input
 

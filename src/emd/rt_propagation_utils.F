@@ -909,15 +909,15 @@ CONTAINS
 !> \param current_start The current start index from which the calculation continues
 !> \param moments Moment trace, where the read entries are overwritten
 !> \param times Optional time trace, where again the read entries are overwritten
-!> \param read ...
+!> \param mom_read Whether moments were actually read
 !> \author Stepan Marek (11.25)
 ! **************************************************************************************************
-   SUBROUTINE read_moments(moments_section, orig_start, current_start, moments, times, READ)
+   SUBROUTINE read_moments(moments_section, orig_start, current_start, moments, times, mom_read)
       TYPE(section_vals_type), POINTER                   :: moments_section
       INTEGER                                            :: orig_start, current_start
       COMPLEX(kind=dp), DIMENSION(:, :, :), POINTER      :: moments
       REAL(kind=dp), DIMENSION(:), OPTIONAL, POINTER     :: times
-      LOGICAL, OPTIONAL                                  :: read
+      LOGICAL, OPTIONAL                                  :: mom_read
 
       CHARACTER(len=14), DIMENSION(4)                    :: file_extensions
       CHARACTER(len=default_path_length)                 :: save_name_im, save_name_re
@@ -933,7 +933,7 @@ CONTAINS
       file_extensions(3) = "_SPIN_B_RE.dat"
       file_extensions(4) = "_SPIN_B_IM.dat"
 
-      IF (PRESENT(READ)) READ = .FALSE.
+      IF (PRESENT(mom_read)) mom_read = .FALSE.
 
       n_spin = SIZE(moments, 1)
 
@@ -963,7 +963,7 @@ CONTAINS
                   times(n) = time/femtoseconds
                END IF
             END DO
-            IF (PRESENT(READ)) READ = .TRUE.
+            IF (PRESENT(mom_read)) mom_read = .TRUE.
             CALL close_file(unit_re)
             CALL close_file(unit_im)
          ELSE

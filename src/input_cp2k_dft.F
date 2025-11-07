@@ -1892,10 +1892,10 @@ CONTAINS
                                         "Use Center of Atomic Charges", &
                                         "Use User Defined Point (Keyword:REFERENCE_POINT)", &
                                         "Use Origin of Coordinate System"), &
-                          enum_i_vals=(/use_mom_ref_com, &
+                          enum_i_vals=[use_mom_ref_com, &
                                         use_mom_ref_coac, &
                                         use_mom_ref_user, &
-                                        use_mom_ref_zero/), &
+                                        use_mom_ref_zero], &
                           default_i_val=use_mom_ref_coac)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
@@ -1905,7 +1905,7 @@ CONTAINS
                           description="Fixed reference point for the calculations of the electrostatic moment.", &
                           usage="REFERENCE_POINT x y z", &
                           repeats=.FALSE., &
-                          n_var=3, default_r_vals=(/0._dp, 0._dp, 0._dp/), &
+                          n_var=3, default_r_vals=[0._dp, 0._dp, 0._dp], &
                           type_of_var=real_t, &
                           unit_str='angstrom')
       CALL section_add_keyword(print_key, keyword)
@@ -1988,7 +1988,7 @@ CONTAINS
                           "[GW](#CP2K_INPUT.FORCE_EVAL.PROPERTIES.BANDSTRUCTURE.GW) calculation. Also note that "// &
                           "designating this section as RTBSE run but choosing run type ENERGY leads to potential "// &
                           "deallocation errors.", &
-                          repeats=.FALSE., citations=(/Marek2025/))
+                          repeats=.FALSE., citations=[Marek2025])
 
       ! Marek : Controlling flow to RTBSE
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
