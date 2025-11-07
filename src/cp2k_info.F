@@ -345,7 +345,7 @@ CONTAINS
       CALL m_timestamp(r_timestamp)
       CALL m_getcwd(r_cwd)
 
-   END SUBROUTINE
+   END SUBROUTINE get_runtime_info
 
 ! **************************************************************************************************
 !> \brief Writes the header for the restart file

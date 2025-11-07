@@ -146,7 +146,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE calc_c_mat_force
 
 ! **************************************************************************************************
 !> \brief ...

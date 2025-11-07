@@ -232,6 +232,6 @@ CONTAINS
       c = (1.0_dp + ERF(arg))/2.0_dp
       dcdr = (-oorootpi/width)*EXP(-arg**2)
 
-   END SUBROUTINE
+   END SUBROUTINE smooth_count
 
 END MODULE fp_methods

@@ -815,6 +815,6 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
-   END SUBROUTINE
+   END SUBROUTINE create_hf_ri_section
 
 END MODULE input_cp2k_hfx

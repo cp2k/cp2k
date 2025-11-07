@@ -405,7 +405,7 @@ CONTAINS
       CALL eri_mme_3c_collect_ortho(vol, la_min, la_max, lb_min, lb_max, lc_min, lc_max, &
                                     zeta, zetb, zetc, n_aw, aw, S_G, S_G_0, prefac, habc, o1, o2, o3)
 
-   END SUBROUTINE
+   END SUBROUTINE eri_mme_3c_integrate_ortho
 
 ! **************************************************************************************************
 !> \brief ...
@@ -639,7 +639,7 @@ CONTAINS
       CALL eri_mme_3c_collect_nonortho(vol, la_min, la_max, lb_min, lb_max, lc_min, lc_max, &
                                        zeta, zetb, zetc, n_aw, aw, S_G_no, S_G_0_no, prefac, habc, o1, o2, o3)
 
-   END SUBROUTINE
+   END SUBROUTINE eri_mme_3c_integrate_nonortho
 
 ! **************************************************************************************************
 !> \brief ...
@@ -731,7 +731,7 @@ CONTAINS
          lc_prev = lc
       END DO ! lc
 
-   END SUBROUTINE
+   END SUBROUTINE eri_mme_3c_collect_ortho
 
 ! **************************************************************************************************
 !> \brief ...
@@ -817,6 +817,6 @@ CONTAINS
          lc_prev = lc
       END DO ! lc
 
-   END SUBROUTINE
+   END SUBROUTINE eri_mme_3c_collect_nonortho
 
 END MODULE eri_mme_integrate

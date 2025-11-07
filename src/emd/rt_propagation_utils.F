@@ -248,7 +248,7 @@ CONTAINS
 
       CALL dbcsr_deallocate_matrix(tmp_mat)
       CALL timestop(handle)
-   END SUBROUTINE
+   END SUBROUTINE calc_S_derivs
 
 ! **************************************************************************************************
 !> \brief reads the restart file. At the moment only SCF (means only real)
@@ -893,6 +893,6 @@ CONTAINS
       target_section => section_vals_get_subs_vals(section, subsection_name)
       CALL section_vals_get(target_section, explicit=explicit)
       IF (explicit) CPWARN(error_message)
-   END SUBROUTINE
+   END SUBROUTINE warn_section_unused
 
 END MODULE rt_propagation_utils

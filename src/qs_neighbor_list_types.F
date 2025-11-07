@@ -526,7 +526,7 @@ CONTAINS
          iter_stat = nl_sub_iterate_ref(iter_sub, iter_ref)
       END IF
 
-   END FUNCTION
+   END FUNCTION nl_sub_iterate_ref
 
 ! **************************************************************************************************
 !> \brief ...

@@ -41,7 +41,7 @@ CONTAINS
       DEALLOCATE (real_arr)
 
       PRINT *, "check_real_rank1_allocated: OK"
-   END SUBROUTINE
+   END SUBROUTINE check_real_rank1_allocated
 
 ! **************************************************************************************************
 !> \brief Check that an unallocated and unassociated (null) r1 array can be extended
@@ -59,7 +59,7 @@ CONTAINS
       DEALLOCATE (real_arr)
 
       PRINT *, "check_real_rank1_unallocated: OK"
-   END SUBROUTINE
+   END SUBROUTINE check_real_rank1_unallocated
 
 ! **************************************************************************************************
 !> \brief Check that an allocated r2 array can be extended
@@ -82,7 +82,7 @@ CONTAINS
       DEALLOCATE (real_arr)
 
       PRINT *, "check_real_rank1_allocated: OK"
-   END SUBROUTINE
+   END SUBROUTINE check_real_rank2_allocated
 
 ! **************************************************************************************************
 !> \brief Check that an unallocated and unassociated (null) r2 array can be extended
@@ -100,7 +100,7 @@ CONTAINS
       DEALLOCATE (real_arr)
 
       PRINT *, "check_real_rank2_unallocated: OK"
-   END SUBROUTINE
+   END SUBROUTINE check_real_rank2_unallocated
 
 ! **************************************************************************************************
 !> \brief Check that an allocated string array can be extended
@@ -123,7 +123,7 @@ CONTAINS
       DEALLOCATE (str_arr)
 
       PRINT *, "check_string_rank1_allocated: OK"
-   END SUBROUTINE
+   END SUBROUTINE check_string_rank1_allocated
 
 ! **************************************************************************************************
 !> \brief Check that an unallocated string array can be extended
@@ -141,7 +141,7 @@ CONTAINS
       DEALLOCATE (str_arr)
 
       PRINT *, "check_string_rank1_unallocated: OK"
-   END SUBROUTINE
+   END SUBROUTINE check_string_rank1_unallocated
 
-END PROGRAM
+END PROGRAM memory_utilities_TEST
 ! vim: set ts=3 sw=3 tw=132 :

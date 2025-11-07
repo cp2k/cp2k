@@ -795,7 +795,7 @@ CONTAINS
       energy%exc1_aux_fit = 0.0_dp
       energy%ex = 0.0_dp
 
-   END SUBROUTINE
+   END SUBROUTINE remove_exc_energy
 
 END MODULE hfx_exx
 

@@ -261,7 +261,7 @@ CONTAINS
       END DO
       err_mm = 32*pi**4/vol*delta_mm*prod_mm_k
 
-   END SUBROUTINE
+   END SUBROUTINE minimax_error
 
 ! **************************************************************************************************
 !> \brief Cutoff error, estimating G > G_c part of Ewald sum by using C/3 * 1/(Gx^2*Gy^2*Gz^2)^1/3 as an
@@ -376,7 +376,7 @@ CONTAINS
       END DO
       err_ctff = err_ctff_curr
 
-   END SUBROUTINE
+   END SUBROUTINE cutoff_error
 
 ! **************************************************************************************************
 !> \brief Calculate cutoff error estimate by using C_mm/3 * 1/(Gx^2*Gy^2*Gz^2)^1/3

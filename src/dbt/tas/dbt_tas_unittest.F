@@ -166,4 +166,4 @@ PROGRAM dbt_tas_unittest
    CALL dbcsr_finalize_lib() ! Needed for DBM_VALIDATE_AGAINST_DBCSR.
    CALL mp_world_finalize()
 
-END PROGRAM
+END PROGRAM dbt_tas_unittest

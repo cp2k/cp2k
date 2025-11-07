@@ -51,7 +51,7 @@ MODULE cp_blacs_types
       GENERIC, PUBLIC :: OPERATOR(/=) => cp_context_is_not_equal
 
       PROCEDURE, PUBLIC, PASS(this), NON_OVERRIDABLE :: interconnect => cp_blacs_interconnect
-   END TYPE
+   END TYPE cp_blacs_type
 
 !***
 CONTAINS
@@ -163,7 +163,7 @@ CONTAINS
       MARK_USED(A)
       MARK_USED(LDA)
 #endif
-   END SUBROUTINE
+   END SUBROUTINE cp_blacs_zgebs2d
 ! **************************************************************************************************
 !> \brief ...
 !> \param this ...
@@ -195,7 +195,7 @@ CONTAINS
       MARK_USED(RSRC)
       MARK_USED(CSRC)
 #endif
-   END SUBROUTINE
+   END SUBROUTINE cp_blacs_zgebr2d
 
 ! **************************************************************************************************
 !> \brief ...
@@ -223,7 +223,7 @@ CONTAINS
       MARK_USED(A)
       MARK_USED(LDA)
 #endif
-   END SUBROUTINE
+   END SUBROUTINE cp_blacs_dgebs2d
 ! **************************************************************************************************
 !> \brief ...
 !> \param this ...
@@ -255,7 +255,7 @@ CONTAINS
       MARK_USED(RSRC)
       MARK_USED(CSRC)
 #endif
-   END SUBROUTINE
+   END SUBROUTINE cp_blacs_dgebr2d
 
 ! **************************************************************************************************
 !> \brief ...
@@ -270,7 +270,7 @@ CONTAINS
       MARK_USED(this)
       cp_blacs_get_handle = -1
 #endif
-   END FUNCTION
+   END FUNCTION cp_blacs_get_handle
 
 ! **************************************************************************************************
 !> \brief ...

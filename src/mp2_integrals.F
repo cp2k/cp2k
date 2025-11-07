@@ -1238,7 +1238,7 @@ CONTAINS
       CALL cp_fm_release(intermed_mat%fm_BIb_jb)
       DEALLOCATE (intermed_mat%local_col_row_info)
 
-   END SUBROUTINE
+   END SUBROUTINE release_intermediate_matrices
 
 ! **************************************************************************************************
 !> \brief ...

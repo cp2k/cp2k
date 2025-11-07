@@ -448,7 +448,7 @@ CONTAINS
       END IF
 
       CALL timestop(handle)
-   END SUBROUTINE
+   END SUBROUTINE create_hermitian_form_of_ABBA
 
 ! **************************************************************************************************
 !> \brief Solving eigenvalue equation C Z^n = (Ω^n)^2 Z^n .

@@ -84,7 +84,7 @@ CONTAINS
       IF (PRESENT(max_dist)) max_dist = shell%max_dist
       IF (PRESENT(shell_cutoff)) shell_cutoff = shell%shell_cutoff
 
-   END SUBROUTINE
+   END SUBROUTINE get_shell
 
 ! **************************************************************************************************
 !> \brief ...

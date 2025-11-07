@@ -55,7 +55,7 @@ MODULE libcp2k
       INTEGER                 :: idx = 1
    CONTAINS
       PROCEDURE :: func => eri2array_func
-   END TYPE
+   END TYPE eri2array
 
 CONTAINS
 

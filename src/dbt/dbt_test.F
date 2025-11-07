@@ -53,7 +53,7 @@ MODULE dbt_test
       #:for ndim in ndims
          MODULE PROCEDURE dist_sparse_tensor_to_repl_dense_${ndim}$d_array
       #:endfor
-   END INTERFACE
+   END INTERFACE dist_sparse_tensor_to_repl_dense_array
 
    INTEGER, SAVE :: randmat_counter = 0
    INTEGER, PARAMETER, PRIVATE :: rand_seed_init = 12341313
@@ -104,7 +104,7 @@ CONTAINS
 !$OMP END PARALLEL
 
       CALL dbt_destroy(tensor2_tmp)
-   END FUNCTION
+   END FUNCTION dbt_equal
 
 ! **************************************************************************************************
 !> \brief check if two blocks are equal
@@ -116,7 +116,7 @@ CONTAINS
 
       blocks_equal = MAXVAL(ABS(block1%blk - block2%blk)) < 1.0E-12_dp
 
-   END FUNCTION
+   END FUNCTION blocks_equal
 
 ! **************************************************************************************************
 !> \brief Compute factorial
@@ -127,7 +127,7 @@ CONTAINS
       INTEGER             :: k
       INTEGER             :: factorial
       factorial = PRODUCT([(k, k=1, n)])
-   END FUNCTION
+   END FUNCTION factorial
 
 ! **************************************************************************************************
 !> \brief Compute all permutations p of (1, 2, ..., n)
@@ -160,8 +160,8 @@ CONTAINS
                pp(j) = t
             END DO
          END IF
-      END SUBROUTINE
-   END SUBROUTINE
+      END SUBROUTINE perm
+   END SUBROUTINE permute
 
 ! **************************************************************************************************
 !> \brief Test equivalence of all tensor formats, using a random distribution.
@@ -356,7 +356,7 @@ CONTAINS
          END DO
       END DO
       CALL dbt_pgrid_destroy(comm_nd)
-   END SUBROUTINE
+   END SUBROUTINE dbt_test_formats
 
 ! **************************************************************************************************
 !> \brief Allocate and fill test tensor - entries are enumerated by their index s.t. they only depend
@@ -473,7 +473,7 @@ CONTAINS
       CALL dbt_iterator_stop(iterator)
 !$OMP END PARALLEL
 
-   END SUBROUTINE
+   END SUBROUTINE dbt_setup_test_tensor
 
 ! **************************************************************************************************
 !> \brief Enumerate tensor entries in block
@@ -510,7 +510,7 @@ CONTAINS
                END IF
             #:endfor
 
-         END SUBROUTINE
+         END SUBROUTINE enumerate_block_elements
 
          #:for ndim in ndims
 ! **************************************************************************************************
@@ -556,7 +556,7 @@ CONTAINS
 !$OMP END PARALLEL
                CALL tensor%pgrid%mp_comm_2d%sum(array)
 
-            END SUBROUTINE
+            END SUBROUTINE dist_sparse_tensor_to_repl_dense_${ndim}$d_array
          #:endfor
 
 ! **************************************************************************************************
@@ -773,7 +773,7 @@ CONTAINS
                IF (io_unit > 0) WRITE (io_unit, *) 'Test passed!', eql_diff
             END IF
 
-         END SUBROUTINE
+         END SUBROUTINE dbt_contract_test
 
 ! **************************************************************************************************
 !> \brief mapped sizes in 2d
@@ -784,7 +784,7 @@ CONTAINS
             INTEGER, DIMENSION(2)             :: sizes_2d
             sizes_2d(1) = PRODUCT(nd_sizes(map1))
             sizes_2d(2) = PRODUCT(nd_sizes(map2))
-         END FUNCTION
+         END FUNCTION sizes_2d
 
 ! **************************************************************************************************
 !> \brief checksum of a tensor consistent with block_checksum
@@ -794,7 +794,7 @@ CONTAINS
             TYPE(dbt_type), INTENT(IN) :: tensor
             REAL(KIND=dp) :: dbt_checksum
             dbt_checksum = dbt_tas_checksum(tensor%matrix_rep)
-         END FUNCTION
+         END FUNCTION dbt_checksum
 
 ! **************************************************************************************************
 !> \brief Reset the seed used for generating random matrices to default value
@@ -802,6 +802,6 @@ CONTAINS
 ! **************************************************************************************************
          SUBROUTINE dbt_reset_randmat_seed()
             randmat_counter = rand_seed_init
-         END SUBROUTINE
+         END SUBROUTINE dbt_reset_randmat_seed
 
-      END MODULE
+      END MODULE dbt_test

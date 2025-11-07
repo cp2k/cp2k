@@ -55,7 +55,7 @@ MODULE atom_sgp
       INTEGER                                  :: n_nlcc = 0
       REAL(KIND=dp), DIMENSION(:), POINTER     :: a_nlcc => Null()
       REAL(KIND=dp), DIMENSION(:), POINTER     :: c_nlcc => Null()
-   END TYPE
+   END TYPE atom_sgp_potential_type
 
    PRIVATE
    PUBLIC  :: atom_sgp_potential_type, atom_sgp_release

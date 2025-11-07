@@ -36,11 +36,11 @@ MODULE qs_tddfpt2_stda_types
       INTEGER                                     :: kind_number = -1 !kind number
       REAL(KIND=dp)                               :: hardness_param = -1.0_dp !hardness_parameter eta
       REAL(KIND=dp)                               :: rcut = -1.0_dp !cutoff radius for short-range Coulomb
-   END TYPE
+   END TYPE stda_kind_type
 
    TYPE stda_kind_p_type
       TYPE(stda_kind_type), POINTER               :: kind_param => NULL()
-   END TYPE
+   END TYPE stda_kind_p_type
 
    TYPE stda_env_type
       !fraction of non-local HF exchange
@@ -55,7 +55,7 @@ MODULE qs_tddfpt2_stda_types
       !number of atomic orbitals, number of occupied orbitals
       INTEGER, DIMENSION(2)                        :: n_ao = -1
       INTEGER, DIMENSION(2)                        :: nactive = -1
-   END TYPE
+   END TYPE stda_env_type
 
    !PARAMETERS
 !&<

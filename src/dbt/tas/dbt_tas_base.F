@@ -190,7 +190,7 @@ CONTAINS
       matrix%valid = .TRUE.
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE dbt_tas_create_new
 
 ! **************************************************************************************************
 !> \brief Create matrix from template
@@ -222,7 +222,7 @@ CONTAINS
       matrix%nfullcols = matrix_in%nfullcols
       matrix%valid = .TRUE.
 
-   END SUBROUTINE
+   END SUBROUTINE dbt_tas_create_template
 
 ! **************************************************************************************************
 !> \brief ...
@@ -237,7 +237,7 @@ CONTAINS
       DEALLOCATE (matrix%row_blk_size)
       DEALLOCATE (matrix%col_blk_size)
       matrix%valid = .FALSE.
-   END SUBROUTINE
+   END SUBROUTINE dbt_tas_destroy
 
 ! **************************************************************************************************
 !> \brief Copy matrix_a to matrix_b
@@ -280,7 +280,7 @@ CONTAINS
 !$OMP END PARALLEL
 
       CALL timestop(handle)
-   END SUBROUTINE
+   END SUBROUTINE dbt_tas_copy
 
 ! **************************************************************************************************
 !> \brief Make sure that matrix_out has same blocks reserved as matrix_in.
@@ -316,7 +316,7 @@ CONTAINS
 !$OMP END PARALLEL
 
       CALL timestop(handle)
-   END SUBROUTINE
+   END SUBROUTINE dbt_tas_reserve_blocks_template
 
 ! **************************************************************************************************
 !> \brief ...
@@ -327,7 +327,7 @@ CONTAINS
       TYPE(dbt_tas_type), INTENT(INOUT)                  :: matrix
 
       CALL dbm_finalize(matrix%matrix)
-   END SUBROUTINE
+   END SUBROUTINE dbt_tas_finalize
 
 ! **************************************************************************************************
 !> \brief create new distribution.
@@ -422,7 +422,7 @@ CONTAINS
       !IF(PRESENT(strict_split)) dist%strict_split = strict_split
 
       CALL timestop(handle)
-   END SUBROUTINE
+   END SUBROUTINE dbt_tas_distribution_new
 
 ! **************************************************************************************************
 !> \brief ...
@@ -448,7 +448,7 @@ CONTAINS
       END IF
       CALL dbt_tas_release_info(dist%info)
       CALL dbm_distribution_release(dist%dbm_dist)
-   END SUBROUTINE
+   END SUBROUTINE dbt_tas_distribution_destroy
 
 ! **************************************************************************************************
 !> \brief As dbt_get_stored_coordinates
@@ -473,7 +473,7 @@ CONTAINS
       ! workaround for inefficient mpi_cart_rank
       processor = pcoord(1)*info%pdims(2) + pcoord(2)
 
-   END SUBROUTINE
+   END SUBROUTINE dbt_tas_get_stored_coordinates
 
 ! **************************************************************************************************
 !> \brief Get all processors for a given row/col combination if matrix is replicated on each process
@@ -511,7 +511,7 @@ CONTAINS
             pcoord(2) = matrix%dist%col_dist%dist(col_s)
          END SELECT
       END DO
-   END SUBROUTINE
+   END SUBROUTINE dbt_repl_get_stored_coordinates
 
 ! **************************************************************************************************
 !> \brief Convert a tall-and-skinny matrix into a normal DBM matrix.
@@ -595,7 +595,7 @@ CONTAINS
       CALL dbm_finalize(matrix_dbm)
 
       CALL timestop(handle)
-   END SUBROUTINE
+   END SUBROUTINE dbt_tas_convert_to_dbm
 
 ! **************************************************************************************************
 !> \brief Converts a DBM matrix into the tall-and-skinny matrix type.
@@ -658,7 +658,7 @@ CONTAINS
       CALL dbt_tas_finalize(matrix_rect)
 
       CALL timestop(handle)
-   END SUBROUTINE
+   END SUBROUTINE dbt_tas_convert_to_tas
 
 ! **************************************************************************************************
 !> \brief As dbm_iterator_start
@@ -673,7 +673,7 @@ CONTAINS
       CALL dbm_iterator_start(iter%iter, matrix_in%matrix)
 
       iter%dist => matrix_in%dist
-   END SUBROUTINE
+   END SUBROUTINE dbt_tas_iterator_start
 
 ! **************************************************************************************************
 !> \brief As dbm_iterator_num_blocks
@@ -686,7 +686,7 @@ CONTAINS
       INTEGER                                            :: dbt_tas_iterator_num_blocks
 
       dbt_tas_iterator_num_blocks = dbm_iterator_num_blocks(iter%iter)
-   END FUNCTION
+   END FUNCTION dbt_tas_iterator_num_blocks
 
 ! **************************************************************************************************
 !> \brief As dbm_iterator_blocks_left
@@ -699,7 +699,7 @@ CONTAINS
       LOGICAL                                            :: dbt_tas_iterator_blocks_left
 
       dbt_tas_iterator_blocks_left = dbm_iterator_blocks_left(iter%iter)
-   END FUNCTION
+   END FUNCTION dbt_tas_iterator_blocks_left
 
 ! **************************************************************************************************
 !> \brief As dbm_iterator_stop
@@ -710,7 +710,7 @@ CONTAINS
       TYPE(dbt_tas_iterator), INTENT(INOUT)              :: iter
 
       CALL dbm_iterator_stop(iter%iter)
-   END SUBROUTINE
+   END SUBROUTINE dbt_tas_iterator_stop
 
 ! **************************************************************************************************
 !> \brief As dbm_iterator_next_block
@@ -734,7 +734,7 @@ CONTAINS
       CALL dbt_index_local_to_global(iterator%dist%info, iterator%dist, row_group=row_group, column_group=column_group, &
                                      row=row, column=column)
 
-   END SUBROUTINE
+   END SUBROUTINE dbt_tas_iterator_next_block_index
 
 ! **************************************************************************************************
 !> \brief As dbm_reserve_blocks
@@ -767,7 +767,7 @@ CONTAINS
       CALL dbm_reserve_blocks(matrix%matrix, rows_group, columns_group)
 
       CALL timestop(handle)
-   END SUBROUTINE
+   END SUBROUTINE dbt_tas_reserve_blocks_index
 
 ! **************************************************************************************************
 !> \brief Copy a distribution
@@ -795,7 +795,7 @@ CONTAINS
       END IF
 
       dist_out = dist_in
-   END SUBROUTINE
+   END SUBROUTINE dbt_tas_copy_distribution
 
 ! **************************************************************************************************
 !> \brief Get block size for a given row & column
@@ -813,7 +813,7 @@ CONTAINS
 
       row_size = matrix%row_blk_size%data(row)
       col_size = matrix%col_blk_size%data(col)
-   END SUBROUTINE
+   END SUBROUTINE dbt_tas_blk_sizes
 
 ! **************************************************************************************************
 !> \brief get info on mpi grid splitting
@@ -826,7 +826,7 @@ CONTAINS
       TYPE(dbt_tas_split_info), POINTER                  :: dbt_tas_info
 
       dbt_tas_info => matrix%dist%info
-   END FUNCTION
+   END FUNCTION dbt_tas_info
 
 ! **************************************************************************************************
 !> \brief ...
@@ -839,7 +839,7 @@ CONTAINS
       INTEGER(KIND=int_8)                                :: nblkrows_total
 
       nblkrows_total = matrix%nblkrows
-   END FUNCTION
+   END FUNCTION dbt_tas_nblkrows_total
 
 ! **************************************************************************************************
 !> \brief ...
@@ -852,7 +852,7 @@ CONTAINS
       INTEGER(KIND=int_8)                                :: nfullrows_total
 
       nfullrows_total = matrix%nfullrows
-   END FUNCTION
+   END FUNCTION dbt_tas_nfullrows_total
 
 ! **************************************************************************************************
 !> \brief ...
@@ -865,7 +865,7 @@ CONTAINS
       INTEGER(KIND=int_8)                                :: nblkcols_total
 
       nblkcols_total = matrix%nblkcols
-   END FUNCTION
+   END FUNCTION dbt_tas_nblkcols_total
 
 ! **************************************************************************************************
 !> \brief ...
@@ -878,7 +878,7 @@ CONTAINS
       INTEGER(KIND=int_8)                                :: nfullcols_total
 
       nfullcols_total = matrix%nfullcols
-   END FUNCTION
+   END FUNCTION dbt_tas_nfullcols_total
 
 ! **************************************************************************************************
 !> \brief ...
@@ -891,7 +891,7 @@ CONTAINS
       INTEGER                                            :: nblkcols_local
 
       nblkcols_local = SIZE(dbm_get_col_block_sizes(matrix%matrix))
-   END FUNCTION
+   END FUNCTION dbt_tas_nblkcols_local
 
 ! **************************************************************************************************
 !> \brief ...
@@ -904,7 +904,7 @@ CONTAINS
       INTEGER                                            :: nblkrows_local
 
       nblkrows_local = SIZE(dbm_get_row_block_sizes(matrix%matrix))
-   END FUNCTION
+   END FUNCTION dbt_tas_nblkrows_local
 
 ! **************************************************************************************************
 !> \brief As dbt_get_num_blocks: get number of local blocks
@@ -917,7 +917,7 @@ CONTAINS
       INTEGER                                            :: num_blocks
 
       num_blocks = dbm_get_num_blocks(matrix%matrix)
-   END FUNCTION
+   END FUNCTION dbt_tas_get_num_blocks
 
 ! **************************************************************************************************
 !> \brief get total number of blocks
@@ -935,7 +935,7 @@ CONTAINS
       num_blocks = dbt_tas_get_num_blocks(matrix)
       CALL info%mp_comm%sum(num_blocks)
 
-   END FUNCTION
+   END FUNCTION dbt_tas_get_num_blocks_total
 
 ! **************************************************************************************************
 !> \brief As dbt_get_nze: get number of local non-zero elements
@@ -949,7 +949,7 @@ CONTAINS
 
       dbt_tas_get_nze = dbm_get_nze(matrix%matrix)
 
-   END FUNCTION
+   END FUNCTION dbt_tas_get_nze
 
 ! **************************************************************************************************
 !> \brief Get total number of non-zero elements
@@ -966,7 +966,7 @@ CONTAINS
       dbt_tas_get_nze_total = dbt_tas_get_nze(matrix)
       info = dbt_tas_info(matrix)
       CALL info%mp_comm%sum(dbt_tas_get_nze_total)
-   END FUNCTION
+   END FUNCTION dbt_tas_get_nze_total
 
 ! **************************************************************************************************
 !> \brief Clear matrix (erase all data)
@@ -977,7 +977,7 @@ CONTAINS
       TYPE(dbt_tas_type), INTENT(INOUT)                  :: matrix
 
       CALL dbm_clear(matrix%matrix)
-   END SUBROUTINE
+   END SUBROUTINE dbt_tas_clear
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1043,7 +1043,7 @@ CONTAINS
       IF (PRESENT(col_blk_size)) ALLOCATE (col_blk_size, SOURCE=matrix%col_blk_size)
       IF (PRESENT(distribution)) distribution = matrix%dist
 
-   END SUBROUTINE
+   END SUBROUTINE dbt_tas_get_info
 
 ! **************************************************************************************************
 !> \brief As dbm_iterator_next_block
@@ -1069,7 +1069,7 @@ CONTAINS
       CALL dbt_index_local_to_global(iterator%dist%info, iterator%dist, row_group=row_group, column_group=column_group, &
                                      row=row, column=column)
 
-   END SUBROUTINE
+   END SUBROUTINE dbt_tas_iterator_next_block_d
 
 ! **************************************************************************************************
 !> \brief As dbm_put_block
@@ -1093,7 +1093,7 @@ CONTAINS
 
       CALL dbm_put_block(matrix%matrix, row_group, col_group, block, summation=summation)
 
-   END SUBROUTINE
+   END SUBROUTINE dbt_tas_put_block
 
 ! **************************************************************************************************
 !> \brief As dbm_get_block_p
@@ -1119,7 +1119,7 @@ CONTAINS
       CALL dbm_get_block_p(matrix%matrix, row_group, col_group, block, &
                            row_size=row_size, col_size=col_size)
 
-   END SUBROUTINE
+   END SUBROUTINE dbt_tas_get_block_p
 
 ! **************************************************************************************************
 !> \brief As dbm_filter
@@ -1133,6 +1133,6 @@ CONTAINS
 
       CALL dbm_filter(matrix%matrix, eps)
 
-   END SUBROUTINE
+   END SUBROUTINE dbt_tas_filter
 
-END MODULE
+END MODULE dbt_tas_base

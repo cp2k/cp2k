@@ -390,4 +390,4 @@ PROGRAM cp2k
    DEALLOCATE (initial_variables)
    CPASSERT(ierr == 0)
 
-END PROGRAM
+END PROGRAM cp2k

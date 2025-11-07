@@ -2168,7 +2168,7 @@ CONTAINS
          Gaussian = 0.0_dp
       END IF
 
-   END FUNCTION
+   END FUNCTION Gaussian
 
 ! **************************************************************************************************
 !> \brief ...

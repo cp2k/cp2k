@@ -44,7 +44,7 @@ CONTAINS
             pint_env%e_gle = pint_env%e_gle + pint_env%gle%nvt(i)%thermostat_energy
          END DO
       END IF
-   END SUBROUTINE
+   END SUBROUTINE pint_calc_gle_energy
 
 ! **************************************************************************************************
 !> \brief ...
@@ -139,5 +139,5 @@ CONTAINS
       pint_env%e_kin_t = 0.0_dp
       DEALLOCATE (e_tmp, s_tmp, h_tmp)
       CALL timestop(handle)
-   END SUBROUTINE
-END MODULE
+   END SUBROUTINE pint_gle_step
+END MODULE pint_gle

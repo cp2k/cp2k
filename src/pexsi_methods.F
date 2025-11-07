@@ -563,7 +563,7 @@ CONTAINS
 
       CALL cp_pexsi_set_options(pexsi_env%options, numElectronPEXSITolerance=tol_nel)
       CALL timestop(handle)
-   END SUBROUTINE
+   END SUBROUTINE pexsi_set_convergence_tolerance
 
 ! **************************************************************************************************
 !> \brief Pass energy weighted density matrix and entropic energy contribution

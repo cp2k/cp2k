@@ -343,7 +343,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE mp2_eri_2c_integrate_gpw
 
 ! **************************************************************************************************
 !> \brief Integrates the potential of a RI function obtaining the forces and stress tensor
@@ -937,7 +937,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE integrate_potential
 
 ! **************************************************************************************************
 !> \brief Prepares GPW calculation for RI-MP2/RI-RPA

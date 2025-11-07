@@ -477,6 +477,6 @@ CONTAINS
       MARK_USED(plan)
       CPABORT("Requires linking to the PEXSI library.")
 #endif
-   END SUBROUTINE
+   END SUBROUTINE cp_pexsi_plan_finalize
 
 END MODULE pexsi_interface

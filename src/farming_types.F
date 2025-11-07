@@ -78,7 +78,7 @@ CONTAINS
          farming_env%max_steps = 65535
          NULLIFY (farming_env%Job)
       END IF
-   END SUBROUTINE
+   END SUBROUTINE init_farming_env
 
 ! **************************************************************************************************
 !> \brief provide a default initialization

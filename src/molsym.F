@@ -1757,7 +1757,7 @@ CONTAINS
 
       d = SQRT(SUM((a - b)**2))
 
-   END FUNCTION
+   END FUNCTION dist
 ! **************************************************************************************************
 !> \brief   Write atomic coordinates to output unit iw.
 !> \param coord ...

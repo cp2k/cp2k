@@ -552,7 +552,7 @@ CONTAINS
          v = p_func(1, l, ma + 1, mb, r1, r, lr)*(1.0_dp - dd) + p_func(-1, l, -ma - 1, mb, r1, r, lr)*SQRT(1.0_dp + dd)
          w = p_func(1, l, ma - 1, mb, r1, r, lr) - p_func(-1, l, -ma + 1, mb, r1, r, lr)
       END IF
-   END SUBROUTINE
+   END SUBROUTINE r_recursion
 
 ! **************************************************************************************************
 !> \brief   Release rotation matrices

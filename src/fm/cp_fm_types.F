@@ -1189,7 +1189,7 @@ CONTAINS
       DEALLOCATE (values)
 
       CALL timestop(handle)
-   END SUBROUTINE
+   END SUBROUTINE cp_fm_maxabsrownorm
 
 ! **************************************************************************************************
 !> \brief find the inorm of each column norm_{j}= sqrt( \sum_{i} A_{ij}*A_{ij} )
@@ -1227,7 +1227,7 @@ CONTAINS
       norm_array = SQRT(norm_array)
 
       CALL timestop(handle)
-   END SUBROUTINE
+   END SUBROUTINE cp_fm_vectorsnorm
 
 ! **************************************************************************************************
 !> \brief summing up all the elements along the matrix's i-th index
@@ -1292,7 +1292,7 @@ CONTAINS
       CALL matrix%matrix_struct%para_env%sum(sum_array)
 
       CALL timestop(handle)
-   END SUBROUTINE
+   END SUBROUTINE cp_fm_vectorssum
 
 ! **************************************************************************************************
 !> \brief copy one identically sized matrix in the other
@@ -2443,7 +2443,7 @@ CONTAINS
       INTEGER                                            :: res
 
       res = cp_fm_mm_type
-   END FUNCTION
+   END FUNCTION cp_fm_get_mm_type
 
 ! **************************************************************************************************
 !> \brief ...
@@ -2464,6 +2464,6 @@ CONTAINS
       res = -1
 #endif
 
-   END FUNCTION
+   END FUNCTION cp_fm_pilaenv
 
 END MODULE cp_fm_types

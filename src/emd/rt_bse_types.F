@@ -598,7 +598,7 @@ CONTAINS
       ! Depending on the chosen methods, allocate extra workspace
       CALL create_hartree_ri_workspace(rtbse_env, qs_env)
 
-   END SUBROUTINE
+   END SUBROUTINE create_rtbse_env
 
 ! **************************************************************************************************
 !> \brief Simple reimplementation of cp_fm_release_pp1 for complex matrices
@@ -673,7 +673,7 @@ CONTAINS
       ! Nullify to make sure it is not used again
       NULLIFY (rtbse_env)
 
-   END SUBROUTINE
+   END SUBROUTINE release_rtbse_env
 ! **************************************************************************************************
 !> \brief Allocates the workspaces for Hartree RI method
 !> \note RI method calculates the Hartree contraction without the use of DBT, as it cannot emulate vectors
@@ -856,7 +856,7 @@ CONTAINS
       CALL dbt_create(screened_dbcsr, screened_dbt)
       ! greens_dbt
       CALL dbt_create(bs_env%mat_ao_ao%matrix, work_dbt_2c)
-   END SUBROUTINE
+   END SUBROUTINE create_sigma_workspace_qs_only
 ! **************************************************************************************************
 !> \brief Releases the workspaces for self-energy determination
 !> \param rtbse_env
@@ -872,7 +872,7 @@ CONTAINS
       CALL dbt_destroy(rtbse_env%screened_dbt)
       CALL dbt_destroy(rtbse_env%greens_dbt)
       CALL dbcsr_release(rtbse_env%w_dbcsr)
-   END SUBROUTINE
+   END SUBROUTINE release_sigma_workspace
 ! **************************************************************************************************
 !> \brief Multiplies real matrix by a complex matrix from the right
 !> \note So far only converts the real matrix to complex one, potentially doubling the work
@@ -971,4 +971,4 @@ CONTAINS
       CALL cp_fm_release(res_im)
 
    END SUBROUTINE multiply_cfm_fm
-END MODULE
+END MODULE rt_bse_types

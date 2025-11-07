@@ -47,39 +47,39 @@ MODULE fist_nonbond_env_types
 ! **************************************************************************************************
    TYPE pos_type
       REAL(KIND=dp) :: r(3) = 0.0_dp
-   END TYPE
+   END TYPE pos_type
 
    TYPE eam_type
       REAL(KIND=dp) :: f_embed = 0.0_dp
       REAL(KIND=dp) :: rho = 0.0_dp
-   END TYPE
+   END TYPE eam_type
 
    TYPE quip_data_type
       INTEGER, POINTER        :: use_indices(:) => NULL()
       REAL(KIND=dp), POINTER  :: force(:, :) => NULL()
       REAL(KIND=dp)           :: virial(3, 3) = 0.0_dp
-   END TYPE
+   END TYPE quip_data_type
 
    TYPE nequip_data_type
       INTEGER, POINTER        :: use_indices(:) => NULL()
       REAL(KIND=dp), POINTER  :: force(:, :) => NULL()
       REAL(KIND=dp)           :: virial(3, 3) = 0.0_dp
       TYPE(torch_model_type)  :: model
-   END TYPE
+   END TYPE nequip_data_type
 
    TYPE allegro_data_type
       INTEGER, POINTER        :: use_indices(:) => NULL()
       REAL(KIND=dp), POINTER  :: force(:, :) => NULL()
       REAL(KIND=dp)           :: virial(3, 3) = 0.0_dp
       TYPE(torch_model_type)  :: model
-   END TYPE
+   END TYPE allegro_data_type
 
    TYPE deepmd_data_type
       INTEGER, POINTER        :: use_indices(:) => NULL()
       REAL(KIND=dp), POINTER  :: force(:, :) => NULL()
       REAL(KIND=dp)           :: virial(3, 3) = 0.0_dp
       TYPE(deepmd_model_type) :: model
-   END TYPE
+   END TYPE deepmd_data_type
 
    TYPE ace_data_type
       INTEGER, ALLOCATABLE    :: use_indices(:)
@@ -98,7 +98,7 @@ MODULE fist_nonbond_env_types
       REAL(KIND=dp), ALLOCATABLE  :: atpos(:, :)
       REAL(KIND=dp)           :: virial(3, 3) = 0.0_dp
       TYPE(ace_model_type)    :: model
-   END TYPE
+   END TYPE ace_data_type
 
 ! **************************************************************************************************
    TYPE fist_nonbond_env_type

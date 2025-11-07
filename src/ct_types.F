@@ -124,7 +124,7 @@ MODULE ct_types
       TYPE(mp_para_env_type), POINTER  :: para_env => NULL()
       TYPE(cp_blacs_env_type), POINTER  :: blacs_env => NULL()
 
-   END TYPE
+   END TYPE ct_step_env_type
 
 CONTAINS
 

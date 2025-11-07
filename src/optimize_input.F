@@ -67,13 +67,13 @@ MODULE optimize_input
       REAL(KIND=dp) :: shift_qm = -1.0_dp
       LOGICAL       :: shift_average = .FALSE.
       INTEGER :: frame_start = -1, frame_stop = -1, frame_stride = -1, frame_count = -1
-   END TYPE
+   END TYPE fm_env_type
 
    TYPE variable_type
       CHARACTER(LEN=default_string_length) :: label = ""
       REAL(KIND=dp)                        :: value = -1.0_dp
       LOGICAL                              :: fixed = .FALSE.
-   END TYPE
+   END TYPE variable_type
 
    TYPE oi_env_type
       INTEGER :: method = -1
@@ -86,7 +86,7 @@ MODULE optimize_input
       INTEGER       :: iter_start_val = -1
       REAL(KIND=dp) :: randomize_variables = -1.0_dp
       REAL(KIND=dp) :: start_time = -1.0_dp, target_time = -1.0_dp
-   END TYPE
+   END TYPE oi_env_type
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'optimize_input'
 

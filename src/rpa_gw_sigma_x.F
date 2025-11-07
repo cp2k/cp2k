@@ -989,7 +989,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE transform_sigma_x_minus_vxc_to_MO_basis
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1036,7 +1036,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE transform_matrix_ks_to_kp
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1096,7 +1096,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE allocate_matrix_ks_kp
 
 END MODULE rpa_gw_sigma_x
 

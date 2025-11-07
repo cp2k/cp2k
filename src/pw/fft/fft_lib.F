@@ -72,7 +72,7 @@ CONTAINS
          CALL fftw3_do_init(wisdom_file)
       END SELECT
 
-   END SUBROUTINE
+   END SUBROUTINE fft_do_init
 
 ! **************************************************************************************************
 !> \brief ...
@@ -94,7 +94,7 @@ CONTAINS
          CALL fftw3_do_cleanup(wisdom_file, ionode)
       END SELECT
 
-   END SUBROUTINE
+   END SUBROUTINE fft_do_cleanup
 
 ! **************************************************************************************************
 !> \brief ...
@@ -247,7 +247,7 @@ CONTAINS
          plan%valid = .FALSE.
       END IF
 
-   END SUBROUTINE
+   END SUBROUTINE fft_destroy_plan
 
 ! **************************************************************************************************
 !> \brief ...
@@ -283,5 +283,5 @@ CONTAINS
 
    END SUBROUTINE fft_1dm
 
-END MODULE
+END MODULE fft_lib
 

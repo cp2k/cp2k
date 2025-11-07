@@ -1507,7 +1507,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE gap_and_max_eig_diff_kpoints
 
 ! **************************************************************************************************
 !> \brief returns minimal and maximal energy values for the E_range for the minimax grid selection
@@ -1585,6 +1585,6 @@ CONTAINS
       END IF
 
       CALL timestop(handle)
-   END SUBROUTINE
+   END SUBROUTINE determine_energy_range
 
 END MODULE mp2_grids

@@ -99,7 +99,7 @@ MODULE mp2_types
 
    TYPE mp2_direct_type
       LOGICAL                                            :: big_send = .FALSE.
-   END TYPE
+   END TYPE mp2_direct_type
 
    TYPE mp2_gpw_type
       REAL(KIND=dp)                                      :: eps_grid = 0.0_dp, &
@@ -109,7 +109,7 @@ MODULE mp2_types
       REAL(KIND=dp)                                      :: cutoff = 0.0_dp, &
                                                             relative_cutoff = 0.0_dp
       INTEGER                                            :: size_lattice_sum = 0
-   END TYPE
+   END TYPE mp2_gpw_type
 
    TYPE ri_mp2_type
       INTEGER                                            :: block_size = 0, &

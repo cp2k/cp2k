@@ -1278,7 +1278,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE create_matrix_P
 
 ! **************************************************************************************************
 !> \brief ...

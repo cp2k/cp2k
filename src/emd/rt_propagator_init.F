@@ -369,7 +369,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE get_maxabs_eigval_sparse
 
 ! **************************************************************************************************
 !> \brief Is still left from diagonalization, should be removed later but is

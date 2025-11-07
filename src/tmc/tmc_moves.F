@@ -396,7 +396,7 @@ CONTAINS
       ! convert to indeces mapped for the position array (multiple dim per atom)
       start_ind = (start_ind - 1)*tmc_params%dim_per_elem + 1
       end_ind = (end_ind - 1)*tmc_params%dim_per_elem + 1
-   END SUBROUTINE
+   END SUBROUTINE get_mol_indeces
 
 ! **************************************************************************************************
 !> \brief checks if a position is within the sub box

@@ -59,7 +59,7 @@ MODULE graphcon
    TYPE superclass
       INTEGER :: Nele = -1
       INTEGER, DIMENSION(:), POINTER :: classes => NULL()
-   END TYPE
+   END TYPE superclass
 
 CONTAINS
 
@@ -572,6 +572,6 @@ CONTAINS
          m = m - 1
          k = k + 1
       END DO
-   END SUBROUTINE
+   END SUBROUTINE all_permutations
 END MODULE graphcon
 

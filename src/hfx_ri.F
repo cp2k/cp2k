@@ -342,7 +342,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE hfx_ri_pre_scf_mo
 
 ! **************************************************************************************************
 !> \brief ...
@@ -379,7 +379,7 @@ CONTAINS
       END IF
 
       CALL dbcsr_release(matrix_tmp)
-   END SUBROUTINE
+   END SUBROUTINE check_inverse
 
 ! **************************************************************************************************
 !> \brief ...
@@ -429,7 +429,7 @@ CONTAINS
          CALL dbcsr_release(matrix_copy)
       END IF
 
-   END SUBROUTINE
+   END SUBROUTINE check_sqrt
 
 ! **************************************************************************************************
 !> \brief Calculate 2-center and 3-center integrals
@@ -762,7 +762,7 @@ CONTAINS
       END IF
 
       CALL timestop(handle)
-   END SUBROUTINE
+   END SUBROUTINE hfx_ri_pre_scf_calc_tensors
 
 ! **************************************************************************************************
 !> \brief Pre-SCF steps in rho flavor of RI HFX
@@ -951,7 +951,7 @@ CONTAINS
       CALL dbt_copy(ri_data%t_3c_int_ctr_3(1, 1), ri_data%t_3c_int_ctr_2(1, 1), order=[2, 1, 3], move_data=.TRUE.)
 
       CALL timestop(handle)
-   END SUBROUTINE
+   END SUBROUTINE hfx_ri_pre_scf_Pmat
 
 ! **************************************************************************************************
 !> \brief Sorts 2d indices w.r.t. rows and columns
@@ -1022,7 +1022,7 @@ CONTAINS
 
       blk_ind(:, :) = blk_ind_tmp(:nblk, :)
 
-   END SUBROUTINE
+   END SUBROUTINE sort_unique_blkind_2d
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1177,7 +1177,7 @@ CONTAINS
       END IF
 
       CALL timestop(handle)
-   END SUBROUTINE
+   END SUBROUTINE hfx_ri_update_ks
 
 ! **************************************************************************************************
 !> \brief Calculate Fock (AKA Kohn-Sham) matrix in MO flavor
@@ -1524,7 +1524,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE hfx_ri_update_ks_mo
 
 ! **************************************************************************************************
 !> \brief Calculate Fock (AKA Kohn-Sham) matrix in rho flavor
@@ -1774,7 +1774,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE hfx_ri_update_ks_Pmat
 
 ! **************************************************************************************************
 !> \brief Implementation based on the MO flavor
@@ -4266,7 +4266,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(SIZE(values))             :: my_sqrt
 
       my_sqrt = SQRT(values)
-   END FUNCTION
+   END FUNCTION my_sqrt
 
 ! **************************************************************************************************
 !> \brief Function for calculation inverse sqrt of a matrix
@@ -4278,5 +4278,5 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(SIZE(values))             :: my_invsqrt
 
       my_invsqrt = SQRT(1.0_dp/values)
-   END FUNCTION
-END MODULE
+   END FUNCTION my_invsqrt
+END MODULE hfx_ri

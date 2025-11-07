@@ -775,7 +775,7 @@ CONTAINS
       CALL timestop(handle2)
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE dbt_tas_multiply
 
 ! **************************************************************************************************
 !> \brief ...
@@ -813,7 +813,7 @@ CONTAINS
          CALL dbm_add(matrix_out, matrix_in)
       END IF
 
-   END SUBROUTINE
+   END SUBROUTINE redistribute_and_sum
 
 ! **************************************************************************************************
 !> \brief Make sure that smallest matrix involved in a multiplication is not split and bring it to
@@ -873,7 +873,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE reshape_mm_small
 
 ! **************************************************************************************************
 !> \brief Reshape either matrix1 or matrix2 to make sure that their process grids are compatible
@@ -1127,7 +1127,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE reshape_mm_compatible
 
 ! **************************************************************************************************
 !> \brief Change split factor without redistribution
@@ -1220,7 +1220,7 @@ CONTAINS
       END IF
 
       CALL timestop(handle)
-   END SUBROUTINE
+   END SUBROUTINE change_split
 
 ! **************************************************************************************************
 !> \brief Check whether matrices have same distribution and same split.
@@ -1298,7 +1298,7 @@ CONTAINS
          END IF
       END IF
 
-   END FUNCTION
+   END FUNCTION dist_compatible
 
 ! **************************************************************************************************
 !> \brief Reshape matrix_in s.t. it has same process grid, distribution and split as template
@@ -1382,7 +1382,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE reshape_mm_template
 
 ! **************************************************************************************************
 !> \brief Estimate sparsity pattern of C resulting from A x B = C
@@ -1467,7 +1467,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE dbt_tas_estimate_result_nze
 
 ! **************************************************************************************************
 !> \brief Estimate optimal split factor for AxB=C from occupancies (number of non-zero elements)
@@ -1509,7 +1509,7 @@ CONTAINS
       nsplit = INT(MIN(INT(numnodes, KIND=int_8), NINT(REAL(max_nze, dp)/(REAL(min_nze, dp)*s_opt_factor), KIND=int_8)))
       IF (nsplit == 0) nsplit = 1
 
-   END FUNCTION
+   END FUNCTION split_factor_estimate
 
 ! **************************************************************************************************
 !> \brief Create a matrix with block sizes one that contains the block norms of matrix_in
@@ -1562,7 +1562,7 @@ CONTAINS
 !$OMP END PARALLEL
       END IF
 
-   END SUBROUTINE
+   END SUBROUTINE create_block_norms_matrix
 
 ! **************************************************************************************************
 !> \brief Convert a DBM matrix to a new process grid
@@ -1639,7 +1639,7 @@ CONTAINS
       END IF
 
       CALL timestop(handle)
-   END SUBROUTINE
+   END SUBROUTINE convert_to_new_pgrid
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1652,7 +1652,7 @@ CONTAINS
       CALL dbt_tas_set_batched_state(matrix, state=1)
       ALLOCATE (matrix%mm_storage)
       matrix%mm_storage%batched_out = .FALSE.
-   END SUBROUTINE
+   END SUBROUTINE dbt_tas_batched_mm_init
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1683,7 +1683,7 @@ CONTAINS
       CALL matrix%dist%info%mp_comm%sync()
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE dbt_tas_batched_mm_finalize
 
 ! **************************************************************************************************
 !> \brief set state flags during batched multiplication
@@ -1721,7 +1721,7 @@ CONTAINS
             CPABORT("should not happen")
          END SELECT
       END IF
-   END SUBROUTINE
+   END SUBROUTINE dbt_tas_set_batched_state
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1760,6 +1760,6 @@ CONTAINS
 
       CALL dbt_tas_set_batched_state(matrix, state=2)
 
-   END SUBROUTINE
+   END SUBROUTINE dbt_tas_batched_mm_complete
 
-END MODULE
+END MODULE dbt_tas_mm

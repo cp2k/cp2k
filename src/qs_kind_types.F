@@ -2791,7 +2791,7 @@ CONTAINS
          IF (istat /= 0) n = -1
       END IF
 
-   END FUNCTION
+   END FUNCTION parse_valence_electrons
 
 ! **************************************************************************************************
 !> \brief Read an atomic kind set data set from the input file.

@@ -26,7 +26,7 @@ MODULE optimize_basis_types
       INTEGER                                            :: const_type = -1
       REAL(KIND=dp)                                      :: llim = -1.0_dp, ulim = -1.0_dp
       REAL(KIND=dp)                                      :: init = -1.0_dp, var_fac = -1.0_dp
-   END TYPE
+   END TYPE exp_constraint_type
 
    ! Subset of a basis+ additional information on what to optimize.
    ! *_x_ind maps to the index in the optimization vector
@@ -45,7 +45,7 @@ MODULE optimize_basis_types
       LOGICAL, DIMENSION(:), ALLOCATABLE                 :: exp_has_const
       TYPE(exp_constraint_type), DIMENSION(:), &
          ALLOCATABLE                                      :: exp_const
-   END TYPE
+   END TYPE subset_type
 
    ! Top level information for basis sets+ vector subset with the real information
    TYPE flex_basis_type
@@ -53,12 +53,12 @@ MODULE optimize_basis_types
       INTEGER                                            :: nopt = -1
       INTEGER                                            :: nsets = -1
       TYPE(subset_type), DIMENSION(:), ALLOCATABLE       :: subset
-   END TYPE
+   END TYPE flex_basis_type
 
    ! information for optimization: whether coeff has to be optimized or not
    TYPE use_contr_type
       LOGICAL, DIMENSION(:), ALLOCATABLE                 :: in_use
-   END TYPE
+   END TYPE use_contr_type
 
    ! information about how to generate the derived basis sets
    TYPE derived_basis_info
@@ -69,7 +69,7 @@ MODULE optimize_basis_types
       INTEGER, DIMENSION(:), ALLOCATABLE                 :: remove_set
       LOGICAL, DIMENSION(:), ALLOCATABLE                 :: in_use_set
       TYPE(use_contr_type), DIMENSION(:), ALLOCATABLE    :: use_contr
-   END TYPE
+   END TYPE derived_basis_info
 
    ! some usual stuff for basis information and an info type containing the
    ! the translated input on how to genrate the derived basis sets
@@ -83,12 +83,12 @@ MODULE optimize_basis_types
       TYPE(derived_basis_info), DIMENSION(:), &
          ALLOCATABLE                                      :: deriv_info
       TYPE(flex_basis_type), DIMENSION(:), ALLOCATABLE   :: flex_basis
-   END TYPE
+   END TYPE kind_basis_type
 
    ! vector of length nparallel_groups containing the id's of the calculations in the group
    TYPE comp_group_type
       INTEGER, DIMENSION(:), ALLOCATABLE                 :: member_list
-   END TYPE
+   END TYPE comp_group_type
 
 ! **************************************************************************************************
 !> \brief type containing all information needed for basis matching
@@ -117,7 +117,7 @@ MODULE optimize_basis_types
       CHARACTER(LEN=default_path_length) :: template_basis_file = ""
       TYPE(kind_basis_type), DIMENSION(:), ALLOCATABLE :: kind_basis
       INTEGER :: opt_id = -1
-   END TYPE
+   END TYPE basis_optimization_type
 
 CONTAINS
 

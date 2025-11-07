@@ -563,7 +563,7 @@ CONTAINS
          END DO
       END DO
 
-   END SUBROUTINE
+   END SUBROUTINE a_mat_to_cp2k
 ! ***************************************************************************
 !> \brief adjust the unit of C MAT for piglet
 !> \param c_mat ...

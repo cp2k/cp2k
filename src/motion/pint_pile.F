@@ -191,4 +191,4 @@ CONTAINS
       END IF
 
    END SUBROUTINE pint_calc_pile_energy
-END MODULE
+END MODULE pint_pile

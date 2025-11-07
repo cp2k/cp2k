@@ -967,4 +967,4 @@ CONTAINS
       CALL fft_destroy_plan(plan)
    END SUBROUTINE pint_qtb_fft
 
-END MODULE
+END MODULE pint_qtb

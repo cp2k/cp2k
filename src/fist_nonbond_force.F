@@ -615,7 +615,7 @@ CONTAINS
          pv(3, 3) = pv(3, 3) + rab(3)*fr(3)
       END IF
 
-   END SUBROUTINE
+   END SUBROUTINE add_force_nonbond
 
 ! **************************************************************************************************
 !> \brief corrects electrostatics for bonded terms

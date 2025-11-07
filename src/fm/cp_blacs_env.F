@@ -129,7 +129,7 @@ CONTAINS
       ALLOCATE (blacs_env)
       CALL blacs_env%create(para_env, blacs_grid_layout, blacs_repeatable, row_major, grid_2d)
 
-   END SUBROUTINE
+   END SUBROUTINE cp_blacs_env_create
 
 ! **************************************************************************************************
 !> \brief allocates and initializes a type that represent a blacs context

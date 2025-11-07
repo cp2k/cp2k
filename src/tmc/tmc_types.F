@@ -124,7 +124,7 @@ MODULE tmc_types
    TYPE tmc_atom_type
       CHARACTER(LEN=default_string_length)   :: name = ""
       REAL(KIND=dp)                        :: mass = 0.0_dp
-   END TYPE
+   END TYPE tmc_atom_type
 
    ! to estimate the prior acceptance
    TYPE prior_estimate_acceptance_type

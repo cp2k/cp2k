@@ -109,7 +109,7 @@ CONTAINS
          WRITE (unit_nr_prv, *)
       END IF
 
-   END SUBROUTINE
+   END SUBROUTINE dbt_tas_write_matrix_info
 
 ! **************************************************************************************************
 !> \brief Write info on tall-and-skinny matrix distribution & load balance
@@ -201,7 +201,7 @@ CONTAINS
             END IF
          END IF
       END IF
-   END SUBROUTINE
+   END SUBROUTINE dbt_tas_write_dist
 
 ! **************************************************************************************************
 !> \brief Print info on how matrix is split
@@ -252,7 +252,7 @@ CONTAINS
             groupdims(1), "x", groupdims(2)
       END IF
 
-   END SUBROUTINE
+   END SUBROUTINE dbt_tas_write_split_info
 
 ! **************************************************************************************************
 !> \brief ...
@@ -270,7 +270,7 @@ CONTAINS
          unit_nr_out = 0
       END IF
 
-   END FUNCTION
+   END FUNCTION prep_output_unit
 
-END MODULE
+END MODULE dbt_tas_io
 

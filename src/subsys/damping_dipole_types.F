@@ -44,7 +44,7 @@ MODULE damping_dipole_types
 
    TYPE damping_p_type
       TYPE(damping_type), DIMENSION(:), POINTER :: damp => NULL()
-   END TYPE
+   END TYPE damping_p_type
 
 ! **************************************************************************************************
 

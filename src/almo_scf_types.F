@@ -98,7 +98,7 @@ MODULE almo_scf_types
       TYPE(dbcsr_type), DIMENSION(:, :), ALLOCATABLE :: matrix_p_up_down
       !TYPE(dbcsr_type), DIMENSION(:, :), ALLOCATABLE :: matrix_x
       TYPE(dbcsr_type), DIMENSION(:), ALLOCATABLE :: matrix_t
-   END TYPE
+   END TYPE almo_scf_history_type
 
    ! the structure contains general info about the system
    TYPE almo_scf_env_type

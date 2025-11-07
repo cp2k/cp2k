@@ -80,7 +80,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE print_BSE_start_flag
 
 ! **************************************************************************************************
 !> \brief ...
@@ -197,7 +197,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE print_output_header
 
 ! **************************************************************************************************
 !> \brief ...
@@ -488,7 +488,7 @@ CONTAINS
       DEALLOCATE (eigvec_entries)
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE print_transition_amplitudes_core
 
 ! **************************************************************************************************
 !> \brief                              Prints exciton descriptors, cf. Mewes et al., JCTC 14, 710-725 (2018)
@@ -818,7 +818,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE fm_write_thresh
 
 ! **************************************************************************************************
 !> \brief Write the atomic coordinates to the output unit.

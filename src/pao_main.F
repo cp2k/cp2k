@@ -340,7 +340,7 @@ CONTAINS
       IF (ls_scf_env%calculate_forces) CALL pao_add_forces(qs_env, ls_scf_env)
 
       CALL timestop(handle)
-   END SUBROUTINE
+   END SUBROUTINE pao_post_scf
 
 ! **************************************************************************************************
 !> \brief Finish a PAO optimization run.

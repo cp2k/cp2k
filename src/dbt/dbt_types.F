@@ -100,14 +100,14 @@ MODULE dbt_types
       TYPE(mp_cart_type)                      :: mp_comm_2d
       TYPE(dbt_tas_split_info), ALLOCATABLE   :: tas_split_info
       INTEGER                                 :: nproc = -1
-   END TYPE
+   END TYPE dbt_pgrid_type
 
    TYPE dbt_contraction_storage
       REAL(dp)         :: nsplit_avg = 0.0_dp
       INTEGER          :: ibatch = -1
       TYPE(array_list) :: batch_ranges
       LOGICAL          :: static = .FALSE.
-   END TYPE
+   END TYPE dbt_contraction_storage
 
    TYPE dbt_type
       TYPE(dbt_tas_type), POINTER                :: matrix_rep => NULL()
@@ -134,7 +134,7 @@ MODULE dbt_types
       TYPE(array_list)                :: nd_dist
       ! lightweight reference counting for communicators:
       INTEGER, POINTER                :: refcount => NULL()
-   END TYPE
+   END TYPE dbt_distribution_type
 
 ! **************************************************************************************************
 !> \brief tas matrix distribution function object for one matrix index
@@ -151,7 +151,7 @@ MODULE dbt_types
    CONTAINS
       PROCEDURE                          :: dist => tas_dist_t
       PROCEDURE                          :: rowcols => tas_rowcols_t
-   END TYPE
+   END TYPE dbt_tas_dist_t
 
 ! **************************************************************************************************
 !> \brief  block size object for one matrix index
@@ -163,21 +163,21 @@ MODULE dbt_types
       TYPE(array_list)                   :: blk_size
    CONTAINS
       PROCEDURE                          :: data => tas_blk_size_t
-   END TYPE
+   END TYPE dbt_tas_blk_size_t
 
    INTERFACE dbt_create
       MODULE PROCEDURE dbt_create_new
       MODULE PROCEDURE dbt_create_template
       MODULE PROCEDURE dbt_create_matrix
-   END INTERFACE
+   END INTERFACE dbt_create
 
    INTERFACE dbt_tas_dist_t
       MODULE PROCEDURE new_dbt_tas_dist_t
-   END INTERFACE
+   END INTERFACE dbt_tas_dist_t
 
    INTERFACE dbt_tas_blk_size_t
       MODULE PROCEDURE new_dbt_tas_blk_size_t
-   END INTERFACE
+   END INTERFACE dbt_tas_blk_size_t
 
 CONTAINS
 
@@ -229,7 +229,7 @@ CONTAINS
       new_dbt_tas_dist_t%nd_dist = array_sublist(nd_dist, index_map)
       new_dbt_tas_dist_t%nprowcol = grid_dims(which_dim)
       new_dbt_tas_dist_t%nmrowcol = matrix_dims(which_dim)
-   END FUNCTION
+   END FUNCTION new_dbt_tas_dist_t
 
 ! **************************************************************************************************
 !> \author Patrick Seewald
@@ -244,7 +244,7 @@ CONTAINS
       ind_blk(:SIZE(t%dims)) = split_tensor_index(rowcol, t%dims)
       dist_blk(:SIZE(t%dims)) = get_array_elements(t%nd_dist, ind_blk(:SIZE(t%dims)))
       tas_dist_t = combine_pgrid_index(dist_blk(:SIZE(t%dims)), t%dims_grid)
-   END FUNCTION
+   END FUNCTION tas_dist_t
 
 ! **************************************************************************************************
 !> \author Patrick Seewald
@@ -310,7 +310,7 @@ CONTAINS
                END IF
             #:endfor
 
-         END FUNCTION
+         END FUNCTION tas_rowcols_t
 
 ! **************************************************************************************************
 !> \brief Create block size object for one matrix dimension
@@ -351,7 +351,7 @@ CONTAINS
 
             new_dbt_tas_blk_size_t%nfullrowcol = PRODUCT(INT(sum_of_arrays(new_dbt_tas_blk_size_t%blk_size), &
                                                              KIND=int_8))
-         END FUNCTION
+         END FUNCTION new_dbt_tas_blk_size_t
 
 ! **************************************************************************************************
 !> \author Patrick Seewald
@@ -367,7 +367,7 @@ CONTAINS
             blk_size(:) = get_array_elements(t%blk_size, ind_blk)
             tas_blk_size_t = PRODUCT(blk_size)
 
-         END FUNCTION
+         END FUNCTION tas_blk_size_t
 
 ! **************************************************************************************************
 !> \brief load balancing criterion whether to accept process grid dimension based on total number of
@@ -394,7 +394,7 @@ CONTAINS
                END IF
             END IF
 
-         END FUNCTION
+         END FUNCTION accept_pdims_loadbalancing
 
 ! **************************************************************************************************
 !> \brief Create process grid dimensions corresponding to one dimension of the matrix representation
@@ -474,7 +474,7 @@ CONTAINS
 
             dims(sort_indices) = dims
 
-         END SUBROUTINE
+         END SUBROUTINE dbt_mp_dims_create
 
 ! **************************************************************************************************
 !> \brief Create an n-dimensional process grid.
@@ -541,7 +541,7 @@ CONTAINS
             pgrid%nproc = nproc
 
             CALL timestop(handle)
-         END SUBROUTINE
+         END SUBROUTINE dbt_pgrid_create_expert
 
 ! **************************************************************************************************
 !> \brief Create a default nd process topology that is consistent with a given 2d topology.
@@ -635,7 +635,7 @@ CONTAINS
 
             CALL timestop(handle)
 
-         END FUNCTION
+         END FUNCTION dbt_nd_mp_comm
 
 ! **************************************************************************************************
 !> \brief Release the MPI communicator.
@@ -670,7 +670,7 @@ CONTAINS
                   CALL dbt_tas_info_hold(pgrid_out%tas_split_info)
                END IF
             END IF
-         END SUBROUTINE
+         END SUBROUTINE dbt_pgrid_remap
 
 ! **************************************************************************************************
 !> \brief as mp_environ but for special pgrid type
@@ -685,7 +685,7 @@ CONTAINS
             task_coor_2d = pgrid%mp_comm_2d%mepos_cart
             CALL dbt_get_mapping_info(pgrid%nd_index_grid, dims_nd=dims)
             task_coor = get_nd_indices_pgrid(pgrid%nd_index_grid, task_coor_2d)
-         END SUBROUTINE
+         END SUBROUTINE mp_environ_pgrid
 
 ! **************************************************************************************************
 !> \brief Create a tensor distribution.
@@ -775,7 +775,7 @@ CONTAINS
             dist%refcount = 1
             CALL timestop(handle)
 
-         END SUBROUTINE
+         END SUBROUTINE dbt_distribution_new_expert
 
 ! **************************************************************************************************
 !> \brief Create a tensor distribution.
@@ -795,7 +795,7 @@ CONTAINS
 
             CALL dbt_distribution_new_expert(dist, pgrid, map1_2d, map2_2d, ${varlist("nd_dist")}$)
 
-         END SUBROUTINE
+         END SUBROUTINE dbt_distribution_new
 
 ! **************************************************************************************************
 !> \brief destroy process grid
@@ -817,7 +817,7 @@ CONTAINS
                CALL dbt_tas_release_info(pgrid%tas_split_info)
                DEALLOCATE (pgrid%tas_split_info)
             END IF
-         END SUBROUTINE
+         END SUBROUTINE dbt_pgrid_destroy
 
 ! **************************************************************************************************
 !> \brief Destroy tensor distribution
@@ -854,7 +854,7 @@ CONTAINS
             END IF
 
             CALL timestop(handle)
-         END SUBROUTINE
+         END SUBROUTINE dbt_distribution_destroy
 
 ! **************************************************************************************************
 !> \brief reference counting for distribution
@@ -870,7 +870,7 @@ CONTAINS
             END IF
             ref => dist%refcount
             ref = ref + 1
-         END SUBROUTINE
+         END SUBROUTINE dbt_distribution_hold
 
 ! **************************************************************************************************
 !> \brief get distribution from tensor
@@ -885,7 +885,7 @@ CONTAINS
             dbt_distribution%pgrid = tensor%pgrid
             dbt_distribution%nd_dist = tensor%nd_dist
             dbt_distribution%refcount => dbt_distribution%refcount
-         END FUNCTION
+         END FUNCTION dbt_distribution
 
 ! **************************************************************************************************
 !> \author Patrick Seewald
@@ -903,7 +903,7 @@ CONTAINS
                   CALL dbt_distribution_new_expert(dist_out, dist_in%pgrid, map1_2d, map2_2d, ${varlist("dist", nmax=ndim)}$)
                END IF
             #:endfor
-         END SUBROUTINE
+         END SUBROUTINE dbt_distribution_remap
 
 ! **************************************************************************************************
 !> \brief create a tensor.
@@ -1020,7 +1020,7 @@ CONTAINS
 
             tensor%valid = .TRUE.
             CALL timestop(handle)
-         END SUBROUTINE
+         END SUBROUTINE dbt_create_new
 
 ! **************************************************************************************************
 !> \brief reference counting for tensors
@@ -1037,7 +1037,7 @@ CONTAINS
             ref => tensor%refcount
             ref = ref + 1
 
-         END SUBROUTINE
+         END SUBROUTINE dbt_hold
 
 ! **************************************************************************************************
 !> \brief how many tensor dimensions are mapped to matrix row
@@ -1049,7 +1049,7 @@ CONTAINS
 
             ndims_matrix_row = ndims_mapping_row(tensor%nd_index_blk)
 
-         END FUNCTION
+         END FUNCTION ndims_matrix_row
 
 ! **************************************************************************************************
 !> \brief how many tensor dimensions are mapped to matrix column
@@ -1060,7 +1060,7 @@ CONTAINS
             INTEGER(int_8) :: ndims_matrix_column
 
             ndims_matrix_column = ndims_mapping_column(tensor%nd_index_blk)
-         END FUNCTION
+         END FUNCTION ndims_matrix_column
 
 ! **************************************************************************************************
 !> \brief tensor rank
@@ -1071,7 +1071,7 @@ CONTAINS
             INTEGER                        :: ndims_tensor
 
             ndims_tensor = tensor%nd_index%ndim_nd
-         END FUNCTION
+         END FUNCTION ndims_tensor
 
 ! **************************************************************************************************
 !> \brief tensor dimensions
@@ -1084,7 +1084,7 @@ CONTAINS
 
             CPASSERT(tensor%valid)
             dims = tensor%nd_index%dims_nd
-         END SUBROUTINE
+         END SUBROUTINE dims_tensor
 
 ! **************************************************************************************************
 !> \brief create a tensor from template
@@ -1170,7 +1170,7 @@ CONTAINS
                END IF
             END IF
             CALL timestop(handle)
-         END SUBROUTINE
+         END SUBROUTINE dbt_create_template
 
 ! **************************************************************************************************
 !> \brief Create 2-rank tensor from matrix.
@@ -1230,7 +1230,7 @@ CONTAINS
 
             CALL dbt_distribution_destroy(dist)
             CALL timestop(handle)
-         END SUBROUTINE
+         END SUBROUTINE dbt_create_matrix
 
 ! **************************************************************************************************
 !> \brief Destroy a tensor
@@ -1286,7 +1286,7 @@ CONTAINS
             tensor%valid = .FALSE.
             tensor%name = ""
             CALL timestop(handle)
-         END SUBROUTINE
+         END SUBROUTINE dbt_destroy
 
 ! **************************************************************************************************
 !> \brief tensor block dimensions
@@ -1299,7 +1299,7 @@ CONTAINS
 
             CPASSERT(tensor%valid)
             dims = tensor%nd_index_blk%dims_nd
-         END SUBROUTINE
+         END SUBROUTINE blk_dims_tensor
 
 ! **************************************************************************************************
 !> \brief Size of tensor block
@@ -1313,7 +1313,7 @@ CONTAINS
                INTENT(OUT)                              :: blk_size
 
             blk_size(:) = get_array_elements(tensor%blk_sizes, ind)
-         END SUBROUTINE
+         END SUBROUTINE dbt_blk_sizes
 
 ! **************************************************************************************************
 !> \brief offset of tensor block
@@ -1330,7 +1330,7 @@ CONTAINS
 
             CPASSERT(tensor%valid)
             blk_offset(:) = get_array_elements(tensor%blk_offsets, ind)
-         END SUBROUTINE
+         END SUBROUTINE dbt_blk_offsets
 
 ! **************************************************************************************************
 !> \brief Generalization of block_get_stored_coordinates for tensors.
@@ -1346,7 +1346,7 @@ CONTAINS
 
             ind_2d(:) = get_2d_indices_tensor(tensor%nd_index_blk, ind_nd)
             CALL dbt_tas_get_stored_coordinates(tensor%matrix_rep, ind_2d(1), ind_2d(2), processor)
-         END SUBROUTINE
+         END SUBROUTINE dbt_get_stored_coordinates
 
 ! **************************************************************************************************
 !> \author Patrick Seewald
@@ -1368,7 +1368,7 @@ CONTAINS
 
             CALL dbt_pgrid_create_expert(mp_comm, dims, pgrid, map1_2d, map2_2d, tensor_dims)
 
-         END SUBROUTINE
+         END SUBROUTINE dbt_pgrid_create
 
 ! **************************************************************************************************
 !> \brief freeze current split factor such that it is never changed during contraction
@@ -1377,7 +1377,7 @@ CONTAINS
          SUBROUTINE dbt_pgrid_set_strict_split(pgrid)
             TYPE(dbt_pgrid_type), INTENT(INOUT) :: pgrid
             IF (ALLOCATED(pgrid%tas_split_info)) CALL dbt_tas_set_strict_split(pgrid%tas_split_info)
-         END SUBROUTINE
+         END SUBROUTINE dbt_pgrid_set_strict_split
 
 ! **************************************************************************************************
 !> \brief change dimensions of an existing process grid.
@@ -1408,7 +1408,7 @@ CONTAINS
             END IF
             CALL dbt_pgrid_destroy(pgrid)
             pgrid = pgrid_tmp
-         END SUBROUTINE
+         END SUBROUTINE dbt_pgrid_change_dims
 
 ! **************************************************************************************************
 !> \brief As block_filter
@@ -1420,7 +1420,7 @@ CONTAINS
 
             CALL dbt_tas_filter(tensor%matrix_rep, eps)
 
-         END SUBROUTINE
+         END SUBROUTINE dbt_filter
 
 ! **************************************************************************************************
 !> \brief local number of blocks along dimension idim
@@ -1437,7 +1437,7 @@ CONTAINS
                dbt_nblks_local = tensor%nblks_local(idim)
             END IF
 
-         END FUNCTION
+         END FUNCTION dbt_nblks_local
 
 ! **************************************************************************************************
 !> \brief total numbers of blocks along dimension idim
@@ -1453,7 +1453,7 @@ CONTAINS
             ELSE
                dbt_nblks_total = tensor%nd_index_blk%dims_nd(idim)
             END IF
-         END FUNCTION
+         END FUNCTION dbt_nblks_total
 
 ! **************************************************************************************************
 !> \brief As block_get_info but for tensors
@@ -1529,7 +1529,7 @@ CONTAINS
             IF (PRESENT(distribution)) distribution = dbt_distribution(tensor)
             IF (PRESENT(name)) name = tensor%name
 
-         END SUBROUTINE
+         END SUBROUTINE dbt_get_info
 
 ! **************************************************************************************************
 !> \brief As block_get_num_blocks: get number of local blocks
@@ -1539,7 +1539,7 @@ CONTAINS
             TYPE(dbt_type), INTENT(IN)    :: tensor
             INTEGER                           :: num_blocks
             num_blocks = dbt_tas_get_num_blocks(tensor%matrix_rep)
-         END FUNCTION
+         END FUNCTION dbt_get_num_blocks
 
 ! **************************************************************************************************
 !> \brief Get total number of blocks
@@ -1549,7 +1549,7 @@ CONTAINS
             TYPE(dbt_type), INTENT(IN)    :: tensor
             INTEGER(KIND=int_8)               :: num_blocks
             num_blocks = dbt_tas_get_num_blocks_total(tensor%matrix_rep)
-         END FUNCTION
+         END FUNCTION dbt_get_num_blocks_total
 
 ! **************************************************************************************************
 !> \brief Clear tensor (s.t. it does not contain any blocks)
@@ -1559,7 +1559,7 @@ CONTAINS
             TYPE(dbt_type), INTENT(INOUT) :: tensor
 
             CALL dbt_tas_clear(tensor%matrix_rep)
-         END SUBROUTINE
+         END SUBROUTINE dbt_clear
 
 ! **************************************************************************************************
 !> \brief Finalize tensor, as block_finalize. This should be taken care of internally in DBT
@@ -1569,7 +1569,7 @@ CONTAINS
          SUBROUTINE dbt_finalize(tensor)
             TYPE(dbt_type), INTENT(INOUT) :: tensor
             CALL dbt_tas_finalize(tensor%matrix_rep)
-         END SUBROUTINE
+         END SUBROUTINE dbt_finalize
 
 ! **************************************************************************************************
 !> \brief as block_scale
@@ -1579,7 +1579,7 @@ CONTAINS
             TYPE(dbt_type), INTENT(INOUT) :: tensor
             REAL(dp), INTENT(IN) :: alpha
             CALL dbm_scale(tensor%matrix_rep%matrix, alpha)
-         END SUBROUTINE
+         END SUBROUTINE dbt_scale
 
 ! **************************************************************************************************
 !> \author Patrick Seewald
@@ -1588,7 +1588,7 @@ CONTAINS
             TYPE(dbt_type), INTENT(IN) :: tensor
             INTEGER                        :: dbt_get_nze
             dbt_get_nze = dbt_tas_get_nze(tensor%matrix_rep)
-         END FUNCTION
+         END FUNCTION dbt_get_nze
 
 ! **************************************************************************************************
 !> \author Patrick Seewald
@@ -1597,7 +1597,7 @@ CONTAINS
             TYPE(dbt_type), INTENT(IN) :: tensor
             INTEGER(KIND=int_8)            :: dbt_get_nze_total
             dbt_get_nze_total = dbt_tas_get_nze_total(tensor%matrix_rep)
-         END FUNCTION
+         END FUNCTION dbt_get_nze_total
 
 ! **************************************************************************************************
 !> \brief block size of block with index ind along dimension idim
@@ -1617,7 +1617,7 @@ CONTAINS
                blk_size(:) = get_array_elements(tensor%blk_sizes, ind)
                dbt_blk_size = blk_size(idim)
             END IF
-         END FUNCTION
+         END FUNCTION dbt_blk_size
 
 ! **************************************************************************************************
 !> \brief returns an estimate of maximum number of local blocks in tensor
@@ -1642,7 +1642,7 @@ CONTAINS
 
             blk_count = INT(blk_count_total/nproc*max_load_imbalance)
 
-         END FUNCTION
+         END FUNCTION dbt_max_nblks_local
 
 ! **************************************************************************************************
 !> \brief get a load-balanced and randomized distribution along one tensor dimension
@@ -1659,7 +1659,7 @@ CONTAINS
             INTEGER, DIMENSION(nblk), INTENT(OUT)               :: dist
 
             CALL dbt_tas_default_distvec(nblk, nproc, blk_size, dist)
-         END SUBROUTINE
+         END SUBROUTINE dbt_default_distvec
 
 ! **************************************************************************************************
 !> \author Patrick Seewald
@@ -1684,6 +1684,6 @@ CONTAINS
             IF (ALLOCATED(tensor_out%contraction_storage)) DEALLOCATE (tensor_out%contraction_storage)
             IF (ALLOCATED(tensor_storage_tmp)) CALL move_alloc(tensor_storage_tmp, tensor_out%contraction_storage)
 
-         END SUBROUTINE
+         END SUBROUTINE dbt_copy_contraction_storage
 
-      END MODULE
+      END MODULE dbt_types

@@ -2878,6 +2878,6 @@ CONTAINS
          END DO
       END DO
 
-   END SUBROUTINE
+   END SUBROUTINE sort_gto_basis_set
 
 END MODULE basis_set_types

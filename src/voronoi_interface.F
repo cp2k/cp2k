@@ -814,7 +814,7 @@ CONTAINS
       INTEGER(KIND=C_INT) :: ret
       ret = libvori_finalize()
 #endif
-   END SUBROUTINE
+   END SUBROUTINE finalize_libvori
 
 ! **************************************************************************************************
 !> \brief ...

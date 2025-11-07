@@ -226,7 +226,7 @@ MODULE pao_types
          DIMENSION(:)                  :: models
 
       TYPE(dbcsr_distribution_type)     :: diag_distribution
-   END TYPE
+   END TYPE pao_env_type
 
 CONTAINS
 

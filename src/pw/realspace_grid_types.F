@@ -567,7 +567,7 @@ CONTAINS
          desc%virtual_group_coor(:) = desc%rank2coord(:, desc%my_virtual_pos)
       END IF
 
-   END SUBROUTINE
+   END SUBROUTINE rs_grid_reorder_ranks
 
 ! **************************************************************************************************
 !> \brief Print information on grids to output
@@ -2089,7 +2089,7 @@ CONTAINS
       shift_coords(dir) = MODULO(shift_coords(dir) - disp, rs_grid%desc%group_dim(dir))
       source = rs_grid%desc%virtual2real(rs_grid%desc%coord2rank(shift_coords(1), shift_coords(2), shift_coords(3)))
 
-   END SUBROUTINE
+   END SUBROUTINE cart_shift
 
 ! **************************************************************************************************
 !> \brief returns the maximum number of points in the local grid of any process

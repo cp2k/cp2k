@@ -542,4 +542,4 @@ CONTAINS
       CALL section_release(print_key2)
    END SUBROUTINE create_wannier_states_section
 
-END MODULE
+END MODULE input_cp2k_loc

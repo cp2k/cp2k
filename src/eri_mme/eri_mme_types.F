@@ -58,7 +58,7 @@ MODULE eri_mme_types
       REAL(KIND=dp), POINTER, &
          DIMENSION(:)                  :: minimax_aw => NULL()
       REAL(KIND=dp)                    :: error = 0.0_dp
-   END TYPE
+   END TYPE minimax_grid
 
    TYPE eri_mme_param
       INTEGER                          :: n_minimax = 0
@@ -301,7 +301,7 @@ CONTAINS
                                         cutoff_max, cutoff_min, param%G_min, &
                                         param%mm_delta, potential=potential, pot_par=pot_par)
 
-   END SUBROUTINE
+   END SUBROUTINE eri_mme_set_potential
 
 ! **************************************************************************************************
 !> \brief ...
@@ -364,7 +364,7 @@ CONTAINS
          END DO
          cutoff = cutoff/cutoff_delta
       END DO
-   END SUBROUTINE
+   END SUBROUTINE eri_mme_create_minimax_grids
 
 ! **************************************************************************************************
 !> \brief ...
@@ -384,7 +384,7 @@ CONTAINS
          END DO
          DEALLOCATE (minimax_grids)
       END IF
-   END SUBROUTINE
+   END SUBROUTINE eri_mme_destroy_minimax_grids
 
 ! **************************************************************************************************
 !> \brief ...
@@ -407,7 +407,7 @@ CONTAINS
       grid%minimax_aw(:) = minimax_aw(:)
       grid%error = error
 
-   END SUBROUTINE
+   END SUBROUTINE create_minimax_grid
 
 ! **************************************************************************************************
 !> \brief ...
@@ -441,7 +441,7 @@ CONTAINS
          minimax_aw => grids(igrid)%minimax_aw
          grid_no = igrid
       END IF
-   END SUBROUTINE
+   END SUBROUTINE get_minimax_from_cutoff
 
 ! **************************************************************************************************
 !> \brief ...
@@ -461,7 +461,7 @@ CONTAINS
          WRITE (unit_nr, *)
       END IF
 
-   END SUBROUTINE
+   END SUBROUTINE eri_mme_print_grid_info
 
 ! **************************************************************************************************
 !> \brief ...

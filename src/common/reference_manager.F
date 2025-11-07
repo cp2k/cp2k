@@ -67,7 +67,7 @@ MODULE reference_manager
    ! useful to build arrays
    TYPE reference_p_type
       TYPE(reference_type), POINTER :: ref => NULL()
-   END TYPE
+   END TYPE reference_p_type
 
    ! the bibliography
    INTEGER, SAVE :: nbib = 0
@@ -89,7 +89,7 @@ CONTAINS
       ! set as cited
       thebib(key)%ref%is_cited = .TRUE.
 
-   END SUBROUTINE
+   END SUBROUTINE cite_reference
 
 ! **************************************************************************************************
 !> \brief Checks for each reference if any mpi-rank has marked it for citation.

@@ -305,7 +305,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE do_subspace_iterations
 
 ! **************************************************************************************************
 !> \brief ...
@@ -353,7 +353,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE check_Z_space_dimension
 
 ! **************************************************************************************************
 !> \brief ...
@@ -445,7 +445,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE create_bse_work_arrays
 
 ! **************************************************************************************************
 !> \brief ...
@@ -548,7 +548,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE postprocess_bse
 
 ! **************************************************************************************************
 !> \brief ...
@@ -643,7 +643,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE print_davidson_parameter
 
 ! **************************************************************************************************
 !> \brief ...
@@ -681,7 +681,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE check_en_convergence
 
 ! **************************************************************************************************
 !> \brief ...
@@ -730,7 +730,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE check_res_convergence
 
 ! **************************************************************************************************
 !> \brief ...
@@ -792,7 +792,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE orthonormalize_W
 
 ! **************************************************************************************************
 !> \brief ...
@@ -846,7 +846,7 @@ CONTAINS
       DEALLOCATE (Subspace_add_dir_reshaped)
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE compute_new_directions
 
 ! **************************************************************************************************
 !> \brief ...
@@ -902,7 +902,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE compute_residuals
 
 ! **************************************************************************************************
 !> \brief ...
@@ -977,7 +977,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE compute_diagonalize_ZAZ
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1027,7 +1027,7 @@ CONTAINS
       ! we make the sum to sum over all RI basis functions
       CALL para_env%sum(BZ)
 
-   END SUBROUTINE
+   END SUBROUTINE compute_BZ
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1200,7 +1200,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE compute_AZ
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1301,7 +1301,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE compute_v_ia_jb_part
 
 ! **************************************************************************************************
 !> \brief ...Eigenval
@@ -1347,7 +1347,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE initial_guess_Z_vectors
 
    ! **************************************************************************************************
 !> \brief ...
@@ -1402,7 +1402,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE fill_local_3c_arrays
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1584,6 +1584,6 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE allocate_and_fill_local_array
 
 END MODULE bse_iterative

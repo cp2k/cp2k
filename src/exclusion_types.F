@@ -22,7 +22,7 @@ MODULE exclusion_types
       INTEGER, POINTER, DIMENSION(:)        :: list_exclude_vdw => NULL()
       INTEGER, POINTER, DIMENSION(:)        :: list_exclude_ei => NULL()
       INTEGER, POINTER, DIMENSION(:)        :: list_onfo => NULL()
-   END TYPE
+   END TYPE exclusion_type
 
    PUBLIC :: exclusion_type, &
              exclusion_release

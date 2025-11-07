@@ -436,7 +436,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE get_tensor_3c_overl_int_gw
 
 ! **************************************************************************************************
 !> \brief reflect from V = (A,B|B,A) to V_reflected = (B,A|A,B) where A belongs to the block of the molecule
@@ -731,7 +731,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE
+   END SUBROUTINE reflect_mat_row
 
 ! **************************************************************************************************
 !> \brief ...

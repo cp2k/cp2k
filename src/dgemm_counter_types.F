@@ -35,7 +35,7 @@ MODULE dgemm_counter_types
       INTEGER :: num_dgemm_call = 0
       INTEGER :: unit_nr = -1
       LOGICAL :: print_info = .FALSE.
-   END TYPE
+   END TYPE dgemm_counter_type
 
 CONTAINS
 

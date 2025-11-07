@@ -265,7 +265,7 @@ CONTAINS
       MARK_USED(n_pade_opt)
       CPABORT("Calls to GreenX require CP2K to be compiled with support for GreenX.")
 #endif
-   END SUBROUTINE
+   END SUBROUTINE greenx_refine_ft
 
 ! **************************************************************************************************
 !> \brief ...

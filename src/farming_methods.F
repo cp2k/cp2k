@@ -312,6 +312,6 @@ CONTAINS
       END IF
       CALL para_env%bcast(farming_env%restart_n)
 
-   END SUBROUTINE
+   END SUBROUTINE farming_parse_input
 
 END MODULE farming_methods

@@ -77,6 +77,6 @@ CONTAINS
             ALLOCATE (array(${arrlist("shape_prv", nmax=dim)}$))
          END IF
 
-      END SUBROUTINE
+      END SUBROUTINE allocate_${dim}$d
    #:endfor
-END MODULE
+END MODULE dbt_allocate_wrap

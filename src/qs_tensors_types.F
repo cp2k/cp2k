@@ -65,7 +65,7 @@ MODULE qs_tensors_types
       INTEGER :: sym = symmetric_none
       TYPE(distribution_3d_type) :: dist_3d = distribution_3d_type()
       LOGICAL :: owns_dist = .FALSE.
-   END TYPE
+   END TYPE neighbor_list_3c_type
 
    TYPE neighbor_list_3c_iterator_type
       TYPE(neighbor_list_iterator_p_type), DIMENSION(:), POINTER :: iter_ij => NULL()
@@ -73,7 +73,7 @@ MODULE qs_tensors_types
       INTEGER                                                    :: iter_level = 0
       TYPE(neighbor_list_3c_type)                                :: ijk_nl = neighbor_list_3c_type()
       INTEGER, DIMENSION(2)                                      :: bounds_i = 0, bounds_j = 0, bounds_k = 0
-   END TYPE
+   END TYPE neighbor_list_3c_iterator_type
 
 CONTAINS
 ! **************************************************************************************************
@@ -125,7 +125,7 @@ CONTAINS
       dist_3d%comm_2d_2 = comm_2d_2
 
       CALL timestop(handle)
-   END SUBROUTINE
+   END SUBROUTINE distribution_3d_create
 
 ! **************************************************************************************************
 !> \brief Destroy a 3d distribution
@@ -148,7 +148,7 @@ CONTAINS
       NULLIFY (dist%dist_2d_1, dist%dist_2d_2)
 
       CALL timestop(handle)
-   END SUBROUTINE
+   END SUBROUTINE distribution_3d_destroy
 
 ! **************************************************************************************************
 !> \brief Create a 2d distribution. This mainly wraps distribution_2d_create
@@ -251,7 +251,7 @@ CONTAINS
       END IF
 
       CALL timestop(handle)
-   END SUBROUTINE
+   END SUBROUTINE distribution_2d_create
 
 ! **************************************************************************************************
 !> \brief contiguous distribution of weighted elements
@@ -365,7 +365,7 @@ CONTAINS
       CALL dbt_distribution_destroy(dist)
 
       CALL timestop(handle)
-   END SUBROUTINE
+   END SUBROUTINE create_3c_tensor
 
 ! **************************************************************************************************
 !> \brief ...
@@ -416,7 +416,7 @@ CONTAINS
       CALL dbt_distribution_destroy(dist)
 
       CALL timestop(handle)
-   END SUBROUTINE
+   END SUBROUTINE create_2c_tensor
 
 ! **************************************************************************************************
 !> \brief ...
@@ -506,7 +506,7 @@ CONTAINS
 
       ALLOCATE (pgf_blk_sizes(blk_count))
       pgf_blk_sizes(:) = pgf_blk_sizes_tmp(:blk_count)
-   END SUBROUTINE
+   END SUBROUTINE pgf_block_sizes
 
 ! **************************************************************************************************
 !> \brief ...
@@ -539,6 +539,6 @@ CONTAINS
          bsum = bsum + SUM(sizes(starts_array_block(imem):ends_array_block(imem)))
          ends_array(imem) = bsum
       END DO
-   END SUBROUTINE
+   END SUBROUTINE create_tensor_batches
 
-END MODULE
+END MODULE qs_tensors_types
