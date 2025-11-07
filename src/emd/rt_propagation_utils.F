@@ -98,6 +98,7 @@ MODULE rt_propagation_utils
                                               file_exists, &
                                               close_file
    USE physcon,                         ONLY: femtoseconds
+   USE efield_utils,                    ONLY: make_field
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -111,7 +112,8 @@ MODULE rt_propagation_utils
              write_rtp_mos_to_output_unit, &
              write_rtp_mo_cubes, &
              warn_section_unused, &
-             read_moments
+             read_moments, &
+             recalculate_fields
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'rt_propagation_utils'
 
@@ -973,5 +975,28 @@ CONTAINS
          END IF
       END DO
    END SUBROUTINE read_moments
+
+! **************************************************************************************************
+!> \brief Recalculates the field for index range given by orig_start and i_start,
+!>        with times taken from the times array
+!> \param qs_env QS environment necessary for moment matrix calculation
+! **************************************************************************************************
+   SUBROUTINE recalculate_fields(fields, times, orig_start, i_start, dft_control)
+      COMPLEX(kind=dp), DIMENSION(:,:), POINTER          :: fields
+      REAL(kind=dp), DIMENSION(:), POINTER               :: times
+      INTEGER                                            :: orig_start, &
+                                                            i_start
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      INTEGER                                            :: max_n, &
+                                                            i
+      REAL(kind=dp), DIMENSION(3)                        :: field
+
+      max_n = i_start - orig_start + 1
+
+      DO i=1,max_n
+         CALL make_field(dft_control, field, i + orig_start-1, times(i))
+         fields(:,i) = field(:)
+      END DO
+   END SUBROUTINE recalculate_fields
 
 END MODULE rt_propagation_utils

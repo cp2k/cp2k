@@ -93,7 +93,8 @@ MODULE rt_propagation
                                               calc_update_rho_sparse,&
                                               get_restart_wfn,&
                                               warn_section_unused, &
-                                              read_moments
+                                              read_moments, &
+                                              recalculate_fields
    USE rt_propagation_velocity_gauge,   ONLY: velocity_gauge_ks_matrix
    USE rt_propagator_init,              ONLY: init_propagators,&
                                               rt_initialize_rho_from_mos
@@ -378,6 +379,8 @@ CONTAINS
          moments_section => section_vals_get_subs_vals(rtp_section, "PRINT%MOMENTS")
          ! TODO : Conditions on when not to read the files
          CALL read_moments(moments_section, 0, rtp%i_start, rtp%moments, rtp%times, moments_read)
+         ! Recalculate the field at times in the trace/Read the field from the files
+         CALL recalculate_fields(rtp%fields, rtp%times, 0, rtp%i_start, dft_control)
          IF (.NOT. moments_read) THEN
             CALL calc_local_moment(rtp%local_moments, rho_new, rtp%local_moments_work, rtp%moments(:, :, 1))
             qs_env%sim_time = REAL(rtp%i_start, dp)*rtp%dt
