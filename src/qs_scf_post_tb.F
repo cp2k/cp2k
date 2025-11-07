@@ -1211,7 +1211,7 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: cube_section
       LOGICAL, INTENT(IN), OPTIONAL                      :: total_density, v_hartree, efield
 
-      CHARACTER(len=1), DIMENSION(3), PARAMETER          :: cdir = (/"x", "y", "z"/)
+      CHARACTER(len=1), DIMENSION(3), PARAMETER          :: cdir = ["x", "y", "z"]
 
       CHARACTER(LEN=default_path_length)                 :: filename, mpi_filename, my_pos_cube
       INTEGER                                            :: id, iounit, ispin, nd(3), unit_nr

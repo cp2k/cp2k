@@ -126,7 +126,7 @@ CONTAINS
       INTEGER, INTENT(IN) :: n
       INTEGER             :: k
       INTEGER             :: factorial
-      factorial = PRODUCT((/(k, k=1, n)/))
+      factorial = PRODUCT([(k, k=1, n)])
    END FUNCTION
 
 ! **************************************************************************************************

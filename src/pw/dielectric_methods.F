@@ -580,8 +580,8 @@ CONTAINS
       forb_xtnt4 = y_xtnt(2) .GT. y_glbl(UBOUND(y_glbl, 1)) + dy
       forb_xtnt5 = z_xtnt(1) .LT. z_glbl(LBOUND(z_glbl, 1))
       forb_xtnt6 = z_xtnt(2) .GT. z_glbl(UBOUND(z_glbl, 1)) + dz
-      n_forb_xtnts = COUNT((/forb_xtnt1, forb_xtnt2, forb_xtnt3, &
-                             forb_xtnt4, forb_xtnt5, forb_xtnt6/) .EQV. test_forb_xtnts)
+      n_forb_xtnts = COUNT([forb_xtnt1, forb_xtnt2, forb_xtnt3, &
+                            forb_xtnt4, forb_xtnt5, forb_xtnt6] .EQV. test_forb_xtnts)
       IF (n_forb_xtnts .GT. 0) THEN
          CALL cp_abort(__LOCATION__, &
                        "The given extents for the dielectric region are outside the range of "// &
@@ -676,8 +676,8 @@ CONTAINS
       forb_xtnt4 = bctry + MAXVAL(base_radii) .GT. y_glbl(UBOUND(y_glbl, 1)) + dy
       forb_xtnt5 = bctrz - MAXVAL(base_radii) .LT. z_glbl(LBOUND(z_glbl, 1))
       forb_xtnt6 = bctrz + MAXVAL(base_radii) .GT. z_glbl(UBOUND(z_glbl, 1)) + dz
-      n_forb_xtnts = COUNT((/forb_xtnt1, forb_xtnt2, forb_xtnt3, &
-                             forb_xtnt4, forb_xtnt5, forb_xtnt6/) .EQV. test_forb_xtnts)
+      n_forb_xtnts = COUNT([forb_xtnt1, forb_xtnt2, forb_xtnt3, &
+                            forb_xtnt4, forb_xtnt5, forb_xtnt6] .EQV. test_forb_xtnts)
       IF (n_forb_xtnts .GT. 0) THEN
          CALL cp_abort(__LOCATION__, &
                        "The given extents for the dielectric region are outside the range of "// &

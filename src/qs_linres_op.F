@@ -589,7 +589,7 @@ CONTAINS
          CALL dbcsr_set(matrix_dso(1)%matrix, 0.0_dp)
          CALL dbcsr_set(matrix_dso(2)%matrix, 0.0_dp)
          CALL dbcsr_set(matrix_dso(3)%matrix, 0.0_dp)
-         CALL rRc_xyz_ao(matrix_dso, qs_env, (/0.0_dp, 0.0_dp, 0.0_dp/), 1)
+         CALL rRc_xyz_ao(matrix_dso, qs_env, [0.0_dp, 0.0_dp, 0.0_dp], 1)
       END IF
       !
       ! multiply by the mos

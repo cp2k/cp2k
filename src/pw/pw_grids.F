@@ -1717,7 +1717,7 @@ CONTAINS
       length = INT(int_size*MAX(ng, 1)*MAX(nmaps, 1), KIND=C_SIZE_T)
       stat = offload_malloc_pinned_mem(cptr_g_hatmap, length)
       CPASSERT(stat == 0)
-      CALL c_f_pointer(cptr_g_hatmap, pw_grid%g_hatmap, (/MAX(ng, 1), MAX(nmaps, 1)/))
+      CALL c_f_pointer(cptr_g_hatmap, pw_grid%g_hatmap, [MAX(ng, 1), MAX(nmaps, 1)])
 #else
       ALLOCATE (pw_grid%g_hatmap(1, 1))
 #endif

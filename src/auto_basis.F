@@ -78,10 +78,10 @@ CONTAINS
       !
       CALL cite_reference(Stoychev2016)
       !
-      bv(0:18) = (/1.8_dp, 2.0_dp, 2.2_dp, 2.2_dp, 2.3_dp, 3.0_dp, 3.0_dp, 3.0_dp, 3.0_dp, 3.0_dp, 3.0_dp, &
-                   3.0_dp, 3.0_dp, 3.0_dp, 3.0_dp, 3.0_dp, 3.0_dp, 3.0_dp, 3.0_dp/)
-      fv(0:18) = (/20.0_dp, 4.0_dp, 4.0_dp, 3.5_dp, 2.5_dp, 2.0_dp, 2.0_dp, 2.0_dp, 2.0_dp, 2.0_dp, 2.0_dp, &
-                   2.0_dp, 2.0_dp, 2.0_dp, 2.0_dp, 2.0_dp, 2.0_dp, 2.0_dp, 2.0_dp/)
+      bv(0:18) = [1.8_dp, 2.0_dp, 2.2_dp, 2.2_dp, 2.3_dp, 3.0_dp, 3.0_dp, 3.0_dp, 3.0_dp, 3.0_dp, 3.0_dp, &
+                  3.0_dp, 3.0_dp, 3.0_dp, 3.0_dp, 3.0_dp, 3.0_dp, 3.0_dp, 3.0_dp]
+      fv(0:18) = [20.0_dp, 4.0_dp, 4.0_dp, 3.5_dp, 2.5_dp, 2.0_dp, 2.0_dp, 2.0_dp, 2.0_dp, 2.0_dp, 2.0_dp, &
+                  2.0_dp, 2.0_dp, 2.0_dp, 2.0_dp, 2.0_dp, 2.0_dp, 2.0_dp, 2.0_dp]
       !
       CPASSERT(.NOT. ASSOCIATED(ri_aux_basis_set))
       NULLIFY (orb_basis_set)
@@ -286,8 +286,8 @@ CONTAINS
          IF (z > 18) linc = 2
          pend = 0.0_dp
          IF (kernel_basis) THEN
-            bv(1:4) = (/3.20_dp, 2.80_dp, 2.40_dp, 2.00_dp/)
-            bx(1:4) = (/4.00_dp, 3.50_dp, 3.00_dp, 2.50_dp/)
+            bv(1:4) = [3.20_dp, 2.80_dp, 2.40_dp, 2.00_dp]
+            bx(1:4) = [4.00_dp, 3.50_dp, 3.00_dp, 2.50_dp]
             !
             SELECT CASE (basis_cntrl)
             CASE (0)
@@ -303,8 +303,8 @@ CONTAINS
                CPABORT("Invalid value of control variable")
             END SELECT
          ELSE
-            bv(1:4) = (/2.00_dp, 1.90_dp, 1.80_dp, 1.80_dp/)
-            bx(1:4) = (/2.60_dp, 2.40_dp, 2.20_dp, 2.20_dp/)
+            bv(1:4) = [2.00_dp, 1.90_dp, 1.80_dp, 1.80_dp]
+            bx(1:4) = [2.60_dp, 2.40_dp, 2.20_dp, 2.20_dp]
             !
             SELECT CASE (basis_cntrl)
             CASE (0)

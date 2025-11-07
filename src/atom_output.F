@@ -89,7 +89,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: iw
 
       CHARACTER(LEN=1), DIMENSION(0:7), PARAMETER :: &
-         label = (/"S", "P", "D", "F", "G", "H", "I", "K"/)
+         label = ["S", "P", "D", "F", "G", "H", "I", "K"]
 
       INTEGER                                            :: j, l, mc, mlc, mlo, mm(0:lmat), mo
 

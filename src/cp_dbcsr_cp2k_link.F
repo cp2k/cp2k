@@ -99,7 +99,7 @@ CONTAINS
       CALL section_create(section, __LOCATION__, name="DBCSR", &
                           description="Configuration options for the DBCSR library.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE., &
-                          citations=(/Borstnik2014, Schuett2016/))
+                          citations=[Borstnik2014, Schuett2016])
 
       NULLIFY (keyword)
 
@@ -117,15 +117,15 @@ CONTAINS
                           usage="mm_driver blas", &
                           default_i_val=mm_driver_auto, &
                           enum_c_vals=s2a("AUTO", "BLAS", "MATMUL", "SMM", "XSMM"), &
-                          enum_i_vals=(/mm_driver_auto, mm_driver_blas, mm_driver_matmul, mm_driver_smm, &
-                                        mm_driver_xsmm/), &
+                          enum_i_vals=[mm_driver_auto, mm_driver_blas, mm_driver_matmul, mm_driver_smm, &
+                                       mm_driver_xsmm], &
                           enum_desc=s2a("Choose automatically the best available driver", &
                                         "BLAS (requires the BLAS library at link time)", &
                                         "Fortran MATMUL", &
                                         "Library optimised for Small Matrix Multiplies "// &
                                         "(requires the SMM library at link time)", &
                                         "LIBXSMM"), &
-                          citations=(/Heinecke2016/))
+                          citations=[Heinecke2016])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

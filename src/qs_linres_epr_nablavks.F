@@ -437,17 +437,17 @@ CONTAINS
       END IF ! gapw
 
       CALL pw_copy(v_hartree_gspace, v_hartree_gtemp)
-      CALL pw_derive(v_hartree_gtemp, (/1, 0, 0/))
+      CALL pw_derive(v_hartree_gtemp, [1, 0, 0])
       CALL pw_transfer(v_hartree_gtemp, v_hartree_rtemp)
       CALL pw_copy(v_hartree_rtemp, pwx)
 
       CALL pw_copy(v_hartree_gspace, v_hartree_gtemp)
-      CALL pw_derive(v_hartree_gtemp, (/0, 1, 0/))
+      CALL pw_derive(v_hartree_gtemp, [0, 1, 0])
       CALL pw_transfer(v_hartree_gtemp, v_hartree_rtemp)
       CALL pw_copy(v_hartree_rtemp, pwy)
 
       CALL pw_copy(v_hartree_gspace, v_hartree_gtemp)
-      CALL pw_derive(v_hartree_gtemp, (/0, 0, 1/))
+      CALL pw_derive(v_hartree_gtemp, [0, 0, 1])
       CALL pw_transfer(v_hartree_gtemp, v_hartree_rtemp)
       CALL pw_copy(v_hartree_rtemp, pwz)
 
@@ -585,17 +585,17 @@ CONTAINS
                END DO
 
                CALL pw_copy(v_coulomb_gspace, v_coulomb_gtemp)
-               CALL pw_derive(v_coulomb_gtemp, (/1, 0, 0/))
+               CALL pw_derive(v_coulomb_gtemp, [1, 0, 0])
                CALL pw_transfer(v_coulomb_gtemp, v_coulomb_rtemp)
                CALL pw_axpy(v_coulomb_rtemp, pwx)
 
                CALL pw_copy(v_coulomb_gspace, v_coulomb_gtemp)
-               CALL pw_derive(v_coulomb_gtemp, (/0, 1, 0/))
+               CALL pw_derive(v_coulomb_gtemp, [0, 1, 0])
                CALL pw_transfer(v_coulomb_gtemp, v_coulomb_rtemp)
                CALL pw_axpy(v_coulomb_rtemp, pwy)
 
                CALL pw_copy(v_coulomb_gspace, v_coulomb_gtemp)
-               CALL pw_derive(v_coulomb_gtemp, (/0, 0, 1/))
+               CALL pw_derive(v_coulomb_gtemp, [0, 0, 1])
                CALL pw_transfer(v_coulomb_gtemp, v_coulomb_rtemp)
                CALL pw_axpy(v_coulomb_rtemp, pwz)
 
@@ -623,9 +623,9 @@ CONTAINS
                   DO ix = bo(1, 1), bo(2, 1)
                      DO iy = bo(1, 2), bo(2, 2)
                         DO iz = bo(1, 3), bo(2, 3)
-                           rpoint = (/REAL(ix, dp)*pwx%pw_grid%dr(1), &
-                                      REAL(iy, dp)*pwx%pw_grid%dr(2), &
-                                      REAL(iz, dp)*pwx%pw_grid%dr(3)/)
+                           rpoint = [REAL(ix, dp)*pwx%pw_grid%dr(1), &
+                                     REAL(iy, dp)*pwx%pw_grid%dr(2), &
+                                     REAL(iz, dp)*pwx%pw_grid%dr(3)]
                            rpoint = rpoint + roffset
                            rap = rpoint - ratom
                            rap(1) = MODULO(rap(1), cell%hmat(1, 1)) - cell%hmat(1, 1)/2._dp
@@ -867,19 +867,19 @@ CONTAINS
          DO ispin = 1, nspins
 
             CALL pw_transfer(v_rspace_new(ispin), v_xc_gtemp)
-            CALL pw_derive(v_xc_gtemp, (/1, 0, 0/))
+            CALL pw_derive(v_xc_gtemp, [1, 0, 0])
             CALL pw_transfer(v_xc_gtemp, v_xc_rtemp)
             CALL qs_rho_get(nablavks_set(1, ispin)%rho, rho_r=rho_r)
             CALL pw_axpy(v_xc_rtemp, rho_r(1))
 
             CALL pw_transfer(v_rspace_new(ispin), v_xc_gtemp)
-            CALL pw_derive(v_xc_gtemp, (/0, 1, 0/))
+            CALL pw_derive(v_xc_gtemp, [0, 1, 0])
             CALL pw_transfer(v_xc_gtemp, v_xc_rtemp)
             CALL qs_rho_get(nablavks_set(2, ispin)%rho, rho_r=rho_r)
             CALL pw_axpy(v_xc_rtemp, rho_r(1))
 
             CALL pw_transfer(v_rspace_new(ispin), v_xc_gtemp)
-            CALL pw_derive(v_xc_gtemp, (/0, 0, 1/))
+            CALL pw_derive(v_xc_gtemp, [0, 0, 1])
             CALL pw_transfer(v_xc_gtemp, v_xc_rtemp)
             CALL qs_rho_get(nablavks_set(3, ispin)%rho, rho_r=rho_r)
             CALL pw_axpy(v_xc_rtemp, rho_r(1))
@@ -896,19 +896,19 @@ CONTAINS
          DO ispin = 1, nspins
 
             CALL pw_transfer(v_tau_rspace(ispin), v_xc_gtemp)
-            CALL pw_derive(v_xc_gtemp, (/1, 0, 0/))
+            CALL pw_derive(v_xc_gtemp, [1, 0, 0])
             CALL pw_transfer(v_xc_gtemp, v_xc_rtemp)
             CALL qs_rho_get(nablavks_set(1, ispin)%rho, rho_r=rho_r)
             CALL pw_axpy(v_xc_rtemp, rho_r(1))
 
             CALL pw_transfer(v_tau_rspace(ispin), v_xc_gtemp)
-            CALL pw_derive(v_xc_gtemp, (/0, 1, 0/))
+            CALL pw_derive(v_xc_gtemp, [0, 1, 0])
             CALL pw_transfer(v_xc_gtemp, v_xc_rtemp)
             CALL qs_rho_get(nablavks_set(2, ispin)%rho, rho_r=rho_r)
             CALL pw_axpy(v_xc_rtemp, rho_r(1))
 
             CALL pw_transfer(v_tau_rspace(ispin), v_xc_gtemp)
-            CALL pw_derive(v_xc_gtemp, (/0, 0, 1/))
+            CALL pw_derive(v_xc_gtemp, [0, 0, 1])
             CALL pw_transfer(v_xc_gtemp, v_xc_rtemp)
             CALL qs_rho_get(nablavks_set(3, ispin)%rho, rho_r=rho_r)
             CALL pw_axpy(v_xc_rtemp, rho_r(1))

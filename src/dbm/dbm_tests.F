@@ -92,7 +92,7 @@ CONTAINS
          bmax = MAXVAL(bs_m(2::2))
          CALL generate_mixed_block_sizes(sizes_m, matrix_sizes(1), bs_m)
       ELSE
-         CALL generate_mixed_block_sizes(sizes_m, matrix_sizes(1), (/1, 13, 2, 5/))
+         CALL generate_mixed_block_sizes(sizes_m, matrix_sizes(1), [1, 13, 2, 5])
          bmin = 5; bmax = 13
       END IF
       IF (ASSOCIATED(bs_n)) THEN
@@ -100,7 +100,7 @@ CONTAINS
          bmax = MAX(bmax, MAXVAL(bs_n(2::2)))
          CALL generate_mixed_block_sizes(sizes_n, matrix_sizes(2), bs_n)
       ELSE
-         CALL generate_mixed_block_sizes(sizes_n, matrix_sizes(2), (/1, 13, 2, 5/))
+         CALL generate_mixed_block_sizes(sizes_n, matrix_sizes(2), [1, 13, 2, 5])
          bmin = MIN(bmin, 5); bmax = MAX(bmax, 13)
       END IF
       IF (ASSOCIATED(bs_k)) THEN
@@ -108,7 +108,7 @@ CONTAINS
          bmax = MAX(bmax, MAXVAL(bs_k(2::2)))
          CALL generate_mixed_block_sizes(sizes_k, matrix_sizes(3), bs_k)
       ELSE
-         CALL generate_mixed_block_sizes(sizes_k, matrix_sizes(3), (/1, 13, 2, 5/))
+         CALL generate_mixed_block_sizes(sizes_k, matrix_sizes(3), [1, 13, 2, 5])
          bmin = MIN(bmin, 5); bmax = MAX(bmax, 13)
       END IF
 

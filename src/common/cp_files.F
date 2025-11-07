@@ -569,7 +569,7 @@ CONTAINS
       END INTERFACE
 
       path_c = get_data_dir_c()
-      CALL C_F_POINTER(path_c, path_f, shape=(/default_path_length/))
+      CALL C_F_POINTER(path_c, path_f, shape=[default_path_length])
 
       res = ""
       DO i = 1, default_path_length

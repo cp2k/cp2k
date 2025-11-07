@@ -653,11 +653,11 @@ CONTAINS
       TYPE(semi_empirical_type), POINTER                 :: sep
       TYPE(section_vals_type), POINTER                   :: subsys_section
 
-      CHARACTER(LEN=1), DIMENSION(0:3), PARAMETER :: orb_lab = (/"S", "P", "D", "F"/)
-      CHARACTER(LEN=2), DIMENSION(0:3), PARAMETER :: z_lab = (/"ZS", "ZP", "ZD", "ZF"/)
-      CHARACTER(LEN=3), DIMENSION(0:3), PARAMETER :: zeta_lab = (/"ZSN", "ZPN", "ZDN", "ZFN"/)
+      CHARACTER(LEN=1), DIMENSION(0:3), PARAMETER        :: orb_lab = ["S", "P", "D", "F"]
+      CHARACTER(LEN=2), DIMENSION(0:3), PARAMETER :: z_lab = ["ZS", "ZP", "ZD", "ZF"]
+      CHARACTER(LEN=3), DIMENSION(0:3), PARAMETER :: zeta_lab = ["ZSN", "ZPN", "ZDN", "ZFN"]
       CHARACTER(LEN=5), DIMENSION(0:3), PARAMETER :: &
-         beta_lab = (/"BETAS", "BETAP", "BETAD", "BETAF"/)
+         beta_lab = ["BETAS", "BETAP", "BETAD", "BETAF"]
       CHARACTER(LEN=default_string_length)               :: i_string, name
       INTEGER                                            :: i, l, natorb, ngauss, nr, output_unit, &
                                                             typ, z
@@ -665,7 +665,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: acoul, alp, app, asp, ass, de, eheat, &
                                                             eisol, gp2, gpp, gsp, gss, hsp, udd, &
                                                             uff, upp, uss, zeff
-      CHARACTER(LEN=3), DIMENSION(0:3), PARAMETER :: u_lab = (/"USS", "UPP", "UDD", "UFF"/)
+      CHARACTER(LEN=3), DIMENSION(0:3), PARAMETER :: u_lab = ["USS", "UPP", "UDD", "UFF"]
 
       REAL(KIND=dp), DIMENSION(0:3)                      :: u
       REAL(KIND=dp), DIMENSION(2)                        :: dpddg, ppddg

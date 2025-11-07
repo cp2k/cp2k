@@ -184,7 +184,7 @@ CONTAINS
          CALL para_env%sum(r_report%sum_stackdepth)
 
          ! get value and rank of the maximum inclusive cost
-         dbuf = (/r_report%max_icost, REAL(para_env%mepos, KIND=dp)/)
+         dbuf = [r_report%max_icost, REAL(para_env%mepos, KIND=dp)]
          CALL para_env%maxloc(dbuf)
          r_report%max_icost = dbuf(1)
          r_report%max_irank = INT(dbuf(2))
@@ -192,7 +192,7 @@ CONTAINS
          CALL para_env%sum(r_report%sum_icost)
 
          ! get value and rank of the maximum exclusive cost
-         dbuf = (/r_report%max_ecost, REAL(para_env%mepos, KIND=dp)/)
+         dbuf = [r_report%max_ecost, REAL(para_env%mepos, KIND=dp)]
          CALL para_env%maxloc(dbuf)
          r_report%max_ecost = dbuf(1)
          r_report%max_erank = INT(dbuf(2))

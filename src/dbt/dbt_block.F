@@ -556,7 +556,7 @@ CONTAINS
 
             shape_2d = [PRODUCT(sizes(map1_2d)), PRODUCT(sizes(map2_2d))]
 
-            IF (ALL([map1_2d, map2_2d] == (/(i, i=1, ${ndim}$)/))) THEN
+            IF (ALL([map1_2d, map2_2d] == [(i, i=1, ${ndim}$)])) THEN
                ! to avoid costly reshape can do pointer bounds remapping as long as arrays are equivalent in memory
                block_2d(1:shape_2d(1), 1:shape_2d(2)) => block(${shape_colon(ndim)}$)
             ELSE
@@ -639,7 +639,7 @@ CONTAINS
             found = ASSOCIATED(block_2d_ptr)
 
             IF (found) THEN
-               IF (ALL([map1_2d, map2_2d] == (/(i, i=1, ${ndim}$)/))) THEN
+               IF (ALL([map1_2d, map2_2d] == [(i, i=1, ${ndim}$)])) THEN
                   ! to avoid costly reshape can do pointer bounds remapping as long as arrays are equivalent in memory
                   block_ptr(${shape_explicit('block', ndim)}$) => block_2d_ptr(:, :)
                   block(${shape_colon(ndim)}$) = block_ptr(${shape_colon(ndim)}$)

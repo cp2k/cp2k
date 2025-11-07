@@ -59,22 +59,22 @@ CONTAINS
          ALLOCATE (amber_map%kind(amb_imax))
          ALLOCATE (amber_map%element(amb_imax))
 
-         amber_map%kind = (/ &
+         amber_map%kind = [ &
                           "BR", "C ", "CA", "CB", "CC", "CD", "CI", "CK", "CP", "CM", &
                           "CS", "CN", "CQ", "CR", "CT", "CV", "CW", "C*", "CX", "CY", &
                           "CZ", "CO", "TG", "2C", "3C", "C0", "F ", "H ", "HC", "HA", &
                           "HO", "HS", "HW", "HP", "HZ", "I ", "IM", "IP", "IB", "MG", &
                           "N ", "NA", "NB", "NC", "N*", "NT", "NY", "ND", "NL", "TN", &
                           "OA", "O ", "OW", "OH", "OD", "OS", "OP", "P ", "S ", "SH", &
-                          "CU", "FE", "Li", "K ", "Rb", "Cs"/)
-         amber_map%element = (/ &
+                          "CU", "FE", "Li", "K ", "Rb", "Cs"]
+         amber_map%element = [ &
                              "Br", "C ", "C ", "C ", "C ", "C ", "C ", "C ", "C ", "C ", &
                              "C ", "C ", "C ", "C ", "C ", "C ", "C ", "C ", "C ", "C ", &
                              "C ", "C ", "C ", "C ", "C ", "Ca", "F ", "H ", "H ", "H ", &
                              "H ", "H ", "H ", "H ", "H ", "I ", "Cl", "Na", "Na", "Mg", &
                              "N ", "N ", "N ", "N ", "N ", "N ", "N ", "N ", "N ", "N ", &
                              "O ", "O ", "O ", "O ", "O ", "O ", "O ", "P ", "S ", "S ", &
-                             "Cu", "Fe", "Li", "K ", "Rb", "Cs"/)
+                             "Cu", "Fe", "Li", "K ", "Rb", "Cs"]
 
       CASE ("CHARMM")
          ALLOCATE (charmm_map)
@@ -82,7 +82,7 @@ CONTAINS
          ALLOCATE (charmm_map%kind(chm_imax))
          ALLOCATE (charmm_map%element(chm_imax))
 
-         charmm_map%kind = (/ &
+         charmm_map%kind = [ &
                            "CA  ", "CAL ", "C   ", "CC  ", "CD  ", "CE  ", "CEL ", "CES ", "CLA ", "CL  ", &
                            "CM  ", "CN1A", "CN1T", "CN3A", "CN3B", "CN3C", "CN3D", "CN3T", "CN5G", "CN7B", &
                            "CN7C", "CN7D", "CN8B", "CNA ", "CN  ", "CNE ", "CPA ", "CPB ", "CP  ", "CPH ", &
@@ -93,9 +93,9 @@ CONTAINS
                            "NN2U", "NN3A", "NN3G", "NN3I", "NN  ", "NPH ", "NP  ", "NR  ", "NR  ", "NTL ", &
                            "NY  ", "O2L ", "OBL ", "OB  ", "OCL ", "OC  ", "OHL ", "OH  ", "OM  ", "ON1C", &
                            "ON2b", "ON6B", "ON  ", "O   ", "OSL ", "OS  ", "OT  ", "P2  ", "PL  ", "POT ", &
-                           "P   ", "SL  ", "SM  ", "SOD ", "S   ", "SS  ", "ZN  ", "CN6B"/)
+                           "P   ", "SL  ", "SM  ", "SOD ", "S   ", "SS  ", "ZN  ", "CN6B"]
 
-         charmm_map%element = (/ &
+         charmm_map%element = [ &
                               "C ", "Ca", "C ", "C ", "C ", "C ", "C ", "Cs", "Cl", "C ", &
                               "C ", "C ", "C ", "C ", "C ", "C ", "C ", "C ", "C ", "C ", &
                               "C ", "C ", "C ", "C ", "C ", "C ", "C ", "C ", "C ", "C ", &
@@ -106,7 +106,7 @@ CONTAINS
                               "N ", "N ", "N ", "N ", "N ", "N ", "N ", "N ", "N ", "N ", &
                               "N ", "O ", "O ", "O ", "O ", "O ", "O ", "O ", "O ", "O ", &
                               "O ", "O ", "O ", "O ", "O ", "O ", "O ", "P ", "P ", "K ", &
-                              "P ", "S ", "S ", "Na", "S ", "S ", "Zn", "C "/)
+                              "P ", "S ", "S ", "Na", "S ", "S ", "Zn", "C "]
 
       CASE ("GROMOS")
          ALLOCATE (gromos_map)
@@ -114,15 +114,15 @@ CONTAINS
          ALLOCATE (gromos_map%kind(grm_imax))
          ALLOCATE (gromos_map%element(grm_imax))
 
-         gromos_map%kind = (/ &
+         gromos_map%kind = [ &
                            "H1  ", "CA  ", "HA  ", "SD  ", "OG  ", "CG  ", "HD  ", "SG  ", &
                            "CZ  ", "OH  ", "C2  ", "H8  ", "O4* ", "O5* ", "PA  ", "O1A ", &
-                           "MG  ", "Na  ", "Cl  ", "OW  ", "HW  ", "HW  "/)
+                           "MG  ", "Na  ", "Cl  ", "OW  ", "HW  ", "HW  "]
 
-         gromos_map%element = (/ &
+         gromos_map%element = [ &
                               "H ", "C ", "H ", "S ", "O ", "C ", "H ", "S ", &
                               "C ", "O ", "C ", "H ", "O ", "O ", "P ", "O ", &
-                              "Mg", "Na", "Cl", "O ", "H ", "H "/)
+                              "Mg", "Na", "Cl", "O ", "H ", "H "]
 
       END SELECT
 

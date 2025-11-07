@@ -2933,7 +2933,7 @@ CONTAINS
                         CALL integrate_pgf_product( &
                            la_max=la_max(iset), zeta=zeta(ipgf, iset), la_min=la_min(iset), &
                            lb_max=0, zetb=0.0_dp, lb_min=0, &
-                           ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
+                           ra=ra, rab=[0.0_dp, 0.0_dp, 0.0_dp], &
                            rsgrid=rs_v(igrid_level), &
                            hab=h_tmp, pab=pab, &
                            o1=o1, &

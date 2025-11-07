@@ -269,7 +269,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="PAO", repeats=.FALSE., &
                           description="Polarized Atomic Orbital Method", &
-                          citations=(/Schuett2018, Berghold2011/))
+                          citations=[Schuett2018, Berghold2011])
 
       ! Convergence Criteria *****************************************************
       CALL keyword_create(keyword, __LOCATION__, name="EPS_PAO", &
@@ -300,7 +300,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="PARAMETERIZATION", &
                           description="Parametrization of the mapping between the primary and the PAO basis.", &
                           enum_c_vals=s2a("ROTINV", "FOCK", "GTH", "EXP", "EQUIVARIANT"), &
-                          enum_i_vals=(/pao_rotinv_param, pao_fock_param, pao_gth_param, pao_exp_param, pao_equi_param/), &
+                          enum_i_vals=[pao_rotinv_param, pao_fock_param, pao_gth_param, pao_exp_param, pao_equi_param], &
                           enum_desc=s2a("Rotational invariant parametrization (machine learnable)", &
                                         "Fock matrix parametrization", &
                                         "Parametrization based on GTH pseudo potentials", &
@@ -412,7 +412,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="METHOD", &
                           description="Machine learning scheme used to predict PAO basis sets.", &
                           enum_c_vals=s2a("GAUSSIAN_PROCESS", "NEURAL_NETWORK", "LAZY"), &
-                          enum_i_vals=(/pao_ml_gp, pao_ml_nn, pao_ml_lazy/), &
+                          enum_i_vals=[pao_ml_gp, pao_ml_nn, pao_ml_lazy], &
                           enum_desc=s2a("Gaussian Process", "Neural Network", "Just rely on prior"), &
                           default_i_val=pao_ml_gp)
       CALL section_add_keyword(subsection, keyword)
@@ -421,7 +421,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="PRIOR", &
                           description="Prior used for predictions.", &
                           enum_c_vals=s2a("ZERO", "MEAN"), &
-                          enum_i_vals=(/pao_ml_prior_zero, pao_ml_prior_mean/), &
+                          enum_i_vals=[pao_ml_prior_zero, pao_ml_prior_mean], &
                           enum_desc=s2a("Simply use zero", "Use average of training-set"), &
                           default_i_val=pao_ml_prior_zero)
       CALL section_add_keyword(subsection, keyword)
@@ -430,11 +430,11 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="DESCRIPTOR", &
                           description="Descriptor used as input for machine learning.", &
                           enum_c_vals=s2a("POTENTIAL", "OVERLAP", "R12"), &
-                          enum_i_vals=(/pao_ml_desc_pot, pao_ml_desc_overlap, pao_ml_desc_r12/), &
+                          enum_i_vals=[pao_ml_desc_pot, pao_ml_desc_overlap, pao_ml_desc_r12], &
                           enum_desc=s2a("Eigenvalues of local potential matrix", &
                                         "Eigenvalues of local overlap matrix", &
                                         "Distance between two atoms (just for testing)"), &
-                          citations=(/Zhu2016/), &
+                          citations=[Zhu2016], &
                           default_i_val=pao_ml_desc_pot)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
@@ -545,7 +545,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="OPTIMIZER", &
                           description="Optimizer used to find PAO basis.", &
                           enum_c_vals=s2a("CG", "BFGS"), &
-                          enum_i_vals=(/pao_opt_cg, pao_opt_bfgs/), &
+                          enum_i_vals=[pao_opt_cg, pao_opt_bfgs], &
                           enum_desc=s2a("Conjugate gradient algorithm", &
                                         "Broyden-Fletcher-Goldfarb-Shanno algorithm"), &
                           default_i_val=pao_opt_cg)

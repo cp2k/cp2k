@@ -119,7 +119,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'write_restart'
       CHARACTER(LEN=30), DIMENSION(2), PARAMETER :: &
-         keys = (/"PRINT%RESTART_HISTORY", "PRINT%RESTART        "/)
+         keys = ["PRINT%RESTART_HISTORY", "PRINT%RESTART        "]
 
       INTEGER                                            :: handle, ikey, ires, log_unit, nforce_eval
       LOGICAL                                            :: save_mem, write_binary_restart_file
@@ -620,27 +620,27 @@ CONTAINS
             ! Virial averages
             IF (ASSOCIATED(averages%virial)) THEN
                ALLOCATE (buffer(9))
-               buffer = RESHAPE(averages%virial%pv_total, (/9/))
+               buffer = RESHAPE(averages%virial%pv_total, [9])
                CALL section_vals_val_set(work_section, "AVE_PV_TOT", r_vals_ptr=buffer)
 
                ALLOCATE (buffer(9))
-               buffer = RESHAPE(averages%virial%pv_virial, (/9/))
+               buffer = RESHAPE(averages%virial%pv_virial, [9])
                CALL section_vals_val_set(work_section, "AVE_PV_VIR", r_vals_ptr=buffer)
 
                ALLOCATE (buffer(9))
-               buffer = RESHAPE(averages%virial%pv_kinetic, (/9/))
+               buffer = RESHAPE(averages%virial%pv_kinetic, [9])
                CALL section_vals_val_set(work_section, "AVE_PV_KIN", r_vals_ptr=buffer)
 
                ALLOCATE (buffer(9))
-               buffer = RESHAPE(averages%virial%pv_constraint, (/9/))
+               buffer = RESHAPE(averages%virial%pv_constraint, [9])
                CALL section_vals_val_set(work_section, "AVE_PV_CNSTR", r_vals_ptr=buffer)
 
                ALLOCATE (buffer(9))
-               buffer = RESHAPE(averages%virial%pv_xc, (/9/))
+               buffer = RESHAPE(averages%virial%pv_xc, [9])
                CALL section_vals_val_set(work_section, "AVE_PV_XC", r_vals_ptr=buffer)
 
                ALLOCATE (buffer(9))
-               buffer = RESHAPE(averages%virial%pv_fock_4c, (/9/))
+               buffer = RESHAPE(averages%virial%pv_fock_4c, [9])
                CALL section_vals_val_set(work_section, "AVE_PV_FOCK_4C", r_vals_ptr=buffer)
             END IF
             ! Colvars averages

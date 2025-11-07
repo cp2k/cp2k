@@ -564,7 +564,7 @@ CONTAINS
       INTEGER                                            :: iw, fftw_plan_type
       CHARACTER(LEN=*), INTENT(IN)                       :: wisdom_file
 
-      INTEGER, PARAMETER                                 :: ndate(3) = (/12, 48, 96/)
+      INTEGER, PARAMETER                                 :: ndate(3) = [12, 48, 96]
 
       INTEGER                                            :: iall, ierr, it, j, len, n(3), ntim, &
                                                             radix_in, radix_out, siz, stat
@@ -727,8 +727,8 @@ CONTAINS
       ! .. set cell (should otherwise be irrelevant)
       NULLIFY (box)
       CALL cell_create(box)
-      box%hmat = RESHAPE((/20.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, 20.0_dp, 0.0_dp, &
-                           0.0_dp, 0.0_dp, 20.0_dp/), (/3, 3/))
+      box%hmat = RESHAPE([20.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, 20.0_dp, 0.0_dp, &
+                          0.0_dp, 0.0_dp, 20.0_dp], [3, 3])
       CALL init_cell(box)
 
       ! .. grid type and pw_grid
@@ -745,7 +745,7 @@ CONTAINS
       CALL section_vals_val_get(rs_pw_transfer_section, "HALO_SIZE", i_val=halo_size)
       rs_grid_section => section_vals_get_subs_vals(rs_pw_transfer_section, "RS_GRID")
       ns_max = 2*halo_size + 1
-      CALL init_input_type(input_settings, ns_max, rs_grid_section, 1, (/-1, -1, -1/))
+      CALL init_input_type(input_settings, ns_max, rs_grid_section, 1, [-1, -1, -1])
 
       ! .. rs type
       NULLIFY (rs_desc)
@@ -840,8 +840,8 @@ CONTAINS
       !..the unit cell (should not really matter, the number of grid points do)
       NULLIFY (box, grid)
       CALL cell_create(box)
-      box%hmat = RESHAPE((/10.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, 8.0_dp, 0.0_dp, &
-                           0.0_dp, 0.0_dp, 7.0_dp/), (/3, 3/))
+      box%hmat = RESHAPE([10.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, 8.0_dp, 0.0_dp, &
+                          0.0_dp, 0.0_dp, 7.0_dp], [3, 3])
       CALL init_cell(box)
 
       CALL section_vals_get(pw_transfer_section, n_repetition=n_rep)
@@ -880,7 +880,7 @@ CONTAINS
                q = para_env%num_pe/p
                IF (p*q == para_env%num_pe) THEN
                   itmp = itmp + 1
-                  layouts(:, itmp) = (/p, q/)
+                  layouts(:, itmp) = [p, q]
                END IF
             END DO
          ELSE
@@ -1446,10 +1446,10 @@ CONTAINS
          CALL section_vals_val_get(input_section, "ALWAYS_CHECKSUM", i_rep_section=i_rep, l_val=always_checksum)
 
          CALL dbcsr_run_tests(para_env%get_handle(), iw, nproc, &
-                              (/m, n, k/), &
-                              (/transa_p, transb_p/), &
+                              [m, n, k], &
+                              [transa_p, transb_p], &
                               bs_m, bs_n, bs_k, &
-                              (/s_a, s_b, s_c/), &
+                              [s_a, s_b, s_c], &
                               alpha, beta, &
                               data_type=data_type, &
                               test_type=test_type, &
@@ -1502,12 +1502,12 @@ CONTAINS
 
          CALL dbm_run_tests(mp_group=para_env, &
                             io_unit=iw, &
-                            matrix_sizes=(/m, n, k/), &
-                            trs=(/transa_p, transb_p/), &
+                            matrix_sizes=[m, n, k], &
+                            trs=[transa_p, transb_p], &
                             bs_m=bs_m, &
                             bs_n=bs_n, &
                             bs_k=bs_k, &
-                            sparsities=(/s_a, s_b, s_c/), &
+                            sparsities=[s_a, s_b, s_c], &
                             alpha=alpha, &
                             beta=beta, &
                             n_loops=n_loop, &

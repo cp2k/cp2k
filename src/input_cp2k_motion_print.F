@@ -61,7 +61,7 @@ CONTAINS
                           n_keywords=1, n_subsections=1, repeats=.TRUE.)
 
       CALL keyword_create(keyword, __LOCATION__, name="MEMORY_INFO", &
-                          variants=(/"MEMORY"/), &
+                          variants=["MEMORY"], &
                           description="Whether overall memory usage should be sampled and printed "// &
                           "at each MD/Optimization step.", &
                           usage="MEMORY_INFO LOGICAL", &
@@ -206,7 +206,7 @@ CONTAINS
       CALL cp_print_key_section_create(print_key, __LOCATION__, "RESTART", &
                                        description="Controls the dumping of the restart file during runs. "// &
                                        "By default keeps a short history of three restarts. See also RESTART_HISTORY", &
-                                       each_iter_names=s2a("MD"), each_iter_values=(/20/), &
+                                       each_iter_names=s2a("MD"), each_iter_values=[20], &
                                        print_level=silent_print_level, common_iter_levels=1, &
                                        add_last=add_last_numeric, filename="")
 
@@ -237,7 +237,7 @@ CONTAINS
                                        description="Dumps unique restart files during the run keeping all of them. "// &
                                        "Most useful if recovery is needed at a later point.", &
                                        print_level=low_print_level, common_iter_levels=0, &
-                                       each_iter_names=s2a("MD", "GEO_OPT", "ROT_OPT"), each_iter_values=(/500, 500, 500/), &
+                                       each_iter_names=s2a("MD", "GEO_OPT", "ROT_OPT"), each_iter_values=[500, 500, 500], &
                                        filename="")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
@@ -277,7 +277,7 @@ CONTAINS
             description=description, usage="FORMAT (ATOMIC|DCD|PDB|XMOL|XYZ)", &
             default_i_val=dump_xmol, &
             enum_c_vals=s2a("ATOMIC", "DCD", "DCD_ALIGNED_CELL", "PDB", "XMOL", "XYZ"), &
-            enum_i_vals=(/dump_atomic, dump_dcd, dump_dcd_aligned_cell, dump_pdb, dump_xmol, dump_xmol/), &
+            enum_i_vals=[dump_atomic, dump_dcd, dump_dcd_aligned_cell, dump_pdb, dump_xmol, dump_xmol], &
             enum_desc=s2a("Write only the coordinates X,Y,Z without element symbols to a formatted file", &
                           "Write the coordinates (no element labels) and the cell information to a binary file", &
                           "Like DCD, but the dumped coordinates refer to an aligned cell following the common convention: "// &
@@ -290,7 +290,7 @@ CONTAINS
          CALL keyword_release(keyword)
 
          CALL keyword_create(keyword, __LOCATION__, name="CHARGE_OCCUP", &
-                             variants=(/"CHARGE_O"/), &
+                             variants=["CHARGE_O"], &
                              description="Write the MM charges to the OCCUP field of the PDB file", &
                              usage="CHARGE_OCCUP logical", &
                              default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
@@ -298,7 +298,7 @@ CONTAINS
          CALL keyword_release(keyword)
 
          CALL keyword_create(keyword, __LOCATION__, name="CHARGE_BETA", &
-                             variants=(/"CHARGE_B"/), &
+                             variants=["CHARGE_B"], &
                              description="Write the MM charges to the BETA field of the PDB file", &
                              usage="CHARGE_BETA logical", &
                              default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
@@ -318,7 +318,7 @@ CONTAINS
                              description=description, usage="FORMAT (ATOMIC|DCD|XMOL|XYZ)", &
                              default_i_val=dump_xmol, &
                              enum_c_vals=s2a("ATOMIC", "DCD", "XMOL", "XYZ"), &
-                             enum_i_vals=(/dump_atomic, dump_dcd, dump_xmol, dump_xmol/), &
+                             enum_i_vals=[dump_atomic, dump_dcd, dump_xmol, dump_xmol], &
                              enum_desc=s2a("Write only the coordinates X,Y,Z without element symbols to a formatted file", &
                                            "Write the coordinates (no element labels) and the cell information to a binary file", &
                                            "Mostly known as XYZ format, provides in a formatted file: element_symbol X Y Z", &

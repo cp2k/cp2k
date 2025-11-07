@@ -244,7 +244,7 @@ CONTAINS
                           description="Specify the type of simulation", &
                           usage="ENSEMBLE (TRADITIONAL|GEMC_NVT|GEMC_NPT|VIRIAL)", &
                           enum_c_vals=s2a("TRADITIONAL", "GEMC_NVT", "GEMC_NPT", "VIRIAL"), &
-                          enum_i_vals=(/do_mc_traditional, do_mc_gemc_nvt, do_mc_gemc_npt, do_mc_virial/), &
+                          enum_i_vals=[do_mc_traditional, do_mc_gemc_nvt, do_mc_gemc_npt, do_mc_virial], &
                           default_i_val=do_mc_traditional)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -799,7 +799,7 @@ CONTAINS
                              enum_c_vals=s2a("MINIMIZATION", "TRANSITION_STATE"), &
                              enum_desc=s2a("Performs a geometry minimization.", &
                                            "Performs a transition state optimization."), &
-                             enum_i_vals=(/default_minimization_method_id, default_ts_method_id/), &
+                             enum_i_vals=[default_minimization_method_id, default_ts_method_id], &
                              default_i_val=default_minimization_method_id)
          CALL section_add_keyword(section, keyword)
          CALL keyword_release(keyword)
@@ -807,8 +807,8 @@ CONTAINS
 
       CALL keyword_create( &
          keyword, __LOCATION__, name="OPTIMIZER", &
-         variants=(/"MINIMIZER"/), &
-         citations=(/Byrd1995/), &
+         variants=["MINIMIZER"], &
+         citations=[Byrd1995], &
          description="Specify which method to use to perform a geometry optimization.", &
          usage="OPTIMIZER {BFGS|LBFGS|CG}", &
          enum_c_vals=s2a("BFGS", "LBFGS", "CG"), &
@@ -817,7 +817,7 @@ CONTAINS
                        "Limited-memory variant of BFGS suitable for large systems. "// &
                        "Not as well fine-tuned but can be more robust.", &
                        "conjugate gradients, robust minimizer (depending on the line search) also OK for large systems"), &
-         enum_i_vals=(/default_bfgs_method_id, default_lbfgs_method_id, default_cg_method_id/), &
+         enum_i_vals=[default_bfgs_method_id, default_lbfgs_method_id, default_cg_method_id], &
          default_i_val=default_bfgs_method_id)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -907,7 +907,7 @@ CONTAINS
          "These operations are used when enforcing the space group.", &
          usage="SYMM_REDUCTION  0.0 0.0 0.0", &
          repeats=.FALSE., n_var=3, &
-         type_of_var=real_t, default_r_vals=(/0.0_dp, 0.0_dp, 0.0_dp/))
+         type_of_var=real_t, default_r_vals=[0.0_dp, 0.0_dp, 0.0_dp])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1032,7 +1032,7 @@ CONTAINS
          " used for the cell optimization.", &
          "Performs a geometry and cell optimization at the same time."// &
          " The stress tensor is computed at every step"), &
-         enum_i_vals=(/default_cell_geo_opt_id, default_cell_md_id, default_cell_direct_id/), &
+         enum_i_vals=[default_cell_geo_opt_id, default_cell_md_id, default_cell_direct_id], &
          default_i_val=default_cell_direct_id)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1042,9 +1042,9 @@ CONTAINS
          description="Specifies the external pressure (1 value or the full 9 components of the pressure tensor) "// &
          "applied during the cell optimization.", &
          usage="EXTERNAL_PRESSURE {REAL} .. {REAL}", unit_str="bar", &
-         default_r_vals=(/cp_unit_to_cp2k(100.0_dp, "bar"), 0.0_dp, 0.0_dp, &
-                          0.0_dp, cp_unit_to_cp2k(100.0_dp, "bar"), 0.0_dp, &
-                          0.0_dp, 0.0_dp, cp_unit_to_cp2k(100.0_dp, "bar")/), n_var=-1)
+         default_r_vals=[cp_unit_to_cp2k(100.0_dp, "bar"), 0.0_dp, 0.0_dp, &
+                         0.0_dp, cp_unit_to_cp2k(100.0_dp, "bar"), 0.0_dp, &
+                         0.0_dp, 0.0_dp, cp_unit_to_cp2k(100.0_dp, "bar")], n_var=-1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1076,7 +1076,7 @@ CONTAINS
                        "Fix x and z component", &
                        "Fix y and z component"), &
          enum_c_vals=s2a("NONE", "X", "Y", "Z", "XY", "XZ", "YZ"), &
-         enum_i_vals=(/fix_none, fix_x, fix_y, fix_z, fix_xy, fix_xz, fix_yz/), &
+         enum_i_vals=[fix_none, fix_x, fix_y, fix_z, fix_xy, fix_xz, fix_yz], &
          default_i_val=fix_none)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1132,11 +1132,11 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="METHOD", &
                           description="Specify which kind of method to use for locating transition states", &
-                          citations=(/Henkelman1999/), &
+                          citations=[Henkelman1999], &
                           usage="METHOD (DIMER)", &
                           enum_c_vals=s2a("DIMER"), &
                           enum_desc=s2a("Uses the dimer method to optimize transition states."), &
-                          enum_i_vals=(/default_dimer_method_id/), &
+                          enum_i_vals=[default_dimer_method_id], &
                           default_i_val=default_dimer_method_id)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1171,7 +1171,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="K-DIMER", &
                           description="This keyword activates the constrained k-dimer translation"// &
                           " J. Chem. Phys. 141, 164111 (2014).", &
-                          citations=(/Henkelman2014/), &
+                          citations=[Henkelman2014], &
                           usage="K-DIMER {logica}", &
                           default_l_val=.FALSE., &
                           lone_keyword_l_val=.FALSE.)
@@ -1364,7 +1364,7 @@ CONTAINS
                                         "perform 1D golden section search of the minimum (very expensive)", &
                                         "perform 1D fit of a parabola on several evaluation of energy "// &
                                         "(very expensive and more robust vs numerical noise)"), &
-                          enum_i_vals=(/ls_none, ls_2pnt, ls_3pnt, ls_gold, ls_fit/))
+                          enum_i_vals=[ls_none, ls_2pnt, ls_3pnt, ls_gold, ls_fit])
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
@@ -1450,7 +1450,7 @@ CONTAINS
       CALL section_create(section, __LOCATION__, name="LBFGS", &
                           description="Provides parameters to tune the limited memory BFGS (LBFGS) optimization", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE., &
-                          citations=(/Byrd1995/))
+                          citations=[Byrd1995])
 
       CALL keyword_create(keyword, __LOCATION__, name="MAX_H_RANK", &
                           description="Maximum rank (and consequently size) of the "// &
@@ -1605,7 +1605,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="DRIVER", &
                           description="This section defines the parameters needed to run in i-PI driver mode.", &
-                          citations=(/Ceriotti2014, Kapil2016/), &
+                          citations=[Ceriotti2014, Kapil2016], &
                           n_keywords=3, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword)
@@ -1695,7 +1695,7 @@ CONTAINS
                           repeats=.FALSE., default_l_val=.FALSE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
-      CALL keyword_create(keyword, __LOCATION__, name="T_tol", variants=(/"temp_to"/), &
+      CALL keyword_create(keyword, __LOCATION__, name="T_tol", variants=["temp_to"], &
                           description="threshold for the oscillations of the temperature "// &
                           "excedeed which the temperature is rescaled. 0 means no rescaling.", &
                           default_r_val=0._dp, unit_str="K")
@@ -1713,7 +1713,7 @@ CONTAINS
                           usage="HARM_INT (NUMERIC|EXACT)", &
                           default_i_val=integrate_numeric, &
                           enum_c_vals=s2a("NUMERIC", "EXACT"), &
-                          enum_i_vals=(/integrate_numeric, integrate_exact/))
+                          enum_i_vals=[integrate_numeric, integrate_exact])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="nrespa", &
@@ -1727,7 +1727,7 @@ CONTAINS
                           usage="TRANSFORMATION (NORMAL|STAGE)", &
                           default_i_val=transformation_normal, &
                           enum_c_vals=s2a("NORMAL", "STAGE"), &
-                          enum_i_vals=(/transformation_normal, transformation_stage/))
+                          enum_i_vals=[transformation_normal, transformation_stage])
 
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1736,7 +1736,7 @@ CONTAINS
                           usage="PROPAGATOR (PIMD|RPMD|CMD)", &
                           default_i_val=propagator_pimd, &
                           enum_c_vals=s2a("PIMD", "RPMD", "CMD"), &
-                          enum_i_vals=(/propagator_pimd, propagator_rpmd, propagator_cmd/))
+                          enum_i_vals=[propagator_pimd, propagator_rpmd, propagator_cmd])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="FIX_CENTROID_POS", &
@@ -1833,7 +1833,7 @@ CONTAINS
                           " Needs the exact harmonic integrator."// &
                           " May lead to unphysical motions if constraint e.g. FIXED_ATOMS, is applied."// &
                           " RESTART_HELIUM section has to be .FALSE. when restarting the PIGLET job.", &
-                          citations=(/Ceriotti2010/), &
+                          citations=[Ceriotti2010], &
                           n_keywords=3, n_subsections=1, &
                           repeats=.FALSE.)
       CALL create_rng_section(subsubsection)
@@ -1865,7 +1865,7 @@ CONTAINS
       CALL section_create(subsection, __LOCATION__, name="PIGLET", &
                           description="Controls the PI Generalized Langevin Equation thermostat."// &
                           " Needs the exact harmonic integrator", &
-                          citations=(/Ceriotti2012/), &
+                          citations=[Ceriotti2012], &
                           n_keywords=4, n_subsections=2, &
                           repeats=.FALSE.)
       CALL create_rng_section(subsubsection)
@@ -1899,7 +1899,7 @@ CONTAINS
                           usage="SMATRIX_INIT (CHOLESKY|DIAGONAL)", &
                           default_i_val=matrix_init_cholesky, &
                           enum_c_vals=s2a("CHOLESKY", "DIAGONAL"), &
-                          enum_i_vals=(/matrix_init_cholesky, matrix_init_diagonal/))
+                          enum_i_vals=[matrix_init_cholesky, matrix_init_diagonal])
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="THERMOSTAT_ENERGY", &
@@ -1915,7 +1915,7 @@ CONTAINS
       CALL section_create(subsection, __LOCATION__, name="QTB", &
                           description="Controls the QTB-PILE thermostat."// &
                           " Needs the exact harmonic integrator", &
-                          citations=(/Brieuc2016/), &
+                          citations=[Brieuc2016], &
                           n_keywords=7, n_subsections=1, &
                           repeats=.FALSE.)
       CALL create_rng_section(subsubsection)
@@ -2162,7 +2162,7 @@ CONTAINS
                           usage="GET_FORCES (AVERAGE|LAST)", &
                           default_i_val=helium_forces_average, &
                           enum_c_vals=s2a("AVERAGE", "LAST"), &
-                          enum_i_vals=(/helium_forces_average, helium_forces_last/))
+                          enum_i_vals=[helium_forces_average, helium_forces_last])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -2171,10 +2171,10 @@ CONTAINS
                           usage="SOLUTE_INTERACTION (NONE | MWATER | NNP)", &
                           default_i_val=helium_solute_intpot_none, &
                           enum_c_vals=s2a("NONE", "MWATER", "NNP"), &
-                          enum_i_vals=(/ &
+                          enum_i_vals=[ &
                           helium_solute_intpot_none, &
                           helium_solute_intpot_mwater, &
-                          helium_solute_intpot_nnp/), &
+                          helium_solute_intpot_nnp], &
                           enum_desc=s2a( &
                           "No interaction with solute", &
                           "Test interaction with wrong Water", &
@@ -2223,7 +2223,7 @@ CONTAINS
                           usage="SAMPLING_METHOD (CEPERLEY|WORM)", &
                           default_i_val=helium_sampling_ceperley, &
                           enum_c_vals=s2a("CEPERLEY", "WORM"), &
-                          enum_i_vals=(/helium_sampling_ceperley, helium_sampling_worm/))
+                          enum_i_vals=[helium_sampling_ceperley, helium_sampling_worm])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -2371,13 +2371,13 @@ CONTAINS
                           "QUADRATIC", &
                           "EXPONENTIAL", &
                           "GAUSSIAN"), &
-                          enum_i_vals=(/ &
+                          enum_i_vals=[ &
                           helium_mdist_singlev, &
                           helium_mdist_uniform, &
                           helium_mdist_linear, &
                           helium_mdist_quadratic, &
                           helium_mdist_exponential, &
-                          helium_mdist_gaussian/))
+                          helium_mdist_gaussian])
       CALL section_add_keyword(subsubsection, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="M-VALUE", &
@@ -2509,7 +2509,7 @@ CONTAINS
                           usage="CELL_SHAPE (CUBE|OCTAHEDRON)", &
                           default_i_val=helium_cell_shape_cube, &
                           enum_c_vals=s2a("CUBE", "OCTAHEDRON"), &
-                          enum_i_vals=(/helium_cell_shape_cube, helium_cell_shape_octahedron/))
+                          enum_i_vals=[helium_cell_shape_cube, helium_cell_shape_octahedron])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -2807,7 +2807,7 @@ CONTAINS
       CALL cp_print_key_section_create(print_key, __LOCATION__, "RHO", &
                                        description="Controls the output of the helium density "// &
                                        "(Gaussian cube file format)", &
-                                       each_iter_names=s2a("PINT"), each_iter_values=(/100/), &
+                                       each_iter_names=s2a("PINT"), each_iter_values=[100], &
                                        print_level=medium_print_level, common_iter_levels=1, &
                                        add_last=add_last_numeric)
       CALL keyword_create(keyword, __LOCATION__, name="BACKUP_COPIES", &
@@ -2859,7 +2859,7 @@ CONTAINS
                           usage="FORMAT (PDB|XYZ)", &
                           default_i_val=fmt_id_pdb, &
                           enum_c_vals=s2a("PDB", "XYZ"), &
-                          enum_i_vals=(/fmt_id_pdb, fmt_id_xyz/), &
+                          enum_i_vals=[fmt_id_pdb, fmt_id_xyz], &
                           enum_desc=s2a("Bead coordinates and connectivity is written in PDB format", &
                                         "Only bead coordinates are written in XYZ format"))
       CALL section_add_keyword(print_key, keyword)
@@ -2875,7 +2875,7 @@ CONTAINS
                           usage="FORMAT (CYCLE|PLAIN)", &
                           default_i_val=perm_cycle, &
                           enum_c_vals=s2a("CYCLE", "PLAIN"), &
-                          enum_i_vals=(/perm_cycle, perm_plain/), &
+                          enum_i_vals=[perm_cycle, perm_plain], &
                           enum_desc=s2a( &
                           "Cycle notation with winding cycles enclosed"// &
                           " in '[...]' and non-winding ones enclosed in '(...)'", &

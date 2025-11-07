@@ -154,7 +154,7 @@ CONTAINS
       IF (order >= 0) calc(0:order) = .TRUE.
       IF (order < 0) calc(-order) = .TRUE.
 
-      n = PRODUCT(rho_set%local_bounds(2, :) - rho_set%local_bounds(1, :) + (/1, 1, 1/))
+      n = PRODUCT(rho_set%local_bounds(2, :) - rho_set%local_bounds(1, :) + [1, 1, 1])
       ALLOCATE (rs(n))
 
       CALL calc_rs_pw(rho_set%rho, rs, n)

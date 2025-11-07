@@ -113,7 +113,7 @@ CONTAINS
                   mm_cell%hmat(3, 3)**2)
       CALL section_vals_val_get(qmmm_periodic, "GMAX", r_val=Gmax)
       CALL section_vals_val_get(qmmm_periodic, "REPLICA", i_val=n_rep_real_val)
-      fac = 2.0e0_dp*Pi/(/mm_cell%hmat(1, 1), mm_cell%hmat(2, 2), mm_cell%hmat(3, 3)/)
+      fac = 2.0e0_dp*Pi/[mm_cell%hmat(1, 1), mm_cell%hmat(2, 2), mm_cell%hmat(3, 3)]
       Kmax = CEILING(Gmax/Fac)
       Vol = mm_cell%hmat(1, 1)* &
             mm_cell%hmat(2, 2)* &
@@ -165,7 +165,7 @@ CONTAINS
                         END DO
                      ELSE
                         fs = 2.0_dp; IF (ix == 0) fs = 1.0_dp
-                        vec = fac*(/REAL(ix, KIND=dp), REAL(iy, KIND=dp), REAL(iz, KIND=dp)/)
+                        vec = fac*[REAL(ix, KIND=dp), REAL(iy, KIND=dp), REAL(iz, KIND=dp)]
                         g2 = DOT_PRODUCT(vec, vec)
                         rc2 = rc*rc
                         g = SQRT(g2)

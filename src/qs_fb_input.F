@@ -57,7 +57,7 @@ CONTAINS
                                                         unit_str="K"), &
                           unit_str="K", &
                           usage="FILTER_TEMPERATURE [K] 10000", &
-                          citations=(/Rayson2009/))
+                          citations=[Rayson2009])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -71,7 +71,7 @@ CONTAINS
                           type_of_var=real_t, &
                           default_r_val=0.5_dp, &
                           usage="AUTO_CUTOFF_SCALE 0.5_dp", &
-                          citations=(/Rayson2009/))
+                          citations=[Rayson2009])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -85,7 +85,7 @@ CONTAINS
                           type_of_var=real_t, &
                           default_r_val=1.e-12_dp, &
                           usage="EPS_FB 1.e-12", &
-                          citations=(/Rayson2009/))
+                          citations=[Rayson2009])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

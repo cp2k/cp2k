@@ -61,7 +61,7 @@ CONTAINS
                           default_i_val=hfun_harris, &
                           enum_c_vals=s2a("HARRIS"), &
                           enum_desc=s2a("Harris functional"), &
-                          enum_i_vals=(/hfun_harris/))
+                          enum_i_vals=[hfun_harris])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -71,7 +71,7 @@ CONTAINS
                           default_i_val=hden_atomic, &
                           enum_c_vals=s2a("ATOMIC"), &
                           enum_desc=s2a("Atomic densities"), &
-                          enum_i_vals=(/hden_atomic/))
+                          enum_i_vals=[hden_atomic])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -80,7 +80,7 @@ CONTAINS
                           default_i_val=horb_default, &
                           enum_c_vals=s2a("ATOMIC_KIND_BASIS"), &
                           enum_desc=s2a("Atomic kind orbital basis"), &
-                          enum_i_vals=(/horb_default/))
+                          enum_i_vals=[horb_default])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

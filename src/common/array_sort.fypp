@@ -30,7 +30,7 @@
             ! scratch space used during the merge step
             ALLOCATE (tmp_arr((n + 1)/2), tmp_idx((n + 1)/2))
 
-            indices = (/(i, i=1, n)/)
+            indices = [(i, i=1, n)]
 
             CALL ${prefix}$_sort_low(arr(1:n), indices, tmp_arr, tmp_idx)
 

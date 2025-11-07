@@ -65,7 +65,7 @@ CONTAINS
       CALL section_create(section, __LOCATION__, name="LS_SCF", &
                           description="Specifies the parameters of the linear scaling SCF routines", &
                           n_keywords=24, n_subsections=3, repeats=.FALSE., &
-                          citations=(/VandeVondele2012/))
+                          citations=[VandeVondele2012])
 
       NULLIFY (keyword, subsection)
 
@@ -168,7 +168,7 @@ CONTAINS
                           enum_desc=s2a("No preconditioner", &
                                         "Using atomic blocks", &
                                         "Using molecular sub-blocks. Recommended if molecules are defined and not too large."), &
-                          enum_i_vals=(/ls_s_preconditioner_none, ls_s_preconditioner_atomic, ls_s_preconditioner_molecular/))
+                          enum_i_vals=[ls_s_preconditioner_none, ls_s_preconditioner_atomic, ls_s_preconditioner_molecular])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -179,7 +179,7 @@ CONTAINS
                           enum_c_vals=s2a("NEWTONSCHULZ", "PROOT"), &
                           enum_desc=s2a("Using a Newton-Schulz-like iteration", &
                                         "Using the p-th root method."), &
-                          enum_i_vals=(/ls_s_sqrt_ns, ls_s_sqrt_proot/))
+                          enum_i_vals=[ls_s_sqrt_ns, ls_s_sqrt_proot])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -194,13 +194,13 @@ CONTAINS
                           description="Scheme used to purify the Kohn-Sham matrix into the density matrix.", &
                           usage="PURIFICATION_METHOD TRS4", &
                           default_i_val=ls_scf_sign, &
-                          citations=(/VandeVondele2012, Niklasson2003/), &
+                          citations=[VandeVondele2012, Niklasson2003], &
                           enum_c_vals=s2a("SIGN", "TRS4", "TC2", "PEXSI"), &
                           enum_desc=s2a("Sign matrix iteration.", &
                                         "Trace resetting 4th order scheme", &
                                         "Trace conserving 2nd order scheme", &
                                         "PEXSI method"), &
-                          enum_i_vals=(/ls_scf_sign, ls_scf_trs4, ls_scf_tc2, ls_scf_pexsi/))
+                          enum_i_vals=[ls_scf_sign, ls_scf_trs4, ls_scf_tc2, ls_scf_pexsi])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -208,12 +208,12 @@ CONTAINS
                           description="Method used for the computation of the sign matrix.", &
                           usage="SIGN_METHOD NEWTONSCHULZ", &
                           default_i_val=ls_scf_sign_ns, &
-                          citations=(/VandeVondele2012, Niklasson2003/), &
+                          citations=[VandeVondele2012, Niklasson2003], &
                           enum_c_vals=s2a("NEWTONSCHULZ", "PROOT", "SUBMATRIX"), &
                           enum_desc=s2a("Newton-Schulz iteration.", &
                                         "p-th order root iteration", &
                                         "Submatrix method"), &
-                          enum_i_vals=(/ls_scf_sign_ns, ls_scf_sign_proot, ls_scf_sign_submatrix/))
+                          enum_i_vals=[ls_scf_sign_ns, ls_scf_sign_proot, ls_scf_sign_submatrix])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -226,8 +226,8 @@ CONTAINS
                                         "Direct method calculating all eigenvalues.", &
                                         "Direct method with internal adjustment of mu", &
                                         "Direct method with internal adjustment of mu, using two passes to save memory"), &
-                          enum_i_vals=(/ls_scf_submatrix_sign_ns, ls_scf_submatrix_sign_direct, &
-                                        ls_scf_submatrix_sign_direct_muadj, ls_scf_submatrix_sign_direct_muadj_lowmem/))
+                          enum_i_vals=[ls_scf_submatrix_sign_ns, ls_scf_submatrix_sign_direct, &
+                                       ls_scf_submatrix_sign_direct_muadj, ls_scf_submatrix_sign_direct_muadj_lowmem])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -267,7 +267,7 @@ CONTAINS
          enum_c_vals=s2a("ATOMIC", "MOLECULAR"), &
          enum_desc=s2a("Using atomic blocks", &
                        "Using molecular blocks."), &
-         enum_i_vals=(/ls_cluster_atomic, ls_cluster_molecular/))
+         enum_i_vals=[ls_cluster_atomic, ls_cluster_molecular])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -292,7 +292,7 @@ CONTAINS
                           enum_c_vals=s2a("SIGN_SQRT", "HOTELLING"), &
                           enum_desc=s2a("Using the inverse sqrt as obtained from sign function iterations.", &
                                         "Using the Hotellign iteration."), &
-                          enum_i_vals=(/ls_s_inversion_sign_sqrt, ls_s_inversion_hotelling/))
+                          enum_i_vals=[ls_s_inversion_sign_sqrt, ls_s_inversion_hotelling])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -389,7 +389,7 @@ CONTAINS
                           description="The stride (X,Y,Z) used to write the cube file "// &
                           "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
                           " 1 number valid for all components.", &
-                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=[2, 2, 2], type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
@@ -426,7 +426,7 @@ CONTAINS
       CALL section_create(section, __LOCATION__, name="CURVY_STEPS", &
                           description="Specifies the parameters of the linear scaling SCF routines", &
                           n_keywords=24, n_subsections=3, repeats=.FALSE., &
-                          citations=(/Shao2003/))
+                          citations=[Shao2003])
 
       NULLIFY (keyword)
 
@@ -437,7 +437,7 @@ CONTAINS
                           enum_desc=s2a("Performs a three point line search", &
                                         "Only for spin unrestricted calcualtions. Separate step sizes for alpha and beta spin"// &
                                         " using a fit to a 2D parabolic function"), &
-                          enum_i_vals=(/ls_scf_line_search_3point, ls_scf_line_search_3point_2d/))
+                          enum_i_vals=[ls_scf_line_search_3point, ls_scf_line_search_3point_2d])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -500,7 +500,7 @@ CONTAINS
                           "and PEXSI is applicable to insulating and metallic systems. The value of EPS_PGF_ORB "// &
                           "(in QS input section) defines the sparsity of the matrices sent to PEXSI and EPS_FILTER "// &
                           "is overwritten with 0.", &
-                          n_keywords=17, repeats=.FALSE., citations=(/Lin2009, Lin2013/))
+                          n_keywords=17, repeats=.FALSE., citations=[Lin2009, Lin2013])
       NULLIFY (keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="TEMPERATURE", &
@@ -594,7 +594,7 @@ CONTAINS
                           enum_desc=s2a("Parallel ordering using ParMETIS/PT-SCOTCH (PARMETIS option in SuperLU_DIST)", &
                                         "Sequential ordering using METIS (METIS_AT_PLUS_A option in SuperLU_DIST)", &
                                         "Multiple minimum degree ordering (MMD_AT_PLUS_A option in SuperLU_DIST)"), &
-                          enum_i_vals=(/0, 1, 2/), default_i_val=0)
+                          enum_i_vals=[0, 1, 2], default_i_val=0)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -603,7 +603,7 @@ CONTAINS
                           enum_c_vals=s2a("NOROWPERM", "LARGEDIAG"), &
                           enum_desc=s2a("No row permutation (NOROWPERM option in SuperLU_DIST)", &
                                         "Make diagonal entry larger than off diagonal (LargeDiag option in SuperLU_DIST)"), &
-                          enum_i_vals=(/0, 1/), default_i_val=0)
+                          enum_i_vals=[0, 1], default_i_val=0)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -619,7 +619,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="VERBOSITY", &
                           description="The level of output information.", &
                           enum_c_vals=s2a("SILENT", "BASIC", "DETAILED"), &
-                          enum_i_vals=(/0, 1, 2/), default_i_val=1)
+                          enum_i_vals=[0, 1, 2], default_i_val=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

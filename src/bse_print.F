@@ -673,7 +673,7 @@ CONTAINS
                'n', 'r = x/y/z', 'd_eh^r [Å]', 'σ_e^r [Å]', 'σ_h^r [Å]', 'd_exc^r [Å]'
             DO i_exc = 1, num_print_exc_descr
                DO i_dir = 1, 3
-                  array_direction_str = (/"x", "y", "z"/)
+                  array_direction_str = ["x", "y", "z"]
                   WRITE (unit_nr, '(T2,A4,T9,I4,10X,A1,1X,4(4X,F10.4))') &
                      prefix_output, i_exc, array_direction_str(i_dir), &
                      exc_descr(i_exc)%d_eh_dir(i_dir)*angstrom, &

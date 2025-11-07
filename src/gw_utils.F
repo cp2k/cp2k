@@ -2007,7 +2007,7 @@ CONTAINS
          DO j_cell_y = -n_max(2), n_max(2)
             DO k_cell_z = -n_max(3), n_max(3)
 
-               cell_index(1:3) = (/i_cell_x, j_cell_y, k_cell_z/)
+               cell_index(1:3) = [i_cell_x, j_cell_y, k_cell_z]
 
                CALL get_cell_dist(cell_index, bs_env%hmat, cell_dist)
 
@@ -2034,7 +2034,7 @@ CONTAINS
          DO j_cell_y = -n_max(2), n_max(2)
             DO k_cell_z = -n_max(3), n_max(3)
 
-               cell_index(1:3) = (/i_cell_x, j_cell_y, k_cell_z/)
+               cell_index(1:3) = [i_cell_x, j_cell_y, k_cell_z]
 
                CALL get_cell_dist(cell_index, bs_env%hmat, cell_dist)
 
@@ -2409,7 +2409,7 @@ CONTAINS
             DO k_cell_z = -cixd(3), cixd(3)
                img = img + 1
                kpoints%cell_to_index(i_cell_x, j_cell_y, k_cell_z) = img
-               kpoints%index_to_cell(img, 1:3) = (/i_cell_x, j_cell_y, k_cell_z/)
+               kpoints%index_to_cell(img, 1:3) = [i_cell_x, j_cell_y, k_cell_z]
             END DO
          END DO
       END DO

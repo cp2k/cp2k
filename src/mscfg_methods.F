@@ -258,7 +258,7 @@ CONTAINS
          last_atom = last_atom_of_frag(ifrag)
          isize = last_atom - first_atom + 1
          ALLOCATE (atom_index(isize))
-         atom_index(1:isize) = (/(i, i=first_atom, last_atom)/)
+         atom_index(1:isize) = [(i, i=first_atom, last_atom)]
          !
          ! Get atom type names
          !

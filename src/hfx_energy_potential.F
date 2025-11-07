@@ -543,7 +543,7 @@ CONTAINS
             sgfb = first_sgfb(1, jset)
             ! if the primitives are assumed to be all of max_val2, max_val2*p2s_b becomes
             ! the maximum value after multiplication with sphi_b
-            max_contraction(jset, jatom) = MAXVAL((/(SUM(ABS(sphi_b(1:ncob, i))), i=sgfb, sgfb + nsgfb(jset) - 1)/))
+            max_contraction(jset, jatom) = MAXVAL([(SUM(ABS(sphi_b(1:ncob, i))), i=sgfb, sgfb + nsgfb(jset) - 1)])
             max_pgf = MAX(max_pgf, npgfb(jset))
          END DO
       END DO
@@ -1983,8 +1983,8 @@ CONTAINS
 
       !! Print some memeory information if this is the first step
       IF (my_geo_change) THEN
-         tmp_i8(1:8) = (/shm_storage_counter_integrals, shm_neris_onthefly, shm_neris_incore, shm_neris_disk, &
-                         shm_neris_total, shm_stor_count_int_disk, shm_nprim_ints, shm_stor_count_max_val/)
+         tmp_i8(1:8) = [shm_storage_counter_integrals, shm_neris_onthefly, shm_neris_incore, shm_neris_disk, &
+                        shm_neris_total, shm_stor_count_int_disk, shm_nprim_ints, shm_stor_count_max_val]
          CALL para_env%sum(tmp_i8)
          shm_storage_counter_integrals = tmp_i8(1)
          shm_neris_onthefly = tmp_i8(2)

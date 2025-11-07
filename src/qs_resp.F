@@ -642,7 +642,7 @@ CONTAINS
          END IF
 
          CALL get_cell(cell=cell, h=hmat)
-         resp_env%box_hi = (/hmat(1, 1), hmat(2, 2), hmat(3, 3)/)
+         resp_env%box_hi = [hmat(1, 1), hmat(2, 2), hmat(3, 3)]
          resp_env%box_low = 0.0_dp
          CALL section_vals_val_get(sphere_section, "X_HI", explicit=explicit)
          IF (explicit) CALL section_vals_val_get(sphere_section, "X_HI", &

@@ -2980,18 +2980,18 @@ CONTAINS
                ALLOCATE (fft_scratch_new%fft_scratch%rbuf3(mx2*mz3*mcy3, 0:DIM(1) - 1))
                ALLOCATE (fft_scratch_new%fft_scratch%rbuf4(mx2*mz2*mcy3, 0:DIM(1) - 1))
 
-               dims = (/.TRUE., .FALSE./)
+               dims = [.TRUE., .FALSE.]
                CALL fft_scratch_new%fft_scratch%cart_sub_comm(1)%from_sub(fft_sizes%rs_group, dims)
-               dims = (/.FALSE., .TRUE./)
+               dims = [.FALSE., .TRUE.]
                CALL fft_scratch_new%fft_scratch%cart_sub_comm(2)%from_sub(fft_sizes%rs_group, dims)
 
                !initialise pgcube
                DO i = 0, DIM(1) - 1
-                  coord = (/i, pos(2)/)
+                  coord = [i, pos(2)]
                   CALL fft_sizes%rs_group%rank_cart(coord, fft_scratch_new%fft_scratch%pgcube(i, 1))
                END DO
                DO i = 0, DIM(2) - 1
-                  coord = (/pos(1), i/)
+                  coord = [pos(1), i]
                   CALL fft_sizes%rs_group%rank_cart(coord, fft_scratch_new%fft_scratch%pgcube(i, 2))
                END DO
 
@@ -3064,11 +3064,11 @@ CONTAINS
                length = INT(2*dp_size*MAX(mmax, 1)*MAX(lmax, 1), KIND=C_SIZE_T)
                ierr = offload_malloc_pinned_mem(cptr_r1buf, length)
                CPASSERT(ierr == 0)
-               CALL c_f_pointer(cptr_r1buf, fft_scratch_new%fft_scratch%r1buf, (/MAX(mmax, 1), MAX(lmax, 1)/))
+               CALL c_f_pointer(cptr_r1buf, fft_scratch_new%fft_scratch%r1buf, [MAX(mmax, 1), MAX(lmax, 1)])
                length = INT(2*dp_size*MAX(ny, 1)*MAX(nz, 1)*MAX(nx, 1), KIND=C_SIZE_T)
                ierr = offload_malloc_pinned_mem(cptr_tbuf, length)
                CPASSERT(ierr == 0)
-               CALL c_f_pointer(cptr_tbuf, fft_scratch_new%fft_scratch%tbuf, (/MAX(ny, 1), MAX(nz, 1), MAX(nx, 1)/))
+               CALL c_f_pointer(cptr_tbuf, fft_scratch_new%fft_scratch%tbuf, [MAX(ny, 1), MAX(nz, 1), MAX(nx, 1)])
 #else
                CALL fft_alloc(fft_scratch_new%fft_scratch%r1buf, [mmax, lmax])
                CALL fft_alloc(fft_scratch_new%fft_scratch%tbuf, [ny, nz, nx])
@@ -3119,23 +3119,23 @@ CONTAINS
                length = INT(2*dp_size*MAX(n(3), 1)*MAX(mx1*my1, 1), KIND=C_SIZE_T)
                ierr = offload_malloc_pinned_mem(cptr_p2buf, length)
                CPASSERT(ierr == 0)
-               CALL c_f_pointer(cptr_p2buf, fft_scratch_new%fft_scratch%p2buf, (/MAX(n(3), 1), MAX(mx1*my1, 1)/))
+               CALL c_f_pointer(cptr_p2buf, fft_scratch_new%fft_scratch%p2buf, [MAX(n(3), 1), MAX(mx1*my1, 1)])
                length = INT(2*dp_size*MAX(mx2*mz2, 1)*MAX(n(2), 1), KIND=C_SIZE_T)
                ierr = offload_malloc_pinned_mem(cptr_p3buf, length)
                CPASSERT(ierr == 0)
-               CALL c_f_pointer(cptr_p3buf, fft_scratch_new%fft_scratch%p3buf, (/MAX(mx2*mz2, 1), MAX(n(2), 1)/))
+               CALL c_f_pointer(cptr_p3buf, fft_scratch_new%fft_scratch%p3buf, [MAX(mx2*mz2, 1), MAX(n(2), 1)])
                length = INT(2*dp_size*MAX(n(2), 1)*MAX(mx2*mz2, 1), KIND=C_SIZE_T)
                ierr = offload_malloc_pinned_mem(cptr_p4buf, length)
                CPASSERT(ierr == 0)
-               CALL c_f_pointer(cptr_p4buf, fft_scratch_new%fft_scratch%p4buf, (/MAX(n(2), 1), MAX(mx2*mz2, 1)/))
+               CALL c_f_pointer(cptr_p4buf, fft_scratch_new%fft_scratch%p4buf, [MAX(n(2), 1), MAX(mx2*mz2, 1)])
                length = INT(2*dp_size*MAX(nyzray, 1)*MAX(n(1), 1), KIND=C_SIZE_T)
                ierr = offload_malloc_pinned_mem(cptr_p5buf, length)
                CPASSERT(ierr == 0)
-               CALL c_f_pointer(cptr_p5buf, fft_scratch_new%fft_scratch%p5buf, (/MAX(nyzray, 1), MAX(n(1), 1)/))
+               CALL c_f_pointer(cptr_p5buf, fft_scratch_new%fft_scratch%p5buf, [MAX(nyzray, 1), MAX(n(1), 1)])
                length = INT(2*dp_size*MAX(mg, 1)*MAX(lg, 1), KIND=C_SIZE_T)
                ierr = offload_malloc_pinned_mem(cptr_p7buf, length)
                CPASSERT(ierr == 0)
-               CALL c_f_pointer(cptr_p7buf, fft_scratch_new%fft_scratch%p7buf, (/MAX(mg, 1), MAX(lg, 1)/))
+               CALL c_f_pointer(cptr_p7buf, fft_scratch_new%fft_scratch%p7buf, [MAX(mg, 1), MAX(lg, 1)])
 #else
                CALL fft_alloc(fft_scratch_new%fft_scratch%p2buf, [n(3), mx1*my1])
                CALL fft_alloc(fft_scratch_new%fft_scratch%p3buf, [mx2*mz2, n(2)])
@@ -3170,19 +3170,19 @@ CONTAINS
                ALLOCATE (fft_scratch_new%fft_scratch%rbuf1(mx2*my1*mcz2, 0:DIM(2) - 1))
                ALLOCATE (fft_scratch_new%fft_scratch%rbuf2(mx1*my1*mcz2, 0:DIM(2) - 1))
 
-               dims = (/.FALSE., .TRUE./)
+               dims = [.FALSE., .TRUE.]
                CALL fft_scratch_new%fft_scratch%cart_sub_comm(2)%from_sub(fft_sizes%rs_group, dims)
 
                !initialise pgcube
                DO i = 0, DIM(2) - 1
-                  coord = (/pos(1), i/)
+                  coord = [pos(1), i]
                   CALL fft_sizes%rs_group%rank_cart(coord, fft_scratch_new%fft_scratch%pgcube(i, 2))
                END DO
 
                !initialise pgrid
                DO ix = 0, m1 - 1
                   DO iz = 0, m2 - 1
-                     coord = (/ix, iz/)
+                     coord = [ix, iz]
                      CALL fft_sizes%rs_group%rank_cart(coord, fft_scratch_new%fft_scratch%pgrid(ix, iz))
                   END DO
                END DO

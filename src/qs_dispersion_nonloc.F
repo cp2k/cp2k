@@ -173,7 +173,7 @@ CONTAINS
       TYPE(virial_type), OPTIONAL, POINTER               :: virial
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_dispersion_nonloc'
-      INTEGER, DIMENSION(3, 3), PARAMETER :: nd = RESHAPE((/1, 0, 0, 0, 1, 0, 0, 0, 1/), (/3, 3/))
+      INTEGER, DIMENSION(3, 3), PARAMETER :: nd = RESHAPE([1, 0, 0, 0, 1, 0, 0, 0, 1], [3, 3])
 
       INTEGER                                            :: handle, i, i_grid, idir, ispin, nl_type, &
                                                             np, nspin, p, q, r, s

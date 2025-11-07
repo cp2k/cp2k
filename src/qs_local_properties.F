@@ -340,9 +340,9 @@ CONTAINS
          CALL auxbas_pw_pool%create_pw(efield(i))
          CALL pw_copy(v_hartree_gspace, efield(i))
       END DO
-      CALL pw_derive(efield(1), (/1, 0, 0/))
-      CALL pw_derive(efield(2), (/0, 1, 0/))
-      CALL pw_derive(efield(3), (/0, 0, 1/))
+      CALL pw_derive(efield(1), [1, 0, 0])
+      CALL pw_derive(efield(2), [0, 1, 0])
+      CALL pw_derive(efield(3), [0, 0, 1])
       CALL auxbas_pw_pool%give_back_pw(v_hartree_gspace)
       DO i = 1, 3
          CALL auxbas_pw_pool%give_back_pw(efield(i))

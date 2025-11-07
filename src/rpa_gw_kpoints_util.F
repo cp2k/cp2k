@@ -1441,7 +1441,7 @@ CONTAINS
                qs_env%mp2_env%ri_rpa_im_time%kpoints_Sigma_no_xc, &
                para_env)
 
-      nkp_grid_G(1:3) = (/1, 1, 1/)
+      nkp_grid_G(1:3) = [1, 1, 1]
 
       CALL get_qs_env(qs_env=qs_env, para_env=para_env)
 

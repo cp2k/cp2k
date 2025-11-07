@@ -273,7 +273,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="MOLNAME", &
-                          variants=(/"SEGNAME"/), &
+                          variants=["SEGNAME"], &
                           description="Specifies the name of the molecule on which the constraint will be applied.", &
                           usage="MOLNAME {character}", n_var=1, type_of_var=char_t)
       CALL section_add_keyword(section, keyword)
@@ -352,9 +352,9 @@ CONTAINS
                           usage="COMPONENTS_TO_FIX (x|y|z|xy|xz|yz|xyz)", &
                           default_i_val=use_perd_xyz, &
                           enum_c_vals=s2a("x", "y", "z", "xy", "xz", "yz", "xyz"), &
-                          enum_i_vals=(/use_perd_x, use_perd_y, use_perd_z, &
-                                        use_perd_xy, use_perd_xz, use_perd_yz, &
-                                        use_perd_xyz/), &
+                          enum_i_vals=[use_perd_x, use_perd_y, use_perd_z, &
+                                       use_perd_xy, use_perd_xz, use_perd_yz, &
+                                       use_perd_xyz], &
                           enum_desc=s2a("Fix only X component", &
                                         "Fix only Y component", &
                                         "Fix only Z component", &
@@ -375,7 +375,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="MOLNAME", &
-                          variants=(/"SEGNAME"/), &
+                          variants=["SEGNAME"], &
                           description="Specifies the name of the molecule to fix", &
                           usage="MOLNAME WAT MEOH", repeats=.TRUE., &
                           n_var=-1, type_of_var=char_t)
@@ -384,11 +384,11 @@ CONTAINS
 
       CALL keyword_create( &
          keyword, __LOCATION__, name="MM_SUBSYS", &
-         variants=(/"PROTEIN"/), &
+         variants=["PROTEIN"], &
          description="In a QM/MM run all  MM atoms are fixed according to the argument.", &
          usage="MM_SUBSYS (NONE|ATOMIC|MOLECULAR)", &
          enum_c_vals=s2a("NONE", "ATOMIC", "MOLECULAR"), &
-         enum_i_vals=(/do_constr_none, do_constr_atomic, do_constr_molec/), &
+         enum_i_vals=[do_constr_none, do_constr_atomic, do_constr_molec], &
          enum_desc=s2a("fix nothing", &
                        "only the MM atoms itself", &
                        "the full molecule/residue that contains a MM atom (i.e. some QM atoms might be fixed as well)"), &
@@ -404,7 +404,7 @@ CONTAINS
          enum_desc=s2a("fix nothing", &
                        "only the QM atoms itself", &
                        "the full molecule/residue that contains a QM atom (i.e. some MM atoms might be fixed as well)"), &
-         enum_i_vals=(/do_constr_none, do_constr_atomic, do_constr_molec/), &
+         enum_i_vals=[do_constr_none, do_constr_atomic, do_constr_molec], &
          default_i_val=do_constr_none, repeats=.FALSE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -446,7 +446,7 @@ CONTAINS
 
       ! Integer
       CALL keyword_create(keyword, __LOCATION__, name="MOLECULE", &
-                          variants=(/"MOL"/), &
+                          variants=["MOL"], &
                           description="Specifies the molecule kind number on which constraint will be applied."// &
                           " MOLECULE and MOLNAME keyword exclude themself mutually.", &
                           usage="MOL {integer}", n_var=1, type_of_var=integer_t)
@@ -454,7 +454,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="MOLNAME", &
-                          variants=(/"SEGNAME"/), &
+                          variants=["SEGNAME"], &
                           description="Specifies the name of the molecule on which the constraint will be applied.", &
                           usage="MOLNAME {character}", n_var=1, type_of_var=char_t)
       CALL section_add_keyword(section, keyword)
@@ -533,7 +533,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="MOLNAME", &
-                          variants=(/"SEGNAME"/), &
+                          variants=["SEGNAME"], &
                           description="Specifies the names of the molecule on which the constraint will be applied.", &
                           usage="MOLNAME {character} .. {character} ", n_var=-1, &
                           type_of_var=char_t)
@@ -583,7 +583,7 @@ CONTAINS
 
       ! Integer
       CALL keyword_create(keyword, __LOCATION__, name="MOLECULE", &
-                          variants=(/"MOL"/), &
+                          variants=["MOL"], &
                           description="Specifies the molecule number on which constraint will be applied."// &
                           " MOLECULE and MOLNAME keyword exclude themself mutually.", &
                           usage="MOL {integer}", n_var=1, type_of_var=integer_t)
@@ -591,7 +591,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="MOLNAME", &
-                          variants=(/"SEGNAME"/), &
+                          variants=["SEGNAME"], &
                           description="Specifies the name of the molecule on which the constraint will be applied.", &
                           usage="MOLNAME {character}", n_var=1, type_of_var=char_t)
       CALL section_add_keyword(section, keyword)
@@ -654,7 +654,7 @@ CONTAINS
 
       ! Integer
       CALL keyword_create(keyword, __LOCATION__, name="MOLECULE", &
-                          variants=(/"MOL"/), &
+                          variants=["MOL"], &
                           description="Specifies the molecule number on which constraint will be applied."// &
                           " MOLECULE and MOLNAME keyword exclude themself mutually.", &
                           usage="MOL {integer}", n_var=1, type_of_var=integer_t)
@@ -662,7 +662,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="MOLNAME", &
-                          variants=(/"SEGNAME"/), &
+                          variants=["SEGNAME"], &
                           description="Specifies the name of the molecule on which the constraint will be applied.", &
                           usage="MOLNAME {character}", n_var=1, type_of_var=char_t)
       CALL section_add_keyword(section, keyword)

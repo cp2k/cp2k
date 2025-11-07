@@ -1151,12 +1151,12 @@ CONTAINS
 ! parameter set 1: Perdew-Wang
 ! parameter set 2: Lembarki-Chermette
 
-      pa(1:6, 1) = (/0.19645_dp, 0.2743_dp, &
-                     0.1508_dp, 100.0_dp, &
-                     7.7956_dp, 0.004_dp/)
-      pa(1:6, 2) = (/0.093907_dp, 0.26608_dp, &
-                     0.0809615_dp, 100.0_dp, &
-                     76.320_dp, 0.57767e-4_dp/)
+      pa(1:6, 1) = [0.19645_dp, 0.2743_dp, &
+                    0.1508_dp, 100.0_dp, &
+                    7.7956_dp, 0.004_dp]
+      pa(1:6, 2) = [0.093907_dp, 0.26608_dp, &
+                    0.0809615_dp, 100.0_dp, &
+                    76.320_dp, 0.57767e-4_dp]
       o = 1.0_dp
       ff = 1.0_dp
       IF (PRESENT(f2_lsd)) ff = f2_lsd

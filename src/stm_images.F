@@ -266,7 +266,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: append_cube
 
       CHARACTER(LEN=*), DIMENSION(0:9), PARAMETER :: &
-         torb_string = (/"  s", " px", " py", " pz", "dxy", "dyz", "dzx", "dx2", "dy2", "dz2"/)
+         torb_string = ["  s", " px", " py", " pz", "dxy", "dyz", "dzx", "dx2", "dy2", "dz2"]
       CHARACTER(len=*), PARAMETER                        :: routineN = 'stm_cubes'
 
       CHARACTER(LEN=default_path_length)                 :: filename

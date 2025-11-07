@@ -63,11 +63,11 @@ MODULE qs_vcd
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_vcd'
 
-   REAL(dp), DIMENSION(3, 3, 3), PARAMETER  :: Levi_Civita = RESHAPE((/ &
+   REAL(dp), DIMENSION(3, 3, 3), PARAMETER  :: Levi_Civita = RESHAPE([ &
                                                           0.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, -1.0_dp, 0.0_dp, 1.0_dp, 0.0_dp, &
                                                           0.0_dp, 0.0_dp, 1.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, -1.0_dp, 0.0_dp, 0.0_dp, &
-                                                        0.0_dp, -1.0_dp, 0.0_dp, 1.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, 0.0_dp/), &
-                                                                     (/3, 3, 3/))
+                                                         0.0_dp, -1.0_dp, 0.0_dp, 1.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, 0.0_dp, 0.0_dp], &
+                                                                     [3, 3, 3])
    INTEGER, DIMENSION(3, 3), PARAMETER :: multipole_2d_to_1d = RESHAPE([4, 5, 6, 5, 7, 8, 6, 8, 9], [3, 3])
 CONTAINS
 

@@ -197,8 +197,8 @@ CONTAINS
          END IF
 
          !MG to check: Reshaping correct?
-         AZ_reshaped(:, :) = RESHAPE(AZ, (/homo*virtual, num_Z_vectors/))
-         Z_vectors_reshaped(:, :) = RESHAPE(Z_vectors, (/homo*virtual, num_Z_vectors/))
+         AZ_reshaped(:, :) = RESHAPE(AZ, [homo*virtual, num_Z_vectors])
+         Z_vectors_reshaped(:, :) = RESHAPE(Z_vectors, [homo*virtual, num_Z_vectors])
 
          ! Diagonalize M and extract smallest eigenvalues/corresponding eigenvector
          CALL compute_diagonalize_ZAZ(AZ_reshaped, Z_vectors_reshaped, num_Z_vectors, Subspace_new_eigenval, &
@@ -754,7 +754,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ALLOCATE (W_vectors_reshaped(homo*virtual, num_Z_vectors))
-      W_vectors_reshaped(:, :) = RESHAPE(W_vectors, (/homo*virtual, num_Z_vectors/))
+      W_vectors_reshaped(:, :) = RESHAPE(W_vectors, [homo*virtual, num_Z_vectors])
 
       ALLOCATE (Tau_W(MIN(homo*virtual, num_Z_vectors)))
       Tau_W = 0.0_dp
@@ -786,7 +786,7 @@ CONTAINS
          CPABORT("QR Decomp Step 2 doesnt work")
       END IF
 
-      W_vectors(:, :, :) = RESHAPE(W_vectors_reshaped, (/homo, virtual, num_Z_vectors/))
+      W_vectors(:, :, :) = RESHAPE(W_vectors_reshaped, [homo, virtual, num_Z_vectors])
 
       DEALLOCATE (WORK_W, WORK_W_dor, Tau_W, W_vectors_reshaped)
 
@@ -841,7 +841,7 @@ CONTAINS
          END DO
       END DO
 
-      Subspace_add_dir(:, :, :) = RESHAPE(Subspace_add_dir_reshaped, (/homo, virtual, num_new_t/))
+      Subspace_add_dir(:, :, :) = RESHAPE(Subspace_add_dir_reshaped, [homo, virtual, num_new_t])
 
       DEALLOCATE (Subspace_add_dir_reshaped)
       CALL timestop(handle)
@@ -897,7 +897,7 @@ CONTAINS
                                                        - Subspace_res_A(:, mu_subspace)
 
       END DO
-      Subspace_ritzvec(:, :, :) = RESHAPE(Subspace_res_ev, (/homo, virtual, num_new_t/))
+      Subspace_ritzvec(:, :, :) = RESHAPE(Subspace_res_ev, [homo, virtual, num_new_t])
       DEALLOCATE (Subspace_res_ev, Subspace_res_A)
 
       CALL timestop(handle)

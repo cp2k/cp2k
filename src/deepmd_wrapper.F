@@ -85,7 +85,7 @@ CONTAINS
       ! Check for errors.
       error_c_ptr = DeepPotCheckOK(model%c_ptr)
       CPASSERT(C_ASSOCIATED(error_c_ptr))
-      CALL C_F_POINTER(error_c_ptr, error_f_ptr, shape=(/default_string_length/))
+      CALL C_F_POINTER(error_c_ptr, error_f_ptr, shape=[default_string_length])
       error_str = ""
       DO i = 1, default_string_length
          IF (error_f_ptr(i) == C_NULL_CHAR) EXIT

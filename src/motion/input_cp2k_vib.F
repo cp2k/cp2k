@@ -95,7 +95,7 @@ CONTAINS
                                           "BLOCKED"), &
                           enum_desc=s2a("Interleaved distribution", &
                                         "Blocked distribution"), &
-                          enum_i_vals=(/do_rep_interleaved, do_rep_blocked/), &
+                          enum_i_vals=[do_rep_interleaved, do_rep_blocked], &
                           default_i_val=do_rep_blocked)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -310,7 +310,7 @@ CONTAINS
                        "use a vector from MS_RESTART, useful if you want to increase accurcy by changing functionals or basis", &
                        "use the .mol file of a former run, to restart a vector"// &
                        " (similar to Restart_vec, but a different file FORMAT is used)"), &
-         enum_i_vals=(/ms_guess_bfgs, ms_guess_atomic, ms_guess_restart, ms_guess_restart_vec, ms_guess_molden/))
+         enum_i_vals=[ms_guess_bfgs, ms_guess_atomic, ms_guess_restart, ms_guess_restart_vec, ms_guess_molden])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

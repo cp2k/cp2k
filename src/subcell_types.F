@@ -90,14 +90,14 @@ CONTAINS
                subcell(i, j, k)%s_max(3) = c_max
                subcell(i, j, k)%natom = 0
                IF (PRESENT(cell)) THEN
-                  CALL scaled_to_real(subcell(i, j, k)%corners(:, 1), (/a_min, b_min, c_min/), cell)
-                  CALL scaled_to_real(subcell(i, j, k)%corners(:, 2), (/a_max, b_min, c_min/), cell)
-                  CALL scaled_to_real(subcell(i, j, k)%corners(:, 3), (/a_min, b_max, c_min/), cell)
-                  CALL scaled_to_real(subcell(i, j, k)%corners(:, 4), (/a_max, b_max, c_min/), cell)
-                  CALL scaled_to_real(subcell(i, j, k)%corners(:, 5), (/a_min, b_min, c_max/), cell)
-                  CALL scaled_to_real(subcell(i, j, k)%corners(:, 6), (/a_max, b_min, c_max/), cell)
-                  CALL scaled_to_real(subcell(i, j, k)%corners(:, 7), (/a_min, b_max, c_max/), cell)
-                  CALL scaled_to_real(subcell(i, j, k)%corners(:, 8), (/a_max, b_max, c_max/), cell)
+                  CALL scaled_to_real(subcell(i, j, k)%corners(:, 1), [a_min, b_min, c_min], cell)
+                  CALL scaled_to_real(subcell(i, j, k)%corners(:, 2), [a_max, b_min, c_min], cell)
+                  CALL scaled_to_real(subcell(i, j, k)%corners(:, 3), [a_min, b_max, c_min], cell)
+                  CALL scaled_to_real(subcell(i, j, k)%corners(:, 4), [a_max, b_max, c_min], cell)
+                  CALL scaled_to_real(subcell(i, j, k)%corners(:, 5), [a_min, b_min, c_max], cell)
+                  CALL scaled_to_real(subcell(i, j, k)%corners(:, 6), [a_max, b_min, c_max], cell)
+                  CALL scaled_to_real(subcell(i, j, k)%corners(:, 7), [a_min, b_max, c_max], cell)
+                  CALL scaled_to_real(subcell(i, j, k)%corners(:, 8), [a_max, b_max, c_max], cell)
                END IF
                IF (PRESENT(maxatom)) THEN
                   ALLOCATE (subcell(i, j, k)%atom_list(maxatom))

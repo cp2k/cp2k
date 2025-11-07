@@ -91,8 +91,8 @@ CONTAINS
                        "Defines a user-driven generica coupling (support for an unlimited number of force_eval)", &
                        "Consider each force env as a CDFT state (supports an unlimited number of force_eval "// &
                        "for calculation of CDFT properties, but only two states can be mixed for forces)."), &
-         enum_i_vals=(/mix_linear_combination, mix_minimum, mix_coupled, mix_restrained, mix_generic, &
-                       mix_cdft/))
+         enum_i_vals=[mix_linear_combination, mix_minimum, mix_coupled, mix_restrained, mix_generic, &
+                      mix_cdft])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -105,7 +105,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="NGROUPS", variants=(/"NGROUP"/), &
+      CALL keyword_create(keyword, __LOCATION__, name="NGROUPS", variants=["NGROUP"], &
                           description="Gives the wanted number of groups. If not specified the number"// &
                           " of groups is set to the number of subforce_eval defined.", &
                           usage="ngroups 4", type_of_var=integer_t)
@@ -136,7 +136,7 @@ CONTAINS
                           "During MD, the system can be translated using only two of the CDFT states, "// &
                           "which are selected with the keyword FORCE_STATES. The forces are determined "// &
                           "by the linear combination F= lambda F1 + (1-lambda) F2.", &
-                          n_keywords=11, n_subsections=2, repeats=.FALSE., citations=(/Holmberg2017, Holmberg2018/))
+                          n_keywords=11, n_subsections=2, repeats=.FALSE., citations=[Holmberg2017, Holmberg2018])
 
       CALL keyword_create(keyword, __LOCATION__, name="LAMBDA", &
                           description="Specify the mixing parameter lambda in the formula.", &
@@ -147,7 +147,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="FORCE_STATES", &
                           description="Defines the CDFT states used to translate the system. ", &
                           usage="FORCE_STATES 1 1", n_var=2, &
-                          default_i_vals=(/1, 2/), type_of_var=integer_t)
+                          default_i_vals=[1, 2], type_of_var=integer_t)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
@@ -185,12 +185,12 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="METRIC", variants=(/"COUPLING_METRIC"/), &
+      CALL keyword_create(keyword, __LOCATION__, name="METRIC", variants=["COUPLING_METRIC"], &
                           description="Compute reliability metric for the CDFT electronic coupling element by "// &
                           "diagonalizing the difference density matrix.", &
                           usage="METRIC", type_of_var=logical_t, &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE., &
-                          citations=(/Mavros2015/))
+                          citations=[Mavros2015])
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
@@ -202,7 +202,7 @@ CONTAINS
                           "the coupling is computed pairwise for every state pair (contrary to other coupling methods).", &
                           usage="WFN_OVERLAP", type_of_var=logical_t, &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE., &
-                          citations=(/Migliore2009/))
+                          citations=[Migliore2009])
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
@@ -216,7 +216,7 @@ CONTAINS
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="CI", variants=(/"CONFIGURATION_INTERACTION"/), &
+      CALL keyword_create(keyword, __LOCATION__, name="CI", variants=["CONFIGURATION_INTERACTION"], &
                           description="Perform a CDFT configuration interaction calculation (CDFT-CI). "// &
                           "The CI vector is expanded in the basis of the CDFT states. Diagonalizes the "// &
                           "nonorthogonal diabatic CDFT Hamiltonian. The energies and expansion coefficients "// &
@@ -228,7 +228,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="NONORTHOGONAL_COUPLING", &
-                          variants=(/"NONORTHO_COUPLING"/), &
+                          variants=["NONORTHO_COUPLING"], &
                           description="Print out the nonorthogonal diabatic CDFT coupling between states, "// &
                           "as it appears in the mixed CDFT Hamiltonian before orthogonalization (coupling "// &
                           "calculations) and CDFT-CI. Useful for (re)constructing the Hamiltonian for additional "// &

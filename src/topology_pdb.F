@@ -309,7 +309,7 @@ CONTAINS
       CALL section_vals_val_get(print_key, "CHARGE_OCCUP", l_val=charge_occup)
       CALL section_vals_val_get(print_key, "CHARGE_BETA", l_val=charge_beta)
       CALL section_vals_val_get(print_key, "CHARGE_EXTENDED", l_val=charge_extended)
-      i = COUNT((/charge_occup, charge_beta, charge_extended/))
+      i = COUNT([charge_occup, charge_beta, charge_extended])
       IF (i > 1) &
          CPABORT("Either only CHARGE_OCCUP, CHARGE_BETA, or CHARGE_EXTENDED can be selected")
 
@@ -370,7 +370,7 @@ CONTAINS
             WRITE (UNIT=line(61:66), FMT="(F6.2)") 0.0_dp
          END IF
          IF (ASSOCIATED(atom_info%atm_charge)) THEN
-            IF (ANY((/charge_occup, charge_beta, charge_extended/)) .AND. &
+            IF (ANY([charge_occup, charge_beta, charge_extended]) .AND. &
                 (atom_info%atm_charge(i) == -HUGE(0.0_dp))) &
                CPABORT("No atomic charges found yet (after the topology setup)")
             IF (charge_occup) THEN

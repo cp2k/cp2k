@@ -327,7 +327,7 @@ CONTAINS
       CALL section_vals_val_get(ext_pot_section, "DX", r_val=dx)
       CALL section_vals_val_get(ext_pot_section, "ERROR_LIMIT", r_val=lerr)
       CALL get_generic_info(ext_pot_section, "FUNCTION", coupling_function, my_par, my_val, &
-                            input_variables=(/"X", "Y", "Z"/), i_rep_sec=1)
+                            input_variables=["X", "Y", "Z"], i_rep_sec=1)
       CALL initf(1)
       CALL parsef(1, TRIM(coupling_function), my_par)
 

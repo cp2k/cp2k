@@ -46,7 +46,7 @@ CONTAINS
                           description="Controls the calculation of atomic properties. "// &
                           "Printing is controlled by FORCE_EVAL / PRINT / PROGRAM_RUN_INFO", &
                           repeats=.FALSE., &
-                          citations=(/Kikuchi2009/))
+                          citations=[Kikuchi2009])
 
       NULLIFY (keyword)
 

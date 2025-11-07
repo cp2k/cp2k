@@ -330,7 +330,7 @@ CONTAINS
          END IF
          ALLOCATE (arr(3, natom))
          IF (PRESENT(array)) THEN
-            arr(1:3, 1:natom) = RESHAPE(array, (/3, natom/))
+            arr(1:3, 1:natom) = RESHAPE(array, [3, natom])
          ELSE
             SELECT CASE (TRIM(content))
             CASE ("POS")

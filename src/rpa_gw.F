@@ -6779,9 +6779,9 @@ CONTAINS
          trace_shape(1) = SIZE(block_1, 1)*SIZE(block_1, 2)
          vec_Sigma_prv(n_start:n_end) = &
             vec_Sigma_prv(n_start:n_end) + &
-            (/(DOT_PRODUCT(RESHAPE(block_1(:, :, n), trace_shape), &
-                           RESHAPE(block_2(:, :, n), trace_shape)), &
-               n=n_start_block, n_end_block)/)
+            [(DOT_PRODUCT(RESHAPE(block_1(:, :, n), trace_shape), &
+                          RESHAPE(block_2(:, :, n), trace_shape)), &
+              n=n_start_block, n_end_block)]
          DEALLOCATE (block_1, block_2)
       END DO
       CALL dbt_iterator_stop(iter)

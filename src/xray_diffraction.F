@@ -703,7 +703,7 @@ CONTAINS
                            zetb=zet(jpgf, jset), &
                            lb_min=lmin(jset), &
                            ra=ra, &
-                           rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
+                           rab=[0.0_dp, 0.0_dp, 0.0_dp], &
                            rab2=0.0_dp, &
                            scale=scale, &
                            pab=pab, &

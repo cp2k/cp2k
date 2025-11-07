@@ -116,7 +116,7 @@ CONTAINS
          CPASSERT(N*N == SIZE(block_V_terms, 1))
          ALLOCATE (V_blocks(N, N, nterms))
          CALL linpot_calc_terms(pao, qs_env, iatom, V_blocks)
-         block_V_terms = RESHAPE(V_blocks, (/N*N, nterms/)) ! convert matrices into vectors
+         block_V_terms = RESHAPE(V_blocks, [N*N, nterms]) ! convert matrices into vectors
          DEALLOCATE (V_blocks)
       END DO
       CALL dbcsr_iterator_stop(iter)

@@ -64,13 +64,13 @@ MODULE helium_io
    LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'helium_io'
 
-   CHARACTER(len=*), DIMENSION(6), PARAMETER, PRIVATE :: m_dist_name = (/ &
+   CHARACTER(len=*), DIMENSION(6), PARAMETER, PRIVATE :: m_dist_name = [ &
                                                          "SINGLEV    ", &
                                                          "UNIFORM    ", &
                                                          "LINEAR     ", &
                                                          "QUADRATIC  ", &
                                                          "EXPONENTIAL", &
-                                                         "GAUSSIAN   "/)
+                                                         "GAUSSIAN   "]
 
    PUBLIC :: helium_read_xyz
    PUBLIC :: helium_print_rdf
@@ -1595,7 +1595,7 @@ CONTAINS
          ! regardless of whether we are periodic or not use the origin, since
          ! pure cluster's COM might drift, but we want the cube fixed (note that
          ! the densities are correctly calculated wrt to COM in such case)
-         center(:) = (/0.0_dp, 0.0_dp, 0.0_dp/)
+         center(:) = [0.0_dp, 0.0_dp, 0.0_dp]
       END IF
 
       DO id = 1, rho_num ! loop over densities ---

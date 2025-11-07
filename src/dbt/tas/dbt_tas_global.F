@@ -541,7 +541,7 @@ CONTAINS
          bin_mask = occup == min_occup
          n_avail = COUNT(bin_mask)
          ALLOCATE (bins_avail(n_avail))
-         bins_avail(:) = PACK((/(i, i=1, nbin)/), MASK=bin_mask)
+         bins_avail(:) = PACK([(i, i=1, nbin)], MASK=bin_mask)
 
          CALL dlarnv(1, iseed, 1, rand)
          i_select = FLOOR(rand*n_avail) + 1

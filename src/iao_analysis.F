@@ -1195,7 +1195,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: moments
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'center_spread_loc'
-      INTEGER, DIMENSION(6), PARAMETER                   :: list = (/1, 2, 3, 4, 7, 9/)
+      INTEGER, DIMENSION(6), PARAMETER                   :: list = [1, 2, 3, 4, 7, 9]
 
       INTEGER                                            :: handle, i, iop, iorb, ispin, nao, norb, &
                                                             nspin

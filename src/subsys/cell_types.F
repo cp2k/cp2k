@@ -415,7 +415,7 @@ CONTAINS
       DO icell = -periodic(1), periodic(1)
          DO jcell = -periodic(2), periodic(2)
             DO kcell = -periodic(3), periodic(3)
-               r = REAL((/icell, jcell, kcell/), dp)
+               r = REAL([icell, jcell, kcell], dp)
                CALL scaled_to_real(s2r, r, cell)
                rb_image(:) = rb_pbc(:) + s2r
                rab(:) = rb_image(:) - ra_pbc(:)

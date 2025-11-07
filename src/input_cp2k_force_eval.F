@@ -102,7 +102,7 @@ CONTAINS
                                         "Use a combination of two of the above", &
                                         "Perform an embedded calculation", &
                                         "Recieve forces from i–PI client"), &
-                          enum_i_vals=(/do_qs, do_sirius, do_fist, do_qmmm, do_eip, do_qs, do_nnp, do_mixed, do_embed, do_ipi/), &
+                          enum_i_vals=[do_qs, do_sirius, do_fist, do_qmmm, do_eip, do_qs, do_nnp, do_mixed, do_embed, do_ipi], &
                           default_i_val=do_qs)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -113,8 +113,8 @@ CONTAINS
                           usage="stress_tensor (NONE|ANALYTICAL|NUMERICAL|DIAGONAL_ANA|DIAGONAL_NUM)", &
                           default_i_val=do_stress_none, &
                           enum_c_vals=s2a("NONE", "ANALYTICAL", "NUMERICAL", "DIAGONAL_ANALYTICAL", "DIAGONAL_NUMERICAL"), &
-                          enum_i_vals=(/do_stress_none, do_stress_analytical, do_stress_numerical, &
-                                        do_stress_diagonal_anal, do_stress_diagonal_numer/), &
+                          enum_i_vals=[do_stress_none, do_stress_analytical, do_stress_numerical, &
+                                       do_stress_diagonal_anal, do_stress_diagonal_numer], &
                           enum_desc=s2a("Do not compute stress tensor", &
                                         "Compute the stress tensor analytically (if available).", &
                                         "Compute the stress tensor numerically.", &
@@ -332,7 +332,7 @@ CONTAINS
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, &
                           name="FORCE_UNIT", &
-                          variants=(/"UNIT"/), & ! add old keyword name for backward compatibility
+                          variants=["UNIT"], & ! add old keyword name for backward compatibility
                           description="Specifies the physical unit used for the printing of the forces. "// &
                           "Note that the meaningfulness of the unit is not checked.", &
                           usage="FORCE_UNIT eV/angstrom", &

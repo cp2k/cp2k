@@ -99,7 +99,7 @@ CONTAINS
       REAL(KIND=dp)                                      :: radius
 
       INTEGER, PARAMETER                                 :: itermax = 5000, prec_exp = sp
-      REAL(KIND=dp), PARAMETER                           :: contract(*) = (/0.38, 0.62/), &
+      REAL(KIND=dp), PARAMETER                           :: contract(*) = [0.38, 0.62], &
                                                             mineps = 1.0E-12, next = 2.0, &
                                                             step = 1.0
 
@@ -234,8 +234,8 @@ CONTAINS
             DO lyb = 0, lb_max - lxb
                DO lza = MAX(la_min - lxa - lya, 0), la_max - lxa - lya
                DO lzb = MAX(lb_min - lxb - lyb, 0), lb_max - lxb - lyb
-                  la = (/lxa, lya, lza/)
-                  lb = (/lxb, lyb, lzb/)
+                  la = [lxa, lya, lza]
+                  lb = [lxb, lyb, lzb]
                   ico = coset(lxa, lya, lza)
                   jco = coset(lxb, lyb, lzb)
                   prefactor_local = MAX(ABS(pab(o1 + ico, o2 + jco)), prefactor_local)

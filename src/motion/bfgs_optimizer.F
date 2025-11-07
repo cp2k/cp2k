@@ -1045,13 +1045,13 @@ CONTAINS
       CALL cp_subsys_get(subsys, &
                          particles=particles)
 
-      alpha(1, :) = (/1._dp, 0.3949_dp, 0.3949_dp/)
-      alpha(2, :) = (/0.3494_dp, 0.2800_dp, 0.2800_dp/)
-      alpha(3, :) = (/0.3494_dp, 0.2800_dp, 0.1800_dp/)
+      alpha(1, :) = [1._dp, 0.3949_dp, 0.3949_dp]
+      alpha(2, :) = [0.3494_dp, 0.2800_dp, 0.2800_dp]
+      alpha(3, :) = [0.3494_dp, 0.2800_dp, 0.1800_dp]
 
-      r0(1, :) = (/1.35_dp, 2.10_dp, 2.53_dp/)
-      r0(2, :) = (/2.10_dp, 2.87_dp, 3.40_dp/)
-      r0(3, :) = (/2.53_dp, 3.40_dp, 3.40_dp/)
+      r0(1, :) = [1.35_dp, 2.10_dp, 2.53_dp]
+      r0(2, :) = [2.10_dp, 2.87_dp, 3.40_dp]
+      r0(3, :) = [2.53_dp, 3.40_dp, 3.40_dp]
 
       CALL cp_fm_get_info(hess_mat, row_indices=row_indices, col_indices=col_indices, &
                           local_data=local_data, nrow_local=nrow_local, ncol_local=ncol_local)

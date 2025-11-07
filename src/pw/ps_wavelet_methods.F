@@ -239,7 +239,7 @@ CONTAINS
       END IF
       DO i = 0, pw_grid%para%group%num_pe_cart(1) - 1
          DO j = 0, pw_grid%para%group%num_pe_cart(2) - 1
-            cart_pos = (/i, j/)
+            cart_pos = [i, j]
             CALL pw_grid%para%group%rank_cart(cart_pos, dest)
             IF ((ub(1) .GE. lb(1)) .AND. (ub(2) .GE. lb(2))) THEN
                IF (dest*local_z_dim .LE. m2) THEN
@@ -285,7 +285,7 @@ CONTAINS
 
       DO i = 0, pw_grid%para%group%num_pe_cart(1) - 1
          DO j = 0, pw_grid%para%group%num_pe_cart(2) - 1
-            cart_pos = (/i, j/)
+            cart_pos = [i, j]
             CALL pw_grid%para%group%rank_cart(cart_pos, dest)
 
             lox = get_limit(pw_grid%npts(1), pw_grid%para%group%num_pe_cart(1), i)
@@ -367,7 +367,7 @@ CONTAINS
       min_y = get_limit(pw_grid%npts(2), pw_grid%para%group%num_pe_cart(2), 0)
       DO i = 0, pw_grid%para%group%num_pe_cart(1) - 1
          DO j = 0, pw_grid%para%group%num_pe_cart(2) - 1
-            cart_pos = (/i, j/)
+            cart_pos = [i, j]
             CALL pw_grid%para%group%rank_cart(cart_pos, dest)
             IF ((ub(1) .GE. lb(1)) .AND. (ub(2) .GE. lb(2))) THEN
                IF (dest*local_z_dim .LE. m2) THEN
@@ -411,7 +411,7 @@ CONTAINS
 
       DO i = 0, pw_grid%para%group%num_pe_cart(1) - 1
          DO j = 0, pw_grid%para%group%num_pe_cart(2) - 1
-            cart_pos = (/i, j/)
+            cart_pos = [i, j]
             CALL pw_grid%para%group%rank_cart(cart_pos, dest)
             IF (dest*local_z_dim .LE. m2) THEN
                IF ((dest + 1)*local_z_dim .LE. m2) THEN

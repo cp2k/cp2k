@@ -110,7 +110,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: calculate_forces
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_ri_integrals'
-      REAL(KIND=dp), DIMENSION(2), PARAMETER             :: fx = (/0.0_dp, 1.0_dp/)
+      REAL(KIND=dp), DIMENSION(2), PARAMETER             :: fx = [0.0_dp, 1.0_dp]
 
       INTEGER                                            :: handle, i, i1, i2, iatom, ispin, izero, &
                                                             j, j1, j2, jatom, m, n, nbas

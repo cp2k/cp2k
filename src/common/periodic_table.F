@@ -143,8 +143,8 @@ CONTAINS
       ptable(0)%covalent_radius = z
       ptable(0)%metallic_radius = z
       ptable(0)%vdw_radius = z
-      ptable(0)%e_conv(0:3) = (/0, 0, 0, 0/)
-      ptable(0)%eht_param(0:3) = (/z, z, z, z/)
+      ptable(0)%e_conv(0:3) = [0, 0, 0, 0]
+      ptable(0)%eht_param(0:3) = [z, z, z, z]
 
       ! Hydrogen
       ptable(1)%symbol = 'H '
@@ -154,8 +154,8 @@ CONTAINS
       ptable(1)%covalent_radius = 0.32_dp
       ptable(1)%metallic_radius = z
       ptable(1)%vdw_radius = 1.09_dp ! [2]
-      ptable(1)%e_conv(0:3) = (/1, 0, 0, 0/)
-      ptable(1)%eht_param(0:3) = (/-13.60_dp, z, z, z/)
+      ptable(1)%e_conv(0:3) = [1, 0, 0, 0]
+      ptable(1)%eht_param(0:3) = [-13.60_dp, z, z, z]
 
       ! Helium
       ptable(2)%symbol = 'He'
@@ -165,8 +165,8 @@ CONTAINS
       ptable(2)%covalent_radius = 0.93_dp
       ptable(2)%metallic_radius = z
       ptable(2)%vdw_radius = 1.40_dp ! [1]
-      ptable(2)%e_conv(0:3) = (/2, 0, 0, 0/)
-      ptable(2)%eht_param(0:3) = (/-23.40_dp, z, z, z/)
+      ptable(2)%e_conv(0:3) = [2, 0, 0, 0]
+      ptable(2)%eht_param(0:3) = [-23.40_dp, z, z, z]
 
       ! Lithium
       ptable(3)%symbol = 'Li'
@@ -176,8 +176,8 @@ CONTAINS
       ptable(3)%covalent_radius = 1.23_dp
       ptable(3)%metallic_radius = 1.52_dp
       ptable(3)%vdw_radius = 1.82_dp ! [1]
-      ptable(3)%e_conv(0:3) = (/3, 0, 0, 0/)
-      ptable(3)%eht_param(0:3) = (/-5.40_dp, -3.50_dp, z, z/)
+      ptable(3)%e_conv(0:3) = [3, 0, 0, 0]
+      ptable(3)%eht_param(0:3) = [-5.40_dp, -3.50_dp, z, z]
 
       ! Beryllium
       ptable(4)%symbol = 'Be'
@@ -187,8 +187,8 @@ CONTAINS
       ptable(4)%covalent_radius = 0.90_dp
       ptable(4)%metallic_radius = 1.12_dp
       ptable(4)%vdw_radius = 1.53_dp ! [3]
-      ptable(4)%e_conv(0:3) = (/4, 0, 0, 0/)
-      ptable(4)%eht_param(0:3) = (/-10.00_dp, -6.00_dp, z, z/)
+      ptable(4)%e_conv(0:3) = [4, 0, 0, 0]
+      ptable(4)%eht_param(0:3) = [-10.00_dp, -6.00_dp, z, z]
 
       ! Boron
       ptable(5)%symbol = 'B '
@@ -198,8 +198,8 @@ CONTAINS
       ptable(5)%covalent_radius = 0.82_dp
       ptable(5)%metallic_radius = z
       ptable(5)%vdw_radius = 1.92_dp ! [3]
-      ptable(5)%e_conv(0:3) = (/4, 1, 0, 0/)
-      ptable(5)%eht_param(0:3) = (/-15.20_dp, -8.50_dp, z, z/)
+      ptable(5)%e_conv(0:3) = [4, 1, 0, 0]
+      ptable(5)%eht_param(0:3) = [-15.20_dp, -8.50_dp, z, z]
 
       ! Carbon
       ptable(6)%symbol = 'C '
@@ -209,8 +209,8 @@ CONTAINS
       ptable(6)%covalent_radius = 0.77_dp
       ptable(6)%metallic_radius = z
       ptable(6)%vdw_radius = 1.70_dp ! [1]
-      ptable(6)%e_conv(0:3) = (/4, 2, 0, 0/)
-      ptable(6)%eht_param(0:3) = (/-21.40_dp, -11.40_dp, z, z/)
+      ptable(6)%e_conv(0:3) = [4, 2, 0, 0]
+      ptable(6)%eht_param(0:3) = [-21.40_dp, -11.40_dp, z, z]
 
       ! Nitrogen
       ptable(7)%symbol = 'N '
@@ -220,8 +220,8 @@ CONTAINS
       ptable(7)%covalent_radius = 0.75_dp
       ptable(7)%metallic_radius = z
       ptable(7)%vdw_radius = 1.55_dp ! [1]
-      ptable(7)%e_conv(0:3) = (/4, 3, 0, 0/)
-      ptable(7)%eht_param(0:3) = (/-26.00_dp, -13.40_dp, z, z/)
+      ptable(7)%e_conv(0:3) = [4, 3, 0, 0]
+      ptable(7)%eht_param(0:3) = [-26.00_dp, -13.40_dp, z, z]
 
       ! Oxygen
       ptable(8)%symbol = 'O '
@@ -231,8 +231,8 @@ CONTAINS
       ptable(8)%covalent_radius = 0.73_dp
       ptable(8)%metallic_radius = z
       ptable(8)%vdw_radius = 1.52_dp ! [1]
-      ptable(8)%e_conv(0:3) = (/4, 4, 0, 0/)
-      ptable(8)%eht_param(0:3) = (/-32.30_dp, -14.80_dp, z, z/)
+      ptable(8)%e_conv(0:3) = [4, 4, 0, 0]
+      ptable(8)%eht_param(0:3) = [-32.30_dp, -14.80_dp, z, z]
 
       ! Fluorine
       ptable(9)%symbol = 'F '
@@ -242,8 +242,8 @@ CONTAINS
       ptable(9)%covalent_radius = 0.72_dp
       ptable(9)%metallic_radius = z
       ptable(9)%vdw_radius = 1.47_dp ! [1]
-      ptable(9)%e_conv(0:3) = (/4, 5, 0, 0/)
-      ptable(9)%eht_param(0:3) = (/-40.00_dp, -18.10_dp, z, z/)
+      ptable(9)%e_conv(0:3) = [4, 5, 0, 0]
+      ptable(9)%eht_param(0:3) = [-40.00_dp, -18.10_dp, z, z]
 
       ! Neon
       ptable(10)%symbol = 'Ne'
@@ -253,8 +253,8 @@ CONTAINS
       ptable(10)%covalent_radius = 0.71_dp
       ptable(10)%metallic_radius = z
       ptable(10)%vdw_radius = 1.54_dp ! [1]
-      ptable(10)%e_conv(0:3) = (/4, 6, 0, 0/)
-      ptable(10)%eht_param(0:3) = (/-43.20_dp, -20.00_dp, z, z/)
+      ptable(10)%e_conv(0:3) = [4, 6, 0, 0]
+      ptable(10)%eht_param(0:3) = [-43.20_dp, -20.00_dp, z, z]
 
       ! Sodium
       ptable(11)%symbol = 'Na'
@@ -264,8 +264,8 @@ CONTAINS
       ptable(11)%covalent_radius = 1.54_dp
       ptable(11)%metallic_radius = 1.86_dp
       ptable(11)%vdw_radius = 2.27_dp ! [1]
-      ptable(11)%e_conv(0:3) = (/5, 6, 0, 0/)
-      ptable(11)%eht_param(0:3) = (/-5.10_dp, -3.00_dp, z, z/)
+      ptable(11)%e_conv(0:3) = [5, 6, 0, 0]
+      ptable(11)%eht_param(0:3) = [-5.10_dp, -3.00_dp, z, z]
 
       ! Magnesium
       ptable(12)%symbol = 'Mg'
@@ -275,8 +275,8 @@ CONTAINS
       ptable(12)%covalent_radius = 1.36_dp
       ptable(12)%metallic_radius = 1.60_dp
       ptable(12)%vdw_radius = 1.73_dp ! [1]
-      ptable(12)%e_conv(0:3) = (/6, 6, 0, 0/)
-      ptable(12)%eht_param(0:3) = (/-9.00_dp, -4.50_dp, z, z/)
+      ptable(12)%e_conv(0:3) = [6, 6, 0, 0]
+      ptable(12)%eht_param(0:3) = [-9.00_dp, -4.50_dp, z, z]
 
       ! Aluminium
       ptable(13)%symbol = 'Al'
@@ -286,8 +286,8 @@ CONTAINS
       ptable(13)%covalent_radius = 1.18_dp
       ptable(13)%metallic_radius = 1.43_dp
       ptable(13)%vdw_radius = 1.84_dp ! [3]
-      ptable(13)%e_conv(0:3) = (/6, 7, 0, 0/)
-      ptable(13)%eht_param(0:3) = (/-12.30_dp, -6.50_dp, z, z/)
+      ptable(13)%e_conv(0:3) = [6, 7, 0, 0]
+      ptable(13)%eht_param(0:3) = [-12.30_dp, -6.50_dp, z, z]
 
       ! Silicon
       ptable(14)%symbol = 'Si'
@@ -297,8 +297,8 @@ CONTAINS
       ptable(14)%covalent_radius = 1.11_dp
       ptable(14)%metallic_radius = z
       ptable(14)%vdw_radius = 2.10_dp ! [1]
-      ptable(14)%e_conv(0:3) = (/6, 8, 0, 0/)
-      ptable(14)%eht_param(0:3) = (/-17.30_dp, -9.20_dp, z, z/)
+      ptable(14)%e_conv(0:3) = [6, 8, 0, 0]
+      ptable(14)%eht_param(0:3) = [-17.30_dp, -9.20_dp, z, z]
 
       ! Phosphorus
       ptable(15)%symbol = 'P '
@@ -308,8 +308,8 @@ CONTAINS
       ptable(15)%covalent_radius = 1.06_dp
       ptable(15)%metallic_radius = z
       ptable(15)%vdw_radius = 1.80_dp ! [1]
-      ptable(15)%e_conv(0:3) = (/6, 9, 0, 0/)
-      ptable(15)%eht_param(0:3) = (/-18.60_dp, -14.00_dp, z, z/)
+      ptable(15)%e_conv(0:3) = [6, 9, 0, 0]
+      ptable(15)%eht_param(0:3) = [-18.60_dp, -14.00_dp, z, z]
 
       ! Sulfur
       ptable(16)%symbol = 'S '
@@ -319,8 +319,8 @@ CONTAINS
       ptable(16)%covalent_radius = 1.02_dp
       ptable(16)%metallic_radius = z
       ptable(16)%vdw_radius = 1.80_dp ! [1]
-      ptable(16)%e_conv(0:3) = (/6, 10, 0, 0/)
-      ptable(16)%eht_param(0:3) = (/-20.00_dp, -11.00_dp, z, z/)
+      ptable(16)%e_conv(0:3) = [6, 10, 0, 0]
+      ptable(16)%eht_param(0:3) = [-20.00_dp, -11.00_dp, z, z]
 
       ! Chlorine
       ptable(17)%symbol = 'Cl'
@@ -330,8 +330,8 @@ CONTAINS
       ptable(17)%covalent_radius = 0.99_dp
       ptable(17)%metallic_radius = z
       ptable(17)%vdw_radius = 1.75_dp ! [1]
-      ptable(17)%e_conv(0:3) = (/6, 11, 0, 0/)
-      ptable(17)%eht_param(0:3) = (/-26.30_dp, -14.20_dp, z, z/)
+      ptable(17)%e_conv(0:3) = [6, 11, 0, 0]
+      ptable(17)%eht_param(0:3) = [-26.30_dp, -14.20_dp, z, z]
 
       ! Argon
       ptable(18)%symbol = 'Ar'
@@ -341,8 +341,8 @@ CONTAINS
       ptable(18)%covalent_radius = 0.98_dp
       ptable(18)%metallic_radius = z
       ptable(18)%vdw_radius = 1.88_dp ! [1]
-      ptable(18)%e_conv(0:3) = (/6, 12, 0, 0/)
-      ptable(18)%eht_param(0:3) = (/z, z, z, z/)
+      ptable(18)%e_conv(0:3) = [6, 12, 0, 0]
+      ptable(18)%eht_param(0:3) = [z, z, z, z]
 
       ! Potassium
       ptable(19)%symbol = 'K '
@@ -352,8 +352,8 @@ CONTAINS
       ptable(19)%covalent_radius = 2.03_dp
       ptable(19)%metallic_radius = 2.27_dp
       ptable(19)%vdw_radius = 2.75_dp ! [1]
-      ptable(19)%e_conv(0:3) = (/7, 12, 0, 0/)
-      ptable(19)%eht_param(0:3) = (/-4.34_dp, -2.73_dp, z, z/)
+      ptable(19)%e_conv(0:3) = [7, 12, 0, 0]
+      ptable(19)%eht_param(0:3) = [-4.34_dp, -2.73_dp, z, z]
 
       ! Calcium
       ptable(20)%symbol = 'Ca'
@@ -363,8 +363,8 @@ CONTAINS
       ptable(20)%covalent_radius = 1.74_dp
       ptable(20)%metallic_radius = 1.97_dp
       ptable(20)%vdw_radius = 2.31_dp ! [3]
-      ptable(20)%e_conv(0:3) = (/8, 12, 0, 0/)
-      ptable(20)%eht_param(0:3) = (/-7.00_dp, -4.00_dp, z, z/)
+      ptable(20)%e_conv(0:3) = [8, 12, 0, 0]
+      ptable(20)%eht_param(0:3) = [-7.00_dp, -4.00_dp, z, z]
 
       ! Scandium
       ptable(21)%symbol = 'Sc'
@@ -374,8 +374,8 @@ CONTAINS
       ptable(21)%covalent_radius = 1.44_dp
       ptable(21)%metallic_radius = 1.62_dp
       ptable(21)%vdw_radius = 2.11_dp ! [3]
-      ptable(21)%e_conv(0:3) = (/8, 12, 1, 0/)
-      ptable(21)%eht_param(0:3) = (/-8.87_dp, -2.75_dp, -8.51_dp, z/)
+      ptable(21)%e_conv(0:3) = [8, 12, 1, 0]
+      ptable(21)%eht_param(0:3) = [-8.87_dp, -2.75_dp, -8.51_dp, z]
 
       ! Titanium
       ptable(22)%symbol = 'Ti'
@@ -385,8 +385,8 @@ CONTAINS
       ptable(22)%covalent_radius = 1.32_dp
       ptable(22)%metallic_radius = 1.47_dp
       ptable(22)%vdw_radius = scale2vdw(ptable(22)%metallic_radius)
-      ptable(22)%e_conv(0:3) = (/8, 12, 2, 0/)
-      ptable(22)%eht_param(0:3) = (/-8.97_dp, -5.44_dp, -10.81_dp, z/)
+      ptable(22)%e_conv(0:3) = [8, 12, 2, 0]
+      ptable(22)%eht_param(0:3) = [-8.97_dp, -5.44_dp, -10.81_dp, z]
 
       ! Vanadium
       ptable(23)%symbol = 'V '
@@ -396,8 +396,8 @@ CONTAINS
       ptable(23)%covalent_radius = 1.22_dp
       ptable(23)%metallic_radius = 1.34_dp
       ptable(23)%vdw_radius = scale2vdw(ptable(23)%metallic_radius)
-      ptable(23)%e_conv(0:3) = (/8, 12, 3, 0/)
-      ptable(23)%eht_param(0:3) = (/-8.81_dp, -5.52_dp, -11.00_dp, z/)
+      ptable(23)%e_conv(0:3) = [8, 12, 3, 0]
+      ptable(23)%eht_param(0:3) = [-8.81_dp, -5.52_dp, -11.00_dp, z]
 
       ! Chromium
       ptable(24)%symbol = 'Cr'
@@ -407,8 +407,8 @@ CONTAINS
       ptable(24)%covalent_radius = 1.18_dp
       ptable(24)%metallic_radius = 1.28_dp
       ptable(24)%vdw_radius = scale2vdw(ptable(24)%metallic_radius)
-      ptable(24)%e_conv(0:3) = (/7, 12, 5, 0/)
-      ptable(24)%eht_param(0:3) = (/-8.66_dp, -5.24_dp, -11.22_dp, z/)
+      ptable(24)%e_conv(0:3) = [7, 12, 5, 0]
+      ptable(24)%eht_param(0:3) = [-8.66_dp, -5.24_dp, -11.22_dp, z]
 
       ! Manganese
       ptable(25)%symbol = 'Mn'
@@ -418,8 +418,8 @@ CONTAINS
       ptable(25)%covalent_radius = 1.17_dp
       ptable(25)%metallic_radius = 1.27_dp
       ptable(25)%vdw_radius = scale2vdw(ptable(25)%metallic_radius)
-      ptable(25)%e_conv(0:3) = (/8, 12, 5, 0/)
-      ptable(25)%eht_param(0:3) = (/-9.75_dp, -5.89_dp, -11.67_dp, z/)
+      ptable(25)%e_conv(0:3) = [8, 12, 5, 0]
+      ptable(25)%eht_param(0:3) = [-9.75_dp, -5.89_dp, -11.67_dp, z]
 
       ! Iron
       ptable(26)%symbol = 'Fe'
@@ -429,8 +429,8 @@ CONTAINS
       ptable(26)%covalent_radius = 1.17_dp
       ptable(26)%metallic_radius = 1.26_dp
       ptable(26)%vdw_radius = scale2vdw(ptable(26)%metallic_radius)
-      ptable(26)%e_conv(0:3) = (/8, 12, 6, 0/)
-      ptable(26)%eht_param(0:3) = (/-9.10_dp, -5.32_dp, -12.60_dp, z/)
+      ptable(26)%e_conv(0:3) = [8, 12, 6, 0]
+      ptable(26)%eht_param(0:3) = [-9.10_dp, -5.32_dp, -12.60_dp, z]
 
       ! Cobalt
       ptable(27)%symbol = 'Co'
@@ -440,8 +440,8 @@ CONTAINS
       ptable(27)%covalent_radius = 1.16_dp
       ptable(27)%metallic_radius = 1.25_dp
       ptable(27)%vdw_radius = scale2vdw(ptable(27)%metallic_radius)
-      ptable(27)%e_conv(0:3) = (/8, 12, 7, 0/)
-      ptable(27)%eht_param(0:3) = (/-9.21_dp, -5.29_dp, -13.18_dp, z/)
+      ptable(27)%e_conv(0:3) = [8, 12, 7, 0]
+      ptable(27)%eht_param(0:3) = [-9.21_dp, -5.29_dp, -13.18_dp, z]
 
       ! Nickel
       ptable(28)%symbol = 'Ni'
@@ -451,8 +451,8 @@ CONTAINS
       ptable(28)%covalent_radius = 1.15_dp
       ptable(28)%metallic_radius = 1.24_dp
       ptable(28)%vdw_radius = 1.63_dp ! [1]
-      ptable(28)%e_conv(0:3) = (/8, 12, 8, 0/)
-      ptable(28)%eht_param(0:3) = (/-9.17_dp, -5.15_dp, -13.49_dp, z/)
+      ptable(28)%e_conv(0:3) = [8, 12, 8, 0]
+      ptable(28)%eht_param(0:3) = [-9.17_dp, -5.15_dp, -13.49_dp, z]
 
       ! Copper
       ptable(29)%symbol = 'Cu'
@@ -462,8 +462,8 @@ CONTAINS
       ptable(29)%covalent_radius = 1.17_dp
       ptable(29)%metallic_radius = 1.28_dp
       ptable(29)%vdw_radius = 1.40_dp ! [1]
-      ptable(29)%e_conv(0:3) = (/7, 12, 10, 0/)
-      ptable(29)%eht_param(0:3) = (/-11.40_dp, -6.06_dp, -14.00_dp, z/)
+      ptable(29)%e_conv(0:3) = [7, 12, 10, 0]
+      ptable(29)%eht_param(0:3) = [-11.40_dp, -6.06_dp, -14.00_dp, z]
 
       ! Zinc
       ptable(30)%symbol = 'Zn'
@@ -473,8 +473,8 @@ CONTAINS
       ptable(30)%covalent_radius = 1.25_dp
       ptable(30)%metallic_radius = 1.34_dp
       ptable(30)%vdw_radius = 1.39_dp ! [1]
-      ptable(30)%e_conv(0:3) = (/8, 12, 10, 0/)
-      ptable(30)%eht_param(0:3) = (/-12.41_dp, -6.53_dp, z, z/)
+      ptable(30)%e_conv(0:3) = [8, 12, 10, 0]
+      ptable(30)%eht_param(0:3) = [-12.41_dp, -6.53_dp, z, z]
 
       ! Gallium
       ptable(31)%symbol = 'Ga'
@@ -484,8 +484,8 @@ CONTAINS
       ptable(31)%covalent_radius = 1.26_dp
       ptable(31)%metallic_radius = 1.35_dp
       ptable(31)%vdw_radius = 1.87_dp ! [1]
-      ptable(31)%e_conv(0:3) = (/8, 13, 10, 0/)
-      ptable(31)%eht_param(0:3) = (/-14.58_dp, -6.75_dp, z, z/)
+      ptable(31)%e_conv(0:3) = [8, 13, 10, 0]
+      ptable(31)%eht_param(0:3) = [-14.58_dp, -6.75_dp, z, z]
 
       ! Germanium
       ptable(32)%symbol = 'Ge'
@@ -495,8 +495,8 @@ CONTAINS
       ptable(32)%covalent_radius = 1.22_dp
       ptable(32)%metallic_radius = z
       ptable(32)%vdw_radius = 2.11_dp ! [3]
-      ptable(32)%e_conv(0:3) = (/8, 14, 10, 0/)
-      ptable(32)%eht_param(0:3) = (/-16.00_dp, -9.00_dp, z, z/)
+      ptable(32)%e_conv(0:3) = [8, 14, 10, 0]
+      ptable(32)%eht_param(0:3) = [-16.00_dp, -9.00_dp, z, z]
 
       ! Arsenic
       ptable(33)%symbol = 'As'
@@ -506,8 +506,8 @@ CONTAINS
       ptable(33)%covalent_radius = 1.20_dp
       ptable(33)%metallic_radius = z
       ptable(33)%vdw_radius = 1.85_dp ! [1]
-      ptable(33)%e_conv(0:3) = (/8, 15, 10, 0/)
-      ptable(33)%eht_param(0:3) = (/-16.22_dp, -12.16_dp, z, z/)
+      ptable(33)%e_conv(0:3) = [8, 15, 10, 0]
+      ptable(33)%eht_param(0:3) = [-16.22_dp, -12.16_dp, z, z]
 
       ! Selenium
       ptable(34)%symbol = 'Se'
@@ -517,8 +517,8 @@ CONTAINS
       ptable(34)%covalent_radius = 1.16_dp
       ptable(34)%metallic_radius = z
       ptable(34)%vdw_radius = 1.90_dp ! [1]
-      ptable(34)%e_conv(0:3) = (/8, 16, 10, 0/)
-      ptable(34)%eht_param(0:3) = (/-20.50_dp, -14.40_dp, z, z/)
+      ptable(34)%e_conv(0:3) = [8, 16, 10, 0]
+      ptable(34)%eht_param(0:3) = [-20.50_dp, -14.40_dp, z, z]
 
       ! Bromine
       ptable(35)%symbol = 'Br'
@@ -528,8 +528,8 @@ CONTAINS
       ptable(35)%covalent_radius = 1.14_dp
       ptable(35)%metallic_radius = z
       ptable(35)%vdw_radius = 1.85_dp ! [1]
-      ptable(35)%e_conv(0:3) = (/8, 17, 10, 0/)
-      ptable(35)%eht_param(0:3) = (/-22.07_dp, -13.10_dp, z, z/)
+      ptable(35)%e_conv(0:3) = [8, 17, 10, 0]
+      ptable(35)%eht_param(0:3) = [-22.07_dp, -13.10_dp, z, z]
 
       ! Krypton
       ptable(36)%symbol = 'Kr'
@@ -539,8 +539,8 @@ CONTAINS
       ptable(36)%covalent_radius = 1.12_dp
       ptable(36)%metallic_radius = z
       ptable(36)%vdw_radius = 2.02_dp ! [1]
-      ptable(36)%e_conv(0:3) = (/8, 18, 10, 0/)
-      ptable(36)%eht_param(0:3) = (/z, z, z, z/)
+      ptable(36)%e_conv(0:3) = [8, 18, 10, 0]
+      ptable(36)%eht_param(0:3) = [z, z, z, z]
 
       ! Rubidium
       ptable(37)%symbol = 'Rb'
@@ -550,8 +550,8 @@ CONTAINS
       ptable(37)%covalent_radius = 2.16_dp
       ptable(37)%metallic_radius = 2.48_dp
       ptable(37)%vdw_radius = 3.03_dp ! [3]
-      ptable(37)%e_conv(0:3) = (/9, 18, 10, 0/)
-      ptable(37)%eht_param(0:3) = (/-4.18_dp, -2.60_dp, z, z/)
+      ptable(37)%e_conv(0:3) = [9, 18, 10, 0]
+      ptable(37)%eht_param(0:3) = [-4.18_dp, -2.60_dp, z, z]
 
       ! Strontium
       ptable(38)%symbol = 'Sr'
@@ -561,8 +561,8 @@ CONTAINS
       ptable(38)%covalent_radius = 1.91_dp
       ptable(38)%metallic_radius = 2.15_dp
       ptable(38)%vdw_radius = 2.49_dp ! [3]
-      ptable(38)%e_conv(0:3) = (/10, 18, 10, 0/)
-      ptable(38)%eht_param(0:3) = (/-6.62_dp, -3.92_dp, z, z/)
+      ptable(38)%e_conv(0:3) = [10, 18, 10, 0]
+      ptable(38)%eht_param(0:3) = [-6.62_dp, -3.92_dp, z, z]
 
       ! Yttrium
       ptable(39)%symbol = 'Y '
@@ -572,8 +572,8 @@ CONTAINS
       ptable(39)%covalent_radius = 1.62_dp
       ptable(39)%metallic_radius = 1.80_dp
       ptable(39)%vdw_radius = scale2vdw(ptable(39)%metallic_radius)
-      ptable(39)%e_conv(0:3) = (/10, 18, 11, 0/)
-      ptable(39)%eht_param(0:3) = (/z, z, z, z/)
+      ptable(39)%e_conv(0:3) = [10, 18, 11, 0]
+      ptable(39)%eht_param(0:3) = [z, z, z, z]
 
       ! Zirconium
       ptable(40)%symbol = 'Zr'
@@ -583,8 +583,8 @@ CONTAINS
       ptable(40)%covalent_radius = 1.45_dp
       ptable(40)%metallic_radius = 1.60_dp
       ptable(40)%vdw_radius = scale2vdw(ptable(40)%metallic_radius)
-      ptable(40)%e_conv(0:3) = (/10, 18, 12, 0/)
-      ptable(40)%eht_param(0:3) = (/-8.00_dp, -5.40_dp, -10.20_dp, z/)
+      ptable(40)%e_conv(0:3) = [10, 18, 12, 0]
+      ptable(40)%eht_param(0:3) = [-8.00_dp, -5.40_dp, -10.20_dp, z]
 
       ! Niobium
       ptable(41)%symbol = 'Nb'
@@ -594,8 +594,8 @@ CONTAINS
       ptable(41)%covalent_radius = 1.34_dp
       ptable(41)%metallic_radius = 1.46_dp
       ptable(41)%vdw_radius = scale2vdw(ptable(41)%metallic_radius)
-      ptable(41)%e_conv(0:3) = (/9, 18, 14, 0/)
-      ptable(41)%eht_param(0:3) = (/-10.10_dp, -6.86_dp, -12.10_dp, z/)
+      ptable(41)%e_conv(0:3) = [9, 18, 14, 0]
+      ptable(41)%eht_param(0:3) = [-10.10_dp, -6.86_dp, -12.10_dp, z]
 
       ! Molybdenum
       ptable(42)%symbol = 'Mo'
@@ -605,8 +605,8 @@ CONTAINS
       ptable(42)%covalent_radius = 1.30_dp
       ptable(42)%metallic_radius = 1.39_dp
       ptable(42)%vdw_radius = scale2vdw(ptable(42)%metallic_radius)
-      ptable(42)%e_conv(0:3) = (/9, 18, 15, 0/)
-      ptable(42)%eht_param(0:3) = (/-8.34_dp, -5.25_dp, -10.50_dp, z/)
+      ptable(42)%e_conv(0:3) = [9, 18, 15, 0]
+      ptable(42)%eht_param(0:3) = [-8.34_dp, -5.25_dp, -10.50_dp, z]
 
       ! Technetium
       ptable(43)%symbol = 'Tc'
@@ -616,8 +616,8 @@ CONTAINS
       ptable(43)%covalent_radius = 1.27_dp
       ptable(43)%metallic_radius = 1.36_dp
       ptable(43)%vdw_radius = scale2vdw(ptable(43)%metallic_radius)
-      ptable(43)%e_conv(0:3) = (/10, 18, 15, 0/)
-      ptable(43)%eht_param(0:3) = (/-10.07_dp, -5.40_dp, -12.82_dp, z/)
+      ptable(43)%e_conv(0:3) = [10, 18, 15, 0]
+      ptable(43)%eht_param(0:3) = [-10.07_dp, -5.40_dp, -12.82_dp, z]
 
       ! Ruthenium
       ptable(44)%symbol = 'Ru'
@@ -627,8 +627,8 @@ CONTAINS
       ptable(44)%covalent_radius = 1.25_dp
       ptable(44)%metallic_radius = 1.34_dp
       ptable(44)%vdw_radius = scale2vdw(ptable(44)%metallic_radius)
-      ptable(44)%e_conv(0:3) = (/9, 18, 17, 0/)
-      ptable(44)%eht_param(0:3) = (/-10.40_dp, -6.87_dp, -14.90_dp, z/)
+      ptable(44)%e_conv(0:3) = [9, 18, 17, 0]
+      ptable(44)%eht_param(0:3) = [-10.40_dp, -6.87_dp, -14.90_dp, z]
 
       ! Rhodium
       ptable(45)%symbol = 'Rh'
@@ -638,8 +638,8 @@ CONTAINS
       ptable(45)%covalent_radius = 1.25_dp
       ptable(45)%metallic_radius = 1.34_dp
       ptable(45)%vdw_radius = scale2vdw(ptable(45)%metallic_radius)
-      ptable(45)%e_conv(0:3) = (/9, 18, 18, 0/)
-      ptable(45)%eht_param(0:3) = (/-8.09_dp, -4.57_dp, -12.50_dp, z/)
+      ptable(45)%e_conv(0:3) = [9, 18, 18, 0]
+      ptable(45)%eht_param(0:3) = [-8.09_dp, -4.57_dp, -12.50_dp, z]
 
       ! Palladium
       ptable(46)%symbol = 'Pd'
@@ -649,8 +649,8 @@ CONTAINS
       ptable(46)%covalent_radius = 1.28_dp
       ptable(46)%metallic_radius = 1.37_dp
       ptable(46)%vdw_radius = 1.63_dp ! [1]
-      ptable(46)%e_conv(0:3) = (/8, 18, 20, 0/)
-      ptable(46)%eht_param(0:3) = (/-7.32_dp, -3.75_dp, -12.02_dp, z/)
+      ptable(46)%e_conv(0:3) = [8, 18, 20, 0]
+      ptable(46)%eht_param(0:3) = [-7.32_dp, -3.75_dp, -12.02_dp, z]
 
       ! Silver
       ptable(47)%symbol = 'Ag'
@@ -660,8 +660,8 @@ CONTAINS
       ptable(47)%covalent_radius = 1.34_dp
       ptable(47)%metallic_radius = 1.44_dp
       ptable(47)%vdw_radius = 1.72_dp ! [1]
-      ptable(47)%e_conv(0:3) = (/9, 18, 20, 0/)
-      ptable(47)%eht_param(0:3) = (/z, z, z, z/)
+      ptable(47)%e_conv(0:3) = [9, 18, 20, 0]
+      ptable(47)%eht_param(0:3) = [z, z, z, z]
 
       ! Cadmium
       ptable(48)%symbol = 'Cd'
@@ -671,8 +671,8 @@ CONTAINS
       ptable(48)%covalent_radius = 1.48_dp
       ptable(48)%metallic_radius = 1.51_dp
       ptable(48)%vdw_radius = 1.58_dp ! [1]
-      ptable(48)%e_conv(0:3) = (/10, 18, 20, 0/)
-      ptable(48)%eht_param(0:3) = (/z, z, z, z/)
+      ptable(48)%e_conv(0:3) = [10, 18, 20, 0]
+      ptable(48)%eht_param(0:3) = [z, z, z, z]
 
       ! Indium
       ptable(49)%symbol = 'In'
@@ -682,8 +682,8 @@ CONTAINS
       ptable(49)%covalent_radius = 1.44_dp
       ptable(49)%metallic_radius = 1.67_dp
       ptable(49)%vdw_radius = 1.93_dp ! [1]
-      ptable(49)%e_conv(0:3) = (/10, 19, 20, 0/)
-      ptable(49)%eht_param(0:3) = (/-12.60_dp, -6.19_dp, z, z/)
+      ptable(49)%e_conv(0:3) = [10, 19, 20, 0]
+      ptable(49)%eht_param(0:3) = [-12.60_dp, -6.19_dp, z, z]
 
       ! Tin
       ptable(50)%symbol = 'Sn'
@@ -693,8 +693,8 @@ CONTAINS
       ptable(50)%covalent_radius = 1.41_dp
       ptable(50)%metallic_radius = z
       ptable(50)%vdw_radius = 2.17_dp ! [1]
-      ptable(50)%e_conv(0:3) = (/10, 20, 20, 0/)
-      ptable(50)%eht_param(0:3) = (/-16.16_dp, -8.32_dp, z, z/)
+      ptable(50)%e_conv(0:3) = [10, 20, 20, 0]
+      ptable(50)%eht_param(0:3) = [-16.16_dp, -8.32_dp, z, z]
 
       ! Antimony
       ptable(51)%symbol = 'Sb'
@@ -704,8 +704,8 @@ CONTAINS
       ptable(51)%covalent_radius = 1.40_dp
       ptable(51)%metallic_radius = z
       ptable(51)%vdw_radius = 2.06_dp ! [3]
-      ptable(51)%e_conv(0:3) = (/10, 21, 20, 0/)
-      ptable(51)%eht_param(0:3) = (/-18.80_dp, -11.70_dp, z, z/)
+      ptable(51)%e_conv(0:3) = [10, 21, 20, 0]
+      ptable(51)%eht_param(0:3) = [-18.80_dp, -11.70_dp, z, z]
 
       ! Tellurium
       ptable(52)%symbol = 'Te'
@@ -715,8 +715,8 @@ CONTAINS
       ptable(52)%covalent_radius = 1.36_dp
       ptable(52)%metallic_radius = z
       ptable(52)%vdw_radius = 2.06_dp ! [1]
-      ptable(52)%e_conv(0:3) = (/10, 22, 20, 0/)
-      ptable(52)%eht_param(0:3) = (/-20.80_dp, -13.20_dp, z, z/)
+      ptable(52)%e_conv(0:3) = [10, 22, 20, 0]
+      ptable(52)%eht_param(0:3) = [-20.80_dp, -13.20_dp, z, z]
 
       ! Iodine
       ptable(53)%symbol = 'I '
@@ -726,8 +726,8 @@ CONTAINS
       ptable(53)%covalent_radius = 1.33_dp
       ptable(53)%metallic_radius = z
       ptable(53)%vdw_radius = 1.98_dp ! [1]
-      ptable(53)%e_conv(0:3) = (/10, 23, 20, 0/)
-      ptable(53)%eht_param(0:3) = (/-18.00_dp, -12.70_dp, z, z/)
+      ptable(53)%e_conv(0:3) = [10, 23, 20, 0]
+      ptable(53)%eht_param(0:3) = [-18.00_dp, -12.70_dp, z, z]
 
       ! Xenon
       ptable(54)%symbol = 'Xe'
@@ -737,8 +737,8 @@ CONTAINS
       ptable(54)%covalent_radius = 1.31_dp
       ptable(54)%metallic_radius = z
       ptable(54)%vdw_radius = 2.16_dp ! [1]
-      ptable(54)%e_conv(0:3) = (/10, 24, 20, 0/)
-      ptable(54)%eht_param(0:3) = (/z, z, z, z/)
+      ptable(54)%e_conv(0:3) = [10, 24, 20, 0]
+      ptable(54)%eht_param(0:3) = [z, z, z, z]
 
       ! Cesium
       ptable(55)%symbol = 'Cs'
@@ -748,8 +748,8 @@ CONTAINS
       ptable(55)%covalent_radius = 2.35_dp
       ptable(55)%metallic_radius = 2.65_dp
       ptable(55)%vdw_radius = 3.43_dp ! [3]
-      ptable(55)%e_conv(0:3) = (/11, 24, 20, 0/)
-      ptable(55)%eht_param(0:3) = (/-3.88_dp, -2.49_dp, z, z/)
+      ptable(55)%e_conv(0:3) = [11, 24, 20, 0]
+      ptable(55)%eht_param(0:3) = [-3.88_dp, -2.49_dp, z, z]
 
       ! Barium
       ptable(56)%symbol = 'Ba'
@@ -759,8 +759,8 @@ CONTAINS
       ptable(56)%covalent_radius = 1.98_dp
       ptable(56)%metallic_radius = 2.22_dp
       ptable(56)%vdw_radius = 2.68_dp ! [3]
-      ptable(56)%e_conv(0:3) = (/12, 24, 20, 0/)
-      ptable(56)%eht_param(0:3) = (/z, z, z, z/)
+      ptable(56)%e_conv(0:3) = [12, 24, 20, 0]
+      ptable(56)%eht_param(0:3) = [z, z, z, z]
 
       ! Lanthanum
       ptable(57)%symbol = 'La'
@@ -770,8 +770,8 @@ CONTAINS
       ptable(57)%covalent_radius = 1.69_dp
       ptable(57)%metallic_radius = 1.87_dp
       ptable(57)%vdw_radius = scale2vdw(ptable(57)%metallic_radius)
-      ptable(57)%e_conv(0:3) = (/12, 24, 21, 0/)
-      ptable(57)%eht_param(0:3) = (/-7.67_dp, -5.01_dp, -8.21_dp, z/)
+      ptable(57)%e_conv(0:3) = [12, 24, 21, 0]
+      ptable(57)%eht_param(0:3) = [-7.67_dp, -5.01_dp, -8.21_dp, z]
 
       ! Cerium
       ptable(58)%symbol = 'Ce'
@@ -781,8 +781,8 @@ CONTAINS
       ptable(58)%covalent_radius = 1.65_dp
       ptable(58)%metallic_radius = 1.818_dp
       ptable(58)%vdw_radius = scale2vdw(ptable(58)%metallic_radius)
-      ptable(58)%e_conv(0:3) = (/12, 24, 21, 1/)
-      ptable(58)%eht_param(0:3) = (/z, z, z, z/)
+      ptable(58)%e_conv(0:3) = [12, 24, 21, 1]
+      ptable(58)%eht_param(0:3) = [z, z, z, z]
 
       ! Praseodymium
       ptable(59)%symbol = 'Pr'
@@ -792,8 +792,8 @@ CONTAINS
       ptable(59)%covalent_radius = 1.65_dp
       ptable(59)%metallic_radius = 1.824_dp
       ptable(59)%vdw_radius = scale2vdw(ptable(59)%metallic_radius)
-      ptable(59)%e_conv(0:3) = (/12, 24, 20, 3/)
-      ptable(59)%eht_param(0:3) = (/z, z, z, z/)
+      ptable(59)%e_conv(0:3) = [12, 24, 20, 3]
+      ptable(59)%eht_param(0:3) = [z, z, z, z]
 
       ! Neodymium
       ptable(60)%symbol = 'Nd'
@@ -803,8 +803,8 @@ CONTAINS
       ptable(60)%covalent_radius = 1.64_dp
       ptable(60)%metallic_radius = 1.814_dp
       ptable(60)%vdw_radius = scale2vdw(ptable(60)%metallic_radius)
-      ptable(60)%e_conv(0:3) = (/12, 24, 20, 4/)
-      ptable(60)%eht_param(0:3) = (/z, z, z, z/)
+      ptable(60)%e_conv(0:3) = [12, 24, 20, 4]
+      ptable(60)%eht_param(0:3) = [z, z, z, z]
 
       ! Promethium
       ptable(61)%symbol = 'Pm'
@@ -814,8 +814,8 @@ CONTAINS
       ptable(61)%covalent_radius = 1.63_dp
       ptable(61)%metallic_radius = 1.834_dp
       ptable(61)%vdw_radius = scale2vdw(ptable(61)%metallic_radius)
-      ptable(61)%e_conv(0:3) = (/12, 24, 20, 5/)
-      ptable(61)%eht_param(0:3) = (/z, z, z, z/)
+      ptable(61)%e_conv(0:3) = [12, 24, 20, 5]
+      ptable(61)%eht_param(0:3) = [z, z, z, z]
 
       ! Samarium
       ptable(62)%symbol = 'Sm'
@@ -825,8 +825,8 @@ CONTAINS
       ptable(62)%covalent_radius = 1.62_dp
       ptable(62)%metallic_radius = 1.804_dp
       ptable(62)%vdw_radius = scale2vdw(ptable(62)%metallic_radius)
-      ptable(62)%e_conv(0:3) = (/12, 24, 20, 6/)
-      ptable(62)%eht_param(0:3) = (/-4.86_dp, -4.86_dp, -6.06_dp, -11.28_dp/)
+      ptable(62)%e_conv(0:3) = [12, 24, 20, 6]
+      ptable(62)%eht_param(0:3) = [-4.86_dp, -4.86_dp, -6.06_dp, -11.28_dp]
 
       ! Europium
       ptable(63)%symbol = 'Eu'
@@ -836,8 +836,8 @@ CONTAINS
       ptable(63)%covalent_radius = 1.85_dp
       ptable(63)%metallic_radius = 1.804_dp
       ptable(63)%vdw_radius = scale2vdw(ptable(63)%metallic_radius)
-      ptable(63)%e_conv(0:3) = (/12, 24, 20, 7/)
-      ptable(63)%eht_param(0:3) = (/z, z, z, z/)
+      ptable(63)%e_conv(0:3) = [12, 24, 20, 7]
+      ptable(63)%eht_param(0:3) = [z, z, z, z]
 
       ! Gadolinium
       ptable(64)%symbol = 'Gd'
@@ -847,8 +847,8 @@ CONTAINS
       ptable(64)%covalent_radius = 1.61_dp
       ptable(64)%metallic_radius = 1.804_dp
       ptable(64)%vdw_radius = scale2vdw(ptable(64)%metallic_radius)
-      ptable(64)%e_conv(0:3) = (/12, 24, 21, 7/)
-      ptable(64)%eht_param(0:3) = (/z, z, z, z/)
+      ptable(64)%e_conv(0:3) = [12, 24, 21, 7]
+      ptable(64)%eht_param(0:3) = [z, z, z, z]
 
       ! Terbium
       ptable(65)%symbol = 'Tb'
@@ -858,8 +858,8 @@ CONTAINS
       ptable(65)%covalent_radius = 1.59_dp
       ptable(65)%metallic_radius = 1.773_dp
       ptable(65)%vdw_radius = scale2vdw(ptable(65)%metallic_radius)
-      ptable(65)%e_conv(0:3) = (/12, 24, 20, 9/)
-      ptable(65)%eht_param(0:3) = (/z, z, z, z/)
+      ptable(65)%e_conv(0:3) = [12, 24, 20, 9]
+      ptable(65)%eht_param(0:3) = [z, z, z, z]
 
       ! Dysprosium
       ptable(66)%symbol = 'Dy'
@@ -869,8 +869,8 @@ CONTAINS
       ptable(66)%covalent_radius = 1.59_dp
       ptable(66)%metallic_radius = 1.781_dp
       ptable(66)%vdw_radius = scale2vdw(ptable(66)%metallic_radius)
-      ptable(66)%e_conv(0:3) = (/12, 24, 20, 10/)
-      ptable(66)%eht_param(0:3) = (/z, z, z, z/)
+      ptable(66)%e_conv(0:3) = [12, 24, 20, 10]
+      ptable(66)%eht_param(0:3) = [z, z, z, z]
 
       ! Holmium
       ptable(67)%symbol = 'Ho'
@@ -880,8 +880,8 @@ CONTAINS
       ptable(67)%covalent_radius = 1.58_dp
       ptable(67)%metallic_radius = 1.762_dp
       ptable(67)%vdw_radius = scale2vdw(ptable(67)%metallic_radius)
-      ptable(67)%e_conv(0:3) = (/12, 24, 20, 11/)
-      ptable(67)%eht_param(0:3) = (/z, z, z, z/)
+      ptable(67)%e_conv(0:3) = [12, 24, 20, 11]
+      ptable(67)%eht_param(0:3) = [z, z, z, z]
 
       ! Erbium
       ptable(68)%symbol = 'Er'
@@ -891,8 +891,8 @@ CONTAINS
       ptable(68)%covalent_radius = 1.57_dp
       ptable(68)%metallic_radius = 1.761_dp
       ptable(68)%vdw_radius = scale2vdw(ptable(68)%metallic_radius)
-      ptable(68)%e_conv(0:3) = (/12, 24, 20, 12/)
-      ptable(68)%eht_param(0:3) = (/z, z, z, z/)
+      ptable(68)%e_conv(0:3) = [12, 24, 20, 12]
+      ptable(68)%eht_param(0:3) = [z, z, z, z]
 
       ! Thulium
       ptable(69)%symbol = 'Tm'
@@ -902,8 +902,8 @@ CONTAINS
       ptable(69)%covalent_radius = 1.56_dp
       ptable(69)%metallic_radius = 1.759_dp
       ptable(69)%vdw_radius = scale2vdw(ptable(69)%metallic_radius)
-      ptable(69)%e_conv(0:3) = (/12, 24, 20, 13/)
-      ptable(69)%eht_param(0:3) = (/z, z, z, z/)
+      ptable(69)%e_conv(0:3) = [12, 24, 20, 13]
+      ptable(69)%eht_param(0:3) = [z, z, z, z]
 
       ! Ytterbium
       ptable(70)%symbol = 'Yb'
@@ -913,9 +913,9 @@ CONTAINS
       ptable(70)%covalent_radius = 1.56_dp
       ptable(70)%metallic_radius = 1.760_dp
       ptable(70)%vdw_radius = scale2vdw(ptable(70)%metallic_radius)
-      ptable(70)%e_conv(0:3) = (/12, 24, 20, 14/)
-      ptable(70)%eht_param(0:3) = (/-5.35_dp, -5.35_dp, -5.21_dp, &
-                                    -13.86_dp/)
+      ptable(70)%e_conv(0:3) = [12, 24, 20, 14]
+      ptable(70)%eht_param(0:3) = [-5.35_dp, -5.35_dp, -5.21_dp, &
+                                   -13.86_dp]
 
       ! Lutetium
       ptable(71)%symbol = 'Lu'
@@ -925,8 +925,8 @@ CONTAINS
       ptable(71)%covalent_radius = 1.56_dp
       ptable(71)%metallic_radius = 1.738_dp
       ptable(71)%vdw_radius = scale2vdw(ptable(71)%metallic_radius)
-      ptable(71)%e_conv(0:3) = (/12, 24, 21, 14/)
-      ptable(71)%eht_param(0:3) = (/-6.05_dp, -6.05_dp, -5.12_dp, -22.40_dp/)
+      ptable(71)%e_conv(0:3) = [12, 24, 21, 14]
+      ptable(71)%eht_param(0:3) = [-6.05_dp, -6.05_dp, -5.12_dp, -22.40_dp]
 
       ! Hafnium
       ptable(72)%symbol = 'Hf'
@@ -936,8 +936,8 @@ CONTAINS
       ptable(72)%covalent_radius = 1.44_dp
       ptable(72)%metallic_radius = 1.59_dp
       ptable(72)%vdw_radius = scale2vdw(ptable(72)%metallic_radius)
-      ptable(72)%e_conv(0:3) = (/12, 24, 22, 14/)
-      ptable(72)%eht_param(0:3) = (/z, z, z, z/)
+      ptable(72)%e_conv(0:3) = [12, 24, 22, 14]
+      ptable(72)%eht_param(0:3) = [z, z, z, z]
 
       ! Tantalum
       ptable(73)%symbol = 'Ta'
@@ -947,8 +947,8 @@ CONTAINS
       ptable(73)%covalent_radius = 1.34_dp
       ptable(73)%metallic_radius = 1.46_dp
       ptable(73)%vdw_radius = scale2vdw(ptable(73)%metallic_radius)
-      ptable(73)%e_conv(0:3) = (/12, 24, 23, 14/)
-      ptable(73)%eht_param(0:3) = (/-10.10_dp, -6.86_dp, -12.10_dp, z/)
+      ptable(73)%e_conv(0:3) = [12, 24, 23, 14]
+      ptable(73)%eht_param(0:3) = [-10.10_dp, -6.86_dp, -12.10_dp, z]
 
       ! Tungsten
       ptable(74)%symbol = 'W '
@@ -958,8 +958,8 @@ CONTAINS
       ptable(74)%covalent_radius = 1.30_dp
       ptable(74)%metallic_radius = 1.39_dp
       ptable(74)%vdw_radius = scale2vdw(ptable(74)%metallic_radius)
-      ptable(74)%e_conv(0:3) = (/12, 24, 24, 14/)
-      ptable(74)%eht_param(0:3) = (/-8.26_dp, -5.17_dp, -10.37_dp, z/)
+      ptable(74)%e_conv(0:3) = [12, 24, 24, 14]
+      ptable(74)%eht_param(0:3) = [-8.26_dp, -5.17_dp, -10.37_dp, z]
 
       ! Rhenium
       ptable(75)%symbol = 'Re'
@@ -969,8 +969,8 @@ CONTAINS
       ptable(75)%covalent_radius = 1.28_dp
       ptable(75)%metallic_radius = 1.37_dp
       ptable(75)%vdw_radius = scale2vdw(ptable(75)%metallic_radius)
-      ptable(75)%e_conv(0:3) = (/12, 24, 25, 14/)
-      ptable(75)%eht_param(0:3) = (/-9.36_dp, -5.96_dp, -12.66_dp, z/)
+      ptable(75)%e_conv(0:3) = [12, 24, 25, 14]
+      ptable(75)%eht_param(0:3) = [-9.36_dp, -5.96_dp, -12.66_dp, z]
 
       ! Osmium
       ptable(76)%symbol = 'Os'
@@ -980,8 +980,8 @@ CONTAINS
       ptable(76)%covalent_radius = 1.26_dp
       ptable(76)%metallic_radius = 1.35_dp
       ptable(76)%vdw_radius = scale2vdw(ptable(76)%metallic_radius)
-      ptable(76)%e_conv(0:3) = (/12, 24, 26, 14/)
-      ptable(76)%eht_param(0:3) = (/-8.17_dp, -4.81_dp, -11.84_dp, z/)
+      ptable(76)%e_conv(0:3) = [12, 24, 26, 14]
+      ptable(76)%eht_param(0:3) = [-8.17_dp, -4.81_dp, -11.84_dp, z]
 
       ! Iridium
       ptable(77)%symbol = 'Ir'
@@ -991,8 +991,8 @@ CONTAINS
       ptable(77)%covalent_radius = 1.27_dp
       ptable(77)%metallic_radius = 1.355_dp
       ptable(77)%vdw_radius = scale2vdw(ptable(77)%metallic_radius)
-      ptable(77)%e_conv(0:3) = (/12, 24, 27, 14/)
-      ptable(77)%eht_param(0:3) = (/-11.36_dp, -4.50_dp, -12.17_dp, z/)
+      ptable(77)%e_conv(0:3) = [12, 24, 27, 14]
+      ptable(77)%eht_param(0:3) = [-11.36_dp, -4.50_dp, -12.17_dp, z]
 
       ! Platinum
       ptable(78)%symbol = 'Pt'
@@ -1002,8 +1002,8 @@ CONTAINS
       ptable(78)%covalent_radius = 1.30_dp
       ptable(78)%metallic_radius = 1.385_dp
       ptable(78)%vdw_radius = 1.75_dp ! [1]
-      ptable(78)%e_conv(0:3) = (/11, 24, 29, 14/)
-      ptable(78)%eht_param(0:3) = (/-9.077_dp, -5.475_dp, -12.59_dp, z/)
+      ptable(78)%e_conv(0:3) = [11, 24, 29, 14]
+      ptable(78)%eht_param(0:3) = [-9.077_dp, -5.475_dp, -12.59_dp, z]
 
       ! Gold
       ptable(79)%symbol = 'Au'
@@ -1013,8 +1013,8 @@ CONTAINS
       ptable(79)%covalent_radius = 1.34_dp
       ptable(79)%metallic_radius = 1.44_dp
       ptable(79)%vdw_radius = 1.66_dp ! [1]
-      ptable(79)%e_conv(0:3) = (/11, 24, 30, 14/)
-      ptable(79)%eht_param(0:3) = (/-10.92_dp, -5.55_dp, -15.076_dp, z/)
+      ptable(79)%e_conv(0:3) = [11, 24, 30, 14]
+      ptable(79)%eht_param(0:3) = [-10.92_dp, -5.55_dp, -15.076_dp, z]
 
       ! Mercury
       ptable(80)%symbol = 'Hg'
@@ -1024,8 +1024,8 @@ CONTAINS
       ptable(80)%covalent_radius = 1.49_dp
       ptable(80)%metallic_radius = 1.51_dp
       ptable(80)%vdw_radius = 1.55_dp ! [1]
-      ptable(80)%e_conv(0:3) = (/12, 24, 30, 14/)
-      ptable(80)%eht_param(0:3) = (/-13.68_dp, -8.47_dp, -17.50_dp, z/)
+      ptable(80)%e_conv(0:3) = [12, 24, 30, 14]
+      ptable(80)%eht_param(0:3) = [-13.68_dp, -8.47_dp, -17.50_dp, z]
 
       ! Thallium
       ptable(81)%symbol = 'Tl'
@@ -1035,8 +1035,8 @@ CONTAINS
       ptable(81)%covalent_radius = 1.48_dp
       ptable(81)%metallic_radius = 1.70_dp
       ptable(81)%vdw_radius = 1.96_dp ! [1]
-      ptable(81)%e_conv(0:3) = (/12, 25, 30, 14/)
-      ptable(81)%eht_param(0:3) = (/-11.60_dp, -5.80_dp, z, z/)
+      ptable(81)%e_conv(0:3) = [12, 25, 30, 14]
+      ptable(81)%eht_param(0:3) = [-11.60_dp, -5.80_dp, z, z]
 
       ! Lead
       ptable(82)%symbol = 'Pb'
@@ -1046,8 +1046,8 @@ CONTAINS
       ptable(82)%covalent_radius = 1.47_dp
       ptable(82)%metallic_radius = z
       ptable(82)%vdw_radius = 2.02_dp ! [1]
-      ptable(82)%e_conv(0:3) = (/12, 26, 30, 14/)
-      ptable(82)%eht_param(0:3) = (/-15.70_dp, -8.00_dp, z, z/)
+      ptable(82)%e_conv(0:3) = [12, 26, 30, 14]
+      ptable(82)%eht_param(0:3) = [-15.70_dp, -8.00_dp, z, z]
 
       ! Bismuth
       ptable(83)%symbol = 'Bi'
@@ -1057,8 +1057,8 @@ CONTAINS
       ptable(83)%covalent_radius = 1.46_dp
       ptable(83)%metallic_radius = z
       ptable(83)%vdw_radius = 2.07_dp ! [3]
-      ptable(83)%e_conv(0:3) = (/12, 27, 30, 14/)
-      ptable(83)%eht_param(0:3) = (/-15.19_dp, -7.79_dp, z, z/)
+      ptable(83)%e_conv(0:3) = [12, 27, 30, 14]
+      ptable(83)%eht_param(0:3) = [-15.19_dp, -7.79_dp, z, z]
 
       ! Polonium
       ptable(84)%symbol = 'Po'
@@ -1068,8 +1068,8 @@ CONTAINS
       ptable(84)%covalent_radius = 1.46_dp
       ptable(84)%metallic_radius = z
       ptable(84)%vdw_radius = 1.97_dp ! [3]
-      ptable(84)%e_conv(0:3) = (/12, 28, 30, 14/)
-      ptable(84)%eht_param(0:3) = (/z, z, z, z/)
+      ptable(84)%e_conv(0:3) = [12, 28, 30, 14]
+      ptable(84)%eht_param(0:3) = [z, z, z, z]
 
       ! Astatine
       ptable(85)%symbol = 'At'
@@ -1079,8 +1079,8 @@ CONTAINS
       ptable(85)%covalent_radius = 1.45_dp
       ptable(85)%metallic_radius = z
       ptable(85)%vdw_radius = 2.02_dp ! [3]
-      ptable(85)%e_conv(0:3) = (/12, 29, 30, 14/)
-      ptable(85)%eht_param(0:3) = (/z, z, z, z/)
+      ptable(85)%e_conv(0:3) = [12, 29, 30, 14]
+      ptable(85)%eht_param(0:3) = [z, z, z, z]
 
       ! Radon
       ptable(86)%symbol = 'Rn'
@@ -1090,8 +1090,8 @@ CONTAINS
       ptable(86)%covalent_radius = 1.50_dp
       ptable(86)%metallic_radius = z
       ptable(86)%vdw_radius = 2.20_dp ! [3]
-      ptable(86)%e_conv(0:3) = (/12, 30, 30, 14/)
-      ptable(86)%eht_param(0:3) = (/z, z, z, z/)
+      ptable(86)%e_conv(0:3) = [12, 30, 30, 14]
+      ptable(86)%eht_param(0:3) = [z, z, z, z]
 
       ! Francium
       ptable(87)%symbol = 'Fr'
@@ -1101,8 +1101,8 @@ CONTAINS
       ptable(87)%covalent_radius = 1.50_dp
       ptable(87)%metallic_radius = z
       ptable(87)%vdw_radius = 3.48_dp ! [3]
-      ptable(87)%e_conv(0:3) = (/13, 30, 30, 14/)
-      ptable(87)%eht_param(0:3) = (/z, z, z, z/)
+      ptable(87)%e_conv(0:3) = [13, 30, 30, 14]
+      ptable(87)%eht_param(0:3) = [z, z, z, z]
 
       ! Radium
       ptable(88)%symbol = 'Ra'
@@ -1112,8 +1112,8 @@ CONTAINS
       ptable(88)%covalent_radius = 1.90_dp
       ptable(88)%metallic_radius = z
       ptable(88)%vdw_radius = 2.83_dp ! [3]
-      ptable(88)%e_conv(0:3) = (/14, 30, 30, 14/)
-      ptable(88)%eht_param(0:3) = (/z, z, z, z/)
+      ptable(88)%e_conv(0:3) = [14, 30, 30, 14]
+      ptable(88)%eht_param(0:3) = [z, z, z, z]
 
       ! Actinium
       ptable(89)%symbol = 'Ac'
@@ -1123,8 +1123,8 @@ CONTAINS
       ptable(89)%covalent_radius = 1.88_dp
       ptable(89)%metallic_radius = z
       ptable(89)%vdw_radius = 2.00_dp
-      ptable(89)%e_conv(0:3) = (/14, 30, 31, 14/)
-      ptable(89)%eht_param(0:3) = (/z, z, z, z/)
+      ptable(89)%e_conv(0:3) = [14, 30, 31, 14]
+      ptable(89)%eht_param(0:3) = [z, z, z, z]
 
       ! Thorium
       ptable(90)%symbol = 'Th'
@@ -1134,8 +1134,8 @@ CONTAINS
       ptable(90)%covalent_radius = 1.65_dp
       ptable(90)%metallic_radius = 1.79_dp
       ptable(90)%vdw_radius = 2.00_dp
-      ptable(90)%e_conv(0:3) = (/14, 30, 32, 14/)
-      ptable(90)%eht_param(0:3) = (/-5.39_dp, -5.39_dp, -10.11_dp, -9.64_dp/)
+      ptable(90)%e_conv(0:3) = [14, 30, 32, 14]
+      ptable(90)%eht_param(0:3) = [-5.39_dp, -5.39_dp, -10.11_dp, -9.64_dp]
 
       ! Proctactinium
       ptable(91)%symbol = 'Pa'
@@ -1145,8 +1145,8 @@ CONTAINS
       ptable(91)%covalent_radius = 1.61_dp
       ptable(91)%metallic_radius = 1.63_dp
       ptable(91)%vdw_radius = scale2vdw(ptable(91)%metallic_radius)
-      ptable(91)%e_conv(0:3) = (/14, 30, 31, 16/)
-      ptable(91)%eht_param(0:3) = (/z, z, z, z/)
+      ptable(91)%e_conv(0:3) = [14, 30, 31, 16]
+      ptable(91)%eht_param(0:3) = [z, z, z, z]
 
       ! Uranium
       ptable(92)%symbol = 'U '
@@ -1156,8 +1156,8 @@ CONTAINS
       ptable(92)%covalent_radius = 1.42_dp
       ptable(92)%metallic_radius = 1.56_dp
       ptable(92)%vdw_radius = 1.86_dp ! [1]
-      ptable(92)%e_conv(0:3) = (/14, 30, 31, 17/)
-      ptable(92)%eht_param(0:3) = (/-5.50_dp, -5.50_dp, -9.19_dp, -10.62_dp/)
+      ptable(92)%e_conv(0:3) = [14, 30, 31, 17]
+      ptable(92)%eht_param(0:3) = [-5.50_dp, -5.50_dp, -9.19_dp, -10.62_dp]
 
       ! Neptunium
       ptable(93)%symbol = 'Np'
@@ -1167,8 +1167,8 @@ CONTAINS
       ptable(93)%covalent_radius = 1.55_dp
       ptable(93)%metallic_radius = 1.55_dp
       ptable(93)%vdw_radius = scale2vdw(ptable(93)%metallic_radius)
-      ptable(93)%e_conv(0:3) = (/14, 30, 31, 18/)
-      ptable(93)%eht_param(0:3) = (/z, z, z, z/)
+      ptable(93)%e_conv(0:3) = [14, 30, 31, 18]
+      ptable(93)%eht_param(0:3) = [z, z, z, z]
 
       ! Plutonium
       ptable(94)%symbol = 'Pu'
@@ -1178,8 +1178,8 @@ CONTAINS
       ptable(94)%covalent_radius = 1.53_dp
       ptable(94)%metallic_radius = 1.59_dp
       ptable(94)%vdw_radius = scale2vdw(ptable(94)%metallic_radius)
-      ptable(94)%e_conv(0:3) = (/14, 30, 30, 20/)
-      ptable(94)%eht_param(0:3) = (/z, z, z, z/)
+      ptable(94)%e_conv(0:3) = [14, 30, 30, 20]
+      ptable(94)%eht_param(0:3) = [z, z, z, z]
 
       ! Americum
       ptable(95)%symbol = 'Am'
@@ -1189,8 +1189,8 @@ CONTAINS
       ptable(95)%covalent_radius = 1.51_dp
       ptable(95)%metallic_radius = 1.73_dp
       ptable(95)%vdw_radius = scale2vdw(ptable(95)%metallic_radius)
-      ptable(95)%e_conv(0:3) = (/14, 30, 30, 21/)
-      ptable(95)%eht_param(0:3) = (/z, z, z, z/)
+      ptable(95)%e_conv(0:3) = [14, 30, 30, 21]
+      ptable(95)%eht_param(0:3) = [z, z, z, z]
 
       ! Curium
       ptable(96)%symbol = 'Cm'
@@ -1200,8 +1200,8 @@ CONTAINS
       ptable(96)%covalent_radius = 0.99_dp ! this value looks strange
       ptable(96)%metallic_radius = 1.74_dp
       ptable(96)%vdw_radius = scale2vdw(ptable(96)%metallic_radius)
-      ptable(96)%e_conv(0:3) = (/14, 30, 31, 21/)
-      ptable(96)%eht_param(0:3) = (/z, z, z, z/)
+      ptable(96)%e_conv(0:3) = [14, 30, 31, 21]
+      ptable(96)%eht_param(0:3) = [z, z, z, z]
 
       ! Berkelium
       ptable(97)%symbol = 'Bk'
@@ -1211,8 +1211,8 @@ CONTAINS
       ptable(97)%covalent_radius = 1.54_dp
       ptable(97)%metallic_radius = 1.70_dp
       ptable(97)%vdw_radius = scale2vdw(ptable(97)%metallic_radius)
-      ptable(97)%e_conv(0:3) = (/14, 30, 30, 23/)
-      ptable(97)%eht_param(0:3) = (/z, z, z, z/)
+      ptable(97)%e_conv(0:3) = [14, 30, 30, 23]
+      ptable(97)%eht_param(0:3) = [z, z, z, z]
 
       ! Californium
       ptable(98)%symbol = 'Cf'
@@ -1222,8 +1222,8 @@ CONTAINS
       ptable(98)%covalent_radius = 1.83_dp
       ptable(98)%metallic_radius = 1.86_dp
       ptable(98)%vdw_radius = scale2vdw(ptable(98)%metallic_radius)
-      ptable(98)%e_conv(0:3) = (/14, 30, 30, 24/)
-      ptable(98)%eht_param(0:3) = (/z, z, z, z/)
+      ptable(98)%e_conv(0:3) = [14, 30, 30, 24]
+      ptable(98)%eht_param(0:3) = [z, z, z, z]
 
       ! Einsteinium
       ptable(99)%symbol = 'Es'
@@ -1233,8 +1233,8 @@ CONTAINS
       ptable(99)%covalent_radius = 1.50_dp
       ptable(99)%metallic_radius = 1.86_dp
       ptable(99)%vdw_radius = scale2vdw(ptable(99)%metallic_radius)
-      ptable(99)%e_conv(0:3) = (/14, 30, 30, 25/)
-      ptable(99)%eht_param(0:3) = (/z, z, z, z/)
+      ptable(99)%e_conv(0:3) = [14, 30, 30, 25]
+      ptable(99)%eht_param(0:3) = [z, z, z, z]
 
       ! Fermium
       ptable(100)%symbol = 'Fm'
@@ -1244,8 +1244,8 @@ CONTAINS
       ptable(100)%covalent_radius = 1.50_dp
       ptable(100)%metallic_radius = z
       ptable(100)%vdw_radius = 2.00_dp
-      ptable(100)%e_conv(0:3) = (/14, 30, 30, 26/)
-      ptable(100)%eht_param(0:3) = (/z, z, z, z/)
+      ptable(100)%e_conv(0:3) = [14, 30, 30, 26]
+      ptable(100)%eht_param(0:3) = [z, z, z, z]
 
       ! Mendelevium
       ptable(101)%symbol = 'Md'
@@ -1255,8 +1255,8 @@ CONTAINS
       ptable(101)%covalent_radius = 1.50_dp
       ptable(101)%metallic_radius = z
       ptable(101)%vdw_radius = 2.00_dp
-      ptable(101)%e_conv(0:3) = (/14, 30, 30, 27/)
-      ptable(101)%eht_param(0:3) = (/z, z, z, z/)
+      ptable(101)%e_conv(0:3) = [14, 30, 30, 27]
+      ptable(101)%eht_param(0:3) = [z, z, z, z]
 
       ! Nobelium
       ptable(102)%symbol = 'No'
@@ -1266,8 +1266,8 @@ CONTAINS
       ptable(102)%covalent_radius = 1.50_dp
       ptable(102)%metallic_radius = z
       ptable(102)%vdw_radius = 2.00_dp
-      ptable(102)%e_conv(0:3) = (/14, 30, 30, 28/)
-      ptable(102)%eht_param(0:3) = (/z, z, z, z/)
+      ptable(102)%e_conv(0:3) = [14, 30, 30, 28]
+      ptable(102)%eht_param(0:3) = [z, z, z, z]
 
       ! Lawrencium
       ptable(103)%symbol = 'Lr'
@@ -1277,8 +1277,8 @@ CONTAINS
       ptable(103)%covalent_radius = 1.50_dp
       ptable(103)%metallic_radius = z
       ptable(103)%vdw_radius = 2.00_dp
-      ptable(103)%e_conv(0:3) = (/14, 31, 30, 28/)
-      ptable(103)%eht_param(0:3) = (/z, z, z, z/)
+      ptable(103)%e_conv(0:3) = [14, 31, 30, 28]
+      ptable(103)%eht_param(0:3) = [z, z, z, z]
 
       ! Rutherfordium
       ptable(104)%symbol = 'Rf'
@@ -1288,8 +1288,8 @@ CONTAINS
       ptable(104)%covalent_radius = 1.50_dp
       ptable(104)%metallic_radius = z
       ptable(104)%vdw_radius = 2.00_dp
-      ptable(104)%e_conv(0:3) = (/14, 30, 32, 28/)
-      ptable(104)%eht_param(0:3) = (/z, z, z, z/)
+      ptable(104)%e_conv(0:3) = [14, 30, 32, 28]
+      ptable(104)%eht_param(0:3) = [z, z, z, z]
 
       ! Dubnium
       ptable(105)%symbol = 'Db'
@@ -1299,8 +1299,8 @@ CONTAINS
       ptable(105)%covalent_radius = 1.50_dp
       ptable(105)%metallic_radius = z
       ptable(105)%vdw_radius = 2.00_dp
-      ptable(105)%e_conv(0:3) = (/14, 30, 33, 28/)
-      ptable(105)%eht_param(0:3) = (/z, z, z, z/)
+      ptable(105)%e_conv(0:3) = [14, 30, 33, 28]
+      ptable(105)%eht_param(0:3) = [z, z, z, z]
 
       ! Seaborgium
       ptable(106)%symbol = 'Sg'
@@ -1310,8 +1310,8 @@ CONTAINS
       ptable(106)%covalent_radius = 1.50_dp
       ptable(106)%metallic_radius = z
       ptable(106)%vdw_radius = 2.00_dp
-      ptable(106)%e_conv(0:3) = (/14, 30, 34, 28/)
-      ptable(106)%eht_param(0:3) = (/z, z, z, z/)
+      ptable(106)%e_conv(0:3) = [14, 30, 34, 28]
+      ptable(106)%eht_param(0:3) = [z, z, z, z]
 
       ! Bohrium
       ptable(107)%symbol = 'Bh'
@@ -1321,8 +1321,8 @@ CONTAINS
       ptable(107)%covalent_radius = 1.50_dp
       ptable(107)%metallic_radius = z
       ptable(107)%vdw_radius = 2.00_dp
-      ptable(107)%e_conv(0:3) = (/14, 30, 35, 28/)
-      ptable(107)%eht_param(0:3) = (/z, z, z, z/)
+      ptable(107)%e_conv(0:3) = [14, 30, 35, 28]
+      ptable(107)%eht_param(0:3) = [z, z, z, z]
 
       ! Hassium
       ptable(108)%symbol = 'Hs'
@@ -1332,8 +1332,8 @@ CONTAINS
       ptable(108)%covalent_radius = 1.50_dp
       ptable(108)%metallic_radius = z
       ptable(108)%vdw_radius = 2.00_dp
-      ptable(108)%e_conv(0:3) = (/14, 30, 36, 28/)
-      ptable(108)%eht_param(0:3) = (/z, z, z, z/)
+      ptable(108)%e_conv(0:3) = [14, 30, 36, 28]
+      ptable(108)%eht_param(0:3) = [z, z, z, z]
 
       ! Meitnerium
       ptable(109)%symbol = 'Mt'
@@ -1343,8 +1343,8 @@ CONTAINS
       ptable(109)%covalent_radius = 1.50_dp
       ptable(109)%metallic_radius = z
       ptable(109)%vdw_radius = 2.00_dp
-      ptable(109)%e_conv(0:3) = (/14, 30, 37, 28/)
-      ptable(109)%eht_param(0:3) = (/z, z, z, z/)
+      ptable(109)%e_conv(0:3) = [14, 30, 37, 28]
+      ptable(109)%eht_param(0:3) = [z, z, z, z]
 
       ! Darmstadtium
       ptable(110)%symbol = 'Ds'
@@ -1354,8 +1354,8 @@ CONTAINS
       ptable(110)%covalent_radius = 1.50_dp
       ptable(110)%metallic_radius = z
       ptable(110)%vdw_radius = 2.00_dp
-      ptable(110)%e_conv(0:3) = (/14, 30, 38, 28/)
-      ptable(110)%eht_param(0:3) = (/z, z, z, z/)
+      ptable(110)%e_conv(0:3) = [14, 30, 38, 28]
+      ptable(110)%eht_param(0:3) = [z, z, z, z]
 
       ! Roentgenium
       ptable(111)%symbol = 'Rg'
@@ -1365,8 +1365,8 @@ CONTAINS
       ptable(111)%covalent_radius = 1.50_dp
       ptable(111)%metallic_radius = z
       ptable(111)%vdw_radius = 2.00_dp
-      ptable(111)%e_conv(0:3) = (/14, 30, 39, 28/)
-      ptable(111)%eht_param(0:3) = (/z, z, z, z/)
+      ptable(111)%e_conv(0:3) = [14, 30, 39, 28]
+      ptable(111)%eht_param(0:3) = [z, z, z, z]
 
       ! Copernicium
       ptable(112)%symbol = 'Cn'
@@ -1376,8 +1376,8 @@ CONTAINS
       ptable(112)%covalent_radius = 1.50_dp
       ptable(112)%metallic_radius = z
       ptable(112)%vdw_radius = 2.00_dp
-      ptable(112)%e_conv(0:3) = (/14, 30, 40, 28/)
-      ptable(112)%eht_param(0:3) = (/z, z, z, z/)
+      ptable(112)%e_conv(0:3) = [14, 30, 40, 28]
+      ptable(112)%eht_param(0:3) = [z, z, z, z]
 
       ! Nihonium
       ptable(113)%symbol = 'Nh'
@@ -1387,8 +1387,8 @@ CONTAINS
       ptable(113)%covalent_radius = 1.50_dp
       ptable(113)%metallic_radius = z
       ptable(113)%vdw_radius = 2.00_dp
-      ptable(113)%e_conv(0:3) = (/14, 31, 40, 28/)
-      ptable(113)%eht_param(0:3) = (/z, z, z, z/)
+      ptable(113)%e_conv(0:3) = [14, 31, 40, 28]
+      ptable(113)%eht_param(0:3) = [z, z, z, z]
 
       ! Flerovium
       ptable(114)%symbol = 'Fl'
@@ -1398,8 +1398,8 @@ CONTAINS
       ptable(114)%covalent_radius = 1.50_dp
       ptable(114)%metallic_radius = z
       ptable(114)%vdw_radius = 2.00_dp
-      ptable(114)%e_conv(0:3) = (/14, 32, 40, 28/)
-      ptable(114)%eht_param(0:3) = (/z, z, z, z/)
+      ptable(114)%e_conv(0:3) = [14, 32, 40, 28]
+      ptable(114)%eht_param(0:3) = [z, z, z, z]
 
       ! Moscovium
       ptable(115)%symbol = 'Mc'
@@ -1409,8 +1409,8 @@ CONTAINS
       ptable(115)%covalent_radius = 1.50_dp
       ptable(115)%metallic_radius = z
       ptable(115)%vdw_radius = 2.00_dp
-      ptable(115)%e_conv(0:3) = (/14, 33, 40, 28/)
-      ptable(115)%eht_param(0:3) = (/z, z, z, z/)
+      ptable(115)%e_conv(0:3) = [14, 33, 40, 28]
+      ptable(115)%eht_param(0:3) = [z, z, z, z]
 
       ! Livermorium
       ptable(116)%symbol = 'Lv'
@@ -1420,8 +1420,8 @@ CONTAINS
       ptable(116)%covalent_radius = 1.50_dp
       ptable(116)%metallic_radius = z
       ptable(116)%vdw_radius = 2.00_dp
-      ptable(116)%e_conv(0:3) = (/14, 34, 40, 28/)
-      ptable(116)%eht_param(0:3) = (/z, z, z, z/)
+      ptable(116)%e_conv(0:3) = [14, 34, 40, 28]
+      ptable(116)%eht_param(0:3) = [z, z, z, z]
 
       ! Tennessine
       ptable(117)%symbol = 'Ts'
@@ -1431,8 +1431,8 @@ CONTAINS
       ptable(117)%covalent_radius = 1.50_dp
       ptable(117)%metallic_radius = z
       ptable(117)%vdw_radius = 2.00_dp
-      ptable(117)%e_conv(0:3) = (/14, 35, 40, 28/)
-      ptable(117)%eht_param(0:3) = (/z, z, z, z/)
+      ptable(117)%e_conv(0:3) = [14, 35, 40, 28]
+      ptable(117)%eht_param(0:3) = [z, z, z, z]
 
       ! Oganesson
       ptable(118)%symbol = 'Og'
@@ -1442,8 +1442,8 @@ CONTAINS
       ptable(118)%covalent_radius = 1.50_dp
       ptable(118)%metallic_radius = z
       ptable(118)%vdw_radius = 2.00_dp
-      ptable(118)%e_conv(0:3) = (/14, 36, 40, 28/)
-      ptable(118)%eht_param(0:3) = (/z, z, z, z/)
+      ptable(118)%e_conv(0:3) = [14, 36, 40, 28]
+      ptable(118)%eht_param(0:3) = [z, z, z, z]
 
       ! Initialize heat of formation
       CALL init_eheat

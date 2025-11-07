@@ -107,7 +107,7 @@ CONTAINS
                           default_i_val=BLACS_GRID_SQUARE, enum_c_vals=s2a("SQUARE", "ROW", "COLUMN"), &
                           enum_desc=s2a("Distribution by matrix blocks", "Distribution by matrix rows", &
                                         "Distribution by matrix columns"), &
-                          enum_i_vals=(/BLACS_GRID_SQUARE, BLACS_GRID_ROW, BLACS_GRID_COL/))
+                          enum_i_vals=[BLACS_GRID_SQUARE, BLACS_GRID_ROW, BLACS_GRID_COL])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -123,11 +123,11 @@ CONTAINS
                           description="Specifies the diagonalization library to be used. If not available, "// &
                           "the ScaLAPACK library is used", &
                           usage="PREFERRED_DIAG_LIBRARY ELPA", &
-                          enum_i_vals=(/FM_DIAG_TYPE_ELPA, &
-                                        FM_DIAG_TYPE_SCALAPACK, &
-                                        FM_DIAG_TYPE_SCALAPACK, &
-                                        FM_DIAG_TYPE_CUSOLVER, &
-                                        FM_DIAG_TYPE_DLAF/), &
+                          enum_i_vals=[FM_DIAG_TYPE_ELPA, &
+                                       FM_DIAG_TYPE_SCALAPACK, &
+                                       FM_DIAG_TYPE_SCALAPACK, &
+                                       FM_DIAG_TYPE_CUSOLVER, &
+                                       FM_DIAG_TYPE_DLAF], &
                           enum_c_vals=s2a("ELPA", "ScaLAPACK", "SL", "CUSOLVER", "DLAF"), &
                           enum_desc=s2a("ELPA library", &
                                         "ScaLAPACK library", &
@@ -142,9 +142,9 @@ CONTAINS
                           description="Specifies Cholesky decomposition library to be used. If not available, "// &
                           "the ScaLAPACK library is used", &
                           usage="PREFERRED_CHOLESKY_LIBRARY DLAF", &
-                          enum_i_vals=(/FM_CHOLESKY_TYPE_SCALAPACK, &
-                                        FM_CHOLESKY_TYPE_SCALAPACK, &
-                                        FM_CHOLESKY_TYPE_DLAF/), &
+                          enum_i_vals=[FM_CHOLESKY_TYPE_SCALAPACK, &
+                                       FM_CHOLESKY_TYPE_SCALAPACK, &
+                                       FM_CHOLESKY_TYPE_DLAF], &
                           enum_c_vals=s2a("ScaLAPACK", "SL", "DLAF"), &
                           enum_desc=s2a("ScaLAPACK library", &
                                         "ScaLAPACK library (shorthand)", &
@@ -165,7 +165,7 @@ CONTAINS
                           "(see keyword FM%TYPE_OF_MATRIX_MULTIPLICATION).", &
                           usage="PREFERRED_DGEMM_LIBRARY SPLA", &
                           default_i_val=default_dgemm, &
-                          enum_i_vals=(/do_dgemm_spla, do_dgemm_blas/), &
+                          enum_i_vals=[do_dgemm_spla, do_dgemm_blas], &
                           enum_c_vals=s2a("SPLA", "BLAS"), &
                           enum_desc=s2a("SPLA library", "BLAS library"))
       CALL section_add_keyword(section, keyword)
@@ -258,9 +258,9 @@ CONTAINS
          "or older results need to be reproduced. "// &
          "FFTW3 is often (close to) optimal, and well tested with CP2K.", &
          usage="PREFERRED_FFT_LIBRARY FFTW3", &
-         citations=(/Frigo2005/), &
+         citations=[Frigo2005], &
          default_i_val=do_fft_fftw3, &
-         enum_i_vals=(/do_fft_sg, do_fft_fftw3, do_fft_fftw3/), &
+         enum_i_vals=[do_fft_sg, do_fft_fftw3, do_fft_fftw3], &
          enum_c_vals=s2a("FFTSG", "FFTW3", "FFTW"), &
          enum_desc=s2a("Stefan Goedecker's FFT (FFTSG), always available, "// &
                        "will be used in case a FFT library is specified and not available.", &
@@ -289,9 +289,9 @@ CONTAINS
                           "and thus numerics for the FFTs will be slightly different from run to run. "// &
                           "PATIENT planning is recommended for long ab initio MD runs.", &
                           usage="FFTW_PLAN_TYPE PATIENT", &
-                          citations=(/Frigo2005/), &
+                          citations=[Frigo2005], &
                           default_i_val=fftw_plan_estimate, &
-                          enum_i_vals=(/fftw_plan_estimate, fftw_plan_measure, fftw_plan_patient, fftw_plan_exhaustive/), &
+                          enum_i_vals=[fftw_plan_estimate, fftw_plan_measure, fftw_plan_patient, fftw_plan_exhaustive], &
                           enum_c_vals=s2a("ESTIMATE", &
                                           "MEASURE", &
                                           "PATIENT", &
@@ -332,7 +332,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="PRINT_LEVEL", &
-                          variants=(/"IOLEVEL"/), &
+                          variants=["IOLEVEL"], &
                           description="How much output is written out.", &
                           usage="PRINT_LEVEL HIGH", &
                           default_i_val=medium_print_level, enum_c_vals= &
@@ -340,14 +340,14 @@ CONTAINS
                           enum_desc=s2a("Almost no output", &
                                         "Little output", "Quite some output", "Lots of output", &
                                         "Everything is written out, useful for debugging purposes only"), &
-                          enum_i_vals=(/silent_print_level, low_print_level, medium_print_level, &
-                                        high_print_level, debug_print_level/))
+                          enum_i_vals=[silent_print_level, low_print_level, medium_print_level, &
+                                       high_print_level, debug_print_level])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create( &
          keyword, __LOCATION__, name="PROGRAM_NAME", &
-         variants=(/"PROGRAM"/), &
+         variants=["PROGRAM"], &
          description="Which program should be run", &
          usage="PROGRAM_NAME {STRING}", &
          enum_c_vals=s2a("ATOM", "FARMING", "TEST", "CP2K", "OPTIMIZE_INPUT", "OPTIMIZE_BASIS", "TMC", "MC_ANALYSIS", "SWARM"), &
@@ -361,14 +361,14 @@ CONTAINS
                        "Runs Tree Monte Carlo algorithm using additional input file(s)", &
                        "Runs (Tree) Monte Carlo trajectory file analysis", &
                        "Runs swarm based calculation"), &
-         enum_i_vals=(/do_atom, do_farming, do_test, do_cp2k, do_optimize_input, &
-                       do_opt_basis, do_tree_mc, do_tree_mc_ana, do_swarm/), &
+         enum_i_vals=[do_atom, do_farming, do_test, do_cp2k, do_optimize_input, &
+                      do_opt_basis, do_tree_mc, do_tree_mc_ana, do_swarm], &
          default_i_val=do_cp2k)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="PROJECT_NAME", &
-                          variants=(/"PROJECT"/), &
+                          variants=["PROJECT"], &
                           description="Name of the project (used to build the name of the "// &
                           "trajectory, and other files generated by the program)", &
                           usage="PROJECT_NAME {STRING}", &
@@ -390,19 +390,19 @@ CONTAINS
          "optimization, md, montecarlo,...", &
          usage="RUN_TYPE MD", &
          default_i_val=energy_force_run, &
-         citations=(/Ceriotti2014, Schonherr2014/), &
+         citations=[Ceriotti2014, Schonherr2014], &
          enum_c_vals=s2a("NONE", "ENERGY", "ENERGY_FORCE", "MD", "GEO_OPT", &
                          "MC", "DEBUG", "BSSE", "LR", "PINT", "VIBRATIONAL_ANALYSIS", &
                          "BAND", "CELL_OPT", "WFN_OPT", "WAVEFUNCTION_OPTIMIZATION", &
                          "MOLECULAR_DYNAMICS", "GEOMETRY_OPTIMIZATION", "MONTECARLO", &
                          "LINEAR_RESPONSE", "NORMAL_MODES", "RT_PROPAGATION", &
                          "EHRENFEST_DYN", "TAMC", "TMC", "DRIVER", "NEGF"), &
-         enum_i_vals=(/none_run, energy_run, energy_force_run, mol_dyn_run, &
-                       geo_opt_run, mon_car_run, debug_run, &
-                       bsse_run, linear_response_run, pint_run, vib_anal, do_band, &
-                       cell_opt_run, energy_run, energy_run, mol_dyn_run, geo_opt_run, &
-                       mon_car_run, linear_response_run, &
-                       vib_anal, real_time_propagation, ehrenfest, do_tamc, tree_mc_run, driver_run, negf_run/), &
+         enum_i_vals=[none_run, energy_run, energy_force_run, mol_dyn_run, &
+                      geo_opt_run, mon_car_run, debug_run, &
+                      bsse_run, linear_response_run, pint_run, vib_anal, do_band, &
+                      cell_opt_run, energy_run, energy_run, mol_dyn_run, geo_opt_run, &
+                      mon_car_run, linear_response_run, &
+                      vib_anal, real_time_propagation, ehrenfest, do_tamc, tree_mc_run, driver_run, negf_run], &
          enum_desc=s2a("Perform no tasks", "Computes energy", "Computes energy and forces", &
                        "Molecular Dynamics", "Geometry Optimization", "Monte Carlo", &
                        "Performs a Debug analysis", "Basis set superposition error", "Linear Response", &
@@ -420,7 +420,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="WALLTIME", &
-                          variants=(/"WALLTI"/), &
+                          variants=["WALLTI"], &
                           description="Maximum execution time for this run. Time in seconds or in HH:MM:SS.", &
                           usage="WALLTIME {real} or {HH:MM:SS}", default_lc_val="")
       CALL section_add_keyword(section, keyword)
@@ -494,7 +494,7 @@ CONTAINS
                           enum_desc=s2a("No callgraph gets written", &
                                         "Only the master process writes his callgraph", &
                                         "All processes write their callgraph (into a separate files)."), &
-                          enum_i_vals=(/CALLGRAPH_NONE, CALLGRAPH_MASTER, CALLGRAPH_ALL/))
+                          enum_i_vals=[CALLGRAPH_NONE, CALLGRAPH_MASTER, CALLGRAPH_ALL])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -513,7 +513,7 @@ CONTAINS
                           n_var=-1, &
                           type_of_var=integer_t, &
                           usage="SEED {INTEGER} .. {INTEGER}", &
-                          default_i_vals=(/2000/))
+                          default_i_vals=[2000])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -702,7 +702,7 @@ CONTAINS
                           "The performance of Scalapack's pxgemm on GPU's depends "// &
                           "crucially on the BLOCK_SIZES. Make sure optimized kernels are available.", &
                           default_i_val=default_matmul, &
-                          enum_i_vals=(/do_scalapack, do_scalapack, do_cosma/), &
+                          enum_i_vals=[do_scalapack, do_scalapack, do_cosma], &
                           enum_c_vals=s2a("SCALAPACK", "PDGEMM", "COSMA"), &
                           enum_desc=s2a("Standard ScaLAPACK pdgemm", &
                                         "Alias for ScaLAPACK", &
@@ -796,8 +796,8 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="BACKEND", &
                           description="Selects the backed used by the grid library.", &
                           default_i_val=GRID_BACKEND_AUTO, &
-                          enum_i_vals=(/GRID_BACKEND_AUTO, GRID_BACKEND_REF, GRID_BACKEND_CPU, &
-                                        GRID_BACKEND_DGEMM, GRID_BACKEND_GPU, GRID_BACKEND_HIP/), &
+                          enum_i_vals=[GRID_BACKEND_AUTO, GRID_BACKEND_REF, GRID_BACKEND_CPU, &
+                                       GRID_BACKEND_DGEMM, GRID_BACKEND_GPU, GRID_BACKEND_HIP], &
                           enum_c_vals=s2a("AUTO", "REFERENCE", "CPU", "DGEMM", "GPU", "HIP"), &
                           enum_desc=s2a("Let the grid library pick the backend automatically", &
                                         "Reference backend implementation", &

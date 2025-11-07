@@ -361,7 +361,7 @@ CONTAINS
          END DO ! spin
       ELSE ! domains are atomic
          ! RZK-warning do the same for atomic domains/groups
-         almo_scf_env%domain_index_of_atom(1:natoms) = (/(i, i=1, natoms)/)
+         almo_scf_env%domain_index_of_atom(1:natoms) = [(i, i=1, natoms)]
       END IF
 
       ao = 1
@@ -383,7 +383,7 @@ CONTAINS
       ELSE IF (almo_scf_env%mat_distr_aos == almo_mat_distr_molecular) THEN
          ALLOCATE (almo_scf_env%domain_index_of_ao_block(nmols))
          ! if distr blocks are molecular then domain layout is also molecular
-         almo_scf_env%domain_index_of_ao_block(:) = (/(i, i=1, nmols)/)
+         almo_scf_env%domain_index_of_ao_block(:) = [(i, i=1, nmols)]
       END IF
       ! mo blocks
       IF (almo_scf_env%mat_distr_mos == almo_mat_distr_atomic) THEN
@@ -393,7 +393,7 @@ CONTAINS
       ELSE IF (almo_scf_env%mat_distr_mos == almo_mat_distr_molecular) THEN
          ALLOCATE (almo_scf_env%domain_index_of_mo_block(nmols))
          ! if distr blocks are molecular then domain layout is also molecular
-         almo_scf_env%domain_index_of_mo_block(:) = (/(i, i=1, nmols)/)
+         almo_scf_env%domain_index_of_mo_block(:) = [(i, i=1, nmols)]
       END IF
 
       ! set all flags
@@ -2194,7 +2194,7 @@ CONTAINS
                               matrix_qs=matrix_s0, &
                               almo_scf_env=almo_scf_env, &
                               name_new="S", &
-                              size_keys=(/almo_mat_dim_aobasis, almo_mat_dim_aobasis/), &
+                              size_keys=[almo_mat_dim_aobasis, almo_mat_dim_aobasis], &
                               symmetry_new=dbcsr_type_symmetric, &
                               spin_key=0, &
                               init_domains=.FALSE.)
@@ -2202,7 +2202,7 @@ CONTAINS
                               matrix_qs=matrix_s0, &
                               almo_scf_env=almo_scf_env, &
                               name_new="S_BLK", &
-                              size_keys=(/almo_mat_dim_aobasis, almo_mat_dim_aobasis/), &
+                              size_keys=[almo_mat_dim_aobasis, almo_mat_dim_aobasis], &
                               symmetry_new=dbcsr_type_symmetric, &
                               spin_key=0, &
                               init_domains=.TRUE.)
@@ -2211,7 +2211,7 @@ CONTAINS
                                  matrix_qs=matrix_s0, &
                                  almo_scf_env=almo_scf_env, &
                                  name_new="S_BLK_SQRT_INV", &
-                                 size_keys=(/almo_mat_dim_aobasis, almo_mat_dim_aobasis/), &
+                                 size_keys=[almo_mat_dim_aobasis, almo_mat_dim_aobasis], &
                                  symmetry_new=dbcsr_type_symmetric, &
                                  spin_key=0, &
                                  init_domains=.TRUE.)
@@ -2219,7 +2219,7 @@ CONTAINS
                                  matrix_qs=matrix_s0, &
                                  almo_scf_env=almo_scf_env, &
                                  name_new="S_BLK_SQRT", &
-                                 size_keys=(/almo_mat_dim_aobasis, almo_mat_dim_aobasis/), &
+                                 size_keys=[almo_mat_dim_aobasis, almo_mat_dim_aobasis], &
                                  symmetry_new=dbcsr_type_symmetric, &
                                  spin_key=0, &
                                  init_domains=.TRUE.)
@@ -2228,7 +2228,7 @@ CONTAINS
                                  matrix_qs=matrix_s0, &
                                  almo_scf_env=almo_scf_env, &
                                  name_new="S_BLK_INV", &
-                                 size_keys=(/almo_mat_dim_aobasis, almo_mat_dim_aobasis/), &
+                                 size_keys=[almo_mat_dim_aobasis, almo_mat_dim_aobasis], &
                                  symmetry_new=dbcsr_type_symmetric, &
                                  spin_key=0, &
                                  init_domains=.TRUE.)
@@ -2253,7 +2253,7 @@ CONTAINS
                                  matrix_qs=matrix_s0, &
                                  almo_scf_env=almo_scf_env, &
                                  name_new="Q_BLK", &
-                                 size_keys=(/almo_mat_dim_aobasis, almo_mat_dim_occ/), &
+                                 size_keys=[almo_mat_dim_aobasis, almo_mat_dim_occ], &
                                  symmetry_new=dbcsr_type_no_symmetry, &
                                  spin_key=ispin, &
                                  init_domains=.TRUE.)
@@ -2262,7 +2262,7 @@ CONTAINS
                                  matrix_qs=matrix_s0, &
                                  almo_scf_env=almo_scf_env, &
                                  name_new="T_BLK", &
-                                 size_keys=(/almo_mat_dim_aobasis, almo_mat_dim_occ/), &
+                                 size_keys=[almo_mat_dim_aobasis, almo_mat_dim_occ], &
                                  symmetry_new=dbcsr_type_no_symmetry, &
                                  spin_key=ispin, &
                                  init_domains=.TRUE.)
@@ -2271,7 +2271,7 @@ CONTAINS
                                  matrix_qs=matrix_s0, &
                                  almo_scf_env=almo_scf_env, &
                                  name_new="ERR_BLK", &
-                                 size_keys=(/almo_mat_dim_aobasis, almo_mat_dim_aobasis/), &
+                                 size_keys=[almo_mat_dim_aobasis, almo_mat_dim_aobasis], &
                                  symmetry_new=dbcsr_type_no_symmetry, &
                                  spin_key=ispin, &
                                  init_domains=.TRUE.)
@@ -2280,7 +2280,7 @@ CONTAINS
                                  matrix_qs=matrix_s0, &
                                  almo_scf_env=almo_scf_env, &
                                  name_new="ERR_XX", &
-                                 size_keys=(/almo_mat_dim_aobasis, almo_mat_dim_occ/), &
+                                 size_keys=[almo_mat_dim_aobasis, almo_mat_dim_occ], &
                                  symmetry_new=dbcsr_type_no_symmetry, &
                                  spin_key=ispin, &
                                  init_domains=.FALSE.)
@@ -2290,7 +2290,7 @@ CONTAINS
                                  matrix_qs=matrix_s0, &
                                  almo_scf_env=almo_scf_env, &
                                  name_new="T_TR", &
-                                 size_keys=(/almo_mat_dim_occ, almo_mat_dim_aobasis/), &
+                                 size_keys=[almo_mat_dim_occ, almo_mat_dim_aobasis], &
                                  symmetry_new=dbcsr_type_no_symmetry, &
                                  spin_key=ispin, &
                                  init_domains=.FALSE.)
@@ -2299,7 +2299,7 @@ CONTAINS
                                  matrix_qs=matrix_s0, &
                                  almo_scf_env=almo_scf_env, &
                                  name_new="SIG", &
-                                 size_keys=(/almo_mat_dim_occ, almo_mat_dim_occ/), &
+                                 size_keys=[almo_mat_dim_occ, almo_mat_dim_occ], &
                                  symmetry_new=dbcsr_type_symmetric, &
                                  spin_key=ispin, &
                                  init_domains=.FALSE.)
@@ -2308,7 +2308,7 @@ CONTAINS
                                  matrix_qs=matrix_s0, &
                                  almo_scf_env=almo_scf_env, &
                                  name_new="SIG_BLK", &
-                                 size_keys=(/almo_mat_dim_occ, almo_mat_dim_occ/), &
+                                 size_keys=[almo_mat_dim_occ, almo_mat_dim_occ], &
                                  symmetry_new=dbcsr_type_symmetric, &
                                  spin_key=ispin, &
                                  init_domains=.TRUE.)
@@ -2317,7 +2317,7 @@ CONTAINS
                                  matrix_qs=matrix_s0, &
                                  almo_scf_env=almo_scf_env, &
                                  name_new="SIGINV_BLK", &
-                                 size_keys=(/almo_mat_dim_occ, almo_mat_dim_occ/), &
+                                 size_keys=[almo_mat_dim_occ, almo_mat_dim_occ], &
                                  symmetry_new=dbcsr_type_symmetric, &
                                  spin_key=ispin, &
                                  init_domains=.TRUE.)
@@ -2327,7 +2327,7 @@ CONTAINS
             matrix_qs=matrix_s0, &
             almo_scf_env=almo_scf_env, &
             name_new="SIGINV", &
-            size_keys=(/almo_mat_dim_occ, almo_mat_dim_occ/), &
+            size_keys=[almo_mat_dim_occ, almo_mat_dim_occ], &
             symmetry_new=dbcsr_type_symmetric, &
             spin_key=ispin, &
             init_domains=.FALSE.)
@@ -2337,7 +2337,7 @@ CONTAINS
             matrix_qs=matrix_s0, &
             almo_scf_env=almo_scf_env, &
             name_new="T", &
-            size_keys=(/almo_mat_dim_aobasis, almo_mat_dim_occ/), &
+            size_keys=[almo_mat_dim_aobasis, almo_mat_dim_occ], &
             symmetry_new=dbcsr_type_no_symmetry, &
             spin_key=ispin, &
             init_domains=.FALSE.)
@@ -2383,7 +2383,7 @@ CONTAINS
                                     matrix_qs=matrix_s0, &
                                     almo_scf_env=almo_scf_env, &
                                     name_new="V_FULL_BLK", &
-                                    size_keys=(/almo_mat_dim_aobasis, almo_mat_dim_virt_full/), &
+                                    size_keys=[almo_mat_dim_aobasis, almo_mat_dim_virt_full], &
                                     symmetry_new=dbcsr_type_no_symmetry, &
                                     spin_key=ispin, &
                                     init_domains=.FALSE.)
@@ -2391,7 +2391,7 @@ CONTAINS
                                     matrix_qs=matrix_s0, &
                                     almo_scf_env=almo_scf_env, &
                                     name_new="V_BLK", &
-                                    size_keys=(/almo_mat_dim_aobasis, almo_mat_dim_virt/), &
+                                    size_keys=[almo_mat_dim_aobasis, almo_mat_dim_virt], &
                                     symmetry_new=dbcsr_type_no_symmetry, &
                                     spin_key=ispin, &
                                     init_domains=.FALSE.)
@@ -2399,7 +2399,7 @@ CONTAINS
                                     matrix_qs=matrix_s0, &
                                     almo_scf_env=almo_scf_env, &
                                     name_new="V", &
-                                    size_keys=(/almo_mat_dim_aobasis, almo_mat_dim_virt/), &
+                                    size_keys=[almo_mat_dim_aobasis, almo_mat_dim_virt], &
                                     symmetry_new=dbcsr_type_no_symmetry, &
                                     spin_key=ispin, &
                                     init_domains=.FALSE.)
@@ -2407,7 +2407,7 @@ CONTAINS
                                     matrix_qs=matrix_s0, &
                                     almo_scf_env=almo_scf_env, &
                                     name_new="OV_FULL", &
-                                    size_keys=(/almo_mat_dim_occ, almo_mat_dim_virt_full/), &
+                                    size_keys=[almo_mat_dim_occ, almo_mat_dim_virt_full], &
                                     symmetry_new=dbcsr_type_no_symmetry, &
                                     spin_key=ispin, &
                                     init_domains=.FALSE.)
@@ -2415,7 +2415,7 @@ CONTAINS
                                     matrix_qs=matrix_s0, &
                                     almo_scf_env=almo_scf_env, &
                                     name_new="OV", &
-                                    size_keys=(/almo_mat_dim_occ, almo_mat_dim_virt/), &
+                                    size_keys=[almo_mat_dim_occ, almo_mat_dim_virt], &
                                     symmetry_new=dbcsr_type_no_symmetry, &
                                     spin_key=ispin, &
                                     init_domains=.FALSE.)
@@ -2423,7 +2423,7 @@ CONTAINS
                                     matrix_qs=matrix_s0, &
                                     almo_scf_env=almo_scf_env, &
                                     name_new="VO", &
-                                    size_keys=(/almo_mat_dim_virt, almo_mat_dim_occ/), &
+                                    size_keys=[almo_mat_dim_virt, almo_mat_dim_occ], &
                                     symmetry_new=dbcsr_type_no_symmetry, &
                                     spin_key=ispin, &
                                     init_domains=.FALSE.)
@@ -2431,7 +2431,7 @@ CONTAINS
                                     matrix_qs=matrix_s0, &
                                     almo_scf_env=almo_scf_env, &
                                     name_new="VO", &
-                                    size_keys=(/almo_mat_dim_virt, almo_mat_dim_occ/), &
+                                    size_keys=[almo_mat_dim_virt, almo_mat_dim_occ], &
                                     symmetry_new=dbcsr_type_no_symmetry, &
                                     spin_key=ispin, &
                                     init_domains=.FALSE.)
@@ -2439,7 +2439,7 @@ CONTAINS
                                     matrix_qs=matrix_s0, &
                                     almo_scf_env=almo_scf_env, &
                                     name_new="SIG_VV", &
-                                    size_keys=(/almo_mat_dim_virt, almo_mat_dim_virt/), &
+                                    size_keys=[almo_mat_dim_virt, almo_mat_dim_virt], &
                                     symmetry_new=dbcsr_type_symmetric, &
                                     spin_key=ispin, &
                                     init_domains=.FALSE.)
@@ -2447,7 +2447,7 @@ CONTAINS
                                     matrix_qs=matrix_s0, &
                                     almo_scf_env=almo_scf_env, &
                                     name_new="VV_FULL_BLK", &
-                                    size_keys=(/almo_mat_dim_virt_full, almo_mat_dim_virt_full/), &
+                                    size_keys=[almo_mat_dim_virt_full, almo_mat_dim_virt_full], &
                                     symmetry_new=dbcsr_type_no_symmetry, &
                                     spin_key=ispin, &
                                     init_domains=.TRUE.)
@@ -2455,7 +2455,7 @@ CONTAINS
                                     matrix_qs=matrix_s0, &
                                     almo_scf_env=almo_scf_env, &
                                     name_new="SIG_VV_BLK", &
-                                    size_keys=(/almo_mat_dim_virt, almo_mat_dim_virt/), &
+                                    size_keys=[almo_mat_dim_virt, almo_mat_dim_virt], &
                                     symmetry_new=dbcsr_type_symmetric, &
                                     spin_key=ispin, &
                                     init_domains=.TRUE.)
@@ -2471,7 +2471,7 @@ CONTAINS
                                        matrix_qs=matrix_s0, &
                                        almo_scf_env=almo_scf_env, &
                                        name_new="OPT_K_U_RR", &
-                                       size_keys=(/almo_mat_dim_virt, almo_mat_dim_virt/), &
+                                       size_keys=[almo_mat_dim_virt, almo_mat_dim_virt], &
                                        symmetry_new=dbcsr_type_no_symmetry, &
                                        spin_key=ispin, &
                                        init_domains=.FALSE.)
@@ -2479,7 +2479,7 @@ CONTAINS
                                        matrix_qs=matrix_s0, &
                                        almo_scf_env=almo_scf_env, &
                                        name_new="VV_DISC", &
-                                       size_keys=(/almo_mat_dim_virt_disc, almo_mat_dim_virt_disc/), &
+                                       size_keys=[almo_mat_dim_virt_disc, almo_mat_dim_virt_disc], &
                                        symmetry_new=dbcsr_type_symmetric, &
                                        spin_key=ispin, &
                                        init_domains=.FALSE.)
@@ -2487,7 +2487,7 @@ CONTAINS
                                        matrix_qs=matrix_s0, &
                                        almo_scf_env=almo_scf_env, &
                                        name_new="OPT_K_U_DD", &
-                                       size_keys=(/almo_mat_dim_virt_disc, almo_mat_dim_virt_disc/), &
+                                       size_keys=[almo_mat_dim_virt_disc, almo_mat_dim_virt_disc], &
                                        symmetry_new=dbcsr_type_no_symmetry, &
                                        spin_key=ispin, &
                                        init_domains=.FALSE.)
@@ -2495,7 +2495,7 @@ CONTAINS
                                        matrix_qs=matrix_s0, &
                                        almo_scf_env=almo_scf_env, &
                                        name_new="VV_DISC_BLK", &
-                                       size_keys=(/almo_mat_dim_virt_disc, almo_mat_dim_virt_disc/), &
+                                       size_keys=[almo_mat_dim_virt_disc, almo_mat_dim_virt_disc], &
                                        symmetry_new=dbcsr_type_symmetric, &
                                        spin_key=ispin, &
                                        init_domains=.TRUE.)
@@ -2503,7 +2503,7 @@ CONTAINS
                                        matrix_qs=matrix_s0, &
                                        almo_scf_env=almo_scf_env, &
                                        name_new="K_BLK", &
-                                       size_keys=(/almo_mat_dim_virt_disc, almo_mat_dim_virt/), &
+                                       size_keys=[almo_mat_dim_virt_disc, almo_mat_dim_virt], &
                                        symmetry_new=dbcsr_type_no_symmetry, &
                                        spin_key=ispin, &
                                        init_domains=.TRUE.)
@@ -2511,7 +2511,7 @@ CONTAINS
                                        matrix_qs=matrix_s0, &
                                        almo_scf_env=almo_scf_env, &
                                        name_new="K_BLK_1", &
-                                       size_keys=(/almo_mat_dim_virt_disc, almo_mat_dim_virt/), &
+                                       size_keys=[almo_mat_dim_virt_disc, almo_mat_dim_virt], &
                                        symmetry_new=dbcsr_type_no_symmetry, &
                                        spin_key=ispin, &
                                        init_domains=.TRUE.)
@@ -2519,7 +2519,7 @@ CONTAINS
                                        matrix_qs=matrix_s0, &
                                        almo_scf_env=almo_scf_env, &
                                        name_new="OPT_K_DENOM", &
-                                       size_keys=(/almo_mat_dim_virt_disc, almo_mat_dim_virt/), &
+                                       size_keys=[almo_mat_dim_virt_disc, almo_mat_dim_virt], &
                                        symmetry_new=dbcsr_type_no_symmetry, &
                                        spin_key=ispin, &
                                        init_domains=.FALSE.)
@@ -2527,7 +2527,7 @@ CONTAINS
                                        matrix_qs=matrix_s0, &
                                        almo_scf_env=almo_scf_env, &
                                        name_new="K_TR", &
-                                       size_keys=(/almo_mat_dim_virt, almo_mat_dim_virt_disc/), &
+                                       size_keys=[almo_mat_dim_virt, almo_mat_dim_virt_disc], &
                                        symmetry_new=dbcsr_type_no_symmetry, &
                                        spin_key=ispin, &
                                        init_domains=.FALSE.)
@@ -2535,7 +2535,7 @@ CONTAINS
                                        matrix_qs=matrix_s0, &
                                        almo_scf_env=almo_scf_env, &
                                        name_new="V_DISC_BLK", &
-                                       size_keys=(/almo_mat_dim_aobasis, almo_mat_dim_virt_disc/), &
+                                       size_keys=[almo_mat_dim_aobasis, almo_mat_dim_virt_disc], &
                                        symmetry_new=dbcsr_type_no_symmetry, &
                                        spin_key=ispin, &
                                        init_domains=.FALSE.)
@@ -2543,7 +2543,7 @@ CONTAINS
                                        matrix_qs=matrix_s0, &
                                        almo_scf_env=almo_scf_env, &
                                        name_new="V_DISC", &
-                                       size_keys=(/almo_mat_dim_aobasis, almo_mat_dim_virt_disc/), &
+                                       size_keys=[almo_mat_dim_aobasis, almo_mat_dim_virt_disc], &
                                        symmetry_new=dbcsr_type_no_symmetry, &
                                        spin_key=ispin, &
                                        init_domains=.FALSE.)
@@ -2551,7 +2551,7 @@ CONTAINS
                                        matrix_qs=matrix_s0, &
                                        almo_scf_env=almo_scf_env, &
                                        name_new="OV_DISC", &
-                                       size_keys=(/almo_mat_dim_occ, almo_mat_dim_virt_disc/), &
+                                       size_keys=[almo_mat_dim_occ, almo_mat_dim_virt_disc], &
                                        symmetry_new=dbcsr_type_no_symmetry, &
                                        spin_key=ispin, &
                                        init_domains=.FALSE.)
@@ -2570,7 +2570,7 @@ CONTAINS
                                     matrix_qs=matrix_s0, &
                                     almo_scf_env=almo_scf_env, &
                                     name_new="E_OCC", &
-                                    size_keys=(/almo_mat_dim_occ, almo_mat_dim_occ/), &
+                                    size_keys=[almo_mat_dim_occ, almo_mat_dim_occ], &
                                     symmetry_new=dbcsr_type_no_symmetry, &
                                     spin_key=ispin, &
                                     init_domains=.FALSE.)
@@ -2578,7 +2578,7 @@ CONTAINS
                                     matrix_qs=matrix_s0, &
                                     almo_scf_env=almo_scf_env, &
                                     name_new="E_VIRT", &
-                                    size_keys=(/almo_mat_dim_virt_full, almo_mat_dim_virt_full/), &
+                                    size_keys=[almo_mat_dim_virt_full, almo_mat_dim_virt_full], &
                                     symmetry_new=dbcsr_type_no_symmetry, &
                                     spin_key=ispin, &
                                     init_domains=.FALSE.)
@@ -2609,7 +2609,7 @@ CONTAINS
                                  matrix_qs=matrix_s0, &
                                  almo_scf_env=almo_scf_env, &
                                  name_new="P_BLK", &
-                                 size_keys=(/almo_mat_dim_aobasis, almo_mat_dim_aobasis/), &
+                                 size_keys=[almo_mat_dim_aobasis, almo_mat_dim_aobasis], &
                                  symmetry_new=dbcsr_type_symmetric, &
                                  spin_key=ispin, &
                                  init_domains=.TRUE.)
@@ -2617,7 +2617,7 @@ CONTAINS
                                  matrix_qs=matrix_s0, &
                                  almo_scf_env=almo_scf_env, &
                                  name_new="KS_BLK", &
-                                 size_keys=(/almo_mat_dim_aobasis, almo_mat_dim_aobasis/), &
+                                 size_keys=[almo_mat_dim_aobasis, almo_mat_dim_aobasis], &
                                  symmetry_new=dbcsr_type_symmetric, &
                                  spin_key=ispin, &
                                  init_domains=.TRUE.)

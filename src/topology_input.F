@@ -63,7 +63,7 @@ CONTAINS
       CALL section_vals_val_get(topology_section, "CHARGE_OCCUP", l_val=topology%charge_occup)
       CALL section_vals_val_get(topology_section, "CHARGE_BETA", l_val=topology%charge_beta)
       CALL section_vals_val_get(topology_section, "CHARGE_EXTENDED", l_val=topology%charge_extended)
-      ival = COUNT((/topology%charge_occup, topology%charge_beta, topology%charge_extended/))
+      ival = COUNT([topology%charge_occup, topology%charge_beta, topology%charge_extended])
       IF (ival > 1) &
          CPABORT("Only one between <CHARGE_OCCUP,CHARGE_BETA,CHARGE_EXTENDED> can be defined! ")
       CALL section_vals_val_get(topology_section, "PARA_RES", l_val=topology%para_res)

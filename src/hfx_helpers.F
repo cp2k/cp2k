@@ -73,10 +73,10 @@ CONTAINS
             inner: DO k = -shell*perd(3), shell*perd(3)
                IF (.NOT. (i**2 + j**2 + k**2 == shell)) CYCLE inner
                IF (found) THEN
-                  m = (/i, j, k/)
+                  m = [i, j, k]
                   EXIT outer
                END IF
-               IF (ALL(M .EQ. (/i, j, k/))) found = .TRUE.
+               IF (ALL(M .EQ. [i, j, k])) found = .TRUE.
             END DO inner
          END DO
          END DO

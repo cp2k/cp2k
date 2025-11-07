@@ -59,7 +59,7 @@ CONTAINS
                           " the Berry phase approach. IMPORTANT: Can only be used in combination"// &
                           " with OT. Can not be used in combination with RTP or EMD,"// &
                           " e.g. RESTART_RTP has to be .FALSE. when restarting the job.", &
-                          citations=(/Souza2002, Umari2002/), &
+                          citations=[Souza2002, Umari2002], &
                           n_keywords=6, n_subsections=1, repeats=.TRUE.)
 
       NULLIFY (keyword)
@@ -76,14 +76,14 @@ CONTAINS
                           description="Polarisation vector of electric field", &
                           usage="POLARISATION  0.0 0.0 1.0", &
                           repeats=.FALSE., n_var=3, &
-                          type_of_var=real_t, default_r_vals=(/0.0_dp, 0.0_dp, 1.0_dp/))
+                          type_of_var=real_t, default_r_vals=[0.0_dp, 0.0_dp, 1.0_dp])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="DISPLACEMENT_FIELD", &
                           description="Use the displacement field formulation.", &
                           usage="DISPLACEMENT_FIELD T", &
-                          citations=(/Stengel2009/), &
+                          citations=[Stengel2009], &
                           default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
@@ -93,7 +93,7 @@ CONTAINS
                           description="Filter for displacement field (x,y,z-direction)", &
                           usage="D_FILTER  1.0 0.0 0.0", &
                           repeats=.FALSE., n_var=3, &
-                          type_of_var=real_t, default_r_vals=(/1.0_dp, 1.0_dp, 1.0_dp/))
+                          type_of_var=real_t, default_r_vals=[1.0_dp, 1.0_dp, 1.0_dp])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -103,7 +103,7 @@ CONTAINS
                           "If the number of frames exceeds the number of values, "// &
                           "the list is cyclically repeated. Attention: not implemented for eeq.", &
                           usage="INTENSITY_LIST {real} {real} .. {real}", &
-                          n_var=-1, type_of_var=real_t, default_r_vals=(/0.0_dp/))
+                          n_var=-1, type_of_var=real_t, default_r_vals=[0.0_dp])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -174,7 +174,7 @@ CONTAINS
                           description="Polarisation vector of electric field", &
                           usage="POLARISATION  0.0 0.0 1.0", &
                           repeats=.FALSE., n_var=3, &
-                          type_of_var=real_t, default_r_vals=(/0.0_dp, 0.0_dp, 1.0_dp/))
+                          type_of_var=real_t, default_r_vals=[0.0_dp, 0.0_dp, 1.0_dp])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -202,7 +202,7 @@ CONTAINS
                                         "A Gaussian function is used as envelop ", &
                                         "Linear tune in/out of the field", &
                                         "A custom field read from a file"), &
-                          enum_i_vals=(/constant_env, gaussian_env, ramp_env, custom_env/))
+                          enum_i_vals=[constant_env, gaussian_env, ramp_env, custom_env])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -215,7 +215,7 @@ CONTAINS
                           usage="vec_pot_initial  1.0E-2 0.0 0.0", &
                           repeats=.FALSE., &
                           n_var=3, type_of_var=real_t, &
-                          default_r_vals=(/0.0_dp, 0.0_dp, 0.0_dp/))
+                          default_r_vals=[0.0_dp, 0.0_dp, 0.0_dp])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

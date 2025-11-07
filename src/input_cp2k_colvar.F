@@ -265,7 +265,7 @@ CONTAINS
       NULLIFY (subsection, keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="ATOMS_FROM", &
-                          variants=(/"POINTS_FROM"/), &
+                          variants=["POINTS_FROM"], &
                           description="Specify indexes of atoms/points building the coordination variable. ", &
                           usage="ATOMS_FROM {integer} {integer} ..", repeats=.TRUE., &
                           n_var=-1, type_of_var=integer_t)
@@ -273,7 +273,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="ATOMS_TO", &
-                          variants=(/"POINTS_TO"/), &
+                          variants=["POINTS_TO"], &
                           description="Specify indexes of atoms/points building the coordination variable. ", &
                           usage="ATOMS_TO {integer} {integer} ..", repeats=.TRUE., &
                           n_var=-1, type_of_var=integer_t)
@@ -281,7 +281,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="ATOMS_TO_B", &
-                          variants=(/"POINTS_TO_B"/), &
+                          variants=["POINTS_TO_B"], &
                           description="For the CV given by the multiplication of two coorination numbers,"// &
                           " here specify indexes of the third set of atoms/points. ", &
                           usage="ATOMS_TO_B {integer} {integer} ..", repeats=.TRUE., &
@@ -317,7 +317,7 @@ CONTAINS
       CALL section_release(subsection)
 
       CALL keyword_create(keyword, __LOCATION__, name="R0", &
-                          variants=(/"R_0"/), &
+                          variants=["R_0"], &
                           description="Specify the R0 parameter in the coordination function.", &
                           usage="R0 {real}", default_r_val=3.0_dp, &
                           unit_str="bohr", n_var=1)
@@ -325,7 +325,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="NN", &
-                          variants=(/"EXPON_NUMERATOR"/), &
+                          variants=["EXPON_NUMERATOR"], &
                           description="Sets the value of the numerator of the exponential factor"// &
                           " in the coordination FUNCTION.", &
                           usage="NN {integer}", default_i_val=6, &
@@ -334,7 +334,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="ND", &
-                          variants=(/"EXPON_DENOMINATOR"/), &
+                          variants=["EXPON_DENOMINATOR"], &
                           description="Sets the value of the denominator of the exponential factor"// &
                           " in the coordination FUNCTION.", &
                           usage="ND {integer}", default_i_val=12, &
@@ -343,7 +343,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="R0_B", &
-                          variants=(/"R_0_B"/), &
+                          variants=["R_0_B"], &
                           description="For the CV given by the multiplication of two coorination numbers,"// &
                           " specify the R0 parameter in the second coordination function.", &
                           usage="R0_B {real}", default_r_val=3.0_dp, &
@@ -352,7 +352,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="NN_B", &
-                          variants=(/"EXPON_NUMERATOR_B"/), &
+                          variants=["EXPON_NUMERATOR_B"], &
                           description="For the CV given by the multiplication of two coorination numbers,"// &
                           " Sets the value of the numerator of the exponential factor"// &
                           " in the coordination FUNCTION.", &
@@ -362,7 +362,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="ND_B", &
-                          variants=(/"EXPON_DENOMINATOR_B"/), &
+                          variants=["EXPON_DENOMINATOR_B"], &
                           description="For the CV given by the multiplication of two coorination numbers,"// &
                           " Sets the value of the denominator of the exponential factor"// &
                           " in the coordination FUNCTION.", &
@@ -398,7 +398,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="ATOMS_FROM", &
-                          variants=(/"POINTS_FROM"/), &
+                          variants=["POINTS_FROM"], &
                           description="Specify indexes of atoms/points building the coordination variable. ", &
                           usage="ATOMS_FROM {integer} {integer} ..", repeats=.TRUE., &
                           n_var=-1, type_of_var=integer_t)
@@ -406,7 +406,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="ATOMS_TO", &
-                          variants=(/"POINTS_TO"/), &
+                          variants=["POINTS_TO"], &
                           description="Specify indexes of atoms/points building the coordination variable. ", &
                           usage="ATOMS_TO {integer} {integer} ..", repeats=.TRUE., &
                           n_var=-1, type_of_var=integer_t)
@@ -433,7 +433,7 @@ CONTAINS
       CALL section_release(subsection)
 
       CALL keyword_create(keyword, __LOCATION__, name="R0", &
-                          variants=(/"R_0"/), &
+                          variants=["R_0"], &
                           description="Specify the R0 parameter in the coordination function.", &
                           usage="R0 {real}", default_r_val=3.0_dp, &
                           unit_str="bohr", n_var=1)
@@ -441,7 +441,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="NN", &
-                          variants=(/"EXPON_NUMERATOR"/), &
+                          variants=["EXPON_NUMERATOR"], &
                           description="Sets the value of the numerator of the exponential factor"// &
                           " in the coordination FUNCTION.", &
                           usage="NN {integer}", default_i_val=6, &
@@ -450,7 +450,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="ND", &
-                          variants=(/"EXPON_DENOMINATOR"/), &
+                          variants=["EXPON_DENOMINATOR"], &
                           description="Sets the value of the denominator of the exponential factor"// &
                           " in the coordination FUNCTION.", &
                           usage="ND {integer}", default_i_val=12, &
@@ -488,7 +488,7 @@ CONTAINS
       NULLIFY (subsection, keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="ATOMS_FROM", &
-                          variants=(/"POINTS_FROM"/), &
+                          variants=["POINTS_FROM"], &
                           description="Specify indexes of atoms/points building the coordination variable. ", &
                           usage="ATOMS_FROM {integer} {integer} ..", repeats=.TRUE., &
                           n_var=-1, type_of_var=integer_t)
@@ -496,7 +496,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="ATOMS_TO", &
-                          variants=(/"POINTS_TO"/), &
+                          variants=["POINTS_TO"], &
                           description="Specify indexes of atoms/points building the coordination variable. ", &
                           usage="ATOMS_TO {integer} {integer} ..", repeats=.TRUE., &
                           n_var=-1, type_of_var=integer_t)
@@ -523,7 +523,7 @@ CONTAINS
       CALL section_release(subsection)
 
       CALL keyword_create(keyword, __LOCATION__, name="R0", &
-                          variants=(/"R_0"/), &
+                          variants=["R_0"], &
                           description="Specify the R0 parameter in the coordination function.", &
                           usage="R0 {real}", default_r_val=3.0_dp, &
                           n_var=1)
@@ -531,7 +531,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="NN", &
-                          variants=(/"EXPON_NUMERATOR"/), &
+                          variants=["EXPON_NUMERATOR"], &
                           description="Sets the value of the numerator of the exponential factor"// &
                           " in the coordination FUNCTION.", &
                           usage="NN {integer}", default_i_val=6, &
@@ -540,7 +540,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="ND", &
-                          variants=(/"EXPON_DENOMINATOR"/), &
+                          variants=["EXPON_DENOMINATOR"], &
                           description="Sets the value of the denominator of the exponential factor"// &
                           " in the coordination FUNCTION.", &
                           usage="ND {integer}", default_i_val=12, &
@@ -549,7 +549,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="n0", &
-                          variants=(/"n_0"/), &
+                          variants=["n_0"], &
                           description="Specify the n0 parameter that sets the coordination of the species.", &
                           usage="n0 {integer}", default_i_val=4, &
                           n_var=1)
@@ -583,7 +583,7 @@ CONTAINS
       NULLIFY (subsection, keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="ATOMS", &
-                          variants=(/"POINTS"/), &
+                          variants=["POINTS"], &
                           description="Specify indexes of atoms/points defyining the gyration radius variable. ", &
                           usage="ATOMS {integer} {integer} ..", repeats=.TRUE., &
                           n_var=-1, type_of_var=integer_t)
@@ -624,7 +624,7 @@ CONTAINS
       NULLIFY (keyword, subsection)
 
       CALL keyword_create(keyword, __LOCATION__, name="ATOMS", &
-                          variants=(/"POINTS"/), &
+                          variants=["POINTS"], &
                           description="Specifies the indexes of atoms/points for the two bonds d1=(1-2) d2=(3-4).", &
                           usage="ATOMS {integer} {integer} {integer} {integer}", &
                           n_var=4, type_of_var=integer_t)
@@ -673,7 +673,7 @@ CONTAINS
       NULLIFY (keyword, subsection)
 
       CALL keyword_create(keyword, __LOCATION__, name="ATOMS", &
-                          variants=(/"POINTS"/), &
+                          variants=["POINTS"], &
                           description="Specifies the indexes of atoms/points defining the torsion.", &
                           usage="ATOMS {integer} {integer} {integer} {integer}", &
                           n_var=4, type_of_var=integer_t)
@@ -763,7 +763,7 @@ CONTAINS
       NULLIFY (keyword, subsection)
 
       CALL keyword_create(keyword, __LOCATION__, name="ATOMS", &
-                          variants=(/"POINTS"/), &
+                          variants=["POINTS"], &
                           description="Specifies the indexes of atoms/points defining the angle.", &
                           usage="ATOMS {integer} {integer} {integer}", &
                           n_var=3, type_of_var=integer_t)
@@ -795,7 +795,7 @@ CONTAINS
       NULLIFY (keyword, subsection)
 
       CALL keyword_create(keyword, __LOCATION__, name="ATOMS", &
-                          variants=(/"POINTS"/), &
+                          variants=["POINTS"], &
                           description="Specifies the indexes of atoms/points defining the distance.", &
                           usage="ATOMS {integer} {integer}", &
                           n_var=2, type_of_var=integer_t)
@@ -805,7 +805,7 @@ CONTAINS
                           description="Define the axes along which the colvar should be evaluated", &
                           usage="AXIS (XYZ | X | Y | Z | XY| XZ | YZ)", &
                           enum_c_vals=s2a("XYZ", "X", "Y", "Z", "XY", "XZ", "YZ"), &
-                          enum_i_vals=(/do_clv_xyz, do_clv_x, do_clv_y, do_clv_z, do_clv_xy, do_clv_xz, do_clv_yz/), &
+                          enum_i_vals=[do_clv_xyz, do_clv_x, do_clv_y, do_clv_z, do_clv_xy, do_clv_xz, do_clv_yz], &
                           default_i_val=do_clv_xyz)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -846,7 +846,7 @@ CONTAINS
       NULLIFY (keyword, subsection)
 
       CALL keyword_create(keyword, __LOCATION__, name="ATOM", &
-                          variants=(/"POINT"/), &
+                          variants=["POINT"], &
                           description="Specifies the index of the atom/point.", &
                           usage="ATOM {integer}", &
                           n_var=1, type_of_var=integer_t)
@@ -858,7 +858,7 @@ CONTAINS
                           "as a colvar.", &
                           usage="COMPONENT (XYZ | X | Y | Z | XY| XZ | YZ)", &
                           enum_c_vals=s2a("XYZ", "X", "Y", "Z", "XY", "XZ", "YZ"), &
-                          enum_i_vals=(/do_clv_xyz, do_clv_x, do_clv_y, do_clv_z, do_clv_xy, do_clv_xz, do_clv_yz/), &
+                          enum_i_vals=[do_clv_xyz, do_clv_x, do_clv_y, do_clv_z, do_clv_xy, do_clv_xz, do_clv_yz], &
                           default_i_val=do_clv_xyz)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -905,7 +905,7 @@ CONTAINS
       NULLIFY (keyword, subsection)
 
       CALL keyword_create(keyword, __LOCATION__, name="ATOMS", &
-                          variants=(/"POINTS"/), &
+                          variants=["POINTS"], &
                           description="Specifies the index of the atoms/points A and B.", &
                           usage="ATOMS {integer} {integer}", &
                           n_var=2, type_of_var=integer_t)
@@ -917,7 +917,7 @@ CONTAINS
                           "as a colvar for atom A.", &
                           usage="COMPONENT_A (XYZ | X | Y | Z | XY| XZ | YZ)", &
                           enum_c_vals=s2a("XYZ", "X", "Y", "Z", "XY", "XZ", "YZ"), &
-                          enum_i_vals=(/do_clv_xyz, do_clv_x, do_clv_y, do_clv_z, do_clv_xy, do_clv_xz, do_clv_yz/), &
+                          enum_i_vals=[do_clv_xyz, do_clv_x, do_clv_y, do_clv_z, do_clv_xy, do_clv_xz, do_clv_yz], &
                           default_i_val=do_clv_xyz)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -927,7 +927,7 @@ CONTAINS
                           "as a colvar for atom B.", &
                           usage="COMPONENT_B (XYZ | X | Y | Z | XY| XZ | YZ)", &
                           enum_c_vals=s2a("XYZ", "X", "Y", "Z", "XY", "XZ", "YZ"), &
-                          enum_i_vals=(/do_clv_xyz, do_clv_x, do_clv_y, do_clv_z, do_clv_xy, do_clv_xz, do_clv_yz/), &
+                          enum_i_vals=[do_clv_xyz, do_clv_x, do_clv_y, do_clv_z, do_clv_xy, do_clv_xz, do_clv_yz], &
                           default_i_val=do_clv_xyz)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1053,7 +1053,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="ATOMS_PLANE", &
-                          variants=(/"POINTS_PLANE"/), &
+                          variants=["POINTS_PLANE"], &
                           description="Specifies the indexes of atoms/points defining the plane.", &
                           usage="ATOMS_PLANE <INTEGER> <INTEGER> <INTEGER>", &
                           n_var=3, type_of_var=integer_t)
@@ -1061,7 +1061,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="ATOM_POINT", &
-                          variants=(/"POINT_POINT"/), &
+                          variants=["POINT_POINT"], &
                           description="Specifies the atom/point index defining the point.", &
                           usage="ATOM_POINT <INTEGER>", &
                           n_var=1, type_of_var=integer_t)
@@ -1107,7 +1107,7 @@ CONTAINS
                           enum_c_vals=s2a("ATOMS", "VECTOR"), &
                           enum_desc=s2a("Plane defined by the position of 3 atoms", &
                                         "Plane defined by a fixed normal vector"), &
-                          enum_i_vals=(/plane_def_atoms, plane_def_vec/))
+                          enum_i_vals=[plane_def_atoms, plane_def_vec])
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
@@ -1158,7 +1158,7 @@ CONTAINS
                           enum_c_vals=s2a("GEO_CENTER", "FIX_POINT"), &
                           enum_desc=s2a("Computes the geometrical center of the listed atoms", &
                                         "Defines a fixed point in space"), &
-                          enum_i_vals=(/do_clv_geo_center, do_clv_fix_point/), &
+                          enum_i_vals=[do_clv_geo_center, do_clv_fix_point], &
                           default_i_val=do_clv_geo_center)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1207,7 +1207,7 @@ CONTAINS
       NULLIFY (keyword, subsection)
 
       CALL keyword_create(keyword, __LOCATION__, name="ATOMS_FROM", &
-                          variants=(/"POINTS_FROM"/), &
+                          variants=["POINTS_FROM"], &
                           description="Specify indexes of atoms/points building the coordination variable. ", &
                           usage="ATOMS_FROM {integer} {integer} ..", repeats=.TRUE., &
                           n_var=-1, type_of_var=integer_t)
@@ -1215,7 +1215,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="ATOMS_TO", &
-                          variants=(/"POINTS_TO"/), &
+                          variants=["POINTS_TO"], &
                           description="Specify indexes of atoms/points building the coordination variable. ", &
                           usage="ATOMS_TO {integer} {integer} ..", repeats=.TRUE., &
                           n_var=-1, type_of_var=integer_t)
@@ -1311,7 +1311,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="pOO", &
-                          variants=(/"EXPON_NUMERATORA"/), &
+                          variants=["EXPON_NUMERATORA"], &
                           description="Sets the value of the numerator of the exponential factor"// &
                           " in the coordination function: number of oxygens per water oxygen.", &
                           usage="pOO {integer}", default_i_val=6, &
@@ -1320,7 +1320,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="qOO", &
-                          variants=(/"EXPON_DENOMINATORA"/), &
+                          variants=["EXPON_DENOMINATORA"], &
                           description="Sets the value of the denominator of the exponential factor"// &
                           " in the coordination function: number of oxygens per water oxygen.", &
                           usage="qOO {integer}", default_i_val=12, &
@@ -1337,7 +1337,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="pOH", &
-                          variants=(/"EXPON_NUMERATORB"/), &
+                          variants=["EXPON_NUMERATORB"], &
                           description="Sets the value of the numerator of the exponential factor"// &
                           " in the coordination function: number of hydrogens per water molecule.", &
                           usage="pOH {integer}", default_i_val=6, &
@@ -1346,7 +1346,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="qOH", &
-                          variants=(/"EXPON_DENOMINATORB"/), &
+                          variants=["EXPON_DENOMINATORB"], &
                           description="Sets the value of the denominator of the exponential factor"// &
                           " in the coordination function: number of hydrogens per water molecule.", &
                           usage="qOH {integer}", default_i_val=12, &
@@ -1362,7 +1362,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="pM", &
-                          variants=(/"EXPON_NUMERATOR"/), &
+                          variants=["EXPON_NUMERATOR"], &
                           description="Sets the value of the numerator of the exponential factor"// &
                           " in the M function.", &
                           usage="pM {integer}", default_i_val=8, &
@@ -1371,7 +1371,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="qM", &
-                          variants=(/"EXPON_DENOMINATOR"/), &
+                          variants=["EXPON_DENOMINATOR"], &
                           description="Sets the value of the denominator of the exponential factor"// &
                           " in the M function.", &
                           usage="qM {integer}", default_i_val=16, &
@@ -1620,7 +1620,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="LAMBDA", &
-                          variants=(/"LAMBDA"/), &
+                          variants=["LAMBDA"], &
                           description="Specifies the LAMBDA parameter carboxylic acid function.", &
                           usage="LAMBDA {real}", default_r_val=20.0_dp, &
                           n_var=1)
@@ -1794,7 +1794,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="LAMBDA", &
-                          variants=(/"LAMBDA"/), &
+                          variants=["LAMBDA"], &
                           description="Specifies the LAMBDA parameter carboxylic acid function.", &
                           usage="LAMBDA {real}", default_r_val=10.0_dp, &
                           n_var=1)
@@ -1828,7 +1828,7 @@ CONTAINS
                           " with WEIGHT_LIST a list of weights is expected from input.", &
                           usage="SUBSET_TYPE ALL", &
                           enum_c_vals=s2a("ALL", "LIST", "WEIGHT_LIST"), &
-                          enum_i_vals=(/rmsd_all, rmsd_list, rmsd_weightlist/), &
+                          enum_i_vals=[rmsd_all, rmsd_list, rmsd_weightlist], &
                           default_i_val=rmsd_all)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1890,7 +1890,7 @@ CONTAINS
                           "both in the Q-dimensional colvar and 3N-Q remaining coordinates. "// &
                           "For the details of the function see cited literature.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE., &
-                          citations=(/Branduardi2007/))
+                          citations=[Branduardi2007])
 
       CALL keywords_colvar_path(section)
    END SUBROUTINE create_colvar_rpath_section
@@ -1911,7 +1911,7 @@ CONTAINS
                           "both in the Q-dimensional colvar and 3N-Q remaining coordinates. "// &
                           "For the details of the function see cited literature.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE., &
-                          citations=(/Branduardi2007/))
+                          citations=[Branduardi2007])
 
       CALL keywords_colvar_path(section)
    END SUBROUTINE create_colvar_dpath_section
@@ -1951,7 +1951,7 @@ CONTAINS
                           description="Define the subsytem used to compute the RMSD", &
                           usage="SUBSET_TYPE ALL", &
                           enum_c_vals=s2a("ALL", "LIST"), &
-                          enum_i_vals=(/rmsd_all, rmsd_list/), &
+                          enum_i_vals=[rmsd_all, rmsd_list], &
                           default_i_val=rmsd_all)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -2185,7 +2185,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="ATOMS", &
-                          variants=(/"POINTS"/), &
+                          variants=["POINTS"], &
                           description="Specifies the indexes of atoms/points defining the bond (Od, H, Oa).", &
                           usage="ATOMS {integer} {integer} {integer}", &
                           n_var=3, type_of_var=integer_t, repeats=.TRUE.)
@@ -2239,7 +2239,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="ATOMS", &
-                          variants=(/"POINTS"/), &
+                          variants=["POINTS"], &
                           description="Specifies the indexes of atoms/points defining the bond (Od, H, Oa).", &
                           usage="ATOMS {integer} {integer} {integer}", &
                           n_var=3, type_of_var=integer_t, repeats=.TRUE.)
@@ -2273,7 +2273,7 @@ CONTAINS
       NULLIFY (keyword, subsection)
 
       CALL keyword_create(keyword, __LOCATION__, name="ATOMS", &
-                          variants=(/"POINTS"/), &
+                          variants=["POINTS"], &
                           description="Specifies the indexes of atoms/points defining the ring. "// &
                           "At least 4 Atoms are needed.", &
                           usage="ATOMS {integer} {integer} {integer} ..", &

@@ -189,14 +189,14 @@ CONTAINS
       SELECT CASE (accuracy)
       CASE (:4)
          nstep = 2
-         ak(-2:2) = (/1.0_dp, -8.0_dp, 0.0_dp, 8.0_dp, -1.0_dp/)/12.0_dp
+         ak(-2:2) = [1.0_dp, -8.0_dp, 0.0_dp, 8.0_dp, -1.0_dp]/12.0_dp
       CASE (5:7)
          nstep = 3
-         ak(-3:3) = (/-1.0_dp, 9.0_dp, -45.0_dp, 0.0_dp, 45.0_dp, -9.0_dp, 1.0_dp/)/60.0_dp
+         ak(-3:3) = [-1.0_dp, 9.0_dp, -45.0_dp, 0.0_dp, 45.0_dp, -9.0_dp, 1.0_dp]/60.0_dp
       CASE (8:)
          nstep = 4
-         ak(-4:4) = (/1.0_dp, -32.0_dp/3.0_dp, 56.0_dp, -224.0_dp, 0.0_dp, &
-                      224.0_dp, -56.0_dp, 32.0_dp/3.0_dp, -1.0_dp/)/280.0_dp
+         ak(-4:4) = [1.0_dp, -32.0_dp/3.0_dp, 56.0_dp, -224.0_dp, 0.0_dp, &
+                     224.0_dp, -56.0_dp, 32.0_dp/3.0_dp, -1.0_dp]/280.0_dp
       END SELECT
 
       CALL get_ks_env(ks_env, dft_control=dft_control, pw_env=pw_env)
@@ -491,14 +491,14 @@ CONTAINS
       SELECT CASE (accuracy)
       CASE (:4)
          nstep = 2
-         ak(-2:2) = (/1.0_dp, -8.0_dp, 0.0_dp, 8.0_dp, -1.0_dp/)/12.0_dp
+         ak(-2:2) = [1.0_dp, -8.0_dp, 0.0_dp, 8.0_dp, -1.0_dp]/12.0_dp
       CASE (5:7)
          nstep = 3
-         ak(-3:3) = (/-1.0_dp, 9.0_dp, -45.0_dp, 0.0_dp, 45.0_dp, -9.0_dp, 1.0_dp/)/60.0_dp
+         ak(-3:3) = [-1.0_dp, 9.0_dp, -45.0_dp, 0.0_dp, 45.0_dp, -9.0_dp, 1.0_dp]/60.0_dp
       CASE (8:)
          nstep = 4
-         ak(-4:4) = (/1.0_dp, -32.0_dp/3.0_dp, 56.0_dp, -224.0_dp, 0.0_dp, &
-                      224.0_dp, -56.0_dp, 32.0_dp/3.0_dp, -1.0_dp/)/280.0_dp
+         ak(-4:4) = [1.0_dp, -32.0_dp/3.0_dp, 56.0_dp, -224.0_dp, 0.0_dp, &
+                     224.0_dp, -56.0_dp, 32.0_dp/3.0_dp, -1.0_dp]/280.0_dp
       END SELECT
 
       CALL get_ks_env(ks_env, dft_control=dft_control, pw_env=pw_env)
@@ -651,18 +651,18 @@ CONTAINS
       SELECT CASE (accuracy)
       CASE (:4)
          nstep = 2
-         ak(-2:2) = (/1.0_dp, -8.0_dp, 0.0_dp, 8.0_dp, -1.0_dp/)/12.0_dp
-         bl(-2:2) = (/-1.0_dp, 16.0_dp, -30.0_dp, 16.0_dp, -1.0_dp/)/12.0_dp
+         ak(-2:2) = [1.0_dp, -8.0_dp, 0.0_dp, 8.0_dp, -1.0_dp]/12.0_dp
+         bl(-2:2) = [-1.0_dp, 16.0_dp, -30.0_dp, 16.0_dp, -1.0_dp]/12.0_dp
       CASE (5:7)
          nstep = 3
-         ak(-3:3) = (/-1.0_dp, 9.0_dp, -45.0_dp, 0.0_dp, 45.0_dp, -9.0_dp, 1.0_dp/)/60.0_dp
-         bl(-3:3) = (/2.0_dp, -27.0_dp, 270.0_dp, -490.0_dp, 270.0_dp, -27.0_dp, 2.0_dp/)/180.0_dp
+         ak(-3:3) = [-1.0_dp, 9.0_dp, -45.0_dp, 0.0_dp, 45.0_dp, -9.0_dp, 1.0_dp]/60.0_dp
+         bl(-3:3) = [2.0_dp, -27.0_dp, 270.0_dp, -490.0_dp, 270.0_dp, -27.0_dp, 2.0_dp]/180.0_dp
       CASE (8:)
          nstep = 4
-         ak(-4:4) = (/1.0_dp, -32.0_dp/3.0_dp, 56.0_dp, -224.0_dp, 0.0_dp, &
-                      224.0_dp, -56.0_dp, 32.0_dp/3.0_dp, -1.0_dp/)/280.0_dp
-         bl(-4:4) = (/-1.0_dp, 128.0_dp/9.0_dp, -112.0_dp, 896.0_dp, -14350.0_dp/9.0_dp, &
-                      896.0_dp, -112.0_dp, 128.0_dp/9.0_dp, -1.0_dp/)/560.0_dp
+         ak(-4:4) = [1.0_dp, -32.0_dp/3.0_dp, 56.0_dp, -224.0_dp, 0.0_dp, &
+                     224.0_dp, -56.0_dp, 32.0_dp/3.0_dp, -1.0_dp]/280.0_dp
+         bl(-4:4) = [-1.0_dp, 128.0_dp/9.0_dp, -112.0_dp, 896.0_dp, -14350.0_dp/9.0_dp, &
+                     896.0_dp, -112.0_dp, 128.0_dp/9.0_dp, -1.0_dp]/560.0_dp
       END SELECT
 
       CALL get_ks_env(ks_env, dft_control=dft_control, pw_env=pw_env)

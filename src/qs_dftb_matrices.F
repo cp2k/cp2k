@@ -77,8 +77,8 @@ MODULE qs_dftb_matrices
 
    IMPLICIT NONE
 
-   INTEGER, DIMENSION(16), PARAMETER        :: orbptr = (/0, 1, 1, 1, &
-                                                          2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3/)
+   INTEGER, DIMENSION(16), PARAMETER        :: orbptr = [0, 1, 1, 1, &
+                                                         2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3]
 
    PRIVATE
 

@@ -585,7 +585,7 @@ CONTAINS
                           repeats=.FALSE., &
                           n_var=2, &
                           type_of_var=integer_t, &
-                          default_i_vals=(/0, 0/), &
+                          default_i_vals=[0, 0], &
                           usage="MO_INDEX_RANGE 10 15")
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
@@ -608,7 +608,7 @@ CONTAINS
                           enum_desc=s2a( &
                           "Cartesian Gaussian orbitals. Use with caution", &
                           "Spherical Gaussian orbitals. Incompatible with VMD"), &
-                          enum_i_vals=(/gto_cartesian, gto_spherical/))
+                          enum_i_vals=[gto_cartesian, gto_spherical])
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL section_add_subsection(section, print_key)
@@ -707,7 +707,7 @@ CONTAINS
                           description="The stride (X,Y,Z) used to write the cube file "// &
                           "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
                           " 1 number valid for all components.", &
-                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=[2, 2, 2], type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
@@ -729,9 +729,9 @@ CONTAINS
                                         "like spikes due to the finite and thus "// &
                                         "truncated g vector", &
                                         "Print only the soft density"), &
-                          enum_i_vals=(/e_dens_total_hard_approx, &
-                                        e_dens_total_density, &
-                                        e_dens_soft_density/), &
+                          enum_i_vals=[e_dens_total_hard_approx, &
+                                       e_dens_total_density, &
+                                       e_dens_soft_density], &
                           default_i_val=e_dens_total_hard_approx)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
@@ -777,7 +777,7 @@ CONTAINS
                           description="The stride (X,Y,Z) used to write the cube file "// &
                           "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
                           " 1 number valid for all components.", &
-                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=[2, 2, 2], type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
@@ -800,7 +800,7 @@ CONTAINS
                           description="The stride (X,Y,Z) used to write the cube file "// &
                           "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
                           " 1 number valid for all components.", &
-                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=[2, 2, 2], type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
@@ -820,7 +820,7 @@ CONTAINS
                           description="The stride (X,Y,Z) used to write the cube file "// &
                           "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
                           " 1 number valid for all components.", &
-                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=[2, 2, 2], type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
@@ -839,7 +839,7 @@ CONTAINS
                                        " (via LibBQB see <https://brehm-research.de/bqb>)."// &
                                        " Currently does not work with changing cell vector (NpT ensemble).", &
                                        print_level=debug_print_level + 1, filename="", &
-                                       citations=(/Brehm2018/))
+                                       citations=[Brehm2018])
 
       CALL keyword_create(keyword, __LOCATION__, name="SKIP_FIRST", &
                           description="Skips the first step of a MD run (avoids duplicate step if restarted).", &
@@ -891,7 +891,7 @@ CONTAINS
                           enum_c_vals=s2a("OFF", "QUICK", "NORMAL", "PATIENT", "EXHAUSTIVE"), &
                           enum_desc=s2a("No optimization (use defaults)", "Quick optimization", &
                                         "Standard optimization", "Precise optimization", "Exhaustive optimization"), &
-                          enum_i_vals=(/bqb_opt_off, bqb_opt_quick, bqb_opt_normal, bqb_opt_patient, bqb_opt_exhaustive/))
+                          enum_i_vals=[bqb_opt_off, bqb_opt_quick, bqb_opt_normal, bqb_opt_patient, bqb_opt_exhaustive])
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
@@ -918,7 +918,7 @@ CONTAINS
                           description="The stride (X,Y,Z) used to write the cube file "// &
                           "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
                           " 1 number valid for all components.", &
-                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=[2, 2, 2], type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
@@ -939,7 +939,7 @@ CONTAINS
                           description="The stride (X,Y,Z) used to write the cube file "// &
                           "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
                           " 1 number valid for all components.", &
-                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=[2, 2, 2], type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
@@ -961,7 +961,7 @@ CONTAINS
                           description="The stride (X,Y,Z) used to write the cube file "// &
                           "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
                           " 1 number valid for all components.", &
-                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=[2, 2, 2], type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
@@ -992,7 +992,7 @@ CONTAINS
                           description="The stride (X,Y,Z) used to write the cube file "// &
                           "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
                           " 1 number valid for all components.", &
-                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=[2, 2, 2], type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
@@ -1013,7 +1013,7 @@ CONTAINS
                           description="The stride (X,Y,Z) used to write the cube file "// &
                           "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
                           " 1 number valid for all components.", &
-                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=[2, 2, 2], type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
@@ -1101,10 +1101,10 @@ CONTAINS
                                         "Use Center of Atomic Charges", &
                                         "Use User Defined Point (Keyword:REF_POINT)", &
                                         "Use Origin of Coordinate System"), &
-                          enum_i_vals=(/use_mom_ref_com, &
-                                        use_mom_ref_coac, &
-                                        use_mom_ref_user, &
-                                        use_mom_ref_zero/), &
+                          enum_i_vals=[use_mom_ref_com, &
+                                       use_mom_ref_coac, &
+                                       use_mom_ref_user, &
+                                       use_mom_ref_zero], &
                           default_i_val=use_mom_ref_zero)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
@@ -1113,7 +1113,7 @@ CONTAINS
                           description="Fixed second reference point for the calculations of the electrostatic moment.", &
                           usage="REFERENCE_POINT_2 x y z", &
                           repeats=.FALSE., &
-                          n_var=3, default_r_vals=(/0._dp, 0._dp, 0._dp/), &
+                          n_var=3, default_r_vals=[0._dp, 0._dp, 0._dp], &
                           type_of_var=real_t, &
                           unit_str='bohr')
       CALL section_add_keyword(print_key, keyword)
@@ -1201,7 +1201,7 @@ CONTAINS
                           enum_c_vals=s2a("GAUSSIAN", "DENSITY"), &
                           enum_desc=s2a("Single Gaussian with Colvalent radius", &
                                         "Atomic density expanded in multiple Gaussians"), &
-                          enum_i_vals=(/shape_function_gaussian, shape_function_density/))
+                          enum_i_vals=[shape_function_gaussian, shape_function_density])
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="REFERENCE_CHARGE", &
@@ -1210,7 +1210,7 @@ CONTAINS
                           default_i_val=ref_charge_atomic, &
                           enum_c_vals=s2a("ATOMIC", "MULLIKEN"), &
                           enum_desc=s2a("Use atomic core charges", "Calculate Mulliken charges"), &
-                          enum_i_vals=(/ref_charge_atomic, ref_charge_mulliken/))
+                          enum_i_vals=[ref_charge_atomic, ref_charge_mulliken])
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="USER_RADIUS", &
@@ -1235,7 +1235,7 @@ CONTAINS
                                        description="Controls the printing of the EEQ charges", &
                                        print_level=debug_print_level, filename="__STD_OUT__", &
                                        common_iter_levels=1, &
-                                       citations=(/Pracht2019, Caldeweyher2019, Caldeweyher2020/))
+                                       citations=[Pracht2019, Caldeweyher2019, Caldeweyher2020])
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
@@ -1244,7 +1244,7 @@ CONTAINS
                                        description="Controls the printing of the MAO (modified atomic orbital) analysis", &
                                        print_level=debug_print_level, filename="__STD_OUT__", &
                                        common_iter_levels=1, &
-                                       citations=(/Heinzmann1976, Ehrhardt1985/))
+                                       citations=[Heinzmann1976, Ehrhardt1985])
       CALL keyword_create(keyword, __LOCATION__, name="EPS_FILTER", &
                           description="Threshold for matrix elements in MAO determination.", &
                           usage="EPS_FILTER reps", repeats=.FALSE., n_var=1, &
@@ -1258,7 +1258,7 @@ CONTAINS
                           enum_c_vals=s2a("ORBITAL", "PRIMITIVE", "EXTERNAL"), &
                           enum_desc=s2a("Use standard orbital basis set", "Construct basis from primitives of the orbital basis", &
                                         "Read external basis (MAO)"), &
-                          enum_i_vals=(/mao_basis_orb, mao_basis_prim, mao_basis_ext/))
+                          enum_i_vals=[mao_basis_orb, mao_basis_prim, mao_basis_ext])
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="PRINT_BASIS", &
@@ -1317,7 +1317,7 @@ CONTAINS
                                        description="Controls the printing of the minimal localized basis analysis", &
                                        print_level=debug_print_level, filename="__STD_OUT__", &
                                        common_iter_levels=1, &
-                                       citations=(/Lu2004/))
+                                       citations=[Lu2004])
       CALL keyword_create(keyword, __LOCATION__, name="EPS_FILTER", &
                           description="Threshold for matrix elements in basis determination.", &
                           usage="EPS_FILTER reps", repeats=.FALSE., n_var=1, &
@@ -1345,7 +1345,7 @@ CONTAINS
                           description="The stride (X,Y,Z) used to write the cube file "// &
                           "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
                           " 1 number valid for all components.", &
-                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=[2, 2, 2], type_of_var=integer_t)
       CALL section_add_keyword(sub_print_key, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="ATOM_LIST", &
@@ -1376,7 +1376,7 @@ CONTAINS
                           enum_desc=s2a( &
                           "Cartesian Gaussian orbitals. Use with caution", &
                           "Spherical Gaussian orbitals. Incompatible with VMD"), &
-                          enum_i_vals=(/gto_cartesian, gto_spherical/))
+                          enum_i_vals=[gto_cartesian, gto_spherical])
       CALL section_add_keyword(sub_print_key, keyword)
       CALL keyword_release(keyword)
       CALL section_add_subsection(print_key, sub_print_key)
@@ -1390,7 +1390,7 @@ CONTAINS
                                        description="Controls energy decomposition analysis", &
                                        print_level=debug_print_level, filename="__STD_OUT__", &
                                        common_iter_levels=1, &
-                                       citations=(/Eriksen2020/))
+                                       citations=[Eriksen2020])
       CALL keyword_create(keyword, __LOCATION__, name="REFERENCE_ORB_CANONICAL", &
                           description="Use reference orbitals in canonical form.", &
                           usage="REFERENCE_ORB_CANONICAL {logical}", repeats=.FALSE., n_var=1, &
@@ -1425,7 +1425,7 @@ CONTAINS
                                        description="Controls the printing of the IAO (intrinsic atomic orbital) analysis", &
                                        print_level=debug_print_level, filename="__STD_OUT__", &
                                        common_iter_levels=1, &
-                                       citations=(/Knizia2013/))
+                                       citations=[Knizia2013])
       CALL keyword_create(keyword, __LOCATION__, name="EPS_SVD", &
                           description="Threshold for matrix inversion eigenvalues.", &
                           usage="EPS_SVD reps", repeats=.FALSE., n_var=1, &
@@ -1462,7 +1462,7 @@ CONTAINS
                           enum_desc=s2a( &
                           "Cartesian Gaussian orbitals. Use with caution", &
                           "Spherical Gaussian orbitals. Incompatible with VMD"), &
-                          enum_i_vals=(/gto_cartesian, gto_spherical/))
+                          enum_i_vals=[gto_cartesian, gto_spherical])
       CALL section_add_keyword(sub_print_key, keyword)
       CALL keyword_release(keyword)
       CALL section_add_subsection(print_key, sub_print_key)
@@ -1478,7 +1478,7 @@ CONTAINS
                           description="The stride (X,Y,Z) used to write the cube file "// &
                           "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
                           " 1 number valid for all components.", &
-                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=[2, 2, 2], type_of_var=integer_t)
       CALL section_add_keyword(sub_print_key, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
@@ -1529,7 +1529,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="LOCALIZATION_OPERATOR", &
                           description="Operator to be optimized for orbital localization", &
                           enum_c_vals=s2a("PIPEK_MEZEY", "PIPEK_MEZEY_4", "L1NORM"), &
-                          enum_i_vals=(/do_iaoloc_pm2, do_iaoloc_pm4, do_iaoloc_l1/), &
+                          enum_i_vals=[do_iaoloc_pm2, do_iaoloc_pm4, do_iaoloc_l1], &
                           enum_desc=s2a("Use Pipek-Mezey operator (order 2)", &
                                         "Use Pipek-Mezey operator (order 4)", &
                                         "Use L1 norm"), &
@@ -1539,7 +1539,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="ENERGY_LOCALIZATION_FUNCTION", &
                           description="Function for energy localization: f(e_i), e_i orbital energy", &
                           enum_c_vals=s2a("NONE", "ENERGY", "OCCUPATION"), &
-                          enum_i_vals=(/do_iaoloc_enone, do_iaoloc_energy, do_iaoloc_occ/), &
+                          enum_i_vals=[do_iaoloc_enone, do_iaoloc_energy, do_iaoloc_occ], &
                           enum_desc=s2a("Don't use energy localization.", &
                                         "Use orbital energies for localization.", &
                                         "Use occupation numbers for localization."), &
@@ -1586,7 +1586,7 @@ CONTAINS
                           enum_desc=s2a( &
                           "Cartesian Gaussian orbitals. Use with caution", &
                           "Spherical Gaussian orbitals. Incompatible with VMD"), &
-                          enum_i_vals=(/gto_cartesian, gto_spherical/))
+                          enum_i_vals=[gto_cartesian, gto_spherical])
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
       CALL section_add_subsection(sub_print_key, subsection)
@@ -1602,7 +1602,7 @@ CONTAINS
                           description="The stride (X,Y,Z) used to write the cube file "// &
                           "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
                           " 1 number valid for all components.", &
-                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=[2, 2, 2], type_of_var=integer_t)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
@@ -1635,7 +1635,7 @@ CONTAINS
                                        "Careful, the orbitals in rtp/emd are not actually eigenstates of the Hamiltonian. "// &
                                        "Assumes absence of spin polarization (so far).", &
                                        print_level=high_print_level, common_iter_levels=3, &
-                                       each_iter_names=s2a("MD"), each_iter_values=(/100/), &
+                                       each_iter_names=s2a("MD"), each_iter_values=[100], &
                                        add_last=add_last_numeric, filename="energy-windows")
       CALL keyword_create(keyword, __LOCATION__, name="N_WINDOWS", &
                           description="The number of energy windows.", &
@@ -1672,7 +1672,7 @@ CONTAINS
                           description="The stride (X,Y,Z) used to write the energy windows cube files (if enabled) "// &
                           "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
                           " 1 number valid for all components.", &
-                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=[2, 2, 2], type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL section_add_subsection(section, print_key)
@@ -1776,11 +1776,11 @@ CONTAINS
          "diffraction spectrum", &
          print_level=debug_print_level, &
          filename="", &
-         citations=(/Krack2000, Krack2002/))
+         citations=[Krack2000, Krack2002])
       CALL keyword_create( &
          keyword, __LOCATION__, &
          name="Q_MAX", &
-         variants=(/"Q_MAXIMUM"/), &
+         variants=["Q_MAXIMUM"], &
          description="Maximum Q value calculated for the spectrum", &
          usage="Q_MAX {real}", &
          repeats=.FALSE., &
@@ -1815,7 +1815,7 @@ CONTAINS
                           description="Use a G-space smoothing function", &
                           usage="GSPACE_SMOOTHING cutoff {real}, width {real}", &
                           repeats=.FALSE., &
-                          n_var=2, default_r_vals=(/-1._dp, -1._dp/), &
+                          n_var=2, default_r_vals=[-1._dp, -1._dp], &
                           type_of_var=real_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
@@ -1877,8 +1877,8 @@ CONTAINS
          print_level=high_print_level, &
          filename="__STD_OUT__", &
          each_iter_names=s2a("QS_SCF"), &
-         each_iter_values=(/0/), &
-         citations=(/Dudarev1997, Dudarev1998/))
+         each_iter_values=[0], &
+         citations=[Dudarev1997, Dudarev1998])
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
@@ -1909,8 +1909,8 @@ CONTAINS
          print_level=high_print_level, &
          filename="__STD_OUT__", &
          each_iter_names=s2a("QS_SCF"), &
-         each_iter_values=(/0/), &
-         citations=(/Fattebert2002, Andreussi2012, Yin2017/))
+         each_iter_values=[0], &
+         citations=[Fattebert2002, Andreussi2012, Yin2017])
 
       NULLIFY (sub_print_key)
 
@@ -1922,13 +1922,13 @@ CONTAINS
          print_level=debug_print_level, &
          filename="", &
          each_iter_names=s2a("QS_SCF"), &
-         each_iter_values=(/0/))
+         each_iter_values=[0])
       CALL keyword_create(keyword, __LOCATION__, name="STRIDE", &
                           description="The stride (X,Y,Z) used to write the cube file "// &
                           "(larger values result in smaller cube files). You can provide 3 "// &
                           "numbers (for X,Y,Z) or 1 number valid for all components.", &
                           n_var=-1, &
-                          default_i_vals=(/2, 2, 2/), &
+                          default_i_vals=[2, 2, 2], &
                           type_of_var=integer_t, &
                           repeats=.FALSE.)
       CALL section_add_keyword(sub_print_key, keyword)
@@ -1952,14 +1952,14 @@ CONTAINS
          print_level=debug_print_level, &
          filename="", &
          each_iter_names=s2a("QS_SCF"), &
-         each_iter_values=(/0/), &
-         citations=(/Fattebert2002, Andreussi2012, Yin2017/))
+         each_iter_values=[0], &
+         citations=[Fattebert2002, Andreussi2012, Yin2017])
       CALL keyword_create(keyword, __LOCATION__, name="STRIDE", &
                           description="The stride (X,Y,Z) used to write the cube file "// &
                           "(larger values result in smaller cube files). You can provide 3 "// &
                           "numbers (for X,Y,Z) or 1 number valid for all components.", &
                           n_var=-1, &
-                          default_i_vals=(/2, 2, 2/), &
+                          default_i_vals=[2, 2, 2], &
                           type_of_var=integer_t, &
                           repeats=.FALSE.)
       CALL section_add_keyword(sub_print_key, keyword)
@@ -1981,14 +1981,14 @@ CONTAINS
          print_level=debug_print_level, &
          filename="", &
          each_iter_names=s2a("QS_SCF"), &
-         each_iter_values=(/0/), &
-         citations=(/Fattebert2002, Andreussi2012, Yin2017/))
+         each_iter_values=[0], &
+         citations=[Fattebert2002, Andreussi2012, Yin2017])
       CALL keyword_create(keyword, __LOCATION__, name="STRIDE", &
                           description="The stride (X,Y,Z) used to write the cube file "// &
                           "(larger values result in smaller cube files). You can provide 3 "// &
                           "numbers (for X,Y,Z) or 1 number valid for all components.", &
                           n_var=-1, &
-                          default_i_vals=(/2, 2, 2/), &
+                          default_i_vals=[2, 2, 2], &
                           type_of_var=integer_t, &
                           repeats=.FALSE.)
       CALL section_add_keyword(sub_print_key, keyword)
@@ -2011,14 +2011,14 @@ CONTAINS
          print_level=debug_print_level, &
          filename="", &
          each_iter_names=s2a("QS_SCF"), &
-         each_iter_values=(/0/), &
-         citations=(/Fattebert2002, Andreussi2012, Yin2017/))
+         each_iter_values=[0], &
+         citations=[Fattebert2002, Andreussi2012, Yin2017])
       CALL keyword_create(keyword, __LOCATION__, name="STRIDE", &
                           description="The stride (X,Y,Z) used to write the cube file "// &
                           "(larger values result in smaller cube files). You can provide 3 "// &
                           "numbers (for X,Y,Z) or 1 number valid for all components.", &
                           n_var=-1, &
-                          default_i_vals=(/2, 2, 2/), &
+                          default_i_vals=[2, 2, 2], &
                           type_of_var=integer_t, &
                           repeats=.FALSE.)
       CALL section_add_keyword(sub_print_key, keyword)
@@ -2041,14 +2041,14 @@ CONTAINS
          print_level=debug_print_level, &
          filename="", &
          each_iter_names=s2a("QS_SCF"), &
-         each_iter_values=(/0/), &
-         citations=(/Fattebert2002, Andreussi2012, Yin2017/))
+         each_iter_values=[0], &
+         citations=[Fattebert2002, Andreussi2012, Yin2017])
       CALL keyword_create(keyword, __LOCATION__, name="STRIDE", &
                           description="The stride (X,Y,Z) used to write the cube file "// &
                           "(larger values result in smaller cube files). You can provide 3 "// &
                           "numbers (for X,Y,Z) or 1 number valid for all components.", &
                           n_var=-1, &
-                          default_i_vals=(/2, 2, 2/), &
+                          default_i_vals=[2, 2, 2], &
                           type_of_var=integer_t, &
                           repeats=.FALSE.)
       CALL section_add_keyword(sub_print_key, keyword)
@@ -2093,7 +2093,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="ADDED_MOS", &
-                          variants=(/"ADDED_BANDS"/), &
+                          variants=["ADDED_BANDS"], &
                           description="Number of MOs/Bands added to the Band Structure calculation.", &
                           default_i_val=0)
       CALL section_add_keyword(section, keyword)
@@ -2127,7 +2127,7 @@ CONTAINS
                           description="The stride (X,Y,Z) used to write the cube file "// &
                           "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
                           " 1 number valid for all components.", &
-                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=[2, 2, 2], type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
@@ -2208,7 +2208,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="MP_GRID", &
                           description="Specify a Monkhorst-Pack grid with which to compute the density of states. "// &
                           "Works only for a k-point calculation", &
-                          usage="MP_GRID {integer} {integer} {integer}", default_i_vals=(/-1/), &
+                          usage="MP_GRID {integer} {integer} {integer}", default_i_vals=[-1], &
                           n_var=3, type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
@@ -2255,7 +2255,7 @@ CONTAINS
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="OUT_EACH_STATE", &
-                          variants=(/"OUT_EACH_MO"/), &
+                          variants=["OUT_EACH_MO"], &
                           description="Output on the status of the calculation every OUT_EACH_MO states. If -1 no output", &
                           usage="OUT_EACH_STATE integer", default_i_val=-1)
       CALL section_add_keyword(print_key, keyword)
@@ -2350,12 +2350,12 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="MP_GRID", &
                           description="The dimensions of the Monkhorst-Pack k-point grid. ", &
-                          usage="MP_GRID 6 6 6", n_var=-1, default_i_vals=(/10, 10, 10/), type_of_var=integer_t)
+                          usage="MP_GRID 6 6 6", n_var=-1, default_i_vals=[10, 10, 10], type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="ADDED_MOS", &
-                          variants=(/"ADDED_BANDS"/), &
+                          variants=["ADDED_BANDS"], &
                           description="Number of MOs/Bands added to the Band Structure calculation.", &
                           default_i_val=0)
       CALL section_add_keyword(print_key, keyword)
@@ -2395,7 +2395,7 @@ CONTAINS
                           description="The stride (X,Y,Z) used to write the cube file "// &
                           "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
                           " 1 number valid for all components.", &
-                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=[2, 2, 2], type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
@@ -2414,7 +2414,7 @@ CONTAINS
                           "While positive values sum states in the range [EF,EF+bias[. "// &
                           "If positive biases are used, sufficiently many unoccupied stated "// &
                           "(see ADDED_MOS and NLUMO ) should be computed.", &
-                          n_var=-1, type_of_var=real_t, default_r_vals=(/0.0_dp/), unit_str='eV')
+                          n_var=-1, type_of_var=real_t, default_r_vals=[0.0_dp], unit_str='eV')
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
@@ -2424,7 +2424,7 @@ CONTAINS
                           default_i_val=orb_s, &
                           usage="TH_TORB s dz2", &
                           enum_c_vals=s2a("S", "PX", "PY", "PZ", "DXY", "DYZ", "DZX", "DX2", "DY2", "DZ2"), &
-                          enum_i_vals=(/orb_s, orb_px, orb_py, orb_pz, orb_dxy, orb_dyz, orb_dzx, orb_dx2, orb_dy2, orb_dz2/), &
+                          enum_i_vals=[orb_s, orb_px, orb_py, orb_pz, orb_dxy, orb_dyz, orb_dzx, orb_dx2, orb_dy2, orb_dz2], &
                           enum_desc=s2a("s orbital", "px orbital", "py orbital", "pz orbital", &
                                         "dxy orbital", "dyz orbital", "dzx orbital", "x^2 orbital", "y^2 orbital", "z^2 orbital"))
       CALL section_add_keyword(print_key, keyword)
@@ -2515,7 +2515,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="RESULT_SPIN_INDEX", &
                           description="Spin of the MO (y) to be modified.", &
                           enum_c_vals=s2a("Alpha", "Beta"), &
-                          enum_i_vals=(/1, 2/), & ! direct index in array
+                          enum_i_vals=[1, 2], & ! direct index in array
                           default_i_val=1, &
                           enum_desc=s2a("Majority spin", "Minority spin"))
       CALL section_add_keyword(subsection, keyword)
@@ -2551,7 +2551,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="ORIG_SPIN_INDEX", &
                           description="Spin of the MO (x) to be modified.", &
                           enum_c_vals=s2a("Alpha", "Beta"), &
-                          enum_i_vals=(/1, 2/), & ! direct index in array
+                          enum_i_vals=[1, 2], & ! direct index in array
                           default_i_val=1, &
                           enum_desc=s2a("Majority spin", "Minority spin"))
       CALL section_add_keyword(subsection, keyword)
@@ -2575,7 +2575,7 @@ CONTAINS
                                         "posteriori of the SCF by request of the user. E.g. by specifying print%mo_cubes%nlumo. ", &
                                         "The orginal MO is from an external .wfn file. Use the keyword "// &
                                         "ORIG_EXT_FILE_NAME to define its name."), &
-                          enum_i_vals=(/wfn_mix_orig_occ, wfn_mix_orig_virtual, wfn_mix_orig_external/))
+                          enum_i_vals=[wfn_mix_orig_occ, wfn_mix_orig_virtual, wfn_mix_orig_external])
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
@@ -2613,7 +2613,7 @@ CONTAINS
       CALL section_create(section, __LOCATION__, name="IMPLICIT_PSOLVER", &
                           description="Controls printing of cube files for data from the implicit "// &
                           "(generalized) Poisson solver.", &
-                          citations=(/BaniHashemian2016/), &
+                          citations=[BaniHashemian2016], &
                           n_keywords=0, n_subsections=3, repeats=.FALSE.)
 
       NULLIFY (keyword, print_key)
@@ -2628,7 +2628,7 @@ CONTAINS
                           description="The stride (X,Y,Z) used to write the cube file "// &
                           "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
                           " 1 number valid for all components.", &
-                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=[2, 2, 2], type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
@@ -2662,7 +2662,7 @@ CONTAINS
                           description="The stride (X,Y,Z) used to write the cube file "// &
                           "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
                           " 1 number valid for all components.", &
-                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=[2, 2, 2], type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
@@ -2684,7 +2684,7 @@ CONTAINS
                           description="The stride (X,Y,Z) used to write the cube file "// &
                           "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
                           " 1 number valid for all components.", &
-                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=[2, 2, 2], type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
@@ -2723,8 +2723,8 @@ CONTAINS
                           default_i_val=precond_spl3_aint, &
                           enum_c_vals=s2a("copy", "spl3_nopbc_aint1", "spl3_nopbc_precond1", &
                                           "spl3_nopbc_aint2", "spl3_nopbc_precond2", "spl3_nopbc_precond3"), &
-                          enum_i_vals=(/no_precond, precond_spl3_aint, precond_spl3_1, &
-                                        precond_spl3_aint2, precond_spl3_2, precond_spl3_3/))
+                          enum_i_vals=[no_precond, precond_spl3_aint, precond_spl3_1, &
+                                       precond_spl3_aint2, precond_spl3_2, precond_spl3_3])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -2735,8 +2735,8 @@ CONTAINS
                           default_i_val=precond_spl3_3, &
                           enum_c_vals=s2a("copy", "spl3_nopbc_aint1", "spl3_nopbc_precond1", &
                                           "spl3_nopbc_aint2", "spl3_nopbc_precond2", "spl3_nopbc_precond3"), &
-                          enum_i_vals=(/no_precond, precond_spl3_aint, precond_spl3_1, &
-                                        precond_spl3_aint2, precond_spl3_2, precond_spl3_3/))
+                          enum_i_vals=[no_precond, precond_spl3_aint, precond_spl3_1, &
+                                       precond_spl3_aint2, precond_spl3_2, precond_spl3_3])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -2753,7 +2753,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="max_iter", &
-                          variants=(/'maxiter'/), &
+                          variants=['maxiter'], &
                           description="the maximum number of iterations", &
                           usage="max_iter 200", default_i_val=100)
       CALL section_add_keyword(section, keyword)
@@ -2764,7 +2764,7 @@ CONTAINS
                                        description="if convergence information about the linear solver"// &
                                        " of the spline methods should be printed", &
                                        print_level=medium_print_level, each_iter_names=s2a("SPLINE_FIND_COEFFS"), &
-                                       each_iter_values=(/10/), filename="__STD_OUT__", &
+                                       each_iter_values=[10], filename="__STD_OUT__", &
                                        add_last=add_last_numeric)
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)

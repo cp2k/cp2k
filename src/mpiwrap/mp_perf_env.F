@@ -48,16 +48,16 @@ MODULE mp_perf_env
    TYPE(mp_perf_env_p_type), DIMENSION(max_stack_size), SAVE :: mp_perf_stack
 
    CHARACTER(LEN=20), PARAMETER :: sname(MAX_PERF) = &
-                                   (/"MP_Group            ", "MP_Bcast            ", "MP_Allreduce        ", &
-                                     "MP_Gather           ", "MP_Sync             ", "MP_Alltoall         ", &
-                                     "MP_SendRecv         ", "MP_ISendRecv        ", "MP_Wait             ", &
-                                     "MP_comm_split       ", "MP_ISend            ", "MP_IRecv            ", &
-                                     "MP_Send             ", "MP_Recv             ", "MP_Memory           ", &
-                                     "MP_Put              ", "MP_Get              ", "MP_Fence            ", &
-                                     "MP_Win_Lock         ", "MP_Win_Create       ", "MP_Win_Free         ", &
-                                     "MP_IBcast           ", "MP_IAllreduce       ", "MP_IScatter         ", &
-                                     "MP_RGet             ", "MP_Isync            ", "MP_Read_All         ", &
-                                     "MP_Write_All        "/)
+                                   ["MP_Group            ", "MP_Bcast            ", "MP_Allreduce        ", &
+                                    "MP_Gather           ", "MP_Sync             ", "MP_Alltoall         ", &
+                                    "MP_SendRecv         ", "MP_ISendRecv        ", "MP_Wait             ", &
+                                    "MP_comm_split       ", "MP_ISend            ", "MP_IRecv            ", &
+                                    "MP_Send             ", "MP_Recv             ", "MP_Memory           ", &
+                                    "MP_Put              ", "MP_Get              ", "MP_Fence            ", &
+                                    "MP_Win_Lock         ", "MP_Win_Create       ", "MP_Win_Free         ", &
+                                    "MP_IBcast           ", "MP_IAllreduce       ", "MP_IScatter         ", &
+                                    "MP_RGet             ", "MP_Isync            ", "MP_Read_All         ", &
+                                    "MP_Write_All        "]
 
 CONTAINS
 

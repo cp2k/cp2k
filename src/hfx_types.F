@@ -119,17 +119,17 @@ MODULE hfx_types
    REAL(dp), PARAMETER, PUBLIC                :: log_zero = -1000.0_dp
    REAL(dp), PARAMETER, PUBLIC                :: powell_min_log = -20.0_dp
    REAL(KIND=dp), DIMENSION(0:10), &
-      PARAMETER, PUBLIC                       :: mul_fact = (/1.0_dp, &
-                                                              1.1781_dp, &
-                                                              1.3333_dp, &
-                                                              1.4726_dp, &
-                                                              1.6000_dp, &
-                                                              1.7181_dp, &
-                                                              1.8286_dp, &
-                                                              1.9328_dp, &
-                                                              2.0317_dp, &
-                                                              2.1261_dp, &
-                                                              2.2165_dp/)
+      PARAMETER, PUBLIC                       :: mul_fact = [1.0_dp, &
+                                                             1.1781_dp, &
+                                                             1.3333_dp, &
+                                                             1.4726_dp, &
+                                                             1.6000_dp, &
+                                                             1.7181_dp, &
+                                                             1.8286_dp, &
+                                                             1.9328_dp, &
+                                                             2.0317_dp, &
+                                                             2.1261_dp, &
+                                                             2.2165_dp]
 
    INTEGER, SAVE                                         :: init_t_c_g0_lmax = -1
 
@@ -2331,7 +2331,7 @@ CONTAINS
                END IF
                IF (dist_min < R_max) THEN
                   total_number_of_cells = total_number_of_cells + 1
-                  x_data%neighbor_cells(ub)%cell = REAL((/ishell, jshell, kshell/), dp)
+                  x_data%neighbor_cells(ub)%cell = REAL([ishell, jshell, kshell], dp)
                   ub = ub + 1
                   image_cell_found = .TRUE.
                END IF

@@ -416,7 +416,7 @@ CONTAINS
                                          l_val=charge_beta)
                CALL section_vals_val_get(root_section, "MOTION%PRINT%TRAJECTORY%CHARGE_EXTENDED", &
                                          l_val=charge_extended)
-               i = COUNT((/charge_occup, charge_beta, charge_extended/))
+               i = COUNT([charge_occup, charge_beta, charge_extended])
                IF (i > 1) &
                   CPABORT("Either only CHARGE_OCCUP, CHARGE_BETA, or CHARGE_EXTENDED can be selected, ")
             END IF

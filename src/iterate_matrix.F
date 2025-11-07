@@ -1997,7 +1997,7 @@ CONTAINS
             flop3 = 0
             DO j = 1, order
                !choose=factorial(order)/(factorial(j)*factorial(order-j))
-               choose = PRODUCT((/(ii, ii=1, order)/))/(PRODUCT((/(ii, ii=1, j)/))*PRODUCT((/(ii, ii=1, order - j)/)))
+               choose = PRODUCT([(ii, ii=1, order)])/(PRODUCT([(ii, ii=1, j)])*PRODUCT([(ii, ii=1, order - j)]))
                CALL dbcsr_add(tmp1, tmp2, 1.0_dp, -1.0_dp*(-1)**j*choose)
                IF (j .LT. order) THEN
                   f = 0

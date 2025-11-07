@@ -286,7 +286,7 @@ CONTAINS
          ALLOCATE (atom_symbols(nunits(1)))
 
          DO iunit = 1, nunits(1)
-            r(1:3, iunit) = (/REAL(iunit, dp), REAL(iunit, dp), REAL(iunit, dp)/)
+            r(1:3, iunit) = [REAL(iunit, dp), REAL(iunit, dp), REAL(iunit, dp)]
             IF (LEN_TRIM(atom_names(iunit, 1)) > LEN(atom_symbols(iunit))) THEN
                CPWARN("The atom symbol will be truncated.")
             END IF

@@ -307,7 +307,7 @@ CONTAINS
                      CALL integrate_pgf_product( &
                         la_max=la_max(iset), zeta=zeta(ipgf, iset), la_min=la_min(iset), &
                         lb_max=0, zetb=0.0_dp, lb_min=0, &
-                        ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
+                        ra=ra, rab=[0.0_dp, 0.0_dp, 0.0_dp], &
                         rsgrid=rs_v(igrid_level), &
                         hab=I_tmp2, &
                         o1=na1 - 1, &
@@ -667,7 +667,7 @@ CONTAINS
 
                   CALL integrate_pgf_product(la_max=la_max(iset), zeta=zeta(ipgf, iset)/2.0_dp, la_min=la_min(iset), &
                                              lb_max=0, zetb=zeta(ipgf, iset)/2.0_dp, lb_min=0, &
-                                             ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
+                                             ra=ra, rab=[0.0_dp, 0.0_dp, 0.0_dp], &
                                              rsgrid=rs_v(igrid_level), &
                                              hab=I_tmp2, &
                                              pab=pab, &
@@ -901,7 +901,7 @@ CONTAINS
 
                   CALL integrate_pgf_product(la_max=la_max(iset), zeta=zeta(ipgf, iset)/2.0_dp, la_min=la_min(iset), &
                                              lb_max=0, zetb=zeta(ipgf, iset)/2.0_dp, lb_min=0, &
-                                             ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
+                                             ra=ra, rab=[0.0_dp, 0.0_dp, 0.0_dp], &
                                              rsgrid=rs_v(igrid_level), &
                                              hab=I_tmp2, &
                                              pab=pab, &

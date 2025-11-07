@@ -1321,19 +1321,19 @@ CONTAINS
             ALLOCATE (max_contraction_i(nseti))
             DO iset = 1, nseti
                sgfi = first_sgf_i(1, iset)
-               max_contraction_i(iset) = MAXVAL((/(SUM(ABS(sphi_i(:, i))), i=sgfi, sgfi + nsgfi(iset) - 1)/))
+               max_contraction_i(iset) = MAXVAL([(SUM(ABS(sphi_i(:, i))), i=sgfi, sgfi + nsgfi(iset) - 1)])
             END DO
 
             ALLOCATE (max_contraction_j(nsetj))
             DO jset = 1, nsetj
                sgfj = first_sgf_j(1, jset)
-               max_contraction_j(jset) = MAXVAL((/(SUM(ABS(sphi_j(:, i))), i=sgfj, sgfj + nsgfj(jset) - 1)/))
+               max_contraction_j(jset) = MAXVAL([(SUM(ABS(sphi_j(:, i))), i=sgfj, sgfj + nsgfj(jset) - 1)])
             END DO
 
             ALLOCATE (max_contraction_k(nsetk))
             DO kset = 1, nsetk
                sgfk = first_sgf_k(1, kset)
-               max_contraction_k(kset) = MAXVAL((/(SUM(ABS(sphi_k(:, i))), i=sgfk, sgfk + nsgfk(kset) - 1)/))
+               max_contraction_k(kset) = MAXVAL([(SUM(ABS(sphi_k(:, i))), i=sgfk, sgfk + nsgfk(kset) - 1)])
             END DO
          END IF
 
@@ -1877,19 +1877,19 @@ CONTAINS
             ALLOCATE (max_contraction_i(nseti))
             DO iset = 1, nseti
                sgfi = first_sgf_i(1, iset)
-               max_contraction_i(iset) = MAXVAL((/(SUM(ABS(sphi_i(:, i))), i=sgfi, sgfi + nsgfi(iset) - 1)/))
+               max_contraction_i(iset) = MAXVAL([(SUM(ABS(sphi_i(:, i))), i=sgfi, sgfi + nsgfi(iset) - 1)])
             END DO
 
             ALLOCATE (max_contraction_j(nsetj))
             DO jset = 1, nsetj
                sgfj = first_sgf_j(1, jset)
-               max_contraction_j(jset) = MAXVAL((/(SUM(ABS(sphi_j(:, i))), i=sgfj, sgfj + nsgfj(jset) - 1)/))
+               max_contraction_j(jset) = MAXVAL([(SUM(ABS(sphi_j(:, i))), i=sgfj, sgfj + nsgfj(jset) - 1)])
             END DO
 
             ALLOCATE (max_contraction_k(nsetk))
             DO kset = 1, nsetk
                sgfk = first_sgf_k(1, kset)
-               max_contraction_k(kset) = MAXVAL((/(SUM(ABS(sphi_k(:, i))), i=sgfk, sgfk + nsgfk(kset) - 1)/))
+               max_contraction_k(kset) = MAXVAL([(SUM(ABS(sphi_k(:, i))), i=sgfk, sgfk + nsgfk(kset) - 1)])
             END DO
          END IF
 
@@ -2515,13 +2515,13 @@ CONTAINS
             ALLOCATE (max_contraction_j(nsetj))
             DO jset = 1, nsetj
                sgfj = first_sgf_j(1, jset)
-               max_contraction_j(jset) = MAXVAL((/(SUM(ABS(sphi_j(:, i))), i=sgfj, sgfj + nsgfj(jset) - 1)/))
+               max_contraction_j(jset) = MAXVAL([(SUM(ABS(sphi_j(:, i))), i=sgfj, sgfj + nsgfj(jset) - 1)])
             END DO
 
             ALLOCATE (max_contraction_k(nsetk))
             DO kset = 1, nsetk
                sgfk = first_sgf_k(1, kset)
-               max_contraction_k(kset) = MAXVAL((/(SUM(ABS(sphi_k(:, i))), i=sgfk, sgfk + nsgfk(kset) - 1)/))
+               max_contraction_k(kset) = MAXVAL([(SUM(ABS(sphi_k(:, i))), i=sgfk, sgfk + nsgfk(kset) - 1)])
             END DO
          END IF
 
@@ -2533,7 +2533,7 @@ CONTAINS
          DO iset = 1, nseti
 
             sgfi = first_sgf_i(1, iset)
-            max_contraction_i = MAXVAL((/(SUM(ABS(sphi_i(:, i))), i=sgfi, sgfi + nsgfi(iset) - 1)/))
+            max_contraction_i = MAXVAL([(SUM(ABS(sphi_i(:, i))), i=sgfi, sgfi + nsgfi(iset) - 1)])
 
             DO jset = 1, nsetj
 

@@ -592,13 +592,13 @@ CONTAINS
       DO j = 1, SIZE(recvbuffer)
          ind = j + (j/2)
          IF (mixed_cdft%is_special) THEN
-            recvbuffer(j)%imap = (/mixed_cdft%source_list_bo(1, j), mixed_cdft%source_list_bo(2, j), &
-                                   mixed_cdft%source_list_bo(3, j), mixed_cdft%source_list_bo(4, j), &
-                                   lb(j), ub(j)/)
+            recvbuffer(j)%imap = [mixed_cdft%source_list_bo(1, j), mixed_cdft%source_list_bo(2, j), &
+                                  mixed_cdft%source_list_bo(3, j), mixed_cdft%source_list_bo(4, j), &
+                                  lb(j), ub(j)]
          ELSE IF (mixed_cdft%is_pencil) THEN
-            recvbuffer(j)%imap = (/bo(1, 1), bo(2, 1), mixed_cdft%recv_bo(ind), mixed_cdft%recv_bo(ind + 1), lb(j), ub(j)/)
+            recvbuffer(j)%imap = [bo(1, 1), bo(2, 1), mixed_cdft%recv_bo(ind), mixed_cdft%recv_bo(ind + 1), lb(j), ub(j)]
          ELSE
-            recvbuffer(j)%imap = (/mixed_cdft%recv_bo(ind), mixed_cdft%recv_bo(ind + 1), bo(1, 2), bo(2, 2), lb(j), ub(j)/)
+            recvbuffer(j)%imap = [mixed_cdft%recv_bo(ind), mixed_cdft%recv_bo(ind + 1), bo(1, 2), bo(2, 2), lb(j), ub(j)]
          END IF
       END DO
       IF (mixed_cdft%dlb .AND. .NOT. mixed_cdft%is_special) THEN
@@ -663,12 +663,12 @@ CONTAINS
             DO j = 1, SIZE(mixed_cdft%dlb_control%recv_work_repl)
                IF (mixed_cdft%dlb_control%recv_work_repl(j)) THEN
                   DO i = 1, SIZE(mixed_cdft%dlb_control%recvbuff(j)%buffs)
-                     index = (/LBOUND(mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%weight, 1), &
-                               UBOUND(mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%weight, 1), &
-                               LBOUND(mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%weight, 2), &
-                               UBOUND(mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%weight, 2), &
-                               LBOUND(mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%weight, 3), &
-                               UBOUND(mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%weight, 3)/)
+                     index = [LBOUND(mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%weight, 1), &
+                              UBOUND(mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%weight, 1), &
+                              LBOUND(mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%weight, 2), &
+                              UBOUND(mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%weight, 2), &
+                              LBOUND(mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%weight, 3), &
+                              UBOUND(mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%weight, 3)]
                      cdft_control_target%group(1)%weight%array(INDEX(1):INDEX(2), &
                                                                INDEX(3):INDEX(4), &
                                                                INDEX(5):INDEX(6)) = &
@@ -722,12 +722,12 @@ CONTAINS
                DO j = 1, SIZE(mixed_cdft%dlb_control%recv_work_repl)
                   IF (mixed_cdft%dlb_control%recv_work_repl(j)) THEN
                      DO i = 1, SIZE(mixed_cdft%dlb_control%recvbuff(j)%buffs)
-                        index = (/LBOUND(mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%cavity, 1), &
-                                  UBOUND(mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%cavity, 1), &
-                                  LBOUND(mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%cavity, 2), &
-                                  UBOUND(mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%cavity, 2), &
-                                  LBOUND(mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%cavity, 3), &
-                                  UBOUND(mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%cavity, 3)/)
+                        index = [LBOUND(mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%cavity, 1), &
+                                 UBOUND(mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%cavity, 1), &
+                                 LBOUND(mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%cavity, 2), &
+                                 UBOUND(mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%cavity, 2), &
+                                 LBOUND(mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%cavity, 3), &
+                                 UBOUND(mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%cavity, 3)]
                         cdft_control_target%becke_control%cavity_mat(INDEX(1):INDEX(2), &
                                                                      INDEX(3):INDEX(4), &
                                                                      INDEX(5):INDEX(6)) = &
@@ -786,12 +786,12 @@ CONTAINS
                DO j = 1, SIZE(mixed_cdft%dlb_control%recv_work_repl)
                   IF (mixed_cdft%dlb_control%recv_work_repl(j)) THEN
                      DO i = 1, SIZE(mixed_cdft%dlb_control%recvbuff(j)%buffs)
-                        index = (/LBOUND(mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%gradients, 2), &
-                                  UBOUND(mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%gradients, 2), &
-                                  LBOUND(mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%gradients, 3), &
-                                  UBOUND(mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%gradients, 3), &
-                                  LBOUND(mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%gradients, 4), &
-                                  UBOUND(mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%gradients, 4)/)
+                        index = [LBOUND(mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%gradients, 2), &
+                                 UBOUND(mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%gradients, 2), &
+                                 LBOUND(mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%gradients, 3), &
+                                 UBOUND(mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%gradients, 3), &
+                                 LBOUND(mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%gradients, 4), &
+                                 UBOUND(mixed_cdft%dlb_control%recvbuff(j)%buffs(i)%gradients, 4)]
                         cdft_control_target%group(1)%gradients(:, INDEX(1):INDEX(2), &
                                                                INDEX(3):INDEX(4), &
                                                                INDEX(5):INDEX(6)) = &
@@ -959,14 +959,14 @@ CONTAINS
             ! Gradients
             IF (calculate_forces) THEN
                DO igroup = 1, SIZE(cdft_control_source%group)
-                  bounds_of = (/LBOUND(cdft_control_source%group(igroup)%gradients, 1), &
-                                UBOUND(cdft_control_source%group(igroup)%gradients, 1), &
-                                LBOUND(cdft_control_source%group(igroup)%gradients, 2), &
-                                UBOUND(cdft_control_source%group(igroup)%gradients, 2), &
-                                LBOUND(cdft_control_source%group(igroup)%gradients, 3), &
-                                UBOUND(cdft_control_source%group(igroup)%gradients, 3), &
-                                LBOUND(cdft_control_source%group(igroup)%gradients, 4), &
-                                UBOUND(cdft_control_source%group(igroup)%gradients, 4)/)
+                  bounds_of = [LBOUND(cdft_control_source%group(igroup)%gradients, 1), &
+                               UBOUND(cdft_control_source%group(igroup)%gradients, 1), &
+                               LBOUND(cdft_control_source%group(igroup)%gradients, 2), &
+                               UBOUND(cdft_control_source%group(igroup)%gradients, 2), &
+                               LBOUND(cdft_control_source%group(igroup)%gradients, 3), &
+                               UBOUND(cdft_control_source%group(igroup)%gradients, 3), &
+                               LBOUND(cdft_control_source%group(igroup)%gradients, 4), &
+                               UBOUND(cdft_control_source%group(igroup)%gradients, 4)]
                   ALLOCATE (cdft_control_target%group(igroup)% &
                             gradients(bounds_of(1):bounds_of(2), bounds_of(3):bounds_of(4), &
                                       bounds_of(5):bounds_of(6), bounds_of(7):bounds_of(8)))
@@ -1914,7 +1914,7 @@ CONTAINS
             DO i = 1, nblk
                NULLIFY (blocks(i)%array)
                ALLOCATE (blocks(i)%array(2))
-               blocks(i)%array = (/j, j + 1/)
+               blocks(i)%array = [j, j + 1]
                j = j + 2
             END DO
             ! Print info
@@ -2563,7 +2563,7 @@ CONTAINS
                                                        prefactor=1.0_dp, cutoff=0.0_dp)
 
                      CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
-                                                (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, &
+                                                [0.0_dp, 0.0_dp, 0.0_dp], 1.0_dp, pab, 0, 0, &
                                                 rs_cavity, &
                                                 radius=radius, ga_gb_function=GRID_FUNC_AB, &
                                                 use_subpatch=.TRUE., &
@@ -2608,7 +2608,7 @@ CONTAINS
                            cdft_control%becke_control%eps_cavity, just_zero=.TRUE.)
             NULLIFY (stride)
             ALLOCATE (stride(3))
-            stride = (/2, 2, 2/)
+            stride = [2, 2, 2]
             mpi_io = .TRUE.
             unit_nr = cp_print_key_unit_nr(logger, print_section, "", &
                                            middle_name="BECKE_CAVITY", &
@@ -3033,8 +3033,8 @@ CONTAINS
                CALL force_env%para_env%irecv(msgout=mixed_cdft%dlb_control%bo, source=mixed_cdft%dlb_control%my_source, &
                                              request=req(1))
                CALL req(1)%wait()
-               mixed_cdft%dlb_control%my_dest_repl = (/mixed_cdft%dlb_control%bo(11), mixed_cdft%dlb_control%bo(12)/)
-               mixed_cdft%dlb_control%dest_tags_repl = (/mixed_cdft%dlb_control%bo(9), mixed_cdft%dlb_control%bo(10)/)
+               mixed_cdft%dlb_control%my_dest_repl = [mixed_cdft%dlb_control%bo(11), mixed_cdft%dlb_control%bo(12)]
+               mixed_cdft%dlb_control%dest_tags_repl = [mixed_cdft%dlb_control%bo(9), mixed_cdft%dlb_control%bo(10)]
                ALLOCATE (mixed_cdft%dlb_control%cavity(mixed_cdft%dlb_control%bo(1):mixed_cdft%dlb_control%bo(2), &
                                                        mixed_cdft%dlb_control%bo(3):mixed_cdft%dlb_control%bo(4), &
                                                        mixed_cdft%dlb_control%bo(7):mixed_cdft%dlb_control%bo(8)))
@@ -3088,10 +3088,10 @@ CONTAINS
                                                                          mixed_cdft%dlb_control%bo(12*(j - 1) + 8)))
                   mixed_cdft%dlb_control%sendbuff(j)%weight = 0.0_dp
                   mixed_cdft%dlb_control%sendbuff(j)%gradients = 0.0_dp
-                  mixed_cdft%dlb_control%sendbuff(j)%tag = (/mixed_cdft%dlb_control%bo(12*(j - 1) + 9), &
-                                                             mixed_cdft%dlb_control%bo(12*(j - 1) + 10)/)
-                  mixed_cdft%dlb_control%sendbuff(j)%rank = (/mixed_cdft%dlb_control%bo(12*(j - 1) + 11), &
-                                                              mixed_cdft%dlb_control%bo(12*(j - 1) + 12)/)
+                  mixed_cdft%dlb_control%sendbuff(j)%tag = [mixed_cdft%dlb_control%bo(12*(j - 1) + 9), &
+                                                            mixed_cdft%dlb_control%bo(12*(j - 1) + 10)]
+                  mixed_cdft%dlb_control%sendbuff(j)%rank = [mixed_cdft%dlb_control%bo(12*(j - 1) + 11), &
+                                                             mixed_cdft%dlb_control%bo(12*(j - 1) + 12)]
                END DO
                CALL mp_waitall(req_recv)
                DEALLOCATE (req_recv)
@@ -3103,20 +3103,20 @@ CONTAINS
             ALLOCATE (sendbuffer(12))
             send_total = 0
             DO i = 1, SIZE(mixed_cdft%dlb_control%target_list, 2)
-               tags = (/(i - 1)*3 + 1 + force_env%para_env%mepos*6*max_targets, &
-                        (i - 1)*3 + 1 + 3*max_targets + force_env%para_env%mepos*6*max_targets/) ! Unique communicator tags
+               tags = [(i - 1)*3 + 1 + force_env%para_env%mepos*6*max_targets, &
+                       (i - 1)*3 + 1 + 3*max_targets + force_env%para_env%mepos*6*max_targets] ! Unique communicator tags
                mixed_cdft%dlb_control%target_list(3, i) = tags(1)
                IF (mixed_cdft%is_pencil) THEN
-                  sendbuffer = (/bo_conf(1, 1) + offset, &
-                                 bo_conf(1, 1) + offset + (mixed_cdft%dlb_control%target_list(2, i) - 1), &
-                                 bo_conf(1, 2), bo_conf(2, 2), bo(1, 3), bo(2, 3), bo_conf(1, 3), bo_conf(2, 3), &
-                                 tags(1), tags(2), mixed_cdft%dest_list(1), mixed_cdft%dest_list(2)/)
+                  sendbuffer = [bo_conf(1, 1) + offset, &
+                                bo_conf(1, 1) + offset + (mixed_cdft%dlb_control%target_list(2, i) - 1), &
+                                bo_conf(1, 2), bo_conf(2, 2), bo(1, 3), bo(2, 3), bo_conf(1, 3), bo_conf(2, 3), &
+                                tags(1), tags(2), mixed_cdft%dest_list(1), mixed_cdft%dest_list(2)]
                ELSE
-                  sendbuffer = (/bo_conf(1, 1), bo_conf(2, 1), &
-                                 bo_conf(1, 2) + offset, &
-                                 bo_conf(1, 2) + offset + (mixed_cdft%dlb_control%target_list(2, i) - 1), &
-                                 bo(1, 3), bo(2, 3), bo_conf(1, 3), bo_conf(2, 3), tags(1), tags(2), &
-                                 mixed_cdft%dest_list(1), mixed_cdft%dest_list(2)/)
+                  sendbuffer = [bo_conf(1, 1), bo_conf(2, 1), &
+                                bo_conf(1, 2) + offset, &
+                                bo_conf(1, 2) + offset + (mixed_cdft%dlb_control%target_list(2, i) - 1), &
+                                bo(1, 3), bo(2, 3), bo_conf(1, 3), bo_conf(2, 3), tags(1), tags(2), &
+                                mixed_cdft%dest_list(1), mixed_cdft%dest_list(2)]
                END IF
                send_total = send_total + mixed_cdft%dlb_control%target_list(2, i) - 1
                CALL force_env%para_env%isend(msgin=sendbuffer, dest=mixed_cdft%dlb_control%target_list(1, i), &
@@ -3162,8 +3162,8 @@ CONTAINS
             DO i = 1, SIZE(mixed_cdft%dlb_control%target_list, 2)
                buffsize = mixed_cdft%dlb_control%target_list(2, i)
                ! Unique communicator tags (dont actually need these, should be removed)
-               tags = (/(i - 1)*3 + 1 + force_env%para_env%mepos*6*max_targets, &
-                        (i - 1)*3 + 1 + 3*max_targets + force_env%para_env%mepos*6*max_targets/)
+               tags = [(i - 1)*3 + 1 + force_env%para_env%mepos*6*max_targets, &
+                       (i - 1)*3 + 1 + 3*max_targets + force_env%para_env%mepos*6*max_targets]
                DO j = 4, SIZE(mixed_cdft%dlb_control%target_list, 1)
                   IF (mixed_cdft%dlb_control%target_list(j, i) .GT. uninitialized) EXIT
                END DO
@@ -3175,12 +3175,12 @@ CONTAINS
                CALL req(1)%wait()
                ALLOCATE (sendbuffer(12*buffsize(1)))
                DO j = 1, buffsize(1)
-                 sendbuffer(12*(j - 1) + 1:12*(j - 1) + 12) = (/mixed_cdft%dlb_control%target_list(offset_special + 2*(j - 1), i), &
-                                                                 mixed_cdft%dlb_control%target_list(offset_special + 2*j - 1, i), &
-                                                                 bo_conf(1, 2), bo_conf(2, 2), bo(1, 3), bo(2, 3), &
-                                                                 bo_conf(1, 3), bo_conf(2, 3), tags(1), tags(2), &
-                                                                 mixed_cdft%dest_list(j + offset_proc), &
-                                                               mixed_cdft%dest_list(j + offset_proc) + force_env%para_env%num_pe/2/)
+                  sendbuffer(12*(j - 1) + 1:12*(j - 1) + 12) = [mixed_cdft%dlb_control%target_list(offset_special + 2*(j - 1), i), &
+                                                                mixed_cdft%dlb_control%target_list(offset_special + 2*j - 1, i), &
+                                                                bo_conf(1, 2), bo_conf(2, 2), bo(1, 3), bo(2, 3), &
+                                                                bo_conf(1, 3), bo_conf(2, 3), tags(1), tags(2), &
+                                                                mixed_cdft%dest_list(j + offset_proc), &
+                                                                mixed_cdft%dest_list(j + offset_proc) + force_env%para_env%num_pe/2]
                END DO
                CALL force_env%para_env%isend(msgin=sendbuffer, &
                                              dest=mixed_cdft%dlb_control%target_list(1, i), &
@@ -3297,11 +3297,11 @@ CONTAINS
             ALLOCATE (req_total(COUNT(mixed_cdft%dlb_control%recv_work_repl) + 2))
             ALLOCATE (sendbuffer(6))
             IF (mixed_cdft%is_pencil) THEN
-               sendbuffer = (/SIZE(mixed_cdft%dlb_control%target_list, 2), bo_conf(1, 3), bo_conf(2, 3), &
-                              bo_conf(1, 1), bo_conf(1, 2), bo_conf(2, 2)/)
+               sendbuffer = [SIZE(mixed_cdft%dlb_control%target_list, 2), bo_conf(1, 3), bo_conf(2, 3), &
+                             bo_conf(1, 1), bo_conf(1, 2), bo_conf(2, 2)]
             ELSE
-               sendbuffer = (/SIZE(mixed_cdft%dlb_control%target_list, 2), bo_conf(1, 3), bo_conf(2, 3), &
-                              bo_conf(1, 2), bo_conf(1, 1), bo_conf(2, 1)/)
+               sendbuffer = [SIZE(mixed_cdft%dlb_control%target_list, 2), bo_conf(1, 3), bo_conf(2, 3), &
+                             bo_conf(1, 2), bo_conf(1, 1), bo_conf(2, 1)]
             END IF
          ELSE IF (ANY(mixed_cdft%dlb_control%recv_work_repl)) THEN
             ALLOCATE (req_total(COUNT(mixed_cdft%dlb_control%recv_work_repl)))
@@ -3378,13 +3378,13 @@ CONTAINS
             DO j = 1, SIZE(mixed_cdft%dest_list)
                IF (touched(j)) THEN
                   ALLOCATE (sbuff(j)%iv(4 + 3*nsend_proc(j)))
-                  sbuff(j)%iv(1:4) = (/bo_conf(1, 2), bo_conf(2, 2), bo_conf(1, 3), bo_conf(2, 3)/)
+                  sbuff(j)%iv(1:4) = [bo_conf(1, 2), bo_conf(2, 2), bo_conf(1, 3), bo_conf(2, 3)]
                   offset = 5
                   DO i = 1, SIZE(mixed_cdft%dlb_control%target_list, 2)
                      IF (mixed_cdft%dlb_control%target_list(4 + 2*(j - 1), i) .NE. uninitialized) THEN
-                        sbuff(j)%iv(offset:offset + 2) = (/mixed_cdft%dlb_control%target_list(1, i), &
-                                                           mixed_cdft%dlb_control%target_list(4 + 2*(j - 1), i), &
-                                                           mixed_cdft%dlb_control%target_list(4 + 2*j - 1, i)/)
+                        sbuff(j)%iv(offset:offset + 2) = [mixed_cdft%dlb_control%target_list(1, i), &
+                                                          mixed_cdft%dlb_control%target_list(4 + 2*(j - 1), i), &
+                                                          mixed_cdft%dlb_control%target_list(4 + 2*j - 1, i)]
                         offset = offset + 3
                      END IF
                   END DO

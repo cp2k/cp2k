@@ -167,13 +167,13 @@ CONTAINS
                init_rng = .FALSE.
                ALLOCATE (init_rng_seed(3, 2))
                init_rng_seed(:, :) = &
-                  RESHAPE((/tmc_env%m_env%rnd_init*42.0_dp, &
-                            tmc_env%m_env%rnd_init*54.0_dp, &
-                            tmc_env%m_env%rnd_init*63.0_dp, &
-                            tmc_env%m_env%rnd_init*98.0_dp, &
-                            tmc_env%m_env%rnd_init*10.0_dp, &
-                            tmc_env%m_env%rnd_init*2.0_dp/), &
-                          (/3, 2/))
+                  RESHAPE([tmc_env%m_env%rnd_init*42.0_dp, &
+                           tmc_env%m_env%rnd_init*54.0_dp, &
+                           tmc_env%m_env%rnd_init*63.0_dp, &
+                           tmc_env%m_env%rnd_init*98.0_dp, &
+                           tmc_env%m_env%rnd_init*10.0_dp, &
+                           tmc_env%m_env%rnd_init*2.0_dp], &
+                          [3, 2])
                tmc_env%rng_stream = rng_stream_type( &
                                     name="TMC_deterministic_rng_stream", &
                                     seed=init_rng_seed(:, :), &

@@ -1370,11 +1370,11 @@ CONTAINS
       ! (ia,11) to (a1,i1) for transposition
       ! (ia,11) to (i1,a1) for default
       IF (do_transpose) THEN
-         reordering = (/2, 3, 1, 4/)
+         reordering = [2, 3, 1, 4]
          my_n_row = virtual
          my_m_col = homo
       ELSE
-         reordering = (/1, 3, 2, 4/)
+         reordering = [1, 3, 2, 4]
          my_n_row = homo
          my_m_col = virtual
       END IF

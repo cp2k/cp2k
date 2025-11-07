@@ -113,12 +113,12 @@ CONTAINS
 
       NULLIFY (keyword, subsection)
       CALL keyword_create(keyword, __LOCATION__, name="POISSON_SOLVER", &
-                          variants=(/"POISSON", "PSOLVER"/), &
+                          variants=["POISSON", "PSOLVER"], &
                           description="Specify which kind of solver to use to solve the Poisson equation.", &
                           usage="POISSON_SOLVER char", &
                           enum_c_vals=s2a("PERIODIC", "ANALYTIC", "MT", "MULTIPOLE", "WAVELET", "IMPLICIT"), &
-                          enum_i_vals=(/pw_poisson_periodic, pw_poisson_analytic, pw_poisson_mt, pw_poisson_multipole, &
-                                        pw_poisson_wavelet, pw_poisson_implicit/), &
+                          enum_i_vals=[pw_poisson_periodic, pw_poisson_analytic, pw_poisson_mt, pw_poisson_multipole, &
+                                       pw_poisson_wavelet, pw_poisson_implicit], &
                           enum_desc=s2a("PERIODIC is only available for fully (3D) periodic systems.", &
                                         "ANALYTIC is available for 0D, 1D and 2D periodic solutions using analytical green "// &
                                         "functions in the g space (slow convergence).", &
@@ -131,7 +131,7 @@ CONTAINS
                                         "require very large unit cells, only that the density goes to zero on the faces of "// &
                                         "the cell. The use of PREFERRED_FFT_LIBRARY FFTSG is required.", &
                                         "IMPLICIT allows for 0D, 1D, 2D and 3D systems."), &
-                          citations=(/Blochl1995, Martyna1999, Genovese2006, Genovese2007/), &
+                          citations=[Blochl1995, Martyna1999, Genovese2006, Genovese2007], &
                           default_i_val=pw_poisson_periodic)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -143,9 +143,9 @@ CONTAINS
                           " Typically the settings should be the same.", &
                           usage="PERIODIC (x|y|z|xy|xz|yz|xyz|none)", &
                           enum_c_vals=s2a("x", "y", "z", "xy", "xz", "yz", "xyz", "none"), &
-                          enum_i_vals=(/use_perd_x, use_perd_y, use_perd_z, &
-                                        use_perd_xy, use_perd_xz, use_perd_yz, &
-                                        use_perd_xyz, use_perd_none/), &
+                          enum_i_vals=[use_perd_x, use_perd_y, use_perd_z, &
+                                       use_perd_xy, use_perd_xz, use_perd_yz, &
+                                       use_perd_xyz, use_perd_none], &
                           default_i_val=use_perd_xyz)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -213,7 +213,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="NGRIDS", &
                           description="Specifies the number of grid points used for the Interpolation of the G-space term", &
-                          usage="NGRIDS <integer> <integer> <integer> ", n_var=3, default_i_vals=(/50, 50, 50/))
+                          usage="NGRIDS <integer> <integer> <integer> ", n_var=3, default_i_vals=[50, 50, 50])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -252,7 +252,7 @@ CONTAINS
                           "twice as large as charge density (and serious artefacts can result "// &
                           "if the cell is much smaller).", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE., &
-                          citations=(/Martyna1999/))
+                          citations=[Martyna1999])
 
       NULLIFY (keyword)
 
@@ -289,23 +289,23 @@ CONTAINS
       CALL section_create(section, __LOCATION__, name="ewald", &
                           description="Ewald parameters controlling electrostatic only for CLASSICAL MM.", &
                           n_keywords=7, n_subsections=0, repeats=.FALSE., &
-                          citations=(/Ewald1921, Darden1993, Essmann1995, Toukmaji1996, Laino2008/))
+                          citations=[Ewald1921, Darden1993, Essmann1995, Toukmaji1996, Laino2008])
 
       NULLIFY (keyword, print_key, subsection)
       CALL keyword_create( &
          keyword, __LOCATION__, name="EWALD_TYPE", &
          description="The type of ewald you want to perform.", &
-         citations=(/Ewald1921, Essmann1995, Darden1993/), &
+         citations=[Ewald1921, Essmann1995, Darden1993], &
          usage="EWALD_TYPE (NONE|EWALD|PME|SPME)", &
          default_i_val=do_ewald_ewald, &
-         enum_c_vals=(/"none     ", &
-                       "ewald    ", &
-                       "pme      ", &
-                       "spme     "/), &
-         enum_i_vals=(/do_ewald_none, &
-                       do_ewald_ewald, &
-                       do_ewald_pme, &
-                       do_ewald_spme/), &
+         enum_c_vals=["none     ", &
+                      "ewald    ", &
+                      "pme      ", &
+                      "spme     "], &
+         enum_i_vals=[do_ewald_none, &
+                      do_ewald_ewald, &
+                      do_ewald_pme, &
+                      do_ewald_spme], &
          enum_desc=s2a("NONE standard real-space coulomb potential is computed together with the non-bonded contributions", &
                        "EWALD is the standard non-fft based ewald", &
                        "PME is the particle mesh using fft interpolation", &
@@ -382,7 +382,7 @@ CONTAINS
       CALL section_create(subsection, __LOCATION__, name="MULTIPOLES", &
                           description="Enables the use of multipoles in the treatment of the electrostatics.", &
                           n_keywords=0, n_subsections=1, repeats=.FALSE., &
-                          citations=(/Aguado2003, Laino2008/))
+                          citations=[Aguado2003, Laino2008])
 
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="Controls the activation of the Multipoles", &
@@ -399,8 +399,8 @@ CONTAINS
                                         "Use up to the Charge term", &
                                         "Use up to the Dipole term", &
                                         "Use up to the Quadrupole term"), &
-                          enum_i_vals=(/do_multipole_none, do_multipole_charge, do_multipole_dipole, &
-                                        do_multipole_quadrupole/), type_of_var=enum_t)
+                          enum_i_vals=[do_multipole_none, do_multipole_charge, do_multipole_dipole, &
+                                       do_multipole_quadrupole], type_of_var=enum_t)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
@@ -415,7 +415,7 @@ CONTAINS
                                         "of the electrostatic and induction energy. This "// &
                                         "method does not support non-linear polarization "// &
                                         "but is sometimes faster."), &
-                          enum_i_vals=(/do_fist_pol_none, do_fist_pol_sc, do_fist_pol_cg/), &
+                          enum_i_vals=[do_fist_pol_none, do_fist_pol_sc, do_fist_pol_cg], &
                           type_of_var=enum_t, default_i_val=do_fist_pol_none)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
@@ -479,8 +479,8 @@ CONTAINS
                           default_i_val=precond_spl3_aint, &
                           enum_c_vals=s2a("copy", "spl3_nopbc_aint1", "spl3_nopbc_precond1", &
                                           "spl3_nopbc_aint2", "spl3_nopbc_precond2", "spl3_nopbc_precond3"), &
-                          enum_i_vals=(/no_precond, precond_spl3_aint, precond_spl3_1, &
-                                        precond_spl3_aint2, precond_spl3_2, precond_spl3_3/))
+                          enum_i_vals=[no_precond, precond_spl3_aint, precond_spl3_1, &
+                                       precond_spl3_aint2, precond_spl3_2, precond_spl3_3])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -491,8 +491,8 @@ CONTAINS
                           default_i_val=precond_spl3_3, &
                           enum_c_vals=s2a("copy", "spl3_nopbc_aint1", "spl3_nopbc_precond1", &
                                           "spl3_nopbc_aint2", "spl3_nopbc_precond2", "spl3_nopbc_precond3"), &
-                          enum_i_vals=(/no_precond, precond_spl3_aint, precond_spl3_1, &
-                                        precond_spl3_aint2, precond_spl3_2, precond_spl3_3/))
+                          enum_i_vals=[no_precond, precond_spl3_aint, precond_spl3_1, &
+                                       precond_spl3_aint2, precond_spl3_2, precond_spl3_3])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -509,7 +509,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="max_iter", &
-                          variants=(/'maxiter'/), &
+                          variants=['maxiter'], &
                           description="the maximum number of iterations", &
                           usage="max_iter 200", default_i_val=100)
       CALL section_add_keyword(section, keyword)
@@ -520,7 +520,7 @@ CONTAINS
                                        description="if convergence information about the linear solver"// &
                                        " of the spline methods should be printed", &
                                        print_level=medium_print_level, each_iter_names=s2a("SPLINE_FIND_COEFFS"), &
-                                       each_iter_values=(/10/), filename="__STD_OUT__", &
+                                       each_iter_values=[10], filename="__STD_OUT__", &
                                        add_last=add_last_numeric)
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
@@ -544,7 +544,7 @@ CONTAINS
          section, __LOCATION__, name="wavelet", &
          description="Sets up parameters of wavelet based poisson solver.", &
          n_keywords=1, n_subsections=0, repeats=.FALSE., &
-         citations=(/Genovese2006, Genovese2007/))
+         citations=[Genovese2006, Genovese2007])
 
       NULLIFY (keyword)
 
@@ -574,7 +574,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="IMPLICIT", &
                           description="Parameters for the implicit (generalized) Poisson solver.", &
-                          citations=(/BaniHashemian2016/), &
+                          citations=[BaniHashemian2016], &
                           n_keywords=6, n_subsections=2, repeats=.FALSE.)
 
       NULLIFY (subsection, keyword)
@@ -592,7 +592,7 @@ CONTAINS
          enum_c_vals=s2a('PERIODIC', 'MIXED', 'MIXED_PERIODIC', 'NEUMANN'), &
          enum_desc=s2a('periodic boundary conditions', 'Dirichlet + homogeneous Neumann boundary conditions', &
                        'Dirichlet + periodic boundary conditions', 'homogeneous Neumann BC (zero-average solution)'), &
-         enum_i_vals=(/PERIODIC_BC, MIXED_BC, MIXED_PERIODIC_BC, NEUMANN_BC/), &
+         enum_i_vals=[PERIODIC_BC, MIXED_BC, MIXED_PERIODIC_BC, NEUMANN_BC], &
          description="Specifies the type of boundary conditions. Dirichlet=fixed value, Neumann=zero normal deriv. "// &
          "Mixed and Neumann boundaries essentially requires FFTW3 so that all grid sizes are FFT-able.", &
          usage="BOUNDARY_CONDITIONS <bc_type>", default_i_val=PERIODIC_BC)
@@ -626,7 +626,7 @@ CONTAINS
       CALL keyword_create( &
          keyword, __LOCATION__, name="NEUMANN_DIRECTIONS", &
          enum_c_vals=s2a('XYZ', 'XY', 'XZ', 'YZ', 'X', 'Y', 'Z'), &
-         enum_i_vals=(/neumannXYZ, neumannXY, neumannXZ, neumannYZ, neumannX, neumannY, neumannZ/), &
+         enum_i_vals=[neumannXYZ, neumannXY, neumannXZ, neumannYZ, neumannX, neumannY, neumannZ], &
          description="Directions in which homogeneous Neumann conditions are imposed. In the remaining directions "// &
          "periodic conditions will be enforced. Having specified MIXED or NEUMANN as BOUNDARY_CONDITIONS, "// &
          "the keyword is meant to be used to combine periodic and homogeneous Neumann conditions at the "// &
@@ -668,7 +668,7 @@ CONTAINS
       CALL keyword_create( &
          keyword, __LOCATION__, name="DIELECTRIC_FUNCTION_TYPE", &
          enum_c_vals=s2a('density_dependent', 'spatially_dependent', 'spatially_rho_dependent'), &
-         enum_i_vals=(/rho_dependent, spatially_dependent, spatially_rho_dependent/), &
+         enum_i_vals=[rho_dependent, spatially_dependent, spatially_rho_dependent], &
          enum_desc=s2a("Dielectric constant as a function of the electron density "// &
                        "as e.g. proposed within the SCCS model.", &
                        "Various regions with different dielectric constants.", &
@@ -700,8 +700,8 @@ CONTAINS
       CALL keyword_create( &
          keyword, __LOCATION__, name="DERIVATIVE_METHOD", &
          enum_c_vals=s2a('fft', 'fft_use_deps', 'fft_use_drho', 'cd3', 'cd5', 'cd7'), &
-         enum_i_vals=(/derivative_fft, derivative_fft_use_deps, derivative_fft_use_drho, &
-                       derivative_cd3, derivative_cd5, derivative_cd7/), &
+         enum_i_vals=[derivative_fft, derivative_fft_use_deps, derivative_fft_use_drho, &
+                      derivative_cd3, derivative_cd5, derivative_cd7], &
          enum_desc=s2a("FFT based deriv of epsilon, without correction (high cutoff needed).", &
                        "FFT based deriv of epsilon, with correction using gradient of epsilon (high cutoff needed).", &
                        "FFT based deriv of epsilon, with correction using gradient of rho (high cutoff needed).", &
@@ -924,7 +924,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="PARALLEL_PLANE", &
                           enum_c_vals=s2a('XY', 'YZ', 'XZ'), &
-                          enum_i_vals=(/xy_plane, yz_plane, xz_plane/), &
+                          enum_i_vals=[xy_plane, yz_plane, xz_plane], &
                           description="The coordinate plane that the region is parallel to.", &
                           usage="PARALLEL_PLANE <plane>", &
                           type_of_var=enum_t)
@@ -963,7 +963,7 @@ CONTAINS
                           description="The number of partitions in the directions of the unit vectors generating the "// &
                           "corresponding PARALLEL_PLANE (e1, e2 or e3) for tiling the rectangluar region.", &
                           usage="N_PRTN <integer> <integer>", &
-                          n_var=2, default_i_vals=(/1, 1/))
+                          n_var=2, default_i_vals=[1, 1])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1058,7 +1058,7 @@ CONTAINS
          description="The number of partitions along the edges for tiling the rectangular region. If the edges "// &
          "have different lengths, from the two given values, the larger one will be assigned to the longer edge.", &
          usage="N_PRTN <integer> <integer>", &
-         n_var=2, default_i_vals=(/1, 1/))
+         n_var=2, default_i_vals=[1, 1])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1121,7 +1121,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="PARALLEL_AXIS", &
                           enum_c_vals=s2a('X', 'Y', 'Z'), &
-                          enum_i_vals=(/x_axis, y_axis, z_axis/), &
+                          enum_i_vals=[x_axis, y_axis, z_axis], &
                           description="The coordinate axis that the cylindrical region extends along.", &
                           usage="PARALLEL_AXIS <axis>", &
                           type_of_var=enum_t)
@@ -1158,7 +1158,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="APX_TYPE", &
                           enum_c_vals=s2a('CIRCUMSCRIBED', 'INSCRIBED'), &
-                          enum_i_vals=(/CIRCUMSCRIBED, INSCRIBED/), &
+                          enum_i_vals=[CIRCUMSCRIBED, INSCRIBED], &
                           description="Specifies the type of the n-gonal prism approximating the cylinder.", &
                           usage="APX_TYPE <apx_type>", default_i_val=CIRCUMSCRIBED)
       CALL section_add_keyword(section, keyword)
@@ -1169,7 +1169,7 @@ CONTAINS
          description="The number of partitions along the face edges of the prism for tiling. If the edges "// &
          "have different lengths, from the two given values, the larger one will be assigned to the longer edge.", &
          usage="N_PRTN <integer> <integer>", &
-         n_var=2, default_i_vals=(/1, 1/))
+         n_var=2, default_i_vals=[1, 1])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1263,7 +1263,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="N_PRTN", &
                           description="The number of partitions in the x, y and z directions for partitioning the cuboid.", &
                           usage="N_PRTN <integer> <integer> <integer>", &
-                          n_var=3, default_i_vals=(/1, 1, 1/))
+                          n_var=3, default_i_vals=[1, 1, 1])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

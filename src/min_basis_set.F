@@ -138,7 +138,7 @@ CONTAINS
       INTEGER, DIMENSION(0:3)                            :: econf
       INTEGER, INTENT(IN)                                :: mao, ngau
 
-      CHARACTER(len=1), DIMENSION(0:3), PARAMETER        :: lnam = (/"S", "P", "D", "F"/)
+      CHARACTER(len=1), DIMENSION(0:3), PARAMETER        :: lnam = ["S", "P", "D", "F"]
 
       CHARACTER(len=6)                                   :: str
       CHARACTER(len=6), DIMENSION(:), POINTER            :: sym

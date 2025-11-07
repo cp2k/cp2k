@@ -140,7 +140,7 @@ CONTAINS
       nblock_sum = dbt_get_num_blocks_total(tensor)
       nelement_sum = dbt_get_nze_total(tensor)
 
-      tmp = (/nblock, nelement/)
+      tmp = [nblock, nelement]
       CALL tensor%pgrid%mp_comm_2d%max(tmp)
       nblock_max = tmp(1); nelement_max = tmp(2)
 

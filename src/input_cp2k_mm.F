@@ -232,11 +232,11 @@ CONTAINS
                        "Provides force field parameters through an external file with GROMOS 87 format", &
                        "Provides force field parameters through an external file with GROMOS 96 format", &
                        "Provides force field parameters through an external file with AMBER format (from v.8 on)"), &
-         enum_i_vals=(/do_ff_undef, &
-                       do_ff_charmm, &
-                       do_ff_g87, &
-                       do_ff_g96, &
-                       do_ff_amber/), &
+         enum_i_vals=[do_ff_undef, &
+                      do_ff_charmm, &
+                      do_ff_g87, &
+                      do_ff_g96, &
+                      do_ff_amber], &
          default_i_val=do_ff_undef)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -476,11 +476,11 @@ CONTAINS
                                         "Functional Form (CHARMM|G87|G96|AMBER): K * [ 1 +  cos[M*PHI - PHI0]]", &
                                         "Functional Form (CHARMM|G87|G96|AMBER): K * [ 1 +  cos[M*PHI - PHI0]]", &
                                         "Functional Form: K / 2 * [ 1 + (-1)^(M-1) * cos[M*PHI]]"), &
-                          enum_i_vals=(/do_ff_charmm, &
-                                        do_ff_g87, &
-                                        do_ff_g96, &
-                                        do_ff_amber, &
-                                        do_ff_opls/), &
+                          enum_i_vals=[do_ff_charmm, &
+                                       do_ff_g87, &
+                                       do_ff_g96, &
+                                       do_ff_amber, &
+                                       do_ff_opls], &
                           default_i_val=do_ff_charmm)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -539,10 +539,10 @@ CONTAINS
                                         "Functional Form (G87|G96|HARMONIC): 0.5 * K * [ PHI - PHI0 ]**2", &
                                         "Functional Form (G87|G96|HARMONIC): 0.5 * K * [ PHI - PHI0 ]**2", &
                                         "Functional Form (G87|G96|HARMONIC): 0.5 * K * [ PHI - PHI0 ]**2"), &
-                          enum_i_vals=(/do_ff_charmm, &
-                                        do_ff_g87, &
-                                        do_ff_g96, &
-                                        do_ff_harmonic/), &
+                          enum_i_vals=[do_ff_charmm, &
+                                       do_ff_g87, &
+                                       do_ff_g96, &
+                                       do_ff_harmonic], &
                           default_i_val=do_ff_charmm)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -596,10 +596,10 @@ CONTAINS
                                         "Functional Form (MM2|MM3|MM4): K * [ PHI - PHI0 ]**2", &
                                         "Functional Form (MM2|MM3|MM4): K * [ PHI - PHI0 ]**2", &
                                         "Functional Form (MM2|MM3|MM4): K * [ PHI - PHI0 ]**2"), &
-                          enum_i_vals=(/do_ff_harmonic, &
-                                        do_ff_mm2, &
-                                        do_ff_mm3, &
-                                        do_ff_mm4/), &
+                          enum_i_vals=[do_ff_harmonic, &
+                                       do_ff_mm2, &
+                                       do_ff_mm3, &
+                                       do_ff_mm4], &
                           default_i_val=do_ff_harmonic)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -663,15 +663,15 @@ CONTAINS
                        " -7.0E-7*(THETA-THETA0)**3+9.0E-10*(THETA-THETA0)**4)+KBS12*(R12-R012)*(THETA-THETA0)+"// &
                        " KBS32*(R32-R032)*(THETA-THETA0)", &
                        "Functional Form (LEGENDRE): sum_{i=0}^N c_i*P_i(COS(THETA)) "), &
-         enum_i_vals=(/do_ff_harmonic, &
-                       do_ff_charmm, &
-                       do_ff_amber, &
-                       do_ff_g87, &
-                       do_ff_g96, &
-                       do_ff_cubic, &
-                       do_ff_mixed_bend_stretch, &
-                       do_ff_mm3, &
-                       do_ff_legendre/), &
+         enum_i_vals=[do_ff_harmonic, &
+                      do_ff_charmm, &
+                      do_ff_amber, &
+                      do_ff_g87, &
+                      do_ff_g96, &
+                      do_ff_cubic, &
+                      do_ff_mixed_bend_stretch, &
+                      do_ff_mm3, &
+                      do_ff_legendre], &
          default_i_val=do_ff_charmm)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -796,15 +796,15 @@ CONTAINS
                                         "Functional Form (MORSE): K1*[(1-exp(-K2*(R-R0)))^2-1])", &
                                         "Functional Form (CUBIC): K*(R-R0)^2*(1+cs*(R-R0)+7/12*(cs^2*(R-R0)^2))", &
                                         "Functional Form (FUES): 1/2*K*R0^2*(1+R0/R*(R0/R-2))"), &
-                          enum_i_vals=(/do_ff_harmonic, &
-                                        do_ff_charmm, &
-                                        do_ff_amber, &
-                                        do_ff_g87, &
-                                        do_ff_g96, &
-                                        do_ff_quartic, &
-                                        do_ff_morse, &
-                                        do_ff_cubic, &
-                                        do_ff_fues/), &
+                          enum_i_vals=[do_ff_harmonic, &
+                                       do_ff_charmm, &
+                                       do_ff_amber, &
+                                       do_ff_g87, &
+                                       do_ff_g96, &
+                                       do_ff_quartic, &
+                                       do_ff_morse, &
+                                       do_ff_cubic, &
+                                       do_ff_fues], &
                           default_i_val=do_ff_charmm)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1034,7 +1034,7 @@ CONTAINS
       CALL section_create(section, __LOCATION__, name="SHELL", &
                           description="This section specifies the parameters for shell-model potentials", &
                           n_keywords=6, n_subsections=0, repeats=.TRUE., &
-                          citations=(/Dick1958, Mitchell1993, Devynck2012/))
+                          citations=[Dick1958, Mitchell1993, Devynck2012])
 
       NULLIFY (keyword)
 
@@ -1045,7 +1045,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="CORE_CHARGE", &
-                          variants=(/"CORE"/), &
+                          variants=["CORE"], &
                           description="Partial charge assigned to the core (electron charge units)", &
                           usage="CORE_CHARGE {real}", &
                           default_r_val=0.0_dp)
@@ -1053,7 +1053,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="SHELL_CHARGE", &
-                          variants=(/"SHELL"/), &
+                          variants=["SHELL"], &
                           description="Partial charge assigned to the shell (electron charge units)", &
                           usage="SHELL_CHARGE {real}", &
                           default_r_val=0.0_dp)
@@ -1061,7 +1061,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="MASS_FRACTION", &
-                          variants=(/"MASS"/), &
+                          variants=["MASS"], &
                           description="Fraction of the mass of the atom to be assigned to the shell", &
                           usage="MASS_FRACTION {real}", &
                           default_r_val=0.1_dp)
@@ -1393,7 +1393,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="EAM", &
                           description="This section specifies the input parameters for EAM potential type.", &
-                          citations=(/Foiles1986/), n_keywords=1, n_subsections=0, repeats=.TRUE.)
+                          citations=[Foiles1986], n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
       NULLIFY (keyword)
 
@@ -1405,7 +1405,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="PARM_FILE_NAME", &
-                          variants=(/"PARMFILE"/), &
+                          variants=["PARMFILE"], &
                           description="Specifies the filename that contains the tabulated EAM potential. "// &
                           "File structure: the first line of the potential file contains a title. "// &
                           "The second line contains: atomic number, mass and lattice constant. "// &
@@ -1438,7 +1438,7 @@ CONTAINS
                           "Mainly intended for things like GAP corrections to DFT "// &
                           "to achieve correlated-wavefunction-like accuracy. "// &
                           "Requires linking with quip library from <http://www.libatoms.org>.", &
-                          citations=(/QUIP_ref/), n_keywords=1, n_subsections=0, repeats=.TRUE., &
+                          citations=[QUIP_ref], n_keywords=1, n_subsections=0, repeats=.TRUE., &
                           deprecation_notice="Support for the QUIP library is slated for removal.")
 
       NULLIFY (keyword)
@@ -1454,7 +1454,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="PARM_FILE_NAME", &
-                          variants=(/"PARMFILE"/), &
+                          variants=["PARMFILE"], &
                           description="Specifies the filename that contains the QUIP potential.", &
                           usage="PARM_FILE_NAME {FILENAME}", default_lc_val="quip_params.xml")
       CALL section_add_keyword(section, keyword)
@@ -1463,14 +1463,14 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="INIT_ARGS", &
                           description="Specifies the potential initialization arguments for the QUIP potential. "// &
                           "If blank (default) first potential defined in QUIP parameter file will be used.", &
-                          usage="INIT_ARGS", default_c_vals=(/""/), &
+                          usage="INIT_ARGS", default_c_vals=[""], &
                           n_var=-1, type_of_var=char_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="CALC_ARGS", &
                           description="Specifies the potential calculation arguments for the QUIP potential.", &
-                          usage="CALC_ARGS", default_c_vals=(/""/), &
+                          usage="CALC_ARGS", default_c_vals=[""], &
                           n_var=-1, type_of_var=char_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1494,7 +1494,7 @@ CONTAINS
                           "one can predict stress if the config.yaml file has the StressForceOutput keyword, "// &
                           "regardless of whether the model has been trained on the stress. "// &
                           "Requires linking with libtorch library from <https://pytorch.org/cppdocs/installing.html>.", &
-                          citations=(/Batzner2022/), n_keywords=1, n_subsections=0, repeats=.FALSE.)
+                          citations=[Batzner2022], n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword)
 
@@ -1509,7 +1509,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="PARM_FILE_NAME", &
-                          variants=(/"PARMFILE"/), &
+                          variants=["PARMFILE"], &
                           description="Specifies the filename that contains the NEQUIP model.", &
                           usage="PARM_FILE_NAME {FILENAME}", default_lc_val="model.pth")
       CALL section_add_keyword(section, keyword)
@@ -1566,7 +1566,7 @@ CONTAINS
                           "one can predict stress if the config.yaml file has the StressForceOutput keyword, "// &
                           "regardless of whether the model has been trained on the stress. "// &
                           "Requires linking with libtorch library from <https://pytorch.org/cppdocs/installing.html>.", &
-                          citations=(/Musaelian2023/), n_keywords=1, n_subsections=0, repeats=.FALSE.)
+                          citations=[Musaelian2023], n_keywords=1, n_subsections=0, repeats=.FALSE.)
 
       NULLIFY (keyword)
 
@@ -1581,7 +1581,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="PARM_FILE_NAME", &
-                          variants=(/"PARMFILE"/), &
+                          variants=["PARMFILE"], &
                           description="Specifies the filename that contains the ALLEGRO model.", &
                           usage="PARM_FILE_NAME {FILENAME}", default_lc_val="model.pth")
       CALL section_add_keyword(section, keyword)
@@ -1638,7 +1638,7 @@ CONTAINS
                           "Requires linking with ACE library from "// &
                           "<a href=""https://github.com/ICAMS/lammps-user-pace"" "// &
                           "target=""_blank"">https://github.com/ICAMS/lammps-user-pace</a> .", &
-                          citations=(/Drautz2019, Lysogorskiy2021, Bochkarev2024/), &
+                          citations=[Drautz2019, Lysogorskiy2021, Bochkarev2024], &
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword)
 
@@ -1651,7 +1651,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="POT_FILE_NAME", &
-                          variants=(/"PARMFILE"/), &
+                          variants=["PARMFILE"], &
                           description="Specifies the filename that contains the ACE potential parameters.", &
                           usage="POT_FILE_NAME {FILENAME}", default_lc_val="test.yaml")
       CALL section_add_keyword(section, keyword)
@@ -1675,7 +1675,7 @@ CONTAINS
                           "Requires linking with DeePMD-kit library from "// &
                           "<a href=""https://docs.deepmodeling.com/projects/deepmd/en/master"" "// &
                           "target=""_blank"">https://docs.deepmodeling.com/projects/deepmd/en/master</a> .", &
-                          citations=(/Wang2018, Zeng2023/), n_keywords=1, n_subsections=0, repeats=.FALSE.)
+                          citations=[Wang2018, Zeng2023], n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword)
       CALL keyword_create(keyword, __LOCATION__, name="ATOMS", &
                           description="Defines the atomic kinds involved in the Deep Potential. "// &
@@ -1686,7 +1686,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="POT_FILE_NAME", &
-                          variants=(/"PARMFILE"/), &
+                          variants=["PARMFILE"], &
                           description="Specifies the filename that contains the DeePMD-kit potential.", &
                           usage="POT_FILE_NAME {FILENAME}", default_lc_val="graph.pb")
       CALL section_add_keyword(section, keyword)
@@ -1982,7 +1982,7 @@ CONTAINS
                           description="This section specifies the input parameters for BMHFT potential type. "// &
                           "Functional form: V(r) = A * EXP(-B*r) - C/r^6 - D/r^8. "// &
                           "Values available inside cp2k only for the Na/Cl pair.", &
-                          citations=(/Tosi1964a, Tosi1964b/), n_keywords=1, n_subsections=0, repeats=.TRUE.)
+                          citations=[Tosi1964a, Tosi1964b], n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
       NULLIFY (keyword)
 
@@ -2070,7 +2070,7 @@ CONTAINS
                           "Functional form: V(r) = A*exp(-B*r) - f_6*(r)C/r^6 - f_8(r)*D/r^8 "// &
                           "where f_order(r) = 1 - exp(-BD*r)*\sum_{k=0}^order (BD*r)^k/k! "// &
                           "(Tang-Toennies damping function). No pre-defined parameter values are available.", &
-                          citations=(/Tosi1964a, Tosi1964b/), n_keywords=1, n_subsections=0, repeats=.TRUE.)
+                          citations=[Tosi1964a, Tosi1964b], n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
       NULLIFY (keyword)
 
@@ -2278,7 +2278,7 @@ CONTAINS
          description="This section specifies the input parameters for"// &
          " Buckingham plus Morse potential type"// &
          " Functional Form: V(r) = F0*(B1+B2)*EXP([A1+A2-r]/[B1+B2])-C/r^6+D*{EXP[-2*beta*(r-R0)]-2*EXP[-beta*(r-R0)]}.", &
-         citations=(/Yamada2000/), n_keywords=1, n_subsections=0, repeats=.TRUE.)
+         citations=[Yamada2000], n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
       NULLIFY (keyword)
 
@@ -2389,7 +2389,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="TERSOFF", &
                           description="This section specifies the input parameters for Tersoff potential type.", &
-                          citations=(/Tersoff1988/), n_keywords=1, n_subsections=0, repeats=.TRUE.)
+                          citations=[Tersoff1988], n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
       NULLIFY (keyword)
 
@@ -2543,7 +2543,7 @@ CONTAINS
                           " have to be given via the GENPOT section. The terms T3+T4"// &
                           " are obtained from the SIEPMANN section. The Siepmann-Sprik"// &
                           " potential is designed for water-metal chemisorption.", &
-                          citations=(/Siepmann1995/), n_keywords=1, n_subsections=0, repeats=.TRUE.)
+                          citations=[Siepmann1995], n_keywords=1, n_subsections=0, repeats=.TRUE.)
 
       NULLIFY (keyword)
 
@@ -2661,7 +2661,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="GAL19", &
                           description="Implementation of the GAL19 forcefield, see associated paper", &
-                          citations=(/Clabaut2020/), n_keywords=1, n_subsections=1, repeats=.TRUE.)
+                          citations=[Clabaut2020], n_keywords=1, n_subsections=1, repeats=.TRUE.)
 
       NULLIFY (keyword, subsection)
 
@@ -2799,7 +2799,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="GAL21", &
                           description="Implementation of the GAL21 forcefield, see associated paper", &
-                          citations=(/Clabaut2021/), n_keywords=1, n_subsections=1, repeats=.TRUE.)
+                          citations=[Clabaut2021], n_keywords=1, n_subsections=1, repeats=.TRUE.)
 
       NULLIFY (keyword, subsection)
 
@@ -2958,7 +2958,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="PARM_FILE_NAME", &
-                          variants=(/"PARMFILE"/), &
+                          variants=["PARMFILE"], &
                           description="Specifies the filename that contains the tabulated NONBONDED potential. "// &
                           "File structure: the third line of the potential file contains a title. "// &
                           "The 4th line contains: 'N', number of data points, 'R', lower bound of distance, distance cutoff. "// &
@@ -3039,10 +3039,10 @@ CONTAINS
                                         "Use Center of Atomic Charges", &
                                         "Use User Defined Point (Keyword:REF_POINT)", &
                                         "Use Origin of Coordinate System"), &
-                          enum_i_vals=(/use_mom_ref_com, &
-                                        use_mom_ref_coac, &
-                                        use_mom_ref_user, &
-                                        use_mom_ref_zero/), &
+                          enum_i_vals=[use_mom_ref_com, &
+                                       use_mom_ref_coac, &
+                                       use_mom_ref_user, &
+                                       use_mom_ref_zero], &
                           default_i_val=use_mom_ref_zero)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
@@ -3052,7 +3052,7 @@ CONTAINS
                           description="Fixed reference point for the calculations of the electrostatic moment.", &
                           usage="REFERENCE_POINT x y z", &
                           repeats=.FALSE., &
-                          n_var=3, default_r_vals=(/0._dp, 0._dp, 0._dp/), &
+                          n_var=3, default_r_vals=[0._dp, 0._dp, 0._dp], &
                           type_of_var=real_t, &
                           unit_str='bohr')
       CALL section_add_keyword(print_key, keyword)

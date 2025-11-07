@@ -119,7 +119,7 @@ CONTAINS
                           description="Specifies the type of density used for the fitting", &
                           usage="TYPE_OF_DENSITY (FULL|SPIN)", &
                           enum_c_vals=s2a("FULL", "SPIN"), &
-                          enum_i_vals=(/do_full_density, do_spin_density/), &
+                          enum_i_vals=[do_full_density, do_spin_density], &
                           enum_desc=s2a("Full density", "Spin density"), &
                           default_i_val=do_full_density)
       CALL section_add_keyword(subsection, keyword)
@@ -162,7 +162,7 @@ CONTAINS
       CALL section_create(section, __LOCATION__, name="RIXS", &
                           description="Resonant Inelastic Xray Scattering using XAS_TDP and TDDFPT.", &
                           n_keywords=1, n_subsections=3, repeats=.FALSE., &
-                          citations=(/VazdaCruz2021/))
+                          citations=[VazdaCruz2021])
 
       CALL create_tddfpt2_section(subsection)
       CALL section_add_subsection(section, subsection)
@@ -230,7 +230,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="linres", &
                           description=desc, n_keywords=5, n_subsections=2, repeats=.FALSE., &
-                          citations=(/Putrino2000/))
+                          citations=[Putrino2000])
 
       CALL keyword_create(keyword, __LOCATION__, name="EPS", &
                           description="target accuracy for the convergence of the conjugate gradient.", &
@@ -277,8 +277,8 @@ CONTAINS
                        "use for very large systems.", &
                        "Cholesky inversion of S, not as good as FULL_KINETIC, yet equally expensive.", &
                        "skip preconditioning"), &
-         enum_i_vals=(/ot_precond_full_all, ot_precond_full_single_inverse, ot_precond_full_single, &
-                       ot_precond_full_kinetic, ot_precond_s_inverse, ot_precond_none/))
+         enum_i_vals=[ot_precond_full_all, ot_precond_full_single_inverse, ot_precond_full_single, &
+                      ot_precond_full_kinetic, ot_precond_s_inverse, ot_precond_none])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -303,7 +303,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="WFN_RESTART_FILE_NAME", &
-                          variants=(/"RESTART_FILE_NAME"/), &
+                          variants=["RESTART_FILE_NAME"], &
                           description="Root of the file names where to read the response functions from "// &
                           "which to restart the calculation of the linear response", &
                           usage="WFN_RESTART_FILE_NAME <FILENAME>", &
@@ -364,7 +364,7 @@ CONTAINS
                                           "employed only to restart the same type of LINRES calculation, "// &
                                           "i.e. with the same perturbation.", &
                                           print_level=low_print_level, common_iter_levels=3, each_iter_names=s2a("ITER"), &
-                                          add_last=add_last_numeric, each_iter_values=(/3/), filename="")
+                                          add_last=add_last_numeric, each_iter_values=[3], filename="")
          CALL section_add_subsection(subsection, print_key)
          CALL section_release(print_key)
 
@@ -415,7 +415,7 @@ CONTAINS
          CALL keyword_release(keyword)
 
          CALL keyword_create(keyword, __LOCATION__, name="DISTRIBUTED_ORIGIN", &
-                             variants=(/"DO_GAUGE"/), &
+                             variants=["DO_GAUGE"], &
                              description="Use the distributed origin (DO) gauge?", &
                              usage="DISTRIBUTED_ORIGIN T", &
                              default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
@@ -431,8 +431,8 @@ CONTAINS
                                            "Use a common center (works only for an isolate molecule).", &
                                            "Use the atoms as center.", &
                                            "Boxing."), &
-                             enum_i_vals=(/current_orb_center_wannier, current_orb_center_common, &
-                                           current_orb_center_atom, current_orb_center_box/))
+                             enum_i_vals=[current_orb_center_wannier, current_orb_center_common, &
+                                          current_orb_center_atom, current_orb_center_box])
          CALL section_add_keyword(section, keyword)
          CALL keyword_release(keyword)
 
@@ -443,10 +443,10 @@ CONTAINS
                                            "Use Center of Atomic Charges", &
                                            "Use User-defined Point", &
                                            "Use Origin of Coordinate System"), &
-                             enum_i_vals=(/use_mom_ref_com, &
-                                           use_mom_ref_coac, &
-                                           use_mom_ref_user, &
-                                           use_mom_ref_zero/), &
+                             enum_i_vals=[use_mom_ref_com, &
+                                          use_mom_ref_coac, &
+                                          use_mom_ref_user, &
+                                          use_mom_ref_zero], &
                              default_i_val=use_mom_ref_zero)
          CALL section_add_keyword(section, keyword)
          CALL keyword_release(keyword)
@@ -494,7 +494,7 @@ CONTAINS
                              !              "Symmetric two-point differences."), &
                              enum_desc=s2a("Symmetric two-point differences."), &
                              !enum_i_vals=(/0, 1/))
-                             enum_i_vals=(/1/))
+                             enum_i_vals=[1])
          CALL section_add_keyword(section, keyword)
          CALL keyword_release(keyword)
 
@@ -558,7 +558,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="DISTRIBUTED_ORIGIN", &
-                          variants=(/"DO_GAUGE"/), &
+                          variants=["DO_GAUGE"], &
                           description="Use the distributed origin (DO) gauge?", &
                           usage="DISTRIBUTED_ORIGIN T", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
@@ -581,8 +581,8 @@ CONTAINS
                                         "Use a common center (works only for an isolate molecule).", &
                                         "Use the atoms as center.", &
                                         "Boxing."), &
-                          enum_i_vals=(/current_orb_center_wannier, current_orb_center_common, &
-                                        current_orb_center_atom, current_orb_center_box/))
+                          enum_i_vals=[current_orb_center_wannier, current_orb_center_common, &
+                                       current_orb_center_atom, current_orb_center_box])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -594,10 +594,10 @@ CONTAINS
                                         "Use Center of Atomic Charges", &
                                         "Use User-defined Point", &
                                         "Use Origin of Coordinate System"), &
-                          enum_i_vals=(/use_mom_ref_com, &
-                                        use_mom_ref_coac, &
-                                        use_mom_ref_user, &
-                                        use_mom_ref_zero/), &
+                          enum_i_vals=[use_mom_ref_com, &
+                                       use_mom_ref_coac, &
+                                       use_mom_ref_user, &
+                                       use_mom_ref_zero], &
                           default_i_val=use_mom_ref_zero)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -617,10 +617,10 @@ CONTAINS
                                         "Use Center of Atomic Charges", &
                                         "Use User-defined Point", &
                                         "Use Origin of Coordinate System"), &
-                          enum_i_vals=(/use_mom_ref_com, &
-                                        use_mom_ref_coac, &
-                                        use_mom_ref_user, &
-                                        use_mom_ref_zero/), &
+                          enum_i_vals=[use_mom_ref_com, &
+                                       use_mom_ref_coac, &
+                                       use_mom_ref_user, &
+                                       use_mom_ref_zero], &
                           default_i_val=use_mom_ref_zero)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -672,7 +672,7 @@ CONTAINS
       CALL section_create(section, __LOCATION__, name="current", &
                           description="The induced current density is calculated by DFPT.", &
                           n_keywords=4, n_subsections=1, repeats=.FALSE., &
-                          citations=(/Sebastiani2001, Weber2009/))
+                          citations=[Sebastiani2001, Weber2009])
 
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="controls the activation of the induced current calculation", &
@@ -690,7 +690,7 @@ CONTAINS
                           enum_desc=s2a("Position gauge (doesnt work well).", &
                                         "Position and step function for the soft and the local parts, respectively.", &
                                         "Atoms."), &
-                          enum_i_vals=(/current_gauge_r, current_gauge_r_and_step_func, current_gauge_atom/))
+                          enum_i_vals=[current_gauge_r, current_gauge_r_and_step_func, current_gauge_atom])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -719,21 +719,21 @@ CONTAINS
                                         "Use a common center (works only for an isolate molecule).", &
                                         "Use the atoms as center.", &
                                         "Boxing."), &
-                          enum_i_vals=(/current_orb_center_wannier, current_orb_center_common, &
-                                        current_orb_center_atom, current_orb_center_box/))
+                          enum_i_vals=[current_orb_center_wannier, current_orb_center_common, &
+                                       current_orb_center_atom, current_orb_center_box])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="COMMON_CENTER", &
                           description="The common center ", usage="COMMON_CENTER 0.0 1.0 0.0", &
-                          n_var=3, default_r_vals=(/0.0_dp, 0.0_dp, 0.0_dp/), type_of_var=real_t, &
+                          n_var=3, default_r_vals=[0.0_dp, 0.0_dp, 0.0_dp], type_of_var=real_t, &
                           unit_str="angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="NBOX", &
                           description="How many boxes along each directions ", usage="NBOX 6 6 5", &
-                          n_var=3, default_i_vals=(/4, 4, 4/), type_of_var=integer_t)
+                          n_var=3, default_i_vals=[4, 4, 4], type_of_var=integer_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -790,7 +790,7 @@ CONTAINS
                           description="The stride (X,Y,Z) used to write the cube file "// &
                           "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
                           " 1 number valid for all components (not working yet).", &
-                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=[2, 2, 2], type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
@@ -809,15 +809,15 @@ CONTAINS
                           description="The stride (X,Y,Z) used to write the cube file "// &
                           "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
                           " 1 number valid for all components (not working yet).", &
-                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=[2, 2, 2], type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="CUBES_LU_BOUNDS", &
-                          variants=(/"CUBES_LU"/), &
+                          variants=["CUBES_LU"], &
                           description="The lower and upper index of the states to be printed as cube (not working yet).", &
                           usage="CUBES_LU_BOUNDS integer integer", &
-                          n_var=2, default_i_vals=(/0, -2/), type_of_var=integer_t)
+                          n_var=2, default_i_vals=[0, -2], type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
@@ -868,7 +868,7 @@ CONTAINS
       CALL section_create(section, __LOCATION__, name="nmr", &
                           description="The chemical shift is calculated by DFPT.", &
                           n_keywords=5, n_subsections=1, repeats=.FALSE., &
-                          citations=(/Weber2009/))
+                          citations=[Weber2009])
 
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="controls the activation of the nmr calculation", &
@@ -928,15 +928,15 @@ CONTAINS
                           description="The stride (X,Y,Z) used to write the cube file "// &
                           "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
                           " 1 number valid for all components.", &
-                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=[2, 2, 2], type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="CUBES_LU_BOUNDS", &
-                          variants=(/"CUBES_LU"/), &
+                          variants=["CUBES_LU"], &
                           description="The lower and upper index of the states to be printed as cube", &
                           usage="CUBES_LU_BOUNDS integer integer", &
-                          n_var=2, default_i_vals=(/0, -2/), type_of_var=integer_t)
+                          n_var=2, default_i_vals=[0, -2], type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
@@ -968,10 +968,10 @@ CONTAINS
                                        print_level=low_print_level, add_last=add_last_numeric, filename="")
 
       CALL keyword_create(keyword, __LOCATION__, name="ATOMS_LU_BOUNDS", &
-                          variants=(/"ATOMS_LU"/), &
+                          variants=["ATOMS_LU"], &
                           description="The lower and upper atomic index for which the tensor is printed", &
                           usage="ATOMS_LU_BOUNDS integer integer", &
-                          n_var=2, default_i_vals=(/0, -2/), type_of_var=integer_t)
+                          n_var=2, default_i_vals=[0, -2], type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
@@ -1114,7 +1114,7 @@ CONTAINS
       CALL section_create(section, __LOCATION__, name="EPR", &
                           description="The g tensor is calculated by DFPT ", &
                           n_keywords=5, n_subsections=1, repeats=.FALSE., &
-                          citations=(/Weber2009/))
+                          citations=[Weber2009])
 
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="controls the activation of the epr calculation", &
@@ -1143,7 +1143,7 @@ CONTAINS
                           description="The stride (X,Y,Z) used to write the cube file "// &
                           "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
                           " 1 number valid for all components.", &
-                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=[2, 2, 2], type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
@@ -1185,15 +1185,15 @@ CONTAINS
                           description="The stride (X,Y,Z) used to write the cube file "// &
                           "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
                           " 1 number valid for all components.", &
-                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=[2, 2, 2], type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="CUBES_LU_BOUNDS", &
-                          variants=(/"CUBES_LU"/), &
+                          variants=["CUBES_LU"], &
                           description="The lower and upper index of the states to be printed as cube", &
                           usage="CUBES_LU_BOUNDS integer integer", &
-                          n_var=2, default_i_vals=(/0, -2/), type_of_var=integer_t)
+                          n_var=2, default_i_vals=[0, -2], type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
@@ -1244,7 +1244,7 @@ CONTAINS
       CALL section_create(section, __LOCATION__, name="POLAR", &
                           description="Compute polarizabilities.", &
                           n_keywords=5, n_subsections=1, repeats=.FALSE., &
-                          citations=(/Putrino2002/))
+                          citations=[Putrino2002])
 
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="controls the activation of the polarizability calculation", &
@@ -1257,7 +1257,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="DO_RAMAN", &
                           description="Compute the electric-dipole--electric-dipole polarizability", &
                           usage="DO_RAMAN F", &
-                          citations=(/Luber2014/), &
+                          citations=[Luber2014], &
                           default_l_val=.TRUE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1305,7 +1305,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="ET_COUPLING", &
                           description="specifies the two constraints/restraints for extracting ET coupling elements", &
-                          n_keywords=1, n_subsections=4, repeats=.FALSE., citations=(/Kondov2007, Futera2017/))
+                          n_keywords=1, n_subsections=4, repeats=.FALSE., citations=[Kondov2007, Futera2017])
 
       NULLIFY (subsection)
       CALL create_ddapc_restraint_section(subsection, "DDAPC_RESTRAINT_A")
@@ -1326,7 +1326,7 @@ CONTAINS
                           description="Specifies the type of constraint", &
                           usage="TYPE_OF_CONSTRAINT DDAPC", &
                           enum_c_vals=s2a("NONE", "DDAPC"), &
-                          enum_i_vals=(/do_no_et, do_et_ddapc/), &
+                          enum_i_vals=[do_no_et, do_et_ddapc], &
                           enum_desc=s2a("NONE", "DDAPC Constraint"), &
                           default_i_val=do_no_et)
       CALL section_add_keyword(section, keyword)
@@ -1432,7 +1432,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name='STRIDE', &
                           description="The stride (X,Y,Z) used to write the cube file", &
                           usage="STRIDE {integer} {integer} {integer}", n_var=-1, &
-                          default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+                          default_i_vals=[2, 2, 2], type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
@@ -1511,7 +1511,7 @@ CONTAINS
                           "Current implementation works for hybrid functionals. "// &
                           "Can be used with Gaussian and Plane Waves (GPW) method only.", &
                           n_keywords=14, n_subsections=4, repeats=.FALSE., &
-                          citations=(/Iannuzzi2005/))
+                          citations=[Iannuzzi2005])
 
       NULLIFY (keyword, print_key, subsection)
 
@@ -1567,7 +1567,7 @@ CONTAINS
                           description="Options to compute the kernel", &
                           usage="KERNEL FULL", &
                           enum_c_vals=s2a("FULL", "sTDA", "NONE"), &
-                          enum_i_vals=(/tddfpt_kernel_full, tddfpt_kernel_stda, tddfpt_kernel_none/), &
+                          enum_i_vals=[tddfpt_kernel_full, tddfpt_kernel_stda, tddfpt_kernel_none], &
                           default_i_val=tddfpt_kernel_full)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1577,7 +1577,7 @@ CONTAINS
                           description="Selects the type of spin-flip TDDFPT kernel", &
                           usage="SPINFLIP NONCOLLINEAR", &
                           enum_c_vals=s2a("NONE", "COLLINEAR", "NONCOLLINEAR"), &
-                          enum_i_vals=(/no_sf_tddfpt, tddfpt_sf_col, tddfpt_sf_noncol/), &
+                          enum_i_vals=[no_sf_tddfpt, tddfpt_sf_col, tddfpt_sf_noncol], &
                           default_i_val=no_sf_tddfpt)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1585,7 +1585,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="OE_CORR", &
                           description="Orbital energy correction potential.", &
                           enum_c_vals=s2a("NONE", "LB94", "GLLB", "SAOP", "SHIFT"), &
-                          enum_i_vals=(/oe_none, oe_lb, oe_gllb, oe_saop, oe_shift/), &
+                          enum_i_vals=[oe_none, oe_lb, oe_gllb, oe_saop, oe_shift], &
                           enum_desc=s2a("No orbital correction scheme is used", &
                                         "van Leeuwen and Baerends. PRA, 49:2421, 1994", &
                                         "Gritsenko, van Leeuwen, van Lenthe, Baerends. PRA, 51:1944, 1995", &
@@ -1683,7 +1683,7 @@ CONTAINS
                           description="Specify size of automatically generated auxiliary basis sets: "// &
                           "Options={small,medium,large,huge}", &
                           usage="AUTO_BASIS {basis_type} {basis_size}", &
-                          type_of_var=char_t, repeats=.TRUE., n_var=-1, default_c_vals=(/"X", "X"/))
+                          type_of_var=char_t, repeats=.TRUE., n_var=-1, default_c_vals=["X", "X"])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1711,7 +1711,7 @@ CONTAINS
 
       ! Strings
       CALL keyword_create(keyword, __LOCATION__, name="WFN_RESTART_FILE_NAME", &
-                          variants=(/"RESTART_FILE_NAME"/), &
+                          variants=["RESTART_FILE_NAME"], &
                           description="Name of the wave function restart file, may include a path."// &
                           " If no file is specified, the default is to open the file as generated by"// &
                           " the wave function restart print key.", &
@@ -1731,7 +1731,7 @@ CONTAINS
                           enum_desc=s2a("Based on Berry phase formula (valid for fully periodic molecular systems only)", &
                                         "Length form &lang; i | r | j &rang; (valid for non-periodic molecular systems only)", &
                                         "Velocity form &lang; i | d/dr | j &rang;"), &
-                          enum_i_vals=(/tddfpt_dipole_berry, tddfpt_dipole_length, tddfpt_dipole_velocity/), &
+                          enum_i_vals=[tddfpt_dipole_berry, tddfpt_dipole_length, tddfpt_dipole_velocity], &
                           default_i_val=tddfpt_dipole_velocity)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
@@ -1744,10 +1744,10 @@ CONTAINS
                                         "Use Center of Atomic Charges", &
                                         "Use User-defined Point", &
                                         "Use Origin of Coordinate System"), &
-                          enum_i_vals=(/use_mom_ref_com, &
-                                        use_mom_ref_coac, &
-                                        use_mom_ref_user, &
-                                        use_mom_ref_zero/), &
+                          enum_i_vals=[use_mom_ref_com, &
+                                       use_mom_ref_coac, &
+                                       use_mom_ref_user, &
+                                       use_mom_ref_zero], &
                           default_i_val=use_mom_ref_com)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
@@ -1778,7 +1778,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="GRID", &
-                          variants=(/"ATOMIC_GRID"/), &
+                          variants=["ATOMIC_GRID"], &
                           description="Specification of the atomic angular and radial grids for "// &
                           "a atomic kind. This keyword must be repeated for all kinds!  "// &
                           "Usage: GRID < LEBEDEV_GRID > < RADIAL_GRID >", &
@@ -1861,7 +1861,7 @@ CONTAINS
                                        description="Controls the dumping of the MO restart file during TDDFPT. "// &
                                        "By default keeps a short history of three restarts.", &
                                        print_level=low_print_level, common_iter_levels=3, &
-                                       each_iter_names=s2a("TDDFT_SCF"), each_iter_values=(/10/), &
+                                       each_iter_names=s2a("TDDFT_SCF"), each_iter_values=[10], &
                                        add_last=add_last_numeric, filename="RESTART")
       CALL keyword_create(keyword, __LOCATION__, name="BACKUP_COPIES", &
                           description="Specifies the maximum number of backup copies.", &
@@ -1907,7 +1907,7 @@ CONTAINS
                           description="The stride (X,Y,Z) used to write the cube file "// &
                           "(larger values result in smaller cube files). Provide 3 numbers (for X,Y,Z) or"// &
                           " 1 number valid for all components.", &
-                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=[2, 2, 2], type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="APPEND", &
@@ -1934,7 +1934,7 @@ CONTAINS
                           enum_desc=s2a( &
                           "Cartesian Gaussian orbitals. Use with caution", &
                           "Spherical Gaussian orbitals. Incompatible with VMD"), &
-                          enum_i_vals=(/gto_cartesian, gto_spherical/))
+                          enum_i_vals=[gto_cartesian, gto_spherical])
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL section_add_subsection(subsection, print_key)
@@ -2030,7 +2030,7 @@ CONTAINS
       NULLIFY (keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="FRACTION", &
-                          variants=(/"HFX_FRACTION"/), &
+                          variants=["HFX_FRACTION"], &
                           description="The fraction of TB Hartree-Fock exchange to use in the Kernel. "// &
                           "0.0 implies no HFX part is used in the kernel. ", &
                           usage="FRACTION 0.0", default_r_val=0.0_dp)
@@ -2285,7 +2285,7 @@ CONTAINS
          "values, i.e. KPOINTS_W -1 -1 -1. "// &
          "K-point extrapolation of W is automatically switched on.", &
          usage="KPOINTS_W N_x  N_y  N_z", &
-         n_var=3, type_of_var=integer_t, default_i_vals=(/-1, -1, -1/))
+         n_var=3, type_of_var=integer_t, default_i_vals=[-1, -1, -1])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -2456,7 +2456,7 @@ CONTAINS
          "band structure along a k-path, you can specify the k-path in "// &
          "&KPOINT_SET.", &
          usage="KPOINTS N_x  N_y  N_z", &
-         n_var=3, type_of_var=integer_t, default_i_vals=(/-1, -1, -1/))
+         n_var=3, type_of_var=integer_t, default_i_vals=[-1, -1, -1])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -2504,7 +2504,7 @@ CONTAINS
                           "$\rho(x,y,E) = \int dz\, \rho(x,y,z,E)$ is computed.", &
                           usage="INTEGRATION Z", &
                           enum_c_vals=s2a("X", "Y", "Z", "NONE"), &
-                          enum_i_vals=(/int_ldos_x, int_ldos_y, int_ldos_z, int_ldos_none/), &
+                          enum_i_vals=[int_ldos_x, int_ldos_y, int_ldos_z, int_ldos_none], &
                           enum_desc=s2a("Integrate over x coordinate (not yet implemented).", &
                                         "Integrate over y coordinate (not yet implemented).", &
                                         "Integrate over z coordinate.", &
@@ -2520,7 +2520,7 @@ CONTAINS
          "the LDOS $\rho(x,y,E)$. If -1, no binning is performed and the "// &
          "fine x, y resolution of the electron density from SCF is used.", &
          usage="BIN_MESH  n m", &
-         n_var=2, type_of_var=integer_t, default_i_vals=(/10, 10/))
+         n_var=2, type_of_var=integer_t, default_i_vals=[10, 10])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -2557,7 +2557,7 @@ CONTAINS
                           description="Defines scan direction and scan type(line, plane).", &
                           usage="SCAN_DIRECTION XY", &
                           enum_c_vals=s2a("X", "Y", "Z", "XY", "XZ", "YZ", "XYZ"), &
-                          enum_i_vals=(/scan_x, scan_y, scan_z, scan_xy, scan_xz, scan_yz, scan_xyz/), &
+                          enum_i_vals=[scan_x, scan_y, scan_z, scan_xy, scan_xz, scan_yz, scan_xyz], &
                           default_i_val=scan_xy)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -2565,7 +2565,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="REFERENCE_POINT", &
                           description="The reference point to define the absolute position of the scan. ", &
                           usage="REFERENCE_POINT 0.0 0.0 1.0", &
-                          n_var=3, default_r_vals=(/0.0_dp, 0.0_dp, 0.0_dp/), type_of_var=real_t, &
+                          n_var=3, default_r_vals=[0.0_dp, 0.0_dp, 0.0_dp], type_of_var=real_t, &
                           unit_str="angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

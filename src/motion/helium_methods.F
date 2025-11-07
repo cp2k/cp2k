@@ -1108,7 +1108,7 @@ CONTAINS
             IF (helium_env(k)%helium%solute_present) THEN
                helium_env(k)%helium%center(:) = pint_com_pos(pint_env)
             ELSE
-               helium_env(k)%helium%center(:) = (/0.0_dp, 0.0_dp, 0.0_dp/)
+               helium_env(k)%helium%center(:) = [0.0_dp, 0.0_dp, 0.0_dp]
             END IF
          END DO
 
@@ -1143,7 +1143,7 @@ CONTAINS
                helium_env(k)%helium%center(:) = pint_com_pos(pint_env)
             ELSE
                IF (helium_env(k)%helium%periodic) THEN
-                  helium_env(k)%helium%center(:) = (/0.0_dp, 0.0_dp, 0.0_dp/)
+                  helium_env(k)%helium%center(:) = [0.0_dp, 0.0_dp, 0.0_dp]
                ELSE
                   helium_env(k)%helium%center(:) = helium_com(helium_env(k)%helium)
                END IF

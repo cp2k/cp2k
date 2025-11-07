@@ -454,7 +454,7 @@ CONTAINS
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          POINTER                                         :: local_data
       REAL(KIND=dp), DIMENSION(3, 2), SAVE :: &
-         seed = RESHAPE((/1.0_dp, 2.0_dp, 3.0_dp, 4.0_dp, 5.0_dp, 6.0_dp/), (/3, 2/))
+         seed = RESHAPE([1.0_dp, 2.0_dp, 3.0_dp, 4.0_dp, 5.0_dp, 6.0_dp], [3, 2])
       TYPE(rng_stream_type)                              :: rng
 
       CALL timeset(routineN, handle)
@@ -1669,7 +1669,7 @@ CONTAINS
          IF (ASSOCIATED(send_dist)) THEN
             IF ((send_rank .EQ. 0)) THEN
                ! need to use separate buffers here in case this is actually global rank 0
-               src_block_tmp = (/send_dist%nrow_block, send_dist%ncol_block/)
+               src_block_tmp = [send_dist%nrow_block, send_dist%ncol_block]
                CALL para_env%isend(src_block_tmp, 0, send_req(1), tag=src_tag)
                CALL para_env%isend(send_dist%context%num_pe, 0, send_req(2), tag=src_tag)
             END IF
@@ -1677,7 +1677,7 @@ CONTAINS
 
          IF (ASSOCIATED(recv_dist)) THEN
             IF ((recv_rank .EQ. 0)) THEN
-               dest_block_tmp = (/recv_dist%nrow_block, recv_dist%ncol_block/)
+               dest_block_tmp = [recv_dist%nrow_block, recv_dist%ncol_block]
                CALL para_env%isend(dest_block_tmp, 0, send_req(3), tag=dest_tag)
                CALL para_env%isend(recv_dist%context%num_pe, 0, send_req(4), tag=dest_tag)
             END IF

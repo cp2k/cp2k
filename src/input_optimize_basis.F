@@ -190,7 +190,7 @@ CONTAINS
                                         "Set all parameters in the basis to be fixed.", &
                                         "Set all coefficients in the basis set to be variable.", &
                                         "Set all exponents in the basis to be variable."), &
-                          enum_i_vals=(/do_opt_all, do_opt_none, do_opt_coeff, do_opt_exps/), &
+                          enum_i_vals=[do_opt_all, do_opt_none, do_opt_coeff, do_opt_exps], &
                           default_i_val=do_opt_coeff)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

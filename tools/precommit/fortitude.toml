@@ -6,7 +6,6 @@ force-exclude = true
 ignore = [
     "non-standard-file-extension",
     "implicit-external-procedures", # requires Fortran 2018
-    "old-style-array-literal",
     "missing-intent",
     "deprecated-relational-operator",
     "missing-exit-or-cycle-label",

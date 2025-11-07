@@ -194,7 +194,7 @@ CONTAINS
 
       ! If infinite screening is applied, fm_W is simply 0 - Otherwise it needs to be computed from 3c integrals
       IF (mp2_env%bse%screening_method /= bse_screening_rpa) THEN
-         reordering = (/1, 3, 2, 4/)
+         reordering = [1, 3, 2, 4]
          CALL fm_general_add_bse(fm_A, fm_W, -1.0_dp, homo, virtual, &
                                  virtual, virtual, unit_nr, reordering, mp2_env)
       END IF
@@ -320,7 +320,7 @@ CONTAINS
          ! Writing -1.0_dp * W_ib,ja to A_ia,jb, i.e. beta = -1.0_dp,
          ! W_ib,ja: nrow_secidx_in  = virtual,    ncol_secidx_in  = virtual
          ! A_ia,jb: nrow_secidx_out = virtual, ncol_secidx_out = virtual
-         reordering = (/1, 4, 3, 2/)
+         reordering = [1, 4, 3, 2]
          CALL fm_general_add_bse(fm_B, fm_W, -1.0_dp, virtual, virtual, &
                                  virtual, virtual, unit_nr, reordering, mp2_env)
       END IF

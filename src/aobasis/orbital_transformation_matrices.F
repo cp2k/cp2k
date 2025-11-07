@@ -615,7 +615,7 @@ CONTAINS
                lz = l - lx - ly
                jc = co(lx, ly, lz)
                IF ((jc >= from) .AND. (jc <= to)) THEN
-                  symbol = cgf_symbol(1, (/lx, ly, lz/))
+                  symbol = cgf_symbol(1, [lx, ly, lz])
                   WRITE (UNIT=string(i:), FMT="(A18)") TRIM(symbol(3:12))
                   i = i + 18
                END IF

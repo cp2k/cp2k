@@ -544,7 +544,7 @@ CONTAINS
                DO iz = 1, nbin
 
                   ! put the probe in the center of the current voxel
-                  pos(:) = (/ox + (ix - 0.5_dp)*delr, oy + (iy - 0.5_dp)*delr, oz + (iz - 0.5_dp)*delr/)
+                  pos(:) = [ox + (ix - 0.5_dp)*delr, oy + (iy - 0.5_dp)*delr, oz + (iz - 0.5_dp)*delr]
 
                   ! calc interaction energy for the current probe position
                   helium_env(k)%helium%pos(:, 1, 1) = pos(:)

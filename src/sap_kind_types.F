@@ -509,7 +509,7 @@ CONTAINS
             rcf(:) = rc(:) - rf(:)
          ELSE
             raf(:) = -rac
-            rcf(:) = (/0._dp, 0._dp, 0._dp/)
+            rcf(:) = [0._dp, 0._dp, 0._dp]
          END IF
 
          dac = NORM2(rac)

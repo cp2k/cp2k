@@ -246,7 +246,7 @@ CONTAINS
                                     CALL collocate_pgf_product( &
                                        la_max(iset), zeta(ipgf, iset), la_min(iset), &
                                        la_max(jset), zeta(jpgf, jset), la_min(jset), &
-                                       ra, (/0.0_dp, 0.0_dp, 0.0_dp/), &
+                                       ra, [0.0_dp, 0.0_dp, 0.0_dp], &
                                        scale, pab, na1, nb1, rs_grid, &
                                        radius=radius, ga_gb_function=GRID_FUNC_AB)
                                  END IF
@@ -533,7 +533,7 @@ CONTAINS
                                  CALL integrate_pgf_product( &
                                     la_max(iset), zeta(ipgf, iset), la_min(iset), &
                                     la_max(jset), zeta(jpgf, jset), la_min(jset), &
-                                    ra, (/0.0_dp, 0.0_dp, 0.0_dp/), rs_grid, &
+                                    ra, [0.0_dp, 0.0_dp, 0.0_dp], rs_grid, &
                                     hab, pab=pab, o1=na1, o2=nb1, &
                                     radius=radius, &
                                     calculate_forces=calculate_forces, force_a=force_a, force_b=force_b, &

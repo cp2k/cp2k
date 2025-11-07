@@ -145,7 +145,7 @@ CONTAINS
          DO lx = 0, l
             DO ly = 0, l - lx
                lz = l - lx - ly
-               indco(1:3, coset(lx, ly, lz)) = (/lx, ly, lz/)
+               indco(1:3, coset(lx, ly, lz)) = [lx, ly, lz]
             END DO
          END DO
       END DO
@@ -180,7 +180,7 @@ CONTAINS
       DO l = 0, maxl
          DO m = -l, l
             iso = iso + 1
-            indso(1:2, iso) = (/l, m/)
+            indso(1:2, iso) = [l, m]
             indso_inv(l, m) = iso
          END DO
       END DO

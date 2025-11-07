@@ -73,8 +73,8 @@ CONTAINS
       INTEGER, DIMENSION(3)                              :: an, bn
       REAL(dp)                                           :: IAB
 
-      INTEGER, DIMENSION(3), PARAMETER                   :: i1 = (/1, 0, 0/), i2 = (/0, 1, 0/), &
-                                                            i3 = (/0, 0, 1/)
+      INTEGER, DIMENSION(3), PARAMETER                   :: i1 = [1, 0, 0], i2 = [0, 1, 0], &
+                                                            i3 = [0, 0, 1]
 
       IAB = 0._dp
       IF (ANY(an < 0)) RETURN

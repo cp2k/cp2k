@@ -702,8 +702,8 @@ CONTAINS
       REAL(kind=dp), DIMENSION(4)                        :: results
 
       IF (optimizer%master == optimizer%para_env%mepos) THEN
-         results = (/REAL(optimizer%isave(30), kind=dp), &
-                     optimizer%f, optimizer%dsave(2), optimizer%dsave(13)/)
+         results = [REAL(optimizer%isave(30), kind=dp), &
+                    optimizer%f, optimizer%dsave(2), optimizer%dsave(13)]
       END IF
       CALL optimizer%para_env%bcast(results, optimizer%master)
       IF (PRESENT(n_iter)) n_iter = NINT(results(1))

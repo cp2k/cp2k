@@ -547,7 +547,7 @@ CONTAINS
 
       zright_explicit = zright
       IF (.NOT. isexplicit_zright) THEN
-         r_pbc(:) = (/0.0_dp, 0.0_dp, 1.0_dp/)
+         r_pbc(:) = [0.0_dp, 0.0_dp, 1.0_dp]
          CALL scaled_to_real(r, r_pbc, cell)
          zright_explicit = r(3)
       END IF
@@ -567,13 +567,13 @@ CONTAINS
                                (REAL(pw_grid%npts(1), kind=dp)*REAL(pw_grid%npts(2), kind=dp))
 
       ! z-indices of the V_hartree related to the left lead: pw_grid%bounds(1,3) .. u_left
-      r(1:3) = (/0.0_dp, 0.0_dp, HartreeLeadsLeft/)
+      r(1:3) = [0.0_dp, 0.0_dp, HartreeLeadsLeft]
       CALL real_to_scaled(r_pbc, r, cell)
       u_left = NINT(r_pbc(3)*REAL(pw_grid%npts(3), kind=dp)) + pw_grid%bounds(1, 3)
       IF (u_left > pw_grid%bounds(2, 3)) u_left = pw_grid%bounds(2, 3)
 
       ! z-indices of the V_hartree related to the right lead: l_right .. pw_grid%bounds(2, 3)
-      r(1:3) = (/0.0_dp, 0.0_dp, HartreeLeadsRight/)
+      r(1:3) = [0.0_dp, 0.0_dp, HartreeLeadsRight]
       CALL real_to_scaled(r_pbc, r, cell)
       l_right = NINT(r_pbc(3)*REAL(pw_grid%npts(3), kind=dp)) + pw_grid%bounds(1, 3)
       IF (l_right > pw_grid%bounds(2, 3)) l_right = pw_grid%bounds(2, 3)

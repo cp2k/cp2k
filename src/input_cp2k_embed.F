@@ -55,7 +55,7 @@ CONTAINS
                           description="This section contains all information to run embedded "// &
                           "calculations.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE., &
-                          citations=(/Huang2011, Heaton_Burgess2007/))
+                          citations=[Huang2011, Heaton_Burgess2007])
       NULLIFY (keyword, subsection)
 
       CALL keyword_create(keyword, __LOCATION__, name="EMBED_METHOD", &
@@ -64,7 +64,7 @@ CONTAINS
                           default_i_val=dfet, &
                           enum_c_vals=s2a("DFET", "DMFET"), &
                           enum_desc=s2a("DFET", "DMFET"), &
-                          enum_i_vals=(/dfet, dmfet/))
+                          enum_i_vals=[dfet, dmfet])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -78,7 +78,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="NGROUPS", variants=(/"NGROUP"/), &
+      CALL keyword_create(keyword, __LOCATION__, name="NGROUPS", variants=["NGROUP"], &
                           description="Gives the wanted number of groups. Currently must be set to 1", &
                           usage="ngroups 4", type_of_var=integer_t, default_i_val=1)
       CALL section_add_keyword(section, keyword)

@@ -61,7 +61,7 @@ CONTAINS
       CALL section_create(section, __LOCATION__, name="TRANSPORT", &
                           description="Specifies the parameters for transport, sets parameters for the OMEN code, "// &
                           "see also <https://nano-tcad.ee.ethz.ch>.", &
-                          citations=(/Bruck2014/), &
+                          citations=[Bruck2014], &
                           n_keywords=29, n_subsections=4, repeats=.FALSE.)
 
       NULLIFY (keyword)
@@ -75,7 +75,7 @@ CONTAINS
          enum_desc=s2a("self-consistent CP2K and OMEN transport calculations", &
                        "CP2K valence Hamiltonian + OMEN self-consistent calculations on conduction electrons", &
                        "self-consistent transmission calculations without applied bias voltage"), &
-         enum_i_vals=(/transport_negf, transport_localscf, transport_transmission/))
+         enum_i_vals=[transport_negf, transport_localscf, transport_transmission])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -87,7 +87,7 @@ CONTAINS
          enum_c_vals=s2a("NEGF", "QTBM"), &
          enum_desc=s2a("The non-equilibrium Green's function formalism.", &
                        "The quantum transmitting boundary method / wave-function formalism."), &
-         enum_i_vals=(/rho_negf, rho_qtbm/))
+         enum_i_vals=[rho_negf, rho_qtbm])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -210,8 +210,8 @@ CONTAINS
          usage="LINEAR_SOLVER <solver>", &
          default_i_val=linsolver_full, &
          enum_c_vals=s2a("SplitSolve", "SuperLU", "MUMPS", "Full", "Banded", "PARDISO", "UMFPACK"), &
-         enum_i_vals=(/linsolver_splitsolve, linsolver_superlu, linsolver_mumps, linsolver_full, linsolver_banded, &
-                       linsolver_pardiso, linsolver_umfpack/))
+         enum_i_vals=[linsolver_splitsolve, linsolver_superlu, linsolver_mumps, linsolver_full, linsolver_banded, &
+                      linsolver_pardiso, linsolver_umfpack])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -221,7 +221,7 @@ CONTAINS
          usage="MATRIX_INVERSION_METHOD <solver>", &
          default_i_val=matrixinv_full, &
          enum_c_vals=s2a("Full", "PEXSI", "PARDISO", "RGF"), &
-         enum_i_vals=(/matrixinv_full, matrixinv_pexsi, matrixinv_pardiso, matrixinv_rgf/))
+         enum_i_vals=[matrixinv_full, matrixinv_pexsi, matrixinv_pardiso, matrixinv_rgf])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -232,7 +232,7 @@ CONTAINS
                           enum_c_vals=s2a("EVP", "BEYN"), &
                           enum_desc=s2a("Full eigenvalue solver.", &
                                         "Beyn eigenvalue solver."), &
-                          enum_i_vals=(/injmethod_evp, injmethod_beyn/))
+                          enum_i_vals=[injmethod_evp, injmethod_beyn])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -241,7 +241,7 @@ CONTAINS
          description="The number of atoms at the beginning and the end of the structure where the density should "// &
          "not be changed.", &
          usage="CUTOUT <integer> <integer>", &
-         n_var=2, default_i_vals=(/0, 0/))
+         n_var=2, default_i_vals=[0, 0])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -253,7 +253,7 @@ CONTAINS
                           enum_desc=s2a("Gauss-Chebyshev integration between singularity points.", &
                                         "Trapezoidal rule on the total range.", &
                                         "Read integration points from a file (named E.dat)."), &
-                          enum_i_vals=(/rlaxisint_GaussChebyshev, rlaxisint_trapezoidal, rlaxisint_readfromfile/))
+                          enum_i_vals=[rlaxisint_GaussChebyshev, rlaxisint_trapezoidal, rlaxisint_readfromfile])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -276,7 +276,7 @@ CONTAINS
                           enum_c_vals=s2a("BAND_STRUCTURE", "DOS"), &
                           enum_desc=s2a("Determine the Fermi levels from the band structure.", &
                                         "Determine the Fermi levels from the density of states."), &
-                          enum_i_vals=(/neutlead_bs, neutlead_dos/))
+                          enum_i_vals=[neutlead_bs, neutlead_dos])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -349,7 +349,7 @@ CONTAINS
                           enum_c_vals=s2a("POSITIVE", "NEGATIVE"), &
                           enum_desc=s2a("When the contact unit cell is at the upper left corner of the Hamiltonian.", &
                                         "When the contact unit cell is at the lower right corner of the Hamiltonian."), &
-                          enum_i_vals=(/injsign_positive, injsign_negative/))
+                          enum_i_vals=[injsign_positive, injsign_negative])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -439,7 +439,7 @@ CONTAINS
                           enum_desc=s2a("Parallel ordering using ParMETIS/PT-SCOTCH (PARMETIS option in SuperLU_DIST)", &
                                         "Sequential ordering using METIS (METIS_AT_PLUS_A option in SuperLU_DIST)", &
                                         "Multiple minimum degree ordering (MMD_AT_PLUS_A option in SuperLU_DIST)"), &
-                          enum_i_vals=(/0, 1, 2/), &
+                          enum_i_vals=[0, 1, 2], &
                           usage="ORDERING <integer>", default_i_val=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -449,7 +449,7 @@ CONTAINS
                           enum_c_vals=s2a("NOROWPERM", "LARGEDIAG"), &
                           enum_desc=s2a("No row permutation (NOROWPERM option in SuperLU_DIST)", &
                                         "Make diagonal entry larger than off diagonal (LargeDiag option in SuperLU_DIST)"), &
-                          enum_i_vals=(/0, 1/), &
+                          enum_i_vals=[0, 1], &
                           usage="ROW_ORDERING <integer>", default_i_val=0)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -457,7 +457,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="VERBOSITY", &
                           description="The level of output information.", &
                           enum_c_vals=s2a("SILENT", "BASIC", "DETAILED"), &
-                          enum_i_vals=(/0, 1, 2/), &
+                          enum_i_vals=[0, 1, 2], &
                           usage="VERBOSITY <integer>", default_i_val=0)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -497,7 +497,7 @@ CONTAINS
                           description="The stride (X,Y,Z) used to write the cube file "// &
                           "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
                           " 1 number valid for all components.", &
-                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=[2, 2, 2], type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="APPEND", &

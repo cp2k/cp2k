@@ -1288,7 +1288,7 @@ CONTAINS
             rt1 = r_pbc(1)
             rt2 = r_pbc(2)
             rt3 = r_pbc(3)
-            rij = (/rt1, rt2, rt3/)
+            rij = [rt1, rt2, rt3]
             dr = SQRT(SUM(rij**2))
             qeff = mm_charges(Imm)
             ! Computes the screening factor for the spherical cutoff (if defined)
@@ -1372,7 +1372,7 @@ CONTAINS
             rt1 = r_pbc(1)
             rt2 = r_pbc(2)
             rt3 = r_pbc(3)
-            rij = (/rt1, rt2, rt3/)
+            rij = [rt1, rt2, rt3]
             dr = SQRT(SUM(rij**2))
             qeff = mm_charges(Imm)
             ! Computes the screening factor for the spherical cutoff (if defined)

@@ -237,9 +237,9 @@ CONTAINS
          pmat = 0.0_dp
          CALL dger(n, n, 1.0_dp, orb(:, 1), 1, orb(:, 1), 1, pmat, n)
          ! calculate the expectation position (basis center as the origin)
-         r = (/trace_r_AxB(dist(1:n, 1:n, 1), n, pmat, n, n, n), &
-               trace_r_AxB(dist(1:n, 1:n, 2), n, pmat, n, n, n), &
-               trace_r_AxB(dist(1:n, 1:n, 3), n, pmat, n, n, n)/)
+         r = [trace_r_AxB(dist(1:n, 1:n, 1), n, pmat, n, n, n), &
+              trace_r_AxB(dist(1:n, 1:n, 2), n, pmat, n, n, n), &
+              trace_r_AxB(dist(1:n, 1:n, 3), n, pmat, n, n, n)]
       END IF
 
    END SUBROUTINE atom_solve_cneo

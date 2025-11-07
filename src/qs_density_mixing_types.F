@@ -501,8 +501,8 @@ CONTAINS
                                           "PULAY_MIXING", &
                                           "BROYDEN_MIXING", &
                                           "MULTISECANT_MIXING"), &
-                          enum_i_vals=(/no_mix, direct_p_mix, kerker_mix, pulay_mix, broy_mix, &
-                                        multisec_mix/), &
+                          enum_i_vals=[no_mix, direct_p_mix, kerker_mix, pulay_mix, broy_mix, &
+                                       multisec_mix], &
                           enum_desc=s2a("No mixing is applied", &
                                         "Direct mixing of new and old density matrices", &
                                         "Mixing of the potential in reciprocal space using the Kerker damping", &
@@ -646,14 +646,14 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="NSKIP", &
-                          variants=(/"NSKIP_MIXING"/), &
+                          variants=["NSKIP_MIXING"], &
                           description="Number of initial iteration for which the mixing is skipped", &
                           usage="NSKIP 10", default_i_val=0)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="N_SIMPLE_MIX", &
-                          variants=(/"NSIMPLEMIX"/), &
+                          variants=["NSIMPLEMIX"], &
                           description="Number of kerker damping iterations before starting other mixing procedures", &
                           usage="NSIMPLEMIX", default_i_val=0)
       CALL section_add_keyword(section, keyword)

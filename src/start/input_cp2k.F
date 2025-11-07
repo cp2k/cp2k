@@ -204,7 +204,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="CLEBSCH_GORDON", variants=(/"CLEBSCH"/), &
+      CALL keyword_create(keyword, __LOCATION__, name="CLEBSCH_GORDON", variants=["CLEBSCH"], &
                           description="Tests the Clebsch-Gordon Coefficients. "// &
                           "Tests are repeated the given number of times.", &
                           usage="clebsch_gordon 10", default_i_val=0)
@@ -413,7 +413,7 @@ CONTAINS
                           " this does not need to be specified in this list, because it that takes into account only the real"// &
                           " energy contributions", &
                           usage="FORCE_EVAL_ORDER <INTEGER> .. <INTEGER>", type_of_var=integer_t, n_var=-1, &
-                          default_i_vals=(/1/))
+                          default_i_vals=[1])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -445,7 +445,7 @@ CONTAINS
                           n_keywords=1, n_subsections=0, repeats=.FALSE.)
       NULLIFY (keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="RESTART_FILE_NAME", variants=(/"EXTERNAL_FILE"/), &
+      CALL keyword_create(keyword, __LOCATION__, name="RESTART_FILE_NAME", variants=["EXTERNAL_FILE"], &
                           description="Specifies the name of restart file (or any other input file)"// &
                           " to be read. Only fields relevant to a restart will be used"// &
                           " (unless switched off with the keywords in this section)", &
@@ -454,7 +454,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="BINARY_RESTART_FILE_NAME", &
-                          variants=(/"BINARY_RESTART_FILE"/), &
+                          variants=["BINARY_RESTART_FILE"], &
                           description="Specifies the name of an additional restart file "// &
                           "from which selected input sections are read in binary format "// &
                           "(see SPLIT_RESTART_FILE).", &
@@ -689,7 +689,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="NGROUPS", variants=(/"NGROUP"/), &
+      CALL keyword_create(keyword, __LOCATION__, name="NGROUPS", variants=["NGROUP"], &
                           description="Gives the preferred number of working groups.", &
                           usage="ngroups 4", type_of_var=integer_t)
       CALL section_add_keyword(section, keyword)
@@ -716,7 +716,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="MAX_JOBS_PER_GROUP", &
-                          variants=(/"MAX_JOBS"/), &
+                          variants=["MAX_JOBS"], &
                           description="maximum number of jobs executed per group", &
                           usage="MAX_JOBS_PER_GROUP 4", default_i_val=65535)
       CALL section_add_keyword(section, keyword)
@@ -838,7 +838,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="GRID", &
                           description="Specify the number of grid points (not all grid points are allowed)", &
                           usage="GRID_DIMENSIONS 128 128 128", type_of_var=integer_t, n_var=3, &
-                          default_i_vals=(/128, 128, 128/))
+                          default_i_vals=[128, 128, 128])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -887,7 +887,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="GRID", &
                           description="Specify the number of grid points (not all grid points are allowed)", &
                           usage="GRID_DIMENSIONS 128 128 128", type_of_var=integer_t, n_var=3, &
-                          default_i_vals=(/128, 128, 128/))
+                          default_i_vals=[128, 128, 128])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -902,7 +902,7 @@ CONTAINS
                           usage="PW_GRID NS-FULLSPACE", &
                           enum_c_vals=s2a("SPHERICAL", "NS-FULLSPACE", "NS-HALFSPACE"), &
                           enum_desc=s2a("- not tested", " tested", " - not tested"), &
-                          enum_i_vals=(/do_pwgrid_spherical, do_pwgrid_ns_fullspace, do_pwgrid_ns_halfspace/), &
+                          enum_i_vals=[do_pwgrid_spherical, do_pwgrid_ns_fullspace, do_pwgrid_ns_halfspace], &
                           default_i_val=do_pwgrid_ns_fullspace)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -924,7 +924,7 @@ CONTAINS
                           "Can be used to set the distribution for ray-distributed FFT.", &
                           usage="PW_GRID_LAYOUT", &
                           repeats=.FALSE., n_var=2, &
-                          default_i_vals=(/-1, -1/))
+                          default_i_vals=[-1, -1])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -934,7 +934,7 @@ CONTAINS
                           usage="PW_GRID_BLOCKED FREE", &
                           enum_c_vals=s2a("FREE", "TRUE", "FALSE"), &
                           enum_desc=s2a("CP2K will select the optimal value", "blocked", "not blocked"), &
-                          enum_i_vals=(/do_pw_grid_blocked_free, do_pw_grid_blocked_true, do_pw_grid_blocked_false/), &
+                          enum_i_vals=[do_pw_grid_blocked_free, do_pw_grid_blocked_true, do_pw_grid_blocked_false], &
                           default_i_val=do_pw_grid_blocked_false)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1008,7 +1008,7 @@ CONTAINS
                           description="Explicitly set the blacs 2D processor layout."// &
                           " If the product differs from the number of MPI ranks,"// &
                           " it is ignored and a default nearly square layout is used.", n_var=2, &
-                          usage="GRID_2D 64 16 ", default_i_vals=(/1, 1/))
+                          usage="GRID_2D 64 16 ", default_i_vals=[1, 1])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1060,7 +1060,7 @@ CONTAINS
                           usage="DIAG_METHOD syevd", &
                           enum_c_vals=s2a("syevd", "syevx"), &
                           enum_desc=s2a("(sca)lapacks syevd", "(sca)lapacks syevx"), &
-                          enum_i_vals=(/do_diag_syevd, do_diag_syevx/), &
+                          enum_i_vals=[do_diag_syevd, do_diag_syevx], &
                           default_i_val=do_diag_syevd)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1076,7 +1076,7 @@ CONTAINS
                           usage="INIT_METHOD RANDOM", &
                           enum_c_vals=s2a("random", "read"), &
                           enum_desc=s2a("use a random initial matrix", "read a matrix from file MATRIX"), &
-                          enum_i_vals=(/do_mat_random, do_mat_read/), &
+                          enum_i_vals=[do_mat_random, do_mat_read], &
                           default_i_val=do_mat_random)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1111,7 +1111,7 @@ CONTAINS
                           usage="DATA_TYPE real_8", &
                           default_i_val=dbcsr_type_real_8, &
                           enum_c_vals=s2a("real_8", "complex_8"), &
-                          enum_i_vals=(/dbcsr_type_real_8, dbcsr_type_complex_8/), &
+                          enum_i_vals=[dbcsr_type_real_8, dbcsr_type_complex_8], &
                           enum_desc=s2a( &
                           "Real (Double Precision)", &
                           "Complex (Double Precision)"))
@@ -1123,7 +1123,7 @@ CONTAINS
                           usage="TEST_TYPE MM", &
                           default_i_val=dbcsr_test_mm, &
                           enum_c_vals=s2a("MM", "Binary_IO"), &
-                          enum_i_vals=(/dbcsr_test_mm, dbcsr_test_binary_io/), &
+                          enum_i_vals=[dbcsr_test_mm, dbcsr_test_binary_io], &
                           enum_desc=s2a( &
                           "Run matrix multiplications", &
                           "Run binary IO checks"))
@@ -1160,19 +1160,19 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="BS_M", &
                           description="Row block sizes of C", n_var=-1, &
-                          usage="BS_M 1 13 2 5", default_i_vals=(/1, 13, 2, 15/))
+                          usage="BS_M 1 13 2 5", default_i_vals=[1, 13, 2, 15])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="BS_N", &
                           description="Column block sizes of C", n_var=-1, &
-                          usage="BS_N 1 13 2 5", default_i_vals=(/1, 13, 2, 15/))
+                          usage="BS_N 1 13 2 5", default_i_vals=[1, 13, 2, 15])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="BS_K", &
                           description="Block sizes of inner dimension", n_var=-1, &
-                          usage="BS_K 1 13 2 5", default_i_vals=(/1, 13, 2, 15/))
+                          usage="BS_K 1 13 2 5", default_i_vals=[1, 13, 2, 15])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1194,7 +1194,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="NPROC", &
                           description="Number of processors to test", n_var=-1, &
-                          usage="NPROC 128 16 1", default_i_vals=(/0/))
+                          usage="NPROC 128 16 1", default_i_vals=[0])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1300,19 +1300,19 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="BS_M", &
                           description="Row block sizes of C", n_var=-1, &
-                          usage="BS_M 1 13 2 5", default_i_vals=(/1, 13, 2, 15/))
+                          usage="BS_M 1 13 2 5", default_i_vals=[1, 13, 2, 15])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="BS_N", &
                           description="Column block sizes of C", n_var=-1, &
-                          usage="BS_N 1 13 2 5", default_i_vals=(/1, 13, 2, 15/))
+                          usage="BS_N 1 13 2 5", default_i_vals=[1, 13, 2, 15])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="BS_K", &
                           description="Block sizes of inner dimension", n_var=-1, &
-                          usage="BS_K 1 13 2 5", default_i_vals=(/1, 13, 2, 15/))
+                          usage="BS_K 1 13 2 5", default_i_vals=[1, 13, 2, 15])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

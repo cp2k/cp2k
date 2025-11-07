@@ -428,7 +428,7 @@ CONTAINS
                          rzetprja(:, lprj), zetprja(:, lprj), &
                          lb_max(jset), lb_min(jset), npgfb(jset), &
                          rpgfb(:, jset), zetb(:, jset), &
-                         -(/0._dp, 0._dp, 0._dp/), 0.0_dp, spa_tmp, &
+                         -[0._dp, 0._dp, 0._dp], 0.0_dp, spa_tmp, &
                          0, .TRUE., s, lds)
             DO ipgf = 1, nprjla(lprj)
                lpoint = ncoset(lprj - 1) + 1 + (ipgf - 1)*ncoset(lprj)

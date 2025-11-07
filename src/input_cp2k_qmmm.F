@@ -97,7 +97,7 @@ CONTAINS
       CALL section_create(section, __LOCATION__, name="qmmm", &
                           description="Input for QM/MM calculations.", &
                           n_keywords=6, n_subsections=3, repeats=.FALSE., &
-                          citations=(/Laino2005, Laino2006/))
+                          citations=[Laino2005, Laino2006])
 
       NULLIFY (keyword, subsection)
       CALL keyword_create(keyword, __LOCATION__, name="E_COUPL", &
@@ -105,7 +105,7 @@ CONTAINS
                           description="Specifies the type of the QM - MM electrostatic coupling.", &
                           usage="E_COUPL GAUSS", &
                           enum_c_vals=s2a("NONE", "COULOMB", "GAUSS", "S-WAVE", "POINT_CHARGE"), &
-                          enum_i_vals=(/do_qmmm_none, do_qmmm_coulomb, do_qmmm_gauss, do_qmmm_swave, do_qmmm_pcharge/), &
+                          enum_i_vals=[do_qmmm_none, do_qmmm_coulomb, do_qmmm_gauss, do_qmmm_swave, do_qmmm_pcharge], &
                           enum_desc=s2a("Mechanical coupling (i.e. classical point charge based)", &
                                         "Using analytical 1/r potential (Coulomb) - not available for GPW/GAPW", &
                                         "Using fast gaussian expansion of the electrostatic potential (Erf(r/rc)/r) "// &
@@ -159,7 +159,7 @@ CONTAINS
                           "with a smooth function: 0.5*(1-TANH((r-[SPH_CUT(1)-20*SPH_CUT(2)])/(SPH_CUT(2)))). "// &
                           "Two values are required: the first one is the distance cutoff. The second one controls "// &
                           "the stiffness of the smoothing.", &
-                          usage="SPHERICAL_CUTOFF  <REAL>", default_r_vals=(/-1.0_dp, 0.0_dp/), n_var=2, &
+                          usage="SPHERICAL_CUTOFF  <REAL>", default_r_vals=[-1.0_dp, 0.0_dp], n_var=2, &
                           unit_str="angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -172,7 +172,7 @@ CONTAINS
                                         "Replication of the grids can be quite expensive memory wise if running on a system "// &
                                         "with limited memory per core. The grid option may be preferred in this case.", &
                                         "parallelizes on grid slices. atoms replicated."), &
-                          enum_i_vals=(/do_par_atom, do_par_grid/), &
+                          enum_i_vals=[do_par_atom, do_par_grid], &
                           default_i_val=do_par_atom)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -186,7 +186,7 @@ CONTAINS
                           enum_desc=s2a("Re-center every step", &
                                         "Center at first step only", &
                                         "Never center"), &
-                          enum_i_vals=(/do_qmmm_center_every_step, do_qmmm_center_setup_only, do_qmmm_center_never/), &
+                          enum_i_vals=[do_qmmm_center_every_step, do_qmmm_center_setup_only, do_qmmm_center_never], &
                           default_i_val=do_qmmm_center_every_step)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -197,7 +197,7 @@ CONTAINS
                           enum_c_vals=s2a("MAX_MINUS_MIN", "PBC_AWARE_MAX_MINUS_MIN"), &
                           enum_desc=s2a("Center of box defined by maximum coordinate minus minimum coordinate", &
                                         "PBC-aware centering (useful for &QMMM&FORCE_MIXING)"), &
-                          enum_i_vals=(/do_qmmm_center_max_minus_min, do_qmmm_center_pbc_aware/), &
+                          enum_i_vals=[do_qmmm_center_max_minus_min, do_qmmm_center_pbc_aware], &
                           default_i_val=do_qmmm_center_max_minus_min)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -212,7 +212,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="initial_translation_vector", &
                           description="This keyword specify the initial translation vector to be applied to the system.", &
                           usage="initial_translation_vector <REAL> <REAL> <REAL>", &
-                          n_var=3, default_r_vals=(/0.0_dp, 0.0_dp, 0.0_dp/))
+                          n_var=3, default_r_vals=[0.0_dp, 0.0_dp, 0.0_dp])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -339,7 +339,7 @@ CONTAINS
                           " only MOTION&GEO_OPT&TYPE CG, MOTION&GEO_OPT&CG&LINE_SEARCH&TYPE 2PNT, and"// &
                           " MOTION&GEO_OPT&CG&LINE_SEARCH&2PNT&LINMIN_GRAD_ONLY T", &
                           n_keywords=5, n_subsections=3, repeats=.FALSE., &
-                          citations=(/Bernstein2009, Bernstein2012/))
+                          citations=[Bernstein2009, Bernstein2012])
 
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="Enables force-mixing", &
@@ -351,7 +351,7 @@ CONTAINS
                           description="How to apply force to get momentum conservation", &
                           usage="MOMENTUM_CONSERVATION_TYPE <type>", &
                           enum_c_vals=s2a("NONE", "EQUAL_F", "EQUAL_A"), &
-                          enum_i_vals=(/do_fm_mom_conserv_none, do_fm_mom_conserv_equal_f, do_fm_mom_conserv_equal_a/), &
+                          enum_i_vals=[do_fm_mom_conserv_none, do_fm_mom_conserv_equal_f, do_fm_mom_conserv_equal_a], &
                           enum_desc=s2a("No momentum conservation", &
                                         "Equal force on each atom", &
                                         "Equal acceleration on each atom"), &
@@ -363,7 +363,7 @@ CONTAINS
                           description="Region to apply correction force to for momentum conservation", &
                           usage="MOMENTUM_CONSERVATION_REGION <label>", &
                           enum_c_vals=s2a("CORE", "QM", "BUFFER"), &
-                          enum_i_vals=(/do_fm_mom_conserv_core, do_fm_mom_conserv_QM, do_fm_mom_conserv_buffer/), &
+                          enum_i_vals=[do_fm_mom_conserv_core, do_fm_mom_conserv_QM, do_fm_mom_conserv_buffer], &
                           enum_desc=s2a("Apply to QM core region", &
                                         "Apply to full QM (dynamics) region", &
                                         "Apply to QM+buffer regions"), &
@@ -376,8 +376,8 @@ CONTAINS
                           " All molecules with any atoms within this distance (hysteretically) of any atoms"// &
                           " specified as QM in enclosing QM/MM section  will be core QM atoms in the force-mixing calculation.", &
                           usage="R_CORE <real> <real>", n_var=2, type_of_var=real_t, &
-                          default_r_vals=(/cp_unit_to_cp2k(0.0_dp, "angstrom"), &
-                                           cp_unit_to_cp2k(0.0_dp, "angstrom")/), &
+                          default_r_vals=[cp_unit_to_cp2k(0.0_dp, "angstrom"), &
+                                          cp_unit_to_cp2k(0.0_dp, "angstrom")], &
                           unit_str="angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -387,8 +387,8 @@ CONTAINS
                           " All molecules with atoms within this distance (hysteretically) of any atoms in"// &
                           " core will follow QM dynamics in the force-mixing calculation.", &
                           usage="R_QM <real> <real>", n_var=2, type_of_var=real_t, &
-                          default_r_vals=(/cp_unit_to_cp2k(0.5_dp, "angstrom"), &
-                                           cp_unit_to_cp2k(1.0_dp, "angstrom")/), &
+                          default_r_vals=[cp_unit_to_cp2k(0.5_dp, "angstrom"), &
+                                          cp_unit_to_cp2k(1.0_dp, "angstrom")], &
                           unit_str="angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -408,8 +408,8 @@ CONTAINS
                           " All atoms within this distance (hysteretically) of any QM atoms"// &
                           " will be buffer atoms in the force-mixing calculation.", &
                           usage="R_BUF <real> <real>", n_var=2, type_of_var=real_t, &
-                          default_r_vals=(/cp_unit_to_cp2k(0.5_dp, "angstrom"), &
-                                           cp_unit_to_cp2k(1.0_dp, "angstrom")/), &
+                          default_r_vals=[cp_unit_to_cp2k(0.5_dp, "angstrom"), &
+                                          cp_unit_to_cp2k(1.0_dp, "angstrom")], &
                           unit_str="angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -594,9 +594,9 @@ CONTAINS
                           description="Specify the value of the skin of the Wall in each dimension. "// &
                           "The wall's effect is felt when atoms fall within the skin of the Wall.", &
                           usage="WALL_SKIN <real> <real> <real>", n_var=3, type_of_var=real_t, &
-                          default_r_vals=(/cp_unit_to_cp2k(0.5_dp, "angstrom"), &
-                                           cp_unit_to_cp2k(0.5_dp, "angstrom"), &
-                                           cp_unit_to_cp2k(0.5_dp, "angstrom")/), &
+                          default_r_vals=[cp_unit_to_cp2k(0.5_dp, "angstrom"), &
+                                          cp_unit_to_cp2k(0.5_dp, "angstrom"), &
+                                          cp_unit_to_cp2k(0.5_dp, "angstrom")], &
                           unit_str="angstrom")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -605,7 +605,7 @@ CONTAINS
                           description="Specifies the type of wall", &
                           usage="TYPE REFLECTIVE", &
                           enum_c_vals=s2a("NONE", "REFLECTIVE", "QUADRATIC"), &
-                          enum_i_vals=(/do_qmmm_wall_none, do_qmmm_wall_reflective, do_qmmm_wall_quadratic/), &
+                          enum_i_vals=[do_qmmm_wall_none, do_qmmm_wall_reflective, do_qmmm_wall_quadratic], &
                           enum_desc=s2a("No Wall around QM box", &
                                         "Reflective Wall around QM box", &
                                         "Quadratic Wall around QM box"), &
@@ -641,7 +641,7 @@ CONTAINS
                           "surfaces described by MM. This correction introduces only a very small overhead. "// &
                           "QM box size has to be equal to MM box size.", &
                           n_keywords=3, n_subsections=1, repeats=.FALSE., &
-                          citations=(/Golze2013/))
+                          citations=[Golze2013])
 
       CALL keyword_create(keyword, __LOCATION__, name="MM_ATOM_LIST", &
                           description="List of MM atoms carrying an induced Gaussian charge. "// &
@@ -672,7 +672,7 @@ CONTAINS
                           description="Specifies how the coefficients are determined.", &
                           usage="DETERM_COEFF ITERATIVE", &
                           enum_c_vals=s2a("CALC_MATRIX", "ITERATIVE"), &
-                          enum_i_vals=(/do_qmmm_image_calcmatrix, do_qmmm_image_iter/), &
+                          enum_i_vals=[do_qmmm_image_calcmatrix, do_qmmm_image_iter], &
                           enum_desc=s2a("Calculates image matrix and solves linear set of equations", &
                                         "Uses an iterative scheme to calculate the coefficients"), &
                           default_i_val=do_qmmm_image_calcmatrix)
@@ -700,7 +700,7 @@ CONTAINS
                           description="Method for calculating the image matrix.", &
                           usage="IMAGE_MATRIX_METHOD MME", &
                           enum_c_vals=s2a("GPW", "MME"), &
-                          enum_i_vals=(/do_eri_gpw, do_eri_mme/), &
+                          enum_i_vals=[do_eri_gpw, do_eri_mme], &
                           enum_desc=s2a("Uses Gaussian Plane Wave method [Golze2013]", &
                                         "Uses MiniMax-Ewald method (ERI_MME subsection)"), &
                           default_i_val=do_eri_mme)
@@ -730,7 +730,7 @@ CONTAINS
       CALL section_create(section, __LOCATION__, name="PERIODIC", &
                           description="Specify parameters for QM/MM periodic boundary conditions calculations", &
                           n_keywords=0, n_subsections=0, repeats=.FALSE., &
-                          citations=(/Laino2006/))
+                          citations=[Laino2006])
 
       CALL keyword_create( &
          keyword, __LOCATION__, name="GMAX", &
@@ -748,7 +748,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="NGRIDS", &
                           description="Specifies the number of grid points used for the Interpolation of the G-space term", &
-                          usage="NGRIDS <integer> <integer> <integer> ", n_var=3, default_i_vals=(/50, 50, 50/))
+                          usage="NGRIDS <integer> <integer> <integer> ", n_var=3, default_i_vals=[50, 50, 50])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -799,7 +799,7 @@ CONTAINS
                           description="Defines the usage of the multipole section", &
                           usage="ON", &
                           enum_c_vals=s2a("ON", "OFF"), &
-                          enum_i_vals=(/do_multipole_section_on, do_multipole_section_off/), &
+                          enum_i_vals=[do_multipole_section_on, do_multipole_section_off], &
                           enum_desc=s2a("switch on MULTIPOLE section", &
                                         "switch off MULTIPOLE section"), &
                           default_i_val=do_multipole_section_on, lone_keyword_i_val=do_multipole_section_on)
@@ -829,7 +829,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="NGRIDS", &
                           description="Specifies the number of grid points used for the Interpolation of the G-space term", &
-                          usage="NGRIDS <integer> <integer> <integer> ", n_var=3, default_i_vals=(/50, 50, 50/))
+                          usage="NGRIDS <integer> <integer> <integer> ", n_var=3, default_i_vals=[50, 50, 50])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -939,7 +939,7 @@ CONTAINS
                           n_keywords=7, n_subsections=2, repeats=.TRUE.)
 
       CALL keyword_create(keyword, __LOCATION__, name="QM_INDEX", &
-                          variants=(/"QM"/), &
+                          variants=["QM"], &
                           description="Specifies the index of the QM atom involved in the QM/MM link", &
                           usage="QM_INDEX integer", n_var=1, type_of_var=integer_t)
       CALL section_add_keyword(section, keyword)
@@ -953,7 +953,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="MM_INDEX", &
-                          variants=(/"MM"/), &
+                          variants=["MM"], &
                           description="Specifies the index of the MM atom involved in the QM/MM link, Default hydrogen.", &
                           usage="MM_INDEX integer", n_var=1, type_of_var=integer_t)
       CALL section_add_keyword(section, keyword)
@@ -975,11 +975,11 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="LINK_TYPE", &
-                          variants=(/"LINK ", "TYPE ", "LTYPE"/), &
+                          variants=["LINK ", "TYPE ", "LTYPE"], &
                           description="Specifies the method to use to treat the defined QM/MM link", &
                           usage="LINK_TYPE char", &
                           enum_c_vals=s2a("IMOMM", "GHO", "PSEUDO"), &
-                          enum_i_vals=(/do_qmmm_link_imomm, do_qmmm_link_gho, do_qmmm_link_pseudo/), &
+                          enum_i_vals=[do_qmmm_link_imomm, do_qmmm_link_gho, do_qmmm_link_pseudo], &
                           enum_desc=s2a("Use Integrated Molecular Orbital Molecular Mechanics method", &
                                         "Use Generalized Hybrid Orbital method", &
                                         "Use a monovalent pseudo-potential"), &
@@ -999,9 +999,9 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="QMMM_SCALE_FACTOR", &
-                          variants=(/"QMMM_CHARGE_SCALE ", &
-                                     "QMMM_CHARGE_FACTOR", &
-                                     "QMMM_SCALE_CHARGE "/), &
+                          variants=["QMMM_CHARGE_SCALE ", &
+                                    "QMMM_CHARGE_FACTOR", &
+                                    "QMMM_SCALE_CHARGE "], &
                           description="Specifies the scaling factor for the MM charge involved in the link QM/MM."// &
                           " This keyword affects only the QM/MM potential, it doesn't affect the electrostatic in"// &
                           " the classical part of the code."// &
@@ -1012,9 +1012,9 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="FIST_SCALE_FACTOR", &
-                          variants=(/"FIST_CHARGE_SCALE ", &
-                                     "FIST_CHARGE_FACTOR", &
-                                     "FIST_SCALE_CHARGE "/), &
+                          variants=["FIST_CHARGE_SCALE ", &
+                                    "FIST_CHARGE_FACTOR", &
+                                    "FIST_SCALE_CHARGE "], &
                           description="Specifies the scaling factor for the MM charge involved in the link QM/MM."// &
                           " This keyword modifies the MM charge in FIST. The modified charge will be used then also"// &
                           " for the generation of the QM/MM potential. "// &
@@ -1030,14 +1030,14 @@ CONTAINS
                           n_keywords=4, n_subsections=0, repeats=.TRUE.)
 
       CALL keyword_create(keyword, __LOCATION__, name="ATOM_INDEX_1", &
-                          variants=(/"MM1"/), &
+                          variants=["MM1"], &
                           description="Specifies the index of the MM atom involved in the QM/MM link to be moved", &
                           usage="ATOM_INDEX_1 integer", n_var=1, type_of_var=integer_t)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="ATOM_INDEX_2", &
-                          variants=(/"MM2"/), &
+                          variants=["MM2"], &
                           description="Specifies the index of the second atom defining the direction along which"// &
                           " the atom will be moved", &
                           usage="ATOM_INDEX_2 integer", n_var=1, type_of_var=integer_t)
@@ -1071,7 +1071,7 @@ CONTAINS
                           n_keywords=5, n_subsections=0, repeats=.TRUE.)
 
       CALL keyword_create(keyword, __LOCATION__, name="ATOM_INDEX_1", &
-                          variants=(/"MM1"/), &
+                          variants=["MM1"], &
                           description="Specifies the index of the first atom defining the direction along which"// &
                           " the atom will be added", &
                           usage="ATOM_INDEX_1 integer", n_var=1, type_of_var=integer_t)
@@ -1079,7 +1079,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="ATOM_INDEX_2", &
-                          variants=(/"MM2"/), &
+                          variants=["MM2"], &
                           description="Specifies the index of the second atom defining the direction along which"// &
                           " the atom will be added", &
                           usage="ATOM_INDEX_2 integer", n_var=1, type_of_var=integer_t)
@@ -1140,7 +1140,7 @@ CONTAINS
                           usage="kind spline3", &
                           default_i_val=spline3_nopbc_interp, &
                           enum_c_vals=s2a("spline3_nopbc"), &
-                          enum_i_vals=(/spline3_nopbc_interp/))
+                          enum_i_vals=[spline3_nopbc_interp])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1159,8 +1159,8 @@ CONTAINS
                           default_i_val=precond_spl3_aint, &
                           enum_c_vals=s2a("copy", "spl3_nopbc_aint1", "spl3_nopbc_precond1", &
                                           "spl3_nopbc_aint2", "spl3_nopbc_precond2", "spl3_nopbc_precond3"), &
-                          enum_i_vals=(/no_precond, precond_spl3_aint, precond_spl3_1, &
-                                        precond_spl3_aint2, precond_spl3_2, precond_spl3_3/))
+                          enum_i_vals=[no_precond, precond_spl3_aint, precond_spl3_1, &
+                                       precond_spl3_aint2, precond_spl3_2, precond_spl3_3])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1171,8 +1171,8 @@ CONTAINS
                           default_i_val=precond_spl3_3, &
                           enum_c_vals=s2a("copy", "spl3_nopbc_aint1", "spl3_nopbc_precond1", &
                                           "spl3_nopbc_aint2", "spl3_nopbc_precond2", "spl3_nopbc_precond3"), &
-                          enum_i_vals=(/no_precond, precond_spl3_aint, precond_spl3_1, &
-                                        precond_spl3_aint2, precond_spl3_2, precond_spl3_3/))
+                          enum_i_vals=[no_precond, precond_spl3_aint, precond_spl3_1, &
+                                       precond_spl3_aint2, precond_spl3_2, precond_spl3_3])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1189,7 +1189,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="max_iter", &
-                          variants=(/'maxiter'/), &
+                          variants=['maxiter'], &
                           description="the maximum number of iterations", &
                           usage="max_iter 200", default_i_val=100)
       CALL section_add_keyword(section, keyword)
@@ -1200,7 +1200,7 @@ CONTAINS
                                        description="if convergence information about the linear solver"// &
                                        " of the spline methods should be printed", &
                                        print_level=medium_print_level, each_iter_names=s2a("SPLINE_FIND_COEFFS"), &
-                                       each_iter_values=(/10/), filename="__STD_OUT__", &
+                                       each_iter_values=[10], filename="__STD_OUT__", &
                                        add_last=add_last_numeric)
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
@@ -1256,7 +1256,7 @@ CONTAINS
                           description="The stride (X,Y,Z) used to write the cube file "// &
                           "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
                           " 1 number valid for all components.", &
-                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=[2, 2, 2], type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 

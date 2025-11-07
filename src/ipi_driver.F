@@ -195,9 +195,9 @@ CONTAINS
          ELSE IF (TRIM(header) == "POSDATA") THEN
             IF (ionode) THEN
                CALL readbuffer(socket, mxmat, 9)
-               cellh = RESHAPE(mxmat, (/3, 3/))
+               cellh = RESHAPE(mxmat, [3, 3])
                CALL readbuffer(socket, mxmat, 9)
-               cellih = RESHAPE(mxmat, (/3, 3/))
+               cellih = RESHAPE(mxmat, [3, 3])
                CALL readbuffer(socket, nat)
                cellh = TRANSPOSE(cellh)
                cellih = TRANSPOSE(cellih)
@@ -250,7 +250,7 @@ CONTAINS
                CALL writebuffer(socket, pot)
                CALL writebuffer(socket, nat)
                CALL writebuffer(socket, combuf, 3*nat)
-               CALL writebuffer(socket, RESHAPE(vir, (/9/)), 9)
+               CALL writebuffer(socket, RESHAPE(vir, [9]), 9)
 
                ! i-pi can also receive an arbitrary string, that will be printed out to the "extra"
                ! trajectory file. this is useful if you want to return additional information, e.g.

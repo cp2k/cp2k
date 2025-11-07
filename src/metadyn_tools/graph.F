@@ -200,7 +200,7 @@ PROGRAM graph
       END IF
 
    END DO
-   IF (COUNT((/l_orac, l_cp2k, l_cpmd/)) /= 1) &
+   IF (COUNT([l_orac, l_cp2k, l_cpmd]) /= 1) &
       CPABORT("Error! You've to specify either ORAC, CP2K or CPMD!")
 
    ! For CPMD move filename to colvar_mtd

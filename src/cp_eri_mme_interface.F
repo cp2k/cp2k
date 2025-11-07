@@ -685,7 +685,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="POTENTIAL", &
                           description="Operator to test", &
                           default_i_val=eri_mme_coulomb, &
-                          enum_i_vals=(/eri_mme_coulomb, eri_mme_yukawa, eri_mme_longrange/), &
+                          enum_i_vals=[eri_mme_coulomb, eri_mme_yukawa, eri_mme_longrange], &
                           enum_c_vals=s2a("COULOMB", "YUKAWA", "LONGRANGE"), &
                           enum_desc=s2a("1/r", "exp(-a*r)/r", "erf(a*r)/r"))
       CALL section_add_keyword(section, keyword)

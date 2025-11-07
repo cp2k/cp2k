@@ -142,7 +142,7 @@ CONTAINS
       IF (SIZE(seed_vals) == 1) THEN
          subsys%seed(:, :) = REAL(seed_vals(1), KIND=dp)
       ELSE IF (SIZE(seed_vals) == 6) THEN
-         subsys%seed(1:3, 1:2) = RESHAPE(REAL(seed_vals(:), KIND=dp), (/3, 2/))
+         subsys%seed(1:3, 1:2) = RESHAPE(REAL(seed_vals(:), KIND=dp), [3, 2])
       ELSE
          CPABORT("Supply exactly 1 or 6 arguments for SEED in &SUBSYS only!")
       END IF

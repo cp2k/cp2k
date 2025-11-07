@@ -289,7 +289,7 @@ CONTAINS
             DO k = 1, MIN(desc%npts(3), desc%group_size)
             DO j = 1, MIN(desc%npts(2), desc%group_size)
                i = MIN(desc%npts(1), desc%group_size/(j*k))
-               n_slices_tmp = (/i, j, k/)
+               n_slices_tmp = [i, j, k]
 
                ! we don't match the actual number of CPUs
                IF (PRODUCT(n_slices_tmp) .NE. desc%group_size) CYCLE
@@ -297,7 +297,7 @@ CONTAINS
                ! we see if there has been a input constraint
                ! i.e. if the layout is not -1 we need to fullfil it
                IF (.NOT. ALL(PACK(n_slices_tmp == input_settings%distribution_layout, &
-                                  (/-1, -1, -1/) /= input_settings%distribution_layout) &
+                                  [-1, -1, -1] /= input_settings%distribution_layout) &
                              )) CYCLE
 
                ! We can not work with a grid that has more local than global grid points.
@@ -319,7 +319,7 @@ CONTAINS
                ! with prefactodesc to promote less cuts in Z dimension
                ratio = PRODUCT(REAL(desc%npts, KIND=dp)/n_slices_tmp)/ &
                        PRODUCT(REAL(desc%npts, KIND=dp)/n_slices_tmp + &
-                               MERGE((/0.0, 0.0, 0.0/), 2*(/1.06*nmin, 1.05*nmin, 1.03*nmin/), n_slices_tmp == (/1, 1, 1/)))
+                               MERGE([0.0, 0.0, 0.0], 2*[1.06*nmin, 1.05*nmin, 1.03*nmin], n_slices_tmp == [1, 1, 1]))
                IF (ratio > ratio_best) THEN
                   ratio_best = ratio
                   n_slices = n_slices_tmp
@@ -333,7 +333,7 @@ CONTAINS
             IF (input_settings%distribution_type == rsgrid_automatic) THEN
                volume = PRODUCT(REAL(desc%npts, KIND=dp))
                volume_dist = PRODUCT(REAL(desc%npts, KIND=dp)/n_slices + &
-                                     MERGE((/0, 0, 0/), 2*(/nmin, nmin, nmin/), n_slices == (/1, 1, 1/)))
+                                     MERGE([0, 0, 0], 2*[nmin, nmin, nmin], n_slices == [1, 1, 1]))
                IF (volume < volume_dist*input_settings%memory_factor) THEN
                   n_slices = 1
                END IF

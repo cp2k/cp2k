@@ -713,11 +713,11 @@ CONTAINS
          IF (settings%rs_dims(2, 1) /= 1) mixed_cdft%is_pencil = .TRUE.
          IF (.NOT. mixed_cdft%is_pencil .AND. ncpu .GT. settings%npts(1, 1)) mixed_cdft%is_special = .TRUE.
          IF (mixed_cdft%is_special) THEN
-            mixed_rs_dims = (/-1, -1/)
+            mixed_rs_dims = [-1, -1]
          ELSE IF (mixed_cdft%is_pencil) THEN
-            mixed_rs_dims = (/settings%rs_dims(1, 1), 2*settings%rs_dims(2, 1)/)
+            mixed_rs_dims = [settings%rs_dims(1, 1), 2*settings%rs_dims(2, 1)]
          ELSE
-            mixed_rs_dims = (/2*settings%rs_dims(1, 1), 1/)
+            mixed_rs_dims = [2*settings%rs_dims(1, 1), 1]
          END IF
          IF (.NOT. mixed_env%do_mixed_qmmm_cdft) THEN
             CALL force_env_get(force_env=force_env, &
@@ -773,7 +773,7 @@ CONTAINS
             ALLOCATE (rs_descs(1))
             ALLOCATE (rs_grids(1))
             ALLOCATE (mixed_cdft%pw_env%cube_info(1))
-            higher_grid_layout = (/-1, -1, -1/)
+            higher_grid_layout = [-1, -1, -1]
             CALL init_d3_poly_module()
             CALL init_cube_info(mixed_cdft%pw_env%cube_info(1), &
                                 pw_grid%dr(:), pw_grid%dh(:, :), &
@@ -821,17 +821,17 @@ CONTAINS
             ALLOCATE (mixed_cdft%dest_list(2))
             ALLOCATE (mixed_cdft%source_list(2))
             imap = force_env%para_env%mepos/2
-            mixed_cdft%dest_list = (/imap, imap + force_env%para_env%num_pe/2/)
+            mixed_cdft%dest_list = [imap, imap + force_env%para_env%num_pe/2]
             imap = MOD(force_env%para_env%mepos, force_env%para_env%num_pe/2) + &
                    MODULO(force_env%para_env%mepos, force_env%para_env%num_pe/2)
-            mixed_cdft%source_list = (/imap, imap + 1/)
+            mixed_cdft%source_list = [imap, imap + 1]
             ! Determine bounds of the data that is replicated
             ALLOCATE (mixed_cdft%recv_bo(4))
             ALLOCATE (sendbuffer(2), recvbuffer(2), recvbuffer2(2))
             IF (mixed_cdft%is_pencil) THEN
-               sendbuffer = (/bo_mixed(1, 2), bo_mixed(2, 2)/)
+               sendbuffer = [bo_mixed(1, 2), bo_mixed(2, 2)]
             ELSE
-               sendbuffer = (/bo_mixed(1, 1), bo_mixed(2, 1)/)
+               sendbuffer = [bo_mixed(1, 1), bo_mixed(2, 1)]
             END IF
             ! Communicate bounds in steps
             CALL force_env%para_env%isend(msgin=sendbuffer, dest=mixed_cdft%dest_list(1), &
@@ -883,8 +883,8 @@ CONTAINS
             j = 1
             DO i = offset, offset + ntargets - 1
                mixed_cdft%dest_list(j) = i
-               mixed_cdft%dest_list_bo(:, j) = (/bo_mixed(1, 1) + (bounds(i, 1) - bo_mixed(1, 1)), &
-                                                 bo_mixed(2, 1) + (bounds(i, 2) - bo_mixed(2, 1))/)
+               mixed_cdft%dest_list_bo(:, j) = [bo_mixed(1, 1) + (bounds(i, 1) - bo_mixed(1, 1)), &
+                                                bo_mixed(2, 1) + (bounds(i, 2) - bo_mixed(2, 1))]
                j = j + 1
             END DO
             ALLOCATE (mixed_cdft%dest_list_save(ntargets), mixed_cdft%dest_bo_save(2, ntargets))
@@ -920,14 +920,14 @@ CONTAINS
             DO i = offset, offset + ntargets - 1
                mixed_cdft%source_list(j) = i
                IF (bo(1, 1) .GE. bounds(i, 1) .AND. bo(2, 1) .LE. bounds(i, 2)) THEN
-                  mixed_cdft%source_list_bo(:, j) = (/bo(1, 1), bo(2, 1), &
-                                                      bounds(i, 3), bounds(i, 4)/)
+                  mixed_cdft%source_list_bo(:, j) = [bo(1, 1), bo(2, 1), &
+                                                     bounds(i, 3), bounds(i, 4)]
                ELSE IF (bo(1, 1) .GE. bounds(i, 1) .AND. bo(1, 1) .LE. bounds(i, 2)) THEN
-                  mixed_cdft%source_list_bo(:, j) = (/bo(1, 1), bounds(i, 2), &
-                                                      bounds(i, 3), bounds(i, 4)/)
+                  mixed_cdft%source_list_bo(:, j) = [bo(1, 1), bounds(i, 2), &
+                                                     bounds(i, 3), bounds(i, 4)]
                ELSE
-                  mixed_cdft%source_list_bo(:, j) = (/bounds(i, 1), bo(2, 1), &
-                                                      bounds(i, 3), bounds(i, 4)/)
+                  mixed_cdft%source_list_bo(:, j) = [bounds(i, 1), bo(2, 1), &
+                                                     bounds(i, 3), bounds(i, 4)]
                END IF
                j = j + 1
             END DO

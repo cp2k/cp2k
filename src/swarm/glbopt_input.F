@@ -61,7 +61,7 @@ CONTAINS
                           enum_c_vals=s2a("MINIMA_HOPPING", "MINIMA_CRAWLING"), &
                           enum_desc=s2a("Runs Minima-Hopping algorithm.", &
                                         "Runs Minima-Crawling algorithm."), &
-                          enum_i_vals=(/glbopt_do_minhop, glbopt_do_mincrawl/))
+                          enum_i_vals=[glbopt_do_minhop, glbopt_do_mincrawl])
       CALL section_add_keyword(glbopt_section, keyword)
       CALL keyword_release(keyword)
 
@@ -169,7 +169,7 @@ CONTAINS
 
       CALL section_create(minhop_section, __LOCATION__, name="MINIMA_HOPPING", &
                           description="Section controlling the Minima Hopping method.", &
-                          citations=(/Goedecker2004/), &
+                          citations=[Goedecker2004], &
                           repeats=.FALSE.)
 
       CALL keyword_create(keyword, __LOCATION__, name="BETA_1", &

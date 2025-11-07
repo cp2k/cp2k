@@ -303,7 +303,7 @@ CONTAINS
                                                  prefactor=1.0_dp, cutoff=0.0_dp)
 
                CALL collocate_pgf_product(ni, 1/(2*alpha**2), 0, 0, 0.0_dp, 0, ra, &
-                                          (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, rs_rho, &
+                                          [0.0_dp, 0.0_dp, 0.0_dp], 1.0_dp, pab, 0, 0, rs_rho, &
                                           ga_gb_function=GRID_FUNC_AB, radius=radius, &
                                           use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern)
 
@@ -477,7 +477,7 @@ CONTAINS
                                                  prefactor=1.0_dp, cutoff=0.0_dp)
 
                CALL collocate_pgf_product(ni, alpha, 0, 0, 0.0_dp, 0, ra, &
-                                          (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, rs_rho, &
+                                          [0.0_dp, 0.0_dp, 0.0_dp], 1.0_dp, pab, 0, 0, rs_rho, &
                                           radius=radius, ga_gb_function=GRID_FUNC_AB, &
                                           use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern)
 
@@ -653,7 +653,7 @@ CONTAINS
                                                    zeta=zeta(ipgf, iset), &
                                                    la_min=la_min(iset), &
                                                    lb_max=0, zetb=0.0_dp, lb_min=0, &
-                                                   ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
+                                                   ra=ra, rab=[0.0_dp, 0.0_dp, 0.0_dp], &
                                                    scale=1._dp, &
                                                    pab=pab, o1=na1, o2=0, &
                                                    rsgrid=rs_grid, &
@@ -741,7 +741,7 @@ CONTAINS
                                  CALL collocate_pgf_product( &
                                     la_max(iset), zeta(ipgf, iset), la_min(iset), &
                                     la_max(jset), zeta(jpgf, jset), la_min(jset), &
-                                    ra, (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, na1, nb1, &
+                                    ra, [0.0_dp, 0.0_dp, 0.0_dp], 1.0_dp, pab, na1, nb1, &
                                     rs_grid, &
                                     radius=radius, ga_gb_function=GRID_FUNC_AB)
                               END IF
@@ -896,7 +896,7 @@ CONTAINS
                                                     prefactor=-1.0_dp, cutoff=0.0_dp)
 
                   CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
-                                             (/0.0_dp, 0.0_dp, 0.0_dp/), -1.0_dp, pab, 0, 0, rs_rho, &
+                                             [0.0_dp, 0.0_dp, 0.0_dp], -1.0_dp, pab, 0, 0, rs_rho, &
                                              radius=radius, ga_gb_function=GRID_FUNC_AB, &
                                              use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern)
 
@@ -1031,7 +1031,7 @@ CONTAINS
                                                  prefactor=-1.0_dp, cutoff=0.0_dp)
 
                CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
-                                          (/0.0_dp, 0.0_dp, 0.0_dp/), -1.0_dp, pab, 0, 0, rs_rho, &
+                                          [0.0_dp, 0.0_dp, 0.0_dp], -1.0_dp, pab, 0, 0, rs_rho, &
                                           radius=radius, ga_gb_function=dabqadb_func, &
                                           use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern)
 
@@ -1126,7 +1126,7 @@ CONTAINS
                                            prefactor=1.0_dp, cutoff=0.0_dp)
 
          CALL collocate_pgf_product(0, qs_env%qmmm_env_qm%image_charge_pot%eta, &
-                                    0, 0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, rs_rho, &
+                                    0, 0, 0.0_dp, 0, ra, [0.0_dp, 0.0_dp, 0.0_dp], 1.0_dp, pab, 0, 0, rs_rho, &
                                     radius=radius, ga_gb_function=GRID_FUNC_AB, &
                                     use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern)
       END IF
@@ -1229,7 +1229,7 @@ CONTAINS
 
             CALL collocate_pgf_product( &
                0, qs_env%qmmm_env_qm%image_charge_pot%eta, &
-               0, 0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), coeff(iatom), pab, 0, 0, rs_rho, &
+               0, 0, 0.0_dp, 0, ra, [0.0_dp, 0.0_dp, 0.0_dp], coeff(iatom), pab, 0, 0, rs_rho, &
                radius=radius, ga_gb_function=GRID_FUNC_AB, &
                use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern)
          END DO
@@ -1323,7 +1323,7 @@ CONTAINS
                                            prefactor=1.0_dp, cutoff=0.0_dp)
 
          CALL collocate_pgf_product(0, eta, 0, 0, 0.0_dp, 0, ra, &
-                                    (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, rs_rho, &
+                                    [0.0_dp, 0.0_dp, 0.0_dp], 1.0_dp, pab, 0, 0, rs_rho, &
                                     radius=radius, ga_gb_function=GRID_FUNC_AB, &
                                     use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern)
       END IF
@@ -1427,7 +1427,7 @@ CONTAINS
 
                CALL collocate_pgf_product( &
                   0, eta, &
-                  0, 0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), coeff(iatom), pab, 0, 0, rs_rho, &
+                  0, 0, 0.0_dp, 0, ra, [0.0_dp, 0.0_dp, 0.0_dp], coeff(iatom), pab, 0, 0, rs_rho, &
                   radius=radius, ga_gb_function=GRID_FUNC_AB, &
                   use_subpatch=.TRUE., subpatch_pattern=subpatch_pattern)
             END DO
@@ -2557,7 +2557,7 @@ CONTAINS
 
                      CALL collocate_pgf_product(la_max(iset), zeta(ipgf, iset), la_min(iset), &
                                                 0, 0.0_dp, 0, &
-                                                ra, (/0.0_dp, 0.0_dp, 0.0_dp/), &
+                                                ra, [0.0_dp, 0.0_dp, 0.0_dp], &
                                                 scale, pab, na1 - 1, 0, rs_rho(igrid_level), &
                                                 radius=radius, ga_gb_function=GRID_FUNC_AB)
                   END IF
@@ -2795,7 +2795,7 @@ CONTAINS
 
                   CALL collocate_pgf_product(la_max(iset), zeta(ipgf, iset), la_min(iset), &
                                              0, 0.0_dp, 0, &
-                                             ra, (/0.0_dp, 0.0_dp, 0.0_dp/), &
+                                             ra, [0.0_dp, 0.0_dp, 0.0_dp], &
                                              scale, pab, na1 - 1, 0, rs_rho(igrid_level), &
                                              radius=radius, ga_gb_function=GRID_FUNC_AB)
                END IF

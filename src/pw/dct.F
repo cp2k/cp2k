@@ -182,25 +182,25 @@ CONTAINS
       SELECT CASE (neumann_directions)
       CASE (neumannXYZ)
          maxn_sendrecv = 4
-         scfac = (/2.0_dp, 2.0_dp, 2.0_dp/)
+         scfac = [2.0_dp, 2.0_dp, 2.0_dp]
       CASE (neumannXY)
          maxn_sendrecv = 4
-         scfac = (/2.0_dp, 2.0_dp, 1.0_dp/)
+         scfac = [2.0_dp, 2.0_dp, 1.0_dp]
       CASE (neumannXZ)
          maxn_sendrecv = 2
-         scfac = (/2.0_dp, 1.0_dp, 2.0_dp/)
+         scfac = [2.0_dp, 1.0_dp, 2.0_dp]
       CASE (neumannYZ)
          maxn_sendrecv = 2
-         scfac = (/1.0_dp, 2.0_dp, 2.0_dp/)
+         scfac = [1.0_dp, 2.0_dp, 2.0_dp]
       CASE (neumannX)
          maxn_sendrecv = 2
-         scfac = (/2.0_dp, 1.0_dp, 1.0_dp/)
+         scfac = [2.0_dp, 1.0_dp, 1.0_dp]
       CASE (neumannY)
          maxn_sendrecv = 2
-         scfac = (/1.0_dp, 2.0_dp, 1.0_dp/)
+         scfac = [1.0_dp, 2.0_dp, 1.0_dp]
       CASE (neumannZ)
          maxn_sendrecv = 1
-         scfac = (/1.0_dp, 1.0_dp, 2.0_dp/)
+         scfac = [1.0_dp, 1.0_dp, 2.0_dp]
       CASE DEFAULT
          CPABORT("Invalid combination of Neumann and periodic conditions.")
       END SELECT
@@ -342,11 +342,11 @@ CONTAINS
          ALLOCATE (tmp1_arr(tmp_size1), src_pos1(2, 0:rs_dim1 - 1))
 
          IF (MOD(rs_dim1, 2) .EQ. 0) THEN
-            tmp1_arr(:) = (/(i, i=1, rs_dim1)/)
-            src_pos1(:, :) = RESHAPE((/tmp1_arr, -tmp1_arr(tmp_size1:1:-1)/), (/2, rs_dim1/))
+            tmp1_arr(:) = [(i, i=1, rs_dim1)]
+            src_pos1(:, :) = RESHAPE([tmp1_arr, -tmp1_arr(tmp_size1:1:-1)], [2, rs_dim1])
          ELSE
-            tmp1_arr(:) = (/(i, i=1, rs_dim1), -rs_dim1/)
-            src_pos1(:, :) = RESHAPE((/tmp1_arr, -tmp1_arr(tmp_size1 - 2:1:-1)/), (/2, rs_dim1/))
+            tmp1_arr(:) = [(i, i=1, rs_dim1), -rs_dim1]
+            src_pos1(:, :) = RESHAPE([tmp1_arr, -tmp1_arr(tmp_size1 - 2:1:-1)], [2, rs_dim1])
          END IF
 !---
          IF (MOD(rs_dim2, 2) .EQ. 0) THEN
@@ -357,17 +357,17 @@ CONTAINS
          ALLOCATE (tmp2_arr(tmp_size2), src_pos2(2, 0:rs_dim2 - 1))
 
          IF (MOD(rs_dim2, 2) .EQ. 0) THEN
-            tmp2_arr(:) = (/(i, i=1, rs_dim2)/)
-            src_pos2(:, :) = RESHAPE((/tmp2_arr, -tmp2_arr(tmp_size2:1:-1)/), (/2, rs_dim2/))
+            tmp2_arr(:) = [(i, i=1, rs_dim2)]
+            src_pos2(:, :) = RESHAPE([tmp2_arr, -tmp2_arr(tmp_size2:1:-1)], [2, rs_dim2])
          ELSE
-            tmp2_arr(:) = (/(i, i=1, rs_dim2), -rs_dim2/)
-            src_pos2(:, :) = RESHAPE((/tmp2_arr, -tmp2_arr(tmp_size2 - 2:1:-1)/), (/2, rs_dim2/))
+            tmp2_arr(:) = [(i, i=1, rs_dim2), -rs_dim2]
+            src_pos2(:, :) = RESHAPE([tmp2_arr, -tmp2_arr(tmp_size2 - 2:1:-1)], [2, rs_dim2])
          END IF
 !---
-         srcs_coord(:, 1) = (/src_pos1(1, rs_pos(1)), src_pos2(1, rs_pos(2))/)
-         srcs_coord(:, 2) = (/src_pos1(1, rs_pos(1)), src_pos2(2, rs_pos(2))/)
-         srcs_coord(:, 3) = (/src_pos1(2, rs_pos(1)), src_pos2(1, rs_pos(2))/)
-         srcs_coord(:, 4) = (/src_pos1(2, rs_pos(1)), src_pos2(2, rs_pos(2))/)
+         srcs_coord(:, 1) = [src_pos1(1, rs_pos(1)), src_pos2(1, rs_pos(2))]
+         srcs_coord(:, 2) = [src_pos1(1, rs_pos(1)), src_pos2(2, rs_pos(2))]
+         srcs_coord(:, 3) = [src_pos1(2, rs_pos(1)), src_pos2(1, rs_pos(2))]
+         srcs_coord(:, 4) = [src_pos1(2, rs_pos(1)), src_pos2(2, rs_pos(2))]
       CASE (neumannXZ, neumannX)
          maxn_sendrecv = 2
          ALLOCATE (srcs_coord(2, maxn_sendrecv))
@@ -380,24 +380,24 @@ CONTAINS
          ALLOCATE (tmp1_arr(tmp_size1), src_pos1(2, 0:rs_dim1 - 1))
 
          IF (MOD(rs_dim1, 2) .EQ. 0) THEN
-            tmp1_arr(:) = (/(i, i=1, rs_dim1)/)
-            src_pos1(:, :) = RESHAPE((/tmp1_arr, -tmp1_arr(tmp_size1:1:-1)/), (/2, rs_dim1/))
+            tmp1_arr(:) = [(i, i=1, rs_dim1)]
+            src_pos1(:, :) = RESHAPE([tmp1_arr, -tmp1_arr(tmp_size1:1:-1)], [2, rs_dim1])
          ELSE
-            tmp1_arr(:) = (/(i, i=1, rs_dim1), -rs_dim1/)
-            src_pos1(:, :) = RESHAPE((/tmp1_arr, -tmp1_arr(tmp_size1 - 2:1:-1)/), (/2, rs_dim1/))
+            tmp1_arr(:) = [(i, i=1, rs_dim1), -rs_dim1]
+            src_pos1(:, :) = RESHAPE([tmp1_arr, -tmp1_arr(tmp_size1 - 2:1:-1)], [2, rs_dim1])
          END IF
 !---
          ALLOCATE (src_pos2_onesdd(0:rs_dim2 - 1))
-         src_pos2_onesdd(:) = (/(i, i=1, rs_dim2)/)
+         src_pos2_onesdd(:) = [(i, i=1, rs_dim2)]
 !---
-         srcs_coord(:, 1) = (/src_pos1(1, rs_pos(1)), src_pos2_onesdd(rs_pos(2))/)
-         srcs_coord(:, 2) = (/src_pos1(2, rs_pos(1)), src_pos2_onesdd(rs_pos(2))/)
+         srcs_coord(:, 1) = [src_pos1(1, rs_pos(1)), src_pos2_onesdd(rs_pos(2))]
+         srcs_coord(:, 2) = [src_pos1(2, rs_pos(1)), src_pos2_onesdd(rs_pos(2))]
       CASE (neumannYZ, neumannY)
          maxn_sendrecv = 2
          ALLOCATE (srcs_coord(2, maxn_sendrecv))
 
          ALLOCATE (src_pos1_onesdd(0:rs_dim1 - 1))
-         src_pos1_onesdd(:) = (/(i, i=1, rs_dim1)/)
+         src_pos1_onesdd(:) = [(i, i=1, rs_dim1)]
 !---
          IF (MOD(rs_dim2, 2) .EQ. 0) THEN
             tmp_size2 = rs_dim2
@@ -407,26 +407,26 @@ CONTAINS
          ALLOCATE (tmp2_arr(tmp_size2), src_pos2(2, 0:rs_dim2 - 1))
 
          IF (MOD(rs_dim2, 2) .EQ. 0) THEN
-            tmp2_arr(:) = (/(i, i=1, rs_dim2)/)
-            src_pos2(:, :) = RESHAPE((/tmp2_arr, -tmp2_arr(tmp_size2:1:-1)/), (/2, rs_dim2/))
+            tmp2_arr(:) = [(i, i=1, rs_dim2)]
+            src_pos2(:, :) = RESHAPE([tmp2_arr, -tmp2_arr(tmp_size2:1:-1)], [2, rs_dim2])
          ELSE
-            tmp2_arr(:) = (/(i, i=1, rs_dim2), -rs_dim2/)
-            src_pos2(:, :) = RESHAPE((/tmp2_arr, -tmp2_arr(tmp_size2 - 2:1:-1)/), (/2, rs_dim2/))
+            tmp2_arr(:) = [(i, i=1, rs_dim2), -rs_dim2]
+            src_pos2(:, :) = RESHAPE([tmp2_arr, -tmp2_arr(tmp_size2 - 2:1:-1)], [2, rs_dim2])
          END IF
 !---
-         srcs_coord(:, 1) = (/src_pos1_onesdd(rs_pos(1)), src_pos2(1, rs_pos(2))/)
-         srcs_coord(:, 2) = (/src_pos1_onesdd(rs_pos(1)), src_pos2(2, rs_pos(2))/)
+         srcs_coord(:, 1) = [src_pos1_onesdd(rs_pos(1)), src_pos2(1, rs_pos(2))]
+         srcs_coord(:, 2) = [src_pos1_onesdd(rs_pos(1)), src_pos2(2, rs_pos(2))]
       CASE (neumannZ)
          maxn_sendrecv = 1
          ALLOCATE (srcs_coord(2, maxn_sendrecv))
          ALLOCATE (src_pos1_onesdd(0:rs_dim1 - 1))
          ALLOCATE (src_pos2_onesdd(0:rs_dim2 - 1))
 
-         src_pos1_onesdd(:) = (/(i, i=1, rs_dim1)/)
+         src_pos1_onesdd(:) = [(i, i=1, rs_dim1)]
 !---
-         src_pos2_onesdd(:) = (/(i, i=1, rs_dim2)/)
+         src_pos2_onesdd(:) = [(i, i=1, rs_dim2)]
 !---
-         srcs_coord(:, 1) = (/src_pos1_onesdd(rs_pos(1)), src_pos2_onesdd(rs_pos(2))/)
+         srcs_coord(:, 1) = [src_pos1_onesdd(rs_pos(1)), src_pos2_onesdd(rs_pos(2))]
       END SELECT
 
 ! default flipping status
@@ -822,7 +822,7 @@ CONTAINS
       lb2_glbl = bounds(1, 2); ub2_glbl = bounds(2, 2)
       lb3_glbl = bounds(1, 3); ub3_glbl = bounds(2, 3)
 
-      bndsl = RESHAPE((/lb1, ub1, lb2, ub2, lb3, ub3/), (/2, 3/))
+      bndsl = RESHAPE([lb1, ub1, lb2, ub2, lb3, ub3], [2, 3])
       bndsl_new = flipud_bounds_local(bndsl, bounds)
 
       lb1_new = bndsl_new(1, 1); ub1_new = bndsl_new(2, 1)
@@ -835,7 +835,7 @@ CONTAINS
 ! set the data at the missing grid points (in a periodic grid) equal to the data at
 ! the last existing grid points
       ALLOCATE (indx(ub1_new - lb1_new + 1))
-      indx(:) = (/(i, i=2*(ub1_glbl + 1) - lb1_new, 2*(ub1_glbl + 1) - ub1_new, -1)/)
+      indx(:) = [(i, i=2*(ub1_glbl + 1) - lb1_new, 2*(ub1_glbl + 1) - ub1_new, -1)]
       IF (lb1_new .EQ. ub1_glbl + 1) indx(1) = indx(2)
       cr3d_out(lb1_new:ub1_new, lb2_new:ub2_new, lb3_new:ub3_new) = cr3d_in(indx, :, :)
 
@@ -878,7 +878,7 @@ CONTAINS
       lb2_glbl = bounds(1, 2); ub2_glbl = bounds(2, 2)
       lb3_glbl = bounds(1, 3); ub3_glbl = bounds(2, 3)
 
-      bndsl = RESHAPE((/lb1, ub1, lb2, ub2, lb3, ub3/), (/2, 3/))
+      bndsl = RESHAPE([lb1, ub1, lb2, ub2, lb3, ub3], [2, 3])
       bndsl_new = fliplr_bounds_local(bndsl, bounds)
 
       lb1_new = bndsl_new(1, 1); ub1_new = bndsl_new(2, 1)
@@ -891,7 +891,7 @@ CONTAINS
 ! set the data at the missing grid points (in a periodic grid) equal to the data at
 ! the last existing grid points
       ALLOCATE (indy(ub2_new - lb2_new + 1))
-      indy(:) = (/(i, i=2*(ub2_glbl + 1) - lb2_new, 2*(ub2_glbl + 1) - ub2_new, -1)/)
+      indy(:) = [(i, i=2*(ub2_glbl + 1) - lb2_new, 2*(ub2_glbl + 1) - ub2_new, -1)]
       IF (lb2_new .EQ. ub2_glbl + 1) indy(1) = indy(2)
       cr3d_out(lb1_new:ub1_new, lb2_new:ub2_new, lb3_new:ub3_new) = cr3d_in(:, indy, :)
 
@@ -934,7 +934,7 @@ CONTAINS
       lb2_glbl = bounds(1, 2); ub2_glbl = bounds(2, 2)
       lb3_glbl = bounds(1, 3); ub3_glbl = bounds(2, 3)
 
-      bndsl = RESHAPE((/lb1, ub1, lb2, ub2, lb3, ub3/), (/2, 3/))
+      bndsl = RESHAPE([lb1, ub1, lb2, ub2, lb3, ub3], [2, 3])
       bndsl_new = flipbf_bounds_local(bndsl, bounds)
 
       lb1_new = bndsl_new(1, 1); ub1_new = bndsl_new(2, 1)
@@ -947,7 +947,7 @@ CONTAINS
 ! set the data at the missing grid points (in a periodic grid) equal to the data at
 ! the last existing grid points
       ALLOCATE (indz(ub3_new - lb3_new + 1))
-      indz(:) = (/(i, i=2*(ub3_glbl + 1) - lb3_new, 2*(ub3_glbl + 1) - ub3_new, -1)/)
+      indz(:) = [(i, i=2*(ub3_glbl + 1) - lb3_new, 2*(ub3_glbl + 1) - ub3_new, -1)]
       IF (lb3_new .EQ. ub3_glbl + 1) indz(1) = indz(2)
       cr3d_out(lb1_new:ub1_new, lb2_new:ub2_new, lb3_new:ub3_new) = cr3d_in(:, :, indz)
 
@@ -990,7 +990,7 @@ CONTAINS
       lb2_glbl = bounds(1, 2); ub2_glbl = bounds(2, 2)
       lb3_glbl = bounds(1, 3); ub3_glbl = bounds(2, 3)
 
-      bndsl = RESHAPE((/lb1, ub1, lb2, ub2, lb3, ub3/), (/2, 3/))
+      bndsl = RESHAPE([lb1, ub1, lb2, ub2, lb3, ub3], [2, 3])
       bndsl_new = rot180_bounds_local(bndsl, bounds)
 
       lb1_new = bndsl_new(1, 1); ub1_new = bndsl_new(2, 1)
@@ -1003,8 +1003,8 @@ CONTAINS
 ! set the data at the missing grid points (in a periodic grid) equal to the data at
 ! the last existing grid points
       ALLOCATE (indx(ub1_new - lb1_new + 1), indy(ub2_new - lb2_new + 1))
-      indx(:) = (/(i, i=2*(ub1_glbl + 1) - lb1_new, 2*(ub1_glbl + 1) - ub1_new, -1)/)
-      indy(:) = (/(i, i=2*(ub2_glbl + 1) - lb2_new, 2*(ub2_glbl + 1) - ub2_new, -1)/)
+      indx(:) = [(i, i=2*(ub1_glbl + 1) - lb1_new, 2*(ub1_glbl + 1) - ub1_new, -1)]
+      indy(:) = [(i, i=2*(ub2_glbl + 1) - lb2_new, 2*(ub2_glbl + 1) - ub2_new, -1)]
       IF (lb1_new .EQ. ub1_glbl + 1) indx(1) = indx(2)
       IF (lb2_new .EQ. ub2_glbl + 1) indy(1) = indy(2)
       cr3d_out(lb1_new:ub1_new, lb2_new:ub2_new, lb3_new:ub3_new) = cr3d_in(indx, indy, :)
@@ -1063,28 +1063,28 @@ CONTAINS
       SELECT CASE (neumann_directions)
       CASE (neumannXYZ)
          maxn_sendrecv = 4
-         shf_yesno = (/1, 1, 1/)
+         shf_yesno = [1, 1, 1]
       CASE (neumannXY)
          maxn_sendrecv = 4
-         shf_yesno = (/1, 1, 0/)
+         shf_yesno = [1, 1, 0]
       CASE (neumannXZ)
          maxn_sendrecv = 2
-         shf_yesno = (/1, 0, 1/)
+         shf_yesno = [1, 0, 1]
       CASE (neumannYZ)
          maxn_sendrecv = 2
-         shf_yesno = (/0, 1, 1/)
+         shf_yesno = [0, 1, 1]
       CASE (neumannX)
          maxn_sendrecv = 2
-         shf_yesno = (/1, 0, 0/)
+         shf_yesno = [1, 0, 0]
       CASE (neumannY)
          maxn_sendrecv = 2
-         shf_yesno = (/0, 1, 0/)
+         shf_yesno = [0, 1, 0]
       CASE (neumannZ)
          maxn_sendrecv = 1
-         shf_yesno = (/0, 0, 1/)
+         shf_yesno = [0, 0, 1]
       CASE DEFAULT
          CPABORT("Unknown neumann direction")
-         shf_yesno = (/0, 0, 0/)
+         shf_yesno = [0, 0, 0]
       END SELECT
 
       ALLOCATE (pcs_bnds(2, 3, maxn_sendrecv))

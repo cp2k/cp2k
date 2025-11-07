@@ -63,7 +63,7 @@ CONTAINS
                           "methods, i.e. not with minimization methods based on OT. "// &
                           "Incompatible with core-level excitation spectra (XAS).", &
                           n_keywords=8, n_subsections=0, repeats=.FALSE., &
-                          citations=(/Gilbert2008, Barca2018/))
+                          citations=[Gilbert2008, Barca2018])
 
       NULLIFY (keyword)
 
@@ -84,7 +84,7 @@ CONTAINS
                           "Originally proposed MOM protocol which uses molecular orbitals"// &
                           " from the previous SCF cycle as reference", &
                           "Initial-MOM which uses molecular orbitals of the initial guess as reference"), &
-                          enum_i_vals=(/momtype_mom, momtype_imom/))
+                          enum_i_vals=[momtype_mom, momtype_imom])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -152,7 +152,7 @@ CONTAINS
                           enum_desc=s2a( &
                           "The one which ignores the phase of molecular orbitals: proj_j = \sqrt(\sum_i overlap(i, j)^2)", &
                           "The one proposed in the original paper: proj_j = |\sum_i overlap(i, j)|"), &
-                          enum_i_vals=(/momproj_norm, momproj_sum/))
+                          enum_i_vals=[momproj_norm, momproj_sum])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

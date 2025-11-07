@@ -948,9 +948,9 @@ CONTAINS
       INTEGER                                            :: i, iatom, natoms
 
       ! Define the Cartesian axis vectors
-      sym%x_axis = (/1.0_dp, 0.0_dp, 0.0_dp/)
-      sym%y_axis = (/0.0_dp, 1.0_dp, 0.0_dp/)
-      sym%z_axis = (/0.0_dp, 0.0_dp, 1.0_dp/)
+      sym%x_axis = [1.0_dp, 0.0_dp, 0.0_dp]
+      sym%y_axis = [0.0_dp, 1.0_dp, 0.0_dp]
+      sym%z_axis = [0.0_dp, 0.0_dp, 1.0_dp]
 
       ! Initialize lists for symmetry elements
       sym%sec(:, :, :) = 0.0_dp
@@ -1145,10 +1145,10 @@ CONTAINS
          ! 0 < tenval(1) < tenval(2) = tenval(3)
          ! special case: 0 = tenval(1) < tenval(2) = tenval(3)
          IF (sym%tenval(1) < eps_tenval) sym%linear = .TRUE.
-         CALL tracar(sym, coord, (/3, 1, 2/))
+         CALL tracar(sym, coord, [3, 1, 2])
       ELSE
          ! 0 < tenval(1) = tenval(2) < tenval(3) or 0 < tenval(1) < tenval(2) < tenval(3)
-         CALL tracar(sym, coord, (/1, 2, 3/))
+         CALL tracar(sym, coord, [1, 2, 3])
       END IF
 
       ! Continue with the new coordinate axes

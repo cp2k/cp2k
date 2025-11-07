@@ -82,7 +82,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'write_kpoints_restart'
       CHARACTER(LEN=30), DIMENSION(2), PARAMETER :: &
-         keys = (/"SCF%PRINT%RESTART_HISTORY", "SCF%PRINT%RESTART        "/)
+         keys = ["SCF%PRINT%RESTART_HISTORY", "SCF%PRINT%RESTART        "]
 
       INTEGER                                            :: handle, ic, ikey, ires, ispin, nimages, &
                                                             nspin

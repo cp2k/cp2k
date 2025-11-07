@@ -348,7 +348,7 @@ CONTAINS
          prev_stat%excl_energy_accu = prev_stat%excl_energy_accu - en_elapsed
 
          !update callgraph
-         routine_tuple = (/prev_cs_entry%routine_id, routine_id/)
+         routine_tuple = [prev_cs_entry%routine_id, routine_id]
          c_stat => callgraph_get(timer_env%callgraph, routine_tuple, default_value=Null(c_stat))
          IF (.NOT. ASSOCIATED(c_stat)) THEN
             ALLOCATE (c_stat)

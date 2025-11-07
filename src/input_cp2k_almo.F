@@ -74,7 +74,7 @@ CONTAINS
                           "on absolutely localized orbitals"// &
                           " (ALMOs). ALMO methods are currently restricted to closed-shell molecular systems.", &
                           n_keywords=10, n_subsections=6, repeats=.FALSE., &
-                          citations=(/Khaliullin2013, Scheiber2018/))
+                          citations=[Khaliullin2013, Scheiber2018])
 
       NULLIFY (keyword)
 
@@ -93,7 +93,7 @@ CONTAINS
                                         "keywords outside ALMO options. This kind of calculation is expensive "// &
                                         "and only recommended if ALMO SCF does not converge from the ATOMIC guess.", &
                                         "Superposition of atomic densities."), &
-                          enum_i_vals=(/molecular_guess, atomic_guess/))
+                          enum_i_vals=[molecular_guess, atomic_guess])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -105,7 +105,7 @@ CONTAINS
                           enum_desc=s2a("Linear scaling iterative Hotelling algorithm. Fast for large sparse matrices.", &
                                         "Linear scaling algorithm based on Taylor expansion of (A+B)^(-1).", &
                                         "Stable but dense Cholesky algorithm. Cubically scaling."), &
-                          enum_i_vals=(/spd_inversion_ls_hotelling, spd_inversion_ls_taylor, spd_inversion_dense_cholesky/))
+                          enum_i_vals=[spd_inversion_ls_hotelling, spd_inversion_ls_taylor, spd_inversion_dense_cholesky])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -145,7 +145,7 @@ CONTAINS
                                         "It is controlled by ALMO_OPTIMIZER_TRUSTR", &
                                         "Skip optimization of block-diagonal ALMOs."), &
                           !enum_i_vals=(/almo_scf_diag,almo_scf_dm_sign,almo_scf_pcg/),&
-                          enum_i_vals=(/almo_scf_diag, almo_scf_pcg, almo_scf_trustr, almo_scf_skip/))
+                          enum_i_vals=[almo_scf_diag, almo_scf_pcg, almo_scf_trustr, almo_scf_skip])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -157,7 +157,7 @@ CONTAINS
                           enum_desc=s2a("DIIS-accelerated diagonalization.", &
                                         "PCG algorithm controlled by XALMO_OPTIMIZER_PCG.", &
                                         "Trust-region optimizer controlled by XALMO_OPTIMIZER_TRUSTR"), &
-                          enum_i_vals=(/almo_scf_diag, almo_scf_pcg, almo_scf_trustr/))
+                          enum_i_vals=[almo_scf_diag, almo_scf_pcg, almo_scf_trustr])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -169,7 +169,7 @@ CONTAINS
                           enum_desc=s2a("Straightforward AO-basis expansion.", &
                                         "Block-diagonal ALMOs plus the XALMO term projected onto the unoccupied "// &
                                         "ALMO-subspace."), &
-                          enum_i_vals=(/xalmo_trial_simplex, xalmo_trial_r0_out/))
+                          enum_i_vals=[xalmo_trial_simplex, xalmo_trial_r0_out])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -191,8 +191,8 @@ CONTAINS
                        "Single excitation correction (no Hamiltonian re-build) without spatial restrictions", &
                        "Self-consistent treatment of delocalization without spatial restrictions", &
                        "Single excitation correction followed by full SCF procedure, both without spatial restrictions"), &
-         enum_i_vals=(/almo_deloc_none, almo_deloc_xalmo_1diag, almo_deloc_xalmo_x, almo_deloc_xalmo_scf, &
-                       almo_deloc_x, almo_deloc_scf, almo_deloc_x_then_scf/))
+         enum_i_vals=[almo_deloc_none, almo_deloc_xalmo_1diag, almo_deloc_xalmo_x, almo_deloc_xalmo_scf, &
+                      almo_deloc_x, almo_deloc_scf, almo_deloc_x_then_scf])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -702,8 +702,8 @@ CONTAINS
                                            "Invert preconditioner domain-by-domain."// &
                                            " The main component of the linear scaling algorithm", &
                                            "Solve linear equations step=-H.grad on the entire space"), &
-                             enum_i_vals=(/xalmo_prec_zero, xalmo_prec_domain, &
-                                           xalmo_prec_domain, xalmo_prec_full/))
+                             enum_i_vals=[xalmo_prec_zero, xalmo_prec_domain, &
+                                          xalmo_prec_domain, xalmo_prec_full])
          CALL section_add_keyword(section, keyword)
          CALL keyword_release(keyword)
 
@@ -749,9 +749,9 @@ CONTAINS
                                            "Fletcher and Reeves", "Hestenes and Stiefel", &
                                            "Fletcher (Conjugate descent)", "Liu and Storey", &
                                            "Dai and Yuan", "Hager and Zhang"), &
-                             enum_i_vals=(/cg_zero, cg_polak_ribiere, cg_fletcher_reeves, &
-                                           cg_hestenes_stiefel, cg_fletcher, cg_liu_storey, &
-                                           cg_dai_yuan, cg_hager_zhang/))
+                             enum_i_vals=[cg_zero, cg_polak_ribiere, cg_fletcher_reeves, &
+                                          cg_hestenes_stiefel, cg_fletcher, cg_liu_storey, &
+                                          cg_dai_yuan, cg_hager_zhang])
          CALL section_add_keyword(section, keyword)
          CALL keyword_release(keyword)
 
@@ -767,7 +767,7 @@ CONTAINS
                              enum_desc=s2a("Steihaug's iterative CG algorithm that does not invert model Hessian", &
                                            "Compute simple Cauchy point", &
                                            "Dogleg optimizer"), &
-                             enum_i_vals=(/trustr_steihaug, trustr_cauchy, trustr_dogleg/))
+                             enum_i_vals=[trustr_steihaug, trustr_cauchy, trustr_dogleg])
          CALL section_add_keyword(section, keyword)
          CALL keyword_release(keyword)
 
@@ -882,7 +882,7 @@ CONTAINS
          description="Type of opertator which defines the spread functional", &
          usage="OPERATOR PIPEK", &
          enum_c_vals=s2a("BERRY", "PIPEK"), &
-         enum_i_vals=(/op_loc_berry, op_loc_pipek/), &
+         enum_i_vals=[op_loc_berry, op_loc_pipek], &
          default_i_val=op_loc_berry)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -946,7 +946,7 @@ CONTAINS
       CALL section_create(section, __LOCATION__, name="ANALYSIS", &
                           description="Controls electronic structure analysis based on ALMOs and XALMOs.", &
                           n_keywords=2, n_subsections=1, repeats=.FALSE., &
-                          citations=(/Khaliullin2007, Khaliullin2008/))
+                          citations=[Khaliullin2007, Khaliullin2008])
 
       NULLIFY (keyword)
 
@@ -968,9 +968,9 @@ CONTAINS
                                         "Use energies of single molecules in their positions in the crystal "// &
                                         "cell as the reference. "// &
                                         "This term does not have an interpretation if fragmetns are charged."), &
-                          enum_i_vals=(/almo_frz_none, &
-                                        !almo_frz_isolated,&
-                                        almo_frz_crystal/))
+                          enum_i_vals=[almo_frz_none, &
+                                       !almo_frz_isolated,&
+                                       almo_frz_crystal])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

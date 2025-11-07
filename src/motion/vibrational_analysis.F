@@ -105,7 +105,7 @@ CONTAINS
       TYPE(global_environment_type), POINTER             :: globenv
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'vb_anal'
-      CHARACTER(LEN=1), DIMENSION(3), PARAMETER          :: lab = (/"X", "Y", "Z"/)
+      CHARACTER(LEN=1), DIMENSION(3), PARAMETER          :: lab = ["X", "Y", "Z"]
 
       CHARACTER(LEN=default_string_length)               :: description_d, description_p
       INTEGER :: handle, i, icoord, icoordm, icoordp, ierr, imap, iounit, ip1, ip2, iparticle1, &

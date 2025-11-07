@@ -251,7 +251,7 @@ CONTAINS
          TYPE(pw_c1d_gs_type), INTENT(IN), OPTIONAL            :: pw_g
 
          CHARACTER(len=*), PARAMETER                        :: routineN = 'xc_pw_derive'
-         INTEGER, DIMENSION(3, 3), PARAMETER :: nd = RESHAPE((/1, 0, 0, 0, 1, 0, 0, 0, 1/), (/3, 3/))
+         INTEGER, DIMENSION(3, 3), PARAMETER :: nd = RESHAPE([1, 0, 0, 0, 1, 0, 0, 0, 1], [3, 3])
 
          INTEGER                                            :: handle
          LOGICAL                                            :: my_copy_to_vxcr

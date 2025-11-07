@@ -1758,9 +1758,9 @@ CONTAINS
                gto_basis_set%ly(ncgf) = indco(2, ico)
                gto_basis_set%lz(ncgf) = indco(3, ico)
                gto_basis_set%cgf_symbol(ncgf) = &
-                  cgf_symbol(n(ishell, iset), (/gto_basis_set%lx(ncgf), &
-                                                gto_basis_set%ly(ncgf), &
-                                                gto_basis_set%lz(ncgf)/))
+                  cgf_symbol(n(ishell, iset), [gto_basis_set%lx(ncgf), &
+                                               gto_basis_set%ly(ncgf), &
+                                               gto_basis_set%lz(ncgf)])
             END DO
             DO m = -lshell, lshell
                nsgf = nsgf + 1

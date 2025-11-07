@@ -92,7 +92,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(coeff))
       NULLIFY (cell)
 
-      CALL cell_create(cell, hmat=hmat, periodic=(/1, 1, 1/))
+      CALL cell_create(cell, hmat=hmat, periodic=[1, 1, 1])
       logger => cp_get_default_logger()
       iounit = cp_print_key_unit_nr(logger, print_section, "", &
                                     extension=".Log")
@@ -390,18 +390,18 @@ CONTAINS
             dzTerm = 0.0_dp
             ! Sum over k vectors
             DO kg = 1, SIZE(Lg)
-               vec = (/REAL(gx(kg), KIND=dp), REAL(gy(kg), KIND=dp), REAL(gz(kg), KIND=dp)/)
+               vec = [REAL(gx(kg), KIND=dp), REAL(gy(kg), KIND=dp), REAL(gz(kg), KIND=dp)]
                Term = Term + lg(kg)*COS(vec(1)*xs1 + vec(2)*xs2 + vec(3)*xs3)
                dxTerm = dxTerm - lg(kg)*SIN(vec(1)*xs1 + vec(2)*xs2 + vec(3)*xs3)*vec(1)
                dyTerm = dyTerm - lg(kg)*SIN(vec(1)*xs1 + vec(2)*xs2 + vec(3)*xs3)*vec(2)
                dzTerm = dzTerm - lg(kg)*SIN(vec(1)*xs1 + vec(2)*xs2 + vec(3)*xs3)*vec(3)
             END DO
             Na = SQRT(dxTerm*dxTerm + dyTerm*dyTerm + dzTerm*dzTerm)
-            dn = Eval_d_Interp_Spl3_pbc((/xs1, xs2, xs3/), TabLR)
+            dn = Eval_d_Interp_Spl3_pbc([xs1, xs2, xs3], TabLR)
             Nn = SQRT(DOT_PRODUCT(dn, dn))
-            Fterm = Eval_Interp_Spl3_pbc((/xs1, xs2, xs3/), TabLR)
+            Fterm = Eval_Interp_Spl3_pbc([xs1, xs2, xs3], TabLR)
             tmp1 = ABS(Term - Fterm)
-            tmp2 = SQRT(DOT_PRODUCT(dn - (/dxTerm, dyTerm, dzTerm/), dn - (/dxTerm, dyTerm, dzTerm/)))
+            tmp2 = SQRT(DOT_PRODUCT(dn - [dxTerm, dyTerm, dzTerm], dn - [dxTerm, dyTerm, dzTerm]))
             errf = errf + tmp1
             maxerrorf = MAX(maxerrorf, tmp1)
             errd = errd + tmp2

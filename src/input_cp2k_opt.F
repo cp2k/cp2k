@@ -115,7 +115,7 @@ CONTAINS
                           enum_desc=s2a("Set all parameters in the basis to be variable.", &
                                         "Set all coefficients in the basis set to be variable.", &
                                         "Set all exponents in the basis to be variable."), &
-                          enum_i_vals=(/do_lri_opt_all, do_lri_opt_coeff, do_lri_opt_exps/), &
+                          enum_i_vals=[do_lri_opt_all, do_lri_opt_coeff, do_lri_opt_exps], &
                           default_i_val=do_lri_opt_exps)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -198,7 +198,7 @@ CONTAINS
                           default_i_val=embed_steep_desc, &
                           enum_c_vals=s2a("STEEPEST_DESCENT", "QUASI_NEWTON", "LEVEL_SHIFT"), &
                           enum_desc=s2a("Steepest descent.", "Quasi-Newton.", "Level shift."), &
-                          enum_i_vals=(/embed_steep_desc, embed_quasi_newton, embed_level_shift/))
+                          enum_i_vals=[embed_steep_desc, embed_quasi_newton, embed_level_shift])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -249,7 +249,7 @@ CONTAINS
                                         "Fermi-Amaldi potential. More rigorous than DIFF, although less efficient.", &
                                         "Coulomb interaction between the subsystem using RESP charges)"// &
                                         " on the total system."), &
-                          enum_i_vals=(/embed_none, embed_diff, embed_fa, embed_resp/), &
+                          enum_i_vals=[embed_none, embed_diff, embed_fa, embed_resp], &
                           default_i_val=embed_none)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -405,7 +405,7 @@ CONTAINS
                           description="The stride (X,Y,Z) used to write the cube file "// &
                           "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
                           " 1 number valid for all components.", &
-                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=[2, 2, 2], type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
@@ -433,7 +433,7 @@ CONTAINS
                           description="The stride (X,Y,Z) used to write the cube file "// &
                           "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
                           " 1 number valid for all components.", &
-                          usage="STRIDE 1 1 1", n_var=-1, default_i_vals=(/1, 1, 1/), type_of_var=integer_t)
+                          usage="STRIDE 1 1 1", n_var=-1, default_i_vals=[1, 1, 1], type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
@@ -481,7 +481,7 @@ CONTAINS
                           description="The stride (X,Y,Z) used to write the cube file "// &
                           "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
                           " 1 number valid for all components.", &
-                          usage="STRIDE 1 1 1", n_var=-1, default_i_vals=(/1, 1, 1/), type_of_var=integer_t)
+                          usage="STRIDE 1 1 1", n_var=-1, default_i_vals=[1, 1, 1], type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
@@ -491,7 +491,7 @@ CONTAINS
                           default_i_val=embed_grid_bohr, &
                           enum_c_vals=s2a("BOHR", "ANGSTROM"), &
                           enum_desc=s2a("Atomic units: Bohr", "Metric units: Angstrom."), &
-                          enum_i_vals=(/embed_grid_bohr, embed_grid_angstrom/))
+                          enum_i_vals=[embed_grid_bohr, embed_grid_angstrom])
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 

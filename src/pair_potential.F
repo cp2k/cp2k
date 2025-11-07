@@ -967,7 +967,7 @@ CONTAINS
             tmp_index(i, j) = nunique
             tmp_index(j, i) = nunique
             !
-            CALL set_potparm_index(potparm, (/n/), multi_type, ntype, tmpij, &
+            CALL set_potparm_index(potparm, [n], multi_type, ntype, tmpij, &
                                    atomic_kind_set, shift_cutoff, do_zbl)
          END DO
       END DO

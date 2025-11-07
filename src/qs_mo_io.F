@@ -114,7 +114,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'write_mo_set_to_restart'
       CHARACTER(LEN=30), DIMENSION(2), PARAMETER :: &
-         keys = (/"SCF%PRINT%RESTART_HISTORY", "SCF%PRINT%RESTART        "/)
+         keys = ["SCF%PRINT%RESTART_HISTORY", "SCF%PRINT%RESTART        "]
 
       INTEGER                                            :: handle, ikey, ires, ispin
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -241,9 +241,9 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'write_rt_mos_to_restart'
-      CHARACTER(LEN=43), DIMENSION(2), PARAMETER :: keys = (/ &
+      CHARACTER(LEN=43), DIMENSION(2), PARAMETER :: keys = [ &
          "REAL_TIME_PROPAGATION%PRINT%RESTART_HISTORY", &
-         "REAL_TIME_PROPAGATION%PRINT%RESTART        "/)
+         "REAL_TIME_PROPAGATION%PRINT%RESTART        "]
 
       INTEGER                                            :: handle, ikey, ires
       TYPE(cp_logger_type), POINTER                      :: logger
