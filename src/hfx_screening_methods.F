@@ -400,11 +400,11 @@ CONTAINS
             DO iset = 1, nseta
                ncoa = npgfa(iset)*ncoset(la_max(iset))
                sgfa = first_sgfa(1, iset)
-               max_contraction_a = MAXVAL((/(SUM(ABS(sphi_a(1:ncoa, i))), i=sgfa, sgfa + nsgfa(iset) - 1)/))
+               max_contraction_a = MAXVAL([(SUM(ABS(sphi_a(1:ncoa, i))), i=sgfa, sgfa + nsgfa(iset) - 1)])
                DO jset = 1, nsetb
                   ncob = npgfb(jset)*ncoset(lb_max(jset))
                   sgfb = first_sgfb(1, jset)
-                  max_contraction_b = MAXVAL((/(SUM(ABS(sphi_b(1:ncob, i))), i=sgfb, sgfb + nsgfb(jset) - 1)/))
+                  max_contraction_b = MAXVAL([(SUM(ABS(sphi_b(1:ncob, i))), i=sgfb, sgfb + nsgfb(jset) - 1)])
                   radius = set_radius_a(iset) + set_radius_b(jset)
                   DO ipgf = 1, npgfa(iset)
                      DO jpgf = 1, npgfb(jset)
@@ -508,11 +508,11 @@ CONTAINS
             DO iset = 1, nseta
                ncoa = npgfa(iset)*ncoset(la_max(iset))
                sgfa = first_sgfa(1, iset)
-               max_contraction_a = MAXVAL((/(SUM(ABS(sphi_a(1:ncoa, i))), i=sgfa, sgfa + nsgfa(iset) - 1)/))
+               max_contraction_a = MAXVAL([(SUM(ABS(sphi_a(1:ncoa, i))), i=sgfa, sgfa + nsgfa(iset) - 1)])
                DO jset = 1, nsetb
                   ncob = npgfb(jset)*ncoset(lb_max(jset))
                   sgfb = first_sgfb(1, jset)
-                  max_contraction_b = MAXVAL((/(SUM(ABS(sphi_b(1:ncob, i))), i=sgfb, sgfb + nsgfb(jset) - 1)/))
+                  max_contraction_b = MAXVAL([(SUM(ABS(sphi_b(1:ncob, i))), i=sgfb, sgfb + nsgfb(jset) - 1)])
                   radius = set_radius_a(iset) + set_radius_b(jset)
                   tmp_R_1 => radii_pgf(:, :, jset, iset, jkind, ikind)
                   DO i = i_thread, 100, n_threads
@@ -592,11 +592,11 @@ CONTAINS
             DO iset = 1, nseta
                ncoa = npgfa(iset)*ncoset(la_max(iset))
                sgfa = first_sgfa(1, iset)
-               max_contraction_a = MAXVAL((/(SUM(ABS(sphi_a(1:ncoa, i))), i=sgfa, sgfa + nsgfa(iset) - 1)/))
+               max_contraction_a = MAXVAL([(SUM(ABS(sphi_a(1:ncoa, i))), i=sgfa, sgfa + nsgfa(iset) - 1)])
                DO jset = 1, nsetb
                   ncob = npgfb(jset)*ncoset(lb_max(jset))
                   sgfb = first_sgfb(1, jset)
-                  max_contraction_b = MAXVAL((/(SUM(ABS(sphi_b(1:ncob, i))), i=sgfb, sgfb + nsgfb(jset) - 1)/))
+                  max_contraction_b = MAXVAL([(SUM(ABS(sphi_b(1:ncob, i))), i=sgfb, sgfb + nsgfb(jset) - 1)])
                   DO i = i_thread, 100, n_threads
                      rb(1) = 0.0_dp + REAL(i, dp)*0.01_dp*radius
                      max_val = 0.0_dp
@@ -746,11 +746,11 @@ CONTAINS
             DO iset = 1, nseta
                ncoa = npgfa(iset)*ncoset(la_max(iset))
                sgfa = first_sgfa(1, iset)
-               max_contraction_a = MAXVAL((/(SUM(ABS(sphi_a(1:ncoa, i))), i=sgfa, sgfa + nsgfa(iset) - 1)/))
+               max_contraction_a = MAXVAL([(SUM(ABS(sphi_a(1:ncoa, i))), i=sgfa, sgfa + nsgfa(iset) - 1)])
                DO jset = 1, nsetb
                   ncob = npgfb(jset)*ncoset(lb_max(jset))
                   sgfb = first_sgfb(1, jset)
-                  max_contraction_b = MAXVAL((/(SUM(ABS(sphi_b(1:ncob, i))), i=sgfb, sgfb + nsgfb(jset) - 1)/))
+                  max_contraction_b = MAXVAL([(SUM(ABS(sphi_b(1:ncob, i))), i=sgfb, sgfb + nsgfb(jset) - 1)])
                   DO ipgf = 1, npgfa(iset)
                      DO jpgf = 1, npgfb(jset)
                         radius = rpgfa(ipgf, iset) + rpgfb(jpgf, jset)

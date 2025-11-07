@@ -83,9 +83,9 @@ CONTAINS
                           "predefined combinations (see _SECTION_PARAMETERS_ below). CP2K does NOT set it up "// &
                           "automatically not even for LibXC functionals.", &
                           n_keywords=0, n_subsections=4, repeats=.FALSE., &
-                          citations=(/Ortiz1994, Becke1988, Perdew1996, Zhang1998, Lee1988, &
-                                      Heyd2004, Vosko1980, Goedecker1996, Perdew1981, &
-                                      Tao2003, Wellendorff2012/))
+                          citations=[Ortiz1994, Becke1988, Perdew1996, Zhang1998, Lee1988, &
+                                     Heyd2004, Vosko1980, Goedecker1996, Perdew1981, &
+                                     Tao2003, Wellendorff2012])
 
       NULLIFY (subsection, keyword)
       CALL keyword_create( &
@@ -97,8 +97,8 @@ CONTAINS
          usage="&xc_functional BLYP", &
          enum_c_vals=s2a("B3LYP", "PBE0", "BLYP", "BP", "PADE", "LDA", "PBE", &
                          "TPSS", "HCTH120", "OLYP", "BEEFVDW", "NO_SHORTCUT", "NONE"), &
-         enum_i_vals=(/xc_funct_b3lyp, xc_funct_pbe0, xc_funct_blyp, xc_funct_bp, xc_funct_pade, xc_funct_pade, xc_funct_pbe, &
-                       xc_funct_tpss, xc_funct_hcth120, xc_funct_olyp, xc_funct_beefvdw, xc_funct_no_shortcut, xc_none/), &
+         enum_i_vals=[xc_funct_b3lyp, xc_funct_pbe0, xc_funct_blyp, xc_funct_bp, xc_funct_pade, xc_funct_pade, xc_funct_pbe, &
+                      xc_funct_tpss, xc_funct_hcth120, xc_funct_olyp, xc_funct_beefvdw, xc_funct_no_shortcut, xc_none], &
          enum_desc=s2a("B3LYP", &
                        "PBE0 (see note in section XC/XC_FUNCTIONAL/PBE)", &
                        "BLYP", "BP", "PADE", "Alias for PADE", &
@@ -113,7 +113,7 @@ CONTAINS
       CALL section_create(subsection, __LOCATION__, name="BECKE88", &
                           description="Uses the Becke 88 exchange functional", &
                           n_keywords=0, n_subsections=0, repeats=.FALSE., &
-                          citations=(/Becke1988/))
+                          citations=[Becke1988])
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="activates the functional", &
                           lone_keyword_l_val=.TRUE., default_l_val=.FALSE.)
@@ -132,7 +132,7 @@ CONTAINS
       CALL section_create(subsection, __LOCATION__, name="LYP_ADIABATIC", &
                           description="Uses the LYP correlation functional in an adiabatic fashion", &
                           n_keywords=0, n_subsections=0, repeats=.FALSE., &
-                          citations=(/Lee1988/))
+                          citations=[Lee1988])
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="activates the functional", &
                           lone_keyword_l_val=.TRUE., default_l_val=.FALSE.)
@@ -150,7 +150,7 @@ CONTAINS
       CALL section_create(subsection, __LOCATION__, name="BECKE88_LR_ADIABATIC", &
                           description="Uses the Becke 88 longrange exchange functional in an adiabatic fashion", &
                           n_keywords=0, n_subsections=0, repeats=.FALSE., &
-                          citations=(/Becke1988/))
+                          citations=[Becke1988])
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="activates the functional", &
                           lone_keyword_l_val=.TRUE., default_l_val=.FALSE.)
@@ -178,7 +178,7 @@ CONTAINS
       CALL section_create(subsection, __LOCATION__, name="BECKE88_LR", &
                           description="Uses the Becke 88 longrange exchange functional", &
                           n_keywords=0, n_subsections=0, repeats=.FALSE., &
-                          citations=(/Becke1988/))
+                          citations=[Becke1988])
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="activates the functional", &
                           lone_keyword_l_val=.TRUE., default_l_val=.FALSE.)
@@ -201,7 +201,7 @@ CONTAINS
       CALL section_create(subsection, __LOCATION__, name="LYP", &
                           description="Uses the LYP functional", &
                           n_keywords=0, n_subsections=0, repeats=.FALSE., &
-                          citations=(/Lee1988/))
+                          citations=[Lee1988])
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="activates the functional", &
                           lone_keyword_l_val=.TRUE., default_l_val=.FALSE.)
@@ -218,7 +218,7 @@ CONTAINS
       CALL section_create(subsection, __LOCATION__, name="PADE", &
                           description="Uses the PADE functional", &
                           n_keywords=0, n_subsections=0, repeats=.FALSE., &
-                          citations=(/Goedecker1996/))
+                          citations=[Goedecker1996])
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="activates the functional", &
                           lone_keyword_l_val=.TRUE., default_l_val=.FALSE.)
@@ -233,8 +233,8 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="PARAMETER_SET", &
                           description="Which version of the parameters should be used", &
                           usage="PARAMETER_SET 407", &
-                          enum_c_vals=(/"93 ", "120", "147", "407", "HLE"/), &
-                          enum_i_vals=(/93, 120, 147, 407, 408/), &
+                          enum_c_vals=["93 ", "120", "147", "407", "HLE"], &
+                          enum_i_vals=[93, 120, 147, 407, 408], &
                           default_i_val=120)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
@@ -302,15 +302,15 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="FUNCTIONAL", &
                           description="Which one of the XGGA functionals should be used", &
                           usage="FUNCTIONAL PW86X", &
-                          enum_c_vals=(/ &
+                          enum_c_vals=[ &
                           "BECKE88X", &
                           "PW86X   ", &
                           "PW91X   ", &
                           "PBEX    ", &
                           "REV_PBEX", &
                           "OPTX    ", &
-                          "EV93    "/), &
-                          enum_i_vals=(/xgga_b88x, xgga_pw86, xgga_pw91, xgga_pbex, xgga_revpbe, xgga_opt, xgga_ev93/), &
+                          "EV93    "], &
+                          enum_i_vals=[xgga_b88x, xgga_pw86, xgga_pw91, xgga_pbex, xgga_revpbe, xgga_opt, xgga_ev93], &
                           default_i_val=xgga_b88x)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
@@ -331,8 +331,8 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="FUNCTIONAL", &
                           description="Which one of the KE_GGA functionals should be used", &
                           usage="FUNCTIONAL (OL1|OL2|LLP|PW86|PW91|LC|T92|PBE)", &
-                          enum_c_vals=(/"OL1 ", "OL2 ", "LLP ", "PW86", "PW91", "LC  ", "T92 ", "PBE "/), &
-                          enum_i_vals=(/ke_ol1, ke_ol2, ke_llp, ke_pw86, ke_pw91, ke_lc, ke_t92, ke_pbe/), &
+                          enum_c_vals=["OL1 ", "OL2 ", "LLP ", "PW86", "PW91", "LC  ", "T92 ", "PBE "], &
+                          enum_i_vals=[ke_ol1, ke_ol2, ke_llp, ke_pw86, ke_pw91, ke_lc, ke_t92, ke_pbe], &
                           enum_desc=s2a("Uses first Ou-Yang and Levy functional, currently not producing correct results", &
                                         "Uses second Ou-Yang and Levy functional, currently not producing correct results", &
                                         "Uses Lee, Lee, and Parr functional", &
@@ -379,11 +379,11 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="PARAMETRIZATION", &
                           description="Which one of parametrizations should be used", &
                           usage="PARAMETRIZATION DMC", &
-                          enum_c_vals=(/ &
+                          enum_c_vals=[ &
                           "ORIGINAL", &
                           "DMC     ", &
-                          "VMC     "/), &
-                          enum_i_vals=(/c_pw92, c_pw92dmc, c_pw92vmc/), &
+                          "VMC     "], &
+                          enum_i_vals=[c_pw92, c_pw92dmc, c_pw92vmc], &
                           default_i_val=c_pw92)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
@@ -393,7 +393,7 @@ CONTAINS
       CALL section_create(subsection, __LOCATION__, name="PZ81", &
                           description="Uses the PZ functional.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE., &
-                          citations=(/Perdew1981, Ortiz1994/))
+                          citations=[Perdew1981, Ortiz1994])
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="activates the functional", &
                           lone_keyword_l_val=.TRUE., default_l_val=.FALSE.)
@@ -402,11 +402,11 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="PARAMETRIZATION", &
                           description="Which one of parametrizations should be used", &
                           usage="PARAMETRIZATION DMC", &
-                          enum_c_vals=(/ &
+                          enum_c_vals=[ &
                           "ORIGINAL", &
                           "DMC     ", &
-                          "VMC     "/), &
-                          enum_i_vals=(/c_pz, c_pzdmc, c_pzvmc/), &
+                          "VMC     "], &
+                          enum_i_vals=[c_pz, c_pzdmc, c_pzvmc], &
                           default_i_val=pz_orig)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
@@ -443,7 +443,7 @@ CONTAINS
       CALL section_create(subsection, __LOCATION__, name="VWN", &
                           description="Uses the VWN functional", &
                           n_keywords=0, n_subsections=0, repeats=.FALSE., &
-                          citations=(/Vosko1980/))
+                          citations=[Vosko1980])
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="activates the functional", &
                           lone_keyword_l_val=.TRUE., default_l_val=.FALSE.)
@@ -459,7 +459,7 @@ CONTAINS
                           description="Which version of the VWN functional should be used", &
                           usage="FUNCTIONAL_TYPE VWN5", &
                           enum_c_vals=s2a("VWN5", "VWN3"), &
-                          enum_i_vals=(/do_vwn5, do_vwn3/), &
+                          enum_i_vals=[do_vwn5, do_vwn3], &
                           enum_desc=s2a("This is the recommended (correct) version of the VWN functional", &
                                         "This version is the default in Gaussian, but not recommended. "// &
                                         "Notice that it is also employed in Gaussian's default version of B3LYP"), &
@@ -496,7 +496,7 @@ CONTAINS
                           description="Uses the TPSS functional. Note, that there is no LSD version available. "// &
                           "In such cases, use the LIBXC version instead.", &
                           n_keywords=0, n_subsections=0, repeats=.FALSE., &
-                          citations=(/Tao2003/))
+                          citations=[Tao2003])
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="Activates the functional", &
                           lone_keyword_l_val=.TRUE., default_l_val=.FALSE.)
@@ -518,7 +518,7 @@ CONTAINS
       CALL section_create(subsection, __LOCATION__, name="PBE", &
                           description="Uses the PBE functional", &
                           n_keywords=0, n_subsections=0, repeats=.FALSE., &
-                          citations=(/Perdew1996, Zhang1998, Perdew2008/))
+                          citations=[Perdew1996, Zhang1998, Perdew2008])
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="activates the functional", &
                           lone_keyword_l_val=.TRUE., default_l_val=.FALSE.)
@@ -530,11 +530,11 @@ CONTAINS
                           "Note: Beta parameters used have only 5 significant digits, "// &
                           "as published. For higher precision and program comparison "// &
                           "use the LIBXC library.", &
-                          enum_i_vals=(/xc_pbe_orig, xc_pbe_rev, xc_pbe_sol/), &
-                          enum_c_vals=(/"ORIG  ", "revPBE", "PBEsol"/), &
-                          enum_desc=(/"original PBE                        ", &
-                                      "revised PBE (revPBE)                ", &
-                                      "PBE for solids and surfaces (PBEsol)"/), &
+                          enum_i_vals=[xc_pbe_orig, xc_pbe_rev, xc_pbe_sol], &
+                          enum_c_vals=["ORIG  ", "revPBE", "PBEsol"], &
+                          enum_desc=["original PBE                        ", &
+                                     "revised PBE (revPBE)                ", &
+                                     "PBE for solids and surfaces (PBEsol)"], &
                           default_i_val=xc_pbe_orig)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
@@ -554,7 +554,7 @@ CONTAINS
       CALL section_create(subsection, __LOCATION__, name="XWPBE", &
                           description="Uses the short range PBE functional", &
                           n_keywords=0, n_subsections=0, repeats=.FALSE., &
-                          citations=(/Heyd2004/))
+                          citations=[Heyd2004])
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="activates the functional", &
                           lone_keyword_l_val=.TRUE., default_l_val=.FALSE.)
@@ -581,7 +581,7 @@ CONTAINS
       CALL section_create(subsection, __LOCATION__, name="BECKE97", &
                           description="Uses the Becke 97 exchange correlation functional", &
                           n_keywords=0, n_subsections=0, repeats=.FALSE., &
-                          citations=(/Becke1997, Grimme2006/))
+                          citations=[Becke1997, Grimme2006])
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="activates the functional", &
                           lone_keyword_l_val=.TRUE., default_l_val=.FALSE.)
@@ -599,8 +599,8 @@ CONTAINS
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="parametrization", &
                           description="switches between the B97 and Grimme parametrization ", &
-                          enum_i_vals=(/xc_b97_orig, xc_b97_grimme, xc_b97_grimme, xc_b97_mardirossian, xc_b97_3c/), &
-                          enum_c_vals=(/"ORIG      ", "B97GRIMME ", "B97_GRIMME", "wB97X-V   ", "B97-3c    "/), &
+                          enum_i_vals=[xc_b97_orig, xc_b97_grimme, xc_b97_grimme, xc_b97_mardirossian, xc_b97_3c], &
+                          enum_c_vals=["ORIG      ", "B97GRIMME ", "B97_GRIMME", "wB97X-V   ", "B97-3c    "], &
                           default_i_val=xc_b97_orig)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
@@ -612,7 +612,7 @@ CONTAINS
                           description="Becke Roussel exchange hole model. Can be used "// &
                           "as long range correction with a truncated coulomb potential", &
                           n_keywords=0, n_subsections=0, repeats=.FALSE., &
-                          citations=(/BeckeRoussel1989, Proynov2007/))
+                          citations=[BeckeRoussel1989, Proynov2007])
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="activates the functional", &
                           lone_keyword_l_val=.TRUE., default_l_val=.FALSE.)
@@ -709,7 +709,7 @@ CONTAINS
       CALL section_create(subsection, __LOCATION__, name="BEEF", & !rk: BEEF Exchange
                           description="Uses the BEEFvdW exchange functional", &
                           n_keywords=0, n_subsections=0, repeats=.FALSE., &
-                          citations=(/Wellendorff2012/))
+                          citations=[Wellendorff2012])
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="activates the functional", &
                           lone_keyword_l_val=.TRUE., default_l_val=.FALSE.)
@@ -770,11 +770,11 @@ CONTAINS
                           description="How to determine the total energy.", &
                           usage="ENERGY [NONE,XC_FUNCTIONAL,SUM_EIGENVALUES", &
                           enum_c_vals=s2a("NONE", "XC_FUNCTIONAL", "FUNCTIONAL", "SUM_EIGENVALUES", "SOE"), &
-                          enum_i_vals=(/xc_pot_energy_none, &
-                                        xc_pot_energy_xc_functional, &
-                                        xc_pot_energy_xc_functional, &
-                                        xc_pot_energy_sum_eigenvalues, &
-                                        xc_pot_energy_sum_eigenvalues/), &
+                          enum_i_vals=[xc_pot_energy_none, &
+                                       xc_pot_energy_xc_functional, &
+                                       xc_pot_energy_xc_functional, &
+                                       xc_pot_energy_sum_eigenvalues, &
+                                       xc_pot_energy_sum_eigenvalues], &
                           default_i_val=xc_pot_energy_none)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -805,7 +805,7 @@ CONTAINS
          description="Selection of kernel functionals.", &
          usage="&XC_KERNEL LDAfxc", &
          enum_c_vals=s2a("PADEfxc", "LDAfxc", "GGAfxc", "NONE"), &
-         enum_i_vals=(/fxc_funct_pade, fxc_funct_lda, fxc_funct_gga, fxc_none/), &
+         enum_i_vals=[fxc_funct_pade, fxc_funct_lda, fxc_funct_gga, fxc_none], &
          enum_desc=s2a("Fxc based on LDA PADE approximation", &
                        "Fxc based on LDA functionals", &
                        "Fxc model from fit to PBE functional", &
@@ -824,28 +824,28 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="GAMMA", &
                           description="B97 GAMMA parameters [gx, gab, gaa]", &
                           usage="GAMMA <REAL> <REAL> <REAL>", &
-                          default_r_vals=(/0.004_dp, 0.006_dp, 0.2_dp/), &
+                          default_r_vals=[0.004_dp, 0.006_dp, 0.2_dp], &
                           type_of_var=real_t, n_var=3)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="C_XAA", &
                           description="B97 C parameters for exchange", &
                           usage="C_XAA <REAL> <REAL> <REAL>", &
-                          default_r_vals=(/1.0_dp, 0.63_dp, 0.94_dp/), &
+                          default_r_vals=[1.0_dp, 0.63_dp, 0.94_dp], &
                           type_of_var=real_t, n_var=3)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="C_CAB", &
                           description="B97 C parameters for same spin correlation.", &
                           usage="C_CAB <REAL> <REAL> <REAL>", &
-                          default_r_vals=(/1.0_dp, 0.75_dp, -4.60_dp/), &
+                          default_r_vals=[1.0_dp, 0.75_dp, -4.60_dp], &
                           type_of_var=real_t, n_var=3)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="C_CAA", &
                           description="B97 C parameters for opposite spin correlation.", &
                           usage="C_CAA <REAL> <REAL> <REAL>", &
-                          default_r_vals=(/0.17_dp, 2.35_dp, -2.55_dp/), &
+                          default_r_vals=[0.17_dp, 2.35_dp, -2.55_dp], &
                           type_of_var=real_t, n_var=3)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -930,7 +930,7 @@ CONTAINS
                           description="This section combines all possible additional dispersion "// &
                           "corrections to the normal XC functionals. This can be more functionals "// &
                           "or simple empirical pair potentials. ", &
-                          citations=(/grimme2006, Tran2013/), &
+                          citations=[grimme2006, Tran2013], &
                           n_keywords=1, n_subsections=1, repeats=.FALSE.)
 
       NULLIFY (subsection, keyword)
@@ -939,7 +939,7 @@ CONTAINS
                           description="Type of dispersion/vdW functional or potential to use", &
                           usage="POTENTIAL_TYPE (NONE|PAIR_POTENTIAL|NON_LOCAL)", &
                           enum_c_vals=s2a("NONE", "PAIR_POTENTIAL", "NON_LOCAL"), &
-                          enum_i_vals=(/xc_vdw_fun_none, xc_vdw_fun_pairpot, xc_vdw_fun_nonloc/), &
+                          enum_i_vals=[xc_vdw_fun_none, xc_vdw_fun_pairpot, xc_vdw_fun_nonloc], &
                           enum_desc=s2a("No dispersion/van der Waals functional", &
                                         "Pair potential van der Waals density functional", &
                                         "Nonlocal van der Waals density functional"), &
@@ -973,11 +973,11 @@ CONTAINS
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="TYPE", &
                           description="Type of potential", &
-                          citations=(/grimme2006, grimme2010, grimme2011, Caldeweyher2020/), &
+                          citations=[grimme2006, grimme2010, grimme2011, Caldeweyher2020], &
                           usage="TYPE (DFTD2|DFTD3|DFTD3(BJ)|DFTD4)", &
                           enum_c_vals=s2a("DFTD2", "DFTD3", "DFTD3(BJ)", "DFTD4"), &
-                          enum_i_vals=(/vdw_pairpot_dftd2, vdw_pairpot_dftd3, &
-                                        vdw_pairpot_dftd3bj, vdw_pairpot_dftd4/), &
+                          enum_i_vals=[vdw_pairpot_dftd2, vdw_pairpot_dftd3, &
+                                       vdw_pairpot_dftd3bj, vdw_pairpot_dftd4], &
                           enum_desc=s2a("Grimme D2 method", &
                                         "Grimme D3 method (zero damping)", &
                                         "Grimme D3 method (Becke-Johnson damping)", &
@@ -1036,7 +1036,7 @@ CONTAINS
                           " if set to zero CP2K attempts"// &
                           " to guess the xc functional from REFERENCE_FUNCTIONAL and sets the associated scaling parameter.", &
                           usage="D3_SCALING 1.0 1.0 1.0", n_var=3, &
-                          default_r_vals=(/0.0_dp, 0.0_dp, 0.0_dp/))
+                          default_r_vals=[0.0_dp, 0.0_dp, 0.0_dp])
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="D3BJ_SCALING", &
@@ -1044,7 +1044,7 @@ CONTAINS
                           " if set to zero CP2K attempts"// &
                           " to guess the xc functional from REFERENCE_FUNCTIONAL and sets the associated scaling parameter.", &
                           usage="D3BJ_SCALING 1.0 1.0 1.0 1.0", n_var=4, &
-                          default_r_vals=(/0.0_dp, 0.0_dp, 0.0_dp, 0.0_dp/))
+                          default_r_vals=[0.0_dp, 0.0_dp, 0.0_dp, 0.0_dp])
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="D4_SCALING", &
@@ -1052,7 +1052,7 @@ CONTAINS
                           " if set to zero CP2K attempts"// &
                           " to guess the xc functional from REFERENCE_FUNCTIONAL and sets the associated scaling parameter.", &
                           usage="D4_SCALING 1.0 1.0 1.0 1.0", n_var=4, &
-                          default_r_vals=(/0.0_dp, 0.0_dp, 0.0_dp, 0.0_dp/))
+                          default_r_vals=[0.0_dp, 0.0_dp, 0.0_dp, 0.0_dp])
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="CALCULATE_C9_TERM", &
@@ -1089,7 +1089,7 @@ CONTAINS
                           description="Parameters for the short-range bond correction to the DFT-D3 model. "// &
                           "s*(za*zb)^t1*EXP(-g*dr*r0ab^t2), parameters: s, g, t1, t2 "// &
                           "Defaults: s=0.08, g=10.0, t1=0.5, t2=-1.0 ", &
-                          usage="SHORT_RANGE_CORRECTION_PARAMETERS", default_r_vals=(/0.08_dp, 10.0_dp, 0.5_dp, -1.0_dp/), &
+                          usage="SHORT_RANGE_CORRECTION_PARAMETERS", default_r_vals=[0.08_dp, 10.0_dp, 0.5_dp, -1.0_dp], &
                           n_var=4, type_of_var=real_t)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
@@ -1180,11 +1180,11 @@ CONTAINS
                           "Allows for common forms such as vdW-DF, vdW-DF2, optB88-vdW, rVV10.", &
                           usage="TYPE DRSLL", &
                           enum_c_vals=s2a("DRSLL", "LMKLL", "RVV10"), &
-                          enum_i_vals=(/vdw_nl_DRSLL, vdw_nl_LMKLL, vdw_nl_RVV10/), &
+                          enum_i_vals=[vdw_nl_DRSLL, vdw_nl_LMKLL, vdw_nl_RVV10], &
                           enum_desc=s2a("Dion-Rydberg-Schroeder-Langreth-Lundqvist nonlocal van der Waals density functional", &
                                         "Lee-Murray-Kong-Lundqvist-Langreth nonlocal van der Waals density functional", &
                                         "Revised Vydrov-van Voorhis nonlocal van der Waals density functional"), &
-                          citations=(/Tran2013/), &
+                          citations=[Tran2013], &
                           default_i_val=vdw_nl_DRSLL)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
@@ -1212,7 +1212,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="PARAMETERS", &
                           description="Parameters b and C of the rVV10 functional", &
                           usage="PARAMETERS 6.3 0.0093", &
-                          type_of_var=real_t, default_r_vals=(/6.3_dp, 0.0093_dp/), n_var=2)
+                          type_of_var=real_t, default_r_vals=[6.3_dp, 0.0093_dp], n_var=2)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="SCALE", &
@@ -1241,7 +1241,7 @@ CONTAINS
       CALL section_create(section, __LOCATION__, name="gcp_potential", &
                           description="This section combines geometrical counterpoise potentials."// &
                           " This is a simple empirical pair potential to correct for BSSE. ", &
-                          citations=(/Kruse2012/), &
+                          citations=[Kruse2012], &
                           n_keywords=1, n_subsections=1, repeats=.FALSE.)
 
       NULLIFY (keyword)
@@ -1256,14 +1256,14 @@ CONTAINS
                           description="Global parameters of the gCP method."// &
                           " Parameters are sigma, alpha, beta, eta from the original paper.", &
                           usage="GLOBAL_PARAMETERS 1.0 1.0 1.0 1.0", n_var=4, &
-                          default_r_vals=(/0.0_dp, 0.0_dp, 0.0_dp, 0.0_dp/))
+                          default_r_vals=[0.0_dp, 0.0_dp, 0.0_dp, 0.0_dp])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="DELTA_ENERGY", &
                           description="Specify the delta energy [Hartree] term for an atom kind", &
                           usage="DELTA_ENERGY  type value", &
-                          type_of_var=char_t, repeats=.TRUE., n_var=-1, default_c_vals=(/"XX ", "0.0"/))
+                          type_of_var=char_t, repeats=.TRUE., n_var=-1, default_c_vals=["XX ", "0.0"])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1325,7 +1325,7 @@ CONTAINS
          usage="FUNCTIONAL_ROUTINE (DEFAULT|TEST_LSD|DEBUG)", &
          default_i_val=xc_default_f_routine, &
          enum_c_vals=s2a("DEFAULT", "TEST_LSD", "DEBUG"), &
-         enum_i_vals=(/xc_default_f_routine, xc_test_lsd_f_routine, xc_debug_new_routine/), &
+         enum_i_vals=[xc_default_f_routine, xc_test_lsd_f_routine, xc_debug_new_routine], &
          enum_desc=s2a("Carry out exchange-correlation functional calculation", &
                        "Use test local-spin-density approximation code for exchange-correlation functional calculation", &
                        "Use debug new code for exchange-correlation functional calculation"))
@@ -1339,9 +1339,9 @@ CONTAINS
                           description="The density smoothing used for the xc calculation", &
                           usage="xc_smooth_rho nn10", default_i_val=xc_rho_no_smooth, &
                           enum_c_vals=s2a("NONE", "NN50", "NN10", "SPLINE2", "NN6", "SPLINE3", "NN4"), &
-                          enum_i_vals=(/xc_rho_no_smooth, xc_rho_nn50, xc_rho_nn10, &
-                                        xc_rho_spline2_smooth, xc_rho_spline2_smooth, xc_rho_spline3_smooth, &
-                                        xc_rho_spline3_smooth/))
+                          enum_i_vals=[xc_rho_no_smooth, xc_rho_nn50, xc_rho_nn10, &
+                                       xc_rho_spline2_smooth, xc_rho_spline2_smooth, xc_rho_spline3_smooth, &
+                                       xc_rho_spline3_smooth])
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
@@ -1350,10 +1350,10 @@ CONTAINS
                           usage="xc_deriv NN10_SMOOTH", default_i_val=xc_deriv_pw, &
                           enum_c_vals=s2a("PW", "SPLINE3", "SPLINE2", "NN50_SMOOTH", "NN10_SMOOTH", &
                                           "SPLINE2_SMOOTH", "NN6_SMOOTH", "SPLINE3_SMOOTH", "NN4_SMOOTH", "COLLOCATE"), &
-                          enum_i_vals=(/xc_deriv_pw, xc_deriv_spline3, xc_deriv_spline2, &
-                                        xc_deriv_nn50_smooth, xc_deriv_nn10_smooth, xc_deriv_spline2_smooth, &
-                                        xc_deriv_spline2_smooth, xc_deriv_spline3_smooth, xc_deriv_spline3_smooth, &
-                                        xc_deriv_collocate/))
+                          enum_i_vals=[xc_deriv_pw, xc_deriv_spline3, xc_deriv_spline2, &
+                                       xc_deriv_nn50_smooth, xc_deriv_nn10_smooth, xc_deriv_spline2_smooth, &
+                                       xc_deriv_spline2_smooth, xc_deriv_spline3_smooth, xc_deriv_spline3_smooth, &
+                                       xc_deriv_collocate])
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
@@ -1455,7 +1455,7 @@ CONTAINS
          "(Has to be consistent with the definitions in XC and HF).", &
          usage="FUNCTIONAL_TYPE MCY3", &
          enum_c_vals=s2a("MCY3"), &
-         enum_i_vals=(/do_adiabatic_hybrid_mcy3/), &
+         enum_i_vals=[do_adiabatic_hybrid_mcy3], &
          enum_desc=s2a("Use MCY3 hybrid functional"), &
          default_i_val=do_adiabatic_hybrid_mcy3)
       CALL section_add_keyword(section, keyword)
@@ -1488,7 +1488,7 @@ CONTAINS
          description="Which model for the coupling constant integration should be used. ", &
          usage="FUNCTIONAL_MODEL PADE", &
          enum_c_vals=s2a("PADE"), &
-         enum_i_vals=(/do_adiabatic_model_pade/), &
+         enum_i_vals=[do_adiabatic_model_pade], &
          enum_desc=s2a("Use pade model: W(lambda)=a+(b*lambda)/(1+c*lambda)"), &
          default_i_val=do_adiabatic_model_pade)
       CALL section_add_keyword(section, keyword)

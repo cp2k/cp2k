@@ -459,7 +459,7 @@ CONTAINS
                                   "MOTION%PINT%HELIUM%PRINT%PROJECTED_AREA", &
                                   DATA, &
                                   angstrom*angstrom, &
-                                  (/"A_x", "A_y", "A_z"/), &
+                                  ["A_x", "A_y", "A_z"], &
                                   "prefactor = "//TRIM(ADJUSTL(stmp))//" [Angstrom^-2]", &
                                   "helium-pa")
 
@@ -471,7 +471,7 @@ CONTAINS
                                   "MOTION%PINT%HELIUM%PRINT%PROJECTED_AREA_2_AVG", &
                                   DATA, &
                                   angstrom*angstrom*angstrom*angstrom, &
-                                  (/"<A_x^2>", "<A_y^2>", "<A_z^2>"/), &
+                                  ["<A_x^2>", "<A_y^2>", "<A_z^2>"], &
                                   "prefactor = "//TRIM(ADJUSTL(stmp))//" [Angstrom^-2]", &
                                   "helium-pa-avg", &
                                   "REWIND", &
@@ -485,7 +485,7 @@ CONTAINS
                                   "MOTION%PINT%HELIUM%PRINT%MOMENT_OF_INERTIA", &
                                   DATA, &
                                   angstrom*angstrom, &
-                                  (/"I_x/m", "I_y/m", "I_z/m"/), &
+                                  ["I_x/m", "I_y/m", "I_z/m"], &
                                   "prefactor = "//TRIM(ADJUSTL(stmp))//" [Angstrom^-2]", &
                                   "helium-mi")
 
@@ -497,7 +497,7 @@ CONTAINS
                                   "MOTION%PINT%HELIUM%PRINT%MOMENT_OF_INERTIA_AVG", &
                                   DATA, &
                                   angstrom*angstrom, &
-                                  (/"<I_x/m>", "<I_y/m>", "<I_z/m>"/), &
+                                  ["<I_x/m>", "<I_y/m>", "<I_z/m>"], &
                                   "prefactor = "//TRIM(ADJUSTL(stmp))//" [Angstrom^-2]", &
                                   "helium-mi-avg", &
                                   "REWIND", &
@@ -512,7 +512,7 @@ CONTAINS
                                   "MOTION%PINT%HELIUM%PRINT%WINDING_NUMBER", &
                                   DATA, &
                                   angstrom, &
-                                  (/"W_x", "W_y", "W_z"/), &
+                                  ["W_x", "W_y", "W_z"], &
                                   "prefactor = "//TRIM(ADJUSTL(stmp))//" [Angstrom^-2]", &
                                   "helium-wn")
 
@@ -524,7 +524,7 @@ CONTAINS
                                   "MOTION%PINT%HELIUM%PRINT%WINDING_NUMBER_2_AVG", &
                                   DATA, &
                                   angstrom*angstrom, &
-                                  (/"<W_x^2>", "<W_y^2>", "<W_z^2>"/), &
+                                  ["<W_x^2>", "<W_y^2>", "<W_z^2>"], &
                                   "prefactor = "//TRIM(ADJUSTL(stmp))//" [Angstrom^-2]", &
                                   "helium-wn-avg", &
                                   "REWIND", &

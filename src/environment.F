@@ -448,7 +448,7 @@ CONTAINS
       IF (SIZE(seed_vals) == 1) THEN
          initial_seed(:, :) = REAL(seed_vals(1), KIND=dp)
       ELSE IF (SIZE(seed_vals) == 6) THEN
-         initial_seed(1:3, 1:2) = RESHAPE(REAL(seed_vals(:), KIND=dp), (/3, 2/))
+         initial_seed(1:3, 1:2) = RESHAPE(REAL(seed_vals(:), KIND=dp), [3, 2])
       ELSE
          CPABORT("Supply exactly 1 or 6 arguments for SEED in &GLOBAL only!")
       END IF

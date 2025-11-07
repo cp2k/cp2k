@@ -285,7 +285,7 @@ CONTAINS
       ELSE
          host_buffer_c = offload_get_buffer_host_pointer_c(buffer%c_ptr)
          CPASSERT(C_ASSOCIATED(host_buffer_c))
-         CALL C_F_POINTER(host_buffer_c, buffer%host_buffer, shape=(/length/))
+         CALL C_F_POINTER(host_buffer_c, buffer%host_buffer, shape=[length])
       END IF
 
       CALL timestop(handle)

@@ -856,7 +856,7 @@ CONTAINS
       pgrid_gcd = gcd(nprows, npcols)
       CALL sort(cluster_prices, SIZE(cluster_list), cluster_list)
       CALL cp_heap_new(bin_heap, nbins)
-      CALL cp_heap_fill(bin_heap, (/(0_int_8, bin=1, nbins)/))
+      CALL cp_heap_fill(bin_heap, [(0_int_8, bin=1, nbins)])
       !
       nclusters = SIZE(cluster_list)
       ! Put the most expensive cluster in the bin with the smallest
@@ -918,7 +918,7 @@ CONTAINS
       ALLOCATE (bin_costs(nbins), distribution(natoms))
       bin_costs = 0
 
-      CALL spatial_recurse(pbc_scaled_coords, costs, (/(iatom, iatom=1, natoms)/), bin_costs, distribution, 0)
+      CALL spatial_recurse(pbc_scaled_coords, costs, [(iatom, iatom=1, natoms)], bin_costs, distribution, 0)
 
       ! WRITE(*, *) "Final bin costs: ", bin_costs
 

@@ -59,7 +59,7 @@ MODULE cp_parser_types
    CHARACTER(LEN=1), PARAMETER, PUBLIC   :: default_continuation_character = CHAR(92) ! backslash
    CHARACTER(LEN=4), PARAMETER, PUBLIC   :: default_separators = ",:;="
    CHARACTER(LEN=3), PARAMETER, PUBLIC   :: default_end_section_label = "END"
-   CHARACTER(LEN=1), PARAMETER, PUBLIC   :: default_comment_character(2) = (/"#", "!"/), &
+   CHARACTER(LEN=1), PARAMETER, PUBLIC   :: default_comment_character(2) = ["#", "!"], &
                                             default_section_character = "&", &
                                             default_quote_character = '"'
    INTEGER, PARAMETER, PUBLIC            :: max_unit_number = 999

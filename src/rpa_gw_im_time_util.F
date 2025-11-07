@@ -662,7 +662,7 @@ CONTAINS
          offset = entry_counter(imepos)
 
          buffer_send(imepos)%msg(offset + 1:offset + block_size) = &
-            RESHAPE(data_block(1:row_size, 1:col_size), (/block_size/))
+            RESHAPE(data_block(1:row_size, 1:col_size), [block_size])
 
          block = block_counter(imepos) + 1
 
@@ -703,7 +703,7 @@ CONTAINS
                   offset = buffer_rec(imepos)%indx(i_block, 3)
 
                   data_block(:, :) = RESHAPE(buffer_rec(imepos)%msg(offset + 1:offset + row_size*col_size), &
-                                             (/row_size, col_size/))
+                                             [row_size, col_size])
 
                END IF
 
@@ -830,7 +830,7 @@ CONTAINS
          ycell = index_to_cell(2, icell)
          zcell = index_to_cell(3, icell)
 
-         cell_vector(1:3) = MATMUL(hmat, REAL((/xcell, ycell, zcell/), dp))
+         cell_vector(1:3) = MATMUL(hmat, REAL([xcell, ycell, zcell], dp))
 
          rab_cell_i(1:3) = pbc(particle_set(iatom)%r(1:3), cell) - &
                            (pbc(particle_set(jatom)%r(1:3), cell) + cell_vector(1:3))
@@ -849,7 +849,7 @@ CONTAINS
          ycell = index_to_cell(2, icell)
          zcell = index_to_cell(3, icell)
 
-         cell_vector(1:3) = MATMUL(hmat, REAL((/xcell, ycell, zcell/), dp))
+         cell_vector(1:3) = MATMUL(hmat, REAL([xcell, ycell, zcell], dp))
 
          rab_cell_i(1:3) = pbc(particle_set(iatom)%r(1:3), cell) - &
                            (pbc(particle_set(jatom)%r(1:3), cell) + cell_vector(1:3))

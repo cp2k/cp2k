@@ -389,7 +389,7 @@ CONTAINS
                   egfa = sgfa + basis_set%nsgf_set(iset) - 1
 
                   max_contr(iset, ibasis) = &
-                     MAXVAL((/(SUM(ABS(basis_set%sphi(1:ncoa, i))), i=sgfa, egfa)/))
+                     MAXVAL([(SUM(ABS(basis_set%sphi(1:ncoa, i))), i=sgfa, egfa)])
 
                END DO !iset
             END DO !ibasis
@@ -1409,7 +1409,7 @@ CONTAINS
 
       IF (.NOT. xas_tdp_control%is_periodic) THEN
          CALL int_operators_r12_ab_os(r12_operator=operator_coulomb, vab=xas_tdp_env%ri_inv_coul, &
-                                      rab=(/0.0_dp, 0.0_dp, 0.0_dp/), fba=ri_basis, fbb=ri_basis, &
+                                      rab=[0.0_dp, 0.0_dp, 0.0_dp], fba=ri_basis, fbb=ri_basis, &
                                       calculate_forces=.FALSE.)
          CPASSERT(ASSOCIATED(xas_tdp_control))
       ELSE

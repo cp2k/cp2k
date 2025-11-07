@@ -110,21 +110,21 @@ CONTAINS
 
       SELECT CASE (periodic)
       CASE (use_perd_x)
-         params%periodic = (/1, 0, 0/)
+         params%periodic = [1, 0, 0]
       CASE (use_perd_y)
-         params%periodic = (/0, 1, 0/)
+         params%periodic = [0, 1, 0]
       CASE (use_perd_z)
-         params%periodic = (/0, 0, 1/)
+         params%periodic = [0, 0, 1]
       CASE (use_perd_xy)
-         params%periodic = (/1, 1, 0/)
+         params%periodic = [1, 1, 0]
       CASE (use_perd_xz)
-         params%periodic = (/1, 0, 1/)
+         params%periodic = [1, 0, 1]
       CASE (use_perd_yz)
-         params%periodic = (/0, 1, 1/)
+         params%periodic = [0, 1, 1]
       CASE (use_perd_xyz)
-         params%periodic = (/1, 1, 1/)
+         params%periodic = [1, 1, 1]
       CASE (use_perd_none)
-         params%periodic = (/0, 0, 0/)
+         params%periodic = [0, 0, 0]
       CASE DEFAULT
          CPABORT("")
       END SELECT

@@ -54,7 +54,7 @@ CONTAINS
       CALL section_create( &
          section, __LOCATION__, name="TMC", &
          description="A parallelized MC algorithm, presampling the configurations, espacially the Markov chain elements", &
-         citations=(/Schonherr2014/), &
+         citations=[Schonherr2014], &
          n_keywords=1, n_subsections=1, repeats=.FALSE.)
 
       NULLIFY (keyword, subsection)
@@ -136,7 +136,7 @@ CONTAINS
                           " If every single temperature is specified, "// &
                           "do NOT use keyword NR_TEMPERATURE", &
                           usage="TEMPERATURE {REAL} |OR| TEMPERATURE {REAL} {REAL} ...", &
-                          default_r_vals=(/330.0_dp/), &
+                          default_r_vals=[330.0_dp], &
                           n_var=-1, type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -176,7 +176,7 @@ CONTAINS
                           "Standard moves only within subbox of random position, "// &
                           "to compensate the potential difference of the approximate potential.", &
                           usage="SUB_BOX {REAL} {REAL} {REAL} OR SUB_BOX {REAL} for cubic", &
-                          default_r_vals=(/-1.0_dp/), &
+                          default_r_vals=[-1.0_dp], &
                           n_var=-1, type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -547,7 +547,7 @@ CONTAINS
                           " If every single temperature is specified, "// &
                           "do NOT use keyword NR_TEMPERATURE", &
                           usage="TEMPERATURE {REAL} |OR| TEMPERATURE {REAL} {REAL} ...", &
-                          default_r_vals=(/330.0_dp/), &
+                          default_r_vals=[330.0_dp], &
                           n_var=-1, type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -557,7 +557,7 @@ CONTAINS
                           description="Analysing multiple directories, "// &
                           "created by standard parallel MC (e.g. using TMC farming ", &
                           usage="DIRECTORIES {DIR1/} {DIR2/} ...", &
-                          default_c_vals=(/"./"/), &
+                          default_c_vals=["./"], &
                           n_var=-1, type_of_var=char_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -641,7 +641,7 @@ CONTAINS
                           name="DENSITY", &
                           description="Mass density in the simulation cell, or if specified in sub cubes", &
                           usage="DENSITY or DENSITY {INTEGER} {INTEGER} {INTEGER}", &
-                          default_i_vals=(/1/), &
+                          default_i_vals=[1], &
                           n_var=-1, type_of_var=integer_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

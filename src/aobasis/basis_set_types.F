@@ -396,7 +396,7 @@ CONTAINS
                pbasis%ly(ncgf) = indco(2, ico)
                pbasis%lz(ncgf) = indco(3, ico)
                pbasis%cgf_symbol(ncgf) = &
-                  cgf_symbol(pbasis%n(ishell, iset), (/pbasis%lx(ncgf), pbasis%ly(ncgf), pbasis%lz(ncgf)/))
+                  cgf_symbol(pbasis%n(ishell, iset), [pbasis%lx(ncgf), pbasis%ly(ncgf), pbasis%lz(ncgf)])
             END DO
             DO m = -lshell, lshell
                nsgf = nsgf + 1
@@ -944,7 +944,7 @@ CONTAINS
          zeta => gto_basis_set%zet(1:npgfa, iset)
          CALL coulomb2(lmax, npgfa, zeta, rpgfa, lmin, &
                        lmax, npgfa, zeta, rpgfa, lmin, &
-                       (/0.0_dp, 0.0_dp, 0.0_dp/), 0.0_dp, gaa, vv, ff(0:))
+                       [0.0_dp, 0.0_dp, 0.0_dp], 0.0_dp, gaa, vv, ff(0:))
          DO ishell = 1, gto_basis_set%nshell(iset)
             DO icgf = gto_basis_set%first_cgf(ishell, iset), &
                gto_basis_set%last_cgf(ishell, iset)
@@ -1431,9 +1431,9 @@ CONTAINS
                               gto_basis_set%ly(ncgf) = indco(2, ico)
                               gto_basis_set%lz(ncgf) = indco(3, ico)
                               gto_basis_set%cgf_symbol(ncgf) = &
-                                 cgf_symbol(n(ishell, iset), (/gto_basis_set%lx(ncgf), &
-                                                               gto_basis_set%ly(ncgf), &
-                                                               gto_basis_set%lz(ncgf)/))
+                                 cgf_symbol(n(ishell, iset), [gto_basis_set%lx(ncgf), &
+                                                              gto_basis_set%ly(ncgf), &
+                                                              gto_basis_set%lz(ncgf)])
                            END DO
                            DO m = -lshell, lshell
                               nsgf = nsgf + 1
@@ -1734,9 +1734,9 @@ CONTAINS
                gto_basis_set%ly(ncgf) = indco(2, ico)
                gto_basis_set%lz(ncgf) = indco(3, ico)
                gto_basis_set%cgf_symbol(ncgf) = &
-                  cgf_symbol(n(ishell, iset), (/gto_basis_set%lx(ncgf), &
-                                                gto_basis_set%ly(ncgf), &
-                                                gto_basis_set%lz(ncgf)/))
+                  cgf_symbol(n(ishell, iset), [gto_basis_set%lx(ncgf), &
+                                               gto_basis_set%ly(ncgf), &
+                                               gto_basis_set%lz(ncgf)])
             END DO
             DO m = -lshell, lshell
                nsgf = nsgf + 1
@@ -2556,9 +2556,9 @@ CONTAINS
             gto_basis_set%ly(ncgf) = indco(2, ico)
             gto_basis_set%lz(ncgf) = indco(3, ico)
             gto_basis_set%cgf_symbol(ncgf) = &
-               cgf_symbol(np, (/gto_basis_set%lx(ncgf), &
-                                gto_basis_set%ly(ncgf), &
-                                gto_basis_set%lz(ncgf)/))
+               cgf_symbol(np, [gto_basis_set%lx(ncgf), &
+                               gto_basis_set%ly(ncgf), &
+                               gto_basis_set%lz(ncgf)])
          END DO
          DO m = -lshell, lshell
             nsgf = nsgf + 1
@@ -2650,7 +2650,7 @@ CONTAINS
       REAL(dp)                                           :: srules
 
       REAL(dp), DIMENSION(7), PARAMETER :: &
-         xns = (/1.0_dp, 2.0_dp, 3.0_dp, 3.7_dp, 4.0_dp, 4.2_dp, 4.4_dp/)
+         xns = [1.0_dp, 2.0_dp, 3.0_dp, 3.7_dp, 4.0_dp, 4.2_dp, 4.4_dp]
 
       INTEGER                                            :: i, l1, l2, m, m1, m2, nn
       REAL(dp)                                           :: s

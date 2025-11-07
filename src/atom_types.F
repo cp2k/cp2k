@@ -382,7 +382,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'init_atom_basis'
       INTEGER, PARAMETER                                 :: nua = 40, nup = 16
-      REAL(KIND=dp), DIMENSION(nua), PARAMETER :: ugbs = (/0.007299_dp, 0.013705_dp, 0.025733_dp, &
+      REAL(KIND=dp), DIMENSION(nua), PARAMETER :: ugbs = [0.007299_dp, 0.013705_dp, 0.025733_dp, &
          0.048316_dp, 0.090718_dp, 0.170333_dp, 0.319819_dp, 0.600496_dp, 1.127497_dp, 2.117000_dp,&
          3.974902_dp, 7.463317_dp, 14.013204_dp, 26.311339_dp, 49.402449_dp, 92.758561_dp, &
          174.164456_dp, 327.013024_dp, 614.003114_dp, 1152.858743_dp, 2164.619772_dp, &
@@ -390,7 +390,7 @@ CONTAINS
          94845.070265_dp, 178082.107320_dp, 334368.848683_dp, 627814.487663_dp, 1178791.123851_dp, &
          2213310.684886_dp, 4155735.557141_dp, 7802853.046713_dp, 14650719.428954_dp, &
          27508345.793637_dp, 51649961.080194_dp, 96978513.342764_dp, 182087882.613702_dp, &
-         341890134.751331_dp/)
+         341890134.751331_dp]
 
       CHARACTER(LEN=default_string_length)               :: basis_fn, basis_name
       INTEGER                                            :: basistype, handle, i, j, k, l, ll, m, &
@@ -716,7 +716,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'init_atom_basis_default_pp'
       INTEGER, PARAMETER                                 :: nua = 40, nup = 20
-      REAL(KIND=dp), DIMENSION(nua), PARAMETER :: ugbs = (/0.007299_dp, 0.013705_dp, 0.025733_dp, &
+      REAL(KIND=dp), DIMENSION(nua), PARAMETER :: ugbs = [0.007299_dp, 0.013705_dp, 0.025733_dp, &
          0.048316_dp, 0.090718_dp, 0.170333_dp, 0.319819_dp, 0.600496_dp, 1.127497_dp, 2.117000_dp,&
          3.974902_dp, 7.463317_dp, 14.013204_dp, 26.311339_dp, 49.402449_dp, 92.758561_dp, &
          174.164456_dp, 327.013024_dp, 614.003114_dp, 1152.858743_dp, 2164.619772_dp, &
@@ -724,7 +724,7 @@ CONTAINS
          94845.070265_dp, 178082.107320_dp, 334368.848683_dp, 627814.487663_dp, 1178791.123851_dp, &
          2213310.684886_dp, 4155735.557141_dp, 7802853.046713_dp, 14650719.428954_dp, &
          27508345.793637_dp, 51649961.080194_dp, 96978513.342764_dp, 182087882.613702_dp, &
-         341890134.751331_dp/)
+         341890134.751331_dp]
 
       INTEGER                                            :: handle, i, k, l, m, ngp, nr, nu, quadtype
       REAL(KIND=dp)                                      :: al, ear, rk

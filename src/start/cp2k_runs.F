@@ -494,7 +494,7 @@ CONTAINS
          IF (output_unit > 0) WRITE (output_unit, FMT="(T2,A)") "FARMING| Using a Captain-Minion setup"
 
          ALLOCATE (captain_minion_partition(0:1))
-         captain_minion_partition = (/1, para_env%num_pe - 1/)
+         captain_minion_partition = [1, para_env%num_pe - 1]
          ALLOCATE (group_distribution(0:para_env%num_pe - 1))
 
          CALL minion_group%from_split(para_env, ngroups, group_distribution, &

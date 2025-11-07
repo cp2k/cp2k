@@ -148,7 +148,7 @@ CONTAINS
             A(:, i) = A(:, i)/NORM2(A(:, i))
          END DO
 
-         block_X = RESHAPE(A, (/n*m, 1/))
+         block_X = RESHAPE(A, [n*m, 1])
          DEALLOCATE (H, V0, A, H_evecs, H_evals)
 
       END DO
@@ -236,7 +236,7 @@ CONTAINS
 
          n = SIZE(block_A, 1) ! size of primary basis
          m = SIZE(block_A, 2) ! size of pao basis
-         block_A = RESHAPE(block_X, (/n, m/))
+         block_A = RESHAPE(block_X, [n, m])
 
          ! restrain pao basis vectors to unit norm
          IF (PRESENT(penalty)) THEN
@@ -322,7 +322,7 @@ CONTAINS
                DEALLOCATE (D, M1, M2, M3, M4, M5)
             END IF
 
-            block_G = RESHAPE(G, (/n*m, 1/))
+            block_G = RESHAPE(G, [n*m, 1])
             DEALLOCATE (G)
          END IF
 

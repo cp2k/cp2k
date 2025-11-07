@@ -59,7 +59,7 @@ CONTAINS
                           usage="METHOD FORCE_MATCHING", &
                           enum_c_vals=s2a("FORCE_MATCHING"), &
                           enum_desc=s2a("Perform a force matching minimization."), &
-                          enum_i_vals=(/opt_force_matching/), &
+                          enum_i_vals=[opt_force_matching], &
                           default_i_val=opt_force_matching)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

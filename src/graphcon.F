@@ -158,7 +158,7 @@ CONTAINS
 
       ! catch the case where the molecules are already in the right order
       N = SIZE(order)
-      order = (/(i, i=1, N)/)
+      order = [(i, i=1, N)]
       IF (matrix_equal(reference, unordered, order)) THEN
          matches = .TRUE.
          RETURN
@@ -222,7 +222,7 @@ CONTAINS
          class_of_atom(classes(I)%reference) = I
          ALLOCATE (classes(I)%order(Nele))
          ALLOCATE (classes(I)%q(Nele))
-         classes(I)%order = (/(J, J=1, Nele)/)
+         classes(I)%order = [(J, J=1, Nele)]
          classes(I)%first = .TRUE.
       END DO
 

@@ -516,8 +516,8 @@ CONTAINS
                  coeffs_kind(jkind, ikind)%x(2)) + coeffs_kind_max0 + pmax_blocks < log10_eps_schwarz) CYCLE
 
             n_element = n_element + 1
-            list%elements(n_element)%pair = (/iatom, jatom/)
-            list%elements(n_element)%kind_pair = (/ikind, jkind/)
+            list%elements(n_element)%pair = [iatom, jatom]
+            list%elements(n_element)%kind_pair = [ikind, jkind]
             list%elements(n_element)%r1 = ra
             list%elements(n_element)%r2 = B11
             list%elements(n_element)%dist2 = rab2
@@ -528,7 +528,7 @@ CONTAINS
                   IF (coeffs_set(jset, iset, jkind, ikind)%x(1)*rab2 + coeffs_set(jset, iset, jkind, ikind)%x(2) + &
                       coeffs_kind_max0 + pmax_blocks < log10_eps_schwarz) CYCLE
                   nset_ij = nset_ij + 1
-                  set_list(nset_ij)%pair = (/iset, jset/)
+                  set_list(nset_ij)%pair = [iset, jset]
                END DO
             END DO
             list%elements(n_element)%set_bounds(2) = nset_ij
@@ -702,8 +702,8 @@ CONTAINS
                  coeffs_kind(jkind, ikind)%x(2)) + coeffs_kind_max0 + pmax_blocks < log10_eps_schwarz) CYCLE
 
             n_element = n_element + 1
-            list%elements(n_element)%pair = (/iatom, jatom/)
-            list%elements(n_element)%kind_pair = (/ikind, jkind/)
+            list%elements(n_element)%pair = [iatom, jatom]
+            list%elements(n_element)%kind_pair = [ikind, jkind]
             list%elements(n_element)%r1 = ra
             list%elements(n_element)%r2 = B11
             list%elements(n_element)%dist2 = rab2
@@ -714,7 +714,7 @@ CONTAINS
                   IF (coeffs_set(jset, iset, jkind, ikind)%x(1)*rab2 + coeffs_set(jset, iset, jkind, ikind)%x(2) + &
                       coeffs_kind_max0 + pmax_blocks < log10_eps_schwarz) CYCLE
                   nset_ij = nset_ij + 1
-                  set_list(nset_ij)%pair = (/iset, jset/)
+                  set_list(nset_ij)%pair = [iset, jset]
                END DO
             END DO
             list%elements(n_element)%set_bounds(2) = nset_ij

@@ -41,7 +41,7 @@ MODULE neb_opt_utils
              neb_ls
 
    REAL(KIND=dp), DIMENSION(2:10), PRIVATE :: acceptance_factor = &
-                                              (/0.97_dp, 0.84_dp, 0.71_dp, 0.67_dp, 0.62_dp, 0.56_dp, 0.49_dp, 0.41_dp, 0.0_dp/)
+                                              [0.97_dp, 0.84_dp, 0.71_dp, 0.67_dp, 0.62_dp, 0.56_dp, 0.49_dp, 0.41_dp, 0.0_dp]
 
 CONTAINS
 
@@ -90,8 +90,8 @@ CONTAINS
       eps_svd = 1.0E-10_dp
       ALLOCATE (step(sline%size_wrk(1)*sline%size_wrk(2)))
       ALLOCATE (ref(sline%size_wrk(1)*sline%size_wrk(2)))
-      err(:, nv) = RESHAPE(sline%wrk, (/sline%size_wrk(1)*sline%size_wrk(2)/))
-      crr(:, nv) = RESHAPE(coords%wrk, (/coords%size_wrk(1)*coords%size_wrk(2)/))
+      err(:, nv) = RESHAPE(sline%wrk, [sline%size_wrk(1)*sline%size_wrk(2)])
+      crr(:, nv) = RESHAPE(coords%wrk, [coords%size_wrk(1)*coords%size_wrk(2)])
       jv = n_diis
       IF (ALL(set_err == 1) .AND. apply_diis) THEN
          IF (iw2 > 0) WRITE (iw2, '(A)') "Applying DIIS equations"
@@ -167,7 +167,7 @@ CONTAINS
             ! possibly enlarge the error space
             IF (increase_error) THEN
                accepted = .TRUE.
-               sline%wrk = RESHAPE(step, (/sline%size_wrk(1), sline%size_wrk(2)/))
+               sline%wrk = RESHAPE(step, [sline%size_wrk(1), sline%size_wrk(2)])
             ELSE
                DEALLOCATE (awrk)
                DEALLOCATE (cwrk)

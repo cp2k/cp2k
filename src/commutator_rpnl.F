@@ -272,7 +272,7 @@ CONTAINS
                   CALL overlap(la_max(iset), la_min(iset), npgfa(iset), rpgfa(:, iset), zeta(:, iset), &
                                lc_max, lc_min, 1, rprjc, zetc, rac, dac, sab(:, :, 1), 0, .FALSE., ai_work, ldai)
                   CALL moment(la_max(iset), npgfa(iset), zeta(:, iset), rpgfa(:, iset), la_min(iset), &
-                              lc_max, 1, zetc, rprjc, 1, rac, (/0._dp, 0._dp, 0._dp/), sab(:, :, 2:4))
+                              lc_max, 1, zetc, rprjc, 1, rac, [0._dp, 0._dp, 0._dp], sab(:, :, 2:4))
                   ! *** Transformation step projector functions (cartesian->spherical) ***
                   DO i = 1, maxder
                      CALL dgemm("N", "N", ncoa, nprjc, ncoc, 1.0_dp, sab(1, 1, i), ldsab, &

@@ -2340,7 +2340,7 @@ CONTAINS
          helium%center(:) = pint_com_pos(pint_env)
       ELSE
          IF (helium%periodic) THEN
-            helium%center(:) = (/0.0_dp, 0.0_dp, 0.0_dp/)
+            helium%center(:) = [0.0_dp, 0.0_dp, 0.0_dp]
          ELSE
             helium%center(:) = helium_com(helium)
          END IF

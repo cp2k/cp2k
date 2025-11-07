@@ -210,7 +210,7 @@ CONTAINS
             CYCLE
          END IF
 
-         CALL C_F_POINTER(block_c, block, shape=(/row_size, col_size/))
+         CALL C_F_POINTER(block_c, block, shape=[row_size, col_size])
          DO i = 1, row_size
             DO j = 1, col_size
                rel_diff = ABS(block(i, j) - block_dbcsr(i, j))/MAX(1.0_dp, ABS(block_dbcsr(i, j)))
@@ -468,7 +468,7 @@ CONTAINS
       CALL dbm_get_block_p_c(matrix=matrix%c_ptr, row=row - 1, col=col - 1, &
                              block=block_c, row_size=my_row_size, col_size=my_col_size)
       IF (C_ASSOCIATED(block_c)) THEN
-         CALL C_F_POINTER(block_c, block, shape=(/my_row_size, my_col_size/))
+         CALL C_F_POINTER(block_c, block, shape=[my_row_size, my_col_size])
       ELSE
          NULLIFY (block)  ! block not found
       END IF
@@ -931,7 +931,7 @@ CONTAINS
                                      row_size=my_row_size, col_size=my_col_size)
 
       CPASSERT(C_ASSOCIATED(block_c))
-      IF (PRESENT(block)) CALL C_F_POINTER(block_c, block, shape=(/my_row_size, my_col_size/))
+      IF (PRESENT(block)) CALL C_F_POINTER(block_c, block, shape=[my_row_size, my_col_size])
       row = row0 + 1
       column = col0 + 1
       IF (PRESENT(row_size)) row_size = my_row_size
@@ -1036,7 +1036,7 @@ CONTAINS
 
       name_c = dbm_get_name_c(matrix%c_ptr)
 
-      CALL C_F_POINTER(name_c, name_f, shape=(/default_string_length/))
+      CALL C_F_POINTER(name_c, name_f, shape=[default_string_length])
 
       res = ""
       DO i = 1, default_string_length
@@ -1115,7 +1115,7 @@ CONTAINS
       END INTERFACE
 
       CALL dbm_get_row_sizes_c(matrix%c_ptr, nrows, row_sizes)
-      CALL C_F_POINTER(row_sizes, res, shape=(/nrows/))
+      CALL C_F_POINTER(row_sizes, res, shape=[nrows])
       ! TODO: maybe return an ALLOCATABLE
    END FUNCTION dbm_get_row_block_sizes
 
@@ -1142,7 +1142,7 @@ CONTAINS
       END INTERFACE
 
       CALL dbm_get_col_sizes_c(matrix%c_ptr, ncols, col_sizes)
-      CALL C_F_POINTER(col_sizes, res, shape=(/ncols/))
+      CALL C_F_POINTER(col_sizes, res, shape=[ncols])
       ! TODO: maybe return an ALLOCATABLE
    END FUNCTION dbm_get_col_block_sizes
 
@@ -1171,7 +1171,7 @@ CONTAINS
       END INTERFACE
 
       CALL dbm_get_local_rows_c(matrix%c_ptr, nlocal_rows, local_rows_c)
-      CALL C_F_POINTER(local_rows_c, local_rows_ptr, shape=(/nlocal_rows/))
+      CALL C_F_POINTER(local_rows_c, local_rows_ptr, shape=[nlocal_rows])
       ALLOCATE (local_rows(nlocal_rows))
       local_rows(:) = local_rows_ptr(:) + 1
 
@@ -1208,7 +1208,7 @@ CONTAINS
       END INTERFACE
 
       CALL dbm_get_local_cols_c(matrix%c_ptr, nlocal_cols, local_cols_c)
-      CALL C_F_POINTER(local_cols_c, local_cols_ptr, shape=(/nlocal_cols/))
+      CALL C_F_POINTER(local_cols_c, local_cols_ptr, shape=[nlocal_cols])
       ALLOCATE (local_cols(nlocal_cols))
       local_cols(:) = local_cols_ptr(:) + 1
 
@@ -1350,7 +1350,7 @@ CONTAINS
       ALLOCATE (pgrid(0:npdims(1) - 1, 0:npdims(2) - 1))
       DO prow = 0, npdims(1) - 1
          DO pcol = 0, npdims(2) - 1
-            coord = (/prow, pcol/)
+            coord = [prow, pcol]
             CALL mp_comm%rank_cart(coord, pgrid(prow, pcol))
          END DO
       END DO
@@ -1437,7 +1437,7 @@ CONTAINS
       END INTERFACE
 
       CALL dbm_distribution_row_dist_c(dist%c_ptr, nrows, row_dist)
-      CALL C_F_POINTER(row_dist, res, shape=(/nrows/))
+      CALL C_F_POINTER(row_dist, res, shape=[nrows])
 
 #if defined(DBM_VALIDATE_AGAINST_DBCSR)
       CPASSERT(ALL(res == dbcsr_distribution_row_dist(dist%dbcsr)))
@@ -1467,7 +1467,7 @@ CONTAINS
       END INTERFACE
 
       CALL dbm_distribution_col_dist_c(dist%c_ptr, ncols, col_dist)
-      CALL C_F_POINTER(col_dist, res, shape=(/ncols/))
+      CALL C_F_POINTER(col_dist, res, shape=[ncols])
 
 #if defined(DBM_VALIDATE_AGAINST_DBCSR)
       CPASSERT(ALL(res == dbcsr_distribution_col_dist(dist%dbcsr)))

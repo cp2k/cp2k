@@ -1005,9 +1005,9 @@ CONTAINS
 
          ! setup distribution vectors such that distribution matches parallel data layout of BIb_C and my_Lrows
          dist_B_i = [0]
-         dist_B_a = (/(i, i=0, nproc - 1)/)
-         dist_L_R = (/(MODULO(i, nproc), i=0, ngroup - 1)/) ! R index is replicated in my_Lrows, we impose a cyclic distribution
-         dist_L_P = (/(i, i=0, ngroup - 1)/)
+         dist_B_a = [(i, i=0, nproc - 1)]
+         dist_L_R = [(MODULO(i, nproc), i=0, ngroup - 1)] ! R index is replicated in my_Lrows, we impose a cyclic distribution
+         dist_L_P = [(i, i=0, ngroup - 1)]
 
          ! create distributions and tensors
          CALL dbt_distribution_new(dist_B, mp_comm_B, dist_L_P, dist_B_a, dist_B_i)

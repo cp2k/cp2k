@@ -82,7 +82,7 @@ CONTAINS
                           " be supplied along with the keyword. For `MACDONALD` also the list of shifts."// &
                           " E.g. `MONKHORST-PACK 12 12 8`, `MACDONALD 4 4 4 0.25 0.25 0.25`", &
                           usage="SCHEME {KPMETHOD} {integer} {integer} ..", &
-                          citations=(/Monkhorst1976, MacDonald1978/), &
+                          citations=[Monkhorst1976, MacDonald1978], &
                           n_var=-1, type_of_var=char_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -151,7 +151,7 @@ CONTAINS
                           enum_c_vals=s2a("REAL", "COMPLEX"), &
                           enum_desc=s2a("Use real wavefunctions (if possible by kpoints specified).", &
                                         "Use complex wavefunctions (default)."), &
-                          enum_i_vals=(/use_real_wfn, use_complex_wfn/))
+                          enum_i_vals=[use_real_wfn, use_complex_wfn])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

@@ -65,9 +65,9 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="EIP_MODEL", &
                           description="Selects the empirical interaction potential model", &
                           usage="EIP_MODEL BAZANT", type_of_var=enum_t, &
-                          n_var=1, repeats=.FALSE., variants=(/"EIP-MODEL"/), &
+                          n_var=1, repeats=.FALSE., variants=["EIP-MODEL"], &
                           enum_c_vals=s2a("BAZANT", "EDIP", "LENOSKY"), &
-                          enum_i_vals=(/use_bazant_eip, use_bazant_eip, use_lenosky_eip/), &
+                          enum_i_vals=[use_bazant_eip, use_bazant_eip, use_lenosky_eip], &
                           enum_desc=s2a("Bazant potentials", &
                                         "Environment-Dependent Interatomic Potential", &
                                         "Lenosky potentials"), &

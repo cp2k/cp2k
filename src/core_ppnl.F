@@ -411,7 +411,7 @@ CONTAINS
                         ! Calculate the primitive angular momentum integrals needed for spin-orbit coupling
                         lab = 0.0_dp
                         CALL angmom(la_max(iset), npgfa(iset), zeta(:, iset), rpgfa(:, iset), la_min(iset), &
-                                    lc_max, 1, zetc, rprjc, -rac, (/0._dp, 0._dp, 0._dp/), lab)
+                                    lc_max, 1, zetc, rprjc, -rac, [0._dp, 0._dp, 0._dp], lab)
                         DO i_dim = 1, 3
                            work_l(1:na, prjc:prjc + nb - 1, i_dim) = &
                               MATMUL(lab(1:na, 1:np, i_dim), cprj(1:np, prjc:prjc + nb - 1))

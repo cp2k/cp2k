@@ -60,7 +60,7 @@ CONTAINS
                           default_i_val=swarm_do_glbopt, &
                           enum_c_vals=s2a("GLOBAL_OPT"), &
                           enum_desc=s2a("Runs global geometry optimisation"), &
-                          enum_i_vals=(/swarm_do_glbopt/))
+                          enum_i_vals=[swarm_do_glbopt])
       CALL section_add_keyword(swarm_section, keyword)
       CALL keyword_release(keyword)
 

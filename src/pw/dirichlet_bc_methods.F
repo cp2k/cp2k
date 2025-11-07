@@ -501,8 +501,8 @@ CONTAINS
       forb_xtnt4 = yub .GT. cell_xtnts(2, 2)
       forb_xtnt5 = zlb .LT. cell_xtnts(1, 3)
       forb_xtnt6 = zub .GT. cell_xtnts(2, 3)
-      n_forb_xtnts = COUNT((/forb_xtnt1, forb_xtnt2, forb_xtnt3, &
-                             forb_xtnt4, forb_xtnt5, forb_xtnt6/) .EQV. test_forb_xtnts)
+      n_forb_xtnts = COUNT([forb_xtnt1, forb_xtnt2, forb_xtnt3, &
+                            forb_xtnt4, forb_xtnt5, forb_xtnt6] .EQV. test_forb_xtnts)
       IF (n_forb_xtnts .GT. 0) THEN
          CALL cp_abort(__LOCATION__, &
                        "The given extents for the Dirichlet region are outside the range of "// &
@@ -518,14 +518,14 @@ CONTAINS
       dirichlet_bc%smoothing_width = sigma
       dirichlet_bc%n_tiles = 1
 
-      dirichlet_bc%vertices(1:3, 1) = (/xlb, ylb, zlb/)
-      dirichlet_bc%vertices(1:3, 2) = (/xub, ylb, zlb/)
-      dirichlet_bc%vertices(1:3, 3) = (/xub, yub, zlb/)
-      dirichlet_bc%vertices(1:3, 4) = (/xlb, yub, zlb/)
-      dirichlet_bc%vertices(1:3, 5) = (/xlb, yub, zub/)
-      dirichlet_bc%vertices(1:3, 6) = (/xlb, ylb, zub/)
-      dirichlet_bc%vertices(1:3, 7) = (/xub, ylb, zub/)
-      dirichlet_bc%vertices(1:3, 8) = (/xub, yub, zub/)
+      dirichlet_bc%vertices(1:3, 1) = [xlb, ylb, zlb]
+      dirichlet_bc%vertices(1:3, 2) = [xub, ylb, zlb]
+      dirichlet_bc%vertices(1:3, 3) = [xub, yub, zlb]
+      dirichlet_bc%vertices(1:3, 4) = [xlb, yub, zlb]
+      dirichlet_bc%vertices(1:3, 5) = [xlb, yub, zub]
+      dirichlet_bc%vertices(1:3, 6) = [xlb, ylb, zub]
+      dirichlet_bc%vertices(1:3, 7) = [xub, ylb, zub]
+      dirichlet_bc%vertices(1:3, 8) = [xub, yub, zub]
 
       IF ((unit_nr .GT. 0) .AND. verbose) THEN
          WRITE (unit_nr, '(T3,A,A)') "======== verbose ", REPEAT('=', 61)
@@ -589,8 +589,8 @@ CONTAINS
       forb_xtnt4 = y_xtnt(2) .GT. cell_xtnts(2, 2)
       forb_xtnt5 = z_xtnt(1) .LT. cell_xtnts(1, 3)
       forb_xtnt6 = z_xtnt(2) .GT. cell_xtnts(2, 3)
-      n_forb_xtnts = COUNT((/forb_xtnt1, forb_xtnt2, forb_xtnt3, &
-                             forb_xtnt4, forb_xtnt5, forb_xtnt6/) .EQV. test_forb_xtnts)
+      n_forb_xtnts = COUNT([forb_xtnt1, forb_xtnt2, forb_xtnt3, &
+                            forb_xtnt4, forb_xtnt5, forb_xtnt6] .EQV. test_forb_xtnts)
       IF (n_forb_xtnts .GT. 0) THEN
          CALL cp_abort(__LOCATION__, &
                        "The given extents for the Dirichlet region are outside the range of "// &
@@ -606,14 +606,14 @@ CONTAINS
       dirichlet_bc%smoothing_width = sigma
       dirichlet_bc%n_tiles = 1
 
-      dirichlet_bc%vertices(1:3, 1) = (/x_xtnt(1), y_xtnt(1), z_xtnt(1)/)
-      dirichlet_bc%vertices(1:3, 2) = (/x_xtnt(2), y_xtnt(1), z_xtnt(1)/)
-      dirichlet_bc%vertices(1:3, 3) = (/x_xtnt(2), y_xtnt(2), z_xtnt(1)/)
-      dirichlet_bc%vertices(1:3, 4) = (/x_xtnt(1), y_xtnt(2), z_xtnt(1)/)
-      dirichlet_bc%vertices(1:3, 5) = (/x_xtnt(1), y_xtnt(2), z_xtnt(2)/)
-      dirichlet_bc%vertices(1:3, 6) = (/x_xtnt(1), y_xtnt(1), z_xtnt(2)/)
-      dirichlet_bc%vertices(1:3, 7) = (/x_xtnt(2), y_xtnt(1), z_xtnt(2)/)
-      dirichlet_bc%vertices(1:3, 8) = (/x_xtnt(2), y_xtnt(2), z_xtnt(2)/)
+      dirichlet_bc%vertices(1:3, 1) = [x_xtnt(1), y_xtnt(1), z_xtnt(1)]
+      dirichlet_bc%vertices(1:3, 2) = [x_xtnt(2), y_xtnt(1), z_xtnt(1)]
+      dirichlet_bc%vertices(1:3, 3) = [x_xtnt(2), y_xtnt(2), z_xtnt(1)]
+      dirichlet_bc%vertices(1:3, 4) = [x_xtnt(1), y_xtnt(2), z_xtnt(1)]
+      dirichlet_bc%vertices(1:3, 5) = [x_xtnt(1), y_xtnt(2), z_xtnt(2)]
+      dirichlet_bc%vertices(1:3, 6) = [x_xtnt(1), y_xtnt(1), z_xtnt(2)]
+      dirichlet_bc%vertices(1:3, 7) = [x_xtnt(2), y_xtnt(1), z_xtnt(2)]
+      dirichlet_bc%vertices(1:3, 8) = [x_xtnt(2), y_xtnt(2), z_xtnt(2)]
 
       IF ((unit_nr .GT. 0) .AND. verbose) THEN
          WRITE (unit_nr, '(T3,A,A)') "======== verbose ", REPEAT('=', 61)
@@ -891,15 +891,15 @@ CONTAINS
       END IF
       SELECT CASE (parallel_axis)
       CASE (x_axis)
-         IF (h .GT. MINVAL((/Ly, Lz/))) THEN
+         IF (h .GT. MINVAL([Ly, Lz])) THEN
             CPABORT("Reduce the base radius!")
          END IF
       CASE (y_axis)
-         IF (h .GT. MINVAL((/Lx, Lz/))) THEN
+         IF (h .GT. MINVAL([Lx, Lz])) THEN
             CPABORT("Reduce the base radius!")
          END IF
       CASE (z_axis)
-         IF (h .GT. MINVAL((/Lx, Ly/))) THEN
+         IF (h .GT. MINVAL([Lx, Ly])) THEN
             CPABORT("Reduce the base radius!")
          END IF
       END SELECT
@@ -928,10 +928,10 @@ CONTAINS
             dbcs(j)%dirichlet_bc%dbc_id = CYLINDRICAL + j
             dbcs(j)%dirichlet_bc%smoothing_width = sigma
 
-            A = (/cntrlaxis_lb, yub(j), zub(j)/)
-            B = (/cntrlaxis_lb, ylb(j + 1), zlb(j + 1)/)
-            C = (/cntrlaxis_ub, ylb(j + 1), zlb(j + 1)/)
-            D = (/cntrlaxis_ub, yub(j), zub(j)/)
+            A = [cntrlaxis_lb, yub(j), zub(j)]
+            B = [cntrlaxis_lb, ylb(j + 1), zlb(j + 1)]
+            C = [cntrlaxis_ub, ylb(j + 1), zlb(j + 1)]
+            D = [cntrlaxis_ub, yub(j), zub(j)]
             normal_vec = vector_product((A - C), (D - B))
             unit_normal = normal_vec/SQRT(SUM(normal_vec**2))
 
@@ -980,10 +980,10 @@ CONTAINS
             dbcs(j)%dirichlet_bc%dbc_id = CYLINDRICAL + j
             dbcs(j)%dirichlet_bc%smoothing_width = sigma
 
-            A = (/xub(j), cntrlaxis_lb, zub(j)/)
-            B = (/xlb(j + 1), cntrlaxis_lb, zlb(j + 1)/)
-            C = (/xlb(j + 1), cntrlaxis_ub, zlb(j + 1)/)
-            D = (/xub(j), cntrlaxis_ub, zub(j)/)
+            A = [xub(j), cntrlaxis_lb, zub(j)]
+            B = [xlb(j + 1), cntrlaxis_lb, zlb(j + 1)]
+            C = [xlb(j + 1), cntrlaxis_ub, zlb(j + 1)]
+            D = [xub(j), cntrlaxis_ub, zub(j)]
             normal_vec = vector_product((A - C), (D - B))
             unit_normal = normal_vec/SQRT(SUM(normal_vec**2))
 
@@ -1032,10 +1032,10 @@ CONTAINS
             dbcs(j)%dirichlet_bc%dbc_id = CYLINDRICAL + j
             dbcs(j)%dirichlet_bc%smoothing_width = sigma
 
-            A = (/xub(j), yub(j), cntrlaxis_lb/)
-            B = (/xlb(j + 1), ylb(j + 1), cntrlaxis_lb/)
-            C = (/xlb(j + 1), ylb(j + 1), cntrlaxis_ub/)
-            D = (/xub(j), yub(j), cntrlaxis_ub/)
+            A = [xub(j), yub(j), cntrlaxis_lb]
+            B = [xlb(j + 1), ylb(j + 1), cntrlaxis_lb]
+            C = [xlb(j + 1), ylb(j + 1), cntrlaxis_ub]
+            D = [xub(j), yub(j), cntrlaxis_ub]
             normal_vec = vector_product((A - C), (D - B))
             unit_normal = normal_vec/SQRT(SUM(normal_vec**2))
 
@@ -1089,7 +1089,7 @@ CONTAINS
       REAL(dp)                                           :: dx
 
       dx = (b - a)/(N - 1)
-      arr = (/(a + (i - 1)*dx, i=1, N)/)
+      arr = [(a + (i - 1)*dx, i=1, N)]
 
    END FUNCTION linspace
 
@@ -1237,16 +1237,16 @@ CONTAINS
 
 ! divide the x, y and z extents into n_prtn partitions
       step = (x_xtnt(2) - x_xtnt(1))/REAL(n_prtn(1), kind=dp)
-      xprtn_lb(:) = x_xtnt(1) + (/(i, i=0, n_prtn(1) - 1)/)*step ! lower bounds
-      xprtn_ub(:) = x_xtnt(1) + (/(i, i=1, n_prtn(1))/)*step ! upper bounds
+      xprtn_lb(:) = x_xtnt(1) + [(i, i=0, n_prtn(1) - 1)]*step ! lower bounds
+      xprtn_ub(:) = x_xtnt(1) + [(i, i=1, n_prtn(1))]*step ! upper bounds
 
       step = (y_xtnt(2) - y_xtnt(1))/REAL(n_prtn(2), kind=dp)
-      yprtn_lb(:) = y_xtnt(1) + (/(i, i=0, n_prtn(2) - 1)/)*step
-      yprtn_ub(:) = y_xtnt(1) + (/(i, i=1, n_prtn(2))/)*step
+      yprtn_lb(:) = y_xtnt(1) + [(i, i=0, n_prtn(2) - 1)]*step
+      yprtn_ub(:) = y_xtnt(1) + [(i, i=1, n_prtn(2))]*step
 
       step = (z_xtnt(2) - z_xtnt(1))/REAL(n_prtn(3), kind=dp)
-      zprtn_lb(:) = z_xtnt(1) + (/(i, i=0, n_prtn(3) - 1)/)*step
-      zprtn_ub(:) = z_xtnt(1) + (/(i, i=1, n_prtn(3))/)*step
+      zprtn_lb(:) = z_xtnt(1) + [(i, i=0, n_prtn(3) - 1)]*step
+      zprtn_ub(:) = z_xtnt(1) + [(i, i=1, n_prtn(3))]*step
 
       ALLOCATE (tiles(n_prtn(1)*n_prtn(2)*n_prtn(3)))
       k = 1
@@ -1256,14 +1256,14 @@ CONTAINS
                ALLOCATE (tiles(k)%tile)
                tiles(k)%tile%tile_id = k
 
-               tiles(k)%tile%vertices(1:3, 1) = (/xprtn_lb(ii), yprtn_lb(jj), zprtn_lb(kk)/)
-               tiles(k)%tile%vertices(1:3, 2) = (/xprtn_ub(ii), yprtn_lb(jj), zprtn_lb(kk)/)
-               tiles(k)%tile%vertices(1:3, 3) = (/xprtn_ub(ii), yprtn_ub(jj), zprtn_lb(kk)/)
-               tiles(k)%tile%vertices(1:3, 4) = (/xprtn_lb(ii), yprtn_ub(jj), zprtn_lb(kk)/)
-               tiles(k)%tile%vertices(1:3, 5) = (/xprtn_lb(ii), yprtn_ub(jj), zprtn_ub(kk)/)
-               tiles(k)%tile%vertices(1:3, 6) = (/xprtn_lb(ii), yprtn_lb(jj), zprtn_ub(kk)/)
-               tiles(k)%tile%vertices(1:3, 7) = (/xprtn_ub(ii), yprtn_lb(jj), zprtn_ub(kk)/)
-               tiles(k)%tile%vertices(1:3, 8) = (/xprtn_ub(ii), yprtn_ub(jj), zprtn_ub(kk)/)
+               tiles(k)%tile%vertices(1:3, 1) = [xprtn_lb(ii), yprtn_lb(jj), zprtn_lb(kk)]
+               tiles(k)%tile%vertices(1:3, 2) = [xprtn_ub(ii), yprtn_lb(jj), zprtn_lb(kk)]
+               tiles(k)%tile%vertices(1:3, 3) = [xprtn_ub(ii), yprtn_ub(jj), zprtn_lb(kk)]
+               tiles(k)%tile%vertices(1:3, 4) = [xprtn_lb(ii), yprtn_ub(jj), zprtn_lb(kk)]
+               tiles(k)%tile%vertices(1:3, 5) = [xprtn_lb(ii), yprtn_ub(jj), zprtn_ub(kk)]
+               tiles(k)%tile%vertices(1:3, 6) = [xprtn_lb(ii), yprtn_lb(jj), zprtn_ub(kk)]
+               tiles(k)%tile%vertices(1:3, 7) = [xprtn_ub(ii), yprtn_lb(jj), zprtn_ub(kk)]
+               tiles(k)%tile%vertices(1:3, 8) = [xprtn_ub(ii), yprtn_ub(jj), zprtn_ub(kk)]
 
                tiles(k)%tile%volume = 0.0_dp
                k = k + 1
@@ -1547,7 +1547,7 @@ CONTAINS
       DO k = lb3, ub3
          DO j = lb2, ub2
             DO i = lb1, ub1
-               pnt0 = rotate_translate_vector(Rmat, Tpnt, BWROT, (/x_locl(i), y_locl(j), z_locl(k)/))
+               pnt0 = rotate_translate_vector(Rmat, Tpnt, BWROT, [x_locl(i), y_locl(j), z_locl(k)])
 
                xi0 = pnt0(1); yj0 = pnt0(2); zk0 = pnt0(3)
 

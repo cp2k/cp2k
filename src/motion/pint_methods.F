@@ -1068,7 +1068,7 @@ CONTAINS
          IF (levycorr) THEN
 
             ! correlated Levy walk - the same path for all atoms
-            x0 = (/0.0_dp, 0.0_dp, 0.0_dp/)
+            x0 = [0.0_dp, 0.0_dp, 0.0_dp]
             CALL pint_levy_walk(x0, pint_env%p, 1.0_dp, bx, rng_gaussian)
             idim = 0
             DO ia = 1, pint_env%ndim/3

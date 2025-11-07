@@ -1877,7 +1877,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'write_mo_free_results'
-      CHARACTER(len=1), DIMENSION(3), PARAMETER          :: cdir = (/"x", "y", "z"/)
+      CHARACTER(len=1), DIMENSION(3), PARAMETER          :: cdir = ["x", "y", "z"]
 
       CHARACTER(LEN=2)                                   :: element_symbol
       CHARACTER(LEN=default_path_length)                 :: filename, mpi_filename, my_pos_cube, &

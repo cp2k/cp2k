@@ -123,7 +123,7 @@ CONTAINS
       NULLIFY (keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="MAX_ITER_LUMO", &
-                          variants=(/"MAX_ITER_LUMOS"/), &
+                          variants=["MAX_ITER_LUMOS"], &
                           description="Maximum number of iterations for the calculation of the LUMO energies "// &
                           "with the OT eigensolver.", &
                           usage="MAX_ITER_LUMO 100", default_i_val=299)
@@ -131,7 +131,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="EPS_LUMO", &
-                          variants=(/"EPS_LUMOS"/), &
+                          variants=["EPS_LUMOS"], &
                           description="Target accuracy for the calculation of the LUMO energies with the OT eigensolver.", &
                           usage="EPS_LUMO 1.0E-6", default_r_val=1.0E-5_dp)
       CALL section_add_keyword(section, keyword)
@@ -143,21 +143,21 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="MAX_SCF_HISTORY", variants=(/"MAX_SCF_HIST"/), &
+      CALL keyword_create(keyword, __LOCATION__, name="MAX_SCF_HISTORY", variants=["MAX_SCF_HIST"], &
                           description="Maximum number of SCF iterations after the history pipeline is filled", &
                           usage="MAX_SCF_HISTORY 1", default_i_val=0, lone_keyword_i_val=1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="MAX_DIIS", &
-                          variants=(/"MAX_DIIS_BUFFER_SIZE"/), &
+                          variants=["MAX_DIIS_BUFFER_SIZE"], &
                           description="Maximum number of DIIS vectors to be used", &
                           usage="MAX_DIIS 3", default_i_val=4)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="LEVEL_SHIFT", &
-                          variants=(/"LSHIFT"/), &
+                          variants=["LSHIFT"], &
                           description="Use level shifting to improve convergence", &
                           unit_str="au_e", &
                           usage="LEVEL_SHIFT 0.1", &
@@ -171,7 +171,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="EPS_SCF_HISTORY", variants=(/"EPS_SCF_HIST"/), &
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_SCF_HISTORY", variants=["EPS_SCF_HIST"], &
                           description="Target accuracy for the SCF convergence after the history pipeline is filled.", &
                           usage="EPS_SCF_HISTORY 1.e-5", default_r_val=0.0_dp, lone_keyword_r_val=1.0e-5_dp)
       CALL section_add_keyword(section, keyword)
@@ -186,7 +186,7 @@ CONTAINS
                                         "Reduce is replaced by two restore", &
                                         "Restore uses operator multiply by inverse of the triangular matrix", &
                                         "Like inverse, but matrix stored as dbcsr, sparce matrix algebra used when possible"), &
-                          enum_i_vals=(/cholesky_off, cholesky_reduce, cholesky_restore, cholesky_inverse, cholesky_dbcsr/))
+                          enum_i_vals=[cholesky_off, cholesky_reduce, cholesky_restore, cholesky_inverse, cholesky_dbcsr])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -218,8 +218,8 @@ CONTAINS
                        "Use the EHT (gfn0-xTB) code to generate an initial wavefunction.", &
                        "Generate a sparse wavefunction using the atomic code (for OT based methods)", &
                        "Skip initial guess (only for non-self consistent methods)."), &
-         enum_i_vals=(/atomic_guess, restart_guess, random_guess, core_guess, &
-                       history_guess, mopac_guess, eht_guess, sparse_guess, no_guess/))
+         enum_i_vals=[atomic_guess, restart_guess, random_guess, core_guess, &
+                      history_guess, mopac_guess, eht_guess, sparse_guess, no_guess])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -249,14 +249,14 @@ CONTAINS
                           repeats=.FALSE., &
                           n_var=1, &
                           enum_c_vals=s2a("GENERAL", "HIGH-SPIN"), &
-                          enum_i_vals=(/general_roks, high_spin_roks/), &
+                          enum_i_vals=[general_roks, high_spin_roks], &
                           default_i_val=high_spin_roks)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, &
                           name="ROKS_F", &
-                          variants=(/"F_ROKS"/), &
+                          variants=["F_ROKS"], &
                           description="Allows to define the parameter f for the "// &
                           "general ROKS scheme.", &
                           usage="ROKS_F 1/2", &
@@ -269,7 +269,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, &
                           name="ROKS_PARAMETERS", &
-                          variants=(/"ROKS_PARAMETER"/), &
+                          variants=["ROKS_PARAMETER"], &
                           description="Allows to define all parameters for the high-spin "// &
                           "ROKS scheme explicitly. "// &
                           "The full set of 6 parameters has to be specified "// &
@@ -278,7 +278,7 @@ CONTAINS
                           repeats=.FALSE., &
                           n_var=6, &
                           type_of_var=real_t, &
-                          default_r_vals=(/-0.5_dp, 1.5_dp, 0.5_dp, 0.5_dp, 1.5_dp, -0.5_dp/))
+                          default_r_vals=[-0.5_dp, 1.5_dp, 0.5_dp, 0.5_dp, 1.5_dp, -0.5_dp])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -308,7 +308,7 @@ CONTAINS
                                        "By default keeps a short history of three restarts. "// &
                                        "See also RESTART_HISTORY", &
                                        print_level=low_print_level, common_iter_levels=3, &
-                                       each_iter_names=s2a("QS_SCF"), each_iter_values=(/20/), &
+                                       each_iter_names=s2a("QS_SCF"), each_iter_values=[20], &
                                        add_last=add_last_numeric, filename="RESTART")
       CALL keyword_create(keyword, __LOCATION__, name="BACKUP_COPIES", &
                           description="Specifies the maximum number of backup copies.", &
@@ -324,7 +324,7 @@ CONTAINS
          description="Dumps unique MO restart files during the run keeping all of them.", &
          print_level=low_print_level, common_iter_levels=0, &
          each_iter_names=s2a("__ROOT__", "MD", "GEO_OPT", "ROT_OPT", "NEB", "METADYNAMICS", "QS_SCF"), &
-         each_iter_values=(/500, 500, 500, 500, 500, 500, 500/), &
+         each_iter_values=[500, 500, 500, 500, 500, 500, 500], &
          filename="RESTART")
       CALL keyword_create(keyword, __LOCATION__, name="BACKUP_COPIES", &
                           description="Specifies the maximum number of backup copies.", &
@@ -464,8 +464,8 @@ CONTAINS
                                         "Requires the corresponding section QS&CDFT"// &
                                         " which determines the type of weight used.", &
                                         "Do nothing in the outer loop, useful for resetting the inner loop,"), &
-                          enum_i_vals=(/outer_scf_ddapc_constraint, outer_scf_s2_constraint, &
-                                        outer_scf_basis_center_opt, outer_scf_cdft_constraint, outer_scf_none/))
+                          enum_i_vals=[outer_scf_ddapc_constraint, outer_scf_s2_constraint, &
+                                       outer_scf_basis_center_opt, outer_scf_cdft_constraint, outer_scf_none])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -487,10 +487,10 @@ CONTAINS
                                         "and successively reduces the step size until the L2 norm of the CDFT gradient "// &
                                         "decreases or MAX_LS steps is reached. Potentially very expensive because "// &
                                         "each iteration performs a full SCF calculation."), &
-                          enum_i_vals=(/outer_scf_optimizer_sd, outer_scf_optimizer_diis, outer_scf_optimizer_none, &
-                                        outer_scf_optimizer_bisect, outer_scf_optimizer_broyden, &
-                                        outer_scf_optimizer_newton, outer_scf_optimizer_secant, &
-                                        outer_scf_optimizer_newton_ls/))
+                          enum_i_vals=[outer_scf_optimizer_sd, outer_scf_optimizer_diis, outer_scf_optimizer_none, &
+                                       outer_scf_optimizer_bisect, outer_scf_optimizer_broyden, &
+                                       outer_scf_optimizer_newton, outer_scf_optimizer_secant, &
+                                       outer_scf_optimizer_newton_ls])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -566,7 +566,7 @@ CONTAINS
                           "Sensitive to preconditioning. A good preconditioner can be expensive. "// &
                           "No smearing, or advanced SCF mixing possible: POOR convergence for metallic systems.", &
                           n_keywords=27, n_subsections=0, repeats=.FALSE., &
-                          citations=(/VandeVondele2003, Weber2008/))
+                          citations=[VandeVondele2003, Weber2008])
 
       NULLIFY (keyword)
 
@@ -586,8 +586,8 @@ CONTAINS
                           enum_desc=s2a("Strict orthogonality: Taylor or diagonalization based algorithm.", &
                                         "Orbital Transformation based Iterative Refinement "// &
                                         "of the Approximative Congruence transformation (OT/IR)."), &
-                          enum_i_vals=(/ot_algo_taylor_or_diag, ot_algo_irac/), &
-                          citations=(/VandeVondele2003, VandeVondele2005a, Weber2008/))
+                          enum_i_vals=[ot_algo_taylor_or_diag, ot_algo_irac], &
+                          citations=[VandeVondele2003, VandeVondele2005a, Weber2008])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -611,7 +611,7 @@ CONTAINS
                           default_i_val=ot_chol_irac, &
                           enum_c_vals=s2a("CHOL", "POLY", "LWDN"), &
                           enum_desc=s2a("Cholesky.", "Polynomial.", "Loewdin."), &
-                          enum_i_vals=(/ot_chol_irac, ot_poly_irac, ot_lwdn_irac/))
+                          enum_i_vals=[ot_chol_irac, ot_poly_irac, ot_lwdn_irac])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -663,12 +663,12 @@ CONTAINS
                        " The total energy should decrease at every OT CG step if the line search is appropriate.", &
                        "Direct inversion in the iterative subspace: less reliable than CG, but sometimes about 50% faster", &
                        "Broyden mixing approximating the inverse Hessian"), &
-         enum_i_vals=(/ot_mini_sd, ot_mini_cg, ot_mini_diis, ot_mini_broyden/))
+         enum_i_vals=[ot_mini_sd, ot_mini_cg, ot_mini_diis, ot_mini_broyden])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="SAFE_DIIS", &
-                          variants=(/"SAFER_DIIS"/), &
+                          variants=["SAFER_DIIS"], &
                           description="Reject DIIS steps if they point away from the"// &
                           " minimum, do SD in that case.", &
                           usage="SAFE_DIIS ON", default_l_val=.TRUE.)
@@ -762,7 +762,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="LINESEARCH", &
-                          variants=(/"LINE_SEARCH"/), &
+                          variants=["LINE_SEARCH"], &
                           description="1D line search algorithm to be used with the OT minimizer,"// &
                           " in increasing order of robustness and cost. MINIMIZER CG combined with"// &
                           " LINESEARCH GOLD should always find an electronic minimum."// &
@@ -777,7 +777,7 @@ CONTAINS
                                         "extrapolate based on 3 points", &
                                         "extrapolate based on 2 points", &
                                         "perform 1D golden section search of the minimum (very expensive)"), &
-                          enum_i_vals=(/ls_adapt, ls_none, ls_2pnt, ls_3pnt, ls_gold/))
+                          enum_i_vals=[ls_adapt, ls_none, ls_2pnt, ls_3pnt, ls_gold])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -820,9 +820,9 @@ CONTAINS
                        "use for very large systems.", &
                        "Cholesky inversion of S, not as good as FULL_KINETIC, yet equally expensive.", &
                        "skip preconditioning"), &
-         enum_i_vals=(/ot_precond_full_all, ot_precond_full_single_inverse, ot_precond_full_single, &
-                       ot_precond_full_kinetic, ot_precond_s_inverse, ot_precond_none/), &
-         citations=(/VandeVondele2003, Weber2008, Schiffmann2015/))
+         enum_i_vals=[ot_precond_full_all, ot_precond_full_single_inverse, ot_precond_full_single, &
+                      ot_precond_full_kinetic, ot_precond_s_inverse, ot_precond_none], &
+         citations=[VandeVondele2003, Weber2008, Schiffmann2015])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -835,7 +835,7 @@ CONTAINS
                                         "Reduce is replaced by two restore", &
                                         "Restore uses operator multiply by inverse of the triangular matrix", &
                                         "Like inverse, but matrix stored as dbcsr, sparce matrix algebra used when possible"), &
-                          enum_i_vals=(/cholesky_off, cholesky_reduce, cholesky_restore, cholesky_inverse, cholesky_dbcsr/))
+                          enum_i_vals=[cholesky_off, cholesky_reduce, cholesky_restore, cholesky_inverse, cholesky_dbcsr])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -851,10 +851,10 @@ CONTAINS
                        "(works for FULL_KINETIC/SINGLE_INVERSE/S_INVERSE)", &
                        "Performs a Hotelling update of the inverse if a previous preconditioner is present. "// &
                        "Mainly useful for GPU accelerated systems (works for FULL_KINETIC/SINGLE_INVERSE/S_INVERSE)"), &
-         enum_i_vals=(/ot_precond_solver_default, &
-                       ot_precond_solver_direct, &
-                       ot_precond_solver_inv_chol, &
-                       ot_precond_solver_update/))
+         enum_i_vals=[ot_precond_solver_default, &
+                      ot_precond_solver_direct, &
+                      ot_precond_solver_inv_chol, &
+                      ot_precond_solver_update])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -873,7 +873,7 @@ CONTAINS
 
       CALL keyword_create( &
          keyword, __LOCATION__, name="EPS_TAYLOR", &
-         variants=(/"EPSTAYLOR"/), &
+         variants=["EPSTAYLOR"], &
          description="Target accuracy of the taylor expansion for the matrix functions, should normally be kept as is.", &
          usage="EPS_TAYLOR 1.0E-15", &
          default_r_val=1.0E-16_dp)
@@ -966,8 +966,8 @@ CONTAINS
                                         "Block Krylov-space approach to self-consistent diagonalisation", &
                                         "Preconditioned blocked Davidson", &
                                         "Filter matrix diagonalization"), &
-                          enum_i_vals=(/diag_standard, diag_ot, diag_block_krylov, diag_block_davidson, &
-                                        diag_filter_matrix/))
+                          enum_i_vals=[diag_standard, diag_ot, diag_block_krylov, diag_block_davidson, &
+                                       diag_filter_matrix])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -975,7 +975,7 @@ CONTAINS
                           description="Controls the accuracy of the pseudo-diagonalization method using Jacobi rotations", &
                           usage="JACOBI_THRESHOLD 1.0E-6", &
                           default_r_val=1.0E-7_dp, &
-                          citations=(/Stewart1982/))
+                          citations=[Stewart1982])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -989,7 +989,7 @@ CONTAINS
                           "up calculations for large systems e.g. using a semi-empirical method.", &
                           usage="EPS_JACOBI 1.0E-5", &
                           default_r_val=0.0_dp, &
-                          citations=(/Stewart1982/))
+                          citations=[Stewart1982])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1067,8 +1067,8 @@ CONTAINS
                        "Based on H-eS cholesky inversion, similar to FULL_SINGLE in preconditioning efficiency "// &
                        "but cheaper to construct, might be somewhat less robust. Recommended for large systems.", &
                        "skip preconditioning"), &
-         enum_i_vals=(/ot_precond_full_all, ot_precond_full_single_inverse, ot_precond_none/), &
-         citations=(/VandeVondele2003/))
+         enum_i_vals=[ot_precond_full_all, ot_precond_full_single_inverse, ot_precond_none], &
+         citations=[VandeVondele2003])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1081,9 +1081,9 @@ CONTAINS
                                         "(works for FULL_KINETIC/SINGLE_INVERSE/S_INVERSE)", &
                                         "Cholesky decomposition followed by explicit inversion "// &
                                         "(works for FULL_KINETIC/SINGLE_INVERSE/S_INVERSE)"), &
-                          enum_i_vals=(/ot_precond_solver_default, &
-                                        ot_precond_solver_direct, &
-                                        ot_precond_solver_inv_chol/))
+                          enum_i_vals=[ot_precond_solver_default, &
+                                       ot_precond_solver_direct, &
+                                       ot_precond_solver_inv_chol])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1284,7 +1284,7 @@ CONTAINS
                           usage="METHOD Fermi_Dirac", &
                           default_i_val=smear_energy_window, &
                           enum_c_vals=s2a("FERMI_DIRAC", "ENERGY_WINDOW", "LIST"), &
-                          enum_i_vals=(/smear_fermi_dirac, smear_energy_window, smear_list/), &
+                          enum_i_vals=[smear_fermi_dirac, smear_energy_window, smear_list], &
                           enum_desc=s2a("Fermi-Dirac distribution defined by the keyword ELECTRONIC_TEMPERATURE", &
                                         "Energy window defined by the keyword WINDOW_SIZE", &
                                         "Use a fixed list of occupations"))
@@ -1372,7 +1372,7 @@ CONTAINS
                           " The constraint(s) is (are) converged in a separate external SCF loop with settings"// &
                           " read from the OUTER_SCF section. Supported constraints: Becke and Gaussian"// &
                           " Hirshfeld (partial).", n_keywords=8, n_subsections=2, &
-                          repeats=.FALSE., citations=(/Holmberg2017, Holmberg2018/))
+                          repeats=.FALSE., citations=[Holmberg2017, Holmberg2018])
 
       NULLIFY (subsection, keyword)
       CALL create_outer_scf_section(subsection)
@@ -1391,13 +1391,13 @@ CONTAINS
                           description="Specifies the type of constraint used.", &
                           usage="TYPE_OF_CONSTRAINT (NONE|HIRSHFELD|BECKE)", &
                           enum_c_vals=s2a("NONE", "HIRSHFELD", "BECKE"), &
-                          enum_i_vals=(/outer_scf_none, outer_scf_hirshfeld_constraint, &
-                                        outer_scf_becke_constraint/), &
+                          enum_i_vals=[outer_scf_none, outer_scf_hirshfeld_constraint, &
+                                       outer_scf_becke_constraint], &
                           enum_desc=s2a("No constraint (disables section).", &
                                         "Gaussian Hirshfeld constraint. Partial implementation: no forces. "// &
                                         "Requires corresponding section. Not as extensively tested.", &
                                         "Becke constraint. Requires corresponding section."), &
-                          citations=(/Becke1988b/), &
+                          citations=[Becke1988b], &
                           default_i_val=outer_scf_none)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1434,7 +1434,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="FRAGMENT_A_FILE_NAME", variants=(/"FRAGMENT_A_FILE"/), &
+      CALL keyword_create(keyword, __LOCATION__, name="FRAGMENT_A_FILE_NAME", variants=["FRAGMENT_A_FILE"], &
                           description="Name of the reference total electron density cube file for fragment A."// &
                           " May include a path. The reference electron density needs to be outputted"// &
                           " on the same grid as the full system (same cutoff and cell, output stride 1).", &
@@ -1443,7 +1443,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="FRAGMENT_B_FILE_NAME", variants=(/"FRAGMENT_B_FILE"/), &
+      CALL keyword_create(keyword, __LOCATION__, name="FRAGMENT_B_FILE_NAME", variants=["FRAGMENT_B_FILE"], &
                           description="Name of the reference total electron density cube file for fragment B."// &
                           " May include a path. The reference electron density needs to be outputted"// &
                           " on the same grid as the full system (same cutoff and cell, output stride 1).", &
@@ -1453,7 +1453,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="FRAGMENT_A_SPIN_FILE", &
-                          variants=(/"FRAGMENT_A_SPIN_FILE_NAME"/), &
+                          variants=["FRAGMENT_A_SPIN_FILE_NAME"], &
                           description="Name of the reference spin density cube file for fragment A."// &
                           " May include a path. The reference spin density needs to be outputted"// &
                           " on the same grid as the full system (same cutoff and cell, output stride 1).", &
@@ -1463,7 +1463,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="FRAGMENT_B_SPIN_FILE", &
-                          variants=(/"FRAGMENT_B_SPIN_FILE_NAME"/), &
+                          variants=["FRAGMENT_B_SPIN_FILE_NAME"], &
                           description="Name of the reference spin density cube file for fragment B."// &
                           " May include a path. The reference spin density needs to be outputted"// &
                           " on the same grid as the full system (same cutoff and cell, output stride 1).", &
@@ -1508,7 +1508,7 @@ CONTAINS
                           description="The stride (X,Y,Z) used to write the cube file "// &
                           "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
                           " 1 number valid for all components.", &
-                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=[2, 2, 2], type_of_var=integer_t)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
@@ -1541,8 +1541,8 @@ CONTAINS
                           description="Determines what type of constraint to apply. ", &
                           usage="CONSTRAINT_TYPE (CHARGE|MAGNETIZATION|ALPHA|BETA)", &
                           enum_c_vals=s2a("CHARGE", "MAGNETIZATION", "ALPHA", "BETA"), &
-                          enum_i_vals=(/cdft_charge_constraint, cdft_magnetization_constraint, &
-                                        cdft_alpha_constraint, cdft_beta_constraint/), &
+                          enum_i_vals=[cdft_charge_constraint, cdft_magnetization_constraint, &
+                                       cdft_alpha_constraint, cdft_beta_constraint], &
                           enum_desc=s2a("Total charge density constraint (rho_alpha + rho_beta).", &
                                         "Magnetization density constraint (rho_alpha - rho_beta).", &
                                         "Alpha spin density constraint.", &
@@ -1669,7 +1669,7 @@ CONTAINS
                           enum_c_vals=s2a("GAUSSIAN", "DENSITY"), &
                           enum_desc=s2a("One Gaussian per atom with radius determined by the keyword GAUSSIAN_SHAPE.", &
                                         "Atomic density expanded in terms of multiple Gaussians."), &
-                          enum_i_vals=(/shape_function_gaussian, shape_function_density/))
+                          enum_i_vals=[shape_function_gaussian, shape_function_density])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1677,7 +1677,7 @@ CONTAINS
                           description="Specifies the type of Gaussian used for SHAPE_FUNCTION GAUSSIAN.", &
                           usage="GAUSSIAN_SHAPE (SINGLE|VDW|COVALENT|USER)", &
                           enum_c_vals=s2a("DEFAULT", "SINGLE", "VDW", "COVALENT", "USER"), &
-                          enum_i_vals=(/radius_default, radius_single, radius_vdw, radius_covalent, radius_user/), &
+                          enum_i_vals=[radius_default, radius_single, radius_vdw, radius_covalent, radius_user], &
                           enum_desc=s2a("Use covalent radii (in angstrom) to construct Gaussians, but fixed"// &
                                         " 1.0_dp radius for elements with a radius larger than this value.", &
                                         "Single Gaussian for all atom types with radius given by GAUSSIAN_RADIUS.", &
@@ -1764,7 +1764,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="BECKE_CONSTRAINT", &
                           description="Define settings influencing the construction of the Becke weight function.", &
-                          n_keywords=13, repeats=.FALSE., citations=(/Becke1988b/))
+                          n_keywords=13, repeats=.FALSE., citations=[Becke1988b])
 
       CALL keyword_create(keyword, __LOCATION__, name="ADJUST_SIZE", &
                           description="Adjust Becke cell boundaries with atomic"// &
@@ -1805,7 +1805,7 @@ CONTAINS
                           description="Specifies the type of Gaussian cavity used.", &
                           usage="CAVITY_SHAPE (SINGLE|VDW|COVALENT|USER)", &
                           enum_c_vals=s2a("DEFAULT", "SINGLE", "VDW", "COVALENT", "USER"), &
-                          enum_i_vals=(/radius_default, radius_single, radius_vdw, radius_covalent, radius_user/), &
+                          enum_i_vals=[radius_default, radius_single, radius_vdw, radius_covalent, radius_user], &
                           enum_desc=s2a("Use covalent radii (in angstrom) to construct Gaussians, but fixed"// &
                                         " 1.0_dp radius for elements with a radius larger than this value.", &
                                         "Single Gaussian for all atom types with radius given by CAVITY_RADIUS.", &
@@ -1852,7 +1852,7 @@ CONTAINS
                           description="Specifies the type of cutoff used when building the Becke weight function.", &
                           usage="CUTOFF_TYPE (GLOBAL|ELEMENT)", &
                           enum_c_vals=s2a("GLOBAL", "ELEMENT"), &
-                          enum_i_vals=(/becke_cutoff_global, becke_cutoff_element/), &
+                          enum_i_vals=[becke_cutoff_global, becke_cutoff_element], &
                           enum_desc=s2a("Use a single value for all elements. Read from GLOBAL_CUTOFF.", &
                                         "Use a different value for all elements. Values read from ELEMENT_CUTOFF."), &
                           default_i_val=becke_cutoff_global)
@@ -1931,9 +1931,9 @@ CONTAINS
                                         "Same as BT1_EXPLICIT, but uses backtracking line search for optimizing the step size.", &
                                         "Same as BT2, but uses backtracking line search for optimizing the step size.", &
                                         "Same as BT2_EXPLICIT, but uses backtracking line search for optimizing the step size."), &
-                          enum_i_vals=(/broyden_type_1, broyden_type_1_explicit, broyden_type_2, &
-                                        broyden_type_2_explicit, broyden_type_1_ls, broyden_type_1_explicit_ls, &
-                                        broyden_type_2_ls, broyden_type_2_explicit_ls/))
+                          enum_i_vals=[broyden_type_1, broyden_type_1_explicit, broyden_type_2, &
+                                       broyden_type_2_explicit, broyden_type_1_ls, broyden_type_1_explicit_ls, &
+                                       broyden_type_2_ls, broyden_type_2_explicit_ls])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1948,8 +1948,8 @@ CONTAINS
                                         "Second order forward difference (two extra energy evaluations per constraint).", &
                                         "Second order backward difference (two extra energy evaluations per constraint).", &
                                         "First order central difference (two extra energy evaluations per constraint)."), &
-                          enum_i_vals=(/jacobian_fd1, jacobian_fd1_backward, jacobian_fd2, &
-                                        jacobian_fd2_backward, jacobian_fd1_central/))
+                          enum_i_vals=[jacobian_fd1, jacobian_fd1_backward, jacobian_fd2, &
+                                       jacobian_fd2_backward, jacobian_fd1_central])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1967,7 +1967,7 @@ CONTAINS
                           " whereas the latter how many MD steps. The values can be zero (meaning never"// &
                           " rebuild) or positive. Both values cannot be zero.", &
                           usage="JACOBIAN_FREQ 1 1", n_var=2, &
-                          default_i_vals=(/1, 1/), type_of_var=integer_t)
+                          default_i_vals=[1, 1], type_of_var=integer_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

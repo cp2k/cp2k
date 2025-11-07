@@ -229,7 +229,7 @@ CONTAINS
 
             CALL collocate_pgf_product( &
                l0_ikind, zet0, 0, 0, 0.0_dp, 0, &
-               ra, (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, &
+               ra, [0.0_dp, 0.0_dp, 0.0_dp], 1.0_dp, pab, 0, 0, &
                rs_grid, ga_gb_function=GRID_FUNC_AB, radius=rpgf0, &
                use_subpatch=.TRUE., subpatch_pattern=0)
 
@@ -607,7 +607,7 @@ CONTAINS
 
                CALL integrate_pgf_product( &
                   l0_ikind, zet0, 0, 0, 0.0_dp, 0, &
-                  ra, (/0.0_dp, 0.0_dp, 0.0_dp/), rs_v, &
+                  ra, [0.0_dp, 0.0_dp, 0.0_dp], rs_v, &
                   hab, pab, o1=0, o2=0, &
                   radius=rpgf0, &
                   calculate_forces=calculate_forces, &

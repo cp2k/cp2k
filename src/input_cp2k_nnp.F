@@ -59,7 +59,7 @@ CONTAINS
                           description="This section contains all information to run a "// &
                           "Neural Network Potential (NNP) calculation.", &
                           n_keywords=3, n_subsections=3, repeats=.FALSE., &
-                          citations=(/Behler2007, Behler2011, Schran2020a, Schran2020b/))
+                          citations=[Behler2007, Behler2011, Schran2020a, Schran2020b])
 
       NULLIFY (subsection, subsubsection, keyword)
 
@@ -81,7 +81,7 @@ CONTAINS
                           description="Section to bias the committee disagreement (sigma) by "// &
                           "E = 0.5 * K_B * (sigma - SIGMA_0)**2, if sigma > SIGMA_0.", &
                           n_keywords=2, n_subsections=0, repeats=.FALSE., &
-                          citations=(/Schran2020b/))
+                          citations=[Schran2020b])
       CALL keyword_create(keyword, __LOCATION__, name="K_B", &
                           description="Harmonic spring constant of the bias potential [1/hartree].", &
                           repeats=.FALSE., &

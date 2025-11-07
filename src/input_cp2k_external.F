@@ -188,7 +188,7 @@ CONTAINS
       CALL section_create(section, __LOCATION__, name="EXTERNAL_DENSITY", &
                           description="Section for the use of the ZMP technique on external densities.", &
                           n_keywords=4, n_subsections=0, repeats=.FALSE., &
-                          citations=(/Zhao1994, Tozer1996/))
+                          citations=[Zhao1994, Tozer1996])
       NULLIFY (keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="FILE_DENSITY", &
@@ -217,7 +217,7 @@ CONTAINS
                           "option is more stable.", &
                           usage="ZMP_CONSTRAINT <CHAR>", &
                           enum_c_vals=s2a("COULOMB", "DIFF", "NONE"), &
-                          enum_i_vals=(/use_coulomb, use_diff, use_no/), &
+                          enum_i_vals=[use_coulomb, use_diff, use_no], &
                           enum_desc=s2a("Coulomb constraint, integral of [rho_0(r)-rho(r)]/|r-r'|", &
                                         "Simple constraint, [rho_0(r)-rho(r)]", &
                                         "No constrain imposed"), &

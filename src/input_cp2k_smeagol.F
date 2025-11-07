@@ -73,7 +73,7 @@ CONTAINS
       CALL section_create(section, __LOCATION__, name="SMEAGOL", &
                           description="Parameters for NEGF/SMEAGOL simulation.", &
                           n_subsections=1, repeats=.FALSE., &
-                          citations=(/Ahart2024/))
+                          citations=[Ahart2024])
 
       NULLIFY (keyword)
 
@@ -145,7 +145,7 @@ CONTAINS
                           enum_desc=s2a( &
                           "Save Kohn-Sham and density matrices of semi-infinite leads.", &
                           "Run transport calculation for the extended molecule."), &
-                          enum_i_vals=(/smeagol_runtype_bulktransport, smeagol_runtype_emtransport/))
+                          enum_i_vals=[smeagol_runtype_bulktransport, smeagol_runtype_emtransport])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -165,7 +165,7 @@ CONTAINS
                           "Identical left and right leads.", &
                           "Left bulk lead.", &
                           "Right bulk lead."), &
-                          enum_i_vals=(/smeagol_bulklead_leftright, smeagol_bulklead_left, smeagol_bulklead_right/))
+                          enum_i_vals=[smeagol_bulklead_leftright, smeagol_bulklead_left, smeagol_bulklead_right])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -174,7 +174,7 @@ CONTAINS
                           description="Number of cell images along i and j cell vectors. "// &
                           "If missing, determine the number of images based on sparsity pattern of the overlap matrix.", &
                           usage="NIMAGES_IJ 3 3", &
-                          n_var=2, type_of_var=integer_t, default_i_vals=(/0, 0/))
+                          n_var=2, type_of_var=integer_t, default_i_vals=[0, 0])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -344,7 +344,7 @@ CONTAINS
                           enum_desc=s2a( &
                           "Traditional grid.", &
                           "Adaptive grid."), &
-                          enum_i_vals=(/smeagol_gridmethod_traditional, smeagol_gridmethod_adaptive/))
+                          enum_i_vals=[smeagol_gridmethod_traditional, smeagol_gridmethod_adaptive])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -355,7 +355,7 @@ CONTAINS
                           enum_desc=s2a( &
                           "Gauss-Legendre quadrature method.", &
                           "Gauss-Chebyshev quadrature method."), &
-                          enum_i_vals=(/smeagol_integraltype_gauss_legendre, smeagol_integraltype_gauss_chebyshev/))
+                          enum_i_vals=[smeagol_integraltype_gauss_legendre, smeagol_integraltype_gauss_chebyshev])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

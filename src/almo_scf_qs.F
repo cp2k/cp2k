@@ -928,7 +928,7 @@ CONTAINS
                               matrix_qs=matrix_s(1)%matrix, &
                               almo_scf_env=almo_scf_env, &
                               name_new="T_QUENCHER", &
-                              size_keys=(/almo_mat_dim_aobasis, almo_mat_dim_occ/), &
+                              size_keys=[almo_mat_dim_aobasis, almo_mat_dim_occ], &
                               symmetry_new=dbcsr_type_no_symmetry, &
                               spin_key=ispin, &
                               init_domains=.FALSE.)

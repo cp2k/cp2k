@@ -421,7 +421,7 @@ CONTAINS
                                            prefactor=1.0_dp, cutoff=1.0_dp)
 
          CALL integrate_pgf_product(0, qmmm_env%image_charge_pot%eta, 0, &
-                                    0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), &
+                                    0, 0.0_dp, 0, ra, [0.0_dp, 0.0_dp, 0.0_dp], &
                                     rs_v, hab, o1=0, o2=0, &
                                     radius=radius, calculate_forces=.FALSE., &
                                     use_subpatch=.TRUE., subpatch_pattern=0)
@@ -543,7 +543,7 @@ CONTAINS
                                            prefactor=1.0_dp, cutoff=1.0_dp)
 
          CALL integrate_pgf_product(0, qmmm_env%image_charge_pot%eta, 0, &
-                                    0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), &
+                                    0, 0.0_dp, 0, ra, [0.0_dp, 0.0_dp, 0.0_dp], &
                                     rs_v, hab, pab, o1=0, o2=0, &
                                     radius=radius, calculate_forces=.TRUE., &
                                     force_a=force_a, force_b=force_b, use_subpatch=.TRUE., &

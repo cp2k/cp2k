@@ -67,7 +67,7 @@ CONTAINS
                           "system (i.e. isolated Poisson solver and big, nonperiodic cells), "// &
                           "the nonperiodic RESP routines are automatically used. All restraints "// &
                           "are harmonic!", &
-                          n_keywords=2, n_subsections=2, repeats=.FALSE., citations=(/Golze2015/))
+                          n_keywords=2, n_subsections=2, repeats=.FALSE., citations=[Golze2015])
 
       NULLIFY (keyword, subsection)
 
@@ -75,7 +75,7 @@ CONTAINS
                           description="The stride (X,Y,Z) used to write the cube file "// &
                           "(larger values result in smaller cube files). You can provide "// &
                           "3 numbers (for X,Y,Z) or 1 number valid for all components.", &
-                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=[2, 2, 2], type_of_var=integer_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -126,7 +126,7 @@ CONTAINS
                           "RESTRAIN_HEAVIES_TO_ZERO will be switched off. ", &
                           usage="USE_REPEAT_METHOD", &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE., &
-                          citations=(/Campana2009/))
+                          citations=[Campana2009])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -333,9 +333,9 @@ CONTAINS
                           enum_desc=s2a("Cambridge Structural Database", &
                                         "Universal Force Field: "// &
                                         "Rappe et al. J. Am. Chem. Soc. 114, 10024 (1992)"), &
-                          enum_i_vals=(/use_cambridge_vdw_radii, &
-                                        use_uff_vdw_radii/), &
-                          citations=(/Rappe1992/))
+                          enum_i_vals=[use_cambridge_vdw_radii, &
+                                       use_uff_vdw_radii], &
+                          citations=[Rappe1992])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -453,8 +453,8 @@ CONTAINS
                           description="Specifies what above the surface means. Defines the direction.", &
                           usage="SURF_DIRECTION Z", &
                           enum_c_vals=s2a("X", "Y", "Z", "-X", "-Y", "-Z"), &
-                          enum_i_vals=(/do_resp_x_dir, do_resp_y_dir, do_resp_z_dir, &
-                                        do_resp_minus_x_dir, do_resp_minus_y_dir, do_resp_minus_z_dir/), &
+                          enum_i_vals=[do_resp_x_dir, do_resp_y_dir, do_resp_z_dir, &
+                                       do_resp_minus_x_dir, do_resp_minus_y_dir, do_resp_minus_z_dir], &
                           enum_desc=s2a("surface layers are piled up in x-direction", &
                                         "surface layers are piled up in y-direction", &
                                         "surface layers are piled up in z-direction", &
@@ -520,7 +520,7 @@ CONTAINS
                           description="The stride (X,Y,Z) used to write the cube file "// &
                           "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
                           " 1 number valid for all components.", &
-                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=[2, 2, 2], type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
       CALL keyword_create(keyword, __LOCATION__, name="APPEND", &

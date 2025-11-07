@@ -1291,10 +1291,10 @@ CONTAINS
       !*** Waux_mat (li_max,lj_max) contains elements not needed,
       !*** make indixing so that only required ones are computed
       !*** li_max_all(j) --> li_max dependent on j
-      size_int(1, :) = (/laa_max, lb_max/)
-      size_int(2, :) = (/lbb_max, la_max/)
-      size_int(3, :) = (/lca_max, lcb_max/)
-      size_int(4, :) = (/la_max, lb_max/)
+      size_int(1, :) = [laa_max, lb_max]
+      size_int(2, :) = [lbb_max, la_max]
+      size_int(3, :) = [lca_max, lcb_max]
+      size_int(4, :) = [la_max, lb_max]
 
       li_max_all(:) = 0
       DO isize = 1, 4

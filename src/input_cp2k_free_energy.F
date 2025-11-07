@@ -71,7 +71,7 @@ CONTAINS
                           description="Defines the method to use to compute free energy.", &
                           usage="METHOD (METADYN|UI|AC)", &
                           enum_c_vals=s2a("METADYN", "UI", "AC"), &
-                          enum_i_vals=(/do_fe_meta, do_fe_ui, do_fe_ac/), &
+                          enum_i_vals=[do_fe_meta, do_fe_ui, do_fe_ac], &
                           enum_desc=s2a("Metadynamics", &
                                         "Umbrella Integration", &
                                         "Alchemical Change"), &
@@ -95,7 +95,7 @@ CONTAINS
                                        description="Controls the printing of basic and summary information during the"// &
                                        " Free Energy calculation", &
                                        print_level=low_print_level, each_iter_names=s2a("MD"), &
-                                       each_iter_values=(/1/), add_last=add_last_numeric, filename="__STD_OUT__")
+                                       each_iter_values=[1], add_last=add_last_numeric, filename="__STD_OUT__")
       CALL section_add_subsection(section, print_key)
       CALL section_release(print_key)
 
@@ -116,7 +116,7 @@ CONTAINS
       CALL section_create(section, __LOCATION__, name="metadyn", &
                           description="This section sets parameters to set up a calculation of metadynamics.", &
                           n_keywords=1, n_subsections=1, repeats=.FALSE., &
-                          citations=(/VandenCic2006/))
+                          citations=[VandenCic2006])
 
       NULLIFY (subsection, keyword, print_key)
 
@@ -225,7 +225,7 @@ CONTAINS
                           description="If a Lagrangian scheme is used the eq. motion of the COLVARS are integrated "// &
                           "with a LANGEVIN scheme.", &
                           usage="LANGEVIN {logical}", &
-                          citations=(/VandenCic2006/), &
+                          citations=[VandenCic2006], &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -244,7 +244,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="WELL_TEMPERED", &
                           description="This keyword enables Well-tempered metadynamics. Default .FALSE.", &
-                          usage="WELL_TEMPERED", citations=(/BarducBus2008/), &
+                          usage="WELL_TEMPERED", citations=[BarducBus2008], &
                           default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -318,7 +318,7 @@ CONTAINS
                                        description="Controls the printing of basic and summary information during"// &
                                        " metadynamics.", &
                                        print_level=low_print_level, each_iter_names=s2a("MD", "METADYNAMICS"), &
-                                       each_iter_values=(/1, 1/), add_last=add_last_numeric, filename="__STD_OUT__")
+                                       each_iter_values=[1, 1], add_last=add_last_numeric, filename="__STD_OUT__")
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
@@ -326,7 +326,7 @@ CONTAINS
                                        description="Controls the printing of the temperature of COLVARS in an "// &
                                        "extended lagrangian scheme.", &
                                        print_level=low_print_level, each_iter_names=s2a("MD", "METADYNAMICS"), &
-                                       each_iter_values=(/1, 1/), add_last=add_last_numeric, filename="__STD_OUT__")
+                                       each_iter_values=[1, 1], add_last=add_last_numeric, filename="__STD_OUT__")
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
@@ -343,7 +343,7 @@ CONTAINS
                                        " Lagrangian. When the extended Lagrangian is not used, all"// &
                                        " related fields are omitted.", &
                                        print_level=low_print_level, each_iter_names=s2a("MD", "METADYNAMICS"), &
-                                       each_iter_values=(/1, 1/), add_last=add_last_numeric, filename="COLVAR")
+                                       each_iter_values=[1, 1], add_last=add_last_numeric, filename="COLVAR")
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
@@ -353,7 +353,7 @@ CONTAINS
                                        " the spawned gaussian and height of the gaussian. According the value of"// &
                                        " the EACH keyword this file may not be synchronized with the COLVAR file.", &
                                        print_level=high_print_level, each_iter_names=s2a("MD", "METADYNAMICS"), &
-                                       each_iter_values=(/1, 1/), add_last=add_last_numeric, filename="HILLS")
+                                       each_iter_values=[1, 1], add_last=add_last_numeric, filename="HILLS")
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
@@ -657,13 +657,13 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="GAMMA", &
                           description="Specifies the friction term in Langevin integration of the collective variable in the"// &
                           " extended lagrangian scheme.", &
-                          citations=(/VandenCic2006/), &
+                          citations=[VandenCic2006], &
                           usage="GAMMA {real}", type_of_var=real_t, unit_str="fs^-1")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="SCALE", &
-                          variants=(/"WIDTH"/), &
+                          variants=["WIDTH"], &
                           description="Specifies the scale factor for the following collective variable. The history "// &
                           "dependent term has the expression: WW * Sum_{j=1}^{nhills} Prod_{k=1}^{ncolvar} "// &
                           "[EXP[-0.5*((ss-ss0(k,j))/SCALE(k))^2]], "// &
@@ -694,7 +694,7 @@ CONTAINS
                        "Applies a quartic potential at the wall position.", &
                        "Applies a gaussian potential at the wall position.", &
                        "No walls are applied."), &
-         enum_i_vals=(/do_wall_reflective, do_wall_quadratic, do_wall_quartic, do_wall_gaussian, do_wall_none/), &
+         enum_i_vals=[do_wall_reflective, do_wall_quadratic, do_wall_quartic, do_wall_gaussian, do_wall_none], &
          default_i_val=do_wall_none)
       CALL section_add_keyword(wall_section, keyword)
       CALL keyword_release(keyword)
@@ -717,7 +717,7 @@ CONTAINS
                           enum_c_vals=s2a("WALL_PLUS", "WALL_MINUS"), &
                           enum_desc=s2a("Wall extends from the position towards larger values of COLVAR", &
                                         "Wall extends from the position towards smaller values of COLVAR"), &
-                          enum_i_vals=(/do_wall_p, do_wall_m/), default_i_val=do_wall_p)
+                          enum_i_vals=[do_wall_p, do_wall_m], default_i_val=do_wall_p)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
       CALL section_add_subsection(wall_section, subsection)
@@ -734,7 +734,7 @@ CONTAINS
                           enum_c_vals=s2a("WALL_PLUS", "WALL_MINUS"), &
                           enum_desc=s2a("Wall extends from the position towards larger values of COLVAR", &
                                         "Wall extends from the position towards smaller values of COLVAR"), &
-                          enum_i_vals=(/do_wall_p, do_wall_m/), default_i_val=do_wall_p)
+                          enum_i_vals=[do_wall_p, do_wall_m], default_i_val=do_wall_p)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
@@ -759,7 +759,7 @@ CONTAINS
                           enum_c_vals=s2a("WALL_PLUS", "WALL_MINUS"), &
                           enum_desc=s2a("Wall extends from the position towards larger values of COLVAR", &
                                         "Wall extends from the position towards smaller values of COLVAR"), &
-                          enum_i_vals=(/do_wall_p, do_wall_m/), default_i_val=do_wall_p)
+                          enum_i_vals=[do_wall_p, do_wall_m], default_i_val=do_wall_p)
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
@@ -844,7 +844,7 @@ CONTAINS
 
       NULLIFY (keyword)
       CALL keyword_create(keyword, __LOCATION__, name="COARSE_GRAINED_WIDTH", &
-                          variants=(/"CG_WIDTH"/), &
+                          variants=["CG_WIDTH"], &
                           description="Width of segments in MD steps to generate the set of"// &
                           " coarse grained data, providing a correlation independent data set.", &
                           usage="COARSE_GRAINED_WIDTH <INTEGER>", default_i_val=50)
@@ -852,7 +852,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="MAX_COARSE_GRAINED_WIDTH", &
-                          variants=(/"MAX_CG_WIDTH"/), &
+                          variants=["MAX_CG_WIDTH"], &
                           description="Max Width of segments in MD steps to generate the set of"// &
                           " coarse grained data.", &
                           usage="MAX_COARSE_GRAINED_WIDTH <INTEGER>", default_i_val=200)
@@ -860,7 +860,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="COARSE_GRAINED_POINTS", &
-                          variants=(/"CG_POINTS"/), &
+                          variants=["CG_POINTS"], &
                           description="Set the minimum amount of coarse grained points to collect"// &
                           " before starting the statistical analysis", &
                           usage="COARSE_GRAINED_POINTS <INTEGER>", default_i_val=30)

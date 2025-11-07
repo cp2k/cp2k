@@ -69,7 +69,7 @@ MODULE qs_tddfpt2_stda_types
    !   Fr Ra Ac Th Pa U        Np Pu Am Cm Bk Cf Es Fm Md    No Lr  103
 
    REAL(KIND=dp), DIMENSION(1:nelem), PARAMETER, PRIVATE:: hardness = &
-         (/6.4299544220_dp, 12.544911890_dp, & ! 2 H-He
+         [6.4299544220_dp, 12.544911890_dp, & ! 2 H-He
            2.3745866560_dp, 3.4967633530_dp, 4.6190089720_dp, 5.7409789220_dp, &
            6.8624665290_dp, 7.9854357010_dp, 9.1064753720_dp, 10.23034050_dp, & ! 8 Li-Ne
            2.444141360_dp, 3.0146513830_dp, 3.5849070740_dp, 4.15513090_dp, &
@@ -96,11 +96,11 @@ MODULE qs_tddfpt2_stda_types
            1.9368567520_dp, 2.2305576050_dp, 2.5241204960_dp, 3.0436128480_dp, &
            3.4168675260_dp, 3.4049844440_dp, 3.9244199680_dp, 4.2180813280_dp, &
            4.5115926320_dp, 4.8050928950_dp, 5.0989816210_dp, 5.3926054620_dp, &
-           5.4606987930_dp/) ! 17 Fr-Lr
+           5.4606987930_dp] ! 17 Fr-Lr
 !&>
 
-   REAL(KIND=dp), DIMENSION(2), PARAMETER, PRIVATE:: alpha = (/1.420_dp, 0.480_dp/)
-   REAL(KIND=dp), DIMENSION(2), PARAMETER, PRIVATE:: beta = (/0.200_dp, 1.830_dp/)
+   REAL(KIND=dp), DIMENSION(2), PARAMETER, PRIVATE:: alpha = [1.420_dp, 0.480_dp]
+   REAL(KIND=dp), DIMENSION(2), PARAMETER, PRIVATE:: beta = [0.200_dp, 1.830_dp]
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_tddfpt2_stda_types'
 

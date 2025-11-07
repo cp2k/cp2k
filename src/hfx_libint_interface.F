@@ -45,14 +45,14 @@ MODULE hfx_libint_interface
              evaluate_deriv_eri, &
              evaluate_eri_screen
 
-   INTEGER, DIMENSION(12), PARAMETER :: full_perm1 = (/1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12/)
-   INTEGER, DIMENSION(12), PARAMETER :: full_perm2 = (/4, 5, 6, 1, 2, 3, 7, 8, 9, 10, 11, 12/)
-   INTEGER, DIMENSION(12), PARAMETER :: full_perm3 = (/1, 2, 3, 4, 5, 6, 10, 11, 12, 7, 8, 9/)
-   INTEGER, DIMENSION(12), PARAMETER :: full_perm4 = (/4, 5, 6, 1, 2, 3, 10, 11, 12, 7, 8, 9/)
-   INTEGER, DIMENSION(12), PARAMETER :: full_perm5 = (/7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6/)
-   INTEGER, DIMENSION(12), PARAMETER :: full_perm6 = (/7, 8, 9, 10, 11, 12, 4, 5, 6, 1, 2, 3/)
-   INTEGER, DIMENSION(12), PARAMETER :: full_perm7 = (/10, 11, 12, 7, 8, 9, 1, 2, 3, 4, 5, 6/)
-   INTEGER, DIMENSION(12), PARAMETER :: full_perm8 = (/10, 11, 12, 7, 8, 9, 4, 5, 6, 1, 2, 3/)
+   INTEGER, DIMENSION(12), PARAMETER :: full_perm1 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+   INTEGER, DIMENSION(12), PARAMETER :: full_perm2 = [4, 5, 6, 1, 2, 3, 7, 8, 9, 10, 11, 12]
+   INTEGER, DIMENSION(12), PARAMETER :: full_perm3 = [1, 2, 3, 4, 5, 6, 10, 11, 12, 7, 8, 9]
+   INTEGER, DIMENSION(12), PARAMETER :: full_perm4 = [4, 5, 6, 1, 2, 3, 10, 11, 12, 7, 8, 9]
+   INTEGER, DIMENSION(12), PARAMETER :: full_perm5 = [7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6]
+   INTEGER, DIMENSION(12), PARAMETER :: full_perm6 = [7, 8, 9, 10, 11, 12, 4, 5, 6, 1, 2, 3]
+   INTEGER, DIMENSION(12), PARAMETER :: full_perm7 = [10, 11, 12, 7, 8, 9, 1, 2, 3, 4, 5, 6]
+   INTEGER, DIMENSION(12), PARAMETER :: full_perm8 = [10, 11, 12, 7, 8, 9, 4, 5, 6, 1, 2, 3]
 
 !***
 

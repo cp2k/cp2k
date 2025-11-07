@@ -154,7 +154,7 @@ CONTAINS
          CALL fm_general_add_bse(fm_dipole_MO_trunc_reordered(idir), fm_dipole_ai_trunc(idir), 1.0_dp, &
                                  1, 1, &
                                  1, virtual_red, &
-                                 unit_nr, (/2, 4, 3, 1/), mp2_env)
+                                 unit_nr, [2, 4, 3, 1], mp2_env)
          CALL cp_fm_release(fm_dipole_per_dir(idir))
       END DO
 
@@ -794,7 +794,7 @@ CONTAINS
 
       ! translates 1,2,3 to diagonal entries of quadrupoles xx, yy, zz
       ! Ordering in quadrupole moments is x, y, z, xx, xy, xz, yy, yz, zz
-      mask_quadrupole = (/4, 7, 9/)
+      mask_quadrupole = [4, 7, 9]
 
       CALL cp_fm_struct_create(fm_struct_ia, &
                                context=fm_X_ia%matrix_struct%context, nrow_global=homo, ncol_global=virtual)

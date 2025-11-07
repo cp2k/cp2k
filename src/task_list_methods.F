@@ -1157,14 +1157,14 @@ CONTAINS
 
       !find total workload ...
       ALLOCATE (load_all(maxdest*ncpu))
-      load_all(:) = RESHAPE(list(2, :, :), (/maxdest*ncpu/))
+      load_all(:) = RESHAPE(list(2, :, :), [maxdest*ncpu])
       CALL group%sum(load_all(:), rank_of_root)
 
       ! ... and optimise the work per process
       ALLOCATE (list_global(2, maxdest, ncpu))
       IF (rank_of_root .EQ. my_pos) THEN
          list_global(1, :, :) = list(1, :, :)
-         list_global(2, :, :) = RESHAPE(load_all, (/maxdest, ncpu/))
+         list_global(2, :, :) = RESHAPE(load_all, [maxdest, ncpu])
          CALL balance_global_list(list_global)
       END IF
       CALL group%bcast(list_global, rank_of_root)
@@ -1172,7 +1172,7 @@ CONTAINS
       !figure out how much can be sent to other processes
       ALLOCATE (load_partial(maxdest, ncpu))
       ! send 'load_all', which is a copy of 'list' (but without leading dimension/stride)
-      CALL group%sum_partial(RESHAPE(load_all, (/maxdest, ncpu/)), load_partial(:, :))
+      CALL group%sum_partial(RESHAPE(load_all, [maxdest, ncpu]), load_partial(:, :))
 
       DO icpu = 1, ncpu
          DO idest = 1, maxdest
@@ -1339,42 +1339,42 @@ CONTAINS
                bit_pattern = tasks(itask)%subpatch_pattern
                nopt = 0
                IF (BTEST(bit_pattern, 0)) THEN
-                  rank = rs_grid_locate_rank(rs_descs(ilevel)%rs_desc, dest, (/-1, 0, 0/))
+                  rank = rs_grid_locate_rank(rs_descs(ilevel)%rs_desc, dest, [-1, 0, 0])
                   IF (ANY(all_dests(1:ndest_pair) .EQ. rank)) THEN
                      nopt = nopt + 1
                      options(nopt) = rank
                   END IF
                END IF
                IF (BTEST(bit_pattern, 1)) THEN
-                  rank = rs_grid_locate_rank(rs_descs(ilevel)%rs_desc, dest, (/+1, 0, 0/))
+                  rank = rs_grid_locate_rank(rs_descs(ilevel)%rs_desc, dest, [+1, 0, 0])
                   IF (ANY(all_dests(1:ndest_pair) .EQ. rank)) THEN
                      nopt = nopt + 1
                      options(nopt) = rank
                   END IF
                END IF
                IF (BTEST(bit_pattern, 2)) THEN
-                  rank = rs_grid_locate_rank(rs_descs(ilevel)%rs_desc, dest, (/0, -1, 0/))
+                  rank = rs_grid_locate_rank(rs_descs(ilevel)%rs_desc, dest, [0, -1, 0])
                   IF (ANY(all_dests(1:ndest_pair) .EQ. rank)) THEN
                      nopt = nopt + 1
                      options(nopt) = rank
                   END IF
                END IF
                IF (BTEST(bit_pattern, 3)) THEN
-                  rank = rs_grid_locate_rank(rs_descs(ilevel)%rs_desc, dest, (/0, +1, 0/))
+                  rank = rs_grid_locate_rank(rs_descs(ilevel)%rs_desc, dest, [0, +1, 0])
                   IF (ANY(all_dests(1:ndest_pair) .EQ. rank)) THEN
                      nopt = nopt + 1
                      options(nopt) = rank
                   END IF
                END IF
                IF (BTEST(bit_pattern, 4)) THEN
-                  rank = rs_grid_locate_rank(rs_descs(ilevel)%rs_desc, dest, (/0, 0, -1/))
+                  rank = rs_grid_locate_rank(rs_descs(ilevel)%rs_desc, dest, [0, 0, -1])
                   IF (ANY(all_dests(1:ndest_pair) .EQ. rank)) THEN
                      nopt = nopt + 1
                      options(nopt) = rank
                   END IF
                END IF
                IF (BTEST(bit_pattern, 5)) THEN
-                  rank = rs_grid_locate_rank(rs_descs(ilevel)%rs_desc, dest, (/0, 0, +1/))
+                  rank = rs_grid_locate_rank(rs_descs(ilevel)%rs_desc, dest, [0, 0, +1])
                   IF (ANY(all_dests(1:ndest_pair) .EQ. rank)) THEN
                      nopt = nopt + 1
                      options(nopt) = rank
@@ -1488,12 +1488,12 @@ CONTAINS
       maxcount = 1
       DO icpu = 0, ncpu - 1
          sublist(1) = icpu
-         sublist(2) = rs_grid_locate_rank(rs_descs(grid_level)%rs_desc, icpu, (/-1, 0, 0/))
-         sublist(3) = rs_grid_locate_rank(rs_descs(grid_level)%rs_desc, icpu, (/+1, 0, 0/))
-         sublist(4) = rs_grid_locate_rank(rs_descs(grid_level)%rs_desc, icpu, (/0, -1, 0/))
-         sublist(5) = rs_grid_locate_rank(rs_descs(grid_level)%rs_desc, icpu, (/0, +1, 0/))
-         sublist(6) = rs_grid_locate_rank(rs_descs(grid_level)%rs_desc, icpu, (/0, 0, -1/))
-         sublist(7) = rs_grid_locate_rank(rs_descs(grid_level)%rs_desc, icpu, (/0, 0, +1/))
+         sublist(2) = rs_grid_locate_rank(rs_descs(grid_level)%rs_desc, icpu, [-1, 0, 0])
+         sublist(3) = rs_grid_locate_rank(rs_descs(grid_level)%rs_desc, icpu, [+1, 0, 0])
+         sublist(4) = rs_grid_locate_rank(rs_descs(grid_level)%rs_desc, icpu, [0, -1, 0])
+         sublist(5) = rs_grid_locate_rank(rs_descs(grid_level)%rs_desc, icpu, [0, +1, 0])
+         sublist(6) = rs_grid_locate_rank(rs_descs(grid_level)%rs_desc, icpu, [0, 0, -1])
+         sublist(7) = rs_grid_locate_rank(rs_descs(grid_level)%rs_desc, icpu, [0, 0, +1])
          ! only retain unique values of the destination
          CALL sort(sublist, ultimate_max, index)
          j = 1
@@ -2631,7 +2631,7 @@ CONTAINS
          CPASSERT(found)
          block_size = SIZE(block)
          offset = pair_offsets(i)
-         dest_buffer(offset + 1:offset + block_size) = RESHAPE(block, shape=(/block_size/))
+         dest_buffer(offset + 1:offset + block_size) = RESHAPE(block, shape=[block_size])
       END DO
 !$OMP END DO
 !$OMP END PARALLEL
@@ -2677,7 +2677,7 @@ CONTAINS
          lock_num = MODULO(arow, SIZE(locks)) + 1  ! map matrix rows round-robin to available locks
 
          CALL omp_set_lock(locks(lock_num))
-         block = block + RESHAPE(src_buffer(offset + 1:offset + nrows*ncols), shape=(/nrows, ncols/))
+         block = block + RESHAPE(src_buffer(offset + 1:offset + nrows*ncols), shape=[nrows, ncols])
          CALL omp_unset_lock(locks(lock_num))
       END DO
 !$OMP END DO
@@ -2750,12 +2750,12 @@ CONTAINS
          ! the list of possible neighbors is stored here as a bit pattern
          ! to reconstruct what the rank of the neigbor is,
          ! we can use (note this requires the correct rs_grid)
-         !  IF (BTEST(bit_pattern,0)) rank=rs_grid_locate_rank(rs_desc,tasks(ntasks)%destination,(/-1,0,0/))
-         !  IF (BTEST(bit_pattern,1)) rank=rs_grid_locate_rank(rs_desc,tasks(ntasks)%destination,(/+1,0,0/))
-         !  IF (BTEST(bit_pattern,2)) rank=rs_grid_locate_rank(rs_desc,tasks(ntasks)%destination,(/0,-1,0/))
-         !  IF (BTEST(bit_pattern,3)) rank=rs_grid_locate_rank(rs_desc,tasks(ntasks)%destination,(/0,+1,0/))
-         !  IF (BTEST(bit_pattern,4)) rank=rs_grid_locate_rank(rs_desc,tasks(ntasks)%destination,(/0,0,-1/))
-         !  IF (BTEST(bit_pattern,5)) rank=rs_grid_locate_rank(rs_desc,tasks(ntasks)%destination,(/0,0,+1/))
+         !  IF (BTEST(bit_pattern,0)) rank=rs_grid_locate_rank(rs_desc,tasks(ntasks)%destination,[-1,0,0])
+         !  IF (BTEST(bit_pattern,1)) rank=rs_grid_locate_rank(rs_desc,tasks(ntasks)%destination,[+1,0,0])
+         !  IF (BTEST(bit_pattern,2)) rank=rs_grid_locate_rank(rs_desc,tasks(ntasks)%destination,[0,-1,0])
+         !  IF (BTEST(bit_pattern,3)) rank=rs_grid_locate_rank(rs_desc,tasks(ntasks)%destination,[0,+1,0])
+         !  IF (BTEST(bit_pattern,4)) rank=rs_grid_locate_rank(rs_desc,tasks(ntasks)%destination,[0,0,-1])
+         !  IF (BTEST(bit_pattern,5)) rank=rs_grid_locate_rank(rs_desc,tasks(ntasks)%destination,[0,0,+1])
          bit_index = 0
          bit_pattern = 0
          DO i = 1, 3
@@ -2844,7 +2844,7 @@ CONTAINS
          DO iz = lb_coord(3), ub_coord(3)
          DO iy = lb_coord(2), ub_coord(2)
          DO ix = lb_coord(1), ub_coord(1)
-            icoord = MODULO((/ix, iy, iz/), rs_desc%group_dim)
+            icoord = MODULO([ix, iy, iz], rs_desc%group_dim)
             idest = rs_desc%coord2rank(icoord(1), icoord(2), icoord(3))
             tasks(itask)%destination = encode_rank(idest, igrid_level, n_levels)
             tasks(itask)%dist_type = 2

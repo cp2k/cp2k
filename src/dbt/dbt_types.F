@@ -1363,8 +1363,8 @@ CONTAINS
 
             ALLOCATE (map1_2d(ndims/2))
             ALLOCATE (map2_2d(ndims - ndims/2))
-            map1_2d(:) = (/(i, i=1, SIZE(map1_2d))/)
-            map2_2d(:) = (/(i, i=SIZE(map1_2d) + 1, SIZE(map1_2d) + SIZE(map2_2d))/)
+            map1_2d(:) = [(i, i=1, SIZE(map1_2d))]
+            map2_2d(:) = [(i, i=SIZE(map1_2d) + 1, SIZE(map1_2d) + SIZE(map2_2d))]
 
             CALL dbt_pgrid_create_expert(mp_comm, dims, pgrid, map1_2d, map2_2d, tensor_dims)
 

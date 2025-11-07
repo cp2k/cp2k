@@ -569,9 +569,9 @@ CONTAINS
       q1 = SIN(a2/2)*COS((a1 - a3)/2.0_dp)
       q2 = SIN(a2/2)*SIN((a1 - a3)/2.0_dp)
       q3 = COS(a2/2)*SIN((a1 + a3)/2.0_dp)
-      rot = RESHAPE((/q0*q0 + q1*q1 - q2*q2 - q3*q3, 2*(q1*q2 - q0*q3), 2*(q1*q3 + q0*q2), &
-                      2*(q1*q2 + q0*q3), q0*q0 - q1*q1 + q2*q2 - q3*q3, 2*(q2*q3 - q0*q1), &
-                      2*(q1*q3 - q0*q2), 2*(q2*q3 + q0*q1), q0*q0 - q1*q1 - q2*q2 + q3*q3/), (/3, 3/))
+      rot = RESHAPE([q0*q0 + q1*q1 - q2*q2 - q3*q3, 2*(q1*q2 - q0*q3), 2*(q1*q3 + q0*q2), &
+                     2*(q1*q2 + q0*q3), q0*q0 - q1*q1 + q2*q2 - q3*q3, 2*(q2*q3 - q0*q1), &
+                     2*(q1*q3 - q0*q2), 2*(q2*q3 + q0*q1), q0*q0 - q1*q1 - q2*q2 + q3*q3], [3, 3])
 
       ALLOCATE (elem_center(dim_per_elem))
       ! calculate geometrical center

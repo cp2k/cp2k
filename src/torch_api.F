@@ -514,7 +514,7 @@ CONTAINS
       CPASSERT(C_ASSOCIATED(content_c))
       CPASSERT(length >= 0)
 
-      CALL C_F_POINTER(content_c, content_f, shape=(/length + 1/))
+      CALL C_F_POINTER(content_c, content_f, shape=[length + 1])
       CPASSERT(content_f(length + 1) == C_NULL_CHAR)
 
       ALLOCATE (CHARACTER(LEN=length) :: res)

@@ -50,7 +50,7 @@ MODULE xtb_parameters
 !&<
    ! Element Valence
    INTEGER, DIMENSION(0:nelem), &
-     PARAMETER, PRIVATE :: zval = (/-1, & !    0
+     PARAMETER, PRIVATE :: zval = [-1, & !    0
                                      1, 2, & !    2
                                      1, 2, 3, 4, 5, 6, 7, 8, & !   10
                                      1, 2, 3, 4, 5, 6, 7, 8, & !   18
@@ -58,13 +58,13 @@ MODULE xtb_parameters
                                      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 2, 3, 4, 5, 6, 7, 8, & !   54
                                      1, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, &
                                      4, 5, 6, 7, 8, 9, 10, 11, 2, 3, 4, 5, 6, 7, 8, & !   86
-                                    -1, -1, -1, 4, -1, 6, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1/)
+                                    -1, -1, -1, 4, -1, 6, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1]
 !&>
 
 !&<
    ! Element Pauling Electronegativity
    REAL(KIND=dp), DIMENSION(0:nelem), &
-      PARAMETER, PRIVATE :: eneg = (/0.00_dp, & ! 0
+      PARAMETER, PRIVATE :: eneg = [0.00_dp, & ! 0
                                      2.20_dp, 3.00_dp, & ! 2
                                      0.98_dp, 1.57_dp, 2.04_dp, 2.55_dp, 3.04_dp, 3.44_dp, 3.98_dp, 4.50_dp, & ! 10
                                      0.93_dp, 1.31_dp, 1.61_dp, 1.90_dp, 2.19_dp, 2.58_dp, 3.16_dp, 3.50_dp, & ! 18
@@ -80,12 +80,12 @@ MODULE xtb_parameters
                                      0.70_dp, 0.89_dp, 1.10_dp, &
                                      1.30_dp, 1.50_dp, 1.38_dp, 1.36_dp, 1.28_dp, 1.30_dp, 1.30_dp, 1.30_dp, &
                                      1.30_dp, 1.30_dp, 1.30_dp, 1.30_dp, 1.30_dp, 1.50_dp, & !  Actinides
-                                     1.50_dp, 1.50_dp, 1.50_dp/)
+                                     1.50_dp, 1.50_dp, 1.50_dp]
 !&>
 
 !&<
    ! Shell occupation
-   INTEGER, DIMENSION(1:5, 0:nelem) :: occupation = RESHAPE((/0,0,0,0,0, & ! 0
+   INTEGER, DIMENSION(1:5, 0:nelem) :: occupation = RESHAPE([0,0,0,0,0, & ! 0
       1,0,0,0,0,  2,0,0,0,0, & ! 2
       1,0,0,0,0,  2,0,0,0,0,  2,1,0,0,0,  2,2,0,0,0,  2,3,0,0,0,  2,4,0,0,0,  2,5,0,0,0,  2,6,0,0,0, & ! 10
       1,0,0,0,0,  2,0,0,0,0,  2,1,0,0,0,  2,2,0,0,0,  2,3,0,0,0,  2,4,0,0,0,  2,5,0,0,0,  2,6,0,0,0, & ! 18
@@ -101,7 +101,7 @@ MODULE xtb_parameters
       0,0,0,0,0,  0,0,0,0,0,  0,0,0,0,0, & !
       0,0,0,0,0,  0,0,0,0,0,  0,0,0,0,0,  0,0,0,0,0,  0,0,0,0,0,  0,0,0,0,0,  0,0,0,0,0,  0,0,0,0,0, &
       0,0,0,0,0,  0,0,0,0,0,  0,0,0,0,0,  0,0,0,0,0,  0,0,0,0,0,  0,0,0,0,0, & ! Actinides
-      0,0,0,0,0,  0,0,0,0,0,  0,0,0,0,0/), (/5, nelem+1/))
+      0,0,0,0,0,  0,0,0,0,0,  0,0,0,0,0], [5, nelem+1])
 !&>
 
 !&<
@@ -111,7 +111,7 @@ MODULE xtb_parameters
    ! edited by W. M. Haynes (CRC Press, Boca Raton, FL, 2010), pages 9-49-9-50;
    ! corrected Nov. 17, 2010 for the 92nd edition.
    REAL(KIND=dp), DIMENSION(0:nelem), &
-      PARAMETER, PRIVATE :: crad = (/0.00_dp, & ! 0
+      PARAMETER, PRIVATE :: crad = [0.00_dp, & ! 0
                                      0.32_dp, 0.37_dp, & ! 2
                                      1.30_dp, 0.99_dp, 0.84_dp, 0.75_dp, 0.71_dp, 0.64_dp, 0.60_dp, 0.62_dp, & ! 10
                                      1.60_dp, 1.40_dp, 1.24_dp, 1.14_dp, 1.09_dp, 1.04_dp, 1.00_dp, 1.01_dp, & ! 18
@@ -127,13 +127,13 @@ MODULE xtb_parameters
                                      2.42_dp, 2.11_dp, 2.01_dp, &
                                      1.90_dp, 1.84_dp, 1.83_dp, 1.80_dp, 1.80_dp, 1.51_dp, 0.96_dp, 1.54_dp, &
                                      1.83_dp, 1.50_dp, 1.50_dp, 1.50_dp, 1.50_dp, 1.50_dp, & !  Actinides
-                                     1.50_dp, 1.50_dp, 1.50_dp/)
+                                     1.50_dp, 1.50_dp, 1.50_dp]
 !&>
 
 !&<
    ! Charge Limits (Mulliken)
    REAL(KIND=dp), DIMENSION(0:nelem), &
-      PARAMETER, PRIVATE :: clmt = (/0.00_dp, & ! 0
+      PARAMETER, PRIVATE :: clmt = [0.00_dp, & ! 0
                                      1.05_dp, 1.25_dp, & ! 2
                                      1.05_dp, 2.05_dp, 3.00_dp, 4.00_dp, 3.00_dp, 2.00_dp, 1.25_dp, 1.00_dp, & ! 10
                                      1.05_dp, 2.05_dp, 3.00_dp, 4.00_dp, 3.00_dp, 2.00_dp, 1.25_dp, 1.00_dp, & ! 18
@@ -149,7 +149,7 @@ MODULE xtb_parameters
                                      1.05_dp, 2.05_dp, 3.00_dp, &
                                      3.00_dp, 3.00_dp, 3.00_dp, 3.00_dp, 3.00_dp, 3.00_dp, 3.00_dp, 3.00_dp, &
                                      3.00_dp, 3.00_dp, 3.00_dp, 3.00_dp, 3.00_dp, 3.00_dp, & !  Actinides
-                                     3.00_dp, 3.00_dp, 3.00_dp/)
+                                     3.00_dp, 3.00_dp, 3.00_dp]
 !&>
 
 ! *** Global parameters ***

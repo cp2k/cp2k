@@ -275,9 +275,9 @@ CONTAINS
                      soft_basis%ly(ncgf) = indco(2, ico)
                      soft_basis%lz(ncgf) = indco(3, ico)
                      soft_basis%cgf_symbol(ncgf) = &
-                        cgf_symbol(n(ishell, iset), (/soft_basis%lx(ncgf), &
-                                                      soft_basis%ly(ncgf), &
-                                                      soft_basis%lz(ncgf)/))
+                        cgf_symbol(n(ishell, iset), [soft_basis%lx(ncgf), &
+                                                     soft_basis%ly(ncgf), &
+                                                     soft_basis%lz(ncgf)])
                   END DO
                   DO m = -lshell, lshell
                      nsgf = nsgf + 1

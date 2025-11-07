@@ -1909,7 +1909,7 @@ CONTAINS
             x11_d = 0.0_dp; x11_d(1) = 1.0_dp
             x22_d = 0.0_dp; x22_d(2) = 1.0_dp
             x33_d = 0.0_dp; x33_d(3) = 1.0_dp
-            r_d = (/x11, x22, x33/)/r
+            r_d = [x11, x22, x33]/r
             b_d = 2.0_dp*(x11*x11_d + x22*x22_d)
             sqb_d = (0.5_dp/sqb)*b_d
             r2i = 1.0_dp/r**2

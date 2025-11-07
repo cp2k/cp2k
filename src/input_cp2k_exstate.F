@@ -70,7 +70,7 @@ CONTAINS
                           description="Method to evaluate XC Kernel contributions to forces", &
                           usage="XC_KERNEL_METHOD (BEST_AVAILABLE|ANALYTIC|NUMERIC)", &
                           enum_c_vals=s2a("BEST_AVAILABLE", "ANALYTIC", "NUMERIC"), &
-                          enum_i_vals=(/xc_kernel_method_best, xc_kernel_method_analytic, xc_kernel_method_numeric/), &
+                          enum_i_vals=[xc_kernel_method_best, xc_kernel_method_analytic, xc_kernel_method_numeric], &
                           default_i_val=xc_kernel_method_best)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

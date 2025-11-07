@@ -27,7 +27,7 @@ MODULE cp_iter_types
    LOGICAL, PRIVATE, PARAMETER          :: debug_this_module = .FALSE.
 
    ! When adding a new iteration level PLEASE update the following list with the proper name!
-   CHARACTER(LEN=default_path_length), PARAMETER, PUBLIC, DIMENSION(18) :: each_possible_labels = (/ &
+   CHARACTER(LEN=default_path_length), PARAMETER, PUBLIC, DIMENSION(18) :: each_possible_labels = [ &
                                                                            "__ROOT__          ", &
                                                                            "JUST_ENERGY       ", &
                                                                            "POWELL_OPT        ", &
@@ -45,9 +45,9 @@ MODULE cp_iter_types
                                                                            "REPLICA_EVAL      ", &
                                                                            "BSSE              ", &
                                                                            "SHELL_OPT         ", &
-                                                                           "TDDFT_SCF         "/)
+                                                                           "TDDFT_SCF         "]
 
-   CHARACTER(LEN=default_path_length), PARAMETER, PUBLIC, DIMENSION(18) ::  each_desc_labels = (/ &
+   CHARACTER(LEN=default_path_length), PARAMETER, PUBLIC, DIMENSION(18) ::  each_desc_labels = [ &
                                                 "Iteration level for __ROOT__ (fictitious iteration level)                      ", &
                                                 "Iteration level for an ENERGY/ENERGY_FORCE calculation.                        ", &
                                                 "Iteration level for POWELL based optimization steps.                           ", &
@@ -65,7 +65,7 @@ MODULE cp_iter_types
                                                 "Iteration level for the evaluation of the Replica Environment                  ", &
                                                 "Iteration level for the Basis Set Superposition Error (BSSE) calculation       ", &
                                                 "Iteration level for the Shell-Core distances optimization steps                ", &
-                                                 "Iteration level for the Time-Dependent Density Functional Theory SCF steps.    "/)
+                                                  "Iteration level for the Time-Dependent Density Functional Theory SCF steps.    "]
 
 ! **************************************************************************************************
 !> \brief contains the information about the current state of the program

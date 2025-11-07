@@ -476,7 +476,7 @@ CONTAINS
          ! Update colvar
          IF (PRESENT(coords)) THEN
             CALL colvar_eval_mol_f(lcolv(iconst)%colvar, cell, particles=particle_set, &
-                                   pos=RESHAPE(coords, (/3, SIZE(particle_set)/)), fixd_list=fixd_list)
+                                   pos=RESHAPE(coords, [3, SIZE(particle_set)]), fixd_list=fixd_list)
          ELSE
             CALL colvar_eval_mol_f(lcolv(iconst)%colvar, cell, particles=particle_set, &
                                    fixd_list=fixd_list)

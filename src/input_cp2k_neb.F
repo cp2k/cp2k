@@ -66,7 +66,7 @@ CONTAINS
       CALL section_create(section, __LOCATION__, name="band", &
                           description="The section that controls a BAND run", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE., &
-                          citations=(/Elber1987, Jonsson1998, Jonsson2000_1, Jonsson2000_2, Wales2004/))
+                          citations=[Elber1987, Jonsson1998, Jonsson2000_1, Jonsson2000_2, Wales2004])
       NULLIFY (keyword, print_key, subsection, subsubsection)
 
       CALL keyword_create(keyword, __LOCATION__, name="NPROC_REP", &
@@ -83,7 +83,7 @@ CONTAINS
                                           "BLOCKED"), &
                           enum_desc=s2a("Interleaved distribution", &
                                         "Blocked distribution"), &
-                          enum_i_vals=(/do_rep_interleaved, do_rep_blocked/), &
+                          enum_i_vals=[do_rep_interleaved, do_rep_blocked], &
                           default_i_val=do_rep_blocked)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -104,7 +104,7 @@ CONTAINS
                                         "Doubly nudged elastic band", &
                                         "String Method", &
                                         "Elastic band (Hamiltonian formulation)"), &
-                          enum_i_vals=(/do_b_neb, do_it_neb, do_ci_neb, do_d_neb, do_sm, do_eb/))
+                          enum_i_vals=[do_b_neb, do_it_neb, do_ci_neb, do_d_neb, do_sm, do_eb])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -130,7 +130,7 @@ CONTAINS
                           enum_desc=s2a("Full potential (no projections in a subspace of colvars)", &
                                         "Free energy (requires a projections in a subspace of colvars)", &
                                         "Minimum energy (requires a projections in a subspace of colvars)"), &
-                          enum_i_vals=(/pot_neb_full, pot_neb_fe, pot_neb_me/))
+                          enum_i_vals=[pot_neb_full, pot_neb_fe, pot_neb_me])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -149,7 +149,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="K_SPRING", &
-                          variants=(/"K"/), &
+                          variants=["K"], &
                           description="Specify the value of the spring constant", &
                           default_r_val=0.02_dp)
       CALL section_add_keyword(section, keyword)
@@ -326,7 +326,7 @@ CONTAINS
                                           "DIIS"), &
                           enum_desc=s2a("Molecular dynamics-based optimizer", &
                                         "Coupled steepest descent / direct inversion in the iterative subspace"), &
-                          enum_i_vals=(/band_md_opt, band_diis_opt/))
+                          enum_i_vals=[band_md_opt, band_diis_opt])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -441,7 +441,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="N_DIIS", &
-                          variants=(/"NDIIS"/), &
+                          variants=["NDIIS"], &
                           description="Number of history vectors to be used with DIIS", &
                           usage="N_DIIS 4", &
                           default_i_val=7)

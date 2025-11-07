@@ -143,9 +143,9 @@ CONTAINS
       qm_atom_index => force_env%qmmm_env%qm%qm_atom_index
       CPASSERT(ASSOCIATED(qm_atom_index))
 
-      qm_cell_diag = (/qm_cell%hmat(1, 1), &
-                       qm_cell%hmat(2, 2), &
-                       qm_cell%hmat(3, 3)/)
+      qm_cell_diag = [qm_cell%hmat(1, 1), &
+                      qm_cell%hmat(2, 2), &
+                      qm_cell%hmat(3, 3)]
       particles_mm => subsys_mm%particles%els
       DO ip = 1, SIZE(qm_atom_index)
          qm_index = qm_atom_index(ip)
@@ -235,9 +235,9 @@ CONTAINS
 
       skin(:) = list(:)
 
-      qm_cell_diag = (/qm_cell%hmat(1, 1), &
-                       qm_cell%hmat(2, 2), &
-                       qm_cell%hmat(3, 3)/)
+      qm_cell_diag = [qm_cell%hmat(1, 1), &
+                      qm_cell%hmat(2, 2), &
+                      qm_cell%hmat(3, 3)]
       particles_mm => subsys_mm%particles%els
       wallenergy = 0.0_dp
       DO ip = 1, SIZE(qm_atom_index)

@@ -76,7 +76,7 @@ CONTAINS
                           "excitation should be specified. "// &
                           "Localization of the orbitals may be useful.", &
                           n_keywords=10, n_subsections=1, repeats=.FALSE., &
-                          citations=(/Iannuzzi2007/))
+                          citations=[Iannuzzi2007])
 
       NULLIFY (keyword, subsection, print_key)
 
@@ -89,7 +89,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="METHOD", &
-                          variants=(/"XAS_METHOD"/), &
+                          variants=["XAS_METHOD"], &
                           description="Method to be used to calculate core-level excitation spectra", &
                           usage="METHOD TP_HH", &
                           default_i_val=xas_none, &
@@ -101,8 +101,8 @@ CONTAINS
                           "Transition potential excited full-hole ", &
                           "DSCF calculations to compute the first (core)excited state", &
                           "Transition potential with generalized core occupation and total number of electrons"), &
-                          enum_i_vals=(/xas_none, xas_tp_hh, xas_tp_fh, xes_tp_val, xas_tp_xhh, &
-                                        xas_tp_xfh, xas_dscf, xas_tp_flex/))
+                          enum_i_vals=[xas_none, xas_tp_hh, xas_tp_fh, xes_tp_val, xas_tp_xhh, &
+                                       xas_tp_xfh, xas_dscf, xas_tp_flex])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -140,7 +140,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="DIPOLE_FORM", &
-                          variants=(/"DIP_FORM"/), &
+                          variants=["DIP_FORM"], &
                           description="Type of integral to get the oscillator strengths "// &
                           "in the diipole approximation", &
                           usage="DIPOLE_FORM string", &
@@ -148,7 +148,7 @@ CONTAINS
                           enum_c_vals=s2a("LENGTH", "VELOCITY"), &
                           enum_desc=s2a("Length form &lang; i | e r | j &rang;", &
                                         "Velocity form &lang; i | d/dr | j &rang;"), &
-                          enum_i_vals=(/xas_dip_len, xas_dip_vel/))
+                          enum_i_vals=[xas_dip_len, xas_dip_vel])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -161,15 +161,15 @@ CONTAINS
       CALL section_release(subsection)
 
       CALL keyword_create(keyword, __LOCATION__, name="STATE_TYPE", &
-                          variants=(/"TYPE"/), &
+                          variants=["TYPE"], &
                           description="Type of the orbitals that are excited for the xas spectra calculation", &
                           usage="STATE_TYPE 1S", &
                           default_i_val=xas_1s_type, &
                           enum_c_vals=s2a("1S", "2S", "2P", "3S", "3P", "3D", "4S", "4P", "4D", "4F"), &
                           enum_desc=s2a("1s orbitals", "2s orbitals", "2p orbitals", "3s orbitals", "3p orbitals", &
                                         "3d orbitals", "4s orbitals", "4p orbitals", "4d orbitals", "4f orbitals"), &
-                          enum_i_vals=(/xas_1s_type, xas_2s_type, xas_2p_type, xas_3s_type, xas_3p_type, xas_3d_type, &
-                                        xas_4s_type, xas_4p_type, xas_4d_type, xas_4f_type/))
+                          enum_i_vals=[xas_1s_type, xas_2s_type, xas_2p_type, xas_3s_type, xas_3p_type, xas_3d_type, &
+                                       xas_4s_type, xas_4p_type, xas_4d_type, xas_4f_type])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -188,7 +188,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="ATOMS_LIST", &
-                          variants=(/"AT_LIST"/), &
+                          variants=["AT_LIST"], &
                           description="Indexes of the atoms to be excited. "// &
                           "This keyword can be repeated several times "// &
                           "(useful if you have to specify many indexes).", &
@@ -205,7 +205,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="ORBITAL_LIST", &
-                          variants=(/"ORBITAL_LIST"/), &
+                          variants=["ORBITAL_LIST"], &
                           description="Indices of the localized orbitals to be excited. "// &
                           "This keyword can be repeated several times "// &
                           "(useful if you have to specify many indexes).", &
@@ -247,7 +247,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="WFN_RESTART_FILE_NAME", &
-                          variants=(/"RESTART_FILE_NAME"/), &
+                          variants=["RESTART_FILE_NAME"], &
                           description="Root of the file names where to read the MOS from "// &
                           "which to restart the calculation of the core level excited states", &
                           usage="WFN_RESTART_FILE_NAME <FILENAME>", &
@@ -308,7 +308,7 @@ CONTAINS
                                        "employed only to restart the same type of CLS calculation, "// &
                                        "i.e. with the same core potential.", &
                                        print_level=low_print_level, common_iter_levels=3, each_iter_names=s2a("XAS_SCF"), &
-                                       add_last=add_last_numeric, each_iter_values=(/3/), filename="")
+                                       add_last=add_last_numeric, each_iter_values=[3], filename="")
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
@@ -317,7 +317,7 @@ CONTAINS
                                        "where coefficients and occupation numbers are those of the TP scheme, "// &
                                        "i.e. with emptied core state.", &
                                        print_level=high_print_level, common_iter_levels=3, each_iter_names=s2a("XAS_SCF"), &
-                                       add_last=add_last_numeric, each_iter_values=(/3/), filename="")
+                                       add_last=add_last_numeric, each_iter_values=[3], filename="")
       CALL section_add_subsection(subsection, print_key)
       CALL section_release(print_key)
 
@@ -328,15 +328,15 @@ CONTAINS
                           description="The stride (X,Y,Z) used to write the cube file "// &
                           "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
                           " 1 number valid for all components.", &
-                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=[2, 2, 2], type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="CUBES_LU_BOUNDS", &
-                          variants=(/"CUBES_LU"/), &
+                          variants=["CUBES_LU"], &
                           description="The lower and upper index of the states to be printed as cube", &
                           usage="CUBES_LU_BOUNDS integer integer", &
-                          n_var=2, default_i_vals=(/0, -2/), type_of_var=integer_t)
+                          n_var=2, default_i_vals=[0, -2], type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
@@ -421,7 +421,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="EXCITATIONS", &
-                          variants=(/"EXCITATION"/), &
+                          variants=["EXCITATION"], &
                           description="Specify the type of excitation to consider. In case of a "// &
                           "resctricted closed-shell ground state calculation, "// &
                           "RCS_SINGLET or/and RCS_TRIPLET can be chosen. In case of a "// &
@@ -436,7 +436,7 @@ CONTAINS
                                         "Triplet excitation on top of restricted closed-shell ground state", &
                                         "Spin-conserving excitations on top of open-shell ground state", &
                                         "Spin-flip excitation on top of open-shell ground state"), &
-                          enum_i_vals=(/tddfpt_singlet, tddfpt_triplet, tddfpt_spin_cons, tddfpt_spin_flip/))
+                          enum_i_vals=[tddfpt_singlet, tddfpt_triplet, tddfpt_spin_cons, tddfpt_spin_flip])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -463,7 +463,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="DIPOLE_FORM", &
-                          variants=(/"DIP_FORM"/), &
+                          variants=["DIP_FORM"], &
                           description="Type of integral to get the oscillator strengths "// &
                           "in the dipole approximation", &
                           usage="DIPOLE_FORM {string}", &
@@ -471,7 +471,7 @@ CONTAINS
                           enum_c_vals=s2a("LENGTH", "VELOCITY"), &
                           enum_desc=s2a("Length form &lang; 0 | e r | n &rang;", &
                                         "Velocity form &lang; 0 | d/dr | n &rang;"), &
-                          enum_i_vals=(/xas_dip_len, xas_dip_vel/))
+                          enum_i_vals=[xas_dip_len, xas_dip_vel])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -512,7 +512,7 @@ CONTAINS
                           "ionization potentials. Note that donor states need to be actively "// &
                           "localized using the LOCALIZE keyword in DONOR_STATES. N_SEARCH "// &
                           "should be kept to the minimum, such that only core states are localized.", &
-                          citations=(/Shigeta2001/), &
+                          citations=[Shigeta2001], &
                           n_keywords=8, &
                           n_subsections=0, &
                           repeats=.FALSE.)
@@ -568,7 +568,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="PSEUDO_CANONICAL", &
-                          variants=(/"PSEUDO_CANO"/), &
+                          variants=["PSEUDO_CANO"], &
                           description="Whether the pseudo-canonical version of GW2X should be used "// &
                           "(versus only using the diagonal of the generalized Fock matrix)", &
                           default_l_val=.TRUE.)
@@ -593,14 +593,14 @@ CONTAINS
                           usage="DEFINE_EXCITED {string}", &
                           default_i_val=xas_tdp_by_index, &
                           enum_c_vals=s2a("BY_INDEX", "BY_KIND"), &
-                          enum_i_vals=(/xas_tdp_by_index, xas_tdp_by_kind/), &
+                          enum_i_vals=[xas_tdp_by_index, xas_tdp_by_kind], &
                           enum_desc=s2a("Excited atoms are defined by a list of indices", &
                                         "Excited atoms are defined by a list of atomic kinds"))
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="ATOM_LIST", &
-                          variants=(/"AT_LIST"/), &
+                          variants=["AT_LIST"], &
                           description="Indices of the atoms to be excited. "// &
                           "Keyword only taken into account if DEFINE_EXCITED = BY_INDEX", &
                           usage="ATOM_LIST {integer}  {integer} ..  {integer} ", &
@@ -618,7 +618,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="STATE_TYPES", &
-                          variants=(/"TYPES"/), &
+                          variants=["TYPES"], &
                           description="Types of orbitals that are excited, for each atom/kind, "// &
                           "in order to do LR-TDDFT driven xas spectra calculation. "// &
                           "This keyword MUST have the same number of entries as the relevant "// &
@@ -630,7 +630,7 @@ CONTAINS
                           usage="STATE_TYPES {string}  {string} .. {string}", &
                           enum_c_vals=s2a("1S", "2S", "2P", "NE"), &
                           enum_desc=s2a("1s orbital", "2s orbital", "2p orbitals", "not excited"), &
-                          enum_i_vals=(/xas_1s_type, xas_2s_type, xas_2p_type, xas_not_excited/))
+                          enum_i_vals=[xas_1s_type, xas_2s_type, xas_2p_type, xas_not_excited])
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
@@ -697,7 +697,7 @@ CONTAINS
                           enum_c_vals=s2a("CG", "DIIS"), &
                           enum_desc=s2a("Conjugated gradient: safer", &
                                         "Direct inversion of the iterative subspace: faster"), &
-                          enum_i_vals=(/ot_mini_cg, ot_mini_diis/))
+                          enum_i_vals=[ot_mini_cg, ot_mini_diis])
       CALL section_add_keyword(subsection, keyword)
       CALL keyword_release(keyword)
 
@@ -706,7 +706,7 @@ CONTAINS
 ! End of the OT solver subsection
 
       CALL keyword_create(keyword, __LOCATION__, name="SPIN_ORBIT_COUPLING", &
-                          variants=(/"SOC"/), &
+                          variants=["SOC"], &
                           description="Whether spin-orbit coupling should be added. "// &
                           "Note: only applies for spin-restricted calculations with "// &
                           "singlet and triplet excitations OR spin-unrestricted "// &
@@ -718,7 +718,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="TAMM_DANCOFF", &
-                          variants=(/"TDA"/), &
+                          variants=["TDA"], &
                           description="Whether the Tamm-Dancoff approximation should be used.", &
                           usage="TAMM_DANCOFF {logical}", &
                           default_l_val=.TRUE., &
@@ -727,7 +727,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="GRID", &
-                          variants=(/"ATOMIC_GRID"/), &
+                          variants=["ATOMIC_GRID"], &
                           description="Specification of the atomic angular and radial grids for "// &
                           "a given atomic kind. This keyword can/should be repeated "// &
                           "for each excited kind. The default grid dimensions are "// &
@@ -740,7 +740,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="N_EXCITED", &
-                          variants=(/"N_ROOTS"/), &
+                          variants=["N_ROOTS"], &
                           description="The number of excited states to compute per donor "// &
                           "molecular orbital. (e.g. if 2p excitations, "// &
                           "3*N_EXCITED excited states are considered). "// &
@@ -770,7 +770,7 @@ CONTAINS
                           repeats=.FALSE.)
 
       CALL keyword_create(keyword, __LOCATION__, name="RI_REGION", &
-                          variants=(/"RI_RADIUS"/), &
+                          variants=["RI_RADIUS"], &
                           description="The region defined by a sphere of the given radius around "// &
                           "the excited atom defining which RI_XAS basis elements are "// &
                           "considered for the RI projection of the density. Each basis "// &
@@ -821,8 +821,8 @@ CONTAINS
                           enum_desc=s2a("Standard Coulomb operator: 1/r", &
                                         "Truncated Coulomb operator: 1/r if r < R_c, 0 otherwise ", &
                                         "Short range: erfc(omega*r)/r"), &
-                          enum_i_vals=(/do_potential_coulomb, do_potential_truncated, &
-                                        do_potential_short/))
+                          enum_i_vals=[do_potential_coulomb, do_potential_truncated, &
+                                       do_potential_short])
       CALL section_add_keyword(subsubsection, keyword)
       CALL keyword_release(keyword)
 
@@ -913,8 +913,8 @@ CONTAINS
                           enum_desc=s2a("Overlap operator (=identity)", &
                                         "Truncated Coulomb operator: 1/r if r < R_c, 0 otherwise ", &
                                         "Short range: erfc(omega*r)/r"), &
-                          enum_i_vals=(/do_potential_id, do_potential_truncated, &
-                                        do_potential_short/))
+                          enum_i_vals=[do_potential_id, do_potential_truncated, &
+                                       do_potential_short])
       CALL section_add_keyword(subsubsubsection, keyword)
       CALL keyword_release(keyword)
 
@@ -967,7 +967,7 @@ CONTAINS
                                        "excited state index. Only for K-edge RKS calculations. "// &
                                        "Can be repeated to get multiple *.wfn files at once.", &
                                        print_level=debug_print_level, filename="", common_iter_levels=1)
-      CALL keyword_create(keyword, __LOCATION__, name="EXCITED_STATE_INDEX", variants=(/"INDEX"/), &
+      CALL keyword_create(keyword, __LOCATION__, name="EXCITED_STATE_INDEX", variants=["INDEX"], &
                           description="The index of the excited state that should be dumped", &
                           usage="INDEX {int}", default_i_val=1, repeats=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
@@ -990,15 +990,15 @@ CONTAINS
                           description="The stride (X,Y,Z) used to write the cube file "// &
                           "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
                           " 1 number valid for all components.", &
-                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=[2, 2, 2], type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="CUBES_LU_BOUNDS", &
-                          variants=(/"CUBES_LU"/), &
+                          variants=["CUBES_LU"], &
                           description="The lower and upper index of the excited states to be printed as cube", &
                           usage="CUBES_LU_BOUNDS integer integer", &
-                          n_var=2, default_i_vals=(/1, 0/), type_of_var=integer_t)
+                          n_var=2, default_i_vals=[1, 0], type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 

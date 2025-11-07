@@ -639,12 +639,12 @@ CONTAINS
 
 ! evaluate Q_S * \lambda + v_D - B * \bar{v}
          CALL DGEMV('N', n_tiles_tot, n_tiles_tot, 1.0_dp, QS, n_tiles_tot, lambda_old, 1, 0.0_dp, QSxlambda, 1)
-         v_bar1D(ps_implicit_env%idx_1dto3d) = RESHAPE(v_new%array, (/data_size/))
+         v_bar1D(ps_implicit_env%idx_1dto3d) = RESHAPE(v_new%array, [data_size])
          CALL DGEMV('N', n_tiles_tot, data_size, 1.0_dp, B, n_tiles_tot, v_bar1D, 1, 0.0_dp, Bxv_bar, 1)
          CALL pw_grid%para%group%sum(Bxv_bar)
 ! solve R [\lambda; \eta] = [Q_S * \lambda + v_D - B * \bar{v}; 1^t * (g - \Delta(\bar{v}) - P(\bar{v}))]
          w = 0.0_dp
-         w(:) = (/QSxlambda + v_D - Bxv_bar, gminusAxvbar_avg/)
+         w(:) = [QSxlambda + v_D - Bxv_bar, gminusAxvbar_avg]
          CALL DGEMV('N', n_tiles_tot + 1, n_tiles_tot + 1, 1.0_dp, Rinv, n_tiles_tot + 1, w, 1, 0.0_dp, lambda_newNeta, 1)
          lambda_new(:) = lambda_newNeta(1:n_tiles_tot)
          eta = lambda_newNeta(n_tiles_tot + 1)
@@ -682,7 +682,7 @@ CONTAINS
 
 ! verbose output
          IF (poisson_env%parameters%dbc_params%verbose_output) THEN
-            v_new1D(ps_implicit_env%idx_1dto3d) = RESHAPE(v_new%array, (/data_size/))
+            v_new1D(ps_implicit_env%idx_1dto3d) = RESHAPE(v_new%array, [data_size])
             CALL DGEMV('N', n_tiles_tot, data_size, 1.0_dp, B, n_tiles_tot, v_new1D, 1, 0.0_dp, Bxv_new, 1)
             CALL pw_grid%para%group%sum(Bxv_new)
             IF (outp_unit .GT. 0) THEN
@@ -927,12 +927,12 @@ CONTAINS
 
 ! evaluate Q_S * \lambda + v_D - B * \bar{v}
          CALL DGEMV('N', n_tiles_tot, n_tiles_tot, 1.0_dp, QS, n_tiles_tot, lambda_old, 1, 0.0_dp, QSxlambda, 1)
-         v_bar1D(ps_implicit_env%idx_1dto3d) = RESHAPE(v_new_xpndd%array, (/data_size/))
+         v_bar1D(ps_implicit_env%idx_1dto3d) = RESHAPE(v_new_xpndd%array, [data_size])
          CALL DGEMV('N', n_tiles_tot, data_size, 1.0_dp, B, n_tiles_tot, v_bar1D, 1, 0.0_dp, Bxv_bar, 1)
          CALL dct_pw_grid%para%group%sum(Bxv_bar)
 ! solve R [\lambda; \eta] = [Q_S * \lambda + v_D - B * \bar{v}; 1^t * (g - \Delta(\bar{v}) - P(\bar{v}))]
          w = 0.0_dp
-         w(:) = (/QSxlambda + v_D - Bxv_bar, gminusAxvbar_avg/)
+         w(:) = [QSxlambda + v_D - Bxv_bar, gminusAxvbar_avg]
          CALL DGEMV('N', n_tiles_tot + 1, n_tiles_tot + 1, 1.0_dp, Rinv, n_tiles_tot + 1, w, 1, 0.0_dp, lambda_newNeta, 1)
          lambda_new(:) = lambda_newNeta(1:n_tiles_tot)
          eta = lambda_newNeta(n_tiles_tot + 1)
@@ -971,7 +971,7 @@ CONTAINS
 
 ! verbose output
          IF (poisson_env%parameters%dbc_params%verbose_output) THEN
-            v_new1D(ps_implicit_env%idx_1dto3d) = RESHAPE(v_new_xpndd%array, (/data_size/))
+            v_new1D(ps_implicit_env%idx_1dto3d) = RESHAPE(v_new_xpndd%array, [data_size])
             CALL DGEMV('N', n_tiles_tot, data_size, 1.0_dp, B, n_tiles_tot, v_new1D, 1, 0.0_dp, Bxv_new, 1)
             CALL pw_grid%para%group%sum(Bxv_new)
             IF (outp_unit .GT. 0) THEN
@@ -1212,11 +1212,11 @@ CONTAINS
 
                tile_volume = ps_implicit_env%contacts(j)%dirichlet_bc%tiles(i)%tile%volume
                CALL pw_scale(pw_in, 1.0_dp/(vol_scfac*tile_volume)) ! normalize tile_pw
-               ps_implicit_env%Bt(ps_implicit_env%idx_1dto3d, indx1 + i - 1) = RESHAPE(pw_in%array, (/data_size/))
+               ps_implicit_env%Bt(ps_implicit_env%idx_1dto3d, indx1 + i - 1) = RESHAPE(pw_in%array, [data_size])
 
                CALL pw_pool_xpndd%create_pw(pw_out)
                CALL apply_inv_laplace_operator_dct(pw_pool_xpndd, green, pw_in, pw_out)
-               QAinvxBt(ps_implicit_env%idx_1dto3d, indx1 + i - 1) = RESHAPE(pw_out%array, (/data_size/))
+               QAinvxBt(ps_implicit_env%idx_1dto3d, indx1 + i - 1) = RESHAPE(pw_out%array, [data_size])
                ! the electrostatic potential has opposite sign by internal convention
                ps_implicit_env%v_D(indx1 + i - 1) = -1.0_dp*ps_implicit_env%contacts(j)%dirichlet_bc%v_D
                ps_implicit_env%osc_frac(indx1 + i - 1) = ps_implicit_env%contacts(j)%dirichlet_bc%osc_frac
@@ -1341,11 +1341,11 @@ CONTAINS
 
                tile_volume = ps_implicit_env%contacts(j)%dirichlet_bc%tiles(i)%tile%volume
                CALL pw_scale(pw_in, 1.0_dp/tile_volume) ! normalize tile_pw
-               ps_implicit_env%Bt(ps_implicit_env%idx_1dto3d, indx1 + i - 1) = RESHAPE(pw_in%array, (/data_size/))
+               ps_implicit_env%Bt(ps_implicit_env%idx_1dto3d, indx1 + i - 1) = RESHAPE(pw_in%array, [data_size])
 
                CALL pw_pool_orig%create_pw(pw_out)
                CALL apply_inv_laplace_operator_fft(pw_pool_orig, green, pw_in, pw_out)
-               QAinvxBt(ps_implicit_env%idx_1dto3d, indx1 + i - 1) = RESHAPE(pw_out%array, (/data_size/))
+               QAinvxBt(ps_implicit_env%idx_1dto3d, indx1 + i - 1) = RESHAPE(pw_out%array, [data_size])
                ! the electrostatic potential has opposite sign by internal convention
                ps_implicit_env%v_D(indx1 + i - 1) = -1.0_dp*ps_implicit_env%contacts(j)%dirichlet_bc%v_D
                ps_implicit_env%osc_frac(indx1 + i - 1) = ps_implicit_env%contacts(j)%dirichlet_bc%osc_frac

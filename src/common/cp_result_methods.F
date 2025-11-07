@@ -110,7 +110,7 @@ CONTAINS
 
       results%result_label(isize + 1) = description
       CALL cp_result_value_init(results%result_value(isize + 1)%value, result_type_real, jsize)
-      results%result_value(isize + 1)%value%real_type = RESHAPE(values, (/jsize/))
+      results%result_value(isize + 1)%value%real_type = RESHAPE(values, [jsize])
 
    END SUBROUTINE put_result_r2
 
@@ -277,12 +277,12 @@ CONTAINS
             k = k + 1
             IF (PRESENT(nval)) THEN
                IF (k == nval) THEN
-                  values = RESHAPE(results%result_value(i)%value%real_type, (/SIZE(values, 1), SIZE(values, 2)/))
+                  values = RESHAPE(results%result_value(i)%value%real_type, [SIZE(values, 1), SIZE(values, 2)])
                   EXIT
                END IF
             ELSE
                values((k - 1)*size_res + 1:k*size_res, :) = RESHAPE(results%result_value(i)%value%real_type, &
-                                                                    (/SIZE(values, 1), SIZE(values, 2)/))
+                                                                    [SIZE(values, 1), SIZE(values, 2)])
             END IF
          END IF
       END DO

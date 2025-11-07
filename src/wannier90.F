@@ -747,7 +747,7 @@ CONTAINS
       REAL(kind=dp), INTENT(out)                         :: bweight(max_shells)
 
       INTEGER, PARAMETER                                 :: lwork = max_shells*10
-      REAL(kind=dp), PARAMETER :: TARGET(6) = (/1.0_dp, 1.0_dp, 1.0_dp, 0.0_dp, 0.0_dp, 0.0_dp/)
+      REAL(kind=dp), PARAMETER :: TARGET(6) = [1.0_dp, 1.0_dp, 1.0_dp, 0.0_dp, 0.0_dp, 0.0_dp]
 
       INTEGER                                            :: cur_shell, info, loop_b, loop_bn, &
                                                             loop_i, loop_j, loop_s, shell

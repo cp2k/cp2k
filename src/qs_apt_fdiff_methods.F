@@ -182,7 +182,7 @@ CONTAINS
       dft_control%period_efield%displacement_field = .FALSE.
 
       DO i = 1, 3
-         dft_control%period_efield%polarisation(1:3) = (/0.0_dp, 0.0_dp, 0.0_dp/)
+         dft_control%period_efield%polarisation(1:3) = [0.0_dp, 0.0_dp, 0.0_dp]
          dft_control%period_efield%polarisation(i) = 1.0_dp
 
          IF (log_unit > 0) THEN

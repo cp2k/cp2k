@@ -350,21 +350,21 @@ CONTAINS
       CALL section_vals_val_get(cell_section, "PERIODIC", i_val=my_per)
       SELECT CASE (my_per)
       CASE (use_perd_x)
-         cell%perd = (/1, 0, 0/)
+         cell%perd = [1, 0, 0]
       CASE (use_perd_y)
-         cell%perd = (/0, 1, 0/)
+         cell%perd = [0, 1, 0]
       CASE (use_perd_z)
-         cell%perd = (/0, 0, 1/)
+         cell%perd = [0, 0, 1]
       CASE (use_perd_xy)
-         cell%perd = (/1, 1, 0/)
+         cell%perd = [1, 1, 0]
       CASE (use_perd_xz)
-         cell%perd = (/1, 0, 1/)
+         cell%perd = [1, 0, 1]
       CASE (use_perd_yz)
-         cell%perd = (/0, 1, 1/)
+         cell%perd = [0, 1, 1]
       CASE (use_perd_xyz)
-         cell%perd = (/1, 1, 1/)
+         cell%perd = [1, 1, 1]
       CASE (use_perd_none)
-         cell%perd = (/0, 0, 0/)
+         cell%perd = [0, 0, 0]
       CASE DEFAULT
          CPABORT("")
       END SELECT
@@ -459,9 +459,9 @@ CONTAINS
       cos_alpha = COS(cell_angle(1)); IF (ABS(cos_alpha) < eps) cos_alpha = 0.0_dp
       IF (ABS(ABS(cos_alpha) - 1.0_dp) < eps) cos_alpha = SIGN(1.0_dp, cos_alpha)
 
-      cell%hmat(:, 1) = (/1.0_dp, 0.0_dp, 0.0_dp/)
-      cell%hmat(:, 2) = (/cos_gamma, sin_gamma, 0.0_dp/)
-      cell%hmat(:, 3) = (/cos_beta, (cos_alpha - cos_gamma*cos_beta)/sin_gamma, 0.0_dp/)
+      cell%hmat(:, 1) = [1.0_dp, 0.0_dp, 0.0_dp]
+      cell%hmat(:, 2) = [cos_gamma, sin_gamma, 0.0_dp]
+      cell%hmat(:, 3) = [cos_beta, (cos_alpha - cos_gamma*cos_beta)/sin_gamma, 0.0_dp]
       cell%hmat(3, 3) = SQRT(1.0_dp - cell%hmat(1, 3)**2 - cell%hmat(2, 3)**2)
 
       cell%hmat(:, 1) = cell%hmat(:, 1)*cell_length(1)

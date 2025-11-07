@@ -371,7 +371,7 @@ CONTAINS
          ! split comm, the first num_pe_new tasks will do the work
          ALLOCATE (work_redistribute%group_distribution(0:rdinfo%num_pe_old - 1))
          ALLOCATE (work_redistribute%group_partition(0:1))
-         work_redistribute%group_partition = (/rdinfo%num_pe_new, rdinfo%num_pe_old - rdinfo%num_pe_new/)
+         work_redistribute%group_partition = [rdinfo%num_pe_new, rdinfo%num_pe_old - rdinfo%num_pe_new]
          ALLOCATE (work_redistribute%para_env_new)
          CALL work_redistribute%para_env_new%from_split( &
             comm=para_env, ngroups=ngroups, group_distribution=work_redistribute%group_distribution, &

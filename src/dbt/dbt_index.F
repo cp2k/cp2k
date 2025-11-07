@@ -100,8 +100,8 @@ CONTAINS
       ALLOCATE (map%dims2_2d, source=dims(map2_2d))
 
       ALLOCATE (map%map_nd(map%ndim_nd))
-      map%map_nd(map1_2d) = (/(i, i=1, SIZE(map1_2d))/)
-      map%map_nd(map2_2d) = (/(i + SIZE(map1_2d), i=1, SIZE(map2_2d))/)
+      map%map_nd(map1_2d) = [(i, i=1, SIZE(map1_2d))]
+      map%map_nd(map2_2d) = [(i + SIZE(map1_2d), i=1, SIZE(map2_2d))]
 
       map%dims_2d = [PRODUCT(INT(map%dims1_2d, KIND=int_8)), PRODUCT(INT(map%dims2_2d, KIND=int_8))]
 
@@ -412,7 +412,7 @@ CONTAINS
 
       INTEGER                                            :: i
 
-      dbt_inverse_order(order) = (/(i, i=1, SIZE(order))/)
+      dbt_inverse_order(order) = [(i, i=1, SIZE(order))]
    END FUNCTION
 
 ! **************************************************************************************************

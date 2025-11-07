@@ -98,11 +98,11 @@ CONTAINS
                                         "constant pressure ensemble using an isotropic cell (no thermostat)", &
                                         "adiabatic dynamics in constant temperature and volume ensemble (CAFES)", &
                                         "NPT_I ensemble with frozen atoms in absolute coordinate"), &
-                          citations=(/Evans1983, VandeVondele2002, Minary2003/), &
-                          enum_i_vals=(/nve_ensemble, nvt_ensemble, npt_i_ensemble, npt_f_ensemble, &
-                                        nph_uniaxial_ensemble, nph_uniaxial_damped_ensemble, nph_ensemble, isokin_ensemble, &
-                                        reftraj_ensemble, langevin_ensemble, npe_f_ensemble, npe_i_ensemble, &
-                                        nvt_adiabatic_ensemble, npt_ia_ensemble/))
+                          citations=[Evans1983, VandeVondele2002, Minary2003], &
+                          enum_i_vals=[nve_ensemble, nvt_ensemble, npt_i_ensemble, npt_f_ensemble, &
+                                       nph_uniaxial_ensemble, nph_uniaxial_damped_ensemble, nph_ensemble, isokin_ensemble, &
+                                       reftraj_ensemble, langevin_ensemble, npe_f_ensemble, npe_i_ensemble, &
+                                       nvt_adiabatic_ensemble, npt_ia_ensemble])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -256,7 +256,7 @@ CONTAINS
                                         "TEMPERATURE", &
                                         "Initialise positions and velocities to give canonical ensemble "// &
                                         "with TEMPERATURE, using the method described in PRL 96, 115504 (2006)"), &
-                          enum_i_vals=(/md_init_default, md_init_vib/))
+                          enum_i_vals=[md_init_default, md_init_vib])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -336,7 +336,7 @@ CONTAINS
                           "undergoes Langevin MD, while those outside the regions undergoes "// &
                           "NVE Born Oppenheimer MD. To define the regions, the user should "// &
                           "use THERMAL_REGION subsection of MOTION%MD. ", &
-                          citations=(/Ricci2003, Kuhne2007, Rengaraj2020/), &
+                          citations=[Ricci2003, Kuhne2007, Rengaraj2020], &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
       NULLIFY (keyword)
 
@@ -348,17 +348,17 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="Noisy_Gamma", &
-                          variants=(/"NoisyGamma"/), &
+                          variants=["NoisyGamma"], &
                           description="Imaginary Langevin Friction term for LD with noisy forces.", &
-                          citations=(/Kuhne2007/), &
+                          citations=[Kuhne2007], &
                           usage="Noisy_Gamma 4.0E-5", default_r_val=0.0_dp, unit_str='fs^-1')
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="Shadow_Gamma", &
-                          variants=(/"ShadowGamma"/), &
+                          variants=["ShadowGamma"], &
                           description="Shadow Langevin Friction term for LD with noisy forces in order to adjust Noisy_Gamma.", &
-                          citations=(/Rengaraj2020/), &
+                          citations=[Rengaraj2020], &
                           usage="Shadow_Gamma 0.001", default_r_val=0.0_dp, unit_str='fs^-1')
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -477,7 +477,7 @@ CONTAINS
                           " subsys in the force_eval corresponding at the first index in the multiple_force_eval list."// &
                           " Can be used to speedup classical and ab initio MD simulations.", &
                           n_keywords=1, n_subsections=0, repeats=.FALSE., &
-                          citations=(/Tuckerman1992, Guidon2008/))
+                          citations=[Tuckerman1992, Guidon2008])
 
       NULLIFY (keyword)
       CALL keyword_create(keyword, __LOCATION__, name="FREQUENCY", &
@@ -557,7 +557,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="EVAL", &
                           description="Selects the properties to evaluate for each retrieved snapshot during a REFTRAJ run", &
                           default_i_val=REFTRAJ_EVAL_NONE, &
-                          enum_i_vals=(/REFTRAJ_EVAL_NONE, REFTRAJ_EVAL_ENERGY, REFTRAJ_EVAL_ENERGY_FORCES/), &
+                          enum_i_vals=[REFTRAJ_EVAL_NONE, REFTRAJ_EVAL_ENERGY, REFTRAJ_EVAL_ENERGY_FORCES], &
                           enum_c_vals=s2a("NONE", "ENERGY", "ENERGY_FORCES"), &
                           enum_desc=s2a("Evaluate nothing", "Evaluate only the energy", "Evaluate energy and forces"))
       CALL section_add_keyword(section, keyword)
@@ -738,7 +738,7 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="VSHOCK", variants=(/"V_SHOCK"/), &
+      CALL keyword_create(keyword, __LOCATION__, name="VSHOCK", variants=["V_SHOCK"], &
                           description="Velocity shock", &
                           usage="VSHOCK real", &
                           default_r_val=0._dp, n_var=1, unit_str='m/s')
@@ -831,7 +831,7 @@ CONTAINS
       CALL section_create(section, __LOCATION__, name="ADIABATIC_DYNAMICS", &
                           description="Parameters used in canonical adiabatic free energy sampling (CAFES).", &
                           n_keywords=5, n_subsections=2, repeats=.FALSE., &
-                          citations=(/VandeVondele2002/))
+                          citations=[VandeVondele2002])
 
       NULLIFY (keyword, thermo_fast_section, thermo_slow_section)
 
@@ -951,7 +951,7 @@ CONTAINS
                           "thermal regions should undergo Langevin MD or NVE Born-Oppenheimer MD. "// &
                           "The theory behind Langevin MD using different regions can be found in "// &
                           "articles by Kantorovitch et al. listed below.", &
-                          citations=(/Kantorovich2008, Kantorovich2008a/), &
+                          citations=[Kantorovich2008, Kantorovich2008a], &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
 
       NULLIFY (region_section)
@@ -1017,7 +1017,7 @@ CONTAINS
                           " for Langevin Dynamics with noisy forces for the atoms in this region."// &
                           " When set, overrides the general value set by NOISY_GAMMA in the MOTION%MD%LANGEVIN section."// &
                           " When unset for a defined region, the general NOISY_GAMMA value applies.", &
-                          citations=(/Kuhne2007/), usage="noisy_gamma_region 4.0E-5", &
+                          citations=[Kuhne2007], usage="noisy_gamma_region 4.0E-5", &
                           type_of_var=real_t, &
                           unit_str="fs^-1")
       CALL section_add_keyword(region_section, keyword)
@@ -1364,7 +1364,7 @@ CONTAINS
                           "coordinates. The MD initialisation process expects the user has "// &
                           "performed both geometry optimisation and vibrational analysis "// &
                           "before hand, and won't perform those calculations automatically ", &
-                          citations=(/West2006/), &
+                          citations=[West2006], &
                           n_keywords=0, n_subsections=1, repeats=.FALSE.)
       NULLIFY (keyword)
       CALL keyword_create(keyword, __LOCATION__, name="VIB_EIGS_FILE_NAME", &

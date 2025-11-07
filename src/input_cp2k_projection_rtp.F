@@ -79,7 +79,7 @@ CONTAINS
                           default_i_val=proj_mo_ref_scf, &
                           enum_desc=s2a("The reference MO is from an SCF calculation.", &
                                         "The reference MO is from an XAS_TDP analysis."), &
-                          enum_i_vals=(/proj_mo_ref_scf, proj_mo_ref_xas_tdp/))
+                          enum_i_vals=[proj_mo_ref_scf, proj_mo_ref_xas_tdp])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -101,7 +101,7 @@ CONTAINS
                           "Set to -1 to project on all the MO available. "// &
                           "One file will be generated per index defined.", &
                           usage="REF_MO_INDEX 1 2", &
-                          default_i_vals=(/1/), &
+                          default_i_vals=[1], &
                           n_var=-1, type_of_var=integer_t, repeats=.FALSE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -141,7 +141,7 @@ CONTAINS
                           description="Indexes of the time dependent MOs to project on the reference MOs. "// &
                           "Set to -1 to project on all the TD MOs.", &
                           usage="TD_MO_INDEX 1 2", &
-                          default_i_vals=(/1/), &
+                          default_i_vals=[1], &
                           n_var=-1, type_of_var=integer_t, repeats=.FALSE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

@@ -185,8 +185,8 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: npoints
 
       REAL(KIND=dp), DIMENSION(4), PARAMETER :: &
-         beta0 = (/7.59570_dp, 3.58760_dp, 1.63820_dp, 0.49294_dp/), &
-         beta1 = (/14.11890_dp, 6.19770_dp, 3.36620_dp, 0.62517_dp/)
+         beta0 = [7.59570_dp, 3.58760_dp, 1.63820_dp, 0.49294_dp], &
+         beta1 = [14.11890_dp, 6.19770_dp, 3.36620_dp, 0.62517_dp]
       REAL(KIND=dp), PARAMETER :: a0 = 0.031091_dp, a1 = 0.015545_dp, alpha0 = 0.21370_dp, &
          alpha1 = 0.20548_dp, f13 = 1.0_dp/3.0_dp, f43 = 4.0_dp*f13, f83 = 8.0_dp*f13, &
          gamma_cab = 0.006_dp, gamma_css = 0.200_dp, gamma_xss = 0.004_dp

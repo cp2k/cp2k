@@ -1633,7 +1633,7 @@ CONTAINS
                DO icell = -ncells, ncells
                DO jcell = -ncells, ncells
                DO kcell = -ncells, ncells
-                  cell_v = MATMUL(cell%hmat, REAL((/icell, jcell, kcell/), KIND=dp))
+                  cell_v = MATMUL(cell%hmat, REAL([icell, jcell, kcell], KIND=dp))
                   IF (ALL(cell_v == 0.0_dp) .AND. (atom_a == atom_b)) CYCLE
                   rab = rab0 + cell_v
                   rab2 = rab(1)**2 + rab(2)**2 + rab(3)**2
@@ -2042,7 +2042,7 @@ CONTAINS
          WRITE (iw, '(/,A,I8)') "FIELD GRADIENT FOR ATOM: ", i
          WRITE (iw, '(A,9F15.9)') " NUMERICAL:  ", efield2n, &
             " ANALYTICAL: ", efield2(:, i), &
-            " ERROR:      ", RESHAPE(efield2n, (/9/)) - efield2(:, i)
+            " ERROR:      ", RESHAPE(efield2n, [9]) - efield2(:, i)
       END DO
    END SUBROUTINE debug_ewald_multipoles_fields
 

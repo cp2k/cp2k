@@ -253,7 +253,7 @@ CONTAINS
       LOGICAL                                            :: new_scale
       REAL(dp)                                           :: D, eval, myval, N, scaleD, scaleN
 
-      orders(:) = (/12, 12, 12/)
+      orders(:) = [12, 12, 12]
       IF (method == 2) THEN
          DO iscale = 0, 12
             new_scale = .FALSE.
@@ -278,7 +278,7 @@ CONTAINS
                         prev_cost = orders(1) + CEILING(REAL(orders(2), dp)/3.0_dp)
                      END IF
                      IF (cost .LT. prev_cost) THEN
-                        orders(:) = (/iscale, q, p/)
+                        orders(:) = [iscale, q, p]
                         myval = (N/D)**(2.0_dp**iscale)
                      END IF
                      new_scale = .TRUE.
@@ -311,7 +311,7 @@ CONTAINS
                      prev_cost = orders(1) + CEILING(REAL(orders(2), dp)/3.0_dp)
                   END IF
                   IF (cost .LT. prev_cost) THEN
-                     orders(:) = (/iscale, p, 0/)
+                     orders(:) = [iscale, p, 0]
                      myval = (N)**(2.0_dp**iscale)
                   END IF
                   new_scale = .TRUE.

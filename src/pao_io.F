@@ -271,14 +271,14 @@ CONTAINS
             READ (unit_nr, fmt=*) label, natoms
             ALLOCATE (positions(natoms, 3), atom2kind(natoms), xblocks(natoms))
             positions = 0.0_dp; atom2kind = -1
-            IF (PRESENT(ml_range)) ml_range = (/1, natoms/)
+            IF (PRESENT(ml_range)) ml_range = [1, natoms]
 
          ELSE IF (TRIM(label) == "MLRange") THEN
             ! Natoms entry has to come first
             CPASSERT(natoms > 0)
             ! range of atoms whose xblocks are used for machine learning
             READ (unit_nr, fmt=*) label, i1, i2
-            IF (PRESENT(ml_range)) ml_range = (/i1, i2/)
+            IF (PRESENT(ml_range)) ml_range = [i1, i2]
 
          ELSE IF (TRIM(label) == "Atom") THEN
             READ (unit_nr, fmt=*) label, iatom, str_in, pos_in

@@ -57,40 +57,40 @@ MODULE pair_potential_types
                                  deepmd_type = 20, &
                                  ace_type = 21
 
-   INTEGER, PUBLIC, PARAMETER, DIMENSION(22) :: list_pot = (/nn_type, &
-                                                             lj_type, &
-                                                             lj_charmm_type, &
-                                                             ft_type, &
-                                                             wl_type, &
-                                                             gw_type, &
-                                                             ip_type, &
-                                                             ea_type, &
-                                                             b4_type, &
-                                                             bm_type, &
-                                                             gp_type, &
-                                                             tersoff_type, &
-                                                             ftd_type, &
-                                                             siepmann_type, &
-                                                             gal_type, &
-                                                             quip_type, &
-                                                             nequip_type, &
-                                                             allegro_type, &
-                                                             gal21_type, &
-                                                             tab_type, &
-                                                             deepmd_type, &
-                                                             ace_type/)
+   INTEGER, PUBLIC, PARAMETER, DIMENSION(22) :: list_pot = [nn_type, &
+                                                            lj_type, &
+                                                            lj_charmm_type, &
+                                                            ft_type, &
+                                                            wl_type, &
+                                                            gw_type, &
+                                                            ip_type, &
+                                                            ea_type, &
+                                                            b4_type, &
+                                                            bm_type, &
+                                                            gp_type, &
+                                                            tersoff_type, &
+                                                            ftd_type, &
+                                                            siepmann_type, &
+                                                            gal_type, &
+                                                            quip_type, &
+                                                            nequip_type, &
+                                                            allegro_type, &
+                                                            gal21_type, &
+                                                            tab_type, &
+                                                            deepmd_type, &
+                                                            ace_type]
 
    ! Shell model
    INTEGER, PUBLIC, PARAMETER :: nosh_nosh = 0, &
                                  nosh_sh = 1, &
                                  sh_sh = 2
 
-   INTEGER, PUBLIC, PARAMETER, DIMENSION(3) :: list_sh_type = (/nosh_nosh, nosh_sh, sh_sh/)
+   INTEGER, PUBLIC, PARAMETER, DIMENSION(3) :: list_sh_type = [nosh_nosh, nosh_sh, sh_sh]
 
    ! Single Spline generation info
    REAL(KIND=dp), PARAMETER, PUBLIC         :: not_initialized = -HUGE(0.0_dp)
-   INTEGER, PARAMETER, DIMENSION(2), PUBLIC :: do_potential_single_allocation = (/lj_type, lj_charmm_type/)
-   INTEGER, PARAMETER, DIMENSION(2), PUBLIC :: no_potential_single_allocation = (/-HUGE(0), -HUGE(0)/)
+   INTEGER, PARAMETER, DIMENSION(2), PUBLIC :: do_potential_single_allocation = [lj_type, lj_charmm_type]
+   INTEGER, PARAMETER, DIMENSION(2), PUBLIC :: no_potential_single_allocation = [-HUGE(0), -HUGE(0)]
    INTEGER, DIMENSION(2), PUBLIC            :: potential_single_allocation
 
    PUBLIC :: pair_potential_reallocate

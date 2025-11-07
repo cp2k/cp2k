@@ -389,7 +389,7 @@ CONTAINS
                   lri_env%bas_prop(ikind)%ri_index => ri_index
                   ALLOCATE (lri_env%bas_prop(ikind)%ovlp3(orb_basis%nsgf, orb_basis%nsgf, ri_basis%nsgf))
                   ALLOCATE (dovlp3(orb_basis%nsgf, orb_basis%nsgf, ri_basis%nsgf, 3))
-                  CALL int_overlap_aba_shg(lri_env%bas_prop(ikind)%ovlp3, dovlp3, (/0.0_dp, 0.0_dp, 0.0_dp/), &
+                  CALL int_overlap_aba_shg(lri_env%bas_prop(ikind)%ovlp3, dovlp3, [0.0_dp, 0.0_dp, 0.0_dp], &
                                            orb_basis, orb_basis, ri_basis, scon_orb, &
                                            scon_mix, orb_index, ri_index, &
                                            lri_env%cg_shg%cg_coeff, &

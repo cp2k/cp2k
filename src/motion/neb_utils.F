@@ -373,7 +373,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: output_unit
 
       CHARACTER(len=*), PARAMETER :: routineN = 'neb_calc_energy_forces'
-      CHARACTER(LEN=1), DIMENSION(3), PARAMETER          :: lab = (/"X", "Y", "Z"/)
+      CHARACTER(LEN=1), DIMENSION(3), PARAMETER          :: lab = ["X", "Y", "Z"]
 
       INTEGER                                            :: handle, i, irep, j, n_int, n_rep, &
                                                             n_rep_neb, nsize_wrk
@@ -854,7 +854,7 @@ CONTAINS
                   (SIZE(array3) /= nsize_int*nsize_int))
          ! This condition should always be satisfied..
          CPASSERT(check)
-         value = DOT_PRODUCT(MATMUL(RESHAPE(array3, (/nsize_int, nsize_int/)), array1), array2)
+         value = DOT_PRODUCT(MATMUL(RESHAPE(array3, [nsize_int, nsize_int]), array1), array2)
       ELSE
          value = DOT_PRODUCT(array1, array2)
       END IF

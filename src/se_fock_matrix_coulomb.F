@@ -246,7 +246,7 @@ CONTAINS
                                    row=iatom, col=iatom, BLOCK=ksa_block_a, found=found)
             CPASSERT(ASSOCIATED(ksa_block_a))
             p_block_tot_a(1:natorb_a, 1:natorb_a) = 2.0_dp*pa_block_a
-            pa_a(1:natorb_a2) = RESHAPE(pa_block_a, (/natorb_a2/))
+            pa_a(1:natorb_a2) = RESHAPE(pa_block_a, [natorb_a2])
             IF (nspins == 2) THEN
                CALL dbcsr_get_block_p(matrix=diagmat_p(2)%matrix, &
                                       row=iatom, col=iatom, BLOCK=pa_block_b, found=found)
@@ -257,7 +257,7 @@ CONTAINS
                                       row=iatom, col=iatom, BLOCK=ksa_block_b, found=found)
                CPASSERT(ASSOCIATED(ksa_block_b))
                p_block_tot_a(1:natorb_a, 1:natorb_a) = pa_block_a + pa_block_b
-               pa_b(1:natorb_a2) = RESHAPE(pa_block_b, (/natorb_a2/))
+               pa_b(1:natorb_a2) = RESHAPE(pa_block_b, [natorb_a2])
             END IF
 
          END IF
@@ -280,7 +280,7 @@ CONTAINS
                                    row=jatom, col=jatom, BLOCK=ksb_block_a, found=found)
             CPASSERT(ASSOCIATED(ksb_block_a))
             p_block_tot_b(1:natorb_b, 1:natorb_b) = 2.0_dp*pb_block_a
-            pb_a(1:natorb_b2) = RESHAPE(pb_block_a, (/natorb_b2/))
+            pb_a(1:natorb_b2) = RESHAPE(pb_block_a, [natorb_b2])
             ! Handle more than one configuration
             IF (nspins == 2) THEN
                CALL dbcsr_get_block_p(matrix=diagmat_p(2)%matrix, &
@@ -294,7 +294,7 @@ CONTAINS
                check = (SIZE(pb_block_a, 1) == SIZE(pb_block_b, 1)) .AND. (SIZE(pb_block_a, 2) == SIZE(pb_block_b, 2))
                CPASSERT(check)
                p_block_tot_b(1:natorb_b, 1:natorb_b) = pb_block_a + pb_block_b
-               pb_b(1:natorb_b2) = RESHAPE(pb_block_b, (/natorb_b2/))
+               pb_b(1:natorb_b2) = RESHAPE(pb_block_b, [natorb_b2])
             END IF
 
             SELECT CASE (dft_control%qs_control%method_id)
@@ -758,7 +758,7 @@ CONTAINS
 
                   ! Quadrupole
                   IF (mpole%task(3) .AND. task(3)) THEN
-                     tmp = tmp - (1.0_dp/3.0_dp)*SUM(mpole%qc*RESHAPE(se_nddo_mpole%efield2(:, iatom), (/3, 3/)))
+                     tmp = tmp - (1.0_dp/3.0_dp)*SUM(mpole%qc*RESHAPE(se_nddo_mpole%efield2(:, iatom), [3, 3]))
                   END IF
 
                   ksa_block_a(indi, indj) = ksa_block_a(indi, indj) + tmp
@@ -968,7 +968,7 @@ CONTAINS
                                    row=iatom, col=iatom, BLOCK=ksa_block_a, found=found)
             CPASSERT(ASSOCIATED(ksa_block_a))
             p_block_tot_a(1:natorb_a, 1:natorb_a) = 2.0_dp*pa_block_a
-            pa_a(1:natorb_a2) = RESHAPE(pa_block_a, (/natorb_a2/))
+            pa_a(1:natorb_a2) = RESHAPE(pa_block_a, [natorb_a2])
             IF (nspins == 2) THEN
                CALL dbcsr_get_block_p(matrix=diagmat_p(2)%matrix, &
                                       row=iatom, col=iatom, BLOCK=pa_block_b, found=found)
@@ -979,7 +979,7 @@ CONTAINS
                                       row=iatom, col=iatom, BLOCK=ksa_block_b, found=found)
                CPASSERT(ASSOCIATED(ksa_block_b))
                p_block_tot_a(1:natorb_a, 1:natorb_a) = pa_block_a + pa_block_b
-               pa_b(1:natorb_a2) = RESHAPE(pa_block_b, (/natorb_a2/))
+               pa_b(1:natorb_a2) = RESHAPE(pa_block_b, [natorb_a2])
             END IF
 
          END IF
@@ -1012,7 +1012,7 @@ CONTAINS
                                    row=jatom, col=jatom, BLOCK=ksb_block_a, found=found)
             CPASSERT(ASSOCIATED(ksb_block_a))
             p_block_tot_b(1:natorb_b, 1:natorb_b) = 2.0_dp*pb_block_a
-            pb_a(1:natorb_b2) = RESHAPE(pb_block_a, (/natorb_b2/))
+            pb_a(1:natorb_b2) = RESHAPE(pb_block_a, [natorb_b2])
             ! Handle more than one configuration
             IF (nspins == 2) THEN
                CALL dbcsr_get_block_p(matrix=diagmat_p(2)%matrix, &
@@ -1026,7 +1026,7 @@ CONTAINS
                check = (SIZE(pb_block_a, 1) == SIZE(pb_block_b, 1)) .AND. (SIZE(pb_block_a, 2) == SIZE(pb_block_b, 2))
                CPASSERT(check)
                p_block_tot_b(1:natorb_b, 1:natorb_b) = pb_block_a + pb_block_b
-               pb_b(1:natorb_b2) = RESHAPE(pb_block_b, (/natorb_b2/))
+               pb_b(1:natorb_b2) = RESHAPE(pb_block_b, [natorb_b2])
             END IF
 
             SELECT CASE (dft_control%qs_control%method_id)
@@ -1328,7 +1328,7 @@ CONTAINS
                                    row=iatom, col=iatom, BLOCK=ksa_block_a, found=found)
             CPASSERT(ASSOCIATED(ksa_block_a))
             p_block_tot_a(1:natorb_a, 1:natorb_a) = 2.0_dp*pa_block_a
-            pa_a(1:natorb_a2) = RESHAPE(pa_block_a, (/natorb_a2/))
+            pa_a(1:natorb_a2) = RESHAPE(pa_block_a, [natorb_a2])
             IF (nspins == 2) THEN
                CALL dbcsr_get_block_p(matrix=diagmat_p(2)%matrix, &
                                       row=iatom, col=iatom, BLOCK=pa_block_b, found=found)
@@ -1339,7 +1339,7 @@ CONTAINS
                                       row=iatom, col=iatom, BLOCK=ksa_block_b, found=found)
                CPASSERT(ASSOCIATED(ksa_block_b))
                p_block_tot_a(1:natorb_a, 1:natorb_a) = pa_block_a + pa_block_b
-               pa_b(1:natorb_a2) = RESHAPE(pa_block_b, (/natorb_a2/))
+               pa_b(1:natorb_a2) = RESHAPE(pa_block_b, [natorb_a2])
             END IF
          END IF
 
@@ -1361,7 +1361,7 @@ CONTAINS
                                    row=jatom, col=jatom, BLOCK=ksb_block_a, found=found)
             CPASSERT(ASSOCIATED(ksb_block_a))
             p_block_tot_b(1:natorb_b, 1:natorb_b) = 2.0_dp*pb_block_a
-            pb_a(1:natorb_b2) = RESHAPE(pb_block_a, (/natorb_b2/))
+            pb_a(1:natorb_b2) = RESHAPE(pb_block_a, [natorb_b2])
             ! Handle more than one configuration
             IF (nspins == 2) THEN
                CALL dbcsr_get_block_p(matrix=diagmat_p(2)%matrix, &
@@ -1375,7 +1375,7 @@ CONTAINS
                check = (SIZE(pb_block_a, 1) == SIZE(pb_block_b, 1)) .AND. (SIZE(pb_block_a, 2) == SIZE(pb_block_b, 2))
                CPASSERT(check)
                p_block_tot_b(1:natorb_b, 1:natorb_b) = pb_block_a + pb_block_b
-               pb_b(1:natorb_b2) = RESHAPE(pb_block_b, (/natorb_b2/))
+               pb_b(1:natorb_b2) = RESHAPE(pb_block_b, [natorb_b2])
             END IF
 
             SELECT CASE (dft_control%qs_control%method_id)

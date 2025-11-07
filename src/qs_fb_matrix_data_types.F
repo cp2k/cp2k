@@ -107,7 +107,7 @@ CONTAINS
       pair_ind = fb_matrix_data_encode_pair(row, col, matrix_data%obj%nencode)
       CALL fb_hash_table_get(matrix_data%obj%ind, pair_ind, existing_ii, found)
       IF (found) THEN
-         CALL fb_buffer_replace(matrix_data%obj%blks, existing_ii, RESHAPE(blk, (/nrows*ncols/)))
+         CALL fb_buffer_replace(matrix_data%obj%blks, existing_ii, RESHAPE(blk, [nrows*ncols]))
       ELSE
          old_nblks = matrix_data%obj%nblks
          matrix_data%obj%nblks = old_nblks + 1
@@ -122,7 +122,7 @@ CONTAINS
          END IF
          ! add data block
          matrix_data%obj%lds(ii) = nrows
-         CALL fb_buffer_add(matrix_data%obj%blks, RESHAPE(blk, (/nrows*ncols/)))
+         CALL fb_buffer_add(matrix_data%obj%blks, RESHAPE(blk, [nrows*ncols]))
          ! record blk index in the index table
          CALL fb_hash_table_add(matrix_data%obj%ind, pair_ind, ii)
       END IF

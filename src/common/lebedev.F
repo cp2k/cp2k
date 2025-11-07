@@ -179,40 +179,40 @@ CONTAINS
       CASE ("A1")
          lebedev_grid(lgnum)%w(1:na1) = w(1)
          lebedev_grid(lgnum)%r(1:3, 1:na1) = &
-            RESHAPE((/zero, zero, one, &
-                      zero, zero, -one, &
-                      zero, one, zero, &
-                      zero, -one, zero, &
-                      one, zero, zero, &
-                      -one, zero, zero/), (/3, na1/))
+            RESHAPE([zero, zero, one, &
+                     zero, zero, -one, &
+                     zero, one, zero, &
+                     zero, -one, zero, &
+                     one, zero, zero, &
+                     -one, zero, zero], [3, na1])
          nlgp = na1
       CASE ("A2")
          lebedev_grid(lgnum)%w(nlgp + 1:nlgp + na2) = w(1)
          lebedev_grid(lgnum)%r(1:3, nlgp + 1:nlgp + na2) = &
-            RESHAPE((/zero, rs2, rs2, &
-                      zero, rs2, -rs2, &
-                      zero, -rs2, rs2, &
-                      zero, -rs2, -rs2, &
-                      rs2, zero, rs2, &
-                      rs2, zero, -rs2, &
-                      -rs2, zero, rs2, &
-                      -rs2, zero, -rs2, &
-                      rs2, rs2, zero, &
-                      rs2, -rs2, zero, &
-                      -rs2, rs2, zero, &
-                      -rs2, -rs2, zero/), (/3, na2/))
+            RESHAPE([zero, rs2, rs2, &
+                     zero, rs2, -rs2, &
+                     zero, -rs2, rs2, &
+                     zero, -rs2, -rs2, &
+                     rs2, zero, rs2, &
+                     rs2, zero, -rs2, &
+                     -rs2, zero, rs2, &
+                     -rs2, zero, -rs2, &
+                     rs2, rs2, zero, &
+                     rs2, -rs2, zero, &
+                     -rs2, rs2, zero, &
+                     -rs2, -rs2, zero], [3, na2])
          nlgp = nlgp + na2
       CASE ("A3")
          lebedev_grid(lgnum)%w(nlgp + 1:nlgp + na3) = w(1)
          lebedev_grid(lgnum)%r(1:3, nlgp + 1:nlgp + na3) = &
-            RESHAPE((/rs3, rs3, rs3, &
-                      rs3, rs3, -rs3, &
-                      rs3, -rs3, rs3, &
-                      -rs3, rs3, rs3, &
-                      rs3, -rs3, -rs3, &
-                      -rs3, rs3, -rs3, &
-                      -rs3, -rs3, rs3, &
-                      -rs3, -rs3, -rs3/), (/3, na3/))
+            RESHAPE([rs3, rs3, rs3, &
+                     rs3, rs3, -rs3, &
+                     rs3, -rs3, rs3, &
+                     -rs3, rs3, rs3, &
+                     rs3, -rs3, -rs3, &
+                     -rs3, rs3, -rs3, &
+                     -rs3, -rs3, rs3, &
+                     -rs3, -rs3, -rs3], [3, na3])
          nlgp = nlgp + na3
       CASE ("B")
          DO i = 1, np
@@ -220,30 +220,30 @@ CONTAINS
             y = rs2*SQRT(one - x**2)
             lebedev_grid(lgnum)%w(nlgp + nb*(i - 1) + 1:nlgp + nb*i) = w(i)
             lebedev_grid(lgnum)%r(1:3, nlgp + nb*(i - 1) + 1:nlgp + nb*i) = &
-               RESHAPE((/x, y, y, &
-                         x, y, -y, &
-                         x, -y, y, &
-                         x, -y, -y, &
-                         -x, y, y, &
-                         -x, y, -y, &
-                         -x, -y, y, &
-                         -x, -y, -y, &
-                         y, x, y, &
-                         y, x, -y, &
-                         -y, x, y, &
-                         -y, x, -y, &
-                         y, -x, y, &
-                         y, -x, -y, &
-                         -y, -x, y, &
-                         -y, -x, -y, &
-                         y, y, x, &
-                         y, -y, x, &
-                         -y, y, x, &
-                         -y, -y, x, &
-                         y, y, -x, &
-                         y, -y, -x, &
-                         -y, y, -x, &
-                         -y, -y, -x/), (/3, nb/))
+               RESHAPE([x, y, y, &
+                        x, y, -y, &
+                        x, -y, y, &
+                        x, -y, -y, &
+                        -x, y, y, &
+                        -x, y, -y, &
+                        -x, -y, y, &
+                        -x, -y, -y, &
+                        y, x, y, &
+                        y, x, -y, &
+                        -y, x, y, &
+                        -y, x, -y, &
+                        y, -x, y, &
+                        y, -x, -y, &
+                        -y, -x, y, &
+                        -y, -x, -y, &
+                        y, y, x, &
+                        y, -y, x, &
+                        -y, y, x, &
+                        -y, -y, x, &
+                        y, y, -x, &
+                        y, -y, -x, &
+                        -y, y, -x, &
+                        -y, -y, -x], [3, nb])
          END DO
          nlgp = nlgp + nb*np
       CASE ("C")
@@ -252,30 +252,30 @@ CONTAINS
             y = SQRT(one - x**2)
             lebedev_grid(lgnum)%w(nlgp + nc*(i - 1) + 1:nlgp + nc*i) = w(i)
             lebedev_grid(lgnum)%r(1:3, nlgp + nc*(i - 1) + 1:nlgp + nc*i) = &
-               RESHAPE((/x, y, zero, &
-                         x, -y, zero, &
-                         -x, y, zero, &
-                         -x, -y, zero, &
-                         y, x, zero, &
-                         y, -x, zero, &
-                         -y, x, zero, &
-                         -y, -x, zero, &
-                         x, zero, y, &
-                         x, zero, -y, &
-                         -x, zero, y, &
-                         -x, zero, -y, &
-                         y, zero, x, &
-                         y, zero, -x, &
-                         -y, zero, x, &
-                         -y, zero, -x, &
-                         zero, x, y, &
-                         zero, x, -y, &
-                         zero, -x, y, &
-                         zero, -x, -y, &
-                         zero, y, x, &
-                         zero, y, -x, &
-                         zero, -y, x, &
-                         zero, -y, -x/), (/3, nc/))
+               RESHAPE([x, y, zero, &
+                        x, -y, zero, &
+                        -x, y, zero, &
+                        -x, -y, zero, &
+                        y, x, zero, &
+                        y, -x, zero, &
+                        -y, x, zero, &
+                        -y, -x, zero, &
+                        x, zero, y, &
+                        x, zero, -y, &
+                        -x, zero, y, &
+                        -x, zero, -y, &
+                        y, zero, x, &
+                        y, zero, -x, &
+                        -y, zero, x, &
+                        -y, zero, -x, &
+                        zero, x, y, &
+                        zero, x, -y, &
+                        zero, -x, y, &
+                        zero, -x, -y, &
+                        zero, y, x, &
+                        zero, y, -x, &
+                        zero, -y, x, &
+                        zero, -y, -x], [3, nc])
          END DO
          nlgp = nlgp + nc*np
       CASE ("D")
@@ -287,18 +287,18 @@ CONTAINS
                z = r(i + 2)
                lebedev_grid(lgnum)%w(nlgp + nd*(j - 1) + 1:nlgp + nd*j) = w(j)
                lebedev_grid(lgnum)%r(1:3, nlgp + nd*(j - 1) + 1:nlgp + nd*j) = &
-                  RESHAPE((/x, y, z, x, y, -z, x, -y, z, -x, y, z, &
-                            x, -y, -z, -x, y, -z, -x, -y, z, -x, -y, -z, &
-                            x, z, y, x, z, -y, x, -z, y, -x, z, y, &
-                            x, -z, -y, -x, z, -y, -x, -z, y, -x, -z, -y, &
-                            y, x, z, y, x, -z, y, -x, z, -y, x, z, &
-                            y, -x, -z, -y, x, -z, -y, -x, z, -y, -x, -z, &
-                            y, z, x, y, z, -x, y, -z, x, -y, z, x, &
-                            y, -z, -x, -y, z, -x, -y, -z, x, -y, -z, -x, &
-                            z, x, y, z, x, -y, z, -x, y, -z, x, y, &
-                            z, -x, -y, -z, x, -y, -z, -x, y, -z, -x, -y, &
-                            z, y, x, z, y, -x, z, -y, x, -z, y, x, &
-                            z, -y, -x, -z, y, -x, -z, -y, x, -z, -y, -x/), (/3, nd/))
+                  RESHAPE([x, y, z, x, y, -z, x, -y, z, -x, y, z, &
+                           x, -y, -z, -x, y, -z, -x, -y, z, -x, -y, -z, &
+                           x, z, y, x, z, -y, x, -z, y, -x, z, y, &
+                           x, -z, -y, -x, z, -y, -x, -z, y, -x, -z, -y, &
+                           y, x, z, y, x, -z, y, -x, z, -y, x, z, &
+                           y, -x, -z, -y, x, -z, -y, -x, z, -y, -x, -z, &
+                           y, z, x, y, z, -x, y, -z, x, -y, z, x, &
+                           y, -z, -x, -y, z, -x, -y, -z, x, -y, -z, -x, &
+                           z, x, y, z, x, -y, z, -x, y, -z, x, y, &
+                           z, -x, -y, -z, x, -y, -z, -x, y, -z, -x, -y, &
+                           z, y, x, z, y, -x, z, -y, x, -z, y, x, &
+                           z, -y, -x, -z, y, -x, -z, -y, x, -z, -y, -x], [3, nd])
             END DO
          ELSE
             CPABORT("Subsytem D: np is not modulo 3 (check argument #3)")
@@ -355,12 +355,12 @@ CONTAINS
 
 !   *** Load the angular momentum quantum numbers l of the Lebedev grids ***
 
-      lebedev_grid(1:nlg)%l = (/3, 5, 7, 9, 11, 15, 17, 19, 23, 29, 35, 41, 47, 53/)
+      lebedev_grid(1:nlg)%l = [3, 5, 7, 9, 11, 15, 17, 19, 23, 29, 35, 41, 47, 53]
 
 !   *** Load the total number of grid points for each Lebedev grid ***
 
-      lebedev_grid(1:nlg)%n = (/6, 14, 26, 38, 50, 86, 110, 146, 194, 302, 434, 590, 770, &
-                                974/)
+      lebedev_grid(1:nlg)%n = [6, 14, 26, 38, 50, 86, 110, 146, 194, 302, 434, 590, 770, &
+                               974]
 
 !   *** Allocate storage for the Lebedev grids ***
 

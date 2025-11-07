@@ -265,7 +265,7 @@ CONTAINS
             block_size = row_size*col_size
 
             buffer_send(imep)%msg(msg_offset + 1:msg_offset + block_size) = &
-               RESHAPE(data_block(1:row_size, 1:col_size), (/block_size/))
+               RESHAPE(data_block(1:row_size, 1:col_size), [block_size])
 
             entry_counter(imep) = entry_counter(imep) + block_size
 
@@ -383,7 +383,7 @@ CONTAINS
 
                   data_block(1:row_size, 1:col_size) = &
                      RESHAPE(buffer_rec(imep)%msg(offset + 1:offset + row_size*col_size), &
-                             (/row_size, col_size/))
+                             [row_size, col_size])
 
                END IF
 
@@ -629,7 +629,7 @@ CONTAINS
          offset = entry_counter(imep)
 
          buffer_send(imep)%msg(offset + 1:offset + block_size) = &
-            RESHAPE(data_block(1:row_size, 1:col_size), (/block_size/))
+            RESHAPE(data_block(1:row_size, 1:col_size), [block_size])
 
          i_block = block_counter(imep) + 1
 
@@ -712,7 +712,7 @@ CONTAINS
                   o = offset
 
                   data_block(1:r, 1:c) = data_block(1:r, 1:c) + &
-                                         RESHAPE(buffer_rec(imep)%msg(o + 1:o + r*c), (/r, c/))
+                                         RESHAPE(buffer_rec(imep)%msg(o + 1:o + r*c), [r, c])
 
                END IF
 

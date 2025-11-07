@@ -297,7 +297,7 @@ CONTAINS
                IF (becke_control%cavity_confine) THEN
                   IF (becke_control%cavity%array(k, j, i) < eps_cavity) CYCLE
                END IF
-               ind = (/k, j, i/)
+               ind = [k, j, i]
                grid_p(1) = k*dr(1) + shift(1)
                grid_p(2) = j*dr(2) + shift(2)
                grid_p(3) = i*dr(3) + shift(3)
@@ -828,7 +828,7 @@ CONTAINS
 
                   IF (igroup == 1) THEN
                      CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
-                                                (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, &
+                                                [0.0_dp, 0.0_dp, 0.0_dp], 1.0_dp, pab, 0, 0, &
                                                 rs_rho_all, radius=radius, &
                                                 ga_gb_function=GRID_FUNC_AB, use_subpatch=.TRUE., &
                                                 subpatch_pattern=subpatch_pattern)
@@ -836,7 +836,7 @@ CONTAINS
 
                   IF (is_constraint(atom_a)) THEN
                      CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
-                                                (/0.0_dp, 0.0_dp, 0.0_dp/), coefficients(atom_a), &
+                                                [0.0_dp, 0.0_dp, 0.0_dp], coefficients(atom_a), &
                                                 pab, 0, 0, rs_rho_constr, &
                                                 radius=radius, &
                                                 ga_gb_function=GRID_FUNC_AB, use_subpatch=.TRUE., &
@@ -850,7 +850,7 @@ CONTAINS
                      END DO
                      CPASSERT(iatom <= cdft_control%natoms)
                      CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
-                                                (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, &
+                                                [0.0_dp, 0.0_dp, 0.0_dp], 1.0_dp, pab, 0, 0, &
                                                 rs_single(iatom), radius=radius, &
                                                 ga_gb_function=GRID_FUNC_AB, use_subpatch=.TRUE., &
                                                 subpatch_pattern=subpatch_pattern)
@@ -864,7 +864,7 @@ CONTAINS
                         END DO
                         CPASSERT(iatom <= cdft_control%natoms)
                         CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
-                                                   (/0.0_dp, 0.0_dp, 0.0_dp/), 1.0_dp, pab, 0, 0, &
+                                                   [0.0_dp, 0.0_dp, 0.0_dp], 1.0_dp, pab, 0, 0, &
                                                    rs_single_charge(iatom), radius=radius, &
                                                    ga_gb_function=GRID_FUNC_AB, use_subpatch=.TRUE., &
                                                    subpatch_pattern=subpatch_pattern)
@@ -969,17 +969,17 @@ CONTAINS
                   CALL pw_zero(pw_single_dr(i))
                END DO
 
-               atoms_memory_num = SIZE((/(j, j=1, num_species, atoms_memory)/))
+               atoms_memory_num = SIZE([(j, j=1, num_species, atoms_memory)])
 
                ! Can't store all pw grids, therefore split into groups of size atom_memory
                ! Ideally this code should be re-written to be more memory efficient
                IF (num_species > atoms_memory) THEN
                   ALLOCATE (num_species_small(atoms_memory_num + 1))
-                  num_species_small(1:atoms_memory_num) = (/(j, j=1, num_species, atoms_memory)/)
+                  num_species_small(1:atoms_memory_num) = [(j, j=1, num_species, atoms_memory)]
                   num_species_small(atoms_memory_num + 1) = num_species
                ELSE
                   ALLOCATE (num_species_small(2))
-                  num_species_small(:) = (/1, num_species/)
+                  num_species_small(:) = [1, num_species]
                END IF
 
                DO k = 1, SIZE(num_species_small) - 1
@@ -1032,7 +1032,7 @@ CONTAINS
                         END IF
 
                         CALL collocate_pgf_product(0, alpha, 0, 0, 0.0_dp, 0, ra, &
-                                                   (/0.0_dp, 0.0_dp, 0.0_dp/), prefactor, &
+                                                   [0.0_dp, 0.0_dp, 0.0_dp], prefactor, &
                                                    pab, 0, 0, rs_single_dr(iatom + (num_species_small(k) - 1)), &
                                                    radius=radius, &
                                                    ga_gb_function=GRID_FUNC_AB, use_subpatch=.TRUE., &
@@ -1100,7 +1100,7 @@ CONTAINS
                                     cdft_control%group(igroup)%weight%array(i, j, k))/ &
                                    cdft_control%hw_rho_total%array(i, j, k)
 
-                        r2 = (/i*dr_pw(1), j*dr_pw(2), k*dr_pw(3)/) + origin
+                        r2 = [i*dr_pw(1), j*dr_pw(2), k*dr_pw(3)] + origin
                         r_pbc = pbc(ra, r2, cell)
 
                         ! Store gradient d/dR_x w, including term: (r_x - R_x)

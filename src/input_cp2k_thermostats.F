@@ -88,7 +88,7 @@ CONTAINS
                              usage="TYPE NOSE", &
                              default_i_val=do_thermo_nose, &
                              enum_c_vals=s2a("NOSE"), &
-                             enum_i_vals=(/do_thermo_nose/), &
+                             enum_i_vals=[do_thermo_nose], &
                              enum_desc=s2a("Uses only the Nose-Hoover thermostat."))
          CALL section_add_keyword(section, keyword)
          CALL keyword_release(keyword)
@@ -97,8 +97,8 @@ CONTAINS
                              description="Determines the defined region for slow thermostat", &
                              usage="REGION (GLOBAL||MOLECULE||MASSIVE||DEFINED||NONE)", &
                              enum_c_vals=s2a("GLOBAL", "MOLECULE", "MASSIVE", "DEFINED", "NONE"), &
-                             enum_i_vals=(/do_region_global, do_region_molecule, &
-                                           do_region_massive, do_region_defined, do_region_none/), &
+                             enum_i_vals=[do_region_global, do_region_molecule, &
+                                          do_region_massive, do_region_defined, do_region_none], &
                              default_i_val=do_region_global)
          CALL section_add_keyword(section, keyword)
          CALL keyword_release(keyword)
@@ -112,7 +112,7 @@ CONTAINS
                              usage="thermostat NOSE", &
                              default_i_val=do_thermo_same_as_part, &
                              enum_c_vals=s2a("SAME_AS_PARTICLE", "NOSE", "CSVR"), &
-                             enum_i_vals=(/do_thermo_same_as_part, do_thermo_nose, do_thermo_csvr/), &
+                             enum_i_vals=[do_thermo_same_as_part, do_thermo_nose, do_thermo_csvr], &
                              enum_desc=s2a("Use the same kind of thermostat used for particles.", &
                                            "Uses the Nose-Hoover thermostat.", &
                                            "Uses the canonical sampling through velocity rescaling."))
@@ -161,7 +161,7 @@ CONTAINS
                              usage="TYPE NOSE", &
                              default_i_val=do_thermo_nose, &
                              enum_c_vals=s2a("NOSE"), &
-                             enum_i_vals=(/do_thermo_nose/), &
+                             enum_i_vals=[do_thermo_nose], &
                              enum_desc=s2a("Uses only the Nose-Hoover thermostat."))
          CALL section_add_keyword(section, keyword)
          CALL keyword_release(keyword)
@@ -170,8 +170,8 @@ CONTAINS
                              description="Determines the defined region for fast thermostat", &
                              usage="REGION (GLOBAL||MOLECULE||MASSIVE||DEFINED||NONE)", &
                              enum_c_vals=s2a("GLOBAL", "MOLECULE", "MASSIVE", "DEFINED", "NONE"), &
-                             enum_i_vals=(/do_region_global, do_region_molecule, &
-                                           do_region_massive, do_region_defined, do_region_none/), &
+                             enum_i_vals=[do_region_global, do_region_molecule, &
+                                          do_region_massive, do_region_defined, do_region_none], &
                              default_i_val=do_region_global)
          CALL section_add_keyword(section, keyword)
          CALL keyword_release(keyword)
@@ -185,7 +185,7 @@ CONTAINS
                              usage="thermostat NOSE", &
                              default_i_val=do_thermo_same_as_part, &
                              enum_c_vals=s2a("SAME_AS_PARTICLE", "NOSE", "CSVR"), &
-                             enum_i_vals=(/do_thermo_same_as_part, do_thermo_nose, do_thermo_csvr/), &
+                             enum_i_vals=[do_thermo_same_as_part, do_thermo_nose, do_thermo_csvr], &
                              enum_desc=s2a("Use the same kind of thermostat used for particles.", &
                                            "Uses the Nose-Hoover thermostat.", &
                                            "Uses the canonical sampling through velocity rescaling."))
@@ -236,8 +236,8 @@ CONTAINS
                              usage="TYPE NOSE", &
                              default_i_val=do_thermo_nose, &
                              enum_c_vals=s2a("NOSE", "CSVR", "GLE", "AD_LANGEVIN"), &
-                             enum_i_vals=(/do_thermo_nose, &
-                                           do_thermo_csvr, do_thermo_gle, do_thermo_al/), &
+                             enum_i_vals=[do_thermo_nose, &
+                                          do_thermo_csvr, do_thermo_gle, do_thermo_al], &
                              enum_desc=s2a("Uses the Nose-Hoover thermostat.", &
                                            "Uses the canonical sampling through velocity rescaling.", &
                                            "Uses GLE thermostat", &
@@ -249,8 +249,8 @@ CONTAINS
                              description="Determines the region each thermostat is attached to.", &
                              usage="REGION (GLOBAL||MOLECULE||MASSIVE||DEFINED||NONE)", &
                              enum_c_vals=s2a("GLOBAL", "MOLECULE", "MASSIVE", "DEFINED", "NONE"), &
-                             enum_i_vals=(/do_region_global, do_region_molecule, &
-                                           do_region_massive, do_region_defined, do_region_none/), &
+                             enum_i_vals=[do_region_global, do_region_molecule, &
+                                          do_region_massive, do_region_defined, do_region_none], &
                              default_i_val=do_region_global)
          CALL section_add_keyword(section, keyword)
          CALL keyword_release(keyword)
@@ -264,7 +264,7 @@ CONTAINS
                              usage="TYPE NOSE", &
                              default_i_val=do_thermo_same_as_part, &
                              enum_c_vals=s2a("SAME_AS_PARTICLE", "NOSE", "CSVR"), &
-                             enum_i_vals=(/do_thermo_same_as_part, do_thermo_nose, do_thermo_csvr/), &
+                             enum_i_vals=[do_thermo_same_as_part, do_thermo_nose, do_thermo_csvr], &
                              enum_desc=s2a("Use the same kind of thermostat used for particles.", &
                                            "Uses the Nose-Hoover thermostat.", &
                                            "Uses the canonical sampling through velocity rescaling."))
@@ -362,7 +362,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="MOLNAME", &
-                          variants=(/"SEGNAME"/), &
+                          variants=["SEGNAME"], &
                           description="Specifies the name of the molecules to thermostat", &
                           usage="MOLNAME WAT MEOH", repeats=.TRUE., &
                           n_var=-1, type_of_var=char_t)
@@ -370,11 +370,11 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="MM_SUBSYS", &
-                          variants=(/"PROTEIN"/), &
+                          variants=["PROTEIN"], &
                           description="In a QM/MM run all  MM atoms are specified as a whole ensemble to be thermostated", &
                           usage="MM_SUBSYS (NONE|ATOMIC|MOLECULAR)", &
                           enum_c_vals=s2a("NONE", "ATOMIC", "MOLECULAR"), &
-                          enum_i_vals=(/do_constr_none, do_constr_atomic, do_constr_molec/), &
+                          enum_i_vals=[do_constr_none, do_constr_atomic, do_constr_molec], &
                           enum_desc=s2a("Thermostat nothing", &
                                         "Only the MM atoms itself", &
                                         "The full molecule/residue that contains a MM atom"), &
@@ -389,7 +389,7 @@ CONTAINS
                           enum_desc=s2a("Thermostat nothing", &
                                         "Only the QM atoms itself", &
                                         "The full molecule/residue that contains a QM atom"), &
-                          enum_i_vals=(/do_constr_none, do_constr_atomic, do_constr_molec/), &
+                          enum_i_vals=[do_constr_none, do_constr_atomic, do_constr_molec], &
                           default_i_val=do_constr_none, repeats=.FALSE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -410,7 +410,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="nose", &
                           description="paramameters of the Nose Hoover thermostat chain", &
-                          citations=(/Nose1984a, Nose1984b/))
+                          citations=[Nose1984a, Nose1984b])
 
       NULLIFY (keyword, subsection)
       CALL keyword_create(keyword, __LOCATION__, name="length", &
@@ -476,7 +476,7 @@ CONTAINS
       CALL section_create(section, __LOCATION__, name="GLE", &
                           description="paramameters of the gle thermostat. This section can be generated "// &
                           "from <https://gle4md.org/index.html?page=matrix>.", &
-                          citations=(/Ceriotti2009, Ceriotti2009b/))
+                          citations=[Ceriotti2009, Ceriotti2009b])
 
       NULLIFY (keyword, subsection)
 
@@ -567,7 +567,7 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="csvr", &
                           description="Parameters of the canonical sampling through velocity rescaling thermostat.", &
-                          citations=(/Bussi2007/))
+                          citations=[Bussi2007])
 
       NULLIFY (keyword, subsection)
 
@@ -610,7 +610,7 @@ CONTAINS
                           " other ensembles.  Also tested with FIXED_ATOMS constraints, but"// &
                           " may not work with other constraints (restraints should be OK, but"// &
                           " haven't been well tested)", &
-                          citations=(/Jones2011/))
+                          citations=[Jones2011])
 
       NULLIFY (keyword, subsection)
 

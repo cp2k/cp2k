@@ -306,10 +306,10 @@ CONTAINS
 
       CALL writebuffer(sockfd, msg, msglength)
 
-      cell_data = RESHAPE(TRANSPOSE(subsys%cell%hmat), (/9/))
+      cell_data = RESHAPE(TRANSPOSE(subsys%cell%hmat), [9])
       CALL writebuffer(sockfd, cell_data, 9)
 
-      icell_data = RESHAPE(TRANSPOSE(subsys%cell%h_inv), (/9/))
+      icell_data = RESHAPE(TRANSPOSE(subsys%cell%h_inv), [9])
       CALL writebuffer(sockfd, icell_data, 9)
 
       nAtom = subsys%particles%n_els

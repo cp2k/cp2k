@@ -640,7 +640,7 @@ CONTAINS
          nelement_max = nelement(mype)
          CALL para_env%sum(nblock_sum)
          CALL para_env%sum(nelement_sum)
-         tmp = (/nblock_max, nelement_max/)
+         tmp = [nblock_max, nelement_max]
          CALL para_env%max(tmp)
          nblock_max = tmp(1); nelement_max = tmp(2)
       END IF

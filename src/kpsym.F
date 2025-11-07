@@ -150,7 +150,7 @@ CONTAINS
                                                             list(nkpoint + nhash)
       REAL(KIND=dp)                                      :: rlist(3, nkpoint), delta
 
-      CHARACTER(len=10), DIMENSION(48), PARAMETER :: rname_cubic = (/' 1        ', ' 2[ 10 0] ', &
+      CHARACTER(len=10), DIMENSION(48), PARAMETER :: rname_cubic = [' 1        ', ' 2[ 10 0] ', &
          ' 2[ 01 0] ', ' 2[ 00 1] ', ' 3[-1-1-1]', ' 3[ 11-1] ', ' 3[-11 1] ', ' 3[ 1-11] ', &
          ' 3[ 11 1] ', ' 3[-11-1] ', ' 3[-1-11] ', ' 3[ 1-1-1]', ' 2[-11 0] ', ' 4[ 00 1] ', &
          ' 4[ 00-1] ', ' 2[ 11 0] ', ' 2[ 0-11] ', ' 2[ 01 1] ', ' 4[ 10 0] ', ' 4[-10 0] ', &
@@ -158,14 +158,14 @@ CONTAINS
          '-2[ 01 0] ', '-2[ 00 1] ', '-3[-1-1-1]', '-3[ 11-1] ', '-3[-11 1] ', '-3[ 1-11] ', &
          '-3[ 11 1] ', '-3[-11-1] ', '-3[-1-11] ', '-3[ 1-1-1]', '-2[-11 0] ', '-4[ 00 1] ', &
          '-4[ 00-1] ', '-2[ 11 0] ', '-2[ 0-11] ', '-2[ 01 1] ', '-4[ 10 0] ', '-4[-10 0] ', &
-         '-2[-10 1] ', '-4[ 0-10] ', '-2[ 10 1] ', '-4[ 01 0] '/)
-      CHARACTER(len=11), DIMENSION(24), PARAMETER :: rname_hexai = (/' 1         ', ' 6[ 00  1] ', &
+         '-2[-10 1] ', '-4[ 0-10] ', '-2[ 10 1] ', '-4[ 01 0] ']
+      CHARACTER(len=11), DIMENSION(24), PARAMETER :: rname_hexai = [' 1         ', ' 6[ 00  1] ', &
          ' 3[ 00  1] ', ' 2[ 00  1] ', ' 3[ 00 -1] ', ' 6[ 00 -1] ', ' 2[ 01  0] ', ' 2[-11  0] ', &
          ' 2[ 10  0] ', ' 2[ 21  0] ', ' 2[ 11  0] ', ' 2[ 12  0] ', '-1         ', '-6[ 00  1] ', &
          '-3[ 00  1] ', '-2[ 00  1] ', '-3[ 00 -1] ', '-6[ 00 -1] ', '-2[ 01  0] ', '-2[-11  0] ', &
-         '-2[ 10  0] ', '-2[ 21  0] ', '-2[ 11  0] ', '-2[ 12  0] '/)
-      CHARACTER(len=12), DIMENSION(7), PARAMETER :: icst = (/'TRICLINIC   ', 'MONOCLINIC  ', &
-         'ORTHORHOMBIC', 'TETRAGONAL  ', 'CUBIC       ', 'TRIGONAL    ', 'HEXAGONAL   '/)
+         '-2[ 10  0] ', '-2[ 21  0] ', '-2[ 11  0] ', '-2[ 12  0] ']
+      CHARACTER(len=12), DIMENSION(7), PARAMETER :: icst = ['TRICLINIC   ', 'MONOCLINIC  ', &
+         'ORTHORHOMBIC', 'TETRAGONAL  ', 'CUBIC       ', 'TRIGONAL    ', 'HEXAGONAL   ']
 
       INTEGER :: i, ib(48), ib0(48), ihc, ihc0, ihg, ihg0, indpg, indpg0, invadd, istrin, iswght, &
          isy, isy0, itype, j, k, l, li, li0, lmax, n, nc, nc0, ntot, ntvec0
@@ -1170,7 +1170,7 @@ CONTAINS
       INTEGER                                            :: li, isy, isc(nat)
       REAL(dp)                                           :: delta
 
-      CHARACTER(len=10), DIMENSION(48), PARAMETER :: rname_cubic = (/' 1        ', ' 2[ 10 0] ', &
+      CHARACTER(len=10), DIMENSION(48), PARAMETER :: rname_cubic = [' 1        ', ' 2[ 10 0] ', &
          ' 2[ 01 0] ', ' 2[ 00 1] ', ' 3[-1-1-1]', ' 3[ 11-1] ', ' 3[-11 1] ', ' 3[ 1-11] ', &
          ' 3[ 11 1] ', ' 3[-11-1] ', ' 3[-1-11] ', ' 3[ 1-1-1]', ' 2[-11 0] ', ' 4[ 00 1] ', &
          ' 4[ 00-1] ', ' 2[ 11 0] ', ' 2[ 0-11] ', ' 2[ 01 1] ', ' 4[ 10 0] ', ' 4[-10 0] ', &
@@ -1178,22 +1178,22 @@ CONTAINS
          '-2[ 01 0] ', '-2[ 00 1] ', '-3[-1-1-1]', '-3[ 11-1] ', '-3[-11 1] ', '-3[ 1-11] ', &
          '-3[ 11 1] ', '-3[-11-1] ', '-3[-1-11] ', '-3[ 1-1-1]', '-2[-11 0] ', '-4[ 00 1] ', &
          '-4[ 00-1] ', '-2[ 11 0] ', '-2[ 0-11] ', '-2[ 01 1] ', '-4[ 10 0] ', '-4[-10 0] ', &
-         '-2[-10 1] ', '-4[ 0-10] ', '-2[ 10 1] ', '-4[ 01 0] '/)
-      CHARACTER(len=11), DIMENSION(24), PARAMETER :: rname_hexai = (/' 1         ', ' 6[ 00  1] ', &
+         '-2[-10 1] ', '-4[ 0-10] ', '-2[ 10 1] ', '-4[ 01 0] ']
+      CHARACTER(len=11), DIMENSION(24), PARAMETER :: rname_hexai = [' 1         ', ' 6[ 00  1] ', &
          ' 3[ 00  1] ', ' 2[ 00  1] ', ' 3[ 00 -1] ', ' 6[ 00 -1] ', ' 2[ 01  0] ', ' 2[-11  0] ', &
          ' 2[ 10  0] ', ' 2[ 21  0] ', ' 2[ 11  0] ', ' 2[ 12  0] ', '-1         ', '-6[ 00  1] ', &
          '-3[ 00  1] ', '-2[ 00  1] ', '-3[ 00 -1] ', '-6[ 00 -1] ', '-2[ 01  0] ', '-2[-11  0] ', &
-         '-2[ 10  0] ', '-2[ 21  0] ', '-2[ 11  0] ', '-2[ 12  0] '/)
-      CHARACTER(len=12), DIMENSION(7), PARAMETER :: icst = (/'TRICLINIC   ', 'MONOCLINIC  ', &
-         'ORTHORHOMBIC', 'TETRAGONAL  ', 'CUBIC       ', 'TRIGONAL    ', 'HEXAGONAL   '/)
-      CHARACTER(len=3), DIMENSION(32), PARAMETER :: pgrd = (/'c1 ', 'ci ', 'c2 ', 'c1h', 'c2h', &
+         '-2[ 10  0] ', '-2[ 21  0] ', '-2[ 11  0] ', '-2[ 12  0] ']
+      CHARACTER(len=12), DIMENSION(7), PARAMETER :: icst = ['TRICLINIC   ', 'MONOCLINIC  ', &
+         'ORTHORHOMBIC', 'TETRAGONAL  ', 'CUBIC       ', 'TRIGONAL    ', 'HEXAGONAL   ']
+      CHARACTER(len=3), DIMENSION(32), PARAMETER :: pgrd = ['c1 ', 'ci ', 'c2 ', 'c1h', 'c2h', &
          'c3 ', 'c3i', 'd3 ', 'c3v', 'd3 ', 'c4 ', 's4 ', 'c4h', 'd4 ', 'c4v', 'd2d', 'd4h', 'c6 ',&
          'c3h', 'c6h', 'd6 ', 'c6v', 'd3h', 'd6h', 'd2 ', 'c2v', 'd2h', 't  ', 'th ', 'o  ', 'td ',&
-         'oh '/)
-      CHARACTER(len=5), DIMENSION(32), PARAMETER :: pgrp = (/'    1', '  <1>', '    2', '    m', &
+         'oh ']
+      CHARACTER(len=5), DIMENSION(32), PARAMETER :: pgrp = ['    1', '  <1>', '    2', '    m', &
          '  2/m', '    3', '  <3>', '   32', '   3m', ' <3>m', '    4', '  <4>', '  4/m', '  422', &
          '  4mm', '<4>2m', '4/mmm', '    6', '  <6>', '  6/m', '  622', '  6mm', '<6>m2', '6/mmm', &
-         '  222', '  mm2', '  mmm', '   23', '   m3', '  432', '<4>3m', '  m3m'/)
+         '  222', '  mm2', '  mmm', '   23', '   m3', '  432', '<4>3m', '  m3m']
 
       INTEGER                                            :: i, iis(48), il, info, j, k, k2, l, n, &
                                                             nca, ni

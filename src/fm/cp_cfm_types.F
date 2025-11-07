@@ -973,7 +973,7 @@ CONTAINS
          IF (ASSOCIATED(source%matrix_struct)) THEN
             IF ((send_rank == 0)) THEN
                ! need to use separate buffers here in case this is actually global rank 0
-               src_block_tmp = (/send_dist%nrow_block, send_dist%ncol_block/)
+               src_block_tmp = [send_dist%nrow_block, send_dist%ncol_block]
                CALL para_env%isend(src_block_tmp, 0, send_req(1), tag=src_tag)
                CALL para_env%isend(send_dist%context%num_pe, 0, send_req(2), tag=src_tag)
             END IF
@@ -981,7 +981,7 @@ CONTAINS
 
          IF (ASSOCIATED(destination%matrix_struct)) THEN
             IF ((recv_rank == 0)) THEN
-               dest_block_tmp = (/recv_dist%nrow_block, recv_dist%ncol_block/)
+               dest_block_tmp = [recv_dist%nrow_block, recv_dist%ncol_block]
                CALL para_env%isend(dest_block_tmp, 0, send_req(3), tag=dest_tag)
                CALL para_env%isend(recv_dist%context%num_pe, 0, send_req(4), tag=dest_tag)
             END IF

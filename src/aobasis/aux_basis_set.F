@@ -193,9 +193,9 @@ CONTAINS
                aux_basis%ly(ncgf) = indco(2, ico)
                aux_basis%lz(ncgf) = indco(3, ico)
                aux_basis%cgf_symbol(ncgf) = &
-                  cgf_symbol(aux_basis%n(ishell, iset), (/aux_basis%lx(ncgf), &
-                                                          aux_basis%ly(ncgf), &
-                                                          aux_basis%lz(ncgf)/))
+                  cgf_symbol(aux_basis%n(ishell, iset), [aux_basis%lx(ncgf), &
+                                                         aux_basis%ly(ncgf), &
+                                                         aux_basis%lz(ncgf)])
             END DO
             DO m = -lshell, lshell
                nsgf = nsgf + 1

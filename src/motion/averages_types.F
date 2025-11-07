@@ -243,17 +243,17 @@ CONTAINS
                      CALL section_vals_val_get(restart_section, "AVE_PXX", r_val=averages%avepxx)
                      IF (ASSOCIATED(averages%virial)) THEN
                         CALL section_vals_val_get(restart_section, "AVE_PV_TOT", r_vals=tmp)
-                        averages%virial%pv_total = RESHAPE(tmp, (/3, 3/))
+                        averages%virial%pv_total = RESHAPE(tmp, [3, 3])
                         CALL section_vals_val_get(restart_section, "AVE_PV_VIR", r_vals=tmp)
-                        averages%virial%pv_virial = RESHAPE(tmp, (/3, 3/))
+                        averages%virial%pv_virial = RESHAPE(tmp, [3, 3])
                         CALL section_vals_val_get(restart_section, "AVE_PV_KIN", r_vals=tmp)
-                        averages%virial%pv_kinetic = RESHAPE(tmp, (/3, 3/))
+                        averages%virial%pv_kinetic = RESHAPE(tmp, [3, 3])
                         CALL section_vals_val_get(restart_section, "AVE_PV_CNSTR", r_vals=tmp)
-                        averages%virial%pv_constraint = RESHAPE(tmp, (/3, 3/))
+                        averages%virial%pv_constraint = RESHAPE(tmp, [3, 3])
                         CALL section_vals_val_get(restart_section, "AVE_PV_XC", r_vals=tmp)
-                        averages%virial%pv_xc = RESHAPE(tmp, (/3, 3/))
+                        averages%virial%pv_xc = RESHAPE(tmp, [3, 3])
                         CALL section_vals_val_get(restart_section, "AVE_PV_FOCK_4C", r_vals=tmp)
-                        averages%virial%pv_fock_4c = RESHAPE(tmp, (/3, 3/))
+                        averages%virial%pv_fock_4c = RESHAPE(tmp, [3, 3])
                      END IF
                   END IF
                   ! Colvars

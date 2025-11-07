@@ -1241,44 +1241,44 @@ CONTAINS
          SELECT CASE (name)
          CASE ('ATOM', 'ATOMIC', 'INTERNAL', 'CP2K')
             IF (i == cp_ukind_angle) THEN
-               CALL cp_unit_create2(unit_set%units(i)%unit, kind_id=(/i/), &
-                                    unit_id=(/cp_units_rad/), power=(/1/))
+               CALL cp_unit_create2(unit_set%units(i)%unit, kind_id=[i], &
+                                    unit_id=[cp_units_rad], power=[1])
             ELSE
-               CALL cp_unit_create2(unit_set%units(i)%unit, kind_id=(/i/), &
-                                    unit_id=(/cp_units_au/), power=(/1/))
+               CALL cp_unit_create2(unit_set%units(i)%unit, kind_id=[i], &
+                                    unit_id=[cp_units_au], power=[1])
             END IF
          CASE ('OUTPUT')
             SELECT CASE (i)
             CASE (cp_ukind_undef)
-               CALL cp_unit_create2(unit_set%units(i)%unit, kind_id=(/i/), unit_id=(/cp_units_none/), &
-                                    power=(/1/))
+               CALL cp_unit_create2(unit_set%units(i)%unit, kind_id=[i], unit_id=[cp_units_none], &
+                                    power=[1])
             CASE (cp_ukind_energy)
-               CALL cp_unit_create2(unit_set%units(i)%unit, kind_id=(/i/), unit_id=(/cp_units_hartree/), &
-                                    power=(/1/))
+               CALL cp_unit_create2(unit_set%units(i)%unit, kind_id=[i], unit_id=[cp_units_hartree], &
+                                    power=[1])
             CASE (cp_ukind_length)
-               CALL cp_unit_create2(unit_set%units(i)%unit, kind_id=(/i/), unit_id=(/cp_units_angstrom/), &
-                                    power=(/1/))
+               CALL cp_unit_create2(unit_set%units(i)%unit, kind_id=[i], unit_id=[cp_units_angstrom], &
+                                    power=[1])
             CASE (cp_ukind_temperature)
-               CALL cp_unit_create2(unit_set%units(i)%unit, kind_id=(/i/), unit_id=(/cp_units_k/), &
-                                    power=(/1/))
+               CALL cp_unit_create2(unit_set%units(i)%unit, kind_id=[i], unit_id=[cp_units_k], &
+                                    power=[1])
             CASE (cp_ukind_angle)
-               CALL cp_unit_create2(unit_set%units(i)%unit, kind_id=(/i/), unit_id=(/cp_units_deg/), &
-                                    power=(/1/))
+               CALL cp_unit_create2(unit_set%units(i)%unit, kind_id=[i], unit_id=[cp_units_deg], &
+                                    power=[1])
             CASE (cp_ukind_pressure)
-               CALL cp_unit_create2(unit_set%units(i)%unit, kind_id=(/i/), unit_id=(/cp_units_bar/), &
-                                    power=(/1/))
+               CALL cp_unit_create2(unit_set%units(i)%unit, kind_id=[i], unit_id=[cp_units_bar], &
+                                    power=[1])
             CASE (cp_ukind_time)
-               CALL cp_unit_create2(unit_set%units(i)%unit, kind_id=(/i/), unit_id=(/cp_units_fs/), &
-                                    power=(/1/))
+               CALL cp_unit_create2(unit_set%units(i)%unit, kind_id=[i], unit_id=[cp_units_fs], &
+                                    power=[1])
             CASE (cp_ukind_mass)
-               CALL cp_unit_create2(unit_set%units(i)%unit, kind_id=(/i/), unit_id=(/cp_units_amu/), &
-                                    power=(/1/))
+               CALL cp_unit_create2(unit_set%units(i)%unit, kind_id=[i], unit_id=[cp_units_amu], &
+                                    power=[1])
             CASE (cp_ukind_potential)
-               CALL cp_unit_create2(unit_set%units(i)%unit, kind_id=(/i/), unit_id=(/cp_units_volt/), &
-                                    power=(/1/))
+               CALL cp_unit_create2(unit_set%units(i)%unit, kind_id=[i], unit_id=[cp_units_volt], &
+                                    power=[1])
             CASE (cp_ukind_force)
-               CALL cp_unit_create2(unit_set%units(i)%unit, kind_id=(/i/), unit_id=(/cp_units_newton/), &
-                                    power=(/1/))
+               CALL cp_unit_create2(unit_set%units(i)%unit, kind_id=[i], unit_id=[cp_units_newton], &
+                                    power=[1])
             CASE default
                CPABORT("unhandled unit type "//TRIM(cp_to_string(i)))
                EXIT

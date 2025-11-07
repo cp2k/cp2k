@@ -522,7 +522,7 @@ CONTAINS
       m_send%task_real(counter) = SIZE(tmc_params%cell%hmat) ! cell vectors for cell size
       m_send%task_real(counter + 1:counter + SIZE(tmc_params%cell%hmat)) = &
          RESHAPE(tmc_params%cell%hmat(:, :), &
-                 (/SIZE(tmc_params%cell%hmat)/))
+                 [SIZE(tmc_params%cell%hmat)])
       counter = counter + 1 + INT(m_send%task_real(counter))
       m_send%task_real(counter) = REAL(message_end_flag, KIND=dp) !message end
       CPASSERT(SIZE(m_send%task_real) .EQ. msg_size_real)
@@ -566,7 +566,7 @@ CONTAINS
       CPASSERT(flag)
       tmc_params%cell%hmat = &
          RESHAPE(m_send%task_real(counter + 1:counter + &
-                                  SIZE(tmc_params%cell%hmat)), (/3, 3/))
+                                  SIZE(tmc_params%cell%hmat)), [3, 3])
       counter = counter + 1 + INT(m_send%task_real(counter))
 
       CPASSERT(counter .EQ. m_send%info(3))
@@ -641,7 +641,7 @@ CONTAINS
       m_send%task_real(counter) = SIZE(tmc_params%cell%hmat) ! cell vectors for cell size
       m_send%task_real(counter + 1:counter + SIZE(tmc_params%cell%hmat)) = &
          RESHAPE(tmc_params%cell%hmat(:, :), &
-                 (/SIZE(tmc_params%cell%hmat)/))
+                 [SIZE(tmc_params%cell%hmat)])
       counter = counter + 1 + INT(m_send%task_real(counter))
       m_send%task_real(counter) = SIZE(tmc_params%atoms) ! atom mass
       DO i = 1, SIZE(tmc_params%atoms)
@@ -714,7 +714,7 @@ CONTAINS
       CPASSERT(flag)
       tmc_params%cell%hmat = &
          RESHAPE(m_send%task_real(counter + 1:counter + &
-                                  SIZE(tmc_params%cell%hmat)), (/3, 3/))
+                                  SIZE(tmc_params%cell%hmat)), [3, 3])
       counter = counter + 1 + INT(m_send%task_real(counter))
 
       CALL allocate_tmc_atom_type(atoms=tmc_params%atoms, &
@@ -1090,7 +1090,7 @@ CONTAINS
       END IF
       ! rng seed
       m_send%task_real(counter) = SIZE(elem%rng_seed)
-      m_send%task_real(counter + 1:counter + SIZE(elem%rng_seed)) = RESHAPE(elem%rng_seed(:, :, :), (/SIZE(elem%rng_seed)/))
+      m_send%task_real(counter + 1:counter + SIZE(elem%rng_seed)) = RESHAPE(elem%rng_seed(:, :, :), [SIZE(elem%rng_seed)])
       counter = counter + NINT(m_send%task_real(counter)) + 1
       ! sub box center
       m_send%task_real(counter) = SIZE(elem%subbox_center(:))
@@ -1166,7 +1166,7 @@ CONTAINS
          counter = counter + NINT(m_send%task_real(counter)) + 1
       END IF
       ! rng seed
-      elem%rng_seed(:, :, :) = RESHAPE(m_send%task_real(counter + 1:counter + SIZE(elem%rng_seed)), (/3, 2, 3/))
+      elem%rng_seed(:, :, :) = RESHAPE(m_send%task_real(counter + 1:counter + SIZE(elem%rng_seed)), [3, 2, 3])
       counter = counter + NINT(m_send%task_real(counter)) + 1
       ! sub box center
       elem%subbox_center(:) = m_send%task_real(counter + 1:counter + INT(m_send%task_real(counter)))
@@ -1237,25 +1237,25 @@ CONTAINS
       m_send%task_int(counter) = SIZE(tmc_params%nmc_move_types%mv_count)
       m_send%task_int(counter + 1:counter + m_send%task_int(counter)) = &
          RESHAPE(tmc_params%nmc_move_types%mv_count(:, :), &
-                 (/SIZE(tmc_params%nmc_move_types%mv_count)/))
+                 [SIZE(tmc_params%nmc_move_types%mv_count)])
       counter = counter + 1 + m_send%task_int(counter)
       ! the counter for the accepted moves
       m_send%task_int(counter) = SIZE(tmc_params%nmc_move_types%acc_count)
       m_send%task_int(counter + 1:counter + m_send%task_int(counter)) = &
          RESHAPE(tmc_params%nmc_move_types%acc_count(:, :), &
-                 (/SIZE(tmc_params%nmc_move_types%acc_count)/))
+                 [SIZE(tmc_params%nmc_move_types%acc_count)])
       counter = counter + 1 + m_send%task_int(counter)
       ! amount of rejected subbox moves
       IF (.NOT. ANY(tmc_params%sub_box_size .LE. 0.1_dp)) THEN
          m_send%task_int(counter) = SIZE(tmc_params%nmc_move_types%subbox_count)
          m_send%task_int(counter + 1:counter + m_send%task_int(counter)) = &
             RESHAPE(tmc_params%nmc_move_types%subbox_count(:, :), &
-                    (/SIZE(tmc_params%nmc_move_types%subbox_count)/))
+                    [SIZE(tmc_params%nmc_move_types%subbox_count)])
          counter = counter + 1 + m_send%task_int(counter)
          m_send%task_int(counter) = SIZE(tmc_params%nmc_move_types%subbox_acc_count)
          m_send%task_int(counter + 1:counter + m_send%task_int(counter)) = &
             RESHAPE(tmc_params%nmc_move_types%subbox_acc_count(:, :), &
-                    (/SIZE(tmc_params%nmc_move_types%subbox_acc_count)/))
+                    [SIZE(tmc_params%nmc_move_types%subbox_acc_count)])
          counter = counter + 1 + m_send%task_int(counter)
       END IF
       m_send%task_int(counter) = message_end_flag ! message end
@@ -1282,7 +1282,7 @@ CONTAINS
       ! rng seed
       m_send%task_real(counter) = SIZE(elem%rng_seed)
       m_send%task_real(counter + 1:counter + SIZE(elem%rng_seed)) = &
-         RESHAPE(elem%rng_seed(:, :, :), (/SIZE(elem%rng_seed)/))
+         RESHAPE(elem%rng_seed(:, :, :), [SIZE(elem%rng_seed)])
       counter = counter + 1 + NINT(m_send%task_real(counter))
       ! potential
       m_send%task_real(counter) = 1
@@ -1353,29 +1353,29 @@ CONTAINS
       ALLOCATE (mv_counter(0:SIZE(tmc_params%nmc_move_types%mv_count(:, 1)) - 1, &
                            SIZE(tmc_params%nmc_move_types%mv_count(1, :))))
       mv_counter(:, :) = RESHAPE(m_send%task_int(counter + 1:counter + m_send%task_int(counter)), &
-                                 (/SIZE(tmc_params%nmc_move_types%mv_count(:, 1)), &
-                                   SIZE(tmc_params%nmc_move_types%mv_count(1, :))/))
+                                 [SIZE(tmc_params%nmc_move_types%mv_count(:, 1)), &
+                                  SIZE(tmc_params%nmc_move_types%mv_count(1, :))])
       counter = counter + 1 + m_send%task_int(counter)
       ! the counter for the accepted moves
       ALLOCATE (acc_counter(0:SIZE(tmc_params%nmc_move_types%acc_count(:, 1)) - 1, &
                             SIZE(tmc_params%nmc_move_types%acc_count(1, :))))
       acc_counter(:, :) = RESHAPE(m_send%task_int(counter + 1:counter + m_send%task_int(counter)), &
-                                  (/SIZE(tmc_params%nmc_move_types%acc_count(:, 1)), &
-                                    SIZE(tmc_params%nmc_move_types%acc_count(1, :))/))
+                                  [SIZE(tmc_params%nmc_move_types%acc_count(:, 1)), &
+                                   SIZE(tmc_params%nmc_move_types%acc_count(1, :))])
       counter = counter + 1 + m_send%task_int(counter)
       ! amount of rejected subbox moves
       IF (.NOT. ANY(tmc_params%sub_box_size .LE. 0.1_dp)) THEN
          ALLOCATE (subbox_counter(SIZE(tmc_params%nmc_move_types%subbox_count(:, 1)), &
                                   SIZE(tmc_params%nmc_move_types%subbox_count(1, :))))
          subbox_counter(:, :) = RESHAPE(m_send%task_int(counter + 1:counter + m_send%task_int(counter)), &
-                                        (/SIZE(tmc_params%nmc_move_types%subbox_count(:, 1)), &
-                                          SIZE(tmc_params%nmc_move_types%subbox_count(1, :))/))
+                                        [SIZE(tmc_params%nmc_move_types%subbox_count(:, 1)), &
+                                         SIZE(tmc_params%nmc_move_types%subbox_count(1, :))])
          counter = counter + 1 + m_send%task_int(counter)
          ALLOCATE (subbox_acc_counter(SIZE(tmc_params%nmc_move_types%subbox_acc_count(:, 1)), &
                                       SIZE(tmc_params%nmc_move_types%subbox_acc_count(1, :))))
          subbox_acc_counter(:, :) = RESHAPE(m_send%task_int(counter + 1:counter + m_send%task_int(counter)), &
-                                            (/SIZE(tmc_params%nmc_move_types%subbox_acc_count(:, 1)), &
-                                              SIZE(tmc_params%nmc_move_types%subbox_acc_count(1, :))/))
+                                            [SIZE(tmc_params%nmc_move_types%subbox_acc_count(:, 1)), &
+                                             SIZE(tmc_params%nmc_move_types%subbox_acc_count(1, :))])
          counter = counter + 1 + m_send%task_int(counter)
       END IF
       CPASSERT(counter .EQ. m_send%info(2))
@@ -1387,7 +1387,7 @@ CONTAINS
       elem%pos = m_send%task_real(counter + 1:counter + NINT(m_send%task_real(counter)))
       counter = counter + 1 + NINT(m_send%task_real(counter))
       ! rng seed
-      elem%rng_seed(:, :, :) = RESHAPE(m_send%task_real(counter + 1:counter + SIZE(elem%rng_seed)), (/3, 2, 3/))
+      elem%rng_seed(:, :, :) = RESHAPE(m_send%task_real(counter + 1:counter + SIZE(elem%rng_seed)), [3, 2, 3])
       counter = counter + 1 + NINT(m_send%task_real(counter))
       ! potential
       elem%potential = m_send%task_real(counter + 1)

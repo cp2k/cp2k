@@ -27,12 +27,12 @@ MODULE semi_empirical_int_arrays
    REAL(KINd=dp), PARAMETER, PUBLIC     :: rij_threshold = 0.00002_dp
 
    ! Mapping index for orbital ordering
-   INTEGER, DIMENSION(9), PUBLIC        :: se_orbital_pointer = (/1, 4, 2, 3, 9, 8, 7, 6, 5/)
-   INTEGER, DIMENSION(9), PUBLIC        :: se_map_alm = (/1, 3, 4, 2, 8, 6, 5, 7, 9/)
+   INTEGER, DIMENSION(9), PUBLIC        :: se_orbital_pointer = [1, 4, 2, 3, 9, 8, 7, 6, 5]
+   INTEGER, DIMENSION(9), PUBLIC        :: se_map_alm = [1, 3, 4, 2, 8, 6, 5, 7, 9]
 
    ! Arrays to treat the invertion of the reference frame for the integrals
    ! Using the same indexing convention of the integrals
-   INTEGER, PARAMETER, DIMENSION(2, 9), PUBLIC        :: map_x_to_z = RESHAPE((/ &
+   INTEGER, PARAMETER, DIMENSION(2, 9), PUBLIC        :: map_x_to_z = RESHAPE([ &
                                                                               1, 0, & ! s    <-> s
                                                                               4, 0, & ! px   <-> pz
                                                                               3, 0, & ! py   <-> py
@@ -42,8 +42,8 @@ MODULE semi_empirical_int_arrays
                                                                               7, 5, & ! dz2  <->   -0.5*dz2 + SQR3/2*dx2
                                                                               9, 0, & ! dzy  <-> dxy
                                                                               8, 0 & ! dxy  <-> dzy
-                                                                              /), (/2, 9/))
-   REAL(KIND=dp), PARAMETER, DIMENSION(2, 9), PUBLIC  :: fac_x_to_z = RESHAPE((/ &
+                                                                              ], [2, 9])
+   REAL(KIND=dp), PARAMETER, DIMENSION(2, 9), PUBLIC  :: fac_x_to_z = RESHAPE([ &
                                                                               1.0_dp, 0.0_dp, &
                                                                               1.0_dp, 0.0_dp, &
                                                                               1.0_dp, 0.0_dp, &
@@ -53,7 +53,7 @@ MODULE semi_empirical_int_arrays
                                                                               -0.5_dp, 0.8660254037844386_dp, &
                                                                               1.0_dp, 0.0_dp, &
                                                                               1.0_dp, 0.0_dp &
-                                                                              /), (/2, 9/))
+                                                                              ], [2, 9])
 
    ! Clm coefficients for d-orbitals:  see  Table [1] and [2] of TCA
    REAL(KIND=dp), DIMENSION(45, 0:2, -2:2), PUBLIC :: clm_d
@@ -71,14 +71,14 @@ MODULE semi_empirical_int_arrays
    INTEGER, DIMENSION(9, 9), PUBLIC                 :: indexa, indexb
 
    ! Type of integral for 2electron 2centers integrals
-   INTEGER, DIMENSION(45), PARAMETER, PUBLIC       :: int2c_type = (/ &
+   INTEGER, DIMENSION(45), PARAMETER, PUBLIC       :: int2c_type = [ &
                                                       1, 2, 3, 2, 3, 3, 2, 3, 3, 3, 4, 5, 5, 5, 6, 4, 5, 5, 5, &
                                                       6, 6, 4, 5, 5, 5, 6, 6, 6, 4, 5, 5, 5, 6, 6, 6, 6, 4, 5, &
-                                                      5, 5, 6, 6, 6, 6, 6/)
+                                                      5, 5, 6, 6, 6, 6, 6]
 
    ! Mappinf of shell index
-   INTEGER, DIMENSION(9), PARAMETER, PUBLIC        :: l_index = (/ &
-                                                      0, 1, 1, 1, 2, 2, 2, 2, 2/)
+   INTEGER, DIMENSION(9), PARAMETER, PUBLIC        :: l_index = [ &
+                                                      0, 1, 1, 1, 2, 2, 2, 2, 2]
 
    ! Index for <ij|kl>
    INTEGER, DIMENSION(45, 45), PUBLIC             :: ijkl_ind
@@ -92,7 +92,7 @@ MODULE semi_empirical_int_arrays
    INTEGER, DIMENSION(5, 5), PUBLIC               :: inddd
 
    ! Indexes use for the construction of the one-center two-electron integrals
-   INTEGER, DIMENSION(243), PUBLIC ::  int_ij = (/ &
+   INTEGER, DIMENSION(243), PUBLIC ::  int_ij = [ &
                                       1, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, &
                                       5, 6, 6, 6, 6, 6, 6, 6, 6, 7, 7, 7, 8, 8, 8, 8, 9, 9, 9, 9, 10, 10, 10, &
                                       10, 10, 10, 11, 11, 11, 11, 11, 11, 12, 12, 12, 12, 12, 13, 13, 13, 13, 13, 14, 14, 14, 15, &
@@ -103,8 +103,8 @@ MODULE semi_empirical_int_arrays
                                       29, 30, 30, 30, 31, 31, 31, 31, 31, 32, 32, 32, 32, 32, 33, 33, 33, 33, 33, 34, 34, 34, 34, &
                                       35, 35, 35, 35, 35, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 36, 37, 37, 37, 37, 38, 38, &
                                       38, 38, 38, 39, 39, 39, 39, 39, 40, 40, 40, 41, 42, 42, 42, 42, 42, 43, 43, 43, 43, 44, 44, &
-                                      44, 44, 44, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45/)
-   INTEGER, DIMENSION(243), PUBLIC ::  int_kl = (/ &
+                                      44, 44, 44, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45]
+   INTEGER, DIMENSION(243), PUBLIC ::  int_kl = [ &
                                       15, 21, 28, 36, 45, 12, 19, 23, 39, 11, 15, 21, 22, 26, 28, 36, 45, 13, 24, 32, 38, 34, 37, &
                                       43, 11, 15, 21, 22, 26, 28, 36, 45, 17, 25, 31, 16, 20, 27, 44, 29, 33, 35, 42, 15, 21, 22, &
                                       28, 36, 45, 3, 6, 11, 21, 26, 36, 2, 12, 19, 23, 39, 4, 13, 24, 32, 38, 14, 17, 31, 1, &
@@ -115,8 +115,8 @@ MODULE semi_empirical_int_arrays
                                       42, 18, 30, 40, 7, 14, 17, 25, 31, 4, 13, 24, 32, 38, 9, 29, 33, 35, 42, 5, 34, 37, 43, &
                                       9, 29, 33, 35, 42, 1, 3, 6, 10, 11, 15, 21, 22, 26, 28, 36, 45, 5, 34, 37, 43, 4, 13, &
                                       24, 32, 38, 2, 12, 19, 23, 39, 18, 30, 40, 41, 9, 29, 33, 35, 42, 5, 34, 37, 43, 8, 16, &
-                                      20, 27, 44, 1, 3, 6, 10, 15, 21, 22, 28, 36, 45/)
-   INTEGER, DIMENSION(243), PUBLIC :: int_onec2el = (/ &
+                                      20, 27, 44, 1, 3, 6, 10, 15, 21, 22, 28, 36, 45]
+   INTEGER, DIMENSION(243), PUBLIC :: int_onec2el = [ &
                                       1, 1, 1, 1, 1, 3, 3, 8, 3, 9, 6, 6, 12, 14, 13, 7, 6, 15, 8, 3, 3, 11, 9, &
                                       14, 17, 6, 7, 12, 18, 13, 6, 6, 3, 2, 3, 9, 11, 10, 11, 9, 16, 10, 11, 7, 6, 4, &
                                       5, 6, 7, 9, 17, 19, 32, 22, 40, 3, 33, 34, 27, 46, 15, 33, 28, 41, 47, 35, 35, 42, 1, &
@@ -127,7 +127,7 @@ MODULE semi_empirical_int_arrays
                                       32, 35, 35, 35, 3, 42, 34, 24, 33, 3, 41, 26, 33, 34, 16, 40, 44, 43, 50, 11, 44, 32, 39, &
                                       10, 21, 43, 36, 37, 1, 7, 6, 6, 40, 38, 38, 21, 45, 30, 29, 38, 9, 32, 19, 22, 3, 47, &
                                       27, 34, 33, 3, 46, 34, 27, 33, 35, 35, 35, 52, 11, 32, 50, 37, 44, 14, 39, 22, 48, 11, 32, &
-                                      49, 37, 44, 1, 6, 6, 7, 51, 38, 22, 31, 38, 29/)
+                                      49, 37, 44, 1, 6, 6, 7, 51, 38, 22, 31, 38, 29]
 
    PUBLIC :: init_se_intd_array
 

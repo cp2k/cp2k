@@ -472,7 +472,7 @@ CONTAINS
       ALLOCATE (qcschema_env%wavefunction%scf_orbitals_a(nao*nmo))
       CALL subspace_matrix_to_array(active_space_env%mos_active(1)%mo_coeff, &
                                     qcschema_env%wavefunction%scf_orbitals_a, &
-                                    (/(i, i=1, nao)/), active_space_env%active_orbitals(:, 1))
+                                    [(i, i=1, nao)], active_space_env%active_orbitals(:, 1))
 
       IF (nspins == 2) THEN
          ! beta MO energies
@@ -509,7 +509,7 @@ CONTAINS
          ALLOCATE (qcschema_env%wavefunction%scf_orbitals_b(nao*nmo))
          CALL subspace_matrix_to_array(active_space_env%mos_active(2)%mo_coeff, &
                                        qcschema_env%wavefunction%scf_orbitals_b, &
-                                       (/(i, i=1, nao)/), active_space_env%active_orbitals(:, 2))
+                                       [(i, i=1, nao)], active_space_env%active_orbitals(:, 2))
       END IF
 
       ! get the alpha-alpha eri

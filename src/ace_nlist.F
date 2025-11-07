@@ -227,13 +227,13 @@ CONTAINS
          originc=ace_data%origin, &
          nlistc=ace_data%nlist, &
          attypec=ace_data%attype, &
-         atposc=RESHAPE(ace_data%atpos, (/3*(natom + nghost)/)), &
+         atposc=RESHAPE(ace_data%atpos, [3*(natom + nghost)]), &
          forcec=forceunroll, &
          virialc=ace_virial, &
          energyc=energy, &
          model=ace_data%model)
 
-      ace_force = RESHAPE(forceunroll, (/3, natom/))
+      ace_force = RESHAPE(forceunroll, [3, natom])
       pot_ace = SUM(energy(1:natom))
 
       DEALLOCATE (forceunroll)

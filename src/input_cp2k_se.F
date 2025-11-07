@@ -88,7 +88,7 @@ CONTAINS
                           description="Specifies the functional form for the ", &
                           usage="INTEGRAL_SCREENING (KDSO|KDSO-D|SLATER)", &
                           enum_c_vals=s2a("KDSO", "KDSO-D", "SLATER"), &
-                          enum_i_vals=(/do_se_IS_kdso, do_se_IS_kdso_d, do_se_IS_slater/), &
+                          enum_i_vals=[do_se_IS_kdso, do_se_IS_kdso_d, do_se_IS_slater], &
                           enum_desc=s2a("Uses the standard NDDO Klopman-Dewar-Sabelli-Ohno equation "// &
                                         "for the screening of the Coulomb interactions.", &
                                         "Uses a modified Klopman-Dewar-Sabelli-Ohno equation, dumping the screening "// &
@@ -103,7 +103,7 @@ CONTAINS
                           "in semi-empirical calculations.", &
                           usage="PERIODIC (NONE|EWALD|EWALD_R3|EWALD_GKS)", &
                           enum_c_vals=s2a("NONE", "EWALD", "EWALD_R3", "EWALD_GKS"), &
-                          enum_i_vals=(/do_se_lr_none, do_se_lr_ewald, do_se_lr_ewald_r3, do_se_lr_ewald_gks/), &
+                          enum_i_vals=[do_se_lr_none, do_se_lr_ewald, do_se_lr_ewald_r3, do_se_lr_ewald_gks], &
                           enum_desc=s2a("The long-range part is not explicitly treaten. The interaction "// &
                                         "depends uniquely on the Cutoffs used for the calculation.", &
                                         "Enables the usage of Multipoles Ewald summation schemes. The short-range part "// &
@@ -151,7 +151,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="D3_SCALING", &
                           description="Scaling parameters (s6,sr6,s8) for the D3 dispersion method,", &
-                          usage="D3_SCALING 1.0 1.0 1.0", n_var=3, default_r_vals=(/0.0_dp, 0.0_dp, 0.0_dp/))
+                          usage="D3_SCALING 1.0 1.0 1.0", n_var=3, default_r_vals=[0.0_dp, 0.0_dp, 0.0_dp])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

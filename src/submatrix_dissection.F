@@ -632,7 +632,7 @@ CONTAINS
             k_limit_left = k
             IF (this%coo_rows(k) .EQ. nonzero_rows%get(i)) THEN ! it does exist and k is our block id
                sm(offset_y1 + 1:offset_y2, offset_x1 + 1:offset_x2) = RESHAPE(this%coo_dptr(k)%target, &
-                                                                              (/offset_y2 - offset_y1, offset_x2 - offset_x1/))
+                                                                              [offset_y2 - offset_y1, offset_x2 - offset_x1])
             END IF
             offset_y1 = offset_y2
          END DO
@@ -756,7 +756,7 @@ CONTAINS
                   bufsize_next = bufsize + this%col_blk_size(this%coo_cols(k))*this%col_blk_size(this%coo_rows(k))
                   this%result_sendbufs(m)%data(bufsize + 1:bufsize_next) = RESHAPE( &
                                                                            sm(offset_y1 + 1:offset_y2, offset_x1 + 1:offset_x2), &
-                                                                           (/bufsize_next - bufsize/))
+                                                                           [bufsize_next - bufsize])
                END IF
                offset_y1 = offset_y2
             END DO

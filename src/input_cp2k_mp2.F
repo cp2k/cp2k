@@ -85,9 +85,9 @@ CONTAINS
                           description="Sets up the wavefunction-based correlation methods as MP2, "// &
                           "RI-MP2, RI-SOS-MP2, RI-RPA and GW (inside RI-RPA). ", &
                           n_keywords=4, n_subsections=7, repeats=.TRUE., &
-                          citations=(/DelBen2012, DelBen2013, DelBen2015, DelBen2015b, Rybkin2016, &
-                                      Wilhelm2016a, Wilhelm2016b, Wilhelm2017, Wilhelm2018, Stein2022, &
-                                      Stein2024, Bussy2023/))
+                          citations=[DelBen2012, DelBen2013, DelBen2015, DelBen2015b, Rybkin2016, &
+                                     Wilhelm2016a, Wilhelm2016b, Wilhelm2017, Wilhelm2018, Stein2022, &
+                                     Stein2024, Bussy2023])
 
       NULLIFY (keyword, subsection)
 
@@ -148,7 +148,7 @@ CONTAINS
       CALL keyword_create( &
          keyword, __LOCATION__, &
          name="GROUP_SIZE", &
-         variants=(/"NUMBER_PROC"/), &
+         variants=["NUMBER_PROC"], &
          description="Group size used in the computation of GPW and MME integrals and the MP2 correlation energy. "// &
          "The group size must be a divisor of the total number of MPI ranks. "// &
          "A smaller group size (for example the number of MPI ranks per node) "// &
@@ -227,11 +227,11 @@ CONTAINS
       CALL keyword_create( &
          keyword, __LOCATION__, &
          name="METHOD", &
-         citations=(/DelBen2012, DelBen2013/), &
+         citations=[DelBen2012, DelBen2013], &
          description="Method that is used to compute the MP2 energy.", &
          usage="METHOD MP2_GPW", &
          enum_c_vals=s2a("NONE", "DIRECT_CANONICAL", "MP2_GPW"), &
-         enum_i_vals=(/mp2_method_none, mp2_method_direct, mp2_method_gpw/), &
+         enum_i_vals=[mp2_method_none, mp2_method_direct, mp2_method_gpw], &
          enum_desc=s2a("Skip MP2 calculation.", &
                        "Use the direct mp2 canonical approach.", &
                        "Use the GPW approach to MP2."), &
@@ -265,7 +265,7 @@ CONTAINS
       CALL section_create(section, __LOCATION__, name="RI_MP2", &
                           description="Parameters influencing the RI-MP2 method. RI-MP2 supports gradients.", &
                           n_keywords=3, n_subsections=1, repeats=.FALSE., &
-                          citations=(/DelBen2013/))
+                          citations=[DelBen2013])
 
       NULLIFY (keyword)
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
@@ -276,7 +276,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="BLOCK_SIZE", &
-                          variants=(/"MESSAGE_SIZE"/), &
+                          variants=["MESSAGE_SIZE"], &
                           description="Determines the blocking used for communication in RI-MP2. Larger BLOCK_SIZE "// &
                           "reduces communication but requires more memory. The default (-1) is automatic.", &
                           usage="BLOCK_SIZE 2", &
@@ -322,7 +322,7 @@ CONTAINS
                           "Only exponents of non-contracted auxiliary basis can be optimized. "// &
                           "An initial RI auxiliary basis has to be specified.", &
                           n_keywords=6, n_subsections=0, repeats=.FALSE., &
-                          citations=(/DelBen2013/))
+                          citations=[DelBen2013])
       NULLIFY (keyword)
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
                           description="Putting the &OPT_RI_BASIS section activates optimization of RI basis.", &
@@ -332,7 +332,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="DELTA_I_REL", &
-                          variants=(/"DI_REL"/), &
+                          variants=["DI_REL"], &
                           description="Target accuracy in the relative deviation of the amplitudes calculated with "// &
                           "and without RI approximation, (more details in Chem.Phys.Lett.294(1998)143).", &
                           usage="DELTA_I_REL  1.0E-6_dp", &
@@ -341,7 +341,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="DELTA_RI", &
-                          variants=(/"DRI"/), &
+                          variants=["DRI"], &
                           description="Target accuracy in the absolute difference between the RI-MP2 "// &
                           "and the exact MP2 energy, DRI=ABS(E_MP2-E_RI-MP2).", &
                           usage="DELTA_RI  1.0E-6_dp", &
@@ -350,7 +350,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="EPS_DERIV", &
-                          variants=(/"EPS_NUM_DERIV"/), &
+                          variants=["EPS_NUM_DERIV"], &
                           description="The derivatives of the MP2 energy with respect to the "// &
                           "exponents of the basis are calculated numerically. "// &
                           "The change in the exponent a_i employed for the numerical evaluation "// &
@@ -361,7 +361,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="MAX_ITER", &
-                          variants=(/"MAX_NUM_ITER"/), &
+                          variants=["MAX_NUM_ITER"], &
                           description="Specifies the maximum number of steps in the RI basis optimization.", &
                           usage="MAX_ITER 100", &
                           default_i_val=50)
@@ -373,7 +373,7 @@ CONTAINS
                           "employed in the automatically generated initial guess. "// &
                           "This will be effective only if RI_AUX_BASIS_SET in the KIND section is not specified.", &
                           usage="NUM_FUNC {number of s func.} {number of p func.} ...", &
-                          n_var=-1, default_i_vals=(/-1/), type_of_var=integer_t)
+                          n_var=-1, default_i_vals=[-1], type_of_var=integer_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -383,7 +383,7 @@ CONTAINS
                           "in the KIND section and NUM_FUNC are not specified.", &
                           usage="BASIS_SIZE  (MEDIUM|LARGE|VERY_LARGE)", &
                           enum_c_vals=s2a("MEDIUM", "LARGE", "VERY_LARGE"), &
-                          enum_i_vals=(/0, 1, 2/), &
+                          enum_i_vals=[0, 1, 2], &
                           default_i_val=0)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -403,7 +403,7 @@ CONTAINS
       CALL section_create(section, __LOCATION__, name="RI_SOS_MP2", &
                           description="Parameters influencing the RI-SOS-MP2-Laplace method", &
                           n_keywords=3, n_subsections=1, repeats=.FALSE., &
-                          citations=(/DelBen2013/))
+                          citations=[DelBen2013])
 
       NULLIFY (keyword)
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
@@ -415,7 +415,7 @@ CONTAINS
 
       CALL keyword_create( &
          keyword, __LOCATION__, name="QUADRATURE_POINTS", &
-         variants=(/"LAPLACE_NUM_QUAD_POINTS"/), &
+         variants=["LAPLACE_NUM_QUAD_POINTS"], &
          description="Number of quadrature points for the numerical integration in the RI-SOS-MP2-Laplace method.", &
          usage="QUADRATURE_POINTS 6", &
          default_i_val=5)
@@ -449,7 +449,7 @@ CONTAINS
                           description="Parameters influencing gradient calculations of canonical RI methods. "// &
                           "Ignored if the IM_TIME section is set.", &
                           n_keywords=3, n_subsections=1, repeats=.FALSE., &
-                          citations=(/DelBen2015b, Rybkin2016, Stein2022, Stein2024/))
+                          citations=[DelBen2015b, Rybkin2016, Stein2022, Stein2024])
 
       NULLIFY (subsection, keyword)
       CALL create_cphf(subsection)
@@ -514,7 +514,7 @@ CONTAINS
       CALL section_create(section, __LOCATION__, name="RI_RPA", &
                           description="Parameters influencing RI-RPA and GW.", &
                           n_keywords=8, n_subsections=4, repeats=.FALSE., &
-                          citations=(/DelBen2013, DelBen2015/))
+                          citations=[DelBen2013, DelBen2015])
 
       NULLIFY (keyword, subsection)
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
@@ -530,7 +530,7 @@ CONTAINS
          description="Determine parametrization for sigma-functional", &
          usage="SIGMA_FUNCTIONAL PBE_S2", &
          enum_c_vals=s2a("NONE", "PBE0_S1", "PBE0_S2", "PBE_S1", "PBE_S2"), &
-         enum_i_vals=(/sigma_none, sigma_PBE0_S1, sigma_PBE0_S2, sigma_PBE_S1, sigma_PBE_S2/), &
+         enum_i_vals=[sigma_none, sigma_PBE0_S1, sigma_PBE0_S2, sigma_PBE_S1, sigma_PBE_S2], &
          enum_desc=s2a("No sigma functional calculation", &
                        "use parameters based on PBE0 with S1 set.", &
                        "use parameters based on PBE0 with S2 set.", &
@@ -542,7 +542,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="QUADRATURE_POINTS", &
-                          variants=(/"RPA_NUM_QUAD_POINTS"/), &
+                          variants=["RPA_NUM_QUAD_POINTS"], &
                           description="Number of quadrature points for the numerical integration in the RI-RPA method.", &
                           usage="QUADRATURE_POINTS 60", &
                           default_i_val=40)
@@ -564,7 +564,7 @@ CONTAINS
                           description="Matrix multiplication style for the Q matrix.", &
                           usage="MM_STYLE GEMM", &
                           enum_c_vals=s2a("GEMM", "SYRK"), &
-                          enum_i_vals=(/wfc_mm_style_gemm, wfc_mm_style_syrk/), &
+                          enum_i_vals=[wfc_mm_style_gemm, wfc_mm_style_syrk], &
                           enum_desc=s2a("Use pdgemm: more flops, maybe faster.", &
                                         "Use pdysrk: fewer flops, maybe slower."), &
                           default_i_val=wfc_mm_style_gemm)
@@ -574,7 +574,7 @@ CONTAINS
       CALL keyword_create( &
          keyword, __LOCATION__, &
          name="MINIMAX_QUADRATURE", &
-         variants=(/"MINIMAX"/), &
+         variants=["MINIMAX"], &
          description="Use the Minimax quadrature scheme for performing the numerical integration. "// &
          "Maximum number of quadrature point limited to 20.", &
          usage="MINIMAX_QUADRATURE", &
@@ -586,7 +586,7 @@ CONTAINS
       CALL keyword_create( &
          keyword, __LOCATION__, &
          name="RSE", &
-         variants=(/"SE"/), &
+         variants=["SE"], &
          description="Decide whether to add singles correction.", &
          usage="RSE", &
          default_l_val=.FALSE., &
@@ -662,7 +662,7 @@ CONTAINS
                           description="Choose the kind of exchange correction.", &
                           usage="&EXCHANGE_CORRECTION AXK", &
                           enum_c_vals=s2a("NONE", "AXK", "SOSEX"), &
-                          enum_i_vals=(/rpa_exchange_none, rpa_exchange_axk, rpa_exchange_sosex/), &
+                          enum_i_vals=[rpa_exchange_none, rpa_exchange_axk, rpa_exchange_sosex], &
                           enum_desc=s2a("Apply no exchange correction.", &
                                         "Apply Approximate eXchange Kernel (AXK) correction.", &
                                         "Apply Second Order Screened eXchange (SOSEX) correction."), &
@@ -726,7 +726,7 @@ CONTAINS
                           "please consult Golze, Dvorak, Rinke, Front. Chem. 2019.", &
                           usage="SELF_CONSISTENCY evGW0", &
                           enum_c_vals=s2a("G0W0", "evGW0", "evGW"), &
-                          enum_i_vals=(/G0W0, evGW0, evGW/), &
+                          enum_i_vals=[G0W0, evGW0, evGW], &
                           enum_desc=s2a("Use DFT eigenvalues; not update.", &
                                         "Update DFT eigenvalues in G, not in W.", &
                                         "Update DFT eigenvalues in G and W."), &
@@ -735,7 +735,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="CORR_MOS_OCC", &
-                          variants=(/"CORR_OCC"/), &
+                          variants=["CORR_OCC"], &
                           description="Number of occupied MOs whose energies are corrected in GW. "// &
                           "Counting beginning from HOMO, e.g. 3 corrected occ. MOs correspond "// &
                           "to correction of HOMO, HOMO-1 and HOMO-2. Numerical effort and "// &
@@ -750,7 +750,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="CORR_MOS_VIRT", &
-                          variants=(/"CORR_VIRT"/), &
+                          variants=["CORR_VIRT"], &
                           description="Number of virtual MOs whose energies are corrected by GW. "// &
                           "Counting beginning from LUMO, e.g. 3 corrected occ. MOs correspond "// &
                           "to correction of LUMO, LUMO+1 and LUMO+2. Numerical effort and "// &
@@ -784,8 +784,8 @@ CONTAINS
                           description="Determines, how the self_energy is evaluated on the real axis.", &
                           usage="CROSSING_SEARCH Z_SHOT", &
                           enum_c_vals=s2a("Z_SHOT", "NEWTON", "BISECTION"), &
-                          enum_i_vals=(/ri_rpa_g0w0_crossing_z_shot, &
-                                        ri_rpa_g0w0_crossing_newton, ri_rpa_g0w0_crossing_bisection/), &
+                          enum_i_vals=[ri_rpa_g0w0_crossing_z_shot, &
+                                       ri_rpa_g0w0_crossing_newton, ri_rpa_g0w0_crossing_bisection], &
                           enum_desc=s2a("Calculate the derivative of Sigma and out of it Z. Then extrapolate using Z.", &
                                         "Make a Newton-Raphson fix point iteration.", &
                                         "Make a bisection fix point iteration."), &
@@ -864,7 +864,7 @@ CONTAINS
                           "a GW k-point calculation with 1 OMP thread per MPI rank reading the previousHF output.", &
                           usage="PRINT_EXX TRUE", &
                           enum_c_vals=s2a("TRUE", "FALSE", "READ", "SKIP_FOR_REGTEST"), &
-                          enum_i_vals=(/gw_print_exx, gw_no_print_exx, gw_read_exx, gw_skip_for_regtest/), &
+                          enum_i_vals=[gw_print_exx, gw_no_print_exx, gw_read_exx, gw_skip_for_regtest], &
                           enum_desc=s2a("Please, put TRUE for Gamma only calculation to get the exchange self-energy. "// &
                                         "If 'SIGMA_X' and the corresponding values for the exchange-energy are written, "// &
                                         "the writing has been successful", &
@@ -902,7 +902,7 @@ CONTAINS
                           "or evGW. Keyword is active, if the first entry is positive (since IC corrections are positive "// &
                           "occupied MOs. The start corresponds to the first corrected GW level.", &
                           usage="IC_CORR_LIST <REAL> ... <REAL>", &
-                          default_r_vals=(/-1.0_dp/), &
+                          default_r_vals=[-1.0_dp], &
                           type_of_var=real_t, n_var=-1, unit_str="eV")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -910,7 +910,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="IC_CORR_LIST_BETA", &
                           description="IC_CORR_LIST for beta spins in case of open shell calculation.", &
                           usage="IC_CORR_LIST_BETA <REAL> ... <REAL>", &
-                          default_r_vals=(/-1.0_dp/), &
+                          default_r_vals=[-1.0_dp], &
                           type_of_var=real_t, n_var=-1, unit_str="eV")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -926,7 +926,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="IMAGE_CHARGE_MODEL", &
-                          variants=(/"IC"/), &
+                          variants=["IC"], &
                           description="If true, an image charge model is applied to mimic the renormalization of "// &
                           "electronic levels of a molecule at a metallic surface. For this calculation, the molecule "// &
                           "has to be reflected on the desired xy image plane. The coordinates of the reflected molecule "// &
@@ -942,7 +942,7 @@ CONTAINS
                           description="Defines which type of analytic continuation for the self energy is used", &
                           usage="ANALYTIC_CONTINUATION", &
                           enum_c_vals=s2a("TWO_POLE", "PADE"), &
-                          enum_i_vals=(/gw_two_pole_model, gw_pade_approx/), &
+                          enum_i_vals=[gw_two_pole_model, gw_pade_approx], &
                           enum_desc=s2a("Use 'two-pole' model.", &
                                         "Use Pade approximation."), &
                           default_i_val=gw_pade_approx)
@@ -960,7 +960,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="GAMMA_ONLY_SIGMA", &
-                          variants=(/"GAMMA"/), &
+                          variants=["GAMMA"], &
                           description="If true, the correlation self-energy is only computed at the Gamma point. "// &
                           "The Gamma point itself is obtained by averaging over all kpoints of the DFT mesh.", &
                           usage="GAMMA TRUE", &
@@ -983,7 +983,7 @@ CONTAINS
                           "Monkhorst-Pack grid is used. A dense k-point grid may be necessary to compute an accurate density "// &
                           "of state from GW. Large self-energy k-meshes do not cost much more computation time.", &
                           usage="KPOINTS_SELF_ENERGY  nx  ny  nz", repeats=.TRUE., &
-                          n_var=3, type_of_var=integer_t, default_i_vals=(/0, 0, 0/))
+                          n_var=3, type_of_var=integer_t, default_i_vals=[0, 0, 0])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1003,7 +1003,7 @@ CONTAINS
                           "parameters in Table I.", &
                           usage="SOC", &
                           enum_c_vals=s2a("NONE", "LDA", "PBE"), &
-                          enum_i_vals=(/soc_none, soc_lda, soc_pbe/), &
+                          enum_i_vals=[soc_none, soc_lda, soc_pbe], &
                           enum_desc=s2a("No SOC.", &
                                         "Use parameters from LDA (PADE) pseudopotential.", &
                                         "Use parameters from PBE pseudopotential."), &
@@ -1100,7 +1100,7 @@ CONTAINS
                           description="The stride (X,Y,Z) used to write the cube file "// &
                           "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
                           " 1 number valid for all components.", &
-                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=[2, 2, 2], type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
@@ -1198,7 +1198,7 @@ CONTAINS
                           "Monkhorst-Pack grid is used. Typically, even numbers are chosen such that the Gamma "// &
                           "point is excluded from the k-point mesh.", &
                           usage="KPOINTS  nx  ny  nz", repeats=.TRUE., &
-                          n_var=3, type_of_var=integer_t, default_i_vals=(/16, 16, 16/))
+                          n_var=3, type_of_var=integer_t, default_i_vals=[16, 16, 16])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1231,7 +1231,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="AVERAGE_DEGENERATE_LEVELS", &
-                          variants=(/"ADL"/), &
+                          variants=["ADL"], &
                           description="If true, the correlation self-energy of degenerate levels is averaged.", &
                           usage="AVERAGE_DEGENERATE_LEVELS", &
                           default_l_val=.TRUE., &
@@ -1247,7 +1247,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="EXTRAPOLATE_KPOINTS", &
-                          variants=(/"EXTRAPOLATE"/), &
+                          variants=["EXTRAPOLATE"], &
                           description="If true, extrapolates the k-point mesh. Only working if k-point mesh numbers are "// &
                           "divisible by 4, e.g. 8x8x8 or 12x12x12 is recommended.", &
                           usage="EXTRAPOLATE_KPOINTS FALSE", &
@@ -1321,7 +1321,7 @@ CONTAINS
                           description="Choose between calculation of singlet or triplet excitation (cf. given Reference above).", &
                           usage="SPIN_CONFIG TRIPLET", &
                           enum_c_vals=s2a("SINGLET", "TRIPLET"), &
-                          enum_i_vals=(/bse_singlet, bse_triplet/), &
+                          enum_i_vals=[bse_singlet, bse_triplet], &
                           enum_desc=s2a("Computes singlet excitations.", &
                                         "Computes triplet excitations."), &
                           default_i_val=bse_singlet)
@@ -1333,7 +1333,7 @@ CONTAINS
                           "Choose between full or iterative diagonalization.", &
                           usage="BSE_DIAG_METHOD FULLDIAG", &
                           enum_c_vals=s2a("FULLDIAG", "ITERDIAG"), &
-                          enum_i_vals=(/bse_fulldiag, bse_iterdiag/), &
+                          enum_i_vals=[bse_fulldiag, bse_iterdiag], &
                           enum_desc=s2a("Fully diagonalizes the BSE matrices within the chosen level of approximation.", &
                                         "Iterative diagonalization has not been implemented yet."), &
                           default_i_val=bse_fulldiag)
@@ -1345,7 +1345,7 @@ CONTAINS
                           "Choose between Tamm Dancoff approximation (TDA) and/or diagonalization of the full ABBA-matrix.", &
                           usage="TDA ON", &
                           enum_c_vals=s2a("ON", "OFF", "TDA+ABBA"), &
-                          enum_i_vals=(/bse_tda, bse_abba, bse_both/), &
+                          enum_i_vals=[bse_tda, bse_abba, bse_both], &
                           enum_desc=s2a("The TDA is applied, i.e. B=0.", &
                                         "The ABBA-matrix is diagonalized, i.e. the TDA is not applied.", &
                                         "The BSE is solved within the TDA (B=0) as well as for the full ABBA-matrix."), &
@@ -1463,7 +1463,7 @@ CONTAINS
          description="Shortcut for the most common functional combinations.", &
          usage="&xc_functional BLYP", &
          enum_c_vals=s2a("W_0", "TDHF", "RPA", "ALPHA"), &
-         enum_i_vals=(/bse_screening_w0, bse_screening_tdhf, bse_screening_rpa, bse_screening_alpha/), &
+         enum_i_vals=[bse_screening_w0, bse_screening_tdhf, bse_screening_rpa, bse_screening_alpha], &
          enum_desc=s2a("The Coulomb interaction is screened by applying DFT energies "// &
                        "$\varepsilon_p^{DFT}$, which is typically used for GW-BSE and "// &
                        "often labeled as $W_0$.", &
@@ -1558,7 +1558,7 @@ CONTAINS
                           description="The stride (X,Y,Z) used to write the cube file "// &
                           "(larger values result in smaller cube files). Provide 3 numbers (for X,Y,Z) or"// &
                           " 1 number valid for all components.", &
-                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=[2, 2, 2], type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
@@ -1622,7 +1622,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="ETA_LIST", &
                           description="List of broadening of the peaks in the optical absorption spectrum.", &
                           usage="ETA_LIST 0.01 ...", unit_str="eV", &
-                          default_r_vals=(/cp_unit_to_cp2k(value=0.01_dp, unit_str="eV")/), &
+                          default_r_vals=[cp_unit_to_cp2k(value=0.01_dp, unit_str="eV")], &
                           type_of_var=real_t, n_var=-1)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -1650,7 +1650,7 @@ CONTAINS
                           description="Desired abortion condition for Davidson solver", &
                           usage="DAVIDSON_ABORT_COND OR", &
                           enum_c_vals=s2a("EN", "RES", "OR"), &
-                          enum_i_vals=(/bse_iter_en_cond, bse_iter_res_cond, bse_iter_both_cond/), &
+                          enum_i_vals=[bse_iter_en_cond, bse_iter_res_cond, bse_iter_both_cond], &
                           enum_desc=s2a("Uses energy threshold for successfully exiting solver.", &
                                         "Uses residual threshold for successfully exiting solver.", &
                                         "Uses either energy or residual threshold for successfully exiting solver."), &
@@ -1776,7 +1776,7 @@ CONTAINS
          "EPS_GRID in WFC_GPW section controls accuracy / req. memory for 3-center integrals. "// &
          "SORT_BASIS EXP should be specified in DFT section.", &
          n_keywords=12, n_subsections=2, repeats=.FALSE., &
-         citations=(/Wilhelm2016b, Wilhelm2018, Bussy2023/))
+         citations=[Wilhelm2016b, Wilhelm2018, Bussy2023])
 
       NULLIFY (keyword)
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
@@ -1826,7 +1826,7 @@ CONTAINS
       CALL keyword_create( &
          keyword, __LOCATION__, &
          name="EPS_STORAGE_SCALING", &
-         variants=(/"EPS_STORAGE"/), &
+         variants=["EPS_STORAGE"], &
          description="Scaling factor to scale EPS_FILTER. Storage threshold for compression "// &
          "will be EPS_FILTER*EPS_STORAGE_SCALING.", &
          default_r_val=1.0E-3_dp)
@@ -1851,7 +1851,7 @@ CONTAINS
          "Coulomb interaction and the screened Coulomb interaction. For 2d periodic systems, e.g. xz "// &
          "periodicity, please also specify KPOINTS, e.g.  N_x  1  N_z.", &
          usage="KPOINTS  N_x  N_y  N_z", &
-         n_var=3, type_of_var=integer_t, default_i_vals=(/0, 0, 0/))
+         n_var=3, type_of_var=integer_t, default_i_vals=[0, 0, 0])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -1864,7 +1864,7 @@ CONTAINS
          "Monkhorst-Pack mesh are chosen to compute W(R) = int_BZ W(k) exp(ikR) dk (BZ=Brllouin zone). ", &
          usage="KPOINT_WEIGHTS_W AUTO", &
          enum_c_vals=s2a("TAILORED", "AUTO", "UNIFORM"), &
-         enum_i_vals=(/kp_weights_W_tailored, kp_weights_W_auto, kp_weights_W_uniform/), &
+         enum_i_vals=[kp_weights_W_tailored, kp_weights_W_auto, kp_weights_W_uniform], &
          enum_desc=s2a("Choose k-point integration weights such that the function f(k)=k^alpha is "// &
                        "exactly integrated. alpha is specified using EXPONENT_TAILORED_WEIGHTS.", &
                        "As 'TAILORED', but alpha is chosen automatically according to dimensionality "// &
@@ -2063,7 +2063,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="REL_CUTOFF", &
-                          variants=(/"RELATIVE_CUTOFF"/), &
+                          variants=["RELATIVE_CUTOFF"], &
                           description="Determines the grid at which a Gaussian is mapped.", &
                           usage="REL_CUTOFF 50", type_of_var=real_t, &
                           default_r_val=50.0_dp)
@@ -2071,7 +2071,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="PRINT_LEVEL", &
-                          variants=(/"IOLEVEL"/), &
+                          variants=["IOLEVEL"], &
                           description="How much output is written by the individual groups.", &
                           usage="PRINT_LEVEL HIGH", &
                           default_i_val=silent_print_level, enum_c_vals= &
@@ -2079,8 +2079,8 @@ CONTAINS
                           enum_desc=s2a("Almost no output", &
                                         "Little output", "Quite some output", "Lots of output", &
                                         "Everything is written out, useful for debugging purposes only"), &
-                          enum_i_vals=(/silent_print_level, low_print_level, medium_print_level, &
-                                        high_print_level, debug_print_level/))
+                          enum_i_vals=[silent_print_level, low_print_level, medium_print_level, &
+                                       high_print_level, debug_print_level])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -2109,12 +2109,12 @@ CONTAINS
          section, __LOCATION__, name="CPHF", &
          description="Parameters influencing the solution of the Z-vector equations in MP2 gradients calculations.", &
          n_keywords=2, n_subsections=0, repeats=.FALSE., &
-         citations=(/DelBen2013/))
+         citations=[DelBen2013])
 
       NULLIFY (keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="MAX_ITER", &
-                          variants=(/"MAX_NUM_ITER"/), &
+                          variants=["MAX_NUM_ITER"], &
                           description="Maximum number of iterations allowed for the solution of the Z-vector equations.", &
                           usage="MAX_ITER  50", &
                           default_i_val=30)
@@ -2136,7 +2136,7 @@ CONTAINS
                                         "Conjugated gradient method (equivalent to Pople).", &
                                         "Richardson iteration", &
                                         "Steepest Descent iteration"), &
-                          enum_i_vals=(/z_solver_pople, z_solver_cg, z_solver_richardson, z_solver_sd/), &
+                          enum_i_vals=[z_solver_pople, z_solver_cg, z_solver_richardson, z_solver_sd], &
                           default_i_val=z_solver_pople)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -2235,8 +2235,8 @@ CONTAINS
                        "use for very large systems.", &
                        "Cholesky inversion of S, not as good as FULL_KINETIC, yet equally expensive.", &
                        "skip preconditioning"), &
-         enum_i_vals=(/ot_precond_full_all, ot_precond_full_single_inverse, ot_precond_full_single, &
-                       ot_precond_full_kinetic, ot_precond_s_inverse, ot_precond_none/))
+         enum_i_vals=[ot_precond_full_all, ot_precond_full_single_inverse, ot_precond_full_single, &
+                      ot_precond_full_kinetic, ot_precond_s_inverse, ot_precond_none])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -2271,13 +2271,13 @@ CONTAINS
          "(Coulomb, TShPSC operator).", &
          usage="POTENTIAL_TYPE TSHPSC", &
          enum_c_vals=s2a("COULOMB", "TShPSC", "LONGRANGE", "SHORTRANGE", "TRUNCATED", "MIX_CL", "IDENTITY"), &
-         enum_i_vals=(/do_potential_coulomb, &
-                       do_potential_TShPSC, &
-                       do_potential_long, &
-                       do_potential_short, &
-                       do_potential_truncated, &
-                       do_potential_mix_cl, &
-                       do_potential_id/), &
+         enum_i_vals=[do_potential_coulomb, &
+                      do_potential_TShPSC, &
+                      do_potential_long, &
+                      do_potential_short, &
+                      do_potential_truncated, &
+                      do_potential_mix_cl, &
+                      do_potential_id], &
          enum_desc=s2a("Coulomb potential: 1/r", &
                        "| Range | TShPSC |"//newline// &
                        "| ----- | ------ |"//newline// &
@@ -2298,7 +2298,7 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="TRUNCATION_RADIUS", &
-                          variants=(/"CUTOFF_RADIUS"/), &
+                          variants=["CUTOFF_RADIUS"], &
                           description="Determines truncation radius for the truncated potentials. "// &
                           "Only valid when doing truncated calculations", &
                           usage="TRUNCATION_RADIUS 10.0", type_of_var=real_t, &
@@ -2379,7 +2379,7 @@ CONTAINS
       CALL keyword_create( &
          keyword, __LOCATION__, &
          name="ROW_BLOCK", &
-         variants=(/"ROW_BLOCK_SIZE"/), &
+         variants=["ROW_BLOCK_SIZE"], &
          description="Size of the row block used in the SCALAPACK block cyclic data distribution. "// &
          "Default is (ROW_BLOCK=-1) is automatic. "// &
          "A proper choice can speedup the parallel matrix multiplication in the case of RI-RPA and RI-SOS-MP2-Laplace.", &
@@ -2391,7 +2391,7 @@ CONTAINS
       CALL keyword_create( &
          keyword, __LOCATION__, &
          name="COL_BLOCK", &
-         variants=(/"COL_BLOCK_SIZE"/), &
+         variants=["COL_BLOCK_SIZE"], &
          description="Size of the column block used in the SCALAPACK block cyclic data distribution. "// &
          "Default is (COL_BLOCK=-1) is automatic. "// &
          "A proper choice can speedup the parallel matrix multiplication in the case of RI-RPA and RI-SOS-MP2-Laplace.", &
@@ -2403,7 +2403,7 @@ CONTAINS
       CALL keyword_create( &
          keyword, __LOCATION__, &
          name="CALC_COND_NUM", &
-         variants=(/"CALC_CONDITION_NUMBER"/), &
+         variants=["CALC_CONDITION_NUMBER"], &
          description="Calculate the condition number of the (P|Q) matrix for the RI methods.", &
          usage="CALC_COND_NUM", &
          default_l_val=.FALSE., &
@@ -2433,7 +2433,7 @@ CONTAINS
                           "is the block size for ORB basis, second value is the block size for RI_AUX basis.", &
                           usage="ERI_BLKSIZE", &
                           n_var=2, &
-                          default_i_vals=(/4, 16/))
+                          default_i_vals=[4, 16])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -2475,7 +2475,7 @@ CONTAINS
                           "Obara-Saika (OS) for the Coulomb operator can only be used for non-periodic calculations.", &
                           usage="ERI_METHOD MME", &
                           enum_c_vals=s2a("DEFAULT", "GPW", "MME", "OS"), &
-                          enum_i_vals=(/eri_default, do_eri_gpw, do_eri_mme, do_eri_os/), &
+                          enum_i_vals=[eri_default, do_eri_gpw, do_eri_mme, do_eri_os], &
                           enum_desc=s2a("Use default ERI method (for periodic systems: GPW, for molecules: OS, "// &
                                         "for MP2 and RI-MP2: GPW in any case).", &
                                         "Uses Gaussian Plane Wave method [DelBen2013].", &
@@ -2516,8 +2516,8 @@ CONTAINS
          description="Decides which operator/metric is used for resolution of the identity (RI).", &
          usage="POTENTIAL_TYPE DEFAULT", &
          enum_c_vals=s2a("DEFAULT", "COULOMB", "IDENTITY", "LONGRANGE", "SHORTRANGE", "TRUNCATED"), &
-         enum_i_vals=(/ri_default, do_potential_coulomb, do_potential_id, do_potential_long, &
-                       do_potential_short, do_potential_truncated/), &
+         enum_i_vals=[ri_default, do_potential_coulomb, do_potential_id, do_potential_long, &
+                      do_potential_short, do_potential_truncated], &
          enum_desc=s2a("Use Coulomb metric for RI-MP2 and normal-scaling RI-SOS-MP2, RI-RPA and GW. "// &
                        "Use Overlap metric for low-scaling RI-SOS-MP2, RI-RPA and GW for periodic systems. "// &
                        "Use truncated Coulomb metric for low-scaling RI-SOS-MP2, RI-RPA and GW for non-periodic systems.", &

@@ -62,7 +62,7 @@ CONTAINS
       CALL section_create(section, __LOCATION__, name="NEGF", &
                           description="Parameters which control quantum transport calculation"// &
                           " based on Non-Equilibrium Green's Function method.", &
-                          citations=(/Bailey2006, Papior2017/), &
+                          citations=[Bailey2006, Papior2017], &
                           n_keywords=18, n_subsections=6, repeats=.FALSE.)
 
       NULLIFY (keyword, print_key, subsection)
@@ -157,7 +157,7 @@ CONTAINS
                           enum_desc=s2a( &
                           "Adaptive Clenshaw-Curtis quadrature method. Requires FFTW3 library.", &
                           "Adaptive Simpson method. Works without FFTW3."), &
-                          enum_i_vals=(/negfint_method_cc, negfint_method_simpson/))
+                          enum_i_vals=[negfint_method_cc, negfint_method_simpson])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -377,14 +377,14 @@ CONTAINS
                           usage="_SECTION_PARAMETERS_", &
                           default_i_val=low_print_level, lone_keyword_i_val=low_print_level, &
                           enum_c_vals=s2a("on", "off", "silent", "low", "medium", "high", "debug"), &
-                          enum_i_vals=(/silent_print_level - 1, debug_print_level + 1, &
-                                        silent_print_level, low_print_level, &
-                                        medium_print_level, high_print_level, debug_print_level/))
+                          enum_i_vals=[silent_print_level - 1, debug_print_level + 1, &
+                                       silent_print_level, low_print_level, &
+                                       medium_print_level, high_print_level, debug_print_level])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="PRINT_LEVEL", &
-                          variants=(/"IOLEVEL"/), &
+                          variants=["IOLEVEL"], &
                           description="Determines the verbose level for this section "// &
                           "additionally to GLOBAL%PRINT_LEVEL and SECTION_PARAMETERS, "// &
                           "which switch on printing.", &
@@ -394,8 +394,8 @@ CONTAINS
                           enum_desc=s2a("No output", &
                                         "Little output", "Quite some output", "Lots of output", &
                                         "Everything is written out, useful for debugging purposes only"), &
-                          enum_i_vals=(/silent_print_level, low_print_level, medium_print_level, &
-                                        high_print_level, debug_print_level/))
+                          enum_i_vals=[silent_print_level, low_print_level, medium_print_level, &
+                                       high_print_level, debug_print_level])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

@@ -422,16 +422,16 @@ CONTAINS
                   WRITE (iw, '(A,3i2,i5,F10.4,2G24.12)') "PPL int error     ", ani, la_max_set, dac, oint, oref
                END IF
                IF (PRESENT(dva)) THEN
-                  anp = ani + (/1, 0, 0/)
-                  anm = ani - (/1, 0, 0/)
+                  anp = ani + [1, 0, 0]
+                  anm = ani - [1, 0, 0]
                   doint(1) = 2._dp*rho*ppl_ri_test(rho, anp, rac, nexp_ppl, nct_ppl, alpha_ppl, cexp_ppl) &
                              - ani(1)*ppl_ri_test(rho, anm, rac, nexp_ppl, nct_ppl, alpha_ppl, cexp_ppl)
-                  anp = ani + (/0, 1, 0/)
-                  anm = ani - (/0, 1, 0/)
+                  anp = ani + [0, 1, 0]
+                  anm = ani - [0, 1, 0]
                   doint(2) = 2._dp*rho*ppl_ri_test(rho, anp, rac, nexp_ppl, nct_ppl, alpha_ppl, cexp_ppl) &
                              - ani(2)*ppl_ri_test(rho, anm, rac, nexp_ppl, nct_ppl, alpha_ppl, cexp_ppl)
-                  anp = ani + (/0, 0, 1/)
-                  anm = ani - (/0, 0, 1/)
+                  anp = ani + [0, 0, 1]
+                  anm = ani - [0, 0, 1]
                   doint(3) = 2._dp*rho*ppl_ri_test(rho, anp, rac, nexp_ppl, nct_ppl, alpha_ppl, cexp_ppl) &
                              - ani(3)*ppl_ri_test(rho, anm, rac, nexp_ppl, nct_ppl, alpha_ppl, cexp_ppl)
                   doref(1:3) = dva(na + i, 1:3)
@@ -482,29 +482,29 @@ CONTAINS
             cn = cexp_ppl(ni, iexp)
             SELECT CASE (ni)
             CASE (1)
-               oint = oint + cn*os_overlap2(ani, (/0, 0, 0/))
+               oint = oint + cn*os_overlap2(ani, [0, 0, 0])
             CASE (2)
-               oint = oint + cn*os_overlap2(ani, (/2, 0, 0/))
-               oint = oint + cn*os_overlap2(ani, (/0, 2, 0/))
-               oint = oint + cn*os_overlap2(ani, (/0, 0, 2/))
+               oint = oint + cn*os_overlap2(ani, [2, 0, 0])
+               oint = oint + cn*os_overlap2(ani, [0, 2, 0])
+               oint = oint + cn*os_overlap2(ani, [0, 0, 2])
             CASE (3)
-               oint = oint + cn*os_overlap2(ani, (/4, 0, 0/))
-               oint = oint + cn*os_overlap2(ani, (/0, 4, 0/))
-               oint = oint + cn*os_overlap2(ani, (/0, 0, 4/))
-               oint = oint + 2.0_dp*cn*os_overlap2(ani, (/2, 2, 0/))
-               oint = oint + 2.0_dp*cn*os_overlap2(ani, (/0, 2, 2/))
-               oint = oint + 2.0_dp*cn*os_overlap2(ani, (/2, 0, 2/))
+               oint = oint + cn*os_overlap2(ani, [4, 0, 0])
+               oint = oint + cn*os_overlap2(ani, [0, 4, 0])
+               oint = oint + cn*os_overlap2(ani, [0, 0, 4])
+               oint = oint + 2.0_dp*cn*os_overlap2(ani, [2, 2, 0])
+               oint = oint + 2.0_dp*cn*os_overlap2(ani, [0, 2, 2])
+               oint = oint + 2.0_dp*cn*os_overlap2(ani, [2, 0, 2])
             CASE (4)
-               oint = oint + cn*os_overlap2(ani, (/6, 0, 0/))
-               oint = oint + cn*os_overlap2(ani, (/0, 6, 0/))
-               oint = oint + cn*os_overlap2(ani, (/0, 0, 6/))
-               oint = oint + 3.0_dp*cn*os_overlap2(ani, (/4, 2, 0/))
-               oint = oint + 3.0_dp*cn*os_overlap2(ani, (/4, 0, 2/))
-               oint = oint + 3.0_dp*cn*os_overlap2(ani, (/2, 4, 0/))
-               oint = oint + 3.0_dp*cn*os_overlap2(ani, (/0, 4, 2/))
-               oint = oint + 3.0_dp*cn*os_overlap2(ani, (/2, 0, 4/))
-               oint = oint + 3.0_dp*cn*os_overlap2(ani, (/0, 2, 4/))
-               oint = oint + 6.0_dp*cn*os_overlap2(ani, (/2, 2, 2/))
+               oint = oint + cn*os_overlap2(ani, [6, 0, 0])
+               oint = oint + cn*os_overlap2(ani, [0, 6, 0])
+               oint = oint + cn*os_overlap2(ani, [0, 0, 6])
+               oint = oint + 3.0_dp*cn*os_overlap2(ani, [4, 2, 0])
+               oint = oint + 3.0_dp*cn*os_overlap2(ani, [4, 0, 2])
+               oint = oint + 3.0_dp*cn*os_overlap2(ani, [2, 4, 0])
+               oint = oint + 3.0_dp*cn*os_overlap2(ani, [0, 4, 2])
+               oint = oint + 3.0_dp*cn*os_overlap2(ani, [2, 0, 4])
+               oint = oint + 3.0_dp*cn*os_overlap2(ani, [0, 2, 4])
+               oint = oint + 6.0_dp*cn*os_overlap2(ani, [2, 2, 2])
             CASE DEFAULT
                CPABORT("OVERLAP_PPL")
             END SELECT

@@ -399,13 +399,13 @@ CONTAINS
          ! qmmm does not support a ray distribution
          ! FIXME ... check if a plane distributed lower grid is sufficient
          IF (qs_env%qmmm) THEN
-            distribution_layout = (/para_env%num_pe, 1/)
+            distribution_layout = [para_env%num_pe, 1]
          END IF
 
          ! If splines are required
          ! FIXME.... should only be true for the highest grid
          IF (smooth_required) THEN
-            distribution_layout = (/para_env%num_pe, 1/)
+            distribution_layout = [para_env%num_pe, 1]
          END IF
 
          IF (igrid_level == 1) THEN
@@ -574,7 +574,7 @@ CONTAINS
       ALLOCATE (rs_grids(ngrid_level))
 
       ALLOCATE (pw_env%cube_info(ngrid_level))
-      higher_grid_layout = (/-1, -1, -1/)
+      higher_grid_layout = [-1, -1, -1]
 
       DO igrid_level = 1, ngrid_level
          pw_grid => pw_pools(igrid_level)%pool%pw_grid
@@ -780,10 +780,10 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'compute_max_radius'
-      CHARACTER(LEN=8), DIMENSION(10), PARAMETER :: sbas = (/"ORB     ", "AUX     ", "RI_AUX  ", &
-         "MAO     ", "HARRIS  ", "RI_HXC  ", "RI_K    ", "LRI_AUX ", "RHOIN   ", "NUC     "/)
+      CHARACTER(LEN=8), DIMENSION(10), PARAMETER :: sbas = ["ORB     ", "AUX     ", "RI_AUX  ", &
+         "MAO     ", "HARRIS  ", "RI_HXC  ", "RI_K    ", "LRI_AUX ", "RHOIN   ", "NUC     "]
       CHARACTER(LEN=8), DIMENSION(5), PARAMETER :: &
-         pbas = (/"ORB     ", "AUX_FIT ", "MAO     ", "HARRIS  ", "NUC     "/)
+         pbas = ["ORB     ", "AUX_FIT ", "MAO     ", "HARRIS  ", "NUC     "]
       REAL(KIND=dp), PARAMETER                           :: safety_factor = 1.015_dp
 
       INTEGER :: handle, ibasis_set_type, igrid_level, igrid_zet0_s, ikind, ipgf, iset, ishell, &
@@ -995,7 +995,7 @@ CONTAINS
          CALL pw_grid_create(xc_super_ref_pw_grid, para_env, cell_ref%hmat, grid_span=grid_span, &
                              cutoff=4._dp*cutilev, spherical=spherical, odd=.FALSE., fft_usage=.TRUE., &
                              ncommensurate=my_ncommensurate, icommensurate=1, &
-                             blocked=do_pw_grid_blocked_false, rs_dims=(/para_env%num_pe, 1/), &
+                             blocked=do_pw_grid_blocked_false, rs_dims=[para_env%num_pe, 1], &
                              iounit=iounit)
          super_ref_pw_grid => xc_super_ref_pw_grid
       END IF
@@ -1014,7 +1014,7 @@ CONTAINS
             CPASSERT(ALL(nn > no))
             CALL pw_grid_create(mt_super_ref_pw_grid, para_env, cell_ref%hmat, &
                                 cutoff=my_cutilev, spherical=spherical, fft_usage=.TRUE., &
-                                blocked=do_pw_grid_blocked_false, rs_dims=(/para_env%num_pe, 1/), &
+                                blocked=do_pw_grid_blocked_false, rs_dims=[para_env%num_pe, 1], &
                                 iounit=iounit)
             super_ref_pw_grid => mt_super_ref_pw_grid
          END IF
@@ -1061,7 +1061,7 @@ CONTAINS
          border_points = 3
       END SELECT
       CALL init_input_type(input_settings, 2*border_points + 1, rs_grid_section, &
-                           1, (/-1, -1, -1/))
+                           1, [-1, -1, -1])
       CALL rs_grid_create_descriptor(rs_desc, pw_grid, input_settings, &
                                      border_points=border_points)
       ALLOCATE (diel_rs_grid)

@@ -126,8 +126,8 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="MIN_OR_MAX", &
                           description="Requires the maximization of the spread of the wfn", &
                           usage="MIN_OR_MAX (SPREADMIN|SPREADMAX)", &
-                          enum_c_vals=(/"SPREADMIN", "SPREADMAX"/), &
-                          enum_i_vals=(/do_loc_min, do_loc_max/), &
+                          enum_c_vals=["SPREADMIN", "SPREADMAX"], &
+                          enum_i_vals=[do_loc_min, do_loc_max], &
                           default_i_val=do_loc_min)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -137,12 +137,12 @@ CONTAINS
          description="Method of optimization if any", &
          usage="METHOD (JACOBI|CRAZY|DIRECT|GAPO|L1SD|SCDM|NONE)", &
          enum_c_vals=s2a("NONE", "JACOBI", "CRAZY", "GAPO", "L1SD", "DIRECT", "SCDM"), &
-         enum_i_vals=(/do_loc_none, &
-                       do_loc_jacobi, &
-                       do_loc_crazy, &
-                       do_loc_gapo, &
-                       do_loc_l1_norm_sd, &
-                       do_loc_direct, do_loc_scdm/), &
+         enum_i_vals=[do_loc_none, &
+                      do_loc_jacobi, &
+                      do_loc_crazy, &
+                      do_loc_gapo, &
+                      do_loc_l1_norm_sd, &
+                      do_loc_direct, do_loc_scdm], &
          enum_desc=s2a("No localization is applied", &
                        "Using 2 x 2 rotations of the orbitals, slow but robust", &
                        "A new fast method is applied, might be slightly less robust than jacobi, but usually much faster", &
@@ -157,7 +157,7 @@ CONTAINS
                           description="Initial guess for coefficients if METHOD GAPO is used", &
                           usage="CPO_GUESS (ATOMIC|RESTART|RANDOM)", &
                           enum_c_vals=s2a("ATOMIC", "RESTART", "RANDOM"), &
-                          enum_i_vals=(/do_loc_cpo_atomic, do_loc_cpo_restart, do_loc_cpo_random/), &
+                          enum_i_vals=[do_loc_cpo_atomic, do_loc_cpo_restart, do_loc_cpo_random], &
                           default_i_val=do_loc_cpo_atomic)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -167,7 +167,7 @@ CONTAINS
                           "if METHOD GAPO and CPO_GUESS ATOMIC are employed", &
                           usage="CPO_GUESS_SPACE (WAN|ALL)", &
                           enum_c_vals=s2a("WAN", "ALL"), &
-                          enum_i_vals=(/do_loc_cpo_space_wan, do_loc_cpo_space_nmo/), &
+                          enum_i_vals=[do_loc_cpo_space_wan, do_loc_cpo_space_nmo], &
                           default_i_val=do_loc_cpo_space_wan)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -231,7 +231,7 @@ CONTAINS
                           description="Type of opertator which defines the spread functional", &
                           usage="OPERATOR (BERRY|BOYS|PIPEK)", &
                           enum_c_vals=s2a("BERRY", "BOYS", "PIPEK"), &
-                          enum_i_vals=(/op_loc_berry, op_loc_boys, op_loc_pipek/), &
+                          enum_i_vals=[op_loc_berry, op_loc_boys, op_loc_pipek], &
                           default_i_val=op_loc_berry)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -269,7 +269,7 @@ CONTAINS
                           description="Which states to localize, LUMO up to now only available in GPW", &
                           usage="STATES (HOMO|LUMO|MIXED|ALL)", &
                           enum_c_vals=s2a("OCCUPIED", "UNOCCUPIED", "MIXED", "ALL"), &
-                          enum_i_vals=(/do_loc_homo, do_loc_lumo, do_loc_mixed, do_loc_both/), &
+                          enum_i_vals=[do_loc_homo, do_loc_lumo, do_loc_mixed, do_loc_both], &
                           default_i_val=do_loc_homo)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -282,7 +282,7 @@ CONTAINS
          " lower and higher boundaries of the energy range.", &
          usage="ENERGY_RANGE lower_bound {real}, higher_bound {real}", &
          repeats=.FALSE., &
-         n_var=2, default_r_vals=(/0._dp, 0._dp/), unit_str='eV', &
+         n_var=2, default_r_vals=[0._dp, 0._dp], unit_str='eV', &
          type_of_var=real_t)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -355,15 +355,15 @@ CONTAINS
                           description="The stride (X,Y,Z) used to write the cube file "// &
                           "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
                           " 1 number valid for all components.", &
-                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=[2, 2, 2], type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="CUBES_LU_BOUNDS", &
-                          variants=(/"CUBES_LU"/), &
+                          variants=["CUBES_LU"], &
                           description="The lower and upper index of the states to be printed as cube", &
                           usage="CUBES_LU_BOUNDS integer integer", &
-                          n_var=2, default_i_vals=(/0, -2/), type_of_var=integer_t)
+                          n_var=2, default_i_vals=[0, -2], type_of_var=integer_t)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
@@ -450,7 +450,7 @@ CONTAINS
       NULLIFY (print_key2, keyword)
       CALL cp_print_key_section_create(print_key, __LOCATION__, "MOLECULAR_STATES", &
                                        description="Controls printing of molecular states ", &
-                                       print_level=high_print_level, filename=" ", citations=(/Hunt2003/))
+                                       print_level=high_print_level, filename=" ", citations=[Hunt2003])
 
       CALL keyword_create( &
          keyword, __LOCATION__, name="CUBE_EVAL_RANGE", &
@@ -468,7 +468,7 @@ CONTAINS
                           "This is only meaningful in combination with WFN_MIX. "// &
                           "First integer specifies the molecule, second integer specifies the state.", &
                           usage="MARK_STATES integer integer", &
-                          n_var=2, default_i_vals=(/-1, -1/), type_of_var=integer_t, repeats=.TRUE.)
+                          n_var=2, default_i_vals=[-1, -1], type_of_var=integer_t, repeats=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
@@ -479,7 +479,7 @@ CONTAINS
                           description="The stride (X,Y,Z) used to write the cube file "// &
                           "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
                           " 1 number valid for all components.", &
-                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=[2, 2, 2], type_of_var=integer_t)
       CALL section_add_keyword(print_key2, keyword)
       CALL keyword_release(keyword)
       CALL section_add_subsection(print_key, print_key2)
@@ -518,7 +518,7 @@ CONTAINS
                           "This is only meaningful in combination with WFN_MIX. "// &
                           "First integer specifies the molecule, second integer specifies the state.", &
                           usage="MARK_STATES integer integer", &
-                          n_var=2, default_i_vals=(/-1, -1/), type_of_var=integer_t, repeats=.TRUE.)
+                          n_var=2, default_i_vals=[-1, -1], type_of_var=integer_t, repeats=.TRUE.)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
@@ -535,7 +535,7 @@ CONTAINS
                           description="The stride (X,Y,Z) used to write the cube file "// &
                           "(larger values result in smaller cube files). You can provide 3 numbers (for X,Y,Z) or"// &
                           " 1 number valid for all components.", &
-                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=(/2, 2, 2/), type_of_var=integer_t)
+                          usage="STRIDE 2 2 2", n_var=-1, default_i_vals=[2, 2, 2], type_of_var=integer_t)
       CALL section_add_keyword(print_key2, keyword)
       CALL keyword_release(keyword)
       CALL section_add_subsection(print_key, print_key2)

@@ -204,7 +204,7 @@ CONTAINS
          cutoff_radius = exp_radius(0, 2.0_dp*alphasq, epsilon, norm)
 
          CALL dg_pme_grid_setup(cell_ref%hmat, npts_s, cutoff_radius, &
-                                pw_small_grid, pw_big_grid, para_env, rs_dims=(/para_env%num_pe, 1/), &
+                                pw_small_grid, pw_big_grid, para_env, rs_dims=[para_env%num_pe, 1], &
                                 iounit=output_unit, fft_usage=.TRUE.)
          ! Write some useful info
          IF (output_unit > 0) THEN
@@ -228,7 +228,7 @@ CONTAINS
          NULLIFY (rs_desc)
          CALL init_input_type(input_settings, nsmax=MAXVAL(pw_small_grid%npts(1:3)), &
                               rs_grid_section=rs_grid_section, ilevel=1, &
-                              higher_grid_layout=(/-1, -1, -1/))
+                              higher_grid_layout=[-1, -1, -1])
          CALL rs_grid_create_descriptor(rs_desc, pw_big_grid, input_settings)
 
          BLOCK
@@ -258,7 +258,7 @@ CONTAINS
          END IF
          npts_s = gmax
          CALL pw_grid_create(pw_big_grid, para_env, cell_ref%hmat, grid_span=HALFSPACE, npts=npts_s, spherical=.TRUE., &
-                             rs_dims=(/para_env%num_pe, 1/), iounit=output_unit, fft_usage=.TRUE.)
+                             rs_dims=[para_env%num_pe, 1], iounit=output_unit, fft_usage=.TRUE.)
 
          ! pw pools initialized
          NULLIFY (pw_pool)
@@ -268,7 +268,7 @@ CONTAINS
          NULLIFY (rs_desc)
          CALL init_input_type(input_settings, nsmax=o_spline, &
                               rs_grid_section=rs_grid_section, ilevel=1, &
-                              higher_grid_layout=(/-1, -1, -1/))
+                              higher_grid_layout=[-1, -1, -1])
          CALL rs_grid_create_descriptor(rs_desc, pw_big_grid, input_settings)
 
          BLOCK

@@ -49,36 +49,36 @@ MODULE pw_spline_utils
                                                precond_spl3_3 = 5
 
    REAL(KIND=dp), PUBLIC, PARAMETER, DIMENSION(4) :: nn10_coeffs = &
-                                                     (/125._dp/216._dp, 25._dp/432._dp, 5._dp/864._dp, 1._dp/1728._dp/), &
+                                                     [125._dp/216._dp, 25._dp/432._dp, 5._dp/864._dp, 1._dp/1728._dp], &
                                                      spline3_coeffs = &
-                                                     (/8._dp/(27._dp), 2._dp/(27._dp), 1._dp/(27._dp*2._dp), &
-                                                       1._dp/(27._dp*8._dp)/), &
+                                                     [8._dp/(27._dp), 2._dp/(27._dp), 1._dp/(27._dp*2._dp), &
+                                                      1._dp/(27._dp*8._dp)], &
                                                      spline2_coeffs = &
-                                                     (/27._dp/(64._dp), 9._dp/(64._dp*2_dp), 3._dp/(64._dp*4._dp), &
-                                                       1._dp/(64._dp*8._dp)/), &
+                                                     [27._dp/(64._dp), 9._dp/(64._dp*2_dp), 3._dp/(64._dp*4._dp), &
+                                                      1._dp/(64._dp*8._dp)], &
                                                      nn50_coeffs = &
-                                                     (/15625._dp/17576._dp, 625._dp/35152._dp, 25._dp/70304._dp, &
-                                                       1._dp/140608._dp/), &
+                                                     [15625._dp/17576._dp, 625._dp/35152._dp, 25._dp/70304._dp, &
+                                                      1._dp/140608._dp], &
                                                      spl3_aint_coeff = &
-                                                     (/46._dp/27._dp, -2._dp/(27._dp), -1._dp/(27._dp*2._dp), &
-                                                       -1._dp/(27._dp*8._dp)/), &
+                                                     [46._dp/27._dp, -2._dp/(27._dp), -1._dp/(27._dp*2._dp), &
+                                                      -1._dp/(27._dp*8._dp)], &
                                                      spl3_precond1_coeff = &
-                                                     (/64._dp/3._dp, -8._dp/3._dp, -1._dp/3._dp, -1._dp/24._dp/), &
+                                                     [64._dp/3._dp, -8._dp/3._dp, -1._dp/3._dp, -1._dp/24._dp], &
                                                      spl3_1d_transf_coeffs = &
-                                                     (/2._dp/3._dp, 23._dp/48._dp, 1._dp/6._dp, 1._dp/48._dp/)
+                                                     [2._dp/3._dp, 23._dp/48._dp, 1._dp/6._dp, 1._dp/48._dp]
 
    REAL(KIND=dp), PUBLIC, PARAMETER, DIMENSION(3) :: spline3_deriv_coeffs = &
-                                                     (/2.0_dp/9.0_dp, 1.0_dp/18.0_dp, 1.0_dp/72.0_dp/), &
+                                                     [2.0_dp/9.0_dp, 1.0_dp/18.0_dp, 1.0_dp/72.0_dp], &
                                                      spline2_deriv_coeffs = &
-                                                     (/9.0_dp/32.0_dp, 3.0_dp/64.0_dp, 1.0_dp/128.0_dp/), &
+                                                     [9.0_dp/32.0_dp, 3.0_dp/64.0_dp, 1.0_dp/128.0_dp], &
                                                      nn10_deriv_coeffs = &
-                                                     (/25._dp/72._dp, 5._dp/144, 1._dp/288._dp/), &
+                                                     [25._dp/72._dp, 5._dp/144, 1._dp/288._dp], &
                                                      nn50_deriv_coeffs = &
-                                                     (/625._dp/1352._dp, 25._dp/2704._dp, 1._dp/5408._dp/), &
+                                                     [625._dp/1352._dp, 25._dp/2704._dp, 1._dp/5408._dp], &
                                                      spl3_1d_coeffs0 = &
-                                                     (/1._dp/6_dp, 2._dp/3._dp, 1._dp/6._dp/), &
+                                                     [1._dp/6_dp, 2._dp/3._dp, 1._dp/6._dp], &
                                                      spl3_1d_transf_border1 = &
-                                                     (/0.517977704_dp, 0.464044595_dp, 0.17977701e-1_dp/)
+                                                     [0.517977704_dp, 0.464044595_dp, 0.17977701e-1_dp]
 
    PUBLIC :: pw_spline3_interpolate_values_g, &
              pw_spline3_deriv_g
@@ -1321,8 +1321,8 @@ CONTAINS
 
       END IF
       fine_values => fine_values_pw%array
-      w_0 = (/weights_1d(3), weights_1d(1), weights_1d(3)/)
-      w_1 = (/weights_1d(4), weights_1d(2), weights_1d(2), weights_1d(4)/)
+      w_0 = [weights_1d(3), weights_1d(1), weights_1d(3)]
+      w_1 = [weights_1d(4), weights_1d(2), weights_1d(2), weights_1d(4)]
 
       DO k = coarse_bo(1, 3), coarse_bo(2, 3)
          DO ik = -3, 3
@@ -1840,8 +1840,8 @@ CONTAINS
       END IF
 
       fine_values => fine_values_pw%array
-      w_0 = (/weights_1d(3), weights_1d(1), weights_1d(3)/)
-      w_1 = (/weights_1d(4), weights_1d(2), weights_1d(2), weights_1d(4)/)
+      w_0 = [weights_1d(3), weights_1d(1), weights_1d(3)]
+      w_1 = [weights_1d(4), weights_1d(2), weights_1d(2), weights_1d(4)]
 
       DO i = 1, 3
          s(i) = coarse_gbo(2, i) - coarse_gbo(1, i) + 1
@@ -2509,7 +2509,7 @@ CONTAINS
       SELECT CASE (precond_kind)
       CASE (no_precond)
       CASE (precond_spl3_aint2)
-         preconditioner%coeffs_1d = (/-1.66_dp*0.25_dp, 1.66_dp, -1.66_dp*0.25_dp/)
+         preconditioner%coeffs_1d = [-1.66_dp*0.25_dp, 1.66_dp, -1.66_dp*0.25_dp]
          preconditioner%sharpen = .FALSE.
          preconditioner%normalize = .FALSE.
          do_3d_coeff = .TRUE.

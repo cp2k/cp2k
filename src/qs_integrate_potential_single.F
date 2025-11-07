@@ -250,7 +250,7 @@ CONTAINS
                                               prefactor=1.0_dp, cutoff=1.0_dp)
 
             CALL integrate_pgf_product(ni, alpha, 0, &
-                                       0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), &
+                                       0, 0.0_dp, 0, ra, [0.0_dp, 0.0_dp, 0.0_dp], &
                                        rs_v, hab, pab=pab, o1=0, o2=0, &
                                        radius=radius, &
                                        calculate_forces=.TRUE., force_a=force_a, &
@@ -447,7 +447,7 @@ CONTAINS
                                                  prefactor=1.0_dp, cutoff=1.0_dp)
 
                CALL integrate_pgf_product(ni, 1/(2*alpha**2), 0, &
-                                          0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), &
+                                          0, 0.0_dp, 0, ra, [0.0_dp, 0.0_dp, 0.0_dp], &
                                           rs_v, hab, pab=pab, o1=0, o2=0, &
                                           radius=radius, &
                                           calculate_forces=.TRUE., force_a=force_a, &
@@ -604,7 +604,7 @@ CONTAINS
                                                  prefactor=1.0_dp, cutoff=1.0_dp)
 
                CALL integrate_pgf_product(0, alpha_core_charge, 0, &
-                                          0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), &
+                                          0, 0.0_dp, 0, ra, [0.0_dp, 0.0_dp, 0.0_dp], &
                                           rs_v, hab, pab=pab, o1=0, o2=0, &
                                           radius=radius, &
                                           calculate_forces=.TRUE., force_a=force_a, &
@@ -736,7 +736,7 @@ CONTAINS
                                               prefactor=1.0_dp, cutoff=1.0_dp)
 
             CALL integrate_pgf_product(0, alpha_core_charge, 0, &
-                                       0, 0.0_dp, 0, ra, (/0.0_dp, 0.0_dp, 0.0_dp/), &
+                                       0, 0.0_dp, 0, ra, [0.0_dp, 0.0_dp, 0.0_dp], &
                                        rs_v, hab, pab=pab, o1=0, o2=0, &
                                        radius=radius, calculate_forces=.FALSE., &
                                        use_subpatch=.TRUE., subpatch_pattern=0)
@@ -915,7 +915,7 @@ CONTAINS
                            CALL integrate_pgf_product(la_max=la_max(iset), &
                                                       zeta=zeta(ipgf, iset), la_min=la_min(iset), &
                                                       lb_max=0, zetb=0.0_dp, lb_min=0, &
-                                                      ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
+                                                      ra=ra, rab=[0.0_dp, 0.0_dp, 0.0_dp], &
                                                       rsgrid=rs_grid, &
                                                       hab=hab, o1=na1, o2=0, radius=radius, &
                                                       calculate_forces=calculate_forces)
@@ -923,7 +923,7 @@ CONTAINS
                            CALL integrate_pgf_product(la_max=la_max(iset), &
                                                       zeta=zeta(ipgf, iset), la_min=la_min(iset), &
                                                       lb_max=0, zetb=0.0_dp, lb_min=0, &
-                                                      ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
+                                                      ra=ra, rab=[0.0_dp, 0.0_dp, 0.0_dp], &
                                                       rsgrid=rs_grid, &
                                                       hab=hab, pab=pab, o1=na1, o2=0, radius=radius, &
                                                       calculate_forces=calculate_forces, &
@@ -1122,7 +1122,7 @@ CONTAINS
                                  CALL integrate_pgf_product( &
                                     la_max(iset), zeta(ipgf, iset), la_min(iset), &
                                     la_max(jset), zeta(jpgf, jset), la_min(jset), &
-                                    ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
+                                    ra=ra, rab=[0.0_dp, 0.0_dp, 0.0_dp], &
                                     rsgrid=rs_v(igrid_level), &
                                     hab=hab, pab=pab, o1=na1, o2=nb1, &
                                     radius=radius, &
@@ -1133,7 +1133,7 @@ CONTAINS
                                  CALL integrate_pgf_product( &
                                     la_max(iset), zeta(ipgf, iset), la_min(iset), &
                                     la_max(jset), zeta(jpgf, jset), la_min(jset), &
-                                    ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
+                                    ra=ra, rab=[0.0_dp, 0.0_dp, 0.0_dp], &
                                     rsgrid=rs_v(igrid_level), &
                                     hab=hab, o1=na1, o2=nb1, &
                                     radius=radius, &
@@ -1313,7 +1313,7 @@ CONTAINS
                      CALL integrate_pgf_product(la_max=la_max(iset), &
                                                 zeta=zeta(ipgf, iset), la_min=la_min(iset), &
                                                 lb_max=0, zetb=0.0_dp, lb_min=0, &
-                                                ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
+                                                ra=ra, rab=[0.0_dp, 0.0_dp, 0.0_dp], &
                                                 rsgrid=rs_grid, &
                                                 hab=hab, pab=pab, o1=na1, o2=0, radius=radius, &
                                                 calculate_forces=.TRUE., &
@@ -1324,7 +1324,7 @@ CONTAINS
                      CALL integrate_pgf_product(la_max=la_max(iset), &
                                                 zeta=zeta(ipgf, iset), la_min=la_min(iset), &
                                                 lb_max=0, zetb=0.0_dp, lb_min=0, &
-                                                ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
+                                                ra=ra, rab=[0.0_dp, 0.0_dp, 0.0_dp], &
                                                 rsgrid=rs_grid, &
                                                 hab=hab, o1=na1, o2=0, radius=radius, &
                                                 calculate_forces=.FALSE.)

@@ -672,7 +672,7 @@ CONTAINS
       rmax3 = CEILING(rcut/cell%hmat(3, 3))
       fac = 1.e0_dp/cell%deth
       fac3 = fac*pi
-      fvec = twopi/(/cell%hmat(1, 1), cell%hmat(2, 2), cell%hmat(3, 3)/)
+      fvec = twopi/[cell%hmat(1, 1), cell%hmat(2, 2), cell%hmat(3, 3)]
       ew_neut = -fac*pi/alpha**2
       !
       ewmdim = SIZE(particle_set)*(SIZE(particle_set) + 1)/2
@@ -734,7 +734,7 @@ CONTAINS
                      DO k3 = -nmax3, nmax3
                         IF (k1 == 0 .AND. k2 == 0 .AND. k3 == 0) CYCLE
                         fs = 2.0_dp; IF (k1 == 0) fs = 1.0_dp
-                        gvec = fvec*(/REAL(k1, KIND=dp), REAL(k2, KIND=dp), REAL(k3, KIND=dp)/)
+                        gvec = fvec*[REAL(k1, KIND=dp), REAL(k2, KIND=dp), REAL(k3, KIND=dp)]
                         gsq = DOT_PRODUCT(gvec, gvec)
                         gsqi = fs/gsq
                         t1 = fac*gsqi*EXP(-galpha*gsq)

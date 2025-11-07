@@ -990,7 +990,7 @@ CONTAINS
             border_points = 3
          END SELECT
          CALL init_input_type(input_settings, 2*border_points + 1, rs_grid_section, &
-                              1, (/-1, -1, -1/))
+                              1, [-1, -1, -1])
          CALL rs_grid_create_descriptor(rs_desc, f%pw_grid, input_settings, &
                                         border_points=border_points)
          ALLOCATE (rs_grid)

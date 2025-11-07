@@ -465,7 +465,7 @@ CONTAINS
       END DO
       CALL dbcsr_iterator_stop(iter)
 
-      tmp = (/number_of_p_entries, number_of_p_blocks/)
+      tmp = [number_of_p_entries, number_of_p_blocks]
       CALL para_env%max(tmp)
       number_of_p_entries = tmp(1)
       number_of_p_blocks = tmp(2)

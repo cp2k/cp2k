@@ -58,27 +58,27 @@ MODULE fparser
                              cErf = 22, &
                              cErfc = 23, &
                              VarBegin = 24
-   CHARACTER(LEN=1), DIMENSION(cAdd:cPow), PARAMETER :: Ops = (/'+', &
-                                                                '-', &
-                                                                '*', &
-                                                                '/', &
-                                                                '^'/)
-   CHARACTER(LEN=5), DIMENSION(cAbs:cErfc), PARAMETER :: Funcs = (/'abs  ', &
-                                                                   'exp  ', &
-                                                                   'log10', &
-                                                                   'log  ', &
-                                                                   'sqrt ', &
-                                                                   'sinh ', &
-                                                                   'cosh ', &
-                                                                   'tanh ', &
-                                                                   'sin  ', &
-                                                                   'cos  ', &
-                                                                   'tan  ', &
-                                                                   'asin ', &
-                                                                   'acos ', &
-                                                                   'atan ', &
-                                                                   'erf  ', &
-                                                                   'erfc '/)
+   CHARACTER(LEN=1), DIMENSION(cAdd:cPow), PARAMETER :: Ops = ['+', &
+                                                               '-', &
+                                                               '*', &
+                                                               '/', &
+                                                               '^']
+   CHARACTER(LEN=5), DIMENSION(cAbs:cErfc), PARAMETER :: Funcs = ['abs  ', &
+                                                                  'exp  ', &
+                                                                  'log10', &
+                                                                  'log  ', &
+                                                                  'sqrt ', &
+                                                                  'sinh ', &
+                                                                  'cosh ', &
+                                                                  'tanh ', &
+                                                                  'sin  ', &
+                                                                  'cos  ', &
+                                                                  'tan  ', &
+                                                                  'asin ', &
+                                                                  'acos ', &
+                                                                  'atan ', &
+                                                                  'erf  ', &
+                                                                  'erfc ']
 ! **************************************************************************************************
    TYPE tComp
       INTEGER(is), DIMENSION(:), POINTER :: ByteCode => NULL()
@@ -351,9 +351,9 @@ CONTAINS
       !----- -------- --------- --------- --------- --------- --------- --------- -------
       ! Return error message
       !----- -------- --------- --------- --------- --------- --------- --------- -------
-      CHARACTER(LEN=*), DIMENSION(4), PARAMETER :: m = (/'Division by zero                ', &
+      CHARACTER(LEN=*), DIMENSION(4), PARAMETER :: m = ['Division by zero                ', &
          'Argument of SQRT negative       ', 'Argument of LOG negative        ', &
-         'Argument of ASIN or ACOS illegal'/)
+         'Argument of ASIN or ACOS illegal']
       CHARACTER(LEN=LEN(m))                              :: msg
 
 !----- -------- --------- --------- --------- --------- --------- --------- -------
@@ -514,12 +514,12 @@ CONTAINS
 !----- -------- --------- --------- --------- --------- --------- --------- -------
 
       lstr = LEN_TRIM(str)
-      ipos(:) = (/(k, k=1, lstr)/)
+      ipos(:) = [(k, k=1, lstr)]
       k = 1
       DO WHILE (str(k:lstr) /= ' ')
          IF (str(k:k) == ' ') THEN
             str(k:lstr) = str(k + 1:lstr)//' ' ! Move 1 character to left
-            ipos(k:lstr) = (/ipos(k + 1:lstr), 0/) ! Move 1 element to left
+            ipos(k:lstr) = [ipos(k + 1:lstr), 0] ! Move 1 element to left
             k = k - 1
          END IF
          k = k + 1

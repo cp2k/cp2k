@@ -306,12 +306,12 @@ CONTAINS
       ALLOCATE (x_locl(lb1:ub1), y_locl(lb2:ub2), z_locl(lb3:ub3))
       ALLOCATE (x_glbl(glb1:gub1), y_glbl(glb2:gub2), z_glbl(glb3:gub3))
 
-      gindx(:) = (/(i, i=0, npts(1) - 1)/)
-      gindy(:) = (/(i, i=0, npts(2) - 1)/)
-      gindz(:) = (/(i, i=0, npts(3) - 1)/)
-      lindx(:) = (/(i, i=0, npts_local(1) - 1)/)
-      lindy(:) = (/(i, i=0, npts_local(2) - 1)/)
-      lindz(:) = (/(i, i=0, npts_local(3) - 1)/)
+      gindx(:) = [(i, i=0, npts(1) - 1)]
+      gindy(:) = [(i, i=0, npts(2) - 1)]
+      gindz(:) = [(i, i=0, npts(3) - 1)]
+      lindx(:) = [(i, i=0, npts_local(1) - 1)]
+      lindy(:) = [(i, i=0, npts_local(2) - 1)]
+      lindz(:) = [(i, i=0, npts_local(3) - 1)]
 
       x_glbl(:) = gindx*dr(1)
       y_glbl(:) = gindy*dr(2)
@@ -407,22 +407,22 @@ CONTAINS
          DO j = lb2, ub2
             DO i = lb1, ub1
                xi = x_glbl(i); yj = y_glbl(j); zk = z_glbl(k)
-               IF (norm2((/(xi - xmin), (yj - ymin), (zk - zmin)/)) .LT. zeta - small_value) THEN
-                  G%array(i, j, k) = EXP(1.0_dp/(norm2((/(xi - xmin), (yj - ymin), (zk - zmin)/)/zeta)**2 - 1))
-               ELSE IF (norm2((/(xi - xmax), (yj - ymax), (zk - zmax)/)) .LT. zeta - small_value) THEN
-                  G%array(i, j, k) = EXP(1.0_dp/(norm2((/(xi - xmax), (yj - ymax), (zk - zmax)/)/zeta)**2 - 1))
-               ELSE IF (norm2((/(xi - xmin), (yj - ymax), (zk - zmax)/)) .LT. zeta - small_value) THEN
-                  G%array(i, j, k) = EXP(1.0_dp/(norm2((/(xi - xmin), (yj - ymax), (zk - zmax)/)/zeta)**2 - 1))
-               ELSE IF (norm2((/(xi - xmax), (yj - ymin), (zk - zmax)/)) .LT. zeta - small_value) THEN
-                  G%array(i, j, k) = EXP(1.0_dp/(norm2((/(xi - xmax), (yj - ymin), (zk - zmax)/)/zeta)**2 - 1))
-               ELSE IF (norm2((/(xi - xmax), (yj - ymax), (zk - zmin)/)) .LT. zeta - small_value) THEN
-                  G%array(i, j, k) = EXP(1.0_dp/(norm2((/(xi - xmax), (yj - ymax), (zk - zmin)/)/zeta)**2 - 1))
-               ELSE IF (norm2((/(xi - xmin), (yj - ymin), (zk - zmax)/)) .LT. zeta - small_value) THEN
-                  G%array(i, j, k) = EXP(1.0_dp/(norm2((/(xi - xmin), (yj - ymin), (zk - zmax)/)/zeta)**2 - 1))
-               ELSE IF (norm2((/(xi - xmin), (yj - ymax), (zk - zmin)/)) .LT. zeta - small_value) THEN
-                  G%array(i, j, k) = EXP(1.0_dp/(norm2((/(xi - xmin), (yj - ymax), (zk - zmin)/)/zeta)**2 - 1))
-               ELSE IF (norm2((/(xi - xmax), (yj - ymin), (zk - zmin)/)) .LT. zeta - small_value) THEN
-                  G%array(i, j, k) = EXP(1.0_dp/(norm2((/(xi - xmax), (yj - ymin), (zk - zmin)/)/zeta)**2 - 1))
+               IF (norm2([(xi - xmin), (yj - ymin), (zk - zmin)]) .LT. zeta - small_value) THEN
+                  G%array(i, j, k) = EXP(1.0_dp/(norm2([(xi - xmin), (yj - ymin), (zk - zmin)]/zeta)**2 - 1))
+               ELSE IF (norm2([(xi - xmax), (yj - ymax), (zk - zmax)]) .LT. zeta - small_value) THEN
+                  G%array(i, j, k) = EXP(1.0_dp/(norm2([(xi - xmax), (yj - ymax), (zk - zmax)]/zeta)**2 - 1))
+               ELSE IF (norm2([(xi - xmin), (yj - ymax), (zk - zmax)]) .LT. zeta - small_value) THEN
+                  G%array(i, j, k) = EXP(1.0_dp/(norm2([(xi - xmin), (yj - ymax), (zk - zmax)]/zeta)**2 - 1))
+               ELSE IF (norm2([(xi - xmax), (yj - ymin), (zk - zmax)]) .LT. zeta - small_value) THEN
+                  G%array(i, j, k) = EXP(1.0_dp/(norm2([(xi - xmax), (yj - ymin), (zk - zmax)]/zeta)**2 - 1))
+               ELSE IF (norm2([(xi - xmax), (yj - ymax), (zk - zmin)]) .LT. zeta - small_value) THEN
+                  G%array(i, j, k) = EXP(1.0_dp/(norm2([(xi - xmax), (yj - ymax), (zk - zmin)]/zeta)**2 - 1))
+               ELSE IF (norm2([(xi - xmin), (yj - ymin), (zk - zmax)]) .LT. zeta - small_value) THEN
+                  G%array(i, j, k) = EXP(1.0_dp/(norm2([(xi - xmin), (yj - ymin), (zk - zmax)]/zeta)**2 - 1))
+               ELSE IF (norm2([(xi - xmin), (yj - ymax), (zk - zmin)]) .LT. zeta - small_value) THEN
+                  G%array(i, j, k) = EXP(1.0_dp/(norm2([(xi - xmin), (yj - ymax), (zk - zmin)]/zeta)**2 - 1))
+               ELSE IF (norm2([(xi - xmax), (yj - ymin), (zk - zmin)]) .LT. zeta - small_value) THEN
+                  G%array(i, j, k) = EXP(1.0_dp/(norm2([(xi - xmax), (yj - ymin), (zk - zmin)]/zeta)**2 - 1))
                END IF
             END DO
          END DO

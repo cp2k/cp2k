@@ -35,7 +35,7 @@ MODULE qs_cneo_types
                     fmat => Null(), &              ! Fock = core + Hartree
                     wfn => Null()                  ! nuclear orbital coefficients
       REAL(dp), DIMENSION(3) &
-         :: f = (/0.0_dp, 0.0_dp, 0.0_dp/) ! Lagrange multiplier for CNEO
+         :: f = [0.0_dp, 0.0_dp, 0.0_dp] ! Lagrange multiplier for CNEO
       REAL(dp)   :: e_core = 0.0_dp                ! nuclear core energy
       REAL(dp), DIMENSION(:, :), &
          POINTER :: cpc_h => Null(), &             ! decontracted density matrix

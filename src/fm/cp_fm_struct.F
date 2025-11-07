@@ -233,7 +233,7 @@ CONTAINS
       ALLOCATE (fmstruct%nrow_locals(0:(fmstruct%context%num_pe(1) - 1)), &
                 fmstruct%ncol_locals(0:(fmstruct%context%num_pe(2) - 1)))
       IF (.NOT. PRESENT(template_fmstruct)) &
-         fmstruct%first_p_pos = (/0, 0/)
+         fmstruct%first_p_pos = [0, 0]
       IF (PRESENT(first_p_pos)) fmstruct%first_p_pos = first_p_pos
 
       fmstruct%nrow_locals = 0

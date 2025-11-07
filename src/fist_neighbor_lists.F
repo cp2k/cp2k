@@ -388,7 +388,7 @@ CONTAINS
          loop1: DO k = -isubcell(3), isubcell(3)
             loop2: DO j = -isubcell(2), isubcell(2)
                loop3: DO i = -isubcell(1), isubcell(1)
-                  ic = REAL((/i, j, k/), KIND=dp)
+                  ic = REAL([i, j, k], KIND=dp)
                   ! subcell cube vertex
                   DO kx = -1, 1
                      icx(3) = ic(3) + SIGN(0.5_dp, REAL(kx, KIND=dp))

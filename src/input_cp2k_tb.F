@@ -61,7 +61,7 @@ CONTAINS
       CALL section_create(section, __LOCATION__, name="DFTB", &
                           description="Parameters needed to set up the DFTB methods", &
                           n_keywords=1, n_subsections=1, repeats=.FALSE., &
-                          citations=(/Porezag1995, Seifert1996, Elstner1998, Zhechkov2005/))
+                          citations=[Porezag1995, Seifert1996, Elstner1998, Zhechkov2005])
 
       NULLIFY (subsection)
       CALL create_dftb_parameter_section(subsection)
@@ -71,7 +71,7 @@ CONTAINS
       NULLIFY (keyword)
       CALL keyword_create(keyword, __LOCATION__, name="self_consistent", &
                           description="Use self-consistent method", &
-                          citations=(/Elstner1998/), &
+                          citations=[Elstner1998], &
                           usage="SELF_CONSISTENT", default_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -90,7 +90,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="dispersion", &
                           description="Use dispersion correction", &
-                          citations=(/Zhechkov2005/), lone_keyword_l_val=.TRUE., &
+                          citations=[Zhechkov2005], lone_keyword_l_val=.TRUE., &
                           usage="DISPERSION", default_l_val=.FALSE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -105,7 +105,7 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="HB_SR_GAMMA", &
                           description="Uses a modified version for the GAMMA within the SCC-DFTB scheme, "// &
                           "specifically tuned for hydrogen bonds.", &
-                          citations=(/Hu2007/), lone_keyword_l_val=.TRUE., &
+                          citations=[Hu2007], lone_keyword_l_val=.TRUE., &
                           usage="HB_SR_GAMMA", default_l_val=.FALSE.)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
@@ -132,7 +132,7 @@ CONTAINS
       CALL section_create(section, __LOCATION__, name="xTB", &
                           description="Parameters needed to set up the xTB methods", &
                           n_keywords=1, n_subsections=1, repeats=.FALSE., &
-                          citations=(/GRIMME2017/))
+                          citations=[GRIMME2017])
 
       NULLIFY (subsection)
       CALL create_xtb_parameter_section(subsection)
@@ -288,7 +288,7 @@ CONTAINS
                           " Dispersion correction has to be switched on in the DFTB section.", &
                           usage="DISPERSION_TYPE (UFF|D3|D3(BJ)|D2)", &
                           enum_c_vals=s2a("UFF", "D3", "D3(BJ)", "D2"), &
-                          enum_i_vals=(/dispersion_uff, dispersion_d3, dispersion_d3bj, dispersion_d2/), &
+                          enum_i_vals=[dispersion_uff, dispersion_d3, dispersion_d3bj, dispersion_d2], &
                           enum_desc=s2a("Uses the UFF force field for a pair potential dispersion correction.", &
                                         "Uses the Grimme D3 method (simplified) for a pair potential dispersion correction.", &
                                         "Uses the Grimme D3 method (simplified) with Becke-Johnson attenuation.", &
@@ -328,14 +328,14 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="D3_SCALING", &
                           description="Scaling parameters (s6,sr6,s8) for the D3 dispersion method,", &
-                          usage="D3_SCALING 1.0 1.0 1.0", n_var=3, default_r_vals=(/0.0_dp, 0.0_dp, 0.0_dp/))
+                          usage="D3_SCALING 1.0 1.0 1.0", n_var=3, default_r_vals=[0.0_dp, 0.0_dp, 0.0_dp])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="D3BJ_SCALING", &
                           description="Scaling parameters (s6,a1,s8,a2) for the D3(BJ) dispersion method,", &
                           usage="D3BJ_SCALING 1.0 1.0 1.0 1.0", n_var=4, &
-                          default_r_vals=(/0.0_dp, 0.0_dp, 0.0_dp, 0.0_dp/))
+                          default_r_vals=[0.0_dp, 0.0_dp, 0.0_dp, 0.0_dp])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -413,41 +413,41 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="D3BJ_SCALING", &
                           description="Scaling parameters (s6,s8) for the D3 dispersion method.", &
-                          usage="D3BJ_SCALING 1.0 2.4", n_var=2, default_r_vals=(/1.0_dp, 2.4_dp/))
+                          usage="D3BJ_SCALING 1.0 2.4", n_var=2, default_r_vals=[1.0_dp, 2.4_dp])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="D3BJ_PARAM", &
                           description="Becke-Johnson parameters (a1, a2 for the D3 dispersion method.", &
-                          usage="D3BJ_PARAM 0.63 5.0", n_var=2, default_r_vals=(/0.63_dp, 5.0_dp/))
+                          usage="D3BJ_PARAM 0.63 5.0", n_var=2, default_r_vals=[0.63_dp, 5.0_dp])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="HUCKEL_CONSTANTS", &
                           description="Huckel parameters (s, p, d, sp, 2sH).", &
                           usage="HUCKEL_CONSTANTS 1.85 2.25 2.00 2.08 2.85", n_var=5, &
-                          default_r_vals=(/1.85_dp, 2.25_dp, 2.00_dp, 2.08_dp, 2.85_dp/))
+                          default_r_vals=[1.85_dp, 2.25_dp, 2.00_dp, 2.08_dp, 2.85_dp])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="COULOMB_CONSTANTS", &
                           description="Scaling parameters for Coulomb interactions (electrons, nuclei).", &
                           usage="COULOMB_CONSTANTS 2.00 1.50", n_var=2, &
-                          default_r_vals=(/2.00_dp, 1.50_dp/))
+                          default_r_vals=[2.00_dp, 1.50_dp])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="CN_CONSTANTS", &
                           description="Scaling parameters for Coordination number correction term.", &
                           usage="CN_CONSTANTS 0.006 -0.003 -0.005", n_var=3, &
-                          default_r_vals=(/0.006_dp, -0.003_dp, -0.005_dp/))
+                          default_r_vals=[0.006_dp, -0.003_dp, -0.005_dp])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="EN_CONSTANTS", &
                           description="Scaling parameters for electronegativity correction term.", &
                           usage="EN_CONSTANTS -0.007 0.000 0.000", n_var=3, &
-                          default_r_vals=(/-0.007_dp, 0.000_dp, 0.000_dp/))
+                          default_r_vals=[-0.007_dp, 0.000_dp, 0.000_dp])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -467,7 +467,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="HALOGEN_BINDING", &
                           description="Scaling parameters for electronegativity correction term.", &
-                          usage="HALOGEN_BINDING 1.30 0.44", n_var=2, default_r_vals=(/1.30_dp, 0.44_dp/))
+                          usage="HALOGEN_BINDING 1.30 0.44", n_var=2, default_r_vals=[1.30_dp, 0.44_dp])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -502,8 +502,8 @@ CONTAINS
       CALL keyword_create(keyword, __LOCATION__, name="SRB_PARAMETER", &
                           description="SRB parameters (ksrb, esrb, gscal, c1, c2, shift).", &
                           usage="SRB_PARAMETER -0.0129 3.48 0.51 -1.71 2.11 0.0537", n_var=6, &
-                          default_r_vals=(/-0.0129_dp, 3.4847_dp, 0.5097_dp, &
-                                           -1.70549806_dp, 2.10878369_dp, 0.0537_dp/))
+                          default_r_vals=[-0.0129_dp, 3.4847_dp, 0.5097_dp, &
+                                          -1.70549806_dp, 2.10878369_dp, 0.0537_dp])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
@@ -556,8 +556,8 @@ CONTAINS
       CPASSERT(.NOT. ASSOCIATED(section))
       CALL section_create(section, __LOCATION__, name="TBLITE", &
                           description="Section used to specify options for an xTB computation using tblite.", &
-                          n_keywords=1, n_subsections=0, repeats=.FALSE., citations=(/Caldeweyher2017, Caldeweyher2020, &
-                                                                                      Asgeirsson2017, Grimme2017, Bannwarth2019/))
+                          n_keywords=1, n_subsections=0, repeats=.FALSE., citations=[Caldeweyher2017, Caldeweyher2020, &
+                                                                                     Asgeirsson2017, Grimme2017, Bannwarth2019])
 
       NULLIFY (keyword)
       CALL keyword_create(keyword, __LOCATION__, name="_SECTION_PARAMETERS_", &
@@ -571,7 +571,7 @@ CONTAINS
                           description="Selection of the method used in tblite.", &
                           usage="METHOD (GFN1|GFN2|IPEA1)", &
                           enum_c_vals=s2a("GFN1", "GFN2", "IPEA1"), &
-                          enum_i_vals=(/gfn1xtb, gfn2xtb, ipea1xtb/), &
+                          enum_i_vals=[gfn1xtb, gfn2xtb, ipea1xtb], &
                           enum_desc=s2a("Uses the GFN1-XTB method by Grimme.", &
                                         "Uses the GFN2-XTB method by Grimme.", &
                                         "Uses the IEPEA1 method by Grimme."), &

@@ -297,7 +297,7 @@ CONTAINS
             rt1 = r_pbc(1)
             rt2 = r_pbc(2)
             rt3 = r_pbc(3)
-            rij = (/rt1, rt2, rt3/)
+            rij = [rt1, rt2, rt3]
             se_kind_mm%zeff = mm_charges(Imm)
             ! Computes the screening factor for the spherical cutoff
             IF (qmmm_spherical_cutoff(1) > 0.0_dp) THEN

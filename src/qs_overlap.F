@@ -73,10 +73,10 @@ MODULE qs_overlap
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_overlap'
 
    ! should be a parameter, but this triggers a bug in OMPed code with gfortran 4.9
-   INTEGER, DIMENSION(1:56), SAVE :: ndod = (/0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, &
-                                              1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, &
-                                              0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, &
-                                              1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1/)
+   INTEGER, DIMENSION(1:56), SAVE :: ndod = [0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, &
+                                             1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, &
+                                             0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, &
+                                             1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
 
    INTERFACE create_sab_matrix
       MODULE PROCEDURE create_sab_matrix_1d, create_sab_matrix_2d

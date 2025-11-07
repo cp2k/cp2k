@@ -269,9 +269,9 @@ CONTAINS
 
          Delta_Sigma_Neaton_prv(n_start:n_end) = &
             Delta_Sigma_Neaton_prv(n_start:n_end) + &
-            (/(DOT_PRODUCT(block_1(:, n, n), &
-                           block_2(:, n, n)), &
-               n=n_start_block, n_end_block)/)
+            [(DOT_PRODUCT(block_1(:, n, n), &
+                          block_2(:, n, n)), &
+              n=n_start_block, n_end_block)]
          DEALLOCATE (block_1, block_2)
       END DO
       CALL dbt_iterator_stop(iter)
