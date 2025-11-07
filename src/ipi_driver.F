@@ -240,7 +240,7 @@ CONTAINS
             vir = TRANSPOSE(virial%pv_virial)
 
             CALL external_control(should_stop, "IPI", globenv=globenv)
-            IF (should_stop) EXIT
+            IF (should_stop) EXIT driver_loop
 
             hasdata = .TRUE.
          ELSE IF (TRIM(header) == "GETFORCE") THEN
@@ -262,7 +262,7 @@ CONTAINS
             hasdata = .FALSE.
          ELSE
             IF (output_unit > 0) WRITE (output_unit, *) " @DRIVER MODE:  Socket disconnected, time to exit."
-            EXIT
+            EXIT driver_loop
          END IF
       END DO driver_loop
 

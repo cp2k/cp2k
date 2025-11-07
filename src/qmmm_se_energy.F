@@ -180,7 +180,7 @@ CONTAINS
             CALL get_se_param(se_kind_a, &
                               defined=defined, &
                               natorb=natorb_a)
-            IF (.NOT. defined .OR. natorb_a < 1) CYCLE
+            IF (.NOT. defined .OR. natorb_a < 1) CYCLE Kinds
             Atoms: DO i = 1, SIZE(list)
                iatom = list(i)
                ! Give back block
@@ -320,7 +320,7 @@ CONTAINS
                CALL spherical_cutoff_factor(qmmm_spherical_cutoff, rij, sph_chrg_factor)
                se_kind_mm%zeff = se_kind_mm%zeff*sph_chrg_factor
             END IF
-            IF (ABS(se_kind_mm%zeff) <= EPSILON(0.0_dp)) CYCLE
+            IF (ABS(se_kind_mm%zeff) <= EPSILON(0.0_dp)) CYCLE LoopMM
             CALL rotnuc(se_kind_a, se_kind_mm, rij, itype=itype, e1b=e1b, anag=anag, &
                         se_int_control=se_int_control, se_taper=se_taper)
             CALL corecore(se_kind_a, se_kind_mm, rij, itype=itype, enuc=enuc, anag=anag, &

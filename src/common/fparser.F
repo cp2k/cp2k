@@ -307,13 +307,13 @@ CONTAINS
             r = RealNum(Func(j:), ib, in, err)
             IF (err) CALL ParseErrMsg(j, FuncStr, 'Invalid number format:  '//Func(j + ib - 1:j + in - 2))
             j = j + in - 1
-            IF (j > lFunc) EXIT
+            IF (j > lFunc) EXIT step
             c = Func(j:j)
          ELSE ! Check for variable
             n = VariableIndex(Func(j:), Var, ib, in)
             IF (n == 0) CALL ParseErrMsg(j, FuncStr, 'Invalid element: '//Func(j + ib - 1:j + in - 2))
             j = j + in - 1
-            IF (j > lFunc) EXIT
+            IF (j > lFunc) EXIT step
             c = Func(j:j)
          END IF
          DO WHILE (c == ')') ! Check for closing parenthesis
@@ -327,7 +327,7 @@ CONTAINS
          !-- -------- --------- --------- --------- --------- --------- --------- -------
          ! Now, we have a legal operand: A legal operator or end of string must follow
          !-- -------- --------- --------- --------- --------- --------- --------- -------
-         IF (j > lFunc) EXIT
+         IF (j > lFunc) EXIT step
          IF (ANY(c == Ops)) THEN ! Check for multiple operators
             IF (j + 1 > lFunc) CALL ParseErrMsg(j, FuncStr)
             IF (ANY(Func(j + 1:j + 1) == Ops)) CALL ParseErrMsg(j + 1, FuncStr, 'Multiple operators')

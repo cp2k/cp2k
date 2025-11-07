@@ -124,7 +124,7 @@ CONTAINS
                jkind = neighbor_kind_pair%ij_kind(2, igrp)
 
                i = eam_kinds_index(ikind, jkind)
-               IF (i == -1) CYCLE
+               IF (i == -1) CYCLE Kind_Group_Loop
                rab2_max = potparm%pot(ikind, jkind)%pot%rcutsq
                cell_v = MATMUL(cell%hmat, REAL(neighbor_kind_pair%cell_vector, KIND=dp))
                DO ipair = istart, iend
