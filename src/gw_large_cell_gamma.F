@@ -181,10 +181,10 @@ CONTAINS
                                   keep_sparsity=.FALSE.)
 
             IF (bs_env%unit_nr > 0) THEN
-               WRITE (bs_env%unit_nr, '(T2,A,I5,A,I3,A,F7.1,A)') &
+               WRITE (bs_env%unit_nr, '(T2,A,I5,A,I3,A,F10.1,A)') &
                   'Read χ(iτ,k=0) from file for time point  ', i_t, ' /', &
                   bs_env%num_time_freq_points, &
-                  ',    Execution time', m_walltime() - t1, ' s'
+                  ', Execution time', m_walltime() - t1, ' s'
             END IF
 
             CYCLE
@@ -287,9 +287,9 @@ CONTAINS
                                   t_3c_x_Gocc, t_3c_x_Gvir, t_3c_x_Gocc_2, t_3c_x_Gvir_2)
 
          IF (bs_env%unit_nr > 0) THEN
-            WRITE (bs_env%unit_nr, '(T2,A,I13,A,I3,A,F7.1,A)') &
+            WRITE (bs_env%unit_nr, '(T2,A,I13,A,I3,A,F10.1,A)') &
                'Computed χ(iτ,k=0) for time point', i_t, ' /', bs_env%num_time_freq_points, &
-               ',    Execution time', m_walltime() - t1, ' s'
+               ', Execution time', m_walltime() - t1, ' s'
          END IF
 
       END DO ! i_t
@@ -975,9 +975,9 @@ CONTAINS
          CALL fm_read(fm_W_MIC_time(i_t), bs_env, bs_env%W_time_name, i_t)
 
          IF (bs_env%unit_nr > 0) THEN
-            WRITE (bs_env%unit_nr, '(T2,A,I5,A,I3,A,F7.1,A)') &
+            WRITE (bs_env%unit_nr, '(T2,A,I5,A,I3,A,F10.1,A)') &
                'Read W^MIC(iτ) from file for time point  ', i_t, ' /', bs_env%num_time_freq_points, &
-               ',    Execution time', m_walltime() - t1, ' s'
+               ', Execution time', m_walltime() - t1, ' s'
          END IF
 
       END DO
@@ -991,9 +991,9 @@ CONTAINS
          t1 = m_walltime()
          CALL fm_read(bs_env%fm_W_MIC_freq_zero, bs_env, "W_freq_rtp", 0)
          IF (bs_env%unit_nr > 0) THEN
-            WRITE (bs_env%unit_nr, '(T2,A,I3,A,I3,A,F7.1,A)') &
+            WRITE (bs_env%unit_nr, '(T2,A,I3,A,I3,A,F10.1,A)') &
                'Read W^MIC(f=0) from file for freq. point  ', 1, ' /', 1, &
-               ',    Execution time', m_walltime() - t1, ' s'
+               ', Execution time', m_walltime() - t1, ' s'
          END IF
       END IF
 
@@ -1066,10 +1066,10 @@ CONTAINS
          DEALLOCATE (fm_V_kp)
 
          IF (bs_env%unit_nr > 0) THEN
-            WRITE (bs_env%unit_nr, '(T2,A,I12,A,I3,A,F7.1,A)') &
+            WRITE (bs_env%unit_nr, '(T2,A,I12,A,I3,A,F10.1,A)') &
                'Computed W(iτ,k) for k-point batch', &
                ikp_batch, ' /', bs_env%num_chi_eps_W_batches, &
-               ',    Execution time', m_walltime() - t1, ' s'
+               ', Execution time', m_walltime() - t1, ' s'
          END IF
 
       END DO ! ikp_batch
@@ -1105,10 +1105,10 @@ CONTAINS
          CALL fm_write(bs_env%fm_W_MIC_freq_zero, 0, "W_freq_rtp", qs_env)
          ! Report calculation
          IF (bs_env%unit_nr > 0) THEN
-            WRITE (bs_env%unit_nr, '(T2,A,I11,A,I3,A,F7.1,A)') &
+            WRITE (bs_env%unit_nr, '(T2,A,I11,A,I3,A,F10.1,A)') &
                'Computed W(f=0,k) for k-point batch', &
                1, ' /', 1, &
-               ',    Execution time', m_walltime() - t1, ' s'
+               ', Execution time', m_walltime() - t1, ' s'
          END IF
       END IF
 
@@ -1742,7 +1742,7 @@ CONTAINS
       END DO ! ispin
 
       IF (bs_env%unit_nr > 0) THEN
-         WRITE (bs_env%unit_nr, '(T2,A,T58,A,F7.1,A)') &
+         WRITE (bs_env%unit_nr, '(T2,A,T55,A,F10.1,A)') &
             'Computed Σ^x(k=0),', ' Execution time', m_walltime() - t1, ' s'
          WRITE (bs_env%unit_nr, '(A)') ' '
       END IF
@@ -1805,9 +1805,9 @@ CONTAINS
                CALL copy_fm_to_dbcsr(bs_env%fm_work_mo(1), mat_Sigma_neg_tau(i_t, ispin)%matrix, &
                                      keep_sparsity=.FALSE.)
                IF (bs_env%unit_nr > 0) THEN
-                  WRITE (bs_env%unit_nr, '(T2,2A,I3,A,I3,A,F7.1,A)') 'Read Σ^c(iτ,k=0) ', &
+                  WRITE (bs_env%unit_nr, '(T2,2A,I3,A,I3,A,F10.1,A)') 'Read Σ^c(iτ,k=0) ', &
                      'from file for time point  ', i_t, ' /', bs_env%num_time_freq_points, &
-                     ',    Execution time', m_walltime() - t1, ' s'
+                     ', Execution time', m_walltime() - t1, ' s'
                END IF
 
                CYCLE
@@ -1871,9 +1871,9 @@ CONTAINS
                               bs_env%Sigma_n_name, bs_env%fm_work_mo(1), qs_env)
 
             IF (bs_env%unit_nr > 0) THEN
-               WRITE (bs_env%unit_nr, '(T2,A,I10,A,I3,A,F7.1,A)') &
+               WRITE (bs_env%unit_nr, '(T2,A,I10,A,I3,A,F10.1,A)') &
                   'Computed Σ^c(iτ,k=0) for time point ', i_t, ' /', bs_env%num_time_freq_points, &
-                  ',    Execution time', m_walltime() - t1, ' s'
+                  ', Execution time', m_walltime() - t1, ' s'
             END IF
 
          END DO ! ispin
@@ -2077,9 +2077,9 @@ CONTAINS
       !   ->  λ (AO_1 in compute_3c_integrals)  no bounds
       ! µ (AO_2 in compute_3c_integrals)  bounds from inner loop "IL" indices
       ! ν   bounds from i_atoms
-
-      bounds_full_ao(1:2) = [bs_env%i_ao_start_from_atom(1), &
-                             bs_env%i_ao_end_from_atom(bs_env%n_atom)]
+      
+      bounds_full_ao(1:2) = [1, &
+                             bs_env%n_ao]
       bounds_Q(1:2) = [bs_env%i_RI_start_from_atom(j_atoms(1)), &
                        bs_env%i_RI_end_from_atom(j_atoms(2))]
 
