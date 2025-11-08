@@ -12,6 +12,7 @@ MODULE qs_tddfpt2_methods
    USE atomic_kind_types,               ONLY: atomic_kind_type
    USE bibliography,                    ONLY: Grimme2013,&
                                               Grimme2016,&
+                                              Hernandez2025,&
                                               Iannuzzi2005,&
                                               cite_reference
    USE cell_types,                      ONLY: cell_type
@@ -236,6 +237,7 @@ CONTAINS
       tddfpt_control%do_hfxlr = do_hfxlr
       tddfpt_control%do_exck = do_exck
       do_sf = tddfpt_control%spinflip /= no_sf_tddfpt
+      IF (do_sf) CALL cite_reference(Hernandez2025)
       IF (tddfpt_control%do_hfxlr) THEN
          kernel_section => section_vals_get_subs_vals(tddfpt_section, "XC%HFX_KERNEL%HFXLR")
          CALL section_vals_val_get(kernel_section, "RCUT", r_val=tddfpt_control%hfxlr_rcut)

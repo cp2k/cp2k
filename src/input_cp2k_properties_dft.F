@@ -13,6 +13,7 @@
 ! **************************************************************************************************
 MODULE input_cp2k_properties_dft
    USE bibliography, ONLY: Futera2017, &
+                           Hernandez2025, &
                            Iannuzzi2005, &
                            Kondov2007, &
                            Luber2014, &
@@ -1578,7 +1579,7 @@ CONTAINS
                           usage="SPINFLIP NONCOLLINEAR", &
                           enum_c_vals=s2a("NONE", "COLLINEAR", "NONCOLLINEAR"), &
                           enum_i_vals=[no_sf_tddfpt, tddfpt_sf_col, tddfpt_sf_noncol], &
-                          default_i_val=no_sf_tddfpt)
+                          default_i_val=no_sf_tddfpt, citations=[Hernandez2025])
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
