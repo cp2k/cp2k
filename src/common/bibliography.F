@@ -90,7 +90,7 @@ MODULE bibliography
                             Blase2018, Blase2020, Bruneval2015, Golze2019, Gui2018, Jacquemin2017, Liu2020, &
                             Sander2015, Schreiber2008, vanSetten2015, Setyawan2010, Ahart2024, Knysh2024, &
                             Schambeck2024, Mewes2018, Sertcan2024, Drautz2019, Lysogorskiy2021, Bochkarev2024, &
-                            VazdaCruz2021, Chen2025
+                            VazdaCruz2021, Chen2025, Hernandez2025
 
 CONTAINS
 
@@ -1967,6 +1967,13 @@ CONTAINS
                          "Nuclear Quantum Effects: Method Development and Application to Hydrogen Adsorption on Pt(111)", &
                          source="J. Chem. Theory Comput.", volume="21", pages="7865-7877", &
                          year=2025, doi="10.1021/acs.jctc.5c00837")
+
+      CALL add_reference(key=Hernandez2025, &
+                         authors=s2a("L. I. Hernandez-Segura", "S. Luber"), &
+                         title="Spin-Flip TDDFT within the Sternheimer Formulation:"// &
+                         " A Gaussian and Plane Wave Implementation", &
+                         source="J. Phys. Chem. A", volume="129", pages="9798-9809", &
+                         year=2025, doi="10.1021/acs.jpca.5c05234")
 
    END SUBROUTINE add_all_references
 
