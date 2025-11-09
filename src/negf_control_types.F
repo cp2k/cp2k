@@ -286,6 +286,7 @@ CONTAINS
          CALL section_vals_val_get(contact_section, "FERMI_LEVEL", &
                                    r_val=negf_control%contacts(i_rep)%fermi_level, &
                                    i_rep_section=i_rep, explicit=is_explicit)
+         IF (.NOT. is_explicit) negf_control%contacts(i_rep)%refine_fermi_level = .FALSE.
          negf_control%contacts(i_rep)%compute_fermi_level = (.NOT. is_explicit) .OR. &
                                                             negf_control%contacts(i_rep)%refine_fermi_level
 

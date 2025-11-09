@@ -369,43 +369,44 @@ CONTAINS
          CALL get_iterator_info(nl_iterator, iatom=iatom_row, jatom=iatom_col, cell=cell)
 
          IF (ABS(cell(direction_axis_abs)) == 1) THEN
-         IF (iatom_row <= iatom_col) THEN
-            ! secondary unit cell, i <= j:
-            CALL dbcsr_get_block_p(matrix=matrix_cell_1, &
-                                   row=iatom_row, col=iatom_col, block=block_dest, found=found)
-            CPASSERT(found)
-            CALL dbcsr_get_block_p(matrix=matrix_cells_raw(-cell(direction_axis_abs))%matrix, &
-                                   row=iatom_row, col=iatom_col, block=block_src, found=found)
-            CPASSERT(found)
-            block_dest(:, :) = block_src(:, :)
 
-            CALL dbcsr_get_block_p(matrix=matrix_cell_minus1, &
-                                   row=iatom_row, col=iatom_col, block=block_dest, found=found)
-            CPASSERT(found)
-            CALL dbcsr_get_block_p(matrix=matrix_cells_raw(cell(direction_axis_abs))%matrix, &
-                                   row=iatom_row, col=iatom_col, block=block_src, found=found)
-            CPASSERT(found)
-            block_dest(:, :) = block_src(:, :)
+            IF (iatom_row <= iatom_col) THEN
+               ! secondary unit cell, i <= j:
+               CALL dbcsr_get_block_p(matrix=matrix_cell_1, &
+                                      row=iatom_row, col=iatom_col, block=block_dest, found=found)
+               CPASSERT(found)
+               CALL dbcsr_get_block_p(matrix=matrix_cells_raw(-cell(direction_axis_abs))%matrix, &
+                                      row=iatom_row, col=iatom_col, block=block_src, found=found)
+               CPASSERT(found)
+               block_dest(:, :) = block_src(:, :)
 
-         ELSE
-            ! secondary unit cell, i > j:
-            CALL dbcsr_get_block_p(matrix=matrix_cell_1, &
-                                   row=iatom_col, col=iatom_row, block=block_dest, found=found)
-            CPASSERT(found)
-            CALL dbcsr_get_block_p(matrix=matrix_cells_raw(-cell(direction_axis_abs))%matrix, &
-                                   row=iatom_col, col=iatom_row, block=block_src, found=found)
-            CPASSERT(found)
-            block_dest(:, :) = block_src(:, :)
+               CALL dbcsr_get_block_p(matrix=matrix_cell_minus1, &
+                                      row=iatom_row, col=iatom_col, block=block_dest, found=found)
+               CPASSERT(found)
+               CALL dbcsr_get_block_p(matrix=matrix_cells_raw(cell(direction_axis_abs))%matrix, &
+                                      row=iatom_row, col=iatom_col, block=block_src, found=found)
+               CPASSERT(found)
+               block_dest(:, :) = block_src(:, :)
 
-            CALL dbcsr_get_block_p(matrix=matrix_cell_minus1, &
-                                   row=iatom_col, col=iatom_row, block=block_dest, found=found)
-            CPASSERT(found)
-            CALL dbcsr_get_block_p(matrix=matrix_cells_raw(cell(direction_axis_abs))%matrix, &
-                                   row=iatom_col, col=iatom_row, block=block_src, found=found)
-            CPASSERT(found)
-            block_dest(:, :) = block_src(:, :)
+            ELSE
+               ! secondary unit cell, i > j:
+               CALL dbcsr_get_block_p(matrix=matrix_cell_1, &
+                                      row=iatom_col, col=iatom_row, block=block_dest, found=found)
+               CPASSERT(found)
+               CALL dbcsr_get_block_p(matrix=matrix_cells_raw(-cell(direction_axis_abs))%matrix, &
+                                      row=iatom_col, col=iatom_row, block=block_src, found=found)
+               CPASSERT(found)
+               block_dest(:, :) = block_src(:, :)
 
-         END IF
+               CALL dbcsr_get_block_p(matrix=matrix_cell_minus1, &
+                                      row=iatom_col, col=iatom_row, block=block_dest, found=found)
+               CPASSERT(found)
+               CALL dbcsr_get_block_p(matrix=matrix_cells_raw(cell(direction_axis_abs))%matrix, &
+                                      row=iatom_col, col=iatom_row, block=block_src, found=found)
+               CPASSERT(found)
+               block_dest(:, :) = block_src(:, :)
+
+            END IF
 
          END IF
 

@@ -111,6 +111,7 @@ MODULE negf_methods
                                               seconds
    USE qs_density_mixing_types,         ONLY: direct_mixing_nr,&
                                               gspace_mixing_nr
+   USE qs_energy_types,                 ONLY: qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_gspace_mixing,                ONLY: gspace_mixing
@@ -243,11 +244,14 @@ CONTAINS
             WRITE (log_unit, "(  ' ------------------')")
             WRITE (log_unit, "(' From the force environment:',I16)") negf_control%contacts(icontact)%force_env_index
             WRITE (log_unit, "(' Number of atoms:',I27)") SIZE(negf_control%contacts(icontact)%atomlist_bulk)
-            IF (verbose_output) WRITE (log_unit, "(' Atoms belonging to a contact:')")
+            IF (verbose_output) WRITE (log_unit, "(' Atoms belonging to a contact (from the entire sysem):')")
             IF (verbose_output) WRITE (log_unit, "(16I5)") negf_control%contacts(icontact)%atomlist_bulk
             WRITE (log_unit, "(' Number of atoms in a primary unit cell:',I4)") SIZE(negf_env%contacts(icontact)%atomlist_cell0)
-            IF (verbose_output) WRITE (log_unit, "(' Atoms belonging to a primary unit cell:')")
+            IF (verbose_output) WRITE (log_unit, "(' Atoms belonging to a primary unit cell (from the entire sysem):')")
             IF (verbose_output) WRITE (log_unit, "(16I5)") negf_env%contacts(icontact)%atomlist_cell0
+            IF (verbose_output) WRITE (log_unit, "(' Atom mapping of a unit cell of the bulk electrode:')")
+            IF (verbose_output) WRITE (log_unit, "(16I5)") negf_env%contacts(icontact)%atom_map_cell0(:)%iatom
+            IF (verbose_output) WRITE (log_unit, "(' Direction of an electrode: ',I16)") negf_env%contacts(icontact)%direction_axis
             n = SIZE(negf_env%contacts(icontact)%h_00(1)%local_data, 1)
             WRITE (sfmt, "('(',i0,'(E15.5))')") n
             WRITE (log_unit, "(' The number of atomic orbtals:',I14)") n
@@ -273,12 +277,53 @@ CONTAINS
                END DO
             END IF
          END DO
-         WRITE (log_unit, "(/,' Atoms in the full scattering region:',I4)") SIZE(negf_control%atomlist_S_screening)
+         WRITE (log_unit, "(/,' The full scattering region')")
+         WRITE (log_unit, "(  ' --------------------------')")
+         WRITE (log_unit, "(' Number of atoms:',I27)") SIZE(negf_control%atomlist_S_screening)
+         IF (verbose_output) WRITE (log_unit, "(' Atoms belonging to a full scattering region:')")
          IF (verbose_output) WRITE (log_unit, "(16I5)") negf_control%atomlist_S_screening
+         n = SIZE(negf_env%h_s(1)%local_data, 1)
+         WRITE (sfmt, "('(',i0,'(E15.5))')") n
+         WRITE (log_unit, "(' The number of atomic orbtals:',I14)") n
+         ! print the full scattering region Hamiltonians for check and debuging
+         IF (debug_output) THEN
+            DO k = 1, dft_control%nspins
+               WRITE (log_unit, "(' The H_s Hamiltonian for spin',I2)") k
+               DO i = 1, n
+                  WRITE (log_unit, sfmt) (negf_env%h_s(k)%local_data(i, j), j=1, n)
+               END DO
+            END DO
+            WRITE (log_unit, "(' The S_s overlap matrix')")
+            DO i = 1, n
+               WRITE (log_unit, sfmt) (negf_env%s_s%local_data(i, j), j=1, n)
+            END DO
+         END IF
+         ! print the electrode Hamiltonians for check and debuging
+         IF (debug_output) THEN
+            WRITE (log_unit, "(/,' Scattering region - electrode contacts')")
+            WRITE (log_unit, "(  ' ---------------------------------------')")
+            DO icontact = 1, SIZE(negf_control%contacts)
+               WRITE (log_unit, "(/,' The contact',I5)") icontact
+               WRITE (log_unit, "(  ' ----------------')")
+               DO k = 1, dft_control%nspins
+                  WRITE (log_unit, "(' The H_sc Hamiltonian for spin',I2)") k
+                  DO i = 1, n
+                     WRITE (log_unit, sfmt) &
+                        (negf_env%h_sc(k, icontact)%local_data(i, j), j=1, SIZE(negf_env%contacts(icontact)%h_00(1)%local_data, 1))
+                  END DO
+               END DO
+               WRITE (log_unit, "(' The S_sc overlap matrix')")
+               DO i = 1, n
+                  WRITE (log_unit, sfmt) &
+                     (negf_env%s_sc(icontact)%local_data(i, j), j=1, SIZE(negf_env%contacts(icontact)%h_00(1)%local_data, 1))
+               END DO
+            END DO
+         END IF
          WRITE (log_unit, *)
       END IF
 
       ! compute contact Fermi level as well as requested properties
+      ! -----------------------------------------------------------
       ncontacts = SIZE(negf_control%contacts)
       DO icontact = 1, ncontacts
          NULLIFY (qs_env)
@@ -311,13 +356,21 @@ CONTAINS
          END IF
       END DO
 
+      ! NEGF procedure
+      ! --------------
       IF (ncontacts > 1) THEN
          CALL force_env_get(force_env, qs_env=qs_env)
+
+         ! shift potential
+         ! ---------------
          CALL shift_potential(negf_env, negf_control, sub_env, qs_env, base_contact=1, log_unit=log_unit)
 
+         ! self-consistent density
+         ! -----------------------
          CALL converge_density(negf_env, negf_control, sub_env, qs_env, negf_control%v_shift, base_contact=1, log_unit=log_unit)
 
          ! current
+         ! -------
          CALL get_qs_env(qs_env, dft_control=dft_control)
 
          nspins = dft_control%nspins
@@ -347,6 +400,7 @@ CONTAINS
          END IF
 
          ! density of states
+         ! -----------------
          print_section => section_vals_get_subs_vals(negf_section, "PRINT")
          should_output = BTEST(cp_print_key_should_output(logger%iter_info, print_section, "DOS"), cp_p_file)
 
@@ -369,6 +423,7 @@ CONTAINS
          END IF
 
          ! transmission coefficient
+         ! ------------------------
          should_output = BTEST(cp_print_key_should_output(logger%iter_info, print_section, "TRANSMISSION"), cp_p_file)
 
          IF (should_output) THEN
@@ -446,6 +501,7 @@ CONTAINS
       TYPE(integration_status_type)                      :: stats
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(mp_para_env_type), POINTER                    :: para_env_global
+      TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_rho_type), POINTER                         :: rho_struct
       TYPE(qs_subsys_type), POINTER                      :: subsys
 
@@ -544,20 +600,21 @@ CONTAINS
             nelectrons_qs_cell0 = nelectrons_qs_cell0 + trace
          END DO
 
-         ! Use orbital energies of HOMO and LUMO as reference points and then
-         ! refine the Fermi level by using a simple linear interpolation technique
+         ! Use the Fermi level given in the input file or the Fermi level of bulk electrodes as a reference point
+         ! and then refine the Fermi level by using a simple linear interpolation technique
+         CALL get_qs_env(qs_env, energy=energy)
          IF (negf_control%homo_lumo_gap > 0.0_dp) THEN
             IF (negf_control%contacts(contact_id)%refine_fermi_level) THEN
                fermi_level_min = negf_control%contacts(contact_id)%fermi_level
             ELSE
-               fermi_level_min = negf_env%contacts(contact_id)%homo_energy
+               fermi_level_min = energy%efermi
             END IF
             fermi_level_max = fermi_level_min + negf_control%homo_lumo_gap
          ELSE
             IF (negf_control%contacts(contact_id)%refine_fermi_level) THEN
                fermi_level_max = negf_control%contacts(contact_id)%fermi_level
             ELSE
-               fermi_level_max = negf_env%contacts(contact_id)%homo_energy
+               fermi_level_max = energy%efermi
             END IF
             fermi_level_min = fermi_level_max + negf_control%homo_lumo_gap
          END IF
