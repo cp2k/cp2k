@@ -1540,6 +1540,9 @@ CONTAINS
          IF (lms) THEN
             ! ignore for now
             orblist = 1
+            DO ispin = 1, nspins
+               CPASSERT(.NOT.ASSOCIATED(gs_mos(ispin)%evals_occ_matrix))
+            END DO
          ELSEIF (ewcut) THEN
             ! Filter orbitals wrt energy window
             DO ispin = 1, nspins
@@ -1565,9 +1568,6 @@ CONTAINS
                   gs_mos(ispin)%index_active(io) = i
                END IF
             END DO
-            WRITE (6, *) "ORBLIST   ", gs_mos(ispin)%evals_occ*evolt
-            WRITE (6, *) "ORBLIST   ", nmo
-            WRITE (6, *) "ORBLIST   ", gs_mos(ispin)%index_active(:)
          END DO
 
          DEALLOCATE (orblist)

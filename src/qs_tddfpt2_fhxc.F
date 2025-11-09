@@ -115,13 +115,13 @@ CONTAINS
 
       CHARACTER(LEN=default_string_length)               :: basis_type
       INTEGER                                            :: handle, ikind, ispin, ivect, nao, &
-                                                            nao_aux, nkind, nocc, nspins, nvects, &
+                                                            nao_aux, nkind, nspins, nvects, &
                                                             spinflip
       INTEGER, DIMENSION(:), POINTER                     :: blk_sizes
       INTEGER, DIMENSION(maxspins)                       :: nactive
       LOGICAL                                            :: do_noncol, gapw, gapw_xc
       TYPE(admm_type), POINTER                           :: admm_env
-      TYPE(cp_fm_type)                                   :: mo_active, work_aux_orb, work_orb_orb
+      TYPE(cp_fm_type)                                   :: work_aux_orb, work_orb_orb
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: A_xc_munu_sub, rho_ia_ao, &
                                                             rho_ia_ao_aux_fit
       TYPE(dbcsr_type), POINTER                          :: dbwork
@@ -173,7 +173,7 @@ CONTAINS
                DO ispin = 1, nspins
                   CALL dbcsr_set(rho_ia_ao(ispin)%matrix, 0.0_dp)
                   CALL cp_dbcsr_plus_fm_fm_t(rho_ia_ao(ispin)%matrix, &
-                                             matrix_v=sub_env%mos_occ(ispin), &
+                                             matrix_v=sub_env%mos_active(ispin), &
                                              matrix_g=work_matrices%evects_sub(ispin, ivect), &
                                              ncol=nactive(ispin), symmetry_mode=1)
                END DO
@@ -185,7 +185,7 @@ CONTAINS
             DO ispin = 1, nspins
                CALL dbcsr_set(rho_ia_ao(ispin)%matrix, 0.0_dp)
                CALL cp_dbcsr_plus_fm_fm_t(rho_ia_ao(ispin)%matrix, &
-                                          matrix_v=sub_env%mos_occ(ispin), &
+                                          matrix_v=sub_env%mos_active(ispin), &
                                           matrix_g=evects(ispin, ivect), &
                                           ncol=nactive(ispin), symmetry_mode=1)
             END DO
@@ -480,35 +480,16 @@ CONTAINS
          END IF
 
          DO ispin = 1, nspins
-            CALL cp_fm_get_info(sub_env%mos_occ(ispin), ncol_global=nocc)
-            IF (nactive(ispin) /= nocc) THEN
-               CALL cp_fm_create(mo_active, evects(ispin, 1)%matrix_struct)
-               CALL cp_fm_to_fm_submat(sub_env%mos_occ(ispin), mo_active, &
-                                       nao, nactive(ispin), 1, 1, 1, 1)
-               IF (ALLOCATED(work_matrices%evects_sub)) THEN
-                  CALL cp_dbcsr_sm_fm_multiply(work_matrices%A_ia_munu_sub(ispin)%matrix, &
-                                               mo_active, &
-                                               work_matrices%Aop_evects_sub(ispin, ivect), &
-                                               ncol=nactive(ispin), alpha=1.0_dp, beta=0.0_dp)
-               ELSE
-                  CALL cp_dbcsr_sm_fm_multiply(work_matrices%A_ia_munu_sub(ispin)%matrix, &
-                                               mo_active, &
-                                               Aop_evects(ispin, ivect), &
-                                               ncol=nactive(ispin), alpha=1.0_dp, beta=0.0_dp)
-               END IF
-               CALL cp_fm_release(mo_active)
+            IF (ALLOCATED(work_matrices%evects_sub)) THEN
+               CALL cp_dbcsr_sm_fm_multiply(work_matrices%A_ia_munu_sub(ispin)%matrix, &
+                                            sub_env%mos_active(ispin), &
+                                            work_matrices%Aop_evects_sub(ispin, ivect), &
+                                            ncol=nactive(ispin), alpha=1.0_dp, beta=0.0_dp)
             ELSE
-               IF (ALLOCATED(work_matrices%evects_sub)) THEN
-                  CALL cp_dbcsr_sm_fm_multiply(work_matrices%A_ia_munu_sub(ispin)%matrix, &
-                                               sub_env%mos_occ(ispin), &
-                                               work_matrices%Aop_evects_sub(ispin, ivect), &
-                                               ncol=nactive(ispin), alpha=1.0_dp, beta=0.0_dp)
-               ELSE
-                  CALL cp_dbcsr_sm_fm_multiply(work_matrices%A_ia_munu_sub(ispin)%matrix, &
-                                               sub_env%mos_occ(ispin), &
-                                               Aop_evects(ispin, ivect), &
-                                               ncol=nactive(ispin), alpha=1.0_dp, beta=0.0_dp)
-               END IF
+               CALL cp_dbcsr_sm_fm_multiply(work_matrices%A_ia_munu_sub(ispin)%matrix, &
+                                            sub_env%mos_active(ispin), &
+                                            Aop_evects(ispin, ivect), &
+                                            ncol=nactive(ispin), alpha=1.0_dp, beta=0.0_dp)
             END IF
          END DO
       END DO

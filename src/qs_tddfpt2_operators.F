@@ -116,7 +116,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_apply_energy_diff'
 
       INTEGER                                            :: handle, ispin, ivect, nactive, nao, &
-                                                            nspins, nvects, spin2
+                                                            nspins, nvects, spin2, i, j
+      REAL(KIND=dp), DIMENSION(:), ALLOCATABLE           :: evals_active
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
       TYPE(cp_fm_type)                                   :: hevec
 
@@ -129,6 +130,11 @@ CONTAINS
          CALL cp_fm_get_info(matrix=evects(ispin, 1), matrix_struct=matrix_struct, &
                              nrow_global=nao, ncol_global=nactive)
          CALL cp_fm_create(hevec, matrix_struct)
+         ALLOCATE(evals_active(nactive))
+         DO i = 1,nactive
+            j = gs_mos(ispin)%index_active(i)
+            evals_active(i) = gs_mos(ispin)%evals_occ(j)
+         END DO
 
          IF (tddfpt_control%spinflip == no_sf_tddfpt) THEN
             spin2 = ispin
@@ -148,12 +154,13 @@ CONTAINS
                                   0.0_dp, hevec)
             ELSE
                CALL cp_fm_to_fm(S_evects(ispin, ivect), hevec)
-               CALL cp_fm_column_scale(hevec, gs_mos(ispin)%evals_occ)
+               CALL cp_fm_column_scale(hevec, evals_active)
             END IF
 
             ! KS * C1 - S * C1 * occupied_orbital_energies
             CALL cp_fm_scale_and_add(1.0_dp, Aop_evects(ispin, ivect), -1.0_dp, hevec)
          END DO
+         DEALLOCATE(evals_active)
          CALL cp_fm_release(hevec)
       END DO
 

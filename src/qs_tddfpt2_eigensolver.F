@@ -702,7 +702,7 @@ CONTAINS
 
       INTEGER                                            :: handle, icol_local, irow_local, irv, &
                                                             ispin, nao, ncols_local, nrows_local, &
-                                                            nrvs, nspins, spin2, spinflip
+                                                            nrvs, nspins, spin2, spinflip, ica, icb
       INTEGER, DIMENSION(:), POINTER                     :: col_indices_local, row_indices_local
       INTEGER, DIMENSION(maxspins)                       :: nactive, nmo_virt
       REAL(kind=dp)                                      :: e_occ_plus_lambda, eref, lambda
@@ -762,7 +762,9 @@ CONTAINS
 
                ! Apply Davidson preconditioner to the residue vectors vomat to obtain new directions
                DO icol_local = 1, ncols_local
-                  e_occ_plus_lambda = gs_mos(ispin)%evals_occ(col_indices_local(icol_local)) + lambda
+                  ica = col_indices_local(icol_local)
+                  icb = gs_mos(ispin)%index_active(ica)
+                  e_occ_plus_lambda = gs_mos(ispin)%evals_occ(icb) + lambda
 
                   DO irow_local = 1, nrows_local
                      eref = gs_mos(spin2)%evals_virt(row_indices_local(irow_local)) - e_occ_plus_lambda
