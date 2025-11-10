@@ -475,7 +475,6 @@ CONTAINS
                                     fm_cell1=contact_env%s_01, &
                                     direction_axis=contact_env%direction_axis, &
                                     matrix_kp=matrix_s_kp(1, :), &
-                                    index_to_cell=index_to_cell, &
                                     atom_list0=atom_list0, atom_list1=atom_list1, &
                                     subsys=subsys, mpi_comm_global=para_env, &
                                     kpoints=kpoints)
@@ -486,7 +485,6 @@ CONTAINS
                                        fm_cell1=contact_env%h_01(ispin), &
                                        direction_axis=contact_env%direction_axis, &
                                        matrix_kp=matrix_ks_kp(ispin, :), &
-                                       index_to_cell=index_to_cell, &
                                        atom_list0=atom_list0, atom_list1=atom_list1, &
                                        subsys=subsys, mpi_comm_global=para_env, &
                                        kpoints=kpoints)
@@ -495,7 +493,6 @@ CONTAINS
                                        fm_cell1=contact_env%rho_01(ispin), &
                                        direction_axis=contact_env%direction_axis, &
                                        matrix_kp=rho_ao_kp(ispin, :), &
-                                       index_to_cell=index_to_cell, &
                                        atom_list0=atom_list0, atom_list1=atom_list1, &
                                        subsys=subsys, mpi_comm_global=para_env, &
                                        kpoints=kpoints)
@@ -1003,7 +1000,7 @@ CONTAINS
          ! as we do need a second replica of the bulk contact unit cell along transport
          ! direction anyway which is not available without k-points.
 
-         CPWARN("It is strongly advised to use k-points within all contact FORCE_EVAL-s")
+         CPABORT("It is strongly advised to use k-points within all contact FORCE_EVAL-s")
 
          nspins = SIZE(mos)
 

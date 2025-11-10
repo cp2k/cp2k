@@ -290,17 +290,6 @@ CONTAINS
          negf_control%contacts(i_rep)%compute_fermi_level = (.NOT. is_explicit) .OR. &
                                                             negf_control%contacts(i_rep)%refine_fermi_level
 
-         IF (do_negf .AND. negf_control%contacts(i_rep)%force_env_index <= 0 .AND. &
-             (.NOT. (is_explicit .OR. negf_control%contacts(i_rep)%refine_fermi_level))) THEN
-            WRITE (contact_id_str, '(I11)') i_rep
-            CALL cp_warn(__LOCATION__, &
-                         "There is no way to reasonably guess the Fermi level for the bulk contact "// &
-                         TRIM(ADJUSTL(contact_id_str))//" without running a separate bulk DFT calculation first. "// &
-                         "Therefore, 0.0 Hartree will be used as an initial guess. It is strongly advised to enable "// &
-                         "the REFINE_FERMI_LEVEL switch and to provide an initial guess using the FERMI_LEVEL keyword. "// &
-                         "Alternatively, a bulk FORCE_EVAL_SECTION can be set up.")
-         END IF
-
          CALL section_vals_val_get(contact_section, "TEMPERATURE", &
                                    r_val=negf_control%contacts(i_rep)%temperature, &
                                    i_rep_section=i_rep)
