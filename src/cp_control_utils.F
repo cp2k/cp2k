@@ -2861,9 +2861,13 @@ CONTAINS
       ! TODO : Implement for other moment operators
       subsection => section_vals_get_subs_vals(rtp_section, "PRINT%MOMENTS")
       CALL section_vals_get(subsection, explicit=is_present)
-      IF (is_present .AND. dft_control%rtp_control%periodic) THEN
+      ! Trigger the flag
+      dft_control%rtp_control%save_local_moments = &
+         is_present .OR. dft_control%rtp_control%save_local_moments
+      IF (is_present .AND. &
+          (dft_control%rtp_control%periodic .OR. (.NOT. dft_control%rtp_control%linear_scaling))) THEN
          CALL cp_abort(__LOCATION__, "Moments trace printing only "// &
-                       "implemented in non-periodic systems. "// &
+                       "implemented in non-periodic systems in linear scaling. "// &
                        "Please use DFT%PRINT%MOMENTS for other printing.")
       END IF
       CALL section_vals_val_get(rtp_section, "PRINT%MOMENTS%REFERENCE", &
@@ -2873,10 +2877,14 @@ CONTAINS
       ! Moment Fourier transform
       subsection => section_vals_get_subs_vals(rtp_section, "PRINT%MOMENTS_FT")
       CALL section_vals_get(subsection, explicit=is_present)
-      IF (is_present .AND. dft_control%rtp_control%periodic) THEN
+      ! Trigger the flag
+      dft_control%rtp_control%save_local_moments = &
+         is_present .OR. dft_control%rtp_control%save_local_moments
+      IF (is_present .AND. &
+          (dft_control%rtp_control%periodic .OR. (.NOT. dft_control%rtp_control%linear_scaling))) THEN
          ! Not implemented
          CALL cp_abort(__LOCATION__, "Moments Fourier transform printing "// &
-                       "implemented only for non-periodic systems.")
+                       "implemented only for non-periodic systems in linear scaling.")
       END IF
       ! General FT settings
       CALL section_vals_val_get(rtp_section, "FT%DAMPING", &
@@ -2907,7 +2915,11 @@ CONTAINS
       ! Polarizability settings
       subsection => section_vals_get_subs_vals(rtp_section, "PRINT%POLARIZABILITY")
       CALL section_vals_get(subsection, explicit=is_present)
-      IF (is_present .AND. dft_control%rtp_control%periodic) THEN
+      ! Trigger the flag
+      dft_control%rtp_control%save_local_moments = &
+         is_present .OR. dft_control%rtp_control%save_local_moments
+      IF (is_present .AND. &
+          (dft_control%rtp_control%periodic .OR. (.NOT. dft_control%rtp_control%linear_scaling))) THEN
          ! Not implemented
          CALL cp_abort(__LOCATION__, "Polarizability printing "// &
                        "implemented only for non-periodic systems.")
@@ -2931,6 +2943,12 @@ CONTAINS
             END DO
          END DO
       END IF
+
+      ! Finally, allow printing of FT observables also in the case when they are not explicitly
+      ! required, but they are available, i.e. non-periodic linear scaling calculation
+      dft_control%rtp_control%save_local_moments = &
+         dft_control%rtp_control%save_local_moments .OR. &
+         ((.NOT. dft_control%rtp_control%periodic) .AND. dft_control%rtp_control%linear_scaling)
 
    END SUBROUTINE read_rtp_section
 ! **************************************************************************************************

@@ -242,13 +242,11 @@ CONTAINS
          IF (rtp%linear_scaling) THEN
             CALL get_rtp(rtp=rtp, rho_new=rho_new)
 
-            ! TODO : Insert saving of trace of electric moment at the present time here - both to memory and to file
             ! Probably have to rebuild the moment matrix, since atoms can also move, in principle
-            IF (.NOT. dft_control%rtp_control%periodic) THEN
+            IF (dft_control%rtp_control%save_local_moments) THEN
                ! Save the field value
                IF (dft_control%apply_efield_field) THEN
                   CALL make_field(dft_control, field, qs_env%sim_step, qs_env%sim_time)
-                  ! TODO : Check the istart during restarts
                   rtp%fields(:, rtp%istep + rtp%i_start + 1) = CMPLX(field(:), 0.0, kind=dp)
                END IF
                IF (.NOT. dft_control%rtp_control%fixed_ions) THEN

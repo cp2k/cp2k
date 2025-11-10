@@ -995,10 +995,15 @@ CONTAINS
 
       max_n = i_start - orig_start + 1
 
-      DO i = 1, max_n
-         CALL make_field(dft_control, field, i + orig_start - 1, times(i))
-         fields(:, i) = field(:)
-      END DO
+      IF (dft_control%rtp_control%apply_delta_pulse .OR. &
+          dft_control%rtp_control%apply_delta_pulse_mag) THEN
+         fields(:, 1:max_n) = 0.0_dp
+      ELSE
+         DO i = 1, max_n
+            CALL make_field(dft_control, field, i + orig_start - 1, times(i))
+            fields(:, i) = field(:)
+         END DO
+      END IF
    END SUBROUTINE recalculate_fields
 
 END MODULE rt_propagation_utils

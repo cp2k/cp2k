@@ -188,7 +188,7 @@ CONTAINS
       CALL rt_init_complex_quantities(qs_env, imag_p=rtp%track_imag_density, &
                                       imag_ks=rtp%propagate_complex_ks, imag_h=rtp_control%velocity_gauge)
 
-      IF (.NOT. rtp_control%periodic .AND. rtp%linear_scaling) CALL rt_init_local_moments(rtp, qs_env)
+      IF (rtp_control%save_local_moments) CALL rt_init_local_moments(rtp, qs_env)
 
       ! Hmm, not really like to initialize with the structure of S but I reckon it is
       ! done everywhere like this
@@ -214,10 +214,12 @@ CONTAINS
          rtp%energy_old = energy%total
       END IF
 
-      IF (.NOT. rtp_control%periodic .AND. rtp%linear_scaling) THEN
+      IF (rtp_control%save_local_moments) THEN
          ! Call routines for outputs and deallocations of FT observables
          CALL final_ft_output(qs_env)
       END IF
+
+      IF (ASSOCIATED(rtp_control%print_pol_elements)) DEALLOCATE (rtp_control%print_pol_elements)
 
    END SUBROUTINE rt_prop_setup
 
@@ -369,8 +371,7 @@ CONTAINS
       output_unit = cp_print_key_unit_nr(logger, rtp_section, "PRINT%PROGRAM_RUN_INFO", &
                                          extension=".scfLog")
       ! Add the zero iteration moments to the moment trace
-      ! TODO : Skip when not at i_start = 0/when restarting?
-      IF (.NOT. rtp_control%periodic) THEN
+      IF (rtp_control%save_local_moments) THEN
          CALL get_rtp(rtp, rho_new=rho_new)
          moments_section => section_vals_get_subs_vals(rtp_section, "PRINT%MOMENTS")
          ! TODO : Conditions on when not to read the files
@@ -666,7 +667,6 @@ CONTAINS
       CALL build_local_moment_matrix(qs_env, rtp%local_moments, 1, reference_point)
 
       ! Allocate the moments trace and output start moments
-      ! TODO : rho_old only available in density_propagation runs - enforce at the rtp_control level
       nspin = SIZE(rho_old)/2
       CALL get_rtp(rtp, rho_old=rho_old)
       ALLOCATE (rtp%moments(SIZE(rho_old)/2, 3, rtp%nsteps + 1), source=CMPLX(0.0, 0.0, kind=dp))
