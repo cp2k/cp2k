@@ -160,7 +160,6 @@ CONTAINS
          CALL fft_freqs(nsamples, t_total, omega_series, fft_ordering_opt=.FALSE.)
       END IF
 
-#if defined(__FFTW3)
       ! Use FFTW3 library
       ! Allocate the in-out arrays (on every rank)
       CALL timeset(routineN, handle)
@@ -185,29 +184,28 @@ CONTAINS
       ! TODO : Carry out the transform
       ! Scale by dt - to transform to an integral
       CALL fft_1dm(fft_plan, samples, ft_samples, time_series(2) - time_series(1), stat)
-      IF (stat /= 0) CPABORT("Failed FFT in RTBSE output routines.")
-      DO i = 1, nseries
-         ! TODO : Reorder/fftshift
-         CALL fft_shift(ft_samples((i - 1)*nsamples + 1:i*nsamples))
-         result_series(i, :) = ft_samples((i - 1)*nsamples + 1:i*nsamples)
-      END DO
+      IF (stat /= 0) THEN
+         ! Failed fftw3 - go to backup
+         DO i = 1, nseries
+            IF (subtract_initial) THEN
+               subtract_value = value_series(i, 1)
+            END IF
+            CALL ft_simple(time_series(i0:SIZE(time_series)), &
+                           value_series(i, i0:SIZE(value_series, 2)), result_series(i, 1:nsamples), &
+                           damping, subtract_value)
+         END DO
+      ELSE
+         ! Successful FT requires shift
+         DO i = 1, nseries
+            CALL fft_shift(ft_samples((i - 1)*nsamples + 1:i*nsamples))
+            result_series(i, :) = ft_samples((i - 1)*nsamples + 1:i*nsamples)
+         END DO
+      END IF
       ! Deallocate
       CALL fft_dealloc(samples)
       CALL fft_dealloc(ft_samples)
       CALL fft_destroy_plan(fft_plan)
       CALL timestop(handle)
-#else
-      ! FFTSG can only use a specific length - use custom (slow) FT library instead
-      ! For each series, do ft_simple call
-      DO i = 1, nseries
-         IF (subtract_initial) THEN
-            subtract_value = value_series(i, 1)
-         END IF
-         CALL ft_simple(time_series(i0:SIZE(time_series)), &
-                        value_series(i, i0:SIZE(value_series, 2)), result_series(i, 1:nsamples), &
-                        damping, subtract_value)
-      END DO
-#endif
    END SUBROUTINE multi_fft
 ! **************************************************************************************************
 !> \brief Switches the order in result of FT, so that negative frequencies go first
