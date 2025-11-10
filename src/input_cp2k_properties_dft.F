@@ -2116,7 +2116,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, name="ENERGY_WINDOW", &
                           description="Upper and lower cutoffs [eV] for orbitals to be included for excitations. ", &
-                          usage="ENERGY_WINDOW -5.0 0.0", default_r_vals=(/-1.0E10_dp, 1.0E10_dp/), &
+                          usage="ENERGY_WINDOW -5.0 0.0", default_r_vals=[-1.0E10_dp, 1.0E10_dp], &
                           type_of_var=real_t, unit_str="eV")
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

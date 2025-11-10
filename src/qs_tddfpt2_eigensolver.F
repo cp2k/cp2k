@@ -700,9 +700,10 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_compute_residual_vects'
       REAL(kind=dp), PARAMETER :: eref_scale = 0.99_dp, threshold = 16.0_dp*EPSILON(1.0_dp)
 
-      INTEGER                                            :: handle, icol_local, irow_local, irv, &
-                                                            ispin, nao, ncols_local, nrows_local, &
-                                                            nrvs, nspins, spin2, spinflip, ica, icb
+      INTEGER                                            :: handle, ica, icb, icol_local, &
+                                                            irow_local, irv, ispin, nao, &
+                                                            ncols_local, nrows_local, nrvs, &
+                                                            nspins, spin2, spinflip
       INTEGER, DIMENSION(:), POINTER                     :: col_indices_local, row_indices_local
       INTEGER, DIMENSION(maxspins)                       :: nactive, nmo_virt
       REAL(kind=dp)                                      :: e_occ_plus_lambda, eref, lambda

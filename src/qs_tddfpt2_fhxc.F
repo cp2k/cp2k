@@ -19,7 +19,6 @@ MODULE qs_tddfpt2_fhxc
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
                                               cp_fm_release,&
-                                              cp_fm_to_fm_submat,&
                                               cp_fm_type
    USE input_constants,                 ONLY: do_admm_aux_exch_func_none,&
                                               no_sf_tddfpt,&

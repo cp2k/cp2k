@@ -1541,7 +1541,7 @@ CONTAINS
             ! ignore for now
             orblist = 1
             DO ispin = 1, nspins
-               CPASSERT(.NOT.ASSOCIATED(gs_mos(ispin)%evals_occ_matrix))
+               CPASSERT(.NOT. ASSOCIATED(gs_mos(ispin)%evals_occ_matrix))
             END DO
          ELSEIF (ewcut) THEN
             ! Filter orbitals wrt energy window

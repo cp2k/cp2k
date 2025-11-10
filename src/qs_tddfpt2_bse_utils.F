@@ -74,8 +74,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'zeroth_order_gw'
 
-      INTEGER                                            :: handle, i, ispin, ivect, nactive, nao, &
-                                                            nmo, nspins, nvects, occ, virt, j
+      INTEGER                                            :: handle, i, ispin, ivect, j, nactive, &
+                                                            nao, nmo, nspins, nvects, occ, virt
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: gw_occ, gw_virt
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: fmstruct, matrix_struct
@@ -142,7 +142,7 @@ CONTAINS
          ALLOCATE (gw_virt(virt))
          ALLOCATE (gw_occ(nactive))
          gw_virt(1:virt) = ex_env%gw_eigen(occ + 1:nmo)
-         DO i=1, nactive
+         DO i = 1, nactive
             j = gs_mos(ispin)%index_active(i)
             gw_occ(i) = ex_env%gw_eigen(j)
          END DO
