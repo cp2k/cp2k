@@ -53,7 +53,7 @@ MODULE cp_control_utils
         do_pwgrid_spherical, do_s2_constraint, do_s2_restraint, do_se_is_kdso, do_se_is_kdso_d, &
         do_se_is_slater, do_se_lr_ewald, do_se_lr_ewald_gks, do_se_lr_ewald_r3, do_se_lr_none, &
         gapw_1c_large, gapw_1c_medium, gapw_1c_orb, gapw_1c_small, gapw_1c_very_large, &
-        gaussian_env, no_admm_type, numerical, ramp_env, real_time_propagation, sccs_andreussi, &
+        gaussian_env, no_admm_type, numerical, ramp_env, real_time_propagation, rtp_method_bse, sccs_andreussi, &
         sccs_derivative_cd3, sccs_derivative_cd5, sccs_derivative_cd7, sccs_derivative_fft, &
         sccs_fattebert_gygi, sic_ad, sic_eo, sic_list_all, sic_list_unpaired, sic_mauri_spz, &
         sic_mauri_us, sic_none, slater, tddfpt_dipole_length, tddfpt_kernel_stda, &
@@ -2790,7 +2790,7 @@ CONTAINS
 
       INTEGER                                            :: i, j, n_elems
       INTEGER, DIMENSION(:), POINTER                     :: tmp
-      LOGICAL                                            :: is_present
+      LOGICAL                                            :: is_present, local_moment_possible
       TYPE(section_vals_type), POINTER                   :: proj_mo_section, subsection
 
       ALLOCATE (dft_control%rtp_control)
@@ -2855,14 +2855,15 @@ CONTAINS
          dft_control%rtp_control%is_proj_mo = .FALSE.
       END IF
       ! Moment trace
+      local_moment_possible = (dft_control%rtp_control%rtp_method == rtp_method_bse) .OR. &
+         ((.NOT. dft_control%rtp_control%periodic) .AND. dft_control%rtp_control%linear_scaling)
       ! TODO : Implement for other moment operators
       subsection => section_vals_get_subs_vals(rtp_section, "PRINT%MOMENTS")
       CALL section_vals_get(subsection, explicit=is_present)
       ! Trigger the flag
       dft_control%rtp_control%save_local_moments = &
          is_present .OR. dft_control%rtp_control%save_local_moments
-      IF (is_present .AND. &
-          (dft_control%rtp_control%periodic .OR. (.NOT. dft_control%rtp_control%linear_scaling))) THEN
+      IF (is_present .AND. (.NOT. local_moment_possible)) THEN
          CALL cp_abort(__LOCATION__, "Moments trace printing only "// &
                        "implemented in non-periodic systems in linear scaling. "// &
                        "Please use DFT%PRINT%MOMENTS for other printing.")
@@ -2877,8 +2878,7 @@ CONTAINS
       ! Trigger the flag
       dft_control%rtp_control%save_local_moments = &
          is_present .OR. dft_control%rtp_control%save_local_moments
-      IF (is_present .AND. &
-          (dft_control%rtp_control%periodic .OR. (.NOT. dft_control%rtp_control%linear_scaling))) THEN
+      IF (is_present .AND. (.NOT. local_moment_possible)) THEN
          ! Not implemented
          CALL cp_abort(__LOCATION__, "Moments Fourier transform printing "// &
                        "implemented only for non-periodic systems in linear scaling.")
@@ -2915,8 +2915,7 @@ CONTAINS
       ! Trigger the flag
       dft_control%rtp_control%save_local_moments = &
          is_present .OR. dft_control%rtp_control%save_local_moments
-      IF (is_present .AND. &
-          (dft_control%rtp_control%periodic .OR. (.NOT. dft_control%rtp_control%linear_scaling))) THEN
+      IF (is_present .AND. (.NOT. local_moment_possible)) THEN
          ! Not implemented
          CALL cp_abort(__LOCATION__, "Polarizability printing "// &
                        "implemented only for non-periodic systems.")
