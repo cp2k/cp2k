@@ -249,10 +249,6 @@ CONTAINS
             WRITE (log_unit, "(' Number of atoms in a primary unit cell:',I4)") SIZE(negf_env%contacts(icontact)%atomlist_cell0)
             IF (verbose_output) WRITE (log_unit, "(' Atoms belonging to a primary unit cell (from the entire sysem):')")
             IF (verbose_output) WRITE (log_unit, "(16I5)") negf_env%contacts(icontact)%atomlist_cell0
-            IF (verbose_output .AND. negf_control%contacts(icontact)%force_env_index > 0) &
-               WRITE (log_unit, "(' Atom mapping of a unit cell of the bulk electrode:')")
-            IF (verbose_output .AND. negf_control%contacts(icontact)%force_env_index > 0) &
-               WRITE (log_unit, "(16I5)") negf_env%contacts(icontact)%atom_map_cell0(:)%iatom
             IF (verbose_output) WRITE (log_unit, "(' Direction of an electrode: ',I16)") negf_env%contacts(icontact)%direction_axis
             n = SIZE(negf_env%contacts(icontact)%h_00(1)%local_data, 1)
             WRITE (sfmt, "('(',i0,'(E15.5))')") n
