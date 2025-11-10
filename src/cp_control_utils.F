@@ -518,9 +518,6 @@ CONTAINS
             tmp_section => section_vals_get_subs_vals(dft_section, "REAL_TIME_PROPAGATION")
             CALL guess_pol_elements(dft_control, &
                                     dft_control%rtp_control%print_pol_elements)
-         ELSE
-            NULLIFY (dft_control%rtp_control%print_pol_elements)
-            ALLOCATE (dft_control%rtp_control%print_pol_elements(0, 2))
          END IF
       END IF
 
