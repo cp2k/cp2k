@@ -667,8 +667,8 @@ CONTAINS
       CALL build_local_moment_matrix(qs_env, rtp%local_moments, 1, reference_point)
 
       ! Allocate the moments trace and output start moments
-      nspin = SIZE(rho_old)/2
       CALL get_rtp(rtp, rho_old=rho_old)
+      nspin = SIZE(rho_old)/2
       ALLOCATE (rtp%moments(SIZE(rho_old)/2, 3, rtp%nsteps + 1), source=CMPLX(0.0, 0.0, kind=dp))
       NULLIFY (rtp%times)
       ALLOCATE (rtp%times(rtp%nsteps + 1))
