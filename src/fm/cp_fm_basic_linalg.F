@@ -40,6 +40,7 @@ MODULE cp_fm_basic_linalg
    PUBLIC :: cp_fm_scale, & ! scale a matrix
              cp_fm_scale_and_add, & ! scale and add two matrices
              cp_fm_geadd, & ! general addition
+             cp_fm_add_columns, & ! daxpy type column add
              cp_fm_column_scale, & ! scale columns of a matrix
              cp_fm_row_scale, & ! scale rows of a matrix
              cp_fm_trace, & ! trace of the transpose(A)*B
@@ -330,6 +331,65 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE cp_fm_geadd
+
+! **************************************************************************************************
+!> \brief Add (and scale) a subset of columns of a fm to a fm
+!>        b = alpha*a + b
+!> \param msource ...
+!> \param mtarget ...
+!> \param ncol ...
+!> \param alpha ...
+!> \param source_start ...
+!> \param target_start ...
+! **************************************************************************************************
+   SUBROUTINE cp_fm_add_columns(msource, mtarget, ncol, alpha, source_start, target_start)
+
+      TYPE(cp_fm_type), INTENT(IN)             :: msource, mtarget
+      INTEGER, INTENT(IN)                      :: ncol
+      REAL(KIND=dp), INTENT(IN), OPTIONAL      :: alpha
+      INTEGER, INTENT(IN), OPTIONAL            :: source_start, target_start
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_add_columns'
+
+      INTEGER                                  :: handle, n, ss, ts
+      REAL(KIND=dp)                            :: fscale
+      REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, b
+#if defined(__parallel)
+      INTEGER                                  :: i
+      INTEGER, DIMENSION(9)                    :: desca, descb
+#endif
+
+      CALL timeset(routineN, handle)
+
+      ss = 1
+      ts = 1
+
+      IF (PRESENT(source_start)) ss = source_start
+      IF (PRESENT(target_start)) ts = target_start
+
+      fscale = 1.0_dp
+      IF (PRESENT(alpha)) fscale = alpha
+
+      n = msource%matrix_struct%nrow_global
+
+      a => msource%local_data
+      b => mtarget%local_data
+
+#if defined(__parallel)
+      desca(:) = msource%matrix_struct%descriptor(:)
+      descb(:) = mtarget%matrix_struct%descriptor(:)
+      DO i = 0, ncol - 1
+         CALL pdaxpy(n, fscale, a, 1, ss, desca, 1, 1, ts, descb, 1)
+      END DO
+#else
+      IF (ss <= SIZE(a, 2) .AND. ts <= SIZE(b, 2)) THEN
+         CALL daxpy(ncol*n, fscale, a(:, ss), 1, b(:, ts), 1)
+      END IF
+#endif
+
+      CALL timestop(handle)
+
+   END SUBROUTINE cp_fm_add_columns
 
 ! **************************************************************************************************
 !> \brief Computes the LU-decomposition of the matrix, and the determinant of the matrix

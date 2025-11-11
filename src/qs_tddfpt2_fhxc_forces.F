@@ -29,7 +29,9 @@ MODULE qs_tddfpt2_fhxc_forces
                                               cp_dbcsr_sm_fm_multiply,&
                                               dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_row_scale,&
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_add_columns,&
+                                              cp_fm_geadd,&
+                                              cp_fm_row_scale,&
                                               cp_fm_schur_product
    USE cp_fm_pool_types,                ONLY: fm_pool_create_fm,&
                                               fm_pool_give_back_fm
@@ -39,6 +41,7 @@ MODULE qs_tddfpt2_fhxc_forces
    USE cp_fm_types,                     ONLY: cp_fm_create,&
                                               cp_fm_get_info,&
                                               cp_fm_release,&
+                                              cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_type,&
                                               cp_fm_vectorssum
@@ -174,11 +177,12 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'fhxc_force'
 
       CHARACTER(LEN=default_string_length)               :: basis_type
-      INTEGER                                            :: handle, iounit, ispin, mspin, myfun, &
-                                                            n_rep_hf, nao, nao_aux, natom, nkind, &
-                                                            norb(2), nsev, nspins, order, spin
+      INTEGER                                            :: handle, ia, ib, iounit, ispin, mspin, &
+                                                            myfun, n_rep_hf, nactive(2), nao, &
+                                                            nao_aux, natom, nkind, norb(2), nsev, &
+                                                            nspins, order, spin
       LOGICAL :: distribute_fock_matrix, do_admm, do_analytic, do_hfx, do_hfxlr, do_hfxsr, &
-         do_numeric, do_sf, gapw, gapw_xc, hfx_treat_lsd_in_core, is_rks_triplets, &
+         do_numeric, do_res, do_sf, gapw, gapw_xc, hfx_treat_lsd_in_core, is_rks_triplets, &
          s_mstruct_changed, use_virial
       REAL(KIND=dp)                                      :: eh1, eh1c, eps_delta, eps_fit, focc, &
                                                             fscal, fval, kval, xehartree
@@ -186,9 +190,9 @@ CONTAINS
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct, fm_struct_mat
-      TYPE(cp_fm_type)                                   :: cvcmat, vcvec
+      TYPE(cp_fm_type)                                   :: avamat, cpscr, cvcmat, vavec, vcvec
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: cpmos, evect
-      TYPE(cp_fm_type), POINTER                          :: mos, mos2
+      TYPE(cp_fm_type), POINTER                          :: mos, mos2, mosa, mosa2
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: matrix_fx, matrix_gx, matrix_hfx, &
          matrix_hfx_admm, matrix_hfx_admm_asymm, matrix_hfx_asymm, matrix_hx, matrix_p, &
@@ -265,14 +269,14 @@ CONTAINS
          CALL cp_fm_get_info(evect(ispin), ncol_global=norb(ispin))
          CALL cp_dbcsr_plus_fm_fm_t(matrix_px1(ispin)%matrix, &
                                     matrix_v=evect(ispin), &
-                                    matrix_g=gs_mos(ispin)%mos_occ, &
+                                    matrix_g=gs_mos(ispin)%mos_active, &
                                     ncol=norb(ispin), alpha=2.0_dp*focc, symmetry_mode=1)
 
          ! Calculate (C*X^T - X*C^T)/2
          CALL dbcsr_set(matrix_px1_asymm(ispin)%matrix, 0.0_dp)
          CALL cp_fm_get_info(evect(ispin), ncol_global=norb(ispin))
          CALL cp_dbcsr_plus_fm_fm_t(matrix_px1_asymm(ispin)%matrix, &
-                                    matrix_v=gs_mos(ispin)%mos_occ, &
+                                    matrix_v=gs_mos(ispin)%mos_active, &
                                     matrix_g=evect(ispin), &
                                     ncol=norb(ispin), alpha=2.0_dp*focc, &
                                     symmetry_mode=-1)
@@ -1220,28 +1224,54 @@ CONTAINS
       ! In the following comments mos is referred to as Ca and mos2 as Cb
       spin = 1
       mos => gs_mos(1)%mos_occ
-      CALL cp_fm_get_info(mos, ncol_global=norb(1))
+      mosa => gs_mos(1)%mos_active
+      norb(1) = gs_mos(1)%nmo_occ
+      nactive(1) = gs_mos(1)%nmo_active
       IF (nspins == 2) THEN
          mos2 => gs_mos(2)%mos_occ
-         CALL cp_fm_get_info(mos2, ncol_global=norb(2))
+         mosa2 => gs_mos(2)%mos_active
+         norb(2) = gs_mos(2)%nmo_occ
+         nactive(2) = gs_mos(2)%nmo_active
       END IF
       ! Build response vector, Eq. 49, and the third term of \Lamda_munu, Eq. 51
       DO ispin = 1, nspins
+
+         IF (nactive(ispin) == norb(ispin)) THEN
+            do_res = .FALSE.
+            DO ia = 1, nactive(ispin)
+               CPASSERT(ia == gs_mos(ispin)%index_active(ia))
+            END DO
+         ELSE
+            do_res = .TRUE.
+         END IF
 
          ! Initialize mos and dimensions of occupied space
          IF (.NOT. do_sf) THEN
             spin = ispin
             mos => gs_mos(ispin)%mos_occ
             mos2 => gs_mos(ispin)%mos_occ
+            mosa => gs_mos(ispin)%mos_active
+            mosa2 => gs_mos(ispin)%mos_active
          END IF
 
          ! Create working fields for the response vector
+         CALL cp_fm_create(cpscr, gs_mos(ispin)%mos_active%matrix_struct, "cpscr")
+         CALL cp_fm_set_all(cpscr, 0.0_dp)
+         !
+         CALL cp_fm_create(vavec, gs_mos(ispin)%mos_active%matrix_struct, "vavec")
+         CALL cp_fm_get_info(vavec, matrix_struct=fm_struct, nrow_global=nao)
+         CALL cp_fm_struct_create(fm_struct_mat, context=fm_struct%context, nrow_global=nactive(spin), &
+                                  ncol_global=nactive(ispin), para_env=fm_struct%para_env)
+         CALL cp_fm_create(avamat, fm_struct_mat)
+         CALL cp_fm_struct_release(fm_struct_mat)
+         !
          CALL cp_fm_create(vcvec, gs_mos(ispin)%mos_occ%matrix_struct, "vcvec")
          CALL cp_fm_get_info(vcvec, matrix_struct=fm_struct, nrow_global=nao)
          CALL cp_fm_struct_create(fm_struct_mat, context=fm_struct%context, nrow_global=norb(spin), &
                                   ncol_global=norb(ispin), para_env=fm_struct%para_env)
          CALL cp_fm_create(cvcmat, fm_struct_mat)
          CALL cp_fm_struct_release(fm_struct_mat)
+
          ! Allocate and initialize the Lambda matrix
          ALLOCATE (matrix_wx1(ispin)%matrix)
          CALL dbcsr_create(matrix=matrix_wx1(ispin)%matrix, template=matrix_s(1)%matrix)
@@ -1251,15 +1281,17 @@ CONTAINS
          ! Add Hartree contributions to the perturbation vector
          IF (.NOT. (is_rks_triplets .OR. do_sf)) THEN
             CALL cp_dbcsr_sm_fm_multiply(matrix_hx(ispin)%matrix, evect(ispin), &
-                                         cpmos(ispin), norb(ispin), alpha=focc, beta=1.0_dp)
-            CALL cp_dbcsr_sm_fm_multiply(matrix_hx(ispin)%matrix, mos, vcvec, norb(ispin), alpha=1.0_dp, beta=0.0_dp)
-            CALL parallel_gemm("T", "N", norb(ispin), norb(ispin), nao, 1.0_dp, mos, vcvec, 0.0_dp, cvcmat)
-            CALL parallel_gemm("N", "N", nao, norb(ispin), norb(ispin), 1.0_dp, evect(ispin), cvcmat, 0.0_dp, vcvec)
-            CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, vcvec, cpmos(ispin), &
-                                         norb(ispin), alpha=-focc, beta=1.0_dp)
+                                         cpscr, nactive(ispin), alpha=focc, beta=1.0_dp)
+            CALL cp_dbcsr_sm_fm_multiply(matrix_hx(ispin)%matrix, mosa, vavec, nactive(ispin), &
+                                         alpha=1.0_dp, beta=0.0_dp)
+            CALL parallel_gemm("T", "N", nactive(ispin), nactive(ispin), nao, 1.0_dp, &
+                               mosa, vavec, 0.0_dp, avamat)
+            CALL parallel_gemm("N", "N", nao, nactive(ispin), nactive(ispin), 1.0_dp, &
+                               evect(ispin), avamat, 0.0_dp, vavec)
+            CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, vavec, cpscr, nactive(ispin), alpha=-focc, beta=1.0_dp)
             !
-            CALL cp_dbcsr_plus_fm_fm_t(matrix_wx1(ispin)%matrix, matrix_v=mos, matrix_g=vcvec, &
-                                       ncol=norb(ispin), alpha=2.0_dp, symmetry_mode=1)
+            CALL cp_dbcsr_plus_fm_fm_t(matrix_wx1(ispin)%matrix, matrix_v=mosa, matrix_g=vavec, &
+                                       ncol=nactive(ispin), alpha=2.0_dp, symmetry_mode=1)
          END IF
          ! Add exchange-correlation kernel and exchange-correlation kernel derivative contributions to the response vector
          IF ((myfun /= xc_none) .AND. (tddfpt_control%spinflip /= tddfpt_sf_col)) THEN
@@ -1269,23 +1301,26 @@ CONTAINS
             IF (.NOT. (do_sf .AND. (ispin == 2))) THEN
                ! F*X
                CALL cp_dbcsr_sm_fm_multiply(matrix_fx(spin)%matrix, evect(spin), &
-                                            cpmos(ispin), norb(ispin), alpha=focc, beta=1.0_dp)
+                                            cpscr, nactive(ispin), alpha=focc, beta=1.0_dp)
             END IF
             ! For spin-flip excitations this is the only contribution to the beta response vector
             IF (.NOT. (do_sf .AND. (ispin == 1))) THEN
                ! F*Cb
-               CALL cp_dbcsr_sm_fm_multiply(matrix_fx(spin)%matrix, mos2, vcvec, norb(ispin), alpha=1.0_dp, beta=0.0_dp)
+               CALL cp_dbcsr_sm_fm_multiply(matrix_fx(spin)%matrix, mosa2, vavec, &
+                                            nactive(ispin), alpha=1.0_dp, beta=0.0_dp)
                ! Ca^T*F*Cb
-               CALL parallel_gemm("T", "N", norb(spin), norb(ispin), nao, 1.0_dp, mos, vcvec, 0.0_dp, cvcmat)
+               CALL parallel_gemm("T", "N", nactive(spin), nactive(ispin), nao, 1.0_dp, &
+                                  mosa, vavec, 0.0_dp, avamat)
                ! X*Ca^T*F*Cb
-               CALL parallel_gemm("N", "N", nao, norb(ispin), norb(spin), 1.0_dp, evect(spin), cvcmat, 0.0_dp, vcvec)
+               CALL parallel_gemm("N", "N", nao, nactive(ispin), nactive(spin), 1.0_dp, &
+                                  evect(spin), avamat, 0.0_dp, vavec)
                ! -S*X*Ca^T*F*Cb
-               CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, vcvec, cpmos(ispin), &
-                                            norb(ispin), alpha=-focc, beta=1.0_dp)
+               CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, vavec, cpscr, &
+                                            nactive(ispin), alpha=-focc, beta=1.0_dp)
                ! Add contributions to the \Lambda_munu for the perturbed overlap matrix term, third term of Eq. 51
                ! 2X*Ca^T*F*Cb*Cb^T
-               CALL cp_dbcsr_plus_fm_fm_t(matrix_wx1(ispin)%matrix, matrix_v=vcvec, matrix_g=gs_mos(ispin)%mos_occ, &
-                                          ncol=norb(ispin), alpha=2.0_dp, symmetry_mode=1)
+               CALL cp_dbcsr_plus_fm_fm_t(matrix_wx1(ispin)%matrix, matrix_v=vavec, matrix_g=gs_mos(ispin)%mos_occ, &
+                                          ncol=nactive(ispin), alpha=2.0_dp, symmetry_mode=1)
             END IF
             !
 
@@ -1312,33 +1347,48 @@ CONTAINS
             IF (.NOT. (do_sf .AND. (ispin == 2))) THEN
                ! F^sym*X
                CALL cp_dbcsr_sm_fm_multiply(matrix_hfx(spin)%matrix, evect(spin), &
-                                            cpmos(ispin), norb(ispin), alpha=focc, beta=1.0_dp)
+                                            cpscr, nactive(spin), alpha=focc, beta=1.0_dp)
                ! F^asym*X
                CALL cp_dbcsr_sm_fm_multiply(matrix_hfx_asymm(spin)%matrix, evect(spin), &
-                                            cpmos(ispin), norb(ispin), alpha=focc, beta=1.0_dp)
+                                            cpscr, nactive(spin), alpha=focc, beta=1.0_dp)
             END IF
 
             ! For spin-flip excitations this is the only contribution to the beta response vector
             IF (.NOT. (do_sf .AND. (ispin == 1))) THEN
                ! F^sym*Cb
-               CALL cp_dbcsr_sm_fm_multiply(matrix_hfx(spin)%matrix, mos2, vcvec, norb(ispin), alpha=1.0_dp, beta=0.0_dp)
+               CALL cp_dbcsr_sm_fm_multiply(matrix_hfx(spin)%matrix, mosa2, vavec, nactive(ispin), &
+                                            alpha=1.0_dp, beta=0.0_dp)
                ! -F^asym*Cb
-               CALL cp_dbcsr_sm_fm_multiply(matrix_hfx_asymm(spin)%matrix, mos2, vcvec, norb(ispin), &
+               CALL cp_dbcsr_sm_fm_multiply(matrix_hfx_asymm(spin)%matrix, mosa2, vavec, nactive(ispin), &
                                             alpha=1.0_dp, beta=1.0_dp)
                ! Ca^T*F*Cb
-               CALL parallel_gemm("T", "N", norb(spin), norb(ispin), nao, 1.0_dp, mos, vcvec, 0.0_dp, cvcmat)
+               CALL parallel_gemm("T", "N", nactive(spin), nactive(ispin), nao, 1.0_dp, &
+                                  mosa, vavec, 0.0_dp, avamat)
                ! X*Ca^T*F*Cb
-               CALL parallel_gemm("N", "N", nao, norb(ispin), norb(spin), 1.0_dp, evect(spin), cvcmat, 0.0_dp, vcvec)
+               CALL parallel_gemm("N", "N", nao, nactive(ispin), nactive(spin), 1.0_dp, &
+                                  evect(spin), avamat, 0.0_dp, vavec)
                ! -S*X*Ca^T*F*Cb
-               CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, vcvec, cpmos(ispin), &
-                                            norb(ispin), alpha=-focc, beta=1.0_dp)
+               CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, vavec, cpscr, &
+                                            nactive(ispin), alpha=-focc, beta=1.0_dp)
                ! Add contributions to the \Lambda_munu for the perturbed overlap matrix term, third term of Eq. 51
                ! 2X*Ca^T*F*Cb*Cb^T
-               CALL cp_dbcsr_plus_fm_fm_t(matrix_wx1(ispin)%matrix, matrix_v=vcvec, matrix_g=mos2, &
-                                          ncol=norb(ispin), alpha=2.0_dp, symmetry_mode=1)
+               CALL cp_dbcsr_plus_fm_fm_t(matrix_wx1(ispin)%matrix, matrix_v=vavec, matrix_g=mosa2, &
+                                          ncol=nactive(ispin), alpha=2.0_dp, symmetry_mode=1)
             END IF
          END IF
          !
+         IF (do_res) THEN
+            DO ia = 1, nactive(ispin)
+               ib = gs_mos(ispin)%index_active(ia)
+               CALL cp_fm_add_columns(cpscr, cpmos(ispin), 1, 1.0_dp, ia, ib)
+            END DO
+         ELSE
+            CALL cp_fm_geadd(1.0_dp, "N", cpscr, 1.0_dp, cpmos(ispin))
+         END IF
+         !
+         CALL cp_fm_release(cpscr)
+         CALL cp_fm_release(vavec)
+         CALL cp_fm_release(avamat)
          CALL cp_fm_release(vcvec)
          CALL cp_fm_release(cvcmat)
       END DO

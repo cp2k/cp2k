@@ -171,7 +171,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_forces_main'
 
-      INTEGER                                            :: handle, ispin, nocc, nspins, spin
+      INTEGER                                            :: handle, ispin, nspins, spin
       LOGICAL                                            :: do_sf
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
@@ -195,15 +195,6 @@ CONTAINS
       ELSE
          do_sf = .TRUE.
       END IF
-
-      ! check for active space
-      DO ispin = 1, nspins
-         CALL cp_fm_get_info(gs_mos(ispin)%mos_occ, ncol_global=nocc)
-         IF (tddfpt_control%nactive(ispin) /= nocc) THEN
-            CALL cp_abort(__LOCATION__, &
-                          "Reduced active space excitations not implemented for TDDFPT forces")
-         END IF
-      END DO
 
       ! rhs of linres equation
       IF (ASSOCIATED(ex_env%cpmos)) THEN
@@ -251,7 +242,7 @@ CONTAINS
             spin = ispin
          END IF
          ! Add difference density to matrix_pe
-         CALL tddfpt_resvec1(ex_env%evect(spin), gs_mos(spin)%mos_occ, &
+         CALL tddfpt_resvec1(ex_env%evect(spin), gs_mos(spin)%mos_active, &
                              matrix_s(1)%matrix, ex_env%matrix_pe(ispin)%matrix, ispin, do_sf)
       END DO
       !
@@ -431,8 +422,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_force_direct'
 
-      INTEGER                                            :: handle, iounit, ispin, natom, norb, &
-                                                            nspins, spin
+      INTEGER                                            :: handle, iounit, ispin, nact, natom, &
+                                                            norb, nspins, spin
       LOGICAL                                            :: do_sf
       REAL(KIND=dp)                                      :: evalue
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ftot1, ftot2
@@ -501,8 +492,8 @@ CONTAINS
          ! For spin-flip excitations only the beta component of the Lambda matrix
          ! contains the excitation energy term
          IF (.NOT. (do_sf .AND. (ispin == 1))) THEN
-            CALL cp_fm_get_info(gs_mos(spin)%mos_occ, ncol_global=norb)
-            CALL cp_dbcsr_plus_fm_fm_t(matrix_wz(ispin)%matrix, matrix_v=evect(spin), ncol=norb)
+            CALL cp_fm_get_info(evect(spin), ncol_global=nact)
+            CALL cp_dbcsr_plus_fm_fm_t(matrix_wz(ispin)%matrix, matrix_v=evect(spin), ncol=nact)
             evalue = ex_env%evalue
             IF (tddfpt_control%oe_corr == oe_shift) THEN
                evalue = ex_env%evalue - tddfpt_control%ev_shift
@@ -512,7 +503,7 @@ CONTAINS
          ! For spin-flip excitations only the alpha component of the Lambda matrix
          ! contains the occupied MO energy term
          IF (.NOT. (do_sf .AND. (ispin == 2))) THEN
-            CALL calculate_wx_matrix(gs_mos(ispin)%mos_occ, evect(spin), matrix_ks(ispin)%matrix, &
+            CALL calculate_wx_matrix(gs_mos(ispin)%mos_active, evect(spin), matrix_ks(ispin)%matrix, &
                                      matrix_wz(ispin)%matrix)
          END IF
       END DO
@@ -560,7 +551,7 @@ CONTAINS
             ELSE
                spin = ispin
             END IF
-            CALL calculate_xwx_matrix(gs_mos(ispin)%mos_occ, evect(ispin), matrix_s(1)%matrix, &
+            CALL calculate_xwx_matrix(gs_mos(ispin)%mos_active, evect(ispin), matrix_s(1)%matrix, &
                                       matrix_ks(spin)%matrix, matrix_wz(ispin)%matrix, evalue)
          END IF
       END DO
@@ -626,29 +617,31 @@ CONTAINS
 !> \brief Build the spin difference density,
 !>           matrix_pe = matrix_pe + X*X^T - (C*X^T*S*X*C^T + (C*X^T*S*X*C^T)^T)/2
 !> \param evect ...
-!> \param mos_occ ...
+!> \param mos_active ...
 !> \param matrix_s ...
 !> \param matrix_pe ...
 !> \param spin ...
 !> \param do_sf ...
 ! **************************************************************************************************
-   SUBROUTINE tddfpt_resvec1(evect, mos_occ, matrix_s, matrix_pe, spin, do_sf)
+   SUBROUTINE tddfpt_resvec1(evect, mos_active, matrix_s, matrix_pe, spin, do_sf)
 
-      TYPE(cp_fm_type), INTENT(IN)                       :: evect, mos_occ
+      TYPE(cp_fm_type), INTENT(IN)                       :: evect, mos_active
       TYPE(dbcsr_type), POINTER                          :: matrix_s, matrix_pe
       INTEGER, INTENT(IN)                                :: spin
       LOGICAL, INTENT(IN)                                :: do_sf
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'tddfpt_resvec1'
 
-      INTEGER                                            :: handle, iounit, nao, norb
+      INTEGER                                            :: handle, iounit, nact, nao, norb
       REAL(KIND=dp)                                      :: tmp
       TYPE(cp_fm_struct_type), POINTER                   :: fmstruct, fmstruct2
       TYPE(cp_fm_type)                                   :: cxmat, xxmat
       TYPE(cp_logger_type), POINTER                      :: logger
 
       CALL timeset(routineN, handle)
-      CALL cp_fm_get_info(mos_occ, nrow_global=nao, ncol_global=norb)
+      CALL cp_fm_get_info(mos_active, nrow_global=nao, ncol_global=norb)
+      CALL cp_fm_get_info(evect, nrow_global=nao, ncol_global=nact)
+      CPASSERT(norb == nact)
 
       ! matrix_pe = X*X^T
       IF (.NOT. do_sf .OR. (do_sf .AND. (spin == 2))) THEN
@@ -669,10 +662,10 @@ CONTAINS
          ! (S*X)^T*X
          CALL parallel_gemm('T', 'N', norb, norb, nao, 1.0_dp, cxmat, evect, 0.0_dp, xxmat)
          ! C*X^T*S*X
-         CALL parallel_gemm('N', 'N', nao, norb, norb, 1.0_dp, mos_occ, xxmat, 0.0_dp, cxmat)
+         CALL parallel_gemm('N', 'N', nao, norb, norb, 1.0_dp, mos_active, xxmat, 0.0_dp, cxmat)
          CALL cp_fm_release(xxmat)
          ! matrix_pe = matrix_pe - (C*(C^T*X^T*S*X)^T + C^T*(C^T*X^T*S*X))/2
-         CALL cp_dbcsr_plus_fm_fm_t(matrix_pe, matrix_v=mos_occ, matrix_g=cxmat, &
+         CALL cp_dbcsr_plus_fm_fm_t(matrix_pe, matrix_v=mos_active, matrix_g=cxmat, &
                                     ncol=norb, alpha=-1.0_dp, symmetry_mode=1)
          CALL cp_fm_release(cxmat)
       END IF
@@ -1445,8 +1438,6 @@ CONTAINS
       INTEGER                                            :: handle
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(tddfpt2_control_type), POINTER                :: tddfpt_control
-
-      MARK_USED(work_matrices)
 
       CALL timeset(routineN, handle)
 

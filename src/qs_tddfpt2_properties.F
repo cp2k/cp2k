@@ -705,7 +705,7 @@ CONTAINS
       CALL dbcsr_get_info(matrix_s, nfullrows_total=nao)
 
       DO ispin = 1, nspins
-         CALL cp_fm_get_info(evects(ispin, 1), ncol_global=nactive(ispin))
+         nactive(ispin) = gs_mos(ispin)%nmo_active
          nactive8(ispin) = INT(nactive(ispin), kind=int_8)
          nmo_occ(ispin) = SIZE(gs_mos(ispin)%evals_occ)
          nmo_virt(ispin) = SIZE(gs_mos(ispin)%evals_virt)

@@ -1465,7 +1465,7 @@ CONTAINS
                                                             nspins
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: orblist
       INTEGER, DIMENSION(:), POINTER                     :: mollist
-      LOGICAL                                            :: do_res, ew1, ew2, ew3, ewcut, lms
+      LOGICAL                                            :: do_res, ew1, ew2, ew3, ewcut, lms, do_sf
       REAL(KIND=dp)                                      :: eclow, ecup, eint, emo
       REAL(KIND=dp), DIMENSION(:), POINTER               :: rvint
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
@@ -1476,6 +1476,13 @@ CONTAINS
 
       res_section => section_vals_get_subs_vals(tddfpt_section, "REDUCED_EXCITATION_SPACE")
       CALL section_vals_val_get(res_section, "_SECTION_PARAMETERS_", l_val=do_res)
+
+      ! spin flip TDA
+      IF (tddfpt_control%spinflip == no_sf_tddfpt) THEN
+         do_sf = .FALSE.
+      ELSE
+         do_sf = .TRUE.                                     
+      END IF
 
       nspins = SIZE(gs_mos)
       IF (.NOT. do_res) THEN
@@ -1571,6 +1578,10 @@ CONTAINS
          END DO
 
          DEALLOCATE (orblist)
+
+         IF (do_sf) THEN
+            CPABORT("Restricted Active Space with spin flip TDA NYA")
+         END IF
 
          IF (iounit > 0) THEN
             WRITE (iounit, "(1X,79('='))")
