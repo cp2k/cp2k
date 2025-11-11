@@ -542,7 +542,7 @@ CONTAINS
       DEALLOCATE (rtbse_env%field_trace)
       DEALLOCATE (rtbse_env%time_trace)
 
-      DEALLOCATE (rtbse_env%pol_elements)
+      IF (ASSOCIATED(rtbse_env%pol_elements)) DEALLOCATE (rtbse_env%pol_elements)
       IF (ASSOCIATED(rtbse_env%pade_x_eval)) DEALLOCATE (rtbse_env%pade_x_eval)
 
       ! Deallocate the neighbour list that is not deallocated in gw anymore

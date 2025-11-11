@@ -120,7 +120,7 @@ CONTAINS
       LOGICAL                                            :: at_end, do_hfx, do_ot, do_rpa_admm, &
                                                             do_rtp, exopt1, exopt2, exopt3, &
                                                             explicit, is_present, l_param, not_SE, &
-                                                            was_present
+                                                            was_present, local_moment_possible
       REAL(KIND=dp)                                      :: density_cut, gradient_cut, tau_cut
       REAL(KIND=dp), DIMENSION(:), POINTER               :: pol
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -512,9 +512,11 @@ CONTAINS
 
       ! Now, can try to guess polarisation in rtp
       IF (do_rtp) THEN
-         tmp_section => section_vals_get_subs_vals(dft_section, "REAL_TIME_PROPAGATION%PRINT%POLARIZABILITY")
-         CALL section_vals_get(tmp_section, explicit=is_present)
-         IF (is_present .AND. (.NOT. ASSOCIATED(dft_control%rtp_control%print_pol_elements))) THEN
+         ! tmp_section => section_vals_get_subs_vals(dft_section, "REAL_TIME_PROPAGATION%PRINT%POLARIZABILITY")
+         ! CALL section_vals_get(tmp_section, explicit=is_present)
+         local_moment_possible = (dft_control%rtp_control%rtp_method == rtp_method_bse) .OR. &
+            ((.NOT. dft_control%rtp_control%periodic) .AND. dft_control%rtp_control%linear_scaling)
+         IF (local_moment_possible .AND. (.NOT. ASSOCIATED(dft_control%rtp_control%print_pol_elements))) THEN
             tmp_section => section_vals_get_subs_vals(dft_section, "REAL_TIME_PROPAGATION")
             CALL guess_pol_elements(dft_control, &
                                     dft_control%rtp_control%print_pol_elements)
@@ -2964,7 +2966,8 @@ CONTAINS
 
       pol_vector_known = .FALSE.
 
-      IF (dftc%rtp_control%apply_delta_pulse) THEN
+      ! TODO : More relevant elements for magnetic pulse?
+      IF (dftc%rtp_control%apply_delta_pulse .OR. dftc%rtp_control%apply_delta_pulse_mag) THEN
          pol_vector(:) = REAL(dftc%rtp_control%delta_pulse_direction(:), kind=dp)
       ELSE
          ! Maybe RT field is applied?

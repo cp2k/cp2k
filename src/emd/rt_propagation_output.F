@@ -1388,7 +1388,8 @@ CONTAINS
          DO i = 1, nspin
             DO k = 1, n_elems
                ! TODO : Field regularization?
-             pol_results(k, :) = results(3*(i - 1) + rtc%print_pol_elements(k, 1), :)/field_results(rtc%print_pol_elements(k, 2), :)
+               pol_results(k, :) = results(3*(i - 1) + &
+                  rtc%print_pol_elements(k, 1), :)/field_results(rtc%print_pol_elements(k, 2), :)
             END DO
             ! Print to the file
             ft_unit = cp_print_key_unit_nr(logger, pol_section, extension=file_extensions(i), &
@@ -1415,6 +1416,7 @@ CONTAINS
                   headers(1) = "#      omega [at.u.]"
                   CALL print_ft_file(ft_unit, headers, omegas, pol_results)
                END IF
+               DEALLOCATE (headers)
             END IF
             CALL cp_print_key_finished_output(ft_unit, logger, pol_section)
          END DO
