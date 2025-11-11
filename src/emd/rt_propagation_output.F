@@ -1387,9 +1387,11 @@ CONTAINS
          ALLOCATE (pol_results(n_elems, n))
          DO i = 1, nspin
             DO k = 1, n_elems
-               ! TODO : Field regularization?
+               ! NOTE - field is regularized to small value
                pol_results(k, :) = results(3*(i - 1) + &
-                                           rtc%print_pol_elements(k, 1), :)/field_results(rtc%print_pol_elements(k, 2), :)
+                                           rtc%print_pol_elements(k, 1), :)/ &
+                                           (field_results(rtc%print_pol_elements(k, 2), :) + &
+                                           1.0e-10*field_results(rtc%print_pol_elements(k,2), 2))
             END DO
             ! Print to the file
             ft_unit = cp_print_key_unit_nr(logger, pol_section, extension=file_extensions(i), &
