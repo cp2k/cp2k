@@ -53,10 +53,10 @@ MODULE cp_control_utils
         do_pwgrid_spherical, do_s2_constraint, do_s2_restraint, do_se_is_kdso, do_se_is_kdso_d, &
         do_se_is_slater, do_se_lr_ewald, do_se_lr_ewald_gks, do_se_lr_ewald_r3, do_se_lr_none, &
         gapw_1c_large, gapw_1c_medium, gapw_1c_orb, gapw_1c_small, gapw_1c_very_large, &
-        gaussian_env, no_admm_type, numerical, ramp_env, real_time_propagation, rtp_method_bse, sccs_andreussi, &
-        sccs_derivative_cd3, sccs_derivative_cd5, sccs_derivative_cd7, sccs_derivative_fft, &
-        sccs_fattebert_gygi, sic_ad, sic_eo, sic_list_all, sic_list_unpaired, sic_mauri_spz, &
-        sic_mauri_us, sic_none, slater, tddfpt_dipole_length, tddfpt_kernel_stda, &
+        gaussian_env, no_admm_type, numerical, ramp_env, real_time_propagation, rtp_method_bse, &
+        sccs_andreussi, sccs_derivative_cd3, sccs_derivative_cd5, sccs_derivative_cd7, &
+        sccs_derivative_fft, sccs_fattebert_gygi, sic_ad, sic_eo, sic_list_all, sic_list_unpaired, &
+        sic_mauri_spz, sic_mauri_us, sic_none, slater, tddfpt_dipole_length, tddfpt_kernel_stda, &
         use_mom_ref_user, xtb_vdw_type_d3, xtb_vdw_type_d4, xtb_vdw_type_none
    USE input_cp2k_check,                ONLY: xc_functionals_expand
    USE input_cp2k_dft,                  ONLY: create_dft_section
@@ -117,10 +117,8 @@ CONTAINS
          DIMENSION(:), POINTER                           :: tmpstringlist
       INTEGER                                            :: admmtype, irep, isize, method_id, nrep, &
                                                             xc_deriv_method_id
-      LOGICAL                                            :: at_end, do_hfx, do_ot, do_rpa_admm, &
-                                                            do_rtp, exopt1, exopt2, exopt3, &
-                                                            explicit, is_present, l_param, not_SE, &
-                                                            was_present, local_moment_possible
+      LOGICAL :: at_end, do_hfx, do_ot, do_rpa_admm, do_rtp, exopt1, exopt2, exopt3, explicit, &
+         is_present, l_param, local_moment_possible, not_SE, was_present
       REAL(KIND=dp)                                      :: density_cut, gradient_cut, tau_cut
       REAL(KIND=dp), DIMENSION(:), POINTER               :: pol
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -515,7 +513,7 @@ CONTAINS
          ! tmp_section => section_vals_get_subs_vals(dft_section, "REAL_TIME_PROPAGATION%PRINT%POLARIZABILITY")
          ! CALL section_vals_get(tmp_section, explicit=is_present)
          local_moment_possible = (dft_control%rtp_control%rtp_method == rtp_method_bse) .OR. &
-            ((.NOT. dft_control%rtp_control%periodic) .AND. dft_control%rtp_control%linear_scaling)
+                                 ((.NOT. dft_control%rtp_control%periodic) .AND. dft_control%rtp_control%linear_scaling)
          IF (local_moment_possible .AND. (.NOT. ASSOCIATED(dft_control%rtp_control%print_pol_elements))) THEN
             tmp_section => section_vals_get_subs_vals(dft_section, "REAL_TIME_PROPAGATION")
             CALL guess_pol_elements(dft_control, &
@@ -2858,7 +2856,7 @@ CONTAINS
       END IF
       ! Moment trace
       local_moment_possible = (dft_control%rtp_control%rtp_method == rtp_method_bse) .OR. &
-         ((.NOT. dft_control%rtp_control%periodic) .AND. dft_control%rtp_control%linear_scaling)
+                              ((.NOT. dft_control%rtp_control%periodic) .AND. dft_control%rtp_control%linear_scaling)
       ! TODO : Implement for other moment operators
       subsection => section_vals_get_subs_vals(rtp_section, "PRINT%MOMENTS")
       CALL section_vals_get(subsection, explicit=is_present)
