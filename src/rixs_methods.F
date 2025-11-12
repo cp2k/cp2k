@@ -274,6 +274,13 @@ CONTAINS
             CALL cp_fm_struct_release(dip_f_struct)
          END DO
 
+         CALL cp_fm_struct_create(core_evect_struct, para_env=para_env, context=blacs_env, &
+                                    nrow_global=nao, ncol_global=nvirt)
+         CALL cp_fm_struct_create(gs_coeff_struct, para_env=para_env, context=blacs_env, &
+                                    nrow_global=nao, ncol_global=1)
+         CALL cp_fm_struct_create(evects_struct, para_env=para_env, context=blacs_env, &
+                                    nrow_global=nocc_max, ncol_global=1)
+
          ! looping over ex_atoms and ex_kinds is enough as excited atoms have to be unique
          current_state_index = 1
          DO iatom = 1, nex_atoms
@@ -296,13 +303,6 @@ CONTAINS
             END IF
 
             ! reshape sc and sg coeffs (separate spins to columns)
-            CALL cp_fm_struct_create(core_evect_struct, para_env=para_env, context=blacs_env, &
-                                     nrow_global=nao, ncol_global=nvirt)
-            CALL cp_fm_struct_create(gs_coeff_struct, para_env=para_env, context=blacs_env, &
-                                     nrow_global=nao, ncol_global=1)
-            CALL cp_fm_struct_create(evects_struct, para_env=para_env, context=blacs_env, &
-                                     nrow_global=nocc_max, ncol_global=1)
-
             DO ispin = 1, nspins
                CALL cp_fm_create(core_evects(ispin), core_evect_struct)
                CALL cp_fm_to_fm_submat(msource=target_ex_coeffs, mtarget=core_evects(ispin), s_firstrow=1, &
@@ -336,7 +336,7 @@ CONTAINS
                                               start_col=1, n_rows=1, n_cols=1)
                      mu_i0(ax, istate) = dip_block(1, 1)
                   END DO ! ispin
-                  mu_xyz = mu_i0(ax, istate) !**2
+                  mu_xyz = mu_i0(ax, istate)
                   mu_i0(4, istate) = mu_i0(4, istate) + mu_xyz
                END DO ! istate
 
@@ -362,21 +362,20 @@ CONTAINS
 
                   DO istate = 1, nvirt
 
-                     DO fstate = 1, nocc_max ! 5
+                     DO fstate = 1, nocc_max
                         dip_block = 0.0_dp
                         DO ispin = 1, nspins
                            IF (fstate <= nocc(ispin)) THEN
                               CALL cp_fm_get_submatrix(fm=i_dip_f(ispin), target_m=dip_block, start_row=istate, &
                                                        start_col=fstate, n_rows=1, n_cols=1)
-                              ! dip_block(1, ispin) = tmp(1,1)
-                              mu_if(ax, istate, td_state) = mu_if(ax, istate, td_state) + dip_block(1, 1) !**2
+                              mu_if(ax, istate, td_state) = mu_if(ax, istate, td_state) + dip_block(1, 1)
 
                            END IF
                         END DO ! ispin
 
                      END DO ! fstate (tddft)
 
-                     mu_xyz = mu_if(ax, istate, td_state) !**2
+                     mu_xyz = mu_if(ax, istate, td_state)
                      mu_if(4, istate, td_state) = mu_if(4, istate, td_state) + mu_xyz
 
                   END DO ! istate (core)
@@ -391,6 +390,14 @@ CONTAINS
             CALL print_rixs_to_file(current_state, mu_i0, mu_if, w_i0, w_if, rixs_env, rixs_section)
 
             current_state_index = current_state_index + 1
+
+            DO ispin = 1, nspins
+               CALL cp_fm_release(core_evects(ispin))
+               CALL cp_fm_release(state_gs_coeffs(ispin))
+               CALL cp_fm_release(i_dip_0(ispin))
+               CALL cp_fm_release(i_dip_f(ispin))
+               CALL cp_fm_release(dip_f(ispin))
+            END DO
          END DO ! iatom
 
          NULLIFY (current_state)
@@ -403,13 +410,13 @@ CONTAINS
          CALL cp_fm_struct_release(core_evect_struct)
          CALL cp_fm_struct_release(gs_coeff_struct)
          CALL cp_fm_struct_release(evects_struct)
-         DO ispin = 1, nspins
-            CALL cp_fm_release(core_evects(ispin))
-            CALL cp_fm_release(state_gs_coeffs(ispin))
-            CALL cp_fm_release(i_dip_0(ispin))
-            CALL cp_fm_release(i_dip_f(ispin))
-            CALL cp_fm_release(dip_f(ispin))
-         END DO
+         ! DO ispin = 1, nspins
+         !    CALL cp_fm_release(core_evects(ispin))
+         !    CALL cp_fm_release(state_gs_coeffs(ispin))
+         !    CALL cp_fm_release(i_dip_0(ispin))
+         !    CALL cp_fm_release(i_dip_f(ispin))
+         !    CALL cp_fm_release(dip_f(ispin))
+         ! END DO
 
       END IF
 
