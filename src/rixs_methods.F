@@ -98,13 +98,6 @@ CONTAINS
       xas_tdp_section => section_vals_get_subs_vals(rixs_section, "XAS_TDP")
       tddfp2_section => section_vals_get_subs_vals(rixs_section, "TDDFPT")
 
-      IF (.NOT. ASSOCIATED(xas_tdp_section)) THEN
-         CPABORT("XAS_TDP calculation missing")
-      END IF
-      IF (.NOT. ASSOCIATED(tddfp2_section)) THEN
-         CPABORT("TDDFPT calculation missing")
-      END IF
-
       CALL rixs_core(rixs_section, qs_env)
 
       IF (output_unit > 0) THEN
