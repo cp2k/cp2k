@@ -35,8 +35,8 @@ MODULE qs_tddfpt2_eigensolver
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE machine,                         ONLY: m_flush,&
-                                              m_walltime,&
-                                              m_memory
+                                              m_memory,&
+                                              m_walltime
    USE memory_utilities,                ONLY: reallocate
    USE message_passing,                 ONLY: mp_para_env_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
@@ -818,13 +818,13 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: tddfpt_print_section
       TYPE(tddfpt_work_matrices), INTENT(inout)          :: work_matrices
       REAL(kind=dp)                                      :: conv
-      INTEGER(int_8)                                     :: mem_size
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_davidson_solver'
 
       INTEGER                                            :: handle, ispin, istate, iter, &
                                                             max_krylov_vects, nspins, nstates, &
                                                             nstates_conv, nvects_exist, nvects_new
+      INTEGER(int_8)                                     :: mem_size
       INTEGER(kind=int_8)                                :: nstates_total
       LOGICAL                                            :: is_nonortho
       REAL(kind=dp)                                      :: t1, t2
@@ -969,7 +969,7 @@ CONTAINS
             WRITE (iter_unit, '(T7,I8,T24,F7.1,T40,ES11.4,T66,I8)') iter, t2 - t1, conv, nstates_conv
 
             ! DEBUG: memory usage
-            WRITE(iter_unit, FMT="(/,(T3,A,T60,I21))") "DEBUG| Memory used [MiB]: " , mem_size/(1024*1024)
+            WRITE (iter_unit, FMT="(/,(T3,A,T60,I21))") "DEBUG| Memory used [MiB]: ", mem_size/(1024*1024)
 
             CALL m_flush(iter_unit)
          END IF

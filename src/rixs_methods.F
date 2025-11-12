@@ -29,9 +29,8 @@ MODULE rixs_methods
                                               cp_fm_get_submatrix,&
                                               cp_fm_release,&
                                               cp_fm_to_fm,&
-                                              cp_fm_type,&
                                               cp_fm_to_fm_submat,&
-                                              cp_fm_set_all
+                                              cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_io_unit,&
                                               cp_logger_type
@@ -40,7 +39,8 @@ MODULE rixs_methods
    USE header,                          ONLY: rixs_header
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
-   USE kinds,                           ONLY: dp, int_8
+   USE kinds,                           ONLY: dp,&
+                                              int_8
    USE machine,                         ONLY: m_memory
    USE message_passing,                 ONLY: mp_para_env_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
@@ -130,26 +130,24 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'rixs_core'
 
-      INTEGER                                            :: ax, current_state_index, fstate, handle, &
-                                                            iatom, istate, nao, nex_atoms, nocc_max, &
-                                                            nstates, nvirt, output_unit, td_state, &
-                                                            nspins, ispin
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nocc   
+      INTEGER :: ax, current_state_index, fstate, handle, iatom, ispin, istate, nao, nex_atoms, &
+         nocc_max, nspins, nstates, nvirt, output_unit, td_state
+      INTEGER(int_8)                                     :: mem_size
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nocc
+      LOGICAL                                            :: do_sc, do_sg, roks, uks
       REAL(dp)                                           :: mu_xyz
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: w_i0, w_if
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: dip_block, mu_i0
       REAL(dp), ALLOCATABLE, DIMENSION(:, :, :)          :: mu_if
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_fm_struct_type), POINTER                   :: dip_0_struct, dip_f_struct, &
-                                                            i_dip_0_struct, i_dip_f_struct, &
-                                                            core_evect_struct, gs_coeff_struct,&
-                                                            evects_struct
+      TYPE(cp_fm_struct_type), POINTER :: core_evect_struct, dip_0_struct, dip_f_struct, &
+         evects_struct, gs_coeff_struct, i_dip_0_struct, i_dip_f_struct
       TYPE(cp_fm_type)                                   :: dip_0
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: i_dip_0, i_dip_f, dip_f
-      TYPE(cp_fm_type), DIMENSION(:, :), POINTER         :: valence_evects
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: core_evects, state_gs_coeffs
-      TYPE(cp_fm_type), POINTER                          :: target_ex_coeffs
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: core_evects, dip_f, i_dip_0, i_dip_f, &
+                                                            state_gs_coeffs
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: local_gs_coeffs, mo_coeffs
+      TYPE(cp_fm_type), DIMENSION(:, :), POINTER         :: valence_evects
+      TYPE(cp_fm_type), POINTER                          :: target_ex_coeffs
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: dipmat, matrix_s
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(donor_state_type), POINTER                    :: current_state
@@ -158,9 +156,6 @@ CONTAINS
       TYPE(rixs_env_type), POINTER                       :: rixs_env
       TYPE(tddfpt2_valence_type), POINTER                :: valence_state
       TYPE(xas_tdp_env_type), POINTER                    :: core_state
-      LOGICAL                                            :: do_sg, do_sc, uks, roks
-
-      INTEGER(int_8)                                     :: mem_size
 
       NULLIFY (rixs_control, dft_control, rixs_env)
       NULLIFY (valence_state, core_state)
@@ -187,7 +182,7 @@ CONTAINS
 
       CALL m_memory(mem_size)
       IF (output_unit > 0) THEN
-         WRITE(output_unit, FMT="(/,(T3,A,T60,I21))") "Memory used (MiB): " , mem_size/(1024*1024)
+         WRITE (output_unit, FMT="(/,(T3,A,T60,I21))") "Memory used (MiB): ", mem_size/(1024*1024)
       END IF
 
       do_sg = rixs_control%xas_tdp_control%do_singlet
@@ -211,14 +206,14 @@ CONTAINS
             nspins = 1
          ELSE IF (do_sc) THEN ! spin-conserving
             nspins = 2
-         ELSE 
+         ELSE
             CPABORT("RIXS only implemented for singlet and spin-conserving excitations")
          END IF
 
          IF (dft_control%uks) THEN
             uks = .TRUE.
             WRITE (UNIT=output_unit, FMT="(T2,A)") "RIXS| Unrestricted Open-Shell Kohn-Sham"
-         ELSE IF  (dft_control%roks) THEN
+         ELSE IF (dft_control%roks) THEN
             roks = .TRUE.
             WRITE (UNIT=output_unit, FMT="(T2,A)") "RIXS| Restricted Open-Shell Kohn-Sham"
          END IF
@@ -243,7 +238,7 @@ CONTAINS
          END IF
 
          ! find max nocc for open-shell cases
-         ALLOCATE(nocc(nspins))
+         ALLOCATE (nocc(nspins))
          DO ispin = 1, nspins
             CALL cp_fm_get_info(matrix=valence_state%mos_occ(ispin), nrow_global=nao, ncol_global=nocc(ispin))
          END DO
@@ -264,22 +259,22 @@ CONTAINS
 
          ! initialise matrices for i->0
          CALL cp_fm_struct_create(dip_0_struct, para_env=para_env, context=blacs_env, &
-                                  nrow_global=nao, ncol_global=1) 
+                                  nrow_global=nao, ncol_global=1)
          CALL cp_fm_create(dip_0, dip_0_struct)
          CALL cp_fm_struct_create(i_dip_0_struct, para_env=para_env, context=blacs_env, &
                                   nrow_global=nvirt, ncol_global=1)
          ALLOCATE (i_dip_0(nspins))
          DO ispin = 1, nspins
             CALL cp_fm_create(i_dip_0(ispin), i_dip_0_struct)
-         END DO                         
+         END DO
 
          ! initialise matrices for i->f
          ALLOCATE (dip_f(nspins), i_dip_f(nspins))
          DO ispin = 1, nspins
             CALL cp_fm_struct_create(dip_f_struct, para_env=para_env, context=blacs_env, &
-                                  nrow_global=nao, ncol_global=nocc(ispin))
+                                     nrow_global=nao, ncol_global=nocc(ispin))
             CALL cp_fm_struct_create(i_dip_f_struct, para_env=para_env, context=blacs_env, &
-                                  nrow_global=nvirt, ncol_global=nocc(ispin))
+                                     nrow_global=nvirt, ncol_global=nocc(ispin))
             CALL cp_fm_create(dip_f(ispin), dip_f_struct)
             CALL cp_fm_create(i_dip_f(ispin), i_dip_f_struct)
             CALL cp_fm_struct_release(i_dip_f_struct)
@@ -309,26 +304,26 @@ CONTAINS
 
             ! reshape sc and sg coeffs (separate spins to columns)
             CALL cp_fm_struct_create(core_evect_struct, para_env=para_env, context=blacs_env, &
-                                  nrow_global=nao, ncol_global=nvirt)
+                                     nrow_global=nao, ncol_global=nvirt)
             CALL cp_fm_struct_create(gs_coeff_struct, para_env=para_env, context=blacs_env, &
-                                  nrow_global=nao, ncol_global=1)
+                                     nrow_global=nao, ncol_global=1)
             CALL cp_fm_struct_create(evects_struct, para_env=para_env, context=blacs_env, &
-                                  nrow_global=nocc_max, ncol_global=1)
+                                     nrow_global=nocc_max, ncol_global=1)
 
             DO ispin = 1, nspins
                CALL cp_fm_create(core_evects(ispin), core_evect_struct)
                CALL cp_fm_to_fm_submat(msource=target_ex_coeffs, mtarget=core_evects(ispin), s_firstrow=1, &
-                              s_firstcol=(nvirt*(ispin-1)+1), t_firstrow=1, t_firstcol=1, nrow=nao, ncol=nvirt)
+                                       s_firstcol=(nvirt*(ispin - 1) + 1), t_firstrow=1, t_firstcol=1, nrow=nao, ncol=nvirt)
             END DO
             DO ispin = 1, nspins
-               CALL cp_fm_create(state_gs_coeffs(ispin),gs_coeff_struct)
-               IF (roks) THEN 
+               CALL cp_fm_create(state_gs_coeffs(ispin), gs_coeff_struct)
+               IF (roks) THEN
                   ! store same coeffs for both spins, easier later on
                   CALL cp_fm_to_fm_submat(msource=current_state%gs_coeffs, mtarget=state_gs_coeffs(ispin), s_firstrow=1, &
-                              s_firstcol=1, t_firstrow=1, t_firstcol=1, nrow=nao, ncol=1)
+                                          s_firstcol=1, t_firstrow=1, t_firstcol=1, nrow=nao, ncol=1)
                ELSE
                   CALL cp_fm_to_fm_submat(msource=current_state%gs_coeffs, mtarget=state_gs_coeffs(ispin), s_firstrow=1, &
-                              s_firstcol=ispin, t_firstrow=1, t_firstcol=1, nrow=nao, ncol=1)
+                                          s_firstcol=ispin, t_firstrow=1, t_firstcol=1, nrow=nao, ncol=1)
                END IF
             END DO
 
@@ -345,7 +340,7 @@ CONTAINS
                   dip_block = 0.0_dp
                   DO ispin = 1, nspins
                      CALL cp_fm_get_submatrix(fm=i_dip_0(ispin), target_m=dip_block, start_row=istate, &
-                                             start_col=1, n_rows=1, n_cols=1)
+                                              start_col=1, n_rows=1, n_cols=1)
                      mu_i0(ax, istate) = dip_block(1, 1)
                   END DO ! ispin
                   mu_xyz = mu_i0(ax, istate) !**2
@@ -367,11 +362,11 @@ CONTAINS
                   ! core_evects x dipmat x valence_evects (per spin)
                   DO ispin = 1, nspins
                      CALL cp_dbcsr_sm_fm_multiply(dipmat(ax)%matrix, valence_evects(ispin, td_state), dip_f(ispin), &
-                                                 ncol=nocc(ispin))
+                                                  ncol=nocc(ispin))
                      CALL parallel_gemm('T', 'N', nvirt, nocc(ispin), nao, 1.0_dp, core_evects(ispin), &
-                                       dip_f(ispin), 0.0_dp, i_dip_f(ispin))
+                                        dip_f(ispin), 0.0_dp, i_dip_f(ispin))
                   END DO
-                  
+
                   DO istate = 1, nvirt
 
                      DO fstate = 1, nocc_max ! 5
@@ -379,16 +374,16 @@ CONTAINS
                         DO ispin = 1, nspins
                            IF (fstate <= nocc(ispin)) THEN
                               CALL cp_fm_get_submatrix(fm=i_dip_f(ispin), target_m=dip_block, start_row=istate, &
-                                                      start_col=fstate, n_rows=1, n_cols=1)
+                                                       start_col=fstate, n_rows=1, n_cols=1)
                               ! dip_block(1, ispin) = tmp(1,1)
-                              mu_if(ax, istate, td_state) = mu_if(ax, istate, td_state) + dip_block(1,1) !**2
+                              mu_if(ax, istate, td_state) = mu_if(ax, istate, td_state) + dip_block(1, 1) !**2
 
                            END IF
                         END DO ! ispin
 
                      END DO ! fstate (tddft)
 
-                     mu_xyz = mu_if(ax, istate, td_state) !**2 
+                     mu_xyz = mu_if(ax, istate, td_state) !**2
                      mu_if(4, istate, td_state) = mu_if(4, istate, td_state) + mu_xyz
 
                   END DO ! istate (core)
@@ -411,7 +406,7 @@ CONTAINS
          CALL cp_fm_struct_release(i_dip_0_struct)
          CALL cp_fm_struct_release(dip_0_struct)
          CALL cp_fm_release(dip_0)
-         
+
          CALL cp_fm_struct_release(core_evect_struct)
          CALL cp_fm_struct_release(gs_coeff_struct)
          CALL cp_fm_struct_release(evects_struct)
@@ -450,8 +445,8 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: overlap_matrix
       INTEGER                                            :: unit_nr
 
-      INTEGER                                            :: istate, ncol, nrow, nstates, &
-                                                            ispin, nspins
+      INTEGER                                            :: ispin, istate, ncol, nrow, nspins, &
+                                                            nstates
       REAL(kind=dp)                                      :: diff
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: emat_struct
@@ -465,14 +460,14 @@ CONTAINS
       DO ispin = 1, nspins
 
          CALL cp_fm_get_info(matrix=mo_occ(ispin), nrow_global=nrow, ncol_global=ncol, &
-                           para_env=para_env, context=blacs_env)
+                             para_env=para_env, context=blacs_env)
          CALL cp_fm_create(smo, mo_occ(ispin)%matrix_struct)
 
          ! rotate mo_occ
          ! smo = matrix_s x mo_occ
          CALL cp_dbcsr_sm_fm_multiply(overlap_matrix, mo_occ(ispin), smo, ncol, alpha=1.0_dp, beta=0.0_dp)
          CALL cp_fm_struct_create(emat_struct, nrow_global=ncol, ncol_global=ncol, &
-                                 para_env=para_env, context=blacs_env)
+                                  para_env=para_env, context=blacs_env)
          CALL cp_fm_create(emat, emat_struct)
          ! emat = mo_ref^T x smo
          CALL parallel_gemm('T', 'N', ncol, ncol, nrow, 1.0_dp, mo_ref(ispin), smo, 0.0_dp, emat)
