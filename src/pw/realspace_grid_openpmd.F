@@ -65,7 +65,7 @@ MODULE realspace_grid_openpmd
 
    TYPE cp_openpmd_write_buffer_1d
       REAL(KIND=dp), POINTER :: buffer(:)
-   END TYPE
+   END TYPE cp_openpmd_write_buffer_1d
 #endif
 
 CONTAINS
@@ -124,7 +124,7 @@ CONTAINS
       TYPE(cp_openpmd_per_call_value_type)               :: openpmd_data
       LOGICAL                                            :: do_write_data
 
-      CHARACTER(len=1), DIMENSION(3), PARAMETER          :: dims = (/"x", "y", "z"/)
+      CHARACTER(len=1), DIMENSION(3), PARAMETER          :: dims = ["x", "y", "z"]
 
       CHARACTER(len=3)                                   :: atom_type_as_string
       CHARACTER(len=default_string_length)               :: species_name
@@ -325,9 +325,9 @@ CONTAINS
       local_extent = local_extent - offset
 
       mesh = openpmd_data%iteration%get_mesh(TRIM(openpmd_data%name_prefix))
-      CALL mesh%set_axis_labels((/"x", "y", "z"/))
-      CALL mesh%set_position((/0.5_dp, 0.5_dp, 0.5_dp/))
-      CALL mesh%set_grid_global_offset((/0._dp, 0._dp, 0._dp/))
+      CALL mesh%set_axis_labels(["x", "y", "z"])
+      CALL mesh%set_position([0.5_dp, 0.5_dp, 0.5_dp])
+      CALL mesh%set_grid_global_offset([0._dp, 0._dp, 0._dp])
       CALL mesh%set_grid_spacing(grid_spacing)
       scalar_mesh = mesh%as_record_component()
       CALL scalar_mesh%reset_dataset(openpmd_type_double, global_extent)
@@ -355,8 +355,8 @@ CONTAINS
             ! for intermittent flushing
             ! or just call the buffer in the outer function if memory is no problem...
             unresolved_write_buffer = scalar_mesh%store_chunk_span_3d_double( &
-                                      (/offset(1), offset(2), offset(3) + count3/), &
-                                      (/local_extent(1), local_extent(2), 1/))
+                                      [offset(1), offset(2), offset(3) + count3], &
+                                      [local_extent(1), local_extent(2), 1])
             write_buffer => unresolved_write_buffer%resolve_double(DEALLOCATE=.TRUE.)
 
             count2 = 0
@@ -414,7 +414,7 @@ CONTAINS
       MARK_USED(mpi_io)
       CPABORT("CP2K compiled without the openPMD-api")
 
-   END SUBROUTINE
+   END SUBROUTINE pw_to_openpmd
 
 #endif
 

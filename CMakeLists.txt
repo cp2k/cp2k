@@ -803,7 +803,10 @@ endif()
 if(CP2K_USE_OPENPMD)
   find_package(openPMD 0.16.1 REQUIRED)
   if(NOT openPMD_HAVE_MPI)
-    message(FATAL_ERROR "Found serial build of openPMD at ${openPMD_DIR}. Provide either an MPI build or deactivate openPMD.")
+    message(
+      FATAL_ERROR
+        "Found serial build of openPMD at ${openPMD_DIR}. Provide either an MPI build or deactivate openPMD."
+    )
   endif()
 endif()
 

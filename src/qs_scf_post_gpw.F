@@ -246,7 +246,7 @@ MODULE qs_scf_post_gpw
       PROCEDURE, PUBLIC :: do_cubes => cp_section_key_do_cubes
       PROCEDURE, PUBLIC :: concat_to_relative => cp_section_key_concat_to_relative
       PROCEDURE, PUBLIC :: concat_to_absolute => cp_section_key_concat_to_absolute
-   END TYPE
+   END TYPE cp_section_key
 
 ! **************************************************************************************************
 
@@ -268,7 +268,7 @@ CONTAINS
       ELSE
          res = TRIM(self%absolute_section_key)//"%"//TRIM(extend_by)
       END IF
-   END FUNCTION
+   END FUNCTION cp_section_key_concat_to_absolute
 
 ! **************************************************************************************************
 !> \brief Append `extend_by` to the relative path (e.g. without DFT%) of the base section.
@@ -286,7 +286,7 @@ CONTAINS
       ELSE
          res = TRIM(self%relative_section_key)//"%"//TRIM(extend_by)
       END IF
-   END FUNCTION
+   END FUNCTION cp_section_key_concat_to_relative
 
 ! **************************************************************************************************
 !> \brief Is Cube output active for the current base section?
@@ -298,7 +298,7 @@ CONTAINS
       LOGICAL :: res
 
       res = self%do_output .AND. self%grid_output == grid_output_cubes
-   END FUNCTION
+   END FUNCTION cp_section_key_do_cubes
 
 ! **************************************************************************************************
 !> \brief Is openPMD output active for the current base section?
@@ -310,7 +310,7 @@ CONTAINS
       LOGICAL :: res
 
       res = self%do_output .AND. self%grid_output == grid_output_openpmd
-   END FUNCTION
+   END FUNCTION cp_section_key_do_openpmd
 
 ! **************************************************************************************************
 !> \brief Forwards to either `cp_print_key_unit_nr` or `cp_openpmd_print_key_unit_nr`,
@@ -371,7 +371,7 @@ CONTAINS
                                             middle_name=middle_name, ignore_should_output=ignore_should_output, &
                                             mpi_io=mpi_io, fout=fout, openpmd_basename=openpmd_basename)
       END IF
-   END FUNCTION
+   END FUNCTION cp_forward_print_key_unit_nr
 
 ! **************************************************************************************************
 !> \brief Forwards to either `cp_pw_to_cube` or `cp_pw_to_openpmd`,
@@ -402,7 +402,7 @@ CONTAINS
       ELSE
          CALL cp_pw_to_openpmd(pw, unit_nr, title, particles, stride, zero_tails, silent, mpi_io)
       END IF
-   END SUBROUTINE
+   END SUBROUTINE cp_forward_write_pw
 
 ! **************************************************************************************************
 !> \brief Forwards to either `cp_print_key_finished_output` or `cp_openpmd_print_key_finished_output`,
@@ -434,7 +434,7 @@ CONTAINS
       ELSE
       CALL cp_openpmd_print_key_finished_output(unit_nr, logger, basis_section, print_key_path, local, ignore_should_output, mpi_io)
       END IF
-   END SUBROUTINE
+   END SUBROUTINE cp_forward_print_key_finished_output
 
    !
 ! **************************************************************************************************
@@ -483,7 +483,7 @@ CONTAINS
          res%format_name = "Cube"
       END IF
       res%absolute_section_key = "DFT%"//TRIM(ADJUSTL(res%relative_section_key))
-   END FUNCTION
+   END FUNCTION cube_or_openpmd
 
 ! **************************************************************************************************
 !> \brief This section key is named WRITE_CUBE for Cube which does not make much sense
@@ -500,7 +500,7 @@ CONTAINS
       ELSE IF (grid_output == grid_output_openpmd) THEN
          res = "%WRITE_OPENPMD"
       END IF
-   END FUNCTION
+   END FUNCTION section_key_do_write
 
 ! **************************************************************************************************
 !> \brief collects possible post - scf calculations and prints info / computes properties.

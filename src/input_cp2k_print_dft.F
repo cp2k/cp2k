@@ -717,7 +717,7 @@ CONTAINS
          print_key, &
          "E_DENSITY_OPENPMD", &
          "openPMD", &
-         (/1, 1, 1/), &
+         [1, 1, 1], &
          "STRIDE 1 1 1", &
          debug_print_level + 1)
       CALL add_generic_openpmd_arguments(print_key)
@@ -2111,7 +2111,7 @@ CONTAINS
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
-   END SUBROUTINE
+   END SUBROUTINE add_generic_openpmd_arguments
 
 ! **************************************************************************************************
 !> \brief creates the input section for dealing with homo lumos, including dumping cubes
@@ -2229,14 +2229,14 @@ CONTAINS
                                         "like spikes due to the finite and thus "// &
                                         "truncated g vector", &
                                         "Print only the soft density"), &
-                          enum_i_vals=(/e_dens_total_hard_approx, &
-                                        e_dens_total_density, &
-                                        e_dens_soft_density/), &
+                          enum_i_vals=[e_dens_total_hard_approx, &
+                                       e_dens_total_density, &
+                                       e_dens_soft_density], &
                           default_i_val=e_dens_total_hard_approx)
       CALL section_add_keyword(print_key, keyword)
       CALL keyword_release(keyword)
 
-   END SUBROUTINE
+   END SUBROUTINE create_e_density_section
 
    ! **************************************************************************************************
 !> \brief Helper to create ELF print sections (cube or openPMD)
