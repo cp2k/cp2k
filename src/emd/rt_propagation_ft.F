@@ -97,9 +97,10 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE multi_fft(time_series, value_series, result_series, omega_series, &
                         damping_opt, t0_opt, subtract_initial_opt)
-      REAL(kind=dp), DIMENSION(:), POINTER               :: time_series
-      COMPLEX(kind=dp), DIMENSION(:, :), POINTER         :: value_series, result_series
-      REAL(kind=dp), DIMENSION(:), OPTIONAL, POINTER     :: omega_series
+      REAL(kind=dp), DIMENSION(:)                        :: time_series
+      COMPLEX(kind=dp), DIMENSION(:, :)                  :: value_series
+      COMPLEX(kind=dp), ALLOCATABLE, DIMENSION(:, :)     :: result_series
+      REAL(kind=dp), DIMENSION(:), OPTIONAL              :: omega_series
       REAL(kind=dp), OPTIONAL                            :: damping_opt, t0_opt
       LOGICAL, OPTIONAL                                  :: subtract_initial_opt
 
@@ -107,7 +108,7 @@ CONTAINS
 
       COMPLEX(kind=dp)                                   :: subtract_value
       COMPLEX(kind=dp), CONTIGUOUS, DIMENSION(:), &
-         POINTER                                         :: ft_samples, samples
+         POINTER                                         :: ft_samples, samples, samples_input
       INTEGER                                            :: handle, i, i0, j, nsamples, nseries, stat
       LOGICAL                                            :: subtract_initial
       REAL(kind=dp)                                      :: damping, t0, t_total
@@ -164,28 +165,33 @@ CONTAINS
       ! Allocate the in-out arrays (on every rank)
       CALL timeset(routineN, handle)
       NULLIFY (samples)
+      NULLIFY (samples_input)
       NULLIFY (ft_samples)
       CALL fft_alloc(samples, [nsamples*nseries])
+      CALL fft_alloc(samples_input, [nsamples*nseries])
       CALL fft_alloc(ft_samples, [nsamples*nseries])
-      CALL fft_create_plan_1dm(fft_plan, fft_library("FFTW3"), -1, .FALSE., nsamples, nseries, samples, ft_samples, 3)
-      ! TODO : Fill the samples with actual data
+      ! Fill the samples with data
       DO i = 1, nseries
          DO j = 1, nsamples
             ! Subtract initial value if required
             IF (subtract_initial) THEN
                subtract_value = value_series(i, 1)
             END IF
-            samples(j + (i - 1)*nsamples) = value_series(i, i0 + j - 1) - subtract_value
+            samples_input(j + (i - 1)*nsamples) = value_series(i, i0 + j - 1) - subtract_value
             ! Apply damping
-            samples(j + (i - 1)*nsamples) = samples(j + (i - 1)*nsamples)* &
-                                            EXP(-damping*(time_series(i0 + j - 1) - time_series(i0)))
+            samples_input(j + (i - 1)*nsamples) = samples_input(j + (i - 1)*nsamples)* &
+                                                  EXP(-damping*(time_series(i0 + j - 1) - time_series(i0)))
          END DO
       END DO
-      ! TODO : Carry out the transform
+      ! Create the plan (this overwrites samples and ft_samples with planning data)
+      CALL fft_create_plan_1dm(fft_plan, fft_library("FFTW3"), -1, .FALSE., nsamples, nseries, samples, ft_samples, 3)
+      ! Carry out the transform
       ! Scale by dt - to transform to an integral
-      CALL fft_1dm(fft_plan, samples, ft_samples, time_series(2) - time_series(1), stat)
+      CALL fft_1dm(fft_plan, samples_input, ft_samples, time_series(2) - time_series(1), stat)
       IF (stat /= 0) THEN
          ! Failed fftw3 - go to backup
+         ! Uses value_series and result_series - no need to reassign data
+         ! TODO : OMP parallel for different series?
          DO i = 1, nseries
             IF (subtract_initial) THEN
                subtract_value = value_series(i, 1)
@@ -204,6 +210,7 @@ CONTAINS
       ! Deallocate
       CALL fft_dealloc(samples)
       CALL fft_dealloc(ft_samples)
+      CALL fft_dealloc(samples_input)
       CALL fft_destroy_plan(fft_plan)
       CALL timestop(handle)
    END SUBROUTINE multi_fft

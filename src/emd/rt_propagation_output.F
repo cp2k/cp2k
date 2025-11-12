@@ -1215,26 +1215,19 @@ CONTAINS
       TYPE(cell_type), OPTIONAL, POINTER                 :: cell
 
       CHARACTER(len=11), DIMENSION(2)                    :: file_extensions
-      CHARACTER(len=20), ALLOCATABLE, DIMENSION(:), &
-         TARGET                                          :: headers
-      CHARACTER(len=20), DIMENSION(:), POINTER           :: headers_p
+      CHARACTER(len=20), ALLOCATABLE, DIMENSION(:)       :: headers
       CHARACTER(len=21)                                  :: prefix
       CHARACTER(len=5)                                   :: prefix_format
-      COMPLEX(kind=dp), ALLOCATABLE, DIMENSION(:), &
-         TARGET                                          :: omegas_complex, omegas_pade
-      COMPLEX(kind=dp), ALLOCATABLE, DIMENSION(:, :), &
-         TARGET                                          :: field_results, field_results_pade, &
+      COMPLEX(kind=dp), ALLOCATABLE, DIMENSION(:)        :: omegas_complex, omegas_pade
+      COMPLEX(kind=dp), ALLOCATABLE, DIMENSION(:, :)     :: field_results, field_results_pade, &
                                                             pol_results, pol_results_pade, &
                                                             results, results_pade, value_series
-      COMPLEX(kind=dp), DIMENSION(:), POINTER            :: complex_1d_p_res, complex_1d_p_val
-      COMPLEX(kind=dp), DIMENSION(:, :), POINTER         :: complex_2d_p_res, complex_2d_p_val
       INTEGER                                            :: ft_unit, i, info_unit, k, n, n_elems, &
                                                             n_pade, nspin
       LOGICAL                                            :: do_moments_ft, do_polarizability
       REAL(kind=dp)                                      :: damping, t0
-      REAL(kind=dp), ALLOCATABLE, DIMENSION(:), TARGET   :: omegas, omegas_pade_real
+      REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: omegas, omegas_pade_real
       REAL(kind=dp), DIMENSION(3)                        :: delta_vec
-      REAL(kind=dp), DIMENSION(:), POINTER               :: real_1d_p
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(section_vals_type), POINTER                   :: moment_ft_section, pol_section
 
@@ -1284,9 +1277,7 @@ CONTAINS
             END DO
          ELSE
             ! Do explicit FT
-            complex_2d_p_res => field_results
-            complex_2d_p_val => fields
-            CALL multi_fft(times, complex_2d_p_val, complex_2d_p_res, &
+            CALL multi_fft(times, fields, field_results, &
                            damping_opt=damping, t0_opt=t0, subtract_initial_opt=.TRUE.)
          END IF
       END IF
@@ -1304,10 +1295,7 @@ CONTAINS
             END DO
          END DO
          ! TODO : Choose whether the initial subtraction is applied in &FT section?
-         complex_2d_p_res => results
-         complex_2d_p_val => value_series
-         real_1d_p => omegas
-         CALL multi_fft(times, complex_2d_p_val, complex_2d_p_res, real_1d_p, &
+         CALL multi_fft(times, value_series, results, omegas, &
                         damping_opt=damping, t0_opt=t0, subtract_initial_opt=.TRUE.)
          DEALLOCATE (value_series)
          DO i = 1, nspin
@@ -1323,18 +1311,15 @@ CONTAINS
                headers(5) = "      y,imag [at.u.]"
                headers(6) = "      z,real [at.u.]"
                headers(7) = "      z,imag [at.u.]"
-               complex_2d_p_res => results(3*(i - 1) + 1:3*(i - 1) + 3, :)
-               headers_p => headers
-               real_1d_p => omegas
                IF (info_unit == ft_unit) THEN
                   headers(1) = "#        Energy [eV]"
                   prefix = " MOMENTS_FT|"
                   prefix_format = "(A12)"
-                  CALL print_ft_file(ft_unit, headers_p, real_1d_p, complex_2d_p_res, &
+                  CALL print_ft_file(ft_unit, headers, omegas, results(3*(i - 1) + 1:3*(i - 1) + 3, :), &
                                      prefix, prefix_format, evolt)
                ELSE
                   headers(1) = "#      omega [at.u.]"
-                  CALL print_ft_file(ft_unit, headers_p, real_1d_p, complex_2d_p_res)
+                  CALL print_ft_file(ft_unit, headers, omegas, results(3*(i - 1) + 1:3*(i - 1) + 3, :))
                END IF
                DEALLOCATE (headers)
             END IF
@@ -1345,7 +1330,6 @@ CONTAINS
       IF (rtc%pade_requested .AND. (do_moments_ft .OR. do_polarizability)) THEN
          ALLOCATE (omegas_complex(SIZE(omegas)))
          omegas_complex(:) = CMPLX(omegas(:), 0.0, kind=dp)
-         complex_1d_p_val => omegas_complex
          n_pade = INT((rtc%pade_e_max - rtc%pade_e_min)/rtc%pade_e_step)
          ALLOCATE (omegas_pade(n_pade))
          ALLOCATE (omegas_pade_real(n_pade))
@@ -1355,15 +1339,12 @@ CONTAINS
             omegas_pade(i) = CMPLX(omegas_pade_real(i), 0.0, kind=dp)
          END DO
          ALLOCATE (results_pade(nspin*3, n_pade), source=CMPLX(0.0, 0.0, kind=dp))
-         complex_2d_p_val => results
-         complex_2d_p_res => results_pade
-         complex_1d_p_res => omegas_pade
          DO i = 1, nspin
             DO k = 1, 3
-               CALL greenx_refine_ft(rtc%pade_fit_e_min, rtc%pade_fit_e_max, complex_1d_p_val, complex_2d_p_val(3*(i - 1) + k, :), &
-                                     complex_1d_p_res, complex_2d_p_res(3*(i - 1) + k, :))
+               CALL greenx_refine_ft(rtc%pade_fit_e_min, rtc%pade_fit_e_max, omegas_complex, results(3*(i - 1) + k, :), &
+                                     omegas_pade, results_pade(3*(i - 1) + k, :))
             END DO
-            ! TODO : Print into file
+            ! Print to a file
             ft_unit = cp_print_key_unit_nr(logger, moment_ft_section, extension="_PADE"//file_extensions(i), &
                                            file_form="FORMATTED", file_position="REWIND")
             IF (ft_unit > 0) THEN
@@ -1374,18 +1355,15 @@ CONTAINS
                headers(5) = " y,imag,pade [at.u.]"
                headers(6) = " z,real,pade [at.u.]"
                headers(7) = " z,imag,pade [at.u.]"
-               complex_2d_p_res => results_pade(3*(i - 1) + 1:3*(i - 1) + 3, :)
-               headers_p => headers
-               real_1d_p => omegas_pade_real
                IF (info_unit == ft_unit) THEN
                   headers(1) = "#        Energy [eV]"
                   prefix = " MOMENTS_FT_PADE|"
                   prefix_format = "(A17)"
-                  CALL print_ft_file(ft_unit, headers_p, real_1d_p, complex_2d_p_res, &
+                  CALL print_ft_file(ft_unit, headers, omegas_pade_real, results_pade(3*(i - 1) + 1:3*(i - 1) + 3, :), &
                                      prefix, prefix_format, evolt)
                ELSE
                   headers(1) = "#      omega [at.u.]"
-                  CALL print_ft_file(ft_unit, headers_p, real_1d_p, complex_2d_p_res)
+                  CALL print_ft_file(ft_unit, headers, omegas_pade_real, results_pade(3*(i - 1) + 1:3*(i - 1) + 3, :))
                END IF
                DEALLOCATE (headers)
             END IF
@@ -1416,19 +1394,16 @@ CONTAINS
                      rtc%print_pol_elements(k, 1), &
                      rtc%print_pol_elements(k, 2)
                END DO
-               headers_p => headers
-               complex_2d_p_res => pol_results
-               real_1d_p => omegas
                ! Write header
                IF (info_unit == ft_unit) THEN
                   headers(1) = "#        Energy [eV]"
                   prefix = " POLARIZABILITY|"
                   prefix_format = "(A16)"
-                  CALL print_ft_file(ft_unit, headers_p, real_1d_p, complex_2d_p_res, &
+                  CALL print_ft_file(ft_unit, headers, omegas, pol_results, &
                                      prefix, prefix_format, evolt)
                ELSE
                   headers(1) = "#      omega [at.u.]"
-                  CALL print_ft_file(ft_unit, headers_p, real_1d_p, complex_2d_p_res)
+                  CALL print_ft_file(ft_unit, headers, omegas, pol_results)
                END IF
                DEALLOCATE (headers)
             END IF
@@ -1436,14 +1411,10 @@ CONTAINS
          END DO
       END IF
 
-      ! TODO : Insert polarizability padé here
+      ! Padé polarizability
       IF (rtc%pade_requested .AND. do_polarizability) THEN
          ! Start with the field pade
          ALLOCATE (field_results_pade(3, n_pade))
-         complex_1d_p_val => omegas_complex
-         complex_1d_p_res => omegas_pade
-         complex_2d_p_val => field_results
-         complex_2d_p_res => field_results_pade
          IF (rtc%apply_delta_pulse) THEN
             DO k = 1, 3
                field_results_pade(k, :) = CMPLX(delta_vec(k), 0.0, kind=dp)
@@ -1451,8 +1422,8 @@ CONTAINS
          ELSE
             DO k = 1, 3
                CALL greenx_refine_ft(rtc%pade_fit_e_min, rtc%pade_fit_e_max, &
-                                     complex_1d_p_val, complex_2d_p_val(k, :), &
-                                     complex_1d_p_res, complex_2d_p_res(k, :))
+                                     omegas_complex, field_results(k, :), &
+                                     omegas_pade, field_results_pade(k, :))
             END DO
          END IF
          ! Allocate polarisation pade
@@ -1478,19 +1449,16 @@ CONTAINS
                      rtc%print_pol_elements(k, 1), &
                      rtc%print_pol_elements(k, 2)
                END DO
-               headers_p => headers
-               real_1d_p => omegas_pade_real
-               complex_2d_p_res => pol_results_pade
                ! Write header
                IF (info_unit == ft_unit) THEN
                   headers(1) = "#        Energy [eV]"
                   prefix = " POLARIZABILITY_PADE|"
                   prefix_format = "(A21)"
-                  CALL print_ft_file(ft_unit, headers_p, real_1d_p, complex_2d_p_res, &
+                  CALL print_ft_file(ft_unit, headers, omegas_pade_real, pol_results_pade, &
                                      prefix, prefix_format, evolt)
                ELSE
                   headers(1) = "#      omega [at.u.]"
-                  CALL print_ft_file(ft_unit, headers_p, real_1d_p, complex_2d_p_res)
+                  CALL print_ft_file(ft_unit, headers, omegas_pade_real, pol_results_pade)
                END IF
                DEALLOCATE (headers)
             END IF
@@ -1530,12 +1498,12 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE print_ft_file(ft_unit, headers, xvals, yvals, prefix, prefix_format, xscale_opt)
       INTEGER, INTENT(IN)                                :: ft_unit
-      CHARACTER(len=20), DIMENSION(:), POINTER           :: headers
-      REAL(kind=dp), DIMENSION(:), POINTER               :: xvals
-      COMPLEX(kind=dp), DIMENSION(:, :), POINTER         :: yvals
-      CHARACTER(len=21), OPTIONAL                        :: prefix
-      CHARACTER(len=5), OPTIONAL                         :: prefix_format
-      REAL(kind=dp), OPTIONAL                            :: xscale_opt
+      CHARACTER(len=20), DIMENSION(:), INTENT(IN)        :: headers
+      REAL(kind=dp), DIMENSION(:), INTENT(IN)            :: xvals
+      COMPLEX(kind=dp), DIMENSION(:, :), INTENT(IN)      :: yvals
+      CHARACTER(len=21), INTENT(IN), OPTIONAL            :: prefix
+      CHARACTER(len=5), INTENT(IN), OPTIONAL             :: prefix_format
+      REAL(kind=dp), INTENT(IN), OPTIONAL                :: xscale_opt
 
       INTEGER                                            :: i, j, ncols, nrows
       LOGICAL                                            :: do_prefix
