@@ -13,15 +13,20 @@
 MODULE rt_propagation
    USE bibliography,                    ONLY: Andermatt2016,&
                                               cite_reference
+   USE cell_types,                      ONLY: cell_type
    USE cp_control_types,                ONLY: dft_control_type,&
                                               rtp_control_type
    USE cp_dbcsr_api,                    ONLY: dbcsr_copy,&
-                                              dbcsr_p_type
+                                              dbcsr_create,&
+                                              dbcsr_p_type,&
+                                              dbcsr_release,&
+                                              dbcsr_set
    USE cp_external_control,             ONLY: external_control
    USE cp_fm_types,                     ONLY: cp_fm_set_all,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_get_default_io_unit,&
                                               cp_logger_type,&
                                               cp_to_string
    USE cp_output_handling,              ONLY: cp_add_iter_level,&
@@ -51,6 +56,7 @@ MODULE rt_propagation
                                               dp
    USE machine,                         ONLY: m_walltime
    USE md_environment_types,            ONLY: md_environment_type
+   USE moments_utils,                   ONLY: get_reference_point
    USE pw_env_types,                    ONLY: pw_env_type
    USE qs_core_hamiltonian,             ONLY: qs_matrix_h_allocate_imag_from_real
    USE qs_energy_init,                  ONLY: qs_energies_init
@@ -68,6 +74,7 @@ MODULE rt_propagation
    USE qs_mo_types,                     ONLY: get_mo_set,&
                                               init_mo_set,&
                                               mo_set_type
+   USE qs_moments,                      ONLY: build_local_moment_matrix
    USE qs_rho_methods,                  ONLY: allocate_rho_ao_imag_from_real
    USE qs_rho_types,                    ONLY: qs_rho_set,&
                                               qs_rho_type
@@ -75,7 +82,10 @@ MODULE rt_propagation
    USE rt_hfx_utils,                    ONLY: rtp_hfx_rebuild
    USE rt_projection_mo_utils,          ONLY: init_mo_projection
    USE rt_propagation_methods,          ONLY: propagation_step
-   USE rt_propagation_output,           ONLY: rt_prop_output
+   USE rt_propagation_output,           ONLY: calc_local_moment,&
+                                              print_ft,&
+                                              print_moments,&
+                                              rt_prop_output
    USE rt_propagation_types,            ONLY: get_rtp,&
                                               rt_prop_create,&
                                               rt_prop_type,&
@@ -85,6 +95,8 @@ MODULE rt_propagation
                                               calc_update_rho,&
                                               calc_update_rho_sparse,&
                                               get_restart_wfn,&
+                                              read_moments,&
+                                              recalculate_fields,&
                                               warn_section_unused
    USE rt_propagation_velocity_gauge,   ONLY: velocity_gauge_ks_matrix
    USE rt_propagator_init,              ONLY: init_propagators,&
@@ -119,10 +131,8 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(rt_prop_type), POINTER                        :: rtp
       TYPE(rtp_control_type), POINTER                    :: rtp_control
-      TYPE(section_vals_type), POINTER                   :: hfx_sections, input, ls_scf_section, &
-                                                            md_section, motion_section, &
-                                                            print_moments_section, &
-                                                            rtp_print_section
+      TYPE(section_vals_type), POINTER :: hfx_sections, input, ls_scf_section, md_section, &
+         motion_section, print_moments_section, rtp_print_section, rtp_section
 
       NULLIFY (qs_env, rtp_control, dft_control)
 
@@ -146,6 +156,7 @@ CONTAINS
       motion_section => section_vals_get_subs_vals(force_env%root_section, "MOTION")
       md_section => section_vals_get_subs_vals(motion_section, "MD")
       hfx_sections => section_vals_get_subs_vals(force_env%root_section, "FORCE_EVAL%DFT%XC%HF")
+      rtp_section => section_vals_get_subs_vals(force_env%root_section, "FORCE_EVAL%DFT%REAL_TIME_PROPAGATION")
       print_moments_section => section_vals_get_subs_vals(force_env%root_section, "FORCE_EVAL%DFT%PRINT%MOMENTS")
       CALL section_vals_val_get(md_section, "TIMESTEP", r_val=qs_env%rtp%dt)
       CALL section_vals_val_get(md_section, "STEP_START_VAL", i_val=qs_env%rtp%i_start)
@@ -170,19 +181,14 @@ CONTAINS
 
       ! Marek : In case some print sections that apply so far only to RTBSE are present,
       !         warn the user that the quantities will not be in fact printed out
-      rtp_print_section => section_vals_get_subs_vals(force_env%root_section, &
-                                                      "FORCE_EVAL%DFT%REAL_TIME_PROPAGATION%PRINT")
-      CALL warn_section_unused(rtp_print_section, "POLARIZABILITY", &
-                               "POLARIZABILITY printing not implemented for non-RTBSE code.")
-      CALL warn_section_unused(rtp_print_section, "MOMENTS", &
-                               "MOMENTS not implemented: Use DFT%PRINT%MOMENTS for moments printing with TDDFT.")
-      CALL warn_section_unused(rtp_print_section, "MOMENTS_FT", &
-                               "MOMENTS_FT printing not implemented for non-RTBSE code.")
+      rtp_print_section => section_vals_get_subs_vals(rtp_section, "PRINT")
       CALL warn_section_unused(rtp_print_section, "DENSITY_MATRIX", &
                                "DENSITY_MATRIX printing not implemented for non-RTBSE code.")
 
       CALL rt_init_complex_quantities(qs_env, imag_p=rtp%track_imag_density, &
                                       imag_ks=rtp%propagate_complex_ks, imag_h=rtp_control%velocity_gauge)
+
+      IF (rtp_control%save_local_moments) CALL rt_init_local_moments(rtp, qs_env)
 
       ! Hmm, not really like to initialize with the structure of S but I reckon it is
       ! done everywhere like this
@@ -207,6 +213,13 @@ CONTAINS
          rtp_control%initial_step = .FALSE.
          rtp%energy_old = energy%total
       END IF
+
+      IF (rtp_control%save_local_moments) THEN
+         ! Call routines for outputs and deallocations of FT observables
+         CALL final_ft_output(qs_env)
+      END IF
+
+      IF (ASSOCIATED(rtp_control%print_pol_elements)) DEALLOCATE (rtp_control%print_pol_elements)
 
    END SUBROUTINE rt_prop_setup
 
@@ -318,16 +331,17 @@ CONTAINS
 
       INTEGER                                            :: aspc_order, handle, i_iter, i_step, &
                                                             max_iter, max_steps, output_unit
-      LOGICAL                                            :: should_stop
+      LOGICAL                                            :: moments_read, should_stop
       REAL(Kind=dp)                                      :: eps_ener, time_iter_start, &
                                                             time_iter_stop, used_time
       TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_new
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(rt_prop_type), POINTER                        :: rtp
       TYPE(rtp_control_type), POINTER                    :: rtp_control
-      TYPE(section_vals_type), POINTER                   :: input, rtp_section
+      TYPE(section_vals_type), POINTER                   :: input, moments_section, rtp_section
 
       should_stop = .FALSE.
       CALL timeset(routineN, handle)
@@ -356,6 +370,22 @@ CONTAINS
       rtp_section => section_vals_get_subs_vals(input, "DFT%REAL_TIME_PROPAGATION")
       output_unit = cp_print_key_unit_nr(logger, rtp_section, "PRINT%PROGRAM_RUN_INFO", &
                                          extension=".scfLog")
+      ! Add the zero iteration moments to the moment trace
+      IF (rtp_control%save_local_moments) THEN
+         CALL get_rtp(rtp, rho_new=rho_new)
+         moments_section => section_vals_get_subs_vals(rtp_section, "PRINT%MOMENTS")
+         ! TODO : Conditions on when not to read the files
+         CALL read_moments(moments_section, 0, rtp%i_start, rtp%moments, rtp%times, moments_read)
+         ! Recalculate the field at times in the trace/Read the field from the files
+         CALL recalculate_fields(rtp%fields, rtp%times, 0, rtp%i_start, dft_control)
+         IF (.NOT. moments_read) THEN
+            CALL calc_local_moment(rtp%local_moments, rho_new, rtp%local_moments_work, rtp%moments(:, :, 1))
+            qs_env%sim_time = REAL(rtp%i_start, dp)*rtp%dt
+            rtp%times(1) = qs_env%sim_time
+            CALL print_moments(moments_section, output_unit, rtp%moments(:, :, 1), &
+                               qs_env%sim_time, rtp%track_imag_density)
+         END IF
+      END IF
 
       DO i_step = rtp%i_start + 1, max_steps
          IF (output_unit > 0) THEN
@@ -584,5 +614,100 @@ CONTAINS
       IF (imag_h) CALL qs_matrix_h_allocate_imag_from_real(qs_env)
 
    END SUBROUTINE rt_init_complex_quantities
+
+! **************************************************************************************************
+!> \brief Allocates and fills the local moment matrices (only available for linear scaling)
+!> \param rtp Real time propagtion properties - local moment matrices are stored there
+!> \param qs_env QS environment necessary for moment matrix calculation
+! **************************************************************************************************
+   SUBROUTINE rt_init_local_moments(rtp, qs_env)
+      TYPE(rt_prop_type), POINTER                        :: rtp
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+
+      INTEGER                                            :: k, nspin, output_unit
+      REAL(kind=dp), DIMENSION(3)                        :: reference_point
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, rho_old
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(rtp_control_type), POINTER                    :: rtc
+      TYPE(section_vals_type), POINTER                   :: input, moments_section
+
+      logger => cp_get_default_logger()
+      output_unit = cp_logger_get_default_io_unit(logger)
+
+      CALL get_qs_env(qs_env, dft_control=dft_control, matrix_s=matrix_s, input=input)
+      rtc => dft_control%rtp_control
+      moments_section => section_vals_get_subs_vals(input, &
+                                                    "DFT%REAL_TIME_PROPAGATION%PRINT%MOMENTS")
+
+      ! Construct the local moments matrix - copy from matrix_s structure
+      ! NOTE : construction where blocks are allocated by neighbour lists does not seem to work,
+      ! so doing a copy instead of:
+      !    CALL dbcsr_create(rtp%local_moments(k)%matrix, template=matrix_s(1)%matrix, &
+      !       name="Local moment")
+      !    CALL cp_dbcsr_alloc_block_from_nbl(rtp%local_moments(k)%matrix, sab_all)
+      NULLIFY (rtp%local_moments)
+      ALLOCATE (rtp%local_moments(3))
+      DO k = 1, 3
+         NULLIFY (rtp%local_moments(k)%matrix)
+         ALLOCATE (rtp%local_moments(k)%matrix)
+         CALL dbcsr_create(rtp%local_moments(k)%matrix, template=matrix_s(1)%matrix, name="Local moment")
+         CALL dbcsr_copy(rtp%local_moments(k)%matrix, matrix_s(1)%matrix)
+         CALL dbcsr_set(rtp%local_moments(k)%matrix, 0.0_dp)
+      END DO
+      ! Workspace allocation
+      NULLIFY (rtp%local_moments_work)
+      ALLOCATE (rtp%local_moments_work)
+      CALL dbcsr_create(rtp%local_moments_work, template=rtp%local_moments(1)%matrix, name="tmp")
+      CALL dbcsr_copy(rtp%local_moments_work, rtp%local_moments(1)%matrix)
+
+      CALL get_reference_point(rpoint=reference_point, qs_env=qs_env, &
+                               reference=rtc%moment_trace_ref_type, ref_point=rtc%moment_trace_user_ref_point)
+
+      CALL build_local_moment_matrix(qs_env, rtp%local_moments, 1, reference_point)
+
+      ! Allocate the moments trace and output start moments
+      CALL get_rtp(rtp, rho_old=rho_old)
+      nspin = SIZE(rho_old)/2
+      ALLOCATE (rtp%moments(SIZE(rho_old)/2, 3, rtp%nsteps + 1), source=CMPLX(0.0, 0.0, kind=dp))
+      NULLIFY (rtp%times)
+      ALLOCATE (rtp%times(rtp%nsteps + 1))
+      NULLIFY (rtp%fields)
+      ALLOCATE (rtp%fields(3, rtp%nsteps + 1), source=CMPLX(0.0, 0.0, kind=dp))
+
+   END SUBROUTINE rt_init_local_moments
+
+! **************************************************************************************************
+!> \brief Allocates and fills the local moment matrices (only available for linear scaling)
+!> \param qs_env QS environment necessary for moment matrix calculation
+! **************************************************************************************************
+   SUBROUTINE final_ft_output(qs_env)
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+
+      INTEGER                                            :: k, unit_nr
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(rt_prop_type), POINTER                        :: rtp
+      TYPE(section_vals_type), POINTER                   :: input, rtp_section
+
+      CALL get_qs_env(qs_env, cell=cell, rtp=rtp, input=input, dft_control=dft_control)
+      rtp_section => section_vals_get_subs_vals(input, "DFT%REAL_TIME_PROPAGATION")
+      logger => cp_get_default_logger()
+      unit_nr = cp_logger_get_default_io_unit(logger)
+      CALL print_ft(rtp_section, rtp%moments, rtp%times, rtp%fields, dft_control%rtp_control, &
+                    info_opt=unit_nr, cell=cell)
+      ! Deallocating the local moments matrices and array
+      DO k = 1, 3
+         CALL dbcsr_release(rtp%local_moments(k)%matrix)
+         DEALLOCATE (rtp%local_moments(k)%matrix)
+      END DO
+      DEALLOCATE (rtp%local_moments)
+      CALL dbcsr_release(rtp%local_moments_work)
+      DEALLOCATE (rtp%local_moments_work)
+      DEALLOCATE (rtp%moments)
+      DEALLOCATE (rtp%times)
+      DEALLOCATE (rtp%fields)
+   END SUBROUTINE final_ft_output
 
 END MODULE rt_propagation

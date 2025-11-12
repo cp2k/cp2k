@@ -12,89 +12,57 @@
 ! **************************************************************************************************
 
 MODULE rt_bse
-   USE cp_control_types, ONLY: dft_control_type, &
-                               rtp_control_type
+   USE bibliography, ONLY: Marek2025, &
+                           cite_reference
    USE qs_environment_types, ONLY: get_qs_env, &
                                    qs_environment_type
    USE force_env_types, ONLY: force_env_type
-   USE qs_mo_types, ONLY: mo_set_type, &
-                          init_mo_set
-   USE atomic_kind_types, ONLY: atomic_kind_type
-   USE qs_kind_types, ONLY: qs_kind_type
-   USE particle_types, ONLY: particle_type
-   USE rt_propagation_types, ONLY: get_rtp, &
-                                   rt_prop_type
    USE post_scf_bandstructure_types, ONLY: post_scf_bandstructure_type
    USE cp_fm_types, ONLY: cp_fm_type, &
-                          cp_fm_p_type, &
                           cp_fm_to_fm, &
                           cp_fm_create, &
                           cp_fm_set_all, &
-                          cp_fm_release, &
-                          cp_fm_get_element, &
-                          cp_fm_set_element, &
-                          cp_fm_get_info, &
-                          cp_fm_write_unformatted, &
-                          cp_fm_read_unformatted, &
-                          cp_fm_write_formatted
+                          cp_fm_release
    USE cp_cfm_types, ONLY: cp_cfm_type, &
-                           cp_cfm_p_type, &
                            cp_fm_to_cfm, &
                            cp_cfm_to_cfm, &
                            cp_cfm_to_fm, &
                            cp_cfm_create, &
                            cp_cfm_get_info, &
                            cp_cfm_release
-   USE kinds, ONLY: dp, &
-                    default_path_length
-   USE cp_dbcsr_contrib, ONLY: dbcsr_print
+   USE kinds, ONLY: dp
    USE cp_dbcsr_api, ONLY: dbcsr_p_type, &
                            dbcsr_type, &
-                           dbcsr_has_symmetry, &
-                           dbcsr_desymmetrize, &
                            dbcsr_create, &
                            dbcsr_release, &
                            dbcsr_copy, &
-                           dbcsr_scale, &
                            dbcsr_add, &
                            dbcsr_set, &
                            dbcsr_clear, &
                            dbcsr_iterator_type, &
                            dbcsr_iterator_start, &
                            dbcsr_iterator_stop, &
-                           dbcsr_iterator_blocks_left, &
                            dbcsr_iterator_next_block, &
-                           dbcsr_put_block, &
                            dbcsr_reserve_blocks, &
                            dbcsr_get_num_blocks, &
                            dbcsr_get_block_p, &
                            dbcsr_get_info
-   USE OMP_LIB, ONLY: omp_get_thread_num, &
-                      omp_get_num_threads, &
-                      omp_set_num_threads, &
-                      omp_get_max_threads
    USE dbt_api, ONLY: dbt_clear, &
                       dbt_contract, &
                       dbt_copy_matrix_to_tensor, &
                       dbt_copy_tensor_to_matrix, &
                       dbt_type
    USE libint_2c_3c, ONLY: libint_potential_type
-   USE mp2_ri_2c, ONLY: RI_2c_integral_mat
-   USE qs_tensors, ONLY: neighbor_list_3c_destroy, &
-                         build_2c_integrals, &
+   USE qs_tensors, ONLY: build_2c_integrals, &
                          build_2c_neighbor_lists
    USE qs_neighbor_list_types, ONLY: neighbor_list_set_p_type, &
                                      release_neighbor_list_sets
    USE cp_dbcsr_operations, ONLY: copy_dbcsr_to_fm, &
                                   copy_fm_to_dbcsr, &
-                                  dbcsr_allocate_matrix_set, &
-                                  dbcsr_deallocate_matrix_set, &
                                   cp_dbcsr_sm_fm_multiply
    USE cp_fm_basic_linalg, ONLY: cp_fm_scale, &
                                  cp_fm_invert, &
-                                 cp_fm_trace, &
                                  cp_fm_transpose, &
-                                 cp_fm_norm, &
                                  cp_fm_column_scale, &
                                  cp_fm_scale_and_add
    USE cp_cfm_basic_linalg, ONLY: cp_cfm_scale_and_add, &
@@ -103,45 +71,24 @@ MODULE rt_bse
                                   cp_cfm_norm, &
                                   cp_cfm_trace, &
                                   cp_cfm_column_scale
-   USE cp_fm_diag, ONLY: cp_fm_geeig
    USE cp_cfm_diag, ONLY: cp_cfm_geeig
    USE parallel_gemm_api, ONLY: parallel_gemm
-   USE qs_moments, ONLY: build_local_moment_matrix, &
-                         build_berry_moment_matrix
+   USE qs_moments, ONLY: build_local_moment_matrix
    USE moments_utils, ONLY: get_reference_point
-   USE qs_mo_io, ONLY: read_mo_set_from_restart
-   USE qs_ks_methods, ONLY: qs_ks_build_kohn_sham_matrix
    USE force_env_methods, ONLY: force_env_calc_energy_force
-   USE qs_energy_init, ONLY: qs_energies_init
-   USE qs_energy_utils, ONLY: qs_energies_properties
    USE efield_utils, ONLY: make_field
-   USE rt_propagator_init, ONLY: rt_initialize_rho_from_mos
-   USE rt_propagation_methods, ONLY: s_matrices_create
-   USE gw_large_cell_Gamma, ONLY: compute_3c_integrals
-   USE gw_integrals, ONLY: build_3c_integral_block
-   USE matrix_exp, ONLY: taylor_full_complex
    USE message_passing, ONLY: mp_para_env_type
-   USE input_section_types, ONLY: section_vals_get_subs_vals, &
-                                  section_vals_type
-   USE cell_types, ONLY: cell_type
-   USE input_constants, ONLY: rtp_bse_ham_ks, &
-                              rtp_bse_ham_g0w0, &
-                              use_mom_ref_coac, &
+   USE input_constants, ONLY: rtp_bse_ham_g0w0, &
                               use_mom_ref_zero, &
-                              do_taylor, &
                               do_bch, &
                               do_exact, &
                               use_rt_restart
    USE rt_bse_types, ONLY: rtbse_env_type, &
                            create_rtbse_env, &
                            release_rtbse_env, &
-                           multiply_cfm_fm, &
                            multiply_fm_cfm
    USE rt_bse_io, ONLY: output_moments, &
-                        read_moments, &
                         read_field, &
-                        output_moments_ft, &
-                        output_polarizability, &
                         output_field, &
                         output_mos_contravariant, &
                         read_restart, &
@@ -150,14 +97,13 @@ MODULE rt_bse
                         print_etrs_info_header, &
                         print_etrs_info, &
                         print_rtbse_header_info
-   USE qs_ks_types, ONLY: qs_ks_env_type
-   USE qs_integrate_potential_product, ONLY: integrate_v_rspace
-   USE qs_collocate_density, ONLY: calculate_rho_elec
-   USE cp_files, ONLY: open_file, &
-                       file_exists, &
-                       close_file
-   USE physcon, ONLY: femtoseconds
-   USE mathconstants, ONLY: twopi
+   USE cp_log_handling, ONLY: cp_logger_type, &
+                              cp_get_default_logger
+   USE cp_output_handling, ONLY: cp_add_iter_level, &
+                                 cp_rm_iter_level, &
+                                 cp_iterate
+   USE rt_propagation_output, ONLY: print_ft
+   USE rt_propagation_utils, ONLY: read_moments
 
 #include "../base/base_uses.f90"
 
@@ -200,8 +146,14 @@ CONTAINS
       LOGICAL                                            :: converged
       REAL(kind=dp)                                      :: metric, enum_re, enum_im, &
                                                             idempotence_dev, a_metric_1, a_metric_2
+      TYPE(cp_logger_type), POINTER                      :: logger
 
       CALL timeset(routineN, handle)
+
+      ! Bibliography information
+      CALL cite_reference(Marek2025)
+
+      logger => cp_get_default_logger()
 
       ! Run the initial SCF calculation / read SCF restart information
       CALL force_env_calc_energy_force(force_env, calc_force=.FALSE., consistent_energies=.FALSE.)
@@ -209,8 +161,10 @@ CONTAINS
       ! Allocate all persistant storage and read input that does not need further processing
       CALL create_rtbse_env(rtbse_env, qs_env, force_env)
 
-      IF (rtbse_env%unit_nr > 0) CALL print_rtbse_header_info(rtbse_env)
+      CALL print_rtbse_header_info(rtbse_env)
 
+      ! Initiate iteration level "MD" in order to copy the structure of other RTP codes
+      CALL cp_add_iter_level(logger%iter_info, "MD")
       ! Initialize non-trivial values
       !  - calculates the moment operators
       !  - populates the initial density matrix
@@ -238,7 +192,8 @@ CONTAINS
       END IF
 
       ! ********************** Start the time loop **********************
-      DO i = rtbse_env%sim_start, rtbse_env%sim_nsteps
+      ! NOTE : Time-loop starts at index sim_start = 0, unless restarted or configured otherwise
+      DO i = rtbse_env%sim_start, rtbse_env%sim_nsteps - 1
 
          ! Update the simulation time
          rtbse_env%sim_time = REAL(i, dp)*rtbse_env%sim_dt
@@ -260,6 +215,7 @@ CONTAINS
          END IF
          CALL print_timestep_info(rtbse_env, i, metric, enum_re, k)
          IF (.NOT. converged) CPABORT("ETRS did not converge")
+         CALL cp_iterate(logger%iter_info, iter_nr=i, last=(i == rtbse_env%sim_nsteps))
          DO j = 1, rtbse_env%n_spin
             CALL cp_cfm_to_cfm(rtbse_env%rho_new(j), rtbse_env%rho(j))
          END DO
@@ -274,9 +230,15 @@ CONTAINS
       END DO
       ! ********************** End the time loop **********************
 
+      CALL cp_rm_iter_level(logger%iter_info, "MD")
+
       ! Carry out the FT
-      CALL output_moments_ft(rtbse_env)
-      CALL output_polarizability(rtbse_env)
+      CALL print_ft(rtbse_env%rtp_section, &
+                    rtbse_env%moments_trace, &
+                    rtbse_env%time_trace, &
+                    rtbse_env%field_trace, &
+                    rtbse_env%dft_control%rtp_control, &
+                    info_opt=rtbse_env%unit_nr)
 
       ! Deallocate everything
       CALL release_rtbse_env(rtbse_env)
@@ -296,8 +258,7 @@ CONTAINS
       TYPE(post_scf_bandstructure_type), POINTER   :: bs_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER    :: moments_dbcsr_p
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER    :: matrix_s
-      REAL(kind=dp), DIMENSION(:), POINTER         :: custom_ref_point, &
-                                                      occupations
+      REAL(kind=dp), DIMENSION(:), POINTER         :: occupations
       REAL(kind=dp), DIMENSION(3)                  :: rpoint
       INTEGER                                      :: i, k, handle
 
@@ -320,10 +281,9 @@ CONTAINS
       END DO
       ! Run the moment calculation
       ! check for presence to prevent memory errors
-      NULLIFY (custom_ref_point)
-      ALLOCATE (custom_ref_point(3), source=0.0_dp)
       rpoint(:) = 0.0_dp
-      CALL get_reference_point(rpoint, qs_env=rtbse_env%qs_env, reference=use_mom_ref_coac, ref_point=custom_ref_point)
+      CALL get_reference_point(rpoint, qs_env=rtbse_env%qs_env, &
+                               reference=rtbse_env%moment_ref_type, ref_point=rtbse_env%user_moment_ref_point)
       CALL build_local_moment_matrix(rtbse_env%qs_env, moments_dbcsr_p, 1, rpoint)
       ! Copy to full matrix
       DO k = 1, 3
@@ -331,8 +291,8 @@ CONTAINS
          CALL copy_dbcsr_to_fm(moments_dbcsr_p(k)%matrix, rtbse_env%moments(k))
       END DO
       ! Now, repeat without reference point to get the moments for field
-      CALL get_reference_point(rpoint, qs_env=rtbse_env%qs_env, reference=use_mom_ref_zero, ref_point=custom_ref_point)
-      DEALLOCATE (custom_ref_point)
+      CALL get_reference_point(rpoint, qs_env=rtbse_env%qs_env, &
+                               reference=use_mom_ref_zero)
       CALL build_local_moment_matrix(rtbse_env%qs_env, moments_dbcsr_p, 1, rpoint)
       DO k = 1, 3
          CALL copy_dbcsr_to_fm(moments_dbcsr_p(k)%matrix, rtbse_env%moments_field(k))
@@ -373,7 +333,8 @@ CONTAINS
       ! ****** END INITIAL DENSITY MATRIX CALCULATION
       ! ****** START MOMENTS TRACE LOAD
       ! The moments are only loaded if the consistent save files exist
-      CALL read_moments(rtbse_env)
+      CALL read_moments(rtbse_env%moments_section, rtbse_env%sim_start_orig, &
+                        rtbse_env%sim_start, rtbse_env%moments_trace, rtbse_env%time_trace)
       ! ****** END MOMENTS TRACE LOAD
 
       ! ****** START FIELD TRACE LOAD

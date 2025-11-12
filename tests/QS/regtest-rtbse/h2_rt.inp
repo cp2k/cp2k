@@ -57,6 +57,11 @@
       &PRINT
         &MOMENTS
         &END MOMENTS
+        &RESTART
+          &EACH
+            MD 1
+          &END EACH
+        &END RESTART
       &END PRINT
       &RTBSE
       &END RTBSE

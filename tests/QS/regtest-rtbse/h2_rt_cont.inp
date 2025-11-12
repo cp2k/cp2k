@@ -57,6 +57,10 @@
       &PRINT
         &MOMENTS
         &END MOMENTS
+        &MOMENTS_FT OFF
+        &END MOMENTS_FT
+        &POLARIZABILITY OFF
+        &END POLARIZABILITY
       &END PRINT
       &RTBSE
       &END RTBSE

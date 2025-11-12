@@ -63,7 +63,7 @@ CONTAINS
       TYPE(qs_environment_type), OPTIONAL, POINTER       :: qs_env
       TYPE(fist_environment_type), OPTIONAL, POINTER     :: fist_env
       INTEGER, INTENT(IN)                                :: reference
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: ref_point
+      REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: ref_point
       INTEGER, INTENT(IN), OPTIONAL                      :: ifirst, ilast
 
       INTEGER                                            :: akind, ia, iatom, ikind
@@ -91,6 +91,9 @@ CONTAINS
       do_molecule = .FALSE.
       IF (PRESENT(ifirst) .AND. PRESENT(ilast)) do_molecule = .TRUE.
       IF (PRESENT(drpoint)) drpoint = 0.0_dp
+      IF (reference == use_mom_ref_user .AND. (.NOT. PRESENT(ref_point))) THEN
+         CPABORT("User reference point not supplied!")
+      END IF
       SELECT CASE (reference)
       CASE DEFAULT
          CPABORT("Type of reference point not implemented")

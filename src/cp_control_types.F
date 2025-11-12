@@ -15,7 +15,8 @@ MODULE cp_control_types
    USE eeq_input,                       ONLY: eeq_solver_type
    USE input_constants,                 ONLY: do_full_density,&
                                               rtp_bse_ham_G0W0,&
-                                              rtp_method_tddft
+                                              rtp_method_tddft,&
+                                              use_mom_ref_coac
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp
@@ -120,6 +121,25 @@ MODULE cp_control_types
       LOGICAL                              :: is_proj_mo = .FALSE.
       TYPE(proj_mo_p_type), DIMENSION(:), &
          POINTER                :: proj_mo_list => NULL()
+      ! Switch to turn on moments trace saving
+      LOGICAL                              :: save_local_moments = .FALSE.
+      INTEGER                              :: moment_trace_ref_type = use_mom_ref_coac
+      REAL(dp), DIMENSION(:), POINTER      :: moment_trace_user_ref_point => NULL()
+      REAL(dp)                             :: ft_damping = -1.0_dp
+      REAL(dp)                             :: ft_t0 = 0.0_dp
+      ! Index 1 : number of the element, Index 2 : coordinates
+      ! e.g. if xx and xz elements are to be printed
+      ! print_pol_elements(1,1) = 1
+      ! print_pol_elements(1,2) = 1
+      ! print_pol_elements(2,1) = 1
+      ! print_pol_elements(2,2) = 3
+      INTEGER, DIMENSION(:, :), POINTER    :: print_pol_elements => NULL()
+      LOGICAL                              :: pade_requested = .FALSE.
+      REAL(dp)                             :: pade_e_min = 0.0_dp
+      REAL(dp)                             :: pade_e_step = 0.02_dp
+      REAL(dp)                             :: pade_e_max = 100.0_dp
+      REAL(dp)                             :: pade_fit_e_min = 0.0_dp
+      REAL(dp)                             :: pade_fit_e_max = 300.0_dp
    END TYPE rtp_control_type
 
 ! **************************************************************************************************
