@@ -765,16 +765,16 @@ CONTAINS
       nstates_total = 0
       nspins = SIZE(gs_mos)
 
-      ! Total number of possible excitations for spin-conserving TDDFT
       IF (tddfpt_control%spinflip == no_sf_tddfpt) THEN
+         ! Total number of possible excitations for spin-conserving TDDFT
          DO ispin = 1, nspins
             nstates_total = nstates_total + &
-                            SIZE(gs_mos(ispin)%evals_occ, kind=int_8)* &
+                            gs_mos(ispin)%nmo_active* &
                             SIZE(gs_mos(ispin)%evals_virt, kind=int_8)
          END DO
-         ! Total number of possible excitations for spin-flip TDDFT
       ELSE
-         nstates_total = SIZE(gs_mos(1)%evals_occ, kind=int_8)* &
+         ! Total number of possible excitations for spin-flip TDDFT
+         nstates_total = gs_mos(1)%nmo_active* &
                          SIZE(gs_mos(2)%evals_virt, kind=int_8)
       END IF
    END FUNCTION tddfpt_total_number_of_states
@@ -980,6 +980,7 @@ CONTAINS
       INTEGER :: handle, i, imo_occ, imo_virt, ind, ispin, istate, j, jspin, k, no, nstates, &
          nstates_occ_virt_alpha, nstates_selected, nv, spin1, spin2
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: inds
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: reverse_index
       INTEGER, DIMENSION(maxspins)                       :: nmo, nmo_occ_avail, nmo_occ_selected, &
                                                             nmo_virt_selected
       REAL(kind=dp)                                      :: e_occ
@@ -1107,14 +1108,25 @@ CONTAINS
          WRITE (log_unit, '(1X,79("-"))')
       END IF
 
+      i = MAXVAL(nmo(:))
+      ALLOCATE (reverse_index(i, nspins))
+      reverse_index = 0
+      DO ispin = 1, nspins
+         DO i = 1, SIZE(gs_mos(ispin)%index_active)
+            j = gs_mos(ispin)%index_active(i)
+            reverse_index(j, ispin) = i
+         END DO
+      END DO
+
       DO istate = 1, nstates
-         ! Initial guess vector read from restart file
          IF (ASSOCIATED(evects(1, istate)%matrix_struct)) THEN
+            ! Initial guess vector read from restart file
             IF (log_unit > 0) &
                WRITE (log_unit, '(T7,I8,T28,A19,T60,F14.5)') &
                istate, "***  restarted  ***", evals(istate)*evolt
-            ! New initial guess vector
          ELSE
+            ! New initial guess vector
+            !
             ! Index of excited state - 1
             ind = inds(istate) - 1
 
@@ -1152,17 +1164,22 @@ CONTAINS
                CALL fm_pool_create_fm(fm_pool_ao_mo_active(jspin)%pool, evects(jspin, istate))
                CALL cp_fm_set_all(evects(jspin, istate), 0.0_dp)
 
-               IF (jspin == spin1) &
+               IF (jspin == spin1) THEN
                   ! Half transform excitation vector to ao space:
                   ! evects_mi = c_ma*X_ai
+                  i = reverse_index(imo_occ, spin1)
                   CALL cp_fm_to_fm(gs_mos(spin2)%mos_virt, evects(spin1, istate), &
-                                   ncol=1, source_start=imo_virt, target_start=imo_occ)
+                                   ncol=1, source_start=imo_virt, target_start=i)
+               END IF
             END DO
          END IF
       END DO
 
+      DEALLOCATE (reverse_index)
+
       IF (log_unit > 0) THEN
-         WRITE (log_unit, '(/,T7,A,T50,I24)') 'Number of active states:', tddfpt_total_number_of_states(tddfpt_control, gs_mos)
+         WRITE (log_unit, '(/,T7,A,T50,I24)') 'Number of active states:', &
+            tddfpt_total_number_of_states(tddfpt_control, gs_mos)
          WRITE (log_unit, "(1X,A)") &
             "-------------------------------------------------------------------------------"
       END IF

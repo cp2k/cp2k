@@ -1465,7 +1465,7 @@ CONTAINS
                                                             nspins
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: orblist
       INTEGER, DIMENSION(:), POINTER                     :: mollist
-      LOGICAL                                            :: do_res, ew1, ew2, ew3, ewcut, lms, do_sf
+      LOGICAL                                            :: do_res, do_sf, ew1, ew2, ew3, ewcut, lms
       REAL(KIND=dp)                                      :: eclow, ecup, eint, emo
       REAL(KIND=dp), DIMENSION(:), POINTER               :: rvint
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
@@ -1481,7 +1481,7 @@ CONTAINS
       IF (tddfpt_control%spinflip == no_sf_tddfpt) THEN
          do_sf = .FALSE.
       ELSE
-         do_sf = .TRUE.                                     
+         do_sf = .TRUE.
       END IF
 
       nspins = SIZE(gs_mos)
@@ -1563,6 +1563,10 @@ CONTAINS
          END IF
 
          ! count active orbitals
+         nmo = SUM(orblist)
+         IF (nmo == 0) THEN
+            CPABORT("RSE TDA: no active orbitals selected.")
+         END IF
          DO ispin = 1, nspins
             nmo = SUM(orblist(:, ispin))
             tddfpt_control%nactive(ispin) = nmo
@@ -1576,8 +1580,29 @@ CONTAINS
                END IF
             END DO
          END DO
-
          DEALLOCATE (orblist)
+
+         IF (lms) THEN
+            ! output information
+         ELSE
+            WRITE (iounit, "(1X,A)") 'List of Selected States'
+            IF (nspins == 1) THEN
+               WRITE (iounit, "(A,T67,A)") ' Active State      Orbital', 'Orbital Energy'
+               DO i = 1, gs_mos(1)%nmo_active
+                  io = gs_mos(1)%index_active(i)
+                  WRITE (iounit, "(T8,I6,T21,I6,T61,F20.4)") i, io, gs_mos(1)%evals_occ(io)*evolt
+               END DO
+            ELSE
+               DO ispin = 1, nspins
+                  WRITE (iounit, "(1X,A,I2)") 'Spin ', ispin
+                  WRITE (iounit, "(A,T67,A)") ' Active State      Orbital', 'Orbital Energy'
+                  DO i = 1, gs_mos(ispin)%nmo_active
+                     io = gs_mos(ispin)%index_active(i)
+                     WRITE (iounit, "(T8,I6,T21,I6,T61,F20.4)") i, io, gs_mos(ispin)%evals_occ(io)*evolt
+                  END DO
+               END DO
+            END IF
+         END IF
 
          IF (do_sf) THEN
             CPABORT("Restricted Active Space with spin flip TDA NYA")
