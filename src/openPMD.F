@@ -280,7 +280,7 @@ MODULE openPMD_api
                   IMPORT :: C_PTR
                   TYPE(C_PTR), VALUE :: child
                   TYPE(C_PTR) :: parent
-               END SUBROUTINE
+               END SUBROUTINE openpmd_c_${child_f}$_as_${parent_f}$
             END INTERFACE
 
             CALL openpmd_c_${child_f}$_as_${parent_f}$ (this%c_ptr, res%c_ptr)
@@ -313,7 +313,7 @@ MODULE openPMD_api
 
          res_internal = openpmd_c_series_present(this%c_ptr)
          res = res_internal /= 0
-      END FUNCTION
+      END FUNCTION openpmd_series_present
 
 ! **************************************************************************************************
 !> \brief ...
@@ -330,8 +330,8 @@ MODULE openPMD_api
          CHARACTER(len=*), INTENT(IN), OPTIONAL, TARGET     :: config
          TYPE(openpmd_series_type)                          :: series
 
-         TYPE(c_ptr)                                        :: comm_c = C_NULL_PTR
-         CHARACTER(len=default_string_length), TARGET       :: default_config = "{}"
+         TYPE(c_ptr), SAVE                                  :: comm_c = C_NULL_PTR
+         CHARACTER(len=default_string_length), TARGET, SAVE :: default_config = "{}"
          CHARACTER(:), POINTER                              :: my_config
          INTERFACE
 ! **************************************************************************************************
@@ -345,7 +345,7 @@ MODULE openPMD_api
                import :: c_ptr, mp_comm_type, c_int
                INTEGER(kind=C_INT), VALUE :: comm_f
                TYPE(c_ptr) :: comm_c
-            END SUBROUTINE
+            END SUBROUTINE cp2k_c_mpi_comm_f2c
          END INTERFACE
          INTERFACE
             SUBROUTINE openpmd_c_series_create_mpi(path, access, mpi_comm, config, series) &
@@ -356,7 +356,7 @@ MODULE openPMD_api
                TYPE(C_PTR), value :: mpi_comm
                CHARACTER(kind=C_CHAR), DIMENSION(*) :: config
                TYPE(C_PTR) :: series
-            END SUBROUTINE
+            END SUBROUTINE openpmd_c_series_create_mpi
          END INTERFACE
          INTERFACE
             SUBROUTINE openpmd_c_series_create(path, access, config, series) &
@@ -366,7 +366,7 @@ MODULE openPMD_api
                CHARACTER(kind=C_CHAR), DIMENSION(*) :: path
                INTEGER(kind=C_INT), VALUE :: access
                CHARACTER(kind=C_CHAR), DIMENSION(*) :: config
-            END SUBROUTINE
+            END SUBROUTINE openpmd_c_series_create
          END INTERFACE
 
          IF (PRESENT(config)) THEN
@@ -410,13 +410,13 @@ MODULE openPMD_api
                BIND(C, name="openPMD_Series_close")
                IMPORT :: C_PTR
                TYPE(C_PTR), VALUE :: series
-            END SUBROUTINE
+            END SUBROUTINE openpmd_c_series_close
          END INTERFACE
 
          CPASSERT(C_ASSOCIATED(series%c_ptr))
          CALL openpmd_c_series_close(series=series%c_ptr)
          series%c_ptr = C_NULL_PTR
-      END SUBROUTINE
+      END SUBROUTINE openpmd_series_close
 
 ! **************************************************************************************************
 !> \brief ...
@@ -462,7 +462,7 @@ MODULE openPMD_api
                BIND(c, name="openPMD_get_default_extension")
                IMPORT :: C_CHAR
                CHARACTER(kind=C_CHAR), POINTER :: extension
-            END FUNCTION
+            END FUNCTION openpmd_c_get_default_extension
          END INTERFACE
          INTERFACE
             FUNCTION get_strlen(c_string) RESULT(strlen) &
@@ -495,7 +495,7 @@ MODULE openPMD_api
             extension(i:i) = ' '
          END DO
 
-      END FUNCTION
+      END FUNCTION openpmd_get_default_extension
 
 ! **************************************************************************************************
 !> \brief ...
@@ -517,19 +517,19 @@ MODULE openPMD_api
                CHARACTER(kind=C_CHAR), DIMENSION(*) :: name
                TYPE(C_PTR), VALUE :: vec
                INTEGER(kind=C_INT), VALUE :: length
-            END SUBROUTINE
+            END SUBROUTINE openpmd_c_attributable_set_attribute_vec_int
          END INTERFACE
 
          size_ = SIZE(vec)
          CALL openpmd_c_attributable_set_attribute_vec_int( &
             this%c_ptr, name//C_NULL_CHAR, C_LOC(vec(1)), size_)
 
-      END SUBROUTINE
+      END SUBROUTINE openpmd_attributable_set_attribute_vec_int
 
       SUBROUTINE openpmd_attributable_series_flush(this, backendconfig)
-         CLASS(openpmd_attributable_type)                    :: this
+         CLASS(openpmd_attributable_type)                   :: this
          CHARACTER(len=*), INTENT(IN), OPTIONAL             :: backendconfig
-         CHARACTER(len=default_string_length)               :: my_backendconfig = ""
+         CHARACTER(len=default_string_length), SAVE         :: my_backendconfig = ""
 
          INTERFACE
             SUBROUTINE openpmd_c_attributable_series_flush(attributable, config) &
@@ -537,7 +537,7 @@ MODULE openPMD_api
                IMPORT :: C_CHAR, C_SIZE_T, C_INT, C_PTR
                TYPE(C_PTR), VALUE :: attributable
                CHARACTER(kind=C_CHAR), DIMENSION(*) :: config
-            END SUBROUTINE
+            END SUBROUTINE openpmd_c_attributable_series_flush
          END INTERFACE
 
          IF (PRESENT(backendconfig)) my_backendconfig = backendconfig
@@ -550,7 +550,7 @@ MODULE openPMD_api
          CHARACTER(:), ALLOCATABLE                          :: merged
          CHARACTER(kind=C_CHAR), POINTER                    :: c_merged
          INTEGER(C_SIZE_T)                                  :: length_of_c_string
-         TYPE(c_ptr)                                        :: comm_c = C_NULL_PTR
+         TYPE(c_ptr), SAVE                                  :: comm_c = C_NULL_PTR
 
          INTERFACE
 ! **************************************************************************************************
@@ -564,7 +564,7 @@ MODULE openPMD_api
                import :: c_ptr, mp_comm_type, c_int
                INTEGER(kind=C_INT), VALUE :: comm_f
                TYPE(c_ptr) :: comm_c
-            END SUBROUTINE
+            END SUBROUTINE cp2k_c_mpi_comm_f2c
          END INTERFACE
          INTERFACE
             FUNCTION openpmd_c_json_merge(into, from, mpi_comm) RESULT(merged) &
@@ -573,7 +573,7 @@ MODULE openPMD_api
                CHARACTER(kind=C_CHAR), DIMENSION(*) :: into, from
                TYPE(C_PTR), value                   :: mpi_comm
                CHARACTER(kind=C_CHAR), POINTER      :: merged
-            END FUNCTION
+            END FUNCTION openpmd_c_json_merge
          END INTERFACE
          INTERFACE
             FUNCTION get_strlen(c_string) RESULT(strlen) &
@@ -588,7 +588,7 @@ MODULE openPMD_api
                BIND(C, NAME="CP2K_free")
                IMPORT :: C_CHAR
                CHARACTER(kind=C_CHAR), DIMENSION(*) :: c_string
-            END SUBROUTINE
+            END SUBROUTINE free
          END INTERFACE
 
          IF (PRESENT(mpi_comm)) THEN
@@ -599,7 +599,7 @@ MODULE openPMD_api
          ALLOCATE (character(length_of_c_string) :: merged)
          merged = TRIM(ADJUSTL(TRANSFER(c_merged(1:length_of_c_string), MERGED)))
          CALL free(c_merged)
-      END FUNCTION
+      END FUNCTION openpmd_json_merge
 
 ! **************************************************************************************************
 !> \brief ...
@@ -729,7 +729,7 @@ MODULE openPMD_api
                TYPE(C_PTR), VALUE :: mesh
                TYPE(C_PTR), VALUE :: labels
                INTEGER(kind=C_INT), VALUE :: len_labels, invert
-            END SUBROUTINE
+            END SUBROUTINE openpmd_c_mesh_set_axis_labels
          END INTERFACE
 
          ALLOCATE (labels_as_null_terminated_strings(SIZE(labels)))
@@ -744,15 +744,15 @@ MODULE openPMD_api
 
          DEALLOCATE (labels_as_c_strings)
          DEALLOCATE (labels_as_null_terminated_strings)
-      END SUBROUTINE
+      END SUBROUTINE openpmd_mesh_set_axis_labels
 
       SUBROUTINE openpmd_record_component_reset_dataset(this, dtype, extent, cfg)
-         CLASS(openpmd_record_component_type)                :: this
+         CLASS(openpmd_record_component_type)               :: this
          INTEGER(kind=C_INT)                                :: dtype
          INTEGER, DIMENSION(:), TARGET                      :: extent
          CHARACTER(len=*), OPTIONAL :: cfg
 
-         CHARACTER(len=default_string_length) :: my_config = "{}"
+         CHARACTER(len=default_string_length), SAVE         :: my_config = "{}"
          INTEGER(kind=C_INT)                                :: status
          INTERFACE
             FUNCTION openpmd_c_record_component_reset_dataset( &
@@ -765,7 +765,7 @@ MODULE openPMD_api
                TYPE(C_PTR), VALUE :: extent
                CHARACTER(kind=C_CHAR), DIMENSION(*) :: cfg
                INTEGER(KIND=C_INT) :: status
-            END FUNCTION
+            END FUNCTION openpmd_c_record_component_reset_dataset
          END INTERFACE
 
          IF (PRESENT(cfg)) my_config = cfg
@@ -862,7 +862,7 @@ MODULE openPMD_api
                      INTEGER(KIND=C_INT), VALUE :: deallocate
                      TYPE(C_PTR) :: write_buffer
                      INTEGER(KIND=C_INT) :: status
-                  END FUNCTION
+                  END FUNCTION openpmd_c_dynamic_memory_view_resolve
                END INTERFACE
 
                IF (deallocate) THEN
@@ -873,7 +873,7 @@ MODULE openPMD_api
 
                status = openpmd_c_dynamic_memory_view_resolve(memory_view%c_ptr, deallocate_c, c_buffer)
                CALL c_f_pointer(c_buffer, buffer, memory_view%chunk_extent)
-            END FUNCTION
+            END FUNCTION openpmd_dynamic_memory_view_resolve_${dim}$d_${type_enum}$
          #:endfor
       #:endfor
 
@@ -950,13 +950,13 @@ MODULE openPMD_api
                TYPE(C_PTR), VALUE :: mesh
                TYPE(C_PTR), VALUE :: vec
                INTEGER(kind=C_INT), VALUE :: length, invert
-            END SUBROUTINE
+            END SUBROUTINE openpmd_c_set_vector_attribute
          END INTERFACE
 
          size_ = SIZE(vec)
          CALL openpmd_c_set_vector_attribute(this%c_ptr, C_LOC(vec(1)), size_, 1)
 
-         END SUBROUTINE
+         END SUBROUTINE ${f_routine}$
          #:endfor
 
 #endif

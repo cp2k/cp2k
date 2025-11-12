@@ -77,7 +77,7 @@ MODULE cp_output_handling_openpmd
       ! TYPE(openpmd_mesh_type) :: mesh
       ! TYPE(openpmd_particle_species_type) :: particle_species
       CHARACTER(len=default_string_length) :: name_prefix ! e.g. 'WFN_00008_1'
-   END TYPE
+   END TYPE cp_openpmd_per_call_value_type
 
    TYPE :: cp_openpmd_per_call_type
       INTEGER :: key ! unit_nr
@@ -120,7 +120,7 @@ MODULE cp_output_handling_openpmd
    ! This stores the actual output Series (which stays open across calls from the
    ! same callsite) and the Iteration counter (which associates complex CP2k
    ! Iterations with flattened scalar Iteration indexes in the openPMD output).
-   TYPE(cp_openpmd_per_callsite_type), ALLOCATABLE :: cp_openpmd_per_callsite(:)
+   TYPE(cp_openpmd_per_callsite_type), ALLOCATABLE, TARGET :: cp_openpmd_per_callsite(:)
    INTEGER :: cp_num_openpmd_per_callsite = 0
    INTEGER :: cp_capacity_openpmd_per_callsite = 0
 
@@ -155,8 +155,9 @@ MODULE cp_output_handling_openpmd
                                   "# Save memory by specifying 'disk' here instead."//new_line('a')// &
                                   "# TODO: In future, maybe implement some input variable"//new_line('a')// &
                                   "#       to specify intervals at which to flush to disk."//new_line('a')// &
-                                  "preferred_flush_target = 'buffer'"//new_line('a')// &
+                                  "preferred_flush_target = 'buffer'"//new_line('a')
 #ifndef _WIN32
+   CHARACTER(len=*), PARAMETER :: cp_default_backend_config_non_windows = &
                                   "# Raise the BufferChunkSize to the maximum (2GB), since large operations"//new_line('a')// &
                                   "# improve IO performance and the allocation overhead only cuts into"//new_line('a')// &
                                   "# virtual memory (except on Windows, hence do not do that there)"//new_line('a')// &
@@ -172,7 +173,7 @@ MODULE cp_output_handling_openpmd
 
    TYPE :: cp_openpmd_per_call_value_type
       ! nothing there
-   END TYPE
+   END TYPE cp_openpmd_per_call_value_type
 
 #endif
 
@@ -408,25 +409,26 @@ CONTAINS
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_openpmd_per_call_value_type)               :: res
 
-      LOGICAL                                            :: opened_new_iteration = .FALSE.
+      LOGICAL, SAVE                                      :: opened_new_iteration = .FALSE.
       TYPE(openpmd_attributable_type)                    :: attr
+      TYPE(cp_openpmd_per_callsite_value_type), POINTER  :: opmd
 
-      #:set opmd = 'cp_openpmd_per_callsite(openpmd_file_index)%value'
+      opmd => cp_openpmd_per_callsite(openpmd_file_index)%value
 
-      res%series = ${opmd}$%output_series
+      res%series = opmd%output_series
 
-      opened_new_iteration = cp_advance_iteration_number(logger, ${opmd}$)
+      opened_new_iteration = cp_advance_iteration_number(logger, opmd)
 
-      res%iteration = ${opmd}$%output_series%write_iteration(${opmd}$%iteration_counter%flat_iteration)
+      res%iteration = opmd%output_series%write_iteration(opmd%iteration_counter%flat_iteration)
       res%name_prefix = TRIM(middle_name)
 
       IF (opened_new_iteration) THEN
          attr = res%iteration%as_attributable()
          CALL attr%set_attribute_vec_int( &
             "ndim_iteration_index", &
-            ${opmd}$%iteration_counter%complex_iteration)
+            opmd%iteration_counter%complex_iteration)
       END IF
-   END FUNCTION
+   END FUNCTION cp_openpmd_create_unit_nr_entry
 
 ! **************************************************************************************************
 !> \brief Check if there is already an output Series created for the callsite identified
@@ -439,7 +441,7 @@ CONTAINS
       INTEGER                                  :: file_index
       CHARACTER(:), ALLOCATABLE                :: merged_config
 
-      CHARACTER(len=default_string_length)     :: basename_copied = ' '
+      CHARACTER(len=default_string_length), SAVE :: basename_copied = ' '
       TYPE(cp_openpmd_per_callsite_value_type) :: emplace_new
 
       basename_copied(1:LEN_TRIM(openpmd_basename)) = TRIM(openpmd_basename)
@@ -447,18 +449,23 @@ CONTAINS
       file_index = cp_openpmd_get_index_filedata(basename_copied)
       IF (file_index /= -1) RETURN
 
+#ifndef _WIN32
+      merged_config = openpmd_json_merge(cp_default_backend_config, cp_default_backend_config_non_windows)
+#else
+      merged_config = cp_default_backend_config
+#endif
       IF (use_mpi) THEN
-         merged_config = openpmd_json_merge(cp_default_backend_config, openpmd_config, logger%para_env)
+         merged_config = openpmd_json_merge(merged_config, openpmd_config, logger%para_env)
          emplace_new%output_series = openpmd_series_create( &
                                      filename, openpmd_access_create, logger%para_env, merged_config)
       ELSE
-         merged_config = openpmd_json_merge(cp_default_backend_config, openpmd_config)
+         merged_config = openpmd_json_merge(merged_config, openpmd_config)
          emplace_new%output_series = openpmd_series_create( &
                                      filename, openpmd_access_create, config=merged_config)
       END IF
       DEALLOCATE (merged_config)
       file_index = cp_openpmd_add_filedata(basename_copied, emplace_new)
-   END FUNCTION
+   END FUNCTION cp_openpmd_get_openpmd_file_entry
 
 #else ! defined(__OPENPMD)
 
@@ -688,6 +695,6 @@ CONTAINS
       extension = ".bp5"
 #endif
 
-   END FUNCTION
+   END FUNCTION cp_openpmd_get_default_extension
 
 END MODULE cp_output_handling_openpmd
