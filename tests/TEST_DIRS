@@ -105,6 +105,7 @@ QS/regtest-mp2-grad-1                                       libint libvori !ifx
 QS/regtest-nmr-uks-1
 QS/regtest-libxc                                            libxc libint !ifx
 QS/regtest-debug-1
+QS/regtest-tddfpt-rse-1                                     libint libxc !ifx
 QS/regtest-tddfpt-stda                                      libint !ifx
 QS/regtest-tddfpt-static                                    libint !ifx
 QS/regtest-scalable-gw                                      libint !ifx
