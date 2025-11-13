@@ -130,8 +130,9 @@ CONTAINS
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: dip_block, mu_i0
       REAL(dp), ALLOCATABLE, DIMENSION(:, :, :)          :: mu_if
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_fm_struct_type), POINTER :: core_evect_struct, dip_0_struct, dip_f_struct, &
-         evects_struct, gs_coeff_struct, i_dip_0_struct, i_dip_f_struct
+      TYPE(cp_fm_struct_type), POINTER                   :: core_evect_struct, dip_0_struct, &
+                                                            dip_f_struct, gs_coeff_struct, &
+                                                            i_dip_0_struct, i_dip_f_struct
       TYPE(cp_fm_type)                                   :: dip_0
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: core_evects, dip_f, i_dip_0, i_dip_f, &
                                                             state_gs_coeffs
@@ -152,7 +153,7 @@ CONTAINS
       NULLIFY (para_env, blacs_env)
       NULLIFY (local_gs_coeffs, mo_coeffs, valence_evects)
       NULLIFY (dipmat, dip_0_struct, i_dip_0_struct, dip_f_struct, i_dip_f_struct, &
-               core_evect_struct, gs_coeff_struct, evects_struct)
+               core_evect_struct, gs_coeff_struct)
 
       output_unit = cp_logger_get_default_io_unit()
 
@@ -246,8 +247,6 @@ CONTAINS
                                   nrow_global=nao, ncol_global=nvirt)
          CALL cp_fm_struct_create(gs_coeff_struct, para_env=para_env, context=blacs_env, &
                                   nrow_global=nao, ncol_global=1)
-         CALL cp_fm_struct_create(evects_struct, para_env=para_env, context=blacs_env, &
-                                  nrow_global=nocc_max, ncol_global=1)
 
          ! looping over ex_atoms and ex_kinds is enough as excited atoms have to be unique
          current_state_index = 1
@@ -393,7 +392,6 @@ CONTAINS
          ! cleanup
          CALL cp_fm_struct_release(core_evect_struct)
          CALL cp_fm_struct_release(gs_coeff_struct)
-         CALL cp_fm_struct_release(evects_struct)
 
       END IF
 
@@ -402,7 +400,7 @@ CONTAINS
       CALL rixs_env_release(rixs_env)
       NULLIFY (valence_state, core_state)
 
-      CALL timestop(handle) ! TODO: timestart is inside if, will break when false
+      CALL timestop(handle)
 
    END SUBROUTINE rixs_core
 
