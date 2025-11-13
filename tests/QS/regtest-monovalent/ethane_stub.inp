@@ -1,0 +1,80 @@
+&GLOBAL
+   Run_Type Energy_Force
+   Print_Level Medium
+&end
+
+&FORCE_EVAL
+  Method QS
+ &DFT
+    Basis_Set_File_Name BASIS_MOLOPT
+    Potential_File_Name POTENTIAL
+    Charge 0
+    Multiplicity 0
+    &Poisson
+      Poisson_Solver Periodic
+      Periodic       XYZ
+    &end
+
+    &QS
+      EPS_Default 1.0e-12
+    &end
+
+    &mGrid
+      Cutoff 160
+      Rel_Cutoff 20
+    &end
+
+    &SCF
+      SCF_Guess Restart
+      Max_SCF 100
+      EPS_SCF 1.0e-6
+      &OT
+        Preconditioner Full_All
+        Minimizer      DIIS
+      &end
+      &Outer_SCF
+        EPS_SCF 1.0e-6
+        Max_SCF 100
+      &end
+    &end
+
+    &XC
+      &XC_Functional BLYP
+      &end
+    &end
+  &end
+
+  &SUBSYS
+    &Cell
+      ABC 10.0 10.0 10.0
+      Alpha_Beta_Gamma 90.0 90.0 90.0
+      Periodic XYZ
+    &end
+
+    &Coord
+    Unit Bohr
+      C 10.61063379 8.01580946 9.28344333
+      H 12.04610745 7.79825476 7.80170540
+      H 11.65789915 8.41402953 11.03304613
+      H 9.52040174 6.26896944 9.51997466
+      X 8.89362498 10.22534512 8.71113603
+    &end
+
+    &Kind C
+      Basis_Set DZVP-MOLOPT-GTH
+      Potential GTH-BLYP-q4
+    &end
+    
+    &Kind H
+      Basis_Set DZVP-MOLOPT-GTH
+      Potential GTH-BLYP-q1
+    &end
+
+    &Kind X
+      Element C
+      Basis_Set DZVP-MOLOPT-GTH
+      Potential GTH-BLYP-q4
+      Monovalent      
+    &end
+  &end
+&end
