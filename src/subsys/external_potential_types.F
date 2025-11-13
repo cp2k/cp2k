@@ -811,7 +811,7 @@ CONTAINS
       IF (PRESENT(alpha_nlcc)) alpha_nlcc => potential%alpha_nlcc
       IF (PRESENT(nct_nlcc)) nct_nlcc => potential%nct_nlcc
       IF (PRESENT(cval_nlcc)) cval_nlcc => potential%cval_nlcc
-                                
+
       IF (PRESENT(monovalent)) monovalent = potential%monovalent
 
    END SUBROUTINE get_gth_potential

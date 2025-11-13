@@ -513,8 +513,9 @@ CONTAINS
                                                             eps_u_ramping
       LOGICAL, OPTIONAL                                  :: init_u_ramping_each_scf
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: reltmat
-      LOGICAL, OPTIONAL                                  :: ghost, floating
+      LOGICAL, OPTIONAL                                  :: ghost
       LOGICAL, INTENT(OUT), OPTIONAL                     :: monovalent
+      LOGICAL, OPTIONAL                                  :: floating
       CHARACTER(LEN=default_string_length), &
          INTENT(OUT), OPTIONAL                           :: name
       CHARACTER(LEN=2), INTENT(OUT), OPTIONAL            :: element_symbol
@@ -1964,7 +1965,7 @@ CONTAINS
          CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
                                    keyword_name="MAO", i_val=qs_kind%mao)
 
-         ! Use monovalent pseudopotential 
+         ! Use monovalent pseudopotential
          CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
                                    keyword_name="MONOVALENT", l_val=qs_kind%monovalent)
          IF (qs_kind%monovalent .AND. TRIM(potential_type) /= 'GTH') THEN
