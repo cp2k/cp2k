@@ -182,10 +182,10 @@ CONTAINS
       do_sc = rixs_control%xas_tdp_control%do_spin_cons
 
       IF (rixs_control%xas_tdp_control%check_only) THEN
-         CPWARN("CHECK_ONLY run for XAS_TDP requested, RIXS will not be performed.")
+         CPWARN("CHECK_ONLY run for XAS_TDP requested, RIXS and TDDFPT will not be performed.")
       ELSE
 
-         ! then, tddfpt2 calculation
+         ! then, tddfpt calculation
          CALL tddfpt(qs_env, calc_forces=.FALSE., rixs_env=rixs_env)
 
          IF (output_unit > 0) THEN
@@ -239,47 +239,23 @@ CONTAINS
 
          nex_atoms = core_state%nex_atoms
          nstates = valence_state%nstates
-
          dipmat => core_state%dipmat
 
          ALLOCATE (core_evects(nspins), state_gs_coeffs(nspins))
-
          nvirt = core_state%nvirt
          ALLOCATE (dip_block(1, nspins), mu_i0(4, nvirt), mu_if(4, nvirt, nstates), w_i0(nvirt), w_if(nstates))
          mu_i0 = 0.0_dp
          mu_if = 0.0_dp
          w_if(:) = valence_state%evals(:)*evolt
-
-         ! initialise matrices for i->0
-         CALL cp_fm_struct_create(dip_0_struct, para_env=para_env, context=blacs_env, &
-                                  nrow_global=nao, ncol_global=1)
-         CALL cp_fm_create(dip_0, dip_0_struct)
-         CALL cp_fm_struct_create(i_dip_0_struct, para_env=para_env, context=blacs_env, &
-                                  nrow_global=nvirt, ncol_global=1)
          ALLOCATE (i_dip_0(nspins))
-         DO ispin = 1, nspins
-            CALL cp_fm_create(i_dip_0(ispin), i_dip_0_struct)
-         END DO
-
-         ! initialise matrices for i->f
          ALLOCATE (dip_f(nspins), i_dip_f(nspins))
-         DO ispin = 1, nspins
-            CALL cp_fm_struct_create(dip_f_struct, para_env=para_env, context=blacs_env, &
-                                     nrow_global=nao, ncol_global=nocc(ispin))
-            CALL cp_fm_struct_create(i_dip_f_struct, para_env=para_env, context=blacs_env, &
-                                     nrow_global=nvirt, ncol_global=nocc(ispin))
-            CALL cp_fm_create(dip_f(ispin), dip_f_struct)
-            CALL cp_fm_create(i_dip_f(ispin), i_dip_f_struct)
-            CALL cp_fm_struct_release(i_dip_f_struct)
-            CALL cp_fm_struct_release(dip_f_struct)
-         END DO
 
          CALL cp_fm_struct_create(core_evect_struct, para_env=para_env, context=blacs_env, &
-                                    nrow_global=nao, ncol_global=nvirt)
+                                  nrow_global=nao, ncol_global=nvirt)
          CALL cp_fm_struct_create(gs_coeff_struct, para_env=para_env, context=blacs_env, &
-                                    nrow_global=nao, ncol_global=1)
+                                  nrow_global=nao, ncol_global=1)
          CALL cp_fm_struct_create(evects_struct, para_env=para_env, context=blacs_env, &
-                                    nrow_global=nocc_max, ncol_global=1)
+                                  nrow_global=nocc_max, ncol_global=1)
 
          ! looping over ex_atoms and ex_kinds is enough as excited atoms have to be unique
          current_state_index = 1
@@ -291,8 +267,6 @@ CONTAINS
                   core_state%state_type_char(current_state%state_type), " of ", TRIM(current_state%at_symbol), &
                   " with index ", current_state%kind_index
             END IF
-
-            ! core_evects => current_state%sg_coeffs
 
             IF (do_sg) THEN ! singlet
                target_ex_coeffs => current_state%sg_coeffs
@@ -318,6 +292,28 @@ CONTAINS
                   CALL cp_fm_to_fm_submat(msource=current_state%gs_coeffs, mtarget=state_gs_coeffs(ispin), s_firstrow=1, &
                                           s_firstcol=ispin, t_firstrow=1, t_firstcol=1, nrow=nao, ncol=1)
                END IF
+            END DO
+
+            ! initialise matrices for i->0
+            CALL cp_fm_struct_create(dip_0_struct, para_env=para_env, context=blacs_env, &
+                                     nrow_global=nao, ncol_global=1)
+            CALL cp_fm_create(dip_0, dip_0_struct)
+            CALL cp_fm_struct_create(i_dip_0_struct, para_env=para_env, context=blacs_env, &
+                                     nrow_global=nvirt, ncol_global=1)
+            DO ispin = 1, nspins
+               CALL cp_fm_create(i_dip_0(ispin), i_dip_0_struct)
+            END DO
+
+            ! initialise matrices for i->f
+            DO ispin = 1, nspins
+               CALL cp_fm_struct_create(dip_f_struct, para_env=para_env, context=blacs_env, &
+                                        nrow_global=nao, ncol_global=nocc(ispin))
+               CALL cp_fm_struct_create(i_dip_f_struct, para_env=para_env, context=blacs_env, &
+                                        nrow_global=nvirt, ncol_global=nocc(ispin))
+               CALL cp_fm_create(dip_f(ispin), dip_f_struct)
+               CALL cp_fm_create(i_dip_f(ispin), i_dip_f_struct)
+               CALL cp_fm_struct_release(i_dip_f_struct)
+               CALL cp_fm_struct_release(dip_f_struct)
             END DO
 
             ! 0 -> i
@@ -361,7 +357,6 @@ CONTAINS
                   END DO
 
                   DO istate = 1, nvirt
-
                      DO fstate = 1, nocc_max
                         dip_block = 0.0_dp
                         DO ispin = 1, nspins
@@ -369,15 +364,11 @@ CONTAINS
                               CALL cp_fm_get_submatrix(fm=i_dip_f(ispin), target_m=dip_block, start_row=istate, &
                                                        start_col=fstate, n_rows=1, n_cols=1)
                               mu_if(ax, istate, td_state) = mu_if(ax, istate, td_state) + dip_block(1, 1)
-
                            END IF
                         END DO ! ispin
-
                      END DO ! fstate (tddft)
-
                      mu_xyz = mu_if(ax, istate, td_state)
                      mu_if(4, istate, td_state) = mu_if(4, istate, td_state) + mu_xyz
-
                   END DO ! istate (core)
 
                END DO ! ax
@@ -391,6 +382,7 @@ CONTAINS
 
             current_state_index = current_state_index + 1
 
+            ! cleanup
             DO ispin = 1, nspins
                CALL cp_fm_release(core_evects(ispin))
                CALL cp_fm_release(state_gs_coeffs(ispin))
@@ -398,32 +390,24 @@ CONTAINS
                CALL cp_fm_release(i_dip_f(ispin))
                CALL cp_fm_release(dip_f(ispin))
             END DO
+            CALL cp_fm_struct_release(i_dip_0_struct)
+            CALL cp_fm_struct_release(dip_0_struct)
+            CALL cp_fm_release(dip_0)
+
          END DO ! iatom
 
          NULLIFY (current_state)
 
          ! cleanup
-         CALL cp_fm_struct_release(i_dip_0_struct)
-         CALL cp_fm_struct_release(dip_0_struct)
-         CALL cp_fm_release(dip_0)
-
          CALL cp_fm_struct_release(core_evect_struct)
          CALL cp_fm_struct_release(gs_coeff_struct)
          CALL cp_fm_struct_release(evects_struct)
-         ! DO ispin = 1, nspins
-         !    CALL cp_fm_release(core_evects(ispin))
-         !    CALL cp_fm_release(state_gs_coeffs(ispin))
-         !    CALL cp_fm_release(i_dip_0(ispin))
-         !    CALL cp_fm_release(i_dip_f(ispin))
-         !    CALL cp_fm_release(dip_f(ispin))
-         ! END DO
 
       END IF
 
       ! more cleanup
       CALL rixs_control_release(rixs_control)
       CALL rixs_env_release(rixs_env)
-
       NULLIFY (valence_state, core_state)
 
       CALL timestop(handle) ! TODO: timestart is inside if, will break when false

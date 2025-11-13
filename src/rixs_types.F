@@ -115,7 +115,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE tddfpt2_valence_state_release(valence_state)
       TYPE(tddfpt2_valence_type), POINTER                :: valence_state
-      INTEGER                                            :: i,j
+
+      INTEGER                                            :: i, j
 
       IF (ASSOCIATED(valence_state)) THEN
          IF (ASSOCIATED(valence_state%evects)) THEN
