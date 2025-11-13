@@ -35,7 +35,6 @@ MODULE qs_tddfpt2_eigensolver
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE machine,                         ONLY: m_flush,&
-                                              m_memory,&
                                               m_walltime
    USE memory_utilities,                ONLY: reallocate
    USE message_passing,                 ONLY: mp_para_env_type
@@ -824,7 +823,6 @@ CONTAINS
       INTEGER                                            :: handle, ispin, istate, iter, &
                                                             max_krylov_vects, nspins, nstates, &
                                                             nstates_conv, nvects_exist, nvects_new
-      INTEGER(int_8)                                     :: mem_size
       INTEGER(kind=int_8)                                :: nstates_total
       LOGICAL                                            :: is_nonortho
       REAL(kind=dp)                                      :: t1, t2
@@ -957,8 +955,6 @@ CONTAINS
             CALL m_flush(energy_unit)
          END IF
 
-         CALL m_memory(mem_size)
-
          IF (iter_unit > 0) THEN
             nstates_conv = 0
             DO istate = 1, nstates
@@ -967,10 +963,6 @@ CONTAINS
             END DO
 
             WRITE (iter_unit, '(T7,I8,T24,F7.1,T40,ES11.4,T66,I8)') iter, t2 - t1, conv, nstates_conv
-
-            ! DEBUG: memory usage
-            WRITE (iter_unit, FMT="(/,(T3,A,T60,I21))") "DEBUG| Memory used [MiB]: ", mem_size/(1024*1024)
-
             CALL m_flush(iter_unit)
          END IF
 

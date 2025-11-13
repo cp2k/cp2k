@@ -39,9 +39,7 @@ MODULE rixs_methods
    USE header,                          ONLY: rixs_header
    USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                               section_vals_type
-   USE kinds,                           ONLY: dp,&
-                                              int_8
-   USE machine,                         ONLY: m_memory
+   USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_para_env_type
    USE parallel_gemm_api,               ONLY: parallel_gemm
    USE physcon,                         ONLY: evolt
@@ -125,7 +123,6 @@ CONTAINS
 
       INTEGER :: ax, current_state_index, fstate, handle, iatom, ispin, istate, nao, nex_atoms, &
          nocc_max, nspins, nstates, nvirt, output_unit, td_state
-      INTEGER(int_8)                                     :: mem_size
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nocc
       LOGICAL                                            :: do_sc, do_sg, roks, uks
       REAL(dp)                                           :: mu_xyz
@@ -172,11 +169,6 @@ CONTAINS
 
       ! first, xas_tdp calculation
       CALL xas_tdp(qs_env, rixs_env)
-
-      CALL m_memory(mem_size)
-      IF (output_unit > 0) THEN
-         WRITE (output_unit, FMT="(/,(T3,A,T60,I21))") "Memory used (MiB): ", mem_size/(1024*1024)
-      END IF
 
       do_sg = rixs_control%xas_tdp_control%do_singlet
       do_sc = rixs_control%xas_tdp_control%do_spin_cons
