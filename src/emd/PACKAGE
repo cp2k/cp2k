@@ -11,6 +11,7 @@
         "../fm",
         "../pw",
         "../pw_env",
+        "../pw/fft",
         "../arnoldi",
         "../dbx",
         "../dbt",
