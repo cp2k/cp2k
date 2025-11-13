@@ -1585,22 +1585,24 @@ CONTAINS
          IF (lms) THEN
             ! output information
          ELSE
-            WRITE (iounit, "(1X,A)") 'List of Selected States'
-            IF (nspins == 1) THEN
-               WRITE (iounit, "(A,T67,A)") ' Active State      Orbital', 'Orbital Energy'
-               DO i = 1, gs_mos(1)%nmo_active
-                  io = gs_mos(1)%index_active(i)
-                  WRITE (iounit, "(T8,I6,T21,I6,T61,F20.4)") i, io, gs_mos(1)%evals_occ(io)*evolt
-               END DO
-            ELSE
-               DO ispin = 1, nspins
-                  WRITE (iounit, "(1X,A,I2)") 'Spin ', ispin
+            IF (iounit > 0) THEN
+               WRITE (iounit, "(1X,A)") 'List of Selected States'
+               IF (nspins == 1) THEN
                   WRITE (iounit, "(A,T67,A)") ' Active State      Orbital', 'Orbital Energy'
-                  DO i = 1, gs_mos(ispin)%nmo_active
-                     io = gs_mos(ispin)%index_active(i)
-                     WRITE (iounit, "(T8,I6,T21,I6,T61,F20.4)") i, io, gs_mos(ispin)%evals_occ(io)*evolt
+                  DO i = 1, gs_mos(1)%nmo_active
+                     io = gs_mos(1)%index_active(i)
+                  WRITE (iounit, "(T8,I6,T21,I6,T61,F20.4)") i, io, gs_mos(1)%evals_occ(io)*evolt
                   END DO
-               END DO
+               ELSE
+                  DO ispin = 1, nspins
+                     WRITE (iounit, "(1X,A,I2)") 'Spin ', ispin
+                     WRITE (iounit, "(A,T67,A)") ' Active State      Orbital', 'Orbital Energy'
+                     DO i = 1, gs_mos(ispin)%nmo_active
+                        io = gs_mos(ispin)%index_active(i)
+                        WRITE (iounit, "(T8,I6,T21,I6,T61,F20.4)") i, io, gs_mos(ispin)%evals_occ(io)*evolt
+                     END DO
+                  END DO
+               END IF
             END IF
          END IF
 

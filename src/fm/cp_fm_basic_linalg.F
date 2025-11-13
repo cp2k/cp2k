@@ -351,11 +351,10 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_add_columns'
 
-      INTEGER                                  :: handle, n, ss, ts
+      INTEGER                                  :: handle, n, ss, ts, i
       REAL(KIND=dp)                            :: fscale
       REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, b
 #if defined(__parallel)
-      INTEGER                                  :: i
       INTEGER, DIMENSION(9)                    :: desca, descb
 #endif
 
@@ -376,15 +375,14 @@ CONTAINS
       b => mtarget%local_data
 
 #if defined(__parallel)
+      MARK_USED(i)
       desca(:) = msource%matrix_struct%descriptor(:)
       descb(:) = mtarget%matrix_struct%descriptor(:)
-      DO i = 0, ncol - 1
-         CALL pdaxpy(n, fscale, a, 1, ss, desca, 1, 1, ts, descb, 1)
-      END DO
+      CALL pdgeadd("N", n, ncol, fscale, a, 1, ss, desca, 1.0_dp, b, 1, ts, descb)
 #else
-      IF (ss <= SIZE(a, 2) .AND. ts <= SIZE(b, 2)) THEN
-         CALL daxpy(ncol*n, fscale, a(:, ss), 1, b(:, ts), 1)
-      END IF
+      DO i = 0, ncol - 1
+         b(1:n,ts+i) = b(1:n,ts+i) + fscale * a(1:n, ss+i)
+      END DO
 #endif
 
       CALL timestop(handle)

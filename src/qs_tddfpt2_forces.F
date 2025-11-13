@@ -31,6 +31,7 @@ MODULE qs_tddfpt2_forces
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_add_columns
    USE cp_fm_types,                     ONLY: cp_fm_copy_general,&
                                               cp_fm_create,&
                                               cp_fm_get_info,&
