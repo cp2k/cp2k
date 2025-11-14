@@ -492,7 +492,7 @@ CONTAINS
       INTEGER, DIMENSION(0:lmat)                         :: starti
       INTEGER, DIMENSION(0:lmat, 10)                     :: ncalc, ncore, nelem
       INTEGER, DIMENSION(:), POINTER                     :: econf
-      LOGICAL                                            :: do_basopt, ecp_semi_local
+      LOGICAL                                            :: do_basopt, ecp_semi_local, monovalent
       REAL(KIND=dp)                                      :: al, aval, cc, cval, ear, rk, xx, zeff
       REAL(KIND=dp), DIMENSION(num_gto+2)                :: results
       TYPE(all_potential_type), POINTER                  :: all_potential
@@ -513,7 +513,8 @@ CONTAINS
       CALL get_qs_kind(qs_kind, zeff=zeff, &
                        all_potential=all_potential, &
                        gth_potential=gth_potential, &
-                       sgp_potential=sgp_potential)
+                       sgp_potential=sgp_potential, &
+                       monovalent=monovalent)
 
       IF (PRESENT(iunit)) THEN
          iw = iunit
@@ -656,7 +657,10 @@ CONTAINS
       nelem = 0
       ncore = 0
       ncalc = 0
-      IF (ASSOCIATED(gth_potential)) THEN
+      IF (monovalent) THEN
+         ncalc(0, 1) = 1
+         nelem(0, 1) = 1
+      ELSE IF (ASSOCIATED(gth_potential)) THEN
          CALL get_potential(gth_potential, elec_conf=econf)
          CALL set_pseudo_state(econf, z, ncalc, ncore, nelem)
       ELSE IF (ASSOCIATED(sgp_potential)) THEN

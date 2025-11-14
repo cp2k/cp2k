@@ -203,6 +203,7 @@ MODULE qs_kind_types
       LOGICAL                                :: gpw_type_forced = .FALSE. ! gpw atom even if with hard exponents
       !
       LOGICAL                                :: ghost = .FALSE.
+      LOGICAL                                :: monovalent = .FALSE.
       LOGICAL                                :: floating = .FALSE.
       INTEGER                                :: lmax_dftb = -1
       REAL(KIND=dp)                          :: dudq_dftb3 = 0.0_dp
@@ -437,6 +438,7 @@ CONTAINS
 !> \param init_u_ramping_each_scf ...
 !> \param reltmat ...
 !> \param ghost ...
+!> \param monovalent ...
 !> \param floating ...
 !> \param name ...
 !> \param element_symbol ...
@@ -461,7 +463,7 @@ CONTAINS
                           alpha_of_dft_plus_u, beta_of_dft_plus_u, J0_of_dft_plus_u, occupation_of_dft_plus_u, dispersion, &
                           bs_occupation, magnetization, no_optimize, addel, laddel, naddel, orbitals, &
                           max_scf, eps_scf, smear, u_ramping, u_minus_j_target, eps_u_ramping, &
-                          init_u_ramping_each_scf, reltmat, ghost, floating, name, element_symbol, &
+                          init_u_ramping_each_scf, reltmat, ghost, monovalent, floating, name, element_symbol, &
                           pao_basis_size, pao_model_file, pao_potentials, pao_descriptors, nelec)
 
       TYPE(qs_kind_type)                                 :: qs_kind
@@ -511,7 +513,9 @@ CONTAINS
                                                             eps_u_ramping
       LOGICAL, OPTIONAL                                  :: init_u_ramping_each_scf
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: reltmat
-      LOGICAL, OPTIONAL                                  :: ghost, floating
+      LOGICAL, OPTIONAL                                  :: ghost
+      LOGICAL, INTENT(OUT), OPTIONAL                     :: monovalent
+      LOGICAL, OPTIONAL                                  :: floating
       CHARACTER(LEN=default_string_length), &
          INTENT(OUT), OPTIONAL                           :: name
       CHARACTER(LEN=2), INTENT(OUT), OPTIONAL            :: element_symbol
@@ -702,6 +706,7 @@ CONTAINS
       IF (PRESENT(ngrid_rad)) ngrid_rad = qs_kind%ngrid_rad
       IF (PRESENT(lmax_rho0)) lmax_rho0 = qs_kind%lmax_rho0
       IF (PRESENT(ghost)) ghost = qs_kind%ghost
+      IF (PRESENT(monovalent)) monovalent = qs_kind%monovalent
       IF (PRESENT(floating)) floating = qs_kind%floating
       IF (PRESENT(dft_plus_u_atom)) dft_plus_u_atom = ASSOCIATED(qs_kind%dft_plus_u)
       IF (PRESENT(l_of_dft_plus_u)) THEN
@@ -1960,6 +1965,13 @@ CONTAINS
          CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
                                    keyword_name="MAO", i_val=qs_kind%mao)
 
+         ! Use monovalent pseudopotential
+         CALL section_vals_val_get(kind_section, i_rep_section=k_rep, &
+                                   keyword_name="MONOVALENT", l_val=qs_kind%monovalent)
+         IF (qs_kind%monovalent .AND. TRIM(potential_type) /= 'GTH') THEN
+            CPABORT("Monovalent pseudopotentials currently implemented for GTH only!")
+         END IF
+
          ! Read the BS subsection of the current atomic kind, if enabled
          NULLIFY (bs_section)
          bs_section => section_vals_get_subs_vals(kind_section, "BS", &
@@ -2338,7 +2350,8 @@ CONTAINS
                CALL allocate_potential(qs_kind%gth_potential)
                CALL read_potential(qs_kind%element_symbol, potential_name, &
                                    qs_kind%gth_potential, zeff_correction, para_env, &
-                                   potential_file_name, potential_section, update_input)
+                                   potential_file_name, potential_section, update_input, &
+                                   monovalent=qs_kind%monovalent)
                CALL set_potential(qs_kind%gth_potential, z=z)
                CALL get_qs_kind(qs_kind, elec_conf=elec_conf)
                IF (.NOT. ASSOCIATED(elec_conf)) THEN
@@ -2478,7 +2491,8 @@ CONTAINS
                   CALL allocate_potential(qs_kind%gth_potential)
                   CALL read_potential(qs_kind%element_symbol, potential_name, &
                                       qs_kind%gth_potential, zeff_correction, para_env, &
-                                      potential_file_name, potential_section, update_input)
+                                      potential_file_name, potential_section, update_input, &
+                                      monovalent=qs_kind%monovalent)
                   CALL set_potential(qs_kind%gth_potential, z=z)
                   CALL get_qs_kind(qs_kind, elec_conf=elec_conf)
                   IF (.NOT. ASSOCIATED(elec_conf)) THEN
@@ -3145,6 +3159,10 @@ CONTAINS
                WRITE (UNIT=output_unit, FMT="(/,T6,A)") &
                   "The atoms of this atomic kind are GHOST atoms!"
             END IF
+            IF (qs_kind%monovalent) THEN
+               WRITE (UNIT=output_unit, FMT="(/,T6,A)") &
+                  "The atoms of this atomic kind are MONOVALENT!"
+            END IF
             IF (qs_kind%floating) THEN
                WRITE (UNIT=output_unit, FMT="(/,T6,A)") &
                   "The atoms of this atomic kind are FLOATING BASIS FUNCTIONS."
@@ -3399,7 +3417,7 @@ CONTAINS
       INTEGER                                            :: i, ii, is, l, ll, ne, nn, z
       INTEGER, DIMENSION(:), POINTER                     :: econf
       INTEGER, DIMENSION(:, :), POINTER                  :: addel, laddel, naddel
-      LOGICAL                                            :: bs_occupation
+      LOGICAL                                            :: bs_occupation, monovalent
       REAL(KIND=dp)                                      :: dmag, magnetization
       TYPE(gth_potential_type), POINTER                  :: gth_potential
       TYPE(sgp_potential_type), POINTER                  :: sgp_potential
@@ -3411,6 +3429,7 @@ CONTAINS
                        sgp_potential=sgp_potential, &
                        magnetization=magnetization, &
                        bs_occupation=bs_occupation, &
+                       monovalent=monovalent, &
                        addel=addel, laddel=laddel, naddel=naddel)
 
       ! electronic state
@@ -3418,7 +3437,10 @@ CONTAINS
       ncore = 0
       ncalc = 0
       edelta = 0.0_dp
-      IF (ASSOCIATED(gth_potential)) THEN
+      IF (monovalent) THEN
+         ncalc(0, 1) = 1
+         nelem(0, 1) = 1
+      ELSE IF (ASSOCIATED(gth_potential)) THEN
          CALL get_potential(gth_potential, elec_conf=econf)
          CALL set_pseudo_state(econf, z, ncalc, ncore, nelem)
       ELSE IF (ASSOCIATED(sgp_potential)) THEN

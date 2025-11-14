@@ -1038,7 +1038,7 @@ CONTAINS
 
       CALL section_create(section, __LOCATION__, name="KIND", &
                           description="The description of the kind of the atoms (mostly for QM)", &
-                          n_keywords=19, n_subsections=1, repeats=.TRUE.)
+                          n_keywords=20, n_subsections=1, repeats=.TRUE.)
 
       NULLIFY (keyword)
 
@@ -1299,6 +1299,17 @@ CONTAINS
                           "Useful to just have the basis set at that position (e.g. BSSE calculations), "// &
                           "or to have a non-interacting particle with BASIS_SET NONE", &
                           usage="GHOST", &
+                          default_l_val=.FALSE., &
+                          lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, &
+                          name="MONOVALENT", &
+                          description="This keyword makes all atoms of this kind monovalent, i.e. with "// &
+                          "a single electron and nuclear charge set to 1.0. Used to saturate dangling bonds, "// &
+                          "ideally in conjunction with a monovalent pseudopotential. Currently GTH only.", &
+                          usage="MONOVALENT", &
                           default_l_val=.FALSE., &
                           lone_keyword_l_val=.TRUE.)
       CALL section_add_keyword(section, keyword)
