@@ -328,10 +328,10 @@ CONTAINS
       ! ++ nullify pointers
       NULLIFY (ao_ao_fm_struct, wfn_fm_struct)
       NULLIFY (mos_extended, mo_coeff_extended, mo_evals_extended, mo_occ_extended)
-      CALL cp_fm_struct_create(ao_ao_fm_struct, nrow_global=nao, ncol_global=nao, context=blacs_env)
 
       IF (do_eigen) THEN
          ! ++ set of molecular orbitals
+         CALL cp_fm_struct_create(ao_ao_fm_struct, nrow_global=nao, ncol_global=nao, context=blacs_env)
          CALL cp_fm_struct_create(wfn_fm_struct, nrow_global=nao, ncol_global=nmo_occ + nmo_virt, context=blacs_env)
          ALLOCATE (mos_extended)
          CALL allocate_mo_set(mos_extended, nao, nmo_occ + nmo_virt, nelectrons, &

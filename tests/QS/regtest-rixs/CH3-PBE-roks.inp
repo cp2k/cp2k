@@ -1,0 +1,80 @@
+!Note: TDDFT is not meant to be applied to high spin ground state systems
+&GLOBAL
+  PRINT_LEVEL LOW
+  PROJECT CH3-PBE-roks
+  RUN_TYPE ENERGY
+&END GLOBAL
+
+&FORCE_EVAL
+  &DFT
+    AUTO_BASIS RI_XAS HUGE
+    BASIS_SET_FILE_NAME EMSL_BASIS_SETS
+    MULTIPLICITY 2
+    POTENTIAL_FILE_NAME POTENTIAL
+    ROKS
+    &POISSON
+      PERIODIC NONE
+      PSOLVER MT
+    &END POISSON
+    &QS
+      METHOD GAPW
+    &END QS
+    &XC
+      &XC_FUNCTIONAL PBE
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &PROPERTIES
+    &RIXS
+      &TDDFPT
+        CONVERGENCE [eV] 1.0e-5
+        KERNEL FULL
+        MAX_ITER 100
+        NSTATES 5
+        RESTART T
+      &END TDDFPT
+      &XAS_TDP
+        DIPOLE_FORM LENGTH
+        EXCITATIONS OS_SPIN_CONS
+        GRID C 300 300
+        N_EXCITED 12
+        TAMM_DANCOFF
+        &DONOR_STATES
+          DEFINE_EXCITED BY_KIND
+          KIND_LIST C
+          N_SEARCH 1
+          STATE_TYPES 1s
+        &END DONOR_STATES
+        &KERNEL
+          RI_RADIUS 3.0
+          &XC_FUNCTIONAL PBE
+          &END XC_FUNCTIONAL
+        &END KERNEL
+      &END XAS_TDP
+    &END RIXS
+  &END PROPERTIES
+  &SUBSYS
+    &CELL
+      ABC 5.0 5.0 5.0
+      PERIODIC NONE
+    &END CELL
+    &COORD
+      C   0.1   0.2   0.3
+      H   0.5   0.6   0.7
+      H  -0.5  -0.6  -0.7
+      H   0.5  -0.5   0.5
+    &END COORD
+    &KIND C
+      BASIS_SET 6-31G*
+      POTENTIAL ALL
+    &END KIND
+    &KIND H
+      BASIS_SET 6-31G*
+      POTENTIAL ALL
+    &END KIND
+    &TOPOLOGY
+      &CENTER_COORDINATES
+      &END CENTER_COORDINATES
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL

@@ -5,6 +5,7 @@
 #      for details see cp2k/tools/do_regtest
 "H2O_tddfpt-s-1.inp"                    = [{matcher="M037", tol=4.0E-06, ref=0.600232E+00}]
 "H2O_tddfpt-t-1.inp"                    = [{matcher="M037", tol=4.0E-06, ref=0.289055E+00}]
+"H2Oplus_tddfpt.inp"                    = [{matcher="M037", tol=4.0E-06, ref=0.505543E+00}]
 "NO_tddfpt-s-1.inp"                     = [{matcher="M037", tol=4.0E-06, ref=0.319837E+00}]
 "NO_tddfpt-t-1.inp"                     = [{matcher="M037", tol=2.0E-04, ref=0.324319E+00}]
 "H2O_tddfpt-s-2.inp"                    = [{matcher="M037", tol=4.0E-06, ref=0.543390E+00}]

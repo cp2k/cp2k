@@ -167,6 +167,8 @@ MODULE external_potential_types
       REAL(KIND=dp), DIMENSION(:), POINTER       :: alpha_lpot => NULL()
       INTEGER, DIMENSION(:), POINTER             :: nct_lpot => NULL()
       REAL(KIND=dp), DIMENSION(:, :), POINTER    :: cval_lpot => NULL()
+      ! monovalent pseudopotential
+      LOGICAL                                    :: monovalent = .FALSE.
    END TYPE gth_potential_type
 
    TYPE sgp_potential_type
@@ -708,6 +710,7 @@ CONTAINS
 !> \param alpha_nlcc ...
 !> \param nct_nlcc ...
 !> \param cval_nlcc ...
+!> \param monovalent ...
 !> \date    11.01.2002
 !> \author  MK
 !> \version 1.0
@@ -722,7 +725,8 @@ CONTAINS
                                 cprj_ppnl, vprj_ppnl, wprj_ppnl, hprj_ppnl, kprj_ppnl, &
                                 lpot_present, nexp_lpot, alpha_lpot, nct_lpot, cval_lpot, &
                                 lsd_present, nexp_lsd, alpha_lsd, nct_lsd, cval_lsd, &
-                                nlcc_present, nexp_nlcc, alpha_nlcc, nct_nlcc, cval_nlcc)
+                                nlcc_present, nexp_nlcc, alpha_nlcc, nct_nlcc, cval_nlcc, &
+                                monovalent)
 
       TYPE(gth_potential_type), INTENT(IN)               :: potential
       CHARACTER(LEN=default_string_length), &
@@ -755,6 +759,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: alpha_nlcc
       INTEGER, DIMENSION(:), OPTIONAL, POINTER           :: nct_nlcc
       REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, POINTER  :: cval_nlcc
+      LOGICAL, INTENT(OUT), OPTIONAL                     :: monovalent
 
       IF (PRESENT(name)) name = potential%name
       IF (PRESENT(aliases)) aliases = potential%aliases
@@ -806,6 +811,8 @@ CONTAINS
       IF (PRESENT(alpha_nlcc)) alpha_nlcc => potential%alpha_nlcc
       IF (PRESENT(nct_nlcc)) nct_nlcc => potential%nct_nlcc
       IF (PRESENT(cval_nlcc)) cval_nlcc => potential%cval_nlcc
+
+      IF (PRESENT(monovalent)) monovalent = potential%monovalent
 
    END SUBROUTINE get_gth_potential
 
@@ -1653,6 +1660,7 @@ CONTAINS
 !> \param potential_file_name ...
 !> \param potential_section ...
 !> \param update_input ...
+!> \param monovalent ...
 !> \date    14.05.2000
 !> \par  Literature
 !>         - S. Goedecker, M. Teter and J. Hutter,
@@ -1665,7 +1673,8 @@ CONTAINS
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE read_gth_potential(element_symbol, potential_name, potential, zeff_correction, &
-                                 para_env, potential_file_name, potential_section, update_input)
+                                 para_env, potential_file_name, potential_section, update_input, &
+                                 monovalent)
 
       CHARACTER(LEN=*), INTENT(IN)                       :: element_symbol, potential_name
       TYPE(gth_potential_type), INTENT(INOUT)            :: potential
@@ -1674,6 +1683,7 @@ CONTAINS
       CHARACTER(len=default_path_length), INTENT(IN)     :: potential_file_name
       TYPE(section_vals_type), INTENT(IN), POINTER       :: potential_section
       LOGICAL, INTENT(IN)                                :: update_input
+      LOGICAL, INTENT(IN), OPTIONAL                      :: monovalent
 
       CHARACTER(LEN=240)                                 :: line
       CHARACTER(LEN=242)                                 :: line2
@@ -1702,6 +1712,9 @@ CONTAINS
       CALL cite_reference(Goedecker1996)
       CALL cite_reference(Hartwigsen1998)
       CALL cite_reference(Krack2005)
+
+      potential%monovalent = .FALSE.
+      IF (PRESENT(monovalent)) potential%monovalent = monovalent
 
       potential%name = potential_name
       potential%aliases = potential_name
@@ -1790,10 +1803,14 @@ CONTAINS
                END IF
 
                CALL reallocate(potential%elec_conf, 0, l)
-               potential%elec_conf(:) = elec_conf(:)
+               IF (potential%monovalent) THEN
+                  potential%elec_conf(0) = 1
+               ELSE
+                  potential%elec_conf(:) = elec_conf(:)
+               END IF
 
                potential%zeff_correction = zeff_correction
-               potential%zeff = REAL(SUM(elec_conf), dp) + zeff_correction
+               potential%zeff = REAL(SUM(potential%elec_conf), dp) + zeff_correction
 
                DEALLOCATE (elec_conf)
 

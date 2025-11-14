@@ -184,7 +184,7 @@ registry["M084"] = GenericMatcher(r"Ionization potential of the excited atom:", 
 registry["M085"] = GenericMatcher(r"Total FORCE_EVAL ( SIRIUS ) energy", col=9)
 registry["M086"] = GenericMatcher(r"DIPOLE : CheckSum  =", col=5)
 registry["M087"] = GenericMatcher(r"POLAR : CheckSum  =", col=5)
-registry["M088"] = GenericMatcher(r"XAS excitation energy (eV):", col=7)
+registry["XAS_excit_ener"] = GenericMatcher(r"XAS excitation energy (eV):", col=7)
 registry["M089"] = GenericMatcher(r"Electronic density on regular grids:", col=7)
 registry["M090"] = GenericMatcher(r"Final localization:", col=3)
 registry["M091"] = GenericMatcher(r"Ionization potentials for XPS", col=8)
