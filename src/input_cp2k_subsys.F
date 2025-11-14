@@ -1306,7 +1306,7 @@ CONTAINS
 
       CALL keyword_create(keyword, __LOCATION__, &
                           name="MONOVALENT", &
-                          description="This keyword makes all atoms of this kind monovalent, i.e., with "// &
+                          description="This keyword makes all atoms of this kind monovalent, i.e. with "// &
                           "a single electron and nuclear charge set to 1.0. Used to saturate dangling bonds, "// &
                           "ideally in conjunction with a monovalent pseudopotential. Currently GTH only.", &
                           usage="MONOVALENT", &
