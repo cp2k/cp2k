@@ -116,15 +116,25 @@ CONTAINS
    SUBROUTINE tddfpt2_valence_state_release(valence_state)
       TYPE(tddfpt2_valence_type), POINTER                :: valence_state
 
+      INTEGER                                            :: i, j
+
       IF (ASSOCIATED(valence_state)) THEN
          IF (ASSOCIATED(valence_state%evects)) THEN
-            CALL cp_fm_release(valence_state%evects)
+            DO i = 1, SIZE(valence_state%evects, 1)
+               DO j = 1, SIZE(valence_state%evects, 2)
+                  CALL cp_fm_release(valence_state%evects(i, j))
+               END DO
+            END DO
+            DEALLOCATE (valence_state%evects)
          END IF
          IF (ALLOCATED(valence_state%evals)) THEN
             DEALLOCATE (valence_state%evals)
          END IF
          IF (ASSOCIATED(valence_state%mos_occ)) THEN
-            CALL cp_fm_release(valence_state%mos_occ)
+            DO i = 1, SIZE(valence_state%mos_occ)
+               CALL cp_fm_release(valence_state%mos_occ(i))
+            END DO
+            DEALLOCATE (valence_state%mos_occ)
          END IF
       END IF
 

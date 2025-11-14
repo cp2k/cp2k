@@ -1156,7 +1156,11 @@ CONTAINS
          WRITE (UNIT=ou, FMT="(T3,A,/)") &
             "XAS_TDP| XC Kernel Functional(s) used for the kernel:"
 
-         kernel_section => section_vals_get_subs_vals(input, "DFT%XAS_TDP%KERNEL")
+         IF (qs_env%do_rixs) THEN
+            kernel_section => section_vals_get_subs_vals(input, "PROPERTIES%RIXS%XAS_TDP%KERNEL")
+         ELSE
+            kernel_section => section_vals_get_subs_vals(input, "DFT%XAS_TDP%KERNEL")
+         END IF
          CALL xc_write(ou, kernel_section, lsd=.TRUE.)
       END IF
 
