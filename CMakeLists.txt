@@ -994,8 +994,7 @@ if(CP2K_USE_SPLA_GEMM_OFFLOADING)
 endif()
 
 if(CP2K_USE_MIMIC)
-  message(" - MiMiC\n"
-          "   - include directories: ${CP2K_MIMIC_INCLUDE_DIRS}\n"
+  message(" - MiMiC\n" "   - include directories: ${CP2K_MIMIC_INCLUDE_DIRS}\n"
           "   - libraries: ${CP2K_MIMIC_LINK_LIBRARIES}\n\n")
 endif()
 

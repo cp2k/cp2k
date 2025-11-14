@@ -383,7 +383,7 @@ CONTAINS
          CALL neb(root_section, input_declaration, para_env, globenv)
       CASE (negf_run)
          CALL do_negf(force_env)
-      CASE (mimic_run)                        
+      CASE (mimic_run)
          CALL do_mimic_loop(force_env)
       CASE default
          CPABORT("")

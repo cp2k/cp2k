@@ -14,13 +14,15 @@
 
 MODULE mcl_requests
 
+   #:include 'mcl_wrapper.fypp'
+
 #if defined(__MIMIC)
-   USE mcl
+   #:for label in mcl_implemented_labels
+      USE mcl, ONLY: ${label}$
+   #:endfor
 #endif
 
    IMPLICIT NONE
-
-   #:include 'mcl_wrapper.fypp'
 
    PRIVATE
 

@@ -538,8 +538,7 @@ CONTAINS
       TYPE(mo_set_type), DIMENSION(:), OPTIONAL, POINTER :: mos
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          OPTIONAL, POINTER                               :: sab_orb, sab_all
-      LOGICAL, OPTIONAL                                  :: qmmm, qmmm_periodic
-      LOGICAL, OPTIONAL                                  :: mimic
+      LOGICAL, OPTIONAL                                  :: qmmm, qmmm_periodic, mimic
       TYPE(neighbor_list_set_p_type), DIMENSION(:), OPTIONAL, POINTER :: sac_ae, sac_ppl, sac_lri, &
          sap_ppnl, sab_vdw, sab_scp, sap_oce, sab_lrc, sab_se, sab_xtbe, sab_tbe, sab_core, &
          sab_xb, sab_xtb_pp, sab_xtb_nonbond, sab_almo, sab_kp, sab_kp_nosym, sab_cneo
@@ -1105,8 +1104,7 @@ CONTAINS
       TYPE(qs_environment_type), INTENT(INOUT)           :: qs_env
       TYPE(cell_type), OPTIONAL, POINTER                 :: super_cell
       TYPE(mo_set_type), DIMENSION(:), OPTIONAL, POINTER :: mos
-      LOGICAL, OPTIONAL                                  :: qmmm, qmmm_periodic
-      LOGICAL, OPTIONAL                                  :: mimic
+      LOGICAL, OPTIONAL                                  :: qmmm, qmmm_periodic, mimic
       TYPE(ewald_environment_type), OPTIONAL, POINTER    :: ewald_env
       TYPE(ewald_pw_type), OPTIONAL, POINTER             :: ewald_pw
       TYPE(qs_matrix_pools_type), OPTIONAL, POINTER      :: mpools
