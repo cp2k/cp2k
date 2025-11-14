@@ -33,6 +33,7 @@ MODULE input_cp2k_as
                                               section_create,&
                                               section_release,&
                                               section_type
+   USE input_cp2k_xc,                   ONLY: create_xc_section
    USE input_val_types,                 ONLY: char_t,&
                                               integer_t,&
                                               lchar_t,&
@@ -198,6 +199,10 @@ CONTAINS
       CALL section_release(subsection)
 
       CALL create_socket_section(subsection)
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
+      CALL create_xc_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
