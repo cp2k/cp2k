@@ -514,6 +514,7 @@ CONTAINS
 !> \param evects             TDDFPT trial vectors (SIZE(evects,1) -- number of spins;
 !>                           SIZE(evects,2) -- number of excited states to print)
 !> \param evals              TDDFPT eigenvalues
+!> \param gs_mos ...
 !> \param ostrength          TDDFPT oscillator strength
 !> \param mult               multiplicity
 !> \param dipole_op_mos_occ  action of the dipole operator on the ground state wave function
@@ -532,11 +533,13 @@ CONTAINS
 !>       \f[ t_d(spin) = Tr[evects^T dipole\_op\_mos\_occ(d, spin)] .\f]
 !>       \endparblock
 ! **************************************************************************************************
-   SUBROUTINE tddfpt_print_summary(log_unit, evects, evals, ostrength, mult, &
+   SUBROUTINE tddfpt_print_summary(log_unit, evects, evals, gs_mos, ostrength, mult, &
                                    dipole_op_mos_occ, dipole_form)
       INTEGER, INTENT(in)                                :: log_unit
       TYPE(cp_fm_type), DIMENSION(:, :), INTENT(in)      :: evects
       REAL(kind=dp), DIMENSION(:), INTENT(in)            :: evals
+      TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
+         POINTER                                         :: gs_mos
       REAL(kind=dp), DIMENSION(:), INTENT(inout)         :: ostrength
       INTEGER, INTENT(in)                                :: mult
       TYPE(cp_fm_type), DIMENSION(:, :), INTENT(in)      :: dipole_op_mos_occ
@@ -546,11 +549,10 @@ CONTAINS
 
       CHARACTER(len=1)                                   :: lsd_str
       CHARACTER(len=20)                                  :: mult_str
-      INTEGER                                            :: handle, ideriv, ispin, istate, nactive, &
-                                                            nao, nocc, nspins, nstates
+      INTEGER                                            :: handle, i, ideriv, ispin, istate, j, &
+                                                            nactive, nao, nocc, nspins, nstates
       REAL(kind=dp)                                      :: osc_strength
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: trans_dipoles
-      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_struct
       TYPE(cp_fm_type)                                   :: dipact
 
@@ -603,11 +605,13 @@ CONTAINS
                END DO
             ELSE
                CALL cp_fm_get_info(evects(ispin, 1), matrix_struct=matrix_struct)
-               CALL cp_fm_get_info(dipole_op_mos_occ(1, ispin), context=blacs_env)
                CALL cp_fm_create(dipact, matrix_struct)
                DO ideriv = 1, nderivs
-                  CALL cp_fm_to_fm_submat_general(dipole_op_mos_occ(ideriv, ispin), dipact, &
-                                                  nao, nactive, 1, 1, 1, 1, blacs_env)
+                  DO i = 1, nactive
+                     j = gs_mos(ispin)%index_active(i)
+                     CALL cp_fm_to_fm(dipole_op_mos_occ(ideriv, ispin), dipact, &
+                                      ncol=1, source_start=j, target_start=i)
+                  END DO
                   CALL cp_fm_trace(evects(ispin, :), dipact, trans_dipoles(:, ideriv, ispin))
                END DO
                CALL cp_fm_release(dipact)
@@ -674,8 +678,8 @@ CONTAINS
                                                             istate, nao, ncols_local, nrows_local, &
                                                             nspins, nstates, spin2, state_spin, &
                                                             state_spin2
-      INTEGER(kind=int_8)                                :: iexc, imo_occ, imo_virt, ind, nexcs, &
-                                                            nexcs_local, nexcs_max_local, &
+      INTEGER(kind=int_8)                                :: iexc, imo_act, imo_occ, imo_virt, ind, &
+                                                            nexcs, nexcs_local, nexcs_max_local, &
                                                             nmo_virt_occ, nmo_virt_occ_alpha
       INTEGER(kind=int_8), ALLOCATABLE, DIMENSION(:)     :: inds_local, inds_recv, nexcs_recv
       INTEGER(kind=int_8), DIMENSION(1)                  :: nexcs_send
@@ -910,7 +914,8 @@ CONTAINS
                         spin_label2 = '(bet)'
                      END IF
                   END IF
-                  imo_occ = ind/nmo_virt8(state_spin2) + 1
+                  imo_act = ind/nmo_virt8(state_spin2) + 1
+                  imo_occ = gs_mos(state_spin)%index_active(imo_act)
                   imo_virt = MOD(ind, nmo_virt8(state_spin2)) + 1
 
                   WRITE (log_unit, '(T27,I8,1X,A5,T48,I8,1X,A5,T70,F9.6)') imo_occ, spin_label, &

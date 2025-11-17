@@ -381,7 +381,7 @@ CONTAINS
       CALL pdgeadd("N", n, ncol, fscale, a, 1, ss, desca, 1.0_dp, b, 1, ts, descb)
 #else
       DO i = 0, ncol - 1
-         b(1:n,ts+i) = b(1:n,ts+i) + fscale * a(1:n, ss+i)
+         b(1:n, ts + i) = b(1:n, ts + i) + fscale*a(1:n, ss + i)
       END DO
 #endif
 

@@ -31,7 +31,6 @@ MODULE qs_tddfpt2_forces
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_add_columns
    USE cp_fm_types,                     ONLY: cp_fm_copy_general,&
                                               cp_fm_create,&
                                               cp_fm_get_info,&
@@ -424,7 +423,7 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_force_direct'
 
       INTEGER                                            :: handle, iounit, ispin, nact, natom, &
-                                                            norb, nspins, spin
+                                                            nspins, spin
       LOGICAL                                            :: do_sf
       REAL(KIND=dp)                                      :: evalue
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ftot1, ftot2
@@ -542,7 +541,6 @@ CONTAINS
          ! For spin-flip excitations only the alpha component of Lambda has contributions
          ! of this term, so skip beta
          IF (.NOT. (do_sf .AND. (ispin == 2))) THEN
-            CALL cp_fm_get_info(gs_mos(ispin)%mos_occ, ncol_global=norb)
             evalue = ex_env%evalue
             IF (tddfpt_control%oe_corr == oe_shift) THEN
                evalue = ex_env%evalue - tddfpt_control%ev_shift

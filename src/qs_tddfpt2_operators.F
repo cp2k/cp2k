@@ -592,7 +592,7 @@ CONTAINS
             alpha = 2.0_dp
          END IF
 
-         CALL cp_fm_get_info(gs_mos(1)%mos_occ, nrow_global=nao)
+         CALL cp_fm_get_info(evects(1, 1), nrow_global=nao)
          DO ispin = 1, nspins
             CALL cp_fm_get_info(evects(ispin, 1), ncol_global=nactive(ispin))
          END DO
@@ -641,7 +641,7 @@ CONTAINS
                                      admm_env%work_aux_orb, 0.0_dp, wfm_rho_orb)
 
                   CALL parallel_gemm('N', 'N', nao, nactive(ispin), nao, alpha, wfm_rho_orb, &
-                                     gs_mos(ispin)%mos_occ, 1.0_dp, Aop_evects(ispin, ivect))
+                                     gs_mos(ispin)%mos_active, 1.0_dp, Aop_evects(ispin, ivect))
                END DO
             ELSE
                DO ispin = 1, nspins
@@ -683,7 +683,7 @@ CONTAINS
                                      admm_env%work_aux_orb, 0.0_dp, wfm_rho_orb)
 
                   CALL parallel_gemm('N', 'N', nao, nactive(ispin), nao, alpha, wfm_rho_orb, &
-                                     gs_mos(ispin)%mos_occ, 1.0_dp, Aop_evects(ispin, ivect))
+                                     gs_mos(ispin)%mos_active, 1.0_dp, Aop_evects(ispin, ivect))
                END DO
             ELSE
                DO ispin = 1, nspins
@@ -748,7 +748,7 @@ CONTAINS
       alpha = 2.0_dp
       IF (nspins > 1) alpha = 1.0_dp
 
-      CALL cp_fm_get_info(gs_mos(1)%mos_occ, nrow_global=nao)
+      CALL cp_fm_get_info(evects(1, 1), nrow_global=nao)
       CALL cp_fm_get_info(admm_env%A, nrow_global=nao_aux)
       DO ispin = 1, nspins
          CALL cp_fm_get_info(evects(ispin, 1), ncol_global=nactive(ispin))

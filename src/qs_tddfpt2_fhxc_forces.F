@@ -22,6 +22,7 @@ MODULE qs_tddfpt2_fhxc_forces
         dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, dbcsr_p_type, &
         dbcsr_release, dbcsr_scale, dbcsr_set, dbcsr_transposed, dbcsr_type, &
         dbcsr_type_antisymmetric, dbcsr_type_no_symmetry
+   USE cp_dbcsr_contrib,                ONLY: dbcsr_frobenius_norm
    USE cp_dbcsr_cp2k_link,              ONLY: cp_dbcsr_alloc_block_from_nbl
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
@@ -31,6 +32,7 @@ MODULE qs_tddfpt2_fhxc_forces
                                               dbcsr_deallocate_matrix_set
    USE cp_fm_basic_linalg,              ONLY: cp_fm_add_columns,&
                                               cp_fm_geadd,&
+                                              cp_fm_norm,&
                                               cp_fm_row_scale,&
                                               cp_fm_schur_product
    USE cp_fm_pool_types,                ONLY: fm_pool_create_fm,&
@@ -1279,6 +1281,10 @@ CONTAINS
 
          ! Add Hartree contributions to the perturbation vector
          IF (.NOT. (is_rks_triplets .OR. do_sf)) THEN
+!deb
+            WRITE (6, *) "CPMOS FHXC 1  ", cp_fm_norm(cpmos(1), "F")
+            WRITE (6, *) "HX    FHXC 1 ", dbcsr_frobenius_norm(matrix_hx(1)%matrix)
+!deb
             CALL cp_dbcsr_sm_fm_multiply(matrix_hx(ispin)%matrix, evect(ispin), &
                                          cpscr, nactive(ispin), alpha=focc, beta=1.0_dp)
             CALL cp_dbcsr_sm_fm_multiply(matrix_hx(ispin)%matrix, mos, vcvec, norb(ispin), &
@@ -1291,6 +1297,10 @@ CONTAINS
             !
             CALL cp_dbcsr_plus_fm_fm_t(matrix_wx1(ispin)%matrix, matrix_v=mos, matrix_g=vcvec, &
                                        ncol=norb(ispin), alpha=2.0_dp, symmetry_mode=1)
+!deb
+            WRITE (6, *) "CPMOS FHXC 2  ", cp_fm_norm(cpmos(1), "F")
+            WRITE (6, *) "CPSCR FHXC 2  ", cp_fm_norm(cpscr, "F")
+!deb
          END IF
          ! Add exchange-correlation kernel and exchange-correlation kernel derivative contributions to the response vector
          IF ((myfun /= xc_none) .AND. (tddfpt_control%spinflip /= tddfpt_sf_col)) THEN

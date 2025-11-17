@@ -1225,6 +1225,7 @@ CONTAINS
       CALL tddfpt_print_summary(log_unit, &
                                 evects, &
                                 evals, &
+                                gs_mos, &
                                 ostrength, &
                                 mult, &
                                 dipole_op_mos_occ, &
@@ -1591,7 +1592,7 @@ CONTAINS
                   WRITE (iounit, "(A,T67,A)") ' Active State      Orbital', 'Orbital Energy'
                   DO i = 1, gs_mos(1)%nmo_active
                      io = gs_mos(1)%index_active(i)
-                  WRITE (iounit, "(T8,I6,T21,I6,T61,F20.4)") i, io, gs_mos(1)%evals_occ(io)*evolt
+                     WRITE (iounit, "(T8,I6,T21,I6,T61,F20.4)") i, io, gs_mos(1)%evals_occ(io)*evolt
                   END DO
                ELSE
                   DO ispin = 1, nspins
