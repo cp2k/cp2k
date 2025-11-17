@@ -421,12 +421,8 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: overlap_matrix
       INTEGER                                            :: unit_nr
 
-<<<<<<< HEAD
-      INTEGER                                            :: ispin, istate, ncol, nrow, nspins, &
-                                                            nstates
-=======
-      INTEGER                                            :: istate, nactive, ncol, nrow, nstates
->>>>>>> b5ca29cf0b (Changes to allow for reduced active orbitals in TDDFT)
+      INTEGER                                            :: ispin, istate, nactive, ncol, nrow, &
+                                                            nspins, nstates
       REAL(kind=dp)                                      :: diff
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_struct_type), POINTER                   :: emat_struct
