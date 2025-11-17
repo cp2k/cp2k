@@ -496,7 +496,8 @@ CONTAINS
                            map_1, map_2, &
                            bounds_1, bounds_2, bounds_3, &
                            optimize_dist, pgrid_opt_1, pgrid_opt_2, pgrid_opt_3, &
-                           filter_eps, flop, move_data, retain_sparsity, unit_nr, log_verbose)
+                           filter_eps, flop, move_data, retain_sparsity, unit_nr, log_verbose,&
+                           char_id_gw)
       REAL(dp), INTENT(IN)            :: alpha
       TYPE(dbt_type), INTENT(INOUT), TARGET      :: tensor_1
       TYPE(dbt_type), INTENT(INOUT), TARGET      :: tensor_2
@@ -527,11 +528,15 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                  :: retain_sparsity
       INTEGER, OPTIONAL, INTENT(IN)                  :: unit_nr
       LOGICAL, INTENT(IN), OPTIONAL                  :: log_verbose
+      CHARACTER(LEN=3), INTENT(IN), OPTIONAL         :: char_id_gw
 
-      INTEGER                     :: handle
+      INTEGER                     :: handle,handle_MG
 
       CALL tensor_1%pgrid%mp_comm_2d%sync()
       CALL timeset("dbt_total", handle)
+      IF (PRESENT(char_id_gw)) THEN
+         CALL timeset("dbt_contract"//char_id_gw, handle_MG)
+      END IF
       CALL dbt_contract_expert(alpha, tensor_1, tensor_2, beta, tensor_3, &
                                contract_1, notcontract_1, &
                                contract_2, notcontract_2, &
@@ -548,8 +553,11 @@ CONTAINS
                                move_data=move_data, &
                                retain_sparsity=retain_sparsity, &
                                unit_nr=unit_nr, &
-                               log_verbose=log_verbose)
+                               log_verbose=log_verbose, char_id_gw=char_id_gw)
       CALL tensor_1%pgrid%mp_comm_2d%sync()
+      IF (PRESENT(char_id_gw)) THEN
+         CALL timestop(handle_MG) 
+      END IF
       CALL timestop(handle)
 
    END SUBROUTINE dbt_contract
@@ -566,7 +574,7 @@ CONTAINS
                                   bounds_1, bounds_2, bounds_3, &
                                   optimize_dist, pgrid_opt_1, pgrid_opt_2, pgrid_opt_3, &
                                   filter_eps, flop, move_data, retain_sparsity, &
-                                  nblks_local, unit_nr, log_verbose)
+                                  nblks_local, unit_nr, log_verbose, char_id_gw)
       REAL(dp), INTENT(IN)            :: alpha
       TYPE(dbt_type), INTENT(INOUT), TARGET      :: tensor_1
       TYPE(dbt_type), INTENT(INOUT), TARGET      :: tensor_2
@@ -598,6 +606,7 @@ CONTAINS
       INTEGER, INTENT(OUT), OPTIONAL                 :: nblks_local
       INTEGER, OPTIONAL, INTENT(IN)                  :: unit_nr
       LOGICAL, INTENT(IN), OPTIONAL                  :: log_verbose
+      CHARACTER(LEN=3), INTENT(IN), OPTIONAL         :: char_id_gw
 
       TYPE(dbt_type), POINTER                    :: tensor_contr_1, tensor_contr_2, tensor_contr_3
       TYPE(dbt_type), TARGET                     :: tensor_algn_1, tensor_algn_2, tensor_algn_3
@@ -909,7 +918,8 @@ CONTAINS
                             tensor_contr_3%matrix_rep, filter_eps=filter_eps, flop=flop, &
                             unit_nr=unit_nr_prv, log_verbose=log_verbose, &
                             split_opt=split_opt, &
-                            move_data_a=move_data_1, move_data_b=move_data_2, retain_sparsity=retain_sparsity)
+                            move_data_a=move_data_1, move_data_b=move_data_2, retain_sparsity=retain_sparsity, &
+                            char_id_gw=char_id_gw)
 
       IF (PRESENT(pgrid_opt_1)) THEN
          IF (.NOT. new_1) THEN

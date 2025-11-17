@@ -268,7 +268,8 @@ CONTAINS
                                     contract_1=[2, 3], notcontract_1=[1], map_1=[1], &
                                     contract_2=[2, 3], notcontract_2=[1], map_2=[2], &
                                     bounds_1=bounds_comb, bounds_2=bounds_RI, bounds_3=bounds_RI, &
-                                    filter_eps=bs_env%eps_filter, move_data=.TRUE.)
+                                    filter_eps=bs_env%eps_filter, move_data=.TRUE., &
+                                    unit_nr=bs_env%unit_nr, log_verbose=.TRUE., char_id_gw="cGT")
 
                END DO ! j_atoms
             END DO ! i_atoms
@@ -687,7 +688,8 @@ CONTAINS
                         bounds_1=bounds_IL, &
                         bounds_2=bounds_comb, &
                         bounds_3=bounds_ao_1, &
-                        filter_eps=bs_env%eps_filter)
+                        filter_eps=bs_env%eps_filter, &
+                                    unit_nr=bs_env%unit_nr, log_verbose=.TRUE., char_id_gw="G3c")
 
       CALL dbt_clear(t_3c_for_G)
 
@@ -2012,7 +2014,8 @@ CONTAINS
                            contract_1=[2], notcontract_1=[1], map_1=[1], &
                            contract_2=[1], notcontract_2=[2, 3], map_2=[2, 3], &
                            bounds_1=bounds_P, bounds_2=bounds_Q, bounds_3=bounds_ao, &
-                           filter_eps=bs_env%eps_filter)
+                           filter_eps=bs_env%eps_filter, &
+                                    unit_nr=bs_env%unit_nr, log_verbose=.TRUE., char_id_gw="3cW")
 
       END DO ! RI_atoms
 
@@ -2107,7 +2110,8 @@ CONTAINS
                            contract_2=[3], notcontract_2=[1, 2], map_2=[1, 2], &
                            bounds_1=bounds_mu, bounds_2=bounds_nu, &
                            bounds_3=bounds_comb, &
-                           filter_eps=bs_env%eps_filter)
+                           filter_eps=bs_env%eps_filter, &
+                                    unit_nr=bs_env%unit_nr, log_verbose=.TRUE., char_id_gw="cS1")
 
       END DO ! IL_atoms
 
@@ -2127,7 +2131,8 @@ CONTAINS
                         contract_2=[1, 2], notcontract_2=[3], map_2=[2], &
                         bounds_1=bounds_comb, bounds_2=bounds_full_ao, &
                         bounds_3=bounds_full_ao, &
-                        filter_eps=bs_env%eps_filter, move_data=clear_W, flop=flop)
+                        filter_eps=bs_env%eps_filter, move_data=clear_W, flop=flop, &
+                                    unit_nr=bs_env%unit_nr, log_verbose=.TRUE., char_id_gw="cS2")
 
       IF (PRESENT(can_skip)) THEN
          IF (flop == 0_int_8) can_skip = .TRUE.
