@@ -545,7 +545,7 @@ CONTAINS
                        "incomplete Gamma function is invalid")
       END IF
 
-!$OMP CRITICAL
+!$OMP CRITICAL(init_md_ftable)
       !   *** Check, if the current initialization is sufficient ***
       IF (nmax > current_nmax) THEN
          CALL deallocate_md_ftable()
@@ -553,7 +553,7 @@ CONTAINS
          !     *** for the Taylor series expansion      ***
          CALL create_md_ftable(nmax, 0.0_dp, 12.0_dp, 0.1_dp)
       END IF
-!$OMP END CRITICAL
+!$OMP END CRITICAL(init_md_ftable)
 
    END SUBROUTINE init_md_ftable
 
