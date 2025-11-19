@@ -2104,6 +2104,7 @@ CONTAINS
 
          CALL dbt_copy(t_M_occ, t_3c_4, move_data=.TRUE.)
 
+         IF (cut_memory > 0) CALL dbt_batched_contract_init(t_KBKT)
          DO j_mem = 1, cut_memory
             jbounds(:, 1) = [starts_array_mc(j_mem), ends_array_mc(j_mem)]
 
@@ -2132,25 +2133,30 @@ CONTAINS
                nze_ddint = nze_ddint + nze
                occ_ddint = occ_ddint + occ
 
+               ! Skip the expensive KBK^T contraction when the intermediate block is empty
+               IF (nze == 0) THEN
+                  CALL dbt_clear(t_3c_5)
+                  CYCLE
+               END IF
+
                CALL dbt_copy(t_3c_5, t_3c_6, move_data=.TRUE.)
                CALL timestop(handle2)
 
                !Calculate the contraction of the above with K*B*K^T
                CALL timeset(routineN//"_3c_KBK", handle2)
-               CALL dbt_batched_contract_init(t_KBKT)
                CALL dbt_contract(1.0_dp, t_KBKT, t_3c_6, 0.0_dp, t_3c_7, &
                                  contract_1=[2], notcontract_1=[1], &
                                  contract_2=[1], notcontract_2=[2, 3], &
                                  map_1=[1], map_2=[2, 3], &
                                  retain_sparsity=.TRUE., flop=flop, unit_nr=unit_nr_dbcsr)
                dbcsr_nflop = dbcsr_nflop + flop
-               CALL dbt_batched_contract_finalize(t_KBKT)
                CALL timestop(handle2)
                CALL dbt_copy(t_3c_7, t_3c_8, summation=.TRUE.)
 
             END DO !k_mem
             CALL dbt_batched_contract_finalize(t_dm_virt)
          END DO !j_mem
+         IF (cut_memory > 0) CALL dbt_batched_contract_finalize(t_KBKT)
 
          CALL dbt_copy(t_3c_8, t_3c_help_1, move_data=.TRUE.)
 
